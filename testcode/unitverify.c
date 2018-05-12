@@ -299,6 +299,7 @@ verifytest_file(const char* fname, const char* at_date)
 	struct module_env env;
 	struct val_env ve;
 	time_t now = time(NULL);
+	unit_show_func("signature verify", fname);
 
 	if(!list)
 		fatal_exit("could not read %s: %s", fname, strerror(errno));
@@ -341,6 +342,7 @@ dstest_file(const char* fname)
 	struct entry* e;
 	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
+	unit_show_func("DS verify", fname);
 
 	if(!list)
 		fatal_exit("could not read %s: %s", fname, strerror(errno));
@@ -474,6 +476,7 @@ nsec3_hash_test(const char* fname)
 	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct entry* e;
 	struct entry* list = read_datafile(fname, 1);
+	unit_show_func("NSEC3 hash", fname);
 
 	if(!list)
 		fatal_exit("could not read %s: %s", fname, strerror(errno));

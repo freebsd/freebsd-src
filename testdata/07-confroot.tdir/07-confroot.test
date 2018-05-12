@@ -1,0 +1,287 @@
+# #-- 07-confroot.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+if uname | grep "MINGW" >/dev/null; then
+	# no chroot, no need to test.
+	# (test fails on / en \ comparisons, by the way).
+	echo "no chroot on windows, end test"
+	exit 0
+fi
+
+# create config file
+cwd=`pwd -P`
+subdir=$cwd/subdir
+user=`whoami`
+mkdir subdir
+if test $? -ne 0; then
+	echo "could not create subdir"
+	exit 1
+fi
+
+cat > test.conf <<EOF
+server:
+	chroot: $cwd
+	directory: $subdir
+	username: $user
+
+	pidfile: "/unbound.pid"
+	root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "/subdir/trustanchor.conf"
+	trust-anchor-file: "trustanchor.conf"
+
+	trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+# fake root file
+echo ". NS a.root-servers.net." > subdir/root.ca
+echo "a.root-servers.net. IN A 127.0.0.1" >> subdir/root.ca
+echo ". CH NS b.root-servers.net." > subdir/root.cb
+echo "b.root-servers.net. CH A 127.0.0.1" >> subdir/root.cb
+echo ". HS NS c.root-servers.net." > subdir/root.cc
+echo "c.root-servers.net. HS A 127.0.0.1" >> subdir/root.cc
+echo "" > subdir/trustkeys.conf
+echo "" > subdir/trustkeys2.conf
+echo "" > subdir/trustkeys3.conf
+echo "" > subdir/trustanchor.conf
+echo "" > subdir/trustanchor2.conf
+echo "" > subdir/trustanchor3.conf
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 1"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: $cwd
+	directory: "subdir"
+	username: $user
+
+	pidfile: "/unbound.pid"
+	root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "/subdir/trustanchor.conf"
+	trust-anchor-file: "trustanchor.conf"
+
+	trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 2"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: $cwd
+	directory: "/subdir"
+	username: $user
+
+	pidfile: "/unbound.pid"
+	root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "/subdir/trustanchor.conf"
+	trust-anchor-file: "trustanchor.conf"
+
+	trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 3"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: "."
+	directory: "./subdir"
+	username: $user
+
+	pidfile: "/unbound.pid"
+	root-hints: "root.ca"
+	#root-hints: "$subdir/root.cb"
+	root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	#trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "/subdir/trustanchor.conf"
+	trust-anchor-file: "trustanchor.conf"
+
+	trusted-keys-file: "trustkeys.conf"
+	#trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 1; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 4"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: ""
+	directory: "subdir"
+	username: $user
+
+	pidfile: "/unbound.pid"
+	root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	#root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	#trust-anchor-file: "/subdir/trustanchor.conf"
+	trust-anchor-file: "trustanchor.conf"
+
+	trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	#trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 5"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: ""
+	directory: ""
+	username: $user
+
+	pidfile: "/unbound.pid"
+	#root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	root-hints: "subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "subdir/trustanchor.conf"
+	#trust-anchor-file: "trustanchor.conf"
+
+	#trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 6"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: "."
+	directory: ""
+	username: $user
+
+	pidfile: "/nosubdir/unbound.pid"
+	#root-hints: "root.ca"
+	#root-hints: "$subdir/root.cb"
+	root-hints: "subdir/root.cc"
+
+	logfile: "output.log"
+
+	#trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "subdir/trustanchor.conf"
+	#trust-anchor-file: "trustanchor.conf"
+
+	#trusted-keys-file: "trustkeys.conf"
+	#trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 1; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 7"
+
+### NEXT TEST
+
+cat > test.conf <<EOF
+server:
+	chroot: $cwd
+	directory: ""
+	username: $user
+
+	pidfile: "/unbound.pid"
+	#root-hints: "root.ca"
+	root-hints: "$subdir/root.cb"
+	root-hints: "/subdir/root.cc"
+
+	logfile: "output.log"
+
+	trust-anchor-file: "$subdir/trustanchor.conf"
+	trust-anchor-file: "/subdir/trustanchor.conf"
+	#trust-anchor-file: "trustanchor.conf"
+
+	#trusted-keys-file: "trustkeys.conf"
+	trusted-keys-file: "$subdir/trustkeys2.conf"
+	trusted-keys-file: "/subdir/trustkeys3.conf"
+EOF
+
+$PRE/unbound-checkconf test.conf
+if test $? -ne 0; then
+	echo "Checkconf of config with chroot inside it failed"
+	exit 1
+fi
+echo "OK 8"
+
+
+exit 0

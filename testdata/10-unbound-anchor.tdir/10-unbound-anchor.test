@@ -1,0 +1,162 @@
+# #-- 10-unbound-anchor.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+OPTS="-u 127.0.0.1 -P $PETAL_PORT -C ub.conf -v -a root.key -c root.pem -n petal"
+DS=`cat K.+005+37348.ds`
+
+# check that the root.key file works.
+function check_works() {
+	if $PRE/unbound-host -C ub.conf -f root.key -t DNSKEY -v . | grep "(secure)" >/dev/null; then
+		echo OK
+	else
+		echo "not OK"
+		cat fwd.log
+		cat petal.log
+		exit 1
+	fi
+}
+
+# check that the root.key file works, but insecurely.
+function check_insecure() {
+	if $PRE/unbound-host -C ub.conf -f root.key -t DNSKEY -v . | grep "(insecure)" >/dev/null; then
+		echo OK
+	else
+		echo "not OK"
+		cat fwd.log
+		cat petal.log
+		exit 1
+	fi
+}
+
+# test with good start key, and must do 5011 (no URL possible)
+echo "*** TEST 1 ***"
+echo $DS > root.key
+$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+check_works
+# save for test 5
+cp root.key root.key.probed
+
+# force update with the cert.
+echo "*** TEST 2 ***"
+cp test_cert.pem root.pem
+$PRE/unbound-anchor -F -x "root.xml" -s "root.p7s" $OPTS
+if test $? != 1; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+check_works
+
+# 5011 fails
+echo "*** TEST 3 ***"
+echo ".	IN DS 37000 5 1 b00000000000000000000100f0000000000000b2" > root.key
+$PRE/unbound-anchor -x "root.xml" -s "root.p7s" $OPTS
+if test $? != 1; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+check_works
+
+# cert fails (bad p7s).
+echo "*** TEST 4 ***"
+echo ".	IN DS 44444 5 1 b00000000000000000000100f0000000000000b2" > root.key
+$PRE/unbound-anchor -F -x "bad.xml" -s "bad.p7s" $OPTS
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+if grep "DS 44444" root.key >/dev/null ; then
+	echo OK
+else
+	echo "keyfile changed"
+	exit 1
+fi
+
+# cert fails (bad name).
+echo "*** TEST 4b ***"
+echo ".	IN DS 44444 5 1 b00000000000000000000100f0000000000000b2" > root.key
+$PRE/unbound-anchor -F -x "bad.xml" -s "bad.p7s" $OPTS -n "not-it"
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+if grep "DS 44444" root.key >/dev/null ; then
+	echo OK
+else
+	echo "keyfile changed"
+	exit 1
+fi
+
+# 5011 fails, and probe-time too recent.
+echo "*** TEST 5 ***"
+# break the probed key.
+sed -e 's/bp0KIK3J3/b00KIK0J0/' < root.key.probed > root.key
+$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+if grep "b00KIK0J0" root.key >/dev/null ; then
+	echo OK
+else
+	echo "keyfile changed"
+	exit 1
+fi
+
+# 5011 fails, and probe time is very, very old.
+echo "*** TEST 6 ***"
+mv root.key bla.key
+# last probe was Sun Sep  9 03:46:40 2001
+sed -e 's/;;last_success: .*$/;;last_success: 1000000000/' < bla.key > root.key
+rm bla.key
+$PRE/unbound-anchor -x "root.xml" -s "root.p7s" $OPTS
+if test $? != 1; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+check_works
+
+# 5011 update probe is only needed.
+echo "*** TEST 7 ***"
+$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+check_works
+
+# root goes to insecure (0 anchors).
+echo "*** TEST 8 ***"
+$PRE/unbound-anchor -F -x "no_more_keys.xml" -s "no_more_keys.p7s" $OPTS
+if test $? != 1; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+if grep ";;REVOKED" root.key >/dev/null; then echo "REVOKED"; else
+	echo "not revoked"; exit 1; fi
+check_insecure
+
+# insecure input file
+echo "*** TEST 9 ***"
+$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS
+if test $? != 0; then
+	echo "Exitcode not OK"
+	exit 1
+fi
+if grep ";;REVOKED" root.key >/dev/null; then echo "REVOKED"; else
+	echo "not revoked"; exit 1; fi
+check_insecure
+
+
+echo "logs"
+cat fwd.log
+cat petal.log
+
+exit 0

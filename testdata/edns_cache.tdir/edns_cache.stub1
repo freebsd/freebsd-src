@@ -1,0 +1,43 @@
+; nameserver test file
+; this is ::1 and the EDNS working server.
+$ORIGIN .
+$TTL 3600
+
+; root prime
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+.	IN	NS
+SECTION ANSWER
+. 	IN 	NS 	root.server.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+root.server.	IN	A	127.0.0.1
+ENTRY_END
+
+; referral to example.com
+ENTRY_BEGIN
+MATCH opcode subdomain
+REPLY QR NOERROR
+ADJUST copy_id copy_query
+SECTION QUESTION
+example.com.	IN	A
+SECTION AUTHORITY
+example.com.	IN 	NS	netdns.example.net.
+ENTRY_END
+
+; referral to example.net
+ENTRY_BEGIN
+MATCH opcode subdomain
+REPLY QR NOERROR
+ADJUST copy_id copy_query
+SECTION QUESTION
+example.net.	IN	A
+SECTION AUTHORITY
+example.net.	IN 	NS	netdns.example.net.
+SECTION ADDITIONAL
+netdns.example.net. IN A 127.0.0.1
+ENTRY_END
+

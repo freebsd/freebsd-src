@@ -1,0 +1,13 @@
+# #-- ctrl_itr.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+. ../common.sh
+kill_pid $FWD_PID
+# it was stopped with unbound-control (if the test succeeded)
+kill $UNBOUND_PID >/dev/null 2>&1
+kill $UNBOUND_PID >/dev/null 2>&1
+exit 0

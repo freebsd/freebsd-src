@@ -1,0 +1,27 @@
+# #-- 06-ianaports.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+mkdir util
+get_make
+echo "> $MAKE -f $PRE/Makefile iana_update"
+$MAKE -f $PRE/Makefile iana_update
+if test $? -ne 0; then
+	echo "cannot iana update"
+	exit 1
+fi
+
+diff -u $PRE/util/iana_ports.inc util/iana_ports.inc
+if test $? -ne 0; then
+	echo "IANA assigned ports have updated, make iana_update and commit"
+	echo "cp util/iana_ports.inc $PRE/util/iana_ports.inc"
+	cp util/iana_ports.inc $PRE/util/iana_ports.inc
+	exit 1
+fi
+
+exit 0

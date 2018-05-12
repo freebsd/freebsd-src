@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Aug 21, 2017" "NLnet Labs" "unbound 1.6.5"
+.TH "unbound-control" "8" "Sep 18, 2017" "NLnet Labs" "unbound 1.6.6"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -492,6 +492,10 @@ number of queries that had an EDNS OPT record present.
 .I num.query.edns.DO
 number of queries that had an EDNS OPT record with the DO (DNSSEC OK) bit set.
 These queries are also included in the num.query.edns.present number.
+.TP
+.I num.query.ratelimited
+The number of queries that are turned away from being send to nameserver due to
+ratelimiting.
 .TP
 .I num.answer.rcode.NXDOMAIN
 The number of answers to queries, from cache or from recursion, that had the

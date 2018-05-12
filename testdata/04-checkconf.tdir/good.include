@@ -1,0 +1,6 @@
+# include some file to test include functionality.
+
+include: "good.all"
+
+server:
+	identity: "my identity"

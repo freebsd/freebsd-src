@@ -1,0 +1,72 @@
+# #-- 04-checkconf.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# test that failed exit code is used
+$PRE/unbound-checkconf bla bla bla>/dev/null
+if test $? != 1; then
+	echo "exit code for usage wrong"
+	exit 1
+fi
+$PRE/unbound-checkconf -h >/dev/null
+if test $? != 1; then
+	echo "exit code for usage wrong"
+	exit 1
+fi
+$PRE/unbound-checkconf notexist_file 
+if test $? != 1; then
+	echo "exit code for nofile wrong"
+	exit 1
+fi
+
+# detect windows
+if grep "define UB_ON_WINDOWS 1" ../../config.h; then
+	onwin=1
+else
+	onwin=0
+fi
+
+# test check of config files.
+for f in bad.*; do
+	echo
+	echo $PRE/unbound-checkconf $f
+	if test $f = "bad.user" -a $onwin -eq 1; then
+		echo "skipped on windows"
+		continue
+	fi
+
+	$PRE/unbound-checkconf $f
+	if test $? != 1; then
+		echo "exit code case $f wrong"
+		exit 1
+	fi
+done
+for f in good.*; do
+	echo
+	echo $PRE/unbound-checkconf $f
+	$PRE/unbound-checkconf $f
+	if test $? != 0; then
+		echo "exit code case $f wrong"
+		exit 1
+	fi
+done
+
+echo $PRE/unbound-checkconf warn.algo
+$PRE/unbound-checkconf warn.algo > outfile 2>&1
+if test $? != 0; then
+	cat outfile
+	echo "wrong exit code, warning should not fail with error"
+	exit 1
+fi
+cat outfile
+if grep "unsupported algo" outfile; then
+	echo "OK"
+else
+	echo "Failed, should print warning"
+	exit 1
+fi
+
+exit 0

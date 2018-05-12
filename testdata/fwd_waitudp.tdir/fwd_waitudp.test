@@ -1,0 +1,67 @@
+# #-- fwd_waitudp.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# do the test
+
+# skip the single query test
+# so that all three queries get timeouts during the later test.
+#
+#echo "> dig www1.example.com."
+#dig @localhost -p $UNBOUND_PORT www1.example.com. | tee outfile
+#echo "> cat logfiles"
+#cat fwd.log 
+#cat unbound.log
+#echo "> check answer for single query"
+#if grep "10.20.30.40" outfile; then
+	#echo "OK"
+#else
+	#echo "Not OK"
+	#exit 1
+#fi
+
+echo "> do three queries"
+dig @localhost -p $UNBOUND_PORT www1.example.com. >outfile1 &
+digpid1=$!
+dig @localhost -p $UNBOUND_PORT www2.example.com. >outfile2 &
+digpid2=$!
+dig @localhost -p $UNBOUND_PORT www3.example.com. >outfile3 &
+digpid3=$!
+sleep 15
+kill -9 $digpid1
+kill -9 $digpid2
+kill -9 $digpid3
+
+echo "> cat outfile1"
+cat outfile1 
+echo "> cat outfile2"
+cat outfile2 
+echo "> cat outfile3"
+cat outfile3
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answers for three queries"
+if grep "10.20.30.40" outfile1; then
+	echo "1 is OK"
+else
+	echo "1 is not OK"
+	exit 1
+fi
+if grep "10.20.30.50" outfile2; then
+	echo "2 is OK"
+else
+	echo "2 is not OK"
+	exit 1
+fi
+if grep "10.20.30.60" outfile3; then
+	echo "3 is OK"
+else
+	echo "3 is not OK"
+	exit 1
+fi
+
+exit 0

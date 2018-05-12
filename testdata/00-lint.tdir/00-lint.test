@@ -1,0 +1,11 @@
+# #-- 00-lint.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+. ../common.sh
+PRE="../.."
+get_make
+
+(cd $PRE ; $MAKE lint)
+

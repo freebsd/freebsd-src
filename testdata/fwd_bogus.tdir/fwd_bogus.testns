@@ -1,0 +1,25 @@
+; nameserver test file
+$ORIGIN example.com.
+$TTL 3600
+
+; give unsigned answers!
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+@	IN	DNSKEY
+SECTION ANSWER
+example.com.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+www	IN	A
+SECTION ANSWER
+www	IN	A	10.20.30.40
+ENTRY_END
+

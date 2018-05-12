@@ -1,0 +1,24 @@
+; nameserver test file
+$ORIGIN 30.172.in-addr.arpa.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+1.0	IN 	A
+SECTION ANSWER
+1.0	IN	A	10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+1.0.29.172.in-addr.arpa.	IN 	A
+SECTION ANSWER
+1.0.29.172.in-addr.arpa.	IN	A	10.20.30.42
+ENTRY_END
+

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrustAnchor id="AD42165F-3B1A-4778-8F42-D34A1D41FD93" source="http://data.iana.org/root-anchors/root-anchors.xml">
+<Zone>.</Zone>
+<KeyDigest id="Kjqmt7v" validFrom="2010-07-15T00:00:00+00:00">
+<KeyTag>37348</KeyTag>
+<Algorithm>5</Algorithm>
+<DigestType>1</DigestType>
+<Digest>b56a31943f14faa31224d147f8b1107b78590000</Digest>
+</KeyDigest>
+</TrustAnchor>

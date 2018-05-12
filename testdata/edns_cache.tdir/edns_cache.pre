@@ -1,0 +1,43 @@
+# #-- edns_cache.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+get_random_port 3
+UNBOUND_PORT=$RND_PORT
+STUB1_PORT=$(($RND_PORT + 1))
+STUB2_PORT=$(($RND_PORT + 2))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "STUB1_PORT=$STUB1_PORT" >> .tpkg.var.test
+echo "STUB2_PORT=$STUB2_PORT" >> .tpkg.var.test
+
+# start stub1
+get_ldns_testns
+$LDNS_TESTNS -6 -p $STUB1_PORT edns_cache.stub1 >stub1.log 2>&1 &
+STUB1_PID=$!
+echo "STUB1_PID=$STUB1_PID" >> .tpkg.var.test
+
+# start stub2
+$LDNS_TESTNS -p $STUB2_PORT edns_cache.stub2 >stub2.log 2>&1 &
+STUB2_PID=$!
+echo "STUB2_PID=$STUB2_PID" >> .tpkg.var.test
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@STUB1_PORT\@/'$STUB1_PORT'/' -e 's/@STUB2_PORT\@/'$STUB2_PORT'/' < edns_cache.conf > ub.conf
+# start unbound in the background
+PRE="../.."
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+
+# wait for stubs to come up
+wait_ldns_testns_up stub1.log
+wait_ldns_testns_up stub2.log
+
+# wait for unbound to come up
+wait_unbound_up unbound.log
+

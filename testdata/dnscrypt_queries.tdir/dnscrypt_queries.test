@@ -1,0 +1,107 @@
+# #-- dnscrypt_queries.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+# if no dnscrypt; exit
+if grep "define USE_DNSCRYPT 1" $PRE/config.h; then
+        echo "have dnscrypt"
+else
+        echo "no dnscrypt"
+        exit 0
+fi
+
+
+# do the test
+for opt in '' '+tcp'
+do
+    echo "> do queries ${opt}"
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www1.example.com. >outfile1 &
+    digpid1=$!
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www2.example.com. >outfile2 &
+    digpid2=$!
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www3.example.com. >outfile3 &
+    digpid3=$!
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www4.example.com. >outfile4 &
+    digpid4=$!
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www5.example.com. >outfile5 &
+    digpid5=$!
+    dig @127.0.0.1 ${opt} -p $PROXY_PORT www6.example.com. >outfile6 &
+    digpid6=$!
+    sleep 1
+    kill -9 $digpid1
+    kill -9 $digpid2
+    kill -9 $digpid3
+    kill -9 $digpid4
+    kill -9 $digpid5
+    kill -9 $digpid6
+
+    echo "> cat outfile1"
+    cat outfile1 
+    echo "> cat outfile2"
+    cat outfile2 
+    echo "> cat outfile3"
+    cat outfile3
+    echo "> cat outfile4"
+    cat outfile4
+    echo "> cat outfile5"
+    cat outfile5
+    echo "> cat outfile6"
+    cat outfile6
+    echo "> cat logfiles"
+    cat fwd.log 
+    cat unbound.log
+
+    echo "> check for ID bit collisions"
+    grep "pending reply" unbound.log > ids
+    numsend=`cat ids | wc -l`
+    cat ids | awk '{print $8};' | sort -u > ids2
+    numuniq=`cat ids2 | wc -l`
+    if test $numuniq -ne $numsend; then
+        echo "got a ID number clash. could not do test, sorry"
+        exit 0
+    fi
+
+    echo "> check answers for queries"
+    if grep "10.20.30.40" outfile1; then
+        echo "1 is OK"
+    else
+        echo "1 is not OK"
+        exit 1
+    fi
+    if grep "10.20.30.50" outfile2; then
+        echo "2 is OK"
+    else
+        echo "2 is not OK"
+        exit 1
+    fi
+    if grep "10.20.30.60" outfile3; then
+        echo "3 is OK"
+    else
+        echo "3 is not OK"
+        exit 1
+    fi
+    if grep "10.20.30.70" outfile4; then
+        echo "4 is OK"
+    else
+        echo "4 is not OK"
+        exit 1
+    fi
+    if grep "10.20.30.80" outfile5; then
+        echo "5 is OK"
+    else
+        echo "5 is not OK"
+        exit 1
+    fi
+    if grep "10.20.30.90" outfile6; then
+        echo "6 is OK"
+    else
+        echo "6 is not OK"
+        exit 1
+    fi
+done
+
+exit 0

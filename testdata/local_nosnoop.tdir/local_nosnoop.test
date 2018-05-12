@@ -1,0 +1,75 @@
+# #-- local_nosnoop.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# do the test
+#
+# www.example.com is available through recursion.
+# foo.example.com is available through local-data (and recursion...).
+#
+# so, with 'allow' the cache snoop stops working:
+# 	dig +norec for www does not work any more.
+#
+echo "> dig www.example.com. +RD"
+dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig www.example.com. +norec"
+dig @localhost +norec -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "REFUSED" outfile; then
+	echo "OK rcode"
+else
+	echo "Not OK rcode"
+	exit 1
+fi
+
+if grep "10.20.30.40" outfile; then
+	echo "Not OK"
+	exit 1
+else
+	echo "OK"
+fi
+
+echo "> dig foo.example.com. +RD"
+dig @localhost -p $UNBOUND_PORT foo.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "1.1.1.1" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig foo.example.com. +norec"
+dig @localhost +norec -p $UNBOUND_PORT foo.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "1.1.1.1" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

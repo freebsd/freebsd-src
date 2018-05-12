@@ -1,0 +1,62 @@
+# #-- 06-ianaports.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+# dig 9 ?
+digv=`dig -v 2>&1 | wc -l`
+if test $digv -ne 1; then
+	echo "Dig too old. skip test"
+	exit 0
+fi
+
+eval `grep ^srcdir= $PRE/Makefile`
+echo "srcdir="$srcdir
+
+# obtain list from compiled in settings:
+grep "ROOT-SERVERS.NET." $PRE/$srcdir/iterator/iter_hints.c > curlist
+echo "Current list:"
+cat curlist
+
+result="0"
+
+# dig all servers and check if same
+for rs in A.ROOT-SERVERS.NET. B.ROOT-SERVERS.NET. C.ROOT-SERVERS.NET. D.ROOT-SERVERS.NET. E.ROOT-SERVERS.NET. F.ROOT-SERVERS.NET. G.ROOT-SERVERS.NET. H.ROOT-SERVERS.NET. I.ROOT-SERVERS.NET. J.ROOT-SERVERS.NET. K.ROOT-SERVERS.NET. L.ROOT-SERVERS.NET. M.ROOT-SERVERS.NET.; do
+
+	addr4=`dig +short $rs A`
+	addr6=`dig +short $rs AAAA`
+
+	# all IP4 must be present as listed.
+	if test -z "$addr4" ; then
+		echo "$rs A is removed! It has changed!"
+		result="1"
+	fi
+	if grep $rs curlist | grep "$addr4" >/dev/null; then
+		echo "$rs is OK: A $addr4"
+	else
+		echo "$rs A now $addr4, it has changed!"
+		result="1"
+	fi
+	# if IP6 is "" then it must be "" as well in the compiled hints
+	if test -z "$addr6" ; then
+		if grep $rs curlist | grep ":" >/dev/null; then
+			echo "$rs AAAA now removed, it has changed!"
+			result="1"
+		else
+			echo $rs' is OK: AAAA ""'
+		fi
+	else
+		# root server has an IP6.
+		if grep $rs curlist | grep "$addr6" >/dev/null; then
+			echo "$rs is OK: AAAA $addr6"
+		else
+			echo "$rs AAAA now $addr6, it has changed!"
+			result="1"
+		fi
+	fi
+done
+
+exit $result

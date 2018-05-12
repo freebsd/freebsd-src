@@ -1,0 +1,21 @@
+# #-- pymod_thread.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+
+PRE="../.."
+. ../common.sh
+# if no python; exit
+if grep "define WITH_PYTHONMODULE 1" $PRE/config.h; then
+	echo "have python module"
+else
+	echo "no python module"
+	exit 0
+fi
+
+kill_pid $FWD_PID
+kill_pid $UNBOUND_PID
+exit 0

@@ -1,0 +1,48 @@
+# #-- fwd_bogus.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+# do the test
+echo "> dig www.example.com."
+dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+# servfail.
+if grep "SERVFAIL" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# now check the cache.
+$PRE/unbound-control -c ub.conf dump_cache > cachedump
+if test $? -ne 0; then
+	echo "unbound-control failed"
+	cat cachedump
+	exit 1
+else
+	echo "unbound-control ok"
+fi
+
+# bad cache entry looks like this
+# msg www.example.com. IN A 32896 1 1252576696 1 1 0 0
+cat cachedump
+
+ttl=`grep "msg www.example.com" cachedump | awk '{print $7}'`
+echo TTL $ttl
+# must be smaller than bogus ttl of 60.
+if test $ttl -gt 61; then
+	echo "failed: TTL too big!"
+	exit 1
+else
+	echo "TTL OK"
+fi
+
+exit 0

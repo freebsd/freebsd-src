@@ -1,0 +1,35 @@
+# #-- ctrl_pipe.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+
+# start forwarder
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT ctrl_pipe.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# make config file
+CONTROL_PATH=/tmp
+CONTROL_PID=$$
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's?@PATH\@?'$CONTROL_PATH'?' -e 's/@PID@/'$CONTROL_PID'/' < ctrl_pipe.conf > ub.conf
+# start unbound in the background
+PRE="../.."
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+echo "CONTROL_PATH=$CONTROL_PATH" >> .tpkg.var.test
+echo "CONTROL_PID=$CONTROL_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+

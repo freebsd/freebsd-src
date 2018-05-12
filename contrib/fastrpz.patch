@@ -3263,15 +3263,15 @@ diff -u --unidirectional-new-file -r1.1 ./util/configparser.y
  %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
  %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
  %token VAR_DISABLE_DNSSEC_LAME_CHECK
-@@ -150,7 +151,7 @@
+@@ -153,7 +154,7 @@
  toplevelvar: serverstart contents_server | stubstart contents_stub |
  	forwardstart contents_forward | pythonstart contents_py | 
  	rcstart contents_rc | dtstart contents_dt | viewstart 
 -	contents_view |
 +	contents_view | rpzstart contents_rpz |
- 	dnscstart contents_dnsc
+ 	dnscstart contents_dnsc |
+ 	cachedbstart contents_cachedb
  	;
- 
 @@ -2160,6 +2161,50 @@
  			(strcmp($2, "yes")==0);
  	}

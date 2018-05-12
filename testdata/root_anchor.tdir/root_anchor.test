@@ -1,0 +1,51 @@
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+# only do this test if the network is up.
+echo "is the net up?"
+if dig @k.root-servers.net . SOA 2>&1 | grep NOERROR ; then
+	echo yes
+else
+	echo no
+	exit 0
+fi
+
+# test that unbound-anchor, its builtin DNSKEY, works.
+# so the https is disabled (go to 127.0.0.1@10099).
+$PRE/unbound-anchor -u "127.0.0.1" -P 10099 -a test.ds -v
+# check that the test.ds file is OK.
+if $PRE/unbound-host -f test.ds -t SOA -v . 2>&1 | grep "(secure)"; then
+	echo "The builtin DS root anchors work"
+else
+	echo "The builtin DS root anchors do not work"
+	exit 1
+fi
+
+echo ""
+# test that unbound-anchor, the builtin certificate, works
+# so, force https with -F and the -c is a nonexistant file
+$PRE/unbound-anchor -a test.cert -c test.pem -v -F
+# check that the test.cert file is OK.
+if $PRE/unbound-host -f test.cert -t SOA -v . 2>&1 | grep "(secure)"; then
+	echo "The builtin root update certificate works"
+else
+	echo "The builtin root update certificate does not work"
+	exit 1
+fi
+
+# use curl to see if the PGP certificate has been updated.
+curl --time-cond "20170203 10:00:00" https://data.iana.org/root-anchors/icannbundle.pem > newcert
+if test -n "`cat newcert`"; then
+	echo "icannbundle.pem has been updated"
+	cat newcert
+	echo "icannbundle.pem has been updated"
+	exit 1
+else
+	echo "icannbundle.pem has not been updated"
+fi
+
+exit 0

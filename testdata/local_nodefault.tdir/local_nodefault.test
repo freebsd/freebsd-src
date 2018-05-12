@@ -1,0 +1,53 @@
+# #-- local_nodefault.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+# this one should have NXDOMAIN builtin
+#
+echo "> dig 1.0.31.172.in-addr.arpa."
+dig @localhost -p $UNBOUND_PORT 1.0.31.172.in-addr.arpa. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "NXDOMAIN" outfile; then
+	echo "OK for a blocked by default zone"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# this one should give our own data as the reply
+echo "> dig 1.0.30.172.in-addr.arpa."
+dig @localhost -p $UNBOUND_PORT 1.0.30.172.in-addr.arpa. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK for nodefault zone"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# this one should give our own data as the reply
+# but different trailing dot in unbound.conf file
+echo "> dig 1.0.29.172.in-addr.arpa."
+dig @localhost -p $UNBOUND_PORT 1.0.29.172.in-addr.arpa. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.42" outfile; then
+	echo "OK for nodefault zone"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

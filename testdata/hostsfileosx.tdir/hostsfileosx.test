@@ -1,0 +1,63 @@
+# #-- hostsfileosx.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+# test if fwder is up
+echo "> dig @127.0.0.1 -p $FWD_PORT www.example.com | tee outfile"
+dig @127.0.0.1 -p $FWD_PORT www.example.com | tee outfile
+if grep "10.20.30.40" outfile; then
+	echo "fwder is up"
+else
+	cat fwd.log
+	echo "fwder not up"
+	exit 1
+fi
+rm outfile
+
+# create asynclook
+get_make
+echo "> (cd $PRE ; $MAKE asynclook)"
+(cd $PRE ; $MAKE asynclook)
+if test ! -x $PRE/asynclook; then
+	echo "cannot build asynclook test program"
+	exit 1
+fi
+(cd $PRE ; $MAKE lock-verify)
+
+# check the locks.
+function locktest() {
+	if test -x $PRE/lock-verify -a -f ublocktrace.0; then
+		$PRE/lock-verify ublocktrace.*
+		if test $? -ne 0; then
+			echo "lock-verify error"
+			exit 1
+		fi
+	fi
+}
+
+
+THR=""
+if grep "undef HAVE_FORK" $PRE/config.h; then
+	THR="-t"
+fi
+
+# test hosts reading (directed at local auth info)
+echo '> $PRE/asynclook $THR -H hostsfileosx.hosts virtual.virtual.virtual.local 2>&1 | tee outfile'
+$PRE/asynclook $THR -H hostsfileosx.hosts virtual.virtual.virtual.local 2>&1 | tee outfile
+if grep "virtual.virtual.virtual.local: 10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+locktest
+rm outfile
+
+echo "> cat logfiles"
+cat fwd.log 
+exit 0

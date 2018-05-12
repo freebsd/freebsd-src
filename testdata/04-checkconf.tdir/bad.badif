@@ -1,0 +1,17 @@
+# bad host and interface lines.
+server:
+	username: ""
+	interface: 127.0.0.1
+	interface: 127.0.0.1
+	interface: 127.0.0.1
+	outgoing-interface: ::1
+	outgoing-interface: ::1
+	outgoing-interface: ::1
+	
+forward-zone:
+	name: root.
+	forward-host: 127.0.0.1
+
+stub-zone:
+	name: com.
+	stub-host: ::3

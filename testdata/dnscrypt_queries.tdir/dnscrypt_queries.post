@@ -1,0 +1,20 @@
+# #-- dnscrypt_queries.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+PRE="../.."
+. ../common.sh
+# if no dnscrypt; exit
+if grep "define USE_DNSCRYPT 1" $PRE/config.h; then
+        echo "have dnscrypt"
+else
+        echo "no dnscrypt"
+        exit 0
+fi
+
+kill_pid $FWD_PID
+kill_pid $UNBOUND_PID
+kill_pid $PROXY_PID

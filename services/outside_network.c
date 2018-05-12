@@ -268,6 +268,13 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 	if (connectx(s, &endpoints, SAE_ASSOCID_ANY,  
 	             CONNECT_DATA_IDEMPOTENT | CONNECT_RESUME_ON_READ_WRITE,
 	             NULL, 0, NULL, NULL) == -1) {
+		/* if fails, failover to connect for OSX 10.10 */
+#ifdef EINPROGRESS
+		if(errno != EINPROGRESS) {
+#else
+		if(1) {
+#endif
+			if(connect(s, (struct sockaddr*)&w->addr, w->addrlen) == -1) {
 #else /* USE_OSX_MSG_FASTOPEN*/
 #ifdef USE_MSG_FASTOPEN
 	pend->c->tcp_do_fastopen = 1;
@@ -302,6 +309,10 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 #ifdef USE_MSG_FASTOPEN
 	}
 #endif /* USE_MSG_FASTOPEN */
+#ifdef USE_OSX_MSG_FASTOPEN
+		}
+	}
+#endif /* USE_OSX_MSG_FASTOPEN */
 	if(w->outnet->sslctx && w->ssl_upstream) {
 		pend->c->ssl = outgoing_ssl_fd(w->outnet->sslctx, s);
 		if(!pend->c->ssl) {

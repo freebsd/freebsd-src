@@ -1,0 +1,17 @@
+; nameserver test file
+$ORIGIN example.com.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+; WEIRD CAPS! ; probably not the query!
+WwWabcdefghijklmnopqrstuvwxyzWwW.ExAMPLE.CoM. 	IN	A
+SECTION ANSWER
+wWwABCDEFGHIJKLMNopqrstuvwxyzWwW.ExAMPLE.CoM.	IN	A	10.20.30.44
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+

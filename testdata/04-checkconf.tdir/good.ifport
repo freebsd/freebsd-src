@@ -1,0 +1,23 @@
+#
+# bug301 : unbound-checkconf cannot parse interface '0.0.0.0@5353'
+
+#Use this to include other text into the file.
+#include: "otherfile.conf"
+
+# The server clause sets the main parameters. 
+server:
+	# specify the interfaces to answer queries from by ip-address.
+	# If you give none the default (all) interface is used.
+	# specify every interface on a new 'interface:' labelled line.
+	interface: 192.0.2.153
+	interface: 192.0.2.154
+	interface: 2001:DB8::5
+	interface: 0.0.0.0@5353
+
+	# config
+	chroot: ""
+	username: "nobody"
+	directory: "."
+	logfile: ""
+	use-syslog: no 
+	pidfile: "unbound.pid"

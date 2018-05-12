@@ -114,8 +114,9 @@ fd_set_block(int s)
 #elif defined(HAVE_IOCTLSOCKET)
 	unsigned long off = 0;
 	if(ioctlsocket(s, FIONBIO, &off) != 0) {
-		log_err("can't ioctlsocket FIONBIO off: %s", 
-			wsa_strerror(WSAGetLastError()));
+		if(WSAGetLastError() != WSAEINVAL || verbosity >= 4)
+			log_err("can't ioctlsocket FIONBIO off: %s", 
+				wsa_strerror(WSAGetLastError()));
 	}
 #endif	
 	return 1;
@@ -610,6 +611,88 @@ log_crypto_err(const char* str)
 #endif /* HAVE_SSL */
 }
 
+int
+listen_sslctx_setup(void* ctxt)
+{
+#ifdef HAVE_SSL
+	SSL_CTX* ctx = (SSL_CTX*)ctxt;
+	/* no SSLv2, SSLv3 because has defects */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
+		!= SSL_OP_NO_SSLv2){
+		log_crypto_err("could not set SSL_OP_NO_SSLv2");
+		return 0;
+	}
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
+		!= SSL_OP_NO_SSLv3){
+		log_crypto_err("could not set SSL_OP_NO_SSLv3");
+		return 0;
+	}
+#if defined(SSL_OP_NO_TLSv1) && defined(SSL_OP_NO_TLSv1_1)
+	/* if we have tls 1.1 disable 1.0 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1) & SSL_OP_NO_TLSv1)
+		!= SSL_OP_NO_TLSv1){
+		log_crypto_err("could not set SSL_OP_NO_TLSv1");
+		return 0;
+	}
+#endif
+#if defined(SSL_OP_NO_TLSv1_1) && defined(SSL_OP_NO_TLSv1_2)
+	/* if we have tls 1.2 disable 1.1 */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_1) & SSL_OP_NO_TLSv1_1)
+		!= SSL_OP_NO_TLSv1_1){
+		log_crypto_err("could not set SSL_OP_NO_TLSv1_1");
+		return 0;
+	}
+#endif
+#if defined(SHA256_DIGEST_LENGTH) && defined(USE_ECDSA)
+	/* if we have sha256, set the cipher list to have no known vulns */
+	if(!SSL_CTX_set_cipher_list(ctx, "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
+		log_crypto_err("could not set cipher list with SSL_CTX_set_cipher_list");
+#endif
+
+	if((SSL_CTX_set_options(ctx, SSL_OP_CIPHER_SERVER_PREFERENCE) &
+		SSL_OP_CIPHER_SERVER_PREFERENCE) !=
+		SSL_OP_CIPHER_SERVER_PREFERENCE) {
+		log_crypto_err("could not set SSL_OP_CIPHER_SERVER_PREFERENCE");
+		return 0;
+	}
+
+#ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+	SSL_CTX_set_security_level(ctx, 0);
+#endif
+#else
+	(void)ctxt;
+#endif /* HAVE_SSL */
+	return 1;
+}
+
+void
+listen_sslctx_setup_2(void* ctxt)
+{
+#ifdef HAVE_SSL
+	SSL_CTX* ctx = (SSL_CTX*)ctxt;
+	(void)ctx;
+#if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+	if(!SSL_CTX_set_ecdh_auto(ctx,1)) {
+		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
+	}
+#elif defined(USE_ECDSA)
+	if(1) {
+		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
+		if (!ecdh) {
+			log_crypto_err("could not find p256, not enabling ECDHE");
+		} else {
+			if (1 != SSL_CTX_set_tmp_ecdh (ctx, ecdh)) {
+				log_crypto_err("Error in SSL_CTX_set_tmp_ecdh, not enabling ECDHE");
+			}
+			EC_KEY_free (ecdh);
+		}
+	}
+#endif
+#else
+	(void)ctxt;
+#endif /* HAVE_SSL */
+}
+
 void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 {
 #ifdef HAVE_SSL
@@ -618,16 +701,7 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		log_crypto_err("could not SSL_CTX_new");
 		return NULL;
 	}
-	/* no SSLv2, SSLv3 because has defects */
-	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
-		!= SSL_OP_NO_SSLv2){
-		log_crypto_err("could not set SSL_OP_NO_SSLv2");
-		SSL_CTX_free(ctx);
-		return NULL;
-	}
-	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
-		!= SSL_OP_NO_SSLv3){
-		log_crypto_err("could not set SSL_OP_NO_SSLv3");
+	if(!listen_sslctx_setup(ctx)) {
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
@@ -649,24 +723,7 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
-#if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
-	if(!SSL_CTX_set_ecdh_auto(ctx,1)) {
-		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
-	}
-#elif defined(USE_ECDSA)
-	if(1) {
-		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
-		if (!ecdh) {
-			log_crypto_err("could not find p256, not enabling ECDHE");
-		} else {
-			if (1 != SSL_CTX_set_tmp_ecdh (ctx, ecdh)) {
-				log_crypto_err("Error in SSL_CTX_set_tmp_ecdh, not enabling ECDHE");
-			}
-			EC_KEY_free (ecdh);
-		}
-	}
-#endif
-
+	listen_sslctx_setup_2(ctx);
 	if(verifypem && verifypem[0]) {
 		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
 			log_crypto_err("Error in SSL_CTX verify locations");

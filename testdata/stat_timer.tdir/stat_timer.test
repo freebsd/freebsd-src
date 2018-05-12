@@ -1,0 +1,40 @@
+# #-- stat_timer.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# test if unbound is up 
+echo "> dig www.example.com."
+dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+# wait for statistics timer to go off a couple times.
+sleep 5
+
+n=`grep "server stats" unbound.log | wc | awk '{print $1}'`
+echo "counted $n stat lines"
+if test $n -gt 6; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+exit 0
