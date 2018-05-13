@@ -2138,30 +2138,37 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
     void (*ckhashfunc)(struct buf *), struct buf **bpp)
 {
 	struct buf *bp;
-	int readwait, rv;
+	struct thread *td;
+	int error, readwait, rv;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
+	td = curthread;
 	/*
-	 * Can only return NULL if GB_LOCK_NOWAIT flag is specified.
+	 * Can only return NULL if GB_LOCK_NOWAIT or GB_SPARSE flags
+	 * are specified.
 	 */
-	*bpp = bp = getblk(vp, blkno, size, 0, 0, flags);
-	if (bp == NULL)
-		return (EBUSY);
+	error = getblkx(vp, blkno, size, 0, 0, flags, &bp);
+	if (error != 0) {
+		*bpp = NULL;
+		return (error);
+	}
+	flags &= ~GB_NOSPARSE;
+	*bpp = bp;
 
 	/*
 	 * If not found in cache, do some I/O
 	 */
 	readwait = 0;
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(curthread)) {
+		if (!TD_IS_IDLETHREAD(td)) {
 #ifdef RACCT
 			if (racct_enable) {
-				PROC_LOCK(curproc);
-				racct_add_buf(curproc, bp, 0);
-				PROC_UNLOCK(curproc);
+				PROC_LOCK(td->td_proc);
+				racct_add_buf(td->td_proc, bp, 0);
+				PROC_UNLOCK(td->td_proc);
 			}
 #endif /* RACCT */
-			curthread->td_ru.ru_inblock++;
+			td->td_ru.ru_inblock++;
 		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
@@ -3822,8 +3829,21 @@ has_addr:
 	}
 }
 
+struct buf *
+getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+    int flags)
+{
+	struct buf *bp;
+	int error;
+
+	error = getblkx(vp, blkno, size, slpflag, slptimeo, flags, &bp);
+	if (error != 0)
+		return (NULL);
+	return (bp);
+}
+
 /*
- *	getblk:
+ *	getblkx:
  *
  *	Get a block given a specified block and offset into a file/device.
  *	The buffers B_DONE bit will be cleared on return, making it almost
@@ -3858,12 +3878,13 @@ has_addr:
  *	intends to issue a READ, the caller must clear B_INVAL and BIO_ERROR
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
-struct buf *
-getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
-    int flags)
+int
+getblkx(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+    int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	struct bufobj *bo;
+	daddr_t d_blkno;
 	int bsize, error, maxsize, vmio;
 	off_t offset;
 
@@ -3878,6 +3899,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 
 	bo = &vp->v_bufobj;
+	d_blkno = blkno;
 loop:
 	BO_RLOCK(bo);
 	bp = gbincore(bo, blkno);
@@ -3889,7 +3911,7 @@ loop:
 		 */
 		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
-		if (flags & GB_LOCK_NOWAIT)
+		if ((flags & GB_LOCK_NOWAIT) != 0)
 			lockflags |= LK_NOWAIT;
 
 		error = BUF_TIMELOCK(bp, lockflags,
@@ -3902,8 +3924,8 @@ loop:
 		if (error == ENOLCK)
 			goto loop;
 		/* We timed out or were interrupted. */
-		else if (error)
-			return (NULL);
+		else if (error != 0)
+			return (error);
 		/* If recursed, assume caller knows the rules. */
 		else if (BUF_LOCKRECURSED(bp))
 			goto end;
@@ -4008,10 +4030,10 @@ loop:
 		 * here.
 		 */
 		if (flags & GB_NOCREAT)
-			return NULL;
+			return (EEXIST);
 		if (bdomain[bo->bo_domain].bd_freebuffers == 0 &&
 		    TD_IS_IDLETHREAD(curthread))
-			return NULL;
+			return (EBUSY);
 
 		bsize = vn_isdisk(vp, NULL) ? DEV_BSIZE : bo->bo_bsize;
 		KASSERT(bsize != 0, ("bsize == 0, check bo->bo_bsize"));
@@ -4025,11 +4047,22 @@ loop:
 			flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 		}
 		maxsize = imax(maxsize, bsize);
+		if ((flags & GB_NOSPARSE) != 0 && vmio &&
+		    !vn_isdisk(vp, NULL)) {
+			error = VOP_BMAP(vp, blkno, NULL, &d_blkno, 0, 0);
+			KASSERT(error != EOPNOTSUPP,
+			    ("GB_NOSPARSE from fs not supporting bmap, vp %p",
+			    vp));
+			if (error != 0)
+				return (error);
+			if (d_blkno == -1)
+				return (EJUSTRETURN);
+		}
 
 		bp = getnewbuf(vp, slpflag, slptimeo, maxsize, flags);
 		if (bp == NULL) {
 			if (slpflag || slptimeo)
-				return NULL;
+				return (ETIMEDOUT);
 			/*
 			 * XXX This is here until the sleep path is diagnosed
 			 * enough to work under very low memory conditions.
@@ -4075,7 +4108,8 @@ loop:
 		 * Insert the buffer into the hash, so that it can
 		 * be found by incore.
 		 */
-		bp->b_blkno = bp->b_lblkno = blkno;
+		bp->b_lblkno = blkno;
+		bp->b_blkno = d_blkno;
 		bp->b_offset = offset;
 		bgetvp(vp, bp);
 		BO_UNLOCK(bo);
@@ -4110,7 +4144,8 @@ end:
 	buf_track(bp, __func__);
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
-	return (bp);
+	*bpp = bp;
+	return (0);
 }
 
 /*
