@@ -252,32 +252,16 @@ vm_pageout_end_scan(struct scan_state *ss)
 }
 
 /*
- * Ensure that the page has not been dequeued after a pageout batch was
- * collected.  See vm_page_dequeue_complete().
- */
-static inline bool
-vm_pageout_page_queued(vm_page_t m, int queue)
-{
-
-	vm_page_assert_locked(m);
-
-	if ((m->aflags & PGA_DEQUEUE) != 0)
-		return (false);
-	atomic_thread_fence_acq();
-	return (m->queue == queue);
-}
-
-/*
  * Add a small number of queued pages to a batch queue for later processing
  * without the corresponding queue lock held.  The caller must have enqueued a
  * marker page at the desired start point for the scan.  Pages will be
  * physically dequeued if the caller so requests.  Otherwise, the returned
  * batch may contain marker pages, and it is up to the caller to handle them.
  *
- * When processing the batch queue, vm_pageout_page_queued() must be used to
- * determine whether the page was logically dequeued by another thread.  Once
- * this check is performed, the page lock guarantees that the page will not be
- * disassociated from the queue.
+ * When processing the batch queue, vm_page_queue() must be used to
+ * determine whether the page has been logically dequeued by another thread.
+ * Once this check is performed, the page lock guarantees that the page will
+ * not be disassociated from the queue.
  */
 static __always_inline void
 vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)
@@ -751,7 +735,7 @@ recheck:
 		 * The page may have been disassociated from the queue
 		 * while locks were dropped.
 		 */
-		if (!vm_pageout_page_queued(m, queue))
+		if (vm_page_queue(m) != queue)
 			continue;
 
 		/*
@@ -1262,7 +1246,7 @@ recheck:
 		 * The page may have been disassociated from the queue
 		 * while locks were dropped.
 		 */
-		if (!vm_pageout_page_queued(m, PQ_INACTIVE)) {
+		if (vm_page_queue(m) != PQ_INACTIVE) {
 			addl_page_shortage++;
 			continue;
 		}
@@ -1542,7 +1526,7 @@ act_scan:
 		 * The page may have been disassociated from the queue
 		 * while locks were dropped.
 		 */
-		if (!vm_pageout_page_queued(m, PQ_ACTIVE))
+		if (vm_page_queue(m) != PQ_ACTIVE)
 			continue;
 
 		/*
