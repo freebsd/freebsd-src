@@ -43,6 +43,7 @@
 
 struct ext2fs_dinode;
 struct ext2fs_direct_2;
+struct ext2fs_direct_tail;
 struct ext2fs_searchslot;
 struct indir;
 struct inode;
@@ -110,10 +111,15 @@ void	ext2_sb_csum_set(struct m_ext2fs *);
 int	ext2_extattr_blk_csum_verify(struct inode *, struct buf *);
 void	ext2_extattr_blk_csum_set(struct inode *, struct buf *);
 int	ext2_dir_blk_csum_verify(struct inode *, struct buf *);
-void	ext2_dir_blk_csum_set(struct inode *, struct buf *);
-void	ext2_dir_blk_csum_set_mem(struct inode *, char *, int);
+struct ext2fs_direct_tail	*ext2_dirent_get_tail(struct inode *ip,
+    struct ext2fs_direct_2 *ep);
+void	ext2_dirent_csum_set(struct inode *, struct ext2fs_direct_2 *);
+int	ext2_dirent_csum_verify(struct inode *ip, struct ext2fs_direct_2 *ep);
+void	ext2_dx_csum_set(struct inode *, struct ext2fs_direct_2 *);
+int	ext2_dx_csum_verify(struct inode *ip, struct ext2fs_direct_2 *ep);
 int	ext2_extent_blk_csum_verify(struct inode *, void *);
 void	ext2_extent_blk_csum_set(struct inode *, void *);
+void	ext2_init_dirent_tail(struct ext2fs_direct_tail *);
 int	ext2_gd_i_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);
 void	ext2_gd_i_bitmap_csum_set(struct m_ext2fs *, int, struct buf *);
 int	ext2_gd_b_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);
@@ -122,7 +128,6 @@ int	ext2_ei_csum_verify(struct inode *, struct ext2fs_dinode *);
 void	ext2_ei_csum_set(struct inode *, struct ext2fs_dinode *);
 int	ext2_gd_csum_verify(struct m_ext2fs *, struct cdev *);
 void	ext2_gd_csum_set(struct m_ext2fs *);
-
 
 /* Flags to low-level allocation routines.
  * The low 16-bits are reserved for IO_ flags from vnode.h.
