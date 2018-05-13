@@ -53,7 +53,7 @@ static void
 ext4_ext_print_extent(struct ext4_extent *ep)
 {
 
-	printf("    ext %p => (blk %u len %u start %lu)\n",
+	printf("    ext %p => (blk %u len %u start %ju)\n",
 	    ep, ep->e_blk, ep->e_len,
 	    (uint64_t)ep->e_start_hi << 32 | ep->e_start_lo);
 }
@@ -69,7 +69,7 @@ ext4_ext_print_index(struct inode *ip, struct ext4_extent_index *ex, int do_walk
 
 	fs = ip->i_e2fs;
 
-	printf("    index %p => (blk %u pblk %lu)\n",
+	printf("    index %p => (blk %u pblk %ju)\n",
 	    ex, ex->ei_blk, (uint64_t)ex->ei_leaf_hi << 32 | ex->ei_leaf_lo);
 
 	if(!do_walk)
@@ -110,9 +110,9 @@ ext4_ext_print_path(struct inode *ip, struct ext4_extent_path *path)
 {
 	int k, l;
 
-	l = path->ep_depth
+	l = path->ep_depth;
 
-	printf("ip=%d, Path:\n", ip->i_number);
+	printf("ip=%ju, Path:\n", ip->i_number);
 	for (k = 0; k <= l; k++, path++) {
 		if (path->ep_index) {
 			ext4_ext_print_index(ip, path->ep_index, 0);
@@ -123,13 +123,13 @@ ext4_ext_print_path(struct inode *ip, struct ext4_extent_path *path)
 }
 
 void
-ext4_ext_print_extent_tree_status(struct inode * ip)
+ext4_ext_print_extent_tree_status(struct inode *ip)
 {
 	struct ext4_extent_header *ehp;
 
 	ehp = (struct ext4_extent_header *)(char *)ip->i_db;
 
-	printf("Extent status:ip=%d\n", ip->i_number);
+	printf("Extent status:ip=%ju\n", ip->i_number);
 	if (!(ip->i_flag & IN_E4EXTENTS))
 		return;
 

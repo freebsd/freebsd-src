@@ -90,6 +90,7 @@
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2_extattr.h>
+#include <fs/ext2fs/ext2_extents.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
