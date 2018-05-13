@@ -535,28 +535,41 @@ static uint32_t
 ext2_ei_csum(struct inode *ip, struct ext2fs_dinode *ei)
 {
 	struct m_ext2fs *fs;
-	uint16_t old_hi;
-	uint32_t inum, gen, crc;
+	uint32_t inode_csum_seed, inum, gen, crc;
+	uint16_t dummy_csum = 0;
+	unsigned int offset, csum_size;
 
 	fs = ip->i_e2fs;
-
-	ei->e2di_chksum_lo = 0;
-	if ((EXT2_INODE_SIZE(ip->i_e2fs) > E2FS_REV0_INODE_SIZE &&
-	    ei->e2di_extra_isize >= EXT2_INODE_CSUM_HI_EXTRA_END)) {
-		old_hi = ei->e2di_chksum_hi;
-		ei->e2di_chksum_hi = 0;
-	}
-
+	offset = offsetof(struct ext2fs_dinode, e2di_chksum_lo);
+	csum_size = sizeof(dummy_csum);
 	inum = ip->i_number;
 	gen = ip->i_gen;
+	crc = calculate_crc32c(fs->e2fs_csum_seed,
+	    (uint8_t *)&inum, sizeof(inum));
+	inode_csum_seed = calculate_crc32c(crc,
+	    (uint8_t *)&gen, sizeof(gen));
 
-	crc = calculate_crc32c(fs->e2fs_csum_seed, (uint8_t *)&inum, sizeof(inum));
-	crc = calculate_crc32c(crc, (uint8_t *)&gen, sizeof(gen));
-	crc = calculate_crc32c(crc, (uint8_t *)ei, fs->e2fs->e2fs_inode_size);
+	crc = calculate_crc32c(inode_csum_seed, (uint8_t *)ei, offset);
+	crc = calculate_crc32c(crc, (uint8_t *)&dummy_csum, csum_size);
+	offset += csum_size;
+	crc = calculate_crc32c(crc, (uint8_t *)ei + offset,
+	    E2FS_REV0_INODE_SIZE - offset);
 
-	if ((EXT2_INODE_SIZE(fs) > E2FS_REV0_INODE_SIZE &&
-	    ei->e2di_extra_isize >= EXT2_INODE_CSUM_HI_EXTRA_END))
-		ei->e2di_chksum_hi = old_hi;
+	if (EXT2_INODE_SIZE(fs) > E2FS_REV0_INODE_SIZE) {
+		offset = offsetof(struct ext2fs_dinode, e2di_chksum_hi);
+		crc = calculate_crc32c(crc, (uint8_t *)ei +
+		    E2FS_REV0_INODE_SIZE, offset - E2FS_REV0_INODE_SIZE);
+
+		if ((EXT2_INODE_SIZE(ip->i_e2fs) > E2FS_REV0_INODE_SIZE &&
+		    ei->e2di_extra_isize >= EXT2_INODE_CSUM_HI_EXTRA_END)) {
+			crc = calculate_crc32c(crc, (uint8_t *)&dummy_csum,
+			    csum_size);
+			offset += csum_size;
+		}
+
+		crc = calculate_crc32c(crc, (uint8_t *)ei + offset,
+		    EXT2_INODE_SIZE(fs) - offset);
+	}
 
 	return (crc);
 }
@@ -573,10 +586,6 @@ ext2_ei_csum_verify(struct inode *ip, struct ext2fs_dinode *ei)
 	if (!EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		return (0);
 
-	/* Check case, when dinode was not initialized */
-	if (!memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
-		return (0);
-
 	provided = ei->e2di_chksum_lo;
 	calculated = ext2_ei_csum(ip, ei);
 
@@ -587,8 +596,17 @@ ext2_ei_csum_verify(struct inode *ip, struct ext2fs_dinode *ei)
 	} else
 		calculated &= 0xFFFF;
 
-	if (provided != calculated)
+	if (provided != calculated) {
+		/*
+		 * If it is first time used dinode,
+		 * it is expected that it will be zeroed
+		 * and we will not return checksum error in this case.
+		 */
+		if (!memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
+			return (0);
+
 		return (EIO);
+	}
 
 	return (0);
 }
