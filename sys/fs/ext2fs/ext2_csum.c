@@ -154,12 +154,37 @@ ext2_extattr_blk_csum_set(struct inode *ip, struct buf *bp)
 	header->h_checksum = ext2_extattr_blk_csum(ip, ip->i_facl, header);
 }
 
-static struct ext2fs_direct_tail *
-ext2_get_dirent_tail(struct inode *ip, struct ext2fs_direct_2 *ep)
+void
+ext2_init_dirent_tail(struct ext2fs_direct_tail *tp)
 {
-	struct ext2fs_direct_tail *tp;
+	memset(tp, 0, sizeof(struct ext2fs_direct_tail));
+	tp->e2dt_rec_len = sizeof(struct ext2fs_direct_tail);
+	tp->e2dt_reserved_ft = EXT2_FT_DIR_CSUM;
+}
 
-	tp = EXT2_DIRENT_TAIL(ep, ip->i_e2fs->e2fs_bsize);
+struct ext2fs_direct_tail *
+ext2_dirent_get_tail(struct inode *ip, struct ext2fs_direct_2 *ep)
+{
+	struct ext2fs_direct_2 *dep;
+	void *top;
+	struct ext2fs_direct_tail *tp;
+	unsigned int rec_len;
+
+	dep = ep;
+	top = EXT2_DIRENT_TAIL(ep, ip->i_e2fs->e2fs_bsize);
+	rec_len = dep->e2d_reclen;
+
+	while (rec_len && !(rec_len & 0x3)) {
+		dep = (struct ext2fs_direct_2 *)(((char *)dep) + rec_len);
+		if ((void *)dep >= top)
+			break;
+		rec_len = dep->e2d_reclen;
+	}
+
+	if (dep != top)
+		return (NULL);
+
+	tp = (struct ext2fs_direct_tail *)dep;
 	if (tp->e2dt_reserved_zero1 ||
 	    tp->e2dt_rec_len != sizeof(struct ext2fs_direct_tail) ||
 	    tp->e2dt_reserved_zero2 ||
@@ -189,13 +214,13 @@ ext2_dirent_csum(struct inode *ip, struct ext2fs_direct_2 *ep, int size)
 	return (crc);
 }
 
-static int
+int
 ext2_dirent_csum_verify(struct inode *ip, struct ext2fs_direct_2 *ep)
 {
 	uint32_t calculated;
 	struct ext2fs_direct_tail *tp;
 
-	tp = ext2_get_dirent_tail(ip, ep);
+	tp = ext2_dirent_get_tail(ip, ep);
 	if (tp == NULL)
 		return (0);
 
@@ -263,7 +288,7 @@ ext2_dx_csum(struct inode *ip, struct ext2fs_direct_2 *ep, int count_offset,
 	return (crc);
 }
 
-static int
+int
 ext2_dx_csum_verify(struct inode *ip, struct ext2fs_direct_2 *ep)
 {
 	uint32_t calculated;
@@ -304,7 +329,7 @@ ext2_dir_blk_csum_verify(struct inode *ip, struct buf *bp)
 
 	ep = (struct ext2fs_direct_2 *)bp->b_data;
 
-	if (ext2_get_dirent_tail(ip, ep) != NULL)
+	if (ext2_dirent_get_tail(ip, ep) != NULL)
 		error = ext2_dirent_csum_verify(ip, ep);
 	else if (ext2_get_dx_count(ip, ep, NULL) != NULL)
 		error = ext2_dx_csum_verify(ip, ep);
@@ -316,12 +341,18 @@ ext2_dir_blk_csum_verify(struct inode *ip, struct buf *bp)
 	return (error);
 }
 
-static void
+void
 ext2_dirent_csum_set(struct inode *ip, struct ext2fs_direct_2 *ep)
 {
+	struct m_ext2fs *fs;
 	struct ext2fs_direct_tail *tp;
 
-	tp = ext2_get_dirent_tail(ip, ep);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
+		return;
+
+	tp = ext2_dirent_get_tail(ip, ep);
 	if (tp == NULL)
 		return;
 
@@ -329,12 +360,18 @@ ext2_dirent_csum_set(struct inode *ip, struct ext2fs_direct_2 *ep)
 	    ext2_dirent_csum(ip, ep, (char *)tp - (char *)ep);
 }
 
-static void
+void
 ext2_dx_csum_set(struct inode *ip, struct ext2fs_direct_2 *ep)
 {
+	struct m_ext2fs *fs;
 	struct ext2fs_htree_count *cp;
 	struct ext2fs_htree_tail *tp;
 	int count_offset, limit, count;
+
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
+		return;
 
 	cp = ext2_get_dx_count(ip, ep, &count_offset);
 	if (cp == NULL)
@@ -348,35 +385,6 @@ ext2_dx_csum_set(struct inode *ip, struct ext2fs_direct_2 *ep)
 
 	tp = (struct ext2fs_htree_tail *)(((struct ext2fs_htree_entry *)cp) + limit);
 	tp->ht_checksum = ext2_dx_csum(ip, ep,  count_offset, count, tp);
-}
-
-void
-ext2_dir_blk_csum_set_mem(struct inode *ip, char *buf, int size)
-{
-	struct m_ext2fs *fs;
-	struct ext2fs_direct_2 *ep;
-
-	fs = ip->i_e2fs;
-
-	if (!EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
-		return;
-
-	ep = (struct ext2fs_direct_2 *)buf;
-
-	if (ext2_htree_has_idx(ip)) {
-		if (ext2_get_dx_count(ip, ep, NULL) != NULL)
-			ext2_dx_csum_set(ip, ep);
-	} else {
-		if (ext2_get_dirent_tail(ip, ep) != NULL)
-			ext2_dirent_csum_set(ip, ep);
-	}
-}
-
-void
-ext2_dir_blk_csum_set(struct inode *ip, struct buf *bp)
-{
-
-	ext2_dir_blk_csum_set_mem(ip, bp->b_data, bp->b_bufsize);
 }
 
 static uint32_t
@@ -543,9 +551,9 @@ ext2_ei_csum(struct inode *ip, struct ext2fs_dinode *ei)
 	offset = offsetof(struct ext2fs_dinode, e2di_chksum_lo);
 	csum_size = sizeof(dummy_csum);
 	inum = ip->i_number;
-	gen = ip->i_gen;
 	crc = calculate_crc32c(fs->e2fs_csum_seed,
 	    (uint8_t *)&inum, sizeof(inum));
+	gen = ip->i_gen;
 	inode_csum_seed = calculate_crc32c(crc,
 	    (uint8_t *)&gen, sizeof(gen));
 

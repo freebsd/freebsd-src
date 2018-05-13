@@ -136,6 +136,7 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 
 	memcpy(ip->i_data, ei->e2di_blocks, sizeof(ei->e2di_blocks));
 
+	/* Verify inode csum. */
 	return (ext2_ei_csum_verify(ip, ei));
 }
 
@@ -197,7 +198,7 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 
 	memcpy(ei->e2di_blocks, ip->i_data, sizeof(ei->e2di_blocks));
 
-	/* Set inode csum */
+	/* Set inode csum. */
 	ext2_ei_csum_set(ip, ei);
 
 	return (0);
