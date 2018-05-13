@@ -58,13 +58,15 @@
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/inode.h>
 
-#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_extents.h>
+
 
 static int	ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int	ext2_mountfs(struct vnode *, struct mount *);
