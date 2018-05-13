@@ -130,7 +130,7 @@ int ext4_ext_get_blocks(struct inode *ip, int64_t iblock,
     unsigned long max_blocks, struct ucred *cred, struct buf **bpp,
     int *allocate, daddr_t *);
 #ifdef EXT2FS_DEBUG
-void ext4_ext_print_extent_tree_status(struct inode * ip);
+void ext4_ext_print_extent_tree_status(struct inode *ip);
 #endif
 
 #endif	/* !_FS_EXT2FS_EXT2_EXTENTS_H_ */
