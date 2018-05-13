@@ -1,27 +1,29 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2018, Matthew Macy <mmacy@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *
- *  2. Neither the name of Matthew Macy nor the names of its
- *     contributors may be used to endorse or promote products derived from
- *     this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ck_epoch.h>
 
-MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
+static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 
 /* arbitrary --- needs benchmarking */
 #define MAX_ADAPTIVE_SPIN 5000
@@ -116,6 +118,7 @@ struct epoch {
 static __read_mostly int domcount[MAXMEMDOM];
 static __read_mostly int domoffsets[MAXMEMDOM];
 static __read_mostly int inited;
+__read_mostly epoch_t global_epoch;
 
 static void epoch_call_task(void *context);
 
@@ -136,10 +139,8 @@ epoch_init(void *arg __unused)
 	migrate_count = counter_u64_alloc(M_WAITOK);
 	turnstile_count = counter_u64_alloc(M_WAITOK);
 	switch_count = counter_u64_alloc(M_WAITOK);
-	if (usedomains == false) {
-		inited = 1;
-		return;
-	}
+	if (usedomains == false)
+		goto done;
 	count = domain = 0;
 	domoffsets[0] = 0;
 	for (domain = 0; domain < vm_ndomains; domain++) {
@@ -156,9 +157,11 @@ epoch_init(void *arg __unused)
 			break;
 		}
 	}
+ done:
 	inited = 1;
+	global_epoch = epoch_alloc();
 }
-SYSINIT(epoch, SI_SUB_CPU + 1, SI_ORDER_FIRST, epoch_init, NULL);
+SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
 
 static void
 epoch_init_numa(epoch_t epoch)
@@ -311,19 +314,6 @@ epoch_enter(epoch_t epoch)
 }
 
 void
-epoch_enter_nopreempt(epoch_t epoch)
-{
-	struct epoch_pcpu_state *eps;
-
-	INIT_CHECK(epoch);
-	critical_enter();
-	eps = epoch->e_pcpu[curcpu];
-	curthread->td_epochnest++;
-	MPASS(curthread->td_epochnest < UCHAR_MAX - 2);
-	ck_epoch_begin(&eps->eps_record.er_record, NULL);
-}
-
-void
 epoch_exit(epoch_t epoch)
 {
 	struct epoch_pcpu_state *eps;
@@ -331,6 +321,7 @@ epoch_exit(epoch_t epoch)
 
 	td = curthread;
 	INIT_CHECK(epoch);
+	MPASS(td->td_epochnest);
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
 	sched_unpin();
@@ -339,19 +330,6 @@ epoch_exit(epoch_t epoch)
 	if (td->td_epochnest == 0)
 		TAILQ_REMOVE(&eps->eps_record.er_tdlist, td, td_epochq);
 	eps->eps_record.er_gen++;
-	critical_exit();
-}
-
-void
-epoch_exit_nopreempt(epoch_t epoch)
-{
-	struct epoch_pcpu_state *eps;
-
-	INIT_CHECK(epoch);
-	MPASS(curthread->td_critnest);
-	eps = epoch->e_pcpu[curcpu];
-	ck_epoch_end(&eps->eps_record.er_record, NULL);
-	curthread->td_epochnest--;
 	critical_exit();
 }
 
@@ -541,12 +519,17 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 
 	cb = (void *)ctx;
 
+	MPASS(callback);
+	/* too early in boot to have epoch set up */
+	if (__predict_false(epoch == NULL)) {
+		callback(ctx);
+		return;
+	}
 	MPASS(cb->ec_callback == NULL);
 	MPASS(cb->ec_link.stqe_next == NULL);
-	MPASS(epoch);
-	MPASS(callback);
 	cb->ec_callback = callback;
 	counter_u64_add(epoch->e_frees, 1);
+
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
 	STAILQ_INSERT_HEAD(&eps->eps_cblist, cb, ec_link);
