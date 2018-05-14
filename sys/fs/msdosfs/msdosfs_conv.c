@@ -581,7 +581,7 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
 		if (!code)
 			end = WIN_LAST;
 	}
-	if (*un == '\0')
+	if (!unlen)
 		end = WIN_LAST;
 	wep->weCnt |= end;
 	return !end;
