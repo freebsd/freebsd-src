@@ -63,8 +63,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef NUMA
 #define NDOMAINS vm_ndomains
+#define curdomain PCPU_GET(domain)
 #else
 #define NDOMAINS 1
+#define curdomain 0
 #define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
 #define free_domain(addr, type) free(addr, type)
 #endif
@@ -259,7 +261,7 @@ pmclog_get_buffer(struct pmc_owner *po)
 	KASSERT(po->po_curbuf[curcpu] == NULL,
 	    ("[pmclog,%d] po=%p current buffer still valid", __LINE__, po));
 
-	domain = PCPU_GET(domain);
+	domain = curdomain;
 	MPASS(pmc_dom_hdrs[domain]);
 	mtx_lock_spin(&pmc_dom_hdrs[domain]->pdbh_mtx);
 	if ((plb = TAILQ_FIRST(&pmc_dom_hdrs[domain]->pdbh_head)) != NULL)
