@@ -157,6 +157,15 @@ struct pmc_soft {
 	struct pmc_dyn_event_descr	ps_ev;
 };
 
+struct pmclog_buffer;
+
+struct pmc_domain_buffer_header {
+	struct mtx pdbh_mtx;
+	TAILQ_HEAD(, pmclog_buffer) pdbh_head;
+	struct pmclog_buffer *pdbh_plbs;
+	int pdbh_ncpus;
+} __aligned(CACHE_LINE_SIZE);
+
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
 extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
@@ -176,16 +185,19 @@ extern const int pmc_kernel_version;
 /* PMC soft per cpu trapframe */
 extern struct trapframe pmc_tf[MAXCPU];
 
+/* per domain buffer header list */
+extern struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
+
 /* Quick check if preparatory work is necessary */
 #define	PMC_HOOK_INSTALLED(cmd)	__predict_false(pmc_hook != NULL)
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
 do {						\
-	sx_slock(&pmc_sx);			\
+	epoch_enter(global_epoch);		\
 	if (pmc_hook != NULL)			\
 		(pmc_hook)((t), (cmd), (arg));	\
-	sx_sunlock(&pmc_sx);			\
+	epoch_exit(global_epoch);			\
 } while (0)
 
 /* Hook invocation that needs an exclusive lock */

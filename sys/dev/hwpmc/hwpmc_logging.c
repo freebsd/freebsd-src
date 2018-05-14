@@ -63,20 +63,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef NUMA
 #define NDOMAINS vm_ndomains
-
-static int
-getdomain(int cpu)
-{
-	struct pcpu *pc;
-
-	pc = pcpu_find(cpu);
-	return (pc->pc_domain);
-}
 #else
 #define NDOMAINS 1
 #define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
 #define free_domain(addr, type) free(addr, type)
-#define getdomain(cpu) 0
 #endif
 
 /*
@@ -225,16 +215,6 @@ struct pmclog_buffer {
 	uint16_t	 plb_domain;
 } __aligned(CACHE_LINE_SIZE);
 
-struct pmc_domain_buffer_header {
-	struct mtx pdbh_mtx;
-	TAILQ_HEAD(, pmclog_buffer) pdbh_head;
-	struct pmclog_buffer *pdbh_plbs;
-	int pdbh_ncpus;
-} __aligned(CACHE_LINE_SIZE);
-
-struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
-
-
 /*
  * Prototypes
  */
@@ -280,6 +260,7 @@ pmclog_get_buffer(struct pmc_owner *po)
 	    ("[pmclog,%d] po=%p current buffer still valid", __LINE__, po));
 
 	domain = PCPU_GET(domain);
+	MPASS(pmc_dom_hdrs[domain]);
 	mtx_lock_spin(&pmc_dom_hdrs[domain]->pdbh_mtx);
 	if ((plb = TAILQ_FIRST(&pmc_dom_hdrs[domain]->pdbh_head)) != NULL)
 		TAILQ_REMOVE(&pmc_dom_hdrs[domain]->pdbh_head, plb, plb_next);
@@ -1165,7 +1146,7 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
 void
 pmclog_initialize()
 {
-	int domain, cpu;
+	int domain;
 	struct pmclog_buffer *plb;
 
 	if (pmclog_buffer_size <= 0 || pmclog_buffer_size > 16*1024) {
@@ -1180,23 +1161,11 @@ pmclog_initialize()
 					  "than zero.\n", pmc_nlogbuffers_pcpu);
 		pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
 	}
-
 	if (pmc_nlogbuffers_pcpu*pmclog_buffer_size > 32*1024) {
 		(void) printf("hwpmc: memory allocated pcpu must be less than 32MB (is %dK).\n",
 					  pmc_nlogbuffers_pcpu*pmclog_buffer_size);
 		pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
-	}
-	for (domain = 0; domain < NDOMAINS; domain++) {
-		pmc_dom_hdrs[domain] = malloc_domain(sizeof(struct pmc_domain_buffer_header), M_PMC, domain,
-										M_WAITOK|M_ZERO);
-		mtx_init(&pmc_dom_hdrs[domain]->pdbh_mtx, "pmc_bufferlist_mtx", "pmc-leaf", MTX_SPIN);
-		TAILQ_INIT(&pmc_dom_hdrs[domain]->pdbh_head);
-	}
-	CPU_FOREACH(cpu) {
-		domain = getdomain(cpu);
-		KASSERT(pmc_dom_hdrs[domain] != NULL, ("no mem allocated for domain: %d", domain));
-		pmc_dom_hdrs[domain]->pdbh_ncpus++;
 	}
 	for (domain = 0; domain < NDOMAINS; domain++) {
 		int ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
@@ -1231,12 +1200,10 @@ pmclog_shutdown()
 	mtx_destroy(&pmc_kthread_mtx);
 
 	for (domain = 0; domain < NDOMAINS; domain++) {
-		mtx_destroy(&pmc_dom_hdrs[domain]->pdbh_mtx);
 		while ((plb = TAILQ_FIRST(&pmc_dom_hdrs[domain]->pdbh_head)) != NULL) {
 			TAILQ_REMOVE(&pmc_dom_hdrs[domain]->pdbh_head, plb, plb_next);
 			free(plb->plb_base, M_PMC);
 		}
 		free(pmc_dom_hdrs[domain]->pdbh_plbs, M_PMC);
-		free(pmc_dom_hdrs[domain], M_PMC);
 	}
 }

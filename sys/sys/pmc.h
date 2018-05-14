@@ -40,6 +40,8 @@
 #include <sys/counter.h>
 #include <machine/pmc_mdep.h>
 #include <machine/profile.h>
+#include <sys/epoch.h>
+#include <ck_queue.h>
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		64 /* HW counter name size */
@@ -826,7 +828,7 @@ struct pmc_process {
 
 struct pmc_owner  {
 	LIST_ENTRY(pmc_owner)	po_next;	/* hash chain */
-	LIST_ENTRY(pmc_owner)	po_ssnext;	/* list of SS PMC owners */
+	CK_LIST_ENTRY(pmc_owner)	po_ssnext;	/* list of SS PMC owners */
 	LIST_HEAD(, pmc)	po_pmcs;	/* owned PMC list */
 	TAILQ_HEAD(, pmclog_buffer) po_logbuffers; /* (o) logbuffer list */
 	struct mtx		po_mtx;		/* spin lock for (o) */
