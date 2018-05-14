@@ -453,10 +453,11 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	}
 	/*
 	 * PTEG table must be aligned on a 256k boundary, but can be placed
-	 * anywhere with that alignment. Some of our hash calculations,
-	 * however, assume that the PTEG table is aligned to its own size
-	 * (low-order bits are zero in an OR). As such, make alignment
-	 * bigger than strictly necessary for the time being.
+	 * anywhere with that alignment on POWER ISA 3+ systems. On earlier
+	 * systems, offset addition is done by the CPU with bitwise OR rather
+	 * than addition, so the table must also be aligned on a boundary of
+	 * its own size. Pick the larger of the two, which works on all
+	 * systems.
 	 */
 	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, 
 	    MAX(256*1024, size));
