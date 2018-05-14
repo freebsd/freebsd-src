@@ -2733,13 +2733,6 @@ pmc_start(struct pmc *pm)
 	 */
 
 	if (mode == PMC_MODE_SS) {
-		if (po->po_sscount == 0) {
-			CK_LIST_INSERT_HEAD(&pmc_ss_owners, po, po_ssnext);
-			atomic_add_rel_int(&pmc_ss_count, 1);
-			PMCDBG1(PMC,OPS,1, "po=%p in global list", po);
-		}
-		po->po_sscount++;
-
 		/*
 		 * Log mapping information for all existing processes in the
 		 * system.  Subsequent mappings are logged as they happen;
@@ -2748,6 +2741,12 @@ pmc_start(struct pmc *pm)
 		if (po->po_logprocmaps == 0) {
 			pmc_log_all_process_mappings(po);
 			po->po_logprocmaps = 1;
+		}
+		po->po_sscount++;
+		if (po->po_sscount == 1) {
+			atomic_add_rel_int(&pmc_ss_count, 1);
+			CK_LIST_INSERT_HEAD(&pmc_ss_owners, po, po_ssnext);
+			PMCDBG1(PMC,OPS,1, "po=%p in global list", po);
 		}
 	}
 
