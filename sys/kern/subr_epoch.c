@@ -469,7 +469,11 @@ epoch_wait(epoch_t epoch)
 	int old_cpu;
 	int old_pinned;
 	u_char old_prio;
+#ifdef INVARIANTS
+	int locks;
 
+	locks = curthread->td_locks;
+#endif
 	INIT_CHECK(epoch);
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
@@ -506,9 +510,9 @@ epoch_wait(epoch_t epoch)
 	/* restore thread priority */
 	sched_prio(td, old_prio);
 	thread_unlock(td);
-	KASSERT(td->td_locks == 0,
-			("%d locks held", td->td_locks));
 	PICKUP_GIANT();
+	KASSERT(td->td_locks == locks,
+			("%d residual locks held", td->td_locks - locks));
 }
 
 void
