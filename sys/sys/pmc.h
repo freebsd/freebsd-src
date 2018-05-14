@@ -40,8 +40,10 @@
 #include <sys/counter.h>
 #include <machine/pmc_mdep.h>
 #include <machine/profile.h>
+#ifdef _KERNEL
 #include <sys/epoch.h>
 #include <ck_queue.h>
+#endif
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		64 /* HW counter name size */
