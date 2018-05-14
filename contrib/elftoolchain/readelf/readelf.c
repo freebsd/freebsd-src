@@ -2378,11 +2378,22 @@ dump_phdr(struct readelf *re)
 		}
 		printf("   %2.2d     ", i);
 		/* skip NULL section. */
-		for (j = 1; (size_t)j < re->shnum; j++)
-			if (re->sl[j].addr >= phdr.p_vaddr &&
-			    re->sl[j].addr + re->sl[j].sz <=
+		for (j = 1; (size_t)j < re->shnum; j++) {
+			if (re->sl[j].off < phdr.p_offset)
+				continue;
+			if (re->sl[j].off + re->sl[j].sz >
+			    phdr.p_offset + phdr.p_filesz &&
+			    re->sl[j].type != SHT_NOBITS)
+				continue;
+			if (re->sl[j].addr < phdr.p_vaddr ||
+			    re->sl[j].addr + re->sl[j].sz >
 			    phdr.p_vaddr + phdr.p_memsz)
-				printf("%s ", re->sl[j].name);
+				continue;
+			if (phdr.p_type == PT_TLS &&
+			    (re->sl[j].flags & SHF_TLS) == 0)
+				continue;
+			printf("%s ", re->sl[j].name);
+		}
 		printf("\n");
 	}
 #undef	PH_HDR
