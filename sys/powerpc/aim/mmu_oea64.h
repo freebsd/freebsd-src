@@ -39,7 +39,7 @@ extern mmu_def_t oea64_mmu;
  */
 
 /* Allocate physical memory for use in moea64_bootstrap. */
-vm_offset_t	moea64_bootstrap_alloc(vm_size_t, u_int);
+vm_offset_t	moea64_bootstrap_alloc(vm_size_t size, vm_size_t align);
 /* Set an LPTE structure to match the contents of a PVO */
 void	moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
 
