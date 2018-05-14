@@ -1564,12 +1564,14 @@ pmc_process_mmap(struct thread *td, struct pmckern_map_in *pkm)
 	const struct pmc_process *pp;
 
 	freepath = fullpath = NULL;
+	epoch_exit(global_epoch);
 	pmc_getfilename((struct vnode *) pkm->pm_file, &fullpath, &freepath);
 
 	pid = td->td_proc->p_pid;
 
+	epoch_enter(global_epoch);
 	/* Inform owners of all system-wide sampling PMCs. */
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_in(po, pid, pkm->pm_address, fullpath);
 
@@ -1606,10 +1608,12 @@ pmc_process_munmap(struct thread *td, struct pmckern_map_out *pkm)
 
 	pid = td->td_proc->p_pid;
 
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	epoch_enter(global_epoch);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		pmclog_process_map_out(po, pid, pkm->pm_address,
 		    pkm->pm_address + pkm->pm_size);
+	epoch_exit(global_epoch);
 
 	if ((pp = pmc_find_process_descriptor(td->td_proc, 0)) == NULL)
 		return;
@@ -1631,7 +1635,7 @@ pmc_log_kernel_mappings(struct pmc *pm)
 	struct pmc_owner *po;
 	struct pmckern_map_in *km, *kmbase;
 
-	sx_assert(&pmc_sx, SX_LOCKED);
+	MPASS(in_epoch() || sx_xlocked(&pmc_sx));
 	KASSERT(PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)),
 	    ("[pmc,%d] non-sampling PMC (%p) desires mapping information",
 		__LINE__, (void *) pm));
@@ -1905,11 +1909,13 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		pk = (struct pmckern_procexec *) arg;
 
+		epoch_enter(global_epoch);
 		/* Inform owners of SS mode PMCs of the exec event. */
-		LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			    pmclog_process_procexec(po, PMC_ID_INVALID,
 				p->p_pid, pk->pm_entryaddr, fullpath);
+		epoch_exit(global_epoch);
 
 		PROC_LOCK(p);
 		is_using_hwpmcs = p->p_flag & P_HWPMC;
@@ -2033,12 +2039,12 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		break;
 
 	case PMC_FN_MMAP:
-		sx_assert(&pmc_sx, SX_LOCKED);
+		MPASS(in_epoch() || sx_xlocked(&pmc_sx));
 		pmc_process_mmap(td, (struct pmckern_map_in *) arg);
 		break;
 
 	case PMC_FN_MUNMAP:
-		sx_assert(&pmc_sx, SX_LOCKED);
+		MPASS(in_epoch() || sx_xlocked(&pmc_sx));
 		pmc_process_munmap(td, (struct pmckern_map_out *) arg);
 		break;
 
@@ -2360,7 +2366,8 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 			po->po_sscount--;
 			if (po->po_sscount == 0) {
 				atomic_subtract_rel_int(&pmc_ss_count, 1);
-				LIST_REMOVE(po, po_ssnext);
+				CK_LIST_REMOVE(po, po_ssnext);
+				epoch_wait(global_epoch);
 			}
 		}
 
@@ -2727,7 +2734,7 @@ pmc_start(struct pmc *pm)
 
 	if (mode == PMC_MODE_SS) {
 		if (po->po_sscount == 0) {
-			LIST_INSERT_HEAD(&pmc_ss_owners, po, po_ssnext);
+			CK_LIST_INSERT_HEAD(&pmc_ss_owners, po, po_ssnext);
 			atomic_add_rel_int(&pmc_ss_count, 1);
 			PMCDBG1(PMC,OPS,1, "po=%p in global list", po);
 		}
@@ -2854,7 +2861,8 @@ pmc_stop(struct pmc *pm)
 		po->po_sscount--;
 		if (po->po_sscount == 0) {
 			atomic_subtract_rel_int(&pmc_ss_count, 1);
-			LIST_REMOVE(po, po_ssnext);
+			CK_LIST_REMOVE(po, po_ssnext);
+			epoch_wait(global_epoch);
 			PMCDBG1(PMC,OPS,2,"po=%p removed from global list", po);
 		}
 	}
@@ -2900,6 +2908,9 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	c = (struct pmc_syscall_args *)syscall_args;
 	op = c->pmop_code;
 	arg = c->pmop_data;
+	/* PMC isn't set up yet */
+	if (pmc_hook == NULL)
+		return (EINVAL);
 	if (op == PMC_OP_CONFIGURELOG) {
 		/*
 		 * We cannot create the logging process inside
@@ -2916,7 +2927,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	PMC_GET_SX_XLOCK(ENOSYS);
 	is_sx_downgraded = 0;
-
 	PMCDBG3(MOD,PMS,1, "syscall op=%d \"%s\" arg=%p", op,
 	    pmc_op_to_name[op], arg);
 
@@ -4482,9 +4492,11 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	/*
 	 * Log a sysexit event to all SS PMC owners.
 	 */
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	epoch_enter(global_epoch);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		    pmclog_process_sysexit(po, p->p_pid);
+	epoch_exit(global_epoch);
 
 	if (!is_using_hwpmcs)
 		return;
@@ -4659,10 +4671,11 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 	 * If there are system-wide sampling PMCs active, we need to
 	 * log all fork events to their owner's logs.
 	 */
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	epoch_enter(global_epoch);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		    pmclog_process_procfork(po, p1->p_pid, newproc->p_pid);
+	epoch_exit(global_epoch);
 
 	if (!is_using_hwpmcs)
 		return;
@@ -4728,21 +4741,19 @@ pmc_kld_load(void *arg __unused, linker_file_t lf)
 {
 	struct pmc_owner *po;
 
-	sx_slock(&pmc_sx);
-
 	/*
 	 * Notify owners of system sampling PMCs about KLD operations.
 	 */
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	epoch_enter(global_epoch);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_in(po, (pid_t) -1,
 			    (uintfptr_t) lf->address, lf->filename);
+	epoch_exit(global_epoch);
 
 	/*
 	 * TODO: Notify owners of (all) process-sampling PMCs too.
 	 */
-
-	sx_sunlock(&pmc_sx);
 }
 
 static void
@@ -4751,18 +4762,16 @@ pmc_kld_unload(void *arg __unused, const char *filename __unused,
 {
 	struct pmc_owner *po;
 
-	sx_slock(&pmc_sx);
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	epoch_enter(global_epoch);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_out(po, (pid_t) -1,
 			    (uintfptr_t) address, (uintfptr_t) address + size);
+	epoch_exit(global_epoch);
 
 	/*
 	 * TODO: Notify owners of process-sampling PMCs.
 	 */
-
-	sx_sunlock(&pmc_sx);
 }
 
 /*
@@ -5064,6 +5073,7 @@ pmc_initialize(void)
 
 	/* set hook functions */
 	pmc_intr = md->pmd_intr;
+	wmb();
 	pmc_hook = pmc_hook_handler;
 
 	if (error == 0) {
@@ -5282,6 +5292,3 @@ load (struct module *module __unused, int cmd, void *arg __unused)
 
 	return error;
 }
-
-/* memory pool */
-MALLOC_DEFINE(M_PMC, "pmc", "Memory space for the PMC module");
