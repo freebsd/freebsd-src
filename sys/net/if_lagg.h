@@ -253,27 +253,8 @@ struct lagg_port {
 	struct lagg_counters		port_counters;	/* ifp counters copy */
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
+	struct epoch_context	lp_epoch_ctx;
 };
-
-#define	LAGG_LOCK_INIT(_sc)	rm_init(&(_sc)->sc_mtx, "if_lagg rmlock")
-#define	LAGG_LOCK_DESTROY(_sc)	rm_destroy(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK(_sc, _p)	rm_rlock(&(_sc)->sc_mtx, (_p))
-#define	LAGG_WLOCK(_sc)		rm_wlock(&(_sc)->sc_mtx)
-#define	LAGG_RUNLOCK(_sc, _p)	rm_runlock(&(_sc)->sc_mtx, (_p))
-#define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
-#define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
-#define	LAGG_UNLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_UNLOCKED)
-
-#define	LAGG_SX_INIT(_sc)	sx_init(&(_sc)->sc_sx, "if_lagg sx")
-#define	LAGG_SX_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx)
-#define	LAGG_SLOCK(_sc)		sx_slock(&(_sc)->sc_sx)
-#define	LAGG_XLOCK(_sc)		sx_xlock(&(_sc)->sc_sx)
-#define	LAGG_SUNLOCK(_sc)	sx_sunlock(&(_sc)->sc_sx)
-#define	LAGG_XUNLOCK(_sc)	sx_xunlock(&(_sc)->sc_sx)
-#define	LAGG_SXLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED)
-#define	LAGG_SLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_SLOCKED)
-#define	LAGG_XLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_XLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
