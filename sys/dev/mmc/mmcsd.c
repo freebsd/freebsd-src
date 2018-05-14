@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/slicer.h>
 #include <sys/time.h>
 
@@ -179,7 +180,7 @@ static int mmcsd_bus_bit_width(device_t dev);
 static daddr_t mmcsd_delete(struct mmcsd_part *part, struct bio *bp);
 static const char *mmcsd_errmsg(int e);
 static int mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data,
-    int fflag);
+    int fflag, struct thread *td);
 static int mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic,
     int fflag);
 static uintmax_t mmcsd_pretty_size(off_t size, char *unit);
@@ -771,22 +772,23 @@ mmcsd_strategy(struct bio *bp)
 
 static int
 mmcsd_ioctl_rpmb(struct cdev *dev, u_long cmd, caddr_t data,
-    int fflag, struct thread *td __unused)
+    int fflag, struct thread *td)
 {
 
-	return (mmcsd_ioctl(dev->si_drv1, cmd, data, fflag));
+	return (mmcsd_ioctl(dev->si_drv1, cmd, data, fflag, td));
 }
 
 static int
 mmcsd_ioctl_disk(struct disk *disk, u_long cmd, void *data, int fflag,
-    struct thread *td __unused)
+    struct thread *td)
 {
 
-	return (mmcsd_ioctl(disk->d_drv1, cmd, data, fflag));
+	return (mmcsd_ioctl(disk->d_drv1, cmd, data, fflag, td));
 }
 
 static int
-mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
+mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag,
+    struct thread *td)
 {
 	struct mmc_ioc_cmd *mic;
 	struct mmc_ioc_multi_cmd *mimc;
@@ -795,6 +797,10 @@ mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
 
 	if ((fflag & FREAD) == 0)
 		return (EBADF);
+
+	err = priv_check(td, PRIV_DRIVER);
+	if (err != 0)
+		return (err);
 
 	err = 0;
 	switch (cmd) {
