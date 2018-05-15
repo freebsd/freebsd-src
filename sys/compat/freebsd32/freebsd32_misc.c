@@ -2263,7 +2263,7 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, &oldlen, 1,
 		uap->new, uap->newlen, &j, SCTL_MASK32);
-	if (error && error != ENOMEM)
+	if (error)
 		return (error);
 	if (uap->oldlenp)
 		suword32(uap->oldlenp, j);
