@@ -3387,6 +3387,7 @@ dev/usb/misc/uled.c		optional uled
 dev/usb/input/atp.c		optional atp
 dev/usb/input/uep.c		optional uep
 dev/usb/input/uhid.c		optional uhid
+dev/usb/input/uhid_snes.c	optional uhid_snes
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
 dev/usb/input/wmt.c		optional wmt
