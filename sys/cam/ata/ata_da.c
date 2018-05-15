@@ -2458,7 +2458,6 @@ out:
 		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
 		cam_periph_lock(periph);
-		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		adaschedule(periph);
@@ -2856,10 +2855,13 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * We need to call cam_iosched before we call biodone so that we
 		 * don't measure any activity that happens in the completion
 		 * routine, which in the case of sendfile can be quite
-		 * extensive.
+		 * extensive.  Release the periph refcount taken in adastart()
+		 * for each CCB.
 		 */
 		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
+		KASSERT(softc->refcount >= 1, ("adadone softc %p refcount %d", softc, softc->refcount));
+		softc->refcount--;
 		if (state == ADA_CCB_TRIM) {
 			TAILQ_HEAD(, bio) queue;
 			struct bio *bp1;
