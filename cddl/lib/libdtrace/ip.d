@@ -215,10 +215,10 @@ translator csinfo_t < void *p > {
 
 #pragma D binding "1.6.3" translator
 translator csinfo_t < struct inpcb *p > {
-	cs_addr =       NULL;
-	cs_cid =        (uint64_t)p;
-	cs_pid =        0;	/* XXX */
-	cs_zoneid =     0;
+	cs_addr =	NULL;
+	cs_cid =	(uint64_t)p;
+	cs_pid =	0;	/* XXX */
+	cs_zoneid =	0;
 };
 
 #pragma D binding "1.5" translator
