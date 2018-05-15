@@ -1579,8 +1579,6 @@ timer:
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
 		case EACCES:
-			tp->t_softerror = error;
-			return (0);
 		case EPERM:
 			tp->t_softerror = error;
 			return (error);
