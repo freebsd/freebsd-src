@@ -2350,62 +2350,62 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&ndpc, sizeof(ndpc));
-			/* skip deleted entries */
-			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
-				return (0);
-			/* Skip if jailed and not a valid IP of the prison. */
-			lltable_fill_sa_entry(lle,
-			    (struct sockaddr *)&ndpc.sin6);
-			if (prison_if(wr->td->td_ucred,
-			    (struct sockaddr *)&ndpc.sin6) != 0)
-				return (0);
-			/*
-			 * produce a msg made of:
-			 *  struct rt_msghdr;
-			 *  struct sockaddr_in6 (IPv6)
-			 *  struct sockaddr_dl;
-			 */
-			ndpc.rtm.rtm_msglen = sizeof(ndpc);
-			ndpc.rtm.rtm_version = RTM_VERSION;
-			ndpc.rtm.rtm_type = RTM_GET;
-			ndpc.rtm.rtm_flags = RTF_UP;
-			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			if (V_deembed_scopeid)
-				sa6_recoverscope(&ndpc.sin6);
+	/* skip deleted entries */
+	if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
+		return (0);
+	/* Skip if jailed and not a valid IP of the prison. */
+	lltable_fill_sa_entry(lle,
+	    (struct sockaddr *)&ndpc.sin6);
+	if (prison_if(wr->td->td_ucred,
+	    (struct sockaddr *)&ndpc.sin6) != 0)
+		return (0);
+	/*
+	 * produce a msg made of:
+	 *  struct rt_msghdr;
+	 *  struct sockaddr_in6 (IPv6)
+	 *  struct sockaddr_dl;
+	 */
+	ndpc.rtm.rtm_msglen = sizeof(ndpc);
+	ndpc.rtm.rtm_version = RTM_VERSION;
+	ndpc.rtm.rtm_type = RTM_GET;
+	ndpc.rtm.rtm_flags = RTF_UP;
+	ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
+	if (V_deembed_scopeid)
+		sa6_recoverscope(&ndpc.sin6);
 
-			/* publish */
-			if (lle->la_flags & LLE_PUB)
-				ndpc.rtm.rtm_flags |= RTF_ANNOUNCE;
+	/* publish */
+	if (lle->la_flags & LLE_PUB)
+		ndpc.rtm.rtm_flags |= RTF_ANNOUNCE;
 
-			sdl = &ndpc.sdl;
-			sdl->sdl_family = AF_LINK;
-			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_index = ifp->if_index;
-			sdl->sdl_type = ifp->if_type;
-			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(lle->ll_addr, LLADDR(sdl),
-				    ifp->if_addrlen);
-			} else {
-				sdl->sdl_alen = 0;
-				bzero(LLADDR(sdl), ifp->if_addrlen);
-			}
-			if (lle->la_expire != 0)
-				ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
-				    lle->lle_remtime / hz +
-				    time_second - time_uptime;
-			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
-			if (lle->la_flags & LLE_STATIC)
-				ndpc.rtm.rtm_flags |= RTF_STATIC;
-			if (lle->la_flags & LLE_IFADDR)
-				ndpc.rtm.rtm_flags |= RTF_PINNED;
-			if (lle->ln_router != 0)
-				ndpc.rtm.rtm_flags |= RTF_GATEWAY;
-			ndpc.rtm.rtm_rmx.rmx_pksent = lle->la_asked;
-			/* Store state in rmx_weight value */
-			ndpc.rtm.rtm_rmx.rmx_state = lle->ln_state;
-			ndpc.rtm.rtm_index = ifp->if_index;
-			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
+	sdl = &ndpc.sdl;
+	sdl->sdl_family = AF_LINK;
+	sdl->sdl_len = sizeof(*sdl);
+	sdl->sdl_index = ifp->if_index;
+	sdl->sdl_type = ifp->if_type;
+	if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+		sdl->sdl_alen = ifp->if_addrlen;
+		bcopy(lle->ll_addr, LLADDR(sdl),
+		    ifp->if_addrlen);
+	} else {
+		sdl->sdl_alen = 0;
+		bzero(LLADDR(sdl), ifp->if_addrlen);
+	}
+	if (lle->la_expire != 0)
+		ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
+		    lle->lle_remtime / hz +
+		    time_second - time_uptime;
+	ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
+	if (lle->la_flags & LLE_STATIC)
+		ndpc.rtm.rtm_flags |= RTF_STATIC;
+	if (lle->la_flags & LLE_IFADDR)
+		ndpc.rtm.rtm_flags |= RTF_PINNED;
+	if (lle->ln_router != 0)
+		ndpc.rtm.rtm_flags |= RTF_GATEWAY;
+	ndpc.rtm.rtm_rmx.rmx_pksent = lle->la_asked;
+	/* Store state in rmx_weight value */
+	ndpc.rtm.rtm_rmx.rmx_state = lle->ln_state;
+	ndpc.rtm.rtm_index = ifp->if_index;
+	error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
 
 	return (error);
 }
