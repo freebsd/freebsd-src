@@ -645,16 +645,10 @@ struct {
 	{0x5412,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
 	{0x5414,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
 	{0x5415,  "Chelsio T502-BT"},		/* 2 x 1G */
-#ifdef notyet
-	{0x5404,  "Chelsio T520-BCH"},
-	{0x5405,  "Chelsio T540-BCH"},
-	{0x5406,  "Chelsio T540-CH"},
-	{0x5408,  "Chelsio T520-CX"},
-	{0x540b,  "Chelsio B520-SR"},
-	{0x540c,  "Chelsio B504-BT"},
-	{0x540f,  "Chelsio Amsterdam"},
-	{0x5413,  "Chelsio T580-CHR"},
-#endif
+	{0x5418,  "Chelsio T540-BT"},		/* 4 x 10GBaseT */
+	{0x5419,  "Chelsio T540-LP-BT"},	/* 4 x 10GBaseT */
+	{0x541a,  "Chelsio T540-SO-BT"},	/* 4 x 10GBaseT, nomem */
+	{0x541b,  "Chelsio T540-SO-CR"},	/* 4 x 10G, nomem */
 }, t6_pciids[] = {
 	{0xc006, "Chelsio Terminator 6 FPGA"},	/* T6 PE10K6 FPGA (PF0) */
 	{0x6400, "Chelsio T6-DBG-25"},		/* 2 x 10/25G, debug */
@@ -674,9 +668,14 @@ struct {
 	{0x6415, "Chelsio T6201-BT"},		/* 2 x 1000BASE-T */
 
 	/* Custom */
-	{0x6480, "Chelsio T6225 80"},
-	{0x6481, "Chelsio T62100 81"},
-	{0x6484, "Chelsio T62100 84"},
+	{0x6480, "Custom T6225-CR"},
+	{0x6481, "Custom T62100-CR"},
+	{0x6482, "Custom T6225-CR"},
+	{0x6483, "Custom T62100-CR"},
+	{0x6484, "Custom T64100-CR"},
+	{0x6485, "Custom T6240-SO"},
+	{0x6486, "Custom T6225-SO-CR"},
+	{0x6487, "Custom T6225-CR"},
 };
 
 #ifdef TCP_OFFLOAD
