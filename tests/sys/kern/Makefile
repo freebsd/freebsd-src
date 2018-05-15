@@ -4,6 +4,7 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 .PATH:		${SRCTOP}/sys/kern
 
 TESTSDIR=	${TESTSBASE}/sys/kern
+BINDIR=		${TESTSDIR}
 
 ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
