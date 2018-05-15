@@ -1357,7 +1357,6 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 	cam_periph_unlock(periph);
 	xpt_action(start_ccb);
 	cam_periph_lock(periph);
-	softc->refcount--;
 
 	/* May have more work to do, so ensure we stay scheduled */
 	sddaschedule(periph);
@@ -1418,6 +1417,11 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc->outstanding_cmds--;
 	xpt_release_ccb(done_ccb);
+	/*
+	 * Release the periph refcount taken in mdastart() for each CCB.
+	 */
+	KASSERT(softc->refcount >= 1, ("mdadone softc %p refcount %d", softc, softc->refcount));
+	softc->refcount--;
 	biodone(bp);
 }
 
