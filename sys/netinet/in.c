@@ -1417,8 +1417,7 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 		return (0);
 	/* Skip if jailed and not a valid IP of the prison. */
 	lltable_fill_sa_entry(lle,(struct sockaddr *)&arpc.sin);
-	if (prison_if(wr->td->td_ucred,
-	    (struct sockaddr *)&arpc.sin) != 0)
+	if (prison_if(wr->td->td_ucred, (struct sockaddr *)&arpc.sin) != 0)
 		return (0);
 	/*
 	 * produce a msg made of:
