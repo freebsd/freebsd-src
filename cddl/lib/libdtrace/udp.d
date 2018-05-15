@@ -47,7 +47,7 @@ typedef struct udpinfo {
 	uint16_t udp_sport;		/* source port */
 	uint16_t udp_dport;		/* destination port */
 	uint16_t udp_length;		/* total length */
-	uint16_t udp_checksum;          /* headers + data checksum */
+	uint16_t udp_checksum;		/* headers + data checksum */
 	struct udphdr *udp_hdr;		/* raw UDP header */
 } udpinfo_t;
 
