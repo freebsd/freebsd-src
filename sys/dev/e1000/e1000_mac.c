@@ -2192,11 +2192,12 @@ s32 e1000_write_8bit_ctrl_reg_generic(struct e1000_hw *hw, u32 reg,
 s32 e1000_get_hw_semaphore(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 timeout = hw->nvm.word_size + 1;
+	s32 fw_timeout = hw->nvm.word_size + 1;
+	s32 sw_timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
 	
 	DEBUGFUNC("e1000_get_hw_semaphore");
-#ifdef notyet
+
 	/* _82571 */
 	/* If we have timedout 3 times on trying to acquire
 	 * the inter-port SMBI semaphore, there is old code
@@ -2208,9 +2209,9 @@ s32 e1000_get_hw_semaphore(struct e1000_hw *hw)
 	if (hw->dev_spec._82571.smb_counter > 2)
 		sw_timeout = 1;
 
-#endif
+
 	/* Get the SW semaphore */
-	while (i < timeout) {
+	while (i < sw_timeout) {
 		swsm = E1000_READ_REG(hw, E1000_SWSM);
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
@@ -2219,34 +2220,28 @@ s32 e1000_get_hw_semaphore(struct e1000_hw *hw)
 		i++;
 	}
 
-	if (i == timeout) {
-#ifdef notyet
-		/*
-		 * XXX This sounds more like a driver bug whereby we either
-		 * recursed accidentally or missed clearing it previously
-		 */
-		/* In rare circumstances, the SW semaphore may already be held
-		 * unintentionally. Clear the semaphore once before giving up.
-		 */
-               if (hw->dev_spec._82575.clear_semaphore_once) {
-                       hw->dev_spec._82575.clear_semaphore_once = FALSE;
-                       e1000_put_hw_semaphore_generic(hw);
-                       for (i = 0; i < timeout; i++) {
-                               swsm = E1000_READ_REG(hw, E1000_SWSM);
-                               if (!(swsm & E1000_SWSM_SMBI))
-                                       break;
-
-                               usec_delay(50);
-                       }
-               }
-#endif
-
+	if (i == sw_timeout) {
 		DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
-		return -E1000_ERR_NVM;
+		hw->dev_spec._82571.smb_counter++;
 	}
 
+	/* In rare circumstances, the SW semaphore may already be held
+	 * unintentionally. Clear the semaphore once before giving up.
+	 */
+         if (hw->dev_spec._82575.clear_semaphore_once) {
+         	hw->dev_spec._82575.clear_semaphore_once = FALSE;
+         	e1000_put_hw_semaphore(hw);
+         	for (i = 0; i < fw_timeout; i++) {
+         		swsm = E1000_READ_REG(hw, E1000_SWSM);
+         		if (!(swsm & E1000_SWSM_SMBI))
+         			break;
+
+         		usec_delay(50);
+         	}
+         }
+
 	/* Get the FW semaphore. */
-	for (i = 0; i < timeout; i++) {
+	for (i = 0; i < fw_timeout; i++) {
 		swsm = E1000_READ_REG(hw, E1000_SWSM);
 		E1000_WRITE_REG(hw, E1000_SWSM, swsm | E1000_SWSM_SWESMBI);
 
@@ -2257,7 +2252,7 @@ s32 e1000_get_hw_semaphore(struct e1000_hw *hw)
 		usec_delay(50);
 	}
 
-	if (i == timeout) {
+	if (i == fw_timeout) {
 		/* Release semaphores */
 		e1000_put_hw_semaphore(hw);
 		DEBUGOUT("Driver can't access the NVM\n");
