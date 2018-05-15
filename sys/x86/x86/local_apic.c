@@ -206,6 +206,9 @@ SYSCTL_INT(_hw_apic, OID_AUTO, eoi_suppression, CTLFLAG_RD,
 SYSCTL_INT(_hw_apic, OID_AUTO, timer_tsc_deadline, CTLFLAG_RD,
     &lapic_timer_tsc_deadline, 0, "");
 
+static void lapic_calibrate_initcount(struct lapic *la);
+static void lapic_calibrate_deadline(struct lapic *la);
+
 static uint32_t
 lapic_read32(enum LAPIC_REGISTERS reg)
 {
@@ -787,6 +790,13 @@ native_lapic_setup(int boot)
 		intrcnt_add(buf, &la->la_timer_count);
 	}
 
+	/* Calibrate the timer parameters using BSP. */
+	if (boot && IS_BSP()) {
+		lapic_calibrate_initcount(la);
+		if (lapic_timer_tsc_deadline)
+			lapic_calibrate_deadline(la);
+	}
+
 	/* Setup the timer if configured. */
 	if (la->la_timer_mode != LAT_MODE_UNDEF) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
@@ -921,7 +931,7 @@ native_lapic_disable_pmc(void)
 }
 
 static void
-lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
+lapic_calibrate_initcount(struct lapic *la)
 {
 	u_long value;
 
@@ -947,7 +957,7 @@ lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
 }
 
 static void
-lapic_calibrate_deadline(struct eventtimer *et, struct lapic *la __unused)
+lapic_calibrate_deadline(struct lapic *la __unused)
 {
 
 	if (bootverbose) {
@@ -989,11 +999,6 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	struct lapic *la;
 
 	la = &lapics[PCPU_GET(apic_id)];
-	if (et->et_frequency == 0) {
-		lapic_calibrate_initcount(et, la);
-		if (lapic_timer_tsc_deadline)
-			lapic_calibrate_deadline(et, la);
-	}
 	if (period != 0) {
 		lapic_change_mode(et, la, LAT_MODE_PERIODIC);
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
