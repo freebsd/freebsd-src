@@ -97,6 +97,10 @@ usage(FILE *fp)
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\thashfilter [<param> <val>] ...      set a hashfilter\n"
+	    "\thashfilter <idx> delete|clear       delete a hashfilter\n"
+	    "\thashfilter list                     list all hashfilters\n"
+	    "\thashfilter mode                     get global hashfilter mode\n"
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadboot <bi.bin> [pf|offset <val>] install boot image\n"
 	    "\tloadboot clear [pf|offset <val>]    remove boot image\n"
@@ -600,7 +604,7 @@ do_show_info_header(uint32_t mode)
  */
 static int
 parse_val_mask(const char *param, const char *args[], uint32_t *val,
-    uint32_t *mask)
+    uint32_t *mask, int hashfilter)
 {
 	char *p;
 
@@ -615,9 +619,18 @@ parse_val_mask(const char *param, const char *args[], uint32_t *val,
 		}
 
 		if (p[0] == ':' && p[1] != 0) {
+			if (hashfilter) {
+				warnx("param %s: mask not allowed for "
+				    "hashfilter or nat params", param);
+				return (EINVAL);
+			}
 			*mask = strtoul(p+1, &p, 0);
 			if (p[0] == 0)
 				return (0);
+		} else {
+			warnx("param %s: mask not allowed for hashfilter",
+			    param);
+			return (EINVAL);
 		}
 	}
 
@@ -651,7 +664,7 @@ parse_val_mask(const char *param, const char *args[], uint32_t *val,
  */
 static int
 parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
-    uint8_t mask[])
+    uint8_t mask[], int maskless)
 {
 	const char *colon, *afn;
 	char *slash;
@@ -708,6 +721,11 @@ parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
 		char *p;
 		unsigned int prefix = strtoul(slash + 1, &p, 10);
 
+		if (maskless) {
+			warnx("mask cannot be provided for maskless specification");
+			return (EINVAL);
+		}
+
 		if (p == slash + 1) {
 			warnx("missing address prefix for %s", param);
 			return (EINVAL);
@@ -725,13 +743,15 @@ parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
 		masksize = prefix;
 	}
 
-	/*
-	 * Fill in mask.
-	 */
-	for (m = mask; masksize >= 8; m++, masksize -= 8)
-		*m = ~0;
-	if (masksize)
-		*m = ~0 << (8 - masksize);
+	if (mask != NULL) {
+		/*
+		 * Fill in mask.
+		 */
+		for (m = mask; masksize >= 8; m++, masksize -= 8)
+			*m = ~0;
+		if (masksize)
+			*m = ~0 << (8 - masksize);
+	}
 
 	return (0);
 }
@@ -917,7 +937,7 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 }
 
 static int
-show_filters(void)
+show_filters(int hash)
 {
 	uint32_t mode = 0, header = 0;
 	struct t4_filter t;
@@ -929,6 +949,7 @@ show_filters(void)
 		return (rc);
 
 	t.idx = 0;
+	t.fs.hash = hash;
 	for (t.idx = 0; ; t.idx++) {
 		rc = doit(CHELSIO_T4_GET_FILTER, &t);
 		if (rc != 0 || t.idx == 0xffffffff)
@@ -945,9 +966,9 @@ show_filters(void)
 }
 
 static int
-get_filter_mode(void)
+get_filter_mode(int hashfilter)
 {
-	uint32_t mode = 0;
+	uint32_t mode = hashfilter;
 	int rc;
 
 	rc = doit(CHELSIO_T4_GET_FILTER_MODE, &mode);
@@ -1066,19 +1087,20 @@ set_filter_mode(int argc, const char *argv[])
 }
 
 static int
-del_filter(uint32_t idx)
+del_filter(uint32_t idx, int hashfilter)
 {
 	struct t4_filter t;
 
+	t.fs.hash = hashfilter;
 	t.idx = idx;
 
 	return doit(CHELSIO_T4_DEL_FILTER, &t);
 }
 
 static int
-set_filter(uint32_t idx, int argc, const char *argv[])
+set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 {
-	int af = AF_UNSPEC, start_arg = 0;
+	int rc, af = AF_UNSPEC, start_arg = 0;
 	struct t4_filter t;
 
 	if (argc < 2) {
@@ -1088,6 +1110,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	bzero(&t, sizeof (t));
 	t.idx = idx;
 	t.fs.hitcnts = 1;
+	t.fs.hash = hash;
 
 	for (start_arg = 0; start_arg + 2 <= argc; start_arg += 2) {
 		const char **args = &argv[start_arg];
@@ -1111,66 +1134,74 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 				return (EINVAL);
 			}
 			af = newaf;
-		} else if (!parse_val_mask("fcoe", args, &val, &mask)) {
+		} else if (!parse_val_mask("fcoe", args, &val, &mask, hash)) {
 			t.fs.val.fcoe = val;
 			t.fs.mask.fcoe = mask;
-		} else if (!parse_val_mask("iport", args, &val, &mask)) {
+		} else if (!parse_val_mask("iport", args, &val, &mask, hash)) {
 			t.fs.val.iport = val;
 			t.fs.mask.iport = mask;
-		} else if (!parse_val_mask("ovlan", args, &val, &mask)) {
+		} else if (!parse_val_mask("ovlan", args, &val, &mask, hash)) {
 			t.fs.val.vnic = val;
 			t.fs.mask.vnic = mask;
 			t.fs.val.ovlan_vld = 1;
 			t.fs.mask.ovlan_vld = 1;
-		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
+		} else if (!parse_val_mask("ivlan", args, &val, &mask, hash)) {
 			t.fs.val.vlan = val;
 			t.fs.mask.vlan = mask;
 			t.fs.val.vlan_vld = 1;
 			t.fs.mask.vlan_vld = 1;
-		} else if (!parse_val_mask("pf", args, &val, &mask)) {
+		} else if (!parse_val_mask("pf", args, &val, &mask, hash)) {
 			t.fs.val.vnic &= 0x1fff;
 			t.fs.val.vnic |= (val & 0x7) << 13;
 			t.fs.mask.vnic &= 0x1fff;
 			t.fs.mask.vnic |= (mask & 0x7) << 13;
 			t.fs.val.pfvf_vld = 1;
 			t.fs.mask.pfvf_vld = 1;
-		} else if (!parse_val_mask("vf", args, &val, &mask)) {
+		} else if (!parse_val_mask("vf", args, &val, &mask, hash)) {
 			t.fs.val.vnic &= 0xe000;
 			t.fs.val.vnic |= val & 0x1fff;
 			t.fs.mask.vnic &= 0xe000;
 			t.fs.mask.vnic |= mask & 0x1fff;
 			t.fs.val.pfvf_vld = 1;
 			t.fs.mask.pfvf_vld = 1;
-		} else if (!parse_val_mask("tos", args, &val, &mask)) {
+		} else if (!parse_val_mask("tos", args, &val, &mask, hash)) {
 			t.fs.val.tos = val;
 			t.fs.mask.tos = mask;
-		} else if (!parse_val_mask("proto", args, &val, &mask)) {
+		} else if (!parse_val_mask("proto", args, &val, &mask, hash)) {
 			t.fs.val.proto = val;
 			t.fs.mask.proto = mask;
-		} else if (!parse_val_mask("ethtype", args, &val, &mask)) {
+		} else if (!parse_val_mask("ethtype", args, &val, &mask, hash)) {
 			t.fs.val.ethtype = val;
 			t.fs.mask.ethtype = mask;
-		} else if (!parse_val_mask("macidx", args, &val, &mask)) {
+		} else if (!parse_val_mask("macidx", args, &val, &mask, hash)) {
 			t.fs.val.macidx = val;
 			t.fs.mask.macidx = mask;
-		} else if (!parse_val_mask("matchtype", args, &val, &mask)) {
+		} else if (!parse_val_mask("matchtype", args, &val, &mask, hash)) {
 			t.fs.val.matchtype = val;
 			t.fs.mask.matchtype = mask;
-		} else if (!parse_val_mask("frag", args, &val, &mask)) {
+		} else if (!parse_val_mask("frag", args, &val, &mask, hash)) {
 			t.fs.val.frag = val;
 			t.fs.mask.frag = mask;
-		} else if (!parse_val_mask("dport", args, &val, &mask)) {
+		} else if (!parse_val_mask("dport", args, &val, &mask, hash)) {
 			t.fs.val.dport = val;
 			t.fs.mask.dport = mask;
-		} else if (!parse_val_mask("sport", args, &val, &mask)) {
+		} else if (!parse_val_mask("sport", args, &val, &mask, hash)) {
 			t.fs.val.sport = val;
 			t.fs.mask.sport = mask;
 		} else if (!parse_ipaddr("dip", args, &af, t.fs.val.dip,
-		    t.fs.mask.dip)) {
+		    t.fs.mask.dip, hash)) {
 			/* nada */;
 		} else if (!parse_ipaddr("sip", args, &af, t.fs.val.sip,
-		    t.fs.mask.sip)) {
+		    t.fs.mask.sip, hash)) {
 			/* nada */;
+		} else if (!parse_ipaddr("nat_dip", args, &af, t.fs.nat_dip, NULL, 1)) {
+			/*nada*/;
+		} else if (!parse_ipaddr("nat_sip", args, &af, t.fs.nat_sip, NULL, 1)) {
+			/*nada*/
+		} else if (!parse_val_mask("nat_dport", args, &val, &mask, 1)) {
+			t.fs.nat_dport = val;
+		} else if (!parse_val_mask("nat_sport", args, &val, &mask, 1)) {
+			t.fs.nat_sport = val;
 		} else if (!strcmp(argv[start_arg], "action")) {
 			if (!strcmp(argv[start_arg + 1], "pass"))
 				t.fs.action = FILTER_PASS;
@@ -1198,6 +1229,33 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			t.fs.dirsteerhash = 1;
 		} else if (!parse_val("eport", args, &val)) {
 			t.fs.eport = val;
+		} else if (!parse_val("swapmac", args, &val)) {
+			t.fs.swapmac = 1;
+		} else if (!strcmp(argv[start_arg], "nat")) {
+			if (!strcmp(argv[start_arg + 1], "dip"))
+				t.fs.nat_mode = NAT_MODE_DIP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp-sip"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP_SIP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp-sp"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP_SP;
+			else if (!strcmp(argv[start_arg + 1], "sip-sp"))
+				t.fs.nat_mode = NAT_MODE_SIP_SP;
+			else if (!strcmp(argv[start_arg + 1], "dip-sip-sp"))
+				t.fs.nat_mode = NAT_MODE_DIP_SIP_SP;
+			else if (!strcmp(argv[start_arg + 1], "all"))
+				t.fs.nat_mode = NAT_MODE_ALL;
+			else {
+				warnx("unknown nat type \"%s\"; known types are dip, "
+				      "dip-dp, dip-dp-sip, dip-dp-sp, sip-sp, "
+				      "dip-sip-sp, and all", argv[start_arg + 1]);
+				return (EINVAL);
+			}
+		} else if (!parse_val("natseq", args, &val)) {
+			t.fs.nat_seq_chk = val;
+		} else if (!parse_val("natflag", args, &val)) {
+			t.fs.nat_flag_chk = 1;
 		} else if (!strcmp(argv[start_arg], "dmac")) {
 			struct ether_addr *daddr;
 
@@ -1229,7 +1287,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			} else if (argv[start_arg + 1][0] == '+') {
 				t.fs.newvlan = VLAN_INSERT;
 			} else if (isdigit(argv[start_arg + 1][0]) &&
-			    !parse_val_mask("vlan", args, &val, &mask)) {
+			    !parse_val_mask("vlan", args, &val, &mask, hash)) {
 				t.fs.val.vlan = val;
 				t.fs.mask.vlan = mask;
 				t.fs.val.vlan_vld = 1;
@@ -1265,9 +1323,15 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	 * Check basic sanity of option combinations.
 	 */
 	if (t.fs.action != FILTER_SWITCH &&
-	    (t.fs.eport || t.fs.newdmac || t.fs.newsmac || t.fs.newvlan)) {
-		warnx("prio, port dmac, smac and vlan only make sense with"
+	    (t.fs.eport || t.fs.newdmac || t.fs.newsmac || t.fs.newvlan ||
+	    t.fs.swapmac || t.fs.nat_mode)) {
+		warnx("port, dmac, smac, vlan, and nat only make sense with"
 		     " \"action switch\"");
+		return (EINVAL);
+	}
+	if (!t.fs.nat_mode && (t.fs.nat_seq_chk || t.fs.nat_flag_chk ||
+	    *t.fs.nat_dip || *t.fs.nat_sip || t.fs.nat_dport || t.fs.nat_sport)) {
+		warnx("nat params only make sense with valid nat mode");
 		return (EINVAL);
 	}
 	if (t.fs.action != FILTER_PASS &&
@@ -1282,18 +1346,21 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	}
 
 	t.fs.type = (af == AF_INET6 ? 1 : 0); /* default IPv4 */
-	return doit(CHELSIO_T4_SET_FILTER, &t);
+	rc = doit(CHELSIO_T4_SET_FILTER, &t);
+	if (hash && rc == 0)
+		printf("%d\n", t.idx);
+	return (rc);
 }
 
 static int
-filter_cmd(int argc, const char *argv[])
+filter_cmd(int argc, const char *argv[], int hashfilter)
 {
 	long long val;
 	uint32_t idx;
 	char *s;
 
 	if (argc == 0) {
-		warnx("filter: no arguments.");
+		warnx("%sfilter: no arguments.", hashfilter ? "hash" : "");
 		return (EINVAL);
 	};
 
@@ -1302,20 +1369,29 @@ filter_cmd(int argc, const char *argv[])
 		if (argc != 1)
 			warnx("trailing arguments after \"list\" ignored.");
 
-		return show_filters();
+		return show_filters(hashfilter);
 	}
 
 	/* mode */
 	if (argc == 1 && strcmp(argv[0], "mode") == 0)
-		return get_filter_mode();
+		return get_filter_mode(hashfilter);
 
 	/* mode <mode> */
-	if (strcmp(argv[0], "mode") == 0)
+	if (!hashfilter && strcmp(argv[0], "mode") == 0)
 		return set_filter_mode(argc - 1, argv + 1);
 
 	/* <idx> ... */
 	s = str_to_number(argv[0], NULL, &val);
-	if (*s || val > 0xffffffffU) {
+	if (*s || val < 0 || val > 0xffffffffU) {
+		if (hashfilter) {
+			/*
+			 * No numeric index means this must be a request to
+			 * create a new hashfilter and we are already at the
+			 * paramter/value list.
+			 */
+			idx = (uint32_t) -1;
+			goto setf;
+		}
 		warnx("\"%s\" is neither an index nor a filter subcommand.",
 		    argv[0]);
 		return (EINVAL);
@@ -1325,11 +1401,16 @@ filter_cmd(int argc, const char *argv[])
 	/* <idx> delete|clear */
 	if (argc == 2 &&
 	    (strcmp(argv[1], "delete") == 0 || strcmp(argv[1], "clear") == 0)) {
-		return del_filter(idx);
+		return del_filter(idx, hashfilter);
 	}
 
-	/* <idx> [<param> <val>] ... */
-	return set_filter(idx, argc - 1, argv + 1);
+	/* skip <idx> */
+	argc--;
+	argv++;
+
+setf:
+	/* [<param> <val>] ... */
+	return set_filter(idx, argc, argv, hashfilter);
 }
 
 /*
@@ -3356,7 +3437,7 @@ run_cmd(int argc, const char *argv[])
 	else if (!strcmp(cmd, "regdump"))
 		rc = dump_regs(argc, argv);
 	else if (!strcmp(cmd, "filter"))
-		rc = filter_cmd(argc, argv);
+		rc = filter_cmd(argc, argv, 0);
 	else if (!strcmp(cmd, "context"))
 		rc = get_sge_context(argc, argv);
 	else if (!strcmp(cmd, "loadfw"))
@@ -3387,6 +3468,8 @@ run_cmd(int argc, const char *argv[])
 		rc = dumpstate(argc, argv);
 	else if (!strcmp(cmd, "policy"))
 		rc = load_offload_policy(argc, argv);
+	else if (!strcmp(cmd, "hashfilter"))
+		rc = filter_cmd(argc, argv, 1);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
