@@ -1412,52 +1412,52 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&arpc, sizeof(arpc));
-			/* skip deleted entries */
-			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
-				return (0);
-			/* Skip if jailed and not a valid IP of the prison. */
-			lltable_fill_sa_entry(lle,(struct sockaddr *)&arpc.sin);
-			if (prison_if(wr->td->td_ucred,
-			    (struct sockaddr *)&arpc.sin) != 0)
-				return (0);
-			/*
-			 * produce a msg made of:
-			 *  struct rt_msghdr;
-			 *  struct sockaddr_in; (IPv4)
-			 *  struct sockaddr_dl;
-			 */
-			arpc.rtm.rtm_msglen = sizeof(arpc);
-			arpc.rtm.rtm_version = RTM_VERSION;
-			arpc.rtm.rtm_type = RTM_GET;
-			arpc.rtm.rtm_flags = RTF_UP;
-			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
+	/* skip deleted entries */
+	if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
+		return (0);
+	/* Skip if jailed and not a valid IP of the prison. */
+	lltable_fill_sa_entry(lle,(struct sockaddr *)&arpc.sin);
+	if (prison_if(wr->td->td_ucred,
+	    (struct sockaddr *)&arpc.sin) != 0)
+		return (0);
+	/*
+	 * produce a msg made of:
+	 *  struct rt_msghdr;
+	 *  struct sockaddr_in; (IPv4)
+	 *  struct sockaddr_dl;
+	 */
+	arpc.rtm.rtm_msglen = sizeof(arpc);
+	arpc.rtm.rtm_version = RTM_VERSION;
+	arpc.rtm.rtm_type = RTM_GET;
+	arpc.rtm.rtm_flags = RTF_UP;
+	arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
 
-			/* publish */
-			if (lle->la_flags & LLE_PUB)
-				arpc.rtm.rtm_flags |= RTF_ANNOUNCE;
+	/* publish */
+	if (lle->la_flags & LLE_PUB)
+		arpc.rtm.rtm_flags |= RTF_ANNOUNCE;
 
-			sdl = &arpc.sdl;
-			sdl->sdl_family = AF_LINK;
-			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_index = ifp->if_index;
-			sdl->sdl_type = ifp->if_type;
-			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
-			} else {
-				sdl->sdl_alen = 0;
-				bzero(LLADDR(sdl), ifp->if_addrlen);
-			}
+	sdl = &arpc.sdl;
+	sdl->sdl_family = AF_LINK;
+	sdl->sdl_len = sizeof(*sdl);
+	sdl->sdl_index = ifp->if_index;
+	sdl->sdl_type = ifp->if_type;
+	if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+		sdl->sdl_alen = ifp->if_addrlen;
+		bcopy(lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+	} else {
+		sdl->sdl_alen = 0;
+		bzero(LLADDR(sdl), ifp->if_addrlen);
+	}
 
-			arpc.rtm.rtm_rmx.rmx_expire =
-			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
-			arpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
-			if (lle->la_flags & LLE_STATIC)
-				arpc.rtm.rtm_flags |= RTF_STATIC;
-			if (lle->la_flags & LLE_IFADDR)
-				arpc.rtm.rtm_flags |= RTF_PINNED;
-			arpc.rtm.rtm_index = ifp->if_index;
-			error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
+	arpc.rtm.rtm_rmx.rmx_expire =
+	    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
+	arpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
+	if (lle->la_flags & LLE_STATIC)
+		arpc.rtm.rtm_flags |= RTF_STATIC;
+	if (lle->la_flags & LLE_IFADDR)
+		arpc.rtm.rtm_flags |= RTF_PINNED;
+	arpc.rtm.rtm_index = ifp->if_index;
+	error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
 
 	return (error);
 }
