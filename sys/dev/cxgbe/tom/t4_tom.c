@@ -656,7 +656,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 	if (tp->protocol_shift >= 0)
 		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
 
-	if (tp->vnic_shift >= 0) {
+	if (tp->vnic_shift >= 0 && tp->ingress_config & F_VNIC) {
 		uint32_t vf = G_FW_VIID_VIN(viid);
 		uint32_t pf = G_FW_VIID_PFN(viid);
 		uint32_t vld = G_FW_VIID_VIVLD(viid);

@@ -64,7 +64,7 @@ struct filter_entry {
 
 static void free_filter_resources(struct filter_entry *);
 static int get_hashfilter(struct adapter *, struct t4_filter *);
-static int set_hashfilter(struct adapter *, struct t4_filter *,
+static int set_hashfilter(struct adapter *, struct t4_filter *, uint64_t,
     struct l2t_entry *);
 static int del_hashfilter(struct adapter *, struct t4_filter *);
 static int configure_hashfilter_tcb(struct adapter *, struct filter_entry *);
@@ -93,50 +93,6 @@ remove_hftid(struct adapter *sc, int tid, int ntids)
 
 	t->hftid_tab[tid] = NULL;
 	atomic_subtract_int(&t->tids_in_use, ntids);
-}
-
-static uint32_t
-fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
-{
-	uint32_t mode;
-
-	mode = T4_FILTER_IPv4 | T4_FILTER_IPv6 | T4_FILTER_IP_SADDR |
-	    T4_FILTER_IP_DADDR | T4_FILTER_IP_SPORT | T4_FILTER_IP_DPORT;
-
-	if (fconf & F_FRAGMENTATION)
-		mode |= T4_FILTER_IP_FRAGMENT;
-
-	if (fconf & F_MPSHITTYPE)
-		mode |= T4_FILTER_MPS_HIT_TYPE;
-
-	if (fconf & F_MACMATCH)
-		mode |= T4_FILTER_MAC_IDX;
-
-	if (fconf & F_ETHERTYPE)
-		mode |= T4_FILTER_ETH_TYPE;
-
-	if (fconf & F_PROTOCOL)
-		mode |= T4_FILTER_IP_PROTO;
-
-	if (fconf & F_TOS)
-		mode |= T4_FILTER_IP_TOS;
-
-	if (fconf & F_VLAN)
-		mode |= T4_FILTER_VLAN;
-
-	if (fconf & F_VNIC_ID) {
-		mode |= T4_FILTER_VNIC;
-		if (iconf & F_VNIC)
-			mode |= T4_FILTER_IC_VNIC;
-	}
-
-	if (fconf & F_PORT)
-		mode |= T4_FILTER_PORT;
-
-	if (fconf & F_FCOE)
-		mode |= T4_FILTER_FCoE;
-
-	return (mode);
 }
 
 static uint32_t
@@ -186,7 +142,8 @@ mode_to_iconf(uint32_t mode)
 	return (0);
 }
 
-static int check_fspec_against_fconf_iconf(struct adapter *sc,
+static int
+check_fspec_against_fconf_iconf(struct adapter *sc,
     struct t4_filter_specification *fs)
 {
 	struct tp_params *tpp = &sc->params.tp;
@@ -240,14 +197,37 @@ static int check_fspec_against_fconf_iconf(struct adapter *sc,
 int
 get_filter_mode(struct adapter *sc, uint32_t *mode)
 {
-	struct tp_params *tpp = &sc->params.tp;
+	struct tp_params *tp = &sc->params.tp;
+	uint64_t mask;
 
-	/*
-	 * We trust the cached values of the relevant TP registers.  This means
-	 * things work reliably only if writes to those registers are always via
-	 * t4_set_filter_mode.
-	 */
-	*mode = fconf_iconf_to_mode(tpp->vlan_pri_map, tpp->ingress_config);
+	/* Non-zero incoming value in mode means "hashfilter mode". */
+	mask = *mode ? tp->hash_filter_mask : UINT64_MAX;
+
+	/* Always */
+	*mode = T4_FILTER_IPv4 | T4_FILTER_IPv6 | T4_FILTER_IP_SADDR |
+	    T4_FILTER_IP_DADDR | T4_FILTER_IP_SPORT | T4_FILTER_IP_DPORT;
+
+#define CHECK_FIELD(fconf_bit, field_shift, field_mask, mode_bit)  do { \
+	if (tp->vlan_pri_map & (fconf_bit)) { \
+		MPASS(tp->field_shift >= 0); \
+		if ((mask >> tp->field_shift & field_mask) == field_mask) \
+		*mode |= (mode_bit); \
+	} \
+} while (0)
+
+	CHECK_FIELD(F_FRAGMENTATION, frag_shift, M_FT_FRAGMENTATION, T4_FILTER_IP_FRAGMENT);
+	CHECK_FIELD(F_MPSHITTYPE, matchtype_shift, M_FT_MPSHITTYPE, T4_FILTER_MPS_HIT_TYPE);
+	CHECK_FIELD(F_MACMATCH, macmatch_shift, M_FT_MACMATCH, T4_FILTER_MAC_IDX);
+	CHECK_FIELD(F_ETHERTYPE, ethertype_shift, M_FT_ETHERTYPE, T4_FILTER_ETH_TYPE);
+	CHECK_FIELD(F_PROTOCOL, protocol_shift, M_FT_PROTOCOL, T4_FILTER_IP_PROTO);
+	CHECK_FIELD(F_TOS, tos_shift, M_FT_TOS, T4_FILTER_IP_TOS);
+	CHECK_FIELD(F_VLAN, vlan_shift, M_FT_VLAN, T4_FILTER_VLAN);
+	CHECK_FIELD(F_VNIC_ID, vnic_shift, M_FT_VNIC_ID , T4_FILTER_VNIC);
+	if (tp->ingress_config & F_VNIC)
+		*mode |= T4_FILTER_IC_VNIC;
+	CHECK_FIELD(F_PORT, port_shift, M_FT_PORT , T4_FILTER_PORT);
+	CHECK_FIELD(F_FCOE, fcoe_shift, M_FT_FCOE , T4_FILTER_FCoE);
+#undef CHECK_FIELD
 
 	return (0);
 }
@@ -361,7 +341,7 @@ static int
 set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 {
 	struct filter_entry *f;
-	struct fw_filter_wr *fwr;
+	struct fw_filter2_wr *fwr;
 	u_int vnic_vld, vnic_vld_mask;
 	struct wrq_cookie cookie;
 	int i, rc, busy, locked;
@@ -385,8 +365,13 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 	else if (busy > 0)
 		rc = EBUSY;
 	else {
-		fwr = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*fwr), 16),
-		    &cookie);
+		int len16;
+
+		if (sc->params.filter2_wr_support)
+			len16 = howmany(sizeof(struct fw_filter2_wr), 16);
+		else
+			len16 = howmany(sizeof(struct fw_filter_wr), 16);
+		fwr = start_wrq_wr(&sc->sge.mgmtq, len16, &cookie);
 		if (__predict_false(fwr == NULL))
 			rc = ENOMEM;
 		else {
@@ -419,7 +404,10 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 		vnic_vld_mask = 0;
 
 	bzero(fwr, sizeof(*fwr));
-	fwr->op_pkd = htobe32(V_FW_WR_OP(FW_FILTER_WR));
+	if (sc->params.filter2_wr_support)
+		fwr->op_pkd = htobe32(V_FW_WR_OP(FW_FILTER2_WR));
+	else
+		fwr->op_pkd = htobe32(V_FW_WR_OP(FW_FILTER_WR));
 	fwr->len16_pkd = htobe32(FW_LEN16(*fwr));
 	fwr->tid_to_iq =
 	    htobe32(V_FW_FILTER_WR_TID(f->tid) |
@@ -484,6 +472,20 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 		/* XXX: need to use SMT idx instead */
 		bcopy(f->fs.smac, fwr->sma, sizeof (fwr->sma));
 	}
+	if (sc->params.filter2_wr_support) {
+		fwr->filter_type_swapmac =
+		    V_FW_FILTER2_WR_SWAPMAC(f->fs.swapmac);
+		fwr->natmode_to_ulp_type =
+		    V_FW_FILTER2_WR_ULP_TYPE(f->fs.nat_mode ?
+			ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+		    V_FW_FILTER2_WR_NATFLAGCHECK(f->fs.nat_flag_chk) |
+		    V_FW_FILTER2_WR_NATMODE(f->fs.nat_mode);
+		memcpy(fwr->newlip, f->fs.nat_dip, sizeof(fwr->newlip));
+		memcpy(fwr->newfip, f->fs.nat_sip, sizeof(fwr->newfip));
+		fwr->newlport = htobe16(f->fs.nat_dport);
+		fwr->newfport = htobe16(f->fs.nat_sport);
+		fwr->natseqcheck = htobe32(f->fs.nat_seq_chk);
+	}
 	commit_wrq_wr(&sc->sge.mgmtq, fwr, &cookie);
 
 	/* Wait for response. */
@@ -502,11 +504,88 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 	return (rc);
 }
 
+static int
+hashfilter_ntuple(struct adapter *sc, const struct t4_filter_specification *fs,
+    uint64_t *ftuple)
+{
+	struct tp_params *tp = &sc->params.tp;
+	uint64_t fmask;
+
+	*ftuple = fmask = 0;
+
+	/*
+	 * Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && fs->mask.vlan) {
+		*ftuple |= (F_FT_VLAN_VLD | fs->val.vlan) << tp->vlan_shift;
+		fmask |= M_FT_VLAN << tp->vlan_shift;
+	}
+
+	if (tp->port_shift >= 0 && fs->mask.iport) {
+		*ftuple |= (uint64_t)fs->val.iport << tp->port_shift;
+		fmask |= M_FT_PORT << tp->port_shift;
+	}
+
+	if (tp->protocol_shift >= 0 && fs->mask.proto) {
+		*ftuple |= (uint64_t)fs->val.proto << tp->protocol_shift;
+		fmask |= M_FT_PROTOCOL << tp->protocol_shift;
+	}
+
+	if (tp->tos_shift >= 0 && fs->mask.tos) {
+		*ftuple |= (uint64_t)(fs->val.tos) << tp->tos_shift;
+		fmask |= M_FT_TOS << tp->tos_shift;
+	}
+
+	if (tp->vnic_shift >= 0 && fs->mask.vnic) {
+		/* F_VNIC in ingress config was already validated. */
+		if (tp->ingress_config & F_VNIC)
+			MPASS(fs->mask.pfvf_vld);
+		else
+			MPASS(fs->mask.ovlan_vld);
+
+		*ftuple |= ((1ULL << 16) | fs->val.vnic) << tp->vnic_shift;
+		fmask |= M_FT_VNIC_ID << tp->vnic_shift;
+	}
+
+	if (tp->macmatch_shift >= 0 && fs->mask.macidx) {
+		*ftuple |= (uint64_t)(fs->val.macidx) << tp->macmatch_shift;
+		fmask |= M_FT_MACMATCH << tp->macmatch_shift;
+	}
+
+	if (tp->ethertype_shift >= 0 && fs->mask.ethtype) {
+		*ftuple |= (uint64_t)(fs->val.ethtype) << tp->ethertype_shift;
+		fmask |= M_FT_ETHERTYPE << tp->ethertype_shift;
+	}
+
+	if (tp->matchtype_shift >= 0 && fs->mask.matchtype) {
+		*ftuple |= (uint64_t)(fs->val.matchtype) << tp->matchtype_shift;
+		fmask |= M_FT_MPSHITTYPE << tp->matchtype_shift;
+	}
+
+	if (tp->frag_shift >= 0 && fs->mask.frag) {
+		*ftuple |= (uint64_t)(fs->val.frag) << tp->frag_shift;
+		fmask |= M_FT_FRAGMENTATION << tp->frag_shift;
+	}
+
+	if (tp->fcoe_shift >= 0 && fs->mask.fcoe) {
+		*ftuple |= (uint64_t)(fs->val.fcoe) << tp->fcoe_shift;
+		fmask |= M_FT_FCOE << tp->fcoe_shift;
+	}
+
+	/* A hashfilter must conform to the filterMask. */
+	if (fmask != tp->hash_filter_mask)
+		return (EINVAL);
+
+	return (0);
+}
+
 int
 set_filter(struct adapter *sc, struct t4_filter *t)
 {
 	struct tid_info *ti = &sc->tids;
 	struct l2t_entry *l2te;
+	uint64_t ftuple;
 	int rc;
 
 	/*
@@ -516,8 +595,15 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	if (t->fs.hash) {
 		if (!is_hashfilter(sc) || ti->ntids == 0)
 			return (ENOTSUP);
+		/* Hardware, not user, selects a tid for hashfilters. */
 		if (t->idx != (uint32_t)-1)
-			return (EINVAL);	/* hw, not user picks the idx */
+			return (EINVAL);
+		/* T5 can't count hashfilter hits. */
+		if (is_t5(sc) && t->fs.hitcnts)
+			return (EINVAL);
+		rc = hashfilter_ntuple(sc, &t->fs, &ftuple);
+		if (rc != 0)
+			return (rc);
 	} else {
 		if (ti->nftids == 0)
 			return (ENOTSUP);
@@ -529,9 +615,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 			return (EINVAL);
 	}
 
-	/* T4 doesn't support removing VLAN Tags for loop back filters. */
+	/* T4 doesn't support VLAN tag removal or rewrite, swapmac, and NAT. */
 	if (is_t4(sc) && t->fs.action == FILTER_SWITCH &&
-	    (t->fs.newvlan == VLAN_REMOVE || t->fs.newvlan == VLAN_REWRITE))
+	    (t->fs.newvlan == VLAN_REMOVE || t->fs.newvlan == VLAN_REWRITE ||
+	    t->fs.swapmac || t->fs.nat_mode))
 		return (ENOTSUP);
 
 	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= sc->params.nports)
@@ -616,7 +703,7 @@ done:
 	}
 
 	if (t->fs.hash)
-		return (set_hashfilter(sc, t, l2te));
+		return (set_hashfilter(sc, t, ftuple, l2te));
 	else
 		return (set_tcamfilter(sc, t, l2te));
 
@@ -924,65 +1011,9 @@ done:
 	return (0);
 }
 
-static uint64_t
-hashfilter_ntuple(struct adapter *sc, const struct t4_filter_specification *fs)
-{
-	struct tp_params *tp = &sc->params.tp;
-	uint64_t ntuple = 0;
-
-	/*
-	 * Initialize each of the fields which we care about which are present
-	 * in the Compressed Filter Tuple.
-	 */
-	if (tp->vlan_shift >= 0 && fs->mask.vlan)
-		ntuple |= (F_FT_VLAN_VLD | fs->val.vlan) << tp->vlan_shift;
-
-	if (tp->port_shift >= 0 && fs->mask.iport)
-		ntuple |= (uint64_t)fs->val.iport << tp->port_shift;
-
-	if (tp->protocol_shift >= 0) {
-		if (!fs->val.proto)
-			ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
-		else
-			ntuple |= (uint64_t)fs->val.proto << tp->protocol_shift;
-	}
-
-	if (tp->tos_shift >= 0 && fs->mask.tos)
-		ntuple |= (uint64_t)(fs->val.tos) << tp->tos_shift;
-
-	if (tp->vnic_shift >= 0) {
-#ifdef notyet
-		if (tp->ingress_config & F_VNIC && fs->mask.pfvf_vld)
-			ntuple |= (uint64_t)((fs->val.pfvf_vld << 16) |
-					(fs->val.pf << 13) |
-					(fs->val.vf)) << tp->vnic_shift;
-		else
-#endif
-			ntuple |= (uint64_t)((fs->val.ovlan_vld << 16) |
-					(fs->val.vnic)) << tp->vnic_shift;
-	}
-
-	if (tp->macmatch_shift >= 0 && fs->mask.macidx)
-		ntuple |= (uint64_t)(fs->val.macidx) << tp->macmatch_shift;
-
-	if (tp->ethertype_shift >= 0 && fs->mask.ethtype)
-		ntuple |= (uint64_t)(fs->val.ethtype) << tp->ethertype_shift;
-
-	if (tp->matchtype_shift >= 0 && fs->mask.matchtype)
-		ntuple |= (uint64_t)(fs->val.matchtype) << tp->matchtype_shift;
-
-	if (tp->frag_shift >= 0 && fs->mask.frag)
-		ntuple |= (uint64_t)(fs->val.frag) << tp->frag_shift;
-
-	if (tp->fcoe_shift >= 0 && fs->mask.fcoe)
-		ntuple |= (uint64_t)(fs->val.fcoe) << tp->fcoe_shift;
-
-	return (ntuple);
-}
-
 static void
 mk_act_open_req6(struct adapter *sc, struct filter_entry *f, int atid,
-    struct cpl_act_open_req6 *cpl)
+    uint64_t ftuple, struct cpl_act_open_req6 *cpl)
 {
 	struct cpl_t5_act_open_req6 *cpl5 = (void *)cpl;
 	struct cpl_t6_act_open_req6 *cpl6 = (void *)cpl;
@@ -1011,18 +1042,22 @@ mk_act_open_req6(struct adapter *sc, struct filter_entry *f, int atid,
 	cpl->opt0 = htobe64(V_NAGLE(f->fs.newvlan == VLAN_REMOVE ||
 	    f->fs.newvlan == VLAN_REWRITE) | V_DELACK(f->fs.hitcnts) |
 	    V_L2T_IDX(f->l2te ? f->l2te->idx : 0) | V_TX_CHAN(f->fs.eport) |
-	    V_NO_CONG(f->fs.rpttid) | F_TCAM_BYPASS | F_NON_OFFLOAD);
+	    V_NO_CONG(f->fs.rpttid) |
+	    V_ULP_MODE(f->fs.nat_mode ? ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+	    F_TCAM_BYPASS | F_NON_OFFLOAD);
 
-	cpl6->params = htobe64(V_FILTER_TUPLE(hashfilter_ntuple(sc, &f->fs)));
+	cpl6->params = htobe64(V_FILTER_TUPLE(ftuple));
 	cpl6->opt2 = htobe32(F_RSS_QUEUE_VALID | V_RSS_QUEUE(f->fs.iq) |
-	    F_T5_OPT_2_VALID | F_RX_CHANNEL |
+	    V_TX_QUEUE(f->fs.nat_mode) | V_WND_SCALE_EN(f->fs.nat_flag_chk) |
+	    V_RX_FC_DISABLE(f->fs.nat_seq_chk ? 1 : 0) | F_T5_OPT_2_VALID |
+	    F_RX_CHANNEL | V_SACK_EN(f->fs.swapmac) |
 	    V_CONG_CNTRL((f->fs.action == FILTER_DROP) | (f->fs.dirsteer << 1)) |
 	    V_PACE(f->fs.maskhash | (f->fs.dirsteerhash << 1)));
 }
 
 static void
 mk_act_open_req(struct adapter *sc, struct filter_entry *f, int atid,
-    struct cpl_act_open_req *cpl)
+    uint64_t ftuple, struct cpl_act_open_req *cpl)
 {
 	struct cpl_t5_act_open_req *cpl5 = (void *)cpl;
 	struct cpl_t6_act_open_req *cpl6 = (void *)cpl;
@@ -1051,11 +1086,15 @@ mk_act_open_req(struct adapter *sc, struct filter_entry *f, int atid,
 	cpl->opt0 = htobe64(V_NAGLE(f->fs.newvlan == VLAN_REMOVE ||
 	    f->fs.newvlan == VLAN_REWRITE) | V_DELACK(f->fs.hitcnts) |
 	    V_L2T_IDX(f->l2te ? f->l2te->idx : 0) | V_TX_CHAN(f->fs.eport) |
-	    V_NO_CONG(f->fs.rpttid) | F_TCAM_BYPASS | F_NON_OFFLOAD);
+	    V_NO_CONG(f->fs.rpttid) |
+	    V_ULP_MODE(f->fs.nat_mode ? ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+	    F_TCAM_BYPASS | F_NON_OFFLOAD);
 
-	cpl6->params = htobe64(V_FILTER_TUPLE(hashfilter_ntuple(sc, &f->fs)));
+	cpl6->params = htobe64(V_FILTER_TUPLE(ftuple));
 	cpl6->opt2 = htobe32(F_RSS_QUEUE_VALID | V_RSS_QUEUE(f->fs.iq) |
-	    F_T5_OPT_2_VALID | F_RX_CHANNEL |
+	    V_TX_QUEUE(f->fs.nat_mode) | V_WND_SCALE_EN(f->fs.nat_flag_chk) |
+	    V_RX_FC_DISABLE(f->fs.nat_seq_chk ? 1 : 0) | F_T5_OPT_2_VALID |
+	    F_RX_CHANNEL | V_SACK_EN(f->fs.swapmac) |
 	    V_CONG_CNTRL((f->fs.action == FILTER_DROP) | (f->fs.dirsteer << 1)) |
 	    V_PACE(f->fs.maskhash | (f->fs.dirsteerhash << 1)));
 }
@@ -1086,7 +1125,8 @@ act_open_cpl_len16(struct adapter *sc, int isipv6)
 }
 
 static int
-set_hashfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
+set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
+    struct l2t_entry *l2te)
 {
 	void *wr;
 	struct wrq_cookie cookie;
@@ -1137,9 +1177,9 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 		goto done;
 	}
 	if (f->fs.type)
-		mk_act_open_req6(sc, f, atid, wr);
+		mk_act_open_req6(sc, f, atid, ftuple, wr);
 	else
-		mk_act_open_req(sc, f, atid, wr);
+		mk_act_open_req(sc, f, atid, ftuple, wr);
 
 	f->locked = 1; /* ithread mustn't free f if ioctl is still around. */
 	f->pending = 1;
@@ -1383,11 +1423,80 @@ set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
 
 /* Set one of the t_flags bits in the TCB. */
 static inline int
-set_tcb_tflag(struct adapter *sc, int tid, u_int bit_pos, u_int val)
+set_tcb_tflag(struct adapter *sc, int tid, u_int bit_pos, u_int val,
+    u_int no_reply)
 {
 
 	return (set_tcb_field(sc, tid,  W_TCB_T_FLAGS, 1ULL << bit_pos,
-	    (uint64_t)val << bit_pos, 1));
+	    (uint64_t)val << bit_pos, no_reply));
+}
+
+#define WORD_MASK       0xffffffff
+static void
+set_nat_params(struct adapter *sc, struct filter_entry *f, const bool dip,
+    const bool sip, const bool dp, const bool sp)
+{
+
+	if (dip) {
+		if (f->fs.type) {
+			set_tcb_field(sc, f->tid, W_TCB_SND_UNA_RAW, WORD_MASK,
+			    f->fs.nat_dip[15] | f->fs.nat_dip[14] << 8 |
+			    f->fs.nat_dip[13] << 16 | f->fs.nat_dip[12] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_SND_UNA_RAW + 1, WORD_MASK,
+			    f->fs.nat_dip[11] | f->fs.nat_dip[10] << 8 |
+			    f->fs.nat_dip[9] << 16 | f->fs.nat_dip[8] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_SND_UNA_RAW + 2, WORD_MASK,
+			    f->fs.nat_dip[7] | f->fs.nat_dip[6] << 8 |
+			    f->fs.nat_dip[5] << 16 | f->fs.nat_dip[4] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_SND_UNA_RAW + 3, WORD_MASK,
+			    f->fs.nat_dip[3] | f->fs.nat_dip[2] << 8 |
+			    f->fs.nat_dip[1] << 16 | f->fs.nat_dip[0] << 24, 1);
+		} else {
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG3_LEN_RAW, WORD_MASK,
+			    f->fs.nat_dip[3] | f->fs.nat_dip[2] << 8 |
+			    f->fs.nat_dip[1] << 16 | f->fs.nat_dip[0] << 24, 1);
+		}
+	}
+
+	if (sip) {
+		if (f->fs.type) {
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG2_PTR_RAW, WORD_MASK,
+			    f->fs.nat_sip[15] | f->fs.nat_sip[14] << 8 |
+			    f->fs.nat_sip[13] << 16 | f->fs.nat_sip[12] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG2_PTR_RAW + 1, WORD_MASK,
+			    f->fs.nat_sip[11] | f->fs.nat_sip[10] << 8 |
+			    f->fs.nat_sip[9] << 16 | f->fs.nat_sip[8] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG2_PTR_RAW + 2, WORD_MASK,
+			    f->fs.nat_sip[7] | f->fs.nat_sip[6] << 8 |
+			    f->fs.nat_sip[5] << 16 | f->fs.nat_sip[4] << 24, 1);
+
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG2_PTR_RAW + 3, WORD_MASK,
+			    f->fs.nat_sip[3] | f->fs.nat_sip[2] << 8 |
+			    f->fs.nat_sip[1] << 16 | f->fs.nat_sip[0] << 24, 1);
+
+		} else {
+			set_tcb_field(sc, f->tid,
+			    W_TCB_RX_FRAG3_START_IDX_OFFSET_RAW, WORD_MASK,
+			    f->fs.nat_sip[3] | f->fs.nat_sip[2] << 8 |
+			    f->fs.nat_sip[1] << 16 | f->fs.nat_sip[0] << 24, 1);
+		}
+	}
+
+	set_tcb_field(sc, f->tid, W_TCB_PDU_HDR_LEN, WORD_MASK,
+	    (dp ? f->fs.nat_dport : 0) | (sp ? f->fs.nat_sport << 16 : 0), 1);
 }
 
 /*
@@ -1406,12 +1515,83 @@ configure_hashfilter_tcb(struct adapter *sc, struct filter_entry *f)
 	MPASS(f->valid == 0);
 
 	if (f->fs.newdmac) {
-		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_ECE, 1);
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_ECE, 1, 1);
 		updated++;
 	}
 
 	if (f->fs.newvlan == VLAN_INSERT || f->fs.newvlan == VLAN_REWRITE) {
-		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_RFR, 1);
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_RFR, 1, 1);
+		updated++;
+	}
+
+	if (f->fs.newsmac) {
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_CWR, 1, 1);
+		set_tcb_field(sc, f->tid, W_TCB_SMAC_SEL,
+		    V_TCB_SMAC_SEL(M_TCB_SMAC_SEL), V_TCB_SMAC_SEL(f->smtidx),
+		    1);
+		updated++;
+	}
+
+	switch(f->fs.nat_mode) {
+	case NAT_MODE_NONE:
+		break;
+	case NAT_MODE_DIP:
+		set_nat_params(sc, f, true, false, false, false);
+		updated++;
+		break;
+	case NAT_MODE_DIP_DP:
+		set_nat_params(sc, f, true, false, true, false);
+		updated++;
+		break;
+	case NAT_MODE_DIP_DP_SIP:
+		set_nat_params(sc, f, true, true, true, false);
+		updated++;
+		break;
+	case NAT_MODE_DIP_DP_SP:
+		set_nat_params(sc, f, true, false, true, true);
+		updated++;
+		break;
+	case NAT_MODE_SIP_SP:
+		set_nat_params(sc, f, false, true, false, true);
+		updated++;
+		break;
+	case NAT_MODE_DIP_SIP_SP:
+		set_nat_params(sc, f, true, true, false, true);
+		updated++;
+		break;
+	case NAT_MODE_ALL:
+		set_nat_params(sc, f, true, true, true, true);
+		updated++;
+		break;
+	default:
+		MPASS(0);	/* should have been validated earlier */
+		break;
+
+	}
+
+	if (f->fs.nat_seq_chk) {
+		set_tcb_field(sc, f->tid, W_TCB_RCV_NXT,
+		    V_TCB_RCV_NXT(M_TCB_RCV_NXT),
+		    V_TCB_RCV_NXT(f->fs.nat_seq_chk), 1);
+		updated++;
+	}
+
+	if (is_t5(sc) && f->fs.action == FILTER_DROP) {
+		/*
+		 * Migrating = 1, Non-offload = 0 to get a T5 hashfilter to drop.
+		 */
+		set_tcb_field(sc, f->tid, W_TCB_T_FLAGS, V_TF_NON_OFFLOAD(1) |
+		    V_TF_MIGRATING(1), V_TF_MIGRATING(1), 1);
+		updated++;
+	}
+
+	/*
+	 * Enable switching after all secondary resources (L2T entry, SMT entry,
+	 * etc.) are setup so that any switched packet will use correct
+	 * values.
+	 */
+	if (f->fs.action == FILTER_SWITCH) {
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_ECN, 1, 1);
 		updated++;
 	}
 
