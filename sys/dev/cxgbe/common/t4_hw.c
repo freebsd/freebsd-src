@@ -2958,7 +2958,7 @@ static int get_vpd_keyword_val(const u8 *vpd, const char *kw, int region)
  *	Reads card parameters stored in VPD EEPROM.
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
-    u32 *buf)
+    uint16_t device_id, u32 *buf)
 {
 	int i, ret, addr;
 	int ec, sn, pn, na, md;
@@ -3026,12 +3026,16 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
 	strstrip((char *)p->na);
 
+	if (device_id & 0x80)
+		return 0;	/* Custom card */
+
 	md = get_vpd_keyword_val(vpd, "VF", 1);
 	if (md < 0) {
 		snprintf(p->md, sizeof(p->md), "unknown");
 	} else {
 		i = vpd[md - VPD_INFO_FLD_HDR_SIZE + 2];
 		memcpy(p->md, vpd + md, min(i, MD_LEN));
+		strstrip((char *)p->md);
 	}
 
 	return 0;
@@ -3716,8 +3720,6 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		fec = FW_PORT_CAP_FEC_RS;
 	else if (lc->requested_fec & FEC_BASER_RS)
 		fec = FW_PORT_CAP_FEC_BASER_RS;
-	else if (lc->requested_fec & FEC_RESERVED)
-		fec = FW_PORT_CAP_FEC_RESERVED;
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG) ||
 	    lc->requested_aneg == AUTONEG_DISABLE) {
@@ -7714,8 +7716,6 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_info *p)
 		fec |= FEC_RS;
 	if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
 		fec |= FEC_BASER_RS;
-	if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
-		fec |= FEC_RESERVED;
 	lc->fec = fec;
 }
 
@@ -8051,10 +8051,6 @@ int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 	if (ret < 0)
 		return ret;
 
-	ret = get_vpd_params(adapter, &adapter->params.vpd, buf);
-	if (ret < 0)
-		return ret;
-
 	/* Cards with real ASICs have the chipid in the PCIe device id */
 	t4_os_pci_read_cfg2(adapter, PCI_DEVICE_ID, &device_id);
 	if (device_id >> 12 == chip_id(adapter))
@@ -8064,6 +8060,10 @@ int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 		adapter->params.fpga = 1;
 		adapter->params.cim_la_size = 2 * CIMLA_SIZE;
 	}
+
+	ret = get_vpd_params(adapter, &adapter->params.vpd, device_id, buf);
+	if (ret < 0)
+		return ret;
 
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 

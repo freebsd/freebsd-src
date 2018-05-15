@@ -451,7 +451,7 @@ TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
 static int t4_fcoecaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.fcoecaps_allowed", &t4_fcoecaps_allowed);
 
-static int t5_write_combine = 1;
+static int t5_write_combine = 0;
 TUNABLE_INT("hw.cxl.write_combine", &t5_write_combine);
 
 static int t4_num_vis = 1;
@@ -1636,8 +1636,13 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 redo_sifflags:
 		rc = begin_synchronized_op(sc, vi,
 		    can_sleep ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4flg");
-		if (rc)
+		if (rc) {
+			if_printf(ifp, "%ssleepable synch operation failed: %d."
+			    "  if_flags 0x%08x, if_drv_flags 0x%08x\n",
+			    can_sleep ? "" : "non-", rc, ifp->if_flags,
+			    ifp->if_drv_flags);
 			return (rc);
+		}
 
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -2276,7 +2281,6 @@ t4_map_bar_2(struct adapter *sc)
 				setbit(&sc->doorbells, DOORBELL_WCWR);
 				setbit(&sc->doorbells, DOORBELL_UDBWC);
 			} else {
-				t5_write_combine = 0;
 				device_printf(sc->dev,
 				    "couldn't enable write combining: %d\n",
 				    rc);
@@ -2286,11 +2290,9 @@ t4_map_bar_2(struct adapter *sc)
 			t4_write_reg(sc, A_SGE_STAT_CFG,
 			    V_STATSOURCE_T5(7) | mode);
 		}
-#else
-		t5_write_combine = 0;
 #endif
-		sc->iwt.wc_en = t5_write_combine;
 	}
+	sc->iwt.wc_en = isset(&sc->doorbells, DOORBELL_UDBWC) ? 1 : 0;
 
 	return (0);
 }
@@ -3964,12 +3966,11 @@ init_l1cfg(struct port_info *pi)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
+	lc->requested_speed = port_top_speed(pi);	/* in Gbps */
 	if (t4_autoneg != 0 && lc->supported & FW_PORT_CAP_ANEG) {
 		lc->requested_aneg = AUTONEG_ENABLE;
-		lc->requested_speed = 0;
 	} else {
 		lc->requested_aneg = AUTONEG_DISABLE;
-		lc->requested_speed = port_top_speed(pi);	/* in Gbps */
 	}
 
 	lc->requested_fc = t4_pause_settings & (PAUSE_TX | PAUSE_RX);
@@ -3983,8 +3984,6 @@ init_l1cfg(struct port_info *pi)
 			lc->requested_fec = FEC_RS;
 		else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
 			lc->requested_fec = FEC_BASER_RS;
-		else if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
-			lc->requested_fec = FEC_RESERVED;
 		else
 			lc->requested_fec = 0;
 	}
@@ -4311,8 +4310,13 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (!(vi->flags & VI_INIT_DONE)) {
-		KASSERT(!(ifp->if_drv_flags & IFF_DRV_RUNNING),
-		    ("uninited VI is running"));
+		if (__predict_false(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			KASSERT(0, ("uninited VI is running"));
+			if_printf(ifp, "uninited VI with running ifnet.  "
+			    "vi->flags 0x%016lx, if_flags 0x%08x, "
+			    "if_drv_flags 0x%08x\n", vi->flags, ifp->if_flags,
+			    ifp->if_drv_flags);
+		}
 		return (0);
 	}
 
@@ -9543,7 +9547,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
 		break;
 	case CHELSIO_T4_CLEAR_STATS: {
-		int i, v;
+		int i, v, bg_map;
 		u_int port_id = *(uint32_t *)data;
 		struct port_info *pi;
 		struct vi_info *vi;
@@ -9557,10 +9561,19 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		/* MAC stats */
 		t4_clr_port_stats(sc, pi->tx_chan);
 		pi->tx_parse_error = 0;
+		pi->tnl_cong_drops = 0;
 		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
 				t4_clr_vi_stats(sc, vi->viid);
+		}
+		bg_map = pi->mps_bg_map;
+		v = 0;	/* reuse */
+		while (bg_map) {
+			i = ffs(bg_map) - 1;
+			t4_write_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
+			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			bg_map &= ~(1 << i);
 		}
 		mtx_unlock(&sc->reg_lock);
 
