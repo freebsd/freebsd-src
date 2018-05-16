@@ -77,6 +77,8 @@ static void
 dump_header(const struct microcode_update_header *hdr)
 {
 	char buf[16];
+	int i;
+	bool platformid_printed;
 
 	printf("header version\t0x%x\n", hdr->header_version);
 	printf("revision\t0x%x\n", hdr->update_revision);
@@ -87,7 +89,15 @@ dump_header(const struct microcode_update_header *hdr)
 	    format_signature(buf, hdr->processor_signature));
 	printf("checksum\t0x%x\n", hdr->checksum);
 	printf("loader revision\t0x%x\n", hdr->loader_revision);
-	printf("processor flags\t0x%x\n", hdr->processor_flags);
+	printf("processor flags\t0x%x", hdr->processor_flags);
+	platformid_printed = false;
+	for (i = 0; i < 8; i++) {
+		if (hdr->processor_flags & 1 << i) {
+			printf("%s%d", platformid_printed ? ", " : "\t\t", i);
+			platformid_printed = true;
+		}
+	}
+	printf("\n");
 	printf("datasize\t0x%x\t\t0x%x\n", hdr->data_size,
 	    hdr->data_size != 0 ? hdr->data_size : 2000);
 	printf("size\t\t0x%x\t\t0x%x\n", hdr->total_size,
