@@ -51,7 +51,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-20150510:
+20180510:
 	The amd64 kernel now requires a ld that supports ifunc to produce a
 	working kernel, either lld or a newer binutils. lld is built by default
 	on amd64, and the 'buildkernel' target uses it automatically. However,
