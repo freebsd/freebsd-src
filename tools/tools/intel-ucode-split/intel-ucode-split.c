@@ -78,7 +78,7 @@ dump_header(const struct microcode_update_header *hdr)
 {
 	char buf[16];
 
-	printf("version\t\t0x%x\n", hdr->header_version);
+	printf("header version\t0x%x\n", hdr->header_version);
 	printf("revision\t0x%x\n", hdr->update_revision);
 	printf("date\t\t0x%x\t%04x-%02x-%02x\n", hdr->date,
 	    hdr->date & 0xffff, (hdr->date & 0xff000000) >> 24,
@@ -147,6 +147,8 @@ main(int argc, char *argv[])
 		} else if (rv < (ssize_t)sizeof(hdr)) {
 			errx(1, "invalid microcode header");
 		}
+		if (hdr.header_version != 1)
+			errx(1, "invalid header version");
 
 		if (vflag)
 			dump_header(&hdr);
