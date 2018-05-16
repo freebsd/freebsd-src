@@ -29,6 +29,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,7 +98,7 @@ static void
 usage(void)
 {
 
-	printf("ucode-split microcode_file\n");
+	printf("ucode-split [-v] microcode_file\n");
 	exit(1);
 }
 
@@ -109,12 +110,26 @@ main(int argc, char *argv[])
 	char *buf;
 	size_t len, resid;
 	ssize_t rv;
-	int ifd, ofd;
+	int c, ifd, ofd;
+	bool vflag;
 
-	if (argc != 2)
+	vflag = false;
+	while ((c = getopt(argc, argv, "v")) != -1) {
+		switch (c) {
+		case 'v':
+			vflag = true;
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 1)
 		usage();
 
-	ifd = open(argv[1], O_RDONLY);
+	ifd = open(argv[0], O_RDONLY);
 	if (ifd < 0)
 		err(1, "open");
 
@@ -133,7 +148,8 @@ main(int argc, char *argv[])
 			errx(1, "invalid microcode header");
 		}
 
-		dump_header(&hdr);
+		if (vflag)
+			dump_header(&hdr);
 
 		format_signature(output_file, hdr.processor_signature);
 		sprintf(output_file + strlen(output_file), ".%02x",
@@ -163,7 +179,8 @@ main(int argc, char *argv[])
 				err(1, "write");
 			resid -= len;
 		}
-		printf("written to %s\n\n", output_file);
+		if (vflag)
+			printf("written to %s\n\n", output_file);
 		close(ofd);
 	}
 }
