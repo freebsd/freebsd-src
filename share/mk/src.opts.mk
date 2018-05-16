@@ -424,6 +424,11 @@ MK_KERBEROS:=	no
 MK_AUTHPF:=	no
 .endif
 
+.if ${MK_PORTSNAP} == "no"
+# freebsd-update depends on phttpget from portsnap
+MK_FREEBSD_UPDATE:=	no
+.endif
+
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
 .endif
