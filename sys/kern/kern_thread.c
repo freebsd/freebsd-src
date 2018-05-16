@@ -586,8 +586,10 @@ thread_exit(void)
 	 * If this thread is part of a process that is being tracked by hwpmc(4),
 	 * inform the module of the thread's impending exit.
 	 */
-	if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+	if (PMC_PROC_IS_USING_PMCS(td->td_proc)) {
 		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_EXIT, NULL);
+	}
 #endif
 	PROC_UNLOCK(p);
 	PROC_STATLOCK(p);

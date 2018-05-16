@@ -647,6 +647,7 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_NLOGBUFFERS_PCPU		8
 #define	PMC_NSAMPLES				64
 #define	PMC_CALLCHAIN_DEPTH			32
+#define	PMC_THREADLIST_MAX			64
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
@@ -786,6 +787,25 @@ struct pmc {
 #define	PMC_TO_ROWINDEX(P)	PMC_ID_TO_ROWINDEX((P)->pm_id)
 #define	PMC_TO_CPU(P)		PMC_ID_TO_CPU((P)->pm_id)
 
+/*
+ * struct pmc_threadpmcstate
+ *
+ * Record per-PMC, per-thread state.
+ */
+struct pmc_threadpmcstate {
+	pmc_value_t	pt_pmcval;	/* per-thread reload count */
+};
+
+/*
+ * struct pmc_thread
+ *
+ * Record a 'target' thread being profiled.
+ */
+struct pmc_thread {
+	LIST_ENTRY(pmc_thread) pt_next;		/* linked list */
+	struct thread	*pt_td;			/* target thread */
+	struct pmc_threadpmcstate pt_pmcs[];	/* per-PMC state */
+};
 
 /*
  * struct pmc_process
@@ -808,9 +828,11 @@ struct pmc_targetstate {
 
 struct pmc_process {
 	LIST_ENTRY(pmc_process) pp_next;	/* hash chain */
+	LIST_HEAD(,pmc_thread) pp_tds;		/* list of threads */
+	struct mtx	*pp_tdslock;		/* lock on pp_tds thread list */
 	int		pp_refcnt;		/* reference count */
 	uint32_t	pp_flags;		/* flags PMC_PP_* */
-	struct proc	*pp_proc;		/* target thread */
+	struct proc	*pp_proc;		/* target process */
 	struct pmc_targetstate pp_pmcs[];       /* NHWPMCs */
 };
 
