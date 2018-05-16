@@ -66,6 +66,8 @@ static tc_cursor_t	vtterm_cursor;
 static tc_putchar_t	vtterm_putchar;
 static tc_fill_t	vtterm_fill;
 static tc_copy_t	vtterm_copy;
+static tc_pre_input_t	vtterm_pre_input;
+static tc_post_input_t	vtterm_post_input;
 static tc_param_t	vtterm_param;
 static tc_done_t	vtterm_done;
 
@@ -85,6 +87,8 @@ const struct terminal_class vt_termclass = {
 	.tc_putchar	= vtterm_putchar,
 	.tc_fill	= vtterm_fill,
 	.tc_copy	= vtterm_copy,
+	.tc_pre_input	= vtterm_pre_input,
+	.tc_post_input	= vtterm_post_input,
 	.tc_param	= vtterm_param,
 	.tc_done	= vtterm_done,
 
@@ -1053,7 +1057,7 @@ vtterm_fill(struct terminal *tm, const term_rect_t *r, term_char_t c)
 {
 	struct vt_window *vw = tm->tm_softc;
 
-	vtbuf_fill_locked(&vw->vw_buf, r, c);
+	vtbuf_fill(&vw->vw_buf, r, c);
 	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
@@ -1142,7 +1146,7 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 }
 
 static void
-vt_mark_mouse_position_as_dirty(struct vt_device *vd)
+vt_mark_mouse_position_as_dirty(struct vt_device *vd, int locked)
 {
 	term_rect_t area;
 	struct vt_window *vw;
@@ -1175,7 +1179,11 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 		area.tr_end.tp_row = y + 2;
 	}
 
+	if (!locked)
+		vtbuf_lock(&vw->vw_buf);
 	vtbuf_dirty(&vw->vw_buf, &area);
+	if (!locked)
+		vtbuf_unlock(&vw->vw_buf);
 }
 #endif
 
@@ -1230,6 +1238,8 @@ vt_flush(struct vt_device *vd)
 	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
 		return (0);
 
+	vtbuf_lock(&vw->vw_buf);
+
 #ifndef SC_NO_CUTPASTE
 	cursor_was_shown = vd->vd_mshown;
 	cursor_moved = (vd->vd_mx != vd->vd_mx_drawn ||
@@ -1250,7 +1260,7 @@ vt_flush(struct vt_device *vd)
 	 */
 	if (cursor_was_shown != vd->vd_mshown ||
 	    (vd->vd_mshown && cursor_moved))
-		vt_mark_mouse_position_as_dirty(vd);
+		vt_mark_mouse_position_as_dirty(vd, true);
 
 	/*
          * Save position of the mouse cursor. It's used by backends to
@@ -1265,7 +1275,7 @@ vt_flush(struct vt_device *vd)
 	 * mark the new position as dirty.
 	 */
 	if (vd->vd_mshown && cursor_moved)
-		vt_mark_mouse_position_as_dirty(vd);
+		vt_mark_mouse_position_as_dirty(vd, true);
 #endif
 
 	vtbuf_undirty(&vw->vw_buf, &tarea);
@@ -1282,9 +1292,11 @@ vt_flush(struct vt_device *vd)
 
 	if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
 		vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
+		vtbuf_unlock(&vw->vw_buf);
 		return (1);
 	}
 
+	vtbuf_unlock(&vw->vw_buf);
 	return (0);
 }
 
@@ -1303,6 +1315,23 @@ vt_timer(void *arg)
 		vt_schedule_flush(vd, 0);
 	else
 		vd->vd_timer_armed = 0;
+}
+
+static void
+vtterm_pre_input(struct terminal *tm)
+{
+	struct vt_window *vw = tm->tm_softc;
+
+	vtbuf_lock(&vw->vw_buf);
+}
+
+static void
+vtterm_post_input(struct terminal *tm)
+{
+	struct vt_window *vw = tm->tm_softc;
+
+	vtbuf_unlock(&vw->vw_buf);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -2000,7 +2029,7 @@ vt_mouse_state(int show)
 	}
 
 	/* Mark mouse position as dirty. */
-	vt_mark_mouse_position_as_dirty(vd);
+	vt_mark_mouse_position_as_dirty(vd, false);
 	vt_resume_flush_timer(vw->vw_device, 0);
 }
 #endif

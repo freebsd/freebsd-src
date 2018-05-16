@@ -213,8 +213,10 @@ struct vt_buf {
 #define	VBF_DEFAULT_HISTORY_SIZE	500
 #endif
 
+void vtbuf_lock(struct vt_buf *);
+void vtbuf_unlock(struct vt_buf *);
 void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
-void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
+void vtbuf_fill(struct vt_buf *, const term_rect_t *, term_char_t);
 void vtbuf_init_early(struct vt_buf *);
 void vtbuf_init(struct vt_buf *, const term_pos_t *);
 void vtbuf_grow(struct vt_buf *, const term_pos_t *, unsigned int);
