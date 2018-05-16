@@ -1921,7 +1921,7 @@ get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 }
 
 int
-send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
+vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 {
 	unsigned char ipv4_addr[MAX_IP_LEN];
 	unsigned char ipv6_addr[MAX_IP_LEN];
@@ -2006,7 +2006,7 @@ send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
 }
 
 int
-recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
+vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 {
 	unsigned char ipv4_addr[MAX_IP_LEN];
 	unsigned char ipv6_addr[MAX_IP_LEN];

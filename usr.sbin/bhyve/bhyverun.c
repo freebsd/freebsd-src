@@ -169,7 +169,7 @@ static const char * const vmx_exit_reason_desc[] = {
 };
 
 #define MAX_SOCK_NAME 200
-#define MAX_MSG_SIZE 100
+#define MAX_MSG_SIZE 1024
 
 #define BHYVE_RUN_DIR "/var/run/bhyve"
 #define CHECKPOINT_RUN_DIR BHYVE_RUN_DIR "/checkpoint"
@@ -1504,7 +1504,7 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 		req.port = DEFAULT_MIGRATION_PORT;
 	}
 
-	rc = recv_migrate_req(ctx, req);
+	rc = vm_recv_migrate_req(ctx, req);
 
 	free(hostname);
 	return (rc);
@@ -1889,6 +1889,7 @@ int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 {
 	unsigned char buf[MAX_MSG_SIZE];
 	struct checkpoint_op *checkpoint_op;
+	struct migrate_req req;
 	int len, recv_len, total_recv = 0;
 	int err = 0;
 
@@ -1909,6 +1910,19 @@ int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 			break;
 		case START_SUSPEND:
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
+			break;
+		case START_MIGRATE:
+			memset(&req, 0, sizeof(struct migrate_req));
+			req.port = checkpoint_op->port;
+			memcpy(req.host, checkpoint_op->host, MAX_HOSTNAME_LEN);
+			req.host[MAX_HOSTNAME_LEN - 1] = 0;
+			fprintf(stderr, "%s: IP address used for migration: %s;\r\n"
+				"Port used for migration: %d\r\n",
+				__func__,
+				checkpoint_op->host,
+				checkpoint_op->port);
+
+			err = vm_send_migrate_req(ctx, req);
 			break;
 		default:
 			fprintf(stderr, "Unrecognized checkpoint operation.\n");
@@ -2305,6 +2319,13 @@ main(int argc, char *argv[])
 
 	}
 
+	/*
+	 * checkpointing thread for communication with bhyvectl
+	 */
+	if (init_checkpoint_thread(ctx) < 0)
+		printf("Failed to start checkpoint thread!\r\n");
+
+
 	if (receive_migration != NULL) {
 		fprintf(stdout, "Starting the migration process...\r\n");
 		if (receive_vm_migration(ctx, receive_migration) != 0) {
@@ -2354,11 +2375,6 @@ main(int argc, char *argv[])
 	if (restore_file != NULL)
 		destroy_restore_state(&rstate);
 
-	/*
-	 * checkpointing thread for communication with bhyvectl
-	 */
-	if(init_checkpoint_thread(ctx) < 0)
-		printf("Failed to start checkpoint thread!\r\n");
 
 	/*
 	 * Add CPU 0

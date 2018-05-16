@@ -262,14 +262,26 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 
 #define MAX_SNAPSHOT_VMNAME 100
 
+#define MAX_HOSTNAME_LEN	255
+#define MAX_IP_LEN		64
+#define DEFAULT_MIGRATION_PORT	24983
+#define MAX_SPEC_LEN		256
+
+#define MIGRATION_SPECS_OK	0
+#define MIGRATION_SPECS_NOT_OK	1
+
+
 enum checkpoint_opcodes {
 	START_CHECKPOINT = 0,
 	START_SUSPEND = 1,
+	START_MIGRATE = 2,
 };
 
 struct __attribute__((packed)) checkpoint_op {
 	unsigned int op;
 	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
+	char host[MAX_HOSTNAME_LEN];
+	unsigned int port;
 };
 
 int	vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
@@ -279,13 +291,6 @@ int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 
 int	vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size);
 
-#define MAX_HOSTNAME_LEN	255
-#define MAX_IP_LEN		64
-#define DEFAULT_MIGRATION_PORT	24983
-#define MAX_SPEC_LEN		256
-
-#define MIGRATION_SPECS_OK	0
-#define MIGRATION_SPECS_NOT_OK	1
 
 enum message_types {
     MESSAGE_TYPE_SPECS	    = 0,
@@ -311,7 +316,7 @@ struct __attribute__((packed)) migration_system_specs {
 	size_t hw_pagesize;
 };
 
-int send_start_migrate_req(struct vmctx *ctx, struct migrate_req req);
-int recv_migrate_req(struct vmctx *ctx, struct migrate_req req);
+int vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req);
+int vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req);
 
 #endif	/* _VMMAPI_H_ */
