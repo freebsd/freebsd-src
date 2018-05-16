@@ -539,14 +539,14 @@ vt_window_switch(struct vt_window *vw)
 			return (0);
 		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE)))
 			return (EINVAL);
-		
+
 		vd->vd_curwindow = vw;
 		vd->vd_flags |= VDF_INVALID;
 		if (vd->vd_driver->vd_postswitch)
 			vd->vd_driver->vd_postswitch(vd);
 		return (0);
 	}
-		
+
 	VT_LOCK(vd);
 	if (curvw == vw) {
 		/* Nothing to do. */
@@ -2279,7 +2279,7 @@ skip_thunk:
 		/* XXX */
 		*(int *)data = M_CG640x480;
 		return (0);
-	case CONS_BELLTYPE: 	/* set bell type sound */
+	case CONS_BELLTYPE:	/* set bell type sound */
 		if ((*(int *)data) & CONS_QUIET_BELL)
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
@@ -2383,7 +2383,7 @@ skip_thunk:
 			break;
 		}
 		return (0);
-	case KDENABIO:      	/* allow io operations */
+	case KDENABIO:		/* allow io operations */
 		error = priv_check(td, PRIV_IO);
 		if (error != 0)
 			return (error);
@@ -2396,20 +2396,20 @@ skip_thunk:
 		td->td_frame->tf_rflags |= PSL_IOPL;
 #endif
 		return (0);
-	case KDDISABIO:     	/* disallow io operations (default) */
+	case KDDISABIO:		/* disallow io operations (default) */
 #if defined(__i386__)
 		td->td_frame->tf_eflags &= ~PSL_IOPL;
 #elif defined(__amd64__)
 		td->td_frame->tf_rflags &= ~PSL_IOPL;
 #endif
 		return (0);
-	case KDMKTONE:      	/* sound the bell */
+	case KDMKTONE:		/* sound the bell */
 		vtterm_beep(tm, *(u_int *)data);
 		return (0);
-	case KIOCSOUND:     	/* make tone (*data) hz */
+	case KIOCSOUND:		/* make tone (*data) hz */
 		/* TODO */
 		return (0);
-	case CONS_SETKBD: 		/* set the new keyboard */
+	case CONS_SETKBD:	/* set the new keyboard */
 		mtx_lock(&Giant);
 		error = 0;
 		if (vd->vd_keyboard != *(int *)data) {
@@ -2437,7 +2437,7 @@ skip_thunk:
 		}
 		mtx_unlock(&Giant);
 		return (error);
-	case CONS_RELKBD: 		/* release the current keyboard */
+	case CONS_RELKBD:	/* release the current keyboard */
 		mtx_lock(&Giant);
 		error = 0;
 		if (vd->vd_keyboard != -1) {
@@ -2509,7 +2509,7 @@ skip_thunk:
 		VT_UNLOCK(vd);
 		return (error);
 	}
-	case VT_SETMODE: {    	/* set screen switcher mode */
+	case VT_SETMODE: {	/* set screen switcher mode */
 		struct vt_mode *mode;
 		struct proc *p1;
 

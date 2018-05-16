@@ -317,7 +317,7 @@ ofwfb_initialize(struct vt_device *vd)
 		}
 		if (i != 16)
 			sc->iso_palette = 1;
-				
+
 		break;
 
 	case 32:
@@ -417,7 +417,7 @@ ofwfb_init(struct vt_device *vd)
 	 * remapped for us when relocation turns on.
 	 */
 	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
-	 	/* XXX We assume #address-cells is 1 at this point. */
+		/* XXX We assume #address-cells is 1 at this point. */
 		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
 	#if defined(__powerpc__)
