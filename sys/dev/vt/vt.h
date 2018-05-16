@@ -172,7 +172,7 @@ struct vt_device {
 #define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 void vt_resume(struct vt_device *vd);
-void vt_resume_flush_timer(struct vt_device *vd, int ms);
+void vt_resume_flush_timer(struct vt_window *vw, int ms);
 void vt_suspend(struct vt_device *vd);
 
 /*
