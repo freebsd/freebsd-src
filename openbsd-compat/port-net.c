@@ -185,7 +185,7 @@ sys_tun_open(int tun, int mode, char **ifname)
 	else
 		debug("%s: %s mode %d fd %d", __func__, ifr.ifr_name, mode, fd);
 
-	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)))
+	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)) == NULL)
 		goto failed;
 
 	return (fd);
@@ -272,7 +272,7 @@ sys_tun_open(int tun, int mode, char **ifname)
 			goto failed;
 	}
 
-	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)))
+	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)) == NULL)
 		goto failed;
 
 	close(sock);
