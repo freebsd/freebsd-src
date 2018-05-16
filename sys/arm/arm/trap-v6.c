@@ -599,8 +599,11 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active)
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
 		kdb_trap(fsr, 0, tf);
+		kdb_why = KDB_WHY_UNSET;
+	}
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
