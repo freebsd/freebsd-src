@@ -960,10 +960,10 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	 */
 
 	nm_i = netmap_idx_n2k(kring, kring->nr_hwcur);
-	pkt_info_zero(&pi);
-	pi.ipi_segs = txq->ift_segs;
-	pi.ipi_qsidx = kring->ring_id;
 	if (nm_i != head) {	/* we have new packets to send */
+		pkt_info_zero(&pi);
+		pi.ipi_segs = txq->ift_segs;
+		pi.ipi_qsidx = kring->ring_id;
 		nic_i = netmap_idx_k2n(kring, nm_i);
 
 		__builtin_prefetch(&ring->slot[nm_i]);
@@ -1025,11 +1025,24 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	/*
 	 * Second part: reclaim buffers for completed transmissions.
+	 *
+	 * If there are unclaimed buffers, attempt to reclaim them.
+	 * If none are reclaimed, and TX IRQs are not in use, do an initial
+	 * minimal delay, then trigger the tx handler which will spin in the
+	 * group task queue.
 	 */
-	if (iflib_tx_credits_update(ctx, txq)) {
-		/* some tx completed, increment avail */
-		nic_i = txq->ift_cidx_processed;
-		kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
+	if (kring->nr_hwtail != nm_prev(head, lim)) {
+		if (iflib_tx_credits_update(ctx, txq)) {
+			/* some tx completed, increment avail */
+			nic_i = txq->ift_cidx_processed;
+			kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
+		}
+		else {
+			if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
+				DELAY(1);
+				GROUPTASK_ENQUEUE(&ctx->ifc_txqs[txq->ift_id].ift_task);
+			}
+		}
 	}
 	return (0);
 }
@@ -3702,8 +3715,20 @@ _task_fn_tx(void *context)
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
 	if (if_getcapenable(ifp) & IFCAP_NETMAP) {
+		/*
+		 * If there are no available credits, and TX IRQs are not in use,
+		 * re-schedule the task immediately.
+		 */
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
+		else {
+			if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
+				struct netmap_kring *kring = NA(ctx->ifc_ifp)->tx_rings[txq->ift_id];
+
+				if (kring->nr_hwtail != nm_prev(kring->rhead, kring->nkr_num_slots - 1))
+					GROUPTASK_ENQUEUE(&txq->ift_task);
+			}
+		}
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
 	}
@@ -5548,6 +5573,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		fn = _task_fn_tx;
 		intr_fast = iflib_fast_intr;
 		GROUPTASK_INIT(gtask, 0, fn, q);
+		ctx->ifc_flags |= IFC_NETMAP_TX_IRQ;
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
