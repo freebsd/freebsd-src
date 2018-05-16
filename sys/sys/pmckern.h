@@ -60,6 +60,8 @@
 #define	PMC_FN_USER_CALLCHAIN		9
 #define	PMC_FN_USER_CALLCHAIN_SOFT	10
 #define	PMC_FN_SOFT_SAMPLING		11
+#define	PMC_FN_THR_CREATE		12
+#define	PMC_FN_THR_EXIT			13
 
 #define	PMC_HR	0	/* Hardware ring buffer */
 #define	PMC_SR	1	/* Software ring buffer */
