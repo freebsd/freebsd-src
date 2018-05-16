@@ -3722,12 +3722,14 @@ _task_fn_tx(void *context)
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
 		else {
+#ifdef DEV_NETMAP			
 			if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
 				struct netmap_kring *kring = NA(ctx->ifc_ifp)->tx_rings[txq->ift_id];
 
 				if (kring->nr_hwtail != nm_prev(kring->rhead, kring->nkr_num_slots - 1))
 					GROUPTASK_ENQUEUE(&txq->ift_task);
 			}
+#endif			
 		}
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
