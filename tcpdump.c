@@ -108,6 +108,10 @@ The Regents of the University of California.  All rights reserved.\n";
 #endif /* HAVE_CAP_NG_H */
 #endif /* HAVE_LIBCAP_NG */
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif /* __FreeBSD__ */
+
 #include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
@@ -1044,6 +1048,30 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 		} else if (status == PCAP_ERROR_PERM_DENIED && *cp != '\0')
 			error("%s: %s\n(%s)", device,
 			    pcap_statustostr(status), cp);
+#ifdef __FreeBSD__
+		else if (status == PCAP_ERROR_RFMON_NOTSUP &&
+		    strncmp(device, "wlan", 4) == 0) {
+			char parent[8], newdev[8];
+			char sysctl[32];
+			size_t s = sizeof(parent);
+
+			snprintf(sysctl, sizeof(sysctl),
+			    "net.wlan.%d.%%parent", atoi(device + 4));
+			sysctlbyname(sysctl, parent, &s, NULL, 0);
+			strlcpy(newdev, device, sizeof(newdev));
+			/* Suggest a new wlan device. */
+			/* FIXME: incrementing the index this way is not going to work well
+			 * when the index is 9 or greater but the only consequence in this
+			 * specific case would be an error message that looks a bit odd.
+			 */
+			newdev[strlen(newdev)-1]++;
+			error("%s is not a monitor mode VAP\n"
+			    "To create a new monitor mode VAP use:\n"
+			    "  ifconfig %s create wlandev %s wlanmode monitor\n"
+			    "and use %s as the tcpdump interface",
+			    device, newdev, parent, newdev);
+		}
+#endif
 		else
 			error("%s: %s", device,
 			    pcap_statustostr(status));
