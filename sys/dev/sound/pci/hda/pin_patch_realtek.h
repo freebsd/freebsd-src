@@ -182,7 +182,33 @@ static struct pin_patch_t pin_patches_dell_xps_jack[] = {
  * List of models and patches
  */
 static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
-	{ /**** CODEC: HDA_CODEC_ALC260 ****/
+	{ /**** CODEC: HDA_CODEC_ALC255 ****/
+		.id = HDA_CODEC_ALC255,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ASUS_X556UR_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X540LA_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_Z550MA_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(DELL_9020M_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_HPMIC_WO_DETECT(0x1a),
+        				{ }
+				}
+			}, { }
+		}
+	}, { /**** CODEC: HDA_CODEC_ALC260 ****/
 		.id = HDA_CODEC_ALC260,
 		.patches = (struct model_pin_patch_t[]){
 			{
