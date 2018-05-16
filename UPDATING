@@ -51,6 +51,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20150510:
+	The amd64 kernel now requires a ld that supports ifunc to produce a
+	working kernel, either lld or a newer binutils. lld is built by default
+	on amd64, and the 'buildkernel' target uses it automatically. However,
+	it is not the default linker, so building the kernel the traditional
+	way requires LD=ld.lld on the command line (or LD=/usr/local/bin/ld for
+	binutils port/package). lld will soon be default, and this requirement
+	will go away.
+
 20180508:
 	The nxge(4) driver has been removed.  This driver was for PCI-X 10g
 	cards made by s2io/Neterion.  The company was aquired by Exar and
