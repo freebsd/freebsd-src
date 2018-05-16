@@ -55,7 +55,8 @@ cfumass_start()
 	_files=`find "${cfumass_dir}" -newer "${cfumass_image}" -print 2> /dev/null`
 	if [ ! -e "${cfumass_image}" -o -n "${_files}" ]; then
 		# The image doesn't exist or is out of date.
-		makefs -t cd9660 -o rockridge "${cfumass_image}" "${cfumass_dir}"
+		makefs -t cd9660 -o label="${cfumass_vendor}" \
+		    -o rockridge "${cfumass_image}" "${cfumass_dir}"
 		err=$?
 		if [ "${err}" -ne 0 ]; then
 			warn "unable to create ${cfumass_image}"
