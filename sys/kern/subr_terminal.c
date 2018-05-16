@@ -106,6 +106,8 @@ static tf_cursor_t	termteken_cursor;
 static tf_putchar_t	termteken_putchar;
 static tf_fill_t	termteken_fill;
 static tf_copy_t	termteken_copy;
+static tf_pre_input_t	termteken_pre_input;
+static tf_post_input_t	termteken_post_input;
 static tf_param_t	termteken_param;
 static tf_respond_t	termteken_respond;
 
@@ -115,6 +117,8 @@ static teken_funcs_t terminal_drawmethods = {
 	.tf_putchar	= termteken_putchar,
 	.tf_fill	= termteken_fill,
 	.tf_copy	= termteken_copy,
+	.tf_pre_input	= termteken_pre_input,
+	.tf_post_input	= termteken_post_input,
 	.tf_param	= termteken_param,
 	.tf_respond	= termteken_respond,
 };
@@ -624,6 +628,22 @@ termteken_copy(void *softc, const teken_rect_t *r, const teken_pos_t *p)
 	struct terminal *tm = softc;
 
 	tm->tm_class->tc_copy(tm, r, p);
+}
+
+static void
+termteken_pre_input(void *softc)
+{
+	struct terminal *tm = softc;
+
+	tm->tm_class->tc_pre_input(tm);
+}
+
+static void
+termteken_post_input(void *softc)
+{
+	struct terminal *tm = softc;
+
+	tm->tm_class->tc_post_input(tm);
 }
 
 static void
