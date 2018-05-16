@@ -208,6 +208,37 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, { }
 		}
+	}, { /**** CODEC: HDA_CODEC_ALC256 ****/
+		.id = HDA_CODEC_ALC256,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(DELL_9020M_SUBVENDOR),
+					PIN_SUBVENDOR(DELL_7000_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x1b, 0x90170151),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ASUS_X540A_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X540SA_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X541SA_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X541UV_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_Z550SA_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X705UD_SUBVENDOR),
+					PIN_SUBVENDOR(ASUS_X555UB_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_MIC_INTERNAL(0x13),
+					PIN_OVERRIDE(0x19, 0x04a11120), /* headset mic without jack detect */
+        				{ }
+				}
+			}, { }
+		}
 	}, { /**** CODEC: HDA_CODEC_ALC260 ****/
 		.id = HDA_CODEC_ALC260,
 		.patches = (struct model_pin_patch_t[]){
