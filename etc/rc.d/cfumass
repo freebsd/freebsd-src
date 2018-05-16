@@ -67,7 +67,7 @@ cfumass_start()
 
 	ctladm create -b block -o file="${cfumass_image}" -o readonly=on \
 	    -o vendor="${cfumass_vendor}" -o product="${cfumass_product}" \
-	    -t 5 -S 0 > /dev/null
+	    -S 0 > /dev/null
 	err=$?
 	if [ "${err}" -ne 0 ]; then
 		warn "unable to create CTL LUN"
