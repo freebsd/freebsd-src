@@ -121,7 +121,6 @@ SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
 SUBDIR.${MK_CTM}+=	ctm
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
-SUBDIR.${MK_MLX5TOOL}+=	mlx5tool
 SUBDIR.${MK_DIALOG}+=	bsdconfig
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
@@ -159,6 +158,7 @@ SUBDIR.${MK_NS_CACHING}+=	nscd
 .endif
 SUBDIR.${MK_LPR}+=	lpr
 SUBDIR.${MK_MAN_UTILS}+=	manctl
+SUBDIR.${MK_MLX5TOOL}+=	mlx5tool
 SUBDIR.${MK_NAND}+=	nandsim
 SUBDIR.${MK_NAND}+=	nandtool
 SUBDIR.${MK_NETGRAPH}+=	flowctl
