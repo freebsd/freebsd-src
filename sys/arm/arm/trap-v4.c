@@ -404,7 +404,16 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
     struct ksig *ksig)
 {
 	const char *mode;
+#ifdef KDB
+	bool handled;
+#endif
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return (0);
+	}
+#endif
 #ifdef KDTRACE_HOOKS
 	if (!TRAP_USERMODE(tf))	{
 		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far & FAULT_TYPE_MASK))
@@ -447,9 +456,13 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active)
-		if (kdb_trap(fsr, 0, tf))
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
+		handled = kdb_trap(fsr, 0, tf);
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
 			return (0);
+	}
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
