@@ -303,4 +303,4 @@
     0x95, 0x0A,         /*          Report Count (10),      */\
     0x81, 0x01,         /*          Input (Constant),       */\
     0xC0,               /*      End Collection,             */\
-    0xC0                /*  End Collection                  */\
+    0xC0                /*  End Collection                  */
