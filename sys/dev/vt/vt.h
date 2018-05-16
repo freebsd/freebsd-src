@@ -93,7 +93,7 @@ struct vt_driver;
 void vt_allocate(const struct vt_driver *, void *);
 void vt_deallocate(const struct vt_driver *, void *);
 
-typedef unsigned int 	vt_axis_t;
+typedef unsigned int	vt_axis_t;
 
 /*
  * List of locks
