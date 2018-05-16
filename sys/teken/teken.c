@@ -136,16 +136,16 @@ static inline void
 teken_funcs_pre_input(const teken_t *t)
 {
 
-	teken_assert(t->t_funcs->tf_pre_input != NULL);
-	t->t_funcs->tf_pre_input(t->t_softc);
+	if (t->t_funcs->tf_pre_input != NULL)
+		t->t_funcs->tf_pre_input(t->t_softc);
 }
 
 static inline void
 teken_funcs_post_input(const teken_t *t)
 {
 
-	teken_assert(t->t_funcs->tf_post_input != NULL);
-	t->t_funcs->tf_post_input(t->t_softc);
+	if (t->t_funcs->tf_post_input != NULL)
+		t->t_funcs->tf_post_input(t->t_softc);
 }
 
 static inline void
