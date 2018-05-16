@@ -289,8 +289,12 @@ vt_schedule_flush(struct vt_device *vd, int ms)
 }
 
 void
-vt_resume_flush_timer(struct vt_device *vd, int ms)
+vt_resume_flush_timer(struct vt_window *vw, int ms)
 {
+	struct vt_device *vd = vw->vw_device;
+
+	if (vd->vd_curwindow != vw)
+		return;
 
 	if (!(vd->vd_flags & VDF_ASYNC) ||
 	    !atomic_cmpset_int(&vd->vd_timer_armed, 0, 1))
@@ -564,7 +568,7 @@ vt_window_switch(struct vt_window *vw)
 	if (vd->vd_driver->vd_postswitch)
 		vd->vd_driver->vd_postswitch(vd);
 
-	vt_resume_flush_timer(vd, 0);
+	vt_resume_flush_timer(vw, 0);
 
 	/* Restore per-window keyboard mode. */
 	mtx_lock(&Giant);
@@ -684,7 +688,7 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 	diff = vthistory_seek(&vw->vw_buf, offset, whence);
 	if (diff)
 		vw->vw_device->vd_flags |= VDF_INVALID;
-	vt_resume_flush_timer(vw->vw_device, 0);
+	vt_resume_flush_timer(vw, 0);
 }
 
 static int
@@ -1040,7 +1044,6 @@ vtterm_cursor(struct terminal *tm, const term_pos_t *p)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_cursor_position(&vw->vw_buf, p);
-	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -1049,7 +1052,6 @@ vtterm_putchar(struct terminal *tm, const term_pos_t *p, term_char_t c)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_putchar(&vw->vw_buf, p, c);
-	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -1058,7 +1060,6 @@ vtterm_fill(struct terminal *tm, const term_rect_t *r, term_char_t c)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_fill(&vw->vw_buf, r, c);
-	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -1068,7 +1069,6 @@ vtterm_copy(struct terminal *tm, const term_rect_t *r,
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_copy(&vw->vw_buf, r, p);
-	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -1088,7 +1088,7 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 		/* FALLTHROUGH */
 	case TP_SHOWCURSOR:
 		vtbuf_cursor_visibility(&vw->vw_buf, arg);
-		vt_resume_flush_timer(vw->vw_device, 0);
+		vt_resume_flush_timer(vw, 0);
 		break;
 	case TP_MOUSE:
 		vw->vw_mouse_level = arg;
@@ -1331,7 +1331,7 @@ vtterm_post_input(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_unlock(&vw->vw_buf);
-	vt_resume_flush_timer(vw->vw_device, 0);
+	vt_resume_flush_timer(vw, 0);
 }
 
 static void
@@ -1684,7 +1684,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
 		vd->vd_flags |= VDF_INVALID;
-		vt_resume_flush_timer(vw->vw_device, 0);
+		vt_resume_flush_timer(vw, 0);
 	}
 	vw->vw_flags &= ~VWF_BUSY;
 	VT_UNLOCK(vd);
@@ -1911,7 +1911,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 			    vd->vd_mx / vf->vf_width,
 			    vd->vd_my / vf->vf_height);
 
-		vt_resume_flush_timer(vw->vw_device, 0);
+		vt_resume_flush_timer(vw, 0);
 		return; /* Done */
 	case MOUSE_BUTTON_EVENT:
 		/* Buttons */
@@ -1975,7 +1975,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		 * We have something marked to copy, so update pointer to
 		 * window with selection.
 		 */
-		vt_resume_flush_timer(vw->vw_device, 0);
+		vt_resume_flush_timer(vw, 0);
 
 		switch (mark) {
 		case VTB_MARK_END:
@@ -2030,7 +2030,7 @@ vt_mouse_state(int show)
 
 	/* Mark mouse position as dirty. */
 	vt_mark_mouse_position_as_dirty(vd, false);
-	vt_resume_flush_timer(vw->vw_device, 0);
+	vt_resume_flush_timer(vw, 0);
 }
 #endif
 
@@ -2808,7 +2808,7 @@ vt_replace_backend(const struct vt_driver *drv, void *softc)
 		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
 		/* Rerun timer for screen updates. */
-		vt_resume_flush_timer(vd, 0);
+		vt_resume_flush_timer(vd->vd_curwindow, 0);
 	}
 
 	/*
