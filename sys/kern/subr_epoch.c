@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 
 /* arbitrary --- needs benchmarking */
-#define MAX_ADAPTIVE_SPIN 5000
+#define MAX_ADAPTIVE_SPIN 1000
 
 #define EPOCH_EXITING 0x1
 #ifdef __amd64__
@@ -63,6 +63,7 @@ static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 #define EPOCH_ALIGN CACHE_LINE_SIZE
 #endif
 
+CTASSERT(sizeof(epoch_section_t) == sizeof(ck_epoch_section_t));
 SYSCTL_NODE(_kern, OID_AUTO, epoch, CTLFLAG_RW, 0, "epoch information");
 SYSCTL_NODE(_kern_epoch, OID_AUTO, stats, CTLFLAG_RW, 0, "epoch stats");
 
@@ -308,8 +309,12 @@ epoch_enter(epoch_t epoch)
 		KASSERT(found, ("recursing on a second epoch"));
 	}
 #endif
+	if (td->td_epochnest > 1) {
+		critical_exit();
+		return;
+	}
 	sched_pin();
-	ck_epoch_begin(&eps->eps_record.er_record, NULL);
+	ck_epoch_begin(&eps->eps_record.er_record, (ck_epoch_section_t*)&td->td_epoch_section);
 	critical_exit();
 }
 
@@ -324,11 +329,15 @@ epoch_exit(epoch_t epoch)
 	MPASS(td->td_epochnest);
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
-	sched_unpin();
-	ck_epoch_end(&eps->eps_record.er_record, NULL);
 	td->td_epochnest--;
 	if (td->td_epochnest == 0)
 		TAILQ_REMOVE(&eps->eps_record.er_tdlist, td, td_epochq);
+	else {
+		critical_exit();
+		return;
+	}
+	sched_unpin();
+	ck_epoch_end(&eps->eps_record.er_record, (ck_epoch_section_t*)&td->td_epoch_section);
 	eps->eps_record.er_gen++;
 	critical_exit();
 }

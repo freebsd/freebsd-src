@@ -76,6 +76,18 @@
 
 
 /*
+ * A section object may be passed to every begin-end pair to allow for
+ * forward progress guarantees with-in prolonged active sections.
+ *
+ * We can't include ck_epoch.h so we define our own variant here and
+ * then CTASSERT that it's the same size in subr_epoch.c
+ */
+struct epoch_section {
+	unsigned int bucket;
+};
+typedef struct epoch_section epoch_section_t;
+
+/*
  * One structure allocated per session.
  *
  * List of locks
@@ -352,6 +364,7 @@ struct thread {
 	struct proc	*td_rfppwait_p;	/* (k) The vforked child */
 	struct vm_page	**td_ma;	/* (k) uio pages held */
 	int		td_ma_cnt;	/* (k) size of *td_ma */
+	epoch_section_t td_epoch_section; /* (t) epoch section object */
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
