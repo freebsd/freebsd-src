@@ -400,7 +400,6 @@ SUBDIR=	\
 	vr \
 	vte \
 	vx \
-	${_vxge} \
 	wb \
 	${_wbwd} \
 	${_wi} \
@@ -619,7 +618,6 @@ _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
 _vmware=	vmware
-_vxge=  	vxge
 _wbwd=		wbwd
 _wi=		wi
 _xe=		xe
