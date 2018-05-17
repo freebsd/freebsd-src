@@ -42,6 +42,7 @@ SUBDIR=	\
 	${_aout} \
 	${_apm} \
 	${_arcmsr} \
+	${_allwinner} \
 	${_armv8crypto} \
 	${_asmc} \
 	ata \
@@ -558,6 +559,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_allwinner=	allwinner
 _armv8crypto=	armv8crypto
 _efirt=		efirt
 _em=		em
