@@ -367,6 +367,12 @@
       <para revision="332947">The &man.etdump.1; utility has been
 	added, which is used to view El Torito boot catalog
 	information.</para>
+
+      <para revision="322753">The &man.mount.8; utility has been
+	updated to allow fallback to mount media read-only if an
+	attempt to mount write-protected media read-write fails.  This
+	behavior is disabled by default, and can be requested with the
+	new <literal>autoro</literal> option.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
