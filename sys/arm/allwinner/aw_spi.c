@@ -143,7 +143,7 @@ struct aw_spi_softc {
 	struct mtx	mtx;
 	clk_t		clk_ahb;
 	clk_t		clk_mod;
-	uint64_t	ahb_freq;
+	uint64_t	mod_freq;
 	hwreset_t	rst_ahb;
 	void *		intrhand;
 	int		transfer;
@@ -238,8 +238,6 @@ aw_spi_attach(device_t dev)
 		goto fail;
 	}
 
-	clk_get_freq(sc->clk_ahb, &sc->ahb_freq);
-
 	sc->spibus = device_add_child(dev, "spibus", -1);
 
 	return (0);
@@ -329,33 +327,33 @@ aw_spi_clock_test_cdr1(struct aw_spi_softc *sc, uint64_t clock, uint32_t *ccr)
 
 	max = AW_SPI_CCR_CDR1_MASK >> AW_SPI_CCR_CDR1_SHIFT;
 	for (i = 0; i < max; i++) {
-		cur = sc->ahb_freq / (1 << i);
+		cur = sc->mod_freq / (1 << i);
 		if ((clock - cur) < (clock - best)) {
 			best = cur;
 			best_div = i;
 		}
 	}
 
-	*ccr = (i << AW_SPI_CCR_CDR1_SHIFT);
+	*ccr = (best_div << AW_SPI_CCR_CDR1_SHIFT);
 	return (best);
 }
 
 static uint64_t
-aw_spi_clock_test_cdr2(struct aw_spi_softc *sc, uint32_t clock, uint32_t *ccr)
+aw_spi_clock_test_cdr2(struct aw_spi_softc *sc, uint64_t clock, uint32_t *ccr)
 {
 	uint64_t cur, best = 0;
 	int i, max, best_div;
 
 	max = ((AW_SPI_CCR_CDR2_MASK) >> AW_SPI_CCR_CDR2_SHIFT);
 	for (i = 0; i < max; i++) {
-		cur = sc->ahb_freq / (1 << i);
+		cur = sc->mod_freq / (2 * i + 1);
 		if ((clock - cur) < (clock - best)) {
 			best = cur;
 			best_div = i;
 		}
 	}
 
-	*ccr = AW_SPI_CCR_DRS | (i << AW_SPI_CCR_CDR2_SHIFT);
+	*ccr = AW_SPI_CCR_DRS | (best_div << AW_SPI_CCR_CDR2_SHIFT);
 	return (best);
 }
 
@@ -531,6 +529,9 @@ aw_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spibus_get_clock(child, &clock);
 	spibus_get_mode(child, &mode);
 
+	/* The minimum divider is 2 so set the clock at twice the needed speed */
+	clk_set_freq(sc->clk_mod, 2 * clock, CLK_SET_ROUND_DOWN);
+	clk_get_freq(sc->clk_mod, &sc->mod_freq);
 	if (cs >= AW_SPI_MAX_CS) {
 		device_printf(dev, "Invalid cs %d\n", cs);
 		return (EINVAL);
