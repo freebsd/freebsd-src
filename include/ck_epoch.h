@@ -266,6 +266,7 @@ void ck_epoch_register(ck_epoch_t *, ck_epoch_record_t *, void *);
 void ck_epoch_unregister(ck_epoch_record_t *);
 
 bool ck_epoch_poll(ck_epoch_record_t *);
+bool ck_epoch_poll_deferred(struct ck_epoch_record *record, ck_stack_t *deferred);
 void ck_epoch_synchronize(ck_epoch_record_t *);
 void ck_epoch_synchronize_wait(ck_epoch_t *, ck_epoch_wait_cb_t *, void *);
 void ck_epoch_barrier(ck_epoch_record_t *);
