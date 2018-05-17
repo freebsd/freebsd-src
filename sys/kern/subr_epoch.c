@@ -64,6 +64,7 @@ static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 #endif
 
 CTASSERT(sizeof(epoch_section_t) == sizeof(ck_epoch_section_t));
+CTASSERT(sizeof(ck_epoch_entry_t) == sizeof(struct epoch_context));
 SYSCTL_NODE(_kern, OID_AUTO, epoch, CTLFLAG_RW, 0, "epoch information");
 SYSCTL_NODE(_kern_epoch, OID_AUTO, stats, CTLFLAG_RW, 0, "epoch stats");
 
@@ -84,12 +85,10 @@ static counter_u64_t switch_count;
 SYSCTL_COUNTER_U64(_kern_epoch_stats, OID_AUTO, switches, CTLFLAG_RW,
 				   &switch_count, "# of times a thread voluntarily context switched in epoch_wait");
 
-typedef struct epoch_cb {
-	void (*ec_callback)(epoch_context_t);
-	STAILQ_ENTRY(epoch_cb) ec_link;
-} *epoch_cb_t;
-
 TAILQ_HEAD(threadlist, thread);
+
+CK_STACK_CONTAINER(struct ck_epoch_entry, stack_entry,
+    ck_epoch_entry_container)
 
 typedef struct epoch_record {
 	ck_epoch_record_t er_record;
@@ -100,7 +99,6 @@ typedef struct epoch_record {
 
 struct epoch_pcpu_state {
 	struct epoch_record eps_record;
-	STAILQ_HEAD(, epoch_cb) eps_cblist;
 } __aligned(EPOCH_ALIGN);
 
 struct epoch {
@@ -179,7 +177,6 @@ epoch_init_numa(epoch_t epoch)
 		for (int i = 0; i < domcount[domain]; i++, eps++) {
 			epoch->e_pcpu[cpu_offset + i] = eps;
 			er = &eps->eps_record;
-			STAILQ_INIT(&eps->eps_cblist);
 			ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 			TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
 			er->er_cpuid = cpu_offset + i;
@@ -200,7 +197,6 @@ epoch_init_legacy(epoch_t epoch)
 		er = &eps->eps_record;
 		ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 		TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
-		STAILQ_INIT(&eps->eps_cblist);
 		er->er_cpuid = i;
 	}
 }
@@ -525,25 +521,24 @@ void
 epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t))
 {
 	struct epoch_pcpu_state *eps;
-	epoch_cb_t cb;
+	ck_epoch_entry_t *cb;
 
 	cb = (void *)ctx;
 
 	MPASS(callback);
 	/* too early in boot to have epoch set up */
-	if (__predict_false(epoch == NULL)) {
-		callback(ctx);
-		return;
-	}
-	MPASS(cb->ec_callback == NULL);
-	MPASS(cb->ec_link.stqe_next == NULL);
-	cb->ec_callback = callback;
+	if (__predict_false(epoch == NULL))
+		goto boottime;
+
 	counter_u64_add(epoch->e_frees, 1);
 
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
-	STAILQ_INSERT_HEAD(&eps->eps_cblist, cb, ec_link);
+	ck_epoch_call(&eps->eps_record.er_record, cb, (ck_epoch_cb_t*)callback);
 	critical_exit();
+	return;
+ boottime:
+	callback(ctx);
 }
 
 static void
@@ -551,28 +546,26 @@ epoch_call_task(void *context)
 {
 	struct epoch_pcpu_state *eps;
 	epoch_t epoch;
-	epoch_cb_t cb;
 	struct thread *td;
+	ck_stack_entry_t *cursor;
+	ck_stack_t deferred;
 	int cpu;
-	STAILQ_HEAD(, epoch_cb) tmp_head;
 
 	epoch = context;
-	STAILQ_INIT(&tmp_head);
 	td = curthread;
+	ck_stack_init(&deferred);
 	thread_lock(td);
 	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 		eps = epoch->e_pcpu[cpu];
-		if (!STAILQ_EMPTY(&eps->eps_cblist))
-			STAILQ_CONCAT(&tmp_head, &eps->eps_cblist);
+		ck_epoch_poll_deferred(&eps->eps_record.er_record, &deferred);
 	}
 	sched_unbind(td);
 	thread_unlock(td);
-	epoch_wait(epoch);
-
-	while ((cb = STAILQ_FIRST(&tmp_head)) != NULL) {
-		STAILQ_REMOVE_HEAD(&tmp_head, ec_link);
-		cb->ec_callback((void*)cb);
+	while((cursor = ck_stack_pop_npsc(&deferred)) != NULL) {
+		struct ck_epoch_entry *entry =
+		    ck_epoch_entry_container(cursor);
+		entry->function(entry);
 	}
 }
 
