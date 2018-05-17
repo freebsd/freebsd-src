@@ -363,6 +363,10 @@
 	sponsor="&netflix;">The &man.efibootmgr.8; utility has been
 	added, which is used to manipulate the <acronym>EFI</acronym>
 	boot manager.</para>
+
+      <para revision="332947">The &man.etdump.1; utility has been
+	added, which is used to view El Torito boot catalog
+	information.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
