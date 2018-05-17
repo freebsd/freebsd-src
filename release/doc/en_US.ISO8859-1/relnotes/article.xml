@@ -570,6 +570,11 @@
       <para revision="331500">Support for the TAIO
 	<acronym>USB</acronym> multi-protocol adapter
 	(<acronym>TUMPA</acronym>) has been added.</para>
+
+      <para revision="331882" contrib="sponsor"
+	sponsor="&darpa_afrl;">The &man.cm.4; and &man.fpa.4; drivers
+	have been marked as deprecated, and will be removed in
+	&os;&nbsp;12.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
