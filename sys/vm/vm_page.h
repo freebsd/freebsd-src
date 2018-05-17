@@ -208,7 +208,7 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
-	uint8_t	queue;			/* page queue index (Q) */
+	volatile uint8_t queue;		/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
 	uint8_t	order;			/* index of the buddy queue (F) */
