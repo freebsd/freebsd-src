@@ -698,7 +698,9 @@ start_init(void *dummy)
 	vm_offset_t addr;
 	struct execve_args args;
 	int options, error;
-	char *var, *path, *next, *s;
+	size_t pathlen;
+	char *var, *path;
+	char *free_init_path, *tmp_init_path;
 	char *ucp, **uap, *arg0, *arg1;
 	struct thread *td;
 	struct proc *p;
@@ -727,17 +729,12 @@ start_init(void *dummy)
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
 	}
+	free_init_path = tmp_init_path = strdup(init_path, M_TEMP);
 	
-	for (path = init_path; *path != '\0'; path = next) {
-		while (*path == ':')
-			path++;
-		if (*path == '\0')
-			break;
-		for (next = path; *next != '\0' && *next != ':'; next++)
-			/* nothing */ ;
+	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
+		pathlen = strlen(path) + 1;
 		if (bootverbose)
-			printf("start_init: trying %.*s\n", (int)(next - path),
-			    path);
+			printf("start_init: trying %s\n", path);
 			
 		/*
 		 * Move out the boot flag argument.
@@ -769,9 +766,8 @@ start_init(void *dummy)
 		/*
 		 * Move out the file name (also arg 0).
 		 */
-		(void)subyte(--ucp, 0);
-		for (s = next - 1; s >= path; s--)
-			(void)subyte(--ucp, *s);
+		ucp -= pathlen;
+		copyout(path, ucp, pathlen);
 		arg0 = ucp;
 
 		/*
@@ -797,13 +793,14 @@ start_init(void *dummy)
 		 * to user mode as init!
 		 */
 		if ((error = sys_execve(td, &args)) == EJUSTRETURN) {
+			free(free_init_path, M_TEMP);
 			TSEXIT();
 			return;
 		}
 		if (error != ENOENT)
-			printf("exec %.*s: error %d\n", (int)(next - path), 
-			    path, error);
+			printf("exec %s: error %d\n", path, error);
 	}
+	free(free_init_path, M_TEMP);
 	printf("init: not found in path %s\n", init_path);
 	panic("no init");
 }
