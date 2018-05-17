@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/epoch.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -467,6 +468,7 @@ hardclock_cpu(int usermode)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
 	callout_process(sbinuptime());
+	epoch_pcpu_poll();
 }
 
 /*
@@ -572,6 +574,7 @@ hardclock_cnt(int cnt, int usermode)
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();
+	epoch_pcpu_poll();
 }
 
 void
