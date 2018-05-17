@@ -29,6 +29,8 @@
 
 #ifndef _SYS_EPOCH_H_
 #define _SYS_EPOCH_H_
+#include <sys/lock.h>
+#include <sys/proc.h>
 
 struct epoch;
 typedef struct epoch *epoch_t;
@@ -43,10 +45,35 @@ typedef struct epoch_context *epoch_context_t;
 
 epoch_t epoch_alloc(void);
 void epoch_free(epoch_t epoch);
-void epoch_enter(epoch_t epoch);
-void epoch_exit(epoch_t epoch);
+void epoch_enter_internal(epoch_t epoch, struct thread *td);
+void epoch_exit_internal(epoch_t epoch, struct thread *td);
 void epoch_wait(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int in_epoch(void);
+
+static __inline void
+epoch_enter(epoch_t epoch)
+{
+	struct thread *td;
+	int nesting;
+
+	td = curthread;
+	nesting = td->td_epochnest++;
+#ifndef INVARIANTS
+	if (nesting == 0)
+#endif
+		epoch_enter_internal(epoch, td);
+}
+
+static __inline void
+epoch_exit(epoch_t epoch)
+{
+	struct thread *td;
+
+	td = curthread;
+	MPASS(td->td_epochnest);
+	if (td->td_epochnest-- == 1)
+		epoch_exit_internal(epoch, td);
+}
 
 #endif
