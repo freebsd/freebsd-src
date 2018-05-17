@@ -265,6 +265,11 @@
       <para revision="327592">The &man.mdmfs.8; utility has been
 	updated to support &man.tmpfs.5;.</para>
 
+      <para revision="327837">The &man.lint.1; utility is not longer
+	built by default.  The <literal>WITH_LINT</literal>
+	&man.src.conf.5; option has been added to enable building and
+	installing the utility.</para>
+
       <para revision="327871">The &man.cpucontrol.8; utility has been
 	updated to include a new flag, <literal>-e</literal>, which is
 	used to re-evaluate reported <acronym>CPU</acronym> features
