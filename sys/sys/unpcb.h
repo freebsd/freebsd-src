@@ -69,23 +69,25 @@ typedef uint64_t unp_gen_t;
 LIST_HEAD(unp_head, unpcb);
 
 struct unpcb {
-	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
-	struct	socket *unp_socket;	/* pointer back to socket */
-	struct	file *unp_file;		/* back-pointer to file for gc. */
-	struct	vnode *unp_vnode;	/* if associated with file */
-	ino_t	unp_ino;		/* fake inode number */
+	/* Cache line 1 */
+	struct	mtx unp_mtx;		/* mutex */
 	struct	unpcb *unp_conn;	/* control block of connected socket */
-	struct	unp_head unp_refs;	/* referencing socket linked list */
-	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
-	struct	sockaddr_un *unp_addr;	/* bound address of socket */
-	unp_gen_t unp_gencnt;		/* generation count of this instance */
+	volatile u_int	unp_refcount;
 	short	unp_flags;		/* flags */
 	short	unp_gcflag;		/* Garbage collector flags. */
+	struct	sockaddr_un *unp_addr;	/* bound address of socket */
+	struct	socket *unp_socket;	/* pointer back to socket */
+	/* Cache line 2 */
+	struct	vnode *unp_vnode;	/* if associated with file */
 	struct	xucred unp_peercred;	/* peer credentials, if applicable */
-	u_int	unp_refcount;
+	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
+	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
+	struct	unp_head unp_refs;	/* referencing socket linked list */
+	unp_gen_t unp_gencnt;		/* generation count of this instance */
+	struct	file *unp_file;		/* back-pointer to file for gc. */
 	u_int	unp_msgcount;		/* references from message queue */
-	struct	mtx unp_mtx;		/* mutex */
-};
+	ino_t	unp_ino;		/* fake inode number */
+} __aligned(CACHE_LINE_SIZE);
 
 /*
  * Flags in unp_flags.
