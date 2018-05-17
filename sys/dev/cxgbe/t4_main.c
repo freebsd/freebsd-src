@@ -1057,7 +1057,8 @@ t4_attach(device_t dev)
 		s->nofldtxq = nports * iaq.nofldtxq;
 		if (num_vis > 1)
 			s->nofldtxq += nports * (num_vis - 1) * iaq.nofldtxq_vi;
-		s->neq += s->nofldtxq + s->nofldrxq;
+		s->neq += s->nofldtxq;
+
 		s->ofld_txq = malloc(s->nofldtxq * sizeof(struct sge_wrq),
 		    M_CXGBE, M_ZERO | M_WAITOK);
 	}
@@ -1065,9 +1066,9 @@ t4_attach(device_t dev)
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		s->nofldrxq = nports * iaq.nofldrxq;
-		if (num_vis > 1) {
+		if (num_vis > 1)
 			s->nofldrxq += nports * (num_vis - 1) * iaq.nofldrxq_vi;
-		}
+		s->neq += s->nofldrxq;	/* free list */
 		s->niq += s->nofldrxq;
 
 		s->ofld_rxq = malloc(s->nofldrxq * sizeof(struct sge_ofld_rxq),
