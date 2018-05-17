@@ -110,6 +110,7 @@ extern struct usb_temp_device_desc usb_template_mtp;
 extern struct usb_temp_device_desc usb_template_phone;
 extern struct usb_temp_device_desc usb_template_serialnet;
 extern struct usb_temp_device_desc usb_template_midi;
+extern struct usb_temp_device_desc usb_template_multi;
 
 
 void		usb_decode_str_desc(struct usb_string_descriptor *sd,
