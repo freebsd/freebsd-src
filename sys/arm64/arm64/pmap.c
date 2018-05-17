@@ -487,6 +487,9 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l0, pd_entry_t **l1,
 		return (true);
 	}
 
+	if ((pmap_load(l2p) & ATTR_DESCR_MASK) != L2_TABLE)
+		return (false);
+
 	*l3 = pmap_l2_to_l3(l2p, va);
 
 	return (true);
