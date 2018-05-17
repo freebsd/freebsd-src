@@ -200,6 +200,10 @@
 	&man.grep.1;, which when used is equivalent to
 	<literal>grep&nbsp;-r</literal>.</para>
 
+      <para revision="322555">The &man.bsdgrep.1; utility has been
+	updated to address various issues with pattern matching
+	behavior.</para>
+
       <para revision="322910">The &man.umount.8; utility has been
 	updated to include a new flag, <literal>-N</literal>, which
 	is used to forcefully unmount an <acronym>NFS</acronym>
