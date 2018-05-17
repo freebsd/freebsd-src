@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2018
+.Dd May 17, 2018
 .Dt NETDUMP 4
 .Os
 .Sh NAME
@@ -35,11 +35,6 @@ To compile netdump client support into the kernel, place the following line in
 your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options NETDUMP"
-.Ed
-.Pp
-Debug output can be enabled by adding the following line:
-.Bd -ragged -offset indent
-.Cd "options NETDUMP_DEBUG"
 .Ed
 .Sh DESCRIPTION
 netdump is a UDP-based protocol for transmitting kernel dumps to a remote host.
@@ -112,6 +107,30 @@ The following network drivers support netdump:
 .Xr mlx4en 4 ,
 .Xr re 4 ,
 .Xr vtnet 4 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+variables:
+.Bl -tag -width "indent"
+.It Va net.netdump.debug
+Control debug message verbosity.
+Debug messages are disabled by default, but are useful when troubleshooting
+or when developing driver support.
+.It Va net.netdump.path
+Specify a path relative to the server's dump directory in which to store
+the dump.
+For example, if the
+.Nm
+server is configured to store dumps in
+.Pa /var/crash ,
+a path of
+.Dq foo
+will cause the server to attempt to store dumps from the client in
+.Pa /var/crash/foo .
+The server will not automatically create the relative directory.
+.El
 .Sh SEE ALSO
 .Xr decryptcore 8 ,
 .Xr dumpon 8 ,
