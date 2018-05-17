@@ -570,7 +570,6 @@ MAN=	aac.4 \
 	vt.4 \
 	vte.4 \
 	${_vtnet.4} \
-	${_vxge.4} \
 	watchdog.4 \
 	wb.4 \
 	${_wbwd.4} \
@@ -754,7 +753,6 @@ MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
 MLINKS+=${_vtnet.4} ${_if_vtnet.4}
-MLINKS+=${_vxge.4} ${_if_vxge.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
@@ -826,7 +824,6 @@ _if_nfe.4=	if_nfe.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
-_if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
 _imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
@@ -847,7 +844,6 @@ _virtio_random.4= virtio_random.4
 _virtio_scsi.4= virtio_scsi.4
 _vmx.4=		vmx.4
 _vtnet.4=	vtnet.4
-_vxge.4=	vxge.4
 _padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4

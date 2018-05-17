@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180517:
+	The vxge(4) driver has been removed.  This driver was introduced into
+	HEAD one week before the Exar left the Ethernet market and is not
+	known to be used.  If you have device vxge in your kernel config file
+	it must be removed.
+
 20180510:
 	The amd64 kernel now requires a ld that supports ifunc to produce a
 	working kernel, either lld or a newer binutils. lld is built by default
