@@ -407,9 +407,13 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 		 * restore on exit from epoch_wait().
 		 */
 		if (!TD_IS_INHIBITED(tdwait) && tdwait->td_priority > td->td_priority) {
+			critical_enter();
+			thread_unlock(td);
 			thread_lock(tdwait);
 			sched_prio(tdwait, td->td_priority);
 			thread_unlock(tdwait);
+			thread_lock(td);
+			critical_exit();
 		}
 		if (TD_IS_INHIBITED(tdwait) && TD_ON_LOCK(tdwait) &&
 			((ts = tdwait->td_blocked) != NULL)) {
