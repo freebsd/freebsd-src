@@ -1457,8 +1457,6 @@ cpususpend_handler(void)
 		 */
 		wbinvd();
 	} else {
-		/* Indicate that we have restarted and restored the context. */
-		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 #ifdef __amd64__
 		fpuresume(susppcbs[cpu]->sp_fpususpend);
 #else
@@ -1468,6 +1466,9 @@ cpususpend_handler(void)
 		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
+
+		/* Indicate that we have restarted and restored the context. */
+		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
 	/* Wait for resume directive */
