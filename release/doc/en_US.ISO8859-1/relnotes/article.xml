@@ -205,6 +205,13 @@
 	to the <literal>-G</literal> flag when using the
 	<literal>usermod</literal> subcommand.</para>
 
+      <para revision="324124" contrib="sponsor"
+	sponsor="&chelsio;">The &man.getconf.1; utility has been
+	updated to include a new flag, <literal>-a</literal>, which
+	prints the name and value of all system or path configuration
+	values to &man.stdout.4; or optionally a file as an argument
+	to <literal>-a</literal>.</para>
+
       <para revision="324270">The &man.ps.1; utility has been updated
 	to reflect realtime and idle priorities in state flags.</para>
 
