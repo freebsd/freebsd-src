@@ -54,12 +54,13 @@ struct microcode_update_header {
 
 /*
  * SDM vol 2A CPUID EAX = 01h Returns Model, Family, Stepping Information.
- * 9 chars including the NUL terminator will be written to buf.
+ * Caller must free the returned string.
  */
 
 static char *
-format_signature(char *buf, uint32_t signature)
+format_signature(uint32_t signature)
 {
+	char *buf;
 	unsigned family, model, stepping;
 
 	family = (signature & 0xf00) >> 8;
@@ -69,24 +70,26 @@ format_signature(char *buf, uint32_t signature)
 		model += (signature & 0xf0000) >> 12;
 	if (family == 0x0f)
 		family += (signature & 0xff00000) >> 20;
-	sprintf(buf, "%02x-%02x-%02x", family, model, stepping);
+	asprintf(&buf, "%02x-%02x-%02x", family, model, stepping);
+	if (buf == NULL)
+		err(1, "asprintf");
 	return (buf);
 }
 
 static void
 dump_header(const struct microcode_update_header *hdr)
 {
-	char buf[16];
+	char *sig_str;
 	int i;
 	bool platformid_printed;
 
+	sig_str = format_signature(hdr->processor_signature);
 	printf("header version\t0x%x\n", hdr->header_version);
 	printf("revision\t0x%x\n", hdr->update_revision);
 	printf("date\t\t0x%x\t%04x-%02x-%02x\n", hdr->date,
 	    hdr->date & 0xffff, (hdr->date & 0xff000000) >> 24,
 	    (hdr->date & 0xff0000) >> 16);
-	printf("signature\t0x%x\t\t%s\n", hdr->processor_signature,
-	    format_signature(buf, hdr->processor_signature));
+	printf("signature\t0x%x\t\t%s\n", hdr->processor_signature, sig_str);
 	printf("checksum\t0x%x\n", hdr->checksum);
 	printf("loader revision\t0x%x\n", hdr->loader_revision);
 	printf("processor flags\t0x%x", hdr->processor_flags);
@@ -102,6 +105,7 @@ dump_header(const struct microcode_update_header *hdr)
 	    hdr->data_size != 0 ? hdr->data_size : 2000);
 	printf("size\t\t0x%x\t\t0x%x\n", hdr->total_size,
 	    hdr->total_size != 0 ? hdr->total_size : 2048);
+	free(sig_str);
 }
 
 static void
@@ -116,8 +120,7 @@ int
 main(int argc, char *argv[])
 {
 	struct microcode_update_header hdr;
-	char output_file[128];
-	char *buf;
+	char *buf, *output_file, *sig_str;
 	size_t len, resid;
 	ssize_t rv;
 	int c, ifd, ofd;
@@ -163,9 +166,12 @@ main(int argc, char *argv[])
 		if (vflag)
 			dump_header(&hdr);
 
-		format_signature(output_file, hdr.processor_signature);
-		sprintf(output_file + strlen(output_file), ".%02x",
+		sig_str = format_signature(hdr.processor_signature);
+		asprintf(&output_file, "%s.%02x", sig_str,
 		    hdr.processor_flags & 0xff);
+		free(sig_str);
+		if (output_file == NULL)
+			err(1, "asprintf");
 		ofd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (ofd < 0)
 			err(1, "open");
@@ -194,5 +200,6 @@ main(int argc, char *argv[])
 		if (vflag)
 			printf("written to %s\n\n", output_file);
 		close(ofd);
+		free(output_file);
 	}
 }
