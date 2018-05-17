@@ -12,6 +12,7 @@ SRCS+=	opt_ddb.h
 SRCS+=	opt_inet.h
 SRCS+=	opt_inet6.h
 SRCS+=	opt_ofed.h
+SRCS+=	opt_ratelimit.h
 SRCS+=	opt_rss.h
 SRCS+=	pci_if.h pci_iov_if.h
 SRCS+=	t4_filter.c
