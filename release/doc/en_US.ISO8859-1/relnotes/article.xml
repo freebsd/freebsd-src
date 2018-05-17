@@ -287,6 +287,10 @@
 	  identical across the system.</para>
       </note>
 
+      <para revision="328138">The &man.indent.1; utility has been
+	updated to respect the <literal>SIMPLE_BACKUP_SUFFIX</literal>
+	environment variable if set.</para>
+
       <para revision="328139">The &man.du.1; utility has been updated
 	to include the <literal>--si</literal> long option, which is
 	used to display output in &quot;human-readable&quot; output in
