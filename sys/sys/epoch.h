@@ -49,6 +49,7 @@ void epoch_enter_internal(epoch_t epoch, struct thread *td);
 void epoch_exit_internal(epoch_t epoch, struct thread *td);
 void epoch_wait(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
+void epoch_pcpu_poll(void);
 int in_epoch(void);
 
 static __inline void
