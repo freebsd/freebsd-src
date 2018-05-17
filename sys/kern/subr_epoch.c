@@ -111,8 +111,8 @@ struct epoch {
 
 epoch_t allepochs[MAX_EPOCHS];
 
-static DPCPU_DEFINE(struct grouptask, cb_task);
-static DPCPU_DEFINE(int, cb_count);
+DPCPU_DEFINE(struct grouptask, epoch_cb_task);
+DPCPU_DEFINE(int, epoch_cb_count);
 
 static __read_mostly int domcount[MAXMEMDOM];
 static __read_mostly int domoffsets[MAXMEMDOM];
@@ -157,8 +157,8 @@ epoch_init(void *arg __unused)
 	}
  done:
 	CPU_FOREACH(cpu) {
-		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, cb_task), 0, epoch_call_task, NULL);
-		taskqgroup_attach_cpu(qgroup_softirq, DPCPU_ID_PTR(cpu, cb_task), NULL, cpu, -1, "epoch call task");
+		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, epoch_cb_task), 0, epoch_call_task, NULL);
+		taskqgroup_attach_cpu(qgroup_softirq, DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, -1, "epoch call task");
 	}
 	inited = 1;
 	global_epoch = epoch_alloc();
@@ -533,7 +533,7 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 	counter_u64_add(epoch->e_frees, 1);
 
 	critical_enter();
-	*DPCPU_PTR(cb_count) += 1;
+	*DPCPU_PTR(epoch_cb_count) += 1;
 	eps = epoch->e_pcpu[curcpu];
 	ck_epoch_call(&eps->eps_record.er_record, cb, (ck_epoch_cb_t*)callback);
 	critical_exit();
@@ -566,7 +566,7 @@ epoch_call_task(void *arg __unused)
 		total += npending - record->n_pending;
 	}
 	epoch_exit_private(&section);
-	*DPCPU_PTR(cb_count) -= total;
+	*DPCPU_PTR(epoch_cb_count) -= total;
 	critical_exit();
 
 	head = ck_stack_batch_pop_npsc(&cb_stack);
@@ -576,14 +576,6 @@ epoch_call_task(void *arg __unused)
 		next = CK_STACK_NEXT(cursor);
 		entry->function(entry);
 	}
-}
-
-void
-epoch_pcpu_poll(void)
-{
-
-	if (DPCPU_GET(cb_count))
-		GROUPTASK_ENQUEUE(DPCPU_PTR(cb_task));
 }
 
 int
