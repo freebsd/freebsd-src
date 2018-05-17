@@ -290,6 +290,7 @@ epoch_enter_internal(epoch_t epoch, struct thread *td)
 
 	INIT_CHECK(epoch);
 	critical_enter();
+	td->td_pre_epoch_prio = td->td_priority;
 	eps = epoch->e_pcpu[curcpu];
 #ifdef INVARIANTS
 	MPASS(td->td_epochnest < UCHAR_MAX - 2);
@@ -326,6 +327,11 @@ epoch_exit_internal(epoch_t epoch, struct thread *td)
 	TAILQ_REMOVE(&eps->eps_record.er_tdlist, td, td_epochq);
 	eps->eps_record.er_gen++;
 	sched_unpin();
+	if (__predict_false(td->td_pre_epoch_prio != td->td_priority)) {
+		thread_lock(td);
+		sched_prio(td, td->td_pre_epoch_prio);
+		thread_unlock(td);
+	}
 	critical_exit();
 }
 
