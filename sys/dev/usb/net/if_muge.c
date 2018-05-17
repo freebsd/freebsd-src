@@ -126,7 +126,7 @@ static const struct usb_device_id lan78xx_devs[] = {
 };
 
 #ifdef USB_DEBUG
-#define lan78xx_dbg_printf(sc, fmt, args...) \
+#define muge_dbg_printf(sc, fmt, args...) \
 do { \
 	if (muge_debug > 0) \
 		device_printf((sc)->sc_ue.ue_dev, "debug: " fmt, ##args); \
