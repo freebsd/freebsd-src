@@ -148,6 +148,25 @@ static const struct {
 	    0 }
 };
 
+static struct pin_patch_t *
+match_pin_patches(int vendor_id, int vendor_subid)
+{
+	for (int ci = 0; ci < nitems(realtek_model_pin_patches); ci++) {
+		struct hdaa_model_pin_patch_t *p = &realtek_model_pin_patches[ci];
+		if (vendor_id == p->id) {
+			struct model_pin_patch_t *pinpatches = p->patches;
+			for (struct model_pin_patch_t *pp = pinpatches; pp->models; pp++) {
+				for (struct pin_machine_model_t *model = pp->models; model->id; model++) {
+					if (vendor_subid == model->id)
+						return (pp->pin_patches);
+				}
+			}
+		}
+	}
+
+	return (0);
+}
+
 static void
 hdac_pin_patch(struct hdaa_widget *w)
 {
@@ -290,32 +309,19 @@ hdac_pin_patch(struct hdaa_widget *w)
 		 */
 		struct pin_patch_t *pin_patches = NULL;
 
-		for (int ci = 0; ci < nitems(realtek_model_pin_patches); ci++) {
-			struct hdaa_model_pin_patch_t *p = &realtek_model_pin_patches[ci];
-			if (id == p->id) {
-				struct model_pin_patch_t *pinpatches = p->patches;
-				for (struct model_pin_patch_t *pp = pinpatches; pp->models; pp++) {
-					for (struct pin_machine_model_t *model = pp->models; model->id; model++) {
-						if (subid == model->id) {
-							pin_patches = pp->pin_patches;
-							break;
-						}
-					}
-				}
-			}
-		}
+		pin_patches = match_pin_patches(id, subid);
 
-		for (struct pin_patch_t *patch = pin_patches; patch->type; patch++) {
-			if (nid == patch->nid) {
-				switch (patch->type) {
+		for (struct pin_patch_t *p = pin_patches; p->type; p++) {
+			if (nid == p->nid) {
+				switch (p->type) {
 				case PIN_PATCH_TYPE_STRING:
-					patch_str = patch->patch.string;
+					patch_str = p->patch.string;
 				case PIN_PATCH_TYPE_MASK:
-					config &= ~patch->patch.mask[0];
-					config |= patch->patch.mask[1];
+					config &= ~p->patch.mask[0];
+					config |= p->patch.mask[1];
 					break;
 				case PIN_PATCH_TYPE_OVERRIDE:
-					config = patch->patch.override;
+					config = p->patch.override;
 					break;
 				default:
 					/* should panic hard */

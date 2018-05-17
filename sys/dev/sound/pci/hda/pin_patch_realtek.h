@@ -541,6 +541,29 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, { }
 		}
+	}, { /**** CODEC: HDA_CODEC_ALC282 ****/
+		.id = HDA_CODEC_ALC282,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_V5_573G_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x12, 0x90a60130),
+					PIN_OVERRIDE(0x14, 0x90170110),
+					PIN_OVERRIDE(0x17, 0x40000008),
+					PIN_PATCH_NOT_APPLICABLE(0x18),
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_NOT_APPLICABLE(0x1a),
+					PIN_PATCH_NOT_APPLICABLE(0x1b),
+					PIN_OVERRIDE(0x1d, 0x40f89b2d),
+					PIN_PATCH_NOT_APPLICABLE(0x1e),
+					PIN_OVERRIDE(0x21, 0x0321101f),
+        				{ }
+				}
+			}, { }
+		}
 	}, { /**** CODEC: HDA_CODEC_ALC288 ****/
 		.id = HDA_CODEC_ALC288,
 		.patches = (struct model_pin_patch_t[]){
