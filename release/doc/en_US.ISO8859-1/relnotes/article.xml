@@ -373,6 +373,11 @@
 	attempt to mount write-protected media read-write fails.  This
 	behavior is disabled by default, and can be requested with the
 	new <literal>autoro</literal> option.</para>
+
+      <para revision="332460" contrib="sponsor" sponsor="&ff;">The
+	&man.makefs.8; utility has been updated to default the block
+	and fragment sizes to match that of &man.newfs.8;, 32K and 4K,
+	respectively.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
