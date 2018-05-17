@@ -2441,6 +2441,7 @@ init386(int first)
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 	struct xstate_hdr *xhdr;
+	caddr_t kmdp;
 	int late_console;
 
 	thread0.td_kstack = proc0kstack;
@@ -2687,6 +2688,9 @@ init386(int first)
 		cninit();
 		i386_kdb_init();
 	}
+
+	kmdp = preload_search_by_type("elf kernel");
+	link_elf_ireloc(kmdp);
 
 	vm86_initialize();
 	getmemsize(first);
