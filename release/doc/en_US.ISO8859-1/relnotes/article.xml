@@ -431,9 +431,6 @@
       <para revision="331638"><application>OpenSSL</application> has
 	been updated to version 1.0.2o.</para>
 
-      <para revision="331662">Timezone data files have been updated to
-	version 2018d.</para>
-
       <para revision="331838">The <application>clang</application>,
 	<application>llvm</application>,
 	<application>lld</application>,
@@ -441,6 +438,9 @@
 	<literal>compiler-rt</literal> utilities as well as
 	<literal>libc++</literal> have been updated to upstream
 	version 6.0.0.</para>
+
+      <para revision="333312">Timezone data files have been updated to
+	version 2018e.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
