@@ -575,6 +575,9 @@
 	sponsor="&darpa_afrl;">The &man.cm.4; and &man.fpa.4; drivers
 	have been marked as deprecated, and will be removed in
 	&os;&nbsp;12.</para>
+
+      <para revision="333171">The &man.ixgb.4; driver has been marked
+	as deprecated, and will be removed in &os;&nbsp;12.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
