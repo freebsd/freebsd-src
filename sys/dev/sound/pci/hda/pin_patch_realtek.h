@@ -580,6 +580,26 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = pin_patches_dell_xps_jack
 			}, { }
 		}
+	}, { /**** CODEC: HDA_CODEC_ALC290 ****/
+		.id = HDA_CODEC_ALC290,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(DELL_V5470_SUBVENDOR),
+					PIN_SUBVENDOR(DELL_V5470_1_SUBVENDOR),
+					PIN_SUBVENDOR(DELL_V5480_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x12, 0x90a60140),
+					PIN_OVERRIDE(0x14, 0x90170110),
+					PIN_OVERRIDE(0x15, 0x0221401f),
+					PIN_OVERRIDE(0x17, 0x90170112), /* subwoofer */
+					PIN_PATCH_JACK_WO_DETECT(0x1a),
+        				{ }
+				}
+			}, { }
+		}
 	}, { /**** CODEC: HDA_CODEC_ALC292 ****/
 		.id = HDA_CODEC_ALC292,
 		.patches = (struct model_pin_patch_t[]){
