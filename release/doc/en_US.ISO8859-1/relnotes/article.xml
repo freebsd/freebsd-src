@@ -343,6 +343,9 @@
       <para revision="322442"><application>Subversion</application>
 	has been updated to version 1.9.7.</para>
 
+      <para revision="328495">The &man.dtc.1; utility has been updated
+	to upstream commit 9ce35ff8.</para>
+
       <para revision="328874">The &man.file.1; utility has been
 	updated to version 5.32.</para>
 
