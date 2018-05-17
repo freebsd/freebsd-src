@@ -195,6 +195,11 @@
 	been updated to include device model when the
 	<literal>-s</literal> flag is used.</para>
 
+      <para revision="322525">The &man.bsdgrep.1; utility has been
+	updated to include a <literal>rgrep</literal> hard link to
+	&man.grep.1;, which when used is equivalent to
+	<literal>grep&nbsp;-r</literal>.</para>
+
       <para revision="322910">The &man.umount.8; utility has been
 	updated to include a new flag, <literal>-N</literal>, which
 	is used to forcefully unmount an <acronym>NFS</acronym>
