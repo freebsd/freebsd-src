@@ -739,7 +739,9 @@
 	&os; installation <acronym>ISO</acronym> medium creation tools
 	have been updated to generate hybrid images for &arch.amd64;,
 	supporting both <acronym>BIOS</acronym> and
-	<acronym>EFI</acronym>.</para>
+	<acronym>EFI</acronym>.  The <acronym>ISO</acronym> image can
+	now be written to a memory stick as well as being used as
+	a <acronym>CD</acronym> image.</para>
     </sect2>
   </sect1>
 </article>
