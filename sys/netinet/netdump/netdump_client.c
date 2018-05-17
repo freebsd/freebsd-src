@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/endian.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/mbuf.h>
@@ -88,7 +89,7 @@ __FBSDID("$FreeBSD$");
 
 static int	 netdump_arp_gw(void);
 static void	 netdump_cleanup(void);
-static int	 netdump_configure(struct netdump_conf *);
+static int	 netdump_configure(struct netdump_conf *, struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
 		    vm_offset_t physical __unused, off_t offset, size_t length);
 static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp,
@@ -1058,10 +1059,15 @@ static struct cdevsw netdump_cdevsw = {
 static struct cdev *netdump_cdev;
 
 static int
-netdump_configure(struct netdump_conf *conf)
+netdump_configure(struct netdump_conf *conf, struct thread *td)
 {
 	struct ifnet *ifp;
 
+	CURVNET_SET(TD_TO_VNET(td));
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		CURVNET_RESTORE();
+		return (EINVAL);
+	}
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strcmp(ifp->if_xname, conf->ndc_iface) == 0)
@@ -1069,6 +1075,7 @@ netdump_configure(struct netdump_conf *conf)
 	}
 	/* XXX ref */
 	IFNET_RUNLOCK_NOSLEEP();
+	CURVNET_RESTORE();
 
 	if (ifp == NULL)
 		return (ENOENT);
@@ -1170,13 +1177,15 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		if (kda->kda_enable == 0) {
 			if (nd_enabled) {
 				error = clear_dumper(td);
-				if (error == 0)
+				if (error == 0) {
 					nd_enabled = 0;
+					netdump_mbuf_drain();
+				}
 			}
 			break;
 		}
 
-		error = netdump_configure(conf);
+		error = netdump_configure(conf, td);
 		if (error != 0)
 			break;
 
@@ -1212,8 +1221,10 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			explicit_bzero(encryptedkey, kda->kda_encryptedkeysize);
 			free(encryptedkey, M_TEMP);
 		}
-		if (error != 0)
+		if (error != 0) {
 			nd_enabled = 0;
+			netdump_mbuf_drain();
+		}
 		break;
 	default:
 		error = EINVAL;
@@ -1268,7 +1279,7 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 			}
 
 			/* Ignore errors; we print a message to the console. */
-			(void)netdump_configure(&conf);
+			(void)netdump_configure(&conf, curthread);
 		}
 		break;
 	case MOD_UNLOAD:
