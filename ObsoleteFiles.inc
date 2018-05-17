@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180517: retire vxge
+OLD_FILES+=usr/share/man/man4/if_vxge.4.gz
+OLD_FILES+=usr/share/man/man4/vxge.4.gz
 # 20180512: Rename Unbound tools
 OLD_FILES+=usr/sbin/unbound
 OLD_FILES+=usr/sbin/unbound-anchor
