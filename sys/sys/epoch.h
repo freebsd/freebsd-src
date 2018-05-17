@@ -36,6 +36,8 @@ struct epoch;
 typedef struct epoch *epoch_t;
 
 extern epoch_t global_epoch;
+DPCPU_DECLARE(int, epoch_cb_count);
+DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
 struct epoch_context {
 	void *data[2];
@@ -49,7 +51,6 @@ void epoch_enter_internal(epoch_t epoch, struct thread *td);
 void epoch_exit_internal(epoch_t epoch, struct thread *td);
 void epoch_wait(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
-void epoch_pcpu_poll(void);
 int in_epoch(void);
 
 static __inline void
