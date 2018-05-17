@@ -378,6 +378,12 @@
 	&man.makefs.8; utility has been updated to default the block
 	and fragment sizes to match that of &man.newfs.8;, 32K and 4K,
 	respectively.</para>
+
+      <para revision="332929" contrib="sponsor" sponsor="&ff;">The
+	&man.pwd.mkdb.8; utility has been updated to emit a notice
+	that legacy database support will be removed effective
+	&os;&nbsp;12 when the <literal>-l</literal> flag is
+	used.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
