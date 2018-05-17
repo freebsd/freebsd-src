@@ -81,7 +81,7 @@ static MALLOC_DEFINE(M_NEWRENO, "newreno data",
 
 #define	CAST_PTR_INT(X) (*((int*)(X)))
 
-static int newreno_cb_init(struct cc_var *ccv);
+static void	newreno_cb_destroy(struct cc_var *ccv);
 static void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
 static void	newreno_after_idle(struct cc_var *ccv);
 static void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
@@ -95,7 +95,7 @@ static VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
 
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
-	.cb_init = newreno_cb_init,
+	.cb_destroy = newreno_cb_destroy,
 	.ack_received = newreno_ack_received,
 	.after_idle = newreno_after_idle,
 	.cong_signal = newreno_cong_signal,
@@ -108,18 +108,28 @@ struct newreno {
 	uint32_t beta_ecn;
 };
 
-int
-newreno_cb_init(struct cc_var *ccv)
+static inline struct newreno *
+newreno_malloc(struct cc_var *ccv)
 {
-	struct newreno *nreno;		
+	struct newreno *nreno;
 
-	nreno = malloc(sizeof(struct newreno), M_NEWRENO, M_NOWAIT|M_ZERO);
+	nreno = malloc(sizeof(struct newreno), M_NEWRENO, M_NOWAIT);
 	if (nreno != NULL) {
+		/* NB: nreno is not zeroed, so initialise all fields. */
 		nreno->beta = V_newreno_beta;
 		nreno->beta_ecn = V_newreno_beta_ecn;
+		ccv->cc_data = nreno;
 	}
 
-	return (0);
+	return (nreno);
+}
+
+static void
+newreno_cb_destroy(struct cc_var *ccv)
+{
+
+	if (ccv->cc_data != NULL)
+		free(ccv->cc_data, M_NEWRENO);
 }
 
 static void
@@ -224,20 +234,18 @@ static void
 newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct newreno *nreno;
-	uint32_t cwin, factor;
+	uint32_t beta, beta_ecn, cwin, factor;
 	u_int mss;
-
-	factor = V_newreno_beta;
-	nreno = ccv->cc_data;
-	if (nreno != NULL) {
-	    if (V_cc_do_abe)
-		factor = (type == CC_ECN ? nreno->beta_ecn: nreno->beta);
-	    else
-		factor = nreno->beta;
-	}
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = CCV(ccv, t_maxseg);
+	nreno = ccv->cc_data;
+	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;
+	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
+	if (V_cc_do_abe && type == CC_ECN)
+		factor = beta_ecn;
+	else
+		factor = beta;
 
 	/* Catch algos which mistakenly leak private signal types. */
 	KASSERT((type & CC_SIGPRIVMASK) == 0,
@@ -253,8 +261,8 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 			    V_cc_do_abe && V_cc_abe_frlossreduce)) {
 				CCV(ccv, snd_ssthresh) =
 				    ((uint64_t)CCV(ccv, snd_ssthresh) *
-				    (uint64_t)nreno->beta) /
-				    (100ULL * (uint64_t)nreno->beta_ecn);
+				    (uint64_t)beta) /
+				    (100ULL * (uint64_t)beta_ecn);
 			}
 			if (!IN_CONGRECOVERY(CCV(ccv, t_flags)))
 				CCV(ccv, snd_ssthresh) = cwin;
@@ -278,7 +286,6 @@ static void
 newreno_post_recovery(struct cc_var *ccv)
 {
 	int pipe;
-	pipe = 0;
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 		/*
@@ -302,7 +309,7 @@ newreno_post_recovery(struct cc_var *ccv)
 	}
 }
 
-int
+static int
 newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 {
 	struct newreno *nreno;
@@ -313,9 +320,15 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 
 	nreno = ccv->cc_data;
 	opt = buf;
-	
+
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
+		/* We cannot set without cc_data memory. */
+		if (nreno == NULL) {
+			nreno = newreno_malloc(ccv);
+			if (nreno == NULL)
+				return (ENOMEM);
+		}
 		switch (opt->name) {
 		case CC_NEWRENO_BETA:
 			nreno->beta = opt->val;
@@ -328,17 +341,21 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 		default:
 			return (ENOPROTOOPT);
 		}
+		break;
 	case SOPT_GET:
 		switch (opt->name) {
 		case CC_NEWRENO_BETA:
-			opt->val = nreno->beta;
+			opt->val = (nreno == NULL) ?
+			    V_newreno_beta : nreno->beta;
 			break;
 		case CC_NEWRENO_BETA_ECN:
-			opt->val = nreno->beta_ecn;
+			opt->val = (nreno == NULL) ?
+			    V_newreno_beta_ecn : nreno->beta_ecn;
 			break;
 		default:
 			return (ENOPROTOOPT);
 		}
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -349,6 +366,7 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 static int
 newreno_beta_handler(SYSCTL_HANDLER_ARGS)
 {
+
 	if (req->newptr != NULL ) {
 		if (arg1 == &VNET_NAME(newreno_beta_ecn) && !V_cc_do_abe)
 			return (EACCES);

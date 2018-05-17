@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2017
+.Dd May 9, 2018
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -548,6 +548,8 @@ is not in a valid part of the process address space.
 Installing an
 .Xr accept_filter 9
 on a non-listening socket was attempted.
+.It Bq Er ENOMEM
+A memory allocation failed that was required to service the request.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
