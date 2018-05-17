@@ -618,7 +618,13 @@
     <sect2 xml:id="storage-geom">
       <title><literal>geom(4)</literal></title>
 
-      <para>&nbsp;</para>
+      <para revision="332519">The <literal>geom_aes</literal>,
+	<literal>geom_bsd</literal>, <literal>geom_mbr</literal>,
+	<literal>geom_sunlabel</literal> &man.geom.4; classes have
+	been marked as deprecated.  They have been replaced by the
+	<literal>geom_part</literal> class in &os;&nbsp;7, and removed
+	from the <literal>GENERIC</literal> kernel configurations in
+	&os;&nbsp;8, and will be removed in &os;&nbsp;12.</para>
     </sect2>
   </sect1>
 
