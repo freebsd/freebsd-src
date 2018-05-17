@@ -581,6 +581,10 @@
 
       <para revision="333367">The &man.nxge.4; driver has been marked
 	as deprecated, and will be removed in &os;&nbsp;12.</para>
+
+      <para revision="333412" contrib="sponsor" sponsor="&ff;">The
+	&man.lmc.4; driver has been marked as deprecated, and will be
+	removed in &os;&nbsp;12.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
