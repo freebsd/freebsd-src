@@ -402,7 +402,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
-		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
@@ -767,7 +767,7 @@ ipfw_localip6(struct in6_addr *in6)
 		return (in6_localip(in6));
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+	CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr))
 			continue;
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,

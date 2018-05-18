@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
+
 #ifdef INET
 
 #include <machine/in_cksum.h>
@@ -760,7 +761,7 @@ icmp_reflect(struct mbuf *m)
 	ifp = m->m_pkthdr.rcvif;
 	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
@@ -781,7 +782,7 @@ icmp_reflect(struct mbuf *m)
 	 */
 	if (V_icmp_rfi && ifp != NULL) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
@@ -799,7 +800,7 @@ icmp_reflect(struct mbuf *m)
 	 */
 	if (V_reply_src[0] != '\0' && (ifp = ifunit(V_reply_src))) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);

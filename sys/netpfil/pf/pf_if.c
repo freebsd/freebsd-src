@@ -525,7 +525,7 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 	int		 net2, af;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr == NULL)
 			continue;
 		af = ia->ifa_addr->sa_family;

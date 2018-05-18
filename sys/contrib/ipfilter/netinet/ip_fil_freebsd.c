@@ -1021,7 +1021,7 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 	else if (v == 6)
 		bzero((char *)inp, sizeof(*inp));
 #endif
-	ifa = TAILQ_FIRST(&ifp->if_addrhead);
+	ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
 
 	sock = ifa->ifa_addr;
 	while (sock != NULL && ifa != NULL) {
@@ -1036,7 +1036,7 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 				break;
 		}
 #endif
-		ifa = TAILQ_NEXT(ifa, ifa_link);
+		ifa = CK_STAILQ_NEXT(ifa, ifa_link);
 		if (ifa != NULL)
 			sock = ifa->ifa_addr;
 	}

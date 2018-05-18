@@ -4266,7 +4266,7 @@ update_mac_settings(struct ifnet *ifp, int flags)
 		int i = 0, j;
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			mcaddr[i] =

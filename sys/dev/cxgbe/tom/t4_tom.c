@@ -965,7 +965,7 @@ update_clip_table(struct adapter *sc, struct tom_data *td)
 
 		/* XXX: races with if_vmove */
 		CURVNET_SET(vi->ifp->if_vnet);
-		TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 			lip = &ia->ia_addr.sin6_addr;
 
 			KASSERT(!IN6_IS_ADDR_MULTICAST(lip),

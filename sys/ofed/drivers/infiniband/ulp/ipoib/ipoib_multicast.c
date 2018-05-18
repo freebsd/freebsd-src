@@ -760,7 +760,7 @@ void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 	/* Mark all of the entries that are found or don't exist */
 
 
-	TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
 		union ib_gid mgid;
 		uint8_t *addr;
 

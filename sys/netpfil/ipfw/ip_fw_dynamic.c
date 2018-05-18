@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
-#include <ck_queue.h>
 
 /*
  * Description of dynamic states.

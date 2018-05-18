@@ -866,7 +866,7 @@ ex_setmulti(struct ex_softc *sc)
 
 	count = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 		if (maddr->ifma_addr->sa_family != AF_LINK)
 			continue;
 		count++;
@@ -900,7 +900,7 @@ ex_setmulti(struct ex_softc *sc)
 		CSR_WRITE_2(sc, IO_PORT_REG, (count + 1) * 6);
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 			if (maddr->ifma_addr->sa_family != AF_LINK)
 				continue;
 

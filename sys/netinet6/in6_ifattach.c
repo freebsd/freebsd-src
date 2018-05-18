@@ -249,7 +249,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -751,7 +751,7 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 	 * nuke any of IPv6 addresses we have
 	 * XXX: all addresses should be already removed
 	 */
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
@@ -859,7 +859,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 	 * which the PF_INET6 layer is about to release.
 	 */
  restart:
-	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
 			continue;

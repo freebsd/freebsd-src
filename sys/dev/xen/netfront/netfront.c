@@ -944,7 +944,7 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 	struct ifaddr *ifa;
 
 	ifp = info->xn_ifp;
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			arp_ifinit(ifp, ifa);
 		}
