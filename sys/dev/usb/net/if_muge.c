@@ -171,7 +171,7 @@ struct muge_softc {
 	uint32_t		sc_rfe_ctl;
 	uint32_t		sc_mdix_ctl;
 	uint32_t		sc_rev_id;
-	uint32_t		sc_mchash_table[DP_SEL_VHF_HASH_LEN];
+	uint32_t		sc_mchash_table[ETH_DP_SEL_VHF_HASH_LEN];
 	uint32_t		sc_pfilter_table[MUGE_NUM_PFILTER_ADDRS_][2];
 
 	uint32_t		sc_flags;
@@ -385,13 +385,13 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 	if (!locked)
 		MUGE_LOCK(sc);
 
-	err = lan78xx_read_reg(sc, HW_CFG, &val);
+	err = lan78xx_read_reg(sc, ETH_HW_CFG, &val);
 	saved = val;
 
-	val &= ~(HW_CFG_LEDO_EN_ | HW_CFG_LED1_EN_);
-	err = lan78xx_write_reg(sc, HW_CFG, val);
+	val &= ~(ETH_HW_CFG_LEDO_EN_ | ETH_HW_CFG_LED1_EN_);
+	err = lan78xx_write_reg(sc, ETH_HW_CFG, val);
 
-	err = lan78xx_wait_for_bits(sc, E2P_CMD, E2P_CMD_BUSY_);
+	err = lan78xx_wait_for_bits(sc, ETH_E2P_CMD, ETH_E2P_CMD_BUSY_);
 	if (err != 0) {
 		muge_warn_printf(sc, "eeprom busy, failed to read data\n");
 		goto done;
@@ -399,28 +399,30 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 
 	/* Start reading the bytes, one at a time. */
 	for (i = 0; i < buflen; i++) {
-		val = E2P_CMD_BUSY_ | E2P_CMD_READ_;
-		val |= (E2P_CMD_ADDR_MASK_ & (off + i));
-		if ((err = lan78xx_write_reg(sc, E2P_CMD, val)) != 0)
+		val = ETH_E2P_CMD_BUSY_ | ETH_E2P_CMD_READ_;
+		val |= (ETH_E2P_CMD_ADDR_MASK_ & (off + i));
+		if ((err = lan78xx_write_reg(sc, ETH_E2P_CMD, val)) != 0)
 			goto done;
 
 		start_ticks = (usb_ticks_t)ticks;
 		do {
-			if ((err = lan78xx_read_reg(sc, E2P_CMD, &val)) != 0)
+			if ((err = lan78xx_read_reg(sc, ETH_E2P_CMD, &val)) !=
+			    0)
 				goto done;
-			if (!(val & E2P_CMD_BUSY_) || (val & E2P_CMD_TIMEOUT_))
+			if (!(val & ETH_E2P_CMD_BUSY_) ||
+			    (val & ETH_E2P_CMD_TIMEOUT_))
 				break;
 
 			uether_pause(&sc->sc_ue, hz / 100);
 		} while (((usb_ticks_t)(ticks - start_ticks)) < max_ticks);
 
-		if (val & (E2P_CMD_BUSY_ | E2P_CMD_TIMEOUT_)) {
+		if (val & (ETH_E2P_CMD_BUSY_ | ETH_E2P_CMD_TIMEOUT_)) {
 			muge_warn_printf(sc, "eeprom command failed\n");
 			err = USB_ERR_IOERROR;
 			break;
 		}
 
-		if ((err = lan78xx_read_reg(sc, E2P_DATA, &val)) != 0)
+		if ((err = lan78xx_read_reg(sc, ETH_E2P_DATA, &val)) != 0)
 			goto done;
 
 		buf[i] = (val & 0xff);
@@ -429,7 +431,7 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 done:
 	if (!locked)
 		MUGE_UNLOCK(sc);
-	lan78xx_write_reg(sc, HW_CFG, saved);
+	lan78xx_write_reg(sc, ETH_HW_CFG, saved);
 	return (err);
 }
 
@@ -450,8 +452,8 @@ lan78xx_eeprom_read(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 	uint8_t sig;
 	int ret;
 
-	ret = lan78xx_eeprom_read_raw(sc, E2P_INDICATOR_OFFSET, &sig, 1);
-	if ((ret == 0) && (sig == E2P_INDICATOR)) {
+	ret = lan78xx_eeprom_read_raw(sc, ETH_E2P_INDICATOR_OFFSET, &sig, 1);
+	if ((ret == 0) && (sig == ETH_E2P_INDICATOR)) {
 		ret = lan78xx_eeprom_read_raw(sc, off, buf, buflen);
 		muge_dbg_printf(sc, "EEPROM present\n");
 	} else {
@@ -587,11 +589,11 @@ lan78xx_setmacaddress(struct muge_softc *sc, const uint8_t *addr)
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
 	val = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
-	if ((err = lan78xx_write_reg(sc, RX_ADDRL, val)) != 0)
+	if ((err = lan78xx_write_reg(sc, ETH_RX_ADDRL, val)) != 0)
 		goto done;
 
 	val = (addr[5] << 8) | addr[4];
-	err = lan78xx_write_reg(sc, RX_ADDRH, val);
+	err = lan78xx_write_reg(sc, ETH_RX_ADDRH, val);
 
 done:
 	return (err);
@@ -617,26 +619,26 @@ lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
 
 	/* first we have to disable rx before changing the length */
 
-	err = lan78xx_read_reg(sc, MAC_RX, &buf);
-	rxenabled = ((buf & MAC_RX_EN_) != 0);
+	err = lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
+	rxenabled = ((buf & ETH_MAC_RX_EN_) != 0);
 
 	if (rxenabled) {
-		buf &= ~MAC_RX_EN_;
-		err = lan78xx_write_reg(sc, MAC_RX, buf);
+		buf &= ~ETH_MAC_RX_EN_;
+		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
 	/* setting max frame length */
 
-	buf &= ~MAC_RX_MAX_FR_SIZE_MASK_;
-	buf |= (((size + 4) << MAC_RX_MAX_FR_SIZE_SHIFT_) &
-	    MAC_RX_MAX_FR_SIZE_MASK_);
-	err = lan78xx_write_reg(sc, MAC_RX, buf);
+	buf &= ~ETH_MAC_RX_MAX_FR_SIZE_MASK_;
+	buf |= (((size + 4) << ETH_MAC_RX_MAX_FR_SIZE_SHIFT_) &
+	    ETH_MAC_RX_MAX_FR_SIZE_MASK_);
+	err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 
 	/* If it were enabled before, we enable it back. */
 
 	if (rxenabled) {
-		buf |= MAC_RX_EN_;
-		err = lan78xx_write_reg(sc, MAC_RX, buf);
+		buf |= ETH_MAC_RX_EN_;
+		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
 	return 0;
@@ -667,20 +669,23 @@ lan78xx_miibus_readreg(device_t dev, int phy, int reg) {
 	if (!locked)
 		MUGE_LOCK(sc);
 
-	if (lan78xx_wait_for_bits(sc, MII_ACCESS, MII_BUSY_) != 0) {
+	if (lan78xx_wait_for_bits(sc, ETH_MII_ACC, ETH_MII_ACC_MII_BUSY_) !=
+	    0) {
 		muge_warn_printf(sc, "MII is busy\n");
 		goto done;
 	}
 
-	addr = (phy << 11) | (reg << 6) | MII_READ_ | MII_BUSY_;
-	lan78xx_write_reg(sc, MII_ACCESS, addr);
+	addr = (phy << 11) | (reg << 6) |
+	    ETH_MII_ACC_MII_READ_ | ETH_MII_ACC_MII_BUSY_;
+	lan78xx_write_reg(sc, ETH_MII_ACC, addr);
 
-	if (lan78xx_wait_for_bits(sc, MII_ACCESS, MII_BUSY_) != 0) {
+	if (lan78xx_wait_for_bits(sc, ETH_MII_ACC, ETH_MII_ACC_MII_BUSY_) !=
+	    0) {
 		muge_warn_printf(sc, "MII read timeout\n");
 		goto done;
 	}
 
-	lan78xx_read_reg(sc, MII_DATA, &val);
+	lan78xx_read_reg(sc, ETH_MII_DATA, &val);
 	val = le32toh(val);
 
 done:
@@ -719,18 +724,19 @@ lan78xx_miibus_writereg(device_t dev, int phy, int reg, int val)
 	if (!locked)
 		MUGE_LOCK(sc);
 
-	if (lan78xx_wait_for_bits(sc, MII_ACCESS, MII_BUSY_) != 0) {
+	if (lan78xx_wait_for_bits(sc, ETH_MII_ACC, ETH_MII_ACC_MII_BUSY_) !=
+	    0) {
 		muge_warn_printf(sc, "MII is busy\n");
 		goto done;
 	}
 
 	val = htole32(val);
-	lan78xx_write_reg(sc, MII_DATA, val);
+	lan78xx_write_reg(sc, ETH_MII_DATA, val);
 
-	addr = (phy << 11) | (reg << 6) | MII_WRITE_ | MII_BUSY_;
-	lan78xx_write_reg(sc, MII_ACCESS, addr);
+	addr = (phy << 11) | (reg << 6) | ETH_MII_ACC_MII_WRITE_ | ETH_MII_ACC_MII_BUSY_;
+	lan78xx_write_reg(sc, ETH_MII_ACC, addr);
 
-	if (lan78xx_wait_for_bits(sc, MII_ACCESS, MII_BUSY_) != 0)
+	if (lan78xx_wait_for_bits(sc, ETH_MII_ACC, ETH_MII_ACC_MII_BUSY_) != 0)
 		muge_warn_printf(sc, "MII write timeout\n");
 
 done:
@@ -794,7 +800,7 @@ lan78xx_miibus_statchg(device_t dev)
 		goto done;
 	}
 
-	err = lan78xx_read_reg(sc, FCT_FLOW, &fct_flow);
+	err = lan78xx_read_reg(sc, ETH_FCT_FLOW, &fct_flow);
 	if (err) {
 		muge_warn_printf(sc,
 		   "failed to read initial flow control thresholds, error %d\n",
@@ -808,10 +814,10 @@ lan78xx_miibus_statchg(device_t dev)
 
 		/* enable transmit MAC flow control function */
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
-			flow |= FLOW_CR_TX_FCEN_ | 0xFFFF;
+			flow |= ETH_FLOW_CR_TX_FCEN_ | 0xFFFF;
 
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
-			flow |= FLOW_CR_RX_FCEN_;
+			flow |= ETH_FLOW_CR_RX_FCEN_;
 	}
 
 	switch(usbd_get_speed(sc->sc_ue.ue_udev)) {
@@ -825,8 +831,8 @@ lan78xx_miibus_statchg(device_t dev)
 		break;
 	}
 
-	err += lan78xx_write_reg(sc, FLOW, flow);
-	err += lan78xx_write_reg(sc, FCT_FLOW, fct_flow);
+	err += lan78xx_write_reg(sc, ETH_FLOW, flow);
+	err += lan78xx_write_reg(sc, ETH_FCT_FLOW, fct_flow);
 	if (err)
 		muge_warn_printf(sc, "media change failed, error %d\n", err);
 
@@ -955,9 +961,10 @@ lan78xx_chip_init(struct muge_softc *sc)
 		MUGE_LOCK(sc);
 
 	/* Enter H/W config mode */
-	lan78xx_write_reg(sc, HW_CFG, HW_CFG_LRST_);
+	lan78xx_write_reg(sc, ETH_HW_CFG, ETH_HW_CFG_LRST_);
 
-	if ((err = lan78xx_wait_for_bits(sc, HW_CFG, HW_CFG_LRST_)) != 0) {
+	if ((err = lan78xx_wait_for_bits(sc, ETH_HW_CFG, ETH_HW_CFG_LRST_)) !=
+	    0) {
 		muge_warn_printf(sc,
 		    "timed-out waiting for lite reset to complete\n");
 		goto init_failed;
@@ -970,22 +977,23 @@ lan78xx_chip_init(struct muge_softc *sc)
 	}
 
 	/* Read and display the revision register */
-	if ((err = lan78xx_read_reg(sc, ID_REV, &sc->sc_rev_id)) < 0) {
-		muge_warn_printf(sc, "failed to read ID_REV (err = %d)\n", err);
+	if ((err = lan78xx_read_reg(sc, ETH_ID_REV, &sc->sc_rev_id)) < 0) {
+		muge_warn_printf(sc, "failed to read ETH_ID_REV (err = %d)\n",
+		    err);
 		goto init_failed;
 	}
 
 	device_printf(sc->sc_ue.ue_dev, "chip 0x%04lx, rev. %04lx\n",
-		(sc->sc_rev_id & ID_REV_CHIP_ID_MASK_) >> 16,
-		(sc->sc_rev_id & ID_REV_CHIP_REV_MASK_));
+		(sc->sc_rev_id & ETH_ID_REV_CHIP_ID_MASK_) >> 16,
+		(sc->sc_rev_id & ETH_ID_REV_CHIP_REV_MASK_));
 
 	/* Respond to BULK-IN tokens with a NAK when RX FIFO is empty. */
-	if ((err = lan78xx_read_reg(sc, USB_CFG0, &buf)) != 0) {
-		muge_warn_printf(sc, "failed to read USB_CFG0: %d\n", err);
+	if ((err = lan78xx_read_reg(sc, ETH_USB_CFG0, &buf)) != 0) {
+		muge_warn_printf(sc, "failed to read ETH_USB_CFG0 (err=%d)\n", err);
 		goto init_failed;
 	}
-	buf |= USB_CFG_BIR_;
-	lan78xx_write_reg(sc, USB_CFG0, buf);
+	buf |= ETH_USB_CFG_BIR_;
+	lan78xx_write_reg(sc, ETH_USB_CFG0, buf);
 
 	/*
 	 * LTM support will go here.
@@ -1003,24 +1011,24 @@ lan78xx_chip_init(struct muge_softc *sc)
 		burst_cap = MUGE_DEFAULT_BURST_CAP_SIZE/MUGE_FS_USB_PKT_SIZE;
 	}
 
-	lan78xx_write_reg(sc, BURST_CAP, burst_cap);
+	lan78xx_write_reg(sc, ETH_BURST_CAP, burst_cap);
 
 	/* Set the default bulk in delay (same value from Linux driver) */
-	lan78xx_write_reg(sc, BULK_IN_DLY, MUGE_DEFAULT_BULK_IN_DELAY);
+	lan78xx_write_reg(sc, ETH_BULK_IN_DLY, MUGE_DEFAULT_BULK_IN_DELAY);
 
 	/* Multiple ethernet frames per USB packets */
-	err = lan78xx_read_reg(sc, HW_CFG, &buf);
-	buf |= HW_CFG_MEF_;
-	err = lan78xx_write_reg(sc, HW_CFG, buf);
+	err = lan78xx_read_reg(sc, ETH_HW_CFG, &buf);
+	buf |= ETH_HW_CFG_MEF_;
+	err = lan78xx_write_reg(sc, ETH_HW_CFG, buf);
 
 	/* Enable burst cap. */
-	if ((err = lan78xx_read_reg(sc, USB_CFG0, &buf)) < 0) {
-		muge_warn_printf(sc, "failed to read USB_CFG0: (err = %d)\n",
+	if ((err = lan78xx_read_reg(sc, ETH_USB_CFG0, &buf)) < 0) {
+		muge_warn_printf(sc, "failed to read ETH_USB_CFG0 (err=%d)\n",
 		    err);
 		goto init_failed;
 	}
-	buf |= USB_CFG_BCE_;
-	err = lan78xx_write_reg(sc, USB_CFG0, buf);
+	buf |= ETH_USB_CFG_BCE_;
+	err = lan78xx_write_reg(sc, ETH_USB_CFG0, buf);
 
 	/*
 	 * Set FCL's RX and TX FIFO sizes: according to data sheet this is
@@ -1030,28 +1038,28 @@ lan78xx_chip_init(struct muge_softc *sc)
 	 */
 
 	buf = (MUGE_MAX_RX_FIFO_SIZE - 512) / 512;
-	err = lan78xx_write_reg(sc, FCT_RX_FIFO_END, buf);
+	err = lan78xx_write_reg(sc, ETH_FCT_RX_FIFO_END, buf);
 
 	buf = (MUGE_MAX_TX_FIFO_SIZE - 512) / 512;
-	err = lan78xx_write_reg(sc, FCT_TX_FIFO_END, buf);
+	err = lan78xx_write_reg(sc, ETH_FCT_TX_FIFO_END, buf);
 
 	/* Enabling interrupts. (Not using them for now) */
-	err = lan78xx_write_reg(sc, INT_STS, INT_STS_CLEAR_ALL_);
+	err = lan78xx_write_reg(sc, ETH_INT_STS, ETH_INT_STS_CLEAR_ALL_);
 
 	/*
 	 * Initializing flow control registers to 0.  These registers are
 	 * properly set is handled in link-reset function in the Linux driver.
 	 */
-	err = lan78xx_write_reg(sc, FLOW, 0);
-	err = lan78xx_write_reg(sc, FCT_FLOW, 0);
+	err = lan78xx_write_reg(sc, ETH_FLOW, 0);
+	err = lan78xx_write_reg(sc, ETH_FCT_FLOW, 0);
 
 	/*
 	 * Settings for the RFE, we enable broadcast and destination address
 	 * perfect filtering.
 	 */
-	err = lan78xx_read_reg(sc, RFE_CTL, &buf);
-	buf |= RFE_CTL_BCAST_EN_ | RFE_CTL_DA_PERFECT_;
-	err = lan78xx_write_reg(sc, RFE_CTL, buf);
+	err = lan78xx_read_reg(sc, ETH_RFE_CTL, &buf);
+	buf |= ETH_RFE_CTL_BCAST_EN_ | ETH_RFE_CTL_DA_PERFECT_;
+	err = lan78xx_write_reg(sc, ETH_RFE_CTL, buf);
 
 	/*
 	 * At this point the Linux driver writes multicast tables, and enables
@@ -1060,41 +1068,42 @@ lan78xx_chip_init(struct muge_softc *sc)
 	 */
 
 	/* Reset the PHY. */
-	lan78xx_write_reg(sc, PMT_CTL, PMT_CTL_PHY_RST_);
-	if ((err = lan78xx_wait_for_bits(sc, PMT_CTL, PMT_CTL_PHY_RST_)) != 0) {
+	lan78xx_write_reg(sc, ETH_PMT_CTL, ETH_PMT_CTL_PHY_RST_);
+	if ((err = lan78xx_wait_for_bits(sc, ETH_PMT_CTL,
+	    ETH_PMT_CTL_PHY_RST_)) != 0) {
 		muge_warn_printf(sc,
 		    "timed-out waiting for phy reset to complete\n");
 		goto init_failed;
 	}
 
 	/* Enable automatic duplex detection and automatic speed detection. */
-	err = lan78xx_read_reg(sc, MAC_CR, &buf);
-	buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
-	err = lan78xx_write_reg(sc, MAC_CR, buf);
+	err = lan78xx_read_reg(sc, ETH_MAC_CR, &buf);
+	buf |= ETH_MAC_CR_AUTO_DUPLEX_ | ETH_MAC_CR_AUTO_SPEED_;
+	err = lan78xx_write_reg(sc, ETH_MAC_CR, buf);
 
 	/*
 	 * Enable PHY interrupts (Not really getting used for now)
-	 * INT_EP_CTL: interrupt endpoint control register
+	 * ETH_INT_EP_CTL: interrupt endpoint control register
 	 * phy events cause interrupts to be issued
 	 */
-	err = lan78xx_read_reg(sc, INT_EP_CTL, &buf);
-	buf |= INT_ENP_PHY_INT;
-	err = lan78xx_write_reg(sc, INT_EP_CTL, buf);
+	err = lan78xx_read_reg(sc, ETH_INT_EP_CTL, &buf);
+	buf |= ETH_INT_ENP_PHY_INT;
+	err = lan78xx_write_reg(sc, ETH_INT_EP_CTL, buf);
 
 	/*
 	 * Enables mac's transmitter.  It will transmit frames from the buffer
 	 * onto the cable.
 	 */
-	err = lan78xx_read_reg(sc, MAC_TX, &buf);
-	buf |= MAC_TX_TXEN_;
-	err = lan78xx_write_reg(sc, MAC_TX, buf);
+	err = lan78xx_read_reg(sc, ETH_MAC_TX, &buf);
+	buf |= ETH_MAC_TX_TXEN_;
+	err = lan78xx_write_reg(sc, ETH_MAC_TX, buf);
 
 	/*
 	 * FIFO is capable of transmitting frames to MAC.
 	 */
-	err = lan78xx_read_reg(sc, FCT_TX_CTL, &buf);
-	buf |= FCT_TX_CTL_EN_;
-	err = lan78xx_write_reg(sc, FCT_TX_CTL, buf);
+	err = lan78xx_read_reg(sc, ETH_FCT_TX_CTL, &buf);
+	buf |= ETH_FCT_TX_CTL_EN_;
+	err = lan78xx_write_reg(sc, ETH_FCT_TX_CTL, buf);
 
 	/*
 	 * Set max frame length.  In linux this is dev->mtu (which by default
@@ -1111,16 +1120,16 @@ lan78xx_chip_init(struct muge_softc *sc)
 	/*
 	 * enable MAC RX
 	 */
-	err = lan78xx_read_reg(sc, MAC_RX, &buf);
-	buf |= MAC_RX_EN_;
-	err = lan78xx_write_reg(sc, MAC_RX, buf);
+	err = lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
+	buf |= ETH_MAC_RX_EN_;
+	err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 
 	/*
 	 * enable FIFO controller RX
 	 */
-	err = lan78xx_read_reg(sc, FCT_RX_CTL, &buf);
-	buf |= FCT_TX_CTL_EN_;
-	err = lan78xx_write_reg(sc, FCT_RX_CTL, buf);
+	err = lan78xx_read_reg(sc, ETH_FCT_RX_CTL, &buf);
+	buf |= ETH_FCT_TX_CTL_EN_;
+	err = lan78xx_write_reg(sc, ETH_FCT_RX_CTL, buf);
 
 	return 0;
 
@@ -1459,8 +1468,8 @@ muge_attach_post(struct usb_ether *ue)
 	lan78xx_read_reg(sc, 0, &val);
 
 	/* Check if there is already a MAC address in the register */
-	if ((lan78xx_read_reg(sc, RX_ADDRL, &mac_l) == 0) &&
-		(lan78xx_read_reg(sc, RX_ADDRH, &mac_h) == 0)) {
+	if ((lan78xx_read_reg(sc, ETH_RX_ADDRL, &mac_l) == 0) &&
+		(lan78xx_read_reg(sc, ETH_RX_ADDRH, &mac_h) == 0)) {
 		sc->sc_ue.ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
 		sc->sc_ue.ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
 		sc->sc_ue.ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
@@ -1474,7 +1483,7 @@ muge_attach_post(struct usb_ether *ue)
 	 * generate a random MAC address.
 	 */
 	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
-		if ((lan78xx_eeprom_read(sc, E2P_MAC_OFFSET,
+		if ((lan78xx_eeprom_read(sc, ETH_E2P_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
 		    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
@@ -1688,7 +1697,7 @@ muge_set_addr_filter(struct muge_softc *sc, int index,
 		sc->sc_pfilter_table[index][1] = tmp;
 		tmp = addr[5];
 		tmp |= addr[4] | (tmp << 8);
-		tmp |= PFILTER_ADDR_VALID_ | PFILTER_ADDR_TYPE_DST_;
+		tmp |= ETH_MAF_HI_VALID_ | ETH_MAF_HI_TYPE_DST_;
 		sc->sc_pfilter_table[index][0] = tmp;
 	}
 }
@@ -1713,22 +1722,22 @@ lan78xx_dataport_write(struct muge_softc *sc, uint32_t ram_select,
 	int i, ret;
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
-	ret = lan78xx_wait_for_bits(sc, DP_SEL, DP_SEL_DPRDY_);
+	ret = lan78xx_wait_for_bits(sc, ETH_DP_SEL, ETH_DP_SEL_DPRDY_);
 	if (ret < 0)
 		goto done;
 
-	ret = lan78xx_read_reg(sc, DP_SEL, &dp_sel);
+	ret = lan78xx_read_reg(sc, ETH_DP_SEL, &dp_sel);
 
-	dp_sel &= ~DP_SEL_RSEL_MASK_;
+	dp_sel &= ~ETH_DP_SEL_RSEL_MASK_;
 	dp_sel |= ram_select;
 
-	ret = lan78xx_write_reg(sc, DP_SEL, dp_sel);
+	ret = lan78xx_write_reg(sc, ETH_DP_SEL, dp_sel);
 
 	for (i = 0; i < length; i++) {
-		ret = lan78xx_write_reg(sc, DP_ADDR, addr + i);
-		ret = lan78xx_write_reg(sc, DP_DATA, buf[i]);
-		ret = lan78xx_write_reg(sc, DP_CMD, DP_CMD_WRITE_);
-		ret = lan78xx_wait_for_bits(sc, DP_SEL, DP_SEL_DPRDY_);
+		ret = lan78xx_write_reg(sc, ETH_DP_ADDR, addr + i);
+		ret = lan78xx_write_reg(sc, ETH_DP_DATA, buf[i]);
+		ret = lan78xx_write_reg(sc, ETH_DP_CMD, ETH_DP_CMD_WRITE_);
+		ret = lan78xx_wait_for_bits(sc, ETH_DP_SEL, ETH_DP_SEL_DPRDY_);
 		if (ret != 0)
 			goto done;
 	}
@@ -1749,8 +1758,9 @@ static void
 muge_multicast_write(struct muge_softc *sc)
 {
 	int i, ret;
-	lan78xx_dataport_write(sc, DP_SEL_RSEL_VLAN_DA_, DP_SEL_VHF_VLAN_LEN,
-	    DP_SEL_VHF_HASH_LEN, sc->sc_mchash_table);
+	lan78xx_dataport_write(sc, ETH_DP_SEL_RSEL_VLAN_DA_,
+	    ETH_DP_SEL_VHF_VLAN_LEN, ETH_DP_SEL_VHF_HASH_LEN,
+	    sc->sc_mchash_table);
 
 	for (i = 1; i < MUGE_NUM_PFILTER_ADDRS_; i++) {
 		ret = lan78xx_write_reg(sc, PFILTER_HI(i), 0);
@@ -1798,11 +1808,11 @@ muge_setmulti(struct usb_ether *ue)
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
-	sc->sc_rfe_ctl &= ~(RFE_CTL_UCAST_EN_ | RFE_CTL_MCAST_EN_ |
-		RFE_CTL_DA_PERFECT_ | RFE_CTL_MCAST_HASH_);
+	sc->sc_rfe_ctl &= ~(ETH_RFE_CTL_UCAST_EN_ | ETH_RFE_CTL_MCAST_EN_ |
+		ETH_RFE_CTL_DA_PERFECT_ | ETH_RFE_CTL_MCAST_HASH_);
 
 	/* Initializing hash filter table */
-	for (i = 0; i < DP_SEL_VHF_HASH_LEN; i++)
+	for (i = 0; i < ETH_DP_SEL_VHF_HASH_LEN; i++)
 		sc->sc_mchash_table[i] = 0;
 
 	/* Initializing perfect filter table */
@@ -1811,14 +1821,14 @@ muge_setmulti(struct usb_ether *ue)
 		sc->sc_pfilter_table[i][1] = 0;
 	}
 
-	sc->sc_rfe_ctl |= RFE_CTL_BCAST_EN_;
+	sc->sc_rfe_ctl |= ETH_RFE_CTL_BCAST_EN_;
 
 	if (ifp->if_flags & IFF_PROMISC) {
 		muge_dbg_printf(sc, "promiscuous mode enabled\n");
-		sc->sc_rfe_ctl |= RFE_CTL_MCAST_EN_ | RFE_CTL_UCAST_EN_;
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_ | ETH_RFE_CTL_UCAST_EN_;
 	} else if (ifp->if_flags & IFF_ALLMULTI){
 		muge_dbg_printf(sc, "receive all multicast enabled\n");
-		sc->sc_rfe_ctl |= RFE_CTL_MCAST_EN_;
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_;
 	} else {
 		/*
 		 * Take the lock of the mac address list before hashing each of
@@ -1840,7 +1850,8 @@ muge_setmulti(struct usb_ether *ue)
 					uint32_t bitnum = muge_hash(addr);
 					sc->sc_mchash_table[bitnum / 32] |=
 					    (1 << (bitnum % 32));
-					sc->sc_rfe_ctl |= RFE_CTL_MCAST_HASH_;
+					sc->sc_rfe_ctl |=
+					    ETH_RFE_CTL_MCAST_HASH_;
 				}
 				i++;
 			}
@@ -1848,7 +1859,7 @@ muge_setmulti(struct usb_ether *ue)
 		if_maddr_runlock(ifp);
 		muge_multicast_write(sc);
 	}
-	lan78xx_write_reg(sc, RFE_CTL, sc->sc_rfe_ctl);
+	lan78xx_write_reg(sc, ETH_RFE_CTL, sc->sc_rfe_ctl);
 }
 
 /**
@@ -1870,11 +1881,11 @@ muge_setpromisc(struct usb_ether *ue)
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
 	if (ifp->if_flags & IFF_PROMISC)
-		sc->sc_rfe_ctl |= RFE_CTL_MCAST_EN_ | RFE_CTL_UCAST_EN_;
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_ | ETH_RFE_CTL_UCAST_EN_;
 	else
-		sc->sc_rfe_ctl &= ~(RFE_CTL_MCAST_EN_);
+		sc->sc_rfe_ctl &= ~(ETH_RFE_CTL_MCAST_EN_);
 
-	lan78xx_write_reg(sc, RFE_CTL, sc->sc_rfe_ctl);
+	lan78xx_write_reg(sc, ETH_RFE_CTL, sc->sc_rfe_ctl);
 }
 
 /**
@@ -1898,19 +1909,22 @@ static int muge_sethwcsum(struct muge_softc *sc)
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
 	if (ifp->if_capabilities & IFCAP_RXCSUM) {
-		sc->sc_rfe_ctl |= RFE_CTL_IGMP_COE_ | RFE_CTL_ICMP_COE_;
-		sc->sc_rfe_ctl |= RFE_CTL_TCPUDP_COE_ | RFE_CTL_IP_COE_;
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_IGMP_COE_ | ETH_RFE_CTL_ICMP_COE_;
+		sc->sc_rfe_ctl |= ETH_RFE_CTL_TCPUDP_COE_ | ETH_RFE_CTL_IP_COE_;
 	} else {
-		sc->sc_rfe_ctl &= ~(RFE_CTL_IGMP_COE_ | RFE_CTL_ICMP_COE_);
-		sc->sc_rfe_ctl &= ~(RFE_CTL_TCPUDP_COE_ | RFE_CTL_IP_COE_);
+		sc->sc_rfe_ctl &=
+		    ~(ETH_RFE_CTL_IGMP_COE_ | ETH_RFE_CTL_ICMP_COE_);
+		sc->sc_rfe_ctl &=
+		     ~(ETH_RFE_CTL_TCPUDP_COE_ | ETH_RFE_CTL_IP_COE_);
 	}
 
-	sc->sc_rfe_ctl &= ~RFE_CTL_VLAN_FILTER_;
+	sc->sc_rfe_ctl &= ~ETH_RFE_CTL_VLAN_FILTER_;
 
-	err = lan78xx_write_reg(sc, RFE_CTL, sc->sc_rfe_ctl);
+	err = lan78xx_write_reg(sc, ETH_RFE_CTL, sc->sc_rfe_ctl);
 
 	if (err != 0) {
-		muge_warn_printf(sc, "failed to write RFE_CTL (err=%d)\n", err);
+		muge_warn_printf(sc, "failed to write ETH_RFE_CTL (err=%d)\n",
+		    err);
 		return (err);
 	}
 
