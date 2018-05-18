@@ -525,7 +525,10 @@ io_open_src_real(file_pair *pair)
 #endif
 #ifdef HAVE_POSIX_FADVISE
 		// It will fail if stdin is a pipe and that's fine.
-		(void)posix_fadvise(STDIN_FILENO, 0, 0, POSIX_FADV_SEQUENTIAL);
+		(void)posix_fadvise(STDIN_FILENO, 0, 0,
+				opt_mode == MODE_LIST
+					? POSIX_FADV_RANDOM
+					: POSIX_FADV_SEQUENTIAL);
 #endif
 		return false;
 	}
@@ -716,7 +719,10 @@ io_open_src_real(file_pair *pair)
 
 #ifdef HAVE_POSIX_FADVISE
 	// It will fail with some special files like FIFOs but that is fine.
-	(void)posix_fadvise(pair->src_fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+	(void)posix_fadvise(pair->src_fd, 0, 0,
+			opt_mode == MODE_LIST
+				? POSIX_FADV_RANDOM
+				: POSIX_FADV_SEQUENTIAL);
 #endif
 
 	return false;

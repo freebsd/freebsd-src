@@ -219,7 +219,11 @@
  */
 #ifndef lzma_nothrow
 #	if defined(__cplusplus)
-#		define lzma_nothrow throw()
+#		if __cplusplus >= 201103L
+#			define lzma_nothrow noexcept
+#		else
+#			define lzma_nothrow throw()
+#		endif
 #	elif __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)
 #		define lzma_nothrow __attribute__((__nothrow__))
 #	else
