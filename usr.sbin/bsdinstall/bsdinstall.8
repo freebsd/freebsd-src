@@ -333,8 +333,8 @@ PARTITIONS=ada0
 DISTRIBUTIONS="kernel.txz base.txz"
 
 #!/bin/sh
-echo "ifconfig_em0=DHCP" >> /etc/rc.conf
-echo "sshd_enable=YES" >> /etc/rc.conf
+sysrc ifconfig_em0=DHCP
+sysrc sshd_enable=YES
 pkg install puppet
 .Ed
 .Pp
