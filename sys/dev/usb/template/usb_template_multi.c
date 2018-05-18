@@ -299,7 +299,7 @@ static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppEndpoints = modem_iface_0_ep,
 	.bInterfaceClass = UICLASS_CDC,
 	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
-	.bInterfaceProtocol = UIPROTO_CDC_AT,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
 	.iInterface = MULTI_MODEM_INDEX,
 };
 
