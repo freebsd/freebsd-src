@@ -228,7 +228,7 @@ route_init(void)
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
 }
-SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
+SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, NULL);
 
 static int
 rtentry_zinit(void *mem, int size, int how)
