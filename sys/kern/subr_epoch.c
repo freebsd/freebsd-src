@@ -142,6 +142,8 @@ epoch_init(void *arg __unused)
 	migrate_count = counter_u64_alloc(M_WAITOK);
 	turnstile_count = counter_u64_alloc(M_WAITOK);
 	switch_count = counter_u64_alloc(M_WAITOK);
+	epoch_call_count = counter_u64_alloc(M_WAITOK);
+	epoch_call_task_count = counter_u64_alloc(M_WAITOK);
 	if (usedomains == false)
 		goto done;
 	count = domain = 0;
