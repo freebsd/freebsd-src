@@ -1201,7 +1201,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
 	}
 
 	/*
-	 * The addl_page_shortage is the number of temporarily
+	 * The addl_page_shortage is an estimate of the number of temporarily
 	 * stuck pages in the inactive queue.  In other words, the
 	 * number of pages from the inactive count that should be
 	 * discounted in setting the target for the active queue scan.
@@ -1275,7 +1275,6 @@ recheck:
 			goto reinsert;
 		}
 		if (m->wire_count != 0) {
-			addl_page_shortage++;
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
