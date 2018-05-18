@@ -1189,17 +1189,23 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 			/*
 			 * A full TLS header is not yet queued, stop
 			 * for now until more data is added to the
-			 * socket buffer.
+			 * socket buffer.  However, if the connection
+			 * has been closed, we will never get the rest
+			 * of the header so just discard the partial
+			 * header and close the connection.
 			 */
 #ifdef VERBOSE_TRACES
-			CTR4(KTR_CXGBE, "%s: tid %d sbavail %d sb_off %d",
-			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off);
+			CTR5(KTR_CXGBE, "%s: tid %d sbavail %d sb_off %d%s",
+			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off,
+			    toep->flags & TPF_SEND_FIN ? "" : " SEND_FIN");
 #endif
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
 				SOCKBUF_UNLOCK(sb);
 			SOCKBUF_UNLOCK_ASSERT(sb);
+			if (toep->flags & TPF_SEND_FIN)
+				t4_close_conn(sc, toep);
 			return;
 		}
 
@@ -1216,19 +1222,25 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 			/*
 			 * The full TLS record is not yet queued, stop
 			 * for now until more data is added to the
-			 * socket buffer.
+			 * socket buffer.  However, if the connection
+			 * has been closed, we will never get the rest
+			 * of the record so just discard the partial
+			 * record and close the connection.
 			 */
 #ifdef VERBOSE_TRACES
-			CTR5(KTR_CXGBE,
-			    "%s: tid %d sbavail %d sb_off %d plen %d",
+			CTR6(KTR_CXGBE,
+			    "%s: tid %d sbavail %d sb_off %d plen %d%s",
 			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off,
-			    plen);
+			    plen, toep->flags & TPF_SEND_FIN ? "" :
+			    " SEND_FIN");
 #endif
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
 				SOCKBUF_UNLOCK(sb);
 			SOCKBUF_UNLOCK_ASSERT(sb);
+			if (toep->flags & TPF_SEND_FIN)
+				t4_close_conn(sc, toep);
 			return;
 		}
 
