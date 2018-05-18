@@ -900,12 +900,20 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 }
 
 static void
+if_epochalloc(void *dummy __unused)
+{
+
+	net_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
+	net_epoch = epoch_alloc(0);
+}
+SYSINIT(ifepochalloc, SI_SUB_TASKQ + 1, SI_ORDER_ANY,
+    if_epochalloc, NULL);
+
+static void
 if_attachdomain(void *dummy)
 {
 	struct ifnet *ifp;
 
-	net_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
-	net_epoch = epoch_alloc(0);
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		if_attachdomain1(ifp);
 }
