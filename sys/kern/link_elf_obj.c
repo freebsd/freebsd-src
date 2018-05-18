@@ -194,7 +194,7 @@ link_elf_init(void *arg)
 	linker_add_class(&link_elf_class);
 }
 
-SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
+SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
 
 static int
 link_elf_link_preload(linker_class_t cls, const char *filename,

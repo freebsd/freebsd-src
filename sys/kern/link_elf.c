@@ -469,7 +469,7 @@ link_elf_init(void* arg)
 #endif
 }
 
-SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, 0);
+SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, NULL);
 
 static int
 link_elf_preload_parse_symbols(elf_file_t ef)

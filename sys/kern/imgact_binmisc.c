@@ -747,8 +747,10 @@ imgact_binmisc_fini(void *arg)
 	sx_destroy(&interp_list_sx);
 }
 
-SYSINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init, 0);
-SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini, 0);
+SYSINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init,
+    NULL);
+SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini,
+    NULL);
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
