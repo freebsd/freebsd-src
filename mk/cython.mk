@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: cython.mk,v 1.6 2014/10/15 06:23:51 sjg Exp $
+#	$Id: cython.mk,v 1.7 2018/03/25 18:46:11 sjg Exp $
 #
 #	@(#) Copyright (c) 2014, Simon J. Gerraty
 #
@@ -14,15 +14,6 @@
 #	sjg@crufty.net
 #
 
-# this is what we build
-CYTHON_MODULE = ${CYTHON_MODULE_NAME}${CYTHON_PYVERSION}.so
-
-CYTHON_MODULE_NAME?= it
-CYTHON_SRCS?= ${CYTHON_MODULE_NAME}.pyx
-
-# this is where we save generated src
-CYTHON_SAVEGENDIR?= ${.CURDIR}/gen
-
 # pyprefix is where python bits are
 # which may not be where we want to put ours (prefix)
 .if exists(/usr/pkg/include)
@@ -34,12 +25,35 @@ PYTHON_VERSION?= 2.7
 PYTHON_H?= ${pyprefix}/include/python${PYTHON_VERSION}/Python.h
 PYVERSION:= ${PYTHON_VERSION:C,\..*,,}
 
+CFLAGS+= -I${PYTHON_H:H}
+
+# conf.host_target() is limited to uname -m rather than uname -p
+_HOST_MACHINE!= uname -m
+.if ${HOST_TARGET:M*${_HOST_MACHINE}} == ""
+PY_HOST_TARGET:= ${HOST_TARGET:S,${_HOST_ARCH:U${uname -p:L:sh}}$,${_HOST_MACHINE},}
+.endif
+
+COMPILE.c?= ${CC} -c ${CFLAGS}
+PICO?= .pico
+
+.SUFFIXES: ${PICO} .c
+
+.c${PICO}:
+	${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
+
+# this is what we build
+.if !empty(CYTHON_MODULE_NAME)
+CYTHON_MODULE = ${CYTHON_MODULE_NAME}${CYTHON_PYVERSION}.so
+
+CYTHON_SRCS?= ${CYTHON_MODULE_NAME}.pyx
+
+# this is where we save generated src
+CYTHON_SAVEGENDIR?= ${.CURDIR}/gen
+
 # set this empty if you don't want to handle multiple versions
 .if !defined(CYTHON_PYVERSION)
 CYTHON_PYVERSION:= ${PYVERSION}
 .endif
-
-CFLAGS+= -I${PYTHON_H:H}
 
 CYTHON_GENSRCS= ${CYTHON_SRCS:R:S,$,${CYTHON_PYVERSION}.c,}
 SRCS+= ${CYTHON_GENSRCS}
@@ -70,19 +84,8 @@ save-gen: ${CYTHON_GENSRCS}
 
 .endif
 
-COMPILE.c?= ${CC} -c ${CFLAGS}
-
-.c.So:
-	${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
-
-${CYTHON_MODULE}: ${SRCS:S,.c,.So,}
-	${CC} ${CC_SHARED:U-shared} -o ${.TARGET} ${.ALLSRC:M*.So} ${LDADD}
-
-# conf.host_target() is limited to uname -m rather than uname -p
-_HOST_MACHINE!= uname -m
-.if ${HOST_TARGET:M*${_HOST_MACHINE}} == ""
-PY_HOST_TARGET:= ${HOST_TARGET:S,${_HOST_ARCH:U${uname -p:L:sh}}$,${_HOST_MACHINE},}
-.endif
+${CYTHON_MODULE}: ${SRCS:S,.c,${PICO},}
+	${CC} ${CC_SHARED:U-shared} -o ${.TARGET} ${.ALLSRC:M*${PICO}} ${LDADD}
 
 MODULE_BINDIR?= ${.CURDIR:H}/${PY_HOST_TARGET:U${HOST_TARGET}}
 
@@ -93,4 +96,6 @@ install-cython-module: ${CYTHON_MODULE}
 	${INSTALL} -d ${DESTDIR}${MODULE_BINDIR}
 	${INSTALL} -m 755 ${.ALLSRC} ${DESTDIR}${MODULE_BINDIR}
 
-CLEANFILES+= *.So ${CYTHON_MODULE}
+CLEANFILES+= *${PICO} ${CYTHON_MODULE}
+
+.endif
