@@ -1,5 +1,5 @@
 The following instructions apply if you have a Linux platform and want
-libpcap to support the 'ACN' WAN/LAN router product from from SITA
+libpcap to support the 'ACN' WAN/LAN router product from SITA
 (http://www.sita.aero)
 
 This might also work on non-Linux Unix-compatible platforms, but that

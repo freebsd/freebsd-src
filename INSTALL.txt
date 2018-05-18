@@ -250,28 +250,13 @@ libpcap program and it dies with:
 You must add streams NIT support to your kernel configuration, run
 config and boot the new kernel.
 
-If you are running a version of SunOS earlier than 4.1, you will need
-to replace the Sun supplied /sys/sun{3,4,4c}/OBJ/nit_if.o with the
-appropriate version from this distribution's SUNOS4 subdirectory and
-build a new kernel:
-
-	nit_if.o.sun3-sunos4		(any flavor of sun3)
-	nit_if.o.sun4c-sunos4.0.3c	(SS1, SS1+, IPC, SLC, etc.)
-	nit_if.o.sun4-sunos4		(Sun4's not covered by
-					    nit_if.o.sun4c-sunos4.0.3c)
-
-These nit replacements fix a bug that makes nit essentially unusable in
-pre-SunOS 4.1.  In addition, our sun4c-sunos4.0.3c nit gives you
-timestamps to the resolution of the SS-1 clock (1 us) rather than the
-lousy 20ms timestamps Sun gives you  (tcpdump will print out the full
-timestamp resolution if it finds it's running on a SS-1).
-
 FILES
 -----
 CHANGES		- description of differences between releases
-ChmodBPF/*	- Mac OS X startup item to set ownership and permissions
+ChmodBPF/*	- macOS startup item to set ownership and permissions
 		  on /dev/bpf*
 CMakeLists.txt	- CMake file
+CONTRIBUTING	- guidelines for contributing
 CREDITS		- people that have helped libpcap along
 INSTALL.txt	- this file
 LICENSE		- the license under which tcpdump is distributed
@@ -281,12 +266,11 @@ README.aix	- notes on using libpcap on AIX
 README.dag	- notes on using libpcap to capture on Endace DAG devices
 README.hpux	- notes on using libpcap on HP-UX
 README.linux	- notes on using libpcap on Linux
-README.macosx	- notes on using libpcap on Mac OS X
+README.macos	- notes on using libpcap on macOS
 README.septel   - notes on using libpcap to capture on Intel/Septel devices
 README.sita	- notes on using libpcap to capture on SITA devices
 README.tru64	- notes on using libpcap on Digital/Tru64 UNIX
 README.Win32	- notes on using libpcap on Win32 systems (with WinPcap)
-SUNOS4		- pre-SunOS 4.1 replacement kernel nit modules
 VERSION		- version of this release
 acconfig.h	- support for post-2.13 autoconf
 aclocal.m4	- autoconf macros
@@ -314,7 +298,6 @@ gencode.c	- BPF code generation routines
 gencode.h	- BPF code generation definitions
 grammar.y	- filter string grammar
 ieee80211.h	- 802.11 definitions
-inet.c		- network routines
 install-sh	- BSD style install script
 lbl/os-*.h	- OS-dependent defines and prototypes
 llc.h		- 802.2 LLC SAP definitions
@@ -347,6 +330,7 @@ pcap-linux.c	- Linux packet socket support
 pcap-namedb.h	- header for backwards compatibility
 pcap-nit.c	- SunOS Network Interface Tap support
 pcap-nit.h	- SunOS Network Interface Tap definitions
+pcap-npf.c	- WinPcap capture support
 pcap-null.c	- dummy monitor support (allows offline use of libpcap)
 pcap-pf.c	- Ultrix and Digital/Tru64 UNIX Packet Filter support
 pcap-pf.h	- Ultrix and Digital/Tru64 UNIX Packet Filter definitions
@@ -360,7 +344,6 @@ pcap-snit.c	- SunOS 4.x STREAMS-based Network Interface Tap support
 pcap-snoop.c	- IRIX Snoop network monitoring support
 pcap-usb-linux.c - USB capture support for Linux
 pcap-usb-linux.h - USB capture support for Linux
-pcap-win32.c	- WinPcap capture support
 pcap.3pcap	- manual entry for the library
 pcap.c		- pcap utility routines
 pcap.h		- header for backwards compatibility

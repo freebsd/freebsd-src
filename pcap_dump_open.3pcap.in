@@ -91,6 +91,6 @@ is returned,
 can be used to get the error text.
 .SH SEE ALSO
 pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP),
-pcap_open_offline(3PCAP), pcap_open_live(3PCAP), pcap_open_dead(3PCAP),
+\%pcap_open_offline(3PCAP), pcap_open_live(3PCAP), pcap_open_dead(3PCAP),
 pcap_dump(3PCAP), pcap_dump_close(3PCAP), pcap_geterr(3PCAP),
-pcap-savefile(@MAN_FILE_FORMATS@)
+\%pcap-savefile(@MAN_FILE_FORMATS@)
