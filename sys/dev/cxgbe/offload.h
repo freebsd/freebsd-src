@@ -79,6 +79,38 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
+struct cxgbe_snd_tag {
+	struct m_snd_tag com;
+	struct adapter *adapter;
+	u_int flags;
+	struct mtx lock;
+	int port_id;
+	int etid;
+	struct sge_wrq *eo_txq;
+	uint16_t iqid;
+	int8_t schedcl;
+	uint64_t max_rate;      /* in bytes/s */
+	int8_t next_credits;	/* need these many tx credits next */
+	uint8_t next_nsegs;	/* next WR will have these many GL segs total */
+	uint8_t next_msegs;	/* max segs for a single mbuf in next chain */
+	uint8_t tx_total;	/* total tx WR credits (in 16B units) */
+	uint8_t tx_credits;	/* tx WR credits (in 16B units) available */
+	uint8_t tx_nocompl;	/* tx WR credits since last compl request */
+	uint8_t ncompl;		/* # of completions outstanding. */
+};
+
+static inline struct cxgbe_snd_tag *
+mst_to_cst(struct m_snd_tag *t)
+{
+
+	return (__containerof(t, struct cxgbe_snd_tag, com));
+}
+
+union etid_entry {
+	struct cxgbe_snd_tag *cst;
+	union etid_entry *next;
+};
+
 /*
  * Holds the size, base address, free list start, etc of the TID, server TID,
  * and active-open TID tables.  The tables themselves are allocated dynamically.
@@ -98,8 +130,8 @@ struct tid_info {
 
 	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
 	union aopen_entry *atid_tab;
-	u_int natids;
 	union aopen_entry *afree;
+	u_int natids;
 	u_int atids_in_use;
 
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
@@ -115,9 +147,11 @@ struct tid_info {
 	/* ntids, tids_in_use */
 
 	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
-	struct etid_entry *etid_tab;
+	union etid_entry *etid_tab;
+	union etid_entry *efree;
 	u_int netids;
 	u_int etid_base;
+	u_int etids_in_use;
 };
 
 struct t4_range {
