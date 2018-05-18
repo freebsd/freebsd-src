@@ -202,7 +202,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		/* clone address information for IPv4 and IPv6 */
 		IF_ADDR_RLOCK(idev);
 #if defined(INET)
-		TAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL ||
 			    ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -218,7 +218,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		}
 #endif
 #if defined(INET6)
-		TAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL ||
 			    ifa->ifa_addr->sa_family != AF_INET6)
 				continue;

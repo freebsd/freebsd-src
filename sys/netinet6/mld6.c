@@ -551,7 +551,7 @@ mld_ifdetach(struct ifnet *ifp)
 	if (mli->mli_version == MLD_VERSION_2) {
 		IF_ADDR_WLOCK(ifp);
 	restart:
-		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
+		CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -702,7 +702,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 */
 		CTR2(KTR_MLD, "process v1 general query on ifp %p(%s)",
 			 ifp, if_name(ifp));
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -1395,7 +1395,7 @@ mld_fasttimo_vnet(void)
 
 		IF_ADDR_WLOCK(ifp);
 	restart:
-		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
+		CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -1678,7 +1678,7 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 
 	IF_ADDR_WLOCK(ifp);
  restart:
-	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 		if (ifma->ifma_addr->sa_family != AF_INET6)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
@@ -2999,7 +2999,7 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 	ifp = mli->mli_ifp;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
 			continue;

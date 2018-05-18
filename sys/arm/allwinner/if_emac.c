@@ -240,7 +240,7 @@ emac_set_rx_mode(struct emac_softc *sc)
 		hashes[1] = 0xffffffff;
 	} else {
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &sc->emac_ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &sc->emac_ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)

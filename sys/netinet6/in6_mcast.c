@@ -589,7 +589,7 @@ in6m_disconnect(struct in6_multi *inm)
 	ifma = inm->in6m_ifma;
 
 	if_ref(ifp);
-	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+	CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
 	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
 	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
 		MPASS(ifma != ll_ifma);
@@ -598,12 +598,12 @@ in6m_disconnect(struct in6_multi *inm)
 		MPASS(ll_ifma->ifma_ifp == ifp);
 		if (--ll_ifma->ifma_refcount == 0) {
 			ifma6_restart = true;
-			TAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifma_link);
+			CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);
 		}
 	}
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifa6 = (void *)ifa;
@@ -1297,7 +1297,7 @@ out_in6m_release:
 	if (error) {
 		CTR2(KTR_MLD, "%s: dropping ref on %p", __func__, inm);
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_protospec == inm) {
 				ifma->ifma_protospec = NULL;
 				break;
@@ -2827,7 +2827,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 	IN6_MULTI_LOCK();
 	IN6_MULTI_LIST_LOCK();
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
 			continue;

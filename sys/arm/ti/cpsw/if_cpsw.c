@@ -2465,7 +2465,7 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 
         /* Set other multicast addrs desired. */
         if_maddr_rlock(sc->ifp);
-        TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+        CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
 		cpsw_ale_mc_entry_set(sc->swsc, portmask, sc->vlan,

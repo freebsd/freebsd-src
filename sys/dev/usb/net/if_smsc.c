@@ -714,14 +714,14 @@ smsc_setmulti(struct usb_ether *ue)
 		/* Take the lock of the mac address list before hashing each of them */
 		if_maddr_rlock(ifp);
 
-		if (!TAILQ_EMPTY(&ifp->if_multiaddrs)) {
+		if (!CK_STAILQ_EMPTY(&ifp->if_multiaddrs)) {
 			/* We are filtering on a set of address so calculate hashes of each
 			 * of the address and set the corresponding bits in the register.
 			 */
 			sc->sc_mac_csr |= SMSC_MAC_CSR_HPFILT;
 			sc->sc_mac_csr &= ~(SMSC_MAC_CSR_PRMS | SMSC_MAC_CSR_MCPAS);
 		
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
 					continue;
 

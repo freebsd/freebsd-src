@@ -537,7 +537,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
 	{ "ifnet_rw", &lock_class_rw },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
@@ -548,7 +548,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
 	{ "ifnet_rw", &lock_class_rw },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets

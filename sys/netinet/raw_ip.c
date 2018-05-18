@@ -743,7 +743,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	switch (cmd) {
 	case PRC_IFDOWN:
 		IN_IFADDR_RLOCK(&in_ifa_tracker);
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
 				ifa_ref(&ia->ia_ifa);
@@ -769,7 +769,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	case PRC_IFUP:
 		IN_IFADDR_RLOCK(&in_ifa_tracker);
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}

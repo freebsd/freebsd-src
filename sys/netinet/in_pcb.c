@@ -586,7 +586,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	if (TAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
+	if (CK_STAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
 	if (nam != NULL && laddr.s_addr != INADDR_ANY)
@@ -851,7 +851,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ifa_free(&ia->ia_ifa);
 		ia = NULL;
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -910,7 +910,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
 				continue;
@@ -976,7 +976,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ifa_free(&ia->ia_ifa);
 			ia = NULL;
 			IF_ADDR_RLOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
 				if (sa->sa_family != AF_INET)
@@ -1055,7 +1055,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
 
-	if (!TAILQ_EMPTY(&V_in_ifaddrhead)) {
+	if (!CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
 		 * use the primary local address.
@@ -1066,16 +1066,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		if (faddr.s_addr == INADDR_ANY) {
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			faddr =
-			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
-			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
+			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
-				faddr = satosin(&TAILQ_FIRST(
+				faddr = satosin(&CK_STAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
@@ -1096,7 +1096,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
 				IN_IFADDR_RLOCK(&in_ifa_tracker);
-				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+				CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 					if ((ia->ia_ifp == ifp) &&
 					    (cred == NULL ||
 					    prison_check_ip4(cred,

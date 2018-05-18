@@ -362,7 +362,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 		struct ifaddr *ifa;
 
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 
@@ -886,7 +886,7 @@ in_arpinput(struct mbuf *m)
 	 * as a dummy address for the rest of the function.
 	 */
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (ifa->ifa_carp == NULL ||
 		    (*carp_iamatch_p)(ifa, &enaddr))) {
@@ -901,7 +901,7 @@ in_arpinput(struct mbuf *m)
 	 * If bridging, fall back to using any inet address.
 	 */
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL) {
+	if (!bridged || (ia = CK_STAILQ_FIRST(&V_in_ifaddrhead)) == NULL) {
 		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		goto drop;
 	}
@@ -1445,7 +1445,7 @@ arp_handle_ifllchange(struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			arp_ifinit(ifp, ifa);
 	}

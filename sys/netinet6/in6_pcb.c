@@ -128,7 +128,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
+	if (CK_STAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -349,7 +349,7 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr *nam,
 	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	if (!TAILQ_EMPTY(&V_in6_ifaddrhead)) {
+	if (!CK_STAILQ_EMPTY(&V_in6_ifaddrhead)) {
 		/*
 		 * If the destination address is UNSPECIFIED addr,
 		 * use the loopback addr, e.g ::1.

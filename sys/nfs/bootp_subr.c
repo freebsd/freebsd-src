@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <nfs/krpc.h>
 #include <nfs/xdr_subs.h>
 
-
 #define BOOTP_MIN_LEN		300	/* Minimum size of bootp udp packet */
 
 #ifndef BOOTP_SETTLE_DELAY
@@ -413,7 +412,7 @@ bootpboot_p_iflist(void)
 	for (ifp = TAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
-		for (ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		for (ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
 		     ifa != NULL;
 		     ifa = TAILQ_NEXT(ifa, ifa_link))
 			if (ifa->ifa_addr->sa_family == AF_INET)
@@ -1685,7 +1684,7 @@ retry:
 
 		/* Get HW address */
 		sdl = NULL;
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 			if (ifa->ifa_addr->sa_family == AF_LINK) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if (sdl->sdl_type == IFT_ETHER)

@@ -127,7 +127,7 @@ struct	in6_ifaddr {
 	struct	sockaddr_in6 ia_dstaddr; /* space for destination addr */
 	struct	sockaddr_in6 ia_prefixmask; /* prefix mask */
 	u_int32_t ia_plen;		/* prefix length */
-	TAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
+	STAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
 	int	ia6_flags;
 
 	struct in6_addrlifetime ia6_lifetime;
@@ -146,7 +146,7 @@ struct	in6_ifaddr {
 };
 
 /* List of in6_ifaddr's. */
-TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
+STAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
 #endif	/* _KERNEL */
 
@@ -727,10 +727,8 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct ifmultiaddr *ifma;
 	struct in6_multi *inm;
 
-	IF_ADDR_LOCK_ASSERT(ifp);
-
 	inm = NULL;
-	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
 		if (ifma->ifma_addr->sa_family == AF_INET6) {
 			inm = (struct in6_multi *)ifma->ifma_protospec;
 			if (inm == NULL)

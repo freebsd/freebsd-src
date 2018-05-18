@@ -276,8 +276,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
 } while (0)
 
 #define	IFNET_FOREACH_IFA(ifp, ifa)					\
-	IF_ADDR_LOCK_ASSERT(ifp);					\
-	TAILQ_FOREACH((ifa), &(ifp)->if_addrhead, ifa_link)		\
+	CK_STAILQ_FOREACH((ifa), &(ifp)->if_addrhead, ifa_link)	\
 		if ((ifa)->ifa_carp != NULL)
 
 #define	CARP_FOREACH_IFA(sc, ifa)					\
@@ -878,7 +877,7 @@ carp_best_ifa(int af, struct ifnet *ifp)
 		return (NULL);
 	best = NULL;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == af &&
 		    (best == NULL || ifa_preferred(best, ifa)))
 			best = ifa;
@@ -1160,7 +1159,7 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 
 	ifa = NULL;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (!IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa)))
