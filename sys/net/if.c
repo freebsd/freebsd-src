@@ -104,8 +104,8 @@
 _Static_assert(sizeof(((struct ifreq *)0)->ifr_name) ==
     offsetof(struct ifreq, ifr_ifru), "gap between ifr_name and ifr_ifru");
 
-epoch_t net_epoch_preempt;
-epoch_t net_epoch;
+__read_mostly epoch_t net_epoch_preempt;
+__read_mostly epoch_t net_epoch;
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
