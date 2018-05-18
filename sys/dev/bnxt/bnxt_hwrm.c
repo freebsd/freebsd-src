@@ -1017,6 +1017,10 @@ bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 	struct hwrm_vnic_tpa_cfg_input req = {0};
 	uint32_t flags;
 
+	if (softc->vnic_info.id == (uint16_t) HWRM_NA_SIGNATURE) {
+		return 0;
+	}
+
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_TPA_CFG);
 
 	if (softc->hw_lro.enable) {
