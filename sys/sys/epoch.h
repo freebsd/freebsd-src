@@ -35,7 +35,10 @@
 struct epoch;
 typedef struct epoch *epoch_t;
 
+#define EPOCH_CRITICAL 0x1
+
 extern epoch_t global_epoch;
+extern epoch_t global_epoch_critical;
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
@@ -45,11 +48,14 @@ struct epoch_context {
 
 typedef struct epoch_context *epoch_context_t;
 
-epoch_t epoch_alloc(void);
+epoch_t epoch_alloc(int flags);
 void epoch_free(epoch_t epoch);
+void epoch_enter_critical(epoch_t epoch);
 void epoch_enter_internal(epoch_t epoch, struct thread *td);
+void epoch_exit_critical(epoch_t epoch);
 void epoch_exit_internal(epoch_t epoch, struct thread *td);
 void epoch_wait(epoch_t epoch);
+void epoch_wait_critical(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int in_epoch(void);
 

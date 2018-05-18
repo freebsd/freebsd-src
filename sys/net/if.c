@@ -903,7 +903,7 @@ if_attachdomain(void *dummy)
 {
 	struct ifnet *ifp;
 
-	net_epoch = epoch_alloc();
+	net_epoch = epoch_alloc(0);
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		if_attachdomain1(ifp);
 }
