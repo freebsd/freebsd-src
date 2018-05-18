@@ -267,8 +267,9 @@ epoch_enter_preempt_internal(epoch_t epoch, struct thread *td)
 {
 	struct epoch_pcpu_state *eps;
 
-	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	critical_enter();
 	td->td_pre_epoch_prio = td->td_priority;
 	eps = epoch->e_pcpu[curcpu];
@@ -300,6 +301,7 @@ epoch_enter(epoch_t epoch)
 	ck_epoch_section_t *section;
 	struct thread *td;
 
+	MPASS(cold || epoch != NULL);
 	section = NULL;
 	td = curthread;
 	critical_enter();
@@ -495,6 +497,8 @@ epoch_wait_preempt(epoch_t epoch)
 
 	locks = curthread->td_locks;
 #endif
+
+	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
@@ -548,6 +552,8 @@ void
 epoch_wait(epoch_t epoch)
 {
 
+	MPASS(cold || epoch != NULL);
+	INIT_CHECK(epoch);
 	MPASS(epoch->e_flags == 0);
 	critical_enter();
 	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler, NULL);
