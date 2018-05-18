@@ -109,7 +109,7 @@ sleepinit(void *unused)
  * vmem tries to lock the sleepq mutexes when free'ing kva, so make sure
  * it is available.
  */
-SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, 0);
+SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, NULL);
 
 /*
  * General sleep call.  Suspends the current thread until a wakeup is

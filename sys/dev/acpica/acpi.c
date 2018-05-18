@@ -4179,4 +4179,4 @@ acpi_pm_register(void *arg)
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
 }
 
-SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, 0);
+SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, NULL);

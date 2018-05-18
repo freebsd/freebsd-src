@@ -127,7 +127,7 @@ dpcpu_startup(void *dummy __unused)
 	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
 	sx_init(&dpcpu_lock, "dpcpu alloc lock");
 }
-SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, 0);
+SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, NULL);
 
 /*
  * UMA_PCPU_ZONE zones, that are available for all kernel

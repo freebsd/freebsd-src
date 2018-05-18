@@ -921,7 +921,7 @@ sysctl_register_all(void *arg)
 		sysctl_register_oid(*oidp);
 	SYSCTL_WUNLOCK();
 }
-SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, 0);
+SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, NULL);
 
 /*
  * "Staff-functions"
