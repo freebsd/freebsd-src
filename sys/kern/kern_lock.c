@@ -132,8 +132,10 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
 
-#define	lockmgr_xlocked(lk)						\
-	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
+#define	lockmgr_xlocked_v(v)						\
+	(((v) & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
+
+#define	lockmgr_xlocked(lk) lockmgr_xlocked_v((lk)->lk_lock)
 
 static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
@@ -1021,7 +1023,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	 * The lock is held in exclusive mode.
 	 * If the lock is recursed also, then unrecurse it.
 	 */
-	if (lockmgr_xlocked(lk) && lockmgr_recursed(lk)) {
+	if (lockmgr_xlocked_v(x) && lockmgr_recursed(lk)) {
 		LOCK_LOG2(lk, "%s: %p unrecursing", __func__, lk);
 		lk->lk_recurse--;
 		goto out;
@@ -1029,7 +1031,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	if (tid != LK_KERNPROC)
 		lock_profile_release_lock(&lk->lock_object);
 
-	if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED))
+	if (x == tid && atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED))
 		goto out;
 
 	sleepq_lock(&lk->lock_object);
