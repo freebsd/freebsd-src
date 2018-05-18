@@ -106,6 +106,7 @@ VNET_DECLARE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DECLARE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 #define	V_ipsec_hhh_in	VNET(ipsec_hhh_in)
 #define	V_ipsec_hhh_out	VNET(ipsec_hhh_out)
+extern epoch_t net_epoch_preempt;
 extern epoch_t net_epoch;
 #endif /* _KERNEL */
 
