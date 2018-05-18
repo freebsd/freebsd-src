@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <security/mac/mac_framework.h>
-
 /*
  * Divert sockets
  */
@@ -235,7 +234,7 @@ divert_packet(struct mbuf *m, int incoming)
 		/* Find IP address for receive interface */
 		ifp = m->m_pkthdr.rcvif;
 		if_addr_rlock(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			divsrc.sin_addr =

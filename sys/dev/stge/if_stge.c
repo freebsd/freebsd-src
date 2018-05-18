@@ -2547,7 +2547,7 @@ stge_set_multi(struct stge_softc *sc)
 
 	count = 0;
 	if_maddr_rlock(sc->sc_ifp);
-	TAILQ_FOREACH(ifma, &sc->sc_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->sc_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

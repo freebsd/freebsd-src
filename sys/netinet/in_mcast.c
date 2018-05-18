@@ -264,7 +264,7 @@ inm_disconnect(struct in_multi *inm)
 	ifma = inm->inm_ifma;
 
 	if_ref(ifp);
-	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+	CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
 	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
 	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
 		MPASS(ifma != ll_ifma);
@@ -272,7 +272,7 @@ inm_disconnect(struct in_multi *inm)
 		MPASS(ll_ifma->ifma_llifma == NULL);
 		MPASS(ll_ifma->ifma_ifp == ifp);
 		if (--ll_ifma->ifma_refcount == 0) {
-			TAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifma_link);
+			CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);
 			ifma_restart = true;
@@ -343,14 +343,14 @@ inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
 	IF_ADDR_LOCK_ASSERT(ifp);
 
 	inm = NULL;
-	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
-		    ifma->ifma_protospec == NULL)
+			ifma->ifma_protospec == NULL)
 			continue;
-		inm = (struct in_multi *)ifma->ifma_protospec;
-		if (inm->inm_addr.s_addr == ina.s_addr)
-			break;
-		inm = NULL;
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			if (inm->inm_addr.s_addr == ina.s_addr)
+				break;
+			inm = NULL;
 	}
 	return (inm);
 }
@@ -2016,7 +2016,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 
 			mifp = NULL;
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
-			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+			CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
 				     (mifp->if_flags & IFF_MULTICAST)) {
@@ -3013,7 +3013,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	IN_MULTI_LIST_LOCK();
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
 			continue;

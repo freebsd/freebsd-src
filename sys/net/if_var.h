@@ -85,14 +85,18 @@ struct	netdump_methods;
 #include <sys/rwlock.h>		/* XXX */
 #include <sys/sx.h>		/* XXX */
 #include <sys/_task.h>		/* if_link_task */
-
 #define	IF_DUNIT_NONE	-1
 
 #include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
-TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
-TAILQ_HEAD(ifmultihead, ifmultiaddr);
+#ifdef _KERNEL
+CK_STAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+CK_STAILQ_HEAD(ifmultihead, ifmultiaddr);
+#else
+STAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+STAILQ_HEAD(ifmultihead, ifmultiaddr);
+#endif
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
 #ifdef _KERNEL
@@ -281,7 +285,7 @@ struct ifnet {
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
+	struct mtx if_addr_lock;	/* lock to protect address lists */
 		/*
 		 * if_addrhead is the list of all addresses associated to
 		 * an interface.
@@ -396,14 +400,15 @@ struct ifnet {
 /*
  * Locks for address lists on the network interface.
  */
-#define	IF_ADDR_LOCK_INIT(if)	rw_init(&(if)->if_addr_lock, "if_addr_lock")
-#define	IF_ADDR_LOCK_DESTROY(if)	rw_destroy(&(if)->if_addr_lock)
-#define	IF_ADDR_WLOCK(if)	rw_wlock(&(if)->if_addr_lock)
-#define	IF_ADDR_WUNLOCK(if)	rw_wunlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RLOCK(if)	rw_rlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RUNLOCK(if)	rw_runlock(&(if)->if_addr_lock)
-#define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
-#define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
+#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_lock, "if_addr_lock", NULL, MTX_DEF)
+#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_lock)
+#define	IF_ADDR_RLOCK(if)       epoch_enter_preempt(net_epoch_preempt);
+#define	IF_ADDR_RUNLOCK(if)     epoch_exit_preempt(net_epoch_preempt);
+
+#define	IF_ADDR_WLOCK(if)	mtx_lock(&(if)->if_addr_lock)
+#define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_lock)
+#define	IF_ADDR_LOCK_ASSERT(if)	MPASS(in_epoch() || mtx_owned(&(if)->if_addr_lock))
+#define	IF_ADDR_WLOCK_ASSERT(if) mtx_assert(&(if)->if_addr_lock, MA_OWNED)
 
 /*
  * Function variations on locking macros intended to be used by loadable
@@ -517,7 +522,7 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
-	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
+	STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -529,6 +534,7 @@ struct ifaddr {
 	counter_u64_t	ifa_opackets;	 
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
+	struct	epoch_context	ifa_epoch_ctx;
 };
 
 struct ifaddr *	ifa_alloc(size_t size, int flags);
@@ -540,13 +546,14 @@ void	ifa_ref(struct ifaddr *ifa);
  * structure except that it keeps track of multicast addresses.
  */
 struct ifmultiaddr {
-	TAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
+	STAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
 	u_int	ifma_refcount;		/* reference count */
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
+	struct	epoch_context	ifma_epoch_ctx;
 };
 
 extern	struct rwlock ifnet_rwlock;

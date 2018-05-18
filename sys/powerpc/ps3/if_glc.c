@@ -524,7 +524,7 @@ glc_set_multicast(struct glc_softc *sc)
 	} else {
 		if_maddr_rlock(ifp);
 		naddrs = 1; /* Include broadcast */
-		TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 			if (inm->ifma_addr->sa_family != AF_LINK)
 				continue;
 			addr = 0;

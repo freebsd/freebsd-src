@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/network/virtio_net.h>
 #include <dev/virtio/network/if_vtnetvar.h>
-
 #include "virtio_if.h"
 
 #include "opt_inet.h"
@@ -3321,7 +3320,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 
 	/* Unicast MAC addresses: */
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		else if (memcmp(LLADDR((struct sockaddr_dl *)ifa->ifa_addr),
@@ -3348,7 +3347,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 
 	/* Multicast MAC addresses: */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		else if (mcnt == VTNET_MAX_MAC_ENTRIES) {

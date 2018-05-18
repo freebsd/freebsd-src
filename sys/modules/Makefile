@@ -121,6 +121,7 @@ SUBDIR=	\
 	${_ena} \
 	${_ep} \
 	${_epic} \
+	epoch_test \
 	esp \
 	${_et} \
 	evdev \

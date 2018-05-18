@@ -846,7 +846,7 @@ ixv_if_multi_set(if_ctx_t ctx)
 
 	IOCTL_DEBUGOUT("ixv_if_multi_set: begin");
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),

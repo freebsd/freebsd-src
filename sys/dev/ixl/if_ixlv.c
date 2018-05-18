@@ -2433,7 +2433,7 @@ ixlv_add_multi(struct ixl_vsi *vsi)
 	** Get a count, to decide if we
 	** simply use multicast promiscuous.
 	*/
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mcnt++;
@@ -2454,7 +2454,7 @@ ixlv_add_multi(struct ixl_vsi *vsi)
 
 	mcnt = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (!ixlv_add_mac_filter(sc,
@@ -2494,7 +2494,7 @@ ixlv_del_multi(struct ixl_vsi *vsi)
 		    && (f->flags & IXL_FILTER_MC)) {
 			/* check if mac address in filter is in sc's list */
 			match = FALSE;
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
 					continue;
 				u8 *mc_addr =
