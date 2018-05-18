@@ -100,7 +100,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
       <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;BUILDING_PCAP;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;HAVE_ADDRINFO;HAVE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
       <Culture>0x0409</Culture>
@@ -125,7 +125,7 @@ win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Com
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
       <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;BUILDING_PCAP;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;HAVE_ADDRINFO;HAVE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
       <Culture>0x0409</Culture>
@@ -151,7 +151,7 @@ win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Com
       <MinimalRebuild>true</MinimalRebuild>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;BUILDING_PCAP;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;HAVE_ADDRINFO;HAVE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
     </ClCompile>
     <ResourceCompile>
@@ -177,7 +177,7 @@ win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Com
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;BUILDING_PCAP;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;HAVE_ADDRINFO;HAVE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
     </ClCompile>
     <ResourceCompile>
@@ -198,7 +198,6 @@ win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Com
     <ClCompile Include="..\..\bpf_dump.c" />
     <ClCompile Include="..\..\bpf_image.c" />
     <ClCompile Include="..\..\etherent.c" />
-    <ClCompile Include="..\..\fad-helpers.c" />
     <ClCompile Include="..\..\gencode.c" />
     <ClCompile Include="..\..\grammar.c" />
     <ClCompile Include="..\..\inet.c" />
@@ -212,7 +211,7 @@ win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Com
     <ClCompile Include="..\..\pcap.c" />
     <ClCompile Include="..\..\savefile.c" />
     <ClCompile Include="..\..\scanner.c" />
-    <ClCompile Include="..\..\sf-pcap-ng.c" />
+    <ClCompile Include="..\..\sf-pcapng.c" />
     <ClCompile Include="..\..\sf-pcap.c" />
     <ClCompile Include="..\..\sockutils.c" />
   </ItemGroup>

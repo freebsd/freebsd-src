@@ -43,7 +43,7 @@
     <ClCompile Include="..\..\sf-pcap.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\sf-pcap-ng.c">
+    <ClCompile Include="..\..\sf-pcapng.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\pcap-common.c">

@@ -40,7 +40,7 @@ cards and will not capture from the native OS packet stream.
 
 Note: As mentioned in pcap-septel.c we should first edit the system.txt
 file to change the user part example (UPE) module id to 0xdd instead of
-0x2d for technical reason.  So this change in system.txt is crutial and
+0x2d for technical reason.  So this change in system.txt is crucial and
 things will go wrong if it's not done.  System.txt along with config.txt
 are configuration files that are edited by the user before running the
 gctload program that uses these files for initialising modules and
