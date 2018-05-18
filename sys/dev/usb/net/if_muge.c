@@ -152,19 +152,17 @@ do { \
 enum {
 	MUGE_BULK_DT_RD,
 	MUGE_BULK_DT_WR,
-	/*
-	 * the device does support interrupt endpoints,
-	 * but they're not needed as we poll on MII status.
-	 * MUGE_INTR_DT_WR,
-	 * MUGE_INTR_DT_RD,
-	 */
+#if 0 /* Ignore interrupt endpoints for now as we poll on MII status. */
+	MUGE_INTR_DT_WR,
+	MUGE_INTR_DT_RD,
+#endif
 	MUGE_N_TRANSFER,
 };
 
 struct muge_softc {
 	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb_xfer  *sc_xfer[MUGE_N_TRANSFER];
+	struct usb_xfer		*sc_xfer[MUGE_N_TRANSFER];
 	int			sc_phyno;
 
 	/* Settings for the mac control (MAC_CSR) register. */
@@ -183,7 +181,6 @@ struct muge_softc {
 #define MUGE_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define MUGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define MUGE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)
-
 
 static device_probe_t muge_probe;
 static device_attach_t muge_attach;
@@ -460,7 +457,7 @@ lan78xx_eeprom_read(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 		ret = -EINVAL;
 		muge_dbg_printf(sc, "EEPROM not present\n");
 	}
-	return ret;
+	return (ret);
 }
 
 /**
@@ -492,9 +489,9 @@ lan78xx_otp_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 
 	err = lan78xx_read_reg(sc, OTP_PWR_DN, &val);
 
-	/* checking if bit is set */
+	/* Checking if bit is set. */
 	if (val & OTP_PWR_DN_PWRDN_N) {
-		/* clearing it, then waiting for it to be cleared */
+		/* Clear it, then wait for it to be cleared. */
 		lan78xx_write_reg(sc, OTP_PWR_DN, 0);
 		err = lan78xx_wait_for_bits(sc, OTP_PWR_DN, OTP_PWR_DN_PWRDN_N);
 		if (err != 0) {
@@ -502,7 +499,7 @@ lan78xx_otp_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 			goto done;
 		}
 	}
-	/* start reading the bytes, one at a time */
+	/* Start reading the bytes, one at a time. */
 	for (i = 0; i < buflen; i++) {
 		err = lan78xx_write_reg(sc, OTP_ADDR1,
 		    ((off + i) >> 8) & OTP_ADDR1_15_11);
@@ -555,14 +552,14 @@ lan78xx_otp_read(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 	if (err == 0) {
 		if (sig == OTP_INDICATOR_1) {
 		} else if (sig == OTP_INDICATOR_2) {
-			off += 0x100;
+			off += 0x100; /* XXX */
 		} else {
 			err = -EINVAL;
 		}
-		if(!err)
+		if (!err)
 			err = lan78xx_otp_read_raw(sc, off, buf, buflen);
 	}
-	return err;
+	return (err);
 }
 
 /**
@@ -617,8 +614,7 @@ lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
 	uint32_t buf;
 	bool rxenabled;
 
-	/* first we have to disable rx before changing the length */
-
+	/* First we have to disable rx before changing the length. */
 	err = lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
 	rxenabled = ((buf & ETH_MAC_RX_EN_) != 0);
 
@@ -627,8 +623,7 @@ lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
 		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
-	/* setting max frame length */
-
+	/* Setting max frame length. */
 	buf &= ~ETH_MAC_RX_MAX_FR_SIZE_MASK_;
 	buf |= (((size + 4) << ETH_MAC_RX_MAX_FR_SIZE_SHIFT_) &
 	    ETH_MAC_RX_MAX_FR_SIZE_MASK_);
@@ -641,7 +636,7 @@ lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
 		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
-	return 0;
+	return (0);
 }
 
 /**
@@ -733,7 +728,8 @@ lan78xx_miibus_writereg(device_t dev, int phy, int reg, int val)
 	val = htole32(val);
 	lan78xx_write_reg(sc, ETH_MII_DATA, val);
 
-	addr = (phy << 11) | (reg << 6) | ETH_MII_ACC_MII_WRITE_ | ETH_MII_ACC_MII_BUSY_;
+	addr = (phy << 11) | (reg << 6) |
+	    ETH_MII_ACC_MII_WRITE_ | ETH_MII_ACC_MII_BUSY_;
 	lan78xx_write_reg(sc, ETH_MII_ACC, addr);
 
 	if (lan78xx_wait_for_bits(sc, ETH_MII_ACC, ETH_MII_ACC_MII_BUSY_) != 0)
@@ -808,11 +804,11 @@ lan78xx_miibus_statchg(device_t dev)
 		goto done;
 	}
 
-	/* Enable/disable full duplex operation and TX/RX pause */
+	/* Enable/disable full duplex operation and TX/RX pause. */
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		muge_dbg_printf(sc, "full duplex operation\n");
 
-		/* enable transmit MAC flow control function */
+		/* Enable transmit MAC flow control function. */
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			flow |= ETH_FLOW_CR_TX_FCEN_ | 0xFFFF;
 
@@ -820,12 +816,13 @@ lan78xx_miibus_statchg(device_t dev)
 			flow |= ETH_FLOW_CR_RX_FCEN_;
 	}
 
+	/* XXX Flow control settings obtained from Microchip's driver. */
 	switch(usbd_get_speed(sc->sc_ue.ue_udev)) {
 	case USB_SPEED_SUPER:
-		fct_flow = 0x817; /* XXX */
+		fct_flow = 0x817;
 		break;
 	case USB_SPEED_HIGH:
-		fct_flow = 0x211; /* XXX */
+		fct_flow = 0x211;
 		break;
 	default:
 		break;
@@ -899,7 +896,7 @@ lan78xx_phy_init(struct muge_softc *sc)
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
-	/* Reset phy and wait for reset to complete */
+	/* Reset phy and wait for reset to complete. */
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR,
 	    BMCR_RESET);
 
@@ -930,7 +927,7 @@ lan78xx_phy_init(struct muge_softc *sc)
 	    ANAR_10 | ANAR_10_FD | ANAR_TX | ANAR_TX_FD |
 	    ANAR_CSMA | ANAR_FC | ANAR_PAUSE_ASYM);
 
-	/* Restart auto-negotation */
+	/* Restart auto-negotation. */
 	bmcr |= BMCR_STARTNEG;
 	bmcr |= BMCR_AUTOEN;
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR, bmcr);
@@ -960,7 +957,7 @@ lan78xx_chip_init(struct muge_softc *sc)
 	if (!locked)
 		MUGE_LOCK(sc);
 
-	/* Enter H/W config mode */
+	/* Enter H/W config mode. */
 	lan78xx_write_reg(sc, ETH_HW_CFG, ETH_HW_CFG_LRST_);
 
 	if ((err = lan78xx_wait_for_bits(sc, ETH_HW_CFG, ETH_HW_CFG_LRST_)) !=
@@ -970,13 +967,13 @@ lan78xx_chip_init(struct muge_softc *sc)
 		goto init_failed;
 	}
 
-	/* Set the mac address */
+	/* Set the mac address. */
 	if ((err = lan78xx_setmacaddress(sc, sc->sc_ue.ue_eaddr)) != 0) {
 		muge_warn_printf(sc, "failed to set the MAC address\n");
 		goto init_failed;
 	}
 
-	/* Read and display the revision register */
+	/* Read and display the revision register. */
 	if ((err = lan78xx_read_reg(sc, ETH_ID_REV, &sc->sc_rev_id)) < 0) {
 		muge_warn_printf(sc, "failed to read ETH_ID_REV (err = %d)\n",
 		    err);
@@ -996,7 +993,7 @@ lan78xx_chip_init(struct muge_softc *sc)
 	lan78xx_write_reg(sc, ETH_USB_CFG0, buf);
 
 	/*
-	 * LTM support will go here.
+	 * XXX LTM support will go here.
 	 */
 
 	/* Configuring the burst cap. */
@@ -1013,10 +1010,10 @@ lan78xx_chip_init(struct muge_softc *sc)
 
 	lan78xx_write_reg(sc, ETH_BURST_CAP, burst_cap);
 
-	/* Set the default bulk in delay (same value from Linux driver) */
+	/* Set the default bulk in delay (same value from Linux driver). */
 	lan78xx_write_reg(sc, ETH_BULK_IN_DLY, MUGE_DEFAULT_BULK_IN_DELAY);
 
-	/* Multiple ethernet frames per USB packets */
+	/* Multiple ethernet frames per USB packets. */
 	err = lan78xx_read_reg(sc, ETH_HW_CFG, &buf);
 	buf |= ETH_HW_CFG_MEF_;
 	err = lan78xx_write_reg(sc, ETH_HW_CFG, buf);
@@ -1036,7 +1033,6 @@ lan78xx_chip_init(struct muge_softc *sc)
 	 * anyways, as that's what the Linux driver does.
 	 *
 	 */
-
 	buf = (MUGE_MAX_RX_FIFO_SIZE - 512) / 512;
 	err = lan78xx_write_reg(sc, ETH_FCT_RX_FIFO_END, buf);
 
@@ -1098,40 +1094,32 @@ lan78xx_chip_init(struct muge_softc *sc)
 	buf |= ETH_MAC_TX_TXEN_;
 	err = lan78xx_write_reg(sc, ETH_MAC_TX, buf);
 
-	/*
-	 * FIFO is capable of transmitting frames to MAC.
-	 */
+	/* FIFO is capable of transmitting frames to MAC. */
 	err = lan78xx_read_reg(sc, ETH_FCT_TX_CTL, &buf);
 	buf |= ETH_FCT_TX_CTL_EN_;
 	err = lan78xx_write_reg(sc, ETH_FCT_TX_CTL, buf);
 
 	/*
 	 * Set max frame length.  In linux this is dev->mtu (which by default
-	 * is 1500) + VLAN_ETH_HLEN = 1518
+	 * is 1500) + VLAN_ETH_HLEN = 1518.
 	 */
 	err = lan78xx_set_rx_max_frame_length(sc, ETHER_MAX_LEN);
 
-	/*
-	 * Initialise the PHY
-	 */
+	/* Initialise the PHY. */
 	if ((err = lan78xx_phy_init(sc)) != 0)
 		goto init_failed;
 
-	/*
-	 * enable MAC RX
-	 */
+	/* Enable MAC RX. */
 	err = lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
 	buf |= ETH_MAC_RX_EN_;
 	err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 
-	/*
-	 * enable FIFO controller RX
-	 */
+	/* Enable FIFO controller RX. */
 	err = lan78xx_read_reg(sc, ETH_FCT_RX_CTL, &buf);
 	buf |= ETH_FCT_TX_CTL_EN_;
 	err = lan78xx_write_reg(sc, ETH_FCT_RX_CTL, buf);
 
-	return 0;
+	return (0);
 
 init_failed:
 	if (!locked)
@@ -1224,7 +1212,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				    (pktlen > (actlen - off)))
 					goto tr_setup;
 
-				/* Create a new mbuf to store the packet in */
+				/* Create a new mbuf to store the packet. */
 				m = uether_newbuf();
 				if (m == NULL) {
 					muge_warn_printf(sc,
@@ -1335,7 +1323,6 @@ tr_setup:
  *	sends them out.
  *
  */
-
 static void
 muge_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
@@ -1467,9 +1454,9 @@ muge_attach_post(struct usb_ether *ue)
 	uint32_t val;
 	lan78xx_read_reg(sc, 0, &val);
 
-	/* Check if there is already a MAC address in the register */
+	/* Read current MAC address from RX_ADDRx registers. */
 	if ((lan78xx_read_reg(sc, ETH_RX_ADDRL, &mac_l) == 0) &&
-		(lan78xx_read_reg(sc, ETH_RX_ADDRH, &mac_h) == 0)) {
+	    (lan78xx_read_reg(sc, ETH_RX_ADDRH, &mac_h) == 0)) {
 		sc->sc_ue.ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
 		sc->sc_ue.ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
 		sc->sc_ue.ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
@@ -1478,16 +1465,13 @@ muge_attach_post(struct usb_ether *ue)
 		sc->sc_ue.ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
 	}
 
-	/*
-	 * MAC address is not set so try to read from EEPROM, if that fails
-	 * generate a random MAC address.
-	 */
+	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
 	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
 		if ((lan78xx_eeprom_read(sc, ETH_E2P_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
 		    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
-			if(ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+			if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
 				muge_dbg_printf(sc, "MAC read from EEPROM\n");
 			} else {
 				muge_dbg_printf(sc, "MAC assigned randomly\n");
@@ -1573,7 +1557,7 @@ muge_attach_post_sub(struct usb_ether *ue)
 		BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
 	mtx_unlock(&Giant);
 
-	return 0;
+	return (0);
 }
 
 /**
@@ -1626,7 +1610,7 @@ muge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 
-		/* Modify the RX CSUM enable bits */
+		/* Modify the RX CSUM enable bits. */
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 			(ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_RXCSUM;
@@ -1743,7 +1727,7 @@ lan78xx_dataport_write(struct muge_softc *sc, uint32_t ram_select,
 	}
 
 done:
-	return ret;
+	return (ret);
 }
 
 /**
@@ -1811,11 +1795,11 @@ muge_setmulti(struct usb_ether *ue)
 	sc->sc_rfe_ctl &= ~(ETH_RFE_CTL_UCAST_EN_ | ETH_RFE_CTL_MCAST_EN_ |
 		ETH_RFE_CTL_DA_PERFECT_ | ETH_RFE_CTL_MCAST_HASH_);
 
-	/* Initializing hash filter table */
+	/* Initialize hash filter table. */
 	for (i = 0; i < ETH_DP_SEL_VHF_HASH_LEN; i++)
 		sc->sc_mchash_table[i] = 0;
 
-	/* Initializing perfect filter table */
+	/* Initialize perfect filter table. */
 	for (i = 1; i < MUGE_NUM_PFILTER_ADDRS_; i++) {
 		sc->sc_pfilter_table[i][0] =
 		sc->sc_pfilter_table[i][1] = 0;
@@ -1830,18 +1814,12 @@ muge_setmulti(struct usb_ether *ue)
 		muge_dbg_printf(sc, "receive all multicast enabled\n");
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_;
 	} else {
-		/*
-		 * Take the lock of the mac address list before hashing each of
-		 * them.
-		 */
+		/* Lock the mac address list before hashing each of them. */
 		if_maddr_rlock(ifp);
 		if (!TAILQ_EMPTY(&ifp->if_multiaddrs)) {
 			i = 1;
-
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				/*
-				 * First we fill up the perfect address table.
-				 */
+				/* First fill up the perfect address table. */
 				addr = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
 				if (i < 33 /* XXX */) {
@@ -1985,7 +1963,7 @@ muge_init(struct usb_ether *ue)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
 
-	/* Cancel pending I/O */
+	/* Cancel pending I/O. */
 	muge_stop(ue);
 
 	/* Reset the ethernet interface. */
@@ -2010,9 +1988,6 @@ muge_init(struct usb_ether *ue)
 /**
  *	muge_stop - Stops communication with the LAN78xx chip
  *	@ue: USB ether interface
- *
- *
- *
  */
 static void
 muge_stop(struct usb_ether *ue)
@@ -2026,7 +2001,7 @@ muge_stop(struct usb_ether *ue)
 	sc->sc_flags &= ~MUGE_FLAG_LINK;
 
 	/*
-	 * stop all the transfers, if not already stopped:
+	 * Stop all the transfers, if not already stopped.
 	 */
 	usbd_transfer_stop(sc->sc_xfer[MUGE_BULK_DT_WR]);
 	usbd_transfer_stop(sc->sc_xfer[MUGE_BULK_DT_RD]);
@@ -2063,8 +2038,7 @@ muge_tick(struct usb_ether *ue)
  *	@ifp: inet interface pointer
  *	@ifmr: interface media request
  *
- *	Basically boilerplate code that simply calls the mii functions to get the
- *	media status.
+ *	Call the mii functions to get the media status.
  *
  *	LOCKING:
  *	Internally takes and releases the device lock.
@@ -2129,7 +2103,7 @@ muge_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	/* Setup the endpoints for the Microchip LAN78xx device(s) */
+	/* Setup the endpoints for the Microchip LAN78xx device. */
 	iface_index = MUGE_IFACE_IDX;
 	err = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    muge_config, MUGE_N_TRANSFER, sc, &sc->sc_mtx);
