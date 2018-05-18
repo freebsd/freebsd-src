@@ -45,13 +45,19 @@
 .In sys/proc.h
 .In sys/epoch.h
 .Ft epoch_t
-.Fn epoch_alloc "void"
+.Fn epoch_alloc "int flags"
 .Ft void
 .Fn epoch_enter "epoch_t epoch"
 .Ft void
+.Fn epoch_enter_critical "epoch_t epoch"
+.Ft void
 .Fn epoch_exit "epoch_t epoch"
 .Ft void
+.Fn epoch_exit_critical "epoch_t epoch"
+.Ft void
 .Fn epoch_wait "epoch_t epoch"
+.Ft void
+.Fn epoch_wait_critical "epoch_t epoch"
 .Ft void
 .Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback) (epoch_context_t)"
 .Ft int
@@ -66,14 +72,24 @@ Epochs are allocated with
 .Fn epoch_alloc
 and freed with
 .Fn epoch_free .
+The flags passed to epoch_alloc determine whether preemption is
+allowed during a section (the default) or not, as specified by
+EPOCH_CRITICAL.
 Threads indicate the start of an epoch critical section by calling
 .Fn epoch_enter .
 The end of a critical section is indicated by calling
 .Fn epoch_exit .
+The _critical variants can be used around code in which it is safe
+to have preemption disable.
 A thread can wait until a grace period has elapsed
 since any threads have entered
 the epoch by calling
 .Fn epoch_wait .
+The use of a EPOCH_CRITICAL epoch type allows one to use
+.Fn epoch_wait_critical
+which is guaranteed to have much shorter completion times since
+we know that none of the threads in an epoch section will be preempted
+before completing its section.
 If the thread can't sleep or is otherwise in a performance sensitive
 path it can ensure that a grace period has elapsed by calling
 .Fn epoch_call
@@ -106,8 +122,12 @@ Async free example:
 
 Thread 1:
 .Bd -literal
+int
+in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_laddr *laddr,
+    struct ucred *cred)
 {
-    epoch_enter(net_epoch);
+   /* ... */
+   epoch_enter(net_epoch);
     CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
         sa = ifa->ifa_addr;
 	if (sa->sa_family != AF_INET)
@@ -119,6 +139,7 @@ Thread 1:
 	}
     }
     epoch_exit(net_epoch);
+   /* ... */
 }
 .Ed
 Thread 2:
@@ -131,12 +152,13 @@ ifa_free(struct ifaddr *ifa)
         epoch_call(net_epoch, &ifa->ifa_epoch_ctx, ifa_destroy);
 }
 
+void
+if_purgeaddrs(struct ifnet *ifp)
 {
 
+    /* .... */	
     IF_ADDR_WLOCK(ifp);
     CK_STAILQ_REMOVE(&ifp->if_addrhead, ifa, ifaddr, ifa_link);
-    /* mark as unlinked */
-    ifa->ifa_addr->sa_family = AF_UNSPEC;
     IF_ADDR_WUNLOCK(ifp);
     ifa_free(ifa);
 }
