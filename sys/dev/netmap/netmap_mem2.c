@@ -673,10 +673,10 @@ nm_mem_assign_id_locked(struct netmap_mem_d *nmd)
 static int
 nm_mem_assign_id(struct netmap_mem_d *nmd)
 {
-        int ret;
+	int ret;
 
 	NM_MTX_LOCK(nm_mem_list_lock);
-        ret = nm_mem_assign_id_locked(nmd);
+	ret = nm_mem_assign_id_locked(nmd);
 	NM_MTX_UNLOCK(nm_mem_list_lock);
 
 	return ret;
@@ -1143,7 +1143,7 @@ netmap_extra_alloc(struct netmap_adapter *na, uint32_t *head, uint32_t n)
 static void
 netmap_extra_free(struct netmap_adapter *na, uint32_t head)
 {
-        struct lut_entry *lut = na->na_lut.lut;
+	struct lut_entry *lut = na->na_lut.lut;
 	struct netmap_mem_d *nmd = na->nm_mem;
 	struct netmap_obj_pool *p = &nmd->pools[NETMAP_BUF_POOL];
 	uint32_t i, cur, *buf;
@@ -1516,10 +1516,11 @@ netmap_mem_unmap(struct netmap_obj_pool *p, struct netmap_adapter *na)
 		return 0;
 
 #if defined(__FreeBSD__)
+	/* On FreeBSD mapping and unmapping is performed by the txsync
+	 * and rxsync routine, packet by packet. */
 	(void)i;
 	(void)lim;
 	(void)lut;
-	D("unsupported on FreeBSD");
 #elif defined(_WIN32)
 	(void)i;
 	(void)lim;
@@ -1551,10 +1552,11 @@ netmap_mem_map(struct netmap_obj_pool *p, struct netmap_adapter *na)
 		return 0;
 
 #if defined(__FreeBSD__)
+	/* On FreeBSD mapping and unmapping is performed by the txsync
+	 * and rxsync routine, packet by packet. */
 	(void)i;
 	(void)lim;
 	(void)lut;
-	D("unsupported on FreeBSD");
 #elif defined(_WIN32)
 	(void)i;
 	(void)lim;
@@ -1572,7 +1574,7 @@ netmap_mem_map(struct netmap_obj_pool *p, struct netmap_adapter *na)
 	if (lut->plut == NULL) {
 		D("Failed to allocate physical lut for %s", na->name);
 		return ENOMEM;
-        }
+	}
 
 	for (i = 0; i < lim; i += p->_clustentries) {
 		lut->plut[i].paddr = 0;
@@ -1644,7 +1646,7 @@ error:
  * allocator for private memory
  */
 static void *
-_netmap_mem_private_new(size_t size, struct netmap_obj_params *p, 
+_netmap_mem_private_new(size_t size, struct netmap_obj_params *p,
 		struct netmap_mem_ops *ops, int *perr)
 {
 	struct netmap_mem_d *d = NULL;
@@ -1722,16 +1724,16 @@ netmap_mem_private_new(u_int txr, u_int txd, u_int rxr, u_int rxd,
 	if (p[NETMAP_RING_POOL].size < v)
 		p[NETMAP_RING_POOL].size = v;
 	/* each pipe endpoint needs two tx rings (1 normal + 1 host, fake)
-         * and two rx rings (again, 1 normal and 1 fake host)
-         */
+	 * and two rx rings (again, 1 normal and 1 fake host)
+	 */
 	v = txr + rxr + 8 * npipes;
 	if (p[NETMAP_RING_POOL].num < v)
 		p[NETMAP_RING_POOL].num = v;
 	/* for each pipe we only need the buffers for the 4 "real" rings.
-         * On the other end, the pipe ring dimension may be different from
-         * the parent port ring dimension. As a compromise, we allocate twice the
-         * space actually needed if the pipe rings were the same size as the parent rings
-         */
+	 * On the other end, the pipe ring dimension may be different from
+	 * the parent port ring dimension. As a compromise, we allocate twice the
+	 * space actually needed if the pipe rings were the same size as the parent rings
+	 */
 	v = (4 * npipes + rxr) * rxd + (4 * npipes + txr) * txd + 2 + extra_bufs;
 		/* the +2 is for the tx and rx fake buffers (indices 0 and 1) */
 	if (p[NETMAP_BUF_POOL].num < v)
@@ -1942,7 +1944,11 @@ netmap_mem2_rings_create(struct netmap_adapter *na)
 	return 0;
 
 cleanup:
-	netmap_free_rings(na);
+	/* we cannot actually cleanup here, since we don't own kring->users
+	 * and kring->nr_klags & NKR_NEEDRING. The caller must decrement
+	 * the first or zero-out the second, then call netmap_free_rings()
+	 * to do the cleanup
+	 */
 
 	return ENOMEM;
 }
@@ -2155,7 +2161,7 @@ netmap_mem_ext_delete(struct netmap_mem_d *d)
 
 	for (i = 0; i < NETMAP_POOLS_NR; i++) {
 		struct netmap_obj_pool *p = &d->pools[i];
-		
+
 		if (p->lut) {
 			nm_free_lut(p->lut, p->objtotal);
 			p->lut = NULL;
@@ -2215,7 +2221,7 @@ netmap_mem_ext_create(uint64_t usrptr, struct nmreq_pools_info *pi, int *perror)
 			pi->nr_if_pool_objtotal, pi->nr_if_pool_objsize,
 			pi->nr_ring_pool_objtotal, pi->nr_ring_pool_objsize,
 			pi->nr_buf_pool_objtotal, pi->nr_buf_pool_objsize);
-		
+
 	os = nm_os_extmem_create(usrptr, pi, &error);
 	if (os == NULL) {
 		D("os extmem creation failed");
@@ -2238,7 +2244,7 @@ netmap_mem_ext_create(uint64_t usrptr, struct nmreq_pools_info *pi, int *perror)
 			&error);
 	if (nme == NULL)
 		goto out_unmap;
-					
+
 	nr_pages = nm_os_extmem_nr_pages(os);
 
 	/* from now on pages will be released by nme destructor;
@@ -2262,7 +2268,7 @@ netmap_mem_ext_create(uint64_t usrptr, struct nmreq_pools_info *pi, int *perror)
 			error = ENOMEM;
 			goto out_delete;
 		}
-		
+
 		p->bitmap_slots = (o->num + sizeof(uint32_t) - 1) / sizeof(uint32_t);
 		p->invalid_bitmap = nm_os_malloc(sizeof(uint32_t) * p->bitmap_slots);
 		if (p->invalid_bitmap == NULL) {
@@ -2515,11 +2521,11 @@ netmap_mem_pt_guest_finalize(struct netmap_mem_d *nmd)
 	if (error)
 		goto out;
 
-        /* Initialize the lut using the information contained in the
+	/* Initialize the lut using the information contained in the
 	 * ptnetmap memory device. */
-        bufsize = nm_os_pt_memdev_ioread(ptnmd->ptn_dev,
+	bufsize = nm_os_pt_memdev_ioread(ptnmd->ptn_dev,
 					 PTNET_MDEV_IO_BUF_POOL_OBJSZ);
-        nbuffers = nm_os_pt_memdev_ioread(ptnmd->ptn_dev,
+	nbuffers = nm_os_pt_memdev_ioread(ptnmd->ptn_dev,
 					 PTNET_MDEV_IO_BUF_POOL_OBJNUM);
 
 	/* allocate the lut */
@@ -2740,7 +2746,7 @@ netmap_mem_pt_guest_create(nm_memid_t mem_id)
 	ptnmd->host_mem_id = mem_id;
 	ptnmd->pt_ifs = NULL;
 
-        /* Assign new id in the guest (We have the lock) */
+	/* Assign new id in the guest (We have the lock) */
 	err = nm_mem_assign_id_locked(&ptnmd->up);
 	if (err)
 		goto error;

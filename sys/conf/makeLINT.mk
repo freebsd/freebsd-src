@@ -53,7 +53,6 @@ LINT: ${NOTES} ${MAKELINT_SED}
 .if ${TARGET} == "powerpc"
 	# cat is available, not sure if cp is?
 	cat ${.TARGET} > ${.TARGET}64
-	echo "nodevice netmap"	>> ${.TARGET}
 	echo "machine	${TARGET} powerpc" >> ${.TARGET}
 	echo "machine	${TARGET} powerpc64" >> ${.TARGET}64
 .endif
