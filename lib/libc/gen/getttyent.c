@@ -34,6 +34,7 @@ static char sccsid[] = "@(#)getttyent.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 
 #include <ctype.h>
@@ -72,11 +73,14 @@ auto_tty_status(const char *ty_name)
 {
 	size_t len;
 	char *buf, *cons, *nextcons;
+	int rv;
+
+	rv = TTY_IFCONSOLE;
 
 	/* Check if this is an enabled kernel console line */
 	buf = NULL;
 	if (sysctlbyname("kern.console", NULL, &len, NULL, 0) == -1)
-		return (0); /* Errors mean don't enable */
+		return (rv); /* Errors mean don't enable */
 	buf = malloc(len);
 	if (sysctlbyname("kern.console", buf, &len, NULL, 0) == -1)
 		goto done;
@@ -87,14 +91,32 @@ auto_tty_status(const char *ty_name)
 	nextcons = buf;
 	while ((cons = strsep(&nextcons, ",")) != NULL && strlen(cons) != 0) {
 		if (strcmp(cons, ty_name) == 0) {
-			free(buf);
-			return (TTY_ON);
+			rv |= TTY_ON;
+			break;
 		}
 	}
 
 done:
 	free(buf);
-	return (0);
+	return (rv);
+}
+
+static int
+auto_exists_status(const char *ty_name)
+{
+	struct stat sb;
+	char *dev;
+	int rv;
+
+	rv = TTY_IFEXISTS;
+	if (*ty_name == '/')
+		asprintf(&dev, "%s", ty_name);
+	else
+		asprintf(&dev, "/dev/%s", ty_name);
+	if (dev != NULL && stat(dev, &sb) == 0)
+		rv |= TTY_ON;
+	free(dev);
+	return (rv);
 }
 
 struct ttyent *
@@ -161,6 +183,8 @@ getttyent(void)
 			tty.ty_status |= TTY_ON;
 		else if (scmp(_TTYS_ONIFCONSOLE))
 			tty.ty_status |= auto_tty_status(tty.ty_name);
+		else if (scmp(_TTYS_ONIFEXISTS))
+			tty.ty_status |= auto_exists_status(tty.ty_name);
 		else if (scmp(_TTYS_SECURE))
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))
