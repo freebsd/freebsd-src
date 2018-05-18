@@ -49,15 +49,15 @@
 .Ft void
 .Fn epoch_enter "epoch_t epoch"
 .Ft void
-.Fn epoch_enter_critical "epoch_t epoch"
+.Fn epoch_enter_preempt "epoch_t epoch"
 .Ft void
 .Fn epoch_exit "epoch_t epoch"
 .Ft void
-.Fn epoch_exit_critical "epoch_t epoch"
+.Fn epoch_exit_preempt "epoch_t epoch"
 .Ft void
 .Fn epoch_wait "epoch_t epoch"
 .Ft void
-.Fn epoch_wait_critical "epoch_t epoch"
+.Fn epoch_wait_preempt "epoch_t epoch"
 .Ft void
 .Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback) (epoch_context_t)"
 .Ft int
@@ -73,20 +73,22 @@ Epochs are allocated with
 and freed with
 .Fn epoch_free .
 The flags passed to epoch_alloc determine whether preemption is
-allowed during a section (the default) or not, as specified by
-EPOCH_CRITICAL.
+allowed during a section or not (the dafult), as specified by
+EPOCH_PREEMPT.
 Threads indicate the start of an epoch critical section by calling
 .Fn epoch_enter .
 The end of a critical section is indicated by calling
 .Fn epoch_exit .
-The _critical variants can be used around code in which it is safe
-to have preemption disable.
+The _preempt variants can be used around code which requires preemption.
 A thread can wait until a grace period has elapsed
 since any threads have entered
 the epoch by calling
-.Fn epoch_wait .
-The use of a EPOCH_CRITICAL epoch type allows one to use
-.Fn epoch_wait_critical
+.Fn epoch_wait
+or
+.Fn epoch_wait_preempt ,
+depending on the epoch_type.
+The use of a default epoch type allows one to use
+.Fn epoch_wait
 which is guaranteed to have much shorter completion times since
 we know that none of the threads in an epoch section will be preempted
 before completing its section.
@@ -95,14 +97,14 @@ path it can ensure that a grace period has elapsed by calling
 .Fn epoch_call
 with a callback with any work that needs to wait for an epoch to elapse.
 Only non-sleepable locks can be acquired during a section protected by
-.Fn epoch_enter
+.Fn epoch_enter_preempt
 and
-.Fn epoch_exit .
+.Fn epoch_exit_preempt .
 INVARIANTS can assert that a thread is in an epoch by using
 .Fn in_epoch .
 .Pp
-The epoch API currently does not support sleeping in epoch sections.
-A caller cannot do epoch_enter recursively on different epochs. A
+The epoch API currently does not support sleeping in epoch_preempt sections.
+A caller cannot do epoch_enter recursively on different preemptible epochs. A
 caller should never call
 .Fn epoch_wait
 in the middle of an epoch section as this will lead to a deadlock.
@@ -113,10 +115,16 @@ When modifying a list referenced from an epoch section safe removal
 routines must be used and the caller can no longer modify a list entry
 in place. An item to be modified must be handled with copy on write
 and frees must be deferred until after a grace period has elapsed.
-
 .Sh RETURN VALUES
 .Fn in_epoch
 will return 1 if curthread is in an epoch, 0 otherwise.
+.Sh CAVEATS
+One must be cautious when using
+.Fn epoch_wait_preempt
+threads are pinned during epoch sections so if a thread in a section is then
+preempted by a higher priority compute bound thread on that CPU it can be
+prevented from leaving the section. Thus the wait time for the waiter is
+potentially unbounded.
 .Sh EXAMPLES
 Async free example:
 

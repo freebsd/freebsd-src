@@ -73,8 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_lagg.h>
 #include <net/ieee8023ad_lacp.h>
 
-#define	LAGG_RLOCK()	epoch_enter(net_epoch)
-#define	LAGG_RUNLOCK()	epoch_exit(net_epoch)
+#define	LAGG_RLOCK()	epoch_enter_preempt(net_epoch_preempt)
+#define	LAGG_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt)
 #define	LAGG_RLOCK_ASSERT()	MPASS(in_epoch())
 #define	LAGG_UNLOCK_ASSERT()	MPASS(!in_epoch())
 
@@ -859,7 +859,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	 * free port and release it's ifnet reference after a grace period has
 	 * elapsed.
 	 */
-	epoch_call(net_epoch, &lp->lp_epoch_ctx, lagg_port_destroy_cb);
+	epoch_call(net_epoch_preempt, &lp->lp_epoch_ctx, lagg_port_destroy_cb);
 	/* Update lagg capabilities */
 	lagg_capabilities(sc);
 	lagg_linkstate(sc);

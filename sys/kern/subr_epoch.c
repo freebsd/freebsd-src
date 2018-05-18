@@ -124,7 +124,7 @@ static __read_mostly int domoffsets[MAXMEMDOM];
 static __read_mostly int inited;
 static __read_mostly int epoch_count;
 __read_mostly epoch_t global_epoch;
-__read_mostly epoch_t global_epoch_critical;
+__read_mostly epoch_t global_epoch_preempt;
 
 static void epoch_call_task(void *context __unused);
 
@@ -169,7 +169,7 @@ epoch_init(void *arg __unused)
 	}
 	inited = 1;
 	global_epoch = epoch_alloc(0);
-	global_epoch_critical = epoch_alloc(EPOCH_CRITICAL);
+	global_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
 }
 SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
 
@@ -247,7 +247,7 @@ epoch_free(epoch_t epoch)
 	}
 #endif
 	allepochs[epoch->e_idx] = NULL;
-	epoch_wait_critical(global_epoch_critical);
+	epoch_wait(global_epoch);
 	if (usedomains)
 		for (domain = 0; domain < vm_ndomains; domain++)
 			free_domain(epoch->e_pcpu_dom[domain], M_EPOCH);
@@ -263,10 +263,11 @@ epoch_free(epoch_t epoch)
 	} while (0)
 
 void
-epoch_enter_internal(epoch_t epoch, struct thread *td)
+epoch_enter_preempt_internal(epoch_t epoch, struct thread *td)
 {
 	struct epoch_pcpu_state *eps;
 
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	INIT_CHECK(epoch);
 	critical_enter();
 	td->td_pre_epoch_prio = td->td_priority;
@@ -293,7 +294,7 @@ epoch_enter_internal(epoch_t epoch, struct thread *td)
 
 
 void
-epoch_enter_critical(epoch_t epoch)
+epoch_enter(epoch_t epoch)
 {
 	ck_epoch_record_t *record;
 	ck_epoch_section_t *section;
@@ -310,7 +311,7 @@ epoch_enter_critical(epoch_t epoch)
 }
 
 void
-epoch_exit_internal(epoch_t epoch, struct thread *td)
+epoch_exit_preempt_internal(epoch_t epoch, struct thread *td)
 {
 	struct epoch_pcpu_state *eps;
 
@@ -319,6 +320,7 @@ epoch_exit_internal(epoch_t epoch, struct thread *td)
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
 
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	ck_epoch_end(&eps->eps_record.er_record, (ck_epoch_section_t*)&td->td_epoch_section);
 	TAILQ_REMOVE(&eps->eps_record.er_tdlist, td, td_epochq);
 	eps->eps_record.er_gen++;
@@ -332,7 +334,7 @@ epoch_exit_internal(epoch_t epoch, struct thread *td)
 }
 
 void
-epoch_exit_critical(epoch_t epoch)
+epoch_exit(epoch_t epoch)
 {
 	ck_epoch_record_t *record;
 	ck_epoch_section_t *section;
@@ -349,11 +351,11 @@ epoch_exit_critical(epoch_t epoch)
 }
 
 /*
- * epoch_block_handler is a callback from the ck code when another thread is
+ * epoch_block_handler_preempt is a callback from the ck code when another thread is
  * currently in an epoch section.
  */
 static void
-epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
+epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 					void *arg __unused)
 {
 	epoch_record_t record;
@@ -481,7 +483,7 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 }
 
 void
-epoch_wait(epoch_t epoch)
+epoch_wait_preempt(epoch_t epoch)
 {
 	struct thread *td;
 	int was_bound;
@@ -495,6 +497,7 @@ epoch_wait(epoch_t epoch)
 #endif
 	INIT_CHECK(epoch);
 
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "epoch_wait() can sleep");
 
@@ -512,7 +515,7 @@ epoch_wait(epoch_t epoch)
 	td->td_pinned = 0;
 	sched_bind(td, old_cpu);
 
-	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler, NULL);
+	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler_preempt, NULL);
 
 	/* restore CPU binding, if any */
 	if (was_bound != 0) {
@@ -535,19 +538,19 @@ epoch_wait(epoch_t epoch)
 }
 
 static void
-epoch_block_handler_critical(struct ck_epoch *g __unused, ck_epoch_record_t *c __unused,
+epoch_block_handler(struct ck_epoch *g __unused, ck_epoch_record_t *c __unused,
 					void *arg __unused)
 {
 	cpu_spinwait();
 }
 
 void
-epoch_wait_critical(epoch_t epoch)
+epoch_wait(epoch_t epoch)
 {
 
-	MPASS(epoch->e_flags & EPOCH_CRITICAL);
+	MPASS(epoch->e_flags == 0);
 	critical_enter();
-	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler_critical, NULL);
+	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler, NULL);
 	critical_exit();
 }
 
@@ -585,7 +588,7 @@ epoch_call_task(void *arg __unused)
 
 	ck_stack_init(&cb_stack);
 	critical_enter();
-	epoch_enter_critical(global_epoch_critical);
+	epoch_enter(global_epoch);
 	for (total = i = 0; i < epoch_count; i++) {
 		if (__predict_false((epoch = allepochs[i]) == NULL))
 			continue;
@@ -595,7 +598,7 @@ epoch_call_task(void *arg __unused)
 		ck_epoch_poll_deferred(record, &cb_stack);
 		total += npending - record->n_pending;
 	}
-	epoch_exit_critical(global_epoch_critical);
+	epoch_exit(global_epoch);
 	*DPCPU_PTR(epoch_cb_count) -= total;
 	critical_exit();
 
