@@ -35,10 +35,10 @@
 struct epoch;
 typedef struct epoch *epoch_t;
 
-#define EPOCH_CRITICAL 0x1
+#define EPOCH_PREEMPT 0x1
 
 extern epoch_t global_epoch;
-extern epoch_t global_epoch_critical;
+extern epoch_t global_epoch_preempt;
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
@@ -50,17 +50,17 @@ typedef struct epoch_context *epoch_context_t;
 
 epoch_t epoch_alloc(int flags);
 void epoch_free(epoch_t epoch);
-void epoch_enter_critical(epoch_t epoch);
-void epoch_enter_internal(epoch_t epoch, struct thread *td);
-void epoch_exit_critical(epoch_t epoch);
-void epoch_exit_internal(epoch_t epoch, struct thread *td);
+void epoch_enter(epoch_t epoch);
+void epoch_enter_preempt_internal(epoch_t epoch, struct thread *td);
+void epoch_exit(epoch_t epoch);
+void epoch_exit_preempt_internal(epoch_t epoch, struct thread *td);
 void epoch_wait(epoch_t epoch);
-void epoch_wait_critical(epoch_t epoch);
+void epoch_wait_preempt(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int in_epoch(void);
 
 static __inline void
-epoch_enter(epoch_t epoch)
+epoch_enter_preempt(epoch_t epoch)
 {
 	struct thread *td;
 	int nesting;
@@ -70,18 +70,18 @@ epoch_enter(epoch_t epoch)
 #ifndef INVARIANTS
 	if (nesting == 0)
 #endif
-		epoch_enter_internal(epoch, td);
+		epoch_enter_preempt_internal(epoch, td);
 }
 
 static __inline void
-epoch_exit(epoch_t epoch)
+epoch_exit_preempt(epoch_t epoch)
 {
 	struct thread *td;
 
 	td = curthread;
 	MPASS(td->td_epochnest);
 	if (td->td_epochnest-- == 1)
-		epoch_exit_internal(epoch, td);
+		epoch_exit_preempt_internal(epoch, td);
 }
 
 #endif

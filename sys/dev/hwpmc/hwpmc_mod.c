@@ -1717,12 +1717,12 @@ pmc_process_mmap(struct thread *td, struct pmckern_map_in *pkm)
 	const struct pmc_process *pp;
 
 	freepath = fullpath = NULL;
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 	pmc_getfilename((struct vnode *) pkm->pm_file, &fullpath, &freepath);
 
 	pid = td->td_proc->p_pid;
 
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	/* Inform owners of all system-wide sampling PMCs. */
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
@@ -1761,12 +1761,12 @@ pmc_process_munmap(struct thread *td, struct pmckern_map_out *pkm)
 
 	pid = td->td_proc->p_pid;
 
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		pmclog_process_map_out(po, pid, pkm->pm_address,
 		    pkm->pm_address + pkm->pm_size);
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 
 	if ((pp = pmc_find_process_descriptor(td->td_proc, 0)) == NULL)
 		return;
@@ -2065,13 +2065,13 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		pk = (struct pmckern_procexec *) arg;
 
-		epoch_enter(global_epoch);
+		epoch_enter_preempt(global_epoch_preempt);
 		/* Inform owners of SS mode PMCs of the exec event. */
 		CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			    pmclog_process_procexec(po, PMC_ID_INVALID,
 				p->p_pid, pk->pm_entryaddr, fullpath);
-		epoch_exit(global_epoch);
+		epoch_exit_preempt(global_epoch_preempt);
 
 		PROC_LOCK(p);
 		is_using_hwpmcs = p->p_flag & P_HWPMC;
@@ -2749,7 +2749,7 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 			if (po->po_sscount == 0) {
 				atomic_subtract_rel_int(&pmc_ss_count, 1);
 				CK_LIST_REMOVE(po, po_ssnext);
-				epoch_wait(global_epoch);
+				epoch_wait_preempt(global_epoch_preempt);
 			}
 		}
 
@@ -3243,7 +3243,7 @@ pmc_stop(struct pmc *pm)
 		if (po->po_sscount == 0) {
 			atomic_subtract_rel_int(&pmc_ss_count, 1);
 			CK_LIST_REMOVE(po, po_ssnext);
-			epoch_wait(global_epoch);
+			epoch_wait_preempt(global_epoch_preempt);
 			PMCDBG1(PMC,OPS,2,"po=%p removed from global list", po);
 		}
 	}
@@ -4873,11 +4873,11 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	/*
 	 * Log a sysexit event to all SS PMC owners.
 	 */
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		    pmclog_process_sysexit(po, p->p_pid);
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 
 	if (!is_using_hwpmcs)
 		return;
@@ -5058,11 +5058,11 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 	 * If there are system-wide sampling PMCs active, we need to
 	 * log all fork events to their owner's logs.
 	 */
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 		    pmclog_process_procfork(po, p1->p_pid, newproc->p_pid);
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 
 	if (!is_using_hwpmcs)
 		return;
@@ -5131,12 +5131,12 @@ pmc_kld_load(void *arg __unused, linker_file_t lf)
 	/*
 	 * Notify owners of system sampling PMCs about KLD operations.
 	 */
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_in(po, (pid_t) -1,
 			    (uintfptr_t) lf->address, lf->filename);
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 
 	/*
 	 * TODO: Notify owners of (all) process-sampling PMCs too.
@@ -5149,12 +5149,12 @@ pmc_kld_unload(void *arg __unused, const char *filename __unused,
 {
 	struct pmc_owner *po;
 
-	epoch_enter(global_epoch);
+	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_out(po, (pid_t) -1,
 			    (uintfptr_t) address, (uintfptr_t) address + size);
-	epoch_exit(global_epoch);
+	epoch_exit_preempt(global_epoch_preempt);
 
 	/*
 	 * TODO: Notify owners of process-sampling PMCs.

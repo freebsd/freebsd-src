@@ -76,12 +76,12 @@ epoch_testcase1(struct epoch_test_instance *eti)
 		mtxp = &mutexB;
 
 	while (i < iterations) {
-		epoch_enter(test_epoch);
+		epoch_enter_preempt(test_epoch);
 		mtx_lock(mtxp);
 		i++;
 		mtx_unlock(mtxp);
-		epoch_exit(test_epoch);
-		epoch_wait(test_epoch);
+		epoch_exit_preempt(test_epoch);
+		epoch_wait_preempt(test_epoch);
 	}
 	printf("test1: thread: %d took %d ticks to complete %d iterations\n",
 		   eti->threadid, ticks - startticks, iterations);
@@ -98,13 +98,13 @@ epoch_testcase2(struct epoch_test_instance *eti)
 	mtxp = &mutexA;
 
 	while (i < iterations) {
-		epoch_enter(test_epoch);
+		epoch_enter_preempt(test_epoch);
 		mtx_lock(mtxp);
 		DELAY(1);
 		i++;
 		mtx_unlock(mtxp);
-		epoch_exit(test_epoch);
-		epoch_wait(test_epoch);
+		epoch_exit_preempt(test_epoch);
+		epoch_wait_preempt(test_epoch);
 	}
 	printf("test2: thread: %d took %d ticks to complete %d iterations\n",
 		   eti->threadid, ticks - startticks, iterations);
@@ -139,7 +139,7 @@ test_modinit(void)
 	int i, error, pri_range, pri_off;
 
 	pri_range = PRI_MIN_TIMESHARE - PRI_MIN_REALTIME;
-	test_epoch = epoch_alloc(0);
+	test_epoch = epoch_alloc(EPOCH_PREEMPT);
 	for (i = 0; i < mp_ncpus*2; i++) {
 		etilist[i].threadid = i;
 		error = kthread_add(testloop, &etilist[i], NULL, &testthreads[i],
