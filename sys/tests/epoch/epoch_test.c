@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/proc.h>
 #include <sys/counter.h>
 #include <sys/epoch.h>
 #include <sys/gtaskqueue.h>
@@ -138,7 +139,7 @@ test_modinit(void)
 	int i, error, pri_range, pri_off;
 
 	pri_range = PRI_MIN_TIMESHARE - PRI_MIN_REALTIME;
-	test_epoch = epoch_alloc();
+	test_epoch = epoch_alloc(0);
 	for (i = 0; i < mp_ncpus*2; i++) {
 		etilist[i].threadid = i;
 		error = kthread_add(testloop, &etilist[i], NULL, &testthreads[i],
