@@ -172,12 +172,11 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 
 	/* 
 	 * savectx() will be called on panic with dumppcb as an argument,
-	 * dumppcb doesn't have pcb_fpusaved set so don't make any attempt
-	 * to store the VFP registers in it, we probably don't care much
-	 * at that point, anyway.
+	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
+	 * the VFP registers.
 	 */
 	if (pcb->pcb_fpusaved == NULL)
-		return;
+		pcb->pcb_fpusaved = &pcb->pcb_fpustate;
 
 	if (td == NULL)
 		td = curthread;
