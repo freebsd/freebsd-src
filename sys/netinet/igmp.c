@@ -1846,7 +1846,7 @@ igmp_v3_process_group_timers(struct in_multi_head *inmh,
 		 * immediate transmission.
 		 */
 		if (query_response_timer_expired) {
-			int retval;
+			int retval __unused;
 
 			retval = igmp_v3_enqueue_group_record(qrq, inm, 0, 1,
 			    (inm->inm_state == IGMP_SG_QUERY_PENDING_MEMBER));
@@ -2562,7 +2562,7 @@ igmp_final_leave(struct in_multi *inm, struct igmp_ifsoftc *igi)
 				inm->inm_state = IGMP_NOT_MEMBER;
 				inm->inm_sctimer = 0;
 			} else {
-				int retval;
+				int retval __unused;
 
 				inm_acquire_locked(inm);
 
@@ -2635,7 +2635,7 @@ igmp_v3_enqueue_group_record(struct mbufq *mq, struct in_multi *inm,
 	struct ifnet		*ifp;
 	struct ip_msource	*ims, *nims;
 	struct mbuf		*m0, *m, *md;
-	int			 error, is_filter_list_change;
+	int			 is_filter_list_change;
 	int			 minrec0len, m0srcs, msrcs, nbytes, off;
 	int			 record_has_sources;
 	int			 now;
@@ -2645,7 +2645,6 @@ igmp_v3_enqueue_group_record(struct mbufq *mq, struct in_multi *inm,
 
 	IN_MULTI_LIST_LOCK_ASSERT();
 
-	error = 0;
 	ifp = inm->inm_ifp;
 	is_filter_list_change = 0;
 	m = NULL;
@@ -3303,7 +3302,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in_multi		*inm;
-	int			 retval, loop;
+	int			 retval __unused, loop;
 
 	IN_MULTI_LIST_LOCK_ASSERT();
 	IGMP_LOCK_ASSERT();
