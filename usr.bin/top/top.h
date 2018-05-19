@@ -25,8 +25,6 @@ extern int Header_lines;	/* 7 */
 char *itoa();
 char *itoa7();
 
-char *version_string();
-
 /* Special atoi routine returns either a non-negative number or one of: */
 #define Infinity	-1
 #define Invalid		-2
