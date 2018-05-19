@@ -239,6 +239,8 @@
 #define	  EPCR_PMGS		  0x00200000
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 
+#define	SPR_HSRR0		0x13a
+#define	SPR_HSRR1		0x13b
 #define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
 #define	  LPCR_LPES		0x008	/* Bit 60 */
 #define	SPR_LPID		0x13f	/* Logical Partitioning Control */
