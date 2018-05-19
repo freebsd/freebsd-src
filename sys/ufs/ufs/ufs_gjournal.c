@@ -57,7 +57,6 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 {
 	struct cg *cgp;
 	struct buf *bp;
-	ufs2_daddr_t cgbno;
 	int error, cg;
 	struct cdev *dev;
 	struct inode *ip;
@@ -76,11 +75,9 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VFSTOUFS(devvp->v_mount)->um_devvp->v_rdev;
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
 	} else {
 		bp = NULL;
 		return (EIO);
