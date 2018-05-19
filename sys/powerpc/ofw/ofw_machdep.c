@@ -352,7 +352,7 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 		if (OF_getproplen(phandle, "linux,usable-memory") >= 0)
 			res = parse_ofw_memory(phandle, "linux,usable-memory",
 			    &availp[asz]);
-		if (OF_getproplen(phandle, "available") >= 0)
+		else if (OF_getproplen(phandle, "available") >= 0)
 			res = parse_ofw_memory(phandle, "available",
 			    &availp[asz]);
 		else
