@@ -85,6 +85,8 @@ enum {
 	MTP_MAX_INDEX,
 };
 
+#define	MTP_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MTP_DEFAULT_PRODUCT_ID		0x0011
 #define	MTP_DEFAULT_INTERFACE		"USB MTP Interface"
 #define	MTP_DEFAULT_CONFIGURATION	"Default Config"
 #define	MTP_DEFAULT_MANUFACTURER	"FreeBSD foundation"
@@ -176,8 +178,8 @@ struct usb_temp_device_desc usb_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0011,
+	.idVendor = MTP_DEFAULT_VENDOR_ID,
+	.idProduct = MTP_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,

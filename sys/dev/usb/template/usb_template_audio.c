@@ -78,6 +78,8 @@ enum {
 	AUDIO_MAX_INDEX,
 };
 
+#define	AUDIO_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	AUDIO_DEFAULT_PRODUCT_ID	0x000A
 #define	AUDIO_DEFAULT_MIXER		"Mixer interface"
 #define	AUDIO_DEFAULT_RECORD		"Record interface"
 #define	AUDIO_DEFAULT_PLAYBACK		"Playback interface"
@@ -364,8 +366,8 @@ static usb_temp_get_string_desc_t audio_get_string_desc;
 struct usb_temp_device_desc usb_template_audio = {
 	.getStringDesc = &audio_get_string_desc,
 	.ppConfigDesc = audio_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x000A,
+	.idVendor = AUDIO_DEFAULT_VENDOR_ID,
+	.idProduct = AUDIO_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,

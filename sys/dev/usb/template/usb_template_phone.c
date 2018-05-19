@@ -79,6 +79,8 @@ enum {
 	PHONE_MAX_INDEX,
 };
 
+#define	PHONE_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	PHONE_DEFAULT_PRODUCT_ID	0xb001
 #define	PHONE_DEFAULT_MIXER		"Mixer interface"
 #define	PHONE_DEFAULT_RECORD		"Record interface"
 #define	PHONE_DEFAULT_PLAYBACK		"Playback interface"
@@ -362,8 +364,8 @@ struct usb_temp_device_desc usb_template_phone = {
 	.getStringDesc = &phone_get_string_desc,
 	.getVendorDesc = &phone_get_vendor_desc,
 	.ppConfigDesc = phone_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0xb001,
+	.idVendor = PHONE_DEFAULT_VENDOR_ID,
+	.idProduct = PHONE_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_IN_INTERFACE,
 	.bDeviceSubClass = 0,

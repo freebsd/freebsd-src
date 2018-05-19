@@ -76,6 +76,8 @@ enum {
 	MSC_MAX_INDEX,
 };
 
+#define	MSC_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MSC_DEFAULT_PRODUCT_ID		0x0012
 #define	MSC_DEFAULT_INTERFACE		"USB Mass Storage Interface"
 #define	MSC_DEFAULT_CONFIGURATION	"Default Config"
 #define	MSC_DEFAULT_MANUFACTURER	"FreeBSD foundation"
@@ -153,8 +155,8 @@ static const struct usb_temp_config_desc *msc_configs[] = {
 struct usb_temp_device_desc usb_template_msc = {
 	.getStringDesc = &msc_get_string_desc,
 	.ppConfigDesc = msc_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0012,
+	.idVendor = MSC_DEFAULT_VENDOR_ID,
+	.idProduct = MSC_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
