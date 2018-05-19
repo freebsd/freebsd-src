@@ -108,7 +108,7 @@ static void
 cap_rights_vset(cap_rights_t *rights, va_list ap)
 {
 	uint64_t right;
-	int i, n;
+	int i, n __unused;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
@@ -133,7 +133,7 @@ static void
 cap_rights_vclear(cap_rights_t *rights, va_list ap)
 {
 	uint64_t right;
-	int i, n;
+	int i, n __unused;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
@@ -158,7 +158,7 @@ static bool
 cap_rights_is_vset(const cap_rights_t *rights, va_list ap)
 {
 	uint64_t right;
-	int i, n;
+	int i, n __unused;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
@@ -194,7 +194,7 @@ __cap_rights_sysinit(void *arg)
 cap_rights_t *
 __cap_rights_init(int version, cap_rights_t *rights, ...)
 {
-	unsigned int n;
+	unsigned int n __unused;
 	va_list ap;
 
 	assert(version == CAP_RIGHTS_VERSION_00);
