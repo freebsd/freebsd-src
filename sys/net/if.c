@@ -2967,7 +2967,7 @@ int
 ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 {
 #ifdef COMPAT_FREEBSD32
-	caddr_t saved_data;
+	caddr_t saved_data = NULL;
 	struct ifmediareq ifmr;
 #endif
 	struct ifmediareq *ifmrp;
