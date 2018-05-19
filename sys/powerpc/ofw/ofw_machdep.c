@@ -342,6 +342,16 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 
 		res = parse_ofw_memory(phandle, "reg", &memp[msz]);
 		msz += res/sizeof(struct mem_region);
+
+		/*
+		 * On POWER9 Systems we might have both linux,usable-memory and
+		 * reg properties.  'reg' denotes all available memory, but we
+		 * must use 'linux,usable-memory', a subset, as some memory
+		 * regions are reserved for NVLink.
+		 */
+		if (OF_getproplen(phandle, "linux,usable-memory") >= 0)
+			res = parse_ofw_memory(phandle, "linux,usable-memory",
+			    &availp[asz]);
 		if (OF_getproplen(phandle, "available") >= 0)
 			res = parse_ofw_memory(phandle, "available",
 			    &availp[asz]);
