@@ -136,7 +136,7 @@ static bool usedomains = true;
 static void
 epoch_init(void *arg __unused)
 {
-	int domain, count, cpu;
+	int domain, cpu;
 
 	block_count = counter_u64_alloc(M_WAITOK);
 	migrate_count = counter_u64_alloc(M_WAITOK);
@@ -146,7 +146,7 @@ epoch_init(void *arg __unused)
 	epoch_call_task_count = counter_u64_alloc(M_WAITOK);
 	if (usedomains == false)
 		goto done;
-	count = domain = 0;
+	domain = 0;
 	domoffsets[0] = 0;
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		domcount[domain] = CPU_COUNT(&cpuset_domain[domain]);
@@ -361,13 +361,11 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 					void *arg __unused)
 {
 	epoch_record_t record;
-	struct epoch_pcpu_state *eps;
 	struct thread *td, *tdwait, *owner;
 	struct turnstile *ts;
 	struct lock_object *lock;
 	int spincount, gen;
 
-	eps = arg;
 	record = __containerof(cr, struct epoch_record, er_record);
 	td = curthread;
 	spincount = 0;
