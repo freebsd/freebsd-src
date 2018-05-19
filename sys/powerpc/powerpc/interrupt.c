@@ -86,6 +86,7 @@ powerpc_interrupt(struct trapframe *framep)
 
 	switch (framep->exc) {
 	case EXC_EXI:
+	case EXC_HVI:
 		critical_enter();
 		PIC_DISPATCH(root_pic, framep);
 		critical_exit();
