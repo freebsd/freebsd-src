@@ -324,15 +324,13 @@ ttyoutq_write(struct ttyoutq *to, const void *buf, size_t nbytes)
 int
 ttyoutq_write_nofrag(struct ttyoutq *to, const void *buf, size_t nbytes)
 {
-#ifdef INVARIANTS
-	size_t ret;
-#endif
+	size_t ret __unused;
 
 	if (ttyoutq_bytesleft(to) < nbytes)
 		return (-1);
 
 	/* We should always be able to write it back. */
-	DBGSET(ret, ttyoutq_write(to, buf, nbytes));
+	ret = ttyoutq_write(to, buf, nbytes);
 	MPASS(ret == nbytes);
 
 	return (0);
