@@ -20,10 +20,10 @@
  *  preprocessor variable "TOStop".   --wnl
  */
 
-#include "os.h"
 #include "top.h"
 
 #include <sys/ioctl.h>
+#include <string.h>
 #ifdef CBREAK
 # include <sgtty.h>
 # define SGTTY
