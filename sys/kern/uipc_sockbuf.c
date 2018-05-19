@@ -460,6 +460,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 	u_int *hiwat, *lowat;
 	int error;
 
+	sb = NULL;
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
 		switch (cmd) {
