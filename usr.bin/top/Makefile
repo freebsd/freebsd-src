@@ -4,7 +4,7 @@ PROG=	top
 SRCS=	commands.c display.c machine.c screen.c top.c \
 	username.c utils.c version.c 
 SRCS+=	sigdesc.h top.local.h
-CFLAGS+= -DHAVE_GETOPT -DHAVE_STRERROR -DORDER -I ${.OBJDIR}
+CFLAGS+= -I ${.OBJDIR}
 MAN=	top.1
 
 WARNS?=	1
