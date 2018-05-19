@@ -1816,9 +1816,10 @@ muge_setmulti(struct usb_ether *ue)
 	} else {
 		/* Lock the mac address list before hashing each of them. */
 		if_maddr_rlock(ifp);
-		if (!TAILQ_EMPTY(&ifp->if_multiaddrs)) {
+		if (!CK_STAILQ_EMPTY(&ifp->if_multiaddrs)) {
 			i = 1;
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs,
+			    ifma_link) {
 				/* First fill up the perfect address table. */
 				addr = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
