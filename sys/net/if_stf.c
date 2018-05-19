@@ -272,7 +272,7 @@ static int
 stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct stf_softc *sc = ifp->if_softc;
-	int err;
+	int err __unused;
 
 	err = encap_detach(sc->encap_cookie);
 	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
