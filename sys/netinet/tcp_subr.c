@@ -539,9 +539,9 @@ sysctl_net_inet_list_func_info(SYSCTL_HANDLER_ARGS)
 	 * the list matches what we have recorded.
 	 */
 	rw_rlock(&tcp_function_lock);
-#ifdef INVARIANTS
+
 	cnt = 0;
-#else
+#ifndef INVARIANTS
 	if (req->oldptr == NULL) {
 		cnt = tcp_fb_cnt;
 		goto skip_loop;
@@ -1779,7 +1779,7 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef INET6
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
-	int released;
+	int released __unused;
 
 	INP_WLOCK_ASSERT(inp);
 
