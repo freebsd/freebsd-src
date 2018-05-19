@@ -2235,8 +2235,9 @@ graph_add_edge(struct owner_graph *g, struct owner_vertex *x,
 {
 	struct owner_edge *e;
 	struct owner_vertex_list deltaF, deltaB;
-	int nF, nB, n, vi, i;
+	int nF, n, vi, i;
 	int *indices;
+	int nB __unused;
 
 	sx_assert(&lf_owner_graph_lock, SX_XLOCKED);
 
