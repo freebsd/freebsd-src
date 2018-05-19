@@ -2599,8 +2599,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	iflib_fl_t fl;
 	struct ifnet *ifp;
 	int lro_enabled;
-	bool lro_possible = false;
-	bool v4_forwarding, v6_forwarding;
+	bool v4_forwarding, v6_forwarding, lro_possible;
 
 	/*
 	 * XXX early demux data packets so that if_input processing only handles
@@ -2608,6 +2607,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	 */
 	struct mbuf *m, *mh, *mt, *mf;
 
+	lro_possible = v4_forwarding = v6_forwarding = false;
 	ifp = ctx->ifc_ifp;
 	mh = mt = NULL;
 	MPASS(budget > 0);
