@@ -27,7 +27,7 @@ _SKEIN_LOOP       =   2                     #default is fully unrolled for 256/5
 .else
 _SKEIN_LOOP       = SKEIN_LOOP
   .irp _NN_,%_SKEIN_LOOP                #only display loop unrolling if default changed on command line
-.print  "+++ SKEIN_LOOP = \_NN_"
+#.print  "+++ SKEIN_LOOP = \_NN_"
   .endr
 .endif
 # the unroll counts (0 --> fully unrolled)
