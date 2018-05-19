@@ -328,13 +328,15 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 int
 ttyinq_write_nofrag(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 {
+#ifdef INVARIANTS
 	size_t ret;
+#endif
 
 	if (ttyinq_bytesleft(ti) < nbytes)
 		return (-1);
 
 	/* We should always be able to write it back. */
-	ret = ttyinq_write(ti, buf, nbytes, quote);
+	DBGSET(ret, ttyinq_write(ti, buf, nbytes, quote));
 	MPASS(ret == nbytes);
 
 	return (0);
