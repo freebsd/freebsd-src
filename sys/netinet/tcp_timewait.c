@@ -645,7 +645,7 @@ tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 {
 	struct ucred *cred;
 	struct inpcb *inp;
-	int released;
+	int released __unused;
 
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
