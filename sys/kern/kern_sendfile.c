@@ -341,7 +341,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 	}
 
 	for (int i = 0; i < npages;) {
-		int j, a, count, rv;
+		int j, a, count, rv __unused;
 
 		/* Skip valid pages. */
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
@@ -688,6 +688,7 @@ retry_space:
 			if (space == 0) {
 				sfio = NULL;
 				nios = 0;
+				npages = 0;
 				goto prepend_header;
 			}
 			hdr_uio = NULL;
