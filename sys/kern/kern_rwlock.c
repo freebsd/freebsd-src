@@ -887,7 +887,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #ifdef ADAPTIVE_RWLOCKS
 	int spintries = 0;
 	int i, n;
-	enum { READERS, WRITER } sleep_reason;
+	enum { READERS, WRITER } sleep_reason = READERS;
 #endif
 	uintptr_t x;
 #ifdef LOCK_PROFILING
