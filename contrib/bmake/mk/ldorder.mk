@@ -1,14 +1,14 @@
-# $Id: ldorder.mk,v 1.18 2018/02/11 18:27:59 sjg Exp $
+# $Id: ldorder.mk,v 1.25 2018/04/24 23:50:26 sjg Exp $
 #
 #	@(#) Copyright (c) 2015, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -27,7 +27,13 @@
 .if !target(_LDORDER_USE)
 # does caller want to use ldorder?
 # yes for prog, normally no for lib
-_ldorder_use := ${.ALLTARGETS:Mldorder}
+.if ${.ALLTARGETS:Mldorder} != ""
+_ldorder_use:
+.endif
+
+# define this if we need a barrier between local and external libs
+# see below
+LDORDER_EXTERN_BARRIER ?= .ldorder-extern-barrier
 
 .-include <local.ldorder.mk>
 
@@ -35,6 +41,7 @@ _ldorder_use := ${.ALLTARGETS:Mldorder}
 LDORDER_INC_FILTER += S,+,PLUS,g S,.so$$,,g
 LDORDER_LIBS_FILTER += O:u
 LDORDER_INC ?= ldorder.inc
+# for meta mode
 REFERENCE_FILE ?= :
 
 _LDORDER_USE: .ldorder-rm .USE .NOTMAIN
@@ -72,9 +79,27 @@ LDADD_LDORDER ?= `cat ldorder`
 # for debug below
 _ldorder = ${RELDIR}.${TARGET_SPEC}
 
+# we make have some libs that exist outside of $SB
+# and want to insert a barrier
+.if target(${LDORDER_EXTERN_BARRIER})
+# eg. in local.ldorder.mk
+# ${LDORDER_EXTERN_BARRIER}:
+#	@test -z "${extern_ldorders}" || \
+#	echo -Wl,-Bdynamic >> .ldorder
+#
+# feel free to put more suitable version in local.ldorder.mk if needed
+# we do *not* count host libs in extern_ldorders
+extern_ldorders ?= ${__dpadd_libs:tA:N/lib*:N/usr/lib*:N${SB}/*:N${SB_OBJROOT:tA}*:T:${LDORDER_LIBS_FILTER:ts:}:R:C/\.so.*//:S,^,.ldorder-,:N.ldorder-}
+sb_ldorders ?= ${.ALLTARGETS:M.ldorder-*:N${LDORDER_EXTERN_BARRIER}:N.ldorder-rm:${extern_ldorders:${M_ListToSkip}}:N.ldorder-}
+
+# finally in Makefile after include of *.mk put
+# .ldorder ${sb_ldorders}: ${LDORDER_EXTERN_BARRIER}
+# ${LDORDER_EXTERN_BARRIER}: ${extern_ldorders}
+.endif
+
 .endif				# !target(_LDORDER_USE)
 
-.if !empty(LDORDER_LIBS) && !empty(_ldorder_use)
+.if !empty(LDORDER_LIBS) && target(_ldorder_use)
 # canonicalize - these are just tokens anyway
 LDORDER_LIBS := ${LDORDER_LIBS:${LDORDER_LIBS_FILTER:ts:}:R:C/\.so.*//}
 _ldorders := ${LDORDER_LIBS:T:Mlib*:S,^,.ldorder-,}
@@ -108,6 +133,7 @@ ${_ldorder}: ${_ldorders}
 __${__inc}__:
 # make sure this is reset
 LDORDER_LIBS =
+_ldorders =
 .-include <${__inc}>
 .endif
 .endfor
@@ -119,9 +145,12 @@ LDORDER_LIBS =
 # to add extra content - like CFLAGS
 libLDORDER_INC = lib${LIB}.${LDORDER_INC}
 .if !commands(${libLDORDER_INC})
+.if target(ldorder-header)
+${libLDORDER_INC}: ldorder-header
+.endif
 ${libLDORDER_INC}:
 	@(cat /dev/null ${.ALLSRC:M*ldorder*}; \
-	echo 'LDORDER_LIBS= ${_LDORDER_LIBS:T:R:${LDORDER_INC_FILTER:ts:}:tu:C,.*,_{&},}'; \
+	echo 'LDORDER_LIBS= ${_LDORDER_LIBS:T:R:${LDORDER_INC_FILTER:ts:}:tu:C,.*,_{&},:N_{}}'; \
 	echo; echo '.include <ldorder.mk>' ) | sed 's,_{,$${,g' > ${.TARGET}
 .endif
 .endif
