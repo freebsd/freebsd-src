@@ -444,14 +444,14 @@ int	cap_check(const cap_rights_t *havep, const cap_rights_t *needp);
 /*
  * Convert capability rights into VM access flags.
  */
-u_char	cap_rights_to_vmprot(cap_rights_t *havep);
+u_char	cap_rights_to_vmprot(const cap_rights_t *havep);
 
 /*
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
  * extract the rights from a capability.
  */
-cap_rights_t	*cap_rights_fde(struct filedescent *fde);
-cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
+const cap_rights_t	*cap_rights_fde(const struct filedescent *fde);
+const cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
 
 int	cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd);
 int	cap_fcntl_check_fde(struct filedescent *fde, int cmd);

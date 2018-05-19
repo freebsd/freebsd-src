@@ -183,7 +183,7 @@ cap_check(const cap_rights_t *havep, const cap_rights_t *needp)
  * Convert capability rights into VM access flags.
  */
 u_char
-cap_rights_to_vmprot(cap_rights_t *havep)
+cap_rights_to_vmprot(const cap_rights_t *havep)
 {
 	u_char maxprot;
 
@@ -204,14 +204,14 @@ cap_rights_to_vmprot(cap_rights_t *havep)
  * this one file.
  */
 
-cap_rights_t *
-cap_rights_fde(struct filedescent *fdep)
+const cap_rights_t *
+cap_rights_fde(const struct filedescent *fdep)
 {
 
 	return (&fdep->fde_rights);
 }
 
-cap_rights_t *
+const cap_rights_t *
 cap_rights(struct filedesc *fdp, int fd)
 {
 

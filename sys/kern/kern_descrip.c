@@ -2625,9 +2625,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seq_t *seqp)
 {
 #ifdef CAPABILITIES
-	struct filedescent *fde;
+	const struct filedescent *fde;
 #endif
-	struct fdescenttbl *fdt;
+	const struct fdescenttbl *fdt;
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
@@ -2673,7 +2673,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it possible that
 			 * there is a stale fp pointer in cached version.
 			 */
-			fdt = *(struct fdescenttbl * volatile *)&(fdp->fd_files);
+			fdt = *(const struct fdescenttbl * const volatile *)&(fdp->fd_files);
 			continue;
 		}
 		/*
