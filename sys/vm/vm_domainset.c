@@ -81,7 +81,7 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	}
 	di->di_policy = di->di_domain->ds_policy;
 	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
-#ifdef VM_LEVEL_0_ORDER
+#if VM_NRESERVLEVEL > 0
 		if (vm_object_reserv(obj)) {
 			/*
 			 * Color the pindex so we end up on the correct
@@ -89,9 +89,8 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 			 */
 			pindex += obj->pg_color;
 			pindex >>= VM_LEVEL_0_ORDER;
-		}
-		else
-#endif			
+		} else
+#endif
 			pindex /= vm_domainset_default_stride;
 		/*
 		 * Offset pindex so the first page of each object does
