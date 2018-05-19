@@ -949,7 +949,6 @@ intr_event_schedule_thread(struct intr_event *ie)
 	struct intr_thread *it;
 	struct thread *td;
 	struct thread *ctd;
-	struct proc *p;
 
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
@@ -961,7 +960,6 @@ intr_event_schedule_thread(struct intr_event *ie)
 	ctd = curthread;
 	it = ie->ie_thread;
 	td = it->it_thread;
-	p = td->td_proc;
 
 	/*
 	 * If any of the handlers for this ithread claim to be good
@@ -973,7 +971,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 		random_harvest_queue(&entropy, sizeof(entropy), 2, RANDOM_INTERRUPT);
 	}
 
-	KASSERT(p != NULL, ("ithread %s has no process", ie->ie_name));
+	KASSERT(td->td_proc != NULL, ("ithread %s has no process", ie->ie_name));
 
 	/*
 	 * Set it_need to tell the thread to keep running if it is already
@@ -1215,7 +1213,7 @@ swi_sched(void *cookie, int flags)
 	struct intr_handler *ih = (struct intr_handler *)cookie;
 	struct intr_event *ie = ih->ih_event;
 	struct intr_entropy entropy;
-	int error;
+	int error __unused;
 
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
@@ -1474,7 +1472,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	struct intr_handler *ih;
 	struct trapframe *oldframe;
 	struct thread *td;
-	int error, ret, thread;
+	int ret, thread;
 
 	td = curthread;
 
@@ -1547,7 +1545,9 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	
 	/* Schedule the ithread if needed. */
 	if (thread) {
-		error = intr_event_schedule_thread(ie);
+		int error __unused;
+
+		error =  intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("bad stray interrupt"));
 	}
 	critical_exit();
