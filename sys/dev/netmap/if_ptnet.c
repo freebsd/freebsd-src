@@ -757,7 +757,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	struct ptnet_softc *sc = if_getsoftc(ifp);
 	device_t dev = sc->dev;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int mask, err = 0;
+	int mask __unused, err = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
