@@ -1270,7 +1270,6 @@ static void
 iflib_gen_mac(if_ctx_t ctx)
 {
 	struct thread *td;
-	struct ifnet *ifp;
 	MD5_CTX mdctx;
 	char uuid[HOSTUUIDLEN+1];
 	char buf[HOSTUUIDLEN+16];
@@ -1278,7 +1277,6 @@ iflib_gen_mac(if_ctx_t ctx)
 	unsigned char digest[16];
 
 	td = curthread;
-	ifp = ctx->ifc_ifp;
 	mac = ctx->ifc_mac;
 	uuid[HOSTUUIDLEN] = 0;
 	bcopy(td->td_ucred->cr_prison->pr_hostuuid, uuid, HOSTUUIDLEN);
@@ -4281,10 +4279,7 @@ iflib_reset_qvalues(if_ctx_t ctx)
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	device_t dev = ctx->ifc_dev;
-	int i, main_txq, main_rxq;
-
-	main_txq = (sctx->isc_flags & IFLIB_HAS_TXCQ) ? 1 : 0;
-	main_rxq = (sctx->isc_flags & IFLIB_HAS_RXCQ) ? 1 : 0;
+	int i;
 
 	scctx->isc_txrx_budget_bytes_max = IFLIB_MAX_TX_BYTES;
 	scctx->isc_tx_qdepth = IFLIB_DEFAULT_TX_QDEPTH;

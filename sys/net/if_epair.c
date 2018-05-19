@@ -251,7 +251,7 @@ static void
 epair_nh_sintr(struct mbuf *m)
 {
 	struct ifnet *ifp;
-	struct epair_softc *sc;
+	struct epair_softc *sc __unused;
 
 	ifp = m->m_pkthdr.rcvif;
 	(*ifp->if_input)(ifp, m);
@@ -296,7 +296,7 @@ epair_nh_drainedcpu(u_int cpuid)
 
 		IFQ_LOCK(&ifp->if_snd);
 		if (IFQ_IS_EMPTY(&ifp->if_snd)) {
-			struct epair_softc *sc;
+			struct epair_softc *sc __unused;
 
 			STAILQ_REMOVE(&epair_dpcpu->epair_ifp_drain_list,
 			    elm, epair_ifp_drain, ifp_next);
@@ -337,7 +337,7 @@ epair_remove_ifp_from_draining(struct ifnet *ifp)
 		STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,
 		    ifp_next, tvar) {
 			if (ifp == elm->ifp) {
-				struct epair_softc *sc;
+				struct epair_softc *sc __unused;
 
 				STAILQ_REMOVE(
 				    &epair_dpcpu->epair_ifp_drain_list, elm,
