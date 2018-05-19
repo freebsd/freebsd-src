@@ -651,7 +651,7 @@ nm_os_extmem_nextpage(struct nm_os_extmem *e)
 int
 nm_os_extmem_isequal(struct nm_os_extmem *e1, struct nm_os_extmem *e2)
 {
-	return (e1->obj == e1->obj);
+	return (e1->obj == e2->obj);
 }
 
 int
