@@ -79,6 +79,20 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_UNMAP_PE			0
 #define OPAL_MAP_PE			1
 
+#define	OPAL_PCI_BUS_ANY		0
+#define	OPAL_PCI_BUS_3BITS		2
+#define	OPAL_PCI_BUS_4BITS		3
+#define	OPAL_PCI_BUS_5BITS		4
+#define	OPAL_PCI_BUS_6BITS		5
+#define	OPAL_PCI_BUS_7BITS		6
+#define	OPAL_PCI_BUS_ALL		7 /* Match bus number exactly */
+
+#define	OPAL_IGNORE_RID_DEVICE_NUMBER	0
+#define	OPAL_COMPARE_RID_DEVICE_NUMBER	1
+
+#define	OPAL_IGNORE_RID_FUNC_NUMBER	0
+#define	OPAL_COMPARE_RID_FUNC_NUMBER	1
+
 #define	OPAL_SUCCESS			0
 #define	OPAL_PARAMETER			-1
 #define	OPAL_BUSY			-2
