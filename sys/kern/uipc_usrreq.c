@@ -1678,9 +1678,7 @@ static void
 unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 {
 	struct socket *so, *so2;
-#ifdef INVARIANTS
-	int freed;
-#endif
+	int freed __unused;
 
 	KASSERT(unp2 != NULL, ("unp_disconnect: unp2 == NULL"));
 
@@ -1716,15 +1714,9 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 			soisdisconnected(so2);
 		break;
 	}
-#ifdef INVARIANTS	
-	freed =
-#endif		
-		unp_pcb_rele(unp);
+	freed = unp_pcb_rele(unp);
 	MPASS(freed == 0);
-#ifdef INVARIANTS	
-	freed =
-#endif
-		unp_pcb_rele(unp2);
+	freed = unp_pcb_rele(unp2);
 	MPASS(freed == 0);
 }
 
