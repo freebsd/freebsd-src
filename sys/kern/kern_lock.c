@@ -1101,7 +1101,6 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 {
 	struct lock_class *class;
 	uintptr_t x, tid;
-	bool unlocked;
 	const char *file;
 	int line;
 
@@ -1112,12 +1111,10 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 	line = __LINE__;
 
 	_lockmgr_assert(lk, KA_LOCKED, file, line);
-	unlocked = false;
 	x = lk->lk_lock;
 	if (__predict_true(x & LK_SHARE) != 0) {
 		if (lockmgr_sunlock_try(lk, &x)) {
 			lockmgr_note_shared_release(lk, file, line);
-			unlocked = true;
 		} else {
 			return (lockmgr_sunlock_hard(lk, x, flags, ilk, file, line));
 		}
@@ -1126,7 +1123,6 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 		if (!lockmgr_recursed(lk) &&
 		    atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
 			lockmgr_note_exclusive_release(lk, file, line);
-			unlocked = true;
 		} else {
 			return (lockmgr_xunlock_hard(lk, x, flags, ilk, file, line));
 		}
