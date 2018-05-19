@@ -56,6 +56,7 @@ function main(_i) {
 	OUT_T = null
 	OUT_T_HEADER = "HEADER"
 	OUT_T_DATA = "DATA"
+	VERBOSE = 0
 
 	# Tab width to use when calculating output alignment
 	TAB_WIDTH = 8
@@ -77,6 +78,8 @@ function main(_i) {
 			OUT_T = OUT_T_DATA
 		} else if (ARGV[_i] == "-h" && OUT_T == null) {
 			OUT_T = OUT_T_HEADER
+		} else if (ARGV[_i] == "-v") {
+		        VERBOSE = 1
 		} else if (ARGV[_i] == "-o") {
 			_i++
 			if (_i >= ARGC)
@@ -488,9 +491,10 @@ function at_exit(_block_start, _state, _output_vars, _noutput_vars, _name, _var,
 	} else if (OUT_T == OUT_T_HEADER) {
 		write_header(_output_vars)
 	}
-
-	printf("%u variable records written to %s\n", array_size(_output_vars),
-	    OUTPUT_FILE) >> "/dev/stderr"
+	if (VERBOSE == 1) {
+	        printf("%u variable records written to %s\n", array_size(_output_vars),
+		       OUTPUT_FILE) >> "/dev/stderr"
+	}
 }
 
 # Write the public header (output type HEADER)
