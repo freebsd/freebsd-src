@@ -985,13 +985,13 @@ intr_event_schedule_thread(struct intr_event *ie)
 	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
-		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
+		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, td->td_proc->p_pid,
 		    td->td_name);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
-		    __func__, p->p_pid, td->td_name, it->it_need, td->td_state);
+		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, td->td_state);
 	}
 	thread_unlock(td);
 
