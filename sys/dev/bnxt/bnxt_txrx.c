@@ -263,7 +263,6 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 	uint32_t pidx;
 	uint8_t flid;
 	uint64_t *paddrs;
-	caddr_t *vaddrs;
 	qidx_t	*frag_idxs;
 
 	rxqid = iru->iru_qsidx;
@@ -271,7 +270,6 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 	len = iru->iru_buf_size;
 	pidx = iru->iru_pidx;
 	flid = iru->iru_flidx;
-	vaddrs = iru->iru_vaddrs;
 	paddrs = iru->iru_paddrs;
 	frag_idxs = iru->iru_idxs;
 
@@ -533,7 +531,6 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 {
 	struct rx_tpa_end_cmpl *agend =
 	    &((struct rx_tpa_end_cmpl *)cpr->ring.vaddr)[cpr->cons];
-	struct rx_tpa_end_cmpl_hi *agendh;
 	struct rx_abuf_cmpl *acp;
 	struct bnxt_full_tpa_start *tpas;
 	uint32_t flags2;
@@ -566,7 +563,6 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Now the second 16-byte BD */
 	NEXT_CP_CONS_V(&cpr->ring, cpr->cons, cpr->v_bit);
 	ri->iri_cidx = RING_NEXT(&cpr->ring, ri->iri_cidx);
-	agendh = &((struct rx_tpa_end_cmpl_hi *)cpr->ring.vaddr)[cpr->cons];
 
 	flags2 = le32toh(tpas->high.flags2);
 	if ((flags2 & RX_TPA_START_CMPL_FLAGS2_META_FORMAT_MASK) ==
