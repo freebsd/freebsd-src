@@ -551,7 +551,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 	u_int i, n, spintries = 0;
-	enum { READERS, WRITER } sleep_reason;
+	enum { READERS, WRITER } sleep_reason = READERS;
 	bool adaptive;
 #endif
 #ifdef LOCK_PROFILING
@@ -568,7 +568,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state;
+	uintptr_t state = 0;
 #endif
 	int extra_work = 0;
 
@@ -944,7 +944,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state;
+	uintptr_t state = 0;
 #endif
 	int extra_work = 0;
 
