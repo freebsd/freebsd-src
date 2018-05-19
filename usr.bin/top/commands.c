@@ -86,7 +86,6 @@ J       - display processes for only one jail (+ selects all jails)\n\
 k       - kill processes; send a signal to a list of processes\n\
 m       - toggle the display between 'cpu' and 'io' modes\n\
 n or #  - change number of processes to display\n", stdout);
-#ifdef ORDER
 	if (displaymode == DISP_CPU)
 		fputs("\
 o       - specify sort order (pri, size, res, cpu, time, threads, jid, pid)\n",
@@ -95,7 +94,6 @@ o       - specify sort order (pri, size, res, cpu, time, threads, jid, pid)\n",
 		fputs("\
 o       - specify sort order (vcsw, ivcsw, read, write, fault, total, jid, pid)\n",
 	    stdout);
-#endif
 	fputs("\
 P       - toggle the displaying of per-CPU statistics\n\
 r       - renice a process\n\
