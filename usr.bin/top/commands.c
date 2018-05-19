@@ -56,7 +56,7 @@ void
 show_help()
 
 {
-    printf("Top version %s, %s\n", version_string(), copyright);
+    printf("Top version FreeBSD, %s\n", copyright);
     fputs("\n\n\
 A top users display for Unix\n\
 \n\
