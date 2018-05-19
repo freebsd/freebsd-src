@@ -1495,10 +1495,7 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 int
 dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
-	uint64_t extent;
 	int error;
-
-	extent = dtoh64(kdh->dumpextent);
 
 	if (di->kdcomp != NULL) {
 		error = compressor_flush(di->kdcomp->kdc_stream);
