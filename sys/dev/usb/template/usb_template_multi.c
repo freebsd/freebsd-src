@@ -89,6 +89,8 @@ enum {
 	MULTI_MAX_INDEX,
 };
 
+#define	MULTI_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MULTI_DEFAULT_PRODUCT_ID	0x0001
 #define	MULTI_DEFAULT_MODEM		"Virtual serial console"
 #define	MULTI_DEFAULT_ETH_MAC		"2A02030405060789AB"
 #define	MULTI_DEFAULT_ETH_CONTROL	"Ethernet Comm Interface"
@@ -374,8 +376,8 @@ static const struct usb_temp_config_desc *multi_configs[] = {
 struct usb_temp_device_desc usb_template_multi = {
 	.getStringDesc = &multi_get_string_desc,
 	.ppConfigDesc = multi_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0001,
+	.idVendor = MULTI_DEFAULT_VENDOR_ID,
+	.idProduct = MULTI_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_IN_INTERFACE,
 	.bDeviceSubClass = 0,

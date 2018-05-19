@@ -76,6 +76,8 @@ enum {
 	MOUSE_MAX_INDEX,
 };
 
+#define	MOUSE_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MOUSE_DEFAULT_PRODUCT_ID	0x00AE
 #define	MOUSE_DEFAULT_INTERFACE		"Mouse interface"
 #define	MOUSE_DEFAULT_MANUFACTURER	"FreeBSD foundation"
 #define	MOUSE_DEFAULT_PRODUCT		"Mouse Test Interface"
@@ -170,8 +172,8 @@ struct usb_temp_device_desc usb_template_mouse = {
 	.getStringDesc = &mouse_get_string_desc,
 	.getVendorDesc = &mouse_get_vendor_desc,
 	.ppConfigDesc = mouse_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x00AE,
+	.idVendor = MOUSE_DEFAULT_VENDOR_ID,
+	.idProduct = MOUSE_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,

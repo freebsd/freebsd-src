@@ -79,6 +79,8 @@ enum {
 	ETH_MAX_INDEX,
 };
 
+#define	ETH_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	ETH_DEFAULT_PRODUCT_ID		0x0001
 #define	ETH_DEFAULT_MAC			"2A02030405060789AB"
 #define	ETH_DEFAULT_CONTROL		"USB Ethernet Comm Interface"
 #define	ETH_DEFAULT_DATA		"USB Ethernet Data Interface"
@@ -230,8 +232,8 @@ static const struct usb_temp_config_desc *eth_configs[] = {
 struct usb_temp_device_desc usb_template_cdce = {
 	.getStringDesc = &eth_get_string_desc,
 	.ppConfigDesc = eth_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0001,
+	.idVendor = ETH_DEFAULT_VENDOR_ID,
+	.idProduct = ETH_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
