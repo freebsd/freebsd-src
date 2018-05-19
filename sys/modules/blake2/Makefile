@@ -87,4 +87,5 @@ WARNS	?= 6
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.blake2-dispatch.c	+=	-Wno-unused-const-variable
+CWARNFLAGS.blake2s-ref.c	+= 	-Wno-cast-qual -Wno-unused-function
 CWARNFLAGS			+=	-Wno-cast-qual
