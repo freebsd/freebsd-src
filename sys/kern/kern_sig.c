@@ -605,11 +605,8 @@ cursig(struct thread *td)
 void
 signotify(struct thread *td)
 {
-	struct proc *p;
 
-	p = td->td_proc;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 
 	if (SIGPENDING(td)) {
 		thread_lock(td);
