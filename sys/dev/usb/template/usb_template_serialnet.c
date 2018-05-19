@@ -96,8 +96,8 @@ enum {
 #define	SERIALNET_DEFAULT_ETH_DATA	"USB Ethernet Data Interface"
 #define	SERIALNET_DEFAULT_CONFIGURATION	"Default configuration"
 #define	SERIALNET_DEFAULT_MANUFACTURER	"The FreeBSD Project"
-#define SERIALNET_DEFAULT_PRODUCT	"SERIALNET"
-#define SERIALNET_DEFAULT_SERIAL_NUMBER	"January 2015"
+#define	SERIALNET_DEFAULT_PRODUCT	"SERIALNET"
+#define	SERIALNET_DEFAULT_SERIAL_NUMBER	"January 2015"
 
 static struct usb_string_descriptor	serialnet_modem;
 static struct usb_string_descriptor	serialnet_eth_mac;

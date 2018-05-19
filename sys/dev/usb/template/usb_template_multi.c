@@ -98,8 +98,8 @@ enum {
 #define	MULTI_DEFAULT_STORAGE		"Mass Storage Interface"
 #define	MULTI_DEFAULT_CONFIGURATION	"Default configuration"
 #define	MULTI_DEFAULT_MANUFACTURER	"The FreeBSD Project"
-#define MULTI_DEFAULT_PRODUCT		"Multifunction Device"
-#define MULTI_DEFAULT_SERIAL_NUMBER	"May 2018"
+#define	MULTI_DEFAULT_PRODUCT		"Multifunction Device"
+#define	MULTI_DEFAULT_SERIAL_NUMBER	"May 2018"
 
 static struct usb_string_descriptor	multi_modem;
 static struct usb_string_descriptor	multi_eth_mac;
