@@ -18,12 +18,13 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # a false positive.
 .if ${COMPILER_TYPE} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-error-constant-conversion
-NO_WSHIFT_COUNT_NEGATIVE=	-Wno-error-shift-count-negative
-NO_WSHIFT_COUNT_OVERFLOW=	-Wno-error-shift-count-overflow
-NO_WSELF_ASSIGN=		-Wno-error-self-assign
+NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
+NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
+NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 NO_WCAST_QUAL=			-Wno-error-cast-qual
+NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
@@ -34,7 +35,7 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 CWARNEXTRA+=	-Wno-error-shift-negative-value
 .endif
 .if ${COMPILER_VERSION} >= 40000
-CWARNEXTRA+=	-Wno-error-address-of-packed-member
+CWARNEXTRA+=	-Wno-address-of-packed-member
 .endif
 
 CLANG_NO_IAS= -no-integrated-as
