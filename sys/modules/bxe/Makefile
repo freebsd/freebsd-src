@@ -19,3 +19,4 @@ SRCS	+= bxe.c               \
 CFLAGS += -I${BXE}
 
 .include <bsd.kmod.mk>
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

@@ -49,6 +49,7 @@ CLANG_NO_IAS34= -no-integrated-as
 .if ${COMPILER_VERSION} >= 40800
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler.
+NO_WUNUSED_BUT_SET_VARIABLE = -Wno-unused-but-set-variable
 CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=array-bounds				\
