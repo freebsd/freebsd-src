@@ -1641,10 +1641,7 @@ static int
 lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
-	int error, len, mcast;
-
-	len = m->m_pkthdr.len;
-	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
+	int error;
 
 	LAGG_RLOCK();
 	/* We need a Tx algorithm and at least one port */
