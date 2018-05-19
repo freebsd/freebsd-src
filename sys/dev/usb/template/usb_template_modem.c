@@ -80,7 +80,7 @@ enum {
 #define	MODEM_DEFAULT_PRODUCT_ID	0x000E
 #define	MODEM_DEFAULT_INTERFACE		"Modem interface"
 #define	MODEM_DEFAULT_MANUFACTURER	"FreeBSD foundation"
-#define MODEM_DEFAULT_PRODUCT		"Modem Test Device"
+#define	MODEM_DEFAULT_PRODUCT		"Modem Test Device"
 #define	MODEM_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	modem_interface;
