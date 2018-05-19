@@ -1851,10 +1851,8 @@ bq_init(struct bufqueue *bq, int qindex, int subqueue, const char *lockname)
 static void
 bd_init(struct bufdomain *bd)
 {
-	int domain;
 	int i;
 
-	domain = bd - bdomain;
 	bd->bd_cleanq = &bd->bd_subq[mp_maxid + 1];
 	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_maxid + 1, "bufq clean lock");
 	bq_init(&bd->bd_dirtyq, QUEUE_DIRTY, -1, "bufq dirty lock");
@@ -2843,7 +2841,7 @@ vfs_vmio_iodone(struct buf *bp)
 	vm_ooffset_t foff;
 	vm_page_t m;
 	vm_object_t obj;
-	struct vnode *vp;
+	struct vnode *vp __unused;
 	int i, iosize, resid;
 	bool bogus;
 
@@ -5014,7 +5012,7 @@ bufsync(struct bufobj *bo, int waitfor)
 void
 bufstrategy(struct bufobj *bo, struct buf *bp)
 {
-	int i = 0;
+	int i __unused;
 	struct vnode *vp;
 
 	vp = bp->b_vp;
