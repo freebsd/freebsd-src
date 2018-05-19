@@ -662,11 +662,9 @@ umtxq_remove_queue(struct umtx_q *uq, int q)
 static int
 umtxq_count(struct umtx_key *key)
 {
-	struct umtxq_chain *uc;
 	struct umtxq_queue *uh;
 
-	uc = umtxq_getchain(key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
 	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
 	if (uh != NULL)
 		return (uh->length);
@@ -680,12 +678,10 @@ umtxq_count(struct umtx_key *key)
 static int
 umtxq_count_pi(struct umtx_key *key, struct umtx_q **first)
 {
-	struct umtxq_chain *uc;
 	struct umtxq_queue *uh;
 
 	*first = NULL;
-	uc = umtxq_getchain(key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
 	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
 	if (uh != NULL) {
 		*first = TAILQ_FIRST(&uh->head);
@@ -727,14 +723,12 @@ umtxq_check_susp(struct thread *td)
 static int
 umtxq_signal_queue(struct umtx_key *key, int n_wake, int q)
 {
-	struct umtxq_chain *uc;
 	struct umtxq_queue *uh;
 	struct umtx_q *uq;
 	int ret;
 
 	ret = 0;
-	uc = umtxq_getchain(key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
 	uh = umtxq_queue_lookup(key, q);
 	if (uh != NULL) {
 		while ((uq = TAILQ_FIRST(&uh->head)) != NULL) {
@@ -754,10 +748,8 @@ umtxq_signal_queue(struct umtx_key *key, int n_wake, int q)
 static inline void
 umtxq_signal_thread(struct umtx_q *uq)
 {
-	struct umtxq_chain *uc;
 
-	uc = umtxq_getchain(&uq->uq_key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(&uq->uq_key));
 	umtxq_remove(uq);
 	wakeup(uq);
 }
@@ -1663,16 +1655,18 @@ static int
 umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
     const char *wmesg, struct abs_timeout *timo, bool shared)
 {
-	struct umtxq_chain *uc;
 	struct thread *td, *td1;
 	struct umtx_q *uq1;
 	int error, pri;
+#ifdef INVARIANTS
+	struct umtxq_chain *uc;
 
+	uc = umtxq_getchain(&pi->pi_key);
+#endif
 	error = 0;
 	td = uq->uq_thread;
 	KASSERT(td == curthread, ("inconsistent uq_thread"));
-	uc = umtxq_getchain(&uq->uq_key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(&uq->uq_key));
 	KASSERT(uc->uc_busy != 0, ("umtx chain is not busy"));
 	umtxq_insert(uq);
 	mtx_lock(&umtx_lock);
@@ -1728,10 +1722,8 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
 static void
 umtx_pi_ref(struct umtx_pi *pi)
 {
-	struct umtxq_chain *uc;
 
-	uc = umtxq_getchain(&pi->pi_key);
-	UMTXQ_LOCKED_ASSERT(uc);
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(&pi->pi_key));
 	pi->pi_refcount++;
 }
 
