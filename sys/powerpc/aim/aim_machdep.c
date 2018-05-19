@@ -148,6 +148,7 @@ extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
 
 extern void	*rstcode, *rstcodeend;
 extern void	*trapcode, *trapcodeend;
+extern void	*hypertrapcode, *hypertrapcodeend;
 extern void	*generictrap, *generictrap64;
 extern void	*alitrap, *aliend;
 extern void	*dsitrap, *dsiend;
@@ -360,6 +361,11 @@ aim_cpu_init(vm_offset_t toc)
 		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
 		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
 	}
+	#else
+	trapsize = (size_t)&hypertrapcodeend - (size_t)&hypertrapcode;
+	bcopy(&hypertrapcode, (void *)(EXC_HEA + trap_offset), trapsize);
+	bcopy(&hypertrapcode, (void *)(EXC_HMI + trap_offset), trapsize);
+	bcopy(&hypertrapcode, (void *)(EXC_HVI + trap_offset), trapsize);
 	#endif
 
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset), (size_t)&rstcodeend -
