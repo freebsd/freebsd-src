@@ -751,12 +751,14 @@ static void
 filt_timerdetach(struct knote *kn)
 {
 	struct kq_timer_cb_data *kc;
+#ifdef INVARIANTS
 	unsigned int old;
+#endif
 
 	kc = kn->kn_ptr.p_v;
 	callout_drain(&kc->c);
 	free(kc, M_KQUEUE);
-	old = atomic_fetchadd_int(&kq_ncallouts, -1);
+	DBGSET(old, atomic_fetchadd_int(&kq_ncallouts, -1));
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */
 }
