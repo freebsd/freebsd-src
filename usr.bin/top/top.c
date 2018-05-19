@@ -105,12 +105,7 @@ char *ctime();
 char *kill_procs();
 char *renice_procs();
 
-#ifdef ORDER
 extern int (*compares[])();
-#else
-extern int proc_compare();
-extern int io_compare();
-#endif
 time_t time();
 
 caddr_t get_process_info(struct system_info *si, struct process_select *sel,
@@ -281,10 +276,8 @@ char *argv[];
     char *iptr;
     char no_command = 1;
     struct timeval timeout;
-#ifdef ORDER
     char *order_name = NULL;
     int order_index = 0;
-#endif
 #ifndef FD_SET
     /* FD_SET and friends are not present:  fake it */
     typedef int fd_set;
@@ -293,11 +286,7 @@ char *argv[];
 #endif
     fd_set readfds;
 
-#ifdef ORDER
     static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
-#else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJw";
-#endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
 #define CMD_update	1
@@ -326,9 +315,7 @@ char *argv[];
 #define CMD_pcputog	23
 #define CMD_jail	24
 #define CMD_swaptog	25
-#ifdef ORDER
 #define CMD_order       26
-#endif
 
     /* set the buffer for stdout */
 #ifdef DEBUG
@@ -487,14 +474,7 @@ char *argv[];
 		break;
 
 	      case 'o':		/* select sort order */
-#ifdef ORDER
 		order_name = optarg;
-#else
-		fprintf(stderr,
-			"%s: this platform does not support arbitrary ordering.  Sorry.\n",
-			myname);
-		warnings++;
-#endif
 		break;
 
 	      case 't':
@@ -582,7 +562,6 @@ char *argv[];
 	exit(1);
     }
 
-#ifdef ORDER
     /* determine sorting order index, if necessary */
     if (order_name != NULL)
     {
@@ -602,7 +581,6 @@ char *argv[];
 	    exit(1);
 	}
     }
-#endif
 
 #ifdef no_initialization_needed
     /* initialize the hashing stuff */
@@ -715,14 +693,7 @@ restart:
 	/* get the current stats */
 	get_system_info(&system_info);
 
-#ifdef ORDER
 	compare = compares[order_index];
-#else
-	if (displaymode == DISP_CPU)
-		compare = proc_compare;
-	else
-		compare = io_compare;
-#endif
 
 	/* get the current set of processes */
 	processes =
@@ -1144,7 +1115,6 @@ restart:
 			    case CMD_showargs:
 				fmt_flags ^= FMT_SHOWARGS;
 				break;
-#ifdef ORDER
 			    case CMD_order:
 				new_message(MT_standout,
 				    "Order to sort: ");
@@ -1167,7 +1137,6 @@ restart:
 				    clear_message();
 				}
 				break;
-#endif
 			    case CMD_jidtog:
 				ps.jail = !ps.jail;
 				new_message(MT_standout | MT_delayed,

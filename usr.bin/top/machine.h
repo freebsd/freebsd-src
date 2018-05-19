@@ -23,9 +23,7 @@ struct statics
     char **arc_names;
     char **carc_names;
     char **swap_names;
-#ifdef ORDER
     char **order_names;
-#endif
     int ncpus;
 };
 
