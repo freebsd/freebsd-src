@@ -40,8 +40,8 @@ SRCS	+= blake2-sw.c
 CFLAGS.blake2b-ref.c	+= -I${SRCTOP}/sys/crypto/blake2 -DSUFFIX=_ref
 CFLAGS.blake2s-ref.c	+= -I${SRCTOP}/sys/crypto/blake2 -DSUFFIX=_ref
 CFLAGS.blake2-sw.c	+= -I${SRCTOP}/sys/crypto/blake2
-CWARNFLAGS.blake2b-ref.c	+= -Wno-cast-qual
-CWARNFLAGS.blake2s-ref.c	+= -Wno-cast-qual
+CWARNFLAGS.blake2b-ref.c	+= -Wno-cast-qual -Wno-unused-function
+CWARNFLAGS.blake2s-ref.c	+= -Wno-cast-qual -Wno-unused-function
 SRCS	+= chacha.c
 SRCS	+= chacha-sw.c
 SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
