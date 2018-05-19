@@ -347,10 +347,10 @@ inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 			ifma->ifma_protospec == NULL)
 			continue;
-			inm = (struct in_multi *)ifma->ifma_protospec;
-			if (inm->inm_addr.s_addr == ina.s_addr)
-				break;
-			inm = NULL;
+		inm = (struct in_multi *)ifma->ifma_protospec;
+		if (inm->inm_addr.s_addr == ina.s_addr)
+			break;
+		inm = NULL;
 	}
 	return (inm);
 }

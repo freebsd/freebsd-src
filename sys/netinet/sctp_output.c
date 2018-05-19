@@ -11030,7 +11030,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	struct sctp_chunkhdr *ch;
 #if defined(INET) || defined(INET6)
 	struct udphdr *udp;
-	int ret;
+	int ret __unused;
 #endif
 	int len, cause_len, padding_len;
 #ifdef INET

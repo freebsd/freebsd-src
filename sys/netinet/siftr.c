@@ -1201,10 +1201,10 @@ siftr_manage_ops(uint8_t action)
 	struct timeval tval;
 	struct flow_hash_node *counter, *tmp_counter;
 	struct sbuf *s;
-	int i, key_index, ret, error;
+	int i, key_index, error;
 	uint32_t bytes_to_write, total_skipped_pkts;
 	uint16_t lport, fport;
-	uint8_t *key, ipver;
+	uint8_t *key, ipver __unused;
 
 #ifdef SIFTR_IPV6
 	uint32_t laddr[4];
@@ -1235,7 +1235,7 @@ siftr_manage_ops(uint8_t action)
 
 		siftr_exit_pkt_manager_thread = 0;
 
-		ret = kthread_add(&siftr_pkt_manager_thread, NULL, NULL,
+		kthread_add(&siftr_pkt_manager_thread, NULL, NULL,
 		    &siftr_pkt_manager_thr, RFNOWAIT, 0,
 		    "siftr_pkt_manager_thr");
 

@@ -1680,7 +1680,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 {
 	struct ip_moptions imo;
 	struct in_multi *imm[2];
-	int error;
+	int error __unused;
 
 	VIF_LOCK_ASSERT();
 
