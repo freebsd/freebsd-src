@@ -63,7 +63,7 @@ static __inline void
 epoch_enter_preempt(epoch_t epoch)
 {
 	struct thread *td;
-	int nesting;
+	int nesting __unused;
 
 	td = curthread;
 	nesting = td->td_epochnest++;
