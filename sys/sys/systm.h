@@ -85,6 +85,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #endif
 
 #ifdef	INVARIANTS		/* The option is always available */
+#define	DBGSET(lhs, rhs) lhs = (rhs)
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
 		kassert_panic msg;					\
@@ -96,6 +97,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 	}								\
 } while (0)
 #else
+#define	DBGSET(lhs, rhs) rhs
 #define	KASSERT(exp,msg) do { \
 } while (0)
 
