@@ -1385,8 +1385,10 @@ struct cpuset *
 cpuset_thread0(void)
 {
 	struct cpuset *set;
-	int error;
 	int i;
+#ifdef INVARIANTS
+	int error;
+#endif
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_CACHE, 0);
@@ -1411,14 +1413,14 @@ cpuset_thread0(void)
 	 * Now derive a default (1), modifiable set from that to give out.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 1);
+	DBGSET(error, _cpuset_create(set, cpuset_zero, NULL, NULL, 1));
 	KASSERT(error == 0, ("Error creating default set: %d\n", error));
 	cpuset_default = set;
 	/*
 	 * Create the kernel set (2).
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 2);
+	DBGSET(error, _cpuset_create(set, cpuset_zero, NULL, NULL, 2));
 	KASSERT(error == 0, ("Error creating kernel set: %d\n", error));
 	set->cs_domain = &domainset2;
 	cpuset_kernel = set;
