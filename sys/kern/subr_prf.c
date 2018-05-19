@@ -660,6 +660,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	int stop = 0, retval = 0;
 
 	num = 0;
+	q = NULL;
 	if (!func)
 		d = (char *) arg;
 	else
