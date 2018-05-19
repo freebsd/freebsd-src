@@ -33,8 +33,8 @@ char *copyright =
  *	FD_SET   - macros FD_SET and FD_ZERO are used when defined
  */
 
-#include "os.h"
-
+#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/time.h>
 
@@ -43,7 +43,9 @@ char *copyright =
 #include <errno.h>
 #include <jail.h>
 #include <setjmp.h>
+#include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
 
 /* includes specific to top */
@@ -59,6 +61,8 @@ char *copyright =
 
 /* Size of the stdio buffer given to stdout */
 #define Buffersize	2048
+
+typedef void sigret_t;
 
 /* The buffer that stdio will use */
 char stdoutbuf[Buffersize];
