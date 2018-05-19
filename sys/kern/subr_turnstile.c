@@ -804,7 +804,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 int
 turnstile_signal(struct turnstile *ts, int queue)
 {
-	struct turnstile_chain *tc;
+	struct turnstile_chain *tc __unused;
 	struct thread *td;
 	int empty;
 
@@ -855,7 +855,7 @@ turnstile_signal(struct turnstile *ts, int queue)
 void
 turnstile_broadcast(struct turnstile *ts, int queue)
 {
-	struct turnstile_chain *tc;
+	struct turnstile_chain *tc __unused;
 	struct turnstile *ts1;
 	struct thread *td;
 
