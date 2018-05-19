@@ -16,7 +16,10 @@
  */
 
 #include "top.h"
-#include "os.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 int atoiwi(str)
 

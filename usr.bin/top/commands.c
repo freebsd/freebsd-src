@@ -18,14 +18,15 @@
  *  "top" (i.e.:  changing the number of processes to display).
  */
 
-#include "os.h"
-
 #include <sys/time.h>
 #include <sys/resource.h>
 
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "commands.h"
