@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $	*/
+/*	$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $");
+__RCSID("$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2998,7 +2998,6 @@ Job_TokenWithdraw(void)
 	}
 	if (DEBUG(JOB))
 	    fprintf(debug_file, "(%d) blocked for token\n", getpid());
-	wantToken = 1;
 	return FALSE;
     }
 

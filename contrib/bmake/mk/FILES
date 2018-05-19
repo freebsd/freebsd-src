@@ -59,6 +59,7 @@ warnings.mk
 whats.mk
 yacc.mk
 dirdeps.mk
+dirdeps-options.mk
 gendirdeps.mk
 install-new.mk
 meta2deps.py
