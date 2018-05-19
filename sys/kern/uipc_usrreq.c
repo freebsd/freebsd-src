@@ -4,7 +4,7 @@
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2004-2009 Robert N. M. Watson
- * All rights reserved.
+ * Copyright (c) 2018 Matthew Macy
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -765,6 +765,7 @@ uipc_detach(struct socket *so)
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
 
 	vp = NULL;
+	vplock = NULL;
 	local_unp_rights = 0;
 
 	UNP_LINK_WLOCK();
@@ -787,7 +788,8 @@ uipc_detach(struct socket *so)
 	}
 	if (unp->unp_vnode != vp &&
 		unp->unp_vnode != NULL) {
-		mtx_unlock(vplock);
+		if (vplock)
+			mtx_unlock(vplock);
 		UNP_PCB_UNLOCK(unp);
 		if (unp2)
 			UNP_PCB_UNLOCK(unp2);
@@ -1676,7 +1678,9 @@ static void
 unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 {
 	struct socket *so, *so2;
-	int rele, freed;
+#ifdef INVARIANTS
+	int freed;
+#endif
 
 	KASSERT(unp2 != NULL, ("unp_disconnect: unp2 == NULL"));
 
@@ -1688,7 +1692,6 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 
 	MPASS(unp->unp_conn == unp2);
 	unp->unp_conn = NULL;
-	rele = 0;
 	so = unp->unp_socket;
 	so2 = unp2->unp_socket;
 	switch (unp->unp_socket->so_type) {
@@ -1713,9 +1716,15 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 			soisdisconnected(so2);
 		break;
 	}
-	freed = unp_pcb_rele(unp);
+#ifdef INVARIANTS	
+	freed =
+#endif		
+		unp_pcb_rele(unp);
 	MPASS(freed == 0);
-	freed = unp_pcb_rele(unp2);
+#ifdef INVARIANTS	
+	freed =
+#endif
+		unp_pcb_rele(unp2);
 	MPASS(freed == 0);
 }
 
