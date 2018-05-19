@@ -1343,14 +1343,12 @@ mqfs_read(struct vop_read_args *ap)
 	char buf[80];
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct mqfs_node *pn;
 	struct mqueue *mq;
 	int len, error;
 
 	if (vp->v_type != VREG)
 		return (EINVAL);
 
-	pn = VTON(vp);
 	mq = VTOMQ(vp);
 	snprintf(buf, sizeof(buf),
 		"QSIZE:%-10ld MAXMSG:%-10ld CURMSG:%-10ld MSGSIZE:%-10ld\n",
@@ -2439,11 +2437,13 @@ sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 static void
 mqueue_fdclose(struct thread *td, int fd, struct file *fp)
 {
-	struct filedesc *fdp;
 	struct mqueue *mq;
+#ifdef INVARIANTS
+	struct filedesc *fdp;
  
 	fdp = td->td_proc->p_fd;
 	FILEDESC_LOCK_ASSERT(fdp);
+#endif
 
 	if (fp->f_ops == &mqueueops) {
 		mq = FPTOMQ(fp);
