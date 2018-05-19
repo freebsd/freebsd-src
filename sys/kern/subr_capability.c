@@ -70,7 +70,6 @@ __read_mostly cap_rights_t cap_getsockname_rights;
 __read_mostly cap_rights_t cap_ioctl_rights;
 __read_mostly cap_rights_t cap_listen_rights;
 __read_mostly cap_rights_t cap_mmap_rights;
-__read_mostly cap_rights_t cap_no_rights;
 __read_mostly cap_rights_t cap_fsync_rights;
 __read_mostly cap_rights_t cap_pdgetpid_rights;
 __read_mostly cap_rights_t cap_pdkill_rights;
