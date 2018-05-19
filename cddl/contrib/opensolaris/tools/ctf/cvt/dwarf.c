@@ -1941,9 +1941,12 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	}
 
 	if ((rc = dwarf_next_cu_header_b(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
-		terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
-
+		&addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK) {
+		if (dw.dw_err.err_error == 	DW_DLE_NO_ENTRY)
+			exit(0);
+		else
+			terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
+	}
 	if ((cu = die_sibling(&dw, NULL)) == NULL ||
 	    (((child = die_child(&dw, cu)) == NULL) &&
 	    should_have_dwarf(elf))) {
