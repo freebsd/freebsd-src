@@ -320,7 +320,6 @@ machine_init(struct statics *statics)
 	uint64_t arc_size;
 	boolean_t carc_en;
 	size_t size;
-	struct passwd *pw;
 
 	size = sizeof(smpmode);
 	if ((sysctlbyname("machdep.smp_active", &smpmode, &size,
