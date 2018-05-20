@@ -1559,7 +1559,6 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		error = EPROTOTYPE;
 		goto bad2;
 	}
-	unp_pcb_lock2(unp, unp2);
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			CURVNET_SET(so2->so_vnet);
@@ -1572,9 +1571,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 			goto bad3;
 		}
 		unp3 = sotounpcb(so2);
-		UNP_PCB_UNLOCK(unp);
-		unp_pcb_owned_lock2(unp2, unp3, freed);
-		MPASS(!freed);
+		unp_pcb_lock2(unp2, unp3);
 		if (unp2->unp_addr != NULL) {
 			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
 			unp3->unp_addr = (struct sockaddr_un *) sa;
@@ -1602,12 +1599,17 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		UNP_PCB_UNLOCK(unp2);
 		unp2 = unp3;
 		unp_pcb_owned_lock2(unp2, unp, freed);
-		MPASS(!freed);
+		if (__predict_false(freed)) {
+			UNP_PCB_UNLOCK(unp2);
+			error = ECONNREFUSED;
+			goto bad2;
+		}
 #ifdef MAC
 		mac_socketpeer_set_from_socket(so, so2);
 		mac_socketpeer_set_from_socket(so2, so);
 #endif
-	}
+	} else
+		unp_pcb_lock2(unp, unp2);
 
 	KASSERT(unp2 != NULL && so2 != NULL && unp2->unp_socket == so2 &&
 	    sotounpcb(so2) == unp2,
