@@ -60,17 +60,6 @@ struct hash_el {
 struct hash_el hash_table[Table_size];
 
 
-void
-init_hash()
-
-{
-    /*
-     *  There used to be some steps we had to take to initialize things.
-     *  We don't need to do that anymore, but we will leave this stub in
-     *  just in case future changes require initialization steps.
-     */
-}
-
 char *username(uid)
 
 int uid;

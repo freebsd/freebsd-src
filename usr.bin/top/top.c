@@ -548,7 +548,7 @@ char *argv[];
     }
 
     /* initialize the kernel memory interface */
-    if (machine_init(&statics, do_unames) == -1)
+    if (machine_init(&statics) == -1)
     {
 	exit(1);
     }
@@ -572,14 +572,6 @@ char *argv[];
 	    exit(1);
 	}
     }
-
-#ifdef no_initialization_needed
-    /* initialize the hashing stuff */
-    if (do_unames)
-    {
-	init_hash();
-    }
-#endif
 
     /* initialize termcap */
     init_termcap(interactive);
