@@ -240,6 +240,10 @@ SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLFLAG_RD,
 SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features2, CTLFLAG_RD,
     &cpu_features2, sizeof(cpu_features2), "LX", "PowerPC CPU features 2");
 
+#ifdef __powerpc64__
+register_t	lpcr = LPCR_LPES;
+#endif
+
 /* Provide some user-friendly aliases for bits in cpu_features */
 SYSCTL_PROC(_hw, OID_AUTO, floatingpoint, CTLTYPE_INT | CTLFLAG_RD,
     0, PPC_FEATURE_HAS_FPU, cpu_feature_bit, "I",

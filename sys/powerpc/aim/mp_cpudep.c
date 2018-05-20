@@ -96,7 +96,7 @@ cpudep_ap_early_bootstrap(void)
 			mtspr(SPR_LPID, 0);
 			isync();
 
-			mtspr(SPR_LPCR, LPCR_LPES);
+			mtspr(SPR_LPCR, lpcr);
 			isync();
 		}
 #endif
@@ -401,7 +401,7 @@ cpudep_ap_setup()
 	case IBMPOWER9:
 #ifdef __powerpc64__
 		if (mfmsr() & PSL_HV) {
-			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES |
+			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | lpcr |
 			    LPCR_PECE_WAKESET);
 			isync();
 		}
