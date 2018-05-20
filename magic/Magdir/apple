@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.36 2017/03/17 21:35:28 christos Exp $
+# $File: apple,v 1.39 2018/03/02 15:26:39 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -431,3 +431,19 @@
 >>>>0	use	appleworks
 >0	belong	0x0481ad00
 >>0	use 	appleworks
+
+# magic for Apple File System (APFS)
+# from Alex Myczko <alex@aiei.ch>
+32		string	NXSB		Apple File System (APFS)
+>36		ulelong	x		\b, blocksize %u
+
+# iTunes cover art (versions 1 and 2)
+4		string	itch
+>24		string	artw
+>>0x1e8		string	data		iTunes cover art
+>>>0x1ed	string	PNG		(PNG)
+>>>0x1ec	beshort 0xffd8		(JPEG)
+
+# MacPaint image
+65		string	PNTGMPNT	MacPaint image data
+#0		belong	2		MacPaint image data
