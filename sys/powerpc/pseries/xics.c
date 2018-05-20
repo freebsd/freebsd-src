@@ -139,7 +139,9 @@ static driver_t xics_driver = {
 	0
 };
 
+#ifdef POWERNV
 static uint32_t cpu_xirr[MAXCPU];
+#endif
 
 static devclass_t xicp_devclass;
 static devclass_t xics_devclass;
