@@ -85,7 +85,7 @@ char	*format_next_process(caddr_t handle, char *(*get_userid)(int),
 	    int flags);
 void	 toggle_pcpustats(void);
 void	 get_system_info(struct system_info *si);
-int	 machine_init(struct statics *statics, char do_unames);
+int	 machine_init(struct statics *statics);
 int	 proc_owner(int pid);
 
 /* non-int routines typically used by the machine dependent module */

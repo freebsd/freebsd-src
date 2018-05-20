@@ -314,7 +314,7 @@ update_layout(void)
 }
 
 int
-machine_init(struct statics *statics, char do_unames)
+machine_init(struct statics *statics)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
@@ -340,12 +340,7 @@ machine_init(struct statics *statics, char do_unames)
 	    NULL, 0) == 0 && carc_en == 1)
 		carc_enabled = 1;
 
-	if (do_unames) {
-	    while ((pw = getpwent()) != NULL) {
-		if (strlen(pw->pw_name) > namelength)
-			namelength = strlen(pw->pw_name);
-	    }
-	}
+	namelength = MAXLOGNAME;
 	if (smpmode && namelength > SMPUNAMELEN)
 		namelength = SMPUNAMELEN;
 	else if (namelength > UPUNAMELEN)
