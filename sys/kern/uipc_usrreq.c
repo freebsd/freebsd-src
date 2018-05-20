@@ -1568,7 +1568,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 			so2 = NULL;
 		if (so2 == NULL) {
 			error = ECONNREFUSED;
-			goto bad3;
+			goto bad2;
 		}
 		unp3 = sotounpcb(so2);
 		unp_pcb_lock2(unp2, unp3);
