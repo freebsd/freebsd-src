@@ -1341,32 +1341,15 @@ in_pcbfree_deferred(epoch_context_t ctx)
 {
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
-#ifdef INET6
-	struct ip6_moptions *im6o = NULL;
-#endif
-#ifdef INET
-	struct ip_moptions *imo = NULL;
-#endif
 
 	inp = __containerof(ctx, struct inpcb, inp_epoch_ctx);
 	pcbinfo = inp->inp_pcbinfo;
 
 	INP_WLOCK(inp);	
-#ifdef INET
-	imo = inp->inp_moptions;
-	inp->inp_moptions = NULL;
-#endif
 	/* XXXRW: Do as much as possible here. */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
-#endif
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6PROTO) {
-		ip6_freepcbopts(inp->in6p_outputopts);
-		im6o = inp->in6p_moptions;
-		inp->in6p_moptions = NULL;
-	}
 #endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
@@ -1379,12 +1362,6 @@ in_pcbfree_deferred(epoch_context_t ctx)
 #endif
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
-#ifdef INET6
-	ip6_freemoptions(im6o);
-#endif
-#ifdef INET
-	inp_freemoptions(imo);
-#endif
 }
 
 /*
@@ -1399,6 +1376,12 @@ in_pcbfree_deferred(epoch_context_t ctx)
 void
 in_pcbfree(struct inpcb *inp)
 {
+#ifdef INET6
+	struct ip6_moptions *im6o = NULL;
+#endif
+#ifdef INET
+	struct ip_moptions *imo = NULL;
+#endif
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
@@ -1417,6 +1400,19 @@ in_pcbfree(struct inpcb *inp)
 	}
 #endif
 	INP_WLOCK_ASSERT(inp);
+#ifdef INET
+	imo = inp->inp_moptions;
+	inp->inp_moptions = NULL;
+	inp_freemoptions(imo);
+#endif
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		ip6_freepcbopts(inp->in6p_outputopts);
+		im6o = inp->in6p_moptions;
+		inp->in6p_moptions = NULL;
+		ip6_freemoptions(im6o);
+	}
+#endif
 	/* Remove first from list */
 	INP_LIST_WLOCK(pcbinfo);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
