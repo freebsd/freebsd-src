@@ -24,27 +24,8 @@
 
 #include <sys/ioctl.h>
 #include <string.h>
-#ifdef CBREAK
-# include <sgtty.h>
-# define SGTTY
-#else
-# ifdef TCGETA
-#  define TERMIO
-#  include <termio.h>
-# else
 #  define TERMIOS
 #  include <termios.h>
-# endif
-#endif
-#if defined(TERMIO) || defined(TERMIOS)
-# ifndef TAB3
-#  ifdef OXTABS
-#   define TAB3 OXTABS
-#  else
-#   define TAB3 0
-#  endif
-# endif
-#endif
 #include <curses.h>
 #include <termcap.h>
 #include "screen.h"
@@ -75,23 +56,11 @@ char *end_standout;
 char *terminal_init;
 char *terminal_end;
 
-#ifdef SGTTY
-static struct sgttyb old_settings;
-static struct sgttyb new_settings;
-#endif
-#ifdef TERMIO
-static struct termio old_settings;
-static struct termio new_settings;
-#endif
-#ifdef TERMIOS
 static struct termios old_settings;
 static struct termios new_settings;
-#endif
 static char is_a_terminal = No;
-#ifdef TOStop
 static int old_lword;
 static int new_lword;
-#endif
 
 #define	STDIN	0
 #define	STDOUT	1
@@ -217,24 +186,10 @@ int interactive;
     get_screensize();
 
     /* if stdout is not a terminal, pretend we are a dumb terminal */
-#ifdef SGTTY
-    if (ioctl(STDOUT, TIOCGETP, &old_settings) == -1)
-    {
-	smart_terminal = No;
-    }
-#endif
-#ifdef TERMIO
-    if (ioctl(STDOUT, TCGETA, &old_settings) == -1)
-    {
-	smart_terminal = No;
-    }
-#endif
-#ifdef TERMIOS
     if (tcgetattr(STDOUT, &old_settings) == -1)
     {
 	smart_terminal = No;
     }
-#endif
 }
 
 void
@@ -242,61 +197,6 @@ init_screen()
 
 {
     /* get the old settings for safe keeping */
-#ifdef SGTTY
-    if (ioctl(STDOUT, TIOCGETP, &old_settings) != -1)
-    {
-	/* copy the settings so we can modify them */
-	new_settings = old_settings;
-
-	/* turn on CBREAK and turn off character echo and tab expansion */
-	new_settings.sg_flags |= CBREAK;
-	new_settings.sg_flags &= ~(ECHO|XTABS);
-	(void) ioctl(STDOUT, TIOCSETP, &new_settings);
-
-	/* remember the erase and kill characters */
-	ch_erase = old_settings.sg_erase;
-	ch_kill  = old_settings.sg_kill;
-
-#ifdef TOStop
-	/* get the local mode word */
-	(void) ioctl(STDOUT, TIOCLGET, &old_lword);
-
-	/* modify it */
-	new_lword = old_lword | LTOSTOP;
-	(void) ioctl(STDOUT, TIOCLSET, &new_lword);
-#endif
-	/* remember that it really is a terminal */
-	is_a_terminal = Yes;
-
-	/* send the termcap initialization string */
-	putcap(terminal_init);
-    }
-#endif
-#ifdef TERMIO
-    if (ioctl(STDOUT, TCGETA, &old_settings) != -1)
-    {
-	/* copy the settings so we can modify them */
-	new_settings = old_settings;
-
-	/* turn off ICANON, character echo and tab expansion */
-	new_settings.c_lflag &= ~(ICANON|ECHO);
-	new_settings.c_oflag &= ~(TAB3);
-	new_settings.c_cc[VMIN] = 1;
-	new_settings.c_cc[VTIME] = 0;
-	(void) ioctl(STDOUT, TCSETA, &new_settings);
-
-	/* remember the erase and kill characters */
-	ch_erase = old_settings.c_cc[VERASE];
-	ch_kill  = old_settings.c_cc[VKILL];
-
-	/* remember that it really is a terminal */
-	is_a_terminal = Yes;
-
-	/* send the termcap initialization string */
-	putcap(terminal_init);
-    }
-#endif
-#ifdef TERMIOS
     if (tcgetattr(STDOUT, &old_settings) != -1)
     {
 	/* copy the settings so we can modify them */
@@ -319,7 +219,6 @@ init_screen()
 	/* send the termcap initialization string */
 	putcap(terminal_init);
     }
-#endif
 
     if (!is_a_terminal)
     {
@@ -344,18 +243,7 @@ end_screen()
     /* if we have settings to reset, then do so */
     if (is_a_terminal)
     {
-#ifdef SGTTY
-	(void) ioctl(STDOUT, TIOCSETP, &old_settings);
-#ifdef TOStop
-	(void) ioctl(STDOUT, TIOCLSET, &old_lword);
-#endif
-#endif
-#ifdef TERMIO
-	(void) ioctl(STDOUT, TCSETA, &old_settings);
-#endif
-#ifdef TERMIOS
 	(void) tcsetattr(STDOUT, TCSADRAIN, &old_settings);
-#endif
     }
 }
 
@@ -366,18 +254,7 @@ reinit_screen()
     /* install our settings if it is a terminal */
     if (is_a_terminal)
     {
-#ifdef SGTTY
-	(void) ioctl(STDOUT, TIOCSETP, &new_settings);
-#ifdef TOStop
-	(void) ioctl(STDOUT, TIOCLSET, &new_lword);
-#endif
-#endif
-#ifdef TERMIO
-	(void) ioctl(STDOUT, TCSETA, &new_settings);
-#endif
-#ifdef TERMIOS
 	(void) tcsetattr(STDOUT, TCSADRAIN, &new_settings);
-#endif
     }
 
     /* send init string */
@@ -392,7 +269,6 @@ get_screensize()
 
 {
 
-#ifdef TIOCGWINSZ
 
     struct winsize ws;
 
@@ -408,25 +284,6 @@ get_screensize()
 	}
     }
 
-#else
-#ifdef TIOCGSIZE
-
-    struct ttysize ts;
-
-    if (ioctl (1, TIOCGSIZE, &ts) != -1)
-    {
-	if (ts.ts_lines != 0)
-	{
-	    screen_length = ts.ts_lines;
-	}
-	if (ts.ts_cols != 0)
-	{
-	    screen_width = ts.ts_cols - 1;
-	}
-    }
-
-#endif /* TIOCGSIZE */
-#endif /* TIOCGWINSZ */
 
     (void) strncpy(lower_left, tgoto(cursor_motion, 0, screen_length - 1),
 	sizeof(lower_left) - 1);
