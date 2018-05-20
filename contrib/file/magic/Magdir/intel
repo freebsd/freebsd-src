@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: intel,v 1.15 2017/03/17 21:35:28 christos Exp $
+# $File: intel,v 1.16 2017/11/14 15:48:36 christos Exp $
 # intel:  file(1) magic for x86 Unix
 #
 # Various flavors of x86 UNIX executable/object (other than Xenix, which
@@ -45,7 +45,7 @@
 
 # rom: file(1) magic for BIOS ROM Extensions found in intel machines
 #      mapped into memory between 0xC0000 and 0xFFFFF
-# From Gurkan Sengun <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# From: Alex Myczko <alex@aiei.ch>
 # updated by Joerg Jenderek
 # https://en.wikipedia.org/wiki/Option_ROM
 0        beshort         0x55AA       BIOS (ia32) ROM Ext.
