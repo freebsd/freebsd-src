@@ -21,10 +21,8 @@
 #include <stdio.h>
 #include <string.h>
 
-int atoiwi(str)
-
-char *str;
-
+int
+atoiwi(char *str)
 {
     int len;
 
@@ -148,11 +146,8 @@ int val;
  *	to the END of the string "to".
  */
 
-char *strecpy(to, from)
-
-char *to;
-char *from;
-
+char *
+strecpy(char *to, char *from)
 {
     while ((*to++ = *from++) != '\0');
     return(--to);
@@ -327,33 +322,6 @@ long *diffs;
     return(total_change);
 }
 
-/*
- * errmsg(errnum) - return an error message string appropriate to the
- *           error number "errnum".  This is a substitute for the System V
- *           function "strerror".  There appears to be no reliable way to
- *           determine if "strerror" exists at compile time, so I make do
- *           by providing something of similar functionality.  For those
- *           systems that have strerror and NOT errlist, define
- *           -DHAVE_STRERROR in the module file and this function will
- *           use strerror.
- */
-
-/* externs referenced by errmsg */
-
-
-char *errmsg(errnum)
-
-int errnum;
-
-{
-    char *msg = strerror(errnum);
-    if (msg != NULL)
-    {
-	return msg;
-    }
-    return("No error");
-}
-
 /* format_time(seconds) - format number of seconds into a suitable
  *		display that will fit within 6 characters.  Note that this
  *		routine builds its string in a static area.  If it needs
@@ -375,9 +343,6 @@ char *format_time(seconds)
 long seconds;
 
 {
-    int value;
-    int digit;
-    char *ptr;
     static char result[10];
 
     /* sanity protection */

@@ -1,19 +1,11 @@
 /*
  * top - a top users display for Unix
  *
- * SYNOPSIS:  For FreeBSD-2.x and later
- *
  * DESCRIPTION:
  * Originally written for BSD4.4 system by Christos Zoulas.
  * Ported to FreeBSD 2.x by Steven Wallace && Wolfram Schneider
  * Order support hacked in from top-3.5beta6/machine/m_aix41.c
  *   by Monte Mitzelfelt (for latest top see http://www.groupsys.com/topinfo/)
- *
- * This is the machine-dependent module for FreeBSD 2.2
- * Works for:
- *	FreeBSD 2.2.x, 3.x, 4.x, and probably FreeBSD 2.1.x
- *
- * LIBS: -lkvm
  *
  * AUTHOR:  Christos Zoulas <christos@ee.cornell.edu>
  *          Steven Wallace  <swallace@freebsd.org>
@@ -580,7 +572,7 @@ get_system_info(struct system_info *si)
 		arc_stats[3] = arc_stat >> 10;
 		GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc_stat);
 		GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc_stat2);
-		arc_stats[4] = arc_stat + arc_stat2 >> 10;
+		arc_stats[4] = (arc_stat + arc_stat2) >> 10;
 		GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc_stat);
 		arc_stats[5] = arc_stat >> 10;
 		si->arc = arc_stats;
@@ -938,7 +930,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 static char fmt[512];	/* static area where result is built */
 
 char *
-format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
+format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
@@ -956,7 +948,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	const int cmdlen = 128;
 
 	/* find and remember the next proc structure */
-	hp = (struct handle *)handle;
+	hp = (struct handle *)xhandle;
 	pp = *(hp->next_proc++);
 	hp->remaining--;
 
@@ -1001,11 +993,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		}
 		/* fall through */
 	case SSLEEP:
-		if (pp->ki_wmesg != NULL) {
-			sprintf(status, "%.6s", pp->ki_wmesg);
-			break;
-		}
-		/* FALLTHROUGH */
+		sprintf(status, "%.6s", pp->ki_wmesg);
+		break;
 	default:
 
 		if (state >= 0 &&

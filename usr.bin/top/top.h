@@ -22,9 +22,6 @@ extern int Header_lines;	/* 7 */
 /* Log base 2 of 1024 is 10 (2^10 == 1024) */
 #define LOG1024		10
 
-char *itoa();
-char *itoa7();
-
 /* Special atoi routine returns either a non-negative number or one of: */
 #define Infinity	-1
 #define Invalid		-2
@@ -48,5 +45,8 @@ enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 extern enum displaymodes displaymode;
 
 extern int pcpu_stats;
+
+char* kill_procs(char *);
+char* renice_procs(char *);
 
 #endif /* TOP_H */
