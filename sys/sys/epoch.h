@@ -39,8 +39,6 @@ typedef struct epoch *epoch_t;
 
 extern epoch_t global_epoch;
 extern epoch_t global_epoch_preempt;
-DPCPU_DECLARE(int, epoch_cb_count);
-DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
 struct epoch_context {
 	void *data[2];
@@ -58,6 +56,10 @@ void epoch_wait(epoch_t epoch);
 void epoch_wait_preempt(epoch_t epoch);
 void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int in_epoch(void);
+
+#ifdef _KERNEL
+DPCPU_DECLARE(int, epoch_cb_count);
+DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
 static __inline void
 epoch_enter_preempt(epoch_t epoch)
@@ -83,5 +85,5 @@ epoch_exit_preempt(epoch_t epoch)
 	if (td->td_epochnest-- == 1)
 		epoch_exit_preempt_internal(epoch, td);
 }
-
+#endif /* _KERNEL */
 #endif
