@@ -84,6 +84,7 @@ ${PACKAGE}FILES+=	plus-minus5.0
 ${PACKAGE}FILES+=	plus-minus6.0
 ${PACKAGE}FILES+=	plus-minus7.0
 ${PACKAGE}FILES+=	plus-minus8.0
+${PACKAGE}FILES+=	plus-minus9.0
 ${PACKAGE}FILES+=	question1.0
 ${PACKAGE}FILES+=	readonly1.0
 ${PACKAGE}FILES+=	redir1.0
@@ -101,5 +102,7 @@ ${PACKAGE}FILES+=	trim6.0
 ${PACKAGE}FILES+=	trim7.0
 ${PACKAGE}FILES+=	trim8.0
 ${PACKAGE}FILES+=	trim9.0
+${PACKAGE}FILES+=	trim10.0
+${PACKAGE}FILES+=	trim11.0
 
 .include <bsd.test.mk>
