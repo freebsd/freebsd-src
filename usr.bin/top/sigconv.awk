@@ -6,8 +6,8 @@ BEGIN		{
 		    print "/* This file was automatically generated */"
 		    print "/* by the awk script \"sigconv.awk\".      */\n"
 		    print "struct sigdesc {"
-		    print "    char *name;"
-		    print "    int  number;"
+		    print "    const char * const name;"
+		    print "    const int  number;"
 		    print "};\n"
 		    print "struct sigdesc sigdesc[] = {"
 		}
