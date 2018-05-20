@@ -1,3 +1,28 @@
+2018-04-15  14:52  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.33
+
+2018-02-24  14:50  Christos Zoulas <christos@zoulas.com> 
+
+	* extend the support for ${x?:} expansions for magic descriptions
+
+2018-02-21  16:25  Christos Zoulas <christos@zoulas.com> 
+
+	* add support for ${x?:} in mime types to handle
+	  pie binaries.
+
+2017-11-03   9:23  Christos Zoulas <christos@zoulas.com>
+
+	* add support for negative offsets (offsets from the end of file)
+
+2017-09-26   8:22  Christos Zoulas <christos@zoulas.com>
+
+	* close the file on error when writing magic (Steve Grubb)
+
+2017-09-24  12:02  Christos Zoulas <christos@zoulas.com>
+
+	* seccomp support (Paul Moore)
+
 2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.32
