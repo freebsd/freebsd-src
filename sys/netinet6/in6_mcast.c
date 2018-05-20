@@ -1626,6 +1626,8 @@ inp_gcmoptions(epoch_context_t ctx)
 {
 	struct ip6_moptions *imo;
 	struct in6_mfilter	*imf;
+	struct in6_multi *inm;
+	struct ifnet *ifp;
 	size_t			 idx, nmships;
 
 	imo =  __containerof(ctx, struct ip6_moptions, imo6_epoch_ctx);
@@ -1635,8 +1637,13 @@ inp_gcmoptions(epoch_context_t ctx)
 		imf = imo->im6o_mfilters ? &imo->im6o_mfilters[idx] : NULL;
 		if (imf)
 			im6f_leave(imf);
-		/* XXX this will thrash the lock(s) */
-		(void)in6_leavegroup(imo->im6o_membership[idx], imf);
+		inm = imo->im6o_membership[idx];
+		ifp = inm->in6m_ifp;
+		if (ifp)
+			CURVNET_SET(ifp->if_vnet);
+		(void)in6_leavegroup(inm, imf);
+		if (ifp)
+			CURVNET_RESTORE();
 		if (imf)
 			im6f_purge(imf);
 	}
