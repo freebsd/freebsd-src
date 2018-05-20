@@ -1616,22 +1616,19 @@ in6p_findmoptions(struct inpcb *inp)
  * Discard the IPv6 multicast options (and source filters).
  *
  * SMPng: NOTE: assumes INP write lock is held.
+ *
+ * XXX can all be safely deferred to epoch_call
+ *
  */
-void
-ip6_freemoptions(struct ip6_moptions *imo, struct inpcbinfo *pcbinfo)
+
+static void
+inp_gcmoptions(epoch_context_t ctx)
 {
+	struct ip6_moptions *imo;
 	struct in6_mfilter	*imf;
 	size_t			 idx, nmships;
-	int wlock;
 
-	if (imo == NULL)
-		return;
-	INP_INFO_LOCK_ASSERT(pcbinfo);
-	wlock = INP_INFO_WLOCKED(pcbinfo);
-	if (wlock)
-		INP_INFO_WUNLOCK(pcbinfo);
-	else
-		INP_INFO_RUNLOCK(pcbinfo);
+	imo =  __containerof(ctx, struct ip6_moptions, imo6_epoch_ctx);
 
 	nmships = imo->im6o_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1648,10 +1645,14 @@ ip6_freemoptions(struct ip6_moptions *imo, struct inpcbinfo *pcbinfo)
 		free(imo->im6o_mfilters, M_IN6MFILTER);
 	free(imo->im6o_membership, M_IP6MOPTS);
 	free(imo, M_IP6MOPTS);
-	if (wlock)
-		INP_INFO_WLOCK(pcbinfo);
-	else
-		INP_INFO_RLOCK(pcbinfo);
+}
+
+void
+ip6_freemoptions(struct ip6_moptions *imo)
+{
+	if (imo == NULL)
+		return;
+	epoch_call(net_epoch_preempt, &imo->imo6_epoch_ctx, inp_gcmoptions);
 }
 
 /*

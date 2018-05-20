@@ -36,6 +36,7 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
+#include <sys/epoch.h>
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -95,7 +96,7 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
-	STAILQ_ENTRY(ip_moptions) imo_link;
+	struct	epoch_context imo_epoch_ctx;
 };
 
 struct	ipstat {
@@ -202,7 +203,7 @@ extern struct	pr_usrreqs rip_usrreqs;
 #define	V_rsvp_on		VNET(rsvp_on)
 #define	V_drop_redirect		VNET(drop_redirect)
 
-void	inp_freemoptions(struct ip_moptions *, struct inpcbinfo *);
+void	inp_freemoptions(struct ip_moptions *);
 int	inp_getmoptions(struct inpcb *, struct sockopt *);
 int	inp_setmoptions(struct inpcb *, struct sockopt *);
 
