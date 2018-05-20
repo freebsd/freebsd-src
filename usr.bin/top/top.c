@@ -251,7 +251,7 @@ char *argv[];
     static char tempbuf1[50];
     static char tempbuf2[50];
     int old_sigmask;		/* only used for BSD-style signals */
-    int topn = Default_TOPN;
+    int topn = Infinity;
     int delay = Default_DELAY;
     int displays = 0;		/* indicates unspecified */
     int sel_ret = 0;
@@ -268,9 +268,7 @@ char *argv[];
     char do_unames = Yes;
     char interactive = Maybe;
     char warnings = 0;
-#if Default_TOPN == Infinity
     char topn_specified = No;
-#endif
     char ch;
     char *iptr;
     char no_command = 1;
@@ -525,12 +523,10 @@ char *argv[];
 			myname);
 		warnings++;
 	    }
-#if Default_TOPN == Infinity
             else
 	    {
 		topn_specified = Yes;
 	    }
-#endif
 	}
 
 	/* tricky:  remember old value of preset_argc & set preset_argc = 0 */
@@ -608,12 +604,8 @@ char *argv[];
 	 *  and the default is Infinity, then (and only then) we use
 	 *  "Nominal_TOPN" instead.
 	 */
-#if Default_TOPN == Infinity
 	topn = smart_terminal ? Largest :
 		    (topn_specified ? Largest : Nominal_TOPN);
-#else
-	topn = Largest;
-#endif
     }
 
     /* set header display accordingly */
