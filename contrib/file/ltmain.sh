@@ -133,9 +133,8 @@ $lt_unset CDPATH
 # function.
 progpath="$0"
 
-unset CP
-unset MV
-unset RM
+
+
 : ${CP="cp -f"}
 test "${ECHO+set}" = set || ECHO=${as_echo-'printf %s\n'}
 : ${MAKE="make"}
@@ -6900,11 +6899,7 @@ func_mode_link ()
 	    # Finalize command for both is simple: just hardcode it.
 	    if test "$hardcode_direct" = yes &&
 	       test "$hardcode_direct_absolute" = no; then
-	      if test -f "$inst_prefix_dir$libdir/$linklib"; then
-	        add="$inst_prefix_dir$libdir/$linklib"
-	      else
-	        add="$libdir/$linklib"
-	      fi
+	      add="$libdir/$linklib"
 	    elif test "$hardcode_minus_L" = yes; then
 	      add_dir="-L$libdir"
 	      add="-l$name"
@@ -7396,7 +7391,6 @@ func_mode_link ()
 	# Calculate the version variables.
 	major=
 	versuffix=
-	versuffix2=
 	verstring=
 	case $version_type in
 	none) ;;
@@ -7457,7 +7451,6 @@ func_mode_link ()
 	  func_arith $current - $age
 	  major=.$func_arith_result
 	  versuffix="$major.$age.$revision"
-	  versuffix2="$major.$age"
 	  ;;
 
 	osf)
@@ -7518,10 +7511,8 @@ func_mode_link ()
 	  esac
 	  if test "$need_version" = no; then
 	    versuffix=
-	    versuffix2=
 	  else
 	    versuffix=".0.0"
-	    versuffix2=".0.0"
 	  fi
 	fi
 
@@ -7529,7 +7520,6 @@ func_mode_link ()
 	if test "$avoid_version" = yes && test "$need_version" = no; then
 	  major=
 	  versuffix=
-	  versuffix2=
 	  verstring=""
 	fi
 
@@ -7640,7 +7630,7 @@ func_mode_link ()
 	  *-*-netbsd*)
 	    # Don't link with libc until the a.out ld.so is fixed.
 	    ;;
-	  *-*-openbsd* | *-*-mirbsd* | *-*-freebsd* | *-*-dragonfly*)
+	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly*)
 	    # Do not include libc due to us having libc/libc_r.
 	    ;;
 	  *-*-sco3.2v5* | *-*-sco5v6*)
@@ -7663,14 +7653,12 @@ func_mode_link ()
 	libname_save=$libname
 	release_save=$release
 	versuffix_save=$versuffix
-	versuffix2_save=$versuffix2
 	major_save=$major
 	# I'm not sure if I'm treating the release correctly.  I think
 	# release should show up in the -l (ie -lgmp5) so we don't want to
 	# add it in twice.  Is that correct?
 	release=""
 	versuffix=""
-	versuffix2=""
 	major=""
 	newdeplibs=
 	droppeddeps=no
@@ -7947,7 +7935,6 @@ EOF
 	  ;;
 	esac
 	versuffix=$versuffix_save
-	versuffix2=$versuffix2_save
 	major=$major_save
 	release=$release_save
 	libname=$libname_save
@@ -9432,8 +9419,7 @@ dlpreopen='$dlprefiles'
 
 # Directory that this library needs to be installed in:
 libdir='$install_libdir'"
-	  if test "$installed" = no && test "$need_relink" = yes && \
-	     test -n "$relink_command"; then
+	  if test "$installed" = no && test "$need_relink" = yes; then
 	    $ECHO >> $output "\
 relink_command=\"$relink_command\""
 	  fi

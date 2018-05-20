@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.122 2017/07/21 10:34:41 christos Exp $
+# $File: filesystems,v 1.124 2018/01/12 12:35:30 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -1732,6 +1732,16 @@
 #>0x464	lelong          &0x0000020      (many subdirs)
 #>0x463	lelong          &0x0000040      (extra isize)
 
+# f2fs filesystem - Tuomas Tynkkynen <tuomas.tynkkynen@iki.fi>
+0x400	lelong		0xF2F52010	F2FS filesystem
+>0x46c	belong		x		\b, UUID=%08x
+>0x470	beshort		x		\b-%04x
+>0x472	beshort		x		\b-%04x
+>0x474	beshort		x		\b-%04x
+>0x476	belong		x		\b-%08x
+>0x47a	beshort		x		\b%04x
+>0x147c	lestring16	x		\b, volume name "%s"
+
 # Minix filesystems - Juan Cespedes <cespedes@debian.org>
 0x410	leshort		0x137f
 !:strength / 2
@@ -1937,8 +1947,10 @@
 0	name				cdrom
 >38913	string   !NSR0      ISO 9660 CD-ROM filesystem data
 !:mime	application/x-iso9660-image
+!:ext	iso/iso9660
 >38913	string    NSR0      UDF filesystem data
 !:mime	application/x-iso9660-image
+!:ext	iso/udf
 >>38917	string    1         (version 1.0)
 >>38917	string    2         (version 1.5)
 >>38917	string    3         (version 2.0)
@@ -1963,6 +1975,16 @@
 # to display CD-ROM (114=81+33) before MBR (113=40+72+1), partition-table (71=50+21) and Apple Driver Map (51)
 !:strength +34
 >0	use	cdrom
+
+# URL: https://en.wikipedia.org/wiki/NRG_(file_format)
+# Reference: https://dl.opendesktop.org/api/files/download/id/1460731811/
+#	11577-mount-iso-0.9.5.tar.bz2/mount-iso-0.9.5/install.sh
+# From: Joerg Jenderek
+# Note:	Only for nero disc with once (DAO) type after 300 KB header
+339969	string    CD001	Nero CD image at 0x4B000
+!:mime	application/x-nrg
+!:ext	nrg
+>307200	use cdrom
 
 # .cso files
 # Reference: http://pismotec.com/ciso/ciso.h

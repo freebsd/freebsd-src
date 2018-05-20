@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: netbsd,v 1.24 2017/03/17 21:35:28 christos Exp $
+# $File: netbsd,v 1.25 2017/09/28 02:37:47 christos Exp $
 # netbsd:  file(1) magic for NetBSD objects
 #
 # All new-style magic numbers are in network byte order.
@@ -285,7 +285,7 @@
 >0	belong&0xfc000000 0x10000000	\b, STACK
 >4	leshort	x			\b, (headersize = %d
 >6	leshort	x			\b, segmentsize = %d
->6	lelong	x			\b, segments = %d)
+>8	lelong	x			\b, segments = %d)
 
 # little endian only for now.
 0	name		ktrace
