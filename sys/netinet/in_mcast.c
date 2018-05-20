@@ -165,8 +165,6 @@ static void	inm_reap(struct in_multi *);
 static void inm_release(struct in_multi *);
 static struct ip_moptions *
 		inp_findmoptions(struct inpcb *);
-static void	inp_freemoptions_internal(struct ip_moptions *);
-static void	inp_gcmoptions(void *, int);
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
 static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
@@ -198,10 +196,6 @@ SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RWTUN,
 static SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,
     "Per-interface stack-wide source filters");
-
-static STAILQ_HEAD(, ip_moptions) imo_gc_list =
-    STAILQ_HEAD_INITIALIZER(imo_gc_list);
-static struct task imo_gc_task = TASK_INITIALIZER(0, inp_gcmoptions, NULL);
 
 #ifdef KTR
 /*
@@ -1665,45 +1659,14 @@ inp_findmoptions(struct inpcb *inp)
 	return (imo);
 }
 
-/*
- * Discard the IP multicast options (and source filters).  To minimize
- * the amount of work done while holding locks such as the INP's
- * pcbinfo lock (which is used in the receive path), the free
- * operation is performed asynchronously in a separate task.
- *
- * SMPng: NOTE: assumes INP write lock is held.
- */
-void
-inp_freemoptions(struct ip_moptions *imo, struct inpcbinfo *pcbinfo)
-{
-	int wlock;
-
-	if (imo == NULL)
-		return;
-
-	INP_INFO_LOCK_ASSERT(pcbinfo);
-	wlock = INP_INFO_WLOCKED(pcbinfo);
-	if (wlock)
-		INP_INFO_WUNLOCK(pcbinfo);
-	else
-		INP_INFO_RUNLOCK(pcbinfo);
-
-	KASSERT(imo != NULL, ("%s: ip_moptions is NULL", __func__));
-	IN_MULTI_LIST_LOCK();
-	STAILQ_INSERT_TAIL(&imo_gc_list, imo, imo_link);
-	IN_MULTI_LIST_UNLOCK();
-	taskqueue_enqueue(taskqueue_thread, &imo_gc_task);
-	if (wlock)
-		INP_INFO_WLOCK(pcbinfo);
-	else
-		INP_INFO_RLOCK(pcbinfo);
-}
-
 static void
-inp_freemoptions_internal(struct ip_moptions *imo)
+inp_gcmoptions(epoch_context_t ctx)
 {
+	struct ip_moptions *imo;
 	struct in_mfilter	*imf;
 	size_t			 idx, nmships;
+
+	imo =  __containerof(ctx, struct ip_moptions, imo_epoch_ctx);
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1721,20 +1684,18 @@ inp_freemoptions_internal(struct ip_moptions *imo)
 	free(imo, M_IPMOPTS);
 }
 
-static void
-inp_gcmoptions(void *context, int pending)
+/*
+ * Discard the IP multicast options (and source filters).  To minimize
+ * the amount of work done while holding locks such as the INP's
+ * pcbinfo lock (which is used in the receive path), the free
+ * operation is deferred to the epoch callback task.
+ */
+void
+inp_freemoptions(struct ip_moptions *imo)
 {
-	struct ip_moptions *imo;
-
-	IN_MULTI_LIST_LOCK();
-	while (!STAILQ_EMPTY(&imo_gc_list)) {
-		imo = STAILQ_FIRST(&imo_gc_list);
-		STAILQ_REMOVE_HEAD(&imo_gc_list, imo_link);
-		IN_MULTI_LIST_UNLOCK();
-		inp_freemoptions_internal(imo);
-		IN_MULTI_LIST_LOCK();
-	}
-	IN_MULTI_LIST_UNLOCK();
+	if (imo == NULL)
+		return;
+	epoch_call(net_epoch_preempt, &imo->imo_epoch_ctx, inp_gcmoptions);
 }
 
 /*

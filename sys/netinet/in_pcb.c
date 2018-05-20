@@ -1382,18 +1382,14 @@ in_pcbfree(struct inpcb *inp)
 #ifdef MAC
 	mac_inpcb_destroy(inp);
 #endif
-	if (!in_pcbrele_wlocked(inp))
-		INP_WUNLOCK(inp);
-#if defined(INET) && defined(INET6)
-	if (imo == NULL && im6o == NULL)
-		return;
-#endif
 #ifdef INET6
-	ip6_freemoptions(im6o, pcbinfo);
+	ip6_freemoptions(im6o);
 #endif
 #ifdef INET
-	inp_freemoptions(imo, pcbinfo);
+	inp_freemoptions(imo);
 #endif
+	if (!in_pcbrele_wlocked(inp))
+		INP_WUNLOCK(inp);
 }
 
 /*
@@ -1545,6 +1541,8 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			/*
 			 * Drop multicast group membership if we joined
 			 * through the interface being detached.
+			 *
+			 * XXX This can all be deferred to an epoch_call
 			 */
 			for (i = 0, gap = 0; i < imo->imo_num_memberships;
 			    i++) {
