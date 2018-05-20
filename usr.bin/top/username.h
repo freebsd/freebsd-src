@@ -20,4 +20,14 @@ void	 init_hash(void);
 char 	*username(int uid);
 int 	 userid(char *username);
 
+/*
+ *  "Table_size" defines the size of the hash tables used to map uid to
+ *  username.  The number of users in /etc/passwd CANNOT be greater than
+ *  this number.  If the error message "table overflow: too many users"
+ *  is printed by top, then "Table_size" needs to be increased.  Things will
+ *  work best if the number is a prime number that is about twice the number
+ *  of lines in /etc/passwd.
+ */
+#define Table_size	20011
+
 #endif /* USERNAME_H */
