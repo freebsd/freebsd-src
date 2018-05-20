@@ -5557,6 +5557,7 @@ pmc_cleanup(void)
 		mtx_pool_destroy(&pmc_mtxpool);
 
 	mtx_destroy(&pmc_processhash_mtx);
+	taskqgroup_config_gtask_deinit(&free_gtask);
 	if (pmc_processhash) {
 #ifdef	HWPMC_DEBUG
 		struct pmc_process *pp;
