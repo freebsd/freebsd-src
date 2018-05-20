@@ -2845,7 +2845,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirrpc bad uio"));
-
+	ncookie.lval[0] = ncookie.lval[1] = 0;
 	/*
 	 * There is no point in reading a lot more than uio_resid, however
 	 * adding one additional DIRBLKSIZ makes sense. Since uio_resid
@@ -3288,6 +3288,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirplusrpc bad uio"));
+	ncookie.lval[0] = ncookie.lval[1] = 0;
 	timespecclear(&dctime);
 	*attrflagp = 0;
 	if (eofp != NULL)
@@ -6943,6 +6944,7 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
 
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	len = fxdr_unsigned(uint32_t, *tl);
+	str = NULL;
 	if (len > NFSV4_OPAQUELIMIT) {
 		error = NFSERR_BADXDR;
 		goto nfsmout;
@@ -7244,7 +7246,6 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	struct nfsclsession *tsep;
 	nfsattrbit_t attrbits;
 	nfsv4stateid_t stateid;
-	uint32_t rflags;
 	struct nfsmount *nmp;
 
 	nmp = VFSTONFS(dvp->v_mount);
@@ -7327,7 +7328,6 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		stateid.other[0] = *tl++;
 		stateid.other[1] = *tl++;
 		stateid.other[2] = *tl;
-		rflags = fxdr_unsigned(u_int32_t, *(tl + 6));
 		nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		deleg = fxdr_unsigned(int, *tl);
