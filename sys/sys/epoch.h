@@ -29,9 +29,12 @@
 
 #ifndef _SYS_EPOCH_H_
 #define _SYS_EPOCH_H_
+#ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/proc.h>
+#endif
 
+struct thread;
 struct epoch;
 typedef struct epoch *epoch_t;
 
