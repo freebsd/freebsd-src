@@ -76,7 +76,7 @@ char *username(uid)
 int uid;
 
 {
-    register int hashindex;
+    int hashindex;
 
     hashindex = hashit(uid);
     if (is_empty_hash(hashindex) || (hash_table[hashindex].uid != uid))
@@ -117,7 +117,7 @@ char *name;
 int wecare;		/* 1 = enter it always, 0 = nice to have */
 
 {
-    register int hashindex;
+    int hashindex;
 
 #ifdef DEBUG
     fprintf(stderr, "enter_hash(%d, %s, %d)\n", uid, name, wecare);

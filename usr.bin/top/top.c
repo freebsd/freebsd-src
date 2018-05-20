@@ -245,9 +245,9 @@ int  argc;
 char *argv[];
 
 {
-    register int i;
-    register int active_procs;
-    register int change;
+    int i;
+    int active_procs;
+    int change;
 
     struct system_info system_info;
     struct statics statics;
