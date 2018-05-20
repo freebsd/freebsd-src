@@ -1,6 +1,5 @@
 /*
  *  Top users/processes display for Unix
- *  Version 3
  *
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
@@ -36,15 +35,20 @@
 #include "utils.h"
 #include "machine.h"
 
-extern int  errno;
-
 extern char *copyright;
 
 /* imported from screen.c */
 extern int overstrike;
 
-int err_compar();
-char *err_string();
+static int err_compar(const void *p1, const void *p2);
+
+struct errs		/* structure for a system-call error */
+{
+    int  errnum;	/* value of errno (that is, the actual error) */
+    char *arg;		/* argument that caused the error */
+};
+
+char *err_string(void);
 static int str_adderr(char *str, int len, int err);
 static int str_addarg(char *str, int len, char *arg, int first);
 
@@ -114,10 +118,8 @@ z       - toggle the displaying of the system idle process\n\
  *  Utility routines that help with some of the commands.
  */
 
-char *next_field(str)
-
-char *str;
-
+static char *
+next_field(char *str)
 {
     if ((str = strchr(str, ' ')) == NULL)
     {
@@ -131,7 +133,7 @@ char *str;
     return(*str == '\0' ? NULL : str);
 }
 
-int
+static int
 scanint(str, intp)
 
 char *str;
@@ -178,12 +180,6 @@ int  *intp;
 
 #define ERRMAX 20
 
-struct errs		/* structure for a system-call error */
-{
-    int  errnum;	/* value of errno (that is, the actual error) */
-    char *arg;		/* argument that caused the error */
-};
-
 static struct errs errs[ERRMAX];
 static int errcnt;
 static char *err_toomany = " too many errors occurred";
@@ -212,7 +208,6 @@ static char *err_listem =
 #define STRMAX 80
 
 char *err_string()
-
 {
     struct errs *errp;
     int  cnt = 0;
@@ -282,7 +277,7 @@ int err;
     char *msg;
     int  msglen;
 
-    msg = err == 0 ? "Not a number" : errmsg(err);
+    msg = err == 0 ? "Not a number" : strerror(err);
     msglen = strlen(msg) + 2;
     if (len <= msglen)
     {
@@ -332,17 +327,18 @@ int  first;
  *	for sorting errors.
  */
 
-int
-err_compar(p1, p2)
-
-struct errs *p1, *p2;
-
+static int
+err_compar(const void *p1, const void *p2)
 {
     int result;
+    struct errs * g1 = (struct errs *)p1;
+    struct errs * g2 = (struct errs *)p2;
 
-    if ((result = p1->errnum - p2->errnum) == 0)
+
+
+    if ((result = g1->errnum - g2->errnum) == 0)
     {
-	return(strcmp(p1->arg, p2->arg));
+	return(strcmp(g1->arg, g2->arg));
     }
     return(result);
 }
@@ -373,7 +369,7 @@ show_errors()
     while (cnt++ < errcnt)
     {
 	printf("%5s: %s\n", errp->arg,
-	    errp->errnum == 0 ? "Not a number" : errmsg(errp->errnum));
+	    errp->errnum == 0 ? "Not a number" : strerror(errp->errnum));
 	errp++;
     }
 }
@@ -383,10 +379,8 @@ show_errors()
  *		command does; invoked in response to 'k'.
  */
 
-char *kill_procs(str)
-
-char *str;
-
+char *
+kill_procs(char *str)
 {
     char *nptr;
     int signum = SIGTERM;	/* default */
@@ -473,10 +467,8 @@ char *str;
  *		"renice" command does; invoked in response to 'r'.
  */
 
-char *renice_procs(str)
-
-char *str;
-
+char *
+renice_procs(char *str)
 {
     char negate;
     int prio;
