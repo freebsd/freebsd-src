@@ -550,6 +550,7 @@ div_detach(struct socket *so)
 	KASSERT(inp != NULL, ("div_detach: inp == NULL"));
 	INP_INFO_WLOCK(&V_divcbinfo);
 	INP_WLOCK(inp);
+	/* XXX defer destruction to epoch_call */
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_divcbinfo);
@@ -629,6 +630,7 @@ static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
+	struct in_pcblist *il;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -668,9 +670,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == NULL)
-		return ENOMEM;
+	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO);
+	inp_list = il->il_inp_list;
 	
 	INP_INFO_RLOCK(&V_divcbinfo);
 	for (inp = LIST_FIRST(V_divcbinfo.ipi_listhead), i = 0; inp && i < n;
@@ -699,14 +700,9 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WLOCK(&V_divcbinfo);
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (!in_pcbrele_rlocked(inp))
-			INP_RUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_divcbinfo);
+	il->il_count = n;
+	il->il_pcbinfo = &V_divcbinfo;
+	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
 
 	if (!error) {
 		/*
@@ -723,7 +719,6 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RUNLOCK(&V_divcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
-	free(inp_list, M_TEMP);
 	return error;
 }
 
@@ -803,6 +798,7 @@ div_modevent(module_t mod, int type, void *unused)
 			break;
 		}
 		ip_divert_ptr = NULL;
+		/* XXX defer to epoch_call ? */
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
 #ifndef VIMAGE
