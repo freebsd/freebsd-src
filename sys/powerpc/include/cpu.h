@@ -135,6 +135,7 @@ extern char etext[];
 #ifdef __powerpc64__
 extern void enter_idle_powerx(void);
 extern uint64_t can_wakeup;
+extern register_t lpcr;
 #endif
 
 void	cpu_halt(void);
