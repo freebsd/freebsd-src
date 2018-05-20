@@ -83,9 +83,7 @@ int pcpu_stats = No;
 /* signal handling routines */
 sigret_t leave();
 sigret_t tstop();
-#ifdef SIGWINCH
 sigret_t top_winch(int);
-#endif
 
 volatile sig_atomic_t leaveflag;
 volatile sig_atomic_t tstopflag;
@@ -105,9 +103,6 @@ jmp_buf jmp_int;
 /* routines that don't return int */
 
 char *username();
-char *ctime();
-char *kill_procs();
-char *renice_procs();
 
 extern int (*compares[])();
 time_t time();
@@ -282,12 +277,6 @@ char *argv[];
     struct timeval timeout;
     char *order_name = NULL;
     int order_index = 0;
-#ifndef FD_SET
-    /* FD_SET and friends are not present:  fake it */
-    typedef int fd_set;
-#define FD_ZERO(x)     (*(x) = 0)
-#define FD_SET(f, x)   (*(x) = 1<<f)
-#endif
     fd_set readfds;
 
     static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
@@ -662,9 +651,7 @@ char *argv[];
     (void) signal(SIGINT, leave);
     (void) signal(SIGQUIT, leave);
     (void) signal(SIGTSTP, tstop);
-#ifdef SIGWINCH
     (void) signal(SIGWINCH, top_winch);
-#endif
 #ifdef SIGRELSE
     sigrelse(SIGINT);
     sigrelse(SIGQUIT);
@@ -1258,25 +1245,22 @@ reset_display()
  */
 
 sigret_t leave()	/* exit under normal conditions -- INT handler */
-
 {
+
     leaveflag = 1;
 }
 
-sigret_t tstop(i)	/* SIGTSTP handler */
-
-int i;
-
+sigret_t tstop(int i __unused)	/* SIGTSTP handler */
 {
+
     tstopflag = 1;
 }
 
-#ifdef SIGWINCH
-sigret_t top_winch(int i)		/* SIGWINCH handler */
+sigret_t top_winch(int i __unused)		/* SIGWINCH handler */
 {
+
     winchflag = 1;
 }
-#endif
 
 void quit(status)		/* exit under duress */
 
