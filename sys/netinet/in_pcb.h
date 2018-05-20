@@ -41,6 +41,7 @@
 #define _NETINET_IN_PCB_H_
 
 #include <sys/queue.h>
+#include <sys/epoch.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
@@ -405,6 +406,13 @@ struct inpcbport {
 	LIST_ENTRY(inpcbport) phd_hash;
 	struct inpcbhead phd_pcblist;
 	u_short phd_port;
+};
+
+struct in_pcblist {
+	int il_count;
+	struct epoch_context il_epoch_ctx;
+	struct inpcbinfo *il_pcbinfo;
+	struct inpcb *il_inp_list[0];
 };
 
 /*-
@@ -829,6 +837,7 @@ void	in_pcbrehash_mbuf(struct inpcb *, struct mbuf *);
 int	in_pcbrele(struct inpcb *);
 int	in_pcbrele_rlocked(struct inpcb *);
 int	in_pcbrele_wlocked(struct inpcb *);
+void	in_pcblist_rele_rlocked(epoch_context_t ctx);
 void	in_losing(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
