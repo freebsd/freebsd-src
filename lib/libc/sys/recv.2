@@ -198,7 +198,11 @@ If no data is available,
 .Va errno
 is set to
 .Er EAGAIN .
-This flag is not available in strict ANSI or C99 compilation mode.
+This flag is not available in
+.St -ansiC
+or
+.St -isoC-99
+compilation mode.
 The
 .Dv MSG_WAITFORONE
 flag sets MSG_DONTWAIT after the first message has been received.
