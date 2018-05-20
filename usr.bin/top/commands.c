@@ -116,7 +116,7 @@ z       - toggle the displaying of the system idle process\n\
 
 char *next_field(str)
 
-register char *str;
+char *str;
 
 {
     if ((str = strchr(str, ' ')) == NULL)
@@ -138,8 +138,8 @@ char *str;
 int  *intp;
 
 {
-    register int val = 0;
-    register char ch;
+    int val = 0;
+    char ch;
 
     /* if there is nothing left of the string, flag it as an error */
     /* This fix is dedicated to Greg Earle */
@@ -214,10 +214,10 @@ static char *err_listem =
 char *err_string()
 
 {
-    register struct errs *errp;
-    register int  cnt = 0;
-    register int  first = Yes;
-    register int  currerr = -1;
+    struct errs *errp;
+    int  cnt = 0;
+    int  first = Yes;
+    int  currerr = -1;
     int stringlen;		/* characters still available in "string" */
     static char string[STRMAX];
 
@@ -279,8 +279,8 @@ int len;
 int err;
 
 {
-    register char *msg;
-    register int  msglen;
+    char *msg;
+    int  msglen;
 
     msg = err == 0 ? "Not a number" : errmsg(err);
     msglen = strlen(msg) + 2;
@@ -308,7 +308,7 @@ char *arg;
 int  first;
 
 {
-    register int arglen;
+    int arglen;
 
     arglen = strlen(arg);
     if (!first)
@@ -335,10 +335,10 @@ int  first;
 int
 err_compar(p1, p2)
 
-register struct errs *p1, *p2;
+struct errs *p1, *p2;
 
 {
-    register int result;
+    int result;
 
     if ((result = p1->errnum - p2->errnum) == 0)
     {
@@ -366,8 +366,8 @@ void
 show_errors()
 
 {
-    register int cnt = 0;
-    register struct errs *errp = errs;
+    int cnt = 0;
+    struct errs *errp = errs;
 
     printf("%d error%s:\n\n", errcnt, errcnt == 1 ? "" : "s");
     while (cnt++ < errcnt)
@@ -388,7 +388,7 @@ char *kill_procs(str)
 char *str;
 
 {
-    register char *nptr;
+    char *nptr;
     int signum = SIGTERM;	/* default */
     int procnum;
     struct sigdesc *sigp;
@@ -478,7 +478,7 @@ char *renice_procs(str)
 char *str;
 
 {
-    register char negate;
+    char negate;
     int prio;
     int procnum;
     int uid;
