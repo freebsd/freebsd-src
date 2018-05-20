@@ -872,18 +872,20 @@ pmclog_close(struct pmc_owner *po)
 	pmclog_process_closelog(po);
 
 	mtx_lock(&pmc_kthread_mtx);
-
+	/*
+	 * Initiate shutdown: no new data queued,
+	 * thread will close file on last block.
+	 */
+	po->po_flags |= PMC_PO_SHUTDOWN;
+	/* give time for all to see */
+	DELAY(50);
+	
 	/*
 	 * Schedule the current buffer.
 	 */
 	pmclog_schedule_all(po);
 	wakeup_one(po);
 
-	/*
-	 * Initiate shutdown: no new data queued,
-	 * thread will close file on last block.
-	 */
-	po->po_flags |= PMC_PO_SHUTDOWN;
 	mtx_unlock(&pmc_kthread_mtx);
 
 	return (0);
