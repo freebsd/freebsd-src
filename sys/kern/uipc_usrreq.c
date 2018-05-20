@@ -282,7 +282,7 @@ static struct mtx	unp_defers_lock;
 #define UNP_REF_LIST_UNLOCK()		UNP_DEFERRED_UNLOCK();
 
 #define UNP_PCB_LOCK_INIT(unp)		mtx_init(&(unp)->unp_mtx,	\
-					    "unp_mtx", "unp_mtx",	\
+					    "unp", "unp",	\
 					    MTX_DUPOK|MTX_DEF)
 #define	UNP_PCB_LOCK_DESTROY(unp)	mtx_destroy(&(unp)->unp_mtx)
 #define	UNP_PCB_LOCK(unp)		mtx_lock(&(unp)->unp_mtx)
