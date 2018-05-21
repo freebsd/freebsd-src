@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
  * Copyright (c) 2013 Alexander Fedorov
  * All rights reserved.
  *
@@ -431,12 +434,12 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 
 	/* Enable DMA */
 	val = AW_MMC_READ_4(sc, AW_MMC_GCTL);
-	val &= ~AW_MMC_CTRL_FIFO_AC_MOD;
-	val |= AW_MMC_CTRL_DMA_ENB;
+	val &= ~AW_MMC_GCTL_FIFO_AC_MOD;
+	val |= AW_MMC_GCTL_DMA_ENB;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, val);
 
 	/* Reset DMA */
-	val |= AW_MMC_CTRL_DMA_RST;
+	val |= AW_MMC_GCTL_DMA_RST;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, val);
 
 	AW_MMC_WRITE_4(sc, AW_MMC_DMAC, AW_MMC_DMAC_IDMAC_SOFT_RST);
@@ -463,12 +466,15 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 static int
 aw_mmc_reset(struct aw_mmc_softc *sc)
 {
+	uint32_t reg;
 	int timeout;
 
-	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, AW_MMC_RESET);
+	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
+	reg |= AW_MMC_GCTL_RESET;
+	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
 	timeout = 1000;
 	while (--timeout > 0) {
-		if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) & AW_MMC_RESET) == 0)
+		if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) & AW_MMC_GCTL_RESET) == 0)
 			break;
 		DELAY(100);
 	}
@@ -481,6 +487,7 @@ aw_mmc_reset(struct aw_mmc_softc *sc)
 static int
 aw_mmc_init(struct aw_mmc_softc *sc)
 {
+	uint32_t reg;
 	int ret;
 
 	ret = aw_mmc_reset(sc);
@@ -506,9 +513,12 @@ aw_mmc_init(struct aw_mmc_softc *sc)
 
 	AW_MMC_WRITE_4(sc, AW_MMC_IDST, 0xffffffff);
 
-	/* Enable interrupts and AHB access. */
-	AW_MMC_WRITE_4(sc, AW_MMC_GCTL,
-	    AW_MMC_READ_4(sc, AW_MMC_GCTL) | AW_MMC_CTRL_INT_ENB);
+	/* Enable interrupts and disable AHB access. */
+	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
+	reg |= AW_MMC_GCTL_INT_ENB;
+	reg &= ~AW_MMC_GCTL_FIFO_AC_MOD;
+	reg &= ~AW_MMC_GCTL_WAIT_MEM_ACCESS;
+	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
 
 	return (0);
 }
@@ -524,7 +534,7 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 	cmd = sc->aw_req->cmd;
 	if (cmd->error != MMC_ERR_NONE) {
 		/* Reset the FIFO and DMA engines. */
-		mask = AW_MMC_CTRL_FIFO_RST | AW_MMC_CTRL_DMA_RST;
+		mask = AW_MMC_GCTL_FIFO_RST | AW_MMC_GCTL_DMA_RST;
 		val = AW_MMC_READ_4(sc, AW_MMC_GCTL);
 		AW_MMC_WRITE_4(sc, AW_MMC_GCTL, val | mask);
 
@@ -998,9 +1008,9 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
 	if (ios->timing == bus_timing_uhs_ddr50 ||
 	  ios->timing == bus_timing_mmc_ddr52)
-		reg |= AW_MMC_CTRL_DDR_MOD_SEL;
+		reg |= AW_MMC_GCTL_DDR_MOD_SEL;
 	else
-		reg &= ~AW_MMC_CTRL_DDR_MOD_SEL;
+		reg &= ~AW_MMC_GCTL_DDR_MOD_SEL;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
 
 	if (ios->clock && ios->clock != sc->aw_clock) {
