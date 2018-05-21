@@ -872,7 +872,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		total_oublock += p_oublock;
 		total_majflt += p_majflt;
 		total_procs++;
-		process_states[pp->ki_stat]++;
+		process_states[(unsigned char)pp->ki_stat]++;
 
 		if (pp->ki_stat == SZOMB)
 			/* skip zombies */
@@ -1316,7 +1316,7 @@ static int sorted_state[] = {
 } while (0)
 
 #define ORDERKEY_STATE(a, b) do { \
-	int diff = sorted_state[(b)->ki_stat] - sorted_state[(a)->ki_stat]; \
+	int diff = sorted_state[(unsigned char)(b)->ki_stat] - sorted_state[(unsigned char)(a)->ki_stat]; \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
