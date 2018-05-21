@@ -326,7 +326,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 		}
 	}
 
-	if (patch_str)
+	if (patch_str != NULL)
 		config = hdaa_widget_pin_patch(config, patch_str);
 	HDA_BOOTVERBOSE(
 		if (config != orig)
