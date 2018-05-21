@@ -43,6 +43,7 @@
 
 #include "top.h"
 #include "machine.h"
+#include "display.h"
 #include "screen.h"
 #include "utils.h"
 #include "layout.h"
@@ -52,7 +53,7 @@
 #define	UPUNAMELEN	15
 
 extern struct process_select ps;
-extern char* printable(char *);
+extern struct timeval timeout;
 static int smpmode;
 enum displaymodes displaymode;
 #ifdef TOP_USERNAME_LEN
@@ -66,9 +67,6 @@ static int namelength = 8;
 static int jidlength;
 static int swaplength;
 static int cmdlengthdelta;
-
-/* Prototypes for top internals */
-void quit(int);
 
 /* get_process_info passes back a handle.  This is what it looks like: */
 
@@ -232,9 +230,6 @@ static int pageshift;		/* log base 2 of the pagesize */
 /* swap usage */
 #define ki_swap(kip) \
     ((kip)->ki_swrss > (kip)->ki_rssize ? (kip)->ki_swrss - (kip)->ki_rssize : 0)
-
-/* useful externals */
-long percentages(int cnt, int *out, long *new, long *old, long *diffs);
 
 /*
  * Sorting orders.  The first element is the default.
@@ -470,7 +465,6 @@ format_header(char *uname_field)
 
 static int swappgsin = -1;
 static int swappgsout = -1;
-extern struct timeval timeout;
 
 
 void

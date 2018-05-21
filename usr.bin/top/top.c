@@ -3,7 +3,6 @@ char *copyright =
 
 /*
  *  Top users/processes display for Unix
- *  Version 3
  *
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
@@ -14,23 +13,6 @@ char *copyright =
  *  Copyright (c) 1996, William LeFebvre, Group sys Consulting
  *
  * $FreeBSD$
- */
-
-/*
- *  See the file "Changes" for information on version-to-version changes.
- */
-
-/*
- *  This file contains "main" and other high-level routines.
- */
-
-/*
- * The following preprocessor variables, when defined, are used to
- * distinguish between different Unix implementations:
- *
- *	SIGHOLD  - use SVR4 sighold function when defined
- *	SIGRELSE - use SVR4 sigrelse function when defined
- *	FD_SET   - macros FD_SET and FD_ZERO are used when defined
  */
 
 #include <sys/types.h>
@@ -48,7 +30,6 @@ char *copyright =
 #include <string.h>
 #include <unistd.h>
 
-/* includes specific to top */
 #include "commands.h"
 #include "display.h"		/* interface to display package */
 #include "screen.h"		/* interface to screen package */
@@ -70,12 +51,6 @@ char stdoutbuf[Buffersize];
 /* build Signal masks */
 #define Smask(s)	(1 << ((s) - 1))
 
-/* for getopt: */
-extern int  optind;
-extern char *optarg;
-
-/* imported from screen.c */
-extern int overstrike;
 
 static int fmt_flags = 0;
 int pcpu_stats = No;
@@ -85,12 +60,9 @@ static sigret_t leave(int);
 static sigret_t tstop(int);
 static sigret_t top_winch(int);
 
-volatile sig_atomic_t leaveflag;
-volatile sig_atomic_t tstopflag;
-volatile sig_atomic_t winchflag;
-
-/* internal routines */
-void quit(int);
+static volatile sig_atomic_t leaveflag;
+static volatile sig_atomic_t tstopflag;
+static volatile sig_atomic_t winchflag;
 
 /* values which need to be accessed by signal handlers */
 static int max_topn;		/* maximum displayable processes */
@@ -102,7 +74,6 @@ jmp_buf jmp_int;
 
 char *username(int);
 
-extern int (*compares[])(const void*, const void*);
 time_t time(time_t *tloc);
 
 caddr_t get_process_info(struct system_info *si, struct process_select *sel,
