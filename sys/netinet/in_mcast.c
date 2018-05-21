@@ -663,15 +663,17 @@ inm_release(struct in_multi *inm)
 
 	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
-	if (ifp)
+	if (ifp != NULL) {
 		CURVNET_SET(ifp->if_vnet);
-	inm_purge(inm);
-	free(inm, M_IPMADDR);
-
-	if_delmulti_ifma_flags(ifma, 1);
-	if (ifp) {
+		inm_purge(inm);
+		free(inm, M_IPMADDR);
+		if_delmulti_ifma_flags(ifma, 1);
 		CURVNET_RESTORE();
 		if_rele(ifp);
+	} else {
+		inm_purge(inm);
+		free(inm, M_IPMADDR);
+		if_delmulti_ifma_flags(ifma, 1);
 	}
 }
 
@@ -1677,11 +1679,13 @@ inp_gcmoptions(epoch_context_t ctx)
 			imf_leave(imf);
 		inm = imo->imo_membership[idx];
 		ifp = inm->inm_ifp;
-		if (ifp)
+		if (ifp != NULL) {
 			CURVNET_SET(ifp->if_vnet);
-		(void)in_leavegroup(inm, imf);
-		if (ifp)
+			(void)in_leavegroup(inm, imf);
 			CURVNET_RESTORE();
+		} else {
+			(void)in_leavegroup(inm, imf);
+		}
 		if (imf)
 			imf_purge(imf);
 	}
