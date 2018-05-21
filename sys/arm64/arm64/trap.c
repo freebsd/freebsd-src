@@ -189,8 +189,16 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		}
 	}
 
-	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
-		return;
+	/*
+	 * We may fault from userspace or when in a DMAP region due to
+	 * a superpage being unmapped when the access took place. In these
+	 * cases we need to wait for the pmap to be unlocked and check
+	 * if the translation is still invalid.
+	 */
+	if (map != kernel_map || VIRT_IN_DMAP(far)) {
+		if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+			return;
+	}
 
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
