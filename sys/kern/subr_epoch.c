@@ -298,18 +298,15 @@ void
 epoch_enter(epoch_t epoch)
 {
 	ck_epoch_record_t *record;
-	ck_epoch_section_t *section;
 	struct thread *td;
 
 	MPASS(cold || epoch != NULL);
-	section = NULL;
 	td = curthread;
-	critical_enter();
-	if (__predict_true(td->td_epochnest++ == 0))
-		section = (ck_epoch_section_t*)&td->td_epoch_section;
 
+	critical_enter();
+	td->td_epochnest++;
 	record = &epoch->e_pcpu[curcpu]->eps_record.er_record;
-	ck_epoch_begin(record, section);
+	ck_epoch_begin(record, NULL);
 }
 
 void
@@ -339,16 +336,12 @@ void
 epoch_exit(epoch_t epoch)
 {
 	ck_epoch_record_t *record;
-	ck_epoch_section_t *section;
 	struct thread *td;
 
-	section = NULL;
 	td = curthread;
-	MPASS(td->td_critnest);
-	if (__predict_true(td->td_epochnest-- == 1))
-		section = (ck_epoch_section_t*)&td->td_epoch_section;
+	td->td_epochnest--;
 	record = &epoch->e_pcpu[curcpu]->eps_record.er_record;
-	ck_epoch_end(record, section);
+	ck_epoch_end(record, NULL);
 	critical_exit();
 }
 
