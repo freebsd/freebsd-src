@@ -244,6 +244,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #endif
 #ifdef __amd64__
 		hw_ibrs_active = 0;
+		hw_ssb_active = 0;
 		cpu_stdext_feature3 = 0;
 		CPU_FOREACH(i) {
 			pc = pcpu_find(i);
