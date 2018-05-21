@@ -40,7 +40,7 @@
 /* Size of the stdio buffer given to stdout */
 #define Buffersize	2048
 
-char copyright[] =
+char *copyright =
     "Copyright (c) 1984 through 1996, William LeFebvre";
 
 typedef void sigret_t;
@@ -211,7 +211,7 @@ char *argv[];
 
     struct system_info system_info;
     struct statics statics;
-    void * processes;
+    caddr_t processes;
 
     static char tempbuf1[50];
     static char tempbuf2[50];
