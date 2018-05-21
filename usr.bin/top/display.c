@@ -588,10 +588,13 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
  *                for i_memory ONLY: cursor is on the previous line
  */
 
-static char memory_buffer[MAX_COLS];
+char memory_buffer[MAX_COLS];
 
 void
-i_memory(int *stats)
+i_memory(stats)
+
+int *stats;
+
 {
     fputs("\nMem: ", stdout);
     lastline++;
@@ -602,7 +605,10 @@ i_memory(int *stats)
 }
 
 void
-u_memory(int *stats)
+u_memory(stats)
+
+int *stats;
+
 {
     static char new[MAX_COLS];
 

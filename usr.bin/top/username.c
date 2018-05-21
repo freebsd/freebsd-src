@@ -56,7 +56,7 @@ struct hash_el {
 
 /* K&R requires that statically declared tables be initialized to zero. */
 /* We depend on that for hash_table and YOUR compiler had BETTER do it! */
-static struct hash_el hash_table[Table_size];
+struct hash_el hash_table[Table_size];
 
 
 char *username(uid)
