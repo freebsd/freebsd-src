@@ -328,7 +328,6 @@ struct inpcb {
 	LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
 	                                /* (p[w]) for list iteration */
 	                                /* (p[r]/l) for addition/removal */
-	struct epoch_context inp_epoch_ctx;
 };
 #endif	/* _KERNEL */
 
