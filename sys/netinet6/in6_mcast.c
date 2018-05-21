@@ -539,15 +539,17 @@ in6m_release(struct in6_multi *inm)
 	KASSERT(ifma->ifma_protospec == NULL,
 	    ("%s: ifma_protospec != NULL", __func__));
 
-	if (ifp)
+	if (ifp != NULL) {
 		CURVNET_SET(ifp->if_vnet);
-	in6m_purge(inm);
-	free(inm, M_IP6MADDR);
-
-	if_delmulti_ifma_flags(ifma, 1);
-	if (ifp) {
+		in6m_purge(inm);
+		free(inm, M_IP6MADDR);
+		if_delmulti_ifma_flags(ifma, 1);
 		CURVNET_RESTORE();
 		if_rele(ifp);
+	} else {
+		in6m_purge(inm);
+		free(inm, M_IP6MADDR);
+		if_delmulti_ifma_flags(ifma, 1);
 	}
 }
 
@@ -1639,11 +1641,13 @@ inp_gcmoptions(epoch_context_t ctx)
 			im6f_leave(imf);
 		inm = imo->im6o_membership[idx];
 		ifp = inm->in6m_ifp;
-		if (ifp)
+		if (ifp != NULL) {
 			CURVNET_SET(ifp->if_vnet);
-		(void)in6_leavegroup(inm, imf);
-		if (ifp)
+			(void)in6_leavegroup(inm, imf);
 			CURVNET_RESTORE();
+		} else {
+			(void)in6_leavegroup(inm, imf);
+		}
 		if (imf)
 			im6f_purge(imf);
 	}
