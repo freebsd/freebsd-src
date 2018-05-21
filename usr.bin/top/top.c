@@ -31,7 +31,6 @@
 #include "display.h"		/* interface to display package */
 #include "screen.h"		/* interface to screen package */
 #include "top.h"
-#include "top.local.h"
 #include "boolean.h"
 #include "machine.h"
 #include "utils.h"
