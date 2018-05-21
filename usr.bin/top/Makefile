@@ -7,7 +7,7 @@ SRCS+=	sigdesc.h top.local.h
 CFLAGS+= -I ${.OBJDIR}
 MAN=	top.1
 
-WARNS?=	1
+WARNS?=	2
 
 LIBADD=	ncursesw m kvm jail
 
