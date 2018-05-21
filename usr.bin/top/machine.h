@@ -91,4 +91,8 @@ int	 proc_owner(int pid);
 /* non-int routines typically used by the machine dependent module */
 char	*printable(char *string);
 
+caddr_t
+get_process_info(struct system_info *si, struct process_select *sel,
+    int (*compare)(const void *, const void *));
+
 #endif /* MACHINE_H */
