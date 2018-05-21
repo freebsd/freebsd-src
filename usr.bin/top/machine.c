@@ -993,7 +993,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 		    state < sizeof(state_abbrev) / sizeof(*state_abbrev))
 			sprintf(status, "%.6s", state_abbrev[state]);
 		else
-			sprintf(status, "?%5lu", state);
+			sprintf(status, "?%5zu", state);
 		break;
 	}
 
