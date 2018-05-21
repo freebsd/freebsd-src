@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
  * Copyright (c) 2013 Alexander Fedorov <alexander.fedorov@rtlservice.com>
  * All rights reserved.
  *
@@ -66,16 +69,17 @@
 #define	A31_MMC_FIFO		0x200	/* FIFO Access Address (A31) */
 
 /* AW_MMC_GCTL */
-#define	AW_MMC_CTRL_SOFT_RST		(1U << 0)
-#define	AW_MMC_CTRL_FIFO_RST		(1U << 1)
-#define	AW_MMC_CTRL_DMA_RST		(1U << 2)
-#define	AW_MMC_CTRL_INT_ENB		(1U << 4)
-#define	AW_MMC_CTRL_DMA_ENB		(1U << 5)
-#define	AW_MMC_CTRL_CD_DBC_ENB		(1U << 8)
-#define	AW_MMC_CTRL_DDR_MOD_SEL		(1U << 10)
-#define	AW_MMC_CTRL_FIFO_AC_MOD		(1U << 31)
-#define	AW_MMC_RESET					\
-	(AW_MMC_CTRL_SOFT_RST | AW_MMC_CTRL_FIFO_RST | AW_MMC_CTRL_DMA_RST)
+#define	AW_MMC_GCTL_SOFT_RST		(1U << 0)
+#define	AW_MMC_GCTL_FIFO_RST		(1U << 1)
+#define	AW_MMC_GCTL_DMA_RST		(1U << 2)
+#define	AW_MMC_GCTL_INT_ENB		(1U << 4)
+#define	AW_MMC_GCTL_DMA_ENB		(1U << 5)
+#define	AW_MMC_GCTL_CD_DBC_ENB		(1U << 8)
+#define	AW_MMC_GCTL_DDR_MOD_SEL		(1U << 10)
+#define	AW_MMC_GCTL_WAIT_MEM_ACCESS	(1U << 30)
+#define	AW_MMC_GCTL_FIFO_AC_MOD		(1U << 31)
+#define	AW_MMC_GCTL_RESET			\
+	(AW_MMC_GCTL_SOFT_RST | AW_MMC_GCTL_FIFO_RST | AW_MMC_GCTL_DMA_RST)
 
 /* AW_MMC_CKCR */
 #define	AW_MMC_CKCR_CCLK_ENB		(1U << 16)
