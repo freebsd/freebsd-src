@@ -441,40 +441,6 @@ int *brkdn;
     }
 }
 
-#ifdef no_more
-/*
- *  *_cpustates(states, names) - print the cpu state percentages
- *
- *  Assumptions:  cursor is on the PREVIOUS line
- */
-
-/* cpustates_tag() calculates the correct tag to use to label the line */
-
-char *cpustates_tag()
-
-{
-    char *use;
-
-    static char *short_tag = "CPU: ";
-    static char *long_tag = "CPU states: ";
-
-    /* if length + strlen(long_tag) >= screen_width, then we have to
-       use the shorter tag (we subtract 2 to account for ": ") */
-    if (cpustate_total_length + (int)strlen(long_tag) - 2 >= screen_width)
-    {
-	use = short_tag;
-    }
-    else
-    {
-	use = long_tag;
-    }
-
-    /* set cpustates_column accordingly then return result */
-    cpustates_column = strlen(use);
-    return(use);
-}
-#endif
-
 void
 i_cpustates(states)
 

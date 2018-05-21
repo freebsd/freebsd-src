@@ -13,7 +13,6 @@ void	 clear_message(void);
 int		 display_resize(void);
 void	 i_header(char *text);
 char	*printable(char *string);
-char	*cpustates_tag(void);
 void	 display_header(int t);
 int		 display_init(struct statics *statics);
 void	 i_arc(int *stats);
