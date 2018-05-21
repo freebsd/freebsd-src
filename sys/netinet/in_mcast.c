@@ -653,6 +653,7 @@ inm_release(struct in_multi *inm)
 {
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
+	struct vnet *saved_vnet;
 
 	CTR2(KTR_IGMPV3, "%s: refcount is %d", __func__, inm->inm_refcount);
 	MPASS(inm->inm_refcount == 0);
@@ -663,14 +664,16 @@ inm_release(struct in_multi *inm)
 
 	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
-	if (ifp)
-		CURVNET_SET(ifp->if_vnet);
+	if (ifp) {
+		saved_vnet = curvnet;
+		curvnet = ifp->if_vnet;
+	}
 	inm_purge(inm);
 	free(inm, M_IPMADDR);
 
 	if_delmulti_ifma_flags(ifma, 1);
 	if (ifp) {
-		CURVNET_RESTORE();
+		curvnet = saved_vnet;
 		if_rele(ifp);
 	}
 }
@@ -1666,6 +1669,7 @@ inp_gcmoptions(epoch_context_t ctx)
 	struct in_mfilter	*imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
+	struct vnet *saved_vnet;
 	size_t			 idx, nmships;
 
 	imo =  __containerof(ctx, struct ip_moptions, imo_epoch_ctx);
@@ -1677,11 +1681,13 @@ inp_gcmoptions(epoch_context_t ctx)
 			imf_leave(imf);
 		inm = imo->imo_membership[idx];
 		ifp = inm->inm_ifp;
-		if (ifp)
-			CURVNET_SET(ifp->if_vnet);
+		if (ifp) {
+			saved_vnet = curvnet;
+			curvnet = ifp->if_vnet;
+		}
 		(void)in_leavegroup(inm, imf);
 		if (ifp)
-			CURVNET_RESTORE();
+			curvnet = saved_vnet;
 		if (imf)
 			imf_purge(imf);
 	}

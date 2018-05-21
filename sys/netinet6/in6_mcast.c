@@ -524,6 +524,7 @@ in6m_release(struct in6_multi *inm)
 {
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
+	struct vnet *saved_vnet;
 
 	CTR2(KTR_MLD, "%s: refcount is %d", __func__, inm->in6m_refcount);
 
@@ -539,14 +540,16 @@ in6m_release(struct in6_multi *inm)
 	KASSERT(ifma->ifma_protospec == NULL,
 	    ("%s: ifma_protospec != NULL", __func__));
 
-	if (ifp)
-		CURVNET_SET(ifp->if_vnet);
+	if (ifp) {
+		saved_vnet = curvnet;
+		curvnet = ifp->if_vnet;
+	}
 	in6m_purge(inm);
 	free(inm, M_IP6MADDR);
 
 	if_delmulti_ifma_flags(ifma, 1);
 	if (ifp) {
-		CURVNET_RESTORE();
+		curvnet = saved_vnet;
 		if_rele(ifp);
 	}
 }
@@ -1628,6 +1631,7 @@ inp_gcmoptions(epoch_context_t ctx)
 	struct in6_mfilter	*imf;
 	struct in6_multi *inm;
 	struct ifnet *ifp;
+	struct vnet *saved_vnet;
 	size_t			 idx, nmships;
 
 	imo =  __containerof(ctx, struct ip6_moptions, imo6_epoch_ctx);
@@ -1639,11 +1643,13 @@ inp_gcmoptions(epoch_context_t ctx)
 			im6f_leave(imf);
 		inm = imo->im6o_membership[idx];
 		ifp = inm->in6m_ifp;
-		if (ifp)
-			CURVNET_SET(ifp->if_vnet);
+		if (ifp) {
+			saved_vnet = curvnet;
+			curvnet = ifp->if_vnet;
+		}			
 		(void)in6_leavegroup(inm, imf);
 		if (ifp)
-			CURVNET_RESTORE();
+			curvnet = saved_vnet;
 		if (imf)
 			im6f_purge(imf);
 	}
