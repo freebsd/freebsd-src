@@ -75,18 +75,17 @@ struct process_select
 /* routines defined by the machine dependent module */
 
 char	*format_header(char *uname_field);
-char	*format_next_process(void * handle, char *(*get_userid)(int),
+char	*format_next_process(caddr_t handle, char *(*get_userid)(int),
 	    int flags);
 void	 toggle_pcpustats(void);
 void	 get_system_info(struct system_info *si);
 int	 machine_init(struct statics *statics);
 int	 proc_owner(int pid);
-extern struct process_select ps;
 
 /* non-int routines typically used by the machine dependent module */
 char	*printable(char *string);
 
-void *
+caddr_t
 get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *));
 
