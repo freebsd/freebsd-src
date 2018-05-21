@@ -62,7 +62,9 @@ struct preloaded_file;
 struct file_format;
 
 /* MD code implementing MI interfaces */
+#if !defined(__sparc64__)
 vm_offset_t md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
+#endif
 vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
 
 extern void	reboot(void);
