@@ -42,8 +42,9 @@
 #include <vis.h>
 
 #include "top.h"
-#include "machine.h"
 #include "display.h"
+#include "machine.h"
+#include "loadavg.h"
 #include "screen.h"
 #include "utils.h"
 #include "layout.h"
@@ -56,11 +57,7 @@ extern struct process_select ps;
 extern struct timeval timeout;
 static int smpmode;
 enum displaymodes displaymode;
-#ifdef TOP_USERNAME_LEN
-static int namelength = TOP_USERNAME_LEN;
-#else
 static int namelength = 8;
-#endif
 /* TOP_JID_LEN based on max of 999999 */
 #define TOP_JID_LEN 7
 #define TOP_SWAP_LEN 6
@@ -75,8 +72,6 @@ struct handle {
 	int remaining;			/* number of pointers remaining */
 };
 
-/* declarations for load_avg */
-#include "loadavg.h"
 
 /* define what weighted cpu is.  */
 #define weighted_cpu(pct, pp) ((pp)->ki_swtime == 0 ? 0.0 : \
