@@ -46,6 +46,8 @@ extern enum displaymodes displaymode;
 extern int pcpu_stats;
 extern int  overstrike;
 
+extern const char * myname;
+
 extern int (*compares[])(const void*, const void*);
 
 char* kill_procs(char *);

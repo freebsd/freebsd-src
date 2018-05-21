@@ -1,6 +1,3 @@
-char *copyright =
-    "Copyright (c) 1984 through 1996, William LeFebvre";
-
 /*
  *  Top users/processes display for Unix
  *
@@ -43,10 +40,13 @@ char *copyright =
 /* Size of the stdio buffer given to stdout */
 #define Buffersize	2048
 
+char *copyright =
+    "Copyright (c) 1984 through 1996, William LeFebvre";
+
 typedef void sigret_t;
 
 /* The buffer that stdio will use */
-char stdoutbuf[Buffersize];
+static char stdoutbuf[Buffersize];
 
 /* build Signal masks */
 #define Smask(s)	(1 << ((s) - 1))
@@ -69,15 +69,11 @@ static int max_topn;		/* maximum displayable processes */
 
 /* miscellaneous things */
 struct process_select ps;
-char *myname = "top";
-jmp_buf jmp_int;
+const char * myname = "top";
 
 char *username(int);
 
 time_t time(time_t *tloc);
-
-caddr_t get_process_info(struct system_info *si, struct process_select *sel,
-    int (*compare)(const void *, const void *));
 
 /* different routines for displaying the user's identification */
 /* (values assigned to get_userid) */
@@ -85,18 +81,18 @@ char *username(int);
 char *itoa7(int);
 
 /* pointers to display routines */
-void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
-void (*d_procstates)(int total, int *brkdn) = i_procstates;
-void (*d_cpustates)(int *states) = i_cpustates;
-void (*d_memory)(int *stats) = i_memory;
-void (*d_arc)(int *stats) = i_arc;
-void (*d_carc)(int *stats) = i_carc;
-void (*d_swap)(int *stats) = i_swap;
-void (*d_message)(void) = i_message;
-void (*d_header)(char *text) = i_header;
-void (*d_process)(int line, char *thisline) = i_process;
+static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
+static void (*d_procstates)(int total, int *brkdn) = i_procstates;
+static void (*d_cpustates)(int *states) = i_cpustates;
+static void (*d_memory)(int *stats) = i_memory;
+static void (*d_arc)(int *stats) = i_arc;
+static void (*d_carc)(int *stats) = i_carc;
+static void (*d_swap)(int *stats) = i_swap;
+static void (*d_message)(void) = i_message;
+static void (*d_header)(char *text) = i_header;
+static void (*d_process)(int line, char *thisline) = i_process;
 
-void reset_display(void);
+static void reset_display(void);
 
 static void
 reset_uids()
@@ -1177,7 +1173,7 @@ restart:
  *	screen will get redrawn.
  */
 
-void
+static void
 reset_display()
 
 {

@@ -32,9 +32,6 @@
 #include "screen.h"
 #include "boolean.h"
 
-extern char *myname;
-
-
 int  overstrike;
 int  screen_length;
 int  screen_width;

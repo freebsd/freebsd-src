@@ -16,6 +16,7 @@
  */
 
 #include "top.h"
+#include "utils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -428,10 +429,8 @@ int amt;
     return(ret);
 }
 
-char *format_k2(amt)
-
-unsigned long long amt;
-
+char *
+format_k2(unsigned long long amt)
 {
     static char retarray[NUM_STRINGS][16];
     static int index = 0;
