@@ -44,9 +44,17 @@ enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 extern enum displaymodes displaymode;
 
 extern int pcpu_stats;
+extern int  overstrike;
+
+extern int (*compares[])(const void*, const void*);
 
 char* kill_procs(char *);
 char* renice_procs(char *);
+
+extern char *copyright;
+/* internal routines */
+void quit(int);
+
 
 /*
  *  The space command forces an immediate update.  Sometimes, on loaded

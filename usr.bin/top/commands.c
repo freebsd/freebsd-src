@@ -35,11 +35,6 @@
 #include "utils.h"
 #include "machine.h"
 
-extern char *copyright;
-
-/* imported from screen.c */
-extern int overstrike;
-
 static int err_compar(const void *p1, const void *p2);
 
 struct errs		/* structure for a system-call error */
