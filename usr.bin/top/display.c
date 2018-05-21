@@ -66,7 +66,7 @@ static int display_width = MAX_COLS;
 /* things initialized by display_init and used thruout */
 
 /* buffer of proc information lines for display updating */
-char *screenbuf = NULL;
+static char *screenbuf = NULL;
 
 static char **procstate_names;
 static char **cpustate_names;
@@ -656,13 +656,10 @@ int *stats;
  *  Assumptions:  cursor is on "lastline"
  *                for i_arc ONLY: cursor is on the previous line
  */
-char arc_buffer[MAX_COLS];
+static char arc_buffer[MAX_COLS];
 
 void
-i_arc(stats)
-
-int *stats;
-
+i_arc(int *stats)
 {
     if (arc_names == NULL)
 	return;
@@ -698,13 +695,10 @@ int *stats;
  *  Assumptions:  cursor is on "lastline"
  *                for i_carc ONLY: cursor is on the previous line
  */
-char carc_buffer[MAX_COLS];
+static char carc_buffer[MAX_COLS];
 
 void
-i_carc(stats)
-
-int *stats;
-
+i_carc(int *stats)
 {
     if (carc_names == NULL)
 	return;
@@ -740,13 +734,10 @@ int *stats;
  *                for i_swap ONLY: cursor is on the previous line
  */
 
-char swap_buffer[MAX_COLS];
+static char swap_buffer[MAX_COLS];
 
 void
-i_swap(stats)
-
-int *stats;
-
+i_swap(int *stats)
 {
     fputs("\nSwap: ", stdout);
     lastline++;
@@ -757,10 +748,7 @@ int *stats;
 }
 
 void
-u_swap(stats)
-
-int *stats;
-
+u_swap(int *stats)
 {
     static char new[MAX_COLS];
 
@@ -790,8 +778,8 @@ static int msglen = 0;
 
 void
 i_message()
-
 {
+
     while (lastline < y_message)
     {
 	fputc('\n', stdout);

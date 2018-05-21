@@ -326,8 +326,8 @@ static int
 err_compar(const void *p1, const void *p2)
 {
     int result;
-    struct errs * g1 = (struct errs *)p1;
-    struct errs * g2 = (struct errs *)p2;
+    const struct errs * const g1 = (const struct errs * const)p1;
+    const struct errs * const g2 = (const struct errs * const)p2;
 
 
 
