@@ -224,6 +224,7 @@ initializecpu(void)
 		pg_nx = PG_NX;
 	}
 	hw_ibrs_recalculate();
+	hw_ssb_recalculate(false);
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		init_amd();
