@@ -81,7 +81,13 @@ enum {
 #define	MODEM_DEFAULT_INTERFACE		"Virtual serial port"
 #define	MODEM_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
 #define	MODEM_DEFAULT_PRODUCT		"Virtual serial port"
-#define	MODEM_DEFAULT_SERIAL_NUMBER	"March 2008"
+/*
+ * The reason for this being called like this is that OSX
+ * derives the device node name from it, resulting in a somewhat
+ * user-friendly "/dev/cu.usbmodemFreeBSD1".  And yes, the "1"
+ * needs to be there, otherwise OSX will mangle it.
+ */
+#define	MODEM_DEFAULT_SERIAL_NUMBER	"FreeBSD1"
 
 static struct usb_string_descriptor	modem_interface;
 static struct usb_string_descriptor	modem_manufacturer;
