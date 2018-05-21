@@ -44,7 +44,6 @@
 #include "layout.h"		/* defines for screen position layout */
 #include "display.h"
 #include "top.h"
-#include "top.local.h"
 #include "boolean.h"
 #include "machine.h"		/* we should eliminate this!!! */
 #include "utils.h"

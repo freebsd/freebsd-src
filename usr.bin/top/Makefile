@@ -2,8 +2,7 @@
 
 PROG=	top
 SRCS=	commands.c display.c machine.c screen.c top.c \
-	username.c utils.c
-SRCS+=	sigdesc.h top.local.h
+	username.c utils.c sigdesc.h
 CFLAGS+= -I ${.OBJDIR}
 MAN=	top.1
 
