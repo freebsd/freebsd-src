@@ -339,7 +339,7 @@ static int
 __elfN(exec)(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
-	vm_offset_t mdp, dtbp;
+	vm_offset_t mdp;
 	Elf_Addr entry;
 	Elf_Ehdr *e;
 	int error;
@@ -348,7 +348,7 @@ __elfN(exec)(struct preloaded_file *fp)
 		return (EFTYPE);
 	e = (Elf_Ehdr *)&fmp->md_data;
 
-	if ((error = md_load(fp->f_args, &mdp, &dtbp)) != 0)
+	if ((error = md_load64(fp->f_args, &mdp, NULL)) != 0)
 		return (error);
 
 	printf("jumping to kernel entry at %#lx.\n", e->e_entry);
