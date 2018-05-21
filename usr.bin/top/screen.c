@@ -59,8 +59,6 @@ char *terminal_end;
 static struct termios old_settings;
 static struct termios new_settings;
 static char is_a_terminal = No;
-static int old_lword;
-static int new_lword;
 
 #define	STDIN	0
 #define	STDOUT	1
