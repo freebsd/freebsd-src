@@ -33,7 +33,12 @@
 #define	_USB_TEMPLATE_H_
 
 #ifndef USB_TEMPLATE_VENDOR
-#define	USB_TEMPLATE_VENDOR	0x0001
+/*
+ * https://github.com/obdev/v-usb/blob/master/usbdrv/USB-IDs-for-free.txt
+ */
+#define	USB_TEMPLATE_VENDOR		0x16c0
+#define	USB_TEMPLATE_MANUFACTURER	\
+	"The FreeBSD Project (https://www.FreeBSD.org)"
 #endif
 
 typedef const void *(usb_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
