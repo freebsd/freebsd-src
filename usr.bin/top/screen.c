@@ -23,9 +23,10 @@
 #include "top.h"
 
 #include <sys/ioctl.h>
+#include <stdlib.h>
 #include <string.h>
-#  define TERMIOS
-#  include <termios.h>
+#define TERMIOS
+#include <termios.h>
 #include <curses.h>
 #include <termcap.h>
 #include "screen.h"
@@ -41,8 +42,6 @@ char ch_erase;
 char ch_kill;
 char smart_terminal;
 char PC;
-char *tgetstr();
-char *tgoto();
 char termcap_buf[1024];
 char string_buffer[1024];
 char home[15];
@@ -73,7 +72,6 @@ int interactive;
     char *bufptr;
     char *PCptr;
     char *term_name;
-    char *getenv();
     int status;
 
     /* set defaults in case we aren't smart */

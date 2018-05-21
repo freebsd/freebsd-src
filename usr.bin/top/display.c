@@ -92,9 +92,9 @@ static int cpustates_column;
 
 static enum { OFF, ON, ERASE } header_status = ON;
 
-static int string_count();
-static void summary_format();
-static void line_update();
+static int string_count(char **);
+static void summary_format(char *, int *, char **);
+static void line_update(char *, char *, int, int);
 
 int  x_lastpid =	10;
 int  y_lastpid =	0;
@@ -1041,11 +1041,9 @@ int hi;
 }
 
 void
-display_header(t)
-
-int t;
-
+display_header(int t)
 {
+
     if (t)
     {
 	header_status = ON;
@@ -1058,17 +1056,12 @@ int t;
 
 /*VARARGS2*/
 void
-new_message(type, msgfmt, a1, a2, a3)
-
-int type;
-char *msgfmt;
-caddr_t a1, a2, a3;
-
+new_message(int type, char *msgfmt, caddr_t a1, caddr_t a2, caddr_t a3)
 {
     int i;
 
     /* first, format the message */
-    (void) snprintf(next_msg, sizeof(next_msg), msgfmt, a1, a2, a3);
+    snprintf(next_msg, sizeof(next_msg), msgfmt, a1, a2, a3);
 
     if (msglen > 0)
     {
@@ -1196,10 +1189,7 @@ int  numeric;
 
 /* internal support routines */
 
-static int string_count(pp)
-
-char **pp;
-
+static int string_count(char **pp)
 {
     int cnt;
 
@@ -1211,12 +1201,7 @@ char **pp;
     return(cnt);
 }
 
-static void summary_format(str, numbers, names)
-
-char *str;
-int *numbers;
-char **names;
-
+static void summary_format(char *str, int *numbers, char **names)
 {
     char *p;
     int num;
