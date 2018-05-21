@@ -91,7 +91,7 @@ enum {
 
 #define	MULTI_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
 #define	MULTI_DEFAULT_PRODUCT_ID	0x05dc
-#define	MULTI_DEFAULT_MODEM		"Virtual serial console"
+#define	MULTI_DEFAULT_MODEM		"Virtual serial port"
 #define	MULTI_DEFAULT_ETH_MAC		"2A02030405060789AB"
 #define	MULTI_DEFAULT_ETH_CONTROL	"Ethernet Comm Interface"
 #define	MULTI_DEFAULT_ETH_DATA		"Ethernet Data Interface"
