@@ -53,7 +53,7 @@ extern int (*compares[])(const void*, const void*);
 char* kill_procs(char *);
 char* renice_procs(char *);
 
-extern char *copyright;
+extern char copyright[];
 /* internal routines */
 void quit(int);
 

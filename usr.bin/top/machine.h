@@ -84,8 +84,9 @@ int	 proc_owner(int pid);
 
 /* non-int routines typically used by the machine dependent module */
 char	*printable(char *string);
+extern struct process_select ps;
 
-caddr_t
+void *
 get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *));
 
