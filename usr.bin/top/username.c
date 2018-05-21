@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "top.local.h"
 #include "utils.h"
 #include "username.h"
 
