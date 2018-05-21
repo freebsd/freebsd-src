@@ -32,6 +32,7 @@
 
 #include <curses.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -1042,14 +1043,16 @@ display_header(int t)
     }
 }
 
-/*VARARGS2*/
 void
-new_message(int type, char *msgfmt, caddr_t a1, caddr_t a2, caddr_t a3)
+new_message(int type, char *msgfmt, ...)
 {
-    int i;
+    va_list args;
+    size_t i;
+
+    va_start(args, msgfmt);
 
     /* first, format the message */
-    snprintf(next_msg, sizeof(next_msg), msgfmt, a1, a2, a3);
+    snprintf(next_msg, sizeof(next_msg), msgfmt, args);
 
     if (msglen > 0)
     {
