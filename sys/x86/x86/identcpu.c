@@ -990,6 +990,7 @@ printcpuinfo(void)
 				       "\033IBPB"
 				       "\034STIBP"
 				       "\036ARCH_CAP"
+				       "\040SSBD"
 				       );
 			}
 
