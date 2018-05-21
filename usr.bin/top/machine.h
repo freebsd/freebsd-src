@@ -31,18 +31,12 @@ struct statics
  * the system_info struct is filled in by a machine dependent routine.
  */
 
-#ifdef p_active     /* uw7 define macro p_active */
-#define P_ACTIVE p_pactive
-#else
-#define P_ACTIVE p_active
-#endif
-
 struct system_info
 {
     int    last_pid;
     double load_avg[NUM_AVERAGES];
     int    p_total;
-    int    P_ACTIVE;     /* number of procs considered "active" */
+    int    p_pactive;     /* number of procs considered "active" */
     int    *procstates;
     int    *cpustates;
     int    *memory;
