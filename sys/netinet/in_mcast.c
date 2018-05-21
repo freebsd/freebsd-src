@@ -1664,6 +1664,8 @@ inp_gcmoptions(epoch_context_t ctx)
 {
 	struct ip_moptions *imo;
 	struct in_mfilter	*imf;
+	struct in_multi *inm;
+	struct ifnet *ifp;
 	size_t			 idx, nmships;
 
 	imo =  __containerof(ctx, struct ip_moptions, imo_epoch_ctx);
@@ -1673,7 +1675,13 @@ inp_gcmoptions(epoch_context_t ctx)
 		imf = imo->imo_mfilters ? &imo->imo_mfilters[idx] : NULL;
 		if (imf)
 			imf_leave(imf);
-		(void)in_leavegroup(imo->imo_membership[idx], imf);
+		inm = imo->imo_membership[idx];
+		ifp = inm->inm_ifp;
+		if (ifp)
+			CURVNET_SET(ifp->if_vnet);
+		(void)in_leavegroup(inm, imf);
+		if (ifp)
+			CURVNET_RESTORE();
 		if (imf)
 			imf_purge(imf);
 	}
