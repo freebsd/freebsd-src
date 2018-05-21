@@ -1020,6 +1020,8 @@ new_message(int type, char *msgfmt, ...)
     /* first, format the message */
     snprintf(next_msg, sizeof(next_msg), msgfmt, args);
 
+    va_end(args);
+
     if (msglen > 0)
     {
 	/* message there already -- can we clear it? */
