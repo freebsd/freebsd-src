@@ -10,6 +10,8 @@
  *
  *	loaddouble(la) - convert load_avg to double.
  *	intload(i)     - convert integer to load_avg.
+ *
+ *	$FreeBSD$
  */
 
 /*
@@ -19,39 +21,19 @@
  *
  * Defined types:  load_avg for load averages, pctcpu for cpu percentages.
  */
-#if defined(__mips__) && !(defined(__NetBSD__) || defined(__FreeBSD__))
+#if defined(__mips__) && defined(__FreeBSD__)
 # include <sys/fixpoint.h>
 # if defined(FBITS) && !defined(FSCALE)
 #  define FSCALE (1 << FBITS)	/* RISC/os on mips */
 # endif
 #endif
 
-#ifdef FSCALE
-# define FIXED_LOADAVG FSCALE
-# define FIXED_PCTCPU FSCALE
-#endif
+#define FIXED_LOADAVG FSCALE
+#define FIXED_PCTCPU FSCALE
 
-#ifdef ibm032
-# undef FIXED_LOADAVG
-# undef FIXED_PCTCPU
-# define FIXED_PCTCPU PCT_SCALE
-#endif
+typedef long pctcpu;
+#define pctdouble(p) ((double)(p) / FIXED_PCTCPU)
 
-
-#ifdef FIXED_PCTCPU
-  typedef long pctcpu;
-# define pctdouble(p) ((double)(p) / FIXED_PCTCPU)
-#else
-typedef double pctcpu;
-# define pctdouble(p) (p)
-#endif
-
-#ifdef FIXED_LOADAVG
-  typedef fixpt_t load_avg;
-# define loaddouble(la) ((double)(la) / FIXED_LOADAVG)
-# define intload(i) ((int)((i) * FIXED_LOADAVG))
-#else
-  typedef double load_avg;
-# define loaddouble(la) (la)
-# define intload(i) ((double)(i))
-#endif
+typedef fixpt_t load_avg;
+#define loaddouble(la) ((double)(la) / FIXED_LOADAVG)
+#define intload(i) ((int)((i) * FIXED_LOADAVG))

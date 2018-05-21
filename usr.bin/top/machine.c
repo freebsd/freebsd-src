@@ -905,7 +905,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 	/* remember active and total counts */
 	si->p_total = total_procs;
-	si->p_active = pref_len = active_procs;
+	si->p_pactive = pref_len = active_procs;
 
 	/* pass back a handle */
 	handle.next_proc = pref;
