@@ -490,8 +490,7 @@ static struct dyn_ipv6_state *dyn_lookup_ipv6_state(
     const struct ipfw_flow_id *, uint32_t, const void *,
     struct ipfw_dyn_info *, int);
 static int dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *,
-    uint32_t, const void *, int, const void *, uint32_t, uint16_t, uint32_t,
-    uint16_t);
+    uint32_t, const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv6_state *dyn_alloc_ipv6_state(
     const struct ipfw_flow_id *, uint32_t, uint16_t, uint8_t);
 static int dyn_add_ipv6_state(void *, uint32_t, uint16_t, uint8_t,
@@ -547,7 +546,7 @@ static void dyn_update_proto_state(struct dyn_data *,
 struct dyn_ipv4_state *dyn_lookup_ipv4_state(const struct ipfw_flow_id *,
     const void *, struct ipfw_dyn_info *, int);
 static int dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *,
-    const void *, int, const void *, uint32_t, uint16_t, uint32_t, uint16_t);
+    const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv4_state *dyn_alloc_ipv4_state(
     const struct ipfw_flow_id *, uint16_t, uint8_t);
 static int dyn_add_ipv4_state(void *, uint32_t, uint16_t, uint8_t,
@@ -1066,8 +1065,7 @@ restart:
  */
 static int
 dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *pkt,
-    const void *ulp, int pktlen, const void *parent, uint32_t ruleid,
-    uint16_t rulenum, uint32_t bucket, uint16_t kidx)
+    const void *ulp, int pktlen, uint32_t bucket, uint16_t kidx)
 {
 	struct dyn_ipv4_state *s;
 	int dir;
@@ -1077,15 +1075,6 @@ dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *pkt,
 	CK_SLIST_FOREACH(s, &V_dyn_ipv4[bucket], entry) {
 		if (s->proto != pkt->proto ||
 		    s->kidx != kidx)
-			continue;
-		/*
-		 * XXXAE: Install synchronized state only when there are
-		 *	  no matching states.
-		 */
-		if (pktlen != 0 && (
-		    s->data->parent != parent ||
-		    s->data->ruleid != ruleid ||
-		    s->data->rulenum != rulenum))
 			continue;
 		if (s->sport == pkt->src_port &&
 		    s->dport == pkt->dst_port &&
@@ -1228,8 +1217,7 @@ restart:
  */
 static int
 dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
-    const void *ulp, int pktlen, const void *parent, uint32_t ruleid,
-    uint16_t rulenum, uint32_t bucket, uint16_t kidx)
+    const void *ulp, int pktlen, uint32_t bucket, uint16_t kidx)
 {
 	struct dyn_ipv6_state *s;
 	int dir;
@@ -1239,15 +1227,6 @@ dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 	CK_SLIST_FOREACH(s, &V_dyn_ipv6[bucket], entry) {
 		if (s->proto != pkt->proto || s->kidx != kidx ||
 		    s->zoneid != zoneid)
-			continue;
-		/*
-		 * XXXAE: Install synchronized state only when there are
-		 *	  no matching states.
-		 */
-		if (pktlen != 0 && (
-		    s->data->parent != parent ||
-		    s->data->ruleid != ruleid ||
-		    s->data->rulenum != rulenum))
 			continue;
 		if (s->sport == pkt->src_port && s->dport == pkt->dst_port &&
 		    IN6_ARE_ADDR_EQUAL(&s->src, &pkt->src_ip6) &&
@@ -1595,8 +1574,8 @@ dyn_add_ipv4_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		 * Bucket version has been changed since last lookup,
 		 * do lookup again to be sure that state does not exist.
 		 */
-		if (dyn_lookup_ipv4_state_locked(pkt, ulp, pktlen, parent,
-		    ruleid, rulenum, bucket, kidx) != 0) {
+		if (dyn_lookup_ipv4_state_locked(pkt, ulp, pktlen,
+		    bucket, kidx) != 0) {
 			DYN_BUCKET_UNLOCK(bucket);
 			return (EEXIST);
 		}
@@ -1727,7 +1706,7 @@ dyn_add_ipv6_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		 * do lookup again to be sure that state does not exist.
 		 */
 		if (dyn_lookup_ipv6_state_locked(pkt, zoneid, ulp, pktlen,
-		    parent, ruleid, rulenum, bucket, kidx) != 0) {
+		    bucket, kidx) != 0) {
 			DYN_BUCKET_UNLOCK(bucket);
 			return (EEXIST);
 		}
