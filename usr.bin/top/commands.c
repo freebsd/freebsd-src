@@ -43,7 +43,7 @@ struct errs		/* structure for a system-call error */
     char *arg;		/* argument that caused the error */
 };
 
-char *err_string(void);
+static char *err_string(void);
 static int str_adderr(char *str, int len, int err);
 static int str_addarg(char *str, int len, char *arg, int first);
 
@@ -237,7 +237,7 @@ char *err_string()
 		{
 		    return(err_listem);
 		}
-		(void) strcat(string, "; ");	  /* we know there's more */
+		strcat(string, "; ");	  /* we know there's more */
 	    }
 	    currerr = errp->errnum;
 	    first = Yes;
@@ -262,15 +262,10 @@ char *err_string()
  */
 
 static int
-str_adderr(str, len, err)
-
-char *str;
-int len;
-int err;
-
+str_adderr(char *str, int len, int err)
 {
-    char *msg;
-    int  msglen;
+    const char *msg;
+    int msglen;
 
     msg = err == 0 ? "Not a number" : strerror(err);
     msglen = strlen(msg) + 2;
@@ -278,8 +273,8 @@ int err;
     {
 	return(0);
     }
-    (void) strcat(str, ": ");
-    (void) strcat(str, msg);
+    strcat(str, ": ");
+    strcat(str, msg);
     return(len - msglen);
 }
 
@@ -311,9 +306,9 @@ int  first;
     }
     if (!first)
     {
-	(void) strcat(str, ", ");
+	strcat(str, ", ");
     }
-    (void) strcat(str, arg);
+    strcat(str, arg);
     return(len - arglen);
 }
 
@@ -402,7 +397,7 @@ kill_procs(char *str)
 
 	if (isdigit(str[1]))
 	{
-	    (void) scanint(str + 1, &signum);
+	    scanint(str + 1, &signum);
 	    if (signum <= 0 || signum >= NSIG)
 	    {
 		return(" invalid signal number");
