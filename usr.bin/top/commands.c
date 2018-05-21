@@ -489,13 +489,11 @@ renice_procs(char *str)
 	prio = -prio;
     }
 
-#if defined(PRIO_MIN) && defined(PRIO_MAX)
     /* check for validity */
     if (procnum == -1 || prio < PRIO_MIN || prio > PRIO_MAX)
     {
 	return(" bad priority value");
     }
-#endif
 
     /* move to the first process number */
     if ((str = next_field(str)) == NULL)
