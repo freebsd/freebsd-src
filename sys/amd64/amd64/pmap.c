@@ -1804,7 +1804,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				if (cpuid != i)
 					pmap->pm_pcids[i].pm_gen = 0;
 			}
-			/* See comment int pmap_invalidate_page(). */
+			/* See the comment in pmap_invalidate_page(). */
 			atomic_thread_fence_seq_cst();
 		}
 		mask = &pmap->pm_active;
@@ -1877,7 +1877,7 @@ pmap_invalidate_all(pmap_t pmap)
 				if (cpuid != i)
 					pmap->pm_pcids[i].pm_gen = 0;
 			}
-			/* See comment int pmap_invalidate_page(). */
+			/* See the comment in pmap_invalidate_page(). */
 			atomic_thread_fence_seq_cst();
 		}
 		mask = &pmap->pm_active;
