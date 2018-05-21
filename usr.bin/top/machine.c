@@ -53,7 +53,6 @@
 #define	SMPUNAMELEN	13
 #define	UPUNAMELEN	15
 
-extern struct process_select ps;
 extern struct timeval timeout;
 static int smpmode;
 enum displaymodes displaymode;
@@ -229,7 +228,7 @@ static int pageshift;		/* log base 2 of the pagesize */
 /*
  * Sorting orders.  The first element is the default.
  */
-char *ordernames[] = {
+static const char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw",
 	"jid", "swap", "pid", NULL
@@ -743,7 +742,7 @@ get_io_total(struct kinfo_proc *pp)
 
 static struct handle handle;
 
-caddr_t
+void *
 get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *))
 {
@@ -910,13 +909,13 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	/* pass back a handle */
 	handle.next_proc = pref;
 	handle.remaining = active_procs;
-	return ((caddr_t)&handle);
+	return (&handle);
 }
 
 static char fmt[512];	/* static area where result is built */
 
 char *
-format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
+format_next_process(void * xhandle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
