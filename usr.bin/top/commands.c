@@ -177,8 +177,8 @@ int  *intp;
 
 static struct errs errs[ERRMAX];
 static int errcnt;
-static char *err_toomany = " too many errors occurred";
-static char *err_listem = 
+static char err_toomany[] = " too many errors occurred";
+static char err_listem[] = 
 	" Many errors occurred.  Press `e' to display the list of errors.";
 
 /* These macros get used to reset and log the errors */
@@ -364,6 +364,11 @@ show_errors()
     }
 }
 
+static char no_proc_specified[] = " no processes specified";
+static char invalid_signal_number[] = " invalid_signal_number";
+static char bad_signal_name[] = " bad signal name";
+static char bad_pri_value[] = " bad priority value";
+
 /*
  *  kill_procs(str) - send signals to processes, much like the "kill"
  *		command does; invoked in response to 'k'.
@@ -392,7 +397,7 @@ kill_procs(char *str)
 	/* explicit signal specified */
 	if ((nptr = next_field(str)) == NULL)
 	{
-	    return(" kill: no processes specified");
+	    return(no_proc_specified);
 	}
 
 	if (isdigit(str[1]))
@@ -400,7 +405,7 @@ kill_procs(char *str)
 	    scanint(str + 1, &signum);
 	    if (signum <= 0 || signum >= NSIG)
 	    {
-		return(" invalid signal number");
+		return(invalid_signal_number);
 	    }
 	}
 	else 
@@ -418,7 +423,7 @@ kill_procs(char *str)
 	    /* was it ever found */
 	    if (sigp->name == NULL)
 	    {
-		return(" bad signal name");
+		return(bad_signal_name);
 	    }
 	}
 	/* put the new pointer in place */
@@ -487,13 +492,13 @@ renice_procs(char *str)
     /* check for validity */
     if (procnum == -1 || prio < PRIO_MIN || prio > PRIO_MAX)
     {
-	return(" bad priority value");
+	return(bad_pri_value);
     }
 
     /* move to the first process number */
     if ((str = next_field(str)) == NULL)
     {
-	return(" no processes specified");
+	return(no_proc_specified);
     }
 
     /* loop thru the process numbers, renicing each one */
