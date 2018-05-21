@@ -1434,9 +1434,10 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 
 			switch(synentry) {
 			case CNL:	/* '\n' */
-				if (level == 0 &&
-				    state[level].syntax == BASESYNTAX)
+				if (level == 0)
 					goto endword;	/* exit outer loop */
+				/* FALLTHROUGH */
+			case CQNL:
 				USTPUTC(c, out);
 				plinno++;
 				if (doprompt)
