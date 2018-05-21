@@ -1,7 +1,4 @@
 /*
- *  Top users/processes display for Unix
- *  Version 3
- *
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
  *
@@ -397,10 +394,7 @@ long seconds;
 
 #define NUM_STRINGS 8
 
-char *format_k(amt)
-
-int amt;
-
+char *format_k(int amt)
 {
     static char retarray[NUM_STRINGS][16];
     static int index = 0;
