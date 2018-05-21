@@ -618,8 +618,12 @@ uchcom_set_baudrate(struct uchcom_softc *sc, uint32_t rate)
 	if (uchcom_calc_divider_settings(&dv, rate))
 		return;
 
+	/*
+	 * According to linux code we need to set bit 7 of UCHCOM_REG_BPS_PRE,
+	 * otherwise the chip will buffer data.
+	 */
 	uchcom_write_reg(sc,
-	    UCHCOM_REG_BPS_PRE, dv.dv_prescaler,
+	    UCHCOM_REG_BPS_PRE, dv.dv_prescaler | 0x80,
 	    UCHCOM_REG_BPS_DIV, dv.dv_div);
 	uchcom_write_reg(sc,
 	    UCHCOM_REG_BPS_MOD, dv.dv_mod,
