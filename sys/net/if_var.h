@@ -76,10 +76,10 @@ struct	netdump_methods;
 #include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
-#include <ck_queue.h>
-#include <sys/epoch.h>
 #endif /* _KERNEL */
+#include <sys/ck.h>
 #include <sys/counter.h>
+#include <sys/epoch.h>
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* struct ifqueue */
 #include <sys/rwlock.h>		/* XXX */
@@ -90,13 +90,8 @@ struct	netdump_methods;
 #include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
-#ifdef _KERNEL
 CK_STAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 CK_STAILQ_HEAD(ifmultihead, ifmultiaddr);
-#else
-STAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
-STAILQ_HEAD(ifmultihead, ifmultiaddr);
-#endif
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
 #ifdef _KERNEL
@@ -522,7 +517,7 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
-	STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
+	CK_STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -546,7 +541,7 @@ void	ifa_ref(struct ifaddr *ifa);
  * structure except that it keeps track of multicast addresses.
  */
 struct ifmultiaddr {
-	STAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
+	CK_STAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
