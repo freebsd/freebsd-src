@@ -14,20 +14,6 @@
  *	$FreeBSD$
  */
 
-/*
- * We assume that if FSCALE is defined, then avenrun and ccpu are type long.
- * If your machine is an exception (mips, perhaps?) then make adjustments
- * here.
- *
- * Defined types:  load_avg for load averages, pctcpu for cpu percentages.
- */
-#if defined(__mips__) && defined(__FreeBSD__)
-# include <sys/fixpoint.h>
-# if defined(FBITS) && !defined(FSCALE)
-#  define FSCALE (1 << FBITS)	/* RISC/os on mips */
-# endif
-#endif
-
 #define FIXED_LOADAVG FSCALE
 #define FIXED_PCTCPU FSCALE
 
