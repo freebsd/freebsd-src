@@ -53,7 +53,6 @@
 #define	SMPUNAMELEN	13
 #define	UPUNAMELEN	15
 
-extern struct process_select ps;
 extern struct timeval timeout;
 static int smpmode;
 enum displaymodes displaymode;
@@ -743,7 +742,7 @@ get_io_total(struct kinfo_proc *pp)
 
 static struct handle handle;
 
-caddr_t
+void *
 get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *))
 {
