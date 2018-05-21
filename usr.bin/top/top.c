@@ -81,16 +81,16 @@ static int fmt_flags = 0;
 int pcpu_stats = No;
 
 /* signal handling routines */
-sigret_t leave();
-sigret_t tstop();
-sigret_t top_winch(int);
+static sigret_t leave(int);
+static sigret_t tstop(int);
+static sigret_t top_winch(int);
 
 volatile sig_atomic_t leaveflag;
 volatile sig_atomic_t tstopflag;
 volatile sig_atomic_t winchflag;
 
 /* internal routines */
-void quit();
+void quit(int);
 
 /* values which need to be accessed by signal handlers */
 static int max_topn;		/* maximum displayable processes */
@@ -100,20 +100,18 @@ struct process_select ps;
 char *myname = "top";
 jmp_buf jmp_int;
 
-/* routines that don't return int */
+char *username(int);
 
-char *username();
-
-extern int (*compares[])();
-time_t time();
+extern int (*compares[])(const void*, const void*);
+time_t time(time_t *tloc);
 
 caddr_t get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *));
 
 /* different routines for displaying the user's identification */
 /* (values assigned to get_userid) */
-char *username();
-char *itoa7();
+char *username(int);
+char *itoa7(int);
 
 /* pointers to display routines */
 void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
@@ -632,10 +630,10 @@ char *argv[];
     old_sigmask = sigblock(Smask(SIGINT) | Smask(SIGQUIT) | Smask(SIGTSTP));
 #endif
     init_screen();
-    (void) signal(SIGINT, leave);
-    (void) signal(SIGQUIT, leave);
-    (void) signal(SIGTSTP, tstop);
-    (void) signal(SIGWINCH, top_winch);
+    signal(SIGINT, leave);
+    signal(SIGQUIT, leave);
+    signal(SIGTSTP, tstop);
+    signal(SIGWINCH, top_winch);
 #ifdef SIGRELSE
     sigrelse(SIGINT);
     sigrelse(SIGQUIT);
@@ -1228,30 +1226,30 @@ reset_display()
  *  signal handlers
  */
 
-sigret_t leave()	/* exit under normal conditions -- INT handler */
+static sigret_t
+leave(int i __unused)	/* exit under normal conditions -- INT handler */
 {
 
     leaveflag = 1;
 }
 
-sigret_t tstop(int i __unused)	/* SIGTSTP handler */
+static sigret_t
+tstop(int i __unused)	/* SIGTSTP handler */
 {
 
     tstopflag = 1;
 }
 
-sigret_t top_winch(int i __unused)		/* SIGWINCH handler */
+static sigret_t
+top_winch(int i __unused)		/* SIGWINCH handler */
 {
 
     winchflag = 1;
 }
 
-void quit(status)		/* exit under duress */
-
-int status;
-
+void
+quit(int status)		/* exit under duress */
 {
     end_screen();
     exit(status);
-    /*NOTREACHED*/
 }

@@ -27,6 +27,7 @@
 #include <sys/user.h>
 #include <sys/vmmeter.h>
 
+#include <assert.h>
 #include <err.h>
 #include <kvm.h>
 #include <math.h>
@@ -460,6 +461,8 @@ format_header(char *uname_field)
 		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		break;
+	case DISP_MAX:
+		assert("displaymode must not be set to DISP_MAX");
 	}
 	cmdlengthdelta = strlen(Header) - 7;
 	return (Header);
@@ -624,7 +627,7 @@ get_system_info(struct system_info *si)
  * XXX: this could be done when the actual processes are fetched, we do
  * it here out of laziness.
  */
-const struct kinfo_proc *
+static const struct kinfo_proc *
 get_old_proc(struct kinfo_proc *pp)
 {
 	struct kinfo_proc **oldpp, *oldp;
@@ -667,7 +670,7 @@ get_old_proc(struct kinfo_proc *pp)
  * Return the total amount of IO done in blocks in/out and faults.
  * store the values individually in the pointers passed in.
  */
-long
+static long
 get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp,
     long *vcsw, long *ivcsw)
 {
@@ -741,7 +744,7 @@ proc_used_cpu(struct kinfo_proc *pp)
 /*
  * Return the total number of block in/out and faults by a process.
  */
-long
+static long
 get_io_total(struct kinfo_proc *pp)
 {
 	long dummy;
@@ -932,7 +935,8 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 	double pct;
 	struct handle *hp;
 	char status[16];
-	int cpu, state;
+	int cpu;
+	size_t state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
 	char *proc_fmt, thr_buf[6];
@@ -995,7 +999,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 		    state < sizeof(state_abbrev) / sizeof(*state_abbrev))
 			sprintf(status, "%.6s", state_abbrev[state]);
 		else
-			sprintf(status, "?%5d", state);
+			sprintf(status, "?%5lu", state);
 		break;
 	}
 
@@ -1359,8 +1363,8 @@ static int sorted_state[] = {
 
 /* compare_cpu - the comparison function for sorting by cpu percentage */
 
-int
-compare_cpu(void *arg1, void *arg2)
+static int
+compare_cpu(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1376,17 +1380,24 @@ compare_cpu(void *arg1, void *arg2)
 }
 
 /* "cpu" compare routines */
-int compare_size(), compare_res(), compare_time(), compare_prio(),
-    compare_threads();
+static int compare_size(const void *arg1, const void *arg2);
+static int compare_res(const void *arg1, const void *arg2);
+static int compare_time(const void *arg1, const void *arg2);
+static int compare_prio(const void *arg1, const void *arg2);
+static int compare_threads(const void *arg1, const void *arg2);
 
 /*
  * "io" compare routines.  Context switches aren't i/o, but are displayed
  * on the "io" display.
  */
-int compare_iototal(), compare_ioread(), compare_iowrite(), compare_iofault(),
-    compare_vcsw(), compare_ivcsw();
+static int compare_iototal(const void *arg1, const void *arg2);
+static int compare_ioread(const void *arg1, const void *arg2);
+static int compare_iowrite(const void *arg1, const void *arg2);
+static int compare_iofault(const void *arg1, const void *arg2);
+static int compare_vcsw(const void *arg1, const void *arg2);
+static int compare_ivcsw(const void *arg1, const void *arg2);
 
-int (*compares[])() = {
+int (*compares[])(const void *arg1, const void *arg2) = {
 	compare_cpu,
 	compare_size,
 	compare_res,
@@ -1407,7 +1418,7 @@ int (*compares[])() = {
 /* compare_size - the comparison function for sorting by total memory usage */
 
 int
-compare_size(void *arg1, void *arg2)
+compare_size(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1425,7 +1436,7 @@ compare_size(void *arg1, void *arg2)
 /* compare_res - the comparison function for sorting by resident set size */
 
 int
-compare_res(void *arg1, void *arg2)
+compare_res(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1443,7 +1454,7 @@ compare_res(void *arg1, void *arg2)
 /* compare_time - the comparison function for sorting by total cpu time */
 
 int
-compare_time(void *arg1, void *arg2)
+compare_time(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1461,7 +1472,7 @@ compare_time(void *arg1, void *arg2)
 /* compare_prio - the comparison function for sorting by priority */
 
 int
-compare_prio(void *arg1, void *arg2)
+compare_prio(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1477,8 +1488,8 @@ compare_prio(void *arg1, void *arg2)
 }
 
 /* compare_threads - the comparison function for sorting by threads */
-int
-compare_threads(void *arg1, void *arg2)
+static int
+compare_threads(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1533,7 +1544,7 @@ compare_swap(const void *arg1, const void *arg2)
 /* assorted comparison functions for sorting by i/o */
 
 int
-compare_iototal(void *arg1, void *arg2)
+compare_iototal(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1541,8 +1552,8 @@ compare_iototal(void *arg1, void *arg2)
 	return (get_io_total(p2) - get_io_total(p1));
 }
 
-int
-compare_ioread(void *arg1, void *arg2)
+static int
+compare_ioread(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1554,8 +1565,8 @@ compare_ioread(void *arg1, void *arg2)
 	return (inp2 - inp1);
 }
 
-int
-compare_iowrite(void *arg1, void *arg2)
+static int
+compare_iowrite(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1567,8 +1578,8 @@ compare_iowrite(void *arg1, void *arg2)
 	return (oup2 - oup1);
 }
 
-int
-compare_iofault(void *arg1, void *arg2)
+static int
+compare_iofault(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1580,8 +1591,8 @@ compare_iofault(void *arg1, void *arg2)
 	return (flp2 - flp1);
 }
 
-int
-compare_vcsw(void *arg1, void *arg2)
+static int
+compare_vcsw(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
@@ -1594,7 +1605,7 @@ compare_vcsw(void *arg1, void *arg2)
 }
 
 int
-compare_ivcsw(void *arg1, void *arg2)
+compare_ivcsw(const void *arg1, const void *arg2)
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
