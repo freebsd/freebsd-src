@@ -260,6 +260,7 @@ X\vec_name:
 	jz	1f		/* yes, leave PCB_FULL_IRET alone */
 	movq	PCPU(CURPCB),%r8
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8)
+	call	handle_ibrs_entry
 1:
 	.endm
 
