@@ -500,6 +500,47 @@ out:
 }
 
 int
+fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
+{
+	pcell_t reg[FDT_REG_CELLS];
+	phandle_t child, root;
+	int addr_cells, size_cells;
+	int i, rv;
+
+	root = OF_finddevice("/reserved-memory");
+	if (root == -1) {
+		return (ENXIO);
+	}
+
+	if ((rv = fdt_addrsize_cells(root, &addr_cells, &size_cells)) != 0)
+		return (rv);
+
+	if (addr_cells + size_cells > FDT_REG_CELLS)
+		panic("Too many address and size cells %d %d", addr_cells,
+		    size_cells);
+
+	i = 0;
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		if (!OF_hasprop(child, "no-map"))
+			continue;
+
+		rv = OF_getprop(child, "reg", reg, sizeof(reg));
+		if (rv <= 0)
+			/* XXX: Does a no-map of a dynamic range make sense? */
+			continue;
+
+		fdt_data_to_res(reg, addr_cells, size_cells,
+		    (u_long *)&reserved[i].mr_start,
+		    (u_long *)&reserved[i].mr_size);
+		i++;
+	}
+
+	*mreserved = i;
+
+	return (0);
+}
+
+int
 fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
