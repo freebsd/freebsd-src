@@ -80,7 +80,7 @@ enum {
 };
 
 #define	ETH_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
-#define	ETH_DEFAULT_PRODUCT_ID		0x05dc
+#define	ETH_DEFAULT_PRODUCT_ID		0x27e1
 #define	ETH_DEFAULT_MAC			"2A02030405060789AB"
 #define	ETH_DEFAULT_CONTROL		"USB Ethernet Comm Interface"
 #define	ETH_DEFAULT_DATA		"USB Ethernet Data Interface"

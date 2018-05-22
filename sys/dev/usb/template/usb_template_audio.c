@@ -79,7 +79,7 @@ enum {
 };
 
 #define	AUDIO_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
-#define	AUDIO_DEFAULT_PRODUCT_ID	0x05dc
+#define	AUDIO_DEFAULT_PRODUCT_ID	0x27e0
 #define	AUDIO_DEFAULT_MIXER		"Mixer interface"
 #define	AUDIO_DEFAULT_RECORD		"Record interface"
 #define	AUDIO_DEFAULT_PLAYBACK		"Playback interface"
