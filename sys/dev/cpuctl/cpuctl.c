@@ -367,7 +367,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
-	 * Perform update.  Flush caches first to work around seeingly
+	 * Perform update.  Flush caches first to work around seemingly
 	 * undocumented errata applying to some Broadwell CPUs.
 	 */
 	wbinvd();
