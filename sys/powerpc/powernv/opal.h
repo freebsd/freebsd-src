@@ -73,6 +73,8 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_REINIT_CPUS		70
 #define	OPAL_CHECK_ASYNC_COMPLETION	86
 #define	OPAL_SENSOR_READ		88
+#define	OPAL_IPMI_SEND			107
+#define	OPAL_IPMI_RECV			108
 #define	OPAL_I2C_REQUEST		109
 #define	OPAL_INT_GET_XIRR		122
 #define	OPAL_INT_SET_CPPR		123
@@ -106,8 +108,12 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PARAMETER			-1
 #define	OPAL_BUSY			-2
 #define	OPAL_CLOSED			-5
+#define	OPAL_HARDWARE			-6
+#define	OPAL_UNSUPPORTED		-7
+#define	OPAL_RESOURCE			-10
 #define	OPAL_BUSY_EVENT			-12
 #define	OPAL_ASYNC_COMPLETION		-15
+#define	OPAL_EMPTY			-16
 
 struct opal_msg {
 	uint32_t msg_type;
@@ -125,6 +131,15 @@ enum opal_msg_type {
 	OPAL_MSG_PRD		= 6,
 	OPAL_MSG_OCC		= 7,
 	OPAL_MSG_TYPE_MAX,
+};
+
+#define	OPAL_IPMI_MSG_FORMAT_VERSION_1	1
+
+struct opal_ipmi_msg {
+	uint8_t version;
+	uint8_t netfn;
+	uint8_t cmd;
+	uint8_t data[];
 };
 
 #endif
