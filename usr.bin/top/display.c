@@ -1011,7 +1011,7 @@ new_message(int type, char *msgfmt, ...)
     va_start(args, msgfmt);
 
     /* first, format the message */
-    snprintf(next_msg, sizeof(next_msg), msgfmt, args);
+    vsnprintf(next_msg, sizeof(next_msg), msgfmt, args);
 
     va_end(args);
 

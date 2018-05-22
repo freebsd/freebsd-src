@@ -762,7 +762,6 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int show_self;
 	int show_system;
 	int show_uid;
-	int show_command;
 	int show_kidle;
 
 	/*
@@ -832,7 +831,6 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	show_self = sel->self == -1;
 	show_system = sel->system;
 	show_uid = sel->uid[0] != -1;
-	show_command = sel->command != NULL;
 	show_kidle = sel->kidle;
 
 	/* count up process states and get pointers to interesting procs */
@@ -984,8 +982,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 		break;
 	default:
 
-		if (state >= 0 &&
-		    state < sizeof(state_abbrev) / sizeof(*state_abbrev))
+		if (state < sizeof(state_abbrev) / sizeof(*state_abbrev))
 			sprintf(status, "%.6s", state_abbrev[state]);
 		else
 			sprintf(status, "?%5zu", state);

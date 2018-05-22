@@ -94,7 +94,7 @@ static void (*d_process)(int line, char *thisline) = i_process;
 static void reset_display(void);
 
 static void
-reset_uids()
+reset_uids(void)
 {
     for (size_t i = 0; i < TOP_MAX_UIDS; ++i)
 	ps.uid[i] = -1;
@@ -198,11 +198,7 @@ end:
 }
 
 int
-main(argc, argv)
-
-int  argc;
-char *argv[];
-
+main(int argc, char *argv[])
 {
     int i;
     int active_procs;
