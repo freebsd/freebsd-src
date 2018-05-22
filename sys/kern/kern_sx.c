@@ -879,6 +879,7 @@ retry_sleepq:
 	if (in_critical)
 		critical_exit();
 #endif
+	GIANT_RESTORE();
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	if (__predict_true(!doing_lockprof))
 		return (error);
@@ -898,7 +899,6 @@ out_lockstat:
 	if (!error)
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
 		    contested, waittime, file, line, LOCKSTAT_WRITER);
-	GIANT_RESTORE();
 	return (error);
 }
 
