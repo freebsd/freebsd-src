@@ -1680,7 +1680,7 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 
 	LAGG_RLOCK();
 	if ((scifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (lp->lp_flags & LAGG_PORT_DISABLED) ||
+	    lp->lp_detaching != 0 ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
 		LAGG_RUNLOCK();
 		m_freem(m);
@@ -1689,17 +1689,10 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(scifp, m);
 
-	if (lp->lp_detaching != 0) {
+	m = lagg_proto_input(sc, lp, m);
+	if (m != NULL && (scifp->if_flags & IFF_MONITOR) != 0) {
 		m_freem(m);
 		m = NULL;
-	} else
-		m = lagg_proto_input(sc, lp, m);
-
-	if (m != NULL) {
-		if (scifp->if_flags & IFF_MONITOR) {
-			m_freem(m);
-			m = NULL;
-		}
 	}
 
 	LAGG_RUNLOCK();
