@@ -47,6 +47,9 @@
 #define ETH_ID_REV			0x000
 #define ETH_ID_REV_CHIP_ID_MASK_	0xFFFF0000UL
 #define ETH_ID_REV_CHIP_REV_MASK_	0x0000FFFFUL
+#define ETH_ID_REV_CHIP_ID_7800_	0x7800
+#define ETH_ID_REV_CHIP_ID_7801_	0x7801
+#define ETH_ID_REV_CHIP_ID_7850_	0x7850
 
 /* Device interrupt status register. */
 #define ETH_INT_STS			0x00C

@@ -168,7 +168,8 @@ struct muge_softc {
 	/* Settings for the mac control (MAC_CSR) register. */
 	uint32_t		sc_rfe_ctl;
 	uint32_t		sc_mdix_ctl;
-	uint32_t		sc_rev_id;
+	uint16_t		chipid;
+	uint16_t		chiprev;
 	uint32_t		sc_mchash_table[ETH_DP_SEL_VHF_HASH_LEN];
 	uint32_t		sc_pfilter_table[MUGE_NUM_PFILTER_ADDRS_][2];
 
@@ -974,15 +975,20 @@ lan78xx_chip_init(struct muge_softc *sc)
 	}
 
 	/* Read and display the revision register. */
-	if ((err = lan78xx_read_reg(sc, ETH_ID_REV, &sc->sc_rev_id)) < 0) {
+	if ((err = lan78xx_read_reg(sc, ETH_ID_REV, &buf)) < 0) {
 		muge_warn_printf(sc, "failed to read ETH_ID_REV (err = %d)\n",
 		    err);
 		goto init_failed;
 	}
-
-	device_printf(sc->sc_ue.ue_dev, "chip 0x%04lx, rev. %04lx\n",
-		(sc->sc_rev_id & ETH_ID_REV_CHIP_ID_MASK_) >> 16,
-		(sc->sc_rev_id & ETH_ID_REV_CHIP_REV_MASK_));
+	sc->chipid = (buf & ETH_ID_REV_CHIP_ID_MASK_) >> 16;
+	sc->chiprev = buf & ETH_ID_REV_CHIP_REV_MASK_;
+	if (sc->chipid != ETH_ID_REV_CHIP_ID_7800_) {
+		muge_warn_printf(sc, "Chip ID 0x%04x not yet supported\n",
+		    sc->chipid);
+		goto init_failed;
+	}
+	device_printf(sc->sc_ue.ue_dev, "Chip ID 0x%04x rev %04x\n", sc->chipid,
+	    sc->chiprev);
 
 	/* Respond to BULK-IN tokens with a NAK when RX FIFO is empty. */
 	if ((err = lan78xx_read_reg(sc, ETH_USB_CFG0, &buf)) != 0) {
