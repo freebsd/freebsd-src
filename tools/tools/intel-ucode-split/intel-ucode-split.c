@@ -112,7 +112,7 @@ static void
 usage(void)
 {
 
-	printf("ucode-split [-v] microcode_file\n");
+	printf("ucode-split [-nv] microcode_file\n");
 	exit(1);
 }
 
@@ -124,11 +124,14 @@ main(int argc, char *argv[])
 	size_t len, resid;
 	ssize_t rv;
 	int c, ifd, ofd;
-	bool vflag;
+	bool nflag, vflag;
 
-	vflag = false;
-	while ((c = getopt(argc, argv, "v")) != -1) {
+	nflag = vflag = false;
+	while ((c = getopt(argc, argv, "nv")) != -1) {
 		switch (c) {
+		case 'n':
+			nflag = true;
+			break;
 		case 'v':
 			vflag = true;
 			break;
@@ -166,40 +169,48 @@ main(int argc, char *argv[])
 		if (vflag)
 			dump_header(&hdr);
 
-		sig_str = format_signature(hdr.processor_signature);
-		asprintf(&output_file, "%s.%02x", sig_str,
-		    hdr.processor_flags & 0xff);
-		free(sig_str);
-		if (output_file == NULL)
-			err(1, "asprintf");
-		ofd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-		if (ofd < 0)
-			err(1, "open");
-
-		/* Write header. */
-		rv = write(ofd, &hdr, sizeof(hdr));
-		if (rv < (ssize_t)sizeof(hdr))
-			err(1, "write");
-
-		/* Copy data. */
 		resid = (hdr.total_size != 0 ? hdr.total_size : 2048) -
 		    sizeof(hdr);
 		if (resid > 1 << 24) /* Arbitrary chosen maximum size. */
 			errx(1, "header total_size too large");
-		while (resid > 0) {
-			len = resid < bufsize ? resid : bufsize;
-			rv = read(ifd, buf, len);
-			if (rv < 0)
-				err(1, "read");
-			else if (rv < (ssize_t)len)
-				errx(1, "truncated microcode data");
-			if (write(ofd, buf, len) < (ssize_t)len)
+
+		if (nflag) {
+			if (lseek(ifd, resid, SEEK_CUR) == -1)
+				err(1, "lseek");
+			printf("\n");
+		} else {
+			sig_str = format_signature(hdr.processor_signature);
+			asprintf(&output_file, "%s.%02x", sig_str,
+			    hdr.processor_flags & 0xff);
+			free(sig_str);
+			if (output_file == NULL)
+				err(1, "asprintf");
+			ofd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC,
+			    0600);
+			if (ofd < 0)
+				err(1, "open");
+	
+			/* Write header. */
+			rv = write(ofd, &hdr, sizeof(hdr));
+			if (rv < (ssize_t)sizeof(hdr))
 				err(1, "write");
-			resid -= len;
+	
+			/* Copy data. */
+			while (resid > 0) {
+				len = resid < bufsize ? resid : bufsize;
+				rv = read(ifd, buf, len);
+				if (rv < 0)
+					err(1, "read");
+				else if (rv < (ssize_t)len)
+					errx(1, "truncated microcode data");
+				if (write(ofd, buf, len) < (ssize_t)len)
+					err(1, "write");
+				resid -= len;
+			}
+			if (vflag)
+				printf("written to %s\n\n", output_file);
+			close(ofd);
+			free(output_file);
 		}
-		if (vflag)
-			printf("written to %s\n\n", output_file);
-		close(ofd);
-		free(output_file);
 	}
 }
