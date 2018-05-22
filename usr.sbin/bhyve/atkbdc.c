@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 
 #include "acpi.h"
+#include "atkbdc.h"
 #include "inout.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
