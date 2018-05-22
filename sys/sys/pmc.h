@@ -657,6 +657,8 @@ struct pmc_op_getdyneventinfo {
  * (b) - pmc_bufferlist_mtx (spin lock)
  * (k) - pmc_kthread_mtx (sleep lock)
  * (o) - po->po_mtx (spin lock)
+ * (g) - global_epoch_preempt (epoch)
+ * (p) - pmc_sx (sx)
  */
 
 /*
@@ -852,7 +854,7 @@ struct pmc_process {
 
 struct pmc_owner  {
 	LIST_ENTRY(pmc_owner)	po_next;	/* hash chain */
-	CK_LIST_ENTRY(pmc_owner)	po_ssnext;	/* list of SS PMC owners */
+	CK_LIST_ENTRY(pmc_owner)	po_ssnext;	/* (g/p) list of SS PMC owners */
 	LIST_HEAD(, pmc)	po_pmcs;	/* owned PMC list */
 	TAILQ_HEAD(, pmclog_buffer) po_logbuffers; /* (o) logbuffer list */
 	struct mtx		po_mtx;		/* spin lock for (o) */
