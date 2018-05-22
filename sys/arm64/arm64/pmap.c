@@ -146,6 +146,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
+#include <arm/include/physmem.h>
+
 #define	NL0PG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NL1PG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NL2PG		(PAGE_SIZE/(sizeof (pd_entry_t)))
@@ -669,16 +671,15 @@ void
 pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
     vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot, avail_slot, map_slot, used_map_slot;
+	u_int l1_slot, l2_slot;
 	uint64_t kern_delta;
 	pt_entry_t *l2;
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t pa, max_pa, min_pa;
+	vm_paddr_t start_pa, pa, max_pa, min_pa;
 	int i;
 
 	kern_delta = KERNBASE - kernstart;
-	physmem = 0;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
 	printf("%lx\n", l1pt);
@@ -708,38 +709,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
 
 	va = KERNBASE;
-	pa = KERNBASE - kern_delta;
-
-	/*
-	 * Start to initialise phys_avail by copying from physmap
-	 * up to the physical address KERNBASE points at.
-	 */
-	map_slot = avail_slot = 0;
-	for (; map_slot < (physmap_idx * 2) &&
-	    avail_slot < (PHYS_AVAIL_SIZE - 2); map_slot += 2) {
-		if (physmap[map_slot] == physmap[map_slot + 1])
-			continue;
-
-		if (physmap[map_slot] <= pa &&
-		    physmap[map_slot + 1] > pa)
-			break;
-
-		phys_avail[avail_slot] = physmap[map_slot];
-		phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-		avail_slot += 2;
-	}
-
-	/* Add the memory before the kernel */
-	if (physmap[avail_slot] < pa && avail_slot < (PHYS_AVAIL_SIZE - 2)) {
-		phys_avail[avail_slot] = physmap[map_slot];
-		phys_avail[avail_slot + 1] = pa;
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-		avail_slot += 2;
-	}
-	used_map_slot = map_slot;
+	start_pa = pa = KERNBASE - kern_delta;
 
 	/*
 	 * Read the page table to find out what is already mapped.
@@ -797,39 +767,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	/* Finish initialising physmap */
-	map_slot = used_map_slot;
-	for (; avail_slot < (PHYS_AVAIL_SIZE - 2) &&
-	    map_slot < (physmap_idx * 2); map_slot += 2) {
-		if (physmap[map_slot] == physmap[map_slot + 1])
-			continue;
-
-		/* Have we used the current range? */
-		if (physmap[map_slot + 1] <= pa)
-			continue;
-
-		/* Do we need to split the entry? */
-		if (physmap[map_slot] < pa) {
-			phys_avail[avail_slot] = pa;
-			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-		} else {
-			phys_avail[avail_slot] = physmap[map_slot];
-			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-		}
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-
-		avail_slot += 2;
-	}
-	phys_avail[avail_slot] = 0;
-	phys_avail[avail_slot + 1] = 0;
-
-	/*
-	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".
-	 */
-	Maxmem = atop(phys_avail[avail_slot - 1]);
+	arm_physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
 
 	cpu_tlb_flushID();
 }
