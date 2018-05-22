@@ -219,6 +219,23 @@ __FBSDID("$FreeBSD$");
 
 struct pmap kernel_pmap_store;
 
+/* Used for mapping ACPI memory before VM is initialized */
+#define	PMAP_PREINIT_MAPPING_COUNT	32
+#define	PMAP_PREINIT_MAPPING_SIZE	(PMAP_PREINIT_MAPPING_COUNT * L2_SIZE)
+static vm_offset_t preinit_map_va;	/* Start VA of pre-init mapping space */
+static int vm_initialized = 0;		/* No need to use pre-init maps when set */
+
+/*
+ * Reserve a few L2 blocks starting from 'preinit_map_va' pointer.
+ * Always map entire L2 block for simplicity.
+ * VA of L2 block = preinit_map_va + i * L2_SIZE
+ */
+static struct pmap_preinit_mapping {
+	vm_paddr_t	pa;
+	vm_offset_t	va;
+	vm_size_t	size;
+} pmap_preinit_mapping[PMAP_PREINIT_MAPPING_COUNT];
+
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t kernel_vm_end = 0;
@@ -761,7 +778,11 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	alloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	msgbufp = (void *)msgbufpv;
 
-	virtual_avail = roundup2(freemempos, L1_SIZE);
+	/* Reserve some VA space for early BIOS/ACPI mapping */
+	preinit_map_va = roundup2(freemempos, L2_SIZE);
+
+	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
+	virtual_avail = roundup2(virtual_avail, L1_SIZE);
 	virtual_end = VM_MAX_KERNEL_ADDRESS - L2_SIZE;
 	kernel_vm_end = virtual_avail;
 
@@ -825,6 +846,8 @@ pmap_init(void)
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 	TAILQ_INIT(&pv_dummy.pv_list);
+
+	vm_initialized = 1;
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD, 0,
@@ -4192,13 +4215,162 @@ pmap_clear_modify(vm_page_t m)
 void *
 pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 {
+	struct pmap_preinit_mapping *ppim;
+	vm_offset_t va, offset;
+	pd_entry_t *pde;
+	pt_entry_t *l2;
+	int i, lvl, l2_blocks, free_l2_count, start_idx;
 
-        return ((void *)PHYS_TO_DMAP(pa));
+	if (!vm_initialized) {
+		/*
+		 * No L3 ptables so map entire L2 blocks where start VA is:
+		 * 	preinit_map_va + start_idx * L2_SIZE
+		 * There may be duplicate mappings (multiple VA -> same PA) but
+		 * ARM64 dcache is always PIPT so that's acceptable.
+		 */
+		 if (size == 0)
+			 return (NULL);
+
+		 /* Calculate how many full L2 blocks are needed for the mapping */
+		l2_blocks = (roundup2(pa + size, L2_SIZE) - rounddown2(pa, L2_SIZE)) >> L2_SHIFT;
+
+		offset = pa & L2_OFFSET;
+
+		if (preinit_map_va == 0)
+			return (NULL);
+
+		/* Map 2MiB L2 blocks from reserved VA space */
+
+		free_l2_count = 0;
+		start_idx = -1;
+		/* Find enough free contiguous VA space */
+		for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
+			ppim = pmap_preinit_mapping + i;
+			if (free_l2_count > 0 && ppim->pa != 0) {
+				/* Not enough space here */
+				free_l2_count = 0;
+				start_idx = -1;
+				continue;
+			}
+
+			if (ppim->pa == 0) {
+				/* Free L2 block */
+				if (start_idx == -1)
+					start_idx = i;
+				free_l2_count++;
+				if (free_l2_count == l2_blocks)
+					break;
+			}
+		}
+		if (free_l2_count != l2_blocks)
+			panic("%s: too many preinit mappings", __func__);
+
+		va = preinit_map_va + (start_idx * L2_SIZE);
+		for (i = start_idx; i < start_idx + l2_blocks; i++) {
+			/* Mark entries as allocated */
+			ppim = pmap_preinit_mapping + i;
+			ppim->pa = pa;
+			ppim->va = va + offset;
+			ppim->size = size;
+		}
+
+		/* Map L2 blocks */
+		pa = rounddown2(pa, L2_SIZE);
+		for (i = 0; i < l2_blocks; i++) {
+			pde = pmap_pde(kernel_pmap, va, &lvl);
+			KASSERT(pde != NULL,
+			    ("pmap_mapbios: Invalid page entry, va: 0x%lx", va));
+			KASSERT(lvl == 1, ("pmap_mapbios: Invalid level %d", lvl));
+
+			/* Insert L2_BLOCK */
+			l2 = pmap_l1_to_l2(pde, va);
+			pmap_load_store(l2,
+			    pa | ATTR_DEFAULT | ATTR_XN |
+			    ATTR_IDX(CACHED_MEMORY) | L2_BLOCK);
+			pmap_invalidate_range(kernel_pmap, va, va + L2_SIZE);
+
+			va += L2_SIZE;
+			pa += L2_SIZE;
+		}
+
+		va = preinit_map_va + (start_idx * L2_SIZE);
+
+	} else {
+		/* kva_alloc may be used to map the pages */
+		offset = pa & PAGE_MASK;
+		size = round_page(offset + size);
+
+		va = kva_alloc(size);
+		if (va == 0)
+			panic("%s: Couldn't allocate KVA", __func__);
+
+		pde = pmap_pde(kernel_pmap, va, &lvl);
+		KASSERT(lvl == 2, ("pmap_mapbios: Invalid level %d", lvl));
+
+		/* L3 table is linked */
+		va = trunc_page(va);
+		pa = trunc_page(pa);
+		pmap_kenter(va, size, pa, CACHED_MEMORY);
+	}
+
+	return ((void *)(va + offset));
 }
 
 void
-pmap_unmapbios(vm_paddr_t pa, vm_size_t size)
+pmap_unmapbios(vm_offset_t va, vm_size_t size)
 {
+	struct pmap_preinit_mapping *ppim;
+	vm_offset_t offset, tmpsize, va_trunc;
+	pd_entry_t *pde;
+	pt_entry_t *l2;
+	int i, lvl, l2_blocks, block;
+
+	l2_blocks = (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
+	KASSERT(l2_blocks > 0, ("pmap_unmapbios: invalid size %lx", size));
+
+	/* Remove preinit mapping */
+	block = 0;
+	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
+		ppim = pmap_preinit_mapping + i;
+		if (ppim->va == va) {
+			KASSERT(ppim->size == size, ("pmap_unmapbios: size mismatch"));
+			ppim->va = 0;
+			ppim->pa = 0;
+			ppim->size = 0;
+			offset = block * L2_SIZE;
+			va_trunc = rounddown2(va, L2_SIZE) + offset;
+
+			/* Remove L2_BLOCK */
+			pde = pmap_pde(kernel_pmap, va_trunc, &lvl);
+			KASSERT(pde != NULL,
+			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx", va_trunc));
+			l2 = pmap_l1_to_l2(pde, va_trunc);
+			pmap_load_clear(l2);
+			pmap_invalidate_range(kernel_pmap, va_trunc, va_trunc + L2_SIZE);
+
+			if (block == (l2_blocks - 1))
+				return;
+			block++;
+		}
+	}
+
+	/* Unmap the pages reserved with kva_alloc. */
+	if (vm_initialized) {
+		offset = va & PAGE_MASK;
+		size = round_page(offset + size);
+		va = trunc_page(va);
+
+		pde = pmap_pde(kernel_pmap, va, &lvl);
+		KASSERT(pde != NULL,
+		    ("pmap_unmapbios: Invalid page entry, va: 0x%lx", va));
+		KASSERT(lvl == 2, ("pmap_unmapbios: Invalid level %d", lvl));
+
+		/* Unmap and invalidate the pages */
+                for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
+			pmap_kremove(va + tmpsize);
+
+		kva_free(va, size);
+	}
 }
 
 /*
