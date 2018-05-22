@@ -231,8 +231,7 @@ pci_parse_slot(char *opt)
 	si->si_funcs[fnum].fi_param = config;
 
 done:
-	if (error)
-		free(str);
+	free(str);
 
 	return (error);
 }
