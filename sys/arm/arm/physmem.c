@@ -216,8 +216,13 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 			 * could affect the remainder of this hw region.
 			 */
 			if ((xstart > start) && (xend < end)) {
-				avail[acnt++] = (vm_paddr_t)start;
-				avail[acnt++] = (vm_paddr_t)xstart;
+				if (acnt > 0 &&
+				    avail[acnt - 1] == (vm_paddr_t)start) {
+					avail[acnt - 1] = (vm_paddr_t)xstart;
+				} else {
+					avail[acnt++] = (vm_paddr_t)start;
+					avail[acnt++] = (vm_paddr_t)xstart;
+				}
 				availmem += 
 				    arm32_btop((vm_offset_t)(xstart - start));
 				start = xend;
@@ -238,8 +243,12 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 		 * available entry for it.
 		 */
 		if (end > start) {
-			avail[acnt++] = (vm_paddr_t)start;
-			avail[acnt++] = (vm_paddr_t)end;
+			if (acnt > 0 && avail[acnt - 1] == (vm_paddr_t)start) {
+				avail[acnt - 1] = (vm_paddr_t)end;
+			} else {
+				avail[acnt++] = (vm_paddr_t)start;
+				avail[acnt++] = (vm_paddr_t)end;
+			}
 			availmem += arm32_btop((vm_offset_t)(end - start));
 		}
 		if (acnt >= MAX_AVAIL_ENTRIES)
@@ -254,7 +263,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 /*
  * Insertion-sort a new entry into a regions list; sorted by start address.
  */
-static void
+static size_t
 insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
     vm_size_t size, uint32_t flags)
 {
@@ -263,6 +272,16 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 
 	ep = regions + rcnt;
 	for (i = 0, rp = regions; i < rcnt; ++i, ++rp) {
+		if (flags == rp->flags) {
+			if (addr + size == rp->addr) {
+				rp->addr = addr;
+				rp->size += size;
+				return (rcnt);
+			} else if (rp->addr + rp->size == addr) {
+				rp->size += size;
+				return (rcnt);
+			}
+		}
 		if (addr < rp->addr) {
 			bcopy(rp, rp + 1, (ep - rp) * sizeof(*rp));
 			break;
@@ -271,6 +290,9 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 	rp->addr  = addr;
 	rp->size  = size;
 	rp->flags = flags;
+	rcnt++;
+
+	return (rcnt);
 }
 
 /*
@@ -322,7 +344,7 @@ arm_physmem_hardware_region(uint64_t pa, uint64_t sz)
 	sz  = trunc_page(sz - adj);
 
 	if (sz > 0 && hwcnt < nitems(hwregions))
-		insert_region(hwregions, hwcnt++, pa, sz, 0);
+		hwcnt = insert_region(hwregions, hwcnt, pa, sz, 0);
 }
 
 /*
@@ -341,7 +363,7 @@ void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 	sz  = round_page(sz + adj);
 
 	if (excnt < nitems(exregions))
-		insert_region(exregions, excnt++, pa, sz, exflags);
+		excnt = insert_region(exregions, excnt, pa, sz, exflags);
 }
 
 /*
