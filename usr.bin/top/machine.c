@@ -920,7 +920,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 	long cputime;
 	double pct;
 	struct handle *hp;
-	char status[16];
+	char status[22];
 	int cpu;
 	size_t state;
 	struct rusage ru, *rup;
