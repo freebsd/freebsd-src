@@ -35,12 +35,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
-#endif
-#endif /* LIBC_SCCS and not lint */
+__SCCSID("@(#)kvm.c	8.2 (Berkeley) 2/13/94");
 
 #include <sys/param.h>
 #include <sys/fnv_hash.h>
