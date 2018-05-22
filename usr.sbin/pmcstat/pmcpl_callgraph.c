@@ -473,7 +473,7 @@ pmcstat_callgraph_print(void)
 
 static void
 pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
-    int depth, uint32_t nsamples)
+    int depth __unused, uint32_t nsamples)
 {
 	int v_attrs, vs_len, ns_len, width, len, n, nchildren;
 	float v;
@@ -481,15 +481,15 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 	struct pmcstat_symbol *sym;
 	struct pmcstat_cgnode **sortbuffer, **cgn, *pcg;
 
-	(void) depth;
-
 	/* Format value. */
 	v = PMCPL_CG_COUNTP(cg);
 	snprintf(vs, sizeof(vs), "%.1f", v);
 	v_attrs = PMCSTAT_ATTRPERCENT(v);
+	sym = NULL;
 
 	/* Format name. */
-	sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
+	if (!(args.pa_flags & FLAG_SKIP_TOP_FN_RES))
+		sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
 	if (sym != NULL) {
 		snprintf(ns, sizeof(ns), "%s",
 		    pmcstat_string_unintern(sym->ps_name));
