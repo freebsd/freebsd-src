@@ -129,11 +129,7 @@ next_field(char *str)
 }
 
 static int
-scanint(str, intp)
-
-char *str;
-int  *intp;
-
+scanint(char *str, int *intp)
 {
     int val = 0;
     char ch;
