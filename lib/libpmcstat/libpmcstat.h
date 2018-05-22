@@ -106,6 +106,7 @@ struct pmcstat_args {
 #define	FLAGS_HAS_CPUMASK		0x00040000	/* -c */
 #define	FLAG_HAS_DURATION		0x00080000	/* -l secs */
 #define	FLAG_DO_WIDE_GPROF_HC		0x00100000	/* -e */
+#define	FLAG_SKIP_TOP_FN_RES		0x00200000	/* -I */
 
 	int	pa_required;		/* required features */
 	int	pa_pplugin;		/* pre-processing plugin */
