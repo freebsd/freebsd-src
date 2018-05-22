@@ -189,9 +189,9 @@
 	movl	PCPU(KESP0), %edx
 	movl	$TF_SZ, %ecx
 	testl	$PSL_VM, TF_EFLAGS(%esp)
-	jz	1001f
+	jz	.L\@.1
 	addl	$VM86_STACK_SPACE, %ecx
-1001:	subl	%ecx, %edx
+.L\@.1:	subl	%ecx, %edx
 	movl	%edx, %edi
 	movl	%esp, %esi
 	rep; movsb
@@ -199,9 +199,9 @@
 	.endm
 
 	.macro	LOAD_KCR3
-	call	1000f
-1000:	popl	%eax
-	movl	(tramp_idleptd - 1000b)(%eax), %eax
+	call	.L\@.1
+.L\@.1:	popl	%eax
+	movl	(tramp_idleptd - .L\@.1)(%eax), %eax
 	movl	%eax, %cr3
 	.endm
 
@@ -212,17 +212,17 @@
 
 	.macro	KENTER
 	testl	$PSL_VM, TF_EFLAGS(%esp)
-	jz	1f
+	jz	.L\@.1
 	LOAD_KCR3
 	movl	PCPU(CURPCB), %eax
 	testl	$PCB_VM86CALL, PCB_FLAGS(%eax)
-	jnz	3f
+	jnz	.L\@.3
 	NMOVE_STACKS
-	jmp	3f
-1:	testb	$SEL_RPL_MASK, TF_CS(%esp)
-	jz	3f
-2:	MOVE_STACKS
-3:
+	jmp	.L\@.3
+.L\@.1:	testb	$SEL_RPL_MASK, TF_CS(%esp)
+	jz	.L\@.3
+.L\@.2:	MOVE_STACKS
+.L\@.3:
 	.endm
 
 #endif /* LOCORE */
