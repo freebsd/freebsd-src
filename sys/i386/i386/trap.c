@@ -338,7 +338,7 @@ user_trctrap_out:
 			ucode = TRAP_TRACE;
 			dr6 = rdr6();
 			if (dr6 & DBREG_DR6_BS)
-				frame->tf_rflags &= ~PSL_T;
+				frame->tf_eflags &= ~PSL_T;
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
