@@ -1204,6 +1204,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			}
 		}
 
+		memset(&dumper, 0, sizeof(dumper));
 		dumper.dumper_start = netdump_start;
 		dumper.dumper_hdr = netdump_write_headers;
 		dumper.dumper = netdump_dumper;
