@@ -69,9 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
-#ifdef SMP
 #include <sys/smp.h>
-#endif
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
