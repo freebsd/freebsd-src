@@ -504,7 +504,7 @@ For
 .Fn bus_dmamap_create ,
 the
 .Dv BUS_DMA_COHERENT
-flag is currently implemented on sparc64.
+flag is currently implemented on arm64 and sparc64.
 .El
 .It Fa mapp
 Pointer to a
@@ -834,7 +834,7 @@ For
 .Fn bus_dmamem_alloc ,
 the
 .Dv BUS_DMA_COHERENT
-flag is currently implemented on arm and sparc64.
+flag is currently implemented on arm, arm64 and sparc64.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
 .It Dv BUS_DMA_NOCACHE
