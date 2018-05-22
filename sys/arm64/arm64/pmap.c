@@ -586,31 +586,98 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 	return ((l2[l2_slot] & ~ATTR_MASK) + (va & L2_OFFSET));
 }
 
-static void
-pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
+static vm_offset_t
+pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
+    vm_offset_t freemempos)
 {
+	pt_entry_t *l2;
 	vm_offset_t va;
-	vm_paddr_t pa;
-	u_int l1_slot;
+	vm_paddr_t l2_pa, pa;
+	u_int l1_slot, l2_slot, prev_l1_slot;
 	int i;
 
 	dmap_phys_base = min_pa & ~L1_OFFSET;
 	dmap_phys_max = 0;
 	dmap_max_addr = 0;
+	l2 = NULL;
+	prev_l1_slot = -1;
+
+#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
+	memset(pagetable_dmap, 0, PAGE_SIZE * DMAP_TABLES);
 
 	for (i = 0; i < (physmap_idx * 2); i += 2) {
-		pa = physmap[i] & ~L1_OFFSET;
+		pa = physmap[i] & ~L2_OFFSET;
 		va = pa - dmap_phys_base + DMAP_MIN_ADDRESS;
 
-		for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
+		/* Create L2 mappings at the start of the region */
+		if ((pa & L1_OFFSET) != 0) {
+			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
+			if (l1_slot != prev_l1_slot) {
+				prev_l1_slot = l1_slot;
+				l2 = (pt_entry_t *)freemempos;
+				l2_pa = pmap_early_vtophys(kern_l1,
+				    (vm_offset_t)l2);
+				freemempos += PAGE_SIZE;
+
+				pmap_load_store(&pagetable_dmap[l1_slot],
+				    (l2_pa & ~Ln_TABLE_MASK) | L1_TABLE);
+
+				memset(l2, 0, PAGE_SIZE);
+			}
+			KASSERT(l2 != NULL,
+			    ("pmap_bootstrap_dmap: NULL l2 map"));
+			for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
+			    pa += L2_SIZE, va += L2_SIZE) {
+				/*
+				 * We are on a boundary, stop to
+				 * create a level 1 block
+				 */
+				if ((pa & L1_OFFSET) == 0)
+					break;
+
+				l2_slot = pmap_l2_index(va);
+				KASSERT(l2_slot != 0, ("..."));
+				pmap_load_store(&l2[l2_slot],
+				    (pa & ~L2_OFFSET) | ATTR_DEFAULT | ATTR_XN |
+				    ATTR_IDX(CACHED_MEMORY) | L2_BLOCK);
+			}
+			KASSERT(va == (pa - dmap_phys_base + DMAP_MIN_ADDRESS),
+			    ("..."));
+		}
+
+		for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1] &&
+		    (physmap[i + 1] - pa) >= L1_SIZE;
 		    pa += L1_SIZE, va += L1_SIZE) {
 			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
-			/* We already have an entry */
-			if (pagetable_dmap[l1_slot] != 0)
-				continue;
 			pmap_load_store(&pagetable_dmap[l1_slot],
 			    (pa & ~L1_OFFSET) | ATTR_DEFAULT | ATTR_XN |
 			    ATTR_IDX(CACHED_MEMORY) | L1_BLOCK);
+		}
+
+		/* Create L2 mappings at the end of the region */
+		if (pa < physmap[i + 1]) {
+			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
+			if (l1_slot != prev_l1_slot) {
+				prev_l1_slot = l1_slot;
+				l2 = (pt_entry_t *)freemempos;
+				l2_pa = pmap_early_vtophys(kern_l1,
+				    (vm_offset_t)l2);
+				freemempos += PAGE_SIZE;
+
+				pmap_load_store(&pagetable_dmap[l1_slot],
+				    (l2_pa & ~Ln_TABLE_MASK) | L1_TABLE);
+
+				memset(l2, 0, PAGE_SIZE);
+			}
+			KASSERT(l2 != NULL,
+			    ("pmap_bootstrap_dmap: NULL l2 map"));
+			for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
+			    pa += L2_SIZE, va += L2_SIZE) {
+				l2_slot = pmap_l2_index(va);
+				pmap_load_store(&l2[l2_slot],
+				    (pa & ~L2_OFFSET) | ATTR_DEFAULT | ATTR_XN |
+				    ATTR_IDX(CACHED_MEMORY) | L2_BLOCK);
+			}
 		}
 
 		if (pa > dmap_phys_max) {
@@ -620,6 +687,8 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	}
 
 	cpu_tlb_flushID();
+
+	return (freemempos);
 }
 
 static vm_offset_t
@@ -722,8 +791,11 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 			max_pa = physmap[i + 1];
 	}
 
+	freemempos = KERNBASE + kernlen;
+	freemempos = roundup2(freemempos, PAGE_SIZE);
+
 	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
+	freemempos = pmap_bootstrap_dmap(l1pt, min_pa, freemempos);
 
 	va = KERNBASE;
 	start_pa = pa = KERNBASE - kern_delta;
@@ -755,8 +827,6 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	va = roundup2(va, L1_SIZE);
 
-	freemempos = KERNBASE + kernlen;
-	freemempos = roundup2(freemempos, PAGE_SIZE);
 	/* Create the l2 tables up to VM_MAX_KERNEL_ADDRESS */
 	freemempos = pmap_bootstrap_l2(l1pt, va, freemempos);
 	/* And the l3 tables for the early devmap */
