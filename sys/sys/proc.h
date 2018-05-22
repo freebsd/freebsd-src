@@ -254,8 +254,8 @@ struct thread {
 	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 
 /* Cleared during fork1() */
-#define	td_startzero td_flags
-	u_char	td_epochnest; /* (k) Private thread epoch nest counter */
+#define	td_startzero td_epochnest
+	u_char		td_epochnest;	/* (k) Epoch nest counter. */
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_inhibitors;	/* (t) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
