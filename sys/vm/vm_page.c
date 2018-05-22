@@ -2191,9 +2191,7 @@ vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 	vm_page_t m;
 	u_int flags;
 
-	/*
-	 * Do not allocate reserved pages unless the req has asked for it.
-	 */
+	m = NULL;
 	vmd = VM_DOMAIN(domain);
 again:
 	if (vm_domain_allocate(vmd, req, 1)) {
