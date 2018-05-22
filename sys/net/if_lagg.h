@@ -42,9 +42,8 @@
 #define	LAGG_PORT_ACTIVE	0x00000004	/* port is active */
 #define	LAGG_PORT_COLLECTING	0x00000008	/* port is receiving frames */
 #define	LAGG_PORT_DISTRIBUTING	0x00000010	/* port is sending frames */
-#define	LAGG_PORT_DISABLED	0x00000020	/* port is disabled */
 #define	LAGG_PORT_BITS		"\20\01MASTER\02STACK\03ACTIVE\04COLLECTING" \
-				  "\05DISTRIBUTING\06DISABLED"
+				  "\05DISTRIBUTING"
 
 /* Supported lagg PROTOs */
 typedef enum {
