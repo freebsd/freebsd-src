@@ -168,20 +168,21 @@ arm_physmem_print_tables(void)
  * Returns the number of pages of non-excluded memory added to the avail list.
  */
 static size_t
-regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
+regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail,
+    long *prealmem)
 {
 	size_t acnt, exi, hwi;
 	uint64_t end, start, xend, xstart;
-	long availmem;
+	long availmem, totalmem;
 	const struct region *exp, *hwp;
 
-	realmem = 0;
+	totalmem = 0;
 	availmem = 0;
 	acnt = 0;
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
 		start = hwp->addr;
 		end   = hwp->size + start;
-		realmem += pm_btop((vm_offset_t)(end - start));
+		totalmem += pm_btop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
 			 * If the excluded region does not match given flags,
@@ -261,8 +262,10 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 			panic("Not enough space in the dump/phys_avail arrays");
 	}
 
-	if (pavail)
+	if (pavail != NULL)
 		*pavail = availmem;
+	if (prealmem != NULL)
+		*prealmem = realmem;
 	return (acnt);
 }
 
@@ -386,8 +389,9 @@ arm_physmem_init_kernel_globals(void)
 {
 	size_t nextidx;
 
-	regions_to_avail(dump_avail, EXFLAG_NODUMP, NULL);
-	nextidx = regions_to_avail(phys_avail, EXFLAG_NOALLOC, &physmem);
+	regions_to_avail(dump_avail, EXFLAG_NODUMP, NULL, NULL);
+	nextidx = regions_to_avail(phys_avail, EXFLAG_NOALLOC, &physmem,
+	    &realmem);
 	if (nextidx == 0)
 		panic("No memory entries in phys_avail");
 	Maxmem = atop(phys_avail[nextidx - 1]);
