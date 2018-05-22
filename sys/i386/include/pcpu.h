@@ -77,7 +77,8 @@
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[550]
+	uint32_t pc_ibpb_set;						\
+	char	__pad[546]
 
 #ifdef _KERNEL
 
