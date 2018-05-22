@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <vm/vm.h>
 #include <machine/md_var.h>
-#include <machine/physmem.h>
+#include <arm/include/physmem.h>
 
 /*
  * These structures are used internally to keep track of regions of physical
@@ -51,7 +51,13 @@ __FBSDID("$FreeBSD$");
 #define	MAX_HWCNT	10
 #define	MAX_EXCNT	10
 
+#if defined(__arm__)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFull
+#define	pm_btop(x)	arm32_btop(x)
+#elif defined(__aarch64__)
+#define	MAX_PHYS_ADDR	0xFFFFFFFFFFFFFFFFull
+#define	pm_btop(x)	arm64_btop(x)
+#endif
 
 struct region {
 	vm_paddr_t	addr;
@@ -175,7 +181,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
 		start = hwp->addr;
 		end   = hwp->size + start;
-		realmem += arm32_btop((vm_offset_t)(end - start));
+		realmem += pm_btop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
 			 * If the excluded region does not match given flags,
@@ -223,8 +229,8 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 					avail[acnt++] = (vm_paddr_t)start;
 					avail[acnt++] = (vm_paddr_t)xstart;
 				}
-				availmem += 
-				    arm32_btop((vm_offset_t)(xstart - start));
+				availmem +=
+				    pm_btop((vm_offset_t)(xstart - start));
 				start = xend;
 				continue;
 			}
@@ -249,7 +255,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 				avail[acnt++] = (vm_paddr_t)start;
 				avail[acnt++] = (vm_paddr_t)end;
 			}
-			availmem += arm32_btop((vm_offset_t)(end - start));
+			availmem += pm_btop((vm_offset_t)(end - start));
 		}
 		if (acnt >= MAX_AVAIL_ENTRIES)
 			panic("Not enough space in the dump/phys_avail arrays");
