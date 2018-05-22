@@ -241,7 +241,7 @@ mmc_scan_lun(struct cam_periph *periph, struct cam_path *path,
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("mmc_scan_lun\n"));
 
-	xpt_path_inq(&cpi, periph->path);
+	xpt_path_inq(&cpi, path);
 
 	if (cpi.ccb_h.status != CAM_REQ_CMP) {
 		if (request_ccb != NULL) {
