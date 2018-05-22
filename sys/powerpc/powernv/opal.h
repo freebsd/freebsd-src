@@ -72,6 +72,7 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
 #define	OPAL_CHECK_ASYNC_COMPLETION	86
+#define	OPAL_SENSOR_READ		88
 #define	OPAL_I2C_REQUEST		109
 #define	OPAL_INT_GET_XIRR		122
 #define	OPAL_INT_SET_CPPR		123
@@ -79,6 +80,9 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_INT_SET_MFRR		125
 #define	OPAL_PCI_TCE_KILL		126
 #define	OPAL_XIVE_RESET			128
+#define	OPAL_SENSOR_GROUP_CLEAR		156
+#define	OPAL_SENSOR_READ_U64		162
+#define	OPAL_SENSOR_GROUP_ENABLE	163
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0
