@@ -316,9 +316,9 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 
 	mtx_lock(&sc->tids.ftid_lock);
 	f = &sc->tids.ftid_tab[t->idx];
-	MPASS(f->tid == sc->tids.ftid_base + t->idx);
 	for (i = t->idx; i < nfilters; i++, f++) {
 		if (f->valid) {
+			MPASS(f->tid == sc->tids.ftid_base + i);
 			t->idx = i;
 			t->l2tidx = f->l2te ? f->l2te->idx : 0;
 			t->smtidx = f->smtidx;
