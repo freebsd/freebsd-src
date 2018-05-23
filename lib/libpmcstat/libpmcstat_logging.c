@@ -313,6 +313,11 @@ pmcstat_analyze_log(struct pmcstat_args *args,
 			cpuflags = ev.pl_u.pl_cc.pl_cpuflags;
 			cpu = PMC_CALLCHAIN_CPUFLAGS_TO_CPU(cpuflags);
 
+			if ((args->pa_flags & FLAG_FILTER_THREAD_ID) &&
+				args->pa_tid != ev.pl_u.pl_cc.pl_tid) {
+				pmcstat_stats->ps_samples_skipped++;
+				break;
+			}
 			/* Filter on the CPU id. */
 			if (!CPU_ISSET(cpu, &(args->pa_cpumask))) {
 				pmcstat_stats->ps_samples_skipped++;
