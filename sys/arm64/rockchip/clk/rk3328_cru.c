@@ -593,9 +593,60 @@ static struct rk_clk_composite_def aclk_bus_pre = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+static struct rk_clk_armclk_rates rk3328_armclk_rates[] = {
+	{
+		.freq = 1296000000,
+		.div = 1,
+	},
+	{
+		.freq = 1200000000,
+		.div = 1,
+	},
+	{
+		.freq = 1104000000,
+		.div = 1,
+	},
+	{
+		.freq = 1008000000,
+		.div = 1,
+	},
+	{
+		.freq = 912000000,
+		.div = 1,
+	},
+	{
+		.freq = 816000000,
+		.div = 1,
+	},
+	{
+		.freq = 696000000,
+		.div = 1,
+	},
+	{
+		.freq = 600000000,
+		.div = 1,
+	},
+	{
+		.freq = 408000000,
+		.div = 1,
+	},
+	{
+		.freq = 312000000,
+		.div = 1,
+	},
+	{
+		.freq = 216000000,
+		.div = 1,
+	},
+	{
+		.freq = 96000000,
+		.div = 1,
+	},
+};
+
 #define	ARMCLK	6
 static const char *armclk_parents[] = {"apll", "gpll", "dpll", "npll" };
-static struct rk_clk_composite_def armclk = {
+static struct rk_clk_armclk_def armclk = {
 	.clkdef = {
 		.id = ARMCLK,
 		.name = "armclk",
@@ -610,6 +661,11 @@ static struct rk_clk_composite_def armclk = {
 	.div_width = 5,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX,
+	.main_parent = 3, /* npll */
+	.alt_parent = 0, /* apll */
+
+	.rates = rk3328_armclk_rates,
+	.nrates = nitems(rk3328_armclk_rates),
 };
 
 /* CRU_CLKSEL_CON1 */
@@ -825,15 +881,16 @@ static struct rk_clk rk3328_clks[] = {
 	},
 	{
 		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &armclk
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &hclk_bus_pre
 	},
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &pclk_bus_pre
+	},
+
+	{
+		.type = RK_CLK_ARMCLK,
+		.clk.armclk = &armclk,
 	},
 
 	{
