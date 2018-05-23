@@ -37,6 +37,7 @@ typedef long long intmax_t;
 #endif
 
 int	find_confstr(const char *name, int *key);
+int	find_unsigned_limit(const char *name, uintmax_t *value);
 int	find_limit(const char *name, intmax_t *value);
 int	find_pathconf(const char *name, int *key);
 int	find_progenv(const char *name, const char **alt_path);
