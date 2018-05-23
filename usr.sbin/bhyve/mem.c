@@ -123,6 +123,7 @@ mmio_rb_add(struct mmio_rb_tree *rbt, struct mmio_rb_range *new)
 static void
 mmio_rb_dump(struct mmio_rb_tree *rbt)
 {
+	int perror;
 	struct mmio_rb_range *np;
 
 	pthread_rwlock_rdlock(&mmio_rwlock);
@@ -130,7 +131,8 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 		printf(" %lx:%lx, %s\n", np->mr_base, np->mr_end,
 		       np->mr_param.name);
 	}
-	pthread_rwlock_unlock(&mmio_rwlock);
+	perror = pthread_rwlock_unlock(&mmio_rwlock);
+	assert(perror == 0);
 }
 #endif
 
@@ -166,7 +168,7 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
     void *arg)
 {
 	struct mmio_rb_range *entry;
-	int err, immutable;
+	int err, perror, immutable;
 	
 	pthread_rwlock_rdlock(&mmio_rwlock);
 	/*
@@ -184,7 +186,8 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
 			/* Update the per-vCPU cache */
 			mmio_hint[vcpu] = entry;			
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
-			pthread_rwlock_unlock(&mmio_rwlock);
+			perror = pthread_rwlock_unlock(&mmio_rwlock);
+			assert(perror == 0);
 			return (ESRCH);
 		}
 	}
@@ -203,13 +206,18 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
 	 * config space window as 'immutable' the deadlock can be avoided.
 	 */
 	immutable = (entry->mr_param.flags & MEM_F_IMMUTABLE);
-	if (immutable)
-		pthread_rwlock_unlock(&mmio_rwlock);
+	if (immutable) {
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
+	}
 
 	err = cb(ctx, vcpu, paddr, &entry->mr_param, arg);
 
-	if (!immutable)
-		pthread_rwlock_unlock(&mmio_rwlock);
+	if (!immutable) {
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
+	}
+
 
 	return (err);
 }
@@ -272,7 +280,7 @@ static int
 register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 {
 	struct mmio_rb_range *entry, *mrp;
-	int		err;
+	int err, perror;
 
 	err = 0;
 
@@ -285,7 +293,8 @@ register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 		pthread_rwlock_wrlock(&mmio_rwlock);
 		if (mmio_rb_lookup(rbt, memp->base, &entry) != 0)
 			err = mmio_rb_add(rbt, mrp);
-		pthread_rwlock_unlock(&mmio_rwlock);
+		perror = pthread_rwlock_unlock(&mmio_rwlock);
+		assert(perror == 0);
 		if (err)
 			free(mrp);
 	} else
@@ -313,7 +322,7 @@ unregister_mem(struct mem_range *memp)
 {
 	struct mem_range *mr;
 	struct mmio_rb_range *entry = NULL;
-	int err, i;
+	int err, perror, i;
 	
 	pthread_rwlock_wrlock(&mmio_rwlock);
 	err = mmio_rb_lookup(&mmio_rb_root, memp->base, &entry);
@@ -330,7 +339,8 @@ unregister_mem(struct mem_range *memp)
 				mmio_hint[i] = NULL;
 		}
 	}
-	pthread_rwlock_unlock(&mmio_rwlock);
+	perror = pthread_rwlock_unlock(&mmio_rwlock);
+	assert(perror == 0);
 
 	if (entry)
 		free(entry);
