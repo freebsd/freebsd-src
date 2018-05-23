@@ -181,7 +181,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
  * Assertions about the log file format.
  */
 
-CTASSERT(sizeof(struct pmclog_callchain) == 6*4 +
+CTASSERT(sizeof(struct pmclog_callchain) == 8*4 +
     PMC_CALLCHAIN_DEPTH_MAX*sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_closelog) == 3*4);
 CTASSERT(sizeof(struct pmclog_dropnotify) == 3*4);
@@ -190,12 +190,12 @@ CTASSERT(sizeof(struct pmclog_map_in) == PATH_MAX +
 CTASSERT(offsetof(struct pmclog_map_in,pl_pathname) ==
     4*4 + sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_map_out) == 4*4 + 2*sizeof(uintfptr_t));
-CTASSERT(sizeof(struct pmclog_pcsample) == 6*4 + sizeof(uintfptr_t));
+CTASSERT(sizeof(struct pmclog_pcsample) == 8*4 + sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_pmcallocate) == 6*4);
 CTASSERT(sizeof(struct pmclog_pmcattach) == 5*4 + PATH_MAX);
 CTASSERT(offsetof(struct pmclog_pmcattach,pl_pathname) == 5*4);
 CTASSERT(sizeof(struct pmclog_pmcdetach) == 5*4);
-CTASSERT(sizeof(struct pmclog_proccsw) == 5*4 + 8);
+CTASSERT(sizeof(struct pmclog_proccsw) == 6*4 + 8);
 CTASSERT(sizeof(struct pmclog_procexec) == 5*4 + PATH_MAX +
     sizeof(uintfptr_t));
 CTASSERT(offsetof(struct pmclog_procexec,pl_pathname) == 5*4 +
@@ -907,8 +907,11 @@ pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
 	flags = PMC_CALLCHAIN_TO_CPUFLAGS(ps->ps_cpu,ps->ps_flags);
 	PMCLOG_RESERVE_SAFE(po, CALLCHAIN, recordlen);
 	PMCLOG_EMIT32(ps->ps_pid);
+	PMCLOG_EMIT32(ps->ps_tid);
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT32(flags);
+	/* unused for now */
+	PMCLOG_EMIT32(0);
 	for (n = 0; n < ps->ps_nsamples; n++)
 		PMCLOG_EMITADDR(ps->ps_pc[n]);
 	PMCLOG_DESPATCH_SAFE(po);
@@ -1033,7 +1036,7 @@ pmclog_process_pmcdetach(struct pmc *pm, pid_t pid)
  */
 
 void
-pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v)
+pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v, struct thread *td)
 {
 	struct pmc_owner *po;
 
@@ -1049,6 +1052,7 @@ pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v)
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT64(v);
 	PMCLOG_EMIT32(pp->pp_proc->p_pid);
+	PMCLOG_EMIT32(td->td_tid);
 	PMCLOG_DESPATCH(po);
 }
 
