@@ -722,7 +722,7 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	struct uio auio;
 	struct iovec *iov;
 	struct socket *so;
-	cap_rights_t rights;
+	cap_rights_t *rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -730,12 +730,12 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	int i, error;
 
 	AUDIT_ARG_FD(s);
-	cap_rights_init(&rights, CAP_SEND);
+	rights = &cap_send_rights;
 	if (mp->msg_name != NULL) {
 		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
-		cap_rights_set(&rights, CAP_CONNECT);
+		rights = &cap_send_connect_rights;
 	}
-	error = getsock_cap(td, s, &rights, &fp, NULL, NULL);
+	error = getsock_cap(td, s, rights, &fp, NULL, NULL);
 	if (error != 0) {
 		m_freem(control);
 		return (error);

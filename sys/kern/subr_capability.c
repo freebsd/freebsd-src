@@ -92,6 +92,7 @@ __read_mostly cap_rights_t cap_renameat_source_rights;
 __read_mostly cap_rights_t cap_renameat_target_rights;
 __read_mostly cap_rights_t cap_seek_rights;
 __read_mostly cap_rights_t cap_send_rights;
+__read_mostly cap_rights_t cap_send_connect_rights;
 __read_mostly cap_rights_t cap_setsockopt_rights;
 __read_mostly cap_rights_t cap_shutdown_rights;
 __read_mostly cap_rights_t cap_symlinkat_rights;
@@ -140,6 +141,7 @@ __cap_rights_sysinit1(void *arg)
 	cap_rights_init(&cap_renameat_target_rights, CAP_RENAMEAT_TARGET);
 	cap_rights_init(&cap_seek_rights, CAP_SEEK);
 	cap_rights_init(&cap_send_rights, CAP_SEND);
+	cap_rights_init(&cap_send_connect_rights, CAP_SEND, CAP_CONNECT);
 	cap_rights_init(&cap_setsockopt_rights, CAP_SETSOCKOPT);
 	cap_rights_init(&cap_shutdown_rights, CAP_SHUTDOWN);
 	cap_rights_init(&cap_symlinkat_rights, CAP_SYMLINKAT);
