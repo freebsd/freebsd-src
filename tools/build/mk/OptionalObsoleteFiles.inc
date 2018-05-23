@@ -661,6 +661,7 @@ OLD_FILES+=usr/share/man/man1/cpio.1.gz
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
 OLD_FILES+=usr/libexec/bsdinstall/autopart
+OLD_FILES+=usr/libexec/bsdinstall/bootconfig
 OLD_FILES+=usr/libexec/bsdinstall/checksum
 OLD_FILES+=usr/libexec/bsdinstall/config
 OLD_FILES+=usr/libexec/bsdinstall/distextract
