@@ -285,8 +285,14 @@ trap(struct trapframe *frame)
 			signo = SIGTRAP;
 			ucode = TRAP_TRACE;
 			dr6 = rdr6();
-			if (dr6 & DBREG_DR6_BS)
-				frame->tf_rflags &= ~PSL_T;
+			if ((dr6 & DBREG_DR6_BS) != 0) {
+				PROC_LOCK(td->td_proc);
+				if ((td->td_dbgflags & TDB_STEP) != 0) {
+					td->td_frame->tf_rflags &= ~PSL_T;
+					td->td_dbgflags &= ~TDB_STEP;
+				}
+				PROC_UNLOCK(td->td_proc);
+			}
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
