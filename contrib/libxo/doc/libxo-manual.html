@@ -515,7 +515,7 @@ li.indline1 {
  
   } 
   @top-right {
-       content: "August 2017";
+       content: "May 2018";
  
   } 
   @top-center {
@@ -22011,7 +22011,7 @@ jQuery(function ($) {
 </tr>
 <tr>
 <td class="header left"></td>
-<td class="header right">August 3, 2017</td>
+<td class="header right">May 21, 2018</td>
 </tr>
 </table></div>
 <p id="title" class="title">libxo: The Easy Way to Generate text, XML, JSON, and HTML output<br><span class="filename">libxo-manual</span></p>
@@ -22676,13 +22676,13 @@ jQuery(function ($) {
     #else
         /* pooh */
     #endif
-	    </pre> <p id="doc_section_1_p_5">But you'd really, really like all the fancy features that modern encoding formats can provide. libxo can help.</p>
+            </pre> <p id="doc_section_1_p_5">But you'd really, really like all the fancy features that modern encoding formats can provide. libxo can help.</p>
 <p id="doc_section_1_p_6">The libxo library allows an application to generate text, XML, JSON, and HTML output using a common set of function calls. The application decides at run time which output style should be produced. The application calls a function "xo_emit" to product output that is described in a format string. A "field descriptor" tells libxo what the field is and what it means. Each field descriptor is placed in braces with a printf-like format string (<a href="#format-strings" title="Format Strings">Section 3.2</a>):</p>
 <div id="doc_figure_u.2"></div> <pre>
     xo_emit(" {:lines/%7ju} {:words/%7ju} "
             "{:characters/%7ju} {d:filename/%s}\n",
             linect, wordct, charct, file);
-	    </pre> <p id="doc_section_1_p_8">Each field can have a role, with the 'value' role being the default, and the role tells libxo how and when to render that field (see <a href="#field-roles" title="Field Roles">Section 3.2.1</a> for details). Modifiers change how the field is rendered in different output styles (see <a href="#field-modifiers" title="Field Modifiers">Section 3.2.2</a> for details. Output can then be generated in various style, using the "&#8209;&#8209;libxo" option:</p>
+            </pre> <p id="doc_section_1_p_8">Each field can have a role, with the 'value' role being the default, and the role tells libxo how and when to render that field (see <a href="#field-roles" title="Field Roles">Section 3.2.1</a> for details). Modifiers change how the field is rendered in different output styles (see <a href="#field-modifiers" title="Field Modifiers">Section 3.2.2</a> for details. Output can then be generated in various style, using the "&#8209;&#8209;libxo" option:</p>
 <div id="doc_figure_u.3"></div> <pre>
     % wc /etc/motd
           25     165    1140 /etc/motd
@@ -22719,7 +22719,7 @@ jQuery(function ($) {
       &lt;div class="text"&gt; &lt;/div&gt;
       &lt;div class="data" data-tag="filename"&gt;/etc/motd&lt;/div&gt;
     &lt;/div&gt;
-	    </pre> <p id="doc_section_1_p_10">Same code path, same format strings, same information, but it's rendered in distinct styles based on run-time flags.</p>
+            </pre> <p id="doc_section_1_p_10">Same code path, same format strings, same information, but it's rendered in distinct styles based on run-time flags.</p>
 </div>
 <hr class="noprint">
 <div class="content">
@@ -22736,7 +22736,7 @@ jQuery(function ($) {
 <p id="doc_section_2_p_6">We are following the branching scheme from <a href="http://nvie.com/posts/a-successful-git-branching-model/">http://nvie.com/posts/a-successful-git-branching-model/</a> which means we will do development under the "develop" branch, and release from the "master" branch. To clone a developer tree, run the following command:</p>
 <div id="doc_figure_u.4"></div> <pre>
   git clone https://github.com/Juniper/libxo.git -b develop
-	    </pre> <p id="doc_section_2_p_8">We're using semantic release numbering, as defined in <a href="http://semver.org/spec/v2.0.0.html">http://semver.org/spec/v2.0.0.html</a>.</p>
+            </pre> <p id="doc_section_2_p_8">We're using semantic release numbering, as defined in <a href="http://semver.org/spec/v2.0.0.html">http://semver.org/spec/v2.0.0.html</a>.</p>
 <p id="doc_section_2_p_9">libxo is open source, distributed under the BSD license. It shipped as part of the FreeBSD operating system starting with release 11.0.</p>
 <p id="doc_section_2_p_10">Issues, problems, and bugs should be directly to the issues page on our github site.</p>
 <p id="doc_section_2_p_11">Section Contents: </p>
@@ -22756,12 +22756,12 @@ jQuery(function ($) {
 <div id="doc_figure_u.5"></div> <pre>
     tar -zxf libxo-RELEASE.tar.gz
     cd libxo-RELEASE
-	    </pre> <p id="doc_section_2_1_p_5">[Note: for Solaris users, your "tar" command lacks the "&#8209;z" flag, so you'll need to substitute "gzip -dc "file" | tar xf -" instead of "tar -zxf "file"".]</p>
+            </pre> <p id="doc_section_2_1_p_5">[Note: for Solaris users, your "tar" command lacks the "&#8209;z" flag, so you'll need to substitute "gzip -dc "file" | tar xf -" instead of "tar -zxf "file"".]</p>
 <p id="doc_section_2_1_p_6">B) Use the current build from github. This gives you the most recent source code, which might be less stable than a specific release. To build libxo from the git repo:</p>
 <div id="doc_figure_u.6"></div> <pre>
     git clone https://github.com/Juniper/libxo.git
     cd libxo
-	    </pre> <p id="doc_section_2_1_p_8">_BE AWARE_: The github repository does _not_ contain the files generated by "autoreconf", with the notable exception of the "m4" directory. Since these files (depcomp, configure, missing, install-sh, etc) are generated files, we keep them out of the source code repository.</p>
+            </pre> <p id="doc_section_2_1_p_8">_BE AWARE_: The github repository does _not_ contain the files generated by "autoreconf", with the notable exception of the "m4" directory. Since these files (depcomp, configure, missing, install-sh, etc) are generated files, we keep them out of the source code repository.</p>
 <p id="doc_section_2_1_p_9">This means that if you download the a release distfile, these files will be ready and you'll just need to run "configure", but if you download the source code from svn, then you'll need to run "autoreconf" by hand. This step is done for you by the "setup.sh" script, described in the next section.</p>
 </div>
 <div class="content">
@@ -22779,7 +22779,7 @@ jQuery(function ($) {
     make
     make test
     sudo make install
-	    </pre> <p id="doc_section_2_2_p_4">The following sections will walk through each of these steps with additional details and options, but the above directions should be all that's needed.</p>
+            </pre> <p id="doc_section_2_2_p_4">The following sections will walk through each of these steps with additional details and options, but the above directions should be all that's needed.</p>
 <p id="doc_section_2_2_p_5">Section Contents: </p>
 <ul>
 <li><a href="#setting-up-the-build" title="Setting up the build">Section 2.2.1</a></li>
@@ -22796,7 +22796,7 @@ jQuery(function ($) {
 <p id="doc_section_2_2_1_p_2">Run the "setup.sh" script to set up the build. This script runs the "autoreconf" command to generate the "configure" script and other generated files.</p>
 <div id="doc_figure_u.8"></div> <pre>
     sh bin/setup.sh
-	    </pre> <p id="doc_section_2_2_1_p_4">Note: We're are currently using autoreconf version 2.69.</p>
+            </pre> <p id="doc_section_2_2_1_p_4">Note: We're are currently using autoreconf version 2.69.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_2_2_2">
@@ -22810,15 +22810,15 @@ jQuery(function ($) {
 <div id="doc_figure_u.9"></div> <pre>
     cd build
     ../configure
-	    </pre> <p id="doc_section_2_2_2_p_5">Expect to see the "configure" script generate the following error:</p>
+            </pre> <p id="doc_section_2_2_2_p_5">Expect to see the "configure" script generate the following error:</p>
 <div id="doc_figure_u.10"></div> <pre>
     /usr/bin/rm: cannot remove `libtoolT': No such file or directory
-	    </pre> <p id="doc_section_2_2_2_p_7">This error is harmless and can be safely ignored.</p>
+            </pre> <p id="doc_section_2_2_2_p_7">This error is harmless and can be safely ignored.</p>
 <p id="doc_section_2_2_2_p_8">By default, libxo installs architecture-independent files, including extension library files, in the /usr/local directories. To specify an installation prefix other than /usr/local for all installation files, include the --prefix=prefix option and specify an alternate location. To install just the extension library files in a different, user-defined location, include the --with-extensions-dir=dir option and specify the location where the extension libraries will live.</p>
 <div id="doc_figure_u.11"></div> <pre>
     cd build
     ../configure [OPTION]... [VAR=VALUE]...
-	    </pre> <p id="doc_section_2_2_2_p_10">Section Contents: </p>
+            </pre> <p id="doc_section_2_2_2_p_10">Section Contents: </p>
 <ul>
 <li><a href="#running-the-make-command" title='Running the "make" command'>Section 2.2.2.1</a></li>
 <li><a href="#running-the-regression-tests" title="Running the Regression Tests">Section 2.2.2.2</a></li>
@@ -22832,7 +22832,7 @@ jQuery(function ($) {
 <p id="doc_section_2_2_2_1_p_1">Once the "configure" script is run, build the images using the "make" command:</p>
 <div id="doc_figure_u.12"></div> <pre>
     make
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_2_2_2_2">
 <div class="self-section-number">
@@ -22842,7 +22842,7 @@ jQuery(function ($) {
 <p id="doc_section_2_2_2_2_p_1">libxo includes a set of regression tests that can be run to ensure the software is working properly. These test are optional, but will help determine if there are any issues running libxo on your machine. To run the regression tests:</p>
 <div id="doc_figure_u.13"></div> <pre>
     make test
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h3 id="doc_section_2_2_3">
@@ -22853,15 +22853,15 @@ jQuery(function ($) {
 <p id="doc_section_2_2_3_p_1">Once the software is built, you'll need to install libxo using the "make install" command. If you are the root user, or the owner of the installation directory, simply issue the command:</p>
 <div id="doc_figure_u.14"></div> <pre>
     make install
-	    </pre> <p id="doc_section_2_2_3_p_3">If you are not the "root" user and are using the "sudo" package, use:</p>
+            </pre> <p id="doc_section_2_2_3_p_3">If you are not the "root" user and are using the "sudo" package, use:</p>
 <div id="doc_figure_u.15"></div> <pre>
     sudo make install
-	    </pre> <p id="doc_section_2_2_3_p_5">Verify the installation by viewing the output of "xo --version":</p>
+            </pre> <p id="doc_section_2_2_3_p_5">Verify the installation by viewing the output of "xo --version":</p>
 <div id="doc_figure_u.16"></div> <pre>
     % xo --version
     libxo version 0.3.5-git-develop
     xo version 0.3.5-git-develop
-	    </pre> </div>
+            </pre> </div>
 </div>
 </div>
 <hr class="noprint">
@@ -22897,7 +22897,7 @@ jQuery(function ($) {
               data-xpath="/top/domain"&gt;example.com&lt;/div&gt;
          &lt;div class="text"&gt;...&lt;/div&gt;
        &lt;/div&gt;
-	    </pre> <p id="doc_section_3_p_7">Section Contents: </p>
+            </pre> <p id="doc_section_3_p_7">Section Contents: </p>
 <ul>
 <li><a href="#encoding-styles" title="Encoding Styles">Section 3.1</a></li>
 <li><a href="#format-strings" title="Format Strings">Section 3.2</a></li>
@@ -22936,14 +22936,14 @@ jQuery(function ($) {
     36      ./src
     40      ./bin
     90      .
-	    </pre> <p id="doc_section_3_1_1_p_3">In this example (taken from du source code), the code to generate this data might look like:</p>
+            </pre> <p id="doc_section_3_1_1_p_3">In this example (taken from du source code), the code to generate this data might look like:</p>
 <div id="doc_figure_u.19"></div> <pre>
     printf("%d\t%s\n", num_blocks, path);
-	    </pre> <p id="doc_section_3_1_1_p_5">Simple, direct, obvious. But it's only making text output. Imagine using a single code path to make TEXT, XML, JSON or HTML, deciding at run time which to generate.</p>
+            </pre> <p id="doc_section_3_1_1_p_5">Simple, direct, obvious. But it's only making text output. Imagine using a single code path to make TEXT, XML, JSON or HTML, deciding at run time which to generate.</p>
 <p id="doc_section_3_1_1_p_6">libxo expands on the idea of printf format strings to make a single format containing instructions for creating multiple output styles:</p>
 <div id="doc_figure_u.20"></div> <pre>
     xo_emit("{:blocks/%d}\t{:path/%s}\n", num_blocks, path);
-	    </pre> <p id="doc_section_3_1_1_p_8">This line will generate the same text output as the earlier printf call, but also has enough information to generate XML, JSON, and HTML.</p>
+            </pre> <p id="doc_section_3_1_1_p_8">This line will generate the same text output as the earlier printf call, but also has enough information to generate XML, JSON, and HTML.</p>
 <p id="doc_section_3_1_1_p_9">The following sections introduce the other formats.</p>
 </div>
 <div class="content">
@@ -22966,7 +22966,7 @@ jQuery(function ($) {
       &lt;blocks&gt;90&lt;/blocks&gt;
       &lt;path&gt;.&lt;/path&gt;
     &lt;/item&gt;
-	    </pre> <p id="doc_section_3_1_2_p_3">XML is a W3C standard for encoding data. See w3c.org/TR/xml for additional information.</p>
+            </pre> <p id="doc_section_3_1_2_p_3">XML is a W3C standard for encoding data. See w3c.org/TR/xml for additional information.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_3_1_3">
@@ -22981,7 +22981,7 @@ jQuery(function ($) {
         { "blocks": 40, "path" : "./bin" },
         { "blocks": 90, "path" : "./" }
     ]
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_3_1_4">
 <div class="self-section-number">
@@ -23006,7 +23006,7 @@ jQuery(function ($) {
       &lt;div class="padding"&gt;      &lt;/div&gt;
       &lt;div class="data" data-tag="path"&gt;./&lt;/div&gt;
     &lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h2 id="doc_section_3_2">
@@ -23019,15 +23019,15 @@ jQuery(function ($) {
 <div id="doc_figure_u.24"></div> <pre>
     '{' [ role | modifier ]* [',' long-names ]* ':' [ content ]
             [ '/' field-format [ '/' encoding-format ]] '}'
-	    </pre> <p id="doc_section_3_2_p_4">The role describes the function of the field, while the modifiers enable optional behaviors. The contents, field-format, and encoding-format are used in varying ways, based on the role. These are described in the following sections.</p>
+            </pre> <p id="doc_section_3_2_p_4">The role describes the function of the field, while the modifiers enable optional behaviors. The contents, field-format, and encoding-format are used in varying ways, based on the role. These are described in the following sections.</p>
 <p id="doc_section_3_2_p_5">In the following example, three field descriptors appear. The first is a padding field containing three spaces of padding, the second is a label ("In stock"), and the third is a value field ("in&#8209;stock"). The in-stock field has a "%u" format that will parse the next argument passed to the xo_emit function as an unsigned integer.</p>
 <div id="doc_figure_u.25"></div> <pre>
     xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n", 65);
-	    </pre> <p id="doc_section_3_2_p_7">This single line of code can generate text (" In stock: 65\n"), XML ("&lt;in&#8209;stock&gt;65&lt;/in&#8209;stock&gt;"), JSON ('"in&#8209;stock": 6'), or HTML (too lengthy to be listed here).</p>
+            </pre> <p id="doc_section_3_2_p_7">This single line of code can generate text (" In stock: 65\n"), XML ("&lt;in&#8209;stock&gt;65&lt;/in&#8209;stock&gt;"), JSON ('"in&#8209;stock": 6'), or HTML (too lengthy to be listed here).</p>
 <p id="doc_section_3_2_p_8">While roles and modifiers typically use single character for brevity, there are alternative names for each which allow more verbose formatting strings. These names must be preceded by a comma, and may follow any single-character values:</p>
 <div id="doc_figure_u.26"></div> <pre>
     xo_emit("{L,white,colon:In stock}{,key:in-stock/%u}\n", 65);
-	    </pre> <p id="doc_section_3_2_p_10">Section Contents: </p>
+            </pre> <p id="doc_section_3_2_p_10">Section Contents: </p>
 <ul>
 <li><a href="#field-roles" title="Field Roles">Section 3.2.1</a></li>
 <li><a href="#field-modifiers" title="Field Modifiers">Section 3.2.2</a></li>
@@ -23127,14 +23127,14 @@ jQuery(function ($) {
     EXAMPLE:
         xo_emit("{L:Free}{D::}{P:   }{:free/%u} {U:Blocks}\n",
                 free_blocks);
-	    </pre> <p id="doc_section_3_2_1_p_3">When a role is not provided, the "value" role is used as the default.</p>
+            </pre> <p id="doc_section_3_2_1_p_3">When a role is not provided, the "value" role is used as the default.</p>
 <p id="doc_section_3_2_1_p_4">Roles and modifiers can also use more verbose names, when preceded by a comma:</p>
 <div id="doc_figure_u.28"></div> <pre>
     EXAMPLE:
         xo_emit("{,label:Free}{,decoration::}{,padding:   }"
                 "{,value:free/%u} {,units:Blocks}\n",
                 free_blocks);
-	    </pre> <p id="doc_section_3_2_1_p_6">Section Contents: </p>
+            </pre> <p id="doc_section_3_2_1_p_6">Section Contents: </p>
 <ul>
 <li><a href="#color-role" title="The Color Role ({C:})">Section 3.2.1.1</a></li>
 <li><a href="#the-decoration-role-d" title="The Decoration Role ({D:})">Section 3.2.1.2</a></li>
@@ -23156,24 +23156,24 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_1_p_1">Colors and effects control how text values are displayed; they are used for display styles (TEXT and HTML).</p>
 <div id="doc_figure_u.29"></div> <pre>
     xo_emit("{C:bold}{:value}{C:no-bold}\n", value);
-	    </pre> <p id="doc_section_3_2_1_1_p_3">Colors and effects remain in effect until modified by other "C"-role fields.</p>
+            </pre> <p id="doc_section_3_2_1_1_p_3">Colors and effects remain in effect until modified by other "C"-role fields.</p>
 <div id="doc_figure_u.30"></div> <pre>
     xo_emit("{C:bold}{C:inverse}both{C:no-bold}only inverse\n");
-	    </pre> <p id="doc_section_3_2_1_1_p_5">If the content is empty, the "reset" action is performed.</p>
+            </pre> <p id="doc_section_3_2_1_1_p_5">If the content is empty, the "reset" action is performed.</p>
 <div id="doc_figure_u.31"></div> <pre>
     xo_emit("{C:both,underline}{:value}{C:}\n", value);
-	    </pre> <p id="doc_section_3_2_1_1_p_7">The content should be a comma-separated list of zero or more colors or display effects.</p>
+            </pre> <p id="doc_section_3_2_1_1_p_7">The content should be a comma-separated list of zero or more colors or display effects.</p>
 <div id="doc_figure_u.32"></div> <pre>
     xo_emit("{C:bold,inverse}Ugly{C:no-bold,no-inverse}\n");
-	    </pre> <p id="doc_section_3_2_1_1_p_9">The color content can be either static, when placed directly within the field descriptor, or a printf-style format descriptor can be used, if preceded by a slash ("/"):</p>
+            </pre> <p id="doc_section_3_2_1_1_p_9">The color content can be either static, when placed directly within the field descriptor, or a printf-style format descriptor can be used, if preceded by a slash ("/"):</p>
 <div id="doc_figure_u.33"></div> <pre>
    xo_emit("{C:/%s%s}{:value}{C:}", need_bold ? "bold" : "",
            need_underline ? "underline" : "", value);
-	    </pre> <p id="doc_section_3_2_1_1_p_11">Color names are prefixed with either "fg&#8209;" or "bg&#8209;" to change the foreground and background colors, respectively.</p>
+            </pre> <p id="doc_section_3_2_1_1_p_11">Color names are prefixed with either "fg&#8209;" or "bg&#8209;" to change the foreground and background colors, respectively.</p>
 <div id="doc_figure_u.34"></div> <pre>
     xo_emit("{C:/fg-%s,bg-%s}{Lwc:Cost}{:cost/%u}{C:reset}\n",
             fg_color, bg_color, cost);
-	    </pre> <p id="doc_section_3_2_1_1_p_13">The following table lists the supported effects:</p>
+            </pre> <p id="doc_section_3_2_1_1_p_13">The following table lists the supported effects:</p>
 <div id="doc_table_u.2"><table summary="" class="tt full" cellpadding="3" cellspacing="0">
 <thead><tr>
 <th class="left">Name</th>
@@ -23278,7 +23278,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_2_p_1">Decorations are typically punctuation marks such as colons, semi-colons, and commas used to decorate the text and make it simpler for human readers. By marking these distinctly, HTML usage scenarios can use CSS to direct their display parameters.</p>
 <div id="doc_figure_u.35"></div> <pre>
     xo_emit("{D:((}{:name}{D:))}\n", name);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_3">
 <div class="self-section-number">
@@ -23290,10 +23290,10 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_3_p_3">The simplified version can be generated for a single message using the "xopo -s &lt;text&gt;" command, or an entire .pot can be translated using the "xopo -f &lt;input&gt; -o &lt;output&gt;" command.</p>
 <div id="doc_figure_u.36"></div> <pre>
    xo_emit("{G:}Invalid token\n");
-	    </pre> <p id="doc_section_3_2_1_3_p_5">The {G:} role allows a domain name to be set. gettext calls will continue to use that domain name until the current format string processing is complete, enabling a library function to emit strings using it's own catalog. The domain name can be either static as the content of the field, or a format can be used to get the domain name from the arguments.</p>
+            </pre> <p id="doc_section_3_2_1_3_p_5">The {G:} role allows a domain name to be set. gettext calls will continue to use that domain name until the current format string processing is complete, enabling a library function to emit strings using it's own catalog. The domain name can be either static as the content of the field, or a format can be used to get the domain name from the arguments.</p>
 <div id="doc_figure_u.37"></div> <pre>
    xo_emit("{G:libc}Service unavailable in restricted mode\n");
-	    </pre> <p id="doc_section_3_2_1_3_p_7">See <a href="#howto-i18n" title="Howto: Internationalization (i18n)">Section 11.5</a> for additional details.</p>
+            </pre> <p id="doc_section_3_2_1_3_p_7">See <a href="#howto-i18n" title="Howto: Internationalization (i18n)">Section 11.5</a> for additional details.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_4">
@@ -23304,7 +23304,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_4_p_1">Labels are text that appears before a value.</p>
 <div id="doc_figure_u.38"></div> <pre>
     xo_emit("{Lwc:Cost}{:cost/%u}\n", cost);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_5">
 <div class="self-section-number">
@@ -23314,7 +23314,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_5_p_1">Notes are text that appears after a value.</p>
 <div id="doc_figure_u.39"></div> <pre>
     xo_emit("{:cost/%u} {N:per year}\n", cost);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_6">
 <div class="self-section-number">
@@ -23326,7 +23326,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.40"></div> <pre>
     xo_emit("{P:        }{Lwc:Cost}{:cost/%u}\n", cost);
     xo_emit("{P:/%30s}{Lwc:Cost}{:cost/%u}\n", "", cost);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_7">
 <div class="self-section-number">
@@ -23337,10 +23337,10 @@ jQuery(function ($) {
 <div id="doc_figure_u.41"></div> <pre>
     xo_emit("{T:Interface Statistics}\n");
     xo_emit("{T:/%20.20s}{T:/%6.6s}\n", "Item Name", "Cost");
-	    </pre> <p id="doc_section_3_2_1_7_p_3">Title fields have an extra convenience feature; if both content and format are specified, instead of looking to the argument list for a value, the content is used, allowing a mixture of format and content within the field descriptor:</p>
+            </pre> <p id="doc_section_3_2_1_7_p_3">Title fields have an extra convenience feature; if both content and format are specified, instead of looking to the argument list for a value, the content is used, allowing a mixture of format and content within the field descriptor:</p>
 <div id="doc_figure_u.42"></div> <pre>
     xo_emit("{T:Name/%20s}{T:Count/%6s}\n");
-	    </pre> <p id="doc_section_3_2_1_7_p_5">Since the incoming argument is a string, the format must be "%s" or something suitable.</p>
+            </pre> <p id="doc_section_3_2_1_7_p_5">Since the incoming argument is a string, the format must be "%s" or something suitable.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_8">
@@ -23351,15 +23351,15 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_8_p_1">Units are the dimension by which values are measured, such as degrees, miles, bytes, and decibels. The units field carries this information for the previous value field.</p>
 <div id="doc_figure_u.43"></div> <pre>
     xo_emit("{Lwc:Distance}{:distance/%u}{Uw:miles}\n", miles);
-	    </pre> <p id="doc_section_3_2_1_8_p_3">Note that the sense of the 'w' modifier is reversed for units; a blank is added before the contents, rather than after it.</p>
+            </pre> <p id="doc_section_3_2_1_8_p_3">Note that the sense of the 'w' modifier is reversed for units; a blank is added before the contents, rather than after it.</p>
 <p id="doc_section_3_2_1_8_p_4">When the XOF_UNITS flag is set, units are rendered in XML as the "units" attribute:</p>
 <div id="doc_figure_u.44"></div> <pre>
     &lt;distance units="miles"&gt;50&lt;/distance&gt;
-	    </pre> <p id="doc_section_3_2_1_8_p_6">Units can also be rendered in HTML as the "data&#8209;units" attribute:</p>
+            </pre> <p id="doc_section_3_2_1_8_p_6">Units can also be rendered in HTML as the "data&#8209;units" attribute:</p>
 <div id="doc_figure_u.45"></div> <pre>
     &lt;div class="data" data-tag="distance" data-units="miles"
          data-xpath="/top/data/distance"&gt;50&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_9">
 <div class="self-section-number">
@@ -23372,7 +23372,7 @@ jQuery(function ($) {
             length, width, height);
     xo_emit("{:author} wrote \"{:poem}\" in {:year/%4d}\n,
             author, poem, year);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_1_10">
 <div class="self-section-number">
@@ -23383,10 +23383,10 @@ jQuery(function ($) {
 <p id="doc_section_3_2_1_10_p_2">To give a width directly, encode it as the content of the anchor tag:</p>
 <div id="doc_figure_u.47"></div> <pre>
     xo_emit("({[:10}{:min/%d}/{:max/%d}{]:})\n", min, max);
-	    </pre> <p id="doc_section_3_2_1_10_p_4">To pass a width as an argument, use "%d" as the format, which must appear after the "/". Note that only "%d" is supported for widths. Using any other value could ruin your day.</p>
+            </pre> <p id="doc_section_3_2_1_10_p_4">To pass a width as an argument, use "%d" as the format, which must appear after the "/". Note that only "%d" is supported for widths. Using any other value could ruin your day.</p>
 <div id="doc_figure_u.48"></div> <pre>
     xo_emit("({[:/%d}{:min/%d}/{:max/%d}{]:})\n", width, min, max);
-	    </pre> <p id="doc_section_3_2_1_10_p_6">If the width is negative, padding will be added on the right, suitable for left justification. Otherwise the padding will be added to the left of the fields between the start and stop anchors, suitable for right justification. If the width is zero, nothing happens. If the number of columns of output between the start and stop anchors is less than the absolute value of the given width, nothing happens.</p>
+            </pre> <p id="doc_section_3_2_1_10_p_6">If the width is negative, padding will be added on the right, suitable for left justification. Otherwise the padding will be added to the left of the fields between the start and stop anchors, suitable for right justification. If the width is zero, nothing happens. If the number of columns of output between the start and stop anchors is less than the absolute value of the given width, nothing happens.</p>
 <p id="doc_section_3_2_1_10_p_7">Widths over 8k are considered probable errors and not supported. If XOF_WARN is set, a warning will be generated.</p>
 </div>
 </div>
@@ -23519,7 +23519,7 @@ jQuery(function ($) {
       "label": "value"
     XML:
       &lt;label&gt;value&lt;/label&gt;
-	    </pre> <p id="doc_section_3_2_2_1_p_3">The argument modifier allows field names for value fields to be passed on the stack, avoiding the need to build a field descriptor using snprintf. For many field roles, the argument modifier is not needed, since those roles have specific mechanisms for arguments, such as "{C:fg&#8209;%s}".</p>
+            </pre> <p id="doc_section_3_2_2_1_p_3">The argument modifier allows field names for value fields to be passed on the stack, avoiding the need to build a field descriptor using snprintf. For many field roles, the argument modifier is not needed, since those roles have specific mechanisms for arguments, such as "{C:fg&#8209;%s}".</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_2">
@@ -23533,7 +23533,7 @@ jQuery(function ($) {
       xo_emit("{Lc:Name}{:name}\n", "phil");
     TEXT:
       Name:phil
-	    </pre> <p id="doc_section_3_2_2_2_p_3">The colon modifier is only used for the TEXT and HTML output styles. It is commonly combined with the space modifier ('{w:}'). It is purely a convenience feature.</p>
+            </pre> <p id="doc_section_3_2_2_2_p_3">The colon modifier is only used for the TEXT and HTML output styles. It is commonly combined with the space modifier ('{w:}'). It is purely a convenience feature.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_3">
@@ -23549,7 +23549,7 @@ jQuery(function ($) {
       Name: phil 1
     XML:
       &lt;id&gt;1&lt;/id&gt;
-	    </pre> <p id="doc_section_3_2_2_3_p_3">The display modifier is the opposite of the encoding modifier, and they are often used to give to distinct views of the underlying data.</p>
+            </pre> <p id="doc_section_3_2_2_3_p_3">The display modifier is the opposite of the encoding modifier, and they are often used to give to distinct views of the underlying data.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_4">
@@ -23565,7 +23565,7 @@ jQuery(function ($) {
       Name: phil
     XML:
       &lt;name&gt;phil&lt;/name&gt;&lt;id&gt;1&lt;/id&gt;
-	    </pre> <p id="doc_section_3_2_2_4_p_3">The encoding modifier is the opposite of the display modifier, and they are often used to give to distinct views of the underlying data.</p>
+            </pre> <p id="doc_section_3_2_2_4_p_3">The encoding modifier is the opposite of the display modifier, and they are often used to give to distinct views of the underlying data.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_5">
@@ -23577,7 +23577,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_2_5_p_2">In the following example, the strings "State" and "full" are passed to gettext() to find locale-based translated strings.</p>
 <div id="doc_figure_u.53"></div> <pre>
     xo_emit("{Lgwc:State}{g:state}\n", "full");
-	    </pre> <p id="doc_section_3_2_2_5_p_4">See <a href="#gettext-role" title="The Gettext Role ({G:})">Section 3.2.1.3</a>, <a href="#plural-modifier" title="The Plural Modifier ({p:})">Section 3.2.2.10</a>, and <a href="#howto-i18n" title="Howto: Internationalization (i18n)">Section 11.5</a> for additional details.</p>
+            </pre> <p id="doc_section_3_2_2_5_p_4">See <a href="#gettext-role" title="The Gettext Role ({G:})">Section 3.2.1.3</a>, <a href="#plural-modifier" title="The Plural Modifier ({p:})">Section 3.2.2.10</a>, and <a href="#howto-i18n" title="Howto: Internationalization (i18n)">Section 11.5</a> for additional details.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_6">
@@ -23597,11 +23597,11 @@ jQuery(function ($) {
             input, output, errors, capacity, remaining);
     TEXT:
         21, 57 K, 96M, 44M, 1.2G
-	    </pre> <p id="doc_section_3_2_2_6_p_6">In the HTML style, the original numeric value is rendered in the "data&#8209;number" attribute on the &lt;div&gt; element:</p>
+            </pre> <p id="doc_section_3_2_2_6_p_6">In the HTML style, the original numeric value is rendered in the "data&#8209;number" attribute on the &lt;div&gt; element:</p>
 <div id="doc_figure_u.55"></div> <pre>
     &lt;div class="data" data-tag="errors"
          data-number="100663296"&gt;96M&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_7">
 <div class="self-section-number">
@@ -23619,7 +23619,7 @@ jQuery(function ($) {
             xo_close_instance("user");
         }
         xo_close_list("user");
-	    </pre> <p id="doc_section_3_2_2_7_p_3">Currently the key modifier is only used when generating XPath value for the HTML output style when XOF_XPATH is set, but other uses are likely in the near future.</p>
+            </pre> <p id="doc_section_3_2_2_7_p_3">Currently the key modifier is only used when generating XPath value for the HTML output style when XOF_XPATH is set, but other uses are likely in the near future.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_8">
@@ -23638,7 +23638,7 @@ jQuery(function ($) {
         &lt;user&gt;pallavi&lt;/user&gt;
     JSON:
         "user": [ "phil", "pallavi" ]
-	    </pre> <p id="doc_section_3_2_2_8_p_3">The name of the field must match the name of the leaf list.</p>
+            </pre> <p id="doc_section_3_2_2_8_p_3">The name of the field must match the name of the leaf list.</p>
 </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_9">
@@ -23653,7 +23653,7 @@ jQuery(function ($) {
       xo_emit("{n:fancy/%s}", bool);
     JSON:
       "fancy": true
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_10">
 <div class="self-section-number">
@@ -23663,7 +23663,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_2_10_p_1">The plural modifier selects the appropriate plural form of an expression based on the most recent number emitted and the current language settings. The contents of the field should be the singular and plural English values, separated by a comma:</p>
 <div id="doc_figure_u.59"></div> <pre>
     xo_emit("{:bytes} {Ngp:byte,bytes}\n", bytes);
-	    </pre> <p id="doc_section_3_2_2_10_p_3">The plural modifier is meant to work with the gettext modifier ({g:}) but can work independently. See <a href="#gettext-modifier" title="The Gettext Modifier ({g:})">Section 3.2.2.5</a>.</p>
+            </pre> <p id="doc_section_3_2_2_10_p_3">The plural modifier is meant to work with the gettext modifier ({g:}) but can work independently. See <a href="#gettext-modifier" title="The Gettext Modifier ({g:})">Section 3.2.2.5</a>.</p>
 <p id="doc_section_3_2_2_10_p_4">When used without the gettext modifier or when the message does not appear in the message catalog, the first token is chosen when the last numeric value is equal to 1; otherwise the second value is used, mimicking the simple pluralization rules of English.</p>
 <p id="doc_section_3_2_2_10_p_5">When used with the gettext modifier, the ngettext(3) function is called to handle the heavy lifting, using the message catalog to convert the singular and plural forms into the native language.</p>
 </div>
@@ -23679,10 +23679,10 @@ jQuery(function ($) {
       xo_emit("{q:time/%d}", 2014);
     JSON:
       "year": "2014"
-	    </pre> <p id="doc_section_3_2_2_11_p_3">The heuristic is based on the format; if the format uses any of the following conversion specifiers, then no quotes are used:</p>
+            </pre> <p id="doc_section_3_2_2_11_p_3">The heuristic is based on the format; if the format uses any of the following conversion specifiers, then no quotes are used:</p>
 <div id="doc_figure_u.61"></div> <pre>
     d i o u x X D O U e E f F g G a A c C p
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_12">
 <div class="self-section-number">
@@ -23695,7 +23695,7 @@ jQuery(function ($) {
       xo_emit("{t:description}", "   some  input   ");
     JSON:
       "description": "some input"
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_3_2_2_13">
 <div class="self-section-number">
@@ -23708,7 +23708,7 @@ jQuery(function ($) {
       xo_emit("{Lw:Name}{:name}\n", "phil");
     TEXT:
       Name phil
-	    </pre> <p id="doc_section_3_2_2_13_p_3">The white space modifier is only used for the TEXT and HTML output styles. It is commonly combined with the colon modifier ('{c:}'). It is purely a convenience feature.</p>
+            </pre> <p id="doc_section_3_2_2_13_p_3">The white space modifier is only used for the TEXT and HTML output styles. It is commonly combined with the colon modifier ('{c:}'). It is purely a convenience feature.</p>
 <p id="doc_section_3_2_2_13_p_4">Note that the sense of the 'w' modifier is reversed for the units role ({Uw:}); a blank is added before the contents, rather than after it.</p>
 </div>
 </div>
@@ -23724,7 +23724,7 @@ jQuery(function ($) {
 <p id="doc_section_3_2_3_p_4">The format string has the form:</p>
 <div id="doc_figure_u.64"></div> <pre>
   '%' format-modifier * format-character
-	    </pre> <p id="doc_section_3_2_3_p_6">The format- modifier can be:</p>
+            </pre> <p id="doc_section_3_2_3_p_6">The format- modifier can be:</p>
 <p id="doc_section_3_2_3_p_7"> </p>
 <ul>
 <li>a '#' character, indicating the output value should be prefixed with '0x', typically to indicate a base 16 (hex) value.</li>
@@ -23923,7 +23923,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.65"></div> <pre>
    xo_emit("All strings are utf-8 content {:tag/%ls}",
            L"except for wide strings");
-	    </pre> <p id="doc_section_3_2_4_p_4">"%S" is equivalent to "%ls".</p>
+            </pre> <p id="doc_section_3_2_4_p_4">"%S" is equivalent to "%ls".</p>
 <div id="doc_table_u.7"><table summary="" class="tt full" cellpadding="3" cellspacing="0">
 <thead><tr>
 <th class="left">Format</th>
@@ -23973,12 +23973,12 @@ jQuery(function ($) {
         xo_emit("It was ordered on {:order-time/%ls}.\n",
                 when);
     }
-	    </pre> <p id="doc_section_3_2_4_p_7">It is important to note that xo_emit will perform the conversion required to make appropriate output. Text style output uses the current locale (as described above), while XML, JSON, and HTML use UTF-8.</p>
+            </pre> <p id="doc_section_3_2_4_p_7">It is important to note that xo_emit will perform the conversion required to make appropriate output. Text style output uses the current locale (as described above), while XML, JSON, and HTML use UTF-8.</p>
 <p id="doc_section_3_2_4_p_8">UTF-8 and locale-encoded strings can use multiple bytes to encode one column of data. The traditional "precision'" (aka "max&#8209;width") value for "%s" printf formatting becomes overloaded since it specifies both the number of bytes that can be safely referenced and the maximum number of columns to emit. xo_emit uses the precision as the former, and adds a third value for specifying the maximum number of columns.</p>
 <p id="doc_section_3_2_4_p_9">In this example, the name field is printed with a minimum of 3 columns and a maximum of 6. Up to ten bytes of data at the location given by 'name' are in used in filling those columns.</p>
 <div id="doc_figure_u.67"></div> <pre>
     xo_emit("{:name/%3.10.6s}", name);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_3_2_5">
 <div class="self-section-number">
@@ -23999,7 +23999,7 @@ jQuery(function ($) {
       &lt;div class="text"&gt;The hat is &lt;/div&gt;
       &lt;div class="data" data-tag="size"&gt;extra small&lt;/div&gt;
       &lt;div class="text"&gt;.&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_3_2_6">
 <div class="self-section-number">
@@ -24011,7 +24011,7 @@ jQuery(function ($) {
     xo_emit("{:filename} cannot be opened: {:error/%m}", filename);
     xo_emit("{:filename} cannot be opened: {:error/%s}",
             filename, strerror(errno));
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_3_2_7">
 <div class="self-section-number">
@@ -24120,7 +24120,7 @@ jQuery(function ($) {
     EXAMPLE:
       xo_emit_f(XOEF_RETAIN, "{:some/%02d}{:thing/%-6s}{:fancy}\n",
                      some, thing, fancy);
-	    </pre> <p id="doc_section_3_2_11_p_3">To retain parsed format information, use the XOEF_RETAIN flag to the xo_emit_f() function. A complete set of xo_emit_f functions exist to match all the xo_emit function signatures (with handles, varadic argument, and printf-like flags):</p>
+            </pre> <p id="doc_section_3_2_11_p_3">To retain parsed format information, use the XOEF_RETAIN flag to the xo_emit_f() function. A complete set of xo_emit_f functions exist to match all the xo_emit function signatures (with handles, varadic argument, and printf-like flags):</p>
 <div id="doc_table_u.9"><table summary="" class="tt full" cellpadding="3" cellspacing="0">
 <thead><tr>
 <th class="left">Function</th>
@@ -24162,7 +24162,7 @@ jQuery(function ($) {
         xo_emit_f(XOEF_RETAIN, fmt, name[i], count[i]);
     }
     xo_retain_clear(fmt);
-	    </pre> <p id="doc_section_3_2_11_p_7">The retained information is kept as thread-specific data.</p>
+            </pre> <p id="doc_section_3_2_11_p_7">The retained information is kept as thread-specific data.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_3_2_12">
@@ -24174,7 +24174,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.72"></div> <pre>
         xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n",
                 instock);
-	    </pre> <p id="doc_section_3_2_12_p_3">This call will generate the following output:</p>
+            </pre> <p id="doc_section_3_2_12_p_3">This call will generate the following output:</p>
 <div id="doc_figure_u.73"></div> <pre>
   TEXT: 
        In stock: 144
@@ -24190,13 +24190,13 @@ jQuery(function ($) {
         &lt;div class="padding"&gt; &lt;/div&gt;
         &lt;div class="data" data-tag="in-stock"&gt;144&lt;/div&gt;
       &lt;/div&gt;
-	    </pre> <p id="doc_section_3_2_12_p_5">Clearly HTML wins the verbosity award, and this output does not include XOF_XPATH or XOF_INFO data, which would expand the penultimate line to:</p>
+            </pre> <p id="doc_section_3_2_12_p_5">Clearly HTML wins the verbosity award, and this output does not include XOF_XPATH or XOF_INFO data, which would expand the penultimate line to:</p>
 <div id="doc_figure_u.74"></div> <pre>
        &lt;div class="data" data-tag="in-stock"
           data-xpath="/top/data/item/in-stock"
           data-type="number"
           data-help="Number of items in stock"&gt;144&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h2 id="doc_section_3_3">
@@ -24210,10 +24210,10 @@ jQuery(function ($) {
     &lt;user&gt;phil&lt;/user&gt;
     &lt;user&gt;pallavi&lt;/user&gt;
     &lt;user&gt;sjg&lt;/user&gt;
-	    </pre> <p id="doc_section_3_3_p_4">JSON encodes lists using a single name and square brackets:</p>
+            </pre> <p id="doc_section_3_3_p_4">JSON encodes lists using a single name and square brackets:</p>
 <div id="doc_figure_u.76"></div> <pre>
     "user": [ "phil", "pallavi", "sjg" ]
-	    </pre> <p id="doc_section_3_3_p_6">This means libxo needs three distinct indications of hierarchy: one for containers of hierarchy appear only once for any specific parent, one for lists, and one for each item in a list.</p>
+            </pre> <p id="doc_section_3_3_p_6">This means libxo needs three distinct indications of hierarchy: one for containers of hierarchy appear only once for any specific parent, one for lists, and one for each item in a list.</p>
 <p id="doc_section_3_3_p_7">Section Contents: </p>
 <ul>
 <li><a href="#containers" title="Containers">Section 3.3.1</a></li>
@@ -24232,11 +24232,11 @@ jQuery(function ($) {
 <div id="doc_figure_u.77"></div> <pre>
     int xo_open_container_h (xo_handle_t *xop, const char *name);
     int xo_open_container (const char *name);
-	    </pre> <p id="doc_section_3_3_1_p_4">To close a level, use the xo_close_container() or xo_close_container_h() functions:</p>
+            </pre> <p id="doc_section_3_3_1_p_4">To close a level, use the xo_close_container() or xo_close_container_h() functions:</p>
 <div id="doc_figure_u.78"></div> <pre>
     int xo_close_container_h (xo_handle_t *xop, const char *name);
     int xo_close_container (const char *name);
-	    </pre> <p id="doc_section_3_3_1_p_6">Each open call must have a matching close call. If the XOF_WARN flag is set and the name given does not match the name of the currently open container, a warning will be generated.</p>
+            </pre> <p id="doc_section_3_3_1_p_6">Each open call must have a matching close call. If the XOF_WARN flag is set and the name given does not match the name of the currently open container, a warning will be generated.</p>
 <div id="doc_figure_u.79"></div> <pre>
     Example:
 
@@ -24265,7 +24265,7 @@ jQuery(function ($) {
       HTML:
         &lt;div class="data"
              data-tag="host-name"&gt;my-host.example.org&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_3_3_2">
 <div class="self-section-number">
@@ -24283,7 +24283,7 @@ jQuery(function ($) {
     }
 
     xo_close_list("item");
-	    </pre> <p id="doc_section_3_3_2_p_3">Getting the list and instance calls correct is critical to the proper generation of XML and JSON data.</p>
+            </pre> <p id="doc_section_3_3_2_p_3">Getting the list and instance calls correct is critical to the proper generation of XML and JSON data.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_3_3_3">
@@ -24294,12 +24294,12 @@ jQuery(function ($) {
 <p id="doc_section_3_3_3_p_1">Some users may find tracking the names of open containers, lists, and instances inconvenient. libxo offers a "Do The Right Thing" mode, where libxo will track the names of open containers, lists, and instances so the close function can be called without a name. To enable DTRT mode, turn on the XOF_DTRT flag prior to making any other libxo output.</p>
 <div id="doc_figure_u.81"></div> <pre>
     xo_set_flags(NULL, XOF_DTRT);
-	    </pre> <p id="doc_section_3_3_3_p_3">Each open and close function has a version with the suffix "_d", which will close the open container, list, or instance:</p>
+            </pre> <p id="doc_section_3_3_3_p_3">Each open and close function has a version with the suffix "_d", which will close the open container, list, or instance:</p>
 <div id="doc_figure_u.82"></div> <pre>
     xo_open_container("top");
     ...
     xo_close_container_d();
-	    </pre> <p id="doc_section_3_3_3_p_5">This also works for lists and instances:</p>
+            </pre> <p id="doc_section_3_3_3_p_5">This also works for lists and instances:</p>
 <div id="doc_figure_u.83"></div> <pre>
     xo_open_list("item");
     for (...) {
@@ -24308,7 +24308,7 @@ jQuery(function ($) {
         xo_close_instance_d();
     }
     xo_close_list_d();
-	    </pre> <p id="doc_section_3_3_3_p_7">Note that the XOF_WARN flag will also cause libxo to track open containers, lists, and instances. A warning is generated when the name given to the close function and the name recorded do not match.</p>
+            </pre> <p id="doc_section_3_3_3_p_7">Note that the XOF_WARN flag will also cause libxo to track open containers, lists, and instances. A warning is generated when the name given to the close function and the name recorded do not match.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_3_3_4">
@@ -24326,7 +24326,7 @@ jQuery(function ($) {
         dump_fish_details(i);
         xo_close_marker("fish-guts");
     }
-	    </pre> </div>
+            </pre> </div>
 </div>
 </div>
 <hr class="noprint">
@@ -24348,7 +24348,7 @@ jQuery(function ($) {
   my-app --libxo warn,pretty arg1
   my-app --libxo=warn,pretty arg1
   my-app --libxo:WP arg1
-	    </pre> <p id="doc_section_4_p_5">Programs using libxo are expecting to call the xo_parse_args function to parse these arguments. See <a href="#xo_parse_args" title="Parsing Command-line Arguments (xo_parse_args)">Section 5.4.1</a> for details.</p>
+            </pre> <p id="doc_section_4_p_5">Programs using libxo are expecting to call the xo_parse_args function to parse these arguments. See <a href="#xo_parse_args" title="Parsing Command-line Arguments (xo_parse_args)">Section 5.4.1</a> for details.</p>
 <p id="doc_section_4_p_6">Section Contents: </p>
 <ul>
 <li><a href="#option-keywords" title="Option keywords">Section 4.1</a></li>
@@ -24587,17 +24587,17 @@ jQuery(function ($) {
 <p id="doc_section_4_3_p_4">For example consider the following xo_emit call:</p>
 <div id="doc_figure_u.86"></div> <pre>
     xo_emit("{C:fg-red,bg-green}Merry XMas!!{C:}\n");
-	    </pre> <p id="doc_section_4_3_p_6">To turn all colored output to red-on-blue, use eight pairs of "red/blue" mappings separated by "+"s:</p>
+            </pre> <p id="doc_section_4_3_p_6">To turn all colored output to red-on-blue, use eight pairs of "red/blue" mappings separated by "+"s:</p>
 <div id="doc_figure_u.87"></div> <pre>
     --libxo colors=red/blue+red/blue+red/blue+red/blue+\
                    red/blue+red/blue+red/blue+red/blue
-	    </pre> <p id="doc_section_4_3_p_8">To turn the red-on-green text to magenta-on-cyan, give a "magenta" foreground value for red (the second mapping) and a "cyan" background to green (the third mapping):</p>
+            </pre> <p id="doc_section_4_3_p_8">To turn the red-on-green text to magenta-on-cyan, give a "magenta" foreground value for red (the second mapping) and a "cyan" background to green (the third mapping):</p>
 <div id="doc_figure_u.88"></div> <pre>
     --libxo colors=+magenta+/cyan
-	    </pre> <p id="doc_section_4_3_p_10">Consider the common situation where blue output looks unreadable on a terminal session with a black background. To turn both "blue" foreground and background output to "yellow", give only the fifth mapping, skipping the first four mappings with bare "+"s:</p>
+            </pre> <p id="doc_section_4_3_p_10">Consider the common situation where blue output looks unreadable on a terminal session with a black background. To turn both "blue" foreground and background output to "yellow", give only the fifth mapping, skipping the first four mappings with bare "+"s:</p>
 <div id="doc_figure_u.89"></div> <pre>
     --libxo colors=++++yellow/yellow
-	    </pre> </div>
+            </pre> </div>
 </div>
 <hr class="noprint">
 <div class="content">
@@ -24631,7 +24631,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.90"></div> <pre>
     xo_emit("test");
     xo_emit_h(NULL, "test");
-	    </pre> <p id="doc_section_5_1_p_8">Handles are created using xo_create() and destroy using xo_destroy().</p>
+            </pre> <p id="doc_section_5_1_p_8">Handles are created using xo_create() and destroy using xo_destroy().</p>
 <p id="doc_section_5_1_p_9">Section Contents: </p>
 <ul>
 <li><a href="#xo_create" title="xo_create">Section 5.1.1</a></li>
@@ -24656,7 +24656,7 @@ jQuery(function ($) {
     xo_handle_t *xop = xo_create(XO_STYLE_JSON, XOF_WARN);
     ....
     xo_emit_h(xop, "testing\n");
-	    </pre> <p id="doc_section_5_1_1_p_3">See also <a href="#styles" title="Output Styles (XO_STYLE_*)">Section 5.1.5.1</a> and <a href="#flags" title="Flags (XOF_*)">Section 5.1.6.1</a>.</p>
+            </pre> <p id="doc_section_5_1_1_p_3">See also <a href="#styles" title="Output Styles (XO_STYLE_*)">Section 5.1.5.1</a> and <a href="#flags" title="Flags (XOF_*)">Section 5.1.6.1</a>.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_1_2">
@@ -24668,7 +24668,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.92"></div> <pre>
     xo_handle_t *xo_create_to_file (FILE *fp, unsigned style,
                                     unsigned flags);
-	    </pre> <p id="doc_section_5_1_2_p_3">Use the XOF_CLOSE_FP flag to trigger a call to fclose() for the FILE pointer when the handle is destroyed.</p>
+            </pre> <p id="doc_section_5_1_2_p_3">Use the XOF_CLOSE_FP flag to trigger a call to fclose() for the FILE pointer when the handle is destroyed.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_1_3">
@@ -24682,7 +24682,7 @@ jQuery(function ($) {
                         xo_write_func_t write_func,
                         xo_close_func_t close_func);
                         xo_flush_func_t flush_func);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_1_4">
 <div class="self-section-number">
@@ -24692,10 +24692,10 @@ jQuery(function ($) {
 <p id="doc_section_5_1_4_p_1">To set the style, use the xo_set_style() function:</p>
 <div id="doc_figure_u.94"></div> <pre>
     void xo_set_style(xo_handle_t *xop, unsigned style);
-	    </pre> <p id="doc_section_5_1_4_p_3">To use the default handle, pass a NULL handle:</p>
+            </pre> <p id="doc_section_5_1_4_p_3">To use the default handle, pass a NULL handle:</p>
 <div id="doc_figure_u.95"></div> <pre>
     xo_set_style(NULL, XO_STYLE_XML);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_1_5">
 <div class="self-section-number">
@@ -24705,10 +24705,10 @@ jQuery(function ($) {
 <p id="doc_section_5_1_5_p_1">To find the current style, use the xo_get_style() function:</p>
 <div id="doc_figure_u.96"></div> <pre>
     xo_style_t xo_get_style(xo_handle_t *xop);
-	    </pre> <p id="doc_section_5_1_5_p_3">To use the default handle, pass a NULL handle:</p>
+            </pre> <p id="doc_section_5_1_5_p_3">To use the default handle, pass a NULL handle:</p>
 <div id="doc_figure_u.97"></div> <pre>
     style = xo_get_style(NULL);
-	    </pre> <p id="doc_section_5_1_5_p_5">Section Contents: </p>
+            </pre> <p id="doc_section_5_1_5_p_5">Section Contents: </p>
 <ul>
 <li><a href="#styles" title="Output Styles (XO_STYLE_*)">Section 5.1.5.1</a></li>
 <li><a href="#xo_set_style_name" title="xo_set_style_name">Section 5.1.5.2</a></li>
@@ -24754,11 +24754,11 @@ jQuery(function ($) {
 <p id="doc_section_5_1_5_2_p_1">The xo_set_style_name() can be used to set the style based on a name encoded as a string:</p>
 <div id="doc_figure_u.98"></div> <pre>
     int xo_set_style_name (xo_handle_t *xop, const char *style);
-	    </pre> <p id="doc_section_5_1_5_2_p_3">The name can be any of the styles: "text", "xml", "json", or "html".</p>
+            </pre> <p id="doc_section_5_1_5_2_p_3">The name can be any of the styles: "text", "xml", "json", or "html".</p>
 <div id="doc_figure_u.99"></div> <pre>
     EXAMPLE:
         xo_set_style_name(NULL, "html");
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h3 id="doc_section_5_1_6">
@@ -24769,10 +24769,10 @@ jQuery(function ($) {
 <p id="doc_section_5_1_6_p_1">To set the flags, use the xo_set_flags() function:</p>
 <div id="doc_figure_u.100"></div> <pre>
     void xo_set_flags(xo_handle_t *xop, unsigned flags);
-	    </pre> <p id="doc_section_5_1_6_p_3">To use the default handle, pass a NULL handle:</p>
+            </pre> <p id="doc_section_5_1_6_p_3">To use the default handle, pass a NULL handle:</p>
 <div id="doc_figure_u.101"></div> <pre>
     xo_set_style(NULL, XO_STYLE_XML);
-	    </pre> <p id="doc_section_5_1_6_p_5">Section Contents: </p>
+            </pre> <p id="doc_section_5_1_6_p_5">Section Contents: </p>
 <ul>
 <li><a href="#flags" title="Flags (XOF_*)">Section 5.1.6.1</a></li>
 <li><a href="#xo_clear_flags" title="xo_clear_flags">Section 5.1.6.2</a></li>
@@ -24898,7 +24898,7 @@ jQuery(function ($) {
 
   XML:
       &lt;name key="key"&gt;truck&lt;/name&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_1_6_2">
 <div class="self-section-number">
@@ -24908,7 +24908,7 @@ jQuery(function ($) {
 <p id="doc_section_5_1_6_2_p_1">The xo_clear_flags() function turns off the given flags in a specific handle.</p>
 <div id="doc_figure_u.103"></div> <pre>
     void xo_clear_flags (xo_handle_t *xop, xo_xof_flags_t flags);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_1_6_3">
 <div class="self-section-number">
@@ -24918,7 +24918,7 @@ jQuery(function ($) {
 <p id="doc_section_5_1_6_3_p_1">The xo_set_options() function accepts a comma-separated list of styles and flags and enables them for a specific handle.</p>
 <div id="doc_figure_u.104"></div> <pre>
     int xo_set_options (xo_handle_t *xop, const char *input);
-	    </pre> <p id="doc_section_5_1_6_3_p_3">The options are identical to those listed in <a href="#options" title="Command-line Arguments">Section 4</a>.</p>
+            </pre> <p id="doc_section_5_1_6_3_p_3">The options are identical to those listed in <a href="#options" title="Command-line Arguments">Section 4</a>.</p>
 </div>
 </div>
 <div class="content">
@@ -24930,7 +24930,7 @@ jQuery(function ($) {
 <p id="doc_section_5_1_7_p_1">The xo_destroy function releases a handle and any resources it is using. Calling xo_destroy with a NULL handle will release any resources associated with the default handle.</p>
 <div id="doc_figure_u.105"></div> <pre>
     void xo_destroy(xo_handle_t *xop);
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h2 id="doc_section_5_2">
@@ -24943,7 +24943,7 @@ jQuery(function ($) {
     int xo_emit (const char *fmt, ...);
     int xo_emit_h (xo_handle_t *xop, const char *fmt, ...);
     int xo_emit_hv (xo_handle_t *xop, const char *fmt, va_list vap);
-	    </pre> <p id="doc_section_5_2_p_3">The "fmt" argument is a string containing field descriptors as specified in <a href="#format-strings" title="Format Strings">Section 3.2</a>. The use of a handle is optional and NULL can be passed to access the internal 'default' handle. See <a href="#handles" title="Handles">Section 5.1</a>.</p>
+            </pre> <p id="doc_section_5_2_p_3">The "fmt" argument is a string containing field descriptors as specified in <a href="#format-strings" title="Format Strings">Section 3.2</a>. The use of a handle is optional and NULL can be passed to access the internal 'default' handle. See <a href="#handles" title="Handles">Section 5.1</a>.</p>
 <p id="doc_section_5_2_p_4">The remaining arguments to xo_emit() and xo_emit_h() are a set of arguments corresponding to the fields in the format string. Care must be taken to ensure the argument types match the fields in the format string, since an inappropriate cast can ruin your day. The vap argument to xo_emit_hv() points to a variable argument list that can be used to retrieve arguments via va_arg().</p>
 <p id="doc_section_5_2_p_5">Section Contents: </p>
 <ul>
@@ -24970,11 +24970,11 @@ jQuery(function ($) {
 
     int xo_emit_field (const char *rolmod, const char *contents,
                  const char *fmt, const char *efmt, ...);
-	    </pre> <p id="doc_section_5_2_1_p_3">These functions are intended to avoid the scenario where one would otherwise need to compose a format descriptors using snprintf(). The individual parts of the format descriptor are passed in distinctly.</p>
+            </pre> <p id="doc_section_5_2_1_p_3">These functions are intended to avoid the scenario where one would otherwise need to compose a format descriptors using snprintf(). The individual parts of the format descriptor are passed in distinctly.</p>
 <div id="doc_figure_u.108"></div> <pre>
     xo_emit("T", "Host name is ", NULL, NULL);
     xo_emit("V", "host-name", NULL, NULL, host-name);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_2_2">
 <div class="self-section-number">
@@ -24988,7 +24988,7 @@ jQuery(function ($) {
                    const char *fmt, ...);
     int xo_attr_hv (xo_handle_t *xop, const char *name, 
                    const char *fmt, va_list vap);
-	    </pre> <p id="doc_section_5_2_2_p_3">The name parameter give the name of the attribute to be encoded. The fmt parameter gives a printf-style format string used to format the value of the attribute using any remaining arguments, or the vap parameter passed to xo_attr_hv().</p>
+            </pre> <p id="doc_section_5_2_2_p_3">The name parameter give the name of the attribute to be encoded. The fmt parameter gives a printf-style format string used to format the value of the attribute using any remaining arguments, or the vap parameter passed to xo_attr_hv().</p>
 <div id="doc_figure_u.110"></div> <pre>
     EXAMPLE:
       xo_attr("seconds", "%ld", (unsigned long) login_time);
@@ -24997,7 +24997,7 @@ jQuery(function ($) {
       xo_emit("Logged in at {:login-time}\n", buf);
     XML:
         &lt;login-time seconds="1408336270"&gt;00:14&lt;/login-time&gt;
-	    </pre> <p id="doc_section_5_2_2_p_5">xo_attr is placed on the next container, instance, leaf, or leaf list that is emitted.</p>
+            </pre> <p id="doc_section_5_2_2_p_5">xo_attr is placed on the next container, instance, leaf, or leaf list that is emitted.</p>
 <p id="doc_section_5_2_2_p_6">Since attributes are only emitted in XML, their use should be limited to meta-data and additional or redundant representations of data already emitted in other form.</p>
 </div>
 <div class="content">
@@ -25010,7 +25010,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.111"></div> <pre>
     void xo_flush (void);
     void xo_flush_h (xo_handle_t *xop);
-	    </pre> <p id="doc_section_5_2_3_p_3">Calling xo_flush also triggers the flush function associated with the handle. For the default handle, this is equivalent to "fflush(stdio);".</p>
+            </pre> <p id="doc_section_5_2_3_p_3">Calling xo_flush also triggers the flush function associated with the handle. For the default handle, this is equivalent to "fflush(stdio);".</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_2_4">
@@ -25023,7 +25023,7 @@ jQuery(function ($) {
     int xo_finish (void);
     int xo_finish_h (xo_handle_t *xop);
     void xo_finish_atexit (void);
-	    </pre> <p id="doc_section_5_2_4_p_3">Calling this function is vital to the proper operation of libxo, especially for the non-TEXT output styles.</p>
+            </pre> <p id="doc_section_5_2_4_p_3">Calling this function is vital to the proper operation of libxo, especially for the non-TEXT output styles.</p>
 <p id="doc_section_5_2_4_p_4">xo_finish_atexit is suitable for use with atexit(3).</p>
 </div>
 </div>
@@ -25045,7 +25045,7 @@ jQuery(function ($) {
     int xo_close_container_h (xo_handle_t *xop, const char *name);
     int xo_close_container_hd (xo_handle_t *xop);
     int xo_close_container_d (void);
-	    </pre> <p id="doc_section_5_3_p_4">The name parameter gives the name of the container, encoded in UTF-8. Since ASCII is a proper subset of UTF-8, traditional C strings can be used directly.</p>
+            </pre> <p id="doc_section_5_3_p_4">The name parameter gives the name of the container, encoded in UTF-8. Since ASCII is a proper subset of UTF-8, traditional C strings can be used directly.</p>
 <p id="doc_section_5_3_p_5">The close functions with the "_d" suffix are used in "Do The Right Thing" mode, where the name of the open containers, lists, and instances are maintained internally by libxo to allow the caller to avoid keeping track of the open container name.</p>
 <p id="doc_section_5_3_p_6">Use the XOF_WARN flag to generate a warning if the name given on the close does not match the current open container.</p>
 <p id="doc_section_5_3_p_7">For TEXT and HTML output, containers are not rendered into output text, though for HTML they are used when the XOF_XPATH flag is set.</p>
@@ -25056,7 +25056,7 @@ jQuery(function ($) {
        xo_close_container("system");
     XML:
        &lt;system&gt;&lt;host-name&gt;foo&lt;/host-name&gt;&lt;/system&gt;
-	    </pre> <p id="doc_section_5_3_p_9">Section Contents: </p>
+            </pre> <p id="doc_section_5_3_p_9">Section Contents: </p>
 <ul><li><a href="#lists-and-instances-2" title="Lists and Instances">Section 5.3.1</a></li></ul>
 <div class="content">
 <h3 id="doc_section_5_3_1">
@@ -25108,7 +25108,7 @@ jQuery(function ($) {
                 "home": "/home/pallavi",
             }
         ]
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h2 id="doc_section_5_4">
@@ -25139,7 +25139,7 @@ jQuery(function ($) {
     argc = xo_parse_args(argc, argv);
     if (argc &lt; 0)
         exit(EXIT_FAILURE);
-	    </pre> <p id="doc_section_5_4_1_p_3">Following the call to xo_parse_args, the application can process the remaining arguments in a normal manner. See <a href="#options" title="Command-line Arguments">Section 4</a> for a description of valid arguments.</p>
+            </pre> <p id="doc_section_5_4_1_p_3">Following the call to xo_parse_args, the application can process the remaining arguments in a normal manner. See <a href="#options" title="Command-line Arguments">Section 4</a> for a description of valid arguments.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_4_2">
@@ -25150,7 +25150,7 @@ jQuery(function ($) {
 <p id="doc_section_5_4_2_p_1">The xo_set_program function sets name of the program as reported by functions like xo_failure, xo_warn, xo_err, etc. The program name is initialized by xo_parse_args, but subsequent calls to xo_set_program can override this value.</p>
 <div id="doc_figure_u.117"></div> <pre>
     xo_set_program(argv[0]);
-	    </pre> <p id="doc_section_5_4_2_p_3">Note that the value is not copied, so the memory passed to xo_set_program (and xo_parse_args) must be maintained by the caller.</p>
+            </pre> <p id="doc_section_5_4_2_p_3">Note that the value is not copied, so the memory passed to xo_set_program (and xo_parse_args) must be maintained by the caller.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_4_3">
@@ -25162,7 +25162,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.118"></div> <pre>
      void xo_set_version (const char *version);
      void xo_set_version_h (xo_handle_t *xop, const char *version);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_4_4">
 <div class="self-section-number">
@@ -25180,7 +25180,7 @@ jQuery(function ($) {
     } xo_info_t;
 
     void xo_set_info (xo_handle_t *xop, xo_info_t *infop, int count);
-	    </pre> <p id="doc_section_5_4_4_p_5">Like other libxo calls, passing NULL for the handle tells libxo to use the default handle.</p>
+            </pre> <p id="doc_section_5_4_4_p_5">Like other libxo calls, passing NULL for the handle tells libxo to use the default handle.</p>
 <p id="doc_section_5_4_4_p_6">If the count is -1, libxo will count the elements of infop, but there must be an empty element at the end. More typically, the number is known to the application:</p>
 <div id="doc_figure_u.120"></div> <pre>
     xo_info_t info[] = {
@@ -25193,12 +25193,12 @@ jQuery(function ($) {
     int info_count = (sizeof(info) / sizeof(info[0]));
     ...
     xo_set_info(NULL, info, info_count);
-	    </pre> <p id="doc_section_5_4_4_p_8">Third, the emission of info must be triggered with the XOF_INFO flag using either the xo_set_flags() function or the "&#8209;&#8209;libxo=info" command line argument.</p>
+            </pre> <p id="doc_section_5_4_4_p_8">Third, the emission of info must be triggered with the XOF_INFO flag using either the xo_set_flags() function or the "&#8209;&#8209;libxo=info" command line argument.</p>
 <p id="doc_section_5_4_4_p_9">The type and help values, if present, are emitted as the "data&#8209;type" and "data&#8209;help" attributes:</p>
 <div id="doc_figure_u.121"></div> <pre>
   &lt;div class="data" data-tag="sku" data-type="string" 
        data-help="Stock Keeping Unit"&gt;GRO-000-533&lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_4_5">
 <div class="self-section-number">
@@ -25209,7 +25209,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.122"></div> <pre>
     void xo_set_allocator (xo_realloc_func_t realloc_func,
                            xo_free_func_t free_func);
-	    </pre> <p id="doc_section_5_4_5_p_3">realloc_func should expect the same arguments as realloc(3) and return a pointer to memory following the same convention. free_func will receive the same argument as free(3) and should release it, as appropriate for the environment.</p>
+            </pre> <p id="doc_section_5_4_5_p_3">realloc_func should expect the same arguments as realloc(3) and return a pointer to memory following the same convention. free_func will receive the same argument as free(3) and should release it, as appropriate for the environment.</p>
 <p id="doc_section_5_4_5_p_4">By default, the standard realloc() and free() functions are used.</p>
 </div>
 <div class="content">
@@ -25236,7 +25236,7 @@ jQuery(function ($) {
 <p id="doc_section_5_4_6_p_3">For example, warnings can be enabled by:</p>
 <div id="doc_figure_u.123"></div> <pre>
     % env LIBXO_OPTIONS=warn my-app
-	    </pre> <p id="doc_section_5_4_6_p_5">Since environment variables are inherited, child processes will have the same options, which may be undesirable, making the use of the "&#8209;&#8209;libxo" option is preferable in most situations.</p>
+            </pre> <p id="doc_section_5_4_6_p_5">Since environment variables are inherited, child processes will have the same options, which may be undesirable, making the use of the "&#8209;&#8209;libxo" option is preferable in most situations.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_5_4_7">
@@ -25260,12 +25260,12 @@ jQuery(function ($) {
                         const char *fmt, ...);
     void xo_message_hcv (xo_handle_t *xop, int code, 
                          const char *fmt, va_list vap);
-	    </pre> <p id="doc_section_5_4_7_p_3">These functions display the program name, a colon, a formatted message based on the arguments, and then optionally a colon and an error message associated with either "errno" or the "code" parameter.</p>
+            </pre> <p id="doc_section_5_4_7_p_3">These functions display the program name, a colon, a formatted message based on the arguments, and then optionally a colon and an error message associated with either "errno" or the "code" parameter.</p>
 <div id="doc_figure_u.125"></div> <pre>
     EXAMPLE:
         if (open(filename, O_RDONLY) &lt; 0)
             xo_err(1, "cannot open file '%s'", filename);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_4_8">
 <div class="self-section-number">
@@ -25280,7 +25280,7 @@ jQuery(function ($) {
         &lt;error&gt;&lt;message&gt;Does not compute&lt;/message&gt;&lt;/error&gt;
     JSON::
         "error": { "message": "Does not compute" }
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_4_9">
 <div class="self-section-number">
@@ -25290,7 +25290,7 @@ jQuery(function ($) {
 <p id="doc_section_5_4_9_p_1">libxo automatically initializes the locale based on setting of the environment variables LC_CTYPE, LANG, and LC_ALL. The first of this list of variables is used and if none of the variables, the locale defaults to "UTF&#8209;8". The caller may wish to avoid this behavior, and can do so by calling the xo_no_setlocale() function.</p>
 <div id="doc_figure_u.127"></div> <pre>
     void xo_no_setlocale (void);
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content">
 <h2 id="doc_section_5_5">
@@ -25318,7 +25318,7 @@ jQuery(function ($) {
     xo_syslog(LOG_INFO, "poofd-invalid-state",
               "state {:current/%u} is invalid {:connection/%u}",
               state, conn);
-	    </pre> <p id="doc_section_5_5_p_8">The developer should be aware that the message name may be used in the future to allow access to further information, including documentation. Care should be taken to choose quality, descriptive names.</p>
+            </pre> <p id="doc_section_5_5_p_8">The developer should be aware that the message name may be used in the future to allow access to further information, including documentation. Care should be taken to choose quality, descriptive names.</p>
 <p id="doc_section_5_5_p_9">Section Contents: </p>
 <ul>
 <li><a href="#priority" title="Priority, Facility, and Flags">Section 5.5.1</a></li>
@@ -25336,7 +25336,7 @@ jQuery(function ($) {
     xo_syslog(LOG_ERR | LOG_AUTH, "login-failed",
              "Login failed; user '{:user}' from host '{:address}'",
              user, addr);
-	    </pre> <p id="doc_section_5_5_1_p_3">These values are defined in &lt;syslog.h&gt;.</p>
+            </pre> <p id="doc_section_5_5_1_p_3">These values are defined in &lt;syslog.h&gt;.</p>
 <p id="doc_section_5_5_1_p_4">The priority value indicates the importance and potential impact of each message.</p>
 <div id="doc_table_u.16"><table summary="" class="tt full" cellpadding="3" cellspacing="0">
 <thead><tr>
@@ -25484,7 +25484,7 @@ jQuery(function ($) {
     ... [poofd-missing-file@32473 filename="/etc/poofd.conf"
           error="Permission denied"] '/etc/poofd.conf' not
           found: Permission denied
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_5_3">
 <div class="self-section-number">
@@ -25514,7 +25514,7 @@ jQuery(function ($) {
         xo_vsyslog(LOG_ERR, name, fmt, vap);
         va_end(vap);
     }
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_5_3_2">
 <div class="self-section-number">
@@ -25525,7 +25525,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.132"></div> <pre>
     void
     xo_open_log (const char *ident, int logopt, int facility);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_5_3_3">
 <div class="self-section-number">
@@ -25536,7 +25536,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.133"></div> <pre>
     void
     xo_close_log (void);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_5_3_4">
 <div class="self-section-number">
@@ -25550,7 +25550,7 @@ jQuery(function ($) {
 
   Example:
     setlogmask(LOG_UPTO(LOG_WARN));
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h4 id="doc_section_5_5_3_5">
 <div class="self-section-number">
@@ -25562,7 +25562,7 @@ jQuery(function ($) {
 <div id="doc_figure_u.135"></div> <pre>
     void
     xo_set_syslog_enterprise_id (unsigned short eid);
-	    </pre> <p id="doc_section_5_5_3_5_p_4">Enterprise IDs are administered by IANA, the Internet Assigned Number Authority. The complete list is EIDs on their web site:</p>
+            </pre> <p id="doc_section_5_5_3_5_p_4">Enterprise IDs are administered by IANA, the Internet Assigned Number Authority. The complete list is EIDs on their web site:</p>
 <p id="doc_section_5_5_3_5_p_5"> <a href="https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers">https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers</a></p>
 <p id="doc_section_5_5_3_5_p_6">New EIDs can be requested from IANA using the following page:</p>
 <p id="doc_section_5_5_3_5_p_7"> <a href="http://pen.iana.org/pen/PenApplication.page">http://pen.iana.org/pen/PenApplication.page</a></p>
@@ -25605,7 +25605,7 @@ jQuery(function ($) {
     % ls -1 lib/libxo/extensions/*.enc
     lib/libxo/extensions/cbor.enc
     lib/libxo/extensions/test.enc
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_5_6_2">
 <div class="self-section-number">
@@ -25615,7 +25615,7 @@ jQuery(function ($) {
 <p id="doc_section_5_6_2_p_1">Each encoder must export a symbol used to access the library, which must have the following signature:</p>
 <div id="doc_figure_u.137"></div> <pre>
     int xo_encoder_library_init (XO_ENCODER_INIT_ARGS);
-	    </pre> <p id="doc_section_5_6_2_p_3">XO_ENCODER_INIT_ARGS is a macro defined in xo_encoder.h that defines an argument called "arg", a pointer of the type xo_encoder_init_args_t. This structure contains two fields:</p>
+            </pre> <p id="doc_section_5_6_2_p_3">XO_ENCODER_INIT_ARGS is a macro defined in xo_encoder.h that defines an argument called "arg", a pointer of the type xo_encoder_init_args_t. This structure contains two fields:</p>
 <p id="doc_section_5_6_2_p_4"> </p>
 <ul>
 <li>xei_version is the version number of the API as implemented within libxo. This version is currently as 1 using XO_ENCODER_VERSION. This number can be checked to ensure compatibility. The working assumption is that all versions should be backward compatible, but each side may need to accurately know the version supported by the other side. xo_encoder_library_init can optionally check this value, and must then set it to the version number used by the encoder, allowing libxo to detect version differences and react accordingly. For example, if version 2 adds new operations, then libxo will know that an encoding library that set xei_version to 1 cannot be expected to handle those new operations.</li>
@@ -25737,7 +25737,7 @@ jQuery(function ($) {
       &lt;div class="data" data-tag="weight"&gt;6&lt;/div&gt;
       &lt;div class="text"&gt; pounds.&lt;/div&gt;
     &lt;/div&gt;
-	    </pre> <p id="doc_section_6_p_5">The "--wrap &lt;path&gt;" option can be used to wrap emitted content in a specific hierarchy. The path is a set of hierarchical names separated by the '/' character.</p>
+            </pre> <p id="doc_section_6_p_5">The "--wrap &lt;path&gt;" option can be used to wrap emitted content in a specific hierarchy. The path is a set of hierarchical names separated by the '/' character.</p>
 <div id="doc_figure_u.139"></div> <pre>
     xo --wrap top/a/b/c '{:tag}' value
 
@@ -25761,7 +25761,7 @@ jQuery(function ($) {
         }
       }
     }
-	    </pre> <p id="doc_section_6_p_7">The "--open &lt;path&gt;" and "--close &lt;path&gt;" can be used to emit hierarchical information without the matching close and open tag. This allows a shell script to emit open tags, data, and then close tags. The "&#8209;&#8209;depth" option may be used to set the depth for indentation. The "&#8209;&#8209;leading&#8209;xpath" may be used to prepend data to the XPath values used for HTML output style.</p>
+            </pre> <p id="doc_section_6_p_7">The "--open &lt;path&gt;" and "--close &lt;path&gt;" can be used to emit hierarchical information without the matching close and open tag. This allows a shell script to emit open tags, data, and then close tags. The "&#8209;&#8209;depth" option may be used to set the depth for indentation. The "&#8209;&#8209;leading&#8209;xpath" may be used to prepend data to the XPath values used for HTML output style.</p>
 <div id="doc_figure_u.140"></div> <pre>
     #!/bin/sh
     xo --open top/data
@@ -25779,7 +25779,7 @@ jQuery(function ($) {
         "tag": "value"
       }
     }
-	    </pre> <p id="doc_section_6_p_9">Section Contents: </p>
+            </pre> <p id="doc_section_6_p_9">Section Contents: </p>
 <ul>
 <li><a href="#command-line-options" title="Command Line Options">Section 6.1</a></li>
 <li><a href="#example-2" title="Example">Section 6.2</a></li>
@@ -25808,7 +25808,7 @@ jQuery(function ($) {
   --wrap &lt;path&gt;         Wrap output in a set of containers
   --xml OR -X           Generate XML output
   --xpath               Add XPath data to HTML output);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h2 id="doc_section_6_2">
 <div class="self-section-number">
@@ -25821,7 +25821,7 @@ jQuery(function ($) {
   % ./xo/xo -p -X 'The {:product} is {:status}\n' stereo "in route"
   &lt;product&gt;stereo&lt;/product&gt;
   &lt;status&gt;in route&lt;/status&gt;
-	    </pre> </div>
+            </pre> </div>
 </div>
 <hr class="noprint">
 <div class="content">
@@ -25877,7 +25877,7 @@ jQuery(function ($) {
     % xolint.pl -t xolint.c
     xolint.c: 16: error: anchor format should be "%d"
     16         xo_emit("{[:/%s}");
-	    </pre> <p id="doc_section_7_p_5">The "&#8209;I" option will generate a table of xo_info_t structures ,</p>
+            </pre> <p id="doc_section_7_p_5">The "&#8209;I" option will generate a table of xo_info_t structures ,</p>
 <p id="doc_section_7_p_6">The "&#8209;V" option does not report errors, but prints a complete list of all field names, sorted alphabetically. The output can help spot inconsistencies and spelling errors.</p>
 </div>
 <hr class="noprint">
@@ -25951,7 +25951,7 @@ jQuery(function ($) {
             --keyword=xo_emit_warn -C -E -n --foreign-user \
             -o foo.pot.raw foo.c
         % xopo -f foo.pot.raw -o foo.pot
-	    </pre> <p id="doc_section_9_p_5">Use of the "&#8209;&#8209;no&#8209;wrap" option for xgettext is required to ensure that incoming msgid strings are not wrapped across multiple lines.</p>
+            </pre> <p id="doc_section_9_p_5">Use of the "&#8209;&#8209;no&#8209;wrap" option for xgettext is required to ensure that incoming msgid strings are not wrapped across multiple lines.</p>
 </div>
 <hr class="noprint">
 <div class="content">
@@ -26053,7 +26053,7 @@ jQuery(function ($) {
              field power;
          }
      }
-	    </pre> <p id="doc_section_10_1_2_p_3">These tag definitions are compiled into field definitions that are triggered when matching XML elements are seen. ODL also supports other means of defining output.</p>
+            </pre> <p id="doc_section_10_1_2_p_3">These tag definitions are compiled into field definitions that are triggered when matching XML elements are seen. ODL also supports other means of defining output.</p>
 <p id="doc_section_10_1_2_p_4">The roles and modifiers describe these details.</p>
 <p id="doc_section_10_1_2_p_5">In moving these ideas to bsd, two things had to happen: the formatting had to happen at the source since BSD won't have a JUNOS-like CLI to do the rendering, and we can't depend on external data models like ODL, which was seen as too hard a sell to the BSD community.</p>
 <p id="doc_section_10_1_2_p_6">The results were that the xo_emit strings are used to encode the roles, modifiers, names, and formats. They are dense and a bit cryptic, but not so unlike printf format strings that developers will be lost.</p>
@@ -26085,7 +26085,7 @@ jQuery(function ($) {
                    /proc-entry[process-id == $pid]/proc-name) {
         ...
     }
-	    </pre> <p id="doc_section_10_1_3_p_4">Find someone else who is expressing similar data and follow their fields and hierarchy. Remember the quote is not "Consistency is the hobgoblin of little minds", but "A foolish consistency is the hobgoblin of little minds".</p>
+            </pre> <p id="doc_section_10_1_3_p_4">Find someone else who is expressing similar data and follow their fields and hierarchy. Remember the quote is not "Consistency is the hobgoblin of little minds", but "A foolish consistency is the hobgoblin of little minds".</p>
 <p id="doc_section_10_1_3_p_5"> </p>
 <dl>
 <dt>Use containment as scoping</dt>
@@ -26142,10 +26142,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_1_p_1">The message "A percent sign appearing in text is a literal" can be caused by code like:</p>
 <div id="doc_figure_u.147"></div> <pre>
     xo_emit("cost: %d", cost);
-	    </pre> <p id="doc_section_10_2_1_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_1_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.148"></div> <pre>
     xo_emit("{L:cost}: {:cost/%d}", cost);
-	    </pre> <p id="doc_section_10_2_1_p_5">This can be a bit surprising and could be a field that was not properly converted to a libxo-style format string.</p>
+            </pre> <p id="doc_section_10_2_1_p_5">This can be a bit surprising and could be a field that was not properly converted to a libxo-style format string.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_2">
@@ -26156,10 +26156,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_2_p_1">The message "Unknown long name for role/modifier" can be caused by code like:</p>
 <div id="doc_figure_u.149"></div> <pre>
     xo_emit("{,humanization:value}", value);
-	    </pre> <p id="doc_section_10_2_2_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_2_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.150"></div> <pre>
     xo_emit("{,humanize:value}", value);
-	    </pre> <p id="doc_section_10_2_2_p_5">The hn-* modifiers (hn-decimal, hn-space, hn-1000) are only valid for fields with the {h:} modifier.</p>
+            </pre> <p id="doc_section_10_2_2_p_5">The hn-* modifiers (hn-decimal, hn-space, hn-1000) are only valid for fields with the {h:} modifier.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_3">
@@ -26171,10 +26171,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_3_p_2">A common typo:</p>
 <div id="doc_figure_u.151"></div> <pre>
     xo_emit("{T:Min} T{:Max}");
-	    </pre> <p id="doc_section_10_2_3_p_4">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_3_p_4">This code should be replaced with code like:</p>
 <div id="doc_figure_u.152"></div> <pre>
     xo_emit("{T:Min} {T:Max}");
-	    </pre> <p id="doc_section_10_2_3_p_6">Twiddling the "{" and the field role is a common typo.</p>
+            </pre> <p id="doc_section_10_2_3_p_6">Twiddling the "{" and the field role is a common typo.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_4">
@@ -26185,10 +26185,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_4_p_1">The message "Encoding format uses different number of arguments" can be caused by code like:</p>
 <div id="doc_figure_u.153"></div> <pre>
     xo_emit("{:name/%6.6s %%04d/%s}", name, number);
-	    </pre> <p id="doc_section_10_2_4_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_4_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.154"></div> <pre>
     xo_emit("{:name/%6.6s %04d/%s-%d}", name, number);
-	    </pre> <p id="doc_section_10_2_4_p_5">Both format should consume the same number of arguments off the stack</p>
+            </pre> <p id="doc_section_10_2_4_p_5">Both format should consume the same number of arguments off the stack</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_5">
@@ -26199,10 +26199,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_5_p_1">The message "Only one field role can be used" can be caused by code like:</p>
 <div id="doc_figure_u.155"></div> <pre>
     xo_emit("{LT:Max}");
-	    </pre> <p id="doc_section_10_2_5_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_5_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.156"></div> <pre>
     xo_emit("{T:Max}");
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_10_2_6">
 <div class="self-section-number">
@@ -26212,10 +26212,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_6_p_1">The message "Potential missing slash after C, D, N, L, or T with format" can be caused by code like:</p>
 <div id="doc_figure_u.157"></div> <pre>
     xo_emit("{T:%6.6s}\n", "Max");
-	    </pre> <p id="doc_section_10_2_6_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_6_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.158"></div> <pre>
     xo_emit("{T:/%6.6s}\n", "Max");
-	    </pre> <p id="doc_section_10_2_6_p_5">The "%6.6s" will be a literal, not a field format. While it's possibly valid, it's likely a missing "/".</p>
+            </pre> <p id="doc_section_10_2_6_p_5">The "%6.6s" will be a literal, not a field format. While it's possibly valid, it's likely a missing "/".</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_7">
@@ -26226,7 +26226,7 @@ jQuery(function ($) {
 <p id="doc_section_10_2_7_p_1">The message "An encoding format cannot be given (roles: DNLT)" can be caused by code like:</p>
 <div id="doc_figure_u.159"></div> <pre>
     xo_emit("{T:Max//%s}", "Max");
-	    </pre> <p id="doc_section_10_2_7_p_3">Fields with the C, D, N, L, and T roles are not emitted in the 'encoding' style (JSON, XML), so an encoding format would make no sense.</p>
+            </pre> <p id="doc_section_10_2_7_p_3">Fields with the C, D, N, L, and T roles are not emitted in the 'encoding' style (JSON, XML), so an encoding format would make no sense.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_8">
@@ -26237,7 +26237,7 @@ jQuery(function ($) {
 <p id="doc_section_10_2_8_p_1">The message "Format cannot be given when content is present (roles: CDLN)" can be caused by code like:</p>
 <div id="doc_figure_u.160"></div> <pre>
     xo_emit("{N:Max/%6.6s}", "Max");
-	    </pre> <p id="doc_section_10_2_8_p_3">Fields with the C, D, L, or N roles can't have both static literal content ("{L:Label}") and a format ("{L:/%s}"). This error will also occur when the content has a backslash in it, like "{N:Type of I/O}"; backslashes should be escaped, like "{N:Type of I\\/O}". Note the double backslash, one for handling 'C' strings, and one for libxo.</p>
+            </pre> <p id="doc_section_10_2_8_p_3">Fields with the C, D, L, or N roles can't have both static literal content ("{L:Label}") and a format ("{L:/%s}"). This error will also occur when the content has a backslash in it, like "{N:Type of I/O}"; backslashes should be escaped, like "{N:Type of I\\/O}". Note the double backslash, one for handling 'C' strings, and one for libxo.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_9">
@@ -26248,10 +26248,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_9_p_1">The message "Field has color without fg- or bg- (role: C)" can be caused by code like:</p>
 <div id="doc_figure_u.161"></div> <pre>
     xo_emit("{C:green}{:foo}{C:}", x);
-	    </pre> <p id="doc_section_10_2_9_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_9_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.162"></div> <pre>
     xo_emit("{C:fg-green}{:foo}{C:}", x);
-	    </pre> <p id="doc_section_10_2_9_p_5">Colors must be prefixed by either "fg&#8209;" or "bg&#8209;".</p>
+            </pre> <p id="doc_section_10_2_9_p_5">Colors must be prefixed by either "fg&#8209;" or "bg&#8209;".</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_10">
@@ -26262,10 +26262,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_10_p_1">The message "Field has invalid color or effect (role: C)" can be caused by code like:</p>
 <div id="doc_figure_u.163"></div> <pre>
     xo_emit("{C:fg-purple,bold}{:foo}{C:gween}", x);
-	    </pre> <p id="doc_section_10_2_10_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_10_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.164"></div> <pre>
     xo_emit("{C:fg-red,bold}{:foo}{C:fg-green}", x);
-	    </pre> <p id="doc_section_10_2_10_p_5">The list of colors and effects are limited. The set of colors includes default, black, red, green, yellow, blue, magenta, cyan, and white, which must be prefixed by either "fg&#8209;" or "bg&#8209;". Effects are limited to bold, no-bold, underline, no-underline, inverse, no-inverse, normal, and reset. Values must be separated by commas.</p>
+            </pre> <p id="doc_section_10_2_10_p_5">The list of colors and effects are limited. The set of colors includes default, black, red, green, yellow, blue, magenta, cyan, and white, which must be prefixed by either "fg&#8209;" or "bg&#8209;". Effects are limited to bold, no-bold, underline, no-underline, inverse, no-inverse, normal, and reset. Values must be separated by commas.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_11">
@@ -26276,10 +26276,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_11_p_1">The message "Field has humanize modifier but no format string" can be caused by code like:</p>
 <div id="doc_figure_u.165"></div> <pre>
     xo_emit("{h:value}", value);
-	    </pre> <p id="doc_section_10_2_11_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_11_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.166"></div> <pre>
     xo_emit("{h:value/%d}", value);
-	    </pre> <p id="doc_section_10_2_11_p_5">Humanization is only value for numbers, which are not likely to use the default format ("%s").</p>
+            </pre> <p id="doc_section_10_2_11_p_5">Humanization is only value for numbers, which are not likely to use the default format ("%s").</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_12">
@@ -26290,10 +26290,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_12_p_1">The message "Field has hn-* modifier but not 'h' modifier" can be caused by code like:</p>
 <div id="doc_figure_u.167"></div> <pre>
     xo_emit("{,hn-1000:value}", value);
-	    </pre> <p id="doc_section_10_2_12_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_12_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.168"></div> <pre>
     xo_emit("{h,hn-1000:value}", value);
-	    </pre> <p id="doc_section_10_2_12_p_5">The hn-* modifiers (hn-decimal, hn-space, hn-1000) are only valid for fields with the {h:} modifier.</p>
+            </pre> <p id="doc_section_10_2_12_p_5">The hn-* modifiers (hn-decimal, hn-space, hn-1000) are only valid for fields with the {h:} modifier.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_13">
@@ -26304,10 +26304,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_13_p_1">The message "Value field must have a name (as content)")" can be caused by code like:</p>
 <div id="doc_figure_u.169"></div> <pre>
     xo_emit("{:/%s}", "value");
-	    </pre> <p id="doc_section_10_2_13_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_13_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.170"></div> <pre>
     xo_emit("{:tag-name/%s}", "value");
-	    </pre> <p id="doc_section_10_2_13_p_5">The field name is used for XML and JSON encodings. These tags names are static and must appear directly in the field descriptor.</p>
+            </pre> <p id="doc_section_10_2_13_p_5">The field name is used for XML and JSON encodings. These tags names are static and must appear directly in the field descriptor.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_14">
@@ -26318,10 +26318,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_14_p_1">The message "Use hyphens, not underscores, for value field name" can be caused by code like:</p>
 <div id="doc_figure_u.171"></div> <pre>
     xo_emit("{:no_under_scores}", "bad");
-	    </pre> <p id="doc_section_10_2_14_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_14_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.172"></div> <pre>
     xo_emit("{:no-under-scores}", "bad");
-	    </pre> <p id="doc_section_10_2_14_p_5">Use of hyphens is traditional in XML, and the XOF_UNDERSCORES flag can be used to generate underscores in JSON, if desired. But the raw field name should use hyphens.</p>
+            </pre> <p id="doc_section_10_2_14_p_5">Use of hyphens is traditional in XML, and the XOF_UNDERSCORES flag can be used to generate underscores in JSON, if desired. But the raw field name should use hyphens.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_15">
@@ -26332,10 +26332,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_15_p_1">The message "Value field name cannot start with digit" can be caused by code like:</p>
 <div id="doc_figure_u.173"></div> <pre>
     xo_emit("{:10-gig/}");
-	    </pre> <p id="doc_section_10_2_15_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_15_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.174"></div> <pre>
     xo_emit("{:ten-gig/}");
-	    </pre> <p id="doc_section_10_2_15_p_5">XML element names cannot start with a digit.</p>
+            </pre> <p id="doc_section_10_2_15_p_5">XML element names cannot start with a digit.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_16">
@@ -26346,10 +26346,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_16_p_1">The message "Value field name should be lower case" can be caused by code like:</p>
 <div id="doc_figure_u.175"></div> <pre>
     xo_emit("{:WHY-ARE-YOU-SHOUTING}", "NO REASON");
-	    </pre> <p id="doc_section_10_2_16_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_16_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.176"></div> <pre>
     xo_emit("{:why-are-you-shouting}", "no reason");
-	    </pre> <p id="doc_section_10_2_16_p_5">Lower case is more civilized. Even TLAs should be lower case to avoid scenarios where the differences between "XPath" and "Xpath" drive your users crazy. Lower case rules the seas.</p>
+            </pre> <p id="doc_section_10_2_16_p_5">Lower case is more civilized. Even TLAs should be lower case to avoid scenarios where the differences between "XPath" and "Xpath" drive your users crazy. Lower case rules the seas.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_17">
@@ -26360,10 +26360,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_17_p_1">The message "Value field name should be longer than two characters" can be caused by code like:</p>
 <div id="doc_figure_u.177"></div> <pre>
     xo_emit("{:x}", "mumble");
-	    </pre> <p id="doc_section_10_2_17_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_17_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.178"></div> <pre>
     xo_emit("{:something-meaningful}", "mumble");
-	    </pre> <p id="doc_section_10_2_17_p_5">Field names should be descriptive, and it's hard to be descriptive in less than two characters. Consider your users and try to make something more useful. Note that this error often occurs when the field type is placed after the colon ("{:T/%20s}"), instead of before it ("{T:/20s}").</p>
+            </pre> <p id="doc_section_10_2_17_p_5">Field names should be descriptive, and it's hard to be descriptive in less than two characters. Consider your users and try to make something more useful. Note that this error often occurs when the field type is placed after the colon ("{:T/%20s}"), instead of before it ("{T:/20s}").</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_18">
@@ -26374,10 +26374,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_18_p_1">The message "Value field name contains invalid character" can be caused by code like:</p>
 <div id="doc_figure_u.179"></div> <pre>
     xo_emit("{:cost-in-$$/%u}", 15);
-	    </pre> <p id="doc_section_10_2_18_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_18_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.180"></div> <pre>
     xo_emit("{:cost-in-dollars/%u}", 15);
-	    </pre> <p id="doc_section_10_2_18_p_5">An invalid character is often a sign of a typo, like "{:]}" instead of "{]:}". Field names are restricted to lower-case characters, digits, and hyphens.</p>
+            </pre> <p id="doc_section_10_2_18_p_5">An invalid character is often a sign of a typo, like "{:]}" instead of "{]:}". Field names are restricted to lower-case characters, digits, and hyphens.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_19">
@@ -26388,10 +26388,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_19_p_1">The message "decoration field contains invalid character" can be caused by code like:</p>
 <div id="doc_figure_u.181"></div> <pre>
     xo_emit("{D:not good}");
-	    </pre> <p id="doc_section_10_2_19_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_19_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.182"></div> <pre>
     xo_emit("{D:((}{:good}{D:))}", "yes");
-	    </pre> <p id="doc_section_10_2_19_p_5">This is minor, but fields should use proper roles. Decoration fields are meant to hold punctuation and other characters used to decorate the content, typically to make it more readable to human readers.</p>
+            </pre> <p id="doc_section_10_2_19_p_5">This is minor, but fields should use proper roles. Decoration fields are meant to hold punctuation and other characters used to decorate the content, typically to make it more readable to human readers.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_20">
@@ -26402,10 +26402,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_20_p_1">The message "Anchor content should be decimal width" can be caused by code like:</p>
 <div id="doc_figure_u.183"></div> <pre>
     xo_emit("{[:mumble}");
-	    </pre> <p id="doc_section_10_2_20_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_20_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.184"></div> <pre>
     xo_emit("{[:32}");
-	    </pre> <p id="doc_section_10_2_20_p_5">Anchors need an integer value to specify the width of the set of anchored fields. The value can be positive (for left padding/right justification) or negative (for right padding/left justification) and can appear in either the start or stop anchor field descriptor.</p>
+            </pre> <p id="doc_section_10_2_20_p_5">Anchors need an integer value to specify the width of the set of anchored fields. The value can be positive (for left padding/right justification) or negative (for right padding/left justification) and can appear in either the start or stop anchor field descriptor.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_21">
@@ -26416,10 +26416,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_21_p_1">The message "Anchor format should be "%d"" can be caused by code like:</p>
 <div id="doc_figure_u.185"></div> <pre>
     xo_emit("{[:/%s}");
-	    </pre> <p id="doc_section_10_2_21_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_21_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.186"></div> <pre>
     xo_emit("{[:/%d}");
-	    </pre> <p id="doc_section_10_2_21_p_5">Anchors only grok integer values, and if the value is not static, if must be in an 'int' argument, represented by the "%d" format. Anything else is an error.</p>
+            </pre> <p id="doc_section_10_2_21_p_5">Anchors only grok integer values, and if the value is not static, if must be in an 'int' argument, represented by the "%d" format. Anything else is an error.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_22">
@@ -26430,10 +26430,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_22_p_1">The message "Anchor cannot have both format and encoding format")" can be caused by code like:</p>
 <div id="doc_figure_u.187"></div> <pre>
     xo_emit("{[:32/%d}");
-	    </pre> <p id="doc_section_10_2_22_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_22_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.188"></div> <pre>
     xo_emit("{[:32}");
-	    </pre> <p id="doc_section_10_2_22_p_5">Anchors can have a static value or argument for the width, but cannot have both.</p>
+            </pre> <p id="doc_section_10_2_22_p_5">Anchors can have a static value or argument for the width, but cannot have both.</p>
 </div>
 <div class="content">
 <h3 id="doc_section_10_2_23">
@@ -26444,10 +26444,10 @@ jQuery(function ($) {
 <p id="doc_section_10_2_23_p_1">The message "Max width only valid for strings" can be caused by code like:</p>
 <div id="doc_figure_u.189"></div> <pre>
     xo_emit("{:tag/%2.4.6d}", 55);
-	    </pre> <p id="doc_section_10_2_23_p_3">This code should be replaced with code like:</p>
+            </pre> <p id="doc_section_10_2_23_p_3">This code should be replaced with code like:</p>
 <div id="doc_figure_u.190"></div> <pre>
     xo_emit("{:tag/%2.6d}", 55);
-	    </pre> <p id="doc_section_10_2_23_p_5">libxo allows a true 'max width' in addition to the traditional printf-style 'max number of bytes to use for input'. But this is supported only for string values, since it makes no sense for non-strings. This error may occur from a typo, like "{:tag/%6..6d}" where only one period should be used.</p>
+            </pre> <p id="doc_section_10_2_23_p_5">libxo allows a true 'max width' in addition to the traditional printf-style 'max number of bytes to use for input'. But this is supported only for string values, since it makes no sense for non-strings. This error may occur from a typo, like "{:tag/%6..6d}" where only one period should be used.</p>
 </div>
 </div>
 </div>
@@ -26492,7 +26492,7 @@ jQuery(function ($) {
     make
     make test
     sudo make install
-	    </pre> <p id="doc_section_11_2_p_5">libxo uses a distinct "build" directory to keep generated files separated from source files.</p>
+            </pre> <p id="doc_section_11_2_p_5">libxo uses a distinct "build" directory to keep generated files separated from source files.</p>
 <p id="doc_section_11_2_p_6">Use "../configure --help" to display available configuration options, which include the following:</p>
 <div id="doc_figure_u.192"></div> <pre>
   --enable-warnings      Turn on compiler warnings
@@ -26502,7 +26502,7 @@ jQuery(function ($) {
   --disable-libxo-options  Turn off support for LIBXO_OPTIONS
   --with-gettext=PFX     Specify location of gettext installation
   --with-libslax-prefix=PFX  Specify location of libslax config
-	    </pre> <p id="doc_section_11_2_p_8">Compiler warnings are a very good thing, but recent compiler version have added some very pedantic checks. While every attempt is made to keep libxo code warning-free, warnings are now optional. If you are doing development work on libxo, it is required that you use --enable-warnings to keep the code warning free, but most users need not use this option.</p>
+            </pre> <p id="doc_section_11_2_p_8">Compiler warnings are a very good thing, but recent compiler version have added some very pedantic checks. While every attempt is made to keep libxo code warning-free, warnings are now optional. If you are doing development work on libxo, it is required that you use --enable-warnings to keep the code warning free, but most users need not use this option.</p>
 <p id="doc_section_11_2_p_9">libxo provides the --enable-text-only option to reduce the footprint of the library for smaller installations. XML, JSON, and HTML rendering logic is removed.</p>
 <p id="doc_section_11_2_p_10">The gettext library does not provide a simple means of learning its location, but libxo will look for it in /usr and /opt/local. If installed elsewhere, the installer will need to provide this information using the --with-gettext=/dir/path option.</p>
 <p id="doc_section_11_2_p_11">libslax is not required by libxo; it contains the "oxtradoc" program used to format documentation.</p>
@@ -26516,7 +26516,7 @@ jQuery(function ($) {
 </h2>
 <div id="doc_figure_u.193"></div> <pre>
     How do I convert an existing command line application?
-	    </pre> <p id="doc_section_11_3_p_2">There are three basic steps for converting command line application to use libxo.</p>
+            </pre> <p id="doc_section_11_3_p_2">There are three basic steps for converting command line application to use libxo.</p>
 <p id="doc_section_11_3_p_3"> </p>
 <ul>
 <li>Setting up the context</li>
@@ -26540,7 +26540,7 @@ jQuery(function ($) {
 <p id="doc_section_11_3_1_p_1">To use libxo, you'll need to include the "xo.h" header file in your source code files:</p>
 <div id="doc_figure_u.194"></div> <pre>
     #include &lt;libxo/xo.h&gt;
-	    </pre> <p id="doc_section_11_3_1_p_3">In your main() function, you'll need to call xo_parse_args to handling argument parsing (<a href="#xo_parse_args" title="Parsing Command-line Arguments (xo_parse_args)">Section 5.4.1</a>). This function removes libxo-specific arguments the program's argv and returns either the number of remaining arguments or -1 to indicate an error.</p>
+            </pre> <p id="doc_section_11_3_1_p_3">In your main() function, you'll need to call xo_parse_args to handling argument parsing (<a href="#xo_parse_args" title="Parsing Command-line Arguments (xo_parse_args)">Section 5.4.1</a>). This function removes libxo-specific arguments the program's argv and returns either the number of remaining arguments or -1 to indicate an error.</p>
 <div id="doc_figure_u.195"></div> <pre>
     int main (int argc, char **argv)
     {
@@ -26549,10 +26549,10 @@ jQuery(function ($) {
             return argc;
         ....
     }
-	    </pre> <p id="doc_section_11_3_1_p_5">At the bottom of your main(), you'll need to call xo_finish() to complete output processing for the default handle (<a href="#handles" title="Handles">Section 5.1</a>). libxo provides the xo_finish_atexit function that is suitable for use with the atexit(3) function.</p>
+            </pre> <p id="doc_section_11_3_1_p_5">At the bottom of your main(), you'll need to call xo_finish() to complete output processing for the default handle (<a href="#handles" title="Handles">Section 5.1</a>). libxo provides the xo_finish_atexit function that is suitable for use with the atexit(3) function.</p>
 <div id="doc_figure_u.196"></div> <pre>
     atexit(xo_finish_atexit);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_11_3_2">
 <div class="self-section-number">
@@ -26563,23 +26563,23 @@ jQuery(function ($) {
 <div id="doc_figure_u.197"></div> <pre>
     printf("There are %d %s events\n", count, etype);
     xo_emit("There are {:count/%d} {:event} events\n", count, etype);
-	    </pre> <p id="doc_section_11_3_2_p_3">"count" and "event" are used as names for JSON and XML output. The "count" field uses the format "%d" and "event" uses the default "%s" format. Both are "value" roles, which is the default role.</p>
+            </pre> <p id="doc_section_11_3_2_p_3">"count" and "event" are used as names for JSON and XML output. The "count" field uses the format "%d" and "event" uses the default "%s" format. Both are "value" roles, which is the default role.</p>
 <p id="doc_section_11_3_2_p_4">Since text outside of output fields is passed verbatim, other roles are less important, but their proper use can help make output more useful. The "note" and "label" roles allow HTML output to recognize the relationship between text and the associated values, allowing appropriate "hover" and "onclick" behavior. Using the "units" role allows the presentation layer to perform conversions when needed. The "warning" and "error" roles allows use of color and font to draw attention to warnings. The "padding" role makes the use of vital whitespace more clear (<a href="#padding-role" title="The Padding Role ({P:})">Section 3.2.1.6</a>).</p>
 <p id="doc_section_11_3_2_p_5">The "title" role indicates the headings of table and sections. This allows HTML output to use CSS to make this relationship more obvious.</p>
 <div id="doc_figure_u.198"></div> <pre>
     printf("Statistics:\n");
     xo_emit("{T:Statistics}:\n");
-	    </pre> <p id="doc_section_11_3_2_p_7">The "color" roles controls foreground and background colors, as well as effects like bold and underline (see <a href="#color-role" title="The Color Role ({C:})">Section 3.2.1.1</a>).</p>
+            </pre> <p id="doc_section_11_3_2_p_7">The "color" roles controls foreground and background colors, as well as effects like bold and underline (see <a href="#color-role" title="The Color Role ({C:})">Section 3.2.1.1</a>).</p>
 <div id="doc_figure_u.199"></div> <pre>
     xo_emit("{C:bold}required{C:}\n");
-	    </pre> <p id="doc_section_11_3_2_p_9">Finally, the start- and stop-anchor roles allow justification and padding over multiple fields (see <a href="#anchor-role" title="The Anchor Roles ({[:} and {]:})">Section 3.2.1.10</a>).</p>
+            </pre> <p id="doc_section_11_3_2_p_9">Finally, the start- and stop-anchor roles allow justification and padding over multiple fields (see <a href="#anchor-role" title="The Anchor Roles ({[:} and {]:})">Section 3.2.1.10</a>).</p>
 <div id="doc_figure_u.200"></div> <pre>
     snprintf(buf, sizeof(buf), "(%u/%u/%u)", min, ave, max);
     printf("%30s", buf);
 
     xo_emit("{[:30}({:minimum/%u}/{:average/%u}/{:maximum/%u}{]:}",
             min, ave, max);
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_11_3_3">
 <div class="self-section-number">
@@ -26602,7 +26602,7 @@ jQuery(function ($) {
         xo_close_instance("table");
     }
     xo_close_list("table");
-	    </pre> <p id="doc_section_11_3_3_p_3">The open and close list functions are used before and after the list, and the open and close instance functions are used before and after each instance with in the list.</p>
+            </pre> <p id="doc_section_11_3_3_p_3">The open and close list functions are used before and after the list, and the open and close instance functions are used before and after each instance with in the list.</p>
 <p id="doc_section_11_3_3_p_4">Typically these developer looks for a "for" loop as an indication of where to put these calls.</p>
 <p id="doc_section_11_3_3_p_5">In addition, the open and close container functions allow for organization levels of hierarchy.</p>
 <div id="doc_figure_u.202"></div> <pre>
@@ -26616,7 +26616,7 @@ jQuery(function ($) {
     xo_emit("{P:    }{L:Active:    }{:active/%lu}\n", active);
     xo_emit("{P:    }{L:Inactive:  }{:inactive/%lu}\n", inactive);
     xo_close_container("paging-information");
-	    </pre> </div>
+            </pre> </div>
 <div class="content">
 <h3 id="doc_section_11_3_4">
 <div class="self-section-number">
@@ -26629,7 +26629,7 @@ jQuery(function ($) {
 
     xo_err(1, "cannot open output file: %s", file);
     xo_emit_err(1, "cannot open output file: {:filename}", file);
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content"><h2 id="doc_section_11_4">
 <div class="self-section-number">
@@ -26644,7 +26644,7 @@ jQuery(function ($) {
 </h2>
 <div id="doc_figure_u.204"></div> <pre>
     How do I use libxo to support internationalization?
-	    </pre> <p id="doc_section_11_5_p_2">libxo allows format and field strings to be used a keys into message catalogs to enable translation into a user's native language by invoking the standard gettext(3) functions.</p>
+            </pre> <p id="doc_section_11_5_p_2">libxo allows format and field strings to be used a keys into message catalogs to enable translation into a user's native language by invoking the standard gettext(3) functions.</p>
 <p id="doc_section_11_5_p_3">gettext setup is a bit complicated: text strings are extracted from source files into "portable object template" (.pot) files using the "xgettext" command. For each language, this template file is used as the source for a message catalog in the "portable object" (.po) format, which are translated by hand and compiled into "machine object" (.mo) files using the "msgfmt" command. The .mo files are then typically installed in the /usr/share/locale or /opt/local/share/locale directories. At run time, the user's language settings are used to select a .mo file which is searched for matching messages. Text strings in the source code are used as keys to look up the native language strings in the .mo file.</p>
 <p id="doc_section_11_5_p_4">Since the xo_emit format string is used as the key into the message catalog, libxo removes unimportant field formatting and modifiers from the format string before use so that minor formatting changes will not impact the expensive translation process. We don't want a developer change such as changing "/%06d" to "/%08d" to force hand inspection of all .po files. The simplified version can be generated for a single message using the "xopo -s &lt;text&gt;" command, or an entire .pot can be translated using the "xopo -f &lt;input&gt; -o &lt;output&gt;" command.</p>
 <div id="doc_figure_u.205"></div> <pre>
@@ -26679,10 +26679,10 @@ jQuery(function ($) {
         # Install the .mo file
         sudo cp po/my_lang/LC_MESSAGES/foo.mo \
                 /opt/local/share/locale/my_lang/LC_MESSAGE/
-	    </pre> <p id="doc_section_11_5_p_6">Once these steps are complete, you can use the "gettext" command to test the message catalog:</p>
+            </pre> <p id="doc_section_11_5_p_6">Once these steps are complete, you can use the "gettext" command to test the message catalog:</p>
 <div id="doc_figure_u.206"></div> <pre>
     gettext -d foo -e "some text"
-	    </pre> <p id="doc_section_11_5_p_8">Section Contents: </p>
+            </pre> <p id="doc_section_11_5_p_8">Section Contents: </p>
 <ul><li><a href="#i18n-and-xo_emit" title="i18n and xo_emit">Section 11.5.1</a></li></ul>
 <div class="content">
 <h3 id="doc_section_11_5_1">
@@ -26705,14 +26705,14 @@ jQuery(function ($) {
 
     xo_emit("{G:}Received {:received/%zu} {Ngp:byte,bytes} "
             "from {g:server} server\n", counter, "web");
-	    </pre> <p id="doc_section_11_5_1_p_5">libxo will see the "{G:}" role and will first simplify the format string, removing field formats and modifiers.</p>
+            </pre> <p id="doc_section_11_5_1_p_5">libxo will see the "{G:}" role and will first simplify the format string, removing field formats and modifiers.</p>
 <div id="doc_figure_u.208"></div> <pre>
     "Received {:received} {N:byte,bytes} from {:server} server\n"
-	    </pre> <p id="doc_section_11_5_1_p_7">libxo calls gettext(3) with that string to get a localized version. If your language were Pig Latin, the result might look like:</p>
+            </pre> <p id="doc_section_11_5_1_p_7">libxo calls gettext(3) with that string to get a localized version. If your language were Pig Latin, the result might look like:</p>
 <div id="doc_figure_u.209"></div> <pre>
     "Eceivedray {:received} {N:byte,bytes} omfray "
                "{:server} erversay\n"
-	    </pre> <p id="doc_section_11_5_1_p_9">Note the field names do not change and they should not be translated. The contents of the note ("byte,bytes") should also not be translated, since the "g" modifier will need the untranslated value as the key for the message catalog.</p>
+            </pre> <p id="doc_section_11_5_1_p_9">Note the field names do not change and they should not be translated. The contents of the note ("byte,bytes") should also not be translated, since the "g" modifier will need the untranslated value as the key for the message catalog.</p>
 <p id="doc_section_11_5_1_p_10">The field "{g:server}" requests the rendered value of the field be translated using gettext(3). In this example, "web" would be used.</p>
 <p id="doc_section_11_5_1_p_11">The field "{Ngp:byte,bytes}" shows an example of plural form using the "p" modifier with the "g" modifier. The base singular and plural forms appear inside the field, separated by a comma. At run time, libxo uses the previous field's numeric value to decide which form to use by calling ngettext(3).</p>
 <p id="doc_section_11_5_1_p_12">If a domain name is needed, it can be supplied as the content of the {G:} role. Domain names remain in use throughout the format string until cleared with another domain name.</p>
@@ -26722,7 +26722,7 @@ jQuery(function ($) {
 
     xo_emit("{G:dns}Host {:hostname} not found: "
             "%d({G:strerror}{g:%m})\n", name, errno);
-	    </pre> </div>
+            </pre> </div>
 </div>
 </div>
 <hr class="noprint">
@@ -26833,7 +26833,7 @@ jQuery(function ($) {
 
         return 0;
     }
-	    </pre> <p id="doc_section_12_1_p_3">Text output:</p>
+            </pre> <p id="doc_section_12_1_p_3">Text output:</p>
 <div id="doc_figure_u.212"></div> <pre>
     % ./testxo --libxo text
     Item 'gum':
@@ -26866,7 +26866,7 @@ jQuery(function ($) {
        In stock: 45
        On order: 1
        SKU: GRO-000-533
-	    </pre> <p id="doc_section_12_1_p_5">JSON output:</p>
+            </pre> <p id="doc_section_12_1_p_5">JSON output:</p>
 <div id="doc_figure_u.213"></div> <pre>
     % ./testxo --libxo json,pretty
     "top": {
@@ -26921,7 +26921,7 @@ jQuery(function ($) {
         ]
       }
     }
-	    </pre> <p id="doc_section_12_1_p_7">XML output:</p>
+            </pre> <p id="doc_section_12_1_p_7">XML output:</p>
 <div id="doc_figure_u.214"></div> <pre>
     % ./testxo --libxo pretty,xml
     &lt;top&gt;
@@ -26972,7 +26972,7 @@ jQuery(function ($) {
         &lt;/item&gt;
       &lt;/data&gt;
     &lt;/top&gt;
-	    </pre> <p id="doc_section_12_1_p_9">HMTL output:</p>
+            </pre> <p id="doc_section_12_1_p_9">HMTL output:</p>
 <div id="doc_figure_u.215"></div> <pre>
     % ./testxo --libxo pretty,html
     &lt;div class="line"&gt;
@@ -27167,7 +27167,7 @@ jQuery(function ($) {
       &lt;div class="text"&gt;: &lt;/div&gt;
       &lt;div class="data" data-tag="sku"&gt;GRO-000-533&lt;/div&gt;
     &lt;/div&gt;
-	    </pre> <p id="doc_section_12_1_p_11">HTML output with xpath and info flags:</p>
+            </pre> <p id="doc_section_12_1_p_11">HTML output with xpath and info flags:</p>
 <div id="doc_figure_u.216"></div> <pre>
     % ./testxo --libxo pretty,html,xpath,info
     &lt;div class="line"&gt;
@@ -27422,7 +27422,7 @@ jQuery(function ($) {
            data-xpath="/top/data/item/sku" data-type="string"
            data-help="Stock Keeping Unit"&gt;GRO-000-533&lt;/div&gt;
     &lt;/div&gt;
-	    </pre> </div>
+            </pre> </div>
 </div>
 <div class="content"></div>
 <hr class="noprint">
