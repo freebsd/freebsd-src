@@ -47,8 +47,10 @@ enum pmclog_state {
 
 struct pmclog_ev_callchain {
 	uint32_t	pl_pid;
+	uint32_t	pl_tid;
 	uint32_t	pl_pmcid;
 	uint32_t	pl_cpuflags;
+	uint32_t	pl_cpuflags2;
 	uint32_t	pl_npc;
 	uintfptr_t	pl_pc[PMC_CALLCHAIN_DEPTH_MAX];
 };
@@ -79,7 +81,9 @@ struct pmclog_ev_map_out {
 struct pmclog_ev_pcsample {
 	uintfptr_t	pl_pc;
 	pid_t		pl_pid;
+	pid_t		pl_tid;
 	pmc_id_t	pl_pmcid;
+	uint32_t	pl_flags;
 	uint32_t	pl_usermode;
 };
 
@@ -110,6 +114,7 @@ struct pmclog_ev_pmcdetach {
 
 struct pmclog_ev_proccsw {
 	pid_t		pl_pid;
+	pid_t		pl_tid;
 	pmc_id_t	pl_pmcid;
 	pmc_value_t	pl_value;
 };

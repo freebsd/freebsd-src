@@ -326,8 +326,10 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	switch (ev->pl_type = PMCLOG_HEADER_TO_TYPE(h)) {
 	case PMCLOG_TYPE_CALLCHAIN:
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pid);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_tid);
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_cpuflags);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_cpuflags2);
 		PMCLOG_GET_CALLCHAIN_SIZE(ev->pl_u.pl_cc.pl_npc,evlen);
 		for (npc = 0; npc < ev->pl_u.pl_cc.pl_npc; npc++)
 			PMCLOG_READADDR(le,ev->pl_u.pl_cc.pl_pc[npc]);
@@ -363,6 +365,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READADDR(le,ev->pl_u.pl_s.pl_pc);
 		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_usermode);
+		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_tid);
 		break;
 	case PMCLOG_TYPE_PMCALLOCATE:
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_pmcid);
@@ -393,6 +396,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_pmcid);
 		PMCLOG_READ64(le,ev->pl_u.pl_c.pl_value);
 		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_pid);
+		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_tid);
 		break;
 	case PMCLOG_TYPE_PROCEXEC:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_procexec);
