@@ -221,6 +221,7 @@ ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
 ASSYM(PC_KESP0, offsetof(struct pcpu, pc_kesp0));
 ASSYM(PC_TRAMPSTK, offsetof(struct pcpu, pc_trampstk));
 ASSYM(PC_COPYOUT_BUF, offsetof(struct pcpu, pc_copyout_buf));
+ASSYM(PC_IBPB_SET, offsetof(struct pcpu, pc_ibpb_set));
 
 #ifdef DEV_APIC
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);

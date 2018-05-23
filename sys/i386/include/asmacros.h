@@ -218,10 +218,14 @@
 	testl	$PCB_VM86CALL, PCB_FLAGS(%eax)
 	jnz	.L\@.3
 	NMOVE_STACKS
+	movl	$handle_ibrs_entry,%edx
+	call	*%edx
 	jmp	.L\@.3
 .L\@.1:	testb	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	.L\@.3
 .L\@.2:	MOVE_STACKS
+	movl	$handle_ibrs_entry,%edx
+	call	*%edx
 .L\@.3:
 	.endm
 
