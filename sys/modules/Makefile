@@ -500,7 +500,9 @@ _aout=		aout
 _apm=		apm
 _arcnet=	arcnet
 _bktr=		bktr
+.if ${MK_SOURCELESS_UCODE} != "no"
 _bxe=		bxe
+.endif
 _cardbus=	cardbus
 _cbb=		cbb
 .if ${MK_SOURCELESS_UCODE} != "no"
@@ -792,7 +794,9 @@ _pccard=	pccard
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
+.if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
+.endif
 _qlnx=		qlnx
 _rdma=		rdma
 _s3=		s3
