@@ -36,13 +36,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+__SCCSID("@(#)pw_util.c	8.3 (Berkeley) 4/2/94");
 
 /*
  * This file is used by all the "password" programs; vipw(8), chpass(1),

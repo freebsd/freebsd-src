@@ -19,7 +19,7 @@ SRCS=	_secure_path.c auth.c expand_number.c flopen.c fparseln.c gr_util.c \
 	stub.c trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
 
-CFLAGS+= -DLIBC_SCCS
+CFLAGS+= -DNO__SCCSID
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
