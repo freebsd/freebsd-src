@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180523:
+	The on-disk format for hwpmc callchain records has changed to include
+	threadid corresponding to a given record. This changes the field offsets    
+	and thus requires that libpmcstat be rebuilt before using a kernel
+	later than r334108.
+
 20180517:
 	The vxge(4) driver has been removed.  This driver was introduced into
 	HEAD one week before the Exar left the Ethernet market and is not
