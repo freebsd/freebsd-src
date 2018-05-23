@@ -28,7 +28,7 @@ CFLAGS+=	-std=${CSTD}
 #CFLAGS+=	-pedantic
 .if defined(WARNS)
 .if ${WARNS} >= 1
-CWARNFLAGS+=	-Wsystem-headers
+CWARNFLAGS+=	-Wsystem-headers -Wmain
 .if !defined(NO_WERROR) && !defined(NO_WERROR.${COMPILER_TYPE})
 CWARNFLAGS+=	-Werror
 .endif # !NO_WERROR && !NO_WERROR.${COMPILER_TYPE}
