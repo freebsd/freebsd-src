@@ -1087,7 +1087,7 @@ event_loop(void)
 				try {
 					process_event(buffer);
 				}
-				catch (std::length_error e) {
+				catch (const std::length_error& e) {
 					devdlog(LOG_ERR, "Dropping event %s "
 					    "due to low memory", buffer);
 				}
