@@ -370,8 +370,8 @@ static const struct usb_temp_interface_desc *multi_interfaces[] = {
 
 static const struct usb_temp_config_desc multi_config_desc = {
 	.ppIfaceDesc = multi_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MULTI_CONFIGURATION_INDEX,
 };
 static const struct usb_temp_config_desc *multi_configs[] = {
