@@ -406,7 +406,7 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_i.pl_version,
 			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
-			    PMC_VERSION_MAJOR << 24 && args.pa_verbosity > 0)
+			    PMC_VERSION_MAJOR << 24)
 				warnx(
 "WARNING: Log version 0x%x != expected version 0x%x.",
 				    ev.pl_u.pl_i.pl_version, PMC_VERSION);
