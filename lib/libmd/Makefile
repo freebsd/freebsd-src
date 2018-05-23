@@ -15,7 +15,7 @@ SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha384.h sha512.h sha512t.h \
 	skein.h skein_port.h skein_freebsd.h skein_iv.h
 
-WARNS?=	1
+WARNS?=	0
 
 MAN+=	md4.3 md5.3 ripemd.3 sha.3 sha256.3 sha512.3 skein.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
