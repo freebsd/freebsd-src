@@ -215,9 +215,13 @@ critical_exit_preempt(void)
 	struct thread *td;
 	int flags;
 
+	/*
+	 * If td_critnest is 0, it is possible that we are going to get
+	 * preempted again before reaching the code below. This happens
+	 * rarely and is harmless. However, this means td_owepreempt may
+	 * now be unset.
+	 */
 	td = curthread;
-	KASSERT(td->td_owepreempt != 0,
-	    ("critical_exit: td_owepreempt == 0"));
 	if (td->td_critnest != 0)
 		return;
 	if (kdb_active)
