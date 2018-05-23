@@ -198,8 +198,8 @@ static const struct usb_temp_interface_desc *modem_interfaces[] = {
 
 static const struct usb_temp_config_desc modem_config_desc = {
 	.ppIfaceDesc = modem_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MODEM_PRODUCT_INDEX,
 };
 

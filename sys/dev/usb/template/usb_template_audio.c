@@ -351,8 +351,8 @@ static const struct usb_temp_interface_desc *audio_interfaces[] = {
 
 static const struct usb_temp_config_desc audio_config_desc = {
 	.ppIfaceDesc = audio_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = AUDIO_PRODUCT_INDEX,
 };
 

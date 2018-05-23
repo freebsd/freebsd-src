@@ -347,8 +347,8 @@ static const struct usb_temp_interface_desc *phone_interfaces[] = {
 
 static const struct usb_temp_config_desc phone_config_desc = {
 	.ppIfaceDesc = phone_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = PHONE_PRODUCT_INDEX,
 };
 

@@ -199,8 +199,8 @@ static const struct usb_temp_interface_desc *midi_interfaces[] = {
 
 static const struct usb_temp_config_desc midi_config_desc = {
 	.ppIfaceDesc = midi_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MIDI_PRODUCT_INDEX,
 };
 
