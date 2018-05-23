@@ -53,7 +53,7 @@ sobota
 %H:%M:%S
 #
 # x_fmt
-%Y/%m/%d
+%d.%m.%Y
 #
 # c_fmt
 %a %e %b %X %Y
