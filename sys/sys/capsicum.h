@@ -441,6 +441,7 @@ extern cap_rights_t cap_renameat_source_rights;
 extern cap_rights_t cap_renameat_target_rights;
 extern cap_rights_t cap_seek_rights;
 extern cap_rights_t cap_send_rights;
+extern cap_rights_t cap_send_connect_rights;
 extern cap_rights_t cap_setsockopt_rights;
 extern cap_rights_t cap_shutdown_rights;
 extern cap_rights_t cap_symlinkat_rights;
