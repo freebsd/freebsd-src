@@ -80,7 +80,7 @@ printfile(int fileid, int verbose, int humanized)
 	       printf("%2d %4d %p %5s %s",
 	           stat.id, stat.refs, stat.address, buf, stat.name);
 	} else {
-		printf("%2d %4d %p %-8zx %s",
+		printf("%2d %4d %p %8zx %s",
 		    stat.id, stat.refs, stat.address, stat.size, stat.name);
 	}
     }
