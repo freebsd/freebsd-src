@@ -140,7 +140,6 @@ typedef struct client {
 } client_t;
 
 extern FILE *yyin;
-extern int lineno;
 
 static const char notify = '!';
 static const char nomatch = '?';
