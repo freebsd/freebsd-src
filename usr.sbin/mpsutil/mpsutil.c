@@ -61,8 +61,7 @@ usage(void)
 	SET_FOREACH(cmd, MPS_DATASET(usage)) {
 		if (*cmd == NULL) {
 			fprintf(stderr, "\n");
-		}
-		else {
+		} else {
 			(*cmd)->handler(&args, &desc);
 			if (strncmp((*cmd)->set, "top", 3) == 0)
 				fprintf(stderr, "%s %-30s\t%s\n",
