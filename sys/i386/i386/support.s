@@ -433,9 +433,31 @@ msr_onfault:
 	ret
 
 ENTRY(handle_ibrs_entry)
-	ret
+	cmpb	$0,hw_ibrs_active
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32,%edx
+	wrmsr
+	movb	$1,PCPU(IBPB_SET)
+	/*
+	 * i386 does not implement SMEP, but the 4/4 split makes this not
+	 * that important.
+	 */
+1:	ret
 END(handle_ibrs_entry)
 
 ENTRY(handle_ibrs_exit)
-	ret
+	cmpb	$0,PCPU(IBPB_SET)
+	je	1f
+	pushl	%ecx
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	andl	$~(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	andl	$~((IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32),%edx
+	wrmsr
+	popl	%ecx
+	movb	$0,PCPU(IBPB_SET)
+1:	ret
 END(handle_ibrs_exit)
