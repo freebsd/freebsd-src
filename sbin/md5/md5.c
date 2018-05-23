@@ -243,7 +243,7 @@ main(int argc, char *argv[])
 				else
 					printf("%s (%s) = %s",
 					    Algorithm[digest].name, *argv, p);
-				if (checkAgainst && strcmp(checkAgainst,p))
+				if (checkAgainst && strcasecmp(checkAgainst, p) != 0)
 				{
 					checksFailed++;
 					if (!qflag)
@@ -282,7 +282,7 @@ MDString(const Algorithm_t *alg, const char *string)
 		printf("%s \"%s\"", buf, string);
 	else
 		printf("%s (\"%s\") = %s", alg->name, string, buf);
-	if (checkAgainst && strcmp(buf,checkAgainst))
+	if (checkAgainst && strcasecmp(buf,checkAgainst) != 0)
 	{
 		checksFailed++;
 		if (!qflag)
