@@ -1985,6 +1985,7 @@ ptrace_single_step(struct thread *td)
 int
 ptrace_clear_single_step(struct thread *td)
 {
+
 	td->td_frame->tf_rflags &= ~PSL_T;
 	return (0);
 }
