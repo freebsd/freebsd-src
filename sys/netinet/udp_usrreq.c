@@ -874,7 +874,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return (error);
-	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO);
+	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_EPOCH_CALL_WAITOK);
 	inp_list = il->il_inp_list;
 
 	INP_INFO_RLOCK(&V_udbinfo);
