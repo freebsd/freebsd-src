@@ -500,7 +500,7 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:IM:NO:P:R:S:TWa:c:def:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:IL:M:NO:P:R:S:TWa:c:def:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
 		case 'a':	/* Annotate + callgraph */
 			args.pa_flags |= FLAG_DO_ANNOTATE;
@@ -581,6 +581,10 @@ main(int argc, char **argv)
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
 			break;
 
+		case 'L':
+			args.pa_flags |= FLAG_FILTER_THREAD_ID;
+			args.pa_tid = strtol(optarg, &end, 0);
+			break;
 		case 'l':	/* time duration in seconds */
 			duration = strtod(optarg, &end);
 			if (*end != '\0' || duration <= 0)
