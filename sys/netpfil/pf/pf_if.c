@@ -129,9 +129,9 @@ pfi_initialize_vnet(void)
 	PF_RULES_WUNLOCK();
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
+	CK_STAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
 		pfi_attach_ifgroup(ifg);
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		pfi_attach_ifnet(ifp);
 	IFNET_RUNLOCK();
 }
@@ -300,7 +300,7 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 
 	if (rule_kif->pfik_group != NULL)
 		/* XXXGL: locking? */
-		TAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
+		CK_STAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
 			if (p->ifgl_group == rule_kif->pfik_group)
 				return (1);
 
@@ -466,7 +466,7 @@ pfi_kif_update(struct pfi_kif *kif)
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
 		IF_ADDR_RLOCK(kif->pfik_ifp);
-		TAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
+		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
 			pfi_kif_update((struct pfi_kif *)
 			    ifgl->ifgl_group->ifg_pf_kif);
 		IF_ADDR_RUNLOCK(kif->pfik_ifp);
@@ -506,7 +506,7 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 		pfi_instance_add(kif->pfik_ifp, net, flags);
 	else if (kif->pfik_group != NULL) {
 		IFNET_RLOCK_NOSLEEP();
-		TAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
+		CK_STAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
 		IFNET_RUNLOCK_NOSLEEP();
 	}
@@ -668,7 +668,7 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 	struct pfi_kif		*p;
 	struct pfi_kif_cmp	 key;
 	struct ifg_member	 p_member, *ifgm;
-	TAILQ_HEAD(, ifg_member) ifg_members;
+	CK_STAILQ_HEAD(, ifg_member) ifg_members;
 	int			 i, j, k;
 
 	strlcpy(key.pfik_name, name, sizeof(key.pfik_name));
@@ -683,14 +683,14 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 		/* build a temporary list for p only */
 		bzero(&p_member, sizeof(p_member));
 		p_member.ifgm_ifp = p->pfik_ifp;
-		TAILQ_INIT(&ifg_members);
-		TAILQ_INSERT_TAIL(&ifg_members, &p_member, ifgm_next);
+		CK_STAILQ_INIT(&ifg_members);
+		CK_STAILQ_INSERT_TAIL(&ifg_members, &p_member, ifgm_next);
 	}
 	if (pfs) {
 		bzero(pfs->pcounters, sizeof(pfs->pcounters));
 		bzero(pfs->bcounters, sizeof(pfs->bcounters));
 	}
-	TAILQ_FOREACH(ifgm, &ifg_members, ifgm_next) {
+	CK_STAILQ_FOREACH(ifgm, &ifg_members, ifgm_next) {
 		if (ifgm->ifgm_ifp == NULL || ifgm->ifgm_ifp->if_pf_kif == NULL)
 			continue;
 		p = (struct pfi_kif *)ifgm->ifgm_ifp->if_pf_kif;
