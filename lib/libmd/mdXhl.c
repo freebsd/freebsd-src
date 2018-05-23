@@ -54,7 +54,8 @@ MDXFdChunk(int fd, char *buf, off_t ofs, off_t len)
 {
 	unsigned char buffer[16*1024];
 	MDX_CTX ctx;
-	int readrv;
+	struct stat stbuf;
+	int readrv, e;
 	off_t remain;
 
 	if (len < 0) {
