@@ -15,6 +15,8 @@ LIBADD=	l util
 
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
+CFLAGS.gcc = -Wno-redundant-decls
+CXXFLAGS.gcc = -Wno-redundant-decls
 
 CLEANFILES= y.output y.tab.i
 
