@@ -225,7 +225,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	uint32_t fibnum;
-	int have_ia_ref;
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	int no_route_but_check_spd = 0;
 #endif
@@ -281,6 +280,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
+	NET_EPOCH_ENTER();
 again:
 	/*
 	 * Validate route against routing table additions;
@@ -306,7 +306,6 @@ again:
 		rte = NULL;
 	}
 	ia = NULL;
-	have_ia_ref = 0;
 	/*
 	 * If routing to interface only, short circuit routing lookup.
 	 * The use of an all-ones broadcast address implies this; an
@@ -322,7 +321,6 @@ again:
 			error = ENETUNREACH;
 			goto bad;
 		}
-		have_ia_ref = 1;
 		ip->ip_dst.s_addr = INADDR_BROADCAST;
 		dst->sin_addr = ip->ip_dst;
 		ifp = ia->ia_ifp;
@@ -337,7 +335,6 @@ again:
 			error = ENETUNREACH;
 			goto bad;
 		}
-		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = ifp->if_flags & IFF_BROADCAST ?
@@ -350,8 +347,6 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
-		if (ia)
-			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
@@ -579,8 +574,6 @@ sendit:
 		case -1: /* Need to try again */
 			/* Reset everything for a new round */
 			RO_RTFREE(ro);
-			if (have_ia_ref)
-				ifa_free(&ia->ia_ifa);
 			ro->ro_prepend = NULL;
 			rte = NULL;
 			gw = dst;
@@ -735,10 +728,9 @@ done:
 		 * calling RTFREE on it again.
 		 */
 		ro->ro_rt = NULL;
-	if (have_ia_ref)
-		ifa_free(&ia->ia_ifa);
+	NET_EPOCH_EXIT();
 	return (error);
-bad:
+ bad:
 	m_freem(m);
 	goto done;
 }

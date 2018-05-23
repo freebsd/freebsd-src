@@ -176,8 +176,6 @@ do {									\
 	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
 	    (ia) = CK_STAILQ_NEXT((ia), ia_link))				\
 		continue;						\
-	if ((ia) != NULL)						\
-		ifa_ref(&(ia)->ia_ifa);					\
 	IN_IFADDR_RUNLOCK((t));						\
 } while (0)
 

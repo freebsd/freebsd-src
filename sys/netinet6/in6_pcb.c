@@ -170,9 +170,11 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 			struct ifaddr *ifa;
 
 			sin6->sin6_port = 0;		/* yech... */
+			NET_EPOCH_ENTER();
 			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
 			    NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
+				NET_EPOCH_EXIT();
 				return (EADDRNOTAVAIL);
 			}
 
@@ -185,11 +187,10 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 			if (ifa != NULL &&
 			    ((struct in6_ifaddr *)ifa)->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
-				ifa_free(ifa);
+				NET_EPOCH_EXIT();
 				return (EADDRNOTAVAIL);
 			}
-			if (ifa != NULL)
-				ifa_free(ifa);
+			NET_EPOCH_EXIT();
 		}
 		if (lport) {
 			struct inpcb *t;

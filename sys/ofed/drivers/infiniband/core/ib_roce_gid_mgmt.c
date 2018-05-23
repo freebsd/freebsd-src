@@ -191,7 +191,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 
 	CURVNET_SET(ndev->if_vnet);
 	IFNET_RLOCK();
-	TAILQ_FOREACH(idev, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(idev, &V_ifnet, if_link) {
 		if (idev != ndev) {
 			if (idev->if_type != IFT_L2VLAN)
 				continue;

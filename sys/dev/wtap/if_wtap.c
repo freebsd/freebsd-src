@@ -108,7 +108,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK_NOSLEEP();
 
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		printf("ifp->if_xname = %s\n", ifp->if_xname);
 		if(strcmp(devtoname(dev), ifp->if_xname) == 0){
 			printf("found match, correspoding wtap = %s\n",
