@@ -164,8 +164,8 @@ static const struct usb_temp_interface_desc *mtp_interfaces[] = {
 
 static const struct usb_temp_config_desc mtp_config_desc = {
 	.ppIfaceDesc = mtp_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MTP_CONFIGURATION_INDEX,
 };
 

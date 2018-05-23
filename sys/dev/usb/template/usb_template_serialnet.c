@@ -327,8 +327,8 @@ static const struct usb_temp_interface_desc *serialnet_interfaces[] = {
 
 static const struct usb_temp_config_desc serialnet_config_desc = {
 	.ppIfaceDesc = serialnet_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = SERIALNET_CONFIGURATION_INDEX,
 };
 static const struct usb_temp_config_desc *serialnet_configs[] = {

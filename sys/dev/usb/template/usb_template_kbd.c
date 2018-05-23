@@ -157,8 +157,8 @@ static const struct usb_temp_interface_desc *keyboard_interfaces[] = {
 
 static const struct usb_temp_config_desc keyboard_config_desc = {
 	.ppIfaceDesc = keyboard_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = KBD_PRODUCT_INDEX,
 };
 
