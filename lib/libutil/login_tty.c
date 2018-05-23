@@ -31,12 +31,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)login_tty.c	8.1 (Berkeley) 6/4/93";
-#endif
-#endif /* LIBC_SCCS and not lint */
+__SCCSID("@(#)login_tty.c	8.1 (Berkeley) 6/4/93");
 
 #include <sys/param.h>
 
