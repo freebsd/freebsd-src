@@ -31,6 +31,7 @@
 #ifndef __RK_CRU_H__
 #define __RK_CRU_H__
 
+#include <arm64/rockchip/clk/rk_clk_armclk.h>
 #include <arm64/rockchip/clk/rk_clk_composite.h>
 #include <arm64/rockchip/clk/rk_clk_gate.h>
 #include <arm64/rockchip/clk/rk_clk_mux.h>
@@ -63,6 +64,7 @@ enum rk_clk_type {
 	RK_CLK_PLL,
 	RK_CLK_COMPOSITE,
 	RK_CLK_MUX,
+	RK_CLK_ARMCLK,
 };
 
 struct rk_clk {
@@ -71,6 +73,7 @@ struct rk_clk {
 		struct rk_clk_pll_def		*pll;
 		struct rk_clk_composite_def	*composite;
 		struct rk_clk_mux_def		*mux;
+		struct rk_clk_armclk_def	*armclk;
 	} clk;
 };
 
@@ -86,6 +89,9 @@ struct rk_cru_softc {
 	int			ngates;
 	struct rk_clk		*clks;
 	int			nclks;
+	struct rk_clk_armclk_def	*armclk;
+	struct rk_clk_armclk_rates	*armclk_rates;
+	int			narmclk_rates;
 };
 
 DECLARE_CLASS(rk_cru_driver);
