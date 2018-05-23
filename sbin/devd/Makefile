@@ -7,7 +7,7 @@ PROG_CXX=devd
 SRCS=	devd.cc token.l parse.y y.tab.h
 MAN=	devd.8 devd.conf.5
 
-WARNS?=	3
+YFLAGS=-dvi
 
 NO_SHARED?=YES
 
@@ -16,7 +16,7 @@ LIBADD=	l util
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
 
-CLEANFILES= y.output
+CLEANFILES= y.output y.tab.i
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
