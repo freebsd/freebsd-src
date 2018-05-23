@@ -38,6 +38,7 @@
 #include "devd.h"
 #include "y.tab.h"
 
+extern int lineno;
 int lineno = 1;
 
 static void
