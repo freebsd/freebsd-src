@@ -238,6 +238,7 @@ leitao [label="Breno Leitao\nleitao@FreeBSD.org\n2018/05/22"]
 lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
+luporl [label="Leandro Lupori\nluporl@FreeBSD.org\n2018/05/21"]
 manu [label="Emmanuel Vadot\nmanu@FreeBSD.org\n2016/04/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
@@ -591,6 +592,7 @@ jhb -> rpokala
 jhb -> arichardson
 
 jhibbits -> leitao
+jhibbits -> luporl
 
 jimharris -> carl
 
@@ -713,6 +715,7 @@ njl -> sepotvin
 nwhitehorn -> andreast
 nwhitehorn -> jhibbits
 nwhitehorn -> leitao
+nwhitehorn -> luporl
 
 obrien -> benno
 obrien -> groudier
