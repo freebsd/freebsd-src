@@ -1565,6 +1565,7 @@ udp_abort(struct socket *so)
 static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
+	static uint32_t udp_flowid;
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 	int error;
@@ -1585,6 +1586,8 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	inp = sotoinpcb(so);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
+	inp->inp_flowid = atomic_fetchadd_int(&udp_flowid, 1);
+	inp->inp_flowtype = M_HASHTYPE_OPAQUE;
 
 	error = udp_newudpcb(inp);
 	if (error) {
