@@ -468,13 +468,15 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 
 			bzero(sin->sin_zero, sizeof(sin->sin_zero));
 			sin->sin_port = 0;
+			NET_EPOCH_ENTER();
 			ifa = ifa_ifwithaddr((struct sockaddr *) sin);
 			if (ifa == NULL) {
 				error = EADDRNOTAVAIL;
+				NET_EPOCH_EXIT();
 				goto cantsend;
 			}
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
-			ifa_free(ifa);
+			NET_EPOCH_EXIT();
 		}
 #ifdef MAC
 		mac_socket_create_mbuf(so, m);

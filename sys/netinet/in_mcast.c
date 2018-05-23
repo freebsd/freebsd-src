@@ -1876,12 +1876,12 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
 				mreqn.imr_ifindex = ifp->if_index;
+				NET_EPOCH_ENTER();
 				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
-				if (ia != NULL) {
+				if (ia != NULL)
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
-					ifa_free(&ia->ia_ifa);
-				}
+				NET_EPOCH_EXIT();
 			}
 		}
 		INP_WUNLOCK(inp);
