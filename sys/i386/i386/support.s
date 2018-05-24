@@ -146,6 +146,7 @@ ENTRY(fillw)
 END(fillw)
 
 /*
+ * memmove(dst, src, cnt) (return dst)
  * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
@@ -156,6 +157,15 @@ ENTRY(bcopy)
 	pushl	%edi
 	movl	8(%ebp),%esi
 	movl	12(%ebp),%edi
+	jmp	1f
+ALTENTRY(memmove)
+	pushl	%ebp
+	movl	%esp,%ebp
+	pushl	%esi
+	pushl	%edi
+	movl	8(%ebp),%edi
+	movl	12(%ebp),%esi
+1:
 	movl	16(%ebp),%ecx
 
 	movl	%edi,%eax
@@ -172,6 +182,7 @@ ENTRY(bcopy)
 	movsb
 	popl	%edi
 	popl	%esi
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
 
@@ -194,6 +205,7 @@ ENTRY(bcopy)
 	popl	%edi
 	popl	%esi
 	cld
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
 END(bcopy)
