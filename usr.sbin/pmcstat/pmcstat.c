@@ -425,7 +425,7 @@ main(int argc, char **argv)
 	double interval;
 	double duration;
 	int option, npmc;
-	int c, check_driver_stats, current_sampling_count;
+	int c, check_driver_stats; 
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print, do_read;
 	size_t len;
@@ -433,6 +433,7 @@ main(int argc, char **argv)
 	int pipefd[2], rfd;
 	int use_cumulative_counts;
 	short cf, cb;
+	uint64_t current_sampling_count;
 	char *end, *tmp;
 	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
