@@ -358,7 +358,7 @@ struct adapter_params {
 	u_int ftid_min;
 	u_int ftid_max;
 	u_int etid_min;
-	u_int netids;
+	u_int etid_max;
 
 	unsigned int cim_la_size;
 
@@ -448,7 +448,8 @@ static inline int is_ftid(const struct adapter *sc, u_int tid)
 static inline int is_etid(const struct adapter *sc, u_int tid)
 {
 
-	return (tid >= sc->params.etid_min);
+	return (sc->params.etid_min > 0 && tid >= sc->params.etid_min &&
+	    tid <= sc->params.etid_max);
 }
 
 static inline int is_offload(const struct adapter *adap)
