@@ -207,10 +207,10 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 {
 	struct proc *p;
 	Elf32_Auxargs *args;
-	Elf32_Addr *uplatform;
+	Elf32_Auxinfo *argarray, *pos;
+	Elf32_Addr *auxbase, *uplatform;
 	struct ps_strings *arginfo;
-	register_t *pos;
-	int issetugid;
+	int error, issetugid;
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe linux_fixup_elf(), should be curproc"));
@@ -220,7 +220,9 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 	args = (Elf32_Auxargs *)imgp->auxargs;
-	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
+	auxbase = *stack_base + imgp->args->argc + 1 + imgp->args->envc + 1;
+	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
@@ -259,9 +261,17 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+	KASSERT((pos - argarray) / sizeof(*pos) <= LINUX_AT_COUNT,
+	    ("Too many auxargs"));
+
+	error = copyout(argarray, auxbase, sizeof(*argarray) * LINUX_AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
 
 	(*stack_base)--;
-	suword(*stack_base, (register_t)imgp->args->argc);
+	if (suword(*stack_base, (register_t)imgp->args->argc) == -1)
+		return (EFAULT);
 	return (0);
 }
 
