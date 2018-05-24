@@ -344,6 +344,7 @@ unp_pcb_rele(struct unpcb *unp)
 static void
 unp_pcb_lock2(struct unpcb *unp, struct unpcb *unp2)
 {
+	MPASS(unp != unp2);
 	UNP_PCB_UNLOCK_ASSERT(unp);
 	UNP_PCB_UNLOCK_ASSERT(unp2);
 	if ((uintptr_t)unp2 > (uintptr_t)unp) {
@@ -375,6 +376,7 @@ unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p, int *freed
 		freed = 0;													\
 		UNP_PCB_LOCK_ASSERT((unp));									\
 		UNP_PCB_UNLOCK_ASSERT((unp2));								\
+		MPASS(unp != unp2);											\
 		if (__predict_true(UNP_PCB_TRYLOCK((unp2))))				\
 			break;													\
 		else if ((uintptr_t)(unp2) > (uintptr_t)(unp))				\
