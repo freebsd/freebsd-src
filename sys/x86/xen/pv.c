@@ -101,6 +101,7 @@ static int xen_pv_start_all_aps(void);
 extern char *doublefault_stack;
 extern char *mce_stack;
 extern char *nmi_stack;
+extern char *dbg_stack;
 #endif
 
 /*
@@ -224,6 +225,8 @@ start_xen_ap(int cpu)
 	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
 	nmi_stack =
 	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
+	dbg_stack =
+	    (void *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
 	dpcpu =
 	    (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
 
