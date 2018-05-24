@@ -79,6 +79,14 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
+/* cxgbe_snd_tag flags */
+enum {
+	EO_FLOWC_PENDING	= (1 << 0),	/* flowc needs to be sent */
+	EO_FLOWC_RPL_PENDING	= (1 << 1),	/* flowc credits due back */
+	EO_SND_TAG_REF		= (1 << 2),	/* kernel has a ref on us */
+	EO_FLUSH_RPL_PENDING	= (1 << 3),	/* credit flush rpl due back */
+};
+
 struct cxgbe_snd_tag {
 	struct m_snd_tag com;
 	struct adapter *adapter;
@@ -86,13 +94,13 @@ struct cxgbe_snd_tag {
 	struct mtx lock;
 	int port_id;
 	int etid;
+	struct mbufq pending_tx, pending_fwack;
+	int plen;
 	struct sge_wrq *eo_txq;
+	uint32_t ctrl0;
 	uint16_t iqid;
 	int8_t schedcl;
 	uint64_t max_rate;      /* in bytes/s */
-	int8_t next_credits;	/* need these many tx credits next */
-	uint8_t next_nsegs;	/* next WR will have these many GL segs total */
-	uint8_t next_msegs;	/* max segs for a single mbuf in next chain */
 	uint8_t tx_total;	/* total tx WR credits (in 16B units) */
 	uint8_t tx_credits;	/* tx WR credits (in 16B units) available */
 	uint8_t tx_nocompl;	/* tx WR credits since last compl request */

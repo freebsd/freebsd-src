@@ -529,7 +529,6 @@ alloc_etid(struct adapter *sc, struct cxgbe_snd_tag *cst)
 	return (etid);
 }
 
-#ifdef notyet
 struct cxgbe_snd_tag *
 lookup_etid(struct adapter *sc, int etid)
 {
@@ -537,7 +536,6 @@ lookup_etid(struct adapter *sc, int etid)
 
 	return (t->etid_tab[etid - t->etid_base].cst);
 }
-#endif
 
 static void
 free_etid(struct adapter *sc, int etid)
@@ -585,14 +583,21 @@ failed:
 	}
 
 	mtx_init(&cst->lock, "cst_lock", NULL, MTX_DEF);
+	mbufq_init(&cst->pending_tx, INT_MAX);
+	mbufq_init(&cst->pending_fwack, INT_MAX);
 	cst->com.ifp = ifp;
+	cst->flags |= EO_FLOWC_PENDING | EO_SND_TAG_REF;
 	cst->adapter = sc;
 	cst->port_id = pi->port_id;
 	cst->schedcl = schedcl;
 	cst->max_rate = params->rate_limit.max_rate;
-	cst->next_credits = -1;
 	cst->tx_credits = sc->params.ofldq_wr_cred;
 	cst->tx_total = cst->tx_credits;
+	cst->plen = 0;
+	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+	    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+	    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
 
 	/*
 	 * Queues will be selected later when the connection flowid is available.
@@ -616,6 +621,8 @@ cxgbe_snd_tag_modify(struct m_snd_tag *mst,
 	/* XXX: is schedcl -1 ok here? */
 	MPASS(cst->schedcl >= 0 && cst->schedcl < sc->chip_params->nsched_cls);
 
+	mtx_lock(&cst->lock);
+	MPASS(cst->flags & EO_SND_TAG_REF);
 	rc = t4_reserve_cl_rl_kbps(sc, cst->port_id,
 	    (params->rate_limit.max_rate * 8ULL / 1000), &schedcl);
 	if (rc != 0)
@@ -624,6 +631,7 @@ cxgbe_snd_tag_modify(struct m_snd_tag *mst,
 	t4_release_cl_rl_kbps(sc, cst->port_id, cst->schedcl);
 	cst->schedcl = schedcl;
 	cst->max_rate = params->rate_limit.max_rate;
+	mtx_unlock(&cst->lock);
 
 	return (0);
 }
@@ -643,18 +651,53 @@ cxgbe_snd_tag_query(struct m_snd_tag *mst,
 	return (0);
 }
 
+/*
+ * Unlocks cst and frees it.
+ */
 void
-cxgbe_snd_tag_free(struct m_snd_tag *mst)
+cxgbe_snd_tag_free_locked(struct cxgbe_snd_tag *cst)
 {
-	struct cxgbe_snd_tag *cst = mst_to_cst(mst);
 	struct adapter *sc = cst->adapter;
+
+	mtx_assert(&cst->lock, MA_OWNED);
+	MPASS((cst->flags & EO_SND_TAG_REF) == 0);
+	MPASS(cst->tx_credits == cst->tx_total);
+	MPASS(cst->plen == 0);
+	MPASS(mbufq_first(&cst->pending_tx) == NULL);
+	MPASS(mbufq_first(&cst->pending_fwack) == NULL);
 
 	if (cst->etid >= 0)
 		free_etid(sc, cst->etid);
 	if (cst->schedcl != -1)
 		t4_release_cl_rl_kbps(sc, cst->port_id, cst->schedcl);
-	if (mtx_initialized(&cst->lock))
-		mtx_destroy(&cst->lock);
+	mtx_unlock(&cst->lock);
+	mtx_destroy(&cst->lock);
 	free(cst, M_CXGBE);
+}
+
+void
+cxgbe_snd_tag_free(struct m_snd_tag *mst)
+{
+	struct cxgbe_snd_tag *cst = mst_to_cst(mst);
+
+	mtx_lock(&cst->lock);
+
+	/* The kernel is done with the snd_tag.  Remove its reference. */
+	MPASS(cst->flags & EO_SND_TAG_REF);
+	cst->flags &= ~EO_SND_TAG_REF;
+
+	if (cst->ncompl == 0) {
+		/*
+		 * No fw4_ack in flight.  Free the tag right away if there are
+		 * no outstanding credits.  Request the firmware to return all
+		 * credits for the etid otherwise.
+		 */
+		if (cst->tx_credits == cst->tx_total) {
+			cxgbe_snd_tag_free_locked(cst);
+			return;	/* cst is gone. */
+		}
+		send_etid_flush_wr(cst);
+	}
+	mtx_unlock(&cst->lock);
 }
 #endif
