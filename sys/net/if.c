@@ -1557,6 +1557,7 @@ if_delgroups(struct ifnet *ifp)
 			ifglfree = 1;
 		}
 
+		IFNET_WUNLOCK();
 		epoch_wait_preempt(net_epoch_preempt);
 		free(ifgm, M_TEMP);
 		if (ifglfree) {
