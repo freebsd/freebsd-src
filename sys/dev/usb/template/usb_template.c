@@ -120,7 +120,7 @@ SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW, 0,
 SYSCTL_PROC(_hw_usb, OID_AUTO, template_power,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_hw_usb_template_power,
-    "I", "USB bus power consumption in mA");
+    "I", "USB bus power consumption in mA at 5V");
 
 static int	usb_template_power = 500;	/* 500mA */
 
