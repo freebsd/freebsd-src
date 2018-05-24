@@ -2029,8 +2029,7 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
-.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-	${MACHINE_CPUARCH} == "powerpc")
+.if ${MACHINE_CPUARCH} == "amd64"
 _jevents=lib/libpmcstat/pmu-events
 .endif
 
