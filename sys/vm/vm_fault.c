@@ -377,8 +377,8 @@ vm_fault_populate_cleanup(vm_object_t object, vm_pindex_t first,
 }
 
 static int
-vm_fault_populate(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
-    int fault_type, int fault_flags, boolean_t wired, vm_page_t *m_hold)
+vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
+    int fault_flags, boolean_t wired, vm_page_t *m_hold)
 {
 	vm_page_t m;
 	vm_pindex_t map_first, map_last, pager_first, pager_last, pidx;
@@ -740,8 +740,8 @@ RetryFault:;
 			if (fs.object == fs.first_object &&
 			    (fs.first_object->flags & OBJ_POPULATE) != 0 &&
 			    fs.first_object->shadow_count == 0) {
-				rv = vm_fault_populate(&fs, vaddr, prot,
-				    fault_type, fault_flags, wired, m_hold);
+				rv = vm_fault_populate(&fs, prot, fault_type,
+				    fault_flags, wired, m_hold);
 				switch (rv) {
 				case KERN_SUCCESS:
 				case KERN_FAILURE:
