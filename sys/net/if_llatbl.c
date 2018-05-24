@@ -207,7 +207,7 @@ htable_prefix_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 
 	if (llt->llt_match_prefix(pmd->addr, pmd->mask, pmd->flags, lle)) {
 		LLE_WLOCK(lle);
-		LIST_INSERT_HEAD(&pmd->dchain, lle, lle_chain);
+		CK_LIST_INSERT_HEAD(&pmd->dchain, lle, lle_chain);
 	}
 
 	return (0);
@@ -233,7 +233,7 @@ htable_prefix_free(struct lltable *llt, const struct sockaddr *addr,
 	llentries_unlink(llt, &pmd.dchain);
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
-	LIST_FOREACH_SAFE(lle, &pmd.dchain, lle_chain, next)
+	CK_LIST_FOREACH_SAFE(lle, &pmd.dchain, lle_chain, next)
 		lltable_free_entry(llt, lle);
 }
 
@@ -250,7 +250,7 @@ llentries_unlink(struct lltable *llt, struct llentries *head)
 {
 	struct llentry *lle, *next;
 
-	LIST_FOREACH_SAFE(lle, head, lle_chain, next)
+	CK_LIST_FOREACH_SAFE(lle, head, lle_chain, next)
 		llt->llt_unlink_entry(lle);
 }
 
@@ -496,7 +496,7 @@ lltable_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 	dchain = (struct llentries *)farg;
 
 	LLE_WLOCK(lle);
-	LIST_INSERT_HEAD(dchain, lle, lle_chain);
+	CK_LIST_INSERT_HEAD(dchain, lle, lle_chain);
 
 	return (0);
 }
@@ -521,7 +521,7 @@ lltable_free(struct lltable *llt)
 	llentries_unlink(llt, &dchain);
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
-	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
+	CK_LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
 		if (callout_stop(&lle->lle_timer) > 0)
 			LLE_REMREF(lle);
 		llentry_free(lle);
@@ -846,7 +846,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 	lle = &la->base;
 	db_printf("lle=%p\n", lle);
-	db_printf(" lle_next=%p\n", lle->lle_next.le_next);
+	db_printf(" lle_next=%p\n", lle->lle_next.cle_next);
 	db_printf(" lle_lock=%p\n", &lle->lle_lock);
 	db_printf(" lle_tbl=%p\n", lle->lle_tbl);
 	db_printf(" lle_head=%p\n", lle->lle_head);

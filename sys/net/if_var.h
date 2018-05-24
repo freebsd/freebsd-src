@@ -238,9 +238,9 @@ typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
  */
 struct ifnet {
 	/* General book keeping of interface lists. */
-	STAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained (CK_) */
+	CK_STAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained (CK_) */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
-	STAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if (CK_) */
+	CK_STAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if (CK_) */
 					/* protected by if_addr_lock */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 
@@ -452,18 +452,18 @@ struct ifg_group {
 	char				 ifg_group[IFNAMSIZ];
 	u_int				 ifg_refcnt;
 	void				*ifg_pf_kif;
-	STAILQ_HEAD(, ifg_member)	 ifg_members; /* (CK_) */
-	STAILQ_ENTRY(ifg_group)		 ifg_next; /* (CK_) */
+	CK_STAILQ_HEAD(, ifg_member)	 ifg_members; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_group)		 ifg_next; /* (CK_) */
 };
 
 struct ifg_member {
-	STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
 	struct ifnet		*ifgm_ifp;
 };
 
 struct ifg_list {
 	struct ifg_group	*ifgl_group;
-	STAILQ_ENTRY(ifg_list)	 ifgl_next; /* (CK_) */
+	CK_STAILQ_ENTRY(ifg_list)	 ifgl_next; /* (CK_) */
 };
 
 #ifdef _SYS_EVENTHANDLER_H_

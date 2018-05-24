@@ -496,7 +496,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	lagg_proto_attach(sc, LAGG_PROTO_DEFAULT);
 
-	SLIST_INIT(&sc->sc_ports);
+	CK_SLIST_INIT(&sc->sc_ports);
 
 	/* Initialise pseudo media types */
 	ifmedia_init(&sc->sc_media, 0, lagg_media_change,
@@ -554,7 +554,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vlan_detach);
 
 	/* Shutdown and remove lagg ports */
-	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
+	while ((lp = CK_SLIST_FIRST(&sc->sc_ports)) != NULL)
 		lagg_port_destroy(lp, 1);
 
 	/* Unhook the aggregation protocol */
@@ -656,7 +656,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		return (EPROTONOSUPPORT);
 
 	/* Allow the first Ethernet member to define the MTU */
-	if (SLIST_EMPTY(&sc->sc_ports))
+	if (CK_SLIST_EMPTY(&sc->sc_ports))
 		sc->sc_ifp->if_mtu = ifp->if_mtu;
 	else if (sc->sc_ifp->if_mtu != ifp->if_mtu) {
 		if_printf(sc->sc_ifp, "invalid MTU for %s\n",
@@ -693,7 +693,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 
 	bcopy(IF_LLADDR(ifp), lp->lp_lladdr, ETHER_ADDR_LEN);
 	lp->lp_ifcapenable = ifp->if_capenable;
-	if (SLIST_EMPTY(&sc->sc_ports)) {
+	if (CK_SLIST_EMPTY(&sc->sc_ports)) {
 		bcopy(IF_LLADDR(ifp), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 		lagg_proto_lladdr(sc);
 		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
@@ -702,7 +702,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	}
 	lagg_setflags(lp, 1);
 
-	if (SLIST_EMPTY(&sc->sc_ports))
+	if (CK_SLIST_EMPTY(&sc->sc_ports))
 		sc->sc_primary = lp;
 
 	/* Change the interface type */
@@ -728,16 +728,16 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	LAGG_RLOCK();
 	CK_SLIST_FOREACH(tlp, &sc->sc_ports, lp_entries) {
 		if (tlp->lp_ifp->if_index < ifp->if_index && (
-		    SLIST_NEXT(tlp, lp_entries) == NULL ||
-		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index >
+		    CK_SLIST_NEXT(tlp, lp_entries) == NULL ||
+		    ((struct  lagg_port*)CK_SLIST_NEXT(tlp, lp_entries))->lp_ifp->if_index >
 		    ifp->if_index))
 			break;
 	}
 	LAGG_RUNLOCK();
 	if (tlp != NULL)
-		SLIST_INSERT_AFTER(tlp, lp, lp_entries);
+		CK_SLIST_INSERT_AFTER(tlp, lp, lp_entries);
 	else
-		SLIST_INSERT_HEAD(&sc->sc_ports, lp, lp_entries);
+		CK_SLIST_INSERT_HEAD(&sc->sc_ports, lp, lp_entries);
 	sc->sc_count++;
 
 	lagg_setmulti(lp);
@@ -827,7 +827,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	if (lp == sc->sc_primary) {
 		uint8_t lladdr[ETHER_ADDR_LEN];
 
-		if ((lp0 = SLIST_FIRST(&sc->sc_ports)) == NULL)
+		if ((lp0 = CK_SLIST_FIRST(&sc->sc_ports)) == NULL)
 			bzero(&lladdr, ETHER_ADDR_LEN);
 		else
 			bcopy(lp0->lp_lladdr, lladdr, ETHER_ADDR_LEN);
@@ -1802,7 +1802,7 @@ lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 		rval = lp;
 		goto found;
 	}
-	if ((lp_next = SLIST_NEXT(lp, lp_entries)) != NULL &&
+	if ((lp_next = CK_SLIST_NEXT(lp, lp_entries)) != NULL &&
 	    LAGG_PORTACTIVE(lp_next)) {
 		rval = lp_next;
 		goto found;
@@ -1858,10 +1858,10 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 		p = atomic_fetchadd_32(&sc->sc_seq, 1);
 
 	p %= sc->sc_count;
-	lp = SLIST_FIRST(&sc->sc_ports);
+	lp = CK_SLIST_FIRST(&sc->sc_ports);
 
 	while (p--)
-		lp = SLIST_NEXT(lp, lp_entries);
+		lp = CK_SLIST_NEXT(lp, lp_entries);
 
 	/*
 	 * Check the port's link state. This will return the next active

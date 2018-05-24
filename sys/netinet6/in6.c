@@ -1125,7 +1125,7 @@ in6_alloc_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra, int flags)
 	ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
 	IN6_IFADDR_WLOCK();
 	CK_STAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
-	LIST_INSERT_HEAD(IN6ADDR_HASH(&ia->ia_addr.sin6_addr), ia, ia6_hash);
+	CK_LIST_INSERT_HEAD(IN6ADDR_HASH(&ia->ia_addr.sin6_addr), ia, ia6_hash);
 	IN6_IFADDR_WUNLOCK();
 
 	return (ia);
@@ -1334,7 +1334,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 */
 	IN6_IFADDR_WLOCK();
 	CK_STAILQ_REMOVE(&V_in6_ifaddrhead, ia, in6_ifaddr, ia_link);
-	LIST_REMOVE(ia, ia6_hash);
+	CK_LIST_REMOVE(ia, ia6_hash);
 	IN6_IFADDR_WUNLOCK();
 
 	/*
@@ -1499,7 +1499,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), addr)) {
 			if (zoneid != 0 &&
 			    zoneid != ia->ia_addr.sin6_scope_id)
@@ -1676,7 +1676,7 @@ in6_localip(struct in6_addr *in6)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
 			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 			return (1);
@@ -1723,7 +1723,7 @@ in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), &sa6->sin6_addr)) {
 			if (ia->ia6_flags & IN6_IFF_DEPRECATED) {
 				IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);

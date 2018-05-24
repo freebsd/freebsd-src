@@ -217,7 +217,7 @@ struct lagg_softc {
 	uint32_t			sc_flags;
 	int				sc_destroying;	/* destroying lagg */
 
-	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
+	CK_SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
 	eventhandler_tag vlan_attach;
@@ -251,7 +251,7 @@ struct lagg_port {
 		     const struct sockaddr *, struct route *);
 	struct lagg_counters		port_counters;	/* ifp counters copy */
 
-	SLIST_ENTRY(lagg_port)		lp_entries;
+	CK_SLIST_ENTRY(lagg_port)		lp_entries;
 	struct epoch_context	lp_epoch_ctx;
 };
 
