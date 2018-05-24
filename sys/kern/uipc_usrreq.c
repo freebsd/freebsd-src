@@ -722,7 +722,9 @@ uipc_close(struct socket *so)
 	}
 	unp2 = unp->unp_conn;
 	unp_pcb_hold(unp);
-	if (unp2 != NULL) {
+	if (__predict_false(unp == unp2)) {
+		unp_disconnect(unp, unp2);
+	} else if (unp2 != NULL) {
 		unp_pcb_hold(unp2);
 		unp_pcb_owned_lock2(unp, unp2, freed);
 		unp_disconnect(unp, unp2);
@@ -747,9 +749,13 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 	KASSERT(unp != NULL, ("uipc_connect2: unp == NULL"));
 	unp2 = so2->so_pcb;
 	KASSERT(unp2 != NULL, ("uipc_connect2: unp2 == NULL"));
-	unp_pcb_lock2(unp, unp2);
+	if (unp != unp2)
+		unp_pcb_lock2(unp, unp2);
+	else
+		UNP_PCB_LOCK(unp);
 	error = unp_connect2(so1, so2, PRU_CONNECT2);
-	UNP_PCB_UNLOCK(unp2);
+	if (unp != unp2)
+		UNP_PCB_UNLOCK(unp2);
 	UNP_PCB_UNLOCK(unp);
 	return (error);
 }
@@ -783,28 +789,29 @@ uipc_detach(struct socket *so)
 		mtx_lock(vplock);
 	}
 	UNP_PCB_LOCK(unp);
-	if ((unp2 = unp->unp_conn) != NULL) {
-		unp_pcb_owned_lock2(unp, unp2, freeunp);
-		if (freeunp)
-			unp2 = NULL;
-	}
 	if (unp->unp_vnode != vp &&
 		unp->unp_vnode != NULL) {
 		if (vplock)
 			mtx_unlock(vplock);
 		UNP_PCB_UNLOCK(unp);
-		if (unp2)
-			UNP_PCB_UNLOCK(unp2);
 		goto restart;
 	}
 	if ((unp->unp_flags & UNP_NASCENT) != 0) {
-		if (unp2)
-			UNP_PCB_UNLOCK(unp2);
 		goto teardown;
 	}
 	if ((vp = unp->unp_vnode) != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
+	}
+	if (__predict_false(unp == unp->unp_conn)) {
+		unp_disconnect(unp, unp);
+		unp2 = NULL;
+		goto connect_self;
+	}
+	if ((unp2 = unp->unp_conn) != NULL) {
+		unp_pcb_owned_lock2(unp, unp2, freeunp);
+		if (freeunp)
+			unp2 = NULL;
 	}
 	unp_pcb_hold(unp);
 	if (unp2 != NULL) {
@@ -813,6 +820,7 @@ uipc_detach(struct socket *so)
 		if (unp_pcb_rele(unp2) == 0)
 			UNP_PCB_UNLOCK(unp2);
 	}
+ connect_self:
 	UNP_PCB_UNLOCK(unp);
 	UNP_REF_LIST_LOCK();
 	while (!LIST_EMPTY(&unp->unp_refs)) {
@@ -863,6 +871,10 @@ uipc_disconnect(struct socket *so)
 	if ((unp2 = unp->unp_conn) == NULL) {
 		UNP_PCB_UNLOCK(unp);
 		return (0);
+	}
+	if (unp == unp2) {
+		if (unp_pcb_rele(unp) == 0)
+			UNP_PCB_UNLOCK(unp);
 	}
 	unp_pcb_owned_lock2(unp, unp2, freed);
 	if (__predict_false(freed)) {
@@ -1925,7 +1937,9 @@ unp_drop(struct unpcb *unp)
 	if (so)
 		so->so_error = ECONNRESET;
 	unp2 = unp->unp_conn;
-	if (unp2 != NULL) {
+	if (unp2 == unp) {
+		unp_disconnect(unp, unp2);
+	} else if (unp2 != NULL) {
 		unp_pcb_hold(unp2);
 		unp_pcb_owned_lock2(unp, unp2, freed);
 		unp_disconnect(unp, unp2);
