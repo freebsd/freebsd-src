@@ -56,6 +56,7 @@ extern vm_paddr_t arm_physmem_kernaddr;
 
 void arm_physmem_hardware_region(uint64_t pa, uint64_t sz);
 void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
+size_t arm_physmem_avail(vm_paddr_t *avail, size_t maxavail);
 void arm_physmem_init_kernel_globals(void);
 void arm_physmem_print_tables(void);
 

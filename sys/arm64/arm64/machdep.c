@@ -106,10 +106,6 @@ static struct trapframe proc0_tf;
 int early_boot = 1;
 int cold = 1;
 
-#define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
-vm_paddr_t physmap[PHYSMAP_SIZE];
-u_int physmap_idx;
-
 struct kva_md_info kmi;
 
 int64_t dcache_line_size;	/* The minimum D cache line size */
@@ -724,88 +720,8 @@ typedef struct {
 	uint64_t attr;
 } EFI_MEMORY_DESCRIPTOR;
 
-static int
-add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
-{
-	u_int i, insert_idx, _physmap_idx;
-
-	_physmap_idx = *physmap_idxp;
-
-	if (length == 0)
-		return (1);
-
-	/*
-	 * Find insertion point while checking for overlap.  Start off by
-	 * assuming the new entry will be added to the end.
-	 */
-	insert_idx = _physmap_idx;
-	for (i = 0; i <= _physmap_idx; i += 2) {
-		if (base < physmap[i + 1]) {
-			if (base + length <= physmap[i]) {
-				insert_idx = i;
-				break;
-			}
-			if (boothowto & RB_VERBOSE)
-				printf(
-		    "Overlapping memory regions, ignoring second region\n");
-			return (1);
-		}
-	}
-
-	/* See if we can prepend to the next entry. */
-	if (insert_idx <= _physmap_idx &&
-	    base + length == physmap[insert_idx]) {
-		physmap[insert_idx] = base;
-		return (1);
-	}
-
-	/* See if we can append to the previous entry. */
-	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
-		physmap[insert_idx - 1] += length;
-		return (1);
-	}
-
-	_physmap_idx += 2;
-	*physmap_idxp = _physmap_idx;
-	if (_physmap_idx == PHYSMAP_SIZE) {
-		printf(
-		"Too many segments in the physical address map, giving up\n");
-		return (0);
-	}
-
-	/*
-	 * Move the last 'N' entries down to make room for the new
-	 * entry if needed.
-	 */
-	for (i = _physmap_idx; i > insert_idx; i -= 2) {
-		physmap[i] = physmap[i - 2];
-		physmap[i + 1] = physmap[i - 1];
-	}
-
-	/* Insert the new entry. */
-	physmap[insert_idx] = base;
-	physmap[insert_idx + 1] = base + length;
-	return (1);
-}
-
-#ifdef FDT
 static void
-add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
-{
-
-	for (int i = 0; i < mrcnt; i++) {
-		if (!add_physmap_entry(mr[i].mr_start, mr[i].mr_size, physmap,
-		    physmap_idxp))
-			break;
-	}
-}
-#endif
-
-static void
-add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
+add_efi_map_entries(struct efi_map_header *efihdr)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -897,9 +813,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 
 		arm_physmem_hardware_region(p->md_phys,
 		    p->md_pages * PAGE_SIZE);
-		if (!add_physmap_entry(p->md_phys, (p->md_pages * PAGE_SIZE),
-		    physmap, physmap_idxp))
-			break;
 	}
 }
 
@@ -1048,19 +961,16 @@ initarm(struct arm64_bootparams *abp)
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 
 	/* Load the physical memory ranges */
-	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL)
-		add_efi_map_entries(efihdr, physmap, &physmap_idx);
+		add_efi_map_entries(efihdr);
 #ifdef FDT
 	else {
 		/* Grab physical memory regions information from device tree. */
 		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
 		    NULL) != 0)
 			panic("Cannot get physical memory regions");
-		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
-		    &physmap_idx);
 		arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 	}
 	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0)

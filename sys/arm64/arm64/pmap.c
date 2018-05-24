@@ -259,6 +259,10 @@ CTASSERT((DMAP_MAX_ADDRESS  & ~L0_OFFSET) == DMAP_MAX_ADDRESS);
 #define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
 extern pt_entry_t pagetable_dmap[];
 
+#define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
+static vm_paddr_t physmap[PHYSMAP_SIZE];
+static u_int physmap_idx;
+
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int superpages_enabled = 1;
@@ -708,6 +712,9 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = max_pa = KERNBASE - kern_delta;
+
+	physmap_idx = arm_physmem_avail(physmap, nitems(physmap));
+	physmap_idx /= 2;
 
 	/*
 	 * Find the minimum physical address. physmap is sorted,
