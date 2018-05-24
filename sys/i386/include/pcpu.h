@@ -68,7 +68,8 @@
 	caddr_t	pc_cmap_addr2;						\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[189]
+	uint32_t pc_ibpb_set;						\
+	char	__pad[185]
 
 #ifdef _KERNEL
 
