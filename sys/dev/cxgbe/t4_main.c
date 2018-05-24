@@ -1508,6 +1508,10 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	if (vi->nnmrxq != 0)
 		ifp->if_capabilities |= IFCAP_NETMAP;
 #endif
+#ifdef RATELIMIT
+	if (is_ethoffload(vi->pi->adapter) && vi->nofldtxq != 0)
+		ifp->if_capabilities |= IFCAP_TXRTLMT;
+#endif
 	ifp->if_capenable = T4_CAP_ENABLE;
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
 	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6;
@@ -1526,10 +1530,22 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 #endif
 	sb = sbuf_new_auto();
 	sbuf_printf(sb, "%d txq, %d rxq (NIC)", vi->ntxq, vi->nrxq);
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+	switch (ifp->if_capabilities & (IFCAP_TOE | IFCAP_TXRTLMT)) {
+	case IFCAP_TOE:
+		sbuf_printf(sb, "; %d txq (TOE)", vi->nofldtxq);
+		break;
+	case IFCAP_TOE | IFCAP_TXRTLMT:
+		sbuf_printf(sb, "; %d txq (TOE/ETHOFLD)", vi->nofldtxq);
+		break;
+	case IFCAP_TXRTLMT:
+		sbuf_printf(sb, "; %d txq (ETHOFLD)", vi->nofldtxq);
+		break;
+	}
+#endif
 #ifdef TCP_OFFLOAD
 	if (ifp->if_capabilities & IFCAP_TOE)
-		sbuf_printf(sb, "; %d txq, %d rxq (TOE)",
-		    vi->nofldtxq, vi->nofldrxq);
+		sbuf_printf(sb, ", %d rxq (TOE)", vi->nofldrxq);
 #endif
 #ifdef DEV_NETMAP
 	if (ifp->if_capabilities & IFCAP_NETMAP)
@@ -1821,6 +1837,10 @@ redo_sifflags:
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if (mask & IFCAP_VLAN_HWCSUM)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+#ifdef RATELIMIT
+		if (mask & IFCAP_TXRTLMT)
+			ifp->if_capenable ^= IFCAP_TXRTLMT;
+#endif
 
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);
