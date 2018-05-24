@@ -2803,9 +2803,8 @@ xbb_disconnect(struct xbb_softc *xbb)
 	if ((xbb->flags & XBBF_RING_CONNECTED) == 0)
 		return (0);
 
-	xen_intr_unbind(&xbb->xen_intr_handle);
-
 	mtx_unlock(&xbb->lock);
+	xen_intr_unbind(&xbb->xen_intr_handle);
 	taskqueue_drain(xbb->io_taskqueue, &xbb->io_task); 
 	mtx_lock(&xbb->lock);
 
