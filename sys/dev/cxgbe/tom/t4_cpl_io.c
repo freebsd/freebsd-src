@@ -1725,30 +1725,6 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (0);
 }
 
-#define S_CPL_FW4_ACK_OPCODE    24
-#define M_CPL_FW4_ACK_OPCODE    0xff
-#define V_CPL_FW4_ACK_OPCODE(x) ((x) << S_CPL_FW4_ACK_OPCODE)
-#define G_CPL_FW4_ACK_OPCODE(x) \
-    (((x) >> S_CPL_FW4_ACK_OPCODE) & M_CPL_FW4_ACK_OPCODE)
-
-#define S_CPL_FW4_ACK_FLOWID    0
-#define M_CPL_FW4_ACK_FLOWID    0xffffff
-#define V_CPL_FW4_ACK_FLOWID(x) ((x) << S_CPL_FW4_ACK_FLOWID)
-#define G_CPL_FW4_ACK_FLOWID(x) \
-    (((x) >> S_CPL_FW4_ACK_FLOWID) & M_CPL_FW4_ACK_FLOWID)
-
-#define S_CPL_FW4_ACK_CR        24
-#define M_CPL_FW4_ACK_CR        0xff
-#define V_CPL_FW4_ACK_CR(x)     ((x) << S_CPL_FW4_ACK_CR)
-#define G_CPL_FW4_ACK_CR(x)     (((x) >> S_CPL_FW4_ACK_CR) & M_CPL_FW4_ACK_CR)
-
-#define S_CPL_FW4_ACK_SEQVAL    0
-#define M_CPL_FW4_ACK_SEQVAL    0x1
-#define V_CPL_FW4_ACK_SEQVAL(x) ((x) << S_CPL_FW4_ACK_SEQVAL)
-#define G_CPL_FW4_ACK_SEQVAL(x) \
-    (((x) >> S_CPL_FW4_ACK_SEQVAL) & M_CPL_FW4_ACK_SEQVAL)
-#define F_CPL_FW4_ACK_SEQVAL    V_CPL_FW4_ACK_SEQVAL(1U)
-
 static int
 do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
@@ -1956,7 +1932,7 @@ t4_init_cpl_io_handlers(void)
 	t4_register_shared_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl,
 	    CPL_COOKIE_TOM);
 	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
-	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
+	t4_register_shared_cpl_handler(CPL_FW4_ACK, do_fw4_ack, CPL_COOKIE_TOM);
 }
 
 void
@@ -1968,7 +1944,7 @@ t4_uninit_cpl_io_handlers(void)
 	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, NULL);
 	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, NULL);
 	t4_register_cpl_handler(CPL_RX_DATA, NULL);
-	t4_register_cpl_handler(CPL_FW4_ACK, NULL);
+	t4_register_shared_cpl_handler(CPL_FW4_ACK, NULL, CPL_COOKIE_TOM);
 }
 
 /*
