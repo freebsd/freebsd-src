@@ -495,7 +495,7 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 		    pmcstat_string_unintern(sym->ps_name));
 	} else
 		snprintf(ns, sizeof(ns), "%p",
-		    (void *)cg->pcg_func);
+		    (void *)(cg->pcg_image->pi_vaddr + cg->pcg_func));
 
 	PMCSTAT_ATTRON(v_attrs);
 	PMCSTAT_PRINTW("%5.5s", vs);
