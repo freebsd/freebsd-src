@@ -15,8 +15,8 @@ INCS=	libpmcstat.h
 
 CFLAGS+= -I${.CURDIR}
 
-.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-	${MACHINE_CPUARCH} == "powerpc")
+.if ${MACHINE_CPUARCH} == "amd64" 
+
 .if ${MACHINE_CPUARCH} == "aarch64"
 EVENT_ARCH="arm64"
 .elif ${MACHINE_CPUARCH} == "amd64"
