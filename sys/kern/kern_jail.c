@@ -2660,7 +2660,7 @@ prison_hold_locked(struct prison *pr)
 
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	KASSERT(pr->pr_ref > 0,
-	    ("Trying to hold dead prison (jid=%d).", pr->pr_id));
+	    ("Trying to hold dead prison %p (jid=%d).", pr, pr->pr_id));
 	pr->pr_ref++;
 }
 
