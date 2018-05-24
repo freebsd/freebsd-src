@@ -214,6 +214,18 @@ xs_dev_watch_cb(struct xs_watch *watch, const char **vec, unsigned int len)
 	free(payload, M_XENSTORE);
 }
 
+static struct xs_dev_transaction *
+xs_dev_find_transaction(struct xs_dev_data *u, uint32_t tx_id)
+{
+	struct xs_dev_transaction *trans;
+
+	LIST_FOREACH(trans, &u->transactions, list)
+		if (trans->handle.id == tx_id)
+			return (trans);
+
+	return (NULL);
+}
+
 static int 
 xs_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
@@ -281,6 +293,12 @@ xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	case XS_MKDIR:
 	case XS_RM:
 	case XS_SET_PERMS:
+		/* Check that this transaction id is not hijacked. */
+		if (u->u.msg.tx_id != 0 &&
+		    xs_dev_find_transaction(u, u->u.msg.tx_id) == NULL) {
+			error = EINVAL;
+			break;
+		}
 		error = xs_dev_request_and_reply(&u->u.msg, &reply);
 		if (!error) {
 			if (u->u.msg.type == XS_TRANSACTION_START) {
@@ -289,12 +307,10 @@ xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 				trans->handle.id = strtoul(reply, NULL, 0);
 				LIST_INSERT_HEAD(&u->transactions, trans, list);
 			} else if (u->u.msg.type == XS_TRANSACTION_END) {
-				LIST_FOREACH(trans, &u->transactions, list)
-					if (trans->handle.id == u->u.msg.tx_id)
-						break;
-#if 0 /* XXX does this mean the list is empty? */
-				BUG_ON(&trans->list == &u->transactions);
-#endif
+				trans = xs_dev_find_transaction(u,
+				    u->u.msg.tx_id);
+				KASSERT(trans != NULL,
+				    ("Unable to find transaction"));
 				LIST_REMOVE(trans, list);
 				free(trans, M_XENSTORE);
 			}
