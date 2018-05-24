@@ -375,6 +375,13 @@ void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 		excnt = insert_region(exregions, excnt, pa, sz, exflags);
 }
 
+size_t
+arm_physmem_avail(vm_paddr_t *avail, size_t maxavail)
+{
+
+	return (regions_to_avail(avail, EXFLAG_NOALLOC, maxavail, NULL, NULL));
+}
+
 /*
  * Process all the regions added earlier into the global avail lists.
  *
