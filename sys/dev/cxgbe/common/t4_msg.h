@@ -2751,6 +2751,30 @@ enum {
 	CPL_FW4_ACK_FLAGS_FLOWC		= 0x4,	/* fw_flowc_wr complete */
 };
 
+#define S_CPL_FW4_ACK_OPCODE    24
+#define M_CPL_FW4_ACK_OPCODE    0xff
+#define V_CPL_FW4_ACK_OPCODE(x) ((x) << S_CPL_FW4_ACK_OPCODE)
+#define G_CPL_FW4_ACK_OPCODE(x) \
+    (((x) >> S_CPL_FW4_ACK_OPCODE) & M_CPL_FW4_ACK_OPCODE)
+
+#define S_CPL_FW4_ACK_FLOWID    0
+#define M_CPL_FW4_ACK_FLOWID    0xffffff
+#define V_CPL_FW4_ACK_FLOWID(x) ((x) << S_CPL_FW4_ACK_FLOWID)
+#define G_CPL_FW4_ACK_FLOWID(x) \
+    (((x) >> S_CPL_FW4_ACK_FLOWID) & M_CPL_FW4_ACK_FLOWID)
+
+#define S_CPL_FW4_ACK_CR        24
+#define M_CPL_FW4_ACK_CR        0xff
+#define V_CPL_FW4_ACK_CR(x)     ((x) << S_CPL_FW4_ACK_CR)
+#define G_CPL_FW4_ACK_CR(x)     (((x) >> S_CPL_FW4_ACK_CR) & M_CPL_FW4_ACK_CR)
+
+#define S_CPL_FW4_ACK_SEQVAL    0
+#define M_CPL_FW4_ACK_SEQVAL    0x1
+#define V_CPL_FW4_ACK_SEQVAL(x) ((x) << S_CPL_FW4_ACK_SEQVAL)
+#define G_CPL_FW4_ACK_SEQVAL(x) \
+    (((x) >> S_CPL_FW4_ACK_SEQVAL) & M_CPL_FW4_ACK_SEQVAL)
+#define F_CPL_FW4_ACK_SEQVAL    V_CPL_FW4_ACK_SEQVAL(1U)
+
 struct cpl_fw6_msg {
 	RSS_HDR
 	u8 opcode;
