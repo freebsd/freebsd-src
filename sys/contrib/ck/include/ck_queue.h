@@ -125,7 +125,7 @@
  */
 #define	CK_SLIST_HEAD(name, type)						\
 struct name {									\
-	struct type *slh_first;	/* first element */				\
+	struct type *cslh_first;	/* first element */				\
 }
 
 #define	CK_SLIST_HEAD_INITIALIZER(head)						\
@@ -133,20 +133,20 @@ struct name {									\
 
 #define	CK_SLIST_ENTRY(type)							\
 struct {									\
-	struct type *sle_next;	/* next element */				\
+	struct type *csle_next;	/* next element */				\
 }
 
 /*
  * Singly-linked List functions.
  */
 #define	CK_SLIST_EMPTY(head)							\
-	(ck_pr_load_ptr(&(head)->slh_first) == NULL)
+	(ck_pr_load_ptr(&(head)->cslh_first) == NULL)
 
 #define	CK_SLIST_FIRST(head)							\
-	(ck_pr_load_ptr(&(head)->slh_first))
+	(ck_pr_load_ptr(&(head)->cslh_first))
 
 #define	CK_SLIST_NEXT(elm, field)						\
-	ck_pr_load_ptr(&((elm)->field.sle_next))
+	ck_pr_load_ptr(&((elm)->field.csle_next))
 
 #define	CK_SLIST_FOREACH(var, head, field)					\
 	for ((var) = CK_SLIST_FIRST((head));					\
@@ -159,59 +159,59 @@ struct {									\
 	    (var) = (tvar))
 
 #define	CK_SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
-	for ((varp) = &(head)->slh_first;					\
+	for ((varp) = &(head)->cslh_first;					\
 	    ((var) = ck_pr_load_ptr(varp)) != NULL && (ck_pr_fence_load(), 1);	\
-	    (varp) = &(var)->field.sle_next)
+	    (varp) = &(var)->field.csle_next)
 
 #define	CK_SLIST_INIT(head) do {						\
-	ck_pr_store_ptr(&(head)->slh_first, NULL);				\
+	ck_pr_store_ptr(&(head)->cslh_first, NULL);				\
 	ck_pr_fence_store();							\
 } while (0)
 
 #define	CK_SLIST_INSERT_AFTER(a, b, field) do {					\
-	(b)->field.sle_next = (a)->field.sle_next;				\
+	(b)->field.csle_next = (a)->field.csle_next;				\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr(&(a)->field.sle_next, b);				\
+	ck_pr_store_ptr(&(a)->field.csle_next, b);				\
 } while (0)
 
 #define	CK_SLIST_INSERT_HEAD(head, elm, field) do {				\
-	(elm)->field.sle_next = (head)->slh_first;				\
+	(elm)->field.csle_next = (head)->cslh_first;				\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr(&(head)->slh_first, elm);				\
+	ck_pr_store_ptr(&(head)->cslh_first, elm);				\
 } while (0)
 
 #define CK_SLIST_REMOVE_AFTER(elm, field) do {					\
-	ck_pr_store_ptr(&(elm)->field.sle_next,					\
-	    (elm)->field.sle_next->field.sle_next);				\
+	ck_pr_store_ptr(&(elm)->field.csle_next,					\
+	    (elm)->field.csle_next->field.csle_next);				\
 } while (0)
 
 #define	CK_SLIST_REMOVE(head, elm, type, field) do {				\
-	if ((head)->slh_first == (elm)) {					\
+	if ((head)->cslh_first == (elm)) {					\
 		CK_SLIST_REMOVE_HEAD((head), field);				\
 	} else {								\
-		struct type *curelm = (head)->slh_first;			\
-		while (curelm->field.sle_next != (elm))				\
-			curelm = curelm->field.sle_next;			\
+		struct type *curelm = (head)->cslh_first;			\
+		while (curelm->field.csle_next != (elm))				\
+			curelm = curelm->field.csle_next;			\
 		CK_SLIST_REMOVE_AFTER(curelm, field);				\
 	}									\
 } while (0)
 
 #define	CK_SLIST_REMOVE_HEAD(head, field) do {					\
-	ck_pr_store_ptr(&(head)->slh_first,					\
-		(head)->slh_first->field.sle_next);				\
+	ck_pr_store_ptr(&(head)->cslh_first,					\
+		(head)->cslh_first->field.csle_next);				\
 } while (0)
 
 #define CK_SLIST_MOVE(head1, head2, field) do {					\
-	ck_pr_store_ptr(&(head1)->slh_first, (head2)->slh_first);		\
+	ck_pr_store_ptr(&(head1)->cslh_first, (head2)->cslh_first);		\
 } while (0)
 
 /*
  * This operation is not applied atomically.
  */
 #define CK_SLIST_SWAP(a, b, type) do {						\
-	struct type *swap_first = (a)->slh_first;				\
-	(a)->slh_first = (b)->slh_first;					\
-	(b)->slh_first = swap_first;						\
+	struct type *swap_first = (a)->cslh_first;				\
+	(a)->cslh_first = (b)->cslh_first;					\
+	(b)->cslh_first = swap_first;						\
 } while (0)
 
 /*
@@ -219,33 +219,33 @@ struct {									\
  */
 #define	CK_STAILQ_HEAD(name, type)					\
 struct name {								\
-	struct type *stqh_first;/* first element */			\
-	struct type **stqh_last;/* addr of last next element */		\
+	struct type *cstqh_first;/* first element */			\
+	struct type **cstqh_last;/* addr of last next element */		\
 }
 
 #define	CK_STAILQ_HEAD_INITIALIZER(head)				\
-	{ NULL, &(head).stqh_first }
+	{ NULL, &(head).cstqh_first }
 
 #define	CK_STAILQ_ENTRY(type)						\
 struct {								\
-	struct type *stqe_next;	/* next element */			\
+	struct type *cstqe_next;	/* next element */			\
 }
 
 /*
  * Singly-linked Tail queue functions.
  */
 #define	CK_STAILQ_CONCAT(head1, head2) do {					\
-	if ((head2)->stqh_first != NULL) {					\
-		ck_pr_store_ptr((head1)->stqh_last, (head2)->stqh_first);	\
+	if ((head2)->cstqh_first != NULL) {					\
+		ck_pr_store_ptr((head1)->cstqh_last, (head2)->cstqh_first);	\
 		ck_pr_fence_store();						\
-		(head1)->stqh_last = (head2)->stqh_last;			\
+		(head1)->cstqh_last = (head2)->cstqh_last;			\
 		CK_STAILQ_INIT((head2));					\
 	}									\
 } while (0)
 
-#define	CK_STAILQ_EMPTY(head)	(ck_pr_load_ptr(&(head)->stqh_first) == NULL)
+#define	CK_STAILQ_EMPTY(head)	(ck_pr_load_ptr(&(head)->cstqh_first) == NULL)
 
-#define	CK_STAILQ_FIRST(head)	(ck_pr_load_ptr(&(head)->stqh_first))
+#define	CK_STAILQ_FIRST(head)	(ck_pr_load_ptr(&(head)->cstqh_first))
 
 #define	CK_STAILQ_FOREACH(var, head, field)				\
 	for((var) = CK_STAILQ_FIRST((head));				\
@@ -259,67 +259,67 @@ struct {								\
 	    (var) = (tvar))
 
 #define	CK_STAILQ_INIT(head) do {					\
-	ck_pr_store_ptr(&(head)->stqh_first, NULL);			\
+	ck_pr_store_ptr(&(head)->cstqh_first, NULL);			\
 	ck_pr_fence_store();						\
-	(head)->stqh_last = &(head)->stqh_first;			\
+	(head)->cstqh_last = &(head)->cstqh_first;			\
 } while (0)
 
 #define	CK_STAILQ_INSERT_AFTER(head, tqelm, elm, field) do {			\
-	(elm)->field.stqe_next = (tqelm)->field.stqe_next;			\
+	(elm)->field.cstqe_next = (tqelm)->field.cstqe_next;			\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr(&(tqelm)->field.stqe_next, elm);			\
-	if ((elm)->field.stqe_next == NULL)					\
-		(head)->stqh_last = &(elm)->field.stqe_next;			\
+	ck_pr_store_ptr(&(tqelm)->field.cstqe_next, elm);			\
+	if ((elm)->field.cstqe_next == NULL)					\
+		(head)->cstqh_last = &(elm)->field.cstqe_next;			\
 } while (0)
 
 #define	CK_STAILQ_INSERT_HEAD(head, elm, field) do {				\
-	(elm)->field.stqe_next = (head)->stqh_first;				\
+	(elm)->field.cstqe_next = (head)->cstqh_first;				\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr(&(head)->stqh_first, elm);				\
-	if ((elm)->field.stqe_next == NULL)					\
-		(head)->stqh_last = &(elm)->field.stqe_next;			\
+	ck_pr_store_ptr(&(head)->cstqh_first, elm);				\
+	if ((elm)->field.cstqe_next == NULL)					\
+		(head)->cstqh_last = &(elm)->field.cstqe_next;			\
 } while (0)
 
 #define	CK_STAILQ_INSERT_TAIL(head, elm, field) do {				\
-	(elm)->field.stqe_next = NULL;						\
+	(elm)->field.cstqe_next = NULL;						\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr((head)->stqh_last, (elm));				\
-	(head)->stqh_last = &(elm)->field.stqe_next;				\
+	ck_pr_store_ptr((head)->cstqh_last, (elm));				\
+	(head)->cstqh_last = &(elm)->field.cstqe_next;				\
 } while (0)
 
 #define	CK_STAILQ_NEXT(elm, field)						\
-	(ck_pr_load_ptr(&(elm)->field.stqe_next))
+	(ck_pr_load_ptr(&(elm)->field.cstqe_next))
 
 #define	CK_STAILQ_REMOVE(head, elm, type, field) do {				\
-	if ((head)->stqh_first == (elm)) {					\
+	if ((head)->cstqh_first == (elm)) {					\
 		CK_STAILQ_REMOVE_HEAD((head), field);				\
 	} else {								\
-		struct type *curelm = (head)->stqh_first;			\
-		while (curelm->field.stqe_next != (elm))			\
-			curelm = curelm->field.stqe_next;			\
+		struct type *curelm = (head)->cstqh_first;			\
+		while (curelm->field.cstqe_next != (elm))			\
+			curelm = curelm->field.cstqe_next;			\
 		CK_STAILQ_REMOVE_AFTER(head, curelm, field);			\
 	}									\
 } while (0)
 
 #define CK_STAILQ_REMOVE_AFTER(head, elm, field) do {				\
-	ck_pr_store_ptr(&(elm)->field.stqe_next,				\
-	    (elm)->field.stqe_next->field.stqe_next);				\
-	if ((elm)->field.stqe_next == NULL)					\
-		(head)->stqh_last = &(elm)->field.stqe_next;			\
+	ck_pr_store_ptr(&(elm)->field.cstqe_next,				\
+	    (elm)->field.cstqe_next->field.cstqe_next);				\
+	if ((elm)->field.cstqe_next == NULL)					\
+		(head)->cstqh_last = &(elm)->field.cstqe_next;			\
 } while (0)
 
 #define	CK_STAILQ_REMOVE_HEAD(head, field) do {					\
-	ck_pr_store_ptr(&(head)->stqh_first,					\
-	    (head)->stqh_first->field.stqe_next);				\
-	if ((head)->stqh_first == NULL)						\
-		(head)->stqh_last = &(head)->stqh_first;			\
+	ck_pr_store_ptr(&(head)->cstqh_first,					\
+	    (head)->cstqh_first->field.cstqe_next);				\
+	if ((head)->cstqh_first == NULL)						\
+		(head)->cstqh_last = &(head)->cstqh_first;			\
 } while (0)
 
 #define CK_STAILQ_MOVE(head1, head2, field) do {				\
-	ck_pr_store_ptr(&(head1)->stqh_first, (head2)->stqh_first);		\
-	(head1)->stqh_last = (head2)->stqh_last;				\
-	if ((head2)->stqh_last == &(head2)->stqh_first)				\
-		(head1)->stqh_last = &(head1)->stqh_first;			\
+	ck_pr_store_ptr(&(head1)->cstqh_first, (head2)->cstqh_first);		\
+	(head1)->cstqh_last = (head2)->cstqh_last;				\
+	if ((head2)->cstqh_last == &(head2)->cstqh_first)				\
+		(head1)->cstqh_last = &(head1)->cstqh_first;			\
 } while (0)
 
 /*
@@ -327,15 +327,15 @@ struct {								\
  */
 #define CK_STAILQ_SWAP(head1, head2, type) do {				\
 	struct type *swap_first = CK_STAILQ_FIRST(head1);		\
-	struct type **swap_last = (head1)->stqh_last;			\
+	struct type **swap_last = (head1)->cstqh_last;			\
 	CK_STAILQ_FIRST(head1) = CK_STAILQ_FIRST(head2);		\
-	(head1)->stqh_last = (head2)->stqh_last;			\
+	(head1)->cstqh_last = (head2)->cstqh_last;			\
 	CK_STAILQ_FIRST(head2) = swap_first;				\
-	(head2)->stqh_last = swap_last;					\
+	(head2)->cstqh_last = swap_last;					\
 	if (CK_STAILQ_EMPTY(head1))					\
-		(head1)->stqh_last = &(head1)->stqh_first;		\
+		(head1)->cstqh_last = &(head1)->cstqh_first;		\
 	if (CK_STAILQ_EMPTY(head2))					\
-		(head2)->stqh_last = &(head2)->stqh_first;		\
+		(head2)->cstqh_last = &(head2)->cstqh_first;		\
 } while (0)
 
 /*
@@ -343,7 +343,7 @@ struct {								\
  */
 #define	CK_LIST_HEAD(name, type)						\
 struct name {									\
-	struct type *lh_first;	/* first element */				\
+	struct type *clh_first;	/* first element */				\
 }
 
 #define	CK_LIST_HEAD_INITIALIZER(head)						\
@@ -351,13 +351,13 @@ struct name {									\
 
 #define	CK_LIST_ENTRY(type)							\
 struct {									\
-	struct type *le_next;	/* next element */				\
-	struct type **le_prev;	/* address of previous next element */		\
+	struct type *cle_next;	/* next element */				\
+	struct type **cle_prev;	/* address of previous next element */		\
 }
 
-#define	CK_LIST_FIRST(head)		ck_pr_load_ptr(&(head)->lh_first)
+#define	CK_LIST_FIRST(head)		ck_pr_load_ptr(&(head)->clh_first)
 #define	CK_LIST_EMPTY(head)		(CK_LIST_FIRST(head) == NULL)
-#define	CK_LIST_NEXT(elm, field)	ck_pr_load_ptr(&(elm)->field.le_next)
+#define	CK_LIST_NEXT(elm, field)	ck_pr_load_ptr(&(elm)->field.cle_next)
 
 #define	CK_LIST_FOREACH(var, head, field)					\
 	for ((var) = CK_LIST_FIRST((head));					\
@@ -370,59 +370,59 @@ struct {									\
 	    (var) = (tvar))
 
 #define	CK_LIST_INIT(head) do {							\
-	ck_pr_store_ptr(&(head)->lh_first, NULL);				\
+	ck_pr_store_ptr(&(head)->clh_first, NULL);				\
 	ck_pr_fence_store();							\
 } while (0)
 
 #define	CK_LIST_INSERT_AFTER(listelm, elm, field) do {				\
-	(elm)->field.le_next = (listelm)->field.le_next;			\
-	(elm)->field.le_prev = &(listelm)->field.le_next;			\
+	(elm)->field.cle_next = (listelm)->field.cle_next;			\
+	(elm)->field.cle_prev = &(listelm)->field.cle_next;			\
 	ck_pr_fence_store();							\
-	if ((listelm)->field.le_next != NULL)					\
-		(listelm)->field.le_next->field.le_prev = &(elm)->field.le_next;\
-	ck_pr_store_ptr(&(listelm)->field.le_next, elm);			\
+	if ((listelm)->field.cle_next != NULL)					\
+		(listelm)->field.cle_next->field.cle_prev = &(elm)->field.cle_next;\
+	ck_pr_store_ptr(&(listelm)->field.cle_next, elm);			\
 } while (0)
 
 #define	CK_LIST_INSERT_BEFORE(listelm, elm, field) do {				\
-	(elm)->field.le_prev = (listelm)->field.le_prev;			\
-	(elm)->field.le_next = (listelm);					\
+	(elm)->field.cle_prev = (listelm)->field.cle_prev;			\
+	(elm)->field.cle_next = (listelm);					\
 	ck_pr_fence_store();							\
-	ck_pr_store_ptr((listelm)->field.le_prev, (elm));			\
-	(listelm)->field.le_prev = &(elm)->field.le_next;			\
+	ck_pr_store_ptr((listelm)->field.cle_prev, (elm));			\
+	(listelm)->field.cle_prev = &(elm)->field.cle_next;			\
 } while (0)
 
 #define	CK_LIST_INSERT_HEAD(head, elm, field) do {				\
-	(elm)->field.le_next = (head)->lh_first;				\
+	(elm)->field.cle_next = (head)->clh_first;				\
 	ck_pr_fence_store();							\
-	if ((elm)->field.le_next != NULL)					\
-		(head)->lh_first->field.le_prev =  &(elm)->field.le_next;	\
-	ck_pr_store_ptr(&(head)->lh_first, elm);				\
-	(elm)->field.le_prev = &(head)->lh_first;				\
+	if ((elm)->field.cle_next != NULL)					\
+		(head)->clh_first->field.cle_prev =  &(elm)->field.cle_next;	\
+	ck_pr_store_ptr(&(head)->clh_first, elm);				\
+	(elm)->field.cle_prev = &(head)->clh_first;				\
 } while (0)
 
 #define	CK_LIST_REMOVE(elm, field) do {						\
-	ck_pr_store_ptr((elm)->field.le_prev, (elm)->field.le_next);		\
-	if ((elm)->field.le_next != NULL)					\
-		(elm)->field.le_next->field.le_prev = (elm)->field.le_prev;	\
+	ck_pr_store_ptr((elm)->field.cle_prev, (elm)->field.cle_next);		\
+	if ((elm)->field.cle_next != NULL)					\
+		(elm)->field.cle_next->field.cle_prev = (elm)->field.cle_prev;	\
 } while (0)
 
 #define CK_LIST_MOVE(head1, head2, field) do {				\
-	ck_pr_store_ptr(&(head1)->lh_first, (head2)->lh_first);		\
-	if ((head1)->lh_first != NULL)					\
-		(head1)->lh_first->field.le_prev = &(head1)->lh_first;	\
+	ck_pr_store_ptr(&(head1)->clh_first, (head2)->clh_first);		\
+	if ((head1)->clh_first != NULL)					\
+		(head1)->clh_first->field.cle_prev = &(head1)->clh_first;	\
 } while (0)
 
 /*
  * This operation is not applied atomically.
  */
 #define CK_LIST_SWAP(head1, head2, type, field) do {			\
-	struct type *swap_tmp = (head1)->lh_first;			\
-	(head1)->lh_first = (head2)->lh_first;				\
-	(head2)->lh_first = swap_tmp;					\
-	if ((swap_tmp = (head1)->lh_first) != NULL)			\
-		swap_tmp->field.le_prev = &(head1)->lh_first;		\
-	if ((swap_tmp = (head2)->lh_first) != NULL)			\
-		swap_tmp->field.le_prev = &(head2)->lh_first;		\
+	struct type *swap_tmp = (head1)->clh_first;			\
+	(head1)->clh_first = (head2)->clh_first;				\
+	(head2)->clh_first = swap_tmp;					\
+	if ((swap_tmp = (head1)->clh_first) != NULL)			\
+		swap_tmp->field.cle_prev = &(head1)->clh_first;		\
+	if ((swap_tmp = (head2)->clh_first) != NULL)			\
+		swap_tmp->field.cle_prev = &(head2)->clh_first;		\
 } while (0)
 
 #endif /* CK_QUEUE_H */
