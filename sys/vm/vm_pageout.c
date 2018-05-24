@@ -124,7 +124,6 @@ static void vm_pageout(void);
 static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t m, int *numpagedout);
 static int vm_pageout_cluster(vm_page_t m);
-static bool vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
     int starting_page_shortage);
 
@@ -1108,6 +1107,192 @@ dolaundry:
 	}
 }
 
+/*
+ * Compute the number of pages we want to try to move from the
+ * active queue to either the inactive or laundry queue.
+ *
+ * When scanning active pages, we make clean pages count more heavily
+ * towards the page shortage than dirty pages.  This is because dirty
+ * pages must be laundered before they can be reused and thus have less
+ * utility when attempting to quickly alleviate a shortage.  However,
+ * this weighting also causes the scan to deactivate dirty pages more
+ * aggressively, improving the effectiveness of clustering and
+ * ensuring that they can eventually be reused.
+ */
+static int
+vm_pageout_scan_active_target(struct vm_domain *vmd)
+{
+	int shortage;
+
+	shortage = vmd->vmd_inactive_target + vm_paging_target(vmd) -
+	    (vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt +
+	    vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt / act_scan_laundry_weight);
+	shortage *= act_scan_laundry_weight;
+	return (shortage);
+}
+
+/*
+ * Scan the active queue.  If there is no shortage of inactive pages, scan a
+ * small portion of the queue in order to maintain quasi-LRU.
+ */
+static void
+vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
+{
+	struct scan_state ss;
+	struct mtx *mtx;
+	vm_page_t m, marker;
+	struct vm_pagequeue *pq;
+	long min_scan;
+	int act_delta, max_scan, scan_tick;
+
+	marker = &vmd->vmd_markers[PQ_ACTIVE];
+	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	vm_pagequeue_lock(pq);
+
+	/*
+	 * If we're just idle polling attempt to visit every
+	 * active page within 'update_period' seconds.
+	 */
+	scan_tick = ticks;
+	if (vm_pageout_update_period != 0) {
+		min_scan = pq->pq_cnt;
+		min_scan *= scan_tick - vmd->vmd_last_active_scan;
+		min_scan /= hz * vm_pageout_update_period;
+	} else
+		min_scan = 0;
+	if (min_scan > 0 || (page_shortage > 0 && pq->pq_cnt > 0))
+		vmd->vmd_last_active_scan = scan_tick;
+
+	/*
+	 * Scan the active queue for pages that can be deactivated.  Update
+	 * the per-page activity counter and use it to identify deactivation
+	 * candidates.  Held pages may be deactivated.
+	 *
+	 * To avoid requeuing each page that remains in the active queue, we
+	 * implement the CLOCK algorithm.  To maintain consistency in the
+	 * generic page queue code, pages are inserted at the tail of the
+	 * active queue.  We thus use two hands, represented by marker pages:
+	 * scans begin at the first hand, which precedes the second hand in
+	 * the queue.  When the two hands meet, they are moved back to the
+	 * head and tail of the queue, respectively, and scanning resumes.
+	 */
+	max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
+	mtx = NULL;
+act_scan:
+	vm_pageout_init_scan(&ss, pq, marker, &vmd->vmd_clock[0], max_scan);
+	while ((m = vm_pageout_next(&ss, false)) != NULL) {
+		if (__predict_false(m == &vmd->vmd_clock[1])) {
+			vm_pagequeue_lock(pq);
+			TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[0], plinks.q);
+			TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[1], plinks.q);
+			TAILQ_INSERT_HEAD(&pq->pq_pl, &vmd->vmd_clock[0],
+			    plinks.q);
+			TAILQ_INSERT_TAIL(&pq->pq_pl, &vmd->vmd_clock[1],
+			    plinks.q);
+			max_scan -= ss.scanned;
+			vm_pageout_end_scan(&ss);
+			goto act_scan;
+		}
+		if (__predict_false((m->flags & PG_MARKER) != 0))
+			continue;
+
+		vm_page_change_lock(m, &mtx);
+
+		/*
+		 * The page may have been disassociated from the queue
+		 * while locks were dropped.
+		 */
+		if (vm_page_queue(m) != PQ_ACTIVE)
+			continue;
+
+		/*
+		 * Wired pages are dequeued lazily.
+		 */
+		if (m->wire_count != 0) {
+			vm_page_dequeue_deferred(m);
+			continue;
+		}
+
+		/*
+		 * Check to see "how much" the page has been used.
+		 */
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta = 1;
+		} else
+			act_delta = 0;
+
+		/*
+		 * Perform an unsynchronized object ref count check.  While
+		 * the page lock ensures that the page is not reallocated to
+		 * another object, in particular, one with unmanaged mappings
+		 * that cannot support pmap_ts_referenced(), two races are,
+		 * nonetheless, possible:
+		 * 1) The count was transitioning to zero, but we saw a non-
+		 *    zero value.  pmap_ts_referenced() will return zero
+		 *    because the page is not mapped.
+		 * 2) The count was transitioning to one, but we saw zero.
+		 *    This race delays the detection of a new reference.  At
+		 *    worst, we will deactivate and reactivate the page.
+		 */
+		if (m->object->ref_count != 0)
+			act_delta += pmap_ts_referenced(m);
+
+		/*
+		 * Advance or decay the act_count based on recent usage.
+		 */
+		if (act_delta != 0) {
+			m->act_count += ACT_ADVANCE + act_delta;
+			if (m->act_count > ACT_MAX)
+				m->act_count = ACT_MAX;
+		} else
+			m->act_count -= min(m->act_count, ACT_DECLINE);
+
+		if (m->act_count == 0) {
+			/*
+			 * When not short for inactive pages, let dirty pages go
+			 * through the inactive queue before moving to the
+			 * laundry queues.  This gives them some extra time to
+			 * be reactivated, potentially avoiding an expensive
+			 * pageout.  During a page shortage, the inactive queue
+			 * is necessarily small, so we may move dirty pages
+			 * directly to the laundry queue.
+			 */
+			if (page_shortage <= 0)
+				vm_page_deactivate(m);
+			else {
+				/*
+				 * Calling vm_page_test_dirty() here would
+				 * require acquisition of the object's write
+				 * lock.  However, during a page shortage,
+				 * directing dirty pages into the laundry
+				 * queue is only an optimization and not a
+				 * requirement.  Therefore, we simply rely on
+				 * the opportunistic updates to the page's
+				 * dirty field by the pmap.
+				 */
+				if (m->dirty == 0) {
+					vm_page_deactivate(m);
+					page_shortage -=
+					    act_scan_laundry_weight;
+				} else {
+					vm_page_launder(m);
+					page_shortage--;
+				}
+			}
+		}
+	}
+	if (mtx != NULL) {
+		mtx_unlock(mtx);
+		mtx = NULL;
+	}
+	vm_pagequeue_lock(pq);
+	TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[0], plinks.q);
+	TAILQ_INSERT_AFTER(&pq->pq_pl, marker, &vmd->vmd_clock[0], plinks.q);
+	vm_pageout_end_scan(&ss);
+	vm_pagequeue_unlock(pq);
+}
+
 static int
 vm_pageout_reinsert_inactive_page(struct scan_state *ss, vm_page_t m)
 {
@@ -1159,16 +1344,13 @@ vm_pageout_reinsert_inactive(struct scan_state *ss, struct vm_batchqueue *bq,
 }
 
 /*
- *	vm_pageout_scan does the dirty work for the pageout daemon.
- *
- *	pass == 0: Update active LRU/deactivate pages
- *	pass >= 1: Free inactive pages
- *
- * Returns true if pass was zero or enough pages were freed by the inactive
- * queue scan to meet the target.
+ * Attempt to reclaim the requested number of pages.  Returns true if pass was
+ * zero or enough pages were freed by the inactive queue scan to meet the
+ * target.
  */
-static bool
-vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
+static int
+vm_pageout_scan_inactive(struct vm_domain *vmd, int pass, int shortage,
+    int *addl_shortage)
 {
 	struct scan_state ss;
 	struct vm_batchqueue rq;
@@ -1176,9 +1358,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
 	vm_page_t m, marker;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	long min_scan;
-	int act_delta, addl_page_shortage, deficit, inactq_shortage, max_scan;
-	int page_shortage, scan_tick, starting_page_shortage;
+	int act_delta, addl_page_shortage, deficit, page_shortage;
+	int starting_page_shortage;
 	bool obj_locked;
 
 	/*
@@ -1263,8 +1444,7 @@ recheck:
 		/*
 		 * Held pages are essentially stuck in the queue.  So,
 		 * they ought to be discounted from the inactive count.
-		 * See the calculation of inactq_shortage before the
-		 * loop over the active queue below.
+		 * See the description of addl_page_shortage above.
 		 *
 		 * Wired pages may not be freed.  Complete their removal
 		 * from the queue now to avoid needless revisits during
@@ -1332,7 +1512,7 @@ recheck:
 			act_delta += pmap_ts_referenced(m);
 		} else {
 			KASSERT(!pmap_page_is_mapped(m),
-			    ("vm_pageout_scan: page %p is mapped", m));
+			    ("page %p is mapped", m));
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
@@ -1453,170 +1633,16 @@ reinsert:
 	vm_pageout_mightbe_oom(vmd, page_shortage, starting_page_shortage);
 
 	/*
-	 * Compute the number of pages we want to try to move from the
-	 * active queue to either the inactive or laundry queue.
-	 *
-	 * When scanning active pages, we make clean pages count more heavily
-	 * towards the page shortage than dirty pages.  This is because dirty
-	 * pages must be laundered before they can be reused and thus have less
-	 * utility when attempting to quickly alleviate a shortage.  However,
-	 * this weighting also causes the scan to deactivate dirty pages more
-	 * more aggressively, improving the effectiveness of clustering and
-	 * ensuring that they can eventually be reused.
+	 * Reclaim pages by swapping out idle processes, if configured to do so.
 	 */
-	inactq_shortage = vmd->vmd_inactive_target - (pq->pq_cnt +
-	    vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt / act_scan_laundry_weight) +
-	    vm_paging_target(vmd) + deficit + addl_page_shortage;
-	inactq_shortage *= act_scan_laundry_weight;
-
-	marker = &vmd->vmd_markers[PQ_ACTIVE];
-	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
-	vm_pagequeue_lock(pq);
-
-	/*
-	 * If we're just idle polling attempt to visit every
-	 * active page within 'update_period' seconds.
-	 */
-	scan_tick = ticks;
-	if (vm_pageout_update_period != 0) {
-		min_scan = pq->pq_cnt;
-		min_scan *= scan_tick - vmd->vmd_last_active_scan;
-		min_scan /= hz * vm_pageout_update_period;
-	} else
-		min_scan = 0;
-	if (min_scan > 0 || (inactq_shortage > 0 && pq->pq_cnt > 0))
-		vmd->vmd_last_active_scan = scan_tick;
-
-	/*
-	 * Scan the active queue for pages that can be deactivated.  Update
-	 * the per-page activity counter and use it to identify deactivation
-	 * candidates.  Held pages may be deactivated.
-	 *
-	 * To avoid requeuing each page that remains in the active queue, we
-	 * implement the CLOCK algorithm.  To maintain consistency in the
-	 * generic page queue code, pages are inserted at the tail of the
-	 * active queue.  We thus use two hands, represented by marker pages:
-	 * scans begin at the first hand, which precedes the second hand in
-	 * the queue.  When the two hands meet, they are moved back to the
-	 * head and tail of the queue, respectively, and scanning resumes.
-	 */
-	max_scan = inactq_shortage > 0 ? pq->pq_cnt : min_scan;
-act_scan:
-	vm_pageout_init_scan(&ss, pq, marker, &vmd->vmd_clock[0], max_scan);
-	while ((m = vm_pageout_next(&ss, false)) != NULL) {
-		if (__predict_false(m == &vmd->vmd_clock[1])) {
-			vm_pagequeue_lock(pq);
-			TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[0], plinks.q);
-			TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[1], plinks.q);
-			TAILQ_INSERT_HEAD(&pq->pq_pl, &vmd->vmd_clock[0],
-			    plinks.q);
-			TAILQ_INSERT_TAIL(&pq->pq_pl, &vmd->vmd_clock[1],
-			    plinks.q);
-			max_scan -= ss.scanned;
-			vm_pageout_end_scan(&ss);
-			goto act_scan;
-		}
-		if (__predict_false((m->flags & PG_MARKER) != 0))
-			continue;
-
-		vm_page_change_lock(m, &mtx);
-
-		/*
-		 * The page may have been disassociated from the queue
-		 * while locks were dropped.
-		 */
-		if (vm_page_queue(m) != PQ_ACTIVE)
-			continue;
-
-		/*
-		 * Wired pages are dequeued lazily.
-		 */
-		if (m->wire_count != 0) {
-			vm_page_dequeue_deferred(m);
-			continue;
-		}
-
-		/*
-		 * Check to see "how much" the page has been used.
-		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
-
-		/*
-		 * Perform an unsynchronized object ref count check.  While
-		 * the page lock ensures that the page is not reallocated to
-		 * another object, in particular, one with unmanaged mappings
-		 * that cannot support pmap_ts_referenced(), two races are,
-		 * nonetheless, possible:
-		 * 1) The count was transitioning to zero, but we saw a non-
-		 *    zero value.  pmap_ts_referenced() will return zero
-		 *    because the page is not mapped.
-		 * 2) The count was transitioning to one, but we saw zero. 
-		 *    This race delays the detection of a new reference.  At
-		 *    worst, we will deactivate and reactivate the page.
-		 */
-		if (m->object->ref_count != 0)
-			act_delta += pmap_ts_referenced(m);
-
-		/*
-		 * Advance or decay the act_count based on recent usage.
-		 */
-		if (act_delta != 0) {
-			m->act_count += ACT_ADVANCE + act_delta;
-			if (m->act_count > ACT_MAX)
-				m->act_count = ACT_MAX;
-		} else
-			m->act_count -= min(m->act_count, ACT_DECLINE);
-
-		if (m->act_count == 0) {
-			/*
-			 * When not short for inactive pages, let dirty pages go
-			 * through the inactive queue before moving to the
-			 * laundry queues.  This gives them some extra time to
-			 * be reactivated, potentially avoiding an expensive
-			 * pageout.  During a page shortage, the inactive queue
-			 * is necessarily small, so we may move dirty pages
-			 * directly to the laundry queue.
-			 */
-			if (inactq_shortage <= 0)
-				vm_page_deactivate(m);
-			else {
-				/*
-				 * Calling vm_page_test_dirty() here would
-				 * require acquisition of the object's write
-				 * lock.  However, during a page shortage,
-				 * directing dirty pages into the laundry
-				 * queue is only an optimization and not a
-				 * requirement.  Therefore, we simply rely on
-				 * the opportunistic updates to the page's
-				 * dirty field by the pmap.
-				 */
-				if (m->dirty == 0) {
-					vm_page_deactivate(m);
-					inactq_shortage -=
-					    act_scan_laundry_weight;
-				} else {
-					vm_page_launder(m);
-					inactq_shortage--;
-				}
-			}
-		}
-	}
-	if (mtx != NULL) {
-		mtx_unlock(mtx);
-		mtx = NULL;
-	}
-	vm_pagequeue_lock(pq);
-	TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_clock[0], plinks.q);
-	TAILQ_INSERT_AFTER(&pq->pq_pl, marker, &vmd->vmd_clock[0], plinks.q);
-	vm_pageout_end_scan(&ss);
-	vm_pagequeue_unlock(pq);
-
 	if (pass > 0)
 		vm_swapout_run_idle();
+
+	/*
+	 * See the description of addl_page_shortage above.
+	 */
+	*addl_shortage = addl_page_shortage + deficit;
+
 	return (page_shortage <= 0);
 }
 
@@ -1844,7 +1870,7 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *vmd;
-	int domain, pass, shortage;
+	int addl_shortage, domain, pass, shortage;
 	bool target_met;
 
 	domain = (uintptr_t)arg;
@@ -1896,18 +1922,28 @@ vm_pageout_worker(void *arg)
 			    "psleep", hz / VM_INACT_SCAN_RATE) == 0)
 				VM_CNT_INC(v_pdwakeups);
 		}
+
 		/* Prevent spurious wakeups by ensuring that wanted is set. */
 		atomic_store_int(&vmd->vmd_pageout_wanted, 1);
 
 		/*
 		 * Use the controller to calculate how many pages to free in
-		 * this interval.
+		 * this interval, and scan the inactive queue.
 		 */
 		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
-		if (shortage && pass == 0)
+		if (shortage > 0 && pass == 0)
 			pass = 1;
+		target_met = vm_pageout_scan_inactive(vmd, pass, shortage,
+		    &addl_shortage);
 
-		target_met = vm_pageout_scan(vmd, pass, shortage);
+		/*
+		 * Scan the active queue.  A positive value for shortage
+		 * indicates that we must aggressively deactivate pages to avoid
+		 * a shortfall.
+		 */
+		shortage = vm_pageout_scan_active_target(vmd) + addl_shortage;
+		vm_pageout_scan_active(vmd, shortage);
+
 		/*
 		 * If the target was not met we must increase the pass to
 		 * more aggressively reclaim.
