@@ -16,11 +16,13 @@ ATF_TESTS_C+=	unix_seqpacket_test
 ATF_TESTS_C+=	unix_passfd_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 ATF_TESTS_C+=	waitpid_nohang
+ATF_TESTS_C+=	pdeathsig
 
 ATF_TESTS_SH+=	coredump_phnum_test
 
 BINDIR=		${TESTSDIR}
 PROGS+=		coredump_phnum_helper
+PROGS+=		pdeathsig_helper
 
 CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
 LIBADD.sys_getrandom+=			zstd

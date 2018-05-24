@@ -57,6 +57,7 @@
 
 #include <ufs/ufs/dir.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
@@ -929,7 +930,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 
 		memcpy(bp->b_data, &newdir, sizeof(struct ext2fs_direct_2));
 
-		ext2_dir_blk_csum_set(dp, bp);
+		ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
 		error = bwrite(bp);
 		if (error)
 			return (error);
@@ -1029,7 +1030,7 @@ ext2_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry)
 		ep = (struct ext2fs_direct_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)entry, (caddr_t)ep, (u_int)newentrysize);
-	ext2_dir_blk_csum_set(dp, bp);
+	ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
 	if (DOINGASYNC(dvp)) {
 		bdwrite(bp);
 		error = 0;
@@ -1087,7 +1088,7 @@ ext2_dirremove(struct vnode *dvp, struct componentname *cnp)
 	else
 		rep = (struct ext2fs_direct_2 *)((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen += rep->e2d_reclen;
-	ext2_dir_blk_csum_set(dp, bp);
+	ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
 	if (DOINGASYNC(dvp) && dp->i_count != 0)
 		bdwrite(bp);
 	else
@@ -1118,7 +1119,7 @@ ext2_dirrewrite(struct inode *dp, struct inode *ip, struct componentname *cnp)
 		ep->e2d_type = DTTOFT(IFTODT(ip->i_mode));
 	else
 		ep->e2d_type = EXT2_FT_UNKNOWN;
-	ext2_dir_blk_csum_set(dp, bp);
+	ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
 	error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);

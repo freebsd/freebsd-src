@@ -48,6 +48,7 @@ extern void efi_zfs_probe(void);
 extern zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
 extern bool efi_zfs_is_preferred(EFI_HANDLE *h);
 extern EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
+extern bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);
 
 #endif
 

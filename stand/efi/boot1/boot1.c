@@ -415,6 +415,8 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	 */
 	conout = ST->ConOut;
 	conout->Reset(conout, TRUE);
+	/* Explicitly set conout to mode 0, 80x25 */
+	conout->SetMode(conout, 0);
 	conout->EnableCursor(conout, TRUE);
 	conout->ClearScreen(conout);
 

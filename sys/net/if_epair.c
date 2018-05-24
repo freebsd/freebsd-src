@@ -53,10 +53,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/hash.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/smp.h>
@@ -251,7 +255,7 @@ static void
 epair_nh_sintr(struct mbuf *m)
 {
 	struct ifnet *ifp;
-	struct epair_softc *sc;
+	struct epair_softc *sc __unused;
 
 	ifp = m->m_pkthdr.rcvif;
 	(*ifp->if_input)(ifp, m);
@@ -296,7 +300,7 @@ epair_nh_drainedcpu(u_int cpuid)
 
 		IFQ_LOCK(&ifp->if_snd);
 		if (IFQ_IS_EMPTY(&ifp->if_snd)) {
-			struct epair_softc *sc;
+			struct epair_softc *sc __unused;
 
 			STAILQ_REMOVE(&epair_dpcpu->epair_ifp_drain_list,
 			    elm, epair_ifp_drain, ifp_next);
@@ -337,7 +341,7 @@ epair_remove_ifp_from_draining(struct ifnet *ifp)
 		STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,
 		    ifp_next, tvar) {
 			if (ifp == elm->ifp) {
-				struct epair_softc *sc;
+				struct epair_softc *sc __unused;
 
 				STAILQ_REMOVE(
 				    &epair_dpcpu->epair_ifp_drain_list, elm,
@@ -713,6 +717,9 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct ifnet *ifp;
 	char *dp;
 	int error, unit, wildcard;
+	uint64_t hostid;
+	uint32_t key[3];
+	uint32_t hash;
 	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	/*
@@ -724,14 +731,12 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	if (params) {
 		scb = (struct epair_softc *)params;
 		ifp = scb->ifp;
-		/* Assign a hopefully unique, locally administered etheraddr. */
-		eaddr[0] = 0x02;
-		eaddr[3] = (ifp->if_index >> 8) & 0xff;
-		eaddr[4] = ifp->if_index & 0xff;
+		/* Copy epairNa etheraddr and change the last byte. */
+		memcpy(eaddr, scb->oifp->if_hw_addr, ETHER_ADDR_LEN);
 		eaddr[5] = 0x0b;
 		ether_ifattach(ifp, eaddr);
 		/* Correctly set the name for the cloner list. */
-		strlcpy(name, scb->ifp->if_xname, len);
+		strlcpy(name, ifp->if_xname, len);
 		return (0);
 	}
 
@@ -835,10 +840,21 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_init  = epair_init;
 	if_setsendqlen(ifp, ifqmaxlen);
 	if_setsendqready(ifp);
-	/* Assign a hopefully unique, locally administered etheraddr. */
+
+	/*
+	 * Calculate the etheraddr hashing the hostid and the
+	 * interface index. The result would be hopefully unique
+	 */
+	getcredhostid(curthread->td_ucred, (unsigned long *)&hostid);
+	if (hostid == 0) 
+		arc4rand(&hostid, sizeof(hostid), 0);
+	key[0] = (uint32_t)ifp->if_index;
+	key[1] = (uint32_t)(hostid & 0xffffffff);
+	key[2] = (uint32_t)((hostid >> 32) & 0xfffffffff);
+	hash = jenkins_hash32(key, 3, 0);
+
 	eaddr[0] = 0x02;
-	eaddr[3] = (ifp->if_index >> 8) & 0xff;
-	eaddr[4] = ifp->if_index & 0xff;
+	memcpy(&eaddr[1], &hash, 4);
 	eaddr[5] = 0x0a;
 	ether_ifattach(ifp, eaddr);
 	sca->if_qflush = ifp->if_qflush;

@@ -361,7 +361,6 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	int error = 0;
 	struct filemon *filemon;
 	struct proc *p;
-	cap_rights_t rights;
 
 	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
 		return (error);
@@ -377,7 +376,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		}
 
 		error = fget_write(td, *(int *)data,
-		    cap_rights_init(&rights, CAP_PWRITE),
+		    &cap_pwrite_rights,
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */

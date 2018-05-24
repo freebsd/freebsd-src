@@ -102,9 +102,6 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
-struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
-int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
-		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 /* if_lagg(4) support */
@@ -1128,10 +1125,13 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (error != 0)
 			break;
 		if (ifr->ifr_lan_pcp > 7 &&
-		    ifr->ifr_lan_pcp != IFNET_PCP_NONE)
+		    ifr->ifr_lan_pcp != IFNET_PCP_NONE) {
 			error = EINVAL;
-		else
+		} else {
 			ifp->if_pcp = ifr->ifr_lan_pcp;
+			/* broadcast event about PCP change */
+			EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);
+		}
 		break;
 
 	case SIOCGLANPCP:

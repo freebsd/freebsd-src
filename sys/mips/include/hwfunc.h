@@ -72,6 +72,13 @@ void platform_init_ap(int processor_id);
 int platform_ipi_hardintr_num(void);
 int platform_ipi_softintr_num(void);
 
+#ifdef PLATFORM_INIT_SECONDARY
+/*
+ * Set up IPIs for this CPU.
+ */
+void platform_init_secondary(int cpuid);
+#endif
+
 /*
  * Trigger a IPI interrupt on 'cpuid'.
  */

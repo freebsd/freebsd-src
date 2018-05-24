@@ -351,6 +351,8 @@ svn_cl__list(apr_getopt_t *os,
       const char *target = APR_ARRAY_IDX(targets, i, const char *);
       const char *truepath;
       svn_opt_revision_t peg_revision;
+      apr_array_header_t *patterns = NULL;
+      int k;
 
       /* Initialize the following variables for
          every list target. */
@@ -375,8 +377,33 @@ svn_cl__list(apr_getopt_t *os,
           SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
         }
 
-      err = svn_client_list3(truepath, &peg_revision,
-                             &(opt_state->start_revision),
+      if (opt_state->search_patterns)
+        {
+          patterns = apr_array_make(subpool, 4, sizeof(const char *));
+          for (k = 0; k < opt_state->search_patterns->nelts; ++k)
+            {
+              apr_array_header_t *pattern_group
+                = APR_ARRAY_IDX(opt_state->search_patterns, k,
+                                apr_array_header_t *);
+              const char *pattern;
+
+              /* Should never fail but ... */
+              if (pattern_group->nelts != 1)
+                return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                  _("'search-and' option is not supported"));
+
+              pattern = APR_ARRAY_IDX(pattern_group, 0, const char *);
+#if defined(WIN32)
+              /* As we currently can't pass glob patterns via the Windows
+                 CLI, fall back to sub-string search. */
+              pattern = apr_psprintf(subpool, "*%s*", pattern);
+#endif
+              APR_ARRAY_PUSH(patterns, const char *) = pattern;
+            }
+        }
+
+      err = svn_client_list4(truepath, &peg_revision,
+                             &(opt_state->start_revision), patterns,
                              opt_state->depth,
                              dirent_fields,
                              (opt_state->xml || opt_state->verbose),

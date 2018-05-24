@@ -169,6 +169,7 @@ void arc_loan_inuse_buf(arc_buf_t *buf, void *tag);
 void arc_buf_destroy(arc_buf_t *buf, void *tag);
 int arc_buf_size(arc_buf_t *buf);
 int arc_buf_lsize(arc_buf_t *buf);
+void arc_buf_access(arc_buf_t *buf);
 void arc_release(arc_buf_t *buf, void *tag);
 int arc_released(arc_buf_t *buf);
 void arc_buf_freeze(arc_buf_t *buf);

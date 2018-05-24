@@ -495,14 +495,20 @@ canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
 #ifdef SVN_USE_DOS_PATHS
       /* If this is the first path segment of a file:// URI and it contains a
          windows drive letter, convert the drive letter to upper case. */
-      else if (url && canon_segments == 1 && seglen == 2 &&
+      else if (url && canon_segments == 1 && seglen >= 2 &&
                (strncmp(canon, "file:", 5) == 0) &&
                src[0] >= 'a' && src[0] <= 'z' && src[1] == ':')
         {
           *(dst++) = canonicalize_to_upper(src[0]);
           *(dst++) = ':';
-          if (*next)
-            *(dst++) = *next;
+          if (seglen > 2) /* drive relative path */
+            {
+              memcpy(dst, src + 2, seglen - 2);
+              dst += seglen - 2;
+            }
+
+          if (slash_len)
+            *(dst++) = '/';
           canon_segments++;
         }
 #endif /* SVN_USE_DOS_PATHS */
@@ -1856,11 +1862,8 @@ svn_uri_is_canonical(const char *uri, apr_pool_t *scratch_pool)
           ptr++;
         }
 
-      if (ptr == schema_data)
+      if (ptr == schema_data && (*ptr == '/' || *ptr == '\0'))
         return FALSE; /* Fail on "http://host:" */
-
-      if (*ptr && *ptr != '/')
-        return FALSE; /* Not a port number */
 
       if (port == 80 && strncmp(uri, "http:", 5) == 0)
         return FALSE;
@@ -1868,6 +1871,9 @@ svn_uri_is_canonical(const char *uri, apr_pool_t *scratch_pool)
         return FALSE;
       else if (port == 3690 && strncmp(uri, "svn:", 4) == 0)
         return FALSE;
+
+      while (*ptr && *ptr != '/')
+        ++ptr; /* Allow "http://host:stuff" */
     }
 
   schema_data = ptr;
@@ -2398,8 +2404,11 @@ svn_uri_get_dirent_from_file_url(const char **dirent,
         if (dup_path[1] == '|')
           dup_path[1] = ':';
 
-        if (dup_path[2] == '/' || dup_path[2] == '\0')
+        if (dup_path[2] == '/' || dup_path[2] == '\\' || dup_path[2] == '\0')
           {
+            /* Dirents have upper case drive letters in their canonical form */
+            dup_path[0] = canonicalize_to_upper(dup_path[0]);
+
             if (dup_path[2] == '\0')
               {
                 /* A valid dirent for the driveroot must be like "C:/" instead of
@@ -2412,6 +2421,8 @@ svn_uri_get_dirent_from_file_url(const char **dirent,
                 new_path[3] = '\0';
                 dup_path = new_path;
               }
+            else
+              dup_path[2] = '/'; /* Ensure not relative for '\' after drive! */
           }
       }
     if (hostname)

@@ -18,7 +18,7 @@
  *
  * This function returns the length of the result
  */
-size_t
+static size_t
 hexstr2bin(char *hexstr, int len, uint8_t *buf, size_t offset, size_t buf_len)
 {
 	char c;
@@ -64,7 +64,7 @@ hexstr2bin(char *hexstr, int len, uint8_t *buf, size_t offset, size_t buf_len)
         return bufpos;
 }
 
-size_t
+static size_t
 packetbuffromfile(char *filename, uint8_t *wire)
 {
 	FILE *fp = NULL;

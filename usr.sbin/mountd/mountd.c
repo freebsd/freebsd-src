@@ -2915,8 +2915,11 @@ parsecred(char *namelist, struct xucred *cr)
 		}
 		cr->cr_uid = pw->pw_uid;
 		ngroups = XU_NGROUPS + 1;
-		if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups))
+		if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups)) {
 			syslog(LOG_ERR, "too many groups");
+			ngroups = XU_NGROUPS + 1;
+		}
+
 		/*
 		 * Compress out duplicate.
 		 */

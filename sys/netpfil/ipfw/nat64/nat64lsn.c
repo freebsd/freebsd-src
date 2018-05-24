@@ -64,10 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip_fw_nat64.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
-#include <netpfil/ipfw/nat64/ip_fw_nat64.h>
-#include <netpfil/ipfw/nat64/nat64lsn.h>
-#include <netpfil/ipfw/nat64/nat64_translate.h>
 #include <netpfil/pf/pf.h>
+
+#include "nat64lsn.h"
 
 MALLOC_DEFINE(M_NAT64LSN, "NAT64LSN", "NAT64LSN");
 
@@ -336,14 +335,14 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	addr = f_id->dst_ip;
 	port = f_id->dst_port;
 	if (addr < cfg->prefix4 || addr > cfg->pmask4) {
-		NAT64STAT_INC(&cfg->stats, nomatch4);
+		NAT64STAT_INC(&cfg->base.stats, nomatch4);
 		return (cfg->nomatch_verdict);
 	}
 
 	/* Check if protocol is supported and get its short id */
 	nat_proto = nat64lsn_proto_map[f_id->proto];
 	if (nat_proto == 0) {
-		NAT64STAT_INC(&cfg->stats, noproto);
+		NAT64STAT_INC(&cfg->base.stats, noproto);
 		return (cfg->nomatch_verdict);
 	}
 
@@ -351,15 +350,16 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	if (nat_proto == NAT_PROTO_ICMP) {
 		ret = inspect_icmp_mbuf(pm, &nat_proto, &addr, &port);
 		if (ret != 0) {
-			if (ret == ENOMEM)
-				NAT64STAT_INC(&cfg->stats, nomem);
-			else
-				NAT64STAT_INC(&cfg->stats, noproto);
+			if (ret == ENOMEM) {
+				NAT64STAT_INC(&cfg->base.stats, nomem);
+				return (IP_FW_DENY);
+			}
+			NAT64STAT_INC(&cfg->base.stats, noproto);
 			return (cfg->nomatch_verdict);
 		}
 		/* XXX: Check addr for validity */
 		if (addr < cfg->prefix4 || addr > cfg->pmask4) {
-			NAT64STAT_INC(&cfg->stats, nomatch4);
+			NAT64STAT_INC(&cfg->base.stats, nomatch4);
 			return (cfg->nomatch_verdict);
 		}
 	}
@@ -369,7 +369,7 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 
 	/* Check if this port is occupied by any portgroup */
 	if (pg == NULL) {
-		NAT64STAT_INC(&cfg->stats, nomatch4);
+		NAT64STAT_INC(&cfg->base.stats, nomatch4);
 #if 0
 		DPRINTF(DP_STATE, "NOMATCH %u %d %d (%d)", addr, nat_proto, port,
 		    _GET_PORTGROUP_IDX(cfg, addr, nat_proto, port));
@@ -401,22 +401,18 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 
 	NAT64_UNLOCK(nh);
 
-	if (cfg->flags & NAT64_LOG) {
+	if (cfg->base.flags & NAT64_LOG) {
 		logdata = &loghdr;
 		nat64lsn_log(logdata, *pm, AF_INET, pg->idx, st->cur.off);
 	} else
 		logdata = NULL;
 
-	src6.s6_addr32[0] = cfg->prefix6.s6_addr32[0];
-	src6.s6_addr32[1] = cfg->prefix6.s6_addr32[1];
-	src6.s6_addr32[2] = cfg->prefix6.s6_addr32[2];
-	src6.s6_addr32[3] = htonl(f_id->src_ip);
-
+	nat64_embed_ip4(&cfg->base, htonl(f_id->src_ip), &src6);
 	ret = nat64_do_handle_ip4(*pm, &src6, &nh->addr, lport,
-	    &cfg->stats, logdata);
+	    &cfg->base, logdata);
 
 	if (ret == NAT64SKIP)
-		return (IP_FW_PASS);
+		return (cfg->nomatch_verdict);
 	if (ret == NAT64MFREE)
 		m_freem(*pm);
 	*pm = NULL;
@@ -431,7 +427,7 @@ nat64lsn_dump_state(const struct nat64lsn_cfg *cfg,
 {
 	char s[INET6_ADDRSTRLEN], a[INET_ADDRSTRLEN], d[INET_ADDRSTRLEN];
 
-	if ((nat64_debug & DP_STATE) == 0)
+	if ((V_nat64_debug & DP_STATE) == 0)
 		return;
 	inet_ntop(AF_INET6, &pg->host->addr, s, sizeof(s));
 	inet_ntop(AF_INET, &pg->aaddr, a, sizeof(a));
@@ -603,7 +599,7 @@ nat64lsn_periodic_chkstates(struct nat64lsn_cfg *cfg, struct nat64lsn_host *nh)
 			SET_AGE(si.pg->timestamp);
 		}
 	}
-	NAT64STAT_ADD(&cfg->stats, sdeleted, delcount);
+	NAT64STAT_ADD(&cfg->base.stats, sdeleted, delcount);
 	return (delcount);
 }
 
@@ -749,7 +745,7 @@ reinject_mbuf(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	if (ji->f_id.addr_type != 6 || ji->done == 0) {
 		m_freem(ji->m);
 		ji->m = NULL;
-		NAT64STAT_INC(&cfg->stats, dropped);
+		NAT64STAT_INC(&cfg->base.stats, dropped);
 		DPRINTF(DP_DROPS, "mbuf dropped: type %d, done %d",
 		    ji->jtype, ji->done);
 		return;
@@ -759,7 +755,7 @@ reinject_mbuf(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	 * XXX: Limit recursion level
 	 */
 
-	NAT64STAT_INC(&cfg->stats, jreinjected);
+	NAT64STAT_INC(&cfg->base.stats, jreinjected);
 	DPRINTF(DP_JQUEUE, "Reinject mbuf");
 	nat64lsn_translate6(cfg, &ji->f_id, &ji->m);
 }
@@ -822,7 +818,7 @@ alloc_host6(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 		return (2);
 	}
 	if (alloc_portgroup(ji) != 0) {
-		NAT64STAT_INC(&cfg->stats, jportfails);
+		NAT64STAT_INC(&cfg->base.stats, jportfails);
 		uma_zfree(nat64lsn_pgidx_zone, PORTGROUP_CHUNK(nh, 0));
 		uma_zfree(nat64lsn_host_zone, nh);
 		return (3);
@@ -881,7 +877,7 @@ attach_host6(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 		if (attach_portgroup(cfg, ji) != 0) {
 			DPRINTF(DP_DROPS, "%s %p failed to attach PG",
 			    a, nh);
-			NAT64STAT_INC(&cfg->stats, jportfails);
+			NAT64STAT_INC(&cfg->base.stats, jportfails);
 			return (1);
 		}
 		return (0);
@@ -1020,7 +1016,7 @@ attach_portgroup(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 
 	cfg->pg[pg_idx] = pg;
 	cfg->protochunks[pg->nat_proto]++;
-	NAT64STAT_INC(&cfg->stats, spgcreated);
+	NAT64STAT_INC(&cfg->base.stats, spgcreated);
 
 	pg->aaddr = aaddr;
 	pg->aport = aport;
@@ -1074,7 +1070,7 @@ consider_del_portgroup(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 		KASSERT(cfg->pg[idx] == pg, ("Non matched pg"));
 		cfg->pg[idx] = NULL;
 		cfg->protochunks[pg->nat_proto]--;
-		NAT64STAT_INC(&cfg->stats, spgdeleted);
+		NAT64STAT_INC(&cfg->base.stats, spgdeleted);
 
 		/* Decrease pg_used */
 		while (nh->pg_used > 0 &&
@@ -1100,7 +1096,7 @@ consider_del_portgroup(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	/* TODO: Delay freeing portgroups */
 	while (pg_lidx > 0) {
 		pg_lidx--;
-		NAT64STAT_INC(&cfg->stats, spgdeleted);
+		NAT64STAT_INC(&cfg->base.stats, spgdeleted);
 		destroy_portgroup(pg_list[pg_lidx]);
 	}
 }
@@ -1157,7 +1153,7 @@ nat64lsn_do_request(void *data)
 		return;
 	}
 
-	NAT64STAT_INC(&cfg->stats, jcalls);
+	NAT64STAT_INC(&cfg->base.stats, jcalls);
 	DPRINTF(DP_JQUEUE, "count=%d", jcount);
 
 	/*
@@ -1174,11 +1170,13 @@ nat64lsn_do_request(void *data)
 		switch (ji->jtype) {
 			case JTYPE_NEWHOST:
 				if (alloc_host6(cfg, ji) != 0)
-					NAT64STAT_INC(&cfg->stats, jhostfails);
+					NAT64STAT_INC(&cfg->base.stats,
+					    jhostfails);
 				break;
 			case JTYPE_NEWPORTGROUP:
 				if (alloc_portgroup(ji) != 0)
-					NAT64STAT_INC(&cfg->stats, jportfails);
+					NAT64STAT_INC(&cfg->base.stats,
+					    jportfails);
 				break;
 			case JTYPE_DELPORTGROUP:
 				delcount += ji->delcount;
@@ -1209,7 +1207,8 @@ nat64lsn_do_request(void *data)
 			case JTYPE_NEWPORTGROUP:
 				if (ji->pg != NULL &&
 				    attach_portgroup(cfg, ji) != 0)
-					NAT64STAT_INC(&cfg->stats, jportfails);
+					NAT64STAT_INC(&cfg->base.stats,
+					    jportfails);
 				break;
 			case JTYPE_DELPORTGROUP:
 				consider_del_portgroup(cfg, ji);
@@ -1254,7 +1253,7 @@ nat64lsn_create_job(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	 * Drop packet instead.
 	 */
 	if (cfg->jlen >= cfg->jmaxlen) {
-		NAT64STAT_INC(&cfg->stats, jmaxlen);
+		NAT64STAT_INC(&cfg->base.stats, jmaxlen);
 		return (NULL);
 	}
 
@@ -1275,7 +1274,7 @@ nat64lsn_create_job(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	    M_NOWAIT | M_ZERO);
 
 	if (ji == NULL) {
-		NAT64STAT_INC(&cfg->stats, jnomem);
+		NAT64STAT_INC(&cfg->base.stats, jnomem);
 		return (NULL);
 	}
 
@@ -1300,7 +1299,7 @@ nat64lsn_enqueue_job(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	JQUEUE_LOCK();
 	TAILQ_INSERT_TAIL(&cfg->jhead, ji, next);
 	cfg->jlen++;
-	NAT64STAT_INC(&cfg->stats, jrequests);
+	NAT64STAT_INC(&cfg->base.stats, jrequests);
 
 	if (callout_pending(&cfg->jcallout) == 0)
 		callout_reset(&cfg->jcallout, 1, nat64lsn_do_request, cfg);
@@ -1319,7 +1318,7 @@ nat64lsn_enqueue_jobs(struct nat64lsn_cfg *cfg,
 	JQUEUE_LOCK();
 	TAILQ_CONCAT(&cfg->jhead, jhead, next);
 	cfg->jlen += jlen;
-	NAT64STAT_ADD(&cfg->stats, jrequests, jlen);
+	NAT64STAT_ADD(&cfg->base.stats, jrequests, jlen);
 
 	if (callout_pending(&cfg->jcallout) == 0)
 		callout_reset(&cfg->jcallout, 1, nat64lsn_do_request, cfg);
@@ -1352,17 +1351,17 @@ nat64lsn_request_host(struct nat64lsn_cfg *cfg,
 	ji = nat64lsn_create_job(cfg, f_id, JTYPE_NEWHOST);
 	if (ji == NULL) {
 		m_freem(m);
-		NAT64STAT_INC(&cfg->stats, dropped);
+		NAT64STAT_INC(&cfg->base.stats, dropped);
 		DPRINTF(DP_DROPS, "failed to create job");
 	} else {
 		ji->m = m;
 		/* Provide pseudo-random value based on flow */
 		ji->fhash = flow6_hash(f_id);
 		nat64lsn_enqueue_job(cfg, ji);
-		NAT64STAT_INC(&cfg->stats, jhostsreq);
+		NAT64STAT_INC(&cfg->base.stats, jhostsreq);
 	}
 
-	return (IP_FW_PASS);
+	return (IP_FW_DENY);
 }
 
 static NAT64NOINLINE int
@@ -1379,7 +1378,7 @@ nat64lsn_request_portgroup(struct nat64lsn_cfg *cfg,
 	ji = nat64lsn_create_job(cfg, f_id, JTYPE_NEWPORTGROUP);
 	if (ji == NULL) {
 		m_freem(m);
-		NAT64STAT_INC(&cfg->stats, dropped);
+		NAT64STAT_INC(&cfg->base.stats, dropped);
 		DPRINTF(DP_DROPS, "failed to create job");
 	} else {
 		ji->m = m;
@@ -1388,10 +1387,10 @@ nat64lsn_request_portgroup(struct nat64lsn_cfg *cfg,
 		ji->aaddr = aaddr;
 		ji->needs_idx = needs_idx;
 		nat64lsn_enqueue_job(cfg, ji);
-		NAT64STAT_INC(&cfg->stats, jportreq);
+		NAT64STAT_INC(&cfg->base.stats, jportreq);
 	}
 
-	return (IP_FW_PASS);
+	return (IP_FW_DENY);
 }
 
 static NAT64NOINLINE struct nat64lsn_state * 
@@ -1434,7 +1433,7 @@ nat64lsn_create_state(struct nat64lsn_cfg *cfg, struct nat64lsn_host *nh,
 
 			nat64lsn_dump_state(cfg, pg, st, "ALLOC STATE", off);
 
-			NAT64STAT_INC(&cfg->stats, screated);
+			NAT64STAT_INC(&cfg->base.stats, screated);
 
 			return (st);
 		}
@@ -1468,10 +1467,8 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 		 * to free mbuf by self, do not leave this task to
 		 * ipfw_check_packet().
 		 */
-		NAT64STAT_INC(&cfg->stats, noproto);
-		m_freem(*pm);
-		*pm = NULL;
-		return (IP_FW_DENY);
+		NAT64STAT_INC(&cfg->base.stats, noproto);
+		goto drop;
 	}
 
 	/* Try to find host first */
@@ -1481,7 +1478,11 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 		return (nat64lsn_request_host(cfg, f_id, pm));
 
 	/* Fill-in on-stack state structure */
-	kst.u.s.faddr = f_id->dst_ip6.s6_addr32[3];
+	kst.u.s.faddr = nat64_extract_ip4(&cfg->base, &f_id->dst_ip6);
+	if (kst.u.s.faddr == 0) {
+		NAT64STAT_INC(&cfg->base.stats, dropped);
+		goto drop;
+	}
 	kst.u.s.fport = f_id->dst_port;
 	kst.u.s.lport = f_id->src_port;
 
@@ -1489,11 +1490,9 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 	hval = 0;
 	proto = nat64_getlasthdr(*pm, &hval);
 	if (proto < 0) {
-		NAT64STAT_INC(&cfg->stats, dropped);
+		NAT64STAT_INC(&cfg->base.stats, dropped);
 		DPRINTF(DP_DROPS, "dropped due to mbuf isn't contigious");
-		m_freem(*pm);
-		*pm = NULL;
-		return (IP_FW_DENY);
+		goto drop;
 	}
 
 	SET_AGE(state_ts);
@@ -1543,7 +1542,6 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 			/* No free states. Request more if we can */
 			if (nh->pg_used >= cfg->max_chunks) {
 				/* Limit reached */
-				NAT64STAT_INC(&cfg->stats, dropped);
 				inet_ntop(AF_INET6, &nh->addr, a, sizeof(a));
 				DPRINTF(DP_DROPS, "PG limit reached "
 				    " for host %s (used %u, allocated %u, "
@@ -1551,10 +1549,9 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 				    nh->pg_used * NAT64_CHUNK_SIZE,
 				    nh->pg_allocated * NAT64_CHUNK_SIZE,
 				    cfg->max_chunks * NAT64_CHUNK_SIZE);
-				m_freem(*pm);
-				*pm = NULL;
 				NAT64_UNLOCK(nh);
-				return (IP_FW_DENY);
+				NAT64STAT_INC(&cfg->base.stats, dropped);
+				goto drop;
 			}
 			if ((nh->pg_allocated <=
 			    nh->pg_used + NAT64LSN_REMAININGPG) &&
@@ -1587,17 +1584,19 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 
 	NAT64_UNLOCK(nh);
 
-	if (cfg->flags & NAT64_LOG) {
+	if (cfg->base.flags & NAT64_LOG) {
 		logdata = &loghdr;
 		nat64lsn_log(logdata, *pm, AF_INET6, pg->idx, st->cur.off);
 	} else
 		logdata = NULL;
 
-	action = nat64_do_handle_ip6(*pm, aaddr, aport, &cfg->stats, logdata);
+	action = nat64_do_handle_ip6(*pm, aaddr, aport, &cfg->base, logdata);
 	if (action == NAT64SKIP)
-		return (IP_FW_PASS);
-	if (action == NAT64MFREE)
+		return (cfg->nomatch_verdict);
+	if (action == NAT64MFREE) {
+drop:
 		m_freem(*pm);
+	}
 	*pm = NULL;	/* mark mbuf as consumed */
 	return (IP_FW_DENY);
 }
@@ -1631,7 +1630,7 @@ ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
 		ret = nat64lsn_translate6(cfg, &args->f_id, &args->m);
 		break;
 	default:
-		return (0);
+		return (cfg->nomatch_verdict);
 	}
 	return (ret);
 }
@@ -1710,7 +1709,7 @@ nat64lsn_init_instance(struct ip_fw_chain *ch, size_t numaddr)
 	TAILQ_INIT(&cfg->jhead);
 	cfg->vp = curvnet;
 	cfg->ch = ch;
-	COUNTER_ARRAY_ALLOC(cfg->stats.stats, NAT64STATS, M_WAITOK);
+	COUNTER_ARRAY_ALLOC(cfg->base.stats.cnt, NAT64STATS, M_WAITOK);
 
 	cfg->ihsize = NAT64LSN_HSIZE;
 	cfg->ih = malloc(sizeof(void *) * cfg->ihsize, M_IPFW,
@@ -1754,15 +1753,12 @@ nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg)
 {
 	struct nat64lsn_host *nh, *tmp;
 
-	JQUEUE_LOCK();
 	callout_drain(&cfg->jcallout);
-	JQUEUE_UNLOCK();
-
 	callout_drain(&cfg->periodic);
 	I6HASH_FOREACH_SAFE(cfg, nh, tmp, nat64lsn_destroy_host, cfg);
 	DPRINTF(DP_OBJ, "instance %s: hosts %d", cfg->name, cfg->ihcount);
 
-	COUNTER_ARRAY_FREE(cfg->stats.stats, NAT64STATS);
+	COUNTER_ARRAY_FREE(cfg->base.stats.cnt, NAT64STATS);
 	free(cfg->ih, M_IPFW);
 	free(cfg->pg, M_IPFW);
 	free(cfg, M_IPFW);

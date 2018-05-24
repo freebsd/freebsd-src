@@ -449,12 +449,29 @@ static void
 ata_via_sata_reset(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
-	int devs;
+	int devs, count;
+	uint8_t status;
 
 	if (ch->unit == 0) {
 		devs = ata_sata_phy_reset(dev, 0, 0);
-		DELAY(10000);
+		count = 0;
+		do {
+			ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA |
+			    ATA_DEV(ATA_MASTER));
+			DELAY(1000);
+			status = ATA_IDX_INB(ch, ATA_STATUS);
+			count++;
+		} while (status & ATA_S_BUSY && count < 100);
+
 		devs += ata_sata_phy_reset(dev, 1, 0);
+		count = 0;
+		do {
+			ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA |
+			    ATA_DEV(ATA_SLAVE));
+			DELAY(1000);
+			status = ATA_IDX_INB(ch, ATA_STATUS);
+			count++;
+		} while (status & ATA_S_BUSY && count < 100);
 	} else
 		devs = 1;
 	if (devs)

@@ -272,7 +272,7 @@ static int
 stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct stf_softc *sc = ifp->if_softc;
-	int err;
+	int err __unused;
 
 	err = encap_detach(sc->encap_cookie);
 	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
@@ -380,7 +380,7 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 	struct in_addr in;
 
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
 		sin6 = (struct sockaddr_in6 *)ia->ifa_addr;
@@ -557,7 +557,7 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 	 * reject packets with broadcast
 	 */
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
+	CK_STAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {

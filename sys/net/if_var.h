@@ -70,27 +70,29 @@ struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
+struct	netdump_methods;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
 #endif /* _KERNEL */
+#include <sys/ck.h>
 #include <sys/counter.h>
+#include <sys/epoch.h>
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* struct ifqueue */
 #include <sys/rwlock.h>		/* XXX */
 #include <sys/sx.h>		/* XXX */
 #include <sys/_task.h>		/* if_link_task */
-
 #define	IF_DUNIT_NONE	-1
 
 #include <net/altq/if_altq.h>
 
-TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
-TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
-TAILQ_HEAD(ifmultihead, ifmultiaddr);
-TAILQ_HEAD(ifgrouphead, ifg_group);
+CK_STAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
+CK_STAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+CK_STAILQ_HEAD(ifmultihead, ifmultiaddr);
+CK_STAILQ_HEAD(ifgrouphead, ifg_group);
 
 #ifdef _KERNEL
 VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
@@ -103,6 +105,8 @@ VNET_DECLARE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DECLARE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 #define	V_ipsec_hhh_in	VNET(ipsec_hhh_in)
 #define	V_ipsec_hhh_out	VNET(ipsec_hhh_out)
+extern epoch_t net_epoch_preempt;
+extern epoch_t net_epoch;
 #endif /* _KERNEL */
 
 typedef enum {
@@ -234,9 +238,9 @@ typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
  */
 struct ifnet {
 	/* General book keeping of interface lists. */
-	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
+	STAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained (CK_) */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
-	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
+	STAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if (CK_) */
 					/* protected by if_addr_lock */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 
@@ -276,7 +280,7 @@ struct ifnet {
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
+	struct mtx if_addr_lock;	/* lock to protect address lists */
 		/*
 		 * if_addrhead is the list of all addresses associated to
 		 * an interface.
@@ -293,7 +297,7 @@ struct ifnet {
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
-	struct	rwlock if_afdata_lock;
+	struct	mtx if_afdata_lock;
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 
@@ -317,6 +321,10 @@ struct ifnet {
 		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
+	struct mbuf *(*if_bridge_input)(struct ifnet *, struct mbuf *);
+	int	(*if_bridge_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *);
+	void (*if_bridge_linkstate)(struct ifnet *ifp);
 	if_start_fn_t	if_start;	/* initiate output routine */
 	if_ioctl_fn_t	if_ioctl;	/* ioctl routine */
 	if_init_fn_t	if_init;	/* Init routine */
@@ -369,6 +377,12 @@ struct ifnet {
 	uint8_t if_pcp;
 
 	/*
+	 * Netdump hooks to be called while dumping.
+	 */
+	struct netdump_methods *if_netdump_methods;
+	struct epoch_context	if_epoch_ctx;
+
+	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel
 	 * binary interface.
@@ -382,14 +396,18 @@ struct ifnet {
 /*
  * Locks for address lists on the network interface.
  */
-#define	IF_ADDR_LOCK_INIT(if)	rw_init(&(if)->if_addr_lock, "if_addr_lock")
-#define	IF_ADDR_LOCK_DESTROY(if)	rw_destroy(&(if)->if_addr_lock)
-#define	IF_ADDR_WLOCK(if)	rw_wlock(&(if)->if_addr_lock)
-#define	IF_ADDR_WUNLOCK(if)	rw_wunlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RLOCK(if)	rw_rlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RUNLOCK(if)	rw_runlock(&(if)->if_addr_lock)
-#define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
-#define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
+#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_lock, "if_addr_lock", NULL, MTX_DEF)
+#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_lock)
+#define	IF_ADDR_RLOCK(if)       epoch_enter_preempt(net_epoch_preempt);
+#define	IF_ADDR_RUNLOCK(if)     epoch_exit_preempt(net_epoch_preempt);
+
+#define	IF_ADDR_WLOCK(if)	mtx_lock(&(if)->if_addr_lock)
+#define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_lock)
+#define	IF_ADDR_LOCK_ASSERT(if)	MPASS(in_epoch() || mtx_owned(&(if)->if_addr_lock))
+#define	IF_ADDR_WLOCK_ASSERT(if) mtx_assert(&(if)->if_addr_lock, MA_OWNED)
+#define	NET_EPOCH_ENTER() epoch_enter_preempt(net_epoch_preempt)
+#define	NET_EPOCH_EXIT() epoch_exit_preempt(net_epoch_preempt)
+
 
 /*
  * Function variations on locking macros intended to be used by loadable
@@ -421,6 +439,8 @@ EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 /* Interface up/down event */
 #define IFNET_EVENT_UP		0
 #define IFNET_EVENT_DOWN	1
+#define IFNET_EVENT_PCP		2	/* priority code point, PCP */
+
 typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
 EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
 #endif /* _SYS_EVENTHANDLER_H_ */
@@ -432,18 +452,18 @@ struct ifg_group {
 	char				 ifg_group[IFNAMSIZ];
 	u_int				 ifg_refcnt;
 	void				*ifg_pf_kif;
-	TAILQ_HEAD(, ifg_member)	 ifg_members;
-	TAILQ_ENTRY(ifg_group)		 ifg_next;
+	STAILQ_HEAD(, ifg_member)	 ifg_members; /* (CK_) */
+	STAILQ_ENTRY(ifg_group)		 ifg_next; /* (CK_) */
 };
 
 struct ifg_member {
-	TAILQ_ENTRY(ifg_member)	 ifgm_next;
+	STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
 	struct ifnet		*ifgm_ifp;
 };
 
 struct ifg_list {
 	struct ifg_group	*ifgl_group;
-	TAILQ_ENTRY(ifg_list)	 ifgl_next;
+	STAILQ_ENTRY(ifg_list)	 ifgl_next; /* (CK_) */
 };
 
 #ifdef _SYS_EVENTHANDLER_H_
@@ -459,21 +479,21 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
-	rw_init(&(ifp)->if_afdata_lock, "if_afdata")
+	mtx_init(&(ifp)->if_afdata_lock, "if_afdata", NULL, MTX_DEF)
 
-#define	IF_AFDATA_WLOCK(ifp)	rw_wlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RLOCK(ifp)	rw_rlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_WUNLOCK(ifp)	rw_wunlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RUNLOCK(ifp)	rw_runlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_WLOCK(ifp)	mtx_lock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RLOCK(ifp)	epoch_enter_preempt(net_epoch_preempt)
+#define	IF_AFDATA_WUNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RUNLOCK(ifp)	epoch_exit_preempt(net_epoch_preempt)
 #define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
 #define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
-#define	IF_AFDATA_TRYLOCK(ifp)	rw_try_wlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_DESTROY(ifp)	rw_destroy(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_lock)
 
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
-#define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
-#define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
+#define	IF_AFDATA_LOCK_ASSERT(ifp)	MPASS(in_epoch() || mtx_owned(&(ifp)->if_afdata_lock))
+#define	IF_AFDATA_RLOCK_ASSERT(ifp)	MPASS(in_epoch());
+#define	IF_AFDATA_WLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_OWNED)
+#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_NOTOWNED)
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
@@ -501,7 +521,7 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
-	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
+	CK_STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -513,6 +533,7 @@ struct ifaddr {
 	counter_u64_t	ifa_opackets;	 
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
+	struct	epoch_context	ifa_epoch_ctx;
 };
 
 struct ifaddr *	ifa_alloc(size_t size, int flags);
@@ -524,13 +545,14 @@ void	ifa_ref(struct ifaddr *ifa);
  * structure except that it keeps track of multicast addresses.
  */
 struct ifmultiaddr {
-	TAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
+	CK_STAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
 	u_int	ifma_refcount;		/* reference count */
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
+	struct	epoch_context	ifma_epoch_ctx;
 };
 
 extern	struct rwlock ifnet_rwlock;
@@ -551,16 +573,16 @@ extern	struct sx ifnet_sxlock;
  * write, but also whether it was acquired with sleep support or not.
  */
 #define	IFNET_RLOCK_ASSERT()		sx_assert(&ifnet_sxlock, SA_SLOCKED)
-#define	IFNET_RLOCK_NOSLEEP_ASSERT()	rw_assert(&ifnet_rwlock, RA_RLOCKED)
+#define	IFNET_RLOCK_NOSLEEP_ASSERT()	MPASS(in_epoch())
 #define	IFNET_WLOCK_ASSERT() do {					\
 	sx_assert(&ifnet_sxlock, SA_XLOCKED);				\
 	rw_assert(&ifnet_rwlock, RA_WLOCKED);				\
 } while (0)
 
 #define	IFNET_RLOCK()		sx_slock(&ifnet_sxlock)
-#define	IFNET_RLOCK_NOSLEEP()	rw_rlock(&ifnet_rwlock)
+#define	IFNET_RLOCK_NOSLEEP()	epoch_enter_preempt(net_epoch_preempt)
 #define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
-#define	IFNET_RUNLOCK_NOSLEEP()	rw_runlock(&ifnet_rwlock)
+#define	IFNET_RUNLOCK_NOSLEEP()	epoch_exit_preempt(net_epoch_preempt)
 
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a
@@ -588,6 +610,12 @@ VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
 #define	V_if_index	VNET(if_index)
 #define	V_loif		VNET(loif)
 
+#ifdef MCAST_VERBOSE
+#define MCDPRINTF printf
+#else
+#define MCDPRINTF(...)
+#endif
+
 int	if_addgroup(struct ifnet *, const char *);
 int	if_delgroup(struct ifnet *, const char *);
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
@@ -597,12 +625,14 @@ void	if_attach(struct ifnet *);
 void	if_dead(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
+void	if_delmulti_ifma_flags(struct ifmultiaddr *, int flags);
 void	if_detach(struct ifnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, const struct sockaddr *);
+void	if_freemulti(struct ifmultiaddr *ifma);
 void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);

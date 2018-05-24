@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: geo,v 1.4 2017/03/17 21:35:28 christos Exp $
+# $File: geo,v 1.6 2018/03/11 00:48:16 christos Exp $
 # Geo- files from Kurt Schwehr <schwehr@ccom.unh.edu>
 
 ######################################################################
@@ -115,3 +115,16 @@
 >40	ledouble	x	\b, minz=%g
 >48	ledouble	x	\b, maxz=%g
 
+# magic for LAS format files
+# alex myczko <alex@aiei.ch>
+# http://www.asprs.org/wp-content/uploads/2010/12/LAS_1_3_r11.pdf
+0	string		LASF	LIDAR point data records
+>24	byte		>0	\b, version %u
+>25	byte		>0	\b.%u
+>26	string		>\0	\b, SYSID %s
+>58	string		>\0	\b, Generating Software %s
+
+# magic for PCD format files
+# alex myczko <alex@aiei.ch>
+# http://pointclouds.org/documentation/tutorials/pcd_file_format.php
+0	string		#\ .PCD	Point Cloud Data

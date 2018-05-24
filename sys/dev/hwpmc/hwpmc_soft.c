@@ -441,9 +441,10 @@ pmc_soft_intr(struct pmckern_soft *ks)
 		} else
 			pc->soft_values[ri]++;
 	}
-
-	atomic_add_int(processed ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (processed)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	return (processed);
 }

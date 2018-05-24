@@ -1,10 +1,11 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.32 2017/03/17 21:35:28 christos Exp $
+# $File: riff,v 1.33 2017/10/06 01:11:24 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
 #	http://www.seanet.com/users/matts/riffmci/riffmci.htm
+#	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/riffmci.pdf
 #
 
 # audio format tag. Assume limits: max 1024 bit, 128 channels, 1 MHz
@@ -70,9 +71,31 @@
 #
 0	string		RIFF		RIFF (little-endian) data
 # RIFF Palette format
->8	string		PAL		\b, palette
->>16	leshort		x		\b, version %d
->>18	leshort		x		\b, %d entries
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
+# Reference: http://worms2d.info/Palette_file
+>8	string		PAL\ 		\b, palette
+!:mime	application/x-riff
+# color palette by Microsoft Corporation
+!:ext	pal
+# file size =  chunk size + 8 in most cases
+>>4	ulelong+8	x		\b, %u bytes
+# Extended PAL Format
+>>12	string		plth		\b, extended
+# Simple PAL Format
+>>12	string		data		
+# data chunk size = color entries * 4 + 4 + sometimes extra (4) appended bytes
+>>>16	ulelong		x		\b, data size %u
+# palVersion is always 0x0300
+#>>>20	leshort		x		\b, version 0x%4.4x
+# palNumEntries specifies the number of palette color entries
+>>>22	uleshort	x		\b, %u entries
+# after palPalEntry sized (number of color entries * 4 ) vector
+>>>(22.s*4)	ubequad	x		
+# jump relative 22 ( 8 + 16) bytes forward points after end of file or to
+# appended extra bytes like in http://safecolours.rigdenage.com/set(ms).zip/Protan(MS).pal
+>>>>&16		ubelong	x		\b, extra bytes
+>>>>>&-4	ubelong	>0		0x%8.8x
 # RIFF Device Independent Bitmap format
 >8	string		RDIB		\b, device-independent bitmap
 >>16	string		BM

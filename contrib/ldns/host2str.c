@@ -57,6 +57,12 @@ ldns_lookup_table ldns_algorithms[] = {
         { LDNS_ECDSAP256SHA256, "ECDSAP256SHA256"},
         { LDNS_ECDSAP384SHA384, "ECDSAP384SHA384"},
 #endif
+#ifdef USE_ED25519
+	{ LDNS_ED25519, "ED25519"},
+#endif
+#ifdef USE_ED448
+	{ LDNS_ED448, "ED448"},
+#endif
         { LDNS_INDIRECT, "INDIRECT" },
         { LDNS_PRIVATEDNS, "PRIVATEDNS" },
         { LDNS_PRIVATEOID, "PRIVATEOID" },
@@ -567,11 +573,7 @@ ldns_rdf2buffer_str_cert_alg(ldns_buffer *output, const ldns_rdf *rdf)
 ldns_status
 ldns_rdf2buffer_str_alg(ldns_buffer *output, const ldns_rdf *rdf)
 {
-	/* don't use algorithm mnemonics in the presentation format
-	   this kind of got sneaked into the rfc's */
-        uint8_t data = ldns_rdf_data(rdf)[0];
-		ldns_buffer_printf(output, "%d", data);
-	return ldns_buffer_status(output);
+	return ldns_rdf2buffer_str_int8(output, rdf);
 }
 
 static void
@@ -598,29 +600,28 @@ ldns_rr_type2buffer_str(ldns_buffer *output, const ldns_rr_type type)
 
 	descriptor = ldns_rr_descript(type);
 
-	if (descriptor && descriptor->_name) {
-		ldns_buffer_printf(output, "%s", descriptor->_name);
-	} else {
-		/* exceptions for pseudotypes */
-		switch (type) {
-			case LDNS_RR_TYPE_IXFR:
-				ldns_buffer_printf(output, "IXFR");
-				break;
-			case LDNS_RR_TYPE_AXFR:
-				ldns_buffer_printf(output, "AXFR");
-				break;
-			case LDNS_RR_TYPE_MAILA:
-				ldns_buffer_printf(output, "MAILA");
-				break;
-			case LDNS_RR_TYPE_MAILB:
-				ldns_buffer_printf(output, "MAILB");
-				break;
-			case LDNS_RR_TYPE_ANY:
-				ldns_buffer_printf(output, "ANY");
-				break;
-			default:
+	switch (type) {
+		case LDNS_RR_TYPE_IXFR:
+			ldns_buffer_printf(output, "IXFR");
+			break;
+		case LDNS_RR_TYPE_AXFR:
+			ldns_buffer_printf(output, "AXFR");
+			break;
+		case LDNS_RR_TYPE_MAILA:
+			ldns_buffer_printf(output, "MAILA");
+			break;
+		case LDNS_RR_TYPE_MAILB:
+			ldns_buffer_printf(output, "MAILB");
+			break;
+		case LDNS_RR_TYPE_ANY:
+			ldns_buffer_printf(output, "ANY");
+			break;
+		default:
+			if (descriptor && descriptor->_name) {
+				ldns_buffer_printf(output, "%s", descriptor->_name);
+			} else {
 				ldns_buffer_printf(output, "TYPE%u", type);
-		}
+			}
 	}
 	return ldns_buffer_status(output);
 }
@@ -820,7 +821,7 @@ ldns_rdf2buffer_str_wks(ldns_buffer *output, const ldns_rdf *rdf)
 #endif
 
 	for (current_service = 0;
-	     current_service < ldns_rdf_size(rdf) * 7; current_service++) {
+	     current_service < (ldns_rdf_size(rdf)-1)*8; current_service++) {
 		if (ldns_get_bit(&(ldns_rdf_data(rdf)[1]), current_service)) {
 			service = getservbyport((int) htons(current_service),
 			                        proto_name);
@@ -1133,7 +1134,7 @@ ldns_rdf2buffer_str_ipseckey(ldns_buffer *output, const ldns_rdf *rdf)
 	public_key_size = ldns_rdf_size(rdf) - offset;
 	public_key_data = LDNS_XMALLOC(uint8_t, public_key_size);
         if(!public_key_data) {
-                ldns_rdf_free(gateway);
+                ldns_rdf_deep_free(gateway);
                 return LDNS_STATUS_MEM_ERR;
         }
 	memcpy(public_key_data, &data[offset], public_key_size);
@@ -1141,7 +1142,7 @@ ldns_rdf2buffer_str_ipseckey(ldns_buffer *output, const ldns_rdf *rdf)
 			public_key_size, public_key_data);
         if(!public_key) {
                 LDNS_FREE(public_key_data);
-                ldns_rdf_free(gateway);
+                ldns_rdf_deep_free(gateway);
                 return LDNS_STATUS_MEM_ERR;
         }
 
@@ -1153,8 +1154,8 @@ ldns_rdf2buffer_str_ipseckey(ldns_buffer *output, const ldns_rdf *rdf)
 	ldns_buffer_printf(output, " ");
 	(void) ldns_rdf2buffer_str(output, public_key);
 
-	ldns_rdf_free(gateway);
-	ldns_rdf_free(public_key);
+	ldns_rdf_deep_free(gateway);
+	ldns_rdf_deep_free(public_key);
 
 	return ldns_buffer_status(output);
 }
@@ -1217,7 +1218,7 @@ ldns_rdf2buffer_str_tag(ldns_buffer *output, const ldns_rdf *rdf)
 	chars = ldns_rdf_data(rdf) + 1;
 	while (nchars > 0) {
 		ch = (char)*chars++;
-		if (! isalnum(ch)) {
+		if (! isalnum((unsigned char)ch)) {
 			return LDNS_STATUS_WIRE_RDATA_ERR;
 		}
 		ldns_buffer_printf(output, "%c", ch);
@@ -1294,7 +1295,11 @@ ldns_rdf2buffer_str_fmt(ldns_buffer *buffer,
 		case LDNS_RDF_TYPE_DNAME:
 			res = ldns_rdf2buffer_str_dname(buffer, rdf);
 			break;
-		case LDNS_RDF_TYPE_INT8:
+		case LDNS_RDF_TYPE_INT8: /* Don't output mnemonics for these */
+		case LDNS_RDF_TYPE_ALG:
+		case LDNS_RDF_TYPE_CERTIFICATE_USAGE:
+		case LDNS_RDF_TYPE_SELECTOR:
+		case LDNS_RDF_TYPE_MATCHING_TYPE:
 			res = ldns_rdf2buffer_str_int8(buffer, rdf);
 			break;
 		case LDNS_RDF_TYPE_INT16:
@@ -1344,9 +1349,6 @@ ldns_rdf2buffer_str_fmt(ldns_buffer *buffer,
 			break;
 		case LDNS_RDF_TYPE_CERT_ALG:
 			res = ldns_rdf2buffer_str_cert_alg(buffer, rdf);
-			break;
-		case LDNS_RDF_TYPE_ALG:
-			res = ldns_rdf2buffer_str_alg(buffer, rdf);
 			break;
 		case LDNS_RDF_TYPE_UNKNOWN:
 			res = ldns_rdf2buffer_str_unknown(buffer, rdf);
@@ -1927,19 +1929,42 @@ ldns_gost_key2buffer_str(ldns_buffer *output, EVP_PKEY *p)
 }
 #endif
 
+/** print one b64 encoded bignum to a line in the keybuffer */
+static int
+ldns_print_bignum_b64_line(ldns_buffer* output, const char* label, const BIGNUM* num)
+{
+	unsigned char  *bignumbuf = LDNS_XMALLOC(unsigned char, LDNS_MAX_KEYLEN);
+	if(!bignumbuf) return 0;
+
+	ldns_buffer_printf(output, "%s: ", label);
+	if(num) {
+		ldns_rdf *b64_bignum = NULL;
+		int i = BN_bn2bin(num, bignumbuf);
+		if (i > LDNS_MAX_KEYLEN) {
+			LDNS_FREE(bignumbuf);
+			return 0;
+		}
+		b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, (size_t)i, bignumbuf);
+		if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
+			ldns_rdf_deep_free(b64_bignum);
+			LDNS_FREE(bignumbuf);
+			return 0;
+		}
+		ldns_rdf_deep_free(b64_bignum);
+		ldns_buffer_printf(output, "\n");
+	} else {
+		ldns_buffer_printf(output, "(Not available)\n");
+	}
+	LDNS_FREE(bignumbuf);
+	return 1;
+}
+
 ldns_status
 ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
 {
 	ldns_status status = LDNS_STATUS_OK;
 	unsigned char  *bignum;
 #ifdef HAVE_SSL
-#  ifndef S_SPLINT_S
-	uint16_t i;
-#  endif
-	/* not used when ssl is not defined */
-	/*@unused@*/
-	ldns_rdf *b64_bignum = NULL;
-
 	RSA *rsa;
 	DSA *dsa;
 #endif /* HAVE_SSL */
@@ -2009,132 +2034,43 @@ ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
 
 				/* print to buf, convert to bin, convert to b64,
 				 * print to buf */
-				ldns_buffer_printf(output, "Modulus: ");
+
 #ifndef S_SPLINT_S
-				i = (uint16_t)BN_bn2bin(rsa->n, bignum);
-				if (i > LDNS_MAX_KEYLEN) {
-					goto error;
-				}
-				b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-				if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-					ldns_rdf_deep_free(b64_bignum);
-					goto error;
-				}
-				ldns_rdf_deep_free(b64_bignum);
-				ldns_buffer_printf(output, "\n");
-				ldns_buffer_printf(output, "PublicExponent: ");
-				i = (uint16_t)BN_bn2bin(rsa->e, bignum);
-				if (i > LDNS_MAX_KEYLEN) {
-					goto error;
-				}
-				b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-				if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-					ldns_rdf_deep_free(b64_bignum);
-					goto error;
-				}
-				ldns_rdf_deep_free(b64_bignum);
-				ldns_buffer_printf(output, "\n");
-
-				ldns_buffer_printf(output, "PrivateExponent: ");
-				if (rsa->d) {
-					i = (uint16_t)BN_bn2bin(rsa->d, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
+				if(1) {
+					const BIGNUM *n=NULL, *e=NULL, *d=NULL,
+						*p=NULL, *q=NULL, *dmp1=NULL,
+						*dmq1=NULL, *iqmp=NULL;
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+					n = rsa->n;
+					e = rsa->e;
+					d = rsa->d;
+					p = rsa->p;
+					q = rsa->q;
+					dmp1 = rsa->dmp1;
+					dmq1 = rsa->dmq1;
+					iqmp = rsa->iqmp;
+#else
+					RSA_get0_key(rsa, &n, &e, &d);
+					RSA_get0_factors(rsa, &p, &q);
+					RSA_get0_crt_params(rsa, &dmp1,
+						&dmq1, &iqmp);
+#endif
+					if(!ldns_print_bignum_b64_line(output, "Modulus", n))
 						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
+					if(!ldns_print_bignum_b64_line(output, "PublicExponent", e))
 						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Prime1: ");
-				if (rsa->p) {
-					i = (uint16_t)BN_bn2bin(rsa->p, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
+					if(!ldns_print_bignum_b64_line(output, "PrivateExponent", d))
 						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
+					if(!ldns_print_bignum_b64_line(output, "Prime1", p))
 						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Prime2: ");
-				if (rsa->q) {
-					i = (uint16_t)BN_bn2bin(rsa->q, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
+					if(!ldns_print_bignum_b64_line(output, "Prime2", q))
 						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
+					if(!ldns_print_bignum_b64_line(output, "Exponent1", dmp1))
 						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Exponent1: ");
-				if (rsa->dmp1) {
-					i = (uint16_t)BN_bn2bin(rsa->dmp1, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
+					if(!ldns_print_bignum_b64_line(output, "Exponent2", dmq1))
 						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
+					if(!ldns_print_bignum_b64_line(output, "Coefficient", iqmp))
 						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Exponent2: ");
-				if (rsa->dmq1) {
-					i = (uint16_t)BN_bn2bin(rsa->dmq1, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Coefficient: ");
-				if (rsa->iqmp) {
-					i = (uint16_t)BN_bn2bin(rsa->iqmp, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					ldns_buffer_printf(output, "(Not available)\n");
 				}
 #endif /* splint */
 
@@ -2153,92 +2089,32 @@ ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
 
 				/* print to buf, convert to bin, convert to b64,
 				 * print to buf */
-				ldns_buffer_printf(output, "Prime(p): ");
+				if(1) {
+					const BIGNUM *p=NULL, *q=NULL, *g=NULL,
+						*priv_key=NULL, *pub_key=NULL;
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #ifndef S_SPLINT_S
-				if (dsa->p) {
-					i = (uint16_t)BN_bn2bin(dsa->p, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					printf("(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Subprime(q): ");
-				if (dsa->q) {
-					i = (uint16_t)BN_bn2bin(dsa->q, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					printf("(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Base(g): ");
-				if (dsa->g) {
-					i = (uint16_t)BN_bn2bin(dsa->g, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					printf("(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Private_value(x): ");
-				if (dsa->priv_key) {
-					i = (uint16_t)BN_bn2bin(dsa->priv_key, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					printf("(Not available)\n");
-				}
-
-				ldns_buffer_printf(output, "Public_value(y): ");
-				if (dsa->pub_key) {
-					i = (uint16_t)BN_bn2bin(dsa->pub_key, bignum);
-					if (i > LDNS_MAX_KEYLEN) {
-						goto error;
-					}
-					b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-					if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-						goto error;
-					}
-					ldns_rdf_deep_free(b64_bignum);
-					ldns_buffer_printf(output, "\n");
-				} else {
-					printf("(Not available)\n");
-				}
+					p = dsa->p;
+					q = dsa->q;
+					g = dsa->g;
+					priv_key = dsa->priv_key;
+					pub_key = dsa->pub_key;
 #endif /* splint */
+#else
+					DSA_get0_pqg(dsa, &p, &q, &g);
+					DSA_get0_key(dsa, &pub_key, &priv_key);
+#endif
+					if(!ldns_print_bignum_b64_line(output, "Prime(p)", p))
+						goto error;
+					if(!ldns_print_bignum_b64_line(output, "Subprime(q)", q))
+						goto error;
+					if(!ldns_print_bignum_b64_line(output, "Base(g)", g))
+						goto error;
+					if(!ldns_print_bignum_b64_line(output, "Private_value(x)", priv_key))
+						goto error;
+					if(!ldns_print_bignum_b64_line(output, "Public_value(y)", pub_key))
+						goto error;
+				}
 				break;
 			case LDNS_SIGN_ECC_GOST:
 				/* no format defined, use blob */
@@ -2267,18 +2143,8 @@ ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
                                 if(k->_key.key) {
                                         EC_KEY* ec = EVP_PKEY_get1_EC_KEY(k->_key.key);
                                         const BIGNUM* b = EC_KEY_get0_private_key(ec);
-                                        ldns_buffer_printf(output, "PrivateKey: ");
-                                        i = (uint16_t)BN_bn2bin(b, bignum);
-                                        if (i > LDNS_MAX_KEYLEN) {
-                                                goto error;
-                                        }
-                                        b64_bignum =  ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, i, bignum);
-                                        if (ldns_rdf2buffer_str(output, b64_bignum) != LDNS_STATUS_OK) {
-						ldns_rdf_deep_free(b64_bignum);
-                                                goto error;
-                                        }
-                                        ldns_rdf_deep_free(b64_bignum);
-				        ldns_buffer_printf(output, "\n");
+					if(!ldns_print_bignum_b64_line(output, "PrivateKey", b))
+						goto error;
                                         /* down reference count in EC_KEY
                                          * its still assigned to the PKEY */
                                         EC_KEY_free(ec);
@@ -2288,6 +2154,42 @@ ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
 				goto error;
 #endif /* ECDSA */
                                 break;
+#ifdef USE_ED25519
+			case LDNS_SIGN_ED25519:
+                                ldns_buffer_printf(output, "Private-key-format: v1.2\n");
+				ldns_buffer_printf(output, "Algorithm: %d (", ldns_key_algorithm(k));
+                                status=ldns_algorithm2buffer_str(output, (ldns_algorithm)ldns_key_algorithm(k));
+				ldns_buffer_printf(output, ")\n");
+				if(k->_key.key) {
+                                        EC_KEY* ec = EVP_PKEY_get1_EC_KEY(k->_key.key);
+                                        const BIGNUM* b = EC_KEY_get0_private_key(ec);
+					if(!ldns_print_bignum_b64_line(output, "PrivateKey", b))
+						goto error;
+                                        /* down reference count in EC_KEY
+                                         * its still assigned to the PKEY */
+                                        EC_KEY_free(ec);
+				}
+				ldns_buffer_printf(output, "\n");
+				break;
+#endif /* USE_ED25519 */
+#ifdef USE_ED448
+			case LDNS_SIGN_ED448:
+                                ldns_buffer_printf(output, "Private-key-format: v1.2\n");
+				ldns_buffer_printf(output, "Algorithm: %d (", ldns_key_algorithm(k));
+                                status=ldns_algorithm2buffer_str(output, (ldns_algorithm)ldns_key_algorithm(k));
+				ldns_buffer_printf(output, ")\n");
+				if(k->_key.key) {
+                                        EC_KEY* ec = EVP_PKEY_get1_EC_KEY(k->_key.key);
+                                        const BIGNUM* b = EC_KEY_get0_private_key(ec);
+					if(!ldns_print_bignum_b64_line(output, "PrivateKey", b))
+						goto error;
+                                        /* down reference count in EC_KEY
+                                         * its still assigned to the PKEY */
+                                        EC_KEY_free(ec);
+				}
+				ldns_buffer_printf(output, "\n");
+				break;
+#endif /* USE_ED448 */
 			case LDNS_SIGN_HMACMD5:
 				/* there's not much of a format defined for TSIG */
 				/* It's just a binary blob, Same for all algorithms */
@@ -2300,9 +2202,24 @@ ldns_key2buffer_str(ldns_buffer *output, const ldns_key *k)
 		        ldns_buffer_printf(output, "Algorithm: 158 (HMAC_SHA1)\n");
 				status = ldns_hmac_key2buffer_str(output, k);
 				break;
+			case LDNS_SIGN_HMACSHA224:
+		        ldns_buffer_printf(output, "Private-key-format: v1.2\n");
+		        ldns_buffer_printf(output, "Algorithm: 162 (HMAC_SHA224)\n");
+				status = ldns_hmac_key2buffer_str(output, k);
+				break;
 			case LDNS_SIGN_HMACSHA256:
 		        ldns_buffer_printf(output, "Private-key-format: v1.2\n");
 		        ldns_buffer_printf(output, "Algorithm: 159 (HMAC_SHA256)\n");
+				status = ldns_hmac_key2buffer_str(output, k);
+				break;
+			case LDNS_SIGN_HMACSHA384:
+		        ldns_buffer_printf(output, "Private-key-format: v1.2\n");
+		        ldns_buffer_printf(output, "Algorithm: 164 (HMAC_SHA384)\n");
+				status = ldns_hmac_key2buffer_str(output, k);
+				break;
+			case LDNS_SIGN_HMACSHA512:
+		        ldns_buffer_printf(output, "Private-key-format: v1.2\n");
+		        ldns_buffer_printf(output, "Algorithm: 165 (HMAC_SHA512)\n");
 				status = ldns_hmac_key2buffer_str(output, k);
 				break;
 		}

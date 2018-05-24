@@ -10,7 +10,7 @@ SRCS	+= ixl_iw.c
 SRCS.PCI_IOV=	pci_iov_if.h ixl_pf_iov.c
 
 # Shared source
-SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c
+SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c i40e_dcb.c
 
 # Debug messages / sysctls
 # CFLAGS += -DIXL_DEBUG

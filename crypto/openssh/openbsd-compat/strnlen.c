@@ -19,7 +19,7 @@
 /* OPENBSD ORIGINAL: lib/libc/string/strnlen.c */
 
 #include "config.h"
-#ifndef HAVE_STRNLEN
+#if !defined(HAVE_STRNLEN) || defined(BROKEN_STRNLEN)
 #include <sys/types.h>
 
 #include <string.h>

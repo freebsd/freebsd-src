@@ -446,6 +446,20 @@ CNAME(trapcode):
 	blrl				/* Branch to generictrap */
 CNAME(trapcodeend):
 
+/* Same thing for traps setting HSRR0/HSS1 */
+	.globl	CNAME(hypertrapcode),CNAME(hypertrapcodeend)
+	.p2align 3
+CNAME(hypertrapcode):
+	mtsprg1	%r1			/* save SP */
+	mflr	%r1			/* Save the old LR in r1 */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	ld	%r1,TRAP_GENTRAP(0)
+	addi	%r1,%r1,(generichypertrap-generictrap)
+	mtlr	%r1
+	li	%r1, 0xe0		/* How to get the vector from LR */
+	blrl				/* Branch to generictrap */
+CNAME(hypertrapcodeend):
+
 /*
  * For SLB misses: do special things for the kernel
  *
@@ -757,6 +771,13 @@ realtrap:
  * SPRG2 - Original LR
  */
 
+generichypertrap:
+	mtsprg3 %r1
+	mfspr	%r1, SPR_HSRR0
+	mtsrr0	%r1
+	mfspr	%r1, SPR_HSRR1
+	mtsrr1	%r1
+	mfsprg3	%r1
 	.globl	CNAME(generictrap)
 generictrap:
 	/* Save R1 for computing the exception vector */

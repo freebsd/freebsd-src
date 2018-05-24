@@ -136,6 +136,7 @@ static int nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
 static u_int32_t nfsrv_nextclientindex(void);
 static u_int32_t nfsrv_nextstateindex(struct nfsclient *clp);
 static void nfsrv_markstable(struct nfsclient *clp);
+static void nfsrv_markreclaim(struct nfsclient *clp);
 static int nfsrv_checkstable(struct nfsclient *clp);
 static int nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, struct 
     vnode *vp, NFSPROC_T *p);
@@ -180,9 +181,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
     nfsquad_t *clientidp, nfsquad_t *confirmp, NFSPROC_T *p)
 {
 	struct nfsclient *clp = NULL, *new_clp = *new_clpp;
-	int i, error = 0;
+	int i, error = 0, ret;
 	struct nfsstate *stp, *tstp;
 	struct sockaddr_in *sad, *rad;
+	struct nfsdsession *sep, *nsep;
 	int zapit = 0, gotit, hasstate = 0, igotlock;
 	static u_int64_t confirm_index = 0;
 
@@ -352,6 +354,15 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * can be thrown away once the SETCLIENTID_CONFIRM occurs.
 		 */
 		LIST_REMOVE(clp, lc_hash);
+
+		/* Get rid of all sessions on this clientid. */
+		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep) {
+			ret = nfsrv_freesession(sep, NULL);
+			if (ret != 0)
+				printf("nfsrv_setclient: verifier changed free"
+				    " session failed=%d\n", ret);
+		}
+
 		new_clp->lc_flags |= LCL_NEEDSCONFIRM;
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			new_clp->lc_confirm.lval[0] = confirmp->lval[0] =
@@ -387,6 +398,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
+		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
 		nfsstatsv1.srvclients++;
@@ -451,6 +463,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
+		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
 		nfsstatsv1.srvclients++;
@@ -4079,7 +4092,26 @@ static int
 nfsrv_checkgrace(struct nfsrv_descript *nd, struct nfsclient *clp,
     u_int32_t flags)
 {
-	int error = 0;
+	int error = 0, notreclaimed;
+	struct nfsrv_stable *sp;
+
+	if ((nfsrv_stablefirst.nsf_flags & (NFSNSF_UPDATEDONE |
+	     NFSNSF_GRACEOVER)) == 0) {
+		/*
+		 * First, check to see if all of the clients have done a
+		 * ReclaimComplete.  If so, grace can end now.
+		 */
+		notreclaimed = 0;
+		LIST_FOREACH(sp, &nfsrv_stablefirst.nsf_head, nst_list) {
+			if ((sp->nst_flag & NFSNST_RECLAIMED) == 0) {
+				notreclaimed = 1;
+				break;
+			}
+		}
+		if (notreclaimed == 0)
+			nfsrv_stablefirst.nsf_flags |= (NFSNSF_GRACEOVER |
+			    NFSNSF_NEEDLOCK);
+	}
 
 	if ((nfsrv_stablefirst.nsf_flags & NFSNSF_GRACEOVER) != 0) {
 		if (flags & NFSLCK_RECLAIM) {
@@ -4223,9 +4255,10 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	 */
 	(void) newnfs_sndlock(&clp->lc_req.nr_lock);
 	if (clp->lc_req.nr_client == NULL) {
-		if ((clp->lc_flags & LCL_NFSV41) != 0)
+		if ((clp->lc_flags & LCL_NFSV41) != 0) {
 			error = ECONNREFUSED;
-		else if (nd->nd_procnum == NFSV4PROC_CBNULL)
+			nfsrv_freesession(sep, NULL);
+		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
 			    NULL, 1);
 		else
@@ -4734,6 +4767,32 @@ nfsrv_markstable(struct nfsclient *clp)
 	 */
 	sp->nst_flag |= NFSNST_GOTSTATE;
 	sp->nst_clp = clp;
+}
+
+/*
+ * This function is called when a NFSv4.1 client does a ReclaimComplete.
+ * Very similar to nfsrv_markstable(), except for the flag being set.
+ */
+static void
+nfsrv_markreclaim(struct nfsclient *clp)
+{
+	struct nfsrv_stable *sp;
+
+	/*
+	 * First find the client structure.
+	 */
+	LIST_FOREACH(sp, &nfsrv_stablefirst.nsf_head, nst_list) {
+		if (sp->nst_len == clp->lc_idlen &&
+		    !NFSBCMP(sp->nst_client, clp->lc_id, sp->nst_len))
+			break;
+	}
+	if (sp == LIST_END(&nfsrv_stablefirst.nsf_head))
+		return;
+
+	/*
+	 * Now, just set the flag.
+	 */
+	sp->nst_flag |= NFSNST_RECLAIMED;
 }
 
 /*
@@ -5892,8 +5951,10 @@ nfsrv_checkreclaimcomplete(struct nfsrv_descript *nd)
 	/* Check to see if reclaim complete has already happened. */
 	if ((sep->sess_clp->lc_flags & LCL_RECLAIMCOMPLETE) != 0)
 		error = NFSERR_COMPLETEALREADY;
-	else
+	else {
 		sep->sess_clp->lc_flags |= LCL_RECLAIMCOMPLETE;
+		nfsrv_markreclaim(sep->sess_clp);
+	}
 	NFSUNLOCKSESSION(shp);
 	NFSUNLOCKSTATE();
 	return (error);
@@ -5982,7 +6043,7 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 		if (sep->sess_refcnt > 0) {
 			NFSUNLOCKSESSION(shp);
 			NFSUNLOCKSTATE();
-			return (0);
+			return (NFSERR_BACKCHANBUSY);
 		}
 		LIST_REMOVE(sep, sess_hash);
 		LIST_REMOVE(sep, sess_list);
@@ -6045,6 +6106,32 @@ nfsrv_freestateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 		error = NFSERR_LOCKSHELD;
 	if (error == 0)
 		nfsrv_freelockowner(stp, NULL, 0, p);
+	NFSUNLOCKSTATE();
+	return (error);
+}
+
+/*
+ * Test a stateid.
+ */
+int
+nfsrv_teststateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
+    NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	struct nfsstate *stp;
+	int error;
+
+	NFSLOCKSTATE();
+	/*
+	 * Look up the stateid
+	 */
+	error = nfsrv_getclient((nfsquad_t)((u_quad_t)0), CLOPS_RENEW, &clp,
+	    NULL, (nfsquad_t)((u_quad_t)0), 0, nd, p);
+	if (error == 0)
+		error = nfsrv_getstate(clp, stateidp, 0, &stp);
+	if (error == 0 && stateidp->seqid != 0 &&
+	    SEQ_LT(stateidp->seqid, stp->ls_stateid.seqid))
+		error = NFSERR_OLDSTATEID;
 	NFSUNLOCKSTATE();
 	return (error);
 }

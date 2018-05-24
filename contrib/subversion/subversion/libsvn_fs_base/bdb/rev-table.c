@@ -79,6 +79,9 @@ svn_fs_bdb__get_rev(revision_t **revision_p,
      numbers begin with one.  */
   db_recno_t recno = (db_recno_t) rev + 1;
 
+  if (!SVN_IS_VALID_REVNUM(rev))
+    return svn_fs_base__err_dangling_rev(fs, rev);
+
   svn_fs_base__trail_debug(trail, "revisions", "get");
   db_err = bfd->revisions->get(bfd->revisions, trail->db_txn,
                                svn_fs_base__set_dbt(&key, &recno,

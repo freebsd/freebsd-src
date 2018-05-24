@@ -304,7 +304,7 @@ ip_init(void)
 	struct protosw *pr;
 	int i;
 
-	TAILQ_INIT(&V_in_ifaddrhead);
+	CK_STAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
 
 	/* Initialize IP reassembly queue. */
@@ -399,7 +399,7 @@ ip_destroy(void *unused __unused)
 
 	/* Make sure the IPv4 routes are gone as well. */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		rt_flushifroutes_af(ifp, AF_INET);
 	IFNET_RUNLOCK();
 
@@ -650,7 +650,7 @@ passin:
 	 * we receive might be for us (and let the upper layers deal
 	 * with it).
 	 */
-	if (TAILQ_EMPTY(&V_in_ifaddrhead) &&
+	if (CK_STAILQ_EMPTY(&V_in_ifaddrhead) &&
 	    (m->m_flags & (M_MCAST|M_BCAST)) == 0)
 		goto ours;
 
@@ -707,7 +707,7 @@ passin:
 	 */
 	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
 		IF_ADDR_RLOCK(ifp);
-	        TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
@@ -977,9 +977,9 @@ ip_forward(struct mbuf *m, int srcrt)
 #else
 	in_rtalloc_ign(&ro, 0, M_GETFIB(m));
 #endif
+	NET_EPOCH_ENTER();
 	if (ro.ro_rt != NULL) {
 		ia = ifatoia(ro.ro_rt->rt_ifa);
-		ifa_ref(&ia->ia_ifa);
 	} else
 		ia = NULL;
 	/*
@@ -1025,7 +1025,7 @@ ip_forward(struct mbuf *m, int srcrt)
 			m_freem(mcopy);
 			if (error != EINPROGRESS)
 				IPSTAT_INC(ips_cantforward);
-			return;
+			goto out;
 		}
 		/* No IPsec processing required */
 	}
@@ -1078,16 +1078,12 @@ ip_forward(struct mbuf *m, int srcrt)
 		else {
 			if (mcopy)
 				m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
-			return;
+			goto out;
 		}
 	}
-	if (mcopy == NULL) {
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
-		return;
-	}
+	if (mcopy == NULL)
+		goto out;
+
 
 	switch (error) {
 
@@ -1129,13 +1125,11 @@ ip_forward(struct mbuf *m, int srcrt)
 	case ENOBUFS:
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
-		return;
+		goto out;
 	}
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
+ out:
+	NET_EPOCH_EXIT();
 }
 
 #define	CHECK_SO_CT(sp, ct) \

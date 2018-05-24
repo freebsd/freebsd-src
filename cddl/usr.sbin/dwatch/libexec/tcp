@@ -55,20 +55,6 @@ tcp-status)
 	: ${PROBE:=tcp:::${PROFILE#tcp-}}
 esac
 
-############################################################ GLOBALS
-
-#
-# This profile does not support these dwatch features
-# NB: They are disabled here so they have no effect when profile is loaded
-#
-unset EXECNAME		# -k name
-unset EXECREGEX		# -z regex
-unset GROUP		# -g group
-unset PID		# -p pid
-unset PSARGS		# affects -d
-unset PSTREE		# -R
-unset USER		# -u user
-
 ############################################################ ACTIONS
 
 exec 9<<EOF
@@ -203,15 +189,9 @@ EOF
 ACTIONS=$( cat <&9 )
 ID=$(( $ID + 4 ))
 
-############################################################ EVENT TAG
-
-exec 9<<EOF
-	printf("%s: ", "$PROFILE");
-EOF
-EVENT_TAG=$( cat <&9 )
-
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print details
@@ -223,6 +203,7 @@ exec 9<<EOF
 		this->details);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END

@@ -128,7 +128,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
+	if (CK_STAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -170,9 +170,11 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 			struct ifaddr *ifa;
 
 			sin6->sin6_port = 0;		/* yech... */
+			NET_EPOCH_ENTER();
 			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
 			    NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
+				NET_EPOCH_EXIT();
 				return (EADDRNOTAVAIL);
 			}
 
@@ -185,11 +187,10 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 			if (ifa != NULL &&
 			    ((struct in6_ifaddr *)ifa)->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
-				ifa_free(ifa);
+				NET_EPOCH_EXIT();
 				return (EADDRNOTAVAIL);
 			}
-			if (ifa != NULL)
-				ifa_free(ifa);
+			NET_EPOCH_EXIT();
 		}
 		if (lport) {
 			struct inpcb *t;
@@ -349,7 +350,7 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr *nam,
 	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	if (!TAILQ_EMPTY(&V_in6_ifaddrhead)) {
+	if (!CK_STAILQ_EMPTY(&V_in6_ifaddrhead)) {
 		/*
 		 * If the destination address is UNSPECIFIED addr,
 		 * use the loopback addr, e.g ::1.
@@ -805,8 +806,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			for (i = 0; i < im6o->im6o_num_memberships; i++) {
 				if (im6o->im6o_membership[i]->in6m_ifp ==
 				    ifp) {
-					in6_mc_leave(im6o->im6o_membership[i],
-					    NULL);
+					in6_leavegroup(im6o->im6o_membership[i], NULL);
 					gap++;
 				} else if (gap != 0) {
 					im6o->im6o_membership[i - gap] =

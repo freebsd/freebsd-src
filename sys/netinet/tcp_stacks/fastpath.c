@@ -2404,7 +2404,7 @@ tcp_addfastpaths(module_t mod, int type, void *data)
 		err = register_tcp_functions(&__tcp_fastslow, M_WAITOK); 
 		if (err) {
 			printf("Failed to register fastslow module -- err:%d\n", err);
-			deregister_tcp_functions(&__tcp_fastack);
+			deregister_tcp_functions(&__tcp_fastack, false, true);
 			return(err);
 		}
 		break;
@@ -2412,12 +2412,12 @@ tcp_addfastpaths(module_t mod, int type, void *data)
 		if ((__tcp_fastslow.tfb_refcnt) ||( __tcp_fastack.tfb_refcnt)) {
 			return(EBUSY);
 		}
+		err = deregister_tcp_functions(&__tcp_fastack, true, false);
+		err = deregister_tcp_functions(&__tcp_fastslow, true, false);
 		break;
 	case MOD_UNLOAD:
-		err = deregister_tcp_functions(&__tcp_fastack);
-		if (err == EBUSY)
-			break;
-		err = deregister_tcp_functions(&__tcp_fastslow);
+		err = deregister_tcp_functions(&__tcp_fastack, false, true);
+		err = deregister_tcp_functions(&__tcp_fastslow, false, true);
 		if (err == EBUSY)
 			break;
 		err = 0;

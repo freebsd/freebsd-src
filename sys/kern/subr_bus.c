@@ -1828,6 +1828,8 @@ make_device(device_t parent, const char *name, int unit)
 			return (NULL);
 		}
 	}
+	if (parent != NULL && device_has_quiet_children(parent))
+		dev->flags |= DF_QUIET | DF_QUIET_CHILDREN;
 	dev->ivars = NULL;
 	dev->softc = NULL;
 
@@ -2649,12 +2651,30 @@ device_quiet(device_t dev)
 }
 
 /**
+ * @brief Set the DF_QUIET_CHILDREN flag for the device
+ */
+void
+device_quiet_children(device_t dev)
+{
+	dev->flags |= DF_QUIET_CHILDREN;
+}
+
+/**
  * @brief Clear the DF_QUIET flag for the device
  */
 void
 device_verbose(device_t dev)
 {
 	dev->flags &= ~DF_QUIET;
+}
+
+/**
+ * @brief Return non-zero if the DF_QUIET_CHIDLREN flag is set on the device
+ */
+int
+device_has_quiet_children(device_t dev)
+{
+	return ((dev->flags & DF_QUIET_CHILDREN) != 0);
 }
 
 /**
@@ -3708,7 +3728,11 @@ bus_generic_detach(device_t dev)
 	if (dev->state != DS_ATTACHED)
 		return (EBUSY);
 
-	TAILQ_FOREACH(child, &dev->children, link) {
+	/*
+	 * Detach children in the reverse order.
+	 * See bus_generic_suspend for details.
+	 */
+	TAILQ_FOREACH_REVERSE(child, &dev->children, device_list, link) {
 		if ((error = device_detach(child)) != 0)
 			return (error);
 	}
@@ -3728,7 +3752,11 @@ bus_generic_shutdown(device_t dev)
 {
 	device_t child;
 
-	TAILQ_FOREACH(child, &dev->children, link) {
+	/*
+	 * Shut down children in the reverse order.
+	 * See bus_generic_suspend for details.
+	 */
+	TAILQ_FOREACH_REVERSE(child, &dev->children, device_list, link) {
 		device_shutdown(child);
 	}
 
@@ -3781,15 +3809,23 @@ int
 bus_generic_suspend(device_t dev)
 {
 	int		error;
-	device_t	child, child2;
+	device_t	child;
 
-	TAILQ_FOREACH(child, &dev->children, link) {
+	/*
+	 * Suspend children in the reverse order.
+	 * For most buses all children are equal, so the order does not matter.
+	 * Other buses, such as acpi, carefully order their child devices to
+	 * express implicit dependencies between them.  For such buses it is
+	 * safer to bring down devices in the reverse order.
+	 */
+	TAILQ_FOREACH_REVERSE(child, &dev->children, device_list, link) {
 		error = BUS_SUSPEND_CHILD(dev, child);
-		if (error) {
-			for (child2 = TAILQ_FIRST(&dev->children);
-			     child2 && child2 != child;
-			     child2 = TAILQ_NEXT(child2, link))
-				BUS_RESUME_CHILD(dev, child2);
+		if (error != 0) {
+			child = TAILQ_NEXT(child, link);
+			if (child != NULL) {
+				TAILQ_FOREACH_FROM(child, &dev->children, link)
+					BUS_RESUME_CHILD(dev, child);
+			}
 			return (error);
 		}
 	}

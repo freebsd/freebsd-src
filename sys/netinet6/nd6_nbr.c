@@ -1090,9 +1090,7 @@ caddr_t
 nd6_ifptomac(struct ifnet *ifp)
 {
 	switch (ifp->if_type) {
-	case IFT_ARCNET:
 	case IFT_ETHER:
-	case IFT_FDDI:
 	case IFT_IEEE1394:
 	case IFT_L2VLAN:
 	case IFT_INFINIBAND:
@@ -1466,7 +1464,6 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 		 */
 		switch (ifp->if_type) {
 		case IFT_ETHER:
-		case IFT_FDDI:
 		case IFT_ATM:
 		case IFT_IEEE1394:
 		case IFT_INFINIBAND:

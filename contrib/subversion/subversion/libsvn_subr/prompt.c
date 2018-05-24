@@ -814,6 +814,8 @@ plaintext_prompt_helper(svn_boolean_t *may_save_plaintext,
   const char *config_path = NULL;
   terminal_handle_t *terminal;
 
+  *may_save_plaintext = FALSE; /* de facto API promise */
+
   if (pb)
     SVN_ERR(svn_config_get_user_config_path(&config_path, pb->config_dir,
                                             SVN_CONFIG_CATEGORY_SERVERS, pool));
@@ -826,17 +828,7 @@ plaintext_prompt_helper(svn_boolean_t *may_save_plaintext,
 
   do
     {
-      svn_error_t *err = prompt(&answer, prompt_string, FALSE, pb, pool);
-      if (err)
-        {
-          if (err->apr_err == SVN_ERR_CANCELLED)
-            {
-              *may_save_plaintext = FALSE;
-              return err;
-            }
-          else
-            return err;
-        }
+      SVN_ERR(prompt(&answer, prompt_string, FALSE, pb, pool));
       if (apr_strnatcasecmp(answer, _("yes")) == 0 ||
           apr_strnatcasecmp(answer, _("y")) == 0)
         {

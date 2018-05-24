@@ -52,6 +52,7 @@
 #include <rdma/ib_pack.h>
 #include <net/ipv6.h>
 
+
 struct rdma_addr_client {
 	atomic_t refcount;
 	struct completion comp;
@@ -219,7 +220,7 @@ static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 
 	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
 	if (dev) {
-		TAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL ||
 			    ifa->ifa_addr->sa_family != AF_INET)
 				continue;

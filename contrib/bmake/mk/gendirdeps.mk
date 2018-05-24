@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.37 2018/01/31 19:06:46 sjg Exp $
+# $Id: gendirdeps.mk,v 1.38 2018/03/10 00:53:52 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -160,6 +160,12 @@ META2DEPS_CMD += -S ${SB_BACKING_SB}/src
 M2D_OBJROOTS += ${SB_BACKING_SB}/${SB_OBJPREFIX}
 .endif
 
+GENDIRDEPS_SEDCMDS += \
+	-e 's,//*$$,,;s,\.${HOST_TARGET:Uhost}$$,.host,' \
+	-e 's,\.${HOST_TARGET32:Uhost32}$$,.host32,' \
+	-e 's,\.${MACHINE}$$,,' \
+	-e 's:\.${TARGET_SPEC:U${MACHINE}}$$::'
+
 # we are only interested in the dirs
 # specifically those we read something from.
 # we canonicalize them to keep things simple
@@ -170,7 +176,7 @@ dir_list != cd ${_OBJDIR} && \
 	SRCTOP=${SRCTOP} RELDIR=${RELDIR} CURDIR=${_CURDIR} \
 	${META2DEPS_ARGS} \
 	${META_FILES:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
-	sed 's,//*$$,,;s,\.${HOST_TARGET}$$,.host,'
+	sed ${GENDIRDEPS_SEDCMDS}
 
 .if ${dir_list:M*ERROR\:*} != ""
 .warning ${dir_list:tW:C,.*(ERROR),\1,}
@@ -194,7 +200,7 @@ dpadd_dir_list += ${f:H:tA}
 .endfor
 .if !empty(ddep_list)
 ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
-        sed 's,//*$$,,;s,\.${HOST_TARGET:Uhost}$$,.host,;s,\.${HOST_TARGET32:Uhost32}$$,.host32,;s,\.${MACHINE}$$,,'
+	sed ${GENDIRDEPS_SEDCMDS}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
 .info ${RELDIR}: raw_dir_list='${dir_list}'

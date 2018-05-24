@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd December 1, 2017
+.Dd May 22, 2018
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -606,6 +606,7 @@ The return value from
 is the count of array entries filled in.
 .It Dv PT_SETSTEP
 This request will turn on single stepping of the specified process.
+Stepping is automatically disabled when a single step trap is caught.
 .It Dv PT_CLEARSTEP
 This request will turn off single stepping of the specified process.
 .It Dv PT_SUSPEND

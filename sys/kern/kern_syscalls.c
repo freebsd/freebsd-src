@@ -80,14 +80,12 @@ syscall_thread_drain(struct sysent *se)
 }
 
 int
-syscall_thread_enter(struct thread *td, struct sysent *se)
+_syscall_thread_enter(struct thread *td, struct sysent *se)
 {
 	u_int32_t cnt, oldcnt;
 
 	do {
 		oldcnt = se->sy_thrcnt;
-		if ((oldcnt & SY_THR_STATIC) != 0)
-			return (0);
 		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0)
 			return (ENOSYS);
 		cnt = oldcnt + SY_THR_INCR;
@@ -96,14 +94,12 @@ syscall_thread_enter(struct thread *td, struct sysent *se)
 }
 
 void
-syscall_thread_exit(struct thread *td, struct sysent *se)
+_syscall_thread_exit(struct thread *td, struct sysent *se)
 {
 	u_int32_t cnt, oldcnt;
 
 	do {
 		oldcnt = se->sy_thrcnt;
-		if ((oldcnt & SY_THR_STATIC) != 0)
-			return;
 		cnt = oldcnt - SY_THR_INCR;
 	} while (atomic_cmpset_rel_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
 }

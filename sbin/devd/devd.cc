@@ -140,7 +140,6 @@ typedef struct client {
 } client_t;
 
 extern FILE *yyin;
-extern int lineno;
 
 static const char notify = '!';
 static const char nomatch = '?';
@@ -173,7 +172,7 @@ delete_and_clear(vector<T *> &v)
 	v.clear();
 }
 
-config cfg;
+static config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
@@ -333,8 +332,6 @@ media::media(config &, const char *var, const char *type)
 {
 	static struct ifmedia_description media_types[] = {
 		{ IFM_ETHER,		"Ethernet" },
-		{ IFM_TOKEN,		"Tokenring" },
-		{ IFM_FDDI,		"FDDI" },
 		{ IFM_IEEE80211,	"802.11" },
 		{ IFM_ATM,		"ATM" },
 		{ -1,			"unknown" },
@@ -904,10 +901,10 @@ create_socket(const char *name, int socktype)
 	return (fd);
 }
 
-unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
-unsigned int num_clients;
+static unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
+static unsigned int num_clients;
 
-list<client_t> clients;
+static list<client_t> clients;
 
 void
 notify_clients(const char *data, int len)
@@ -1089,7 +1086,7 @@ event_loop(void)
 				try {
 					process_event(buffer);
 				}
-				catch (std::length_error e) {
+				catch (const std::length_error& e) {
 					devdlog(LOG_ERR, "Dropping event %s "
 					    "due to low memory", buffer);
 				}

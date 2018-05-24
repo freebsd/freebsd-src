@@ -448,6 +448,40 @@ when the "zpool checkpoint" command is used to checkpoint the pool.
 The feature will only return back to being
 .Sy enabled
 when the pool is rewound or the checkpoint has been discarded.
+.It Sy device_removal
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:device_removal"
+.It GUID Ta com.delphix:device_removal
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables the "zpool remove" subcommand to remove top-level
+vdevs, evacuating them to reduce the total size of the pool.
+.Pp
+This feature becomes
+.Sy active
+when the "zpool remove" command is used
+on a top-level vdev, and will never return to being 
+.Sy enabled .
+.It Sy obsolete_counts
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:obsolete_counts"
+.It GUID Ta com.delphix:obsolete_counts
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta device_removal
+.El
+.Pp
+This feature is an enhancement of device_removal, which will over time
+reduce the memory used to track removed devices.  When indirect blocks
+are freed or remapped, we note that their part of the indirect mapping
+is "obsolete", i.e. no longer needed.  See also the "zfs remap"
+subcommand in
+.Xr zfs 8 .
+
+This feature becomes
+.Sy active
+when the "zpool remove" command is
+used on a top-level vdev, and will never return to being
+.Sy enabled .
 .It Sy large_blocks
 .Bl -column "READ\-ONLY COMPATIBLE" "org.open-zfs:large_block"
 .It GUID Ta org.open-zfs:large_block

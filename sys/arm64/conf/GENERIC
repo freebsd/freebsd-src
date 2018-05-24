@@ -90,6 +90,14 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
+options 	USB_DEBUG		# enable debug msgs
+
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	NETDUMP			# netdump(4) client support
 
 # SoC support
 options 	SOC_ALLWINNER_A64
@@ -156,13 +164,13 @@ device		dwmmc
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
+device		uart_msm	# Qualcomm MSM UART driver
 device		uart_mvebu	# Armada 3700 UART driver
 device		uart_ns8250	# ns8250-type UART driver
 device		uart_snps
 device		pl011
 
 # USB support
-options 	USB_DEBUG		# enable debug msgs
 device		aw_ehci			# Allwinner EHCI USB interface (USB 2.0)
 device		aw_usbphy		# Allwinner USB PHY
 device		dwcotg			# DWC OTG controller

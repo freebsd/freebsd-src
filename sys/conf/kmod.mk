@@ -83,8 +83,9 @@ OBJCOPY?=	objcopy
 # Search for kernel source tree in standard places.
 .if empty(KERNBUILDDIR)
 .if !defined(SYSDIR)
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if exists(${_dir}/kern/)
+.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
+    ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
 SYSDIR=	${_dir:tA}
 .endif
 .endfor
@@ -121,7 +122,7 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # Add -I paths for system headers.  Individual module makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I. -I${SYSDIR}
+CFLAGS+=	-I. -I${SYSDIR} -I${SYSDIR}/contrib/ck/include
 
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+=	-fms-extensions

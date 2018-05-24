@@ -24,16 +24,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2018
+.Dd May 11, 2018
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
 .Nm development
-.Nd introduction to FreeBSD development process
+.Nd introduction to
+.Fx
+development process
 .Sh DESCRIPTION
 .Fx
 development is split into three major suprojects: doc, ports, and src.
-Doc is the documentation, such as the FreeBSD Handbook.
+Doc is the documentation, such as the
+.Fx
+Handbook.
 To read more, see:
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/books/fdp-primer/
@@ -54,7 +58,8 @@ can be found at:
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/articles/committers-guide/
 .Pp
-FreeBSD src development takes place in the CURRENT branch in Subversion,
+.Fx
+src development takes place in the CURRENT branch in Subversion,
 located at:
 .Pp
 .Lk https://svn.FreeBSD.org/base/head
@@ -67,7 +72,8 @@ Changes are first committed to CURRENT and then usually merged back
 to STABLE.
 Every few years the CURRENT branch is renamed to STABLE, and a new
 CURRENT is branched, with an incremented major version number.
-Releases are then branched off STABLE and numbered with consecutive minor numbers.
+Releases are then branched off STABLE and numbered with consecutive minor
+numbers.
 .Pp
 Layout of the source tree is described in
 .Xr hier 7 .
@@ -76,7 +82,7 @@ Build instructions can be found in
 and
 .Xr release 7 .
 Kernel APIs are usually documented, use
-.Cm apropos -s 9 ''
+.Ql "apropos -s 9 ''"
 for a list.
 Regression test suite is described in
 .Xr tests 7 .
@@ -88,26 +94,31 @@ such as freebsd-arch@ and freebsd-hackers@:
 .Pp
 .Lk https://lists.FreeBSD.org/
 .Pp
-To get your patches integrated into the main FreeBSD repository use Phabricator;
+To get your patches integrated into the main
+.Fx
+repository use Phabricator;
 it is a code review tool that allows other developers to review the changes,
 suggest improvements, and, eventually, allows them to pick up the change and
 commit it:
 .Pp
 .Lk https://reviews.FreeBSD.org/
-.Pp
 .Sh EXAMPLES
 Check out the CURRENT branch, build it, and install, overwriting the current
 system:
-.Dl svnlite co https://svn.FreeBSD.org/base/head src
-.Dl cd src
-.Dl make -j8 buildworld buildkernel installkernel
-.Dl reboot
+.Bd -literal -offset indent
+svnlite co https://svn.FreeBSD.org/base/head src
+cd src
+make -j8 buildworld buildkernel installkernel
+reboot
+.Ed
 .Pp
 After reboot:
-.Dl cd src
-.Dl make -j8 installworld
-.Pp
+.Bd -literal -offset indent
+cd src
+make -j8 installworld
+.Ed
 .Sh SEE ALSO
+.Xr svnlite 1 ,
 .Xr witness 4 ,
 .Xr build 7 ,
 .Xr hier 7 ,

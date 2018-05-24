@@ -226,6 +226,26 @@ capabilities_headers_iterator_callback(void *baton,
         {
           session->supports_rev_rsrc_replay = TRUE;
         }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_SVNDIFF1, vals))
+        {
+          /* Use compressed svndiff1 format for servers that properly
+             advertise this capability (Subversion 1.10 and greater). */
+          session->supports_svndiff1 = TRUE;
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_LIST, vals))
+        {
+          svn_hash_sets(session->capabilities,
+                        SVN_RA_CAPABILITY_LIST, capability_yes);
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_SVNDIFF2, vals))
+        {
+          /* Same for svndiff2. */
+          session->supports_svndiff2 = TRUE;
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_PUT_RESULT_CHECKSUM, vals))
+        {
+          session->supports_put_result_checksum = TRUE;
+        }
     }
 
   /* SVN-specific headers -- if present, server supports HTTP protocol v2 */
@@ -350,6 +370,7 @@ options_response_handler(serf_request_t *request,
     {
       svn_ra_serf__session_t *session = opt_ctx->session;
       serf_bucket_t *hdrs = serf_bucket_response_get_headers(response);
+      serf_connection_t *conn;
 
       /* Start out assuming all capabilities are unsupported. */
       svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_PARTIAL_REPLAY,
@@ -368,6 +389,8 @@ options_response_handler(serf_request_t *request,
                     capability_no);
       svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE,
                     capability_no);
+      svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_LIST,
+                    capability_no);
 
       /* Then see which ones we can discover. */
       serf_bucket_headers_do(hdrs, capabilities_headers_iterator_callback,
@@ -378,6 +401,10 @@ options_response_handler(serf_request_t *request,
       if (!svn_hash_gets(session->capabilities, SVN_RA_CAPABILITY_MERGEINFO))
         svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_MERGEINFO,
                       capability_no);
+
+      /* Remember our latency. */
+      conn = serf_request_get_conn(request);
+      session->conn_latency = serf_connection_get_latency(conn);
 
       opt_ctx->headers_processed = TRUE;
     }

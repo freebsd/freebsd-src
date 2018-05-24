@@ -1,5 +1,6 @@
 # Public Domain
 # Zev Weiss, 2016
+# $OpenBSD: allow-deny-users.sh,v 1.4 2017/10/20 02:13:41 djm Exp $
 
 tid="AllowUsers/DenyUsers"
 

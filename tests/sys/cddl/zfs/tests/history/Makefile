@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=tests
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/history/
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/history
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	history_test

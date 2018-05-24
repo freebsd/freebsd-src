@@ -233,11 +233,12 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 	struct nvme_request	*req;
 
 	mtx_lock(&ctrlr->lock);
-	while (!STAILQ_EMPTY(&ctrlr->fail_req)) {
-		req = STAILQ_FIRST(&ctrlr->fail_req);
+	while ((req = STAILQ_FIRST(&ctrlr->fail_req)) != NULL) {
 		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
+		mtx_unlock(&ctrlr->lock);
 		nvme_qpair_manual_complete_request(req->qpair, req,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		mtx_lock(&ctrlr->lock);
 	}
 	mtx_unlock(&ctrlr->lock);
 }
@@ -978,6 +979,7 @@ static void
 nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_pt_command *pt = arg;
+	struct mtx *mtx = pt->driver_lock;
 	uint16_t status;
 
 	bzero(&pt->cpl, sizeof(pt->cpl));
@@ -987,9 +989,10 @@ nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 	status &= ~NVME_STATUS_P_MASK;
 	pt->cpl.status = status;
 
-	mtx_lock(pt->driver_lock);
+	mtx_lock(mtx);
+	pt->driver_lock = NULL;
 	wakeup(pt);
-	mtx_unlock(pt->driver_lock);
+	mtx_unlock(mtx);
 }
 
 int
@@ -1058,15 +1061,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 
 	req->cmd.nsid = htole32(nsid);
 
-	if (is_admin_cmd)
-		mtx = &ctrlr->lock;
-	else {
-		KASSERT((nsid-1) >= 0 && (nsid-1) < NVME_MAX_NAMESPACES,
-		    ("%s: invalid namespace ID %d\n", __func__, nsid));
-		mtx = &ctrlr->ns[nsid-1].lock;
-	}
-
-	mtx_lock(mtx);
+	mtx = mtx_pool_find(mtxpool_sleep, pt);
 	pt->driver_lock = mtx;
 
 	if (is_admin_cmd)
@@ -1074,10 +1069,10 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	else
 		nvme_ctrlr_submit_io_request(ctrlr, req);
 
-	mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
+	mtx_lock(mtx);
+	while (pt->driver_lock != NULL)
+		mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
 	mtx_unlock(mtx);
-
-	pt->driver_lock = NULL;
 
 err:
 	if (buf != NULL) {
@@ -1203,6 +1198,7 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 int
 nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
+	struct make_dev_args	md_args;
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
 	uint8_t		to;
@@ -1254,14 +1250,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (nvme_ctrlr_construct_admin_qpair(ctrlr) != 0)
 		return (ENXIO);
 
-	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
-	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
-
-	if (ctrlr->cdev == NULL)
-		return (ENXIO);
-
-	ctrlr->cdev->si_drv1 = (void *)ctrlr;
-
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
@@ -1270,10 +1258,21 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->is_initialized = 0;
 	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
-
 	TASK_INIT(&ctrlr->fail_req_task, 0, nvme_ctrlr_fail_req_task, ctrlr);
 	STAILQ_INIT(&ctrlr->fail_req);
 	ctrlr->is_failed = FALSE;
+
+	make_dev_args_init(&md_args);
+	md_args.mda_devsw = &nvme_ctrlr_cdevsw;
+	md_args.mda_uid = UID_ROOT;
+	md_args.mda_gid = GID_WHEEL;
+	md_args.mda_mode = 0600;
+	md_args.mda_unit = device_get_unit(dev);
+	md_args.mda_si_drv1 = (void *)ctrlr;
+	status = make_dev_s(&md_args, &ctrlr->cdev, "nvme%d",
+	    device_get_unit(dev));
+	if (status != 0)
+		return (ENXIO);
 
 	return (0);
 }
@@ -1283,17 +1282,8 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
 	int				i;
 
-	/*
-	 *  Notify the controller of a shutdown, even though this is due to
-	 *   a driver unload, not a system shutdown (this path is not invoked
-	 *   during shutdown).  This ensures the controller receives a
-	 *   shutdown notification in case the system is shutdown before
-	 *   reloading the driver.
-	 */
-	nvme_ctrlr_shutdown(ctrlr);
-
-	nvme_ctrlr_disable(ctrlr);
-	taskqueue_free(ctrlr->taskqueue);
+	if (ctrlr->resource == NULL)
+		goto nores;
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
@@ -1305,20 +1295,23 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		nvme_ctrlr_destroy_qpair(ctrlr, &ctrlr->ioq[i]);
 		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 	}
-
 	free(ctrlr->ioq, M_NVME);
 
 	nvme_admin_qpair_destroy(&ctrlr->adminq);
 
-	if (ctrlr->resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->resource_id, ctrlr->resource);
-	}
+	/*
+	 *  Notify the controller of a shutdown, even though this is due to
+	 *   a driver unload, not a system shutdown (this path is not invoked
+	 *   during shutdown).  This ensures the controller receives a
+	 *   shutdown notification in case the system is shutdown before
+	 *   reloading the driver.
+	 */
+	nvme_ctrlr_shutdown(ctrlr);
 
-	if (ctrlr->bar4_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
-	}
+	nvme_ctrlr_disable(ctrlr);
+
+	if (ctrlr->taskqueue)
+		taskqueue_free(ctrlr->taskqueue);
 
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
@@ -1329,6 +1322,17 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 
 	if (ctrlr->msix_enabled)
 		pci_release_msi(dev);
+
+	if (ctrlr->bar4_resource != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
+	}
+
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    ctrlr->resource_id, ctrlr->resource);
+
+nores:
+	mtx_destroy(&ctrlr->lock);
 }
 
 void

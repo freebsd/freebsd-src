@@ -662,8 +662,7 @@ tcp_timer_rexmt(void * xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		tp = tcp_drop(tp, tp->t_softerror ?
-			      tp->t_softerror : ETIMEDOUT);
+		tp = tcp_drop(tp, ETIMEDOUT);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
@@ -694,7 +693,12 @@ tcp_timer_rexmt(void * xtp)
 			tp->t_flags |= TF_WASCRECOVERY;
 		else
 			tp->t_flags &= ~TF_WASCRECOVERY;
-		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
+		if ((tp->t_flags & TF_RCVD_TSTMP) == 0)
+			tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
+		/* In the event that we've negotiated timestamps
+		 * badrxtwin will be set to the value that we set
+		 * the retransmitted packet's to_tsval to by tcp_output
+		 */
 		tp->t_flags |= TF_PREVVALID;
 	} else
 		tp->t_flags &= ~TF_PREVVALID;

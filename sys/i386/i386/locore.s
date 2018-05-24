@@ -54,14 +54,6 @@
 #include "assym.inc"
 
 /*
- *	XXX
- *
- * Note: This version greatly munged to avoid various assembler errors
- * that may be fixed in newer versions of gas. Perhaps newer versions
- * will have more pleasant appearance.
- */
-
-/*
  * PTmap is recursive pagemap at top of virtual address space.
  * Within PTmap, the page directory can be found (third indirection).
  */
@@ -71,7 +63,7 @@
 	.set	PTDpde,PTD + (PTDPTDI * PDESIZE)
 
 /*
- * Compiled KERNBASE location and the kernel load address
+ * Compiled KERNBASE location and the kernel load address, now identical.
  */
 	.globl	kernbase
 	.set	kernbase,KERNBASE
@@ -90,83 +82,6 @@ tmpstk:
 	.globl	bootinfo
 bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
 
-		.globl KERNend
-KERNend:	.long	0		/* phys addr end of kernel (just after bss) */
-physfree:	.long	0		/* phys addr of next free page */
-
-	.globl	IdlePTD
-IdlePTD:	.long	0		/* phys addr of kernel PTD */
-
-#if defined(PAE) || defined(PAE_TABLES)
-	.globl	IdlePDPT
-IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
-#endif
-
-	.globl	KPTmap
-KPTmap:		.long	0		/* address of kernel page tables */
-
-	.globl	KPTphys
-KPTphys:	.long	0		/* phys addr of kernel page tables */
-
-	.globl	proc0kstack
-proc0kstack:	.long	0		/* address of proc 0 kstack space */
-p0kpa:		.long	0		/* phys addr of proc0's STACK */
-
-vm86phystk:	.long	0		/* PA of vm86/bios stack */
-
-	.globl	vm86paddr, vm86pa
-vm86paddr:	.long	0		/* address of vm86 region */
-vm86pa:		.long	0		/* phys addr of vm86 region */
-
-/**********************************************************************
- *
- * Some handy macros
- *
- */
-
-#define R(foo) ((foo)-KERNBASE)
-
-#define ALLOCPAGES(foo) \
-	movl	R(physfree), %esi ; \
-	movl	$((foo)*PAGE_SIZE), %eax ; \
-	addl	%esi, %eax ; \
-	movl	%eax, R(physfree) ; \
-	movl	%esi, %edi ; \
-	movl	$((foo)*PAGE_SIZE),%ecx ; \
-	xorl	%eax,%eax ; \
-	cld ; \
-	rep ; \
-	stosb
-
-/*
- * fillkpt
- *	eax = page frame address
- *	ebx = index into page table
- *	ecx = how many pages to map
- * 	base = base address of page dir/table
- *	prot = protection bits
- */
-#define	fillkpt(base, prot)		  \
-	shll	$PTESHIFT,%ebx		; \
-	addl	base,%ebx		; \
-	orl	$PG_V,%eax		; \
-	orl	prot,%eax		; \
-1:	movl	%eax,(%ebx)		; \
-	addl	$PAGE_SIZE,%eax		; /* increment physical address */ \
-	addl	$PTESIZE,%ebx		; /* next pte */ \
-	loop	1b
-
-/*
- * fillkptphys(prot)
- *	eax = physical address
- *	ecx = how many pages to map
- *	prot = protection bits
- */
-#define	fillkptphys(prot)		  \
-	movl	%eax, %ebx		; \
-	shrl	$PAGE_SHIFT, %ebx	; \
-	fillkpt(R(KPTphys), prot)
-
 	.text
 /**********************************************************************
  *
@@ -179,6 +94,7 @@ NON_GPROF_ENTRY(btext)
 	movw	$0x1234,0x472
 
 /* Set up a real frame in case the double return in newboot is executed. */
+	xorl	%ebp,%ebp
 	pushl	%ebp
 	movl	%esp, %ebp
 
@@ -204,8 +120,8 @@ NON_GPROF_ENTRY(btext)
  * inactive from now until we switch to new ones, since we don't load any
  * more segment registers or permit interrupts until after the switch.
  */
-	movl	$R(end),%ecx
-	movl	$R(edata),%edi
+	movl	$end,%ecx
+	movl	$edata,%edi
 	subl	%edi,%ecx
 	xorl	%eax,%eax
 	cld
@@ -220,48 +136,10 @@ NON_GPROF_ENTRY(btext)
  * the old stack, but it need not be, since recover_bootinfo actually
  * returns via the old frame.
  */
-	movl	$R(tmpstk),%esp
+	movl	$tmpstk,%esp
 
 	call	identify_cpu
-	call	create_pagetables
-
-/*
- * If the CPU has support for VME, turn it on.
- */ 
-	testl	$CPUID_VME, R(cpu_feature)
-	jz	1f
-	movl	%cr4, %eax
-	orl	$CR4_VME, %eax
-	movl	%eax, %cr4
-1:
-
-/* Now enable paging */
-#if defined(PAE) || defined(PAE_TABLES)
-	movl	R(IdlePDPT), %eax
-	movl	%eax, %cr3
-	movl	%cr4, %edx
-	orl	$CR4_PAE, %edx
-	movl	%edx, %cr4
-#else
-	movl	R(IdlePTD), %eax
-	movl	%eax,%cr3		/* load ptd addr into mmu */
-#endif
-	movl	%cr0,%edx		/* get control word */
-	orl	$CR0_PE|CR0_PG,%edx	/* enable paging */
-	movl	%edx,%cr0		/* and let's page NOW! */
-
-	pushl	$begin			/* jump to high virtualized address */
-	ret
-
-begin:
-	/*
-	 * Now running relocated at KERNBASE where the system is linked to run.
-	 *
-	 * Remove the lowest part of the double mapping of low memory to get
-	 * some null pointer checks.
-	 */
-	movl	$0,PTD
-	movl	%eax,%cr3		/* invalidate TLB */
+	call	pmap_cold
 
 	/* set up bootstrap stack */
 	movl	proc0kstack,%eax	/* location of in-kernel stack */
@@ -375,7 +253,7 @@ newboot:
 	cmpl	$0,%esi
 	je	2f			/* No kernelname */
 	movl	$MAXPATHLEN,%ecx	/* Brute force!!! */
-	movl	$R(kernelname),%edi
+	movl	$kernelname,%edi
 	cmpb	$'/',(%esi)		/* Make sure it starts with a slash */
 	je	1f
 	movb	$'/',(%edi)
@@ -403,7 +281,7 @@ got_bi_size:
 	 * Copy the common part of the bootinfo struct
 	 */
 	movl	%ebx,%esi
-	movl	$R(bootinfo),%edi
+	movl	$bootinfo,%edi
 	cmpl	$BOOTINFO_SIZE,%ecx
 	jbe	got_common_bi_size
 	movl	$BOOTINFO_SIZE,%ecx
@@ -420,12 +298,12 @@ got_common_bi_size:
 	movl	BI_NFS_DISKLESS(%ebx),%esi
 	cmpl	$0,%esi
 	je	olddiskboot
-	movl	$R(nfs_diskless),%edi
+	movl	$nfs_diskless,%edi
 	movl	$NFSDISKLESS_SIZE,%ecx
 	cld
 	rep
 	movsb
-	movl	$R(nfs_diskless_valid),%edi
+	movl	$nfs_diskless_valid,%edi
 	movl	$1,(%edi)
 #endif
 #endif
@@ -438,9 +316,9 @@ got_common_bi_size:
 	 */
 olddiskboot:
 	movl	8(%ebp),%eax
-	movl	%eax,R(boothowto)
+	movl	%eax,boothowto
 	movl	12(%ebp),%eax
-	movl	%eax,R(bootdev)
+	movl	%eax,bootdev
 
 	ret
 
@@ -478,16 +356,16 @@ identify_cpu:
 	divl	%ecx
 	jz	trynexgen
 	popfl
-	movl	$CPU_386,R(cpu)
+	movl	$CPU_386,cpu
 	jmp	3f
 
 trynexgen:
 	popfl
-	movl	$CPU_NX586,R(cpu)
-	movl	$0x4778654e,R(cpu_vendor)	# store vendor string
-	movl	$0x72446e65,R(cpu_vendor+4)
-	movl	$0x6e657669,R(cpu_vendor+8)
-	movl	$0,R(cpu_vendor+12)
+	movl	$CPU_NX586,cpu
+	movl	$0x4778654e,cpu_vendor		# store vendor string
+	movl	$0x72446e65,cpu_vendor+4
+	movl	$0x6e657669,cpu_vendor+8
+	movl	$0,cpu_vendor+12
 	jmp	3f
 
 try486:	/* Try to toggle identification flag; does not exist on early 486s. */
@@ -506,7 +384,7 @@ try486:	/* Try to toggle identification flag; does not exist on early 486s. */
 
 	testl	%eax,%eax
 	jnz	trycpuid
-	movl	$CPU_486,R(cpu)
+	movl	$CPU_486,cpu
 
 	/*
 	 * Check Cyrix CPU
@@ -533,248 +411,44 @@ trycyrix:
 	 * CPU, we couldn't distinguish it from Cyrix's (including IBM
 	 * brand of Cyrix CPUs).
 	 */
-	movl	$0x69727943,R(cpu_vendor)	# store vendor string
-	movl	$0x736e4978,R(cpu_vendor+4)
-	movl	$0x64616574,R(cpu_vendor+8)
+	movl	$0x69727943,cpu_vendor		# store vendor string
+	movl	$0x736e4978,cpu_vendor+4
+	movl	$0x64616574,cpu_vendor+8
 	jmp	3f
 
 trycpuid:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
 	cpuid					# cpuid 0
-	movl	%eax,R(cpu_high)		# highest capability
-	movl	%ebx,R(cpu_vendor)		# store vendor string
-	movl	%edx,R(cpu_vendor+4)
-	movl	%ecx,R(cpu_vendor+8)
-	movb	$0,R(cpu_vendor+12)
+	movl	%eax,cpu_high			# highest capability
+	movl	%ebx,cpu_vendor			# store vendor string
+	movl	%edx,cpu_vendor+4
+	movl	%ecx,cpu_vendor+8
+	movb	$0,cpu_vendor+12
 
 	movl	$1,%eax
 	cpuid					# cpuid 1
-	movl	%eax,R(cpu_id)			# store cpu_id
-	movl	%ebx,R(cpu_procinfo)		# store cpu_procinfo
-	movl	%edx,R(cpu_feature)		# store cpu_feature
-	movl	%ecx,R(cpu_feature2)		# store cpu_feature2
+	movl	%eax,cpu_id			# store cpu_id
+	movl	%ebx,cpu_procinfo		# store cpu_procinfo
+	movl	%edx,cpu_feature		# store cpu_feature
+	movl	%ecx,cpu_feature2		# store cpu_feature2
 	rorl	$8,%eax				# extract family type
 	andl	$15,%eax
 	cmpl	$5,%eax
 	jae	1f
 
 	/* less than Pentium; must be 486 */
-	movl	$CPU_486,R(cpu)
+	movl	$CPU_486,cpu
 	jmp	3f
 1:
 	/* a Pentium? */
 	cmpl	$5,%eax
 	jne	2f
-	movl	$CPU_586,R(cpu)
+	movl	$CPU_586,cpu
 	jmp	3f
 2:
 	/* Greater than Pentium...call it a Pentium Pro */
-	movl	$CPU_686,R(cpu)
+	movl	$CPU_686,cpu
 3:
-	ret
-
-
-/**********************************************************************
- *
- * Create the first page directory and its page tables.
- *
- */
-
-create_pagetables:
-
-/* Find end of kernel image (rounded up to a page boundary). */
-	movl	$R(_end),%esi
-
-/* Include symbols, if any. */
-	movl	R(bootinfo+BI_ESYMTAB),%edi
-	testl	%edi,%edi
-	je	over_symalloc
-	movl	%edi,%esi
-	movl	$KERNBASE,%edi
-	addl	%edi,R(bootinfo+BI_SYMTAB)
-	addl	%edi,R(bootinfo+BI_ESYMTAB)
-over_symalloc:
-
-/* If we are told where the end of the kernel space is, believe it. */
-	movl	R(bootinfo+BI_KERNEND),%edi
-	testl	%edi,%edi
-	je	no_kernend
-	movl	%edi,%esi
-no_kernend:
-
-	addl	$PDRMASK,%esi		/* Play conservative for now, and */
-	andl	$~PDRMASK,%esi		/* ... round up to PDR boundary */
-	movl	%esi,R(KERNend)		/* save end of kernel */
-	movl	%esi,R(physfree)	/* next free page is at end of kernel */
-
-/* Allocate Kernel Page Tables */
-	ALLOCPAGES(NKPT)
-	movl	%esi,R(KPTphys)
-	addl	$(KERNBASE-(KPTDI<<(PDRSHIFT-PAGE_SHIFT+PTESHIFT))),%esi
-	movl	%esi,R(KPTmap)
-
-/* Allocate Page Table Directory */
-#if defined(PAE) || defined(PAE_TABLES)
-	/* XXX only need 32 bytes (easier for now) */
-	ALLOCPAGES(1)
-	movl	%esi,R(IdlePDPT)
-#endif
-	ALLOCPAGES(NPGPTD)
-	movl	%esi,R(IdlePTD)
-
-/* Allocate KSTACK */
-	ALLOCPAGES(TD0_KSTACK_PAGES)
-	movl	%esi,R(p0kpa)
-	addl	$KERNBASE, %esi
-	movl	%esi, R(proc0kstack)
-
-	ALLOCPAGES(1)			/* vm86/bios stack */
-	movl	%esi,R(vm86phystk)
-
-	ALLOCPAGES(3)			/* pgtable + ext + IOPAGES */
-	movl	%esi,R(vm86pa)
-	addl	$KERNBASE, %esi
-	movl	%esi, R(vm86paddr)
-
-/*
- * Enable PSE and PGE.
- */
-#ifndef DISABLE_PSE
-	testl	$CPUID_PSE, R(cpu_feature)
-	jz	1f
-	movl	$PG_PS, R(pseflag)
-	movl	%cr4, %eax
-	orl	$CR4_PSE, %eax
-	movl	%eax, %cr4
-1:
-#endif
-#ifndef DISABLE_PG_G
-	testl	$CPUID_PGE, R(cpu_feature)
-	jz	2f
-	movl	$PG_G, R(pgeflag)
-	movl	%cr4, %eax
-	orl	$CR4_PGE, %eax
-	movl	%eax, %cr4
-2:
-#endif
-
-/*
- * Initialize page table pages mapping physical address zero through the
- * (physical) end of the kernel.  Many of these pages must be reserved,
- * and we reserve them all and map them linearly for convenience.  We do
- * this even if we've enabled PSE above; we'll just switch the corresponding
- * kernel PDEs before we turn on paging.
- *
- * XXX: We waste some pages here in the PSE case!
- *
- * This and all other page table entries allow read and write access for
- * various reasons.  Kernel mappings never have any access restrictions.
- */
-	xorl	%eax, %eax
-	movl	R(KERNend),%ecx
-	shrl	$PAGE_SHIFT,%ecx
-	fillkptphys($PG_RW)
-
-/* Map page table pages. */
-	movl	R(KPTphys),%eax
-	movl	$NKPT,%ecx
-	fillkptphys($PG_RW)
-
-/* Map page directory. */
-#if defined(PAE) || defined(PAE_TABLES)
-	movl	R(IdlePDPT), %eax
-	movl	$1, %ecx
-	fillkptphys($PG_RW)
-#endif
-
-	movl	R(IdlePTD), %eax
-	movl	$NPGPTD, %ecx
-	fillkptphys($PG_RW)
-
-/* Map proc0's KSTACK in the physical way ... */
-	movl	R(p0kpa), %eax
-	movl	$(TD0_KSTACK_PAGES), %ecx
-	fillkptphys($PG_RW)
-
-/* Map ISA hole */
-	movl	$ISA_HOLE_START, %eax
-	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	fillkptphys($PG_RW)
-
-/* Map space for the vm86 region */
-	movl	R(vm86phystk), %eax
-	movl	$4, %ecx
-	fillkptphys($PG_RW)
-
-/* Map page 0 into the vm86 page table */
-	movl	$0, %eax
-	movl	$0, %ebx
-	movl	$1, %ecx
-	fillkpt(R(vm86pa), $PG_RW|PG_U)
-
-/* ...likewise for the ISA hole */
-	movl	$ISA_HOLE_START, %eax
-	movl	$ISA_HOLE_START>>PAGE_SHIFT, %ebx
-	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	fillkpt(R(vm86pa), $PG_RW|PG_U)
-
-/*
- * Create an identity mapping for low physical memory, including the kernel.
- * This is only used to map the 2 instructions for jumping to 'begin' in
- * locore (we map everything to avoid having to determine where these
- * instructions are).  ACPI resume will transiently restore the first PDE in
- * this mapping (and depend on this PDE's page table created here not being
- * destroyed).  See pmap_bootstrap() for more details.
- *
- * Note:  There are errata concerning large pages and physical address zero,
- * so a PG_PS mapping should not be used for PDE 0.  Our double mapping
- * avoids this automatically by not using PG_PS for PDE #KPDI so that PAT
- * bits can be set at the page level for i/o pages below 1 MB.
- */
-	movl	R(KPTphys), %eax
-	xorl	%ebx, %ebx
-	movl	$NKPT, %ecx
-	fillkpt(R(IdlePTD), $PG_RW)
-
-/*
- * Install PDEs for PTs covering enough kva to bootstrap.  Then for the PSE
- * case, replace the PDEs whose coverage is strictly within the kernel
- * (between KERNLOAD (rounded up) and KERNend) by large-page PDEs.
- */
-	movl	R(KPTphys), %eax
-	movl	$KPTDI, %ebx
-	movl	$NKPT, %ecx
-	fillkpt(R(IdlePTD), $PG_RW)
-	cmpl	$0,R(pseflag)
-	je	done_pde
-
-	movl	R(KERNend), %ecx
-	movl	$(KERNLOAD + PDRMASK) & ~PDRMASK, %eax
-	subl	%eax, %ecx
-	shrl	$PDRSHIFT, %ecx
-	movl	$KPTDI + ((KERNLOAD + PDRMASK) >> PDRSHIFT), %ebx
-	shll	$PDESHIFT, %ebx
-	addl	R(IdlePTD), %ebx
-	orl	$(PG_V|PG_RW|PG_PS), %eax
-1:	movl	%eax, (%ebx)
-	addl	$(1 << PDRSHIFT), %eax
-	addl	$PDESIZE, %ebx
-	loop	1b
-
-done_pde:
-/* install a pde recursively mapping page directory as a page table */
-	movl	R(IdlePTD), %eax
-	movl	$PTDPTDI, %ebx
-	movl	$NPGPTD,%ecx
-	fillkpt(R(IdlePTD), $PG_RW)
-
-#if defined(PAE) || defined(PAE_TABLES)
-	movl	R(IdlePTD), %eax
-	xorl	%ebx, %ebx
-	movl	$NPGPTD, %ecx
-	fillkpt(R(IdlePDPT), $0x0)
-#endif
-
 	ret
 
 #ifdef XENHVM

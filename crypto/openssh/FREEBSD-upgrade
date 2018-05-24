@@ -17,7 +17,7 @@
 
 04) Copy to the vendor directory:
 
-    $ svn co svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist
+    $ svn co svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist
     $ rsync --archive --delete openssh-X.YpZ/ dist/
 
 05) Take care of added / deleted files:
@@ -32,13 +32,13 @@
 07) Tag:
 
     $ svn copy -m "Tag OpenSSH X.YpZ." \
-	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist \
-	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/X.YpZ
+	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist \
+	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/X.YpZ
 
 08) Check out head and run the pre-merge script, which strips our RCS
     tags from files that have them:
 
-    $ svn co svn+ssh://svn.freebsd.org/base/head
+    $ svn co svn+ssh://repo.freebsd.org/base/head
     $ cd head/crypto/openssh
     $ sh freebsd-pre-merge.sh
 
@@ -74,19 +74,16 @@
 0F) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
 
-10) Build libssh:
+10) Update ssh_namespace.h:
 
-    $ cd ../../secure/lib/libssh && make obj && make depend && make
+    $ sh freebsd-namespace.sh
 
-11) Follow the instructions in ssh_namespace.h to get a list of new
-    symbols, and them to ssh_namespace.h.  Keep it sorted!
-
-12) Build and install world, reboot, test.  Pay particular attention
+11) Build and install world, reboot, test.  Pay particular attention
     to pam_ssh(8), which gropes inside libssh and will break if
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-13) Commit, and hunker down for the inevitable storm of complaints.
+12) Commit, and hunker down for the inevitable storm of complaints.
 
 
 

@@ -75,6 +75,27 @@ extern "C" {
 #endif
 
 /**
+ * Indicate whether we are running on a POSIX platform.  This has
+ * implications on the way e.g. fsync() works.
+ *
+ * For details on this check, see
+ * http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system#POSIX
+ *
+ * @since New in 1.10.
+ */
+#ifndef SVN_ON_POSIX
+#if    !defined(_WIN32) \
+    && (   defined(__unix__) \
+        || defined(__unix) \
+        || (defined(__APPLE__) && defined(__MACH__)))  /* UNIX-style OS? */
+#  include <unistd.h>
+#  if defined(_POSIX_VERSION)
+#    define SVN_ON_POSIX
+#  endif
+#endif
+#endif
+
+/**
  * APR keeps a few interesting defines hidden away in its private
  * headers apr_arch_file_io.h, so we redefined them here.
  *
@@ -91,6 +112,28 @@ extern "C" {
 #ifndef apr_time_from_msec
 #define apr_time_from_msec(msec) ((apr_time_t)(msec) * 1000)
 #endif
+#endif
+
+/**
+ * APR 1 has volatile qualifier bugs in some atomic prototypes that
+ * are fixed in APR 2:
+ *   https://issues.apache.org/bugzilla/show_bug.cgi?id=50731
+ * Subversion code should put the volatile qualifier in the correct
+ * place when declaring variables which means that casting at the call
+ * site is necessary when using APR 1.  No casts should be used with
+ * APR 2 as this allows the compiler to check that the variable has
+ * the correct volatile qualifier.
+ */
+#if APR_VERSION_AT_LEAST(2,0,0)
+#define svn_atomic_casptr(mem, with, cmp) \
+  apr_atomic_casptr((mem), (with), (cmp))
+#define svn_atomic_xchgptr(mem, val) \
+  apr_atomic_xchgptr((mem), (val))
+#else
+#define svn_atomic_casptr(mem, with, cmp) \
+  apr_atomic_casptr((void volatile **)(mem), (with), (cmp))
+#define svn_atomic_xchgptr(mem, val) \
+  apr_atomic_xchgptr((void volatile **)(mem), (val))
 #endif
 
 /**

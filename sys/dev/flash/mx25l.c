@@ -124,6 +124,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "en25q64",	0x1c, 0x3017, 64 * 1024, 128, FL_ERASE_4K },
 	{ "m25p32",	0x20, 0x2016, 64 * 1024, 64, FL_NONE },
 	{ "m25p64",	0x20, 0x2017, 64 * 1024, 128, FL_NONE },
+	{ "mx25l1606e", 0xc2, 0x2015, 64 * 1024, 32, FL_ERASE_4K},
 	{ "mx25ll32",	0xc2, 0x2016, 64 * 1024, 64, FL_NONE },
 	{ "mx25ll64",	0xc2, 0x2017, 64 * 1024, 128, FL_NONE },
 	{ "mx25ll128",	0xc2, 0x2018, 64 * 1024, 256, FL_ERASE_4K | FL_ERASE_32K },

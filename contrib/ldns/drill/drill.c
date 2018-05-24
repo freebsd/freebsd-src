@@ -14,10 +14,21 @@
 #include <openssl/err.h>
 #endif
 
-#define IP6_ARPA_MAX_LEN 65
-
 /* query debug, 2 hex dumps */
 int		verbosity;
+
+static int
+is_ixfr_with_serial(const char* name, uint32_t *serial)
+{
+	char* end;
+	if (strlen(name) > 5 &&
+		strncasecmp(name, "IXFR", 4) == 0 &&
+		name[4] == '=') {
+		*serial = (uint32_t) strtol((name+5), &end, 10);
+		return 1;
+	}
+	return 0;
+}
 
 static void
 usage(FILE *stream, const char *progname)
@@ -31,7 +42,7 @@ usage(FILE *stream, const char *progname)
 	fprintf(stream, "\t-D\t\tenable DNSSEC (DO bit)\n");
 #ifdef HAVE_SSL
 	fprintf(stream, "\t-T\t\ttrace from the root down to <name>\n");
-	fprintf(stream, "\t-S\t\tchase signature(s) from <name> to a know key [*]\n");
+	fprintf(stream, "\t-S\t\tchase signature(s) from <name> to a known key [*]\n");
 #endif /*HAVE_SSL*/
 	fprintf(stream, "\t-I <address>\tsource address to query from\n");
 	fprintf(stream, "\t-V <number>\tverbosity (0-5)\n");
@@ -106,15 +117,14 @@ main(int argc, char *argv[])
         char 		*serv;
         char 		*src = NULL;
         const char 	*name;
-        char 		*name2;
 	char		*progname;
 	char 		*query_file = NULL;
 	char		*answer_file = NULL;
 	ldns_buffer	*query_buffer = NULL;
 	ldns_rdf 	*serv_rdf;
 	ldns_rdf 	*src_rdf = NULL;
-        ldns_rr_type 	type;
-        ldns_rr_class	clas;
+	ldns_rr_type 	type;
+	ldns_rr_class	clas;
 #if 0
 	ldns_pkt_opcode opcode = LDNS_PACKET_QUERY;
 #endif
@@ -130,7 +140,7 @@ main(int argc, char *argv[])
 	ldns_rr		*axfr_rr;
 	ldns_status	status;
 	char *type_str;
-	
+	uint32_t	serial = 0;
 	/* list of keys used in dnssec operations */
 	ldns_rr_list	*key_list = ldns_rr_list_new(); 
 	/* what key verify the current answer */
@@ -152,6 +162,9 @@ main(int argc, char *argv[])
 	ldns_rdf *trace_start_name = NULL;
 
 	int		result = 0;
+
+	uint8_t         s6addr[16];
+	char            ip6_arpa_str[74];
 
 #ifdef USE_WINSOCK
 	int r;
@@ -187,12 +200,6 @@ main(int argc, char *argv[])
 	key_verified = NULL;
 
 	ldns_init_random(NULL, 0);
-
-	if (argc == 0) {
-		usage(stdout, progname);
-		result = EXIT_FAILURE;
-		goto exit;
-	}
 
 	/* string from orig drill: "i:w:I46Sk:TNp:b:DsvhVcuaq:f:xr" */
 	/* global first, query opt next, option with parm's last
@@ -363,9 +370,7 @@ main(int argc, char *argv[])
 						tsig_algorithm[strlen(optarg) - tsig_separator2 - 1] = '\0';
 					} else {
 						tsig_separator2 = strlen(optarg);
-						tsig_algorithm = xmalloc(26);
-						strncpy(tsig_algorithm, "hmac-md5.sig-alg.reg.int.", 25);
-						tsig_algorithm[25] = '\0';
+						tsig_algorithm = strdup("hmac-md5.sig-alg.reg.int");
 					}
 					tsig_name = xmalloc(tsig_separator + 1);
 					tsig_data = xmalloc(tsig_separator2 - tsig_separator);
@@ -453,6 +458,10 @@ main(int argc, char *argv[])
 			if (type != 0) {
 				int_type = 0;
 				continue;
+			} else if (is_ixfr_with_serial(argv[i], &serial)) {
+				type = LDNS_RR_TYPE_IXFR;
+				int_type = 0;
+				continue;
 			}
 		}
 		/* if it matches a class, it's a class */
@@ -488,14 +497,20 @@ main(int argc, char *argv[])
 	if (src) {
 		src_rdf = ldns_rdf_new_addr_frm_str(src);
 		if(!src_rdf) {
-			fprintf(stderr, "-I must be (or resolve) to a valid IP[v6] address.\n");
+			fprintf(stderr, "-I must be a valid IP[v6] address.\n");
 			exit(EXIT_FAILURE);
+		}
+		if (ldns_rdf_size(src_rdf) == 4) {
+			qfamily = LDNS_RESOLV_INET;
+
+		} else if (ldns_rdf_size(src_rdf) == 16) {
+			qfamily = LDNS_RESOLV_INET6;
 		}
 	}
 
 	/* set the nameserver to use */
 	if (!serv) {
-		/* no server given make a resolver from /etc/resolv.conf */
+		/* no server given -- make a resolver from /etc/resolv.conf */
 		status = ldns_resolver_new_frm_file(&res, resolv_conf_file);
 		if (status != LDNS_STATUS_OK) {
 			warning("Could not create a resolver structure: %s (%s)\n"
@@ -516,7 +531,7 @@ main(int argc, char *argv[])
 		if (!serv_rdf) {
 			/* try to resolv the name if possible */
 			status = ldns_resolver_new_frm_file(&cmdline_res, resolv_conf_file);
-			
+
 			if (status != LDNS_STATUS_OK) {
 				error("%s", "@server ip could not be converted");
 			}
@@ -554,6 +569,7 @@ main(int argc, char *argv[])
 		}
 	}
 	/* set the resolver options */
+	ldns_resolver_set_ixfr_serial(res, serial);
 	ldns_resolver_set_port(res, qport);
 	ldns_resolver_set_source(res, src_rdf);
 	if (verbosity >= 5) {
@@ -581,6 +597,39 @@ main(int argc, char *argv[])
 	}
 
 	if (tsig_name && tsig_data) {
+		/* With dig TSIG keys are also specified with -y,
+		 * but format with drill is: -y <name:key[:algo]>
+		 *             and with dig: -y [hmac:]name:key
+		 *
+		 * When we detect an unknown tsig algorithm in algo,
+		 * but a known algorithm in name, we cane assume dig
+		 * order was used.
+		 *
+		 * Following if statement is to anticipate and correct dig order
+		 */
+		if (   strcasecmp(tsig_algorithm, "hmac-md5.sig-alg.reg.int")
+		    && strcasecmp(tsig_algorithm, "hmac-md5")
+		    && strcasecmp(tsig_algorithm, "hmac-sha1")
+		    && strcasecmp(tsig_algorithm, "hmac-sha256")
+		    && (
+		       strcasecmp(tsig_name, "hmac-md5.sig-alg.reg.int")  == 0
+		    || strcasecmp(tsig_name, "hmac-md5")                  == 0
+		    || strcasecmp(tsig_name, "hmac-sha1")                 == 0
+		    || strcasecmp(tsig_name, "hmac-sha256")               == 0
+		       )) {
+
+			/* Roll options */
+			char *tmp_tsig_algorithm = tsig_name;
+			tsig_name      = tsig_data;
+			tsig_data      = tsig_algorithm;
+			tsig_algorithm = tmp_tsig_algorithm;
+		}
+
+		if (strcasecmp(tsig_algorithm, "hmac-md5") == 0) {
+			free(tsig_algorithm);
+			tsig_algorithm = strdup("hmac-md5.sig-alg.reg.int");
+		}
+
 		ldns_resolver_set_tsig_keyname(res, tsig_name);
 		ldns_resolver_set_tsig_keydata(res, tsig_data);
 		ldns_resolver_set_tsig_algorithm(res, tsig_algorithm);
@@ -598,7 +647,7 @@ main(int argc, char *argv[])
 				error("%s", "parsing query name");
 			}
 			/* don't care about return packet */
-			(void)do_trace(res, qname, type, clas);
+			do_trace(res, qname, type, clas);
 			clear_root();
 			break;
 		case DRILL_SECTRACE:
@@ -650,8 +699,7 @@ main(int argc, char *argv[])
 					ldns_resolver_set_dnssec_anchors(res, ldns_rr_list_clone(key_list));
 					result = do_chase(res, qname, type,
 					                  clas, key_list, 
-					                  pkt, qflags, NULL,
-								   verbosity);
+					                  pkt, qflags, NULL);
 					if (result == LDNS_STATUS_OK) {
 						if (verbosity != -1) {
 							mesg("Chase successful");
@@ -682,7 +730,6 @@ main(int argc, char *argv[])
 			if (!qname) {
 				error("%s", "making qname");
 			}
-
 			status = ldns_resolver_prepare_query_pkt(&qpkt, res, qname, type, clas, qflags);
 			if(status != LDNS_STATUS_OK) {
 				error("%s", "making query: %s", 
@@ -696,55 +743,48 @@ main(int argc, char *argv[])
 		case DRILL_REVERSE:
 			/* ipv4 or ipv6 addr? */
 			if (strchr(name, ':')) {
-				if (strchr(name, '.')) {
-					error("Syntax error: both '.' and ':' seen in address\n");
+				if (!inet_pton(AF_INET6, name, &s6addr)) {
+					error("Syntax error: cannot parse IPv6 address\n");
 				}
-				name2 = malloc(IP6_ARPA_MAX_LEN + 20);
-				c = 0;
-				for (i=0; i<(int)strlen(name); i++) {
-					if (i >= IP6_ARPA_MAX_LEN) {
-						error("%s", "reverse argument to long");
-					}
-					if (name[i] == ':') {
-						if (i < (int) strlen(name) && name[i + 1] == ':') {
-							error("%s", ":: not supported (yet)");
-						} else {
-							if (i + 2 == (int) strlen(name) || name[i + 2] == ':') {
-								name2[c++] = '0';
-								name2[c++] = '.';
-								name2[c++] = '0';
-								name2[c++] = '.';
-								name2[c++] = '0';
-								name2[c++] = '.';
-							} else if (i + 3 == (int) strlen(name) || name[i + 3] == ':') {
-								name2[c++] = '0';
-								name2[c++] = '.';
-								name2[c++] = '0';
-								name2[c++] = '.';
-							} else if (i + 4 == (int) strlen(name) || name[i + 4] == ':') {
-								name2[c++] = '0';
-								name2[c++] = '.';
-							}
-						}
-					} else {
-						name2[c++] = name[i];
-						name2[c++] = '.';
-					}
-				}
-				name2[c++] = '\0';
+				(void) snprintf(ip6_arpa_str, sizeof(ip6_arpa_str),
+				    "%x.%x.%x.%x.%x.%x.%x.%x."
+				    "%x.%x.%x.%x.%x.%x.%x.%x."
+				    "%x.%x.%x.%x.%x.%x.%x.%x."
+				    "%x.%x.%x.%x.%x.%x.%x.%x.ip6.arpa.",
+				    (unsigned int)(s6addr[15] & 0x0F),
+				    (unsigned int)(s6addr[15] >> 4),
+				    (unsigned int)(s6addr[14] & 0x0F),
+				    (unsigned int)(s6addr[14] >> 4),
+				    (unsigned int)(s6addr[13] & 0x0F),
+				    (unsigned int)(s6addr[13] >> 4),
+				    (unsigned int)(s6addr[12] & 0x0F),
+				    (unsigned int)(s6addr[12] >> 4),
+				    (unsigned int)(s6addr[11] & 0x0F),
+				    (unsigned int)(s6addr[11] >> 4),
+				    (unsigned int)(s6addr[10] & 0x0F),
+				    (unsigned int)(s6addr[10] >> 4),
+				    (unsigned int)(s6addr[9] & 0x0F),
+				    (unsigned int)(s6addr[9] >> 4),
+				    (unsigned int)(s6addr[8] & 0x0F),
+				    (unsigned int)(s6addr[8] >> 4),
+				    (unsigned int)(s6addr[7] & 0x0F),
+				    (unsigned int)(s6addr[7] >> 4),
+				    (unsigned int)(s6addr[6] & 0x0F),
+				    (unsigned int)(s6addr[6] >> 4),
+				    (unsigned int)(s6addr[5] & 0x0F),
+				    (unsigned int)(s6addr[5] >> 4),
+				    (unsigned int)(s6addr[4] & 0x0F),
+				    (unsigned int)(s6addr[4] >> 4),
+				    (unsigned int)(s6addr[3] & 0x0F),
+				    (unsigned int)(s6addr[3] >> 4),
+				    (unsigned int)(s6addr[2] & 0x0F),
+				    (unsigned int)(s6addr[2] >> 4),
+				    (unsigned int)(s6addr[1] & 0x0F),
+				    (unsigned int)(s6addr[1] >> 4),
+				    (unsigned int)(s6addr[0] & 0x0F),
+				    (unsigned int)(s6addr[0] >> 4));
 
-				qname = ldns_dname_new_frm_str(name2);
-				qname_tmp = ldns_dname_reverse(qname);
-				ldns_rdf_deep_free(qname);
-				qname = qname_tmp;
-				qname_tmp = ldns_dname_new_frm_str("ip6.arpa.");
-				status = ldns_dname_cat(qname, qname_tmp);
-				if (status != LDNS_STATUS_OK) {
-					error("%s", "could not create reverse address for ip6: %s\n", ldns_get_errorstr_by_id(status));
-				}
-				ldns_rdf_deep_free(qname_tmp);
-
-				free(name2);
+				qname = ldns_dname_new_frm_str(ip6_arpa_str);
 			} else {
 				qname = ldns_dname_new_frm_str(name);
 				qname_tmp = ldns_dname_reverse(qname);
@@ -974,7 +1014,6 @@ main(int argc, char *argv[])
 	xfree(tsig_algorithm);
 
 #ifdef HAVE_SSL
-	ERR_remove_state(0);
 	CRYPTO_cleanup_all_ex_data();
 	ERR_free_strings();
 	EVP_cleanup();

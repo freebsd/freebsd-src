@@ -42,7 +42,7 @@ SUBDIR=	\
 	${_aout} \
 	${_apm} \
 	${_arcmsr} \
-	${_arcnet} \
+	${_allwinner} \
 	${_armv8crypto} \
 	${_asmc} \
 	ata \
@@ -92,7 +92,6 @@ SUBDIR=	\
 	cloudabi \
 	${_cloudabi32} \
 	${_cloudabi64} \
-	${_cm} \
 	${_cmx} \
 	${_coff} \
 	${_coretemp} \
@@ -122,6 +121,7 @@ SUBDIR=	\
 	${_ena} \
 	${_ep} \
 	${_epic} \
+	epoch_test \
 	esp \
 	${_et} \
 	evdev \
@@ -205,7 +205,6 @@ SUBDIR=	\
 	${_iwnfw} \
 	${_ix} \
 	${_ixv} \
-	${_ixgb} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
@@ -228,7 +227,6 @@ SUBDIR=	\
 	${_linux64} \
 	linuxkpi \
 	${_lio} \
-	lmc \
 	lpt \
 	mac_biba \
 	mac_bsdextended \
@@ -294,7 +292,6 @@ SUBDIR=	\
 	${_nvd} \
 	${_nvme} \
 	${_nvram} \
-	${_nxge} \
 	oce \
 	${_ocs_fc} \
 	otus \
@@ -357,6 +354,7 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
+	${_smartpqi} \
 	smbfs \
 	sn \
 	snp \
@@ -403,7 +401,6 @@ SUBDIR=	\
 	vr \
 	vte \
 	vx \
-	${_vxge} \
 	wb \
 	${_wbwd} \
 	${_wi} \
@@ -562,6 +559,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_allwinner=	allwinner
 _armv8crypto=	armv8crypto
 _efirt=		efirt
 _em=		em
@@ -621,7 +619,6 @@ _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
 _vmware=	vmware
-_vxge=  	vxge
 _wbwd=		wbwd
 _wi=		wi
 _xe=		xe
@@ -668,7 +665,6 @@ _ipw=		ipw
 _iwi=		iwi
 _iwm=		iwm
 _iwn=		iwn
-_ixgb=		ixgb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
 _iwifw=		iwifw
@@ -692,7 +688,6 @@ _nfe=		nfe
 _nvd=		nvd
 _nvme=		nvme
 _nvram=		nvram
-_nxge=		nxge
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
 _padlock_rng=	padlock_rng
@@ -731,6 +726,7 @@ _qlnx=		qlnx
 _sfxge=		sfxge
 _sgx=		sgx
 _sgx_linux=	sgx_linux
+_smartpqi=	smartpqi
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
@@ -744,7 +740,6 @@ _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _aic=		aic
 _apm=		apm
-_arcnet=	arcnet
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce
 .endif
@@ -763,7 +758,6 @@ _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni
 _stg=		stg
-_cm=		cm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif

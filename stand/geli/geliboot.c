@@ -121,14 +121,14 @@ geli_findkey(struct geli_entry *ge, struct dsk *dskp, u_char *mkey)
 	int i;
 
 	if (ge->keybuf_slot >= 0) {
-		if (g_eli_mkey_decrypt(&ge->md, saved_keys[ge->keybuf_slot],
+		if (g_eli_mkey_decrypt_any(&ge->md, saved_keys[ge->keybuf_slot],
 		    mkey, &keynum) == 0) {
 			return (0);
 		}
 	}
 
 	for (i = 0; i < nsaved_keys; i++) {
-		if (g_eli_mkey_decrypt(&ge->md, saved_keys[i], mkey,
+		if (g_eli_mkey_decrypt_any(&ge->md, saved_keys[i], mkey,
 		    &keynum) == 0) {
 			ge->keybuf_slot = i;
 			return (0);
@@ -266,7 +266,7 @@ geli_attach(struct geli_entry *ge, struct dsk *dskp, const char *passphrase,
 
 	g_eli_crypto_hmac_final(&ctx, key, 0);
 
-	error = g_eli_mkey_decrypt(&geli_e->md, key, mkey, &keynum);
+	error = g_eli_mkey_decrypt_any(&geli_e->md, key, mkey, &keynum);
 	if (error == -1) {
 		explicit_bzero(mkey, sizeof(mkey));
 		explicit_bzero(key, sizeof(key));

@@ -1891,3 +1891,4 @@ invalid_call(void)
 }
 
 DECLARE_GEOM_CLASS(g_virstor_class, g_virstor); /* Let there be light */
+MODULE_VERSION(geom_virstor, 0);

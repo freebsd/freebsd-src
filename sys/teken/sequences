@@ -48,6 +48,7 @@ CUF	Cursor Forward				^[ [ a		n
 CUP	Cursor Position				^[ [ H		n n
 CUP	Cursor Position				^[ [ f		n n
 CUU	Cursor Up				^[ [ A		n
+DECSCUSR	Set Cursor Style		^[ [ SP q	r
 DA1	Primary Device Attributes		^[ [ c		r
 DA2	Secondary Device Attributes		^[ [ > c	r
 DC	Delete character			^[ [ P		n

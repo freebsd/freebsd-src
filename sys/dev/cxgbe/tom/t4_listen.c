@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fnv_hash.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
+#include <netinet/cc/cc.h>
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -84,7 +86,8 @@ static struct listen_ctx *listen_hash_find(struct adapter *, struct inpcb *);
 static struct listen_ctx *listen_hash_del(struct adapter *, struct inpcb *);
 static struct inpcb *release_lctx(struct adapter *, struct listen_ctx *);
 
-static inline void save_qids_in_mbuf(struct mbuf *, struct vi_info *);
+static inline void save_qids_in_mbuf(struct mbuf *, struct vi_info *,
+    struct offload_settings *);
 static inline void get_qids_from_mbuf(struct mbuf *m, int *, int *);
 static void send_reset_synqe(struct toedev *, struct synq_entry *);
 
@@ -513,8 +516,16 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	struct inpcb *inp = tp->t_inpcb;
 	struct listen_ctx *lctx;
 	int i, rc, v;
+	struct offload_settings settings;
 
 	INP_WLOCK_ASSERT(inp);
+
+	rw_rlock(&sc->policy_lock);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_LISTEN, NULL, 0xffff,
+	    inp);
+	rw_runlock(&sc->policy_lock);
+	if (!settings.offload)
+		return (0);
 
 	/* Don't start a hardware listener for any loopback address. */
 	if (inp->inp_vflag & INP_IPV6 && IN6_IS_ADDR_LOOPBACK(&inp->in6p_laddr))
@@ -948,12 +959,22 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 }
 
 static inline void
-save_qids_in_mbuf(struct mbuf *m, struct vi_info *vi)
+save_qids_in_mbuf(struct mbuf *m, struct vi_info *vi,
+    struct offload_settings *s)
 {
 	uint32_t txqid, rxqid;
 
-	txqid = (arc4random() % vi->nofldtxq) + vi->first_ofld_txq;
-	rxqid = (arc4random() % vi->nofldrxq) + vi->first_ofld_rxq;
+	if (s->txq >= 0 && s->txq < vi->nofldtxq)
+		txqid = s->txq;
+	else
+		txqid = arc4random() % vi->nofldtxq;
+	txqid += vi->first_ofld_txq;
+
+	if (s->rxq >= 0 && s->rxq < vi->nofldrxq)
+		rxqid = s->rxq;
+	else
+		rxqid = arc4random() % vi->nofldrxq;
+	rxqid += vi->first_ofld_rxq;
 
 	m->m_pkthdr.flowid = (txqid << 16) | (rxqid & 0xffff);
 }
@@ -1019,50 +1040,88 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
  */
 static uint32_t
 calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
-    const struct tcp_options *tcpopt, struct tcphdr *th, int ulp_mode)
+	const struct tcp_options *tcpopt, struct tcphdr *th, int ulp_mode,
+	struct cc_algo *cc, const struct offload_settings *s)
 {
 	struct sge_ofld_rxq *ofld_rxq = &sc->sge.ofld_rxq[rxqid];
-	uint32_t opt2;
+	uint32_t opt2 = 0;
 
-	opt2 = V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]) |
-	    F_RSS_QUEUE_VALID | V_RSS_QUEUE(ofld_rxq->iq.abs_id);
-
-	if (V_tcp_do_rfc1323) {
-		if (tcpopt->tstamp)
-			opt2 |= F_TSTAMPS_EN;
-		if (tcpopt->sack)
-			opt2 |= F_SACK_EN;
-		if (tcpopt->wsf <= 14)
-			opt2 |= F_WND_SCALE_EN;
+	/*
+	 * rx flow control, rx coalesce, congestion control, and tx pace are all
+	 * explicitly set by the driver.  On T5+ the ISS is also set by the
+	 * driver to the value picked by the kernel.
+	 */
+	if (is_t4(sc)) {
+		opt2 |= F_RX_FC_VALID | F_RX_COALESCE_VALID;
+		opt2 |= F_CONG_CNTRL_VALID | F_PACE_VALID;
+	} else {
+		opt2 |= F_T5_OPT_2_VALID;	/* all 4 valid */
+		opt2 |= F_T5_ISS;		/* ISS provided in CPL */
 	}
 
-	if (V_tcp_do_ecn && th->th_flags & (TH_ECE | TH_CWR))
+	if (tcpopt->sack && (s->sack > 0 || (s->sack < 0 && V_tcp_do_rfc1323)))
+		opt2 |= F_SACK_EN;
+
+	if (tcpopt->tstamp &&
+	    (s->tstamp > 0 || (s->tstamp < 0 && V_tcp_do_rfc1323)))
+		opt2 |= F_TSTAMPS_EN;
+
+	if (tcpopt->wsf < 15 && V_tcp_do_rfc1323)
+		opt2 |= F_WND_SCALE_EN;
+
+	if (th->th_flags & (TH_ECE | TH_CWR) &&
+	    (s->ecn > 0 || (s->ecn < 0 && V_tcp_do_ecn)))
 		opt2 |= F_CCTRL_ECN;
 
-	/* RX_COALESCE is always a valid value (0 or M_RX_COALESCE). */
-	if (is_t4(sc))
-		opt2 |= F_RX_COALESCE_VALID;
+	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
+
+	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
+
+	/* These defaults are subject to ULP specific fixups later. */
+	opt2 |= V_RX_FC_DDP(0) | V_RX_FC_DISABLE(0);
+
+	opt2 |= V_PACE(0);
+
+	if (s->cong_algo >= 0)
+		opt2 |= V_CONG_CNTRL(s->cong_algo);
+	else if (sc->tt.cong_algorithm >= 0)
+		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
 	else {
-		opt2 |= F_T5_OPT_2_VALID;
-		opt2 |= F_T5_ISS;
+		if (strcasecmp(cc->name, "reno") == 0)
+			opt2 |= V_CONG_CNTRL(CONG_ALG_RENO);
+		else if (strcasecmp(cc->name, "tahoe") == 0)
+			opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		if (strcasecmp(cc->name, "newreno") == 0)
+			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
+		if (strcasecmp(cc->name, "highspeed") == 0)
+			opt2 |= V_CONG_CNTRL(CONG_ALG_HIGHSPEED);
+		else {
+			/*
+			 * Use newreno in case the algorithm selected by the
+			 * host stack is not supported by the hardware.
+			 */
+			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
+		}
 	}
-	if (sc->tt.rx_coalesce)
+
+	if (s->rx_coalesce > 0 || (s->rx_coalesce < 0 && sc->tt.rx_coalesce))
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
-	if (sc->tt.cong_algorithm != -1)
-		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
+	/* Note that ofld_rxq is already set according to s->rxq. */
+	opt2 |= F_RSS_QUEUE_VALID;
+	opt2 |= V_RSS_QUEUE(ofld_rxq->iq.abs_id);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (ulp_mode == ULP_MODE_TCPDDP)
-		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
+		opt2 |= F_RX_FC_DDP;
 #endif
+
 	if (ulp_mode == ULP_MODE_TLS) {
-		opt2 |= F_RX_FC_VALID;
 		opt2 &= ~V_RX_COALESCE(M_RX_COALESCE);
 		opt2 |= F_RX_FC_DISABLE;
 	}
 
-	return htobe32(opt2);
+	return (htobe32(opt2));
 }
 
 static void
@@ -1199,6 +1258,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
+	struct offload_settings settings;
 
 	KASSERT(opcode == CPL_PASS_ACCEPT_REQ,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
@@ -1334,15 +1394,23 @@ found:
 		REJECT_PASS_ACCEPT();
 	}
 	so = inp->inp_socket;
+	rw_rlock(&sc->policy_lock);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_PASSIVE, m, 0xffff, inp);
+	rw_runlock(&sc->policy_lock);
+	if (!settings.offload) {
+		INP_WUNLOCK(inp);
+		free(wr, M_CXGBE);
+		REJECT_PASS_ACCEPT();
+	}
 
-	mtu_idx = find_best_mtu_idx(sc, &inc, be16toh(cpl->tcpopt.mss));
+	mtu_idx = find_best_mtu_idx(sc, &inc, &settings);
 	rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ? select_rcv_wscale() : 0;
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	wnd = max(so->sol_sbrcv_hiwat, MIN_RCV_WND);
 	wnd = min(wnd, MAX_RCV_WND);
 	rx_credits = min(wnd >> 10, M_RCV_BUFSIZ);
 
-	save_qids_in_mbuf(m, vi);
+	save_qids_in_mbuf(m, vi, &settings);
 	get_qids_from_mbuf(m, NULL, &rxqid);
 
 	if (is_t4(sc))
@@ -1352,7 +1420,7 @@ found:
 
 		INIT_TP_WR_MIT_CPL(rpl5, CPL_PASS_ACCEPT_RPL, tid);
 	}
-	ulp_mode = select_ulp_mode(so, sc);
+	ulp_mode = select_ulp_mode(so, sc, &settings);
 	switch (ulp_mode) {
 	case ULP_MODE_TCPDDP:
 		synqe->flags |= TPF_SYNQE_TCPDDP;
@@ -1361,8 +1429,10 @@ found:
 		synqe->flags |= TPF_SYNQE_TLS;
 		break;
 	}
-	rpl->opt0 = calc_opt0(so, vi, e, mtu_idx, rscale, rx_credits, ulp_mode);
-	rpl->opt2 = calc_opt2p(sc, pi, rxqid, &cpl->tcpopt, &th, ulp_mode);
+	rpl->opt0 = calc_opt0(so, vi, e, mtu_idx, rscale, rx_credits, ulp_mode,
+	    &settings);
+	rpl->opt2 = calc_opt2p(sc, pi, rxqid, &cpl->tcpopt, &th, ulp_mode,
+	    CC_ALGO(intotcpcb(inp)), &settings);
 
 	synqe->tid = tid;
 	synqe->lctx = lctx;

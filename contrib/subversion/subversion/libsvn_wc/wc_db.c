@@ -1371,9 +1371,6 @@ init_db(/* output values */
 
   /* Create the database's schema.  */
   SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_SCHEMA));
-  SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_NODES));
-  SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_NODES_TRIGGERS));
-  SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_EXTERNALS));
 
   SVN_ERR(svn_wc__db_install_schema_statistics(db, scratch_pool));
 
@@ -6698,8 +6695,14 @@ svn_wc__db_op_mark_resolved_internal(svn_wc__db_wcroot_t *wcroot,
 
   conflict_data = svn_sqlite__column_blob(stmt, 2, &conflict_len,
                                           scratch_pool);
-  conflicts = svn_skel__parse(conflict_data, conflict_len, scratch_pool);
   SVN_ERR(svn_sqlite__reset(stmt));
+  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
+
+  if (!conflict_data)
+    return SVN_NO_ERROR;
+
+  conflicts = svn_skel__parse(conflict_data, conflict_len, scratch_pool);
+  
 
   SVN_ERR(svn_wc__conflict_skel_resolve(&resolved_all, conflicts,
                                         db, wcroot->abspath,
@@ -6730,8 +6733,6 @@ svn_wc__db_op_mark_resolved_internal(svn_wc__db_wcroot_t *wcroot,
       SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
-
-  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -10164,7 +10165,7 @@ db_read_repos_info(svn_revnum_t *revision,
                                                              local_relpath),
                                     result_pool);
             }
-          else
+          else if (base_del_relpath)
             {
               SVN_ERR(svn_wc__db_base_get_info_internal(NULL, NULL, revision,
                                                         repos_relpath,
@@ -10184,6 +10185,8 @@ db_read_repos_info(svn_revnum_t *revision,
                                                              local_relpath),
                                     result_pool);
             }
+          else
+            SVN_ERR_MALFUNCTION();
         }
       else if (status == svn_wc__db_status_excluded)
         {
@@ -10612,68 +10615,6 @@ svn_wc__db_prop_retrieve_recursive(apr_hash_t **values,
   svn_pool_destroy(iterpool);
 
   return svn_error_trace(svn_sqlite__reset(stmt));
-}
-
-/* The body of svn_wc__db_read_cached_iprops(). */
-static svn_error_t *
-db_read_cached_iprops(apr_array_header_t **iprops,
-                      svn_wc__db_wcroot_t *wcroot,
-                      const char *local_relpath,
-                      apr_pool_t *result_pool,
-                      apr_pool_t *scratch_pool)
-{
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb, STMT_SELECT_IPROPS));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-
-  if (!have_row)
-    {
-      return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND,
-                               svn_sqlite__reset(stmt),
-                               _("The node '%s' was not found."),
-                               path_for_error_message(wcroot, local_relpath,
-                                                      scratch_pool));
-    }
-
-  SVN_ERR(svn_sqlite__column_iprops(iprops, stmt, 0,
-                                    result_pool, scratch_pool));
-
-  SVN_ERR(svn_sqlite__reset(stmt));
-
-  return SVN_NO_ERROR;
-}
-
-svn_error_t *
-svn_wc__db_read_cached_iprops(apr_array_header_t **iprops,
-                              svn_wc__db_t *db,
-                              const char *local_abspath,
-                              apr_pool_t *result_pool,
-                              apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath,
-                                                db, local_abspath,
-                                                scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-
-  /* Don't use with_txn yet, as we perform just a single transaction */
-  SVN_ERR(db_read_cached_iprops(iprops, wcroot, local_relpath,
-                                result_pool, scratch_pool));
-
-  if (!*iprops)
-    {
-      *iprops = apr_array_make(result_pool, 0,
-                               sizeof(svn_prop_inherited_item_t *));
-    }
-
-  return SVN_NO_ERROR;
 }
 
 /* Remove all prop name value pairs from PROP_HASH where the property
@@ -11398,7 +11339,9 @@ relocate_txn(svn_wc__db_wcroot_t *wcroot,
 
   SVN_ERR(svn_wc__db_fetch_repos_info(NULL, &repos_uuid, wcroot,
                                       old_repos_id, scratch_pool));
-  SVN_ERR_ASSERT(repos_uuid);  /* This function affects all the children of the given local_relpath,
+  SVN_ERR_ASSERT(repos_uuid);
+
+  /* This function affects all the children of the given local_relpath,
      but the way that it does this is through the repos inheritance mechanism.
      So, we only need to rewrite the repos_id of the given local_relpath,
      as well as any children with a non-null repos_id, as well as various
@@ -11424,6 +11367,11 @@ relocate_txn(svn_wc__db_wcroot_t *wcroot,
       SVN_ERR(svn_sqlite__bindf(stmt, "ii", old_repos_id, new_repos_id));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
+
+  /* ### TODO: Update urls stored in inherited properties...
+               What about urls in conflicts?
+                 # We can probably keep these as they are only used
+                   for showing full urls to the user */
 
   return SVN_NO_ERROR;
 }
@@ -16628,3 +16576,47 @@ svn_wc__db_process_commit_queue(svn_wc__db_t *db,
 
   return SVN_NO_ERROR;
 }
+
+svn_error_t *
+svn_wc__find_repos_node_in_wc(apr_array_header_t **local_abspath_list,
+                              svn_wc__db_t *db,
+                              const char *wri_abspath,
+                              const char *repos_relpath,
+                              apr_pool_t *result_pool,
+                              apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *wri_relpath;
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &wri_relpath, db,
+                                                 wri_abspath, scratch_pool,
+                                                 scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_FIND_REPOS_PATH_IN_WC));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, repos_relpath));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+  *local_abspath_list = apr_array_make(result_pool, have_row ? 1 : 0,
+                                       sizeof(const char*));
+  while (have_row)
+    {
+      const char *local_relpath;
+      const char *local_abspath;
+
+      local_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      local_abspath = svn_dirent_join(wcroot->abspath, local_relpath,
+                                      result_pool);
+      APR_ARRAY_PUSH(*local_abspath_list, const char *) = local_abspath;
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+    
+  return svn_error_trace(svn_sqlite__reset(stmt));
+}
+

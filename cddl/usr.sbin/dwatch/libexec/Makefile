@@ -11,6 +11,7 @@ FILES=		chmod \
 		proc \
 		rw \
 		sched \
+		sendrecv \
 		tcp \
 		udp \
 		vop_create \
@@ -54,6 +55,12 @@ LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-sleep
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-surrender
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-tick
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-wakeup
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/recv
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/recvfrom
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/recvmsg
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/send
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendmsg
+LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendto
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-established
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-refused

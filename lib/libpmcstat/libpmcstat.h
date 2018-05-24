@@ -106,6 +106,8 @@ struct pmcstat_args {
 #define	FLAGS_HAS_CPUMASK		0x00040000	/* -c */
 #define	FLAG_HAS_DURATION		0x00080000	/* -l secs */
 #define	FLAG_DO_WIDE_GPROF_HC		0x00100000	/* -e */
+#define	FLAG_SKIP_TOP_FN_RES		0x00200000	/* -I */
+#define	FLAG_FILTER_THREAD_ID		0x00400000	/* -L */
 
 	int	pa_required;		/* required features */
 	int	pa_pplugin;		/* pre-processing plugin */
@@ -130,6 +132,7 @@ struct pmcstat_args {
 	int	pa_topcolor;		/* terminal support color */
 	int	pa_mergepmc;		/* merge PMC with same name */
 	double	pa_duration;		/* time duration */
+	uint32_t pa_tid;
 	int	pa_argc;
 	char	**pa_argv;
 	STAILQ_HEAD(, pmcstat_ev) pa_events;

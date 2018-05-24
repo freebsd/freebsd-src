@@ -4,7 +4,7 @@
 # Warning flags for compiling the kernel and components of the kernel:
 #
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
+		-Wmissing-prototypes -Wpointer-arith -Wcast-qual \
 		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
 		-Wno-unknown-pragmas \
@@ -18,12 +18,13 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # a false positive.
 .if ${COMPILER_TYPE} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-error-constant-conversion
-NO_WSHIFT_COUNT_NEGATIVE=	-Wno-error-shift-count-negative
-NO_WSHIFT_COUNT_OVERFLOW=	-Wno-error-shift-count-overflow
-NO_WSELF_ASSIGN=		-Wno-error-self-assign
+NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
+NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
+NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 NO_WCAST_QUAL=			-Wno-error-cast-qual
+NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
@@ -34,7 +35,7 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 CWARNEXTRA+=	-Wno-error-shift-negative-value
 .endif
 .if ${COMPILER_VERSION} >= 40000
-CWARNEXTRA+=	-Wno-error-address-of-packed-member
+CWARNEXTRA+=	-Wno-address-of-packed-member
 .endif
 
 CLANG_NO_IAS= -no-integrated-as
@@ -48,6 +49,7 @@ CLANG_NO_IAS34= -no-integrated-as
 .if ${COMPILER_VERSION} >= 40800
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler.
+NO_WUNUSED_BUT_SET_VARIABLE = -Wno-unused-but-set-variable
 CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=array-bounds				\
@@ -64,6 +66,9 @@ CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=nonnull-compare			\
 		-Wno-error=shift-overflow			\
 		-Wno-error=tautological-compare
+.endif
+.if ${COMPILER_VERSION} >= 80000
+CWARNEXTRA+=	-Wno-error=packed-not-aligned
 .endif
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
@@ -276,9 +281,13 @@ LD_EMULATION_armv6=armelf_fbsd
 LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
 LD_EMULATION_mips= elf32btsmip_fbsd
+LD_EMULATION_mipshf= elf32btsmip_fbsd
 LD_EMULATION_mips64= elf64btsmip_fbsd
+LD_EMULATION_mips64hf= elf64btsmip_fbsd
 LD_EMULATION_mipsel= elf32ltsmip_fbsd
+LD_EMULATION_mipselhf= elf32ltsmip_fbsd
 LD_EMULATION_mips64el= elf64ltsmip_fbsd
+LD_EMULATION_mips64elhf= elf64ltsmip_fbsd
 LD_EMULATION_mipsn32= elf32btsmipn32_fbsd
 LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing that works
 LD_EMULATION_powerpc= elf32ppc_fbsd

@@ -411,6 +411,7 @@ create_scn(struct elfcopy *ecp)
 			s->sz		= ish.sh_size;
 			s->align	= ish.sh_addralign;
 			s->type		= ish.sh_type;
+			s->flags	= ish.sh_flags;
 			s->vma		= ish.sh_addr;
 
 			/*

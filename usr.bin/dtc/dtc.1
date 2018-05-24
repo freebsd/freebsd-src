@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd January 17, 2018
+.Dd April 7, 2018
 .Dt DTC 1
 .Os
 .Sh NAME
@@ -275,7 +275,7 @@ tree when the overlay is applied.
 .Pp
 Much simpler syntactic sugar was later invented to simplify generating overlays.
 Instead of creating targetted fragments manually, one can instead create a root
-node that targets a label in the base node using the
+node that targets a label in the base FDT using the
 .Va &label
 syntax supported in conventional DTS.
 This will indicate that a fragment should be generated for the node, with the
@@ -283,6 +283,19 @@ given
 .Va label
 being the target, and the properties and child nodes will be used as the
 __overlay__.
+.Pp
+Additionally, a path-based version of this syntactic sugar is supported.
+A root node may target a path in the base FDT using a name of the form
+.Va &{/path} .
+A fragment will be generated for the node as it is in the
+.Va &label
+case, except the
+.Va target-path
+property will be set to
+.Va /path
+and no
+.Va target
+will be set.
 .Pp
 Both conventional overlays and the later-added syntactic sugar are supported.
 .Pp

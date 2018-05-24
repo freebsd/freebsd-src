@@ -219,8 +219,9 @@ struct ipsecstat {
 	uint64_t ips_out_inval;		/* output: generic error */
 	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
 
-	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
-	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
+	uint64_t ips_spdcache_hits;	/* SPD cache hits */
+	uint64_t ips_spdcache_misses;	/* SPD cache misses */
+
 	uint64_t ips_clcopied;		/* clusters copied during clone */
 	uint64_t ips_mbinserted;	/* mbufs inserted during makespace */
 	/* 

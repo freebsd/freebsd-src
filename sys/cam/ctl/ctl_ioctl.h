@@ -48,6 +48,7 @@
 #endif
 
 #include <sys/ioccom.h>
+#include <sys/nv.h>
 
 #define	CTL_DEFAULT_DEV		"/dev/cam/ctl"
 /*
@@ -316,39 +317,6 @@ typedef enum {
 
 #define	CTL_ERROR_STR_LEN	160
 
-#define	CTL_BEARG_RD		0x01
-#define	CTL_BEARG_WR		0x02
-#define	CTL_BEARG_RW		(CTL_BEARG_RD|CTL_BEARG_WR)
-#define	CTL_BEARG_ASCII		0x04
-
-/*
- * Backend Argument:
- *
- * namelen:	Length of the name field, including the terminating NUL.
- *
- * name:	Name of the parameter.  This must be NUL-terminated.
- *
- * flags:	Flags for the parameter, see above for values.
- *
- * vallen:	Length of the value in bytes, including the terminating NUL.
- *
- * value:	Value to be set/fetched. This must be NUL-terminated.
- *
- * kname:	For kernel use only.
- *
- * kvalue:	For kernel use only.
- */
-struct ctl_be_arg {
-	unsigned int	namelen;
-	char		*name;
-	int		flags;
-	unsigned int	vallen;
-	void		*value;
-
-	char		*kname;
-	void		*kvalue;
-};
-
 typedef enum {
 	CTL_LUNREQ_CREATE,
 	CTL_LUNREQ_RM,
@@ -524,11 +492,14 @@ struct ctl_lun_req {
 	char			backend[CTL_BE_NAME_LEN];
 	ctl_lunreq_type		reqtype;
 	union ctl_lunreq_data	reqdata;
-	int			num_be_args;
-	struct ctl_be_arg	*be_args;
+	void *			args;
+	nvlist_t *		args_nvl;
+	size_t			args_len;
+	void *			result;
+	nvlist_t *		result_nvl;
+	size_t			result_len;
 	ctl_lun_status		status;
 	char			error_str[CTL_ERROR_STR_LEN];
-	struct ctl_be_arg	*kern_be_args;
 };
 
 /*
@@ -617,11 +588,14 @@ typedef enum {
 struct ctl_req {
 	char			driver[CTL_DRIVER_NAME_LEN];
 	ctl_req_type		reqtype;
-	int			num_args;
-	struct ctl_be_arg	*args;
+	void *			args;
+	nvlist_t *		args_nvl;
+	size_t			args_len;
+	void *			result;
+	nvlist_t *		result_nvl;
+	size_t			result_len;
 	ctl_lun_status		status;
 	char			error_str[CTL_ERROR_STR_LEN];
-	struct ctl_be_arg	*kern_args;
 };
 
 /*

@@ -206,9 +206,8 @@ def _usage_exit(err=None):
   print("           Use static openssl")
   print("")
   print("  --vsnet-version=VER")
-  print("           generate for VS.NET version VER (2002, 2003, 2005, 2008,")
-  print("           2010, 2012, 2013 or 2015)")
-  print("           [only valid in combination with '-t vcproj']")
+  print("           generate for VS.NET version VER (2005-2017 or 9.0-15.0)")
+  print("           [implies '-t vcproj']")
   print("")
   print(" -D NAME[=value]")
   print("           define NAME macro during compilation")
@@ -304,6 +303,8 @@ if __name__ == '__main__':
       skip = 1
     elif opt == '-t':
       gentype = val
+    elif opt == '--vsnet-version':
+      gentype = 'vcproj'
     else:
       if opt == '--with-httpd':
         rest.add('--with-apr', os.path.join(val, 'srclib', 'apr'),

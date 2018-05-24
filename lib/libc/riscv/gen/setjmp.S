@@ -75,7 +75,7 @@ ENTRY(setjmp)
 	sd	ra, (12 * 8)(a0)
 	addi	a0, a0, (13 * 8)
 
-#ifndef SOFTFLOAT
+#ifdef __riscv_float_abi_double
 	/* Store the fpe registers */
 	fsd	fs0, (0 * 16)(a0)
 	fsd	fs1, (1 * 16)(a0)
@@ -144,7 +144,7 @@ ENTRY(longjmp)
 	ld	ra, (12 * 8)(a0)
 	addi	a0, a0, (13 * 8)
 
-#ifndef SOFTFLOAT
+#ifdef __riscv_float_abi_double
 	/* Restore the fpe registers */
 	fld	fs0, (0 * 16)(a0)
 	fld	fs1, (1 * 16)(a0)

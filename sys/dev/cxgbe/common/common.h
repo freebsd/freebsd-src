@@ -238,6 +238,7 @@ struct tp_params {
 
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
+	uint64_t hash_filter_mask;
 	__be16 err_vec_mask;
 
 	int8_t fcoe_shift;
@@ -370,6 +371,8 @@ struct adapter_params {
 				   resources for TOE operation. */
 	unsigned int bypass:1;	/* this is a bypass card */
 	unsigned int ethoffload:1;
+	unsigned int hash_filter:1;
+	unsigned int filter2_wr_support:1;
 
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
@@ -456,6 +459,11 @@ static inline int is_offload(const struct adapter *adap)
 static inline int is_ethoffload(const struct adapter *adap)
 {
 	return adap->params.ethoffload;
+}
+
+static inline int is_hashfilter(const struct adapter *adap)
+{
+	return adap->params.hash_filter;
 }
 
 static inline int chip_id(struct adapter *adap)

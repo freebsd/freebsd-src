@@ -438,8 +438,6 @@ write_type(void *arg1, void *arg2)
 			i++; /* count up enum members */
 
 		if (i > CTF_MAX_VLEN) {
-			warning("enum %s has too many values: %d > %d\n",
-			    tdesc_name(tp), i, CTF_MAX_VLEN);
 			i = CTF_MAX_VLEN;
 		}
 

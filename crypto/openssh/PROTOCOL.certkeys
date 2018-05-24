@@ -100,9 +100,9 @@ DSA certificate
 
 ECDSA certificate
 
-    string    "ecdsa-sha2-nistp256-v01@openssh.com" |
-              "ecdsa-sha2-nistp384-v01@openssh.com" |
-              "ecdsa-sha2-nistp521-v01@openssh.com"
+    string    "ecdsa-sha2-nistp256-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp384-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp521-cert-v01@openssh.com"
     string    nonce
     string    curve
     string    public_key
@@ -192,12 +192,13 @@ compatibility.
 The reserved field is currently unused and is ignored in this version of
 the protocol.
 
-signature key contains the CA key used to sign the certificate.
-The valid key types for CA keys are ssh-rsa, ssh-dss and the ECDSA types
-ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521. "Chained"
-certificates, where the signature key type is a certificate type itself
-are NOT supported. Note that it is possible for a RSA certificate key to
-be signed by a DSS or ECDSA CA key and vice-versa.
+The signature key field contains the CA key used to sign the
+certificate. The valid key types for CA keys are ssh-rsa,
+ssh-dss, ssh-ed25519 and the ECDSA types ecdsa-sha2-nistp256,
+ecdsa-sha2-nistp384, ecdsa-sha2-nistp521. "Chained" certificates, where
+the signature key type is a certificate type itself are NOT supported.
+Note that it is possible for a RSA certificate key to be signed by a
+Ed25519 or ECDSA CA key and vice-versa.
 
 signature is computed over all preceding fields from the initial string
 up to, and including the signature key. Signatures are computed and
@@ -222,6 +223,9 @@ The name field identifies the option and the data field encodes
 option-specific information (see below). All options are
 "critical", if an implementation does not recognise a option
 then the validating party should refuse to accept the certificate.
+
+Custom options should append the originating author or organisation's
+domain name to the option name, e.g. "my-option@example.com".
 
 No critical options are defined for host certificates at present. The
 supported user certificate options and the contents and structure of
@@ -254,6 +258,9 @@ as is the requirement that each name appear only once.
 If an implementation does not recognise an extension, then it should
 ignore it.
 
+Custom options should append the originating author or organisation's
+domain name to the option name, e.g. "my-option@example.com".
+
 No extensions are defined for host certificates at present. The
 supported user certificate extensions and the contents and structure of
 their data fields are:
@@ -284,4 +291,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.10 2016/05/03 10:27:59 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.13 2017/11/03 02:32:19 djm Exp $

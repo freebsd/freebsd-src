@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3521 2017-06-04 20:07:09Z jkoshy $");
+ELFTC_VCSID("$Id: elfdump.c 3584 2017-11-05 20:51:43Z jkoshy $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -915,7 +915,7 @@ elf_print_ar(struct elfdump *ed, int fd)
 	Elf_Arhdr	*arh;
 	Elf_Arsym	*arsym;
 	Elf_Cmd		 cmd;
-	char		 idx[10];
+	char		 idx[21];
 	size_t		 cnt, i;
 
 	ed->ar = ed->elf;
@@ -1496,7 +1496,7 @@ elf_print_symtab(struct elfdump *ed, int i)
 	struct section	*s;
 	const char	*name;
 	uint16_t	*vs;
-	char		 idx[10];
+	char		 idx[13];
 	Elf_Data	*data;
 	GElf_Sym	 sym;
 	int		 len, j, elferr, nvs;
@@ -1590,7 +1590,7 @@ elf_print_dynamic(struct elfdump *ed)
 {
 	struct section	*s;
 	const char	*name;
-	char		 idx[10];
+	char		 idx[13];
 	Elf_Data	*data;
 	GElf_Dyn	 dyn;
 	int		 elferr, i, len;
@@ -2052,7 +2052,7 @@ elf_print_note(struct elfdump *ed)
 	size_t		 count;
 	int		 elferr, i;
 	uint8_t		*src;
-	char		 idx[10];
+	char		 idx[17];
 
 	s = NULL;
 	for (i = 0; (size_t)i < ed->shnum; i++) {

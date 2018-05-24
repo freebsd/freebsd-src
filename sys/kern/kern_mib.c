@@ -90,11 +90,6 @@ SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
 #endif
 
-#ifdef EXT_RESOURCES
-SYSCTL_ROOT_NODE(OID_AUTO, clock, CTLFLAG_RW, 0,
-	"Clocks");
-#endif
-
 SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
     kern_ident, 0, "Kernel identifier");
 

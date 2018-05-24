@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2018
+.Dd May 1, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl G Ar port
 .Op Fl U Ar uuid
 .Ar vmname
 .Sh DESCRIPTION
@@ -125,6 +126,19 @@ kernels compiled with
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
+.It Fl G Ar port
+Start a debug server that uses the GDB protocol to export guest state to a
+debugger.
+An IPv4 TCP socket will be bound to the supplied
+.Ar port
+to listen for debugger connections.
+Only a single debugger may be attached to the debug server at a time.
+If
+.Ar port
+begins with
+.Sq w ,
+.Nm
+will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl h
 Print help message and exit.
 .It Fl H
@@ -438,6 +452,24 @@ Alphanumeric name of the guest.
 This should be the same as that created by
 .Xr bhyveload 8 .
 .El
+.Sh DEBUG SERVER
+The current debug server provides limited support for debuggers.
+.Ss Registers
+Each virtual CPU is exposed to the debugger as a thread.
+.Pp
+General purpose registers can be queried for each virtual CPU, but other
+registers such as floating-point and system registers cannot be queried.
+.Ss Memory
+Memory (including memory mapped I/O regions) can be read by the debugger,
+but not written.  Memory operations use virtual addresses that are resolved
+to physical addresses via the current virtual CPU's active address translation.
+.Ss Control
+The running guest can be interrupted by the debugger at any time
+.Pq for example, by pressing Ctrl-C in the debugger .
+.Pp
+Single stepping is only supported on Intel CPUs supporting the MTRAP VM exit.
+.Pp
+Breakpoints are not supported.
 .Sh SIGNAL HANDLING
 .Nm
 deals with the following signals:

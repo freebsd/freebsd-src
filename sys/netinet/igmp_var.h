@@ -214,7 +214,6 @@ struct igmp_ifsoftc {
 	uint32_t igi_qi;	/* IGMPv3 Query Interval (s) */
 	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
 	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
-	SLIST_HEAD(,in_multi)	igi_relinmhead; /* released groups */
 	struct mbufq	igi_gq;		/* general query responses queue */
 };
 

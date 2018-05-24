@@ -1082,7 +1082,7 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 					else
 						bp->b_blkno = blkno;
 				}
-				vfs_bio_clrbuf(bp);
+				clrbuf(bp);
 				if (bpp) {
 					*bpp = bp;
 					bpp = NULL;

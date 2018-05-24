@@ -44,10 +44,12 @@
 #ifndef VALIDATOR_VAL_SIGCRYPT_H
 #define VALIDATOR_VAL_SIGCRYPT_H
 #include "util/data/packed_rrset.h"
+#include "sldns/pkthdr.h"
 struct val_env;
 struct module_env;
+struct module_qstate;
 struct ub_packed_rrset_key;
-struct rbtree_t;
+struct rbtree_type;
 struct regional;
 struct sldns_buffer;
 
@@ -237,13 +239,16 @@ uint16_t dnskey_get_flags(struct ub_packed_rrset_key* k, size_t idx);
  * @param sigalg: if nonNULL provide downgrade protection otherwise one
  *   algorithm is enough.
  * @param reason: if bogus, a string returned, fixed or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return SECURE if one key in the set verifies one rrsig.
  *	UNCHECKED on allocation errors, unsupported algorithms, malformed data,
  *	and BOGUS on verification failures (no keys match any signatures).
  */
 enum sec_status dnskeyset_verify_rrset(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
-	struct ub_packed_rrset_key* dnskey, uint8_t* sigalg, char** reason);
+	struct ub_packed_rrset_key* dnskey, uint8_t* sigalg, char** reason,
+	sldns_pkt_section section, struct module_qstate* qstate);
 
 /** 
  * verify rrset against one specific dnskey (from rrset) 
@@ -253,12 +258,15 @@ enum sec_status dnskeyset_verify_rrset(struct module_env* env,
  * @param dnskey: DNSKEY rrset, keyset.
  * @param dnskey_idx: which key from the rrset to try.
  * @param reason: if bogus, a string returned, fixed or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return secure if *this* key signs any of the signatures on rrset.
  *	unchecked on error or and bogus on bad signature.
  */
 enum sec_status dnskey_verify_rrset(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
-	struct ub_packed_rrset_key* dnskey, size_t dnskey_idx, char** reason);
+	struct ub_packed_rrset_key* dnskey, size_t dnskey_idx, char** reason,
+	sldns_pkt_section section, struct module_qstate* qstate);
 
 /** 
  * verify rrset, with dnskey rrset, for a specific rrsig in rrset
@@ -271,13 +279,16 @@ enum sec_status dnskey_verify_rrset(struct module_env* env,
  * @param sortree: reused sorted order. Stored in region. Pass NULL at start,
  * 	and for a new rrset.
  * @param reason: if bogus, a string returned, fixed or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return secure if any key signs *this* signature. bogus if no key signs it,
  *	or unchecked on error.
  */
 enum sec_status dnskeyset_verify_rrset_sig(struct module_env* env, 
 	struct val_env* ve, time_t now, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, size_t sig_idx, 
-	struct rbtree_t** sortree, char** reason);
+	struct rbtree_type** sortree, char** reason, sldns_pkt_section section,
+	struct module_qstate* qstate);
 
 /** 
  * verify rrset, with specific dnskey(from set), for a specific rrsig 
@@ -295,6 +306,8 @@ enum sec_status dnskeyset_verify_rrset_sig(struct module_env* env,
  * 	pass false at start. pass old value only for same rrset and same
  * 	signature (but perhaps different key) for reuse.
  * @param reason: if bogus, a string returned, fixed or alloced in scratch.
+ * @param section: section of packet where this rrset comes from.
+ * @param qstate: qstate with region.
  * @return secure if this key signs this signature. unchecked on error or 
  *	bogus if it did not validate.
  */
@@ -302,7 +315,8 @@ enum sec_status dnskey_verify_rrset_sig(struct regional* region,
 	struct sldns_buffer* buf, struct val_env* ve, time_t now,
 	struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey, 
 	size_t dnskey_idx, size_t sig_idx,
-	struct rbtree_t** sortree, int* buf_canon, char** reason);
+	struct rbtree_type** sortree, int* buf_canon, char** reason,
+	sldns_pkt_section section, struct module_qstate* qstate);
 
 /**
  * canonical compare for two tree entries

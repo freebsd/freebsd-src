@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2011
+.Dd May 13, 2018
 .Dt COMPLEX 3
 .Os
 .Sh NAME
@@ -77,6 +77,10 @@ csqrt	complex square root
 .Cl
 cexp	exponential base e
 .El
+.Ss Natural logrithm Function
+.Cl
+clog	natural logrithm
+.El
 .\" Section 7.3.9 of ISO C99 standard
 .Ss Manipulation Functions
 .Cl
@@ -117,8 +121,6 @@ The
 functions described here conform to
 .St -isoC-99 .
 .Sh BUGS
-The logarithmic functions
-.Fn clog
-and the power functions
+The power functions
 .Fn cpow
 are not implemented.

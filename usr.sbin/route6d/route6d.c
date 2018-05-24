@@ -39,6 +39,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>

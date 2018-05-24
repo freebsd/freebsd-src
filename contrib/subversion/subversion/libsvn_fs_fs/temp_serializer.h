@@ -51,7 +51,7 @@ svn_fs_fs__noderev_deserialize(void *buffer,
 
 
 /**
- * Adds position information to the the raw window data in WINDOW.
+ * Adds position information to the raw window data in WINDOW.
  */
 typedef struct
 {
@@ -60,6 +60,9 @@ typedef struct
 
   /* the offset within the representation right after reading the window */
   apr_off_t end_offset;
+
+  /* svndiff version */
+  int ver;
 } svn_fs_fs__raw_cached_window_t;
 
 /**
@@ -156,6 +159,26 @@ svn_fs_fs__deserialize_properties(void **out,
                                   apr_pool_t *pool);
 
 /**
+ * Implements #svn_cache__serialize_func_t for a properties hash
+ * (@a in is an #apr_hash_t of svn_string_t elements, keyed by const char*).
+ */
+svn_error_t *
+svn_fs_fs__serialize_revprops(void **data,
+                              apr_size_t *data_len,
+                              void *in,
+                              apr_pool_t *pool);
+
+/**
+ * Implements #svn_cache__deserialize_func_t for a properties hash
+ * (@a *out is an #apr_hash_t of svn_string_t elements, keyed by const char*).
+ */
+svn_error_t *
+svn_fs_fs__deserialize_revprops(void **out,
+                                void *data,
+                                apr_size_t data_len,
+                                apr_pool_t *pool);
+
+/**
  * Implements #svn_cache__serialize_func_t for #svn_fs_id_t
  */
 svn_error_t *
@@ -192,7 +215,7 @@ svn_fs_fs__deserialize_node_revision(void **item,
                                      apr_pool_t *pool);
 
 /**
- * Implements #svn_cache__serialize_func_t for a directory contents array
+ * Implements #svn_cache__serialize_func_t for a #svn_fs_fs__dir_data_t
  */
 svn_error_t *
 svn_fs_fs__serialize_dir_entries(void **data,
@@ -201,7 +224,17 @@ svn_fs_fs__serialize_dir_entries(void **data,
                                  apr_pool_t *pool);
 
 /**
- * Implements #svn_cache__deserialize_func_t for a directory contents array
+ * Same as svn_fs_fs__serialize_dir_entries but allocates extra room for
+ * in-place modification.
+ */
+svn_error_t *
+svn_fs_fs__serialize_txndir_entries(void **data,
+                                    apr_size_t *data_len,
+                                    void *in,
+                                    apr_pool_t *pool);
+
+/**
+ * Implements #svn_cache__deserialize_func_t for a #svn_fs_fs__dir_data_t
  */
 svn_error_t *
 svn_fs_fs__deserialize_dir_entries(void **out,
@@ -221,9 +254,44 @@ svn_fs_fs__get_sharded_offset(void **out,
                               apr_pool_t *pool);
 
 /**
+ * Implements #svn_cache__partial_getter_func_t.
+ * Set (svn_filesize_t) @a *out to the filesize info stored with the
+ * serialized directory in @a data of @a data_len.  @a baton is unused.
+ */
+svn_error_t *
+svn_fs_fs__extract_dir_filesize(void **out,
+                                const void *data,
+                                apr_size_t data_len,
+                                void *baton,
+                                apr_pool_t *pool);
+
+/**
+ * Describes the entry to be found in a directory: Identifies the entry
+ * by @a name and requires the directory file size to be @a filesize.
+ */
+typedef struct extract_dir_entry_baton_t
+{
+  /** name of the directory entry to return */
+  const char *name;
+
+  /** Current length of the in-txn in-disk representation of the directory.
+   * SVN_INVALID_FILESIZE if unknown. */
+  svn_filesize_t txn_filesize;
+
+  /** Will be set by the callback.  If FALSE, the cached data is out of date.
+   * We need this indicator because the svn_cache__t interface will always
+   * report the lookup as a success (FOUND==TRUE) if the generic lookup was
+   * successful -- regardless of what the entry extraction callback does. */
+  svn_boolean_t out_of_date;
+} extract_dir_entry_baton_t;
+
+
+/**
  * Implements #svn_cache__partial_getter_func_t for a single
  * #svn_fs_dirent_t within a serialized directory contents hash,
- * identified by its name (const char @a *baton).
+ * identified by its name (in (extract_dir_entry_baton_t *) @a *baton).
+ * If the filesize specified in the baton does not match the cached
+ * value for this directory, @a *out will be NULL as well.
  */
 svn_error_t *
 svn_fs_fs__extract_dir_entry(void **out,
@@ -236,7 +304,10 @@ svn_fs_fs__extract_dir_entry(void **out,
  * Describes the change to be done to a directory: Set the entry
  * identify by @a name to the value @a new_entry. If the latter is
  * @c NULL, the entry shall be removed if it exists. Otherwise it
- * will be replaced or automatically added, respectively.
+ * will be replaced or automatically added, respectively.  The
+ * @a filesize allows readers to identify stale cache data (e.g.
+ * due to concurrent access to txns); writers use it to update the
+ * cached file size info.
  */
 typedef struct replace_baton_t
 {
@@ -245,6 +316,10 @@ typedef struct replace_baton_t
 
   /** directory entry to insert instead */
   svn_fs_dirent_t *new_entry;
+
+  /** Current length of the in-txn in-disk representation of the directory.
+   * SVN_INVALID_FILESIZE if unknown. */
+  svn_filesize_t txn_filesize;
 } replace_baton_t;
 
 /**
@@ -257,6 +332,17 @@ svn_fs_fs__replace_dir_entry(void **data,
                              apr_size_t *data_len,
                              void *baton,
                              apr_pool_t *pool);
+
+/**
+ * Implements #svn_cache__partial_setter_func_t for a #svn_fs_fs__dir_data_t
+ * at @a *data, resetting its txn_filesize field to SVN_INVALID_FILESIZE.
+ * &a baton should be NULL.
+ */
+svn_error_t *
+svn_fs_fs__reset_txn_filesize(void **data,
+                              apr_size_t *data_len,
+                              void *baton,
+                              apr_pool_t *pool);
 
 /**
  * Implements #svn_cache__serialize_func_t for a #svn_fs_fs__rep_header_t.
@@ -276,9 +362,34 @@ svn_fs_fs__deserialize_rep_header(void **out,
                                   apr_size_t data_len,
                                   apr_pool_t *pool);
 
+/*** Block of changes in a changed paths list. */
+typedef struct svn_fs_fs__changes_list_t
+{
+  /* Offset of the first element in CHANGES within the changed paths list
+     on disk. */
+  apr_off_t start_offset;
+
+  /* Offset of the first element behind CHANGES within the changed paths
+     list on disk. */
+  apr_off_t end_offset;
+
+  /* End of list reached? This may have false negatives in case the number
+     of elements in the list is a multiple of our block / range size. */
+  svn_boolean_t eol;
+
+  /* Array of #svn_fs_x__change_t * representing a consecutive sub-range of
+     elements in a changed paths list. */
+
+  /* number of entries in the array */
+  int count;
+
+  /* reference to the changes */
+  change_t **changes;
+
+} svn_fs_fs__changes_list_t;
+
 /**
- * Implements #svn_cache__serialize_func_t for an #apr_array_header_t of
- * #change_t *.
+ * Implements #svn_cache__serialize_func_t for a #svn_fs_fs__changes_list_t.
  */
 svn_error_t *
 svn_fs_fs__serialize_changes(void **data,
@@ -287,8 +398,7 @@ svn_fs_fs__serialize_changes(void **data,
                              apr_pool_t *pool);
 
 /**
- * Implements #svn_cache__deserialize_func_t for an #apr_array_header_t of
- * #change_t *.
+ * Implements #svn_cache__deserialize_func_t for a #svn_fs_fs__changes_list_t.
  */
 svn_error_t *
 svn_fs_fs__deserialize_changes(void **out,

@@ -150,6 +150,7 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("ashex")
@@ -265,6 +266,9 @@ HxReadAmlOutputFile (
  *              output file, but formatted into hex/ascii bytes suitable for
  *              inclusion into a C source file.
  *
+ *              Note: the base name of the hex output file is prepended to
+ *              all symbols as they are output to the file.
+ *
  ******************************************************************************/
 
 static void
@@ -276,17 +280,29 @@ HxDoHexOutputC (
     UINT32                  Offset = 0;
     UINT32                  AmlFileSize;
     UINT32                  i;
+    char                    *FileBasename;
 
+
+    /* Obtain the file basename (filename with no extension) */
+
+    FileBasename = FlGetFileBasename (Gbl_Files [ASL_FILE_HEX_OUTPUT].Filename);
 
     /* Get AML size, seek back to start */
 
     AmlFileSize = FlGetFileSize (ASL_FILE_AML_OUTPUT);
     FlSeekFile (ASL_FILE_AML_OUTPUT, 0);
 
+    /* Finish the file header and emit the non-data symbols */
+
     FlPrintFile (ASL_FILE_HEX_OUTPUT, " * C source code output\n");
     FlPrintFile (ASL_FILE_HEX_OUTPUT, " * AML code block contains 0x%X bytes\n *\n */\n",
         AmlFileSize);
-    FlPrintFile (ASL_FILE_HEX_OUTPUT, "unsigned char AmlCode[] =\n{\n");
+
+    FlPrintFile (ASL_FILE_HEX_OUTPUT, "#ifndef __%s_HEX__\n", FileBasename);
+    FlPrintFile (ASL_FILE_HEX_OUTPUT, "#define __%s_HEX__\n\n", FileBasename);
+
+    AcpiUtStrlwr (FileBasename);
+    FlPrintFile (ASL_FILE_HEX_OUTPUT, "unsigned char %s_aml_code[] =\n{\n", FileBasename);
 
     while (Offset < AmlFileSize)
     {
@@ -303,7 +319,7 @@ HxDoHexOutputC (
         for (i = 0; i < LineLength; i++)
         {
             /*
-             * Print each hex byte.
+             * Output each hex byte in the form: "0xnn,"
              * Add a comma until the very last byte of the AML file
              * (Some C compilers complain about a trailing comma)
              */
@@ -337,7 +353,8 @@ HxDoHexOutputC (
         Offset += LineLength;
     }
 
-    FlPrintFile (ASL_FILE_HEX_OUTPUT, "};\n");
+    FlPrintFile (ASL_FILE_HEX_OUTPUT, "};\n\n");
+    FlPrintFile (ASL_FILE_HEX_OUTPUT, "#endif\n");
 }
 
 

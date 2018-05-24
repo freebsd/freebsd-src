@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.126 2017/01/03 05:46:51 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.128 2017/11/28 21:10:22 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -130,7 +130,7 @@ send_msg(struct sftp_conn *conn, struct sshbuf *m)
 }
 
 static void
-get_msg(struct sftp_conn *conn, struct sshbuf *m)
+get_msg_extended(struct sftp_conn *conn, struct sshbuf *m, int initial)
 {
 	u_int msg_len;
 	u_char *p;
@@ -140,7 +140,7 @@ get_msg(struct sftp_conn *conn, struct sshbuf *m)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	if (atomicio6(read, conn->fd_in, p, 4,
 	    conn->limit_kbps > 0 ? sftpio : NULL, &conn->bwlimit_in) != 4) {
-		if (errno == EPIPE)
+		if (errno == EPIPE || errno == ECONNRESET)
 			fatal("Connection closed");
 		else
 			fatal("Couldn't read packet: %s", strerror(errno));
@@ -148,8 +148,12 @@ get_msg(struct sftp_conn *conn, struct sshbuf *m)
 
 	if ((r = sshbuf_get_u32(m, &msg_len)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if (msg_len > SFTP_MAX_MSG_LENGTH)
-		fatal("Received message too long %u", msg_len);
+	if (msg_len > SFTP_MAX_MSG_LENGTH) {
+		do_log2(initial ? SYSLOG_LEVEL_ERROR : SYSLOG_LEVEL_FATAL,
+		    "Received message too long %u", msg_len);
+		fatal("Ensure the remote shell produces no output "
+		    "for non-interactive sessions.");
+	}
 
 	if ((r = sshbuf_reserve(m, msg_len, &p)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
@@ -161,6 +165,12 @@ get_msg(struct sftp_conn *conn, struct sshbuf *m)
 		else
 			fatal("Read packet: %s", strerror(errno));
 	}
+}
+
+static void
+get_msg(struct sftp_conn *conn, struct sshbuf *m)
+{
+	get_msg_extended(conn, m, 0);
 }
 
 static void
@@ -406,7 +416,7 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 
 	sshbuf_reset(msg);
 
-	get_msg(ret, msg);
+	get_msg_extended(ret, msg, 1);
 
 	/* Expecting a VERSION reply */
 	if ((r = sshbuf_get_u8(msg, &type)) != 0)

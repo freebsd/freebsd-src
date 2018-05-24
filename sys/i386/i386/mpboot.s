@@ -37,8 +37,6 @@
 
 #include "assym.inc"
 
-#define	R(x)	((x)-KERNBASE)
-
 /*
  * this code MUST be enabled here and in mp_machdep.c
  * it follows the very early stages of AP boot by placing values in CMOS ram.
@@ -80,18 +78,14 @@ NON_GPROF_ENTRY(MPentry)
 	movl	$1,%eax
 	cpuid					/* Retrieve features */
 	movl	%cr4,%eax
-#ifndef DISABLE_PSE
 	testl	$CPUID_PSE,%edx
 	jz 1f
 	orl	$CR4_PSE,%eax			/* Enable PSE  */
 1:
-#endif
-#ifndef DISABLE_PG_G
 	testl	$CPUID_PGE,%edx
 	jz 1f
 	orl	$CR4_PGE,%eax			/* Enable PGE  */
 1:	
-#endif
 	testl	$CPUID_VME,%edx
 	jz 1f
 	orl	$CR4_VME,%eax			/* Enable VME  */
@@ -100,13 +94,13 @@ NON_GPROF_ENTRY(MPentry)
 
 	/* Now enable paging mode */
 #if defined(PAE) || defined(PAE_TABLES)
-	movl	R(IdlePDPT), %eax
+	movl	IdlePDPT, %eax
 	movl	%eax, %cr3
 	movl	%cr4, %eax
 	orl	$CR4_PAE, %eax
 	movl	%eax, %cr4
 #else
-	movl	R(IdlePTD), %eax
+	movl	IdlePTD, %eax
 	movl	%eax,%cr3	
 #endif
 	movl	%cr0,%eax

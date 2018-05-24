@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <machine/cpu.h>
 
-#if defined(__powerpc__) || defined(__mips__)
+#if defined(__powerpc__) || defined(__mips__) || defined(__i386__)
 #define NO_64BIT_ATOMICS
 #endif
 
@@ -345,6 +345,7 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	if (n >= space_available(r, os)) {
 		counter_u64_add(r->drops, n);
 		MPASS(os.flags != IDLE);
+		mtx_unlock(&r->lock);
 		if (os.flags == STALLED)
 			ifmp_ring_check_drainage(r, 0);
 		return (ENOBUFS);

@@ -3,10 +3,13 @@
 \
 \ Includes additional commands
 include /boot/loader.4th
+include /boot/efi.4th
 try-include /boot/loader.rc.local
 
 \ Reads and processes loader.conf variables
 initialize
+
+maybe-efi-resizecons
 
 \ Tests for password -- executes autoboot first if a password was defined
 check-password

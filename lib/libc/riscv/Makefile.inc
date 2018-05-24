@@ -3,10 +3,6 @@
 # Machine dependent definitions for the RISC-V architecture.
 #
 
-.if ${MACHINE_ARCH:Mriscv*sf} != ""
-CFLAGS+=-DSOFTFLOAT
-.endif
-
 # Long double is quad precision
 GDTOASRCS+=strtorQ.c
 SRCS+=machdep_ldisQ.c

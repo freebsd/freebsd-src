@@ -856,7 +856,7 @@ gpart_max_free(struct ggeom *geom, intmax_t *npartstart)
 	}
 
 	if (end - lastend > maxsize) {
-		maxsize = end - lastend - 1;
+		maxsize = end - lastend;
 		maxstart = lastend + 1;
 	}
 

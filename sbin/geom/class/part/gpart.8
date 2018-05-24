@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2018
+.Dd May 11, 2018
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -147,26 +147,14 @@ The first argument is the action to be taken:
 .It Cm add
 Add a new partition to the partitioning scheme given by
 .Ar geom .
-The partition begins on the logical block address given by the
-.Fl b Ar start
-option.
-Its size is given by the
-.Fl s Ar size
-option.
-SI unit suffixes are allowed.
-One or both
-.Fl b
-and
-.Fl s
-options can be omitted.
-If so they are automatically calculated.
-The type of the partition is given by the
-.Fl t Ar type
-option.
-Partition types are discussed below in the section entitled
-.Sx "PARTITION TYPES" .
+The partition type must be specified with
+.Fl t Ar type .
+The partition's location, size, and other attributes will be calculated
+automatically if the corresponding options are not specified.
 .Pp
-Additional options include:
+The
+.Cm add
+command accepts these options:
 .Bl -tag -width 12n
 .It Fl a Ar alignment
 If specified, then
@@ -178,6 +166,15 @@ offset and partition
 to be multiple of
 .Ar alignment
 value.
+.It Fl b Ar start
+The logical block address where the partition will begin.
+A SI unit suffix is allowed.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
 .It Fl i Ar index
 The index in the partition table at which the new partition is to be
 placed.
@@ -187,12 +184,15 @@ to represent the partition.
 The label attached to the partition.
 This option is only valid when used on partitioning schemes that support
 partition labels.
-.It Fl f Ar flags
-Additional operational flags.
-See the section entitled
-.Sx "OPERATIONAL FLAGS"
-below for a discussion
-about its use.
+.It Fl s Ar size
+Create a partition of size
+.Ar size .
+A SI unit suffix is allowed.
+.It Fl t Ar type
+Create a partition of type
+.Ar type .
+Partition types are discussed below in the section entitled
+.Sx "PARTITION TYPES" .
 .El
 .\" ==== BACKUP ====
 .It Cm backup
@@ -209,33 +209,42 @@ or write bootstrap code into a partition (using
 .Fl p Ar partcode
 and
 .Fl i Ar index ) .
+.Pp
+The
+.Cm bootcode
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl b Ar bootcode
+Embed bootstrap code from the file
+.Ar bootcode
+into the partitioning scheme's metadata for
+.Ar geom .
 Not all partitioning schemes have embedded bootstrap code, so the
 .Fl b Ar bootcode
 option is scheme-specific in nature (see the section entitled
 .Sx BOOTSTRAPPING
 below).
 The
-.Fl b Ar bootcode
-option specifies a file that contains the bootstrap code.
-The contents and size of the file are determined by the partitioning
-scheme.
-The
-.Fl p Ar partcode
-option specifies a file that contains the bootstrap code intended to be
-written to a partition.
-The partition is specified by the
-.Fl i Ar index
-option.
-The size of the file must be smaller than the size of the partition.
-.Pp
-Additional options include:
-.Bl -tag -width 10n
+.Ar bootcode
+file must match the partitioning scheme's requirements for file content
+and size.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specify the target partition for
+.Fl p Ar partcode .
+.It Fl p Ar partcode
+Write the bootstrap code from the file
+.Ar partcode
+into the
+.Ar geom
+partition specified by
+.Fl i Ar index .
+The size of the file must be smaller than the size of the partition.
 .El
 .\" ==== COMMIT ====
 .It Cm commit
@@ -256,14 +265,20 @@ action will write all pending changes to disk.
 .It Cm create
 Create a new partitioning scheme on a provider given by
 .Ar provider .
-The
+The scheme to use must be specified with the
 .Fl s Ar scheme
-option determines the scheme to use.
-The kernel must have support for a particular scheme before
-that scheme can be used to partition a disk.
+option.
 .Pp
-Additional options include:
+The
+.Cm create
+command accepts these options:
 .Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
 .It Fl n Ar entries
 The number of entries in the partition table.
 Every partitioning scheme has a minimum and maximum number of entries.
@@ -273,12 +288,10 @@ Some schemes have a maximum equal to the minimum and some schemes have
 a maximum large enough to be considered unlimited.
 By default, partition tables are created with the minimum number of
 entries.
-.It Fl f Ar flags
-Additional operational flags.
-See the section entitled
-.Sx "OPERATIONAL FLAGS"
-below for a discussion
-about its use.
+.It Fl s Ar scheme
+Specify the partitioning scheme to use.
+The kernel must have support for a particular scheme before
+that scheme can be used to partition a disk.
 .El
 .\" ==== DELETE ====
 .It Cm delete
@@ -289,7 +302,9 @@ and further identified by the
 option.
 The partition cannot be actively used by the kernel.
 .Pp
-Additional options include:
+The
+.cm delete
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl f Ar flags
 Additional operational flags.
@@ -297,13 +312,17 @@ See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be deleted.
 .El
 .\" ==== DESTROY ====
 .It Cm destroy
 Destroy the partitioning scheme as implemented by geom
 .Ar geom .
 .Pp
-Additional options include:
+The
+.Cm destroy
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl F
 Forced destroying of the partition table even if it is not empty.
@@ -322,16 +341,12 @@ and further identified by the
 .Fl i Ar index
 option.
 Only the type and/or label of the partition can be modified.
-To change the type of a partition, specify the new type with the
-.Fl t Ar type
-option.
-To change the label of a partition, specify the new label with the
-.Fl l Ar label
-option.
 Not all partitioning schemes support labels and it is invalid to
 try to change a partition label in such cases.
 .Pp
-Additional options include:
+The
+.Cm modify
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl f Ar flags
 Additional operational flags.
@@ -339,6 +354,14 @@ See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be modified.
+.It Fl l Ar label
+Change the partition label to
+.Ar label .
+.It Fl t Ar type
+Change the partition type to
+.Ar type .
 .El
 .\" ==== RECOVER ====
 .It Cm recover
@@ -348,7 +371,9 @@ See the section entitled
 .Sx RECOVERING
 below for the additional information.
 .Pp
-Additional options include:
+The
+.Cm recover
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl f Ar flags
 Additional operational flags.
@@ -364,24 +389,20 @@ Resize a partition from geom
 and further identified by the
 .Fl i Ar index
 option.
-New partition size is expressed in logical block
-numbers and can be given by the
-.Fl s Ar size
-option.
-If
-.Fl s
-option is omitted then new size is automatically calculated
-to maximum available from given geom
+If the new size is not specified it is automatically calculated
+to be the maximum available from
 .Ar geom .
 .Pp
-Additional options include:
+The
+.Cm resize
+command accepts these options:
 .Bl -tag -width 12n
 .It Fl a Ar alignment
 If specified, then
 .Nm
 utility tries to align partition
 .Ar size
-to be multiple of
+to be a multiple of the
 .Ar alignment
 value.
 .It Fl f Ar flags
@@ -390,6 +411,11 @@ See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be resized.
+.It Fl s Ar size
+Specifies the new size of the partition, in logical blocks.
+A SI unit suffix is allowed.
 .El
 .\" ==== RESTORE ====
 .It Cm restore
@@ -401,20 +427,22 @@ This action does not affect the content of partitions.
 After restoring the partition table and writing bootcode if needed,
 user data must be restored from backup.
 .Pp
-Additional options include:
+The
+.Cm restore
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl F
 Destroy partition table on the given
 .Ar provider
 before doing restore.
-.It Fl l
-Restore partition labels for partitioning schemes that support them.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl l
+Restore partition labels for partitioning schemes that support them.
 .El
 .\" ==== SET ====
 .It Cm set
@@ -423,14 +451,20 @@ See the section entitled
 .Sx ATTRIBUTES
 below for a list of available attributes.
 .Pp
-Additional options include:
+The
+.Cm set
+command accepts these options:
 .Bl -tag -width 10n
+.It Fl a Ar attrib
+Specifies the attribute to set.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specifies the index of the partition on which the attribute will be set.
 .El
 .\" ==== SHOW ====
 .It Cm show
@@ -442,7 +476,10 @@ the partition type, and a human readable partition size.
 Block sizes and locations are based on the device's Sectorsize
 as shown by
 .Cm gpart list .
-Additional options include:
+.Pp
+The
+.Cm show
+command accepts these options:
 .Bl -tag -width 10n
 .It Fl l
 For partitioning schemes that support partition labels, print them
@@ -466,14 +503,20 @@ See the section entitled
 .Sx ATTRIBUTES
 below for a list of available attributes.
 .Pp
-Additional options include:
+The
+.Cm unset
+command accepts these options:
 .Bl -tag -width 10n
+.It Fl a Ar attrib
+Specifies the attribute to clear.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl i Ar index
+Specifies the index of the partition on which the attribute will be cleared.
 .El
 .It Cm list
 See

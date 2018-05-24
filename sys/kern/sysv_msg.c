@@ -776,7 +776,7 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 	struct prison *rpr;
 	short next;
 #ifdef RACCT
-	size_t saved_msgsz;
+	size_t saved_msgsz = 0;
 #endif
 
 	rpr = msg_find_prison(td->td_ucred);

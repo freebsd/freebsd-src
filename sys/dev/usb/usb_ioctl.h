@@ -69,6 +69,7 @@ enum {
 	USB_TEMP_PHONE,		/* USB Phone */
 	USB_TEMP_SERIALNET,	/* USB CDC Ethernet and Modem */
 	USB_TEMP_MIDI,		/* USB MIDI */
+	USB_TEMP_MULTI,		/* USB Ethernet, serial, and storage */
 	USB_TEMP_MAX,
 };
 

@@ -95,6 +95,25 @@ osigcode:
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
+
+/*
+ * Our lcall $7,$0 handler remains in user mode (ring 3), since lcalls
+ * don't change the interrupt mask, so if this one went directly to the
+ * kernel then there would be a window with interrupts enabled in kernel
+ * mode, and all interrupt handlers would have to be almost as complicated
+ * as the NMI handler to support this.
+ *
+ * Instead, convert the lcall to an int0x80 call.  The kernel does most
+ * of the conversion by popping the lcall return values off the user
+ * stack and returning to them instead of to here, except when the
+ * conversion itself fails.  Adjusting the stack here is impossible for
+ * vfork() and harder for other syscalls.
+ */
+	ALIGN_TEXT
+lcall_tramp:
+	int	$0x80
+1:	jmp	1b
+
 #endif /* COMPAT_43 */
 
 	ALIGN_TEXT
@@ -113,4 +132,7 @@ szfreebsd4_sigcode:
 	.globl	szosigcode
 szosigcode:
 	.long	esigcode-osigcode
+	.globl	sz_lcall_tramp
+sz_lcall_tramp:
+	.long	esigcode-lcall_tramp
 #endif

@@ -1,7 +1,5 @@
 #!/usr/bin/awk
 #
-# $Id: mdoc2man.awk,v 1.9 2009/10/24 00:52:42 dtucker Exp $
-#
 # Version history:
 #  v4+ Adapted for OpenSSH Portable (see cvs Id and history)
 #  v3, I put the program under a proper license

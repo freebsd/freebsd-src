@@ -70,7 +70,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 {
 	struct unwind_state state;
 	int scp_offset;
-	register_t sp;
+	register_t sp, fp;
 	int depth;
 
 	depth = 0;
@@ -88,11 +88,15 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	state.pc = (uint64_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
-		if (unwind_frame(&state))
-			break;
-
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
 			break;
+
+		fp = state.fp;
+		state.sp = fp + 0x10;
+		/* FP to previous frame (X29) */
+		state.fp = *(register_t *)(fp);
+		/* LR (X30) */
+		state.pc = *(register_t *)(fp + 8) - 4;
 
 		/*
 		 * NB: Unlike some other architectures, we don't need to

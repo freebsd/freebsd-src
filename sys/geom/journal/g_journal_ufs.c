@@ -101,3 +101,4 @@ const struct g_journal_desc g_journal_ufs = {
 };
 
 MODULE_DEPEND(g_journal, ufs, 1, 1, 1);
+MODULE_VERSION(geom_journal, 0);

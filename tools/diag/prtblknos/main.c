@@ -31,6 +31,7 @@
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <libufs.h>
 
 union dinode {
@@ -48,11 +49,33 @@ main(argc, argv)
 	struct uufsd disk;
 	union dinode *dp;
 	struct fs *fs;
-	char *fsname;
-	int inonum, error;
+	struct stat sb;
+	struct statfs sfb;
+	char *xargv[4];
+	char ibuf[64];
+	char *fsname, *filename;
+	ino_t inonum;
+	int error;
 
+	filename = NULL;
+	if (argc == 2) {
+		filename = argv[1];
+		if (lstat(filename, &sb) != 0)
+			err(1, "stat(%s)", filename);
+		if (statfs(filename, &sfb) != 0)
+			err(1, "statfs(%s)", filename);
+		xargv[0] = argv[0];
+		xargv[1] = sfb.f_mntfromname;
+		sprintf(ibuf, "%jd", (intmax_t)sb.st_ino);
+		xargv[2] = ibuf;
+		xargv[3] = NULL;
+		argv = xargv;
+		argc = 3;
+	}
 	if (argc < 3) {
-		(void)fprintf(stderr,"usage: prtblknos filesystem inode ...\n");
+		(void)fprintf(stderr, "%s\n%s\n",
+		    "usage: prtblknos filename",
+		    "       prtblknos filesystem inode ...");
 		exit(1);
 	}
 
@@ -60,19 +83,24 @@ main(argc, argv)
 
 	/* get the superblock. */
 	if ((error = ufs_disk_fillout(&disk, fsname)) < 0)
-		errx(1, "Cannot find file system superblock on %s\n", fsname);
+		err(1, "Cannot access file system superblock on %s", fsname);
 	fs = (struct fs *)&disk.d_sb;
 
 	/* remaining arguments are inode numbers. */
 	while (*++argv) {
 		/* get the inode number. */
 		if ((inonum = atoi(*argv)) <= 0 ||
-		     inonum >= fs->fs_ipg * fs->fs_ncg)
-			errx(1, "%s is not a valid inode number", *argv);
-		(void)printf("%d:", inonum);
+		     inonum >= (ino_t)fs->fs_ipg * fs->fs_ncg)
+			warnx("%s is not a valid inode number", *argv);
+		if (filename == NULL)
+			(void)printf("inode #%jd: ", (intmax_t)inonum);
+		else
+			(void)printf("%s (inode #%jd): ", filename,
+			    (intmax_t)inonum);
 
 		if ((error = getino(&disk, (void **)&dp, inonum, NULL)) < 0)
-			err(1, "Read of inode %d on %s failed", inonum, fsname);
+			warn("Read of inode %jd on %s failed",
+			    (intmax_t)inonum, fsname);
 
 		prtblknos(&disk, dp);
 	}

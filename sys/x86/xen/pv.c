@@ -119,7 +119,7 @@ struct init_ops xen_init_ops = {
 #ifdef SMP
 	.start_all_aps			= xen_pv_start_all_aps,
 #endif
-	.msi_init =			xen_msi_init,
+	.msi_init			= xen_msi_init,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];

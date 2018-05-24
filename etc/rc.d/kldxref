@@ -24,8 +24,9 @@ kldxref_start() {
 	fi
 	IFS=';'
 	for MODULE_DIR in $MODULE_PATHS; do
-		if [ ! -f "$MODULE_DIR/linker.hints" ] ||
-		    checkyesno kldxref_clobber; then
+		if checkyesno kldxref_clobber ||
+		    [ ! -f "$MODULE_DIR/linker.hints" ] &&
+		    [ `echo ${MODULE_DIR}/*.ko` != "${MODULE_DIR}/*.ko" ]; then
 			echo "Building $MODULE_DIR/linker.hints"
 			kldxref "$MODULE_DIR"
 		fi

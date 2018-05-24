@@ -1,4 +1,4 @@
-# $Id: Makefile 3107 2014-12-20 08:31:58Z kaiwang27 $
+# $Id: Makefile 3608 2018-04-14 21:23:04Z jkoshy $
 
 TOP=	..
 
@@ -32,4 +32,6 @@ ${EXTRA_TARGETS}:	${PROG}
 .if ${OS_HOST} == "OpenBSD"
 CFLAGS+=	-I/usr/local/include
 LDFLAGS+=	-L/usr/local/lib
+.elif ${OS_HOST} == "DragonFly"
+LDADD+=	-lbz2
 .endif

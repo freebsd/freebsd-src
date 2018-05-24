@@ -791,10 +791,11 @@ copy_or_move(svn_boolean_t *record_move_on_delete,
             break; /* OK to add */
 
           default:
-            return svn_error_createf(SVN_ERR_ENTRY_EXISTS, NULL,
-                               _("There is already a versioned item '%s'"),
-                               svn_dirent_local_style(dst_abspath,
-                                                      scratch_pool));
+            if (!metadata_only)
+              return svn_error_createf(SVN_ERR_ENTRY_EXISTS, NULL,
+                                 _("There is already a versioned item '%s'"),
+                                 svn_dirent_local_style(dst_abspath,
+                                                        scratch_pool));
         }
   }
 
@@ -1104,8 +1105,8 @@ svn_wc__move2(svn_wc_context_t *wc_ctx,
     {
       svn_error_t *err;
 
-      err = svn_error_trace(svn_io_file_rename(src_abspath, dst_abspath,
-                                               scratch_pool));
+      err = svn_error_trace(svn_io_file_rename2(src_abspath, dst_abspath,
+                                                FALSE, scratch_pool));
 
       /* Let's try if we can keep wc.db consistent even when the move
          fails. Deleting the target is a wc.db only operation, while

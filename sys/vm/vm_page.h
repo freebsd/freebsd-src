@@ -93,10 +93,11 @@
  *
  *	In general, operations on this structure's mutable fields are
  *	synchronized using either one of or a combination of the lock on the
- *	object that the page belongs to (O), the pool lock for the page (P),
+ *	object that the page belongs to (O), the page lock (P),
  *	the per-domain lock for the free queues (F), or the page's queue
- *	lock (Q).  The queue lock for a page depends on the value of its
- *	queue field and described in detail below.  If a field is
+ *	lock (Q).  The physical address of a page is used to select its page
+ *	lock from a pool.  The queue lock for a page depends on the value of
+ *	its queue field and described in detail below.  If a field is
  *	annotated below with two of these locks, then holding either lock is
  *	sufficient for read access, but both locks are required for write
  *	access.  An annotation of (C) indicates that the field is immutable.
@@ -149,11 +150,12 @@
  *	The queue field is the index of the page queue containing the
  *	page, or PQ_NONE if the page is not enqueued.  The queue lock of a
  *	page is the page queue lock corresponding to the page queue index,
- *	or the page lock (P) for the page.  To modify the queue field, the
- *	queue lock for the old value of the field must be held.  It is
- *	invalid for a page's queue field to transition between two distinct
- *	page queue indices.  That is, when updating the queue field, either
- *	the new value or the old value must be PQ_NONE.
+ *	or the page lock (P) for the page if it is not enqueued.  To modify
+ *	the queue field, the queue lock for the old value of the field must
+ *	be held.  It is invalid for a page's queue field to transition
+ *	between two distinct page queue indices.  That is, when updating
+ *	the queue field, either the new value or the old value must be
+ *	PQ_NONE.
  *
  *	To avoid contention on page queue locks, page queue operations
  *	(enqueue, dequeue, requeue) are batched using per-CPU queues.
@@ -206,7 +208,7 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
-	uint8_t	queue;			/* page queue index (Q) */
+	volatile uint8_t queue;		/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
 	uint8_t	order;			/* index of the buddy queue (F) */
@@ -538,6 +540,7 @@ void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
+void vm_page_drain_pqbatch(void);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 bool vm_page_free_prep(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
@@ -782,43 +785,45 @@ vm_page_replace_checked(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 	(void)mret;
 }
 
+/*
+ *	vm_page_queue:
+ *
+ *	Return the index of the queue containing m.  This index is guaranteed
+ *	not to change while the page lock is held.
+ */
+static inline uint8_t
+vm_page_queue(vm_page_t m)
+{
+
+	vm_page_assert_locked(m);
+
+	if ((m->aflags & PGA_DEQUEUE) != 0)
+		return (PQ_NONE);
+	atomic_thread_fence_acq();
+	return (m->queue);
+}
+
 static inline bool
 vm_page_active(vm_page_t m)
 {
 
-	return (m->queue == PQ_ACTIVE);
+	return (vm_page_queue(m) == PQ_ACTIVE);
 }
 
 static inline bool
 vm_page_inactive(vm_page_t m)
 {
 
-	return (m->queue == PQ_INACTIVE);
+	return (vm_page_queue(m) == PQ_INACTIVE);
 }
 
 static inline bool
 vm_page_in_laundry(vm_page_t m)
 {
+	uint8_t queue;
 
-	return (m->queue == PQ_LAUNDRY || m->queue == PQ_UNSWAPPABLE);
-}
-
-/*
- *	vm_page_enqueued:
- *
- *	Return true if the page is logically enqueued and no deferred
- *	dequeue is pending.
- */
-static inline bool
-vm_page_enqueued(vm_page_t m)
-{
-
-	vm_page_assert_locked(m);
-
-	if ((m->aflags & PGA_DEQUEUE) != 0)
-		return (false);
-	atomic_thread_fence_acq();
-	return (m->queue != PQ_NONE);
+	queue = vm_page_queue(m);
+	return (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE);
 }
 
 /*

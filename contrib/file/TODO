@@ -31,6 +31,19 @@ could require structural changes to the matching code :-(
 # rule 2
 >0	....
 ...
+---
+- Merge the stat code dance in one place and keep it in one place
+  (perhaps struct buffer).
+- Enable seeking around if offset > nbytes if possible (the fd
+  is seekable).
+- We could use file_pipe2file more (for EOF offsets, CDF documents),
+  but that is expensive; perhaps we should provide a way to disable it
+- The implementation of struct buffer needs re-thinking and more work.
+  For example we don't always pass the fd in the child. This is not
+  important yet as we don't have yet cases where use/indirect magic
+  needs negative offsets.
+- Really the whole thing just needs here's an (offset, buffer, size)
+  you have (filebuffer, filebuffersize &&|| fd), fill the buffer with
+  data from offset. The buffer API should be changed to just do that.
 
 christos
-

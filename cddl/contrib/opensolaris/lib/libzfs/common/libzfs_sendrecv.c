@@ -2552,7 +2552,7 @@ again:
 					needagain = B_TRUE;
 				else
 					progress = B_TRUE;
-				sprintf(guidname, "%lu", thisguid);
+				sprintf(guidname, "%" PRIu64, thisguid);
 				nvlist_add_boolean(deleted, guidname);
 				continue;
 			}
@@ -2609,7 +2609,7 @@ again:
 				needagain = B_TRUE;
 			else
 				progress = B_TRUE;
-			sprintf(guidname, "%lu", parent_fromsnap_guid);
+			sprintf(guidname, "%" PRIu64, parent_fromsnap_guid);
 			nvlist_add_boolean(deleted, guidname);
 			continue;
 		}
@@ -2642,7 +2642,7 @@ again:
 		if (stream_parent_fromsnap_guid != 0 &&
                     parent_fromsnap_guid != 0 &&
                     stream_parent_fromsnap_guid != parent_fromsnap_guid) {
-			sprintf(guidname, "%lu", parent_fromsnap_guid);
+			sprintf(guidname, "%" PRIu64, parent_fromsnap_guid);
 			if (nvlist_exists(deleted, guidname)) {
 				progress = B_TRUE;
 				needagain = B_TRUE;

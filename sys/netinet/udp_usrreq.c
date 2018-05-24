@@ -836,6 +836,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
+	struct in_pcblist *il;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
 
@@ -873,10 +874,8 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return (error);
-
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == NULL)
-		return (ENOMEM);
+	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO_INVARIANTS);
+	inp_list = il->il_inp_list;
 
 	INP_INFO_RLOCK(&V_udbinfo);
 	for (inp = LIST_FIRST(V_udbinfo.ipi_listhead), i = 0; inp && i < n;
@@ -905,14 +904,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WLOCK(&V_udbinfo);
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (!in_pcbrele_rlocked(inp))
-			INP_RUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_udbinfo);
+	il->il_count = n;
+	il->il_pcbinfo = &V_udbinfo;
+	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
 
 	if (!error) {
 		/*
@@ -928,7 +922,6 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RUNLOCK(&V_udbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
-	free(inp_list, M_TEMP);
 	return (error);
 }
 
@@ -1572,6 +1565,7 @@ udp_abort(struct socket *so)
 static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
+	static uint32_t udp_flowid;
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 	int error;
@@ -1592,6 +1586,8 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	inp = sotoinpcb(so);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
+	inp->inp_flowid = atomic_fetchadd_int(&udp_flowid, 1);
+	inp->inp_flowtype = M_HASHTYPE_OPAQUE;
 
 	error = udp_newudpcb(inp);
 	if (error) {
@@ -1717,6 +1713,7 @@ udp_detach(struct socket *so)
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
 	KASSERT(up != NULL, ("%s: up == NULL", __func__));
+	/* XXX defer to epoch_call */
 	inp->inp_ppcb = NULL;
 	in_pcbdetach(inp);
 	in_pcbfree(inp);

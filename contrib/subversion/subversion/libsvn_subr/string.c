@@ -479,7 +479,7 @@ svn_stringbuf_set(svn_stringbuf_t *str, const char *value)
 {
   apr_size_t amt = strlen(value);
 
-  svn_stringbuf_ensure(str, amt);
+  membuf_ensure((void**) &str->data, &str->blocksize, amt + 1, str->pool);
   memcpy(str->data, value, amt + 1);
   str->len = amt;
 }
@@ -487,9 +487,7 @@ svn_stringbuf_set(svn_stringbuf_t *str, const char *value)
 void
 svn_stringbuf_setempty(svn_stringbuf_t *str)
 {
-  if (str->len > 0)
-    str->data[0] = '\0';
-
+  str->data[0] = '\0';
   str->len = 0;
 }
 
@@ -505,6 +503,27 @@ svn_stringbuf_chop(svn_stringbuf_t *str, apr_size_t nbytes)
   str->data[str->len] = '\0';
 }
 
+void
+svn_stringbuf_leftchop(svn_stringbuf_t *str, apr_size_t nbytes)
+{
+  if (str->len == 0)
+    return;
+
+  if (nbytes >= str->len)
+    {
+      str->len = 0;
+      *str->data = '\0';
+    }
+  else
+    {
+      /* Note: This will irretrievably waste nbytes of space in the
+         stringbuf's pool, but unlike the alternative of memmoving the
+         data, it's a constant-time operation. */
+      str->data += nbytes;
+      str->len -= nbytes;
+      str->blocksize -= nbytes;
+    }
+}
 
 svn_boolean_t
 svn_stringbuf_isempty(const svn_stringbuf_t *str)
@@ -723,6 +742,71 @@ svn_stringbuf_replace(svn_stringbuf_t *str,
 }
 
 
+apr_size_t
+svn_stringbuf_replace_all(svn_stringbuf_t *str,
+                          const char *to_find,
+                          const char *replacement)
+{
+  apr_size_t replacements = 0;
+
+  apr_size_t current = 0;
+  apr_size_t original_length = str->len;
+
+  apr_size_t to_copy;
+  apr_size_t to_find_len;
+  apr_size_t replacement_len;
+  apr_size_t new_length;
+
+  /* Early exit. */
+  const char *pos = strstr(str->data, to_find);
+  if (pos == NULL)
+    return 0;
+
+  to_find_len = strlen(to_find);
+  replacement_len = strlen(replacement);
+
+  /* We will store the new contents behind the NUL terminator of the current
+   * data and track the total length in STR->LEN to make the reallocation
+   * code preserve both bits.  However, we need to keep the NUL between them
+   * to make strstr stop at that boundary. */
+  ++str->len;
+
+  /* Find all occurrences of TO_FIND, copy the bits in between to the target,
+   * separated by REPLACEMENT. */
+  for ( ; pos; pos = strstr(str->data + current, to_find), ++replacements)
+    {
+      to_copy = pos - str->data - current;
+      svn_stringbuf_ensure(str, str->len + to_copy + replacement_len);
+
+      if (to_copy)
+        memcpy(str->data + str->len, str->data + current, to_copy);
+      current += to_copy + to_find_len;
+
+      str->len += to_copy;
+      memcpy(str->data + str->len, replacement, replacement_len);
+      str->len += replacement_len;
+    }
+
+  /* Copy remainder. */
+  to_copy = original_length - current;
+  if (to_copy)
+    {
+      svn_stringbuf_ensure(str, str->len + to_copy);
+      memcpy(str->data + str->len, str->data + current, to_copy);
+      str->len += to_copy;
+    }
+
+  /* Move new contents to the start of the buffer and terminate it. */
+  new_length = str->len - original_length - 1;
+  memmove(str->data, str->data + original_length + 1, new_length);
+  str->len = new_length;
+  str->data[new_length] = 0;
+
+  /* Done. */
+  return replacements;
+}
+
+
 svn_stringbuf_t *
 svn_stringbuf_dup(const svn_stringbuf_t *original_string, apr_pool_t *pool)
 {
@@ -751,13 +835,18 @@ svn_stringbuf_first_non_whitespace(const svn_stringbuf_t *str)
 void
 svn_stringbuf_strip_whitespace(svn_stringbuf_t *str)
 {
-  /* Find first non-whitespace character */
-  apr_size_t offset = svn_stringbuf_first_non_whitespace(str);
+  /* Skip (hide) whitespace at the beginning of the string. */
+  if (svn_ctype_isspace(str->data[0]))
+    {
+      /* Find first non-whitespace character */
+      apr_size_t offset = string_first_non_whitespace(str->data + 1,
+                                                      str->len - 1) + 1;
 
-  /* Go ahead!  Waste some RAM, we've got pools! :)  */
-  str->data += offset;
-  str->len -= offset;
-  str->blocksize -= offset;
+      /* Go ahead!  Waste some RAM, we've got pools! :)  */
+      str->data += offset;
+      str->len -= offset;
+      str->blocksize -= offset;
+    }
 
   /* Now that we've trimmed the front, trim the end, wasting more RAM. */
   while ((str->len > 0) && svn_ctype_isspace(str->data[str->len - 1]))
@@ -932,9 +1021,10 @@ int svn_cstring_count_newlines(const char *msg)
 }
 
 char *
-svn_cstring_join(const apr_array_header_t *strings,
-                 const char *separator,
-                 apr_pool_t *pool)
+svn_cstring_join2(const apr_array_header_t *strings,
+                  const char *separator,
+                  svn_boolean_t trailing_separator,
+                  apr_pool_t *pool)
 {
   svn_stringbuf_t *new_str = svn_stringbuf_create_empty(pool);
   size_t sep_len = strlen(separator);
@@ -943,9 +1033,14 @@ svn_cstring_join(const apr_array_header_t *strings,
   for (i = 0; i < strings->nelts; i++)
     {
       const char *string = APR_ARRAY_IDX(strings, i, const char *);
+      if (i > 0)
+        svn_stringbuf_appendbytes(new_str, separator, sep_len);
       svn_stringbuf_appendbytes(new_str, string, strlen(string));
-      svn_stringbuf_appendbytes(new_str, separator, sep_len);
     }
+
+  if (strings->nelts > 0 && trailing_separator)
+    svn_stringbuf_appendbytes(new_str, separator, sep_len);
+
   return new_str->data;
 }
 
@@ -1421,7 +1516,7 @@ svn_cstring__match_length(const char *a,
    * because A and B will probably have different alignment. So, skipping
    * the first few chars until alignment is reached is not an option.
    */
-  for (; pos + sizeof(apr_size_t) <= max_len; pos += sizeof(apr_size_t))
+  for (; max_len - pos >= sizeof(apr_size_t); pos += sizeof(apr_size_t))
     if (*(const apr_size_t*)(a + pos) != *(const apr_size_t*)(b + pos))
       break;
 

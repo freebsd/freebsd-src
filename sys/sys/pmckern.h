@@ -60,6 +60,8 @@
 #define	PMC_FN_USER_CALLCHAIN		9
 #define	PMC_FN_USER_CALLCHAIN_SOFT	10
 #define	PMC_FN_SOFT_SAMPLING		11
+#define	PMC_FN_THR_CREATE		12
+#define	PMC_FN_THR_EXIT			13
 
 #define	PMC_HR	0	/* Hardware ring buffer */
 #define	PMC_SR	1	/* Software ring buffer */
@@ -157,6 +159,15 @@ struct pmc_soft {
 	struct pmc_dyn_event_descr	ps_ev;
 };
 
+struct pmclog_buffer;
+
+struct pmc_domain_buffer_header {
+	struct mtx pdbh_mtx;
+	TAILQ_HEAD(, pmclog_buffer) pdbh_head;
+	struct pmclog_buffer *pdbh_plbs;
+	int pdbh_ncpus;
+} __aligned(CACHE_LINE_SIZE);
+
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
 extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
@@ -165,7 +176,7 @@ extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
 extern struct sx pmc_sx;
 
 /* Per-cpu flags indicating availability of sampling data */
-extern volatile cpuset_t pmc_cpumask;
+DPCPU_DECLARE(uint8_t, pmc_sampled);
 
 /* Count of system-wide sampling PMCs in existence */
 extern volatile int pmc_ss_count;
@@ -176,16 +187,19 @@ extern const int pmc_kernel_version;
 /* PMC soft per cpu trapframe */
 extern struct trapframe pmc_tf[MAXCPU];
 
+/* per domain buffer header list */
+extern struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
+
 /* Quick check if preparatory work is necessary */
 #define	PMC_HOOK_INSTALLED(cmd)	__predict_false(pmc_hook != NULL)
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
 do {						\
-	sx_slock(&pmc_sx);			\
+	epoch_enter_preempt(global_epoch_preempt);		\
 	if (pmc_hook != NULL)			\
 		(pmc_hook)((t), (cmd), (arg));	\
-	sx_sunlock(&pmc_sx);			\
+	epoch_exit_preempt(global_epoch_preempt);			\
 } while (0)
 
 /* Hook invocation that needs an exclusive lock */
@@ -220,7 +234,7 @@ do {						\
 #define	PMC_SYSTEM_SAMPLING_ACTIVE()		(pmc_ss_count > 0)
 
 /* Check if a CPU has recorded samples. */
-#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(CPU_ISSET(C, &pmc_cpumask)))
+#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(DPCPU_ID_GET((C), pmc_sampled)))
 
 /*
  * Helper functions.

@@ -259,6 +259,12 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
+#define bcopy(from, to, len) ({				\
+	if (__builtin_constant_p(len) && (len) <= 64)	\
+		__builtin_memmove((to), (from), (len));	\
+	else						\
+		bcopy((from), (to), (len));		\
+})
 void	bzero(void * _Nonnull buf, size_t len);
 #define bzero(buf, len) ({				\
 	if (__builtin_constant_p(len) && (len) <= 64)	\
@@ -269,6 +275,7 @@ void	bzero(void * _Nonnull buf, size_t len);
 void	explicit_bzero(void * _Nonnull, size_t);
 
 void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
+#define memcpy(to, from, len) __builtin_memcpy(to, from, len)
 void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 
 int	copystr(const void * _Nonnull __restrict kfaddr,
@@ -326,6 +333,8 @@ void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
+void	suspendclock(void);
+void	resumeclock(void);
 sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);

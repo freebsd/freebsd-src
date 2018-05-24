@@ -292,3 +292,4 @@ static struct g_class g_bde_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_bde_class, g_bde);
+MODULE_VERSION(geom_bde, 0);

@@ -145,8 +145,8 @@ struct pmc_mdep;
 #define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
 
 #define	PMC_IN_TRAP_HANDLER(PC) 			\
-	((PC) >= (uintptr_t) start_exceptions &&	\
-	 (PC) < (uintptr_t) end_exceptions)
+	((PC) >= (uintptr_t)start_exceptions + setidt_disp &&	\
+	 (PC) < (uintptr_t) end_exceptions + setidt_disp)
 
 #define	PMC_AT_FUNCTION_PROLOGUE_PUSH_BP(I)		\
 	(((I) & 0x00ffffff) == 0xe58955) /* pushl %ebp; movl %esp,%ebp */

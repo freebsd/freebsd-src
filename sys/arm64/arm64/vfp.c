@@ -170,6 +170,14 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 	KASSERT(pcb != NULL, ("NULL vfp pcb"));
 	KASSERT(td == NULL || td->td_pcb == pcb, ("Invalid vfp pcb"));
 
+	/* 
+	 * savectx() will be called on panic with dumppcb as an argument,
+	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
+	 * the VFP registers.
+	 */
+	if (pcb->pcb_fpusaved == NULL)
+		pcb->pcb_fpusaved = &pcb->pcb_fpustate;
+
 	if (td == NULL)
 		td = curthread;
 

@@ -218,6 +218,7 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
+TCPHPTS         opt_inet.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
@@ -311,6 +312,9 @@ NFS_ROOT	opt_nfsroot.h
 
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
+
+# Enable netdump(4) client support.
+NETDUMP 	opt_global.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
@@ -1005,3 +1009,6 @@ EKCD		opt_ekcd.h
 
 # NVME options
 NVME_USE_NVD	opt_nvme.h
+
+# amdsbwd options
+AMDSBWD_DEBUG	opt_amdsbwd.h

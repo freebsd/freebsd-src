@@ -44,6 +44,17 @@ zmalloc(size_t size)
 	return (ptr);
 }
 
+void *
+zrealloc(void *ptr, size_t size)
+{
+	void *newptr;
+
+	newptr = realloc(ptr, size);
+	if (newptr == NULL)
+		err(1, "realloc() failed");
+	return (newptr);
+}
+
 const char *
 brand_name(int brand)
 {

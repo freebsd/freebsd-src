@@ -79,11 +79,13 @@ enum {
 	ETH_MAX_INDEX,
 };
 
+#define	ETH_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	ETH_DEFAULT_PRODUCT_ID		0x27e1
 #define	ETH_DEFAULT_MAC			"2A02030405060789AB"
 #define	ETH_DEFAULT_CONTROL		"USB Ethernet Comm Interface"
 #define	ETH_DEFAULT_DATA		"USB Ethernet Data Interface"
 #define	ETH_DEFAULT_CONFIG		"Default Config"
-#define	ETH_DEFAULT_MANUFACTURER	"FreeBSD foundation"
+#define	ETH_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
 #define	ETH_DEFAULT_PRODUCT		"USB Ethernet Adapter"
 #define	ETH_DEFAULT_SERIAL_NUMBER	"December 2007"
 
@@ -217,8 +219,8 @@ static const struct usb_temp_interface_desc *eth_interfaces[] = {
 
 static const struct usb_temp_config_desc eth_config_desc = {
 	.ppIfaceDesc = eth_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = ETH_CONFIGURATION_INDEX,
 };
 
@@ -230,8 +232,8 @@ static const struct usb_temp_config_desc *eth_configs[] = {
 struct usb_temp_device_desc usb_template_cdce = {
 	.getStringDesc = &eth_get_string_desc,
 	.ppConfigDesc = eth_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0001,
+	.idVendor = ETH_DEFAULT_VENDOR_ID,
+	.idProduct = ETH_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,

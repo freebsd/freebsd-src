@@ -1,6 +1,6 @@
 # Chelsio T6 Factory Default configuration file.
 #
-# Copyright (C) 2014-2017 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2014-2015 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
 #   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
@@ -150,6 +150,9 @@
 	# TP_PARA_REG0
 	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
 
+	# ULPRX iSCSI Page Sizes
+	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K
+
 	# LE_DB_CONFIG
 	reg[0x19c04] = 0x00000000/0x00440000 # LE Server SRAM disabled
 					     # LE IPv4 compression disabled 
@@ -177,10 +180,10 @@
 						# iscsi force cmd mode.
 						# Enable iscsi cmp mode.
 	# MC configuration
-	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC, 2: enable BRBC
 
 	# HMA configuration
-	hma_size = 64			# Size (in MBs) of host memory expected
+	hma_size = 92 			# Size (in MBs) of host memory expected
 	hma_regions = stag,pbl,rq	# What all regions to place in host memory
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
@@ -409,7 +412,7 @@
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -571,7 +574,7 @@
 
 [fini]
 	version = 0x1425001c
-	checksum = 0x8136d0f8
+	checksum = 0x64f3def4
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

@@ -1,4 +1,4 @@
-/* $OpenBSD: dispatch.h,v 1.12 2015/01/19 20:07:45 markus Exp $ */
+/* $OpenBSD: dispatch.h,v 1.14 2017/05/31 07:00:13 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -36,15 +36,15 @@ enum {
 
 struct ssh;
 
-typedef int dispatch_fn(int, u_int32_t, void *);
+typedef int dispatch_fn(int, u_int32_t, struct ssh *);
 
-int	dispatch_protocol_error(int, u_int32_t, void *);
-int	dispatch_protocol_ignore(int, u_int32_t, void *);
+int	dispatch_protocol_error(int, u_int32_t, struct ssh *);
+int	dispatch_protocol_ignore(int, u_int32_t, struct ssh *);
 void	ssh_dispatch_init(struct ssh *, dispatch_fn *);
 void	ssh_dispatch_set(struct ssh *, int, dispatch_fn *);
 void	ssh_dispatch_range(struct ssh *, u_int, u_int, dispatch_fn *);
-int	ssh_dispatch_run(struct ssh *, int, volatile sig_atomic_t *, void *);
-void	ssh_dispatch_run_fatal(struct ssh *, int, volatile sig_atomic_t *, void *);
+int	ssh_dispatch_run(struct ssh *, int, volatile sig_atomic_t *);
+void	ssh_dispatch_run_fatal(struct ssh *, int, volatile sig_atomic_t *);
 
 #define dispatch_init(dflt) \
 	ssh_dispatch_init(active_state, (dflt))
@@ -52,7 +52,5 @@ void	ssh_dispatch_run_fatal(struct ssh *, int, volatile sig_atomic_t *, void *);
 	ssh_dispatch_range(active_state, (from), (to), (fn))
 #define dispatch_set(type, fn) \
 	ssh_dispatch_set(active_state, (type), (fn))
-#define dispatch_run(mode, done, ctxt) \
-	ssh_dispatch_run_fatal(active_state, (mode), (done), (ctxt))
 
 #endif

@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/undefined.h>
 #include <machine/vmparam.h>
 
+#include <arm/include/physmem.h>
+
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
@@ -101,13 +103,8 @@ struct pcpu __pcpu[MAXCPU];
 
 static struct trapframe proc0_tf;
 
-vm_paddr_t phys_avail[PHYS_AVAIL_SIZE + 2];
-vm_paddr_t dump_avail[PHYS_AVAIL_SIZE + 2];
-
 int early_boot = 1;
 int cold = 1;
-long realmem = 0;
-long Maxmem = 0;
 
 #define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
 vm_paddr_t physmap[PHYSMAP_SIZE];
@@ -898,6 +895,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 			continue;
 		}
 
+		arm_physmem_hardware_region(p->md_phys,
+		    p->md_pages * PAGE_SIZE);
 		if (!add_physmap_entry(p->md_phys, (p->md_pages * PAGE_SIZE),
 		    physmap, physmap_idxp))
 			break;
@@ -1026,9 +1025,7 @@ initarm(struct arm64_bootparams *abp)
 #endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
-	vm_paddr_t mem_len;
 	bool valid;
-	int i;
 
 	/* Set the module data location */
 	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
@@ -1064,18 +1061,9 @@ initarm(struct arm64_bootparams *abp)
 			panic("Cannot get physical memory regions");
 		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
 		    &physmap_idx);
+		arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 	}
 #endif
-
-	/* Print the memory map */
-	mem_len = 0;
-	for (i = 0; i < physmap_idx; i += 2) {
-		dump_avail[i] = physmap[i];
-		dump_avail[i + 1] = physmap[i + 1];
-		mem_len += physmap[i + 1] - physmap[i];
-	}
-	dump_avail[i] = 0;
-	dump_avail[i + 1] = 0;
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
@@ -1100,6 +1088,7 @@ initarm(struct arm64_bootparams *abp)
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
 	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
+	arm_physmem_init_kernel_globals();
 
 	devmap_bootstrap(0, NULL);
 

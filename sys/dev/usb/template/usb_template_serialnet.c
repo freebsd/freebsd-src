@@ -88,14 +88,22 @@ enum {
 	SERIALNET_MAX_INDEX,
 };
 
-#define	SERIALNET_DEFAULT_MODEM		"USB Modem Interface"
+#define	SERIALNET_DEFAULT_VENDOR_ID	USB_TEMPLATE_VENDOR
+#define	SERIALNET_DEFAULT_PRODUCT_ID	0x05dc
+#define	SERIALNET_DEFAULT_MODEM		"Virtual serial port"
 #define	SERIALNET_DEFAULT_ETH_MAC	"2A02030405060789AB"
 #define	SERIALNET_DEFAULT_ETH_CONTROL	"USB Ethernet Comm Interface"
 #define	SERIALNET_DEFAULT_ETH_DATA	"USB Ethernet Data Interface"
 #define	SERIALNET_DEFAULT_CONFIGURATION	"Default configuration"
-#define	SERIALNET_DEFAULT_MANUFACTURER	"The FreeBSD Project"
-#define SERIALNET_DEFAULT_PRODUCT	"SERIALNET"
-#define SERIALNET_DEFAULT_SERIAL_NUMBER	"January 2015"
+#define	SERIALNET_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	SERIALNET_DEFAULT_PRODUCT	"Serial/Ethernet device"
+/*
+ * The reason for this being called like this is that OSX
+ * derives the device node name from it, resulting in a somewhat
+ * user-friendly "/dev/cu.usbmodemFreeBSD1".  And yes, the "1"
+ * needs to be there, otherwise OSX will mangle it.
+ */
+#define SERIALNET_DEFAULT_SERIAL_NUMBER	"FreeBSD1"
 
 static struct usb_string_descriptor	serialnet_modem;
 static struct usb_string_descriptor	serialnet_eth_mac;
@@ -296,7 +304,7 @@ static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppEndpoints = modem_iface_0_ep,
 	.bInterfaceClass = UICLASS_CDC,
 	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
-	.bInterfaceProtocol = UIPROTO_CDC_AT,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
 	.iInterface = SERIALNET_MODEM_INDEX,
 };
 
@@ -319,8 +327,8 @@ static const struct usb_temp_interface_desc *serialnet_interfaces[] = {
 
 static const struct usb_temp_config_desc serialnet_config_desc = {
 	.ppIfaceDesc = serialnet_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = SERIALNET_CONFIGURATION_INDEX,
 };
 static const struct usb_temp_config_desc *serialnet_configs[] = {
@@ -331,8 +339,8 @@ static const struct usb_temp_config_desc *serialnet_configs[] = {
 struct usb_temp_device_desc usb_template_serialnet = {
 	.getStringDesc = &serialnet_get_string_desc,
 	.ppConfigDesc = serialnet_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0001,
+	.idVendor = SERIALNET_DEFAULT_VENDOR_ID,
+	.idProduct = SERIALNET_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
@@ -405,7 +413,7 @@ serialnet_init(void *arg __unused)
 	parent = SYSCTL_ADD_NODE(&serialnet_ctx_list,
 	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
 	    parent_name, CTLFLAG_RW,
-	    0, "USB Mass Storage device side template");
+	    0, "USB CDC Serial/Ethernet device side template");
 	SYSCTL_ADD_U16(&serialnet_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "vendor_id", CTLFLAG_RWTUN,
 	    &usb_template_serialnet.idVendor, 1, "Vendor identifier");

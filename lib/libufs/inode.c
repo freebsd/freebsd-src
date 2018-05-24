@@ -60,7 +60,7 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 	ERROR(disk, NULL);
 
 	fs = &disk->d_fs;
-	if (inode >= fs->fs_ipg * fs->fs_ncg) {
+	if (inode >= (ino_t)fs->fs_ipg * fs->fs_ncg) {
 		ERROR(disk, "inode number out of range");
 		return (-1);
 	}

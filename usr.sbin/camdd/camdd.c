@@ -596,13 +596,11 @@ camdd_alloc_dev(camdd_dev_type dev_type, struct kevent *new_ke, int num_ke,
 	size_t ke_size;
 	int retval = 0;
 
-	dev = malloc(sizeof(*dev));
+	dev = calloc(1, sizeof(*dev));
 	if (dev == NULL) {
 		warn("%s: unable to malloc %zu bytes", __func__, sizeof(*dev));
 		goto bailout;
 	}
-
-	bzero(dev, sizeof(*dev));
 
 	dev->dev_type = dev_type;
 	dev->io_timeout = timeout;
@@ -636,12 +634,11 @@ camdd_alloc_dev(camdd_dev_type dev_type, struct kevent *new_ke, int num_ke,
 	}
 
 	ke_size = sizeof(struct kevent) * (num_ke + 4);
-	ke = malloc(ke_size);
+	ke = calloc(1, ke_size);
 	if (ke == NULL) {
 		warn("%s: unable to malloc %zu bytes", __func__, ke_size);
 		goto bailout;
 	}
-	bzero(ke, ke_size);
 	if (num_ke > 0)
 		bcopy(new_ke, ke, num_ke * sizeof(struct kevent));
 
@@ -688,13 +685,12 @@ camdd_alloc_buf(struct camdd_dev *dev, camdd_buf_type buf_type)
 		break;
 	}
 	
-	buf = malloc(sizeof(*buf));
+	buf = calloc(1, sizeof(*buf));
 	if (buf == NULL) {
 		warn("unable to allocate %zu bytes", sizeof(*buf));
 		goto bailout_error;
 	}
 
-	bzero(buf, sizeof(*buf));
 	buf->buf_type = buf_type;
 	buf->dev = dev;
 	switch (buf_type) {

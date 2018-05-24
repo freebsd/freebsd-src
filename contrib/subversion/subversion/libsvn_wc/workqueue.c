@@ -257,7 +257,8 @@ install_committed_file(svn_boolean_t *overwrote_working,
 
   if (! same)
     {
-      SVN_ERR(svn_io_file_rename(tmp_wfile, file_abspath, scratch_pool));
+      SVN_ERR(svn_io_file_rename2(tmp_wfile, file_abspath, FALSE,
+                                  scratch_pool));
       *overwrote_working = TRUE;
     }
 
@@ -418,13 +419,13 @@ run_postupgrade(work_item_baton_t *wqb,
      ### The order may matter for some sufficiently old clients.. but
      ### this code only runs during upgrade after the files had been
      ### removed earlier during the upgrade. */
-  SVN_ERR(svn_io_write_atomic(format_path, SVN_WC__NON_ENTRIES_STRING,
-                              sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
-                              NULL, scratch_pool));
+  SVN_ERR(svn_io_write_atomic2(format_path, SVN_WC__NON_ENTRIES_STRING,
+                               sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
+                               NULL, TRUE, scratch_pool));
 
-  SVN_ERR(svn_io_write_atomic(entries_path, SVN_WC__NON_ENTRIES_STRING,
-                              sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
-                              NULL, scratch_pool));
+  SVN_ERR(svn_io_write_atomic2(entries_path, SVN_WC__NON_ENTRIES_STRING,
+                               sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
+                               NULL, TRUE, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -1127,9 +1128,9 @@ run_prej_install(work_item_baton_t *wqb,
                                   scratch_pool, scratch_pool));
 
   /* ... and atomically move it into place.  */
-  SVN_ERR(svn_io_file_rename(tmp_prejfile_abspath,
-                             prejfile_abspath,
-                             scratch_pool));
+  SVN_ERR(svn_io_file_rename2(tmp_prejfile_abspath,
+                              prejfile_abspath, FALSE,
+                              scratch_pool));
 
   return SVN_NO_ERROR;
 }

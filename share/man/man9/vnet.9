@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2014
+.Dd May 16, 2018
 .Dt VNET 9
 .Os
 .Sh NAME
@@ -488,10 +488,24 @@ context of the caller.
 .Xr KASSERT 9 ,
 .Xr sysctl 9
 .\" .Xr SYSINIT 9
+.Pp
+Marko Zec, Implementing a Clonable Network Stack in the FreeBSD Kernel,
+USENIX ATC'03, June 2003, Boston
 .Sh HISTORY
 The virtual network stack implementation first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework has been designed and implemented at the University of Zagreb by
+.An Marko Zec ,
+and later extended and refined by
+.An Bjoern A. Zeeb
+and
+.An Robert Watson ,
+under contract to the FreeBSD Foundation.
+.Pp
 This manual page was written by
 .An Bjoern A. Zeeb, CK Software GmbH,
 under sponsorship from the FreeBSD Foundation.

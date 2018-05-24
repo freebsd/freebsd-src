@@ -846,7 +846,6 @@ static void
 check_llbcast(struct mibif *ifp)
 {
 	static u_char ether_bcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-	static u_char arcnet_bcast = 0;
 	struct mibrcvaddr *rcv;
 
 	if (!(ifp->mib.ifmd_flags & IFF_BROADCAST))
@@ -860,12 +859,6 @@ check_llbcast(struct mibif *ifp)
 	  case IFT_L2VLAN:
 		if (mib_find_rcvaddr(ifp->index, ether_bcast, 6) == NULL &&
 		    (rcv = mib_rcvaddr_create(ifp, ether_bcast, 6)) != NULL)
-			rcv->flags |= MIBRCVADDR_BCAST;
-		break;
-
-	  case IFT_ARCNET:
-		if (mib_find_rcvaddr(ifp->index, &arcnet_bcast, 1) == NULL &&
-		    (rcv = mib_rcvaddr_create(ifp, &arcnet_bcast, 1)) != NULL)
 			rcv->flags |= MIBRCVADDR_BCAST;
 		break;
 	}

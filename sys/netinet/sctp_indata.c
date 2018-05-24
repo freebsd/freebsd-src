@@ -1671,9 +1671,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_nets *net, uint32_t *high_tsn, int *abort_flag,
     int *break_flag, int last_chunk, uint8_t chk_type)
 {
-	/* Process a data chunk */
-	/* struct sctp_tmit_chunk *chk; */
-	struct sctp_tmit_chunk *chk;
+	struct sctp_tmit_chunk *chk = NULL;	/* make gcc happy */
 	uint32_t tsn, fsn, gap, mid;
 	struct mbuf *dmbuf;
 	int the_len;
@@ -3621,7 +3619,9 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						    SCTP_SO_NOT_LOCKED);
 					}
 					/* Make sure to flag we had a FR */
-					tp1->whoTo->net_ack++;
+					if (tp1->whoTo != NULL) {
+						tp1->whoTo->net_ack++;
+					}
 					continue;
 				}
 			}

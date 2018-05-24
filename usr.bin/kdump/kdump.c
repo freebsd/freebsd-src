@@ -758,18 +758,14 @@ syscallabi(u_int sv_flags)
 	switch (sv_flags & SV_ABI_MASK) {
 	case SV_ABI_FREEBSD:
 		return (SYSDECODE_ABI_FREEBSD);
-#if defined(__amd64__) || defined(__i386__)
 	case SV_ABI_LINUX:
-#ifdef __amd64__
+#ifdef __LP64__
 		if (sv_flags & SV_ILP32)
 			return (SYSDECODE_ABI_LINUX32);
 #endif
 		return (SYSDECODE_ABI_LINUX);
-#endif
-#if defined(__aarch64__) || defined(__amd64__)
 	case SV_ABI_CLOUDABI:
 		return (SYSDECODE_ABI_CLOUDABI64);
-#endif
 	default:
 		return (SYSDECODE_ABI_UNKNOWN);
 	}

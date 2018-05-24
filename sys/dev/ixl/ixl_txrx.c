@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2017, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -57,6 +57,7 @@ static int      ixl_xmit(struct ixl_queue *, struct mbuf **);
 static int	ixl_tx_setup_offload(struct ixl_queue *,
 		    struct mbuf *, u32 *, u32 *);
 static bool	ixl_tso_setup(struct ixl_queue *, struct mbuf *);
+static void	ixl_queue_sw_irq(struct ixl_vsi *, int);
 
 static inline void ixl_rx_discard(struct rx_ring *, int);
 static inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
@@ -67,7 +68,9 @@ static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
 #include <dev/netmap/if_ixl_netmap.h>
+#if __FreeBSD_version >= 1200000
 int ixl_rx_miss, ixl_rx_miss_bufs, ixl_crcstrip = 1;
+#endif
 #endif /* DEV_NETMAP */
 
 /*
@@ -87,6 +90,62 @@ ixl_get_default_rss_key(u32 *key)
 	bcopy(rss_seed, key, IXL_RSS_KEY_SIZE);
 }
 
+/**
+ * i40e_vc_stat_str - convert virtchnl status err code to a string
+ * @hw: pointer to the HW structure
+ * @stat_err: the status error code to convert
+ **/
+const char *
+i40e_vc_stat_str(struct i40e_hw *hw, enum virtchnl_status_code stat_err)
+{
+	switch (stat_err) {
+	case VIRTCHNL_STATUS_SUCCESS:
+		return "OK";
+	case VIRTCHNL_ERR_PARAM:
+		return "VIRTCHNL_ERR_PARAM";
+	case VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH:
+		return "VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH";
+	case VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR:
+		return "VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR";
+	case VIRTCHNL_STATUS_ERR_INVALID_VF_ID:
+		return "VIRTCHNL_STATUS_ERR_INVALID_VF_ID";
+	case VIRTCHNL_STATUS_NOT_SUPPORTED:
+		return "VIRTCHNL_STATUS_NOT_SUPPORTED";
+	}
+
+	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
+	return hw->err_str;
+}
+
+/*
+ * PCI BUSMASTER needs to be set for proper operation.
+ */
+void
+ixl_set_busmaster(device_t dev)
+{
+	u16 pci_cmd_word;
+
+	pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
+}
+
+/*
+ * Rewrite the ENABLE bit in the MSIX control register
+ */
+void
+ixl_set_msix_enable(device_t dev)
+{
+	int msix_ctrl, rid;
+
+	pci_find_cap(dev, PCIY_MSIX, &rid);
+	rid += PCIR_MSIX_CTRL;
+	msix_ctrl = pci_read_config(dev, rid, 2);
+	msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+	pci_write_config(dev, rid, msix_ctrl, 2);
+}
+
+
 /*
 ** Multiqueue Transmit driver
 */
@@ -102,13 +161,13 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	/*
-	** Which queue to use:
-	**
-	** When doing RSS, map it to the same outbound
-	** queue as the incoming flow would be mapped to.
-	** If everything is setup correctly, it should be
-	** the same bucket that the current CPU we're on is.
-	*/
+	 * Which queue to use:
+	 *
+	 * When doing RSS, map it to the same outbound
+	 * queue as the incoming flow would be mapped to.
+	 * If everything is setup correctly, it should be
+	 * the same bucket that the current CPU we're on is.
+	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 #ifdef  RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
@@ -207,11 +266,6 @@ ixl_qflush(struct ifnet *ifp)
 	if_qflush(ifp);
 }
 
-/*
-** Find mbuf chains passed to the driver 
-** that are 'sparse', using more than 8
-** mbufs to deliver an mss-size chunk of data
-*/
 static inline bool
 ixl_tso_detect_sparse(struct mbuf *mp)
 {
@@ -228,9 +282,9 @@ ixl_tso_detect_sparse(struct mbuf *mp)
 		num++;
 		mss -= m->m_len % mp->m_pkthdr.tso_segsz;
 
+		if (num > IXL_SPARSE_CHAIN)
+			return (true);
 		if (mss < 1) {
-			if (num > IXL_SPARSE_CHAIN)
-				return (true);
 			num = (mss == 0) ? 0 : 1;
 			mss += mp->m_pkthdr.tso_segsz;
 		}
@@ -369,7 +423,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 
 		last = i; /* descriptor that will get completion IRQ */
 
-		if (++i == que->num_desc)
+		if (++i == que->num_tx_desc)
 			i = 0;
 
 		buf->m_head = NULL;
@@ -382,7 +436,10 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	txr->next_avail = i;
 
 	buf->m_head = m_head;
-	/* Swap the dma map between the first and last descriptor */
+	/* Swap the dma map between the first and last descriptor.
+	 * The descriptor that gets checked on completion will now
+	 * have the real map from the first descriptor.
+	 */
 	txr->buffers[first].map = buf->map;
 	buf->map = map;
 	bus_dmamap_sync(tag, map, BUS_DMASYNC_PREWRITE);
@@ -424,7 +481,7 @@ ixl_allocate_tx_data(struct ixl_queue *que)
 	struct ixl_vsi		*vsi = que->vsi;
 	device_t		dev = vsi->dev;
 	struct ixl_tx_buf	*buf;
-	int			error = 0;
+	int			i, error = 0;
 
 	/*
 	 * Setup DMA descriptor areas.
@@ -436,13 +493,13 @@ ixl_allocate_tx_data(struct ixl_queue *que)
 			       NULL, NULL,		/* filter, filterarg */
 			       IXL_TSO_SIZE,		/* maxsize */
 			       IXL_MAX_TX_SEGS,		/* nsegments */
-			       PAGE_SIZE,		/* maxsegsize */
+			       IXL_MAX_DMA_SEG_SIZE,	/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockfuncarg */
 			       &txr->tx_tag))) {
 		device_printf(dev,"Unable to allocate TX DMA tag\n");
-		goto fail;
+		return (error);
 	}
 
 	/* Make a special tag for TSO */
@@ -453,34 +510,51 @@ ixl_allocate_tx_data(struct ixl_queue *que)
 			       NULL, NULL,		/* filter, filterarg */
 			       IXL_TSO_SIZE,		/* maxsize */
 			       IXL_MAX_TSO_SEGS,	/* nsegments */
-			       PAGE_SIZE,		/* maxsegsize */
+			       IXL_MAX_DMA_SEG_SIZE,	/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockfuncarg */
 			       &txr->tso_tag))) {
 		device_printf(dev,"Unable to allocate TX TSO DMA tag\n");
-		goto fail;
+		goto free_tx_dma;
 	}
 
 	if (!(txr->buffers =
 	    (struct ixl_tx_buf *) malloc(sizeof(struct ixl_tx_buf) *
-	    que->num_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	    que->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate tx_buffer memory\n");
 		error = ENOMEM;
-		goto fail;
+		goto free_tx_tso_dma;
 	}
 
         /* Create the descriptor buffer default dma maps */
 	buf = txr->buffers;
-	for (int i = 0; i < que->num_desc; i++, buf++) {
+	for (i = 0; i < que->num_tx_desc; i++, buf++) {
 		buf->tag = txr->tx_tag;
 		error = bus_dmamap_create(buf->tag, 0, &buf->map);
 		if (error != 0) {
 			device_printf(dev, "Unable to create TX DMA map\n");
-			goto fail;
+			goto free_buffers;
 		}
 	}
-fail:
+
+	return 0;
+
+free_buffers:
+	while (i--) {
+		buf--;
+		bus_dmamap_destroy(buf->tag, buf->map);
+	}
+
+	free(txr->buffers, M_DEVBUF);
+	txr->buffers = NULL;
+free_tx_tso_dma:
+	bus_dma_tag_destroy(txr->tso_tag);
+	txr->tso_tag = NULL;
+free_tx_dma:
+	bus_dma_tag_destroy(txr->tx_tag);
+	txr->tx_tag = NULL;
+
 	return (error);
 }
 
@@ -514,7 +588,7 @@ ixl_init_tx_ring(struct ixl_queue *que)
 #endif /* DEV_NETMAP */
 
 	bzero((void *)txr->base,
-	      (sizeof(struct i40e_tx_desc)) * que->num_desc);
+	      (sizeof(struct i40e_tx_desc)) * que->num_tx_desc);
 
 	/* Reset indices */
 	txr->next_avail = 0;
@@ -523,14 +597,9 @@ ixl_init_tx_ring(struct ixl_queue *que)
 	/* Reset watchdog status */
 	txr->watchdog_timer = 0;
 
-#ifdef IXL_FDIR
-	/* Initialize flow director */
-	txr->atr_rate = ixl_atr_rate;
-	txr->atr_count = 0;
-#endif
 	/* Free any existing tx mbufs. */
         buf = txr->buffers;
-	for (int i = 0; i < que->num_desc; i++, buf++) {
+	for (int i = 0; i < que->num_tx_desc; i++, buf++) {
 		if (buf->m_head != NULL) {
 			bus_dmamap_sync(buf->tag, buf->map,
 			    BUS_DMASYNC_POSTWRITE);
@@ -547,7 +616,7 @@ ixl_init_tx_ring(struct ixl_queue *que)
 		 * netmap slot index, si
 		 */
 		if (slot) {
-			int si = netmap_idx_n2k(&na->tx_rings[que->me], i);
+			int si = netmap_idx_n2k(na->tx_rings[que->me], i);
 			netmap_load_map(na, buf->tag, buf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -556,7 +625,7 @@ ixl_init_tx_ring(struct ixl_queue *que)
         }
 
 	/* Set number of descriptors available */
-	txr->avail = que->num_desc;
+	txr->avail = que->num_tx_desc;
 
 	bus_dmamap_sync(txr->dma.tag, txr->dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -577,30 +646,17 @@ ixl_free_que_tx(struct ixl_queue *que)
 
 	INIT_DBG_IF(que->vsi->ifp, "queue %d: begin", que->me);
 
-	for (int i = 0; i < que->num_desc; i++) {
+	for (int i = 0; i < que->num_tx_desc; i++) {
 		buf = &txr->buffers[i];
 		if (buf->m_head != NULL) {
 			bus_dmamap_sync(buf->tag, buf->map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(buf->tag,
-			    buf->map);
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
-			if (buf->map != NULL) {
-				bus_dmamap_destroy(buf->tag,
-				    buf->map);
-				buf->map = NULL;
 			}
-		} else if (buf->map != NULL) {
-			bus_dmamap_unload(buf->tag,
-			    buf->map);
-			bus_dmamap_destroy(buf->tag,
-			    buf->map);
-			buf->map = NULL;
-		}
+		bus_dmamap_unload(buf->tag, buf->map);
+		bus_dmamap_destroy(buf->tag, buf->map);
 	}
-	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
 	if (txr->buffers != NULL) {
 		free(txr->buffers, M_DEVBUF);
 		txr->buffers = NULL;
@@ -702,9 +758,6 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 				*off |= (tcp_hlen >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 			}
-#ifdef IXL_FDIR
-			ixl_atr(que, th, etype);
-#endif
 			break;
 		case IPPROTO_UDP:
 			if (mp->m_pkthdr.csum_flags & (CSUM_UDP|CSUM_UDP_IPV6)) {
@@ -713,7 +766,6 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 			}
 			break;
-
 		case IPPROTO_SCTP:
 			if (mp->m_pkthdr.csum_flags & (CSUM_SCTP|CSUM_SCTP_IPV6)) {
 				*cmd |= I40E_TX_DESC_CMD_L4T_EOFT_SCTP;
@@ -833,7 +885,7 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 	buf->m_head = NULL;
 	buf->eop_index = -1;
 
-	if (++idx == que->num_desc)
+	if (++idx == que->num_tx_desc)
 		idx = 0;
 
 	txr->avail--;
@@ -842,33 +894,31 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 	return TRUE;
 }
 
-/*             
-** ixl_get_tx_head - Retrieve the value from the 
-**    location the HW records its HEAD index
-*/
+/*
+ * ixl_get_tx_head - Retrieve the value from the
+ *    location the HW records its HEAD index
+ */
 static inline u32
 ixl_get_tx_head(struct ixl_queue *que)
 {
 	struct tx_ring  *txr = &que->txr;
-	void *head = &txr->base[que->num_desc];
+	void *head = &txr->base[que->num_tx_desc];
 	return LE32_TO_CPU(*(volatile __le32 *)head);
 }
 
 /**********************************************************************
  *
- *  Examine each tx_buffer in the used queue. If the hardware is done
- *  processing the packet then free associated resources. The
- *  tx_buffer is put back on the free queue.
+ * Get index of last used descriptor/buffer from hardware, and clean
+ * the descriptors/buffers up to that index.
  *
  **********************************************************************/
-bool
-ixl_txeof(struct ixl_queue *que)
+static bool
+ixl_txeof_hwb(struct ixl_queue *que)
 {
 	struct tx_ring		*txr = &que->txr;
-	u32			first, last, head, done, processed;
+	u32			first, last, head, done;
 	struct ixl_tx_buf	*buf;
 	struct i40e_tx_desc	*tx_desc, *eop_desc;
-
 
 	mtx_assert(&txr->mtx, MA_OWNED);
 
@@ -879,12 +929,11 @@ ixl_txeof(struct ixl_queue *que)
 #endif /* DEF_NETMAP */
 
 	/* These are not the descriptors you seek, move along :) */
-	if (txr->avail == que->num_desc) {
+	if (txr->avail == que->num_tx_desc) {
 		atomic_store_rel_32(&txr->watchdog_timer, 0);
 		return FALSE;
 	}
 
-	processed = 0;
 	first = txr->next_to_clean;
 	buf = &txr->buffers[first];
 	tx_desc = (struct i40e_tx_desc *)&txr->base[first];
@@ -892,6 +941,10 @@ ixl_txeof(struct ixl_queue *que)
 	if (last == -1)
 		return FALSE;
 	eop_desc = (struct i40e_tx_desc *)&txr->base[last];
+
+	/* Sync DMA before reading head index from ring */
+        bus_dmamap_sync(txr->dma.tag, txr->dma.map,
+            BUS_DMASYNC_POSTREAD);
 
 	/* Get the Head WB value */
 	head = ixl_get_tx_head(que);
@@ -902,11 +955,9 @@ ixl_txeof(struct ixl_queue *que)
 	** I do this so the comparison in the
 	** inner while loop below can be simple
 	*/
-	if (++last == que->num_desc) last = 0;
+	if (++last == que->num_tx_desc) last = 0;
 	done = last;
 
-        bus_dmamap_sync(txr->dma.tag, txr->dma.map,
-            BUS_DMASYNC_POSTREAD);
 	/*
 	** The HEAD index of the ring is written in a 
 	** defined location, this rather than a done bit
@@ -917,7 +968,6 @@ ixl_txeof(struct ixl_queue *que)
 		/* We clean the range of the packet */
 		while (first != done) {
 			++txr->avail;
-			++processed;
 
 			if (buf->m_head) {
 				txr->bytes += /* for ITR adjustment */
@@ -934,19 +984,21 @@ ixl_txeof(struct ixl_queue *que)
 			}
 			buf->eop_index = -1;
 
-			if (++first == que->num_desc)
+			if (++first == que->num_tx_desc)
 				first = 0;
 
 			buf = &txr->buffers[first];
 			tx_desc = &txr->base[first];
 		}
 		++txr->packets;
+		/* If a packet was successfully cleaned, reset the watchdog timer */
+		atomic_store_rel_32(&txr->watchdog_timer, IXL_WATCHDOG);
 		/* See if there is more work now */
 		last = buf->eop_index;
 		if (last != -1) {
 			eop_desc = &txr->base[last];
 			/* Get next done point */
-			if (++last == que->num_desc) last = 0;
+			if (++last == que->num_tx_desc) last = 0;
 			done = last;
 		} else
 			break;
@@ -956,17 +1008,152 @@ ixl_txeof(struct ixl_queue *que)
 
 	txr->next_to_clean = first;
 
-
 	/*
 	 * If there are no pending descriptors, clear the timeout.
 	 */
-	if (txr->avail == que->num_desc) {
+	if (txr->avail == que->num_tx_desc) {
 		atomic_store_rel_32(&txr->watchdog_timer, 0);
 		return FALSE;
 	}
 
 	return TRUE;
 }
+
+/**********************************************************************
+ *
+ * Use index kept by driver and the flag on each descriptor to find used
+ * descriptor/buffers and clean them up for re-use.
+ *
+ * This method of reclaiming descriptors is current incompatible with
+ * DEV_NETMAP.
+ *
+ * Returns TRUE if there are more descriptors to be cleaned after this
+ * function exits.
+ *
+ **********************************************************************/
+static bool
+ixl_txeof_dwb(struct ixl_queue *que)
+{
+	struct tx_ring		*txr = &que->txr;
+	u32			first, last, done;
+	u32			limit = 256;
+	struct ixl_tx_buf	*buf;
+	struct i40e_tx_desc	*tx_desc, *eop_desc;
+
+	mtx_assert(&txr->mtx, MA_OWNED);
+
+	/* There are no descriptors to clean */
+	if (txr->avail == que->num_tx_desc) {
+		atomic_store_rel_32(&txr->watchdog_timer, 0);
+		return FALSE;
+	}
+
+	/* Set starting index/descriptor/buffer */
+	first = txr->next_to_clean;
+	buf = &txr->buffers[first];
+	tx_desc = &txr->base[first];
+
+	/*
+	 * This function operates per-packet -- identifies the start of the
+	 * packet and gets the index of the last descriptor of the packet from
+	 * it, from eop_index.
+	 *
+	 * If the last descriptor is marked "done" by the hardware, then all
+	 * of the descriptors for the packet are cleaned.
+	 */
+	last = buf->eop_index;
+	if (last == -1)
+		return FALSE;
+	eop_desc = &txr->base[last];
+
+	/* Sync DMA before reading from ring */
+        bus_dmamap_sync(txr->dma.tag, txr->dma.map, BUS_DMASYNC_POSTREAD);
+
+	/*
+	 * Get the index of the first descriptor beyond the EOP and call that
+	 * 'done'. Simplifies the comparison for the inner loop below.
+	 */
+	if (++last == que->num_tx_desc)
+		last = 0;
+	done = last;
+
+	/*
+	 * We find the last completed descriptor by examining each
+	 * descriptor's status bits to see if it's done.
+	 */
+	do {
+		/* Break if last descriptor in packet isn't marked done */
+		if ((eop_desc->cmd_type_offset_bsz & I40E_TXD_QW1_DTYPE_MASK)
+		    != I40E_TX_DESC_DTYPE_DESC_DONE)
+			break;
+
+		/* Clean the descriptors that make up the processed packet */
+		while (first != done) {
+			/*
+			 * If there was a buffer attached to this descriptor,
+			 * prevent the adapter from accessing it, and add its
+			 * length to the queue's TX stats.
+			 */
+			if (buf->m_head) {
+				txr->bytes += buf->m_head->m_pkthdr.len;
+				txr->tx_bytes += buf->m_head->m_pkthdr.len;
+				bus_dmamap_sync(buf->tag, buf->map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(buf->tag, buf->map);
+				m_freem(buf->m_head);
+				buf->m_head = NULL;
+			}
+			buf->eop_index = -1;
+			++txr->avail;
+
+			if (++first == que->num_tx_desc)
+				first = 0;
+			buf = &txr->buffers[first];
+			tx_desc = &txr->base[first];
+		}
+		++txr->packets;
+		/* If a packet was successfully cleaned, reset the watchdog timer */
+		atomic_store_rel_32(&txr->watchdog_timer, IXL_WATCHDOG);
+
+		/*
+		 * Since buf is the first buffer after the one that was just
+		 * cleaned, check if the packet it starts is done, too.
+		 */
+		last = buf->eop_index;
+		if (last != -1) {
+			eop_desc = &txr->base[last];
+			/* Get next done point */
+			if (++last == que->num_tx_desc) last = 0;
+			done = last;
+		} else
+			break;
+	} while (--limit);
+
+	bus_dmamap_sync(txr->dma.tag, txr->dma.map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	txr->next_to_clean = first;
+
+	/*
+	 * If there are no pending descriptors, clear the watchdog timer.
+	 */
+	if (txr->avail == que->num_tx_desc) {
+		atomic_store_rel_32(&txr->watchdog_timer, 0);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+bool
+ixl_txeof(struct ixl_queue *que)
+{
+	struct ixl_vsi *vsi = que->vsi;
+
+	return (vsi->enable_head_writeback) ? ixl_txeof_hwb(que)
+	    : ixl_txeof_dwb(que);
+}
+
 
 /*********************************************************************
  *
@@ -991,7 +1178,7 @@ ixl_refresh_mbufs(struct ixl_queue *que, int limit)
 
 	i = j = rxr->next_refresh;
 	/* Control the loop with one beyond */
-	if (++j == que->num_desc)
+	if (++j == que->num_rx_desc)
 		j = 0;
 
 	while (j != limit) {
@@ -1057,7 +1244,7 @@ no_split:
 		/* Next is precalculated */
 		i = j;
 		rxr->next_refresh = i;
-		if (++j == que->num_desc)
+		if (++j == que->num_rx_desc)
 			j = 0;
 	}
 update:
@@ -1083,15 +1270,6 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 	device_t 		dev = vsi->dev;
 	struct ixl_rx_buf 	*buf;
 	int             	i, bsize, error;
-
-	bsize = sizeof(struct ixl_rx_buf) * que->num_desc;
-	if (!(rxr->buffers =
-	    (struct ixl_rx_buf *) malloc(bsize,
-	    M_DEVBUF, M_NOWAIT | M_ZERO))) {
-		device_printf(dev, "Unable to allocate rx_buffer memory\n");
-		error = ENOMEM;
-		return (error);
-	}
 
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				   1, 0,	/* alignment, bounds */
@@ -1122,25 +1300,50 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 				   NULL,		/* lockfuncarg */
 				   &rxr->ptag))) {
 		device_printf(dev, "Unable to create RX DMA ptag\n");
-		return (error);
+		goto free_rx_htag;
 	}
 
-	for (i = 0; i < que->num_desc; i++) {
+	bsize = sizeof(struct ixl_rx_buf) * que->num_rx_desc;
+	if (!(rxr->buffers =
+	    (struct ixl_rx_buf *) malloc(bsize,
+	    M_DEVBUF, M_NOWAIT | M_ZERO))) {
+		device_printf(dev, "Unable to allocate rx_buffer memory\n");
+		error = ENOMEM;
+		goto free_rx_ptag;
+	}
+
+	for (i = 0; i < que->num_rx_desc; i++) {
 		buf = &rxr->buffers[i];
 		error = bus_dmamap_create(rxr->htag,
 		    BUS_DMA_NOWAIT, &buf->hmap);
 		if (error) {
 			device_printf(dev, "Unable to create RX head map\n");
-			break;
+			goto free_buffers;
 		}
 		error = bus_dmamap_create(rxr->ptag,
 		    BUS_DMA_NOWAIT, &buf->pmap);
 		if (error) {
+			bus_dmamap_destroy(rxr->htag, buf->hmap);
 			device_printf(dev, "Unable to create RX pkt map\n");
-			break;
+			goto free_buffers;
 		}
 	}
 
+	return 0;
+free_buffers:
+	while (i--) {
+		buf = &rxr->buffers[i];
+		bus_dmamap_destroy(rxr->ptag, buf->pmap);
+		bus_dmamap_destroy(rxr->htag, buf->hmap);
+	}
+	free(rxr->buffers, M_DEVBUF);
+	rxr->buffers = NULL;
+free_rx_ptag:
+	bus_dma_tag_destroy(rxr->ptag);
+	rxr->ptag = NULL;
+free_rx_htag:
+	bus_dma_tag_destroy(rxr->htag);
+	rxr->htag = NULL;
 	return (error);
 }
 
@@ -1173,11 +1376,11 @@ ixl_init_rx_ring(struct ixl_queue *que)
 	slot = netmap_reset(na, NR_RX, que->me, 0);
 #endif /* DEV_NETMAP */
 	/* Clear the ring contents */
-	rsize = roundup2(que->num_desc *
+	rsize = roundup2(que->num_rx_desc *
 	    sizeof(union i40e_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->base, rsize);
 	/* Cleanup any existing buffers */
-	for (int i = 0; i < que->num_desc; i++) {
+	for (int i = 0; i < que->num_rx_desc; i++) {
 		buf = &rxr->buffers[i];
 		if (buf->m_head != NULL) {
 			bus_dmamap_sync(rxr->htag, buf->hmap,
@@ -1201,7 +1404,7 @@ ixl_init_rx_ring(struct ixl_queue *que)
 	rxr->hdr_split = FALSE;
 
 	/* Now replenish the mbufs */
-	for (int j = 0; j != que->num_desc; ++j) {
+	for (int j = 0; j != que->num_rx_desc; ++j) {
 		struct mbuf	*mh, *mp;
 
 		buf = &rxr->buffers[j];
@@ -1214,7 +1417,7 @@ ixl_init_rx_ring(struct ixl_queue *que)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if (slot) {
-			int sj = netmap_idx_n2k(&na->rx_rings[que->me], j);
+			int sj = netmap_idx_n2k(na->rx_rings[que->me], j);
 			uint64_t paddr;
 			void *addr;
 
@@ -1286,7 +1489,7 @@ skip_head:
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
 
-	wr32(vsi->hw, rxr->tail, que->num_desc - 1);
+	wr32(vsi->hw, rxr->tail, que->num_rx_desc - 1);
 	ixl_flush(vsi->hw);
 
 #if defined(INET6) || defined(INET)
@@ -1325,41 +1528,19 @@ ixl_free_que_rx(struct ixl_queue *que)
 	struct rx_ring		*rxr = &que->rxr;
 	struct ixl_rx_buf	*buf;
 
-	INIT_DBG_IF(que->vsi->ifp, "queue %d: begin", que->me);
-
 	/* Cleanup any existing buffers */
 	if (rxr->buffers != NULL) {
-		for (int i = 0; i < que->num_desc; i++) {
+		for (int i = 0; i < que->num_rx_desc; i++) {
 			buf = &rxr->buffers[i];
-			if (buf->m_head != NULL) {
-				bus_dmamap_sync(rxr->htag, buf->hmap,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->htag, buf->hmap);
-				buf->m_head->m_flags |= M_PKTHDR;
-				m_freem(buf->m_head);
-			}
-			if (buf->m_pack != NULL) {
-				bus_dmamap_sync(rxr->ptag, buf->pmap,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->ptag, buf->pmap);
-				buf->m_pack->m_flags |= M_PKTHDR;
-				m_freem(buf->m_pack);
-			}
-			buf->m_head = NULL;
-			buf->m_pack = NULL;
-			if (buf->hmap != NULL) {
-				bus_dmamap_destroy(rxr->htag, buf->hmap);
-				buf->hmap = NULL;
-			}
-			if (buf->pmap != NULL) {
-				bus_dmamap_destroy(rxr->ptag, buf->pmap);
-				buf->pmap = NULL;
-			}
+
+			/* Free buffers and unload dma maps */
+			ixl_rx_discard(rxr, i);
+
+			bus_dmamap_destroy(rxr->htag, buf->hmap);
+			bus_dmamap_destroy(rxr->ptag, buf->pmap);
 		}
-		if (rxr->buffers != NULL) {
-			free(rxr->buffers, M_DEVBUF);
-			rxr->buffers = NULL;
-		}
+		free(rxr->buffers, M_DEVBUF);
+		rxr->buffers = NULL;
 	}
 
 	if (rxr->htag != NULL) {
@@ -1370,9 +1551,6 @@ ixl_free_que_rx(struct ixl_queue *que)
 		bus_dma_tag_destroy(rxr->ptag);
 		rxr->ptag = NULL;
 	}
-
-	INIT_DBG_IF(que->vsi->ifp, "queue %d: end", que->me);
-	return;
 }
 
 static inline void
@@ -1409,32 +1587,35 @@ ixl_rx_discard(struct rx_ring *rxr, int i)
 {
 	struct ixl_rx_buf	*rbuf;
 
+	KASSERT(rxr != NULL, ("Receive ring pointer cannot be null"));
+	KASSERT(i < rxr->que->num_rx_desc, ("Descriptor index must be less than que->num_desc"));
+
 	rbuf = &rxr->buffers[i];
 
-        if (rbuf->fmp != NULL) {/* Partial chain ? */
-		rbuf->fmp->m_flags |= M_PKTHDR;
+	/* Free the mbufs in the current chain for the packet */
+        if (rbuf->fmp != NULL) {
+		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
                 m_freem(rbuf->fmp);
                 rbuf->fmp = NULL;
 	}
 
 	/*
-	** With advanced descriptors the writeback
-	** clobbers the buffer addrs, so its easier
-	** to just free the existing mbufs and take
-	** the normal refresh path to get new buffers
-	** and mapping.
-	*/
+	 * Free the mbufs for the current descriptor; and let ixl_refresh_mbufs()
+	 * assign new mbufs to these.
+	 */
 	if (rbuf->m_head) {
+		bus_dmamap_sync(rxr->htag, rbuf->hmap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(rxr->htag, rbuf->hmap);
 		m_free(rbuf->m_head);
 		rbuf->m_head = NULL;
 	}
  
 	if (rbuf->m_pack) {
+		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(rxr->ptag, rbuf->pmap);
 		m_free(rbuf->m_pack);
 		rbuf->m_pack = NULL;
 	}
-
-	return;
 }
 
 #ifdef RSS
@@ -1504,7 +1685,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 	int			i, nextp, processed = 0;
 	union i40e_rx_desc	*cur;
 	struct ixl_rx_buf	*rbuf, *nbuf;
-
 
 	IXL_RX_LOCK(rxr);
 
@@ -1586,7 +1766,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		/* Prefetch the next buffer */
 		if (!eop) {
 			nextp = i + 1;
-			if (nextp == que->num_desc)
+			if (nextp == que->num_rx_desc)
 				nextp = 0;
 			nbuf = &rxr->buffers[nextp];
 			prefetch(nbuf);
@@ -1708,7 +1888,7 @@ next_desc:
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 		/* Advance our pointers to the next descriptor. */
-		if (++i == que->num_desc)
+		if (++i == que->num_rx_desc)
 			i = 0;
 
 		/* Now send to the stack or do LRO */
@@ -1717,10 +1897,14 @@ next_desc:
 			IXL_RX_UNLOCK(rxr);
 			ixl_rx_input(rxr, ifp, sendmp, ptype);
 			IXL_RX_LOCK(rxr);
+			/*
+			 * Update index used in loop in case another
+			 * ixl_rxeof() call executes when lock is released
+			 */
 			i = rxr->next_check;
 		}
 
-               /* Every 8 descriptors we go to refresh mbufs */
+		/* Every 8 descriptors we go to refresh mbufs */
 		if (processed == 8) {
 			ixl_refresh_mbufs(que, i);
 			processed = 0;
@@ -1836,4 +2020,120 @@ ixl_get_counter(if_t ifp, ift_counter cnt)
 	}
 }
 #endif
+
+/*
+ * Set TX and RX ring size adjusting value to supported range
+ */
+void
+ixl_vsi_setup_rings_size(struct ixl_vsi * vsi, int tx_ring_size, int rx_ring_size)
+{
+	struct device * dev = vsi->dev;
+
+	if (tx_ring_size < IXL_MIN_RING
+	     || tx_ring_size > IXL_MAX_RING
+	     || tx_ring_size % IXL_RING_INCREMENT != 0) {
+		device_printf(dev, "Invalid tx_ring_size value of %d set!\n",
+		    tx_ring_size);
+		device_printf(dev, "tx_ring_size must be between %d and %d, "
+		    "inclusive, and must be a multiple of %d\n",
+		    IXL_MIN_RING, IXL_MAX_RING, IXL_RING_INCREMENT);
+		device_printf(dev, "Using default value of %d instead\n",
+		    IXL_DEFAULT_RING);
+		vsi->num_tx_desc = IXL_DEFAULT_RING;
+	} else
+		vsi->num_tx_desc = tx_ring_size;
+
+	if (rx_ring_size < IXL_MIN_RING
+	     || rx_ring_size > IXL_MAX_RING
+	     || rx_ring_size % IXL_RING_INCREMENT != 0) {
+		device_printf(dev, "Invalid rx_ring_size value of %d set!\n",
+		    rx_ring_size);
+		device_printf(dev, "rx_ring_size must be between %d and %d, "
+		    "inclusive, and must be a multiple of %d\n",
+		    IXL_MIN_RING, IXL_MAX_RING, IXL_RING_INCREMENT);
+		device_printf(dev, "Using default value of %d instead\n",
+		    IXL_DEFAULT_RING);
+		vsi->num_rx_desc = IXL_DEFAULT_RING;
+	} else
+		vsi->num_rx_desc = rx_ring_size;
+
+	device_printf(dev, "using %d tx descriptors and %d rx descriptors\n",
+		vsi->num_tx_desc, vsi->num_rx_desc);
+
+}
+
+static void
+ixl_queue_sw_irq(struct ixl_vsi *vsi, int qidx)
+{
+	struct i40e_hw *hw = vsi->hw;
+	u32	reg, mask;
+
+	if ((vsi->flags & IXL_FLAGS_IS_VF) != 0) {
+		mask = (I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+			I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+			I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
+
+		reg = I40E_VFINT_DYN_CTLN1(qidx);
+	} else {
+		mask = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
+				I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+				I40E_PFINT_DYN_CTLN_ITR_INDX_MASK);
+
+		reg = ((vsi->flags & IXL_FLAGS_USES_MSIX) != 0) ?
+			I40E_PFINT_DYN_CTLN(qidx) : I40E_PFINT_DYN_CTL0;
+	}
+
+	wr32(hw, reg, mask);
+}
+
+int
+ixl_queue_hang_check(struct ixl_vsi *vsi)
+{
+	struct ixl_queue *que = vsi->queues;
+	device_t dev = vsi->dev;
+	struct tx_ring *txr;
+	s32 timer, new_timer;
+	int hung = 0;
+
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		txr = &que->txr;
+		/*
+		 * If watchdog_timer is equal to defualt value set by ixl_txeof
+		 * just substract hz and move on - the queue is most probably
+		 * running. Otherwise check the value.
+		 */
+                if (atomic_cmpset_rel_32(&txr->watchdog_timer,
+					IXL_WATCHDOG, (IXL_WATCHDOG) - hz) == 0) {
+			timer = atomic_load_acq_32(&txr->watchdog_timer);
+			/*
+                         * Again - if the timer was reset to default value
+			 * then queue is running. Otherwise check if watchdog
+			 * expired and act accrdingly.
+                         */
+
+			if (timer > 0 && timer != IXL_WATCHDOG) {
+				new_timer = timer - hz;
+				if (new_timer <= 0) {
+					atomic_store_rel_32(&txr->watchdog_timer, -1);
+					device_printf(dev, "WARNING: queue %d "
+							"appears to be hung!\n", que->me);
+					++hung;
+					/* Try to unblock the queue with SW IRQ */
+					ixl_queue_sw_irq(vsi, i);
+				} else {
+					/*
+					 * If this fails, that means something in the TX path
+					 * has updated the watchdog, so it means the TX path
+					 * is still working and the watchdog doesn't need
+					 * to countdown.
+					 */
+					atomic_cmpset_rel_32(&txr->watchdog_timer,
+							timer, new_timer);
+				}
+			}
+		}
+	}
+
+	return (hung);
+}
 

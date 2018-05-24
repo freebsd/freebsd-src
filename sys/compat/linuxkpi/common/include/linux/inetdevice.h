@@ -44,16 +44,17 @@ ip_dev_find(struct vnet *vnet, uint32_t addr)
 	sin.sin_addr.s_addr = addr;
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
+	NET_EPOCH_ENTER();
 	CURVNET_SET_QUIET(vnet);
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	CURVNET_RESTORE();
 	if (ifa) {
 		ifp = ifa->ifa_ifp;
 		if_ref(ifp);
-		ifa_free(ifa);
 	} else {
 		ifp = NULL;
 	}
+	NET_EPOCH_EXIT();
 	return (ifp);
 }
 
@@ -69,6 +70,7 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr)
 	sin6.sin6_addr = addr;
 	sin6.sin6_len = sizeof(sin6);
 	sin6.sin6_family = AF_INET6;
+	NET_EPOCH_ENTER();
 	CURVNET_SET_QUIET(vnet);
 	if (IN6_IS_SCOPE_LINKLOCAL(&addr) ||
 	    IN6_IS_ADDR_MC_INTFACELOCAL(&addr)) {
@@ -85,8 +87,8 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr)
 	if (ifa != NULL) {
 		ifp = ifa->ifa_ifp;
 		if_ref(ifp);
-		ifa_free(ifa);
 	}
+	NET_EPOCH_EXIT();
 	CURVNET_RESTORE();
 	return (ifp);
 }

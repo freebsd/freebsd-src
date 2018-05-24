@@ -139,7 +139,7 @@ enum Ar9300EepromTemplate
 #define OSPREY_CUSTOMER_DATA_SIZE    20
 
 #define FREQ2FBIN(x,y) \
-    (((y) == HAL_FREQ_BAND_2GHZ) ? ((x) - 2300) : (((x) - 4800) / 5))
+    (u_int8_t)(((y) == HAL_FREQ_BAND_2GHZ) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define FBIN2FREQ(x,y) \
     (((y) == HAL_FREQ_BAND_2GHZ) ? (2300 + x) : (4800 + 5 * x))
 #define OSPREY_MAX_CHAINS            3

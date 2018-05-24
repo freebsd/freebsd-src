@@ -156,6 +156,9 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	vm_prot_t ftype;
 	vm_offset_t va;
 	int error, sig, ucode;
+#ifdef KDB
+	bool handled;
+#endif
 
 	/*
 	 * According to the ARMv8-A rev. A.g, B2.10.5 "Load-Exclusive
@@ -172,16 +175,6 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 #endif
 
 	pcb = td->td_pcb;
-
-	/*
-	 * Special case for fuswintr and suswintr. These can't sleep so
-	 * handle them early on in the trap handler.
-	 */
-	if (__predict_false(pcb->pcb_onfault == (vm_offset_t)&fsu_intr_fault)) {
-		frame->tf_elr = pcb->pcb_onfault;
-		return;
-	}
-
 	p = td->td_proc;
 	if (lower)
 		map = &p->p_vmspace->vm_map;
@@ -196,8 +189,16 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		}
 	}
 
-	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
-		return;
+	/*
+	 * We may fault from userspace or when in a DMAP region due to
+	 * a superpage being unmapped when the access took place. In these
+	 * cases we need to wait for the pmap to be unlocked and check
+	 * if the translation is still invalid.
+	 */
+	if (map != kernel_map || VIRT_IN_DMAP(far)) {
+		if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+			return;
+	}
 
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
@@ -236,9 +237,14 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 			printf(" esr:         %.8lx\n", esr);
 
 #ifdef KDB
-			if (debugger_on_panic || kdb_active)
-				if (kdb_trap(ESR_ELx_EXCEPTION(esr), 0, frame))
+			if (debugger_on_panic) {
+				kdb_why = KDB_WHY_TRAP;
+				handled = kdb_trap(ESR_ELx_EXCEPTION(esr), 0,
+				    frame);
+				kdb_why = KDB_WHY_UNSET;
+				if (handled)
 					return;
+			}
 #endif
 			panic("vm_fault failed: %lx", frame->tf_elr);
 		}

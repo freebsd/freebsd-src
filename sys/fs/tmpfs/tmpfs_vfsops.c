@@ -141,7 +141,6 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	struct thread *td = curthread;
 	int error;
 	bool nonc;
 	/* Size counters. */
@@ -154,9 +153,6 @@ tmpfs_mount(struct mount *mp)
 	mode_t root_mode;
 
 	struct vattr va;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_TMPFS))
-		return (EPERM);
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);

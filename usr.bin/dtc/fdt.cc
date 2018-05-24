@@ -727,14 +727,32 @@ node::parse_name(text_input_buffer &input, bool &is_property, const char *error)
 	return n;
 }
 
-void
-node::visit(std::function<void(node&)> fn)
+node::visit_behavior
+node::visit(std::function<visit_behavior(node&, node*)> fn, node *parent)
 {
-	fn(*this);
-	for (auto &&c : children)
+	visit_behavior behavior;
+	behavior = fn(*this, parent);
+	if (behavior == VISIT_BREAK)
 	{
-		c->visit(fn);
+		return VISIT_BREAK;
 	}
+	else if (behavior != VISIT_CONTINUE)
+	{
+		for (auto &&c : children)
+		{
+			behavior = c->visit(fn, this);
+			// Any status other than VISIT_RECURSE stops our execution and
+			// bubbles up to our caller.  The caller may then either continue
+			// visiting nodes that are siblings to this one or completely halt
+			// visiting.
+			if (behavior != VISIT_RECURSE)
+			{
+				return behavior;
+			}
+		}
+	}
+	// Continue recursion by default
+	return VISIT_RECURSE;
 }
 
 node::node(input_buffer &structs, input_buffer &strings) : valid(true)
@@ -1319,7 +1337,7 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 		phandle_set.insert({&i.val, i});
 	}
 	std::vector<std::reference_wrapper<fixup>> sorted_phandles;
-	root->visit([&](node &n) {
+	root->visit([&](node &n, node *parent) {
 		for (auto &p : n.properties())
 		{
 			for (auto &v : *p)
@@ -1331,7 +1349,9 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 				}
 			}
 		}
-	});
+		// Allow recursion
+		return node::VISIT_RECURSE;
+	}, nullptr);
 	assert(sorted_phandles.size() == fixups.size());
 
 	for (auto &i : sorted_phandles)
@@ -1471,9 +1491,24 @@ device_tree::parse_file(text_input_buffer &input,
 		else if (input.consume('&'))
 		{
 			input.next_token();
-			string name = input.parse_node_name();
+			string name;
+			bool name_is_path_reference = false;
+			// This is to deal with names intended as path references, e.g. &{/path}.
+			// While it may make sense in a non-plugin context, we don't support such
+			// usage at this time.
+			if (input.consume('{') && is_plugin)
+			{
+				name = input.parse_to('}');
+				input.consume('}');
+				name_is_path_reference = true;
+			}
+			else
+			{
+				name = input.parse_node_name();
+			}
 			input.next_token();
 			n = node::parse(input, std::move(name), string_set(), string(), &defines);
+			n->name_is_path_reference = name_is_path_reference;
 		}
 		else
 		{
@@ -1702,11 +1737,21 @@ device_tree::create_fragment_wrapper(node_ptr &node, int &fragnum)
 	node_ptr newroot = node::create_special_node("", symbols);
 	node_ptr wrapper = node::create_special_node("__overlay__", symbols);
 
-	// Generate the fragment with target = <&name>
+	// Generate the fragment with $propname = <&name>
 	property_value v;
+	std::string propname;
 	v.string_data = node->name;
-	v.type = property_value::PHANDLE;
-	auto prop = std::make_shared<property>(std::string("target"));
+	if (!node->name_is_path_reference)
+	{
+		propname = "target";
+		v.type = property_value::PHANDLE;
+	}
+	else
+	{
+		propname = "target-path";
+		v.type = property_value::STRING;
+	}
+	auto prop = std::make_shared<property>(std::string(propname));
 	prop->add_value(v);
 	symbols.push_back(prop);
 

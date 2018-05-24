@@ -225,23 +225,23 @@ timehist_quartile(struct timehist* hist, double q)
 }
 
 void 
-timehist_export(struct timehist* hist, size_t* array, size_t sz)
+timehist_export(struct timehist* hist, long long* array, size_t sz)
 {
 	size_t i;
 	if(!hist) return;
 	if(sz > hist->num)
 		sz = hist->num;
 	for(i=0; i<sz; i++)
-		array[i] = hist->buckets[i].count;
+		array[i] = (long long)hist->buckets[i].count;
 }
 
 void 
-timehist_import(struct timehist* hist, size_t* array, size_t sz)
+timehist_import(struct timehist* hist, long long* array, size_t sz)
 {
 	size_t i;
 	if(!hist) return;
 	if(sz > hist->num)
 		sz = hist->num;
 	for(i=0; i<sz; i++)
-		hist->buckets[i].count = array[i];
+		hist->buckets[i].count = (size_t)array[i];
 }

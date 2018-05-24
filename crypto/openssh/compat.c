@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.100 2017/02/03 23:01:19 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.106 2018/02/16 04:43:11 dtucker Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -39,24 +39,8 @@
 #include "match.h"
 #include "kex.h"
 
-int compat13 = 0;
-int compat20 = 0;
 int datafellows = 0;
 
-void
-enable_compat20(void)
-{
-	if (compat20)
-		return;
-	debug("Enabling compatibility mode for protocol 2.0");
-	compat20 = 1;
-}
-void
-enable_compat13(void)
-{
-	debug("Enabling compatibility mode for protocol 1.3");
-	compat13 = 1;
-}
 /* datafellows bug compatibility */
 u_int
 compat_datafellows(const char *version)
@@ -66,83 +50,20 @@ compat_datafellows(const char *version)
 		char	*pat;
 		int	bugs;
 	} check[] = {
-		{ "OpenSSH-2.0*,"
-		  "OpenSSH-2.1*,"
-		  "OpenSSH_2.1*,"
-		  "OpenSSH_2.2*",	SSH_OLD_SESSIONID|SSH_BUG_BANNER|
-					SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
-					SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_2.3.0*",	SSH_BUG_BANNER|SSH_BUG_BIGENDIANAES|
-					SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
-					SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_2.3.*",	SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
-					SSH_BUG_NOREKEY|SSH_BUG_EXTEOF|
-					SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_2.5.0p1*,"
-		  "OpenSSH_2.5.1p1*",
-					SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
-					SSH_BUG_NOREKEY|SSH_BUG_EXTEOF|
-					SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_2.5.0*,"
-		  "OpenSSH_2.5.1*,"
-		  "OpenSSH_2.5.2*",	SSH_OLD_DHGEX|SSH_BUG_NOREKEY|
-					SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_2.5.3*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF|
-					SSH_OLD_FORWARD_ADDR},
 		{ "OpenSSH_2.*,"
 		  "OpenSSH_3.0*,"
 		  "OpenSSH_3.1*",	SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR},
 		{ "OpenSSH_3.*",	SSH_OLD_FORWARD_ADDR },
 		{ "Sun_SSH_1.0*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
-		{ "OpenSSH_4*",		0 },
+		{ "OpenSSH_2*,"
+		  "OpenSSH_3*,"
+		  "OpenSSH_4*",		0 },
 		{ "OpenSSH_5*",		SSH_NEW_OPENSSH|SSH_BUG_DYNAMIC_RPORT},
 		{ "OpenSSH_6.6.1*",	SSH_NEW_OPENSSH},
 		{ "OpenSSH_6.5*,"
 		  "OpenSSH_6.6*",	SSH_NEW_OPENSSH|SSH_BUG_CURVE25519PAD},
 		{ "OpenSSH*",		SSH_NEW_OPENSSH },
 		{ "*MindTerm*",		0 },
-		{ "2.1.0*",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
-					SSH_BUG_RSASIGMD5|SSH_BUG_HBSERVICE|
-					SSH_BUG_FIRSTKEX },
-		{ "2.1 *",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
-					SSH_BUG_RSASIGMD5|SSH_BUG_HBSERVICE|
-					SSH_BUG_FIRSTKEX },
-		{ "2.0.13*,"
-		  "2.0.14*,"
-		  "2.0.15*,"
-		  "2.0.16*,"
-		  "2.0.17*,"
-		  "2.0.18*,"
-		  "2.0.19*",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
-					SSH_BUG_PKSERVICE|SSH_BUG_X11FWD|
-					SSH_BUG_PKOK|SSH_BUG_RSASIGMD5|
-					SSH_BUG_HBSERVICE|SSH_BUG_OPENFAILURE|
-					SSH_BUG_DUMMYCHAN|SSH_BUG_FIRSTKEX },
-		{ "2.0.11*,"
-		  "2.0.12*",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
-					SSH_BUG_PKSERVICE|SSH_BUG_X11FWD|
-					SSH_BUG_PKAUTH|SSH_BUG_PKOK|
-					SSH_BUG_RSASIGMD5|SSH_BUG_OPENFAILURE|
-					SSH_BUG_DUMMYCHAN|SSH_BUG_FIRSTKEX },
-		{ "2.0.*",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
-					SSH_BUG_PKSERVICE|SSH_BUG_X11FWD|
-					SSH_BUG_PKAUTH|SSH_BUG_PKOK|
-					SSH_BUG_RSASIGMD5|SSH_BUG_OPENFAILURE|
-					SSH_BUG_DERIVEKEY|SSH_BUG_DUMMYCHAN|
-					SSH_BUG_FIRSTKEX },
-		{ "2.2.0*,"
-		  "2.3.0*",		SSH_BUG_HMAC|SSH_BUG_DEBUG|
-					SSH_BUG_RSASIGMD5|SSH_BUG_FIRSTKEX },
-		{ "2.3.*",		SSH_BUG_DEBUG|SSH_BUG_RSASIGMD5|
-					SSH_BUG_FIRSTKEX },
-		{ "2.4",		SSH_OLD_SESSIONID },	/* Van Dyke */
-		{ "2.*",		SSH_BUG_DEBUG|SSH_BUG_FIRSTKEX|
-					SSH_BUG_RFWD_ADDR },
 		{ "3.0.*",		SSH_BUG_DEBUG },
 		{ "3.0 SecureCRT*",	SSH_OLD_SESSIONID },
 		{ "1.7 SecureFX*",	SSH_OLD_SESSIONID },
@@ -193,15 +114,20 @@ compat_datafellows(const char *version)
 		  "TTSSH/2.72*",	SSH_BUG_HOSTKEYS },
 		{ "WinSCP_release_4*,"
 		  "WinSCP_release_5.0*,"
-		  "WinSCP_release_5.1*,"
-		  "WinSCP_release_5.5*,"
-		  "WinSCP_release_5.6*,"
+		  "WinSCP_release_5.1,"
+		  "WinSCP_release_5.1.*,"
+		  "WinSCP_release_5.5,"
+		  "WinSCP_release_5.5.*,"
+		  "WinSCP_release_5.6,"
+		  "WinSCP_release_5.6.*,"
 		  "WinSCP_release_5.7,"
 		  "WinSCP_release_5.7.1,"
 		  "WinSCP_release_5.7.2,"
 		  "WinSCP_release_5.7.3,"
 		  "WinSCP_release_5.7.4",
 					SSH_OLD_DHGEX },
+		{ "ConfD-*",
+					SSH_BUG_UTF8TTYMODE },
 		{ NULL,			0 }
 	};
 
@@ -232,13 +158,6 @@ proto_spec(const char *spec)
 		return ret;
 	for ((p = strsep(&q, SEP)); p && *p != '\0'; (p = strsep(&q, SEP))) {
 		switch (atoi(p)) {
-		case 1:
-#ifdef WITH_SSH1
-			if (ret == SSH_PROTO_UNKNOWN)
-				ret |= SSH_PROTO_1_PREFERRED;
-			ret |= SSH_PROTO_1;
-#endif
-			break;
 		case 2:
 			ret |= SSH_PROTO_2;
 			break;

@@ -41,4 +41,8 @@
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
+#define	TRAMP_STACK_SZ		4096
+#define	TRAMP_COPYOUT_SZ	128
+#define	VM86_STACK_SPACE	16
+
 #endif	/* _I386_FRAME_H_ */

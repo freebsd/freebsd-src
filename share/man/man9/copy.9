@@ -61,8 +61,6 @@
 .Fn copystr "const void *kfaddr" "void *kdaddr" "size_t len" "size_t *done"
 .Ft int
 .Fn copyinstr "const void *uaddr" "void *kaddr" "size_t len" "size_t *done"
-.\" .Ft int
-.\" .Fn copyoutstr "const void *kaddr" "void *uaddr" "size_t len" "size_t *done"
 .Sh DESCRIPTION
 The
 .Nm
@@ -135,15 +133,6 @@ NUL, is returned in
 .Fa done
 is
 .No non- Ns Dv NULL ) .
-.\" .It Fn copyoutstr
-.\" Copies a NUL-terminated string, at most
-.\" bytes long, from kernel-space address
-.\" .Fa kaddr
-.\" to user-space address
-.\" .Fa uaddr .
-.\" The number of bytes actually copied, including the terminating
-.\" NUL, is returned in
-.\" .Fa *done .
 .Sh RETURN VALUES
 The
 .Nm
@@ -164,9 +153,6 @@ The
 .Fn copystr
 and
 .Fn copyinstr
-.\" .Fn copyinstr ,
-.\" and
-.\" .Fn copyoutstr
 functions return
 .Er ENAMETOOLONG
 if the string is longer than

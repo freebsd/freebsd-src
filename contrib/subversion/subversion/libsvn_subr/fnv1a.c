@@ -166,6 +166,12 @@ svn_fnv1a_32__context_create(apr_pool_t *pool)
 }
 
 void
+svn_fnv1a_32__context_reset(svn_fnv1a_32__context_t *context)
+{
+  context->hash = FNV1_BASE_32;
+}
+
+void
 svn_fnv1a_32__update(svn_fnv1a_32__context_t *context,
                      const void *data,
                      apr_size_t len)
@@ -200,6 +206,17 @@ svn_fnv1a_32x4__context_create(apr_pool_t *pool)
   context->buffered = 0;
 
   return context;
+}
+
+void
+svn_fnv1a_32x4__context_reset(svn_fnv1a_32x4__context_t *context)
+{
+  context->hashes[0] = FNV1_BASE_32;
+  context->hashes[1] = FNV1_BASE_32;
+  context->hashes[2] = FNV1_BASE_32;
+  context->hashes[3] = FNV1_BASE_32;
+
+  context->buffered = 0;
 }
 
 void

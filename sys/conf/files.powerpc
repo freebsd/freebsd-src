@@ -42,6 +42,7 @@ dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
+dev/ipmi/ipmi.c			optional	ipmi
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/nand/nfc_rb.c		optional	nand mpc85xx
 # Most ofw stuff below is brought in by conf/files for options FDT, but
@@ -85,6 +86,7 @@ kern/subr_sfbuf.c		standard
 libkern/ashldi3.c		optional	powerpc | powerpcspe
 libkern/ashrdi3.c		optional	powerpc | powerpcspe
 libkern/bcmp.c			standard
+libkern/bcopy.c			standard
 libkern/cmpdi2.c		optional	powerpc | powerpcspe
 libkern/divdi3.c		optional	powerpc | powerpcspe
 libkern/ffs.c			standard
@@ -94,7 +96,6 @@ libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/lshrdi3.c		optional	powerpc | powerpcspe
-libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc | powerpcspe
 libkern/qdivrem.c		optional	powerpc | powerpcspe
@@ -188,14 +189,15 @@ powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
+powerpc/powernv/opal_ipmi.c	optional	powernv ipmi
 powerpc/powernv/opal_pci.c	optional	powernv pci
+powerpc/powernv/opal_sensor.c	optional	powernv
 powerpc/powernv/opalcall.S	optional	powernv
 powerpc/powernv/platform_powernv.c optional	powernv
 powerpc/powernv/powernv_centaur.c	optional	powernv
 powerpc/powernv/powernv_xscom.c	optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
-powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
@@ -212,7 +214,6 @@ powerpc/powerpc/elf32_machdep.c	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
-powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet | inet6
 powerpc/powerpc/interrupt.c	standard
@@ -236,7 +237,6 @@ powerpc/powerpc/sigcode64.S	optional	powerpc64
 powerpc/powerpc/swtch32.S	optional	powerpc | powerpcspe
 powerpc/powerpc/swtch64.S	optional	powerpc64
 powerpc/powerpc/stack_machdep.c	optional	ddb | stack
-powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/trap.c		standard

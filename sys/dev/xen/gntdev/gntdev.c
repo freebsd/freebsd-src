@@ -414,7 +414,7 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 	/* Copy the output values. */
 	arg->index = file_offset;
 	for (i = 0; i < arg->count; i++)
-		arg->gref_ids[i] = grefs[i].gref_id;
+		suword32(&arg->gref_ids[i], grefs[i].gref_id);
 
 	/* Modify the per user private data. */
 	mtx_lock(&priv_user->user_data_lock);
@@ -659,16 +659,27 @@ gntdev_map_grant_ref(struct ioctl_gntdev_map_grant_ref *arg)
 	gmap->grant_map_ops =
 	    malloc(sizeof(struct gnttab_map_grant_ref) * arg->count,
 	        M_GNTDEV, M_WAITOK | M_ZERO);
-	
-	error = get_file_offset(priv_user, arg->count, &gmap->file_index);
-	if (error != 0)
-		return (error);
 
 	for (i = 0; i < arg->count; i++) {
-		gmap->grant_map_ops[i].dom = arg->refs[i].domid;
-		gmap->grant_map_ops[i].ref = arg->refs[i].ref;
+		struct ioctl_gntdev_grant_ref ref;
+
+		error = copyin(&arg->refs[i], &ref, sizeof(ref));
+		if (error != 0) {
+			free(gmap->grant_map_ops, M_GNTDEV);
+			free(gmap, M_GNTDEV);
+			return (error);
+		}
+		gmap->grant_map_ops[i].dom = ref.domid;
+		gmap->grant_map_ops[i].ref = ref.ref;
 		gmap->grant_map_ops[i].handle = -1;
 		gmap->grant_map_ops[i].flags = GNTMAP_host_map;
+	}
+
+	error = get_file_offset(priv_user, arg->count, &gmap->file_index);
+	if (error != 0) {
+		free(gmap->grant_map_ops, M_GNTDEV);
+		free(gmap, M_GNTDEV);
+		return (error);
 	}
 
 	mtx_lock(&priv_user->user_data_lock);

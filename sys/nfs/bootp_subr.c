@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <nfs/krpc.h>
 #include <nfs/xdr_subs.h>
 
-
 #define BOOTP_MIN_LEN		300	/* Minimum size of bootp udp packet */
 
 #ifndef BOOTP_SETTLE_DELAY
@@ -410,12 +409,12 @@ bootpboot_p_iflist(void)
 
 	printf("Interface list:\n");
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&V_ifnet);
+	for (ifp = CK_STAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
-	     ifp = TAILQ_NEXT(ifp, if_link)) {
-		for (ifa = TAILQ_FIRST(&ifp->if_addrhead);
+	     ifp = CK_STAILQ_NEXT(ifp, if_link)) {
+		for (ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
 		     ifa != NULL;
-		     ifa = TAILQ_NEXT(ifa, ifa_link))
+		     ifa = CK_STAILQ_NEXT(ifa, ifa_link))
 			if (ifa->ifa_addr->sa_family == AF_INET)
 				bootpboot_p_if(ifp, ifa);
 	}
@@ -1638,14 +1637,13 @@ bootpc_init(void)
 	 */
 	ifcnt = 0;
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags &
 		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
 		    IFF_BROADCAST)
 			continue;
 		switch (ifp->if_alloctype) {
 			case IFT_ETHER:
-			case IFT_FDDI:
 				break;
 			default:
 				continue;
@@ -1662,7 +1660,7 @@ bootpc_init(void)
 retry:
 	ifctx = STAILQ_FIRST(&gctx->interfaces);
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifctx == NULL)
 			break;
 #ifdef BOOTP_WIRED_TO
@@ -1675,7 +1673,6 @@ retry:
 			continue;
 		switch (ifp->if_alloctype) {
 			case IFT_ETHER:
-			case IFT_FDDI:
 				break;
 			default:
 				continue;
@@ -1687,7 +1684,7 @@ retry:
 
 		/* Get HW address */
 		sdl = NULL;
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 			if (ifa->ifa_addr->sa_family == AF_LINK) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if (sdl->sdl_type == IFT_ETHER)

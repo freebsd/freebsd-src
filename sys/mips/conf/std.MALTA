@@ -4,9 +4,6 @@
 
 options 	YAMON
 
-# Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE=""
-
 options 	TICK_USE_YAMON_FREQ=defined
 #options 	TICK_USE_MALTA_RTC=defined
 

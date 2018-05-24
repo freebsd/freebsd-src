@@ -180,6 +180,8 @@ static int fdt_win_setup(void);
 
 static int fdt_win_process_child(phandle_t, struct soc_node_spec *, const char*);
 
+static void soc_identify(uint32_t, uint32_t);
+
 static uint32_t dev_mask = 0;
 static int cpu_wins_no = 0;
 static int eth_port = 0;
@@ -441,13 +443,13 @@ mv_check_soc_family()
 	case MV_DEV_MV78460:
 		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMADA_XP];
 		soc_family = MV_SOC_ARMADA_XP;
-		return (MV_SOC_ARMADA_XP);
+		break;
 	case MV_DEV_88F6828:
 	case MV_DEV_88F6820:
 	case MV_DEV_88F6810:
 		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMADA_38X];
 		soc_family = MV_SOC_ARMADA_38X;
-		return (MV_SOC_ARMADA_38X);
+		break;
 	case MV_DEV_88F5181:
 	case MV_DEV_88F5182:
 	case MV_DEV_88F5281:
@@ -462,11 +464,15 @@ mv_check_soc_family()
 	case MV_DEV_MV78160:
 		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMV5];
 		soc_family = MV_SOC_ARMV5;
-		return (MV_SOC_ARMV5);
+		break;
 	default:
 		soc_family = MV_SOC_UNSUPPORTED;
 		return (MV_SOC_UNSUPPORTED);
 	}
+
+	soc_identify(dev, rev);
+
+	return (soc_family);
 }
 
 static __inline void
@@ -702,13 +708,11 @@ soc_id(uint32_t *dev, uint32_t *rev)
 }
 
 static void
-soc_identify(void)
+soc_identify(uint32_t d, uint32_t r)
 {
-	uint32_t d, r, size, mode, freq;
+	uint32_t size, mode, freq;
 	const char *dev;
 	const char *rev;
-
-	soc_id(&d, &r);
 
 	printf("SOC: ");
 	if (bootverbose)
@@ -827,20 +831,6 @@ soc_identify(void)
 		break;
 	}
 }
-
-static void
-platform_identify(void *dummy)
-{
-
-	soc_identify();
-
-	/*
-	 * XXX Board identification e.g. read out from FPGA or similar should
-	 * go here
-	 */
-}
-SYSINIT(platform_identify, SI_SUB_CPU, SI_ORDER_SECOND, platform_identify,
-    NULL);
 
 #ifdef KDB
 static void

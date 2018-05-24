@@ -128,6 +128,7 @@ static struct g_part_scheme g_part_ebr_scheme = {
 	.gps_maxent = INT_MAX,
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
+MODULE_VERSION(geom_part_ebr, 0);
 
 static struct g_part_ebr_alias {
 	u_char		typ;
@@ -136,6 +137,7 @@ static struct g_part_ebr_alias {
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
 	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_FAT32LBA,	G_PART_ALIAS_MS_FAT32LBA },
 	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
 	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
 	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },

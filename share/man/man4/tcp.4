@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2017
+.Dd May 9, 2018
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -599,7 +599,7 @@ A socket operation may fail with one of the following errors returned:
 .It Bq Er EISCONN
 when trying to establish a connection on a socket which
 already has one;
-.It Bq Er ENOBUFS
+.It Bo Er ENOBUFS Bc or Bo Er ENOMEM Bc
 when the system runs out of memory for
 an internal data structure;
 .It Bq Er ETIMEDOUT

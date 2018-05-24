@@ -49,7 +49,12 @@ struct svn_prefix_string__t
   /* mandatory prefix */
   node_t *prefix;
 
-  /* 0 ..7 chars to add the the prefix. NUL-terminated. */
+  /* 0 ..7 chars to add the prefix.
+   *
+   * NUL-terminated, if this is indeed a tree leaf.  We use the same struct
+   * within node_t for inner tree nodes, too.  There, DATA[7] is not NUL,
+   * meaning DATA may or may not be NUL terminated.  The actual length is
+   * provided by the node_t.length field (minus parent node length). */
   char data[8];
 };
 
@@ -94,6 +99,12 @@ struct svn_prefix_tree__t
 static svn_boolean_t
 is_leaf(node_t *node)
 {
+  /* If this NOT a leaf node and this node has ...
+   *    ... 8 chars, data[7] will not be NUL because we only support
+   *        NUL-*terminated* strings.
+   *    ... less than 8 chars, this will be set to 0xff
+   *        (any other non-NUL would do as well but this is not valid UTF8
+   *         making it easy to recognize during debugging etc.) */
   return node->key.data[7] == 0;
 }
 
@@ -154,7 +165,7 @@ svn_prefix_tree__create(apr_pool_t *pool)
   tree->pool = pool;
 
   tree->root = apr_pcalloc(pool, sizeof(*tree->root));
-  tree->root->key.data[7] = '\xff';
+  tree->root->key.data[7] = '\xff'; /* This is not a leaf. See is_leaf(). */
 
   return tree;
 }
@@ -188,6 +199,7 @@ svn_prefix_string__create(svn_prefix_tree__t *tree,
           || node->sub_nodes[idx]->key.data[0] != s[node->length])
         break;
 
+      /* Yes, it matches - at least the first character does. */
       sub_node = node->sub_nodes[idx];
 
       /* fully matching sub-node? */
@@ -198,6 +210,11 @@ svn_prefix_string__create(svn_prefix_tree__t *tree,
         }
       else
         {
+          /* The string formed by the path from the root down to
+           * SUB_NODE differs from S.
+           *
+           * Is it a prefix?  In that case, the chars added by SUB_NODE
+           * must fully match the respective chars in S. */
           apr_size_t sub_node_len = sub_node->length - node->length;
           if (strncmp(sub_node->key.data, s + node->length,
                       sub_node_len) == 0)
@@ -207,14 +224,24 @@ svn_prefix_string__create(svn_prefix_tree__t *tree,
             }
         }
 
-      /* partial match -> split */
+      /* partial match -> split
+       *
+       * At this point, S may either be a prefix to the string represented
+       * by SUB_NODE, or they may diverge at some offset with
+       * SUB_NODE->KEY.DATA .
+       *
+       * MATCH starts with 1 here b/c we already know that at least one
+       * char matches.  Also, the loop will terminate because the strings
+       * differ before SUB_NODE->KEY.DATA - either at the NUL terminator
+       * of S or some char before that.
+       */
       while (sub_node->key.data[match] == s[node->length + match])
         ++match;
 
       new_node = apr_pcalloc(tree->pool, sizeof(*new_node));
       new_node->key = sub_node->key;
       new_node->length = node->length + match;
-      new_node->key.data[7] = '\xff';
+      new_node->key.data[7] = '\xff';  /* This is not a leaf. See is_leaf(). */
       new_node->sub_node_count = 1;
       new_node->sub_nodes = apr_palloc(tree->pool, sizeof(node_t *));
       new_node->sub_nodes[0] = sub_node;
@@ -228,7 +255,7 @@ svn_prefix_string__create(svn_prefix_tree__t *tree,
     }
 
   /* add sub-node(s) and final string */
-  while (node->length + 7 < len)
+  while (len - node->length > 7)
     {
       new_node = apr_pcalloc(tree->pool, sizeof(*new_node));
       new_node->key.prefix = node;

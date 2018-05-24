@@ -357,6 +357,8 @@ typedef enum
     ASL_MSG_ILLEGAL_RECURSION,
     ASL_MSG_EXTERN_COLLISION,
     ASL_MSG_EXTERN_FOUND_HERE,
+    ASL_MSG_OEM_TABLE_ID,
+    ASL_MSG_OEM_ID,
 
     /* These messages are used by the Data Table compiler only */
 

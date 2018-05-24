@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.h,v 1.15 2015/05/08 06:45:13 djm Exp $ */
+/* $OpenBSD: dns.h,v 1.18 2018/02/23 15:58:37 markus Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -33,7 +33,8 @@ enum sshfp_types {
 	SSHFP_KEY_RSA = 1,
 	SSHFP_KEY_DSA = 2,
 	SSHFP_KEY_ECDSA = 3,
-	SSHFP_KEY_ED25519 = 4
+	SSHFP_KEY_ED25519 = 4,
+	SSHFP_KEY_XMSS = 5
 };
 
 enum sshfp_hashes {

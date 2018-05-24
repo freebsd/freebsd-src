@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
@@ -279,12 +281,26 @@ kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
 	char buf[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
 	char *pname;
+	CORE_ADDR pcx;
+	uintptr_t addr, setidt_disp;
 
 	cache = *this_cache;
 	if (cache == NULL) {
 		cache = FRAME_OBSTACK_ZALLOC(struct kgdb_frame_cache);
 		*this_cache = cache;
-		cache->pc = frame_func_unwind(next_frame);
+		pcx = frame_pc_unwind(next_frame);
+		if (pcx >= PMAP_TRM_MIN_ADDRESS) {
+			addr = kgdb_lookup("setidt_disp");
+			if (addr != 0) {
+				if (kvm_read(kvm, addr, &setidt_disp,
+				    sizeof(setidt_disp)) !=
+				    sizeof(setidt_disp))
+					warnx("kvm_read: %s", kvm_geterr(kvm));
+				else
+					pcx -= setidt_disp;
+			}
+		}
+		cache->pc = pcx;
 		find_pc_partial_function(cache->pc, &pname, NULL, NULL);
 		if (pname[0] != 'X')
 			cache->frame_type = FT_NORMAL;
@@ -373,6 +389,8 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	CORE_ADDR pc;
 
 	pc = frame_pc_unwind(next_frame);
+	if (pc >= PMAP_TRM_MIN_ADDRESS)
+		return (&kgdb_trgt_trapframe_unwind);
 	pname = NULL;
 	find_pc_partial_function(pc, &pname, NULL, NULL);
 	if (pname == NULL)

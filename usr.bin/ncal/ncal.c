@@ -78,7 +78,7 @@ static struct djswitch {
 	{"AT", "Austria",       {1583, 10,  5}},
 	{"AU", "Australia",     {1752,  9,  2}},
 	{"BE", "Belgium",       {1582, 12, 14}},
-	{"BG", "Bulgaria",      {1916,  3, 18}},
+	{"BG", "Bulgaria",      {1916,  3, 31}},
 	{"CA", "Canada",        {1752,  9,  2}},
 	{"CH", "Switzerland",   {1655,  2, 28}},
 	{"CN", "China",         {1911, 12, 18}},

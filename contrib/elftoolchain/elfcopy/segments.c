@@ -79,6 +79,8 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 			continue;
 		if (s->vma + s->sz > seg->vaddr + seg->msz)
 			continue;
+		if (seg->type == PT_TLS && ((s->flags & SHF_TLS) == 0))
+			continue;
 
 		insert_to_inseg_list(seg, s);
 		if (seg->type == PT_LOAD)

@@ -288,7 +288,11 @@ ec_putc(int c)
 		 * This is enough for ec_putc() to work very early on x86
 		 * if the kernel starts in normal color text mode.
 		 */
+#ifdef __amd64__
 		fb = KERNBASE + 0xb8000;
+#else /* __i386__ */
+		fb = PMAP_MAP_LOW + 0xb8000;
+#endif
 		xsize = 80;
 		ysize = 25;
 #endif

@@ -165,12 +165,16 @@ cuda_attach(device_t dev)
             	RF_ACTIVE);
         if (sc->sc_irq == NULL) {
                 device_printf(dev, "could not allocate interrupt\n");
+                bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_memrid,
+                    sc->sc_memr);
                 return (ENXIO);
         }
 
 	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_MPSAFE 
 	    | INTR_ENTROPY, NULL, cuda_intr, dev, &sc->sc_ih) != 0) {
                 device_printf(dev, "could not setup interrupt\n");
+                bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_memrid,
+                    sc->sc_memr);
                 bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irqrid,
                     sc->sc_irq);
                 return (ENXIO);

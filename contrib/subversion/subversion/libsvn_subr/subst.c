@@ -1127,7 +1127,7 @@ translate_chunk(svn_stream_t *dst,
                 {
                   /* Check 4 bytes at once to allow for efficient pipelining
                     and to reduce loop condition overhead. */
-                  while ((p + len + 4) <= end)
+                  while ((end - p) >= (len + 4))
                     {
                       if (interesting[(unsigned char)p[len]]
                           || interesting[(unsigned char)p[len+1]]
@@ -1157,7 +1157,7 @@ translate_chunk(svn_stream_t *dst,
             }
           while (b->nl_translation_skippable ==
                    svn_tristate_true &&       /* can potentially skip EOLs */
-                 p + len + 2 < end &&         /* not too close to EOF */
+                 (end - p) > (len + 2) &&     /* not too close to EOF */
                  eol_unchanged(b, p + len));  /* EOL format already ok */
 
           while ((p + len) < end && !interesting[(unsigned char)p[len]])
@@ -1431,14 +1431,6 @@ translated_stream_seek(void *baton, const svn_stream_mark_t *mark)
   return SVN_NO_ERROR;
 }
 
-/* Implements svn_stream__is_buffered_fn_t. */
-static svn_boolean_t
-translated_stream_is_buffered(void *baton)
-{
-  struct translated_stream_baton *b = baton;
-  return svn_stream__is_buffered(b->stream);
-}
-
 svn_error_t *
 svn_subst_read_specialfile(svn_stream_t **stream,
                            const char *path,
@@ -1546,9 +1538,11 @@ stream_translated(svn_stream_t *stream,
                        translated_stream_read);
   svn_stream_set_write(s, translated_stream_write);
   svn_stream_set_close(s, translated_stream_close);
-  svn_stream_set_mark(s, translated_stream_mark);
-  svn_stream_set_seek(s, translated_stream_seek);
-  svn_stream__set_is_buffered(s, translated_stream_is_buffered);
+  if (svn_stream_supports_mark(stream))
+    {
+      svn_stream_set_mark(s, translated_stream_mark);
+      svn_stream_set_seek(s, translated_stream_seek);
+    }
 
   return s;
 }
@@ -1649,7 +1643,7 @@ detranslate_special_file(const char *src, const char *dst,
                            cancel_func, cancel_baton, scratch_pool));
 
   /* Do the atomic rename from our temporary location. */
-  return svn_error_trace(svn_io_file_rename(dst_tmp, dst, scratch_pool));
+  return svn_error_trace(svn_io_file_rename2(dst_tmp, dst, FALSE, scratch_pool));
 }
 
 /* Creates a special file DST from the "normal form" located in SOURCE.
@@ -1691,17 +1685,16 @@ create_special_file_from_stream(svn_stream_t *source, const char *dst,
                                                    ".tmp", pool);
 
       /* If we had an error, check to see if it was because symlinks are
-         not supported on the platform.  If so, fall back
-         to using the internal representation. */
-      if (err)
+         not supported on the platform.  If so, fall back to using the
+         internal representation. */
+      if (err && err->apr_err == SVN_ERR_UNSUPPORTED_FEATURE)
         {
-          if (err->apr_err == SVN_ERR_UNSUPPORTED_FEATURE)
-            {
-              svn_error_clear(err);
-              create_using_internal_representation = TRUE;
-            }
-          else
-            return err;
+          svn_error_clear(err);
+          create_using_internal_representation = TRUE;
+        }
+      else if (err)
+        {
+          return svn_error_trace(err);
         }
     }
   else
@@ -1733,7 +1726,7 @@ create_special_file_from_stream(svn_stream_t *source, const char *dst,
     }
 
   /* Do the atomic rename from our temporary location. */
-  return svn_error_trace(svn_io_file_rename(dst_tmp, dst, pool));
+  return svn_error_trace(svn_io_file_rename2(dst_tmp, dst, FALSE, pool));
 }
 
 
@@ -1824,7 +1817,7 @@ svn_subst_copy_and_translate4(const char *src,
     }
 
   /* Now that dst_tmp contains the translated data, do the atomic rename. */
-  SVN_ERR(svn_io_file_rename(dst_tmp, dst, pool));
+  SVN_ERR(svn_io_file_rename2(dst_tmp, dst, FALSE, pool));
 
   /* Preserve the source file's permission bits. */
   SVN_ERR(svn_io_copy_perms(src, dst, pool));

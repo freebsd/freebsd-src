@@ -1330,6 +1330,26 @@ svn_client_export(svn_revnum_t *result_rev,
 
 /*** From list.c ***/
 
+svn_error_t *
+svn_client_list3(const char *path_or_url,
+                 const svn_opt_revision_t *peg_revision,
+                 const svn_opt_revision_t *revision,
+                 svn_depth_t depth,
+                 apr_uint32_t dirent_fields,
+                 svn_boolean_t fetch_locks,
+                 svn_boolean_t include_externals,
+                 svn_client_list_func2_t list_func,
+                 void *baton,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *pool)
+{
+  return svn_error_trace(svn_client_list4(path_or_url, peg_revision,
+                                          revision, NULL, depth,
+                                          dirent_fields, fetch_locks,
+                                          include_externals,
+                                          list_func, baton, ctx, pool));
+}
+
 /* Baton for use with wrap_list_func */
 struct list_func_wrapper_baton {
     void *list_func1_baton;

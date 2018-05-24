@@ -434,7 +434,7 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	m->m_pkthdr.rcvif = ifp;
 	IPSEC_SC_RUNLOCK();
 
-	/* m_clrprotoflags(m); */
+	m_clrprotoflags(m);
 	M_SETFIB(m, ifp->if_fib);
 	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);

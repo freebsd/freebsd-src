@@ -59,7 +59,7 @@ static int	nstops;
 static int	tabstops[100];
 
 static void getstops(char *);
-static void usage(void);
+static void usage(void) __dead2; 
 
 int
 main(int argc, char *argv[])

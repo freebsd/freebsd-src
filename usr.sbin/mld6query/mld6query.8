@@ -39,7 +39,7 @@
 .\"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dr
+.Op Fl dgr
 .Ar intface
 .Op Ar maddr
 .\"
@@ -65,6 +65,10 @@ prints it with its type and then waits for another reply.
 This program is provided only for debugging.
 It is not necessary for normal use.
 .Pp
+With
+.Fl g ,
+.Nm
+will transmit a General Query instead of the default Multicast-Address-Specific Query.
 With
 .Fl d ,
 .Nm

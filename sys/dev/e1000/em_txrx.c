@@ -68,25 +68,25 @@ static int em_determine_rsstype(u32 pkt_info);
 extern int em_intr(void *arg);
 
 struct if_txrx em_txrx = {
-	em_isc_txd_encap,
-	em_isc_txd_flush,
-	em_isc_txd_credits_update,
-	em_isc_rxd_available,
-	em_isc_rxd_pkt_get,
-	em_isc_rxd_refill,
-	em_isc_rxd_flush,
-	em_intr
+	.ift_txd_encap = em_isc_txd_encap,
+	.ift_txd_flush = em_isc_txd_flush,
+	.ift_txd_credits_update = em_isc_txd_credits_update,
+	.ift_rxd_available = em_isc_rxd_available,
+	.ift_rxd_pkt_get = em_isc_rxd_pkt_get,
+	.ift_rxd_refill = em_isc_rxd_refill,
+	.ift_rxd_flush = em_isc_rxd_flush,
+	.ift_legacy_intr = em_intr
 };
 
 struct if_txrx lem_txrx = {
-	em_isc_txd_encap,
-	em_isc_txd_flush,
-	em_isc_txd_credits_update,
-	lem_isc_rxd_available,
-	lem_isc_rxd_pkt_get,
-	lem_isc_rxd_refill,
-	em_isc_rxd_flush,
-	em_intr
+	.ift_txd_encap = em_isc_txd_encap,
+	.ift_txd_flush = em_isc_txd_flush,
+	.ift_txd_credits_update = em_isc_txd_credits_update,
+	.ift_rxd_available = lem_isc_rxd_available,
+	.ift_rxd_pkt_get = lem_isc_rxd_pkt_get,
+	.ift_rxd_refill = lem_isc_rxd_refill,
+	.ift_rxd_flush = em_isc_rxd_flush,
+	.ift_legacy_intr = em_intr
 };
 
 extern if_shared_ctx_t em_sctx;
@@ -401,7 +401,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	 * needs End Of Packet (EOP)
 	 * and Report Status (RS)
 	 */
-	if (txd_flags) {
+	if (txd_flags && nsegs) {
 		txr->tx_rsq[txr->tx_rs_pidx] = pidx_last;
 		DPRINTF(iflib_get_dev(sc->ctx), "setting to RS on %d rs_pidx %d first: %d\n", pidx_last, txr->tx_rs_pidx, first);
 		txr->tx_rs_pidx = (txr->tx_rs_pidx+1) & (ntxd-1);

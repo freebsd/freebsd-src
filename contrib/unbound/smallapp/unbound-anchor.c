@@ -174,7 +174,7 @@ struct ip_list {
 static void
 usage(void)
 {
-	printf("Usage:	unbound-anchor [opts]\n");
+	printf("Usage:	local-unbound-anchor [opts]\n");
 	printf("	Setup or update root anchor. "
 		"Most options have defaults.\n");
 	printf("	Run this program before you start the validator.\n");
@@ -241,7 +241,12 @@ static const char*
 get_builtin_ds(void)
 {
 	return
-". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5\n";
+/* The anchors must start on a new line with ". IN DS and end with \n"[;]
+ * because the makedist script greps on the source here */
+/* anchor 19036 is from 2010 */
+/* anchor 20326 is from 2017 */
+". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5\n"
+". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D\n";
 }
 
 /** print hex data */
@@ -657,7 +662,7 @@ wipe_ip_usage(struct ip_list* p)
 	}
 }
 
-/** cound unused IPs */
+/** count unused IPs */
 static int
 count_unused(struct ip_list* p)
 {
@@ -2314,7 +2319,9 @@ int main(int argc, char* argv[])
 #ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
 #endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	ERR_load_SSL_strings();
+#endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
 	OpenSSL_add_all_algorithms();
 #else
@@ -2325,7 +2332,7 @@ int main(int argc, char* argv[])
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
 #else
-	(void)OPENSSL_init_ssl(0, NULL);
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
 #endif
 
 	if(dolist) do_list_builtin();

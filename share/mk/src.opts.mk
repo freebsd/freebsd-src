@@ -187,7 +187,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
-    BSD_GREP_FASTMATCH \
     CLANG_EXTRAS \
     DTRACE_TESTS \
     GNU_GREP_COMPAT \
@@ -242,8 +241,8 @@ __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but GCC is installed as the
 # default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
-__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC LLD
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX GPL_DTC LLD
+__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 .else
 # Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
@@ -423,6 +422,11 @@ MK_KERBEROS:=	no
 
 .if ${MK_PF} == "no"
 MK_AUTHPF:=	no
+.endif
+
+.if ${MK_PORTSNAP} == "no"
+# freebsd-update depends on phttpget from portsnap
+MK_FREEBSD_UPDATE:=	no
 .endif
 
 .if ${MK_TESTS} == "no"

@@ -556,3 +556,4 @@ g_label_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 }
 
 DECLARE_GEOM_CLASS(g_label_class, g_label);
+MODULE_VERSION(geom_label, 0);

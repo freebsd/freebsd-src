@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: c64,v 1.6 2015/08/24 05:17:42 christos Exp $
+# $File: c64,v 1.7 2017/11/15 12:19:06 christos Exp $
 # c64:  file(1) magic for various commodore 64 related files
 #
 # From: Dirk Jagdmann <doj@cubic.org>
@@ -46,4 +46,13 @@
 # Esa Hyyti <esa@netlab.tkk.fi>
 0	string		C64-TAPE-RAW	C64 Raw Tape File (.tap),
 >0x0c	byte		x		Version:%u,
->0x10   lelong		x		Length:%u cycles
+>0x10	lelong		x		Length:%u cycles
+
+# magic for Goattracker2, http://covertbitops.c64.org/
+# from Alex Myczko <alex@aiei.ch>
+0	string		GTS5		GoatTracker 2 song
+>4	string		>\0		\b, "%s"
+>36	string		>\0		\b by %s
+>68	string		>\0		\b (C) %s
+>100	byte		>0		\b, %u subsong(s)
+

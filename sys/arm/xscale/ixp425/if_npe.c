@@ -435,7 +435,7 @@ npe_setmcast(struct npe_softc *sc)
 		memset(set, 0xff, ETHER_ADDR_LEN);
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			mac = LLADDR((struct sockaddr_dl *) ifma->ifma_addr);

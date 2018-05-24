@@ -843,6 +843,16 @@ vfs_domount_first(
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
 
 	/*
+	 * If the jail of the calling thread lacks permission for this type of
+	 * file system, deny immediately.
+	 */
+	if (jailed(td->td_ucred) && !prison_allow(td->td_ucred,
+	    vfsp->vfc_prison_flag)) {
+		vput(vp);
+		return (EPERM);
+	}
+
+	/*
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
@@ -1149,8 +1159,6 @@ vfs_domount(
 			vfsp = vfs_byname_kld(fstype, td, &error);
 		if (vfsp == NULL)
 			return (ENODEV);
-		if (jailed(td->td_ucred) && !(vfsp->vfc_flags & VFCF_JAIL))
-			return (EPERM);
 	}
 
 	/*

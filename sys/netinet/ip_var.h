@@ -36,6 +36,7 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
+#include <sys/epoch.h>
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -95,7 +96,7 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
-	STAILQ_ENTRY(ip_moptions) imo_link;
+	struct	epoch_context imo_epoch_ctx;
 };
 
 struct	ipstat {
@@ -175,6 +176,7 @@ struct ip;
 struct inpcb;
 struct route;
 struct sockopt;
+struct inpcbinfo;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */

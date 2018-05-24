@@ -40,7 +40,6 @@ FBSD_1.0 {
 	amd64_set_fsbase;
 	amd64_set_gsbase;
 	brk;
-	exect;
 	sbrk;
 	vfork;
 };

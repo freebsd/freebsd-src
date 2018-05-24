@@ -1874,6 +1874,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				}
 				new->offset = url->offset;
 				new->length = url->length;
+				new->ims_time = url->ims_time;
 				break;
 			case hdr_transfer_encoding:
 				/* XXX weak test*/

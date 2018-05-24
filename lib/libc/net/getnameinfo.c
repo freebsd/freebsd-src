@@ -481,7 +481,6 @@ getnameinfo_link(const struct afd *afd,
 	 * IFT_OTHER	(netinet/ip_ipip.c)
 	 */
 	/* default below is believed correct for all these. */
-	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_HIPPI:

@@ -245,6 +245,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	struct cf_saved_freq *saved_freq, *curr_freq;
 	struct pcpu *pc;
 	int error, i;
+	u_char pri;
 
 	sc = device_get_softc(dev);
 	error = 0;
@@ -333,6 +334,8 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		/* Bind to the target CPU before switching. */
 		pc = cpu_get_pcpu(set->dev);
 		thread_lock(curthread);
+		pri = curthread->td_priority;
+		sched_prio(curthread, PRI_MIN);
 		sched_bind(curthread, pc->pc_cpuid);
 		thread_unlock(curthread);
 		CF_DEBUG("setting abs freq %d on %s (cpu %d)\n", set->freq,
@@ -340,6 +343,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		thread_lock(curthread);
 		sched_unbind(curthread);
+		sched_prio(curthread, pri);
 		thread_unlock(curthread);
 		if (error) {
 			goto out;
@@ -357,6 +361,8 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		/* Bind to the target CPU before switching. */
 		pc = cpu_get_pcpu(set->dev);
 		thread_lock(curthread);
+		pri = curthread->td_priority;
+		sched_prio(curthread, PRI_MIN);
 		sched_bind(curthread, pc->pc_cpuid);
 		thread_unlock(curthread);
 		CF_DEBUG("setting rel freq %d on %s (cpu %d)\n", set->freq,
@@ -364,6 +370,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		thread_lock(curthread);
 		sched_unbind(curthread);
+		sched_prio(curthread, pri);
 		thread_unlock(curthread);
 		if (error) {
 			/* XXX Back out any successful setting? */

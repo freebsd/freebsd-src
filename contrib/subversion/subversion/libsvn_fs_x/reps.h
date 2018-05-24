@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__REPS_H
-#define SVN_LIBSVN_FS__REPS_H
+#ifndef SVN_LIBSVN_FS_X_REPS_H
+#define SVN_LIBSVN_FS_X_REPS_H
 
 #include "svn_io.h"
 #include "fs.h"
@@ -112,14 +112,14 @@ svn_fs_x__reps_estimate_size(const svn_fs_x__reps_builder_t *builder);
 /* Read from representation containers. */
 
 /* For fulltext IDX in CONTAINER in filesystem FS, create an extract object
- * allocated in POOL and return it in *EXTRACTOR.
+ * allocated in RESULT_POOL and return it in *EXTRACTOR.
  */
 svn_error_t *
 svn_fs_x__reps_get(svn_fs_x__rep_extractor_t **extractor,
                    svn_fs_t *fs,
                    const svn_fs_x__reps_t *container,
                    apr_size_t idx,
-                   apr_pool_t *pool);
+                   apr_pool_t *result_pool);
 
 /* Let the EXTRACTOR object fetch all parts of the desired fulltext and
  * return the latter in *CONTENTS.  If SIZE is not 0, return SIZE bytes
@@ -172,7 +172,7 @@ svn_error_t *
 svn_fs_x__deserialize_reps_container(void **out,
                                      void *data,
                                      apr_size_t data_len,
-                                     apr_pool_t *pool);
+                                     apr_pool_t *result_pool);
 
 /* Implements svn_cache__partial_getter_func_t for svn_fs_x__reps_t,
  * setting *OUT to an svn_fs_x__rep_extractor_t object defined by the

@@ -276,12 +276,8 @@ static int
 bcm_pwm_probe(device_t dev)
 {
 
-#if 0
-	// XXX: default state is disabled in RPI3 DTB, assume for now
-	// XXX: that people want the PWM to work if the KLD this module.
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-#endif
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);

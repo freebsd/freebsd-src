@@ -113,6 +113,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	.gps_bootcodesz = BBSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
+MODULE_VERSION(geom_part_bsd, 0);
 
 static struct g_part_bsd_alias {
 	uint8_t		type;

@@ -383,7 +383,7 @@ vtnet_netmap_init_rx_buffers(struct SOFTC_T *sc)
 	if (!nm_native_on(na))
 		return 0;
 	for (r = 0; r < na->num_rx_rings; r++) {
-                struct netmap_kring *kring = &na->rx_rings[r];
+                struct netmap_kring *kring = na->rx_rings[r];
 		struct vtnet_rxq *rxq = &sc->vtnet_rxqs[r];
 		struct virtqueue *vq = rxq->vtnrx_vq;
 	        struct netmap_slot* slot;
@@ -407,29 +407,6 @@ vtnet_netmap_init_rx_buffers(struct SOFTC_T *sc)
 	return 1;
 }
 
-/* Update the virtio-net device configurations. Number of queues can
- * change dinamically, by 'ethtool --set-channels $IFNAME combined $N'.
- * This is actually the only way virtio-net can currently enable
- * the multiqueue mode.
- * XXX note that we seem to lose packets if the netmap ring has more
- * slots than the queue
- */
-static int
-vtnet_netmap_config(struct netmap_adapter *na, u_int *txr, u_int *txd,
-						u_int *rxr, u_int *rxd)
-{
-	struct ifnet *ifp = na->ifp;
-	struct SOFTC_T *sc = ifp->if_softc;
-
-	*txr = *rxr = sc->vtnet_max_vq_pairs;
-	*rxd = 512; // sc->vtnet_rx_nmbufs;
-	*txd = *rxd; // XXX
-        D("vtnet config txq=%d, txd=%d rxq=%d, rxd=%d",
-					*txr, *txd, *rxr, *rxd);
-
-	return 0;
-}
-
 static void
 vtnet_netmap_attach(struct SOFTC_T *sc)
 {
@@ -443,7 +420,6 @@ vtnet_netmap_attach(struct SOFTC_T *sc)
 	na.nm_register = vtnet_netmap_reg;
 	na.nm_txsync = vtnet_netmap_txsync;
 	na.nm_rxsync = vtnet_netmap_rxsync;
-	na.nm_config = vtnet_netmap_config;
 	na.nm_intr = vtnet_netmap_intr;
 	na.num_tx_rings = na.num_rx_rings = sc->vtnet_max_vq_pairs;
 	D("max rings %d", sc->vtnet_max_vq_pairs);

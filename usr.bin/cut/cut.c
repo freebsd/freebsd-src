@@ -210,6 +210,12 @@ get_list(char *list)
 		needpos(maxval + 1);
 	}
 
+	/* reversed range with autostart */
+	if (maxval < autostart) {
+		maxval = autostart;
+		needpos(maxval + 1);
+	}
+
 	/* set autostart */
 	if (autostart)
 		memset(positions + 1, '1', autostart);

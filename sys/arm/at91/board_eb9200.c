@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2005-2008 Olivier Houchard.  All rights reserved.
- * Copyright (c) 2005-2012 Warner Losh.  All rights reserved.
+ * Copyright (c) 2005-2012 M. Warner Losh.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

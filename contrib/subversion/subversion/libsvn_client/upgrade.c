@@ -179,6 +179,122 @@ svn_client_upgrade(const char *path,
   return SVN_NO_ERROR;
 }
 
+/* Helper for upgrade_externals_from_properties: upgrades one external ITEM
+   in EXTERNALS_PARENT. Uses SCRATCH_POOL for temporary allocations. */
+static svn_error_t *
+upgrade_external_item(svn_client_ctx_t *ctx,
+                      const char *externals_parent_abspath,
+                      const char *externals_parent_url,
+                      const char *externals_parent_repos_root_url,
+                      svn_wc_external_item2_t *item,
+                      struct repos_info_baton *info_baton,
+                      apr_pool_t *scratch_pool)
+{
+  const char *resolved_url;
+  const char *external_abspath;
+  const char *repos_relpath;
+  const char *repos_root_url;
+  const char *repos_uuid;
+  svn_node_kind_t external_kind;
+  svn_revnum_t peg_revision;
+  svn_revnum_t revision;
+  svn_error_t *err;
+
+  external_abspath = svn_dirent_join(externals_parent_abspath,
+                                     item->target_dir,
+                                     scratch_pool);
+
+  SVN_ERR(svn_wc__resolve_relative_external_url(
+              &resolved_url,
+              item,
+              externals_parent_repos_root_url,
+              externals_parent_url,
+              scratch_pool, scratch_pool));
+
+  /* This is a hack. We only need to call svn_wc_upgrade() on external
+   * dirs, as file externals are upgraded along with their defining
+   * WC.  Reading the kind will throw an exception on an external dir,
+   * saying that the wc must be upgraded.  If it's a file, the lookup
+   * is done in an adm_dir belonging to the defining wc (which has
+   * already been upgraded) and no error is returned.  If it doesn't
+   * exist (external that isn't checked out yet), we'll just get
+   * svn_node_none. */
+  err = svn_wc_read_kind2(&external_kind, ctx->wc_ctx,
+                          external_abspath, TRUE, FALSE, scratch_pool);
+  if (err && err->apr_err == SVN_ERR_WC_UPGRADE_REQUIRED)
+    {
+      svn_error_clear(err);
+
+      SVN_ERR(svn_client_upgrade(external_abspath, ctx, scratch_pool));
+    }
+  else if (err)
+    return svn_error_trace(err);
+
+  /* The upgrade of any dir should be done now, get the now reliable
+   * kind. */
+  SVN_ERR(svn_wc_read_kind2(&external_kind, ctx->wc_ctx, external_abspath,
+                            TRUE, FALSE, scratch_pool));
+
+  /* Update the EXTERNALS table according to the root URL,
+   * relpath and uuid known in the upgraded external WC. */
+
+  /* We should probably have a function that provides all three
+   * of root URL, repos relpath and uuid at once, but here goes... */
+
+  /* First get the relpath, as that returns SVN_ERR_WC_PATH_NOT_FOUND
+   * when the node is not present in the file system.
+   * svn_wc__node_get_repos_info() would try to derive the URL. */
+  SVN_ERR(svn_wc__node_get_repos_info(NULL,
+                                      &repos_relpath,
+                                      &repos_root_url,
+                                      &repos_uuid,
+                                      ctx->wc_ctx,
+                                      external_abspath,
+                                      scratch_pool, scratch_pool));
+
+  /* If we haven't got any information from the checked out external,
+   * or if the URL information mismatches the external's definition,
+   * ask fetch_repos_info() to find out the repos root. */
+  if (0 != strcmp(resolved_url,
+                  svn_path_url_add_component2(repos_root_url,
+                                              repos_relpath,
+                                              scratch_pool)))
+    {
+      SVN_ERR(fetch_repos_info(&repos_root_url, &repos_uuid, info_baton,
+                               resolved_url, scratch_pool, scratch_pool));
+
+      repos_relpath = svn_uri_skip_ancestor(repos_root_url,
+                                            resolved_url,
+                                            scratch_pool);
+
+      /* There's just the URL, no idea what kind the external is.
+       * That's fine, as the external isn't even checked out yet.
+       * The kind will be set during the next 'update'. */
+      external_kind = svn_node_unknown;
+    }
+
+  peg_revision = (item->peg_revision.kind == svn_opt_revision_number
+                     ? item->peg_revision.value.number
+                     : SVN_INVALID_REVNUM);
+
+  revision = (item->revision.kind == svn_opt_revision_number
+                 ? item->revision.value.number
+                 : SVN_INVALID_REVNUM);
+
+  SVN_ERR(svn_wc__upgrade_add_external_info(ctx->wc_ctx,
+                                            external_abspath,
+                                            external_kind,
+                                            externals_parent_abspath,
+                                            repos_relpath,
+                                            repos_root_url,
+                                            repos_uuid,
+                                            peg_revision,
+                                            revision,
+                                            scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
 static svn_error_t *
 upgrade_externals_from_properties(svn_client_ctx_t *ctx,
                                   const char *local_abspath,
@@ -207,34 +323,32 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
        hi = apr_hash_next(hi))
     {
       int i;
-      const char *externals_parent_abspath;
       const char *externals_parent_url;
       const char *externals_parent_repos_root_url;
       const char *externals_parent_repos_relpath;
-      const char *externals_parent = apr_hash_this_key(hi);
+      const char *externals_parent_abspath = apr_hash_this_key(hi);
       svn_string_t *external_desc = apr_hash_this_val(hi);
       apr_array_header_t *externals_p;
       svn_error_t *err;
 
       svn_pool_clear(iterpool);
+
+      /* svn_client_propget5() has API promise to return absolute paths. */
+      SVN_ERR_ASSERT(svn_dirent_is_absolute(externals_parent_abspath));
+
       externals_p = apr_array_make(iterpool, 1,
                                    sizeof(svn_wc_external_item2_t*));
 
       /* In this loop, an error causes the respective externals definition, or
        * the external (inner loop), to be skipped, so that upgrade carries on
        * with the other externals. */
-
-      err = svn_dirent_get_absolute(&externals_parent_abspath,
-                                    externals_parent, iterpool);
-
-      if (!err)
-        err = svn_wc__node_get_repos_info(NULL,
-                                          &externals_parent_repos_relpath,
-                                          &externals_parent_repos_root_url,
-                                          NULL,
-                                          ctx->wc_ctx,
-                                          externals_parent_abspath,
-                                          iterpool, iterpool);
+      err = svn_wc__node_get_repos_info(NULL,
+                                        &externals_parent_repos_relpath,
+                                        &externals_parent_repos_root_url,
+                                        NULL,
+                                        ctx->wc_ctx,
+                                        externals_parent_abspath,
+                                        iterpool, iterpool);
 
       if (!err)
         externals_parent_url = svn_path_url_add_component2(
@@ -248,7 +362,7 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
       if (err)
         {
           svn_wc_notify_t *notify =
-              svn_wc_create_notify(externals_parent,
+              svn_wc_create_notify(externals_parent_abspath,
                                    svn_wc_notify_failed_external,
                                    scratch_pool);
           notify->err = err;
@@ -265,130 +379,21 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
       for (i = 0; i < externals_p->nelts; i++)
         {
           svn_wc_external_item2_t *item;
-          const char *resolved_url;
-          const char *external_abspath;
-          const char *repos_relpath;
-          const char *repos_root_url;
-          const char *repos_uuid;
-          svn_node_kind_t external_kind;
-          svn_revnum_t peg_revision;
-          svn_revnum_t revision;
 
           item = APR_ARRAY_IDX(externals_p, i, svn_wc_external_item2_t*);
 
           svn_pool_clear(iterpool2);
-          external_abspath = svn_dirent_join(externals_parent_abspath,
-                                             item->target_dir,
-                                             iterpool2);
+          err = upgrade_external_item(ctx, externals_parent_abspath,
+                                      externals_parent_url,
+                                      externals_parent_repos_root_url,
+                                      item, info_baton, iterpool2);
 
-          err = svn_wc__resolve_relative_external_url(
-                                              &resolved_url,
-                                              item,
-                                              externals_parent_repos_root_url,
-                                              externals_parent_url,
-                                              scratch_pool, scratch_pool);
-          if (err)
-            goto handle_error;
-
-          /* This is a hack. We only need to call svn_wc_upgrade() on external
-           * dirs, as file externals are upgraded along with their defining
-           * WC.  Reading the kind will throw an exception on an external dir,
-           * saying that the wc must be upgraded.  If it's a file, the lookup
-           * is done in an adm_dir belonging to the defining wc (which has
-           * already been upgraded) and no error is returned.  If it doesn't
-           * exist (external that isn't checked out yet), we'll just get
-           * svn_node_none. */
-          err = svn_wc_read_kind2(&external_kind, ctx->wc_ctx,
-                                  external_abspath, TRUE, FALSE, iterpool2);
-          if (err && err->apr_err == SVN_ERR_WC_UPGRADE_REQUIRED)
-            {
-              svn_error_clear(err);
-
-              err = svn_client_upgrade(external_abspath, ctx, iterpool2);
-              if (err)
-                goto handle_error;
-            }
-          else if (err)
-            goto handle_error;
-
-          /* The upgrade of any dir should be done now, get the now reliable
-           * kind. */
-          err = svn_wc_read_kind2(&external_kind, ctx->wc_ctx, external_abspath,
-                                  TRUE, FALSE, iterpool2);
-          if (err)
-            goto handle_error;
-
-          /* Update the EXTERNALS table according to the root URL,
-           * relpath and uuid known in the upgraded external WC. */
-
-          /* We should probably have a function that provides all three
-           * of root URL, repos relpath and uuid at once, but here goes... */
-
-          /* First get the relpath, as that returns SVN_ERR_WC_PATH_NOT_FOUND
-           * when the node is not present in the file system.
-           * svn_wc__node_get_repos_info() would try to derive the URL. */
-          err = svn_wc__node_get_repos_info(NULL,
-                                            &repos_relpath,
-                                            &repos_root_url,
-                                            &repos_uuid,
-                                            ctx->wc_ctx,
-                                            external_abspath,
-                                            iterpool2, iterpool2);
-          if (err)
-            goto handle_error;
-
-          /* If we haven't got any information from the checked out external,
-           * or if the URL information mismatches the external's definition,
-           * ask fetch_repos_info() to find out the repos root. */
-          if (0 != strcmp(resolved_url,
-                          svn_path_url_add_component2(repos_root_url,
-                                                      repos_relpath,
-                                                      scratch_pool)))
-            {
-              err = fetch_repos_info(&repos_root_url,
-                                     &repos_uuid,
-                                     info_baton,
-                                     resolved_url,
-                                     scratch_pool, scratch_pool);
-              if (err)
-                goto handle_error;
-
-              repos_relpath = svn_uri_skip_ancestor(repos_root_url,
-                                                    resolved_url,
-                                                    iterpool2);
-
-              /* There's just the URL, no idea what kind the external is.
-               * That's fine, as the external isn't even checked out yet.
-               * The kind will be set during the next 'update'. */
-              external_kind = svn_node_unknown;
-            }
-
-          if (err)
-            goto handle_error;
-
-          peg_revision = (item->peg_revision.kind == svn_opt_revision_number
-                          ? item->peg_revision.value.number
-                          : SVN_INVALID_REVNUM);
-
-          revision = (item->revision.kind == svn_opt_revision_number
-                      ? item->revision.value.number
-                      : SVN_INVALID_REVNUM);
-
-          err = svn_wc__upgrade_add_external_info(ctx->wc_ctx,
-                                                  external_abspath,
-                                                  external_kind,
-                                                  externals_parent,
-                                                  repos_relpath,
-                                                  repos_root_url,
-                                                  repos_uuid,
-                                                  peg_revision,
-                                                  revision,
-                                                  iterpool2);
-handle_error:
           if (err)
             {
               svn_wc_notify_t *notify =
-                  svn_wc_create_notify(external_abspath,
+                  svn_wc_create_notify(svn_dirent_join(externals_parent_abspath,
+                                                       item->target_dir,
+                                                       iterpool2),
                                        svn_wc_notify_failed_external,
                                        scratch_pool);
               notify->err = err;

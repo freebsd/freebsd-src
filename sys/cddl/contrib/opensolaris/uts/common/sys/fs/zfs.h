@@ -214,6 +214,7 @@ typedef enum {
 	ZPOOL_PROP_MAXBLOCKSIZE,
 	ZPOOL_PROP_BOOTSIZE,
 	ZPOOL_PROP_CHECKPOINT,
+	ZPOOL_PROP_TNAME,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -1047,6 +1048,7 @@ typedef enum {
 #define	ZFS_IMPORT_MISSING_LOG	0x4
 #define	ZFS_IMPORT_ONLY		0x8
 #define	ZFS_IMPORT_CHECKPOINT	0x10
+#define	ZFS_IMPORT_TEMP_NAME	0x20
 
 /*
  * Channel program argument/return nvlist keys and defaults.

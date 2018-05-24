@@ -3237,6 +3237,8 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 	tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
 	stp->ls_seq = fxdr_unsigned(u_int32_t, *tl++);
 	i = fxdr_unsigned(int, *tl++);
+	if ((nd->nd_flag & ND_NFSV41) != 0)
+		i &= ~NFSV4OPEN_WANTDELEGMASK;
 	switch (i) {
 	case NFSV4OPEN_ACCESSREAD:
 		stp->ls_flags = (NFSLCK_READACCESS | NFSLCK_DOWNGRADE);
@@ -3249,7 +3251,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		    NFSLCK_DOWNGRADE);
 		break;
 	default:
-		nd->nd_repstat = NFSERR_BADXDR;
+		nd->nd_repstat = NFSERR_INVAL;
 	}
 	i = fxdr_unsigned(int, *tl);
 	switch (i) {
@@ -3265,7 +3267,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		stp->ls_flags |= (NFSLCK_READDENY | NFSLCK_WRITEDENY);
 		break;
 	default:
-		nd->nd_repstat = NFSERR_BADXDR;
+		nd->nd_repstat = NFSERR_INVAL;
 	}
 
 	clientid.lval[0] = stp->ls_stateid.other[0];
@@ -3833,9 +3835,9 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		txdr_hyper(owner_minor, tl);			/* Minor */
 		(void)nfsm_strtom(nd, nd->nd_cred->cr_prison->pr_hostuuid,
 		    strlen(nd->nd_cred->cr_prison->pr_hostuuid)); /* Major */
-		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(NFSX_UNSIGNED);
-		*tl++ = time_uptime;		/* Make scope a unique value. */
+		(void)nfsm_strtom(nd, nd->nd_cred->cr_prison->pr_hostuuid,
+		    strlen(nd->nd_cred->cr_prison->pr_hostuuid)); /* Scope */
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 		*tl = txdr_unsigned(1);
 		(void)nfsm_strtom(nd, "freebsd.org", strlen("freebsd.org"));
 		(void)nfsm_strtom(nd, version, strlen(version));
@@ -4094,6 +4096,50 @@ nfsrvd_freestateid(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
 	nd->nd_repstat = nfsrv_freestateid(nd, &stateid, p);
 nfsmout:
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 test stateid service
+ */
+APPLESTATIC int
+nfsrvd_teststateid(struct nfsrv_descript *nd, __unused int isdgram,
+    __unused vnode_t vp, NFSPROC_T *p, __unused struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t *stateidp = NULL, *tstateidp;
+	int cnt, error = 0, i, ret;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	cnt = fxdr_unsigned(int, *tl);
+	if (cnt <= 0 || cnt > 1024) {
+		nd->nd_repstat = NFSERR_BADXDR;
+		goto nfsmout;
+	}
+	stateidp = mallocarray(cnt, sizeof(nfsv4stateid_t), M_TEMP, M_WAITOK);
+	tstateidp = stateidp;
+	for (i = 0; i < cnt; i++) {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID);
+		tstateidp->seqid = fxdr_unsigned(uint32_t, *tl++);
+		NFSBCOPY(tl, tstateidp->other, NFSX_STATEIDOTHER);
+		tstateidp++;
+	}
+	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(cnt);
+	tstateidp = stateidp;
+	for (i = 0; i < cnt; i++) {
+		ret = nfsrv_teststateid(nd, tstateidp, p);
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(ret);
+		tstateidp++;
+	}
+nfsmout:
+	free(stateidp, M_TEMP);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }

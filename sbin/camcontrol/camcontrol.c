@@ -5167,7 +5167,22 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
+	if (cts->protocol == PROTO_NVME) {
+		struct ccb_trans_settings_nvme *nvmex =
+		    &cts->xport_specific.nvme;
 
+		if (nvmex->valid & CTS_NVME_VALID_SPEC) {
+			fprintf(stdout, "%sNVMe Spec: %d.%d\n", pathstr,
+			    NVME_MAJOR(nvmex->spec),
+			    NVME_MINOR(nvmex->spec));
+		}
+		if (nvmex->valid & CTS_NVME_VALID_LINK) {
+			fprintf(stdout, "%sPCIe lanes: %d (%d max)\n", pathstr,
+			    nvmex->lanes, nvmex->max_lanes);
+			fprintf(stdout, "%sPCIe Generation: %d (%d max)\n", pathstr,
+			    nvmex->speed, nvmex->max_speed);
+		}
+	}
 }
 
 /*

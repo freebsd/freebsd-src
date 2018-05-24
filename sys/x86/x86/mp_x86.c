@@ -1007,9 +1007,9 @@ init_secondary_tail(void)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
-	mca_init();
-
 	mtx_lock_spin(&ap_boot_mtx);
+
+	mca_init();
 
 	/* Init local apic for irq's */
 	lapic_setup(1);
@@ -1020,7 +1020,11 @@ init_secondary_tail(void)
 	smp_cpus++;
 
 	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", cpuid);
-	printf("SMP: AP CPU #%d Launched!\n", cpuid);
+	if (bootverbose)
+		printf("SMP: AP CPU #%d Launched!\n", cpuid);
+	else
+		printf("%s%d%s", smp_cpus == 2 ? "Launching APs: " : "",
+		    cpuid, smp_cpus == mp_ncpus ? "\n" : " ");
 
 	/* Determine if we are a logical CPU. */
 	if (cpu_info[PCPU_GET(apic_id)].cpu_hyperthread)
@@ -1425,15 +1429,33 @@ cpususpend_handler(void)
 #else
 		npxsuspend(susppcbs[cpu]->sp_fpususpend);
 #endif
-		wbinvd();
-		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 		/*
-		 * Hack for xen, which does not use resumectx() so never
-		 * uses the next clause: set resuming_cpus early so that
-		 * resume_cpus() can wait on the same bitmap for acpi and
-		 * xen.  resuming_cpus now means eventually_resumable_cpus.
+		 * suspended_cpus is cleared shortly after each AP is restarted
+		 * by a Startup IPI, so that the BSP can proceed to restarting
+		 * the next AP.
+		 *
+		 * resuming_cpus gets cleared when the AP completes
+		 * initialization after having been released by the BSP.
+		 * resuming_cpus is probably not the best name for the
+		 * variable, because it is actually a set of processors that
+		 * haven't resumed yet and haven't necessarily started resuming.
+		 *
+		 * Note that suspended_cpus is meaningful only for ACPI suspend
+		 * as it's not really used for Xen suspend since the APs are
+		 * automatically restored to the running state and the correct
+		 * context.  For the same reason resumectx is never called in
+		 * that case.
 		 */
+		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 		CPU_SET_ATOMIC(cpu, &resuming_cpus);
+
+		/*
+		 * Invalidate the cache after setting the global status bits.
+		 * The last AP to set its bit may end up being an Owner of the
+		 * corresponding cache line in MOESI protocol.  The AP may be
+		 * stopped before the cache line is written to the main memory.
+		 */
+		wbinvd();
 	} else {
 #ifdef __amd64__
 		fpuresume(susppcbs[cpu]->sp_fpususpend);
@@ -1445,7 +1467,7 @@ cpususpend_handler(void)
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 
-		/* Indicate that we are resuming */
+		/* Indicate that we have restarted and restored the context. */
 		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
@@ -1686,8 +1708,10 @@ invltlb_handler(void)
 	generation = smp_tlb_generation;
 	if (smp_tlb_pmap == kernel_pmap)
 		invltlb_glob();
+#ifdef __amd64__
 	else
 		invltlb();
+#endif
 	PCPU_SET(smp_tlb_done, generation);
 }
 
@@ -1704,7 +1728,10 @@ invlpg_handler(void)
 #endif /* COUNT_IPIS */
 
 	generation = smp_tlb_generation;	/* Overlap with serialization */
-	invlpg(smp_tlb_addr1);
+#ifdef __i386__
+	if (smp_tlb_pmap == kernel_pmap)
+#endif
+		invlpg(smp_tlb_addr1);
 	PCPU_SET(smp_tlb_done, generation);
 }
 
@@ -1724,10 +1751,13 @@ invlrng_handler(void)
 	addr = smp_tlb_addr1;
 	addr2 = smp_tlb_addr2;
 	generation = smp_tlb_generation;	/* Overlap with serialization */
-	do {
-		invlpg(addr);
-		addr += PAGE_SIZE;
-	} while (addr < addr2);
+#ifdef __i386__
+	if (smp_tlb_pmap == kernel_pmap)
+#endif
+		do {
+			invlpg(addr);
+			addr += PAGE_SIZE;
+		} while (addr < addr2);
 
 	PCPU_SET(smp_tlb_done, generation);
 }

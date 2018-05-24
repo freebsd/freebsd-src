@@ -86,8 +86,6 @@ ENTRY(cpu_throw)
 1:
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
-	movl	PCB_CR3(%edx),%eax
-	movl	%eax,%cr3
 	/* set bit in new pm_active */
 	movl	TD_PROC(%ecx),%eax
 	movl	P_VMSPACE(%eax), %ebx
@@ -157,7 +155,7 @@ ENTRY(cpu_switch)
 	popl	%eax
 1:
 
-	/* Save is done.  Now fire up new thread. Leave old vmspace. */
+	/* Save is done.  Now fire up new thread. */
 	movl	4(%esp),%edi
 	movl	8(%esp),%ecx			/* New thread */
 	movl	12(%esp),%esi			/* New lock */
@@ -167,15 +165,10 @@ ENTRY(cpu_switch)
 #endif
 	movl	TD_PCB(%ecx),%edx
 
-	/* switch address space */
-	movl	PCB_CR3(%edx),%eax
-	movl	%cr3,%ebx			/* The same address space? */
-	cmpl	%ebx,%eax
-	je	sw0
-	movl	%eax,%cr3			/* new address space */
+	/* Switchout td_lock */
 	movl	%esi,%eax
 	movl	PCPU(CPUID),%esi
-	SETOP	%eax,TD_LOCK(%edi)		/* Switchout td_lock */
+	SETOP	%eax,TD_LOCK(%edi)
 
 	/* Release bit from old pmap->pm_active */
 	movl	PCPU(CURPMAP), %ebx
@@ -200,26 +193,28 @@ sw0:
 sw1:
 	BLOCK_SPIN(%ecx)
 	/*
-	 * At this point, we've switched address spaces and are ready
+	 * At this point, we have managed thread locks and are ready
 	 * to load up the rest of the next context.
 	 */
+
+	/* Load a pointer to the thread kernel stack into PCPU. */
+	leal	-VM86_STACK_SPACE(%edx), %eax	/* leave space for vm86 */
+	movl	%eax, PCPU(KESP0)
+
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f				/* If not, use the default */
 	movl	$1, PCPU(PRIVATE_TSS) 		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
+	movl	PCPU(TRAMPSTK), %ebx
+	movl	%ebx, PCB_EXT_TSS+TSS_ESP0(%edi)
 	jmp	2f				/* Load it up */
 
 1:	/*
 	 * Use the common default TSS instead of our own.
-	 * Set our stack pointer into the TSS, it's set to just
-	 * below the PCB.  In C, common_tss.tss_esp0 = &pcb - 16;
-	 */
-	leal	-16(%edx), %ebx			/* leave space for vm86 */
-	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
-
-	/*
-	 * Test this CPU's  bit in the bitmap to see if this
-	 * CPU was using a private TSS.
+	 * Stack pointer in the common TSS points to the trampoline stack
+	 * already and should be not changed.
+	 *
+	 * Test this CPU's flag to see if this CPU was using a private TSS.
 	 */
 	cmpl	$0, PCPU(PRIVATE_TSS)		/* Already using the common? */
 	je	3f				/* if so, skip reloading */

@@ -100,9 +100,8 @@ ENTRY(vm86_bioscall)
 
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
-	movl	IdlePTD,%ecx
+	movl	IdlePTD,%ecx		/* va (and pa) of Idle PTD */
 	movl	%ecx,%ebx
-	addl	$KERNBASE,%ebx		/* va of Idle PTD */
 	movl	0(%ebx),%eax
 	pushl	%eax			/* old ptde != 0 when booting */
 	pushl	%ebx			/* keep for reuse */
@@ -119,7 +118,8 @@ ENTRY(vm86_bioscall)
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
 
 	pushl	%esp
-	call	vm86_prepcall		/* finish setup */
+	movl	$vm86_prepcall, %eax
+	call	*%eax			/* finish setup */
 	add	$4, %esp
 	
 	/*

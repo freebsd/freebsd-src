@@ -230,7 +230,7 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 	struct {
 		uint64_t address;
 		uint64_t size;
-	} fdtmap[16];
+	} fdtmap[32];
 	ssize_t fdtmapsize;
 	phandle_t chosen;
 	int i, j, k;
@@ -342,7 +342,17 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 
 		res = parse_ofw_memory(phandle, "reg", &memp[msz]);
 		msz += res/sizeof(struct mem_region);
-		if (OF_getproplen(phandle, "available") >= 0)
+
+		/*
+		 * On POWER9 Systems we might have both linux,usable-memory and
+		 * reg properties.  'reg' denotes all available memory, but we
+		 * must use 'linux,usable-memory', a subset, as some memory
+		 * regions are reserved for NVLink.
+		 */
+		if (OF_getproplen(phandle, "linux,usable-memory") >= 0)
+			res = parse_ofw_memory(phandle, "linux,usable-memory",
+			    &availp[asz]);
+		else if (OF_getproplen(phandle, "available") >= 0)
 			res = parse_ofw_memory(phandle, "available",
 			    &availp[asz]);
 		else

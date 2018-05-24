@@ -602,7 +602,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 
 	af[0] = af[1] = af[2] = af[3] = 0x0000;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 

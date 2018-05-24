@@ -480,7 +480,9 @@ static int w_max_used_index = 0;
 static unsigned int w_generation = 0;
 static const char w_notrunning[] = "Witness not running\n";
 static const char w_stillcold[] = "Witness is still cold\n";
-
+#ifdef __i386__
+static const char w_notallowed[] = "The sysctl is disabled on the arch\n";
+#endif
 
 static struct witness_order_list_entry order_lists[] = {
 	/*
@@ -530,19 +532,23 @@ static struct witness_order_list_entry order_lists[] = {
 	 * IPv4 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in_multi_mtx", &lock_class_mtx_sleep },
+	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "ifnet_rw", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in6_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in6_multi_mtx", &lock_class_mtx_sleep },
+	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "ifnet_rw", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
@@ -569,7 +575,7 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * BPF
 	 */
-	{ "bpf global lock", &lock_class_mtx_sleep },
+	{ "bpf global lock", &lock_class_sx },
 	{ "bpf interface lock", &lock_class_rw },
 	{ "bpf cdev lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -2777,6 +2783,11 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	struct witness *w;
 	struct sbuf *sb;
 	int error;
+
+#ifdef __i386__
+	error = SYSCTL_OUT(req, w_notallowed, sizeof(w_notallowed));
+	return (error);
+#endif
 
 	if (witness_watch < 1) {
 		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));

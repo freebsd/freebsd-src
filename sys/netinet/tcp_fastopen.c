@@ -856,6 +856,7 @@ tcp_fastopen_connect(struct tcpcb *tp)
 	uint16_t server_mss;
 	uint64_t psk_cookie;
 	
+	psk_cookie = 0;
 	inp = tp->t_inpcb;
 	cce = tcp_fastopen_ccache_lookup(&inp->inp_inc, &ccb);
 	if (cce) {
@@ -875,7 +876,7 @@ tcp_fastopen_connect(struct tcpcb *tp)
 			server_mss = cce->server_mss;
 			CCB_UNLOCK(ccb);
 			if (tp->t_tfo_client_cookie_len ==
-			    TCP_FASTOPEN_PSK_LEN) {
+			    TCP_FASTOPEN_PSK_LEN && psk_cookie) {
 				tp->t_tfo_client_cookie_len =
 				    TCP_FASTOPEN_COOKIE_LEN;
 				memcpy(tp->t_tfo_cookie.client, &psk_cookie,

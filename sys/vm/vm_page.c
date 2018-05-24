@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -435,6 +436,24 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * Initialize a dummy page for use in scans of the specified paging queue.
+ * In principle, this function only needs to set the flag PG_MARKER.
+ * Nonetheless, it write busies and initializes the hold count to one as
+ * safety precautions.
+ */
+static void
+vm_page_init_marker(vm_page_t marker, int queue, uint8_t aflags)
+{
+
+	bzero(marker, sizeof(*marker));
+	marker->flags = PG_MARKER;
+	marker->aflags = aflags;
+	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
+	marker->queue = queue;
+	marker->hold_count = 1;
+}
+
 static void
 vm_page_domain_init(int domain)
 {
@@ -462,10 +481,32 @@ vm_page_domain_init(int domain)
 		TAILQ_INIT(&pq->pq_pl);
 		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
 		    MTX_DEF | MTX_DUPOK);
+		vm_page_init_marker(&vmd->vmd_markers[i], i, 0);
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	mtx_init(&vmd->vmd_pageout_mtx, "vm pageout lock", NULL, MTX_DEF);
 	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
+
+	/*
+	 * inacthead is used to provide FIFO ordering for LRU-bypassing
+	 * insertions.
+	 */
+	vm_page_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE, PGA_ENQUEUED);
+	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &vmd->vmd_inacthead, plinks.q);
+
+	/*
+	 * The clock pages are used to implement active queue scanning without
+	 * requeues.  Scans start at clock[0], which is advanced after the scan
+	 * ends.  When the two clock hands meet, they are reset and scanning
+	 * resumes from the head of the queue.
+	 */
+	vm_page_init_marker(&vmd->vmd_clock[0], PQ_ACTIVE, PGA_ENQUEUED);
+	vm_page_init_marker(&vmd->vmd_clock[1], PQ_ACTIVE, PGA_ENQUEUED);
+	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_ACTIVE].pq_pl,
+	    &vmd->vmd_clock[0], plinks.q);
+	TAILQ_INSERT_TAIL(&vmd->vmd_pagequeues[PQ_ACTIVE].pq_pl,
+	    &vmd->vmd_clock[1], plinks.q);
 }
 
 /*
@@ -2150,9 +2191,7 @@ vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 	vm_page_t m;
 	u_int flags;
 
-	/*
-	 * Do not allocate reserved pages unless the req has asked for it.
-	 */
+	m = NULL;
 	vmd = VM_DOMAIN(domain);
 again:
 	if (vm_domain_allocate(vmd, req, 1)) {
@@ -2362,7 +2401,7 @@ retry:
 				    vm_reserv_size(level)) - pa);
 #endif
 			} else if (object->memattr == VM_MEMATTR_DEFAULT &&
-			    vm_page_enqueued(m) && !vm_page_busied(m)) {
+			    vm_page_queue(m) != PQ_NONE && !vm_page_busied(m)) {
 				/*
 				 * The page is allocated but eligible for
 				 * relocation.  Extend the current run by one
@@ -2513,7 +2552,8 @@ retry:
 				error = EINVAL;
 			else if (object->memattr != VM_MEMATTR_DEFAULT)
 				error = EINVAL;
-			else if (vm_page_enqueued(m) && !vm_page_busied(m)) {
+			else if (vm_page_queue(m) != PQ_NONE &&
+			    !vm_page_busied(m)) {
 				KASSERT(pmap_page_get_memattr(m) ==
 				    VM_MEMATTR_DEFAULT,
 				    ("page %p has an unexpected memattr", m));
@@ -2563,7 +2603,7 @@ retry:
 						goto unlock;
 					}
 					KASSERT(m_new->wire_count == 0,
-					    ("page %p is wired", m));
+					    ("page %p is wired", m_new));
 
 					/*
 					 * Replace "m" with the new page.  For
@@ -2576,7 +2616,7 @@ retry:
 					m_new->aflags = m->aflags &
 					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
-					    ("page %p is managed", m));
+					    ("page %p is managed", m_new));
 					m_new->oflags = m->oflags & VPO_NOSYNC;
 					pmap_copy_page(m, m_new);
 					m_new->valid = m->valid;
@@ -3046,10 +3086,11 @@ vm_page_pagequeue(vm_page_t m)
 static struct mtx *
 vm_page_pagequeue_lockptr(vm_page_t m)
 {
+	uint8_t queue;
 
-	if (m->queue == PQ_NONE)
+	if ((queue = m->queue) == PQ_NONE)
 		return (NULL);
-	return (&vm_page_pagequeue(m)->pq_mutex);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue].pq_mutex);
 }
 
 static inline void
@@ -3152,6 +3193,45 @@ vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
 	}
 	vm_pagequeue_unlock(pq);
 	critical_exit();
+}
+
+/*
+ *	vm_page_drain_pqbatch:		[ internal use only ]
+ *
+ *	Force all per-CPU page queue batch queues to be drained.  This is
+ *	intended for use in severe memory shortages, to ensure that pages
+ *	do not remain stuck in the batch queues.
+ */
+void
+vm_page_drain_pqbatch(void)
+{
+	struct thread *td;
+	struct vm_domain *vmd;
+	struct vm_pagequeue *pq;
+	int cpu, domain, queue;
+
+	td = curthread;
+	CPU_FOREACH(cpu) {
+		thread_lock(td);
+		sched_bind(td, cpu);
+		thread_unlock(td);
+
+		for (domain = 0; domain < vm_ndomains; domain++) {
+			vmd = VM_DOMAIN(domain);
+			for (queue = 0; queue < PQ_COUNT; queue++) {
+				pq = &vmd->vmd_pagequeues[queue];
+				vm_pagequeue_lock(pq);
+				critical_enter();
+				vm_pqbatch_process(pq,
+				    DPCPU_PTR(pqbatch[domain][queue]), queue);
+				critical_exit();
+				vm_pagequeue_unlock(pq);
+			}
+		}
+	}
+	thread_lock(td);
+	sched_unbind(td);
+	thread_unlock(td);
 }
 
 /*
@@ -3311,9 +3391,9 @@ vm_page_activate(vm_page_t m)
 {
 	int queue;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 
-	if ((queue = m->queue) == PQ_ACTIVE || m->wire_count > 0 ||
+	if ((queue = vm_page_queue(m)) == PQ_ACTIVE || m->wire_count > 0 ||
 	    (m->oflags & VPO_UNMANAGED) != 0) {
 		if (queue == PQ_ACTIVE && m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
@@ -3530,7 +3610,7 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
 	if (!unwired || (m->oflags & VPO_UNMANAGED) != 0 || m->object == NULL)
 		return (unwired);
 
-	if (m->queue == queue) {
+	if (vm_page_queue(m) == queue) {
 		if (queue == PQ_ACTIVE)
 			vm_page_reference(m);
 		else if (queue != PQ_NONE)
@@ -3636,7 +3716,7 @@ vm_page_launder(vm_page_t m)
 	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
-	if (m->queue == PQ_LAUNDRY)
+	if (vm_page_in_laundry(m))
 		vm_page_requeue(m);
 	else {
 		vm_page_remque(m);
@@ -4240,6 +4320,8 @@ vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
 	int i, npages;
 
 	object = m->object;
+	if (skip_m != NULL && skip_m->object != object)
+		return (false);
 	VM_OBJECT_ASSERT_LOCKED(object);
 	npages = atop(pagesizes[m->psind]);
 

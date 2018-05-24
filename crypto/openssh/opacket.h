@@ -1,3 +1,4 @@
+/* $OpenBSD: opacket.h,v 1.12 2017/10/20 01:56:39 djm Exp $ */
 #ifndef _OPACKET_H
 /* Written by Markus Friedl. Placed in the public domain.  */
 
@@ -6,7 +7,6 @@ void     ssh_packet_start(struct ssh *, u_char);
 void     ssh_packet_put_char(struct ssh *, int ch);
 void     ssh_packet_put_int(struct ssh *, u_int value);
 void     ssh_packet_put_int64(struct ssh *, u_int64_t value);
-void     ssh_packet_put_bignum(struct ssh *, BIGNUM * value);
 void     ssh_packet_put_bignum2(struct ssh *, BIGNUM * value);
 void     ssh_packet_put_ecpoint(struct ssh *, const EC_GROUP *, const EC_POINT *);
 void     ssh_packet_put_string(struct ssh *, const void *buf, u_int len);
@@ -17,7 +17,6 @@ void     ssh_packet_send(struct ssh *);
 u_int	 ssh_packet_get_char(struct ssh *);
 u_int	 ssh_packet_get_int(struct ssh *);
 u_int64_t ssh_packet_get_int64(struct ssh *);
-void     ssh_packet_get_bignum(struct ssh *, BIGNUM * value);
 void     ssh_packet_get_bignum2(struct ssh *, BIGNUM * value);
 void	 ssh_packet_get_ecpoint(struct ssh *, const EC_GROUP *, EC_POINT *);
 void	*ssh_packet_get_string(struct ssh *, u_int *length_ptr);
@@ -62,8 +61,6 @@ void	 packet_read_expect(int expected_type);
 	ssh_packet_get_protocol_flags(active_state)
 #define packet_start_compression(level) \
 	ssh_packet_start_compression(active_state, (level))
-#define packet_set_encryption_key(key, keylen, number) \
-	ssh_packet_set_encryption_key(active_state, (key), (keylen), (number))
 #define packet_start(type) \
 	ssh_packet_start(active_state, (type))
 #define packet_put_char(value) \
@@ -78,8 +75,6 @@ void	 packet_read_expect(int expected_type);
 	ssh_packet_put_cstring(active_state, (str))
 #define packet_put_raw(buf, len) \
 	ssh_packet_put_raw(active_state, (buf), (len))
-#define packet_put_bignum(value) \
-	ssh_packet_put_bignum(active_state, (value))
 #define packet_put_bignum2(value) \
 	ssh_packet_put_bignum2(active_state, (value))
 #define packet_send() \
@@ -88,8 +83,6 @@ void	 packet_read_expect(int expected_type);
 	ssh_packet_read(active_state)
 #define packet_get_int64() \
 	ssh_packet_get_int64(active_state)
-#define packet_get_bignum(value) \
-	ssh_packet_get_bignum(active_state, (value))
 #define packet_get_bignum2(value) \
 	ssh_packet_get_bignum2(active_state, (value))
 #define packet_remaining() \
@@ -157,5 +150,7 @@ void	packet_disconnect(const char *, ...)
 	ssh_packet_set_mux(active_state)
 #define packet_get_mux() \
 	ssh_packet_get_mux(active_state)
+#define packet_clear_keys() \
+	ssh_packet_clear_keys(active_state)
 
 #endif /* _OPACKET_H */

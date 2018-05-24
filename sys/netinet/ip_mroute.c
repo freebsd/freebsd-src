@@ -878,13 +878,15 @@ add_vif(struct vifctl *vifcp)
 	ifp = NULL;
     } else {
 	sin.sin_addr = vifcp->vifc_lcl_addr;
+	NET_EPOCH_ENTER();
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	if (ifa == NULL) {
+		NET_EPOCH_EXIT();
 	    VIF_UNLOCK();
 	    return EADDRNOTAVAIL;
 	}
 	ifp = ifa->ifa_ifp;
-	ifa_free(ifa);
+	NET_EPOCH_EXIT();
     }
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {
@@ -1680,7 +1682,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 {
 	struct ip_moptions imo;
 	struct in_multi *imm[2];
-	int error;
+	int error __unused;
 
 	VIF_LOCK_ASSERT();
 

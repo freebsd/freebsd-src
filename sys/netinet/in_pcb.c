@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
@@ -87,6 +88,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
+#ifdef TCPHPTS
+#include <netinet/tcp_hpts.h>
+#endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #endif
@@ -582,7 +586,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	if (TAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
+	if (CK_STAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
 	if (nam != NULL && laddr.s_addr != INADDR_ANY)
@@ -790,7 +794,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	int error;
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
-
 	/*
 	 * Bypass source address selection and use the primary jail IP
 	 * if requested.
@@ -823,31 +826,33 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
+	NET_EPOCH_ENTER();
 	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
 		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin,
 					inp->inp_socket->so_fibnum));
-		if (ia == NULL)
+		if (ia == NULL) {
 			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin, 0,
 						inp->inp_socket->so_fibnum));
+
+		}
 		if (ia == NULL) {
+			printf("ifa_ifwithnet failed\n");
 			error = ENETUNREACH;
 			goto done;
 		}
 
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			ifa_free(&ia->ia_ifa);
 			goto done;
 		}
 
 		ifp = ia->ia_ifp;
-		ifa_free(&ia->ia_ifa);
 		ia = NULL;
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -906,7 +911,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
 				continue;
@@ -960,7 +965,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 				goto done;
 			}
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			ifa_free(&ia->ia_ifa);
 			goto done;
 		}
 
@@ -969,10 +973,9 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			struct ifnet *ifp;
 
 			ifp = ia->ia_ifp;
-			ifa_free(&ia->ia_ifa);
 			ia = NULL;
 			IF_ADDR_RLOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
 				if (sa->sa_family != AF_INET)
@@ -998,6 +1001,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
+	NET_EPOCH_EXIT();
 	if (sro.ro_rt != NULL)
 		RTFREE(sro.ro_rt);
 	return (error);
@@ -1051,7 +1055,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
 
-	if (!TAILQ_EMPTY(&V_in_ifaddrhead)) {
+	if (!CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
 		 * use the primary local address.
@@ -1062,16 +1066,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		if (faddr.s_addr == INADDR_ANY) {
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			faddr =
-			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
-			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
+			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
-				faddr = satosin(&TAILQ_FIRST(
+				faddr = satosin(&CK_STAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
@@ -1092,7 +1096,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
 				IN_IFADDR_RLOCK(&in_ifa_tracker);
-				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+				CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 					if ((ia->ia_ifp == ifp) &&
 					    (cred == NULL ||
 					    prison_check_ip4(cred,
@@ -1224,9 +1228,28 @@ in_pcbrele_rlocked(struct inpcb *inp)
 		}
 		return (0);
 	}
-
+	
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
+#ifdef TCPHPTS
+	if (inp->inp_in_hpts || inp->inp_in_input) {
+		struct tcp_hpts_entry *hpts;
+		/*
+		 * We should not be on the hpts at 
+		 * this point in any form. we must
+		 * get the lock to be sure.
+		 */
+		hpts = tcp_hpts_lock(inp);
+		if (inp->inp_in_hpts)
+			panic("Hpts:%p inp:%p at free still on hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+		hpts = tcp_input_lock(inp);
+		if (inp->inp_in_input) 
+			panic("Hpts:%p inp:%p at free still on input hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+	}
+#endif
 	INP_RUNLOCK(inp);
 	pcbinfo = inp->inp_pcbinfo;
 	uma_zfree(pcbinfo->ipi_zone, inp);
@@ -1255,7 +1278,26 @@ in_pcbrele_wlocked(struct inpcb *inp)
 	}
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
+#ifdef TCPHPTS
+	if (inp->inp_in_hpts || inp->inp_in_input) {
+		struct tcp_hpts_entry *hpts;
+		/*
+		 * We should not be on the hpts at 
+		 * this point in any form. we must
+		 * get the lock to be sure.
+		 */
+		hpts = tcp_hpts_lock(inp);
+		if (inp->inp_in_hpts)
+			panic("Hpts:%p inp:%p at free still on hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+		hpts = tcp_input_lock(inp);
+		if (inp->inp_in_input) 
+			panic("Hpts:%p inp:%p at free still on input hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+	}
+#endif
 	INP_WUNLOCK(inp);
 	pcbinfo = inp->inp_pcbinfo;
 	uma_zfree(pcbinfo->ipi_zone, inp);
@@ -1272,6 +1314,28 @@ in_pcbrele(struct inpcb *inp)
 	return (in_pcbrele_wlocked(inp));
 }
 
+void
+in_pcblist_rele_rlocked(epoch_context_t ctx)
+{
+	struct in_pcblist *il;
+	struct inpcb *inp;
+	struct inpcbinfo *pcbinfo;
+	int i, n;
+
+	il = __containerof(ctx, struct in_pcblist, il_epoch_ctx);
+	pcbinfo = il->il_pcbinfo;
+	n = il->il_count;
+	INP_INFO_WLOCK(pcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = il->il_inp_list[i];
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(pcbinfo);
+	free(il, M_TEMP);
+}
+
 /*
  * Unconditionally schedule an inpcb to be freed by decrementing its
  * reference count, which should occur only after the inpcb has been detached
@@ -1286,6 +1350,12 @@ in_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
+#ifdef INET6
+	struct ip6_moptions *im6o = NULL;
+#endif
+#ifdef INET
+	struct ip_moptions *imo = NULL;
+#endif
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
 	KASSERT((inp->inp_flags2 & INP_FREED) == 0,
@@ -1304,6 +1374,10 @@ in_pcbfree(struct inpcb *inp)
 #endif
 	INP_WLOCK_ASSERT(inp);
 
+#ifdef INET
+	imo = inp->inp_moptions;
+	inp->inp_moptions = NULL;
+#endif
 	/* XXXRW: Do as much as possible here. */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (inp->inp_sp != NULL)
@@ -1316,16 +1390,12 @@ in_pcbfree(struct inpcb *inp)
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
-		if (inp->in6p_moptions != NULL)
-			ip6_freemoptions(inp->in6p_moptions);
+		im6o = inp->in6p_moptions;
+		inp->in6p_moptions = NULL;
 	}
 #endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-#ifdef INET
-	if (inp->inp_moptions != NULL)
-		inp_freemoptions(inp->inp_moptions);
-#endif
 	RO_INVALIDATE_CACHE(&inp->inp_route);
 
 	inp->inp_vflag = 0;
@@ -1333,6 +1403,12 @@ in_pcbfree(struct inpcb *inp)
 	crfree(inp->inp_cred);
 #ifdef MAC
 	mac_inpcb_destroy(inp);
+#endif
+#ifdef INET6
+	ip6_freemoptions(im6o);
+#endif
+#ifdef INET
+	inp_freemoptions(imo);
 #endif
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
@@ -1487,11 +1563,14 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			/*
 			 * Drop multicast group membership if we joined
 			 * through the interface being detached.
+			 *
+			 * XXX This can all be deferred to an epoch_call
 			 */
 			for (i = 0, gap = 0; i < imo->imo_num_memberships;
 			    i++) {
 				if (imo->imo_membership[i]->inm_ifp == ifp) {
-					in_delmulti(imo->imo_membership[i]);
+					IN_MULTI_LOCK_ASSERT();
+					in_leavegroup_locked(imo->imo_membership[i], NULL);
 					gap++;
 				} else if (gap != 0)
 					imo->imo_membership[i - gap] =

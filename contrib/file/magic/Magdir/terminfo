@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: terminfo,v 1.9 2017/04/28 16:28:58 christos Exp $
+# $File: terminfo,v 1.10 2018/01/21 03:26:33 christos Exp $
 # terminfo:  file(1) magic for terminfo
 #
 # URL: http://invisible-island.net/ncurses/man/term.5.html
@@ -18,6 +18,17 @@
 !:mime	application/x-terminfo
 # no extension
 #!:ext
+#
+#------------------------------------------------------------------------------
+# The following was added for ncurses6 development:
+#------------------------------------------------------------------------------
+#
+0	string		\036\002
+# imitate the legacy compiled-format, to get the entry-name printed
+>16	ubyte		>32
+# namelist, if more than 1 separated by "|" like "st|stterm| simpleterm 0. 4.1"
+>>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled 32-bit terminfo entry "%-s"
+!:mime	application/x-terminfo2
 #
 # While the compiled terminfo uses little-endian format irregardless of
 # platform, SystemV screen dumps do not.  They came later, and that detail was

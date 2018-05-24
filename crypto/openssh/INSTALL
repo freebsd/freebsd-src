@@ -13,7 +13,7 @@ OpenSSL)
 Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
-libcrypto (LibreSSL or OpenSSL >= 0.9.8f < 1.1.0)
+libcrypto (LibreSSL or OpenSSL >= 1.0.1 < 1.1.0)
 LibreSSL http://www.libressl.org/ ; or
 OpenSSL http://www.openssl.org/
 
@@ -100,7 +100,7 @@ http://nlnetlabs.nl/projects/ldns/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of CVS yourself) then you will need autoconf-2.69 to rebuild
+the code out of git yourself) then you will need autoconf-2.69 to rebuild
 the automatically generated files by running "autoreconf".  Earlier
 versions may also work but this is not guaranteed.
 
@@ -108,10 +108,17 @@ http://www.gnu.org/software/autoconf/
 
 Basic Security Module (BSM):
 
-Native BSM support is know to exist in Solaris from at least 2.5.1,
+Native BSM support is known to exist in Solaris from at least 2.5.1,
 FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
 implementation (http://www.openbsm.org).
 
+makedepend:
+
+https://www.x.org/archive/individual/util/
+
+If you are making significant changes to the code you may need to rebuild
+the dependency (.depend) file using "make depend", which requires the
+"makedepend" tool from the X11 distribution.
 
 2. Building / Installation
 --------------------------
@@ -171,13 +178,11 @@ also be enabled in sshd_config (refer to the UsePAM directive).
 
 --with-prngd-socket=/some/file allows you to enable EGD or PRNGD
 support and to specify a PRNGd socket. Use this if your Unix lacks
-/dev/random and you don't want to use OpenSSH's builtin entropy
-collection support.
+/dev/random.
 
 --with-prngd-port=portnum allows you to enable EGD or PRNGD support
 and to specify a EGD localhost TCP port. Use this if your Unix lacks
-/dev/random and you don't want to use OpenSSH's builtin entropy
-collection support.
+/dev/random.
 
 --with-lastlog=FILE will specify the location of the lastlog file.
 ./configure searches a few locations for lastlog, but may not find
@@ -216,8 +221,7 @@ created.
 --with-xauth=PATH specifies the location of the xauth binary
 
 --with-ssl-dir=DIR allows you to specify where your Libre/OpenSSL
-libraries
-are installed.
+libraries are installed.
 
 --with-ssl-engine enables Libre/OpenSSL's (hardware) ENGINE support
 

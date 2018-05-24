@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2015 Netflix, Inc
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -991,7 +990,6 @@ out:
 		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
 		cam_periph_lock(periph);
-		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		ndaschedule(periph);
@@ -1102,6 +1100,11 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 				biodone(bp2);
 			}
 		}
+		/*
+		 * Release the periph refcount taken in mdastart() for each CCB.
+		 */
+		KASSERT(softc->refcount >= 1, ("ndadone softc %p refcount %d", softc, softc->refcount));
+		softc->refcount--;
 		return;
 	}
 	case NDA_CCB_DUMP:

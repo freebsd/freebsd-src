@@ -852,6 +852,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_fb = rblk;
+		/*
+		 * XXXrrs this is quite dangerous, it is possible
+		 * for the new function to fail to init. We also
+		 * are not asking if the handoff_is_ok though at
+		 * the very start thats probalbly ok.
+		 */
 		if (tp->t_fb->tfb_tcp_fb_init) {
 			(*tp->t_fb->tfb_tcp_fb_init)(tp);
 		}

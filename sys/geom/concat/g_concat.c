@@ -993,3 +993,4 @@ g_concat_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_concat_class, g_concat);
+MODULE_VERSION(geom_concat, 0);

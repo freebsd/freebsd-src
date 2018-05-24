@@ -895,19 +895,6 @@ options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 options 	PMAP_SHPGPERPROC=201
 
 #
-# Change the size of the kernel virtual address space.  Due to
-# constraints in loader(8) on i386, this must be a multiple of 4.
-# 256 = 1 GB of kernel address space.  Increasing this also causes
-# a reduction of the address space in user processes.  512 splits
-# the 4GB cpu address space in half (2GB user, 2GB kernel).  For PAE
-# kernels, the value will need to be double non-PAE.  A value of 1024
-# for PAE kernels is necessary to split the address space in half.
-# This will likely need to be increased to handle memory sizes >4GB.
-# PAE kernels default to a value of 512.
-#
-options 	KVA_PAGES=260
-
-#
 # Number of initial kernel page table pages used for early bootstrap.
 # This number should include enough pages to map the kernel, any
 # modules or other data loaded with the kernel by the loader, and data
@@ -950,22 +937,6 @@ device		ndis
 
 #####################################################################
 # VM OPTIONS
-
-# Disable the 4 MByte page PSE CPU feature.  The PSE feature allows the
-# kernel to use 4 MByte pages to map the kernel instead of 4k pages.
-# This saves on the amount of memory needed for page tables needed to
-# map the kernel.  You should only disable this feature as a temporary
-# workaround if you are having problems with it enabled.
-#
-#options 	DISABLE_PSE
-
-# Disable the global pages PGE CPU feature.  The PGE feature allows pages
-# to be marked with the PG_G bit.  TLB entries for these pages are not
-# flushed from the cache when %cr3 is reloaded.  This can make context
-# switches less expensive.  You should only disable this feature as a
-# temporary workaround if you are having problems with it enabled.
-#
-#options 	DISABLE_PG_G
 
 # KSTACK_PAGES is the number of memory pages to assign to the kernel
 # stack of each thread.

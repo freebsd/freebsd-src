@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netinet/netdump/netdump.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -426,8 +427,9 @@ static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
 static void bge_intr(void *);
 static int bge_msi_intr(void *);
 static void bge_intr_task(void *, int);
-static void bge_start_locked(if_t);
 static void bge_start(if_t);
+static void bge_start_locked(if_t);
+static void bge_start_tx(struct bge_softc *, uint32_t);
 static int bge_ioctl(if_t, u_long, caddr_t);
 static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
@@ -516,6 +518,8 @@ static void bge_add_sysctl_stats_regs(struct bge_softc *,
 static void bge_add_sysctl_stats(struct bge_softc *, struct sysctl_ctx_list *,
     struct sysctl_oid_list *);
 static int bge_sysctl_stats(SYSCTL_HANDLER_ARGS);
+
+NETDUMP_DEFINE(bge);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -3941,7 +3945,11 @@ again:
 	if (error) {
 		ether_ifdetach(ifp);
 		device_printf(sc->bge_dev, "couldn't set up irq\n");
+		goto fail;
 	}
+
+	/* Attach driver netdump methods. */
+	NETDUMP_SET(ifp, bge);
 
 fail:
 	if (error)
@@ -5389,22 +5397,26 @@ bge_start_locked(if_t ifp)
 		if_bpfmtap(ifp, m_head);
 	}
 
-	if (count > 0) {
-		bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-		    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
-		/* Transmit. */
+	if (count > 0)
+		bge_start_tx(sc, prodidx);
+}
+
+static void
+bge_start_tx(struct bge_softc *sc, uint32_t prodidx)
+{
+
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
+	/* Transmit. */
+	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
+	/* 5700 b2 errata */
+	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
-		/* 5700 b2 errata */
-		if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
-			bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 
-		sc->bge_tx_prodidx = prodidx;
+	sc->bge_tx_prodidx = prodidx;
 
-		/*
-		 * Set a timeout in case the chip goes out to lunch.
-		 */
-		sc->bge_timer = BGE_TX_TIMEOUT;
-	}
+	/* Set a timeout in case the chip goes out to lunch. */
+	sc->bge_timer = BGE_TX_TIMEOUT;
 }
 
 /*
@@ -6796,3 +6808,74 @@ bge_get_counter(if_t ifp, ift_counter cnt)
 		return (if_get_counter_default(ifp, cnt));
 	}
 }
+
+#ifdef NETDUMP
+static void
+bge_netdump_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct bge_softc *sc;
+
+	sc = if_getsoftc(ifp);
+	BGE_LOCK(sc);
+	*nrxr = sc->bge_return_ring_cnt;
+	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	if ((sc->bge_flags & BGE_FLAG_JUMBO_STD) != 0 &&
+	    (if_getmtu(sc->bge_ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN)))
+		*clsize = MJUM9BYTES;
+	else
+		*clsize = MCLBYTES;
+	BGE_UNLOCK(sc);
+}
+
+static void
+bge_netdump_event(if_t ifp __unused, enum netdump_ev event __unused)
+{
+}
+
+static int
+bge_netdump_transmit(if_t ifp, struct mbuf *m)
+{
+	struct bge_softc *sc;
+	uint32_t prodidx;
+	int error;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (1);
+
+	prodidx = sc->bge_tx_prodidx;
+	error = bge_encap(sc, &m, &prodidx);
+	if (error == 0)
+		bge_start_tx(sc, prodidx);
+	return (error);
+}
+
+static int
+bge_netdump_poll(if_t ifp, int count)
+{
+	struct bge_softc *sc;
+	uint32_t rx_prod, tx_cons;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (1);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
+	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	(void)bge_rxeof(sc, rx_prod, 0);
+	bge_txeof(sc, tx_cons);
+	return (0);
+}
+#endif /* NETDUMP */

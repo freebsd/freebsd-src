@@ -57,15 +57,16 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/ip_fw_nat64.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
-#include <netpfil/ipfw/nat64/ip_fw_nat64.h>
-#include <netpfil/ipfw/nat64/nat64stl.h>
-#include <netinet6/ip_fw_nat64.h>
+
+#include "nat64stl.h"
 
 VNET_DEFINE(uint16_t, nat64stl_eid) = 0;
 
-static struct nat64stl_cfg *nat64stl_alloc_config(const char *name, uint8_t set);
+static struct nat64stl_cfg *nat64stl_alloc_config(const char *name,
+    uint8_t set);
 static void nat64stl_free_config(struct nat64stl_cfg *cfg);
 static struct nat64stl_cfg *nat64stl_find(struct namedobj_instance *ni,
     const char *name, uint8_t set);
@@ -76,7 +77,7 @@ nat64stl_alloc_config(const char *name, uint8_t set)
 	struct nat64stl_cfg *cfg;
 
 	cfg = malloc(sizeof(struct nat64stl_cfg), M_IPFW, M_WAITOK | M_ZERO);
-	COUNTER_ARRAY_ALLOC(cfg->stats.stats, NAT64STATS, M_WAITOK);
+	COUNTER_ARRAY_ALLOC(cfg->base.stats.cnt, NAT64STATS, M_WAITOK);
 	cfg->no.name = cfg->name;
 	cfg->no.etlv = IPFW_TLV_NAT64STL_NAME;
 	cfg->no.set = set;
@@ -88,7 +89,7 @@ static void
 nat64stl_free_config(struct nat64stl_cfg *cfg)
 {
 
-	COUNTER_ARRAY_FREE(cfg->stats.stats, NAT64STATS);
+	COUNTER_ARRAY_FREE(cfg->base.stats.cnt, NAT64STATS);
 	free(cfg, M_IPFW);
 }
 
@@ -98,9 +99,9 @@ nat64stl_export_config(struct ip_fw_chain *ch, struct nat64stl_cfg *cfg,
 {
 	struct named_object *no;
 
-	uc->prefix6 = cfg->prefix6;
-	uc->plen6 = cfg->plen6;
-	uc->flags = cfg->flags & NAT64STL_FLAGSMASK;
+	uc->prefix6 = cfg->base.prefix6;
+	uc->plen6 = cfg->base.plen6;
+	uc->flags = cfg->base.flags & NAT64STL_FLAGSMASK;
 	uc->set = cfg->no.set;
 	strlcpy(uc->name, cfg->no.name, sizeof(uc->name));
 
@@ -148,15 +149,15 @@ nat64stl_create_internal(struct ip_fw_chain *ch, struct nat64stl_cfg *cfg,
 
 	if (ipfw_objhash_alloc_idx(CHAIN_TO_SRV(ch), &cfg->no.kidx) != 0)
 		return (ENOSPC);
-	cfg->flags |= NAT64STL_KIDX;
+	cfg->base.flags |= NAT64STL_KIDX;
 
 	if (ipfw_ref_table(ch, &i->ntlv4, &cfg->map46) != 0)
 		return (EINVAL);
-	cfg->flags |= NAT64STL_46T;
+	cfg->base.flags |= NAT64STL_46T;
 
 	if (ipfw_ref_table(ch, &i->ntlv6, &cfg->map64) != 0)
 		return (EINVAL);
-	cfg->flags |= NAT64STL_64T;
+	cfg->base.flags |= NAT64STL_64T;
 
 	ipfw_objhash_add(CHAIN_TO_SRV(ch), &cfg->no);
 
@@ -188,9 +189,8 @@ nat64stl_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	if (ipfw_check_object_name_generic(uc->name) != 0)
 		return (EINVAL);
-	if (!IN6_IS_ADDR_WKPFX(&uc->prefix6))
-		return (EINVAL);
-	if (uc->plen6 != 96 || uc->set >= IPFW_MAX_SETS)
+	if (uc->set >= IPFW_MAX_SETS ||
+	    nat64_check_prefix6(&uc->prefix6, uc->plen6) != 0)
 		return (EINVAL);
 
 	/* XXX: check types of tables */
@@ -206,9 +206,11 @@ nat64stl_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	IPFW_UH_RUNLOCK(ch);
 
 	cfg = nat64stl_alloc_config(uc->name, uc->set);
-	cfg->prefix6 = uc->prefix6;
-	cfg->plen6 = uc->plen6;
-	cfg->flags = uc->flags & NAT64STL_FLAGSMASK;
+	cfg->base.prefix6 = uc->prefix6;
+	cfg->base.plen6 = uc->plen6;
+	cfg->base.flags = uc->flags & NAT64STL_FLAGSMASK;
+	if (IN6_IS_ADDR_WKPFX(&cfg->base.prefix6))
+		cfg->base.flags |= NAT64_WKPFX;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -225,11 +227,11 @@ nat64stl_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (0);
 	}
 
-	if (cfg->flags & NAT64STL_KIDX)
+	if (cfg->base.flags & NAT64STL_KIDX)
 		ipfw_objhash_free_idx(ni, cfg->no.kidx);
-	if (cfg->flags & NAT64STL_46T)
+	if (cfg->base.flags & NAT64STL_46T)
 		ipfw_unref_table(ch, cfg->map46);
-	if (cfg->flags & NAT64STL_64T)
+	if (cfg->base.flags & NAT64STL_64T)
 		ipfw_unref_table(ch, cfg->map64);
 
 	IPFW_UH_WUNLOCK(ch);
@@ -289,8 +291,9 @@ nat64stl_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	 * For now allow to change only following values:
 	 *  flags.
 	 */
+	cfg->base.flags &= ~NAT64STL_FLAGSMASK;
+	cfg->base.flags |= uc->flags & NAT64STL_FLAGSMASK;
 
-	cfg->flags = uc->flags & NAT64STL_FLAGSMASK;
 	IPFW_UH_WUNLOCK(ch);
 	return (0);
 }
@@ -389,7 +392,7 @@ nat64stl_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 }
 
 #define	__COPY_STAT_FIELD(_cfg, _stats, _field)	\
-	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->stats, _field)
+	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->base.stats, _field)
 static void
 export_stats(struct ip_fw_chain *ch, struct nat64stl_cfg *cfg,
     struct ipfw_nat64stl_stats *stats)
@@ -482,7 +485,7 @@ nat64stl_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
-	COUNTER_ARRAY_ZERO(cfg->stats.stats, NAT64STATS);
+	COUNTER_ARRAY_ZERO(cfg->base.stats.cnt, NAT64STATS);
 	IPFW_UH_WUNLOCK(ch);
 	return (0);
 }

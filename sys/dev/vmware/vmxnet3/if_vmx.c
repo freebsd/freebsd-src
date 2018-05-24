@@ -3173,7 +3173,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 		int cnt = 0, overflow = 0;
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			else if (cnt == VMXNET3_MULTICAST_MAX) {

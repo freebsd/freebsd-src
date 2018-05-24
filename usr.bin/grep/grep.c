@@ -51,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#ifndef WITHOUT_FASTMATCH
-#include "fastmatch.h"
-#endif
 #include "grep.h"
 
 #ifndef WITHOUT_NLS
@@ -68,15 +65,14 @@ nl_catd	 catalog;
 const char	*errstr[] = {
 	"",
 /* 1*/	"(standard input)",
-/* 2*/	"cannot read bzip2 compressed file",
-/* 3*/	"unknown %s option",
-/* 4*/	"usage: %s [-abcDEFGHhIiJLlmnOoPqRSsUVvwxZz] [-A num] [-B num] [-C[num]]\n",
-/* 5*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
-/* 6*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
-/* 7*/	"\t[--null] [pattern] [file ...]\n",
-/* 8*/	"Binary file %s matches\n",
-/* 9*/	"%s (BSD grep) %s\n",
-/* 10*/	"%s (BSD grep, GNU compatible) %s\n",
+/* 2*/	"unknown %s option",
+/* 3*/	"usage: %s [-abcDEFGHhIiLlmnOoPqRSsUVvwxz] [-A num] [-B num] [-C[num]]\n",
+/* 4*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
+/* 5*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
+/* 6*/	"\t[--null] [pattern] [file ...]\n",
+/* 7*/	"Binary file %s matches\n",
+/* 8*/	"%s (BSD grep) %s\n",
+/* 9*/	"%s (BSD grep, GNU compatible) %s\n",
 };
 
 /* Flags passed to regcomp() and regexec() */
@@ -97,9 +93,6 @@ unsigned int	 patterns;
 static unsigned int pattern_sz;
 struct pat	*pattern;
 regex_t		*r_pattern;
-#ifndef WITHOUT_FASTMATCH
-fastmatch_t	*fg_pattern;
-#endif
 
 /* Filename exclusion/inclusion patterns */
 unsigned int	fpatterns, dpatterns;
@@ -136,7 +129,7 @@ char	*label;		/* --label */
 const char *color;	/* --color */
 int	 grepbehave = GREP_BASIC;	/* -EFGP: type of the regex */
 int	 binbehave = BINFILE_BIN;	/* -aIU: handling of binary files */
-int	 filebehave = FILE_STDIO;	/* -JZ: normal, gzip or bzip2 file */
+int	 filebehave = FILE_STDIO;
 int	 devbehave = DEV_READ;		/* -D: handling of devices */
 int	 dirbehave = DIR_READ;		/* -dRr: handling of directories */
 int	 linkbehave = LINK_READ;	/* -OpS: handling of symlinks */
@@ -169,14 +162,14 @@ bool	 file_err;	/* file reading error */
 static void
 usage(void)
 {
-	fprintf(stderr, getstr(4), getprogname());
+	fprintf(stderr, getstr(3), getprogname());
+	fprintf(stderr, "%s", getstr(4));
 	fprintf(stderr, "%s", getstr(5));
 	fprintf(stderr, "%s", getstr(6));
-	fprintf(stderr, "%s", getstr(7));
 	exit(2);
 }
 
-static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXyz";
+static const char	*optstr = "0123456789A:B:C:D:EFGHILOPSRUVabcd:e:f:hilm:nopqrsuvwxyz";
 
 static const struct option long_options[] =
 {
@@ -208,11 +201,9 @@ static const struct option long_options[] =
 	{"no-filename",		no_argument,		NULL, 'h'},
 	{"with-filename",	no_argument,		NULL, 'H'},
 	{"ignore-case",		no_argument,		NULL, 'i'},
-	{"bz2decompress",	no_argument,		NULL, 'J'},
 	{"files-with-matches",	no_argument,		NULL, 'l'},
 	{"files-without-match", no_argument,            NULL, 'L'},
 	{"max-count",		required_argument,	NULL, 'm'},
-	{"lzma",		no_argument,		NULL, 'M'},
 	{"line-number",		no_argument,		NULL, 'n'},
 	{"only-matching",	no_argument,		NULL, 'o'},
 	{"quiet",		no_argument,		NULL, 'q'},
@@ -225,9 +216,7 @@ static const struct option long_options[] =
 	{"version",		no_argument,		NULL, 'V'},
 	{"word-regexp",		no_argument,		NULL, 'w'},
 	{"line-regexp",		no_argument,		NULL, 'x'},
-	{"xz",			no_argument,		NULL, 'X'},
 	{"null-data",		no_argument,		NULL, 'z'},
-	{"decompress",          no_argument,            NULL, 'Z'},
 	{NULL,			no_argument,		NULL, 0}
 };
 
@@ -318,7 +307,9 @@ read_patterns(const char *fn)
 	size_t len;
 	ssize_t rlen;
 
-	if ((f = fopen(fn, "r")) == NULL)
+	if (strcmp(fn, "-") == 0)
+		f = stdin;
+	else if ((f = fopen(fn, "r")) == NULL)
 		err(2, "%s", fn);
 	if ((fstat(fileno(f), &st) == -1) || (S_ISDIR(st.st_mode))) {
 		fclose(f);
@@ -335,7 +326,8 @@ read_patterns(const char *fn)
 	free(line);
 	if (ferror(f))
 		err(2, "%s", fn);
-	fclose(f);
+	if (strcmp(fn, "-") != 0)
+		fclose(f);
 }
 
 static inline const char *
@@ -367,21 +359,9 @@ main(int argc, char *argv[])
 	   way we can have all the funcionalities in one binary
 	   without the need of scripting and using ugly hacks. */
 	pn = getprogname();
-	if (pn[0] == 'b' && pn[1] == 'z') {
-		filebehave = FILE_BZIP;
-		pn += 2;
-	} else if (pn[0] == 'x' && pn[1] == 'z') {
-		filebehave = FILE_XZ;
-		pn += 2;
-	} else if (pn[0] == 'l' && pn[1] == 'z') {
-		filebehave = FILE_LZMA;
-		pn += 2;
-	} else if (pn[0] == 'r') {
+	if (pn[0] == 'r') {
 		dirbehave = DIR_RECURSE;
 		Hflag = true;
-	} else if (pn[0] == 'z') {
-		filebehave = FILE_GZIP;
-		pn += 1;
 	}
 	switch (pn[0]) {
 	case 'e':
@@ -490,7 +470,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp(optarg, "read") == 0)
 				devbehave = DEV_READ;
 			else
-				errx(2, getstr(3), "--devices");
+				errx(2, getstr(2), "--devices");
 			break;
 		case 'd':
 			if (strcasecmp("recurse", optarg) == 0) {
@@ -501,7 +481,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("read", optarg) == 0)
 				dirbehave = DIR_READ;
 			else
-				errx(2, getstr(3), "--directories");
+				errx(2, getstr(2), "--directories");
 			break;
 		case 'E':
 			grepbehave = GREP_EXTENDED;
@@ -541,13 +521,6 @@ main(int argc, char *argv[])
 			iflag =  true;
 			cflags |= REG_ICASE;
 			break;
-		case 'J':
-#ifdef WITHOUT_BZIP2
-			errno = EOPNOTSUPP;
-			err(2, "bzip2 support was disabled at compile-time");
-#endif
-			filebehave = FILE_BZIP;
-			break;
 		case 'L':
 			lflag = false;
 			Lflag = true;
@@ -567,9 +540,6 @@ main(int argc, char *argv[])
 				errno = EINVAL;
 				err(2, NULL);
 			}
-			break;
-		case 'M':
-			filebehave = FILE_LZMA;
 			break;
 		case 'n':
 			nflag = true;
@@ -607,9 +577,9 @@ main(int argc, char *argv[])
 			break;
 		case 'V':
 #ifdef WITH_GNU
-			printf(getstr(10), getprogname(), VERSION);
-#else
 			printf(getstr(9), getprogname(), VERSION);
+#else
+			printf(getstr(8), getprogname(), VERSION);
 #endif
 			exit(0);
 		case 'v':
@@ -623,14 +593,8 @@ main(int argc, char *argv[])
 			xflag = true;
 			cflags &= ~REG_NOSUB;
 			break;
-		case 'X':
-			filebehave = FILE_XZ;
-			break;
 		case 'z':
 			fileeol = '\0';
-			break;
-		case 'Z':
-			filebehave = FILE_GZIP;
 			break;
 		case BIN_OPT:
 			if (strcasecmp("binary", optarg) == 0)
@@ -640,7 +604,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("text", optarg) == 0)
 				binbehave = BINFILE_TEXT;
 			else
-				errx(2, getstr(3), "--binary-files");
+				errx(2, getstr(2), "--binary-files");
 			break;
 		case COLOR_OPT:
 			color = NULL;
@@ -660,7 +624,7 @@ main(int argc, char *argv[])
 			} else if (strcasecmp("never", optarg) != 0 &&
 			    strcasecmp("none", optarg) != 0 &&
 			    strcasecmp("no", optarg) != 0)
-				errx(2, getstr(3), "--color");
+				errx(2, getstr(2), "--color");
 			cflags &= ~REG_NOSUB;
 			break;
 		case LABEL_OPT:
@@ -745,9 +709,6 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-#ifndef WITHOUT_FASTMATCH
-	fg_pattern = grep_calloc(patterns, sizeof(*fg_pattern));
-#endif
 	r_pattern = grep_calloc(patterns, sizeof(*r_pattern));
 
 	/* Don't process any patterns if we have a blank one */
@@ -758,15 +719,6 @@ main(int argc, char *argv[])
 #endif
 		/* Check if cheating is allowed (always is for fgrep). */
 		for (i = 0; i < patterns; ++i) {
-#ifndef WITHOUT_FASTMATCH
-			/*
-			 * Attempt compilation with fastmatch regex and
-			 * fallback to regex(3) if it fails.
-			 */
-			if (fastncomp(&fg_pattern[i], pattern[i].pat,
-			    pattern[i].len, cflags) == 0)
-				continue;
-#endif
 			c = regcomp(&r_pattern[i], pattern[i].pat, cflags);
 			if (c != 0) {
 				regerror(c, &r_pattern[i], re_error,

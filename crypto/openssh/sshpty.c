@@ -100,30 +100,6 @@ pty_make_controlling_tty(int *ttyfd, const char *tty)
 {
 	int fd;
 
-#ifdef _UNICOS
-	if (setsid() < 0)
-		error("setsid: %.100s", strerror(errno));
-
-	fd = open(tty, O_RDWR|O_NOCTTY);
-	if (fd != -1) {
-		signal(SIGHUP, SIG_IGN);
-		ioctl(fd, TCVHUP, (char *)NULL);
-		signal(SIGHUP, SIG_DFL);
-		setpgid(0, 0);
-		close(fd);
-	} else {
-		error("Failed to disconnect from controlling tty.");
-	}
-
-	debug("Setting controlling tty using TCSETCTTY.");
-	ioctl(*ttyfd, TCSETCTTY, NULL);
-	fd = open("/dev/tty", O_RDWR);
-	if (fd < 0)
-		error("%.100s: %.100s", tty, strerror(errno));
-	close(*ttyfd);
-	*ttyfd = fd;
-#else /* _UNICOS */
-
 	/* First disconnect from the old controlling tty. */
 #ifdef TIOCNOTTY
 	fd = open(_PATH_TTY, O_RDWR | O_NOCTTY);
@@ -167,7 +143,6 @@ pty_make_controlling_tty(int *ttyfd, const char *tty)
 		    strerror(errno));
 	else
 		close(fd);
-#endif /* _UNICOS */
 }
 
 /* Changes the window size associated with the pty. */

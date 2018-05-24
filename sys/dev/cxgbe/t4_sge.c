@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 
 #include <sys/types.h>
 #include <sys/eventhandler.h>
@@ -224,7 +225,7 @@ static int free_nm_txq(struct vi_info *, struct sge_nm_txq *);
 #endif
 static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
 static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
 #endif
 static int alloc_eq(struct adapter *, struct vi_info *, struct sge_eq *);
@@ -285,98 +286,161 @@ static counter_u64_t extfree_rels;
 an_handler_t t4_an_handler;
 fw_msg_handler_t t4_fw_msg_handler[NUM_FW6_TYPES];
 cpl_handler_t t4_cpl_handler[NUM_CPL_CMDS];
+cpl_handler_t set_tcb_rpl_handlers[NUM_CPL_COOKIES];
+cpl_handler_t l2t_write_rpl_handlers[NUM_CPL_COOKIES];
+cpl_handler_t act_open_rpl_handlers[NUM_CPL_COOKIES];
+cpl_handler_t abort_rpl_rss_handlers[NUM_CPL_COOKIES];
 
-
-static int
-an_not_handled(struct sge_iq *iq, const struct rsp_ctrl *ctrl)
-{
-
-#ifdef INVARIANTS
-	panic("%s: async notification on iq %p (ctrl %p)", __func__, iq, ctrl);
-#else
-	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)\n",
-	    __func__, iq, ctrl);
-#endif
-	return (EDOOFUS);
-}
-
-int
+void
 t4_register_an_handler(an_handler_t h)
 {
-	uintptr_t *loc, new;
+	uintptr_t *loc;
 
-	new = h ? (uintptr_t)h : (uintptr_t)an_not_handled;
-	loc = (uintptr_t *) &t4_an_handler;
-	atomic_store_rel_ptr(loc, new);
+	MPASS(h == NULL || t4_an_handler == NULL);
 
-	return (0);
+	loc = (uintptr_t *)&t4_an_handler;
+	atomic_store_rel_ptr(loc, (uintptr_t)h);
 }
 
-static int
-fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
-{
-	const struct cpl_fw6_msg *cpl =
-	    __containerof(rpl, struct cpl_fw6_msg, data[0]);
-
-#ifdef INVARIANTS
-	panic("%s: fw_msg type %d", __func__, cpl->type);
-#else
-	log(LOG_ERR, "%s: fw_msg type %d\n", __func__, cpl->type);
-#endif
-	return (EDOOFUS);
-}
-
-int
+void
 t4_register_fw_msg_handler(int type, fw_msg_handler_t h)
 {
-	uintptr_t *loc, new;
+	uintptr_t *loc;
 
-	if (type >= nitems(t4_fw_msg_handler))
-		return (EINVAL);
-
+	MPASS(type < nitems(t4_fw_msg_handler));
+	MPASS(h == NULL || t4_fw_msg_handler[type] == NULL);
 	/*
 	 * These are dispatched by the handler for FW{4|6}_CPL_MSG using the CPL
 	 * handler dispatch table.  Reject any attempt to install a handler for
 	 * this subtype.
 	 */
-	if (type == FW_TYPE_RSSCPL || type == FW6_TYPE_RSSCPL)
-		return (EINVAL);
+	MPASS(type != FW_TYPE_RSSCPL);
+	MPASS(type != FW6_TYPE_RSSCPL);
 
-	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
-	loc = (uintptr_t *) &t4_fw_msg_handler[type];
-	atomic_store_rel_ptr(loc, new);
+	loc = (uintptr_t *)&t4_fw_msg_handler[type];
+	atomic_store_rel_ptr(loc, (uintptr_t)h);
+}
 
-	return (0);
+void
+t4_register_cpl_handler(int opcode, cpl_handler_t h)
+{
+	uintptr_t *loc;
+
+	MPASS(opcode < nitems(t4_cpl_handler));
+	MPASS(h == NULL || t4_cpl_handler[opcode] == NULL);
+
+	loc = (uintptr_t *)&t4_cpl_handler[opcode];
+	atomic_store_rel_ptr(loc, (uintptr_t)h);
 }
 
 static int
-cpl_not_handled(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+set_tcb_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
 {
+	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
+	u_int tid;
+	int cookie;
 
-#ifdef INVARIANTS
-	panic("%s: opcode 0x%02x on iq %p with payload %p",
-	    __func__, rss->opcode, iq, m);
-#else
-	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p\n",
-	    __func__, rss->opcode, iq, m);
-	m_freem(m);
-#endif
-	return (EDOOFUS);
+	MPASS(m == NULL);
+
+	tid = GET_TID(cpl);
+	if (is_ftid(iq->adapter, tid)) {
+		/*
+		 * The return code for filter-write is put in the CPL cookie so
+		 * we have to rely on the hardware tid (is_ftid) to determine
+		 * that this is a response to a filter.
+		 */
+		cookie = CPL_COOKIE_FILTER;
+	} else {
+		cookie = G_COOKIE(cpl->cookie);
+	}
+	MPASS(cookie > CPL_COOKIE_RESERVED);
+	MPASS(cookie < nitems(set_tcb_rpl_handlers));
+
+	return (set_tcb_rpl_handlers[cookie](iq, rss, m));
 }
 
-int
-t4_register_cpl_handler(int opcode, cpl_handler_t h)
+static int
+l2t_write_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
 {
-	uintptr_t *loc, new;
+	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
+	unsigned int cookie;
 
-	if (opcode >= nitems(t4_cpl_handler))
-		return (EINVAL);
+	MPASS(m == NULL);
 
-	new = h ? (uintptr_t)h : (uintptr_t)cpl_not_handled;
-	loc = (uintptr_t *) &t4_cpl_handler[opcode];
-	atomic_store_rel_ptr(loc, new);
+	cookie = GET_TID(rpl) & F_SYNC_WR ? CPL_COOKIE_TOM : CPL_COOKIE_FILTER;
+	return (l2t_write_rpl_handlers[cookie](iq, rss, m));
+}
 
-	return (0);
+static int
+act_open_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	const struct cpl_act_open_rpl *cpl = (const void *)(rss + 1);
+	u_int cookie = G_TID_COOKIE(G_AOPEN_ATID(be32toh(cpl->atid_status)));
+
+	MPASS(m == NULL);
+	MPASS(cookie != CPL_COOKIE_RESERVED);
+
+	return (act_open_rpl_handlers[cookie](iq, rss, m));
+}
+
+static int
+abort_rpl_rss_handler(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	u_int cookie;
+
+	MPASS(m == NULL);
+	if (is_hashfilter(sc))
+		cookie = CPL_COOKIE_HASHFILTER;
+	else
+		cookie = CPL_COOKIE_TOM;
+
+	return (abort_rpl_rss_handlers[cookie](iq, rss, m));
+}
+
+static void
+t4_init_shared_cpl_handlers(void)
+{
+
+	t4_register_cpl_handler(CPL_SET_TCB_RPL, set_tcb_rpl_handler);
+	t4_register_cpl_handler(CPL_L2T_WRITE_RPL, l2t_write_rpl_handler);
+	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, act_open_rpl_handler);
+	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, abort_rpl_rss_handler);
+}
+
+void
+t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
+{
+	uintptr_t *loc;
+
+	MPASS(opcode < nitems(t4_cpl_handler));
+	MPASS(cookie > CPL_COOKIE_RESERVED);
+	MPASS(cookie < NUM_CPL_COOKIES);
+	MPASS(t4_cpl_handler[opcode] != NULL);
+
+	switch (opcode) {
+	case CPL_SET_TCB_RPL:
+		loc = (uintptr_t *)&set_tcb_rpl_handlers[cookie];
+		break;
+	case CPL_L2T_WRITE_RPL:
+		loc = (uintptr_t *)&l2t_write_rpl_handlers[cookie];
+		break;
+	case CPL_ACT_OPEN_RPL:
+		loc = (uintptr_t *)&act_open_rpl_handlers[cookie];
+		break;
+	case CPL_ABORT_RPL_RSS:
+		loc = (uintptr_t *)&abort_rpl_rss_handlers[cookie];
+		break;
+	default:
+		MPASS(0);
+		return;
+	}
+	MPASS(h == NULL || *loc == (uintptr_t)NULL);
+	atomic_store_rel_ptr(loc, (uintptr_t)h);
 }
 
 /*
@@ -385,7 +449,6 @@ t4_register_cpl_handler(int opcode, cpl_handler_t h)
 void
 t4_sge_modload(void)
 {
-	int i;
 
 	if (fl_pktshift < 0 || fl_pktshift > 7) {
 		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
@@ -425,12 +488,7 @@ t4_sge_modload(void)
 	counter_u64_zero(extfree_refs);
 	counter_u64_zero(extfree_rels);
 
-	t4_an_handler = an_not_handled;
-	for (i = 0; i < nitems(t4_fw_msg_handler); i++)
-		t4_fw_msg_handler[i] = fw_msg_not_handled;
-	for (i = 0; i < nitems(t4_cpl_handler); i++)
-		t4_cpl_handler[i] = cpl_not_handled;
-
+	t4_init_shared_cpl_handlers();
 	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
 	t4_register_cpl_handler(CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
@@ -963,8 +1021,10 @@ mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
 
 #ifdef TCP_OFFLOAD
 	if (toe) {
-		payload = sc->tt.rx_coalesce ?
-		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2)) : mtu;
+		int rxcs = G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
+
+		/* Note that COP can set rx_coalesce on/off per connection. */
+		payload = max(mtu, rxcs);
 	} else {
 #endif
 		/* large enough even when hw VLAN extraction is disabled */
@@ -986,6 +1046,8 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct sge_wrq *ctrlq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	struct sge_wrq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
@@ -1101,17 +1163,23 @@ t4_setup_vi_queues(struct vi_info *vi)
 		if (rc != 0)
 			goto done;
 	}
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_txq",
-	    CTLFLAG_RD, NULL, "tx queues for offloaded TCP connections");
+	    CTLFLAG_RD, NULL, "tx queues for TOE/ETHOFLD");
 	for_each_ofld_txq(vi, i, ofld_txq) {
 		struct sysctl_oid *oid2;
 
-		iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
 		snprintf(name, sizeof(name), "%s ofld_txq%d",
 		    device_get_nameunit(vi->dev), i);
+#ifdef TCP_OFFLOAD
+		iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
 		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
 		    sc->sge.ofld_rxq[iqidx].iq.cntxt_id, name);
+#else
+		iqidx = vi->first_rxq + (i % vi->nrxq);
+		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+		    sc->sge.rxq[iqidx].iq.cntxt_id, name);
+#endif
 
 		snprintf(name, sizeof(name), "%d", i);
 		oid2 = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
@@ -1156,6 +1224,8 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	struct sge_txq *txq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	struct sge_wrq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
@@ -1192,7 +1262,7 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	for_each_txq(vi, i, txq) {
 		free_txq(vi, txq);
 	}
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	for_each_ofld_txq(vi, i, ofld_txq) {
 		free_wrq(sc, ofld_txq);
 	}
@@ -2899,11 +2969,8 @@ alloc_fwq(struct adapter *sc)
 	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
 	if (sc->flags & IS_VF)
 		intr_idx = 0;
-	else {
+	else
 		intr_idx = sc->intr_count > 1 ? 1 : 0;
-		fwq->set_tcb_rpl = t4_filter_rpl;
-		fwq->l2t_write_rpl = do_l2t_write_rpl;
-	}
 	rc = alloc_iq_fl(&sc->port[0]->vi[0], fwq, NULL, intr_idx, -1);
 	if (rc != 0) {
 		device_printf(sc->dev,
@@ -3332,7 +3399,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	return (rc);
 }
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 static int
 ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 {
@@ -3404,7 +3471,7 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 		rc = eth_eq_alloc(sc, vi, eq);
 		break;
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	case EQ_OFLD:
 		rc = ofld_eq_alloc(sc, vi, eq);
 		break;
@@ -3459,7 +3526,7 @@ free_eq(struct adapter *sc, struct sge_eq *eq)
 			    eq->cntxt_id);
 			break;
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 		case EQ_OFLD:
 			rc = -t4_ofld_eq_free(sc, sc->mbox, sc->pf, 0,
 			    eq->cntxt_id);

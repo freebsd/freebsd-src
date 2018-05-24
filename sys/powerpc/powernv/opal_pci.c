@@ -254,8 +254,8 @@ opalpci_attach(device_t dev)
 	 * such time as we start wanting to do things like bhyve.
 	 */
 	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
-	    0, 0, 0, 0, /* All devices */
-	    OPAL_MAP_PE);
+	    0, OPAL_PCI_BUS_ANY, OPAL_IGNORE_RID_DEVICE_NUMBER,
+	    OPAL_IGNORE_RID_FUNC_NUMBER, OPAL_MAP_PE);
 	if (err != 0) {
 		device_printf(dev, "PE mapping failed: %d\n", err);
 		return (ENXIO);

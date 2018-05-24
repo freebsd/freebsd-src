@@ -45,7 +45,6 @@ LINT: ${NOTES} ${MAKELINT_SED}
 	echo "nodevice sge"		>> ${.TARGET}-NOIP
 	echo "nodevice sk"		>> ${.TARGET}-NOIP
 	echo "nodevice txp"		>> ${.TARGET}-NOIP
-	echo "nodevice vxge"		>> ${.TARGET}-NOIP
 	echo "nodevice netmap"		>> ${.TARGET}-NOIP
 .endif
 .if ${TARGET} == "mips"

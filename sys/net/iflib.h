@@ -36,6 +36,8 @@
 #include <sys/nv.h>
 #include <sys/gtaskqueue.h>
 
+struct if_clone;
+
 /*
  * The value type for indexing, limits max descriptors
  * to 65535 can be conditionally redefined to uint32_t
@@ -57,6 +59,8 @@ struct if_shared_ctx;
 typedef struct if_shared_ctx *if_shared_ctx_t;
 struct if_int_delay_info;
 typedef struct if_int_delay_info  *if_int_delay_info_t;
+struct if_pseudo;
+typedef struct if_pseudo *if_pseudo_t;
 
 /*
  * File organization:
@@ -194,6 +198,9 @@ typedef struct if_softc_ctx {
 	int isc_vectors;
 	int isc_nrxqsets;
 	int isc_ntxqsets;
+	uint8_t isc_min_tx_latency; /* disable doorbell update batching */
+	uint8_t isc_rx_mvec_enable; /* generate mvecs on rx */
+	uint32_t isc_txrx_budget_bytes_max;
 	int isc_msix_bar;		/* can be model specific - initialize in attach_pre */
 	int isc_tx_nsegments;		/* can be model specific - initialize in attach_pre */
 	int isc_ntxd[8];
@@ -214,6 +221,7 @@ typedef struct if_softc_ctx {
 	int isc_rss_table_mask;
 	int isc_nrxqsets_max;
 	int isc_ntxqsets_max;
+	uint32_t isc_tx_qdepth;
 
 	iflib_intr_mode_t isc_intr;
 	uint16_t isc_max_frame_size; /* set at init time by driver */
@@ -259,6 +267,7 @@ struct if_shared_ctx {
 	int isc_rx_process_limit;
 	int isc_tx_reclaim_thresh;
 	int isc_flags;
+	const char *isc_name;
 };
 
 typedef struct iflib_dma_info {
@@ -320,6 +329,35 @@ typedef enum {
  * Driver needs frames padded to some minimum length
  */
 #define IFLIB_NEED_ETHER_PAD	0x100
+/*
+ * Packets can be freed immediately after encap
+ */
+#define IFLIB_TXD_ENCAP_PIO	0x00200
+/*
+ * Use RX completion handler
+ */
+#define IFLIB_RX_COMPLETION	0x00400
+/*
+ * Skip refilling cluster free lists
+ */
+#define IFLIB_SKIP_CLREFILL	0x00800
+/*
+ * Don't reset on hang
+ */
+#define IFLIB_NO_HANG_RESET	0x01000
+/*
+ * Don't need/want most of the niceties of
+ * queue management
+ */
+#define IFLIB_PSEUDO	0x02000
+/*
+ * No DMA support needed / wanted
+ */
+#define IFLIB_VIRTUAL	0x04000
+/*
+ * autogenerate a MAC address
+ */
+#define IFLIB_GEN_MAC	0x08000
 
 
 
@@ -373,8 +411,8 @@ void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 
 void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, char *name);
 
-void iflib_config_gtask_init(if_ctx_t ctx, struct grouptask *gtask,
-			     gtask_fn_t *fn, char *name);
+void iflib_config_gtask_init(void *ctx, struct grouptask *gtask,
+			     gtask_fn_t *fn, const char *name);
 
 void iflib_config_gtask_deinit(struct grouptask *gtask);
 
@@ -396,7 +434,7 @@ int iflib_dma_alloc_multi(if_ctx_t ctx, int *sizes, iflib_dma_info_t *dmalist, i
 void iflib_dma_free_multi(iflib_dma_info_t *dmalist, int count);
 
 
-struct mtx *iflib_ctx_lock_get(if_ctx_t);
+struct sx *iflib_ctx_lock_get(if_ctx_t);
 struct mtx *iflib_qset_lock_get(if_ctx_t, uint16_t);
 
 void iflib_led_create(if_ctx_t ctx);
@@ -404,4 +442,9 @@ void iflib_led_create(if_ctx_t ctx);
 void iflib_add_int_delay_sysctl(if_ctx_t, const char *, const char *,
 								if_int_delay_info_t, int, int);
 
+/*
+ * Pseudo device support
+ */
+if_pseudo_t iflib_clone_register(if_shared_ctx_t);
+void iflib_clone_deregister(if_pseudo_t);
 #endif /*  __IFLIB_H_ */

@@ -126,7 +126,7 @@ sysctl_register_fdt_oid(void *arg)
 	    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0, sysctl_handle_dtb, "",
 	    "Device Tree Blob");
 }
-SYSINIT(dtb_oid, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_fdt_oid, 0);
+SYSINIT(dtb_oid, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_fdt_oid, NULL);
 
 static int
 ofw_fdt_init(ofw_t ofw, void *data)

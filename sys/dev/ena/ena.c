@@ -2368,6 +2368,8 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	rc = 0;
 	switch (command) {
 	case SIOCSIFMTU:
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
 		sx_xlock(&adapter->ioctl_sx);
 		ena_down(adapter);
 
@@ -2740,7 +2742,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	uint16_t req_id;
 	uint16_t push_len;
 	uint16_t ena_qid;
-	uint32_t len, nsegs, header_len;
+	uint32_t nsegs, header_len;
 	int i, rc;
 	int nb_hw_desc;
 
@@ -2764,12 +2766,18 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	tx_info->num_of_bufs = 0;
 
 	ena_buf = tx_info->bufs;
-	len = (*mbuf)->m_len;
 
 	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes", (*mbuf)->m_pkthdr.len);
 
 	push_len = 0;
-	header_len = min_t(uint32_t, len, tx_ring->tx_max_header_size);
+	/*
+	 * header_len is just a hint for the device. Because FreeBSD is not
+	 * giving us information about packet header length and it is not
+	 * guaranteed that all packet headers will be in the 1st mbuf, setting
+	 * header_len to 0 is making the device ignore this value and resolve
+	 * header on it's own.
+	 */
+	header_len = 0;
 	push_hdr = NULL;
 
 	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->map,

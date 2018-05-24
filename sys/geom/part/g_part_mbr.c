@@ -121,6 +121,7 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_mbr);
+MODULE_VERSION(geom_part_mbr, 0);
 
 static struct g_part_mbr_alias {
 	u_char		typ;
@@ -131,6 +132,7 @@ static struct g_part_mbr_alias {
 	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
 	{ DOSPTYP_FAT16,	G_PART_ALIAS_MS_FAT16 },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_FAT32LBA,	G_PART_ALIAS_MS_FAT32LBA },
 	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
 	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
 	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },

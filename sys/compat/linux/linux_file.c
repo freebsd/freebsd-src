@@ -89,7 +89,6 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
 static int
 linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mode)
 {
-	cap_rights_t rights;
 	struct proc *p = td->td_proc;
 	struct file *fp;
 	int fd;
@@ -144,7 +143,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	 * checking below.
 	*/
 	fd = td->td_retval[0];
-	if (fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp) == 0) {
+	if (fget(td, fd, &cap_ioctl_rights, &fp) == 0) {
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);
 			goto done;
@@ -263,13 +262,12 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 static int
 linux_getdents_error(struct thread *td, int fd, int err)
 {
-	cap_rights_t rights;
 	struct vnode *vp;
 	struct file *fp;
 	int error;
 
 	/* Linux return ENOTDIR in case when fd is not a directory. */
-	error = getvnode(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, fd, &cap_read_rights, &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -985,15 +983,13 @@ linux_fdatasync(td, uap)
 int
 linux_pread(struct thread *td, struct linux_pread_args *uap)
 {
-	cap_rights_t rights;
 	struct vnode *vp;
 	int error;
 
 	error = kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset);
 	if (error == 0) {
 		/* This seems to violate POSIX but Linux does it. */
-		error = fgetvp(td, uap->fd,
-		    cap_rights_init(&rights, CAP_PREAD), &vp);
+		error = fgetvp(td, uap->fd, &cap_pread_rights, &vp);
 		if (error != 0)
 			return (error);
 		if (vp->v_type == VDIR) {
@@ -1275,7 +1271,6 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
-	cap_rights_t rights;
 	struct file *fp;
 	long arg;
 	int error, result;
@@ -1379,7 +1374,7 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 		 * pipes under Linux-2.2.35 at least).
 		 */
 		error = fget(td, args->fd,
-		    cap_rights_init(&rights, CAP_FCNTL), &fp);
+		    &cap_fcntl_rights, &fp);
 		if (error)
 			return (error);
 		if (fp->f_type == DTYPE_PIPE) {

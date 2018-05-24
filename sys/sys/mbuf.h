@@ -196,6 +196,11 @@ struct pkthdr {
 #define	lro_nsegs	tso_segsz
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
+#define pace_thoff	PH_loc.sixteen[0]
+#define pace_tlen	PH_loc.sixteen[1]
+#define pace_drphdrlen	PH_loc.sixteen[2]
+#define pace_tos	PH_loc.eight[6]
+#define pace_lock	PH_loc.eight[7]
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
@@ -1370,6 +1375,13 @@ mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
 	ts->tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
 	ts->tv_nsec = m->m_pkthdr.rcv_tstmp % 1000000000;
 }
+#endif
+
+#ifdef NETDUMP
+/* Invoked from the netdump client code. */
+void	netdump_mbuf_drain(void);
+void	netdump_mbuf_dump(void);
+void	netdump_mbuf_reinit(int nmbuf, int nclust, int clsize);
 #endif
 
 #endif /* _KERNEL */

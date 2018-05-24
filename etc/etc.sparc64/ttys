@@ -33,15 +33,15 @@ screen	"/usr/libexec/getty Pc"		vt100	off secure
 ttya	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 ttyb	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 # syscons(4)
-ttyv0	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv0	"/usr/libexec/getty Pc"		xterm	onifexists secure
 # Virtual terminals
-ttyv1	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv2	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv3	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv4	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv5	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv6	"/usr/libexec/getty Pc"		xterm	on  secure
-ttyv7	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv1	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv2	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv3	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv4	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv5	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv6	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv7	"/usr/libexec/getty Pc"		xterm	onifexists secure
 ttyv8	"/usr/local/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.

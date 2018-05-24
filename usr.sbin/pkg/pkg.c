@@ -1032,6 +1032,7 @@ main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 	const char *pkgarg;
+	int i;
 	bool bootstrap_only, force, yes;
 
 	bootstrap_only = false;
@@ -1083,6 +1084,15 @@ main(int argc, char *argv[])
 		 * tucked in there already.
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
+		if (!yes) {
+			for (i = 1; i < argc; i++) {
+				if (strcmp(argv[i], "-y") == 0 ||
+				    strcmp(argv[i], "--yes") == 0) {
+					yes = true;
+					break;
+				}
+			}
+		}
 		if (!yes) {
 			if (!isatty(fileno(stdin))) {
 				fprintf(stderr, non_interactive_message);

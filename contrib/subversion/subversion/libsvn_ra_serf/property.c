@@ -390,6 +390,26 @@ create_propfind_body(serf_bucket_t **bkt,
           requested_allprop = TRUE;
         }
 
+      prop++;
+    }
+
+  tmp = SERF_BUCKET_SIMPLE_STRING_LEN(PROPFIND_HEADER,
+                                      sizeof(PROPFIND_HEADER)-1,
+                                      alloc);
+  serf_bucket_aggregate_append(body_bkt, tmp);
+
+  /* If we're not doing an allprop, add <prop> tags. */
+  if (!requested_allprop)
+    {
+      tmp = SERF_BUCKET_SIMPLE_STRING_LEN("<prop>",
+                                          sizeof("<prop>")-1,
+                                          alloc);
+      serf_bucket_aggregate_append(body_bkt, tmp);
+    }
+
+  prop = ctx->find_props;
+  while (prop && prop->xmlns)
+    {
       /* <*propname* xmlns="*propns*" /> */
       tmp = SERF_BUCKET_SIMPLE_STRING_LEN("<", 1, alloc);
       serf_bucket_aggregate_append(body_bkt, tmp);
@@ -411,21 +431,6 @@ create_propfind_body(serf_bucket_t **bkt,
 
       prop++;
     }
-
-  /* If we're not doing an allprop, add <prop> tags. */
-  if (!requested_allprop)
-    {
-      tmp = SERF_BUCKET_SIMPLE_STRING_LEN("<prop>",
-                                          sizeof("<prop>")-1,
-                                          alloc);
-      serf_bucket_aggregate_prepend(body_bkt, tmp);
-    }
-
-  tmp = SERF_BUCKET_SIMPLE_STRING_LEN(PROPFIND_HEADER,
-                                      sizeof(PROPFIND_HEADER)-1,
-                                      alloc);
-
-  serf_bucket_aggregate_prepend(body_bkt, tmp);
 
   if (!requested_allprop)
     {

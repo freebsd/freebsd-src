@@ -38,10 +38,6 @@
 #include <stdio.h>
 #include <zlib.h>
 
-#ifndef WITHOUT_FASTMATCH
-#include "fastmatch.h"
-#endif
-
 #ifdef WITHOUT_NLS
 #define	getstr(n)	 errstr[n]
 #else
@@ -69,10 +65,6 @@ extern const char		*errstr[];
 
 #define	FILE_STDIO	0
 #define	FILE_MMAP	1
-#define	FILE_GZIP	2
-#define	FILE_BZIP	3
-#define	FILE_XZ		4
-#define	FILE_LZMA	5
 
 #define	DIR_READ	0
 #define	DIR_SKIP	1
@@ -135,9 +127,6 @@ extern unsigned int dpatterns, fpatterns, patterns;
 extern struct pat *pattern;
 extern struct epat *dpattern, *fpattern;
 extern regex_t	*er_pattern, *r_pattern;
-#ifndef WITHOUT_FASTMATCH
-extern fastmatch_t *fg_pattern;
-#endif
 
 /* For regex errors  */
 #define	RE_ERROR_BUF	512

@@ -32,6 +32,9 @@
 
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
 
 #define INIT_ULPTX_WRH(w, wrlen, atomic, tid) do { \
 	(w)->wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
@@ -66,13 +69,46 @@ struct stid_region {
 };
 
 /*
- * Max # of ATIDs.  The absolute HW max is 16K but we keep it lower.
+ * Max # of ATIDs.  The absolute HW max is 14b (enough for 16K) but we reserve
+ * the upper 3b for use as a cookie to demux the reply.
  */
-#define MAX_ATIDS 8192U
+#define MAX_ATIDS 2048U
 
 union aopen_entry {
 	void *data;
 	union aopen_entry *next;
+};
+
+struct cxgbe_snd_tag {
+	struct m_snd_tag com;
+	struct adapter *adapter;
+	u_int flags;
+	struct mtx lock;
+	int port_id;
+	int etid;
+	struct sge_wrq *eo_txq;
+	uint16_t iqid;
+	int8_t schedcl;
+	uint64_t max_rate;      /* in bytes/s */
+	int8_t next_credits;	/* need these many tx credits next */
+	uint8_t next_nsegs;	/* next WR will have these many GL segs total */
+	uint8_t next_msegs;	/* max segs for a single mbuf in next chain */
+	uint8_t tx_total;	/* total tx WR credits (in 16B units) */
+	uint8_t tx_credits;	/* tx WR credits (in 16B units) available */
+	uint8_t tx_nocompl;	/* tx WR credits since last compl request */
+	uint8_t ncompl;		/* # of completions outstanding. */
+};
+
+static inline struct cxgbe_snd_tag *
+mst_to_cst(struct m_snd_tag *t)
+{
+
+	return (__containerof(t, struct cxgbe_snd_tag, com));
+}
+
+union etid_entry {
+	struct cxgbe_snd_tag *cst;
+	union etid_entry *next;
 };
 
 /*
@@ -94,20 +130,28 @@ struct tid_info {
 
 	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
 	union aopen_entry *atid_tab;
-	u_int natids;
 	union aopen_entry *afree;
+	u_int natids;
 	u_int atids_in_use;
 
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
+	struct cv ftid_cv;
 	struct filter_entry *ftid_tab;
 	u_int nftids;
 	u_int ftid_base;
 	u_int ftids_in_use;
 
+	struct mtx hftid_lock __aligned(CACHE_LINE_SIZE);
+	struct cv hftid_cv;
+	void **hftid_tab;
+	/* ntids, tids_in_use */
+
 	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
-	struct etid_entry *etid_tab;
+	union etid_entry *etid_tab;
+	union etid_entry *efree;
 	u_int netids;
 	u_int etid_base;
+	u_int etids_in_use;
 };
 
 struct t4_range {
@@ -156,6 +200,7 @@ struct tom_tunables {
 	int num_tls_rx_ports;
 	int tx_align;
 	int tx_zcopy;
+	int cop_managed_offloading;
 };
 /* iWARP driver tunables */
 struct iw_tunables {

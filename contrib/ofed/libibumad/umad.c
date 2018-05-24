@@ -138,6 +138,7 @@ static int get_port(const char *ca_name, const char *dir, int portnum, umad_port
 	strncpy(port->ca_name, ca_name, sizeof port->ca_name - 1);
 	port->portnum = portnum;
 	port->pkeys = NULL;
+	port->rate = 0;
 
 	len = snprintf(port_dir, sizeof(port_dir), "%s/%d", dir, portnum);
 	if (len < 0 || len > sizeof(port_dir))
@@ -155,8 +156,12 @@ static int get_port(const char *ca_name, const char *dir, int portnum, umad_port
 		goto clean;
 	if (sys_read_uint(port_dir, SYS_PORT_PHY_STATE, &port->phys_state) < 0)
 		goto clean;
-	if (sys_read_uint(port_dir, SYS_PORT_RATE, &port->rate) < 0)
-		goto clean;
+	/*
+	 * If width was not set properly this read may fail.
+	 * Instead of failing everything, we will just skip the check
+	 * and it will be set to 0.
+	 */
+	sys_read_uint(port_dir, SYS_PORT_RATE, &port->rate);
 	if (sys_read_uint(port_dir, SYS_PORT_CAPMASK, &capmask) < 0)
 		goto clean;
 
