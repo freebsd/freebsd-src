@@ -28,7 +28,7 @@
 .\"     @(#)brk.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2015
+.Dd May 24, 2018
 .Dt BRK 2
 .Os
 .Sh NAME
@@ -51,6 +51,10 @@ and
 .Fn sbrk
 functions are legacy interfaces from before the
 advent of modern virtual memory management.
+They are deprecated and not present on the arm64 or riscv architectures.
+The
+.Xr mmap 2
+interface should be used to allocate pages instead.
 .Ef
 .Pp
 The
@@ -152,6 +156,11 @@ The
 .Fn brk
 function appeared in
 .At v7 .
+.Fx 11.0
+introduced the arm64 and riscv architectures which do not support
+.Fn brk
+or
+.Fn sbrk .
 .Sh BUGS
 Mixing
 .Fn brk
@@ -168,3 +177,9 @@ It is not possible to distinguish this
 from a failure caused by exceeding the maximum size of
 the data segment without consulting
 .Xr getrlimit 2 .
+.Pp
+.Fn sbrk
+is sometimes used to monitor heap use by calling with an argument of 0.
+The result is unlikely to reflect actual utilization in combination with an
+.Xr mmap 2
+based malloc.
