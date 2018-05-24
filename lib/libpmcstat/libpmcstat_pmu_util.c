@@ -124,5 +124,5 @@ pmcstat_pmu_sample_rate_get(const char *event_name)
 }
 
 #else
-uint64_t pmcstat_pmu_sample_rate_get(void) { return (DEFAULT_SAMPLE_COUNT); }
+uint64_t pmcstat_pmu_sample_rate_get(const char *event_name __unused) { return (DEFAULT_SAMPLE_COUNT); }
 #endif
