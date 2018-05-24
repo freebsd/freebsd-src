@@ -2029,6 +2029,11 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
+.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+	${MACHINE_CPUARCH} == "powerpc")
+_jevents=lib/libpmcstat/pmu-events
+.endif
+
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
 .if !defined(NO_CLEAN) && make(kernel-toolchain)
@@ -2039,6 +2044,7 @@ _bt_clean=	${CLEANDIR}
     ${_tcsh} \
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
+    ${_jevents} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_rescue} \

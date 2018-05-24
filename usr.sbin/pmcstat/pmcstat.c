@@ -445,7 +445,7 @@ main(int argc, char **argv)
 	char buffer[PATH_MAX];
 
 	check_driver_stats      = 0;
-	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
+	current_sampling_count  = 0;
 	do_callchain		= 1;
 	do_descendants          = 0;
 	do_logproccsw           = 0;
@@ -652,7 +652,7 @@ main(int argc, char **argv)
 				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 
 			if (option == 'S' || option == 'P')
-				ev->ev_count = current_sampling_count;
+				ev->ev_count = current_sampling_count ? current_sampling_count : pmcstat_pmu_sample_rate_get(ev->ev_spec);
 			else
 				ev->ev_count = -1;
 
