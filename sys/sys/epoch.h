@@ -64,14 +64,6 @@ int in_epoch(void);
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
-#ifdef INVARIANTS
-#define M_EPOCH_CALL_NOWAIT		(M_NOWAIT|M_ZERO)
-#define M_EPOCH_CALL_WAITOK		(M_WAITOK|M_ZERO)
-#else
-#define M_EPOCH_CALL_NOWAIT		M_NOWAIT
-#define M_EPOCH_CALL_WAITOK		M_WAITOK
-#endif
-
 static __inline void
 epoch_enter_preempt(epoch_t epoch)
 {
