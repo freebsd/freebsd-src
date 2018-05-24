@@ -38,3 +38,4 @@ nooptions       BUF_TRACKING
 nooptions       DEADLKRES
 nooptions       FULL_BUF_TRACKING
 
+options		NUMA
