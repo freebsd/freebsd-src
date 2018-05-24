@@ -290,6 +290,7 @@ cpl_handler_t set_tcb_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t l2t_write_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t act_open_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t abort_rpl_rss_handlers[NUM_CPL_COOKIES];
+cpl_handler_t fw4_ack_handlers[NUM_CPL_COOKIES];
 
 void
 t4_register_an_handler(an_handler_t h)
@@ -402,6 +403,23 @@ abort_rpl_rss_handler(struct sge_iq *iq, const struct rss_header *rss,
 	return (abort_rpl_rss_handlers[cookie](iq, rss, m));
 }
 
+static int
+fw4_ack_handler(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_fw4_ack *cpl = (const void *)(rss + 1);
+	unsigned int tid = G_CPL_FW4_ACK_FLOWID(be32toh(OPCODE_TID(cpl)));
+	u_int cookie;
+
+	MPASS(m == NULL);
+	if (is_etid(sc, tid))
+		cookie = CPL_COOKIE_ETHOFLD;
+	else
+		cookie = CPL_COOKIE_TOM;
+
+	return (fw4_ack_handlers[cookie](iq, rss, m));
+}
+
 static void
 t4_init_shared_cpl_handlers(void)
 {
@@ -410,6 +428,7 @@ t4_init_shared_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_L2T_WRITE_RPL, l2t_write_rpl_handler);
 	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, act_open_rpl_handler);
 	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, abort_rpl_rss_handler);
+	t4_register_cpl_handler(CPL_FW4_ACK, fw4_ack_handler);
 }
 
 void
@@ -434,6 +453,9 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 		break;
 	case CPL_ABORT_RPL_RSS:
 		loc = (uintptr_t *)&abort_rpl_rss_handlers[cookie];
+		break;
+	case CPL_FW4_ACK:
+		loc = (uintptr_t *)&fw4_ack_handlers[cookie];
 		break;
 	default:
 		MPASS(0);
