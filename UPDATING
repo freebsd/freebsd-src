@@ -53,7 +53,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20180523:
 	The on-disk format for hwpmc callchain records has changed to include
-	threadid corresponding to a given record. This changes the field offsets    
+	threadid corresponding to a given record. This changes the field offsets
 	and thus requires that libpmcstat be rebuilt before using a kernel
 	later than r334108.
 
