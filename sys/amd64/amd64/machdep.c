@@ -1850,6 +1850,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	thread0.td_critnest = 0;
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
+	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
