@@ -742,8 +742,8 @@ xs_read_reply(enum xsd_sockmsg_type *type, u_int *len, void **result)
 
 	mtx_lock(&xs.reply_lock);
 	while (TAILQ_EMPTY(&xs.reply_list)) {
-		error = mtx_sleep(&xs.reply_list, &xs.reply_lock,
-		    PCATCH, "xswait", hz/10);
+		error = mtx_sleep(&xs.reply_list, &xs.reply_lock, 0, "xswait",
+		    hz/10);
 		if (error && error != EWOULDBLOCK) {
 			mtx_unlock(&xs.reply_lock);
 			return (error);
