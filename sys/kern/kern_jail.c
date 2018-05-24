@@ -3540,7 +3540,7 @@ sysctl_jail_vnet(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_security_jail, OID_AUTO, vnet,
     CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_jail_vnet, "I", "Jail owns VNET?");
+    sysctl_jail_vnet, "I", "Jail owns vnet?");
 
 #if defined(INET) || defined(INET6)
 SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
