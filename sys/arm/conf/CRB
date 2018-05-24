@@ -52,7 +52,6 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
-options 	INTR_FILTER
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores

@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 
-#include "opt_intr_filter.h"
-
 /*
  * Device interface.
  */
@@ -85,9 +83,6 @@ static int 	asmc_temp_getvalue(device_t dev, const char *key);
 static int 	asmc_sms_read(device_t, const char *key, int16_t *val);
 static void 	asmc_sms_calibrate(device_t dev);
 static int 	asmc_sms_intrfast(void *arg);
-#ifdef INTR_FILTER
-static void 	asmc_sms_handler(void *arg);
-#endif
 static void 	asmc_sms_printintr(device_t dev, uint8_t);
 static void 	asmc_sms_task(void *arg, int pending);
 #ifdef DEBUG
@@ -563,13 +558,11 @@ asmc_attach(device_t dev)
 	 * We only need to do this for the non INTR_FILTER case.
 	 */
 	sc->sc_sms_tq = NULL;
-#ifndef INTR_FILTER
 	TASK_INIT(&sc->sc_sms_task, 0, asmc_sms_task, sc);
 	sc->sc_sms_tq = taskqueue_create_fast("asmc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_sms_tq);
 	taskqueue_start_threads(&sc->sc_sms_tq, 1, PI_REALTIME, "%s sms taskq",
 	    device_get_nameunit(dev));
-#endif
 	/*
 	 * Allocate an IRQ for the SMS.
 	 */
@@ -584,11 +577,7 @@ asmc_attach(device_t dev)
 
 	ret = bus_setup_intr(dev, sc->sc_irq,
 	          INTR_TYPE_MISC | INTR_MPSAFE,
-#ifdef INTR_FILTER
-	    asmc_sms_intrfast, asmc_sms_handler,
-#else
 	    asmc_sms_intrfast, NULL,
-#endif
 	    dev, &sc->sc_cookie);
 
 	if (ret) {
@@ -1241,23 +1230,10 @@ asmc_sms_intrfast(void *arg)
 	sc->sc_sms_intrtype = type;
 	asmc_sms_printintr(dev, type);
 
-#ifdef INTR_FILTER
-	return (FILTER_SCHEDULE_THREAD | FILTER_HANDLED);
-#else
 	taskqueue_enqueue(sc->sc_sms_tq, &sc->sc_sms_task);
-#endif
 	return (FILTER_HANDLED);
 }
 
-#ifdef INTR_FILTER
-static void
-asmc_sms_handler(void *arg)
-{
-	struct asmc_softc *sc = device_get_softc(arg);
-
-	asmc_sms_task(sc, 0);
-}
-#endif
 
 
 static void
