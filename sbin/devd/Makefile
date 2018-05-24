@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+WARNS?= 3
 PACKAGE=runtime
 PROG_CXX=devd
 SRCS=	devd.cc token.l parse.y y.tab.h
