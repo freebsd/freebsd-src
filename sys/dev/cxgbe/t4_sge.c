@@ -2367,9 +2367,29 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 	next = TAILQ_NEXT(cookie, link);
 	if (prev == NULL) {
 		MPASS(pidx == eq->dbidx);
-		if (next == NULL || ndesc >= 16)
+		if (next == NULL || ndesc >= 16) {
+			int available;
+			struct fw_eth_tx_pkt_wr *dst;	/* any fw WR struct will do */
+
+			/*
+			 * Note that the WR via which we'll request tx updates
+			 * is at pidx and not eq->pidx, which has moved on
+			 * already.
+			 */
+			dst = (void *)&eq->desc[pidx];
+			available = IDXDIFF(eq->cidx, eq->pidx, eq->sidx) - 1;
+			if (available < eq->sidx / 4 &&
+			    atomic_cmpset_int(&eq->equiq, 0, 1)) {
+				dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUIQ |
+				    F_FW_WR_EQUEQ);
+				eq->equeqidx = pidx;
+			} else if (IDXDIFF(eq->pidx, eq->equeqidx, eq->sidx) >= 32) {
+				dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
+				eq->equeqidx = pidx;
+			}
+
 			ring_eq_db(wrq->adapter, eq, ndesc);
-		else {
+		} else {
 			MPASS(IDXDIFF(next->pidx, pidx, eq->sidx) == ndesc);
 			next->pidx = pidx;
 			next->ndesc += ndesc;
