@@ -3750,8 +3750,8 @@ get_params__post_init(struct adapter *sc)
 		}
 		sc->tids.etid_base = val[0];
 		sc->params.etid_min = val[0];
+		sc->params.etid_max = val[1];
 		sc->tids.netids = val[1] - val[0] + 1;
-		sc->params.netids = sc->tids.netids;
 		sc->params.eo_wr_cred = val[2];
 		sc->params.ethoffload = 1;
 	}
