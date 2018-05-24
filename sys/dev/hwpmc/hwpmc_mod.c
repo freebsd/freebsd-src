@@ -175,7 +175,7 @@ static LIST_HEAD(pmc_ownerhash, pmc_owner)	*pmc_ownerhash;
  * List of PMC owners with system-wide sampling PMCs.
  */
 
-static LIST_HEAD(, pmc_owner)			pmc_ss_owners;
+static CK_LIST_HEAD(, pmc_owner)			pmc_ss_owners;
 
 /*
  * List of free thread entries. This is protected by the spin
@@ -5435,7 +5435,7 @@ pmc_initialize(void)
 	mtx_init(&pmc_processhash_mtx, "pmc-process-hash", "pmc-leaf",
 	    MTX_SPIN);
 
-	LIST_INIT(&pmc_ss_owners);
+	CK_LIST_INIT(&pmc_ss_owners);
 	pmc_ss_count = 0;
 
 	/* allocate a pool of spin mutexes */
@@ -5583,7 +5583,7 @@ pmc_cleanup(void)
 		pmc_ownerhash = NULL;
 	}
 
-	KASSERT(LIST_EMPTY(&pmc_ss_owners),
+	KASSERT(CK_LIST_EMPTY(&pmc_ss_owners),
 	    ("[pmc,%d] Global SS owner list not empty", __LINE__));
 	KASSERT(pmc_ss_count == 0,
 	    ("[pmc,%d] Global SS count not empty", __LINE__));
