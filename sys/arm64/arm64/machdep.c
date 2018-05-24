@@ -1063,6 +1063,9 @@ initarm(struct arm64_bootparams *abp)
 		    &physmap_idx);
 		arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 	}
+	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0)
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
