@@ -1111,16 +1111,16 @@ dolaundry:
  * Compute the number of pages we want to try to move from the
  * active queue to either the inactive or laundry queue.
  *
- * When scanning active pages, we make clean pages count more heavily
- * towards the page shortage than dirty pages.  This is because dirty
- * pages must be laundered before they can be reused and thus have less
- * utility when attempting to quickly alleviate a shortage.  However,
- * this weighting also causes the scan to deactivate dirty pages more
- * aggressively, improving the effectiveness of clustering and
- * ensuring that they can eventually be reused.
+ * When scanning active pages during a shortage, we make clean pages
+ * count more heavily towards the page shortage than dirty pages.
+ * This is because dirty pages must be laundered before they can be
+ * reused and thus have less utility when attempting to quickly
+ * alleviate a free page shortage.  However, this weighting also
+ * causes the scan to deactivate dirty pages more aggressively,
+ * improving the effectiveness of clustering.
  */
 static int
-vm_pageout_scan_active_target(struct vm_domain *vmd)
+vm_pageout_active_target(struct vm_domain *vmd)
 {
 	int shortage;
 
@@ -1169,12 +1169,12 @@ vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 	 * candidates.  Held pages may be deactivated.
 	 *
 	 * To avoid requeuing each page that remains in the active queue, we
-	 * implement the CLOCK algorithm.  To maintain consistency in the
-	 * generic page queue code, pages are inserted at the tail of the
-	 * active queue.  We thus use two hands, represented by marker pages:
-	 * scans begin at the first hand, which precedes the second hand in
-	 * the queue.  When the two hands meet, they are moved back to the
-	 * head and tail of the queue, respectively, and scanning resumes.
+	 * implement the CLOCK algorithm.  To keep the implementation of the
+	 * enqueue operation consistent for all page queues, we use two hands,
+	 * represented by marker pages. Scans begin at the first hand, which
+	 * precedes the second hand in the queue.  When the two hands meet,
+	 * they are moved back to the head and tail of the queue, respectively,
+	 * and scanning resumes.
 	 */
 	max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
 	mtx = NULL;
@@ -1254,9 +1254,12 @@ act_scan:
 			 * through the inactive queue before moving to the
 			 * laundry queues.  This gives them some extra time to
 			 * be reactivated, potentially avoiding an expensive
-			 * pageout.  During a page shortage, the inactive queue
-			 * is necessarily small, so we may move dirty pages
-			 * directly to the laundry queue.
+			 * pageout.  However, during a page shortage, the
+			 * inactive queue is necessarily small, and so dirty
+			 * pages would only spend a trivial amount of time in
+			 * the inactive queue.  Therefore, we might as well
+			 * place them directly in the laundry queue to reduce
+			 * queuing overhead.
 			 */
 			if (page_shortage <= 0)
 				vm_page_deactivate(m);
@@ -1941,7 +1944,7 @@ vm_pageout_worker(void *arg)
 		 * indicates that we must aggressively deactivate pages to avoid
 		 * a shortfall.
 		 */
-		shortage = vm_pageout_scan_active_target(vmd) + addl_shortage;
+		shortage = vm_pageout_active_target(vmd) + addl_shortage;
 		vm_pageout_scan_active(vmd, shortage);
 
 		/*
