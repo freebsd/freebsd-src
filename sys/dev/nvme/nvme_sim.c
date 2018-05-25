@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_internal.h>	// Yes, this is wrong.
 #include <cam/cam_debug.h>
 
 #include <dev/pci/pcivar.h>
@@ -54,13 +53,11 @@ static void	nvme_sim_action(struct cam_sim *sim, union ccb *ccb);
 static void	nvme_sim_poll(struct cam_sim *sim);
 
 #define sim2softc(sim)	((struct nvme_sim_softc *)cam_sim_softc(sim))
-#define sim2ns(sim)	(sim2softc(sim)->s_ns)
 #define sim2ctrlr(sim)	(sim2softc(sim)->s_ctrlr)
 
 struct nvme_sim_softc
 {
 	struct nvme_controller	*s_ctrlr;
-	struct nvme_namespace	*s_ns;
 	struct cam_sim		*s_sim;
 	struct cam_path		*s_path;
 };
@@ -146,18 +143,11 @@ static void
 nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct nvme_controller *ctrlr;
-	struct nvme_namespace *ns;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
 	    ("nvme_sim_action: func= %#x\n",
 		ccb->ccb_h.func_code));
 
-	/*
-	 * XXX when we support multiple namespaces in the base driver we'll need
-	 * to revisit how all this gets stored and saved in the periph driver's
-	 * reserved areas. Right now we store all three in the softc of the sim.
-	 */
-	ns = sim2ns(sim);
 	ctrlr = sim2ctrlr(sim);
 
 	mtx_assert(&ctrlr->lock, MA_OWNED);
@@ -193,11 +183,11 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = 0;
 		cpi->target_sprt = 0;
-		cpi->hba_misc =  PIM_UNMAPPED /* | PIM_NOSCAN */;
+		cpi->hba_misc =  PIM_UNMAPPED | PIM_NOSCAN;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
 		cpi->max_lun = ctrlr->cdata.nn;
-		cpi->maxio = nvme_ns_get_max_io_xfer_size(ns);
+		cpi->maxio = ctrlr->max_xfer_size;
 		cpi->initiator_id = 0;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = nvme_link_kBps(ctrlr);
@@ -209,7 +199,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = nvme_mmio_read_4(ctrlr, vs);
 		cpi->protocol = PROTO_NVME;
 		cpi->protocol_version = nvme_mmio_read_4(ctrlr, vs);
-		cpi->xport_specific.nvme.nsid = ns->id;
+		cpi->xport_specific.nvme.nsid = xpt_path_lun_id(ccb->ccb_h.path);
 		cpi->xport_specific.nvme.domain = pci_get_domain(dev);
 		cpi->xport_specific.nvme.bus = pci_get_bus(dev);
 		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
@@ -285,122 +275,89 @@ nvme_sim_poll(struct cam_sim *sim)
 static void *
 nvme_sim_new_controller(struct nvme_controller *ctrlr)
 {
+	struct nvme_sim_softc *sc;
 	struct cam_devq *devq;
 	int max_trans;
-	int unit;
-	struct nvme_sim_softc *sc = NULL;
 
 	max_trans = ctrlr->max_hw_pend_io;
-	unit = device_get_unit(ctrlr->dev);
 	devq = cam_simq_alloc(max_trans);
 	if (devq == NULL)
-		return NULL;
+		return (NULL);
 
 	sc = malloc(sizeof(*sc), M_NVME, M_ZERO | M_WAITOK);
-
 	sc->s_ctrlr = ctrlr;
 
 	sc->s_sim = cam_sim_alloc(nvme_sim_action, nvme_sim_poll,
-	    "nvme", sc, unit, &ctrlr->lock, max_trans, max_trans, devq);
+	    "nvme", sc, device_get_unit(ctrlr->dev),
+	    &ctrlr->lock, max_trans, max_trans, devq);
 	if (sc->s_sim == NULL) {
 		printf("Failed to allocate a sim\n");
 		cam_simq_free(devq);
-		free(sc, M_NVME);
-		return NULL;
+		goto err1;
+	}
+	if (xpt_bus_register(sc->s_sim, ctrlr->dev, 0) != CAM_SUCCESS) {
+		printf("Failed to create a bus\n");
+		goto err2;
+	}
+	if (xpt_create_path(&sc->s_path, /*periph*/NULL, cam_sim_path(sc->s_sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		printf("Failed to create a path\n");
+		goto err3;
 	}
 
-	return sc;
+	return (sc);
+
+err3:
+	xpt_bus_deregister(cam_sim_path(sc->s_sim));
+err2:
+	cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
+err1:
+	free(sc, M_NVME);
+	return (NULL);
 }
 
-static void
-nvme_sim_rescan_target(struct nvme_controller *ctrlr, struct cam_path *path)
-{
-	union ccb *ccb;
-
-	ccb = xpt_alloc_ccb_nowait();
-	if (ccb == NULL) {
-		printf("unable to alloc CCB for rescan\n");
-		return;
-	}
-
-	if (xpt_clone_path(&ccb->ccb_h.path, path) != CAM_REQ_CMP) {
-		printf("unable to copy path for rescan\n");
-		xpt_free_ccb(ccb);
-		return;
-	}
-
-	xpt_rescan(ccb);
-}
-	
 static void *
 nvme_sim_new_ns(struct nvme_namespace *ns, void *sc_arg)
 {
 	struct nvme_sim_softc *sc = sc_arg;
 	struct nvme_controller *ctrlr = sc->s_ctrlr;
-	int i;
-
-	sc->s_ns = ns;
-
-	/*
-	 * XXX this is creating one bus per ns, but it should be one
-	 * XXX target per controller, and one LUN per namespace.
-	 * XXX Current drives only support one NS, so there's time
-	 * XXX to fix it later when new drives arrive.
-	 *
-	 * XXX I'm pretty sure the xpt_bus_register() call below is
-	 * XXX like super lame and it really belongs in the sim_new_ctrlr
-	 * XXX callback. Then the create_path below would be pretty close
-	 * XXX to being right. Except we should be per-ns not per-ctrlr
-	 * XXX data.
-	 */
+	union ccb *ccb;
 
 	mtx_lock(&ctrlr->lock);
-/* Create bus */
 
-	/*
-	 * XXX do I need to lock ctrlr->lock ? 
-	 * XXX do I need to lock the path?
-	 * ata and scsi seem to in their code, but their discovery is
-	 * somewhat more asynchronous. We're only every called one at a
-	 * time, and nothing is in parallel.
-	 */
-
-	i = 0;
-	if (xpt_bus_register(sc->s_sim, ctrlr->dev, 0) != CAM_SUCCESS)
-		goto error;
-	i++;
-	if (xpt_create_path(&sc->s_path, /*periph*/NULL, cam_sim_path(sc->s_sim),
-	    1, ns->id) != CAM_REQ_CMP)
-		goto error;
-	i++;
-
-	sc->s_path->device->nvme_data = nvme_ns_get_data(ns);
-	sc->s_path->device->nvme_cdata = nvme_ctrlr_get_data(ns->ctrlr);
-
-/* Scan bus */
-	nvme_sim_rescan_target(ctrlr, sc->s_path);
-
-	mtx_unlock(&ctrlr->lock);
-
-	return ns;
-
-error:
-	switch (i) {
-	case 2:
-		xpt_free_path(sc->s_path);
-	case 1:
-		xpt_bus_deregister(cam_sim_path(sc->s_sim));
-	case 0:
-		cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		printf("unable to alloc CCB for rescan\n");
+		return (NULL);
 	}
+
+	if (xpt_create_path(&ccb->ccb_h.path, /*periph*/NULL,
+	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
+		printf("unable to create path for rescan\n");
+		xpt_free_ccb(ccb);
+		return (NULL);
+	}
+
+	xpt_rescan(ccb);
+
 	mtx_unlock(&ctrlr->lock);
-	return NULL;
+
+	return (ns);
 }
 
 static void
 nvme_sim_controller_fail(void *ctrlr_arg)
 {
-	/* XXX cleanup XXX */
+	struct nvme_sim_softc *sc = ctrlr_arg;
+	struct nvme_controller *ctrlr = sc->s_ctrlr;
+
+	mtx_lock(&ctrlr->lock);
+	xpt_async(AC_LOST_DEVICE, sc->s_path, NULL);
+	xpt_free_path(sc->s_path);
+	xpt_bus_deregister(cam_sim_path(sc->s_sim));
+	cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
+	mtx_unlock(&ctrlr->lock);
+	free(sc, M_NVME);
 }
 
 struct nvme_consumer *consumer_cookie;
