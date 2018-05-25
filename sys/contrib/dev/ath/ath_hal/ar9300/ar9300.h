@@ -100,12 +100,6 @@ enum GAIN_PARAMS_2133 {
     GP_PWD_130,
 };
 
-enum {
-    HAL_RESET_POWER_ON,
-    HAL_RESET_WARM,
-    HAL_RESET_COLD,
-};
-
 typedef struct _gain_opt_step {
     int16_t paramVal[NUM_CORNER_FIX_BITS_2133];
     int32_t stepGain;
