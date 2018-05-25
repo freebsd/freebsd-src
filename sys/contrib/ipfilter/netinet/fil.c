@@ -1287,6 +1287,7 @@ ipf_pr_icmp(fin)
 				fin->fin_flx |= FI_BAD;
 		}
 #endif
+		/* FALLTHROUGH */
 	case ICMP_SOURCEQUENCH :
 	case ICMP_REDIRECT :
 	case ICMP_TIMXCEED :
