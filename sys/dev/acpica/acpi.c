@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
 #endif
 #include <machine/resource.h>
@@ -3040,6 +3041,10 @@ backout:
     if (slp_state >= ACPI_SS_SLP_PREP)
 	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_SLEPT) {
+#if defined(__i386__) || defined(__amd64__)
+	/* NB: we are still using ACPI timecounter at this point. */
+	resume_TSC();
+#endif
 	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
     }
