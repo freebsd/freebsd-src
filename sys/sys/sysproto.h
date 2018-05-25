@@ -264,9 +264,6 @@ struct sbrk_args {
 struct sstk_args {
 	char incr_l_[PADL_(int)]; int incr; char incr_r_[PADR_(int)];
 };
-struct ovadvise_args {
-	char anom_l_[PADL_(int)]; int anom; char anom_r_[PADR_(int)];
-};
 struct munmap_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
@@ -1828,7 +1825,6 @@ int	sys_msync(struct thread *, struct msync_args *);
 int	sys_vfork(struct thread *, struct vfork_args *);
 int	sys_sbrk(struct thread *, struct sbrk_args *);
 int	sys_sstk(struct thread *, struct sstk_args *);
-int	sys_ovadvise(struct thread *, struct ovadvise_args *);
 int	sys_munmap(struct thread *, struct munmap_args *);
 int	sys_mprotect(struct thread *, struct mprotect_args *);
 int	sys_madvise(struct thread *, struct madvise_args *);
@@ -2493,6 +2489,9 @@ struct freebsd11_mknod_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 	char dev_l_[PADL_(int)]; int dev; char dev_r_[PADR_(int)];
 };
+struct freebsd11_vadvise_args {
+	char anom_l_[PADL_(int)]; int anom; char anom_r_[PADR_(int)];
+};
 struct freebsd11_stat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char ub_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * ub; char ub_r_[PADR_(struct freebsd11_stat *)];
@@ -2570,6 +2569,7 @@ struct freebsd11_mknodat_args {
 	char dev_l_[PADL_(uint32_t)]; uint32_t dev; char dev_r_[PADR_(uint32_t)];
 };
 int	freebsd11_mknod(struct thread *, struct freebsd11_mknod_args *);
+int	freebsd11_vadvise(struct thread *, struct freebsd11_vadvise_args *);
 int	freebsd11_stat(struct thread *, struct freebsd11_stat_args *);
 int	freebsd11_fstat(struct thread *, struct freebsd11_fstat_args *);
 int	freebsd11_lstat(struct thread *, struct freebsd11_lstat_args *);
@@ -2658,7 +2658,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_sbrk	AUE_SBRK
 #define	SYS_AUE_sstk	AUE_SSTK
 #define	SYS_AUE_ommap	AUE_MMAP
-#define	SYS_AUE_vadvise	AUE_O_VADVISE
+#define	SYS_AUE_freebsd11_vadvise	AUE_O_VADVISE
 #define	SYS_AUE_munmap	AUE_MUNMAP
 #define	SYS_AUE_mprotect	AUE_MPROTECT
 #define	SYS_AUE_madvise	AUE_MADVISE
