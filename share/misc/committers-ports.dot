@@ -55,6 +55,7 @@ amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
+arrowd [label="Gleb Popov\narrowd@FreeBSD.org\n2018/05/18"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 ashish [label="Ashish SHUKLA\nashish@FreeBSD.org\n2010/06/10"]
 avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
@@ -283,6 +284,7 @@ ahze -> shaun
 ahze -> tmclaugh
 
 amdmi3 -> jrm
+amdmi3 -> arrowd
 
 antoine -> dumbbell
 
@@ -675,6 +677,7 @@ tcberner -> adridg
 tcberner -> joneum
 tcberner -> yuri
 tcberner -> fernape
+tcberner -> arrowd
 
 thierry -> jadawin
 thierry -> riggs
