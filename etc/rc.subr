@@ -754,6 +754,8 @@ check_startmsgs()
 #
 #	${name}_env	n	Environment variables to run ${command} with.
 #
+#	${name}_env_file n	File to source variables to run ${command} with.
+#
 #	${name}_fib	n	Routing table number to run ${command} with.
 #
 #	${name}_nice	n	Nice level to run ${command} at.
@@ -954,7 +956,14 @@ run_rc_command()
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
-	    _limits=\$${name}_limits    _oomprotect=\$${name}_oomprotect
+	    _limits=\$${name}_limits    _oomprotect=\$${name}_oomprotect \
+	    _env_file=\$${name}_env_file
+
+	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
+		set -a
+		. $_env_file
+		set +a
+	fi
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
