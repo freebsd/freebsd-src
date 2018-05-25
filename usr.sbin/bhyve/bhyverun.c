@@ -255,8 +255,7 @@ topology_parse(const char *opt)
 	return(0);
 
 out:
-	if (str != NULL)
-		free(str);
+	free(str);
 	return (-1);
 }
 
