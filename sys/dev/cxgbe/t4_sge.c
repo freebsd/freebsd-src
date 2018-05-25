@@ -2202,6 +2202,7 @@ needs_tcp_csum(struct mbuf *m)
 	return (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_TCP_IPV6 | CSUM_TSO));
 }
 
+#ifdef RATELIMIT
 static inline int
 needs_udp_csum(struct mbuf *m)
 {
@@ -2209,6 +2210,7 @@ needs_udp_csum(struct mbuf *m)
 	M_ASSERTPKTHDR(m);
 	return (m->m_pkthdr.csum_flags & (CSUM_UDP | CSUM_UDP_IPV6));
 }
+#endif
 
 static inline int
 needs_vlan_insertion(struct mbuf *m)
