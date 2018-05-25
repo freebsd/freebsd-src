@@ -193,7 +193,8 @@ topology_parse(const char *opt)
 	c = 1, n = 1, s = 1, t = 1;
 	ns = false, scts = false;
 	str = strdup(opt);
-	assert(str != NULL);
+	if (str == NULL)
+		goto out;
 
 	while ((cp = strsep(&str, ",")) != NULL) {
 		if (sscanf(cp, "%i%n", &tmp, &chk) == 1) {
@@ -225,6 +226,7 @@ topology_parse(const char *opt)
 			goto out;
 	}
 	free(str);
+	str = NULL;
 
 	/*
 	 * Range check 1 <= n <= UINT16_MAX all values
@@ -253,7 +255,8 @@ topology_parse(const char *opt)
 	return(0);
 
 out:
-	free(str);
+	if (str != NULL)
+		free(str);
 	return (-1);
 }
 
