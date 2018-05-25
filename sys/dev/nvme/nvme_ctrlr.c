@@ -564,6 +564,7 @@ is_log_page_id_valid(uint8_t page_id)
 	case NVME_LOG_ERROR:
 	case NVME_LOG_HEALTH_INFORMATION:
 	case NVME_LOG_FIRMWARE_SLOT:
+	case NVME_LOG_CHANGED_NAMESPACE:
 		return (TRUE);
 	}
 
@@ -586,6 +587,9 @@ nvme_ctrlr_get_log_page_size(struct nvme_controller *ctrlr, uint8_t page_id)
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
 		log_page_size = sizeof(struct nvme_firmware_page);
+		break;
+	case NVME_LOG_CHANGED_NAMESPACE:
+		log_page_size = sizeof(struct nvme_ns_list);
 		break;
 	default:
 		log_page_size = 0;
@@ -625,6 +629,7 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request		*aer = arg;
 	struct nvme_health_information_page	*health_info;
+	struct nvme_ns_list			*nsl;
 	struct nvme_error_information_entry	*err;
 	int i;
 
@@ -652,6 +657,10 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 			nvme_firmware_page_swapbytes(
 			    (struct nvme_firmware_page *)aer->log_page_buffer);
 			break;
+		case NVME_LOG_CHANGED_NAMESPACE:
+			nvme_ns_list_swapbytes(
+			    (struct nvme_ns_list *)aer->log_page_buffer);
+			break;
 		case INTEL_LOG_TEMP_STATS:
 			intel_log_temp_stats_swapbytes(
 			    (struct intel_log_temp_stats *)aer->log_page_buffer);
@@ -676,6 +685,14 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 			    ~health_info->critical_warning;
 			nvme_ctrlr_cmd_set_async_event_config(aer->ctrlr,
 			    aer->ctrlr->async_event_config, NULL, NULL);
+		} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE &&
+		    !nvme_use_nvd) {
+			nsl = (struct nvme_ns_list *)aer->log_page_buffer;
+			for (i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+				if (nsl->ns[i] > NVME_MAX_NAMESPACES)
+					break;
+				nvme_notify_ns(aer->ctrlr, nsl->ns[i]);
+			}
 		}
 
 
@@ -712,7 +729,8 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 	/* Associated log page is in bits 23:16 of completion entry dw0. */
 	aer->log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
 
-	nvme_printf(aer->ctrlr, "async event occurred (log page id=0x%x)\n",
+	nvme_printf(aer->ctrlr, "async event occurred (type 0x%x, info 0x%02x,"
+	    " page 0x%02x)\n", (cpl->cdw0 & 0x03), (cpl->cdw0 & 0xFF00) >> 8,
 	    aer->log_page_id);
 
 	if (is_log_page_id_valid(aer->log_page_id)) {
@@ -762,8 +780,12 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	struct nvme_async_event_request		*aer;
 	uint32_t				i;
 
-	ctrlr->async_event_config = 0xFF;
-	ctrlr->async_event_config &= ~NVME_CRIT_WARN_ST_RESERVED_MASK;
+	ctrlr->async_event_config = NVME_CRIT_WARN_ST_AVAILABLE_SPARE |
+	    NVME_CRIT_WARN_ST_DEVICE_RELIABILITY |
+	    NVME_CRIT_WARN_ST_READ_ONLY |
+	    NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP;
+	if (ctrlr->cdata.ver >= NVME_REV(1, 2))
+		ctrlr->async_event_config |= 0x300;
 
 	status.done = 0;
 	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
@@ -774,8 +796,8 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	    (status.cpl.cdw0 & 0xFFFF) == 0xFFFF ||
 	    (status.cpl.cdw0 & 0xFFFF) == 0x0000) {
 		nvme_printf(ctrlr, "temperature threshold not supported\n");
-		ctrlr->async_event_config &= ~NVME_CRIT_WARN_ST_TEMPERATURE;
-	}
+	} else
+		ctrlr->async_event_config |= NVME_CRIT_WARN_ST_TEMPERATURE;
 
 	nvme_ctrlr_cmd_set_async_event_config(ctrlr,
 	    ctrlr->async_event_config, NULL, NULL);
@@ -1284,6 +1306,8 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 
 	if (ctrlr->resource == NULL)
 		goto nores;
+
+	nvme_notify_fail_consumers(ctrlr);
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
