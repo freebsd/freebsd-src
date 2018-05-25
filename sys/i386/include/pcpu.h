@@ -76,9 +76,11 @@
 	struct	mtx pc_copyout_mlock;					\
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
+	vm_offset_t pc_pmap_eh_va;					\
+	caddr_t pc_pmap_eh_ptep;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[546]
+	char	__pad[538]
 
 #ifdef _KERNEL
 
