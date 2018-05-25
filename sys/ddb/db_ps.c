@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <ddb/ddb.h>
 
@@ -452,6 +453,16 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		}
 		db_printf("\n");
 	}
+	db_printf(" repear: %p reapsubtree: %d\n",
+	    p->p_reaper, p->p_reapsubtree);
+	db_printf(" sigparent: %d\n", p->p_sigparent);
+	db_printf(" vmspace: %p\n", p->p_vmspace);
+	db_printf("   (map %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_map : 0);
+	db_printf("   (map.pmap %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_map.pmap : 0);
+	db_printf("   (pmap %p)\n",
+	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_pmap : 0);
 	db_printf(" threads: %d\n", p->p_numthreads);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		dumpthread(p, td, 1);
