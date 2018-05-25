@@ -229,8 +229,7 @@
 70	AUE_SSTK	STD	{ int sstk(int incr); }
 71	AUE_MMAP	COMPAT	{ int mmap(_In_ void *addr, int len, int prot, \
 				    int flags, int fd, long pos); }
-72	AUE_O_VADVISE	STD	{ int ovadvise(int anom); } vadvise \
-				    ovadvise_args int
+72	AUE_O_VADVISE	COMPAT11	{ int vadvise(int anom); }
 73	AUE_MUNMAP	STD	{ int munmap(_In_ void *addr, size_t len); }
 74	AUE_MPROTECT	STD	{ int mprotect(_In_ void *addr, \
 				    size_t len, int prot); }
