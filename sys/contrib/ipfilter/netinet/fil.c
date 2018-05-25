@@ -1299,6 +1299,7 @@ ipf_pr_icmp(fin)
 			}
 		}
 #endif
+		/* FALLTHROUGH */
 	case ICMP_SOURCEQUENCH :
 	case ICMP_REDIRECT :
 	case ICMP_TIMXCEED :
