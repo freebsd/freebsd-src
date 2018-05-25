@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-PROG=jevents
-SRCS=jevents.c jsmn.c json.c
+PROG=	jevents
+SRCS=	jevents.c jsmn.c json.c
 CFLAGS+= -Wno-cast-qual
-.PATH: ${.CURDIR}
-build-tools: jevents
 MAN=
+
+build-tools: jevents
+
 .include <bsd.prog.mk>
