@@ -510,7 +510,7 @@ cam_iosched_ticker(void *arg)
 	struct cam_iosched_softc *isc = arg;
 	sbintime_t now, delta;
 
-	callout_reset(&isc->ticker, hz / isc->quanta - 1, cam_iosched_ticker, isc);
+	callout_reset(&isc->ticker, hz / isc->quanta1, cam_iosched_ticker, isc);
 
 	now = sbinuptime();
 	delta = now - isc->last_time;
@@ -753,7 +753,7 @@ cam_iosched_limiter_sysctl(SYSCTL_HANDLER_ARGS)
 			}
 		} else {
 			if (cantick != 0) {
-				callout_reset(&isc->ticker, hz / isc->quanta - 1, cam_iosched_ticker, isc);
+				callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
 				isc->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 			}
 		}
@@ -819,6 +819,27 @@ cam_iosched_sbintime_sysctl(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	*(sbintime_t *)arg1 = us * SBT_1US;
 	return 0;
+}
+
+static int
+cam_iosched_quanta_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int *quanta;
+	int error, value;
+
+	quanta = (unsigned *)arg1;
+	value = *quanta;
+
+	error = sysctl_handle_int(oidp, (int *)&value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	if (value < 1 || value > hz)
+		return (EINVAL);
+
+	*quanta = value;
+
+	return (0);
 }
 
 static void
@@ -971,7 +992,7 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 		callout_init_mtx(&(*iscp)->ticker, cam_periph_mtx(periph), 0);
 		(*iscp)->periph = periph;
 		cam_iosched_cl_init(&(*iscp)->cl, *iscp);
-		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta - 1, cam_iosched_ticker, *iscp);
+		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta, cam_iosched_ticker, *iscp);
 		(*iscp)->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 	}
 #endif
@@ -1042,9 +1063,9 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 	    &isc->read_bias, 100,
 	    "How biased towards read should we be independent of limits");
 
-	SYSCTL_ADD_INT(ctx, n,
-	    OID_AUTO, "quanta", CTLFLAG_RW,
-	    &isc->quanta, 200,
+	SYSCTL_ADD_PROC(ctx, n,
+	    OID_AUTO, "quanta", CTLTYPE_UINT | CTLFLAG_RW,
+	    &isc->quanta, 0, cam_iosched_quanta_sysctl, "I",
 	    "How many quanta per second do we slice the I/O up into");
 
 	SYSCTL_ADD_INT(ctx, n,
