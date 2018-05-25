@@ -25,11 +25,7 @@ EVENT_ARCH="x86"
 EVENT_ARCH="powerpc"
 .endif
 
-.if defined(HOST_OBJTOP)
-JEVENTS= ${HOST_OBJTOP}/${RELDIR}/pmu-events/jevents
-.else
-JEVENTS= pmu-events/jevents
-.endif
+JEVENTS= ${BTOOLSPATH:U.}/pmu-events/jevents
 
 libpmcstat_events.c: ${JEVENTS}
 	${JEVENTS} ${EVENT_ARCH} ${.CURDIR}/pmu-events/arch libpmcstat_events.c
