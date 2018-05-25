@@ -26,6 +26,9 @@ EVENT_ARCH="powerpc"
 .endif
 
 JEVENTS= ${BTOOLSPATH:U.}/pmu-events/jevents
+# This file is built in a subdirectory so never try to rebuild
+# it here due to missing meta file.
+${JEVENTS}: .NOMETA
 
 libpmcstat_events.c: ${JEVENTS}
 	${JEVENTS} ${EVENT_ARCH} ${.CURDIR}/pmu-events/arch libpmcstat_events.c
