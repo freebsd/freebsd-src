@@ -84,17 +84,17 @@ static struct periph_driver nvme_probe_driver =
 PERIPHDRIVER_DECLARE(nvme_probe, nvme_probe_driver);
 
 typedef enum {
-	NVME_PROBE_IDENTIFY,
+	NVME_PROBE_IDENTIFY_CD,
+	NVME_PROBE_IDENTIFY_NS,
 	NVME_PROBE_DONE,
-	NVME_PROBE_INVALID,
-	NVME_PROBE_RESET
+	NVME_PROBE_INVALID
 } nvme_probe_action;
 
 static char *nvme_probe_action_text[] = {
-	"NVME_PROBE_IDENTIFY",
+	"NVME_PROBE_IDENTIFY_CD",
+	"NVME_PROBE_IDENTIFY_NS",
 	"NVME_PROBE_DONE",
-	"NVME_PROBE_INVALID",
-	"NVME_PROBE_RESET",
+	"NVME_PROBE_INVALID"
 };
 
 #define NVME_PROBE_SET_ACTION(softc, newaction)	\
@@ -113,6 +113,10 @@ typedef enum {
 
 typedef struct {
 	TAILQ_HEAD(, ccb_hdr) request_ccbs;
+	union {
+		struct nvme_controller_data	cd;
+		struct nvme_namespace_data	ns;
+	};
 	nvme_probe_action	action;
 	nvme_probe_flags	flags;
 	int		restart;
@@ -137,6 +141,7 @@ static cam_status	nvme_probe_register(struct cam_periph *periph,
 				      void *arg);
 static void	 nvme_probe_schedule(struct cam_periph *nvme_probe_periph);
 static void	 nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb);
+static void	 nvme_probe_done(struct cam_periph *periph, union ccb *done_ccb);
 static void	 nvme_probe_cleanup(struct cam_periph *periph);
 //static void	 nvme_find_quirk(struct cam_ed *device);
 static void	 nvme_scan_lun(struct cam_periph *periph,
@@ -240,7 +245,7 @@ nvme_probe_schedule(struct cam_periph *periph)
 	softc = (nvme_probe_softc *)periph->softc;
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
-	NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY);
+	NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY_CD);
 
 	if (ccb->crcn.flags & CAM_EXPECT_INQ_CHANGE)
 		softc->flags |= NVME_PROBE_NO_ANNOUNCE;
@@ -254,10 +259,8 @@ static void
 nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ccb_nvmeio *nvmeio;
-	struct ccb_scsiio *csio;
 	nvme_probe_softc *softc;
 	struct cam_path *path;
-	const struct nvme_namespace_data *nvme_data;
 	lun_id_t lun;
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("nvme_probe_start\n"));
@@ -265,57 +268,163 @@ nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (nvme_probe_softc *)periph->softc;
 	path = start_ccb->ccb_h.path;
 	nvmeio = &start_ccb->nvmeio;
-	csio = &start_ccb->csio;
-	nvme_data = periph->path->device->nvme_data;
+	lun = xpt_path_lun_id(periph->path);
 
 	if (softc->restart) {
 		softc->restart = 0;
-		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED)
-			NVME_PROBE_SET_ACTION(softc, NVME_PROBE_RESET);
-		else
-			NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY);
+		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY_CD);
 	}
 
-	/*
-	 * Other transports have to ask their SIM to do a lot of action.
-	 * NVMe doesn't, so don't do the dance. Just do things
-	 * directly.
-	 */
 	switch (softc->action) {
-	case NVME_PROBE_RESET:
-		/* FALLTHROUGH */
-	case NVME_PROBE_IDENTIFY:
-		nvme_device_transport(path);
-		/*
-		 * Test for lun == CAM_LUN_WILDCARD is lame, but
-		 * appears to be necessary here. XXX
-		 */
-		lun = xpt_path_lun_id(periph->path);
-		if (lun == CAM_LUN_WILDCARD ||
-		    periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
-			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
-			xpt_acquire_device(path->device);
-			start_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_action(start_ccb);
-			xpt_async(AC_FOUND_DEVICE, path, start_ccb);
-		}
-		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_DONE);
+	case NVME_PROBE_IDENTIFY_CD:
+		cam_fill_nvmeadmin(nvmeio,
+		    0,			/* retries */
+		    nvme_probe_done,	/* cbfcnp */
+		    CAM_DIR_IN,		/* flags */
+		    (uint8_t *)&softc->cd,	/* data_ptr */
+		    sizeof(softc->cd),		/* dxfer_len */
+		    30 * 1000); /* timeout 30s */
+		nvme_ns_cmd(nvmeio, NVME_OPC_IDENTIFY, 0,
+		    1, 0, 0, 0, 0, 0);
+		break;
+	case NVME_PROBE_IDENTIFY_NS:
+		cam_fill_nvmeadmin(nvmeio,
+		    0,			/* retries */
+		    nvme_probe_done,	/* cbfcnp */
+		    CAM_DIR_IN,		/* flags */
+		    (uint8_t *)&softc->ns,	/* data_ptr */
+		    sizeof(softc->ns),		/* dxfer_len */
+		    30 * 1000); /* timeout 30s */
+		nvme_ns_cmd(nvmeio, NVME_OPC_IDENTIFY, lun,
+		    0, 0, 0, 0, 0, 0);
 		break;
 	default:
 		panic("nvme_probe_start: invalid action state 0x%x\n", softc->action);
 	}
-	/*
-	 * Probing is now done. We need to complete any lingering items
-	 * in the queue, though there shouldn't be any.
-	 */
-	xpt_release_ccb(start_ccb);
-	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
-	while ((start_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs))) {
-		TAILQ_REMOVE(&softc->request_ccbs,
-		    &start_ccb->ccb_h, periph_links.tqe);
-		start_ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(start_ccb);
+	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+	xpt_action(start_ccb);
+}
+
+static void
+nvme_probe_done(struct cam_periph *periph, union ccb *done_ccb)
+{
+	struct nvme_namespace_data *nvme_data;
+	struct nvme_controller_data *nvme_cdata;
+	nvme_probe_softc *softc;
+	struct cam_path *path;
+	cam_status status;
+	u_int32_t  priority;
+	int found = 1;
+
+	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("nvme_probe_done\n"));
+
+	softc = (nvme_probe_softc *)periph->softc;
+	path = done_ccb->ccb_h.path;
+	priority = done_ccb->ccb_h.pinfo.priority;
+
+	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_periph_error(done_ccb,
+			0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0
+		    ) == ERESTART) {
+out:
+			/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+			cam_release_devq(path, 0, 0, 0, FALSE);
+			return;
+		}
+		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+			/* Don't wedge the queue */
+			xpt_release_devq(path, /*count*/1, /*run_queue*/TRUE);
+		}
+		status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
+
+		/*
+		 * If we get to this point, we got an error status back
+		 * from the inquiry and the error status doesn't require
+		 * automatically retrying the command.  Therefore, the
+		 * inquiry failed.  If we had inquiry information before
+		 * for this device, but this latest inquiry command failed,
+		 * the device has probably gone away.  If this device isn't
+		 * already marked unconfigured, notify the peripheral
+		 * drivers that this device is no more.
+		 */
+device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
+			xpt_async(AC_LOST_DEVICE, path, NULL);
+		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_INVALID);
+		found = 0;
+		goto done;
 	}
+	if (softc->restart)
+		goto done;
+	switch (softc->action) {
+	case NVME_PROBE_IDENTIFY_CD:
+		nvme_controller_data_swapbytes(&softc->cd);
+
+		nvme_cdata = path->device->nvme_cdata;
+		if (nvme_cdata == NULL) {
+			nvme_cdata = malloc(sizeof(*nvme_cdata), M_CAMXPT,
+			    M_NOWAIT);
+			if (nvme_cdata == NULL) {
+				xpt_print(path, "Can't allocate memory");
+				goto device_fail;
+			}
+		}
+		bcopy(&softc->cd, nvme_cdata, sizeof(*nvme_cdata));
+		path->device->nvme_cdata = nvme_cdata;
+
+//		nvme_find_quirk(path->device);
+		nvme_device_transport(path);
+		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY_NS);
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		goto out;
+	case NVME_PROBE_IDENTIFY_NS:
+		nvme_namespace_data_swapbytes(&softc->ns);
+
+		/* Check that the namespace exists. */
+		if (softc->ns.nsze == 0)
+			goto device_fail;
+
+		nvme_data = path->device->nvme_data;
+		if (nvme_data == NULL) {
+			nvme_data = malloc(sizeof(*nvme_data), M_CAMXPT,
+			    M_NOWAIT);
+			if (nvme_data == NULL) {
+				xpt_print(path, "Can't allocate memory");
+				goto device_fail;
+			}
+		}
+		bcopy(&softc->ns, nvme_data, sizeof(*nvme_data));
+		path->device->nvme_data = nvme_data;
+
+		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_action(done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
+		}
+		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_DONE);
+		break;
+	default:
+		panic("nvme_probe_done: invalid action state 0x%x\n", softc->action);
+	}
+done:
+	if (softc->restart) {
+		softc->restart = 0;
+		xpt_release_ccb(done_ccb);
+		nvme_probe_schedule(periph);
+		goto out;
+	}
+	xpt_release_ccb(done_ccb);
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
+	while ((done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs))) {
+		TAILQ_REMOVE(&softc->request_ccbs,
+		    &done_ccb->ccb_h, periph_links.tqe);
+		done_ccb->ccb_h.status = found ? CAM_REQ_CMP : CAM_REQ_CMP_ERR;
+		xpt_done(done_ccb);
+	}
+	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+	cam_release_devq(path, 0, 0, 0, FALSE);
 	cam_periph_invalidate(periph);
 	cam_periph_release_locked(periph);
 }
