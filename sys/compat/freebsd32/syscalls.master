@@ -173,8 +173,7 @@
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
 71	AUE_MMAP	COMPAT|NOPROTO	{ int mmap(void *addr, int len, \
 				    int prot, int flags, int fd, int pos); }
-72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
-				    ovadvise_args int
+72	AUE_O_VADVISE	COMPAT11|NOPROTO	{ int vadvise(int anom); }
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
 74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(void *addr, \
 				    size_t len, int prot); }

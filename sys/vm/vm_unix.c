@@ -231,20 +231,11 @@ done:
 #endif /* defined(__aarch64__) || defined(__riscv__) */
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct ovadvise_args {
-	int anom;
-};
-#endif
-
-/*
- * MPSAFE
- */
-/* ARGSUSED */
+#ifdef COMPAT_FREEBSD11
 int
-sys_ovadvise(struct thread *td, struct ovadvise_args *uap)
+freebsd11_vadvise(struct thread *td, struct freebsd11_vadvise_args *uap)
 {
-	/* START_GIANT_OPTIONAL */
-	/* END_GIANT_OPTIONAL */
+
 	return (EINVAL);
 }
+#endif
