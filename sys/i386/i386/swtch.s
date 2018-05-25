@@ -186,10 +186,6 @@ ENTRY(cpu_switch)
 	lock
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
-	jmp	sw1
-
-sw0:
-	SETOP	%esi,TD_LOCK(%edi)		/* Switchout td_lock */
 sw1:
 	BLOCK_SPIN(%ecx)
 	/*
