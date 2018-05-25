@@ -77,7 +77,7 @@
 #define	SYS_sbrk	69
 #define	SYS_sstk	70
 				/* 71 is old mmap */
-#define	SYS_vadvise	72
+#define	SYS_freebsd11_vadvise	72
 #define	SYS_munmap	73
 #define	SYS_mprotect	74
 #define	SYS_madvise	75
