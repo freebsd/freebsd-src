@@ -59,7 +59,7 @@ MIASM =  \
 	vfork.o \
 	sbrk.o \
 	sstk.o \
-	vadvise.o \
+	freebsd11_vadvise.o \
 	munmap.o \
 	mprotect.o \
 	madvise.o \

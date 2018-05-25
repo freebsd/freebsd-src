@@ -77,7 +77,7 @@
 #define	FREEBSD32_SYS_sbrk	69
 #define	FREEBSD32_SYS_sstk	70
 				/* 71 is old mmap */
-#define	FREEBSD32_SYS_vadvise	72
+#define	FREEBSD32_SYS_freebsd11_vadvise	72
 #define	FREEBSD32_SYS_munmap	73
 #define	FREEBSD32_SYS_freebsd32_mprotect	74
 #define	FREEBSD32_SYS_madvise	75
