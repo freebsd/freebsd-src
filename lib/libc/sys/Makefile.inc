@@ -46,6 +46,7 @@ NOASM+= getdirentries.o
 PSEUDO+= _getdirentries.o
 
 SRCS+= pipe.c
+SRCS+= vadvise.c
 
 INTERPOSED = \
 	accept \
