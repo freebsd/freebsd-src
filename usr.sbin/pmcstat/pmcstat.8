@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2015
+.Dd May 25, 2018
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Op Fl E
 .Op Fl F Ar pathname
 .Op Fl G Ar pathname
+.Op Fl I
+.Op Fl L Ar lwp
 .Op Fl M Ar mapfilename
 .Op Fl N
 .Op Fl O Ar logfilename
@@ -155,6 +157,15 @@ is a
 this information is sent to the output file specified by the
 .Fl o
 option.
+.It Fl I
+Skip symbol lookup and display address instead.
+.It Fl L Ar lwp
+Filter on thread ID
+.Ar lwp ,
+which you can get from
+.Xr ps 1
+.Fl o
+.Li lwp .
 .It Fl M Ar mapfilename
 Write the mapping between executable objects encountered in the event
 log and the abbreviated pathnames used for
