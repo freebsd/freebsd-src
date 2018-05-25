@@ -1732,17 +1732,21 @@ dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 	for (mi = 0, di = 0; mi < count && di < numbufs; ) {
 		if (pgoff == 0) {
 			m = ma[mi];
-			vm_page_assert_xbusied(m);
-			ASSERT(m->valid == 0);
-			ASSERT(m->dirty == 0);
-			ASSERT(!pmap_page_is_mapped(m));
-			va = zfs_map_page(m, &sf);
+			if (m != bogus_page) {
+				vm_page_assert_xbusied(m);
+				ASSERT(m->valid == 0);
+				ASSERT(m->dirty == 0);
+				ASSERT(!pmap_page_is_mapped(m));
+				va = zfs_map_page(m, &sf);
+			}
 		}
 		if (bufoff == 0)
 			db = dbp[di];
 
-		ASSERT3U(IDX_TO_OFF(m->pindex) + pgoff, ==,
-		    db->db_offset + bufoff);
+		if (m != bogus_page) {
+			ASSERT3U(IDX_TO_OFF(m->pindex) + pgoff, ==,
+			    db->db_offset + bufoff);
+		}
 
 		/*
 		 * We do not need to clamp the copy size by the file
@@ -1750,13 +1754,16 @@ dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 		 * end of file anyway.
 		 */
 		tocpy = MIN(db->db_size - bufoff, PAGESIZE - pgoff);
-		bcopy((char *)db->db_data + bufoff, va + pgoff, tocpy);
+		if (m != bogus_page)
+			bcopy((char *)db->db_data + bufoff, va + pgoff, tocpy);
 
 		pgoff += tocpy;
 		ASSERT(pgoff <= PAGESIZE);
 		if (pgoff == PAGESIZE) {
-			zfs_unmap_page(sf);
-			m->valid = VM_PAGE_BITS_ALL;
+			if (m != bogus_page) {
+				zfs_unmap_page(sf);
+				m->valid = VM_PAGE_BITS_ALL;
+			}
 			ASSERT(mi < count);
 			mi++;
 			pgoff = 0;
@@ -1801,6 +1808,7 @@ dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 	}
 #endif
 	if (pgoff != 0) {
+		ASSERT(m != bogus_page);
 		bzero(va + pgoff, PAGESIZE - pgoff);
 		zfs_unmap_page(sf);
 		m->valid = VM_PAGE_BITS_ALL;
