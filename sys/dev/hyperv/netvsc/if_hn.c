@@ -5939,8 +5939,7 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 			int obytes, omcast;
 
 			obytes = m->m_pkthdr.len;
-			if (m->m_flags & M_MCAST)
-				omcast = 1;
+			omcast = (m->m_flags & M_MCAST) != 0;
 
 			if (sc->hn_xvf_flags & HN_XVFFLAG_ACCBPF) {
 				if (bpf_peers_present(ifp->if_bpf)) {
