@@ -382,8 +382,6 @@ int pmcstat_analyze_log(struct pmcstat_args *args,
 int pmcstat_open_log(const char *_p, int _mode);
 int pmcstat_close_log(struct pmcstat_args *args);
 
-uint64_t pmcstat_pmu_sample_rate_get(const char *);
-
 __END_DECLS
 
 #endif /* !_LIBPMCSTAT_H_ */

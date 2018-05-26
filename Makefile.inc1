@@ -2031,7 +2031,7 @@ _libmagic=lib/libmagic
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_jevents=lib/libpmcstat/pmu-events
+_jevents=lib/libpmc/pmu-events
 .endif
 
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
