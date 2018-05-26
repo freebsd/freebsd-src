@@ -2781,8 +2781,27 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 
 	if (mode != PMC_MODE_SS && mode != PMC_MODE_TS &&
 	    mode != PMC_MODE_SC && mode != PMC_MODE_TC) {
-		errno = EINVAL;
-		goto out;
+		return (EINVAL);
+	}
+	bzero(&pmc_config, sizeof(pmc_config));
+	pmc_config.pm_cpu   = cpu;
+	pmc_config.pm_mode  = mode;
+	pmc_config.pm_flags = flags;
+	if (PMC_IS_SAMPLING_MODE(mode))
+		pmc_config.pm_caps |= PMC_CAP_INTERRUPT;
+	/*
+	 * Can we pull this straight from the pmu table?
+	 */
+	r = spec_copy = strdup(ctrspec);
+	ctrname = strsep(&r, ",");
+	if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
+		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0)
+			return (errno);
+		*pmcid = pmc_config.pm_pmcid;
+		return (0);
+	} else {
+		free(spec_copy);
+		spec_copy = NULL;
 	}
 
 	/* replace an event alias with the canonical event specifier */
@@ -2833,15 +2852,8 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 		goto out;
 	}
 
-	bzero(&pmc_config, sizeof(pmc_config));
 	pmc_config.pm_ev    = ev->pm_ev_code;
 	pmc_config.pm_class = pcd->pm_evc_class;
-	pmc_config.pm_cpu   = cpu;
-	pmc_config.pm_mode  = mode;
-	pmc_config.pm_flags = flags;
-
-	if (PMC_IS_SAMPLING_MODE(mode))
-		pmc_config.pm_caps |= PMC_CAP_INTERRUPT;
 
  	if (pcd->pm_evc_allocate_pmc(ev->pm_ev_code, r, &pmc_config) < 0) {
 		errno = EINVAL;

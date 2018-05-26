@@ -82,13 +82,14 @@ struct pmclog_ev {
        struct timespec   pl_ts;		/* log entry timestamp */
        enum pmclog_type  pl_type;	/* log entry kind */
        union {				/* log entry data */
+		struct pmclog_ev_callchain   pl_cc;
 		struct pmclog_ev_closelog    pl_cl;
 		struct pmclog_ev_dropnotify  pl_d;
 		struct pmclog_ev_initialize  pl_i;
 		struct pmclog_ev_map_in      pl_mi;
 		struct pmclog_ev_map_out     pl_mo;
-		struct pmclog_ev_pcsample    pl_s;
 		struct pmclog_ev_pmcallocate pl_a;
+		struct pmclog_ev_pmcallocatedyn	pl_ad;
 		struct pmclog_ev_pmcattach   pl_t;
 		struct pmclog_ev_pmcdetach   pl_d;
 		struct pmclog_ev_proccsw     pl_c;
@@ -270,8 +271,8 @@ while (pmclog_read(parser, &ev) == 0) {
 	case PMCLOG_TYPE_PROCCSW:
 		--process a thread context switch record--
 		break;
-	case PMCLOG_TYPE_PCSAMPLE:
-		--process a PC sample--
+	case PMCLOG_TYPE_CALLCHAIN:
+		--process a callchain sample--
 		break;
 	--and so on--
 	}
