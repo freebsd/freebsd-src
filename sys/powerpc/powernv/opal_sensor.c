@@ -228,7 +228,7 @@ opal_sensor_attach(device_t dev)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "sensor_min", CTLTYPE_INT | CTLFLAG_RD, sc, sensor_id,
 		    opal_sensor_sysctl,
-		    (sc->sc_type == OPAL_MSG_TYPE_MAX) ? "IK" : "I",
+		    (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I",
 		    "minimum value");
 	}
 
@@ -238,7 +238,7 @@ opal_sensor_attach(device_t dev)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "sensor_max", CTLTYPE_INT | CTLFLAG_RD, sc, sensor_id,
 		    opal_sensor_sysctl,
-		    (sc->sc_type == OPAL_MSG_TYPE_MAX) ? "IK" : "I",
+		    (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I",
 		    "maximum value");
 	}
 
