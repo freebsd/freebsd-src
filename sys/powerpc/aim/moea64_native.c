@@ -133,6 +133,8 @@ __FBSDID("$FreeBSD$");
 /* POWER9 only permits a 64k partition table size. */
 #define	PART_SIZE	0x10000
 
+static int moea64_crop_tlbie;
+
 static __inline void
 TLBIE(uint64_t vpn) {
 #ifndef __powerpc64__
@@ -144,11 +146,13 @@ TLBIE(uint64_t vpn) {
 	static volatile u_int tlbie_lock = 0;
 
 	vpn <<= ADDR_PIDX_SHFT;
-	vpn &= ~(0xffffULL << 48);
 
 	/* Hobo spinlock: we need stronger guarantees than mutexes provide */
 	while (!atomic_cmpset_int(&tlbie_lock, 0, 1));
 	isync(); /* Flush instruction queue once lock acquired */
+
+	if (moea64_crop_tlbie)
+		vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
 	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
@@ -428,6 +432,15 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
+	switch (mfpvr() >> 16) {
+	case IBMPOWER4:
+	case IBMPOWER4PLUS:
+	case IBM970:
+	case IBM970FX:
+	case IBM970GX:
+	case IBM970MP:
+	    	moea64_crop_tlbie = true;
+	}
 	/*
 	 * Allocate PTEG table.
 	 */
