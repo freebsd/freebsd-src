@@ -380,9 +380,11 @@ static int
 vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
     int fault_flags, boolean_t wired, vm_page_t *m_hold)
 {
+	struct mtx *m_mtx;
+	vm_offset_t vaddr;
 	vm_page_t m;
 	vm_pindex_t map_first, map_last, pager_first, pager_last, pidx;
-	int rv;
+	int i, npages, psind, rv;
 
 	MPASS(fs->object == fs->first_object);
 	VM_OBJECT_ASSERT_WLOCKED(fs->first_object);
@@ -455,26 +457,44 @@ vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
 		pager_last = map_last;
 	}
 	for (pidx = pager_first, m = vm_page_lookup(fs->first_object, pidx);
-	    pidx <= pager_last; pidx++, m = vm_page_next(m)) {
-		vm_fault_populate_check_page(m);
-		vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags,
-		    true);
-		VM_OBJECT_WUNLOCK(fs->first_object);
-		pmap_enter(fs->map->pmap, fs->entry->start + IDX_TO_OFF(pidx) -
-		    fs->entry->offset, m, prot, fault_type | (wired ?
-		    PMAP_ENTER_WIRED : 0), 0);
-		VM_OBJECT_WLOCK(fs->first_object);
-		if (pidx == fs->first_pindex)
-			vm_fault_fill_hold(m_hold, m);
-		vm_page_lock(m);
-		if ((fault_flags & VM_FAULT_WIRE) != 0) {
-			KASSERT(wired, ("VM_FAULT_WIRE && !wired"));
-			vm_page_wire(m);
-		} else {
-			vm_page_activate(m);
+	    pidx <= pager_last;
+	    pidx += npages, m = vm_page_next(&m[npages - 1])) {
+		vaddr = fs->entry->start + IDX_TO_OFF(pidx) - fs->entry->offset;
+#if defined(__amd64__)
+		psind = m->psind;
+		if (psind > 0 && ((vaddr & (pagesizes[psind] - 1)) != 0 ||
+		    pidx + OFF_TO_IDX(pagesizes[psind]) - 1 > pager_last ||
+		    !pmap_ps_enabled(fs->map->pmap)))
+			psind = 0;
+#else
+		psind = 0;
+#endif		
+		npages = atop(pagesizes[psind]);
+		for (i = 0; i < npages; i++) {
+			vm_fault_populate_check_page(&m[i]);
+			vm_fault_dirty(fs->entry, &m[i], prot, fault_type,
+			    fault_flags, true);
 		}
-		vm_page_unlock(m);
-		vm_page_xunbusy(m);
+		VM_OBJECT_WUNLOCK(fs->first_object);
+		pmap_enter(fs->map->pmap, vaddr, m, prot, fault_type | (wired ?
+		    PMAP_ENTER_WIRED : 0), psind);
+		VM_OBJECT_WLOCK(fs->first_object);
+		m_mtx = NULL;
+		for (i = 0; i < npages; i++) {
+			vm_page_change_lock(&m[i], &m_mtx);
+			if ((fault_flags & VM_FAULT_WIRE) != 0) {
+				KASSERT(wired, ("VM_FAULT_WIRE && !wired"));
+				vm_page_wire(&m[i]);
+			} else
+				vm_page_activate(&m[i]);
+			if (m_hold != NULL && m[i].pindex == fs->first_pindex) {
+				*m_hold = &m[i];
+				vm_page_hold(&m[i]);
+			}
+			vm_page_xunbusy(&m[i]);
+		}
+		if (m_mtx != NULL)
+			mtx_unlock(m_mtx);
 	}
 	curthread->td_ru.ru_majflt++;
 	return (KERN_SUCCESS);
