@@ -358,7 +358,10 @@ typedef enum {
  * autogenerate a MAC address
  */
 #define IFLIB_GEN_MAC	0x08000
-
+/*
+ * Interface needs admin task to ignore interface up/down status
+ */
+#define IFLIB_ADMIN_ALWAYS_RUN	0x10000
 
 
 /*
