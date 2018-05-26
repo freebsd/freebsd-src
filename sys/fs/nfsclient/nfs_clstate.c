@@ -2721,7 +2721,7 @@ tryagain2:
 				     NFSV4LOCK_LOCK) != 0) {
 					lyp->nfsly_lock.nfslock_lock |=
 					    NFSV4LOCK_WANTED;
-					(void)nfsmsleep(&lyp->nfsly_lock,
+					nfsmsleep(&lyp->nfsly_lock.nfslock_lock,
 					    NFSCLSTATEMUTEXPTR, PZERO, "nfslyp",
 					    NULL);
 					goto tryagain2;
