@@ -423,13 +423,6 @@ pmcstat_print_log(void)
 			    (void *) ev.pl_u.pl_mo.pl_start,
 			    (void *) ev.pl_u.pl_mo.pl_end);
 			break;
-		case PMCLOG_TYPE_PCSAMPLE:
-			PMCSTAT_PRINT_ENTRY("sample","0x%x %d %p %c",
-			    ev.pl_u.pl_s.pl_pmcid,
-			    ev.pl_u.pl_s.pl_pid,
-			    (void *) ev.pl_u.pl_s.pl_pc,
-			    ev.pl_u.pl_s.pl_usermode ? 'u' : 's');
-			break;
 		case PMCLOG_TYPE_PMCALLOCATE:
 			PMCSTAT_PRINT_ENTRY("allocate","0x%x \"%s\" 0x%x",
 			    ev.pl_u.pl_a.pl_pmcid,
