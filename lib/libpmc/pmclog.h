@@ -158,6 +158,7 @@ struct pmclog_ev {
 		struct pmclog_ev_initialize	pl_i;
 		struct pmclog_ev_map_in		pl_mi;
 		struct pmclog_ev_map_out	pl_mo;
+		struct pmclog_ev_pcsample	pl_s;
 		struct pmclog_ev_pmcallocate	pl_a;
 		struct pmclog_ev_pmcallocatedyn	pl_ad;
 		struct pmclog_ev_pmcattach	pl_t;

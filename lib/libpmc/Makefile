@@ -3,30 +3,8 @@
 PACKAGE=lib${LIB}
 LIB=	pmc
 
-SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c
+SRCS=	libpmc.c pmclog.c
 INCS=	pmc.h pmclog.h
-
-CFLAGS+= -I${.CURDIR}
-
-.if ${MACHINE_CPUARCH} == "amd64"
-
-.if ${MACHINE_CPUARCH} == "aarch64"
-EVENT_ARCH="arm64"
-.elif ${MACHINE_CPUARCH} == "amd64"
-EVENT_ARCH="x86"
-.elif ${MACHINE_CPUARCH} == "powerpc"
-EVENT_ARCH="powerpc"
-.endif
-
-JEVENTS= ${BTOOLSPATH:U.}/pmu-events/jevents
-# This file is built in a subdirectory so never try to rebuild
-# it here due to missing meta file.
-${JEVENTS}: .NOMETA
-
-libpmc_events.c: ${JEVENTS}
-	${JEVENTS} ${EVENT_ARCH} ${.CURDIR}/pmu-events/arch libpmc_events.c
-SRCS+= libpmc_events.c
-.endif
 
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
