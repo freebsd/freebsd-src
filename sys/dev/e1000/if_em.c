@@ -5456,7 +5456,8 @@ em_enable_wakeup(device_t dev)
 	if ((adapter->hw.mac.type == e1000_pchlan)  ||
 	    (adapter->hw.mac.type == e1000_pch2lan) ||
 	    (adapter->hw.mac.type == e1000_pch_lpt) ||
-	    (adapter->hw.mac.type == e1000_pch_spt)) {
+	    (adapter->hw.mac.type == e1000_pch_spt) ||
+	    (adapter->hw.mac.type == e1000_pch_cnp)) {
 		error = em_enable_phy_wakeup(adapter);
 		if (error)
 			goto pme;
