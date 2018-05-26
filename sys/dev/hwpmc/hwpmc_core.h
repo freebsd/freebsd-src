@@ -60,7 +60,7 @@ struct pmc_md_iap_op_pmcallocate {
 };
 
 #define	IAP_EVSEL(C)	((C) & 0xFF)
-#define	IAP_UMASK(C)	((C) & 0xFF00)
+#define	IAP_UMASK(C)	(((C) & 0xFF) << 8)
 #define	IAP_USR		(1 << 16)
 #define	IAP_OS		(1 << 17)
 #define	IAP_EDGE	(1 << 18)
@@ -69,6 +69,9 @@ struct pmc_md_iap_op_pmcallocate {
 #define	IAP_EN		(1 << 22)
 #define	IAP_INV		(1 << 23)
 #define	IAP_CMASK(C)	(((C) & 0xFF) << 24)
+
+#define	IAP_EVSEL_GET(C)	((C) & 0xFF)
+#define	IAP_UMASK_GET(C)	(((C) & 0xFF00) >> 8)
 
 #define	IA_OFFCORE_RSP_MASK_I7WM	0x000000F7FF
 #define	IA_OFFCORE_RSP_MASK_SBIB	0x3F807F8FFF
