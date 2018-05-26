@@ -3807,7 +3807,8 @@ _task_fn_admin(void *context)
 	ctx->ifc_flags &= ~(IFC_DO_RESET|IFC_DO_WATCHDOG);
 	STATE_UNLOCK(ctx);
 
-	if (!running & !oactive)
+	if ((!running & !oactive) &&
+	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
 		return;
 
 	CTX_LOCK(ctx);
