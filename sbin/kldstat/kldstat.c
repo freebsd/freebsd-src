@@ -190,9 +190,9 @@ main(int argc, char** argv)
     }
 
     if (humanized)
-	    printf("Id Refs Address%*c  Size Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %5s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     else
-	    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %8s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     if (fileid != 0)
 	printfile(fileid, verbose, humanized);
     else
