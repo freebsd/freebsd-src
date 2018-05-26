@@ -39,19 +39,20 @@
 
 enum pmclog_type {
 	/* V1 ABI */
-	PMCLOG_TYPE_CLOSELOG = 1,
-	PMCLOG_TYPE_DROPNOTIFY = 2,
-	PMCLOG_TYPE_INITIALIZE = 3,
-	PMCLOG_TYPE_MAPPINGCHANGE = 4, /* unused in v1 */
-	PMCLOG_TYPE_PMCALLOCATE = 5,
-	PMCLOG_TYPE_PMCATTACH = 6,
-	PMCLOG_TYPE_PMCDETACH = 7,
-	PMCLOG_TYPE_PROCCSW = 8,
-	PMCLOG_TYPE_PROCEXEC = 9,
-	PMCLOG_TYPE_PROCEXIT = 10,
-	PMCLOG_TYPE_PROCFORK = 11,
-	PMCLOG_TYPE_SYSEXIT = 12,
-	PMCLOG_TYPE_USERDATA = 13,
+	PMCLOG_TYPE_CLOSELOG,
+	PMCLOG_TYPE_DROPNOTIFY,
+	PMCLOG_TYPE_INITIALIZE,
+	PMCLOG_TYPE_MAPPINGCHANGE, /* unused in v1 */
+	PMCLOG_TYPE_PCSAMPLE,
+	PMCLOG_TYPE_PMCALLOCATE,
+	PMCLOG_TYPE_PMCATTACH,
+	PMCLOG_TYPE_PMCDETACH,
+	PMCLOG_TYPE_PROCCSW,
+	PMCLOG_TYPE_PROCEXEC,
+	PMCLOG_TYPE_PROCEXIT,
+	PMCLOG_TYPE_PROCFORK,
+	PMCLOG_TYPE_SYSEXIT,
+	PMCLOG_TYPE_USERDATA,
 	/*
 	 * V2 ABI
 	 *
@@ -59,15 +60,15 @@ enum pmclog_type {
 	 * event type.  The CALLCHAIN event type obsoletes the
 	 * PCSAMPLE event type.
 	 */
-	PMCLOG_TYPE_MAP_IN = 14,
-	PMCLOG_TYPE_MAP_OUT = 15,
-	PMCLOG_TYPE_CALLCHAIN = 16,
+	PMCLOG_TYPE_MAP_IN,
+	PMCLOG_TYPE_MAP_OUT,
+	PMCLOG_TYPE_CALLCHAIN,
 	/*
 	 * V3 ABI
 	 *
 	 * New variant of PMCLOG_TYPE_PMCALLOCATE for dynamic event.
 	 */
-	PMCLOG_TYPE_PMCALLOCATEDYN = 17
+	PMCLOG_TYPE_PMCALLOCATEDYN
 };
 
 /*
@@ -121,19 +122,16 @@ struct pmclog_callchain {
 
 struct pmclog_closelog {
 	PMCLOG_ENTRY_HEADER
-	uint32_t		pl_pad;
 };
 
 struct pmclog_dropnotify {
 	PMCLOG_ENTRY_HEADER
-	uint32_t		pl_pad;
 };
 
 struct pmclog_initialize {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_version;	/* driver version */
 	uint32_t		pl_cpu;		/* enum pmc_cputype */
-	uint32_t		pl_pad;
 } __packed;
 
 struct pmclog_map_in {
@@ -150,6 +148,16 @@ struct pmclog_map_out {
 	uintfptr_t		pl_end;
 } __packed;
 
+struct pmclog_pcsample {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_pid;
+	uintfptr_t		pl_pc;		/* 8 byte aligned */
+	uint32_t		pl_pmcid;
+	uint32_t		pl_usermode;
+	uint32_t		pl_tid;
+	uint32_t		pl_pad;
+} __packed;
+
 struct pmclog_pmcallocate {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pmcid;
@@ -161,7 +169,6 @@ struct pmclog_pmcattach {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pmcid;
 	uint32_t		pl_pid;
-	uint32_t		pl_pad;
 	char			pl_pathname[PATH_MAX];
 } __packed;
 
@@ -169,7 +176,6 @@ struct pmclog_pmcdetach {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pmcid;
 	uint32_t		pl_pid;
-	uint32_t		pl_pad;
 } __packed;
 
 struct pmclog_proccsw {
@@ -183,25 +189,22 @@ struct pmclog_proccsw {
 struct pmclog_procexec {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
-	uint32_t		pl_pmcid;
-	uint32_t		pl_pad;
 	uintfptr_t		pl_start;	/* keep 8 byte aligned */
+	uint32_t		pl_pmcid;
 	char			pl_pathname[PATH_MAX];
 } __packed;
 
 struct pmclog_procexit {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pmcid;
-	uint32_t		pl_pid;
-	uint32_t		pl_pad;
 	uint64_t		pl_value;	/* keep 8 byte aligned */
+	uint32_t		pl_pid;
 } __packed;
 
 struct pmclog_procfork {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_oldpid;
 	uint32_t		pl_newpid;
-	uint32_t		pl_pad;
 } __packed;
 
 struct pmclog_sysexit {
@@ -229,6 +232,7 @@ union pmclog_entry {		/* only used to size scratch areas */
 	struct pmclog_initialize	pl_i;
 	struct pmclog_map_in		pl_mi;
 	struct pmclog_map_out		pl_mo;
+	struct pmclog_pcsample		pl_s;
 	struct pmclog_pmcallocate	pl_a;
 	struct pmclog_pmcallocatedyn	pl_ad;
 	struct pmclog_pmcattach		pl_t;
