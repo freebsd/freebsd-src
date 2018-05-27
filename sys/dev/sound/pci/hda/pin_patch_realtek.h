@@ -200,7 +200,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x11, 0x90130110), /* speaker */
+					PIN_OVERRIDE(17, 0x90130110),
         				{ }
 				}
 			}, {
@@ -209,7 +209,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x0f, 0x01214000), /* hp */
+					PIN_OVERRIDE(15, 0x01214000),
         				{ }
 				}
 			}, {
@@ -218,17 +218,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x0f, 0x01211020),
-					PIN_OVERRIDE(0x10, 0x0001003f),
-					PIN_PATCH_NOT_APPLICABLE(0x11),
-					PIN_OVERRIDE(0x12, 0x01a15930),
-					PIN_PATCH_NOT_APPLICABLE(0x13),
-					PIN_PATCH_NOT_APPLICABLE(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_NOT_APPLICABLE(0x18),
-					PIN_PATCH_NOT_APPLICABLE(0x19),
+					PIN_OVERRIDE(15, 0x01211020),
+					PIN_OVERRIDE(16, 0x0001003f),
+					PIN_PATCH_NOT_APPLICABLE(17),
+					PIN_OVERRIDE(18, 0x01a15930),
+					PIN_PATCH_NOT_APPLICABLE(19),
+					PIN_PATCH_NOT_APPLICABLE(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_NOT_APPLICABLE(24),
+					PIN_PATCH_NOT_APPLICABLE(25),
         				{ }
 				}
 			}, { }
@@ -251,7 +251,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x1e, 0x014b1180),
+					PIN_OVERRIDE(30, 0x014b1180),
         				{ }
 				}
 			}, { }
@@ -278,8 +278,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_DOCK_MIC_IN(0x19),
-					PIN_PATCH_DOCK_HP(0x1b),
+					PIN_PATCH_DOCK_MIC_IN(25),
+					PIN_PATCH_DOCK_HP(27),
         				{ }
 				}
 			}, {
@@ -297,7 +297,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_SUBWOOFER(0x17),
+					PIN_PATCH_SUBWOOFER(23),
         				{ }
 				}
 			}, {
@@ -306,8 +306,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_DOCK_LINE_OUT(0x1a),
-					PIN_PATCH_DOCK_MIC_IN(0x1b),
+					PIN_PATCH_DOCK_LINE_OUT(26),
+					PIN_PATCH_DOCK_MIC_IN(27),
         				{ }
 				}
 			}, {
@@ -316,7 +316,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_HPMIC_WITH_DETECT(0x19),
+					PIN_PATCH_HPMIC_WITH_DETECT(25),
         				{ }
 				}
 			}, {
@@ -326,7 +326,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x21, 0x0221102f), /* hp out */
+					PIN_OVERRIDE(33, 0x0221102f),
         				{ }
 				}
 			}, {
@@ -337,8 +337,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_JACK_WO_DETECT(0x19),
-					PIN_PATCH_HPMIC_WO_DETECT(0x1a),
+					PIN_PATCH_JACK_WO_DETECT(25),
+					PIN_PATCH_HPMIC_WO_DETECT(26),
         				{ }
 				}
 			}, {
@@ -348,7 +348,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_JACK_WO_DETECT(25),
         				{ }
 				}
 			}, {
@@ -358,7 +358,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_JACK_WO_DETECT(25),
         				{ }
 				}
 			}, {
@@ -367,7 +367,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x18, 0x04a1182c), /* hp mic */
+					PIN_OVERRIDE(24, 0x04a1182c),
         				{ }
 				}
 			}, {
@@ -376,11 +376,11 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x12, 0x99a3092f), /* int mic */
-					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
-					PIN_OVERRIDE(0x18, 0x99130110), /* mic */
-					PIN_OVERRIDE(0x1e, 0x0346101e), /* spdif1 */
-					PIN_OVERRIDE(0x21, 0x0321101f), /* hp out */
+					PIN_OVERRIDE(18, 0x99a3092f),
+					PIN_OVERRIDE(20, 0x99130110),
+					PIN_OVERRIDE(24, 0x99130110),
+					PIN_OVERRIDE(30, 0x0346101e),
+					PIN_OVERRIDE(33, 0x0321101f),
         				{ }
 				}
 			}, {
@@ -389,8 +389,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x18, 0x2181103f), /* line in */
-					PIN_OVERRIDE(0x1b, 0x21011020), /* line out */
+					PIN_OVERRIDE(24, 0x2181103f),
+					PIN_OVERRIDE(27, 0x21011020),
         				{ }
 				}
 			}, { }
@@ -407,10 +407,10 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
-					PIN_OVERRIDE(0x19, 0x01a19c20), /* mic */
-					PIN_OVERRIDE(0x1b, 0x99a7012f), /* int mic */
-					PIN_PATCH_HP_OUT(0x21),
+					PIN_OVERRIDE(20, 0x99130110),
+					PIN_OVERRIDE(25, 0x01a19c20),
+					PIN_OVERRIDE(27, 0x99a7012f),
+					PIN_PATCH_HP_OUT(33),
         				{ }
 				}
 			}, { }
@@ -425,9 +425,9 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x1b, 0x21011020), /* line out */
-					PIN_PATCH_HPMIC_WITH_DETECT(0x1a),
-					PIN_OVERRIDE(0x18, 0x2181103f), /* line in */
+					PIN_OVERRIDE(27, 0x21011020),
+					PIN_PATCH_HPMIC_WITH_DETECT(26),
+					PIN_OVERRIDE(24, 0x2181103f),
         				{ }
 				}
 			}, { }
@@ -509,9 +509,9 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x18),
-					PIN_PATCH_NOT_APPLICABLE(0x1a),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(24),
+					PIN_PATCH_NOT_APPLICABLE(26),
 					{ }
 				}
 			}, {
@@ -521,7 +521,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_NOT_APPLICABLE(0x17),
+					PIN_PATCH_NOT_APPLICABLE(23),
 					{ }
 				}
 			}, {
@@ -532,17 +532,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_HP_OUT(0x14),
-					PIN_PATCH_SPEAKER(0x15),
-					PIN_PATCH_BASS_SPEAKER(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_NOT_APPLICABLE(0x18),
-					PIN_PATCH_MIC_IN(0x19),
-					PIN_PATCH_NOT_APPLICABLE(0x1a),
-					PIN_PATCH_NOT_APPLICABLE(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1e),
+					PIN_PATCH_HP_OUT(20),
+					PIN_PATCH_SPEAKER(21),
+					PIN_PATCH_BASS_SPEAKER(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_NOT_APPLICABLE(24),
+					PIN_PATCH_MIC_IN(25),
+					PIN_PATCH_NOT_APPLICABLE(26),
+					PIN_PATCH_NOT_APPLICABLE(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_PATCH_NOT_APPLICABLE(30),
 					{ }
 				}
 			}, {
@@ -552,17 +552,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_HP_OUT(0x14),
-					PIN_PATCH_SPEAKER(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_NOT_APPLICABLE(0x18),
-					PIN_PATCH_MIC_IN(0x19),
-					PIN_PATCH_NOT_APPLICABLE(0x1a),
-					PIN_PATCH_NOT_APPLICABLE(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_SPDIF_OUT(0x1e),
+					PIN_PATCH_HP_OUT(20),
+					PIN_PATCH_SPEAKER(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_NOT_APPLICABLE(24),
+					PIN_PATCH_MIC_IN(25),
+					PIN_PATCH_NOT_APPLICABLE(26),
+					PIN_PATCH_NOT_APPLICABLE(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_PATCH_SPDIF_OUT(30),
 					{ }
 				}
 			}, {
@@ -571,8 +571,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x1a, 0x0181344f), /* li */
-					PIN_OVERRIDE(0x1b, 0x0321403f), /* hp */
+					PIN_OVERRIDE(26, 0x0181344f),
+					PIN_OVERRIDE(27, 0x0321403f), /* hp */
 					{ }
 				}
 			}, {
@@ -581,9 +581,9 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_HP(0x14),
-					PIN_PATCH_SPEAKER(0x15),
-					PIN_PATCH_BASS_SPEAKER(0x16),
+					PIN_PATCH_HP(20),
+					PIN_PATCH_SPEAKER(21),
+					PIN_PATCH_BASS_SPEAKER(22),
 					{ }
 				}
 			}, {
@@ -592,10 +592,10 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_NOT_APPLICABLE(0x19),
-					PIN_PATCH_NOT_APPLICABLE(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_NOT_APPLICABLE(25),
+					PIN_PATCH_NOT_APPLICABLE(27),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -604,13 +604,13 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_SPEAKER(0x14),
-					PIN_PATCH_HP(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_MIC_IN(0x18),
-					PIN_PATCH_NOT_APPLICABLE(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
+					PIN_PATCH_SPEAKER(20),
+					PIN_PATCH_HP(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_MIC_IN(24),
+					PIN_PATCH_NOT_APPLICABLE(25),
+					PIN_PATCH_LINE_IN(26),
 					{ }
 				}
 			}, {
@@ -619,17 +619,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_HP(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_PATCH_MIC_INTERNAL(0x18),
-					PIN_PATCH_NOT_APPLICABLE(0x19),
-					PIN_PATCH_NOT_APPLICABLE(0x1a),
-					PIN_PATCH_NOT_APPLICABLE(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_OVERRIDE(0x1e, 0xb743111e), /* spdif out */
+					PIN_PATCH_HP(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_PATCH_MIC_INTERNAL(24),
+					PIN_PATCH_NOT_APPLICABLE(25),
+					PIN_PATCH_NOT_APPLICABLE(26),
+					PIN_PATCH_NOT_APPLICABLE(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_OVERRIDE(30, 0xb743111e),
 					{ }
 				}
 			}, {
@@ -640,19 +640,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_HP(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_MIC_FRONT(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1e),
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_OVERRIDE(24, 0x01a19c30),
+					PIN_PATCH_HP(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_MIC_FRONT(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_PATCH_NOT_APPLICABLE(30),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -665,19 +664,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_NOT_APPLICABLE(0x16),
-					PIN_PATCH_NOT_APPLICABLE(0x17),
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_HP(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_MIC_FRONT(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_OVERRIDE(0x1e, 0x0144111e), /* spdif */
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_NOT_APPLICABLE(22),
+					PIN_PATCH_NOT_APPLICABLE(23),
+					PIN_OVERRIDE(24, 0x01a19c30),
+					PIN_PATCH_HP(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_MIC_FRONT(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_OVERRIDE(30, 0x0144111e),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -688,19 +686,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_CLFE(0x16),
-					PIN_PATCH_SURROUND(0x17),
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_HP(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_MIC_FRONT(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1e),
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_CLFE(22),
+					PIN_PATCH_SURROUND(23),
+					PIN_OVERRIDE(24, 0x01a19c30), /* mic in */
+					PIN_PATCH_HP(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_MIC_FRONT(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_PATCH_NOT_APPLICABLE(30),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -720,18 +717,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_NOT_APPLICABLE(0x15),
-					PIN_PATCH_CLFE(0x16),
-					PIN_PATCH_SURROUND(0x17),
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_HP(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_MIC_FRONT(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_OVERRIDE(0x1e, 0x0144111e), /* spdif */
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_NOT_APPLICABLE(21),
+					PIN_PATCH_CLFE(22),
+					PIN_PATCH_SURROUND(23),
+					PIN_OVERRIDE(24, 0x01a19c30),
+					PIN_PATCH_HP(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_MIC_FRONT(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_OVERRIDE(30, 0x0144111e),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -740,18 +737,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_SURROUND(0x15),
-					PIN_PATCH_CLFE(0x16),
-					PIN_OVERRIDE(0x17, 0x01012414), /* side */
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_MIC_FRONT(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_HP(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_PATCH_NOT_APPLICABLE(0x1e),
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_SURROUND(21),
+					PIN_PATCH_CLFE(22),
+					PIN_OVERRIDE(23, 0x01012414),
+					PIN_OVERRIDE(24, 0x01a19c30),
+					PIN_PATCH_MIC_FRONT(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_HP(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_PATCH_NOT_APPLICABLE(30),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, {
@@ -766,18 +763,18 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_LINE_OUT(0x14),
-					PIN_PATCH_SURROUND(0x15),
-					PIN_PATCH_CLFE(0x16),
-					PIN_OVERRIDE(0x17, 0x01012414), /* side */
-					PIN_OVERRIDE(0x18, 0x01a19c30), /* mic in */
-					PIN_PATCH_MIC_FRONT(0x19),
-					PIN_PATCH_LINE_IN(0x1a),
-					PIN_PATCH_HP(0x1b),
-					PIN_PATCH_NOT_APPLICABLE(0x1c),
-					PIN_PATCH_NOT_APPLICABLE(0x1d),
-					PIN_OVERRIDE(0x1e, 0x0144111e), /* spdif */
-					PIN_PATCH_NOT_APPLICABLE(0x1f),
+					PIN_PATCH_LINE_OUT(20),
+					PIN_PATCH_SURROUND(21),
+					PIN_PATCH_CLFE(22),
+					PIN_OVERRIDE(23, 0x01012414),
+					PIN_OVERRIDE(24, 0x01a19c30),
+					PIN_PATCH_MIC_FRONT(25),
+					PIN_PATCH_LINE_IN(26),
+					PIN_PATCH_HP(27),
+					PIN_PATCH_NOT_APPLICABLE(28),
+					PIN_PATCH_NOT_APPLICABLE(29),
+					PIN_OVERRIDE(30, 0x0144111e),
+					PIN_PATCH_NOT_APPLICABLE(31),
 					{ }
 				}
 			}, { }
