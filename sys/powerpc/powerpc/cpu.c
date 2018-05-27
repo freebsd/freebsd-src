@@ -91,6 +91,7 @@ static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
 #if defined(__powerpc64__) && defined(AIM)
 static void	cpu_idle_powerx(sbintime_t);
+static void	cpu_idle_power9(sbintime_t sbt);
 #endif
 
 struct cputab {
@@ -181,7 +182,7 @@ static const struct cputab models[] = {
 	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HTM | PPC_FEATURE2_DSCR |
 	   PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO |
 	   PPC_FEATURE2_ARCH_3_00 | PPC_FEATURE2_HAS_IEEE128 |
-	   PPC_FEATURE2_DARN, NULL },
+	   PPC_FEATURE2_DARN, cpu_powerx_setup },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
 	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN,
@@ -660,7 +661,12 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 	switch (vers) {
 	case IBMPOWER8:
 	case IBMPOWER8E:
+		cpu_idle_hook = cpu_idle_powerx;
+		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
+		isync();
+		break;
 	case IBMPOWER9:
+		cpu_idle_hook = cpu_idle_power9;
 		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
 		isync();
 		break;
@@ -668,7 +674,6 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 		return;
 	}
 
-	cpu_idle_hook = cpu_idle_powerx;
 #endif
 }
 
@@ -797,6 +802,27 @@ cpu_idle_powerx(sbintime_t sbt)
 
 	enter_idle_powerx();
 	spinlock_exit();
+}
+
+static void
+cpu_idle_power9(sbintime_t sbt)
+{
+	register_t msr;
+
+	msr = mfmsr();
+
+	/* Suspend external interrupts until stop instruction completes. */
+	mtmsr(msr &  ~PSL_EE);
+	/* Set the stop state to lowest latency, wake up to next instruction */
+	mtspr(SPR_PSSCR, 0);
+	/* "stop" instruction (PowerISA 3.0) */
+	__asm __volatile (".long 0x4c0002e4");
+	/*
+	 * Re-enable external interrupts to capture the interrupt that caused
+	 * the wake up.
+	 */
+	mtmsr(msr);
+	
 }
 #endif
 

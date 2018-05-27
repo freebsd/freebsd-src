@@ -383,6 +383,7 @@
 #define	SPR_MD_CAM		0x338	/* ..8 IMMU CAM entry read */
 #define	SPR_MD_RAM0		0x339	/* ..8 IMMU RAM entry read reg 0 */
 #define	SPR_MD_RAM1		0x33a	/* ..8 IMMU RAM entry read reg 1 */
+#define	SPR_PSSCR		0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define	SPR_UMMCR2		0x3a0	/* .6. User Monitor Mode Control Register 2 */
 #define	SPR_UMMCR0		0x3a8	/* .6. User Monitor Mode Control Register 0 */
 #define	SPR_USIA		0x3ab	/* .6. User Sampled Instruction Address */
