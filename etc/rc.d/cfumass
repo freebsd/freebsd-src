@@ -45,7 +45,7 @@ remove_luns()
 
 cfumass_start()
 {
-	local err _files _template
+	local err _files _template _new_template
 
 	if [ ! -d "${cfumass_dir}" ]; then
 		warn "${cfumass_dir} does not exist"
@@ -90,36 +90,59 @@ cfumass_start()
 		fi
 	fi
 
+	# Set the template number based on the current one.
 	_template=`sysctl -n hw.usb.template`
-	if [ "${_template}" -lt 0 ]; then
-		sysctl hw.usb.template=0 > /dev/null
+	case "${_template}" in
+	-1)
+		_new_template="0"
+		;;
+	8)
+		_new_template="10"
+		;;
+	*)
+		warn "hw.usb.template sysctl set to neither -1 nor 8; not changing"
+		_new_template=""
+		;;
+	esac
+		
+	if [ -n "${_new_template}" ]; then
+		sysctl hw.usb.template="${_new_template}" > /dev/null
 		err=$?
 		if [ "${err}" -ne 0 ]; then
-			warn "unable to set hw.usb.template sysctl"
+			warn "unable to set hw.usb.template sysctl to ${_new_template}"
 			return "${err}"
 		fi
-	else
-		# Otherwise don't touch the sysctl - we could lock the user
-		# out of the machine otherwise.
-		warn "hw.usb.template sysctl set to neither -1 nor 0"
 	fi
 }
 
 cfumass_stop()
 {
-	local err _template
+	local err _template _new_template
+
+	remove_luns
 
 	_template=`sysctl -n hw.usb.template`
-	if [ "${_template}" -eq 0 ]; then
-		sysctl hw.usb.template=-1 > /dev/null
+	case "${_template}" in
+	0)
+		_new_template="-1"
+		;;
+	10)
+		_new_template="8"
+		;;
+	*)
+		warn "hw.usb.template sysctl set to neither 0 nor 10; not changing"
+		_new_template=""
+		;;
+	esac
+		
+	if [ -n "${_new_template}" ]; then
+		sysctl hw.usb.template="${_new_template}" > /dev/null
 		err=$?
 		if [ "${err}" -ne 0 ]; then
-			warn "unable to set hw.usb.template sysctl"
+			warn "unable to set hw.usb.template sysctl to ${_new_template}"
 			return "${err}"
 		fi
 	fi
-
-	remove_luns
 }
 
 load_rc_config $name
