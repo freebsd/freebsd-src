@@ -839,7 +839,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		}
 		if (ia == NULL) {
-			printf("ifa_ifwithnet failed\n");
 			error = ENETUNREACH;
 			goto done;
 		}
