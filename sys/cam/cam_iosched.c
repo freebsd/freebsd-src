@@ -510,7 +510,7 @@ cam_iosched_ticker(void *arg)
 	struct cam_iosched_softc *isc = arg;
 	sbintime_t now, delta;
 
-	callout_reset(&isc->ticker, hz / isc->quanta1, cam_iosched_ticker, isc);
+	callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
 
 	now = sbinuptime();
 	delta = now - isc->last_time;
