@@ -91,7 +91,7 @@ static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
 #if defined(__powerpc64__) && defined(AIM)
 static void	cpu_idle_powerx(sbintime_t);
-static void	cpu_idle_power9(sbintime_t sbt);
+static void	cpu_idle_power9(sbintime_t);
 #endif
 
 struct cputab {
