@@ -487,6 +487,7 @@ main(int argc, char **argv)
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
+	event = NULL;
 	CPU_ZERO(&cpumask);
 
 	/* Default to using the running system kernel. */
