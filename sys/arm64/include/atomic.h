@@ -127,7 +127,7 @@ atomic_fcmpset_##bar##8(volatile uint8_t *p, uint8_t *cmpval,		\
 									\
 static __inline int							\
 atomic_fcmpset_##bar##16(volatile uint16_t *p, uint16_t *cmpval,	\
-    uint8_t newval)		 					\
+    uint16_t newval)		 					\
 {									\
 	uint16_t tmp;							\
 	uint16_t _cmpval = *cmpval;					\
