@@ -1824,9 +1824,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	virtual_avail += PAGE_SIZE;
 	copy_page_dst_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
-	debugf("zero_page_va = 0x%08x\n", zero_page_va);
-	debugf("copy_page_src_va = 0x%08x\n", copy_page_src_va);
-	debugf("copy_page_dst_va = 0x%08x\n", copy_page_dst_va);
+	debugf("zero_page_va = 0x%"PRI0ptrX"\n", zero_page_va);
+	debugf("copy_page_src_va = 0x"PRI0ptrX"\n", copy_page_src_va);
+	debugf("copy_page_dst_va = 0x"PRI0ptrX"\n", copy_page_dst_va);
 
 	/* Initialize page zero/copy mutexes. */
 	mtx_init(&zero_page_mutex, "mmu_booke_zero_page", NULL, MTX_DEF);
@@ -1835,15 +1835,15 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Allocate KVA space for ptbl bufs. */
 	ptbl_buf_pool_vabase = virtual_avail;
 	virtual_avail += PTBL_BUFS * PTBL_PAGES * PAGE_SIZE;
-	debugf("ptbl_buf_pool_vabase = 0x%08x end = 0x%08x\n",
+	debugf("ptbl_buf_pool_vabase = 0x"PRI0ptrX" end = 0x"PRI0ptrX"\n",
 	    ptbl_buf_pool_vabase, virtual_avail);
 
 	/* Calculate corresponding physical addresses for the kernel region. */
 	phys_kernelend = kernload + kernsize;
 	debugf("kernel image and allocated data:\n");
 	debugf(" kernload    = 0x%09llx\n", (uint64_t)kernload);
-	debugf(" kernstart   = 0x%08x\n", kernstart);
-	debugf(" kernsize    = 0x%08x\n", kernsize);
+	debugf(" kernstart   = 0x"PRI0ptrX"\n", kernstart);
+	debugf(" kernsize    = 0x"PRI0ptrX"\n", kernsize);
 
 	if (sizeof(phys_avail) / sizeof(phys_avail[0]) < availmem_regions_sz)
 		panic("mmu_booke_bootstrap: phys_avail too small");
@@ -2263,7 +2263,7 @@ mmu_booke_kremove(mmu_t mmu, vm_offset_t va)
 {
 	pte_t *pte;
 
-	CTR2(KTR_PMAP,"%s: s (va = 0x%08x)\n", __func__, va);
+	CTR2(KTR_PMAP,"%s: s (va = 0x"PRI0ptrX")\n", __func__, va);
 
 	KASSERT(((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va <= VM_MAX_KERNEL_ADDRESS)),
@@ -2720,7 +2720,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	pmap = &td->td_proc->p_vmspace->vm_pmap;
 
-	CTR5(KTR_PMAP, "%s: s (td = %p, proc = '%s', id = %d, pmap = 0x%08x)",
+	CTR5(KTR_PMAP, "%s: s (td = %p, proc = '%s', id = %d, pmap = 0x"PRI0ptrX")",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
 	KASSERT((pmap != kernel_pmap), ("mmu_booke_activate: kernel_pmap!"));
@@ -2756,7 +2756,7 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 
 	pmap = &td->td_proc->p_vmspace->vm_pmap;
 	
-	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
+	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x"PRI0ptrX,
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
 	td->td_pcb->pcb_cpu.booke.dbcr0 = mfspr(SPR_DBCR0);
