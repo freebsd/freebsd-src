@@ -298,7 +298,7 @@ socksetup(const char *src, const char *dst, const char *svcname,
 	error = getaddrinfo(dst, svcname, &hints, &res0);
 	if (error == EAI_SERVICE) {
 		warnx("%s/udp: unknown service", svcname);
-		error = getaddrinfo(dst, "514", &hints, &res);
+		error = getaddrinfo(dst, "514", &hints, &res0);
 	}	
 	if (error)
 		errx(1, "%s: %s", gai_strerror(error), dst);
