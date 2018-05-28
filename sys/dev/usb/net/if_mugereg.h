@@ -207,6 +207,7 @@
 
 /* MAC Control Register */
 #define ETH_MAC_CR			0x100
+#define ETH_MAC_CR_GMII_EN_		(0x1U << 19)	/* GMII Enable */
 #define ETH_MAC_CR_AUTO_DUPLEX_		(0x1U << 12)
 #define ETH_MAC_CR_AUTO_SPEED_		(0x1U << 11)
 
