@@ -270,6 +270,7 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 #define MIGRATION_SPECS_OK	0
 #define MIGRATION_SPECS_NOT_OK	1
 
+#define KERN_DATA_BUFFER_SIZE (4 * MB)
 
 enum checkpoint_opcodes {
 	START_CHECKPOINT = 0,
@@ -296,13 +297,14 @@ enum message_types {
     MESSAGE_TYPE_SPECS	    = 0,
     MESSAGE_TYPE_METADATA   = 1,
     MESSAGE_TYPE_RAM	    = 2,
-    MESSAGE_TYPE_CPU	    = 3,
-    MESSAGE_TYPE_DEVICES    = 4,
+    MESSAGE_TYPE_KERN	    = 3,
+    MESSAGE_TYPE_PCI	    = 4,
 };
 
 struct __attribute__((packed)) migration_message_type {
     size_t len;
-    unsigned int type;
+    unsigned int type;		// enum message_type
+    unsigned int req_type;	// enum snapshot_req
 };
 
 struct __attribute__((packed)) migrate_req {
