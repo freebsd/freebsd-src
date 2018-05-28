@@ -166,13 +166,17 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 	    pmclog_release((PO));						\
 	} while (0)
 
+#define	PMCLOG_DESPATCH_SCHED_LOCK(PO)						\
+	     pmclog_release_flags((PO), 0);							\
+	} while (0)
+
 #define	PMCLOG_DESPATCH(PO)							\
 	    pmclog_release((PO));						\
 		spinlock_exit();							\
 	} while (0)
 
 #define	PMCLOG_DESPATCH_SYNC(PO)						\
-	    pmclog_schedule_io((PO));						\
+	    pmclog_schedule_io((PO), 1);						\
 		spinlock_exit();								\
 		} while (0)
 
@@ -224,7 +228,7 @@ static int pmclog_get_buffer(struct pmc_owner *po);
 static void pmclog_loop(void *arg);
 static void pmclog_release(struct pmc_owner *po);
 static uint32_t *pmclog_reserve(struct pmc_owner *po, int length);
-static void pmclog_schedule_io(struct pmc_owner *po);
+static void pmclog_schedule_io(struct pmc_owner *po, int wakeup);
 static void pmclog_schedule_all(struct pmc_owner *po);
 static void pmclog_stop_kthread(struct pmc_owner *po);
 
@@ -422,7 +426,7 @@ pmclog_loop(void *arg)
 					break;
 
 				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
-				    "pmcloop", 0);
+				    "pmcloop", 250);
 				continue;
 			}
 
@@ -504,7 +508,7 @@ pmclog_loop(void *arg)
  */
 
 static void
-pmclog_release(struct pmc_owner *po)
+pmclog_release_flags(struct pmc_owner *po, int wakeup)
 {
 	struct pmclog_buffer *plb;
 
@@ -518,9 +522,16 @@ pmclog_release(struct pmc_owner *po)
 
 	/* schedule an I/O if we've filled a buffer */
 	if (plb->plb_ptr >= plb->plb_fence)
-		pmclog_schedule_io(po);
+		pmclog_schedule_io(po, wakeup);
 
 	PMCDBG1(LOG,REL,1, "po=%p", po);
+}
+
+static void
+pmclog_release(struct pmc_owner *po)
+{
+
+	pmclog_release_flags(po, 1);
 }
 
 
@@ -583,7 +594,7 @@ pmclog_reserve(struct pmc_owner *po, int length)
 	 * Otherwise, schedule the current buffer for output and get a
 	 * fresh buffer.
 	 */
-	pmclog_schedule_io(po);
+	pmclog_schedule_io(po, 0);
 
 	if (pmclog_get_buffer(po) != 0)
 		goto fail;
@@ -621,7 +632,7 @@ pmclog_reserve(struct pmc_owner *po, int length)
  */
 
 static void
-pmclog_schedule_io(struct pmc_owner *po)
+pmclog_schedule_io(struct pmc_owner *po, int wakeup)
 {
 	struct pmclog_buffer *plb;
 
@@ -645,7 +656,8 @@ pmclog_schedule_io(struct pmc_owner *po)
 	mtx_lock_spin(&po->po_mtx);
 	TAILQ_INSERT_TAIL(&po->po_logbuffers, plb, plb_next);
 	mtx_unlock_spin(&po->po_mtx);
-	wakeup_one(po);
+	if (wakeup)
+		wakeup_one(po);
 }
 
 /*
@@ -841,7 +853,7 @@ pmclog_schedule_one_cond(void *arg)
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
 	plb = po->po_curbuf[curcpu];
 	if (plb && plb->plb_ptr != plb->plb_base)
-		pmclog_schedule_io(po);
+		pmclog_schedule_io(po, 1);
 	spinlock_exit();
 }
 
@@ -1048,12 +1060,12 @@ pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v, st
 
 	po = pm->pm_owner;
 
-	PMCLOG_RESERVE(po, PROCCSW, sizeof(struct pmclog_proccsw));
+	PMCLOG_RESERVE_SAFE(po, PROCCSW, sizeof(struct pmclog_proccsw));
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT64(v);
 	PMCLOG_EMIT32(pp->pp_proc->p_pid);
 	PMCLOG_EMIT32(td->td_tid);
-	PMCLOG_DESPATCH(po);
+	PMCLOG_DESPATCH_SCHED_LOCK(po);
 }
 
 void
