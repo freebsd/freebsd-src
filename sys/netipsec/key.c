@@ -930,13 +930,13 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 		if (entry->sp != NULL)
 			SP_ADDREF(sp);
 
-		IPSECSTAT_INC(ips_spdcache_hits);
+		/* IPSECSTAT_INC(ips_spdcache_hits); */
 
 		SPDCACHE_UNLOCK(hashv);
 		goto out;
 	}
 
-	IPSECSTAT_INC(ips_spdcache_misses);
+	/* IPSECSTAT_INC(ips_spdcache_misses); */
 
 	sp = key_do_allocsp(spidx, dir);
 	entry = spdcache_entry_alloc(spidx, sp);
