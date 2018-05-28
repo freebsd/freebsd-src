@@ -2351,9 +2351,9 @@ pmc_thread_descriptor_pool_free_task(void *arg __unused)
 	/* Determine what changes, if any, we need to make. */
 	mtx_lock_spin(&pmc_threadfreelist_mtx);
 	delta = pmc_threadfreelist_entries - pmc_threadfreelist_max;
-	while (delta > 0) {
-		pt = LIST_FIRST(&pmc_threadfreelist);
-		MPASS(pt);
+	while (delta > 0 &&
+		   (pt = LIST_FIRST(&pmc_threadfreelist)) != NULL) {
+		delta--;
 		LIST_REMOVE(pt, pt_next);
 		LIST_INSERT_HEAD(&tmplist, pt, pt_next);
 	}
@@ -2361,7 +2361,7 @@ pmc_thread_descriptor_pool_free_task(void *arg __unused)
 
 	/* If there are entries to free, free them. */
 	while (!LIST_EMPTY(&tmplist)) {
-		pt = LIST_FIRST(&pmc_threadfreelist);
+		pt = LIST_FIRST(&tmplist);
 		LIST_REMOVE(pt, pt_next);
 		free(pt, M_PMC);
 	}
