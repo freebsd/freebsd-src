@@ -47,7 +47,7 @@ linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
 {
 	int flags, ret;
 
-	MPASS((state & ~TASK_NORMAL) == 0);
+	MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
 
 	flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
 	    SLEEPQ_INTERRUPTIBLE : 0);
