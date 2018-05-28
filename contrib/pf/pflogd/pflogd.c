@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <net/bpf.h>
 #include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>

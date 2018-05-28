@@ -67,7 +67,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopie \
 	libpam \
 	libpathconv \
-	libpcap \
+	${_libpcap} \
 	libpjdlog \
 	${_libproc} \
 	libprocstat \
@@ -182,6 +182,14 @@ SUBDIR.${MK_PMC}+=	libopencsd
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_PMC}+=	libipt
 SUBDIR.${MK_BHYVE}+=	libvmmapi
+.endif
+
+.if ${MK_OFED} == "no"
+#
+# When OFED is enabled libpcap is built as part of
+# OFED due to library dependencies
+#
+_libpcap=	libpcap
 .endif
 
 .if ${MACHINE_CPUARCH} != "sparc64"
