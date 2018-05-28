@@ -720,8 +720,10 @@ typedef struct {
 	uint64_t attr;
 } EFI_MEMORY_DESCRIPTOR;
 
+typedef void (*efi_map_entry_cb)(struct efi_md *);
+
 static void
-add_efi_map_entries(struct efi_map_header *efihdr)
+foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -797,23 +799,67 @@ add_efi_map_entries(struct efi_map_header *efihdr)
 			printf("\n");
 		}
 
-		switch (p->md_type) {
-		case EFI_MD_TYPE_CODE:
-		case EFI_MD_TYPE_DATA:
-		case EFI_MD_TYPE_BS_CODE:
-		case EFI_MD_TYPE_BS_DATA:
-		case EFI_MD_TYPE_FREE:
-			/*
-			 * We're allowed to use any entry with these types.
-			 */
-			break;
-		default:
-			continue;
-		}
+		cb(p);
+	}
+}
 
+static void
+exclude_efi_map_entry(struct efi_md *p)
+{
+
+	switch (p->md_type) {
+	case EFI_MD_TYPE_CODE:
+	case EFI_MD_TYPE_DATA:
+	case EFI_MD_TYPE_BS_CODE:
+	case EFI_MD_TYPE_BS_DATA:
+	case EFI_MD_TYPE_FREE:
+		/*
+		 * We're allowed to use any entry with these types.
+		 */
+		break;
+	default:
+		arm_physmem_exclude_region(p->md_phys, p->md_pages * PAGE_SIZE,
+		    EXFLAG_NOALLOC);
+	}
+}
+
+static void
+exclude_efi_map_entries(struct efi_map_header *efihdr)
+{
+
+	foreach_efi_map_entry(efihdr, exclude_efi_map_entry);
+}
+
+static void
+add_efi_map_entry(struct efi_md *p)
+{
+
+	switch (p->md_type) {
+	case EFI_MD_TYPE_RT_DATA:
+		/*
+		 * Runtime data will be excluded after the DMAP
+		 * region is created to stop it from being added
+		 * to phys_avail.
+		 */
+	case EFI_MD_TYPE_CODE:
+	case EFI_MD_TYPE_DATA:
+	case EFI_MD_TYPE_BS_CODE:
+	case EFI_MD_TYPE_BS_DATA:
+	case EFI_MD_TYPE_FREE:
+		/*
+		 * We're allowed to use any entry with these types.
+		 */
 		arm_physmem_hardware_region(p->md_phys,
 		    p->md_pages * PAGE_SIZE);
+		break;
 	}
+}
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr)
+{
+
+	foreach_efi_map_entry(efihdr, add_efi_map_entry);
 }
 
 #ifdef FDT
@@ -1001,6 +1047,9 @@ initarm(struct arm64_bootparams *abp)
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
 	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
+	/* Exclude entries neexed in teh DMAP region, but not phys_avail */
+	if (efihdr != NULL)
+		exclude_efi_map_entries(efihdr);
 	arm_physmem_init_kernel_globals();
 
 	devmap_bootstrap(0, NULL);
