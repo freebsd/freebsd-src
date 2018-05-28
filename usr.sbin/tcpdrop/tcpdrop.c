@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 
 	dropall = false;
 	dropallstack = false;
-	memset(stack, 0, TCP_FUNCTION_NAME_LEN_MAX);
+	stack[0] = '\0';
 	state = -1;
 
 	while ((ch = getopt(argc, argv, "alS:s:")) != -1) {
@@ -86,7 +86,7 @@ main(int argc, char *argv[])
 			break;
 		case 'S':
 			dropallstack = true;
-			strncpy(stack, optarg, TCP_FUNCTION_NAME_LEN_MAX);
+			strlcpy(stack, optarg, sizeof(stack));
 			break;
 		case 's':
 			dropallstack = true;
@@ -260,7 +260,7 @@ tcpdropall(const char *stack, int state)
 			continue;
 
 		/* If requested, skip sockets not having the requested stack. */
-		if (strnlen(stack, TCP_FUNCTION_NAME_LEN_MAX) > 0 &&
+		if (stack[0] != '\0' &&
 		    strncmp(xtp->xt_stack, stack, TCP_FUNCTION_NAME_LEN_MAX))
 			continue;
 
