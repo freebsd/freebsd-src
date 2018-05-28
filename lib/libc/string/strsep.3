@@ -86,9 +86,10 @@ to parse a string, and prints each token in separate line:
 char *token, *string, *tofree;
 
 tofree = string = strdup("abc,def,ghi");
-if (string != NULL)
-	while ((token = strsep(&string, ",")) != NULL)
-		printf("%s\en", token);
+if (string == NULL)
+	err(1, "strdup");
+while ((token = strsep(&string, ",")) != NULL)
+	printf("%s\en", token);
 
 free(tofree);
 .Ed
