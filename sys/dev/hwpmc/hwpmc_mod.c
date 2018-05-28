@@ -2406,8 +2406,10 @@ pmc_find_thread_descriptor(struct pmc_process *pp, struct thread *td,
 	 */
 	if (mode & PMC_FLAG_ALLOCATE) {
 		if ((ptnew = pmc_thread_descriptor_pool_alloc()) == NULL) {
-			wait_flag = (mode & PMC_FLAG_NOWAIT) ? M_NOWAIT :
-			    M_WAITOK;
+			wait_flag = M_WAITOK;
+			if ((mode & PMC_FLAG_NOWAIT) || in_epoch())
+				wait_flag = M_NOWAIT;
+
 			ptnew = malloc(THREADENTRY_SIZE, M_PMC,
 			    wait_flag|M_ZERO);
 		}
