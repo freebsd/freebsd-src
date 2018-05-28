@@ -490,7 +490,7 @@ vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
 				*m_hold = &m[i];
 				vm_page_hold(&m[i]);
 			}
-			vm_page_xunbusy(&m[i]);
+			vm_page_xunbusy_maybelocked(&m[i]);
 		}
 		if (m_mtx != NULL)
 			mtx_unlock(m_mtx);
