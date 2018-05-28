@@ -370,6 +370,18 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 fi
 
 #
+# Validate arguments
+#
+for name in "$@"; do
+	# NB: shell expansion syntax removed first
+	name="${name%%:[+=-]*}"
+	name="${name%%[%#+=-]*}"
+	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
+		"%s: %s: name contains characters not allowed in shell" \
+		"$pgm" "$name"
+done
+
+#
 # Process `-s name' argument
 #
 if [ "$SERVICE" -a ! "${RC_CONFS+set}" ]; then
