@@ -651,7 +651,7 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	while ((opt = strsep(&opts, ",")) != NULL) {
 		portname = strsep(&opt, "=");
-		portpath = strdup(opt);
+		portpath = opt;
 
 		/* create port */
 		if (pci_vtcon_sock_add(sc, portname, portpath) < 0) {
