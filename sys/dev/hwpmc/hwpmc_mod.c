@@ -3253,6 +3253,16 @@ pmc_stop(struct pmc *pm)
 	return (error);
 }
 
+static struct pmc_classdep *
+pmc_class_to_classdep(enum pmc_class class)
+{
+	int n;
+
+	for (n = 0; n < md->pmd_nclass; n++)
+		if (md->pmd_classdep[n].pcd_class == class)
+			return (&md->pmd_classdep[n]);
+	return (NULL);
+}
 
 #ifdef	HWPMC_DEBUG
 static const char *pmc_op_to_name[] = {
@@ -3816,16 +3826,14 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			caps |= PMC_CAP_INTERRUPT;
 
 		/* A valid class specifier should have been passed in. */
-		for (n = 0; n < md->pmd_nclass; n++)
-			if (md->pmd_classdep[n].pcd_class == pa.pm_class)
-				break;
-		if (n == md->pmd_nclass) {
+		pcd = pmc_class_to_classdep(pa.pm_class);
+		if (pcd == NULL) {
 			error = EINVAL;
 			break;
 		}
 
 		/* The requested PMC capabilities should be feasible. */
-		if ((md->pmd_classdep[n].pcd_caps & caps) != caps) {
+		if ((pcd->pcd_caps & caps) != caps) {
 			error = EOPNOTSUPP;
 			break;
 		}
@@ -3852,7 +3860,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if (PMC_IS_SYSTEM_MODE(mode)) {
 			pmc_select_cpu(cpu);
-			for (n = 0; n < (int) md->pmd_npmc; n++) {
+			for (n = pcd->pcd_ri; n < (int) md->pmd_npmc; n++) {
 				pcd = pmc_ri_to_classdep(md, n, &adjri);
 				if (pmc_can_allocate_row(n, mode) == 0 &&
 				    pmc_can_allocate_rowindex(
@@ -3865,7 +3873,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			}
 		} else {
 			/* Process virtual mode */
-			for (n = 0; n < (int) md->pmd_npmc; n++) {
+			for (n = pcd->pcd_ri; n < (int) md->pmd_npmc; n++) {
 				pcd = pmc_ri_to_classdep(md, n, &adjri);
 				if (pmc_can_allocate_row(n, mode) == 0 &&
 				    pmc_can_allocate_rowindex(
@@ -3929,6 +3937,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		}
 
 		pmc->pm_state    = PMC_STATE_ALLOCATED;
+		pmc->pm_class	= pa.pm_class;
 
 		/*
 		 * mark row disposition
