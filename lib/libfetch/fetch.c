@@ -444,15 +444,14 @@ nohost:
 		goto ouch;
 	}
 
-	DEBUG(fprintf(stderr,
-		  "scheme:   \"%s\"\n"
-		  "user:     \"%s\"\n"
-		  "password: \"%s\"\n"
-		  "host:     \"%s\"\n"
-		  "port:     \"%d\"\n"
-		  "document: \"%s\"\n",
-		  u->scheme, u->user, u->pwd,
-		  u->host, u->port, u->doc));
+	DEBUGF("scheme:   \"%s\"\n"
+	    "user:     \"%s\"\n"
+	    "password: \"%s\"\n"
+	    "host:     \"%s\"\n"
+	    "port:     \"%d\"\n"
+	    "document: \"%s\"\n",
+	    u->scheme, u->user, u->pwd,
+	    u->host, u->port, u->doc);
 
 	return (u);
 

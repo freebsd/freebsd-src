@@ -347,7 +347,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	conn_t *conn = NULL;
 	int err = 0, sd = -1;
 
-	DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
+	DEBUGF("---> %s:%d\n", host, port);
 
 	/* resolve server address */
 	if (verbose)
@@ -1158,7 +1158,7 @@ fetch_getln(conn_t *conn)
 	} while (c != '\n');
 
 	conn->buf[conn->buflen] = '\0';
-	DEBUG(fprintf(stderr, "<<< %s", conn->buf));
+	DEBUGF("<<< %s", conn->buf);
 	return (0);
 }
 
@@ -1263,7 +1263,7 @@ fetch_putln(conn_t *conn, const char *str, size_t len)
 	struct iovec iov[2];
 	int ret;
 
-	DEBUG(fprintf(stderr, ">>> %s\n", str));
+	DEBUGF(">>> %s\n", str);
 	iov[0].iov_base = __DECONST(char *, str);
 	iov[0].iov_len = len;
 	iov[1].iov_base = __DECONST(char *, ENDL);
@@ -1403,13 +1403,13 @@ fetch_netrc_auth(struct url *url)
 	rewind(f);
 	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "default") == 0) {
-			DEBUG(fetch_info("Using default .netrc settings"));
+			DEBUGF("Using default .netrc settings");
 			break;
 		}
 		if (strcmp(word, "machine") == 0 &&
 		    (word = fetch_read_word(f)) != NULL &&
 		    strcasecmp(word, url->host) == 0) {
-			DEBUG(fetch_info("Using .netrc settings for %s", word));
+			DEBUGF("Using .netrc settings for %s", word);
 			break;
 		}
 	}
