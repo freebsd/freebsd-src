@@ -775,6 +775,7 @@ struct pmc {
 	 */
 
 	pmc_id_t	pm_id;		/* allocated PMC id */
+	enum pmc_class pm_class;
 
 	/* md extensions */
 	union pmc_md_pmc	pm_md;
