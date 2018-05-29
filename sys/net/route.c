@@ -653,6 +653,7 @@ rtredirect_fib(struct sockaddr *dst,
 			info.rti_info[RTAX_DST] = dst;
 			info.rti_info[RTAX_GATEWAY] = gateway;
 			info.rti_info[RTAX_NETMASK] = netmask;
+			ifa_ref(ifa);
 			info.rti_ifa = ifa;
 			info.rti_flags = flags;
 			error = rtrequest1_fib(RTM_ADD, &info, &rt, fibnum);
@@ -899,7 +900,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 	info->rti_flags = rt->rt_flags;
 	info->rti_ifp = rt->rt_ifp;
 	info->rti_ifa = rt->rt_ifa;
-
+	ifa_ref(info->rti_ifa);
 	if (flags & NHR_REF) {
 		/* Do 'traditional' refcouting */
 		if_ref(info->rti_ifp);
@@ -1275,12 +1276,14 @@ int
 rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 {
 	struct ifaddr *ifa;
-	int error = 0;
+	int needref, error;
 
 	/*
 	 * ifp may be specified by sockaddr_dl
 	 * when protocol address is ambiguous.
 	 */
+	error = 0;
+	needref = (info->rti_ifa == NULL);
 	NET_EPOCH_ENTER();
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
@@ -1303,7 +1306,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 			info->rti_ifa = ifa_ifwithroute(flags, sa, sa,
 							fibnum);
 	}
-	if ((ifa = info->rti_ifa) != NULL) {
+	if (needref && info->rti_ifa != NULL) {
 		if (info->rti_ifp == NULL)
 			info->rti_ifp = ifa->ifa_ifp;
 		ifa_ref(info->rti_ifa);
@@ -1785,6 +1788,7 @@ rtrequest1_fib_change(struct rib_head *rnh, struct rt_addrinfo *info,
 		if (rt->rt_ifa->ifa_rtrequest != NULL)
 			rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 		ifa_free(rt->rt_ifa);
+		rt->rt_ifa = NULL;
 	}
 	/* Update gateway address */
 	if (info->rti_info[RTAX_GATEWAY] != NULL) {
@@ -1836,8 +1840,10 @@ rtrequest1_fib_change(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 bad:
 	RT_UNLOCK(rt);
-	if (free_ifa != 0)
+	if (free_ifa != 0) {
 		ifa_free(info->rti_ifa);
+		info->rti_ifa = NULL;
+	}
 	return (error);
 }
 
@@ -2052,6 +2058,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 * Do the actual request
 		 */
 		bzero((caddr_t)&info, sizeof(info));
+		ifa_ref(ifa);
 		info.rti_ifa = ifa;
 		info.rti_flags = flags |
 		    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
