@@ -384,6 +384,19 @@ cnungrab()
 	}
 }
 
+void
+cnresume()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (cn->cn_ops->cn_resume != NULL)
+			cn->cn_ops->cn_resume(cn);
+	}
+}
+
 /*
  * Low level console routines.
  */
