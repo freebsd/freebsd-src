@@ -29,12 +29,12 @@
 #	Abbr		Abbreviation of sequence name
 #	Name		Sequence name (will be converted to C function name)
 #	Sequence	Bytes that form the sequence
-#	Arguments	Standard value of arguments passed to this sequence
+#	Args		Standard value of arguments passed to this sequence
 #			- `n' non-zero number (0 gets converted to 1)
 #			- `r' regular numeric argument
 #			- `v' means a variable number of arguments
 
-# Abbr		Name					Sequence	Arguments
+# Abbr		Name					Sequence	Args
 CBT		Cursor Backward Tabulation		^[ [ Z		n
 CHT		Cursor Forward Tabulation		^[ [ I		n
 CNL		Cursor Next Line			^[ [ E		n
@@ -113,4 +113,4 @@ C25SGR		Cons25 set graphic rendition		^[ [ x		r r
 C25VTSW		Cons25 switch virtual terminal		^[ [ z		r
 
 # VT52 compatibility
-#DECID	VT52 DECID				^[ Z
+#DECID		VT52 DECID				^[ Z
