@@ -393,7 +393,8 @@ main(int argc, char *argv[])
 
 #ifndef HAVE_CRYPTO
 	if (pubkeyfile != NULL)
-		errx("Unable to use the public key. Recompile dumpon with OpenSSL support.");
+		errx(EX_UNAVAILABLE,"Unable to use the public key."
+				    " Recompile dumpon with OpenSSL support.");
 #endif
 
 	if (server != NULL && client != NULL) {
