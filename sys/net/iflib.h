@@ -404,11 +404,11 @@ int iflib_device_deregister(if_ctx_t);
 
 
 
-int iflib_irq_alloc(if_ctx_t, if_irq_t, int, driver_filter_t, void *filter_arg, driver_intr_t, void *arg, char *name);
+int iflib_irq_alloc(if_ctx_t, if_irq_t, int, driver_filter_t, void *filter_arg, driver_intr_t, void *arg, const char *name);
 int iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
-							iflib_intr_type_t type, driver_filter_t *filter,
-							void *filter_arg, int qid, char *name);
-void iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, char *name);
+			    iflib_intr_type_t type, driver_filter_t *filter,
+			    void *filter_arg, int qid, const char *name);
+void iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, const char *name);
 
 void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 
