@@ -283,8 +283,7 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
-	KASSERT((pos - argarray) / sizeof(*pos) <= LINUX_AT_COUNT,
-	    ("Too many auxargs"));
+	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
 	error = copyout(argarray, auxbase, sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
