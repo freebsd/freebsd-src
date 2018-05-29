@@ -108,15 +108,6 @@ static struct mtx encapmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
 static LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(encaptab);
 
-/*
- * We currently keey encap_init() for source code compatibility reasons --
- * it's referenced by KAME pieces in netinet6.
- */
-void
-encap_init(void)
-{
-}
-
 #ifdef INET
 int
 encap4_input(struct mbuf **mp, int *offp, int proto)
