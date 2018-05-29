@@ -967,7 +967,7 @@ if_purgeaddrs(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *next;
 
-	/* XXX cannot hold IF_ADDR_WLOCK over called functions. */
+	NET_EPOCH_ENTER();
 	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
@@ -997,6 +997,7 @@ if_purgeaddrs(struct ifnet *ifp)
 		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);
 	}
+	NET_EPOCH_EXIT();
 }
 
 /*
@@ -2196,6 +2197,10 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
 		oifa = rt->rt_ifa;
+		if (oifa != ifa) {
+			ifa_free(oifa);
+			ifa_ref(ifa);
+		}
 		rt->rt_ifa = ifa;
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
@@ -3675,10 +3680,8 @@ if_delmulti_ifma_flags(struct ifmultiaddr *ifma, int flags)
 		CK_STAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
-		if (ifp != oifp) {
-			printf("%s: ifnet %p disappeared\n", __func__, ifp);
+		if (ifp != oifp)
 			ifp = NULL;
-		}
 		IFNET_RUNLOCK_NOSLEEP();
 	}
 #endif
