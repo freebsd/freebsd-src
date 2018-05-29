@@ -272,6 +272,7 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 		fetch_syserr();
 		return (NULL);
 	}
+	u->netrcfd = -1;
 
 	if ((u->doc = strdup(doc ? doc : "/")) == NULL) {
 		fetch_syserr();
@@ -286,7 +287,6 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 	seturl(pwd);
 #undef seturl
 	u->port = port;
-	u->netrcfd = -2;
 
 	return (u);
 }
@@ -352,7 +352,7 @@ fetchParseURL(const char *URL)
 		fetch_syserr();
 		return (NULL);
 	}
-	u->netrcfd = -2;
+	u->netrcfd = -1;
 
 	/* scheme name */
 	if ((p = strstr(URL, ":/"))) {
