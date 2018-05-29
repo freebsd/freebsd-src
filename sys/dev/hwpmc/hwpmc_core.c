@@ -256,13 +256,6 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	validflags = IAF_MASK;
 
-	if (core_cputype != PMC_CPU_INTEL_ATOM &&
-		core_cputype != PMC_CPU_INTEL_ATOM_SILVERMONT)
-		validflags &= ~IAF_ANY;
-
-	if ((flags & ~validflags) != 0)
-		return (EINVAL);
-
 	if (caps & PMC_CAP_INTERRUPT)
 		flags |= IAF_PMI;
 	if (caps & PMC_CAP_SYSTEM)
@@ -445,10 +438,6 @@ iaf_stop_pmc(int cpu, int ri)
 	    ("[core,%d] illegal row-index %d", __LINE__, ri));
 
 	fc = (IAF_MASK << (ri * 4));
-
-	if (core_cputype != PMC_CPU_INTEL_ATOM &&
-		core_cputype != PMC_CPU_INTEL_ATOM_SILVERMONT)
-		fc &= ~IAF_ANY;
 
 	iafc->pc_iafctrl &= ~fc;
 
