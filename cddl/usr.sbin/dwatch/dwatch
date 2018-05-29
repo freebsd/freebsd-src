@@ -47,7 +47,7 @@ DTRACE_PRAGMA="
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 1.3 $' # -V
+VERSION='$Version: 1.4 $' # -V
 
 pgm="${0##*/}" # Program basename
 
@@ -576,8 +576,8 @@ load_profile()
 		ARGV="$ARGV -z '$( shell_escape "$EXECREGEX" )'"
 	[ "$CUSTOM_DETAILS" ] &&
 		ARGV="$ARGV -E '$( shell_escape "$EVENT_DETAILS" )'"
-	[ "$EVENT_TEST" ] &&
-		ARGV="$ARGV -t '$( shell_escape "$EVENT_TEST" )'"
+	[ "$CUSTOM_TEST" ] &&
+		ARGV="$ARGV -t '$( shell_escape "$CUSTOM_TEST" )'"
 	[ "$OUTPUT" ] &&
 		ARGV="$ARGV -o '$( shell_escape "$OUTPUT" )'"
 	[ "$OUTPUT_CMD" ] &&
