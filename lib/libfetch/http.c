@@ -780,9 +780,9 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 			goto out;
 		}
 		init_http_auth_challenge(cs->challenges[cs->count]);
-		if (!strcasecmp(key, "basic")) {
+		if (strcasecmp(key, "basic") == 0) {
 			cs->challenges[cs->count]->scheme = HTTPAS_BASIC;
-		} else if (!strcasecmp(key, "digest")) {
+		} else if (strcasecmp(key, "digest") == 0) {
 			cs->challenges[cs->count]->scheme = HTTPAS_DIGEST;
 		} else {
 			cs->challenges[cs->count]->scheme = HTTPAS_UNKNOWN;
@@ -811,25 +811,27 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 			if (lex != HTTPHL_WORD && lex != HTTPHL_STRING)
 				goto out;
 
-			if (!strcasecmp(key, "realm"))
+			if (strcasecmp(key, "realm") == 0) {
 				cs->challenges[cs->count]->realm =
-					strdup(value);
-			else if (!strcasecmp(key, "qop"))
+				    strdup(value);
+			} else if (strcasecmp(key, "qop") == 0) {
 				cs->challenges[cs->count]->qop =
-					strdup(value);
-			else if (!strcasecmp(key, "nonce"))
+				    strdup(value);
+			} else if (strcasecmp(key, "nonce") == 0) {
 				cs->challenges[cs->count]->nonce =
-					strdup(value);
-			else if (!strcasecmp(key, "opaque"))
+				    strdup(value);
+			} else if (strcasecmp(key, "opaque") == 0) {
 				cs->challenges[cs->count]->opaque =
-					strdup(value);
-			else if (!strcasecmp(key, "algorithm"))
+				    strdup(value);
+			} else if (strcasecmp(key, "algorithm") == 0) {
 				cs->challenges[cs->count]->algo =
-					strdup(value);
-			else if (!strcasecmp(key, "stale"))
+				    strdup(value);
+			} else if (strcasecmp(key, "stale") == 0) {
 				cs->challenges[cs->count]->stale =
-					strcasecmp(value, "no");
-			/* Else ignore unknown attributes */
+				    strcasecmp(value, "no");
+			} else {
+				/* ignore unknown attributes */
+			}
 
 			/* Comma or Next challenge or End */
 			lex = http_header_lex(&cp, key);
@@ -1262,8 +1264,8 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 		c->algo = strdup("");
 
 	if (asprintf(&options, "%s%s%s%s",
-		     *c->algo? ",algorithm=" : "", c->algo,
-		     c->opaque? ",opaque=" : "", c->opaque?c->opaque:"")== -1)
+	    *c->algo? ",algorithm=" : "", c->algo,
+	    c->opaque? ",opaque=" : "", c->opaque?c->opaque:"") < 0)
 		return (-1);
 
 	if (!c->qop) {
@@ -1349,8 +1351,8 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 	}
 
 	/* Error if "Digest" was specified and there is no Digest challenge */
-	if (!digest && (parms->scheme &&
-			!strcasecmp(parms->scheme, "digest"))) {
+	if (!digest &&
+	    (parms->scheme && strcasecmp(parms->scheme, "digest") == 0)) {
 		DEBUGF("Digest auth in env, not supported by peer\n");
 		return (-1);
 	}
@@ -1359,7 +1361,8 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 	 * challenge, do the basic thing. Don't need a challenge for this,
 	 * so no need to check basic!=NULL
 	 */
-	if (!digest || (parms->scheme && !strcasecmp(parms->scheme,"basic")))
+	if (!digest ||
+	    (parms->scheme && strcasecmp(parms->scheme, "basic") == 0))
 		return (http_basic_auth(conn,hdr,parms->user,parms->password));
 
 	/* Else, prefer digest. We just checked that it's not NULL */
@@ -1851,11 +1854,12 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				if (new)
 					free(new);
 				if (verbose)
-					fetch_info("%d redirect to %s", conn->err, p);
+					fetch_info("%d redirect to %s",
+					    conn->err, p);
 				if (*p == '/')
 					/* absolute path */
-					new = fetchMakeURL(url->scheme, url->host, url->port, p,
-					    url->user, url->pwd);
+					new = fetchMakeURL(url->scheme, url->host,
+					    url->port, p, url->user, url->pwd);
 				else
 					new = fetchParseURL(p);
 				if (new == NULL) {
@@ -1865,7 +1869,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				}
 
 				/* Only copy credentials if the host matches */
-				if (!strcmp(new->host, url->host) && !*new->user && !*new->pwd) {
+				if (strcmp(new->host, url->host) == 0 &&
+				    !*new->user && !*new->pwd) {
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}
