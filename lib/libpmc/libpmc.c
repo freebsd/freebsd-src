@@ -2781,7 +2781,8 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 
 	if (mode != PMC_MODE_SS && mode != PMC_MODE_TS &&
 	    mode != PMC_MODE_SC && mode != PMC_MODE_TC) {
-		return (EINVAL);
+		errno = EINVAL;
+		goto out;
 	}
 	bzero(&pmc_config, sizeof(pmc_config));
 	pmc_config.pm_cpu   = cpu;
