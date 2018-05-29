@@ -306,21 +306,21 @@ static struct option longopts[] = {
 static int
 pmc_stat_internal(int argc, char **argv, int system_mode)
 {
-	const char *event;
+	char *event, *r;
 	struct sigaction sa;
 	struct kevent kev;
 	struct rusage ru;
 	struct winsize ws;
 	struct pmcstat_ev *ev;
-	int c, option, runstate, do_print, do_read;
+	int c, option, runstate;
 	int waitstatus, ru_valid;
 
-	ru_valid = do_print = do_read = 0;
-	event = NULL;
+	ru_valid = 0;
+	r = event = NULL;
 	while ((option = getopt_long(argc, argv, "j:", longopts, NULL)) != -1) {
 		switch (option) {
 		case 'j':
-			event = strdup(optarg);
+			r = event = strdup(optarg);
 			break;
 		case '?':
 		default:
@@ -333,7 +333,8 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 		usage();
 	pmc_args.pa_flags |= FLAG_HAS_COMMANDLINE;
 	pmc_stat_setup_stat(system_mode, event);
-
+	free(r);
+	bzero(&ru, sizeof(ru));
 	EV_SET(&kev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
 	if (kevent(pmc_kq, &kev, 1, NULL, 0, NULL) < 0)
 		err(EX_OSERR, "ERROR: Cannot register kevent for SIGINT");
@@ -394,7 +395,6 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
  * are killed by a SIGINT or we reached the time duration.
  */
 	runstate = PMCSTAT_RUNNING;
-	do_print = do_read = 0;
 	do {
 		if ((c = kevent(pmc_kq, NULL, 0, &kev, 1, NULL)) <= 0) {
 			if (errno != EINTR)
@@ -411,11 +411,9 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 				getrusage(RUSAGE_CHILDREN, &ru);
 				ru_valid = 1;
 			}
-			do_print = 1;
 			break;
 
 		case EVFILT_READ:	/* log file data is present */
-			do_read = 0;
 			break;
 
 		case EVFILT_SIGNAL:
@@ -439,7 +437,6 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 					ru_valid = 1;
 				}
 				runstate = pmcstat_close_log(&pmc_args);
-				do_print = 1;	/* print PMCs at exit */
 			} else if (kev.ident == SIGINT) {
 				/* Kill the child process if we started it */
 				if (pmc_args.pa_flags & FLAG_HAS_COMMANDLINE)
