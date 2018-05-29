@@ -2796,9 +2796,9 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
 		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0) {
-			retval = errno;
 			goto out;
 		}
+		retval = 0;
 		*pmcid = pmc_config.pm_pmcid;
 		goto out;
 	} else {
