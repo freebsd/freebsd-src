@@ -3507,6 +3507,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
 	ifp->if_capabilities |= IFCAP_HWSTATS | IFCAP_HWRXTSTMP;
+#ifdef RATELIMIT
+	ifp->if_capabilities |= IFCAP_TXRTLMT;
+	ifp->if_snd_tag_alloc = mlx5e_rl_snd_tag_alloc;
+	ifp->if_snd_tag_free = mlx5e_rl_snd_tag_free;
+	ifp->if_snd_tag_modify = mlx5e_rl_snd_tag_modify;
+	ifp->if_snd_tag_query = mlx5e_rl_snd_tag_query;
+#endif
 
 	/* set TSO limits so that we don't have to drop TX packets */
 	ifp->if_hw_tsomax = MLX5E_MAX_TX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
@@ -3588,6 +3595,14 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		random_ether_addr(dev_addr);
 		if_printf(ifp, "Assigned random MAC address\n");
 	}
+#ifdef RATELIMIT
+	err = mlx5e_rl_init(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_rl_init failed, %d\n",
+		    __func__, err);
+		goto err_create_mkey;
+	}
+#endif
 
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
@@ -3673,6 +3688,10 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
+#ifdef RATELIMIT
+err_create_mkey:
+	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
+#endif
 err_dealloc_transport_domain:
 	mlx5_dealloc_transport_domain(mdev, priv->tdn);
 
@@ -3715,6 +3734,18 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	/* XXX wait a bit to allow IOCTL handlers to complete */
 	pause("W", hz);
 
+#ifdef RATELIMIT
+	/*
+	 * The kernel can have reference(s) via the m_snd_tag's into
+	 * the ratelimit channels, and these must go away before
+	 * detaching:
+	 */
+	while (READ_ONCE(priv->rl.stats.tx_active_connections) != 0) {
+		if_printf(priv->ifp, "Waiting for all ratelimit connections "
+		    "to terminate\n");
+		pause("W", hz);
+	}
+#endif
 	/* stop watchdog timer */
 	callout_drain(&priv->watchdog);
 
@@ -3735,6 +3766,9 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
+#ifdef RATELIMIT
+	mlx5e_rl_cleanup(priv);
+#endif
 	/* destroy all remaining sysctl nodes */
 	if (priv->sysctl_debug)
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
