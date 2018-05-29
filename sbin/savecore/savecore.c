@@ -305,7 +305,7 @@ symlinks_remove(void)
 	(void)unlink("key.last");
 	(void)unlink("vmcore.last");
 	(void)unlink("vmcore.last.gz");
-	(void)unlink("vmcore.last.zstd");
+	(void)unlink("vmcore.last.zst");
 	(void)unlink("vmcore_encrypted.last");
 	(void)unlink("vmcore_encrypted.last.gz");
 	(void)unlink("textdump.tar.last");
