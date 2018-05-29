@@ -56,9 +56,9 @@ int grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
 void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *grptask,
 	    void *uniq, int irq, const char *name);
 int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *grptask,
-		void *uniq, int cpu, int irq, char *name);
+		void *uniq, int cpu, int irq, const char *name);
 void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
-struct taskqgroup *taskqgroup_create(char *name);
+struct taskqgroup *taskqgroup_create(const char *name);
 void	taskqgroup_destroy(struct taskqgroup *qgroup);
 int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
