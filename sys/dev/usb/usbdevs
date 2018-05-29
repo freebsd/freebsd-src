@@ -507,7 +507,7 @@ vendor HAL		0x0b41	HAL Corporation
 vendor EMS		0x0b43	EMS Production
 vendor NEC2		0x0b62	NEC
 vendor ADLINK		0x0b63	ADLINK Technoligy, Inc.
-vendor ATI2		0x0b6f	ATI
+vendor ATI2		0x0b6f	ATI Technologies
 vendor ZEEVO		0x0b7a	Zeevo, Inc.
 vendor KURUSUGAWA	0x0b7e	Kurusugawa Electronics, Inc.
 vendor SMART		0x0b8c	Smart Technologies
@@ -579,6 +579,7 @@ vendor MOTOROLA4	0x100d	Motorola
 vendor HP3		0x103c	Hewlett Packard
 vendor AIRPLUS		0x1011  Airplus
 vendor DESKNOTE		0x1019	Desknote
+vendor AMD2		0x1022  Advanced Micro Devices
 vendor NEC3		0x1033	NEC
 vendor TTI		0x103e	Thurlby Thandar Instruments
 vendor GIGABYTE		0x1044	GIGABYTE
