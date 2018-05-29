@@ -315,10 +315,8 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 		return (ENOENT);
 
 	for (idx = 0; fixed_mode_cntrs[idx] != NULL; idx++)
-		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0) {
+		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0)
 			isfixed = 1;
-			printf("%s is fixed\n", event_name);
-		}
 
 	if (isfixed) {
 		if (strcasestr(pe->desc, "retired") != NULL)
