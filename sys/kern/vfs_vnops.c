@@ -2494,7 +2494,7 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 		if ((prot & VM_PROT_EXECUTE) != 0 && error == 0) {
 			pkm.pm_file = vp;
 			pkm.pm_address = (uintptr_t) *addr;
-			PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+			PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_MMAP, (void *) &pkm);
 		}
 	}
 #endif
