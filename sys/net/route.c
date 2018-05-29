@@ -1308,7 +1308,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	}
 	if (needref && info->rti_ifa != NULL) {
 		if (info->rti_ifp == NULL)
-			info->rti_ifp = ifa->ifa_ifp;
+			info->rti_ifp = info->rti_ifa->ifa_ifp;
 		ifa_ref(info->rti_ifa);
 	} else
 		error = ENETUNREACH;
