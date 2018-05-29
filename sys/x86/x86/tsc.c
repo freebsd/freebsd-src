@@ -505,19 +505,6 @@ retry:
 
 #undef N
 
-#else
-
-/*
- * The function is not called, it is provided to avoid linking failure
- * on uniprocessor kernel.
- */
-static int
-test_tsc(int adj_max_count __unused)
-{
-
-	return (0);
-}
-
 #endif /* SMP */
 
 static void
@@ -578,9 +565,12 @@ init_TSC_tc(void)
 	 * non-zero value.  The TSC seems unreliable in virtualized SMP
 	 * environments, so it is set to a negative quality in those cases.
 	 */
+#ifdef SMP
 	if (mp_ncpus > 1)
 		tsc_timecounter.tc_quality = test_tsc(smp_tsc_adjust);
-	else if (tsc_is_invariant)
+	else
+#endif /* SMP */
+	if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
@@ -618,6 +608,7 @@ SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
 void
 resume_TSC(void)
 {
+#ifdef SMP
 	int quality;
 
 	/* If TSC was not good on boot, it is unlikely to become good now. */
@@ -637,6 +628,7 @@ resume_TSC(void)
 		    tsc_timecounter.tc_quality, quality);
 		tsc_timecounter.tc_quality = quality;
 	}
+#endif /* SMP */
 }
 
 /*
