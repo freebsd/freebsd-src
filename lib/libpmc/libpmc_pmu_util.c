@@ -131,7 +131,7 @@ pmu_event_get(const char *event_name, int *idx)
 }
 
 const char *
-pmu_event_get_by_idx(int idx)
+pmc_pmu_event_get_by_idx(int idx)
 {
 	const struct pmu_events_map *pme;
 	const struct pmu_event *pe;
@@ -321,6 +321,27 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	return (0);
 }
 
+/*
+ * Ultimately rely on AMD calling theirs the same
+ */
+static const char *stat_mode_cntrs[] = {
+	"inst_retired.any",
+	"cpu_clk_unhalted.thread_p_any",
+	"br_inst_retired.all_branches",
+	"br_misp_retired.all_branches",
+	"cpu_clk_unhalted.thread_p_any"
+};
+
+int
+pmc_pmu_stat_mode(const char ***cntrs)
+{
+	if (pmc_pmu_enabled()) {
+		*cntrs = stat_mode_cntrs;
+		return (0);
+	}
+	return (EOPNOTSUPP);
+}
+
 #else
 uint64_t pmc_pmu_sample_rate_get(const char *event_name __unused) { return (DEFAULT_SAMPLE_COUNT); }
 void pmc_pmu_print_counters(void) {}
@@ -328,6 +349,7 @@ void pmc_pmu_print_counter_desc(const char *e __unused) {}
 void pmc_pmu_print_counter_desc_long(const char *e __unused) {}
 int pmc_pmu_enabled(void) { return (0); }
 int pmc_pmu_pmcallocate(const char *e __unused, struct pmc_op_pmcallocate *p __unused) { return (EOPNOTSUPP); }
-const char *pmu_event_get_by_idx(int idx __unused) { return (NULL); }
+const char *pmc_pmu_event_get_by_idx(int idx __unused) { return (NULL); }
+int pmc_pmu_stat_mode(const char ***a __unused) { return (EOPNOTSUPP); }
 
 #endif
