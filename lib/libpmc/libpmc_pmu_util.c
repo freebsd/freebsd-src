@@ -156,11 +156,12 @@ static int
 pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 {
 	char *event;
-	char *kvp, *key, *value;
+	char *kvp, *key, *value, *r;
 	char *debug;
 
 	if ((event = strdup(eventin)) == NULL)
 		return (ENOMEM);
+	r = event;
 	bzero(ped, sizeof(*ped));
 	while ((kvp = strsep(&event, ",")) != NULL) {
 		key = strsep(&kvp, "=");
@@ -199,7 +200,7 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 				printf("unrecognized kvpair: %s:%s\n", key, value);
 		}
 	}
-	free(event);
+	free(r);
 	return (0);
 }
 

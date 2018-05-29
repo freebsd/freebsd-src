@@ -136,7 +136,7 @@ pmclog_get_record(struct pmclog_parse_state *ps, char **data, ssize_t *len)
 		return (ps->ps_state = PL_STATE_ERROR);
 
 	src = *data;
-	h = used = 0;
+	used = 0;
 
 	if (ps->ps_state == PL_STATE_NEW_RECORD)
 		ps->ps_svcount = 0;
