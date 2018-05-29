@@ -905,7 +905,22 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_init_srq_table(dev);
 	mlx5_init_mr_table(dev);
 
+#ifdef RATELIMIT
+	err = mlx5_init_rl_table(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init rate limiting\n");
+		goto err_tables_cleanup;
+	}
+#endif
 	return 0;
+
+#ifdef RATELIMIT
+err_tables_cleanup:
+	mlx5_cleanup_mr_table(dev);
+	mlx5_cleanup_srq_table(dev);
+	mlx5_cleanup_qp_table(dev);
+	mlx5_cleanup_cq_table(dev);
+#endif
 
 err_eq_cleanup:
 	mlx5_eq_cleanup(dev);
@@ -916,6 +931,9 @@ out:
 
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
+#ifdef RATELIMIT
+	mlx5_cleanup_rl_table(dev);
+#endif
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);

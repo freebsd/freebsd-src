@@ -420,6 +420,7 @@ BOOTP_WIRED_TO		opt_bootp.h
 DEVICE_POLLING
 DUMMYNET		opt_ipdn.h
 RATELIMIT		opt_ratelimit.h
+RATELIMIT_DEBUG		opt_ratelimit.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPDIVERT

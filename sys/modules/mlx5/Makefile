@@ -23,6 +23,7 @@ mlx5_pagealloc.c \
 mlx5_pd.c \
 mlx5_port.c \
 mlx5_qp.c \
+mlx5_rl.c \
 mlx5_srq.c \
 mlx5_transobj.c \
 mlx5_uar.c \
@@ -30,7 +31,7 @@ mlx5_vport.c \
 mlx5_vsc.c \
 mlx5_wq.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
-        opt_inet.h opt_inet6.h opt_rss.h
+opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
