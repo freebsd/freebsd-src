@@ -688,7 +688,6 @@ retry_space:
 			if (space == 0) {
 				sfio = NULL;
 				nios = 0;
-				npages = 0;
 				goto prepend_header;
 			}
 			hdr_uio = NULL;
