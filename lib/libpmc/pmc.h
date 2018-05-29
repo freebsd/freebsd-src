@@ -119,7 +119,8 @@ void pmc_pmu_print_counter_desc(const char *);
 void pmc_pmu_print_counter_desc_long(const char *);
 uint64_t pmc_pmu_sample_rate_get(const char *);
 int pmc_pmu_pmcallocate(const char *, struct pmc_op_pmcallocate *);
-const char *pmu_event_get_by_idx(int idx);
+const char *pmc_pmu_event_get_by_idx(int idx);
+int pmc_pmu_stat_mode(const char ***);
 __END_DECLS
 
 #endif
