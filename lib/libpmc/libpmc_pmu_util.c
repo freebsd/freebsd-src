@@ -63,6 +63,14 @@ static struct pmu_alias pmu_alias_table[] = {
 	{ NULL, NULL },
 };
 
+static const char *fixed_mode_cntrs[] = {
+	"inst_retired.any",
+	"cpu_clk_unhalted.thread",
+	"cpu_clk_unhalted.thread_any",
+	"cpu_clk_unhalted.ref_tsc",
+	NULL
+};
+
 static const char *
 pmu_alias_get(const char *name)
 {
@@ -288,11 +296,15 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	const struct pmu_event *pe;
 	struct pmu_event_desc ped;
 	struct pmc_md_iap_op_pmcallocate *iap;
-	int idx;
+	struct pmc_md_iaf_op_pmcallocate *iaf;
+	int idx, isfixed;
 
 	iap = &pm->pm_md.pm_iap;
+	iaf = &pm->pm_md.pm_iaf;
+	isfixed = 0;
 	bzero(iap, sizeof(*iap));
 	event_name = pmu_alias_get(event_name);
+	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	if ((pe = pmu_event_get(event_name, &idx)) == NULL)
 		return (ENOENT);
 	if (pe->alias && (pe = pmu_event_get(pe->alias, &idx)) == NULL)
@@ -302,6 +314,29 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	if (pmu_parse_event(&ped, pe->event))
 		return (ENOENT);
 
+	for (idx = 0; fixed_mode_cntrs[idx] != NULL; idx++)
+		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0) {
+			isfixed = 1;
+			printf("%s is fixed\n", event_name);
+		}
+
+	if (isfixed) {
+		if (strcasestr(pe->desc, "retired") != NULL)
+			pm->pm_ev = PMC_EV_IAF_INSTR_RETIRED_ANY;
+		else if (strcasestr(pe->desc, "core") != NULL ||
+				 strcasestr(pe->desc, "unhalted"))
+			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_CORE;
+		else if (strcasestr(pe->desc, "ref") != NULL)
+			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_REF;
+		iaf->pm_iaf_flags |= (IAF_USR | IAF_OS);
+		if (ped.ped_any)
+			iaf->pm_iaf_flags |= IAF_ANY;
+		if (pm->pm_caps & PMC_CAP_INTERRUPT)
+			iaf->pm_iaf_flags |= IAF_PMI;
+		pm->pm_class = PMC_CLASS_IAF;
+		return (0);
+	}
+	pm->pm_caps |= PMC_CAP_QUALIFIER;
 	pm->pm_class = PMC_CLASS_IAP;
 	pm->pm_ev = idx;
 	iap->pm_iap_config |= IAP_EVSEL(ped.ped_event);
@@ -325,11 +360,12 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
  * Ultimately rely on AMD calling theirs the same
  */
 static const char *stat_mode_cntrs[] = {
+	"cpu_clk_unhalted.thread_any",
 	"inst_retired.any",
-	"cpu_clk_unhalted.thread_p_any",
 	"br_inst_retired.all_branches",
 	"br_misp_retired.all_branches",
-	"cpu_clk_unhalted.thread_p_any"
+	"longest_lat_cache.reference",
+	"longest_lat_cache.miss",
 };
 
 int
