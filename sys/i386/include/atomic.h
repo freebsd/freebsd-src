@@ -134,6 +134,8 @@ uint64_t	atomic_load_acq_64(volatile uint64_t *);
 void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
+void		atomic_add_64(volatile uint64_t *, uint64_t);
+void		atomic_subtract_64(volatile uint64_t *, uint64_t);
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
@@ -581,6 +583,30 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
 	}
 }
 
+static __inline void
+atomic_add_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t + v))
+			break;
+	}
+}
+
+static __inline void
+atomic_subtract_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t - v))
+			break;
+	}
+}
+
 #endif /* _KERNEL */
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
@@ -804,6 +830,16 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 #define	atomic_testandset_32	atomic_testandset_int
 #define	atomic_testandclear_32	atomic_testandclear_int
+
+/* Operations on 64-bit quad words. */
+#define	atomic_cmpset_acq_64 atomic_cmpset_64
+#define	atomic_cmpset_rel_64 atomic_cmpset_64
+#define	atomic_fetchadd_acq_64	atomic_fetchadd_64
+#define	atomic_fetchadd_rel_64	atomic_fetchadd_64
+#define	atomic_add_acq_64 atomic_add_64
+#define	atomic_add_rel_64 atomic_add_64
+#define	atomic_subtract_acq_64 atomic_subtract_64
+#define	atomic_subtract_rel_64 atomic_subtract_64
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \
