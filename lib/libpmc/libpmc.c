@@ -2797,6 +2797,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
 		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0)
 			return (errno);
+		free(spec_copy);
 		*pmcid = pmc_config.pm_pmcid;
 		return (0);
 	} else {
