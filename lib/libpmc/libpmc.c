@@ -2795,11 +2795,12 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
-		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0)
-			return (errno);
-		free(spec_copy);
+		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0) {
+			retval = errno;
+			goto out;
+		}
 		*pmcid = pmc_config.pm_pmcid;
-		return (0);
+		goto out;
 	} else {
 		free(spec_copy);
 		spec_copy = NULL;
