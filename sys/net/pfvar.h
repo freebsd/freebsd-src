@@ -41,6 +41,7 @@
 #include <sys/cpuset.h>
 #include <sys/malloc.h>
 #include <sys/refcount.h>
+#include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/tree.h>
 #include <vm/uma.h>
