@@ -21,7 +21,6 @@ SRCS=	bpf_dump.c \
 	pcap-bpf.c \
 	pcap-common.c \
 	pcap-netmap.c \
-	pcap-netmap.h \
 	pcap.c \
 	savefile.c \
 	scanner.l \
