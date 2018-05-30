@@ -80,7 +80,7 @@ while getopts "B:de:f:g:K:k:l:p:s:" opt; do
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
 	e)	EXTRAS="${EXTRAS} ${OPTARG}" ;;
-	f)	FILELIST="${OPTARG}"; DUPFLAG= ;;
+	f)	FILELIST="${OPTARG}";;
 	g)	GROUP="${OPTARG}" ;;
 	K)	KEYUSERS="${KEYUSERS} ${OPTARG}" ;;
 	k)	KEYDIR="${OPTARG}" ;;
