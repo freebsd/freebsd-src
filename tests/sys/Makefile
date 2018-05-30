@@ -6,6 +6,7 @@ TESTSDIR=		${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		acl
 TESTS_SUBDIRS+=		aio
+TESTS_SUBDIRS+=		audit
 TESTS_SUBDIRS+=		capsicum
 TESTS_SUBDIRS+=		${_cddl}
 TESTS_SUBDIRS+=		fifo
