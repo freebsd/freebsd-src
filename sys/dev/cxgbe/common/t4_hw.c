@@ -3727,20 +3727,23 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	    lc->requested_aneg == AUTONEG_DISABLE) {
 		aneg = 0;
 		switch (lc->requested_speed) {
-		case 100:
+		case 100000:
 			speed = FW_PORT_CAP_SPEED_100G;
 			break;
-		case 40:
+		case 40000:
 			speed = FW_PORT_CAP_SPEED_40G;
 			break;
-		case 25:
+		case 25000:
 			speed = FW_PORT_CAP_SPEED_25G;
 			break;
-		case 10:
+		case 10000:
 			speed = FW_PORT_CAP_SPEED_10G;
 			break;
-		case 1:
+		case 1000:
 			speed = FW_PORT_CAP_SPEED_1G;
+			break;
+		case 100:
+			speed = FW_PORT_CAP_SPEED_100M;
 			break;
 		default:
 			return -EINVAL;
@@ -7715,9 +7718,9 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_info *p)
 
 	fec = 0;
 	if (lc->advertising & FW_PORT_CAP_FEC_RS)
-		fec |= FEC_RS;
-	if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
-		fec |= FEC_BASER_RS;
+		fec = FEC_RS;
+	else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
+		fec = FEC_BASER_RS;
 	lc->fec = fec;
 }
 
@@ -7778,14 +7781,16 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		}
 
 		lc = &pi->link_cfg;
+		PORT_LOCK(pi);
 		old_lc = &pi->old_link_cfg;
 		old_ptype = pi->port_type;
 		old_mtype = pi->mod_type;
-
 		handle_port_info(pi, &p->u.info);
+		PORT_UNLOCK(pi);
 		if (old_ptype != pi->port_type || old_mtype != pi->mod_type) {
 			t4_os_portmod_changed(pi);
 		}
+		PORT_LOCK(pi);
 		if (old_lc->link_ok != lc->link_ok ||
 		    old_lc->speed != lc->speed ||
 		    old_lc->fec != lc->fec ||
@@ -7793,6 +7798,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			t4_os_link_changed(pi);
 			*old_lc = *lc;
 		}
+		PORT_UNLOCK(pi);
 	} else {
 		CH_WARN_RATELIMIT(adap, "Unknown firmware reply %d\n", opcode);
 		return -EINVAL;
