@@ -271,23 +271,23 @@ pmc_stat_print_stat(struct rusage *ru)
 	fprintf(pmc_args.pa_printfile, "%16ld  %s\t#\t%02.03f M/sec\n",
 	    ru->ru_nivcsw, "involuntary csw", ((double)ru->ru_nivcsw / (double)ticks) / hz);
 
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\n", cvals[CYCLES], stat_mode_names[CYCLES]);
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%01.03f inst/cycle\n", cvals[INST], stat_mode_names[INST],
+	fprintf(pmc_args.pa_printfile, "%16jd  %s\n", (uintmax_t)cvals[CYCLES], stat_mode_names[CYCLES]);
+	fprintf(pmc_args.pa_printfile, "%16jd  %s\t\t#\t%01.03f inst/cycle\n", (uintmax_t)cvals[INST], stat_mode_names[INST],
 	    (double)cvals[INST] / cvals[CYCLES]);
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\n", cvals[BR], stat_mode_names[BR]);
+	fprintf(pmc_args.pa_printfile, "%16jd  %s\n", (uintmax_t)cvals[BR], stat_mode_names[BR]);
 	if (stat_mode_names[BR_MISS] == pmc_stat_mode_names[BR_MISS])
-		fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%.03f%%\n",
-		    cvals[BR_MISS], stat_mode_names[BR_MISS],
+		fprintf(pmc_args.pa_printfile, "%16jd  %s\t\t#\t%.03f%%\n",
+		    (uintmax_t)cvals[BR_MISS], stat_mode_names[BR_MISS],
 		    100 * ((double)cvals[BR_MISS] / cvals[BR]));
 	else
-		fprintf(pmc_args.pa_printfile, "%16ld  %s\n",
-		    cvals[BR_MISS], stat_mode_names[BR_MISS]);
-	fprintf(pmc_args.pa_printfile, "%16ld  %s%s", cvals[CACHE], stat_mode_names[CACHE],
+		fprintf(pmc_args.pa_printfile, "%16jd  %s\n",
+		    (uintmax_t)cvals[BR_MISS], stat_mode_names[BR_MISS]);
+	fprintf(pmc_args.pa_printfile, "%16jd  %s%s", (uintmax_t)cvals[CACHE], stat_mode_names[CACHE],
 	    stat_mode_names[CACHE] != pmc_stat_mode_names[CACHE] ? "\n" : "");
 	if (stat_mode_names[CACHE] == pmc_stat_mode_names[CACHE])
 		fprintf(pmc_args.pa_printfile, "\t#\t%.03f refs/inst\n",
 		    ((double)cvals[CACHE] / cvals[INST]));
-	fprintf(pmc_args.pa_printfile, "%16ld  %s%s", cvals[CACHE_MISS], stat_mode_names[CACHE_MISS],
+	fprintf(pmc_args.pa_printfile, "%16jd  %s%s", (uintmax_t)cvals[CACHE_MISS], stat_mode_names[CACHE_MISS],
 	    stat_mode_names[CACHE_MISS] != pmc_stat_mode_names[CACHE_MISS] ? "\n" : "");
 	if (stat_mode_names[CACHE_MISS] == pmc_stat_mode_names[CACHE_MISS])
 		fprintf(pmc_args.pa_printfile, "\t\t#\t%.03f%%\n",
@@ -296,7 +296,6 @@ pmc_stat_print_stat(struct rusage *ru)
 
 	showtime(pmc_args.pa_printfile, &before_ts, &after, ru);
 }
-
 
 static struct option longopts[] = {
 	{"events", required_argument, NULL, 'j'},
