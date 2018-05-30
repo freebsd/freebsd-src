@@ -1872,7 +1872,6 @@ pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 static void
 _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 {
-	vm_offset_t pteva;
 
 	/*
 	 * unmap the page table page
@@ -1881,16 +1880,13 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 	--pmap->pm_stats.resident_count;
 
 	/*
-	 * Do an invltlb to make the invalidated mapping
-	 * take effect immediately.
+	 * There is not need to invalidate the recursive mapping since
+	 * we never instantiate such mapping for the usermode pmaps,
+	 * and never remove page table pages from the kernel pmap.
+	 * Put page on a list so that it is released since all TLB
+	 * shootdown is done.
 	 */
-	pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);
-	pmap_invalidate_page(pmap, pteva);
-
-	/* 
-	 * Put page on a list so that it is released after
-	 * *ALL* TLB shootdown is done
-	 */
+	MPASS(pmap != kernel_pmap);
 	pmap_add_delayed_free_list(m, free, TRUE);
 }
 
