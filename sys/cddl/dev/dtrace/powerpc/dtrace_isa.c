@@ -98,6 +98,7 @@ static __inline uintptr_t
 dtrace_next_sp(uintptr_t sp)
 {
 	vm_offset_t callpc;
+	uintptr_t *r1;
 	struct trapframe *frame;
 
 #ifdef __powerpc64__
@@ -114,7 +115,10 @@ dtrace_next_sp(uintptr_t sp)
 	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
 		/* Access the trap frame */
 		frame = (struct trapframe *)(sp + FRAME_OFFSET);
-		return (*(uintptr_t *)(frame->fixreg[1]));
+		r1 = (uintptr_t *)frame->fixreg[1];
+		if (r1 == NULL)
+			return (0);
+		return (*r1);
 	}
 
 	return (*(uintptr_t*)sp);
