@@ -2197,7 +2197,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		break;
 
 	case PMC_FN_MMAP:
-		MPASS(in_epoch() || sx_xlocked(&pmc_sx));
 		pmc_process_mmap(td, (struct pmckern_map_in *) arg);
 		break;
 
