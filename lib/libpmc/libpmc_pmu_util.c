@@ -46,21 +46,21 @@ struct pmu_alias {
 	const char *pa_name;
 };
 static struct pmu_alias pmu_alias_table[] = {
-    { "UNHALTED_CORE_CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
-    { "UNHALTED-CORE-CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
-	{ "LLC_MISSES", "LONGEST_LAT_CACHE.MISS"},
-	{ "LLC-MISSES", "LONGEST_LAT_CACHE.MISS"},
-	{ "LLC_REFERENCE", "LONGEST_LAT_CACHE.REFERENCE"},
-	{ "LLC-REFERENCE", "LONGEST_LAT_CACHE.REFERENCE"},
-	{ "LLC_MISS_RHITM", "mem_load_l3_miss_retired.remote_hitm"},
-	{ "LLC-MISS-RHITM", "mem_load_l3_miss_retired.remote_hitm"},
-	{ "RESOURCE_STALL", "RESOURCE_STALLS.ANY"},
-	{ "RESOURCE_STALLS_ANY", "RESOURCE_STALLS.ANY"},
-	{ "BRANCH_INSTRUCTION_RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
-	{ "BRANCH-INSTRUCTION-RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
-	{ "BRANCH_MISSES_RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
-	{ "BRANCH-MISSES-RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
-	{ NULL, NULL },
+	{"UNHALTED_CORE_CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
+	{"UNHALTED-CORE-CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
+	{"LLC_MISSES", "LONGEST_LAT_CACHE.MISS"},
+	{"LLC-MISSES", "LONGEST_LAT_CACHE.MISS"},
+	{"LLC_REFERENCE", "LONGEST_LAT_CACHE.REFERENCE"},
+	{"LLC-REFERENCE", "LONGEST_LAT_CACHE.REFERENCE"},
+	{"LLC_MISS_RHITM", "mem_load_l3_miss_retired.remote_hitm"},
+	{"LLC-MISS-RHITM", "mem_load_l3_miss_retired.remote_hitm"},
+	{"RESOURCE_STALL", "RESOURCE_STALLS.ANY"},
+	{"RESOURCE_STALLS_ANY", "RESOURCE_STALLS.ANY"},
+	{"BRANCH_INSTRUCTION_RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
+	{"BRANCH-INSTRUCTION-RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
+	{"BRANCH_MISSES_RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
+	{"BRANCH-MISSES-RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
+	{NULL, NULL},
 };
 
 static const char *fixed_mode_cntrs[] = {
@@ -89,13 +89,13 @@ struct pmu_event_desc {
 	uint32_t ped_frontend;
 	uint32_t ped_ldlat;
 	uint32_t ped_config1;
-	uint8_t ped_umask;
-	uint8_t ped_cmask;
-	uint8_t ped_any;
-	uint8_t ped_inv;
-	uint8_t ped_edge;
-	uint8_t ped_fc_mask;
-	uint8_t ped_ch_mask;
+	uint8_t	ped_umask;
+	uint8_t	ped_cmask;
+	uint8_t	ped_any;
+	uint8_t	ped_inv;
+	uint8_t	ped_edge;
+	uint8_t	ped_fc_mask;
+	uint8_t	ped_ch_mask;
 };
 
 static const struct pmu_events_map *
@@ -106,10 +106,10 @@ pmu_events_map_get(void)
 	const struct pmu_events_map *pme;
 
 	if (sysctlbyname("kern.hwpmc.cpuid", (void *)NULL, &s,
-					 (void *)NULL, 0) == -1)
+	    (void *)NULL, 0) == -1)
 		return (NULL);
 	if (sysctlbyname("kern.hwpmc.cpuid", buf, &s,
-					 (void *)NULL, 0) == -1)
+	    (void *)NULL, 0) == -1)
 		return (NULL);
 	for (pme = pmu_events_map; pme->cpuid != NULL; pme++)
 		if (strcmp(buf, pme->cpuid) == 0)
@@ -147,8 +147,7 @@ pmc_pmu_event_get_by_idx(int idx)
 
 	if ((pme = pmu_events_map_get()) == NULL)
 		return (NULL);
-	for (i = 0, pe = pme->table; (pe->name || pe->desc || pe->event) && i < idx; pe++, i++)
-		;
+	for (i = 0, pe = pme->table; (pe->name || pe->desc || pe->event) && i < idx; pe++, i++);
 	return (pe->name);
 }
 
@@ -237,7 +236,7 @@ pmc_pmu_print_counters(void)
 	struct pmu_event_desc ped;
 	char *debug;
 	int do_debug;
-	
+
 	debug = getenv("PMUDEBUG");
 	do_debug = 0;
 
@@ -266,8 +265,8 @@ pmc_pmu_print_counter_desc(const char *ev)
 		if (pe->name == NULL)
 			continue;
 		if (strcasestr(pe->name, ev) != NULL &&
-			pe->desc != NULL)
-				printf("%s:\t%s\n", pe->name, pe->desc);
+		    pe->desc != NULL)
+			printf("%s:\t%s\n", pe->name, pe->desc);
 	}
 }
 
@@ -318,12 +317,11 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	for (idx = 0; fixed_mode_cntrs[idx] != NULL; idx++)
 		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0)
 			isfixed = 1;
-
 	if (isfixed) {
 		if (strcasestr(pe->desc, "retired") != NULL)
 			pm->pm_ev = PMC_EV_IAF_INSTR_RETIRED_ANY;
 		else if (strcasestr(pe->desc, "core") != NULL ||
-				 strcasestr(pe->desc, "unhalted"))
+		    strcasestr(pe->desc, "unhalted"))
 			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_CORE;
 		else if (strcasestr(pe->desc, "ref") != NULL)
 			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_REF;
@@ -378,13 +376,49 @@ pmc_pmu_stat_mode(const char ***cntrs)
 }
 
 #else
-uint64_t pmc_pmu_sample_rate_get(const char *event_name __unused) { return (DEFAULT_SAMPLE_COUNT); }
-void pmc_pmu_print_counters(void) {}
-void pmc_pmu_print_counter_desc(const char *e __unused) {}
-void pmc_pmu_print_counter_desc_long(const char *e __unused) {}
-int pmc_pmu_enabled(void) { return (0); }
-int pmc_pmu_pmcallocate(const char *e __unused, struct pmc_op_pmcallocate *p __unused) { return (EOPNOTSUPP); }
-const char *pmc_pmu_event_get_by_idx(int idx __unused) { return (NULL); }
-int pmc_pmu_stat_mode(const char ***a __unused) { return (EOPNOTSUPP); }
+
+uint64_t
+pmc_pmu_sample_rate_get(const char *event_name __unused)
+{
+	return (DEFAULT_SAMPLE_COUNT);
+}
+
+void
+pmc_pmu_print_counters(void)
+{
+}
+
+void
+pmc_pmu_print_counter_desc(const char *e __unused)
+{
+}
+
+void
+pmc_pmu_print_counter_desc_long(const char *e __unused)
+{
+}
+
+int
+pmc_pmu_enabled(void)
+{
+	return (0);
+}
+
+int
+pmc_pmu_pmcallocate(const char *e __unused, struct pmc_op_pmcallocate *p __unused)
+{
+	return (EOPNOTSUPP);
+}
+
+const char *
+pmc_pmu_event_get_by_idx(int idx __unused)
+{
+	return (NULL);
+}
+int
+pmc_pmu_stat_mode(const char ***a __unused)
+{
+	return (EOPNOTSUPP);
+}
 
 #endif
