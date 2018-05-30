@@ -1504,7 +1504,7 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 		req.port = DEFAULT_MIGRATION_PORT;
 	}
 
-	rc = vm_recv_migrate_req(ctx, req);
+	rc = vm_recv_migrate_req(ctx, req, pci_restore);
 
 	free(hostname);
 	return (rc);
@@ -1922,7 +1922,7 @@ int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 				checkpoint_op->host,
 				checkpoint_op->port);
 
-			err = vm_send_migrate_req(ctx, req);
+			err = vm_send_migrate_req(ctx, req, pci_snapshot);
 			break;
 		default:
 			fprintf(stderr, "Unrecognized checkpoint operation.\n");

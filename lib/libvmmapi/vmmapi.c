@@ -1923,12 +1923,14 @@ get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 static int
 migrate_recv_memory(struct vmctx *ctx, int socket)
 {
-	size_t local_lowmem_size, local_highmem_size;
-	size_t remote_lowmem_size, remote_highmem_size;
+	size_t local_lowmem_size = 0, local_highmem_size = 0;
+	size_t remote_lowmem_size = 0, remote_highmem_size = 0;
 	char *mmap_vm_lowmem = MAP_FAILED;
 	char *mmap_vm_highmem = MAP_FAILED;
 	char *baseaddr;
 	int memsize_ok;
+	char *buffer;
+	size_t i, chunks, chunk_size = 4 * MB;
 	int rc = 0;
 
 	rc = vm_get_guestmem_from_ctx(ctx,
@@ -1967,6 +1969,15 @@ migrate_recv_memory(struct vmctx *ctx, int socket)
 		return (rc);
 	}
 	// TODO: check if local low/high mem is equal with remote low/high mem
+
+	fprintf(stderr,
+		"%s: Local lowmem vs remote lowmem: %lu vs %lu\r\n"
+		"%s: Local highmem vs remote highmem: %lu vs %lu\r\n",
+		__func__,
+		local_lowmem_size, remote_lowmem_size,
+		__func__,
+		local_highmem_size, remote_highmem_size);
+
 	memsize_ok = MIGRATION_SPECS_OK;
 	if (local_lowmem_size != remote_lowmem_size){
 		memsize_ok = MIGRATION_SPECS_NOT_OK;
@@ -2010,7 +2021,39 @@ migrate_recv_memory(struct vmctx *ctx, int socket)
 		return (rc);
 	}
 
+	buffer = malloc(chunk_size * sizeof(char));
+	if (buffer == NULL) {
+		fprintf(stderr,
+			"%s: Could not allocate memory\r\n",
+			__func__);
+		return (-1);
+	}
+
 	// TODO: recv lowmem
+
+	chunks = local_lowmem_size / chunk_size;
+
+	fprintf(stdout, "%s: chunks = %lu\r\n", __func__, chunks);
+
+
+	for (i = 0 ; i < chunks; i++) {
+		fprintf(stdout, "%s: Will recv chunk no %lu\r\n", __func__, i);
+		memset(buffer, 0, chunk_size);
+
+		rc = migration_recv_data_from_remote(socket, buffer, chunk_size);
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not recv chunk %lu\r\n",
+				__func__,
+				i);
+			return (-1);
+		}
+
+		memcpy(mmap_vm_lowmem + i * chunk_size, buffer, chunk_size);
+
+		fprintf(stdout, "%s: Set chunk %lu\r\n", __func__, i);
+	}
+#if 0
 	rc = migration_recv_data_from_remote(socket, mmap_vm_lowmem,
 				 local_lowmem_size);
 	if (rc < 0) {
@@ -2019,8 +2062,8 @@ migrate_recv_memory(struct vmctx *ctx, int socket)
 			__func__);
 		return (-1);
 	}
-
-	// TODO: send highmem
+#endif
+	// TODO: recv highmem
 	if (local_highmem_size > 0 ){
 		rc = migration_recv_data_from_remote(socket,
 				mmap_vm_highmem,
@@ -2044,6 +2087,9 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 	char *mmap_vm_lowmem = MAP_FAILED;
 	char *mmap_vm_highmem = MAP_FAILED;
 	char *baseaddr;
+	char *buffer;
+	size_t chunks, i;
+	size_t chunk_size = 4 * MB;
 	int memsize_ok;
 	int rc = 0;
 
@@ -2061,21 +2107,25 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 			highmem_size);
 
 	// TODO: send lowmem_size
-	rc = migration_send_data_remote(socket, &highmem_size, sizeof(size_t));
+	rc = migration_send_data_remote(socket, &lowmem_size, sizeof(size_t));
 	if (rc < 0) {
 		fprintf(stderr,
 			"%s: Could not send lowmem size\r\n",
 			__func__);
 		return (rc);
 	}
+	fprintf(stdout, "%s: Sent lowmem size\r\n", __func__);
+
 	// TODO: send highmem_size
-	rc = migration_send_data_remote(socket, &lowmem_size, sizeof(size_t));
+	rc = migration_send_data_remote(socket, &highmem_size, sizeof(size_t));
 	if (rc < 0) {
 		fprintf(stderr,
 			"%s: Could not send highmem size\r\n",
 			__func__);
 		return (rc);
 	}
+
+	fprintf(stdout, "%s: Sent highmem\r\n", __func__);
 	// TODO: wait for answer (?) params ok (?)
 	rc = migration_recv_data_from_remote(socket, &memsize_ok, sizeof(memsize_ok));
 	if (rc < 0) {
@@ -2085,6 +2135,7 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 		return (rc);
 	}
 
+	fprintf(stdout, "%s: Got memsize OK\r\n", __func__);
 	if (memsize_ok != MIGRATION_SPECS_OK) {
 		fprintf(stderr,
 			"%s: Memory size mismatch with remote host\r\n",
@@ -2092,9 +2143,12 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 		return (-1);
 	}
 
+	fprintf(stdout, "%s: memory size matched\r\n", __func__);
 	// TODO: map highmem and lowmem
-	rc = vm_get_vm_mem(ctx, &mmap_vm_lowmem, &mmap_vm_highmem,
-			   baseaddr, lowmem_size, highmem_size);
+	mmap_vm_lowmem = baseaddr;
+	mmap_vm_highmem = baseaddr + 4 * GB;
+//	rc = vm_get_vm_mem(ctx, &mmap_vm_lowmem, &mmap_vm_highmem,
+//			   baseaddr, lowmem_size, highmem_size);
 	if (rc != 0) {
 		fprintf(stderr,
 			"%s: Could not mamp guest lowmem and highmem\r\n",
@@ -2102,7 +2156,38 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 		return (rc);
 	}
 
+	fprintf(stdout, "%s: Mapped lowmem and highmem\r\n", __func__);
 	// TODO: send lowmem
+
+	chunks = lowmem_size / chunk_size;
+
+	fprintf(stdout, "%s: chunks = %lu\r\n", __func__, chunks);
+
+	buffer = malloc(chunk_size * sizeof(char));
+	if (buffer == NULL) {
+		fprintf(stderr,
+			"%s: Could not allocate memory\r\n",
+			__func__);
+		return (-1);
+	}
+
+	for (i = 0 ; i < chunks; i++) {
+		fprintf(stdout, "%s: Will send chunk no %lu\r\n", __func__, i);
+		memset(buffer, 0, chunk_size);
+		memcpy(buffer, mmap_vm_lowmem + i * chunk_size, chunk_size);
+
+		rc = migration_send_data_remote(socket, buffer, chunk_size);
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not send chunk %lu\r\n",
+				__func__,
+				i);
+			return (-1);
+		}
+
+		fprintf(stdout, "%s: Sent chunk %lu\r\n", __func__, i);
+	}
+#if 0
 	rc = migration_send_data_remote(socket, mmap_vm_lowmem, lowmem_size);
 	if (rc < 0) {
 		fprintf(stderr,
@@ -2110,6 +2195,8 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 			__func__);
 		return (-1);
 	}
+#endif
+	fprintf(stdout, "%s: Sent lowmem\r\n", __func__);
 
 	// TODO: send highmem
 	if (highmem_size > 0 ){
@@ -2168,6 +2255,7 @@ migrate_send_kern_data(struct vmctx *ctx, int socket)
 			return (-1);
 		}
 		
+		fprintf(stdout, "%s: Sent kern dev id %d\r\n", __func__, structs[i]);
 		msg.len = data_size;
 		msg.req_type = structs[i];
 
@@ -2188,6 +2276,7 @@ migrate_send_kern_data(struct vmctx *ctx, int socket)
 				structs[i]);
 			return (-1);
 		}
+		fprintf(stdout, "%s: Sent dev\r\n", __func__);
 	}
 
 	return (0);
@@ -2260,11 +2349,159 @@ migrate_recv_kern_data(struct vmctx *ctx, int socket)
 	free(buffer);
 
 	return (0);
-
 }
 
+static int
+migrate_send_pci_devs(struct vmctx *ctx, int socket, void *argv)
+{
+	int (*pci_func)(struct vmctx *, const char *, void *,
+			size_t, size_t *);
+	int rc, i, error = 0;
+	char *buffer;
+	size_t data_size;
+	struct migration_message_type msg;
+	char *devs[] = {
+		"virtio-net",
+		"virtio-blk",
+		"lpc",
+	};
+
+	pci_func = (int (*)(struct vmctx *, const char *, void *,
+			   size_t, size_t *)) argv;
+
+	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
+	if (buffer == NULL) {
+		fprintf(stderr,
+			"%s: Could not allocate memory\r\n",
+			__func__);
+		error = -1;
+		goto end;
+	}
+
+	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
+		memset(buffer, 0, KERN_DATA_BUFFER_SIZE);
+
+		rc = pci_func(ctx, devs[i], buffer, KERN_DATA_BUFFER_SIZE,
+			      &data_size);
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not get info about %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+
+		// send struct size to destination
+		memset(&msg, 0, sizeof(msg));
+		msg.type = MESSAGE_TYPE_PCI;
+		msg.len = data_size;
+
+		rc = migration_send_data_remote(socket, &msg, sizeof(msg));
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not send msg for %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+
+		// send devs[i]
+		rc = migration_send_data_remote(socket, buffer, data_size);
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not send %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+	}
+
+	error = 0;
+
+end:
+	if (buffer != NULL)
+		free(buffer);
+
+	return (error);
+}
+
+static int
+migrate_recv_pci_devs(struct vmctx *ctx, int socket, void *argv)
+{
+	int (*pci_func)(struct vmctx *, const char *, void *,
+			size_t);
+	int rc, i, error = 0;
+	char *buffer;
+	size_t data_size;
+	struct migration_message_type msg;
+	char *devs[] = {
+		"virtio-net",
+		"virtio-blk",
+		"lpc",
+	};
+
+	pci_func = (int (*)(struct vmctx *, const char *, void *,
+			   size_t)) argv;
+
+	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
+	if (buffer == NULL) {
+		fprintf(stderr,
+			"%s: Could not allocate memory\r\n",
+			__func__);
+		error = -1;
+		goto end;
+	}
+
+	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
+		// recv struct size to destination
+		memset(&msg, 0, sizeof(msg));
+
+		rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not recv msg for %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+
+		data_size = msg.len;
+		// recv devs[i]
+		rc = migration_recv_data_from_remote(socket, buffer, data_size);
+		if (rc < 0) {
+			fprintf(stderr,
+				"%s: Could not recv %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+
+		rc = pci_func(ctx, devs[i], buffer, data_size);
+		if (rc != 0) {
+			fprintf(stderr,
+				"%s: Could not restore %s dev\r\n",
+				__func__,
+				devs[i]);
+			error = -1;
+			goto end;
+		}
+	}
+
+	error = 0;
+
+end:
+	if (buffer != NULL)
+		free(buffer);
+
+	return (error);
+}
 int
-vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
+vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr)
 {
 	unsigned char ipv4_addr[MAX_IP_LEN];
 	unsigned char ipv6_addr[MAX_IP_LEN];
@@ -2272,6 +2509,7 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	struct sockaddr_in sa;
 	int s;
 	int rc;
+	size_t migration_completed;
 
 	rc = get_migration_host_and_type(req.host, ipv4_addr,
 					 ipv6_addr, &addr_type);
@@ -2373,9 +2611,40 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (rc);
 	}
 
+	// Send PCI data
+	rc =  migrate_send_pci_devs(ctx, s, pci_ptr);
+	if (rc < 0) {	
+		fprintf(stderr,
+			"%s: Could not send pci devs to destination\r\n",
+			__func__);
+		vm_vcpu_unlock_all(ctx);
+		close(s);
+		return (rc);
+	}
+
+	// Wait for migration completed	
+	rc = migration_recv_data_from_remote(s, &migration_completed,
+					sizeof(migration_completed));
+	if (rc < 0 || (migration_completed != MIGRATION_SPECS_OK)) {
+		fprintf(stderr,
+			"%s: Could not recv migration completed remote"
+			" or received error\r\n",
+			__func__);
+		close(s);
+		return (-1);
+	}
 
 	// TODO - poweroff the vm
 
+	rc = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to suspend vm\n");
+	}
+	vm_vcpu_unlock_all(ctx);
+	/* Wait for CPUs to suspend. TODO: write this properly. */
+	sleep(5);
+	vm_destroy(ctx);
+	exit(0);
 	// TODO: implement properly return with labels
 	// TODO: free properly all the resources
 	close(s);
@@ -2383,7 +2652,7 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 }
 
 int
-vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
+vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr)
 {
 	unsigned char ipv4_addr[MAX_IP_LEN];
 	unsigned char ipv6_addr[MAX_IP_LEN];
@@ -2392,6 +2661,7 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	struct sockaddr_in sa, client_sa;
 	socklen_t client_len;
 	int rc;
+	size_t migration_completed;
 
 	rc = get_migration_host_and_type(req.host, ipv4_addr,
 					 ipv6_addr, &addr_type);
@@ -2482,6 +2752,31 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (-1);
 	}
 
+	rc = migrate_recv_pci_devs(ctx, con_socket, pci_ptr);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not recv pci devs\r\n",
+			__func__);
+		close(con_socket);
+		close(s);
+		return (-1);
+	}
+
+	fprintf(stdout, "%s: Migration completed\r\n", __func__);
+	migration_completed = MIGRATION_SPECS_OK;
+	rc = migration_send_data_remote(con_socket, &migration_completed,
+					sizeof(migration_completed));
+	if (rc < 0 ) {	
+		fprintf(stderr,
+			"%s: Could not send migration completed remote\r\n",
+			__func__);
+		close(con_socket);
+		close(s);
+		return (-1);
+	}
+
+	// wait for source vm to be destroyed
+	sleep(5);
 	close(con_socket);
 	close(s);
 	return (0);
