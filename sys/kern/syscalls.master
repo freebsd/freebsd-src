@@ -210,8 +210,7 @@
 				    _In_z_ char *fname, \
 				    _In_z_ char **argv, \
 				    _In_z_ char **envv); }
-60	AUE_UMASK	STD	{ int umask(int newmask); } umask umask_args \
-				    int
+60	AUE_UMASK	STD	{ int umask(int newmask); }
 61	AUE_CHROOT	STD	{ int chroot(_In_z_ char *path); }
 62	AUE_FSTAT	COMPAT	{ int fstat(int fd, _Out_ struct ostat *sb); }
 63	AUE_NULL	COMPAT	{ int getkerninfo(int op, \
