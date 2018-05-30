@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -202,7 +201,7 @@ VNET_DEFINE(int, pf_vnet_active);
 int pf_end_threads;
 struct proc *pf_purge_proc;
 
-struct rwlock			pf_rules_lock;
+struct rmlock			pf_rules_lock;
 struct sx			pf_ioctl_lock;
 struct sx			pf_end_lock;
 
@@ -995,6 +994,7 @@ static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	int			 error = 0;
+	PF_RULES_RLOCK_TRACKER;
 
 	/* XXX keep in sync with switch() below */
 	if (securelevel_gt(td->td_ucred, 2))
@@ -3924,7 +3924,7 @@ pf_load(void)
 {
 	int error;
 
-	rw_init(&pf_rules_lock, "pf rulesets");
+	rm_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&pf_ioctl_lock, "pf ioctl");
 	sx_init(&pf_end_lock, "pf end thread");
 
@@ -3997,7 +3997,7 @@ pf_unload(void)
 
 	pfi_cleanup();
 
-	rw_destroy(&pf_rules_lock);
+	rm_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
 	sx_destroy(&pf_end_lock);
 }

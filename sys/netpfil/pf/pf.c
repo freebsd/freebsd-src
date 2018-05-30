@@ -5874,6 +5874,8 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	struct pf_pdesc		 pd;
 	int			 off, dirndx, pqid = 0;
 
+	PF_RULES_RLOCK_TRACKER;
+
 	M_ASSERTPKTHDR(m);
 
 	if (!V_pf_status.running)
@@ -6261,6 +6263,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
 
+	PF_RULES_RLOCK_TRACKER;
 	M_ASSERTPKTHDR(m);
 
 	if (!V_pf_status.running)
