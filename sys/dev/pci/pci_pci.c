@@ -2545,6 +2545,7 @@ pcib_enable_ari(struct pcib_softc *sc, uint32_t pcie_pos)
 int
 pcib_maxslots(device_t dev)
 {
+#if !defined(__amd64__) && !defined(__i386__)
 	uint32_t pcie_pos;
 	uint16_t val;
 
@@ -2559,6 +2560,7 @@ pcib_maxslots(device_t dev)
 		    val == PCIEM_TYPE_DOWNSTREAM_PORT)
 			return (0);
 	}
+#endif
 	return (PCI_SLOTMAX);
 }
 
