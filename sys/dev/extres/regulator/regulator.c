@@ -174,7 +174,7 @@ regulator_shutdown(void *dummy)
 	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
 		if (entry->std_param.always_on == 0 && disable) {
 			if (bootverbose)
-				printf("regulator: shuting down %s\n",
+				printf("regulator: shutting down %s\n",
 				    entry->name);
 			ret = regnode_status(entry, &status);
 			if (ret == 0 && status == REGULATOR_STATUS_ENABLED)
