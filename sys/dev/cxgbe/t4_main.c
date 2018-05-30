@@ -2087,68 +2087,210 @@ cxgbe_media_change(struct ifnet *ifp)
 	return (EOPNOTSUPP);
 }
 
+/*
+ * Mbps to FW_PORT_CAP_SPEED_* bit.
+ */
+static uint16_t
+speed_to_fwspeed(int speed)
+{
+
+	switch (speed) {
+	case 100000:
+		return (FW_PORT_CAP_SPEED_100G);
+	case 40000:
+		return (FW_PORT_CAP_SPEED_40G);
+	case 25000:
+		return (FW_PORT_CAP_SPEED_25G);
+	case 10000:
+		return (FW_PORT_CAP_SPEED_10G);
+	case 1000:
+		return (FW_PORT_CAP_SPEED_1G);
+	case 100:
+		return (FW_PORT_CAP_SPEED_100M);
+	}
+
+	return (0);
+}
+
+/*
+ * Base media word (without ETHER, pause, link active, etc.) for the port at the
+ * given speed.
+ */
+static int
+port_mword(struct port_info *pi, uint16_t speed)
+{
+
+	MPASS(speed & M_FW_PORT_CAP_SPEED);
+	MPASS(powerof2(speed));
+
+	switch(pi->port_type) {
+	case FW_PORT_TYPE_BT_SGMII:
+	case FW_PORT_TYPE_BT_XFI:
+	case FW_PORT_TYPE_BT_XAUI:
+		/* BaseT */
+		switch (speed) {
+		case FW_PORT_CAP_SPEED_100M:
+			return (IFM_100_T);
+		case FW_PORT_CAP_SPEED_1G:
+			return (IFM_1000_T);
+		case FW_PORT_CAP_SPEED_10G:
+			return (IFM_10G_T);
+		}
+		break;
+	case FW_PORT_TYPE_KX4:
+		if (speed == FW_PORT_CAP_SPEED_10G)
+			return (IFM_10G_KX4);
+		break;
+	case FW_PORT_TYPE_CX4:
+		if (speed == FW_PORT_CAP_SPEED_10G)
+			return (IFM_10G_CX4);
+		break;
+	case FW_PORT_TYPE_KX:
+		if (speed == FW_PORT_CAP_SPEED_1G)
+			return (IFM_1000_KX);
+		break;
+	case FW_PORT_TYPE_KR:
+	case FW_PORT_TYPE_BP_AP:
+	case FW_PORT_TYPE_BP4_AP:
+	case FW_PORT_TYPE_BP40_BA:
+	case FW_PORT_TYPE_KR4_100G:
+	case FW_PORT_TYPE_KR_SFP28:
+	case FW_PORT_TYPE_KR_XLAUI:
+		switch (speed) {
+		case FW_PORT_CAP_SPEED_1G:
+			return (IFM_1000_KX);
+		case FW_PORT_CAP_SPEED_10G:
+			return (IFM_10G_KR);
+		case FW_PORT_CAP_SPEED_25G:
+			return (IFM_25G_KR);
+		case FW_PORT_CAP_SPEED_40G:
+			return (IFM_40G_KR4);
+		case FW_PORT_CAP_SPEED_100G:
+			return (IFM_100G_KR4);
+		}
+		break;
+	case FW_PORT_TYPE_FIBER_XFI:
+	case FW_PORT_TYPE_FIBER_XAUI:
+	case FW_PORT_TYPE_SFP:
+	case FW_PORT_TYPE_QSFP_10G:
+	case FW_PORT_TYPE_QSA:
+	case FW_PORT_TYPE_QSFP:
+	case FW_PORT_TYPE_CR4_QSFP:
+	case FW_PORT_TYPE_CR_QSFP:
+	case FW_PORT_TYPE_CR2_QSFP:
+	case FW_PORT_TYPE_SFP28:
+		/* Pluggable transceiver */
+		switch (pi->mod_type) {
+		case FW_PORT_MOD_TYPE_LR:
+			switch (speed) {
+			case FW_PORT_CAP_SPEED_1G:
+				return (IFM_1000_LX);
+			case FW_PORT_CAP_SPEED_10G:
+				return (IFM_10G_LR);
+			case FW_PORT_CAP_SPEED_25G:
+				return (IFM_25G_LR);
+			case FW_PORT_CAP_SPEED_40G:
+				return (IFM_40G_LR4);
+			case FW_PORT_CAP_SPEED_100G:
+				return (IFM_100G_LR4);
+			}
+			break;
+		case FW_PORT_MOD_TYPE_SR:
+			switch (speed) {
+			case FW_PORT_CAP_SPEED_1G:
+				return (IFM_1000_SX);
+			case FW_PORT_CAP_SPEED_10G:
+				return (IFM_10G_SR);
+			case FW_PORT_CAP_SPEED_25G:
+				return (IFM_25G_SR);
+			case FW_PORT_CAP_SPEED_40G:
+				return (IFM_40G_SR4);
+			case FW_PORT_CAP_SPEED_100G:
+				return (IFM_100G_SR4);
+			}
+			break;
+		case FW_PORT_MOD_TYPE_ER:
+			if (speed == FW_PORT_CAP_SPEED_10G)
+				return (IFM_10G_ER);
+			break;
+		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
+		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
+			switch (speed) {
+			case FW_PORT_CAP_SPEED_1G:
+				return (IFM_1000_CX);
+			case FW_PORT_CAP_SPEED_10G:
+				return (IFM_10G_TWINAX);
+			case FW_PORT_CAP_SPEED_25G:
+				return (IFM_25G_CR);
+			case FW_PORT_CAP_SPEED_40G:
+				return (IFM_40G_CR4);
+			case FW_PORT_CAP_SPEED_100G:
+				return (IFM_100G_CR4);
+			}
+			break;
+		case FW_PORT_MOD_TYPE_LRM:
+			if (speed == FW_PORT_CAP_SPEED_10G)
+				return (IFM_10G_LRM);
+			break;
+		case FW_PORT_MOD_TYPE_NA:
+			MPASS(0);	/* Not pluggable? */
+			/* fall throough */
+		case FW_PORT_MOD_TYPE_ERROR:
+		case FW_PORT_MOD_TYPE_UNKNOWN:
+		case FW_PORT_MOD_TYPE_NOTSUPPORTED:
+			break;
+		case FW_PORT_MOD_TYPE_NONE:
+			return (IFM_NONE);
+		}
+		break;
+	case FW_PORT_TYPE_NONE:
+		return (IFM_NONE);
+	}
+
+	return (IFM_UNKNOWN);
+}
+
 static void
 cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
-	struct ifmedia_entry *cur;
+	struct adapter *sc = pi->adapter;
 	struct link_config *lc = &pi->link_cfg;
 
-	/*
-	 * If all the interfaces are administratively down the firmware does not
-	 * report transceiver changes.  Refresh port info here so that ifconfig
-	 * displays accurate information at all times.
-	 */
-	if (begin_synchronized_op(pi->adapter, NULL, SLEEP_OK | INTR_OK,
-	    "t4med") == 0) {
-		PORT_LOCK(pi);
-		if (pi->up_vis == 0) {
-			t4_update_port_info(pi);
-			build_medialist(pi, &pi->media);
-		}
-		PORT_UNLOCK(pi);
-		end_synchronized_op(pi->adapter, 0);
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4med") != 0)
+		return;
+	PORT_LOCK(pi);
+
+	if (pi->up_vis == 0) {
+		/*
+		 * If all the interfaces are administratively down the firmware
+		 * does not report transceiver changes.  Refresh port info here
+		 * so that ifconfig displays accurate ifmedia at all times.
+		 * This is the only reason we have a synchronized op in this
+		 * function.  Just PORT_LOCK would have been enough otherwise.
+		 */
+		t4_update_port_info(pi);
+		build_medialist(pi, &pi->media);
 	}
 
+	/* ifm_status */
 	ifmr->ifm_status = IFM_AVALID;
 	if (lc->link_ok == 0)
-		return;
-
+		goto done;
 	ifmr->ifm_status |= IFM_ACTIVE;
+
+	/* ifm_active */
+	ifmr->ifm_active = IFM_ETHER;
 	ifmr->ifm_active &= ~(IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE);
 	if (lc->fc & PAUSE_RX)
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
 	if (lc->fc & PAUSE_TX)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
-
-	/* active and current will differ iff current media is autoselect. */
-	cur = pi->media.ifm_cur;
-	if (cur != NULL && IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
-		return;
-
-	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
-	if (lc->fc & PAUSE_RX)
-		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
-	if (lc->fc & PAUSE_TX)
-		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
-	switch (lc->speed) {
-	case 10000:
-		ifmr->ifm_active |= IFM_10G_T;
-		break;
-	case 1000:
-		ifmr->ifm_active |= IFM_1000_T;
-		break;
-	case 100:
-		ifmr->ifm_active |= IFM_100_TX;
-		break;
-	case 10:
-		ifmr->ifm_active |= IFM_10_T;
-		break;
-	default:
-		device_printf(vi->dev, "link up but speed unknown (%u)\n",
-		    lc->speed);
-	}
+	ifmr->ifm_active |= port_mword(pi, speed_to_fwspeed(lc->speed));
+done:
+	PORT_UNLOCK(pi);
+	end_synchronized_op(sc, 0);
 }
 
 static int
@@ -3995,214 +4137,114 @@ t4_set_desc(struct adapter *sc)
 	device_set_desc_copy(sc->dev, buf);
 }
 
-static void
-build_medialist(struct port_info *pi, struct ifmedia *media)
+static inline void
+ifmedia_add4(struct ifmedia *media, int m)
 {
-	int m;
+
+	ifmedia_add(media, m, 0, NULL);
+	ifmedia_add(media, m | IFM_ETH_TXPAUSE, 0, NULL);
+	ifmedia_add(media, m | IFM_ETH_RXPAUSE, 0, NULL);
+	ifmedia_add(media, m | IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE, 0, NULL);
+}
+
+static void
+set_current_media(struct port_info *pi, struct ifmedia *media)
+{
+	struct link_config *lc;
+	int mword;
 
 	PORT_LOCK_ASSERT_OWNED(pi);
 
-	ifmedia_removeall(media);
+	/* Leave current media alone if it's already set to IFM_NONE. */
+	if (media->ifm_cur != NULL &&
+	    IFM_SUBTYPE(media->ifm_cur->ifm_media) == IFM_NONE)
+		return;
+
+	mword = IFM_ETHER;
+	lc = &pi->link_cfg;
+	if (lc->requested_aneg == AUTONEG_ENABLE &&
+	    lc->supported & FW_PORT_CAP_ANEG) {
+		ifmedia_set(media, mword | IFM_AUTO);
+		return;
+	}
+	if (lc->requested_fc & PAUSE_TX)
+		mword |= IFM_ETH_TXPAUSE;
+	if (lc->requested_fc & PAUSE_RX)
+		mword |= IFM_ETH_RXPAUSE;
+	mword |= port_mword(pi, speed_to_fwspeed(lc->requested_speed));
+	ifmedia_set(media, mword);
+}
+
+static void
+build_medialist(struct port_info *pi, struct ifmedia *media)
+{
+	uint16_t ss, speed;
+	int unknown, mword, bit;
+	struct link_config *lc;
+
+	PORT_LOCK_ASSERT_OWNED(pi);
+
+	if (pi->flags & FIXED_IFMEDIA)
+		return;
 
 	/*
-	 * XXX: Would it be better to ifmedia_add all 4 combinations of pause
-	 * settings for every speed instead of just txpause|rxpause?  ifconfig
-	 * media display looks much better if autoselect is the only case where
-	 * ifm_current is different from ifm_active.  If the user picks anything
-	 * except txpause|rxpause the display is ugly.
+	 * First setup all the requested_ fields so that they comply with what's
+	 * supported by the port + transceiver.  Note that this clobbers any
+	 * user preferences set via sysctl_pause_settings or sysctl_autoneg.
 	 */
-	m = IFM_ETHER | IFM_FDX | IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE;
+	init_l1cfg(pi);
 
-	switch(pi->port_type) {
-	case FW_PORT_TYPE_BT_XFI:
-	case FW_PORT_TYPE_BT_XAUI:
-		ifmedia_add(media, m | IFM_10G_T, 0, NULL);
-		/* fall through */
-
-	case FW_PORT_TYPE_BT_SGMII:
-		ifmedia_add(media, m | IFM_1000_T, 0, NULL);
-		ifmedia_add(media, m | IFM_100_TX, 0, NULL);
-		ifmedia_add(media, IFM_ETHER | IFM_AUTO, 0, NULL);
-		ifmedia_set(media, IFM_ETHER | IFM_AUTO);
-		break;
-
-	case FW_PORT_TYPE_CX4:
-		ifmedia_add(media, m | IFM_10G_CX4, 0, NULL);
-		ifmedia_set(media, m | IFM_10G_CX4);
-		break;
-
-	case FW_PORT_TYPE_QSFP_10G:
-	case FW_PORT_TYPE_SFP:
-	case FW_PORT_TYPE_FIBER_XFI:
-	case FW_PORT_TYPE_FIBER_XAUI:
-		switch (pi->mod_type) {
-
-		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_10G_LR, 0, NULL);
-			ifmedia_set(media, m | IFM_10G_LR);
-			break;
-
-		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_10G_SR, 0, NULL);
-			ifmedia_set(media, m | IFM_10G_SR);
-			break;
-
-		case FW_PORT_MOD_TYPE_LRM:
-			ifmedia_add(media, m | IFM_10G_LRM, 0, NULL);
-			ifmedia_set(media, m | IFM_10G_LRM);
-			break;
-
-		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
-		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_10G_TWINAX, 0, NULL);
-			ifmedia_set(media, m | IFM_10G_TWINAX);
-			break;
-
-		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, 0, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
-
-		case FW_PORT_MOD_TYPE_NA:
-		case FW_PORT_MOD_TYPE_ER:
-		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
-		}
-		break;
-
-	case FW_PORT_TYPE_CR_QSFP:
-	case FW_PORT_TYPE_SFP28:
-	case FW_PORT_TYPE_KR_SFP28:
-		switch (pi->mod_type) {
-
-		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_25G_SR, 0, NULL);
-			ifmedia_set(media, m | IFM_25G_SR);
-			break;
-
-		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
-		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_25G_CR, 0, NULL);
-			ifmedia_set(media, m | IFM_25G_CR);
-			break;
-
-		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, 0, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
-
-		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
-		}
-		break;
-
-	case FW_PORT_TYPE_QSFP:
-		switch (pi->mod_type) {
-
-		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_40G_LR4, 0, NULL);
-			ifmedia_set(media, m | IFM_40G_LR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_40G_SR4, 0, NULL);
-			ifmedia_set(media, m | IFM_40G_SR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
-		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_40G_CR4, 0, NULL);
-			ifmedia_set(media, m | IFM_40G_CR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, 0, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
-
-		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
-		}
-		break;
-
-	case FW_PORT_TYPE_KR4_100G:
-	case FW_PORT_TYPE_CR4_QSFP:
-		switch (pi->mod_type) {
-
-		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_100G_LR4, 0, NULL);
-			ifmedia_set(media, m | IFM_100G_LR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_100G_SR4, 0, NULL);
-			ifmedia_set(media, m | IFM_100G_SR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
-		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_100G_CR4, 0, NULL);
-			ifmedia_set(media, m | IFM_100G_CR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, 0, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
-
-		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
-		}
-		break;
-
-	default:
-		device_printf(pi->dev,
-		    "unknown port_type (%d), mod_type (%d)\n", pi->port_type,
-		    pi->mod_type);
-		ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-		ifmedia_set(media, m | IFM_UNKNOWN);
-		break;
+	/*
+	 * Now (re)build the ifmedia list.
+	 */
+	ifmedia_removeall(media);
+	lc = &pi->link_cfg;
+	ss = G_FW_PORT_CAP_SPEED(lc->supported); /* Supported Speeds */
+	if (__predict_false(ss == 0)) {	/* not supposed to happen. */
+		MPASS(ss != 0);
+no_media:
+		MPASS(LIST_EMPTY(&media->ifm_list));
+		ifmedia_add(media, IFM_ETHER | IFM_NONE, 0, NULL);
+		ifmedia_set(media, IFM_ETHER | IFM_NONE);
+		return;
 	}
+
+	unknown = 0;
+	for (bit = 0; bit < fls(ss); bit++) {
+		speed = 1 << bit;
+		MPASS(speed & M_FW_PORT_CAP_SPEED);
+		if (ss & speed) {
+			mword = port_mword(pi, speed);
+			if (mword == IFM_NONE) {
+				goto no_media;
+			} else if (mword == IFM_UNKNOWN)
+				unknown++;
+			else
+				ifmedia_add4(media, IFM_ETHER | mword);
+		}
+	}
+	if (unknown > 0) /* Add one unknown for all unknown media types. */
+		ifmedia_add4(media, IFM_ETHER | IFM_UNKNOWN);
+	if (lc->supported & FW_PORT_CAP_ANEG)
+		ifmedia_add(media, IFM_ETHER | IFM_AUTO, 0, NULL);
+
+	set_current_media(pi, media);
 }
 
 /*
- * Update all the requested_* fields in the link config and then send a mailbox
- * command to apply the settings.
+ * Update all the requested_* fields in the link config to something valid (and
+ * reasonable).
  */
 static void
 init_l1cfg(struct port_info *pi)
 {
-	struct adapter *sc = pi->adapter;
 	struct link_config *lc = &pi->link_cfg;
-	int rc;
 
-	ASSERT_SYNCHRONIZED_OP(sc);
+	PORT_LOCK_ASSERT_OWNED(pi);
 
-	lc->requested_speed = port_top_speed(pi);	/* in Gbps */
+	/* Gbps -> Mbps */
+	lc->requested_speed = port_top_speed(pi) * 1000;
+
 	if (t4_autoneg != 0 && lc->supported & FW_PORT_CAP_ANEG) {
 		lc->requested_aneg = AUTONEG_ENABLE;
 	} else {
@@ -4212,18 +4254,58 @@ init_l1cfg(struct port_info *pi)
 	lc->requested_fc = t4_pause_settings & (PAUSE_TX | PAUSE_RX);
 
 	if (t4_fec != -1) {
-		lc->requested_fec = t4_fec & (FEC_RS | FEC_BASER_RS |
-		    FEC_RESERVED);
+		if (t4_fec & FEC_RS && lc->supported & FW_PORT_CAP_FEC_RS) {
+			lc->requested_fec = FEC_RS;
+		} else if (t4_fec & FEC_BASER_RS &&
+		    lc->supported & FW_PORT_CAP_FEC_BASER_RS) {
+			lc->requested_fec = FEC_BASER_RS;
+		} else {
+			lc->requested_fec = 0;
+		}
 	} else {
 		/* Use the suggested value provided by the firmware in acaps */
-		if (lc->advertising & FW_PORT_CAP_FEC_RS)
+		if (lc->advertising & FW_PORT_CAP_FEC_RS &&
+		    lc->supported & FW_PORT_CAP_FEC_RS) {
 			lc->requested_fec = FEC_RS;
-		else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
+		} else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS &&
+		    lc->supported & FW_PORT_CAP_FEC_BASER_RS) {
 			lc->requested_fec = FEC_BASER_RS;
-		else
+		} else {
 			lc->requested_fec = 0;
+		}
 	}
+}
 
+/*
+ * Apply the settings in requested_* to the hardware.  The parameters are
+ * expected to be sane.
+ */
+static int
+apply_l1cfg(struct port_info *pi)
+{
+	struct adapter *sc = pi->adapter;
+	struct link_config *lc = &pi->link_cfg;
+	int rc;
+#ifdef INVARIANTS
+	uint16_t fwspeed;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+	PORT_LOCK_ASSERT_OWNED(pi);
+
+	if (lc->requested_aneg == AUTONEG_ENABLE)
+		MPASS(lc->supported & FW_PORT_CAP_ANEG);
+	if (lc->requested_fc & PAUSE_TX)
+		MPASS(lc->supported & FW_PORT_CAP_FC_TX);
+	if (lc->requested_fc & PAUSE_RX)
+		MPASS(lc->supported & FW_PORT_CAP_FC_RX);
+	if (lc->requested_fec == FEC_RS)
+		MPASS(lc->supported & FW_PORT_CAP_FEC_RS);
+	if (lc->requested_fec == FEC_BASER_RS)
+		MPASS(lc->supported & FW_PORT_CAP_FEC_BASER_RS);
+	fwspeed = speed_to_fwspeed(lc->requested_speed);
+	MPASS(fwspeed != 0);
+	MPASS(lc->supported & fwspeed);
+#endif
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0) {
 		device_printf(pi->dev, "l1cfg failed: %d\n", rc);
@@ -4231,6 +4313,7 @@ init_l1cfg(struct port_info *pi)
 		lc->fc = lc->requested_fc;
 		lc->fec = lc->requested_fec;
 	}
+	return (rc);
 }
 
 #define FW_MAC_EXACT_CHUNK	7
@@ -4515,7 +4598,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	if (pi->up_vis++ == 0) {
 		t4_update_port_info(pi);
 		build_medialist(pi, &pi->media);
-		init_l1cfg(pi);
+		apply_l1cfg(pi);
 	}
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
@@ -4590,13 +4673,13 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 		PORT_UNLOCK(pi);
 		return (0);
 	}
-	PORT_UNLOCK(pi);
 
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
 	pi->link_cfg.link_down_rc = 255;
 	t4_os_link_changed(pi);
 	pi->old_link_cfg = pi->link_cfg;
+	PORT_UNLOCK(pi);
 
 	return (0);
 }
@@ -6346,14 +6429,17 @@ sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
 		    "t4PAUSE");
 		if (rc)
 			return (rc);
+		PORT_LOCK(pi);
 		if ((lc->requested_fc & (PAUSE_TX | PAUSE_RX)) != n) {
 			lc->requested_fc &= ~(PAUSE_TX | PAUSE_RX);
 			lc->requested_fc |= n;
 			rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 			if (rc == 0) {
 				lc->fc = lc->requested_fc;
+				set_current_media(pi, &pi->media);
 			}
 		}
+		PORT_UNLOCK(pi);
 		end_synchronized_op(sc, 0);
 	}
 
@@ -6401,11 +6487,14 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 		n = s[0] - '0';
 		if (n & ~M_FW_PORT_CAP_FEC)
 			return (EINVAL);	/* some other bit is set too */
+		if (!powerof2(n))
+			return (EINVAL);	/* one bit can be set at most */
 
 		rc = begin_synchronized_op(sc, &pi->vi[0], SLEEP_OK | INTR_OK,
 		    "t4fec");
 		if (rc)
 			return (rc);
+		PORT_LOCK(pi);
 		if ((lc->requested_fec & M_FW_PORT_CAP_FEC) != n) {
 			lc->requested_fec = n &
 			    G_FW_PORT_CAP_FEC(lc->supported);
@@ -6414,6 +6503,7 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 				lc->fec = lc->requested_fec;
 			}
 		}
+		PORT_UNLOCK(pi);
 		end_synchronized_op(sc, 0);
 	}
 
@@ -6435,27 +6525,35 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc != 0 || req->newptr == NULL)
 		return (rc);
-	if ((lc->supported & FW_PORT_CAP_ANEG) == 0)
-		return (ENOTSUP);
-
 	if (val == 0)
 		val = AUTONEG_DISABLE;
 	else if (val == 1)
 		val = AUTONEG_ENABLE;
 	else
 		return (EINVAL);
-	if (lc->requested_aneg == val)
-		return (0);	/* no change */
 
 	rc = begin_synchronized_op(sc, &pi->vi[0], SLEEP_OK | INTR_OK,
 	    "t4aneg");
 	if (rc)
 		return (rc);
+	PORT_LOCK(pi);
+	if ((lc->supported & FW_PORT_CAP_ANEG) == 0) {
+		rc = ENOTSUP;
+		goto done;
+	}
+	if (lc->requested_aneg == val) {
+		rc = 0;	/* no change, do nothing. */
+		goto done;
+	}
 	old = lc->requested_aneg;
 	lc->requested_aneg = val;
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0)
 		lc->requested_aneg = old;
+	else
+		set_current_media(pi, &pi->media);
+done:
+	PORT_UNLOCK(pi);
 	end_synchronized_op(sc, 0);
 	return (rc);
 }
@@ -9192,12 +9290,14 @@ t4_os_portmod_changed(struct port_info *pi)
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
 
-	PORT_LOCK(pi);
-	build_medialist(pi, &pi->media);
-	PORT_UNLOCK(pi);
+	MPASS((pi->flags & FIXED_IFMEDIA) == 0);
+
 	vi = &pi->vi[0];
 	if (begin_synchronized_op(sc, vi, HOLD_LOCK, "t4mod") == 0) {
-		init_l1cfg(pi);
+		PORT_LOCK(pi);
+		build_medialist(pi, &pi->media);
+		apply_l1cfg(pi);
+		PORT_UNLOCK(pi);
 		end_synchronized_op(sc, LOCK_HELD);
 	}
 
@@ -9224,6 +9324,8 @@ t4_os_link_changed(struct port_info *pi)
 	struct ifnet *ifp;
 	struct link_config *lc;
 	int v;
+
+	PORT_LOCK_ASSERT_OWNED(pi);
 
 	for_each_vi(pi, v, vi) {
 		ifp = vi->ifp;
