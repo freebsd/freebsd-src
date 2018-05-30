@@ -607,6 +607,7 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
 
 #endif /* _WIN32/MSDOS/UN*X */
 
+#if 0	/* Remote capture is disabled on FreeBSD */
 /*
  * Remote capture definitions.
  *
@@ -965,6 +966,7 @@ PCAP_API int	pcap_remoteact_list(char *hostlist, char sep, int size,
 	    char *errbuf);
 PCAP_API int	pcap_remoteact_close(const char *host, char *errbuf);
 PCAP_API void	pcap_remoteact_cleanup(void);
+#endif	/* Remote capture is disabled on FreeBSD */
 
 #ifdef __cplusplus
 }
