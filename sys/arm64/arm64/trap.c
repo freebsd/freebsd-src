@@ -190,16 +190,32 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	}
 
 	/*
-	 * We may fault from userspace or when in a DMAP region due to
-	 * a superpage being unmapped when the access took place. In these
-	 * cases we need to wait for the pmap to be unlocked and check
-	 * if the translation is still invalid.
+	 * The call to pmap_fault can be dangerous when coming from the
+	 * kernel as it may be not be able to lock the pmap to check if
+	 * the address is now valid. Because of this we filter the cases
+	 * when we are not going to see superpage activity.
 	 */
-	if (map != kernel_map || VIRT_IN_DMAP(far)) {
-		if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
-			return;
+	if (!lower) {
+		/*
+		 * We may fault in a DMAP region due to a superpage being
+		 * unmapped when the access took place.
+		 */
+		if (map == kernel_map && !VIRT_IN_DMAP(far))
+			goto no_pmap_fault;
+		/*
+		 * We can also fault in the userspace handling functions,
+		 * e.g. copyin. In these cases we will have set a fault
+		 * handler so we can check if this is set before calling
+		 * pmap_fault.
+		 */
+		if (map != kernel_map && pcb->pcb_onfault == 0)
+			goto no_pmap_fault;
 	}
 
+	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+		return;
+
+no_pmap_fault:
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
 	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
