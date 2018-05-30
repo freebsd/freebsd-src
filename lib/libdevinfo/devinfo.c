@@ -125,7 +125,8 @@ devinfo_init(void)
 		}
 		if ((ub_size != sizeof(ubus)) ||
 		    (ubus.ub_version != BUS_USER_VERSION)) {
-			warn("kernel bus interface version mismatch");
+			warnx("kernel bus interface version mismatch: kernel %d expected %d",
+			    ubus.ub_version, BUS_USER_VERSION);
 			return(EINVAL);
 		}
 		debug("generation count is %d", ubus.ub_generation);
