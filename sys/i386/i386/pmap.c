@@ -1598,6 +1598,26 @@ pmap_pte_quick3(pmap_t pmap, vm_offset_t va)
 	return (0);
 }
 
+static pt_entry_t
+pmap_pte_ufast(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
+{
+	pt_entry_t *eh_ptep, pte, *ptep;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	pde &= PG_FRAME;
+	critical_enter();
+	eh_ptep = (pt_entry_t *)PCPU_GET(pmap_eh_ptep);
+	if ((*eh_ptep & PG_FRAME) != pde) {
+		*eh_ptep = pde | PG_RW | PG_V | PG_A | PG_M;
+		invlcaddr((void *)PCPU_GET(pmap_eh_va));
+	}
+	ptep = (pt_entry_t *)PCPU_GET(pmap_eh_va) + (i386_btop(va) &
+	    (NPTEPG - 1));
+	pte = *ptep;
+	critical_exit();
+	return (pte);
+}
+
 /*
  *	Routine:	pmap_extract
  *	Function:
@@ -1637,8 +1657,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	pd_entry_t pde, newpf;
-	pt_entry_t *eh_ptep, pte, *ptep;
+	pd_entry_t pde;
+	pt_entry_t pte;
 	vm_page_t m;
 	vm_paddr_t pa;
 
@@ -1658,17 +1678,7 @@ retry:
 				vm_page_hold(m);
 			}
 		} else {
-			newpf = pde & PG_FRAME;
-			critical_enter();
-			eh_ptep = (pt_entry_t *)PCPU_GET(pmap_eh_ptep);
-			if ((*eh_ptep & PG_FRAME) != newpf) {
-				*eh_ptep = newpf | PG_RW | PG_V | PG_A | PG_M;
-				invlcaddr((void *)PCPU_GET(pmap_eh_va));
-			}
-			ptep = (pt_entry_t *)PCPU_GET(pmap_eh_va) +
-			    (i386_btop(va) & (NPTEPG - 1));
-			pte = *ptep;
-			critical_exit();
+			pte = pmap_pte_ufast(pmap, va, pde);
 			if (pte != 0 &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
 				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME,
