@@ -4964,12 +4964,12 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	}
 
 	/* Data and insn aborts use same encoding for FCS field. */
-	PMAP_LOCK(pmap);
 	switch (esr & ISS_DATA_DFSC_MASK) {
 	case ISS_DATA_DFSC_TF_L0:
 	case ISS_DATA_DFSC_TF_L1:
 	case ISS_DATA_DFSC_TF_L2:
 	case ISS_DATA_DFSC_TF_L3:
+		PMAP_LOCK(pmap);
 		/* Ask the MMU to check the address */
 		intr = intr_disable();
 		if (pmap == kernel_pmap)
@@ -4977,21 +4977,19 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		else
 			par = arm64_address_translate_s1e0r(far);
 		intr_restore(intr);
+		PMAP_UNLOCK(pmap);
 
 		/*
 		 * If the translation was successful the address was invalid
 		 * due to a break-before-make sequence. We can unlock and
 		 * return success to the trap handler.
 		 */
-		if (PAR_SUCCESS(par)) {
-			PMAP_UNLOCK(pmap);
+		if (PAR_SUCCESS(par))
 			return (KERN_SUCCESS);
-		}
 		break;
 	default:
 		break;
 	}
-	PMAP_UNLOCK(pmap);
 #endif
 
 	return (KERN_FAILURE);
