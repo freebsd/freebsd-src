@@ -1671,7 +1671,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	 * range, copying each page from the source object to the
 	 * destination object.  Since the source is wired, those pages
 	 * must exist.  In contrast, the destination is pageable.
-	 * Since the destination object does share any backing storage
+	 * Since the destination object doesn't share any backing storage
 	 * with the source object, all of its pages must be dirtied,
 	 * regardless of whether they can be written.
 	 */
