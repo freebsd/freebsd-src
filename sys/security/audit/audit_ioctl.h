@@ -31,6 +31,8 @@
 #ifndef _SECURITY_AUDIT_AUDIT_IOCTL_H_
 #define	_SECURITY_AUDIT_AUDIT_IOCTL_H_
 
+#include <bsm/audit.h>
+
 #define	AUDITPIPE_IOBASE	'A'
 
 /*
