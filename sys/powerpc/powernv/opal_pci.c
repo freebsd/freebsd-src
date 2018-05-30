@@ -200,25 +200,27 @@ opalpci_attach(device_t dev)
 {
 	struct opalpci_softc *sc;
 	cell_t id[2], m64window[6], npe;
+	phandle_t node;
 	int i, err;
 	uint64_t maxmem;
 	uint64_t entries;
 	int rid;
 
 	sc = device_get_softc(dev);
+	node = ofw_bus_get_node(dev);
 
-	switch (OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid")) {
+	switch (OF_getproplen(node, "ibm,opal-phbid")) {
 	case 8:
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-phbid", id, 8);
+		OF_getencprop(node, "ibm,opal-phbid", id, 8);
 		sc->phb_id = ((uint64_t)id[0] << 32) | id[1];
 		break;
 	case 4:
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-phbid", id, 4);
+		OF_getencprop(node, "ibm,opal-phbid", id, 4);
 		sc->phb_id = id[0];
 		break;
 	default:
 		device_printf(dev, "PHB ID property had wrong length (%zd)\n",
-		    OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid"));
+		    OF_getproplen(node, "ibm,opal-phbid"));
 		return (ENXIO);
 	}
 
@@ -264,8 +266,7 @@ opalpci_attach(device_t dev)
 	/*
 	 * Turn on MMIO, mapped to PE 1
 	 */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-num-pes", &npe, 4)
-	    != 4)
+	if (OF_getencprop(node, "ibm,opal-num-pes", &npe, 4) != 4)
 		npe = 1;
 	for (i = 0; i < npe; i++) {
 		err = opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
@@ -275,7 +276,7 @@ opalpci_attach(device_t dev)
 	}
 
 	/* XXX: multiple M64 windows? */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	if (OF_getencprop(node, "ibm,opal-m64-window",
 	    m64window, sizeof(m64window)) == sizeof(m64window)) {
 		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
 		    OPAL_M64_WINDOW_TYPE, 0, 0);
@@ -342,9 +343,9 @@ opalpci_attach(device_t dev)
 	 * Get MSI properties
 	 */
 	sc->msi_vmem = NULL;
-	if (OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-msi-ranges") > 0) {
+	if (OF_getproplen(node, "ibm,opal-msi-ranges") > 0) {
 		cell_t msi_ranges[2];
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-msi-ranges",
+		OF_getencprop(node, "ibm,opal-msi-ranges",
 		    msi_ranges, sizeof(msi_ranges));
 		sc->msi_base = msi_ranges[0];
 
@@ -352,7 +353,7 @@ opalpci_attach(device_t dev)
 		    msi_ranges[1], 1, 16, M_BESTFIT | M_WAITOK);
 
 		sc->base_msi_irq = powerpc_register_pic(dev,
-		    OF_xref_from_node(ofw_bus_get_node(dev)),
+		    OF_xref_from_node(node),
 		    msi_ranges[0] + msi_ranges[1], 0, FALSE);
 
 		if (bootverbose)
@@ -377,7 +378,7 @@ opalpci_attach(device_t dev)
 	/*
 	 * OPAL stores 64-bit BARs in a special property rather than "ranges"
 	 */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	if (OF_getencprop(node, "ibm,opal-m64-window",
 	    m64window, sizeof(m64window)) == sizeof(m64window)) {
 		struct ofw_pci_range *rp;
 
