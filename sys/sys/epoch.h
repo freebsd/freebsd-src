@@ -44,21 +44,21 @@ extern epoch_t global_epoch;
 extern epoch_t global_epoch_preempt;
 
 struct epoch_context {
-	void *data[2];
-} __aligned(sizeof(void *));
+	void   *data[2];
+}	__aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
 
-epoch_t epoch_alloc(int flags);
-void epoch_free(epoch_t epoch);
-void epoch_enter(epoch_t epoch);
-void epoch_enter_preempt_internal(epoch_t epoch, struct thread *td);
-void epoch_exit(epoch_t epoch);
-void epoch_exit_preempt_internal(epoch_t epoch, struct thread *td);
-void epoch_wait(epoch_t epoch);
-void epoch_wait_preempt(epoch_t epoch);
-void epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
-int in_epoch(void);
+epoch_t	epoch_alloc(int flags);
+void	epoch_free(epoch_t epoch);
+void	epoch_enter(epoch_t epoch);
+void	epoch_enter_preempt_internal(epoch_t epoch, struct thread *td);
+void	epoch_exit(epoch_t epoch);
+void	epoch_exit_preempt_internal(epoch_t epoch, struct thread *td);
+void	epoch_wait(epoch_t epoch);
+void	epoch_wait_preempt(epoch_t epoch);
+void	epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
+int	in_epoch(void);
 
 #ifdef _KERNEL
 DPCPU_DECLARE(int, epoch_cb_count);
@@ -88,5 +88,5 @@ epoch_exit_preempt(epoch_t epoch)
 	if (td->td_epochnest-- == 1)
 		epoch_exit_preempt_internal(epoch, td);
 }
-#endif /* _KERNEL */
+#endif					/* _KERNEL */
 #endif
