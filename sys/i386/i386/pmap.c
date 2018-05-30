@@ -3916,14 +3916,14 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		mpte = NULL;
 	}
 
-	/* XXXKIB: pmap_pte_quick() instead ? */
-	pte = pmap_pte(pmap, va);
+	sched_pin();
+	pte = pmap_pte_quick(pmap, va);
 	if (*pte) {
 		if (mpte != NULL) {
 			mpte->wire_count--;
 			mpte = NULL;
 		}
-		pmap_pte_release(pte);
+		sched_unpin();
 		return (mpte);
 	}
 
@@ -3941,7 +3941,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			
 			mpte = NULL;
 		}
-		pmap_pte_release(pte);
+		sched_unpin();
 		return (mpte);
 	}
 
@@ -3963,7 +3963,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
-	pmap_pte_release(pte);
+	sched_unpin();
 	return (mpte);
 }
 
