@@ -394,8 +394,7 @@ ofwfb_init(struct vt_device *vd)
 	/* Make sure we have needed properties */
 	if (OF_getproplen(node, "height") != sizeof(height) ||
 	    OF_getproplen(node, "width") != sizeof(width) ||
-	    OF_getproplen(node, "depth") != sizeof(depth) ||
-	    OF_getproplen(node, "linebytes") != sizeof(sc->fb.fb_stride))
+	    OF_getproplen(node, "depth") != sizeof(depth))
 		return (CN_DEAD);
 
 	/* Only support 8 and 32-bit framebuffers */
@@ -406,7 +405,9 @@ ofwfb_init(struct vt_device *vd)
 
 	OF_getprop(node, "height", &height, sizeof(height));
 	OF_getprop(node, "width", &width, sizeof(width));
-	OF_getprop(node, "linebytes", &stride, sizeof(stride));
+	if (OF_getprop(node, "linebytes", &stride, sizeof(stride)) !=
+	    sizeof(stride))
+		stride = width*depth/8;
 
 	sc->fb.fb_height = height;
 	sc->fb.fb_width = width;
