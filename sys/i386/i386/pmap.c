@@ -1628,7 +1628,7 @@ vm_paddr_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	vm_paddr_t rtval;
-	pt_entry_t *pte;
+	pt_entry_t pte;
 	pd_entry_t pde;
 
 	rtval = 0;
@@ -1638,9 +1638,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		if ((pde & PG_PS) != 0)
 			rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
 		else {
-			pte = pmap_pte(pmap, va);
-			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
-			pmap_pte_release(pte);
+			pte = pmap_pte_ufast(pmap, va, pde);
+			rtval = (pte & PG_FRAME) | (va & PAGE_MASK);
 		}
 	}
 	PMAP_UNLOCK(pmap);
@@ -4787,19 +4786,14 @@ pmap_is_modified_pvh(struct md_page *pvh)
 boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
-	pd_entry_t *pde;
-	pt_entry_t *pte;
+	pd_entry_t pde;
 	boolean_t rv;
 
 	rv = FALSE;
 	PMAP_LOCK(pmap);
-	pde = pmap_pde(pmap, addr);
-	if (*pde != 0 && (*pde & PG_PS) == 0) {
-		pte = pmap_pte(pmap, addr);
-		if (pte != NULL)
-			rv = *pte == 0;
-		pmap_pte_release(pte);
-	}
+	pde = *pmap_pde(pmap, addr);
+	if (pde != 0 && (pde & PG_PS) == 0)
+		rv = pmap_pte_ufast(pmap, addr, pde) == 0;
 	PMAP_UNLOCK(pmap);
 	return (rv);
 }
@@ -5584,25 +5578,23 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
-	pd_entry_t *pdep;
-	pt_entry_t *ptep, pte;
+	pd_entry_t pde;
+	pt_entry_t pte;
 	vm_paddr_t pa;
 	int val;
 
 	PMAP_LOCK(pmap);
 retry:
-	pdep = pmap_pde(pmap, addr);
-	if (*pdep != 0) {
-		if (*pdep & PG_PS) {
-			pte = *pdep;
+	pde = *pmap_pde(pmap, addr);
+	if (pde != 0) {
+		if ((pde & PG_PS) != 0) {
+			pte = pde;
 			/* Compute the physical address of the 4KB page. */
-			pa = ((*pdep & PG_PS_FRAME) | (addr & PDRMASK)) &
+			pa = ((pde & PG_PS_FRAME) | (addr & PDRMASK)) &
 			    PG_FRAME;
 			val = MINCORE_SUPER;
 		} else {
-			ptep = pmap_pte(pmap, addr);
-			pte = *ptep;
-			pmap_pte_release(ptep);
+			pte = pmap_pte_ufast(pmap, addr, pde);
 			pa = pte & PG_FRAME;
 			val = 0;
 		}
