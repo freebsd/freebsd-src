@@ -766,7 +766,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	pt_entry_t *l2;
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t start_pa, pa, max_pa, min_pa;
+	vm_paddr_t start_pa, pa, min_pa;
 	int i;
 
 	kern_delta = KERNBASE - kernstart;
@@ -780,7 +780,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	PMAP_LOCK_INIT(kernel_pmap);
 
 	/* Assume the address we were loaded to is a valid physical address */
-	min_pa = max_pa = KERNBASE - kern_delta;
+	min_pa = KERNBASE - kern_delta;
 
 	physmap_idx = arm_physmem_avail(physmap, nitems(physmap));
 	physmap_idx /= 2;
@@ -794,8 +794,6 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 			continue;
 		if (physmap[i] <= min_pa)
 			min_pa = physmap[i];
-		if (physmap[i + 1] > max_pa)
-			max_pa = physmap[i + 1];
 	}
 
 	freemempos = KERNBASE + kernlen;
