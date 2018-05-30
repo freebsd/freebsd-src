@@ -656,7 +656,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 	if (nsym != 1) {
 		/* Only allow one symbol table for now */
-		link_elf_error(filename, "file has no valid symbol table");
+		link_elf_error(filename,
+		    "file must have exactly one symbol table");
 		error = ENOEXEC;
 		goto out;
 	}
