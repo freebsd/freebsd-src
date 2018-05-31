@@ -25,6 +25,7 @@ SRCS+=	t4_mp_ring.c
 SRCS+=	t4_netmap.c
 SRCS+=	t4_sched.c
 SRCS+=	t4_sge.c
+SRCS+=	t4_smt.c
 SRCS+=	t4_tracer.c
 SRCS+=  cudbg_common.c
 SRCS+=  cudbg_flash_utils.c
