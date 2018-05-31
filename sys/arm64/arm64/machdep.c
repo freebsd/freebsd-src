@@ -726,27 +726,8 @@ static void
 foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 {
 	struct efi_md *map, *p;
-	const char *type;
 	size_t efisz;
 	int ndesc, i;
-
-	static const char *types[] = {
-		"Reserved",
-		"LoaderCode",
-		"LoaderData",
-		"BootServicesCode",
-		"BootServicesData",
-		"RuntimeServicesCode",
-		"RuntimeServicesData",
-		"ConventionalMemory",
-		"UnusableMemory",
-		"ACPIReclaimMemory",
-		"ACPIMemoryNVS",
-		"MemoryMappedIO",
-		"MemoryMappedIOPortSpace",
-		"PalCode",
-		"PersistentMemory"
-	};
 
 	/*
 	 * Memory map data provided by UEFI via the GetMemoryMap
@@ -759,46 +740,8 @@ foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 		return;
 	ndesc = efihdr->memory_size / efihdr->descriptor_size;
 
-	if (boothowto & RB_VERBOSE)
-		printf("%23s %12s %12s %8s %4s\n",
-		    "Type", "Physical", "Virtual", "#Pages", "Attr");
-
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
-		if (boothowto & RB_VERBOSE) {
-			if (p->md_type < nitems(types))
-				type = types[p->md_type];
-			else
-				type = "<INVALID>";
-			printf("%23s %012lx %12p %08lx ", type, p->md_phys,
-			    p->md_virt, p->md_pages);
-			if (p->md_attr & EFI_MD_ATTR_UC)
-				printf("UC ");
-			if (p->md_attr & EFI_MD_ATTR_WC)
-				printf("WC ");
-			if (p->md_attr & EFI_MD_ATTR_WT)
-				printf("WT ");
-			if (p->md_attr & EFI_MD_ATTR_WB)
-				printf("WB ");
-			if (p->md_attr & EFI_MD_ATTR_UCE)
-				printf("UCE ");
-			if (p->md_attr & EFI_MD_ATTR_WP)
-				printf("WP ");
-			if (p->md_attr & EFI_MD_ATTR_RP)
-				printf("RP ");
-			if (p->md_attr & EFI_MD_ATTR_XP)
-				printf("XP ");
-			if (p->md_attr & EFI_MD_ATTR_NV)
-				printf("NV ");
-			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
-				printf("MORE_RELIABLE ");
-			if (p->md_attr & EFI_MD_ATTR_RO)
-				printf("RO ");
-			if (p->md_attr & EFI_MD_ATTR_RT)
-				printf("RUNTIME");
-			printf("\n");
-		}
-
 		cb(p);
 	}
 }
@@ -860,6 +803,70 @@ add_efi_map_entries(struct efi_map_header *efihdr)
 {
 
 	foreach_efi_map_entry(efihdr, add_efi_map_entry);
+}
+
+static void
+print_efi_map_entry(struct efi_md *p)
+{
+	const char *type;
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode",
+		"PersistentMemory"
+	};
+
+	if (p->md_type < nitems(types))
+		type = types[p->md_type];
+	else
+		type = "<INVALID>";
+	printf("%23s %012lx %12p %08lx ", type, p->md_phys,
+	    p->md_virt, p->md_pages);
+	if (p->md_attr & EFI_MD_ATTR_UC)
+		printf("UC ");
+	if (p->md_attr & EFI_MD_ATTR_WC)
+		printf("WC ");
+	if (p->md_attr & EFI_MD_ATTR_WT)
+		printf("WT ");
+	if (p->md_attr & EFI_MD_ATTR_WB)
+		printf("WB ");
+	if (p->md_attr & EFI_MD_ATTR_UCE)
+		printf("UCE ");
+	if (p->md_attr & EFI_MD_ATTR_WP)
+		printf("WP ");
+	if (p->md_attr & EFI_MD_ATTR_RP)
+		printf("RP ");
+	if (p->md_attr & EFI_MD_ATTR_XP)
+		printf("XP ");
+	if (p->md_attr & EFI_MD_ATTR_NV)
+		printf("NV ");
+	if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+		printf("MORE_RELIABLE ");
+	if (p->md_attr & EFI_MD_ATTR_RO)
+		printf("RO ");
+	if (p->md_attr & EFI_MD_ATTR_RT)
+		printf("RUNTIME");
+	printf("\n");
+}
+
+static void
+print_efi_map_entries(struct efi_map_header *efihdr)
+{
+
+	printf("%23s %12s %12s %8s %4s\n",
+	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+	foreach_efi_map_entry(efihdr, print_efi_map_entry);
 }
 
 #ifdef FDT
@@ -1075,8 +1082,10 @@ initarm(struct arm64_bootparams *abp)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	if (boothowto & RB_VERBOSE)
+	if (boothowto & RB_VERBOSE) {
+		print_efi_map_entries(efihdr);
 		arm_physmem_print_tables();
+	}
 
 	early_boot = 0;
 }
