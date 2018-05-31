@@ -1921,6 +1921,36 @@ get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 }
 
 static int
+migrate_check_memsize(size_t local_lowmem_size, size_t local_highmem_size,
+		      size_t remote_lowmem_size, size_t remote_highmem_size)
+{
+	int ret = MIGRATION_SPECS_OK;
+	fprintf(stderr,
+		"%s: Local lowmem vs remote lowmem: %lu vs %lu\r\n"
+		"%s: Local highmem vs remote highmem: %lu vs %lu\r\n",
+		__func__,
+		local_lowmem_size, remote_lowmem_size,
+		__func__,
+		local_highmem_size, remote_highmem_size);
+
+	if (local_lowmem_size != remote_lowmem_size){
+		ret = MIGRATION_SPECS_NOT_OK;
+		fprintf(stderr,
+			"%s: Local and remote lowmem size mismatch\r\n",
+			__func__);
+	}
+
+	if (local_highmem_size != remote_highmem_size){
+		ret = MIGRATION_SPECS_NOT_OK;
+		fprintf(stderr,
+			"%s: Local and remote highmem size mismatch\r\n",
+			__func__);
+	}
+
+	return (ret);
+}
+
+static int
 migrate_recv_memory(struct vmctx *ctx, int socket)
 {
 	size_t local_lowmem_size = 0, local_highmem_size = 0;
@@ -1948,7 +1978,6 @@ migrate_recv_memory(struct vmctx *ctx, int socket)
 			local_highmem_size);
 
 	// TODO: recv remote_lowmem_size
-	// from source
 	rc = migration_recv_data_from_remote(socket,
 			&remote_lowmem_size,
 			sizeof(size_t));
@@ -1969,29 +1998,8 @@ migrate_recv_memory(struct vmctx *ctx, int socket)
 		return (rc);
 	}
 	// TODO: check if local low/high mem is equal with remote low/high mem
-
-	fprintf(stderr,
-		"%s: Local lowmem vs remote lowmem: %lu vs %lu\r\n"
-		"%s: Local highmem vs remote highmem: %lu vs %lu\r\n",
-		__func__,
-		local_lowmem_size, remote_lowmem_size,
-		__func__,
-		local_highmem_size, remote_highmem_size);
-
-	memsize_ok = MIGRATION_SPECS_OK;
-	if (local_lowmem_size != remote_lowmem_size){
-		memsize_ok = MIGRATION_SPECS_NOT_OK;
-		fprintf(stderr,
-			"%s: Local and remote lowmem size mismatch\r\n",
-			__func__);
-	}
-
-	if (local_highmem_size != remote_highmem_size){
-		memsize_ok = MIGRATION_SPECS_NOT_OK;
-		fprintf(stderr,
-			"%s: Local and remote highmem size mismatch\r\n",
-			__func__);
-	}
+	memsize_ok = migrate_check_memsize(local_lowmem_size, local_highmem_size,
+					   remote_lowmem_size, remote_highmem_size);
 
 	// Send migration_ok to remote
 	rc = migration_send_data_remote(socket,
