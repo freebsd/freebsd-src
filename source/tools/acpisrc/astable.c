@@ -761,6 +761,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_IORT_SMMU",                      SRC_TYPE_STRUCT},
     {"ACPI_IORT_SMMU_GSI",                  SRC_TYPE_STRUCT},
     {"ACPI_IORT_SMMU_V3",                   SRC_TYPE_STRUCT},
+    {"ACPI_IORT_PMCG",                      SRC_TYPE_STRUCT},
     {"ACPI_IVRS_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_IVRS_HARDWARE",                  SRC_TYPE_STRUCT},
     {"ACPI_IVRS_DE_HEADER",                 SRC_TYPE_STRUCT},
