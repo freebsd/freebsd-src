@@ -80,6 +80,9 @@ main (int argc, char **argv)
 
     xo_open_container_h(NULL, "top");
 
+    xo_emit("static {:type/ethernet} {:type/bridge} {:type/%4du} {:type/%3d}",
+	    18, 24);
+
     xo_emit("anchor {[:/%d}{:address/%p}..{:port/%u}{]:}\n", 18, NULL, 1);
     xo_emit("anchor {[:18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
     xo_emit("anchor {[:/18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
