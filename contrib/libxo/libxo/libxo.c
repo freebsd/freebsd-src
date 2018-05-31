@@ -4180,6 +4180,59 @@ xo_format_title (xo_handle_t *xop, xo_field_info_t *xfip,
     }
 }
 
+/*
+ * strspn() with a string length
+ */
+static ssize_t
+xo_strnspn (const char *str, size_t len,  const char *accept)
+{
+    ssize_t i;
+    const char *cp, *ep;
+
+    for (i = 0, cp = str, ep = str + len; cp < ep && *cp != '\0'; i++, cp++) {
+	if (strchr(accept, *cp) == NULL)
+	    break;
+    }
+
+    return i;
+}
+
+/*
+ * Decide if a format string should be considered "numeric",
+ * in the sense that the number does not need to be quoted.
+ * This means that it consists only of a single numeric field
+ * with nothing exotic or "interesting".  This means that
+ * static values are never considered numeric.
+ */
+static int
+xo_format_is_numeric (const char *fmt, ssize_t flen)
+{
+    if (flen <= 0 || *fmt++ != '%') /* Must start with '%' */
+	return FALSE;
+    flen -= 1;
+
+    /* Handle leading flags; don't want "#" since JSON can't handle hex */
+    ssize_t spn = xo_strnspn(fmt, flen, "0123456789.*+ -");
+    if (spn >= flen)
+	return FALSE;
+
+    fmt += spn;			/* Move along the input string */
+    flen -= spn;
+
+    /* Handle the length modifiers */
+    spn = xo_strnspn(fmt, flen, "hljtqz");
+    if (spn >= flen)
+	return FALSE;
+
+    fmt += spn;			/* Move along the input string */
+    flen -= spn;
+
+    if (flen != 1)		/* Should only be one character left */
+	return FALSE;
+
+    return (strchr("diouDOUeEfFgG", *fmt) == NULL) ? FALSE : TRUE;
+}
+
 static void
 xo_format_prep (xo_handle_t *xop, xo_xff_flags_t flags)
 {
@@ -4408,10 +4461,10 @@ xo_format_value (xo_handle_t *xop, const char *name, ssize_t nlen,
 	    quote = 0;
 	    fmt = "true";	/* JSON encodes empty tags as a boolean true */
 	    flen = 4;
-	} else if (strchr("diouDOUeEfFgG", fmt[flen - 1]) == NULL)
-	    quote = 1;
-	else
+	} else if (xo_format_is_numeric(fmt, flen))
 	    quote = 0;
+	else
+	    quote = 1;
 
 	if (nlen == 0) {
 	    static char missing[] = "missing-field-name";
