@@ -84,10 +84,6 @@ SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD+=	m
 
-.if ${MACHINE_CPUARCH} == "i386"
-# XXX: __fldcw macro mismatch between fenv.h and ieeefp.h .
-CWARNFLAGS.clang+=	-Wno-error=macro-redefined
-.endif
 WARNS?=		1
 
 # Copied from lib/msun/Makefile
