@@ -63,6 +63,18 @@ static struct pmu_alias pmu_alias_table[] = {
 	{NULL, NULL},
 };
 
+#ifdef notyet
+static struct pmc_event_alias core2_aliases_without_iaf[] = {
+	EV_ALIAS("branches",		"iap-br-inst-retired.any"),
+	EV_ALIAS("branch-mispredicts",	"iap-br-inst-retired.mispred"),
+	EV_ALIAS("cycles",		"tsc-tsc"),
+	EV_ALIAS("ic-misses",		"iap-l1i-misses"),
+	EV_ALIAS("instructions",	"iap-inst-retired.any_p"),
+	EV_ALIAS("interrupts",		"iap-hw-int-rcv"),
+	EV_ALIAS("unhalted-cycles",	"iap-cpu-clk-unhalted.core_p"),
+	EV_ALIAS(NULL, NULL)
+};
+#endif
 static const char *fixed_mode_cntrs[] = {
 	"inst_retired.any",
 	"cpu_clk_unhalted.thread",
@@ -300,7 +312,6 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	int idx, isfixed;
 
 	iap = &pm->pm_md.pm_iap;
-	iaf = &pm->pm_md.pm_iaf;
 	isfixed = 0;
 	bzero(iap, sizeof(*iap));
 	event_name = pmu_alias_get(event_name);
@@ -318,6 +329,8 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0)
 			isfixed = 1;
 	if (isfixed) {
+		iaf = &pm->pm_md.pm_iaf;
+		pm->pm_class = PMC_CLASS_IAF;
 		if (strcasestr(pe->desc, "retired") != NULL)
 			pm->pm_ev = PMC_EV_IAF_INSTR_RETIRED_ANY;
 		else if (strcasestr(pe->desc, "core") != NULL ||
@@ -330,11 +343,14 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 			iaf->pm_iaf_flags |= IAF_ANY;
 		if (pm->pm_caps & PMC_CAP_INTERRUPT)
 			iaf->pm_iaf_flags |= IAF_PMI;
-		pm->pm_class = PMC_CLASS_IAF;
 		return (0);
+	} else if (strcasestr(event_name, "UNC_") == event_name ||
+			   strcasestr(event_name, "uncore") != NULL) {
+		pm->pm_class = PMC_CLASS_UCP;
+	} else {
+		pm->pm_caps |= PMC_CAP_QUALIFIER;
+		pm->pm_class = PMC_CLASS_IAP;
 	}
-	pm->pm_caps |= PMC_CAP_QUALIFIER;
-	pm->pm_class = PMC_CLASS_IAP;
 	pm->pm_ev = idx;
 	iap->pm_iap_config |= IAP_EVSEL(ped.ped_event);
 	iap->pm_iap_config |= IAP_UMASK(ped.ped_umask);
