@@ -218,10 +218,11 @@ idr_remove_all(struct idr *idr)
 	mtx_unlock(&idr->lock);
 }
 
-static void
+static void *
 idr_remove_locked(struct idr *idr, int id)
 {
 	struct idr_layer *il;
+	void *res;
 	int layer;
 	int idx;
 
@@ -229,7 +230,7 @@ idr_remove_locked(struct idr *idr, int id)
 	il = idr->top;
 	layer = idr->layers - 1;
 	if (il == NULL || id > idr_max(idr))
-		return;
+		return (NULL);
 	/*
 	 * Walk down the tree to this item setting bitmaps along the way
 	 * as we know at least one item will be free along this path.
@@ -249,16 +250,23 @@ idr_remove_locked(struct idr *idr, int id)
 	if (il == NULL || (il->bitmap & (1 << idx)) != 0)
 		panic("idr_remove: Item %d not allocated (%p, %p)\n",
 		    id, idr, il);
+	res = il->ary[idx];
 	il->ary[idx] = NULL;
 	il->bitmap |= 1 << idx;
+
+	return (res);
 }
 
-void
+void *
 idr_remove(struct idr *idr, int id)
 {
+	void *res;
+
 	mtx_lock(&idr->lock);
-	idr_remove_locked(idr, id);
+	res = idr_remove_locked(idr, id);
 	mtx_unlock(&idr->lock);
+
+	return (res);
 }
 
 
@@ -713,6 +721,20 @@ int
 idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 {
 	return (idr_for_each_layer(idp->top, 0, idp->layers - 1, f, data));
+}
+
+static int
+idr_has_entry(int id, void *p, void *data)
+{
+
+	return (1);
+}
+
+bool
+idr_is_empty(struct idr *idp)
+{
+
+	return (idr_for_each(idp, idr_has_entry, NULL) == 0);
 }
 
 int
