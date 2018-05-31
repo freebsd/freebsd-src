@@ -58,8 +58,10 @@ __FBSDID("$FreeBSD$");
 #define	AW_MMC_MEMRES		0
 #define	AW_MMC_IRQRES		1
 #define	AW_MMC_RESSZ		2
-#define	AW_MMC_DMA_SEGS		((MAXPHYS / PAGE_SIZE) + 1)
+#define	AW_MMC_DMA_SEGS		(PAGE_SIZE / sizeof(struct aw_mmc_dma_desc))
+#define	AW_MMC_DMA_DESC_SIZE	(sizeof(struct aw_mmc_dma_desc) * AW_MMC_DMA_SEGS)
 #define	AW_MMC_DMA_FTRGLEVEL	0x20070008
+
 #define	AW_MMC_RESET_RETRY	1000
 
 #define	CARD_ID_FREQUENCY	400000
@@ -335,34 +337,50 @@ aw_dma_desc_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 static int
 aw_mmc_setup_dma(struct aw_mmc_softc *sc)
 {
-	int dma_desc_size, error;
+	int error;
 
 	/* Allocate the DMA descriptor memory. */
-	dma_desc_size = sizeof(struct aw_mmc_dma_desc) * AW_MMC_DMA_SEGS;
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->aw_dev),
-	    AW_MMC_DMA_ALIGN, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    dma_desc_size, 1, dma_desc_size, 0, NULL, NULL, &sc->aw_dma_tag);
-	if (error)
-		return (error);
-	error = bus_dmamem_alloc(sc->aw_dma_tag, &sc->aw_dma_desc,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->aw_dma_map);
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->aw_dev),	/* parent */
+	    AW_MMC_DMA_ALIGN, 0,		/* align, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg*/
+	    AW_MMC_DMA_DESC_SIZE, 1,		/* maxsize, nsegment */
+	    AW_MMC_DMA_DESC_SIZE,		/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lock, lockarg*/
+	    &sc->aw_dma_tag);
 	if (error)
 		return (error);
 
-	error = bus_dmamap_load(sc->aw_dma_tag, sc->aw_dma_map,
-	    sc->aw_dma_desc, dma_desc_size, aw_dma_desc_cb, sc, 0);
+	error = bus_dmamem_alloc(sc->aw_dma_tag, &sc->aw_dma_desc,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
+	    &sc->aw_dma_map);
+	if (error)
+		return (error);
+
+	error = bus_dmamap_load(sc->aw_dma_tag,
+	    sc->aw_dma_map,
+	    sc->aw_dma_desc, AW_MMC_DMA_DESC_SIZE,
+	    aw_dma_desc_cb, sc, 0);
 	if (error)
 		return (error);
 	if (sc->aw_dma_map_err)
 		return (sc->aw_dma_map_err);
 
 	/* Create the DMA map for data transfers. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->aw_dev),
-	    AW_MMC_DMA_ALIGN, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,
-	    sc->aw_mmc_conf->dma_xferlen, BUS_DMA_ALLOCNOW, NULL, NULL,
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->aw_dev),	/* parent */
+	    AW_MMC_DMA_ALIGN, 0,		/* align, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg*/
+	    sc->aw_mmc_conf->dma_xferlen *
+	    AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,	/* maxsize, nsegments */
+	    sc->aw_mmc_conf->dma_xferlen,	/* maxsegsize */
+	    BUS_DMA_ALLOCNOW,			/* flags */
+	    NULL, NULL,				/* lock, lockarg*/
 	    &sc->aw_dma_buf_tag);
 	if (error)
 		return (error);
@@ -389,22 +407,23 @@ aw_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	dma_desc = sc->aw_dma_desc;
 	for (i = 0; i < nsegs; i++) {
-		dma_desc[i].buf_size = segs[i].ds_len;
+		if (segs[i].ds_len == sc->aw_mmc_conf->dma_xferlen)
+			dma_desc[i].buf_size = 0;		/* Size of 0 indicate max len */
+		else
+			dma_desc[i].buf_size = segs[i].ds_len;
 		dma_desc[i].buf_addr = segs[i].ds_addr;
 		dma_desc[i].config = AW_MMC_DMA_CONFIG_CH |
-		    AW_MMC_DMA_CONFIG_OWN;
-		if (i == 0)
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_FD;
-		if (i < (nsegs - 1)) {
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_DIC;
-			dma_desc[i].next = sc->aw_dma_desc_phys +
-			    ((i + 1) * sizeof(struct aw_mmc_dma_desc));
-		} else {
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_LD |
-			    AW_MMC_DMA_CONFIG_ER;
-			dma_desc[i].next = 0;
-		}
+			AW_MMC_DMA_CONFIG_OWN | AW_MMC_DMA_CONFIG_DIC;
+
+		dma_desc[i].next = sc->aw_dma_desc_phys +
+			((i + 1) * sizeof(struct aw_mmc_dma_desc));
 	}
+
+	dma_desc[0].config |= AW_MMC_DMA_CONFIG_FD;
+	dma_desc[nsegs - 1].config |= AW_MMC_DMA_CONFIG_LD |
+		AW_MMC_DMA_CONFIG_ER;
+	dma_desc[nsegs - 1].config &= ~AW_MMC_DMA_CONFIG_DIC;
+	dma_desc[nsegs - 1].next = 0;
 }
 
 static int
@@ -472,7 +491,7 @@ aw_mmc_reset(struct aw_mmc_softc *sc)
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
 	reg |= AW_MMC_GCTL_RESET;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
-	timeout = 1000;
+	timeout = AW_MMC_RESET_RETRY;
 	while (--timeout > 0) {
 		if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) & AW_MMC_GCTL_RESET) == 0)
 			break;
@@ -540,10 +559,10 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 
 		retry = AW_MMC_RESET_RETRY;
 		while (--retry > 0) {
-			val = AW_MMC_READ_4(sc, AW_MMC_GCTL);
-			if ((val & mask) == 0)
+			if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) &
+			    AW_MMC_GCTL_RESET) == 0)
 				break;
-			DELAY(10);
+			DELAY(100);
 		}
 		if (retry == 0)
 			device_printf(sc->aw_dev,
@@ -688,6 +707,7 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	int err;
 
 	sc = device_get_softc(bus);
+
 	AW_MMC_LOCK(sc);
 	if (sc->aw_req) {
 		AW_MMC_UNLOCK(sc);
@@ -819,7 +839,8 @@ aw_mmc_read_ivar(device_t bus, device_t child, int which,
 		*(int *)result = sc->aw_host.ios.timing;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = 65535;
+		*(int *)result = (sc->aw_mmc_conf->dma_xferlen *
+		    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
 		break;
 	}
 
