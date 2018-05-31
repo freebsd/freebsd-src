@@ -4167,17 +4167,17 @@ t4_set_desc(struct adapter *sc)
 }
 
 static inline void
-ifmedia_add4(struct ifmedia *media, int m)
+ifmedia_add4(struct ifmedia *ifm, int m)
 {
 
-	ifmedia_add(media, m, 0, NULL);
-	ifmedia_add(media, m | IFM_ETH_TXPAUSE, 0, NULL);
-	ifmedia_add(media, m | IFM_ETH_RXPAUSE, 0, NULL);
-	ifmedia_add(media, m | IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE, 0, NULL);
+	ifmedia_add(ifm, m, 0, NULL);
+	ifmedia_add(ifm, m | IFM_ETH_TXPAUSE, 0, NULL);
+	ifmedia_add(ifm, m | IFM_ETH_RXPAUSE, 0, NULL);
+	ifmedia_add(ifm, m | IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE, 0, NULL);
 }
 
 static void
-set_current_media(struct port_info *pi, struct ifmedia *media)
+set_current_media(struct port_info *pi, struct ifmedia *ifm)
 {
 	struct link_config *lc;
 	int mword;
@@ -4185,15 +4185,15 @@ set_current_media(struct port_info *pi, struct ifmedia *media)
 	PORT_LOCK_ASSERT_OWNED(pi);
 
 	/* Leave current media alone if it's already set to IFM_NONE. */
-	if (media->ifm_cur != NULL &&
-	    IFM_SUBTYPE(media->ifm_cur->ifm_media) == IFM_NONE)
+	if (ifm->ifm_cur != NULL &&
+	    IFM_SUBTYPE(ifm->ifm_cur->ifm_media) == IFM_NONE)
 		return;
 
 	mword = IFM_ETHER;
 	lc = &pi->link_cfg;
 	if (lc->requested_aneg == AUTONEG_ENABLE &&
 	    lc->supported & FW_PORT_CAP_ANEG) {
-		ifmedia_set(media, mword | IFM_AUTO);
+		ifmedia_set(ifm, mword | IFM_AUTO);
 		return;
 	}
 	if (lc->requested_fc & PAUSE_TX)
@@ -4201,11 +4201,11 @@ set_current_media(struct port_info *pi, struct ifmedia *media)
 	if (lc->requested_fc & PAUSE_RX)
 		mword |= IFM_ETH_RXPAUSE;
 	mword |= port_mword(pi, speed_to_fwspeed(lc->requested_speed));
-	ifmedia_set(media, mword);
+	ifmedia_set(ifm, mword);
 }
 
 static void
-build_medialist(struct port_info *pi, struct ifmedia *media)
+build_medialist(struct port_info *pi, struct ifmedia *ifm)
 {
 	uint16_t ss, speed;
 	int unknown, mword, bit;
@@ -4226,15 +4226,15 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 	/*
 	 * Now (re)build the ifmedia list.
 	 */
-	ifmedia_removeall(media);
+	ifmedia_removeall(ifm);
 	lc = &pi->link_cfg;
 	ss = G_FW_PORT_CAP_SPEED(lc->supported); /* Supported Speeds */
 	if (__predict_false(ss == 0)) {	/* not supposed to happen. */
 		MPASS(ss != 0);
 no_media:
-		MPASS(LIST_EMPTY(&media->ifm_list));
-		ifmedia_add(media, IFM_ETHER | IFM_NONE, 0, NULL);
-		ifmedia_set(media, IFM_ETHER | IFM_NONE);
+		MPASS(LIST_EMPTY(&ifm->ifm_list));
+		ifmedia_add(ifm, IFM_ETHER | IFM_NONE, 0, NULL);
+		ifmedia_set(ifm, IFM_ETHER | IFM_NONE);
 		return;
 	}
 
@@ -4249,15 +4249,15 @@ no_media:
 			} else if (mword == IFM_UNKNOWN)
 				unknown++;
 			else
-				ifmedia_add4(media, IFM_ETHER | mword);
+				ifmedia_add4(ifm, IFM_ETHER | mword);
 		}
 	}
 	if (unknown > 0) /* Add one unknown for all unknown media types. */
-		ifmedia_add4(media, IFM_ETHER | IFM_UNKNOWN);
+		ifmedia_add4(ifm, IFM_ETHER | IFM_UNKNOWN);
 	if (lc->supported & FW_PORT_CAP_ANEG)
-		ifmedia_add(media, IFM_ETHER | IFM_AUTO, 0, NULL);
+		ifmedia_add(ifm, IFM_ETHER | IFM_AUTO, 0, NULL);
 
-	set_current_media(pi, media);
+	set_current_media(pi, ifm);
 }
 
 /*
