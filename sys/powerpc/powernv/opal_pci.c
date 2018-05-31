@@ -364,7 +364,6 @@ opalpci_attach(device_t dev)
 	maxmem = roundup2(powerpc_ptob(Maxmem), tce_size);
 	entries = round_pow2(maxmem / tce_size);
 	tce_tbl_size = max(entries * sizeof(uint64_t), 4096);
-	device_printf(dev, "Entries: %ld, tce_size: %#lx\n", entries, tce_size);
 	if (entries > OPAL_PCI_TCE_MAX_ENTRIES)
 		panic("POWERNV supports only %jdGB of memory space\n",
 		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * tce_size) >> 30));
