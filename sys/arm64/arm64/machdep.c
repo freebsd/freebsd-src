@@ -1075,7 +1075,7 @@ initarm(struct arm64_bootparams *abp)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	if (bootverbose)
+	if (boothowto & RB_VERBOSE)
 		arm_physmem_print_tables();
 
 	early_boot = 0;
