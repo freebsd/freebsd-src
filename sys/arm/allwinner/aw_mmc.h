@@ -82,10 +82,10 @@
 	(AW_MMC_GCTL_SOFT_RST | AW_MMC_GCTL_FIFO_RST | AW_MMC_GCTL_DMA_RST)
 
 /* AW_MMC_CKCR */
-#define	AW_MMC_CKCR_CCLK_ENB		(1U << 16)
-#define	AW_MMC_CKCR_CCLK_CTRL		(1U << 17)
-#define	AW_MMC_CKCR_CCLK_MASK_DATA0	(1U << 31)
-#define	AW_MMC_CKCR_CCLK_DIV		0xff
+#define	AW_MMC_CKCR_DIV		0xff
+#define	AW_MMC_CKCR_ENB		(1U << 16)
+#define	AW_MMC_CKCR_LOW_POWER	(1U << 17)
+#define	AW_MMC_CKCR_MASK_DATA0	(1U << 31)
 
 /* AW_MMC_TMOR */
 #define	AW_MMC_TMOR_RTO_LMT_SHIFT(x)	x		/* Response timeout limit */
