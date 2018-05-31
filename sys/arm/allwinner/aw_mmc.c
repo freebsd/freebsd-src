@@ -885,13 +885,13 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 	int retry;
 
 	reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-	reg &= ~(AW_MMC_CKCR_CCLK_ENB | AW_MMC_CKCR_CCLK_CTRL |
-	    AW_MMC_CKCR_CCLK_MASK_DATA0);
+	reg &= ~(AW_MMC_CKCR_ENB | AW_MMC_CKCR_LOW_POWER |
+	    AW_MMC_CKCR_MASK_DATA0);
 
 	if (clkon)
-		reg |= AW_MMC_CKCR_CCLK_ENB;
+		reg |= AW_MMC_CKCR_ENB;
 	if (sc->aw_mmc_conf->mask_data0)
-		reg |= AW_MMC_CKCR_CCLK_MASK_DATA0;
+		reg |= AW_MMC_CKCR_MASK_DATA0;
 
 	AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 
@@ -913,7 +913,7 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 
 	if (sc->aw_mmc_conf->mask_data0) {
 		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-		reg &= ~AW_MMC_CKCR_CCLK_MASK_DATA0;
+		reg &= ~AW_MMC_CKCR_MASK_DATA0;
 		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 	}
 
@@ -1030,7 +1030,7 @@ aw_mmc_update_ios(device_t bus, device_t child)
 
 		/* Reset the divider. */
 		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-		reg &= ~AW_MMC_CKCR_CCLK_DIV;
+		reg &= ~AW_MMC_CKCR_DIV;
 		reg |= div - 1;
 		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 
