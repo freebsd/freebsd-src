@@ -32,6 +32,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 
+20180530:
+	The kernel / userland interface for devinfo changed, so you'll
+	need a new kernel and userland as a pair for it to work (rebuilding
+	lib/libdevinfo is all that's required). devinfo and devmatch will
+	not work, but everything else will when there's a mismatch.
+
 20180523:
 	The on-disk format for hwpmc callchain records has changed to include
 	threadid corresponding to a given record. This changes the field offsets
