@@ -119,8 +119,6 @@ struct aw_mmc_softc {
 	uint32_t		aw_intr;
 	uint32_t		aw_intr_wait;
 	void *			aw_intrhand;
-	int32_t			aw_vdd;
-	int32_t			aw_vccq;
 	regulator_t		aw_reg_vmmc;
 	regulator_t		aw_reg_vqmmc;
 	unsigned int		aw_clock;
@@ -941,15 +939,18 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 	return (0);
 }
 
-static void
-aw_mmc_set_vccq(struct aw_mmc_softc *sc, int32_t vccq)
+static int
+aw_mmc_switch_vccq(device_t bus, device_t child)
 {
-	int uvolt;
+	struct aw_mmc_softc *sc;
+	int uvolt, err;
+
+	sc = device_get_softc(bus);
 
 	if (sc->aw_reg_vqmmc == NULL)
-		return;
+		return EOPNOTSUPP;
 
-	switch (vccq) {
+	switch (sc->aw_host.ios.vccq) {
 	case vccq_180:
 		uvolt = 1800000;
 		break;
@@ -957,15 +958,19 @@ aw_mmc_set_vccq(struct aw_mmc_softc *sc, int32_t vccq)
 		uvolt = 3300000;
 		break;
 	default:
-		return;
+		return EINVAL;
 	}
 
-	if (regulator_set_voltage(sc->aw_reg_vqmmc,
-	    uvolt, uvolt) != 0)
+	err = regulator_set_voltage(sc->aw_reg_vqmmc, uvolt, uvolt);
+	if (err != 0) {
 		device_printf(sc->aw_dev,
 		    "Cannot set vqmmc to %d<->%d\n",
 		    uvolt,
 		    uvolt);
+		return (err);
+	}
+
+	return (0);
 }
 
 static int
@@ -1019,11 +1024,6 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		aw_mmc_init(sc);
 		break;
 	};
-
-	if (ios->vccq != sc->aw_vccq) {
-		aw_mmc_set_vccq(sc, ios->vccq);
-		sc->aw_vccq = ios->vccq;
-	}
 
 	/* Enable ddr mode if needed */
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
@@ -1141,6 +1141,7 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD(mmcbr_update_ios,	aw_mmc_update_ios),
 	DEVMETHOD(mmcbr_request,	aw_mmc_request),
 	DEVMETHOD(mmcbr_get_ro,		aw_mmc_get_ro),
+	DEVMETHOD(mmcbr_switch_vccq,	aw_mmc_switch_vccq),
 	DEVMETHOD(mmcbr_acquire_host,	aw_mmc_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	aw_mmc_release_host),
 
