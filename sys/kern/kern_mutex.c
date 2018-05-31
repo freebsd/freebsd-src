@@ -486,8 +486,25 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	int doing_lockprof;
 #endif
+
 	td = curthread;
 	tid = (uintptr_t)td;
+	m = mtxlock2mtx(c);
+
+#ifdef KDTRACE_HOOKS
+	if (LOCKSTAT_PROFILE_ENABLED(adaptive__acquire)) {
+		while (v == MTX_UNOWNED) {
+			if (_mtx_obtain_lock_fetch(m, &v, tid))
+				goto out_lockstat;
+		}
+		doing_lockprof = 1;
+		all_time -= lockstat_nsecs(&m->lock_object);
+	}
+#endif
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
+#endif
+
 	if (SCHEDULER_STOPPED_TD(td))
 		return;
 
@@ -496,7 +513,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #elif defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, NULL);
 #endif
-	m = mtxlock2mtx(c);
+
 	if (__predict_false(v == MTX_UNOWNED))
 		v = MTX_READ_VALUE(m);
 
@@ -527,13 +544,6 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
-#ifdef LOCK_PROFILING
-	doing_lockprof = 1;
-#elif defined(KDTRACE_HOOKS)
-	doing_lockprof = lockstat_enabled;
-	if (__predict_false(doing_lockprof))
-		all_time -= lockstat_nsecs(&m->lock_object);
-#endif
 
 	for (;;) {
 		if (v == MTX_UNOWNED) {
@@ -637,10 +647,6 @@ retry_turnstile:
 #endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&m->lock_object);
-#endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
-	    waittime, file, line);
-#ifdef KDTRACE_HOOKS
 	if (sleep_time)
 		LOCKSTAT_RECORD1(adaptive__block, m, sleep_time);
 
@@ -649,7 +655,10 @@ retry_turnstile:
 	 */
 	if (lda.spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD1(adaptive__spin, m, all_time - sleep_time);
+out_lockstat:
 #endif
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
+	    waittime, file, line);
 }
 
 #ifdef SMP
@@ -685,6 +694,20 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 	tid = (uintptr_t)curthread;
 	m = mtxlock2mtx(c);
 
+#ifdef KDTRACE_HOOKS
+	if (LOCKSTAT_PROFILE_ENABLED(adaptive__acquire)) {
+		while (v == MTX_UNOWNED) {
+			if (_mtx_obtain_lock_fetch(m, &v, tid))
+				goto out_lockstat;
+		}
+		doing_lockprof = 1;
+		spin_time -= lockstat_nsecs(&m->lock_object);
+	}
+#endif
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
+#endif
+
 	if (__predict_false(v == MTX_UNOWNED))
 		v = MTX_READ_VALUE(m);
 
@@ -707,13 +730,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 	PMC_SOFT_CALL( , , lock, failed);
 #endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
-#ifdef LOCK_PROFILING
-	doing_lockprof = 1;
-#elif defined(KDTRACE_HOOKS)
-	doing_lockprof = lockstat_enabled;
-	if (__predict_false(doing_lockprof))
-		spin_time -= lockstat_nsecs(&m->lock_object);
-#endif
+
 	for (;;) {
 		if (v == MTX_UNOWNED) {
 			if (_mtx_obtain_lock_fetch(m, &v, tid))
@@ -744,13 +761,12 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 #endif
 #ifdef KDTRACE_HOOKS
 	spin_time += lockstat_nsecs(&m->lock_object);
+	if (lda.spin_cnt != 0)
+		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
+out_lockstat:
 #endif
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 	    contested, waittime, file, line);
-#ifdef KDTRACE_HOOKS
-	if (lda.spin_cnt != 0)
-		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
-#endif
 }
 #endif /* SMP */
 
@@ -806,10 +822,8 @@ _thread_lock(struct thread *td)
 		WITNESS_LOCK(&m->lock_object, LOP_EXCLUSIVE, file, line);
 		return;
 	}
-	if (m->mtx_recurse != 0)
-		m->mtx_recurse--;
-	else
-		_mtx_release_lock_quick(m);
+	MPASS(m->mtx_recurse == 0);
+	_mtx_release_lock_quick(m);
 slowpath_unlocked:
 	spinlock_exit();
 slowpath_noirq:
@@ -863,9 +877,10 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 	if (__predict_false(doing_lockprof))
 		spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
 #endif
+	spinlock_enter();
+
 	for (;;) {
 retry:
-		spinlock_enter();
 		m = td->td_lock;
 		thread_lock_validate(m, opts, file, line);
 		v = MTX_READ_VALUE(m);
@@ -877,6 +892,7 @@ retry:
 			}
 			if (v == tid) {
 				m->mtx_recurse++;
+				MPASS(m == td->td_lock);
 				break;
 			}
 			lock_profile_obtain_lock_failed(&m->lock_object,
@@ -889,15 +905,18 @@ retry:
 				} else {
 					_mtx_lock_indefinite_check(m, &lda);
 				}
-				if (m != td->td_lock)
+				if (m != td->td_lock) {
+					spinlock_enter();
 					goto retry;
+				}
 				v = MTX_READ_VALUE(m);
 			} while (v != MTX_UNOWNED);
 			spinlock_enter();
 		}
 		if (m == td->td_lock)
 			break;
-		__mtx_unlock_spin(m);	/* does spinlock_exit() */
+		MPASS(m->mtx_recurse == 0);
+		_mtx_release_lock_quick(m);
 	}
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
