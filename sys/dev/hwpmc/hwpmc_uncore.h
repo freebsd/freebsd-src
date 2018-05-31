@@ -56,7 +56,6 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UCP_EN		(1 << 22)
 #define	UCP_INV		(1 << 23)
 #define	UCP_CMASK(C)	(((C) & 0xFF) << 24)
-
 #ifdef	_KERNEL
 
 #define	DCTL_FLAG_UNC_PMI	(1ULL << 13)

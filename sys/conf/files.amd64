@@ -316,7 +316,6 @@ dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
-dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/hyperv/input/hv_kbd.c				optional	hyperv

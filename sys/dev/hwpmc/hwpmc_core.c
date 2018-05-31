@@ -242,8 +242,7 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EINVAL);
 
 	ev = pm->pm_event;
-	if (ev < PMC_EV_IAF_FIRST || ev > PMC_EV_IAF_LAST)
-		return (EINVAL);
+
 
 	if (ev == PMC_EV_IAF_INSTR_RETIRED_ANY && ri != 0)
 		return (EINVAL);
