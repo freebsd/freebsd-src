@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
+static int	autoboot(int timeout, char *prompt);
 static char	*getbootfile(int try);
 static int	loadakernel(int try, int argc, char* argv[]);
 
@@ -157,7 +158,7 @@ autoboot_maybe()
 		autoboot(-1, NULL);		/* try to boot automatically */
 }
 
-int
+static int
 autoboot(int timeout, char *prompt)
 {
 	time_t	when, otime, ntime;
