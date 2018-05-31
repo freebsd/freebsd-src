@@ -192,7 +192,7 @@ build${libcompat}: .PHONY
 	    DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
-.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
+.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic lib/libpmc/pmu-events
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \

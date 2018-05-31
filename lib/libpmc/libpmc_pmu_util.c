@@ -40,7 +40,7 @@
 #include <libpmcstat.h>
 #include "pmu-events/pmu-events.h"
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 struct pmu_alias {
 	const char *pa_alias;
 	const char *pa_name;
