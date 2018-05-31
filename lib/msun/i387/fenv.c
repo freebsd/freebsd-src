@@ -103,13 +103,13 @@ fesetexceptflag(const fexcept_t *flagp, int excepts)
 	__fnstenv(&env);
 	env.__status &= ~excepts;
 	env.__status |= *flagp & excepts;
-	__fldenv(env);
+	__fldenv(&env);
 
 	if (__HAS_SSE()) {
 		__stmxcsr(&mxcsr);
 		mxcsr &= ~excepts;
 		mxcsr |= *flagp & excepts;
-		__ldmxcsr(mxcsr);
+		__ldmxcsr(&mxcsr);
 	}
 
 	return (0);
@@ -139,7 +139,7 @@ fegetenv(fenv_t *envp)
 	 * fnstenv masks all exceptions, so we need to restore
 	 * the old control word to avoid this side effect.
 	 */
-	__fldcw(envp->__control);
+	__fldcw(&envp->__control);
 	if (__HAS_SSE()) {
 		__stmxcsr(&mxcsr);
 		__set_mxcsr(*envp, mxcsr);
@@ -159,7 +159,7 @@ feholdexcept(fenv_t *envp)
 		__set_mxcsr(*envp, mxcsr);
 		mxcsr &= ~FE_ALL_EXCEPT;
 		mxcsr |= FE_ALL_EXCEPT << _SSE_EMASK_SHIFT;
-		__ldmxcsr(mxcsr);
+		__ldmxcsr(&mxcsr);
 	}
 	return (0);
 }
@@ -196,10 +196,10 @@ __feenableexcept(int mask)
 		mxcsr = 0;
 	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control &= ~mask;
-	__fldcw(control);
+	__fldcw(&control);
 	if (__HAS_SSE()) {
 		mxcsr &= ~(mask << _SSE_EMASK_SHIFT);
-		__ldmxcsr(mxcsr);
+		__ldmxcsr(&mxcsr);
 	}
 	return (omask);
 }
@@ -218,10 +218,10 @@ __fedisableexcept(int mask)
 		mxcsr = 0;
 	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control |= mask;
-	__fldcw(control);
+	__fldcw(&control);
 	if (__HAS_SSE()) {
 		mxcsr |= mask << _SSE_EMASK_SHIFT;
-		__ldmxcsr(mxcsr);
+		__ldmxcsr(&mxcsr);
 	}
 	return (omask);
 }
