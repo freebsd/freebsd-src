@@ -2993,6 +2993,26 @@ options 	MAXFILES=999
 # situations the value of doing this is dubious at best.
 options 	RANDOM_ENABLE_UMA	# slab allocator
 
+# Select this to allow high-rate but potentially expensive
+# harvesting of of the m_next pointer in the mbuf. Note that
+# the m_next pointer is NULL except when receiving > 4K
+# jumbo frames or sustained bursts by way of LRO. Thus in
+# the common case it is stirring zero in to the entropy
+# pool. In cases where it is not NULL it is pointing to one
+# of a small (in the thousands to 10s of thousands) number
+# of 256 byte aligned mbufs. Hence it is, even in the best
+# case, a poor source of entropy. And in the absence of actual
+# runtime analysis of entropy collection may mislead the user in
+# to believe that substantially more entropy is being collected
+# than in fact is - leading to a different class of security
+# risk. In high packet rate situations ethernet entropy
+# collection is also very expensive, possibly leading to as
+# much as a 50% drop in packets received.
+# This option is present to maintain backwards compatibility
+# if desired, however it cannot be recommended for use in any
+# environment.
+options 	RANDOM_ENABLE_ETHER	# ether_input
+
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
 
