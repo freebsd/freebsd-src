@@ -4966,8 +4966,8 @@ psmsoftintr(void *arg)
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE &&
 	    sc->hw.model != MOUSE_MODEL_ELANTECH &&
 	    sc->hw.model != MOUSE_MODEL_SYNAPTICS) {
-		evdev_push_rel(sc->evdev_r, EV_REL, x);
-		evdev_push_rel(sc->evdev_r, EV_REL, -y);
+		evdev_push_rel(sc->evdev_r, REL_X, x);
+		evdev_push_rel(sc->evdev_r, REL_Y, -y);
 
 		switch (sc->hw.model) {
 		case MOUSE_MODEL_EXPLORER:
