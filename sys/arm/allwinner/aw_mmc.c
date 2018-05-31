@@ -182,7 +182,7 @@ aw_mmc_attach(device_t dev)
 	struct aw_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
-	uint32_t bus_width;
+	uint32_t bus_width, max_freq;
 	phandle_t node;
 	int error;
 
@@ -277,7 +277,12 @@ aw_mmc_attach(device_t dev)
 	}
 
 	sc->aw_host.f_min = 400000;
-	sc->aw_host.f_max = 52000000;
+
+	if (OF_getencprop(node, "max-frequency", &max_freq,
+	    sizeof(uint32_t)) <= 0)
+		max_freq = 52000000;
+	sc->aw_host.f_max = max_freq;
+
 	sc->aw_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->aw_host.caps = MMC_CAP_HSPEED | MMC_CAP_UHS_SDR12 |
 			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
