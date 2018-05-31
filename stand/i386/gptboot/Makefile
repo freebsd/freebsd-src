@@ -37,7 +37,7 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline -Wno-pointer-sign
+	-Wno-pointer-sign
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 

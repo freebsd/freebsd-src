@@ -36,6 +36,9 @@ CFLAGS+=-DBOOTPROG=\"isoboot\" \
 	-Winline -Wno-pointer-sign
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=	-Wno-uninitialized
+.endif
 CFLAGS.clang+=  -Oz ${CLANG_OPT_SMALL}
 
 LD_FLAGS+=${LD_FLAGS_BIN}
