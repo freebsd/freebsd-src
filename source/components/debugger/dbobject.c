@@ -187,7 +187,17 @@ AcpiDbDumpMethodInfo (
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_THREAD_STATE       *Thread;
+    ACPI_NAMESPACE_NODE     *Node;
 
+
+    Node = WalkState->MethodNode;
+
+    /* There are no locals or arguments for the module-level code case */
+
+    if (Node == AcpiGbl_RootNode)
+    {
+        return;
+    }
 
     /* Ignore control codes, they are not errors */
 
@@ -556,8 +566,15 @@ AcpiDbDecodeLocals (
     BOOLEAN                 DisplayLocals = FALSE;
 
 
+    Node = WalkState->MethodNode;
     ObjDesc = WalkState->MethodDesc;
-    Node    = WalkState->MethodNode;
+
+    /* There are no locals for the module-level code case */
+
+    if (Node == AcpiGbl_RootNode)
+    {
+        return;
+    }
 
     if (!Node)
     {
@@ -634,6 +651,13 @@ AcpiDbDecodeArguments (
 
     Node = WalkState->MethodNode;
     ObjDesc = WalkState->MethodDesc;
+
+    /* There are no arguments for the module-level code case */
+
+    if (Node == AcpiGbl_RootNode)
+    {
+        return;
+    }
 
     if (!Node)
     {
