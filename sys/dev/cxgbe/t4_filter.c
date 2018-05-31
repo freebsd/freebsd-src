@@ -50,14 +50,15 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 #include "common/t4_tcb.h"
 #include "t4_l2t.h"
+#include "t4_smt.h"
 
 struct filter_entry {
 	uint32_t valid:1;	/* filter allocated and valid */
 	uint32_t locked:1;	/* filter is administratively locked or busy */
 	uint32_t pending:1;	/* filter action is pending firmware reply */
-	uint32_t smtidx:8;	/* Source MAC Table index for smac */
 	int tid;		/* tid of the filter TCB */
 	struct l2t_entry *l2te;	/* L2 table entry for DMAC rewrite */
+	struct smt_entry *smt;	/* SMT entry for SMAC rewrite */
 
 	struct t4_filter_specification fs;
 };
@@ -65,7 +66,7 @@ struct filter_entry {
 static void free_filter_resources(struct filter_entry *);
 static int get_hashfilter(struct adapter *, struct t4_filter *);
 static int set_hashfilter(struct adapter *, struct t4_filter *, uint64_t,
-    struct l2t_entry *);
+    struct l2t_entry *, struct smt_entry *);
 static int del_hashfilter(struct adapter *, struct t4_filter *);
 static int configure_hashfilter_tcb(struct adapter *, struct filter_entry *);
 
@@ -321,7 +322,7 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 			MPASS(f->tid == sc->tids.ftid_base + i);
 			t->idx = i;
 			t->l2tidx = f->l2te ? f->l2te->idx : 0;
-			t->smtidx = f->smtidx;
+			t->smtidx = f->smt ? f->smt->idx : 0;
 			if (f->fs.hitcnts)
 				t->hits = get_filter_hits(sc, f->tid);
 			else
@@ -338,7 +339,8 @@ done:
 }
 
 static int
-set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
+set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te,
+    struct smt_entry *smt)
 {
 	struct filter_entry *f;
 	struct fw_filter2_wr *fwr;
@@ -383,6 +385,8 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 	if (rc != 0) {
 		if (l2te)
 			t4_l2t_release(l2te);
+		if (smt)
+			t4_smt_release(smt);
 		return (rc);
 	}
 
@@ -393,6 +397,7 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 	f->tid = sc->tids.ftid_base + t->idx;
 	f->fs = t->fs;
 	f->l2te = l2te;
+	f->smt = smt;
 
 	if (t->fs.val.pfvf_vld || t->fs.val.ovlan_vld)
 		vnic_vld = 1;
@@ -468,10 +473,8 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 	fwr->lpm = htobe16(f->fs.mask.dport);
 	fwr->fp = htobe16(f->fs.val.sport);
 	fwr->fpm = htobe16(f->fs.mask.sport);
-	if (f->fs.newsmac) {
-		/* XXX: need to use SMT idx instead */
-		bcopy(f->fs.smac, fwr->sma, sizeof (fwr->sma));
-	}
+	/* sma = 0 tells the fw to use SMAC_SEL for source MAC address */
+	bzero(fwr->sma, sizeof (fwr->sma));
 	if (sc->params.filter2_wr_support) {
 		fwr->filter_type_swapmac =
 		    V_FW_FILTER2_WR_SWAPMAC(f->fs.swapmac);
@@ -585,6 +588,7 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 {
 	struct tid_info *ti = &sc->tids;
 	struct l2t_entry *l2te;
+	struct smt_entry *smt;
 	uint64_t ftuple;
 	int rc;
 
@@ -690,22 +694,36 @@ done:
 		l2te = t4_l2t_alloc_switching(sc->l2t);
 		if (__predict_false(l2te == NULL))
 			return (EAGAIN);
-		if (t4_l2t_set_switching(sc, l2te, t->fs.vlan, t->fs.eport,
-		    t->fs.dmac)) {
+		rc = t4_l2t_set_switching(sc, l2te, t->fs.vlan, t->fs.eport,
+		    t->fs.dmac);
+		if (rc) {
 			t4_l2t_release(l2te);
 			return (ENOMEM);
 		}
 	}
 
+	smt = NULL;
 	if (t->fs.newsmac) {
-		/* XXX: alloc SMT */
-		return (ENOTSUP);
+		/* This filter needs an SMT entry; allocate one. */
+		smt = t4_smt_alloc_switching(sc->smt, t->fs.smac);
+		if (__predict_false(smt == NULL)) {
+			if (l2te != NULL)
+				t4_l2t_release(l2te);
+			return (EAGAIN);
+		}
+		rc = t4_smt_set_switching(sc, smt, 0x0, t->fs.smac);
+		if (rc) {
+			t4_smt_release(smt);
+			if (l2te != NULL)
+				t4_l2t_release(l2te);
+			return (rc);
+		}
 	}
 
 	if (t->fs.hash)
-		return (set_hashfilter(sc, t, ftuple, l2te));
+		return (set_hashfilter(sc, t, ftuple, l2te, smt));
 	else
-		return (set_tcamfilter(sc, t, l2te));
+		return (set_tcamfilter(sc, t, l2te, smt));
 
 }
 
@@ -799,6 +817,45 @@ free_filter_resources(struct filter_entry *f)
 		t4_l2t_release(f->l2te);
 		f->l2te = NULL;
 	}
+	if (f->smt) {
+		t4_smt_release(f->smt);
+		f->smt = NULL;
+	}
+}
+
+static int
+set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
+    uint64_t val, int no_reply)
+{
+	struct wrq_cookie cookie;
+	struct cpl_set_tcb_field *req;
+
+	req = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*req), 16), &cookie);
+	if (req == NULL)
+		return (ENOMEM);
+	bzero(req, sizeof(*req));
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
+	if (no_reply == 0) {
+		req->reply_ctrl = htobe16(V_QUEUENO(sc->sge.fwq.abs_id) |
+		    V_NO_REPLY(0));
+	} else
+		req->reply_ctrl = htobe16(V_NO_REPLY(1));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(CPL_COOKIE_HASHFILTER));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+	commit_wrq_wr(&sc->sge.mgmtq, req, &cookie);
+
+	return (0);
+}
+
+/* Set one of the t_flags bits in the TCB. */
+static inline int
+set_tcb_tflag(struct adapter *sc, int tid, u_int bit_pos, u_int val,
+    u_int no_reply)
+{
+
+	return (set_tcb_field(sc, tid,  W_TCB_T_FLAGS, 1ULL << bit_pos,
+	    (uint64_t)val << bit_pos, no_reply));
 }
 
 int
@@ -826,7 +883,14 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	case FW_FILTER_WR_FLT_ADDED:
 		/* set-filter succeeded */
 		f->valid = 1;
-		f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
+		if (f->fs.newsmac) {
+			MPASS(f->smt != NULL);
+			set_tcb_tflag(sc, f->tid, S_TF_CCTRL_CWR, 1, 1);
+			set_tcb_field(sc, f->tid, W_TCB_SMAC_SEL,
+			    V_TCB_SMAC_SEL(M_TCB_SMAC_SEL),
+			    V_TCB_SMAC_SEL(f->smt->idx), 1);
+			/* XXX: wait for reply to TCB update before !pending */
+		}
 		break;
 	case FW_FILTER_WR_FLT_DELETED:
 		/* del-filter succeeded */
@@ -995,7 +1059,7 @@ get_hashfilter(struct adapter *sc, struct t4_filter *t)
 		if (f != NULL && f->valid) {
 			t->idx = i;
 			t->l2tidx = f->l2te ? f->l2te->idx : 0;
-			t->smtidx = f->smtidx;
+			t->smtidx = f->smt ? f->smt->idx : 0;
 			if (f->fs.hitcnts)
 				t->hits = get_filter_hits(sc, t->idx);
 			else
@@ -1126,7 +1190,7 @@ act_open_cpl_len16(struct adapter *sc, int isipv6)
 
 static int
 set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
-    struct l2t_entry *l2te)
+    struct l2t_entry *l2te, struct smt_entry *smt)
 {
 	void *wr;
 	struct wrq_cookie cookie;
@@ -1150,16 +1214,21 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 	if (__predict_false(f == NULL)) {
 		if (l2te)
 			t4_l2t_release(l2te);
+		if (smt)
+			t4_smt_release(smt);
 		rc = ENOMEM;
 		goto done;
 	}
 	f->fs = t->fs;
 	f->l2te = l2te;
+	f->smt = smt;
 
 	atid = alloc_atid(sc, f);
 	if (__predict_false(atid) == -1) {
 		if (l2te)
 			t4_l2t_release(l2te);
+		if (smt)
+			t4_smt_release(smt);
 		free(f, M_CXGBE);
 		rc = EAGAIN;
 		goto done;
@@ -1172,6 +1241,8 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 		free_atid(sc, atid);
 		if (l2te)
 			t4_l2t_release(l2te);
+		if (smt)
+			t4_smt_release(smt);
 		free(f, M_CXGBE);
 		rc = ENOMEM;
 		goto done;
@@ -1396,41 +1467,6 @@ done:
 	return (rc);
 }
 
-static int
-set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
-    uint64_t val, int no_reply)
-{
-	struct wrq_cookie cookie;
-	struct cpl_set_tcb_field *req;
-
-	req = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*req), 16), &cookie);
-	if (req == NULL)
-		return (ENOMEM);
-	bzero(req, sizeof(*req));
-	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
-	if (no_reply == 0) {
-		req->reply_ctrl = htobe16(V_QUEUENO(sc->sge.fwq.abs_id) |
-		    V_NO_REPLY(0));
-	} else
-		req->reply_ctrl = htobe16(V_NO_REPLY(1));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(CPL_COOKIE_HASHFILTER));
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-	commit_wrq_wr(&sc->sge.mgmtq, req, &cookie);
-
-	return (0);
-}
-
-/* Set one of the t_flags bits in the TCB. */
-static inline int
-set_tcb_tflag(struct adapter *sc, int tid, u_int bit_pos, u_int val,
-    u_int no_reply)
-{
-
-	return (set_tcb_field(sc, tid,  W_TCB_T_FLAGS, 1ULL << bit_pos,
-	    (uint64_t)val << bit_pos, no_reply));
-}
-
 #define WORD_MASK       0xffffffff
 static void
 set_nat_params(struct adapter *sc, struct filter_entry *f, const bool dip,
@@ -1525,9 +1561,10 @@ configure_hashfilter_tcb(struct adapter *sc, struct filter_entry *f)
 	}
 
 	if (f->fs.newsmac) {
+		MPASS(f->smt != NULL);
 		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_CWR, 1, 1);
 		set_tcb_field(sc, f->tid, W_TCB_SMAC_SEL,
-		    V_TCB_SMAC_SEL(M_TCB_SMAC_SEL), V_TCB_SMAC_SEL(f->smtidx),
+		    V_TCB_SMAC_SEL(M_TCB_SMAC_SEL), V_TCB_SMAC_SEL(f->smt->idx),
 		    1);
 		updated++;
 	}
