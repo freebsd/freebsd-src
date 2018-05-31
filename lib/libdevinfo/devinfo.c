@@ -220,6 +220,11 @@ devinfo_init_devices(int generation)
 				warn("sysctl hw.bus.devices.%d", dev_idx);
 			return(errno);
 		}
+		if (rlen != sizeof(udev)) {
+			warnx("sysctl returned wrong data %zd bytes instead of %zd",
+			    rlen, sizeof(udev));
+			return (EINVAL);
+		}
 		if ((dd = malloc(sizeof(*dd))) == NULL)
 			return(ENOMEM);
 		dd->dd_dev.dd_handle = udev.dv_handle;
