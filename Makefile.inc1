@@ -2030,7 +2030,7 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64"
 _jevents=lib/libpmc/pmu-events
 .endif
 
