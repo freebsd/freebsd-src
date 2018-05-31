@@ -195,12 +195,19 @@ passin:
 		in6_ifstat_inc(rcvif, ifs6_in_noroute);
 		goto dropin;
 	}
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook)) {
+		if (m->m_pkthdr.len > nh.nh_mtu) {
+			in6_ifstat_inc(nh.nh_ifp, ifs6_in_toobig);
+			icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, nh.nh_mtu);
+			m = NULL;
+			goto dropout;
+		}
+		goto passout;
+	}
 
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
-		goto passout;
 	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, nh.nh_ifp, PFIL_OUT,
 	    PFIL_FWD, NULL) != 0 || m == NULL)
 		goto dropout;
