@@ -281,26 +281,12 @@ END(memset)
  */
 ENTRY(pagecopy)
 	PUSH_FRAME_POINTER
-	movq	$-PAGE_SIZE,%rax
-	movq	%rax,%rdx
-	subq	%rax,%rdi
-	subq	%rax,%rsi
-1:
-	prefetchnta (%rdi,%rax)
-	addq	$64,%rax
-	jne	1b
-2:
-	movq	(%rdi,%rdx),%rax
-	movnti	%rax,(%rsi,%rdx)
-	movq	8(%rdi,%rdx),%rax
-	movnti	%rax,8(%rsi,%rdx)
-	movq	16(%rdi,%rdx),%rax
-	movnti	%rax,16(%rsi,%rdx)
-	movq	24(%rdi,%rdx),%rax
-	movnti	%rax,24(%rsi,%rdx)
-	addq	$32,%rdx
-	jne	2b
-	sfence
+	movq	$PAGE_SIZE/8,%rcx
+	movq	%rdi,%r9
+	movq	%rsi,%rdi
+	movq	%r9,%rsi
+	rep
+	movsq
 	POP_FRAME_POINTER
 	ret
 END(pagecopy)
