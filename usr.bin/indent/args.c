@@ -325,7 +325,7 @@ found:
     case PRO_INT:
 	if (!isdigit(*param_start)) {
     need_param:
-	    errx(1, "%s: ``%s'' requires a parameter", option_source, arg - 1);
+	    errx(1, "%s: ``%s'' requires a parameter", option_source, p->p_name);
 	}
 	*p->p_obj = atoi(param_start);
 	break;
