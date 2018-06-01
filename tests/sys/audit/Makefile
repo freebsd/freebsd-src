@@ -3,9 +3,12 @@
 TESTSDIR=	${TESTSBASE}/sys/audit
 
 ATF_TESTS_C=	file-create
+ATF_TESTS_C+=	file-read
 
 SRCS.file-create+=	file-create.c
 SRCS.file-create+=	utils.c
+SRCS.file-read+=	file-read.c
+SRCS.file-read+=	utils.c
 
 TEST_METADATA+= timeout="30"
 TEST_METADATA+= required_user="root"
