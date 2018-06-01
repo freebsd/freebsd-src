@@ -241,8 +241,8 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
 		return (EINVAL);
 	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || fd != -1 ||
-	    pos != 0 || (flags & (MAP_SHARED | MAP_PRIVATE | MAP_PREFAULT |
-	    MAP_PREFAULT_READ | MAP_ANON | MAP_STACK)) != 0))
+	    pos != 0 || (flags & ~(MAP_FIXED | MAP_GUARD | MAP_EXCL |
+	    MAP_32BIT | MAP_ALIGNMENT_MASK)) != 0))
 		return (EINVAL);
 
 	/*
