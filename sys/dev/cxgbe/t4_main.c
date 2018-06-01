@@ -559,7 +559,6 @@ static int sysctl_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_autoneg(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
-#ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
@@ -589,7 +588,6 @@ static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tc_params(SYSCTL_HANDLER_ARGS);
-#endif
 #ifdef TCP_OFFLOAD
 static int sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
@@ -5572,7 +5570,6 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_vdd", CTLFLAG_RD,
 	    &sc->params.core_vdd, 0, "core Vdd (in mV)");
 
-#ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
 	 */
@@ -5746,7 +5743,6 @@ t4_sysctls(struct adapter *sc)
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 		    sysctl_wcwr_stats, "A", "write combined work requests");
 	}
-#endif
 
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
@@ -6030,11 +6026,9 @@ cxgbe_sysctls(struct port_info *pi)
 		    &tc->flags, 0, "flags");
 		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "refcount",
 		    CTLFLAG_RD, &tc->refcount, 0, "references to this class");
-#ifdef SBUF_DRAIN
 		SYSCTL_ADD_PROC(ctx, children2, OID_AUTO, "params",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, (pi->port_id << 16) | i,
 		    sysctl_tc_params, "A", "traffic class parameters");
-#endif
 	}
 
 	/*
@@ -6632,7 +6626,6 @@ sysctl_temperature(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-#ifdef SBUF_DRAIN
 static int
 sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 {
@@ -8641,7 +8634,6 @@ done:
 
 	return (rc);
 }
-#endif
 
 #ifdef TCP_OFFLOAD
 static int
