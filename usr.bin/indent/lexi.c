@@ -100,7 +100,7 @@ struct templ specials[] =
     {"static", 10},
     {"struct", 3},
     {"switch", 7},
-    {"typedef", 10},
+    {"typedef", 11},
     {"union", 3},
     {"unsigned", 4},
     {"void", 4},
@@ -349,6 +349,9 @@ lexi(void)
 
 	    case 10:		/* storage class specifier */
 		return (storage);
+
+	    case 11:		/* typedef */
+		return (type_def);
 
 	    default:		/* all others are treated like any other
 				 * identifier */
