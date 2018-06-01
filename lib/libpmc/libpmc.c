@@ -1534,6 +1534,9 @@ pmc_init(void)
 		 * about.  This shouldn't happen since the abi version check
 		 * should have caught this.
 		 */
+#if defined(__amd64__) || defined(__i386__)
+		break;
+#endif
 		errno = ENXIO;
 		return (pmc_syscall = -1);
 	}
