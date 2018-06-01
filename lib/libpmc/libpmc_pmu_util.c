@@ -235,7 +235,7 @@ pmc_pmu_enabled(void)
 }
 
 void
-pmc_pmu_print_counters(void)
+pmc_pmu_print_counters(const char *event_name)
 {
 	const struct pmu_events_map *pme;
 	const struct pmu_event *pe;
@@ -252,6 +252,8 @@ pmc_pmu_print_counters(void)
 		return;
 	for (pe = pme->table; pe->name || pe->desc || pe->event; pe++) {
 		if (pe->name == NULL)
+			continue;
+		if (event_name != NULL && strcasestr(pe->name, event_name) == NULL)
 			continue;
 		printf("\t%s\n", pe->name);
 		if (do_debug)
@@ -293,6 +295,43 @@ pmc_pmu_print_counter_desc_long(const char *ev)
 			else if (pe->desc != NULL)
 				printf("%s:\t%s\n", pe->name, pe->desc);
 		}
+	}
+}
+
+void
+pmc_pmu_print_counter_full(const char *ev)
+{
+	const struct pmu_events_map *pme;
+	const struct pmu_event *pe;
+
+	if ((pme = pmu_events_map_get()) == NULL)
+		return;
+	for (pe = pme->table; pe->name || pe->desc || pe->event; pe++) {
+		if (pe->name == NULL)
+			continue;
+		if (strcasestr(pe->name, ev) == NULL)
+			continue;
+		printf("name: %s\n", pe->name);
+		if (pe->long_desc != NULL)
+			printf("desc: %s\n", pe->long_desc);
+		else if (pe->desc != NULL)
+			printf("desc: %s\n", pe->desc);
+		if (pe->event != NULL)
+			printf("event: %s\n", pe->event);
+		if (pe->topic != NULL)
+			printf("topic: %s\n", pe->topic);
+		if (pe->pmu != NULL)
+			printf("pmu: %s\n", pe->pmu);
+		if (pe->unit != NULL)
+			printf("unit: %s\n", pe->unit);
+		if (pe->perpkg != NULL)
+			printf("perpkg: %s\n", pe->perpkg);
+		if (pe->metric_expr != NULL)
+			printf("metric_expr: %s\n", pe->metric_expr);
+		if (pe->metric_name != NULL)
+			printf("metric_name: %s\n", pe->metric_name);
+		if (pe->metric_group != NULL)
+			printf("metric_group: %s\n", pe->metric_group);
 	}
 }
 
@@ -394,7 +433,7 @@ pmc_pmu_sample_rate_get(const char *event_name __unused)
 }
 
 void
-pmc_pmu_print_counters(void)
+pmc_pmu_print_counters(const char *event_name __unused)
 {
 }
 
@@ -406,6 +445,12 @@ pmc_pmu_print_counter_desc(const char *e __unused)
 void
 pmc_pmu_print_counter_desc_long(const char *e __unused)
 {
+}
+
+void
+pmc_pmu_print_counter_full(const char *e __unused)
+{
+
 }
 
 int

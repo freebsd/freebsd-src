@@ -114,9 +114,10 @@ int	pmc_event_names_of_class(enum pmc_class _cl, const char ***_eventnames,
     int *_nevents);
 
 int pmc_pmu_enabled(void);
-void pmc_pmu_print_counters(void);
+void pmc_pmu_print_counters(const char *);
 void pmc_pmu_print_counter_desc(const char *);
 void pmc_pmu_print_counter_desc_long(const char *);
+void pmc_pmu_print_counter_full(const char *);
 uint64_t pmc_pmu_sample_rate_get(const char *);
 int pmc_pmu_pmcallocate(const char *, struct pmc_op_pmcallocate *);
 const char *pmc_pmu_event_get_by_idx(int idx);
