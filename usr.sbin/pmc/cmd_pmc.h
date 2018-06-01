@@ -42,6 +42,7 @@ typedef int (*cmd_disp_t)(int, char **);
 
 int	cmd_pmc_stat(int, char **);
 int	cmd_pmc_stat_system(int, char **);
+int	cmd_pmc_list_events(int, char **);
 
 int	pmc_util_get_pid(struct pmcstat_args *);
 void	pmc_util_start_pmcs(struct pmcstat_args *);
