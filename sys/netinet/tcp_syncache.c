@@ -183,8 +183,27 @@ SYSCTL_UINT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(tcp_syncache.hashsize), 0,
     "Size of TCP syncache hashtable");
 
-SYSCTL_UINT(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit, CTLFLAG_VNET | CTLFLAG_RW,
+static int
+sysctl_net_inet_tcp_syncache_rexmtlimit_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int new;
+
+	new = V_tcp_syncache.rexmt_limit;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) && (req->newptr != NULL)) {
+		if (new > TCP_MAXRXTSHIFT)
+			error = EINVAL;
+		else
+			V_tcp_syncache.rexmt_limit = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
     &VNET_NAME(tcp_syncache.rexmt_limit), 0,
+    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "UI",
     "Limit on SYN/ACK retransmissions");
 
 VNET_DEFINE(int, tcp_sc_rst_sock_fail) = 1;
