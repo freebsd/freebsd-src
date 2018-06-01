@@ -36,6 +36,8 @@ t2(char *x, int y)
 		       ,n
 		       ,o
 		       ;
+	int		chars[ /* push the comma beyond column 74 .... */ ],
+			x;
 }
 
 const int	int_minimum_size =

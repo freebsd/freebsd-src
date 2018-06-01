@@ -1058,7 +1058,9 @@ check_type:
 	    if (ps.p_l_follow == 0) {
 		if (ps.block_init_level <= 0)
 		    ps.block_init = 0;
-		if (break_comma && (!ps.leave_comma || compute_code_target() + (e_code - s_code) > max_col - tabsize))
+		if (break_comma && (!ps.leave_comma ||
+		    count_spaces_until(compute_code_target(), s_code, e_code) >
+		    max_col - tabsize))
 		    force_nl = true;
 	    }
 	    break;
