@@ -820,7 +820,7 @@ main(int argc, char **argv)
 		pmc_pmu_enabled() == 0)
 			errx(EX_USAGE, "pmu features not supported on host or hwpmc not loaded");
 	if (do_listcounters) {
-		pmc_pmu_print_counters();
+		pmc_pmu_print_counters(NULL);
 	} else if (do_descr) {
 		pmc_pmu_print_counter_desc(event);
 	} else if (do_long_descr) {
