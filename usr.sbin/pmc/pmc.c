@@ -64,6 +64,7 @@ struct cmd_handler {
 static struct cmd_handler disp_table[] = {
 	{"stat", cmd_pmc_stat},
 	{"stat-system", cmd_pmc_stat_system},
+	{"list-events", cmd_pmc_list_events},
 	{NULL, NULL}
 };
 
@@ -73,7 +74,8 @@ usage(void)
 	errx(EX_USAGE,
 	    "\t pmc management utility\n"
 	    "\t stat <program> run program and print stats\n"
-	    "\t stat-system <program> run program and print system wide stats for duration of execution\n"
+		 "\t stat-system <program> run program and print system wide stats for duration of execution\n"
+		 "\t list-events list PMC events available on host\n"
 	    );
 }
 
