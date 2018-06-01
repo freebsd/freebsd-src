@@ -168,7 +168,7 @@ int         procnames_start_line;	/* if true, the names of procedures
 					 * the type of the procedure and its
 					 * name) */
 int         proc_calls_space;	/* If true, procedure calls look like:
-				 * foo(bar) rather than foo (bar) */
+				 * foo (bar) rather than foo(bar) */
 int         format_block_comments;	/* true if comments beginning with
 					 * `/ * \n' are to be reformatted */
 int         format_col1_comments;	/* If comments which start in column 1
