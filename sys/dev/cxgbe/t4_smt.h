@@ -84,9 +84,6 @@ t4_smt_release(struct smt_entry *e)
 
 }
 
-
-#ifdef SBUF_DRAIN
 int sysctl_smt(SYSCTL_HANDLER_ARGS);
-#endif
 
 #endif  /* __T4_SMT_H */
