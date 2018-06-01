@@ -60,21 +60,15 @@ static struct pmu_alias pmu_alias_table[] = {
 	{"BRANCH-INSTRUCTION-RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
 	{"BRANCH_MISSES_RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
 	{"BRANCH-MISSES-RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
+	{"cycles", "tsc-tsc"},
+	{"instructions", "inst-retired.any_p"},
+	{"branch-mispredicts", "br_misp_retired.all_branches" },
+	{"branches", "br_inst_retired.all_branches" },
+	{"interrupts", "hw_interrupts.received"},
+	{"ic-misses", "frontend_retired.l1i_miss"},
 	{NULL, NULL},
 };
 
-#ifdef notyet
-static struct pmc_event_alias core2_aliases_without_iaf[] = {
-	EV_ALIAS("branches",		"iap-br-inst-retired.any"),
-	EV_ALIAS("branch-mispredicts",	"iap-br-inst-retired.mispred"),
-	EV_ALIAS("cycles",		"tsc-tsc"),
-	EV_ALIAS("ic-misses",		"iap-l1i-misses"),
-	EV_ALIAS("instructions",	"iap-inst-retired.any_p"),
-	EV_ALIAS("interrupts",		"iap-hw-int-rcv"),
-	EV_ALIAS("unhalted-cycles",	"iap-cpu-clk-unhalted.core_p"),
-	EV_ALIAS(NULL, NULL)
-};
-#endif
 static const char *fixed_mode_cntrs[] = {
 	"inst_retired.any",
 	"cpu_clk_unhalted.thread",
