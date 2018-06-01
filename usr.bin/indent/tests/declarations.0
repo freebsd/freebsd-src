@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 /* See r303570 */
 
+typedef void 	(*voidptr) (int *);
+
 static const struct
 {
 	double		x;
