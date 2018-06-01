@@ -2312,7 +2312,7 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 
 	/* ifm_active */
-	ifmr->ifm_active = IFM_ETHER;
+	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
 	ifmr->ifm_active &= ~(IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE);
 	if (lc->fc & PAUSE_RX)
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
@@ -4191,13 +4191,13 @@ set_current_media(struct port_info *pi, struct ifmedia *ifm)
 	    IFM_SUBTYPE(ifm->ifm_cur->ifm_media) == IFM_NONE)
 		return;
 
-	mword = IFM_ETHER;
 	lc = &pi->link_cfg;
 	if (lc->requested_aneg == AUTONEG_ENABLE &&
 	    lc->supported & FW_PORT_CAP_ANEG) {
-		ifmedia_set(ifm, mword | IFM_AUTO);
+		ifmedia_set(ifm, IFM_ETHER | IFM_AUTO);
 		return;
 	}
+	mword = IFM_ETHER | IFM_FDX;
 	if (lc->requested_fc & PAUSE_TX)
 		mword |= IFM_ETH_TXPAUSE;
 	if (lc->requested_fc & PAUSE_RX)
@@ -4251,11 +4251,11 @@ no_media:
 			} else if (mword == IFM_UNKNOWN)
 				unknown++;
 			else
-				ifmedia_add4(ifm, IFM_ETHER | mword);
+				ifmedia_add4(ifm, IFM_ETHER | IFM_FDX | mword);
 		}
 	}
 	if (unknown > 0) /* Add one unknown for all unknown media types. */
-		ifmedia_add4(ifm, IFM_ETHER | IFM_UNKNOWN);
+		ifmedia_add4(ifm, IFM_ETHER | IFM_FDX | IFM_UNKNOWN);
 	if (lc->supported & FW_PORT_CAP_ANEG)
 		ifmedia_add(ifm, IFM_ETHER | IFM_AUTO, 0, NULL);
 
