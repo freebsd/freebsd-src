@@ -556,6 +556,7 @@ check_type:
 	    }
 	    else if (ps.want_blank && *token != '[' &&
 		    ((ps.last_token != ident && ps.last_token != funcname) ||
+		    proc_calls_space ||
 		    /* offsetof (1) is never allowed a space; sizeof (2) gets
 		     * one iff -bs; all other keywords (>2) always get a space
 		     * before lparen */
