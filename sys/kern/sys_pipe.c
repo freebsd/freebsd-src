@@ -491,9 +491,7 @@ sys_pipe2(struct thread *td, struct pipe2_args *uap)
  * If it fails it will return ENOMEM.
  */
 static int
-pipespace_new(cpipe, size)
-	struct pipe *cpipe;
-	int size;
+pipespace_new(struct pipe *cpipe, int size)
 {
 	caddr_t buffer;
 	int error, cnt, firstseg;
@@ -559,9 +557,7 @@ retry:
  * Wrapper for pipespace_new() that performs locking assertions.
  */
 static int
-pipespace(cpipe, size)
-	struct pipe *cpipe;
-	int size;
+pipespace(struct pipe *cpipe, int size)
 {
 
 	KASSERT(cpipe->pipe_state & PIPE_LOCKFL,
@@ -573,9 +569,7 @@ pipespace(cpipe, size)
  * lock a pipe for I/O, blocking other access
  */
 static __inline int
-pipelock(cpipe, catch)
-	struct pipe *cpipe;
-	int catch;
+pipelock(struct pipe *cpipe, int catch)
 {
 	int error;
 
@@ -596,8 +590,7 @@ pipelock(cpipe, catch)
  * unlock a pipe I/O lock
  */
 static __inline void
-pipeunlock(cpipe)
-	struct pipe *cpipe;
+pipeunlock(struct pipe *cpipe)
 {
 
 	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
@@ -611,8 +604,7 @@ pipeunlock(cpipe)
 }
 
 void
-pipeselwakeup(cpipe)
-	struct pipe *cpipe;
+pipeselwakeup(struct pipe *cpipe)
 {
 
 	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
@@ -631,9 +623,7 @@ pipeselwakeup(cpipe)
  * will start out zero'd from the ctor, so we just manage the kmem.
  */
 static void
-pipe_create(pipe, backing)
-	struct pipe *pipe;
-	int backing;
+pipe_create(struct pipe *pipe, int backing)
 {
 
 	if (backing) {
@@ -655,12 +645,8 @@ pipe_create(pipe, backing)
 
 /* ARGSUSED */
 static int
-pipe_read(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	struct thread *td;
-	int flags;
+pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 	struct pipe *rpipe;
 	int error;
@@ -834,9 +820,7 @@ unlocked_error:
  * This is similar to a physical write operation.
  */
 static int
-pipe_build_write_buffer(wpipe, uio)
-	struct pipe *wpipe;
-	struct uio *uio;
+pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio)
 {
 	u_int size;
 	int i;
@@ -880,8 +864,7 @@ pipe_build_write_buffer(wpipe, uio)
  * unmap and unwire the process buffer
  */
 static void
-pipe_destroy_write_buffer(wpipe)
-	struct pipe *wpipe;
+pipe_destroy_write_buffer(struct pipe *wpipe)
 {
 
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
@@ -895,8 +878,7 @@ pipe_destroy_write_buffer(wpipe)
  * pages can be freed without loss of data.
  */
 static void
-pipe_clone_write_buffer(wpipe)
-	struct pipe *wpipe;
+pipe_clone_write_buffer(struct pipe *wpipe)
 {
 	struct uio uio;
 	struct iovec iov;
@@ -935,9 +917,7 @@ pipe_clone_write_buffer(wpipe)
  * the pipe buffer.  Then the direct mapping write is set-up.
  */
 static int
-pipe_direct_write(wpipe, uio)
-	struct pipe *wpipe;
-	struct uio *uio;
+pipe_direct_write(struct pipe *wpipe, struct uio *uio)
 {
 	int error;
 
@@ -1036,12 +1016,8 @@ error1:
 #endif
 
 static int
-pipe_write(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	struct thread *td;
-	int flags;
+pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 	int error = 0;
 	int desiredsize;
@@ -1319,11 +1295,8 @@ pipe_write(fp, uio, active_cred, flags, td)
 
 /* ARGSUSED */
 static int
-pipe_truncate(fp, length, active_cred, td)
-	struct file *fp;
-	off_t length;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct pipe *cpipe;
 	int error;
@@ -1340,12 +1313,8 @@ pipe_truncate(fp, length, active_cred, td)
  * we implement a very minimal set of ioctls for compatibility with sockets.
  */
 static int
-pipe_ioctl(fp, cmd, data, active_cred, td)
-	struct file *fp;
-	u_long cmd;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct pipe *mpipe = fp->f_data;
 	int error;
@@ -1416,11 +1385,8 @@ out_unlocked:
 }
 
 static int
-pipe_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct pipe *rpipe;
 	struct pipe *wpipe;
@@ -1492,11 +1458,8 @@ locked_error:
  * be a natural race.
  */
 static int
-pipe_stat(fp, ub, active_cred, td)
-	struct file *fp;
-	struct stat *ub;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct pipe *pipe;
 	int new_unr;
@@ -1562,9 +1525,7 @@ pipe_stat(fp, ub, active_cred, td)
 
 /* ARGSUSED */
 static int
-pipe_close(fp, td)
-	struct file *fp;
-	struct thread *td;
+pipe_close(struct file *fp, struct thread *td)
 {
 
 	if (fp->f_vnode != NULL) 
@@ -1590,12 +1551,8 @@ pipe_chmod(struct file *fp, mode_t mode, struct ucred *active_cred, struct threa
 }
 
 static int
-pipe_chown(fp, uid, gid, active_cred, td)
-	struct file *fp;
-	uid_t uid;
-	gid_t gid;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct pipe *cpipe;
 	int error;
@@ -1624,8 +1581,7 @@ pipe_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 }
 
 static void
-pipe_free_kmem(cpipe)
-	struct pipe *cpipe;
+pipe_free_kmem(struct pipe *cpipe)
 {
 
 	KASSERT(!mtx_owned(PIPE_MTX(cpipe)),
@@ -1651,8 +1607,7 @@ pipe_free_kmem(cpipe)
  * shutdown the pipe
  */
 static void
-pipeclose(cpipe)
-	struct pipe *cpipe;
+pipeclose(struct pipe *cpipe)
 {
 	struct pipepair *pp;
 	struct pipe *ppipe;

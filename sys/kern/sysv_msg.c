@@ -386,8 +386,7 @@ DECLARE_MODULE(sysvmsg, sysvmsg_mod, SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
 MODULE_VERSION(sysvmsg, 1);
 
 static void
-msg_freehdr(msghdr)
-	struct msg *msghdr;
+msg_freehdr(struct msg *msghdr)
 {
 	while (msghdr->msg_ts > 0) {
 		short next;
@@ -499,11 +498,7 @@ sys_msgctl(struct thread *td, struct msgctl_args *uap)
 }
 
 int
-kern_msgctl(td, msqid, cmd, msqbuf)
-	struct thread *td;
-	int msqid;
-	int cmd;
-	struct msqid_ds *msqbuf;
+kern_msgctl(struct thread *td, int msqid, int cmd, struct msqid_ds *msqbuf)
 {
 	int rval, error, msqix;
 	struct msqid_kernel *msqkptr;
