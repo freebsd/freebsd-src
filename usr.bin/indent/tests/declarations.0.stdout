@@ -32,7 +32,7 @@ t2(char *x, int y)
 	int		a, b, c;
 	int
 		       *d, *e, *f;
-	int 		(*g) (), (*h) (), (*i) ();
+	int		(*g) (), (*h) (), (*i) ();
 	int		j, k, l;
 	int		m
 		       ,n

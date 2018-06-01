@@ -542,15 +542,6 @@ check_type:
 		    nitems(ps.paren_indents));
 		ps.p_l_follow--;
 	    }
-	    if (ps.want_blank && *token != '[' &&
-		    ((ps.last_token != ident && ps.last_token != funcname) ||
-		    proc_calls_space ||
-		    /* offsetof (1) is never allowed a space; sizeof (2) gets
-		     * one iff -bs; all other keywords (>2) always get a space
-		     * before lparen */
-		    ps.keyword + Bill_Shannon > 2))
-		*e_code++ = ' ';
-	    ps.want_blank = false;
 	    if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
 		!is_procname && ps.paren_level == 0) {
 		/* function pointer declarations */
@@ -563,6 +554,14 @@ check_type:
 		}
 		ps.dumped_decl_indent = true;
 	    }
+	    else if (ps.want_blank && *token != '[' &&
+		    ((ps.last_token != ident && ps.last_token != funcname) ||
+		    /* offsetof (1) is never allowed a space; sizeof (2) gets
+		     * one iff -bs; all other keywords (>2) always get a space
+		     * before lparen */
+			ps.keyword + Bill_Shannon > 2))
+		*e_code++ = ' ';
+	    ps.want_blank = false;
 	    if (!troff)
 		*e_code++ = token[0];
 	    ps.paren_indents[ps.p_l_follow - 1] = count_spaces_until(1, s_code, e_code) - 1;
