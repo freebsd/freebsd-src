@@ -516,7 +516,9 @@ doreti_exit:
 1:	testl	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	doreti_popl_fs
 2:	movl	$handle_ibrs_exit,%eax
+	pushl	%ecx			/* preserve enough call-used regs */
 	call	*%eax
+	popl	%ecx
 	movl	%esp, %esi
 	movl	PCPU(TRAMPSTK), %edx
 	subl	%ecx, %edx

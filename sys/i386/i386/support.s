@@ -151,14 +151,15 @@ END(fillw)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 ENTRY(bcopy)
-	pushl	%ebp
-	movl	%esp,%ebp
-	pushl	%esi
-	pushl	%edi
-	movl	8(%ebp),%esi
-	movl	12(%ebp),%edi
-	jmp	1f
-ALTENTRY(memmove)
+	movl	4(%esp),%eax
+	movl	8(%esp),%edx
+	movl	%eax,8(%esp)
+	movl	%edx,4(%esp)
+	MEXITCOUNT
+	jmp	memmove
+END(bcopy)
+
+ENTRY(memmove)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi
@@ -208,7 +209,7 @@ ALTENTRY(memmove)
 	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
-END(bcopy)
+END(memmove)
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -463,13 +464,11 @@ END(handle_ibrs_entry)
 ENTRY(handle_ibrs_exit)
 	cmpb	$0,PCPU(IBPB_SET)
 	je	1f
-	pushl	%ecx
 	movl	$MSR_IA32_SPEC_CTRL,%ecx
 	rdmsr
 	andl	$~(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
 	andl	$~((IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32),%edx
 	wrmsr
-	popl	%ecx
 	movb	$0,PCPU(IBPB_SET)
 1:	ret
 END(handle_ibrs_exit)
