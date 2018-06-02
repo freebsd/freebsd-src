@@ -64,11 +64,11 @@
 	__asm __volatile("pushl %0; call __mcount; popl %%ecx"		\
 			 :						\
 			 : "i" (label)					\
-			 : "ax", "dx", "cx", "memory")
+			 : "cx", "memory")
 #define	MEXITCOUNT_OVERHEAD()						\
 	__asm __volatile("call .mexitcount; 1:"				\
 			 : :						\
-			 : "ax", "dx", "cx", "memory")
+			 : "cx", "memory")
 #define	MEXITCOUNT_OVERHEAD_GETLABEL(labelp)				\
 	__asm __volatile("movl $1b,%0" : "=rm" (labelp))
 #else
