@@ -35,6 +35,7 @@
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -308,7 +309,7 @@ machine_init(struct statics *statics)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
-	boolean_t carc_en;
+	bool carc_en;
 	size_t size;
 
 	size = sizeof(smpmode);
