@@ -2023,18 +2023,27 @@ sc_cnputc(struct consdev *cd, int c)
 	    sizeof(sc_cnputc_log))
 	    continue;
 	/* Console output has a per-CPU "input" state.  Switch for it. */
-	oldtsw = scp->tsw;
-	oldts = scp->ts;
-	ts = sc_kts[PCPU_GET(cpuid)];
+	ts = sc_kts[curcpu];
 	if (ts != NULL) {
+	    oldtsw = scp->tsw;
+	    oldts = scp->ts;
 	    scp->tsw = sc_ktsw;
 	    scp->ts = ts;
 	    (*scp->tsw->te_sync)(scp);
+	} else {
+	    /* Only 1 tsw early.  Switch only its attr. */
+	    (*scp->tsw->te_default_attr)(scp, sc_kattrtab[curcpu],
+					 SC_KERNEL_CONS_REV_ATTR);
 	}
 	sc_puts(scp, buf, 1);
-	scp->tsw = oldtsw;
-	scp->ts = oldts;
-	(*scp->tsw->te_sync)(scp);
+	if (ts != NULL) {
+	    scp->tsw = oldtsw;
+	    scp->ts = oldts;
+	    (*scp->tsw->te_sync)(scp);
+	} else {
+	    (*scp->tsw->te_default_attr)(scp, SC_KERNEL_CONS_ATTR,
+					 SC_KERNEL_CONS_REV_ATTR);
+	}
     }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
@@ -4177,7 +4186,7 @@ sc_kattr(void)
 {
     if (sc_console == NULL)
 	return (SC_KERNEL_CONS_ATTR);	/* for very early, before pcpu */
-    return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
+    return (sc_kattrtab[curcpu % nitems(sc_kattrtab)]);
 }
 
 static void
