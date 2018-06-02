@@ -226,8 +226,9 @@ main(int argc, char *argv[])
     char *order_name = NULL;
     int order_index = 0;
     fd_set readfds;
+    char old_system = false;
 
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwop";
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
 #define CMD_update	1
@@ -256,7 +257,8 @@ main(int argc, char *argv[])
 #define CMD_pcputog	23
 #define CMD_jail	24
 #define CMD_swaptog	25
-#define CMD_order       26
+#define CMD_order	26
+#define CMD_pid		27
 
     /* set the buffer for stdout */
 #ifdef DEBUG
@@ -291,6 +293,7 @@ main(int argc, char *argv[])
     ps.jail    = false;
     ps.swap    = false;
     ps.kidle   = true;
+    ps.pid     = -1; 
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -316,7 +319,7 @@ main(int argc, char *argv[])
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:tw")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:tw")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -338,7 +341,8 @@ main(int argc, char *argv[])
 		break;
 
 	      case 'S':			/* show system processes */
-		ps.system = !ps.system;
+		ps.system = true;
+		old_system = true;
 		break;
 
 	      case 'I':                   /* show idle processes */
@@ -371,6 +375,19 @@ main(int argc, char *argv[])
 		    displays = i;
 		}
 		break;
+	      case 'p': {
+		unsigned long long num;
+		const char *errstr;
+
+		num = strtonum(optarg, 0, INT_MAX, &errstr);
+		if (errstr != NULL || !find_pid(num)) {
+			fprintf(stderr, "%s: unknown pid\n", optarg);
+			exit(1);
+		}
+		ps.pid = (pid_t)num;
+		ps.system = true;
+		break;
+	      }
 
 	      case 's':
 		if ((delay = atoi(optarg)) < 0 || (delay == 0 && getuid() != 0))
@@ -456,8 +473,8 @@ main(int argc, char *argv[])
 
 	      default:
 		fprintf(stderr,
-"Usage: %s [-abCHIijnPqStuvwz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
-"       [-J jail] [-U username] [number]\n",
+"Usage: %s [-abCHIijnPqStuvwz] [-d count] [-m io | cpu] [-o field] [-p pid]\n"
+"       [-s time] [-J jail] [-U username] [number]\n",
 			myname);
 		exit(1);
 	    }
@@ -1018,6 +1035,7 @@ restart:
 				break;
 			    case CMD_viewsys:
 				ps.system = !ps.system;
+				old_system = ps.system;
 				break;
 			    case CMD_showargs:
 				fmt_flags ^= FMT_SHOWARGS;
@@ -1116,6 +1134,36 @@ restart:
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
+				break;
+			    case CMD_pid:
+				new_message(MT_standout,
+					"Process id to show (+ for all): ");
+				if (readline(tempbuf2, sizeof(tempbuf2), false) > 0) {
+					if (tempbuf2[0] == '+' &&
+                   			    tempbuf2[1] == '\0') {
+						ps.pid = (pid_t)-1;
+						ps.system = old_system;
+					} else {
+						unsigned long long num;
+						const char *errstr;
+
+						num = strtonum(tempbuf2, 0, INT_MAX,
+							&errstr);
+						if (errstr != NULL || !find_pid(num)) {
+							new_message(MT_standout,
+								" %s: unknown pid",
+								tempbuf2);
+							no_command = true;
+						} else {
+							if (ps.system == false)
+								old_system = false;
+							ps.pid = (pid_t)num;
+							ps.system = true;
+						}
+					}
+					putchar('\r');
+				} else
+					clear_message();
 				break;
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");

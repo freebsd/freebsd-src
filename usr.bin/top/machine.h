@@ -69,6 +69,7 @@ struct process_select
     int jail;		/* show jail ID */
     int swap;		/* show swap usage */
     int kidle;		/* show per-CPU idle threads */
+    pid_t pid;		/* only this pid (unless pid == -1) */
     char *command;	/* only this command (unless == NULL) */
 };
 

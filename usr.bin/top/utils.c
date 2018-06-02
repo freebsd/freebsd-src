@@ -15,9 +15,18 @@
 #include "top.h"
 #include "utils.h"
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <kvm.h>
+
+void quit(int);
 
 int
 atoiwi(const char *str)
@@ -416,4 +425,32 @@ format_k2(unsigned long long amt)
     *p = '\0';
 
     return(ret);
+}
+
+int
+find_pid(pid_t pid)
+{
+	kvm_t *kd = NULL;
+	struct kinfo_proc *pbase = NULL;
+	int nproc;
+	int ret = 0;
+
+	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, NULL);
+	if (kd == NULL) {
+		fprintf(stderr, "top: kvm_open() failed.\n");
+		quit(TOP_EX_SYS_ERROR);
+	}
+
+	pbase = kvm_getprocs(kd, KERN_PROC_PID, pid, &nproc);
+	if (pbase == NULL) {
+		goto done;
+	}
+
+	if ((nproc == 1) && (pbase->ki_pid == pid)) {
+		ret = 1;
+	}
+
+done:
+	kvm_close(kd);	
+	return ret;
 }
