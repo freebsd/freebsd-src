@@ -10,15 +10,15 @@
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  */
 
-int atoiwi(char *);
+int atoiwi(const char *);
 char *itoa(unsigned int);
 char *itoa7(unsigned int);
 int digits(int);
-char *strecpy(char *, char *);
+char *strecpy(char *, const char *);
 char **argparse(char *, int *);
 long percentages(int, int *, long *, long *, long *);
 char *format_time(long);
 char *format_k(int);
 char *format_k2(unsigned long long);
-int string_index(char *string, char **array);
+int string_index(const char *string, char *array[]);
 
