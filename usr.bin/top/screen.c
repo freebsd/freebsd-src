@@ -323,11 +323,3 @@ go_home(void)
 	putcap(home);
     }
 }
-
-/* This has to be defined as a subroutine for tputs (instead of a macro) */
-
-int
-putstdout(int ch)
-{
-    return putchar(ch);
-}
