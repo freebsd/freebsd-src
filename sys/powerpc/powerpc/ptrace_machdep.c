@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/sysent.h>
 #include <machine/altivec.h>
+#include <machine/fpu.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -45,10 +46,14 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	int error;
 	struct pcb *pcb;
 	struct vec vec;
+	uint64_t vsr[32];
+	uint64_t *vsr_dw1;
+	int vsr_idx;
 
 	pcb = td->td_pcb;
 
 	bzero(&vec, sizeof(vec));
+	bzero(vsr, sizeof(vsr));
 
 	error = EINVAL;
 	switch (req) {
@@ -69,6 +74,43 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 		if (error == 0) {
 			pcb->pcb_flags |= PCB_VEC;
 			memcpy(&pcb->pcb_vec, &vec, sizeof(vec));
+		}
+		break;
+	case PT_GETVSRREGS:
+		if (!(cpu_features & PPC_FEATURE_HAS_VSX))
+			break;
+
+		if (pcb->pcb_flags & PCB_VSX) {
+			save_fpu_nodrop(td);
+
+			/*
+			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and
+			 * VSR32-VSR63 overlap with VR0-VR31, so we only copy
+			 * the non-overlapping data, which is doubleword 1 of VSR0-VSR31.
+			 */
+			for (vsr_idx = 0; vsr_idx < nitems(vsr); vsr_idx++) {
+				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx].vsr[2];
+				vsr[vsr_idx] = *vsr_dw1;
+			}
+		}
+		error = copyout(&vsr, addr, sizeof(vsr));
+		break;
+	case PT_SETVSRREGS:
+		if (!(cpu_features & PPC_FEATURE_HAS_VSX))
+			break;
+		error = copyin(addr, &vsr, sizeof(vsr));
+		if (error == 0) {
+			pcb->pcb_flags |= PCB_VSX;
+
+			/*
+			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and
+			 * VSR32-VSR63 overlap with VR0-VR31, so we only copy
+			 * the non-overlapping data, which is doubleword 1 of VSR0-VSR31.
+			 */
+			for (vsr_idx = 0; vsr_idx < nitems(vsr); vsr_idx++) {
+				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx].vsr[2];
+				*vsr_dw1 = vsr[vsr_idx];
+			}
 		}
 		break;
 
