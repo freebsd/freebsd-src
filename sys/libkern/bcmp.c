@@ -44,7 +44,7 @@ typedef const unsigned long	*culp;
  * bcmp -- vax cmpc3 instruction
  */
 int
-bcmp(const void *b1, const void *b2, size_t length)
+(bcmp)(const void *b1, const void *b2, size_t length)
 {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	/*

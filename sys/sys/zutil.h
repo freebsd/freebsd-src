@@ -32,8 +32,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #  define HAVE_MEMCPY
-#  define memset(d, v, n)	bzero((d), (n))
-#  define memcmp		bcmp
 
 #else
 #if defined(__KERNEL__)
