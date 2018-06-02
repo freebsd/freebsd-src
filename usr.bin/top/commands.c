@@ -17,7 +17,6 @@
  *  "top" (i.e.:  changing the number of processes to display).
  */
 
-#include <sys/time.h>
 #include <sys/resource.h>
 
 #include <ctype.h>
@@ -32,7 +31,6 @@
 #include "sigdesc.h"		/* generated automatically */
 #include "top.h"
 #include "boolean.h"
-#include "utils.h"
 #include "machine.h"
 
 static int err_compar(const void *p1, const void *p2);
