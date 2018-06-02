@@ -73,7 +73,6 @@
 #   include <machine/cpufunc.h>
 #   include <sys/libkern.h>
 #   include <sys/systm.h>
-#   define memset(a,b,c)	bzero (a,c)
 #   define port_t int
 
 #ifndef _SYS_CDEFS_H_
