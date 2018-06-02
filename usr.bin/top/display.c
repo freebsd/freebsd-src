@@ -822,7 +822,7 @@ i_process(int line, char *thisline)
 
     /* copy it in to our buffer */
     base = smart_terminal ? screenbuf + lineindex(line) : screenbuf;
-    p = strecpy(base, thisline);
+    p = stpcpy(base, thisline);
 
     /* zero fill the rest of it */
     bzero(p, display_width - (p - base));
@@ -861,7 +861,7 @@ u_process(int line, char *newline)
 	fputs(newline, stdout);
 
 	/* copy it in to the buffer */
-	optr = strecpy(bufferline, newline);
+	optr = stpcpy(bufferline, newline);
 
 	/* zero fill the rest of it */
 	bzero(optr, display_width - (optr - bufferline));
@@ -1110,30 +1110,30 @@ static void summary_format(char *str, int *numbers, char **names)
 	    if (thisname[0] == 'K')
 	    {
 		/* yes: format it as a memory value */
-		p = strecpy(p, format_k(num));
+		p = stpcpy(p, format_k(num));
 
 		/* skip over the K, since it was included by format_k */
-		p = strecpy(p, thisname+1);
+		p = stpcpy(p, thisname+1);
 	    }
 	    /* is this number a ratio? */
 	    else if (thisname[0] == ':')
 	    {
 		(void) snprintf(rbuf, sizeof(rbuf), "%.2f", 
 		    (float)*(numbers - 2) / (float)num);
-		p = strecpy(p, rbuf);
-		p = strecpy(p, thisname);
+		p = stpcpy(p, rbuf);
+		p = stpcpy(p, thisname);
 	    }
 	    else
 	    {
-		p = strecpy(p, itoa(num));
-		p = strecpy(p, thisname);
+		p = stpcpy(p, itoa(num));
+		p = stpcpy(p, thisname);
 	    }
 	}
 
 	/* ignore negative numbers, but display corresponding string */
 	else if (num < 0)
 	{
-	    p = strecpy(p, thisname);
+	    p = stpcpy(p, thisname);
 	}
     }
 

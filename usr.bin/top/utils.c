@@ -131,18 +131,6 @@ int digits(int val)
 }
 
 /*
- *  strecpy(to, from) - copy string "from" into "to" and return a pointer
- *	to the END of the string "to".
- */
-
-char *
-strecpy(char *to, const char *from)
-{
-    while ((*to++ = *from++) != '\0');
-    return(--to);
-}
-
-/*
  * string_index(string, array) - find string in array and return index
  */
 
@@ -393,7 +381,7 @@ char *format_k(int amt)
 	}
     }
 
-    p = strecpy(p, itoa(amt));
+    p = stpcpy(p, itoa(amt));
     *p++ = tag;
     *p = '\0';
 
@@ -423,7 +411,7 @@ format_k2(unsigned long long amt)
 	}
     }
 
-    p = strecpy(p, itoa((int)amt));
+    p = stpcpy(p, itoa((int)amt));
     *p++ = tag;
     *p = '\0';
 
