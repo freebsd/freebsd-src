@@ -52,9 +52,6 @@
 FILE *debug;
 #endif
 
-/* imported from screen.c */
-extern int overstrike;
-
 static int lmpid = 0;
 static int last_hi = 0;		/* used in u_process and u_endscreen */
 static int lastline = 0;
@@ -123,8 +120,8 @@ int  y_procs =		7;
 int  y_cpustates =	2;
 int  Header_lines =	7;
 
-int display_resize()
-
+int
+display_resize(void)
 {
     int lines;
 
@@ -162,10 +159,7 @@ int display_resize()
     return(smart_terminal ? lines : Largest);
 }
 
-int display_updatecpus(statics)
-
-struct statics *statics;
-
+int display_updatecpus(struct statics *statics)
 {
     int *lp;
     int lines;
@@ -194,10 +188,7 @@ struct statics *statics;
     return(lines);
 }
     
-int display_init(statics)
-
-struct statics *statics;
-
+int display_init(struct statics * statics)
 {
     int lines;
     char **pp;
@@ -249,11 +240,7 @@ struct statics *statics;
 }
 
 void
-i_loadave(mpid, avenrun)
-
-int mpid;
-double *avenrun;
-
+i_loadave(int mpid, double avenrun[])
 {
     int i;
 
@@ -278,11 +265,7 @@ double *avenrun;
 }
 
 void
-u_loadave(mpid, avenrun)
-
-int mpid;
-double *avenrun;
-
+u_loadave(int mpid, double *avenrun)
 {
     int i;
 
@@ -318,10 +301,7 @@ double *avenrun;
 }
 
 void
-i_timeofday(tod)
-
-time_t *tod;
-
+i_timeofday(time_t *tod)
 {
     /*
      *  Display the current time.
@@ -364,11 +344,7 @@ static char procstates_buffer[MAX_COLS];
  */
 
 void
-i_procstates(total, brkdn)
-
-int total;
-int *brkdn;
-
+i_procstates(int total, int *brkdn)
 {
     int i;
 
@@ -392,11 +368,7 @@ int *brkdn;
 }
 
 void
-u_procstates(total, brkdn)
-
-int total;
-int *brkdn;
-
+u_procstates(int total, int *brkdn)
 {
     static char new[MAX_COLS];
     int i;
@@ -441,10 +413,7 @@ int *brkdn;
 }
 
 void
-i_cpustates(states)
-
-int *states;
-
+i_cpustates(int *states)
 {
     int i = 0;
     int value;
@@ -487,10 +456,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 
 void
-u_cpustates(states)
-
-int *states;
-
+u_cpustates(int *states)
 {
     int value;
     char **names;
@@ -540,8 +506,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 
 void
-z_cpustates()
-
+z_cpustates(void)
 {
     int i = 0;
     char **names;
@@ -633,10 +598,7 @@ i_arc(int *stats)
 }
 
 void
-u_arc(stats)
-
-int *stats;
-
+u_arc(int *stats)
 {
     static char new[MAX_COLS];
 
@@ -672,10 +634,7 @@ i_carc(int *stats)
 }
 
 void
-u_carc(stats)
-
-int *stats;
-
+u_carc(int *stats)
 {
     static char new[MAX_COLS];
 
@@ -737,7 +696,7 @@ static int msglen = 0;
    on the screen (even when next_msg doesn't contain that message). */
 
 void
-i_message()
+i_message(void)
 {
 
     while (lastline < y_message)
@@ -759,8 +718,7 @@ i_message()
 }
 
 void
-u_message()
-
+u_message(void)
 {
     i_message();
 }
@@ -773,10 +731,7 @@ static int header_length;
  */
 
 char *
-trim_header(text)
-
-char *text;
-
+trim_header(char *text)
 {
 	char *s;
 	int width;
@@ -801,10 +756,7 @@ char *text;
  */
 
 void
-i_header(text)
-
-char *text;
-
+i_header(char *text)
 {
     char *s;
 
@@ -825,12 +777,8 @@ char *text;
     free(s);
 }
 
-/*ARGSUSED*/
 void
-u_header(text)
-
-char *text __unused;		/* ignored */
-
+u_header(char *text __unused)
 {
 
     if (header_status == ERASE)
@@ -849,11 +797,7 @@ char *text __unused;		/* ignored */
  */
 
 void
-i_process(line, thisline)
-
-int line;
-char *thisline;
-
+i_process(int line, char *thisline)
 {
     char *p;
     char *base;
@@ -880,11 +824,7 @@ char *thisline;
 }
 
 void
-u_process(line, newline)
-
-int line;
-char *newline;
-
+u_process(int line, char *newline)
 {
     char *optr;
     int screen_line = line + Header_lines;
@@ -928,10 +868,7 @@ char *newline;
 }
 
 void
-u_endscreen(hi)
-
-int hi;
-
+u_endscreen(int hi)
 {
     int screen_line = hi + Header_lines;
     int i;
@@ -1044,8 +981,7 @@ new_message(int type, char *msgfmt, ...)
 }
 
 void
-clear_message()
-
+clear_message(void)
 {
     if (clear_eol(msglen) == 1)
     {
@@ -1054,12 +990,7 @@ clear_message()
 }
 
 int
-readline(buffer, size, numeric)
-
-char *buffer;
-int  size;
-int  numeric;
-
+readline(char *buffer, int size, int numeric)
 {
     char *ptr = buffer;
     char ch;
@@ -1209,13 +1140,8 @@ static void summary_format(char *str, int *numbers, char **names)
     }
 }
 
-static void line_update(old, new, start, line)
-
-char *old;
-char *new;
-int start;
-int line;
-
+static void
+line_update(char *old, char *new, int start, int line)
 {
     int ch;
     int diff;
@@ -1336,10 +1262,8 @@ int line;
  *	to the original buffer is returned.
  */
 
-char *printable(str)
-
-char *str;
-
+char *
+printable(char str[])
 {
     char *ptr;
     char ch;
@@ -1357,11 +1281,7 @@ char *str;
 }
 
 void
-i_uptime(bt, tod)
-
-struct timeval* bt;
-time_t *tod;
-
+i_uptime(struct timeval *bt, time_t *tod)
 {
     time_t uptime;
     int days, hrs, mins, secs;

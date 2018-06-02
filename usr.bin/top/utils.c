@@ -59,10 +59,7 @@ atoiwi(char *str)
 				 */
 _Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 
-char *itoa(val)
-
-int val;
-
+char *itoa(int val)
 {
     char *ptr;
     static char buffer[16];	/* result is built here */
@@ -90,10 +87,7 @@ int val;
  *	a front end to a more general routine for efficiency.
  */
 
-char *itoa7(val)
-
-int val;
-
+char *itoa7(int val)
 {
     char *ptr;
     static char buffer[16];	/* result is built here */
@@ -124,10 +118,7 @@ int val;
  *	positive numbers.  If val <= 0 then digits(val) == 0.
  */
 
-int digits(val)
-
-int val;
-
+int digits(int val)
 {
     int cnt = 0;
 
@@ -155,13 +146,10 @@ strecpy(char *to, char *from)
  * string_index(string, array) - find string in array and return index
  */
 
-int string_index(string, array)
-
-char *string;
-char **array;
-
+int
+string_index(char *string, char *array[])
 {
-    int i = 0;
+    size_t i = 0;
 
     while (*array != NULL)
     {
@@ -182,11 +170,7 @@ char **array;
  *	squat about quotes.
  */
 
-char **argparse(line, cntp)
-
-char *line;
-int *cntp;
-
+char **argparse(char *line, int *cntp)
 {
     char *from;
     char *to;
@@ -219,10 +203,10 @@ int *cntp;
     cnt += 3;
 
     /* allocate a char * array to hold the pointers */
-    argarray = (char **)malloc(cnt * sizeof(char *));
+    argarray = malloc(cnt * sizeof(char *));
 
     /* allocate another array to hold the strings themselves */
-    args = (char *)malloc(length+2);
+    args = malloc(length+2);
 
     /* initialization for main loop */
     from = line;
@@ -264,17 +248,11 @@ int *cntp;
  *	"cnt" is size of each array and "diffs" is used for scratch space.
  *	The array "old" is updated on each call.
  *	The routine assumes modulo arithmetic.  This function is especially
- *	useful on BSD mchines for calculating cpu state percentages.
+ *	useful on for calculating cpu state percentages.
  */
 
-long percentages(cnt, out, new, old, diffs)
-
-int cnt;
-int *out;
-long *new;
-long *old;
-long *diffs;
-
+long
+percentages(int cnt, int *out, long *new, long *old, long *diffs)
 {
     int i;
     long change;
@@ -336,10 +314,8 @@ long *diffs;
    exceed 9999.9, we use "???".
  */
 
-char *format_time(seconds)
-
-long seconds;
-
+char *
+format_time(long seconds)
 {
     static char result[10];
 

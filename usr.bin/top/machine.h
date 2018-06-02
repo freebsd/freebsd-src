@@ -83,7 +83,6 @@ int	 machine_init(struct statics *statics);
 int	 proc_owner(int pid);
 
 /* non-int routines typically used by the machine dependent module */
-char	*printable(char *string);
 extern struct process_select ps;
 
 void *

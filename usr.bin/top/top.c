@@ -70,15 +70,6 @@ static int max_topn;		/* maximum displayable processes */
 struct process_select ps;
 const char * myname = "top";
 
-char *username(int);
-
-time_t time(time_t *tloc);
-
-/* different routines for displaying the user's identification */
-/* (values assigned to get_userid) */
-char *username(int);
-char *itoa7(int);
-
 /* pointers to display routines */
 static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
 static void (*d_procstates)(int total, int *brkdn) = i_procstates;
@@ -1153,8 +1144,7 @@ restart:
  */
 
 static void
-reset_display()
-
+reset_display(void)
 {
     d_loadave    = i_loadave;
     d_procstates = i_procstates;

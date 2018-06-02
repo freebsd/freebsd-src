@@ -33,6 +33,7 @@
 #include <sys/types.h>
 
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,10 +59,7 @@ struct hash_el {
 static struct hash_el hash_table[Table_size];
 
 
-char *username(uid)
-
-int uid;
-
+char *username(int uid)
 {
     int hashindex;
 
@@ -74,10 +72,7 @@ int uid;
     return(hash_table[hashindex].name);
 }
 
-int userid(username)
-
-char *username;
-
+int userid(char username[])
 {
     struct passwd *pwd;
 
@@ -97,12 +92,8 @@ char *username;
     return(pwd->pw_uid);
 }
 
-int enter_user(uid, name, wecare)
-
-int  uid;
-char *name;
-int wecare;		/* 1 = enter it always, 0 = nice to have */
-
+/* wecare 1 = enter it always, 0 = nice to have */
+int enter_user(int uid, char name[], bool wecare)
 {
     int hashindex;
 
