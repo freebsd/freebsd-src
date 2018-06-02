@@ -6436,7 +6436,7 @@ nfsio_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 	drpc->p = p;
 	drpc->inprog = 0;
 	ret = EIO;
-	if (nfs_pnfsiothreads > 0) {
+	if (nfs_pnfsiothreads != 0) {
 		ret = nfs_pnfsio(start_writedsmir, drpc);
 		NFSCL_DEBUG(4, "nfsio_writedsmir: nfs_pnfsio=%d\n", ret);
 	}
@@ -6615,7 +6615,7 @@ nfsio_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 	drpc->p = p;
 	drpc->inprog = 0;
 	ret = EIO;
-	if (nfs_pnfsiothreads > 0) {
+	if (nfs_pnfsiothreads != 0) {
 		ret = nfs_pnfsio(start_commitds, drpc);
 		NFSCL_DEBUG(4, "nfsio_commitds: nfs_pnfsio=%d\n", ret);
 	}

@@ -90,7 +90,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
     0, "Debug level for NFS client");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
     0, "Size of hash tables for uid/name mapping");
-int nfs_pnfsiothreads = 0;
+int nfs_pnfsiothreads = -1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsiothreads, CTLFLAG_RW, &nfs_pnfsiothreads,
     0, "Number of pNFS mirror I/O threads");
 
@@ -723,6 +723,8 @@ nfs_pnfsio(task_fn_t *func, void *context)
 	pio = (struct pnfsio *)context;
 	if (pnfsioq == NULL) {
 		if (nfs_pnfsiothreads == 0)
+			return (EPERM);
+		if (nfs_pnfsiothreads < 0)
 			nfs_pnfsiothreads = mp_ncpus * 4;
 		pnfsioq = taskqueue_create("pnfsioq", M_WAITOK,
 		    taskqueue_thread_enqueue, &pnfsioq);
