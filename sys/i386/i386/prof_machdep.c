@@ -117,6 +117,9 @@ __mcount:							\n\
 .mcount_exit:							\n\
 	ret	$0						\n\
 ");
+
+void	__mcount(void);
+void	(*__mcountp)(void) = __mcount;
 #else /* !__GNUCLIKE_ASM */
 #error "this file needs to be ported to your compiler"
 #endif /* __GNUCLIKE_ASM */
@@ -162,6 +165,9 @@ GMON_PROF_HIRES	=	4					\n\
 	ret	$0						\n\
 ");
 #endif /* __GNUCLIKE_ASM */
+
+void	__mexitcount(void);
+void	(*__mexitcountp)(void) = __mexitcount;
 
 /*
  * Return the time elapsed since the last call.  The units are machine-

@@ -88,13 +88,28 @@ _MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)	/* _mcount; may be static, in
 #endif
 
 #ifdef _KERNEL
+	/* De-relocate any addresses in a (single) trampoline. */
+#ifdef MCOUNT_DETRAMP
+	MCOUNT_DETRAMP(frompc);
+	MCOUNT_DETRAMP(selfpc);
+#endif
 	/*
 	 * When we are called from an exception handler, frompc may be
 	 * a user address.  Convert such frompc's to some representation
 	 * in kernel address space.
 	 */
+#ifdef MCOUNT_FROMPC_USER
 	frompc = MCOUNT_FROMPC_USER(frompc);
+#elif defined(MCOUNT_USERPC)
+	/*
+	 * For separate address spaces, we can only guess that addresses
+	 * in the range known to us are actually kernel addresses.  Outside
+	 * of this range, conerting to the user address is fail-safe.
+	 */
+	if (frompc < p->lowpc || frompc - p->lowpc >= p->textsize)
+		frompc = MCOUNT_USERPC;
 #endif
+#endif /* _KERNEL */
 
 	frompci = frompc - p->lowpc;
 	if (frompci >= p->textsize)
@@ -252,6 +267,9 @@ mexitcount(uintfptr_t selfpc)
 	uintfptr_t selfpcdiff;
 
 	p = &_gmonparam;
+#ifdef MCOUNT_DETRAMP
+	MCOUNT_DETRAMP(selfpc);
+#endif
 	selfpcdiff = selfpc - (uintfptr_t)p->lowpc;
 	if (selfpcdiff < p->textsize) {
 		int delta;

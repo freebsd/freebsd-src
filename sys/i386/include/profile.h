@@ -92,15 +92,28 @@ extern int	mcount_lock;
 void bintr(void);
 void btrap(void);
 void eintr(void);
+#if 0
+void end_exceptions(void);
+void start_exceptions(void);
+#else
+#include <machine/pmc_mdep.h>		/* XXX */
+#endif
 void user(void);
 
-#define	MCOUNT_FROMPC_USER(pc)					\
-	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? (uintfptr_t)user : pc)
+#include <machine/md_var.h>		/* XXX for setidt_disp */
+
+#define	MCOUNT_DETRAMP(pc) do {					\
+	if ((pc) >= (uintfptr_t)start_exceptions + setidt_disp && \
+	    (pc) < (uintfptr_t)end_exceptions + setidt_disp)	\
+		(pc) -= setidt_disp;				\
+} while (0)
 
 #define	MCOUNT_FROMPC_INTR(pc)					\
 	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
 	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
 		(uintfptr_t)btrap) : ~0U)
+
+#define	MCOUNT_USERPC		((uintfptr_t)user)
 
 #else /* !_KERNEL */
 
