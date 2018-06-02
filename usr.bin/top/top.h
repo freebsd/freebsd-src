@@ -34,6 +34,9 @@ extern int Header_lines;	/* 7 */
 
 #define NUM_AVERAGES    3
 
+/* Exit code for system errors */
+#define TOP_EX_SYS_ERROR	23
+
 enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 
 /*
