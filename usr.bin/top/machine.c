@@ -764,6 +764,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int show_self;
 	int show_system;
 	int show_uid;
+	int show_pid;
 	int show_kidle;
 
 	/*
@@ -783,7 +784,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		previous_pref = malloc(nproc * sizeof(*previous_pref));
 		if (previous_procs == NULL || previous_pref == NULL) {
 			(void) fprintf(stderr, "top: Out of memory.\n");
-			quit(23);
+			quit(TOP_EX_SYS_ERROR);
 		}
 		previous_proc_count_max = nproc;
 	}
@@ -822,7 +823,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	}
 	if (pref == NULL || pbase == NULL || pcpu == NULL) {
 		(void) fprintf(stderr, "top: Out of memory.\n");
-		quit(23);
+		quit(TOP_EX_SYS_ERROR);
 	}
 	/* get a pointer to the states summary array */
 	si->procstates = process_states;
@@ -833,6 +834,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	show_self = sel->self == -1;
 	show_system = sel->system;
 	show_uid = sel->uid[0] != -1;
+	show_pid = sel->pid != -1;
 	show_kidle = sel->kidle;
 
 	/* count up process states and get pointers to interesting procs */
@@ -892,6 +894,9 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 		if (show_uid && !find_uid(pp->ki_ruid, sel->uid))
 			/* skip proc. that don't belong to the selected UID */
+			continue;
+
+		if (show_pid && pp->ki_pid != sel->pid)
 			continue;
 
 		*prefp++ = pp;
@@ -1177,12 +1182,12 @@ getsysctl(const char *name, void *ptr, size_t len)
 	if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
 		fprintf(stderr, "top: sysctl(%s...) failed: %s\n", name,
 		    strerror(errno));
-		quit(23);
+		quit(TOP_EX_SYS_ERROR);
 	}
 	if (nlen != len) {
 		fprintf(stderr, "top: sysctl(%s...) expected %lu, got %lu\n",
 		    name, (unsigned long)len, (unsigned long)nlen);
-		quit(23);
+		quit(TOP_EX_SYS_ERROR);
 	}
 }
 

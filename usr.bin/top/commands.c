@@ -92,6 +92,7 @@ o       - specify sort order (pri, size, res, cpu, time, threads, jid, pid)\n",
 o       - specify sort order (vcsw, ivcsw, read, write, fault, total, jid, pid)\n",
 	    stdout);
 	fputs("\
+p       - display one process (+ selects all processes)\n\
 P       - toggle the displaying of per-CPU statistics\n\
 r       - renice a process\n\
 s       - change number of seconds to delay between updates\n\
