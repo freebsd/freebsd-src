@@ -20,7 +20,7 @@
 #include <string.h>
 
 int
-atoiwi(char *str)
+atoiwi(const char *str)
 {
     int len;
 
@@ -136,7 +136,7 @@ int digits(int val)
  */
 
 char *
-strecpy(char *to, char *from)
+strecpy(char *to, const char *from)
 {
     while ((*to++ = *from++) != '\0');
     return(--to);
@@ -147,7 +147,7 @@ strecpy(char *to, char *from)
  */
 
 int
-string_index(char *string, char *array[])
+string_index(const char *string, char *array[])
 {
     size_t i = 0;
 
@@ -170,9 +170,10 @@ string_index(char *string, char *array[])
  *	squat about quotes.
  */
 
-char **argparse(char *line, int *cntp)
+char **
+argparse(char *line, int *cntp)
 {
-    char *from;
+    const char *from;
     char *to;
     int cnt;
     int ch;
