@@ -20,15 +20,16 @@
  *  preprocessor variable "TOStop".   --wnl
  */
 
-#include "top.h"
-
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <curses.h>
 #include <termcap.h>
+#include <unistd.h>
+
 #include "screen.h"
+#include "top.h"
 
 int  overstrike;
 int  screen_length;
@@ -53,10 +54,6 @@ static char *terminal_end;
 static struct termios old_settings;
 static struct termios new_settings;
 static char is_a_terminal = false;
-
-#define	STDIN	0
-#define	STDOUT	1
-#define	STDERR	2
 
 void
 init_termcap(int interactive)
@@ -164,7 +161,7 @@ init_termcap(int interactive)
     PC = (PCptr = tgetstr("pc", &bufptr)) ? *PCptr : 0;
 
     /* set convenience strings */
-    (void) strncpy(home, tgoto(cursor_motion, 0, 0), sizeof(home) - 1);
+    strncpy(home, tgoto(cursor_motion, 0, 0), sizeof(home) - 1);
     home[sizeof(home) - 1] = '\0';
     /* (lower_left is set in get_screensize) */
 
@@ -174,7 +171,7 @@ init_termcap(int interactive)
     get_screensize();
 
     /* if stdout is not a terminal, pretend we are a dumb terminal */
-    if (tcgetattr(STDOUT, &old_settings) == -1)
+    if (tcgetattr(STDOUT_FILENO, &old_settings) == -1)
     {
 	smart_terminal = false;
     }
@@ -184,7 +181,7 @@ void
 init_screen(void)
 {
     /* get the old settings for safe keeping */
-    if (tcgetattr(STDOUT, &old_settings) != -1)
+    if (tcgetattr(STDOUT_FILENO, &old_settings) != -1)
     {
 	/* copy the settings so we can modify them */
 	new_settings = old_settings;
@@ -194,7 +191,7 @@ init_screen(void)
 	new_settings.c_oflag &= ~(TAB3);
 	new_settings.c_cc[VMIN] = 1;
 	new_settings.c_cc[VTIME] = 0;
-	(void) tcsetattr(STDOUT, TCSADRAIN, &new_settings);
+	tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_settings);
 
 	/* remember the erase and kill characters */
 	ch_erase = old_settings.c_cc[VERASE];
@@ -229,7 +226,7 @@ end_screen(void)
     /* if we have settings to reset, then do so */
     if (is_a_terminal)
     {
-	(void) tcsetattr(STDOUT, TCSADRAIN, &old_settings);
+	tcsetattr(STDOUT_FILENO, TCSADRAIN, &old_settings);
     }
 }
 
@@ -239,7 +236,7 @@ reinit_screen(void)
     /* install our settings if it is a terminal */
     if (is_a_terminal)
     {
-	(void) tcsetattr(STDOUT, TCSADRAIN, &new_settings);
+	tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_settings);
     }
 
     /* send init string */
