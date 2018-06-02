@@ -401,6 +401,7 @@ machine_init(struct statics *statics)
 		}
 	}
 	size = sizeof(long) * ncpus * CPUSTATES;
+	assert(size > 0);
 	pcpu_cp_old = calloc(1, size);
 	pcpu_cp_diff = calloc(1, size);
 	pcpu_cpu_states = calloc(1, size);
