@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,7 +31,6 @@
 #include "commands.h"
 #include "sigdesc.h"		/* generated automatically */
 #include "top.h"
-#include "boolean.h"
 #include "machine.h"
 
 static int err_compar(const void *p1, const void *p2);
@@ -199,7 +199,7 @@ char *err_string(void)
 {
     struct errs *errp;
     int  cnt = 0;
-    int  first = Yes;
+    int  first = true;
     int  currerr = -1;
     int stringlen;		/* characters still available in "string" */
     static char string[STRMAX];
@@ -233,13 +233,13 @@ char *err_string(void)
 		strcat(string, "; ");	  /* we know there's more */
 	    }
 	    currerr = errp->errnum;
-	    first = Yes;
+	    first = true;
 	}
 	if ((stringlen = str_addarg(string, stringlen, errp->arg, first)) ==0)
 	{
 	    return(err_listem);
 	}
-	first = No;
+	first = false;
     }
 
     /* add final message */

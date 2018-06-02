@@ -30,7 +30,6 @@
 #include <curses.h>
 #include <termcap.h>
 #include "screen.h"
-#include "boolean.h"
 
 int  overstrike;
 int  screen_length;
@@ -54,7 +53,7 @@ static char *terminal_end;
 
 static struct termios old_settings;
 static struct termios new_settings;
-static char is_a_terminal = No;
+static char is_a_terminal = false;
 
 #define	STDIN	0
 #define	STDOUT	1
@@ -75,12 +74,12 @@ init_termcap(int interactive)
     if (!interactive)
     {
 	/* pretend we have a dumb terminal */
-	smart_terminal = No;
+	smart_terminal = false;
 	return;
     }
 
     /* assume we have a smart terminal until proven otherwise */
-    smart_terminal = Yes;
+    smart_terminal = true;
 
     /* get the terminal name */
     term_name = getenv("TERM");
@@ -89,7 +88,7 @@ init_termcap(int interactive)
     /* patch courtesy of Sam Horrocks at telegraph.ics.uci.edu */
     if (term_name == NULL)
     {
-	smart_terminal = No;
+	smart_terminal = false;
 	return;
     }
 
@@ -107,14 +106,14 @@ init_termcap(int interactive)
 	}
 
 	/* pretend it's dumb and proceed */
-	smart_terminal = No;
+	smart_terminal = false;
 	return;
     }
 
     /* "hardcopy" immediately indicates a very stupid terminal */
     if (tgetflag("hc"))
     {
-	smart_terminal = No;
+	smart_terminal = false;
 	return;
     }
 
@@ -151,7 +150,7 @@ init_termcap(int interactive)
     if ((clear_screen  = tgetstr("cl", &bufptr)) == NULL ||
 	(cursor_motion = tgetstr("cm", &bufptr)) == NULL)
     {
-	smart_terminal = No;
+	smart_terminal = false;
 	return;
     }
 
@@ -178,7 +177,7 @@ init_termcap(int interactive)
     /* if stdout is not a terminal, pretend we are a dumb terminal */
     if (tcgetattr(STDOUT, &old_settings) == -1)
     {
-	smart_terminal = No;
+	smart_terminal = false;
     }
 }
 
@@ -203,7 +202,7 @@ init_screen(void)
 	ch_kill  = old_settings.c_cc[VKILL];
 
 	/* remember that it really is a terminal */
-	is_a_terminal = Yes;
+	is_a_terminal = true;
 
 	/* send the termcap initialization string */
 	putcap(terminal_init);
@@ -212,7 +211,7 @@ init_screen(void)
     if (!is_a_terminal)
     {
 	/* not a terminal at all---consider it dumb */
-	smart_terminal = No;
+	smart_terminal = false;
     }
 }
 
