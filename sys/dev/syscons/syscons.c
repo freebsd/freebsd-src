@@ -1807,13 +1807,19 @@ sccnscrlock(sc_softc_t *sc, struct sc_cnstate *sp)
      * enough to ignore the protection even in the kdb_active case.
      */
     if (kdb_active) {
-	sp->kdb_locked = sc->video_mtx.mtx_lock == MTX_UNOWNED || panicstr;
+	sp->kdb_locked = sc->video_mtx.mtx_lock == MTX_UNOWNED ||
+			 SCHEDULER_STOPPED();
 	sp->mtx_locked = FALSE;
     } else {
 	sp->kdb_locked = FALSE;
 	for (retries = 0; retries < 1000; retries++) {
 	    sp->mtx_locked = mtx_trylock_spin_flags(&sc->video_mtx,
-		MTX_QUIET) != 0 || panicstr;
+						    MTX_QUIET) != 0;
+	    if (SCHEDULER_STOPPED()) {
+		sp->kdb_locked = TRUE;
+		sp->mtx_locked = FALSE;
+		break;
+	    }
 	    if (sp->mtx_locked)
 		break;
 	    DELAY(1);
