@@ -3,7 +3,7 @@
  *  Version 3
  *
  *  This program may be freely redistributed,
- *  but this entire comment MUST remain intact.
+ *  but this entire ceomment MUST remain intact.
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
@@ -270,7 +270,7 @@ get_screensize(void)
 }
 
 void
-top_standout(char *msg)
+top_standout(const char *msg)
 {
     if (smart_terminal)
     {
