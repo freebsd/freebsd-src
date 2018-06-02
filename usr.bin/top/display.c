@@ -33,6 +33,7 @@
 #include <curses.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -44,7 +45,6 @@
 #include "layout.h"		/* defines for screen position layout */
 #include "display.h"
 #include "top.h"
-#include "boolean.h"
 #include "machine.h"		/* we should eliminate this!!! */
 #include "utils.h"
 
@@ -1147,7 +1147,7 @@ line_update(char *old, char *new, int start, int line)
     int diff;
     int newcol = start + 1;
     int lastcol = start;
-    char cursor_on_line = No;
+    char cursor_on_line = false;
     char *current;
 
     /* compare the two strings and only rewrite what has changed */
@@ -1172,7 +1172,7 @@ line_update(char *old, char *new, int start, int line)
 	{
 	    Move_to(start, line);
 	}
-	cursor_on_line = Yes;
+	cursor_on_line = true;
 	putchar(ch);
 	*old = ch;
 	lastcol = 1;
@@ -1209,7 +1209,7 @@ line_update(char *old, char *new, int start, int line)
 		{
 		    /* use cursor addressing */
 		    Move_to(newcol, line);
-		    cursor_on_line = Yes;
+		    cursor_on_line = true;
 		}
 		/* remember where the cursor is */
 		lastcol = newcol + 1;
