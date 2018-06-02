@@ -513,7 +513,7 @@ pmap_delayed_invl_finished(void)
 		pmap_invl_gen = invl_gen->gen;
 		if (ts != NULL) {
 			turnstile_broadcast(ts, TS_SHARED_QUEUE);
-			turnstile_unpend(ts, TS_SHARED_LOCK);
+			turnstile_unpend(ts);
 		}
 		turnstile_chain_unlock(&invl_gen_ts);
 	} else {

@@ -494,7 +494,7 @@ _rm_unlock_hard(struct thread *td,struct rm_priotracker *tracker)
 		ts = turnstile_lookup(&rm->lock_object);
 
 		turnstile_signal(ts, TS_EXCLUSIVE_QUEUE);
-		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+		turnstile_unpend(ts);
 		turnstile_chain_unlock(&rm->lock_object);
 	} else
 		mtx_unlock_spin(&rm_spinlock);
