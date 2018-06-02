@@ -59,7 +59,7 @@ atoiwi(char *str)
 				 */
 _Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 
-char *itoa(int val)
+char *itoa(unsigned int val)
 {
     char *ptr;
     static char buffer[16];	/* result is built here */
@@ -87,7 +87,7 @@ char *itoa(int val)
  *	a front end to a more general routine for efficiency.
  */
 
-char *itoa7(int val)
+char *itoa7(unsigned int val)
 {
     char *ptr;
     static char buffer[16];	/* result is built here */
