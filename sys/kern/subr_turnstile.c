@@ -903,7 +903,7 @@ turnstile_broadcast(struct turnstile *ts, int queue)
  * chain locked.
  */
 void
-turnstile_unpend(struct turnstile *ts, int owner_type)
+turnstile_unpend(struct turnstile *ts)
 {
 	TAILQ_HEAD( ,thread) pending_threads;
 	struct turnstile *nts;
