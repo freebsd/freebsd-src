@@ -774,6 +774,7 @@ typedef struct {
 #define	NT_PROCSTAT_AUXV	16	/* Procstat auxv data. */
 #define	NT_PTLWPINFO		17	/* Thread ptrace miscellaneous info. */
 #define	NT_PPC_VMX	0x100	/* PowerPC Altivec/VMX registers */
+#define	NT_PPC_VSX	0x102	/* PowerPC VSX registers */
 #define	NT_X86_XSTATE	0x202	/* x86 XSAVE extended state. */
 #define	NT_ARM_VFP	0x400	/* ARM VFP registers */
 
