@@ -205,6 +205,11 @@ ENTRY(memmove)
 	movsq
 	movq	%rdx,%rcx
 	andq	$7,%rcx				/* any bytes left? */
+	jne	2f
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+2:
 	rep
 	movsb
 	movq	%r9,%rax
@@ -248,6 +253,10 @@ ENTRY(memcpy)
 	movsq
 	movq	%rdx,%rcx
 	andq	$7,%rcx				/* any bytes left? */
+	jne	1f
+	POP_FRAME_POINTER
+	ret
+1:
 	rep
 	movsb
 	POP_FRAME_POINTER
@@ -269,6 +278,11 @@ ENTRY(memset)
 	stosq
 	movq	%rdx,%rcx
 	andq	$7,%rcx
+	jne	1f
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+1:
 	rep
 	stosb
 	movq	%r9,%rax
@@ -358,6 +372,7 @@ ENTRY(copyout)
 	movsq
 	movb	%dl,%cl
 	andb	$7,%cl
+	je	done_copyout
 	rep
 	movsb
 
@@ -406,6 +421,7 @@ ENTRY(copyin)
 	movsq
 	movb	%al,%cl
 	andb	$7,%cl				/* copy remaining bytes */
+	je	done_copyin
 	rep
 	movsb
 
