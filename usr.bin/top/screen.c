@@ -61,10 +61,7 @@ static char is_a_terminal = No;
 #define	STDERR	2
 
 void
-init_termcap(interactive)
-
-int interactive;
-
+init_termcap(int interactive)
 {
     char *bufptr;
     char *PCptr;
@@ -186,8 +183,7 @@ int interactive;
 }
 
 void
-init_screen()
-
+init_screen(void)
 {
     /* get the old settings for safe keeping */
     if (tcgetattr(STDOUT, &old_settings) != -1)
@@ -221,8 +217,7 @@ init_screen()
 }
 
 void
-end_screen()
-
+end_screen(void)
 {
     /* move to the lower left, clear the line and send "te" */
     if (smart_terminal)
@@ -241,8 +236,7 @@ end_screen()
 }
 
 void
-reinit_screen()
-
+reinit_screen(void)
 {
     /* install our settings if it is a terminal */
     if (is_a_terminal)
@@ -258,11 +252,8 @@ reinit_screen()
 }
 
 void
-get_screensize()
-
+get_screensize(void)
 {
-
-
     struct winsize ws;
 
     if (ioctl (1, TIOCGWINSZ, &ws) != -1)
@@ -299,7 +290,7 @@ top_standout(char *msg)
 }
 
 void
-top_clear()
+top_clear(void)
 {
     if (smart_terminal)
     {
@@ -330,8 +321,7 @@ clear_eol(int len)
 }
 
 void
-go_home()
-
+go_home(void)
 {
     if (smart_terminal)
     {

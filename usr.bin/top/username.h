@@ -11,7 +11,9 @@
 #ifndef USERNAME_H
 #define USERNAME_H
 
-int	 enter_user(int uid, char *name, int wecare);
+#include <stdbool.h>
+
+int	 enter_user(int uid, char *name, bool wecare);
 int	 get_user(int uid);
 void	 init_hash(void);
 char 	*username(int uid);
