@@ -990,7 +990,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 		break;
 	}
 
-	cmdbuf = (char *)malloc(cmdlen + 1);
+	cmdbuf = malloc(cmdlen + 1);
 	if (cmdbuf == NULL) {
 		warn("malloc(%d)", cmdlen + 1);
 		return NULL;
@@ -1025,7 +1025,7 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 			size_t len;
 
 			argbuflen = cmdlen * 4;
-			argbuf = (char *)malloc(argbuflen + 1);
+			argbuf = malloc(argbuflen + 1);
 			if (argbuf == NULL) {
 				warn("malloc(%zu)", argbuflen + 1);
 				free(cmdbuf);
