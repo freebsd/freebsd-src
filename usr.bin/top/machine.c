@@ -382,9 +382,9 @@ machine_init(struct statics *statics)
 	ncpus = 0;
 	GETSYSCTL("kern.smp.maxcpus", maxcpu);
 	size = sizeof(long) * maxcpu * CPUSTATES;
-	times = malloc(size);
+	times = calloc(size, 1);
 	if (times == NULL)
-		err(1, "malloc %zu bytes", size);
+		err(1, "calloc %zu bytes", size);
 	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 		err(1, "sysctlbyname kern.cp_times");
 	pcpu_cp_time = calloc(1, size);
@@ -779,11 +779,11 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	 */
 	if (previous_proc_count_max < nproc) {
 		free(previous_procs);
-		previous_procs = malloc(nproc * sizeof(*previous_procs));
+		previous_procs = calloc(nproc, sizeof(*previous_procs));
 		free(previous_pref);
-		previous_pref = malloc(nproc * sizeof(*previous_pref));
+		previous_pref = calloc(nproc, sizeof(*previous_pref));
 		if (previous_procs == NULL || previous_pref == NULL) {
-			(void) fprintf(stderr, "top: Out of memory.\n");
+			fprintf(stderr, "top: Out of memory.\n");
 			quit(TOP_EX_SYS_ERROR);
 		}
 		previous_proc_count_max = nproc;
@@ -996,9 +996,9 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(uid_t), int flags)
 		break;
 	}
 
-	cmdbuf = malloc(cmdlen + 1);
+	cmdbuf = calloc(cmdlen + 1, 1);
 	if (cmdbuf == NULL) {
-		warn("malloc(%d)", cmdlen + 1);
+		warn("calloc(%d)", cmdlen + 1);
 		return NULL;
 	}
 
@@ -1031,9 +1031,9 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(uid_t), int flags)
 			size_t len;
 
 			argbuflen = cmdlen * 4;
-			argbuf = malloc(argbuflen + 1);
+			argbuf = calloc(argbuflen + 1, 1);
 			if (argbuf == NULL) {
-				warn("malloc(%zu)", argbuflen + 1);
+				warn("calloc(%zu)", argbuflen + 1);
 				free(cmdbuf);
 				return NULL;
 			}
