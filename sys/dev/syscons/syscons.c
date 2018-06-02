@@ -3153,6 +3153,17 @@ scinit(int unit, int flags)
     static u_char font_16[256*16];
 #endif
 
+#ifdef SC_KERNEL_CONS_ATTRS
+    static const u_char dflt_kattrtab[] = SC_KERNEL_CONS_ATTRS;
+#elif SC_KERNEL_CONS_ATTR == FG_WHITE
+    static const u_char dflt_kattrtab[] = {
+	FG_WHITE, FG_YELLOW, FG_LIGHTMAGENTA, FG_LIGHTRED,
+	FG_LIGHTCYAN, FG_LIGHTGREEN, FG_LIGHTBLUE, FG_GREEN,
+	0,
+    };
+#else
+    static const u_char dflt_kattrtab[] = { FG_WHITE, 0, };
+#endif
     sc_softc_t *sc;
     scr_stat *scp;
     video_adapter_t *adp;
@@ -3163,13 +3174,8 @@ scinit(int unit, int flags)
     /* one time initialization */
     if (init_done == COLD) {
 	sc_get_bios_values(&bios_value);
-	for (i = 0; i < nitems(sc_kattrtab); i++) {
-#if SC_KERNEL_CONS_ATTR == FG_WHITE
-	    sc_kattrtab[i] = 8 + (i + FG_WHITE) % 8U;
-#else
-	    sc_kattrtab[i] = SC_KERNEL_CONS_ATTR;
-#endif
-	}
+	for (i = 0; i < nitems(sc_kattrtab); i++)
+	    sc_kattrtab[i] = dflt_kattrtab[i % (nitems(dflt_kattrtab) - 1)];
     }
     init_done = WARM;
 
