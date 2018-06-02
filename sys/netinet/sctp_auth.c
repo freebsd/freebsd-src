@@ -1504,6 +1504,8 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 		if (p_random != NULL) {
 			keylen = sizeof(*p_random) + random_len;
 			memcpy(new_key->key, p_random, keylen);
+		} else {
+			keylen = 0;
 		}
 		/* append in the AUTH chunks */
 		if (chunks != NULL) {
