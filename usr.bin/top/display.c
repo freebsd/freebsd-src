@@ -945,7 +945,7 @@ display_header(int t)
 }
 
 void
-new_message(int type, char *msgfmt, ...)
+new_message(int type, const char *msgfmt, ...)
 {
     va_list args;
     size_t i;

@@ -119,7 +119,7 @@ static char up_header_tid_only[] =
 /* the extra nulls in the string "run" are for adding a slash and
    the processor number when needed */
 
-static char *state_abbrev[] = {
+static const char *state_abbrev[] = {
 	"", "START", "RUN\0\0\0", "SLEEP", "STOP", "ZOMB", "WAIT", "LOCK"
 };
 
@@ -1354,8 +1354,8 @@ static int sorted_state[] = {
 static int
 compare_cpu(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_PCTCPU(p1, p2);
 	ORDERKEY_CPTICKS(p1, p2);
@@ -1408,8 +1408,8 @@ int (*compares[])(const void *arg1, const void *arg2) = {
 int
 compare_size(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_MEM(p1, p2);
 	ORDERKEY_RSSIZE(p1, p2);
@@ -1426,8 +1426,8 @@ compare_size(const void *arg1, const void *arg2)
 int
 compare_res(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_RSSIZE(p1, p2);
 	ORDERKEY_MEM(p1, p2);
@@ -1444,8 +1444,8 @@ compare_res(const void *arg1, const void *arg2)
 int
 compare_time(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const  *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *) arg2;
 
 	ORDERKEY_CPTICKS(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
@@ -1462,8 +1462,8 @@ compare_time(const void *arg1, const void *arg2)
 int
 compare_prio(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_PRIO(p1, p2);
 	ORDERKEY_CPTICKS(p1, p2);
@@ -1479,8 +1479,8 @@ compare_prio(const void *arg1, const void *arg2)
 static int
 compare_threads(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_THREADS(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
@@ -1497,8 +1497,8 @@ compare_threads(const void *arg1, const void *arg2)
 static int
 compare_jid(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc * const *)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc * const *)arg2;
 
 	ORDERKEY_JID(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
@@ -1515,8 +1515,8 @@ compare_jid(const void *arg1, const void *arg2)
 static int
 compare_swap(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	const struct kinfo_proc *p1 = *(const struct kinfo_proc **)arg1;
+	const struct kinfo_proc *p2 = *(const struct kinfo_proc **)arg2;
 
 	ORDERKEY_SWAP(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
@@ -1534,8 +1534,8 @@ compare_swap(const void *arg1, const void *arg2)
 int
 compare_iototal(const void *arg1, const void *arg2)
 {
-	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
-	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	struct kinfo_proc * const p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc * const p2 = *(struct kinfo_proc **)arg2;
 
 	return (get_io_total(p2) - get_io_total(p1));
 }
