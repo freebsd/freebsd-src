@@ -67,6 +67,20 @@ static int	cputime_prof_active;
 #endif /* GUPROF */
 
 #ifdef __GNUCLIKE_ASM
+#if defined(SMP) && defined(GUPROF)
+#define	MPLOCK "						\n\
+	movl	$1,%edx						\n\
+9:								\n\
+	xorl	%eax,%eax					\n\
+	lock 							\n\
+	cmpxchgl %edx,mcount_lock				\n\
+	jne	9b						\n"
+#define	MPUNLOCK "movl	$0,mcount_lock				\n"
+#else /* !(SMP && GUPROF) */
+#define	MPLOCK
+#define	MPUNLOCK
+#endif /* SMP && GUPROF */
+
 __asm("								\n\
 GM_STATE	=	0					\n\
 GMON_PROF_OFF	=	3					\n\
@@ -110,8 +124,10 @@ __mcount:							\n\
 	pushfl							\n\
 	pushl	%eax						\n\
 	pushl	%edx						\n\
-	cli							\n\
-	call	mcount						\n\
+	cli							\n"
+	MPLOCK "						\n\
+	call	mcount						\n"
+	MPUNLOCK "						\n\
 	addl	$8,%esp						\n\
 	popfl							\n\
 .mcount_exit:							\n\
@@ -155,8 +171,10 @@ GMON_PROF_HIRES	=	4					\n\
 	movl	8(%esp),%eax					\n\
 	pushfl							\n\
 	pushl	%eax						\n\
-	cli							\n\
-	call	mexitcount					\n\
+	cli							\n"
+	MPLOCK "						\n\
+	call	mexitcount					\n"
+	MPUNLOCK "						\n\
 	addl	$4,%esp						\n\
 	popfl							\n\
 	popl	%eax						\n\
