@@ -148,8 +148,8 @@ display_resize(void)
     }
 
     /* now, allocate space for the screen buffer */
-    screenbuf = malloc(lines * display_width);
-    if (screenbuf == (char *)NULL)
+    screenbuf = calloc(lines, display_width);
+    if (screenbuf == NULL)
     {
 	/* oops! */
 	return(-1);
@@ -205,23 +205,23 @@ int display_init(struct statics * statics)
 	procstate_names = statics->procstate_names;
 	num_procstates = string_count(procstate_names);
 	assert(num_procstates > 0);
-	lprocstates = malloc(num_procstates * sizeof(int));
+	lprocstates = calloc(num_procstates, sizeof(int));
 
 	cpustate_names = statics->cpustate_names;
 
 	swap_names = statics->swap_names;
 	num_swap = string_count(swap_names);
 	assert(num_swap > 0);
-	lswap = malloc(num_swap * sizeof(int));
+	lswap = calloc(num_swap, sizeof(int));
 	num_cpustates = string_count(cpustate_names);
 	assert(num_cpustates > 0);
-	lcpustates = malloc(num_cpustates * sizeof(int) * statics->ncpus);
-	cpustate_columns = malloc(num_cpustates * sizeof(int));
+	lcpustates = calloc(num_cpustates * sizeof(int), statics->ncpus);
+	cpustate_columns = calloc(num_cpustates, sizeof(int));
 
 	memory_names = statics->memory_names;
 	num_memory = string_count(memory_names);
 	assert(num_memory > 0);
-	lmemory = malloc(num_memory * sizeof(int));
+	lmemory = calloc(num_memory, sizeof(int));
 
 	arc_names = statics->arc_names;
 	carc_names = statics->carc_names;
@@ -745,7 +745,7 @@ trim_header(char *text)
 	width = display_width;
 	header_length = strlen(text);
 	if (header_length >= width) {
-		s = malloc((width + 1) * sizeof(char));
+		s = calloc((width + 1), sizeof(char));
 		if (s == NULL)
 			return (NULL);
 		strncpy(s, text, width);

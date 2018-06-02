@@ -25,9 +25,8 @@ extern char *clear_to_end;
 extern int  screen_length;
 extern int  screen_width;
 
-/* a function that puts a single character on stdout */
 int		clear_eol(int len);
-void	top_standout(char *msg);
+void	top_standout(const char *msg);
 void	top_clear(void);
 void	go_home(void);
 void	reinit_screen(void);

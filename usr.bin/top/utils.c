@@ -26,8 +26,6 @@
 #include <paths.h>
 #include <kvm.h>
 
-void quit(int);
-
 int
 atoiwi(const char *str)
 {
@@ -201,10 +199,10 @@ argparse(char *line, int *cntp)
     cnt += 3;
 
     /* allocate a char * array to hold the pointers */
-    argarray = malloc(cnt * sizeof(char *));
+    argarray = calloc(cnt, sizeof(char *));
 
     /* allocate another array to hold the strings themselves */
-    args = malloc(length+2);
+    args = calloc(length+2, 1);
 
     /* initialization for main loop */
     from = line;
