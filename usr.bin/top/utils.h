@@ -11,8 +11,8 @@
  */
 
 int atoiwi(char *);
-char *itoa(int);
-char *itoa7(int);
+char *itoa(unsigned int);
+char *itoa7(unsigned int);
 int digits(int);
 char *strecpy(char *, char *);
 char **argparse(char *, int *);

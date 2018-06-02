@@ -25,7 +25,6 @@
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <string.h>
-#define TERMIOS
 #include <termios.h>
 #include <curses.h>
 #include <termcap.h>
