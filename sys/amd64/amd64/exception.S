@@ -463,8 +463,16 @@ fast_syscall_common:
 	movq	PCPU(SCRATCH_RSP),%r11	/* %r11 already saved */
 	movq	%r11,TF_RSP(%rsp)	/* user stack pointer */
 	movq	PCPU(SCRATCH_RAX),%rax
+	/*
+	 * Save a few arg registers early to free them for use in
+	 * handle_ibrs_entry().  %r10 is especially tricky.  It is not an
+	 * arg register, but it holds the arg register %rcx.  Profiling
+	 * preserves %rcx, but may clobber %r10.  Profiling may also
+	 * clobber %r11, but %r11 (original %eflags) has been saved.
+	 */
 	movq	%rax,TF_RAX(%rsp)	/* syscall number */
 	movq	%rdx,TF_RDX(%rsp)	/* arg 3 */
+	movq	%r10,TF_RCX(%rsp)	/* arg 4 */
 	SAVE_SEGS
 	call	handle_ibrs_entry
 	movq	PCPU(CURPCB),%r11
@@ -475,7 +483,6 @@ fast_syscall_common:
 	movq	$2,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* arg 1 */
 	movq	%rsi,TF_RSI(%rsp)	/* arg 2 */
-	movq	%r10,TF_RCX(%rsp)	/* arg 4 */
 	movq	%r8,TF_R8(%rsp)		/* arg 5 */
 	movq	%r9,TF_R9(%rsp)		/* arg 6 */
 	movq	%rbx,TF_RBX(%rsp)	/* C preserved */

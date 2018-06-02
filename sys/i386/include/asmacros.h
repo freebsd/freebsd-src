@@ -108,11 +108,11 @@
 #define CROSSJUMPTARGET(label) \
 	ALIGN_TEXT; __CONCAT(to,label): ; MCOUNT; jmp label
 #define ENTRY(name)		GEN_ENTRY(name) ; 9: ; MCOUNT
-#define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
-#define MCOUNT			call __mcount
+#define FAKE_MCOUNT(caller)	pushl caller ; call *__mcountp ; popl %ecx
+#define MCOUNT			call *__mcountp
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
 #ifdef GUPROF
-#define MEXITCOUNT		call .mexitcount
+#define MEXITCOUNT		call *__mexitcountp
 #define ret			MEXITCOUNT ; NON_GPROF_RET
 #else
 #define MEXITCOUNT
