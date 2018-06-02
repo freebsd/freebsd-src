@@ -1474,6 +1474,7 @@ options 	SC_PIXEL_MODE		# add support for the raster text mode
 options 	SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
 options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
 options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
+options 	SC_KERNEL_CONS_ATTRS=\"\x0c\x0d\x0e\x0f\x02\x09\x0a\x0b\"
 options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
 
 # The following options will let you change the default behavior of
