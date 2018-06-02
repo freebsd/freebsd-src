@@ -841,7 +841,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	total_inblock = 0;
 	total_oublock = 0;
 	total_majflt = 0;
-	memset((char *)process_states, 0, sizeof(process_states));
+	memset(process_states, 0, sizeof(process_states));
 	prefp = pref;
 	for (pp = pbase, i = 0; i < nproc; pp++, i++) {
 
