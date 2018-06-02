@@ -37,10 +37,7 @@ memset(void *b, int c, size_t len)
 {
 	char *bb;
 
-	if (c == 0)
-		(bzero)(b, len);
-	else
-		for (bb = (char *)b; len--; )
-			*bb++ = c;
+	for (bb = (char *)b; len--; )
+		*bb++ = c;
 	return (b);
 }
