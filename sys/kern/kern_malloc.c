@@ -549,7 +549,7 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
  *	the allocation fails.
  */
 void *
-malloc(size_t size, struct malloc_type *mtp, int flags)
+(malloc)(size_t size, struct malloc_type *mtp, int flags)
 {
 	int indx;
 	caddr_t va;

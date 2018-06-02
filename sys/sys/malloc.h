@@ -38,6 +38,9 @@
 #define	_SYS_MALLOC_H_
 
 #include <sys/param.h>
+#ifdef _KERNEL
+#include <sys/systm.h>
+#endif
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -183,6 +186,22 @@ void	free(void *addr, struct malloc_type *type);
 void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	    __result_use_check __alloc_size(1);
+#ifdef _KERNEL
+#define	malloc(size, type, flags) ({					\
+	void *_malloc_item;						\
+	size_t _size = (size);						\
+	if (__builtin_constant_p(size) && __builtin_constant_p(flags) &&\
+	    ((flags) & M_ZERO)) {					\
+		_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);	\
+		if (((flags) & M_WAITOK) || _malloc_item != NULL)	\
+			bzero(_malloc_item, _size);			\
+	} else {							\
+		_malloc_item = malloc(_size, type, flags);		\
+	}								\
+	_malloc_item;							\
+})
+#endif
+
 void	*malloc_domain(size_t size, struct malloc_type *type, int domain,
 	    int flags) __malloc_like __result_use_check __alloc_size(1);
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
