@@ -1613,11 +1613,6 @@ compare_ivcsw(const void *arg1, const void *arg2)
 /*
  * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
  *		the process does not exist.
- *		It is EXTREMELY IMPORTANT that this function work correctly.
- *		If top runs setuid root (as in SVR4), then this function
- *		is the only thing that stands in the way of a serious
- *		security problem.  It validates requests for the "kill"
- *		and "renice" commands.
  */
 
 int
