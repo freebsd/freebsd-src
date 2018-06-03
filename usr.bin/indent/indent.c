@@ -724,7 +724,6 @@ check_type:
 		memcpy(e_lab, s_code, len);
 		e_lab += len;
 		*e_lab++ = ':';
-		*e_lab++ = ' ';
 		*e_lab = '\0';
 		e_code = s_code;
 	    }
