@@ -136,7 +136,6 @@ char       *be_save;		/* similarly saved value of buf_end */
 
 
 int         found_err;
-int         pointer_as_binop;
 int         blanklines_after_declarations;
 int         blanklines_before_blockcomments;
 int         blanklines_after_procs;

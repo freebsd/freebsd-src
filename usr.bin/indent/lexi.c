@@ -546,11 +546,9 @@ stop_lit:
 	else if (*buf_ptr == '>') {
 	    /* check for operator -> */
 	    *e_token++ = *buf_ptr++;
-	    if (!pointer_as_binop) {
-		unary_delim = false;
-		code = unary_op;
-		ps.want_blank = false;
-	    }
+	    unary_delim = false;
+	    code = unary_op;
+	    ps.want_blank = false;
 	}
 	break;			/* buffer overflow will be checked at end of
 				 * switch */
