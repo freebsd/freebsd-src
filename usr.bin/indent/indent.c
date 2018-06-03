@@ -341,6 +341,7 @@ main(int argc, char **argv)
 	    switch (type_code) {
 	    case newline:
 		if (sc_end == NULL) {
+		    save_com = sc_buf;
 		    save_com[0] = save_com[1] = ' ';
 		    sc_end = &save_com[2];
 		}
@@ -359,6 +360,13 @@ main(int argc, char **argv)
 		break;
 	    case comment:
 		if (sc_end == NULL) {
+		    /*
+		     * Copy everything from the start of the line, because
+		     * pr_comment() will use that to calculate original
+		     * indentation of a boxed comment.
+		     */
+		    memcpy(sc_buf, in_buffer, buf_ptr - in_buffer - 4);
+		    save_com = sc_buf + (buf_ptr - in_buffer - 4);
 		    save_com[0] = save_com[1] = ' ';
 		    sc_end = &save_com[2];
 		}
@@ -1172,9 +1180,11 @@ check_type:
 		    e_lab--;
 		if (e_lab - s_lab == com_end && bp_save == NULL) {
 		    /* comment on preprocessor line */
-		    if (sc_end == NULL)	/* if this is the first comment, we
-					 * must set up the buffer */
-			sc_end = &(save_com[0]);
+		    if (sc_end == NULL) {	/* if this is the first comment,
+						 * we must set up the buffer */
+			save_com = sc_buf;
+			sc_end = &save_com[0];
+		    }
 		    else {
 			*sc_end++ = '\n';	/* add newline between
 						 * comments */
