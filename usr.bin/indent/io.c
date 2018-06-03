@@ -226,6 +226,8 @@ compute_code_target(void)
 	if (!lineup_to_parens)
 	    target_col += continuation_indent
 		* (2 * continuation_indent == ps.ind_size ? 1 : ps.paren_level);
+	else if (lineup_to_parens_always)
+	    target_col = paren_target;
 	else {
 	    int w;
 	    int t = paren_target;
