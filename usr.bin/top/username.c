@@ -37,27 +37,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "utils.h"
 #include "username.h"
 
 struct hash_el {
-    uid_t  uid;
+    int  uid;
     char name[MAXLOGNAME];
 };
 
 #define    is_empty_hash(x)	(hash_table[x].name[0] == 0)
 
 /* simple minded hashing function */
-#define    hashit(i)	(i % Table_size)
+#define    hashit(i)	(abs(i) % Table_size)
 
 /* K&R requires that statically declared tables be initialized to zero. */
 /* We depend on that for hash_table and YOUR compiler had BETTER do it! */
 static struct hash_el hash_table[Table_size];
 
 
-char *username(uid_t uid)
+char *username(int uid)
 {
     int hashindex;
 
@@ -70,7 +69,7 @@ char *username(uid_t uid)
     return(hash_table[hashindex].name);
 }
 
-uid_t userid(char username[])
+int userid(char username[])
 {
     struct passwd *pwd;
 
@@ -91,7 +90,7 @@ uid_t userid(char username[])
 }
 
 /* wecare 1 = enter it always, 0 = nice to have */
-int enter_user(uid_t uid, char name[], bool wecare)
+int enter_user(int uid, char name[], bool wecare)
 {
     int hashindex;
 
@@ -122,7 +121,7 @@ int enter_user(uid_t uid, char name[], bool wecare)
  */
 
 int
-get_user(uid_t uid)
+get_user(int uid)
 {
     struct passwd *pwd;
 

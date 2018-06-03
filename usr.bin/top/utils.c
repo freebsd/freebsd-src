@@ -89,12 +89,12 @@ char *itoa(unsigned int val)
 }
 
 /*
- *  itoa7(val) - like itoa, except the number is right justified in a 7
+ *  (val) - like itoa, except the number is right justified in a 7
  *	character field.  This code is a duplication of itoa instead of
  *	a front end to a more general routine for efficiency.
  */
 
-char *itoa7(unsigned int val)
+char *itoa7(int val)
 {
     char *ptr;
     static char buffer[16];	/* result is built here */
