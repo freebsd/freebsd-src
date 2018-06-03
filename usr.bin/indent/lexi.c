@@ -367,12 +367,12 @@ lexi(struct parser_state *state)
 	 * token is in fact a declaration keyword -- one that has been
 	 * typedefd
 	 */
-	if (((*buf_ptr == '*' && buf_ptr[1] != '=') || isalpha(*buf_ptr) || *buf_ptr == '_')
-		&& !state->p_l_follow
-	        && !state->block_init
-		&& (state->last_token == rparen || state->last_token == semicolon ||
-		    state->last_token == decl ||
-		    state->last_token == lbrace || state->last_token == rbrace)) {
+	else if (!state->p_l_follow && !state->block_init &&
+	    !state->in_stmt &&
+	    ((*buf_ptr == '*' && buf_ptr[1] != '=') ||
+		isalpha((unsigned char)*buf_ptr)) &&
+	    (state->last_token == semicolon || state->last_token == lbrace ||
+		state->last_token == rbrace)) {
 	    state->keyword = 4;	/* a type name */
 	    state->last_u_d = true;
 	    return decl;
@@ -578,6 +578,34 @@ stop_lit:
 	    *e_token++ = *buf_ptr++;
 	code = (state->last_u_d ? unary_op : binary_op);
 	unary_delim = true;
+	break;
+
+    case '*':
+	unary_delim = true;
+	if (!state->last_u_d) {
+	    if (*buf_ptr == '=')
+		*e_token++ = *buf_ptr++;
+	    code = binary_op;
+	    break;
+	}
+	while (*buf_ptr == '*' || isspace((unsigned char)*buf_ptr)) {
+	    if (*buf_ptr == '*')
+		*e_token++ = *buf_ptr;
+	    if (++buf_ptr >= buf_end)
+		fill_buffer();
+	}
+	if (ps.in_decl) {
+	    char *tp = buf_ptr;
+
+	    while (isalpha((unsigned char)*tp) ||
+		   isspace((unsigned char)*tp)) {
+		if (++tp >= buf_end)
+		    fill_buffer();
+	    }
+	    if (*tp == '(')
+		ps.procname[0] = ' ';
+	}
+	code = unary_op;
 	break;
 
     default:
