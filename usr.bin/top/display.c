@@ -66,12 +66,12 @@ static int display_width = MAX_COLS;
 /* buffer of proc information lines for display updating */
 static char *screenbuf = NULL;
 
-static char **procstate_names;
-static char **cpustate_names;
-static char **memory_names;
-static char **arc_names;
-static char **carc_names;
-static char **swap_names;
+static const char * const *procstate_names;
+static const char * const *cpustate_names;
+static const char * const *memory_names;
+static const char * const *arc_names;
+static const char * const *carc_names;
+static const char * const *swap_names;
 
 static int num_procstates;
 static int num_cpustates;
@@ -735,8 +735,8 @@ static int header_length;
  * allocated area with the trimmed header.
  */
 
-char *
-trim_header(char *text)
+const char *
+trim_header(const char *text)
 {
 	char *s;
 	int width;
@@ -745,11 +745,9 @@ trim_header(char *text)
 	width = display_width;
 	header_length = strlen(text);
 	if (header_length >= width) {
-		s = calloc((width + 1), sizeof(char));
+		s = strndup(text, width);
 		if (s == NULL)
 			return (NULL);
-		strncpy(s, text, width);
-		s[width] = '\0';
 	}
 	return (s);
 }
@@ -761,9 +759,9 @@ trim_header(char *text)
  */
 
 void
-i_header(char *text)
+i_header(const char *text)
 {
-    char *s;
+    const char *s;
 
     s = trim_header(text);
     if (s != NULL)
@@ -783,7 +781,7 @@ i_header(char *text)
 }
 
 void
-u_header(char *text __unused)
+u_header(const char *text __unused)
 {
 
     if (header_status == ERASE)

@@ -17,13 +17,13 @@
  */
 struct statics
 {
-    char **procstate_names;
-    char **cpustate_names;
-    char **memory_names;
-    char **arc_names;
-    char **carc_names;
-    char **swap_names;
-    char **order_names;
+    const char * const *procstate_names;
+    const char * const *cpustate_names;
+    const char * const *memory_names;
+    const char * const *arc_names;
+    const char * const *carc_names;
+    const char * const *swap_names;
+    const char * const *order_names;
     int ncpus;
 };
 
@@ -75,7 +75,7 @@ struct process_select
 
 /* routines defined by the machine dependent module */
 
-char	*format_header(char *uname_field);
+const char	*format_header(const char *uname_field);
 char	*format_next_process(caddr_t handle, char *(*get_userid)(int),
 	    int flags);
 void	 toggle_pcpustats(void);
