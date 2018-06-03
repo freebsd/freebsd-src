@@ -260,15 +260,6 @@ main(int argc, char *argv[])
 #define CMD_order	26
 #define CMD_pid		27
 
-    /*
-     * Since top(1) is often long running and
-     * doesn't typically care about where its running from
-     * chdir to the root to allow unmounting of its
-     * original wd. Failure is alright as this is
-     * just a courtesy for users.
-     */
-    chdir("/");
-
     /* set the buffer for stdout */
 #ifdef DEBUG
     extern FILE *debug;
