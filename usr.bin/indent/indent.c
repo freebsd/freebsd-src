@@ -520,11 +520,12 @@ check_type:
 				 * '}' */
 	    if (s_com != e_com) {	/* the turkey has embedded a comment
 					 * in a line. fix it */
+		int len = e_com - s_com;
+
+		CHECK_SIZE_CODE(len + 3);
 		*e_code++ = ' ';
-		for (t_ptr = s_com; *t_ptr; ++t_ptr) {
-		    CHECK_SIZE_CODE;
-		    *e_code++ = *t_ptr;
-		}
+		memcpy(e_code, s_com, len);
+		e_code += len;
 		*e_code++ = ' ';
 		*e_code = '\0';	/* null terminate code sect */
 		ps.want_blank = false;
@@ -540,7 +541,10 @@ check_type:
 	/*-----------------------------------------------------*\
 	|	   do switch on type of token scanned		|
 	\*-----------------------------------------------------*/
-	CHECK_SIZE_CODE;
+	CHECK_SIZE_CODE(3);	/* maximum number of increments of e_code
+				 * before the next CHECK_SIZE_CODE or
+				 * dump_line() is 2. After that there's the
+				 * final increment for the null character. */
 	switch (type_code) {	/* now, decide what to do with the token */
 
 	case form_feed:	/* found a form feed in line */
@@ -651,19 +655,25 @@ check_type:
 	    else if (ps.want_blank)
 		*e_code++ = ' ';
 
-	    for (t_ptr = token; *t_ptr; ++t_ptr) {
-		CHECK_SIZE_CODE;
-		*e_code++ = *t_ptr;
+	    {
+		int len = e_token - s_token;
+
+		CHECK_SIZE_CODE(len);
+		memcpy(e_code, token, len);
+		e_code += len;
 	    }
 	    ps.want_blank = false;
 	    break;
 
 	case binary_op:	/* any binary operation */
-	    if (ps.want_blank)
-		*e_code++ = ' ';
-	    for (t_ptr = token; *t_ptr; ++t_ptr) {
-		CHECK_SIZE_CODE;
-		*e_code++ = *t_ptr;	/* move the operator */
+	    {
+		int len = e_token - s_token;
+
+		CHECK_SIZE_CODE(len + 1);
+		if (ps.want_blank)
+		    *e_code++ = ' ';
+		memcpy(e_code, token, len);
+		e_code += len;
 	    }
 	    ps.want_blank = true;
 	    break;
@@ -704,13 +714,20 @@ check_type:
 	    }
 	    ps.in_stmt = false;	/* seeing a label does not imply we are in a
 				 * stmt */
-	    for (t_ptr = s_code; *t_ptr; ++t_ptr)
-		*e_lab++ = *t_ptr;	/* turn everything so far into a label */
-	    e_code = s_code;
-	    *e_lab++ = ':';
-	    *e_lab++ = ' ';
-	    *e_lab = '\0';
+	    /*
+	     * turn everything so far into a label
+	     */
+	    {
+		int len = e_code - s_code;
 
+		CHECK_SIZE_LAB(len + 3);
+		memcpy(e_lab, s_code, len);
+		e_lab += len;
+		*e_lab++ = ':';
+		*e_lab++ = ' ';
+		*e_lab = '\0';
+		e_code = s_code;
+	    }
 	    force_nl = ps.pcase = scase;	/* ps.pcase will be used by
 						 * dump_line to decide how to
 						 * indent the label. force_nl
@@ -986,22 +1003,28 @@ check_type:
 		parse(hd_type);
 	    }
     copy_id:
-	    if (ps.want_blank)
-		*e_code++ = ' ';
-	    for (t_ptr = token; *t_ptr; ++t_ptr) {
-		CHECK_SIZE_CODE;
-		*e_code++ = *t_ptr;
+	    {
+		int len = e_token - s_token;
+
+		CHECK_SIZE_CODE(len + 1);
+		if (ps.want_blank)
+		    *e_code++ = ' ';
+		memcpy(e_code, s_token, len);
+		e_code += len;
 	    }
 	    if (type_code != funcname)
 		ps.want_blank = true;
 	    break;
 
 	case strpfx:
-	    if (ps.want_blank)
-		*e_code++ = ' ';
-	    for (t_ptr = token; *t_ptr; ++t_ptr) {
-		CHECK_SIZE_CODE;
-		*e_code++ = *t_ptr;
+	    {
+		int len = e_token - s_token;
+
+		CHECK_SIZE_CODE(len + 1);
+		if (ps.want_blank)
+		    *e_code++ = ' ';
+		memcpy(e_code, token, len);
+		e_code += len;
 	    }
 	    ps.want_blank = false;
 	    break;
@@ -1038,6 +1061,7 @@ check_type:
 		    (s_lab != e_lab) ||
 		    (s_code != e_code))
 		dump_line();
+	    CHECK_SIZE_LAB(1);
 	    *e_lab++ = '#';	/* move whole line to 'label' buffer */
 	    {
 		int         in_comment = 0;
@@ -1051,7 +1075,7 @@ check_type:
 			fill_buffer();
 		}
 		while (*buf_ptr != '\n' || (in_comment && !had_eof)) {
-		    CHECK_SIZE_LAB;
+		    CHECK_SIZE_LAB(2);
 		    *e_lab = *buf_ptr++;
 		    if (buf_ptr >= buf_end)
 			fill_buffer();
@@ -1119,6 +1143,7 @@ check_type:
 		    buf_end = sc_end;
 		    sc_end = NULL;
 		}
+		CHECK_SIZE_LAB(1);
 		*e_lab = '\0';	/* null terminate line */
 		ps.pcase = false;
 	    }
@@ -1249,14 +1274,14 @@ indent_declaration(int cur_dec_ind, int tabs_to_var)
     if (tabs_to_var) {
 	int tpos;
 
+	CHECK_SIZE_CODE(cur_dec_ind / tabsize);
 	while ((tpos = tabsize * (1 + pos / tabsize)) <= cur_dec_ind) {
-	    CHECK_SIZE_CODE;
 	    *e_code++ = '\t';
 	    pos = tpos;
 	}
     }
+    CHECK_SIZE_CODE(cur_dec_ind - pos + 1);
     while (pos < cur_dec_ind) {
-	CHECK_SIZE_CODE;
 	*e_code++ = ' ';
 	pos++;
     }
