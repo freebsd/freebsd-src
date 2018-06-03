@@ -174,6 +174,7 @@ main(int argc, char **argv)
 #ifdef undef
     max_col = 78;		/* -l78 */
     lineup_to_parens = 1;	/* -lp */
+    lineup_to_parens_always = 0;	/* -nlpl */
     ps.ljust_decl = 0;		/* -ndj */
     ps.com_ind = 33;		/* -c33 */
     star_comment_cont = 1;	/* -sc */
