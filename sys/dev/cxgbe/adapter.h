@@ -162,6 +162,7 @@ enum {
 
 	/* port flags */
 	HAS_TRACEQ	= (1 << 3),
+	FIXED_IFMEDIA	= (1 << 4),	/* ifmedia list doesn't change. */
 
 	/* VI flags */
 	DOOMED		= (1 << 0),
