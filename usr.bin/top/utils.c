@@ -142,7 +142,7 @@ int digits(int val)
  */
 
 int
-string_index(const char *string, char *array[])
+string_index(const char *string, const char * const *array)
 {
     size_t i = 0;
 
@@ -165,8 +165,8 @@ string_index(const char *string, char *array[])
  *	squat about quotes.
  */
 
-char **
-argparse(char *line, int *cntp)
+const char * const *
+argparse(const char *line, int *cntp)
 {
     const char *from;
     char *to;
@@ -175,7 +175,7 @@ argparse(char *line, int *cntp)
     int length;
     int lastch;
     char **argv;
-    char **argarray;
+    const char * const *argarray;
     char *args;
 
     /* unfortunately, the only real way to do this is to go thru the

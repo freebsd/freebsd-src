@@ -210,7 +210,7 @@ main(int argc, char *argv[])
     const char *uname_field = "USERNAME";
     const char *header_text;
     char *env_top;
-    char **preset_argv;
+    const char **preset_argv;
     int  preset_argc = 0;
     char **av;
     int  ac;
