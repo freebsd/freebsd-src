@@ -322,13 +322,11 @@ main(int argc, char **argv)
 
     while (1) {			/* this is the main loop.  it will go until we
 				 * reach eof */
-	int         is_procname;
 	int comment_buffered = false;
 
 	type_code = lexi(&ps);	/* lexi reads one token.  The actual
 				 * characters read are stored in "token". lexi
 				 * returns a code indicating the type of token */
-	is_procname = ps.procname[0];
 
 	/*
 	 * The following code moves newlines and comments following an if (),
@@ -596,7 +594,7 @@ check_type:
 		ps.p_l_follow--;
 	    }
 	    if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
-		!is_procname && ps.paren_level == 0) {
+		ps.procname[0] == '\0' && ps.paren_level == 0) {
 		/* function pointer declarations */
 		if (troff) {
 		    sprintf(e_code, "\n.Du %dp+\200p \"%s\"\n", dec_ind * 7, token);
@@ -672,8 +670,8 @@ check_type:
 	    break;
 
 	case unary_op:		/* this could be any unary operation */
-	    if (!ps.dumped_decl_indent && ps.in_decl && !is_procname &&
-		!ps.block_init && ps.paren_level == 0) {
+	    if (!ps.dumped_decl_indent && ps.in_decl && !ps.block_init &&
+		ps.procname[0] == '\0' && ps.paren_level == 0) {
 		/* pointer declarations */
 		if (troff) {
 		    if (ps.want_blank)
@@ -1105,7 +1103,7 @@ check_type:
 	    ps.want_blank = (s_code != e_code);	/* only put blank after comma
 						 * if comma does not start the
 						 * line */
-	    if (ps.in_decl && is_procname == 0 && !ps.block_init &&
+	    if (ps.in_decl && ps.procname[0] == '\0' && !ps.block_init &&
 		!ps.dumped_decl_indent && ps.paren_level == 0) {
 		/* indent leading commas and not the actual identifiers */
 		indent_declaration(dec_ind - 1, tabs_to_var);
