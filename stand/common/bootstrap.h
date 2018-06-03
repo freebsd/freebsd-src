@@ -61,7 +61,6 @@ char	*backslash(const char *str);
 int	parse(int *argc, char ***argv, const char *str);
 
 /* boot.c */
-int	autoboot(int timeout, char *prompt);
 void	autoboot_maybe(void);
 int	getrootmount(char *rootdev);
 
