@@ -37,7 +37,7 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline -Wno-pointer-sign
+	-Wno-pointer-sign
 
 CFLAGS.clang+=	-Wno-tentative-definition-incomplete-type
 
