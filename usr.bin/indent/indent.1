@@ -43,14 +43,9 @@
 .Op Fl bad | Fl nbad
 .Op Fl badp | Fl nbadp
 .Op Fl bap | Fl nbap
-.Bk -words
-.Op Fl ei | Fl ei
-.Op Fl eei | Fl eei
 .Op Fl bbb | Fl nbbb
-.Ek
 .Op Fl \&bc | Fl nbc
-.Op Fl \&bl
-.Op Fl \&br
+.Op Fl \&bl | Fl \&br
 .Op Fl bs | Fl nbs
 .Op Fl c Ns Ar n
 .Op Fl \&cd Ns Ar n
@@ -62,6 +57,11 @@
 .Op Fl cli Ns Ar n
 .Op Fl d Ns Ar n
 .Op Fl \&di Ns Ar n
+.Op Fl dj | Fl ndj
+.Bk -words
+.Op Fl ei | Fl nei
+.Op Fl eei | Fl neei
+.Ek
 .Bk -words
 .Op Fl fbs | Fl nfbs
 .Op Fl fc1 | Fl nfc1
@@ -84,6 +84,7 @@
 .Ek
 .Op Fl \&st
 .Op Fl \&ta
+.Op Fl T Ns Ar typename
 .Op Fl ts Ns Ar n
 .Op Fl U Ns Ar file
 .Op Fl ut | Fl nut
@@ -177,10 +178,10 @@ is specified, then a newline is forced after each comma in a declaration.
 turns off this option.
 Default:
 .Fl \&nbc .
-.It Fl \&br , \&bl
+.It Fl \&bl , \&br
 Specifying
 .Fl \&bl
-lines-up compound statements like this:
+lines up compound statements like this:
 .Bd -literal -offset indent
 if (...)
 {
@@ -265,7 +266,7 @@ means that such comments are placed one indentation level to the
 left of code.
 Specifying the default
 .Fl \&d\&0
-lines-up these comments with the code.
+lines up these comments with the code.
 See the section on comment
 indentation below.
 .It Fl \&di Ns Ar n
@@ -332,7 +333,7 @@ Block comments are then handled like box comments.
 The default is
 .Fl fcb .
 .It Fl i Ns Ar n
-The number of spaces for one indentation level.
+The number of columns for one indentation level.
 The default is 8.
 .It Fl \&ip , nip
 Enables (disables) the indentation of parameter declarations from the left
@@ -353,7 +354,7 @@ relative to the beginning of their type declaration.
 The default is for local variable names to be indented
 by the same amount as global ones.
 .It Fl \&lp , nlp
-Lines-up code surrounded by parenthesis in continuation lines.
+Lines up code surrounded by parentheses in continuation lines.
 If a line
 has a left paren which is not closed on that line, then continuation lines
 will be lined up to start at the character position just after the left
