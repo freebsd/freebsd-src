@@ -67,12 +67,17 @@ FILE       *output;		/* the output file */
 	if (e_com >= l_com) { \
 	    int nsize = l_com-s_com+400; \
 	    int com_len = e_com - s_com; \
-	    int blank_pos = last_bl - s_com; \
+	    int blank_pos; \
+	    if (last_bl != NULL) \
+		blank_pos = last_bl - combuf; \
+	    else \
+		blank_pos = -1; \
 	    combuf = (char *) realloc(combuf, nsize); \
 	    if (combuf == NULL) \
 		err(1, NULL); \
 	    e_com = combuf + com_len + 1; \
-	    last_bl = combuf + blank_pos + 1; \
+	    if (blank_pos > 0) \
+		last_bl = combuf + blank_pos; \
 	    l_com = combuf + nsize - 5; \
 	    s_com = combuf + 1; \
 	}
