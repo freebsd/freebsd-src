@@ -569,13 +569,15 @@ check_type:
 		    nitems(ps.paren_indents));
 		ps.p_l_follow--;
 	    }
-	    if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
+	    if (*token == '[')
+		/* not a function pointer declaration or a function call */;
+	    else if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
 		ps.procname[0] == '\0' && ps.paren_level == 0) {
 		/* function pointer declarations */
 		indent_declaration(dec_ind, tabs_to_var);
 		ps.dumped_decl_indent = true;
 	    }
-	    else if (ps.want_blank && *token != '[' &&
+	    else if (ps.want_blank &&
 		    ((ps.last_token != ident && ps.last_token != funcname) ||
 		    proc_calls_space ||
 		    /* offsetof (1) is never allowed a space; sizeof (2) gets
