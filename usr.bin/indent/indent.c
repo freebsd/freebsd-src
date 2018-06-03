@@ -102,6 +102,7 @@ main(int argc, char **argv)
     int         last_else = 0;	/* true iff last keyword was an else */
     const char *profile_name = NULL;
     const char *envval = NULL;
+    struct parser_state transient_state; /* a copy for lookup */
 
     /*-----------------------------------------------*\
     |		      INITIALIZATION		      |
@@ -324,7 +325,7 @@ main(int argc, char **argv)
 	int         is_procname;
 	int comment_buffered = false;
 
-	type_code = lexi();	/* lexi reads one token.  The actual
+	type_code = lexi(&ps);	/* lexi reads one token.  The actual
 				 * characters read are stored in "token". lexi
 				 * returns a code indicating the type of token */
 	is_procname = ps.procname[0];
@@ -460,9 +461,48 @@ main(int argc, char **argv)
 		    break;
 		}
 	    }			/* end of switch */
-	    if (type_code != 0)	/* we must make this check, just in case there
-				 * was an unexpected EOF */
-		type_code = lexi();	/* read another token */
+	    /*
+	     * We must make this check, just in case there was an unexpected
+	     * EOF.
+	     */
+	    if (type_code != 0) {
+		/*
+		 * The only intended purpose of calling lexi() below is to
+		 * categorize the next token in order to decide whether to
+		 * continue buffering forthcoming tokens. Once the buffering
+		 * is over, lexi() will be called again elsewhere on all of
+		 * the tokens - this time for normal processing.
+		 *
+		 * Calling it for this purpose is a bug, because lexi() also
+		 * changes the parser state and discards leading whitespace,
+		 * which is needed mostly for comment-related considerations.
+		 *
+		 * Work around the former problem by giving lexi() a copy of
+		 * the current parser state and discard it if the call turned
+		 * out to be just a look ahead.
+		 *
+		 * Work around the latter problem by copying all whitespace
+		 * characters into the buffer so that the later lexi() call
+		 * will read them.
+		 */
+		if (sc_end != NULL) {
+		    while (*buf_ptr == ' ' || *buf_ptr == '\t') {
+			*sc_end++ = *buf_ptr++;
+			if (sc_end >= &save_com[sc_size]) {
+			    abort();
+			}
+		    }
+		    if (buf_ptr >= buf_end) {
+			fill_buffer();
+		    }
+		}
+		transient_state = ps;
+		type_code = lexi(&transient_state);	/* read another token */
+		if (type_code != newline && type_code != form_feed &&
+		    type_code != comment && !transient_state.search_brace) {
+		    ps = transient_state;
+		}
+	    }
 	}			/* end of while (search_brace) */
 	last_else = 0;
 check_type:

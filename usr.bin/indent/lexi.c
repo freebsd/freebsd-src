@@ -141,7 +141,7 @@ strcmp_type(const void *e1, const void *e2)
 }
 
 int
-lexi(void)
+lexi(struct parser_state *state)
 {
     int         unary_delim;	/* this is set to 1 if the current token
 				 * forces a following operator to be unary */
@@ -152,12 +152,13 @@ lexi(void)
 
     e_token = s_token;		/* point to start of place to save token */
     unary_delim = false;
-    ps.col_1 = ps.last_nl;	/* tell world that this token started in
-				 * column 1 iff the last thing scanned was nl */
-    ps.last_nl = false;
+    state->col_1 = state->last_nl;	/* tell world that this token started
+					 * in column 1 iff the last thing
+					 * scanned was a newline */
+    state->last_nl = false;
 
     while (*buf_ptr == ' ' || *buf_ptr == '\t') {	/* get rid of blanks */
-	ps.col_1 = false;	/* leading blanks imply token is not in column
+	state->col_1 = false;	/* leading blanks imply token is not in column
 				 * 1 */
 	if (++buf_ptr >= buf_end)
 	    fill_buffer();
@@ -281,18 +282,19 @@ lexi(void)
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
 	}
-	ps.keyword = 0;
-	if (l_struct && !ps.p_l_follow) {
+	state->keyword = 0;
+	if (l_struct && !state->p_l_follow) {
 				/* if last token was 'struct' and we're not
 				 * in parentheses, then this token
 				 * should be treated as a declaration */
 	    l_struct = false;
 	    last_code = ident;
-	    ps.last_u_d = true;
+	    state->last_u_d = true;
 	    return (decl);
 	}
-	ps.last_u_d = l_struct;	/* Operator after identifier is binary
-				 * unless last token was 'struct' */
+	state->last_u_d = l_struct;	/* Operator after identifier is
+					 * binary unless last token was
+					 * 'struct' */
 	l_struct = false;
 	last_code = ident;	/* Remember that this is the code we will
 				 * return */
@@ -310,13 +312,13 @@ lexi(void)
 	        strcmp(u, "_t") == 0) || (typename_top >= 0 &&
 		  bsearch(s_token, typenames, typename_top + 1,
 		    sizeof(typenames[0]), strcmp_type))) {
-		ps.keyword = 4;	/* a type name */
-		ps.last_u_d = true;
+		state->keyword = 4;	/* a type name */
+		state->last_u_d = true;
 	        goto found_typename;
 	    }
 	} else {			/* we have a keyword */
-	    ps.keyword = p->rwcode;
-	    ps.last_u_d = true;
+	    state->keyword = p->rwcode;
+	    state->last_u_d = true;
 	    switch (p->rwcode) {
 	    case 7:		/* it is a switch */
 		return (swstmt);
@@ -333,9 +335,9 @@ lexi(void)
 
 	    case 4:		/* one of the declaration keywords */
 	    found_typename:
-		if (ps.p_l_follow) {
+		if (state->p_l_follow) {
 		    /* inside parens: cast, param list, offsetof or sizeof */
-		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.not_cast_mask;
+		    state->cast_mask |= (1 << state->p_l_follow) & ~state->not_cast_mask;
 		    break;
 		}
 		last_code = decl;
@@ -358,15 +360,15 @@ lexi(void)
 		return (ident);
 	    }			/* end of switch */
 	}			/* end of if (found_it) */
-	if (*buf_ptr == '(' && ps.tos <= 1 && ps.ind_level == 0 &&
-	    ps.in_parameter_declaration == 0 && ps.block_init == 0) {
+	if (*buf_ptr == '(' && state->tos <= 1 && state->ind_level == 0 &&
+	    state->in_parameter_declaration == 0 && state->block_init == 0) {
 	    char *tp = buf_ptr;
 	    while (tp < buf_end)
 		if (*tp++ == ')' && (*tp == ';' || *tp == ','))
 		    goto not_proc;
-	    strncpy(ps.procname, token, sizeof ps.procname - 1);
-	    if (ps.in_decl)
-		ps.in_parameter_declaration = 1;
+	    strncpy(state->procname, token, sizeof state->procname - 1);
+	    if (state->in_decl)
+		state->in_parameter_declaration = 1;
 	    return (last_code = funcname);
     not_proc:;
 	}
@@ -376,19 +378,19 @@ lexi(void)
 	 * typedefd
 	 */
 	if (((*buf_ptr == '*' && buf_ptr[1] != '=') || isalpha(*buf_ptr) || *buf_ptr == '_')
-		&& !ps.p_l_follow
-	        && !ps.block_init
-		&& (ps.last_token == rparen || ps.last_token == semicolon ||
-		    ps.last_token == decl ||
-		    ps.last_token == lbrace || ps.last_token == rbrace)) {
-	    ps.keyword = 4;	/* a type name */
-	    ps.last_u_d = true;
+		&& !state->p_l_follow
+	        && !state->block_init
+		&& (state->last_token == rparen || state->last_token == semicolon ||
+		    state->last_token == decl ||
+		    state->last_token == lbrace || state->last_token == rbrace)) {
+	    state->keyword = 4;	/* a type name */
+	    state->last_u_d = true;
 	    last_code = decl;
 	    return decl;
 	}
 	if (last_code == decl)	/* if this is a declared variable, then
 				 * following sign is unary */
-	    ps.last_u_d = true;	/* will make "int a -1" work */
+	    state->last_u_d = true;	/* will make "int a -1" work */
 	last_code = ident;
 	return (ident);		/* the ident is not in the list */
     }				/* end of procesing for alpanum character */
@@ -403,8 +405,8 @@ lexi(void)
 
     switch (*token) {
     case '\n':
-	unary_delim = ps.last_u_d;
-	ps.last_nl = true;	/* remember that we just had a newline */
+	unary_delim = state->last_u_d;
+	state->last_nl = true;	/* remember that we just had a newline */
 	code = (had_eof ? 0 : newline);
 
 	/*
@@ -473,7 +475,7 @@ stop_lit:
 	break;
 
     case '#':
-	unary_delim = ps.last_u_d;
+	unary_delim = state->last_u_d;
 	code = preesc;
 	break;
 
@@ -496,21 +498,21 @@ stop_lit:
 	unary_delim = true;
 
 	/*
-	 * if (ps.in_or_st) ps.block_init = 1;
+	 * if (state->in_or_st) state->block_init = 1;
 	 */
-	/* ?	code = ps.block_init ? lparen : lbrace; */
+	/* ?	code = state->block_init ? lparen : lbrace; */
 	code = lbrace;
 	break;
 
     case ('}'):
 	unary_delim = true;
-	/* ?	code = ps.block_init ? rparen : rbrace; */
+	/* ?	code = state->block_init ? rparen : rbrace; */
 	code = rbrace;
 	break;
 
     case 014:			/* a form feed */
-	unary_delim = ps.last_u_d;
-	ps.last_nl = true;	/* remember this so we can set 'ps.col_1'
+	unary_delim = state->last_u_d;
+	state->last_nl = true;	/* remember this so we can set 'state->col_1'
 				 * right */
 	code = form_feed;
 	break;
@@ -527,7 +529,7 @@ stop_lit:
 
     case '-':
     case '+':			/* check for -, +, --, ++ */
-	code = (ps.last_u_d ? unary_op : binary_op);
+	code = (state->last_u_d ? unary_op : binary_op);
 	unary_delim = true;
 
 	if (*buf_ptr == token[0]) {
@@ -535,7 +537,7 @@ stop_lit:
 	    *e_token++ = *buf_ptr++;
 	    /* buffer overflow will be checked at end of loop */
 	    if (last_code == ident || last_code == rparen) {
-		code = (ps.last_u_d ? unary_op : postop);
+		code = (state->last_u_d ? unary_op : postop);
 		/* check for following ++ or -- */
 		unary_delim = false;
 	    }
@@ -548,14 +550,14 @@ stop_lit:
 	    *e_token++ = *buf_ptr++;
 	    unary_delim = false;
 	    code = unary_op;
-	    ps.want_blank = false;
+	    state->want_blank = false;
 	}
 	break;			/* buffer overflow will be checked at end of
 				 * switch */
 
     case '=':
-	if (ps.in_or_st)
-	    ps.block_init = 1;
+	if (state->in_or_st)
+	    state->block_init = 1;
 #ifdef undef
 	if (chartype[*buf_ptr] == opchar) {	/* we have two char assignment */
 	    e_token[-1] = *buf_ptr++;
@@ -586,7 +588,7 @@ stop_lit:
 	}
 	if (*buf_ptr == '=')
 	    *e_token++ = *buf_ptr++;
-	code = (ps.last_u_d ? unary_op : binary_op);
+	code = (state->last_u_d ? unary_op : binary_op);
 	unary_delim = true;
 	break;
 
@@ -599,7 +601,7 @@ stop_lit:
 		fill_buffer();
 
 	    code = comment;
-	    unary_delim = ps.last_u_d;
+	    unary_delim = state->last_u_d;
 	    break;
 	}
 	while (*(e_token - 1) == *buf_ptr || *buf_ptr == '=') {
@@ -610,7 +612,7 @@ stop_lit:
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
 	}
-	code = (ps.last_u_d ? unary_op : binary_op);
+	code = (state->last_u_d ? unary_op : binary_op);
 	unary_delim = true;
 
 
@@ -621,7 +623,7 @@ stop_lit:
     }
     if (buf_ptr >= buf_end)	/* check for input buffer empty */
 	fill_buffer();
-    ps.last_u_d = unary_delim;
+    state->last_u_d = unary_delim;
     *e_token = '\0';		/* null terminate the token */
     return (code);
 }
