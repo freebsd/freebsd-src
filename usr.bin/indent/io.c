@@ -300,7 +300,8 @@ fill_buffer(void)
 		had_eof = true;
 		break;
 	}
-	*p++ = i;
+	if (i != '\0')
+	    *p++ = i;
 	if (i == '\n')
 		break;
     }
