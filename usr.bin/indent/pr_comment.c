@@ -201,9 +201,6 @@ pr_comment(void)
 	    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
     }
 
-    if (troff)
-	adj_max_col = 80;
-
     /* Start to copy the comment */
 
     while (1) {			/* this loop will go until the comment is

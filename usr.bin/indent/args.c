@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #define	PRO_SPECIAL	1	/* special case */
 #define	PRO_BOOL	2	/* boolean */
 #define	PRO_INT		3	/* integer */
-#define PRO_FONT	4	/* troff font */
 
 /* profile specials for booleans */
 #define	ON		1	/* turn it on */
@@ -119,15 +118,9 @@ struct pro {
     {"d", PRO_INT, 0, 0, &ps.unindent_displace},
     {"eei", PRO_BOOL, false, ON, &extra_expression_indent},
     {"ei", PRO_BOOL, true, ON, &ps.else_if},
-    {"fbc", PRO_FONT, 0, 0, (int *) &blkcomf},
     {"fbs", PRO_BOOL, true, ON, &function_brace_split},
-    {"fbx", PRO_FONT, 0, 0, (int *) &boxcomf},
-    {"fb", PRO_FONT, 0, 0, (int *) &bodyf},
     {"fc1", PRO_BOOL, true, ON, &format_col1_comments},
     {"fcb", PRO_BOOL, true, ON, &format_block_comments},
-    {"fc", PRO_FONT, 0, 0, (int *) &scomf},
-    {"fk", PRO_FONT, 0, 0, (int *) &keywordf},
-    {"fs", PRO_FONT, 0, 0, (int *) &stringf},
     {"ip", PRO_BOOL, true, ON, &ps.indent_parameters},
     {"i", PRO_INT, 8, 0, &ps.ind_size},
     {"lc", PRO_INT, 0, 0, &block_comment_max_col},
@@ -167,7 +160,6 @@ struct pro {
     {"st", PRO_SPECIAL, 0, STDIN, 0},
     {"ta", PRO_BOOL, false, ON, &auto_typedefs},
     {"ts", PRO_INT, 8, 0, &tabsize},
-    {"troff", PRO_BOOL, false, ON, &troff},
     {"ut", PRO_BOOL, true, ON, &use_tabs},
     {"v", PRO_BOOL, false, ON, &verbose},
     /* whew! */
@@ -259,7 +251,7 @@ set_defaults(void)
      */
     ps.case_indent = 0.0;	/* -cli0.0 */
     for (p = pro; p->p_name; p++)
-	if (p->p_type != PRO_SPECIAL && p->p_type != PRO_FONT)
+	if (p->p_type != PRO_SPECIAL)
 	    *p->p_obj = p->p_default;
 }
 
@@ -326,10 +318,6 @@ found:
 	    errx(1, "%s: ``%s'' requires a parameter", option_source, p->p_name);
 	}
 	*p->p_obj = atoi(param_start);
-	break;
-
-    case PRO_FONT:
-	parsefont((struct fstate *) p->p_obj, param_start);
 	break;
 
     default:
