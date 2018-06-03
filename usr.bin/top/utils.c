@@ -89,7 +89,7 @@ char *itoa(unsigned int val)
 }
 
 /*
- *  (val) - like itoa, except the number is right justified in a 7
+ *  itoa7(val) - like itoa, except the number is right justified in a 7
  *	character field.  This code is a duplication of itoa instead of
  *	a front end to a more general routine for efficiency.
  */
