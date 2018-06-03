@@ -126,8 +126,9 @@ char       *buf_ptr;		/* ptr to next character to be taken from
 				 * in_buffer */
 char       *buf_end;		/* ptr to first after last char in in_buffer */
 
-char        save_com[sc_size];	/* input text is saved here when looking for
+char        sc_buf[sc_size];	/* input text is saved here when looking for
 				 * the brace after an if, while, etc */
+char       *save_com;		/* start of the comment stored in sc_buf */
 char       *sc_end;		/* pointer into save_com buffer */
 
 char       *bp_save;		/* saved value of buf_ptr when taking input
@@ -241,8 +242,12 @@ struct parser_state {
     int         box_com;	/* set to true when we are in a "boxed"
 				 * comment. In that case, the first non-blank
 				 * char should be lined up with the / in / followed by * */
-    int         comment_delta,
-                n_comment_delta;
+    int         comment_delta;	/* used to set up indentation for all lines
+				 * of a boxed comment after the first one */
+    int         n_comment_delta;/* remembers how many columns there were
+				 * before the start of a box comment so that
+				 * forthcoming lines of the comment are
+				 * indented properly */
     int         cast_mask;	/* indicates which close parens potentially
 				 * close off casts */
     int         not_cast_mask;	/* indicates which close parens definitely

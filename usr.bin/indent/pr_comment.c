@@ -158,8 +158,11 @@ pr_comment(void)
 	 * The comment we're about to read usually comes from in_buffer,
 	 * unless it has been copied into save_com.
 	 */
-	char *start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ? bp_save : buf_ptr;
-	ps.n_comment_delta = 1 - count_spaces_until(1, in_buffer, start - 2);
+	char *start;
+
+	start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ?
+	    sc_buf : in_buffer;
+	ps.n_comment_delta = 1 - count_spaces_until(1, start, buf_ptr - 2);
     }
     else {
 	ps.n_comment_delta = 0;
