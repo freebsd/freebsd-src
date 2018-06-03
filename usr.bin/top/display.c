@@ -28,6 +28,7 @@
  *        *_process, u_endscreen.
  */
 
+#include <sys/resource.h>
 #include <sys/time.h>
 
 #include <assert.h>
@@ -90,8 +91,7 @@ static int cpustates_column;
 
 static enum { OFF, ON, ERASE } header_status = ON;
 
-static int string_count(char **);
-static void summary_format(char *, int *, char **);
+static void summary_format(char *, int *, const char * const *);
 static void line_update(char *, char *, int, int);
 
 int  x_lastpid =	10;
@@ -203,23 +203,23 @@ int display_init(struct statics * statics)
     {
 	/* save pointers and allocate space for names */
 	procstate_names = statics->procstate_names;
-	num_procstates = string_count(procstate_names);
+	num_procstates = 8;
 	assert(num_procstates > 0);
 	lprocstates = calloc(num_procstates, sizeof(int));
 
 	cpustate_names = statics->cpustate_names;
 
 	swap_names = statics->swap_names;
-	num_swap = string_count(swap_names);
+	num_swap = 7;
 	assert(num_swap > 0);
 	lswap = calloc(num_swap, sizeof(int));
-	num_cpustates = string_count(cpustate_names);
+	num_cpustates = CPUSTATES;
 	assert(num_cpustates > 0);
 	lcpustates = calloc(num_cpustates * sizeof(int), statics->ncpus);
 	cpustate_columns = calloc(num_cpustates, sizeof(int));
 
 	memory_names = statics->memory_names;
-	num_memory = string_count(memory_names);
+	num_memory = 7;
 	assert(num_memory > 0);
 	lmemory = calloc(num_memory, sizeof(int));
 
@@ -422,8 +422,8 @@ i_cpustates(int *states)
 {
     int i = 0;
     int value;
-    char **names;
-    char *thisname;
+    const char * const *names;
+    const char *thisname;
     int cpu;
 
 for (cpu = 0; cpu < num_cpus; cpu++) {
@@ -761,7 +761,7 @@ trim_header(const char *text)
 void
 i_header(const char *text)
 {
-    const char *s;
+    char *s;
 
     s = trim_header(text);
     if (s != NULL)
@@ -1075,23 +1075,11 @@ readline(char *buffer, int size, int numeric)
 
 /* internal support routines */
 
-static int string_count(char **pp)
-{
-    int cnt;
-
-    cnt = 0;
-    while (*pp++ != NULL)
-    {
-	cnt++;
-    }
-    return(cnt);
-}
-
-static void summary_format(char *str, int *numbers, char **names)
+static void summary_format(char *str, int *numbers, const char * const *names)
 {
     char *p;
     int num;
-    char *thisname;
+    const char *thisname;
     char rbuf[6];
 
     /* format each number followed by its string */

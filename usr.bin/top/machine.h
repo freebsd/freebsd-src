@@ -10,7 +10,10 @@
 #ifndef MACHINE_H
 #define MACHINE_H
 
-#include "top.h"
+#define NUM_AVERAGES    3
+
+/* Log base 2 of 1024 is 10 (2^10 == 1024) */
+#define LOG1024		10
 
 /*
  * the statics struct is filled in by machine_init
@@ -76,7 +79,7 @@ struct process_select
 /* routines defined by the machine dependent module */
 
 const char	*format_header(const char *uname_field);
-char	*format_next_process(caddr_t handle, char *(*get_userid)(int),
+char	*format_next_process(void* handle, char *(*get_userid)(int),
 	    int flags);
 void	 toggle_pcpustats(void);
 void	 get_system_info(struct system_info *si);

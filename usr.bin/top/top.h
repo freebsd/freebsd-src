@@ -18,9 +18,6 @@ extern int Header_lines;	/* 7 */
 /* Maximum number of columns allowed for display */
 #define MAX_COLS	512
 
-/* Log base 2 of 1024 is 10 (2^10 == 1024) */
-#define LOG1024		10
-
 /* Special atoi routine returns either a non-negative number or one of: */
 #define Infinity	-1
 #define Invalid		-2
@@ -31,8 +28,6 @@ extern int Header_lines;	/* 7 */
 /*
  * The entire display is based on these next numbers being defined as is.
  */
-
-#define NUM_AVERAGES    3
 
 /* Exit code for system errors */
 #define TOP_EX_SYS_ERROR	23

@@ -15,7 +15,6 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/param.h>
@@ -147,12 +146,12 @@ static long cp_diff[CPUSTATES];
 
 /* these are for detailing the process states */
 
-static int process_states[8];
 static const char *procstatenames[] = {
 	"", " starting, ", " running, ", " sleeping, ", " stopped, ",
 	" zombie, ", " waiting, ", " lock, ",
 	NULL
 };
+static int process_states[nitems(procstatenames)];
 
 /* these are for detailing the cpu states */
 
@@ -163,29 +162,29 @@ static const char *cpustatenames[] = {
 
 /* these are for detailing the memory statistics */
 
-static int memory_stats[7];
 static const char *memorynames[] = {
 	"K Active, ", "K Inact, ", "K Laundry, ", "K Wired, ", "K Buf, ",
 	"K Free", NULL
 };
+static int memory_stats[nitems(memorynames)];
 
-static int arc_stats[7];
 static const char *arcnames[] = {
 	"K Total, ", "K MFU, ", "K MRU, ", "K Anon, ", "K Header, ", "K Other",
 	NULL
 };
+static int arc_stats[nitems(arcnames)];
 
-static int carc_stats[4];
 static const char *carcnames[] = {
 	"K Compressed, ", "K Uncompressed, ", ":1 Ratio, ",
 	NULL
 };
+static int carc_stats[nitems(carcnames)];
 
-static int swap_stats[7];
 static const char *swapnames[] = {
 	"K Total, ", "K Used, ", "K Free, ", "% Inuse, ", "K In, ", "K Out",
 	NULL
 };
+static int swap_stats[nitems(swapnames)];
 
 
 /* these are for keeping track of the proc array */
@@ -914,13 +913,13 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	/* pass back a handle */
 	handle.next_proc = pref;
 	handle.remaining = active_procs;
-	return ((caddr_t)&handle);
+	return ((void*)&handle);
 }
 
 static char fmt[512];	/* static area where result is built */
 
 char *
-format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
+format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
@@ -932,11 +931,11 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 	size_t state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
-	char *proc_fmt;
+	const char *proc_fmt;
 	char thr_buf[6];
 	char jid_buf[TOP_JID_LEN + 1], swap_buf[TOP_SWAP_LEN + 1];
 	char *cmdbuf = NULL;
-	const char * const *args;
+	char **args;
 	const int cmdlen = 128;
 
 	/* find and remember the next proc structure */
@@ -1026,8 +1025,9 @@ format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 				    "[%s]", pp->ki_comm);
 			}
 		} else {
-			char *src, *dst, *argbuf;
-			char *cmd;
+			const char *src;
+			char *dst, *argbuf;
+			const char *cmd;
 			size_t argbuflen;
 			size_t len;
 
