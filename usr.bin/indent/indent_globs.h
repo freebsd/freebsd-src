@@ -186,8 +186,6 @@ int         continuation_indent;/* set to the indentation between the edge of
 				 * code and continuation lines */
 int         lineup_to_parens;	/* if true, continued code within parens will
 				 * be lined up to the open paren */
-int         lineup_to_parens_always;	/* if true, do not attempt to keep
-					 * lined-up code within the margin */
 int         Bill_Shannon;	/* true iff a blank should always be inserted
 				 * after sizeof */
 int         blanklines_after_declarations_at_proctop;	/* This is vaguely
