@@ -321,6 +321,10 @@ lexi(struct parser_state *state)
 		    /* inside parens: cast, param list, offsetof or sizeof */
 		    state->cast_mask |= (1 << state->p_l_follow) & ~state->not_cast_mask;
 		}
+		if (state->last_token == period || state->last_token == unary_op) {
+		    state->keyword = 0;
+		    break;
+		}
 		if (p != NULL && p->rwcode == 3)
 		    return (structure);
 		if (state->p_l_follow)
