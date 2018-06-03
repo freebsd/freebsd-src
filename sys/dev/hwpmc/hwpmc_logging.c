@@ -958,7 +958,7 @@ pmclog_process_map_in(struct pmc_owner *po, pid_t pid, uintfptr_t start,
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMITADDR(start);
 	PMCLOG_EMITSTRING(path,pathlen);
-	PMCLOG_DESPATCH(po);
+	PMCLOG_DESPATCH_SYNC(po);
 }
 
 void
