@@ -12,13 +12,12 @@
 #define USERNAME_H
 
 #include <stdbool.h>
-#include <unistd.h>
 
-int	 enter_user(uid_t uid, char *name, bool wecare);
-int	 get_user(uid_t uid);
+int	 enter_user(int uid, char *name, bool wecare);
+int	 get_user(int uid);
 void	 init_hash(void);
-char 	*username(uid_t uid);
-uid_t 	 userid(char *username);
+char 	*username(int uid);
+int 	 userid(char *username);
 
 /*
  *  "Table_size" defines the size of the hash tables used to map uid to

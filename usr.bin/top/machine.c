@@ -918,7 +918,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 static char fmt[512];	/* static area where result is built */
 
 char *
-format_next_process(caddr_t xhandle, char *(*get_userid)(uid_t), int flags)
+format_next_process(caddr_t xhandle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
