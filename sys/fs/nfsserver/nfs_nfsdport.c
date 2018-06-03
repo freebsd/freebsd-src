@@ -1574,7 +1574,10 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr at;
 	int nlen, error = 0, getret = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies;
-	u_int64_t off, toff, verf;
+	u_int64_t off, toff;
+#if 0
+	u_int64_t verf;
+#endif
 	u_long *cookies = NULL, *cookiep;
 	struct uio io;
 	struct iovec iv;
@@ -1591,7 +1594,9 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 		NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 		off = fxdr_hyper(tl);
 		tl += 2;
+#if 0
 		verf = fxdr_hyper(tl);
+#endif
 		tl += 2;
 	}
 	toff = off;
