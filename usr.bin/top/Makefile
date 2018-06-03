@@ -10,11 +10,13 @@ MAN=	top.1
 
 WARNS?=	6
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50000
+.if ${COMPILER_TYPE} == "gcc"
+.if ${COMPILER_VERSION} >= 50000
 CFLAGS.gcc=-Wno-error=cast-align -Wno-error=cast-qual -Wno-error=discarded-qualifiers -Wno-error=incompatible-pointer-types \
 	-Wno-error=maybe-uninitialized
 .else #base gcc
 NO_WERROR=
+.endif
 .endif
 CFLAGS.clang=-Wno-error=incompatible-pointer-types-discards-qualifiers -Wno-error=cast-qual -Wno-error=cast-align
 
