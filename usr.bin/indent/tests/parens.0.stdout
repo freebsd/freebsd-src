@@ -21,4 +21,7 @@ test(void)
 		char	   *xxx = firstf(secondf2(p1,
 										  p2));
 	}
+
+	rb->allocfunc(1);
+	rb2.allocfunc(7);
 }
