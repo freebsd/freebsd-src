@@ -84,8 +84,6 @@ main(int argc, char **argv)
 
     int         dec_ind;	/* current indentation for declarations */
     int         di_stack[20];	/* a stack of structure indentation levels */
-    int         flushed_nl;	/* used when buffering up comments to remember
-				 * that a newline was passed over */
     int         force_nl;	/* when true, code must be broken */
     int         hd_type = 0;	/* used to store type of stmt for if (...),
 				 * for (...), etc */
@@ -324,6 +322,7 @@ main(int argc, char **argv)
     while (1) {			/* this is the main loop.  it will go until we
 				 * reach eof */
 	int         is_procname;
+	int comment_buffered = false;
 
 	type_code = lexi();	/* lexi reads one token.  The actual
 				 * characters read are stored in "token". lexi
@@ -331,132 +330,139 @@ main(int argc, char **argv)
 	is_procname = ps.procname[0];
 
 	/*
-	 * The following code moves everything following an if (), while (),
-	 * else, etc. up to the start of the following stmt to a buffer. This
-	 * allows proper handling of both kinds of brace placement.
+	 * The following code moves newlines and comments following an if (),
+	 * while (), else, etc. up to the start of the following stmt to
+	 * a buffer. This allows proper handling of both kinds of brace
+	 * placement (-br, -bl) and cuddling "else" (-ce).
 	 */
 
-	flushed_nl = false;
-	while (ps.search_brace) {	/* if we scanned an if(), while(),
-					 * etc., we might need to copy stuff
-					 * into a buffer we must loop, copying
-					 * stuff into save_com, until we find
-					 * the start of the stmt which follows
-					 * the if, or whatever */
+	while (ps.search_brace) {
 	    switch (type_code) {
 	    case newline:
-		++line_no;
-		if (sc_end != NULL) {	/* dump comment, if any */
-		    *sc_end++ = '\n';	/* newlines are needed in this case */
+		if (sc_end == NULL) {
+		    save_com[0] = save_com[1] = ' ';
+		    sc_end = &save_com[2];
+		}
+		*sc_end++ = '\n';
+		/*
+		 * We may have inherited a force_nl == true from the previous
+		 * token (like a semicolon). But once we know that a newline
+		 * has been scanned in this loop, force_nl should be false.
+		 *
+		 * However, the force_nl == true must be preserved if newline
+		 * is never scanned in this loop, so this assignment cannot be
+		 * done earlier.
+		 */
+		force_nl = false;
+	    case form_feed:
+		break;
+	    case comment:
+		if (sc_end == NULL) {
+		    save_com[0] = save_com[1] = ' ';
+		    sc_end = &save_com[2];
+		}
+		comment_buffered = true;
+		*sc_end++ = '/';	/* copy in start of comment */
+		*sc_end++ = '*';
+		for (;;) {	/* loop until we get to the end of the comment */
+		    *sc_end = *buf_ptr++;
+		    if (buf_ptr >= buf_end)
+			fill_buffer();
+		    if (*sc_end++ == '*' && *buf_ptr == '/')
+			break;	/* we are at end of comment */
+		    if (sc_end >= &save_com[sc_size]) {	/* check for temp buffer
+							 * overflow */
+			diag2(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever");
+			fflush(output);
+			exit(1);
+		    }
+		}
+		*sc_end++ = '/';	/* add ending slash */
+		if (++buf_ptr >= buf_end)	/* get past / in buffer */
+		    fill_buffer();
+		break;
+	    case lbrace:
+		/*
+		 * Put KNF-style lbraces before the buffered up tokens and
+		 * jump out of this loop in order to avoid copying the token
+		 * again under the default case of the switch below.
+		 */
+		if (sc_end != NULL && btype_2) {
+		    save_com[0] = '{';
+		    /*
+		     * Originally the lbrace may have been alone on its own
+		     * line, but it will be moved into "the else's line", so
+		     * if there was a newline resulting from the "{" before,
+		     * it must be scanned now and ignored.
+		     */
+		    while (isspace((int)*buf_ptr)) {
+			if (++buf_ptr >= buf_end)
+			    fill_buffer();
+			if (*buf_ptr == '\n')
+			    break;
+		    }
 		    goto sw_buffer;
 		}
-		flushed_nl = true;
-	    case form_feed:
-		break;		/* form feeds and newlines found here will be
-				 * ignored */
+		/* FALLTHROUGH */
+	    default:		/* it is the start of a normal statement */
+		{
+		    int remove_newlines;
 
-	    case lbrace:	/* this is a brace that starts the compound
-				 * stmt */
-		if (sc_end == NULL) {	/* ignore buffering if a comment wasn't
-					 * stored up */
-		    ps.search_brace = false;
-		    goto check_type;
-		}
-		if (btype_2) {
-		    save_com[0] = '{';	/* we either want to put the brace
-					 * right after the if */
-		    goto sw_buffer;	/* go to common code to get out of
-					 * this loop */
-		}
-	    case comment:	/* we have a comment, so we must copy it into
-				 * the buffer */
-		if (!flushed_nl || sc_end != NULL) {
-		    if (sc_end == NULL) { /* if this is the first comment, we
-					   * must set up the buffer */
-			save_com[0] = save_com[1] = ' ';
-			sc_end = &(save_com[2]);
+		    remove_newlines =
+			/* "} else" */
+			(type_code == sp_nparen && *token == 'e' &&
+			    e_code != s_code && e_code[-1] == '}')
+			/* "else if" */
+			|| (type_code == sp_paren && *token == 'i' &&
+			    last_else && ps.else_if);
+		    if (remove_newlines)
+			force_nl = false;
+		    if (sc_end == NULL) {	/* ignore buffering if
+						 * comment wasn't saved up */
+			ps.search_brace = false;
+			goto check_type;
 		    }
-		    else {
-			*sc_end++ = '\n';	/* add newline between
-						 * comments */
-			*sc_end++ = ' ';
-			--line_no;
+		    while (sc_end > save_com && isblank((int)sc_end[-1])) {
+			sc_end--;
 		    }
-		    *sc_end++ = '/';	/* copy in start of comment */
-		    *sc_end++ = '*';
-
-		    for (;;) {	/* loop until we get to the end of the comment */
-			*sc_end = *buf_ptr++;
-			if (buf_ptr >= buf_end)
-			    fill_buffer();
-
-			if (*sc_end++ == '*' && *buf_ptr == '/')
-			    break;	/* we are at end of comment */
-
-			if (sc_end >= &(save_com[sc_size])) {	/* check for temp buffer
-								 * overflow */
-			    diag2(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever");
-			    fflush(output);
-			    exit(1);
+		    if (swallow_optional_blanklines ||
+			(!comment_buffered && remove_newlines)) {
+			force_nl = !remove_newlines;
+			while (sc_end > save_com && sc_end[-1] == '\n') {
+			    sc_end--;
 			}
 		    }
-		    *sc_end++ = '/';	/* add ending slash */
-		    if (++buf_ptr >= buf_end)	/* get past / in buffer */
-			fill_buffer();
-		    break;
-		}
-	    default:		/* it is the start of a normal statement */
-		if (flushed_nl)	/* if we flushed a newline, make sure it is
-				 * put back */
-		    force_nl = true;
-		if ((type_code == sp_paren && *token == 'i'
-			&& last_else && ps.else_if)
-			|| (type_code == sp_nparen && *token == 'e'
-			&& e_code != s_code && e_code[-1] == '}'))
-		    force_nl = false;
+		    if (force_nl) {	/* if we should insert a nl here, put
+					 * it into the buffer */
+			force_nl = false;
+			--line_no;	/* this will be re-increased when the
+					 * newline is read from the buffer */
+			*sc_end++ = '\n';
+			*sc_end++ = ' ';
+			if (verbose)	/* print error msg if the line was
+					 * not already broken */
+			    diag2(0, "Line broken");
+		    }
+		    for (t_ptr = token; *t_ptr; ++t_ptr)
+			*sc_end++ = *t_ptr;
 
-		if (sc_end == NULL) {	/* ignore buffering if comment wasn't
-					 * saved up */
-		    ps.search_brace = false;
-		    goto check_type;
-		}
-		if (force_nl) {	/* if we should insert a nl here, put it into
-				 * the buffer */
-		    force_nl = false;
-		    --line_no;	/* this will be re-increased when the nl is
-				 * read from the buffer */
-		    *sc_end++ = '\n';
-		    *sc_end++ = ' ';
-		    if (verbose && !flushed_nl)	/* print error msg if the line
-						 * was not already broken */
-			diag2(0, "Line broken");
-		    flushed_nl = false;
-		}
-		for (t_ptr = token; *t_ptr; ++t_ptr)
-		    *sc_end++ = *t_ptr;	/* copy token into temp buffer */
-		ps.procname[0] = 0;
-
-	sw_buffer:
-		ps.search_brace = false;	/* stop looking for start of
+	    sw_buffer:
+		    ps.search_brace = false;	/* stop looking for start of
 						 * stmt */
-		bp_save = buf_ptr;	/* save current input buffer */
-		be_save = buf_end;
-		buf_ptr = save_com;	/* fix so that subsequent calls to
+		    bp_save = buf_ptr;	/* save current input buffer */
+		    be_save = buf_end;
+		    buf_ptr = save_com;	/* fix so that subsequent calls to
 					 * lexi will take tokens out of
 					 * save_com */
-		*sc_end++ = ' ';/* add trailing blank, just in case */
-		buf_end = sc_end;
-		sc_end = NULL;
-		break;
+		    *sc_end++ = ' ';/* add trailing blank, just in case */
+		    buf_end = sc_end;
+		    sc_end = NULL;
+		    break;
+		}
 	    }			/* end of switch */
 	    if (type_code != 0)	/* we must make this check, just in case there
 				 * was an unexpected EOF */
 		type_code = lexi();	/* read another token */
-	    /* if (ps.search_brace) ps.procname[0] = 0; */
-	    if ((is_procname = ps.procname[0]) && flushed_nl
-		    && !procnames_start_line && ps.in_decl
-		    && type_code == ident)
-		flushed_nl = 0;
 	}			/* end of while (search_brace) */
 	last_else = 0;
 check_type:
@@ -485,9 +491,8 @@ check_type:
 		    (type_code != semicolon) &&
 		    (type_code != lbrace || !btype_2)) {
 		/* we should force a broken line here */
-		if (verbose && !flushed_nl)
+		if (verbose)
 		    diag2(0, "Line broken");
-		flushed_nl = false;
 		dump_line();
 		ps.want_blank = false;	/* dont insert blank at line start */
 		force_nl = false;
@@ -1211,11 +1216,6 @@ check_type:
 				 * character will cause the line to be printed */
 
 	case comment:		/* we have gotten a / followed by * this is a biggie */
-	    if (flushed_nl) {	/* we should force a broken line here */
-		dump_line();
-		ps.want_blank = false;	/* dont insert blank at line start */
-		force_nl = false;
-	    }
 	    pr_comment();
 	    break;
 	}			/* end of big switch stmt */
