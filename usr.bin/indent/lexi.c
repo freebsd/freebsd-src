@@ -145,8 +145,6 @@ lexi(struct parser_state *state)
 {
     int         unary_delim;	/* this is set to 1 if the current token
 				 * forces a following operator to be unary */
-    static int  last_code;	/* the last token type returned */
-    static int  l_struct;	/* set to 1 if the last token was 'struct' */
     int         code;		/* internal code to be returned */
     char        qchar;		/* the delimiter character for a string */
 
@@ -283,21 +281,17 @@ lexi(struct parser_state *state)
 		fill_buffer();
 	}
 	state->keyword = 0;
-	if (l_struct && !state->p_l_follow) {
+	if (state->last_token == structure && !state->p_l_follow) {
 				/* if last token was 'struct' and we're not
 				 * in parentheses, then this token
 				 * should be treated as a declaration */
-	    l_struct = false;
-	    last_code = ident;
 	    state->last_u_d = true;
 	    return (decl);
 	}
-	state->last_u_d = l_struct;	/* Operator after identifier is
-					 * binary unless last token was
-					 * 'struct' */
-	l_struct = false;
-	last_code = ident;	/* Remember that this is the code we will
-				 * return */
+	/*
+	 * Operator after identifier is binary unless last token was 'struct'
+	 */
+	state->last_u_d = (state->last_token == structure);
 
 	p = bsearch(s_token,
 	    specials,
@@ -326,21 +320,17 @@ lexi(struct parser_state *state)
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
-		/*
-		 * Next time around, we will want to know that we have had a
-		 * 'struct'
-		 */
-		l_struct = true;
 		/* FALLTHROUGH */
-
 	    case 4:		/* one of the declaration keywords */
 	    found_typename:
 		if (state->p_l_follow) {
 		    /* inside parens: cast, param list, offsetof or sizeof */
 		    state->cast_mask |= (1 << state->p_l_follow) & ~state->not_cast_mask;
-		    break;
 		}
-		last_code = decl;
+		if (p != NULL && p->rwcode == 3)
+		    return (structure);
+		if (state->p_l_follow)
+		    break;
 		return (decl);
 
 	    case 5:		/* if, while, for */
@@ -369,7 +359,7 @@ lexi(struct parser_state *state)
 	    strncpy(state->procname, token, sizeof state->procname - 1);
 	    if (state->in_decl)
 		state->in_parameter_declaration = 1;
-	    return (last_code = funcname);
+	    return (funcname);
     not_proc:;
 	}
 	/*
@@ -385,13 +375,11 @@ lexi(struct parser_state *state)
 		    state->last_token == lbrace || state->last_token == rbrace)) {
 	    state->keyword = 4;	/* a type name */
 	    state->last_u_d = true;
-	    last_code = decl;
 	    return decl;
 	}
-	if (last_code == decl)	/* if this is a declared variable, then
-				 * following sign is unary */
+	if (state->last_token == decl)	/* if this is a declared variable,
+					 * then following sign is unary */
 	    state->last_u_d = true;	/* will make "int a -1" work */
-	last_code = ident;
 	return (ident);		/* the ident is not in the list */
     }				/* end of procesing for alpanum character */
 
@@ -536,7 +524,7 @@ stop_lit:
 	    /* check for doubled character */
 	    *e_token++ = *buf_ptr++;
 	    /* buffer overflow will be checked at end of loop */
-	    if (last_code == ident || last_code == rparen) {
+	    if (state->last_token == ident || state->last_token == rparen) {
 		code = (state->last_u_d ? unary_op : postop);
 		/* check for following ++ or -- */
 		unary_delim = false;
@@ -617,10 +605,6 @@ stop_lit:
 
 
     }				/* end of switch */
-    if (code != newline) {
-	l_struct = false;
-	last_code = code;
-    }
     if (buf_ptr >= buf_end)	/* check for input buffer empty */
 	fill_buffer();
     state->last_u_d = unary_delim;
