@@ -29,7 +29,7 @@
 int
 atoiwi(const char *str)
 {
-    int len;
+    size_t len;
 
     len = strlen(str);
     if (len != 0)

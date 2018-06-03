@@ -381,8 +381,7 @@ machine_init(struct statics *statics)
 	cpumask = 0;
 	ncpus = 0;
 	GETSYSCTL("kern.smp.maxcpus", maxcpu);
-	size = sizeof(long) * maxcpu * CPUSTATES;
-	times = calloc(size, 1);
+	times = calloc(maxcpu * CPUSTATES, sizeof(long));
 	if (times == NULL)
 		err(1, "calloc %zu bytes", size);
 	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
@@ -400,11 +399,10 @@ machine_init(struct statics *statics)
 			ncpus++;
 		}
 	}
-	size = sizeof(long) * ncpus * CPUSTATES;
-	assert(size > 0);
-	pcpu_cp_old = calloc(1, size);
-	pcpu_cp_diff = calloc(1, size);
-	pcpu_cpu_states = calloc(1, size);
+	assert(ncpus > 0);
+	pcpu_cp_old = calloc(ncpus * CPUSTATES, sizeof(long));
+	pcpu_cp_diff = calloc(ncpus * CPUSTATES, sizeof(long));
+	pcpu_cpu_states = calloc(ncpus * CPUSTATES, sizeof(int));
 	statics->ncpus = ncpus;
 
 	update_layout();
