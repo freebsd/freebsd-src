@@ -402,7 +402,7 @@ main(int argc, char **argv)
 		     * if there was a newline resulting from the "{" before,
 		     * it must be scanned now and ignored.
 		     */
-		    while (isspace((int)*buf_ptr)) {
+		    while (isspace((unsigned char)*buf_ptr)) {
 			if (++buf_ptr >= buf_end)
 			    fill_buffer();
 			if (*buf_ptr == '\n')
@@ -429,7 +429,7 @@ main(int argc, char **argv)
 			ps.search_brace = false;
 			goto check_type;
 		    }
-		    while (sc_end > save_com && isblank((int)sc_end[-1])) {
+		    while (sc_end > save_com && isblank((unsigned char)sc_end[-1])) {
 			sc_end--;
 		    }
 		    if (swallow_optional_blanklines ||
@@ -1070,7 +1070,7 @@ check_type:
 		e_code = chfont(&bodyf, &keywordf, e_code);
 		for (t_ptr = token; *t_ptr; ++t_ptr) {
 		    CHECK_SIZE_CODE;
-		    *e_code++ = keywordf.allcaps && islower(*t_ptr)
+		    *e_code++ = keywordf.allcaps && islower((unsigned char)*t_ptr)
 			? toupper(*t_ptr) : *t_ptr;
 		}
 		e_code = chfont(&keywordf, &bodyf, e_code);

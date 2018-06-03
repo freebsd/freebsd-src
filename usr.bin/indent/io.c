@@ -243,7 +243,7 @@ dump_line(void)
 		    cur_col = 1;
 		    ++ps.out_lines;
 		}
-		while (e_com > com_st && isspace(e_com[-1]))
+		while (e_com > com_st && isspace((unsigned char)e_com[-1]))
 		    e_com--;
 		(void)pad_output(cur_col, target);
 		fwrite(com_st, e_com - com_st, 1, output);
@@ -638,9 +638,9 @@ parsefont(struct fstate *f, const char *s0)
 
     memset(f, '\0', sizeof(*f));
     while (*s) {
-	if (isdigit(*s))
+	if (isdigit((unsigned char)*s))
 	    f->size = f->size * 10 + *s - '0';
-	else if (isupper(*s))
+	else if (isupper((unsigned char)*s))
 	    if (f->font[0])
 		f->font[1] = *s;
 	    else

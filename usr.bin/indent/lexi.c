@@ -173,13 +173,15 @@ lexi(struct parser_state *state)
     }
 
     /* Scan an alphanumeric token */
-    if (chartype[(int)*buf_ptr] == alphanum || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
+    if (chartype[*buf_ptr & 127] == alphanum ||
+	(buf_ptr[0] == '.' && isdigit((unsigned char)buf_ptr[1]))) {
 	/*
 	 * we have a character or number
 	 */
 	struct templ *p;
 
-	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
+	if (isdigit((unsigned char)*buf_ptr) ||
+	    (buf_ptr[0] == '.' && isdigit((unsigned char)buf_ptr[1]))) {
 	    enum base {
 		BASE_2, BASE_8, BASE_10, BASE_16
 	    };
@@ -193,7 +195,7 @@ lexi(struct parser_state *state)
 		    in_base = BASE_2;
 		else if (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')
 		    in_base = BASE_16;
-		else if (isdigit(buf_ptr[1]))
+		else if (isdigit((unsigned char)buf_ptr[1]))
 		    in_base = BASE_8;
 	    }
 	    switch (in_base) {
@@ -215,7 +217,7 @@ lexi(struct parser_state *state)
 	    case BASE_16:
 		*e_token++ = *buf_ptr++;
 		*e_token++ = *buf_ptr++;
-		while (isxdigit(*buf_ptr)) {
+		while (isxdigit((unsigned char)*buf_ptr)) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		}
@@ -230,7 +232,7 @@ lexi(struct parser_state *state)
 		    }
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
-		    if (!isdigit(*buf_ptr) && *buf_ptr != '.') {
+		    if (!isdigit((unsigned char)*buf_ptr) && *buf_ptr != '.') {
 			if ((*buf_ptr != 'E' && *buf_ptr != 'e') || seenexp)
 			    break;
 			else {
@@ -264,7 +266,7 @@ lexi(struct parser_state *state)
 	    }
 	}
 	else
-	    while (chartype[(int)*buf_ptr] == alphanum || *buf_ptr == BACKSLASH) {
+	    while (chartype[*buf_ptr & 127] == alphanum || *buf_ptr == BACKSLASH) {
 		/* fill_buffer() terminates buffer with newline */
 		if (*buf_ptr == BACKSLASH) {
 		    if (*(buf_ptr + 1) == '\n') {
@@ -557,7 +559,7 @@ stop_lit:
 	if (state->in_or_st)
 	    state->block_init = 1;
 #ifdef undef
-	if (chartype[*buf_ptr] == opchar) {	/* we have two char assignment */
+	if (chartype[*buf_ptr & 127] == opchar) {	/* we have two char assignment */
 	    e_token[-1] = *buf_ptr++;
 	    if ((e_token[-1] == '<' || e_token[-1] == '>') && e_token[-1] == *buf_ptr)
 		*e_token++ = *buf_ptr++;
