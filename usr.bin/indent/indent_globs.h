@@ -166,7 +166,6 @@ int         cuddle_else;	/* true if else should cuddle up to '}' */
 int         star_comment_cont;	/* true iff comment continuation lines should
 				 * have stars at the beginning of each line. */
 int         comment_delimiter_on_blankline;
-int         troff;		/* true iff were generating troff input */
 int         procnames_start_line;	/* if true, the names of procedures
 					 * being defined get placed in column
 					 * 1 (ie. a newline is placed between
@@ -218,29 +217,10 @@ int	    auto_typedefs;		/* set true to recognize identifiers
 int	    space_after_cast;		/* "b = (int) a" vs "b = (int)a" */
 int	    tabsize;			/* the size of a tab */
 
-/* -troff font state information */
-
-struct fstate {
-    char        font[4];
-    char        size;
-    int         allcaps:1;
-} __aligned(sizeof(int));
-char       *chfont(struct fstate *, struct fstate *, char *);
-
-struct fstate
-            keywordf,		/* keyword font */
-            stringf,		/* string font */
-            boxcomf,		/* Box comment font */
-            blkcomf,		/* Block comment font */
-            scomf,		/* Same line comment font */
-            bodyf;		/* major body font */
-
-
 #define	STACKSIZE 256
 
 struct parser_state {
     int         last_token;
-    struct fstate cfont;	/* Current font */
     int         p_stack[STACKSIZE];	/* this is the parsers stack */
     int         il[STACKSIZE];	/* this stack stores indentation levels */
     float       cstk[STACKSIZE];/* used to store case stmt indentation levels */

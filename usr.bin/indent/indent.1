@@ -84,7 +84,6 @@
 .Ek
 .Op Fl \&st
 .Op Fl \&ta
-.Op Fl troff
 .Op Fl ts Ns Ar n
 .Op Fl U Ns Ar file
 .Op Fl ut | Fl nut
@@ -453,16 +452,6 @@ language and
 cannot find all
 instances of
 .Ic typedef .
-.It Fl troff
-Causes
-.Nm
-to format the program for processing by
-.Xr troff 1 .
-It will produce a fancy
-listing in much the same spirit as
-.Xr vgrind 1 .
-If the output file is not specified, the default is standard output,
-rather than formatting in place.
 .It Fl ts Ns Ar n
 Assumed distance between tab stops.
 The default is 8.
