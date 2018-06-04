@@ -251,13 +251,12 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ev == 0xC0 && ri != 0)
 		return (EINVAL);
 	/* CPU_CLK_UNHALTED.THREAD */
-	else if (ev == 0x3C && ri != 1)
+	if (ev == 0x3C && ri != 1)
 		return (EINVAL);
 	/* CPU_CLK_UNHALTED.REF */
-	else if (ev == 0x0 && umask == 0x3 && ri != 2)
+	if (ev == 0x0 && umask == 0x3 && ri != 2)
 		return (EINVAL);
-	else
-		return (EINVAL);
+
 
 	flags = 0;
 	if (config & IAP_OS)
