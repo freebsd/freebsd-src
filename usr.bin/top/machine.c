@@ -790,7 +790,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	if (nproc) {
 		for (i = 0; i < nproc; i++)
 			previous_pref[i] = &previous_procs[i];
-		bcopy(pbase, previous_procs, nproc * sizeof(*previous_procs));
+		memcpy(previous_procs, pbase, nproc * sizeof(*previous_procs));
 		qsort(previous_pref, nproc, sizeof(*previous_pref),
 		    ps.thread ? compare_tid : compare_pid);
 	}
