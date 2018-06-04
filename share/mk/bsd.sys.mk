@@ -141,19 +141,17 @@ CWARNFLAGS+=	-Wno-error=misleading-indentation	\
 
 # GCC 7.1.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 70100
-CWARNFLAGS+=	-Wno-error=deprecated			\
-		-Wno-error=pointer-compare		\
+CWARNFLAGS+=	-Wno-error=bool-operation		\
+		-Wno-error=deprecated			\
+		-Wno-error=expansion-to-defined		\
+		-Wno-error=format-overflow		\
 		-Wno-error=format-truncation		\
 		-Wno-error=implicit-fallthrough		\
-		-Wno-error=expansion-to-defined		\
 		-Wno-error=int-in-bool-context		\
-		-Wno-error=bool-operation		\
-		-Wno-error=format-overflow		\
-		-Wno-error=stringop-overflow		\
 		-Wno-error=memset-elt-size		\
-		-Wno-error=int-in-bool-context		\
-		-Wno-error=unused-const-variable	\
-		-Wno-error=nonnull
+		-Wno-error=nonnull			\
+		-Wno-error=pointer-compare		\
+		-Wno-error=stringop-overflow
 .endif
 
 # How to handle FreeBSD custom printf format specifiers.
