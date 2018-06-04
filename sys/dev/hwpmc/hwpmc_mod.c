@@ -1715,11 +1715,9 @@ pmc_process_thread_delete(struct thread *td)
 static void
 pmc_process_thread_userret(struct thread *td)
 {
-
-	thread_lock(td);
-	curthread->td_flags |= TDF_ASTPENDING;
-	thread_unlock(td);
-	pmc_post_callchain_callback();
+	sched_pin();
+	pmc_capture_user_callchain(curcpu, PMC_UR, td->td_frame);
+	sched_unpin();
 }
 
 /*
@@ -2253,8 +2251,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		cpu = PCPU_GET(cpuid);
 		pmc_capture_user_callchain(cpu, PMC_SR,
-		    (struct trapframe *) arg);
-		pmc_capture_user_callchain(cpu, PMC_UR,
 		    (struct trapframe *) arg);
 
 		KASSERT(td->td_pinned == 1,
