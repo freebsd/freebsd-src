@@ -1380,7 +1380,7 @@ exec_release_args_kva(struct exec_args_kva *argkva, u_int gen)
 
 	base = argkva->addr;
 	if (argkva->gen != gen) {
-		vm_map_madvise(exec_map, base, base + exec_map_entry_size,
+		(void)vm_map_madvise(exec_map, base, base + exec_map_entry_size,
 		    MADV_FREE);
 		argkva->gen = gen;
 	}
