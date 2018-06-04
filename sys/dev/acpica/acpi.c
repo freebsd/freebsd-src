@@ -1090,6 +1090,7 @@ static int
 acpi_parse_pxm(device_t dev)
 {
 #ifdef NUMA
+#if defined(__i386__) || defined(__amd64__)
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	int pxm;
@@ -1102,6 +1103,7 @@ acpi_parse_pxm(device_t dev)
 		return (acpi_map_pxm_to_vm_domainid(pxm));
 	if (status == AE_NOT_FOUND)
 		return (-2);
+#endif
 #endif
 	return (-1);
 }
