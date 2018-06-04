@@ -235,7 +235,7 @@ static const char *ordernames[] = {
 static int maxcpu;
 static int maxid;
 static int ncpus;
-static u_long cpumask;
+static unsigned long cpumask;
 static long *times;
 static long *pcpu_cp_time;
 static long *pcpu_cp_old;
@@ -1616,7 +1616,7 @@ swapmode(int *retavail, int *retfree)
 	int n;
 	struct kvm_swap swapary[1];
 	static int pagesize = 0;
-	static u_long swap_maxpages = 0;
+	static unsigned long swap_maxpages = 0;
 
 	*retavail = 0;
 	*retfree = 0;
