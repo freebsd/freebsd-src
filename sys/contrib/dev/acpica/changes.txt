@@ -1,4 +1,86 @@
 ----------------------------------------
+31 May 2018. Summary of changes for version 20180531:
+
+
+1) ACPICA kernel-resident Subsystem:
+
+Implemented additional support to help ensure that a DSDT or SSDT is 
+fully loaded even if errors are incurred during the load. The majority of 
+the problems that are seen is the failure of individual AML operators 
+that occur during execution of any module-level code (MLC) existing in 
+the table. This support adds a mechanism to abort the current ASL 
+statement (AML opcode), emit an error message, and to simply move on to 
+the next opcode -- instead of aborting the entire table load. This is 
+different than the execution of a control method where the entire method 
+is aborted upon any error. The goal is to perform a very "best effort" to 
+load the ACPI tables. The most common MLC errors that have been seen in 
+the field are direct references to unresolved ASL/AML symbols (referenced 
+directly without the use of the CondRefOf operator to validate the 
+symbol). This new ACPICA behavior is now compatible with other ACPI 
+implementations.
+
+Interpreter: The Unload AML operator is no longer supported for the 
+reasons below. An AE_NOT_IMPLEMENTED exception is returned.
+1) A correct implementation on at least some hosts may not be possible.
+2) Other ACPI implementations do not correctly/fully support it.
+3) It requires host device driver support which is not known to exist.
+    (To properly support namespace unload out from underneath.)
+4) This AML operator has never been seen in the field.
+
+Parser: Added a debug option to dump AML parse sub-trees as they are 
+being executed. Used with ACPI_DEBUG_PRINT, the enabling debug level is 
+ACPI_DB_PARSE_TREES.
+
+Debugger: Reduced the verbosity for errors incurred during table load and 
+module-level code execution.
+
+Completed an investigation into adding a namespace node "owner list" 
+instead of the current "owner ID" associated with namespace nodes. This 
+list would link together all nodes that are owned by an individual 
+control method. The purpose would be to enhance control method execution 
+by speeding up cleanup during method exit (all namespace nodes created by 
+a method are deleted upon method termination.) Currently, the entire 
+namespace must be searched for matching owner IDs if (and only if) the 
+method creates named objects outside of the local scope. However, by far 
+the most common case is that methods create objects locally, not outside 
+the method scope. There is already an ACPICA optimization in place that 
+only searches the entire namespace in the rare case of a method creating 
+objects elsewhere in the namespace. Therefore, it is felt that the 
+overhead of adding an additional pointer to each namespace node to 
+implement the owner list makes this feature unnecessary.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL, Disassembler, and Template generator: Implemented support for 
+Revision D of the IORT table. Adds a new subtable that is used to specify 
+SMMUv3 PMCGs. rmurphy-arm.
+
+Disassembler: Restored correct table header validation for the "special" 
+ACPI tables -- RSDP and FACS. These tables do not contain a standard ACPI 
+table header and must be special-cased. This was a regression that has 
+been present for apparently a long time.
+
+AcpiExec: Reduced verbosity of the local exception handler implemented 
+within acpiexec. This handler is invoked by ACPICA upon any exceptions 
+generated during control method execution. A new option was added: -vh 
+restores the original verbosity level if desired.
+
+AcpiExec: Changed the default base from decimal to hex for the -x option 
+(set debug level). This simplifies the use of this option and matches the 
+behavior of the corresponding iASL -x option.
+
+AcpiExec: Restored a force-exit on multiple control-c (sigint) 
+interrupts. This allows program termination even if other issues cause 
+the control-c to fail.
+
+ASL test suite (ASLTS): Added tests for the recently implemented package 
+element resolution mechanism that allows forward references to named 
+objects from individual package elements (this mechanism provides 
+compatibility with other ACPI implementations.)
+
+
+----------------------------------------
 8 May 2018. Summary of changes for version 20180508:
 
 
