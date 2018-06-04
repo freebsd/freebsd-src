@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <pmc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "libpmcinternal.h"
@@ -1035,13 +1037,16 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	 */
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
-	if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
-		if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0) {
+	if (pmc_pmu_enabled()) {
+		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
+			if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0) {
+				goto out;
+			}
+			retval = 0;
+			*pmcid = pmc_config.pm_pmcid;
 			goto out;
 		}
-		retval = 0;
-		*pmcid = pmc_config.pm_pmcid;
-		goto out;
+		errx(EX_USAGE, "ERROR: pmc_pmu_allocate failed, check for ctrname %s\n", ctrname);
 	} else {
 		free(spec_copy);
 		spec_copy = NULL;
@@ -1068,7 +1073,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	ev = NULL;
 	for (n = 0; n < PMC_CLASS_TABLE_SIZE; n++) {
 		pcd = pmc_class_table[n];
-		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class) &&
+		if (pcd && pmc_mdep_is_compatible_class(pcd->pm_evc_class) &&
 		    strncasecmp(ctrname, pcd->pm_evc_name,
 				pcd->pm_evc_name_size) == 0) {
 			if ((ev = pmc_match_event_class(ctrname +
@@ -1086,7 +1091,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	 */
 	for (n = 0; ev == NULL && n < PMC_CLASS_TABLE_SIZE; n++) {
 		pcd = pmc_class_table[n];
-		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class))
+		if (pcd && pmc_mdep_is_compatible_class(pcd->pm_evc_class))
 			ev = pmc_match_event_class(ctrname, pcd);
 	}
 
