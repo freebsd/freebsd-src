@@ -145,7 +145,7 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	if ((ps = pmclog_open(infd)) == NULL)
 		errx(EX_OSERR, "ERROR: Cannot allocate pmclog parse state: %s\n", strerror(errno));
 
-	pmccount = 0;
+	eventcount = pmccount = 0;
 	while (pmclog_read(ps, &ev) == 0) {
 		if (ev.pl_type == PMCLOG_TYPE_INITIALIZE)
 			memcpy(cpuid, ev.pl_u.pl_i.pl_cpuid, PMC_CPUID_LEN);
