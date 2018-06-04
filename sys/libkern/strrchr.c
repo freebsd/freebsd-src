@@ -36,20 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 char *
-strrchr(const char *p, int ch)
+strrchr(const char *cp, int ch)
 {
-	union {
-		const char *cp;
-		char *p;
-	} u;
-	char *save;
+	char *p, *save;
 
-	u.cp = p;
-	for (save = NULL;; ++u.p) {
-		if (*u.p == ch)
-			save = u.p;
-		if (*u.p == '\0')
-			return(save);
+	p = __DECONST(char *, cp);
+	for (save = NULL;; ++p) {
+		if (*p == ch)
+			save = p;
+		if (*p == '\0')
+			return (save);
 	}
 	/* NOTREACHED */
 }
