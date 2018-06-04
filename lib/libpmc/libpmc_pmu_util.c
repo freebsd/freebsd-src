@@ -482,7 +482,7 @@ pmc_pmu_stat_mode(const char ***a __unused)
 }
 
 int
-pmc_pmu_idx_get_by_event(const char *e __unused)
+pmc_pmu_idx_get_by_event(const char *c __unused, const char *e __unused)
 {
 	return (-1);
 }
