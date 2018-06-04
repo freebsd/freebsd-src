@@ -386,7 +386,6 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 		    ${METALOG.add} ; \
 	done; true
 .endif
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 .if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
