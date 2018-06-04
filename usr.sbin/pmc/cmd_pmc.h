@@ -41,6 +41,7 @@ extern struct pmcstat_args pmc_args;
 typedef int (*cmd_disp_t)(int, char **);
 
 int	cmd_pmc_stat(int, char **);
+int	cmd_pmc_filter(int, char **);
 int	cmd_pmc_stat_system(int, char **);
 int	cmd_pmc_list_events(int, char **);
 
