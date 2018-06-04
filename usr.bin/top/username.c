@@ -30,7 +30,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include <pwd.h>
 #include <stdbool.h>
