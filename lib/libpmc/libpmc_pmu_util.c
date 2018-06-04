@@ -410,7 +410,7 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
  * Ultimately rely on AMD calling theirs the same
  */
 static const char *stat_mode_cntrs[] = {
-	"cpu_clk_unhalted.thread_any",
+	"cpu_clk_unhalted.thread",
 	"inst_retired.any",
 	"br_inst_retired.all_branches",
 	"br_misp_retired.all_branches",
