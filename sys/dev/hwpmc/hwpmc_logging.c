@@ -250,11 +250,9 @@ pmc_plb_rele(struct pmclog_buffer *plb)
 	mtx_unlock_spin(&pmc_dom_hdrs[plb->plb_domain]->pdbh_mtx);
 }
 
-
 /*
  * Get a log buffer
  */
-
 static int
 pmclog_get_buffer(struct pmc_owner *po)
 {
@@ -345,7 +343,6 @@ pmclog_proc_ignite(void *handle, struct pmc_owner *po)
  *
  * This function is executed by each pmc owner's helper thread.
  */
-
 static void
 pmclog_loop(void *arg)
 {
@@ -846,12 +843,15 @@ pmclog_schedule_one_cond(void *arg)
 {
 	struct pmc_owner *po = arg;
 	struct pmclog_buffer *plb;
+	int cpu;
 
 	spinlock_enter();
+	cpu = curcpu;
 	/* tell hardclock not to run again */
-	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+	if (PMC_CPU_HAS_SAMPLES(cpu))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
-	plb = po->po_curbuf[curcpu];
+	pmc_flush_samples(cpu);
+	plb = po->po_curbuf[cpu];
 	if (plb && plb->plb_ptr != plb->plb_base)
 		pmclog_schedule_io(po, 1);
 	spinlock_exit();
