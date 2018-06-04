@@ -134,6 +134,7 @@ struct pmclog_initialize {
 	uint32_t		pl_version;	/* driver version */
 	uint32_t		pl_cpu;		/* enum pmc_cputype */
 	uint32_t		pl_pad;
+	char			pl_cpuid[PMC_CPUID_LEN];
 } __packed;
 
 struct pmclog_map_in {
