@@ -166,76 +166,23 @@ string_index(const char *string, const char * const *array)
  */
 
 const char * const *
-argparse(const char *line, int *cntp)
+argparse(char *line, int *cntp)
 {
-    const char *from;
-    char *to;
-    int cnt;
-    int ch;
-    int length;
-    int lastch;
-    char **argv;
-    const char * const *argarray;
-    char *args;
+    const char **ap;
+    static const char *argv[1024] = {0};
 
-    /* unfortunately, the only real way to do this is to go thru the
-       input string twice. */
-
-    /* step thru the string counting the white space sections */
-    from = line;
-    lastch = cnt = length = 0;
-    while ((ch = *from++) != '\0')
-    {
-	length++;
-	if (ch == ' ' && lastch != ' ')
-	{
-	    cnt++;
-	}
-	lastch = ch;
+    *cntp = 1;
+    ap = &argv[1];
+    while ((*ap = strsep(&line, " ")) != NULL) {
+        if (**ap != '\0') {
+            (*cntp)++;
+            if (*cntp >= (int)nitems(argv)) {
+                break;
+            }
+	    ap++;
+        }
     }
-
-    /* add three to the count:  one for the initial "dummy" argument,
-       one for the last argument and one for NULL */
-    cnt += 3;
-
-    /* allocate a char * array to hold the pointers */
-    argarray = calloc(cnt, sizeof(char *));
-
-    /* allocate another array to hold the strings themselves */
-    args = calloc(length+2, 1);
-
-    /* initialization for main loop */
-    from = line;
-    to = args;
-    argv = argarray;
-    lastch = '\0';
-
-    /* create a dummy argument to keep getopt happy */
-    *argv++ = to;
-    *to++ = '\0';
-    cnt = 2;
-
-    /* now build argv while copying characters */
-    *argv++ = to;
-    while ((ch = *from++) != '\0')
-    {
-	if (ch != ' ')
-	{
-	    if (lastch == ' ')
-	    {
-		*to++ = '\0';
-		*argv++ = to;
-		cnt++;
-	    }
-	    *to++ = ch;
-	}
-	lastch = ch;
-    }
-    *to++ = '\0';
-
-    /* set cntp and return the allocated array */
-    *cntp = cnt;
-    return(argarray);
+    return argv;
 }
 
 /*

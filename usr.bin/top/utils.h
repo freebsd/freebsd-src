@@ -16,7 +16,7 @@ int atoiwi(const char *);
 char *itoa(unsigned int);
 char *itoa7(int);
 int digits(int);
-const char * const *argparse(const char *, int *);
+const char * const *argparse(char *, int *);
 long percentages(int, int *, long *, long *, long *);
 char *format_time(long);
 char *format_k(int);
