@@ -1347,9 +1347,8 @@ vm_pageout_reinsert_inactive(struct scan_state *ss, struct vm_batchqueue *bq,
 }
 
 /*
- * Attempt to reclaim the requested number of pages.  Returns true if pass was
- * zero or enough pages were freed by the inactive queue scan to meet the
- * target.
+ * Attempt to reclaim the requested number of pages from the inactive queue.
+ * Returns true if the shortage was addressed.
  */
 static int
 vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
