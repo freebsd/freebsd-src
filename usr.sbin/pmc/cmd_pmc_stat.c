@@ -86,6 +86,7 @@ getstathz(void)
 }
 
 #define STAT_MODE_NPMCS 6
+#define FIXED_MODE_NPMCS 2
 static struct timespec before_ts;
 #define CYCLES		0
 #define INST		1
@@ -179,7 +180,7 @@ pmc_stat_setup_stat(int system_mode, const char *arg)
 			if (pmc_pmu_sample_rate_get(counter) == DEFAULT_SAMPLE_COUNT)
 				errx(EX_USAGE, "ERROR: %s not recognized on host", counter);
 		}
-		start = IAP_START + STAT_MODE_NPMCS - newcnt;
+		start = IAP_START + STAT_MODE_NPMCS - FIXED_MODE_NPMCS - newcnt;
 		for (i = 0; i < newcnt; i++) {
 			stat_mode_cntrs[start + i] = new_cntrs[i];
 			stat_mode_names[start + i] = new_cntrs[i];
