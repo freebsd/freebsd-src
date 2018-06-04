@@ -61,12 +61,16 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x05
+#define	PMC_VERSION_MAJOR	0x06
 #define	PMC_VERSION_MINOR	0x01
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
 	PMC_VERSION_MINOR << 16 | PMC_VERSION_PATCH)
+
+#define PMC_CPUID_LEN 64
+/* cpu model name for pmu lookup */
+extern char pmc_cpuid[PMC_CPUID_LEN];
 
 /*
  * Kinds of CPUs known.
@@ -360,13 +364,13 @@ enum pmc_ops {
  * Flags used in operations on PMCs.
  */
 
-#define	PMC_F_FORCE		0x00000001 /*OP ADMIN force operation */
+#define	PMC_F_UNUSED1		0x00000001 /* unused */
 #define	PMC_F_DESCENDANTS	0x00000002 /*OP ALLOCATE track descendants */
 #define	PMC_F_LOG_PROCCSW	0x00000004 /*OP ALLOCATE track ctx switches */
 #define	PMC_F_LOG_PROCEXIT	0x00000008 /*OP ALLOCATE log proc exits */
 #define	PMC_F_NEWVALUE		0x00000010 /*OP RW write new value */
 #define	PMC_F_OLDVALUE		0x00000020 /*OP RW get old value */
-#define	PMC_F_KGMON		0x00000040 /*OP ALLOCATE kgmon(8) profiling */
+
 /* V2 API */
 #define	PMC_F_CALLCHAIN		0x00000080 /*OP ALLOCATE capture callchains */
 #define	PMC_F_USERCALLCHAIN	0x00000100 /*OP ALLOCATE use userspace stack */
@@ -392,15 +396,15 @@ typedef uint64_t	pmc_value_t;
 /*
  * PMC IDs have the following format:
  *
- * +--------+----------+-----------+-----------+
- * |   CPU  | PMC MODE | PMC CLASS | ROW INDEX |
- * +--------+----------+-----------+-----------+
+ * +-----------------------+-------+-----------+
+ * |   CPU      | PMC MODE | CLASS | ROW INDEX |
+ * +-----------------------+-------+-----------+
  *
- * where each field is 8 bits wide.  Field 'CPU' is set to the
- * requested CPU for system-wide PMCs or PMC_CPU_ANY for process-mode
- * PMCs.  Field 'PMC MODE' is the allocated PMC mode.  Field 'PMC
- * CLASS' is the class of the PMC.  Field 'ROW INDEX' is the row index
- * for the PMC.
+ * where CPU is 12 bits, MODE 8, CLASS 4, and ROW INDEX 8  Field 'CPU'
+ * is set to the requested CPU for system-wide PMCs or PMC_CPU_ANY for
+ * process-mode PMCs.  Field 'PMC MODE' is the allocated PMC mode.
+ * Field 'PMC CLASS' is the class of the PMC.  Field 'ROW INDEX' is the
+ * row index for the PMC.
  *
  * The 'ROW INDEX' ranges over 0..NWPMCS where NHWPMCS is the total
  * number of hardware PMCs on this cpu.
@@ -408,12 +412,12 @@ typedef uint64_t	pmc_value_t;
 
 
 #define	PMC_ID_TO_ROWINDEX(ID)	((ID) & 0xFF)
-#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xFF00) >> 8)
-#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF0000) >> 16)
-#define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFF000000) >> 24)
+#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xF00) >> 8)
+#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF000) >> 12)
+#define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFFF00000) >> 20)
 #define	PMC_ID_MAKE_ID(CPU,MODE,CLASS,ROWINDEX)			\
-	((((CPU) & 0xFF) << 24) | (((MODE) & 0xFF) << 16) |	\
-	(((CLASS) & 0xFF) << 8) | ((ROWINDEX) & 0xFF))
+	((((CPU) & 0xFFF) << 20) | (((MODE) & 0xFF) << 12) |	\
+	(((CLASS) & 0xF) << 8) | ((ROWINDEX) & 0xFF))
 
 /*
  * Data structures for system calls supported by the pmc driver.
@@ -1064,9 +1068,6 @@ extern struct pmc_cpu **pmc_pcpu;
 
 /* driver statistics */
 extern struct pmc_driverstats pmc_stats;
-
-/* cpu model name for pmu lookup */
-extern char pmc_cpuid[64];
 
 #if	defined(HWPMC_DEBUG)
 #include <sys/ktr.h>

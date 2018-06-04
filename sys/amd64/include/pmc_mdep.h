@@ -73,7 +73,6 @@ struct pmc_mdep;
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
-	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
 	struct pmc_md_iap_op_pmcallocate	pm_iap;
 	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
 	struct pmc_md_ucp_op_pmcallocate	pm_ucp;

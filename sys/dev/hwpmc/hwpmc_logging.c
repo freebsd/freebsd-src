@@ -726,6 +726,7 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 	    sizeof(struct pmclog_initialize));
 	PMCLOG_EMIT32(PMC_VERSION);
 	PMCLOG_EMIT32(md->pmd_cputype);
+	PMCLOG_EMITSTRING(pmc_cpuid, PMC_CPUID_LEN);
 	PMCLOG_DESPATCH_SYNC(po);
 
 	return (0);
