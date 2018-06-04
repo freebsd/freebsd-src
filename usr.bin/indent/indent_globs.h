@@ -219,13 +219,11 @@ int	    auto_typedefs;		/* set true to recognize identifiers
 int	    space_after_cast;		/* "b = (int) a" vs "b = (int)a" */
 int	    tabsize;			/* the size of a tab */
 
-#define	STACKSIZE 256
-
 struct parser_state {
     int         last_token;
-    int         p_stack[STACKSIZE];	/* this is the parsers stack */
-    int         il[STACKSIZE];	/* this stack stores indentation levels */
-    float       cstk[STACKSIZE];/* used to store case stmt indentation levels */
+    int         p_stack[256];	/* this is the parsers stack */
+    int         il[64];		/* this stack stores indentation levels */
+    float       cstk[32];	/* used to store case stmt indentation levels */
     int         box_com;	/* set to true when we are in a "boxed"
 				 * comment. In that case, the first non-blank
 				 * char should be lined up with the / in / followed by * */
