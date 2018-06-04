@@ -13,15 +13,17 @@
  */
 
 #include <sys/types.h>
-#include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/time.h>
+#include <sys/cdefs.h>
+#include <sys/limits.h>
+#include <sys/select.h>
+#include <sys/signal.h>
+#include <time.h>
 
-#include <ctype.h>
-#include <curses.h>
 #include <errno.h>
 #include <jail.h>
-#include <setjmp.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>

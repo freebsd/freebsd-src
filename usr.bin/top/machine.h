@@ -10,6 +10,9 @@
 #ifndef MACHINE_H
 #define MACHINE_H
 
+#include <sys/time.h>
+#include <sys/types.h>
+
 #define NUM_AVERAGES    3
 
 /* Log base 2 of 1024 is 10 (2^10 == 1024) */

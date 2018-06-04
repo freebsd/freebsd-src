@@ -18,6 +18,7 @@
  */
 
 #include <sys/resource.h>
+#include <sys/signal.h>
 
 #include <ctype.h>
 #include <errno.h>

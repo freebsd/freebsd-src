@@ -8,37 +8,35 @@
  *   by Monte Mitzelfelt (for latest top see http://www.groupsys.com/topinfo/)
  *
  * AUTHOR:  Christos Zoulas <christos@ee.cornell.edu>
- *          Steven Wallace  <swallace@freebsd.org>
+ *          Steven Wallace  <swallace@FreeBSD.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *          Thomas Moestl <tmoestl@gmx.net>
+ *          Eitan Adler <eadler@FreeBSD.org>
  *
  * $FreeBSD$
  */
 
 #include <sys/errno.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/param.h>
+#include <sys/priority.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
-#include <sys/rtprio.h>
-#include <sys/signal.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/user.h>
-#include <sys/vmmeter.h>
 
 #include <assert.h>
 #include <err.h>
 #include <kvm.h>
 #include <math.h>
-#include <nlist.h>
 #include <paths.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include <vis.h>
 
@@ -85,8 +83,6 @@ struct handle {
 	(RU(pp)->ru_inblock + RU(pp)->ru_oublock + RU(pp)->ru_majflt)
 
 #define	PCTCPU(pp) (pcpu[pp - pbase])
-
-/* definitions for indices in the nlist array */
 
 /*
  *  These definitions control the format of the per-process area
@@ -647,7 +643,7 @@ get_old_proc(struct kinfo_proc *pp)
 		return (NULL);
 	}
 	oldp = *oldpp;
-	if (bcmp(&oldp->ki_start, &pp->ki_start, sizeof(pp->ki_start)) != 0) {
+	if (memcmp(&oldp->ki_start, &pp->ki_start, sizeof(pp->ki_start)) != 0) {
 		pp->ki_udata = NOPROC;
 		return (NULL);
 	}
@@ -669,7 +665,7 @@ get_io_stats(const struct kinfo_proc *pp, long *inp, long *oup, long *flp,
 
 	oldp = get_old_proc(pp);
 	if (oldp == NULL) {
-		bzero(&dummy, sizeof(dummy));
+		memset(&dummy, 0, sizeof(dummy));
 		oldp = &dummy;
 	}
 	*inp = RU(pp)->ru_inblock - RU(oldp)->ru_inblock;
