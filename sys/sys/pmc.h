@@ -369,13 +369,14 @@ enum pmc_ops {
 #define	PMC_F_KGMON		0x00000040 /*OP ALLOCATE kgmon(8) profiling */
 /* V2 API */
 #define	PMC_F_CALLCHAIN		0x00000080 /*OP ALLOCATE capture callchains */
+#define	PMC_F_USERCALLCHAIN	0x00000100 /*OP ALLOCATE use userspace stack */
 
 /* internal flags */
 #define	PMC_F_ATTACHED_TO_OWNER	0x00010000 /*attached to owner*/
 #define	PMC_F_NEEDS_LOGFILE	0x00020000 /*needs log file */
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
 
-#define	PMC_CALLCHAIN_DEPTH_MAX	128
+#define	PMC_CALLCHAIN_DEPTH_MAX	512
 
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
 
@@ -568,6 +569,8 @@ struct pmc_driverstats {
 	counter_u64_t	pm_buffer_requests_failed; /* #failed buffer requests */
 	counter_u64_t	pm_log_sweeps;		/* #sample buffer processing
 						   passes */
+	counter_u64_t	pm_merges;		/* merged k+u */
+	counter_u64_t	pm_overwrites;		/* UR overwrites */
 };
 #endif
 
@@ -643,11 +646,11 @@ struct pmc_op_getdyneventinfo {
 
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
-#define	PMC_LOG_BUFFER_SIZE			128
-#define	PMC_NLOGBUFFERS_PCPU		8
-#define	PMC_NSAMPLES				64
-#define	PMC_CALLCHAIN_DEPTH			32
-#define	PMC_THREADLIST_MAX			64
+#define	PMC_LOG_BUFFER_SIZE			256
+#define	PMC_NLOGBUFFERS_PCPU			32
+#define	PMC_NSAMPLES				256
+#define	PMC_CALLCHAIN_DEPTH			128
+#define	PMC_THREADLIST_MAX			128
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
@@ -923,9 +926,9 @@ struct pmc_hw {
 
 struct pmc_sample {
 	uint16_t		ps_nsamples;	/* callchain depth */
+	uint16_t		ps_nsamples_actual;
 	uint16_t		ps_cpu;		/* cpu number */
 	uint16_t		ps_flags;	/* other flags */
-	uint8_t			ps_pad[2];
 	lwpid_t			ps_tid;		/* thread id */
 	pid_t			ps_pid;		/* process PID or -1 */
 	struct thread		*ps_td;		/* which thread */
@@ -954,7 +957,7 @@ struct pmc_samplebuffer {
 
 struct pmc_cpu {
 	uint32_t	pc_state;	/* physical cpu number + flags */
-	struct pmc_samplebuffer *pc_sb[2]; /* space for samples */
+	struct pmc_samplebuffer *pc_sb[3]; /* space for samples */
 	struct pmc_hw	*pc_hwpmcs[];	/* 'npmc' pointers */
 };
 
@@ -1203,7 +1206,7 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, int _soft, struct pmc *_pm,
+int	pmc_process_interrupt(int _cpu, int _ring, struct pmc *_pm,
     struct trapframe *_tf, int _inuserspace);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
@@ -1211,5 +1214,6 @@ int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 struct pmc_mdep *pmc_mdep_alloc(int nclasses);
 void pmc_mdep_free(struct pmc_mdep *md);
+void pmc_flush_samples(int cpu);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

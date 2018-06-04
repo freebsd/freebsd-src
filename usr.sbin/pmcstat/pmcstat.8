@@ -47,7 +47,7 @@
 .Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
 .Op Fl T
-.Op Fl U Ar event-spec
+.Op Fl U
 .Op Fl W
 .Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
@@ -226,8 +226,10 @@ can be used: 'c+a' switch to accumulative mode, 'c+d' switch
 to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
 PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
 is seen as a dot.
-.It Fl U Ar event-spec
-Provide long description of event.
+.It Fl U
+Toggle capturing user-space call traces while in kernel mode.
+The default is for sampling PMCs to capture user-space callchain information
+while in user-space mode, and kernel callchain information while in kernel mode.
 .It Fl W
 Toggle logging the incremental counts seen by the threads of a
 tracked process each time they are scheduled on a CPU.

@@ -375,6 +375,7 @@ struct thread {
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 	TAILQ_ENTRY(thread) td_epochq;	/* (t) Epoch queue. */
 	epoch_section_t td_epoch_section; /* (t) epoch section object */
+	int		td_pmcpend;
 };
 
 struct thread0_storage {

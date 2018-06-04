@@ -374,7 +374,7 @@ pmcstat_show_usage(void)
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
-	    "\t -U spec \t provide long description of counters matching spec\n"
+	    "\t -U \t\n merged user kernel stack capture\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
 	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
@@ -432,7 +432,8 @@ main(int argc, char **argv)
 	int option, npmc;
 	int c, check_driver_stats; 
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
-	int do_print, do_read, do_listcounters, do_descr, do_long_descr;
+	int do_print, do_read, do_listcounters, do_descr;
+	int do_userspace;
 	size_t len;
 	int graphdepth;
 	int pipefd[2], rfd;
@@ -455,7 +456,7 @@ main(int argc, char **argv)
 	do_callchain		= 1;
 	do_descr                = 0;
 	do_descendants          = 0;
-	do_long_descr           = 0;
+	do_userspace            = 0;
 	do_logproccsw           = 0;
 	do_logprocexit          = 0;
 	do_listcounters         = 0;
@@ -510,7 +511,7 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:ILM:NO:P:R:S:TU:WZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
+	    "CD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
 		switch (option) {
 		case 'a':	/* Annotate + callgraph */
 			args.pa_flags |= FLAG_DO_ANNOTATE;
@@ -677,8 +678,11 @@ main(int argc, char **argv)
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
-			if (do_callchain)
+			if (do_callchain) {
 				ev->ev_flags |= PMC_F_CALLCHAIN;
+				if (do_userspace)
+					ev->ev_flags |= PMC_F_USERCALLCHAIN;
+			}
 			if (do_descendants)
 				ev->ev_flags |= PMC_F_DESCENDANTS;
 			if (do_logprocexit)
@@ -776,9 +780,9 @@ main(int argc, char **argv)
 			do_descr = 1;
 			event = optarg;
 			break;
-		case 'U':
-			do_long_descr = 1;
-			event = optarg;
+		case 'U':	/* toggle user-space callchain capture */
+			do_userspace = !do_userspace;
+			args.pa_required |= FLAG_HAS_SAMPLING_PMCS;
 			break;
 		case 'v':	/* verbose */
 			args.pa_verbosity++;
@@ -816,17 +820,15 @@ main(int argc, char **argv)
 			break;
 
 		}
-	if ((do_listcounters | do_descr | do_long_descr) &&
+	if ((do_listcounters | do_descr) &&
 		pmc_pmu_enabled() == 0)
 			errx(EX_USAGE, "pmu features not supported on host or hwpmc not loaded");
 	if (do_listcounters) {
 		pmc_pmu_print_counters(NULL);
 	} else if (do_descr) {
 		pmc_pmu_print_counter_desc(event);
-	} else if (do_long_descr) {
-		pmc_pmu_print_counter_desc_long(event);
 	}
-	if (do_listcounters | do_descr | do_long_descr)
+	if (do_listcounters | do_descr)
 		exit(0);
 
 	args.pa_argc = (argc -= optind);
