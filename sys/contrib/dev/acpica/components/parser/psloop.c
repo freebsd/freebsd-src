@@ -665,6 +665,19 @@ AcpiPsParseLoop (
                 {
                     return_ACPI_STATUS (Status);
                 }
+                if (WalkState->Opcode == AML_SCOPE_OP)
+                {
+                    /*
+                     * If the scope op fails to parse, skip the body of the
+                     * scope op because the parse failure indicates that the
+                     * device may not exist.
+                     */
+                    WalkState->ParserState.Aml = WalkState->Aml + 1;
+                    WalkState->ParserState.Aml =
+                        AcpiPsGetNextPackageEnd(&WalkState->ParserState);
+                    WalkState->Aml = WalkState->ParserState.Aml;
+                    ACPI_ERROR ((AE_INFO, "Skipping Scope block"));
+                }
 
                 continue;
             }
@@ -707,7 +720,32 @@ AcpiPsParseLoop (
                 {
                     return_ACPI_STATUS (Status);
                 }
+                if ((WalkState->ControlState) &&
+                    ((WalkState->ControlState->Control.Opcode == AML_IF_OP) ||
+                    (WalkState->ControlState->Control.Opcode == AML_WHILE_OP)))
+                {
+                    /*
+                     * If the if/while op fails to parse, we will skip parsing
+                     * the body of the op.
+                     */
+                    ParserState->Aml =
+                        WalkState->ControlState->Control.AmlPredicateStart + 1;
+                    ParserState->Aml =
+                        AcpiPsGetNextPackageEnd (ParserState);
+                    WalkState->Aml = ParserState->Aml;
 
+                    ACPI_ERROR ((AE_INFO, "Skipping While/If block"));
+                    if (*WalkState->Aml == AML_ELSE_OP)
+                    {
+                        ACPI_ERROR ((AE_INFO, "Skipping Else block"));
+                        WalkState->ParserState.Aml = WalkState->Aml + 1;
+                        WalkState->ParserState.Aml =
+                            AcpiPsGetNextPackageEnd (ParserState);
+                        WalkState->Aml = ParserState->Aml;
+                    }
+                    ACPI_FREE(AcpiUtPopGenericState (&WalkState->ControlState));
+                }
+                Op = NULL;
                 continue;
             }
         }
