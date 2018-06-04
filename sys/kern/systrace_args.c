@@ -8838,7 +8838,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* obreak */
 	case 17:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "caddr_t";
 		break;
 	/* getpid */
 	case 20:
