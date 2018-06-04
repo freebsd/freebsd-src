@@ -348,6 +348,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_INITIALIZE:
 		PMCLOG_READ32(le,ev->pl_u.pl_i.pl_version);
 		PMCLOG_READ32(le,ev->pl_u.pl_i.pl_arch);
+		PMCLOG_READ32(le, noop);
+		PMCLOG_READSTRING(le, ev->pl_u.pl_i.pl_cpuid, PMC_CPUID_LEN);
 		ps->ps_version = ev->pl_u.pl_i.pl_version;
 		ps->ps_arch = ev->pl_u.pl_i.pl_arch;
 		ps->ps_initialized = 1;

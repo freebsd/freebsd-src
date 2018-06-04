@@ -69,13 +69,14 @@ static struct pmu_alias pmu_alias_table[] = {
 	{NULL, NULL},
 };
 
-static const char *fixed_mode_cntrs[] = {
-	"inst_retired.any",
-	"cpu_clk_unhalted.thread",
-	"cpu_clk_unhalted.thread_any",
-	"cpu_clk_unhalted.ref_tsc",
-	NULL
-};
+/*
+ *  The Intel fixed mode counters are:
+ *	"inst_retired.any",
+ *	"cpu_clk_unhalted.thread",
+ *	"cpu_clk_unhalted.thread_any",
+ *	"cpu_clk_unhalted.ref_tsc",
+ *
+ */
 
 static const char *
 pmu_alias_get(const char *name)
@@ -95,7 +96,7 @@ struct pmu_event_desc {
 	uint32_t ped_frontend;
 	uint32_t ped_ldlat;
 	uint32_t ped_config1;
-	uint8_t	ped_umask;
+	int16_t	ped_umask;
 	uint8_t	ped_cmask;
 	uint8_t	ped_any;
 	uint8_t	ped_inv;
@@ -168,6 +169,7 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 		return (ENOMEM);
 	r = event;
 	bzero(ped, sizeof(*ped));
+	ped->ped_umask = -1;
 	while ((kvp = strsep(&event, ",")) != NULL) {
 		key = strsep(&kvp, "=");
 		if (key == NULL)
@@ -341,7 +343,6 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	const struct pmu_event *pe;
 	struct pmu_event_desc ped;
 	struct pmc_md_iap_op_pmcallocate *iap;
-	struct pmc_md_iaf_op_pmcallocate *iaf;
 	int idx, isfixed;
 
 	iap = &pm->pm_md.pm_iap;
@@ -358,35 +359,22 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	if (pmu_parse_event(&ped, pe->event))
 		return (ENOENT);
 
-	for (idx = 0; fixed_mode_cntrs[idx] != NULL; idx++)
-		if (strcmp(fixed_mode_cntrs[idx], event_name) == 0)
-			isfixed = 1;
-	if (isfixed) {
-		iaf = &pm->pm_md.pm_iaf;
-		pm->pm_class = PMC_CLASS_IAF;
-		if (strcasestr(pe->desc, "retired") != NULL)
-			pm->pm_ev = PMC_EV_IAF_INSTR_RETIRED_ANY;
-		else if (strcasestr(pe->desc, "core") != NULL ||
-		    strcasestr(pe->desc, "unhalted"))
-			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_CORE;
-		else if (strcasestr(pe->desc, "ref") != NULL)
-			pm->pm_ev = PMC_EV_IAF_CPU_CLK_UNHALTED_REF;
-		iaf->pm_iaf_flags |= (IAF_USR | IAF_OS);
-		if (ped.ped_any)
-			iaf->pm_iaf_flags |= IAF_ANY;
-		if (pm->pm_caps & PMC_CAP_INTERRUPT)
-			iaf->pm_iaf_flags |= IAF_PMI;
-		return (0);
-	} else if (strcasestr(event_name, "UNC_") == event_name ||
-			   strcasestr(event_name, "uncore") != NULL) {
+
+	if (strcasestr(event_name, "UNC_") == event_name ||
+		strcasestr(event_name, "uncore") != NULL) {
 		pm->pm_class = PMC_CLASS_UCP;
-	} else {
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
+	} else if ((ped.ped_umask == -1) ||
+			   (ped.ped_event == 0x0 && ped.ped_umask == 0x3)) {
+		pm->pm_class = PMC_CLASS_IAF;
+	} else {
 		pm->pm_class = PMC_CLASS_IAP;
+		pm->pm_caps |= PMC_CAP_QUALIFIER;
 	}
 	pm->pm_ev = idx;
 	iap->pm_iap_config |= IAP_EVSEL(ped.ped_event);
-	iap->pm_iap_config |= IAP_UMASK(ped.ped_umask);
+	if (ped.ped_umask > 0)
+		iap->pm_iap_config |= IAP_UMASK(ped.ped_umask);
 	iap->pm_iap_config |= IAP_CMASK(ped.ped_cmask);
 	iap->pm_iap_rsp = ped.ped_offcore_rsp;
 

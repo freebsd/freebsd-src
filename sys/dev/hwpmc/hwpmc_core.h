@@ -39,13 +39,6 @@
 #define	PERFCAP_SMM_FREEZE		0x1000
 #define	PERFCAP_FW_WRITE		0x2000	/* full width write aliases */
 
-/*
- * Fixed-function PMCs.
- */
-struct pmc_md_iaf_op_pmcallocate {
-	uint16_t	pm_iaf_flags;	/* additional flags */
-};
-
 #define	IAF_OS		0x1
 #define	IAF_USR		0x2
 #define	IAF_ANY		0x4
