@@ -4647,16 +4647,12 @@ pmc_add_sample(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 
 	counter_u64_add(pm->pm_runcount, 1);	/* hold onto PMC */
 
+	td = curthread;
 	ps->ps_pmc = pm;
-	ps->ps_pid = -1;
-	ps->ps_tid = -1;
-	if ((td = curthread) != NULL) {
-		ps->ps_tid = td->td_tid;
-		if (td->td_proc)
-			ps->ps_pid = td->td_proc->p_pid;
-	}
-	ps->ps_cpu = cpu;
 	ps->ps_td = td;
+	ps->ps_pid = td->td_proc->p_pid;
+	ps->ps_tid = td->td_tid;
+	ps->ps_cpu = cpu;
 	ps->ps_flags = inuserspace ? PMC_CC_F_USERSPACE : 0;
 
 	callchaindepth = (pm->pm_flags & PMC_F_CALLCHAIN) ?
@@ -4715,9 +4711,8 @@ pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 
 	td = curthread;
 	if ((pm->pm_flags & PMC_F_USERCALLCHAIN) &&
-		td && td->td_proc &&
-		(td->td_proc->p_flag & P_KPROC) == 0 &&
-		!inuserspace) {
+           (td->td_proc->p_flag & P_KPROC) == 0 &&
+           !inuserspace) {
 		atomic_add_int(&curthread->td_pmcpend, 1);
 		return (pmc_add_sample(cpu, PMC_UR, pm, tf, 0));
 	}
