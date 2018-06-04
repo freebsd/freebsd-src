@@ -293,6 +293,7 @@ AcpiNsDumpPathname (
 }
 #endif
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpOneObject
@@ -351,6 +352,7 @@ AcpiNsDumpOneObject (
     }
 
     Type = ThisNode->Type;
+    Info->Count++;
 
     /* Check if the owner matches */
 
@@ -815,6 +817,7 @@ AcpiNsDumpObjects (
         return;
     }
 
+    Info.Count = 0;
     Info.DebugLevel = ACPI_LV_TABLES;
     Info.OwnerId = OwnerId;
     Info.DisplayType = DisplayType;
@@ -823,6 +826,7 @@ AcpiNsDumpObjects (
         ACPI_NS_WALK_NO_UNLOCK | ACPI_NS_WALK_TEMP_NODES,
         AcpiNsDumpOneObject, NULL, (void *) &Info, NULL);
 
+    AcpiOsPrintf ("\nNamespace node count: %u\n\n", Info.Count);
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 }
 
