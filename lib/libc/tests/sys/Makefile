@@ -4,6 +4,7 @@ PACKAGE=			tests
 
 .include <bsd.own.mk>
 
+ATF_TESTS_C+=			brk_test
 ATF_TESTS_C+=			queue_test
 
 # TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,

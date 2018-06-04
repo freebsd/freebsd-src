@@ -17,8 +17,7 @@
 # While historically machine dependent, all architectures have the following
 # declarations in common:
 #
-NOASM=	break.o \
-	exit.o \
+NOASM=	exit.o \
 	getlogin.o \
 	sstk.o \
 	yield.o
@@ -45,6 +44,7 @@ SRCS+= getdirentries.c
 NOASM+= getdirentries.o
 PSEUDO+= _getdirentries.o
 
+SRCS+= brk.c
 SRCS+= pipe.c
 SRCS+= vadvise.c
 

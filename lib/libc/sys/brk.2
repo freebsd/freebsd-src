@@ -28,7 +28,7 @@
 .\"     @(#)brk.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2018
+.Dd June 2, 2018
 .Dt BRK 2
 .Os
 .Sh NAME
@@ -183,3 +183,8 @@ is sometimes used to monitor heap use by calling with an argument of 0.
 The result is unlikely to reflect actual utilization in combination with an
 .Xr mmap 2
 based malloc.
+.Pp
+.Fn brk
+and
+.Fn sbrk
+are not thread-safe.
