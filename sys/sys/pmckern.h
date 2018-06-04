@@ -62,9 +62,12 @@
 #define	PMC_FN_SOFT_SAMPLING		11
 #define	PMC_FN_THR_CREATE		12
 #define	PMC_FN_THR_EXIT			13
+#define	PMC_FN_THR_USERRET		14
 
 #define	PMC_HR	0	/* Hardware ring buffer */
 #define	PMC_SR	1	/* Software ring buffer */
+#define	PMC_UR	2	/* userret ring buffer */
+#define PMC_NUM_SR (PMC_UR+1)
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
@@ -226,6 +229,9 @@ do {						\
 /* Check if a process is using HWPMCs.*/
 #define PMC_PROC_IS_USING_PMCS(p)				\
 	(__predict_false(p->p_flag & P_HWPMC))
+
+#define PMC_THREAD_HAS_SAMPLES(td)				\
+	(__predict_false((td)->td_pmcpend))
 
 /* Check if a thread have pending user capture. */
 #define PMC_IS_PENDING_CALLCHAIN(p)				\
