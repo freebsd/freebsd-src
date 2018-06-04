@@ -81,7 +81,6 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_brk;
 	_brk;
-	_end;
 	__sys_sbrk;
 	_sbrk;
 	__sys_vfork;

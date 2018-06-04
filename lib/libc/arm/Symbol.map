@@ -58,7 +58,6 @@ FBSDprivate_1.0 {
 	__sys_vfork;
 	_vfork;
 	_brk;
-	_end;
 	_sbrk;
 
 	_libc_arm_fpu_present;
