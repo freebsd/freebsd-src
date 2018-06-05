@@ -141,6 +141,20 @@ snprintf(char *buf, size_t size, const char *cfmt, ...)
 }
 
 void
+vsnprintf(char *buf, size_t size, const char *cfmt, va_list ap)
+{
+	struct print_buf arg;
+
+	arg.buf = buf;
+	arg.size = size;
+
+	kvprintf(cfmt, &snprint_func, &arg, 10, ap);
+
+	if (arg.size >= 1)
+		*(arg.buf)++ = 0;
+}
+
+void
 vsprintf(char *buf, const char *cfmt, va_list ap)
 {
 	int	retval;
