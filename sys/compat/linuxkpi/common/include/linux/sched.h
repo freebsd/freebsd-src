@@ -89,6 +89,7 @@ struct task_struct {
 #define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
 #define	task_pid_nr(task)	((task)->pid)
+#define	task_pid_vnr(task)	((task)->pid)
 #define	get_pid(x)		(x)
 #define	put_pid(x)		do { } while (0)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
