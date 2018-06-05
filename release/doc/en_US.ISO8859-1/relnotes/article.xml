@@ -559,6 +559,10 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
+      <para revision="331058">The &man.ng.pppoe.4; driver has been
+	updated to add support for user-supplied
+	<literal>Host-Uniq</literal> tags.</para>
+
       <para revision="331586" contrib="sponsor"
 	sponsor="&mellanox;">The &man.mlx5io.4; driver has been added,
 	providing an interface to manage supported Connect-X&nbsp;4
