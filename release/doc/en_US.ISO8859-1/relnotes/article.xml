@@ -521,8 +521,8 @@
 
       <para revision="326322" contrib="sponsor"
 	sponsor="&spectralogic;">The
-	<literal>p1003_1b.aio_listio</literal> &man.sysctl.8; has been
-	changed to a runtime-configurable tunable.</para>
+	<literal>p1003_1b.aio_listio_max</literal> &man.sysctl.8; has
+	been changed to a runtime-configurable tunable.</para>
     </sect2>
   </sect1>
 
