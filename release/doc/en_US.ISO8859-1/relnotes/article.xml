@@ -501,7 +501,9 @@
     <sect2 xml:id="kernel-general">
       <title>General Kernel Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="321007">The &man.linux.4; <acronym>ABI</acronym>
+	compaibility layer has been updated to include support for
+	<literal>musl</literal> consumers.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
