@@ -55,6 +55,7 @@ static struct workqueue_struct *linux_system_long_wq;
 struct workqueue_struct *system_wq;
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_unbound_wq;
+struct workqueue_struct *system_highpri_wq;
 struct workqueue_struct *system_power_efficient_wq;
 
 static int linux_default_wq_cpus = 4;
@@ -598,6 +599,7 @@ linux_work_init(void *arg)
 	system_wq = linux_system_short_wq;
 	system_power_efficient_wq = linux_system_short_wq;
 	system_unbound_wq = linux_system_short_wq;
+	system_highpri_wq = linux_system_short_wq;
 }
 SYSINIT(linux_work_init, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_init, NULL);
 
@@ -612,5 +614,6 @@ linux_work_uninit(void *arg)
 	system_wq = NULL;
 	system_power_efficient_wq = NULL;
 	system_unbound_wq = NULL;
+	system_highpri_wq = NULL;
 }
 SYSUNINIT(linux_work_uninit, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_uninit, NULL);
