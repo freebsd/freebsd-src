@@ -159,7 +159,6 @@ extract_currdev(void)
 #if defined(USERBOOT_ZFS_SUPPORT)
 	struct zfs_devdesc zdev;
 
-	CTASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
 	if (userboot_zfs_found) {
 	
 		/* Leave the pool/root guid's unassigned */

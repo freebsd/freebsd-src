@@ -33,12 +33,9 @@
 
 /*
  * ZFS fully-qualified device descriptor.
- * Arch-specific device descriptors should be binary compatible with this
- * structure if they are to support ZFS.
  */
-/* Note: Must match the 'struct devdesc' in stand.h */
 struct zfs_devdesc {
-	struct devdesc  dd;
+	struct devdesc	dd;		/* Must be first. */
 	uint64_t	pool_guid;
 	uint64_t	root_guid;
 };
