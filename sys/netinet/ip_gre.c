@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
@@ -69,24 +68,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gre.h>
 
-extern struct domain inetdomain;
-static const struct protosw in_gre_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_GRE,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		gre_input,
-	.pr_output =		rip_output,
-	.pr_ctlinput =		rip_ctlinput,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-
 #define	GRE_TTL			30
 VNET_DEFINE(int, ip_gre_ttl) = GRE_TTL;
 #define	V_ip_gre_ttl		VNET(ip_gre_ttl)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(ip_gre_ttl), 0, "");
+    &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
 static int
 in_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
@@ -100,12 +86,6 @@ in_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 		return (0);
 
 	M_ASSERTPKTHDR(m);
-	/*
-	 * We expect that payload contains at least IPv4
-	 * or IPv6 packet.
-	 */
-	if (m->m_pkthdr.len < sizeof(struct greip) + sizeof(struct ip))
-		return (0);
 
 	GRE_RLOCK(sc);
 	if (sc->gre_family == 0)
@@ -120,7 +100,7 @@ in_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 		goto bad;
 
 	GRE_RUNLOCK(sc);
-	return (32 * 2);
+	return (32 * 3); /* src + dst + gre_hdr */
 bad:
 	GRE_RUNLOCK(sc);
 	return (0);
@@ -156,14 +136,19 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 	return (ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL));
 }
 
+static const struct encap_config ipv4_encap_cfg = {
+	.proto = IPPROTO_GRE,
+	.min_length = sizeof(struct greip) + sizeof(struct ip),
+	.exact_match = (sizeof(in_addr_t) << 4) + 32,
+	.check = in_gre_encapcheck,
+	.input = gre_input
+};
+
 int
 in_gre_attach(struct gre_softc *sc)
 {
 
 	KASSERT(sc->gre_ecookie == NULL, ("gre_ecookie isn't NULL"));
-	sc->gre_ecookie = encap_attach_func(AF_INET, IPPROTO_GRE,
-	    in_gre_encapcheck, &in_gre_protosw, sc);
-	if (sc->gre_ecookie == NULL)
-		return (EEXIST);
+	sc->gre_ecookie = ip_encap_attach(&ipv4_encap_cfg, sc, M_WAITOK);
 	return (0);
 }

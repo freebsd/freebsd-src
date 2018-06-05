@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
@@ -60,18 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
 #include <net/if_gre.h>
-
-extern  struct domain inet6domain;
-struct protosw in6_gre_protosw = {
-	.pr_type =	SOCK_RAW,
-	.pr_domain =	&inet6domain,
-	.pr_protocol =	IPPROTO_GRE,
-	.pr_flags =	PR_ATOMIC|PR_ADDR,
-	.pr_input =	gre_input,
-	.pr_output =	rip6_output,
-	.pr_ctloutput =	rip6_ctloutput,
-	.pr_usrreqs =	&rip6_usrreqs
-};
 
 VNET_DEFINE(int, ip6_gre_hlim) = IPV6_DEFHLIM;
 #define	V_ip6_gre_hlim		VNET(ip6_gre_hlim)
@@ -117,7 +104,7 @@ in6_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 		goto bad;
 
 	GRE_RUNLOCK(sc);
-	return (128 * 2);
+	return (128 * 2 + 32);
 bad:
 	GRE_RUNLOCK(sc);
 	return (0);
@@ -133,14 +120,19 @@ in6_gre_output(struct mbuf *m, int af, int hlen)
 	return (ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL, NULL));
 }
 
+static const struct encap_config ipv6_encap_cfg = {
+	.proto = IPPROTO_GRE,
+	.min_length = sizeof(struct greip6) + sizeof(struct ip),
+	.exact_match = (sizeof(struct in6_addr) << 4) + 32,
+	.check = in6_gre_encapcheck,
+	.input = gre_input
+};
+
 int
 in6_gre_attach(struct gre_softc *sc)
 {
 
 	KASSERT(sc->gre_ecookie == NULL, ("gre_ecookie isn't NULL"));
-	sc->gre_ecookie = encap_attach_func(AF_INET6, IPPROTO_GRE,
-	    in6_gre_encapcheck, &in6_gre_protosw, sc);
-	if (sc->gre_ecookie == NULL)
-		return (EEXIST);
+	sc->gre_ecookie = ip6_encap_attach(&ipv6_encap_cfg, sc, M_WAITOK);
 	return (0);
 }

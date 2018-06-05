@@ -73,8 +73,6 @@ struct pimstat {
 #define PIMCTL_STATS		1	/* statistics (read-only) */
 
 #ifdef _KERNEL
-
-int pim_input(struct mbuf **, int *, int);
 SYSCTL_DECL(_net_inet_pim);
 #endif
 

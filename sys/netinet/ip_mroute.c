@@ -242,20 +242,17 @@ SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RW,
     &pim_squelch_wholepkt, 0,
     "Disable IGMP_WHOLEPKT notifications if rendezvous point is unspecified");
 
-extern  struct domain inetdomain;
-static const struct protosw in_pim_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_PIM,
-	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-	.pr_input =		pim_input,
-	.pr_output =		rip_output,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
 static const struct encaptab *pim_encap_cookie;
-
 static int pim_encapcheck(const struct mbuf *, int, int, void *);
+static int pim_input(struct mbuf *, int, int, void *);
+
+static const struct encap_config ipv4_encap_cfg = {
+	.proto = IPPROTO_PIM,
+	.min_length = sizeof(struct ip) + PIM_MINLEN,
+	.exact_match = 8,
+	.check = pim_encapcheck,
+	.input = pim_input
+};
 
 /*
  * Note: the PIM Register encapsulation adds the following in front of a
@@ -2544,16 +2541,12 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
  * into the kernel.
  */
 static int
-pim_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+pim_encapcheck(const struct mbuf *m __unused, int off __unused,
+    int proto __unused, void *arg __unused)
 {
 
-#ifdef DIAGNOSTIC
     KASSERT(proto == IPPROTO_PIM, ("not for IPPROTO_PIM"));
-#endif
-    if (proto != IPPROTO_PIM)
-	return 0;	/* not for us; reject the datagram. */
-
-    return 64;		/* claim the datagram. */
+    return (8);		/* claim the datagram. */
 }
 
 /*
@@ -2564,18 +2557,15 @@ pim_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
  * (used by PIM-SM): the PIM header is stripped off, and the inner packet
  * is passed to if_simloop().
  */
-int
-pim_input(struct mbuf **mp, int *offp, int proto)
+static int
+pim_input(struct mbuf *m, int off, int proto, void *arg __unused)
 {
-    struct mbuf *m = *mp;
     struct ip *ip = mtod(m, struct ip *);
     struct pim *pim;
-    int iphlen = *offp;
+    int iphlen = off;
     int minlen;
     int datalen = ntohs(ip->ip_len) - iphlen;
     int ip_tos;
- 
-    *mp = NULL;
 
     /* Keep statistics */
     PIMSTAT_INC(pims_rcv_total_msgs);
@@ -2779,10 +2769,7 @@ pim_input_to_daemon:
      * XXX: the outer IP header pkt size of a Register is not adjust to
      * reflect the fact that the inner multicast data is truncated.
      */
-    *mp = m;
-    rip_input(mp, offp, proto);
-
-    return (IPPROTO_DONE);
+    return (rip_input(&m, &off, proto));
 }
 
 static int
@@ -2873,8 +2860,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	TUNABLE_ULONG_FETCH("net.inet.pim.squelch_wholepkt",
 	    &pim_squelch_wholepkt);
 
-	pim_encap_cookie = encap_attach_func(AF_INET, IPPROTO_PIM,
-	    pim_encapcheck, &in_pim_protosw, NULL);
+	pim_encap_cookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
 	if (pim_encap_cookie == NULL) {
 		printf("ip_mroute: unable to attach pim encap\n");
 		VIF_LOCK_DESTROY();
@@ -2917,7 +2903,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_detach_event_tag);
 
 	if (pim_encap_cookie) {
-	    encap_detach(pim_encap_cookie);
+	    ip_encap_detach(pim_encap_cookie);
 	    pim_encap_cookie = NULL;
 	}
 

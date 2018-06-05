@@ -118,7 +118,7 @@ ipcomp_encapcheck(union sockaddr_union *src, union sockaddr_union *dst)
 }
 
 static int
-ipcomp_nonexp_input(struct mbuf **mp, int *offp, int proto)
+ipcomp_nonexp_input(struct mbuf *m, int off, int proto, void *arg __unused)
 {
 	int isr;
 
@@ -135,13 +135,13 @@ ipcomp_nonexp_input(struct mbuf **mp, int *offp, int proto)
 #endif
 	default:
 		IPCOMPSTAT_INC(ipcomps_nopf);
-		m_freem(*mp);
+		m_freem(m);
 		return (IPPROTO_DONE);
 	}
-	m_adj(*mp, *offp);
-	IPCOMPSTAT_ADD(ipcomps_ibytes, (*mp)->m_pkthdr.len);
+	m_adj(m, off);
+	IPCOMPSTAT_ADD(ipcomps_ibytes, m->m_pkthdr.len);
 	IPCOMPSTAT_INC(ipcomps_input);
-	netisr_dispatch(isr, *mp);
+	netisr_dispatch(isr, m);
 	return (IPPROTO_DONE);
 }
 
@@ -662,19 +662,6 @@ bad:
 }
 
 #ifdef INET
-static const struct encaptab *ipe4_cookie = NULL;
-extern struct domain inetdomain;
-static struct protosw ipcomp4_protosw = {
-	.pr_type =	SOCK_RAW,
-	.pr_domain =	&inetdomain,
-	.pr_protocol =	0 /* IPPROTO_IPV[46] */,
-	.pr_flags =	PR_ATOMIC | PR_ADDR | PR_LASTHDR,
-	.pr_input =	ipcomp_nonexp_input,
-	.pr_output =	rip_output,
-	.pr_ctloutput =	rip_ctloutput,
-	.pr_usrreqs =	&rip_usrreqs
-};
-
 static int
 ipcomp4_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
     void *arg __unused)
@@ -695,21 +682,17 @@ ipcomp4_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
 	dst.sin.sin_addr = ip->ip_dst;
 	return (ipcomp_encapcheck(&src, &dst));
 }
+
+static const struct encaptab *ipe4_cookie = NULL;
+static const struct encap_config ipv4_encap_cfg = {
+	.proto = -1,
+	.min_length = sizeof(struct ip),
+	.exact_match = sizeof(in_addr_t) << 4,
+	.check = ipcomp4_nonexp_encapcheck,
+	.input = ipcomp_nonexp_input
+};
 #endif
 #ifdef INET6
-static const struct encaptab *ipe6_cookie = NULL;
-extern struct domain inet6domain;
-static struct protosw ipcomp6_protosw = {
-	.pr_type =	SOCK_RAW,
-	.pr_domain =	&inet6domain,
-	.pr_protocol =	0 /* IPPROTO_IPV[46] */,
-	.pr_flags =	PR_ATOMIC | PR_ADDR | PR_LASTHDR,
-	.pr_input =	ipcomp_nonexp_input,
-	.pr_output =	rip6_output,
-	.pr_ctloutput =	rip6_ctloutput,
-	.pr_usrreqs =	&rip6_usrreqs
-};
-
 static int
 ipcomp6_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
     void *arg __unused)
@@ -742,6 +725,15 @@ ipcomp6_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
 	}
 	return (ipcomp_encapcheck(&src, &dst));
 }
+
+static const struct encaptab *ipe6_cookie = NULL;
+static const struct encap_config ipv6_encap_cfg = {
+	.proto = -1,
+	.min_length = sizeof(struct ip6_hdr),
+	.exact_match = sizeof(struct in6_addr) << 4,
+	.check = ipcomp6_nonexp_encapcheck,
+	.input = ipcomp_nonexp_input
+};
 #endif
 
 static struct xformsw ipcomp_xformsw = {
@@ -758,12 +750,10 @@ ipcomp_attach(void)
 {
 
 #ifdef INET
-	ipe4_cookie = encap_attach_func(AF_INET, -1,
-	    ipcomp4_nonexp_encapcheck, &ipcomp4_protosw, NULL);
+	ipe4_cookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
 #endif
 #ifdef INET6
-	ipe6_cookie = encap_attach_func(AF_INET6, -1,
-	    ipcomp6_nonexp_encapcheck, &ipcomp6_protosw, NULL);
+	ipe6_cookie = ip6_encap_attach(&ipv6_encap_cfg, NULL, M_WAITOK);
 #endif
 	xform_attach(&ipcomp_xformsw);
 }
@@ -773,10 +763,10 @@ ipcomp_detach(void)
 {
 
 #ifdef INET
-	encap_detach(ipe4_cookie);
+	ip_encap_detach(ipe4_cookie);
 #endif
 #ifdef INET6
-	encap_detach(ipe6_cookie);
+	ip6_encap_detach(ipe6_cookie);
 #endif
 	xform_detach(&ipcomp_xformsw);
 }
