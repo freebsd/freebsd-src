@@ -504,6 +504,11 @@
       <para revision="321007">The &man.linux.4; <acronym>ABI</acronym>
 	compaibility layer has been updated to include support for
 	<literal>musl</literal> consumers.</para>
+
+      <para revision="322340">The &man.fdescfs.5; filesystem has been
+	updated to support &linux;-specific &man.fd.4;
+	<filename>/dev/fd</filename> and
+	<filename>/proc/self/fd</filename> behavior.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
