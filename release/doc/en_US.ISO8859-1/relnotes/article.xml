@@ -398,9 +398,6 @@
       <para revision="321303">The &man.libarchive.3; library has been
 	updated to version 3.3.2.</para>
 
-      <para revision="322172">The &man.libxo.3; library has been
-	updated to version 0.8.4.</para>
-
       <para revision="322442"><application>Subversion</application>
 	has been updated to version 1.9.7.</para>
 
@@ -447,6 +444,9 @@
 
       <para revision="333312">Timezone data files have been updated to
 	version 2018e.</para>
+
+      <para revision="334458">The &man.libxo.3; library has been
+	updated to version 0.9.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
