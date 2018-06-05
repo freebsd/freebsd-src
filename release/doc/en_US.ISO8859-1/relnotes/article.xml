@@ -523,6 +523,10 @@
       <para revision="325730">The &man.ipfw.4; packet filter has been
 	updated to identify layer-2 and layer-3 packets, fixing
 	&man.dummynet.4; <acronym>AQM</acronym> packet marking.</para>
+
+      <para revision="333166">An issue causing boot issues with
+	&intel; Apollo Lake&trade; <acronym>CPU</acronym>s has been
+	fixed.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
