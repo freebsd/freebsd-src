@@ -285,40 +285,16 @@ struct __attribute__((packed)) checkpoint_op {
 	unsigned int port;
 };
 
+struct __attribute__((packed)) migrate_req {
+	char host[MAX_HOSTNAME_LEN];
+	unsigned int port;
+};
+
 int	vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 			size_t max_size, size_t *snapshot_size);
 int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 		       size_t size);
 
 int	vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size);
-
-
-enum message_types {
-    MESSAGE_TYPE_SPECS	    = 1,
-    MESSAGE_TYPE_METADATA   = 2,
-    MESSAGE_TYPE_RAM	    = 3,
-    MESSAGE_TYPE_KERN	    = 4,
-    MESSAGE_TYPE_PCI	    = 5,
-};
-
-struct __attribute__((packed)) migration_message_type {
-    size_t len;
-    unsigned int type;		// enum message_type
-    unsigned int req_type;	// enum snapshot_req
-};
-
-struct __attribute__((packed)) migrate_req {
-	char host[MAX_HOSTNAME_LEN];
-	unsigned int port;
-};
-
-struct __attribute__((packed)) migration_system_specs {
-	char hw_machine[MAX_SPEC_LEN];
-	char hw_model[MAX_SPEC_LEN];
-	size_t hw_pagesize;
-};
-
-int vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr);
-int vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr);
 
 #endif	/* _VMMAPI_H_ */
