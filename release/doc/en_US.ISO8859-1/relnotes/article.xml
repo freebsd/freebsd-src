@@ -800,7 +800,7 @@
 	EC2&trade; infrastructure.</para>
 
       <para revision="333410" contrib="sponsor" sponsor="&ff;">The
-	&arch.i386; memory stick image installer have been changed
+	&arch.i386; memory stick image installers have been changed
 	to use the <acronym>MBR</acronym> partitioning scheme, which
 	addresses a boot issue from a <acronym>GPT</acronym> partition
 	scheme in non-<acronym>UEFI</acronym> mode.</para>
@@ -814,7 +814,7 @@
 	a <acronym>CD</acronym> image.</para>
 
       <para revision="334444" contrib="sponsor" sponsor="&ff;">The
-	&arch.amd64; memory stick image installer have been changed
+	&arch.amd64; memory stick image installers have been changed
 	to use the <acronym>MBR</acronym> partitioning scheme, which
 	addresses a boot issue from a <acronym>GPT</acronym> partition
 	scheme in non-<acronym>UEFI</acronym> mode.</para>
