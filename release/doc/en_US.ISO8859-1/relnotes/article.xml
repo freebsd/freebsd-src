@@ -517,7 +517,8 @@
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
-      <para>&nbsp;</para>
+      <para revision="324175">The &man.ng.iface.4; driver has been
+	updated to prevent a possible system crash.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
