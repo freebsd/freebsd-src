@@ -661,6 +661,12 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
+      <para revision="321519">The boot code and &man.loader.8; have
+	been updated to check for unsupported <acronym>ZFS</acronym>
+	feature flags.  If unsupported features are active, the pool
+	is not considered as a bootable pool, and a diagnostic message
+	is printed to the console.</para>
+
       <para revision="329114">The length of <acronym>GELI</acronym>
 	passphrases entered when booting a system with encrypted disks
 	is now hidden by default.  See the configuration options in
