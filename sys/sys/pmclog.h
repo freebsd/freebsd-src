@@ -67,7 +67,13 @@ enum pmclog_type {
 	 *
 	 * New variant of PMCLOG_TYPE_PMCALLOCATE for dynamic event.
 	 */
-	PMCLOG_TYPE_PMCALLOCATEDYN = 17
+	PMCLOG_TYPE_PMCALLOCATEDYN = 17,
+	/*
+	 * V6 ABI
+	 */
+	PMCLOG_TYPE_THR_CREATE = 18,
+	PMCLOG_TYPE_THR_EXIT = 19,
+	PMCLOG_TYPE_PROC_CREATE = 20
 };
 
 /*
@@ -181,6 +187,12 @@ struct pmclog_proccsw {
 	uint32_t		pl_tid;
 } __packed;
 
+struct pmclog_proccreate {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_pid;
+	uint64_t		pl_pcomm[MAXCOMLEN+1];	/* keep 8 byte aligned */
+} __packed;
+
 struct pmclog_procexec {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
@@ -208,6 +220,19 @@ struct pmclog_procfork {
 struct pmclog_sysexit {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
+} __packed;
+
+struct pmclog_threadcreate {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_tid;
+	uint32_t		pl_pid;
+	uint32_t		pl_pad;
+	uint64_t		pl_tdname[MAXCOMLEN+1];	/* keep 8 byte aligned */
+} __packed;
+
+struct pmclog_threadexit {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_tid;
 } __packed;
 
 struct pmclog_userdata {
@@ -261,7 +286,7 @@ union pmclog_entry {		/* only used to size scratch areas */
 int	pmclog_configure_log(struct pmc_mdep *_md, struct pmc_owner *_po,
     int _logfd);
 int	pmclog_deconfigure_log(struct pmc_owner *_po);
-int	pmclog_flush(struct pmc_owner *_po);
+int	pmclog_flush(struct pmc_owner *_po, int force);
 int	pmclog_close(struct pmc_owner *_po);
 void	pmclog_initialize(void);
 int	pmclog_proc_create(struct thread *td, void **handlep);
@@ -283,6 +308,9 @@ void	pmclog_process_procexec(struct pmc_owner *_po, pmc_id_t _pmid, pid_t _pid,
 void	pmclog_process_procexit(struct pmc *_pm, struct pmc_process *_pp);
 void	pmclog_process_procfork(struct pmc_owner *_po, pid_t _oldpid, pid_t _newpid);
 void	pmclog_process_sysexit(struct pmc_owner *_po, pid_t _pid);
+void	pmclog_process_threadcreate(struct pmc_owner *_po, struct thread *td, int sync);
+void	pmclog_process_threadexit(struct pmc_owner *_po, struct thread *td);
+void	pmclog_process_proccreate(struct pmc_owner *_po, struct proc *p, int sync);
 int	pmclog_process_userlog(struct pmc_owner *_po,
     struct pmc_op_writelog *_wl);
 void	pmclog_shutdown(void);

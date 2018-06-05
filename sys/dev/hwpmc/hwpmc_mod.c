@@ -269,6 +269,11 @@ static int generic_switch_out(struct pmc_cpu *pc, struct pmc_process *pp);
 static struct pmc_mdep *pmc_generic_cpu_initialize(void);
 static void pmc_generic_cpu_finalize(struct pmc_mdep *md);
 static void pmc_post_callchain_callback(void);
+static void pmc_process_threadcreate(struct thread *td);
+static void pmc_process_threadexit(struct thread *td);
+static void pmc_process_proccreate(struct proc *p);
+static void pmc_process_allproc(struct pmc *pm);
+
 /*
  * Kernel tunables and sysctl(8) interface.
  */
@@ -2049,6 +2054,9 @@ const char *pmc_hooknames[] = {
 	"THR-CREATE",
 	"THR-EXIT",
 	"THR-USERRET",
+	"THR-CREATE-LOG",
+	"THR-EXIT-LOG",
+	"PROC-CREATE-LOG"
 };
 #endif
 
@@ -2225,6 +2233,10 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		pmc_process_munmap(td, (struct pmckern_map_out *) arg);
 		break;
 
+	case PMC_FN_PROC_CREATE_LOG:
+		pmc_process_proccreate((struct proc *)arg);
+		break;
+
 	case PMC_FN_USER_CALLCHAIN:
 		/*
 		 * Record a call chain.
@@ -2270,14 +2282,22 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 	case PMC_FN_THR_CREATE:
 		pmc_process_thread_add(td);
+		pmc_process_threadcreate(td);
+		break;
+
+	case PMC_FN_THR_CREATE_LOG:
+		pmc_process_threadcreate(td);
 		break;
 
 	case PMC_FN_THR_EXIT:
 		KASSERT(td == curthread, ("[pmc,%d] td != curthread",
 		    __LINE__));
 		pmc_process_thread_delete(td);
+		pmc_process_threadexit(td);
 		break;
-
+	case PMC_FN_THR_EXIT_LOG:
+		pmc_process_threadexit(td);
+		break;
 	case PMC_FN_THR_USERRET:
 		KASSERT(td == curthread, ("[pmc,%d] td != curthread",
 		    __LINE__));
@@ -2697,9 +2717,9 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
 	 * Loop (with a forced context switch) till the PMC's runcount
 	 * comes down to zero.
 	 */
-	pmclog_flush(pm->pm_owner);
+	pmclog_flush(pm->pm_owner, 1);
 	while (counter_u64_fetch(pm->pm_runcount) > 0) {
-		pmclog_flush(pm->pm_owner);
+		pmclog_flush(pm->pm_owner, 1);
 #ifdef HWPMC_DEBUG
 		maxloop--;
 		KASSERT(maxloop > 0,
@@ -3439,7 +3459,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 		}
 
-		error = pmclog_flush(po);
+		error = pmclog_flush(po, 0);
 	}
 	break;
 
@@ -4015,6 +4035,8 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			pmc = NULL;
 			break;
 		}
+		if (mode == PMC_MODE_SS)
+			pmc_process_allproc(pmc);
 
 		/*
 		 * Return the allocated index.
@@ -5216,8 +5238,10 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 	 */
 	epoch_enter_preempt(global_epoch_preempt);
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 		    pmclog_process_procfork(po, p1->p_pid, newproc->p_pid);
+			pmclog_process_proccreate(po, newproc, 1);
+		}
 	epoch_exit_preempt(global_epoch_preempt);
 
 	if (!is_using_hwpmcs)
@@ -5277,6 +5301,64 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 
  done:
 	sx_xunlock(&pmc_sx);
+}
+
+static void
+pmc_process_threadcreate(struct thread *td)
+{
+	struct pmc_owner *po;
+
+	epoch_enter_preempt(global_epoch_preempt);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_threadcreate(po, td, 1);
+	epoch_exit_preempt(global_epoch_preempt);
+}
+
+static void
+pmc_process_threadexit(struct thread *td)
+{
+	struct pmc_owner *po;
+
+	epoch_enter_preempt(global_epoch_preempt);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_threadexit(po, td);
+	epoch_exit_preempt(global_epoch_preempt);
+}
+
+static void
+pmc_process_proccreate(struct proc *p)
+{
+	struct pmc_owner *po;
+
+	epoch_enter_preempt(global_epoch_preempt);
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_proccreate(po, p, 1 /* sync */);
+	epoch_exit_preempt(global_epoch_preempt);
+}
+
+static void
+pmc_process_allproc(struct pmc *pm)
+{
+	struct pmc_owner *po;
+	struct thread *td;
+	struct proc *p;
+
+	po = pm->pm_owner;
+	if ((po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)
+		return;
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		pmclog_process_proccreate(po, p, 0 /* sync */);
+		PROC_LOCK(p);
+		FOREACH_THREAD_IN_PROC(p, td)
+			pmclog_process_threadcreate(po, td, 0 /* sync */);
+		PROC_UNLOCK(p);
+	}
+	sx_sunlock(&allproc_lock);
+	pmclog_flush(po, 0);
 }
 
 static void

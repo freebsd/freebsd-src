@@ -40,11 +40,16 @@ extern struct pmcstat_args pmc_args;
 
 typedef int (*cmd_disp_t)(int, char **);
 
-int	cmd_pmc_stat(int, char **);
-int	cmd_pmc_filter(int, char **);
-int	cmd_pmc_stat_system(int, char **);
-int	cmd_pmc_list_events(int, char **);
-
+#if defined(__cplusplus)
+extern "C" {
+#endif
+	int	cmd_pmc_stat(int, char **);
+	int	cmd_pmc_filter(int, char **);
+	int	cmd_pmc_stat_system(int, char **);
+	int	cmd_pmc_list_events(int, char **);
+#if defined(__cplusplus)
+};
+#endif
 int	pmc_util_get_pid(struct pmcstat_args *);
 void	pmc_util_start_pmcs(struct pmcstat_args *);
 void	pmc_util_cleanup(struct pmcstat_args *);
