@@ -798,6 +798,14 @@
 	<acronym>EFI</acronym>.  The <acronym>ISO</acronym> image can
 	now be written to a memory stick as well as being used as
 	a <acronym>CD</acronym> image.</para>
+
+      <para revision="334444" contrib="sponsor" sponsor="&ff;">The
+	&os;/&arch.amd64; memory stick installation images have been
+	changed to use the <acronym>MBR</acronym> partitioning scheme
+	instead of <acronym>GPT</acronym> in order to address issues
+	with some <acronym>BIOS</acronym>es that cannot boot from
+	<acronym>GPT</acronym> in non-<acronym>UEFI</acronym>
+	mode.</para>
     </sect2>
   </sect1>
 </article>
