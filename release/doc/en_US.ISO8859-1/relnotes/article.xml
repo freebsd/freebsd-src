@@ -583,6 +583,10 @@
 	<acronym>HBA</acronym>s LPe15004 and LPe160XX, and
 	Emulex&nbsp;32/16G&nbsp;FC&nbsp;GEN&nbsp;6
 	<acronym>HBA</acronym>s LPe3100X and LPe3200X.</para>
+
+      <para revision="333343" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.ixl.4; driver has been updated
+	to version 1.9.9-k.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
