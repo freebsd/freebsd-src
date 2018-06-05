@@ -808,12 +808,10 @@
 	a <acronym>CD</acronym> image.</para>
 
       <para revision="334444" contrib="sponsor" sponsor="&ff;">The
-	&os;/&arch.amd64; memory stick installation images have been
-	changed to use the <acronym>MBR</acronym> partitioning scheme
-	instead of <acronym>GPT</acronym> in order to address issues
-	with some <acronym>BIOS</acronym>es that cannot boot from
-	<acronym>GPT</acronym> in non-<acronym>UEFI</acronym>
-	mode.</para>
+	&arch.amd64; memory stick image installer have been changed
+	to use the <acronym>MBR</acronym> partitioning scheme, which
+	addresses a boot issue from a <acronym>GPT</acronym> partition
+	scheme in non-<acronym>UEFI</acronym> mode.</para>
     </sect2>
   </sect1>
 </article>
