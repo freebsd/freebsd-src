@@ -709,7 +709,9 @@
     <sect2 xml:id="network-general">
       <title>General Network Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="329581" contrib="sponsor"
+	sponsor="&dellemc;">The &man.icmp6.4; protocol has been
+	updated to fix <acronym>ICMPv6</acronym> redirects.</para>
     </sect2>
 
     <sect2 xml:id="network-protocols">
