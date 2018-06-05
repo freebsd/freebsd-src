@@ -60,7 +60,7 @@ vendor UNKNOWN2		0x0105	Unknown vendor
 vendor EGALAX2		0x0123	eGalax, Inc.
 vendor CHIPSBANK	0x0204	Chipsbank Microelectronics Co.
 vendor HUMAX		0x02ad	HUMAX
-vendor INTENSO		0x2109	INTENSO
+vendor QUAN		0x01e1	Quan
 vendor LTS		0x0386	LTS
 vendor BWCT		0x03da	Bernd Walter Computer Technology
 vendor AOX		0x03e8	AOX
@@ -92,7 +92,7 @@ vendor FUJITSU2		0x0407	Fujitsu Personal Systems
 vendor QUANTA		0x0408	Quanta
 vendor NEC		0x0409	NEC
 vendor KODAK		0x040a	Eastman Kodak
-vendor WELTREND		0x040b	Weltrend
+vendor WELTREND		0x040b	Weltrend Semiconductor
 vendor VIA		0x040d	VIA
 vendor MCCI		0x040e	MCCI
 vendor MELCO		0x0411	Melco
@@ -145,7 +145,7 @@ vendor LUCENT		0x047e	Lucent
 vendor PLANTRONICS	0x047f	Plantronics
 vendor KYOCERA		0x0482	Kyocera Wireless Corp.
 vendor STMICRO		0x0483	STMicroelectronics
-vendor FOXCONN		0x0489	Foxconn
+vendor FOXCONN		0x0489	Foxconn / Hon Hai
 vendor MEIZU		0x0492	Meizu Electronics
 vendor YAMAHA		0x0499	YAMAHA
 vendor COMPAQ		0x049f	Compaq
@@ -197,7 +197,7 @@ vendor TOKYOELECTRON	0x04ec	Tokyo Electron
 vendor ANNABOOKS	0x04ed	Annabooks
 vendor JVC		0x04f1	JVC
 vendor CHICONY		0x04f2	Chicony Electronics
-vendor ELAN		0x04f3	Elan
+vendor ELAN		0x04f3	ELAN Microelectronics
 vendor NEWNEX		0x04f7	Newnex
 vendor BROTHER		0x04f9	Brother Industries
 vendor DALLAS		0x04fa	Dallas Semiconductor
@@ -254,6 +254,7 @@ vendor HAUPPAUGE	0x0573	Hauppauge Computer Works
 vendor BAFO		0x0576	BAFO/Quality Computer Accessories
 vendor YEDATA		0x057b	Y-E Data
 vendor AVM		0x057c	AVM
+vendor NINTENDO		0x057e	Nintendo
 vendor QUICKSHOT	0x057f	Quickshot
 vendor ROLAND		0x0582	Roland
 vendor ROCKFIRE		0x0583	Rockfire
@@ -311,6 +312,7 @@ vendor AOC		0x05f6	AOC International
 vendor CHIC		0x05fe	Chic Technology
 vendor BARCO		0x0600	Barco Display Systems
 vendor BRIDGE		0x0607	Bridge Information
+vendor SMK		0x0609	SMK
 vendor SOLIDYEAR	0x060b	Solid Year
 vendor BIORAD		0x0614	Bio-Rad Laboratories
 vendor MACALLY		0x0618	Macally
@@ -365,6 +367,7 @@ vendor IMATION		0x0718	Imation
 vendor TECLAST		0x071b	Teclast
 vendor SONYERICSSON	0x0731	Sony Ericsson
 vendor EICON		0x0734	Eicon Networks
+vendor MADCATZ		0x0738	Mad Catz, Inc.
 vendor SYNTECH		0x0745	Syntech Information
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
@@ -394,6 +397,7 @@ vendor MICROTECH	0x07af	Microtech
 vendor GENERALINSTMNTS	0x07b2	General Instruments (Motorola)
 vendor OLYMPUS		0x07b4	Olympus
 vendor ABOCOM		0x07b8	AboCom Systems
+vendor KINGSUN		0x07c0	KingSun
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken
 vendor ONSPEC		0x07c4	OnSpec
 vendor APG		0x07c5	APG Cash Drawer
@@ -407,11 +411,13 @@ vendor APTIO		0x07d2	Aptio Products
 vendor ARASAN		0x07da	Arasan Chip Systems
 vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
+vendor BEWAN		0x07fa	Bewan
 vendor CENTURY		0x07f7	Century Corp
 vendor NEWLINK		0x07ff	NEWlink
 vendor MAGTEK		0x0801	Mag-Tek
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
+vendor SYNET		0x0812	Synet Electronics
 vendor ALPHASMART	0x081e	AlphaSmart, Inc.
 vendor BROADLOGIC	0x0827	BroadLogic
 vendor HANDSPRING	0x082d	Handspring
@@ -469,8 +475,10 @@ vendor ACERW		0x0967	Acer
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
 vendor BECKHOFF		0x0978	Beckhoff
 vendor MINDSATWORK	0x097a	Minds At Work
+vendor ZIPPY		0x099a	Zippy Technology Corporation
 vendor POINTCHIPS	0x09a6	PointChips
 vendor INTERSIL		0x09aa	Intersil
+vendor TRIPPLITE2	0x09ae	Tripp Lite
 vendor ALTIUS		0x09b3	Altius Solutions
 vendor ARRIS		0x09c1	Arris Interactive
 vendor ACTIVCARD	0x09c3	ACTIVCARD
@@ -573,6 +581,7 @@ vendor DYNASTREAM	0x0fcf	Dynastream Innovations
 vendor LARSENBRUSGAARD	0x0fd8	Larsen and Brusgaard
 vendor OWL		0x0fde	OWL
 vendor KONTRON		0x0fe6	Kontron AG
+vendor DVICO		0x0fe9	DViCO
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
@@ -614,6 +623,7 @@ vendor SIEMENS3		0x11f5	Siemens
 vendor NETINDEX		0x11f6	NetIndex
 vendor ALCATEL		0x11f7	Alcatel
 vendor INTERBIOMETRICS	0x1209	Interbiometrics
+vendor FUJITSU3		0x1221	Fujitsu Ltd.
 vendor UNKNOWN3		0x1233	Unknown vendor
 vendor TSUNAMI		0x1241	Tsunami
 vendor PHEENET		0x124a	Pheenet
@@ -631,6 +641,7 @@ vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor DICKSMITH	0x1371	Dick Smith Electronics
 vendor NETGEAR3		0x1385	Netgear
+vendor VALIDITY		0x138a	Validity Sensors, Inc.
 vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
@@ -638,6 +649,7 @@ vendor AZUREWAVE	0x13d3	AsureWave
 vendor INITIO		0x13fd	Initio Corporation
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
+vendor OMNIVISION2	0x1415	OmniVision Technologies, Inc.
 vendor MERLIN		0x1416	Merlin
 vendor REDOCTANE	0x1430	RedOctane
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
@@ -692,17 +704,23 @@ vendor ASUS2		0x1761	ASUS
 vendor SWEEX2		0x177f	Sweex
 vendor METAGEEK		0x1781	MetaGeek
 vendor KAMSTRUP		0x17a8	Kamstrup A/S
+vendor MISC		0x1781	Misc Vendors
 vendor DISPLAYLINK	0x17e9	DisplayLink
 vendor LENOVO		0x17ef	Lenovo
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
+vendor E3C		0x18b4	E3C Technologies
 vendor AMIT		0x18c5	AMIT
 vendor GOOGLE		0x18d1	Google
 vendor QCOM		0x18e8	Qcom
 vendor ELV		0x18ef	ELV
 vendor LINKSYS3		0x1915	Linksys
+vendor MEINBERG		0x1938	Meinberg Funkuhren
+vendor BECEEM		0x198f	Beceem Communications
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor QUALCOMM3	0x19f5	Qualcomm, Inc.
+vendor QUANTA2		0x1a32	Quanta
+vendor TERMINUS		0x1a40	Terminus Technology
 vendor ABBOTT		0x1a61	Abbott Diabetics
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
@@ -741,11 +759,15 @@ vendor QIHARDWARE	0x20b7	QI-hardware
 vendor PARA		0x20b8	PARA Industrial
 vendor SIMTEC		0x20df	Simtec Electronics
 vendor TRENDNET		0x20f4  TRENDnet
-vendor RTSYSTEMS	0x2100	RTSYSTEMS
+vendor RTSYSTEMS	0x2100	RT Systems
+vendor DLINK4		0x2101	D-Link
+vendor INTENSO		0x2109	INTENSO
 vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor WETELECOM	0x22de	WeTelecom
+vendor PINNACLE		0x2304	Pinnacle Systems
+vendor ARDUINO		0x2341	Arduino SA
 vendor TPLINK		0x2357	TP-Link
 vendor WESTMOUNTAIN	0x2405	West Mountain Radio
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -775,7 +797,9 @@ vendor SWEEX		0x5173	Sweex
 vendor PROLIFIC2	0x5372	Prolific Technologies
 vendor ONSPEC2		0x55aa	OnSpec Electronic Inc.
 vendor ZINWELL		0x5a57	Zinwell
+vendor INGENIC		0x601a	Ingenic Semiconductor Ltd.
 vendor SITECOM		0x6189	Sitecom
+vendor SPRINGERDESIGN	0x6400	Springer Design, Inc.
 vendor ARKMICRO		0x6547	Arkmicro Technologies Inc.
 vendor 3COM2		0x6891	3Com
 vendor EDIMAX		0x7392	Edimax
@@ -788,8 +812,10 @@ vendor NETGEAR4		0x9846  Netgear
 vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
 vendor 3COM3		0xa727	3Com
 vendor CACE		0xcace	CACE Technologies
-vendor EVOLUTION	0xdeee	Evolution Robotics products
+vendor COMPARE		0xcdab	Compare
 vendor DATAAPEX		0xdaae	DataApex
+vendor EVOLUTION	0xdeee	Evolution Robotics
+vendor EMPIA		0xeb1a	eMPIA Technology
 vendor HP2		0xf003	Hewlett Packard
 vendor LOGILINK		0xfc08	LogiLink
 vendor USRP		0xfffe	GNU Radio USRP
@@ -799,7 +825,7 @@ vendor USRP		0xfffe	GNU Radio USRP
  */
 
 /* 3Com products */
-product 3COM HOMECONN		0x009d	HomeConnect Camera
+product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3CREB96		0x00a0	Bluetooth USB Adapter
 product 3COM 3C19250		0x03e8	3C19250 Ethernet Adapter
 product 3COM 3CRSHEW696		0x0a01	3CRSHEW696 Wireless Adapter
@@ -822,6 +848,10 @@ product ABBOTT STRIP_PORT	0x3420	Abbott Diabetics Strip Port
 
 /* ABIT products */
 product ABIT AK_020		0x7d0e	3G modem
+
+product ACDC HUB		0x2315	USB Pen Drive HUB
+product ACDC SECWRITE		0x2316	USB Pen Drive Secure Write
+product ACDC PEN		0x2317	USB Pen Drive with Secure Write
 
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
@@ -929,6 +959,9 @@ product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 
 /* Adaptec products */
 product ADAPTEC AWN8020		0x0020	AWN-8020 WLAN
+
+/* Addonics products */
+product ADDONICS2 205		0xa001	Cable 205
 
 /* Addtron products */
 product ADDTRON AWU120		0xff31	AWU-120
@@ -2238,6 +2271,7 @@ product GLOBALSUN AR5523_2	0x7811	AR5523
 product GLOBALSUN AR5523_2_NF	0x7812	AR5523 (no firmware)
 
 /* Globespan products */
+product	GLOBESPAN MODEM_1	0x1329	USB Modem
 product GLOBESPAN PRISM_GT_1	0x2000	PrismGT USB 2.0 WLAN
 product GLOBESPAN PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 
@@ -4755,7 +4789,18 @@ product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
+product YAMAHA MU1000		0x1001	MU1000 MIDI Synth.
+product YAMAHA MU2000		0x1002	MU2000 MIDI Synth.
+product YAMAHA MU500		0x1003	MU500 MIDI Synth.
+product YAMAHA UW500		0x1004	UW500 USB Audio I/F
+product YAMAHA MOTIF6		0x1005	MOTIF6 MIDI Synth. Workstation
+product YAMAHA MOTIF7		0x1006	MOTIF7 MIDI Synth. Workstation
+product YAMAHA MOTIF8		0x1007	MOTIF8 MIDI Synth. Workstation
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
+product YAMAHA UX16		0x1009	UX16 MIDI I/F
+product YAMAHA S08		0x100e	S08 MIDI Keyboard
+product YAMAHA CLP150		0x100f	CLP-150 digital piano
+product YAMAHA CLP170		0x1010	CLP-170 digital piano
 product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
@@ -4790,6 +4835,9 @@ product ZCOM UB81		0x0023	UB81
 product ZCOM RT2870_2		0x0025	RT2870
 product ZCOM UB82		0x0026	UB82
 
+/* Zeevo, Inc. products */
+product ZEEVO BLUETOOTH		0x07d0	BT-500 Bluetooth USB Adapter
+
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
 product ZINWELL RT2870_1	0x0280	RT2870
@@ -4800,14 +4848,28 @@ product ZINWELL RT3070		0x5257	RT3070
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
+product ZOOM 3095		0x3095	3095 USB Fax modem
 
 /* Zoran Microelectronics products */
 product ZORAN EX20DSC		0x4343	Digital Camera EX-20 DSC
 
+/* ZTE products */
+product ZTE MF622		0x0001	MF622 modem
+product ZTE MF628		0x0015	MF628 modem
+product ZTE MF626		0x0031	MF626 modem
+product ZTE MF820D_INSTALLER	0x0166	MF820D CD
+product ZTE MF820D		0x0167	MF820D modem
+product ZTE INSTALLER		0x2000	UMTS CD
+product ZTE MC2718		0xffe8	MC2718 modem
+product ZTE AC8700		0xfffe	CDMA 1xEVDO USB modem
+
 /* Zydas Technology Corporation products */
+product ZYDAS ZD1201		0x1201	ZD1201
 product ZYDAS ZD1211		0x1211	ZD1211 WLAN abg
 product ZYDAS ZD1211B		0x1215	ZD1211B
 product ZYDAS ZD1221		0x1221	ZD1221
+product ZYDAS ALL0298		0xa211	ALL0298
+product ZYDAS ZD1211B_2		0xb215	ZD1211B
 
 /* ZyXEL Communication Co. products */
 product ZYXEL OMNI56K		0x1500	Omni 56K Plus
@@ -4816,8 +4878,10 @@ product ZYXEL ZYAIRG220		0x3401	ZyAIR G-220
 product ZYXEL G200V2		0x3407	G-200 v2
 product ZYXEL AG225H		0x3409	AG-225H
 product ZYXEL M202		0x340a	M-202
+product ZYXEL G270S		0x340c	G-270S
 product ZYXEL G220V2		0x340f	G-220 v2
 product ZYXEL G202		0x3410	G-202
+product ZYXEL RT2573		0x3415	RT2573
 product ZYXEL RT2870_1		0x3416	RT2870
 product ZYXEL NWD271N		0x3417	NWD-271N
 product ZYXEL NWD211AN		0x3418	NWD-211AN
@@ -4825,4 +4889,5 @@ product ZYXEL RT2870_2		0x341a	RT2870
 product ZYXEL RT3070		0x341e	NWD2105
 product ZYXEL RTL8192CU		0x341f	RTL8192CU
 product ZYXEL NWD2705		0x3421	NWD2705
-product ZYXEL NWD6605		0x3426	NWD6605
+product ZYXEL NWD6605		0x3426	ND6605
+product ZYXEL PRESTIGE		0x401a	Prestige
