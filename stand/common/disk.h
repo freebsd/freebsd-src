@@ -81,9 +81,8 @@
 #ifndef	_DISK_H
 #define	_DISK_H
 
-/* Note: Must match the 'struct devdesc' in stand.h */
 struct disk_devdesc {
-	struct devdesc	dd;
+	struct devdesc	dd;		/* Must be first. */
 	int		d_slice;
 	int		d_partition;
 	uint64_t	d_offset;
