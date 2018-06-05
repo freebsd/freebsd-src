@@ -519,7 +519,10 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para>&nbsp;</para>
+      <para revision="326322" contrib="sponsor"
+	sponsor="&spectralogic;">The
+	<literal>p1003_1b.aio_listio</literal> &man.sysctl.8; has been
+	changed to a runtime-configurable tunable.</para>
     </sect2>
   </sect1>
 
