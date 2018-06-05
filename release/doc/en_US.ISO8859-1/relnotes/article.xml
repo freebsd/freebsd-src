@@ -509,6 +509,9 @@
 	updated to support &linux;-specific &man.fd.4;
 	<filename>/dev/fd</filename> and
 	<filename>/proc/self/fd</filename> behavior.</para>
+
+      <para revision="323447">Support for multiple realtime clocks has
+	been added.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
