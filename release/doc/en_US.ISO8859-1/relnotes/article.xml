@@ -519,6 +519,10 @@
 
       <para revision="324175">The &man.ng.iface.4; driver has been
 	updated to prevent a possible system crash.</para>
+
+      <para revision="325730">The &man.ipfw.4; packet filter has been
+	updated to identify layer-2 and layer-3 packets, fixing
+	&man.dummynet.4; <acronym>AQM</acronym> packet marking.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
