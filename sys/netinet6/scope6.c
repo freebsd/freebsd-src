@@ -453,7 +453,7 @@ in6_clearscope(struct in6_addr *in6)
  * Return the scope identifier or zero.
  */
 uint16_t
-in6_getscope(struct in6_addr *in6)
+in6_getscope(const struct in6_addr *in6)
 {
 
 	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6))
