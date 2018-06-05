@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
@@ -81,22 +80,9 @@ static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(ip6_gif_hlim), 0, "");
-
-static int in6_gif_input(struct mbuf **, int *, int);
-
-extern  struct domain inet6domain;
-static struct protosw in6_gif_protosw = {
-	.pr_type =	SOCK_RAW,
-	.pr_domain =	&inet6domain,
-	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
-	.pr_flags =	PR_ATOMIC|PR_ADDR,
-	.pr_input =	in6_gif_input,
-	.pr_output =	rip6_output,
-	.pr_ctloutput =	rip6_ctloutput,
-	.pr_usrreqs =	&rip6_usrreqs
-};
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_gif_hlim), 0,
+    "Default hop limit for encapsulated packets");
 
 int
 in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
@@ -147,15 +133,13 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 }
 
 static int
-in6_gif_input(struct mbuf **mp, int *offp, int proto)
+in6_gif_input(struct mbuf *m, int off, int proto, void *arg)
 {
-	struct mbuf *m = *mp;
+	struct gif_softc *sc = arg;
 	struct ifnet *gifp;
-	struct gif_softc *sc;
 	struct ip6_hdr *ip6;
 	uint8_t ecn;
 
-	sc = encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
 		IP6STAT_INC(ip6s_nogif);
@@ -165,7 +149,7 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 	if ((gifp->if_flags & IFF_UP) != 0) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		ecn = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
-		m_adj(m, *offp);
+		m_adj(m, off);
 		gif_input(m, gifp, proto, ecn);
 	} else {
 		m_freem(m);
@@ -219,14 +203,19 @@ in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	return (ret);
 }
 
+static const struct encap_config ipv6_encap_cfg = {
+	.proto = -1,
+	.min_length = sizeof(struct ip6_hdr),
+	.exact_match = (sizeof(struct in6_addr) << 4) + 8,
+	.check = gif_encapcheck,
+	.input = in6_gif_input
+};
+
 int
 in6_gif_attach(struct gif_softc *sc)
 {
 
 	KASSERT(sc->gif_ecookie == NULL, ("gif_ecookie isn't NULL"));
-	sc->gif_ecookie = encap_attach_func(AF_INET6, -1, gif_encapcheck,
-	    (void *)&in6_gif_protosw, sc);
-	if (sc->gif_ecookie == NULL)
-		return (EEXIST);
+	sc->gif_ecookie = ip6_encap_attach(&ipv6_encap_cfg, sc, M_WAITOK);
 	return (0);
 }

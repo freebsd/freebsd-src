@@ -923,12 +923,24 @@ bad:
 }
 
 static void
-gif_detach(struct gif_softc *sc)
+gif_detach(struct gif_softc *sc, int family)
 {
 
 	sx_assert(&gif_ioctl_sx, SA_XLOCKED);
-	if (sc->gif_ecookie != NULL)
-		encap_detach(sc->gif_ecookie);
+	if (sc->gif_ecookie != NULL) {
+		switch (family) {
+#ifdef INET
+		case AF_INET:
+			ip_encap_detach(sc->gif_ecookie);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			ip6_encap_detach(sc->gif_ecookie);
+			break;
+#endif
+		}
+	}
 	sc->gif_ecookie = NULL;
 }
 
@@ -1020,7 +1032,7 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 	}
 
 	if (sc->gif_family != src->sa_family)
-		gif_detach(sc);
+		gif_detach(sc, sc->gif_family);
 	if (sc->gif_family == 0 ||
 	    sc->gif_family != src->sa_family)
 		error = gif_attach(sc, src->sa_family);
@@ -1058,7 +1070,7 @@ gif_delete_tunnel(struct ifnet *ifp)
 	sc->gif_family = 0;
 	GIF_WUNLOCK(sc);
 	if (family != 0) {
-		gif_detach(sc);
+		gif_detach(sc, family);
 		free(sc->gif_hdr, M_GIF);
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

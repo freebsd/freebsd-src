@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
@@ -70,25 +69,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-static int in_gif_input(struct mbuf **, int *, int);
-
-extern  struct domain inetdomain;
-static struct protosw in_gif_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		0/* IPPROTO_IPV[46] */,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		in_gif_input,
-	.pr_output =		rip_output,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-
 #define GIF_TTL		30
 static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(ip_gif_ttl), 0, "");
+    &VNET_NAME(ip_gif_ttl), 0, "Default TTL value for encapsulated packets");
 
 int
 in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
@@ -136,15 +121,13 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 }
 
 static int
-in_gif_input(struct mbuf **mp, int *offp, int proto)
+in_gif_input(struct mbuf *m, int off, int proto, void *arg)
 {
-	struct mbuf *m = *mp;
-	struct gif_softc *sc;
+	struct gif_softc *sc = arg;
 	struct ifnet *gifp;
 	struct ip *ip;
 	uint8_t ecn;
 
-	sc = encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
@@ -154,7 +137,7 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 	if ((gifp->if_flags & IFF_UP) != 0) {
 		ip = mtod(m, struct ip *);
 		ecn = ip->ip_tos;
-		m_adj(m, *offp);
+		m_adj(m, off);
 		gif_input(m, gifp, proto, ecn);
 	} else {
 		m_freem(m);
@@ -182,7 +165,7 @@ in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	ip = mtod(m, const struct ip *);
 	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr)
 		return (0);
-	ret = 32;
+	ret = 32 + 8; /* src + proto */
 	if (sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr) {
 		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
 			return (0);
@@ -205,14 +188,19 @@ in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	return (ret);
 }
 
+static const struct encap_config ipv4_encap_cfg = {
+	.proto = -1,
+	.min_length = sizeof(struct ip),
+	.exact_match = (sizeof(in_addr_t) << 4) + 8,
+	.check = gif_encapcheck,
+	.input = in_gif_input
+};
+
 int
 in_gif_attach(struct gif_softc *sc)
 {
 
 	KASSERT(sc->gif_ecookie == NULL, ("gif_ecookie isn't NULL"));
-	sc->gif_ecookie = encap_attach_func(AF_INET, -1, gif_encapcheck,
-	    &in_gif_protosw, sc);
-	if (sc->gif_ecookie == NULL)
-		return (EEXIST);
+	sc->gif_ecookie = ip_encap_attach(&ipv4_encap_cfg, sc, M_WAITOK);
 	return (0);
 }
