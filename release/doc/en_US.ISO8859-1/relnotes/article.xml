@@ -528,7 +528,10 @@
     <sect2 xml:id="kernel-config">
       <title>Kernel Configuration</title>
 
-      <para>&nbsp;</para>
+      <para revision="327920">The &man.watchdog.4; facility has been
+	updated to make <literal>SW_WATCHDOG</literal> dynamic,
+	enabling the software &man.watchdogd.8; option whenever
+	a hardware watchdog is not present.</para>
     </sect2>
 
     <sect2 xml:id="kernel-modules">
