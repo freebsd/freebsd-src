@@ -630,6 +630,10 @@
 
       <para revision="333738">The &man.vxge.4; driver has been marked
 	as deprecated, and will be removed in &os;&nbsp;12.</para>
+
+      <para revision="333417">The &man.smartpqi.4; driver has been
+	added, providing support for Microsemi&reg;
+	<acronym>SCSI</acronym> controllers.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
