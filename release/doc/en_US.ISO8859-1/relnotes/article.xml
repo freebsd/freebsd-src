@@ -337,6 +337,12 @@
 	allow the <literal>@</literal> and <literal>!</literal>
 	characters in the <acronym>GECOS</acronym> field.</para>
 
+      <para revision="330733" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.zfsd.8; utility has been
+	updated to work with any type of <acronym>GEOM</acronym>
+	provider, including &man.md.4;, &man.geli.8;, &man.glabel.8;,
+	and &man.gstripe.8;.</para>
+
       <para revision="331471">The &man.ps.1; utility has been updated
 	to include a <literal>jail</literal> keyword, which when used
 	will list the name of a &man.jail.8; instead of the numeric
