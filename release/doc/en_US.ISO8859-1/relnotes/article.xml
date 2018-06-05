@@ -572,6 +572,13 @@
 	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
 	to firmware version 1.16.63.0 for T4, T5, and T6 network
 	adapters.</para>
+
+      <para revision="332040" contrib="sponsor"
+	sponsor="&broadcom;">The &man.ocs.fc.4; driver has been added,
+	supporting Emulex&nbsp;16/8G&nbsp;FC&nbsp;GEN&nbsp;5
+	<acronym>HBA</acronym>s LPe15004 and LPe160XX, and
+	Emulex&nbsp;32/16G&nbsp;FC&nbsp;GEN&nbsp;6
+	<acronym>HBA</acronym>s LPe3100X and LPe3200X.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
