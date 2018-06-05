@@ -63,6 +63,9 @@
 #define	PMC_FN_THR_CREATE		12
 #define	PMC_FN_THR_EXIT			13
 #define	PMC_FN_THR_USERRET		14
+#define	PMC_FN_THR_CREATE_LOG		15
+#define	PMC_FN_THR_EXIT_LOG		16
+#define	PMC_FN_PROC_CREATE_LOG		17
 
 #define	PMC_HR	0	/* Hardware ring buffer */
 #define	PMC_SR	1	/* Software ring buffer */

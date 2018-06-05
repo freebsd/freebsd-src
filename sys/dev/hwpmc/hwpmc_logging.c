@@ -229,7 +229,7 @@ static void pmclog_loop(void *arg);
 static void pmclog_release(struct pmc_owner *po);
 static uint32_t *pmclog_reserve(struct pmc_owner *po, int length);
 static void pmclog_schedule_io(struct pmc_owner *po, int wakeup);
-static void pmclog_schedule_all(struct pmc_owner *po);
+static void pmclog_schedule_all(struct pmc_owner *po, int force);
 static void pmclog_stop_kthread(struct pmc_owner *po);
 
 /*
@@ -808,7 +808,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
  */
 
 int
-pmclog_flush(struct pmc_owner *po)
+pmclog_flush(struct pmc_owner *po, int force)
 {
 	int error;
 
@@ -832,7 +832,7 @@ pmclog_flush(struct pmc_owner *po)
 		goto error;
 	}
 
-	pmclog_schedule_all(po);
+	pmclog_schedule_all(po, force);
  error:
 	mtx_unlock(&pmc_kthread_mtx);
 
@@ -840,9 +840,8 @@ pmclog_flush(struct pmc_owner *po)
 }
 
 static void
-pmclog_schedule_one_cond(void *arg)
+pmclog_schedule_one_cond(struct pmc_owner *po, int force)
 {
-	struct pmc_owner *po = arg;
 	struct pmclog_buffer *plb;
 	int cpu;
 
@@ -851,7 +850,8 @@ pmclog_schedule_one_cond(void *arg)
 	/* tell hardclock not to run again */
 	if (PMC_CPU_HAS_SAMPLES(cpu))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
-	pmc_flush_samples(cpu);
+	if (force)
+		pmc_flush_samples(cpu);
 	plb = po->po_curbuf[cpu];
 	if (plb && plb->plb_ptr != plb->plb_base)
 		pmclog_schedule_io(po, 1);
@@ -859,7 +859,7 @@ pmclog_schedule_one_cond(void *arg)
 }
 
 static void
-pmclog_schedule_all(struct pmc_owner *po)
+pmclog_schedule_all(struct pmc_owner *po, int force)
 {
 	/*
 	 * Schedule the current buffer if any and not empty.
@@ -868,7 +868,7 @@ pmclog_schedule_all(struct pmc_owner *po)
 		thread_lock(curthread);
 		sched_bind(curthread, i);
 		thread_unlock(curthread);
-		pmclog_schedule_one_cond(po);
+		pmclog_schedule_one_cond(po, force);
 	}
 	thread_lock(curthread);
 	sched_unbind(curthread);
@@ -895,7 +895,7 @@ pmclog_close(struct pmc_owner *po)
 	/*
 	 * Schedule the current buffer.
 	 */
-	pmclog_schedule_all(po);
+	pmclog_schedule_all(po, 0);
 	wakeup_one(po);
 
 	mtx_unlock(&pmc_kthread_mtx);
@@ -1044,6 +1044,22 @@ pmclog_process_pmcdetach(struct pmc *pm, pid_t pid)
 	PMCLOG_DESPATCH_SYNC(po);
 }
 
+void
+pmclog_process_proccreate(struct pmc_owner *po, struct proc *p, int sync)
+{
+	if (sync) {
+		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
+		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
+		PMCLOG_DESPATCH_SYNC(po);
+	} else {
+		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
+		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
+		PMCLOG_DESPATCH(po);
+	}
+}
+
 /*
  * Log a context switch event to the log file.
  */
@@ -1079,14 +1095,13 @@ pmclog_process_procexec(struct pmc_owner *po, pmc_id_t pmid, pid_t pid,
 
 	pathlen   = strlen(path) + 1;	/* #bytes for the path */
 	recordlen = offsetof(struct pmclog_procexec, pl_pathname) + pathlen;
-
 	PMCLOG_RESERVE(po, PROCEXEC, recordlen);
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMIT32(pmid);
 	PMCLOG_EMIT32(0);
 	PMCLOG_EMITADDR(startaddr);
 	PMCLOG_EMITSTRING(path,pathlen);
-	PMCLOG_DESPATCH(po);
+	PMCLOG_DESPATCH_SYNC(po);
 }
 
 /*
@@ -1135,6 +1150,38 @@ pmclog_process_sysexit(struct pmc_owner *po, pid_t pid)
 {
 	PMCLOG_RESERVE(po, SYSEXIT, sizeof(struct pmclog_sysexit));
 	PMCLOG_EMIT32(pid);
+	PMCLOG_DESPATCH(po);
+}
+
+void
+pmclog_process_threadcreate(struct pmc_owner *po, struct thread *td, int sync)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	if (sync) {
+		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
+		PMCLOG_EMIT32(td->td_tid);
+		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMIT32(0);
+		PMCLOG_EMITSTRING(td->td_name, MAXCOMLEN+1);
+		PMCLOG_DESPATCH_SYNC(po);
+	} else {
+		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
+		PMCLOG_EMIT32(td->td_tid);
+		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMIT32(0);
+		PMCLOG_EMITSTRING(td->td_name, MAXCOMLEN+1);
+		PMCLOG_DESPATCH(po);
+	}
+}
+
+void
+pmclog_process_threadexit(struct pmc_owner *po, struct thread *td)
+{
+
+	PMCLOG_RESERVE(po, THR_EXIT, sizeof(struct pmclog_threadexit));
+	PMCLOG_EMIT32(td->td_tid);
 	PMCLOG_DESPATCH(po);
 }
 

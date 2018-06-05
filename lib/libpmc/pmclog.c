@@ -404,6 +404,19 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_USERDATA:
 		PMCLOG_READ32(le,ev->pl_u.pl_u.pl_userdata);
 		break;
+	case PMCLOG_TYPE_THR_CREATE:
+		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_tid);
+		PMCLOG_READ32(le,ev->pl_u.pl_tc.pl_pid);
+		PMCLOG_READ32(le,noop);
+		memcpy(ev->pl_u.pl_tc.pl_tdname, le, MAXCOMLEN+1);
+		break;
+	case PMCLOG_TYPE_THR_EXIT:
+		PMCLOG_READ32(le,ev->pl_u.pl_te.pl_tid);
+		break;
+	case PMCLOG_TYPE_PROC_CREATE:
+		PMCLOG_READ32(le,ev->pl_u.pl_pc.pl_pid);
+		memcpy(ev->pl_u.pl_pc.pl_pcomm, le, MAXCOMLEN+1);
+		break;
 	default:	/* unknown record type */
 		ps->ps_state = PL_STATE_ERROR;
 		ev->pl_state = PMCLOG_ERROR;
