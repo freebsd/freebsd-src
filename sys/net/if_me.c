@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/protosw.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -122,11 +121,22 @@ static int	me_transmit(struct ifnet *, struct mbuf *);
 static int	me_ioctl(struct ifnet *, u_long, caddr_t);
 static int	me_output(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
-static int	me_input(struct mbuf **, int *, int);
+static int	me_input(struct mbuf *, int, int, void *);
 
 static int	me_set_tunnel(struct ifnet *, struct sockaddr_in *,
     struct sockaddr_in *);
 static void	me_delete_tunnel(struct ifnet *);
+static int	me_encapcheck(const struct mbuf *, int, int, void *);
+
+#define	ME_MINLEN	(sizeof(struct ip) + sizeof(struct mobhdr) -\
+    sizeof(in_addr_t))
+static const struct encap_config ipv4_encap_cfg = {
+	.proto = IPPROTO_MOBILE,
+	.min_length = ME_MINLEN,
+	.exact_match = (sizeof(in_addr_t) << 4) + 8,
+	.check = me_encapcheck,
+	.input = me_input
+};
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW, 0,
@@ -139,19 +149,6 @@ static VNET_DEFINE(int, max_me_nesting) = MAX_ME_NEST;
 #define	V_max_me_nesting	VNET(max_me_nesting)
 SYSCTL_INT(_net_link_me, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_me_nesting), 0, "Max nested tunnels");
-
-extern struct domain inetdomain;
-static const struct protosw in_mobile_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_MOBILE,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		me_input,
-	.pr_output =		rip_output,
-	.pr_ctlinput =		rip_ctlinput,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
 
 static void
 vnet_me_init(const void *unused __unused)
@@ -334,17 +331,13 @@ me_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_pkthdr.len < sizeof(struct ip) + sizeof(struct mobhdr) -
-	    sizeof(struct in_addr))
-		return (0);
-
 	ret = 0;
 	ME_RLOCK(sc);
 	if (ME_READY(sc)) {
 		ip = mtod(m, struct ip *);
 		if (sc->me_src.s_addr == ip->ip_dst.s_addr &&
 		    sc->me_dst.s_addr == ip->ip_src.s_addr)
-			ret = 32 * 2;
+			ret = 32 * 2 + 8;
 	}
 	ME_RUNLOCK(sc);
 	return (ret);
@@ -376,8 +369,8 @@ me_set_tunnel(struct ifnet *ifp, struct sockaddr_in *src,
 	ME_WUNLOCK(sc);
 
 	if (sc->me_ecookie == NULL)
-		sc->me_ecookie = encap_attach_func(AF_INET, IPPROTO_MOBILE,
-		    me_encapcheck, &in_mobile_protosw, sc);
+		sc->me_ecookie = ip_encap_attach(&ipv4_encap_cfg,
+		    sc, M_WAITOK);
 	if (sc->me_ecookie != NULL) {
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		if_link_state_change(ifp, LINK_STATE_UP);
@@ -392,7 +385,7 @@ me_delete_tunnel(struct ifnet *ifp)
 
 	sx_assert(&me_ioctl_sx, SA_XLOCKED);
 	if (sc->me_ecookie != NULL)
-		encap_detach(sc->me_ecookie);
+		ip_encap_detach(sc->me_ecookie);
 	sc->me_ecookie = NULL;
 	ME_WLOCK(sc);
 	sc->me_src.s_addr = 0;
@@ -414,19 +407,14 @@ me_in_cksum(uint16_t *p, int nwords)
 	return (~sum);
 }
 
-int
-me_input(struct mbuf **mp, int *offp, int proto)
+static int
+me_input(struct mbuf *m, int off, int proto, void *arg)
 {
-	struct me_softc *sc;
+	struct me_softc *sc = arg;
 	struct mobhdr *mh;
 	struct ifnet *ifp;
-	struct mbuf *m;
 	struct ip *ip;
 	int hlen;
-
-	m = *mp;
-	sc = encap_getarg(m);
-	KASSERT(sc != NULL, ("encap_getarg returned NULL"));
 
 	ifp = ME2IFP(sc);
 	/* checks for short packets */

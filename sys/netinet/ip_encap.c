@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (c) 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,417 +57,214 @@
  * So, clearly good old protosw does not work for protocol #4 and #41.
  * The code will let you match protocol via src/dst address pair.
  */
-/* XXX is M_NETADDR correct? */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mrouting.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
-#include <sys/protosw.h>
-#include <sys/queue.h>
+#include <sys/socket.h>
 
 #include <net/if.h>
-#include <net/route.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
 
 #ifdef INET6
-#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
 
-#include <machine/stdarg.h>
+static MALLOC_DEFINE(M_NETADDR, "encap_export_host",
+    "Export host address structure");
 
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-static MALLOC_DEFINE(M_NETADDR, "encap_export_host", "Export host address structure");
+struct encaptab {
+	CK_LIST_ENTRY(encaptab) chain;
+	int		proto;
+	int		min_length;
+	int		exact_match;
+	void		*arg;
 
-static void encap_add(struct encaptab *);
-static int mask_match(const struct encaptab *, const struct sockaddr *,
-		const struct sockaddr *);
-static void encap_fillarg(struct mbuf *, void *);
+	encap_lookup_t	lookup;
+	encap_check_t	check;
+	encap_input_t	input;
+};
 
-/*
- * All global variables in ip_encap.c are locked using encapmtx.
- */
+CK_LIST_HEAD(encaptab_head, encaptab);
+#ifdef INET
+static struct encaptab_head ipv4_encaptab = CK_LIST_HEAD_INITIALIZER();
+#endif
+#ifdef INET6
+static struct encaptab_head ipv6_encaptab = CK_LIST_HEAD_INITIALIZER();
+#endif
+
 static struct mtx encapmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
-static LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(encaptab);
+#define	ENCAP_WLOCK()		mtx_lock(&encapmtx)
+#define	ENCAP_WUNLOCK()		mtx_unlock(&encapmtx)
+#define	ENCAP_RLOCK()		epoch_enter_preempt(net_epoch_preempt)
+#define	ENCAP_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt)
+#define	ENCAP_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
-#ifdef INET
-int
-encap4_input(struct mbuf **mp, int *offp, int proto)
+static struct encaptab *
+encap_attach(struct encaptab_head *head, const struct encap_config *cfg,
+    void *arg, int mflags)
 {
-	struct ip *ip;
-	struct mbuf *m;
-	struct sockaddr_in s, d;
-	const struct protosw *psw;
-	struct encaptab *ep, *match;
-	void *arg;
-	int matchprio, off, prio;
+	struct encaptab *ep, *tmp;
 
-	m = *mp;
-	off = *offp;
-	ip = mtod(m, struct ip *);
-
-	bzero(&s, sizeof(s));
-	s.sin_family = AF_INET;
-	s.sin_len = sizeof(struct sockaddr_in);
-	s.sin_addr = ip->ip_src;
-	bzero(&d, sizeof(d));
-	d.sin_family = AF_INET;
-	d.sin_len = sizeof(struct sockaddr_in);
-	d.sin_addr = ip->ip_dst;
-
-	arg = NULL;
-	psw = NULL;
-	match = NULL;
-	matchprio = 0;
-	mtx_lock(&encapmtx);
-	LIST_FOREACH(ep, &encaptab, chain) {
-		if (ep->af != AF_INET)
-			continue;
-		if (ep->proto >= 0 && ep->proto != proto)
-			continue;
-		if (ep->func)
-			prio = (*ep->func)(m, off, proto, ep->arg);
-		else {
-			/*
-			 * it's inbound traffic, we need to match in reverse
-			 * order
-			 */
-			prio = mask_match(ep, (struct sockaddr *)&d,
-			    (struct sockaddr *)&s);
-		}
-
-		/*
-		 * We prioritize the matches by using bit length of the
-		 * matches.  mask_match() and user-supplied matching function
-		 * should return the bit length of the matches (for example,
-		 * if both src/dst are matched for IPv4, 64 should be returned).
-		 * 0 or negative return value means "it did not match".
-		 *
-		 * The question is, since we have two "mask" portion, we
-		 * cannot really define total order between entries.
-		 * For example, which of these should be preferred?
-		 * mask_match() returns 48 (32 + 16) for both of them.
-		 *	src=3ffe::/16, dst=3ffe:501::/32
-		 *	src=3ffe:501::/32, dst=3ffe::/16
-		 *
-		 * We need to loop through all the possible candidates
-		 * to get the best match - the search takes O(n) for
-		 * n attachments (i.e. interfaces).
-		 */
-		if (prio <= 0)
-			continue;
-		if (prio > matchprio) {
-			matchprio = prio;
-			match = ep;
-		}
-	}
-	if (match != NULL) {
-		psw = match->psw;
-		arg = match->arg;
-	}
-	mtx_unlock(&encapmtx);
-
-	if (match != NULL) {
-		/* found a match, "match" has the best one */
-		if (psw != NULL && psw->pr_input != NULL) {
-			encap_fillarg(m, arg);
-			(*psw->pr_input)(mp, offp, proto);
-		} else
-			m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
-	/* last resort: inject to raw socket */
-	return (rip_input(mp, offp, proto));
-}
-#endif
-
-#ifdef INET6
-int
-encap6_input(struct mbuf **mp, int *offp, int proto)
-{
-	struct mbuf *m = *mp;
-	struct ip6_hdr *ip6;
-	struct sockaddr_in6 s, d;
-	const struct protosw *psw;
-	struct encaptab *ep, *match;
-	void *arg;
-	int prio, matchprio;
-
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	bzero(&s, sizeof(s));
-	s.sin6_family = AF_INET6;
-	s.sin6_len = sizeof(struct sockaddr_in6);
-	s.sin6_addr = ip6->ip6_src;
-	bzero(&d, sizeof(d));
-	d.sin6_family = AF_INET6;
-	d.sin6_len = sizeof(struct sockaddr_in6);
-	d.sin6_addr = ip6->ip6_dst;
-
-	arg = NULL;
-	psw = NULL;
-	match = NULL;
-	matchprio = 0;
-	mtx_lock(&encapmtx);
-	LIST_FOREACH(ep, &encaptab, chain) {
-		if (ep->af != AF_INET6)
-			continue;
-		if (ep->proto >= 0 && ep->proto != proto)
-			continue;
-		if (ep->func)
-			prio = (*ep->func)(m, *offp, proto, ep->arg);
-		else {
-			/*
-			 * it's inbound traffic, we need to match in reverse
-			 * order
-			 */
-			prio = mask_match(ep, (struct sockaddr *)&d,
-			    (struct sockaddr *)&s);
-		}
-
-		/* see encap4_input() for issues here */
-		if (prio <= 0)
-			continue;
-		if (prio > matchprio) {
-			matchprio = prio;
-			match = ep;
-		}
-	}
-	if (match != NULL) {
-		psw = match->psw;
-		arg = match->arg;
-	}
-	mtx_unlock(&encapmtx);
-
-	if (match != NULL) {
-		/* found a match */
-		if (psw != NULL && psw->pr_input != NULL) {
-			encap_fillarg(m, arg);
-			return (*psw->pr_input)(mp, offp, proto);
-		} else {
-			m_freem(m);
-			return (IPPROTO_DONE);
-		}
-	}
-
-	/* last resort: inject to raw socket */
-	return rip6_input(mp, offp, proto);
-}
-#endif
-
-/*lint -sem(encap_add, custodial(1)) */
-static void
-encap_add(struct encaptab *ep)
-{
-
-	mtx_assert(&encapmtx, MA_OWNED);
-	LIST_INSERT_HEAD(&encaptab, ep, chain);
-}
-
-/*
- * sp (src ptr) is always my side, and dp (dst ptr) is always remote side.
- * length of mask (sm and dm) is assumed to be same as sp/dp.
- * Return value will be necessary as input (cookie) for encap_detach().
- */
-const struct encaptab *
-encap_attach(int af, int proto, const struct sockaddr *sp,
-    const struct sockaddr *sm, const struct sockaddr *dp,
-    const struct sockaddr *dm, const struct protosw *psw, void *arg)
-{
-	struct encaptab *ep;
-
-	/* sanity check on args */
-	if (sp->sa_len > sizeof(ep->src) || dp->sa_len > sizeof(ep->dst))
-		return (NULL);
-	if (sp->sa_len != dp->sa_len)
-		return (NULL);
-	if (af != sp->sa_family || af != dp->sa_family)
+	if (cfg == NULL || cfg->input == NULL ||
+	    (cfg->check == NULL && cfg->lookup == NULL) ||
+	    (cfg->lookup != NULL && cfg->exact_match != ENCAP_DRV_LOOKUP) ||
+	    (cfg->exact_match == ENCAP_DRV_LOOKUP && cfg->lookup == NULL))
 		return (NULL);
 
-	/* check if anyone have already attached with exactly same config */
-	mtx_lock(&encapmtx);
-	LIST_FOREACH(ep, &encaptab, chain) {
-		if (ep->af != af)
-			continue;
-		if (ep->proto != proto)
-			continue;
-		if (ep->src.ss_len != sp->sa_len ||
-		    bcmp(&ep->src, sp, sp->sa_len) != 0 ||
-		    bcmp(&ep->srcmask, sm, sp->sa_len) != 0)
-			continue;
-		if (ep->dst.ss_len != dp->sa_len ||
-		    bcmp(&ep->dst, dp, dp->sa_len) != 0 ||
-		    bcmp(&ep->dstmask, dm, dp->sa_len) != 0)
-			continue;
-
-		mtx_unlock(&encapmtx);
-		return (NULL);
-	}
-
-	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
-	if (ep == NULL) {
-		mtx_unlock(&encapmtx);
-		return (NULL);
-	}
-	bzero(ep, sizeof(*ep));
-
-	ep->af = af;
-	ep->proto = proto;
-	bcopy(sp, &ep->src, sp->sa_len);
-	bcopy(sm, &ep->srcmask, sp->sa_len);
-	bcopy(dp, &ep->dst, dp->sa_len);
-	bcopy(dm, &ep->dstmask, dp->sa_len);
-	ep->psw = psw;
-	ep->arg = arg;
-
-	encap_add(ep);
-	mtx_unlock(&encapmtx);
-	return (ep);
-}
-
-const struct encaptab *
-encap_attach_func(int af, int proto,
-    int (*func)(const struct mbuf *, int, int, void *),
-    const struct protosw *psw, void *arg)
-{
-	struct encaptab *ep;
-
-	/* sanity check on args */
-	if (!func)
-		return (NULL);
-
-	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
+	ep = malloc(sizeof(*ep), M_NETADDR, mflags);
 	if (ep == NULL)
 		return (NULL);
-	bzero(ep, sizeof(*ep));
 
-	ep->af = af;
-	ep->proto = proto;
-	ep->func = func;
-	ep->psw = psw;
+	ep->proto = cfg->proto;
+	ep->min_length = cfg->min_length;
+	ep->exact_match = cfg->exact_match;
 	ep->arg = arg;
+	ep->lookup = cfg->exact_match == ENCAP_DRV_LOOKUP ? cfg->lookup: NULL;
+	ep->check = cfg->exact_match != ENCAP_DRV_LOOKUP ? cfg->check: NULL;
+	ep->input = cfg->input;
 
-	mtx_lock(&encapmtx);
-	encap_add(ep);
-	mtx_unlock(&encapmtx);
-	return (ep);
-}
-
-int
-encap_detach(const struct encaptab *cookie)
-{
-	const struct encaptab *ep = cookie;
-	struct encaptab *p;
-
-	mtx_lock(&encapmtx);
-	LIST_FOREACH(p, &encaptab, chain) {
-		if (p == ep) {
-			LIST_REMOVE(p, chain);
-			mtx_unlock(&encapmtx);
-			free(p, M_NETADDR);	/*XXX*/
-			return 0;
-		}
+	ENCAP_WLOCK();
+	CK_LIST_FOREACH(tmp, head, chain) {
+		if (tmp->exact_match <= ep->exact_match)
+			break;
 	}
-	mtx_unlock(&encapmtx);
-
-	return EINVAL;
+	if (tmp == NULL)
+		CK_LIST_INSERT_HEAD(head, ep, chain);
+	else
+		CK_LIST_INSERT_BEFORE(tmp, ep, chain);
+	ENCAP_WUNLOCK();
+	return (ep);
 }
 
 static int
-mask_match(const struct encaptab *ep, const struct sockaddr *sp,
-    const struct sockaddr *dp)
+encap_detach(struct encaptab_head *head, const struct encaptab *cookie)
 {
-	struct sockaddr_storage s;
-	struct sockaddr_storage d;
-	int i;
-	const u_int8_t *p, *q;
-	u_int8_t *r;
-	int matchlen;
+	struct encaptab *ep;
 
-	if (sp->sa_len > sizeof(s) || dp->sa_len > sizeof(d))
-		return 0;
-	if (sp->sa_family != ep->af || dp->sa_family != ep->af)
-		return 0;
-	if (sp->sa_len != ep->src.ss_len || dp->sa_len != ep->dst.ss_len)
-		return 0;
-
-	matchlen = 0;
-
-	p = (const u_int8_t *)sp;
-	q = (const u_int8_t *)&ep->srcmask;
-	r = (u_int8_t *)&s;
-	for (i = 0 ; i < sp->sa_len; i++) {
-		r[i] = p[i] & q[i];
-		/* XXX estimate */
-		matchlen += (q[i] ? 8 : 0);
-	}
-
-	p = (const u_int8_t *)dp;
-	q = (const u_int8_t *)&ep->dstmask;
-	r = (u_int8_t *)&d;
-	for (i = 0 ; i < dp->sa_len; i++) {
-		r[i] = p[i] & q[i];
-		/* XXX rough estimate */
-		matchlen += (q[i] ? 8 : 0);
-	}
-
-	/* need to overwrite len/family portion as we don't compare them */
-	s.ss_len = sp->sa_len;
-	s.ss_family = sp->sa_family;
-	d.ss_len = dp->sa_len;
-	d.ss_family = dp->sa_family;
-
-	if (bcmp(&s, &ep->src, ep->src.ss_len) == 0 &&
-	    bcmp(&d, &ep->dst, ep->dst.ss_len) == 0) {
-		return matchlen;
-	} else
-		return 0;
-}
-
-static void
-encap_fillarg(struct mbuf *m, void *arg)
-{
-	struct m_tag *tag;
-
-	if (arg != NULL) {
-		tag = m_tag_get(PACKET_TAG_ENCAP, sizeof(void *), M_NOWAIT);
-		if (tag != NULL) {
-			*(void**)(tag+1) = arg;
-			m_tag_prepend(m, tag);
+	ENCAP_WLOCK();
+	CK_LIST_FOREACH(ep, head, chain) {
+		if (ep == cookie) {
+			CK_LIST_REMOVE(ep, chain);
+			ENCAP_WUNLOCK();
+			ENCAP_WAIT();
+			free(ep, M_NETADDR);
+			return (0);
 		}
 	}
+	ENCAP_WUNLOCK();
+	return (EINVAL);
 }
 
-void *
-encap_getarg(struct mbuf *m)
+static int
+encap_input(struct encaptab_head *head, struct mbuf *m, int off, int proto)
 {
-	void *p = NULL;
-	struct m_tag *tag;
+	struct encaptab *ep, *match;
+	void *arg;
+	int matchprio, ret;
 
-	tag = m_tag_find(m, PACKET_TAG_ENCAP, NULL);
-	if (tag) {
-		p = *(void**)(tag+1);
-		m_tag_delete(m, tag);
+	match = NULL;
+	matchprio = 0;
+
+	ENCAP_RLOCK();
+	CK_LIST_FOREACH(ep, head, chain) {
+		if (ep->proto >= 0 && ep->proto != proto)
+			continue;
+		if (ep->min_length > m->m_pkthdr.len)
+			continue;
+		if (ep->exact_match == ENCAP_DRV_LOOKUP)
+			ret = (*ep->lookup)(m, off, proto, &arg);
+		else
+			ret = (*ep->check)(m, off, proto, ep->arg);
+		if (ret <= 0)
+			continue;
+		if (ret > matchprio) {
+			match = ep;
+			if (ep->exact_match != ENCAP_DRV_LOOKUP)
+				arg = ep->arg;
+			/*
+			 * No need to continue the search, we got the
+			 * exact match.
+			 */
+			if (ret >= ep->exact_match)
+				break;
+			matchprio = ret;
+		}
 	}
-	return p;
+
+	if (match != NULL) {
+		/* found a match, "match" has the best one */
+		ret = (*match->input)(m, off, proto, arg);
+		ENCAP_RUNLOCK();
+		MPASS(ret == IPPROTO_DONE);
+		return (IPPROTO_DONE);
+	}
+	ENCAP_RUNLOCK();
+	return (0);
 }
+
+#ifdef INET
+const struct encaptab *
+ip_encap_attach(const struct encap_config *cfg, void *arg, int mflags)
+{
+
+	return (encap_attach(&ipv4_encaptab, cfg, arg, mflags));
+}
+
+int
+ip_encap_detach(const struct encaptab *cookie)
+{
+
+	return (encap_detach(&ipv4_encaptab, cookie));
+}
+
+int
+encap4_input(struct mbuf **mp, int *offp, int proto)
+{
+
+	if (encap_input(&ipv4_encaptab, *mp, *offp, proto) != IPPROTO_DONE)
+		return (rip_input(mp, offp, proto));
+	return (IPPROTO_DONE);
+}
+#endif /* INET */
+
+#ifdef INET6
+const struct encaptab *
+ip6_encap_attach(const struct encap_config *cfg, void *arg, int mflags)
+{
+
+	return (encap_attach(&ipv6_encaptab, cfg, arg, mflags));
+}
+
+int
+ip6_encap_detach(const struct encaptab *cookie)
+{
+
+	return (encap_detach(&ipv6_encaptab, cookie));
+}
+
+int
+encap6_input(struct mbuf **mp, int *offp, int proto)
+{
+
+	if (encap_input(&ipv6_encaptab, *mp, *offp, proto) != IPPROTO_DONE)
+		return (rip6_input(mp, offp, proto));
+	return (IPPROTO_DONE);
+}
+#endif /* INET6 */
