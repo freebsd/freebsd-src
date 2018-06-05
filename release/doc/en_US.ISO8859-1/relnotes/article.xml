@@ -683,6 +683,10 @@
 	is not considered as a bootable pool, and a diagnostic message
 	is printed to the console.</para>
 
+      <para revision="329010">The &man.loader.8; has been updated to
+	improve quotation parsing, distinguishing between single- and
+	double-quotes, and check for terminating quotes.</para>
+
       <para revision="329114">The length of <acronym>GELI</acronym>
 	passphrases entered when booting a system with encrypted disks
 	is now hidden by default.  See the configuration options in
