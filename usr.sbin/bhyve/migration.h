@@ -66,8 +66,8 @@ struct __attribute__((packed)) migration_system_specs {
 	size_t hw_pagesize;
 };
 
-int vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr);
-int vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req, void *pci_ptr);
+int vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req);
+int vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req);
 
 
 #endif
