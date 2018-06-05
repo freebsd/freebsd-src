@@ -191,9 +191,9 @@ void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	void *_malloc_item;						\
 	size_t _size = (size);						\
 	if (__builtin_constant_p(size) && __builtin_constant_p(flags) &&\
-	    ((flags) & M_ZERO)) {					\
+	    ((flags) & M_ZERO) != 0) {					\
 		_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);	\
-		if (((flags) & M_WAITOK) || _malloc_item != NULL)	\
+		if (((flags) & M_WAITOK) != 0 || _malloc_item != NULL)	\
 			bzero(_malloc_item, _size);			\
 	} else {							\
 		_malloc_item = malloc(_size, type, flags);		\
