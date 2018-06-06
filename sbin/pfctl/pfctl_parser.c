@@ -615,6 +615,12 @@ print_status(struct pf_status *s, int opts)
 }
 
 void
+print_running(struct pf_status *status)
+{
+	printf("%s\n", status->running ? "Enabled" : "Disabled");
+}
+
+void
 print_src_node(struct pf_src_node *sn, int opts)
 {
 	struct pf_addr_wrap aw;
