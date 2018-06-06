@@ -53,15 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include "grep.h"
 
-#ifndef WITHOUT_NLS
-#include <nl_types.h>
-nl_catd	 catalog;
-#endif
-
-/*
- * Default messags to use when NLS is disabled or no catalogue
- * is found.
- */
 const char	*errstr[] = {
 	"",
 /* 1*/	"(standard input)",
@@ -162,10 +153,10 @@ bool	 file_err;	/* file reading error */
 static void
 usage(void)
 {
-	fprintf(stderr, getstr(3), getprogname());
-	fprintf(stderr, "%s", getstr(4));
-	fprintf(stderr, "%s", getstr(5));
-	fprintf(stderr, "%s", getstr(6));
+	fprintf(stderr, errstr[3], getprogname());
+	fprintf(stderr, "%s", errstr[4]);
+	fprintf(stderr, "%s", errstr[5]);
+	fprintf(stderr, "%s", errstr[6]);
 	exit(2);
 }
 
@@ -351,10 +342,6 @@ main(int argc, char *argv[])
 
 	setlocale(LC_ALL, "");
 
-#ifndef WITHOUT_NLS
-	catalog = catopen("grep", NL_CAT_LOCALE);
-#endif
-
 	/* Check what is the program name of the binary.  In this
 	   way we can have all the funcionalities in one binary
 	   without the need of scripting and using ugly hacks. */
@@ -470,7 +457,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp(optarg, "read") == 0)
 				devbehave = DEV_READ;
 			else
-				errx(2, getstr(2), "--devices");
+				errx(2, errstr[2], "--devices");
 			break;
 		case 'd':
 			if (strcasecmp("recurse", optarg) == 0) {
@@ -481,7 +468,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("read", optarg) == 0)
 				dirbehave = DIR_READ;
 			else
-				errx(2, getstr(2), "--directories");
+				errx(2, errstr[2], "--directories");
 			break;
 		case 'E':
 			grepbehave = GREP_EXTENDED;
@@ -577,9 +564,9 @@ main(int argc, char *argv[])
 			break;
 		case 'V':
 #ifdef WITH_GNU
-			printf(getstr(9), getprogname(), VERSION);
+			printf(errstr[9], getprogname(), VERSION);
 #else
-			printf(getstr(8), getprogname(), VERSION);
+			printf(errstr[8], getprogname(), VERSION);
 #endif
 			exit(0);
 		case 'v':
@@ -604,7 +591,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("text", optarg) == 0)
 				binbehave = BINFILE_TEXT;
 			else
-				errx(2, getstr(2), "--binary-files");
+				errx(2, errstr[2], "--binary-files");
 			break;
 		case COLOR_OPT:
 			color = NULL;
@@ -624,7 +611,7 @@ main(int argc, char *argv[])
 			} else if (strcasecmp("never", optarg) != 0 &&
 			    strcasecmp("none", optarg) != 0 &&
 			    strcasecmp("no", optarg) != 0)
-				errx(2, getstr(2), "--color");
+				errx(2, errstr[2], "--color");
 			cflags &= ~REG_NOSUB;
 			break;
 		case LABEL_OPT:
@@ -745,10 +732,6 @@ main(int argc, char *argv[])
 				continue;
 			c+= procfile(*aargv);
 		}
-
-#ifndef WITHOUT_NLS
-	catclose(catalog);
-#endif
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */

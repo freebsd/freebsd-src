@@ -65,12 +65,6 @@ CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
 LIBADD+=	gnuregex
 .endif
 
-.if ${MK_NLS} != "no"
-.include "${.CURDIR}/nls/Makefile.inc"
-.else
-CFLAGS+= -DWITHOUT_NLS
-.endif
-
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 

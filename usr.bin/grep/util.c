@@ -299,7 +299,7 @@ procfile(const char *fn)
 	int c, t;
 
 	if (strcmp(fn, "-") == 0) {
-		fn = label != NULL ? label : getstr(1);
+		fn = label != NULL ? label : errstr[1];
 		f = grep_open(NULL);
 	} else {
 		if (stat(fn, &sb) == 0) {
@@ -386,7 +386,7 @@ procfile(const char *fn)
 		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
-		printf(getstr(7), fn);
+		printf(errstr[7], fn);
 
 	free(pc.ln.file);
 	free(f);
