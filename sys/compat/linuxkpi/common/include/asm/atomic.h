@@ -239,15 +239,16 @@ static inline int
 atomic_dec_if_positive(atomic_t *v)
 {
 	int retval;
-	int curr;
+	int old;
 
-	do {
-		curr = atomic_read(v);
-		retval = curr - 1;
+	old = atomic_read(v);
+	for (;;) {
+		retval = old - 1;
 		if (unlikely(retval < 0))
 			break;
-	} while (!likely(atomic_cmpset_int(&v->counter, curr, retval)));
-
+		if (likely(atomic_fcmpset_int(&v->counter, &old, retval)))
+			break;
+	}
 	return (retval);
 }
 
