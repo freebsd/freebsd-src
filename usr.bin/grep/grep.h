@@ -38,15 +38,6 @@
 #include <stdio.h>
 #include <zlib.h>
 
-#ifdef WITHOUT_NLS
-#define	getstr(n)	 errstr[n]
-#else
-#include <nl_types.h>
-
-extern nl_catd		 catalog;
-#define	getstr(n)	 catgets(catalog, 1, n, errstr[n])
-#endif
-
 extern const char		*errstr[];
 
 #define	VERSION		"2.6.0-FreeBSD"

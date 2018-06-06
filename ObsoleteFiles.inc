@@ -38,6 +38,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180607: remove nls support from grep
+OLD_FILES+=usr/share/nls/pt_BR.ISO8859-1/grep.cat
+OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/grep.cat
+OLD_FILES+=usr/share/nls/ja_JP.SJIS/grep.cat
+OLD_FILES+=usr/share/nls/ja_JP.eucJP/grep.cat
+OLD_FILES+=usr/share/nls/gl_ES.ISO8859-1/grep.cat
+OLD_FILES+=usr/share/nls/zh_CN.UTF-8/grep.cat
+OLD_FILES+=usr/share/nls/es_ES.ISO8859-1/grep.cat
+OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/grep.cat
+OLD_FILES+=usr/share/nls/uk_UA.UTF-8/grep.cat
+OLD_FILES+=usr/share/nls/ja_JP.UTF-8/grep.cat
 # 20180517: retire vxge
 OLD_FILES+=usr/share/man/man4/if_vxge.4.gz
 OLD_FILES+=usr/share/man/man4/vxge.4.gz
