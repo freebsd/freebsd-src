@@ -235,6 +235,22 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	__ret.val;							\
 })
 
+static inline int
+atomic_dec_if_positive(atomic_t *v)
+{
+	int retval;
+	int curr;
+
+	do {
+		curr = atomic_read(v);
+		retval = curr - 1;
+		if (unlikely(retval < 0))
+			break;
+	} while (!likely(atomic_cmpset_int(&v->counter, curr, retval)));
+
+	return (retval);
+}
+
 #define	LINUX_ATOMIC_OP(op, c_op)				\
 static inline void atomic_##op(int i, atomic_t *v)		\
 {								\
