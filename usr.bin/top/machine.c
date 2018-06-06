@@ -379,7 +379,7 @@ machine_init(struct statics *statics)
 	GETSYSCTL("kern.smp.maxcpus", maxcpu);
 	times = calloc(maxcpu * CPUSTATES, sizeof(long));
 	if (times == NULL)
-		err(1, "calloc for kern.smp.maxcpus", size);
+		err(1, "calloc for kern.smp.maxcpus");
 	size = sizeof(long) * maxcpu * CPUSTATES;
 	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 		err(1, "sysctlbyname kern.cp_times");
