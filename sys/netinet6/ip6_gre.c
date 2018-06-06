@@ -79,17 +79,6 @@ in6_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 		return (0);
 
 	M_ASSERTPKTHDR(m);
-	/*
-	 * We expect that payload contains at least IPv4
-	 * or IPv6 packet.
-	 */
-	if (m->m_pkthdr.len < sizeof(struct greip6) +
-#ifdef INET
-	    sizeof(struct ip))
-#else
-	    sizeof(struct ip6_hdr))
-#endif
-		return (0);
 
 	GRE_RLOCK(sc);
 	if (sc->gre_family == 0)
@@ -122,7 +111,12 @@ in6_gre_output(struct mbuf *m, int af, int hlen)
 
 static const struct encap_config ipv6_encap_cfg = {
 	.proto = IPPROTO_GRE,
-	.min_length = sizeof(struct greip6) + sizeof(struct ip),
+	.min_length = sizeof(struct greip6) +
+#ifdef INET
+	    sizeof(struct ip),
+#else
+	    sizeof(struct ip6_hdr),
+#endif
 	.exact_match = (sizeof(struct in6_addr) << 4) + 32,
 	.check = in6_gre_encapcheck,
 	.input = gre_input
