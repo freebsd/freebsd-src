@@ -2807,6 +2807,9 @@ _vhold(struct vnode *vp, bool locked)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	if (!locked) {
 		if (refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
+#if !defined(__amd64__) && !defined(__i386__)
+			mb();
+#endif
 			VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 			    ("_vhold: vnode with holdcnt is free"));
 			return;
