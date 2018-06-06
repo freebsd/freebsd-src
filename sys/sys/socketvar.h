@@ -84,7 +84,7 @@ struct socket {
 	struct selinfo	so_rdsel;	/* (b/cr) for so_rcv/so_comp */
 	struct selinfo	so_wrsel;	/* (b/cs) for so_snd */
 	short	so_type;		/* (a) generic type, see socket.h */
-	short	so_options;		/* (b) from socket call, see socket.h */
+	int	so_options;		/* (b) from socket call, see socket.h */
 	short	so_linger;		/* time to linger close(2) */
 	short	so_state;		/* (b) internal state flags SS_* */
 	void	*so_pcb;		/* protocol control block */
