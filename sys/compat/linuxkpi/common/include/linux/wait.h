@@ -106,8 +106,11 @@ extern wait_queue_func_t default_wake_function;
 	INIT_LIST_HEAD(&(wqh)->task_list);				\
 } while (0)
 
+void linux_init_wait_entry(wait_queue_t *, int);
 void linux_wake_up(wait_queue_head_t *, unsigned int, int, bool);
 
+#define	init_wait_entry(wq, flags)					\
+        linux_init_wait_entry(wq, flags)
 #define	wake_up(wqh)							\
 	linux_wake_up(wqh, TASK_NORMAL, 1, false)
 #define	wake_up_all(wqh)						\
