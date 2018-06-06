@@ -197,6 +197,10 @@ sendmail_precmd()
 			sendmail_cert_create
 		fi
 	fi
+
+	if [ ! -f /var/log/sendmail.st ]; then
+		/usr/bin/install -m 640 -o root -g wheel /dev/null /var/log/sendmail.st
+	fi
 }
 
 run_rc_command "$1"
