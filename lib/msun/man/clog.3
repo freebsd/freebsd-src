@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2017
+.Dd June 6, 2018
 .Dt CLOG 3
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nm clogf ,
 and
 .Nm clogl
-.Nd complex natural logrithm functions
+.Nd complex natural logarithm functions
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -47,9 +47,9 @@ and
 The
 .Fn clog ,
 .Fn clogf ,
-and 
+and
 .Fn clogl
-functions compute the complex natural logrithm of
+functions compute the complex natural logarithm of
 .Fa z .
 with a branch cut along the negative real axis .
 .Sh RETURN VALUES
@@ -58,14 +58,13 @@ The
 function returns the complex natural logarithm value, in the
 range of a strip mathematically unbounded along the real axis and in
 the interval [-I* \*(Pi , +I* \*(Pi ] along the imaginary axis.
-The function satisfies the relationship: 
+The function satisfies the relationship:
 .Fo clog
 .Fn conj "z" Fc
 =
 .Fo conj
 .Fn clog "z" Fc .
 .Pp
-
 .\" Table is formatted for an 80-column xterm.
 .Bl -column ".Sy +\*(If + I*\*(Na" ".Sy Return value" ".Sy Divide-by-zero exception"
 .It Sy Argument          Ta Sy Return value Ta Sy Comment
@@ -86,9 +85,8 @@ The function satisfies the relationship:
 .It                      Ta                    Ta floating-point exception
 .It                      Ta                    Ta for finite y
 .It \*(Na + I*\*(If      Ta +\*(If + I*\*(Na
-.It \*(Na + I*\*(Na      Ta \*(Na + I*\*(Na 
+.It \*(Na + I*\*(Na      Ta \*(Na + I*\*(Na
 .El
-
 .Sh SEE ALSO
 .Xr complex 3 ,
 .Xr log 3 ,
