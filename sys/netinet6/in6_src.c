@@ -973,7 +973,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 		return(error);
 
 	/* XXX: this is redundant when called from in6_pcbbind */
-	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
+	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
 
 	inp->inp_flags |= INP_ANONPORT;

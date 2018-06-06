@@ -79,6 +79,11 @@ struct in_addr_4in6 {
 	struct	in_addr	ia46_addr4;
 };
 
+union in_dependaddr {
+	struct in_addr_4in6 id46_addr;
+	struct in6_addr	id6_addr;
+};
+
 /*
  * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.  in_conninfo has
  * some extra padding to accomplish this.
@@ -89,22 +94,14 @@ struct in_endpoints {
 	u_int16_t	ie_fport;		/* foreign port */
 	u_int16_t	ie_lport;		/* local port */
 	/* protocol dependent part, local and foreign addr */
-	union {
-		/* foreign host table entry */
-		struct	in_addr_4in6 ie46_foreign;
-		struct	in6_addr ie6_foreign;
-	} ie_dependfaddr;
-	union {
-		/* local host table entry */
-		struct	in_addr_4in6 ie46_local;
-		struct	in6_addr ie6_local;
-	} ie_dependladdr;
+	union in_dependaddr ie_dependfaddr;	/* foreign host table entry */
+	union in_dependaddr ie_dependladdr;	/* local host table entry */
+#define	ie_faddr	ie_dependfaddr.id46_addr.ia46_addr4
+#define	ie_laddr	ie_dependladdr.id46_addr.ia46_addr4
+#define	ie6_faddr	ie_dependfaddr.id6_addr
+#define	ie6_laddr	ie_dependladdr.id6_addr
 	u_int32_t	ie6_zoneid;		/* scope zone id */
 };
-#define	ie_faddr	ie_dependfaddr.ie46_foreign.ia46_addr4
-#define	ie_laddr	ie_dependladdr.ie46_local.ia46_addr4
-#define	ie6_faddr	ie_dependfaddr.ie6_foreign
-#define	ie6_laddr	ie_dependladdr.ie6_local
 
 /*
  * XXX The defines for inc_* are hacks and should be changed to direct
@@ -508,6 +505,13 @@ struct inpcbinfo {
 	u_long			 ipi_wildmask;		/* (p) */
 
 	/*
+	 * Load balance groups used for the SO_REUSEPORT_LB option,
+	 * hashed by local port.
+	 */
+	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (h) */
+	u_long			 ipi_lbgrouphashmask;	/* (h) */
+
+	/*
 	 * Pointer to network stack instance
 	 */
 	struct vnet		*ipi_vnet;		/* (c) */
@@ -548,6 +552,27 @@ struct inpcbgroup {
 	 */
 	struct mtx		 ipg_lock;
 } __aligned(CACHE_LINE_SIZE);
+
+/*
+ * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
+ * (or unique address:port combination) can be re-used at most
+ * INPCBLBGROUP_SIZMAX (256) times. The inpcbs are stored in il_inp which
+ * is dynamically resized as processes bind/unbind to that specific group.
+ */
+struct inpcblbgroup {
+	LIST_ENTRY(inpcblbgroup) il_list;
+	uint16_t	il_lport;			/* (c) */
+	u_char		il_vflag;			/* (c) */
+	u_char		il_pad;
+	uint32_t	il_pad2;
+	union in_dependaddr il_dependladdr;		/* (c) */
+#define	il_laddr	il_dependladdr.id46_addr.ia46_addr4
+#define	il6_laddr	il_dependladdr.id6_addr
+	uint32_t	il_inpsiz; /* max count in il_inp[] (h) */
+	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
+	struct inpcb	*il_inp[];			/* (h) */
+};
+LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 
 #define INP_LOCK_INIT(inp, d, t) \
 	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
@@ -593,7 +618,7 @@ struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
-short	inp_so_options(const struct inpcb *inp);
+int	inp_so_options(const struct inpcb *inp);
 
 #endif /* _KERNEL */
 
@@ -656,6 +681,10 @@ short	inp_so_options(const struct inpcb *inp);
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
 	(ntohs((lport)) & (mask))
+#define	INP_PCBLBGROUP_PORTHASH(lport, mask) \
+	(ntohs((lport)) & (mask))
+#define	INP_PCBLBGROUP_PKTHASH(faddr, lport, fport) \
+	((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport)))
 #define	INP6_PCBHASHKEY(faddr)	((faddr)->s6_addr32[3])
 
 /*
@@ -724,6 +753,7 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
 #define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
 #define INP_CANNOT_DO_ECN	0x00001000 /* The stack does not do ECN */
+#define	INP_REUSEPORT_LB	0x00002000 /* SO_REUSEPORT_LB option is set */
 
 /*
  * Flags passed to in_pcblookup*() functions.
