@@ -805,14 +805,6 @@
 	addresses a boot issue from a <acronym>GPT</acronym> partition
 	scheme in non-<acronym>UEFI</acronym> mode.</para>
 
-      <para revision="333006" contrib="sponsor" sponsor="&ix;">The
-	&os; installation <acronym>ISO</acronym> medium creation tools
-	have been updated to generate hybrid images for &arch.amd64;,
-	supporting both <acronym>BIOS</acronym> and
-	<acronym>EFI</acronym>.  The <acronym>ISO</acronym> image can
-	now be written to a memory stick as well as being used as
-	a <acronym>CD</acronym> image.</para>
-
       <para revision="334444" contrib="sponsor" sponsor="&ff;">The
 	&arch.amd64; memory stick image installers have been changed
 	to use the <acronym>MBR</acronym> partitioning scheme, which
