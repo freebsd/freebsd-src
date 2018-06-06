@@ -407,8 +407,14 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 static void
 syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
 {
-	sc->sc_rxttime = ticks +
-		TCPTV_RTOBASE * (tcp_syn_backoff[sc->sc_rxmits]);
+	int rexmt;
+
+	if (sc->sc_rxmits == 0)
+		rexmt = TCPTV_RTOBASE;
+	else
+		TCPT_RANGESET(rexmt, TCPTV_RTOBASE * tcp_syn_backoff[sc->sc_rxmits],
+		    tcp_rexmit_min, TCPTV_REXMTMAX);
+	sc->sc_rxttime = ticks + rexmt;
 	sc->sc_rxmits++;
 	if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc)) {
 		sch->sch_nextc = sc->sc_rxttime;
