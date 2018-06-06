@@ -178,9 +178,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
     nfsquad_t *clientidp, nfsquad_t *confirmp, NFSPROC_T *p)
 {
 	struct nfsclient *clp = NULL, *new_clp = *new_clpp;
-	int i, error = 0;
+	int i, error = 0, ret;
 	struct nfsstate *stp, *tstp;
 	struct sockaddr_in *sad, *rad;
+	struct nfsdsession *sep, *nsep;
 	int zapit = 0, gotit, hasstate = 0, igotlock;
 	static u_int64_t confirm_index = 0;
 
@@ -350,6 +351,15 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * can be thrown away once the SETCLIENTID_CONFIRM occurs.
 		 */
 		LIST_REMOVE(clp, lc_hash);
+
+		/* Get rid of all sessions on this clientid. */
+		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep) {
+			ret = nfsrv_freesession(sep, NULL);
+			if (ret != 0)
+				printf("nfsrv_setclient: verifier changed free"
+				    " session failed=%d\n", ret);
+		}
+
 		new_clp->lc_flags |= LCL_NEEDSCONFIRM;
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			new_clp->lc_confirm.lval[0] = confirmp->lval[0] =
@@ -385,6 +395,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
+		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
 		nfsstatsv1.srvclients++;
@@ -449,6 +460,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
+		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
 		nfsstatsv1.srvclients++;
