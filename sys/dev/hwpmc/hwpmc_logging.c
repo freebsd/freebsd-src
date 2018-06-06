@@ -194,7 +194,7 @@ CTASSERT(sizeof(struct pmclog_map_in) == PATH_MAX +
 CTASSERT(offsetof(struct pmclog_map_in,pl_pathname) ==
     4*4 + sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_map_out) == 4*4 + 2*sizeof(uintfptr_t));
-CTASSERT(sizeof(struct pmclog_pmcallocate) == 6*4);
+CTASSERT(sizeof(struct pmclog_pmcallocate) == 8*4);
 CTASSERT(sizeof(struct pmclog_pmcattach) == 6*4 + PATH_MAX);
 CTASSERT(offsetof(struct pmclog_pmcattach,pl_pathname) == 6*4);
 CTASSERT(sizeof(struct pmclog_pmcdetach) == 6*4);
@@ -991,6 +991,7 @@ pmclog_process_pmcallocate(struct pmc *pm)
 		PMCLOG_EMIT32(pm->pm_id);
 		PMCLOG_EMIT32(pm->pm_event);
 		PMCLOG_EMIT32(pm->pm_flags);
+		PMCLOG_EMIT64(pm->pm_sc.pm_reloadcount);
 		ps = pmc_soft_ev_acquire(pm->pm_event);
 		if (ps != NULL)
 			PMCLOG_EMITSTRING(ps->ps_ev.pm_ev_name,PMC_NAME_MAX);
@@ -1004,6 +1005,7 @@ pmclog_process_pmcallocate(struct pmc *pm)
 		PMCLOG_EMIT32(pm->pm_id);
 		PMCLOG_EMIT32(pm->pm_event);
 		PMCLOG_EMIT32(pm->pm_flags);
+		PMCLOG_EMIT64(pm->pm_sc.pm_reloadcount);
 		PMCLOG_DESPATCH_SYNC(po);
 	}
 }
@@ -1050,11 +1052,15 @@ pmclog_process_proccreate(struct pmc_owner *po, struct proc *p, int sync)
 	if (sync) {
 		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
 		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMIT32(p->p_flag);
+		PMCLOG_EMIT32(0);
 		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
 		PMCLOG_DESPATCH_SYNC(po);
 	} else {
 		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
 		PMCLOG_EMIT32(p->p_pid);
+		PMCLOG_EMIT32(p->p_flag);
+		PMCLOG_EMIT32(0);
 		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
 		PMCLOG_DESPATCH(po);
 	}
@@ -1163,14 +1169,14 @@ pmclog_process_threadcreate(struct pmc_owner *po, struct thread *td, int sync)
 		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
 		PMCLOG_EMIT32(td->td_tid);
 		PMCLOG_EMIT32(p->p_pid);
-		PMCLOG_EMIT32(0);
+		PMCLOG_EMIT32(p->p_flag);
 		PMCLOG_EMITSTRING(td->td_name, MAXCOMLEN+1);
 		PMCLOG_DESPATCH_SYNC(po);
 	} else {
 		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
 		PMCLOG_EMIT32(td->td_tid);
 		PMCLOG_EMIT32(p->p_pid);
-		PMCLOG_EMIT32(0);
+		PMCLOG_EMIT32(p->p_flag);
 		PMCLOG_EMITSTRING(td->td_name, MAXCOMLEN+1);
 		PMCLOG_DESPATCH(po);
 	}

@@ -70,13 +70,12 @@ __FBSDID("$FreeBSD$");
 
 #include <iostream>
 #include <string>
-#if _LIBCPP_STD_VER >= 11
 #include <unordered_map>
+
 using	std::unordered_map;
-#else
-#include <tr1/unordered_map>
-using	std::tr1::unordered_map;
-#endif
+typedef unordered_map <int, std::string> idmap;
+typedef std::pair <int, std::string> identry;
+
 #define LIST_MAX 64
 static struct option longopts[] = {
 	{"lwps", required_argument, NULL, 't'},
@@ -158,10 +157,6 @@ struct pmcid_ent {
 	 (PMCLOG_TYPE_ ## T << 16)   |					\
 	 ((L) & 0xFFFF))
 
-
-typedef unordered_map < int ,std::string > idmap;
-typedef std::pair < int ,std::string > identry;
-
 static bool
 pmc_find_name(idmap & map, uint32_t id, char *list[LIST_MAX], int count)
 {
@@ -234,9 +229,9 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	copies = 0;
 	while (pmclog_read(ps, &ev) == 0) {
 		if (ev.pl_type == PMCLOG_TYPE_THR_CREATE)
-			tidmap.insert(identry(ev.pl_u.pl_tc.pl_tid, ev.pl_u.pl_tc.pl_tdname));
+			tidmap[ev.pl_u.pl_tc.pl_tid] = ev.pl_u.pl_tc.pl_tdname;
 		if (ev.pl_type == PMCLOG_TYPE_PROC_CREATE)
-			pidmap.insert(identry(ev.pl_u.pl_pc.pl_pid, ev.pl_u.pl_pc.pl_pcomm));
+			pidmap[ev.pl_u.pl_pc.pl_pid] = ev.pl_u.pl_pc.pl_pcomm;
 		if (ev.pl_type != PMCLOG_TYPE_CALLCHAIN) {
 			if (write(outfd, ev.pl_data, ev.pl_len) != (ssize_t)ev.pl_len)
 				errx(EX_OSERR, "ERROR: failed output write");

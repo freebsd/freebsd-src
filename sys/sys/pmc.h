@@ -61,8 +61,8 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x06
-#define	PMC_VERSION_MINOR	0x02
+#define	PMC_VERSION_MAJOR	0x07
+#define	PMC_VERSION_MINOR	0x03
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -439,6 +439,7 @@ struct pmc_op_pmcallocate {
 	uint32_t	pm_flags;	/* additional modifiers PMC_F_* */
 	enum pmc_mode	pm_mode;	/* desired mode */
 	pmc_id_t	pm_pmcid;	/* [return] process pmc id */
+	pmc_value_t	pm_count;	/* initial/sample count */
 
 	union pmc_md_op_pmcallocate pm_md; /* MD layer extensions */
 };

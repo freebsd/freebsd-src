@@ -89,15 +89,16 @@ struct pmclog_ev_pcsample {
 };
 
 struct pmclog_ev_pmcallocate {
-	uint32_t	pl_event;
 	const char *	pl_evname;
+	uint64_t	pl_rate;
+	uint32_t	pl_event;
 	uint32_t	pl_flags;
 	pmc_id_t	pl_pmcid;
 };
 
 struct pmclog_ev_pmcallocatedyn {
-	uint32_t	pl_event;
 	char 		pl_evname[PMC_NAME_MAX];
+	uint32_t	pl_event;
 	uint32_t	pl_flags;
 	pmc_id_t	pl_pmcid;
 };
@@ -122,6 +123,7 @@ struct pmclog_ev_proccsw {
 
 struct pmclog_ev_proccreate {
 	pid_t		pl_pid;
+	uint32_t	pl_flags;
 	char		pl_pcomm[MAXCOMLEN+1];
 };
 
@@ -150,6 +152,7 @@ struct pmclog_ev_sysexit {
 struct pmclog_ev_threadcreate {
 	pid_t		pl_tid;
 	pid_t		pl_pid;
+	uint32_t	pl_flags;
 	char		pl_tdname[MAXCOMLEN+1];
 };
 
@@ -211,6 +214,7 @@ struct pmclog_parse_state {
 	int			ps_fd;		/* active fd or -1 */
 	char			*ps_buffer;	/* scratch buffer if fd != -1 */
 	char			*ps_data;	/* current parse pointer */
+	char			*ps_cpuid;	/* log cpuid */
 	size_t			ps_len;		/* length of buffered data */
 };
 
