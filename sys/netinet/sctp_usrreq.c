@@ -4250,6 +4250,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if (sctp_auth_add_chunk(sauth->sauth_chunk, inp->sctp_ep.local_auth_chunks)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
+			} else {
+				inp->auth_supported = 1;
 			}
 			SCTP_INP_WUNLOCK(inp);
 			break;
