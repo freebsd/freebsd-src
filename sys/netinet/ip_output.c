@@ -933,10 +933,10 @@ in_delayed_cksum(struct mbuf *m)
 	if (m->m_pkthdr.csum_flags & CSUM_UDP) {
 		/* if udp header is not in the first mbuf copy udplen */
 		if (offset + sizeof(struct udphdr) > m->m_len)
-			m_copydata(m, offset + offsetof(struct udphdr, uh_ulen),
-				2, (caddr_t)&cklen);
+			m_copydata(m, offset + offsetof(struct udphdr,
+			    uh_ulen), sizeof(cklen), (caddr_t)&cklen);
 		else {
-			uh = (struct udphdr *)((caddr_t)ip + offset);
+			uh = (struct udphdr *)mtodo(m, offset);
 			cklen = ntohs(uh->uh_ulen);
 		}
 		csum = in_cksum_skip(m, cklen + offset, offset);
@@ -948,14 +948,10 @@ in_delayed_cksum(struct mbuf *m)
 	}
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
-	/* find the mbuf in the chain where the checksum starts*/
-	while ((m != NULL) && (offset >= m->m_len)) {
-		offset -= m->m_len;
-		m = m->m_next;
-	}
-	KASSERT(m != NULL, ("in_delayed_cksum: checksum outside mbuf chain."));
-	KASSERT(offset + sizeof(u_short) <= m->m_len, ("in_delayed_cksum: checksum split between mbufs."));
-	*(u_short *)(m->m_data + offset) = csum;
+	if (offset + sizeof(csum) > m->m_len)
+		m_copyback(m, offset, sizeof(csum), (caddr_t)&csum);
+	else
+		*(u_short *)mtodo(m, offset) = csum;
 }
 
 /*
