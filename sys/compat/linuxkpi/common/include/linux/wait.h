@@ -63,12 +63,18 @@ struct wait_queue {
 	unsigned int flags;	/* always 0 */
 	void *private;
 	wait_queue_func_t *func;
-	struct list_head task_list;
+	union {
+		struct list_head task_list; /* < v4.13 */
+		struct list_head entry; /* >= v4.13 */
+	};
 };
 
 struct wait_queue_head {
 	spinlock_t lock;
-	struct list_head task_list;
+	union {
+		struct list_head task_list; /* < v4.13 */
+		struct list_head head; /* >= v4.13 */
+	};
 };
 
 /*
