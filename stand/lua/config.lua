@@ -458,7 +458,7 @@ function config.selectKernel(kernel)
 	config.kernel_selected = kernel
 end
 
-function config.load(file)
+function config.load(file, reloading)
 	if not file then
 		file = "/boot/defaults/loader.conf"
 	end
@@ -485,13 +485,16 @@ function config.load(file)
 	config.module_path = loader.getenv("module_path")
 	local verbose = loader.getenv("verbose_loading") or "no"
 	config.verbose = verbose:lower() == "yes"
+	if not reloading then
+		hook.runAll("config.loaded")
+	end
 end
 
 -- Reload configuration
 function config.reload(file)
 	modules = {}
 	restoreEnv()
-	config.load(file)
+	config.load(file, true)
 	hook.runAll("config.reloaded")
 end
 
@@ -512,5 +515,6 @@ function config.loadelf()
 	end
 end
 
+hook.registerType("config.loaded")
 hook.registerType("config.reloaded")
 return config
