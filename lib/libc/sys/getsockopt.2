@@ -152,6 +152,7 @@ and set with
 .It Dv SO_DEBUG Ta "enables recording of debugging information"
 .It Dv SO_REUSEADDR Ta "enables local address reuse"
 .It Dv SO_REUSEPORT Ta "enables duplicate address and port bindings"
+.It Dv SO_REUSEPORT_LB Ta "enables duplicate address and port bindings with load balancing"
 .It Dv SO_KEEPALIVE Ta "enables keep connections alive"
 .It Dv SO_DONTROUTE Ta "enables routing bypass for outgoing messages"
 .It Dv SO_LINGER  Ta "linger on close if data present"
@@ -207,6 +208,15 @@ if they all set
 before binding the port.
 This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Pp
+.Dv SO_REUSEPORT_LB
+allows completely duplicate bindings by multiple processes
+if they all set
+.Dv SO_REUSEPORT_LB
+before binding the port.
+Incoming TCP and UDP connections are distributed among the sharing
+processes based on a hash function of local port number, foreign IP
+address and port number. A maximum of 256 processes can share one socket.
 .Pp
 .Dv SO_KEEPALIVE
 enables the

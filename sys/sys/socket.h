@@ -126,26 +126,27 @@ typedef	__uintptr_t	uintptr_t;
 /*
  * Option flags per-socket.
  */
-#define	SO_DEBUG	0x0001		/* turn on debugging info recording */
-#define	SO_ACCEPTCONN	0x0002		/* socket has had listen() */
-#define	SO_REUSEADDR	0x0004		/* allow local address reuse */
-#define	SO_KEEPALIVE	0x0008		/* keep connections alive */
-#define	SO_DONTROUTE	0x0010		/* just use interface addresses */
-#define	SO_BROADCAST	0x0020		/* permit sending of broadcast msgs */
+#define	SO_DEBUG	0x00000001	/* turn on debugging info recording */
+#define	SO_ACCEPTCONN	0x00000002	/* socket has had listen() */
+#define	SO_REUSEADDR	0x00000004	/* allow local address reuse */
+#define	SO_KEEPALIVE	0x00000008	/* keep connections alive */
+#define	SO_DONTROUTE	0x00000010	/* just use interface addresses */
+#define	SO_BROADCAST	0x00000020	/* permit sending of broadcast msgs */
 #if __BSD_VISIBLE
-#define	SO_USELOOPBACK	0x0040		/* bypass hardware when possible */
+#define	SO_USELOOPBACK	0x00000040	/* bypass hardware when possible */
 #endif
-#define	SO_LINGER	0x0080		/* linger on close if data present */
-#define	SO_OOBINLINE	0x0100		/* leave received OOB data in line */
+#define	SO_LINGER	0x00000080	/* linger on close if data present */
+#define	SO_OOBINLINE	0x00000100	/* leave received OOB data in line */
 #if __BSD_VISIBLE
-#define	SO_REUSEPORT	0x0200		/* allow local address & port reuse */
-#define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
-#define	SO_NOSIGPIPE	0x0800		/* no SIGPIPE from EPIPE */
-#define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
-#define	SO_BINTIME	0x2000		/* timestamp received dgram traffic */
+#define	SO_REUSEPORT	0x00000200	/* allow local address & port reuse */
+#define	SO_TIMESTAMP	0x00000400	/* timestamp received dgram traffic */
+#define	SO_NOSIGPIPE	0x00000800	/* no SIGPIPE from EPIPE */
+#define	SO_ACCEPTFILTER	0x00001000	/* there is an accept filter */
+#define	SO_BINTIME	0x00002000	/* timestamp received dgram traffic */
 #endif
-#define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
-#define	SO_NO_DDP	0x8000		/* disable direct data placement */
+#define	SO_NO_OFFLOAD	0x00004000	/* socket cannot be offloaded */
+#define	SO_NO_DDP	0x00008000	/* disable direct data placement */
+#define	SO_REUSEPORT_LB	0x00010000	/* reuse with load balancing */
 
 /*
  * Additional options, not kept in so_options.
