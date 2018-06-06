@@ -5938,17 +5938,32 @@ nfsrv_findsession(uint8_t *sessionid)
 int
 nfsrv_destroysession(struct nfsrv_descript *nd, uint8_t *sessionid)
 {
-	int error, samesess;
+	int error, igotlock, samesess;
 
 	samesess = 0;
-	if (!NFSBCMP(sessionid, nd->nd_sessionid, NFSX_V4SESSIONID)) {
+	if (!NFSBCMP(sessionid, nd->nd_sessionid, NFSX_V4SESSIONID) &&
+	    (nd->nd_flag & ND_HASSEQUENCE) != 0) {
 		samesess = 1;
 		if ((nd->nd_flag & ND_LASTOP) == 0)
 			return (NFSERR_BADSESSION);
 	}
+
+	/* Lock out other nfsd threads */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	do {
+		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
+	} while (igotlock == 0);
+	NFSUNLOCKV4ROOTMUTEX();
+
 	error = nfsrv_freesession(NULL, sessionid);
 	if (error == 0 && samesess != 0)
 		nd->nd_flag &= ~ND_HASSEQUENCE;
+
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_unlock(&nfsv4rootfs_lock, 1);
+	NFSUNLOCKV4ROOTMUTEX();
 	return (error);
 }
 
