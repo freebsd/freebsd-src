@@ -186,6 +186,41 @@ void	free(void *addr, struct malloc_type *type);
 void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	    __result_use_check __alloc_size(1);
+/*
+ * Try to optimize malloc(..., ..., M_ZERO) allocations by doing zeroing in
+ * place if the size is known at compilation time.
+ *
+ * Passing the flag down requires malloc to blindly zero the entire object.
+ * In practice a lot of the zeroing can be avoided if most of the object
+ * gets explicitly initialized after the allocation. Letting the compiler
+ * zero in place gives it the opportunity to take advantage of this state.
+ *
+ * Note that the operation is only applicable if both flags and size are
+ * known at compilation time. If M_ZERO is passed but M_WAITOK is not, the
+ * allocation can fail and a NULL check is needed. However, if M_WAITOK is
+ * passed we know the allocation must succeed and the check can be elided.
+ *
+ *	_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);
+ *	if (((flags) & M_WAITOK) != 0 || _malloc_item != NULL)
+ *		bzero(_malloc_item, _size);
+ *
+ * If the flag is set, the compiler knows the left side is always true,
+ * therefore the entire statement is true and the callsite is:
+ *
+ *	_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);
+ *	bzero(_malloc_item, _size);
+ *
+ * If the flag is not set, the compiler knows the left size is always false
+ * and the NULL check is needed, therefore the callsite is:
+ *
+ * 	_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);
+ *	if (_malloc_item != NULL)
+ *		bzero(_malloc_item, _size);			
+ *
+ * The implementation is a macro because of what appears to be a clang 6 bug:
+ * an inline function variant ended up being compiled to a mere malloc call
+ * regardless of argument. gcc generates expected code (like the above).
+ */
 #ifdef _KERNEL
 #define	malloc(size, type, flags) ({					\
 	void *_malloc_item;						\
@@ -193,7 +228,8 @@ void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	if (__builtin_constant_p(size) && __builtin_constant_p(flags) &&\
 	    ((flags) & M_ZERO) != 0) {					\
 		_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);	\
-		if (((flags) & M_WAITOK) != 0 || _malloc_item != NULL)	\
+		if (((flags) & M_WAITOK) != 0 ||			\
+		    __predict_true(_malloc_item != NULL))		\
 			bzero(_malloc_item, _size);			\
 	} else {							\
 		_malloc_item = malloc(_size, type, flags);		\
