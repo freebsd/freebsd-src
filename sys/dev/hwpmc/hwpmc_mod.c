@@ -3925,6 +3925,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		pmc->pm_caps  = caps;
 		pmc->pm_flags = pa.pm_flags;
 
+		/* XXX set lower bound on sampling for process counters */
+		if (PMC_IS_SAMPLING_MODE(mode))
+			pmc->pm_sc.pm_reloadcount = pa.pm_count;
+		else
+			pmc->pm_sc.pm_initial = pa.pm_count;
+
 		/* switch thread to CPU 'cpu' */
 		pmc_save_cpu_binding(&pb);
 

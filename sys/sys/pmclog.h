@@ -162,6 +162,7 @@ struct pmclog_pmcallocate {
 	uint32_t		pl_pmcid;
 	uint32_t		pl_event;
 	uint32_t		pl_flags;
+	uint64_t		pl_rate;
 } __packed;
 
 struct pmclog_pmcattach {
@@ -190,6 +191,8 @@ struct pmclog_proccsw {
 struct pmclog_proccreate {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
+	uint32_t		pl_flags;
+	uint32_t		pl_pad;
 	uint64_t		pl_pcomm[MAXCOMLEN+1];	/* keep 8 byte aligned */
 } __packed;
 
@@ -226,7 +229,7 @@ struct pmclog_threadcreate {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_tid;
 	uint32_t		pl_pid;
-	uint32_t		pl_pad;
+	uint32_t		pl_flags;
 	uint64_t		pl_tdname[MAXCOMLEN+1];	/* keep 8 byte aligned */
 } __packed;
 

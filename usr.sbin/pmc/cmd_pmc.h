@@ -47,6 +47,7 @@ extern "C" {
 	int	cmd_pmc_filter(int, char **);
 	int	cmd_pmc_stat_system(int, char **);
 	int	cmd_pmc_list_events(int, char **);
+	int	cmd_pmc_summary(int, char **);
 #if defined(__cplusplus)
 };
 #endif

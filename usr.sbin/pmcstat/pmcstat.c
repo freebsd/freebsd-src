@@ -1129,7 +1129,8 @@ main(int argc, char **argv)
 
 	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 		if (pmc_allocate(ev->ev_spec, ev->ev_mode,
-		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid) < 0)
+			ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid,
+			ev->ev_count) < 0)
 			err(EX_OSERR,
 "ERROR: Cannot allocate %s-mode pmc with specification \"%s\"",
 			    PMC_IS_SYSTEM_MODE(ev->ev_mode) ?

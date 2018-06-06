@@ -1007,7 +1007,8 @@ pmc_mdep_is_compatible_class(enum pmc_class pc)
 
 int
 pmc_allocate(const char *ctrspec, enum pmc_mode mode,
-    uint32_t flags, int cpu, pmc_id_t *pmcid)
+    uint32_t flags, int cpu, pmc_id_t *pmcid,
+    uint64_t count)
 {
 	size_t n;
 	int retval;
@@ -1030,6 +1031,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	pmc_config.pm_cpu   = cpu;
 	pmc_config.pm_mode  = mode;
 	pmc_config.pm_flags = flags;
+	pmc_config.pm_count = count;
 	if (PMC_IS_SAMPLING_MODE(mode))
 		pmc_config.pm_caps |= PMC_CAP_INTERRUPT;
 	/*
