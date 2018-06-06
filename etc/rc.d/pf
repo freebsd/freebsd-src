@@ -66,8 +66,10 @@ pf_status()
 {
 	if ! [ -c /dev/pf ] ; then
 		echo "pf.ko is not loaded"
+		return 1
 	else
 		$pf_program -s info
+		$pf_program -s Running >/dev/null
 	fi
 }
 
