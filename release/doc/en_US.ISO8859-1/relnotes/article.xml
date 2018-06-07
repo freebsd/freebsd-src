@@ -389,7 +389,7 @@
 
       <para revision="334789">The &man.dhclient.8; utility has been
 	updated to allow the <literal>interface-mtu</literal> option
-	to be overridden with a <literal>superscede</literal> entry in
+	to be overridden with a <literal>supersede</literal> entry in
 	&man.dhclient.conf.5;.</para>
     </sect2>
 
