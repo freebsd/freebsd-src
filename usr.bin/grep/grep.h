@@ -125,8 +125,8 @@ extern char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
 
 /* util.c */
 bool	 file_matching(const char *fname);
-int	 procfile(const char *fn);
-int	 grep_tree(char **argv);
+bool	 procfile(const char *fn);
+bool	 grep_tree(char **argv);
 void	*grep_malloc(size_t size);
 void	*grep_calloc(size_t nmemb, size_t size);
 void	*grep_realloc(void *ptr, size_t size);
