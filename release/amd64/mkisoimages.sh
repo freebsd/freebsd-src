@@ -36,8 +36,9 @@ if [ -z $MKIMG ]; then
 fi
 
 if [ "$1" = "-b" ]; then
+	BASEBITSDIR="$4"
 	# This is highly x86-centric and will be used directly below.
-	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
+	bootable="-o bootimage=i386;$BASEBITSDIR/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition (should be done with makefs in the future)
 	dd if=/dev/zero of=efiboot.img bs=4k count=200
@@ -46,7 +47,7 @@ if [ "$1" = "-b" ]; then
 	mkdir efi
 	mount -t msdosfs /dev/$device efi
 	mkdir -p efi/efi/boot
-	cp "$4/boot/loader.efi" efi/efi/boot/bootx64.efi
+	cp -p "$BASEBITSDIR/boot/loader.efi" efi/efi/boot/bootx64.efi
 	umount efi
 	rmdir efi
 	mdconfig -d -u $device
@@ -54,6 +55,7 @@ if [ "$1" = "-b" ]; then
 	
 	shift
 else
+	BASEBITSDIR="$3"
 	bootable=""
 fi
 
@@ -66,9 +68,9 @@ LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
 
 publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
 $MAKEFS -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm -f "$1/etc/fstab"
+rm -f "$BASEBITSDIR/etc/fstab"
 rm -f efiboot.img
 
 if [ "$bootable" != "" ]; then
@@ -84,15 +86,15 @@ if [ "$bootable" != "" ]; then
 	done
 
 	# Create a GPT image containing the partitions we need for hybrid boot.
-	imgsize=`stat -f %z $NAME`
+	imgsize=`stat -f %z "$NAME"`
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
-	    -b $4/boot/pmbr \
+	    -b "$BASEBITSDIR/boot/pmbr" \
 	    $espparam \
-	    -p freebsd-boot:=$4/boot/isoboot \
+	    -p freebsd-boot:="$BASEBITSDIR/boot/isoboot" \
 	    -o hybrid.img
 
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
-	dd if=hybrid.img of=$NAME bs=32k count=1 conv=notrunc
+	dd if=hybrid.img of="$NAME" bs=32k count=1 conv=notrunc
 	rm -f hybrid.img
 fi
