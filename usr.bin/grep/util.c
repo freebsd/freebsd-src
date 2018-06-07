@@ -148,9 +148,9 @@ grep_tree(char **argv)
 	bool matched, ok;
 	const char *wd[] = { ".", NULL };
 
-	fts_flags = 0;
 	matched = false;
 
+	/* This switch effectively initializes 'fts_flags' */
 	switch(linkbehave) {
 	case LINK_EXPLICIT:
 		fts_flags = FTS_COMFOLLOW;
