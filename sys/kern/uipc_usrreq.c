@@ -872,21 +872,19 @@ uipc_disconnect(struct socket *so)
 		UNP_PCB_UNLOCK(unp);
 		return (0);
 	}
-	if (unp == unp2) {
-		if (unp_pcb_rele(unp) == 0)
+	if (__predict_true(unp != unp2)) {
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		if (__predict_false(freed)) {
 			UNP_PCB_UNLOCK(unp);
+			return (0);
+		}
+		unp_pcb_hold(unp2);
 	}
-	unp_pcb_owned_lock2(unp, unp2, freed);
-	if (__predict_false(freed)) {
-		UNP_PCB_UNLOCK(unp);
-		return (0);
-	}
-	unp_pcb_hold(unp2);
 	unp_pcb_hold(unp);
 	unp_disconnect(unp, unp2);
 	if (unp_pcb_rele(unp) == 0)
 		UNP_PCB_UNLOCK(unp);
-	if (unp_pcb_rele(unp2) == 0)
+	if ((unp != unp2) && unp_pcb_rele(unp2) == 0)
 		UNP_PCB_UNLOCK(unp2);
 	return (0);
 }
