@@ -299,9 +299,9 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
-					PIN_OVERRIDE(0x15, 0x0221142f), /* front hp */
-					PIN_OVERRIDE(0x15, 0x0121141f), /* rear hp */
+					PIN_PATCH_STRING(20, "as=1 misc=1 ctype=ATAPI device=Speaker loc=Onboard conn=Fixed"),
+					PIN_PATCH_STRING(21, "seq=15 as=2 misc=4 color=Black ctype=1/8 device=Headphones loc=Front"),
+					PIN_PATCH_STRING(22, "seq=15 as=1 misc=4 color=Black ctype=1/8 device=Headphones loc=Rear"),
         				{ }
 				}
 			}, {
@@ -310,7 +310,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x15, 0x90170110), /* speaker */
+					PIN_PATCH_STRING(21, "as=1 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
         				{ }
 				}
 			}, {
@@ -319,7 +319,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x16, 0x99130120), /* int speaker */
+					PIN_PATCH_STRING(22, "as=2 misc=1 ctype=ATAPI device=Speaker loc=Onboard conn=Fixed"),
         				{ }
 				}
 			}, {
@@ -328,7 +328,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x16, 0x1993e1f0), /* int aux */
+					PIN_PATCH_STRING(22, "as=15 misc=1 color=White ctype=ATAPI device=AUX loc=Onboard"),
         				{ }
 				}
 			}, {
@@ -337,7 +337,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x16, ((1<<5) | 1)), /* ??? TODO is this right? */
+					PIN_PATCH_STRING(22, "seq=1 as=2"),
         				{ }
 				}
 			}, { }
