@@ -2845,7 +2845,7 @@ vm_domain_set(struct vm_domain *vmd)
 	}
 	if (!vmd->vmd_severeset && vm_paging_severe(vmd)) {
 		vmd->vmd_severeset = 1;
-		DOMAINSET_CLR(vmd->vmd_domain, &vm_severe_domains);
+		DOMAINSET_SET(vmd->vmd_domain, &vm_severe_domains);
 	}
 	mtx_unlock(&vm_domainset_lock);
 }
