@@ -4,7 +4,7 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
 	"http://www.FreeBSD.org/release/XML/share/xml/release.ent">
 %release;
-<!ENTITY local.rel "11.1">
+<!ENTITY local.rel "11.2">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
