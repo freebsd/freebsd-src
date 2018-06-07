@@ -139,16 +139,17 @@ dir_matching(const char *dname)
  * Processes a directory when a recursive search is performed with
  * the -R option.  Each appropriate file is passed to procfile().
  */
-int
+bool
 grep_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
 	int c, fts_flags;
-	bool ok;
+	bool matched, ok;
 	const char *wd[] = { ".", NULL };
 
 	c = fts_flags = 0;
+	matched = false;
 
 	switch(linkbehave) {
 	case LINK_EXPLICIT:
@@ -195,14 +196,14 @@ grep_tree(char **argv)
 			if (fexclude || finclude)
 				ok &= file_matching(p->fts_path);
 
-			if (ok)
-				c += procfile(p->fts_path);
+			if (ok && procfile(p->fts_path))
+				matched = true;
 			break;
 		}
 	}
 
 	fts_close(fts);
-	return (c);
+	return (matched);
 }
 
 static void
@@ -288,7 +289,7 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
  * Opens a file and processes it.  Each file is processed line-by-line
  * passing the lines to procline().
  */
-int
+bool
 procfile(const char *fn)
 {
 	struct parsec pc;
@@ -296,7 +297,7 @@ procfile(const char *fn)
 	struct file *f;
 	struct stat sb;
 	mode_t s;
-	int c, t;
+	int lines, t;
 
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : errstr[1];
@@ -306,10 +307,10 @@ procfile(const char *fn)
 			/* Check if we need to process the file */
 			s = sb.st_mode & S_IFMT;
 			if (dirbehave == DIR_SKIP && s == S_IFDIR)
-				return (0);
+				return (false);
 			if (devbehave == DEV_SKIP && (s == S_IFIFO ||
 			    s == S_IFCHR || s == S_IFBLK || s == S_IFSOCK))
-				return (0);
+				return (false);
 		}
 		f = grep_open(fn);
 	}
@@ -317,7 +318,7 @@ procfile(const char *fn)
 		file_err = true;
 		if (!sflag)
 			warn("%s", fn);
-		return (0);
+		return (false);
 	}
 
 	pc.ln.file = grep_strdup(fn);
@@ -335,7 +336,7 @@ procfile(const char *fn)
 		mc.doctx = true;
 	mcount = mlimit;
 
-	for (c = 0;  c == 0 || !(lflag || qflag); ) {
+	for (lines = 0; lines == 0 || !(lflag || qflag); ) {
 		/*
 		 * XXX TODO: We need to revisit this in a chunking world. We're
 		 * not going to be doing per-line statistics because of the
@@ -365,7 +366,7 @@ procfile(const char *fn)
 		}
 
 		if ((t = procline(&pc)) == 0)
-			++c;
+			++lines;
 
 		/* Halt processing if we hit our match limit */
 		if (!procmatches(&mc, &pc, t == 0))
@@ -378,19 +379,19 @@ procfile(const char *fn)
 	if (cflag) {
 		if (!hflag)
 			printf("%s:", pc.ln.file);
-		printf("%u\n", c);
+		printf("%u\n", lines);
 	}
-	if (lflag && !qflag && c != 0)
+	if (lflag && !qflag && lines != 0)
 		printf("%s%c", fn, nullflag ? 0 : '\n');
-	if (Lflag && !qflag && c == 0)
+	if (Lflag && !qflag && lines == 0)
 		printf("%s%c", fn, nullflag ? 0 : '\n');
-	if (c && !cflag && !lflag && !Lflag &&
+	if (lines != 0 && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
 		printf(errstr[7], fn);
 
 	free(pc.ln.file);
 	free(f);
-	return (c);
+	return (lines != 0);
 }
 
 #ifdef WITH_INTERNAL_NOSPEC

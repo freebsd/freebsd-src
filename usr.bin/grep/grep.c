@@ -339,6 +339,7 @@ main(int argc, char *argv[])
 	long long l;
 	unsigned int aargc, eargc, i;
 	int c, lastc, needpattern, newarg, prevoptind;
+	bool matched;
 
 	setlocale(LC_ALL, "");
 
@@ -725,15 +726,16 @@ main(int argc, char *argv[])
 		exit(!procfile("-"));
 
 	if (dirbehave == DIR_RECURSE)
-		c = grep_tree(aargv);
+		matched = grep_tree(aargv);
 	else
-		for (c = 0; aargc--; ++aargv) {
+		for (matched = false; aargc--; ++aargv) {
 			if ((finclude || fexclude) && !file_matching(*aargv))
 				continue;
-			c+= procfile(*aargv);
+			if (procfile(*aargv))
+				matched = true;
 		}
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */
-	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
+	exit(matched ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
 }
