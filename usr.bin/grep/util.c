@@ -144,11 +144,11 @@ grep_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
-	int c, fts_flags;
+	int fts_flags;
 	bool matched, ok;
 	const char *wd[] = { ".", NULL };
 
-	c = fts_flags = 0;
+	fts_flags = 0;
 	matched = false;
 
 	switch(linkbehave) {
