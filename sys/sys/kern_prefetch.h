@@ -34,7 +34,7 @@ kern_prefetch(const volatile void *addr, void* before)
 #if defined(__amd64__)
 	__asm __volatile("prefetcht1 (%1)":"=rm"(*((int32_t *)before)):"r"(addr):);
 #else
-	__builtin_prefetch(addr);
+/*	__builtin_prefetch(addr);*/
 #endif
 }
 
