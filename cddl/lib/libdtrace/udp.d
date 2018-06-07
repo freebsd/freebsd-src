@@ -58,12 +58,12 @@ translator udpsinfo_t < struct inpcb *p > {
 	udps_rport =	p == NULL ? 0 : ntohs(p->inp_inc.inc_ie.ie_fport);
 	udps_laddr =	p == NULL ? "" :
 	    p->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependladdr.ie46_local.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependladdr.ie6_local);
+	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependladdr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependladdr.id6_addr);
 	udps_raddr =	p == NULL ? "" :
 	    p->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependfaddr.ie46_foreign.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependfaddr.ie6_foreign);
+	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependfaddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependfaddr.id6_addr);
 };
 
 #pragma D binding "1.6.3" translator
