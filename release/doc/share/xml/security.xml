@@ -85,7 +85,7 @@
 	  <note>
 	    <para>This advisory addresses the most significant issues
 	      for &os;&nbsp;11.x on &arch.amd64; CPUs.  We expect to
-	      update this advisory to &arch.i386; and other
+	      update this advisory to include &arch.i386; and other
 	      CPUs.</para>
 	  </note>
 	</entry>
