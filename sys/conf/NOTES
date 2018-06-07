@@ -1111,6 +1111,9 @@ options 	MD_ROOT
 # Write-protect the md root device so that it may not be mounted writeable.
 options 	MD_ROOT_READONLY
 
+# Allow to read MD image from external memory regions
+options		MD_ROOT_MEM
+
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
 
