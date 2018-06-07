@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 1, 1997
+.Dd May 31, 2018
 .Dt DHCLIENT.CONF 5
 .Os
 .Sh NAME
@@ -227,6 +227,14 @@ rather than any value supplied by the server, these values can be defined
 in the
 .Ic supersede
 statement.
+.Pp
+Some options values have special meaning:
+.Bl -tag -width indent
+.It Ar interface-mtu
+Any server-supplied interface MTU is ignored by the client if a
+.Ic supersede
+zero value is configured.
+.El
 .It Xo
 .Ic prepend No { Op Ar option declaration
 .Oo , Ar ... option declaration Oc }
