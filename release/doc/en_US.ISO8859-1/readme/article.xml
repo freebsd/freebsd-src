@@ -13,7 +13,9 @@
      End:
 -->
 <article xmlns="http://docbook.org/ns/docbook"
-  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  xml:id="top"
+  version="5.0">
 
   <info>
     <title>&os; &release.current; README</title>
@@ -229,7 +231,7 @@
 	please send mail to the &a.questions;.</para>
 
       <para>If you are tracking the &release.branch; development
-	efforts, you <emphasis>must</emphasis> join the &a.current;,
+	efforts, you <emphasis>must</emphasis> join the &a.stable;,
 	in order to keep abreast of recent developments and changes
 	that may affect the way you use and maintain the
 	system.</para>
@@ -363,9 +365,9 @@
 	  consulted as the <quote>current errata</quote> for this
 	  release.  These other copies of the errata are located at
 	  <uri
-	    xlink:href="&url.base;/releases/">&url.base;/releases/</uri>
-	  (as well as any sites which keep up-to-date mirrors of this
-	  location).</para>
+	    xlink:href="&url.base;/releases/">&os;&nbsp;&release.current;
+	    page</uri> (as well as any sites which keep up-to-date
+	  mirrors of this location).</para>
       </note>
     </sect2>
 
