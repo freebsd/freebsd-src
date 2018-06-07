@@ -297,14 +297,37 @@ excise_initrd_region(struct mem_region *avail, int asz)
 	uint64_t start, end;
 	ssize_t size;
 	struct mem_region initrdmap[1];
+	pcell_t cell[2];
 
 	chosen = OF_finddevice("/chosen");
-	size = OF_getprop(chosen, "linux,initrd-start", &start, sizeof(start));
-	if (size <= 0)
-		return (asz);
 
-	size = OF_getprop(chosen, "linux,initrd-end", &end, sizeof(end));
-	if (size <= 0)
+	size = OF_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
+	if (size < 0)
+		return (asz);
+	else if (size == 4)
+		start = cell[0];
+	else if (size == 8)
+		start = (uint64_t)cell[0] << 32 | cell[1];
+	else {
+		/* Invalid value length */
+		printf("WARNING: linux,initrd-start must be either 4 or 8 bytes long\n");
+		return (asz);
+	}
+
+	size = OF_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
+	if (size < 0)
+		return (asz);
+	else if (size == 4)
+		end = cell[0];
+	else if (size == 8)
+		end = (uint64_t)cell[0] << 32 | cell[1];
+	else {
+		/* Invalid value length */
+		printf("WARNING: linux,initrd-end must be either 4 or 8 bytes long\n");
+		return (asz);
+	}
+
+	if (end <= start)
 		return (asz);
 
 	initrdmap[0].mr_start = start;
