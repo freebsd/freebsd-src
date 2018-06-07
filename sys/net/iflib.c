@@ -2822,7 +2822,9 @@ print_pkt(if_pkt_info_t pi)
 #endif
 
 #define IS_TSO4(pi) ((pi)->ipi_csum_flags & CSUM_IP_TSO)
+#define IS_TX_OFFLOAD4(pi) ((pi)->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP_TSO))
 #define IS_TSO6(pi) ((pi)->ipi_csum_flags & CSUM_IP6_TSO)
+#define IS_TX_OFFLOAD6(pi) ((pi)->ipi_csum_flags & (CSUM_IP6_TCP | CSUM_IP6_TSO))
 
 static int
 iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
@@ -2908,8 +2910,9 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
                        ip->ip_sum = 0;
 
-		if (IS_TSO4(pi)) {
-			if (pi->ipi_ipproto == IPPROTO_TCP) {
+		/* TCP checksum offload may require TCP header length */
+		if (IS_TX_OFFLOAD4(pi)) {
+			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
 				if (__predict_false(th == NULL)) {
 					txq->ift_pullups++;
 					if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
@@ -2920,14 +2923,16 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				pi->ipi_tcp_hlen = th->th_off << 2;
 				pi->ipi_tcp_seq = th->th_seq;
 			}
-			if (__predict_false(ip->ip_p != IPPROTO_TCP))
-				return (ENXIO);
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-					       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-			pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
-			if (sctx->isc_flags & IFLIB_TSO_INIT_IP) {
-				ip->ip_sum = 0;
-				ip->ip_len = htons(pi->ipi_ip_hlen + pi->ipi_tcp_hlen + pi->ipi_tso_segsz);
+			if (IS_TSO4(pi)) {
+				if (__predict_false(ip->ip_p != IPPROTO_TCP))
+					return (ENXIO);
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+						       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+				if (sctx->isc_flags & IFLIB_TSO_INIT_IP) {
+					ip->ip_sum = 0;
+					ip->ip_len = htons(pi->ipi_ip_hlen + pi->ipi_tcp_hlen + pi->ipi_tso_segsz);
+				}
 			}
 		}
 		break;
@@ -2950,26 +2955,30 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip6->ip6_nxt;
 		pi->ipi_flags |= IPI_TX_IPV6;
 
-		if (IS_TSO6(pi)) {
+		/* TCP checksum offload may require TCP header length */
+		if (IS_TX_OFFLOAD6(pi)) {
 			if (pi->ipi_ipproto == IPPROTO_TCP) {
 				if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
+					txq->ift_pullups++;
 					if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
 						return (ENOMEM);
 				}
 				pi->ipi_tcp_hflags = th->th_flags;
 				pi->ipi_tcp_hlen = th->th_off << 2;
+				pi->ipi_tcp_seq = th->th_seq;
 			}
-
-			if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
-				return (ENXIO);
-			/*
-			 * The corresponding flag is set by the stack in the IPv4
-			 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
-			 * So, set it here because the rest of the flow requires it.
-			 */
-			pi->ipi_csum_flags |= CSUM_TCP_IPV6;
-			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-			pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+			if (IS_TSO6(pi)) {
+				if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
+					return (ENXIO);
+				/*
+				 * The corresponding flag is set by the stack in the IPv4
+				 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
+				 * So, set it here because the rest of the flow requires it.
+				 */
+				pi->ipi_csum_flags |= CSUM_IP6_TCP;
+				th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+			}
 		}
 		break;
 	}
