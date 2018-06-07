@@ -1283,6 +1283,55 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 	return (ret);
 }
 
+struct mbuf *
+sbsndptr_noadv(struct sockbuf *sb, uint32_t off, uint32_t *moff)
+{
+	struct mbuf *m;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+	if (sb->sb_sndptr == NULL || sb->sb_sndptroff > off) {
+		*moff = off;
+		if (sb->sb_sndptr == NULL) {
+			sb->sb_sndptr = sb->sb_mb;
+			sb->sb_sndptroff = 0;
+		}
+		return (sb->sb_mb);
+	} else {
+		m = sb->sb_sndptr;
+		off -= sb->sb_sndptroff;
+	}
+	*moff = off;
+	return (m);
+}
+
+void
+sbsndptr_adv(struct sockbuf *sb, struct mbuf *mb, uint32_t len)
+{
+	/*
+	 * A small copy was done, advance forward the sb_sbsndptr to cover
+	 * it.
+	 */
+	struct mbuf *m;
+
+	if (mb != sb->sb_sndptr) {
+		/* Did not copyout at the same mbuf */
+		return;
+	}
+	m = mb;
+	while (m && (len > 0)) {
+		if (len >= m->m_len) {
+			len -= m->m_len;
+			if (m->m_next) {
+				sb->sb_sndptroff += m->m_len;
+				sb->sb_sndptr = m->m_next;
+			}
+			m = m->m_next;
+		} else {
+			len = 0;
+		}
+	}
+}
+
 /*
  * Return the first mbuf and the mbuf data offset for the provided
  * send offset without changing the "sb_sndptroff" field.
