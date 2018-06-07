@@ -19,6 +19,5 @@ SRCS+=	opt_kern_tls.h
 
 CFLAGS+=	-DMODNAME=${KMOD}
 CFLAGS+=	-DSTACKNAME=${STACKNAME}
-CFLAGS+=	-DSTACKALIAS=rack_18q21
 
 .include <bsd.kmod.mk>
