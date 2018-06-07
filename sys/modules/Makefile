@@ -781,6 +781,8 @@ _cpufreq=	cpufreq
 _drm=		drm
 _exca=		exca
 _ffec=		ffec
+_nvd=		nvd
+_nvme=		nvme
 _pccard=	pccard
 _wi=		wi
 .endif

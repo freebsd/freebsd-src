@@ -888,6 +888,11 @@ _vmm.4=		vmm.4
 _nvram2env.4=	nvram2env.4
 .endif
 
+.if ${MACHINE_CPUARCH} == "powerpc"
+_nvd.4= 	nvd.4
+_nvme.4=	nvme.4
+.endif
+
 .if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_pwm.4=  bcm283x_pwm.4
 .endif
