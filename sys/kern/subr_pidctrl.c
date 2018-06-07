@@ -146,7 +146,7 @@ pidctrl_daemon(struct pidctrl *pc, int input)
 	pc->pc_derivative = pc->pc_error - pc->pc_olderror;
 
 	/* Divide by inverse gain values to produce output. */
-	output = (error / Kpd) + (pc->pc_integral / Kid) +
+	output = (pc->pc_error / Kpd) + (pc->pc_integral / Kid) +
 	    (pc->pc_derivative / Kdd);
 	output = MAX(output - pc->pc_output, 0);
 	/* Save for sysctl. */
