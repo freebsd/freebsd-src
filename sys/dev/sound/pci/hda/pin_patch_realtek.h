@@ -218,7 +218,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x1b, 0x90170151),
+					PIN_PATCH_STRING(27, "seq=1 as=5 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
         				{ }
 				}
 			}, {
@@ -233,8 +233,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_MIC_INTERNAL(0x13),
-					PIN_OVERRIDE(0x19, 0x04a11120), /* headset mic without jack detect */
+					PIN_PATCH_MIC_INTERNAL(19),
+					PIN_PATCH_STRING(25, "as=2 misc=1 color=Black ctype=1/8 device=Mic loc=Right"),
         				{ }
 				}
 			}, { }
