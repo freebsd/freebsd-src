@@ -159,6 +159,7 @@ timeval_to_ktime(struct timeval tv)
 }
 
 #define	ktime_to_timespec(kt)		ns_to_timespec(kt)
+#define	ktime_to_timespec64(kt)		ns_to_timespec(kt)
 #define	ktime_to_timeval(kt)		ns_to_timeval(kt)
 #define	ktime_to_ns(kt)			(kt)
 
