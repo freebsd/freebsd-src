@@ -3,8 +3,8 @@
 PACKAGE=lib${LIB}
 LIB=	pmc
 
-SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c
-INCS=	pmc.h pmclog.h
+SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
+INCS=	pmc.h pmclog.h pmcformat.h
 
 CFLAGS+= -I${.CURDIR}
 

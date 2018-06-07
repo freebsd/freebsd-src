@@ -61,7 +61,7 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x07
+#define	PMC_VERSION_MAJOR	0x08
 #define	PMC_VERSION_MINOR	0x03
 #define	PMC_VERSION_PATCH	0x0000
 
@@ -939,6 +939,7 @@ struct pmc_sample {
 	struct thread		*ps_td;		/* which thread */
 	struct pmc		*ps_pmc;	/* interrupting PMC */
 	uintptr_t		*ps_pc;		/* (const) callchain start */
+	uint64_t		ps_tsc;		/* tsc value */
 };
 
 #define 	PMC_SAMPLE_FREE		((uint16_t) 0)
@@ -1217,5 +1218,6 @@ int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
 struct pmc_mdep *pmc_mdep_alloc(int nclasses);
 void pmc_mdep_free(struct pmc_mdep *md);
 void pmc_flush_samples(int cpu);
+uint64_t pmc_rdtsc(void);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

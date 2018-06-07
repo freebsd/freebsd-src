@@ -64,6 +64,8 @@ struct pmclog_ev_closelog {
 struct pmclog_ev_initialize {
 	uint32_t	pl_version;
 	uint32_t	pl_arch;
+	uint64_t	pl_tsc_freq;
+	struct timespec pl_ts;
 	char		pl_cpuid[PATH_MAX];
 };
 
