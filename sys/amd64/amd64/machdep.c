@@ -1248,15 +1248,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	}
 
 	/*
-	 * Make hole for "AP -> long mode" bootstrap code.  The
-	 * mp_bootaddress vector is only available when the kernel
-	 * is configured to support APs and APs for the system start
-	 * in real mode mode (e.g. SMP bare metal).
-	 */
-	if (init_ops.mp_bootaddress)
-		init_ops.mp_bootaddress(physmap, &physmap_idx);
-
-	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
 	 * called something like "Maxphyspage".  We may adjust this
@@ -1293,6 +1284,15 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
+
+	/*
+	 * Make hole for "AP -> long mode" bootstrap code.  The
+	 * mp_bootaddress vector is only available when the kernel
+	 * is configured to support APs and APs for the system start
+	 * in real mode mode (e.g. SMP bare metal).
+	 */
+	if (init_ops.mp_bootaddress)
+		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
