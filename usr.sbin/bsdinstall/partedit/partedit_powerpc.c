@@ -44,7 +44,8 @@ default_scheme(void) {
 
 	if (strcmp(platform, "powermac") == 0)
 		return ("APM");
-	if (strcmp(platform, "chrp") == 0 || strcmp(platform, "ps3") == 0)
+	if (strcmp(platform, "chrp") == 0 || strcmp(platform, "ps3") == 0 ||
+	    strcmp(platform, "mpc85xx") == 0)
 		return ("MBR");
 
 	/* Pick GPT as a generic default */
@@ -64,6 +65,8 @@ is_scheme_bootable(const char *part_type) {
 	if ((strcmp(platform, "chrp") == 0 || strcmp(platform, "ps3") == 0) &&
 	    (strcmp(part_type, "MBR") == 0 || strcmp(part_type, "BSD") == 0 ||
 	     strcmp(part_type, "GPT") == 0))
+		return (1);
+	if (strcmp(platform, "mpc85xx") == 0 && strcmp(part_type, "MBR") == 0)
 		return (1);
 
 	return (0);
@@ -91,7 +94,8 @@ bootpart_size(const char *part_type)
 		return (0);
 	if (strcmp(platform, "chrp") == 0)
 		return (800*1024);
-	if (strcmp(platform, "ps3") == 0 || strcmp(platform, "powernv") == 0)
+	if (strcmp(platform, "ps3") == 0 || strcmp(platform, "powernv") == 0 ||
+	    strcmp(platform, "mpc85xx") == 0)
 		return (512*1024*1024);
 	return (0);
 }
@@ -107,7 +111,8 @@ bootpart_type(const char *scheme, const char **mountpoint)
 		return ("prep-boot");
 	if (strcmp(platform, "powermac") == 0)
 		return ("apple-boot");
-	if (strcmp(platform, "powernv") == 0 || strcmp(platform, "ps3") == 0) {
+	if (strcmp(platform, "powernv") == 0 || strcmp(platform, "ps3") == 0 ||
+	    strcmp(platform, "mpc85xx") == 0) {
 		*mountpoint = "/boot";
 		if (strcmp(scheme, "GPT") == 0)
 			return ("ms-basic-data");
