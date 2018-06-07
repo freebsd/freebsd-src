@@ -75,7 +75,7 @@ startentry(struct pmclog_ev *ev)
 	char eventbuf[128];
 
 	snprintf(eventbuf, sizeof(eventbuf), "%s, \"tsc\": \"%jd\"",
-	    typenames[ev->pl_type], (intmax_t)ev->pl_ts.tv_sec);
+	    typenames[ev->pl_type], (uintmax_t)ev->pl_ts.tv_sec);
 	return (string(eventbuf));
 }
 
@@ -163,7 +163,7 @@ procexec_to_json(struct pmclog_ev *ev)
 		"%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\", "
 	    "\"start\": \"0x%016jx\", \"pathname\": \"%s\"}\n",
 		startent.c_str(), ev->pl_u.pl_x.pl_pmcid, ev->pl_u.pl_x.pl_pid,
-	    ev->pl_u.pl_x.pl_entryaddr, ev->pl_u.pl_x.pl_pathname);
+		(uintmax_t)ev->pl_u.pl_x.pl_entryaddr, ev->pl_u.pl_x.pl_pathname);
 	return string(eventbuf);
 }
 
@@ -264,10 +264,10 @@ callchain_to_json(struct pmclog_ev *ev)
 	    ev->pl_u.pl_cc.pl_tid, ev->pl_u.pl_cc.pl_cpuflags, ev->pl_u.pl_cc.pl_cpuflags2);
 	result = string(eventbuf);
 	for (i = 0; i < ev->pl_u.pl_cc.pl_npc - 1; i++) {
-		snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\", ", ev->pl_u.pl_cc.pl_pc[i]);
+		snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\", ", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
 		result += string(eventbuf);
 	}
-	snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\"]}\n", ev->pl_u.pl_cc.pl_pc[i]);
+	snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\"]}\n", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
 	result += string(eventbuf);
 	return (result);
 }
