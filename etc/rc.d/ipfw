@@ -117,8 +117,8 @@ ipfw_stop()
 
 ipfw_status()
 {
-	status=$(sysctl -n net.inet.ip.fw.enable)
-	if [ ${status} -eq 0 ]; then
+	status=$(sysctl -i -n net.inet.ip.fw.enable)
+	if [ ${status:-0} -eq 0 ]; then
 		echo "ipfw is not enabled"
 		exit 1
 	else
