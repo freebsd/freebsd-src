@@ -193,7 +193,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_JACK_WO_DETECT(25),
         				{ }
 				}
 			}, {
@@ -202,8 +202,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_PATCH_JACK_WO_DETECT(0x19),
-					PIN_PATCH_HPMIC_WO_DETECT(0x1a),
+					PIN_PATCH_JACK_WO_DETECT(25),
+					PIN_PATCH_HPMIC_WO_DETECT(26),
         				{ }
 				}
 			}, { }
