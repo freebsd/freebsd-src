@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_seq.h>
 #include <netinet/cc/cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
@@ -139,7 +140,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, keepcnt, CTLFLAG_RW, &tcp_keepcnt, 0,
 	/* max idle probes */
 int	tcp_maxpersistidle;
 
-static int	tcp_rexmit_drop_options = 0;
+int	tcp_rexmit_drop_options = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
@@ -174,18 +175,13 @@ static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
     &per_cpu_timers , 0, "run tcp timers on all cpus");
 
-#if 0
-#define	INP_CPU(inp)	(per_cpu_timers ? (!CPU_ABSENT(((inp)->inp_flowid % (mp_maxid+1))) ? \
-		((inp)->inp_flowid % (mp_maxid+1)) : curcpu) : 0)
-#endif
-
 /*
  * Map the given inp to a CPU id.
  *
  * This queries RSS if it's compiled in, else it defaults to the current
  * CPU ID.
  */
-static inline int
+inline int
 inp_to_cpuid(struct inpcb *inp)
 {
 	u_int cpuid;
@@ -243,7 +239,7 @@ int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 512, 512, 512 };
 
-static int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
+int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
 
 /*
  * TCP timer processing.
@@ -946,6 +942,111 @@ tcp_timer_active(struct tcpcb *tp, uint32_t timer_type)
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	return callout_active(t_callout);
+}
+
+/*
+ * Stop the timer from running, and apply a flag
+ * against the timer_flags that will force the
+ * timer never to run. The flag is needed to assure
+ * a race does not leave it running and cause
+ * the timer to possibly restart itself (keep and persist
+ * especially do this). 
+ */
+int
+tcp_timer_suspend(struct tcpcb *tp, uint32_t timer_type)
+{
+	struct callout *t_callout;
+	uint32_t t_flags;
+
+	switch (timer_type) {
+		case TT_DELACK:
+			t_flags = TT_DELACK_SUS;
+			t_callout = &tp->t_timers->tt_delack;
+			break;
+		case TT_REXMT:
+			t_flags = TT_REXMT_SUS;
+			t_callout = &tp->t_timers->tt_rexmt;
+			break;
+		case TT_PERSIST:
+			t_flags = TT_PERSIST_SUS;
+			t_callout = &tp->t_timers->tt_persist;
+			break;
+		case TT_KEEP:
+			t_flags = TT_KEEP_SUS;
+			t_callout = &tp->t_timers->tt_keep;
+			break;
+		case TT_2MSL:
+			t_flags = TT_2MSL_SUS;
+			t_callout = &tp->t_timers->tt_2msl;
+			break;
+		default:
+			panic("tp:%p bad timer_type 0x%x", tp, timer_type);
+	}
+	tp->t_timers->tt_flags |= t_flags;
+	return (callout_stop(t_callout));
+}
+
+void
+tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
+{
+	switch (timer_type) {
+		case TT_DELACK:
+			if (tp->t_timers->tt_flags & TT_DELACK_SUS) {
+				tp->t_timers->tt_flags &= ~TT_DELACK_SUS;
+				if (tp->t_flags & TF_DELACK) {
+					/* Delayed ack timer should be up activate a timer */
+					tp->t_flags &= ~TF_DELACK;
+					tcp_timer_activate(tp, TT_DELACK,
+					    tcp_delacktime);
+				}
+			}
+			break;
+		case TT_REXMT:
+			if (tp->t_timers->tt_flags & TT_REXMT_SUS) {
+				tp->t_timers->tt_flags &= ~TT_REXMT_SUS;
+				if (SEQ_GT(tp->snd_max, tp->snd_una) &&
+				    (tcp_timer_active((tp), TT_PERSIST) == 0) &&
+				    tp->snd_wnd) {
+					/* We have outstanding data activate a timer */
+					tcp_timer_activate(tp, TT_REXMT, 
+                                            tp->t_rxtcur);
+				}
+			}
+			break;
+		case TT_PERSIST:
+			if (tp->t_timers->tt_flags & TT_PERSIST_SUS) {
+				tp->t_timers->tt_flags &= ~TT_PERSIST_SUS;
+				if (tp->snd_wnd == 0) {
+					/* Activate the persists timer */
+					tp->t_rxtshift = 0;
+					tcp_setpersist(tp);
+				}
+			}
+			break;
+		case TT_KEEP:
+			if (tp->t_timers->tt_flags & TT_KEEP_SUS) {
+				tp->t_timers->tt_flags &= ~TT_KEEP_SUS;
+				tcp_timer_activate(tp, TT_KEEP,
+					    TCPS_HAVEESTABLISHED(tp->t_state) ?
+					    TP_KEEPIDLE(tp) : TP_KEEPINIT(tp));
+			}
+			break;
+		case TT_2MSL:
+			if (tp->t_timers->tt_flags &= TT_2MSL_SUS) {
+				tp->t_timers->tt_flags &= ~TT_2MSL_SUS;
+				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+				    ((tp->t_inpcb->inp_socket == NULL) ||
+				     (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE))) {
+					/* Star the 2MSL timer */
+					tcp_timer_activate(tp, TT_2MSL,
+					    (tcp_fast_finwait2_recycle) ?
+					    tcp_finwait2_timeout : TP_MAXIDLE(tp));
+				}
+			}
+			break;
+		default:
+			panic("tp:%p bad timer_type 0x%x", tp, timer_type);
+	}
 }
 
 void

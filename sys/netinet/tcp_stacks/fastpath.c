@@ -2392,7 +2392,7 @@ struct tcp_function_block __tcp_fastack = {
 static int
 tcp_addfastpaths(module_t mod, int type, void *data)
 {
-	int err=0;
+	int err = 0;
 
 	switch (type) {
 	case MOD_LOAD:
