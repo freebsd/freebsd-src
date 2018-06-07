@@ -113,12 +113,16 @@ mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 	allocated = false;
 	for (i = *physmap_idx; i <= *physmap_idx; i -= 2) {
 		/*
-		 * Find a memory region big enough below the 4GB boundary to
-		 * store the initial page tables. Note that it needs to be
-		 * aligned to a page boundary.
+		 * Find a memory region big enough below the 4GB
+		 * boundary to store the initial page tables.  Region
+		 * must be mapped by the direct map.
+		 *
+		 * Note that it needs to be aligned to a page
+		 * boundary.
 		 */
-		if (physmap[i] >= GiB(4) ||
-		    (physmap[i + 1] - round_page(physmap[i])) < (PAGE_SIZE * 3))
+		if (physmap[i] >= GiB(4) || physmap[i + 1] -
+		    round_page(physmap[i]) < PAGE_SIZE * 3 ||
+		    physmap[i + 1] > Maxmem)
 			continue;
 
 		allocated = true;
