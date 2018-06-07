@@ -168,6 +168,7 @@ MD_ROOT		opt_md.h
 MD_ROOT_FSTYPE	opt_md.h
 MD_ROOT_READONLY	opt_md.h
 MD_ROOT_SIZE	opt_md.h
+MD_ROOT_MEM	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
