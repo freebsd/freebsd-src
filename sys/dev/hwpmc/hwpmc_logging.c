@@ -739,7 +739,8 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 	PMCLOG_EMIT64(tsc_freq);
 #else
 	/* other architectures will need to fill this in */
-	PMCLOG_EMIT64(0);
+	PMCLOG_EMIT32(0);
+	PMCLOG_EMIT32(0);
 #endif
 	memcpy(_le, &ts, sizeof(ts));
 	_le += sizeof(ts)/4;
