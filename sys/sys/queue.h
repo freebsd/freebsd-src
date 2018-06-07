@@ -95,6 +95,7 @@
  * _NEXT			+	+	+	+
  * _PREV			-	+	-	+
  * _LAST			-	-	+	+
+ * _LAST_FAST			-	-	-	+
  * _FOREACH			+	+	+	+
  * _FOREACH_FROM		+	+	+	+
  * _FOREACH_SAFE		+	+	+	+
@@ -816,6 +817,16 @@ struct {								\
 
 #define	TAILQ_LAST(head, headname)					\
 	(*(((struct headname *)((head)->tqh_last))->tqh_last))
+
+/*
+ * The FAST function is fast in that it causes no data access other
+ * then the access to the head. The standard LAST function above
+ * will cause a data access of both the element you want and 
+ * the previous element. FAST is very useful for instances when
+ * you may want to prefetch the last data element.
+ */
+#define	TAILQ_LAST_FAST(head, type, field)			\
+    (TAILQ_EMPTY(head) ? NULL : __containerof((head)->tqh_last, QUEUE_TYPEOF(type), field.tqe_next))
 
 #define	TAILQ_NEXT(elm, field) ((elm)->field.tqe_next)
 

@@ -168,11 +168,15 @@ struct tcp_timer {
 #define TT_2MSL		0x0010
 #define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
 
-#define TT_DELACK_RST	0x0100
-#define TT_REXMT_RST	0x0200
-#define TT_PERSIST_RST	0x0400
-#define TT_KEEP_RST	0x0800
-#define TT_2MSL_RST	0x1000
+/* 
+ * Suspend flags - used when suspending a timer
+ * from ever running again.
+ */
+#define TT_DELACK_SUS	0x0100
+#define TT_REXMT_SUS	0x0200
+#define TT_PERSIST_SUS	0x0400
+#define TT_KEEP_SUS	0x0800
+#define TT_2MSL_SUS	0x1000
 
 #define TT_STOPPED	0x00010000
 
@@ -196,6 +200,8 @@ extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 extern int tcp_syn_backoff[];
+extern int tcp_totbackoff;
+extern int tcp_rexmit_drop_options;
 
 extern int tcp_always_keepalive;
 extern int tcp_finwait2_timeout;

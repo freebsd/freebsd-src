@@ -289,6 +289,22 @@ tvtosbt(struct timeval _tv)
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
+/*
+ * Simple macros to convert ticks to milliseconds
+ * or microseconds and vice-versa. The answer
+ * will always be at least 1. Note the return
+ * value is a uint32_t however we step up the
+ * operations to 64 bit to avoid any overflow/underflow
+ * problems.
+ */
+#define TICKS_2_MSEC(t) max(1, (uint32_t)(hz == 1000) ? \
+	  (t) : (((uint64_t)(t) * (uint64_t)1000)/(uint64_t)hz))
+#define TICKS_2_USEC(t) max(1, (uint32_t)(hz == 1000) ? \
+	  ((t) * 1000) : (((uint64_t)(t) * (uint64_t)1000000)/(uint64_t)hz))
+#define MSEC_2_TICKS(m) max(1, (uint32_t)((hz == 1000) ? \
+	  (m) : ((uint64_t)(m) * (uint64_t)hz)/(uint64_t)1000))
+#define USEC_2_TICKS(u) max(1, (uint32_t)((hz == 1000) ? \
+	 ((u) / 1000) : ((uint64_t)(u) * (uint64_t)hz)/(uint64_t)1000000))
 
 /* Operations on timespecs */
 #define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
