@@ -132,6 +132,12 @@ kmalloc_array(size_t n, size_t size, gfp_t flags)
 }
 
 static inline void *
+kvmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
 krealloc(void *ptr, size_t size, gfp_t flags)
 {
 	return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
