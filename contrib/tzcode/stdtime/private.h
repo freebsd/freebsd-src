@@ -230,15 +230,6 @@ const char *	scheck(const char * string, const char * format);
 #define	TYPE_INTEGRAL(type) (((type) 0.5) != 0.5)
 #endif /* !defined TYPE_INTEGRAL */
 
-/*
-** Since the definition of TYPE_INTEGRAL contains floating point numbers,
-** it cannot be used in preprocessor directives.
-*/
-
-#ifndef TYPE_INTEGRAL
-#define TYPE_INTEGRAL(type) (((type) 0.5) != 0.5)
-#endif /* !defined TYPE_INTEGRAL */
-
 #ifndef INT_STRLEN_MAXIMUM
 /*
 ** 302 / 1000 is log10(2.0) rounded up.
