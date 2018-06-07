@@ -72,9 +72,12 @@ __FBSDID("$FreeBSD$");
 #include <string>
 #include <unordered_map>
 
+#include <pmcformat.h>
+
+using	namespace std;
 using	std::unordered_map;
-typedef unordered_map <int, std::string> idmap;
-typedef std::pair <int, std::string> identry;
+typedef unordered_map < int ,string > idmap;
+typedef pair < int ,string > identry;
 
 #define LIST_MAX 64
 static struct option longopts[] = {
@@ -176,8 +179,26 @@ pmc_find_name(idmap & map, uint32_t id, char *list[LIST_MAX], int count)
 }
 
 static void
+pmc_log_event(int fd, struct pmclog_ev *ev, bool json)
+{
+	int len;
+	void *buf;
+
+	if (json) {
+		string ret = event_to_json(ev);
+		buf = (void*)ret.c_str();
+		len = ret.size();
+	} else {
+		len = ev->pl_len;
+		buf = ev->pl_data;
+	}
+	if (write(fd, buf, len) != (ssize_t)len)
+		errx(EX_OSERR, "ERROR: failed output write");
+}
+
+static void
 pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidcount,
-    char *events, char *processes, char *threads, bool exclusive, int infd,
+    char *events, char *processes, char *threads, bool exclusive, bool json, int infd,
     int outfd)
 {
 	struct pmclog_ev ev;
@@ -187,14 +208,15 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	char cpuid[PMC_CPUID_LEN];
 	char *proclist[LIST_MAX];
 	char *threadlist[LIST_MAX];
-	int i, pmccount, copies, eventcount, proccount, threadcount;
+	int i, pmccount, copies, eventcount;
+	int proccount, threadcount;
 	uint32_t idx;
 	idmap pidmap, tidmap;
 
 	if ((ps = static_cast < struct pmclog_parse_state *>(pmclog_open(infd)))== NULL)
 		errx(EX_OSERR, "ERROR: Cannot allocate pmclog parse state: %s\n", strerror(errno));
 
-	proccount = eventcount = pmccount = 0;
+	threadcount = proccount = eventcount = pmccount = 0;
 	if (processes)
 		parse_names(processes, proclist, &proccount);
 	if (threads)
@@ -207,7 +229,6 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	}
 	if (events)
 		parse_events(events, eventlist, &eventcount, cpuid);
-
 	lseek(infd, 0, SEEK_SET);
 	pmclog_close(ps);
 	if ((ps = static_cast < struct pmclog_parse_state *>(pmclog_open(infd)))== NULL)
@@ -233,8 +254,7 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 		if (ev.pl_type == PMCLOG_TYPE_PROC_CREATE)
 			pidmap[ev.pl_u.pl_pc.pl_pid] = ev.pl_u.pl_pc.pl_pcomm;
 		if (ev.pl_type != PMCLOG_TYPE_CALLCHAIN) {
-			if (write(outfd, ev.pl_data, ev.pl_len) != (ssize_t)ev.pl_len)
-				errx(EX_OSERR, "ERROR: failed output write");
+			pmc_log_event(outfd, &ev, json);
 			continue;
 		}
 		if (pidcount) {
@@ -274,8 +294,7 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 		if (threadcount &&
 		    pmc_find_name(tidmap, ev.pl_u.pl_cc.pl_tid, threadlist, threadcount) == exclusive)
 			continue;
-		if (write(outfd, ev.pl_data, ev.pl_len) != (ssize_t)ev.pl_len)
-			errx(EX_OSERR, "ERROR: failed output write");
+		pmc_log_event(outfd, &ev, json);
 	}
 }
 
@@ -287,15 +306,18 @@ cmd_pmc_filter(int argc, char **argv)
 	uint32_t pidlist[LIST_MAX];
 	int option, lwpcount, pidcount;
 	int prelogfd, postlogfd;
-	bool exclusive;
+	bool exclusive, json;
 
 	threads = processes = lwps = pids = events = NULL;
 	lwpcount = pidcount = 0;
-	exclusive = false;
-	while ((option = getopt_long(argc, argv, "e:p:t:xP:T:", longopts, NULL)) != -1) {
+	json = exclusive = false;
+	while ((option = getopt_long(argc, argv, "e:jp:t:xP:T:", longopts, NULL)) != -1) {
 		switch (option) {
 		case 'e':
 			events = strdup(optarg);
+			break;
+		case 'j':
+			json = true;
 			break;
 		case 'p':
 			pids = strdup(optarg);
@@ -336,6 +358,6 @@ cmd_pmc_filter(int argc, char **argv)
 		    strerror(errno));
 
 	pmc_filter_handler(lwplist, lwpcount, pidlist, pidcount, events,
-	    processes, threads, exclusive, prelogfd, postlogfd);
+	    processes, threads, exclusive, json, prelogfd, postlogfd);
 	return (0);
 }

@@ -5,7 +5,7 @@
 .include <src.opts.mk>
 PROG_CXX=	pmc
 MAN=	
-CXXFLAGS+=
+CXXFLAGS+= -O0
 
 LIBADD=	kvm pmc m ncursesw pmcstat elf
 
