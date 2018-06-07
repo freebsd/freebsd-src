@@ -158,12 +158,6 @@
     <para>This section covers changes and additions to userland
       applications, contributed software, and system utilities.</para>
 
-    <sect2 xml:id="userland-config">
-      <title>Userland Configuration Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
@@ -471,31 +465,6 @@
 
       <para>&nbsp;</para>
     </sect2>
-
-    <sect2 xml:id="userland-periodic">
-      <title><filename class="directory">/etc/periodic</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-libraries">
-      <title>Runtime Libraries and API</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-abi">
-      <title>ABI Compatibility</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-debug">
-      <title>Userland Debugging</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">
@@ -545,12 +514,6 @@
 	a hardware watchdog is not present.</para>
     </sect2>
 
-    <sect2 xml:id="kernel-modules">
-      <title>Kernel Modules</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
@@ -570,19 +533,28 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
+      <para revision="330307" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.63.0 for T4, T5, and T6 network
+	adapters.</para>
+
       <para revision="331058">The &man.ng.pppoe.4; driver has been
 	updated to add support for user-supplied
 	<literal>Host-Uniq</literal> tags.</para>
+
+      <para revision="331500">Support for the TAIO
+	<acronym>USB</acronym> multi-protocol adapter
+	(<acronym>TUMPA</acronym>) has been added.</para>
 
       <para revision="331586" contrib="sponsor"
 	sponsor="&mellanox;">The &man.mlx5io.4; driver has been added,
 	providing an interface to manage supported Connect-X&nbsp;4
 	and Connect-X&nbsp;5 network adapters.</para>
 
-      <para revision="330307" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
-	to firmware version 1.16.63.0 for T4, T5, and T6 network
-	adapters.</para>
+      <para revision="331882" contrib="sponsor"
+	sponsor="&darpa_afrl;">The &man.cm.4; and &man.fpa.4; drivers
+	have been marked as deprecated, and will be removed in
+	&os;&nbsp;12.</para>
 
       <para revision="332040" contrib="sponsor"
 	sponsor="&broadcom;">The &man.ocs.fc.4; driver has been added,
@@ -591,21 +563,26 @@
 	Emulex&nbsp;32/16G&nbsp;FC&nbsp;GEN&nbsp;6
 	<acronym>HBA</acronym>s LPe3100X and LPe3200X.</para>
 
+      <para revision="333171">The &man.ixgb.4; driver has been marked
+	as deprecated, and will be removed in &os;&nbsp;12.</para>
+
       <para revision="333343" contrib="sponsor"
 	sponsor="&intelcorp;">The &man.ixl.4; driver has been updated
 	to version 1.9.9-k.</para>
-    </sect2>
 
-    <sect2 xml:id="drivers-storage">
-      <title>Storage Drivers</title>
+      <para revision="333367">The &man.nxge.4; driver has been marked
+	as deprecated, and will be removed in &os;&nbsp;12.</para>
 
-      <para>&nbsp;</para>
-    </sect2>
+      <para revision="333412" contrib="sponsor" sponsor="&ff;">The
+	&man.lmc.4; driver has been marked as deprecated, and will be
+	removed in &os;&nbsp;12.</para>
 
-    <sect2 xml:id="drivers-network">
-      <title>Network Drivers</title>
+      <para revision="333417">The &man.smartpqi.4; driver has been
+	added, providing support for Microsemi&reg;
+	<acronym>SCSI</acronym> controllers.</para>
 
-      <para>&nbsp;</para>
+      <para revision="333738">The &man.vxge.4; driver has been marked
+	as deprecated, and will be removed in &os;&nbsp;12.</para>
     </sect2>
   </sect1>
 
@@ -617,47 +594,11 @@
       as hardware changes and updates that do not otherwise fit in
       other sections of this document.</para>
 
-    <sect2 xml:id="hardware-support">
-      <title>Hardware Support</title>
-
-      <para revision="331500">Support for the TAIO
-	<acronym>USB</acronym> multi-protocol adapter
-	(<acronym>TUMPA</acronym>) has been added.</para>
-
-      <para revision="331882" contrib="sponsor"
-	sponsor="&darpa_afrl;">The &man.cm.4; and &man.fpa.4; drivers
-	have been marked as deprecated, and will be removed in
-	&os;&nbsp;12.</para>
-
-      <para revision="333171">The &man.ixgb.4; driver has been marked
-	as deprecated, and will be removed in &os;&nbsp;12.</para>
-
-      <para revision="333367">The &man.nxge.4; driver has been marked
-	as deprecated, and will be removed in &os;&nbsp;12.</para>
-
-      <para revision="333412" contrib="sponsor" sponsor="&ff;">The
-	&man.lmc.4; driver has been marked as deprecated, and will be
-	removed in &os;&nbsp;12.</para>
-
-      <para revision="333738">The &man.vxge.4; driver has been marked
-	as deprecated, and will be removed in &os;&nbsp;12.</para>
-
-      <para revision="333417">The &man.smartpqi.4; driver has been
-	added, providing support for Microsemi&reg;
-	<acronym>SCSI</acronym> controllers.</para>
-    </sect2>
-
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
       <para revision="321413">Support for &man.virtio.console.4; has
 	been added to &man.bhyve.4;.</para>
-    </sect2>
-
-    <sect2 xml:id="hardware-arm">
-      <title>ARM Support</title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 
@@ -666,24 +607,6 @@
 
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
-
-    <sect2 xml:id="storage-general">
-      <title>General Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="storage-net">
-      <title>Networked Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="storage-zfs">
-      <title>ZFS</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="storage-geom">
       <title><literal>geom(4)</literal></title>
@@ -722,12 +645,6 @@
 	is now hidden by default.  See the configuration options in
 	&man.geli.8; to restore the previous behavior.</para>
     </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
@@ -743,12 +660,6 @@
 	sponsor="&dellemc;">The &man.icmp6.4; protocol has been
 	updated to fix <acronym>ICMPv6</acronym> redirects.</para>
     </sect2>
-
-    <sect2 xml:id="network-protocols">
-      <title>Network Protocols</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="ports">
@@ -758,33 +669,8 @@
       Collection, package infrastructure, and package maintenance and
       installation tools.</para>
 
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
 
       <para>&nbsp;</para>
     </sect2>
