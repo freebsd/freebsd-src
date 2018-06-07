@@ -591,11 +591,11 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x12, 0x90a60140),
-					PIN_OVERRIDE(0x14, 0x90170110),
-					PIN_OVERRIDE(0x15, 0x0221401f),
-					PIN_OVERRIDE(0x17, 0x90170112), /* subwoofer */
-					PIN_PATCH_JACK_WO_DETECT(0x1a),
+					PIN_PATCH_STRING(18, "as=4 misc=1 ctype=Digital device=Mic loc=Internal conn=Fixed"),
+					PIN_PATCH_STRING(20, "as=1 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
+					PIN_PATCH_STRING(21, "seq=15 as=1 color=Green ctype=1/8 device=Headphones loc=Front"),
+					PIN_PATCH_STRING(23, "seq=2 as=1 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
+					PIN_PATCH_JACK_WO_DETECT(26),
         				{ }
 				}
 			}, { }
