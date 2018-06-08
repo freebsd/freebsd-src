@@ -2957,7 +2957,7 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 		goto done;
 	}
 	mtx_init(sav->lock, "ipsec association", NULL, MTX_DEF);
-	sav->lft_c = uma_zalloc(V_key_lft_zone, M_NOWAIT);
+	sav->lft_c = uma_zalloc_pcpu(V_key_lft_zone, M_NOWAIT);
 	if (sav->lft_c == NULL) {
 		*errp = ENOBUFS;
 		goto done;
@@ -3049,7 +3049,7 @@ done:
 				free(sav->lock, M_IPSEC_MISC);
 			}
 			if (sav->lft_c != NULL)
-				uma_zfree(V_key_lft_zone, sav->lft_c);
+				uma_zfree_pcpu(V_key_lft_zone, sav->lft_c);
 			free(sav, M_IPSEC_SA), sav = NULL;
 		}
 		if (sah != NULL)
