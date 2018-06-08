@@ -260,7 +260,7 @@ find_uid(uid_t needle, int *haystack)
 	for (; i < TOP_MAX_UIDS; ++i)
 		if ((uid_t)haystack[i] == needle)
 			return 1;
-	return 0;
+	return (0);
 }
 
 void
@@ -615,7 +615,7 @@ get_system_info(struct system_info *si)
 static const struct kinfo_proc *
 get_old_proc(struct kinfo_proc *pp)
 {
-	struct kinfo_proc **oldpp, *oldp;
+	const struct kinfo_proc * const *oldpp, *oldp;
 
 	/*
 	 * If this is the first fetch of the kinfo_procs then we don't have

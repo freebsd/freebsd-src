@@ -102,7 +102,7 @@ int enter_user(int uid, char name[], bool wecare)
     if (!is_empty_hash(hashindex))
     {
 	if (!wecare)
-	    return 0;		/* Don't clobber a slot for trash */
+	    return (0);		/* Don't clobber a slot for trash */
 	if (hash_table[hashindex].uid == uid)
 	    return(hashindex);	/* Fortuitous find */
     }
