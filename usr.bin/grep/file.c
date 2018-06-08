@@ -113,7 +113,7 @@ grep_fgetln(struct file *f, struct parsec *pc)
 		return (bufpos);
 	}
 
-	/* Look for a newline in the remaining part of the [6rbuffer */
+	/* Look for a newline in the remaining part of the buffer */
 	if ((p = memchr(bufpos, fileeol, bufrem)) != NULL) {
 		++p; /* advance over newline */
 		ret = bufpos;
