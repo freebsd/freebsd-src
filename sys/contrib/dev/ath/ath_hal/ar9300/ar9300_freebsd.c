@@ -704,11 +704,16 @@ ar9300_proc_rx_desc_freebsd(struct ath_hal *ah, struct ath_desc *ds,
 	    (void *) ds));
 }
 
+/*
+ * This is the primary way the ANI code gets the node statistics per packet.
+ */
 void
 ar9300_ani_rxmonitor_freebsd(struct ath_hal *ah, const HAL_NODE_STATS *stats,
     const struct ieee80211_channel *chan)
 {
+	struct ath_hal_9300 *ahp = AH9300(ah);
 
+	ahp->ah_stats.ast_nodestats.ns_avgbrssi = stats->ns_avgbrssi;
 }
 
 void
