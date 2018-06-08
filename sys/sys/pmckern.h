@@ -176,7 +176,7 @@ struct pmc_domain_buffer_header {
 
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
-extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
+extern int (*pmc_intr)(struct trapframe *_frame);
 
 /* SX lock protecting the hook */
 extern struct sx pmc_sx;

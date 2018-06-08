@@ -702,8 +702,7 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 			continue;
 
 		/* Stop the counter if logging fails. */
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			mpc7xxx_stop_pmc(cpu, i);
 

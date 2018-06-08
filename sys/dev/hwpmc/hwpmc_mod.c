@@ -207,8 +207,7 @@ static int	pmc_debugflags_parse(char *newstr, char *fence);
 #endif
 
 static int	load(struct module *module, int cmd, void *arg);
-static int	pmc_add_sample(int cpu, int ring, struct pmc *pm,
-    struct trapframe *tf, int inuserspace);
+static int	pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf);
 static void	pmc_add_thread_descriptors_from_proc(struct proc *p,
     struct pmc_process *pp);
 static int	pmc_attach_process(struct proc *p, struct pmc *pm);
@@ -4640,10 +4639,9 @@ pmc_post_callchain_callback(void)
  */
 
 static int
-pmc_add_sample(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
-    int inuserspace)
+pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
 {
-	int error, callchaindepth;
+	int error, cpu, callchaindepth, inuserspace;
 	struct thread *td;
 	struct pmc_sample *ps;
 	struct pmc_samplebuffer *psb;
@@ -4653,8 +4651,9 @@ pmc_add_sample(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 	/*
 	 * Allocate space for a sample buffer.
 	 */
+	cpu = curcpu;
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
-
+	inuserspace = TRAPF_USERMODE(tf);
 	ps = psb->ps_write;
 	if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
 		counter_u64_add(ps->ps_pmc->pm_runcount, -1);
@@ -4743,19 +4742,18 @@ pmc_add_sample(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
  */
 
 int
-pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
-    int inuserspace)
+pmc_process_interrupt(int ring, struct pmc *pm, struct trapframe *tf)
 {
 	struct thread *td;
 
 	td = curthread;
 	if ((pm->pm_flags & PMC_F_USERCALLCHAIN) &&
-           (td->td_proc->p_flag & P_KPROC) == 0 &&
-           !inuserspace) {
+        (td->td_proc->p_flag & P_KPROC) == 0 &&
+		!TRAPF_USERMODE(tf)) {
 		atomic_add_int(&curthread->td_pmcpend, 1);
-		return (pmc_add_sample(cpu, PMC_UR, pm, tf, 0));
+		return (pmc_add_sample(PMC_UR, pm, tf));
 	}
-	return (pmc_add_sample(cpu, ring, pm, tf, inuserspace));
+	return (pmc_add_sample(ring, pm, tf));
 }
 
 /*

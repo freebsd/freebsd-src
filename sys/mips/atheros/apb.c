@@ -388,7 +388,7 @@ apb_filter(void *arg)
 					tf = td->td_intr_frame;
 
 					if (pmc_intr)
-						(*pmc_intr)(PCPU_GET(cpuid), tf);
+						(*pmc_intr)(PCPU_GET(tf);
 					continue;
 				}
 				/* Ignore timer interrupts */
