@@ -2230,6 +2230,32 @@ uma_zwait(uma_zone_t zone)
 	uma_zfree(zone, item);
 }
 
+void *
+uma_zalloc_pcpu_arg(uma_zone_t zone, void *udata, int flags)
+{
+	void *item;
+	int i;
+
+	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
+	item = uma_zalloc_arg(zone, udata, flags &~ M_ZERO);
+	if (item != NULL && (flags & M_ZERO)) {
+		CPU_FOREACH(i)
+			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
+	}
+	return (item);
+}
+
+/*
+ * A stub while both regular and pcpu cases are identical.
+ */
+void
+uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *udata)
+{
+
+	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
+	uma_zfree_arg(zone, item, udata);
+}
+
 /* See uma.h */
 void *
 uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)

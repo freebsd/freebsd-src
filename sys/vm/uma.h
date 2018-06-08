@@ -333,6 +333,7 @@ void uma_zdestroy(uma_zone_t zone);
  */
 
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
+void *uma_zalloc_pcpu_arg(uma_zone_t zone, void *arg, int flags);
 
 /*
  * Allocate an item from a specific NUMA domain.  This uses a slow path in
@@ -354,11 +355,18 @@ void *uma_zalloc_domain(uma_zone_t zone, void *arg, int domain, int flags);
  *
  */
 static __inline void *uma_zalloc(uma_zone_t zone, int flags);
+static __inline void *uma_zalloc_pcpu(uma_zone_t zone, int flags);
 
 static __inline void *
 uma_zalloc(uma_zone_t zone, int flags)
 {
 	return uma_zalloc_arg(zone, NULL, flags);
+}
+
+static __inline void *
+uma_zalloc_pcpu(uma_zone_t zone, int flags)
+{
+	return uma_zalloc_pcpu_arg(zone, NULL, flags);
 }
 
 /*
@@ -374,6 +382,7 @@ uma_zalloc(uma_zone_t zone, int flags)
  */
 
 void uma_zfree_arg(uma_zone_t zone, void *item, void *arg);
+void uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *arg);
 
 /*
  * Frees an item back to the specified zone's domain specific pool.
@@ -392,11 +401,18 @@ void uma_zfree_domain(uma_zone_t zone, void *item, void *arg);
  *
  */
 static __inline void uma_zfree(uma_zone_t zone, void *item);
+static __inline void uma_zfree_pcpu(uma_zone_t zone, void *item);
 
 static __inline void
 uma_zfree(uma_zone_t zone, void *item)
 {
 	uma_zfree_arg(zone, item, NULL);
+}
+
+static __inline void
+uma_zfree_pcpu(uma_zone_t zone, void *item)
+{
+	uma_zfree_pcpu_arg(zone, item, NULL);
 }
 
 /*
