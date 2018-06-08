@@ -57,20 +57,6 @@ __FBSDID("$FreeBSD$");
 static bool	 first_match = true;
 
 /*
- * Parsing context; used to hold things like matches made and
- * other useful bits
- */
-struct parsec {
-	regmatch_t	matches[MAX_MATCHES];		/* Matches made */
-	/* XXX TODO: This should be a chunk, not a line */
-	struct str	ln;				/* Current line */
-	size_t		lnstart;			/* Position in line */
-	size_t		matchidx;			/* Latest match index */
-	int		printed;			/* Metadata printed? */
-	bool		binary;				/* Binary file? */
-};
-
-/*
  * Match printing context
  */
 struct mprintc {
@@ -276,7 +262,7 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 		if (mflag) {
 			/* XXX TODO: Decrement by number of matched lines */
 			mcount -= 1;
-			if (mflag && mcount <= 0)
+			if (mcount <= 0)
 				return (false);
 		}
 	} else if (mc->doctx)
@@ -327,6 +313,7 @@ procfile(const char *fn)
 	pc.ln.boff = 0;
 	pc.ln.off = -1;
 	pc.binary = f->binary;
+	pc.cntlines = false;
 	memset(&mc, 0, sizeof(mc));
 	mc.printmatch = true;
 	if ((pc.binary && binbehave == BINFILE_BIN) || cflag || qflag ||
@@ -334,6 +321,8 @@ procfile(const char *fn)
 		mc.printmatch = false;
 	if (mc.printmatch && (Aflag != 0 || Bflag != 0))
 		mc.doctx = true;
+	if (mc.printmatch && (Aflag != 0 || Bflag != 0 || mflag || nflag))
+		pc.cntlines = true;
 	mcount = mlimit;
 
 	for (lines = 0; lines == 0 || !(lflag || qflag); ) {
@@ -349,7 +338,7 @@ procfile(const char *fn)
 		pc.ln.boff = 0;
 		pc.ln.off += pc.ln.len + 1;
 		/* XXX TODO: Grab a chunk */
-		if ((pc.ln.dat = grep_fgetln(f, &pc.ln.len)) == NULL ||
+		if ((pc.ln.dat = grep_fgetln(f, &pc)) == NULL ||
 		    pc.ln.len == 0)
 			break;
 
