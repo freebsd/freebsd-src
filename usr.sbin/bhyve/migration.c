@@ -1715,81 +1715,96 @@ migrate_send_memory(struct vmctx *ctx, int socket)
 	return (0);
 }
 
-static int
-migrate_send_kern_data(struct vmctx *ctx, int socket)
+static inline int
+migrate_send_kern_struct(struct vmctx *ctx, int socket,
+			 char *buffer,
+			 enum snapshot_req struct_req)
 {
-	int i, rc;
+	int rc;
 	size_t data_size;
 	struct migration_message_type msg;
-	char *buffer;
-	enum snapshot_req structs[] = {
-		STRUCT_VM,
-		STRUCT_VMX,
-		STRUCT_VIOAPIC,
-		STRUCT_VLAPIC,
-		STRUCT_LAPIC,
-		STRUCT_VHPET,
-		STRUCT_VMCX,
-		STRUCT_VATPIC,
-		STRUCT_VATPIT,
-		STRUCT_VPMTMR,
-		STRUCT_VRTC,
-	};
 
-	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
-	if (buffer == NULL) {
+	memset(&msg, 0, sizeof(msg));
+
+	msg.type = MESSAGE_TYPE_KERN;
+	rc = vm_snapshot_req(ctx, struct_req, buffer,
+			     KERN_DATA_BUFFER_SIZE, &data_size);
+
+	if (rc < 0) {
 		fprintf(stderr,
-			"%s: Could not allocate memory\r\n",
-			__func__);
+			"%s: Could not get struct with req %d\r\n",
+			__func__,
+			struct_req);
 		return (-1);
 	}
 
-	msg.type = MESSAGE_TYPE_KERN;
+	fprintf(stdout, "%s: Sent kern dev id %d\r\n",
+		__func__, struct_req);
+	msg.len = data_size;
+	msg.req_type = struct_req;
 
-	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
-		rc = vm_snapshot_req(ctx, structs[i], buffer,
-				     KERN_DATA_BUFFER_SIZE, &data_size);
-
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not get struct with req %d\r\n",
-				__func__,
-				structs[i]);
-			return (-1);
-		}
-
-		fprintf(stdout, "%s: Sent kern dev id %d\r\n", __func__, structs[i]);
-		msg.len = data_size;
-		msg.req_type = structs[i];
-
-		rc = migration_send_data_remote(socket, &msg, sizeof(msg));
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not send struct msg for req %d\r\n",
-				__func__,
-				structs[i]);
-			return (-1);
-		}
-
-		rc = migration_send_data_remote(socket, buffer, data_size);
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not send struct with req %d\r\n",
-				__func__,
-				structs[i]);
-			return (-1);
-		}
-		fprintf(stdout, "%s: Sent dev\r\n", __func__);
+	rc = migration_send_data_remote(socket, &msg, sizeof(msg));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not send struct msg for req %d\r\n",
+			__func__,
+			struct_req);
+		return (-1);
 	}
+
+	rc = migration_send_data_remote(socket, buffer, data_size);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not send struct with req %d\r\n",
+			__func__,
+			struct_req);
+		return (-1);
+	}
+	fprintf(stdout, "%s: Sent dev\r\n", __func__);
 
 	return (0);
 }
 
-static int
-migrate_recv_kern_data(struct vmctx *ctx, int socket)
+static inline int
+migrate_recv_kern_struct(struct vmctx *ctx, int socket, char *buffer)
 {
-	int i, rc;
+	int rc;
 	struct migration_message_type msg;
+
+	memset(&msg, 0, sizeof(struct migration_message_type));
+	rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not recv struct mesg\r\n",
+			__func__);
+		return (-1);
+	}
+	memset(buffer, 0, KERN_DATA_BUFFER_SIZE);
+	rc = migration_recv_data_from_remote(socket, buffer, msg.len);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not recv struct for req %d\r\n",
+			__func__,
+			msg.req_type);
+		return (-1);
+	}
+
+	// restore struct
+	rc = vm_restore_req(ctx, msg.req_type, buffer, msg.len);
+	if (rc != 0 ) {
+		fprintf(stderr,
+			"%s: Failed to restore struct %d\r\n",
+			__func__,
+			msg.req_type);
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req)
+{
+	int i, rc, error = 0;
 	char *buffer;
 	enum snapshot_req structs[] = {
 		STRUCT_VM,
@@ -1814,44 +1829,39 @@ migrate_recv_kern_data(struct vmctx *ctx, int socket)
 	}
 
 	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
-		// wait for msg message
-		memset(&msg, 0, sizeof(struct migration_message_type));
-
-		rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
-		if (rc < 0) {
+		if (req == MIGRATION_RECV_REQ) {
+			// wait for msg message
+			rc = migrate_recv_kern_struct(ctx, socket, buffer);
+			if (rc < 0) {
+				fprintf(stderr,
+					"%s: Could not restore struct %d\n",
+					__func__,
+					i);
+				error = -1;
+				break;
+			}
+		} else if (req == MIGRATION_SEND_REQ) {
+			rc = migrate_send_kern_struct(ctx, socket, buffer, structs[i]);
+			if (rc < 0 ) {
+				fprintf(stderr,
+					"%s: Could not send %d\r\n",
+					__func__,
+					structs[i]);
+				error = -1;
+				break;
+			}
+		} else {
 			fprintf(stderr,
-				"%s: Could not recv struct mesg\r\n",
+				"%s: Unknown transfer request\r\n",
 				__func__);
-			free(buffer);
-			return (-1);
-		}
-
-		memset(buffer, 0, KERN_DATA_BUFFER_SIZE);
-		rc = migration_recv_data_from_remote(socket, buffer, msg.len);
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not recv struct for req %d\r\n",
-				__func__,
-				msg.req_type);
-			free(buffer);
-			return (-1);
-		}
-
-		// restore struct
-		rc = vm_restore_req(ctx, msg.req_type, buffer, msg.len);
-		if (rc != 0 ) {
-			fprintf(stderr,
-				"%s: Failed to restore struct %d\r\n",
-				__func__,
-				msg.req_type);
-			free(buffer);
-			return (-1);
+			error = -1;
+			break;
 		}
 	}
 
 	free(buffer);
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -2094,7 +2104,7 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 
 	// TODO - send cpu & devices state
 	// Send kern data
-	rc =  migrate_send_kern_data(ctx, s);
+	rc =  migrate_kern_data(ctx, s, MIGRATION_SEND_REQ);
 	if (rc != 0) {
 		fprintf(stderr,
 			"%s: Could not send kern data to destination\r\n",
@@ -2235,7 +2245,7 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (-1);
 	}
 
-	rc = migrate_recv_kern_data(ctx, con_socket);
+	rc = migrate_kern_data(ctx, con_socket, MIGRATION_RECV_REQ);
 	if (rc < 0) {
 		fprintf(stderr,
 			"%s: Could not recv kern data\r\n",

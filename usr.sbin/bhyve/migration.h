@@ -46,6 +46,11 @@ int load_restore_file(const char *filename, struct restore_state *rstate);
 
 /* Warm Migration */
 
+enum migration_transfer_req {
+	MIGRATION_SEND_REQ	= 0,
+	MIGRATION_RECV_REQ	= 1
+};
+
 enum message_types {
     MESSAGE_TYPE_SPECS	    = 1,
     MESSAGE_TYPE_METADATA   = 2,
