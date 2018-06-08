@@ -1262,14 +1262,21 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 
 	unp = sotounpcb(so);
 
-	UNP_LINK_RLOCK();
+	UNP_PCB_LOCK(unp);
 	if ((unp2 = unp->unp_conn) == NULL) {
-		UNP_LINK_RUNLOCK();
-		for (int i = 0; i < count; i++)
-			m = m_free(m);
-		return (ECONNRESET);
+		UNP_PCB_UNLOCK(unp);
+		goto error;
 	}
-	UNP_PCB_LOCK(unp2);
+	if (unp != unp2) {
+		if (UNP_PCB_TRYLOCK(unp2) == 0) {
+			unp_pcb_hold(unp2);
+			UNP_PCB_UNLOCK(unp);
+			UNP_PCB_LOCK(unp2);
+			if (unp_pcb_rele(unp2))
+				goto error;
+		} else
+			UNP_PCB_UNLOCK(unp);
+	}
 	so2 = unp2->unp_socket;
 
 	SOCKBUF_LOCK(&so2->so_rcv);
@@ -1279,9 +1286,12 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 		SOCKBUF_UNLOCK(&so2->so_rcv);
 
 	UNP_PCB_UNLOCK(unp2);
-	UNP_LINK_RUNLOCK();
 
 	return (error);
+ error:
+	for (int i = 0; i < count; i++)
+		m = m_free(m);
+	return (ECONNRESET);
 }
 
 static int
