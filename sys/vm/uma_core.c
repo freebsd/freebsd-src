@@ -2257,7 +2257,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("uma_zalloc_arg: called with spinlock or critical section held"));
 	if (zone->uz_flags & UMA_ZONE_PCPU)
-		MPASS((flags & M_ZERO) == 0);
+		KASSERT((flags & M_ZERO) == 0, ("allocating from a pcpu zone "
+		    "with M_ZERO passed"));
 
 #ifdef DEBUG_MEMGUARD
 	if (memguard_cmp_zone(zone)) {
