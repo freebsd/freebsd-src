@@ -40,27 +40,6 @@
 
 	.text
 
-/*
- * bcopy family
- * void bzero(void *buf, u_int len)
- */
-
-/* done */
-ENTRY(bzero)
-	PUSH_FRAME_POINTER
-	movq	%rsi,%rcx
-	xorl	%eax,%eax
-	shrq	$3,%rcx
-	rep
-	stosq
-	movq	%rsi,%rcx
-	andq	$7,%rcx
-	rep
-	stosb
-	POP_FRAME_POINTER
-	ret
-END(bzero)
-
 /* Address: %rdi */
 ENTRY(pagezero)
 	PUSH_FRAME_POINTER
@@ -71,6 +50,21 @@ ENTRY(pagezero)
 	POP_FRAME_POINTER
 	ret
 END(pagezero)
+
+/*
+ * pagecopy(%rdi=from, %rsi=to)
+ */
+ENTRY(pagecopy)
+	PUSH_FRAME_POINTER
+	movq	$PAGE_SIZE/8,%rcx
+	movq	%rdi,%r9
+	movq	%rsi,%rdi
+	movq	%r9,%rsi
+	rep
+	movsq
+	POP_FRAME_POINTER
+	ret
+END(pagecopy)
 
 /* Address: %rdi */
 ENTRY(sse2_pagezero)
@@ -95,94 +89,6 @@ ENTRY(sse2_pagezero)
 	POP_FRAME_POINTER
 	ret
 END(sse2_pagezero)
-
-ENTRY(bcmp)
-	PUSH_FRAME_POINTER
-	test	%rdx,%rdx
-	je	1f
-	cmpq	$64,%rdx
-	jg	4f
-
-	xor	%ecx,%ecx
-2:
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
-	cmp	%r8b,%al
-	jne	3f
-	add	$0x1,%rcx
-	cmp	%rcx,%rdx
-	jne	2b
-1:
-	xor	%eax,%eax
-	POP_FRAME_POINTER
-	retq
-3:
-	mov	$1,%eax
-	POP_FRAME_POINTER
-	retq
-4:
-	movq	%rdx,%rcx
-	shrq	$3,%rcx
-	repe
-	cmpsq
-	jne	5f
-
-	movq	%rdx,%rcx
-	andq	$7,%rcx
-	repe
-	cmpsb
-5:
-	setne	%al
-	movsbl	%al,%eax
-	POP_FRAME_POINTER
-	ret
-END(bcmp)
-
-/*
- * bcopy(src, dst, cnt)
- *       rdi, rsi, rdx
- *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
- */
-ENTRY(bcopy)
-	PUSH_FRAME_POINTER
-	xchgq	%rsi,%rdi
-	movq	%rdx,%rcx
-
-	movq	%rdi,%rax
-	subq	%rsi,%rax
-	cmpq	%rcx,%rax			/* overlapping && src < dst? */
-	jb	1f
-
-	shrq	$3,%rcx				/* copy by 64-bit words */
-	rep
-	movsq
-	movq	%rdx,%rcx
-	andq	$7,%rcx				/* any bytes left? */
-	rep
-	movsb
-	POP_FRAME_POINTER
-	ret
-
-	/* ALIGN_TEXT */
-1:
-	addq	%rcx,%rdi			/* copy backwards */
-	addq	%rcx,%rsi
-	decq	%rdi
-	decq	%rsi
-	andq	$7,%rcx				/* any fractional bytes? */
-	std
-	rep
-	movsb
-	movq	%rdx,%rcx			/* copy remainder by 32-bit words */
-	shrq	$3,%rcx
-	subq	$7,%rsi
-	subq	$7,%rdi
-	rep
-	movsq
-	cld
-	POP_FRAME_POINTER
-	ret
-END(bcopy)
 
 /*
  * memmove(dst, src, cnt)
@@ -290,21 +196,6 @@ ENTRY(memset)
 	POP_FRAME_POINTER
 	ret
 END(memset)
-
-/*
- * pagecopy(%rdi=from, %rsi=to)
- */
-ENTRY(pagecopy)
-	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE/8,%rcx
-	movq	%rdi,%r9
-	movq	%rsi,%rdi
-	movq	%r9,%rsi
-	rep
-	movsq
-	POP_FRAME_POINTER
-	ret
-END(pagecopy)
 
 /* fillw(pat, base, cnt) */
 /*       %rdi,%rsi, %rdx */
