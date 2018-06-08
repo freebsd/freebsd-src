@@ -753,15 +753,6 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	struct kinfo_proc *pp;
 	struct timespec previous_proc_uptime;
 
-	/* these are copied out of sel for speed */
-	int show_idle;
-	int show_jid;
-	int show_self;
-	int show_system;
-	int show_uid;
-	int show_pid;
-	int show_kidle;
-
 	/*
 	 * If thread state was toggled, don't cache the previous processes.
 	 */
@@ -797,7 +788,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 	pbase = kvm_getprocs(kd, sel->thread ? KERN_PROC_ALL : KERN_PROC_PROC,
 	    0, &nproc);
-	(void)gettimeofday(&proc_wall_time, NULL);
+	gettimeofday(&proc_wall_time, NULL);
 	if (clock_gettime(CLOCK_UPTIME, &proc_uptime) != 0)
 		memset(&proc_uptime, 0, sizeof(proc_uptime));
 	else if (previous_proc_uptime.tv_sec != 0 &&
@@ -817,20 +808,11 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		onproc = nproc;
 	}
 	if (pref == NULL || pbase == NULL || pcpu == NULL) {
-		(void) fprintf(stderr, "top: Out of memory.\n");
+		fprintf(stderr, "top: Out of memory.\n");
 		quit(TOP_EX_SYS_ERROR);
 	}
 	/* get a pointer to the states summary array */
 	si->procstates = process_states;
-
-	/* set up flags which define what we are going to select */
-	show_idle = sel->idle;
-	show_jid = sel->jid != -1;
-	show_self = sel->self == -1;
-	show_system = sel->system;
-	show_uid = sel->uid[0] != -1;
-	show_pid = sel->pid != -1;
-	show_kidle = sel->kidle;
 
 	/* count up process states and get pointers to interesting procs */
 	total_procs = 0;
@@ -846,11 +828,11 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* not in use */
 			continue;
 
-		if (!show_self && pp->ki_pid == sel->self)
+		if (sel->self != -1 && pp->ki_pid == sel->self)
 			/* skip self */
 			continue;
 
-		if (!show_system && (pp->ki_flag & P_SYSTEM))
+		if (!sel->system && (pp->ki_flag & P_SYSTEM))
 			/* skip system process */
 			continue;
 
@@ -866,32 +848,32 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip zombies */
 			continue;
 
-		if (!show_kidle && pp->ki_tdflags & TDF_IDLETD)
+		if (!sel->kidle && pp->ki_tdflags & TDF_IDLETD)
 			/* skip kernel idle process */
 			continue;
 
 		PCTCPU(pp) = proc_calc_pctcpu(pp);
 		if (sel->thread && PCTCPU(pp) > 1.0)
 			PCTCPU(pp) = 1.0;
-		if (displaymode == DISP_CPU && !show_idle &&
+		if (displaymode == DISP_CPU && !sel->idle &&
 		    (!proc_used_cpu(pp) ||
 		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
 			/* skip idle or non-running processes */
 			continue;
 
-		if (displaymode == DISP_IO && !show_idle && p_io == 0)
+		if (displaymode == DISP_IO && !sel->idle && p_io == 0)
 			/* skip processes that aren't doing I/O */
 			continue;
 
-		if (show_jid && pp->ki_jid != sel->jid)
+		if (sel->jid != -1 && pp->ki_jid != sel->jid)
 			/* skip proc. that don't belong to the selected JID */
 			continue;
 
-		if (show_uid && !find_uid(pp->ki_ruid, sel->uid))
+		if (sel->uid[0] != -1 && !find_uid(pp->ki_ruid, sel->uid))
 			/* skip proc. that don't belong to the selected UID */
 			continue;
 
-		if (show_pid && pp->ki_pid != sel->pid)
+		if (sel->pid != -1 && pp->ki_pid != sel->pid)
 			continue;
 
 		*prefp++ = pp;
@@ -909,7 +891,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	/* pass back a handle */
 	handle.next_proc = pref;
 	handle.remaining = active_procs;
-	return ((void*)&handle);
+	return (&handle);
 }
 
 static char fmt[512];	/* static area where result is built */
