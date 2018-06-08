@@ -198,7 +198,6 @@ static void tcp_init_hptsi(void *st);
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
 static int32_t tcp_hpts_callout_skip_swi = 0;
 
-SYSCTL_DECL(_net_inet_tcp);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW, 0, "TCP Hpts controls");
 
 #define	timersub(tvp, uvp, vvp)						\
