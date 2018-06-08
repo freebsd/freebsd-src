@@ -760,7 +760,7 @@ typedef struct pool_scan_stat {
 	uint64_t	pss_start_time;	/* scan start time */
 	uint64_t	pss_end_time;	/* scan end time */
 	uint64_t	pss_to_examine;	/* total bytes to scan */
-	uint64_t	pss_examined;	/* total examined bytes	*/
+	uint64_t	pss_examined;	/* total bytes located by scanner */
 	uint64_t	pss_to_process; /* total bytes to process */
 	uint64_t	pss_processed;	/* total processed bytes */
 	uint64_t	pss_errors;	/* scan errors	*/
@@ -771,6 +771,12 @@ typedef struct pool_scan_stat {
 	uint64_t	pss_pass_scrub_pause; /* pause time of a scurb pass */
 	/* cumulative time scrub spent paused, needed for rate calculation */
 	uint64_t	pss_pass_scrub_spent_paused;
+
+	/* Sorted scrubbing new fields */
+	/* Stored on disk */
+	uint64_t	pss_issued;	/* total bytes checked by scanner */
+	/* Not stored on disk */
+	uint64_t	pss_pass_issued;	/* issued bytes per scan pass */
 } pool_scan_stat_t;
 
 typedef struct pool_removal_stat {
