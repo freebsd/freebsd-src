@@ -235,7 +235,7 @@ rtentry_zinit(void *mem, int size, int how)
 {
 	struct rtentry *rt = mem;
 
-	rt->rt_pksent = counter_u64_alloc(how & ~M_ZERO);
+	rt->rt_pksent = counter_u64_alloc(how);
 	if (rt->rt_pksent == NULL)
 		return (ENOMEM);
 

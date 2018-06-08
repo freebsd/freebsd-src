@@ -62,7 +62,7 @@ counter_u64_alloc(int flags)
 {
 	counter_u64_t r;
 
-	r = uma_zalloc(pcpu_zone_64, flags);
+	r = uma_zalloc(pcpu_zone_64, flags & ~M_ZERO);
 	if (r != NULL)
 		counter_u64_zero(r);
 
