@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip_fw_nat64.h>
 #include <arpa/inet.h>
 
-static int nat64stl_check_prefix(struct in6_addr *prefix, int length);
 typedef int (nat64stl_cb_t)(ipfw_nat64stl_cfg *i, const char *name,
     uint8_t set);
 static int nat64stl_foreach(nat64stl_cb_t *f, const char *name, uint8_t set,
@@ -80,13 +79,10 @@ static struct _s_x nat64cmds[] = {
     ((a)->__u6_addr.__u6_addr32[0] == IPV6_ADDR_INT32_WKPFX &&	\
 	(a)->__u6_addr.__u6_addr32[1] == 0 &&			\
 	(a)->__u6_addr.__u6_addr32[2] == 0)
-static int
-nat64stl_check_prefix(struct in6_addr *prefix, int length)
+int
+ipfw_check_nat64prefix(const struct in6_addr *prefix, int length)
 {
 
-	if (IN6_IS_ADDR_WKPFX(prefix) && length == 96)
-		return (0);
-#if 0
 	switch (length) {
 	case 32:
 	case 40:
@@ -95,21 +91,20 @@ nat64stl_check_prefix(struct in6_addr *prefix, int length)
 	case 64:
 		/* Well-known prefix has 96 prefix length */
 		if (IN6_IS_ADDR_WKPFX(prefix))
-			return (1);
+			return (EINVAL);
 		/* FALLTHROUGH */
 	case 96:
 		/* Bits 64 to 71 must be set to zero */
 		if (prefix->__u6_addr.__u6_addr8[8] != 0)
-			return (1);
+			return (EINVAL);
 		/* XXX: looks incorrect */
 		if (IN6_IS_ADDR_MULTICAST(prefix) ||
 		    IN6_IS_ADDR_UNSPECIFIED(prefix) ||
 		    IN6_IS_ADDR_LOOPBACK(prefix))
-			return (1);
+			return (EINVAL);
 		return (0);
 	}
-#endif
-	return (1);
+	return (EINVAL);
 }
 
 static struct _s_x nat64statscmds[] = {
@@ -255,7 +250,7 @@ nat64stl_create(const char *name, uint8_t set, int ac, char *av[])
 				errx(EX_USAGE,
 				    "Bad prefix: %s", *av);
 			cfg->plen6 = strtol(p, NULL, 10);
-			if (nat64stl_check_prefix(&cfg->prefix6,
+			if (ipfw_check_nat64prefix(&cfg->prefix6,
 			    cfg->plen6) != 0)
 				errx(EX_USAGE,
 				    "Bad prefix length: %s", p);
@@ -439,6 +434,7 @@ nat64stl_reset_stats(const char *name, uint8_t set)
 static int
 nat64stl_show_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 {
+	char abuf[INET6_ADDRSTRLEN];
 
 	if (name != NULL && strcmp(cfg->name, name) != 0)
 		return (ESRCH);
@@ -448,8 +444,11 @@ nat64stl_show_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 
 	if (co.use_set != 0 || cfg->set != 0)
 		printf("set %u ", cfg->set);
+
 	printf("nat64stl %s table4 %s table6 %s",
 	    cfg->name, cfg->ntlv4.name, cfg->ntlv6.name);
+	inet_ntop(AF_INET6, &cfg->prefix6, abuf, sizeof(abuf));
+	printf(" prefix6 %s/%u", abuf, cfg->plen6);
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
 	printf("\n");
