@@ -464,8 +464,8 @@ void
 u_cpustates(int *states)
 {
     int value;
-    char **names;
-    char *thisname;
+    const char * const *names;
+    const char *thisname;
     int *lp;
     int *colp;
     int cpu;
@@ -514,40 +514,34 @@ void
 z_cpustates(void)
 {
     int i = 0;
-    char **names;
+    const char **names;
     char *thisname;
-    int *lp;
     int cpu, value;
 
-for (cpu = 0; cpu < num_cpus; cpu++) {
-    names = cpustate_names;
+    for (cpu = 0; cpu < num_cpus; cpu++) {
+	    names = cpustate_names;
 
-    /* show tag and bump lastline */
-    if (num_cpus == 1)
-	printf("\nCPU: ");
-    else {
-	value = printf("\nCPU %d: ", cpu);
-	while (value++ <= cpustates_column)
-		printf(" ");
-    }
-    lastline++;
+	    /* show tag and bump lastline */
+	    if (num_cpus == 1)
+		    printf("\nCPU: ");
+	    else {
+		    value = printf("\nCPU %d: ", cpu);
+		    while (value++ <= cpustates_column)
+			    printf(" ");
+	    }
+	    lastline++;
 
-    while ((thisname = *names++) != NULL)
-    {
-	if (*thisname != '\0')
-	{
-	    printf("%s    %% %s", (i++ % num_cpustates) == 0 ? "" : ", ", thisname);
-	}
+	    while ((thisname = *names++) != NULL)
+	    {
+		    if (*thisname != '\0')
+		    {
+			    printf("%s    %% %s", (i++ % num_cpustates) == 0 ? "" : ", ", thisname);
+		    }
+	    }
     }
-}
 
     /* fill the "last" array with all -1s, to insure correct updating */
-    lp = lcpustates;
-    i = num_cpustates * num_cpus;
-    while (--i >= 0)
-    {
-	*lp++ = -1;
-    }
+    memset(lcpustates, -1, num_cpustates * num_cpus);
 }
 
 /*
