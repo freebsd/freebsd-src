@@ -1173,7 +1173,6 @@ get_system_specs_for_migration(struct migration_system_specs *specs)
 	}
 	specs->hw_pagesize = num;
 
-
 	return (0);
 }
 
@@ -1238,7 +1237,7 @@ migration_send_specs(int socket)
 		return (rc);
 	}
 
-	// TODO1: Send message type to server: specs & len
+	// Send message type to server: specs & len
 	mesg.type = MESSAGE_TYPE_SPECS;
 	mesg.len = sizeof(local_specs);
 	rc = migration_send_data_remote(socket, &mesg, sizeof(mesg));
@@ -1247,14 +1246,14 @@ migration_send_specs(int socket)
 		return (-1);
 	}
 
-	// TODO2: Send specs to server
+	// Send specs to server
 	rc = migration_send_data_remote(socket, &local_specs, sizeof(local_specs));
 	if (rc < 0) {
 		fprintf(stderr, "%s: Could not send system specs\r\n", __func__);
 		return (-1);
 	}
 
-	// TODO3: Recv OK/NOT_OK from server
+	// Recv OK/NOT_OK from server
 	rc = migration_recv_data_from_remote(socket, &response, sizeof(response));
 	if (rc < 0) {
 		fprintf(stderr,
@@ -1262,8 +1261,8 @@ migration_send_specs(int socket)
 			__func__);
 		return (-1);
 	}
-	// TODO4: Return OK/NOT_OK
 
+	//  Return OK/NOT_OK
 	if (response == MIGRATION_SPECS_NOT_OK) {
 		fprintf(stderr,
 			"%s: System specification mismatch\r\n",
@@ -1271,9 +1270,7 @@ migration_send_specs(int socket)
 		return (-1);
 	}
 
-	fprintf(stdout,
-		"%s: System specification accepted\r\n",
-		__func__);
+	fprintf(stdout, "%s: System specification accepted\r\n", __func__);
 
 	return (0);
 }
@@ -1303,7 +1300,7 @@ migration_recv_and_check_specs(int socket)
 		return (-1);
 	}
 
-	// TODO2: Get specs from remote (from client)
+	// Get specs from remote (from client)
 	rc = migration_recv_data_from_remote(socket, &remote_specs, msg.len);
 	if (rc < 0) {
 		fprintf(stderr,
@@ -1315,21 +1312,19 @@ migration_recv_and_check_specs(int socket)
 	rc = get_system_specs_for_migration(&local_specs);
 
 	if (rc != 0) {
-		fprintf(stderr, "%s: Could not get local specs\r\n",
-			__func__);
+		fprintf(stderr, "%s: Could not get local specs\r\n", __func__);
 		return (rc);
 	}
 
-	// TODO3: Check specs
+	// Check specs
 	response = MIGRATION_SPECS_OK;
 	if ((strncmp(local_specs.hw_model, remote_specs.hw_model, MAX_SPEC_LEN) != 0)
 		|| (strncmp(local_specs.hw_machine, remote_specs.hw_machine, MAX_SPEC_LEN) != 0)
 		|| (local_specs.hw_pagesize  != remote_specs.hw_pagesize)
 	   ) {
-		fprintf(stderr,
-			"%s: System specification mismatch\r\n",
-			__func__);
+		fprintf(stderr, "%s: System specification mismatch\r\n", __func__);
 
+		// Debug message
 		fprintf(stderr,
 			"%s: Local specs vs Remote Specs: \r\n"
 			"\tmachine: %s vs %s\r\n"
@@ -1346,21 +1341,7 @@ migration_recv_and_check_specs(int socket)
 		response = MIGRATION_SPECS_NOT_OK;
 	}
 
-	fprintf(stdout,
-		"%s: Local specs vs Remote Specs: \r\n"
-		"\tmachine: %s vs %s\r\n"
-		"\tmodel: %s vs %s\r\n"
-		"\tpagesize: %zu vs %zu\r\n",
-		__func__,
-		local_specs.hw_machine,
-		remote_specs.hw_machine,
-		local_specs.hw_model,
-		remote_specs.hw_model,
-		local_specs.hw_pagesize,
-		remote_specs.hw_pagesize
-		);
-
-	// TODO4: Send OK/NOT_OK to client
+	// Send OK/NOT_OK to client
 	rc = migration_send_data_remote(socket, &response, sizeof(response));
 	if (rc < 0) {
 		fprintf(stderr,
@@ -1368,8 +1349,8 @@ migration_recv_and_check_specs(int socket)
 			__func__);
 		return (-1);
 	}
-	// TODO5: If NOT_OK, return NOT_OK
 
+	// If NOT_OK, return NOT_OK
 	if (response == MIGRATION_SPECS_NOT_OK)
 		return (-1);
 
@@ -1420,13 +1401,6 @@ migrate_check_memsize(size_t local_lowmem_size, size_t local_highmem_size,
 		      size_t remote_lowmem_size, size_t remote_highmem_size)
 {
 	int ret = MIGRATION_SPECS_OK;
-	fprintf(stderr,
-		"%s: Local lowmem vs remote lowmem: %lu vs %lu\r\n"
-		"%s: Local highmem vs remote highmem: %lu vs %lu\r\n",
-		__func__,
-		local_lowmem_size, remote_lowmem_size,
-		__func__,
-		local_highmem_size, remote_highmem_size);
 
 	if (local_lowmem_size != remote_lowmem_size){
 		ret = MIGRATION_SPECS_NOT_OK;
@@ -1683,8 +1657,6 @@ migrate_send_kern_struct(struct vmctx *ctx, int socket,
 		return (-1);
 	}
 
-	fprintf(stdout, "%s: Sent kern dev id %d\r\n",
-		__func__, struct_req);
 	msg.len = data_size;
 	msg.req_type = struct_req;
 
@@ -1705,7 +1677,6 @@ migrate_send_kern_struct(struct vmctx *ctx, int socket,
 			struct_req);
 		return (-1);
 	}
-	fprintf(stdout, "%s: Sent dev\r\n", __func__);
 
 	return (0);
 }
@@ -1743,6 +1714,7 @@ migrate_recv_kern_struct(struct vmctx *ctx, int socket, char *buffer)
 			msg.req_type);
 		return (-1);
 	}
+
 	return (0);
 }
 
@@ -1786,7 +1758,8 @@ migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req
 				break;
 			}
 		} else if (req == MIGRATION_SEND_REQ) {
-			rc = migrate_send_kern_struct(ctx, socket, buffer, structs[i]);
+			rc = migrate_send_kern_struct(ctx, socket,
+						      buffer, structs[i]);
 			if (rc < 0 ) {
 				fprintf(stderr,
 					"%s: Could not send %d\r\n",
@@ -2052,7 +2025,6 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (rc);
 	}
 
-	// TODO - send cpu & devices state
 	// Send kern data
 	rc =  migrate_kern_data(ctx, s, MIGRATION_SEND_REQ);
 	if (rc != 0) {
@@ -2087,13 +2059,15 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (-1);
 	}
 
-	// TODO - poweroff the vm
+	// Poweroff the vm
 
 	rc = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to suspend vm\n");
 	}
+
 	vm_vcpu_unlock_all(ctx);
+
 	/* Wait for CPUs to suspend. TODO: write this properly. */
 	sleep(5);
 	vm_destroy(ctx);
@@ -2120,7 +2094,7 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 					 ipv6_addr, &addr_type);
 
 	if (rc != 0) {
-		fprintf(stderr, "%s: Invalid address or not IPv6.", __func__);
+		fprintf(stderr, "%s: Invalid address or not IPv6.\r\n", __func__);
 		fprintf(stderr, "%s: IP address used for migration: %s;\r\n"
 				"Port used for migration: %d\r\n"
 				"Exiting...\r\n",
