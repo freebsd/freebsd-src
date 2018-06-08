@@ -331,11 +331,11 @@ arm64_intr(struct trapframe *tf)
 	int error;
 	int reg, cpu;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[arm64,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
-	cpu = curcpu;
 	pc = arm64_pcpu[cpu];
 
 	for (ri = 0; ri < arm64_npmcs; ri++) {
