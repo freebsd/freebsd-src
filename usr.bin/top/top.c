@@ -1,4 +1,4 @@
-/*
+/*-
  *  Top users/processes display for Unix
  *
  *  This program may be freely redistributed,
@@ -144,7 +144,7 @@ handle_user(char *buf, size_t buflen)
     if (readline(buf, buflen, false) <= 0)
     {
 	clear_message();
-	return rc;
+	return (rc);
     }
 
     if (buf[0] == '+' || buf[0] == '-')
@@ -186,7 +186,7 @@ handle_user(char *buf, size_t buflen)
 
 end:
     putchar('\r');
-    return rc;
+    return (rc);
 }
 
 int
@@ -214,7 +214,7 @@ main(int argc, char *argv[])
     char *env_top;
     const char **preset_argv;
     int  preset_argc = 0;
-    char **av;
+    const char **av;
     int  ac;
     bool dostates = false;
     bool do_unames = true;
@@ -523,7 +523,7 @@ main(int argc, char *argv[])
     {
 	if ((order_index = string_index(order_name, statics.order_names)) == -1)
 	{
-	    char **pp;
+	    const char * const *pp;
 
 	    fprintf(stderr, "%s: '%s' is not a recognized sorting order.\n",
 		    myname, order_name);
