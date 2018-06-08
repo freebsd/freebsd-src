@@ -173,3 +173,9 @@ taskq_wait(taskq_t *tq)
 {
 	taskqueue_drain_all(tq->tq_queue);
 }
+
+void
+taskq_wait_id(taskq_t *tq, taskqid_t id)
+{
+        taskq_wait(tq);
+}
