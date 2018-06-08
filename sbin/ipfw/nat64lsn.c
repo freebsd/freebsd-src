@@ -428,13 +428,17 @@ nat64lsn_create(const char *name, uint8_t set, int ac, char **av)
 			flags |= NAT64LSN_HAS_PREFIX4;
 			ac--; av++;
 			break;
-#if 0
 		case TOK_PREFIX6:
 			NEED1("IPv6 prefix required");
 			nat64lsn_parse_prefix(*av, AF_INET6, &cfg->prefix6,
 			    &cfg->plen6);
+			if (ipfw_check_nat64prefix(&cfg->prefix6,
+			    cfg->plen6) != 0)
+				errx(EX_USAGE, "Bad prefix6 %s", *av);
+
 			ac--; av++;
 			break;
+#if 0
 		case TOK_AGG_LEN:
 			NEED1("Aggregation prefix len required");
 			cfg->agg_prefix_len = nat64lsn_parse_int(*av, opt);
@@ -767,10 +771,10 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 	if (co.use_set != 0 || cfg->set != 0)
 		printf("set %u ", cfg->set);
 	inet_ntop(AF_INET, &cfg->prefix4, abuf, sizeof(abuf));
-	printf("nat64lsn %s prefix4 %s/%u ", cfg->name, abuf, cfg->plen4);
-#if 0
+	printf("nat64lsn %s prefix4 %s/%u", cfg->name, abuf, cfg->plen4);
 	inet_ntop(AF_INET6, &cfg->prefix6, abuf, sizeof(abuf));
-	printf("prefix6 %s/%u", abuf, cfg->plen6);
+	printf(" prefix6 %s/%u", abuf, cfg->plen6);
+#if 0
 	printf("agg_len %u agg_count %u ", cfg->agg_prefix_len,
 	    cfg->agg_prefix_max);
 	if (cfg->min_port != NAT64LSN_PORT_MIN ||
