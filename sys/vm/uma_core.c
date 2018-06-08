@@ -2256,6 +2256,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	}
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("uma_zalloc_arg: called with spinlock or critical section held"));
+	if (zone->uz_flags & UMA_ZONE_PCPU)
+		MPASS((flags & M_ZERO) == 0);
 
 #ifdef DEBUG_MEMGUARD
 	if (memguard_cmp_zone(zone)) {
@@ -3604,13 +3606,8 @@ uma_large_free(uma_slab_t slab)
 static void
 uma_zero_item(void *item, uma_zone_t zone)
 {
-	int i;
 
-	if (zone->uz_flags & UMA_ZONE_PCPU) {
-		CPU_FOREACH(i)
-			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
-	} else
-		bzero(item, zone->uz_size);
+	bzero(item, zone->uz_size);
 }
 
 unsigned long
