@@ -1864,13 +1864,100 @@ migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req
 	return (error);
 }
 
+static inline int
+migrate_send_pci_dev(struct vmctx *ctx, int socket, const char *dev,
+		     char *buffer, size_t len)
+{
+	int rc;
+	size_t data_size;
+	struct migration_message_type msg;
+
+	memset(buffer, 0, len);
+
+	rc = pci_snapshot(ctx, dev, buffer, len, &data_size);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not get info about %s dev\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	// send struct size to destination
+	memset(&msg, 0, sizeof(msg));
+	msg.type = MESSAGE_TYPE_PCI;
+	msg.len = data_size;
+
+	rc = migration_send_data_remote(socket, &msg, sizeof(msg));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not send msg for %s dev\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	// send dev
+	rc = migration_send_data_remote(socket, buffer, data_size);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not send %s dev\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	return (0);
+}
+
 static int
-migrate_send_pci_devs(struct vmctx *ctx, int socket)
+migrate_recv_pci_dev(struct vmctx *ctx, int socket, const char *dev, char *buffer, size_t len)
+{
+	int rc;
+	size_t data_size;
+	struct migration_message_type msg;
+
+	// recv struct size to destination
+	memset(&msg, 0, sizeof(msg));
+
+	rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not recv msg for %s\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	data_size = msg.len;
+	// recv dev
+	memset(buffer, 0 , len);
+	rc = migration_recv_data_from_remote(socket, buffer, data_size);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not recv %s dev\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	rc = pci_restore(ctx, dev, buffer, data_size);
+	if (rc != 0) {
+		fprintf(stderr,
+			"%s: Could not restore %s dev\r\n",
+			__func__,
+			dev);
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int
+migrate_pci_devs(struct vmctx *ctx, int socket, enum migration_transfer_req req)
 {
 	int rc, i, error = 0;
 	char *buffer;
-	size_t data_size;
-	struct migration_message_type msg;
 	char *devs[] = {
 		"virtio-net",
 		"virtio-blk",
@@ -1887,43 +1974,28 @@ migrate_send_pci_devs(struct vmctx *ctx, int socket)
 	}
 
 	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
-		memset(buffer, 0, KERN_DATA_BUFFER_SIZE);
+		if (req == MIGRATION_SEND_REQ) {
+			rc = migrate_send_pci_dev(ctx, socket, devs[i],
+						  buffer, KERN_DATA_BUFFER_SIZE);
 
-		rc = pci_snapshot(ctx, devs[i], buffer,
-				  KERN_DATA_BUFFER_SIZE, &data_size);
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not get info about %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
-		}
+			if (rc < 0) {
+				fprintf(stderr,
+					"%s: Could not send %s\r\n",
+					__func__, devs[i]);
+				error = -1;
+				goto end;
+			}
+		} else if (req == MIGRATION_RECV_REQ) {
+			rc = migrate_recv_pci_dev(ctx, socket, devs[i],
+						  buffer, KERN_DATA_BUFFER_SIZE);
 
-		// send struct size to destination
-		memset(&msg, 0, sizeof(msg));
-		msg.type = MESSAGE_TYPE_PCI;
-		msg.len = data_size;
-
-		rc = migration_send_data_remote(socket, &msg, sizeof(msg));
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not send msg for %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
-		}
-
-		// send devs[i]
-		rc = migration_send_data_remote(socket, buffer, data_size);
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not send %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
+			if (rc < 0) {
+				fprintf(stderr,
+					"%s: Could not recv pci device\r\n",
+					__func__);
+				error = -1;
+				goto end;
+			}
 		}
 	}
 
@@ -1936,73 +2008,6 @@ end:
 	return (error);
 }
 
-static int
-migrate_recv_pci_devs(struct vmctx *ctx, int socket)
-{
-	int rc, i, error = 0;
-	char *buffer;
-	size_t data_size;
-	struct migration_message_type msg;
-	char *devs[] = {
-		"virtio-net",
-		"virtio-blk",
-		"lpc",
-	};
-
-	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
-	if (buffer == NULL) {
-		fprintf(stderr,
-			"%s: Could not allocate memory\r\n",
-			__func__);
-		error = -1;
-		goto end;
-	}
-
-	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
-		// recv struct size to destination
-		memset(&msg, 0, sizeof(msg));
-
-		rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not recv msg for %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
-		}
-
-		data_size = msg.len;
-		// recv devs[i]
-		rc = migration_recv_data_from_remote(socket, buffer, data_size);
-		if (rc < 0) {
-			fprintf(stderr,
-				"%s: Could not recv %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
-		}
-
-		rc = pci_restore(ctx, devs[i], buffer, data_size);
-		if (rc != 0) {
-			fprintf(stderr,
-				"%s: Could not restore %s dev\r\n",
-				__func__,
-				devs[i]);
-			error = -1;
-			goto end;
-		}
-	}
-
-	error = 0;
-
-end:
-	if (buffer != NULL)
-		free(buffer);
-
-	return (error);
-}
 int
 vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 {
@@ -2115,7 +2120,7 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	}
 
 	// Send PCI data
-	rc =  migrate_send_pci_devs(ctx, s);
+	rc =  migrate_pci_devs(ctx, s, MIGRATION_SEND_REQ);
 	if (rc < 0) {
 		fprintf(stderr,
 			"%s: Could not send pci devs to destination\r\n",
@@ -2255,7 +2260,7 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (-1);
 	}
 
-	rc = migrate_recv_pci_devs(ctx, con_socket);
+	rc = migrate_pci_devs(ctx, con_socket, MIGRATION_RECV_REQ);
 	if (rc < 0) {
 		fprintf(stderr,
 			"%s: Could not recv pci devs\r\n",
