@@ -71,7 +71,7 @@ const int pmc_kernel_version = PMC_KERNEL_VERSION;
 int __read_mostly (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
-int __read_mostly (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
+int __read_mostly (*pmc_intr)(struct trapframe *tf) = NULL;
 
 DPCPU_DEFINE(uint8_t, pmc_sampled);
 

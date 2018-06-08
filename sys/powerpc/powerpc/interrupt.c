@@ -112,7 +112,7 @@ powerpc_interrupt(struct trapframe *framep)
 	case EXC_PERF:
 		critical_enter();
 		KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
-		(*pmc_intr)(PCPU_GET(cpuid), framep);
+		(*pmc_intr)(framep);
 		if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
 		critical_exit();

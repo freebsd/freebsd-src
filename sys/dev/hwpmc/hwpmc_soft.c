@@ -425,8 +425,7 @@ pmc_soft_intr(struct pmckern_soft *ks)
 			else
 				continue;
 			user_mode = TRAPF_USERMODE(ks->pm_tf);
-			error = pmc_process_interrupt(ks->pm_cpu, PMC_SR, pm,
-			    ks->pm_tf, user_mode);
+			error = pmc_process_interrupt(PMC_SR, pm, ks->pm_tf);
 			if (error) {
 				soft_stop_pmc(ks->pm_cpu, ri);
 				continue;

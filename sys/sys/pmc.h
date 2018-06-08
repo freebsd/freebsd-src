@@ -61,7 +61,7 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x08
+#define	PMC_VERSION_MAJOR	0x09
 #define	PMC_VERSION_MINOR	0x03
 #define	PMC_VERSION_PATCH	0x0000
 
@@ -1053,7 +1053,7 @@ struct pmc_mdep  {
 	int (*pmd_switch_out)(struct pmc_cpu *_p, struct pmc_process *_pp);
 
 	/* handle a PMC interrupt */
-	int (*pmd_intr)(int _cpu, struct trapframe *_tf);
+	int (*pmd_intr)(struct trapframe *_tf);
 
 	/*
 	 * PMC class dependent information.
@@ -1209,8 +1209,7 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, int _ring, struct pmc *_pm,
-    struct trapframe *_tf, int _inuserspace);
+int	pmc_process_interrupt(int _ring, struct pmc *_pm, struct trapframe *_tf);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
