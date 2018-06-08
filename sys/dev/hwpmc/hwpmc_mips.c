@@ -252,15 +252,16 @@ mips_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-mips_pmc_intr(int cpu, struct trapframe *tf)
+mips_pmc_intr(struct trapframe *tf)
 {
 	int error;
-	int retval, ri;
+	int retval, ri, cpu;
 	struct pmc *pm;
 	struct mips_cpu *pc;
 	uint32_t r0, r2;
 	pmc_value_t r;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[mips,%d] CPU %d out of range", __LINE__, cpu));
 
