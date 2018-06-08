@@ -1118,12 +1118,13 @@ core_intr(struct trapframe *tf)
 static int
 core2_intr(struct trapframe *tf)
 {
-	int error, found_interrupt, n;
+	int error, found_interrupt, n, cpu;
 	uint64_t flag, intrstatus, intrenable, msr;
 	struct pmc *pm;
 	struct core_cpu *cc;
 	pmc_value_t v;
 
+	cpu = curcpu;
 	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
@@ -1140,7 +1141,7 @@ core2_intr(struct trapframe *tf)
 	    (uintmax_t) intrstatus);
 
 	found_interrupt = 0;
-	cc = core_pcpu[curcpu];
+	cc = core_pcpu[cpu];
 
 	KASSERT(cc != NULL, ("[core,%d] null pcpu", __LINE__));
 
