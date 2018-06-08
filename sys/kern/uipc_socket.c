@@ -1101,6 +1101,8 @@ soclose(struct socket *so)
 drop:
 	if (so->so_proto->pr_usrreqs->pru_close != NULL)
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
+	if (so->so_dtor != NULL)
+		so->so_dtor(so);
 
 	SOCK_LOCK(so);
 	if ((listening = (so->so_options & SO_ACCEPTCONN))) {
@@ -3810,6 +3812,17 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
 	if (sa2)
 		bcopy(sa, sa2, sa->sa_len);
 	return sa2;
+}
+
+/*
+ * Register per-socket destructor.
+ */
+void
+sodtor_set(struct socket *so, so_dtor_t *func)
+{
+
+	SOCK_LOCK_ASSERT(so);
+	so->so_dtor = func;
 }
 
 /*
