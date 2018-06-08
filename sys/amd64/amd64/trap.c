@@ -214,7 +214,7 @@ trap(struct trapframe *frame)
 		 * the NMI was consumed by it and we can return immediately.
 		 */
 		if (pmc_intr != NULL &&
-		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
+		    (*pmc_intr)(frame) != 0)
 			return;
 #endif
 

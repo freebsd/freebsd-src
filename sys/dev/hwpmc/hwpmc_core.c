@@ -1056,7 +1056,7 @@ iap_initialize(struct pmc_mdep *md, int maxcpu, int npmc, int pmcwidth,
 }
 
 static int
-core_intr(int cpu, struct trapframe *tf)
+core_intr(struct trapframe *tf)
 {
 	pmc_value_t v;
 	struct pmc *pm;
@@ -1064,11 +1064,11 @@ core_intr(int cpu, struct trapframe *tf)
 	int error, found_interrupt, ri;
 	uint64_t msr;
 
-	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", curcpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	found_interrupt = 0;
-	cc = core_pcpu[cpu];
+	cc = core_pcpu[curcpu];
 
 	for (ri = 0; ri < core_iap_npmc; ri++) {
 
@@ -1084,8 +1084,7 @@ core_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 
 		v = pm->pm_sc.pm_reloadcount;
 		v = iap_reload_count_to_perfctr_value(v);
@@ -1117,7 +1116,7 @@ core_intr(int cpu, struct trapframe *tf)
 }
 
 static int
-core2_intr(int cpu, struct trapframe *tf)
+core2_intr(struct trapframe *tf)
 {
 	int error, found_interrupt, n;
 	uint64_t flag, intrstatus, intrenable, msr;
@@ -1141,7 +1140,7 @@ core2_intr(int cpu, struct trapframe *tf)
 	    (uintmax_t) intrstatus);
 
 	found_interrupt = 0;
-	cc = core_pcpu[cpu];
+	cc = core_pcpu[curcpu];
 
 	KASSERT(cc != NULL, ("[core,%d] null pcpu", __LINE__));
 
@@ -1173,8 +1172,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 
 		if (error)
 			intrenable &= ~flag;
@@ -1184,7 +1182,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		/* Reload sampling count. */
 		wrmsr(IAF_CTR0 + n, v);
 
-		PMCDBG4(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", cpu,
+		PMCDBG4(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", curcpu,
 		    error, (uintmax_t) v, (uintmax_t) rdpmc(IAF_RI_TO_MSR(n)));
 	}
 
@@ -1202,8 +1200,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error)
 			intrenable &= ~flag;
 
