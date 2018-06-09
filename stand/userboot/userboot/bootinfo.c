@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
-#include <sys/boot.h>
 
 #include "bootstrap.h"
 #include "libuserboot.h"
@@ -131,11 +130,8 @@ bi_getboothowto(char *kargs)
 void
 bi_setboothowto(int howto)
 {
-    int		i;
 
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (howto & howto_names[i].mask)
-	    setenv(howto_names[i].ev, "YES", 1);
+    bootenv_set(howto);
 }
 
 /*

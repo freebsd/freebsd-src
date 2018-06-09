@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
-#include <sys/boot.h>
 #include <stdint.h>
 #include <stand.h>
 #include <string.h>
@@ -549,9 +548,8 @@ main(int argc, CHAR16 *argv[])
 			}
 		}
 	}
-	for (i = 0; howto_names[i].ev != NULL; i++)
-		if (howto & howto_names[i].mask)
-			setenv(howto_names[i].ev, "YES", 1);
+
+	bootenv_set(howto);
 
 	/*
 	 * XXX we need fallback to this stuff after looking at the ConIn, ConOut and ConErr variables

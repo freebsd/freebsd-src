@@ -174,6 +174,16 @@ bootenv_flags()
 	return (howto);
 }
 
+void
+bootenv_set(int howto)
+{
+	int i;
+
+	for (i = 0; howto_names[i].ev != NULL; i++)
+		if (howto & howto_names[i].mask)
+			setenv(howto_names[i].ev, "YES", 1);
+}
+
 static int
 autoboot(int timeout, char *prompt)
 {
