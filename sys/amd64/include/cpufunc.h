@@ -391,7 +391,7 @@ rdtscp(void)
 {
 	uint32_t low, high;
 
-	__asm __volatile("rdtscp" : "=a" (low), "=d" (high));
+	__asm __volatile("rdtscp" : "=a" (low), "=d" (high) : : "ecx");
 	return (low | ((uint64_t)high << 32));
 }
 
