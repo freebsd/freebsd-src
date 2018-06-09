@@ -119,9 +119,84 @@ EOF
 }
 
 mk_nogeli_gpt_zfs_uefi() {
+    src=$1
+    img=$2
+    mntpt=$3
+    geli=$4
+    scheme=$5
+    fs=$6
+    bios=$7
+    pool=nogeli-gpt-zfs-uefi
+
+    dd if=/dev/zero of=${img} count=1 seek=$((200 * 1024 * 1024 / 512))
+    md=$(mdconfig -f ${img})
+    gpart create -s gpt ${md}
+    gpart add -t efi -s 800k -a 4k ${md}
+    gpart add -t freebsd-zfs -l root $md
+    # install-boot will make this bootable
+    zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p2
+    zpool set bootfs=${pool} ${pool}
+    zfs create -po mountpoint=/ ${pool}/ROOT/default
+    # NB: The online guides go nuts customizing /var and other mountpoints here, no need
+    cpsys ${src} ${mntpt}
+    df
+    # need to make a couple of tweaks
+    cat > ${mntpt}/boot/loader.conf <<EOF
+zfs_load=YES
+opensolaris_load=YES
+EOF
+    cp /boot/kernel/zfs.ko ${mntpt}/boot/kernel/zfs.ko
+    cp /boot/kernel/opensolaris.ko ${mntpt}/boot/kernel/opensolaris.ko
+    ls -las ${mntpt}/boot
+    # end tweaks
+    zfs umount -f ${pool}/ROOT/default
+    zfs set mountpoint=none ${pool}/ROOT/default
+    zpool set bootfs=${pool}/ROOT/default ${pool}
+    zpool set autoexpand=on ${pool}
+    zpool export ${pool}
+    ${SRCTOP}/tools/boot/install-boot.sh -g ${geli} -s ${scheme} -f ${fs} -b ${bios} -d ${src} ${md}
+    mdconfig -d -u ${md}
 }
 
 mk_nogeli_gpt_zfs_both() {
+    src=$1
+    img=$2
+    mntpt=$3
+    geli=$4
+    scheme=$5
+    fs=$6
+    bios=$7
+    pool=nogeli-gpt-zfs-both
+
+    dd if=/dev/zero of=${img} count=1 seek=$((200 * 1024 * 1024 / 512))
+    md=$(mdconfig -f ${img})
+    gpart create -s gpt ${md}
+    gpart add -t efi -s 800k -a 4k ${md}
+    gpart add -t freebsd-boot -s 400k -a 4k	${md}	# <= ~540k
+    gpart add -t freebsd-zfs -l root $md
+    # install-boot will make this bootable
+    zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p3
+    zpool set bootfs=${pool} ${pool}
+    zfs create -po mountpoint=/ ${pool}/ROOT/default
+    # NB: The online guides go nuts customizing /var and other mountpoints here, no need
+    cpsys ${src} ${mntpt}
+    df
+    # need to make a couple of tweaks
+    cat > ${mntpt}/boot/loader.conf <<EOF
+zfs_load=YES
+opensolaris_load=YES
+EOF
+    cp /boot/kernel/zfs.ko ${mntpt}/boot/kernel/zfs.ko
+    cp /boot/kernel/opensolaris.ko ${mntpt}/boot/kernel/opensolaris.ko
+    ls -las ${mntpt}/boot
+    # end tweaks
+    zfs umount -f ${pool}/ROOT/default
+    zfs set mountpoint=none ${pool}/ROOT/default
+    zpool set bootfs=${pool}/ROOT/default ${pool}
+    zpool set autoexpand=on ${pool}
+    zpool export ${pool}
+    ${SRCTOP}/tools/boot/install-boot.sh -g ${geli} -s ${scheme} -f ${fs} -b ${bios} -d ${src} ${md}
+    mdconfig -d -u ${md}
 }
 
 mk_nogeli_mbr_ufs_legacy() {
@@ -257,7 +332,7 @@ qemu_amd64_both()
     sh=$2
 
     echo "qemu-system-x86_64 --drive file=${img},format=raw ${qser}" > $sh
-    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" >> $sh
 }
 
 # arm
@@ -288,7 +363,7 @@ qemu_i386_both()
     sh=$2
 
     echo "qemu-system-i386 --drive file=${img},format=raw ${qser}" > $sh
-    echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" >> $sh
 }
 
 # mips
@@ -314,8 +389,15 @@ DESTDIR=${OBJDIR}/boot-tree
 rm -rf ${DESTDIR}
 mkdir -p ${DESTDIR}/boot/defaults
 mkdir -p ${DESTDIR}/boot/kernel
+cp /boot/boot0 ${DESTDIR}/boot
+cp /boot/boot0sio ${DESTDIR}/boot
+cp /boot/pmbr ${DESTDIR}/boot
+cp /boot/boot ${DESTDIR}/boot
 # XXX boot1 exists only on sparc64
 cp /boot/boot1 ${DESTDIR}/boot
+cp /boot/boot1.efifat ${DESTDIR}/boot
+cp /boot/gptboot ${DESTDIR}/boot
+cp /boot/gptzfsboot ${DESTDIR}/boot
 cp /boot/loader ${DESTDIR}/boot
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
 echo -h -D -S115200 > ${DESTDIR}/boot.config
