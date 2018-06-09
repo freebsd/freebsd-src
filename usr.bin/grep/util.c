@@ -74,7 +74,7 @@ static bool procmatches(struct mprintc *mc, struct parsec *pc, bool matched);
 static int litexec(const struct pat *pat, const char *string,
     size_t nmatch, regmatch_t pmatch[]);
 #endif
-static int procline(struct parsec *pc);
+static bool procline(struct parsec *pc);
 static void printline(struct parsec *pc, int sep);
 static void printline_metadata(struct str *line, int sep);
 
@@ -210,7 +210,7 @@ procmatch_match(struct mprintc *mc, struct parsec *pc)
 		while (pc->matchidx >= MAX_MATCHES) {
 			/* Reset matchidx and try again */
 			pc->matchidx = 0;
-			if (procline(pc) == 0)
+			if (procline(pc))
 				printline(pc, ':');
 			else
 				break;
@@ -283,7 +283,8 @@ procfile(const char *fn)
 	struct file *f;
 	struct stat sb;
 	mode_t s;
-	int lines, t;
+	int lines;
+	bool line_matched;
 
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : errstr[1];
@@ -316,6 +317,7 @@ procfile(const char *fn)
 	pc.cntlines = false;
 	memset(&mc, 0, sizeof(mc));
 	mc.printmatch = true;
+	line_matched = false;
 	if ((pc.binary && binbehave == BINFILE_BIN) || cflag || qflag ||
 	    lflag || Lflag)
 		mc.printmatch = false;
@@ -354,11 +356,12 @@ procfile(const char *fn)
 			return (0);
 		}
 
-		if ((t = procline(&pc)) == 0)
+		line_matched = procline(&pc);
+		if (line_matched)
 			++lines;
 
 		/* Halt processing if we hit our match limit */
-		if (!procmatches(&mc, &pc, t == 0))
+		if (!procmatches(&mc, &pc, line_matched))
 			break;
 	}
 	if (Bflag > 0)
@@ -453,31 +456,33 @@ litexec(const struct pat *pat, const char *string, size_t nmatch,
  * matches.  The matching lines are passed to printline() to display the
  * appropriate output.
  */
-static int
+static bool
 procline(struct parsec *pc)
 {
 	regmatch_t pmatch, lastmatch, chkmatch;
 	wchar_t wbegin, wend;
 	size_t st, nst;
 	unsigned int i;
-	int c = 0, r = 0, lastmatches = 0, leflags = eflags;
+	int r = 0, leflags = eflags;
 	size_t startm = 0, matchidx;
 	unsigned int retry;
+	bool lastmatched, matched;
 
 	matchidx = pc->matchidx;
 
 	/* Special case: empty pattern with -w flag, check first character */
 	if (matchall && wflag) {
 		if (pc->ln.len == 0)
-			return (0);
+			return (true);
 		wend = L' ';
 		if (sscanf(&pc->ln.dat[0], "%lc", &wend) != 1 || iswword(wend))
-			return (1);
+			return (false);
 		else
-			return (0);
+			return (true);
 	} else if (matchall)
-		return (0);
+		return (true);
 
+	matched = false;
 	st = pc->lnstart;
 	nst = 0;
 	/* Initialize to avoid a false positive warning from GCC. */
@@ -485,7 +490,7 @@ procline(struct parsec *pc)
 
 	/* Loop to process the whole line */
 	while (st <= pc->ln.len) {
-		lastmatches = 0;
+		lastmatched = false;
 		startm = matchidx;
 		retry = 0;
 		if (st > 0 && pc->ln.dat[st - 1] != fileeol)
@@ -537,11 +542,11 @@ procline(struct parsec *pc)
 				if (r == REG_NOMATCH)
 					continue;
 			}
-			lastmatches++;
+			lastmatched = true;
 			lastmatch = pmatch;
 
 			if (matchidx == 0)
-				c++;
+				matched = true;
 
 			/*
 			 * Replace previous match if the new one is earlier
@@ -567,7 +572,7 @@ procline(struct parsec *pc)
 			if ((color == NULL && !oflag) || qflag || lflag ||
 			    matchidx >= MAX_MATCHES) {
 				pc->lnstart = nst;
-				lastmatches = 0;
+				lastmatched = false;
 				break;
 			}
 		}
@@ -577,7 +582,7 @@ procline(struct parsec *pc)
 		 * again just in case we still have a chance to match later in
 		 * the string.
 		 */
-		if (lastmatches == 0 && retry > pc->lnstart) {
+		if (!lastmatched && retry > pc->lnstart) {
 			st = retry;
 			continue;
 		}
@@ -588,10 +593,10 @@ procline(struct parsec *pc)
 			break;
 
 		/* If we didn't have any matches or REG_NOSUB set */
-		if (lastmatches == 0 || (cflags & REG_NOSUB))
+		if (!lastmatched || (cflags & REG_NOSUB))
 			nst = pc->ln.len;
 
-		if (lastmatches == 0)
+		if (!lastmatched)
 			/* No matches */
 			break;
 		else if (st == nst && lastmatch.rm_so == lastmatch.rm_eo)
@@ -606,8 +611,8 @@ procline(struct parsec *pc)
 	/* Reflect the new matchidx in the context */
 	pc->matchidx = matchidx;
 	if (vflag)
-		c = !c;
-	return (c ? 0 : 1);
+		matched = !matched;
+	return matched;
 }
 
 /*
