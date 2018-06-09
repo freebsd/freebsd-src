@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/reboot.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
 #endif
