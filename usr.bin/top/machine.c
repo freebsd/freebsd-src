@@ -841,11 +841,11 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* not in use */
 			continue;
 
-		if (!sel->self && pp->ki_pid == mypid)
+		if (!sel->self && pp->ki_pid == mypid && sel->pid == -1)
 			/* skip self */
 			continue;
 
-		if (!sel->system && (pp->ki_flag & P_SYSTEM))
+		if (!sel->system && (pp->ki_flag & P_SYSTEM) && sel->pid == -1)
 			/* skip system process */
 			continue;
 
@@ -861,7 +861,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip zombies */
 			continue;
 
-		if (!sel->kidle && pp->ki_tdflags & TDF_IDLETD)
+		if (!sel->kidle && pp->ki_tdflags & TDF_IDLETD && sel->pid == -1)
 			/* skip kernel idle process */
 			continue;
 

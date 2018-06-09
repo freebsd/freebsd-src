@@ -259,7 +259,6 @@ main(int argc, char *argv[])
     char *order_name = NULL;
     int order_index = 0;
     fd_set readfds;
-    char old_system = false;
 
     static const char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwopT";
 /* these defines enumerate the "strchr"s of the commands in command_chars */
@@ -381,7 +380,6 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
 
 	      case 'S':			/* show system processes */
 		ps.system = true;
-		old_system = true;
 		break;
 
 	      case 'I':                   /* show idle processes */
@@ -1086,7 +1084,6 @@ restart:
 				break;
 			    case CMD_viewsys:
 				ps.system = !ps.system;
-				old_system = ps.system;
 				break;
 			    case CMD_showargs:
 				fmt_flags ^= FMT_SHOWARGS;
@@ -1193,7 +1190,6 @@ restart:
 					if (tempbuf2[0] == '+' &&
                    			    tempbuf2[1] == '\0') {
 						ps.pid = (pid_t)-1;
-						ps.system = old_system;
 					} else {
 						unsigned long long num;
 						const char *errstr;
@@ -1206,10 +1202,7 @@ restart:
 								tempbuf2);
 							no_command = true;
 						} else {
-							if (ps.system == false)
-								old_system = false;
 							ps.pid = (pid_t)num;
-							ps.system = true;
 						}
 					}
 					putchar('\r');
