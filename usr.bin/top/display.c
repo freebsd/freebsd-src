@@ -162,28 +162,23 @@ display_resize(void)
 
 int display_updatecpus(struct statics *statics)
 {
-    int *lp;
     int lines;
     int i;
     
     /* call resize to do the dirty work */
     lines = display_resize();
     if (pcpu_stats)
-	num_cpus = statics->ncpus;
+		num_cpus = statics->ncpus;
     else
-	num_cpus = 1;
+		num_cpus = 1;
     cpustates_column = 5;	/* CPU: */
-    if (num_cpus != 1)
-    cpustates_column += 2;	/* CPU 0: */
-    for (i = num_cpus; i > 9; i /= 10)
-	cpustates_column++;
+    if (num_cpus > 1) {
+		cpustates_column += 1 + digits(num_cpus); /* CPU #: */
+	}
 
     /* fill the "last" array with all -1s, to insure correct updating */
-    lp = lcpustates;
-    i = num_cpustates * num_cpus;
-    while (--i >= 0)
-    {
-	*lp++ = -1;
+	for (i = 0; i < num_cpustates * num_cpus; ++i) {
+		lcpustates[i] = -1;
     }
     
     return(lines);
@@ -541,7 +536,9 @@ z_cpustates(void)
     }
 
     /* fill the "last" array with all -1s, to insure correct updating */
-    memset(lcpustates, -1, num_cpustates * num_cpus);
+	for (i = 0; i < num_cpustates * num_cpus; ++i) {
+		lcpustates[i] = -1;
+    }
 }
 
 /*
