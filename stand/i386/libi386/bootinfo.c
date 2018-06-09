@@ -43,7 +43,6 @@ bi_getboothowto(char *kargs)
     char	*curpos, *next, *string;
     int		howto;
     int		active;
-    int		i;
     int		vidconsole;
 
     /* Parse kargs */
@@ -96,10 +95,7 @@ bi_getboothowto(char *kargs)
 	    cp++;
 	}
     }
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
+    howto |= bootenv_flags();
 
     /* Enable selected consoles */
     string = next = strdup(getenv("console"));

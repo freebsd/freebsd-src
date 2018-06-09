@@ -31,9 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
-#include <sys/boot.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
 #endif
@@ -100,7 +98,6 @@ md_getboothowto(char *kargs)
     char	*cp;
     int		howto;
     int		active;
-    int		i;
 
     /* Parse kargs */
     howto = 0;
@@ -153,10 +150,7 @@ md_getboothowto(char *kargs)
 	}
     }
 
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
+    howto |= bootenv_flags();
 #if defined(__sparc64__)
     if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
