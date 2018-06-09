@@ -179,7 +179,7 @@ SUBDIR.${MK_OPENSSL}+=	keyserv
 SUBDIR.${MK_PC_SYSINSTALL}+=	pc-sysinstall
 SUBDIR.${MK_PF}+=	ftp-proxy
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
-.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100) && ${MACHINE_CPUARCH} != "riscv")
+.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100 && ${MACHINE_CPUARCH} != "riscv"))
 SUBDIR.${MK_PMC}+=	pmc
 SUBDIR.${MK_PMC}+=	pmcannotate
 SUBDIR.${MK_PMC}+=	pmccontrol
