@@ -51,6 +51,37 @@ boot_nogeli_gpt_ufs_legacy() {
     exit 0
 }
 
+boot_nogeli_gpt_zfs_uefi() {
+    dev=$1
+    dst=$2
+
+    idx=$(find-part $dev "efi")
+    if [ -z "$idx" ] ; then
+	die "No efi ESP partition found"
+    fi
+    doit gpart bootcode -p ${efi2} -i $idx $dev
+    exit 0
+}
+
+boot_nogeli_gpt_zfs_both() {
+    dev=$1
+    dst=$2
+
+    # XXX: Should this be copy/pasted, or should it call both _uefi and _legacy
+    idx=$(find-part $dev "efi")
+    if [ -z "$idx" ] ; then
+	die "No efi ESP partition found"
+    fi
+    doit gpart bootcode -p ${efi2} -i $idx $dev
+
+    idx=$(find-part $dev "freebsd-boot")
+    if [ -z "$idx" ] ; then
+	die "No freebsd-boot partition found"
+    fi
+    doit gpart bootcode -b ${gpt0} -p ${gptzfs2} -i $idx $dev
+    exit 0
+}
+
 boot_nogeli_mbr_zfs_legacy() {
     dev=$1
     dst=$2
@@ -133,6 +164,10 @@ dev=$1
 gpt0=${DESTDIR}/boot/pmbr
 gpt2=${DESTDIR}/boot/gptboot
 gptzfs2=${DESTDIR}/boot/gptzfsboot
+
+# For gpt + EFI we install the ESP
+# XXX This should use newfs or makefs, but it deosn't yet
+efi2=${DESTDIR}/boot/boot1.efifat
 
 # For MBR, we have lots of choices, but select boot0
 mbr0=${DESTDIR}/boot/boot0
