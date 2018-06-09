@@ -1901,7 +1901,7 @@ should_have_dwarf(Elf *elf)
 int
 dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 {
-	Dwarf_Unsigned abboff, hdrlen, nxthdr;
+	Dwarf_Unsigned abboff, hdrlen, lang, nxthdr;
 	Dwarf_Half vers, addrsz, offsz;
 	Dwarf_Die cu = 0;
 	Dwarf_Die child = 0;
@@ -1941,8 +1941,8 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	}
 
 	if ((rc = dwarf_next_cu_header_b(dw.dw_dw, &hdrlen, &vers, &abboff,
-		&addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK) {
-		if (dw.dw_err.err_error == 	DW_DLE_NO_ENTRY)
+	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK) {
+		if (dw.dw_err.err_error == DW_DLE_NO_ENTRY)
 			exit(0);
 		else
 			terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
@@ -1971,6 +1971,25 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		debug(1, "DWARF emitter: %s\n", prod);
 		free(prod);
 	}
+
+	if (dwarf_attrval_unsigned(cu, DW_AT_language, &lang, &dw.dw_err) == 0)
+		switch (lang) {
+		case DW_LANG_C:
+		case DW_LANG_C89:
+		case DW_LANG_C99:
+		case DW_LANG_C11:
+		case DW_LANG_C_plus_plus:
+		case DW_LANG_C_plus_plus_03:
+		case DW_LANG_C_plus_plus_11:
+		case DW_LANG_C_plus_plus_14:
+			break;
+		default:
+			terminate("file contains DWARF for unsupported "
+			    "language %d", lang);
+		}
+	else
+		warning("die %llu: failed to get language attribute: %s\n",
+		    die_off(&dw, cu), dwarf_errmsg(dw.dw_err));
 
 	if ((dw.dw_cuname = die_name(&dw, cu)) != NULL) {
 		char *base = xstrdup(basename(dw.dw_cuname));
