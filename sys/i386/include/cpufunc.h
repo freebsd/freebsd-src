@@ -373,7 +373,7 @@ rdtscp(void)
 {
 	uint64_t rv;
 
-	__asm __volatile("rdtscp" : "=A" (rv));
+	__asm __volatile("rdtscp" : "=A" (rv) : : "ecx");
 	return (rv);
 }
 
