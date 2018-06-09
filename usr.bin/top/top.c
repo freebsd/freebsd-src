@@ -87,12 +87,13 @@ static void (*d_process)(int line, char *thisline) = i_process;
 
 static void reset_display(void);
 
-
 static const struct option longopts[] = {
     { "cpu-display-mode", no_argument, NULL, 'C' }, /* differs from orignal */
     /* D reserved */
     { "thread", no_argument, NULL, 'H' },
     { "idle-procs", no_argument, NULL, 'I' },
+	{ "jail", required_argument, NULL, 'J' },
+	{ "per-cpu", no_argument, NULL, 'P' },
     { "system-procs", no_argument, NULL, 'S' },
     { "thread-id", no_argument, NULL, 'T' }, /* differs from orignal */
     { "user", required_argument, NULL, 'U' },
@@ -111,6 +112,7 @@ static const struct option longopts[] = {
     { "threads", no_argument, NULL, 't' },
     { "uids", no_argument, NULL, 'u' },
     { "version", no_argument, NULL, 'v' },
+	{ "swap", no_argument, NULL, 'w' },
 	{ "system-idle-procs", no_argument, NULL, 'z' }
 };
 
