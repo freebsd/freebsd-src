@@ -179,13 +179,10 @@ struct nfsd_nfsd_args {
 };
 
 /*
- * NFSDEV_MIRRORSTR - string of digits that number the DSs 0->999.
- * (To support more than 1000 DSs on an MDS, this needs to be increased.)
- * NFSDEV_MAXMIRRORS - Maximum # of mirrors for a DS.
- * (Most will only have a single mirror, but this setting allows up to 3.)
+ * NFSDEV_MAXMIRRORS - Maximum level of mirroring for a DS.
+ * (Most will only put files on two DSs, but this setting allows up to 4.)
  * NFSDEV_MAXVERS - maximum number of NFS versions supported by Flex File.
  */
-#define	NFSDEV_MIRRORSTR	3
 #define	NFSDEV_MAXMIRRORS	4
 #define	NFSDEV_MAXVERS		4
 
