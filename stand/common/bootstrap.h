@@ -63,6 +63,7 @@ int	parse(int *argc, char ***argv, const char *str);
 /* boot.c */
 void	autoboot_maybe(void);
 int	getrootmount(char *rootdev);
+int	bootenv_flags(void);
 
 /* misc.c */
 char	*unargv(int argc, char *argv[]);

@@ -32,9 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
-#include <sys/boot.h>
+#include <sys/reboot.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/metadata.h>
@@ -72,15 +71,9 @@ bi_getboothowto(char *kargs)
 	const char *sw;
 	char *opts;
 	char *console;
-	int howto, i;
+	int howto;
 
-	howto = 0;
-
-	/* Get the boot options from the environment first. */
-	for (i = 0; howto_names[i].ev != NULL; i++) {
-		if (getenv(howto_names[i].ev) != NULL)
-			howto |= howto_names[i].mask;
-	}
+	howto = bootenv_flags();
 
 	console = getenv("console");
 	if (console != NULL) {

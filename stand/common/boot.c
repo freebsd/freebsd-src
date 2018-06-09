@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <sys/reboot.h>
+#include <sys/boot.h>
 #include <string.h>
 
 #include "bootstrap.h"
@@ -156,6 +158,20 @@ autoboot_maybe()
 	cp = getenv("autoboot_delay");
 	if ((autoboot_tried == 0) && ((cp == NULL) || strcasecmp(cp, "NO")))
 		autoboot(-1, NULL);		/* try to boot automatically */
+}
+
+int
+bootenv_flags()
+{
+	int i, howto;
+	char *val;
+
+	for (howto = 0, i = 0; howto_names[i].ev != NULL; i++) {
+		val = getenv(howto_names[i].ev);
+		if (val != NULL && strcasecmp(val, "no") != 0)
+			howto |= howto_names[i].mask;
+	}
+	return (howto);
 }
 
 static int
