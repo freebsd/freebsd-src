@@ -89,7 +89,7 @@ static struct option longopts[] = {
 	{NULL, 0, NULL, 0}
 };
 
-static void
+static void __dead2
 usage(void)
 {
 	errx(EX_USAGE,

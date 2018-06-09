@@ -106,7 +106,7 @@ static const char *pmc_stat_mode_names[] = {
 
 static int pmcstat_sockpair[NSOCKPAIRFD];
 
-static void
+static void __dead2
 usage(void)
 {
 	errx(EX_USAGE,
@@ -127,8 +127,10 @@ showtime(FILE *out, struct timespec *before, struct timespec *after,
 
 	after->tv_sec -= before->tv_sec;
 	after->tv_nsec -= before->tv_nsec;
-	if (after->tv_nsec < 0)
-		after->tv_sec--, after->tv_nsec += 1000000000;
+	if (after->tv_nsec < 0) {
+		after->tv_sec--;
+		after->tv_nsec += 1000000000;
+	}
 
 	real = (after->tv_sec * 1000000000 + after->tv_nsec) / 1000;
 	user = ru->ru_utime.tv_sec * 1000000 + ru->ru_utime.tv_usec;
