@@ -83,7 +83,7 @@ typedef unordered_map <uint32_t, std::vector<samplename>> eventcountmap;
 
 #define	P_KPROC		0x00004	/* Kernel process. */
 
-static void
+static void __dead2
 usage(void)
 {
 	errx(EX_USAGE,
