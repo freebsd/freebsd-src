@@ -328,7 +328,7 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:tw")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw")) != EOF)
 	{
 	    switch(i)
 	    {
