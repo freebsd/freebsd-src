@@ -134,8 +134,8 @@ digits(int val)
 
     while (val > 0)
     {
-	cnt++;
-	val /= 10;
+		cnt++;
+		val /= 10;
     }
     return(cnt);
 }
