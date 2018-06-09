@@ -21,6 +21,7 @@
 #include <time.h>
 
 #include <errno.h>
+#include <getopt.h>
 #include <jail.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -85,6 +86,33 @@ static void (*d_header)(const char *text) = i_header;
 static void (*d_process)(int line, char *thisline) = i_process;
 
 static void reset_display(void);
+
+
+static const struct option longopts[] = {
+    { "cpu-display-mode", no_argument, NULL, 'C' }, /* differs from orignal */
+    /* D reserved */
+    { "thread", no_argument, NULL, 'H' },
+    { "idle-procs", no_argument, NULL, 'I' },
+    { "system-procs", no_argument, NULL, 'S' },
+    { "thread-id", no_argument, NULL, 'T' }, /* differs from orignal */
+    { "user", required_argument, NULL, 'U' },
+    { "all", no_argument, NULL, 'a' },
+    { "batch", no_argument, NULL, 'b' },
+    /* c reserved */
+    { "displays", required_argument, NULL, 'd' },
+    { "interactive", no_argument, NULL, 'i' },
+    { "jail-id", no_argument, NULL, 'j' },
+    { "display-mode", required_argument, NULL, 'm' },
+    /* n is identical to batch */
+    { "sort-order", required_argument, NULL, 'o' },
+    { "pid", required_argument, NULL, 'p' },
+    { "quick", no_argument, NULL, 'q' },
+    { "delay", required_argument, NULL, 's' },
+    { "threads", no_argument, NULL, 't' },
+    { "uids", no_argument, NULL, 'u' },
+    { "version", no_argument, NULL, 'v' },
+	{ "system-idle-procs", no_argument, NULL, 'z' }
+};
 
 static void
 reset_uids(void)
@@ -328,7 +356,7 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw")) != EOF)
+	while ((i = getopt_long(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
 	{
 	    switch(i)
 	    {
