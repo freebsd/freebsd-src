@@ -98,7 +98,6 @@ static const char smp_header_thr_and_pid[] =
     "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
 static const char smp_header_tid_only[] =
     "  THR%*s %-*.*s "   "PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
-
 static const char smp_Proc_format[] =
     "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s %2d%7s %6.2f%% %.*s";
 
@@ -106,7 +105,6 @@ static char up_header_thr_and_pid[] =
     "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 static char up_header_tid_only[] =
     "  THR%*s %-*.*s "   "PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
-
 static char up_Proc_format[] =
     "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s%.0d%7s %6.2f%% %.*s";
 
@@ -1131,7 +1129,7 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 		    (int)(sizeof(thr_buf) - 2), pp->ki_numthreads);
 
 	snprintf(fmt, sizeof(fmt), proc_fmt,
-	    (ps.thread) ? pp->ki_tid : pp->ki_pid,
+	    (ps.thread_id) ? pp->ki_tid : pp->ki_pid,
 	    jidlength, jid_buf,
 	    namelength, namelength, (*get_userid)(pp->ki_ruid),
 	    thr_buf,
