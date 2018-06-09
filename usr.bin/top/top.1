@@ -116,6 +116,9 @@ Display the
 .IR jail (8)
 ID.
 .TP
+.B \-T
+Toggle displaying thread ID (tid) instead of process id (pid).
+.TP
 .B \-t
 Do not display the
 .I top
@@ -238,6 +241,7 @@ The options
 .BR \-j ,
 .BR \-P ,
 .BR \-S ,
+.BR \-T ,
 .BR \-t ,
 .BR \-u ,
 .BR \-w ,
@@ -342,7 +346,6 @@ command.
 .TP
 .B H
 Toggle the display of threads.
-Also toggles the display of PID or TID.
 .TP
 .B i
 (or
@@ -362,6 +365,9 @@ This will also enable the display of JID.
 .TP
 .B P
 Toggle the display of per-CPU statistics.
+.TP
+.B T
+Toggle display of TID vs PID
 .TP
 .B t
 Toggle the display of the

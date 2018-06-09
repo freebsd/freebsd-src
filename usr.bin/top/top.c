@@ -70,6 +70,7 @@ static int max_topn;		/* maximum displayable processes */
 /* miscellaneous things */
 struct process_select ps;
 const char * myname = "top";
+pid_t mypid;
 
 /* pointers to display routines */
 static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
@@ -230,7 +231,7 @@ main(int argc, char *argv[])
     fd_set readfds;
     char old_system = false;
 
-    static const char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwop";
+    static const char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwopT";
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
 #define CMD_update	1
@@ -261,6 +262,9 @@ main(int argc, char *argv[])
 #define CMD_swaptog	25
 #define CMD_order	26
 #define CMD_pid		27
+#define CMD_toggletid	28
+
+_Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size");
 
     /* set the buffer for stdout */
 #ifdef DEBUG
@@ -271,7 +275,6 @@ main(int argc, char *argv[])
     setbuffer(stdout, stdoutbuf, Buffersize);
 #endif
 
-    /* get our name */
     if (argc > 0)
     {
 	if ((myname = strrchr(argv[0], '/')) == 0)
@@ -284,9 +287,12 @@ main(int argc, char *argv[])
 	}
     }
 
+    mypid = getpid();
+
+    /* get our name */
     /* initialize some selection options */
     ps.idle    = true;
-    ps.self    = -1;
+    ps.self    = false;
     ps.system  = false;
     reset_uids();
     ps.thread  = false;
@@ -297,6 +303,7 @@ main(int argc, char *argv[])
     ps.kidle   = true;
     ps.pid     = -1; 
     ps.command = NULL;
+    ps.thread_id = false;
 
     /* get preset options from the environment */
     if ((env_top = getenv("TOP")) != NULL)
@@ -437,7 +444,7 @@ main(int argc, char *argv[])
 		break;
 
 	      case 't':
-		ps.self = (ps.self == -1) ? getpid() : -1;
+		ps.self = !ps.self;
 		break;
 
 	      case 'C':
@@ -446,6 +453,10 @@ main(int argc, char *argv[])
 
 	      case 'H':
 		ps.thread = !ps.thread;
+		break;
+
+	      case 'T':
+		ps.thread_id = !ps.thread_id;
 		break;
 
 	      case 'j':
@@ -712,7 +723,6 @@ restart:
 	    new_message(MT_standout, " Write error on stdout");
 	    putchar('\r');
 	    quit(1);
-	    /*NOTREACHED*/
 	}
 
 	/* only do the rest if we have more displays to show */
@@ -809,7 +819,7 @@ restart:
 		if (sel_ret > 0)
 		{
 		    int newval;
-		    char *errmsg;
+		    const char *errmsg;
     
 		    /* something to read -- clear the message area first */
 		    clear_message();
@@ -822,7 +832,6 @@ restart:
 			new_message(MT_standout, " Read error on stdin");
 			putchar('\r');
 			quit(1);
-			/*NOTREACHED*/
 		    }
 		    if ((iptr = strchr(command_chars, ch)) == NULL)
 		    {
@@ -863,7 +872,6 @@ restart:
 	    
 			    case CMD_quit:	/* quit */
 				quit(0);
-				/*NOTREACHED*/
 				break;
 	    
 			    case CMD_help1:	/* help */
@@ -997,10 +1005,10 @@ restart:
 				break;
 
 			    case CMD_selftog:
-				ps.self = (ps.self == -1) ? getpid() : -1;
+				ps.self = !ps.self;
 				new_message(MT_standout | MT_delayed,
 				    " %sisplaying self.",
-				    (ps.self == -1) ? "D" : "Not d");
+				    (ps.self) ? "D" : "Not d");
 				putchar('\r');
 				break;
 
@@ -1018,6 +1026,17 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
+
+			    case CMD_toggletid:
+				ps.thread_id = !ps.thread_id;
+				new_message(MT_standout | MT_delayed,
+				    " Displaying %s",
+				    ps.thread_id ? "tid" : "pid");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
+
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
@@ -1184,7 +1203,6 @@ restart:
     fclose(debug);
 #endif
     quit(0);
-    /*NOTREACHED*/
 }
 
 /*

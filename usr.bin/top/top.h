@@ -10,6 +10,8 @@
 #ifndef TOP_H
 #define TOP_H
 
+#include <unistd.h>
+
 #define Default_DELAY 2
 
 /* Number of lines of header information on the standard screen */
@@ -42,7 +44,9 @@ enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 extern enum displaymodes displaymode;
 
 extern int pcpu_stats;
-extern int  overstrike;
+extern int overstrike;
+extern pid_t mypid;
+
 
 extern const char * myname;
 
@@ -52,9 +56,8 @@ char* kill_procs(char *);
 char* renice_procs(char *);
 
 extern char copyright[];
-/* internal routines */
-void quit(int);
 
+void quit(int);
 
 /*
  *  The space command forces an immediate update.  Sometimes, on loaded
