@@ -433,8 +433,8 @@ format_header(const char *uname_field)
 		 * separate lines).
 		 */
 		prehead = smpmode ?
-		    (ps.thread ? smp_header_tid_only : smp_header_thr_and_pid) :
-		    (ps.thread ? up_header_tid_only : up_header_thr_and_pid);
+		    (ps.thread_id ? smp_header_tid_only : smp_header_thr_and_pid) :
+		    (ps.thread_id ? up_header_tid_only : up_header_thr_and_pid);
 		snprintf(Header, sizeof(Header), prehead,
 		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field,
@@ -828,7 +828,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* not in use */
 			continue;
 
-		if (sel->self != -1 && pp->ki_pid == sel->self)
+		if (!sel->self && pp->ki_pid == mypid)
 			/* skip self */
 			continue;
 

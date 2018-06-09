@@ -58,25 +58,26 @@ struct system_info
  */
 
 /*
- * the process_select struct tells get_process_info what processes we
- * are interested in seeing
+ * the process_select struct tells get_process_info what processes
+ * and information we are interested in seeing
  */
 
 struct process_select
 {
-    int idle;		/* show idle processes */
-    int self;		/* show self */
-    int system;		/* show system processes */
-    int thread;		/* show threads */
+    bool idle;		/* show idle processes */
+    bool self;		/* show self */
+    bool system;		/* show system processes */
+    bool thread;		/* show threads */
+    bool thread_id;		/* show thread ids */
 #define TOP_MAX_UIDS 8
     int uid[TOP_MAX_UIDS];	/* only these uids (unless uid[0] == -1) */
-    int wcpu;		/* show weighted cpu */
+    bool wcpu;		/* show weighted cpu */
     int jid;		/* only this jid (unless jid == -1) */
-    int jail;		/* show jail ID */
-    int swap;		/* show swap usage */
-    int kidle;		/* show per-CPU idle threads */
-    pid_t pid;		/* only this pid (unless pid == -1) */
-    char *command;	/* only this command (unless == NULL) */
+    bool jail;		/* show jail ID */
+    bool swap;		/* show swap usage */
+    bool kidle;		/* show per-CPU idle threads */
+    int pid;		/* only this pid (unless pid == -1) */
+    const char *command;	/* only this command (unless == NULL) */
 };
 
 /* routines defined by the machine dependent module */
