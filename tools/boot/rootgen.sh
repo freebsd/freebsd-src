@@ -96,7 +96,7 @@ mk_nogeli_gpt_zfs_legacy() {
     # install-boot will make this bootable
     zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p2
     zpool set bootfs=${pool} ${pool}
-    zfs create -o mountpoint=/ ${pool}/ROOT
+    zfs create -po mountpoint=/ ${pool}/ROOT/default
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     df
@@ -109,9 +109,9 @@ EOF
     cp /boot/kernel/opensolaris.ko ${mntpt}/boot/kernel/opensolaris.ko
     ls -las ${mntpt}/boot
     # end tweaks
-    zfs umount -f ${pool}/ROOT
-    zfs set mountpoint=none ${pool}/ROOT
-    zpool set bootfs=${pool}/ROOT ${pool}
+    zfs umount -f ${pool}/ROOT/default
+    zfs set mountpoint=none ${pool}/ROOT/default
+    zpool set bootfs=${pool}/ROOT/default ${pool}
     zpool set autoexpand=on ${pool}
     zpool export ${pool}
     ${SRCTOP}/tools/boot/install-boot.sh -g ${geli} -s ${scheme} -f ${fs} -b ${bios} -d ${src} ${md}
