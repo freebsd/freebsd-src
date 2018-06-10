@@ -102,6 +102,25 @@ local function setKey(key, name, value)
 	modules[key][name] = value
 end
 
+-- Escapes the named value for use as a literal in a replacement pattern.
+-- e.g. dhcp.host-name gets turned into dhcp%.host%-name to remove the special
+-- meaning.
+local function escapeName(name)
+	return name:gsub("([%p])", "%%%1")
+end
+
+local function processEnvVar(value)
+	for name in value:gmatch("${([^}]+)}") do
+		local replacement = loader.getenv(name) or ""
+		value = value:gsub("${" .. escapeName(name) .. "}", replacement)
+	end
+	for name in value:gmatch("$([%w%p]+)%s*") do
+		local replacement = loader.getenv(name) or ""
+		value = value:gsub("$" .. escapeName(name), replacement)
+	end
+	return value
+end
+
 local pattern_table = {
 	{
 		str = "^%s*(#.*)",
@@ -172,7 +191,7 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if setEnv(k, v) ~= 0 then
+			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, v))
 			end
 		end,
@@ -181,7 +200,7 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			if setEnv(k, v) ~= 0 then
+			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
 			end
 		end,
