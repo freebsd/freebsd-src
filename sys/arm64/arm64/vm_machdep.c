@@ -54,9 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
-#ifdef DEV_PSCI
 #include <dev/psci/psci.h>
-#endif
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -119,9 +117,7 @@ void
 cpu_reset(void)
 {
 
-#ifdef DEV_PSCI
 	psci_reset();
-#endif
 
 	printf("cpu_reset failed");
 	while(1)
