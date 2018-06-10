@@ -14,12 +14,14 @@
  *	$FreeBSD$
  */
 
-#define FIXED_LOADAVG FSCALE
-#define FIXED_PCTCPU FSCALE
+#ifndef LOADAVG_H
+#define LOADAVG_H
+
+#include <sys/param.h>
 
 typedef long pctcpu;
-#define pctdouble(p) ((double)(p) / FIXED_PCTCPU)
+#define pctdouble(p) ((double)(p) / FSCALE)
 
 typedef fixpt_t load_avg;
-#define loaddouble(la) ((double)(la) / FIXED_LOADAVG)
-#define intload(i) ((int)((i) * FIXED_LOADAVG))
+#define loaddouble(la) ((double)(la) / FSCALE)
+#endif /* LOADAVG_H */

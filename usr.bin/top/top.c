@@ -643,8 +643,8 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
     if (warnings)
     {
 	fputs("....", stderr);
-	fflush(stderr);			/* why must I do this? */
-	sleep((unsigned)(3 * warnings));
+	fflush(stderr);
+	sleep(3 * warnings);
 	fputc('\n', stderr);
     }
 
