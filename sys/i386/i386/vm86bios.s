@@ -67,7 +67,8 @@ ENTRY(vm86_bioscall)
 	pushl	%edx
 	movl	TD_PCB(%ecx),%ecx
 	pushl	PCB_SAVEFPU(%ecx)
-	call	npxsave
+	movl	$npxsave,%eax
+	call	*%eax
 	addl	$4,%esp
 	popl	%edx			/* recover our pcb */
 1:
