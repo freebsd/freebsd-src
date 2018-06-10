@@ -2,13 +2,16 @@
 
 TESTSDIR=	${TESTSBASE}/sys/audit
 
-ATF_TESTS_C=	file-create
+ATF_TESTS_C=	file-attribute-access
+ATF_TESTS_C+=	file-create
 ATF_TESTS_C+=	file-delete
 ATF_TESTS_C+=	file-close
 ATF_TESTS_C+=	file-write
 ATF_TESTS_C+=	file-read
 ATF_TESTS_C+=	open
 
+SRCS.file-attribute-access+=	file-attribute-access.c
+SRCS.file-attribute-access+=	utils.c
 SRCS.file-create+=	file-create.c
 SRCS.file-create+=	utils.c
 SRCS.file-delete+=	file-delete.c
