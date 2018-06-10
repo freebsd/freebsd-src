@@ -1,18 +1,14 @@
-/*
- * $FreeBSD$
- */
-/*
- *  Top - a top users display for Berkeley Unix
+/*-
+ * Top - a top users display for Berkeley Unix
  *
- *  General (global) definitions
+ * General (global) definitions
+ * $FreeBSD$
  */
 
 #ifndef TOP_H
 #define TOP_H
 
 #include <unistd.h>
-
-#define Default_DELAY 2
 
 /* Number of lines of header information on the standard screen */
 extern int Header_lines;	/* 7 */
