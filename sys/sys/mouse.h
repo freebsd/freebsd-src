@@ -38,8 +38,6 @@
 #define MOUSE_SETMODE		_IOW('M', 3, mousemode_t)
 #define MOUSE_GETLEVEL		_IOR('M', 4, int)
 #define MOUSE_SETLEVEL		_IOW('M', 5, int)
-#define MOUSE_GETVARS		_IOR('M', 6, mousevar_t)
-#define MOUSE_SETVARS		_IOW('M', 7, mousevar_t)
 #define MOUSE_READSTATE		_IOWR('M', 8, mousedata_t)
 #define MOUSE_READDATA		_IOWR('M', 9, mousedata_t)
 
@@ -227,19 +225,6 @@ typedef struct mousedata {
 	int len;		/* # of data in the buffer */
 	int buf[16];		/* data buffer */
 } mousedata_t;
-
-#if (defined(MOUSE_GETVARS))
-
-typedef struct mousevar {
-	int var[16];
-} mousevar_t;
-
-/* magic numbers in var[0] */
-#define MOUSE_VARS_PS2_SIG	0x00325350	/* 'PS2' */
-#define MOUSE_VARS_BUS_SIG	0x00535542	/* 'BUS' */
-#define MOUSE_VARS_INPORT_SIG	0x00504e49	/* 'INP' */
-
-#endif /* MOUSE_GETVARS */
 
 /* Synaptics Touchpad */
 #define MOUSE_SYNAPTICS_PACKETSIZE	6	/* '3' works better */
