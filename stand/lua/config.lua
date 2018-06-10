@@ -250,6 +250,33 @@ local function loadModule(mod, silent)
 	return status
 end
 
+local function readConfFiles(loaded_files)
+	local f = loader.getenv("loader_conf_files")
+	if f ~= nil then
+		for name in f:gmatch("([%w%p]+)%s*") do
+			if loaded_files[name] ~= nil then
+				goto continue
+			end
+
+			local prefiles = loader.getenv("loader_conf_files")
+
+			print("Loading " .. name)
+			-- These may or may not exist, and that's ok. Do a
+			-- silent parse so that we complain on parse errors but
+			-- not for them simply not existing.
+			if not config.processFile(name, true) then
+				print(MSG_FAILPARSECFG:format(name))
+			end
+
+			loaded_files[name] = true
+			local newfiles = loader.getenv("loader_conf_files")
+			if prefiles ~= newfiles then
+				readConfFiles(loaded_files)
+			end
+			::continue::
+		end
+	end
+end
 
 local function readFile(name, silent)
 	local f = io.open(name)
@@ -467,17 +494,8 @@ function config.load(file, reloading)
 		print(MSG_FAILPARSECFG:format(file))
 	end
 
-	local f = loader.getenv("loader_conf_files")
-	if f ~= nil then
-		for name in f:gmatch("([%w%p]+)%s*") do
-			-- These may or may not exist, and that's ok. Do a
-			-- silent parse so that we complain on parse errors but
-			-- not for them simply not existing.
-			if not config.processFile(name, true) then
-				print(MSG_FAILPARSECFG:format(name))
-			end
-		end
-	end
+	local loaded_files = {file = true}
+	readConfFiles(loaded_files)
 
 	checkNextboot()
 
