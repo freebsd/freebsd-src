@@ -41,9 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef DEV_PSCI
 #include <dev/psci/psci.h>
-#endif
 
 typedef void (cpu_quirk_install)(void);
 struct cpu_quirks {
@@ -81,9 +79,7 @@ static void
 install_psci_bp_hardening(void)
 {
 
-#ifdef DEV_PSCI
 	PCPU_SET(bp_harden, psci_get_version);
-#endif
 }
 
 void
