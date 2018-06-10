@@ -4,7 +4,7 @@
 
 PROG=	top
 SRCS=	commands.c display.c machine.c screen.c top.c \
-	username.c utils.c sigdesc.h
+	username.c utils.c
 CFLAGS+= -I ${.OBJDIR}
 MAN=	top.1
 
@@ -19,10 +19,4 @@ NO_WERROR=
 CFLAGS.clang=-Wno-error=incompatible-pointer-types-discards-qualifiers -Wno-error=cast-qual
 
 LIBADD=	ncursesw m kvm jail
-
-CLEANFILES= sigdesc.h
-SIGNAL_H= ${SRCTOP}/sys/sys/signal.h
-sigdesc.h: sigconv.awk ${SIGNAL_H}
-	awk -f ${SRCTOP}/usr.bin/top/sigconv.awk < ${SIGNAL_H} > ${.TARGET}
-
 .include <bsd.prog.mk>

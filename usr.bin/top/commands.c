@@ -30,7 +30,6 @@
 #include <unistd.h>
 
 #include "commands.h"
-#include "sigdesc.h"		/* generated automatically */
 #include "top.h"
 #include "machine.h"
 
@@ -352,6 +351,20 @@ static const char invalid_signal_number[] = " invalid_signal_number";
 static const char bad_signal_name[] = " bad signal name";
 static const char bad_pri_value[] = " bad priority value";
 
+static int
+signame_to_signum(const char * sig)
+{
+        int n;
+
+        if (strncasecmp(sig, "SIG", 3) == 0)
+                sig += 3;
+        for (n = 1; n < sys_nsig; n++) {
+            if (!strcasecmp(sys_signame[n], sig))
+                return (n);
+        }
+        return (-1);
+}
+
 /*
  *  kill_procs(str) - send signals to processes, much like the "kill"
  *		command does; invoked in response to 'k'.
@@ -363,7 +376,6 @@ kill_procs(char *str)
     char *nptr;
     int signum = SIGTERM;	/* default */
     int procnum;
-    struct sigdesc *sigp;
     int uid;
 
     /* reset error array */
@@ -393,18 +405,10 @@ kill_procs(char *str)
 	}
 	else 
 	{
-	    /* translate the name into a number */
-	    for (sigp = sigdesc; sigp->name != NULL; sigp++)
-	    {
-			if (strcasecmp(sigp->name, str + 1) == 0)
-			{
-				signum = sigp->number;
-				break;
-			}
-		}
+		signum = signame_to_signum(str + 1);
 
 	    /* was it ever found */
-	    if (sigp->name == NULL)
+	    if (signum == -1 )
 	    {
 			return(bad_signal_name);
 	    }
