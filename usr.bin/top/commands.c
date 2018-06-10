@@ -401,17 +401,17 @@ kill_procs(char *str)
 	    /* translate the name into a number */
 	    for (sigp = sigdesc; sigp->name != NULL; sigp++)
 	    {
-		if (strcmp(sigp->name, str + 1) == 0)
-		{
-		    signum = sigp->number;
-		    break;
+			if (strcasecmp(sigp->name, str + 1) == 0)
+			{
+				signum = sigp->number;
+				break;
+			}
 		}
-	    }
 
 	    /* was it ever found */
 	    if (sigp->name == NULL)
 	    {
-		return(bad_signal_name);
+			return(bad_signal_name);
 	    }
 	}
 	/* put the new pointer in place */
