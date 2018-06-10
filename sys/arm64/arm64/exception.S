@@ -161,10 +161,6 @@ ENTRY(handle_el1h_irq)
 	eret
 END(handle_el1h_irq)
 
-ENTRY(handle_el1h_error)
-	brk	0xf13
-END(handle_el1h_error)
-
 ENTRY(handle_el0_sync)
 	save_registers 0
 	ldr	x0, [x18, #PC_CURTHREAD]
@@ -185,18 +181,23 @@ ENTRY(handle_el0_irq)
 	eret
 END(handle_el0_irq)
 
-ENTRY(handle_el0_error)
+ENTRY(handle_serror)
 	save_registers 0
 	mov	x0, sp
-	bl	do_el0_error
-	brk	0xf23
-	1: b 1b
-END(handle_el0_error)
+1:	bl	do_serror
+	b	1b
+END(handle_serror)
+
+ENTRY(handle_empty_exception)
+	save_registers 0
+	mov	x0, sp
+1:	bl	unhandled_exception
+	b	1b
+END(handle_unhandled_exception)
 
 .macro	vempty
 	.align 7
-	brk	0xfff
-	1: b	1b
+	b	handle_empty_exception
 .endm
 
 .macro	vector	name
@@ -215,15 +216,15 @@ exception_vectors:
 	vector el1h_sync	/* Synchronous EL1h */
 	vector el1h_irq		/* IRQ EL1h */
 	vempty			/* FIQ EL1h */
-	vector el1h_error	/* Error EL1h */
+	vector serror		/* Error EL1h */
 
 	vector el0_sync		/* Synchronous 64-bit EL0 */
 	vector el0_irq		/* IRQ 64-bit EL0 */
 	vempty			/* FIQ 64-bit EL0 */
-	vector el0_error	/* Error 64-bit EL0 */
+	vector serror		/* Error 64-bit EL0 */
 
 	vector el0_sync		/* Synchronous 32-bit EL0 */
 	vector el0_irq		/* IRQ 32-bit EL0 */
 	vempty			/* FIQ 32-bit EL0 */
-	vector el0_error	/* Error 32-bit EL0 */
+	vector serror		/* Error 32-bit EL0 */
 

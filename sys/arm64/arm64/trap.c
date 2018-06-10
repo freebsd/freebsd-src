@@ -76,6 +76,9 @@ extern register_t fsu_intr_fault;
 void do_el1h_sync(struct thread *, struct trapframe *);
 void do_el0_sync(struct thread *, struct trapframe *);
 void do_el0_error(struct trapframe *);
+void do_serror(struct trapframe *);
+void unhandled_exception(struct trapframe *);
+
 static void print_registers(struct trapframe *frame);
 
 int (*dtrace_invop_jump_addr)(struct trapframe *);
@@ -477,10 +480,33 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	    ("Kernel VFP state in use when entering userspace"));
 }
 
+/*
+ * TODO: We will need to handle these later when we support ARMv8.2 RAS.
+ */
 void
-do_el0_error(struct trapframe *frame)
+do_serror(struct trapframe *frame)
 {
+	uint64_t esr, far;
 
-	panic("ARM64TODO: do_el0_error");
+	far = READ_SPECIALREG(far_el1);
+	esr = frame->tf_esr;
+
+	print_registers(frame);
+	printf(" far: %16lx\n", far);
+	printf(" esr:         %.8lx\n", esr);
+	panic("Unhandled System Error");
 }
 
+void
+unhandled_exception(struct trapframe *frame)
+{
+	uint64_t esr, far;
+
+	far = READ_SPECIALREG(far_el1);
+	esr = frame->tf_esr;
+
+	print_registers(frame);
+	printf(" far: %16lx\n", far);
+	printf(" esr:         %.8lx\n", esr);
+	panic("Unhandled exception");
+}
