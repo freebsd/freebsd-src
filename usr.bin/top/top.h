@@ -43,8 +43,8 @@ extern const char * myname;
 
 extern int (*compares[])(const void*, const void*);
 
-char* kill_procs(char *);
-char* renice_procs(char *);
+const char* kill_procs(char *);
+const char* renice_procs(char *);
 
 extern char copyright[];
 
