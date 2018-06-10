@@ -115,8 +115,6 @@ int enter_user(int uid, char name[], bool wecare)
 
 /*
  * Get a userid->name mapping from the system.
- * If the passwd database is hashed (#define RANDOM_PW), we
- * just handle this uid.
  */
 
 int
@@ -127,7 +125,7 @@ get_user(int uid)
     /* no performance penalty for using getpwuid makes it easy */
     if ((pwd = getpwuid(uid)) != NULL)
     {
-	return(enter_user(pwd->pw_uid, pwd->pw_name, 1));
+		return(enter_user(pwd->pw_uid, pwd->pw_name, 1));
     }
 
     /* if we can't find the name at all, then use the uid as the name */
