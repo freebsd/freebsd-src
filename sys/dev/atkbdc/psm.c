@@ -2560,9 +2560,6 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	struct psm_softc *sc = dev->si_drv1;
 	mousemode_t mode;
 	mousestatus_t status;
-#if (defined(MOUSE_GETVARS))
-	mousevar_t *var;
-#endif
 	mousedata_t *data;
 	int stat[3];
 	int command_byte;
@@ -2758,21 +2755,6 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		splx(s);
 		*(mousestatus_t *)addr = status;
 		break;
-
-#if (defined(MOUSE_GETVARS))
-	case MOUSE_GETVARS:
-		var = (mousevar_t *)addr;
-		bzero(var, sizeof(*var));
-		s = spltty();
-		var->var[0] = MOUSE_VARS_PS2_SIG;
-		var->var[1] = sc->config;
-		var->var[2] = sc->flags;
-		splx(s);
-		break;
-
-	case MOUSE_SETVARS:
-		return (ENODEV);
-#endif /* MOUSE_GETVARS */
 
 	case MOUSE_READSTATE:
 	case MOUSE_READDATA:
