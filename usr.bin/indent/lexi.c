@@ -296,7 +296,7 @@ lexi(struct parser_state *state)
 	    char *u;
 
 	    /* ... so maybe a type_t or a typedef */
-	    if ((auto_typedefs && ((u = strrchr(s_token, '_')) != NULL) &&
+	    if ((opt.auto_typedefs && ((u = strrchr(s_token, '_')) != NULL) &&
 	        strcmp(u, "_t") == 0) || (typename_top >= 0 &&
 		  bsearch(s_token, typenames, typename_top + 1,
 		    sizeof(typenames[0]), strcmp_type))) {
