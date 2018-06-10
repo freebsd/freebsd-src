@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
+#include "opt_pci.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 
@@ -184,7 +185,9 @@ struct init_ops init_ops = {
 	.mp_bootaddress =		mp_bootaddress,
 	.start_all_aps =		native_start_all_aps,
 #endif
+#ifdef DEV_PCI
 	.msi_init =			msi_init,
+#endif
 };
 
 /*
