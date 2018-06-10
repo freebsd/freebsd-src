@@ -104,7 +104,7 @@ usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
-vmm(4)		grehan	Pre-commit review requested.
+vmm(4)		tychon, jhb	Pre-commit review requested.
 autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
