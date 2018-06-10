@@ -16,9 +16,9 @@
 #include <sys/time.h>
 #include <sys/cdefs.h>
 #include <sys/limits.h>
+#include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/signal.h>
-#include <time.h>
 
 #include <errno.h>
 #include <getopt.h>
@@ -439,19 +439,13 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
 		break;
 
 	      case 'q':		/* be quick about it */
-		/* only allow this if user is really root */
-		if (getuid() == 0)
-		{
-		    /* be very un-nice! */
-		    nice(-20);
-		}
-		else
-		{
-		    fprintf(stderr,
-			"%s: warning: `-q' option can only be used by root\n",
-			myname);
-		    warnings++;
-		}
+			errno = 0;
+			i = setpriority(PRIO_PROCESS, 0, PRIO_MIN);
+			if (i == -1 && errno != 0) {
+				fprintf(stderr,
+						"%s: warning: `-q' option failed (%m)\n", myname);
+				warnings++;
+			}
 		break;
 
 	      case 'm':		/* select display mode */

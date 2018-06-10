@@ -379,13 +379,9 @@ kill_procs(char *str)
     char *nptr;
     int signum = SIGTERM;	/* default */
     int procnum;
-    int uid;
 
     /* reset error array */
     ERR_RESET;
-
-    /* remember our uid */
-    uid = getuid();
 
     /* skip over leading white space */
     while (isspace(*str)) str++;
@@ -429,13 +425,8 @@ kill_procs(char *str)
 	}
 	else
 	{
-	    /* check process owner if we're not root */
-	    if (uid && (uid != proc_owner(procnum)))
-	    {
-		ERROR(str, EACCES);
-	    }
 	    /* go in for the kill */
-	    else if (kill(procnum, signum) == -1)
+	    if (kill(procnum, signum) == -1)
 	    {
 		/* chalk up an error */
 		ERROR(str, errno);
@@ -458,10 +449,8 @@ renice_procs(char *str)
     char negate;
     int prio;
     int procnum;
-    int uid;
 
     ERR_RESET;
-    uid = getuid();
 
     /* allow for negative priority values */
     if ((negate = (*str == '-')) != 0)
@@ -499,12 +488,7 @@ renice_procs(char *str)
 	    ERROR(str, 0);
 	}
 
-	/* check process owner if we're not root */
-	else if (uid && (uid != proc_owner(procnum)))
-	{
-	    ERROR(str, EACCES);
-	}
-	else if (setpriority(PRIO_PROCESS, procnum, prio) == -1)
+	if (setpriority(PRIO_PROCESS, procnum, prio) == -1)
 	{
 	    ERROR(str, errno);
 	}
