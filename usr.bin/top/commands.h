@@ -18,4 +18,10 @@ void	show_errors(void);
 int	error_count(void);
 void	show_help(void);
 
+struct command {
+	char c;
+	const char * const desc;
+	bool available_to_dumb;
+};
+
 #endif /* COMMANDS_H */
