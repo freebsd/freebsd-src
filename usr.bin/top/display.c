@@ -349,7 +349,7 @@ i_procstates(int total, int *brkdn)
     int i;
 
     /* write current number of processes and remember the value */
-    printf("%d processes:", total);
+    printf("%d %s:", total, (ps.thread) ? "threads" :"processes");
     ltotal = total;
 
     /* put out enough spaces to get to column 15 */
