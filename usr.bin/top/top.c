@@ -235,7 +235,7 @@ main(int argc, char *argv[])
     static char tempbuf2[50];
     int old_sigmask;		/* only used for BSD-style signals */
     int topn = Infinity;
-    int delay = Default_DELAY;
+    double delay = 2;
     int displays = 0;		/* indicates unspecified */
     int sel_ret = 0;
     time_t curr_time;
@@ -426,15 +426,16 @@ _Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size")
 		break;
 	      }
 
-	      case 's':
-		if ((delay = atoi(optarg)) < 0 || (delay == 0 && getuid() != 0))
-		{
-		    fprintf(stderr,
-			"%s: warning: seconds delay should be positive -- using default\n",
-			myname);
-		    delay = Default_DELAY;
-		    warnings++;
-		}
+		  case 's':
+			delay = strtod(optarg, NULL);
+			if (delay < 0) {
+				fprintf(stderr,
+						"%s: warning: seconds delay should be positive -- using default\n",
+						myname);
+				delay = 2;
+				warnings++;
+			}
+
 		break;
 
 	      case 'q':		/* be quick about it */
@@ -781,7 +782,7 @@ restart:
 	    no_command = true;
 	    if (!interactive)
 	    {
-		sleep(delay);
+		usleep(delay * 1e6);
 		if (leaveflag) {
 		    end_screen();
 		    exit(0);
