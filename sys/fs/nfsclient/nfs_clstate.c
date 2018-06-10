@@ -3422,9 +3422,12 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 			else
 				changed = 0;
 			recalltype = fxdr_unsigned(int, *tl);
+			NFSCL_DEBUG(4, "layt=%d iom=%d ch=%d rectyp=%d\n",
+			    laytype, iomode, changed, recalltype);
 			recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL,
 			    M_WAITOK);
-			if (laytype != NFSLAYOUT_NFSV4_1_FILES)
+			if (laytype != NFSLAYOUT_NFSV4_1_FILES &&
+			    laytype != NFSLAYOUT_FLEXFILE)
 				error = NFSERR_NOMATCHLAYOUT;
 			else if (recalltype == NFSLAYOUTRETURN_FILE) {
 				error = nfsm_getfh(nd, &nfhp);
@@ -3441,6 +3444,9 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 					error = NFSERR_NOTSUPP;
 				else if (i == 0)
 					error = NFSERR_OPNOTINSESS;
+				NFSCL_DEBUG(4, "off=%ju len=%ju sq=%u err=%d\n",
+				    (uintmax_t)off, (uintmax_t)len,
+				    stateid.seqid, error);
 				if (error == 0) {
 					NFSLOCKCLSTATE();
 					clp = nfscl_getclntsess(sessionid);
@@ -3453,7 +3459,8 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 						    lyp);
 						if (lyp != NULL &&
 						    (lyp->nfsly_flags &
-						     NFSLY_FILES) != 0 &&
+						     (NFSLY_FILES |
+						      NFSLY_FLEXFILE)) != 0 &&
 						    !NFSBCMP(stateid.other,
 						    lyp->nfsly_stateid.other,
 						    NFSX_STATEIDOTHER)) {
