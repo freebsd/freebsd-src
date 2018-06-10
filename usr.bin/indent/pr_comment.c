@@ -91,9 +91,10 @@ pr_comment(void)
     char       *last_bl;	/* points to the last blank in the output
 				 * buffer */
     char       *t_ptr;		/* used for moving string */
-    int         break_delim = comment_delimiter_on_blankline;
+    int         break_delim = opt.comment_delimiter_on_blankline;
     int         l_just_saw_decl = ps.just_saw_decl;
-    adj_max_col = max_col;
+
+    adj_max_col = opt.max_col;
     ps.just_saw_decl = 0;
     last_bl = NULL;		/* no blanks found so far */
     ps.box_com = false;		/* at first, assume that we are not in
@@ -103,7 +104,7 @@ pr_comment(void)
 
     /* Figure where to align and how to treat the comment */
 
-    if (ps.col_1 && !format_col1_comments) {	/* if comment starts in column
+    if (ps.col_1 && !opt.format_col1_comments) {	/* if comment starts in column
 						 * 1 it should not be touched */
 	ps.box_com = true;
 	break_delim = false;
@@ -111,7 +112,7 @@ pr_comment(void)
     }
     else {
 	if (*buf_ptr == '-' || *buf_ptr == '*' ||
-	    (*buf_ptr == '\n' && !format_block_comments)) {
+	    (*buf_ptr == '\n' && !opt.format_block_comments)) {
 	    ps.box_com = true;	/* A comment with a '-' or '*' immediately
 				 * after the /+* is assumed to be a boxed
 				 * comment. A comment with a newline
@@ -127,10 +128,10 @@ pr_comment(void)
 	     * If this (*and previous lines are*) blank, dont put comment way
 	     * out at left
 	     */
-	    ps.com_col = (ps.ind_level - ps.unindent_displace) * ps.ind_size + 1;
-	    adj_max_col = block_comment_max_col;
+	    ps.com_col = (ps.ind_level - opt.unindent_displace) * opt.ind_size + 1;
+	    adj_max_col = opt.block_comment_max_col;
 	    if (ps.com_col <= 1)
-		ps.com_col = 1 + !format_col1_comments;
+		ps.com_col = 1 + !opt.format_col1_comments;
 	}
 	else {
 	    int target_col;
@@ -142,9 +143,9 @@ pr_comment(void)
 		if (s_lab != e_lab)
 		    target_col = count_spaces(compute_label_target(), s_lab);
 	    }
-	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? ps.decl_com_ind : ps.com_ind;
+	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? opt.decl_com_ind : opt.com_ind;
 	    if (ps.com_col <= target_col)
-		ps.com_col = tabsize * (1 + (target_col - 1) / tabsize) + 1;
+		ps.com_col = opt.tabsize * (1 + (target_col - 1) / opt.tabsize) + 1;
 	    if (ps.com_col + 24 > adj_max_col)
 		adj_max_col = ps.com_col + 24;
 	}
@@ -193,11 +194,11 @@ pr_comment(void)
 	char       *t = e_com;
 	e_com = s_com + 2;
 	*e_com = 0;
-	if (blanklines_before_blockcomments && ps.last_token != lbrace)
+	if (opt.blanklines_before_blockcomments && ps.last_token != lbrace)
 	    prefix_blankline_requested = 1;
 	dump_line();
 	e_com = s_com = t;
-	if (!ps.box_com && star_comment_cont)
+	if (!ps.box_com && opt.star_comment_cont)
 	    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
     }
 
@@ -213,7 +214,7 @@ pr_comment(void)
 		/* fix so dump_line uses a form feed */
 		dump_line();
 		last_bl = NULL;
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		while (*++buf_ptr == ' ' || *buf_ptr == '\t')
 		    ;
@@ -239,11 +240,11 @@ pr_comment(void)
 		    *e_com++ = ' ';
 		if (!ps.box_com && e_com - s_com > 3) {
 		    dump_line();
-		    if (star_comment_cont)
+		    if (opt.star_comment_cont)
 			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		}
 		dump_line();
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 	    }
 	    else {
@@ -324,14 +325,14 @@ pr_comment(void)
 		 */
 		if (last_bl == NULL) {
 		    dump_line();
-		    if (!ps.box_com && star_comment_cont)
+		    if (!ps.box_com && opt.star_comment_cont)
 			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		    break;
 		}
 		*e_com = '\0';
 		e_com = last_bl;
 		dump_line();
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		for (t_ptr = last_bl + 1; *t_ptr == ' ' || *t_ptr == '\t';
 		    t_ptr++)
