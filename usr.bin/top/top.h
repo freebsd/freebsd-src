@@ -23,10 +23,6 @@ extern int Header_lines;	/* 7 */
 /* maximum number we can have */
 #define Largest		0x7fffffff
 
-/*
- * The entire display is based on these next numbers being defined as is.
- */
-
 /* Exit code for system errors */
 #define TOP_EX_SYS_ERROR	23
 
@@ -42,7 +38,6 @@ extern enum displaymodes displaymode;
 extern int pcpu_stats;
 extern int overstrike;
 extern pid_t mypid;
-
 
 extern const char * myname;
 
@@ -74,13 +69,5 @@ void quit(int);
  *  overridden on the command line, even with the value "infinity".
  */
 #define Nominal_TOPN	18
-
-/*
- *  If the local system's getpwnam interface uses random access to retrieve
- *  a record (i.e.: 4.3 systems, Sun "yellow pages"), then defining
- *  RANDOM_PW will take advantage of that fact.  
- */
-
-#define RANDOM_PW	1
 
 #endif /* TOP_H */
