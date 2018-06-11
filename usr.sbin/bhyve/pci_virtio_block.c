@@ -111,7 +111,7 @@ struct virtio_blk_hdr {
 #define	VBH_OP_FLUSH_OUT	5
 #define	VBH_OP_IDENT		8		
 #define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
-	uint32_t       	vbh_type;
+	uint32_t	vbh_type;
 	uint32_t	vbh_ioprio;
 	uint64_t	vbh_sector;
 } __packed;
@@ -125,8 +125,8 @@ static int pci_vtblk_debug;
 
 struct pci_vtblk_ioreq {
 	struct blockif_req		io_req;
-	struct pci_vtblk_softc	       *io_sc;
-	uint8_t			       *io_status;
+	struct pci_vtblk_softc		*io_sc;
+	uint8_t				*io_status;
 	uint16_t			io_idx;
 };
 
