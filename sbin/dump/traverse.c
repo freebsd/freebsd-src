@@ -46,6 +46,7 @@ static const char rcsid[] =
 
 #include <protocols/dumprestore.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -637,6 +638,7 @@ ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino)
 			count = blks;
 		else
 			count = i + TP_NINDIR;
+		assert(count <= TP_NINDIR + i);
 		for (j = i; j < count; j++)
 			if (blkp[j / tbperdb] != 0)
 				spcl.c_addr[j - i] = 1;
@@ -689,6 +691,7 @@ ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
 			count = blks;
 		else
 			count = i + TP_NINDIR;
+		assert(count <= TP_NINDIR + i);
 		for (j = i; j < count; j++)
 			if (blkp[j / tbperdb] != 0)
 				spcl.c_addr[j - i] = 1;
@@ -753,6 +756,7 @@ appendextdata(union dinode *dp)
 	 * data by the writeextdata() routine.
 	 */
 	tbperdb = sblock->fs_bsize >> tp_bshift;
+	assert(spcl.c_count + blks < TP_NINDIR);
 	for (i = 0; i < blks; i++)
 		if (&dp->dp2.di_extb[i / tbperdb] != 0)
 				spcl.c_addr[spcl.c_count + i] = 1;
