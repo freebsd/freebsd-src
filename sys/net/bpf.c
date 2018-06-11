@@ -1895,8 +1895,13 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 			return (EINVAL);
 		}
 #ifdef BPF_JITTER
-		/* Filter is copied inside fcode and is perfectly valid. */
-		jfunc = bpf_jitter(fcode, flen);
+		if (cmd != BIOCSETWF) {
+			/*
+			 * Filter is copied inside fcode and is
+			 * perfectly valid.
+			 */
+			jfunc = bpf_jitter(fcode, flen);
+		}
 #endif
 	}
 
