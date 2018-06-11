@@ -5,7 +5,8 @@
 .include <src.opts.mk>
 PROG_CXX=	pmc
 MAN=	
-CXXFLAGS+= -O0
+CXXFLAGS+= -O0 -std=c++14
+CWARNFLAGS.gcc+= -Wno-redundant-decls
 
 LIBADD=	kvm pmc m ncursesw pmcstat elf
 
