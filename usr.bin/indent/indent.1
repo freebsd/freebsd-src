@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2018
+.Dd June 11, 2018
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -55,6 +55,7 @@
 .Op Fl \&ce | Fl nce
 .Op Fl \&ci Ns Ar n
 .Op Fl cli Ns Ar n
+.Op Fl cs | Fl ncs
 .Op Fl d Ns Ar n
 .Op Fl \&di Ns Ar n
 .Op Fl dj | Fl ndj
@@ -78,7 +79,6 @@
 .Op Fl P Ns Ar file
 .Op Fl pcs | Fl npcs
 .Op Fl psl | Fl npsl
-.Op Fl sac | Fl nsac
 .Op Fl \&sc | Fl nsc
 .Bk -words
 .Op Fl sob | Fl nsob
@@ -259,6 +259,11 @@ causes case labels to be indented half a tab stop.
 The
 default is
 .Fl cli0 .
+.It Fl cs , ncs
+Control whether parenthesized type names in casts are followed by a space or
+not.
+The default is
+.Fl ncs .
 .It Fl d Ns Ar n
 Controls the placement of comments which are not to the
 right of code.
@@ -423,11 +428,6 @@ column 1 \- their types, if any, will be left on the previous lines.
 The
 default is
 .Fl psl .
-.It Fl sac , nsac
-Control whether parenthesized type names in casts are followed by a space or
-not.
-The default is
-.Fl nsac .
 .It Fl \&sc , nsc
 Enables (disables) the placement of asterisks (`*'s) at the left edge of all
 comments.

@@ -1,2 +1,2 @@
 /* $FreeBSD$ */
--nsac
+-ncs
