@@ -124,16 +124,18 @@ itoa7(int val)
 
 /*
  *  digits(val) - return number of decimal digits in val.  Only works for
- *	positive numbers.  If val <= 0 then digits(val) == 0.
+ *	non-negative numbers.  If val <= 0 then digits(val) == 0.
  */
 
-int
+int __pure2
 digits(int val)
 {
     int cnt = 0;
+	if (val == 0) {
+		return 1;
+	}
 
-    while (val > 0)
-    {
+    while (val > 0) {
 		cnt++;
 		val /= 10;
     }
