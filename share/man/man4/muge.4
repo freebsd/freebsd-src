@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2018
+.Dd June 11, 2018
 .Dt MUGE 4
 .Os
 .Sh NAME
@@ -56,6 +56,8 @@ driver supports:
 .It
 Microchip LAN7800 USB 3.1 Gigabit Ethernet controller with PHY
 .It
+Microchip LAN7850 USB 2.0 Gigabit Ethernet controller with PHY
+.It
 Microchip LAN7515 USB 2 hub and Gigabit Ethernet controller with PHY
 .El
 .Sh SEE ALSO
@@ -68,3 +70,6 @@ The
 .Nm
 device driver first appeared in
 .Fx 12.0 .
+.Sh BUGS
+USB-Ethernet adapters that use the LAN7850 without a configuration EEPROM
+will not work.

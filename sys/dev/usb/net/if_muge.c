@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
  * USB 3.1 to 10/100/1000 Mbps Ethernet
  * LAN7800 http://www.microchip.com/wwwproducts/en/LAN7800
  *
+ * USB 2.0 to 10/100/1000 Mbps Ethernet
+ * LAN7850 http://www.microchip.com/wwwproducts/en/LAN7850
+ *
  * USB 2 to 10/100/1000 Mbps Ethernet with built-in USB hub
  * LAN7515 (no datasheet available, but probes and functions as LAN7800)
  *
@@ -386,11 +389,14 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 	if (!locked)
 		MUGE_LOCK(sc);
 
-	err = lan78xx_read_reg(sc, ETH_HW_CFG, &val);
-	saved = val;
+	if (sc->chipid == ETH_ID_REV_CHIP_ID_7800_) {
+		/* EEDO/EECLK muxed with LED0/LED1 on LAN7800. */
+		err = lan78xx_read_reg(sc, ETH_HW_CFG, &val);
+		saved = val;
 
-	val &= ~(ETH_HW_CFG_LEDO_EN_ | ETH_HW_CFG_LED1_EN_);
-	err = lan78xx_write_reg(sc, ETH_HW_CFG, val);
+		val &= ~(ETH_HW_CFG_LEDO_EN_ | ETH_HW_CFG_LED1_EN_);
+		err = lan78xx_write_reg(sc, ETH_HW_CFG, val);
+	}
 
 	err = lan78xx_wait_for_bits(sc, ETH_E2P_CMD, ETH_E2P_CMD_BUSY_);
 	if (err != 0) {
@@ -432,7 +438,10 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 done:
 	if (!locked)
 		MUGE_UNLOCK(sc);
-	lan78xx_write_reg(sc, ETH_HW_CFG, saved);
+	if (sc->chipid == ETH_ID_REV_CHIP_ID_7800_) {
+		/* Restore saved LED configuration. */
+		lan78xx_write_reg(sc, ETH_HW_CFG, saved);
+	}
 	return (err);
 }
 
@@ -982,7 +991,11 @@ lan78xx_chip_init(struct muge_softc *sc)
 	}
 	sc->chipid = (buf & ETH_ID_REV_CHIP_ID_MASK_) >> 16;
 	sc->chiprev = buf & ETH_ID_REV_CHIP_REV_MASK_;
-	if (sc->chipid != ETH_ID_REV_CHIP_ID_7800_) {
+	switch (sc->chipid) {
+	case ETH_ID_REV_CHIP_ID_7800_:
+	case ETH_ID_REV_CHIP_ID_7850_:
+		break;
+	default:
 		muge_warn_printf(sc, "Chip ID 0x%04x not yet supported\n",
 		    sc->chipid);
 		goto init_failed;
@@ -1078,9 +1091,12 @@ lan78xx_chip_init(struct muge_softc *sc)
 		goto init_failed;
 	}
 
-	/* Enable automatic duplex detection and automatic speed detection. */
 	err = lan78xx_read_reg(sc, ETH_MAC_CR, &buf);
-	buf |= ETH_MAC_CR_AUTO_DUPLEX_ | ETH_MAC_CR_AUTO_SPEED_;
+	if (sc->chipid == ETH_ID_REV_CHIP_ID_7800_ &&
+	    !lan78xx_eeprom_present(sc)) {
+		/* Set automatic duplex and speed on LAN7800 without EEPROM. */
+		buf |= ETH_MAC_CR_AUTO_DUPLEX_ | ETH_MAC_CR_AUTO_SPEED_;
+	}
 	err = lan78xx_write_reg(sc, ETH_MAC_CR, buf);
 
 	/*
