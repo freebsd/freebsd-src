@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <libpmcstat.h>
 #include "cmd_pmc.h"
 
-#include <iostream>
 #include <string>
 #include <unordered_map>
 
@@ -182,11 +181,11 @@ static void
 pmc_log_event(int fd, struct pmclog_ev *ev, bool json)
 {
 	int len;
-	void *buf;
+	const void *buf;
 
 	if (json) {
 		string ret = event_to_json(ev);
-		buf = (void*)ret.c_str();
+		buf = ret.c_str();
 		len = ret.size();
 	} else {
 		len = ev->pl_len;
@@ -233,7 +232,7 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	pmclog_close(ps);
 	if ((ps = static_cast < struct pmclog_parse_state *>(pmclog_open(infd)))== NULL)
 		errx(EX_OSERR, "ERROR: Cannot allocate pmclog parse state: %s\n", strerror(errno));
-	if ((pe = (typeof(pe)) malloc(sizeof(*pe) * pmccount)) == NULL)
+	if ((pe = (struct pmcid_ent *) malloc(sizeof(*pe) * pmccount)) == NULL)
 		errx(EX_OSERR, "ERROR: failed to allocate pmcid map");
 	i = 0;
 	while (pmclog_read(ps, &ev) == 0 && i < pmccount) {
