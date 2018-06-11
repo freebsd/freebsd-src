@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 	struct fstab *dt;
 	char *map, *mntpt;
 	int ch, mode, mntflags;
-	int i, ret, anydirskipped, c_count, bflag = 0, Tflag = 0, honorlevel = 1;
+	int i, ret, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
@@ -452,9 +452,6 @@ main(int argc, char *argv[])
 		quit("TP_BSIZE (%d) is not a power of 2", TP_BSIZE);
 	maxino = sblock->fs_ipg * sblock->fs_ncg;
 	mapsize = roundup(howmany(maxino, CHAR_BIT), TP_BSIZE);
-	c_count = howmany(mapsize * sizeof(char), TP_BSIZE);
-	if (c_count > TP_NINDIR)
-		quit("fs is too large for dump!");
 	usedinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpdirmap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
