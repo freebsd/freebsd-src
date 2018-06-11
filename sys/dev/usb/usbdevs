@@ -714,10 +714,10 @@ vendor AMIT		0x18c5	AMIT
 vendor GOOGLE		0x18d1	Google
 vendor QCOM		0x18e8	Qcom
 vendor ELV		0x18ef	ELV
-vendor ZTE		0x19d2	ZTE
 vendor LINKSYS3		0x1915	Linksys
 vendor MEINBERG		0x1938	Meinberg Funkuhren
 vendor BECEEM		0x198f	Beceem Communications
+vendor ZTE		0x19d2	ZTE
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor QUALCOMM3	0x19f5	Qualcomm, Inc.
 vendor QUANTA2		0x1a32	Quanta
