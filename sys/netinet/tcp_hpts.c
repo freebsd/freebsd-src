@@ -1960,3 +1960,4 @@ tcp_init_hptsi(void *st)
 }
 
 SYSINIT(tcphptsi, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, tcp_init_hptsi, NULL);
+MODULE_VERSION(tcphpts, 1);
