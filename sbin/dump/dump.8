@@ -29,7 +29,7 @@
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd June 11, 2018
 .Dt DUMP 8
 .Os
 .Sh NAME
@@ -566,3 +566,8 @@ This will be fixed in a later version of
 .Fx .
 Presently, it works if you set it setuid (like it used to be), but this
 might constitute a security risk.
+.Pp
+It is not possible to safely dump filesystems that use more than
+524288 inodes.
+.Nm
+refuses to dump any filesystem that has more than 524288 inodes.
