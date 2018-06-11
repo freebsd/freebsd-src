@@ -4748,9 +4748,9 @@ pmc_process_interrupt(int ring, struct pmc *pm, struct trapframe *tf)
 
 	td = curthread;
 	if ((pm->pm_flags & PMC_F_USERCALLCHAIN) &&
-        (td->td_proc->p_flag & P_KPROC) == 0 &&
-		!TRAPF_USERMODE(tf)) {
-		atomic_add_int(&curthread->td_pmcpend, 1);
+	    (td->td_proc->p_flag & P_KPROC) == 0 &&
+	    !TRAPF_USERMODE(tf)) {
+		atomic_add_int(&td->td_pmcpend, 1);
 		return (pmc_add_sample(PMC_UR, pm, tf));
 	}
 	return (pmc_add_sample(ring, pm, tf));
