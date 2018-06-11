@@ -32,6 +32,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 
+20180611:
+	A bug in dump has been found where it can incorrectly dump filesystems
+	with more than 512k inodes and produce corrupted dump images. r334968
+	closes the door by not dumping filesystems with more than 512k inodes.
+	While older dumps may 'work' the image they produce may or may not be
+	readable depending on many factors.
+
 20180530:
 	The kernel / userland interface for devinfo changed, so you'll
 	need a new kernel and userland as a pair for it to work (rebuilding
