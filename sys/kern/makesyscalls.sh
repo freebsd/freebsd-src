@@ -47,7 +47,7 @@ systracetmp="systrace.$$"
 systraceret="systraceret.$$"
 
 if [ -r capabilities.conf ]; then
-	capenabled=`cat capabilities.conf | grep -v "^#" | grep -v "^$"`
+	capenabled=`egrep -v '^#|^$' capabilities.conf`
 	capenabled=`echo $capenabled | sed 's/ /,/g'`
 else
 	capenabled=""
