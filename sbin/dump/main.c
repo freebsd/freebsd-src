@@ -101,9 +101,8 @@ main(int argc, char *argv[])
 	char *map, *mntpt;
 	int ch, mode, mntflags;
 	int i, ret, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
-	int just_estimate = 0;
+	int just_estimate = 0, c_count = 0;
 	ino_t maxino;
-	int c_count=0;
 	char *tmsg;
 
 	spcl.c_date = _time_to_time64(time(NULL));
