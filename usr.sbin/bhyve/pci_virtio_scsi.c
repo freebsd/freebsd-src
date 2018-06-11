@@ -77,17 +77,17 @@ __FBSDID("$FreeBSD$");
 #define	VTSCSI_OUT_HEADER_LEN(_sc) 	\
 	(sizeof(struct pci_vtscsi_req_cmd_wr) + _sc->vss_config.sense_size)
 
-#define VIRTIO_SCSI_MAX_CHANNEL 0
-#define VIRTIO_SCSI_MAX_TARGET  0
-#define VIRTIO_SCSI_MAX_LUN     16383
+#define	VIRTIO_SCSI_MAX_CHANNEL	0
+#define	VIRTIO_SCSI_MAX_TARGET	0
+#define	VIRTIO_SCSI_MAX_LUN	16383
 
 #define	VIRTIO_SCSI_F_INOUT	(1 << 0)
 #define	VIRTIO_SCSI_F_HOTPLUG	(1 << 1)
 #define	VIRTIO_SCSI_F_CHANGE	(1 << 2)
 
 static int pci_vtscsi_debug = 0;
-#define DPRINTF(params) if (pci_vtscsi_debug) printf params
-#define WPRINTF(params) printf params
+#define	DPRINTF(params) if (pci_vtscsi_debug) printf params
+#define	WPRINTF(params) printf params
 
 struct pci_vtscsi_config {
 	uint32_t num_queues;
@@ -108,7 +108,7 @@ struct pci_vtscsi_queue {
 	int                               vsq_ctl_fd;
 	pthread_mutex_t                   vsq_mtx;
 	pthread_mutex_t                   vsq_qmtx;
-        pthread_cond_t                    vsq_cv;
+	pthread_cond_t                    vsq_cv;
 	STAILQ_HEAD(, pci_vtscsi_request) vsq_requests;
 	LIST_HEAD(, pci_vtscsi_worker)    vsq_workers;
 };
@@ -117,7 +117,7 @@ struct pci_vtscsi_worker {
 	struct pci_vtscsi_queue *     vsw_queue;
 	pthread_t                     vsw_thread;
 	bool                          vsw_exiting;
-        LIST_ENTRY(pci_vtscsi_worker) vsw_link;
+	LIST_ENTRY(pci_vtscsi_worker) vsw_link;
 };
 
 struct pci_vtscsi_request {
@@ -144,20 +144,20 @@ struct pci_vtscsi_softc {
 	struct pci_vtscsi_config vss_config;
 };
 
-#define VIRTIO_SCSI_T_TMF			0
-#define VIRTIO_SCSI_T_TMF_ABORT_TASK		0
-#define VIRTIO_SCSI_T_TMF_ABORT_TASK_SET	1
-#define VIRTIO_SCSI_T_TMF_CLEAR_ACA		2
-#define VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET	3
-#define VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET	4
-#define VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET	5
-#define VIRTIO_SCSI_T_TMF_QUERY_TASK		6
-#define VIRTIO_SCSI_T_TMF_QUERY_TASK_SET 	7
+#define	VIRTIO_SCSI_T_TMF			0
+#define	VIRTIO_SCSI_T_TMF_ABORT_TASK		0
+#define	VIRTIO_SCSI_T_TMF_ABORT_TASK_SET	1
+#define	VIRTIO_SCSI_T_TMF_CLEAR_ACA		2
+#define	VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET	3
+#define	VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET	4
+#define	VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET	5
+#define	VIRTIO_SCSI_T_TMF_QUERY_TASK		6
+#define	VIRTIO_SCSI_T_TMF_QUERY_TASK_SET 	7
 
 /* command-specific response values */
-#define VIRTIO_SCSI_S_FUNCTION_COMPLETE		0
-#define VIRTIO_SCSI_S_FUNCTION_SUCCEEDED	10
-#define VIRTIO_SCSI_S_FUNCTION_REJECTED		11
+#define	VIRTIO_SCSI_S_FUNCTION_COMPLETE		0
+#define	VIRTIO_SCSI_S_FUNCTION_SUCCEEDED	10
+#define	VIRTIO_SCSI_S_FUNCTION_REJECTED		11
 
 struct pci_vtscsi_ctrl_tmf {
 	uint32_t type;
@@ -167,13 +167,13 @@ struct pci_vtscsi_ctrl_tmf {
 	uint8_t response;
 } __attribute__((packed));
 
-#define VIRTIO_SCSI_T_AN_QUERY			1
-#define VIRTIO_SCSI_EVT_ASYNC_OPERATIONAL_CHANGE 2
-#define VIRTIO_SCSI_EVT_ASYNC_POWER_MGMT	4
-#define VIRTIO_SCSI_EVT_ASYNC_EXTERNAL_REQUEST	8
-#define VIRTIO_SCSI_EVT_ASYNC_MEDIA_CHANGE	16
-#define VIRTIO_SCSI_EVT_ASYNC_MULTI_HOST	32
-#define VIRTIO_SCSI_EVT_ASYNC_DEVICE_BUSY	64
+#define	VIRTIO_SCSI_T_AN_QUERY			1
+#define	VIRTIO_SCSI_EVT_ASYNC_OPERATIONAL_CHANGE 2
+#define	VIRTIO_SCSI_EVT_ASYNC_POWER_MGMT	4
+#define	VIRTIO_SCSI_EVT_ASYNC_EXTERNAL_REQUEST	8
+#define	VIRTIO_SCSI_EVT_ASYNC_MEDIA_CHANGE	16
+#define	VIRTIO_SCSI_EVT_ASYNC_MULTI_HOST	32
+#define	VIRTIO_SCSI_EVT_ASYNC_DEVICE_BUSY	64
 
 struct pci_vtscsi_ctrl_an {
 	uint32_t type;
@@ -184,23 +184,23 @@ struct pci_vtscsi_ctrl_an {
 } __attribute__((packed));
 
 /* command-specific response values */
-#define VIRTIO_SCSI_S_OK 			0
-#define VIRTIO_SCSI_S_OVERRUN			1
-#define VIRTIO_SCSI_S_ABORTED			2
-#define VIRTIO_SCSI_S_BAD_TARGET		3
-#define VIRTIO_SCSI_S_RESET			4
-#define VIRTIO_SCSI_S_BUSY			5
-#define VIRTIO_SCSI_S_TRANSPORT_FAILURE		6
-#define VIRTIO_SCSI_S_TARGET_FAILURE		7
-#define VIRTIO_SCSI_S_NEXUS_FAILURE		8
-#define VIRTIO_SCSI_S_FAILURE			9
-#define VIRTIO_SCSI_S_INCORRECT_LUN		12
+#define	VIRTIO_SCSI_S_OK 			0
+#define	VIRTIO_SCSI_S_OVERRUN			1
+#define	VIRTIO_SCSI_S_ABORTED			2
+#define	VIRTIO_SCSI_S_BAD_TARGET		3
+#define	VIRTIO_SCSI_S_RESET			4
+#define	VIRTIO_SCSI_S_BUSY			5
+#define	VIRTIO_SCSI_S_TRANSPORT_FAILURE		6
+#define	VIRTIO_SCSI_S_TARGET_FAILURE		7
+#define	VIRTIO_SCSI_S_NEXUS_FAILURE		8
+#define	VIRTIO_SCSI_S_FAILURE			9
+#define	VIRTIO_SCSI_S_INCORRECT_LUN		12
 
 /* task_attr */
-#define VIRTIO_SCSI_S_SIMPLE			0
-#define VIRTIO_SCSI_S_ORDERED			1
-#define VIRTIO_SCSI_S_HEAD			2
-#define VIRTIO_SCSI_S_ACA			3
+#define	VIRTIO_SCSI_S_SIMPLE			0
+#define	VIRTIO_SCSI_S_ORDERED			1
+#define	VIRTIO_SCSI_S_HEAD			2
+#define	VIRTIO_SCSI_S_ACA			3
 
 struct pci_vtscsi_event {
 	uint32_t event;
