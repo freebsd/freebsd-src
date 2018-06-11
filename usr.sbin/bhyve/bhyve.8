@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2018
+.Dd Jun 11, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -216,6 +216,8 @@ PCI pass-through device.
 Virtio network interface.
 .It Li virtio-blk
 Virtio block storage interface.
+.It Li virtio-scsi
+Virtio SCSI interface.
 .It Li virtio-rnd
 Virtio RNG interface.
 .It Li virtio-console
@@ -285,6 +287,11 @@ Force the file to be opened read-only.
 Specify the logical and physical sector sizes of the emulated disk.
 The physical sector size is optional and is equal to the logical sector size
 if not explicitly specified.
+.El
+.Pp
+SCSI devices:
+.Bl -tag -width 10n
+.It Pa /dev/cam/ Ns Oo , Ns Ar port and initiator_id Oc
 .El
 .Pp
 TTY devices:
