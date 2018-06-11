@@ -5,7 +5,6 @@
 PROG=	top
 SRCS=	commands.c display.c machine.c screen.c top.c \
 	username.c utils.c
-CFLAGS+= -I ${.OBJDIR}
 MAN=	top.1
 
 .if ${COMPILER_TYPE} == "gcc"
