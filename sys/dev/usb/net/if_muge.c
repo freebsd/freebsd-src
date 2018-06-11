@@ -445,32 +445,14 @@ done:
 	return (err);
 }
 
-/**
- *	lan78xx_eeprom_read - Read EEPROM and confirm it is programmed
- *	@sc: soft context
- *	@off: the eeprom address offset
- *	@buf: stores the bytes
- *	@buflen: the number of bytes to read
- *
- *	RETURNS:
- *	0 on success, or a USB_ERR_?? error code on failure.
- */
-static int
-lan78xx_eeprom_read(struct muge_softc *sc, uint16_t off, uint8_t *buf,
-    uint16_t buflen)
+static bool
+lan78xx_eeprom_present(struct muge_softc *sc)
 {
-	uint8_t sig;
 	int ret;
+	uint8_t sig;
 
 	ret = lan78xx_eeprom_read_raw(sc, ETH_E2P_INDICATOR_OFFSET, &sig, 1);
-	if ((ret == 0) && (sig == ETH_E2P_INDICATOR)) {
-		ret = lan78xx_eeprom_read_raw(sc, off, buf, buflen);
-		muge_dbg_printf(sc, "EEPROM present\n");
-	} else {
-		ret = -EINVAL;
-		muge_dbg_printf(sc, "EEPROM not present\n");
-	}
-	return (ret);
+	return (ret == 0 && sig == ETH_E2P_INDICATOR);
 }
 
 /**
@@ -1487,7 +1469,8 @@ muge_attach_post(struct usb_ether *ue)
 
 	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
 	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
-		if ((lan78xx_eeprom_read(sc, ETH_E2P_MAC_OFFSET,
+		if ((lan78xx_eeprom_present(sc) &&
+		    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
 		    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
 		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
