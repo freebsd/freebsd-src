@@ -103,6 +103,7 @@ main(int argc, char *argv[])
 	int i, ret, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	int just_estimate = 0;
 	ino_t maxino;
+	int c_count=0;
 	char *tmsg;
 
 	spcl.c_date = _time_to_time64(time(NULL));
@@ -433,7 +434,6 @@ main(int argc, char *argv[])
 		msgtail("to %s\n", tape);
 
 	sync();
-	sblock = NULL;
 	if ((ret = sbget(diskfd, &sblock, -1)) != 0) {
 		switch (ret) {
 		case ENOENT:
@@ -453,6 +453,9 @@ main(int argc, char *argv[])
 		quit("TP_BSIZE (%d) is not a power of 2", TP_BSIZE);
 	maxino = sblock->fs_ipg * sblock->fs_ncg;
 	mapsize = roundup(howmany(maxino, CHAR_BIT), TP_BSIZE);
+	c_count = howmany(mapsize * sizeof(char), TP_BSIZE);
+	if (c_count > TP_NINDIR)
+		quit("fs is too large for dump!");
 	usedinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpdirmap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
