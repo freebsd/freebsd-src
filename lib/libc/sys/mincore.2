@@ -28,7 +28,7 @@
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2003
+.Dd June 1, 2018
 .Dt MINCORE 2
 .Os
 .Sh NAME
@@ -73,7 +73,9 @@ Page has been referenced.
 .It Dv MINCORE_MODIFIED_OTHER
 Page has been modified.
 .It Dv MINCORE_SUPER
-Page is part of a "super" page. (only i386 & amd64)
+Page is part of a large
+.Pq Dq super
+page.
 .El
 .Pp
 The information returned by
