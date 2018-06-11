@@ -1982,10 +1982,11 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		case DW_LANG_C_plus_plus_03:
 		case DW_LANG_C_plus_plus_11:
 		case DW_LANG_C_plus_plus_14:
+		case DW_LANG_Mips_Assembler:
 			break;
 		default:
 			terminate("file contains DWARF for unsupported "
-			    "language %d", lang);
+			    "language %#x", lang);
 		}
 	else
 		warning("die %llu: failed to get language attribute: %s\n",
