@@ -12849,12 +12849,12 @@ bxe_allocate_bars(struct bxe_softc *sc)
         sc->bar[i].handle = rman_get_bushandle(sc->bar[i].resource);
         sc->bar[i].kva    = (vm_offset_t)rman_get_virtual(sc->bar[i].resource);
 
-        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %p-%p (%jd) -> %p\n",
+        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %#jx-%#jx (%jd) -> %#jx\n",
               i, PCIR_BAR(i),
-              (void *)rman_get_start(sc->bar[i].resource),
-              (void *)rman_get_end(sc->bar[i].resource),
+              rman_get_start(sc->bar[i].resource),
+              rman_get_end(sc->bar[i].resource),
               rman_get_size(sc->bar[i].resource),
-              (void *)sc->bar[i].kva);
+              (uintmax_t)sc->bar[i].kva);
     }
 
     return (0);
