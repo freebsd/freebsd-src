@@ -140,7 +140,7 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			wrobj->host_buffer_descriptor[0].u.data.buffer_address_high = ocs_addr32_hi(dma->phys);
 
 			/* copy the data into the DMA buffer */
-			copyin((void *)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+			copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
 		}
 			break;
 		case SLI4_OPC_COMMON_DELETE_OBJECT:
@@ -169,8 +169,8 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			break;
 		default:
 			device_printf(ocs->dev, "%s: in=%p (%lld) out=%p (%lld)\n", __func__,
-					(void *)mcmd->in_addr, (unsigned long long)mcmd->in_bytes,
-					(void *)mcmd->out_addr, (unsigned long long)mcmd->out_bytes);
+					(void *)(uintptr_t)mcmd->in_addr, (unsigned long long)mcmd->in_bytes,
+					(void *)(uintptr_t)mcmd->out_addr, (unsigned long long)mcmd->out_bytes);
 			device_printf(ocs->dev, "%s: unknown (opc=%#x)\n", __func__,
 					req->opcode);
 			hexdump(mcmd, mcmd->size, NULL, 0);
@@ -184,7 +184,7 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			return ENXIO;
 		}
 
-		copyin((void *)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+		copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
 
 		sli_config->payload.mem.address_low  = ocs_addr32_lo(dma->phys);
 		sli_config->payload.mem.address_high = ocs_addr32_hi(dma->phys);
@@ -250,7 +250,7 @@ ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 
 	if( SLI4_MBOX_COMMAND_SLI_CONFIG == ((sli4_mbox_command_header_t *)mcmd->payload)->command
 	  		&& mcmd->out_bytes && dma.virt) {
-		copyout(dma.virt, (void *)mcmd->out_addr, mcmd->out_bytes);
+		copyout(dma.virt, (void *)(uintptr_t)mcmd->out_addr, mcmd->out_bytes);
 	}
 
 no_support:
