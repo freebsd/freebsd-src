@@ -100,8 +100,8 @@ main(int argc, char *argv[])
 	struct fstab *dt;
 	char *map, *mntpt;
 	int ch, mode, mntflags;
-	int i, ret, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
-	int just_estimate = 0, c_count = 0;
+	int i, ret, anydirskipped, c_count, bflag = 0, Tflag = 0, honorlevel = 1;
+	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
 
