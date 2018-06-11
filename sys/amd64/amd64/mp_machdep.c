@@ -122,7 +122,7 @@ mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 		 */
 		if (physmap[i] >= GiB(4) || physmap[i + 1] -
 		    round_page(physmap[i]) < PAGE_SIZE * 3 ||
-		    physmap[i + 1] > Maxmem)
+		    atop(physmap[i + 1]) > Maxmem)
 			continue;
 
 		allocated = true;
