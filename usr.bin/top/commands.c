@@ -195,7 +195,8 @@ static char err_listem[] =
 
 #define STRMAX 80
 
-char *err_string(void)
+char *
+err_string(void)
 {
     struct errs *errp;
     int cnt = 0;

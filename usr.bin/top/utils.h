@@ -19,7 +19,7 @@ int digits(int);
 const char * const *argparse(char *, int *);
 long percentages(int, int *, long *, long *, long *);
 char *format_time(long);
-char *format_k(int);
+char *format_k(long);
 char *format_k2(unsigned long long);
 int string_index(const char *string, const char * const *array);
 int find_pid(pid_t pid);

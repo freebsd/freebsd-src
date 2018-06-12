@@ -1,7 +1,6 @@
 /*-
  * Top - a top users display for Berkeley Unix
  *
- * General (global) definitions
  * $FreeBSD$
  */
 
@@ -11,7 +10,7 @@
 #include <unistd.h>
 
 /* Number of lines of header information on the standard screen */
-extern int Header_lines;	/* 7 */
+extern int Header_lines;
 
 /* Maximum number of columns allowed for display */
 #define MAX_COLS	512

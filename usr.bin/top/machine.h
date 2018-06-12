@@ -53,10 +53,6 @@ struct system_info
     int    ncpus;
 };
 
-/* cpu_states is an array of percentages * 10.  For example, 
-   the (integer) value 105 is 10.5% (or .105).
- */
-
 /*
  * the process_select struct tells get_process_info what processes
  * and information we are interested in seeing
