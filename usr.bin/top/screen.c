@@ -37,7 +37,6 @@ int  screen_width;
 char ch_erase;
 char ch_kill;
 char smart_terminal;
-char PC;
 static char termcap_buf[1024];
 static char string_buffer[1024];
 static char home[15];
