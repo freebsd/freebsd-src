@@ -31,21 +31,35 @@
 __FBSDID("$FreeBSD$");
 
 #ifndef APPLEKEXT
+#include <sys/extattr.h>
 #include <fs/nfs/nfsport.h>
 
 struct nfsrv_stablefirst nfsrv_stablefirst;
 int nfsrv_issuedelegs = 0;
 int nfsrv_dolocallocks = 0;
 struct nfsv4lock nfsv4rootfs_lock;
+time_t nfsdev_time = 0;
+int nfsrv_layouthashsize;
+volatile int nfsrv_layoutcnt = 0;
 
 extern int newnfs_numnfsd;
 extern struct nfsstatsv1 nfsstatsv1;
 extern int nfsrv_lease;
 extern struct timeval nfsboottime;
 extern u_int32_t newnfs_true, newnfs_false;
+extern struct mtx nfsrv_dslock_mtx;
+extern struct mtx nfsrv_recalllock_mtx;
+extern struct mtx nfsrv_dontlistlock_mtx;
 extern int nfsd_debuglevel;
+extern u_int nfsrv_dsdirsize;
+extern struct nfsdevicehead nfsrv_devidhead;
+extern int nfsrv_doflexfile;
+extern int nfsrv_maxpnfsmirror;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
+extern struct nfsdontlisthead nfsrv_dontlisthead;
+extern volatile int nfsrv_devidcnt;
+extern struct nfslayouthead nfsrv_recalllisthead;
 
 SYSCTL_DECL(_vfs_nfsd);
 int	nfsrv_statehashsize = NFSSTATEHASHSIZE;
@@ -68,6 +82,11 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, sessionhashsize, CTLFLAG_RDTUN,
     &nfsrv_sessionhashsize, 0,
     "Size of session hash table set via loader.conf");
 
+int	nfsrv_layouthighwater = NFSLAYOUTHIGHWATER;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, layouthighwater, CTLFLAG_RDTUN,
+    &nfsrv_layouthighwater, 0,
+    "High water mark for number of layouts set via loader.conf");
+
 static int	nfsrv_v4statelimit = NFSRV_V4STATELIMIT;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, v4statelimit, CTLFLAG_RWTUN,
     &nfsrv_v4statelimit, 0,
@@ -83,12 +102,24 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, allowreadforwriteopen, CTLFLAG_RW,
     &nfsrv_allowreadforwriteopen, 0,
     "Allow Reads to be done with Write Access StateIDs");
 
+int	nfsrv_pnfsatime = 0;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, pnfsstrictatime, CTLFLAG_RW,
+    &nfsrv_pnfsatime, 0,
+    "For pNFS service, do Getattr ops to keep atime up-to-date");
+
+int	nfsrv_flexlinuxhack = 0;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, flexlinuxhack, CTLFLAG_RW,
+    &nfsrv_flexlinuxhack, 0,
+    "For Linux clients, hack around Flex File Layout bug");
+
 /*
  * Hash lists for nfs V4.
  */
 struct nfsclienthashhead	*nfsclienthash;
 struct nfslockhashhead		*nfslockhash;
 struct nfssessionhash		*nfssessionhash;
+struct nfslayouthash		*nfslayouthash;
+volatile int nfsrv_dontlistlen = 0;
 #endif	/* !APPLEKEXT */
 
 static u_int32_t nfsrv_openpluslock = 0, nfsrv_delegatecnt = 0;
@@ -131,7 +162,7 @@ static int nfsrv_checkgrace(struct nfsrv_descript *nd, struct nfsclient *clp,
     u_int32_t flags);
 static int nfsrv_docallback(struct nfsclient *clp, int procnum,
     nfsv4stateid_t *stateidp, int trunc, fhandle_t *fhp,
-    struct nfsvattr *nap, nfsattrbit_t *attrbitp, NFSPROC_T *p);
+    struct nfsvattr *nap, nfsattrbit_t *attrbitp, int laytype, NFSPROC_T *p);
 static int nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
     uint32_t callback, int op, const char *optag, struct nfsdsession **sepp);
 static u_int32_t nfsrv_nextclientindex(void);
@@ -170,6 +201,36 @@ static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid);
 static int nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
     int dont_replycache, struct nfsdsession **sepp);
 static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
+static int nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
+    nfsv4stateid_t *stateidp, char *layp, int *layoutlenp, NFSPROC_T *p);
+static void nfsrv_freelayout(struct nfslayouthead *lhp, struct nfslayout *lyp);
+static void nfsrv_freelayoutlist(nfsquad_t clientid);
+static void nfsrv_freelayouts(nfsquad_t *clid, fsid_t *fs, int laytype,
+    int iomode);
+static void nfsrv_freealllayouts(void);
+static void nfsrv_freedevid(struct nfsdevice *ds);
+static int nfsrv_setdsserver(char *dspathp, NFSPROC_T *p,
+    struct nfsdevice **dsp);
+static int nfsrv_delds(char *devid, NFSPROC_T *p);
+static void nfsrv_deleteds(struct nfsdevice *fndds);
+static void nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost);
+static void nfsrv_freealldevids(void);
+static void nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp,
+    int maxcnt, NFSPROC_T *p);
+static int nfsrv_recalllayout(nfsquad_t clid, nfsv4stateid_t *stateidp,
+    fhandle_t *fhp, struct nfslayout *lyp, struct nfslayouthead *lyheadp,
+    int laytype, NFSPROC_T *p);
+static int nfsrv_findlayout(nfsquad_t *clientidp, fhandle_t *fhp, int laytype,
+    NFSPROC_T *, struct nfslayout **lypp);
+static int nfsrv_fndclid(nfsquad_t *clidvec, nfsquad_t clid, int clidcnt);
+static struct nfslayout *nfsrv_filelayout(struct nfsrv_descript *nd, int iomode,
+    fhandle_t *fhp, fhandle_t *dsfhp, char *devid, fsid_t fs);
+static struct nfslayout *nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode,
+    int mirrorcnt, fhandle_t *fhp, fhandle_t *dsfhp, char *devid, fsid_t fs);
+static int nfsrv_dontlayout(fhandle_t *fhp);
+static int nfsrv_createdsfile(vnode_t vp, fhandle_t *fhp, struct pnfsdsfile *pf,
+    vnode_t dvp, struct nfsdevice *ds, struct ucred *cred, NFSPROC_T *p,
+    vnode_t *tvpp);
 
 /*
  * Scan the client list for a match and either return the current one,
@@ -741,6 +802,12 @@ nfsrv_destroyclient(nfsquad_t clientid, NFSPROC_T *p)
 		goto out;
 	}
 
+	/*
+	 * Free up all layouts on the clientid.  Should the client return the
+	 * layouts?
+	 */
+	nfsrv_freelayoutlist(clientid);
+
 	/* Scan for state on the clientid. */
 	for (i = 0; i < nfsrv_statehashsize; i++)
 		if (!LIST_EMPTY(&clp->lc_stateid[i])) {
@@ -1237,7 +1304,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 		clp->lc_hand.nfsh_flag &= ~NFSG_COMPLETE;
 		clp->lc_hand.nfsh_flag |= NFSG_DESTROYED;
 		(void) nfsrv_docallback(clp, NFSV4PROC_CBNULL,
-			NULL, 0, NULL, NULL, NULL, p);
+			NULL, 0, NULL, NULL, NULL, 0, p);
 	}
 #endif
 	newnfs_disconnect(&clp->lc_req);
@@ -2590,7 +2657,7 @@ tryagain:
 		 * harmless.
 		 */
 		cbret = nfsrv_docallback(clp, NFSV4PROC_CBNULL,
-		    NULL, 0, NULL, NULL, NULL, p);
+		    NULL, 0, NULL, NULL, NULL, 0, p);
 		NFSLOCKSTATE();
 		clp->lc_flags &= ~LCL_NEEDSCBNULL;
 		if (!cbret)
@@ -3280,7 +3347,8 @@ out:
  */
 APPLESTATIC int
 nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
-    nfsv4stateid_t *stateidp, struct nfsrv_descript *nd, NFSPROC_T *p)
+    nfsv4stateid_t *stateidp, struct nfsrv_descript *nd, NFSPROC_T *p,
+    int *retwriteaccessp)
 {
 	struct nfsstate *stp;
 	struct nfsclient *clp;
@@ -3382,6 +3450,12 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		NFSUNLOCKSTATE();
 	} else if (new_stp->ls_flags & NFSLCK_CLOSE) {
 		lfp = stp->ls_lfp;
+		if (retwriteaccessp != NULL) {
+			if ((stp->ls_flags & NFSLCK_WRITEACCESS) != 0)
+				*retwriteaccessp = 1;
+			else
+				*retwriteaccessp = 0;
+		}
 		if (nfsrv_dolocallocks != 0 && !LIST_EMPTY(&stp->ls_open)) {
 			/* Get the lf lock */
 			nfsrv_locklf(lfp);
@@ -3438,7 +3512,7 @@ out:
 APPLESTATIC int
 nfsrv_delegupdate(struct nfsrv_descript *nd, nfsquad_t clientid,
     nfsv4stateid_t *stateidp, vnode_t vp, int op, struct ucred *cred,
-    NFSPROC_T *p)
+    NFSPROC_T *p, int *retwriteaccessp)
 {
 	struct nfsstate *stp;
 	struct nfsclient *clp;
@@ -3502,6 +3576,12 @@ nfsrv_delegupdate(struct nfsrv_descript *nd, nfsquad_t clientid,
 			NFSUNLOCKSTATE();
 			error = NFSERR_BADSTATEID;
 			goto out;
+		}
+		if (retwriteaccessp != NULL) {
+			if ((stp->ls_flags & NFSLCK_DELEGWRITE) != 0)
+				*retwriteaccessp = 1;
+			else
+				*retwriteaccessp = 0;
 		}
 		nfsrv_freedeleg(stp);
 	} else {
@@ -4151,18 +4231,20 @@ out:
  * Do a server callback.
  */
 static int
-nfsrv_docallback(struct nfsclient *clp, int procnum,
-    nfsv4stateid_t *stateidp, int trunc, fhandle_t *fhp,
-    struct nfsvattr *nap, nfsattrbit_t *attrbitp, NFSPROC_T *p)
+nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
+    int trunc, fhandle_t *fhp, struct nfsvattr *nap, nfsattrbit_t *attrbitp,
+    int laytype, NFSPROC_T *p)
 {
 	mbuf_t m;
 	u_int32_t *tl;
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	struct ucred *cred;
 	int error = 0;
 	u_int32_t callback;
 	struct nfsdsession *sep = NULL;
+	uint64_t tval;
 
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	cred = newnfs_getcred();
 	NFSLOCKSTATE();	/* mostly for lc_cbref++ */
 	if (clp->lc_flags & LCL_NEEDSCONFIRM) {
@@ -4237,6 +4319,31 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 		else
 			*tl = newnfs_false;
 		(void)nfsm_fhtom(nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
+	} else if (procnum == NFSV4OP_CBLAYOUTRECALL) {
+		NFSD_DEBUG(4, "docallback layout recall\n");
+		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
+		error = nfsrv_cbcallargs(nd, clp, callback,
+		    NFSV4OP_CBLAYOUTRECALL, "CB Reclayout", &sep);
+		NFSD_DEBUG(4, "aft cbcallargs=%d\n", error);
+		if (error != 0) {
+			mbuf_freem(nd->nd_mreq);
+			goto errout;
+		}
+		NFSM_BUILD(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(laytype);
+		*tl++ = txdr_unsigned(NFSLAYOUTIOMODE_ANY);
+		*tl++ = newnfs_true;
+		*tl = txdr_unsigned(NFSV4LAYOUTRET_FILE);
+		nfsm_fhtom(nd, (uint8_t *)fhp, NFSX_MYFH, 0);
+		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_HYPER + NFSX_STATEID);
+		tval = 0;
+		txdr_hyper(tval, tl); tl += 2;
+		tval = UINT64_MAX;
+		txdr_hyper(tval, tl); tl += 2;
+		*tl++ = txdr_unsigned(stateidp->seqid);
+		NFSBCOPY(stateidp->other, tl, NFSX_STATEIDOTHER);
+		tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+		NFSD_DEBUG(4, "aft args\n");
 	} else if (procnum == NFSV4PROC_CBNULL) {
 		nd->nd_procnum = NFSV4PROC_CBNULL;
 		if ((clp->lc_flags & LCL_NFSV41) != 0) {
@@ -4268,6 +4375,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 			    NULL, 3);
 	}
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
+	NFSD_DEBUG(4, "aft sndunlock=%d\n", error);
 	if (!error) {
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			KASSERT(sep != NULL, ("sep NULL"));
@@ -4288,6 +4396,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 				printf("nfsrv_docallback: no xprt\n");
 				error = ECONNREFUSED;
 			}
+			NFSD_DEBUG(4, "aft newnfs_request=%d\n", error);
 			nfsrv_freesession(sep, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
@@ -4322,9 +4431,11 @@ errout:
 		if (clp->lc_flags & LCL_CBDOWN)
 			clp->lc_flags &= ~(LCL_CBDOWN | LCL_CALLBACKSON);
 		NFSUNLOCKSTATE();
-		if (nd->nd_repstat)
+		if (nd->nd_repstat) {
 			error = nd->nd_repstat;
-		else if (error == 0 && procnum == NFSV4OP_CBGETATTR)
+			NFSD_DEBUG(1, "nfsrv_docallback op=%d err=%d\n",
+			    procnum, error);
+		} else if (error == 0 && procnum == NFSV4OP_CBGETATTR)
 			error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0,
 			    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
 			    p, NULL);
@@ -4338,6 +4449,7 @@ errout:
 	}
 	NFSUNLOCKSTATE();
 
+	free(nd, M_TEMP);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -4994,7 +5106,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		retrycnt = 0;
 		do {
 		    error = nfsrv_docallback(clp, NFSV4OP_CBRECALL,
-			&tstateid, 0, &tfh, NULL, NULL, p);
+			&tstateid, 0, &tfh, NULL, NULL, 0, p);
 		    retrycnt++;
 		} while ((error == NFSERR_BADSTATEID ||
 		    error == NFSERR_BADHANDLE) && retrycnt < NFSV4_CBRETRYCNT);
@@ -5352,8 +5464,7 @@ out:
  */
 APPLESTATIC int
 nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
-    struct nfsvattr *nvap, nfsattrbit_t *attrbitp, struct ucred *cred,
-    NFSPROC_T *p)
+    struct nfsvattr *nvap, nfsattrbit_t *attrbitp, NFSPROC_T *p)
 {
 	struct nfsstate *stp;
 	struct nfslockfile *lfp;
@@ -5431,13 +5542,13 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 		NFSVNO_ATTRINIT(&nva);
 		nva.na_filerev = NFS64BITSSET;
 		error = nfsrv_docallback(clp, NFSV4OP_CBGETATTR, NULL,
-		    0, &nfh, &nva, &cbbits, p);
+		    0, &nfh, &nva, &cbbits, 0, p);
 		if (!error) {
 			if ((nva.na_filerev != NFS64BITSSET &&
 			    nva.na_filerev > delegfilerev) ||
 			    (NFSVNO_ISSETSIZE(&nva) &&
 			     nva.na_size != nvap->na_size)) {
-				error = nfsvno_updfilerev(vp, nvap, cred, p);
+				error = nfsvno_updfilerev(vp, nvap, nd, p);
 				if (NFSVNO_ISSETSIZE(&nva))
 					nvap->na_size = nva.na_size;
 			}
@@ -5860,9 +5971,14 @@ nfsrv_throwawayallstate(NFSPROC_T *p)
 	 * Also, free up any remaining lock file structures.
 	 */
 	for (i = 0; i < nfsrv_lockhashsize; i++) {
-		LIST_FOREACH_SAFE(lfp, &nfslockhash[i], lf_hash, nlfp)
+		LIST_FOREACH_SAFE(lfp, &nfslockhash[i], lf_hash, nlfp) {
+			printf("nfsd unload: fnd a lock file struct\n");
 			nfsrv_freenfslockfile(lfp);
+		}
 	}
+
+	/* And get rid of the deviceid structures and layouts. */
+	nfsrv_freealllayoutsanddevids();
 }
 
 /*
@@ -6321,5 +6437,1931 @@ nfsrv_freeallbackchannel_xprts(void)
 			}
 		}
 	}
+}
+
+/*
+ * Do a layout commit.  Actually just call nfsrv_updatemdsattr().
+ * I have no idea if the rest of these arguments will ever be useful?
+ */
+int
+nfsrv_layoutcommit(struct nfsrv_descript *nd, vnode_t vp, int layouttype,
+    int hasnewoff, uint64_t newoff, uint64_t offset, uint64_t len,
+    int hasnewmtime, struct timespec *newmtimep, int reclaim,
+    nfsv4stateid_t *stateidp, int maxcnt, char *layp, int *hasnewsizep,
+    uint64_t *newsizep, struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsvattr na;
+	int error;
+
+	error = nfsrv_updatemdsattr(vp, &na, p);
+	if (error == 0) {
+		*hasnewsizep = 1;
+		*newsizep = na.na_size;
+	}
+	return (error);
+}
+
+/*
+ * Try and get a layout.
+ */
+int
+nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
+    int layouttype, int *iomode, uint64_t *offset, uint64_t *len,
+    uint64_t minlen, nfsv4stateid_t *stateidp, int maxcnt, int *retonclose,
+    int *layoutlenp, char *layp, struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp;
+	char *devid;
+	fhandle_t fh, *dsfhp;
+	int error, mirrorcnt;
+
+	if (nfsrv_devidcnt == 0)
+		return (NFSERR_UNKNLAYOUTTYPE);
+
+	if (*offset != 0)
+		printf("nfsrv_layoutget: off=%ju len=%ju\n", (uintmax_t)*offset,
+		    (uintmax_t)*len);
+	error = nfsvno_getfh(vp, &fh, p);
+	NFSD_DEBUG(4, "layoutget getfh=%d\n", error);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * For now, all layouts are for entire files.
+	 * Only issue Read/Write layouts if requested for a non-readonly fs.
+	 */
+	if (NFSVNO_EXRDONLY(exp)) {
+		if (*iomode == NFSLAYOUTIOMODE_RW)
+			return (NFSERR_LAYOUTTRYLATER);
+		*iomode = NFSLAYOUTIOMODE_READ;
+	}
+	if (*iomode != NFSLAYOUTIOMODE_RW)
+		*iomode = NFSLAYOUTIOMODE_READ;
+
+	/*
+	 * Check to see if a write layout can be issued for this file.
+	 * This is used during mirror recovery to avoid RW layouts being
+	 * issued for a file while it is being copied to the recovered
+	 * mirror.
+	 */
+	if (*iomode == NFSLAYOUTIOMODE_RW && nfsrv_dontlayout(&fh) != 0)
+		return (NFSERR_LAYOUTTRYLATER);
+
+	*retonclose = 0;
+	*offset = 0;
+	*len = UINT64_MAX;
+
+	/* First, see if a layout already exists and return if found. */
+	lhyp = NFSLAYOUTHASH(&fh);
+	NFSLOCKLAYOUT(lhyp);
+	error = nfsrv_findlayout(&nd->nd_clientid, &fh, layouttype, p, &lyp);
+	NFSD_DEBUG(4, "layoutget findlay=%d\n", error);
+	/*
+	 * Not sure if the seqid must be the same, so I won't check it.
+	 */
+	if (error == 0 && (stateidp->other[0] != lyp->lay_stateid.other[0] ||
+	    stateidp->other[1] != lyp->lay_stateid.other[1] ||
+	    stateidp->other[2] != lyp->lay_stateid.other[2])) {
+		if ((lyp->lay_flags & NFSLAY_CALLB) == 0) {
+			NFSUNLOCKLAYOUT(lhyp);
+			NFSD_DEBUG(1, "ret bad stateid\n");
+			return (NFSERR_BADSTATEID);
+		}
+		/*
+		 * I believe we get here because there is a race between
+		 * the client processing the CBLAYOUTRECALL and the layout
+		 * being deleted here on the server.
+		 * The client has now done a LayoutGet with a non-layout
+		 * stateid, as it would when there is no layout.
+		 * As such, free this layout and set error == NFSERR_BADSTATEID
+		 * so the code below will create a new layout structure as
+		 * would happen if no layout was found.
+		 * "lyp" will be set before being used below, but set it NULL
+		 * as a safety belt.
+		 */
+		nfsrv_freelayout(&lhyp->list, lyp);
+		lyp = NULL;
+		error = NFSERR_BADSTATEID;
+	}
+	if (error == 0) {
+		if (lyp->lay_layoutlen > maxcnt) {
+			NFSUNLOCKLAYOUT(lhyp);
+			NFSD_DEBUG(1, "ret layout too small\n");
+			return (NFSERR_TOOSMALL);
+		}
+		if (*iomode == NFSLAYOUTIOMODE_RW)
+			lyp->lay_flags |= NFSLAY_RW;
+		else
+			lyp->lay_flags |= NFSLAY_READ;
+		NFSBCOPY(lyp->lay_xdr, layp, lyp->lay_layoutlen);
+		*layoutlenp = lyp->lay_layoutlen;
+		if (++lyp->lay_stateid.seqid == 0)
+			lyp->lay_stateid.seqid = 1;
+		stateidp->seqid = lyp->lay_stateid.seqid;
+		NFSUNLOCKLAYOUT(lhyp);
+		NFSD_DEBUG(4, "ret fnd layout\n");
+		return (0);
+	}
+	NFSUNLOCKLAYOUT(lhyp);
+
+	/* Find the device id and file handle. */
+	dsfhp = malloc(sizeof(fhandle_t) * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK);
+	devid = malloc(NFSX_V4DEVICEID * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK);
+	error = nfsrv_dsgetdevandfh(vp, p, &mirrorcnt, dsfhp, devid);
+	NFSD_DEBUG(4, "layoutget devandfh=%d\n", error);
+	if (error == 0) {
+		if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
+			if (NFSX_V4FILELAYOUT > maxcnt)
+				error = NFSERR_TOOSMALL;
+			else
+				lyp = nfsrv_filelayout(nd, *iomode, &fh, dsfhp,
+				    devid, vp->v_mount->mnt_stat.f_fsid);
+		} else {
+			if (NFSX_V4FLEXLAYOUT(mirrorcnt) > maxcnt)
+				error = NFSERR_TOOSMALL;
+			else
+				lyp = nfsrv_flexlayout(nd, *iomode, mirrorcnt,
+				    &fh, dsfhp, devid,
+				    vp->v_mount->mnt_stat.f_fsid);
+		}
+	}
+	free(dsfhp, M_TEMP);
+	free(devid, M_TEMP);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Now, add this layout to the list.
+	 */
+	error = nfsrv_addlayout(nd, &lyp, stateidp, layp, layoutlenp, p);
+	NFSD_DEBUG(4, "layoutget addl=%d\n", error);
+	/*
+	 * The lyp will be set to NULL by nfsrv_addlayout() if it
+	 * linked the new structure into the lists.
+	 */
+	free(lyp, M_NFSDSTATE);
+	return (error);
+}
+
+/*
+ * Generate a File Layout.
+ */
+static struct nfslayout *
+nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
+    fhandle_t *dsfhp, char *devid, fsid_t fs)
+{
+	uint32_t *tl;
+	struct nfslayout *lyp;
+	uint64_t pattern_offset;
+
+	lyp = malloc(sizeof(struct nfslayout) + NFSX_V4FILELAYOUT, M_NFSDSTATE,
+	    M_WAITOK | M_ZERO);
+	lyp->lay_type = NFSLAYOUT_NFSV4_1_FILES;
+	if (iomode == NFSLAYOUTIOMODE_RW)
+		lyp->lay_flags = NFSLAY_RW;
+	else
+		lyp->lay_flags = NFSLAY_READ;
+	NFSBCOPY(fhp, &lyp->lay_fh, sizeof(*fhp));
+	lyp->lay_clientid.qval = nd->nd_clientid.qval;
+	lyp->lay_fsid = fs;
+
+	/* Fill in the xdr for the files layout. */
+	tl = (uint32_t *)lyp->lay_xdr;
+	NFSBCOPY(devid, tl, NFSX_V4DEVICEID);		/* Device ID. */
+	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+
+	/*
+	 * Make the stripe size as many 64K blocks as will fit in the stripe
+	 * mask. Since there is only one stripe, the stripe size doesn't really
+	 * matter, except that the Linux client will only handle an exact
+	 * multiple of their PAGE_SIZE (usually 4K).  I chose 64K as a value
+	 * that should cover most/all arches w.r.t. PAGE_SIZE.
+	 */
+	*tl++ = txdr_unsigned(NFSFLAYUTIL_STRIPE_MASK & ~0xffff);
+	*tl++ = 0;					/* 1st stripe index. */
+	pattern_offset = 0;
+	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */
+	*tl++ = txdr_unsigned(1);			/* 1 file handle. */
+	*tl++ = txdr_unsigned(NFSX_V4PNFSFH);
+	NFSBCOPY(dsfhp, tl, sizeof(*dsfhp));
+	lyp->lay_layoutlen = NFSX_V4FILELAYOUT;
+	return (lyp);
+}
+
+#define	FLEX_OWNERID	"999"
+#define	FLEX_UID0	"0"
+/*
+ * Generate a Flex File Layout.
+ * The FLEX_OWNERID can be any string of 3 decimal digits. Although this
+ * string goes on the wire, it isn't supposed to be used by the client,
+ * since this server uses tight coupling.
+ * Although not recommended by the spec., if vfs.nfsd.flexlinuxhack=1 use
+ * a string of "0". This works around the Linux Flex File Layout driver bug
+ * which uses the synthetic uid/gid strings for the "tightly coupled" case.
+ */
+static struct nfslayout *
+nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode, int mirrorcnt,
+    fhandle_t *fhp, fhandle_t *dsfhp, char *devid, fsid_t fs)
+{
+	uint32_t *tl;
+	struct nfslayout *lyp;
+	uint64_t lenval;
+	int i;
+
+	lyp = malloc(sizeof(struct nfslayout) + NFSX_V4FLEXLAYOUT(mirrorcnt),
+	    M_NFSDSTATE, M_WAITOK | M_ZERO);
+	lyp->lay_type = NFSLAYOUT_FLEXFILE;
+	if (iomode == NFSLAYOUTIOMODE_RW)
+		lyp->lay_flags = NFSLAY_RW;
+	else
+		lyp->lay_flags = NFSLAY_READ;
+	NFSBCOPY(fhp, &lyp->lay_fh, sizeof(*fhp));
+	lyp->lay_clientid.qval = nd->nd_clientid.qval;
+	lyp->lay_fsid = fs;
+	lyp->lay_mirrorcnt = mirrorcnt;
+
+	/* Fill in the xdr for the files layout. */
+	tl = (uint32_t *)lyp->lay_xdr;
+	lenval = 0;
+	txdr_hyper(lenval, tl); tl += 2;		/* Stripe unit. */
+	*tl++ = txdr_unsigned(mirrorcnt);		/* # of mirrors. */
+	for (i = 0; i < mirrorcnt; i++) {
+		*tl++ = txdr_unsigned(1);		/* One stripe. */
+		NFSBCOPY(devid, tl, NFSX_V4DEVICEID);	/* Device ID. */
+		tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+		devid += NFSX_V4DEVICEID;
+		*tl++ = txdr_unsigned(1);		/* Efficiency. */
+		*tl++ = 0;				/* Proxy Stateid. */
+		*tl++ = 0x55555555;
+		*tl++ = 0x55555555;
+		*tl++ = 0x55555555;
+		*tl++ = txdr_unsigned(1);		/* 1 file handle. */
+		*tl++ = txdr_unsigned(NFSX_V4PNFSFH);
+		NFSBCOPY(dsfhp, tl, sizeof(*dsfhp));
+		tl += (NFSM_RNDUP(NFSX_V4PNFSFH) / NFSX_UNSIGNED);
+		dsfhp++;
+		if (nfsrv_flexlinuxhack != 0) {
+			*tl++ = txdr_unsigned(strlen(FLEX_UID0));
+			*tl = 0;		/* 0 pad string. */
+			NFSBCOPY(FLEX_UID0, tl++, strlen(FLEX_UID0));
+			*tl++ = txdr_unsigned(strlen(FLEX_UID0));
+			*tl = 0;		/* 0 pad string. */
+			NFSBCOPY(FLEX_UID0, tl++, strlen(FLEX_UID0));
+		} else {
+			*tl++ = txdr_unsigned(strlen(FLEX_OWNERID));
+			NFSBCOPY(FLEX_OWNERID, tl++, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(strlen(FLEX_OWNERID));
+			NFSBCOPY(FLEX_OWNERID, tl++, NFSX_UNSIGNED);
+		}
+	}
+	*tl++ = txdr_unsigned(0);		/* ff_flags. */
+	*tl = txdr_unsigned(60);		/* Status interval hint. */
+	lyp->lay_layoutlen = NFSX_V4FLEXLAYOUT(mirrorcnt);
+	return (lyp);
+}
+
+/*
+ * Parse and process Flex File errors returned via LayoutReturn.
+ */
+static void
+nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp, int maxcnt,
+    NFSPROC_T *p)
+{
+	uint32_t *tl;
+	int cnt, errcnt, i, j, opnum, stat;
+	char devid[NFSX_V4DEVICEID];
+
+	tl = layp;
+	cnt = fxdr_unsigned(int, *tl++);
+	NFSD_DEBUG(4, "flexlayouterr cnt=%d\n", cnt);
+	for (i = 0; i < cnt; i++) {
+		/* Skip offset, length and stateid for now. */
+		tl += (4 + NFSX_STATEID / NFSX_UNSIGNED);
+		errcnt = fxdr_unsigned(int, *tl++);
+		NFSD_DEBUG(4, "flexlayouterr errcnt=%d\n", errcnt);
+		for (j = 0; j < errcnt; j++) {
+			NFSBCOPY(tl, devid, NFSX_V4DEVICEID);
+			tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+			stat = fxdr_unsigned(int, *tl++);
+			opnum = fxdr_unsigned(int, *tl++);
+			NFSD_DEBUG(4, "flexlayouterr op=%d stat=%d\n", opnum,
+			    stat);
+			/*
+			 * Except for NFSERR_ACCES errors for Reading,
+			 * shut the mirror down.
+			 */
+			if (opnum != NFSV4OP_READ || stat != NFSERR_ACCES)
+				nfsrv_delds(devid, p);
+		}
+	}
+}
+
+/*
+ * This function removes all flex file layouts which has a mirror with
+ * a device id that matches the argument.
+ * Called when the DS represented by the device id has failed.
+ */
+void
+nfsrv_flexmirrordel(char *devid, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	struct nfslayout *lyp, *nlyp;
+	struct nfslayouthash *lhyp;
+	struct nfslayouthead loclyp;
+	int i, j;
+
+	NFSD_DEBUG(4, "flexmirrordel\n");
+	/* Move all layouts found onto a local list. */
+	TAILQ_INIT(&loclyp);
+	for (i = 0; i < nfsrv_layouthashsize; i++) {
+		lhyp = &nfslayouthash[i];
+		NFSLOCKLAYOUT(lhyp);
+		TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+			if (lyp->lay_type == NFSLAYOUT_FLEXFILE &&
+			    lyp->lay_mirrorcnt > 1) {
+				NFSD_DEBUG(4, "possible match\n");
+				tl = lyp->lay_xdr;
+				tl += 3;
+				for (j = 0; j < lyp->lay_mirrorcnt; j++) {
+					tl++;
+					if (NFSBCMP(devid, tl, NFSX_V4DEVICEID)
+					    == 0) {
+						/* Found one. */
+						NFSD_DEBUG(4, "fnd one\n");
+						TAILQ_REMOVE(&lhyp->list, lyp,
+						    lay_list);
+						TAILQ_INSERT_HEAD(&loclyp, lyp,
+						    lay_list);
+						break;
+					}
+					tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED +
+					    NFSM_RNDUP(NFSX_V4PNFSFH) /
+					    NFSX_UNSIGNED + 11 * NFSX_UNSIGNED);
+				}
+			}
+		}
+		NFSUNLOCKLAYOUT(lhyp);
+	}
+
+	/* Now, try to do a Layout recall for each one found. */
+	TAILQ_FOREACH_SAFE(lyp, &loclyp, lay_list, nlyp) {
+		NFSD_DEBUG(4, "do layout recall\n");
+		/*
+		 * The layout stateid.seqid needs to be incremented
+		 * before doing a LAYOUT_RECALL callback.
+		 * Set lay_trycnt to UINT16_MAX so it won't set up a retry.
+		 */
+		if (++lyp->lay_stateid.seqid == 0)
+			lyp->lay_stateid.seqid = 1;
+		lyp->lay_trycnt = UINT16_MAX;
+		nfsrv_recalllayout(lyp->lay_clientid, &lyp->lay_stateid,
+		    &lyp->lay_fh, lyp, &loclyp, lyp->lay_type, p);
+		nfsrv_freelayout(&loclyp, lyp);
+	}
+}
+
+/*
+ * Do a recall callback to the client for this layout.
+ */
+static int
+nfsrv_recalllayout(nfsquad_t clid, nfsv4stateid_t *stateidp, fhandle_t *fhp,
+    struct nfslayout *lyp, struct nfslayouthead *lyheadp, int laytype,
+    NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	int error;
+
+	NFSD_DEBUG(4, "nfsrv_recalllayout\n");
+	error = nfsrv_getclient(clid, 0, &clp, NULL, (nfsquad_t)((u_quad_t)0),
+	    0, NULL, p);
+	NFSD_DEBUG(4, "aft nfsrv_getclient=%d\n", error);
+	if (error != 0)
+		return (error);
+	if ((clp->lc_flags & LCL_NFSV41) != 0) {
+		error = nfsrv_docallback(clp, NFSV4OP_CBLAYOUTRECALL,
+		    stateidp, 0, fhp, NULL, NULL, laytype, p);
+		/* If lyp != NULL, handle an error return here. */
+		if (error != 0 && lyp != NULL) {
+			NFSDRECALLLOCK();
+			if (error == NFSERR_NOMATCHLAYOUT) {
+				/*
+				 * Mark it returned, since there is no layout.
+				 */
+				if ((lyp->lay_flags & NFSLAY_RECALL) != 0) {
+					lyp->lay_flags |= NFSLAY_RETURNED;
+					wakeup(lyp);
+				}
+				NFSDRECALLUNLOCK();
+			} else if ((lyp->lay_flags & NFSLAY_RETURNED) == 0 &&
+			    lyp->lay_trycnt < 10) {
+				/*
+				 * Clear recall, so it can be tried again
+				 * and put it at the end of the list to
+				 * delay the retry a little longer.
+				 */
+				lyp->lay_flags &= ~NFSLAY_RECALL;
+				lyp->lay_trycnt++;
+				TAILQ_REMOVE(lyheadp, lyp, lay_list);
+				TAILQ_INSERT_TAIL(lyheadp, lyp, lay_list);
+				NFSDRECALLUNLOCK();
+				nfs_catnap(PVFS, 0, "nfsrclay");
+			} else
+				NFSDRECALLUNLOCK();
+		}
+	} else
+		printf("nfsrv_recalllayout: clp not NFSv4.1\n");
+	return (error);
+}
+
+/*
+ * Find a layout to recall when we exceed our high water mark.
+ */
+void
+nfsrv_recalloldlayout(NFSPROC_T *p)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp;
+	nfsquad_t clientid;
+	nfsv4stateid_t stateid;
+	fhandle_t fh;
+	int error, laytype, ret;
+
+	lhyp = &nfslayouthash[arc4random() % nfsrv_layouthashsize];
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH_REVERSE(lyp, &lhyp->list, nfslayouthead, lay_list) {
+		if ((lyp->lay_flags & NFSLAY_CALLB) == 0) {
+			lyp->lay_flags |= NFSLAY_CALLB;
+			/*
+			 * The layout stateid.seqid needs to be incremented
+			 * before doing a LAYOUT_RECALL callback.
+			 */
+			if (++lyp->lay_stateid.seqid == 0)
+				lyp->lay_stateid.seqid = 1;
+			clientid = lyp->lay_clientid;
+			stateid = lyp->lay_stateid;
+			fh = lyp->lay_fh;
+			laytype = lyp->lay_type;
+			break;
+		}
+	}
+	NFSUNLOCKLAYOUT(lhyp);
+	if (lyp != NULL) {
+		error = nfsrv_recalllayout(clientid, &stateid, &fh, NULL, NULL,
+		    laytype, p);
+		if (error != 0 && error != NFSERR_NOMATCHLAYOUT)
+			printf("recallold=%d\n", error);
+		if (error != 0) {
+			NFSLOCKLAYOUT(lhyp);
+			/*
+			 * Since the hash list was unlocked, we need to
+			 * find it again.
+			 */
+			ret = nfsrv_findlayout(&clientid, &fh, laytype, p,
+			    &lyp);
+			if (ret == 0 &&
+			    (lyp->lay_flags & NFSLAY_CALLB) != 0 &&
+			    lyp->lay_stateid.other[0] == stateid.other[0] &&
+			    lyp->lay_stateid.other[1] == stateid.other[1] &&
+			    lyp->lay_stateid.other[2] == stateid.other[2]) {
+				/*
+				 * The client no longer knows this layout, so
+				 * it can be free'd now.
+				 */
+				if (error == NFSERR_NOMATCHLAYOUT)
+					nfsrv_freelayout(&lhyp->list, lyp);
+				else {
+					/*
+					 * Leave it to be tried later by
+					 * clearing NFSLAY_CALLB and moving
+					 * it to the head of the list, so it
+					 * won't be tried again for a while.
+					 */
+					lyp->lay_flags &= ~NFSLAY_CALLB;
+					TAILQ_REMOVE(&lhyp->list, lyp,
+					    lay_list);
+					TAILQ_INSERT_HEAD(&lhyp->list, lyp,
+					    lay_list);
+				}
+			}
+			NFSUNLOCKLAYOUT(lhyp);
+		}
+	}
+}
+
+/*
+ * Try and return layout(s).
+ */
+int
+nfsrv_layoutreturn(struct nfsrv_descript *nd, vnode_t vp,
+    int layouttype, int iomode, uint64_t offset, uint64_t len, int reclaim,
+    int kind, nfsv4stateid_t *stateidp, int maxcnt, uint32_t *layp, int *fndp,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsvattr na;
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp;
+	fhandle_t fh;
+	int error = 0;
+
+	*fndp = 0;
+	if (kind == NFSV4LAYOUTRET_FILE) {
+		error = nfsvno_getfh(vp, &fh, p);
+		if (error == 0) {
+			error = nfsrv_updatemdsattr(vp, &na, p);
+			if (error != 0)
+				printf("nfsrv_layoutreturn: updatemdsattr"
+				    " failed=%d\n", error);
+		}
+		if (error == 0) {
+			if (reclaim == newnfs_true) {
+				error = nfsrv_checkgrace(NULL, NULL,
+				    NFSLCK_RECLAIM);
+				if (error != NFSERR_NOGRACE)
+					error = 0;
+				return (error);
+			}
+			lhyp = NFSLAYOUTHASH(&fh);
+			NFSDRECALLLOCK();
+			NFSLOCKLAYOUT(lhyp);
+			error = nfsrv_findlayout(&nd->nd_clientid, &fh,
+			    layouttype, p, &lyp);
+			NFSD_DEBUG(4, "layoutret findlay=%d\n", error);
+			if (error == 0 &&
+			    stateidp->other[0] == lyp->lay_stateid.other[0] &&
+			    stateidp->other[1] == lyp->lay_stateid.other[1] &&
+			    stateidp->other[2] == lyp->lay_stateid.other[2]) {
+				NFSD_DEBUG(4, "nfsrv_layoutreturn: stateid %d"
+				    " %x %x %x laystateid %d %x %x %x"
+				    " off=%ju len=%ju flgs=0x%x\n",
+				    stateidp->seqid, stateidp->other[0],
+				    stateidp->other[1], stateidp->other[2],
+				    lyp->lay_stateid.seqid,
+				    lyp->lay_stateid.other[0],
+				    lyp->lay_stateid.other[1],
+				    lyp->lay_stateid.other[2],
+				    (uintmax_t)offset, (uintmax_t)len,
+				    lyp->lay_flags);
+				if (++lyp->lay_stateid.seqid == 0)
+					lyp->lay_stateid.seqid = 1;
+				stateidp->seqid = lyp->lay_stateid.seqid;
+				if (offset == 0 && len == UINT64_MAX) {
+					if ((iomode & NFSLAYOUTIOMODE_READ) !=
+					    0)
+						lyp->lay_flags &= ~NFSLAY_READ;
+					if ((iomode & NFSLAYOUTIOMODE_RW) != 0)
+						lyp->lay_flags &= ~NFSLAY_RW;
+					if ((lyp->lay_flags & (NFSLAY_READ |
+					    NFSLAY_RW)) == 0)
+						nfsrv_freelayout(&lhyp->list,
+						    lyp);
+					else
+						*fndp = 1;
+				} else
+					*fndp = 1;
+			}
+			NFSUNLOCKLAYOUT(lhyp);
+			/* Search the nfsrv_recalllist for a match. */
+			TAILQ_FOREACH(lyp, &nfsrv_recalllisthead, lay_list) {
+				if (NFSBCMP(&lyp->lay_fh, &fh,
+				    sizeof(fh)) == 0 &&
+				    lyp->lay_clientid.qval ==
+				    nd->nd_clientid.qval &&
+				    stateidp->other[0] ==
+				    lyp->lay_stateid.other[0] &&
+				    stateidp->other[1] ==
+				    lyp->lay_stateid.other[1] &&
+				    stateidp->other[2] ==
+				    lyp->lay_stateid.other[2]) {
+					lyp->lay_flags |= NFSLAY_RETURNED;
+					wakeup(lyp);
+					error = 0;
+				}
+			}
+			NFSDRECALLUNLOCK();
+		}
+		if (layouttype == NFSLAYOUT_FLEXFILE)
+			nfsrv_flexlayouterr(nd, layp, maxcnt, p);
+	} else if (kind == NFSV4LAYOUTRET_FSID)
+		nfsrv_freelayouts(&nd->nd_clientid,
+		    &vp->v_mount->mnt_stat.f_fsid, layouttype, iomode);
+	else if (kind == NFSV4LAYOUTRET_ALL)
+		nfsrv_freelayouts(&nd->nd_clientid, NULL, layouttype, iomode);
+	else
+		error = NFSERR_INVAL;
+	if (error == -1)
+		error = 0;
+	return (error);
+}
+
+/*
+ * Look for an existing layout.
+ */
+static int
+nfsrv_findlayout(nfsquad_t *clientidp, fhandle_t *fhp, int laytype,
+    NFSPROC_T *p, struct nfslayout **lypp)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp;
+	int ret;
+
+	*lypp = NULL;
+	ret = 0;
+	lhyp = NFSLAYOUTHASH(fhp);
+	TAILQ_FOREACH(lyp, &lhyp->list, lay_list) {
+		if (NFSBCMP(&lyp->lay_fh, fhp, sizeof(*fhp)) == 0 &&
+		    lyp->lay_clientid.qval == clientidp->qval &&
+		    lyp->lay_type == laytype)
+			break;
+	}
+	if (lyp != NULL)
+		*lypp = lyp;
+	else
+		ret = -1;
+	return (ret);
+}
+
+/*
+ * Add the new layout, as required.
+ */
+static int
+nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
+    nfsv4stateid_t *stateidp, char *layp, int *layoutlenp, NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	fhandle_t *fhp;
+	int error;
+
+	KASSERT((nd->nd_flag & ND_IMPLIEDCLID) != 0,
+	    ("nfsrv_layoutget: no nd_clientid\n"));
+	lyp = *lypp;
+	fhp = &lyp->lay_fh;
+	NFSLOCKSTATE();
+	error = nfsrv_getclient((nfsquad_t)((u_quad_t)0), CLOPS_RENEW, &clp,
+	    NULL, (nfsquad_t)((u_quad_t)0), 0, nd, p);
+	if (error != 0) {
+		NFSUNLOCKSTATE();
+		return (error);
+	}
+	lyp->lay_stateid.seqid = stateidp->seqid = 1;
+	lyp->lay_stateid.other[0] = stateidp->other[0] =
+	    clp->lc_clientid.lval[0];
+	lyp->lay_stateid.other[1] = stateidp->other[1] =
+	    clp->lc_clientid.lval[1];
+	lyp->lay_stateid.other[2] = stateidp->other[2] =
+	    nfsrv_nextstateindex(clp);
+	NFSUNLOCKSTATE();
+
+	lhyp = NFSLAYOUTHASH(fhp);
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH(nlyp, &lhyp->list, lay_list) {
+		if (NFSBCMP(&nlyp->lay_fh, fhp, sizeof(*fhp)) == 0 &&
+		    nlyp->lay_clientid.qval == nd->nd_clientid.qval)
+			break;
+	}
+	if (nlyp != NULL) {
+		/* A layout already exists, so use it. */
+		nlyp->lay_flags |= (lyp->lay_flags & (NFSLAY_READ | NFSLAY_RW));
+		NFSBCOPY(nlyp->lay_xdr, layp, nlyp->lay_layoutlen);
+		*layoutlenp = nlyp->lay_layoutlen;
+		if (++nlyp->lay_stateid.seqid == 0)
+			nlyp->lay_stateid.seqid = 1;
+		stateidp->seqid = nlyp->lay_stateid.seqid;
+		stateidp->other[0] = nlyp->lay_stateid.other[0];
+		stateidp->other[1] = nlyp->lay_stateid.other[1];
+		stateidp->other[2] = nlyp->lay_stateid.other[2];
+		NFSUNLOCKLAYOUT(lhyp);
+		return (0);
+	}
+
+	/* Insert the new layout in the lists. */
+	*lypp = NULL;
+	atomic_add_int(&nfsrv_layoutcnt, 1);
+	NFSBCOPY(lyp->lay_xdr, layp, lyp->lay_layoutlen);
+	*layoutlenp = lyp->lay_layoutlen;
+	TAILQ_INSERT_HEAD(&lhyp->list, lyp, lay_list);
+	NFSUNLOCKLAYOUT(lhyp);
+	return (0);
+}
+
+/*
+ * Get the devinfo for a deviceid.
+ */
+int
+nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
+    uint32_t *notify, int *devaddrlen, char **devaddr)
+{
+	struct nfsdevice *ds;
+
+	if ((layouttype != NFSLAYOUT_NFSV4_1_FILES && layouttype !=
+	     NFSLAYOUT_FLEXFILE) ||
+	    (nfsrv_maxpnfsmirror > 1 && layouttype == NFSLAYOUT_NFSV4_1_FILES))
+		return (NFSERR_UNKNLAYOUTTYPE);
+
+	/*
+	 * Now, search for the device id.  Note that the structures won't go
+	 * away, but the order changes in the list.  As such, the lock only
+	 * needs to be held during the search through the list.
+	 */
+	NFSDDSLOCK();
+	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
+		if (NFSBCMP(devid, ds->nfsdev_deviceid, NFSX_V4DEVICEID) == 0 &&
+		    ds->nfsdev_nmp != NULL)
+			break;
+	}
+	NFSDDSUNLOCK();
+	if (ds == NULL)
+		return (NFSERR_NOENT);
+
+	/* If the correct nfsdev_XXXXaddrlen is > 0, we have the device info. */
+	*devaddrlen = 0;
+	if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
+		*devaddrlen = ds->nfsdev_fileaddrlen;
+		*devaddr = ds->nfsdev_fileaddr;
+	} else if (layouttype == NFSLAYOUT_FLEXFILE) {
+		*devaddrlen = ds->nfsdev_flexaddrlen;
+		*devaddr = ds->nfsdev_flexaddr;
+	}
+	if (*devaddrlen == 0)
+		return (NFSERR_UNKNLAYOUTTYPE);
+
+	/*
+	 * The XDR overhead is 3 unsigned values: layout_type,
+	 * length_of_address and notify bitmap.
+	 * If the notify array is changed to not all zeros, the
+	 * count of unsigned values must be increased.
+	 */
+	if (*maxcnt > 0 && *maxcnt < NFSM_RNDUP(*devaddrlen) +
+	    3 * NFSX_UNSIGNED) {
+		*maxcnt = NFSM_RNDUP(*devaddrlen) + 3 * NFSX_UNSIGNED;
+		return (NFSERR_TOOSMALL);
+	}
+	return (0);
+}
+
+/*
+ * Free a list of layout state structures.
+ */
+static void
+nfsrv_freelayoutlist(nfsquad_t clientid)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	int i;
+
+	for (i = 0; i < nfsrv_layouthashsize; i++) {
+		lhyp = &nfslayouthash[i];
+		NFSLOCKLAYOUT(lhyp);
+		TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+			if (lyp->lay_clientid.qval == clientid.qval)
+				nfsrv_freelayout(&lhyp->list, lyp);
+		}
+		NFSUNLOCKLAYOUT(lhyp);
+	}
+}
+
+/*
+ * Free up a layout.
+ */
+static void
+nfsrv_freelayout(struct nfslayouthead *lhp, struct nfslayout *lyp)
+{
+
+	NFSD_DEBUG(4, "Freelayout=%p\n", lyp);
+	atomic_add_int(&nfsrv_layoutcnt, -1);
+	TAILQ_REMOVE(lhp, lyp, lay_list);
+	free(lyp, M_NFSDSTATE);
+}
+
+/*
+ * Free up a device id.
+ */
+void
+nfsrv_freeonedevid(struct nfsdevice *ds)
+{
+	int i;
+
+	atomic_add_int(&nfsrv_devidcnt, -1);
+	vrele(ds->nfsdev_dvp);
+	for (i = 0; i < nfsrv_dsdirsize; i++)
+		if (ds->nfsdev_dsdir[i] != NULL)
+			vrele(ds->nfsdev_dsdir[i]);
+	free(ds->nfsdev_fileaddr, M_NFSDSTATE);
+	free(ds->nfsdev_flexaddr, M_NFSDSTATE);
+	free(ds->nfsdev_host, M_NFSDSTATE);
+	free(ds, M_NFSDSTATE);
+}
+
+/*
+ * Free up a device id and its mirrors.
+ */
+static void
+nfsrv_freedevid(struct nfsdevice *ds)
+{
+
+	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
+	nfsrv_freeonedevid(ds);
+}
+
+/*
+ * Free all layouts and device ids.
+ * Done when the nfsd threads are shut down since there may be a new
+ * modified device id list created when the nfsd is restarted.
+ */
+void
+nfsrv_freealllayoutsanddevids(void)
+{
+	struct nfsdontlist *mrp, *nmrp;
+	struct nfslayout *lyp, *nlyp;
+
+	/* Get rid of the deviceid structures. */
+	nfsrv_freealldevids();
+	TAILQ_INIT(&nfsrv_devidhead);
+	nfsrv_devidcnt = 0;
+
+	/* Get rid of all layouts. */
+	nfsrv_freealllayouts();
+
+	/* Get rid of any nfsdontlist entries. */
+	LIST_FOREACH_SAFE(mrp, &nfsrv_dontlisthead, nfsmr_list, nmrp)
+		free(mrp, M_NFSDSTATE);
+	LIST_INIT(&nfsrv_dontlisthead);
+	nfsrv_dontlistlen = 0;
+
+	/* Free layouts in the recall list. */
+	TAILQ_FOREACH_SAFE(lyp, &nfsrv_recalllisthead, lay_list, nlyp)
+		nfsrv_freelayout(&nfsrv_recalllisthead, lyp);
+	TAILQ_INIT(&nfsrv_recalllisthead);
+}
+
+/*
+ * Free layouts that match the arguments.
+ */
+static void
+nfsrv_freelayouts(nfsquad_t *clid, fsid_t *fs, int laytype, int iomode)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	int i;
+
+	for (i = 0; i < nfsrv_layouthashsize; i++) {
+		lhyp = &nfslayouthash[i];
+		NFSLOCKLAYOUT(lhyp);
+		TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+			if (clid->qval != lyp->lay_clientid.qval)
+				continue;
+			if (fs != NULL && (fs->val[0] != lyp->lay_fsid.val[0] ||
+			    fs->val[1] != lyp->lay_fsid.val[1]))
+				continue;
+			if (laytype != lyp->lay_type)
+				continue;
+			if ((iomode & NFSLAYOUTIOMODE_READ) != 0)
+				lyp->lay_flags &= ~NFSLAY_READ;
+			if ((iomode & NFSLAYOUTIOMODE_RW) != 0)
+				lyp->lay_flags &= ~NFSLAY_RW;
+			if ((lyp->lay_flags & (NFSLAY_READ | NFSLAY_RW)) == 0)
+				nfsrv_freelayout(&lhyp->list, lyp);
+		}
+		NFSUNLOCKLAYOUT(lhyp);
+	}
+}
+
+/*
+ * Free all layouts for the argument file.
+ */
+void
+nfsrv_freefilelayouts(fhandle_t *fhp)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+
+	lhyp = NFSLAYOUTHASH(fhp);
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+		if (NFSBCMP(&lyp->lay_fh, fhp, sizeof(*fhp)) == 0)
+			nfsrv_freelayout(&lhyp->list, lyp);
+	}
+	NFSUNLOCKLAYOUT(lhyp);
+}
+
+/*
+ * Free all layouts.
+ */
+static void
+nfsrv_freealllayouts(void)
+{
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	int i;
+
+	for (i = 0; i < nfsrv_layouthashsize; i++) {
+		lhyp = &nfslayouthash[i];
+		NFSLOCKLAYOUT(lhyp);
+		TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp)
+			nfsrv_freelayout(&lhyp->list, lyp);
+		NFSUNLOCKLAYOUT(lhyp);
+	}
+}
+
+/*
+ * Look up the mount path for the DS server.
+ */
+static int
+nfsrv_setdsserver(char *dspathp, NFSPROC_T *p, struct nfsdevice **dsp)
+{
+	struct nameidata nd;
+	struct nfsdevice *ds;
+	int error, i;
+	char *dsdirpath;
+	size_t dsdirsize;
+
+	NFSD_DEBUG(4, "setdssrv path=%s\n", dspathp);
+	*dsp = NULL;
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE,
+	    dspathp, p);
+	error = namei(&nd);
+	NFSD_DEBUG(4, "lookup=%d\n", error);
+	if (error != 0)
+		return (error);
+	if (nd.ni_vp->v_type != VDIR) {
+		vput(nd.ni_vp);
+		NFSD_DEBUG(4, "dspath not dir\n");
+		return (ENOTDIR);
+	}
+	if (strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name, "nfs") != 0) {
+		vput(nd.ni_vp);
+		NFSD_DEBUG(4, "dspath not an NFS mount\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Allocate a DS server structure with the NFS mounted directory
+	 * vnode reference counted, so that a non-forced dismount will
+	 * fail with EBUSY.
+	 */
+	*dsp = ds = malloc(sizeof(*ds) + nfsrv_dsdirsize * sizeof(vnode_t),
+	    M_NFSDSTATE, M_WAITOK | M_ZERO);
+	ds->nfsdev_dvp = nd.ni_vp;
+	ds->nfsdev_nmp = VFSTONFS(nd.ni_vp->v_mount);
+	NFSVOPUNLOCK(nd.ni_vp, 0);
+
+	dsdirsize = strlen(dspathp) + 16;
+	dsdirpath = malloc(dsdirsize, M_TEMP, M_WAITOK);
+	/* Now, create the DS directory structures. */
+	for (i = 0; i < nfsrv_dsdirsize; i++) {
+		snprintf(dsdirpath, dsdirsize, "%s/ds%d", dspathp, i);
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
+		    UIO_SYSSPACE, dsdirpath, p);
+		error = namei(&nd);
+		NFSD_DEBUG(4, "dsdirpath=%s lookup=%d\n", dsdirpath, error);
+		if (error != 0)
+			break;
+		if (nd.ni_vp->v_type != VDIR) {
+			vput(nd.ni_vp);
+			error = ENOTDIR;
+			NFSD_DEBUG(4, "dsdirpath not a VDIR\n");
+			break;
+		}
+		if (strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name, "nfs") != 0) {
+			vput(nd.ni_vp);
+			error = ENXIO;
+			NFSD_DEBUG(4, "dsdirpath not an NFS mount\n");
+			break;
+		}
+		ds->nfsdev_dsdir[i] = nd.ni_vp;
+		NFSVOPUNLOCK(nd.ni_vp, 0);
+	}
+	free(dsdirpath, M_TEMP);
+
+	TAILQ_INSERT_TAIL(&nfsrv_devidhead, ds, nfsdev_list);
+	atomic_add_int(&nfsrv_devidcnt, 1);
+	return (error);
+}
+
+/*
+ * Look up the mount path for the DS server and delete it.
+ */
+int
+nfsrv_deldsserver(char *dspathp, NFSPROC_T *p)
+{
+	struct mount *mp;
+	struct nfsmount *nmp;
+	struct nfsdevice *ds;
+	int error;
+
+	NFSD_DEBUG(4, "deldssrv path=%s\n", dspathp);
+	/*
+	 * Search for the path in the mount list.  Avoid looking the path
+	 * up, since this mount point may be hung, with associated locked
+	 * vnodes, etc.
+	 * Set NFSMNTP_CANCELRPCS so that any forced dismount will be blocked
+	 * until this completes.
+	 * As noted in the man page, this should be done before any forced
+	 * dismount on the mount point, but at least the handshake on
+	 * NFSMNTP_CANCELRPCS should make it safe.
+	 */
+	error = 0;
+	ds = NULL;
+	nmp = NULL;
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		if (strcmp(mp->mnt_stat.f_mntonname, dspathp) == 0 &&
+		    strcmp(mp->mnt_stat.f_fstypename, "nfs") == 0 &&
+		    mp->mnt_data != NULL) {
+			nmp = VFSTONFS(mp);
+			NFSLOCKMNT(nmp);
+			if ((nmp->nm_privflag & (NFSMNTP_FORCEDISM |
+			     NFSMNTP_CANCELRPCS)) == 0) {
+				nmp->nm_privflag |= NFSMNTP_CANCELRPCS;
+				NFSUNLOCKMNT(nmp);
+			} else {
+				NFSUNLOCKMNT(nmp);
+				nmp = NULL;
+			}
+			break;
+		}
+	}
+	mtx_unlock(&mountlist_mtx);
+
+	if (nmp != NULL) {
+		ds = nfsrv_deldsnmp(nmp, p);
+		NFSD_DEBUG(4, "deldsnmp=%p\n", ds);
+		if (ds != NULL) {
+			nfsrv_killrpcs(nmp);
+			NFSD_DEBUG(4, "aft killrpcs\n");
+		} else
+			error = ENXIO;
+		NFSLOCKMNT(nmp);
+		nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
+		wakeup(nmp);
+		NFSUNLOCKMNT(nmp);
+	} else
+		error = EINVAL;
+	return (error);
+}
+
+/*
+ * Search for and remove a DS entry which matches the "nmp" argument.
+ * The nfsdevice structure pointer is returned so that the caller can
+ * free it via nfsrv_freeonedevid().
+ */
+struct nfsdevice *
+nfsrv_deldsnmp(struct nfsmount *nmp, NFSPROC_T *p)
+{
+	struct nfsdevice *fndds;
+
+	NFSD_DEBUG(4, "deldsdvp\n");
+	NFSDDSLOCK();
+	fndds = nfsv4_findmirror(nmp);
+	if (fndds != NULL)
+		nfsrv_deleteds(fndds);
+	NFSDDSUNLOCK();
+	if (fndds != NULL) {
+		nfsrv_flexmirrordel(fndds->nfsdev_deviceid, p);
+		printf("pNFS server: mirror %s failed\n", fndds->nfsdev_host);
+	}
+	return (fndds);
+}
+
+/*
+ * Similar to nfsrv_deldsnmp(), except that the DS is indicated by deviceid.
+ * This function also calls nfsrv_killrpcs() to unblock RPCs on the mount
+ * point.
+ * Also, returns an error instead of the nfsdevice found.
+ */
+static int
+nfsrv_delds(char *devid, NFSPROC_T *p)
+{
+	struct nfsdevice *ds, *fndds;
+	struct nfsmount *nmp;
+	int fndmirror;
+
+	NFSD_DEBUG(4, "delds\n");
+	/*
+	 * Search the DS server list for a match with devid.
+	 * Remove the DS entry if found and there is a mirror.
+	 */
+	fndds = NULL;
+	nmp = NULL;
+	fndmirror = 0;
+	NFSDDSLOCK();
+	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
+		if (NFSBCMP(ds->nfsdev_deviceid, devid, NFSX_V4DEVICEID) == 0 &&
+		    ds->nfsdev_nmp != NULL) {
+			NFSD_DEBUG(4, "fnd main ds\n");
+			fndds = ds;
+		} else if (ds->nfsdev_nmp != NULL)
+			fndmirror = 1;
+		if (fndds != NULL && fndmirror != 0)
+			break;
+	}
+	if (fndds != NULL && fndmirror != 0) {
+		nmp = fndds->nfsdev_nmp;
+		NFSLOCKMNT(nmp);
+		if ((nmp->nm_privflag & (NFSMNTP_FORCEDISM |
+		     NFSMNTP_CANCELRPCS)) == 0) {
+			nmp->nm_privflag |= NFSMNTP_CANCELRPCS;
+			NFSUNLOCKMNT(nmp);
+			nfsrv_deleteds(fndds);
+		} else {
+			NFSUNLOCKMNT(nmp);
+			nmp = NULL;
+		}
+	}
+	NFSDDSUNLOCK();
+	if (fndds != NULL && nmp != NULL) {
+		nfsrv_flexmirrordel(fndds->nfsdev_deviceid, p);
+		printf("pNFS server: mirror %s failed\n", fndds->nfsdev_host);
+		nfsrv_killrpcs(nmp);
+		NFSLOCKMNT(nmp);
+		nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
+		wakeup(nmp);
+		NFSUNLOCKMNT(nmp);
+		return (0);
+	}
+	return (ENXIO);
+}
+
+/*
+ * Mark a DS as disabled by setting nfsdev_nmp = NULL.
+ */
+static void
+nfsrv_deleteds(struct nfsdevice *fndds)
+{
+
+	NFSD_DEBUG(4, "deleteds: deleting a mirror\n");
+	fndds->nfsdev_nmp = NULL;
+}
+
+/*
+ * Fill in the addr structures for the File and Flex File layouts.
+ */
+static void
+nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
+{
+	uint32_t *tl;
+	char *netprot;
+	int addrlen;
+	static uint64_t new_devid = 0;
+
+	if (strchr(addr, ':') != NULL)
+		netprot = "tcp6";
+	else
+		netprot = "tcp";
+
+	/* Fill in the device id. */
+	NFSBCOPY(&nfsdev_time, ds->nfsdev_deviceid, sizeof(nfsdev_time));
+	new_devid++;
+	NFSBCOPY(&new_devid, &ds->nfsdev_deviceid[sizeof(nfsdev_time)],
+	    sizeof(new_devid));
+
+	/*
+	 * Fill in the file addr (actually the nfsv4_file_layout_ds_addr4
+	 * as defined in RFC5661) in XDR.
+	 */
+	addrlen = NFSM_RNDUP(strlen(addr)) + NFSM_RNDUP(strlen(netprot)) +
+	    6 * NFSX_UNSIGNED;
+	NFSD_DEBUG(4, "hn=%s addr=%s netprot=%s\n", dnshost, addr, netprot);
+	ds->nfsdev_fileaddrlen = addrlen;
+	tl = malloc(addrlen, M_NFSDSTATE, M_WAITOK | M_ZERO);
+	ds->nfsdev_fileaddr = (char *)tl;
+	*tl++ = txdr_unsigned(1);		/* One stripe with index 0. */
+	*tl++ = 0;
+	*tl++ = txdr_unsigned(1);		/* One multipath list */
+	*tl++ = txdr_unsigned(1);		/* with one entry in it. */
+	/* The netaddr for this one entry. */
+	*tl++ = txdr_unsigned(strlen(netprot));
+	NFSBCOPY(netprot, tl, strlen(netprot));
+	tl += (NFSM_RNDUP(strlen(netprot)) / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(strlen(addr));
+	NFSBCOPY(addr, tl, strlen(addr));
+
+	/*
+	 * Fill in the flex file addr (actually the ff_device_addr4
+	 * as defined for Flexible File Layout) in XDR.
+	 */
+	addrlen = NFSM_RNDUP(strlen(addr)) + NFSM_RNDUP(strlen(netprot)) +
+	    9 * NFSX_UNSIGNED;
+	ds->nfsdev_flexaddrlen = addrlen;
+	tl = malloc(addrlen, M_NFSDSTATE, M_WAITOK | M_ZERO);
+	ds->nfsdev_flexaddr = (char *)tl;
+	*tl++ = txdr_unsigned(1);		/* One multipath entry. */
+	/* The netaddr for this one entry. */
+	*tl++ = txdr_unsigned(strlen(netprot));
+	NFSBCOPY(netprot, tl, strlen(netprot));
+	tl += (NFSM_RNDUP(strlen(netprot)) / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(strlen(addr));
+	NFSBCOPY(addr, tl, strlen(addr));
+	tl += (NFSM_RNDUP(strlen(addr)) / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(1);		/* One NFS Version. */
+	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
+	*tl++ = txdr_unsigned(NFSV41_MINORVERSION); /* Minor version 1. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max wsize. */
+	*tl = newnfs_true;			/* Tightly coupled. */
+
+	ds->nfsdev_hostnamelen = strlen(dnshost);
+	ds->nfsdev_host = malloc(ds->nfsdev_hostnamelen + 1, M_NFSDSTATE,
+	    M_WAITOK);
+	NFSBCOPY(dnshost, ds->nfsdev_host, ds->nfsdev_hostnamelen + 1);
+}
+
+
+/*
+ * Create the device id list.
+ * Return 0 if the nfsd threads are to run and ENXIO if the "-p" argument
+ * is misconfigured.
+ */
+int
+nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
+{
+	struct nfsdevice *ds;
+	char *addrp, *dnshostp, *dspathp;
+	int error, i;
+
+	addrp = args->addr;
+	dnshostp = args->dnshost;
+	dspathp = args->dspath;
+	nfsrv_maxpnfsmirror = args->mirrorcnt;
+	if (addrp == NULL || dnshostp == NULL || dspathp == NULL)
+		return (0);
+
+	/*
+	 * Loop around for each nul-terminated string in args->addr,
+	 * args->dnshost and args->dnspath.
+	 */
+	while (addrp < (args->addr + args->addrlen) &&
+	    dnshostp < (args->dnshost + args->dnshostlen) &&
+	    dspathp < (args->dspath + args->dspathlen)) {
+		error = nfsrv_setdsserver(dspathp, p, &ds);
+		if (error != 0) {
+			/* Free all DS servers. */
+			nfsrv_freealldevids();
+			nfsrv_devidcnt = 0;
+			return (ENXIO);
+		}
+		nfsrv_allocdevid(ds, addrp, dnshostp);
+		addrp += (strlen(addrp) + 1);
+		dnshostp += (strlen(dnshostp) + 1);
+		dspathp += (strlen(dspathp) + 1);
+	}
+	if (nfsrv_devidcnt < nfsrv_maxpnfsmirror) {
+		/* Free all DS servers. */
+		nfsrv_freealldevids();
+		nfsrv_devidcnt = 0;
+		nfsrv_maxpnfsmirror = 1;
+		return (ENXIO);
+	}
+
+	/*
+	 * Allocate the nfslayout hash table now, since this is a pNFS server.
+	 * Make it 1% of the high water mark and at least 100.
+	 */
+	if (nfslayouthash == NULL) {
+		nfsrv_layouthashsize = nfsrv_layouthighwater / 100;
+		if (nfsrv_layouthashsize < 100)
+			nfsrv_layouthashsize = 100;
+		nfslayouthash = mallocarray(nfsrv_layouthashsize,
+		    sizeof(struct nfslayouthash), M_NFSDSESSION, M_WAITOK |
+		    M_ZERO);
+		for (i = 0; i < nfsrv_layouthashsize; i++) {
+			mtx_init(&nfslayouthash[i].mtx, "nfslm", NULL, MTX_DEF);
+			TAILQ_INIT(&nfslayouthash[i].list);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Free all device ids.
+ */
+static void
+nfsrv_freealldevids(void)
+{
+	struct nfsdevice *ds, *nds;
+
+	TAILQ_FOREACH_SAFE(ds, &nfsrv_devidhead, nfsdev_list, nds)
+		nfsrv_freedevid(ds);
+}
+
+/*
+ * Check to see if there is a Read/Write Layout plus either:
+ * - A Write Delegation
+ * or
+ * - An Open with Write_access.
+ * Return 1 if this is the case and 0 otherwise.
+ * This function is used by nfsrv_proxyds() to decide if doing a Proxy
+ * Getattr RPC to the Data Server (DS) is necessary.
+ */
+#define	NFSCLIDVECSIZE	6
+APPLESTATIC int
+nfsrv_checkdsattr(struct nfsrv_descript *nd, vnode_t vp, NFSPROC_T *p)
+{
+	fhandle_t fh, *tfhp;
+	struct nfsstate *stp;
+	struct nfslayout *lyp;
+	struct nfslayouthash *lhyp;
+	struct nfslockhashhead *hp;
+	struct nfslockfile *lfp;
+	nfsquad_t clid[NFSCLIDVECSIZE];
+	int clidcnt, ret;
+
+	ret = nfsvno_getfh(vp, &fh, p);
+	if (ret != 0)
+		return (0);
+
+	/* First check for a Read/Write Layout. */
+	clidcnt = 0;
+	lhyp = NFSLAYOUTHASH(&fh);
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH(lyp, &lhyp->list, lay_list) {
+		if (NFSBCMP(&lyp->lay_fh, &fh, sizeof(fh)) == 0 &&
+		    ((lyp->lay_flags & NFSLAY_RW) != 0 ||
+		     ((lyp->lay_flags & NFSLAY_READ) != 0 &&
+		      nfsrv_pnfsatime != 0))) {
+			if (clidcnt < NFSCLIDVECSIZE)
+				clid[clidcnt].qval = lyp->lay_clientid.qval;
+			clidcnt++;
+		}
+	}
+	NFSUNLOCKLAYOUT(lhyp);
+	if (clidcnt == 0) {
+		/* None found, so return 0. */
+		return (0);
+	}
+
+	/* Get the nfslockfile for this fh. */
+	NFSLOCKSTATE();
+	hp = NFSLOCKHASH(&fh);
+	LIST_FOREACH(lfp, hp, lf_hash) {
+		tfhp = &lfp->lf_fh;
+		if (NFSVNO_CMPFH(&fh, tfhp))
+			break;
+	}
+	if (lfp == NULL) {
+		/* None found, so return 0. */
+		NFSUNLOCKSTATE();
+		return (0);
+	}
+
+	/* Now, look for a Write delegation for this clientid. */
+	LIST_FOREACH(stp, &lfp->lf_deleg, ls_file) {
+		if ((stp->ls_flags & NFSLCK_DELEGWRITE) != 0 &&
+		    nfsrv_fndclid(clid, stp->ls_clp->lc_clientid, clidcnt) != 0)
+			break;
+	}
+	if (stp != NULL) {
+		/* Found one, so return 1. */
+		NFSUNLOCKSTATE();
+		return (1);
+	}
+
+	/* No Write delegation, so look for an Open with Write_access. */
+	LIST_FOREACH(stp, &lfp->lf_open, ls_file) {
+		KASSERT((stp->ls_flags & NFSLCK_OPEN) != 0,
+		    ("nfsrv_checkdsattr: Non-open in Open list\n"));
+		if ((stp->ls_flags & NFSLCK_WRITEACCESS) != 0 &&
+		    nfsrv_fndclid(clid, stp->ls_clp->lc_clientid, clidcnt) != 0)
+			break;
+	}
+	NFSUNLOCKSTATE();
+	if (stp != NULL)
+		return (1);
+	return (0);
+}
+
+/*
+ * Look for a matching clientid in the vector. Return 1 if one might match.
+ */
+static int
+nfsrv_fndclid(nfsquad_t *clidvec, nfsquad_t clid, int clidcnt)
+{
+	int i;
+
+	/* If too many for the vector, return 1 since there might be a match. */
+	if (clidcnt > NFSCLIDVECSIZE)
+		return (1);
+
+	for (i = 0; i < clidcnt; i++)
+		if (clidvec[i].qval == clid.qval)
+			return (1);
+	return (0);
+}
+
+/*
+ * Check the don't list for "vp" and see if issuing an rw layout is allowed.
+ * Return 1 if issuing an rw layout isn't allowed, 0 otherwise.
+ */
+static int
+nfsrv_dontlayout(fhandle_t *fhp)
+{
+	struct nfsdontlist *mrp;
+	int ret;
+
+	if (nfsrv_dontlistlen == 0)
+		return (0);
+	ret = 0;
+	NFSDDONTLISTLOCK();
+	LIST_FOREACH(mrp, &nfsrv_dontlisthead, nfsmr_list) {
+		if (NFSBCMP(fhp, &mrp->nfsmr_fh, sizeof(*fhp)) == 0 &&
+		    (mrp->nfsmr_flags & NFSMR_DONTLAYOUT) != 0) {
+			ret = 1;
+			break;
+		}
+	}
+	NFSDDONTLISTUNLOCK();
+	return (ret);
+}
+
+#define	PNFSDS_COPYSIZ	65536
+/*
+ * Create a new file on a DS and copy the contents of an extant DS file to it.
+ * This can be used for recovery of a DS file onto a recovered DS.
+ * The steps are:
+ * - When called, the MDS file's vnode is locked, blocking LayoutGet operations.
+ * - Disable issuing of read/write layouts for the file via the nfsdontlist,
+ *   so that they will be disabled after the MDS file's vnode is unlocked.
+ * - Set up the nfsrv_recalllist so that recall of read/write layouts can
+ *   be done.
+ * - Unlock the MDS file's vnode, so that the client(s) can perform proxied
+ *   writes, LayoutCommits and LayoutReturns for the file when completing the
+ *   LayoutReturn requested by the LayoutRecall callback.
+ * - Issue a LayoutRecall callback for all read/write layouts and wait for
+ *   them to be returned. (If the LayoutRecall callback replies
+ *   NFSERR_NOMATCHLAYOUT, they are gone and no LayoutReturn is needed.)
+ * - Exclusively lock the MDS file's vnode.  This ensures that no proxied
+ *   writes are in progress or can occur during the DS file copy.
+ *   It also blocks Setattr operations.
+ * - Create the file on the recovered mirror.
+ * - Copy the file from the operational DS.
+ * - Copy any ACL from the MDS file to the new DS file.
+ * - Set the modify time of the new DS file to that of the MDS file.
+ * - Update the extended attribute for the MDS file.
+ * - Enable issuing of rw layouts by deleting the nfsdontlist entry.
+ * - The caller will unlock the MDS file's vnode allowing operations
+ *   to continue normally, since it is now on the mirror again.
+ */
+int
+nfsrv_copymr(vnode_t vp, vnode_t fvp, vnode_t dvp, struct nfsdevice *ds,
+    struct pnfsdsfile *pf, struct pnfsdsfile *wpf, int mirrorcnt,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsdontlist *mrp, *nmrp;
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	struct nfslayouthead thl;
+	struct mount *mp;
+	struct acl *aclp;
+	struct vattr va;
+	struct timespec mtime;
+	fhandle_t fh;
+	vnode_t tvp;
+	off_t rdpos, wrpos;
+	ssize_t aresid;
+	char *dat;
+	int didprintf, ret, retacl, xfer;
+
+	ASSERT_VOP_LOCKED(fvp, "nfsrv_copymr fvp");
+	ASSERT_VOP_LOCKED(vp, "nfsrv_copymr vp");
+	/*
+	 * Allocate a nfsdontlist entry and set the NFSMR_DONTLAYOUT flag
+	 * so that no more RW layouts will get issued.
+	 */
+	ret = nfsvno_getfh(vp, &fh, p);
+	if (ret != 0) {
+		NFSD_DEBUG(4, "nfsrv_copymr: getfh=%d\n", ret);
+		return (ret);
+	}
+	nmrp = malloc(sizeof(*nmrp), M_NFSDSTATE, M_WAITOK);
+	nmrp->nfsmr_flags = NFSMR_DONTLAYOUT;
+	NFSBCOPY(&fh, &nmrp->nfsmr_fh, sizeof(fh));
+	NFSDDONTLISTLOCK();
+	LIST_FOREACH(mrp, &nfsrv_dontlisthead, nfsmr_list) {
+		if (NFSBCMP(&fh, &mrp->nfsmr_fh, sizeof(fh)) == 0)
+			break;
+	}
+	if (mrp == NULL) {
+		LIST_INSERT_HEAD(&nfsrv_dontlisthead, nmrp, nfsmr_list);
+		mrp = nmrp;
+		nmrp = NULL;
+		nfsrv_dontlistlen++;
+		NFSD_DEBUG(4, "nfsrv_copymr: in dontlist\n");
+	} else {
+		NFSDDONTLISTUNLOCK();
+		free(nmrp, M_NFSDSTATE);
+		NFSD_DEBUG(4, "nfsrv_copymr: dup dontlist\n");
+		return (ENXIO);
+	}
+	NFSDDONTLISTUNLOCK();
+
+	/*
+	 * Search for all RW layouts for this file.  Move them to the
+	 * recall list, so they can be recalled and their return noted.
+	 */
+	lhyp = NFSLAYOUTHASH(&fh);
+	NFSDRECALLLOCK();
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+		if (NFSBCMP(&lyp->lay_fh, &fh, sizeof(fh)) == 0 &&
+		    (lyp->lay_flags & NFSLAY_RW) != 0) {
+			TAILQ_REMOVE(&lhyp->list, lyp, lay_list);
+			TAILQ_INSERT_HEAD(&nfsrv_recalllisthead, lyp, lay_list);
+			lyp->lay_trycnt = 0;
+		}
+	}
+	NFSUNLOCKLAYOUT(lhyp);
+	NFSDRECALLUNLOCK();
+
+	ret = 0;
+	didprintf = 0;
+	TAILQ_INIT(&thl);
+	/* Unlock the MDS vp, so that a LayoutReturn can be done on it. */
+	NFSVOPUNLOCK(vp, 0);
+	/* Now, do a recall for all layouts not yet recalled. */
+tryagain:
+	NFSDRECALLLOCK();
+	TAILQ_FOREACH(lyp, &nfsrv_recalllisthead, lay_list) {
+		if (NFSBCMP(&lyp->lay_fh, &fh, sizeof(fh)) == 0 &&
+		    (lyp->lay_flags & NFSLAY_RECALL) == 0) {
+			lyp->lay_flags |= NFSLAY_RECALL;
+			/*
+			 * The layout stateid.seqid needs to be incremented
+			 * before doing a LAYOUT_RECALL callback.
+			 */
+			if (++lyp->lay_stateid.seqid == 0)
+				lyp->lay_stateid.seqid = 1;
+			NFSDRECALLUNLOCK();
+			nfsrv_recalllayout(lyp->lay_clientid, &lyp->lay_stateid,
+			    &lyp->lay_fh, lyp, &nfsrv_recalllisthead,
+			    lyp->lay_type, p);
+			NFSD_DEBUG(4, "nfsrv_copymr: recalled layout\n");
+			goto tryagain;
+		}
+	}
+
+	/* Now wait for them to be returned. */
+tryagain2:
+	TAILQ_FOREACH(lyp, &nfsrv_recalllisthead, lay_list) {
+		if (NFSBCMP(&lyp->lay_fh, &fh, sizeof(fh)) == 0) {
+			if ((lyp->lay_flags & NFSLAY_RETURNED) != 0) {
+				TAILQ_REMOVE(&nfsrv_recalllisthead, lyp,
+				    lay_list);
+				TAILQ_INSERT_HEAD(&thl, lyp, lay_list);
+				NFSD_DEBUG(4,
+				    "nfsrv_copymr: layout returned\n");
+			} else {
+				ret = mtx_sleep(lyp, NFSDRECALLMUTEXPTR,
+				    PVFS | PCATCH, "nfsmrl", hz);
+				NFSD_DEBUG(4, "nfsrv_copymr: aft sleep=%d\n",
+				    ret);
+				if (ret == EINTR || ret == ERESTART)
+					break;
+				if ((lyp->lay_flags & NFSLAY_RETURNED) == 0 &&
+				    didprintf == 0) {
+					printf("nfsrv_copymr: layout not "
+					    "returned\n");
+					didprintf = 1;
+				}
+			}
+			goto tryagain2;
+		}
+	}
+	NFSDRECALLUNLOCK();
+	/* We can now get rid of the layouts that have been returned. */
+	TAILQ_FOREACH_SAFE(lyp, &thl, lay_list, nlyp)
+		nfsrv_freelayout(&thl, lyp);
+
+	/*
+	 * LK_EXCLUSIVE lock the MDS vnode, so that any
+	 * proxied writes through the MDS will be blocked until we have
+	 * completed the copy and update of the extended attributes.
+	 * This will also ensure that any attributes and ACL will not be
+	 * changed until the copy is complete.
+	 */
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+	if ((vp->v_iflag & VI_DOOMED) != 0) {
+		NFSD_DEBUG(4, "nfsrv_copymr: lk_exclusive doomed\n");
+		ret = ESTALE;
+	}
+
+	/* Create the data file on the recovered DS. */
+	if (ret == 0)
+		ret = nfsrv_createdsfile(vp, &fh, pf, dvp, ds, cred, p, &tvp);
+
+	/* Copy the DS file, if created successfully. */
+	if (ret == 0) {
+		/*
+		 * Get any NFSv4 ACL on the MDS file, so that it can be set
+		 * on the new DS file.
+		 */
+		aclp = acl_alloc(M_WAITOK | M_ZERO);
+		retacl = VOP_GETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
+		if (retacl != 0 && retacl != ENOATTR)
+			NFSD_DEBUG(1, "nfsrv_copymr: vop_getacl=%d\n", retacl);
+		dat = malloc(PNFSDS_COPYSIZ, M_TEMP, M_WAITOK);
+		rdpos = wrpos = 0;
+		mp = NULL;
+		ret = vn_start_write(tvp, &mp, V_WAIT | PCATCH);
+		aresid = 0;
+		while (ret == 0 && aresid == 0) {
+			ret = vn_rdwr(UIO_READ, fvp, dat, PNFSDS_COPYSIZ,
+			    rdpos, UIO_SYSSPACE, IO_NODELOCKED, cred, NULL,
+			    &aresid, p);
+			xfer = PNFSDS_COPYSIZ - aresid;
+			if (ret == 0 && xfer > 0) {
+				rdpos += xfer;
+				ret = vn_rdwr(UIO_WRITE, tvp, dat, xfer,
+				    wrpos, UIO_SYSSPACE, IO_NODELOCKED,
+				    cred, NULL, NULL, p);
+				if (ret == 0)
+					wrpos += xfer;
+			}
+		}
+
+		/* If there is an ACL and the copy succeeded, set the ACL. */
+		if (ret == 0 && retacl == 0) {
+			ret = VOP_SETACL(tvp, ACL_TYPE_NFS4, aclp, cred, p);
+			/*
+			 * Don't consider these as errors, since VOP_GETACL()
+			 * can return an ACL when they are not actually
+			 * supported.  For example, for UFS, VOP_GETACL()
+			 * will return a trivial ACL based on the uid/gid/mode
+			 * when there is no ACL on the file.
+			 * This case should be recognized as a trivial ACL
+			 * by UFS's VOP_SETACL() and succeed, but...
+			 */
+			if (ret == ENOATTR || ret == EOPNOTSUPP || ret == EPERM)
+				ret = 0;
+		}
+
+		if (mp != NULL)
+			vn_finished_write(mp);
+		if (ret == 0)
+			ret = VOP_FSYNC(tvp, MNT_WAIT, p);
+
+		/* Set the DS data file's modify time that of the MDS file. */
+		if (ret == 0)
+			ret = VOP_GETATTR(vp, &va, cred);
+		if (ret == 0) {
+			mtime = va.va_mtime;
+			VATTR_NULL(&va);
+			va.va_mtime = mtime;
+			ret = VOP_SETATTR(tvp, &va, cred);
+		}
+
+		vput(tvp);
+		acl_free(aclp);
+		free(dat, M_TEMP);
+	}
+
+	/* Update the extended attributes for the newly created DS file. */
+	if (ret == 0) {
+		mp = NULL;
+		ret = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (ret == 0)
+			ret = vn_extattr_set(vp, IO_NODELOCKED,
+			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
+			    sizeof(*wpf) * mirrorcnt, (char *)wpf, p);
+		if (mp != NULL)
+			vn_finished_write(mp);
+	}
+
+	/* Get rid of the dontlist entry, so that Layouts can be issued. */
+	NFSDDONTLISTLOCK();
+	LIST_REMOVE(mrp, nfsmr_list);
+	NFSDDONTLISTUNLOCK();
+	free(mrp, M_NFSDSTATE);
+	return (ret);
+}
+
+/*
+ * Create a data storage file on the recovered DS.
+ */
+static int
+nfsrv_createdsfile(vnode_t vp, fhandle_t *fhp, struct pnfsdsfile *pf,
+    vnode_t dvp, struct nfsdevice *ds, struct ucred *cred, NFSPROC_T *p,
+    vnode_t *tvpp)
+{
+	struct vattr va, nva;
+	int error;
+
+	/* Make data file name based on FH. */
+	error = VOP_GETATTR(vp, &va, cred);
+	if (error == 0) {
+		/* Set the attributes for "vp" to Setattr the DS vp. */
+		VATTR_NULL(&nva);
+		nva.va_uid = va.va_uid;
+		nva.va_gid = va.va_gid;
+		nva.va_mode = va.va_mode;
+		nva.va_size = 0;
+		VATTR_NULL(&va);
+		va.va_type = VREG;
+		va.va_mode = nva.va_mode;
+		NFSD_DEBUG(4, "nfsrv_dscreatefile: dvp=%p pf=%p\n", dvp, pf);
+		error = nfsrv_dscreate(dvp, &va, &nva, fhp, pf, NULL,
+		    pf->dsf_filename, cred, p, tvpp);
+	}
+	return (error);
+}
+
+/*
+ * Look up the MDS file shared locked, and then get the extended attribute
+ * to find the extant DS file to be copied to the new mirror.
+ * If successful, *vpp is set to the MDS file's vp and *nvpp is
+ * set to a DS data file for the MDS file, both exclusively locked.
+ * The "buf" argument has the pnfsdsfile structure from the MDS file
+ * in it and buflen is set to its length.
+ */
+int
+nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
+    int *buflenp, char *fname, NFSPROC_T *p, struct vnode **vpp,
+    struct vnode **nvpp, struct pnfsdsfile **pfp, struct nfsdevice **dsp,
+    struct nfsdevice **fdsp)
+{
+	struct nameidata nd;
+	struct vnode *vp, *curvp;
+	struct pnfsdsfile *pf;
+	struct nfsmount *nmp, *curnmp;
+	int dsdir, error, mirrorcnt, ippos;
+
+	vp = NULL;
+	curvp = NULL;
+	curnmp = NULL;
+	*dsp = NULL;
+	*fdsp = NULL;
+	if (dspathp == NULL && curdspathp != NULL)
+		return (EPERM);
+
+	/*
+	 * Look up the MDS file shared locked.  The lock will be upgraded
+	 * to an exclusive lock after any rw layouts have been returned.
+	 */
+	NFSD_DEBUG(4, "mdsopen path=%s\n", mdspathp);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE,
+	    mdspathp, p);
+	error = namei(&nd);
+	NFSD_DEBUG(4, "lookup=%d\n", error);
+	if (error != 0)
+		return (error);
+	if (nd.ni_vp->v_type != VREG) {
+		vput(nd.ni_vp);
+		NFSD_DEBUG(4, "mdspath not reg\n");
+		return (EISDIR);
+	}
+	vp = nd.ni_vp;
+
+	if (curdspathp != NULL) {
+		/*
+		 * Look up the current DS path and find the nfsdev structure for
+		 * it.
+		 */
+		NFSD_DEBUG(4, "curmdsdev path=%s\n", curdspathp);
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
+		    UIO_SYSSPACE, curdspathp, p);
+		error = namei(&nd);
+		NFSD_DEBUG(4, "ds lookup=%d\n", error);
+		if (error != 0) {
+			vput(vp);
+			return (error);
+		}
+		if (nd.ni_vp->v_type != VDIR) {
+			vput(nd.ni_vp);
+			vput(vp);
+			NFSD_DEBUG(4, "curdspath not dir\n");
+			return (ENOTDIR);
+		}
+		if (strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name, "nfs") != 0) {
+			vput(nd.ni_vp);
+			vput(vp);
+			NFSD_DEBUG(4, "curdspath not an NFS mount\n");
+			return (ENXIO);
+		}
+		curnmp = VFSTONFS(nd.ni_vp->v_mount);
+	
+		/* Search the nfsdev list for a match. */
+		NFSDDSLOCK();
+		*fdsp = nfsv4_findmirror(curnmp);
+		NFSDDSUNLOCK();
+		if (*fdsp == NULL)
+			curnmp = NULL;
+		if (curnmp == NULL) {
+			vput(nd.ni_vp);
+			vput(vp);
+			NFSD_DEBUG(4, "mdscopymr: no current ds\n");
+			return (ENXIO);
+		}
+		curvp = nd.ni_vp;
+	}
+
+	if (dspathp != NULL) {
+		/* Look up the nfsdev path and find the nfsdev structure. */
+		NFSD_DEBUG(4, "mdsdev path=%s\n", dspathp);
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
+		    UIO_SYSSPACE, dspathp, p);
+		error = namei(&nd);
+		NFSD_DEBUG(4, "ds lookup=%d\n", error);
+		if (error != 0) {
+			vput(vp);
+			if (curvp != NULL)
+				vput(curvp);
+			return (error);
+		}
+		if (nd.ni_vp->v_type != VDIR || nd.ni_vp == curvp) {
+			vput(nd.ni_vp);
+			vput(vp);
+			if (curvp != NULL)
+				vput(curvp);
+			NFSD_DEBUG(4, "dspath not dir\n");
+			if (nd.ni_vp == curvp)
+				return (EPERM);
+			return (ENOTDIR);
+		}
+		if (strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name, "nfs") != 0) {
+			vput(nd.ni_vp);
+			vput(vp);
+			if (curvp != NULL)
+				vput(curvp);
+			NFSD_DEBUG(4, "dspath not an NFS mount\n");
+			return (ENXIO);
+		}
+		nmp = VFSTONFS(nd.ni_vp->v_mount);
+	
+		/* Search the nfsdev list for a match. */
+		NFSDDSLOCK();
+		*dsp = nfsv4_findmirror(nmp);
+		NFSDDSUNLOCK();
+		if (*dsp == NULL) {
+			vput(nd.ni_vp);
+			vput(vp);
+			if (curvp != NULL)
+				vput(curvp);
+			NFSD_DEBUG(4, "mdscopymr: no ds\n");
+			return (ENXIO);
+		}
+	} else {
+		nd.ni_vp = NULL;
+		nmp = NULL;
+	}
+
+	/*
+	 * Get a vp for an available DS data file using the extended
+	 * attribute on the MDS file.
+	 * If there is a valid entry for the new DS in the extended attribute
+	 * on the MDS file (as checked via the nmp argument),
+	 * nfsrv_dsgetsockmnt() returns EEXIST, so no copying will occur.
+	 */
+	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflenp, &mirrorcnt, p,
+	    NULL, NULL, NULL, fname, nvpp, &nmp, curnmp, &ippos, &dsdir);
+	if (curvp != NULL)
+		vput(curvp);
+	if (nd.ni_vp == NULL) {
+		if (error == 0 && nmp != NULL) {
+			/* Search the nfsdev list for a match. */
+			NFSDDSLOCK();
+			*dsp = nfsv4_findmirror(nmp);
+			NFSDDSUNLOCK();
+		}
+		if (error == 0 && (nmp == NULL || *dsp == NULL)) {
+			if (nvpp != NULL && *nvpp != NULL) {
+				vput(*nvpp);
+				*nvpp = NULL;
+			}
+			error = ENXIO;
+		}
+	} else
+		vput(nd.ni_vp);
+
+	/*
+	 * When dspathp != NULL and curdspathp == NULL, this is a recovery
+	 * and is only allowed if there is a 0.0.0.0 IP address entry.
+	 * When curdspathp != NULL, the ippos will be set to that entry.
+	 */
+	if (error == 0 && dspathp != NULL && ippos == -1) {
+		if (nvpp != NULL && *nvpp != NULL) {
+			vput(*nvpp);
+			*nvpp = NULL;
+		}
+		error = ENXIO;
+	}
+	if (error == 0) {
+		*vpp = vp;
+
+		pf = (struct pnfsdsfile *)buf;
+		if (ippos == -1) {
+			/* If no zeroip pnfsdsfile, add one. */
+			ippos = *buflenp / sizeof(*pf);
+			*buflenp += sizeof(*pf);
+			pf += ippos;
+			pf->dsf_dir = dsdir;
+			strlcpy(pf->dsf_filename, fname,
+			    sizeof(pf->dsf_filename));
+		} else
+			pf += ippos;
+		*pfp = pf;
+	} else
+		vput(vp);
+	return (error);
 }
 

@@ -86,6 +86,7 @@ extern int nfs_numnfscbd;
 extern int nfscl_inited;
 struct mtx ncl_iod_mutex;
 NFSDLOCKMUTEX;
+extern struct mtx nfsrv_dslock_mtx;
 
 extern void (*ncl_call_invalcaches)(struct vnode *);
 
@@ -930,7 +931,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
 		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
-		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
+		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
 		break;
 	}
 }
@@ -1383,6 +1384,13 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 				    0 && strcmp(mp->mnt_stat.f_fstypename,
 				    "nfs") == 0 && mp->mnt_data != NULL) {
 					nmp = VFSTONFS(mp);
+					NFSDDSLOCK();
+					if (nfsv4_findmirror(nmp) != NULL) {
+						NFSDDSUNLOCK();
+						error = ENXIO;
+						nmp = NULL;
+						break;
+					}
 					mtx_lock(&nmp->nm_mtx);
 					if ((nmp->nm_privflag &
 					    NFSMNTP_FORCEDISM) == 0) {
@@ -1394,6 +1402,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 						mtx_unlock(&nmp->nm_mtx);
 						nmp = NULL;
 					}
+					NFSDDSUNLOCK();
 					break;
 				}
 			}
@@ -1418,7 +1427,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 				nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
 				wakeup(nmp);
 				mtx_unlock(&nmp->nm_mtx);
-			} else
+			} else if (error == 0)
 				error = EINVAL;
 		}
 		free(buf, M_TEMP);

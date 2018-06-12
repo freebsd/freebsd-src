@@ -57,6 +57,8 @@ extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
 
 char nfs_v2pubfh[NFSX_V2FH];
+struct nfsdontlisthead nfsrv_dontlisthead;
+struct nfslayouthead nfsrv_recalllisthead;
 static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
     NFNON, NFCHR, NFNON };
 extern nfstype nfsv34_type[9];
@@ -1443,7 +1445,14 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			nd->nd_flag |= ND_PUBLOOKUP;
 			goto nfsmout;
 		}
-		if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
+		copylen = len;
+
+		/* If len == NFSX_V4PNFSFH the RPC is a pNFS DS one. */
+		if (len == NFSX_V4PNFSFH && (nd->nd_flag & ND_NFSV41) != 0) {
+			copylen = NFSX_MYFH;
+			len = NFSM_RNDUP(len);
+			nd->nd_flag |= ND_DSSERVER;
+		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
@@ -1460,7 +1469,6 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 				goto nfsmout;
 			}
 		}
-		copylen = len;
 	} else {
 		/*
 		 * For NFSv2, the file handle is always 32 bytes on the
@@ -2054,6 +2062,8 @@ nfsd_init(void)
 		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
 	}
+	LIST_INIT(&nfsrv_dontlisthead);
+	TAILQ_INIT(&nfsrv_recalllisthead);
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);
