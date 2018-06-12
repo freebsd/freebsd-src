@@ -1569,6 +1569,45 @@ in_pcblist_rele_rlocked(epoch_context_t ctx)
 	free(il, M_TEMP);
 }
 
+static void
+in_pcbfree_deferred(epoch_context_t ctx)
+{
+	struct inpcb *inp;
+	struct inpcbinfo *pcbinfo;
+	int released __unused;
+
+	inp = __containerof(ctx, struct inpcb, inp_epoch_ctx);
+	pcbinfo = inp->inp_pcbinfo;
+
+	INP_WLOCK(inp);
+#ifdef INET
+	inp_freemoptions(inp->inp_moptions);
+	inp->inp_moptions = NULL;
+#endif
+	/* XXXRW: Do as much as possible here. */
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (inp->inp_sp != NULL)
+		ipsec_delete_pcbpolicy(inp);
+#endif
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		ip6_freepcbopts(inp->in6p_outputopts);
+		ip6_freemoptions(inp->in6p_moptions);
+		inp->in6p_moptions = NULL;
+	}
+#endif
+	if (inp->inp_options)
+		(void)m_free(inp->inp_options);
+
+	inp->inp_vflag = 0;
+	crfree(inp->inp_cred);
+#ifdef MAC
+	mac_inpcb_destroy(inp);
+#endif
+	released = in_pcbrele_wlocked(inp);
+	MPASS(released);
+}
+
 /*
  * Unconditionally schedule an inpcb to be freed by decrementing its
  * reference count, which should occur only after the inpcb has been detached
@@ -1583,14 +1622,7 @@ in_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
-#ifdef INET6
-	struct ip6_moptions *im6o = NULL;
-#endif
-#ifdef INET
-	struct ip_moptions *imo = NULL;
-#endif
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
 	KASSERT((inp->inp_flags2 & INP_FREED) == 0,
 	    ("%s: called twice for pcb %p", __func__, inp));
 	if (inp->inp_flags2 & INP_FREED) {
@@ -1606,45 +1638,14 @@ in_pcbfree(struct inpcb *inp)
 	}
 #endif
 	INP_WLOCK_ASSERT(inp);
-
-#ifdef INET
-	imo = inp->inp_moptions;
-	inp->inp_moptions = NULL;
-#endif
-	/* XXXRW: Do as much as possible here. */
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	if (inp->inp_sp != NULL)
-		ipsec_delete_pcbpolicy(inp);
-#endif
 	INP_LIST_WLOCK(pcbinfo);
-	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	in_pcbremlists(inp);
 	INP_LIST_WUNLOCK(pcbinfo);
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6PROTO) {
-		ip6_freepcbopts(inp->in6p_outputopts);
-		im6o = inp->in6p_moptions;
-		inp->in6p_moptions = NULL;
-	}
-#endif
-	if (inp->inp_options)
-		(void)m_free(inp->inp_options);
 	RO_INVALIDATE_CACHE(&inp->inp_route);
-
-	inp->inp_vflag = 0;
+	/* mark as destruction in progress */
 	inp->inp_flags2 |= INP_FREED;
-	crfree(inp->inp_cred);
-#ifdef MAC
-	mac_inpcb_destroy(inp);
-#endif
-#ifdef INET6
-	ip6_freemoptions(im6o);
-#endif
-#ifdef INET
-	inp_freemoptions(imo);
-#endif
-	if (!in_pcbrele_wlocked(inp))
-		INP_WUNLOCK(inp);
+	INP_WUNLOCK(inp);
+	epoch_call(net_epoch_preempt, &inp->inp_epoch_ctx, in_pcbfree_deferred);
 }
 
 /*
