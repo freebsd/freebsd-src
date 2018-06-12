@@ -70,8 +70,6 @@ struct riscv_timer_softc {
 	void			*ih;
 	uint32_t		clkfreq;
 	struct eventtimer	et;
-	int			intr_rid;
-	struct resource		*intr_res;
 };
 
 static struct riscv_timer_softc *riscv_timer_sc = NULL;
@@ -188,18 +186,9 @@ riscv_timer_attach(device_t dev)
 
 	riscv_timer_sc = sc;
 
-	sc->intr_rid = 0;
-	sc->intr_res = bus_alloc_resource(dev,
-	    SYS_RES_IRQ, &sc->intr_rid, IRQ_TIMER_SUPERVISOR,
-	    IRQ_TIMER_SUPERVISOR, 1, RF_ACTIVE);
-	if (sc->intr_res == NULL) {
-		device_printf(dev, "failed to allocate irq\n");
-		return (ENXIO);
-	}
-
 	/* Setup IRQs handler */
-	error = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
-	    riscv_timer_intr, NULL, sc, &sc->ih);
+	error = riscv_setup_intr(device_get_nameunit(dev), riscv_timer_intr,
+	    NULL, sc, IRQ_TIMER_SUPERVISOR, INTR_TYPE_CLK, &sc->ih);
 	if (error) {
 		device_printf(dev, "Unable to alloc int resource.\n");
 		return (ENXIO);

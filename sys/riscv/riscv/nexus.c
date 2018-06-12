@@ -38,6 +38,7 @@
  * ISA code but it's easier to do it here for now), I/O port addresses,
  * and I/O memory address space.
  */
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -48,22 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
 
-#include <machine/vmparam.h>
-#include <machine/pcb.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
+#include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include "opt_platform.h"
-
-#include <dev/fdt/fdt_common.h>
+#ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include "ofw_bus_if.h"
+#endif
 
 extern struct bus_space memmap_bus;
 
@@ -265,7 +262,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (riscv_config_intr(irq, trig, pol));
+	return (EOPNOTSUPP);
 }
 
 static int
@@ -282,8 +279,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	if (error)
 		return (error);
 
-	error = riscv_setup_intr(device_get_nameunit(child), filt, intr,
-	    arg, rman_get_start(res), flags, cookiep);
+	error = intr_setup_irq(child, res, filt, intr, arg, flags, cookiep);
 
 	return (error);
 }
@@ -292,7 +288,7 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-	return (riscv_teardown_intr(ih));
+	return (intr_teardown_irq(child, r, ih));
 }
 
 static int
@@ -321,7 +317,14 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_bustag(r, &memmap_bus);
 		rman_set_virtual(r, (void *)vaddr);
 		rman_set_bushandle(r, vaddr);
+	} else if (type == SYS_RES_IRQ) {
+		err = intr_activate_irq(child, r);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
 	}
+
 	return (0);
 }
 
@@ -375,16 +378,17 @@ static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
-	int irq;
+	struct intr_map_data_fdt *fdt_data;
+	size_t len;
+	u_int irq;
 
-	if (icells == 3) {
-		irq = intr[1];
-		if (intr[0] == 0)
-			irq += 32; /* SPI */
-		else
-			irq += 16; /* PPI */
-	} else
-		irq = intr[0];
+	len = sizeof(*fdt_data) + icells * sizeof(pcell_t);
+	fdt_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
+	    INTR_MAP_DATA_FDT, len, M_WAITOK | M_ZERO);
+	fdt_data->iparent = iparent;
+	fdt_data->ncells = icells;
+	memcpy(fdt_data->cells, intr, icells * sizeof(pcell_t));
+	irq = intr_map_irq(NULL, iparent, (struct intr_map_data *)fdt_data);
 
 	return (irq);
 }
