@@ -260,6 +260,12 @@
 #define	NFSX_V4SETTIME		(NFSX_UNSIGNED + NFSX_V4TIME)
 #define	NFSX_V4SESSIONID	16
 #define	NFSX_V4DEVICEID		16
+#define	NFSX_V4PNFSFH		(sizeof(fhandle_t) + 1)
+#define	NFSX_V4FILELAYOUT	(4 * NFSX_UNSIGNED + NFSX_V4DEVICEID +	\
+				 NFSX_HYPER + NFSM_RNDUP(NFSX_V4PNFSFH))
+#define	NFSX_V4FLEXLAYOUT(m)	(NFSX_HYPER + 3 * NFSX_UNSIGNED +		\
+    ((m) * (NFSX_V4DEVICEID + NFSX_STATEID + NFSM_RNDUP(NFSX_V4PNFSFH) +	\
+    8 * NFSX_UNSIGNED)))
 
 /* sizes common to multiple NFS versions */
 #define	NFSX_FHMAX		(NFSX_V4FHMAX)
@@ -272,6 +278,11 @@
 /* variants for multiple versions */
 #define	NFSX_STATFS(v3)		((v3) ? NFSX_V3STATFS : NFSX_V2STATFS)
 
+/*
+ * Beware.  NFSPROC_NULL and friends are defined in
+ * <rpcsvc/nfs_prot.h> as well and the numbers are different.
+ */
+#ifndef	NFSPROC_NULL
 /* nfs rpc procedure numbers (before version mapping) */
 #define	NFSPROC_NULL		0
 #define	NFSPROC_GETATTR		1
@@ -295,6 +306,7 @@
 #define	NFSPROC_FSINFO		19
 #define	NFSPROC_PATHCONF	20
 #define	NFSPROC_COMMIT		21
+#endif	/* NFSPROC_NULL */
 
 /*
  * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
@@ -652,6 +664,7 @@
 /* Flags for File Layout. */
 #define	NFSFLAYUTIL_DENSE		0x1
 #define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
+#define	NFSFLAYUTIL_STRIPE_MASK		0xffffffc0
 
 /* Flags for Flex File Layout. */
 #define	NFSFLEXFLAG_NO_LAYOUTCOMMIT	0x00000001
@@ -668,6 +681,7 @@
 #define	NFSCDFS4_BACK		0x2
 #define	NFSCDFS4_BOTH		0x3
 
+#if defined(_KERNEL) || defined(KERNEL)
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\
 		txdr_unsigned(((t) == VFIFO) ? MAKEIMODE(VCHR, (m)) : 	\
@@ -819,6 +833,7 @@ struct nfsv3_sattr {
 	u_int32_t sa_mtimetype;
 	nfstime3  sa_mtime;
 };
+#endif	/* _KERNEL */
 
 /*
  * The attribute bits used for V4.
@@ -1046,7 +1061,8 @@ struct nfsv3_sattr {
  	NFSATTRBM_MOUNTEDONFILEID |					\
 	NFSATTRBM_QUOTAHARD |                        			\
     	NFSATTRBM_QUOTASOFT |                        			\
-    	NFSATTRBM_QUOTAUSED)
+    	NFSATTRBM_QUOTAUSED |						\
+	NFSATTRBM_FSLAYOUTTYPE)
 
 
 #ifdef QUOTA
@@ -1062,7 +1078,11 @@ struct nfsv3_sattr {
 #define	NFSATTRBIT_SUPP1	NFSATTRBIT_S1
 #endif
 
-#define	NFSATTRBIT_SUPP2	NFSATTRBM_SUPPATTREXCLCREAT
+#define	NFSATTRBIT_SUPP2						\
+	(NFSATTRBM_LAYOUTTYPE |						\
+	NFSATTRBM_LAYOUTBLKSIZE |					\
+	NFSATTRBM_LAYOUTALIGNMENT |					\
+	NFSATTRBM_SUPPATTREXCLCREAT)
 
 /*
  * NFSATTRBIT_SUPPSETONLY is the OR of NFSATTRBIT_TIMEACCESSSET and
@@ -1378,5 +1398,15 @@ struct nfsv4stateid {
 	u_int32_t	other[NFSX_STATEIDOTHER / NFSX_UNSIGNED];
 };
 typedef struct nfsv4stateid nfsv4stateid_t;
+
+/* Notify bits and notify bitmap size. */
+#define	NFSV4NOTIFY_CHANGE	1
+#define	NFSV4NOTIFY_DELETE	2
+#define	NFSV4_NOTIFYBITMAP	1	/* # of 32bit values needed for bits */
+
+/* Layoutreturn kinds. */
+#define	NFSV4LAYOUTRET_FILE	1
+#define	NFSV4LAYOUTRET_FSID	2
+#define	NFSV4LAYOUTRET_ALL	3
 
 #endif	/* _NFS_NFSPROTO_H_ */
