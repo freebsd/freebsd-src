@@ -872,8 +872,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	init_param2(physmem);
 	kdb_init();
 
-	riscv_init_interrupts();
-
 	early_boot = 0;
 }
 

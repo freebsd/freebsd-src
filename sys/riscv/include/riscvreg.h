@@ -137,6 +137,8 @@
 #define	SIE_SSIE	(1 << 1)
 #define	SIE_UTIE	(1 << 4)
 #define	SIE_STIE	(1 << 5)
+#define	SIE_UEIE	(1 << 8)
+#define	SIE_SEIE	(1 << 9)
 
 #define	MIP_SEIP	(1 << 9)
 

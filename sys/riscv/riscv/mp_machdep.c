@@ -256,6 +256,9 @@ init_secondary(uint64_t cpu)
 	/* Enable interrupts */
 	intr_enable();
 
+	/* Enable external (PLIC) interrupts */
+	csr_set(sie, SIE_SEIE);
+
 	mtx_lock_spin(&ap_boot_mtx);
 
 	atomic_add_rel_32(&smp_cpus, 1);
