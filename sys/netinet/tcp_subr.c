@@ -947,7 +947,7 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 			INP_INFO_WLOCK(&V_tcbinfo);
-			LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
+			CK_LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
 				INP_WLOCK(inp);
 				if (inp->inp_flags & INP_TIMEWAIT) {
 					INP_WUNLOCK(inp);
@@ -1717,7 +1717,7 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 		 * therefore don't enter the loop below until the connection
 		 * list has stabilised.
 		 */
-		LIST_FOREACH(inp, &V_tcb, inp_list) {
+		CK_LIST_FOREACH(inp, &V_tcb, inp_list) {
 			INP_WLOCK(inp);
 			/* Important to skip tcptw structs. */
 			if (!(inp->inp_flags & INP_TIMEWAIT) &&
@@ -2018,7 +2018,7 @@ tcp_drain(void)
 	 *	useful.
 	 */
 		INP_INFO_WLOCK(&V_tcbinfo);
-		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
+		CK_LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
 			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
 			INP_WLOCK(inpb);
@@ -2155,8 +2155,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	inp_list = il->il_inp_list;
 
 	INP_INFO_WLOCK(&V_tcbinfo);
-	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
-	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
+	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
+	    inp != NULL && i < n; inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
