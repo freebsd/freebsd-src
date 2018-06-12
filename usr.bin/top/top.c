@@ -925,7 +925,7 @@ restart:
 				new_message(MT_standout, "Seconds to delay: ");
 				if ((i = readline(tempbuf1, 8, true)) > -1)
 				{
-				    if ((delay = i) == 0 && getuid() != 0)
+				    if ((delay = i) == 0)
 				    {
 					delay = 1;
 				    }
@@ -1034,8 +1034,7 @@ restart:
 				putchar('\r');
 				break;
 			    case CMD_viewtog:
-				if (++displaymode == DISP_MAX)
-					displaymode = 0;
+				displaymode = displaymode == DISP_IO ? DISP_CPU : DISP_IO;
 				header_text = format_header(uname_field);
 				display_header(true);
 				d_header = i_header;
