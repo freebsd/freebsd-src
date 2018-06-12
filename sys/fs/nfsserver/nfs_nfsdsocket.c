@@ -52,6 +52,8 @@ extern struct nfsclienthashhead *nfsclienthash;
 extern int nfsrv_clienthashsize;
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
 extern int nfsd_debuglevel;
+extern int nfsrv_layouthighwater;
+extern volatile int nfsrv_layoutcnt;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
@@ -184,11 +186,11 @@ int (*nfsrv4_ops0[NFSV41_NOPS])(struct nfsrv_descript *,
 	nfsrvd_destroysession,
 	nfsrvd_freestateid,
 	nfsrvd_notsupp,
+	nfsrvd_getdevinfo,
 	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
+	nfsrvd_layoutcommit,
+	nfsrvd_layoutget,
+	nfsrvd_layoutreturn,
 	nfsrvd_notsupp,
 	nfsrvd_sequence,
 	nfsrvd_notsupp,
@@ -727,6 +729,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		nfsrv_throwawayopens(p);
 	}
 
+	/* Do a CBLAYOUTRECALL callback if over the high water mark. */
+	if (nfsrv_layoutcnt > nfsrv_layouthighwater)
+		nfsrv_recalloldlayout(p);
+
 	savevp = vp = NULL;
 	save_fsid.val[0] = save_fsid.val[1] = 0;
 	cur_fsid.val[0] = cur_fsid.val[1] = 0;
@@ -910,6 +916,11 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					savevpnes = vpnes;
 					save_fsid = cur_fsid;
 				}
+				if ((nd->nd_flag & ND_CURSTATEID) != 0) {
+					nd->nd_savedcurstateid =
+					    nd->nd_curstateid;
+					nd->nd_flag |= ND_SAVEDCURSTATEID;
+				}
 			} else {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
 			}
@@ -924,6 +935,11 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					vp = savevp;
 					vpnes = savevpnes;
 					cur_fsid = save_fsid;
+				}
+				if ((nd->nd_flag & ND_SAVEDCURSTATEID) != 0) {
+					nd->nd_curstateid =
+					    nd->nd_savedcurstateid;
+					nd->nd_flag |= ND_CURSTATEID;
 				}
 			} else {
 				nd->nd_repstat = NFSERR_RESTOREFH;

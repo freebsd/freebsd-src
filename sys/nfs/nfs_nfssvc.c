@@ -106,7 +106,7 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 	    NFSSVC_PUBLICFH | NFSSVC_V4ROOTEXPORT | NFSSVC_NOPUBLICFH |
 	    NFSSVC_STABLERESTART | NFSSVC_ADMINREVOKE |
 	    NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS | NFSSVC_BACKUPSTABLE |
-	    NFSSVC_SUSPENDNFSD | NFSSVC_RESUMENFSD)) &&
+	    NFSSVC_SUSPENDNFSD | NFSSVC_RESUMENFSD | NFSSVC_PNFSDS)) &&
 	    nfsd_call_nfsd != NULL)
 		error = (*nfsd_call_nfsd)(td, uap);
 	if (error == EINTR || error == ERESTART)

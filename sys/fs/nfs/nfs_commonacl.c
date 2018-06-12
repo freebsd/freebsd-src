@@ -450,36 +450,6 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 }
 
 /*
- * Set an NFSv4 acl.
- */
-APPLESTATIC int
-nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
-    NFSPROC_T *p)
-{
-	int error;
-
-	if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0) {
-		error = NFSERR_ATTRNOTSUPP;
-		goto out;
-	}
-	/*
-	 * With NFSv4 ACLs, chmod(2) may need to add additional entries.
-	 * Make sure it has enough room for that - splitting every entry
-	 * into two and appending "canonical six" entries at the end.
-	 * Cribbed out of kern/vfs_acl.c - Rick M.
-	 */
-	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2) {
-		error = NFSERR_ATTRNOTSUPP;
-		goto out;
-	}
-	error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
-
-out:
-	NFSEXITCODE(error);
-	return (error);
-}
-
-/*
  * Compare two NFSv4 acls.
  * Return 0 if they are the same, 1 if not the same.
  */
