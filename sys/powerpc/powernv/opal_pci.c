@@ -221,7 +221,7 @@ max_tce_size(device_t dev)
 
 	count = OF_getencprop(node, "ibm,supported-tce-sizes",
 	    sizes, sizeof(sizes));
-	if (count < sizeof(cell_t))
+	if (count < (int) sizeof(cell_t))
 		return OPAL_PCI_TCE_DEFAULT_SEG_SIZE;
 
 	count /= sizeof(cell_t);
