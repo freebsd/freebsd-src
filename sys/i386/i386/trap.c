@@ -218,7 +218,7 @@ trap(struct trapframe *frame)
 	type = frame->tf_trapno;
 
 	KASSERT((read_eflags() & PSL_I) == 0,
-	    ("trap: interrupts enaabled, type %d frame %p", type, frame));
+	    ("trap: interrupts enabled, type %d frame %p", type, frame));
 
 #ifdef SMP
 	/* Handler for NMI IPIs used for stopping CPUs. */
