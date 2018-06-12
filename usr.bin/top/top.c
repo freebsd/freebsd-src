@@ -20,6 +20,7 @@
 #include <sys/select.h>
 #include <sys/signal.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <getopt.h>
 #include <jail.h>
@@ -225,7 +226,6 @@ main(int argc, char *argv[])
 {
     int i;
     int active_procs;
-    int change;
 
     struct system_info system_info;
     struct statics statics;
@@ -253,47 +253,11 @@ main(int argc, char *argv[])
     char warnings = 0;
     char topn_specified = false;
     char ch;
-    char *iptr;
     char no_command = 1;
     struct timeval timeout;
     char *order_name = NULL;
     int order_index = 0;
     fd_set readfds;
-
-    static const char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwopT";
-/* these defines enumerate the "strchr"s of the commands in command_chars */
-#define CMD_redraw	0
-#define CMD_update	1
-#define CMD_quit	2
-#define CMD_help1	3
-#define CMD_help2	4
-#define CMD_OSLIMIT	4    /* terminals with OS can only handle commands */
-#define CMD_errors	5    /* less than or equal to CMD_OSLIMIT	   */
-#define CMD_number1	6
-#define CMD_number2	7
-#define CMD_delay	8
-#define CMD_displays	9
-#define CMD_kill	10
-#define CMD_renice	11
-#define CMD_idletog     12
-#define CMD_idletog2    13
-#define CMD_user	14
-#define CMD_selftog	15
-#define CMD_thrtog	16
-#define CMD_viewtog	17
-#define CMD_viewsys	18
-#define	CMD_wcputog	19
-#define	CMD_showargs	20
-#define	CMD_jidtog	21
-#define CMD_kidletog	22
-#define CMD_pcputog	23
-#define CMD_jail	24
-#define CMD_swaptog	25
-#define CMD_order	26
-#define CMD_pid		27
-#define CMD_toggletid	28
-
-_Static_assert(sizeof(command_chars) == CMD_toggletid + 2, "command chars size");
 
     /* set the buffer for stdout */
 #ifdef DEBUG
@@ -843,6 +807,7 @@ restart:
 		{
 		    int newval;
 		    const char *errmsg;
+			const struct command *cptr;
     
 		    /* something to read -- clear the message area first */
 		    clear_message();
@@ -856,28 +821,30 @@ restart:
 			putchar('\r');
 			quit(1);
 		    }
-		    if ((iptr = strchr(command_chars, ch)) == NULL)
-		    {
-			if (ch != '\r' && ch != '\n')
-			{
-			    /* illegal command */
-			    new_message(MT_standout, " Command not understood");
+			if (ch == '\r' || ch == '\n') {
+				continue;
 			}
-			putchar('\r');
-			no_command = true;
-		    }
-		    else
-		    {
-			change = iptr - command_chars;
-			if (overstrike && change > CMD_OSLIMIT)
+			cptr = all_commands;
+			while (cptr->c != '\0') {
+				if (cptr->c == ch) {
+					break;
+				}
+				cptr++;
+			}
+			if (cptr->c == '\0') {
+			    new_message(MT_standout, " Command not understood");
+			    putchar('\r');
+				no_command = true;
+			}
+			if (overstrike && !cptr->available_to_dumb)
 			{
-			    /* error */
 			    new_message(MT_standout,
 			    " Command cannot be handled by this terminal");
 			    putchar('\r');
-			    no_command = true;
+				no_command = true;
 			}
-			else switch(change)
+			if (!no_command) {
+			switch(cptr->id)
 			{
 			    case CMD_redraw:	/* redraw screen */
 				reset_display();
@@ -893,12 +860,11 @@ restart:
 				}
 				break;
 	    
-			    case CMD_quit:	/* quit */
+			    case CMD_quit:
 				quit(0);
 				break;
 	    
-			    case CMD_help1:	/* help */
-			    case CMD_help2:
+			    case CMD_help:
 				reset_display();
 				top_clear();
 				show_help();
@@ -926,8 +892,7 @@ restart:
 				}
 				break;
 	
-			    case CMD_number1:	/* new number */
-			    case CMD_number2:
+			    case CMD_number:
 				new_message(MT_standout,
 				    "Number of processes to show: ");
 				newval = readline(tempbuf1, 8, true);
@@ -1019,7 +984,6 @@ restart:
 				break;
 
 			    case CMD_idletog:
-			    case CMD_idletog2:
 				ps.idle = !ps.idle;
 				new_message(MT_standout | MT_delayed,
 				    " %sisplaying idle processes.",
@@ -1204,9 +1168,9 @@ restart:
 				} else
 					clear_message();
 				break;
-			    default:
-				new_message(MT_standout, " BAD CASE IN SWITCH!");
-				putchar('\r');
+			    case CMD_NONE:
+					assert("reached switch without command");
+			}
 			}
 		    }
 
@@ -1214,7 +1178,6 @@ restart:
 		    fflush(stdout);
 		}
 	    }
-	}
     }
 
 #ifdef DEBUG
