@@ -294,7 +294,7 @@ main(int argc, char *argv[])
     ps.jail    = false;
     ps.swap    = false;
     ps.kidle   = true;
-    ps.pid     = -1; 
+    ps.pid     = -1;
     ps.command = NULL;
     ps.thread_id = false;
 
@@ -548,7 +548,7 @@ main(int argc, char *argv[])
 	fprintf(stderr, "%s: can't allocate sufficient memory\n", myname);
 	exit(4);
     }
-    
+
     /* print warning if user requested more processes than we can display */
     if (topn > max_topn)
     {
@@ -617,7 +617,7 @@ restart:
     {
 	int (*compare)(const void * const, const void * const);
 
-	    
+
 	/* get the current stats */
 	get_system_info(&system_info);
 
@@ -673,7 +673,7 @@ restart:
 
 	/* update the header area */
 	(*d_header)(header_text);
-    
+
 	if (topn > 0)
 	{
 	    /* determine number of processes to actually display */
@@ -736,7 +736,7 @@ restart:
 		    d_process = u_process;
 		}
 	    }
-    
+
 	    no_command = true;
 	    if (!interactive)
 	    {
@@ -808,7 +808,7 @@ restart:
 		    int newval;
 		    const char *errmsg;
 			const struct command *cptr;
-    
+
 		    /* something to read -- clear the message area first */
 		    clear_message();
 
@@ -849,7 +849,7 @@ restart:
 			    case CMD_redraw:	/* redraw screen */
 				reset_display();
 				break;
-    
+
 			    case CMD_update:	/* merely update display */
 				/* is the load average high? */
 				if (system_info.load_avg[0] > LoadMax)
@@ -859,11 +859,11 @@ restart:
 				    fflush(stdout);
 				}
 				break;
-	    
+
 			    case CMD_quit:
 				quit(0);
 				break;
-	    
+
 			    case CMD_help:
 				reset_display();
 				top_clear();
@@ -872,7 +872,7 @@ restart:
 				fflush(stdout);
 				read(0, &ch, 1);
 				break;
-	
+
 			    case CMD_errors:	/* show errors */
 				if (error_count() == 0)
 				{
@@ -891,7 +891,7 @@ restart:
 				    read(0, &ch, 1);
 				}
 				break;
-	
+
 			    case CMD_number:
 				new_message(MT_standout,
 				    "Number of processes to show: ");
@@ -920,7 +920,7 @@ restart:
 				    topn = newval;
 				}
 				break;
-	    
+
 			    case CMD_delay:	/* new seconds delay */
 				new_message(MT_standout, "Seconds to delay: ");
 				if ((i = readline(tempbuf1, 8, true)) > -1)
@@ -932,7 +932,7 @@ restart:
 				}
 				clear_message();
 				break;
-	
+
 			    case CMD_displays:	/* change display count */
 				new_message(MT_standout,
 					"Displays to show (currently %s): ",
@@ -948,7 +948,7 @@ restart:
 				}
 				clear_message();
 				break;
-    
+
 			    case CMD_kill:	/* kill program */
 				new_message(0, "kill ");
 				if (readline(tempbuf2, sizeof(tempbuf2), false) > 0)
@@ -965,7 +965,7 @@ restart:
 				    clear_message();
 				}
 				break;
-	    
+
 			    case CMD_renice:	/* renice program */
 				new_message(0, "renice ");
 				if (readline(tempbuf2, sizeof(tempbuf2), false) > 0)
@@ -1003,7 +1003,7 @@ restart:
 				if (handle_user(tempbuf2, sizeof(tempbuf2)))
 				    no_command = true;
 				break;
-	    
+
 			    case CMD_thrtog:
 				ps.thread = !ps.thread;
 				new_message(MT_standout | MT_delayed,
@@ -1114,7 +1114,7 @@ restart:
 				    clear_message();
 				}
 				break;
-	    
+
 			    case CMD_kidletog:
 				ps.kidle = !ps.kidle;
 				new_message(MT_standout | MT_delayed,
