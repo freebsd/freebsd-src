@@ -171,7 +171,7 @@ scanint(char *str, int *intp)
 static struct errs errs[ERRMAX];
 static int errcnt;
 static char err_toomany[] = " too many errors occurred";
-static char err_listem[] = 
+static char err_listem[] =
 	" Many errors occurred.  Press `e' to display the list of errors.";
 
 /* These macros get used to reset and log the errors */
@@ -403,7 +403,7 @@ kill_procs(char *str)
 		return(invalid_signal_number);
 	    }
 	}
-	else 
+	else
 	{
 		signum = signame_to_signum(str + 1);
 

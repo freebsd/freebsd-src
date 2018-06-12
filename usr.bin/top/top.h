@@ -60,7 +60,7 @@ void quit(int);
 #define LoadMax  5.0
 
 /*
- *  "Nominal_TOPN" is used as the default TOPN when 
+ *  "Nominal_TOPN" is used as the default TOPN when
  *  the output is a dumb terminal.  If we didn't do this, then
  *  we will get every
  *  process in the system when running top on a dumb terminal (or redirected
