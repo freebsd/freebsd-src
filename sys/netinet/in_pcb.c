@@ -1570,6 +1570,15 @@ in_pcblist_rele_rlocked(epoch_context_t ctx)
 }
 
 static void
+inpcbport_free(epoch_context_t ctx)
+{
+	struct inpcbport *phd;
+
+	phd = __containerof(ctx, struct inpcbport, phd_epoch_ctx);
+	free(phd, M_PCB);
+}
+
+static void
 in_pcbfree_deferred(epoch_context_t ctx)
 {
 	struct inpcb *inp;
@@ -1598,7 +1607,6 @@ in_pcbfree_deferred(epoch_context_t ctx)
 #endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-
 	inp->inp_vflag = 0;
 	crfree(inp->inp_cred);
 #ifdef MAC
@@ -1682,7 +1690,7 @@ in_pcbdrop(struct inpcb *inp)
 		CK_LIST_REMOVE(inp, inp_portlist);
 		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			CK_LIST_REMOVE(phd, phd_hash);
-			free(phd, M_PCB);
+			epoch_call(net_epoch_preempt, &phd->phd_epoch_ctx, inpcbport_free);
 		}
 		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;
@@ -2552,6 +2560,7 @@ in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
 		if (phd == NULL) {
 			return (ENOBUFS); /* XXX */
 		}
+		bzero(&phd->phd_epoch_ctx, sizeof(struct epoch_context));
 		phd->phd_port = inp->inp_lport;
 		CK_LIST_INIT(&phd->phd_pcblist);
 		CK_LIST_INSERT_HEAD(pcbporthash, phd, phd_hash);
