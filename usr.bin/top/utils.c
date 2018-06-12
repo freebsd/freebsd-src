@@ -402,6 +402,6 @@ find_pid(pid_t pid)
 	}
 
 done:
-	kvm_close(kd);	
+	kvm_close(kd);
 	return ret;
 }
