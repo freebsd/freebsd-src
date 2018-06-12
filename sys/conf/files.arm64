@@ -209,6 +209,7 @@ dev/pci/pci_host_generic_fdt.c	optional	pci fdt
 dev/psci/psci.c			standard
 dev/psci/psci_arm64.S		standard
 dev/uart/uart_cpu_arm64.c	optional	uart
+dev/uart/uart_dev_mu.c		optional	uart uart_mu
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/ehci_mv.c	optional	ehci_mv fdt
