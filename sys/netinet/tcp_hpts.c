@@ -1215,7 +1215,9 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		hpts->p_inp = inp;
 		drop_reason = inp->inp_hpts_drop_reas;
 		inp->inp_in_input = 0;
+		tp = intotcpcb(inp);
 		mtx_unlock(&hpts->p_mtx);
+		CURVNET_SET(tp->t_vnet);
 		if (drop_reason) {
 			INP_INFO_RLOCK(&V_tcbinfo);
 			ti_locked = TI_RLOCKED;
@@ -1234,10 +1236,10 @@ out:
 				INP_WUNLOCK(inp);
 			}
 			ti_locked = TI_UNLOCKED;
+			CURVNET_RESTORE();
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
-		tp = intotcpcb(inp);
 		if ((tp == NULL) || (tp->t_inpcb == NULL)) {
 			goto out;
 		}
@@ -1262,6 +1264,7 @@ out:
 			}
 			if (in_pcbrele_wlocked(inp) == 0)
 				INP_WUNLOCK(inp);
+			CURVNET_RESTORE();
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
@@ -1282,7 +1285,6 @@ out:
 			 */
 			tcp_set_hpts(inp);
 		}
-		CURVNET_SET(tp->t_vnet);
 		m = tp->t_in_pkt;
 		n = NULL;
 		if (m != NULL &&
@@ -1366,7 +1368,6 @@ out:
 						if (m)
 							n = m->m_nextpkt;
 					}
-					CURVNET_RESTORE();
 					goto out;
 				}
 				/*
