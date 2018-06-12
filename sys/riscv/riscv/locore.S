@@ -156,6 +156,8 @@ _start:
 	or	s2, s2, t0
 	sfence.vma
 	csrw	sptbr, s2
+
+	.align 2
 va:
 
 	/* Setup supervisor trap vector */
@@ -284,6 +286,8 @@ ENTRY(mpentry)
 	or	s2, s2, t0
 	sfence.vma
 	csrw	sptbr, s2
+
+	.align 2
 mpva:
 	/* Setup supervisor trap vector */
 	la	t0, cpu_exception_handler
