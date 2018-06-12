@@ -123,6 +123,7 @@ gordon [label="Gordon Tetlow\ngordon@FreeBSD.org\n2014/10/14"]
 grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
+hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2004/04/10"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
@@ -177,6 +178,7 @@ markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
+meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
@@ -205,6 +207,7 @@ pclin [label="Po-Chien Lin\npclin@FreeBSD.org\n2013/02/11"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
+pi [label="Kurt Jaeger\npi@FreeBSD.org\n2014/03/14"]
 pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
@@ -351,6 +354,7 @@ cs -> kami
 culot -> danilo
 culot -> jase
 culot -> marino
+culot -> pi
 culot -> wg
 
 db -> tj
@@ -437,6 +441,8 @@ glarkin -> rm
 glewis -> hq
 glewis -> jkim
 
+hrs -> meta
+
 ijliao -> leeym
 
 imp -> dteske
@@ -450,6 +456,7 @@ itetcu -> sylvio
 jadawin -> bapt
 jadawin -> flo
 jadawin -> olivier
+jadawin -> pi
 jadawin -> riggs
 jadawin -> sbz
 jadawin -> wen
@@ -490,6 +497,8 @@ leeym -> clsung
 ler -> leres
 
 lifanov -> ultima
+
+linimon -> hrs
 
 lioux -> pat
 
@@ -597,6 +606,7 @@ pgollucci -> swills
 
 philip -> koitsu
 
+pi -> meta
 pi -> tz
 
 rafan -> chinsan
