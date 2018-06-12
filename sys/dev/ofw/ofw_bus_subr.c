@@ -91,6 +91,9 @@ ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 {
 
 	*buf = '\0';
+	if (!ofw_bus_status_okay(child))
+		return (0);
+
 	if (ofw_bus_get_name(child) != NULL) {
 		strlcat(buf, "name=", buflen);
 		strlcat(buf, ofw_bus_get_name(child), buflen);
@@ -100,6 +103,7 @@ ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 		strlcat(buf, " compat=", buflen);
 		strlcat(buf, ofw_bus_get_compat(child), buflen);
 	}
+
 	return (0);
 };
 
