@@ -117,6 +117,7 @@ stop_pr(struct pr *pr)
 		err(2, "kevent");
 	wstatus = pr->e[0].data;
 	close(pr->kq);
+	free(pr);
 	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0)
 		errx(2, "pr exited abnormally");
 	else if (WIFSIGNALED(wstatus))
