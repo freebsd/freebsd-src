@@ -154,12 +154,13 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		if (sc->rates[i].freq == *fout) {
 			best = sc->rates[i].freq;
 			div = sc->rates[i].div;
-			best_p = best * (div + 1);
+			best_p = best * div;
 			rate = i;
+			break;
 		}
 	}
 
-	if (rate == 0)
+	if (rate == sc->nrates)
 		return (0);
 
 	err = clknode_set_freq(p_main, best_p, 0, 1);
@@ -177,7 +178,7 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->muxdiv_offset, &val);
 	val &= ~sc->div_mask;
-	val |= div << sc->div_shift;
+	val |= (div - 1) << sc->div_shift;
 	WRITE4(clk, sc->muxdiv_offset, val | RK_CLK_ARMCLK_MASK);
 	DEVICE_UNLOCK(clk);
 
