@@ -165,6 +165,7 @@ device		dwmmc
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		uart_msm	# Qualcomm MSM UART driver
+device		uart_mu		# RPI3 aux port
 device		uart_mvebu	# Armada 3700 UART driver
 device		uart_ns8250	# ns8250-type UART driver
 device		uart_snps
