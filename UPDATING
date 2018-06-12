@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 
+20180612:
+	r334930 changed the interface between the NFS modules, so they all
+	need to be rebuilt.  r335018 did a __FreeBSD_version bump for this.
+
 20180530:
 	The kernel / userland interface for devinfo changed, so you'll
 	need a new kernel and userland as a pair for it to work (rebuilding
