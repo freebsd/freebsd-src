@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 struct psci_softc {
 	device_t        dev;
 
-	psci_callfn_t	psci_call;
 	uint32_t	psci_fnids[PSCI_FN_MAX];
 };
 
@@ -106,6 +105,41 @@ static struct ofw_compat_data compat_data[] = {
 
 static int psci_attach(device_t, psci_initfn_t);
 static void psci_shutdown(void *, int);
+
+static int psci_find_callfn(psci_callfn_t *);
+static int psci_def_callfn(register_t, register_t, register_t, register_t);
+
+static psci_callfn_t psci_callfn = psci_def_callfn;
+
+static inline int
+psci_call(register_t a, register_t b, register_t c, register_t d)
+{
+
+	return (psci_callfn(a, b, c, d));
+}
+
+static void
+psci_init(void *dummy)
+{
+	psci_callfn_t new_callfn;
+
+	if (psci_find_callfn(&new_callfn) != PSCI_RETVAL_SUCCESS) {
+		printf("No PSCI/SMCCC call function found");
+		return;
+	}
+
+	psci_callfn = new_callfn;
+}
+/* This needs to be before cpu_mp at SI_SUB_CPU, SI_ORDER_THIRD */
+SYSINIT(psci_start, SI_SUB_CPU, SI_ORDER_FIRST, psci_init, NULL);
+
+static int
+psci_def_callfn(register_t a __unused, register_t b __unused,
+    register_t c __unused, register_t d __unused)
+{
+
+	panic("No PSCI/SMCCC call function set");
+}
 
 #ifdef FDT
 static int psci_fdt_probe(device_t dev);
@@ -169,16 +203,11 @@ psci_fdt_probe(device_t dev)
 static int
 psci_fdt_attach(device_t dev)
 {
-	struct psci_softc *sc = device_get_softc(dev);
 	const struct ofw_compat_data *ocd;
 	psci_initfn_t psci_init;
-	phandle_t node;
 
 	ocd = ofw_bus_search_compatible(dev, compat_data);
 	psci_init = (psci_initfn_t)ocd->ocd_data;
-
-	node = ofw_bus_get_node(dev);
-	sc->psci_call = psci_fdt_get_callfn(node);
 
 	return (psci_attach(dev, psci_init));
 }
@@ -280,14 +309,6 @@ psci_acpi_probe(device_t dev)
 static int
 psci_acpi_attach(device_t dev)
 {
-	struct psci_softc *sc = device_get_softc(dev);
-	uintptr_t flags;
-
-	flags = (uintptr_t)acpi_get_private(dev);
-	if ((flags & ACPI_FADT_PSCI_USE_HVC) != 0)
-		sc->psci_call = psci_hvc_despatch;
-	else
-		sc->psci_call = psci_smc_despatch;
 
 	return (psci_attach(dev, psci_v0_2_init));
 }
@@ -299,9 +320,6 @@ psci_attach(device_t dev, psci_initfn_t psci_init)
 	struct psci_softc *sc = device_get_softc(dev);
 
 	if (psci_softc != NULL)
-		return (ENXIO);
-
-	if (sc->psci_call == NULL)
 		return (ENXIO);
 
 	KASSERT(psci_init != NULL, ("PSCI init function cannot be NULL"));
@@ -321,7 +339,7 @@ _psci_get_version(struct psci_softc *sc)
 	/* PSCI version wasn't supported in v0.1. */
 	fnid = sc->psci_fnids[PSCI_FN_VERSION];
 	if (fnid)
-		return (sc->psci_call(fnid, 0, 0, 0));
+		return (psci_call(fnid, 0, 0, 0));
 
 	return (PSCI_RETVAL_NOT_SUPPORTED);
 }
@@ -368,40 +386,44 @@ psci_acpi_callfn(psci_callfn_t *callfn)
 }
 #endif
 
+static int
+psci_find_callfn(psci_callfn_t *callfn)
+{
+	int error;
+
+	*callfn = NULL;
+#ifdef FDT
+	if (USE_FDT) {
+		error = psci_fdt_callfn(callfn);
+		if (error != 0)
+			return (error);
+	}
+#endif
+#ifdef DEV_ACPI
+	if (*callfn == NULL && USE_ACPI) {
+		error = psci_acpi_callfn(callfn);
+		if (error != 0)
+			return (error);
+	}
+#endif
+
+	if (*callfn == NULL)
+		return (PSCI_MISSING);
+
+	return (PSCI_RETVAL_SUCCESS);
+}
+
 int
 psci_cpu_on(unsigned long cpu, unsigned long entry, unsigned long context_id)
 {
-	psci_callfn_t callfn;
 	uint32_t fnid;
-	int error;
 
-	if (psci_softc == NULL) {
-		fnid = PSCI_FNID_CPU_ON;
-		callfn = NULL;
-#ifdef FDT
-		if (USE_FDT) {
-			error = psci_fdt_callfn(&callfn);
-			if (error != 0)
-				return (error);
-		}
-#endif
-#ifdef DEV_ACPI
-		if (callfn == NULL && USE_ACPI) {
-			error = psci_acpi_callfn(&callfn);
-			if (error != 0)
-				return (error);
-		}
-#endif
-
-		if (callfn == NULL)
-			return (PSCI_MISSING);
-	} else {
-		callfn = psci_softc->psci_call;
+	fnid = PSCI_FNID_CPU_ON;
+	if (psci_softc != NULL)
 		fnid = psci_softc->psci_fnids[PSCI_FN_CPU_ON];
-	}
 
 	/* PSCI v0.1 and v0.2 both support cpu_on. */
-	return (callfn(fnid, cpu, entry, context_id));
+	return (psci_call(fnid, cpu, entry, context_id));
 }
 
 static void
@@ -419,7 +441,7 @@ psci_shutdown(void *xsc, int howto)
 		fn = psci_softc->psci_fnids[PSCI_FN_SYSTEM_RESET];
 
 	if (fn)
-		psci_softc->psci_call(fn, 0, 0, 0);
+		psci_call(fn, 0, 0, 0);
 
 	/* System reset and off do not return. */
 }
