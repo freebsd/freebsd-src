@@ -1923,7 +1923,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	}
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+	CK_LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->inp_ip_p != IPPROTO_ICMPV6)

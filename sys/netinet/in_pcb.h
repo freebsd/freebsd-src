@@ -53,6 +53,7 @@
 #include <net/vnet.h>
 #include <vm/uma.h>
 #endif
+#include <sys/ck.h>
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
 #define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
@@ -65,8 +66,8 @@
  * numbers, and pointers up (to a socket structure) and down (to a
  * protocol-specific control block) are stored here.
  */
-LIST_HEAD(inpcbhead, inpcb);
-LIST_HEAD(inpcbporthead, inpcbport);
+CK_LIST_HEAD(inpcbhead, inpcb);
+CK_LIST_HEAD(inpcbporthead, inpcbport);
 typedef	uint64_t	inp_gen_t;
 
 /*
@@ -230,8 +231,8 @@ struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
 	/* Cache line #1 (amd64) */
-	LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
-	LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
+	CK_LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
+	CK_LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
 	struct rwlock	inp_lock;
 	/* Cache line #2 (amd64) */
 #define	inp_start_zero	inp_hpts
@@ -313,7 +314,7 @@ struct inpcb {
 		int	in6p_cksum;
 		short	in6p_hops;
 	};
-	LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
+	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
 	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	struct llentry	*inp_lle;	/* cached L2 information */
@@ -322,7 +323,7 @@ struct inpcb {
 		struct route inp_route;
 		struct route_in6 inp_route6;
 	};
-	LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
+	CK_LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
 	                                /* (p[w]) for list iteration */
 	                                /* (p[r]/l) for addition/removal */
 	struct epoch_context inp_epoch_ctx;
@@ -401,7 +402,7 @@ void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 #endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {
-	LIST_ENTRY(inpcbport) phd_hash;
+	CK_LIST_ENTRY(inpcbport) phd_hash;
 	struct inpcbhead phd_pcblist;
 	u_short phd_port;
 };

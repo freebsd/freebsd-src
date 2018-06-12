@@ -173,7 +173,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	ifp = m->m_pkthdr.rcvif;
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+	CK_LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;

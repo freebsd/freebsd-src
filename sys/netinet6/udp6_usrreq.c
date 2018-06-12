@@ -318,7 +318,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		pcblist = udp_get_pcblist(nxt);
 		last = NULL;
-		LIST_FOREACH(inp, pcblist, inp_list) {
+		CK_LIST_FOREACH(inp, pcblist, inp_list) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
 			if (inp->inp_lport != uh->uh_dport)
