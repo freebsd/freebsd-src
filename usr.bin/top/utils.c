@@ -124,7 +124,7 @@ itoa7(int val)
 
 /*
  *  digits(val) - return number of decimal digits in val.  Only works for
- *	non-negative numbers.  If val <= 0 then digits(val) == 0.
+ *	non-negative numbers.
  */
 
 int __pure2
@@ -319,7 +319,7 @@ format_time(long seconds)
 #define NUM_STRINGS 8
 
 char *
-format_k(int amt)
+format_k(long amt)
 {
     static char retarray[NUM_STRINGS][16];
     static int index = 0;
