@@ -3213,7 +3213,7 @@ struct fw_info {
 		.fw_mod_name = "t4fw",
 		.fw_hdr = {
 			.chip = FW_HDR_CHIP_T4,
-			.fw_ver = htobe32_const(FW_VERSION(T4)),
+			.fw_ver = htobe32(FW_VERSION(T4)),
 			.intfver_nic = FW_INTFVER(T4, NIC),
 			.intfver_vnic = FW_INTFVER(T4, VNIC),
 			.intfver_ofld = FW_INTFVER(T4, OFLD),
@@ -3229,7 +3229,7 @@ struct fw_info {
 		.fw_mod_name = "t5fw",
 		.fw_hdr = {
 			.chip = FW_HDR_CHIP_T5,
-			.fw_ver = htobe32_const(FW_VERSION(T5)),
+			.fw_ver = htobe32(FW_VERSION(T5)),
 			.intfver_nic = FW_INTFVER(T5, NIC),
 			.intfver_vnic = FW_INTFVER(T5, VNIC),
 			.intfver_ofld = FW_INTFVER(T5, OFLD),
@@ -3245,7 +3245,7 @@ struct fw_info {
 		.fw_mod_name = "t6fw",
 		.fw_hdr = {
 			.chip = FW_HDR_CHIP_T6,
-			.fw_ver = htobe32_const(FW_VERSION(T6)),
+			.fw_ver = htobe32(FW_VERSION(T6)),
 			.intfver_nic = FW_INTFVER(T6, NIC),
 			.intfver_vnic = FW_INTFVER(T6, VNIC),
 			.intfver_ofld = FW_INTFVER(T6, OFLD),
