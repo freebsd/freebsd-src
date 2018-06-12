@@ -36,7 +36,7 @@ linux_locore.o: linux_locore.s linux_assym.h
 	    ${.IMPSRC} -o ${.TARGET}
 
 ${VDSO}.so: linux_locore.o
-	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd		\
+	${OBJCOPY} --input-target binary --output-target elf64-x86-64 \
 	    -S -g --binary-architecture i386:x86-64 linux_locore.o ${.TARGET}
 	strip -N _binary_linux_locore_o_size ${.TARGET}
 
