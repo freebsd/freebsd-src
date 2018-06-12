@@ -2680,7 +2680,7 @@ in_pcbremlists(struct inpcb *inp)
 		CK_LIST_REMOVE(inp, inp_portlist);
 		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			CK_LIST_REMOVE(phd, phd_hash);
-			free(phd, M_PCB);
+			epoch_call(net_epoch_preempt, &phd->phd_epoch_ctx, inpcbport_free);
 		}
 		INP_HASH_WUNLOCK(pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;
