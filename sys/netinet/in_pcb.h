@@ -402,6 +402,7 @@ void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 #endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {
+	struct epoch_context phd_epoch_ctx;
 	CK_LIST_ENTRY(inpcbport) phd_hash;
 	struct inpcbhead phd_pcblist;
 	u_short phd_port;
