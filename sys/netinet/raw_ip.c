@@ -170,7 +170,7 @@ rip_inshash(struct inpcb *inp)
 	} else
 		hash = 0;
 	pcbhash = &pcbinfo->ipi_hashbase[hash];
-	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+	CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
 }
 
 static void
@@ -180,7 +180,7 @@ rip_delhash(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	LIST_REMOVE(inp, inp_hash);
+	CK_LIST_REMOVE(inp, inp_hash);
 }
 #endif /* INET */
 
@@ -300,7 +300,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[hash], inp_hash) {
+	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[hash], inp_hash) {
 		if (inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
@@ -332,7 +332,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(inp);
 		last = inp;
 	}
-	LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
+	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
@@ -1060,8 +1060,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	inp_list = il->il_inp_list;
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	for (inp = LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
-	     inp = LIST_NEXT(inp, inp_list)) {
+	for (inp = CK_LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
+	     inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
