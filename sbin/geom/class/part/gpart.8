@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2018
+.Dd June 11, 2018
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -806,6 +806,11 @@ for MBR.
 A partition that contains a FAT32 filesystem.
 The scheme-specific type is
 .Qq Li "!11"
+for MBR.
+.It Cm fat32lba
+A partition that contains a FAT32 (LBA) filesystem.
+The scheme-specific type is
+.Qq Li "!12"
 for MBR.
 .It Cm linux-data
 A Linux partition that contains some filesystem with data.
