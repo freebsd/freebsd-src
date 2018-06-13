@@ -212,8 +212,8 @@ retry:
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL,
-		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
+		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_RW,
+		    VM_PROT_RW | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
 	return (addr);
@@ -298,8 +298,8 @@ retry:
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, tmp, m, VM_PROT_ALL,
-		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
+		pmap_enter(kernel_pmap, tmp, m, VM_PROT_RW,
+		    VM_PROT_RW | PMAP_ENTER_WIRED, 0);
 		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
@@ -372,20 +372,32 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
  *	Allocate wired-down pages in the kernel's address space.
  */
 vm_offset_t
-kmem_malloc_domain(int domain, vm_size_t size, int flags)
+kmem_malloc_domain(struct vmem *vmem, int domain, vm_size_t size, int flags)
 {
-	vmem_t *vmem;
+	vmem_t *arena;
 	vm_offset_t addr;
 	int rv;
 
-	vmem = vm_dom[domain].vmd_kernel_arena;
+#if VM_NRESERVLEVEL > 0
+	KASSERT(vmem == kernel_arena || vmem == kernel_rwx_arena,
+	    ("kmem_malloc_domain: Only kernel_arena or kernel_rwx_arena "
+	    "are supported."));
+	if (__predict_true(vmem == kernel_arena))
+		arena = vm_dom[domain].vmd_kernel_arena;
+	else
+		arena = vm_dom[domain].vmd_kernel_rwx_arena;
+#else
+	KASSERT(vmem == kernel_arena,
+	    ("kmem_malloc_domain: Only kernel_arena is supported."));
+	arena = vm_dom[domain].vmd_kernel_arena;
+#endif
 	size = round_page(size);
-	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
+	if (vmem_alloc(arena, size, flags | M_BESTFIT, &addr))
 		return (0);
 
 	rv = kmem_back_domain(domain, kernel_object, addr, size, flags);
 	if (rv != KERN_SUCCESS) {
-		vmem_free(vmem, addr, size);
+		vmem_free(arena, addr, size);
 		return (0);
 	}
 	return (addr);
@@ -398,12 +410,9 @@ kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
 	vm_offset_t addr;
 	int domain;
 
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_malloc: Only kernel_arena is supported."));
-
 	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
 	do {
-		addr = kmem_malloc_domain(domain, size, flags);
+		addr = kmem_malloc_domain(vmem, domain, size, flags);
 		if (addr != 0)
 			break;
 	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
@@ -422,6 +431,7 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 {
 	vm_offset_t offset, i;
 	vm_page_t m, mpred;
+	vm_prot_t prot;
 	int pflags;
 
 	KASSERT(object == kernel_object,
@@ -432,6 +442,7 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
 	if (flags & M_WAITOK)
 		pflags |= VM_ALLOC_WAITFAIL;
+	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
 
 	i = 0;
 	VM_OBJECT_WLOCK(object);
@@ -461,8 +472,8 @@ retry:
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("kmem_malloc: page %p is managed", m));
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL,
-		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
+		pmap_enter(kernel_pmap, addr + i, m, prot,
+		    prot | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -542,13 +553,28 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 void
 kmem_free(struct vmem *vmem, vm_offset_t addr, vm_size_t size)
 {
+	struct vmem *arena;
 	int domain;
 
+#if VM_NRESERVLEVEL > 0
+	KASSERT(vmem == kernel_arena || vmem == kernel_rwx_arena,
+	    ("kmem_free: Only kernel_arena or kernel_rwx_arena are supported."));
+#else
 	KASSERT(vmem == kernel_arena,
 	    ("kmem_free: Only kernel_arena is supported."));
+#endif
+
 	size = round_page(size);
 	domain = _kmem_unback(kernel_object, addr, size);
-	vmem_free(vm_dom[domain].vmd_kernel_arena, addr, size);
+#if VM_NRESERVLEVEL > 0
+	if (__predict_true(vmem == kernel_arena))
+		arena = vm_dom[domain].vmd_kernel_arena;
+	else
+		arena = vm_dom[domain].vmd_kernel_rwx_arena;
+#else
+	arena = vm_dom[domain].vmd_kernel_arena;
+#endif
+	vmem_free(arena, addr, size);
 }
 
 /*
