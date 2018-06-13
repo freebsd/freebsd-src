@@ -49,12 +49,21 @@
 #define	SMCCC_32BIT_CALL	0
 #define	SMCCC_64BIT_CALL	1
 
+/*
+ * Arm Architecture Calls.
+ * These are documented in the document ARM DEN 0070A.
+ */
 #define	SMCCC_VERSION							\
     SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_64BIT_CALL, 0, 0)
 #define	SMCCC_ARCH_FEATURES						\
     SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_64BIT_CALL, 0, 1)
 #define	SMCCC_ARCH_WORKAROUND_1						\
     SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_64BIT_CALL, 0, 0x8000)
+
+/* The return values from ARM DEN 0070A. */
+#define	SMCCC_RET_SUCCESS		0
+#define	SMCCC_RET_NOT_SUPPORTED		-1
+#define	SMCCC_RET_NOT_REQUIRED		-2
 
 int32_t smccc_arch_features(uint32_t);
 int smccc_arch_workaround_1(void);
