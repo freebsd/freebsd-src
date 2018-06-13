@@ -128,13 +128,30 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	fdrop(fp, td);
 }
 
+/*
+ * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
+ * don't bother going through major() and minor().  Keep doing blind
+ * truncation, as for other fields.  The previous version didn't even do
+ * blind truncation after dev_t was expanded to 64 bits.  It failed to
+ * mask out bits 8-15 in minor().  These bits can only be nonzero in th
+ * 64-bit version.
+ *
+ * This is only used for st_dev.  st_dev is for the mounted-on device so
+ * it can't be a device that needs very special translation.  The translation
+ * of blind truncation is done here.  st_rdev is supposed to be specially
+ * translated in callers, with the blind truncation done there too and
+ * st_rdev in the native struct state abused to hold the linux st_rdev.
+ * Callers do the last step using an open-coded Linux makedev().
+ */
+#define	dev_to_ldev(d)	((uint16_t)(d))
+
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_newstat tbuf;
 
 	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
+	tbuf.st_dev = dev_to_ldev(buf->st_dev);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
 	tbuf.st_nlink = buf->st_nlink;
@@ -222,7 +239,7 @@ stat_copyout(struct stat *buf, void *ubuf)
 	struct l_stat lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = buf->st_dev;
+	lbuf.st_dev = dev_to_ldev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
@@ -524,7 +541,7 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	struct l_stat64 lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
+	lbuf.st_dev = dev_to_ldev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
