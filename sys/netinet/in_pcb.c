@@ -2209,7 +2209,14 @@ found:
 		locked = INP_TRY_RLOCK(inp);
 	else
 		panic("%s: locking bug", __func__);
-	if (!locked)
+	if (__predict_false(locked && (inp->inp_flags2 & INP_FREED))) {
+		if (lookupflags & INPLOOKUP_WLOCKPCB)
+			INP_WUNLOCK(inp);
+		else
+			INP_RUNLOCK(inp);
+		INP_HASH_RUNLOCK(pcbinfo);
+		return (NULL);
+	} else if (!locked)
 		in_pcbref(inp);
 	INP_GROUP_UNLOCK(pcbgroup);
 	if (!locked) {
