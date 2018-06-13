@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2014, 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
+#include <sys/jail.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
@@ -49,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #ifdef INET
 #include <net/ethernet.h>
 #include <netinet/ip.h>
@@ -58,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/scope6_var.h>
 #include <net/if_gre.h>
 
 VNET_DEFINE(int, ip6_gre_hlim) = IPV6_DEFHLIM;
@@ -67,40 +64,184 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, OID_AUTO, grehlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gre_hlim), 0, "Default hop limit for encapsulated packets");
 
-static int
-in6_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+static VNET_DEFINE(struct gre_list *, ipv6_hashtbl) = NULL;
+#define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
+#define	GRE_HASH(src, dst)	(V_ipv6_hashtbl[\
+    in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define	GRE_HASH_SC(sc)		GRE_HASH(&(sc)->gre_oip6.ip6_src,\
+    &(sc)->gre_oip6.ip6_dst)
+
+static uint32_t
+in6_gre_hashval(const struct in6_addr *src, const struct in6_addr *dst)
 {
-	GRE_RLOCK_TRACKER;
-	struct gre_softc *sc;
-	struct ip6_hdr *ip6;
+	uint32_t ret;
 
-	sc = (struct gre_softc *)arg;
-	if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
-		return (0);
+	ret = fnv_32_buf(src, sizeof(*src), FNV1_32_INIT);
+	return (fnv_32_buf(dst, sizeof(*dst), ret));
+}
 
-	M_ASSERTPKTHDR(m);
+static int
+in6_gre_checkdup(const struct gre_softc *sc, const struct in6_addr *src,
+    const struct in6_addr *dst)
+{
+	struct gre_softc *tmp;
 
-	GRE_RLOCK(sc);
-	if (sc->gre_family == 0)
-		goto bad;
+	if (sc->gre_family == AF_INET6 &&
+	    IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src, src) &&
+	    IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst, dst))
+		return (EEXIST);
 
-	KASSERT(sc->gre_family == AF_INET6,
-	    ("wrong gre_family: %d", sc->gre_family));
-
-	ip6 = mtod(m, struct ip6_hdr *);
-	if (!IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src, &ip6->ip6_dst) ||
-	    !IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst, &ip6->ip6_src))
-		goto bad;
-
-	GRE_RUNLOCK(sc);
-	return (128 * 2 + 32);
-bad:
-	GRE_RUNLOCK(sc);
+	CK_LIST_FOREACH(tmp, &GRE_HASH(src, dst), chain) {
+		if (tmp == sc)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&tmp->gre_oip6.ip6_src, src) &&
+		    IN6_ARE_ADDR_EQUAL(&tmp->gre_oip6.ip6_dst, dst))
+			return (EADDRNOTAVAIL);
+	}
 	return (0);
 }
 
+static int
+in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
+{
+	const struct ip6_hdr *ip6;
+	struct gre_softc *sc;
+
+	MPASS(in_epoch());
+	ip6 = mtod(m, const struct ip6_hdr *);
+	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
+		/*
+		 * This is an inbound packet, its ip6_dst is source address
+		 * in softc.
+		 */
+		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src,
+		    &ip6->ip6_dst) &&
+		    IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst,
+		    &ip6->ip6_src)) {
+			if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
+				return (0);
+			*arg = sc;
+			return (ENCAP_DRV_LOOKUP);
+		}
+	}
+	return (0);
+}
+
+static void
+in6_gre_attach(struct gre_softc *sc)
+{
+
+	sc->gre_hlen = sizeof(struct greip6);
+	sc->gre_oip6.ip6_vfc = IPV6_VERSION;
+	sc->gre_oip6.ip6_nxt = IPPROTO_GRE;
+	gre_updatehdr(sc, &sc->gre_gi6hdr->gi6_gre);
+	CK_LIST_INSERT_HEAD(&GRE_HASH_SC(sc), sc, chain);
+}
+
+void
+in6_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
+{
+
+	MPASS(cmd == GRESKEY || cmd == GRESOPTS);
+
+	/* NOTE: we are protected with gre_ioctl_sx lock */
+	MPASS(sc->gre_family == AF_INET6);
+	CK_LIST_REMOVE(sc, chain);
+	GRE_WAIT();
+	if (cmd == GRESKEY)
+		sc->gre_key = value;
+	else
+		sc->gre_options = value;
+	in6_gre_attach(sc);
+}
+
 int
-in6_gre_output(struct mbuf *m, int af, int hlen)
+in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
+{
+	struct in6_ifreq *ifr = (struct in6_ifreq *)data;
+	struct sockaddr_in6 *dst, *src;
+	struct ip6_hdr *ip6;
+	int error;
+
+	/* NOTE: we are protected with gre_ioctl_sx lock */
+	error = EINVAL;
+	switch (cmd) {
+	case SIOCSIFPHYADDR_IN6:
+		src = &((struct in6_aliasreq *)data)->ifra_addr;
+		dst = &((struct in6_aliasreq *)data)->ifra_dstaddr;
+
+		/* sanity checks */
+		if (src->sin6_family != dst->sin6_family ||
+		    src->sin6_family != AF_INET6 ||
+		    src->sin6_len != dst->sin6_len ||
+		    src->sin6_len != sizeof(*src))
+			break;
+		if (IN6_IS_ADDR_UNSPECIFIED(&src->sin6_addr) ||
+		    IN6_IS_ADDR_UNSPECIFIED(&dst->sin6_addr)) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		/*
+		 * Check validity of the scope zone ID of the
+		 * addresses, and convert it into the kernel
+		 * internal form if necessary.
+		 */
+		if ((error = sa6_embedscope(src, 0)) != 0 ||
+		    (error = sa6_embedscope(dst, 0)) != 0)
+			break;
+
+		if (V_ipv6_hashtbl == NULL)
+			V_ipv6_hashtbl = gre_hashinit();
+		error = in6_gre_checkdup(sc, &src->sin6_addr,
+		    &dst->sin6_addr);
+		if (error == EADDRNOTAVAIL)
+			break;
+		if (error == EEXIST) {
+			/* Addresses are the same. Just return. */
+			error = 0;
+			break;
+		}
+		ip6 = malloc(sizeof(struct greip6) + 3 * sizeof(uint32_t),
+		    M_GRE, M_WAITOK | M_ZERO);
+		ip6->ip6_src = src->sin6_addr;
+		ip6->ip6_dst = dst->sin6_addr;
+		if (sc->gre_family != 0) {
+			/* Detach existing tunnel first */
+			CK_LIST_REMOVE(sc, chain);
+			GRE_WAIT();
+			free(sc->gre_hdr, M_GRE);
+			/* XXX: should we notify about link state change? */
+		}
+		sc->gre_family = AF_INET6;
+		sc->gre_hdr = ip6;
+		sc->gre_oseq = 0;
+		sc->gre_iseq = UINT32_MAX;
+		in6_gre_attach(sc);
+		break;
+	case SIOCGIFPSRCADDR_IN6:
+	case SIOCGIFPDSTADDR_IN6:
+		if (sc->gre_family != AF_INET6) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		src = (struct sockaddr_in6 *)&ifr->ifr_addr;
+		memset(src, 0, sizeof(*src));
+		src->sin6_family = AF_INET6;
+		src->sin6_len = sizeof(*src);
+		src->sin6_addr = (cmd == SIOCGIFPSRCADDR_IN6) ?
+		    sc->gre_oip6.ip6_src: sc->gre_oip6.ip6_dst;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
+		if (error == 0)
+			error = sa6_recoverscope(src);
+		if (error != 0)
+			memset(src, 0, sizeof(*src));
+		break;
+	}
+	return (error);
+}
+
+int
+in6_gre_output(struct mbuf *m, int af __unused, int hlen __unused)
 {
 	struct greip6 *gi6;
 
@@ -109,6 +250,7 @@ in6_gre_output(struct mbuf *m, int af, int hlen)
 	return (ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL, NULL));
 }
 
+static const struct encaptab *ecookie = NULL;
 static const struct encap_config ipv6_encap_cfg = {
 	.proto = IPPROTO_GRE,
 	.min_length = sizeof(struct greip6) +
@@ -117,16 +259,26 @@ static const struct encap_config ipv6_encap_cfg = {
 #else
 	    sizeof(struct ip6_hdr),
 #endif
-	.exact_match = (sizeof(struct in6_addr) << 4) + 32,
-	.check = in6_gre_encapcheck,
+	.exact_match = ENCAP_DRV_LOOKUP,
+	.lookup = in6_gre_lookup,
 	.input = gre_input
 };
 
-int
-in6_gre_attach(struct gre_softc *sc)
+void
+in6_gre_init(void)
 {
 
-	KASSERT(sc->gre_ecookie == NULL, ("gre_ecookie isn't NULL"));
-	sc->gre_ecookie = ip6_encap_attach(&ipv6_encap_cfg, sc, M_WAITOK);
-	return (0);
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+	ecookie = ip6_encap_attach(&ipv6_encap_cfg, NULL, M_WAITOK);
+}
+
+void
+in6_gre_uninit(void)
+{
+
+	if (IS_DEFAULT_VNET(curvnet))
+		ip6_encap_detach(ecookie);
+	if (V_ipv6_hashtbl != NULL)
+		gre_hashdestroy(V_ipv6_hashtbl);
 }
