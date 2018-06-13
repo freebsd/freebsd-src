@@ -52,6 +52,7 @@
 
 static struct pollfd fds[1];
 static mode_t o_mode = 0777;
+static int filedesc;
 static char extregex[80];
 static const char *path = "fileforaudit";
 static const char *errpath = "adirhasnoname/fileforaudit";
@@ -71,10 +72,11 @@ ATF_TC_BODY(open_ ## mode ## _success, tc) \
 	snprintf(extregex, sizeof(extregex), \
 		"open.*%s.*fileforaudit.*return,success", regex); \
 	/* File needs to exist for successful open(2) invocation */ \
-	ATF_REQUIRE(open(path, O_CREAT, o_mode) != -1); \
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); \
 	FILE *pipefd = setup(fds, class); \
 	ATF_REQUIRE(syscall(SYS_open, path, flag) != -1); \
 	check_audit(fds, extregex, pipefd); \
+	close(filedesc); \
 } \
 ATF_TC_CLEANUP(open_ ## mode ## _success, tc) \
 { \
@@ -106,13 +108,16 @@ ATF_TC_HEAD(openat_ ## mode ## _success, tc) \
 } \
 ATF_TC_BODY(openat_ ## mode ## _success, tc) \
 { \
+	int filedesc2; \
 	snprintf(extregex, sizeof(extregex), \
 		"openat.*%s.*fileforaudit.*return,success", regex); \
 	/* File needs to exist for successful openat(2) invocation */ \
-	ATF_REQUIRE(open(path, O_CREAT, o_mode) != -1); \
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); \
 	FILE *pipefd = setup(fds, class); \
-	ATF_REQUIRE(openat(AT_FDCWD, path, flag) != -1); \
+	ATF_REQUIRE((filedesc2 = openat(AT_FDCWD, path, flag)) != -1); \
 	check_audit(fds, extregex, pipefd); \
+	close(filedesc2); \
+	close(filedesc); \
 } \
 ATF_TC_CLEANUP(openat_ ## mode ## _success, tc) \
 { \

@@ -32,6 +32,7 @@
 
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static int filedesc;
 static off_t offlen = 0;
 static const char *path = "fileforaudit";
 static const char *errpath = "dirdoesnotexist/fileforaudit";
@@ -49,10 +50,11 @@ ATF_TC_HEAD(truncate_success, tc)
 ATF_TC_BODY(truncate_success, tc)
 {
 	/* File needs to exist to call truncate(2) */
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, "fw");
 	ATF_REQUIRE_EQ(0, truncate(path, offlen));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(truncate_success, tc)
@@ -91,13 +93,13 @@ ATF_TC_HEAD(ftruncate_success, tc)
 
 ATF_TC_BODY(ftruncate_success, tc)
 {
-	int filedesc;
 	const char *regex = "ftruncate.*return,success";
 	/* Valid file descriptor needs to exist to call ftruncate(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT | O_RDWR)) != -1);
 	FILE *pipefd = setup(fds, "fw");
 	ATF_REQUIRE_EQ(0, ftruncate(filedesc, offlen));
 	check_audit(fds, regex, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(ftruncate_success, tc)

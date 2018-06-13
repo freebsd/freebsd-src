@@ -36,6 +36,7 @@
 
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static int filedesc;
 static char extregex[80];
 static struct stat statbuff;
 static const char *auclass = "fa";
@@ -55,10 +56,11 @@ ATF_TC_HEAD(stat_success, tc)
 ATF_TC_BODY(stat_success, tc)
 {
 	/* File needs to exist to call stat(2) */
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, stat(path, &statbuff));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(stat_success, tc)
@@ -140,7 +142,6 @@ ATF_TC_HEAD(fstat_success, tc)
 
 ATF_TC_BODY(fstat_success, tc)
 {
-	int filedesc;
 	/* File needs to exist to call fstat(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT | O_RDWR, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
@@ -149,6 +150,7 @@ ATF_TC_BODY(fstat_success, tc)
 	snprintf(extregex, sizeof(extregex),
 		"fstat.*%jd.*return,success", (intmax_t)statbuff.st_ino);
 	check_audit(fds, extregex, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(fstat_success, tc)

@@ -35,6 +35,7 @@
 
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static int filedesc;
 static const char *path = "fileforaudit";
 static const char *errpath = "dirdoesnotexist/fileforaudit";
 static const char *successreg = "fileforaudit.*return,success";
@@ -92,10 +93,11 @@ ATF_TC_HEAD(rename_success, tc)
 
 ATF_TC_BODY(rename_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, "fd");
 	ATF_REQUIRE_EQ(0, rename(path, "renamed"));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(rename_success, tc)
@@ -134,10 +136,11 @@ ATF_TC_HEAD(renameat_success, tc)
 
 ATF_TC_BODY(renameat_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, "fd");
 	ATF_REQUIRE_EQ(0, renameat(AT_FDCWD, path, AT_FDCWD, "renamed"));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(renameat_success, tc)
@@ -176,10 +179,11 @@ ATF_TC_HEAD(unlink_success, tc)
 
 ATF_TC_BODY(unlink_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, "fd");
 	ATF_REQUIRE_EQ(0, unlink(path));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(unlink_success, tc)
