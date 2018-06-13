@@ -2065,6 +2065,7 @@ olstat(struct thread *td, struct olstat_args *uap)
 
 /*
  * Convert from an old to a new stat structure.
+ * XXX: many values are blindly truncated.
  */
 void
 cvtstat(struct stat *st, struct ostat *ost)
@@ -2078,10 +2079,7 @@ cvtstat(struct stat *st, struct ostat *ost)
 	ost->st_uid = st->st_uid;
 	ost->st_gid = st->st_gid;
 	ost->st_rdev = st->st_rdev;
-	if (st->st_size < (quad_t)1 << 32)
-		ost->st_size = st->st_size;
-	else
-		ost->st_size = -2;
+	ost->st_size = MIN(st->st_size, INT32_MAX);
 	ost->st_atim = st->st_atim;
 	ost->st_mtim = st->st_mtim;
 	ost->st_ctim = st->st_ctim;

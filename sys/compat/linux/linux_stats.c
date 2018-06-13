@@ -229,10 +229,7 @@ stat_copyout(struct stat *buf, void *ubuf)
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
 	lbuf.st_rdev = buf->st_rdev;
-	if (buf->st_size < (quad_t)1 << 32)
-		lbuf.st_size = buf->st_size;
-	else
-		lbuf.st_size = -2;
+	lbuf.st_size = MIN(buf->st_size, INT32_MAX);
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
 	lbuf.st_mtim.tv_sec = buf->st_mtim.tv_sec;
