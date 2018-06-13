@@ -159,7 +159,7 @@ thunder_pcie_identify_ecam(device_t dev, int *ecam)
 
 	/* Check if we're running on Cavium ThunderX */
 	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0))
+	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
 		return (EINVAL);
 
 	start = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
