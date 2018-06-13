@@ -110,14 +110,7 @@ static void psci_shutdown(void *, int);
 static int psci_find_callfn(psci_callfn_t *);
 static int psci_def_callfn(register_t, register_t, register_t, register_t);
 
-static psci_callfn_t psci_callfn = psci_def_callfn;
-
-static inline int
-psci_call(register_t a, register_t b, register_t c, register_t d)
-{
-
-	return (psci_callfn(a, b, c, d));
-}
+psci_callfn_t psci_callfn = psci_def_callfn;
 
 static void
 psci_init(void *dummy)
