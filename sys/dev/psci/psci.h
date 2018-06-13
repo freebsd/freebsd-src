@@ -36,12 +36,15 @@ typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t);
 
 extern int psci_present;
 
-void	psci_reset(void);
 int	psci_cpu_on(unsigned long, unsigned long, unsigned long);
+void	psci_reset(void);
+int32_t	psci_features(uint32_t);
+int	psci_get_version(void);
+
+/* One of these handlers will be selected during the boot */
 int	psci_hvc_despatch(register_t, register_t, register_t, register_t);
 int	psci_smc_despatch(register_t, register_t, register_t, register_t);
 
-int	psci_get_version(void);
 
 /*
  * PSCI return codes.
