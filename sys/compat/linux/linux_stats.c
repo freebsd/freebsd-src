@@ -130,18 +130,20 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 
 /*
  * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
- * don't bother going through major() and minor().  Keep doing blind
- * truncation, as for other fields.  The previous version didn't even do
- * blind truncation after dev_t was expanded to 64 bits.  It failed to
- * mask out bits 8-15 in minor().  These bits can only be nonzero in th
- * 64-bit version.
+ * truncation of a dev_t to 16 bits gives the same result as unpacking
+ * using major() and minor() and repacking in the l_dev_t format.  This
+ * detail is hidden in dev_to_ldev().  Overflow in conversions of dev_t's
+ * are not checked for, as for other fields.
  *
- * This is only used for st_dev.  st_dev is for the mounted-on device so
- * it can't be a device that needs very special translation.  The translation
- * of blind truncation is done here.  st_rdev is supposed to be specially
- * translated in callers, with the blind truncation done there too and
- * st_rdev in the native struct state abused to hold the linux st_rdev.
- * Callers do the last step using an open-coded Linux makedev().
+ * dev_to_ldev() is only used for translating st_dev.  When we convert
+ * st_rdev for copying it out, it isn't really a dev_t, but has already
+ * been translated to an l_dev_t in a nontrivial way.  Translating it
+ * again would be illogical but would have no effect since the low 16
+ * bits have the same encoding.
+ *
+ * The nontrivial translation for st_rdev renumbers some devices, but not
+ * ones that can be mounted on, so it is consistent with the translation
+ * for st_dev except when the renumbering or truncation causes conflicts.
  */
 #define	dev_to_ldev(d)	((uint16_t)(d))
 
