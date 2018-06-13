@@ -38,15 +38,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/tree.h>
 #include <sys/errno.h>
+#include <sys/tree.h>
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include <assert.h>
+#include <err.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <pthread.h>
 
 #include "mem.h"
 
@@ -285,8 +286,11 @@ register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 	err = 0;
 
 	mrp = malloc(sizeof(struct mmio_rb_range));
-	
-	if (mrp != NULL) {
+	if (mrp == NULL) {
+		warn("%s: couldn't allocate memory for mrp\n",
+		     __func__);
+		err = ENOMEM;
+	} else {
 		mrp->mr_param = *memp;
 		mrp->mr_base = memp->base;
 		mrp->mr_end = memp->base + memp->size - 1;
@@ -297,8 +301,7 @@ register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 		assert(perror == 0);
 		if (err)
 			free(mrp);
-	} else
-		err = ENOMEM;
+	}
 
 	return (err);
 }
