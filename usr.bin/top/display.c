@@ -160,7 +160,8 @@ display_resize(void)
     return(smart_terminal ? lines : Largest);
 }
 
-int display_updatecpus(struct statics *statics)
+int
+display_updatecpus(struct statics *statics)
 {
     int lines;
     int i;
@@ -184,7 +185,8 @@ int display_updatecpus(struct statics *statics)
     return(lines);
 }
 
-int display_init(struct statics * statics)
+int
+display_init(struct statics * statics)
 {
     int lines;
     char **pp;
@@ -1074,7 +1076,8 @@ readline(char *buffer, int size, int numeric)
 
 /* internal support routines */
 
-static void summary_format(char *str, int *numbers, const char * const *names)
+static void
+summary_format(char *str, int *numbers, const char * const *names)
 {
     char *p;
     int num;
