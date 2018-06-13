@@ -133,7 +133,7 @@ static const struct cpu_parts cpu_parts_arm[] = {
 };
 /* Cavium */
 static const struct cpu_parts cpu_parts_cavium[] = {
-	{ CPU_PART_THUNDER, "Thunder" },
+	{ CPU_PART_THUNDERX, "ThunderX" },
 	CPU_PART_NONE,
 };
 
@@ -212,11 +212,11 @@ print_cpu_features(u_int cpu)
 	 * https://lkml.org/lkml/2016/8/4/722
 	 */
 	/*
-	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1 on its own also
+	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1 on its own also
 	 * triggers on pass 2.0+.
 	 */
 	if (cpu == 0 && CPU_VAR(PCPU_GET(midr)) == 0 &&
-	    CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1)
+	    CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1)
 		printf("WARNING: ThunderX Pass 1.1 detected.\nThis has known "
 		    "hardware bugs that may cause the incorrect operation of "
 		    "atomic operations.\n");
