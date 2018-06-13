@@ -138,6 +138,8 @@ struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
 	off_t last_offset;
 	struct	bio *insert_point;
+	int total;
+	int batched;
 };
 
 extern struct vm_map *bio_transient_map;
