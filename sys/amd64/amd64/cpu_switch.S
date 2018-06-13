@@ -128,10 +128,10 @@ done_store_dr:
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
-	jne	3f
+	jne	2f
 	movq	PCB_SAVEFPU(%r8),%r8
 	clts
-	cmpl	$0,use_xsave
+	cmpl	$0,use_xsave(%rip)
 	jne	1f
 	fxsave	(%r8)
 	jmp	2f
@@ -143,12 +143,7 @@ ctx_switch_xsave:
 	/* This is patched to xsaveopt if supported, see fpuinit_bsp1() */
 	xsave	(%r8)
 	movq	%rcx,%rdx
-2:	smsw	%ax
-	orb	$CR0_TS,%al
-	lmsw	%ax
-	xorl	%eax,%eax
-	movq	%rax,PCPU(FPCURTHREAD)
-3:
+2:
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
 	movq	%rsi,%r12
 	movq	%rdi,%r13
@@ -238,6 +233,8 @@ done_load_dr:
 	movq	PCB_RBX(%r8),%rbx
 	movq	PCB_RIP(%r8),%rax
 	movq	%rax,(%rsp)
+	movq	PCPU(CURTHREAD),%rdi
+	call	fpu_activate_sw
 	ret
 
 	/*
