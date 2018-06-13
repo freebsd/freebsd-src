@@ -122,7 +122,7 @@ digits(int val)
  * string_index(string, array) - find string in array and return index
  */
 
-int
+int __pure
 string_index(const char *string, const char * const *array)
 {
     size_t i = 0;
@@ -175,7 +175,7 @@ argparse(char *line, int *cntp)
  *	useful on for calculating cpu state percentages.
  */
 
-long
+long __pure
 percentages(int cnt, int *out, long *new, long *old, long *diffs)
 {
     int i;
