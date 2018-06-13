@@ -183,6 +183,8 @@ static driver_t age_driver = {
 static devclass_t age_devclass;
 
 DRIVER_MODULE(age, pci, age_driver, age_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, age, age_devs,
+    sizeof(age_devs[0]), nitems(age_devs));
 DRIVER_MODULE(miibus, age, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec age_res_spec_mem[] = {
