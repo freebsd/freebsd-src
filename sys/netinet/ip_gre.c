@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
- * Copyright (c) 2014 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2014, 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -41,17 +41,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
+#include <sys/sockio.h>
+#include <sys/mbuf.h>
 #include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/sysctl.h>
-#include <net/ethernet.h>
+#include <sys/malloc.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
@@ -74,36 +73,168 @@ VNET_DEFINE(int, ip_gre_ttl) = GRE_TTL;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
-static int
-in_gre_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+static VNET_DEFINE(struct gre_list *, ipv4_hashtbl) = NULL;
+#define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
+#define	GRE_HASH(src, dst)	(V_ipv4_hashtbl[\
+    in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define	GRE_HASH_SC(sc)		GRE_HASH((sc)->gre_oip.ip_src.s_addr,\
+    (sc)->gre_oip.ip_dst.s_addr)
+
+static uint32_t
+in_gre_hashval(in_addr_t src, in_addr_t dst)
 {
-	GRE_RLOCK_TRACKER;
-	struct gre_softc *sc;
-	struct ip *ip;
+	uint32_t ret;
 
-	sc = (struct gre_softc *)arg;
-	if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
-		return (0);
+	ret = fnv_32_buf(&src, sizeof(src), FNV1_32_INIT);
+	return (fnv_32_buf(&dst, sizeof(dst), ret));
+}
 
-	M_ASSERTPKTHDR(m);
+static int
+in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst)
+{
+	struct gre_softc *tmp;
 
-	GRE_RLOCK(sc);
-	if (sc->gre_family == 0)
-		goto bad;
+	if (sc->gre_family == AF_INET &&
+	    sc->gre_oip.ip_src.s_addr == src &&
+	    sc->gre_oip.ip_dst.s_addr == dst)
+		return (EEXIST);
 
-	KASSERT(sc->gre_family == AF_INET,
-	    ("wrong gre_family: %d", sc->gre_family));
-
-	ip = mtod(m, struct ip *);
-	if (sc->gre_oip.ip_src.s_addr != ip->ip_dst.s_addr ||
-	    sc->gre_oip.ip_dst.s_addr != ip->ip_src.s_addr)
-		goto bad;
-
-	GRE_RUNLOCK(sc);
-	return (32 * 3); /* src + dst + gre_hdr */
-bad:
-	GRE_RUNLOCK(sc);
+	CK_LIST_FOREACH(tmp, &GRE_HASH(src, dst), chain) {
+		if (tmp == sc)
+			continue;
+		if (tmp->gre_oip.ip_src.s_addr == src &&
+		    tmp->gre_oip.ip_dst.s_addr == dst)
+			return (EADDRNOTAVAIL);
+	}
 	return (0);
+}
+
+static int
+in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
+{
+	const struct ip *ip;
+	struct gre_softc *sc;
+
+	MPASS(in_epoch());
+	ip = mtod(m, const struct ip *);
+	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
+	    ip->ip_src.s_addr), chain) {
+		/*
+		 * This is an inbound packet, its ip_dst is source address
+		 * in softc.
+		 */
+		if (sc->gre_oip.ip_src.s_addr == ip->ip_dst.s_addr &&
+		    sc->gre_oip.ip_dst.s_addr == ip->ip_src.s_addr) {
+			if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
+				return (0);
+			*arg = sc;
+			return (ENCAP_DRV_LOOKUP);
+		}
+	}
+	return (0);
+}
+
+static void
+in_gre_attach(struct gre_softc *sc)
+{
+
+	sc->gre_hlen = sizeof(struct greip);
+	sc->gre_oip.ip_v = IPVERSION;
+	sc->gre_oip.ip_hl = sizeof(struct ip) >> 2;
+	sc->gre_oip.ip_p = IPPROTO_GRE;
+	gre_updatehdr(sc, &sc->gre_gihdr->gi_gre);
+	CK_LIST_INSERT_HEAD(&GRE_HASH_SC(sc), sc, chain);
+}
+
+void
+in_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
+{
+
+	MPASS(cmd == GRESKEY || cmd == GRESOPTS);
+
+	/* NOTE: we are protected with gre_ioctl_sx lock */
+	MPASS(sc->gre_family == AF_INET);
+	CK_LIST_REMOVE(sc, chain);
+	GRE_WAIT();
+	if (cmd == GRESKEY)
+		sc->gre_key = value;
+	else
+		sc->gre_options = value;
+	in_gre_attach(sc);
+}
+
+int
+in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
+{
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct sockaddr_in *dst, *src;
+	struct ip *ip;
+	int error;
+
+	/* NOTE: we are protected with gre_ioctl_sx lock */
+	error = EINVAL;
+	switch (cmd) {
+	case SIOCSIFPHYADDR:
+		src = &((struct in_aliasreq *)data)->ifra_addr;
+		dst = &((struct in_aliasreq *)data)->ifra_dstaddr;
+
+		/* sanity checks */
+		if (src->sin_family != dst->sin_family ||
+		    src->sin_family != AF_INET ||
+		    src->sin_len != dst->sin_len ||
+		    src->sin_len != sizeof(*src))
+			break;
+		if (src->sin_addr.s_addr == INADDR_ANY ||
+		    dst->sin_addr.s_addr == INADDR_ANY) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		if (V_ipv4_hashtbl == NULL)
+			V_ipv4_hashtbl = gre_hashinit();
+		error = in_gre_checkdup(sc, src->sin_addr.s_addr,
+		    dst->sin_addr.s_addr);
+		if (error == EADDRNOTAVAIL)
+			break;
+		if (error == EEXIST) {
+			/* Addresses are the same. Just return. */
+			error = 0;
+			break;
+		}
+		ip = malloc(sizeof(struct greip) + 3 * sizeof(uint32_t),
+		    M_GRE, M_WAITOK | M_ZERO);
+		ip->ip_src.s_addr = src->sin_addr.s_addr;
+		ip->ip_dst.s_addr = dst->sin_addr.s_addr;
+		if (sc->gre_family != 0) {
+			/* Detach existing tunnel first */
+			CK_LIST_REMOVE(sc, chain);
+			GRE_WAIT();
+			free(sc->gre_hdr, M_GRE);
+			/* XXX: should we notify about link state change? */
+		}
+		sc->gre_family = AF_INET;
+		sc->gre_hdr = ip;
+		sc->gre_oseq = 0;
+		sc->gre_iseq = UINT32_MAX;
+		in_gre_attach(sc);
+		break;
+	case SIOCGIFPSRCADDR:
+	case SIOCGIFPDSTADDR:
+		if (sc->gre_family != AF_INET) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		src = (struct sockaddr_in *)&ifr->ifr_addr;
+		memset(src, 0, sizeof(*src));
+		src->sin_family = AF_INET;
+		src->sin_len = sizeof(*src);
+		src->sin_addr = (cmd == SIOCGIFPSRCADDR) ?
+		    sc->gre_oip.ip_src: sc->gre_oip.ip_dst;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
+		if (error != 0)
+			memset(src, 0, sizeof(*src));
+		break;
+	}
+	return (error);
 }
 
 int
@@ -136,19 +267,30 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 	return (ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL));
 }
 
+static const struct encaptab *ecookie = NULL;
 static const struct encap_config ipv4_encap_cfg = {
 	.proto = IPPROTO_GRE,
 	.min_length = sizeof(struct greip) + sizeof(struct ip),
-	.exact_match = (sizeof(in_addr_t) << 4) + 32,
-	.check = in_gre_encapcheck,
+	.exact_match = ENCAP_DRV_LOOKUP,
+	.lookup = in_gre_lookup,
 	.input = gre_input
 };
 
-int
-in_gre_attach(struct gre_softc *sc)
+void
+in_gre_init(void)
 {
 
-	KASSERT(sc->gre_ecookie == NULL, ("gre_ecookie isn't NULL"));
-	sc->gre_ecookie = ip_encap_attach(&ipv4_encap_cfg, sc, M_WAITOK);
-	return (0);
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+	ecookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
+}
+
+void
+in_gre_uninit(void)
+{
+
+	if (IS_DEFAULT_VNET(curvnet))
+		ip_encap_detach(ecookie);
+	if (V_ipv4_hashtbl != NULL)
+		gre_hashdestroy(V_ipv4_hashtbl);
 }
