@@ -55,7 +55,8 @@ struct hash_el {
 static struct hash_el hash_table[Table_size];
 
 
-char *username(int uid)
+char *
+username(int uid)
 {
     int hashindex;
 
@@ -68,7 +69,8 @@ char *username(int uid)
     return(hash_table[hashindex].name);
 }
 
-int userid(char username[])
+int
+userid(char username[])
 {
     struct passwd *pwd;
 
@@ -89,7 +91,8 @@ int userid(char username[])
 }
 
 /* wecare 1 = enter it always, 0 = nice to have */
-int enter_user(int uid, char name[], bool wecare)
+int
+enter_user(int uid, char name[], bool wecare)
 {
     int hashindex;
 
