@@ -46,11 +46,11 @@ __FBSDID("$FreeBSD$");
 int
 atoi(const char *str)
 {
-	return (int)strtol(str, (char **)NULL, 10);
+	return (int)strtol(str, NULL, 10);
 }
 
 int
 atoi_l(const char *str, locale_t locale)
 {
-	return (int)strtol_l(str, (char **)NULL, 10, locale);
+	return (int)strtol_l(str, NULL, 10, locale);
 }
