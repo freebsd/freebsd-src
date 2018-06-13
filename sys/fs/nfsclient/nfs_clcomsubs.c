@@ -430,8 +430,9 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		NFSM_DISSECT(fp, struct nfs_fattr *, NFSX_V3FATTR);
 		nap->na_type = nfsv34tov_type(fp->fa_type);
 		nap->na_mode = fxdr_unsigned(u_short, fp->fa_mode);
-		nap->na_rdev = makedev(fxdr_unsigned(u_char, fp->fa3_rdev.specdata1),
-			fxdr_unsigned(u_char, fp->fa3_rdev.specdata2));
+		nap->na_rdev = NFSMAKEDEV(
+		    fxdr_unsigned(int, fp->fa3_rdev.specdata1),
+		    fxdr_unsigned(int, fp->fa3_rdev.specdata2));
 		nap->na_nlink = fxdr_unsigned(uint32_t, fp->fa_nlink);
 		nap->na_uid = fxdr_unsigned(uid_t, fp->fa_uid);
 		nap->na_gid = fxdr_unsigned(gid_t, fp->fa_gid);
