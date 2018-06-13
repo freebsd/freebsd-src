@@ -122,7 +122,7 @@ digits(int val)
  * string_index(string, array) - find string in array and return index
  */
 
-int __pure
+int
 string_index(const char *string, const char * const *array)
 {
     size_t i = 0;
@@ -175,7 +175,7 @@ argparse(char *line, int *cntp)
  *	useful on for calculating cpu state percentages.
  */
 
-long __pure
+long
 percentages(int cnt, int *out, long *new, long *old, long *diffs)
 {
     int i;
@@ -210,13 +210,10 @@ percentages(int cnt, int *out, long *new, long *old, long *diffs)
     /* calculate percentages based on overall change, rounding up */
     half_total = total_change / 2l;
 
-    /* Do not divide by 0. Causes Floating point exception */
-    if(total_change) {
-        for (i = 0; i < cnt; i++)
-        {
-          *out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
-        }
-    }
+	for (i = 0; i < cnt; i++)
+	{
+		*out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
+	}
 
     /* return the total in case the caller wants to use it */
     return(total_change);
