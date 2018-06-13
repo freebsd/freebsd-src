@@ -139,6 +139,11 @@ static	void	fpu_clean_state(void);
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 1, "Floating point instructions executed in hardware");
 
+int lazy_fpu_switch = 0;
+SYSCTL_INT(_hw, OID_AUTO, lazy_fpu_switch, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &lazy_fpu_switch, 0,
+    "Lazily load FPU context after context switch");
+
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
 static	uma_zone_t fpu_save_area_zone;
@@ -204,6 +209,7 @@ fpuinit_bsp1(void)
 	u_int cp[4];
 	uint64_t xsave_mask_user;
 
+	TUNABLE_INT_FETCH("hw.lazy_fpu_switch", &lazy_fpu_switch);
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
@@ -612,6 +618,45 @@ fputrap_sse(void)
 	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
 }
 
+static void
+restore_fpu_curthread(struct thread *td)
+{
+	struct pcb *pcb;
+
+	/*
+	 * Record new context early in case frstor causes a trap.
+	 */
+	PCPU_SET(fpcurthread, td);
+
+	stop_emulating();
+	fpu_clean_state();
+	pcb = td->td_pcb;
+
+	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
+		/*
+		 * This is the first time this thread has used the FPU or
+		 * the PCB doesn't contain a clean FPU state.  Explicitly
+		 * load an initial state.
+		 *
+		 * We prefer to restore the state from the actual save
+		 * area in PCB instead of directly loading from
+		 * fpu_initialstate, to ignite the XSAVEOPT
+		 * tracking engine.
+		 */
+		bcopy(fpu_initialstate, pcb->pcb_save,
+		    cpu_max_ext_state_size);
+		fpurestore(pcb->pcb_save);
+		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
+			fldcw(pcb->pcb_initial_fpucw);
+		if (PCB_USER_FPU(pcb))
+			set_pcb_flags(pcb, PCB_FPUINITDONE |
+			    PCB_USERFPUINITDONE);
+		else
+			set_pcb_flags(pcb, PCB_FPUINITDONE);
+	} else
+		fpurestore(pcb->pcb_save);
+}
+
 /*
  * Device Not Available (DNA, #NM) exception handler.
  *
@@ -622,7 +667,9 @@ fputrap_sse(void)
 void
 fpudna(void)
 {
+	struct thread *td;
 
+	td = curthread;
 	/*
 	 * This handler is entered with interrupts enabled, so context
 	 * switches may occur before critical_enter() is executed.  If
@@ -636,7 +683,7 @@ fpudna(void)
 
 	KASSERT((curpcb->pcb_flags & PCB_FPUNOSAVE) == 0,
 	    ("fpudna while in fpu_kern_enter(FPU_KERN_NOCTX)"));
-	if (PCPU_GET(fpcurthread) == curthread) {
+	if (PCPU_GET(fpcurthread) == td) {
 		printf("fpudna: fpcurthread == curthread\n");
 		stop_emulating();
 		critical_exit();
@@ -645,40 +692,24 @@ fpudna(void)
 	if (PCPU_GET(fpcurthread) != NULL) {
 		panic("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
 		    PCPU_GET(fpcurthread), PCPU_GET(fpcurthread)->td_tid,
-		    curthread, curthread->td_tid);
+		    td, td->td_tid);
 	}
-	stop_emulating();
-	/*
-	 * Record new context early in case frstor causes a trap.
-	 */
-	PCPU_SET(fpcurthread, curthread);
-
-	fpu_clean_state();
-
-	if ((curpcb->pcb_flags & PCB_FPUINITDONE) == 0) {
-		/*
-		 * This is the first time this thread has used the FPU or
-		 * the PCB doesn't contain a clean FPU state.  Explicitly
-		 * load an initial state.
-		 *
-		 * We prefer to restore the state from the actual save
-		 * area in PCB instead of directly loading from
-		 * fpu_initialstate, to ignite the XSAVEOPT
-		 * tracking engine.
-		 */
-		bcopy(fpu_initialstate, curpcb->pcb_save,
-		    cpu_max_ext_state_size);
-		fpurestore(curpcb->pcb_save);
-		if (curpcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
-			fldcw(curpcb->pcb_initial_fpucw);
-		if (PCB_USER_FPU(curpcb))
-			set_pcb_flags(curpcb,
-			    PCB_FPUINITDONE | PCB_USERFPUINITDONE);
-		else
-			set_pcb_flags(curpcb, PCB_FPUINITDONE);
-	} else
-		fpurestore(curpcb->pcb_save);
+	restore_fpu_curthread(td);
 	critical_exit();
+}
+
+void fpu_activate_sw(struct thread *td); /* Called from the context switch */
+void
+fpu_activate_sw(struct thread *td)
+{
+
+	if (lazy_fpu_switch || (td->td_pflags & TDP_KTHREAD) != 0 ||
+	    !PCB_USER_FPU(td->td_pcb)) {
+		PCPU_SET(fpcurthread, NULL);
+		start_emulating();
+	} else if (PCPU_GET(fpcurthread) != td) {
+		restore_fpu_curthread(td);
+	}
 }
 
 void
