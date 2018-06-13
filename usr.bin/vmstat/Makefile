@@ -7,8 +7,6 @@ PROG=	vmstat
 MAN=	vmstat.8
 LIBADD=	devstat kvm memstat xo util
 
-WARNS?=	6
-
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
