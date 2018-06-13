@@ -245,8 +245,8 @@ main(int argc, char *argv[])
     char *env_top;
     const char **preset_argv;
     int  preset_argc = 0;
-    const char **av;
-    int  ac;
+    const char **av = NULL;
+    int  ac = -1;
     bool dostates = false;
     bool do_unames = true;
     char interactive = 2;
@@ -1230,7 +1230,7 @@ top_winch(int i __unused)		/* SIGWINCH handler */
     winchflag = 1;
 }
 
-void
+void __dead2
 quit(int status)		/* exit under duress */
 {
     end_screen();

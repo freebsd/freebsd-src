@@ -79,8 +79,6 @@ struct handle {
 #define PROCSIZE(pp) ((pp)->ki_size / 1024)
 
 #define RU(pp)	(&(pp)->ki_rusage)
-#define RUTOT(pp) \
-	(RU(pp)->ru_inblock + RU(pp)->ru_oublock + RU(pp)->ru_majflt)
 
 #define	PCTCPU(pp) (pcpu[pp - pbase])
 
