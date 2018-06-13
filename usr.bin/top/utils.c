@@ -19,6 +19,7 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
+#include <libutil.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -262,35 +263,34 @@ percentages(int cnt, int *out, long *new, long *old, long *diffs)
    exceed 9999.9, we use "???".
  */
 
-char *
+const char *
 format_time(long seconds)
 {
-    static char result[10];
+	static char result[10];
 
-    /* sanity protection */
-    if (seconds < 0 || seconds > (99999l * 360l))
-    {
-	strcpy(result, "   ???");
-    }
-    else if (seconds >= (1000l * 60l))
-    {
-	/* alternate (slow) method displaying hours and tenths */
-	sprintf(result, "%5.1fH", (double)seconds / (double)(60l * 60l));
+	/* sanity protection */
+	if (seconds < 0 || seconds > (99999l * 360l))
+	{
+		strcpy(result, "   ???");
+	}
+	else if (seconds >= (1000l * 60l))
+	{
+		/* alternate (slow) method displaying hours and tenths */
+		sprintf(result, "%5.1fH", (double)seconds / (double)(60l * 60l));
 
-	/* It is possible that the sprintf took more than 6 characters.
-	   If so, then the "H" appears as result[6].  If not, then there
-	   is a \0 in result[6].  Either way, it is safe to step on.
-	 */
-	result[6] = '\0';
-    }
-    else
-    {
-	/* standard method produces MMM:SS */
-	/* we avoid printf as must as possible to make this quick */
-	sprintf(result, "%3ld:%02ld",
-	    (long)(seconds / 60), (long)(seconds % 60));
-    }
-    return(result);
+		/* It is possible that the sprintf took more than 6 characters.
+		   If so, then the "H" appears as result[6].  If not, then there
+		   is a \0 in result[6].  Either way, it is safe to step on.
+		   */
+		result[6] = '\0';
+	}
+	else
+	{
+		/* standard method produces MMM:SS */
+		sprintf(result, "%3ld:%02ld",
+				seconds / 60l, seconds % 60l);
+	}
+	return(result);
 }
 
 /*
@@ -319,63 +319,16 @@ format_time(long seconds)
 #define NUM_STRINGS 8
 
 char *
-format_k(long amt)
+format_k(int64_t amt)
 {
     static char retarray[NUM_STRINGS][16];
     static int index = 0;
-    char *p;
     char *ret;
-    char tag = 'K';
 
-    p = ret = retarray[index];
-    index = (index + 1) % NUM_STRINGS;
-
-    if (amt >= 10000)
-    {
-	amt = (amt + 512) / 1024;
-	tag = 'M';
-	if (amt >= 10000)
-	{
-	    amt = (amt + 512) / 1024;
-	    tag = 'G';
-	}
-    }
-
-    p = stpcpy(p, itoa(amt));
-    *p++ = tag;
-    *p = '\0';
-
-    return(ret);
-}
-
-char *
-format_k2(unsigned long long amt)
-{
-    static char retarray[NUM_STRINGS][16];
-    static int index = 0;
-    char *p;
-    char *ret;
-    char tag = 'K';
-
-    p = ret = retarray[index];
-    index = (index + 1) % NUM_STRINGS;
-
-    if (amt >= 100000)
-    {
-	amt = (amt + 512) / 1024;
-	tag = 'M';
-	if (amt >= 100000)
-	{
-	    amt = (amt + 512) / 1024;
-	    tag = 'G';
-	}
-    }
-
-    p = stpcpy(p, itoa((int)amt));
-    *p++ = tag;
-    *p = '\0';
-
-    return(ret);
+    ret = retarray[index];
+	index = (index + 1) % NUM_STRINGS;
+	humanize_number(ret, 6, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
+	return (ret);
 }
 
 int

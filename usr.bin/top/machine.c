@@ -1087,7 +1087,7 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 	else
 		snprintf(swap_buf, sizeof(swap_buf), "%*s",
 		    swaplength - 1,
-		    format_k2(pagetok(ki_swap(pp)))); /* XXX */
+		    format_k(pagetok(ki_swap(pp)))); /* XXX */
 
 	if (displaymode == DISP_IO) {
 		oldp = get_old_proc(pp);
@@ -1148,8 +1148,8 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 	    thr_buf,
 	    pp->ki_pri.pri_level - PZERO,
 	    format_nice(pp),
-	    format_k2(PROCSIZE(pp)),
-	    format_k2(pagetok(pp->ki_rssize)),
+	    format_k(PROCSIZE(pp)),
+	    format_k(pagetok(pp->ki_rssize)),
 	    swaplength, swaplength, swap_buf,
 	    status,
 	    cpu,
