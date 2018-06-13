@@ -377,12 +377,13 @@ u_procstates(int total, int *brkdn)
     if (ltotal != total)
     {
 	/* move and overwrite */
-#if (x_procstate == 0)
+if (x_procstate == 0) {
 	Move_to(x_procstate, y_procstate);
-#else
+}
+else {
 	/* cursor is already there...no motion needed */
-	/* assert(lastline == 1); */
-#endif
+	assert(lastline == 1);
+}
 	printf("%d", total);
 
 	/* if number of digits differs, rewrite the label */
@@ -955,11 +956,14 @@ new_message(int type, const char *msgfmt, ...)
 	    i = strlen(next_msg);
 	    if ((type & MT_delayed) == 0)
 	    {
-		type & MT_standout ? top_standout(next_msg) :
-		                     fputs(next_msg, stdout);
-		(void) clear_eol(msglen - i);
-		msglen = i;
-		next_msg[0] = '\0';
+			if (type & MT_standout) {
+				top_standout(next_msg);
+			} else {
+				fputs(next_msg, stdout);
+			}
+			clear_eol(msglen - i);
+			msglen = i;
+			next_msg[0] = '\0';
 	    }
 	}
     }
@@ -967,7 +971,11 @@ new_message(int type, const char *msgfmt, ...)
     {
 	if ((type & MT_delayed) == 0)
 	{
-	    type & MT_standout ? top_standout(next_msg) : fputs(next_msg, stdout);
+		if (type & MT_standout) {
+			top_standout(next_msg);
+		} else {
+			fputs(next_msg, stdout);
+		}
 	    msglen = strlen(next_msg);
 	    next_msg[0] = '\0';
 	}
