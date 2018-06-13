@@ -48,7 +48,6 @@ struct encaptab {
 	void *arg;			/* passed via m->m_pkthdr.aux */
 };
 
-void	encap_init(void);
 int	encap4_input(struct mbuf **, int *, int);
 int	encap6_input(struct mbuf **, int *, int);
 const struct encaptab *encap_attach(int, int, const struct sockaddr *,

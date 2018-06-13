@@ -280,7 +280,6 @@ struct protosw inet6sw[] = {
 	.pr_input =		encap6_input,
 	.pr_output =		rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 #endif /* INET */
@@ -292,7 +291,6 @@ struct protosw inet6sw[] = {
 	.pr_input =		encap6_input,
 	.pr_output =		rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
@@ -303,7 +301,6 @@ struct protosw inet6sw[] = {
 	.pr_input =		encap6_input,
 	.pr_output =		rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
