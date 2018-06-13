@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
