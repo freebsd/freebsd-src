@@ -96,6 +96,7 @@ int	 pfctl_show_nat(int, int, char *);
 int	 pfctl_show_src_nodes(int, int);
 int	 pfctl_show_states(int, const char *, int);
 int	 pfctl_show_status(int, int);
+int	 pfctl_show_running(int);
 int	 pfctl_show_timeouts(int, int);
 int	 pfctl_show_limits(int, int);
 void	 pfctl_debug(int, u_int32_t, int);
@@ -217,7 +218,7 @@ static const char *clearopt_list[] = {
 static const char *showopt_list[] = {
 	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
 	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
-	"all", NULL
+	"Running", "all", NULL
 };
 
 static const char *tblcmdopt_list[] = {
@@ -1152,6 +1153,20 @@ pfctl_show_status(int dev, int opts)
 		pfctl_print_title("INFO:");
 	print_status(&status, opts);
 	return (0);
+}
+
+int
+pfctl_show_running(int dev)
+{
+	struct pf_status status;
+
+	if (ioctl(dev, DIOCGETSTATUS, &status)) {
+		warn("DIOCGETSTATUS");
+		return (-1);
+	}
+
+	print_running(&status);
+	return (!status.running);
 }
 
 int
@@ -2271,6 +2286,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			pfctl_show_status(dev, opts);
+			break;
+		case 'R':
+			error = pfctl_show_running(dev);
 			break;
 		case 't':
 			pfctl_show_timeouts(dev, opts);
