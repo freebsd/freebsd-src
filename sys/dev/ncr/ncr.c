@@ -3169,8 +3169,8 @@ u_int32_t ncr_info (int unit)
 **----------------------------------------------------------
 */
 typedef struct {
-	unsigned long	device_id;
-	unsigned short	minrevid;
+	uint32_t	device_id;
+	uint16_t	minrevid;
 	char	       *name;
 	unsigned char	maxburst;
 	unsigned char	maxoffs;
@@ -3225,7 +3225,7 @@ static ncr_chip ncr_chip_table[] = {
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
 };
 
-static int ncr_chip_lookup(u_long device_id, u_char revision_id)
+static int ncr_chip_lookup(uint32_t device_id, u_char revision_id)
 {
 	int i, found;
 	
@@ -7108,6 +7108,8 @@ static driver_t ncr_driver = {
 static devclass_t ncr_devclass;
 
 DRIVER_MODULE(ncr, pci, ncr_driver, ncr_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device;U16:#;D:#", pci, ncr, ncr_chip_table,
+    sizeof(ncr_chip_table[0]), nitems(ncr_chip_table));
 MODULE_DEPEND(ncr, cam, 1, 1, 1);
 MODULE_DEPEND(ncr, pci, 1, 1, 1);
 
