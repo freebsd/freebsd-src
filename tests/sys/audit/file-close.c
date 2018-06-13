@@ -40,6 +40,7 @@
 static pid_t pid;
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static int filedesc;
 static char extregex[80];
 static struct stat statbuff;
 static const char *auclass = "cl";
@@ -103,7 +104,6 @@ ATF_TC_HEAD(close_success, tc)
 
 ATF_TC_BODY(close_success, tc)
 {
-	int filedesc;
 	/* File needs to exist to call close(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT | O_RDWR, mode)) != -1);
 	/* Call stat(2) to store the Inode number of 'path' */
@@ -176,7 +176,6 @@ ATF_TC_HEAD(revoke_success, tc)
 
 ATF_TC_BODY(revoke_success, tc)
 {
-	int filedesc;
 	char *ptyname;
 	pid = getpid();
 	snprintf(extregex, sizeof(extregex), "revoke.*%d.*return,success", pid);
@@ -188,9 +187,7 @@ ATF_TC_BODY(revoke_success, tc)
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, revoke(ptyname));
 	check_audit(fds, extregex, pipefd);
-
-	/* Close the file descriptor to pseudo terminal */
-	ATF_REQUIRE_EQ(0, close(filedesc));
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(revoke_success, tc)
