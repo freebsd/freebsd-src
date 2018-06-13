@@ -9,8 +9,7 @@ MAN=	top.1
 
 .if ${COMPILER_TYPE} == "gcc"
 .if ${COMPILER_VERSION} >= 50000
-CFLAGS.gcc=-Wno-error=cast-qual -Wno-error=discarded-qualifiers -Wno-error=incompatible-pointer-types \
-	-Wno-error=maybe-uninitialized
+CFLAGS.gcc=-Wno-error=cast-qual -Wno-error=discarded-qualifiers -Wno-error=incompatible-pointer-types
 .else #base gcc
 NO_WERROR=
 .endif
