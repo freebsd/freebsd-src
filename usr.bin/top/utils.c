@@ -47,7 +47,7 @@ atoiwi(const char *str)
 	}
 	else
 	{
-	    return(atoi(str));
+		return((int)strtol(str, NULL, 10));
 	}
     }
     return(0);
