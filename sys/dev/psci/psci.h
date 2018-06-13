@@ -41,6 +41,14 @@ void	psci_reset(void);
 int32_t	psci_features(uint32_t);
 int	psci_get_version(void);
 
+/* Handler to let us call into the PSCI/SMCCC firmware */
+extern psci_callfn_t psci_callfn;
+static inline int
+psci_call(register_t a, register_t b, register_t c, register_t d)
+{
+
+	return (psci_callfn(a, b, c, d));
+}
 /* One of these handlers will be selected during the boot */
 int	psci_hvc_despatch(register_t, register_t, register_t, register_t);
 int	psci_smc_despatch(register_t, register_t, register_t, register_t);
