@@ -73,6 +73,12 @@ static struct cpu_quirks cpu_quirks[] = {
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
 		.quirk_install = install_psci_bp_hardening,
 	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value =
+		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
 };
 
 static void
