@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #else
 #include <stdlib.h>
 #include <string.h>
@@ -605,11 +602,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 		*size = stream.cur_ip;
 #ifdef _KERNEL
-		/*
-		 * We cannot use malloc(9) because DMAP is mapped as NX.
-		 */
-		stream.ibuf = (void *)kmem_malloc(kernel_arena, *size,
-		    M_NOWAIT);
+		stream.ibuf = malloc(*size, M_BPFJIT, M_EXEC | M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else
@@ -657,15 +650,4 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 #endif
 
 	return ((bpf_filter_func)(void *)stream.ibuf);
-}
-
-void
-bpf_jit_free(void *func, size_t size)
-{
-
-#ifdef _KERNEL
-	kmem_free(kernel_arena, (vm_offset_t)func, size);
-#else
-	munmap(func, size);
-#endif
 }

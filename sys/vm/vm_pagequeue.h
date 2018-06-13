@@ -103,7 +103,8 @@ struct vm_domain {
 	struct mtx_padalign vmd_free_mtx;
 	struct mtx_padalign vmd_pageout_mtx;
 	uma_zone_t vmd_pgcache;		/* (c) page free cache. */
-	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva arena. */
+	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva R/W arena. */
+	struct vmem *vmd_kernel_rwx_arena; /* (c) per-domain kva R/W/X arena. */
 	u_int vmd_domain;		/* (c) Domain number. */
 	u_int vmd_page_count;		/* (c) Total page count. */
 	long vmd_segs;			/* (c) bitmask of the segments */

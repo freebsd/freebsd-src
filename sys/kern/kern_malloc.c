@@ -564,7 +564,7 @@ void *
 		return (va);
 #endif
 
-	if (size <= kmem_zmax) {
+	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
@@ -609,7 +609,7 @@ malloc_domain(size_t size, struct malloc_type *mtp, int domain,
 	if (malloc_dbg(&va, &size, mtp, flags) != 0)
 		return (va);
 #endif
-	if (size <= kmem_zmax) {
+	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];

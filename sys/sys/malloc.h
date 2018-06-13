@@ -49,7 +49,7 @@
 #define	MINALLOCSIZE	UMA_SMALLEST_UNIT
 
 /*
- * flags to malloc.
+ * Flags to memory allocation functions.
  */
 #define	M_NOWAIT	0x0001		/* do not block */
 #define	M_WAITOK	0x0002		/* ok to block */
@@ -59,6 +59,7 @@
 #define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
 #define	M_FIRSTFIT	0x1000		/* Only for vmem, fast fit. */
 #define	M_BESTFIT	0x2000		/* Only for vmem, low fragmentation. */
+#define	M_EXEC		0x4000		/* allocate executable space. */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
