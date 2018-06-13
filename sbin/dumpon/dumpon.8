@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2018
+.Dd June 13, 2018
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -181,7 +181,6 @@ or
 .Dv ZSTDIO
 kernel options.
 .Pp
-.Pp
 The
 .Fl l
 flag causes
@@ -311,15 +310,17 @@ The
 can be now examined using
 .Xr kgdb 1 :
 .Pp
-.Dl # kgdb /usr/lib/debug/boot/kernel/kernel.debug vmcore.#
+.Dl # kgdb /boot/kernel/kernel vmcore.#
 .Pp
 or shorter:
 .Pp
-.Dl # kgdb -n # /usr/lib/debug/boot/kernel/kernel.debug
+.Dl # kgdb -n #
 .Pp
 The core was decrypted properly if
 .Xr kgdb 1
 does not print any errors.
+Note that the live kernel might be at a different path
+which can be examined by looking at the kern.bootfile sysctl.
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr kgdb 1 ,
