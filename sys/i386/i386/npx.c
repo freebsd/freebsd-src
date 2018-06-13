@@ -191,6 +191,11 @@ int	hw_float;
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     &hw_float, 0, "Floating point instructions executed in hardware");
 
+int lazy_fpu_switch = 0;
+SYSCTL_INT(_hw, OID_AUTO, lazy_fpu_switch, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &lazy_fpu_switch, 0,
+    "Lazily load FPU context after context switch");
+
 int use_xsave;
 uint64_t xsave_mask;
 static	uma_zone_t fpu_save_area_zone;
@@ -319,6 +324,7 @@ npxinit_bsp1(void)
 	u_int cp[4];
 	uint64_t xsave_mask_user;
 
+	TUNABLE_INT_FETCH("hw.lazy_fpu_switch", &lazy_fpu_switch);
 	if (cpu_fxsr && (cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
@@ -777,6 +783,42 @@ npxtrap_sse(void)
 	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
 }
 
+static void
+restore_npx_curthread(struct thread *td, struct pcb *pcb)
+{
+
+	/*
+	 * Record new context early in case frstor causes a trap.
+	 */
+	PCPU_SET(fpcurthread, td);
+
+	stop_emulating();
+	if (cpu_fxsr)
+		fpu_clean_state();
+
+	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+		/*
+		 * This is the first time this thread has used the FPU or
+		 * the PCB doesn't contain a clean FPU state.  Explicitly
+		 * load an initial state.
+		 *
+		 * We prefer to restore the state from the actual save
+		 * area in PCB instead of directly loading from
+		 * npx_initialstate, to ignite the XSAVEOPT
+		 * tracking engine.
+		 */
+		bcopy(npx_initialstate, pcb->pcb_save, cpu_max_ext_state_size);
+		fpurstor(pcb->pcb_save);
+		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
+			fldcw(pcb->pcb_initial_npxcw);
+		pcb->pcb_flags |= PCB_NPXINITDONE;
+		if (PCB_USER_FPU(pcb))
+			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+	} else {
+		fpurstor(pcb->pcb_save);
+	}
+}
+
 /*
  * Implement device not available (DNA) exception
  *
@@ -790,11 +832,13 @@ static int err_count = 0;
 int
 npxdna(void)
 {
+	struct thread *td;
 
 	if (!hw_float)
 		return (0);
+	td = curthread;
 	critical_enter();
-	if (PCPU_GET(fpcurthread) == curthread) {
+	if (PCPU_GET(fpcurthread) == td) {
 		printf("npxdna: fpcurthread == curthread %d times\n",
 		    ++err_count);
 		stop_emulating();
@@ -805,39 +849,10 @@ npxdna(void)
 		printf("npxdna: fpcurthread = %p (%d), curthread = %p (%d)\n",
 		       PCPU_GET(fpcurthread),
 		       PCPU_GET(fpcurthread)->td_proc->p_pid,
-		       curthread, curthread->td_proc->p_pid);
+		       td, td->td_proc->p_pid);
 		panic("npxdna");
 	}
-	stop_emulating();
-	/*
-	 * Record new context early in case frstor causes a trap.
-	 */
-	PCPU_SET(fpcurthread, curthread);
-
-	if (cpu_fxsr)
-		fpu_clean_state();
-
-	if ((curpcb->pcb_flags & PCB_NPXINITDONE) == 0) {
-		/*
-		 * This is the first time this thread has used the FPU or
-		 * the PCB doesn't contain a clean FPU state.  Explicitly
-		 * load an initial state.
-		 *
-		 * We prefer to restore the state from the actual save
-		 * area in PCB instead of directly loading from
-		 * npx_initialstate, to ignite the XSAVEOPT
-		 * tracking engine.
-		 */
-		bcopy(npx_initialstate, curpcb->pcb_save, cpu_max_ext_state_size);
-		fpurstor(curpcb->pcb_save);
-		if (curpcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
-			fldcw(curpcb->pcb_initial_npxcw);
-		curpcb->pcb_flags |= PCB_NPXINITDONE;
-		if (PCB_USER_FPU(curpcb))
-			curpcb->pcb_flags |= PCB_NPXUSERINITDONE;
-	} else {
-		fpurstor(curpcb->pcb_save);
-	}
+	restore_npx_curthread(td, td->td_pcb);
 	critical_exit();
 
 	return (1);
@@ -861,8 +876,20 @@ npxsave(addr)
 		xsaveopt((char *)addr, xsave_mask);
 	else
 		fpusave(addr);
-	start_emulating();
-	PCPU_SET(fpcurthread, NULL);
+}
+
+void npxswitch(struct thread *td, struct pcb *pcb);
+void
+npxswitch(struct thread *td, struct pcb *pcb)
+{
+
+	if (lazy_fpu_switch || (td->td_pflags & TDP_KTHREAD) != 0 ||
+	    !PCB_USER_FPU(pcb)) {
+		start_emulating();
+		PCPU_SET(fpcurthread, NULL);
+	} else if (PCPU_GET(fpcurthread) != td) {
+		restore_npx_curthread(td, pcb);
+	}
 }
 
 /*
