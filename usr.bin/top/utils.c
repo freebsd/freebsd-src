@@ -70,24 +70,13 @@ _Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 char *
 itoa(unsigned int val)
 {
-    char *ptr;
     static char buffer[16];	/* result is built here */
     				/* 16 is sufficient since the largest number
 				   we will ever convert will be 2^32-1,
 				   which is 10 digits. */
 
-    ptr = buffer + sizeof(buffer);
-    *--ptr = '\0';
-    if (val == 0)
-    {
-	*--ptr = '0';
-    }
-    else while (val != 0)
-    {
-	*--ptr = (val % 10) + '0';
-	val /= 10;
-    }
-    return(ptr);
+	sprintf(buffer, "%u", val);
+    return (buffer);
 }
 
 /*
@@ -99,28 +88,13 @@ itoa(unsigned int val)
 char *
 itoa7(int val)
 {
-    char *ptr;
     static char buffer[16];	/* result is built here */
     				/* 16 is sufficient since the largest number
 				   we will ever convert will be 2^32-1,
 				   which is 10 digits. */
 
-    ptr = buffer + sizeof(buffer);
-    *--ptr = '\0';
-    if (val == 0)
-    {
-	*--ptr = '0';
-    }
-    else while (val != 0)
-    {
-	*--ptr = (val % 10) + '0';
-	val /= 10;
-    }
-    while (ptr > buffer + sizeof(buffer) - 7)
-    {
-	*--ptr = ' ';
-    }
-    return(ptr);
+	sprintf(buffer, "%6u", val);
+    return (buffer);
 }
 
 /*
