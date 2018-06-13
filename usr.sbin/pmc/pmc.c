@@ -71,7 +71,7 @@ static struct cmd_handler disp_table[] = {
 };
 
 static void __dead2
-usage(void) 
+usage(void)
 {
 	errx(EX_USAGE,
 	    "\t pmc management utility\n"
