@@ -130,7 +130,8 @@ struct ib_umad_packet {
 
 static struct class *umad_class;
 
-static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
+#define IBMKDEV(x, y)  (((dev_t)(x) << 32) | (unsigned)(y))
+static const dev_t base_dev = IBMKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 
 static DEFINE_SPINLOCK(port_lock);
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
