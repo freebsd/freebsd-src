@@ -276,7 +276,7 @@ struct inpcb {
 	TAILQ_ENTRY(inpcb) inp_input;	/* pacing in  queue next lock(b) */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	inpcbgroup *inp_pcbgroup; /* (g/i) PCB group list */
-	LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/h) group wildcard entry */
+	CK_LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/h) group wildcard entry */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
 	u_char	inp_vflag;		/* (i) IP version flag (v4/v6) */

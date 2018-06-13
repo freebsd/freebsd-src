@@ -2025,7 +2025,7 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 	INP_GROUP_LOCK(pcbgroup);
 	head = &pcbgroup->ipg_hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
 	    pcbgroup->ipg_hashmask)];
-	LIST_FOREACH(inp, head, inp_pcbgrouphash) {
+	CK_LIST_FOREACH(inp, head, inp_pcbgrouphash) {
 #ifdef INET6
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -2075,7 +2075,7 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 
 		head = &pcbgroup->ipg_hashbase[INP_PCBHASH(INADDR_ANY,
 		    lport, 0, pcbgroup->ipg_hashmask)];
-		LIST_FOREACH(inp, head, inp_pcbgrouphash) {
+		CK_LIST_FOREACH(inp, head, inp_pcbgrouphash) {
 #ifdef INET6
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -2149,7 +2149,7 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 		 */
 		head = &pcbinfo->ipi_wildbase[INP_PCBHASH(INADDR_ANY, lport,
 		    0, pcbinfo->ipi_wildmask)];
-		LIST_FOREACH(inp, head, inp_pcbgroup_wild) {
+		CK_LIST_FOREACH(inp, head, inp_pcbgroup_wild) {
 #ifdef INET6
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
