@@ -8,6 +8,11 @@ SRCS+=	attrib.c epc.c fwdownload.c modeedit.c persist.c progress.c timestamp.c z
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
+.PATH:	${SRCTOP}/sbin/nvmecontrol
+CFLAGS+= -I${SRCTOP}/sbin/nvmecontrol
+SRCS+=	identify_ext.c nc_util.c
+.PATH:	${SRCTOP}/sys/dev/nvme
+SRCS+=	nvme_util.c
 # This is verboten
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
