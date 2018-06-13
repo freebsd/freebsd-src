@@ -506,8 +506,7 @@ ufs_open(upath, f)
 	ino_t inumber, parent_inumber;
 	struct file *fp;
 	struct fs *fs;
-	int i, rc;
-	size_t buf_size;
+	int rc;
 	int nlinks = 0;
 	char namebuf[MAXPATHLEN+1];
 	char *buf = NULL;
