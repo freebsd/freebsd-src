@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/mmc/mmc_all.h>
 #include <camlib.h>
 #include "camcontrol.h"
+#include "nvmecontrol_ext.h"
 
 typedef enum {
 	CAM_CMD_NONE		= 0x00000000,
@@ -763,21 +764,11 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 }
 
 static int
-print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
+nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
 {
 	union ccb *ccb;
 	struct ccb_dev_advinfo *advi;
-	struct cam_device *dev;
-	struct nvme_controller_data cdata;
-	char vendor[64], product[64];
 
-	dev = cam_open_btl(dev_result->path_id, dev_result->target_id,
-	    dev_result->target_lun, O_RDWR, NULL);
-	if (dev == NULL) {
-		warnx("%s", cam_errbuf);
-		return (1);
-	}
-	
 	ccb = cam_getccb(dev);
 	if (ccb == NULL) {
 		warnx("couldn't allocate CCB");
@@ -791,7 +782,7 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 	advi->flags = CDAI_FLAG_NONE;
 	advi->buftype = CDAI_TYPE_NVME_CNTRL;
 	advi->bufsiz = sizeof(struct nvme_controller_data);
-	advi->buf = (uint8_t *)&cdata;
+	advi->buf = (uint8_t *)cdata;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
 		warn("error sending CAMIOCOMMAND ioctl");
@@ -805,11 +796,31 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 		cam_close_device(dev);
 		return(1);
 	}
+	cam_freeccb(ccb);
+	return 0;
+}
+
+static int
+print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
+{
+	struct cam_device *dev;
+	struct nvme_controller_data cdata;
+	char vendor[64], product[64];
+
+	dev = cam_open_btl(dev_result->path_id, dev_result->target_id,
+	    dev_result->target_lun, O_RDWR, NULL);
+	if (dev == NULL) {
+		warnx("%s", cam_errbuf);
+		return (1);
+	}
+
+	if (nvme_get_cdata(dev, &cdata))
+		return (1);
+
 	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
 	cam_strvis(product, cdata.fr, sizeof(cdata.fr), sizeof(product));
 	sprintf(tmpstr, "<%s %s>", vendor, product);
 
-	cam_freeccb(ccb);
 	cam_close_device(dev);
 	return (0);
 }
@@ -2389,6 +2400,34 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	cam_freeccb(ccb);
 
 	return (0);
+}
+
+static int
+nvmeidentify(struct cam_device *device, int retry_count __unused, int timeout __unused)
+{
+	struct nvme_controller_data cdata;
+
+	if (nvme_get_cdata(device, &cdata))
+		return (1);
+	nvme_print_controller(&cdata);
+
+	return (0);
+}
+
+static int
+identify(struct cam_device *device, int retry_count, int timeout)
+{
+	struct ccb_pathinq cpi;
+
+	if (get_cpi(device, &cpi) != 0) {
+		warnx("couldn't get CPI");
+		return (-1);
+	}
+
+	if (cpi.protocol == PROTO_NVME) {
+		return (nvmeidentify(device, retry_count, timeout));
+	}
+	return (ataidentify(device, retry_count, timeout));
 }
 #endif /* MINIMALISTIC */
 
@@ -10058,7 +10097,7 @@ main(int argc, char **argv)
 				      task_attr, retry_count, timeout);
 		break;
 	case CAM_CMD_IDENTIFY:
-		error = ataidentify(cam_dev, retry_count, timeout);
+		error = identify(cam_dev, retry_count, timeout);
 		break;
 	case CAM_CMD_STARTSTOP:
 		error = scsistart(cam_dev, arglist & CAM_ARG_START_UNIT,
