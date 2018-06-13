@@ -226,7 +226,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 
 	if ((uintptr_t)udaddr + len < (uintptr_t)udaddr ||
 	    (uintptr_t)udaddr + len > VM_MAXUSER_ADDRESS)
-		return (-1);
+		return (EFAULT);
 	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
 	    copyin_fast_tramp(udaddr, kaddr, len, KCR3) == 0))
 		return (0);
@@ -261,7 +261,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 
 	if ((uintptr_t)udaddr + len < (uintptr_t)udaddr ||
 	    (uintptr_t)udaddr + len > VM_MAXUSER_ADDRESS)
-		return (-1);
+		return (EFAULT);
 	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
 	    copyout_fast_tramp(kaddr, udaddr, len, KCR3) == 0))
 		return (0);
