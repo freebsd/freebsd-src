@@ -2094,12 +2094,25 @@ cvtstat(struct stat *st, struct ostat *ost)
 int ino64_trunc_error;
 SYSCTL_INT(_vfs, OID_AUTO, ino64_trunc_error, CTLFLAG_RW,
     &ino64_trunc_error, 0,
-    "Error on truncation of inode number, device id or link count");
+    "Error on truncation of device, file or inode number, or link count");
+
 int
 freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost)
 {
 
 	ost->st_dev = st->st_dev;
+	if (ost->st_dev != st->st_dev) {
+		switch (ino64_trunc_error) {
+		default:
+			/*
+			 * Since dev_t is almost raw, don't clamp to the
+			 * maximum for case 2, but ignore the error.
+			 */
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	ost->st_ino = st->st_ino;
 	if (ost->st_ino != st->st_ino) {
 		switch (ino64_trunc_error) {
@@ -2130,6 +2143,14 @@ freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost)
 	ost->st_uid = st->st_uid;
 	ost->st_gid = st->st_gid;
 	ost->st_rdev = st->st_rdev;
+	if (ost->st_rdev != st->st_rdev) {
+		switch (ino64_trunc_error) {
+		default:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	ost->st_atim = st->st_atim;
 	ost->st_mtim = st->st_mtim;
 	ost->st_ctim = st->st_ctim;

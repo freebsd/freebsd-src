@@ -366,9 +366,36 @@ __bitcount64(__uint64_t _x)
 
 #include <sys/select.h>
 
-#define	major(x)	((int)((dev_t)(x) >> 32))
-#define	minor(x)	((int)(x))
-#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y))
+/*
+ * The major and minor numbers are encoded in dev_t as MMMmmmMm (where
+ * letters correspond to bytes).  The encoding of the lower 4 bytes is
+ * constrained by compatibility with 16-bit and 32-bit dev_t's.  The
+ * encoding of of the upper 4 bytes is the least unnatural one consistent
+ * with this and other constraints.  Also, the decoding of the m bytes by
+ * minor() is unnatural to maximize compatibility subject to not discarding
+ * bits.  The upper m byte is shifted into the position of the lower M byte
+ * instead of shifting 3 upper m bytes to close the gap.  Compatibility for
+ * minor() is achieved iff the upper m byte is 0.
+ */
+#define	major(d)	__major(d)
+static __inline int
+__major(dev_t _d)
+{
+	return (((_d >> 32) & 0xffffff00) | ((_d >> 8) & 0xff));
+}
+#define	minor(d)	__minor(d)
+static __inline int
+__minor(dev_t _d)
+{
+	return (((_d >> 24) & 0xff00) | (_d & 0xffff00ff));
+}
+#define	makedev(M, m)	__makedev((M), (m))
+static __inline dev_t
+__makedev(int _M, int _m)
+{
+	return (((dev_t)(_M & 0xffffff00) << 32) | ((_M & 0xff) << 8) |
+	    ((dev_t)(_m & 0xff00) << 24) | (_m & 0xffff00ff));
+}
 
 /*
  * These declarations belong elsewhere, but are repeated here and in
