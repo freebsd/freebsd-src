@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_GPIO1		201
 #define	PCLK_GPIO2		202
 #define	PCLK_GPIO3		203
+#define	PCLK_I2C0		205
+#define	PCLK_I2C1		206
+#define	PCLK_I2C2		207
+#define	PCLK_I2C3		208
 #define	HCLK_SDMMC		317
 #define	HCLK_SDIO		318
 #define	HCLK_EMMC		319
@@ -80,7 +84,13 @@ static struct rk_cru_gate rk3328_gates[] = {
 	/* CRU_CLKGATE_CON10 */
 	CRU_GATE(ACLK_PERI, "aclk_peri", "aclk_peri_pre", 0x228, 0)
 
+	/* CRU_CLKGATE_CON15*/
+	CRU_GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus", 0x23C, 10)
+
 	/* CRU_CLKGATE_CON16 */
+	CRU_GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0x23C, 0)
+	CRU_GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0x23C, 1)
+	CRU_GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 0x23C, 2)
 	CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7)
 	CRU_GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
 	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
@@ -863,6 +873,104 @@ static struct rk_clk_composite_def emmc = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+/* CRU_CLKSEL_CON34 */
+#define	SCLK_I2C0	55
+#define	SCLK_I2C1	56
+
+static const char *i2c_parents[] = {"cpll", "gpll"};
+
+static struct rk_clk_composite_def i2c0 = {
+	.clkdef = {
+		.id = SCLK_I2C0,
+		.name = "clk_i2c0",
+		.parent_names = i2c_parents,
+		.parent_cnt = nitems(i2c_parents),
+	},
+	.muxdiv_offset = 0x188,
+
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 6,
+
+	/* CRU_CLKGATE_CON2 */
+	.gate_offset = 0x208,
+	.gate_shift = 9,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def i2c1 = {
+	.clkdef = {
+		.id = SCLK_I2C1,
+		.name = "clk_i2c1",
+		.parent_names = i2c_parents,
+		.parent_cnt = nitems(i2c_parents),
+	},
+	.muxdiv_offset = 0x188,
+
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 6,
+
+	/* CRU_CLKGATE_CON2 */
+	.gate_offset = 0x208,
+	.gate_shift = 10,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/* CRU_CLKSEL_CON35 */
+#define	SCLK_I2C2	57
+#define	SCLK_I2C3	58
+
+static struct rk_clk_composite_def i2c2 = {
+	.clkdef = {
+		.id = SCLK_I2C2,
+		.name = "clk_i2c2",
+		.parent_names = i2c_parents,
+		.parent_cnt = nitems(i2c_parents),
+	},
+	.muxdiv_offset = 0x18C,
+
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 6,
+
+	/* CRU_CLKGATE_CON2 */
+	.gate_offset = 0x208,
+	.gate_shift = 11,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def i2c3 = {
+	.clkdef = {
+		.id = SCLK_I2C3,
+		.name = "clk_i2c3",
+		.parent_names = i2c_parents,
+		.parent_cnt = nitems(i2c_parents),
+	},
+	.muxdiv_offset = 0x18C,
+
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 6,
+
+	/* CRU_CLKGATE_CON2 */
+	.gate_offset = 0x208,
+	.gate_shift = 12,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
 static struct rk_clk rk3328_clks[] = {
 	{
 		.type = RK_CLK_PLL,
@@ -926,6 +1034,23 @@ static struct rk_clk rk3328_clks[] = {
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &emmc
+	},
+
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &i2c0
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &i2c1
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &i2c2
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &i2c3
 	},
 };
 
