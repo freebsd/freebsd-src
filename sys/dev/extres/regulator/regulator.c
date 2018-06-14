@@ -507,6 +507,20 @@ struct regnode_std_param *regnode_get_stdparam(struct regnode *regnode)
 	return (&regnode->std_param);
 }
 
+void
+regnode_enable_cnt_inc(struct regnode *regnode)
+{
+
+	regnode->enable_cnt++;
+}
+
+void
+regnode_enable_cnt_dec(struct regnode *regnode)
+{
+
+	regnode->enable_cnt--;
+}
+
 void regnode_topo_unlock(void)
 {
 
