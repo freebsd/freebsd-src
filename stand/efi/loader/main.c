@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include "loader_efi.h"
 
-extern char bootprog_info[];
-
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
