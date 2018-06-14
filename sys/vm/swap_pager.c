@@ -1096,21 +1096,24 @@ swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
     int *rahead)
 {
 	struct buf *bp;
-	vm_page_t mpred, msucc, p;
+	vm_page_t bm, mpred, msucc, p;
 	vm_pindex_t pindex;
 	daddr_t blk;
-	int i, j, maxahead, maxbehind, reqcount, shift;
+	int i, maxahead, maxbehind, reqcount;
 
 	reqcount = count;
 
-	VM_OBJECT_WUNLOCK(object);
-	bp = getpbuf(&nsw_rcount);
-	VM_OBJECT_WLOCK(object);
-
-	if (!swap_pager_haspage(object, ma[0]->pindex, &maxbehind, &maxahead)) {
-		relpbuf(bp, &nsw_rcount);
+	/*
+	 * Determine the final number of read-behind pages and
+	 * allocate them BEFORE releasing the object lock.  Otherwise,
+	 * there can be a problematic race with vm_object_split().
+	 * Specifically, vm_object_split() might first transfer pages
+	 * that precede ma[0] in the current object to a new object,
+	 * and then this function incorrectly recreates those pages as
+	 * read-behind pages in the current object.
+	 */
+	if (!swap_pager_haspage(object, ma[0]->pindex, &maxbehind, &maxahead))
 		return (VM_PAGER_FAIL);
-	}
 
 	/*
 	 * Clip the readahead and readbehind ranges to exclude resident pages.
@@ -1132,35 +1135,31 @@ swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 			*rbehind = pindex - mpred->pindex - 1;
 	}
 
+	bm = ma[0];
+	for (i = 0; i < count; i++)
+		ma[i]->oflags |= VPO_SWAPINPROG;
+
 	/*
 	 * Allocate readahead and readbehind pages.
 	 */
-	shift = rbehind != NULL ? *rbehind : 0;
-	if (shift != 0) {
-		for (i = 1; i <= shift; i++) {
+	if (rbehind != NULL) {
+		for (i = 1; i <= *rbehind; i++) {
 			p = vm_page_alloc(object, ma[0]->pindex - i,
 			    VM_ALLOC_NORMAL);
-			if (p == NULL) {
-				/* Shift allocated pages to the left. */
-				for (j = 0; j < i - 1; j++)
-					bp->b_pages[j] =
-					    bp->b_pages[j + shift - i + 1];
+			if (p == NULL)
 				break;
-			}
-			bp->b_pages[shift - i] = p;
+			p->oflags |= VPO_SWAPINPROG;
+			bm = p;
 		}
-		shift = i - 1;
-		*rbehind = shift;
+		*rbehind = i - 1;
 	}
-	for (i = 0; i < reqcount; i++)
-		bp->b_pages[i + shift] = ma[i];
 	if (rahead != NULL) {
 		for (i = 0; i < *rahead; i++) {
 			p = vm_page_alloc(object,
 			    ma[reqcount - 1]->pindex + i + 1, VM_ALLOC_NORMAL);
 			if (p == NULL)
 				break;
-			bp->b_pages[shift + reqcount + i] = p;
+			p->oflags |= VPO_SWAPINPROG;
 		}
 		*rahead = i;
 	}
@@ -1171,15 +1170,18 @@ swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 
 	vm_object_pip_add(object, count);
 
-	for (i = 0; i < count; i++)
-		bp->b_pages[i]->oflags |= VPO_SWAPINPROG;
-
-	pindex = bp->b_pages[0]->pindex;
+	pindex = bm->pindex;
 	blk = swp_pager_meta_ctl(object, pindex, 0);
 	KASSERT(blk != SWAPBLK_NONE,
 	    ("no swap blocking containing %p(%jx)", object, (uintmax_t)pindex));
 
 	VM_OBJECT_WUNLOCK(object);
+	bp = getpbuf(&nsw_rcount);
+	/* Pages cannot leave the object while busy. */
+	for (i = 0, p = bm; i < count; i++, p = TAILQ_NEXT(p, listq)) {
+		MPASS(p->pindex == bm->pindex + i);
+		bp->b_pages[i] = p;
+	}
 
 	bp->b_flags |= B_PAGING;
 	bp->b_iocmd = BIO_READ;
