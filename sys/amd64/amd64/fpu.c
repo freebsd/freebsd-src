@@ -723,7 +723,12 @@ fpudna(void)
 	KASSERT((curpcb->pcb_flags & PCB_FPUNOSAVE) == 0,
 	    ("fpudna while in fpu_kern_enter(FPU_KERN_NOCTX)"));
 	if (PCPU_GET(fpcurthread) == td) {
-		printf("fpudna: fpcurthread == curthread\n");
+		/*
+		 * Some virtual machines seems to set %cr0.TS at
+		 * arbitrary moments.  Silently clear the TS bit
+		 * regardless of the eager/lazy FPU context switch
+		 * mode.
+		 */
 		stop_emulating();
 		critical_exit();
 		return;
