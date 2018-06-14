@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 extern char end[];
-extern char bootprog_info[];
 
 uint32_t	acells, scells;
 

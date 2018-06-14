@@ -161,6 +161,11 @@ char			*pnp_eisaformat(uint8_t *data);
 extern int			isapnp_readport;
 
 /*
+ * Version information
+ */
+extern char bootprog_info[];
+
+/*
  * Preloaded file metadata header.
  *
  * Metadata are allocated on our heap, and copied into kernel space
