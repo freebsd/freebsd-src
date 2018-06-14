@@ -304,7 +304,7 @@ machine_init(struct statics *statics)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
-	bool carc_en;
+	int carc_en;
 	size_t size;
 
 	size = sizeof(smpmode);
