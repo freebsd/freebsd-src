@@ -722,7 +722,7 @@ fpudna(void)
 
 	KASSERT((curpcb->pcb_flags & PCB_FPUNOSAVE) == 0,
 	    ("fpudna while in fpu_kern_enter(FPU_KERN_NOCTX)"));
-	if (PCPU_GET(fpcurthread) == td) {
+	if (__predict_false(PCPU_GET(fpcurthread) == td)) {
 		/*
 		 * Some virtual machines seems to set %cr0.TS at
 		 * arbitrary moments.  Silently clear the TS bit
@@ -730,15 +730,15 @@ fpudna(void)
 		 * mode.
 		 */
 		stop_emulating();
-		critical_exit();
-		return;
+	} else {
+		if (__predict_false(PCPU_GET(fpcurthread) != NULL)) {
+			panic(
+		    "fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
+			    PCPU_GET(fpcurthread),
+			    PCPU_GET(fpcurthread)->td_tid, td, td->td_tid);
+		}
+		restore_fpu_curthread(td);
 	}
-	if (PCPU_GET(fpcurthread) != NULL) {
-		panic("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
-		    PCPU_GET(fpcurthread), PCPU_GET(fpcurthread)->td_tid,
-		    td, td->td_tid);
-	}
-	restore_fpu_curthread(td);
 	critical_exit();
 }
 
