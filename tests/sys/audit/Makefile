@@ -3,7 +3,7 @@
 TESTSDIR=	${TESTSBASE}/sys/audit
 
 ATF_TESTS_C=	file-attribute-access
-ATF_TESTS_C=	file-attribute-modify
+ATF_TESTS_C+=	file-attribute-modify
 ATF_TESTS_C+=	file-create
 ATF_TESTS_C+=	file-delete
 ATF_TESTS_C+=	file-close
