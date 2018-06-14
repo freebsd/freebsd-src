@@ -116,27 +116,6 @@ struct	nfsmount {
  */
 #define	VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
 
-/*
- * Get a pointer to the MDS session, which is always the first element
- * in the list.
- * This macro can only be safely used when the NFSLOCKMNT() lock is held.
- * The inline function can be used when the lock isn't held.
- */
-#define	NFSMNT_MDSSESSION(m)	(&(TAILQ_FIRST(&((m)->nm_sess))->nfsclds_sess))
-
-static __inline struct nfsclsession *
-nfsmnt_mdssession(struct nfsmount *nmp)
-{
-	struct nfsclsession *tsep;
-
-	tsep = NULL;
-	mtx_lock(&nmp->nm_mtx);
-	if (TAILQ_FIRST(&nmp->nm_sess) != NULL)
-		tsep = NFSMNT_MDSSESSION(nmp);
-	mtx_unlock(&nmp->nm_mtx);
-	return (tsep);
-}
-
 #ifndef NFS_DEFAULT_NAMETIMEO
 #define NFS_DEFAULT_NAMETIMEO		60
 #endif
