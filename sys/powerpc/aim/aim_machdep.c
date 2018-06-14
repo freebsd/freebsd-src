@@ -420,7 +420,9 @@ aim_cpu_init(vm_offset_t toc)
 	 * in case the platform module had a better idea of what we
 	 * should do.
 	 */
-	if (cpu_features & PPC_FEATURE_64)
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00)
+		pmap_mmu_install(MMU_TYPE_P9H, BUS_PROBE_GENERIC);
+	else if (cpu_features & PPC_FEATURE_64)
 		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);

@@ -102,6 +102,7 @@ libkern/qdivrem.c		optional	powerpc | powerpcspe
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe
+powerpc/aim/isa3_hashtb.c	optional	aim powerpc64
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
