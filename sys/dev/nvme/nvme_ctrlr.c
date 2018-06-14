@@ -228,11 +228,12 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 	struct nvme_request	*req;
 
 	mtx_lock(&ctrlr->lock);
-	while (!STAILQ_EMPTY(&ctrlr->fail_req)) {
-		req = STAILQ_FIRST(&ctrlr->fail_req);
+	while ((req = STAILQ_FIRST(&ctrlr->fail_req)) != NULL) {
 		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
+		mtx_unlock(&ctrlr->lock);
 		nvme_qpair_manual_complete_request(req->qpair, req,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		mtx_lock(&ctrlr->lock);
 	}
 	mtx_unlock(&ctrlr->lock);
 }
@@ -933,15 +934,17 @@ static void
 nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_pt_command *pt = arg;
+	struct mtx *mtx = pt->driver_lock;
 
 	bzero(&pt->cpl, sizeof(pt->cpl));
 	pt->cpl.cdw0 = cpl->cdw0;
 	pt->cpl.status = cpl->status;
 	pt->cpl.status.p = 0;
 
-	mtx_lock(pt->driver_lock);
+	mtx_lock(mtx);
+	pt->driver_lock = NULL;
 	wakeup(pt);
-	mtx_unlock(pt->driver_lock);
+	mtx_unlock(mtx);
 }
 
 int
@@ -1009,12 +1012,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 
 	req->cmd.nsid = nsid;
 
-	if (is_admin_cmd)
-		mtx = &ctrlr->lock;
-	else
-		mtx = &ctrlr->ns[nsid-1].lock;
-
-	mtx_lock(mtx);
+	mtx = mtx_pool_find(mtxpool_sleep, pt);
 	pt->driver_lock = mtx;
 
 	if (is_admin_cmd)
@@ -1022,10 +1020,10 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	else
 		nvme_ctrlr_submit_io_request(ctrlr, req);
 
-	mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
+	mtx_lock(mtx);
+	while (pt->driver_lock != NULL)
+		mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
 	mtx_unlock(mtx);
-
-	pt->driver_lock = NULL;
 
 err:
 	if (buf != NULL) {
