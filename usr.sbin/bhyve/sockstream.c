@@ -84,5 +84,3 @@ stream_write(int fd, const void *buf, ssize_t nbytes)
 	}
 	return (len);
 }
-
-

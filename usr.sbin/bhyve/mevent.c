@@ -71,7 +71,7 @@ static int mevent_timid = 43;
 static int mevent_pipefd[2];
 static pthread_mutex_t mevent_lmutex = PTHREAD_MUTEX_INITIALIZER;
 
-struct mevent {	
+struct mevent {
 	void	(*me_func)(int, enum ev_type, void *);
 #define me_msecs me_fd
 	int	me_fd;
@@ -81,7 +81,7 @@ struct mevent {
 	int	me_cq;
 	int	me_state;
 	int	me_closefd;
-	LIST_ENTRY(mevent) me_list;			   
+	LIST_ENTRY(mevent) me_list;
 };
 
 static LIST_HEAD(listhead, mevent) global_head, change_head;
