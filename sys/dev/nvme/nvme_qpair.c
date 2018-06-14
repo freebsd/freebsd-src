@@ -389,11 +389,12 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 	nvme_free_request(req);
 }
 
-void
+bool
 nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 	struct nvme_completion	*cpl;
+	int done = 0;
 
 	qpair->num_intr_handler_calls++;
 
@@ -404,7 +405,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		 *  associated with this interrupt will get retried when the
 		 *  reset is complete.
 		 */
-		return;
+		return (false);
 
 	while (1) {
 		cpl = &qpair->cpl[qpair->cq_head];
@@ -417,6 +418,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		if (tr != NULL) {
 			nvme_qpair_complete_tracker(qpair, tr, cpl, TRUE);
 			qpair->sq_head = cpl->sqhd;
+			done++;
 		} else {
 			nvme_printf(qpair->ctrlr, 
 			    "cpl does not map to outstanding cmd\n");
@@ -432,6 +434,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		nvme_mmio_write_4(qpair->ctrlr, doorbell[qpair->id].cq_hdbl,
 		    qpair->cq_head);
 	}
+	return (done != 0);
 }
 
 static void
@@ -685,18 +688,29 @@ nvme_timeout(void *arg)
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
 	union csts_register	csts;
 
-	/* Read csts to get value of cfs - controller fatal status. */
+	/*
+	 * Read csts to get value of cfs - controller fatal status.
+	 * If no fatal status, try to call the completion routine, and
+	 * if completes transactions, report a missed interrupt and
+	 * return (this may need to be rate limited). Otherwise, if
+	 * aborts are enabled and the controller is not reporting
+	 * fatal status, abort the command. Otherwise, just reset the
+	 * controller and hope for the best.
+	 */
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
-
+	if (csts.bits.cfs == 0 && nvme_qpair_process_completions(qpair)) {
+		nvme_printf(ctrlr, "Missing interrupt\n");
+		return;
+	}
 	if (ctrlr->enable_aborts && csts.bits.cfs == 0) {
-		/*
-		 * If aborts are enabled, only use them if the controller is
-		 *  not reporting fatal status.
-		 */
+		nvme_printf(ctrlr, "Aborting command due to a timeout.\n");
 		nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
 		    nvme_abort_complete, tr);
-	} else
+	} else {
+		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
+		    csts.bits.cfs ? " and fatal error status" : "");
 		nvme_ctrlr_reset(ctrlr);
+	}
 }
 
 void

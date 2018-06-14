@@ -424,7 +424,7 @@ int	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     struct nvme_controller *ctrlr);
 void	nvme_qpair_submit_tracker(struct nvme_qpair *qpair,
 				  struct nvme_tracker *tr);
-void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
+bool	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
 void	nvme_qpair_reset(struct nvme_qpair *qpair);
