@@ -402,7 +402,7 @@ arm_tmr_attach(device_t dev)
 	if (arm_tmr_sc)
 		return (ENXIO);
 
-	sc->get_cntxct = &get_cntxct_a64_unstable;
+	sc->get_cntxct = &get_cntxct;
 #ifdef FDT
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
