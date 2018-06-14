@@ -826,9 +826,6 @@ restore_npx_curthread(struct thread *td, struct pcb *pcb)
  * and not necessarily for every context switch, but it is too hard to
  * access foreign pcb's.
  */
-
-static int err_count = 0;
-
 int
 npxdna(void)
 {
@@ -839,8 +836,12 @@ npxdna(void)
 	td = curthread;
 	critical_enter();
 	if (PCPU_GET(fpcurthread) == td) {
-		printf("npxdna: fpcurthread == curthread %d times\n",
-		    ++err_count);
+		/*
+		 * Some virtual machines seems to set %cr0.TS at
+		 * arbitrary moments.  Silently clear the TS bit
+		 * regardless of the eager/lazy FPU context switch
+		 * mode.
+		 */
 		stop_emulating();
 		critical_exit();
 		return (1);
