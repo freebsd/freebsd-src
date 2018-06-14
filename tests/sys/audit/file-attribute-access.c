@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
+#include <sys/ucred.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 
@@ -36,9 +39,11 @@
 
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static pid_t pid;
 static int filedesc;
 static char extregex[80];
 static struct stat statbuff;
+static struct statfs statfsbuff;
 static const char *auclass = "fa";
 static const char *path = "fileforaudit";
 static const char *errpath = "dirdoesnotexist/fileforaudit";
@@ -226,6 +231,145 @@ ATF_TC_CLEANUP(fstatat_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(statfs_success);
+ATF_TC_HEAD(statfs_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"statfs(2) call");
+}
+
+ATF_TC_BODY(statfs_success, tc)
+{
+	/* File needs to exist to call statfs(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, statfs(path, &statfsbuff));
+	check_audit(fds, successreg, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(statfs_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(statfs_failure);
+ATF_TC_HEAD(statfs_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"statfs(2) call");
+}
+
+ATF_TC_BODY(statfs_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: file does not exist */
+	ATF_REQUIRE_EQ(-1, statfs(errpath, &statfsbuff));
+	check_audit(fds, failurereg, pipefd);
+}
+
+ATF_TC_CLEANUP(statfs_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fstatfs_success);
+ATF_TC_HEAD(fstatfs_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"fstatfs(2) call");
+}
+
+ATF_TC_BODY(fstatfs_success, tc)
+{
+	/* File needs to exist to call fstat(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT | O_RDWR, mode)) != -1);
+	/* Call stat(2) to store the Inode number of 'path' */
+	ATF_REQUIRE_EQ(0, stat(path, &statbuff));
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, fstatfs(filedesc, &statfsbuff));
+
+	snprintf(extregex, sizeof(extregex), "fstatfs.*%jd.*return,success",
+			(intmax_t)statbuff.st_ino);
+	check_audit(fds, extregex, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(fstatfs_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fstatfs_failure);
+ATF_TC_HEAD(fstatfs_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"fstatfs(2) call");
+}
+
+ATF_TC_BODY(fstatfs_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	const char *regex = "fstatfs.*return,failure : Bad file descriptor";
+	/* Failure reason: bad file descriptor */
+	ATF_REQUIRE_EQ(-1, fstatfs(-1, &statfsbuff));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(fstatfs_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getfsstat_success);
+ATF_TC_HEAD(getfsstat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"getfsstat(2) call");
+}
+
+ATF_TC_BODY(getfsstat_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "getfsstat.*%d.*success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE(getfsstat(NULL, 0, MNT_NOWAIT) != -1);
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getfsstat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getfsstat_failure);
+ATF_TC_HEAD(getfsstat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"getfsstat(2) call");
+}
+
+ATF_TC_BODY(getfsstat_failure, tc)
+{
+	const char *regex = "getfsstat.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid value for mode */
+	ATF_REQUIRE_EQ(-1, getfsstat(NULL, 0, -1));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(getfsstat_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, stat_success);
@@ -236,6 +380,14 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fstat_failure);
 	ATF_TP_ADD_TC(tp, fstatat_success);
 	ATF_TP_ADD_TC(tp, fstatat_failure);
+
+	ATF_TP_ADD_TC(tp, statfs_success);
+	ATF_TP_ADD_TC(tp, statfs_failure);
+	ATF_TP_ADD_TC(tp, fstatfs_success);
+	ATF_TP_ADD_TC(tp, fstatfs_failure);
+
+	ATF_TP_ADD_TC(tp, getfsstat_success);
+	ATF_TP_ADD_TC(tp, getfsstat_failure);
 
 	return (atf_no_error());
 }
