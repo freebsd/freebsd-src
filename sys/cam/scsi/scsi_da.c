@@ -2428,6 +2428,8 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 
 	softc = (struct da_softc *)periph->softc;
 
+	cam_periph_assert(periph, MA_OWNED);
+
 	dadeletemethodchoose(softc, DA_DELETE_NONE);
 
 	if (bootverbose && (softc->flags & DA_FLAG_ANNOUNCED) == 0) {
@@ -4505,6 +4507,8 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 
+	cam_periph_assert(periph, MA_OWNED);
+
 	if (softc->minimum_cmd_size > 6) {
 		mode_hdr10 = (struct scsi_mode_header_10 *)csio->data_ptr;
 		dev_spec = mode_hdr10->dev_spec;
@@ -4577,6 +4581,8 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	else
 		rcaplong = (struct scsi_read_capacity_data_long *)
 			csio->data_ptr;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		struct disk_params *dp;
@@ -4835,6 +4841,8 @@ dadone_probelbp(struct cam_periph *periph, union ccb *done_ccb)
 	csio = &done_ccb->csio;
 	lbp = (struct scsi_vpd_logical_block_prov *)csio->data_ptr;
 
+	cam_periph_assert(periph, MA_OWNED);
+
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		/*
 		 * T10/1799-D Revision 31 states at least one of these
@@ -4890,6 +4898,8 @@ dadone_probeblklimits(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	block_limits = (struct scsi_vpd_block_limits *)csio->data_ptr;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint32_t max_txfer_len = scsi_4btoul(
@@ -4982,6 +4992,8 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	bdc = (struct scsi_vpd_block_device_characteristics *)csio->data_ptr;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint32_t valid_len;
@@ -5087,6 +5099,8 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	ptr = (uint16_t *)ata_params;
 	continue_probe = 0;
 	error = 0;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint16_t old_rate;
@@ -5223,7 +5237,7 @@ dadone_probeatalogdir(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 
-	cam_periph_lock(periph);
+	cam_periph_assert(periph, MA_OWNED);
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		error = 0;
 		softc->valid_logdir_len = 0;
@@ -5276,7 +5290,6 @@ dadone_probeatalogdir(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 	}
-	cam_periph_unlock(periph);
 
 	free(csio->data_ptr, M_SCSIDA);
 
@@ -5305,7 +5318,8 @@ dadone_probeataiddir(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 
-	cam_periph_lock(periph);
+	cam_periph_assert(periph, MA_OWNED);
+
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		off_t entries_offset, max_entries;
 		error = 0;
@@ -5368,7 +5382,6 @@ dadone_probeataiddir(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 	}
-	cam_periph_unlock(periph);
 
 	free(csio->data_ptr, M_SCSIDA);
 
@@ -5395,6 +5408,8 @@ dadone_probeatasup(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct da_softc *)periph->softc;
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint32_t valid_len;
@@ -5466,9 +5481,7 @@ dadone_probeatasup(struct cam_periph *periph, union ccb *done_ccb)
 			 * Supported Capabilities page, clear the
 			 * flag...
 			 */
-			cam_periph_lock(periph);
 			softc->flags &= ~DA_FLAG_CAN_ATA_SUPCAP;
-			cam_periph_unlock(periph);
 			/*
 			 * And clear zone capabilities.
 			 */
@@ -5507,6 +5520,8 @@ dadone_probeatazone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 	csio = &done_ccb->csio;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		struct ata_zoned_info_log *zi_log;
@@ -5568,10 +5583,8 @@ dadone_probeatazone(struct cam_periph *periph, union ccb *done_ccb)
 		if (error == ERESTART)
 			return;
 		else if (error != 0) {
-			cam_periph_lock(periph);
 			softc->flags &= ~DA_FLAG_CAN_ATA_ZONE;
 			softc->flags &= ~DA_ZONE_FLAG_SET_MASK;
-			cam_periph_unlock(periph);
 
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				/* Don't wedge this device's queue */
@@ -5584,6 +5597,7 @@ dadone_probeatazone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 	}
+
 	free(csio->data_ptr, M_SCSIDA);
 
 	daprobedone(periph, done_ccb);
@@ -5601,6 +5615,8 @@ dadone_probezone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 	csio = &done_ccb->csio;
+
+	cam_periph_assert(periph, MA_OWNED);
 
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint32_t valid_len;
@@ -5672,6 +5688,9 @@ dadone_tur(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 	csio = &done_ccb->csio;
+
+	cam_periph_assert(periph, MA_OWNED);
+
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 
 		if (daerror(done_ccb, CAM_RETRY_SELTO,
