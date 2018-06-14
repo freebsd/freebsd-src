@@ -118,8 +118,7 @@
 15	AUE_CHMOD	STD	{ int chmod(_In_z_ char *path, int mode); }
 16	AUE_CHOWN	STD	{ int chown(_In_z_ char *path, \
 				    int uid, int gid); }
-17	AUE_NULL	STD	{ caddr_t obreak(_In_ char *nsize); } break \
-				    obreak_args int
+17	AUE_NULL	STD	{ caddr_t break(_In_ char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int getfsstat( \
 				    _Out_writes_bytes_opt_(bufsize) \
 				    struct ostatfs *buf, \

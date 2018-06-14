@@ -61,12 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #ifndef _SYS_SYSPROTO_H_
-struct obreak_args {
+struct break_args {
 	char *nsize;
 };
 #endif
 int
-sys_obreak(struct thread *td, struct obreak_args *uap)
+sys_break(struct thread *td, struct break_args *uap)
 {
 #if !defined(__aarch64__) && !defined(__riscv__)
 	struct vmspace *vm = td->td_proc->p_vmspace;
@@ -196,11 +196,8 @@ sys_obreak(struct thread *td, struct obreak_args *uap)
 		 *
 		 * XXX If the pages cannot be wired, no error is returned.
 		 */
-		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE) {
-			if (bootverbose)
-				printf("obreak: MAP_WIREFUTURE set\n");
+		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE)
 			do_map_wirefuture = TRUE;
-		}
 	} else if (new < old) {
 		rv = vm_map_delete(map, new, old);
 		if (rv != KERN_SUCCESS) {

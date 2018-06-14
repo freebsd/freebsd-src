@@ -87,8 +87,7 @@
 					int mode, int dev); }
 15	AUE_CHMOD	NOPROTO	{ int chmod(char *path, int mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(char *path, int uid, int gid); }
-17	AUE_NULL	NOPROTO	{ caddr_t obreak(char *nsize); } break \
-				    obreak_args int
+17	AUE_NULL	NOPROTO	{ caddr_t break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int mode); }
