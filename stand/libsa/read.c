@@ -108,7 +108,7 @@ read(int fd, void *dest, size_t bcount)
 		}
 
 		/* will filling the readahead buffer again not help? */
-		if (resid >= SOPEN_RASIZE) {
+		if (f->f_rabuf == NULL || resid >= SOPEN_RASIZE) {
 			/*
 			 * bypass the rest of the request and leave the
 			 * buffer empty
