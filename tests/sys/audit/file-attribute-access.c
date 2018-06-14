@@ -40,7 +40,8 @@
 static struct pollfd fds[1];
 static mode_t mode = 0777;
 static pid_t pid;
-static int filedesc;
+static fhandle_t fht;
+static int filedesc, fhdesc;
 static char extregex[80];
 static struct stat statbuff;
 static struct statfs statfsbuff;
@@ -370,6 +371,164 @@ ATF_TC_CLEANUP(getfsstat_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(fhopen_success);
+ATF_TC_HEAD(fhopen_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"fhopen(2) call");
+}
+
+ATF_TC_BODY(fhopen_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "fhopen.*%d.*return,success", pid);
+
+	/* File needs to exist to get a file-handle */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	/* Get the file handle to be passed to fhopen(2) */
+	ATF_REQUIRE_EQ(0, getfh(path, &fht));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((fhdesc = fhopen(&fht, O_RDWR)) != -1);
+	check_audit(fds, extregex, pipefd);
+
+	close(fhdesc);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(fhopen_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fhopen_failure);
+ATF_TC_HEAD(fhopen_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"fhopen(2) call");
+}
+
+ATF_TC_BODY(fhopen_failure, tc)
+{
+	const char *regex = "fhopen.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	/*
+	 * Failure reason: NULL does not represent any file handle
+	 * and O_CREAT is not allowed as the flag for fhopen(2)
+	 */
+	ATF_REQUIRE_EQ(-1, fhopen(NULL, O_CREAT));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(fhopen_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fhstat_success);
+ATF_TC_HEAD(fhstat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"fstat(2) call");
+}
+
+ATF_TC_BODY(fhstat_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "fhstat.*%d.*return,success", pid);
+
+	/* File needs to exist to get a file-handle */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	/* Get the file handle to be passed to fhstat(2) */
+	ATF_REQUIRE_EQ(0, getfh(path, &fht));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, fhstat(&fht, &statbuff));
+	check_audit(fds, extregex, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(fhstat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fhstat_failure);
+ATF_TC_HEAD(fhstat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"fhstat(2) call");
+}
+
+ATF_TC_BODY(fhstat_failure, tc)
+{
+	const char *regex = "fhstat.*return,failure : Bad address";
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: NULL does not represent any file handle */
+	ATF_REQUIRE_EQ(-1, fhstat(NULL, NULL));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(fhstat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fhstatfs_success);
+ATF_TC_HEAD(fhstatfs_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"fstatfs(2) call");
+}
+
+ATF_TC_BODY(fhstatfs_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "fhstatfs.*%d.*success", pid);
+
+	/* File needs to exist to get a file-handle */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	/* Get the file handle to be passed to fhstatfs(2) */
+	ATF_REQUIRE_EQ(0, getfh(path, &fht));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, fhstatfs(&fht, &statfsbuff));
+	check_audit(fds, extregex, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(fhstatfs_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(fhstatfs_failure);
+ATF_TC_HEAD(fhstatfs_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"fhstatfs(2) call");
+}
+
+ATF_TC_BODY(fhstatfs_failure, tc)
+{
+	const char *regex = "fhstatfs.*return,failure : Bad address";
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: NULL does not represent any file handle */
+	ATF_REQUIRE_EQ(-1, fhstatfs(NULL, NULL));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(fhstatfs_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, stat_success);
@@ -388,6 +547,13 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, getfsstat_success);
 	ATF_TP_ADD_TC(tp, getfsstat_failure);
+
+	ATF_TP_ADD_TC(tp, fhopen_success);
+	ATF_TP_ADD_TC(tp, fhopen_failure);
+	ATF_TP_ADD_TC(tp, fhstat_success);
+	ATF_TP_ADD_TC(tp, fhstat_failure);
+	ATF_TP_ADD_TC(tp, fhstatfs_success);
+	ATF_TP_ADD_TC(tp, fhstatfs_failure);
 
 	return (atf_no_error());
 }
