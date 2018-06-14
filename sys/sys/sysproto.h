@@ -89,7 +89,7 @@ struct chown_args {
 	char uid_l_[PADL_(int)]; int uid; char uid_r_[PADR_(int)];
 	char gid_l_[PADL_(int)]; int gid; char gid_r_[PADR_(int)];
 };
-struct obreak_args {
+struct break_args {
 	char nsize_l_[PADL_(char *)]; char * nsize; char nsize_r_[PADR_(char *)];
 };
 struct getpid_args {
@@ -1784,7 +1784,7 @@ int	sys_chdir(struct thread *, struct chdir_args *);
 int	sys_fchdir(struct thread *, struct fchdir_args *);
 int	sys_chmod(struct thread *, struct chmod_args *);
 int	sys_chown(struct thread *, struct chown_args *);
-int	sys_obreak(struct thread *, struct obreak_args *);
+int	sys_break(struct thread *, struct break_args *);
 int	sys_getpid(struct thread *, struct getpid_args *);
 int	sys_mount(struct thread *, struct mount_args *);
 int	sys_unmount(struct thread *, struct unmount_args *);
