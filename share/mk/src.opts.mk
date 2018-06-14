@@ -322,6 +322,13 @@ __DEFAULT_NO_OPTIONS+=CXGBETOOL
 __DEFAULT_NO_OPTIONS+=MLX5TOOL
 .endif
 
+# NVME is only x86 and powerpc64
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
+__DEFAULT_YES_OPTIONS+=NVME
+.else
+__DEFAULT_NO_OPTIONS+=NVME
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
