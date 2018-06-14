@@ -22,7 +22,7 @@
 #define	IBCS2_SYS_ibcs2_mknod	14
 #define	IBCS2_SYS_ibcs2_chmod	15
 #define	IBCS2_SYS_ibcs2_chown	16
-#define	IBCS2_SYS_obreak	17
+#define	IBCS2_SYS_break	17
 #define	IBCS2_SYS_ibcs2_stat	18
 #define	IBCS2_SYS_ibcs2_lseek	19
 #define	IBCS2_SYS_getpid	20
