@@ -885,7 +885,7 @@ basl_make_templates(void)
 	int len;
 
 	err = 0;
-	
+
 	/*
 	 * 
 	 */
