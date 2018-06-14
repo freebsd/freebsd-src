@@ -438,6 +438,8 @@ rk_pinctrl_attach(device_t dev)
 
 	/* Attach child devices */
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		if (!ofw_bus_node_is_compatible(node, "rockchip,gpio-bank"))
+			continue;
 		cdev = simplebus_add_device(dev, node, 0, NULL, -1, NULL);
 		if (cdev != NULL)
 			device_probe_and_attach(cdev);
