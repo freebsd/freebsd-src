@@ -79,9 +79,6 @@ struct zfs_boot_args	*zargs;
 static void		i386_zfs_probe(void);
 #endif
 
-/* from vers.c */
-extern	char bootprog_info[];
-
 /* XXX debugging */
 extern char end[];
 
