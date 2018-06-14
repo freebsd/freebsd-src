@@ -231,7 +231,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_offset_t new, old;
-	struct obreak_args /* {
+	struct break_args /* {
 		char * nsize;
 	} */ tmp;
 
@@ -242,7 +242,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (vm_offset_t)args->dsend;
 	tmp.nsize = (char *)new;
-	if (((caddr_t)new > vm->vm_daddr) && !sys_obreak(td, &tmp))
+	if (((caddr_t)new > vm->vm_daddr) && !sys_break(td, &tmp))
 		td->td_retval[0] = (long)new;
 	else
 		td->td_retval[0] = (long)old;
