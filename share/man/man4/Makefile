@@ -446,6 +446,7 @@ MAN=	aac.4 \
 	rights.4 \
 	${_rk_gpio.4} \
 	${_rk_grf.4} \
+	${_rk_i2c.4} \
 	${_rk_pinctrl.4} \
 	rl.4 \
 	rndtest.4 \
@@ -765,6 +766,7 @@ MLINKS+=xl.4 if_xl.4
 _armv8crypto.4=	armv8crypto.4
 _rk_gpio.4=	rk_gpio.4
 _rk_grf.4=	rk_grf.4
+_rk_i2c.4=	rk_i2c.4
 _rk_pinctrl.4=	rk_pinctrl.4
 .endif
 
