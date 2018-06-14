@@ -3027,10 +3027,10 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->max_lun = 0;		/* 'logical drive' channel only */
 	cpi->initiator_id = sc->ciss_cfg->max_logical_supported;
 	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-        strlcpy(cpi->hba_vid, "CISS", HBA_IDLEN);
-        strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
-        cpi->unit_number = cam_sim_unit(sim);
-        cpi->bus_id = cam_sim_bus(sim);
+	strlcpy(cpi->hba_vid, "CISS", HBA_IDLEN);
+	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+	cpi->unit_number = cam_sim_unit(sim);
+	cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
 	cpi->transport = XPORT_SPI;
 	cpi->transport_version = 2;
