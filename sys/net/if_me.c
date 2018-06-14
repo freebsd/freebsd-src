@@ -549,6 +549,7 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 		hlen = sizeof(struct mobhdr);
 		mh.mob_flags = MOB_FLAGS_SP;
 	}
+	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	plen = m->m_pkthdr.len;
 	ip->ip_src = sc->me_src;
 	ip->ip_dst = sc->me_dst;
