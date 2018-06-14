@@ -1679,7 +1679,8 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 	IF_ADDR_WLOCK(ifp);
  restart:
 	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
-		if (ifma->ifma_addr->sa_family != AF_INET6)
+		if (ifma->ifma_addr->sa_family != AF_INET6 ||
+		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
 		switch (inm->in6m_state) {
