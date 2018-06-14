@@ -47,6 +47,9 @@ struct rk_clk_pll_sc {
 	uint32_t	gate_offset;
 	uint32_t	gate_shift;
 
+	uint32_t	mode_reg;
+	uint32_t	mode_val;
+
 	uint32_t	flags;
 
 	struct rk_clk_pll_rate	*rates;
@@ -221,6 +224,11 @@ rk_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	reg |= rates->frac << RK_CLK_PLL_FRAC_SHIFT;
 	WRITE4(clk, sc->base_offset + 0x8, reg);
 
+	/* Setting to normal mode */
+	READ4(clk, sc->mode_reg, &reg);
+	reg |= sc->mode_val << 16 | sc->mode_val;
+	WRITE4(clk, sc->mode_reg, reg);
+
 	/* Reading lock */
 	for (timeout = 1000; timeout; timeout--) {
 		READ4(clk, sc->base_offset + 0x4, &reg);
@@ -263,6 +271,8 @@ rk_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 	sc->base_offset = clkdef->base_offset;
 	sc->gate_offset = clkdef->gate_offset;
 	sc->gate_shift = clkdef->gate_shift;
+	sc->mode_reg = clkdef->mode_reg;
+	sc->mode_val = clkdef->mode_val;
 	sc->flags = clkdef->flags;
 	sc->rates = clkdef->rates;
 	sc->frac_rates = clkdef->frac_rates;
