@@ -313,14 +313,14 @@ ahci_a10_attach(device_t dev)
 		return (ENXIO);
 
 	/* Enable clocks */
-	error = clk_get_by_ofw_index(dev, 0, 0, &clk_pll);
-	if (error != 0) {
-		device_printf(dev, "Cannot get PLL clock\n");
-		goto fail;
-	}
-	error = clk_get_by_ofw_index(dev, 0, 1, &clk_gate);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk_gate);
 	if (error != 0) {
 		device_printf(dev, "Cannot get gate clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_index(dev, 0, 1, &clk_pll);
+	if (error != 0) {
+		device_printf(dev, "Cannot get PLL clock\n");
 		goto fail;
 	}
 	error = clk_set_freq(clk_pll, PLL_FREQ, CLK_SET_ROUND_DOWN);
