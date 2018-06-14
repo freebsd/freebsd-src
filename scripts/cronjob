@@ -28,6 +28,9 @@ echo "Latest Version: v$LATEST_VERSION"
 if ! git show-ref --quiet --verify refs/tags/v${LATEST_VERSION} ; then
     echo "Latest version is new"
 fi
+if ! git show-ref --quiet --verify refs/tags/v${LATEST_VERSION}-dts ; then
+    echo "Latest version is unmerged"
+fi
 echo
 
 echo "Current State:"
