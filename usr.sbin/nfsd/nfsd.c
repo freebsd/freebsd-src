@@ -64,8 +64,11 @@ static const char rcsid[] =
 
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <nfsserver/nfs.h>
 #include <nfs/nfssvc.h>
+
+#include <fs/nfs/nfsproto.h>
+#include <fs/nfs/nfskpiport.h>
+#include <fs/nfs/nfs.h>
 
 #include <err.h>
 #include <errno.h>
@@ -88,6 +91,7 @@ static int	debug = 0;
 #define NFS_VER3	 3
 #define NFS_VER4	 4
 static pid_t children[MAXNFSDCNT]; /* PIDs of children */
+static pid_t masterpid;		   /* PID of master/parent */
 static int nfsdcnt;		/* number of children */
 static int nfsdcnt_set;
 static int minthreads;
@@ -105,6 +109,8 @@ static struct option longopts[] = {
 	{ "debug", no_argument, &debug, 1 },
 	{ "minthreads", required_argument, &minthreads_set, 1 },
 	{ "maxthreads", required_argument, &maxthreads_set, 1 },
+	{ "pnfs", required_argument, NULL, 'p' },
+	{ "mirror", required_argument, NULL, 'm' },
 	{ NULL, 0, NULL, 0}
 };
 
@@ -116,13 +122,14 @@ static void	nonfs(int);
 static void	reapchild(int);
 static int	setbindhost(struct addrinfo **ia, const char *bindhost,
 		    struct addrinfo hints);
-static void	start_server(int);
+static void	start_server(int, struct nfsd_nfsd_args *);
 static void	unregistration(void);
 static void	usage(void);
 static void	open_stable(int *, int *);
 static void	copy_stable(int, int);
 static void	backup_stable(int);
 static void	set_nfsdcnt(int);
+static void	parse_dsserver(const char *, struct nfsd_nfsd_args *);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -142,6 +149,8 @@ static void	set_nfsdcnt(int);
  *	-t - support tcp nfs clients
  *	-u - support udp nfs clients
  *	-e - forces it to run a server that supports nfsv4
+ *	-p - enable a pNFS service
+ *	-m - set the mirroring level for a pNFS service
  * followed by "n" which is the number of nfsds' to fork off
  */
 int
@@ -168,15 +177,19 @@ main(int argc, char **argv)
 	const char *lopt;
 	char **bindhost = NULL;
 	pid_t pid;
+	struct nfsd_nfsd_args nfsdargs;
 
+	nfsdargs.mirrorcnt = 1;
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-	getopt_shortopts = "ah:n:rdtue";
+	getopt_shortopts = "ah:n:rdtuep:m:";
 	getopt_usage =
 	    "usage:\n"
 	    "  nfsd [-ardtue] [-h bindip]\n"
-	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n";
+	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n"
+	    "       [-p/--pnfs dsserver0:/dsserver0-mounted-on-dir,...,"
+	    "dsserverN:/dsserverN-mounted-on-dir] [-m mirrorlevel]\n";
 	while ((ch = getopt_long(argc, argv, getopt_shortopts, longopts,
 		    &longindex)) != -1)
 		switch (ch) {
@@ -209,6 +222,18 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			/* now a no-op, since this is the default */
+			break;
+		case 'p':
+			/* Parse out the DS server host names and mount pts. */
+			parse_dsserver(optarg, &nfsdargs);
+			break;
+		case 'm':
+			/* Set the mirror level for a pNFS service. */
+			i = atoi(optarg);
+			if (i < 2 || i > NFSDEV_MAXMIRRORS)
+				errx(1, "Mirror level out of range 2<-->%d",
+				    NFSDEV_MAXMIRRORS);
+			nfsdargs.mirrorcnt = i;
 			break;
 		case 0:
 			lopt = longopts[longindex].name;
@@ -429,7 +454,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	nfssvc_addsock = NFSSVC_NFSDADDSOCK;
-	nfssvc_nfsd = NFSSVC_NFSDNFSD;
+	nfssvc_nfsd = NFSSVC_NFSDNFSD | NFSSVC_NEWSTRUCT;
 
 	if (tcpflag) {
 		/*
@@ -437,6 +462,7 @@ main(int argc, char **argv)
 		 * kernel nfsd thread. The kernel will add more
 		 * threads as needed.
 		 */
+		masterpid = getpid();
 		pid = fork();
 		if (pid == -1) {
 			syslog(LOG_ERR, "fork: %m");
@@ -447,7 +473,7 @@ main(int argc, char **argv)
 		} else {
 			(void)signal(SIGUSR1, child_cleanup);
 			setproctitle("server");
-			start_server(0);
+			start_server(0, &nfsdargs);
 		}
 	}
 
@@ -768,7 +794,7 @@ main(int argc, char **argv)
 	 * a "server" too. start_server will not return.
 	 */
 	if (!tcpflag)
-		start_server(1);
+		start_server(1, &nfsdargs);
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -992,10 +1018,9 @@ get_tuned_nfsdcount(void)
 }
 
 static void
-start_server(int master)
+start_server(int master, struct nfsd_nfsd_args *nfsdargp)
 {
 	char principal[MAXHOSTNAMELEN + 5];
-	struct nfsd_nfsd_args nfsdargs;
 	int status, error;
 	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
@@ -1018,17 +1043,17 @@ start_server(int master)
 			freeaddrinfo(aip);
 		}
 	}
-	nfsdargs.principal = principal;
+	nfsdargp->principal = principal;
 
 	if (nfsdcnt_set)
-		nfsdargs.minthreads = nfsdargs.maxthreads = nfsdcnt;
+		nfsdargp->minthreads = nfsdargp->maxthreads = nfsdcnt;
 	else {
-		nfsdargs.minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
-		nfsdargs.maxthreads = maxthreads_set ? maxthreads : nfsdargs.minthreads;
-		if (nfsdargs.maxthreads < nfsdargs.minthreads)
-			nfsdargs.maxthreads = nfsdargs.minthreads;
+		nfsdargp->minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
+		nfsdargp->maxthreads = maxthreads_set ? maxthreads : nfsdargp->minthreads;
+		if (nfsdargp->maxthreads < nfsdargp->minthreads)
+			nfsdargp->maxthreads = nfsdargp->minthreads;
 	}
-	error = nfssvc(nfssvc_nfsd, &nfsdargs);
+	error = nfssvc(nfssvc_nfsd, nfsdargp);
 	if (error < 0 && errno == EAUTH) {
 		/*
 		 * This indicates that it could not register the
@@ -1038,10 +1063,15 @@ start_server(int master)
 		 */
 		syslog(LOG_ERR, "No gssd, using AUTH_SYS only");
 		principal[0] = '\0';
-		error = nfssvc(nfssvc_nfsd, &nfsdargs);
+		error = nfssvc(nfssvc_nfsd, nfsdargp);
 	}
 	if (error < 0) {
-		syslog(LOG_ERR, "nfssvc: %m");
+		if (errno == ENXIO) {
+			syslog(LOG_ERR, "Bad -p option, cannot run");
+			if (masterpid != 0 && master == 0)
+				kill(masterpid, SIGUSR1);
+		} else
+			syslog(LOG_ERR, "nfssvc: %m");
 		status = 1;
 	}
 	if (master)
@@ -1139,5 +1169,125 @@ backup_stable(__unused int signo)
 
 	if (stablefd >= 0)
 		copy_stable(stablefd, backupfd);
+}
+
+/*
+ * Parse the pNFS string and extract the DS servers and ports numbers.
+ */
+static void
+parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
+{
+	char *ad, *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
+	int ecode;
+	u_int adsiz, dsaddrcnt, dshostcnt, dspathcnt, hostsiz, pathsiz;
+	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz;
+	struct addrinfo hints, *ai_tcp;
+	struct sockaddr_in sin;
+
+	cp = strdup(optionarg);
+	if (cp == NULL)
+		errx(1, "Out of memory");
+
+	/* Now, do the host names. */
+	dspathsiz = 1024;
+	dspathcnt = 0;
+	dspath = malloc(dspathsiz);
+	if (dspath == NULL)
+		errx(1, "Out of memory");
+	dshostsiz = 1024;
+	dshostcnt = 0;
+	dshost = malloc(dshostsiz);
+	if (dshost == NULL)
+		errx(1, "Out of memory");
+	dsaddrsiz = 1024;
+	dsaddrcnt = 0;
+	dsaddr = malloc(dsaddrsiz);
+	if (dsaddr == NULL)
+		errx(1, "Out of memory");
+
+	/* Put the NFS port# in "." form. */
+	snprintf(nfsprt, 9, ".%d.%d", 2049 >> 8, 2049 & 0xff);
+	nfsprtsiz = strlen(nfsprt);
+
+	ai_tcp = NULL;
+	/* Loop around for each DS server name. */
+	do {
+		cp2 = strchr(cp, ',');
+		if (cp2 != NULL) {
+			/* Not the last DS in the list. */
+			*cp2++ = '\0';
+			if (*cp2 == '\0')
+				usage();
+		}
+
+		dsvol = strchr(cp, ':');
+		if (dsvol == NULL || *(dsvol + 1) == '\0')
+			usage();
+		*dsvol++ = '\0';
+
+		/* Append this pathname to dspath. */
+		pathsiz = strlen(dsvol);
+		if (dspathcnt + pathsiz + 1 > dspathsiz) {
+			dspathsiz *= 2;
+			dspath = realloc(dspath, dspathsiz);
+			if (dspath == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&dspath[dspathcnt], dsvol);
+		dspathcnt += pathsiz + 1;
+
+		if (ai_tcp != NULL)
+			freeaddrinfo(ai_tcp);
+
+		/* Get the fully qualified domain name and IP address. */
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		ecode = getaddrinfo(cp, NULL, &hints, &ai_tcp);
+		if (ecode != 0)
+			err(1, "getaddrinfo pnfs: %s %s", cp,
+			    gai_strerror(ecode));
+		if (ai_tcp->ai_addr->sa_family != AF_INET ||
+		    ai_tcp->ai_addrlen < sizeof(sin))
+			err(1, "getaddrinfo() returned non-INET address");
+		/* Mips cares about sockaddr_in alignment, so copy the addr. */
+		memcpy(&sin, ai_tcp->ai_addr, sizeof(sin));
+
+		/* Append this address to dsaddr. */
+		ad = inet_ntoa(sin.sin_addr);
+		adsiz = strlen(ad);
+		if (dsaddrcnt + adsiz + nfsprtsiz + 1 > dsaddrsiz) {
+			dsaddrsiz *= 2;
+			dsaddr = realloc(dsaddr, dsaddrsiz);
+			if (dsaddr == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&dsaddr[dsaddrcnt], ad);
+		strcat(&dsaddr[dsaddrcnt], nfsprt);
+		dsaddrcnt += adsiz + nfsprtsiz + 1;
+
+		/* Append this hostname to dshost. */
+		hostsiz = strlen(ai_tcp->ai_canonname);
+		if (dshostcnt + hostsiz + 1 > dshostsiz) {
+			dshostsiz *= 2;
+			dshost = realloc(dshost, dshostsiz);
+			if (dshost == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&dshost[dshostcnt], ai_tcp->ai_canonname);
+		dshostcnt += hostsiz + 1;
+
+		cp = cp2;
+	} while (cp != NULL);
+
+	nfsdargp->addr = dsaddr;
+	nfsdargp->addrlen = dsaddrcnt;
+	nfsdargp->dnshost = dshost;
+	nfsdargp->dnshostlen = dshostcnt;
+	nfsdargp->dspath = dspath;
+	nfsdargp->dspathlen = dspathcnt;
+	freeaddrinfo(ai_tcp);
 }
 
