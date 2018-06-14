@@ -479,7 +479,9 @@ int
 nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
     struct nvme_controller *ctrlr)
 {
+	struct make_dev_args                    md_args;
 	struct nvme_completion_poll_status	status;
+	int                                     res;
 	int					unit;
 
 	ns->ctrlr = ctrlr;
@@ -562,15 +564,19 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 */
 	unit = device_get_unit(ctrlr->dev) * NVME_MAX_NAMESPACES + ns->id - 1;
 
-	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, unit,
-	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
+	make_dev_args_init(&md_args);
+	md_args.mda_devsw = &nvme_ns_cdevsw;
+	md_args.mda_unit = unit;
+	md_args.mda_mode = 0600;
+	md_args.mda_si_drv1 = ns;
+	res = make_dev_s(&md_args, &ns->cdev, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
+	if (res != 0)
+		return (ENXIO);
+
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif
-
-	if (ns->cdev != NULL)
-		ns->cdev->si_drv1 = ns;
 
 	return (0);
 }
