@@ -749,7 +749,6 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 
 	/*
 	 * nuke any of IPv6 addresses we have
-	 * XXX: all addresses should be already removed
 	 */
 	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
