@@ -50,6 +50,9 @@ struct rk_clk_pll_def {
 	uint32_t		gate_offset;
 	uint32_t		gate_shift;
 
+	uint32_t		mode_reg;
+	uint32_t		mode_val;
+
 	uint32_t		flags;
 
 	struct rk_clk_pll_rate	*rates;
