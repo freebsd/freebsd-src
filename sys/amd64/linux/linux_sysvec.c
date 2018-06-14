@@ -228,7 +228,8 @@ linux_set_syscall_retval(struct thread *td, int error)
 	 * the syscall.  So, do not clobber %rdx and %r10.
 	 */
 	td->td_retval[1] = frame->tf_rdx;
-	frame->tf_r10 = frame->tf_rcx;
+	if (error != EJUSTRETURN)
+		frame->tf_r10 = frame->tf_rcx;
 
 	cpu_set_syscall_retval(td, error);
 
