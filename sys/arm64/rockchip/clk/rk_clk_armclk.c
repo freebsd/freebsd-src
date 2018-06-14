@@ -105,7 +105,7 @@ rk_clk_armclk_set_mux(struct clknode *clk, int index)
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->muxdiv_offset, &val);
 	val &= ~(sc->mux_mask >> sc->mux_shift);
-	val |= index << sc->mux_shift;
+	val |= index << sc->mux_shift | RK_ARMCLK_WRITE_MASK;
 	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
