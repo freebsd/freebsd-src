@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	nfsd
-MAN=	nfsd.8 nfsv4.4 stablerestart.5
+MAN=	nfsd.8 nfsv4.4 stablerestart.5 pnfs.4
 
 .include <bsd.prog.mk>
