@@ -33,8 +33,6 @@
 
 struct ccb_nvmeio;
 
-#define NVME_REV_1	1	/* Supports NVMe 1.2 or earlier */
-
 void	nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
     uint32_t cdw10, uint32_t cdw11, uint32_t cdw12, uint32_t cdw13,
     uint32_t cdw14, uint32_t cdw15);

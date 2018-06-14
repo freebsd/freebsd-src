@@ -42,6 +42,13 @@
 #define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
 /*
+ * Macros to deal with NVME revisions, as defined VS register
+ */
+#define NVME_REV(x, y)			(((x) << 16) | ((y) << 8))
+#define NVME_MAJOR(r)			(((r) >> 16) & 0xffff)
+#define NVME_MINOR(r)			(((r) >> 8) & 0xff)
+
+/*
  * Use to mark a command to apply to all namespaces, or to retrieve global
  *  log pages.
  */
