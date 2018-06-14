@@ -1003,11 +1003,15 @@ struct ccb_trans_settings_nvme
 	u_int     	valid;		/* Which fields to honor */
 #define CTS_NVME_VALID_SPEC	0x01
 #define CTS_NVME_VALID_CAPS	0x02
-	u_int		spec_major;	/* Major version of spec supported */
-	u_int		spec_minor;	/* Minor verison of spec supported */
-	u_int		spec_tiny;	/* Tiny version of spec supported */
-	u_int		max_xfer;	/* Max transfer size (0 -> unlimited */
-	u_int		caps;
+#define CTS_NVME_VALID_LINK	0x04
+	uint32_t	spec;		/* NVMe spec implemented -- same as vs register */
+	uint32_t	max_xfer;	/* Max transfer size (0 -> unlimited */
+	uint32_t	caps;
+	uint8_t		lanes;		/* Number of PCIe lanes */
+	uint8_t		speed;		/* PCIe generation for each lane */
+	uint8_t		max_lanes;	/* Number of PCIe lanes */
+	uint8_t		max_speed;	/* PCIe generation for each lane */
+	u_int		pad;		/* Padding to keep ABI */
 };
 	
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
