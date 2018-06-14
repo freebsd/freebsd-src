@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,47 +27,10 @@
  * $FreeBSD$
  */
 
-#ifndef __CCU_NG_H__
-#define __CCU_NG_H__
+#ifndef __CCU_A10_H__
+#define __CCU_A10_H__
 
-enum aw_ccung_type {
-	H3_CCU = 1,
-	H3_R_CCU,
-	A31_CCU,
-	A64_CCU,
-	A64_R_CCU,
-	A13_CCU,
-	A83T_CCU,
-	A83T_R_CCU,
-	A10_CCU,
-	A20_CCU,
-};
+void ccu_a10_register_clocks(struct aw_ccung_softc *sc);
+void ccu_a20_register_clocks(struct aw_ccung_softc *sc);
 
-struct aw_ccung_softc {
-	device_t		dev;
-	struct resource		*res;
-	struct clkdom		*clkdom;
-	struct mtx		mtx;
-	int			type;
-	struct aw_ccung_reset	*resets;
-	int			nresets;
-	struct aw_ccung_gate	*gates;
-	int			ngates;
-	struct aw_clk_init	*clk_init;
-	int			n_clk_init;
-};
-
-struct aw_ccung_reset {
-	uint32_t	offset;
-	uint32_t	shift;
-};
-
-struct aw_ccung_gate {
-	const char	*name;
-	const char	*parent_name;
-	uint32_t	id;
-	uint32_t	offset;
-	uint32_t	shift;
-};
-
-#endif /* __CCU_NG_H__ */
+#endif /* __CCU_A10_H__ */
