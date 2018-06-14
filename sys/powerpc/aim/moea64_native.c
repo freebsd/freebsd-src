@@ -453,7 +453,7 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 */
 
 	size = moea64_pteg_count * sizeof(struct lpteg);
-	CTR2(KTR_PMAP, "moea64_bootstrap: %d PTEGs, %d bytes", 
+	CTR2(KTR_PMAP, "moea64_bootstrap: %lu PTEGs, %lu bytes", 
 	    moea64_pteg_count, size);
 	rw_init(&moea64_eviction_lock, "pte eviction");
 
