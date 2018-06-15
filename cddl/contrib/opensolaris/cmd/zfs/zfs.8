@@ -2674,7 +2674,9 @@ feature.
 .It Fl c, -compressed
 Generate a more compact stream by using compressed WRITE records for blocks
 which are compressed on disk and in memory (see the
-.Sy compression property for details).  If the
+.Sy compression
+property for details).
+If the
 .Sy lz4_compress
 feature is active on the sending system, then the receiving system must have that
 feature enabled as well. If the
