@@ -44,11 +44,11 @@ typedef struct zfsinfo
 
 extern uint64_t pool_guid;
 
-extern void efi_zfs_probe(void);
-extern zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
-extern bool efi_zfs_is_preferred(EFI_HANDLE *h);
-extern EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
-extern bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);
+void efi_zfs_probe(void);
+EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
+bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);
+zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
+void efizfs_set_preferred(EFI_HANDLE);
 
 #endif
 

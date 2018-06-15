@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
-
 #include "efizfs.h"
 #endif
 
@@ -73,8 +72,6 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
-static EFI_LOADED_IMAGE *img;
-
 /*
  * Number of seconds to wait for a keystroke before exiting with failure
  * in the event no currdev is found. -2 means always break, -1 means
@@ -83,14 +80,6 @@ static EFI_LOADED_IMAGE *img;
  * well.
  */
 static int fail_timeout = 5;
-
-#ifdef	EFI_ZFS_BOOT
-bool
-efi_zfs_is_preferred(EFI_HANDLE *h)
-{
-        return (h == img->DeviceHandle);
-}
-#endif
 
 static bool
 has_keyboard(void)
@@ -424,6 +413,7 @@ main(int argc, CHAR16 *argv[])
 	UINT16 boot_current;
 	size_t sz;
 	UINT16 boot_order[100];
+	EFI_LOADED_IMAGE *img;
 #if !defined(__arm__)
 	char buf[40];
 #endif
@@ -441,6 +431,10 @@ main(int argc, CHAR16 *argv[])
         /* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
+#ifdef EFI_ZFS_BOOT
+	/* Tell ZFS probe code where we booted from */
+	efizfs_set_preferred(img->DeviceHandle);
+#endif
 	/* Init the time source */
 	efi_time_init();
 
