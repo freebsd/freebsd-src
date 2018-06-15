@@ -317,7 +317,6 @@ procfile(const char *fn)
 	pc.cntlines = false;
 	memset(&mc, 0, sizeof(mc));
 	mc.printmatch = true;
-	line_matched = false;
 	if ((pc.binary && binbehave == BINFILE_BIN) || cflag || qflag ||
 	    lflag || Lflag)
 		mc.printmatch = false;
