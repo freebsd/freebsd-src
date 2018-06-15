@@ -33,22 +33,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <machine/bus.h>
+
+#include <dev/fdt/simplebus.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
 #include <arm/allwinner/clkng/aw_ccung.h>
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_nm.h>
-#include <arm/allwinner/clkng/aw_clk_nkmp.h>
-#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
 
 #include <gnu/dts/include/dt-bindings/clock/sun4i-a10-ccu.h>
 #include <gnu/dts/include/dt-bindings/clock/sun7i-a20-ccu.h>
 #include <gnu/dts/include/dt-bindings/reset/sun4i-a10-ccu.h>
-
-#include "ccu_a10.h"
 
 /* Non-exported resets */
 /* Non-exported clocks */
@@ -524,89 +527,98 @@ NM_CLK(spi3_clk,
 
 /* MISSING CLK_I2S1, CLK_I2S2, DE Clocks */
 
-static struct aw_clk_nkmp_def *nkmp_clks[] = {
-	&pll_core_clk,
-	&pll_ddr_other_clk,
-	&pll_ddr_clk,
-	&pll6_clk,
-	&pll_periph_sata_clk,
+static struct aw_ccung_clk a10_ccu_clks[] = {
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_core_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr_other_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll6_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph_sata_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &axi_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ahb_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &apb0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &apb1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &pll_video0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &pll_video1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ms_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc3_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ts_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ss_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ir0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ir1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &keypad_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &sata_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi3_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &cpu_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_periph_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video0_2x_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video1_2x_clk},
 };
 
-static struct aw_clk_nm_def *nm_clks[] = {
-	&axi_clk,
-	&ahb_clk,
-	&apb0_clk,
-	&apb1_clk,
-	&pll_video0_clk,
-	&pll_video1_clk,
-	&nand_clk,
-	&ms_clk,
-	&mmc0_clk,
-	&mmc1_clk,
-	&mmc2_clk,
-	&mmc3_clk,
-	&ts_clk,
-	&ss_clk,
-	&spi0_clk,
-	&spi1_clk,
-	&spi2_clk,
-	&ir0_clk,
-	&ir1_clk,
-	&keypad_clk,
-	&sata_clk,
-	&spi3_clk,
+static struct aw_clk_init a10_init_clks[] = {
 };
 
-static struct aw_clk_prediv_mux_def *prediv_mux_clks[] = {
+static struct ofw_compat_data compat_data[] = {
+#if defined(SOC_ALLWINNER_A10)
+	{ "allwinner,sun4i-a10-ccu", 1 },
+#endif
+#if defined(SOC_ALLWINNER_A20)
+	{ "allwinner,sun7i-a20-ccu", 1 },
+#endif
+	{ NULL, 0},
 };
 
-static struct clk_mux_def *mux_clks[] = {
-	&cpu_clk,
-};
-
-static struct clk_div_def *div_clks[] = {
-};
-
-static struct clk_fixed_def *fixed_factor_clks[] = {
-	&pll_periph_clk,
-	&pll_video0_2x_clk,
-	&pll_video1_2x_clk,
-};
-
-static struct aw_clk_init init_clks[] = {
-};
-
-void
-ccu_a10_register_clocks(struct aw_ccung_softc *sc)
+static int
+ccu_a10_probe(device_t dev)
 {
-	int i;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	device_set_desc(dev, "Allwinner A10/A20 Clock Control Unit NG");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ccu_a10_attach(device_t dev)
+{
+	struct aw_ccung_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	sc->resets = a10_ccu_resets;
 	sc->nresets = nitems(a10_ccu_resets);
 	sc->gates = a10_ccu_gates;
 	sc->ngates = nitems(a10_ccu_gates);
-	sc->clk_init = init_clks;
-	sc->n_clk_init = nitems(init_clks);
+	sc->clks = a10_ccu_clks;
+	sc->nclks = nitems(a10_ccu_clks);
+	sc->clk_init = a10_init_clks;
+	sc->n_clk_init = nitems(a10_init_clks);
 
-	for (i = 0; i < nitems(nkmp_clks); i++)
-		aw_clk_nkmp_register(sc->clkdom, nkmp_clks[i]);
-	for (i = 0; i < nitems(nm_clks); i++)
-		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
-	for (i = 0; i < nitems(prediv_mux_clks); i++)
-		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
-
-	for (i = 0; i < nitems(mux_clks); i++)
-		clknode_mux_register(sc->clkdom, mux_clks[i]);
-	for (i = 0; i < nitems(div_clks); i++)
-		clknode_div_register(sc->clkdom, div_clks[i]);
-	for (i = 0; i < nitems(fixed_factor_clks); i++)
-		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
+	return (aw_ccung_attach(dev));
 }
 
-void
-ccu_a20_register_clocks(struct aw_ccung_softc *sc)
-{
+static device_method_t ccu_a10ng_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ccu_a10_probe),
+	DEVMETHOD(device_attach,	ccu_a10_attach),
 
-	/* XXX TODO: Implement the A20-specific clocks */
-	ccu_a10_register_clocks(sc);
-}
+	DEVMETHOD_END
+};
+
+static devclass_t ccu_a10ng_devclass;
+
+DEFINE_CLASS_1(ccu_a10ng, ccu_a10ng_driver, ccu_a10ng_methods,
+  sizeof(struct aw_ccung_softc), aw_ccung_driver);
+
+EARLY_DRIVER_MODULE(ccu_a10ng, simplebus, ccu_a10ng_driver,
+    ccu_a10ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
