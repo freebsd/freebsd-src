@@ -60,97 +60,97 @@ static const char *errpath = "adirhasnoname/fileforaudit";
 /*
  * Define test-cases for success and failure modes of both open(2) and openat(2)
  */
-#define OPEN_AT_TC_DEFINE(mode, regex, flag, class) \
-ATF_TC_WITH_CLEANUP(open_ ## mode ## _success); \
-ATF_TC_HEAD(open_ ## mode ## _success, tc) \
-{ \
-	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful " \
-				"open(2) call with flags = %s", #flag); \
-} \
-ATF_TC_BODY(open_ ## mode ## _success, tc) \
-{ \
-	snprintf(extregex, sizeof(extregex), \
-		"open.*%s.*fileforaudit.*return,success", regex); \
-	/* File needs to exist for successful open(2) invocation */ \
-	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); \
-	FILE *pipefd = setup(fds, class); \
-	ATF_REQUIRE(syscall(SYS_open, path, flag) != -1); \
-	check_audit(fds, extregex, pipefd); \
-	close(filedesc); \
-} \
-ATF_TC_CLEANUP(open_ ## mode ## _success, tc) \
-{ \
-	cleanup(); \
-} \
-ATF_TC_WITH_CLEANUP(open_ ## mode ## _failure); \
-ATF_TC_HEAD(open_ ## mode ## _failure, tc) \
-{ \
-	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful " \
-				"open(2) call with flags = %s", #flag); \
-} \
-ATF_TC_BODY(open_ ## mode ## _failure, tc) \
-{ \
-	snprintf(extregex, sizeof(extregex), \
-		"open.*%s.*fileforaudit.*return,failure", regex); \
-	FILE *pipefd = setup(fds, class); \
-	ATF_REQUIRE_EQ(-1, syscall(SYS_open, errpath, flag)); \
-	check_audit(fds, extregex, pipefd); \
-} \
-ATF_TC_CLEANUP(open_ ## mode ## _failure, tc) \
-{ \
-	cleanup(); \
-} \
-ATF_TC_WITH_CLEANUP(openat_ ## mode ## _success); \
-ATF_TC_HEAD(openat_ ## mode ## _success, tc) \
-{ \
-	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful " \
-				"openat(2) call with flags = %s", #flag); \
-} \
-ATF_TC_BODY(openat_ ## mode ## _success, tc) \
-{ \
-	int filedesc2; \
-	snprintf(extregex, sizeof(extregex), \
-		"openat.*%s.*fileforaudit.*return,success", regex); \
-	/* File needs to exist for successful openat(2) invocation */ \
-	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); \
-	FILE *pipefd = setup(fds, class); \
-	ATF_REQUIRE((filedesc2 = openat(AT_FDCWD, path, flag)) != -1); \
-	check_audit(fds, extregex, pipefd); \
-	close(filedesc2); \
-	close(filedesc); \
-} \
-ATF_TC_CLEANUP(openat_ ## mode ## _success, tc) \
-{ \
-	cleanup(); \
-} \
-ATF_TC_WITH_CLEANUP(openat_ ## mode ## _failure); \
-ATF_TC_HEAD(openat_ ## mode ## _failure, tc) \
-{ \
-	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful " \
-				"openat(2) call with flags = %s", #flag); \
-} \
-ATF_TC_BODY(openat_ ## mode ## _failure, tc) \
-{ \
-	snprintf(extregex, sizeof(extregex), \
-		"openat.*%s.*fileforaudit.*return,failure", regex); \
-	FILE *pipefd = setup(fds, class); \
-	ATF_REQUIRE_EQ(-1, openat(AT_FDCWD, errpath, flag)); \
-	check_audit(fds, extregex, pipefd); \
-} \
-ATF_TC_CLEANUP(openat_ ## mode ## _failure, tc) \
-{ \
-	cleanup(); \
+#define OPEN_AT_TC_DEFINE(mode, regex, flag, class) 			      \
+ATF_TC_WITH_CLEANUP(open_ ## mode ## _success);				      \
+ATF_TC_HEAD(open_ ## mode ## _success, tc) 				      \
+{ 									      \
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "     \
+				"open(2) call with flags = %s", #flag);       \
+} 									      \
+ATF_TC_BODY(open_ ## mode ## _success, tc) 				      \
+{ 									      \
+	snprintf(extregex, sizeof(extregex), 				      \
+		"open.*%s.*fileforaudit.*return,success", regex); 	      \
+	/* File needs to exist for successful open(2) invocation */ 	      \
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); 	      \
+	FILE *pipefd = setup(fds, class); 				      \
+	ATF_REQUIRE(syscall(SYS_open, path, flag) != -1); 		      \
+	check_audit(fds, extregex, pipefd); 				      \
+	close(filedesc); 						      \
+} 									      \
+ATF_TC_CLEANUP(open_ ## mode ## _success, tc) 				      \
+{ 									      \
+	cleanup(); 							      \
+} 									      \
+ATF_TC_WITH_CLEANUP(open_ ## mode ## _failure); 			      \
+ATF_TC_HEAD(open_ ## mode ## _failure, tc) 				      \
+{ 									      \
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "  \
+				"open(2) call with flags = %s", #flag);       \
+} 									      \
+ATF_TC_BODY(open_ ## mode ## _failure, tc) 				      \
+{ 									      \
+	snprintf(extregex, sizeof(extregex), 				      \
+		"open.*%s.*fileforaudit.*return,failure", regex); 	      \
+	FILE *pipefd = setup(fds, class); 				      \
+	ATF_REQUIRE_EQ(-1, syscall(SYS_open, errpath, flag)); 		      \
+	check_audit(fds, extregex, pipefd); 				      \
+} 									      \
+ATF_TC_CLEANUP(open_ ## mode ## _failure, tc) 				      \
+{ 									      \
+	cleanup(); 							      \
+} 									      \
+ATF_TC_WITH_CLEANUP(openat_ ## mode ## _success); 			      \
+ATF_TC_HEAD(openat_ ## mode ## _success, tc) 				      \
+{ 									      \
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "     \
+				"openat(2) call with flags = %s", #flag);     \
+} 									      \
+ATF_TC_BODY(openat_ ## mode ## _success, tc) 				      \
+{ 									      \
+	int filedesc2; 							      \
+	snprintf(extregex, sizeof(extregex), 				      \
+		"openat.*%s.*fileforaudit.*return,success", regex); 	      \
+	/* File needs to exist for successful openat(2) invocation */ 	      \
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, o_mode)) != -1); 	      \
+	FILE *pipefd = setup(fds, class); 				      \
+	ATF_REQUIRE((filedesc2 = openat(AT_FDCWD, path, flag)) != -1); 	      \
+	check_audit(fds, extregex, pipefd); 				      \
+	close(filedesc2); 						      \
+	close(filedesc); 						      \
+} 									      \
+ATF_TC_CLEANUP(openat_ ## mode ## _success, tc) 			      \
+{ 									      \
+	cleanup(); 							      \
+} 									      \
+ATF_TC_WITH_CLEANUP(openat_ ## mode ## _failure); 			      \
+ATF_TC_HEAD(openat_ ## mode ## _failure, tc) 				      \
+{ 									      \
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "  \
+				"openat(2) call with flags = %s", #flag);     \
+} 									      \
+ATF_TC_BODY(openat_ ## mode ## _failure, tc) 				      \
+{ 									      \
+	snprintf(extregex, sizeof(extregex), 				      \
+		"openat.*%s.*fileforaudit.*return,failure", regex); 	      \
+	FILE *pipefd = setup(fds, class); 				      \
+	ATF_REQUIRE_EQ(-1, openat(AT_FDCWD, errpath, flag)); 		      \
+	check_audit(fds, extregex, pipefd); 				      \
+} 									      \
+ATF_TC_CLEANUP(openat_ ## mode ## _failure, tc) 			      \
+{ 									      \
+	cleanup(); 							      \
 }
 
 /*
  * Add both success and failure modes of open(2) and openat(2)
  */
-#define OPEN_AT_TC_ADD(tp, mode) \
-do { \
-	ATF_TP_ADD_TC(tp, open_ ## mode ## _success); \
-	ATF_TP_ADD_TC(tp, open_ ## mode ## _failure); \
-	ATF_TP_ADD_TC(tp, openat_ ## mode ## _success); \
-	ATF_TP_ADD_TC(tp, openat_ ## mode ## _failure); \
+#define OPEN_AT_TC_ADD(tp, mode) 					      \
+do { 									      \
+	ATF_TP_ADD_TC(tp, open_ ## mode ## _success); 			      \
+	ATF_TP_ADD_TC(tp, open_ ## mode ## _failure); 			      \
+	ATF_TP_ADD_TC(tp, openat_ ## mode ## _success); 		      \
+	ATF_TP_ADD_TC(tp, openat_ ## mode ## _failure); 		      \
 } while (0)
 
 
