@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,2018 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,21 +33,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <machine/bus.h>
+
+#include <dev/fdt/simplebus.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
 #include <arm/allwinner/clkng/aw_ccung.h>
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_nm.h>
-#include <arm/allwinner/clkng/aw_clk_nkmp.h>
-#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
 
 #include <dt-bindings/clock/sun5i-ccu.h>
 #include <dt-bindings/reset/sun5i-ccu.h>
-
-#include "ccu_a13.h"
 
 /* Non-exported clocks */
 
@@ -496,71 +500,72 @@ static struct aw_clk_nm_def ir_clk = {
 
 
 /* Clocks list */
-
-static struct aw_clk_nkmp_def *nkmp_clks[] = {
-	&pll_core,
-	&pll_audio,
-	&pll_ddr_base,
-	&pll_periph,
+static struct aw_ccung_clk a13_ccu_clks[] = {
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_core},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_audio},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr_base},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph},
+	{ .type = AW_CLK_NM, .clk.nm = &apb1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ss_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ir_clk},
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &cpu_clk},
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ahb_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &pll_ddr},
+	{ .type = AW_CLK_DIV, .clk.div = &pll_ddr_other},
+	{ .type = AW_CLK_DIV, .clk.div = &axi_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &apb0_clk},
 };
 
-static struct aw_clk_nm_def *nm_clks[] = {
-	&apb1_clk,
-	&nand_clk,
-	&mmc0_clk,
-	&mmc1_clk,
-	&mmc2_clk,
-	&ss_clk,
-	&spi0_clk,
-	&spi1_clk,
-	&spi2_clk,
-	&ir_clk,
-};
-
-static struct aw_clk_prediv_mux_def *prediv_mux_clks[] = {
-	&cpu_clk,
-	&ahb_clk,
-};
-
-static struct clk_div_def *div_clks[] = {
-	&pll_ddr,
-	&pll_ddr_other,
-	&axi_clk,
-	&apb0_clk,
-};
-
-static struct clk_mux_def *mux_clks[] = {
-};
-
-static struct clk_fixed_def *fixed_factor_clks[] = {
-};
-
-static struct aw_clk_init init_clks[] = {
-};
-
-void
-ccu_a13_register_clocks(struct aw_ccung_softc *sc)
+static int
+ccu_a13_probe(device_t dev)
 {
-	int i;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun5i-a13-ccu"))
+		return (ENXIO);
+
+	device_set_desc(dev, "Allwinner A13 Clock Control Unit NG");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ccu_a13_attach(device_t dev)
+{
+	struct aw_ccung_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	sc->resets = a13_ccu_resets;
 	sc->nresets = nitems(a13_ccu_resets);
 	sc->gates = a13_ccu_gates;
 	sc->ngates = nitems(a13_ccu_gates);
-	sc->clk_init = init_clks;
-	sc->n_clk_init = nitems(init_clks);
+	sc->clks = a13_ccu_clks;
+	sc->nclks = nitems(a13_ccu_clks);
 
-	for (i = 0; i < nitems(nkmp_clks); i++)
-		aw_clk_nkmp_register(sc->clkdom, nkmp_clks[i]);
-	for (i = 0; i < nitems(nm_clks); i++)
-		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
-	for (i = 0; i < nitems(prediv_mux_clks); i++)
-		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
-
-	for (i = 0; i < nitems(mux_clks); i++)
-		clknode_mux_register(sc->clkdom, mux_clks[i]);
-	for (i = 0; i < nitems(div_clks); i++)
-		clknode_div_register(sc->clkdom, div_clks[i]);
-	for (i = 0; i < nitems(fixed_factor_clks); i++)
-		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
+	return (aw_ccung_attach(dev));
 }
+
+static device_method_t ccu_a13ng_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ccu_a13_probe),
+	DEVMETHOD(device_attach,	ccu_a13_attach),
+
+	DEVMETHOD_END
+};
+
+static devclass_t ccu_a13ng_devclass;
+
+DEFINE_CLASS_1(ccu_a13ng, ccu_a13ng_driver, ccu_a13ng_methods,
+  sizeof(struct aw_ccung_softc), aw_ccung_driver);
+
+EARLY_DRIVER_MODULE(ccu_a13ng, simplebus, ccu_a13ng_driver,
+    ccu_a13ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

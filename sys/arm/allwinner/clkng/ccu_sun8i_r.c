@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,2018 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +33,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <machine/bus.h>
+
+#include <dev/fdt/simplebus.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #if defined(__aarch64__)
 #include "opt_soc.h"
@@ -42,12 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk_mux.h>
 
 #include <arm/allwinner/clkng/aw_ccung.h>
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_nm.h>
-#include <arm/allwinner/clkng/aw_clk_nkmp.h>
-#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
-
-#include <arm/allwinner/clkng/ccu_sun8i_r.h>
 
 #include <gnu/dts/include/dt-bindings/clock/sun8i-r-ccu.h>
 #include <gnu/dts/include/dt-bindings/reset/sun8i-r-ccu.h>
@@ -141,57 +145,120 @@ static struct aw_clk_nm_def a83t_ir_clk = {
 	.flags = AW_CLK_HAS_MUX | AW_CLK_HAS_PREDIV,
 };
 
-static struct aw_clk_prediv_mux_def *r_ccu_prediv_mux_clks[] = {
-	&ar100_clk,
+static struct aw_ccung_clk clks[] = {
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ar100_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &apb0_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &ahb0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &r_ccu_ir_clk},
 };
 
-static struct aw_clk_prediv_mux_def *a83t_r_ccu_prediv_mux_clks[] = {
-	&a83t_ar100_clk,
+static struct aw_ccung_clk a83t_clks[] = {
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &a83t_ar100_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &apb0_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &ahb0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &a83t_ir_clk},
 };
 
-static struct clk_div_def *div_clks[] = {
-	&apb0_clk,
+static struct ofw_compat_data compat_data[] = {
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
+	{ "allwinner,sun8i-h3-r-ccu", 1 },
+#endif
+#if defined(SOC_ALLWINNER_A64)
+	{ "allwinner,sun50i-a64-r-ccu", 1 },
+#endif
+	{ NULL, 0},
 };
 
-static struct clk_fixed_def *fixed_factor_clks[] = {
-	&ahb0_clk,
-};
-
-static struct aw_clk_nm_def *r_ccu_nm_clks[] = {
-	&r_ccu_ir_clk,
-};
-
-static struct aw_clk_nm_def *a83t_nm_clks[] = {
-	&a83t_ir_clk,
-};
-
-void
-ccu_sun8i_r_register_clocks(struct aw_ccung_softc *sc)
+static int
+ccu_sun8i_r_probe(device_t dev)
 {
-	int i;
-	struct aw_clk_prediv_mux_def **prediv_mux_clks;
-	struct aw_clk_nm_def **nm_clks;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	device_set_desc(dev, "Allwinner SUN8I_R Clock Control Unit NG");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ccu_sun8i_r_attach(device_t dev)
+{
+	struct aw_ccung_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	sc->resets = ccu_sun8i_r_resets;
 	sc->nresets = nitems(ccu_sun8i_r_resets);
 	sc->gates = ccu_sun8i_r_gates;
 	sc->ngates = nitems(ccu_sun8i_r_gates);
+	sc->clks = clks;
+	sc->nclks = nitems(clks);
 
-	/* a83t names the parents differently than the others */
-	if (sc->type == A83T_R_CCU) {
-		prediv_mux_clks = a83t_r_ccu_prediv_mux_clks;
-		nm_clks = a83t_nm_clks;
-	} else {
-		prediv_mux_clks = r_ccu_prediv_mux_clks;
-		nm_clks = r_ccu_nm_clks;
-	}
-
-	for (i = 0; i < nitems(prediv_mux_clks); i++)
-		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
-	for (i = 0; i < nitems(div_clks); i++)
-		clknode_div_register(sc->clkdom, div_clks[i]);
-	for (i = 0; i < nitems(fixed_factor_clks); i++)
-		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
-	for (i = 0; i < nitems(nm_clks); i++)
-		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
+	return (aw_ccung_attach(dev));
 }
+
+static device_method_t ccu_sun8i_r_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ccu_sun8i_r_probe),
+	DEVMETHOD(device_attach,	ccu_sun8i_r_attach),
+
+	DEVMETHOD_END
+};
+
+static devclass_t ccu_sun8i_r_devclass;
+
+DEFINE_CLASS_1(ccu_sun8i_r, ccu_sun8i_r_driver, ccu_sun8i_r_methods,
+  sizeof(struct aw_ccung_softc), aw_ccung_driver);
+
+EARLY_DRIVER_MODULE(ccu_sun8i_r, simplebus, ccu_sun8i_r_driver,
+    ccu_sun8i_r_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);
+
+static int
+ccu_a83t_r_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun8i-a83t-r-ccu"))
+		return (ENXIO);
+
+	device_set_desc(dev, "Allwinner A83T_R Clock Control Unit NG");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ccu_a83t_r_attach(device_t dev)
+{
+	struct aw_ccung_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	sc->resets = ccu_sun8i_r_resets;
+	sc->nresets = nitems(ccu_sun8i_r_resets);
+	sc->gates = ccu_sun8i_r_gates;
+	sc->ngates = nitems(ccu_sun8i_r_gates);
+	sc->clks = a83t_clks;
+	sc->nclks = nitems(a83t_clks);
+
+	return (aw_ccung_attach(dev));
+}
+
+static device_method_t ccu_a83t_r_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ccu_a83t_r_probe),
+	DEVMETHOD(device_attach,	ccu_a83t_r_attach),
+
+	DEVMETHOD_END
+};
+
+static devclass_t ccu_a83t_r_devclass;
+
+DEFINE_CLASS_1(ccu_a83t_r, ccu_a83t_r_driver, ccu_a83t_r_methods,
+  sizeof(struct aw_ccung_softc), aw_ccung_driver);
+
+EARLY_DRIVER_MODULE(ccu_a83t_r, simplebus, ccu_a83t_r_driver,
+    ccu_a83t_r_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);
