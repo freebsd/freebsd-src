@@ -156,8 +156,6 @@ regnode_fixed_init(struct regnode *regnode)
 	if (sc->gpio_open_drain)
 		flags |= GPIO_PIN_OPENDRAIN;
 	enable = sc->param->boot_on || sc->param->always_on;
-	if (enable)
-		regnode_enable_cnt_inc(regnode);
 	if (!sc->param->enable_active_high)
 		enable = !enable;
 	rv = GPIO_PIN_SET(pin->dev, pin->pin, enable);
@@ -196,14 +194,12 @@ regnode_fixed_enable(struct regnode *regnode, bool enable, int *udelay)
 		return (0);
 	pin = &sc->gpio_entry->gpio_pin;
 	if (enable) {
-		regnode_enable_cnt_inc(regnode);
 		sc->gpio_entry->enable_cnt++;
 		if (sc->gpio_entry->enable_cnt > 1)
 			return (0);
 	} else {
 		KASSERT(sc->gpio_entry->enable_cnt > 0,
 		    ("Invalid enable count"));
-		regnode_enable_cnt_dec(regnode);
 		sc->gpio_entry->enable_cnt--;
 		if (sc->gpio_entry->enable_cnt >= 1)
 			return (0);
