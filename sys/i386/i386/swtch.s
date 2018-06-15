@@ -296,6 +296,12 @@ sw1:
 cpu_switch_load_gs:
 	mov	PCB_GS(%edx),%gs
 
+	pushl	%edx
+	pushl	PCPU(CURTHREAD)
+	call	npxswitch
+	popl	%edx
+	popl	%edx
+
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f
