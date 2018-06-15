@@ -76,7 +76,7 @@ get_tstamp(const char *b)
 int
 main(int argc, char *argv[])
 {
-    static const char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:T:u:";
+    static const char opts[] = "@:NAB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:T:u:";
     struct msdos_options o;
     const char *fname, *dtype;
     char buf[MAXPATHLEN];
@@ -91,6 +91,9 @@ main(int argc, char *argv[])
 	    break;
 	case 'N':
 	    o.no_create = 1;
+	    break;
+	case 'A':
+	    o.align = true;
 	    break;
 	case 'B':
 	    o.bootstrap = optarg;
@@ -175,6 +178,10 @@ main(int argc, char *argv[])
     argv += optind;
     if (argc < 1 || argc > 2)
 	usage();
+	if (o.align) {
+		if (o.hidden_sectors_set)
+		    errx(1, "align (-A) is incompatible with -r");
+	}
     fname = *argv++;
     if (!o.create_size && !strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
