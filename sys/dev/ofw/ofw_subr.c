@@ -170,7 +170,7 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 	}
 
 	KASSERT(addr <= BUS_SPACE_MAXADDR,
-	    ("Bus sddress is too large: %jx", (uintmax_t)addr));
+	    ("Bus address is too large: %jx", (uintmax_t)addr));
 	KASSERT(size <= BUS_SPACE_MAXSIZE,
 	    ("Bus size is too large: %jx", (uintmax_t)size));
 
