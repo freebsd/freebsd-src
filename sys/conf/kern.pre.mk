@@ -243,7 +243,7 @@ MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 MKMODULESENV+=	__MPATH="${__MPATH}"
 .endif
 
-# Architecture and output format arguments for objdump to convert image to
+# Architecture and output format arguments for objcopy to convert image to
 # object file
 
 .if ${MFS_IMAGE:Uno} != "no"
