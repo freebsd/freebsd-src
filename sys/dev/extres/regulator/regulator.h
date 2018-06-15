@@ -106,8 +106,6 @@ int regnode_get_flags(struct regnode *regnode);
 void *regnode_get_softc(struct regnode *regnode);
 device_t regnode_get_device(struct regnode *regnode);
 struct regnode_std_param *regnode_get_stdparam(struct regnode *regnode);
-void regnode_enable_cnt_inc(struct regnode *regnode);
-void regnode_enable_cnt_dec(struct regnode *regnode);
 void regnode_topo_unlock(void);
 void regnode_topo_xlock(void);
 void regnode_topo_slock(void);
