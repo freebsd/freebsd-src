@@ -191,6 +191,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	return (copyout(&sysinfo, args->info, sizeof(sysinfo)));
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
@@ -225,6 +226,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	td->td_retval[0] = old_it.it_value.tv_sec;
 	return (0);
 }
+#endif
 
 int
 linux_brk(struct thread *td, struct linux_brk_args *args)
@@ -494,6 +496,7 @@ cleanup:
 
 #endif	/* __i386__ */
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_select(struct thread *td, struct linux_select_args *args)
 {
@@ -585,6 +588,7 @@ select_out:
 #endif
 	return (error);
 }
+#endif
 
 int
 linux_mremap(struct thread *td, struct linux_mremap_args *args)
@@ -646,6 +650,7 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 	    args->fl & ~LINUX_MS_SYNC));
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_time(struct thread *td, struct linux_time_args *args)
 {
@@ -665,6 +670,7 @@ linux_time(struct thread *td, struct linux_time_args *args)
 	td->td_retval[0] = tm;
 	return (0);
 }
+#endif
 
 struct l_times_argv {
 	l_clock_t	tms_utime;
@@ -761,6 +767,7 @@ struct l_utimbuf {
 	l_time_t l_modtime;
 };
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_utime(struct thread *td, struct linux_utime_args *args)
 {
@@ -794,7 +801,9 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
+#endif
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_utimes(struct thread *td, struct linux_utimes_args *args)
 {
@@ -827,6 +836,7 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
+#endif
 
 static int
 linux_utimensat_nsec_valid(l_long nsec)
@@ -921,6 +931,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 	return (error);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 {
@@ -953,6 +964,7 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
+#endif
 
 int
 linux_common_wait(struct thread *td, int pid, int *status,
@@ -1094,6 +1106,7 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 	return (error);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
 {
@@ -1142,6 +1155,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 	LFREEPATH(path);
 	return (error);
 }
+#endif
 
 int
 linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
