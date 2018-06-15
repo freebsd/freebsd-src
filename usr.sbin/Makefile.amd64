@@ -9,7 +9,6 @@ SUBDIR+=	acpi
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
 .endif
-SUBDIR+=	asf
 .if ${MK_BHYVE} != "no"
 SUBDIR+=	bhyve
 SUBDIR+=	bhyvectl
