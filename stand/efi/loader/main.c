@@ -397,61 +397,12 @@ interactive_interrupt(const char *msg)
 	return (false);
 }
 
-EFI_STATUS
-main(int argc, CHAR16 *argv[])
+int
+parse_args(int argc, CHAR16 *argv[], bool has_kbd)
 {
-	char var[128];
-	EFI_GUID *guid;
 	int i, j, howto;
 	bool vargood;
-	UINTN k;
-	bool has_kbd;
-	char *s;
-	EFI_DEVICE_PATH *imgpath;
-	CHAR16 *text;
-	EFI_STATUS status;
-	UINT16 boot_current;
-	size_t sz;
-	UINT16 boot_order[100];
-	EFI_LOADED_IMAGE *img;
-#if !defined(__arm__)
-	char buf[40];
-#endif
-
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
-#ifdef EFI_ZFS_BOOT
-	/* Note this needs to be set before ZFS init. */
-	archsw.arch_zfs_probe = efi_zfs_probe;
-#endif
-
-        /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-#ifdef EFI_ZFS_BOOT
-	/* Tell ZFS probe code where we booted from */
-	efizfs_set_preferred(img->DeviceHandle);
-#endif
-	/* Init the time source */
-	efi_time_init();
-
-	has_kbd = has_keyboard();
-
-	/*
-	 * XXX Chicken-and-egg problem; we want to have console output
-	 * early, but some console attributes may depend on reading from
-	 * eg. the boot device, which we can't do yet.  We can use
-	 * printf() etc. once this is done.
-	 */
-	cons_probe();
-
-	/*
-	 * Initialise the block cache. Set the upper limit.
-	 */
-	bcache_init(32768, 512);
+	char var[128];
 
 	/*
 	 * Parse the args to set the console settings, etc
@@ -541,6 +492,65 @@ main(int argc, CHAR16 *argv[])
 			}
 		}
 	}
+	return (howto);
+}
+
+
+EFI_STATUS
+main(int argc, CHAR16 *argv[])
+{
+	EFI_GUID *guid;
+	int howto, i;
+	UINTN k;
+	bool has_kbd;
+	char *s;
+	EFI_DEVICE_PATH *imgpath;
+	CHAR16 *text;
+	EFI_STATUS status;
+	UINT16 boot_current;
+	size_t sz;
+	UINT16 boot_order[100];
+	EFI_LOADED_IMAGE *img;
+#if !defined(__arm__)
+	char buf[40];
+#endif
+
+	archsw.arch_autoload = efi_autoload;
+	archsw.arch_getdev = efi_getdev;
+	archsw.arch_copyin = efi_copyin;
+	archsw.arch_copyout = efi_copyout;
+	archsw.arch_readin = efi_readin;
+#ifdef EFI_ZFS_BOOT
+	/* Note this needs to be set before ZFS init. */
+	archsw.arch_zfs_probe = efi_zfs_probe;
+#endif
+
+        /* Get our loaded image protocol interface structure. */
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+#ifdef EFI_ZFS_BOOT
+	/* Tell ZFS probe code where we booted from */
+	efizfs_set_preferred(img->DeviceHandle);
+#endif
+	/* Init the time source */
+	efi_time_init();
+
+	has_kbd = has_keyboard();
+
+	/*
+	 * XXX Chicken-and-egg problem; we want to have console output
+	 * early, but some console attributes may depend on reading from
+	 * eg. the boot device, which we can't do yet.  We can use
+	 * printf() etc. once this is done.
+	 */
+	cons_probe();
+
+	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
+
+	howto = parse_args(argc, argv, has_kbd);
 
 	bootenv_set(howto);
 
