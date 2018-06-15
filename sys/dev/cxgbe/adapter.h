@@ -682,6 +682,7 @@ struct sge_nm_rxq {
 	uint32_t fl_db_val;
 	u_int fl_hwidx:4;
 
+	u_int fl_db_saved;
 	u_int nid;		/* netmap ring # for this queue */
 
 	/* infrequently used items after this */

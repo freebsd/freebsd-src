@@ -89,6 +89,10 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
 static int nm_cong_drop = 1;
 TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
 
+int starve_fl = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
+    &starve_fl, 0, "Don't ring fl db for netmap rx queues.");
+
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
@@ -806,6 +810,13 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
 
+	if (nm_rxq->fl_db_saved > 0 && starve_fl == 0) {
+		wmb();
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
+		    nm_rxq->fl_db_val | V_PIDX(nm_rxq->fl_db_saved));
+		nm_rxq->fl_db_saved = 0;
+	}
+
 	/* Userspace done with buffers from kring->nr_hwcur to head */
 	n = head >= kring->nr_hwcur ? head - kring->nr_hwcur :
 	    kring->nkr_num_slots - kring->nr_hwcur + head;
@@ -842,8 +853,12 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			}
 			if (++dbinc == 8 && n >= 32) {
 				wmb();
-				t4_write_reg(sc, sc->sge_kdoorbell_reg,
-				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				if (starve_fl)
+					nm_rxq->fl_db_saved += dbinc;
+				else {
+					t4_write_reg(sc, sc->sge_kdoorbell_reg,
+					    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				}
 				dbinc = 0;
 			}
 		}
@@ -851,8 +866,12 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 		if (dbinc > 0) {
 			wmb();
-			t4_write_reg(sc, sc->sge_kdoorbell_reg,
-			    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			if (starve_fl)
+				nm_rxq->fl_db_saved += dbinc;
+			else {
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
+				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			}
 		}
 	}
 
