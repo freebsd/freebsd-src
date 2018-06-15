@@ -92,14 +92,14 @@ efi_zfs_is_preferred(EFI_HANDLE *h)
 }
 #endif
 
-static int
+static bool
 has_keyboard(void)
 {
 	EFI_STATUS status;
 	EFI_DEVICE_PATH *path;
 	EFI_HANDLE *hin, *hin_end, *walker;
 	UINTN sz;
-	int retval = 0;
+	bool retval = false;
 
 	/*
 	 * Find all the handles that support the SIMPLE_TEXT_INPUT_PROTOCOL and
@@ -146,7 +146,7 @@ has_keyboard(void)
 				acpi = (ACPI_HID_DEVICE_PATH *)(void *)path;
 				if ((EISA_ID_TO_NUM(acpi->HID) & 0xff00) == 0x300 &&
 				    (acpi->HID & 0xffff) == PNP_EISA_ID_CONST) {
-					retval = 1;
+					retval = true;
 					goto out;
 				}
 			/*
@@ -162,7 +162,7 @@ has_keyboard(void)
 				if (usb->DeviceClass == 3 && /* HID */
 				    usb->DeviceSubClass == 1 && /* Boot devices */
 				    usb->DeviceProtocol == 1) { /* Boot keyboards */
-					retval = 1;
+					retval = true;
 					goto out;
 				}
 			}
@@ -416,7 +416,7 @@ main(int argc, CHAR16 *argv[])
 	int i, j, howto;
 	bool vargood;
 	UINTN k;
-	int has_kbd;
+	bool has_kbd;
 	char *s;
 	EFI_DEVICE_PATH *imgpath;
 	CHAR16 *text;
