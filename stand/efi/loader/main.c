@@ -511,9 +511,6 @@ main(int argc, CHAR16 *argv[])
 	size_t sz;
 	UINT16 boot_order[100];
 	EFI_LOADED_IMAGE *img;
-#if !defined(__arm__)
-	char buf[40];
-#endif
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -655,18 +652,20 @@ main(int argc, CHAR16 *argv[])
 	efi_init_environment();
 	setenv("LINES", "24", 1);	/* optional */
 
+#if !defined(__arm__)
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
-#if !defined(__arm__)
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+			char buf[40];
+
 			snprintf(buf, sizeof(buf), "%p",
 			    ST->ConfigurationTable[k].VendorTable);
 			setenv("hint.smbios.0.mem", buf, 1);
 			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
-#endif
 	}
+#endif
 
 	interact();			/* doesn't return */
 
