@@ -379,15 +379,15 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 	    OID_AUTO, "enable_cnt",
 	    CTLFLAG_RD, &regnode->enable_cnt, 0,
 	    "The regulator enable counter");
-	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	SYSCTL_ADD_U8(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
 	    OID_AUTO, "boot_on",
-	    CTLFLAG_RD, (int *) &regnode->std_param.boot_on, 0,
+	    CTLFLAG_RD, (uint8_t *) &regnode->std_param.boot_on, 0,
 	    "Is enabled on boot");
-	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	SYSCTL_ADD_U8(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
 	    OID_AUTO, "always_on",
-	    CTLFLAG_RD, (int *)&regnode->std_param.always_on, 0,
+	    CTLFLAG_RD, (uint8_t *)&regnode->std_param.always_on, 0,
 	    "Is always enabled");
 
 	SYSCTL_ADD_PROC(&regnode->sysctl_ctx,
