@@ -512,7 +512,8 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	if (sc->vtmmio_vqs == NULL)
 		return (ENOMEM);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_PAGE_SIZE, 1 << PAGE_SHIFT);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_PAGE_SIZE,
+	    (1 << PAGE_SHIFT));
 
 	for (idx = 0; idx < nvqs; idx++) {
 		vqx = &sc->vtmmio_vqs[idx];
@@ -537,10 +538,10 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		    VIRTIO_MMIO_VRING_ALIGN);
 #if 0
 		device_printf(dev, "virtqueue paddr 0x%08lx\n",
-				(uint64_t)virtqueue_paddr(vq));
+		    (uint64_t)virtqueue_paddr(vq));
 #endif
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_PFN,
-			virtqueue_paddr(vq) >> PAGE_SHIFT);
+		    virtqueue_paddr(vq) >> PAGE_SHIFT);
 
 		vqx->vtv_vq = *info->vqai_vq = vq;
 		vqx->vtv_no_intr = info->vqai_intr == NULL;
@@ -591,6 +592,9 @@ vtmmio_reinit(device_t dev, uint64_t features)
 	vtmmio_set_status(dev, VIRTIO_CONFIG_STATUS_DRIVER);
 
 	vtmmio_negotiate_features(dev, features);
+
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_PAGE_SIZE,
+	    (1 << PAGE_SHIFT));
 
 	for (idx = 0; idx < sc->vtmmio_nvqs; idx++) {
 		error = vtmmio_reinit_virtqueue(sc, idx);
@@ -766,6 +770,13 @@ vtmmio_reinit_virtqueue(struct vtmmio_softc *sc, int idx)
 	if (error)
 		return (error);
 
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NUM, size);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_ALIGN,
+	    VIRTIO_MMIO_VRING_ALIGN);
+#if 0
+	device_printf(sc->dev, "virtqueue paddr 0x%08lx\n",
+	    (uint64_t)virtqueue_paddr(vq));
+#endif
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_PFN,
 	    virtqueue_paddr(vq) >> PAGE_SHIFT);
 
