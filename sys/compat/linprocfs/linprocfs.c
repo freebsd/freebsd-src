@@ -317,6 +317,32 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	return (0);
 }
+#else
+/* ARM64TODO: implement non-stubbed linprocfs_docpuinfo */
+static int
+linprocfs_docpuinfo(PFS_FILL_ARGS)
+{
+	int i;
+
+	for (i = 0; i < mp_ncpus; ++i) {
+		sbuf_printf(sb,
+		    "processor\t: %d\n"
+		    "BogoMIPS\t: %d.%02d\n",
+		    i, 0, 0);
+		sbuf_cat(sb, "Features\t: ");
+		sbuf_cat(sb, "\n");
+		sbuf_printf(sb,
+		    "CPU implementer\t: \n"
+		    "CPU architecture: \n"
+		    "CPU variant\t: 0x%x\n"
+		    "CPU part\t: 0x%x\n"
+		    "CPU revision\t: %d\n",
+		    0, 0, 0);
+		sbuf_cat(sb, "\n");
+	}
+
+	return (0);
+}
 #endif /* __i386__ || __amd64__ */
 
 /*
@@ -1653,7 +1679,7 @@ linprocfs_uninit(PFS_INIT_ARGS)
 }
 
 PSEUDOFS(linprocfs, 1, VFCF_JAIL);
-#if defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__)
 MODULE_DEPEND(linprocfs, linux_common, 1, 1, 1);
 #else
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
