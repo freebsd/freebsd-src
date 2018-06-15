@@ -59,6 +59,7 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
+	pnfsdskill \
 	powerd \
 	prometheus_sysctl_exporter \
 	pstat \
