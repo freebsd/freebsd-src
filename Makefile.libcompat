@@ -201,6 +201,7 @@ build${libcompat}: .PHONY
 .endfor
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw ${_libmagic} ${_jevents}
+.for _t in ${_obj} build-tools
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
@@ -209,7 +210,8 @@ build${libcompat}: .PHONY
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-	    build-tools
+	    ${_t}
+.endfor
 .endfor
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
