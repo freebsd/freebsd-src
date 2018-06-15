@@ -35,6 +35,8 @@
 #include <compat/linux/linux.h>
 #include <amd64/linux/linux_syscall.h>
 
+#define	LINUX_LEGACY_SYSCALLS
+
 /*
  * debugging support
  */
