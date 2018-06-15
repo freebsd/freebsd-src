@@ -155,6 +155,11 @@ _LC_INCDIRS=	\
 		lib/ncurses/ncursesw \
 		${_LC_LIBDIRS.yes}
 
+.if ${MK_PMC} != "no" && ${TARGET_ARCH} == "amd64"
+_jevents=	lib/libpmc/pmu-events
+.endif
+
+
 # Shared logic
 build${libcompat}: .PHONY
 	@echo
@@ -192,7 +197,7 @@ build${libcompat}: .PHONY
 	    DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
-.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic lib/libpmc/pmu-events
+.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic ${_jevents}
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
