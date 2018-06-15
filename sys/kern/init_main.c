@@ -618,17 +618,23 @@ proc0_post(void *dummy __unused)
 	 */
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
-		PROC_STATUNLOCK(p);
 		p->p_rux.rux_runtime = 0;
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
 		p->p_rux.rux_iticks = 0;
+		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;
 		}
+		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
 	PCPU_SET(switchtime, cpu_ticks());
