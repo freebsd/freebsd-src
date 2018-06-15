@@ -1303,6 +1303,21 @@ linprocfs_dosem(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/vm/min_free_kbytes
+ *
+ * This mirrors the approach in illumos to return zero for reads. Effectively,
+ * it says, no memory is kept in reserve for "atomic allocations". This class
+ * of allocation can be used at times when a thread cannot be suspended.
+ */
+static int
+linprocfs_dominfree(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", 0);
+	return (0);
+}
+
+/*
  * Filler function for proc/scsi/device_info
  */
 static int
@@ -1562,6 +1577,7 @@ linprocfs_init(PFS_INIT_ARGS)
 {
 	struct pfs_node *root;
 	struct pfs_node *dir;
+	struct pfs_node *sys;
 
 	root = pi->pi_root;
 
@@ -1643,9 +1659,9 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/... */
-	dir = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
+	sys = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
 	/* /proc/sys/kernel/... */
-	dir = pfs_create_dir(dir, "kernel", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(sys, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "ostype", &linprocfs_doostype,
@@ -1662,6 +1678,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	/* /proc/sys/kernel/random/... */
 	dir = pfs_create_dir(dir, "random", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "uuid", &linprocfs_douuid,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sys/vm/.... */
+	dir = pfs_create_dir(sys, "vm", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "min_free_kbytes", &linprocfs_dominfree,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
