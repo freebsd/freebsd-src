@@ -594,8 +594,8 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	*rsize = 0;
 
     /* Get disk blocks, this value is either for whole disk or for partition */
-    if (disk_ioctl(dev, DIOCGMEDIASIZE, &disk_blocks)) {
-	/* DIOCGMEDIASIZE does return bytes. */
+    if (disk_ioctl(dev, DIOCGMEDIASIZE, &disk_blocks) == 0) {
+	/* DIOCGMEDIASIZE returns bytes. */
         disk_blocks /= BD(dev).bd_sectorsize;
     } else {
 	/* We should not get here. Just try to survive. */
