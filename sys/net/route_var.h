@@ -44,18 +44,19 @@ struct rib_head {
 	rt_gen_t		rnh_gen;	/* generation counter */
 	int			rnh_multipath;	/* multipath capable ? */
 	struct radix_node	rnh_nodes[3];	/* empty tree for common case */
-	struct rwlock		rib_lock;	/* config/data path lock */
+	struct rmlock		rib_lock;	/* config/data path lock */
 	struct radix_mask_head	rmhead;		/* masks radix head */
 };
 
-#define	RIB_LOCK_INIT(rh)	rw_init(&(rh)->rib_lock, "rib head lock")
-#define	RIB_LOCK_DESTROY(rh)	rw_destroy(&(rh)->rib_lock)
-#define	RIB_RLOCK(rh)		rw_rlock(&(rh)->rib_lock)
-#define	RIB_RUNLOCK(rh)		rw_runlock(&(rh)->rib_lock)
-#define	RIB_WLOCK(rh)		rw_wlock(&(rh)->rib_lock)
-#define	RIB_WUNLOCK(rh)		rw_wunlock(&(rh)->rib_lock)
-#define	RIB_LOCK_ASSERT(rh)	rw_assert(&(rh)->rib_lock, RA_LOCKED)
-#define	RIB_WLOCK_ASSERT(rh)	rw_assert(&(rh)->rib_lock, RA_WLOCKED)
+#define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
+#define	RIB_LOCK_INIT(rh)	rm_init(&(rh)->rib_lock, "rib head lock")
+#define	RIB_LOCK_DESTROY(rh)	rm_destroy(&(rh)->rib_lock)
+#define	RIB_RLOCK(rh)		rm_rlock(&(rh)->rib_lock, &_rib_tracker)
+#define	RIB_RUNLOCK(rh)		rm_runlock(&(rh)->rib_lock, &_rib_tracker)
+#define	RIB_WLOCK(rh)		rm_wlock(&(rh)->rib_lock)
+#define	RIB_WUNLOCK(rh)		rm_wunlock(&(rh)->rib_lock)
+#define	RIB_LOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_LOCKED)
+#define	RIB_WLOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_WLOCKED)
 
 struct rib_head *rt_tables_get_rnh(int fib, int family);
 
