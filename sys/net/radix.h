@@ -159,15 +159,15 @@ void rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes,
 #define R_Zalloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_NOWAIT | M_ZERO))
 #define R_Free(p) free((caddr_t)p, M_RTABLE);
 
-#define	RADIX_NODE_HEAD_RLOCK_TRACKER	struct rm_priotracker _rhn_tracker
+#define	RADIX_NODE_HEAD_RLOCK_TRACKER	struct rm_priotracker _rnh_tracker
 #define	RADIX_NODE_HEAD_LOCK_INIT(rnh)	\
     rm_init(&(rnh)->rnh_lock, "radix node head")
 #define	RADIX_NODE_HEAD_LOCK(rnh)	rm_wlock(&(rnh)->rnh_lock)
 #define	RADIX_NODE_HEAD_UNLOCK(rnh)	rm_wunlock(&(rnh)->rnh_lock)
 #define	RADIX_NODE_HEAD_RLOCK(rnh)	rm_rlock(&(rnh)->rnh_lock,\
-    &_rhn_tracker)
+    &_rnh_tracker)
 #define	RADIX_NODE_HEAD_RUNLOCK(rnh)	rm_runlock(&(rnh)->rnh_lock,\
-    &_rhn_tracker)
+    &_rnh_tracker)
 #define	RADIX_NODE_HEAD_DESTROY(rnh)	rm_destroy(&(rnh)->rnh_lock)
 #define	RADIX_NODE_HEAD_LOCK_ASSERT(rnh) rm_assert(&(rnh)->rnh_lock, RA_LOCKED)
 #define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rm_assert(&(rnh)->rnh_lock, RA_WLOCKED)
