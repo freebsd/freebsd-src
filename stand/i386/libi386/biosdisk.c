@@ -619,7 +619,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	if (blks && (rc = bd_read(dev, dblk, blks, buf))) {
 	    /* Filter out floppy controller errors */
 	    if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
-		printf("read %d from %lld to %p, error: 0x%x", blks, dblk,
+		printf("read %d from %lld to %p, error: 0x%x\n", blks, dblk,
 		    buf, rc);
 	    }
 	    return (EIO);
