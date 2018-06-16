@@ -74,9 +74,9 @@ __FBSDID("$FreeBSD$");
 
 #include "quotacheck.h"
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
-char *quotagroup = QUOTAGROUP;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
+const char *quotagroup = QUOTAGROUP;
 
 union {
 	struct	fs	sblk;
@@ -253,8 +253,9 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 	struct fileusage *fup;
 	union dinode *dp;
 	struct fs *fs;
-	int cg, i, ret, mode, errs = 0;
-	ino_t ino, inosused, userino = 0, groupino = 0;
+	int i, ret, mode, errs = 0;
+	u_int32_t cg;
+	ino_t curino, ino, inosused, userino = 0, groupino = 0;
 	dev_t dev, userdev = 0, groupdev = 0;
 	struct stat sb;
 	const char *mntpt;
@@ -367,7 +368,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 			if (inosused <= 0)
 				continue;
 		}
-		for (i = 0; i < inosused; i++, ino++) {
+		for (curino = 0; curino < inosused; curino++, ino++) {
 			if ((dp = getnextinode(ino)) == NULL ||
 			    ino < UFS_ROOTINO ||
 			    (mode = DIP(dp, di_mode) & IFMT) == 0)
@@ -403,7 +404,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 				continue;
 			if (qfg) {
 				fup = addid((u_long)DIP(dp, di_gid), GRPQUOTA,
-				    (char *)0, mntpt);
+				    NULL, mntpt);
 				fup->fu_curinodes++;
 				if (mode == IFREG || mode == IFDIR ||
 				    mode == IFLNK)
@@ -411,7 +412,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 			}
 			if (qfu) {
 				fup = addid((u_long)DIP(dp, di_uid), USRQUOTA,
-				    (char *)0, mntpt);
+				    NULL, mntpt);
 				fup->fu_curinodes++;
 				if (mode == IFREG || mode == IFDIR ||
 				    mode == IFLNK)
@@ -498,7 +499,7 @@ update(const char *fsname, struct quotafile *qf, int type)
 	 */
 	if (highid < lastid &&
 	    stat(quota_qfname(qf), &sb) == 0 &&
-	    sb.st_size > (((off_t)highid + 2) * sizeof(struct dqblk)))
+	    sb.st_size > (off_t)((highid + 2) * sizeof(struct dqblk)))
 		truncate(quota_qfname(qf),
 		    (((off_t)highid + 2) * sizeof(struct dqblk)));
 	return (0);
