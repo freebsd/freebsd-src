@@ -389,16 +389,8 @@ DESTDIR=${OBJDIR}/boot-tree
 rm -rf ${DESTDIR}
 mkdir -p ${DESTDIR}/boot/defaults
 mkdir -p ${DESTDIR}/boot/kernel
-cp /boot/boot0 ${DESTDIR}/boot
-cp /boot/boot0sio ${DESTDIR}/boot
-cp /boot/pmbr ${DESTDIR}/boot
-cp /boot/boot ${DESTDIR}/boot
 # XXX boot1 exists only on sparc64
 cp /boot/boot1 ${DESTDIR}/boot
-cp /boot/boot1.efifat ${DESTDIR}/boot
-cp /boot/gptboot ${DESTDIR}/boot
-cp /boot/gptzfsboot ${DESTDIR}/boot
-cp /boot/loader ${DESTDIR}/boot
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
 echo -h -D -S115200 > ${DESTDIR}/boot.config
 # XXX
