@@ -376,6 +376,7 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
+	RIB_RLOCK_TRACKER;
 	struct rib_head *rnh;
 
 	printf("Routing table:\n");
