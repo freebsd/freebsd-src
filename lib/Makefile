@@ -67,7 +67,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopie \
 	libpam \
 	libpathconv \
-	${_libpcap} \
+	libpcap \
 	libpjdlog \
 	${_libproc} \
 	libprocstat \
@@ -124,6 +124,9 @@ SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
 SUBDIR_DEPEND_liblzma= ${_libthr}
+.if ${MK_OFED} != "no"
+SUBDIR_DEPEND_libpcap= ofed
+.endif
 
 # NB: keep these sorted by MK_* knobs
 
@@ -184,14 +187,6 @@ SUBDIR.${MK_PMC}+=	libipt
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
-.if ${MK_OFED} == "no"
-#
-# When OFED is enabled libpcap is built as part of
-# OFED due to library dependencies
-#
-_libpcap=	libpcap
-.endif
-
 .if ${MACHINE_CPUARCH} != "sparc64"
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -212,6 +207,7 @@ SUBDIR.${MK_TESTS_SUPPORT}+=	atf
 SUBDIR.${MK_TESTS}+=	tests
 SUBDIR.${MK_UNBOUND}+=	libunbound
 SUBDIR.${MK_USB}+=	libusbhid libusb
+SUBDIR.${MK_OFED}+=	ofed
 
 .if !make(install)
 SUBDIR_PARALLEL=
