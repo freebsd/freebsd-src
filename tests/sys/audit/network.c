@@ -27,19 +27,25 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <atf-c.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <unistd.h>
 
 #include "utils.h"
 
+#define SERVER_PATH "server"
+
 static int sockfd;
+static socklen_t len;
 static struct pollfd fds[1];
 static char extregex[80];
 static const char *auclass = "nt";
-static const char *failregex = "return,failure : Address family "
-			       "not supported by protocol family";
+static const char *nosupregex = "return,failure : Address family "
+				"not supported by protocol family";
+static const char *invalregex = "return,failur.*Socket operation on non-socket";
 
 /*
  * Variadic function to close socket descriptors
@@ -54,6 +60,17 @@ close_sockets(int count, ...)
 		close(va_arg(socklist, int));
 	}
 	va_end(socklist);
+}
+
+/*
+ * Assign local filesystem address to a Unix domain socket
+ */
+static void
+assign_address(struct sockaddr_un *server)
+{
+	memset(server, 0, sizeof(*server));
+	server->sun_family = AF_UNIX;
+	strcpy(server->sun_path, SERVER_PATH);
 }
 
 
@@ -89,7 +106,7 @@ ATF_TC_HEAD(socket_failure, tc)
 
 ATF_TC_BODY(socket_failure, tc)
 {
-	snprintf(extregex, sizeof(extregex), "socket.*%s", failregex);
+	snprintf(extregex, sizeof(extregex), "socket.*%s", nosupregex);
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Unsupported value of 'domain' argument: 0 */
 	ATF_REQUIRE_EQ(-1, socket(0, SOCK_STREAM, 0));
@@ -136,7 +153,7 @@ ATF_TC_HEAD(socketpair_failure, tc)
 
 ATF_TC_BODY(socketpair_failure, tc)
 {
-	snprintf(extregex, sizeof(extregex), "socketpair.*%s", failregex);
+	snprintf(extregex, sizeof(extregex), "socketpair.*%s", nosupregex);
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Unsupported value of 'domain' argument: 0 */
 	ATF_REQUIRE_EQ(-1, socketpair(0, SOCK_STREAM, 0, NULL));
@@ -187,15 +204,189 @@ ATF_TC_HEAD(setsockopt_failure, tc)
 ATF_TC_BODY(setsockopt_failure, tc)
 {
 	int tr = 1;
-	const char *regex = "setsockopt.*fail.*Socket operation on non-socket";
+	snprintf(extregex, sizeof(extregex), "setsockopt.*%s", invalregex);
 	FILE *pipefd = setup(fds, auclass);
-	/* Failure reason: No socket descriptor with the value of 0 exists */
+	/* Failure reason: Invalid socket descriptor */
 	ATF_REQUIRE_EQ(-1, setsockopt(0, SOL_SOCKET,
 			SO_REUSEADDR, &tr, sizeof(int)));
-	check_audit(fds, regex, pipefd);
+	check_audit(fds, extregex, pipefd);
 }
 
 ATF_TC_CLEANUP(setsockopt_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(bind_success);
+ATF_TC_HEAD(bind_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"bind(2) call");
+}
+
+ATF_TC_BODY(bind_success, tc)
+{
+	struct sockaddr_un server;
+	assign_address(&server);
+	len = sizeof(struct sockaddr_un);
+
+	/* Preliminary socket setup */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	/* Check the presence of AF_UNIX address path in audit record */
+	snprintf(extregex, sizeof(extregex),
+		"bind.*unix.*%s.*return,success", SERVER_PATH);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, bind(sockfd, (struct sockaddr *)&server, len));
+	check_audit(fds, extregex, pipefd);
+	close(sockfd);
+}
+
+ATF_TC_CLEANUP(bind_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(bind_failure);
+ATF_TC_HEAD(bind_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"bind(2) call");
+}
+
+ATF_TC_BODY(bind_failure, tc)
+{
+	/* Preliminary socket setup */
+	struct sockaddr_un server;
+	assign_address(&server);
+	len = sizeof(struct sockaddr_un);
+	/* Check the presence of AF_UNIX path in audit record */
+	snprintf(extregex, sizeof(extregex),
+			"bind.*%s.*return,failure", SERVER_PATH);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid socket descriptor */
+	ATF_REQUIRE_EQ(-1, bind(0, (struct sockaddr *)&server, len));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(bind_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(bindat_success);
+ATF_TC_HEAD(bindat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"bindat(2) call");
+}
+
+ATF_TC_BODY(bindat_success, tc)
+{
+	struct sockaddr_un server;
+	assign_address(&server);
+	len = sizeof(struct sockaddr_un);
+
+	/* Preliminary socket setup */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	/* Check the presence of socket descriptor in audit record */
+	snprintf(extregex, sizeof(extregex),
+			"bindat.*0x%x.*return,success", sockfd);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, bindat(AT_FDCWD, sockfd,
+			(struct sockaddr *)&server, len));
+	check_audit(fds, extregex, pipefd);
+	close(sockfd);
+}
+
+ATF_TC_CLEANUP(bindat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(bindat_failure);
+ATF_TC_HEAD(bindat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"bindat(2) call");
+}
+
+ATF_TC_BODY(bindat_failure, tc)
+{
+	/* Preliminary socket setup */
+	struct sockaddr_un server;
+	assign_address(&server);
+	len = sizeof(struct sockaddr_un);
+	snprintf(extregex, sizeof(extregex), "bindat.*%s", invalregex);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid socket descriptor */
+	ATF_REQUIRE_EQ(-1, bindat(AT_FDCWD, 0,
+			(struct sockaddr *)&server, len));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(bindat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(listen_success);
+ATF_TC_HEAD(listen_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"listen(2) call");
+}
+
+ATF_TC_BODY(listen_success, tc)
+{
+	struct sockaddr_un server;
+	assign_address(&server);
+	len = sizeof(struct sockaddr_un);
+
+	/* Preliminary socket setup */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	ATF_REQUIRE_EQ(0, bind(sockfd, (struct sockaddr *)&server, len));
+	/* Check the presence of socket descriptor in the audit record */
+	snprintf(extregex, sizeof(extregex),
+			"listen.*0x%x.*return,success", sockfd);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, listen(sockfd, 1));
+	check_audit(fds, extregex, pipefd);
+	close(sockfd);
+}
+
+ATF_TC_CLEANUP(listen_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(listen_failure);
+ATF_TC_HEAD(listen_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"listen(2) call");
+}
+
+ATF_TC_BODY(listen_failure, tc)
+{
+	snprintf(extregex, sizeof(extregex), "listen.*%s", invalregex);
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid socket descriptor */
+	ATF_REQUIRE_EQ(-1, listen(0, 1));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(listen_failure, tc)
 {
 	cleanup();
 }
@@ -209,6 +400,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, socketpair_failure);
 	ATF_TP_ADD_TC(tp, setsockopt_success);
 	ATF_TP_ADD_TC(tp, setsockopt_failure);
+
+	ATF_TP_ADD_TC(tp, bind_success);
+	ATF_TP_ADD_TC(tp, bind_failure);
+	ATF_TP_ADD_TC(tp, bindat_success);
+	ATF_TP_ADD_TC(tp, bindat_failure);
+	ATF_TP_ADD_TC(tp, listen_success);
+	ATF_TP_ADD_TC(tp, listen_failure);
 
 	return (atf_no_error());
 }
