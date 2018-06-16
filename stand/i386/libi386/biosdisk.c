@@ -882,6 +882,12 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 			}
 		}
 
+		if (alignlba + alignblks > BD(dev).bd_sectors) {
+			DEBUG("Shorted read at %llu from %d to %llu blocks",
+			    alignlba, alignblks, BD(dev).bd_sectors - alignlba);
+			alignblks = BD(dev).bd_sectors - alignlba;
+		}
+
 		err = bd_io(dev, alignlba, alignblks, tmpbuf, 0);
 		if (err)
 			return (err);
