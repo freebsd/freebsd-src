@@ -379,7 +379,7 @@ bd_print(int verbose)
 static int
 bd_open(struct open_file *f, ...)
 {
-	struct disk_devdesc *dev, rdev;
+	struct disk_devdesc *dev;
 	struct disk_devdesc disk;
 	int err, g_err;
 	va_list ap;
@@ -445,11 +445,8 @@ bd_open(struct open_file *f, ...)
 	dskp.part = dev->d_partition;
 	dskp.start = dev->d_offset;
 
-	memcpy(&rdev, dev, sizeof(rdev));
-	/* to read the GPT table, we need to read the first sector */
-	rdev.d_offset = 0;
 	/* We need the LBA of the end of the partition */
-	table = ptable_open(&rdev, BD(dev).bd_sectors,
+	table = ptable_open(&disk, BD(dev).bd_sectors,
 	    BD(dev).bd_sectorsize, ptblread);
 	if (table == NULL) {
 		DEBUG("Can't read partition table");
