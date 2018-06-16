@@ -635,7 +635,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 #endif
 	break;
     case F_WRITE :
-	DEBUG("write %d from %d to %p", blks, dblk, buf);
+	DEBUG("write %d from %lld to %p", blks, dblk, buf);
 
 	if (blks && bd_write(dev, dblk, blks, buf)) {
 	    DEBUG("write error");
