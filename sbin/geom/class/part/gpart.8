@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2018
+.Dd June 17, 2018
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -630,9 +630,11 @@ The scheme-specific type is
 .It Cm efi
 The system partition for computers that use the Extensible Firmware
 Interface (EFI).
-In such cases, the GPT partitioning scheme is used and the
-actual partition type for the system partition can also be specified as
-.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
+The scheme-specific types are
+.Qq Li "!239"
+for MBR, and
+.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+for GPT.
 .It Cm freebsd
 A
 .Fx

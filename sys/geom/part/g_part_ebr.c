@@ -135,6 +135,7 @@ static struct g_part_ebr_alias {
 	int		alias;
 } ebr_alias_match[] = {
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_EFI,		G_PART_ALIAS_EFI },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
 	{ DOSPTYP_FAT32LBA,	G_PART_ALIAS_MS_FAT32LBA },
 	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
