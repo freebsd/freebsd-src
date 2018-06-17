@@ -200,7 +200,7 @@ f_sysrc_get()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2> /dev/null
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -338,7 +338,7 @@ f_sysrc_get_default()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2> /dev/null
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
