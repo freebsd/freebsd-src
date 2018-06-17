@@ -243,7 +243,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
 	DEBUG("%s unit %d, slice %d, partition %d => %p",
-	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition, od);
+	    disk_fmtdev(dev), dev->dd.d_unit, dev->d_slice, dev->d_partition, od);
 
 	/* Determine disk layout. */
 	od->table = ptable_open(dev, mediasize / sectorsize, sectorsize,
