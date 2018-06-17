@@ -12,6 +12,7 @@ ATF_TESTS_C+=	file-read
 ATF_TESTS_C+=	open
 ATF_TESTS_C+=	network
 ATF_TESTS_C+=	inter-process
+ATF_TESTS_C+=	administrative
 
 SRCS.file-attribute-access+=	file-attribute-access.c
 SRCS.file-attribute-access+=	utils.c
@@ -33,6 +34,8 @@ SRCS.network+=		network.c
 SRCS.network+=		utils.c
 SRCS.inter-process+=		inter-process.c
 SRCS.inter-process+=		utils.c
+SRCS.administrative+=		administrative.c
+SRCS.administrative+=		utils.c
 
 TEST_METADATA+= timeout="30"
 TEST_METADATA+= required_user="root"
