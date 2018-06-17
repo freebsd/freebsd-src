@@ -245,6 +245,17 @@ X${BINUTIL}?=	${${BINUTIL}}
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
+# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
+# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
+# LOCAL_LIB_DIRS=foo/lib to behave as expected.
+.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
+_REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
+.endfor
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if ${_DIR} == ".WAIT" || (empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
+SUBDIR+=	${_DIR}
+.endif
+.endfor
 .if !defined(NO_ROOT) && (make(installworld) || make(install))
 # Ensure libraries are installed before progressing.
 SUBDIR+=.WAIT
@@ -280,17 +291,6 @@ SUBDIR+=	tests
 # the LOCAL_DIRS and LOCAL_LIB_DIRS lists as needed.
 .for _DIR in ${LOCAL_DIRS}
 .if ${_DIR} == ".WAIT" || exists(${.CURDIR}/${_DIR}/Makefile)
-SUBDIR+=	${_DIR}
-.endif
-.endfor
-# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
-# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
-# LOCAL_LIB_DIRS=foo/lib to behave as expected.
-.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
-_REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
-.endfor
-.for _DIR in ${LOCAL_LIB_DIRS}
-.if ${_DIR} == ".WAIT" || (empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
 SUBDIR+=	${_DIR}
 .endif
 .endfor
