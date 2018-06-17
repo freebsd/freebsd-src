@@ -5203,10 +5203,11 @@ int
 nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
     int layouttype, uint32_t iomode, int layoutreturn, uint64_t offset,
     uint64_t len, nfsv4stateid_t *stateidp, struct ucred *cred, NFSPROC_T *p,
-    void *stuff)
+    uint32_t stat, uint32_t op, char *devid)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
+	uint64_t tu64;
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTRETURN, nmp, fh, fhlen, NULL, NULL,
@@ -5234,11 +5235,32 @@ nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 		if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
 			*tl = txdr_unsigned(0);
 		else if (layouttype == NFSLAYOUT_FLEXFILE) {
-			*tl = txdr_unsigned(2 * NFSX_UNSIGNED);
-			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-			/* No ioerrs or stats yet. */
-			*tl++ = 0;
-			*tl = 0;
+			if (stat != 0) {
+				*tl = txdr_unsigned(2 * NFSX_HYPER +
+				    NFSX_STATEID + NFSX_V4DEVICEID + 5 *
+				    NFSX_UNSIGNED);
+				NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER +
+				    NFSX_STATEID + NFSX_V4DEVICEID + 5 *
+				    NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(1);	/* One error. */
+				tu64 = 0;			/* Offset. */
+				txdr_hyper(tu64, tl); tl += 2;
+				tu64 = UINT64_MAX;		/* Length. */
+				txdr_hyper(tu64, tl); tl += 2;
+				NFSBCOPY(stateidp, tl, NFSX_STATEID);
+				tl += (NFSX_STATEID / NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(1);	/* One error. */
+				NFSBCOPY(devid, tl, NFSX_V4DEVICEID);
+				tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(stat);
+				*tl++ = txdr_unsigned(op);
+			} else {
+				*tl = txdr_unsigned(2 * NFSX_UNSIGNED);
+				NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+				/* No ioerrs. */
+				*tl++ = 0;
+			}
+			*tl = 0;	/* No stats yet. */
 		}
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -6017,6 +6039,12 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					error = nfsrpc_commitds(vp, off, xfer,
 					    *dspp, fhp, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
+				NFSCL_DEBUG(4, "commitds=%d\n", error);
+				if (nfsds_failerr(error)) {
+					NFSCL_DEBUG(4,
+					    "DS layreterr for commit\n");
+					nfscl_dserr(NFSV4OP_COMMIT, dp, lyp);
+				}
 			}
 			NFSCL_DEBUG(4, "aft nfsio_commitds=%d\n", error);
 			if (error == 0) {
@@ -6031,11 +6059,16 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				np->n_flag &= ~NDSCOMMIT;
 				mtx_unlock(&np->n_mtx);
 			}
-		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
+		} else if (rwflag == NFSV4OPEN_ACCESSREAD) {
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
 			    off, xfer, fhp, 1, dp->nfsdi_vers,
 			    dp->nfsdi_minorvers, tcred, p);
-		else {
+			NFSCL_DEBUG(4, "readds=%d\n", error);
+			if (nfsds_failerr(error)) {
+				NFSCL_DEBUG(4, "DS layreterr for read\n");
+				nfscl_dserr(NFSV4OP_READ, dp, lyp);
+			}
+		} else {
 			if (flp->nfsfl_mirrorcnt == 1) {
 				error = nfsrpc_writeds(vp, uiop, iomode,
 				    must_commit, stateidp, *dspp, off, xfer,
@@ -6066,6 +6099,11 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    xfer, fhp, m, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
+				if (nfsds_failerr(error)) {
+					NFSCL_DEBUG(4,
+					    "DS layreterr for write\n");
+					nfscl_dserr(NFSV4OP_WRITE, dp, lyp);
+				}
 			}
 		}
 		NFSCL_DEBUG(4, "aft read/writeds=%d\n", error);
