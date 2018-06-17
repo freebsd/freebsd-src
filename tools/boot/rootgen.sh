@@ -315,7 +315,7 @@ qemu_amd64_legacy()
     img=$1
     sh=$2
 
-    echo "qemu-system-x86_64 --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-x86_64 -m 256m --drive file=${img},format=raw ${qser}" > $sh
 }
 
 qemu_amd64_uefi()
@@ -323,7 +323,7 @@ qemu_amd64_uefi()
     img=$1
     sh=$2
 
-    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-x86_64 -m 256m -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
 }
 
 qemu_amd64_both()
@@ -331,8 +331,8 @@ qemu_amd64_both()
     img=$1
     sh=$2
 
-    echo "qemu-system-x86_64 --drive file=${img},format=raw ${qser}" > $sh
-    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" >> $sh
+    echo "qemu-system-x86_64 -m 256m --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-x86_64 -m 256m -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" >> $sh
 }
 
 # arm
