@@ -556,7 +556,7 @@ f_sysrc_set()
 	fi
 
 	#
-	# If not found, append new value to last file and return.
+	# If not found, append new value to first file and return.
 	#
 	if [ "$not_found" ]; then
 		# Add a newline if missing before appending to the file
