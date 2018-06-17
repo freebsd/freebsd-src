@@ -1028,6 +1028,8 @@
         ..
         nmtree
         ..
+        praudit
+        ..
         pw
         ..
         rpcbind
