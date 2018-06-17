@@ -5879,47 +5879,9 @@ iflib_msix_init(if_ctx_t ctx)
 
 	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	admincnt = sctx->isc_admin_intrcnt;
-	/* Override by global tuneable */
-	{
-		int i;
-		size_t len = sizeof(i);
-		err = kernel_sysctlbyname(curthread, "hw.pci.enable_msix", &i, &len, NULL, 0, NULL, 0);
-		if (err == 0) {
-			if (i == 0)
-				goto msi;
-		}
-		else {
-			device_printf(dev, "unable to read hw.pci.enable_msix.");
-		}
-	}
 	/* Override by tuneable */
 	if (scctx->isc_disable_msix)
 		goto msi;
-
-	/*
-	** When used in a virtualized environment
-	** PCI BUSMASTER capability may not be set
-	** so explicity set it here and rewrite
-	** the ENABLE in the MSIX control register
-	** at this point to cause the host to
-	** successfully initialize us.
-	*/
-	{
-		int msix_ctrl, rid;
-
- 		pci_enable_busmaster(dev);
-		rid = 0;
-		if (pci_find_cap(dev, PCIY_MSIX, &rid) == 0 && rid != 0) {
-			rid += PCIR_MSIX_CTRL;
-			msix_ctrl = pci_read_config(dev, rid, 2);
-			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-			pci_write_config(dev, rid, msix_ctrl, 2);
-		} else {
-			device_printf(dev, "PCIY_MSIX capability not found; "
-			                   "or rid %d == 0.\n", rid);
-			goto msi;
-		}
-	}
 
 	/*
 	 * bar == -1 => "trust me I know what I'm doing"
@@ -6007,6 +5969,9 @@ iflib_msix_init(if_ctx_t ctx)
 		return (vectors);
 	} else {
 		device_printf(dev, "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
+		bus_release_resource(dev, SYS_RES_MEMORY, bar,
+		    ctx->ifc_msix_mem);
+		ctx->ifc_msix_mem = NULL;
 	}
 msi:
 	vectors = pci_msi_count(dev);
@@ -6017,6 +5982,7 @@ msi:
 		device_printf(dev,"Using an MSI interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_MSI;
 	} else {
+		scctx->isc_vectors = 1;
 		device_printf(dev,"Using a Legacy interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_LEGACY;
 	}
@@ -6024,7 +5990,7 @@ msi:
 	return (vectors);
 }
 
-char * ring_states[] = { "IDLE", "BUSY", "STALLED", "ABDICATED" };
+static const char *ring_states[] = { "IDLE", "BUSY", "STALLED", "ABDICATED" };
 
 static int
 mp_ring_state_handler(SYSCTL_HANDLER_ARGS)
@@ -6032,7 +5998,7 @@ mp_ring_state_handler(SYSCTL_HANDLER_ARGS)
 	int rc;
 	uint16_t *state = ((uint16_t *)oidp->oid_arg1);
 	struct sbuf *sb;
-	char *ring_state = "UNKNOWN";
+	const char *ring_state = "UNKNOWN";
 
 	/* XXX needed ? */
 	rc = sysctl_wire_old_buffer(req, 0);
