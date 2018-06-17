@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+void __dead2
 usage(void)
 {
 
