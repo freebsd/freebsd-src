@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2016 Devin Teske
+# Copyright (c) 2010-2018 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="7.1 Feb-2,2016"
+SYSRC_VERSION="7.2 Jun-16,2018"
 
 #
 # Options
@@ -854,7 +854,7 @@ while [ $# -gt 0 ]; do
 		#
 		if [ ! "$SHOW_VALUE" ]; then
 			echo "$NAME"
-			f_sysrc_set "$NAME" "$new"
+			f_sysrc_set "$NAME" "$new" || status=$FAILURE
 		else
 			if f_sysrc_set "$NAME" "$new"; then
 				if [ "$SHOW_FILE" ]; then
@@ -866,6 +866,8 @@ while [ $# -gt 0 ]; do
 				echo -n "$before${SHOW_EQUALS:+\" #}"
 				echo -n " -> ${SHOW_EQUALS:+\"}$after"
 				echo "${SHOW_EQUALS:+\"}"
+			else
+				status=$FAILURE
 			fi
 		fi
 		;;
