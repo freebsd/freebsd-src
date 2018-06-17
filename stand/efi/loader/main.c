@@ -220,7 +220,8 @@ sanity_check_currdev(void)
 {
 	struct stat st;
 
-	return (stat("/boot/defaults/loader.conf", &st) == 0);
+	return (stat("/boot/defaults/loader.conf", &st) == 0 ||
+	    stat("/boot/kernel/kernel", &st) == 0);
 }
 
 #ifdef EFI_ZFS_BOOT
