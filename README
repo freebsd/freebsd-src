@@ -60,7 +60,9 @@ stand		Boot loader sources.
 
 sys		Kernel sources.
 
-sys/<arch>/conf Kernel configuration file
+sys/<arch>/conf Kernel configuration files. GENERIC is the configuration
+		used in release builds. NOTES contains documentation of
+		all possible entries.
 
 tests		Regression tests which can be run by Kyua.  See tests/README
 		for additional information.
