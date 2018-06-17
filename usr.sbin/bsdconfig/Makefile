@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \
 	dot \
-	examples \
 	include \
 	includes \
 	mouse \
@@ -17,6 +18,10 @@ SUBDIR=	console \
 	timezone \
 	ttys \
 	usermgmt
+
+.if ${MK_EXAMPLES} != "no"
+SUBDIR+= examples
+.endif
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig
 FILES=		USAGE
