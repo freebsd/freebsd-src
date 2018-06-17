@@ -693,6 +693,16 @@ main(void)
     }
     setheap(heap_next, heap_end);
 
+    /*
+     * Initialize the serial console early with a modern default of 115200.
+     * Later, we'll read PATH_DOTCONFIG and reconfigure serial according
+     * to the configuration provided.
+     */
+    opts = OPT_SET(RBX_DUAL);
+    ioctrl = (IO_SERIAL|IO_KEYBOARD);
+    if (sio_init(115200) != 0)
+	ioctrl &= ~IO_SERIAL;
+
     dsk = malloc(sizeof(struct dsk));
     dsk->drive = *(uint8_t *)PTOV(ARGS);
     dsk->type = dsk->drive & DRV_HARD ? TYPE_AD : TYPE_FD;
