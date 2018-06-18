@@ -21,8 +21,6 @@ S.${MK_ZFS}+=		zfs
 S.yes+=			defaults
 S.yes+=			man
 
-S.${MK_LOADER_GELI}+=	geli
-
 .include <bsd.arch.inc.mk>
 
 S.${MK_EFI}+=		efi
