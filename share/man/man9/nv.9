@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2017
+.Dd June 19, 2018
 .Dt NV 9
 .Os
 .Sh NAME
@@ -55,7 +55,8 @@
 .Nm nvlist_add ,
 .Nm nvlist_move ,
 .Nm nvlist_get ,
-.Nm nvlist_take
+.Nm nvlist_take ,
+.Nm nvlist_append
 .Nd "library for name/value pairs"
 .Sh LIBRARY
 .Lb libnv
@@ -237,6 +238,17 @@
 .Fn nvlist_take_nvlist_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
 .Ft "int *"
 .Fn nvlist_take_descriptor_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.\"
+.Ft void
+.Fn nvlist_append_bool_array "nvlist_t *nvl" "const char *name" "const bool value"
+.Ft void
+.Fn nvlist_append_number_array "nvlist_t *nvl" "const char *name" "const uint64_t value"
+.Ft void
+.Fn nvlist_append_string_array "nvlist_t *nvl" "const char *name" "const char * const value"
+.Ft void
+.Fn nvlist_append_nvlist_array "nvlist_t *nvl" "const char *name" "const nvlist_t * const value"
+.Ft void
+.Fn nvlist_append_descriptor_array "nvlist_t *nvl" "const char *name" "int value"
 .\"
 .Ft void
 .Fn nvlist_free "nvlist_t *nvl" "const char *name"
@@ -708,6 +720,20 @@ the array using the
 .Xr free 3
 function.
 The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_append_bool_array ,
+.Fn nvlist_append_number_array ,
+.Fn nvlist_append_string_array ,
+.Fn nvlist_append_nvlist_array ,
+.Fn nvlist_append_descriptor_array
+functions append an element to the existing array using the same semantics
+as the add functions (i.e. the element will be copied when applicable).
+If the array for a given key does not exist, then it will be created
+as if using the
+.Fn nvlist_add_<type>_array
+function.
+The internal error is set on append failure.
 .Pp
 The
 .Fn nvlist_free
