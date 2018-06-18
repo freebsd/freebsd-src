@@ -39,7 +39,7 @@ static pid_t pid;
 static int filedesc;
 static mode_t mode = 0777;
 static struct pollfd fds[1];
-static char adregex[60];
+static char adregex[80];
 static const char *auclass = "ad";
 static const char *path = "fileforaudit";
 
@@ -200,6 +200,301 @@ ATF_TC_CLEANUP(nfs_getfh_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(getauid_success);
+ATF_TC_HEAD(getauid_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"getauid(2) call");
+}
+
+ATF_TC_BODY(getauid_success, tc)
+{
+	au_id_t auid;
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "getauid.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, getauid(&auid));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getauid_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getauid_failure);
+ATF_TC_HEAD(getauid_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"getauid(2) call");
+}
+
+ATF_TC_BODY(getauid_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "getauid.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, getauid(NULL));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getauid_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setauid_success);
+ATF_TC_HEAD(setauid_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"setauid(2) call");
+}
+
+ATF_TC_BODY(setauid_success, tc)
+{
+	au_id_t auid;
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "setauid.*%d.*return,success", pid);
+	ATF_REQUIRE_EQ(0, getauid(&auid));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, setauid(&auid));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setauid_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setauid_failure);
+ATF_TC_HEAD(setauid_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"setauid(2) call");
+}
+
+ATF_TC_BODY(setauid_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "setauid.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, setauid(NULL));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setauid_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getaudit_success);
+ATF_TC_HEAD(getaudit_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"getaudit(2) call");
+}
+
+ATF_TC_BODY(getaudit_success, tc)
+{
+	pid = getpid();
+	auditinfo_t auditinfo;
+	snprintf(adregex, sizeof(adregex), "getaudit.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, getaudit(&auditinfo));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getaudit_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getaudit_failure);
+ATF_TC_HEAD(getaudit_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"getaudit(2) call");
+}
+
+ATF_TC_BODY(getaudit_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "getaudit.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, getaudit(NULL));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getaudit_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setaudit_success);
+ATF_TC_HEAD(setaudit_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"setaudit(2) call");
+}
+
+ATF_TC_BODY(setaudit_success, tc)
+{
+	pid = getpid();
+	auditinfo_t auditinfo;
+	snprintf(adregex, sizeof(adregex), "setaudit.*%d.*return,success", pid);
+	ATF_REQUIRE_EQ(0, getaudit(&auditinfo));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, setaudit(&auditinfo));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setaudit_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setaudit_failure);
+ATF_TC_HEAD(setaudit_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"setaudit(2) call");
+}
+
+ATF_TC_BODY(setaudit_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "setaudit.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, setaudit(NULL));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setaudit_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getaudit_addr_success);
+ATF_TC_HEAD(getaudit_addr_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"getaudit_addr(2) call");
+}
+
+ATF_TC_BODY(getaudit_addr_success, tc)
+{
+	pid = getpid();
+	auditinfo_addr_t auditinfo;
+	snprintf(adregex, sizeof(adregex),
+		"getaudit_addr.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, getaudit_addr(&auditinfo, sizeof(auditinfo)));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getaudit_addr_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(getaudit_addr_failure);
+ATF_TC_HEAD(getaudit_addr_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"getaudit_addr(2) call");
+}
+
+ATF_TC_BODY(getaudit_addr_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"getaudit_addr.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, getaudit_addr(NULL, 0));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(getaudit_addr_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setaudit_addr_success);
+ATF_TC_HEAD(setaudit_addr_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"setaudit_addr(2) call");
+}
+
+ATF_TC_BODY(setaudit_addr_success, tc)
+{
+	pid = getpid();
+	auditinfo_addr_t auditinfo;
+	snprintf(adregex, sizeof(adregex),
+		"setaudit_addr.*%d.*return,success", pid);
+
+	ATF_REQUIRE_EQ(0, getaudit_addr(&auditinfo, sizeof(auditinfo)));
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, setaudit_addr(&auditinfo, sizeof(auditinfo)));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setaudit_addr_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setaudit_addr_failure);
+ATF_TC_HEAD(setaudit_addr_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"setaudit_addr(2) call");
+}
+
+ATF_TC_BODY(setaudit_addr_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"setaudit_addr.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Bad address */
+	ATF_REQUIRE_EQ(-1, setaudit_addr(NULL, 0));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setaudit_addr_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, settimeofday_success);
@@ -209,6 +504,21 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, nfs_getfh_success);
 	ATF_TP_ADD_TC(tp, nfs_getfh_failure);
+
+	ATF_TP_ADD_TC(tp, getauid_success);
+	ATF_TP_ADD_TC(tp, getauid_failure);
+	ATF_TP_ADD_TC(tp, setauid_success);
+	ATF_TP_ADD_TC(tp, setauid_failure);
+
+	ATF_TP_ADD_TC(tp, getaudit_success);
+	ATF_TP_ADD_TC(tp, getaudit_failure);
+	ATF_TP_ADD_TC(tp, setaudit_success);
+	ATF_TP_ADD_TC(tp, setaudit_failure);
+
+	ATF_TP_ADD_TC(tp, getaudit_addr_success);
+	ATF_TP_ADD_TC(tp, getaudit_addr_failure);
+	ATF_TP_ADD_TC(tp, setaudit_addr_success);
+	ATF_TP_ADD_TC(tp, setaudit_addr_failure);
 
 	return (atf_no_error());
 }
