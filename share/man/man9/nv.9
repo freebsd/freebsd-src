@@ -589,7 +589,7 @@ The
 .Fn nvlist_add_nvlist_array ,
 .Fn nvlist_add_descriptor_array
 functions add element to the given nvlist.
-When adding string or binary buffor the functions will allocate memory
+When adding string or binary buffer the functions will allocate memory
 and copy the data over.
 When adding nvlist, the nvlist will be cloned and clone will be added.
 When adding descriptor, the descriptor will be duplicated using the
@@ -768,6 +768,13 @@ function name from the nvlist and free all resources associated with it.
 If element of the given name and the given type does not exist, the program
 will be aborted.
 The nvlist must not be in error state.
+.Sh NOTES
+The
+.Fn nvlist_pack
+and
+.Fn nvlist_unpack
+functions handle the byte-order conversions, so the binary buffer can be
+packed/unpacked by the hosts with the different endianness.
 .Sh EXAMPLES
 The following example demonstrates how to prepare an nvlist and send it over
 .Xr unix 4
