@@ -1216,7 +1216,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		inp->inp_in_input = 0;
 		tp = intotcpcb(inp);
 		mtx_unlock(&hpts->p_mtx);
-		CURVNET_SET(tp->t_vnet);
+		CURVNET_SET(inp->inp_vnet);
 		if (drop_reason) {
 			INP_INFO_RLOCK(&V_tcbinfo);
 			ti_locked = TI_RLOCKED;
@@ -1589,7 +1589,7 @@ out_now:
 					getmicrouptime(&sv);
 				cts = tcp_tv_to_usectick(&sv);
 			}
-			CURVNET_SET(tp->t_vnet);
+			CURVNET_SET(inp->inp_vnet);
 			/*
 			 * There is a hole here, we get the refcnt on the
 			 * inp so it will still be preserved but to make
