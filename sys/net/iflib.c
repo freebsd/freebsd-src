@@ -2275,7 +2275,7 @@ iflib_init_locked(if_ctx_t ctx)
 			}
 		}
 	}
-	done:
+done:
 	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
@@ -4014,7 +4014,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		*/
 		if (avoid_reset) {
 			if_setflagbits(ifp, IFF_UP,0);
-			if (!(if_getdrvflags(ifp)& IFF_DRV_RUNNING))
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 				reinit = 1;
 #ifdef INET
 			if (!(if_getflags(ifp) & IFF_NOARP))
@@ -4115,7 +4115,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 #endif
 		setmask |= (mask & IFCAP_FLAGS);
 
-		if (setmask  & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+		if (setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 			setmask |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 		if ((mask & IFCAP_WOL) &&
 		    (if_getcapabilities(ifp) & IFCAP_WOL) != 0)
@@ -4140,7 +4140,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			CTX_UNLOCK(ctx);
 		}
 		break;
-	    }
+	}
 	case SIOCGPRIVATE_0:
 	case SIOCSDRVSPEC:
 	case SIOCGDRVSPEC:
@@ -5097,7 +5097,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	KASSERT(ntxqs > 0, ("number of queues per qset must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues per qset must be at least 1"));
 
-/* Allocate the TX ring struct memory */
+	/* Allocate the TX ring struct memory */
 	if (!(ctx->ifc_txqs =
 	    (iflib_txq_t) malloc(sizeof(struct iflib_txq) *
 	    ntxqsets, M_IFLIB, M_NOWAIT | M_ZERO))) {
