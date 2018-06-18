@@ -206,8 +206,10 @@ nvpair_remove_nvlist_array(nvpair_t *nvp)
 	/* XXX: DECONST is bad, mkay? */
 	nvlarray = __DECONST(nvlist_t **,
 	    nvpair_get_nvlist_array(nvp, &count));
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
 		nvlist_set_array_next(nvlarray[i], NULL);
+		nvlist_set_parent(nvlarray[i], NULL);
+	}
 }
 
 void
