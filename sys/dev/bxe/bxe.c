@@ -12851,7 +12851,7 @@ bxe_allocate_bars(struct bxe_softc *sc)
         sc->bar[i].handle = rman_get_bushandle(sc->bar[i].resource);
         sc->bar[i].kva    = (vm_offset_t)rman_get_virtual(sc->bar[i].resource);
 
-        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %#jx-%#jx (%jd) -> %#jx\n",
+        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %#lx-%#lx (%ld) -> %#jx\n",
               i, PCIR_BAR(i),
               rman_get_start(sc->bar[i].resource),
               rman_get_end(sc->bar[i].resource),
