@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180603: No need for krb5-config, it confuses ports.
+OLD_FILES+=usr/bin/krb5-config
+# 20180430: libgssapi should also be private
+OLD_LIBS+=usr/lib/libgssapi.a
+OLD_LIBS+=usr/lib/libgssapi.so
+OLD_LIBS+=usr/lib/libgssapi.so.10
 # 20180319: remove /boot/overlays, replaced by /boot/dtb/overlays
 OLD_DIRS+=boot/overlays
 # 20180311: remove sys/sys/i386/include/pcaudioio.h
