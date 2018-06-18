@@ -575,7 +575,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_bool)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	ATF_REQUIRE_EQ(cnvlist_take_bool(nvl, cookie), value);
+	ATF_REQUIRE_EQ(cnvlist_take_bool(cookie), value);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -618,7 +618,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_number)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	ATF_REQUIRE_EQ(cnvlist_take_number(nvl, cookie), value);
+	ATF_REQUIRE_EQ(cnvlist_take_number(cookie), value);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -662,7 +662,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_string)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	out_string = cnvlist_take_string(nvl, cookie);
+	out_string = cnvlist_take_string(cookie);
 	ATF_REQUIRE(out_string != NULL);
 	ATF_REQUIRE_EQ(strcmp(out_string, value), 0);
 
@@ -725,7 +725,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_nvlist)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	result = cnvlist_take_nvlist(nvl, cookie);
+	result = cnvlist_take_nvlist(cookie);
 	ATF_REQUIRE(!nvlist_exists_nvlist(nvl, key));
 	ATF_REQUIRE(result == value);
 
@@ -784,7 +784,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_bool_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	out_array = cnvlist_take_bool_array(nvl, cookie, &nitems);
+	out_array = cnvlist_take_bool_array(cookie, &nitems);
 	ATF_REQUIRE_EQ(nitems, 16);
 	ATF_REQUIRE(out_array != NULL);
 	for (i = 0; i < 16; i++)
@@ -836,7 +836,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_number_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	out_array = cnvlist_take_number_array(nvl, cookie, &nitems);
+	out_array = cnvlist_take_number_array(cookie, &nitems);
 
 	ATF_REQUIRE(out_array != NULL);
 	ATF_REQUIRE_EQ(nitems, 16);
@@ -885,7 +885,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_string_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	out_array = cnvlist_take_string_array(nvl, cookie, &nitems);
+	out_array = cnvlist_take_string_array(cookie, &nitems);
 	ATF_REQUIRE_EQ(nitems, 4);
 	for (i = 0; i < 4; i++) {
 		ATF_REQUIRE(out_array[i] != NULL);
@@ -957,7 +957,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_nvlist_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	result = cnvlist_take_nvlist_array(nvl, cookie, &num_items);
+	result = cnvlist_take_nvlist_array(cookie, &num_items);
 
 	ATF_REQUIRE(result != NULL);
 	ATF_REQUIRE_EQ(num_items, 8);
@@ -1022,7 +1022,7 @@ ATF_TEST_CASE_BODY(cnvlist_take_binary)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	out_binary = cnvlist_take_binary(nvl, cookie, &out_size);
+	out_binary = cnvlist_take_binary(cookie, &out_size);
 	ATF_REQUIRE_EQ(out_size, in_size);
 	ATF_REQUIRE_EQ(memcmp(in_binary, out_binary, out_size), 0);
 
@@ -1069,7 +1069,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_bool)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_bool(nvl, cookie);
+	cnvlist_free_bool(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1112,7 +1112,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_number)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_number(nvl, cookie);
+	cnvlist_free_number(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1155,7 +1155,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_string)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_string(nvl, cookie);
+	cnvlist_free_string(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1215,7 +1215,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_nvlist)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_nvlist(nvl, cookie);
+	cnvlist_free_nvlist(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1262,7 +1262,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_binary)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_binary(nvl, cookie);
+	cnvlist_free_binary(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1309,7 +1309,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_bool_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_bool_array(nvl, cookie);
+	cnvlist_free_bool_array(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1354,7 +1354,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_number_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_number_array(nvl, cookie);
+	cnvlist_free_number_array(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1396,7 +1396,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_string_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_string_array(nvl, cookie);
+	cnvlist_free_string_array(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
@@ -1459,7 +1459,7 @@ ATF_TEST_CASE_BODY(cnvlist_free_nvlist_array)
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(key, nvlist_next(nvl, &type, &cookie)), 0);
-	cnvlist_free_nvlist_array(nvl, cookie);
+	cnvlist_free_nvlist_array(cookie);
 
 	cookie = NULL;
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);

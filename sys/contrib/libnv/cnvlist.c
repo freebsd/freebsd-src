@@ -124,14 +124,16 @@ cnvlist_get_binary(const void *cookie, size_t *sizep)
 
 #define CNVLIST_TAKE(ftype, type, NVTYPE)				\
 ftype									\
-cnvlist_take_##type(nvlist_t *nvl, void *cookie)			\
+cnvlist_take_##type(void *cookie)					\
 {									\
 	ftype value;							\
+	nvlist_t *nvl;							\
 									\
 	if (nvpair_type(cookie) != NV_TYPE_##NVTYPE) {			\
 		nvlist_report_missing(NV_TYPE_##NVTYPE,			\
 		    nvpair_name(cookie));				\
 	}								\
+	nvl = nvpair_nvlist(cookie);					\
 	value = (ftype)(intptr_t)nvpair_get_##type(cookie);		\
 	nvlist_remove_nvpair(nvl, cookie);				\
 	nvpair_free_structure(cookie);					\
@@ -150,14 +152,16 @@ CNVLIST_TAKE(int, descriptor, DESCRIPTOR)
 
 #define	CNVLIST_TAKE_ARRAY(ftype, type, NVTYPE)				\
 ftype									\
-cnvlist_take_##type(nvlist_t *nvl, void *cookie, size_t *nitemsp)	\
+cnvlist_take_##type(void *cookie, size_t *nitemsp)			\
 {									\
 	ftype value;							\
+	nvlist_t *nvl;							\
 									\
 	if (nvpair_type(cookie) != NV_TYPE_##NVTYPE) {			\
 		nvlist_report_missing(NV_TYPE_##NVTYPE,			\
 		    nvpair_name(cookie));				\
 	}								\
+	nvl = nvpair_nvlist(cookie);					\
 	value = (ftype)(intptr_t)nvpair_get_##type(cookie, nitemsp);	\
 	nvlist_remove_nvpair(nvl, cookie);				\
 	nvpair_free_structure(cookie);					\
@@ -175,12 +179,14 @@ CNVLIST_TAKE_ARRAY(int *, descriptor_array, DESCRIPTOR_ARRAY);
 #undef	CNVLIST_TAKE_ARRAY
 
 void *
-cnvlist_take_binary(nvlist_t *nvl, void *cookie, size_t *sizep)
+cnvlist_take_binary(void *cookie, size_t *sizep)
 {
 	void *value;
+	nvlist_t *nvl;
 
 	if (nvpair_type(cookie) != NV_TYPE_BINARY)
 		nvlist_report_missing(NV_TYPE_BINARY, nvpair_name(cookie));
+	nvl = nvpair_nvlist(cookie);
 	value = (void *)(intptr_t)nvpair_get_binary(cookie, sizep);
 	nvlist_remove_nvpair(nvl, cookie);
 	nvpair_free_structure(cookie);
@@ -190,10 +196,10 @@ cnvlist_take_binary(nvlist_t *nvl, void *cookie, size_t *sizep)
 
 #define	CNVLIST_FREE(type)						\
 void									\
-cnvlist_free_##type(nvlist_t *nvl, void *cookie)			\
+cnvlist_free_##type(void *cookie)					\
 {									\
 									\
-	nvlist_free_nvpair(nvl, cookie);				\
+	nvlist_free_nvpair(nvpair_nvlist(cookie), cookie);		\
 }
 
 CNVLIST_FREE(bool)
