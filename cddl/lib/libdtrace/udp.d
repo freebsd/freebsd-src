@@ -56,11 +56,11 @@ translator udpsinfo_t < struct inpcb *p > {
 	udps_addr =	(uintptr_t)p;
 	udps_lport =	p == NULL ? 0 : ntohs(p->inp_inc.inc_ie.ie_lport);
 	udps_rport =	p == NULL ? 0 : ntohs(p->inp_inc.inc_ie.ie_fport);
-	udps_laddr =	p == NULL ? "" :
+	udps_laddr =	p == NULL ? "<unknown>" :
 	    p->inp_vflag == INP_IPV4 ?
 	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependladdr.id46_addr.ia46_addr4.s_addr) :
 	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependladdr.id6_addr);
-	udps_raddr =	p == NULL ? "" :
+	udps_raddr =	p == NULL ? "<unknown>" :
 	    p->inp_vflag == INP_IPV4 ?
 	    inet_ntoa(&p->inp_inc.inc_ie.ie_dependfaddr.id46_addr.ia46_addr4.s_addr) :
 	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependfaddr.id6_addr);
