@@ -42,7 +42,7 @@
 				    struct epoll_event *events, \
 				    l_int maxevents, l_int timeout, \
 				    l_sigset_t *mask, l_size_t sigsetsize); }
-23	AUE_NULL	UNIMPL	linux_dup
+23	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
 24	AUE_NULL	STD	{ int linux_dup3(l_int oldfd, l_int newfd, \
 				    l_int flags); }
 25	AUE_FCNTL	STD	{ int linux_fcntl(l_uint fd, l_uint cmd, \
