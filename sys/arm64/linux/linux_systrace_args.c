@@ -122,6 +122,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* dup */
+	case 23: {
+		struct dup_args *p = params;
+		uarg[0] = p->fd; /* u_int */
+		*n_args = 1;
+		break;
+	}
 	/* linux_dup3 */
 	case 24: {
 		struct linux_dup3_args *p = params;
@@ -2229,6 +2236,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dup */
+	case 23:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
 			break;
 		default:
 			break;
@@ -5496,6 +5513,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_pwait */
 	case 22:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dup */
+	case 23:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
