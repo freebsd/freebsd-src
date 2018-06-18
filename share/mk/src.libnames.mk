@@ -19,6 +19,7 @@ _PRIVATELIBS=	\
 		bsdstat \
 		devdctl \
 		event \
+		gssapi \
 		gssapi_krb5 \
 		gssapi_ntlm \
 		gssapi_spnego \
@@ -117,7 +118,6 @@ _LIBRARIES=	\
 		geom \
 		gnuregex \
 		gpio \
-		gssapi \
 		heimsqlite \
 		ipsec \
 		ipt \
