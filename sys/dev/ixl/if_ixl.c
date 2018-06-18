@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -47,14 +47,14 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-#define IXL_DRIVER_VERSION_MAJOR	1
-#define IXL_DRIVER_VERSION_MINOR	9
-#define IXL_DRIVER_VERSION_BUILD	9
+#define IXL_DRIVER_VERSION_MAJOR	2
+#define IXL_DRIVER_VERSION_MINOR	0
+#define IXL_DRIVER_VERSION_BUILD	0
 
 #define IXL_DRIVER_VERSION_STRING			\
     __XSTRING(IXL_DRIVER_VERSION_MAJOR) "."		\
     __XSTRING(IXL_DRIVER_VERSION_MINOR) "."		\
-    __XSTRING(IXL_DRIVER_VERSION_BUILD) "-iflib-k"
+    __XSTRING(IXL_DRIVER_VERSION_BUILD) "-k"
 
 /*********************************************************************
  *  PCI Device ID Table
