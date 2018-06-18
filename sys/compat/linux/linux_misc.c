@@ -1895,6 +1895,11 @@ linux_capget(struct thread *td, struct linux_capget_args *args)
 		return (error);
 
 	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+#ifdef DEBUG
+		if (ldebug(capget))
+			printf(LMSG("invalid capget capability version 0x%x"),
+			    luch.version);
+#endif
 		luch.version = _LINUX_CAPABILITY_VERSION;
 		error = copyout(&luch, args->hdrp, sizeof(luch));
 		if (error)
@@ -1934,6 +1939,11 @@ linux_capset(struct thread *td, struct linux_capset_args *args)
 		return (error);
 
 	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+#ifdef DEBUG
+		if (ldebug(capset))
+			printf(LMSG("invalid capset capability version 0x%x"),
+			    luch.version);
+#endif
 		luch.version = _LINUX_CAPABILITY_VERSION;
 		error = copyout(&luch, args->hdrp, sizeof(luch));
 		if (error)
