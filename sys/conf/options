@@ -80,18 +80,19 @@ BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
-COMPAT_43	opt_compat.h
-COMPAT_43TTY	opt_compat.h
-COMPAT_FREEBSD4	opt_compat.h
-COMPAT_FREEBSD5	opt_compat.h
-COMPAT_FREEBSD6	opt_compat.h
-COMPAT_FREEBSD7	opt_compat.h
-COMPAT_FREEBSD9	opt_compat.h
-COMPAT_FREEBSD10	opt_compat.h
-COMPAT_FREEBSD11	opt_compat.h
+COMPAT_43	opt_global.h
+COMPAT_43TTY	opt_global.h
+COMPAT_FREEBSD4	opt_global.h
+COMPAT_FREEBSD5	opt_global.h
+COMPAT_FREEBSD6	opt_global.h
+COMPAT_FREEBSD7	opt_global.h
+COMPAT_FREEBSD9	opt_global.h
+COMPAT_FREEBSD10	opt_global.h
+COMPAT_FREEBSD11	opt_global.h
 COMPAT_CLOUDABI32	opt_dontuse.h
 COMPAT_CLOUDABI64	opt_dontuse.h
-COMPAT_LINUXKPI	opt_compat.h
+COMPAT_LINUXKPI	opt_dontuse.h
+_COMPAT_LINUX32	opt_compat.h	# XXX: make sure opt_compat.h exists
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
@@ -103,7 +104,6 @@ FULL_PREEMPTION	opt_sched.h
 GZIO		opt_gzio.h
 IMAGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
-GEOM_AES	opt_geom.h
 GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_CACHE	opt_geom.h
@@ -168,6 +168,7 @@ MD_ROOT		opt_md.h
 MD_ROOT_FSTYPE	opt_md.h
 MD_ROOT_READONLY	opt_md.h
 MD_ROOT_SIZE	opt_md.h
+MD_ROOT_MEM	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
@@ -218,6 +219,7 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
+TCPHPTS         opt_inet.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
@@ -311,6 +313,9 @@ NFS_ROOT	opt_nfsroot.h
 
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
+
+# Enable netdump(4) client support.
+NETDUMP 	opt_global.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
@@ -416,6 +421,7 @@ BOOTP_WIRED_TO		opt_bootp.h
 DEVICE_POLLING
 DUMMYNET		opt_ipdn.h
 RATELIMIT		opt_ratelimit.h
+RATELIMIT_DEBUG		opt_ratelimit.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPDIVERT
@@ -769,6 +775,7 @@ SC_DISABLE_KDBKEY	opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_KERNEL_CONS_ATTR	opt_syscons.h
+SC_KERNEL_CONS_ATTRS	opt_syscons.h
 SC_KERNEL_CONS_REV_ATTR	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
 SC_NO_CUTPASTE		opt_syscons.h
@@ -900,9 +907,6 @@ HWPMC_DEBUG		opt_global.h
 HWPMC_HOOKS
 HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
-# Interrupt filtering
-INTR_FILTER
-
 # 802.11 support layer
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
@@ -980,6 +984,7 @@ RANDOM_LOADABLE	opt_global.h
 # This turns on high-rate and potentially expensive harvesting in
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
+RANDOM_ENABLE_ETHER	opt_global.h
 
 # BHND(4) driver
 BHND_LOGLEVEL	opt_global.h
@@ -1005,3 +1010,6 @@ EKCD		opt_ekcd.h
 
 # NVME options
 NVME_USE_NVD	opt_nvme.h
+
+# amdsbwd options
+AMDSBWD_DEBUG	opt_amdsbwd.h

@@ -45,6 +45,14 @@ static zfsinfo_list_t zfsinfo;
 
 uint64_t pool_guid;
 
+static EFI_HANDLE preferred;
+
+void
+efizfs_set_preferred(EFI_HANDLE h)
+{
+	preferred = h;
+}
+
 zfsinfo_list_t *
 efizfs_get_zfsinfo_list(void)
 {
@@ -62,6 +70,22 @@ efizfs_get_handle_by_guid(uint64_t guid)
 		}
 	}
 	return (NULL);
+}
+
+bool
+efizfs_get_guid_by_handle(EFI_HANDLE handle, uint64_t *guid)
+{
+	zfsinfo_t *zi;
+
+	if (guid == NULL)
+		return (false);
+	STAILQ_FOREACH(zi, &zfsinfo, zi_link) {
+		if (zi->zi_handle == handle) {
+			*guid = zi->zi_pool_guid;
+			return (true);
+		}
+	}
+	return (false);
 }
 
 static void
@@ -94,16 +118,13 @@ efi_zfs_probe(void)
 	 */
 	STAILQ_FOREACH(hd, hdi, pd_link) {
 		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
-
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-
-                        if (zfs_probe_dev(devname, &guid) == 0) {
-                                insert_zfs(pd->pd_handle, guid);
-
-                                if (efi_zfs_is_preferred(pd->pd_handle))
-                                        pool_guid = guid;
-                        }
+			if (zfs_probe_dev(devname, &guid) == 0) {
+				insert_zfs(pd->pd_handle, guid);
+				if (pd->pd_handle == preferred)
+					pool_guid = guid;
+			}
 
 		}
 	}

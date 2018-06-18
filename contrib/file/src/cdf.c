@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf.c,v 1.106 2017/04/30 17:05:02 christos Exp $")
+FILE_RCSID("@(#)$File: cdf.c,v 1.110 2017/12/19 00:21:21 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -85,6 +85,7 @@ static union {
 #define CDF_CALLOC(n, u) cdf_calloc(__FILE__, __LINE__, (n), (u))
 
 
+/*ARGSUSED*/
 static void *
 cdf_malloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), size_t n)
@@ -93,6 +94,7 @@ cdf_malloc(const char *file __attribute__((__unused__)),
 	return malloc(n);
 }
 
+/*ARGSUSED*/
 static void *
 cdf_realloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), void *p, size_t n)
@@ -101,6 +103,7 @@ cdf_realloc(const char *file __attribute__((__unused__)),
 	return realloc(p, n);
 }
 
+/*ARGSUSED*/
 static void *
 cdf_calloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), size_t n, size_t u)
@@ -436,7 +439,7 @@ cdf_read_sat(const cdf_info_t *info, cdf_header_t *h, cdf_sat_t *sat)
 		if (h->h_master_sat[i] == CDF_SECID_FREE)
 			break;
 
-#define CDF_SEC_LIMIT (UINT32_MAX / (8 * ss))
+#define CDF_SEC_LIMIT (UINT32_MAX / (64 * ss))
 	if ((nsatpersec > 0 &&
 	    h->h_num_sectors_in_master_sat > CDF_SEC_LIMIT / nsatpersec) ||
 	    i > CDF_SEC_LIMIT) {
@@ -846,8 +849,8 @@ cdf_find_stream(const cdf_dir_t *dir, const char *name, int type)
 	return 0;
 }
 
-#define CDF_SHLEN_LIMIT (UINT32_MAX / 8)
-#define CDF_PROP_LIMIT (UINT32_MAX / (8 * sizeof(cdf_property_info_t)))
+#define CDF_SHLEN_LIMIT (UINT32_MAX / 64)
+#define CDF_PROP_LIMIT (UINT32_MAX / (64 * sizeof(cdf_property_info_t)))
 
 static const void *
 cdf_offset(const void *p, size_t l)
@@ -1570,32 +1573,32 @@ main(int argc, char *argv[])
 	info.i_len = 0;
 	for (i = 1; i < argc; i++) {
 		if ((info.i_fd = open(argv[1], O_RDONLY)) == -1)
-			err(1, "Cannot open `%s'", argv[1]);
+			err(EXIT_FAILURE, "Cannot open `%s'", argv[1]);
 
 		if (cdf_read_header(&info, &h) == -1)
-			err(1, "Cannot read header");
+			err(EXIT_FAILURE, "Cannot read header");
 #ifdef CDF_DEBUG
 		cdf_dump_header(&h);
 #endif
 
 		if (cdf_read_sat(&info, &h, &sat) == -1)
-			err(1, "Cannot read sat");
+			err(EXIT_FAILURE, "Cannot read sat");
 #ifdef CDF_DEBUG
 		cdf_dump_sat("SAT", &sat, CDF_SEC_SIZE(&h));
 #endif
 
 		if (cdf_read_ssat(&info, &h, &sat, &ssat) == -1)
-			err(1, "Cannot read ssat");
+			err(EXIT_FAILURE, "Cannot read ssat");
 #ifdef CDF_DEBUG
 		cdf_dump_sat("SSAT", &ssat, CDF_SHORT_SEC_SIZE(&h));
 #endif
 
 		if (cdf_read_dir(&info, &h, &sat, &dir) == -1)
-			err(1, "Cannot read dir");
+			err(EXIT_FAILURE, "Cannot read dir");
 
 		if (cdf_read_short_stream(&info, &h, &sat, &dir, &sst, &root)
 		    == -1)
-			err(1, "Cannot read short stream");
+			err(EXIT_FAILURE, "Cannot read short stream");
 #ifdef CDF_DEBUG
 		cdf_dump_stream(&sst);
 #endif

@@ -227,4 +227,10 @@
 
 #define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
 
+/*
+ * Use a fairly large batch size since we expect amd64 systems to have lots of
+ * memory.
+ */
+#define	VM_BATCHQUEUE_SIZE	31
+
 #endif /* _MACHINE_VMPARAM_H_ */

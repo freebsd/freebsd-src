@@ -28,6 +28,8 @@
 #ifndef MLX5_DRIVER_H
 #define MLX5_DRIVER_H
 
+#include "opt_ratelimit.h"
+
 #include <linux/kernel.h>
 #include <linux/completion.h>
 #include <linux/pci.h>
@@ -500,7 +502,11 @@ struct mlx5_core_health {
 	struct delayed_work		recover_work;
 };
 
+#ifdef RATELIMIT
+#define	MLX5_CQ_LINEAR_ARRAY_SIZE	(128 * 1024)
+#else
 #define	MLX5_CQ_LINEAR_ARRAY_SIZE	1024
+#endif
 
 struct mlx5_cq_linear_array_entry {
 	spinlock_t	lock;
@@ -539,6 +545,23 @@ struct mlx5_mr_table {
 struct mlx5_irq_info {
 	char name[MLX5_MAX_IRQ_NAME];
 };
+
+#ifdef RATELIMIT
+struct mlx5_rl_entry {
+	u32			rate;
+	u16			burst;
+	u16			index;
+	u32			refcount;
+};
+
+struct mlx5_rl_table {
+	struct mutex		rl_lock;
+	u16			max_size;
+	u32			max_rate;
+	u32			min_rate;
+	struct mlx5_rl_entry   *rl_entry;
+};
+#endif
 
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
@@ -592,6 +615,9 @@ struct mlx5_priv {
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
 	unsigned long		pci_dev_data;
+#ifdef RATELIMIT
+	struct mlx5_rl_table	rl_table;
+#endif
 };
 
 enum mlx5_device_state {
@@ -1084,5 +1110,17 @@ static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 {
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
 }
+#ifdef RATELIMIT
+int mlx5_init_rl_table(struct mlx5_core_dev *dev);
+void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev);
+int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u32 rate, u32 burst, u16 *index);
+void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, u32 rate, u32 burst);
+bool mlx5_rl_is_in_range(const struct mlx5_core_dev *dev, u32 rate, u32 burst);
+
+static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
+{
+	return !!(dev->priv.rl_table.max_size);
+}
+#endif
 
 #endif /* MLX5_DRIVER_H */

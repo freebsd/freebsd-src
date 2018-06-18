@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2009
+.Dd June 08, 2018
 .Dt CAL 1
 .Os
 .Sh NAME
@@ -154,15 +154,18 @@ note the year must be fully specified:
 .Dq Li cal 89
 will
 .Em not
-display a calendar for 1989.  Two parameters denote the month and
+display a calendar for 1989.
+Two parameters denote the month and
 year; the month is either a number between 1 and 12, or a full or
-abbreviated name as specified by the current locale.  Month and
+abbreviated name as specified by the current locale.
+Month and
 year default to those of the current system clock and time zone (so
 .Dq Li cal -m 8
 will display a calendar for the month of August in the current
 year).
 .Pp
-Not all options can be used together. For example
+Not all options can be used together.
+For example
 .Dq Li -3 -A 2 -B 3 -y -m 7
 would mean:
 show me the three months around the seventh month, three before
@@ -180,7 +183,7 @@ Highlighting of dates is disabled if stdout is not a tty.
 A
 .Nm
 command appeared in
-.At v5 .
+.At v1 .
 The
 .Nm ncal
 command appeared in

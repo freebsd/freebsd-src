@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2018
+.Dd April 21, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4482,6 +4482,18 @@ The default is
 which configures sessions based on the
 .Pa /etc/iscsi.conf
 configuration file.
+.It Va cfumass_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+create and export an USB LUN using
+.Xr cfumass 4
+at boot time.
+.It Va cfumass_dir
+.Pq Vt str
+The directory where the files exported by USB LUN are located.
+The default directory is
+.Pa /var/cfumass .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact

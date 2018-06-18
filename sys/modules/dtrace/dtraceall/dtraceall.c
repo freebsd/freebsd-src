@@ -34,7 +34,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/errno.h>
-#include "opt_compat.h"
 #include "opt_nfs.h"
 
 static int

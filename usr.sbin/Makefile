@@ -59,6 +59,9 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
+	pnfsdscopymr \
+	pnfsdsfile \
+	pnfsdskill \
 	powerd \
 	prometheus_sysctl_exporter \
 	pstat \
@@ -121,7 +124,6 @@ SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
 SUBDIR.${MK_CTM}+=	ctm
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
-SUBDIR.${MK_MLX5TOOL}+=	mlx5tool
 SUBDIR.${MK_DIALOG}+=	bsdconfig
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
@@ -159,10 +161,10 @@ SUBDIR.${MK_NS_CACHING}+=	nscd
 .endif
 SUBDIR.${MK_LPR}+=	lpr
 SUBDIR.${MK_MAN_UTILS}+=	manctl
+SUBDIR.${MK_MLX5TOOL}+=	mlx5tool
 SUBDIR.${MK_NAND}+=	nandsim
 SUBDIR.${MK_NAND}+=	nandtool
 SUBDIR.${MK_NETGRAPH}+=	flowctl
-SUBDIR.${MK_NETGRAPH}+=	lmcconfig
 SUBDIR.${MK_NETGRAPH}+=	ngctl
 SUBDIR.${MK_NETGRAPH}+=	nghook
 SUBDIR.${MK_NIS}+=	rpc.yppasswdd
@@ -180,9 +182,12 @@ SUBDIR.${MK_OPENSSL}+=	keyserv
 SUBDIR.${MK_PC_SYSINSTALL}+=	pc-sysinstall
 SUBDIR.${MK_PF}+=	ftp-proxy
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
+.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100 && ${MACHINE_CPUARCH} != "riscv"))
+SUBDIR.${MK_PMC}+=	pmc
 SUBDIR.${MK_PMC}+=	pmcannotate
 SUBDIR.${MK_PMC}+=	pmccontrol
 SUBDIR.${MK_PMC}+=	pmcstat
+.endif
 SUBDIR.${MK_PMC}+=	pmcstudy
 SUBDIR.${MK_PORTSNAP}+=	portsnap
 SUBDIR.${MK_PPP}+=	ppp

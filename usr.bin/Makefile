@@ -292,6 +292,7 @@ SUBDIR.${MK_UTMPX}+=	users
 SUBDIR.${MK_UTMPX}+=	who
 SUBDIR.${MK_SVN}+=	svn
 SUBDIR.${MK_SVNLITE}+=	svn
+SUBDIR.${MK_OFED}+=	ofed
 
 # These are normally only handled for build-tools.
 .if make(clean*)

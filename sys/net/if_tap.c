@@ -37,7 +37,6 @@
  * $Id: if_tap.c,v 0.21 2000/07/23 21:46:02 max Exp $
  */
 
-#include "opt_compat.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -77,7 +76,6 @@
 
 #include <net/if_tapvar.h>
 #include <net/if_tap.h>
-
 
 #define CDEV_NAME	"tap"
 #define TAPDEBUG	if (tapdebug) printf
@@ -545,7 +543,7 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			mtx_unlock(&tp->tap_mtx);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				rtinit(ifa, (int)RTM_DELETE, 0);
 			}
 			if_purgeaddrs(ifp);

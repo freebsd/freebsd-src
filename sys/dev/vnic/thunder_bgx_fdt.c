@@ -93,44 +93,44 @@ bgx_fdt_phy_mode_match(struct bgx *bgx, char *qlm_mode, ssize_t size)
 	switch (bgx->qlm_mode) {
 	case QLM_MODE_SGMII:
 		type = "sgmii";
-		sz = sizeof("sgmii") - 1;
+		sz = sizeof("sgmii");
 		offset = size - sz;
 		break;
 	case QLM_MODE_XAUI_1X4:
 		type = "xaui";
-		sz = sizeof("xaui") - 1;
+		sz = sizeof("xaui");
 		offset = size - sz;
 		if (offset < 0)
 			return (FALSE);
 		if (strncmp(&qlm_mode[offset], type, sz) == 0)
 			return (TRUE);
 		type = "dxaui";
-		sz = sizeof("dxaui") - 1;
+		sz = sizeof("dxaui");
 		offset = size - sz;
 		break;
 	case QLM_MODE_RXAUI_2X2:
 		type = "raui";
-		sz = sizeof("raui") - 1;
+		sz = sizeof("raui");
 		offset = size - sz;
 		break;
 	case QLM_MODE_XFI_4X1:
 		type = "xfi";
-		sz = sizeof("xfi") - 1;
+		sz = sizeof("xfi");
 		offset = size - sz;
 		break;
 	case QLM_MODE_XLAUI_1X4:
 		type = "xlaui";
-		sz = sizeof("xlaui") - 1;
+		sz = sizeof("xlaui");
 		offset = size - sz;
 		break;
 	case QLM_MODE_10G_KR_4X1:
 		type = "xfi-10g-kr";
-		sz = sizeof("xfi-10g-kr") - 1;
+		sz = sizeof("xfi-10g-kr");
 		offset = size - sz;
 		break;
 	case QLM_MODE_40G_KR4_1X4:
 		type = "xlaui-40g-kr";
-		sz = sizeof("xlaui-40g-kr") - 1;
+		sz = sizeof("xlaui-40g-kr");
 		offset = size - sz;
 		break;
 	default:
@@ -155,37 +155,37 @@ bgx_fdt_phy_name_match(struct bgx *bgx, char *phy_name, ssize_t size)
 	switch (bgx->qlm_mode) {
 	case QLM_MODE_SGMII:
 		type = "sgmii";
-		sz = sizeof("sgmii") - 1;
+		sz = sizeof("sgmii");
 		break;
 	case QLM_MODE_XAUI_1X4:
 		type = "xaui";
-		sz = sizeof("xaui") - 1;
+		sz = sizeof("xaui");
 		if (sz < size)
 			return (FALSE);
 		if (strncmp(phy_name, type, sz) == 0)
 			return (TRUE);
 		type = "dxaui";
-		sz = sizeof("dxaui") - 1;
+		sz = sizeof("dxaui");
 		break;
 	case QLM_MODE_RXAUI_2X2:
 		type = "raui";
-		sz = sizeof("raui") - 1;
+		sz = sizeof("raui");
 		break;
 	case QLM_MODE_XFI_4X1:
 		type = "xfi";
-		sz = sizeof("xfi") - 1;
+		sz = sizeof("xfi");
 		break;
 	case QLM_MODE_XLAUI_1X4:
 		type = "xlaui";
-		sz = sizeof("xlaui") - 1;
+		sz = sizeof("xlaui");
 		break;
 	case QLM_MODE_10G_KR_4X1:
 		type = "xfi-10g-kr";
-		sz = sizeof("xfi-10g-kr") - 1;
+		sz = sizeof("xfi-10g-kr");
 		break;
 	case QLM_MODE_40G_KR4_1X4:
 		type = "xlaui-40g-kr";
-		sz = sizeof("xlaui-40g-kr") - 1;
+		sz = sizeof("xlaui-40g-kr");
 		break;
 	default:
 		return (FALSE);
@@ -258,7 +258,7 @@ bgx_fdt_traverse_nodes(uint8_t unit, phandle_t start, char *name,
 		    BGX_NODE_NAME, sizeof(BGX_NODE_NAME) - 1) != 0)
 			continue;
 		/* Get reg */
-		err = OF_getencprop_alloc(node, "reg", sizeof(*reg),
+		err = OF_getencprop_alloc_multi(node, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (err == -1) {
 			free(reg, M_OFWPROP);
@@ -396,7 +396,7 @@ bgx_fdt_init_phy(struct bgx *bgx)
 				continue;
 			}
 		} else {
-			len = OF_getprop_alloc(child, "name", 1,
+			len = OF_getprop_alloc(child, "name",
 			    (void **)&node_name);
 			if (len <= 0) {
 				continue;

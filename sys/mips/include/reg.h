@@ -44,10 +44,6 @@
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
-#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
-
 /*
  * Location of the users' stored registers relative to ZERO.
  * must be visible to assembly code.

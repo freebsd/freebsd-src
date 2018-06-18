@@ -39,8 +39,6 @@
 #include <QtCore/QString>
 
 #include <kaboutdata.h>
-#include <kcmdlineargs.h>
-#include <kcomponentdata.h>
 #include <klocalizedstring.h>
 #include <kwallet.h>
 
@@ -57,6 +55,10 @@
 
 #include "svn_private_config.h"
 
+#ifndef SVN_HAVE_KF5
+#include <kcmdlineargs.h>
+#include <kcomponentdata.h>
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* KWallet simple provider, puts passwords in KWallet                    */
@@ -221,6 +223,16 @@ kwallet_password_get(svn_boolean_t *done,
       app = new QCoreApplication(argc, q_argv);
     }
 
+#if SVN_HAVE_KF5
+  KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
+
+  /* componentName appears in KDE GUI prompts */
+  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+                       i18n(get_application_name(parameters,
+                                                 pool)), /* displayName */
+                       QStringLiteral(SVN_VER_NUMBER));
+  KAboutData::setApplicationData(aboutData);
+#else
   KCmdLineArgs::init(q_argc, q_argv,
                      get_application_name(parameters, pool),
                      "subversion",
@@ -229,6 +241,8 @@ kwallet_password_get(svn_boolean_t *done,
                      ki18n("Version control system"),
                      KCmdLineArgs::CmdLineArgKDE);
   KComponentData component_data(KCmdLineArgs::aboutData());
+#endif
+
   QString folder = QString::fromUtf8("Subversion");
   QString key =
     QString::fromUtf8(username) + "@" + QString::fromUtf8(realmstring);
@@ -291,6 +305,16 @@ kwallet_password_set(svn_boolean_t *done,
       app = new QCoreApplication(argc, q_argv);
     }
 
+#if SVN_HAVE_KF5
+  KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
+
+  /* componentName appears in KDE GUI prompts */
+  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+                       i18n(get_application_name(parameters,
+                                                 pool)), /* displayName */
+                       QStringLiteral(SVN_VER_NUMBER));
+  KAboutData::setApplicationData(aboutData);
+#else
   KCmdLineArgs::init(q_argc, q_argv,
                      get_application_name(parameters, pool),
                      "subversion",
@@ -299,6 +323,8 @@ kwallet_password_set(svn_boolean_t *done,
                      ki18n("Version control system"),
                      KCmdLineArgs::CmdLineArgKDE);
   KComponentData component_data(KCmdLineArgs::aboutData());
+#endif
+
   QString q_password = QString::fromUtf8(password);
   QString folder = QString::fromUtf8("Subversion");
   KWallet::Wallet *wallet = get_wallet(wallet_name, parameters);

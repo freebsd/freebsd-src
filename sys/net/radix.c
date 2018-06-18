@@ -39,7 +39,7 @@
 #ifdef	_KERNEL
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>

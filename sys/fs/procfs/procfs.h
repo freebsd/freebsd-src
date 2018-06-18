@@ -57,7 +57,9 @@ int	 procfs_ioctl(PFS_IOCTL_ARGS);
 int	 procfs_close(PFS_CLOSE_ARGS);
 
 /* Attributes */
-int	 procfs_attr(PFS_ATTR_ARGS);
+int	 procfs_attr_w(PFS_ATTR_ARGS);
+int	 procfs_attr_rw(PFS_ATTR_ARGS);
+int	 procfs_attr_all_rx(PFS_ATTR_ARGS);
 
 /* Visibility */
 int	 procfs_notsystem(PFS_VIS_ARGS);

@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/netmap/netmap_kern.h>
 #include <dev/netmap/netmap_mem2.h>
 
-#define rtnl_lock()	ND("rtnl_lock called")
-#define rtnl_unlock()	ND("rtnl_unlock called")
 #define MBUF_RXQ(m)	((m)->m_pkthdr.flowid)
 #define smp_mb()
 
@@ -168,7 +166,13 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
  * has a KASSERT(), checking that the mbuf dtor function is not NULL.
  */
 
+#if __FreeBSD_version <= 1200050
+static void void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2) { }
+#else  /* __FreeBSD_version >= 1200051 */
+/* The arg1 and arg2 pointers argument were removed by r324446, which
+ * in included since version 1200051. */
 static void void_mbuf_dtor(struct mbuf *m) { }
+#endif /* __FreeBSD_version >= 1200051 */
 
 #define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
 	(m)->m_ext.ext_free = (fn != NULL) ?		\
@@ -200,8 +204,6 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 
 #include "win_glue.h"
 
-#define rtnl_lock()	ND("rtnl_lock called")
-#define rtnl_unlock()	ND("rtnl_unlock called")
 #define MBUF_TXQ(m) 	0//((m)->m_pkthdr.flowid)
 #define MBUF_RXQ(m)	    0//((m)->m_pkthdr.flowid)
 #define smp_mb()		//XXX: to be correctly defined
@@ -210,7 +212,6 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 
 #include "bsd_glue.h"
 
-#include <linux/rtnetlink.h>    /* rtnl_[un]lock() */
 #include <linux/ethtool.h>      /* struct ethtool_ops, get_ringparam */
 #include <linux/hrtimer.h>
 
@@ -231,17 +232,17 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 
 
 #define for_each_kring_n(_i, _k, _karr, _n) \
-	for (_k=_karr, _i = 0; _i < _n; (_k)++, (_i)++)
+	for ((_k)=*(_karr), (_i) = 0; (_i) < (_n); (_i)++, (_k) = (_karr)[(_i)])
 
 #define for_each_tx_kring(_i, _k, _na) \
-            for_each_kring_n(_i, _k, (_na)->tx_rings, (_na)->num_tx_rings)
+		for_each_kring_n(_i, _k, (_na)->tx_rings, (_na)->num_tx_rings)
 #define for_each_tx_kring_h(_i, _k, _na) \
-            for_each_kring_n(_i, _k, (_na)->tx_rings, (_na)->num_tx_rings + 1)
+		for_each_kring_n(_i, _k, (_na)->tx_rings, (_na)->num_tx_rings + 1)
 
 #define for_each_rx_kring(_i, _k, _na) \
-            for_each_kring_n(_i, _k, (_na)->rx_rings, (_na)->num_rx_rings)
+		for_each_kring_n(_i, _k, (_na)->rx_rings, (_na)->num_rx_rings)
 #define for_each_rx_kring_h(_i, _k, _na) \
-            for_each_kring_n(_i, _k, (_na)->rx_rings, (_na)->num_rx_rings + 1)
+		for_each_kring_n(_i, _k, (_na)->rx_rings, (_na)->num_rx_rings + 1)
 
 
 /* ======================== PERFORMANCE STATISTICS =========================== */
@@ -296,12 +297,12 @@ static struct rate_context rate_ctx;
 
 void generic_rate(int txp, int txs, int txi, int rxp, int rxs, int rxi)
 {
-    if (txp) rate_ctx.new.txpkt++;
-    if (txs) rate_ctx.new.txsync++;
-    if (txi) rate_ctx.new.txirq++;
-    if (rxp) rate_ctx.new.rxpkt++;
-    if (rxs) rate_ctx.new.rxsync++;
-    if (rxi) rate_ctx.new.rxirq++;
+	if (txp) rate_ctx.new.txpkt++;
+	if (txs) rate_ctx.new.txsync++;
+	if (txi) rate_ctx.new.txirq++;
+	if (rxp) rate_ctx.new.rxpkt++;
+	if (rxs) rate_ctx.new.rxsync++;
+	if (rxi) rate_ctx.new.rxirq++;
 }
 
 #else /* !RATE */
@@ -339,17 +340,13 @@ generic_netmap_unregister(struct netmap_adapter *na)
 	int i, r;
 
 	if (na->active_fds == 0) {
-		rtnl_lock();
-
 		na->na_flags &= ~NAF_NETMAP_ON;
-
-		/* Release packet steering control. */
-		nm_os_catch_tx(gna, 0);
 
 		/* Stop intercepting packets on the RX path. */
 		nm_os_catch_rx(gna, 0);
 
-		rtnl_unlock();
+		/* Release packet steering control. */
+		nm_os_catch_tx(gna, 0);
 	}
 
 	for_each_rx_kring_h(r, kring, na) {
@@ -510,23 +507,19 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 	}
 
 	if (na->active_fds == 0) {
-		rtnl_lock();
-
 		/* Prepare to intercept incoming traffic. */
 		error = nm_os_catch_rx(gna, 1);
 		if (error) {
 			D("nm_os_catch_rx(1) failed (%d)", error);
-			goto register_handler;
+			goto free_tx_pools;
 		}
 
-		/* Make netmap control the packet steering. */
+		/* Let netmap control the packet steering. */
 		error = nm_os_catch_tx(gna, 1);
 		if (error) {
 			D("nm_os_catch_tx(1) failed (%d)", error);
 			goto catch_rx;
 		}
-
-		rtnl_unlock();
 
 		na->na_flags |= NAF_NETMAP_ON;
 
@@ -548,8 +541,6 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 	/* Here (na->active_fds == 0) holds. */
 catch_rx:
 	nm_os_catch_rx(gna, 0);
-register_handler:
-	rtnl_unlock();
 free_tx_pools:
 	for_each_tx_kring(r, kring, na) {
 		mtx_destroy(&kring->tx_event_lock);
@@ -595,10 +586,10 @@ generic_mbuf_destructor(struct mbuf *m)
 	 * MBUF_TXQ(m) under our feet. If the match is not found
 	 * on 'r', we try to see if it belongs to some other ring.
 	 */
-        for (;;) {
+	for (;;) {
 		bool match = false;
 
-		kring = &na->tx_rings[r];
+		kring = na->tx_rings[r];
 		mtx_lock_spin(&kring->tx_event_lock);
 		if (kring->tx_event == m) {
 			kring->tx_event = NULL;
@@ -626,7 +617,11 @@ generic_mbuf_destructor(struct mbuf *m)
 	 * txsync. */
 	netmap_generic_irq(na, r, NULL);
 #ifdef __FreeBSD__
+#if __FreeBSD_version <= 1200050
+	void_mbuf_dtor(m, NULL, NULL);
+#else  /* __FreeBSD_version >= 1200051 */
 	void_mbuf_dtor(m);
+#endif /* __FreeBSD_version >= 1200051 */
 #endif
 }
 
@@ -958,7 +953,7 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		r = r % na->num_rx_rings;
 	}
 
-	kring = &na->rx_rings[r];
+	kring = na->rx_rings[r];
 
 	if (kring->nr_mode == NKR_NETMAP_OFF) {
 		/* We must not intercept this mbuf. */
@@ -1017,7 +1012,6 @@ generic_netmap_rxsync(struct netmap_kring *kring, int flags)
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	/* Adapter-specific variables. */
-	uint16_t slot_flags = kring->nkr_slot_flags;
 	u_int nm_buf_len = NETMAP_BUF_SIZE(na);
 	struct mbq tmpq;
 	struct mbuf *m;
@@ -1096,7 +1090,7 @@ generic_netmap_rxsync(struct netmap_kring *kring, int flags)
 			avail -= nm_buf_len;
 
 			ring->slot[nm_i].len = copy;
-			ring->slot[nm_i].flags = slot_flags | (mlen ? NS_MOREFRAG : 0);
+			ring->slot[nm_i].flags = (mlen ? NS_MOREFRAG : 0);
 			nm_i = nm_next(nm_i, lim);
 		}
 
@@ -1207,6 +1201,15 @@ generic_netmap_attach(struct ifnet *ifp)
 		return EINVAL;
 	}
 #endif
+
+	if (NA(ifp) && !NM_NA_VALID(ifp)) {
+		/* If NA(ifp) is not null but there is no valid netmap
+		 * adapter it means that someone else is using the same
+		 * pointer (e.g. ax25_ptr on linux). This happens for
+		 * instance when also PF_RING is in use. */
+		D("Error: netmap adapter hook is busy");
+		return EBUSY;
+	}
 
 	num_tx_desc = num_rx_desc = netmap_generic_ringsize; /* starting point */
 

@@ -121,7 +121,6 @@ struct drm_device;
 #include <dev/drm2/drm_hashtab.h>
 #include <dev/drm2/drm_mm.h>
 
-#include "opt_compat.h"
 #include "opt_drm.h"
 #include "opt_syscons.h"
 #ifdef DRM_DEBUG

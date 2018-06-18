@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.54 2016/09/28 16:33:07 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.55 2017/05/07 23:13:42 djm Exp $ */
 /* $FreeBSD$ */
 
 /*

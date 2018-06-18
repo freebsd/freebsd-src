@@ -264,12 +264,12 @@ minidumpsys(struct dumperinfo *di)
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
 	    dumpsize);
 
-	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
-	    ptoa((uintmax_t)physmem) / 1048576);
-
 	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
+
+	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
+	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump my header */
 	bzero(tmpbuffer, sizeof(tmpbuffer));

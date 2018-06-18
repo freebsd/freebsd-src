@@ -301,6 +301,16 @@ static const struct TUNER tuners[] = {
 	     0x00 },
 	   { 0x00, 0x00 },                      /* band-switch crosspoints */
 	   { 0xa0, 0x90, 0x30, 0x8e } },        /* the band-switch values */
+
+	 /* PHILIPS FI1216 */
+	 { "PHILIPS_FI1216",                    /* the 'name' */
+	   TTYPE_PAL,                           /* input type */
+	   { TSBH1_FCONTROL,                    /* control byte for Tuner PLL */
+	     TSBH1_FCONTROL,
+	     TSBH1_FCONTROL,
+	     0x00 },
+	   { 0x00, 0x00 },                      /* band-switch crosspoints */
+	   { 0x01, 0x02, 0x04, 0x00 } },        /* the band-switch values */
 };
 
 

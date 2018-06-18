@@ -89,6 +89,7 @@ struct task_struct {
 #define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
 #define	task_pid_nr(task)	((task)->pid)
+#define	task_pid_vnr(task)	((task)->pid)
 #define	get_pid(x)		(x)
 #define	put_pid(x)		do { } while (0)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
@@ -153,7 +154,7 @@ linux_schedule_get_interrupt_value(struct task_struct *task)
 #define	schedule_timeout(timeout)			\
 	linux_schedule_timeout(timeout)
 #define	schedule_timeout_killable(timeout)		\
-	schedule_timeout_uninterruptible(timeout)
+	schedule_timeout_interruptible(timeout)
 #define	schedule_timeout_interruptible(timeout) ({	\
 	set_current_state(TASK_INTERRUPTIBLE);		\
 	schedule_timeout(timeout);			\

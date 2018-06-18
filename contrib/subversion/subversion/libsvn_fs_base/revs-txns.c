@@ -194,7 +194,9 @@ svn_error_t *
 svn_fs_base__revision_proplist(apr_hash_t **table_p,
                                svn_fs_t *fs,
                                svn_revnum_t rev,
-                               apr_pool_t *pool)
+                               svn_boolean_t refresh,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool)
 {
   struct revision_proplist_args args;
   apr_hash_t *table;
@@ -204,9 +206,9 @@ svn_fs_base__revision_proplist(apr_hash_t **table_p,
   args.table_p = &table;
   args.rev = rev;
   SVN_ERR(svn_fs_base__retry_txn(fs, txn_body_revision_proplist, &args,
-                                 FALSE, pool));
+                                 FALSE, result_pool));
 
-  *table_p = table ? table : apr_hash_make(pool);
+  *table_p = table ? table : apr_hash_make(result_pool);
   return SVN_NO_ERROR;
 }
 
@@ -216,7 +218,9 @@ svn_fs_base__revision_prop(svn_string_t **value_p,
                            svn_fs_t *fs,
                            svn_revnum_t rev,
                            const char *propname,
-                           apr_pool_t *pool)
+                           svn_boolean_t refresh,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool)
 {
   struct revision_proplist_args args;
   apr_hash_t *table;
@@ -227,7 +231,7 @@ svn_fs_base__revision_prop(svn_string_t **value_p,
   args.table_p = &table;
   args.rev = rev;
   SVN_ERR(svn_fs_base__retry_txn(fs, txn_body_revision_proplist, &args,
-                                 FALSE, pool));
+                                 FALSE, result_pool));
 
   /* And then the prop from that list (if there was a list). */
   *value_p = svn_hash_gets(table, propname);
@@ -247,8 +251,10 @@ svn_fs_base__set_rev_prop(svn_fs_t *fs,
 {
   transaction_t *txn;
   const char *txn_id;
+  const svn_string_t *present_value;
 
   SVN_ERR(get_rev_txn(&txn, &txn_id, fs, rev, trail, pool));
+  present_value = svn_hash_gets(txn->proplist, name);
 
   /* If there's no proplist, but we're just deleting a property, exit now. */
   if ((! txn->proplist) && (! value))
@@ -262,7 +268,6 @@ svn_fs_base__set_rev_prop(svn_fs_t *fs,
   if (old_value_p)
     {
       const svn_string_t *wanted_value = *old_value_p;
-      const svn_string_t *present_value = svn_hash_gets(txn->proplist, name);
       if ((!wanted_value != !present_value)
           || (wanted_value && present_value
               && !svn_string_compare(wanted_value, present_value)))
@@ -275,6 +280,13 @@ svn_fs_base__set_rev_prop(svn_fs_t *fs,
         }
       /* Fall through. */
     }
+
+  /* If the prop-set is a no-op, skip the actual write. */
+  if ((!present_value && !value)
+      || (present_value && value
+          && svn_string_compare(present_value, value)))
+    return SVN_NO_ERROR;
+
   svn_hash_sets(txn->proplist, name, value);
 
   /* Overwrite the revision. */

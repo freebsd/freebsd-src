@@ -239,6 +239,7 @@ struct cesa_softc {
 	bus_dma_tag_t			sc_data_dtag;
 	int				sc_error;
 	int				sc_tperr;
+	uint8_t				sc_cesa_engine_id;
 
 	struct mtx			sc_sc_lock;
 	int				sc_blocked;
@@ -367,4 +368,10 @@ struct cesa_chain_info {
 #define CESA_SA_SR			0x0E0C
 #define CESA_SA_SR_ACTIVE		(1 << 0)
 
+#define CESA_TDMA_SIZE			0x1000
+#define CESA_CESA_SIZE			0x1000
+#define CESA0_TDMA_ADDR			0x90000
+#define CESA0_CESA_ADDR			0x9D000
+#define CESA1_TDMA_ADDR			0x92000
+#define CESA1_CESA_ADDR			0x9F000
 #endif

@@ -183,8 +183,27 @@ SYSCTL_UINT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(tcp_syncache.hashsize), 0,
     "Size of TCP syncache hashtable");
 
-SYSCTL_UINT(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit, CTLFLAG_VNET | CTLFLAG_RW,
+static int
+sysctl_net_inet_tcp_syncache_rexmtlimit_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int new;
+
+	new = V_tcp_syncache.rexmt_limit;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) && (req->newptr != NULL)) {
+		if (new > TCP_MAXRXTSHIFT)
+			error = EINVAL;
+		else
+			V_tcp_syncache.rexmt_limit = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
     &VNET_NAME(tcp_syncache.rexmt_limit), 0,
+    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "UI",
     "Limit on SYN/ACK retransmissions");
 
 VNET_DEFINE(int, tcp_sc_rst_sock_fail) = 1;
@@ -396,8 +415,14 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 static void
 syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
 {
-	sc->sc_rxttime = ticks +
-		TCPTV_RTOBASE * (tcp_syn_backoff[sc->sc_rxmits]);
+	int rexmt;
+
+	if (sc->sc_rxmits == 0)
+		rexmt = TCPTV_RTOBASE;
+	else
+		TCPT_RANGESET(rexmt, TCPTV_RTOBASE * tcp_syn_backoff[sc->sc_rxmits],
+		    tcp_rexmit_min, TCPTV_REXMTMAX);
+	sc->sc_rxttime = ticks + rexmt;
 	sc->sc_rxmits++;
 	if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc)) {
 		sch->sch_nextc = sc->sc_rxttime;
@@ -852,6 +877,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_fb = rblk;
+		/*
+		 * XXXrrs this is quite dangerous, it is possible
+		 * for the new function to fail to init. We also
+		 * are not asking if the handoff_is_ok though at
+		 * the very start thats probalbly ok.
+		 */
 		if (tp->t_fb->tfb_tcp_fb_init) {
 			(*tp->t_fb->tfb_tcp_fb_init)(tp);
 		}
@@ -1135,25 +1166,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			free(s, M_TCPLOG);
 			s = NULL;
 		}
-	}
-
-	/*
-	 * If timestamps were negotiated, the reflected timestamp
-	 * must be equal to what we actually sent in the SYN|ACK
-	 * except in the case of 0. Some boxes are known for sending
-	 * broken timestamp replies during the 3whs (and potentially
-	 * during the connection also).
-	 *
-	 * Accept the final ACK of 3whs with reflected timestamp of 0
-	 * instead of sending a RST and deleting the syncache entry.
-	 */
-	if ((to->to_flags & TOF_TS) && to->to_tsecr &&
-	    to->to_tsecr != sc->sc_ts) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u, "
-			    "segment rejected\n",
-			    s, __func__, to->to_tsecr, sc->sc_ts);
-		goto failed;
 	}
 
 	*lsop = syncache_socket(sc, *lsop, m);
@@ -1482,7 +1494,6 @@ skip_alloc:
 		 */
 		if (to->to_flags & TOF_TS) {
 			sc->sc_tsreflect = to->to_tsval;
-			sc->sc_ts = tcp_ts_getticks();
 			sc->sc_flags |= SCF_TIMESTAMP;
 		}
 		if (to->to_flags & TOF_SCALE) {
@@ -1711,8 +1722,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 			to.to_flags |= TOF_SCALE;
 		}
 		if (sc->sc_flags & SCF_TIMESTAMP) {
-			/* Virgin timestamp or TCP cookie enhanced one. */
-			to.to_tsval = sc->sc_ts;
+			to.to_tsval = sc->sc_tsoff + tcp_ts_getticks();
 			to.to_tsecr = sc->sc_tsreflect;
 			to.to_flags |= TOF_TS;
 		}
@@ -2019,8 +2029,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 
 	/* Randomize the timestamp. */
 	if (sc->sc_flags & SCF_TIMESTAMP) {
-		sc->sc_ts = arc4random();
-		sc->sc_tsoff = sc->sc_ts - tcp_ts_getticks();
+		sc->sc_tsoff = arc4random() - tcp_ts_getticks();
 	}
 
 	TCPSTAT_INC(tcps_sc_sendcookie);
@@ -2109,7 +2118,6 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	if (to->to_flags & TOF_TS) {
 		sc->sc_flags |= SCF_TIMESTAMP;
 		sc->sc_tsreflect = to->to_tsval;
-		sc->sc_ts = to->to_tsecr;
 		sc->sc_tsoff = to->to_tsecr - tcp_ts_getticks();
 	}
 

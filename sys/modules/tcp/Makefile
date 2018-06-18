@@ -7,10 +7,12 @@ SYSDIR?=${SRCTOP}/sys
 
 SUBDIR=	\
 	${_tcp_fastpath} \
+        ${_tcp_rack} \
 	${_tcpmd5} \
 
 .if ${MK_EXTRA_TCP_STACKS} != "no" || defined(ALL_MODULES)
 _tcp_fastpath=	fastpath
+_tcp_rack= 	rack
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \

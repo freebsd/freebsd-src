@@ -61,7 +61,9 @@ get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
 			type[sizeof(type) - 1] = '\0';
-			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
+			if (strcmp(type, "pci") == 0 ||
+			    strcmp(type, "pciex")== 0)
+				pci = 1;
 		}
 	}
 	if (addrp != NULL)
@@ -170,7 +172,7 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 	}
 
 	KASSERT(addr <= BUS_SPACE_MAXADDR,
-	    ("Bus sddress is too large: %jx", (uintmax_t)addr));
+	    ("Bus address is too large: %jx", (uintmax_t)addr));
 	KASSERT(size <= BUS_SPACE_MAXSIZE,
 	    ("Bus size is too large: %jx", (uintmax_t)size));
 

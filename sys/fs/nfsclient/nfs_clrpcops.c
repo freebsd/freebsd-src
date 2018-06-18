@@ -2845,7 +2845,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirrpc bad uio"));
-
+	ncookie.lval[0] = ncookie.lval[1] = 0;
 	/*
 	 * There is no point in reading a lot more than uio_resid, however
 	 * adding one additional DIRBLKSIZ makes sense. Since uio_resid
@@ -3288,6 +3288,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirplusrpc bad uio"));
+	ncookie.lval[0] = ncookie.lval[1] = 0;
 	timespecclear(&dctime);
 	*attrflagp = 0;
 	if (eofp != NULL)
@@ -4619,7 +4620,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
 	(void) nfsv4_fillattr(nd, vnode_mount(vp), vp, aclp, NULL, NULL, 0,
-	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
 		return (error);
@@ -5202,10 +5203,11 @@ int
 nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
     int layouttype, uint32_t iomode, int layoutreturn, uint64_t offset,
     uint64_t len, nfsv4stateid_t *stateidp, struct ucred *cred, NFSPROC_T *p,
-    void *stuff)
+    uint32_t stat, uint32_t op, char *devid)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
+	uint64_t tu64;
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTRETURN, nmp, fh, fhlen, NULL, NULL,
@@ -5233,11 +5235,32 @@ nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 		if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
 			*tl = txdr_unsigned(0);
 		else if (layouttype == NFSLAYOUT_FLEXFILE) {
-			*tl = txdr_unsigned(2 * NFSX_UNSIGNED);
-			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-			/* No ioerrs or stats yet. */
-			*tl++ = 0;
-			*tl = 0;
+			if (stat != 0) {
+				*tl = txdr_unsigned(2 * NFSX_HYPER +
+				    NFSX_STATEID + NFSX_V4DEVICEID + 5 *
+				    NFSX_UNSIGNED);
+				NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER +
+				    NFSX_STATEID + NFSX_V4DEVICEID + 5 *
+				    NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(1);	/* One error. */
+				tu64 = 0;			/* Offset. */
+				txdr_hyper(tu64, tl); tl += 2;
+				tu64 = UINT64_MAX;		/* Length. */
+				txdr_hyper(tu64, tl); tl += 2;
+				NFSBCOPY(stateidp, tl, NFSX_STATEID);
+				tl += (NFSX_STATEID / NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(1);	/* One error. */
+				NFSBCOPY(devid, tl, NFSX_V4DEVICEID);
+				tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(stat);
+				*tl++ = txdr_unsigned(op);
+			} else {
+				*tl = txdr_unsigned(2 * NFSX_UNSIGNED);
+				NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+				/* No ioerrs. */
+				*tl++ = 0;
+			}
+			*tl = 0;	/* No stats yet. */
 		}
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -6016,6 +6039,12 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					error = nfsrpc_commitds(vp, off, xfer,
 					    *dspp, fhp, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
+				NFSCL_DEBUG(4, "commitds=%d\n", error);
+				if (nfsds_failerr(error)) {
+					NFSCL_DEBUG(4,
+					    "DS layreterr for commit\n");
+					nfscl_dserr(NFSV4OP_COMMIT, dp, lyp);
+				}
 			}
 			NFSCL_DEBUG(4, "aft nfsio_commitds=%d\n", error);
 			if (error == 0) {
@@ -6030,11 +6059,16 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				np->n_flag &= ~NDSCOMMIT;
 				mtx_unlock(&np->n_mtx);
 			}
-		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
+		} else if (rwflag == NFSV4OPEN_ACCESSREAD) {
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
 			    off, xfer, fhp, 1, dp->nfsdi_vers,
 			    dp->nfsdi_minorvers, tcred, p);
-		else {
+			NFSCL_DEBUG(4, "readds=%d\n", error);
+			if (nfsds_failerr(error)) {
+				NFSCL_DEBUG(4, "DS layreterr for read\n");
+				nfscl_dserr(NFSV4OP_READ, dp, lyp);
+			}
+		} else {
 			if (flp->nfsfl_mirrorcnt == 1) {
 				error = nfsrpc_writeds(vp, uiop, iomode,
 				    must_commit, stateidp, *dspp, off, xfer,
@@ -6065,6 +6099,11 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    xfer, fhp, m, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
+				if (nfsds_failerr(error)) {
+					NFSCL_DEBUG(4,
+					    "DS layreterr for write\n");
+					nfscl_dserr(NFSV4OP_WRITE, dp, lyp);
+				}
 			}
 		}
 		NFSCL_DEBUG(4, "aft read/writeds=%d\n", error);
@@ -6435,7 +6474,7 @@ nfsio_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 	drpc->p = p;
 	drpc->inprog = 0;
 	ret = EIO;
-	if (nfs_pnfsiothreads > 0) {
+	if (nfs_pnfsiothreads != 0) {
 		ret = nfs_pnfsio(start_writedsmir, drpc);
 		NFSCL_DEBUG(4, "nfsio_writedsmir: nfs_pnfsio=%d\n", ret);
 	}
@@ -6614,7 +6653,7 @@ nfsio_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 	drpc->p = p;
 	drpc->inprog = 0;
 	ret = EIO;
-	if (nfs_pnfsiothreads > 0) {
+	if (nfs_pnfsiothreads != 0) {
 		ret = nfs_pnfsio(start_commitds, drpc);
 		NFSCL_DEBUG(4, "nfsio_commitds: nfs_pnfsio=%d\n", ret);
 	}
@@ -6943,6 +6982,7 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
 
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	len = fxdr_unsigned(uint32_t, *tl);
+	str = NULL;
 	if (len > NFSV4_OPAQUELIMIT) {
 		error = NFSERR_BADXDR;
 		goto nfsmout;
@@ -7244,7 +7284,6 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	struct nfsclsession *tsep;
 	nfsattrbit_t attrbits;
 	nfsv4stateid_t stateid;
-	uint32_t rflags;
 	struct nfsmount *nmp;
 
 	nmp = VFSTONFS(dvp->v_mount);
@@ -7327,7 +7366,6 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		stateid.other[0] = *tl++;
 		stateid.other[1] = *tl++;
 		stateid.other[2] = *tl;
-		rflags = fxdr_unsigned(u_int32_t, *(tl + 6));
 		nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		deleg = fxdr_unsigned(int, *tl);

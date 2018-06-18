@@ -1723,7 +1723,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 */
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.120 2017/08/13 00:21:47 christos Exp $
+# $File: msdos,v 1.121 2017/10/27 21:43:23 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -597,8 +597,9 @@
 0	string/b	\333\245-\0\0\0			Microsoft Word 2.0 Document
 !:mime	application/msword
 !:ext   doc
-512	string/b	\354\245\301			Microsoft Word Document
-!:mime	application/msword
+# Note: seems already recognized as "OLE 2 Compound Document" in ./ole2compounddocs
+#512	string/b	\354\245\301			Microsoft Word Document
+#!:mime	application/msword
 
 #
 0	string/b	\xDB\xA5\x2D\x00		Microsoft WinWord 2.0 Document
@@ -1068,16 +1069,6 @@
 >40	string	\ EMF		Windows Enhanced Metafile (EMF) image data
 >>44	ulelong x		version 0x%x
 
-# from http://filext.com by Derek M Jones <derek@knosof.co.uk>
-# False positive with PPT (also currently this string is too long)
-#0	string/b	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF\x09\x00\x06	Microsoft Installer
-0	string/b	\320\317\021\340\241\261\032\341	Microsoft Office Document
-#>48	byte	0x1B					Excel Document
-#!:mime application/vnd.ms-excel
->546	string	bjbj			Microsoft Word Document
-!:mime	application/msword
->546	string	jbjb			Microsoft Word Document
-!:mime	application/msword
 
 0	string/b	\224\246\056		Microsoft Word Document
 !:mime	application/msword

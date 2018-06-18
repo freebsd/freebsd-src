@@ -648,12 +648,12 @@ pinmux_read_node(struct pinmux_softc *sc, phandle_t node, struct pincfg *cfg,
 {
 	int rv, i;
 
-	*lpins = OF_getprop_alloc(node, "nvidia,pins", 1, (void **)pins);
+	*lpins = OF_getprop_alloc(node, "nvidia,pins", (void **)pins);
 	if (*lpins <= 0)
 		return (ENOENT);
 
 	/* Read function (mux) settings. */
-	rv = OF_getprop_alloc(node, "nvidia,function", 1,
+	rv = OF_getprop_alloc(node, "nvidia,function",
 	    (void **)&cfg->function);
 	if (rv <= 0)
 		cfg->function = NULL;

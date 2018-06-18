@@ -55,6 +55,7 @@ struct parse_baton
   svn_boolean_t use_history;
   svn_boolean_t validate_props;
   svn_boolean_t ignore_dates;
+  svn_boolean_t normalize_props;
   svn_boolean_t use_pre_commit_hook;
   svn_boolean_t use_post_commit_hook;
   enum svn_repos_load_uuid uuid_action;
@@ -163,8 +164,12 @@ change_rev_prop(svn_repos_t *repos,
                 const char *name,
                 const svn_string_t *value,
                 svn_boolean_t validate_props,
+                svn_boolean_t normalize_props,
                 apr_pool_t *pool)
 {
+  if (normalize_props)
+    SVN_ERR(svn_repos__normalize_prop(&value, NULL, name, value, pool, pool));
+
   if (validate_props)
     return svn_repos_fs_change_rev_prop4(repos, revision, NULL, name,
                                          NULL, value, FALSE, FALSE,
@@ -624,14 +629,6 @@ maybe_add_with_history(struct node_baton *nb,
 }
 
 static svn_error_t *
-magic_header_record(int version,
-                    void *parse_baton,
-                    apr_pool_t *pool)
-{
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 uuid_record(const char *uuid,
             void *parse_baton,
             apr_pool_t *pool)
@@ -1022,7 +1019,8 @@ close_revision(void *baton)
           apr_array_header_t *diff;
           int i;
 
-          SVN_ERR(svn_fs_revision_proplist(&orig_props, pb->fs, 0, rb->pool));
+          SVN_ERR(svn_fs_revision_proplist2(&orig_props, pb->fs, 0, TRUE,
+                                            rb->pool, rb->pool));
           new_props = svn_prop_array_to_hash(rb->revprops, rb->pool);
           SVN_ERR(svn_prop_diffs(&diff, new_props, orig_props, rb->pool));
 
@@ -1031,7 +1029,8 @@ close_revision(void *baton)
               const svn_prop_t *prop = &APR_ARRAY_IDX(diff, i, svn_prop_t);
 
               SVN_ERR(change_rev_prop(pb->repos, 0, prop->name, prop->value,
-                                      pb->validate_props, rb->pool));
+                                      pb->validate_props, pb->normalize_props,
+                                      rb->pool));
           }
         }
 
@@ -1047,6 +1046,23 @@ close_revision(void *baton)
       svn_prop_t *prop = &APR_ARRAY_PUSH(rb->revprops, svn_prop_t);
       prop->name = SVN_PROP_REVISION_DATE;
       prop->value = NULL;
+    }
+
+  if (rb->pb->normalize_props)
+    {
+      apr_pool_t *iterpool;
+      int i;
+
+      iterpool = svn_pool_create(rb->pool);
+      for (i = 0; i < rb->revprops->nelts; i++)
+        {
+          svn_prop_t *prop = &APR_ARRAY_IDX(rb->revprops, i, svn_prop_t);
+
+          svn_pool_clear(iterpool);
+          SVN_ERR(svn_repos__normalize_prop(&prop->value, NULL, prop->name,
+                                            prop->value, rb->pool, iterpool));
+        }
+      svn_pool_destroy(iterpool);
     }
 
   /* Apply revision property changes. */
@@ -1165,7 +1181,7 @@ close_revision(void *baton)
 
 
 svn_error_t *
-svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **callbacks,
+svn_repos_get_fs_build_parser6(const svn_repos_parse_fns3_t **callbacks,
                                void **parse_baton,
                                svn_repos_t *repos,
                                svn_revnum_t start_rev,
@@ -1177,6 +1193,7 @@ svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **callbacks,
                                svn_boolean_t use_pre_commit_hook,
                                svn_boolean_t use_post_commit_hook,
                                svn_boolean_t ignore_dates,
+                               svn_boolean_t normalize_props,
                                svn_repos_notify_func_t notify_func,
                                void *notify_baton,
                                apr_pool_t *pool)
@@ -1194,7 +1211,7 @@ svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **callbacks,
   if (SVN_IS_VALID_REVNUM(start_rev))
     SVN_ERR_ASSERT(start_rev <= end_rev);
 
-  parser->magic_header_record = magic_header_record;
+  parser->magic_header_record = NULL;
   parser->uuid_record = uuid_record;
   parser->new_revision_record = new_revision_record;
   parser->new_node_record = new_node_record;
@@ -1225,6 +1242,7 @@ svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **callbacks,
   pb->use_pre_commit_hook = use_pre_commit_hook;
   pb->use_post_commit_hook = use_post_commit_hook;
   pb->ignore_dates = ignore_dates;
+  pb->normalize_props = normalize_props;
 
   *callbacks = parser;
   *parse_baton = pb;
@@ -1233,7 +1251,7 @@ svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **callbacks,
 
 
 svn_error_t *
-svn_repos_load_fs5(svn_repos_t *repos,
+svn_repos_load_fs6(svn_repos_t *repos,
                    svn_stream_t *dumpstream,
                    svn_revnum_t start_rev,
                    svn_revnum_t end_rev,
@@ -1243,6 +1261,7 @@ svn_repos_load_fs5(svn_repos_t *repos,
                    svn_boolean_t use_post_commit_hook,
                    svn_boolean_t validate_props,
                    svn_boolean_t ignore_dates,
+                   svn_boolean_t normalize_props,
                    svn_repos_notify_func_t notify_func,
                    void *notify_baton,
                    svn_cancel_func_t cancel_func,
@@ -1254,7 +1273,7 @@ svn_repos_load_fs5(svn_repos_t *repos,
 
   /* This is really simple. */
 
-  SVN_ERR(svn_repos_get_fs_build_parser5(&parser, &parse_baton,
+  SVN_ERR(svn_repos_get_fs_build_parser6(&parser, &parse_baton,
                                          repos,
                                          start_rev, end_rev,
                                          TRUE, /* look for copyfrom revs */
@@ -1264,10 +1283,234 @@ svn_repos_load_fs5(svn_repos_t *repos,
                                          use_pre_commit_hook,
                                          use_post_commit_hook,
                                          ignore_dates,
+                                         normalize_props,
                                          notify_func,
                                          notify_baton,
                                          pool));
 
   return svn_repos_parse_dumpstream3(dumpstream, parser, parse_baton, FALSE,
                                      cancel_func, cancel_baton, pool);
+}
+
+/*----------------------------------------------------------------------*/
+
+/** The same functionality for revprops only **/
+
+/* Implement svn_repos_parse_fns3_t.new_revision_record.
+ *
+ * Because the revision is supposed to already exist, we don't need to
+ * start transactions etc. */
+static svn_error_t *
+revprops_new_revision_record(void **revision_baton,
+                             apr_hash_t *headers,
+                             void *parse_baton,
+                             apr_pool_t *pool)
+{
+  struct parse_baton *pb = parse_baton;
+  struct revision_baton *rb;
+
+  rb = make_revision_baton(headers, pb, pool);
+
+  /* If we're skipping this revision, try to notify someone. */
+  if (rb->skipped && pb->notify_func)
+    {
+      /* ### TODO: Use proper scratch pool instead of pb->notify_pool */
+      svn_repos_notify_t *notify = svn_repos_notify_create(
+                                        svn_repos_notify_load_skipped_rev,
+                                        pb->notify_pool);
+
+      notify->old_revision = rb->rev;
+      pb->notify_func(pb->notify_baton, notify, pb->notify_pool);
+      svn_pool_clear(pb->notify_pool);
+    }
+
+  /* If we're parsing revision 0, only the revision props are (possibly)
+     interesting to us: when loading the stream into an empty
+     filesystem, then we want new filesystem's revision 0 to have the
+     same props.  Otherwise, we just ignore revision 0 in the stream. */
+
+  *revision_baton = rb;
+  return SVN_NO_ERROR;
+}
+
+/* Implement svn_repos_parse_fns3_t.close_revision.
+ *
+ * Simply set the revprops we previously parsed and send notifications.
+ * This is the place where we will detect missing revisions. */
+static svn_error_t *
+revprops_close_revision(void *baton)
+{
+  struct revision_baton *rb = baton;
+  struct parse_baton *pb = rb->pb;
+  apr_hash_t *orig_props;
+  apr_hash_t *new_props;
+  apr_array_header_t *diff;
+  int i;
+
+  /* If we're skipping this revision we're done here. */
+  if (rb->skipped)
+    return SVN_NO_ERROR;
+
+  /* If the dumpstream doesn't have an 'svn:date' property and we
+     aren't ignoring the dates in the dumpstream altogether, remove
+     any 'svn:date' revision property that was set by FS layer when
+     the TXN was created.  */
+  if (! (pb->ignore_dates || rb->datestamp))
+    {
+      svn_prop_t *prop = &APR_ARRAY_PUSH(rb->revprops, svn_prop_t);
+      prop->name = SVN_PROP_REVISION_DATE;
+      prop->value = NULL;
+    }
+
+  SVN_ERR(svn_fs_revision_proplist2(&orig_props, pb->fs, rb->rev, TRUE,
+                                    rb->pool, rb->pool));
+  new_props = svn_prop_array_to_hash(rb->revprops, rb->pool);
+  SVN_ERR(svn_prop_diffs(&diff, new_props, orig_props, rb->pool));
+
+  for (i = 0; i < diff->nelts; i++)
+    {
+      const svn_prop_t *prop = &APR_ARRAY_IDX(diff, i, svn_prop_t);
+
+      SVN_ERR(change_rev_prop(pb->repos, rb->rev, prop->name, prop->value,
+                              pb->validate_props, pb->normalize_props,
+                              rb->pool));
+    }
+
+  if (pb->notify_func)
+    {
+      /* ### TODO: Use proper scratch pool instead of pb->notify_pool */
+      svn_repos_notify_t *notify = svn_repos_notify_create(
+                                        svn_repos_notify_load_revprop_set,
+                                        pb->notify_pool);
+
+      notify->new_revision = rb->rev;
+      notify->old_revision = SVN_INVALID_REVNUM;
+      pb->notify_func(pb->notify_baton, notify, pb->notify_pool);
+      svn_pool_clear(pb->notify_pool);
+    }
+
+  return SVN_NO_ERROR;
+}
+
+/* Set *CALLBACKS and *PARSE_BATON to a vtable parser which commits new
+ * revisions to the fs in REPOS.  Allocate the objects in RESULT_POOL.
+ *
+ * START_REV and END_REV act as filters, the lower and upper (inclusive)
+ * range values of revisions in DUMPSTREAM which will be loaded.  Either
+ * both of these values are #SVN_INVALID_REVNUM (in  which case no
+ * revision-based filtering occurs at all), or both are valid revisions
+ * (where START_REV is older than or equivalent to END_REV).
+ * 
+ * START_REV and END_REV act as filters, the lower and upper (inclusive)
+ * range values of revisions which will
+ * be loaded.  Either both of these values are #SVN_INVALID_REVNUM (in
+ * which case no revision-based filtering occurs at all), or both are
+ * valid revisions (where START_REV is older than or equivalent to
+ * END_REV).  They refer to dump stream revision numbers rather than
+ * committed revision numbers.
+ *
+ * If VALIDATE_PROPS is set, then validate Subversion revision properties
+ * (those in the svn: namespace) against established rules for those things.
+ *
+ * If IGNORE_DATES is set, ignore any revision datestamps found in
+ * DUMPSTREAM, keeping whatever timestamps the revisions currently have.
+ *
+ * If NORMALIZE_PROPS is set, attempt to normalize invalid Subversion
+ * revision and node properties (those in the svn: namespace) so that
+ * their values would follow the established rules for them.  Currently,
+ * this means translating non-LF line endings in the property values to LF.
+ */
+static svn_error_t *
+build_revprop_parser(const svn_repos_parse_fns3_t **callbacks,
+                     void **parse_baton,
+                     svn_repos_t *repos,
+                     svn_revnum_t start_rev,
+                     svn_revnum_t end_rev,
+                     svn_boolean_t validate_props,
+                     svn_boolean_t ignore_dates,
+                     svn_boolean_t normalize_props,
+                     svn_repos_notify_func_t notify_func,
+                     void *notify_baton,
+                     apr_pool_t *result_pool)
+{
+  svn_repos_parse_fns3_t *parser = apr_pcalloc(result_pool, sizeof(*parser));
+  struct parse_baton *pb = apr_pcalloc(result_pool, sizeof(*pb));
+
+  SVN_ERR_ASSERT((SVN_IS_VALID_REVNUM(start_rev) &&
+                  SVN_IS_VALID_REVNUM(end_rev))
+                 || ((! SVN_IS_VALID_REVNUM(start_rev)) &&
+                     (! SVN_IS_VALID_REVNUM(end_rev))));
+  if (SVN_IS_VALID_REVNUM(start_rev))
+    SVN_ERR_ASSERT(start_rev <= end_rev);
+
+  parser->magic_header_record = NULL;
+  parser->uuid_record = uuid_record;
+  parser->new_revision_record = revprops_new_revision_record;
+  parser->new_node_record = NULL;
+  parser->set_revision_property = set_revision_property;
+  parser->set_node_property = NULL;
+  parser->remove_node_props = NULL;
+  parser->set_fulltext = NULL;
+  parser->close_node = NULL;
+  parser->close_revision = revprops_close_revision;
+  parser->delete_node_property = NULL;
+  parser->apply_textdelta = NULL;
+
+  pb->repos = repos;
+  pb->fs = svn_repos_fs(repos);
+  pb->use_history = FALSE;
+  pb->validate_props = validate_props;
+  pb->notify_func = notify_func;
+  pb->notify_baton = notify_baton;
+  pb->uuid_action = svn_repos_load_uuid_ignore; /* Never touch the UUID. */
+  pb->parent_dir = NULL;
+  pb->pool = result_pool;
+  pb->notify_pool = svn_pool_create(result_pool);
+  pb->rev_map = NULL;
+  pb->oldest_dumpstream_rev = SVN_INVALID_REVNUM;
+  pb->last_rev_mapped = SVN_INVALID_REVNUM;
+  pb->start_rev = start_rev;
+  pb->end_rev = end_rev;
+  pb->use_pre_commit_hook = FALSE;
+  pb->use_post_commit_hook = FALSE;
+  pb->ignore_dates = ignore_dates;
+  pb->normalize_props = normalize_props;
+
+  *callbacks = parser;
+  *parse_baton = pb;
+  return SVN_NO_ERROR;
+}
+
+
+svn_error_t *
+svn_repos_load_fs_revprops(svn_repos_t *repos,
+                           svn_stream_t *dumpstream,
+                           svn_revnum_t start_rev,
+                           svn_revnum_t end_rev,
+                           svn_boolean_t validate_props,
+                           svn_boolean_t ignore_dates,
+                           svn_boolean_t normalize_props,
+                           svn_repos_notify_func_t notify_func,
+                           void *notify_baton,
+                           svn_cancel_func_t cancel_func,
+                           void *cancel_baton,
+                           apr_pool_t *scratch_pool)
+{
+  const svn_repos_parse_fns3_t *parser;
+  void *parse_baton;
+
+  /* This is really simple. */
+
+  SVN_ERR(build_revprop_parser(&parser, &parse_baton,
+                               repos,
+                               start_rev, end_rev,
+                               validate_props,
+                               ignore_dates,
+                               normalize_props,
+                               notify_func,
+                               notify_baton,
+                               scratch_pool));
+
+  return svn_repos_parse_dumpstream3(dumpstream, parser, parse_baton, FALSE,
+                                     cancel_func, cancel_baton, scratch_pool);
 }

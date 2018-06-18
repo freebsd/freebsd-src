@@ -62,6 +62,12 @@ ssh_sandbox_init(struct monitor *monitor)
 #ifdef PRIV_NET_ACCESS
 	    priv_delset(box->pset, PRIV_NET_ACCESS) != 0 ||
 #endif
+#ifdef PRIV_DAX_ACCESS
+	    priv_delset(box->pset, PRIV_DAX_ACCESS) != 0 ||
+#endif
+#ifdef PRIV_SYS_IB_INFO
+	    priv_delset(box->pset, PRIV_SYS_IB_INFO) != 0 ||
+#endif
 	    priv_delset(box->pset, PRIV_PROC_EXEC) != 0 ||
 	    priv_delset(box->pset, PRIV_PROC_FORK) != 0 ||
 	    priv_delset(box->pset, PRIV_PROC_INFO) != 0 ||

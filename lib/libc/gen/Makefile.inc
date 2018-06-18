@@ -41,6 +41,7 @@ SRCS+=	__getosreldate.c \
 	errlst.c \
 	errno.c \
 	exec.c \
+	exect.c \
 	fdevname.c \
 	feature_present.c \
 	fmtcheck.c \

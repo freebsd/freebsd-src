@@ -415,6 +415,13 @@ device		ntb_hw_plx	# PLX NTB hardware driver
 device		arcmsr		# Areca SATA II RAID
 
 #
+# Microsemi smartpqi controllers.
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device		smartpqi
+
+#
 # 3ware 9000 series PATA/SATA RAID controller driver and options.
 # The driver is implemented as a SIM, and so, needs the CAM infrastructure.
 #
@@ -624,6 +631,9 @@ options 	COMPAT_FREEBSD32
 
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
 
 # Enable 32-bit runtime support for CloudABI binaries.
 options 	COMPAT_CLOUDABI32

@@ -216,7 +216,7 @@ db_numargs(fp)
 	int	inst;
 	int	args;
 
-	argp = (char *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
+	argp = (char *)db_get_value((int)&fp->f_retaddr, 4, false);
 	/*
 	 * XXX etext is wrong for LKMs.  We should attempt to interpret
 	 * the instruction at the return address in all cases.  This
@@ -226,7 +226,7 @@ db_numargs(fp)
 		args = -1;
 	} else {
 retry:
-		inst = db_get_value((int)argp, 4, FALSE);
+		inst = db_get_value((int)argp, 4, false);
 		if ((inst & 0xff) == 0x59)	/* popl %ecx */
 			args = 1;
 		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
@@ -255,7 +255,7 @@ db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
 	while (n) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
-		db_printf("%r", db_get_value((int)argp, 4, FALSE));
+		db_printf("%r", db_get_value((int)argp, 4, false));
 		argp++;
 		if (--n != 0)
 			db_printf(",");
@@ -304,8 +304,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	c_db_sym_t sym;
 	const char *name;
 
-	eip = db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
-	ebp = db_get_value((int) &(*fp)->f_frame, 4, FALSE);
+	eip = db_get_value((int) &(*fp)->f_retaddr, 4, false);
+	ebp = db_get_value((int) &(*fp)->f_frame, 4, false);
 
 	/*
 	 * Figure out frame type.  We look at the address just before
@@ -317,7 +317,12 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * actually made the call.
 	 */
 	frame_type = NORMAL;
-	sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
+	if (eip >= PMAP_TRM_MIN_ADDRESS) {
+		sym = db_search_symbol(eip - 1 - setidt_disp, DB_STGY_ANY,
+		    &offset);
+	} else {
+		sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
+	}
 	db_symbol_values(sym, &name, NULL);
 	if (name != NULL) {
 		if (strcmp(name, "calltrap") == 0 ||
@@ -357,9 +362,9 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * switch to a known good state.
 	 */
 	if (frame_type == DOUBLE_FAULT) {
-		esp = PCPU_GET(common_tss.tss_esp);
-		eip = PCPU_GET(common_tss.tss_eip);
-		ebp = PCPU_GET(common_tss.tss_ebp);
+		esp = PCPU_GET(common_tssp)->tss_esp;
+		eip = PCPU_GET(common_tssp)->tss_eip;
+		ebp = PCPU_GET(common_tssp)->tss_ebp;
 		db_printf(
 		    "--- trap 0x17, eip = %#r, esp = %#r, ebp = %#r ---\n",
 		    eip, esp, ebp);
@@ -379,30 +384,41 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	else
 		tf = (struct trapframe *)((int)*fp + 12);
 
-	if (INKERNEL((int) tf)) {
-		esp = get_esp(tf);
-		eip = tf->tf_eip;
-		ebp = tf->tf_ebp;
-		switch (frame_type) {
-		case TRAP:
-			db_printf("--- trap %#r", tf->tf_trapno);
-			break;
-		case SYSCALL:
-			db_printf("--- syscall");
-			decode_syscall(tf->tf_eax, td);
-			break;
-		case TRAP_TIMERINT:
-		case TRAP_INTERRUPT:
-		case INTERRUPT:
-			db_printf("--- interrupt");
-			break;
-		default:
-			panic("The moon has moved again.");
-		}
-		db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip,
-		    esp, ebp);
+	esp = get_esp(tf);
+	eip = tf->tf_eip;
+	ebp = tf->tf_ebp;
+	switch (frame_type) {
+	case TRAP:
+		db_printf("--- trap %#r", tf->tf_trapno);
+		break;
+	case SYSCALL:
+		db_printf("--- syscall");
+		decode_syscall(tf->tf_eax, td);
+		break;
+	case TRAP_TIMERINT:
+	case TRAP_INTERRUPT:
+	case INTERRUPT:
+		db_printf("--- interrupt");
+		break;
+	default:
+		panic("The moon has moved again.");
 	}
+	db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip, esp, ebp);
 
+	switch (frame_type) {
+	case TRAP:
+	case TRAP_TIMERINT:
+	case TRAP_INTERRUPT:
+	case INTERRUPT:
+		if ((tf->tf_eflags & PSL_VM) != 0 ||
+		    (tf->tf_cs & SEL_RPL_MASK) != 0)
+			ebp = 0;
+		break;
+	case SYSCALL:
+		ebp = 0;
+		break;
+	}
+	
 	*ip = (db_addr_t) eip;
 	*fp = (struct i386_frame *) ebp;
 }
@@ -419,7 +435,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 	db_expr_t offset;
 	c_db_sym_t sym;
 	int instr, narg;
-	boolean_t first;
+	bool first;
 
 	if (db_segsize(tf) == 16) {
 		db_printf(
@@ -431,6 +447,10 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		    tf->tf_ebp, tf);
 		return (0);
 	}
+
+	/* 'frame' can be null initially.  Just print the pc then. */
+	if (frame == NULL)
+		goto out;
 
 	/*
 	 * If an indirect call via an invalid pointer caused a trap,
@@ -453,13 +473,13 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 			instr = (int)(kdb_frame + 1);
 		else
 			instr = (int)&kdb_frame->tf_esp;
-		pc = db_get_value(instr, 4, FALSE);
+		pc = db_get_value(instr, 4, false);
 	}
 
 	if (count == -1)
 		count = 1024;
 
-	first = TRUE;
+	first = true;
 	while (count-- && !db_pager_quit) {
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
@@ -477,7 +497,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		 */
 		actframe = frame;
 		if (first) {
-			first = FALSE;
+			first = false;
 			if (sym == C_DB_SYM_NULL && sp != 0) {
 				/*
 				 * If a symbol couldn't be found, we've probably
@@ -486,13 +506,13 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				 */
 				db_print_stack_entry(name, 0, 0, 0, pc,
 				    NULL);
-				pc = db_get_value(sp, 4, FALSE);
+				pc = db_get_value(sp, 4, false);
 				if (db_search_symbol(pc, DB_STGY_PROC,
 				    &offset) == C_DB_SYM_NULL)
 					break;
 				continue;
 			} else if (tf != NULL) {
-				instr = db_get_value(pc, 4, FALSE);
+				instr = db_get_value(pc, 4, false);
 				if ((instr & 0xffffff) == 0x00e58955) {
 					/* pushl %ebp; movl %esp, %ebp */
 					actframe = (void *)(get_esp(tf) - 4);
@@ -534,19 +554,24 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
 			pc = (db_addr_t)
-			    db_get_value((int)&actframe->f_retaddr, 4, FALSE);
+			    db_get_value((int)&actframe->f_retaddr, 4, false);
 			continue;
 		}
 
 		db_nextframe(&frame, &pc, td);
 
-		if (INKERNEL((int)pc) && !INKERNEL((int) frame)) {
+out:
+		/*
+		 * 'frame' can be null here, either because it was initially
+		 * null or because db_nextframe() found no frame.
+		 * db_nextframe() may also have found a non-kernel frame.
+		 * !INKERNEL() classifies both.  Stop tracing if either,
+		 * after printing the pc if it is the kernel.
+		 */
+		if (frame == NULL || frame <= actframe) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
 			db_print_stack_entry(name, 0, 0, 0, pc, frame);
-			break;
-		}
-		if (!INKERNEL((int) frame)) {
 			break;
 		}
 	}
@@ -563,7 +588,7 @@ db_trace_self(void)
 
 	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
 	frame = (struct i386_frame *)ebp;
-	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
+	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, false);
 	frame = frame->f_frame;
 	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }

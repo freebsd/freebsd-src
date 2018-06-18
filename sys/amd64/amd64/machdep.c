@@ -44,7 +44,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_atpic.h"
-#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
@@ -52,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
+#include "opt_pci.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 
@@ -185,7 +185,9 @@ struct init_ops init_ops = {
 	.mp_bootaddress =		mp_bootaddress,
 	.start_all_aps =		native_start_all_aps,
 #endif
+#ifdef DEV_PCI
 	.msi_init =			msi_init,
+#endif
 };
 
 /*
@@ -582,8 +584,12 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
+	struct trapframe *regs;
+	struct pcb *pcb;
+	register_t saved_rflags;
+
+	regs = td->td_frame;
+	pcb = td->td_pcb;
 
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
@@ -594,11 +600,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	clear_pcb_flags(pcb, PCB_32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
+	saved_rflags = regs->tf_rflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
 	regs->tf_rdi = stack;		/* argv */
-	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_rflags = PSL_USER | saved_rflags;
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -665,6 +672,7 @@ struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
 static char mce0_stack[PAGE_SIZE] __aligned(16);
 static char nmi0_stack[PAGE_SIZE] __aligned(16);
+static char dbg0_stack[PAGE_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
 struct amd64tss common_tss[MAXCPU];
@@ -817,7 +825,7 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
-	IDTVEC(div_pti), IDTVEC(dbg_pti), IDTVEC(bpt_pti),
+	IDTVEC(div_pti), IDTVEC(bpt_pti),
 	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
 	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
 	IDTVEC(stk_pti), IDTVEC(prot_pti), IDTVEC(page_pti),
@@ -1243,19 +1251,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	}
 
 	/*
-	 * Make hole for "AP -> long mode" bootstrap code.  The
-	 * mp_bootaddress vector is only available when the kernel
-	 * is configured to support APs and APs for the system start
-	 * in 32bit mode (e.g. SMP bare metal).
-	 */
-	if (init_ops.mp_bootaddress) {
-		if (physmap[1] >= 0x100000000)
-			panic(
-	"Basemem segment is not suitable for AP bootstrap code!");
-		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
-	}
-
-	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
 	 * called something like "Maxphyspage".  We may adjust this
@@ -1292,6 +1287,15 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
+
+	/*
+	 * Make hole for "AP -> long mode" bootstrap code.  The
+	 * mp_bootaddress vector is only available when the kernel
+	 * is configured to support APs and APs for the system start
+	 * in real mode mode (e.g. SMP bare metal).
+	 */
+	if (init_ops.mp_bootaddress)
+		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
@@ -1555,16 +1559,23 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
-	/*
- 	 * This may be done better later if it gets more high level
- 	 * components in it. If so just link td->td_proc here.
-	 */
-	proc_linkup0(&proc0, &thread0);
-
 	kmdp = init_ops.parse_preload_data(modulep);
 
 	identify_cpu1();
 	identify_hypervisor();
+	/*
+	 * hw.cpu_stdext_disable is ignored by the call, it will be
+	 * re-evaluted by the below call to finishidentcpu().
+	 */
+	identify_cpu2();
+
+	link_elf_ireloc(kmdp);
+
+	/*
+	 * This may be done better later if it gets more high level
+	 * components in it. If so just link td->td_proc here.
+	 */
+	proc_linkup0(&proc0, &thread0);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1630,13 +1641,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		    SEL_KPL, 0);
 	setidt(IDT_DE, pti ? &IDTVEC(div_pti) : &IDTVEC(div), SDT_SYSIGT,
 	    SEL_KPL, 0);
-	setidt(IDT_DB, pti ? &IDTVEC(dbg_pti) : &IDTVEC(dbg), SDT_SYSIGT,
-	    SEL_KPL, 0);
+	setidt(IDT_DB, &IDTVEC(dbg), SDT_SYSIGT, SEL_KPL, 4);
 	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
 	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
 	    SEL_UPL, 0);
 	setidt(IDT_OF, pti ? &IDTVEC(ofl_pti) : &IDTVEC(ofl), SDT_SYSIGT,
-	    SEL_KPL, 0);
+	    SEL_UPL, 0);
 	setidt(IDT_BR, pti ? &IDTVEC(bnd_pti) : &IDTVEC(bnd), SDT_SYSIGT,
 	    SEL_KPL, 0);
 	setidt(IDT_UD, pti ? &IDTVEC(ill_pti) : &IDTVEC(ill), SDT_SYSIGT,
@@ -1713,6 +1723,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	np = ((struct nmi_pcpu *) &mce0_stack[sizeof(mce0_stack)]) - 1;
 	np->np_pcpu = (register_t) pc;
 	common_tss[0].tss_ist3 = (long) np;
+
+	/*
+	 * DB# stack, runs on ist4.
+	 */
+	np = ((struct nmi_pcpu *) &dbg0_stack[sizeof(dbg0_stack)]) - 1;
+	np->np_pcpu = (register_t) pc;
+	common_tss[0].tss_ist4 = (long) np;
 	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
@@ -1795,9 +1812,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = (vm_offset_t)thread0.td_pcb;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	common_tss[0].tss_rsp0 = pti ? ((vm_offset_t)PCPU_PTR(pti_stack) +
-	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : rsp0;
+	common_tss[0].tss_rsp0 = rsp0;
 	PCPU_SET(rsp0, rsp0);
+	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */
@@ -1828,6 +1846,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	thread0.td_critnest = 0;
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
+	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 
 	TSEXIT();
 
@@ -1962,14 +1981,22 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_rflags |= PSL_T;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if ((td->td_frame->tf_rflags & PSL_T) == 0) {
+		td->td_frame->tf_rflags |= PSL_T;
+		td->td_dbgflags |= TDB_STEP;
+	}
 	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	td->td_frame->tf_rflags &= ~PSL_T;
+	td->td_dbgflags &= ~TDB_STEP;
 	return (0);
 }
 
@@ -2470,14 +2497,23 @@ reset_dbregs(void)
  * breakpoint was in user space.  Return 0, otherwise.
  */
 int
-user_dbreg_trap(void)
+user_dbreg_trap(register_t dr6)
 {
-        u_int64_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int64_t dr7;
         u_int64_t bp;       /* breakpoint bits extracted from dr6 */
         int nbp;            /* number of breakpoints that triggered */
         caddr_t addr[4];    /* breakpoint addresses */
         int i;
-        
+
+        bp = dr6 & DBREG_DR6_BMASK;
+        if (bp == 0) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
         dr7 = rdr7();
         if ((dr7 & 0x000000ff) == 0) {
                 /*
@@ -2489,16 +2525,6 @@ user_dbreg_trap(void)
         }
 
         nbp = 0;
-        dr6 = rdr6();
-        bp = dr6 & 0x0000000f;
-
-        if (!bp) {
-                /*
-                 * None of the breakpoint bits are set meaning this
-                 * trap was not caused by any of the debug registers
-                 */
-                return 0;
-        }
 
         /*
          * at least one of the breakpoints were hit, check to see

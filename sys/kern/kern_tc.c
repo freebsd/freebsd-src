@@ -21,7 +21,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ntp.h"
 #include "opt_ffclock.h"
 
@@ -1353,7 +1352,7 @@ tc_windup(struct bintime *new_boottimebin)
 	ogen = th->th_generation;
 	th->th_generation = 0;
 	atomic_thread_fence_rel();
-	bcopy(tho, th, offsetof(struct timehands, th_generation));
+	memcpy(th, tho, offsetof(struct timehands, th_generation));
 	if (new_boottimebin != NULL)
 		th->th_boottime = *new_boottimebin;
 

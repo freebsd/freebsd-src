@@ -32,8 +32,6 @@
  * Based on nwhitehorn's COMPAT_FREEBSD32 support code for PowerPC64.
  */
 
-#include "opt_compat.h"
-
 #define __ELF_WORD_SIZE 32
 
 #include <sys/types.h>

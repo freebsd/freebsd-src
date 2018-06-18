@@ -223,7 +223,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 		}
 		break;
 	case ICMP6_PACKET_TOO_BIG:
-		if ((net->dest_state & SCTP_ADDR_NO_PMTUD) == 0) {
+		if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
 			SCTP_TCB_UNLOCK(stcb);
 			break;
 		}

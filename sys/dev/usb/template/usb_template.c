@@ -76,14 +76,12 @@
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW, 0,
-    "USB device side templates");
-
 MODULE_DEPEND(usb_template, usb, 1, 1, 1);
 MODULE_VERSION(usb_template, 1);
 
 /* function prototypes */
 
+static int	sysctl_hw_usb_template_power(SYSCTL_HANDLER_ARGS);
 static void	usb_make_raw_desc(struct usb_temp_setup *, const uint8_t *);
 static void	usb_make_endpoint_desc(struct usb_temp_setup *,
 		    const struct usb_temp_endpoint_desc *);
@@ -117,6 +115,33 @@ static usb_error_t usb_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
 static void	usb_temp_init(void *);
 
+SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW, 0,
+    "USB device side templates");
+SYSCTL_PROC(_hw_usb, OID_AUTO, template_power,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_hw_usb_template_power,
+    "I", "USB bus power consumption in mA at 5V");
+
+static int	usb_template_power = 500;	/* 500mA */
+
+static int
+sysctl_hw_usb_template_power(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = usb_template_power;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (val < 0 || val > 500)
+		return (EINVAL);
+
+	usb_template_power = val;
+
+	return (0);
+}
+
 /*------------------------------------------------------------------------*
  *	usb_decode_str_desc
  *
@@ -127,7 +152,12 @@ usb_decode_str_desc(struct usb_string_descriptor *sd, char *buf, size_t buflen)
 {
 	size_t i;
 
-	for (i = 0; i < buflen - 1 && i < sd->bLength / 2; i++)
+	if (sd->bLength < 2) {
+		buf[0] = '\0';
+		return;
+	}
+
+	for (i = 0; i < buflen - 1 && i < (sd->bLength / 2) - 1; i++)
 		buf[i] = UGETW(sd->bString[i]);
 
 	buf[i] = '\0';
@@ -421,6 +451,7 @@ usb_make_config_desc(struct usb_temp_setup *temp,
 	struct usb_config_descriptor *cd;
 	const struct usb_temp_interface_desc **tid;
 	uint16_t old_size;
+	int power;
 
 	/* Reserve memory */
 
@@ -458,13 +489,16 @@ usb_make_config_desc(struct usb_temp_setup *temp,
 		cd->bConfigurationValue = temp->bConfigurationValue;
 		cd->iConfiguration = tcd->iConfiguration;
 		cd->bmAttributes = tcd->bmAttributes;
-		cd->bMaxPower = tcd->bMaxPower;
-		cd->bmAttributes |= (UC_REMOTE_WAKEUP | UC_BUS_POWERED);
 
-		if (temp->self_powered) {
-			cd->bmAttributes |= UC_SELF_POWERED;
-		} else {
+		power = usb_template_power;
+		cd->bMaxPower = power / 2; /* 2 mA units */
+		cd->bmAttributes |= UC_REMOTE_WAKEUP;
+		if (power > 0) {
+			cd->bmAttributes |= UC_BUS_POWERED;
 			cd->bmAttributes &= ~UC_SELF_POWERED;
+		} else {
+			cd->bmAttributes &= ~UC_BUS_POWERED;
+			cd->bmAttributes |= UC_SELF_POWERED;
 		}
 	}
 }
@@ -1426,6 +1460,9 @@ usb_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 		break;
 	case USB_TEMP_MIDI:
 		err = usb_temp_setup(udev, &usb_template_midi);
+		break;
+	case USB_TEMP_MULTI:
+		err = usb_temp_setup(udev, &usb_template_multi);
 		break;
 	default:
 		return (USB_ERR_INVAL);

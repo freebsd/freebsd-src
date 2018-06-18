@@ -117,6 +117,9 @@ do {									\
 #define	INIT_DELAYED_WORK(dwork, fn) \
 	linux_init_delayed_work(dwork, fn)
 
+#define	INIT_DELAYED_WORK_ONSTACK(dwork, fn) \
+	linux_init_delayed_work(dwork, fn)
+
 #define	INIT_DEFERRABLE_WORK(dwork, fn) \
 	INIT_DELAYED_WORK(dwork, fn)
 
@@ -211,6 +214,7 @@ do {									\
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
+extern struct workqueue_struct *system_highpri_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 
 extern void linux_init_delayed_work(struct delayed_work *, work_func_t);

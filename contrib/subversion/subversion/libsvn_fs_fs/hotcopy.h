@@ -25,27 +25,23 @@
 
 #include "fs.h"
 
-/* Create an empty copy of the fsfs filesystem SRC_FS into a new DST_FS at
- * DST_PATH.  If INCREMENTAL is TRUE, perform a few pre-checks only if
- * a repo already exists at DST_PATH. Use POOL for temporary allocations. */
-svn_error_t *
-svn_fs_fs__hotcopy_prepare_target(svn_fs_t *src_fs,
-                                  svn_fs_t *dst_fs,
-                                  const char *dst_path,
-                                  svn_boolean_t incremental,
-                                  apr_pool_t *pool);
-
-/* Copy the fsfs filesystem SRC_FS into DST_FS. If INCREMENTAL is TRUE, do
- * not re-copy data which already exists in DST_FS.  Indicate progress via
- * the optional NOTIFY_FUNC callback using NOTIFY_BATON.  Use POOL for
- * temporary allocations. */
+/* Copy the fsfs filesystem SRC_FS at SRC_PATH into a new copy DST_FS at
+ * DST_PATH.  If INCREMENTAL is TRUE, do not re-copy data which already
+ * exists in DST_FS.  Indicate progress via the optional NOTIFY_FUNC
+ * callback using NOTIFY_BATON.  Use COMMON_POOL for process-wide and
+ * POOL for temporary allocations.  Use COMMON_POOL_LOCK to ensure
+ * that the initialization of the shared data is serialized. */
 svn_error_t * svn_fs_fs__hotcopy(svn_fs_t *src_fs,
                                  svn_fs_t *dst_fs,
+                                 const char *src_path,
+                                 const char *dst_path,
                                  svn_boolean_t incremental,
                                  svn_fs_hotcopy_notify_t notify_func,
                                  void *notify_baton,
                                  svn_cancel_func_t cancel_func,
                                  void *cancel_baton,
-                                 apr_pool_t *pool);
+                                 svn_mutex__t *common_pool_lock,
+                                 apr_pool_t *pool,
+                                 apr_pool_t *common_pool);
 
 #endif

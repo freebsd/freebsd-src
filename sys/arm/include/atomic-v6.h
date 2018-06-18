@@ -209,7 +209,7 @@ atomic_fcmpset_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	return (!ret);
 }
 
-static __inline uint64_t
+static __inline int
 atomic_fcmpset_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
 	uint64_t tmp;
@@ -235,7 +235,7 @@ atomic_fcmpset_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 	return (!ret);
 }
 
-static __inline u_long
+static __inline int
 atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 {
 
@@ -243,38 +243,38 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 	    (uint32_t *)cmpval, newval));
 }
 
-static __inline uint64_t
+static __inline int
 atomic_fcmpset_acq_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
-	uint64_t ret;
+	int ret;
 
 	ret = atomic_fcmpset_64(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline u_long
+static __inline int
 atomic_fcmpset_acq_long(volatile u_long *p, u_long *cmpval, u_long newval)
 {
-	u_long ret;
+	int ret;
 
 	ret = atomic_fcmpset_long(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline uint32_t
+static __inline int
 atomic_fcmpset_acq_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 {
 
-	uint32_t ret;
+	int ret;
 
 	ret = atomic_fcmpset_32(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline uint32_t
+static __inline int
 atomic_fcmpset_rel_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 {
 
@@ -282,7 +282,7 @@ atomic_fcmpset_rel_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	return (atomic_fcmpset_32(p, cmpval, newval));
 }
 
-static __inline uint64_t
+static __inline int
 atomic_fcmpset_rel_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
 
@@ -290,7 +290,7 @@ atomic_fcmpset_rel_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 	return (atomic_fcmpset_64(p, cmpval, newval));
 }
 
-static __inline u_long
+static __inline int
 atomic_fcmpset_rel_long(volatile u_long *p, u_long *cmpval, u_long newval)
 {
 
@@ -298,10 +298,10 @@ atomic_fcmpset_rel_long(volatile u_long *p, u_long *cmpval, u_long newval)
 	return (atomic_fcmpset_long(p, cmpval, newval));
 }
 
-static __inline uint32_t
+static __inline int
 atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
-	uint32_t ret;
+	int ret;
 
 	__asm __volatile(
 	    "1: ldrex	%0, [%1]	\n"
@@ -349,44 +349,44 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (ret);
 }
 
-static __inline u_long
+static __inline int
 atomic_cmpset_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
 
 	return (atomic_cmpset_32((volatile uint32_t *)p, cmpval, newval));
 }
 
-static __inline uint32_t
+static __inline int
 atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
-	uint32_t ret;
+	int ret;
 
 	ret = atomic_cmpset_32(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline uint64_t
+static __inline int
 atomic_cmpset_acq_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
-	uint64_t ret;
+	int ret;
 
 	ret = atomic_cmpset_64(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline u_long
+static __inline int
 atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
-	u_long ret;
+	int ret;
 
 	ret = atomic_cmpset_long(p, cmpval, newval);
 	dmb();
 	return (ret);
 }
 
-static __inline uint32_t
+static __inline int
 atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 
@@ -394,7 +394,7 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
-static __inline uint64_t
+static __inline int
 atomic_cmpset_rel_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
 
@@ -402,7 +402,7 @@ atomic_cmpset_rel_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
-static __inline u_long
+static __inline int
 atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
 

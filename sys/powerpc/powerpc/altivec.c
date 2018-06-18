@@ -58,7 +58,6 @@ save_vec_int(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
-	isync();
 
 	/*
 	 * Save the vector registers and VSCR to the PCB
@@ -120,7 +119,6 @@ enable_vec(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
-	isync();
 
 	/*
 	 * Restore VSCR by first loading it into a vector and then into VSCR.

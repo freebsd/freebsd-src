@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhs.c,v 1.24 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kexdhs.c,v 1.26 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -49,7 +49,7 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
-static int input_kex_dh_init(int, u_int32_t, void *);
+static int input_kex_dh_init(int, u_int32_t, struct ssh *);
 
 int
 kexdh_server(struct ssh *ssh)
@@ -91,9 +91,8 @@ kexdh_server(struct ssh *ssh)
 }
 
 int
-input_kex_dh_init(int type, u_int32_t seq, void *ctxt)
+input_kex_dh_init(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	BIGNUM *shared_secret = NULL, *dh_client_pub = NULL;
 	struct sshkey *server_host_public, *server_host_private;
@@ -209,14 +208,12 @@ input_kex_dh_init(int type, u_int32_t seq, void *ctxt)
 	explicit_bzero(hash, sizeof(hash));
 	DH_free(kex->dh);
 	kex->dh = NULL;
-	if (dh_client_pub)
-		BN_clear_free(dh_client_pub);
+	BN_clear_free(dh_client_pub);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	free(server_host_key_blob);
 	free(signature);
 	return r;

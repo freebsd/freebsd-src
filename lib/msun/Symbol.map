@@ -294,6 +294,9 @@ FBSD_1.5 {
 	casinl;
 	catanl;
 	catanhl;
+	clog;
+	clogf;
+	clogl;
 	sincos;
 	sincosf;
 	sincosl;

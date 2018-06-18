@@ -60,8 +60,14 @@ spibus_get_ ## A(device_t dev, T *t)					\
 {									\
 	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
 	    SPIBUS_IVAR_ ## B, (uintptr_t *) t);			\
+}									\
+static inline int							\
+spibus_set_ ## A(device_t dev, T t)					\
+{									\
+	return BUS_WRITE_IVAR(device_get_parent(dev), dev,		\
+	    SPIBUS_IVAR_ ## B, (uintptr_t) t);			\
 }
-	
+
 SPIBUS_ACCESSOR(cs,		CS,		uint32_t)
 SPIBUS_ACCESSOR(mode,		MODE,		uint32_t)
 SPIBUS_ACCESSOR(clock,		CLOCK,		uint32_t)

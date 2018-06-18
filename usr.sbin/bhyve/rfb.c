@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2015 Leon Dang
  * All rights reserved.
@@ -72,11 +74,11 @@ static int rfb_debug = 0;
 #define AUTH_LENGTH	16
 #define PASSWD_LENGTH	8
 
-#define SECURITY_TYPE_NONE 1
-#define SECURITY_TYPE_VNC_AUTH 2
+#define SECURITY_TYPE_NONE	1
+#define SECURITY_TYPE_VNC_AUTH	2
 
-#define AUTH_FAILED_UNAUTH 1
-#define AUTH_FAILED_ERROR 2
+#define AUTH_FAILED_UNAUTH	1
+#define AUTH_FAILED_ERROR	2
 
 struct rfb_softc {
 	int		sfd;
@@ -138,12 +140,12 @@ struct rfb_pixfmt_msg {
 #define	RFB_ENCODING_ZLIB		6
 #define	RFB_ENCODING_RESIZE		-223
 
-#define RFB_MAX_WIDTH			2000
-#define RFB_MAX_HEIGHT			1200
+#define	RFB_MAX_WIDTH			2000
+#define	RFB_MAX_HEIGHT			1200
 #define	RFB_ZLIB_BUFSZ			RFB_MAX_WIDTH*RFB_MAX_HEIGHT*4
 
 /* percentage changes to screen before sending the entire screen */
-#define RFB_SEND_ALL_THRESH             25
+#define	RFB_SEND_ALL_THRESH		25
 
 struct rfb_enc_msg {
 	uint8_t		type;
@@ -304,7 +306,7 @@ rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
               int x, int y, int w, int h)
 {
 	struct rfb_srvr_updt_msg supdt_msg;
-        struct rfb_srvr_rect_hdr srect_hdr;
+	struct rfb_srvr_rect_hdr srect_hdr;
 	unsigned long zlen;
 	ssize_t nwrite, total;
 	int err;
@@ -464,9 +466,9 @@ doraw:
 	return (nwrite);
 }
 
-#define PIX_PER_CELL	32
+#define	PIX_PER_CELL	32
 #define	PIXCELL_SHIFT	5
-#define PIXCELL_MASK	0x1F
+#define	PIXCELL_MASK	0x1F
 
 static int
 rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
@@ -541,40 +543,23 @@ rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
 		}
 
 		for (x = 0; x < xcells; x++) {
+			if (x == (xcells - 1) && rem_x > 0)
+				cellwidth = rem_x;
+			else
+				cellwidth = PIX_PER_CELL;
+
 			if (rc->hw_crc)
 				crc_p[x] = fast_crc32(p,
-				             PIX_PER_CELL * sizeof(uint32_t),
+				             cellwidth * sizeof(uint32_t),
 				             crc_p[x]);
 			else
 				crc_p[x] = (uint32_t)crc32(crc_p[x],
 				             (Bytef *)p,
-				             PIX_PER_CELL * sizeof(uint32_t));
+				             cellwidth * sizeof(uint32_t));
 
-			p += PIX_PER_CELL;
+			p += cellwidth;
 
 			/* check for crc delta if last row in cell */
-			if ((y & PIXCELL_MASK) == PIXCELL_MASK || y == (h-1)) {
-				if (orig_crc[x] != crc_p[x]) {
-					orig_crc[x] = crc_p[x];
-					crc_p[x] = 1;
-					changes++;
-				} else {
-					crc_p[x] = 0;
-				}
-			}
-		}
-
-		if (rem_x) {
-			if (rc->hw_crc)
-				crc_p[x] = fast_crc32(p,
-				                    rem_x * sizeof(uint32_t),
-				                    crc_p[x]);
-			else
-				crc_p[x] = (uint32_t)crc32(crc_p[x],
-				                    (Bytef *)p,
-				                    rem_x * sizeof(uint32_t));
-			p += rem_x;
-
 			if ((y & PIXCELL_MASK) == PIXCELL_MASK || y == (h-1)) {
 				if (orig_crc[x] != crc_p[x]) {
 					orig_crc[x] = crc_p[x];
@@ -729,7 +714,7 @@ rfb_wr_thr(void *arg)
 		tv.tv_usec = 10000;
 
 		err = select(cfd+1, &rfds, NULL, NULL, &tv);
-                if (err < 0)
+		if (err < 0)
 			return (NULL);
 
 		/* Determine if its time to push screen; ~24hz */

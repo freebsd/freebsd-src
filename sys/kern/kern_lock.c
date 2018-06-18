@@ -132,8 +132,10 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
 
-#define	lockmgr_xlocked(lk)						\
-	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
+#define	lockmgr_xlocked_v(v)						\
+	(((v) & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
+
+#define	lockmgr_xlocked(lk) lockmgr_xlocked_v((lk)->lk_lock)
 
 static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
@@ -918,6 +920,9 @@ lockmgr_lock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk,
 	u_int op;
 	bool locked;
 
+	if (__predict_false(panicstr != NULL))
+		return (0);
+
 	op = flags & LK_TYPE_MASK;
 	locked = false;
 	switch (op) {
@@ -1018,7 +1023,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	 * The lock is held in exclusive mode.
 	 * If the lock is recursed also, then unrecurse it.
 	 */
-	if (lockmgr_xlocked(lk) && lockmgr_recursed(lk)) {
+	if (lockmgr_xlocked_v(x) && lockmgr_recursed(lk)) {
 		LOCK_LOG2(lk, "%s: %p unrecursing", __func__, lk);
 		lk->lk_recurse--;
 		goto out;
@@ -1026,7 +1031,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	if (tid != LK_KERNPROC)
 		lock_profile_release_lock(&lk->lock_object);
 
-	if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED))
+	if (x == tid && atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED))
 		goto out;
 
 	sleepq_lock(&lk->lock_object);
@@ -1096,20 +1101,20 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 {
 	struct lock_class *class;
 	uintptr_t x, tid;
-	bool unlocked;
 	const char *file;
 	int line;
+
+	if (__predict_false(panicstr != NULL))
+		return (0);
 
 	file = __FILE__;
 	line = __LINE__;
 
 	_lockmgr_assert(lk, KA_LOCKED, file, line);
-	unlocked = false;
 	x = lk->lk_lock;
 	if (__predict_true(x & LK_SHARE) != 0) {
 		if (lockmgr_sunlock_try(lk, &x)) {
 			lockmgr_note_shared_release(lk, file, line);
-			unlocked = true;
 		} else {
 			return (lockmgr_sunlock_hard(lk, x, flags, ilk, file, line));
 		}
@@ -1118,7 +1123,6 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 		if (!lockmgr_recursed(lk) &&
 		    atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
 			lockmgr_note_exclusive_release(lk, file, line);
-			unlocked = true;
 		} else {
 			return (lockmgr_xunlock_hard(lk, x, flags, ilk, file, line));
 		}
@@ -1146,6 +1150,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
+	if (panicstr != NULL)
+		return (0);
+
 	error = 0;
 	tid = (uintptr_t)curthread;
 	op = (flags & LK_TYPE_MASK);
@@ -1172,11 +1179,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    lk->lock_object.lo_name, file, line));
 
 	class = (flags & LK_INTERLOCK) ? LOCK_CLASS(ilk) : NULL;
-	if (panicstr != NULL) {
-		if (flags & LK_INTERLOCK)
-			class->lc_unlock(ilk);
-		return (0);
-	}
 
 	if (lk->lock_object.lo_flags & LK_NOSHARE) {
 		switch (op) {

@@ -4837,7 +4837,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 */
 	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
 			sm = (struct sockaddr_in *)ifa->ifa_netmask;
@@ -4879,7 +4879,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 */
 	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
 			if (si != NULL) {
@@ -4941,7 +4941,7 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 	 */
 	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			si = (struct sockaddr_in6 *)ifa->ifa_addr;
 			sm = (struct sockaddr_in6 *)ifa->ifa_netmask;
@@ -4996,7 +4996,7 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 
 	sin6 = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
 			if (sin6 && IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {

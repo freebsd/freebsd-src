@@ -67,8 +67,7 @@ MK_LOADER_GELI=yes
 .endif
 .if ${MK_LOADER_GELI} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/geli
-LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
+CFLAGS+=	-I${SASRC}/geli
 .endif # MK_LOADER_GELI
 .endif # HAVE_GELI
 
@@ -91,7 +90,7 @@ CFLAGS+=	-m32 -mcpu=powerpc
 # build 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
 # and activate it when DO32 is explicitly defined to be 1.
 .if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
-CFLAGS+=	-m32 -mcpu=i386
+CFLAGS+=	-m32
 # LD_FLAGS is passed directly to ${LD}, not via ${CC}:
 LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32

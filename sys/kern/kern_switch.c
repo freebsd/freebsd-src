@@ -209,48 +209,53 @@ critical_enter(void)
 	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }
 
-void
-critical_exit(void)
+static void __noinline
+critical_exit_preempt(void)
 {
 	struct thread *td;
 	int flags;
 
+	/*
+	 * If td_critnest is 0, it is possible that we are going to get
+	 * preempted again before reaching the code below. This happens
+	 * rarely and is harmless. However, this means td_owepreempt may
+	 * now be unset.
+	 */
+	td = curthread;
+	if (td->td_critnest != 0)
+		return;
+	if (kdb_active)
+		return;
+
+	/*
+	 * Microoptimization: we committed to switch,
+	 * disable preemption in interrupt handlers
+	 * while spinning for the thread lock.
+	 */
+	td->td_critnest = 1;
+	thread_lock(td);
+	td->td_critnest--;
+	flags = SW_INVOL | SW_PREEMPT;
+	if (TD_IS_IDLETHREAD(td))
+		flags |= SWT_IDLE;
+	else
+		flags |= SWT_OWEPREEMPT;
+	mi_switch(flags, NULL);
+	thread_unlock(td);
+}
+
+void
+critical_exit(void)
+{
+	struct thread *td;
+
 	td = curthread;
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
-
-	if (td->td_critnest == 1) {
-		td->td_critnest = 0;
-
-		/*
-		 * Interrupt handlers execute critical_exit() on
-		 * leave, and td_owepreempt may be left set by an
-		 * interrupt handler only when td_critnest > 0.  If we
-		 * are decrementing td_critnest from 1 to 0, read
-		 * td_owepreempt after decrementing, to not miss the
-		 * preempt.  Disallow compiler to reorder operations.
-		 */
-		__compiler_membar();
-		if (td->td_owepreempt && !kdb_active) {
-			/*
-			 * Microoptimization: we committed to switch,
-			 * disable preemption in interrupt handlers
-			 * while spinning for the thread lock.
-			 */
-			td->td_critnest = 1;
-			thread_lock(td);
-			td->td_critnest--;
-			flags = SW_INVOL | SW_PREEMPT;
-			if (TD_IS_IDLETHREAD(td))
-				flags |= SWT_IDLE;
-			else
-				flags |= SWT_OWEPREEMPT;
-			mi_switch(flags, NULL);
-			thread_unlock(td);
-		}
-	} else
-		td->td_critnest--;
-
+	td->td_critnest--;
+	__compiler_membar();
+	if (__predict_false(td->td_owepreempt))
+		critical_exit_preempt();
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }

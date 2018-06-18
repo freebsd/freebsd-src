@@ -62,7 +62,7 @@ ds_key_match(ldns_rr_list *ds, ldns_rr_list *trusted)
 }
 #endif
 
-ldns_pkt *
+static ldns_pkt *
 get_dnssec_pkt(ldns_resolver *r, ldns_rdf *name, ldns_rr_type t) 
 {
 	ldns_pkt *p = NULL;
@@ -97,7 +97,7 @@ get_ds(ldns_pkt *p, ldns_rdf *ownername, ldns_rr_list **rrlist, ldns_rr_list **o
 }
 #endif /* HAVE_SSL */
 
-void
+static void
 remove_resolver_nameservers(ldns_resolver *res)
 {
 	ldns_rdf *pop;
@@ -109,17 +109,6 @@ remove_resolver_nameservers(ldns_resolver *res)
 
 }
 
-void
-show_current_nameservers(FILE *out, ldns_resolver *res)
-{
-	size_t i;
-	fprintf(out, "Current nameservers for resolver object:\n");
-	for (i = 0; i < ldns_resolver_nameserver_count(res); i++) {
-		ldns_rdf_print(out, ldns_resolver_nameservers(res)[i]);
-		fprintf(out, "\n");
-	}
-}
-	
 /*ldns_pkt **/
 #ifdef HAVE_SSL
 int

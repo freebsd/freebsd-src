@@ -103,6 +103,25 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 
 	ch = priv->params.num_channels;
 
+#ifdef RATELIMIT
+	if (mb->m_pkthdr.snd_tag != NULL) {
+		struct mlx5e_sq *sq;
+
+		/* check for route change */
+		if (mb->m_pkthdr.snd_tag->ifp != ifp)
+			return (NULL);
+
+		/* get pointer to sendqueue */
+		sq = container_of(mb->m_pkthdr.snd_tag,
+		    struct mlx5e_rl_channel, m_snd_tag)->sq;
+
+		/* check if valid */
+		if (sq != NULL && sq->stopped == 0)
+			return (sq);
+
+		/* FALLTHROUGH */
+	}
+#endif
 	/* check if flowid is set */
 	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE) {
 #ifdef RSS
@@ -540,8 +559,24 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 
 	sq = mlx5e_select_queue(ifp, mb);
 	if (unlikely(sq == NULL)) {
-		/* Invalid send queue */
+#ifdef RATELIMIT
+		/* Check for route change */
+		if (mb->m_pkthdr.snd_tag != NULL &&
+		    mb->m_pkthdr.snd_tag->ifp != ifp) {
+			/* Free mbuf */
+			m_freem(mb);
+
+			/*
+			 * Tell upper layers about route change and to
+			 * re-transmit this packet:
+			 */
+			return (EAGAIN);
+		}
+#endif
+		/* Free mbuf */
 		m_freem(mb);
+
+		/* Invalid send queue */
 		return (ENXIO);
 	}
 

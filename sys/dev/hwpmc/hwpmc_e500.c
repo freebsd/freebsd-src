@@ -565,13 +565,14 @@ e500_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-e500_intr(int cpu, struct trapframe *tf)
+e500_intr(struct trapframe *tf)
 {
-	int i, error, retval;
+	int i, error, retval, cpu;
 	uint32_t config;
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
@@ -607,8 +608,7 @@ e500_intr(int cpu, struct trapframe *tf)
 			continue;
 
 		/* Stop the counter if logging fails. */
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			e500_stop_pmc(cpu, i);
 
@@ -616,8 +616,10 @@ e500_intr(int cpu, struct trapframe *tf)
 		e500_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
 
-	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (retval)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	/* Re-enable PERF exceptions. */
 	if (retval)

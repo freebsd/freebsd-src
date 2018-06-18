@@ -38,6 +38,9 @@
 
 #include "input-event-codes.h"
 
+#define	input_event_sec		time.tv_sec
+#define	input_event_usec	time.tv_usec
+
 struct input_event {
 	struct timeval	time;
 	uint16_t	type;
@@ -138,6 +141,9 @@ struct input_keymap_entry {
 #define	BUS_GSC			0x1A
 #define	BUS_ATARI		0x1B
 #define	BUS_SPI			0x1C
+#define	BUS_RMI			0x1D
+#define	BUS_CEC			0x1E
+#define	BUS_INTEL_ISHTP		0x1F
 
 /*
  * MT_TOOL types

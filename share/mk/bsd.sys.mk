@@ -6,16 +6,16 @@
 # Enable various levels of compiler warning checks.  These may be
 # overridden (e.g. if using a non-gcc compiler) by defining MK_WARNS=no.
 
-# for GCC:   http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Warning-Options.html
+# for 4.2.1 GCC:   http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Warning-Options.html
+# for current GCC: https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
+# for clang: https://clang.llvm.org/docs/DiagnosticsReference.html
 
 .include <bsd.compiler.mk>
 
 # the default is gnu99 for now
 CSTD?=		gnu99
 
-.if ${CSTD} == "k&r"
-CFLAGS+=	-traditional
-.elif ${CSTD} == "c89" || ${CSTD} == "c90"
+.if ${CSTD} == "c89" || ${CSTD} == "c90"
 CFLAGS+=	-std=iso9899:1990
 .elif ${CSTD} == "c94" || ${CSTD} == "c95"
 CFLAGS+=	-std=iso9899:199409
@@ -47,7 +47,6 @@ CWARNFLAGS+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow\
 CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
 .endif # WARNS >= 4
-# BDECFLAGS
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 		-Wold-style-definition
@@ -142,19 +141,17 @@ CWARNFLAGS+=	-Wno-error=misleading-indentation	\
 
 # GCC 7.1.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 70100
-CWARNFLAGS+=	-Wno-error=deprecated			\
-		-Wno-error=pointer-compare		\
+CWARNFLAGS+=	-Wno-error=bool-operation		\
+		-Wno-error=deprecated			\
+		-Wno-error=expansion-to-defined		\
+		-Wno-error=format-overflow		\
 		-Wno-error=format-truncation		\
 		-Wno-error=implicit-fallthrough		\
-		-Wno-error=expansion-to-defined		\
 		-Wno-error=int-in-bool-context		\
-		-Wno-error=bool-operation		\
-		-Wno-error=format-overflow		\
-		-Wno-error=stringop-overflow		\
 		-Wno-error=memset-elt-size		\
-		-Wno-error=int-in-bool-context		\
-		-Wno-error=unused-const-variable	\
-		-Wno-error=nonnull
+		-Wno-error=nonnull			\
+		-Wno-error=pointer-compare		\
+		-Wno-error=stringop-overflow
 .endif
 
 # How to handle FreeBSD custom printf format specifiers.
@@ -225,6 +222,8 @@ AFLAGS+=	${AFLAGS.${.IMPSRC:T}}
 ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
+
+LDFLAGS+=	${LDFLAGS.${LINKER_TYPE}}
 
 .if defined(SRCTOP)
 # Prevent rebuilding during install to support read-only objdirs.

@@ -374,7 +374,8 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getencprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	tuples = OF_getencprop_alloc_multi(node, "reg", tuple_size,
+	    (void **)&reg);
 	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
 	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
 	if (tuples <= 0)
@@ -545,7 +546,7 @@ lbc_attach(device_t dev)
 	tuple_size = sizeof(pcell_t) * (sc->sc_addr_cells + par_addr_cells +
 	    sc->sc_size_cells);
 
-	tuples = OF_getencprop_alloc(node, "ranges", tuple_size,
+	tuples = OF_getencprop_alloc_multi(node, "ranges", tuple_size,
 	    (void **)&ranges);
 	if (tuples < 0) {
 		device_printf(dev, "could not retrieve 'ranges' property\n");

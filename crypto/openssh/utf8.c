@@ -1,4 +1,4 @@
-/* $OpenBSD: utf8.c,v 1.5 2017/02/19 00:10:57 djm Exp $ */
+/* $OpenBSD: utf8.c,v 1.7 2017/05/31 09:15:42 deraadt Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -61,7 +61,8 @@ dangerous_locale(void) {
 
 	loc = nl_langinfo(CODESET);
 	return strcmp(loc, "US-ASCII") != 0 && strcmp(loc, "UTF-8") != 0 &&
-	    strcmp(loc, "ANSI_X3.4-1968") != 0 && strcmp(loc, "646") != 0;
+	    strcmp(loc, "ANSI_X3.4-1968") != 0 && strcmp(loc, "646") != 0 &&
+	    strcmp(loc, "") != 0;
 }
 
 static int
@@ -75,7 +76,7 @@ grow_dst(char **dst, size_t *sz, size_t maxsz, char **dp, size_t need)
 	tsz = *sz + 128;
 	if (tsz > maxsz)
 		tsz = maxsz;
-	if ((tp = realloc(*dst, tsz)) == NULL)
+	if ((tp = recallocarray(*dst, *sz, tsz, 1)) == NULL)
 		return -1;
 	*dp = tp + (*dp - *dst);
 	*dst = tp;

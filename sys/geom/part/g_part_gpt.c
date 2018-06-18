@@ -146,6 +146,7 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
+MODULE_VERSION(geom_part_gpt, 0);
 
 static struct uuid gpt_uuid_apple_apfs = GPT_ENT_TYPE_APPLE_APFS;
 static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;

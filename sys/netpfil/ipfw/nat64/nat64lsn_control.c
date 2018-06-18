@@ -51,11 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet6/ip_fw_nat64.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
-#include <netpfil/ipfw/nat64/ip_fw_nat64.h>
-#include <netpfil/ipfw/nat64/nat64lsn.h>
-#include <netinet6/ip_fw_nat64.h>
+
+#include "nat64lsn.h"
 
 VNET_DEFINE(uint16_t, nat64lsn_eid) = 0;
 
@@ -131,7 +131,7 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	if (uc->plen4 > 32)
 		return (EINVAL);
-	if (uc->plen6 > 128 || ((uc->plen6 % 8) != 0))
+	if (nat64_check_prefix6(&uc->prefix6, uc->plen6) != 0)
 		return (EINVAL);
 
 	/* XXX: Check prefix4 to be global */
@@ -139,8 +139,6 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	mask4 = ~((1 << (32 - uc->plen4)) - 1);
 	if ((addr4 & mask4) != addr4)
 		return (EINVAL);
-
-	/* XXX: Check prefix6 */
 	if (uc->min_port == 0)
 		uc->min_port = NAT64_MIN_PORT;
 	if (uc->max_port == 0)
@@ -166,13 +164,16 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->no.etlv = IPFW_TLV_NAT64LSN_NAME;
 	cfg->no.set = uc->set;
 
+	cfg->base.prefix6 = uc->prefix6;
+	cfg->base.plen6 = uc->plen6;
+	cfg->base.flags = uc->flags & NAT64LSN_FLAGSMASK;
+	if (IN6_IS_ADDR_WKPFX(&cfg->base.prefix6))
+		cfg->base.flags |= NAT64_WKPFX;
+
 	cfg->prefix4 = addr4;
 	cfg->pmask4 = addr4 | ~mask4;
-	/* XXX: Copy 96 bits */
-	cfg->plen6 = 96;
-	memcpy(&cfg->prefix6, &uc->prefix6, cfg->plen6 / 8);
 	cfg->plen4 = uc->plen4;
-	cfg->flags = uc->flags & NAT64LSN_FLAGSMASK;
+
 	cfg->max_chunks = uc->max_ports / NAT64_CHUNK_SIZE;
 	cfg->agg_prefix_len = uc->agg_prefix_len;
 	cfg->agg_prefix_max = uc->agg_prefix_max;
@@ -190,7 +191,6 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->st_icmp_ttl = uc->st_icmp_ttl;
 
 	cfg->nomatch_verdict = IP_FW_DENY;
-	cfg->nomatch_final = 1;	/* Exit outer loop by default */
 
 	IPFW_UH_WLOCK(ch);
 
@@ -265,7 +265,7 @@ nat64lsn_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 }
 
 #define	__COPY_STAT_FIELD(_cfg, _stats, _field)	\
-	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->stats, _field)
+	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->base.stats, _field)
 static void
 export_stats(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
     struct ipfw_nat64lsn_stats *stats)
@@ -309,7 +309,7 @@ nat64lsn_export_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
     ipfw_nat64lsn_cfg *uc)
 {
 
-	uc->flags = cfg->flags & NAT64LSN_FLAGSMASK;
+	uc->flags = cfg->base.flags & NAT64LSN_FLAGSMASK;
 	uc->max_ports = cfg->max_chunks * NAT64_CHUNK_SIZE;
 	uc->agg_prefix_len = cfg->agg_prefix_len;
 	uc->agg_prefix_max = cfg->agg_prefix_max;
@@ -323,9 +323,9 @@ nat64lsn_export_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
 	uc->st_udp_ttl = cfg->st_udp_ttl;
 	uc->st_icmp_ttl = cfg->st_icmp_ttl;
 	uc->prefix4.s_addr = htonl(cfg->prefix4);
-	uc->prefix6 = cfg->prefix6;
+	uc->prefix6 = cfg->base.prefix6;
 	uc->plen4 = cfg->plen4;
-	uc->plen6 = cfg->plen6;
+	uc->plen6 = cfg->base.plen6;
 	uc->set = cfg->no.set;
 	strlcpy(uc->name, cfg->no.name, sizeof(uc->name));
 }
@@ -454,7 +454,8 @@ nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	cfg->st_estab_ttl = uc->st_estab_ttl;
 	cfg->st_udp_ttl = uc->st_udp_ttl;
 	cfg->st_icmp_ttl = uc->st_icmp_ttl;
-	cfg->flags = uc->flags & NAT64LSN_FLAGSMASK;
+	cfg->base.flags &= ~NAT64LSN_FLAGSMASK;
+	cfg->base.flags |= uc->flags & NAT64LSN_FLAGSMASK;
 
 	IPFW_UH_WUNLOCK(ch);
 
@@ -537,7 +538,7 @@ nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
-	COUNTER_ARRAY_ZERO(cfg->stats.stats, NAT64STATS);
+	COUNTER_ARRAY_ZERO(cfg->base.stats.cnt, NAT64STATS);
 	IPFW_UH_WUNLOCK(ch);
 	return (0);
 }

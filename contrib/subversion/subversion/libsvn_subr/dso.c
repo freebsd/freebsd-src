@@ -19,7 +19,6 @@
  * ====================================================================
  */
 
-#include <apr_thread_mutex.h>
 #include <apr_hash.h>
 
 #include "svn_hash.h"

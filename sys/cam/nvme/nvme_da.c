@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2015 Netflix, Inc
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -337,6 +336,8 @@ ndaclose(struct disk *dp)
 
 	while (softc->refcount != 0)
 		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "ndaclose", 1);
+	KASSERT(softc->outstanding_cmds == 0,
+	    ("nda %d outstanding commands", softc->outstanding_cmds));
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);	
@@ -987,11 +988,11 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 out:
 		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		softc->outstanding_cmds++;
-		softc->refcount++;
+		softc->refcount++;			/* For submission only */
 		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
 		cam_periph_lock(periph);
-		softc->refcount--;
+		softc->refcount--;			/* Submission done */
 
 		/* May have more work to do, so ensure we stay scheduled */
 		ndaschedule(periph);
@@ -1087,6 +1088,7 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp1 = TAILQ_FIRST(&queue);
 			cam_iosched_bio_complete(softc->cam_iosched, bp1, done_ccb);
 			xpt_release_ccb(done_ccb);
+			softc->outstanding_cmds--;
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
 			while ((bp2 = TAILQ_FIRST(&queue)) != NULL) {

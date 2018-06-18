@@ -295,14 +295,14 @@ static void		 pf_mtag_free(struct m_tag *);
 #ifdef INET
 static void		 pf_route(struct mbuf **, struct pf_rule *, int,
 			    struct ifnet *, struct pf_state *,
-			    struct pf_pdesc *);
+			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET */
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
 static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 			    struct ifnet *, struct pf_state *,
-			    struct pf_pdesc *);
+			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET6 */
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
@@ -369,11 +369,14 @@ u_long	pf_hashmask;
 u_long	pf_srchashmask;
 static u_long	pf_hashsize;
 static u_long	pf_srchashsize;
+u_long	pf_ioctl_maxcount = 65535;
 
 SYSCTL_ULONG(_net_pf, OID_AUTO, states_hashsize, CTLFLAG_RDTUN,
     &pf_hashsize, 0, "Size of pf(4) states hashtable");
 SYSCTL_ULONG(_net_pf, OID_AUTO, source_nodes_hashsize, CTLFLAG_RDTUN,
     &pf_srchashsize, 0, "Size of pf(4) source nodes hashtable");
+SYSCTL_ULONG(_net_pf, OID_AUTO, request_maxcount, CTLFLAG_RDTUN,
+    &pf_ioctl_maxcount, 0, "Maximum number of tables, addresses, ... in a single ioctl() call");
 
 VNET_DEFINE(void *, pf_swi_cookie);
 
@@ -5439,7 +5442,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 #ifdef INET
 static void
 pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
-    struct pf_state *s, struct pf_pdesc *pd)
+    struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *m1;
 	struct sockaddr_in	dst;
@@ -5507,7 +5510,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		goto bad;
 
 	if (oifp != ifp) {
-		if (pf_test(PF_OUT, 0, ifp, &m0, NULL) != PF_PASS)
+		if (pf_test(PF_OUT, 0, ifp, &m0, inp) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -5600,7 +5603,7 @@ bad:
 #ifdef INET6
 static void
 pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
-    struct pf_state *s, struct pf_pdesc *pd)
+    struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0;
 	struct sockaddr_in6	dst;
@@ -5669,7 +5672,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		goto bad;
 
 	if (oifp != ifp) {
-		if (pf_test6(PF_OUT, PFIL_FWD, ifp, &m0, NULL) != PF_PASS)
+		if (pf_test6(PF_OUT, PFIL_FWD, ifp, &m0, inp) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -5724,8 +5727,7 @@ bad:
 
 /*
  * FreeBSD supports cksum offloads for the following drivers.
- *  em(4), fxp(4), ixgb(4), lge(4), ndis(4), nge(4), re(4),
- *   ti(4), txp(4), xl(4)
+ *  em(4), fxp(4), lge(4), ndis(4), nge(4), re(4), ti(4), txp(4), xl(4)
  *
  * CSUM_DATA_VALID | CSUM_PSEUDO_HDR :
  *  network driver performed cksum including pseudo header, need to verify
@@ -5871,6 +5873,8 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, dirndx, pqid = 0;
+
+	PF_RULES_RLOCK_TRACKER;
 
 	M_ASSERTPKTHDR(m);
 
@@ -6232,7 +6236,7 @@ done:
 	default:
 		/* pf_route() returns unlocked. */
 		if (r->rt) {
-			pf_route(m0, r, dir, kif->pfik_ifp, s, &pd);
+			pf_route(m0, r, dir, kif->pfik_ifp, s, &pd, inp);
 			return (action);
 		}
 		break;
@@ -6259,6 +6263,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
 
+	PF_RULES_RLOCK_TRACKER;
 	M_ASSERTPKTHDR(m);
 
 	if (!V_pf_status.running)
@@ -6628,7 +6633,7 @@ done:
 	default:
 		/* pf_route6() returns unlocked. */
 		if (r->rt) {
-			pf_route6(m0, r, dir, kif->pfik_ifp, s, &pd);
+			pf_route6(m0, r, dir, kif->pfik_ifp, s, &pd, inp);
 			return (action);
 		}
 		break;

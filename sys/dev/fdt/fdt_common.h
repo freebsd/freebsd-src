@@ -39,7 +39,7 @@
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
 
-#define FDT_MEM_REGIONS	8
+#define FDT_MEM_REGIONS	16
 
 #define DI_MAX_INTR_NUM	32
 
@@ -85,16 +85,14 @@ int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
 int fdt_get_mem_regions(struct mem_region *, int *, uint64_t *);
+int fdt_get_reserved_mem(struct mem_region *, int *);
 int fdt_get_reserved_regions(struct mem_region *, int *);
 int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);
 int fdt_regsize(phandle_t, u_long *, u_long *);
 int fdt_is_compatible_strict(phandle_t, const char *);
-int fdt_pm_is_enabled(phandle_t);
-int fdt_is_type(phandle_t, const char *);
 int fdt_parent_addr_cells(phandle_t);
-int fdt_pm(phandle_t);
 int fdt_get_chosen_bootargs(char *bootargs, size_t max_size);
 
 #endif /* _FDT_COMMON_H_ */

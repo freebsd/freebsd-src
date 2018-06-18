@@ -78,11 +78,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef __amd64__
 #define	SDT_APIC	SDT_SYSIGT
-#define	SDT_APICT	SDT_SYSIGT
 #define	GSEL_APIC	0
 #else
 #define	SDT_APIC	SDT_SYS386IGT
-#define	SDT_APICT	SDT_SYS386TGT
 #define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
 #endif
 
@@ -207,6 +205,9 @@ SYSCTL_INT(_hw_apic, OID_AUTO, eoi_suppression, CTLFLAG_RD,
     &lapic_eoi_suppression, 0, "");
 SYSCTL_INT(_hw_apic, OID_AUTO, timer_tsc_deadline, CTLFLAG_RD,
     &lapic_timer_tsc_deadline, 0, "");
+
+static void lapic_calibrate_initcount(struct lapic *la);
+static void lapic_calibrate_deadline(struct lapic *la);
 
 static uint32_t
 lapic_read32(enum LAPIC_REGISTERS reg)
@@ -517,7 +518,7 @@ native_lapic_init(vm_paddr_t addr)
 
 	/* Local APIC CMCI. */
 	setidt(APIC_CMC_INT, pti ? IDTVEC(cmcint_pti) : IDTVEC(cmcint),
-	    SDT_APICT, SEL_KPL, GSEL_APIC);
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	if ((resource_int_value("apic", 0, "clock", &i) != 0 || i != 0)) {
 		arat = 0;
@@ -789,6 +790,13 @@ native_lapic_setup(int boot)
 		intrcnt_add(buf, &la->la_timer_count);
 	}
 
+	/* Calibrate the timer parameters using BSP. */
+	if (boot && IS_BSP()) {
+		lapic_calibrate_initcount(la);
+		if (lapic_timer_tsc_deadline)
+			lapic_calibrate_deadline(la);
+	}
+
 	/* Setup the timer if configured. */
 	if (la->la_timer_mode != LAT_MODE_UNDEF) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
@@ -923,7 +931,7 @@ native_lapic_disable_pmc(void)
 }
 
 static void
-lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
+lapic_calibrate_initcount(struct lapic *la)
 {
 	u_long value;
 
@@ -949,7 +957,7 @@ lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
 }
 
 static void
-lapic_calibrate_deadline(struct eventtimer *et, struct lapic *la __unused)
+lapic_calibrate_deadline(struct lapic *la __unused)
 {
 
 	if (bootverbose) {
@@ -991,11 +999,6 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	struct lapic *la;
 
 	la = &lapics[PCPU_GET(apic_id)];
-	if (et->et_frequency == 0) {
-		lapic_calibrate_initcount(et, la);
-		if (lapic_timer_tsc_deadline)
-			lapic_calibrate_deadline(et, la);
-	}
 	if (period != 0) {
 		lapic_change_mode(et, la, LAT_MODE_PERIODIC);
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
@@ -1605,7 +1608,7 @@ native_apic_disable_vector(u_int apic_id, u_int vector)
 	 * We can not currently clear the idt entry because other cpus
 	 * may have a valid vector at this offset.
 	 */
-	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APIC,
 	    SEL_KPL, GSEL_APIC);
 #endif
 }
@@ -2146,7 +2149,7 @@ native_lapic_ipi_free(int vector)
 	KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
 	    func != (uintptr_t)&IDTVEC(rsvd_pti),
 	    ("invalid idtfunc %#lx", func));
-	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APIC,
 	    SEL_KPL, GSEL_APIC);
 	mtx_unlock_spin(&icu_lock);
 }

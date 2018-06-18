@@ -23,8 +23,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -1452,7 +1450,6 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
     int type, struct aiocb_ops *ops)
 {
 	struct proc *p = td->td_proc;
-	cap_rights_t rights;
 	struct file *fp;
 	struct kaiocb *job;
 	struct kaioinfo *ki;
@@ -1530,21 +1527,19 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	fd = job->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd,
-		    cap_rights_init(&rights, CAP_PWRITE), &fp);
+		error = fget_write(td, fd, &cap_pwrite_rights, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd,
-		    cap_rights_init(&rights, CAP_PREAD), &fp);
+		error = fget_read(td, fd, &cap_pread_rights, &fp);
 		break;
 	case LIO_SYNC:
-		error = fget(td, fd, cap_rights_init(&rights, CAP_FSYNC), &fp);
+		error = fget(td, fd, &cap_fsync_rights, &fp);
 		break;
 	case LIO_MLOCK:
 		fp = NULL;
 		break;
 	case LIO_NOP:
-		error = fget(td, fd, cap_rights_init(&rights), &fp);
+		error = fget(td, fd, &cap_no_rights, &fp);
 		break;
 	default:
 		error = EINVAL;
@@ -1961,14 +1956,13 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct kaioinfo *ki;
 	struct kaiocb *job, *jobn;
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 	int cancelled = 0;
 	int notcancelled = 0;
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, cap_rights_init(&rights), &fp);
+	error = fget(td, uap->fd, &cap_no_rights, &fp);
 	if (error)
 		return (error);
 
@@ -2133,7 +2127,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	struct aioliojob *lj;
 	struct kevent kev;
 	int error;
-	int nerror;
+	int nagain, nerror;
 	int i;
 
 	if ((mode != LIO_NOWAIT) && (mode != LIO_WAIT))
@@ -2202,12 +2196,15 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	/*
 	 * Get pointers to the list of I/O requests.
 	 */
+	nagain = 0;
 	nerror = 0;
 	for (i = 0; i < nent; i++) {
 		job = acb_list[i];
 		if (job != NULL) {
 			error = aio_aqueue(td, job, lj, LIO_NOP, ops);
-			if (error != 0)
+			if (error == EAGAIN)
+				nagain++;
+			else if (error != 0)
 				nerror++;
 		}
 	}
@@ -2254,7 +2251,10 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 
 	if (nerror)
 		return (EIO);
-	return (error);
+	else if (nagain)
+		return (EAGAIN);
+	else
+		return (error);
 }
 
 /* syscall - list directed I/O (REALTIME) */

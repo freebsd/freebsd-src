@@ -349,6 +349,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 	ASSERT(ds == NULL || MUTEX_HELD(&ds->ds_opening_lock));
 
+#if 0
 	/*
 	 * The $ORIGIN dataset (if it exists) doesn't have an associated
 	 * objset, so there's no reason to open it. The $ORIGIN dataset
@@ -359,6 +360,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		ASSERT3P(ds->ds_dir, !=,
 		    spa_get_dsl(spa)->dp_origin_snap->ds_dir);
 	}
+#endif
 
 	os = kmem_zalloc(sizeof (objset_t), KM_SLEEP);
 	os->os_dsl_dataset = ds;

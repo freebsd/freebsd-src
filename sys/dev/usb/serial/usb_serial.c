@@ -105,6 +105,12 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, pps_mode, CTLFLAG_RWTUN,
     &ucom_pps_mode, 0, 
     "pulse capture mode: 0/1/2=disabled/CTS/DCD; add 0x10 to invert");
 
+static int ucom_device_mode_console = 1;
+
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, device_mode_console, CTLFLAG_RW,
+    &ucom_device_mode_console, 0,
+    "set to 1 to mark terminals as consoles when in device mode");
+
 #ifdef USB_DEBUG
 static int ucom_debug = 0;
 
@@ -288,7 +294,7 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 	}
 	ssc->sc_subunits = subunits;
 	ssc->sc_flag = UCOM_FLAG_ATTACHED |
-	    UCOM_FLAG_FREE_UNIT;
+	    UCOM_FLAG_FREE_UNIT | (ssc->sc_flag & UCOM_FLAG_DEVICE_MODE);
 
 	if (callback->ucom_free == NULL)
 		ssc->sc_flag |= UCOM_FLAG_WAIT_REFS;
@@ -388,6 +394,24 @@ ucom_drain_all(void *arg)
 	mtx_unlock(&ucom_mtx);
 }
 
+static cn_probe_t ucom_cnprobe;
+static cn_init_t ucom_cninit;
+static cn_term_t ucom_cnterm;
+static cn_getc_t ucom_cngetc;
+static cn_putc_t ucom_cnputc;
+static cn_grab_t ucom_cngrab;
+static cn_ungrab_t ucom_cnungrab;
+
+const struct consdev_ops ucom_cnops = {
+        .cn_probe       = ucom_cnprobe,
+        .cn_init        = ucom_cninit,
+        .cn_term        = ucom_cnterm,
+        .cn_getc        = ucom_cngetc,
+        .cn_putc        = ucom_cnputc,
+        .cn_grab        = ucom_cngrab,
+        .cn_ungrab      = ucom_cnungrab,
+};
+
 static int
 ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
@@ -450,6 +474,24 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		UCOM_MTX_UNLOCK(ucom_cons_softc);
 	}
 
+	if ((ssc->sc_flag & UCOM_FLAG_DEVICE_MODE) != 0 &&
+	    ucom_device_mode_console > 0 &&
+	    ucom_cons_softc == NULL) {
+		struct consdev *cp;
+
+		cp = malloc(sizeof(struct consdev), M_USBDEV,
+		    M_WAITOK|M_ZERO);
+		cp->cn_ops = &ucom_cnops;
+		cp->cn_arg = NULL;
+		cp->cn_pri = CN_NORMAL;
+		strlcpy(cp->cn_name, "tty", sizeof(cp->cn_name));
+		strlcat(cp->cn_name, buf, sizeof(cp->cn_name));
+
+		sc->sc_consdev = cp;
+
+		cnadd(cp);
+	}
+
 	return (0);
 }
 
@@ -459,6 +501,12 @@ ucom_detach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	struct tty *tp = sc->sc_tty;
 
 	DPRINTF("sc = %p, tp = %p\n", sc, sc->sc_tty);
+
+	if (sc->sc_consdev != NULL) {
+		cnremove(sc->sc_consdev);
+		free(sc->sc_consdev, M_USBDEV);
+		sc->sc_consdev = NULL;
+	}
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
 		UCOM_MTX_LOCK(ucom_cons_softc);
@@ -530,6 +578,20 @@ ucom_set_pnpinfo_usb(struct ucom_super_softc *ssc, device_t dev)
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, "ttyports", CTLFLAG_RD,
 		    NULL, ssc->sc_subunits, "Number of ports");
+	}
+}
+
+void
+ucom_set_usb_mode(struct ucom_super_softc *ssc, enum usb_hc_mode usb_mode)
+{
+
+	switch (usb_mode) {
+	case USB_MODE_DEVICE:
+		ssc->sc_flag |= UCOM_FLAG_DEVICE_MODE;
+		break;
+	default:
+		ssc->sc_flag &= ~UCOM_FLAG_DEVICE_MODE;
+		break;
 	}
 }
 
@@ -1532,14 +1594,6 @@ ucom_free(void *xsc)
 	ucom_close_refs--;
 	mtx_unlock(&ucom_mtx);
 }
-
-static cn_probe_t ucom_cnprobe;
-static cn_init_t ucom_cninit;
-static cn_term_t ucom_cnterm;
-static cn_getc_t ucom_cngetc;
-static cn_putc_t ucom_cnputc;
-static cn_grab_t ucom_cngrab;
-static cn_ungrab_t ucom_cnungrab;
 
 CONSOLE_DRIVER(ucom);
 

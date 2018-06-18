@@ -124,6 +124,9 @@ SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
 SUBDIR_DEPEND_liblzma= ${_libthr}
+.if ${MK_OFED} != "no"
+SUBDIR_DEPEND_libpcap= ofed
+.endif
 
 # NB: keep these sorted by MK_* knobs
 
@@ -175,6 +178,10 @@ SUBDIR.${MK_NIS}+=	libypclnt
 _libvgl=	libvgl
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+SUBDIR.${MK_PMC}+=	libopencsd
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_PMC}+=	libipt
 SUBDIR.${MK_BHYVE}+=	libvmmapi
@@ -190,7 +197,9 @@ _libdl=		libdl
 .endif
 
 SUBDIR.${MK_OPENSSL}+=	libmp
+.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100 && ${MACHINE_CPUARCH} != "riscv"))
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat
+.endif
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
 SUBDIR.${MK_TELNET}+=	libtelnet
@@ -198,6 +207,7 @@ SUBDIR.${MK_TESTS_SUPPORT}+=	atf
 SUBDIR.${MK_TESTS}+=	tests
 SUBDIR.${MK_UNBOUND}+=	libunbound
 SUBDIR.${MK_USB}+=	libusbhid libusb
+SUBDIR.${MK_OFED}+=	ofed
 
 .if !make(install)
 SUBDIR_PARALLEL=

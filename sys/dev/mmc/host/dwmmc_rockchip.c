@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/host/dwmmc_var.h>
 
+#include "opt_mmccam.h"
+
 enum RKTYPE {
 	RK2928 = 1,
 	RK3328,

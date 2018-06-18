@@ -471,7 +471,7 @@ t3_get_next_mcaddr(struct t3_rx_mode *rm)
 	int i = 0;
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (i == rm->idx) {
@@ -576,4 +576,11 @@ int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
 void t3_iterate(void (*)(struct adapter *, void *), void *);
 void cxgb_refresh_stats(struct port_info *);
+
+#ifdef NETDUMP
+int cxgb_netdump_encap(struct sge_qset *qs, struct mbuf **m);
+int cxgb_netdump_poll_rx(adapter_t *adap, struct sge_qset *qs);
+int cxgb_netdump_poll_tx(struct sge_qset *qs);
+#endif
+
 #endif

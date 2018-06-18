@@ -35,9 +35,6 @@
 /* Define if you system's inet_ntoa is busted (e.g. Irix gcc issue) */
 /* #undef BROKEN_INET_NTOA */
 
-/* ia_uinfo routines not supported by OS yet */
-/* #undef BROKEN_LIBIAF */
-
 /* Define if your struct dirent expects you to allocate extra space for d_name
    */
 /* #undef BROKEN_ONE_BYTE_DIRENT_D_NAME */
@@ -75,6 +72,12 @@
 
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
+
+/* strndup broken, see APAR IY61211 */
+/* #undef BROKEN_STRNDUP */
+
+/* strnlen broken, see APAR IY62551 */
+/* #undef BROKEN_STRNLEN */
 
 /* strnvis detected broken */
 #define BROKEN_STRNVIS 1
@@ -133,6 +136,9 @@
 /* Enable for PKCS#11 support */
 #define ENABLE_PKCS11 /**/
 
+/* define if fflush(NULL) does not work */
+/* #undef FFLUSH_NULL_BUG */
+
 /* File names may not contain backslash characters */
 /* #undef FILESYSTEM_NO_BACKSLASH */
 
@@ -142,7 +148,7 @@
 /* fsid_t has member __val */
 /* #undef FSID_HAS___VAL */
 
-/* Define to 1 if the `getpgrp' function requires zero arguments. */
+/* getpgrp takes one arg */
 #define GETPGRP_VOID 1
 
 /* Conflicting defs for getspnam */
@@ -253,6 +259,12 @@
 /* Define to 1 if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
 
+/* Define to 1 if you have the `bzero' function. */
+#define HAVE_BZERO 1
+
+/* calloc(0, x) returns NULL */
+#define HAVE_CALLOC 1
+
 /* Define to 1 if you have the `cap_rights_limit' function. */
 #define HAVE_CAP_RIGHTS_LIMIT 1
 
@@ -296,6 +308,10 @@
 /* Define to 1 if you have the declaration of `authenticate', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_AUTHENTICATE */
+
+/* Define to 1 if you have the declaration of `bzero', and to 0 if you don't.
+   */
+#define HAVE_DECL_BZERO 1
 
 /* Define to 1 if you have the declaration of `GLOB_NOMATCH', and to 0 if you
    don't. */
@@ -344,6 +360,10 @@
 /* Define to 1 if you have the declaration of `passwdexpired', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_PASSWDEXPIRED */
+
+/* Define to 1 if you have the declaration of `readv', and to 0 if you don't.
+   */
+#define HAVE_DECL_READV 1
 
 /* Define to 1 if you have the declaration of `setauthdb', and to 0 if you
    don't. */
@@ -464,11 +484,17 @@
 /* Define to 1 if you have the <floatingpoint.h> header file. */
 #define HAVE_FLOATINGPOINT_H 1
 
+/* Define to 1 if you have the `flock' function. */
+#define HAVE_FLOCK 1
+
 /* Define to 1 if you have the `fmt_scaled' function. */
 /* #undef HAVE_FMT_SCALED */
 
 /* Define to 1 if you have the `freeaddrinfo' function. */
 #define HAVE_FREEADDRINFO 1
+
+/* Define to 1 if you have the `freezero' function. */
+/* #undef HAVE_FREEZERO */
 
 /* Define to 1 if the system has the type `fsblkcnt_t'. */
 #define HAVE_FSBLKCNT_T 1
@@ -548,11 +574,11 @@
 /* Define if getrrsetbyname() exists */
 /* #undef HAVE_GETRRSETBYNAME */
 
-/* Define to 1 if you have the `getrusage' function. */
-/* #undef HAVE_GETRUSAGE */
-
 /* Define to 1 if you have the `getseuserbyname' function. */
 /* #undef HAVE_GETSEUSERBYNAME */
+
+/* Define to 1 if you have the `getsid' function. */
+#define HAVE_GETSID 1
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -634,6 +660,9 @@
 
 /* Define if you have ut_id in utmpx.h */
 #define HAVE_ID_IN_UTMPX 1
+
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#define HAVE_IFADDRS_H 1
 
 /* Define to 1 if you have the `inet_aton' function. */
 #define HAVE_INET_ATON 1
@@ -770,6 +799,10 @@
 /* Define to 1 if you have the <maillock.h> header file. */
 /* #undef HAVE_MAILLOCK_H */
 
+/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
+   to 0 otherwise. */
+#define HAVE_MALLOC 1
+
 /* Define to 1 if you have the `mblen' function. */
 #define HAVE_MBLEN 1
 
@@ -811,6 +844,9 @@
 
 /* Define to 1 if you have the <net/if_tun.h> header file. */
 #define HAVE_NET_IF_TUN_H 1
+
+/* Define to 1 if you have the <net/route.h> header file. */
+#define HAVE_NET_ROUTE_H 1
 
 /* Define if you are on NeXT */
 /* #undef HAVE_NEXT */
@@ -894,17 +930,27 @@
 /* Define to 1 if you have the `pututxline' function. */
 #define HAVE_PUTUTXLINE 1
 
+/* Define to 1 if you have the `raise' function. */
+#define HAVE_RAISE 1
+
 /* Define to 1 if you have the `readpassphrase' function. */
 #define HAVE_READPASSPHRASE 1
 
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #define HAVE_READPASSPHRASE_H 1
 
+/* Define to 1 if your system has a GNU libc compatible `realloc' function,
+   and to 0 otherwise. */
+#define HAVE_REALLOC 1
+
 /* Define to 1 if you have the `reallocarray' function. */
 #define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
+
+/* Define to 1 if you have the `recallocarray' function. */
+/* #undef HAVE_RECALLOCARRAY */
 
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
@@ -1104,6 +1150,9 @@
 /* Define to 1 if you have the `strmode' function. */
 #define HAVE_STRMODE 1
 
+/* Define to 1 if you have the `strndup' function. */
+#define HAVE_STRNDUP 1
+
 /* Define to 1 if you have the `strnlen' function. */
 #define HAVE_STRNLEN 1
 
@@ -1115,6 +1164,9 @@
 
 /* Define to 1 if you have the `strsep' function. */
 #define HAVE_STRSEP 1
+
+/* Define to 1 if you have the `strsignal' function. */
+#define HAVE_STRSIGNAL 1
 
 /* Define to 1 if you have the `strtoll' function. */
 #define HAVE_STRTOLL 1
@@ -1155,8 +1207,17 @@
 /* define if you have struct sockaddr_storage data type */
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
+/* Define to 1 if `f_flags' is a member of `struct statfs'. */
+/* #undef HAVE_STRUCT_STATFS_F_FLAGS */
+
 /* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
+
+/* Define to 1 if `st_mtim' is a member of `struct stat'. */
+#define HAVE_STRUCT_STAT_ST_MTIM 1
+
+/* Define to 1 if `st_mtime' is a member of `struct stat'. */
+#define HAVE_STRUCT_STAT_ST_MTIME 1
 
 /* Define to 1 if the system has the type `struct timespec'. */
 #define HAVE_STRUCT_TIMESPEC 1
@@ -1193,6 +1254,12 @@
 
 /* Define if your system defines sys_errlist[] */
 #define HAVE_SYS_ERRLIST 1
+
+/* Define to 1 if you have the <sys/file.h> header file. */
+#define HAVE_SYS_FILE_H 1
+
+/* Define to 1 if you have the <sys/label.h> header file. */
+/* #undef HAVE_SYS_LABEL_H */
 
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
@@ -1239,6 +1306,9 @@
 /* Define to 1 if you have the <sys/strtio.h> header file. */
 /* #undef HAVE_SYS_STRTIO_H */
 
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#define HAVE_SYS_SYSCTL_H 1
+
 /* Force use of sys/syslog.h on Ultrix */
 /* #undef HAVE_SYS_SYSLOG_H */
 
@@ -1256,6 +1326,9 @@
 
 /* Define to 1 if you have the <sys/un.h> header file. */
 #define HAVE_SYS_UN_H 1
+
+/* Define to 1 if you have the <sys/vfs.h> header file. */
+/* #undef HAVE_SYS_VFS_H */
 
 /* Define to 1 if you have the `tcgetpgrp' function. */
 #define HAVE_TCGETPGRP 1
@@ -1474,11 +1547,11 @@
 /* Need setpgrp to acquire controlling tty */
 /* #undef NEED_SETPGRP */
 
+/* compiler does not accept __attribute__ on protoype args */
+/* #undef NO_ATTRIBUTE_ON_PROTOTYPE_ARGS */
+
 /* compiler does not accept __attribute__ on return types */
 /* #undef NO_ATTRIBUTE_ON_RETURN_TYPE */
-
-/* Define if you don't want to use lastlog in session.c */
-/* #undef NO_SSH_LASTLOG */
 
 /* Define to disable UID restoration test */
 /* #undef NO_UID_RESTORATION_TEST */
@@ -1659,6 +1732,9 @@
 /* syslog_r function is safe to use in in a signal handler */
 /* #undef SYSLOG_R_SAFE_IN_SIGHAND */
 
+/* Support routing domains using Linux VRF */
+/* #undef SYS_RDOMAIN_LINUX */
+
 /* Support passwords > 8 chars */
 /* #undef UNIXWARE_LONG_PASSWORDS */
 
@@ -1723,9 +1799,6 @@
 /* Define if you want SELinux support. */
 /* #undef WITH_SELINUX */
 
-/* include SSH protocol version 1 support */
-/* #undef WITH_SSH1 */
-
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined AC_APPLE_UNIVERSAL_BUILD
@@ -1764,11 +1837,20 @@
 /* Define if we don't have struct __res_state in resolv.h */
 /* #undef __res_state */
 
+/* Define to rpl_calloc if the replacement function should be used. */
+/* #undef calloc */
+
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 /* #undef inline */
 #endif
+
+/* Define to rpl_malloc if the replacement function should be used. */
+/* #undef malloc */
+
+/* Define to rpl_realloc if the replacement function should be used. */
+/* #undef realloc */
 
 /* type to use in place of socklen_t if not defined */
 /* #undef socklen_t */

@@ -220,8 +220,9 @@ get_usage(zpool_help_t idx)
 	case HELP_CREATE:
 		return (gettext("\tcreate [-fnd] [-B] "
 		    "[-o property=value] ... \n"
-		    "\t    [-O file-system-property=value] ... \n"
-		    "\t    [-m mountpoint] [-R root] <pool> <vdev> ...\n"));
+		    "\t    [-O file-system-property=value] ...\n"
+		    "\t    [-m mountpoint] [-R root] [-t tempname] "
+		    "<pool> <vdev> ...\n"));
 	case HELP_CHECKPOINT:
 		return (gettext("\tcheckpoint [--discard] <pool> ...\n"));
 	case HELP_DESTROY:
@@ -239,7 +240,7 @@ get_usage(zpool_help_t idx)
 		    "[-R root] [-F [-n]] -a\n"
 		    "\timport [-o mntopts] [-o property=value] ... \n"
 		    "\t    [-d dir | -c cachefile] [-D] [-f] [-m] [-N] "
-		    "[-R root] [-F [-n]]\n"
+		    "[-R root] [-F [-n]] [-t]\n"
 		    "\t    [--rewind-to-checkpoint] <pool | id> [newpool]\n"));
 	case HELP_IOSTAT:
 		return (gettext("\tiostat [-v] [-T d|u] [pool] ... [interval "
@@ -486,6 +487,21 @@ add_prop_list(const char *propname, char *propval, nvlist_t **props,
 	}
 
 	return (0);
+}
+
+/*
+ * Set a default property pair (name, string-value) in a property nvlist
+ */
+static int
+add_prop_list_default(const char *propname, char *propval, nvlist_t **props,
+    boolean_t poolprop)
+{
+	char *pval;
+
+	if (nvlist_lookup_string(*props, propname, &pval) == 0)
+		return (0);
+
+	return (add_prop_list(propname, propval, props, poolprop));
 }
 
 /*
@@ -850,15 +866,16 @@ errout:
 /*
  * zpool create [-fnd] [-B] [-o property=value] ...
  *		[-O file-system-property=value] ...
- *		[-R root] [-m mountpoint] <pool> <dev> ...
+ *		[-R root] [-m mountpoint] [-t tempname] <pool> <dev> ...
  *
  *	-B	Create boot partition.
  *	-f	Force creation, even if devices appear in use
  *	-n	Do not create the pool, but display the resulting layout if it
  *		were to be created.
- *      -R	Create a pool under an alternate root
- *      -m	Set default mountpoint for the root dataset.  By default it's
+ *	-R	Create a pool under an alternate root
+ *	-m	Set default mountpoint for the root dataset.  By default it's
  *		'/<pool>'
+ *	-t	Use the temporary name until the pool is exported.
  *	-o	Set property=value.
  *	-d	Don't automatically enable all supported pool features
  *		(individual features can be enabled with -o).
@@ -882,6 +899,7 @@ zpool_do_create(int argc, char **argv)
 	int c;
 	nvlist_t *nvroot = NULL;
 	char *poolname;
+	char *tname = NULL;
 	int ret = 1;
 	char *altroot = NULL;
 	char *mountpoint = NULL;
@@ -890,7 +908,7 @@ zpool_do_create(int argc, char **argv)
 	char *propval;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":fndBR:m:o:O:")) != -1) {
+	while ((c = getopt(argc, argv, ":fndBR:m:o:O:t:")) != -1) {
 		switch (c) {
 		case 'f':
 			force = B_TRUE;
@@ -922,11 +940,7 @@ zpool_do_create(int argc, char **argv)
 			if (add_prop_list(zpool_prop_to_name(
 			    ZPOOL_PROP_ALTROOT), optarg, &props, B_TRUE))
 				goto errout;
-			if (nvlist_lookup_string(props,
-			    zpool_prop_to_name(ZPOOL_PROP_CACHEFILE),
-			    &propval) == 0)
-				break;
-			if (add_prop_list(zpool_prop_to_name(
+			if (add_prop_list_default(zpool_prop_to_name(
 			    ZPOOL_PROP_CACHEFILE), "none", &props, B_TRUE))
 				goto errout;
 			break;
@@ -998,6 +1012,27 @@ zpool_do_create(int argc, char **argv)
 			    B_FALSE)) {
 				goto errout;
 			}
+			break;
+		case 't':
+			/*
+			 * Sanity check temporary pool name.
+			 */
+			if (strchr(optarg, '/') != NULL) {
+				(void) fprintf(stderr, gettext("cannot create "
+				    "'%s': invalid character '/' in temporary "
+				    "name\n"), optarg);
+				(void) fprintf(stderr, gettext("use 'zfs "
+				    "create' to create a dataset\n"));
+				goto errout;
+			}
+
+			if (add_prop_list(zpool_prop_to_name(
+			    ZPOOL_PROP_TNAME), optarg, &props, B_TRUE))
+				goto errout;
+			if (add_prop_list_default(zpool_prop_to_name(
+			    ZPOOL_PROP_CACHEFILE), "none", &props, B_TRUE))
+				goto errout;
+			tname = optarg;
 			break;
 		case ':':
 			(void) fprintf(stderr, gettext("missing argument for "
@@ -1205,8 +1240,8 @@ zpool_do_create(int argc, char **argv)
 		ret = 1;
 		if (zpool_create(g_zfs, poolname,
 		    nvroot, props, fsprops) == 0) {
-			zfs_handle_t *pool = zfs_open(g_zfs, poolname,
-			    ZFS_TYPE_FILESYSTEM);
+			zfs_handle_t *pool = zfs_open(g_zfs,
+			    tname ? tname : poolname, ZFS_TYPE_FILESYSTEM);
 			if (pool != NULL) {
 				if (zfs_mount(pool, NULL, 0) == 0)
 					ret = zfs_shareall(pool);
@@ -1608,7 +1643,7 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	(void) nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_SCAN_STATS,
 	    (uint64_t **)&ps, &c);
 
-	if (ps && ps->pss_state == DSS_SCANNING &&
+	if (ps != NULL && ps->pss_state == DSS_SCANNING &&
 	    vs->vs_scan_processed != 0 && children == 0) {
 		(void) printf(gettext("  (%s)"),
 		    (ps->pss_func == POOL_SCAN_RESILVER) ?
@@ -2162,7 +2197,8 @@ zpool_do_checkpoint(int argc, char **argv)
  *       import [-o mntopts] [-o prop=value] ... [-R root] [-D]
  *              [-d dir | -c cachefile] [-f] -a
  *       import [-o mntopts] [-o prop=value] ... [-R root] [-D]
- *              [-d dir | -c cachefile] [-f] [-n] [-F] <pool | id> [newpool]
+ *              [-d dir | -c cachefile] [-f] [-n] [-F] [-t]
+ *              <pool | id> [newpool]
  *
  *	 -c	Read pool information from a cachefile instead of searching
  *		devices.
@@ -2190,6 +2226,9 @@ zpool_do_checkpoint(int argc, char **argv)
  *       -n     See if rewind would work, but don't actually rewind.
  *
  *       -N     Import the pool but don't mount datasets.
+ *
+ *       -t     Use newpool as a temporary pool name instead of renaming
+ *       	the pool.
  *
  *       -T     Specify a starting txg to use for import. This option is
  *       	intentionally undocumented option for testing purposes.
@@ -2241,7 +2280,7 @@ zpool_do_import(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, ":aCc:d:DEfFmnNo:rR:T:VX",
+	while ((c = getopt_long(argc, argv, ":aCc:d:DEfFmnNo:rR:tT:VX",
 	    long_options, NULL)) != -1) {
 		switch (c) {
 		case 'a':
@@ -2296,11 +2335,13 @@ zpool_do_import(int argc, char **argv)
 			if (add_prop_list(zpool_prop_to_name(
 			    ZPOOL_PROP_ALTROOT), optarg, &props, B_TRUE))
 				goto error;
-			if (nvlist_lookup_string(props,
-			    zpool_prop_to_name(ZPOOL_PROP_CACHEFILE),
-			    &propval) == 0)
-				break;
-			if (add_prop_list(zpool_prop_to_name(
+			if (add_prop_list_default(zpool_prop_to_name(
+			    ZPOOL_PROP_CACHEFILE), "none", &props, B_TRUE))
+				goto error;
+			break;
+		case 't':
+			flags |= ZFS_IMPORT_TEMP_NAME;
+			if (add_prop_list_default(zpool_prop_to_name(
 			    ZPOOL_PROP_CACHEFILE), "none", &props, B_TRUE))
 				goto error;
 			break;
@@ -2439,9 +2480,9 @@ zpool_do_import(int argc, char **argv)
 		(void) fprintf(stderr, gettext("cannot import '%s': "
 		    "a pool with that name already exists\n"),
 		    argv[0]);
-		(void) fprintf(stderr, gettext("use the form '%s "
-		    "<pool | id> <newpool>' to give it a new name\n"),
-		    "zpool import");
+		(void) fprintf(stderr, gettext("use the form 'zpool import "
+		    "[-t] <pool | id> <newpool>' to give it a new temporary "
+		    "or permanent name\n"));
 		err = 1;
 	} else if (pools == NULL && idata.exists) {
 		(void) fprintf(stderr, gettext("cannot import '%s': "
@@ -4213,11 +4254,13 @@ static void
 print_scan_status(pool_scan_stat_t *ps)
 {
 	time_t start, end, pause;
-	uint64_t elapsed, mins_left, hours_left;
-	uint64_t pass_exam, examined, total;
-	uint_t rate;
+	uint64_t total_secs_left;
+	uint64_t elapsed, secs_left, mins_left, hours_left, days_left;
+	uint64_t pass_scanned, scanned, pass_issued, issued, total;
+	uint_t scan_rate, issue_rate;
 	double fraction_done;
-	char processed_buf[7], examined_buf[7], total_buf[7], rate_buf[7];
+	char processed_buf[7], scanned_buf[7], issued_buf[7], total_buf[7];
+	char srate_buf[7], irate_buf[7];
 
 	(void) printf(gettext("  scan: "));
 
@@ -4231,30 +4274,37 @@ print_scan_status(pool_scan_stat_t *ps)
 	start = ps->pss_start_time;
 	end = ps->pss_end_time;
 	pause = ps->pss_pass_scrub_pause;
+
 	zfs_nicenum(ps->pss_processed, processed_buf, sizeof (processed_buf));
 
 	assert(ps->pss_func == POOL_SCAN_SCRUB ||
 	    ps->pss_func == POOL_SCAN_RESILVER);
-	/*
-	 * Scan is finished or canceled.
-	 */
-	if (ps->pss_state == DSS_FINISHED) {
-		uint64_t minutes_taken = (end - start) / 60;
-		char *fmt = NULL;
 
+	/* Scan is finished or canceled. */
+	if (ps->pss_state == DSS_FINISHED) {
+		total_secs_left = end - start;
+		days_left = total_secs_left / 60 / 60 / 24;
+		hours_left = (total_secs_left / 60 / 60) % 24;
+		mins_left = (total_secs_left / 60) % 60;
+		secs_left = (total_secs_left % 60);
+		
 		if (ps->pss_func == POOL_SCAN_SCRUB) {
-			fmt = gettext("scrub repaired %s in %lluh%um with "
-			    "%llu errors on %s");
+			(void) printf(gettext("scrub repaired %s "
+                            "in %llu days %02llu:%02llu:%02llu "
+			    "with %llu errors on %s"), processed_buf,
+                            (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                            (u_longlong_t)mins_left, (u_longlong_t)secs_left,
+                            (u_longlong_t)ps->pss_errors, ctime(&end));
 		} else if (ps->pss_func == POOL_SCAN_RESILVER) {
-			fmt = gettext("resilvered %s in %lluh%um with "
-			    "%llu errors on %s");
+                       (void) printf(gettext("resilvered %s "
+                           "in %llu days %02llu:%02llu:%02llu "
+                           "with %llu errors on %s"), processed_buf,
+                           (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                           (u_longlong_t)mins_left, (u_longlong_t)secs_left,
+                           (u_longlong_t)ps->pss_errors, ctime(&end));
+
 		}
-		/* LINTED */
-		(void) printf(fmt, processed_buf,
-		    (u_longlong_t)(minutes_taken / 60),
-		    (uint_t)(minutes_taken % 60),
-		    (u_longlong_t)ps->pss_errors,
-		    ctime((time_t *)&end));
+
 		return;
 	} else if (ps->pss_state == DSS_CANCELED) {
 		if (ps->pss_func == POOL_SCAN_SCRUB) {
@@ -4269,19 +4319,15 @@ print_scan_status(pool_scan_stat_t *ps)
 
 	assert(ps->pss_state == DSS_SCANNING);
 
-	/*
-	 * Scan is in progress.
-	 */
+	/* Scan is in progress. Resilvers can't be paused. */
 	if (ps->pss_func == POOL_SCAN_SCRUB) {
 		if (pause == 0) {
 			(void) printf(gettext("scrub in progress since %s"),
 			    ctime(&start));
 		} else {
-			char buf[32];
-			struct tm *p = localtime(&pause);
-			(void) strftime(buf, sizeof (buf), "%a %b %e %T %Y", p);
-			(void) printf(gettext("scrub paused since %s\n"), buf);
-			(void) printf(gettext("\tscrub started on   %s"),
+			(void) printf(gettext("scrub paused since %s"),
+			    ctime(&pause));
+			(void) printf(gettext("\tscrub started on %s"),
 			    ctime(&start));
 		}
 	} else if (ps->pss_func == POOL_SCAN_RESILVER) {
@@ -4289,49 +4335,67 @@ print_scan_status(pool_scan_stat_t *ps)
 		    ctime(&start));
 	}
 
-	examined = ps->pss_examined ? ps->pss_examined : 1;
+	scanned = ps->pss_examined;
+	pass_scanned = ps->pss_pass_exam;
+	issued = ps->pss_issued;
+	pass_issued = ps->pss_pass_issued;
 	total = ps->pss_to_examine;
-	fraction_done = (double)examined / total;
 
-	/* elapsed time for this pass */
+	/* we are only done with a block once we have issued the IO for it */
+	fraction_done = (double)issued / total;
+
+	/* elapsed time for this pass, rounding up to 1 if it's 0 */
 	elapsed = time(NULL) - ps->pss_pass_start;
 	elapsed -= ps->pss_pass_scrub_spent_paused;
-	elapsed = elapsed ? elapsed : 1;
-	pass_exam = ps->pss_pass_exam ? ps->pss_pass_exam : 1;
-	rate = pass_exam / elapsed;
-	rate = rate ? rate : 1;
-	mins_left = ((total - examined) / rate) / 60;
-	hours_left = mins_left / 60;
+	elapsed = (elapsed != 0) ? elapsed : 1;
 
-	zfs_nicenum(examined, examined_buf, sizeof (examined_buf));
+	scan_rate = pass_scanned / elapsed;
+	issue_rate = pass_issued / elapsed;
+	total_secs_left = (issue_rate != 0) ?
+	    ((total - issued) / issue_rate) : UINT64_MAX;
+
+	days_left = total_secs_left / 60 / 60 / 24;
+	hours_left = (total_secs_left / 60 / 60) % 24;
+	mins_left = (total_secs_left / 60) % 60;
+	secs_left = (total_secs_left % 60);
+
+	/* format all of the numbers we will be reporting */
+	zfs_nicenum(scanned, scanned_buf, sizeof (scanned_buf));
+	zfs_nicenum(issued, issued_buf, sizeof (issued_buf));
 	zfs_nicenum(total, total_buf, sizeof (total_buf));
+	zfs_nicenum(scan_rate, srate_buf, sizeof (srate_buf));
+	zfs_nicenum(issue_rate, irate_buf, sizeof (irate_buf));
 
-	/*
-	 * do not print estimated time if hours_left is more than 30 days
-	 * or we have a paused scrub
-	 */
+	/* doo not print estimated time if we have a paused scrub */
 	if (pause == 0) {
-		zfs_nicenum(rate, rate_buf, sizeof (rate_buf));
-		(void) printf(gettext("\t%s scanned out of %s at %s/s"),
-		    examined_buf, total_buf, rate_buf);
-		if (hours_left < (30 * 24)) {
-			(void) printf(gettext(", %lluh%um to go\n"),
-			    (u_longlong_t)hours_left, (uint_t)(mins_left % 60));
-		} else {
-			(void) printf(gettext(
-			    ", (scan is slow, no estimated time)\n"));
-		}
+		(void) printf(gettext("\t%s scanned at %s/s, "
+		    "%s issued at %s/s, %s total\n"),
+		    scanned_buf, srate_buf, issued_buf, irate_buf, total_buf);
 	} else {
-		(void) printf(gettext("\t%s scanned out of %s\n"),
-		    examined_buf, total_buf);
+		(void) printf(gettext("\t%s scanned, %s issued, %s total\n"),
+                    scanned_buf, issued_buf, total_buf);
 	}
 
 	if (ps->pss_func == POOL_SCAN_RESILVER) {
-		(void) printf(gettext("        %s resilvered, %.2f%% done\n"),
+		(void) printf(gettext("\t%s resilvered, %.2f%% done"),
 		    processed_buf, 100 * fraction_done);
 	} else if (ps->pss_func == POOL_SCAN_SCRUB) {
-		(void) printf(gettext("        %s repaired, %.2f%% done\n"),
+		(void) printf(gettext("\t%s repaired, %.2f%% done"),
 		    processed_buf, 100 * fraction_done);
+	}
+
+	if (pause == 0) {
+		if (issue_rate >= 10 * 1024 * 1024) {
+			(void) printf(gettext(", %llu days "
+                            "%02llu:%02llu:%02llu to go\n"),
+                            (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                            (u_longlong_t)mins_left, (u_longlong_t)secs_left);
+		} else {
+			(void) printf(gettext(", no estimated "
+                            "completion time\n"));
+		}
+	} else {
+		(void) printf(gettext("\n"));
 	}
 }
 

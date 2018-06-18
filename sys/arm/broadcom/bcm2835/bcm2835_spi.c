@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 #include <arm/broadcom/bcm2835/bcm2835_spireg.h>
 #include <arm/broadcom/bcm2835/bcm2835_spivar.h>
 
@@ -250,8 +249,7 @@ static int
 bcm_spi_attach(device_t dev)
 {
 	struct bcm_spi_softc *sc;
-	device_t gpio;
-	int i, rid;
+	int rid;
 
 	if (device_get_unit(dev) != 0) {
 		device_printf(dev, "only one SPI controller supported\n");
@@ -260,15 +258,6 @@ bcm_spi_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-
-	/* Configure the GPIO pins to ALT0 function to enable SPI the pins. */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (!gpio) {
-		device_printf(dev, "cannot find gpio0\n");
-		return (ENXIO);
-	}
-	for (i = 0; i < nitems(bcm_spi_pins); i++)
-		bcm_gpio_set_alternate(gpio, bcm_spi_pins[i], BCM_GPIO_ALT0);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,

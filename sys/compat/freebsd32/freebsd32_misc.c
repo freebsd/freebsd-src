@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ktrace.h"
@@ -1973,6 +1972,7 @@ static void
 copy_ostat(struct stat *in, struct ostat32 *out)
 {
 
+	bzero(out, sizeof(*out));
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
@@ -1980,7 +1980,7 @@ copy_ostat(struct stat *in, struct ostat32 *out)
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
 	CP(*in, *out, st_rdev);
-	CP(*in, *out, st_size);
+	out->st_size = MIN(in->st_size, INT32_MAX);
 	TS_CP(*in, *out, st_atim);
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);
@@ -2127,11 +2127,27 @@ freebsd11_cvtstat32(struct stat *in, struct freebsd11_stat32 *out)
 			break;
 		}
 	}
-	CP(*in, *out, st_dev);
+	out->st_dev = in->st_dev;
+	if (out->st_dev != in->st_dev) {
+		switch (ino64_trunc_error) {
+		default:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	CP(*in, *out, st_mode);
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
-	CP(*in, *out, st_rdev);
+	out->st_rdev = in->st_rdev;
+	if (out->st_rdev != in->st_rdev) {
+		switch (ino64_trunc_error) {
+		default:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	TS_CP(*in, *out, st_atim);
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);
@@ -2264,7 +2280,7 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, &oldlen, 1,
 		uap->new, uap->newlen, &j, SCTL_MASK32);
-	if (error && error != ENOMEM)
+	if (error)
 		return (error);
 	if (uap->oldlenp)
 		suword32(uap->oldlenp, j);
@@ -3181,33 +3197,21 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(uint32_t));
 
-	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
-	 */
+	vectp = (uint32_t *)destp;
 	if (imgp->auxargs) {
 		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has up to AT_COUNT entries.
 		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
-		    sizeof(u_int32_t));
-	} else {
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (u_int32_t *)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2) * sizeof(u_int32_t));
+		vectp -= howmany(AT_COUNT * sizeof(Elf32_Auxinfo),
+		    sizeof(*vectp));
 	}
+
+	/*
+	 * Allocate room for the argv[] and env vectors including the
+	 * terminating NULL pointers.
+	 */
+	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
 
 	/*
 	 * vectp also becomes our initial stack base
@@ -3353,7 +3357,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	union {
 		struct procctl_reaper_pids32 rp;
 	} x32;
-	int error, error1, flags;
+	int error, error1, flags, signum;
 
 	switch (uap->com) {
 	case PROC_SPROTECT:
@@ -3391,6 +3395,15 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRAPCAP_STATUS:
 		data = &flags;
 		break;
+	case PROC_PDEATHSIG_CTL:
+		error = copyin(uap->data, &signum, sizeof(signum));
+		if (error != 0)
+			return (error);
+		data = &signum;
+		break;
+	case PROC_PDEATHSIG_STATUS:
+		data = &signum;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -3410,6 +3423,10 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRAPCAP_STATUS:
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
+		break;
+	case PROC_PDEATHSIG_STATUS:
+		if (error == 0)
+			error = copyout(&signum, uap->data, sizeof(signum));
 		break;
 	}
 	return (error);

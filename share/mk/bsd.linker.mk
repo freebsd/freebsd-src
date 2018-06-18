@@ -49,7 +49,7 @@ ${var}=	${${var}.${${X_}_ld_hash}}
 
 .if ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 .if !defined(${X_}LINKER_TYPE) || !defined(${X_}LINKER_VERSION)
-_ld_version!=	(${${ld}} --version || echo none) | head -n 1
+_ld_version!=	(${${ld}} --version || echo none) | sed -n 1p
 .if ${_ld_version} == "none"
 .warning Unable to determine linker type from ${ld}=${${ld}}
 .endif
@@ -71,6 +71,7 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 ${X_}LINKER_FEATURES=
 .if ${${X_}LINKER_TYPE} != "bfd" || ${${X_}LINKER_VERSION} > 21750
 ${X_}LINKER_FEATURES+=	build-id
+${X_}LINKER_FEATURES+=	ifunc
 .endif
 .if ${${X_}LINKER_TYPE} != "lld" || ${${X_}LINKER_VERSION} >= 50000
 ${X_}LINKER_FEATURES+=	filter

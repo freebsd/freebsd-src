@@ -71,6 +71,7 @@ typedef struct {
 	const u_int	vendor_id;
 	uint32_t	id32;
 	freq_info	*freqtab;
+	size_t		tablen;
 } cpu_info;
 
 struct est_softc {
@@ -78,6 +79,7 @@ struct est_softc {
 	int		acpi_settings;
 	int		msr_settings;
 	freq_info	*freq_list;
+	size_t		flist_len;
 };
 
 /* Convert MHz and mV into IDs for passing to the MSR. */
@@ -92,9 +94,9 @@ struct est_softc {
 #define FREQ_INFO(MHz, mV, bus_clk)			\
 	FREQ_INFO_PWR(MHz, mV, bus_clk, CPUFREQ_VAL_UNKNOWN)
 #define INTEL(tab, zhi, vhi, zlo, vlo, bus_clk)		\
-	{ CPU_VENDOR_INTEL, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
+	{ CPU_VENDOR_INTEL, ID32(zhi, vhi, zlo, vlo, bus_clk), tab, nitems(tab) }
 #define CENTAUR(tab, zhi, vhi, zlo, vlo, bus_clk)	\
-	{ CPU_VENDOR_CENTAUR, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
+	{ CPU_VENDOR_CENTAUR, ID32(zhi, vhi, zlo, vlo, bus_clk), tab, nitems(tab) }
 
 static int msr_info_enabled = 0;
 TUNABLE_INT("hw.est.msr_info", &msr_info_enabled);
@@ -131,7 +133,6 @@ static freq_info PM17_130[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1004, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM16_130[] = {
 	/* 130nm 1.60GHz Pentium M */
@@ -141,7 +142,6 @@ static freq_info PM16_130[] = {
 	FREQ_INFO(1000, 1164, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM15_130[] = {
 	/* 130nm 1.50GHz Pentium M */
@@ -151,7 +151,6 @@ static freq_info PM15_130[] = {
 	FREQ_INFO(1000, 1228, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM14_130[] = {
 	/* 130nm 1.40GHz Pentium M */
@@ -160,7 +159,6 @@ static freq_info PM14_130[] = {
 	FREQ_INFO(1000, 1308, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1180, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM13_130[] = {
 	/* 130nm 1.30GHz Pentium M */
@@ -169,7 +167,6 @@ static freq_info PM13_130[] = {
 	FREQ_INFO(1000, 1292, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1260, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM13_LV_130[] = {
 	/* 130nm 1.30GHz Low Voltage Pentium M */
@@ -180,7 +177,6 @@ static freq_info PM13_LV_130[] = {
 	FREQ_INFO( 900, 1004, INTEL_BUS_CLK),
 	FREQ_INFO( 800,  988, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM12_LV_130[] = {
 	/* 130 nm 1.20GHz Low Voltage Pentium M */
@@ -190,7 +186,6 @@ static freq_info PM12_LV_130[] = {
 	FREQ_INFO( 900, 1020, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1004, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM11_LV_130[] = {
 	/* 130 nm 1.10GHz Low Voltage Pentium M */
@@ -199,7 +194,6 @@ static freq_info PM11_LV_130[] = {
 	FREQ_INFO( 900, 1100, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1020, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM11_ULV_130[] = {
 	/* 130 nm 1.10GHz Ultra Low Voltage Pentium M */
@@ -208,7 +202,6 @@ static freq_info PM11_ULV_130[] = {
 	FREQ_INFO( 900,  972, INTEL_BUS_CLK),
 	FREQ_INFO( 800,  956, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  844, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM10_ULV_130[] = {
 	/* 130 nm 1.00GHz Ultra Low Voltage Pentium M */
@@ -216,7 +209,6 @@ static freq_info PM10_ULV_130[] = {
 	FREQ_INFO( 900,  988, INTEL_BUS_CLK),
 	FREQ_INFO( 800,  972, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  844, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 
 /*
@@ -233,7 +225,6 @@ static freq_info PM_765A_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_765B_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #B */
@@ -245,7 +236,6 @@ static freq_info PM_765B_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_765C_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #C */
@@ -257,7 +247,6 @@ static freq_info PM_765C_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_765E_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #E */
@@ -269,7 +258,6 @@ static freq_info PM_765E_90[] = {
 	FREQ_INFO(1000, 1100, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_755A_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #A */
@@ -281,7 +269,6 @@ static freq_info PM_755A_90[] = {
 	FREQ_INFO(1000, 1100, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_755B_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #B */
@@ -293,7 +280,6 @@ static freq_info PM_755B_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_755C_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #C */
@@ -305,7 +291,6 @@ static freq_info PM_755C_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_755D_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #D */
@@ -317,7 +302,6 @@ static freq_info PM_755D_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_745A_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #A */
@@ -328,7 +312,6 @@ static freq_info PM_745A_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_745B_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #B */
@@ -339,7 +322,6 @@ static freq_info PM_745B_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_745C_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #C */
@@ -350,7 +332,6 @@ static freq_info PM_745C_90[] = {
 	FREQ_INFO(1000, 1100, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_745D_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #D */
@@ -361,7 +342,6 @@ static freq_info PM_745D_90[] = {
 	FREQ_INFO(1000, 1084, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_735A_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #A */
@@ -371,7 +351,6 @@ static freq_info PM_735A_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_735B_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #B */
@@ -381,7 +360,6 @@ static freq_info PM_735B_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_735C_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #C */
@@ -391,7 +369,6 @@ static freq_info PM_735C_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_735D_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #D */
@@ -401,7 +378,6 @@ static freq_info PM_735D_90[] = {
 	FREQ_INFO(1000, 1100, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_725A_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #A */
@@ -411,7 +387,6 @@ static freq_info PM_725A_90[] = {
 	FREQ_INFO(1000, 1132, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1068, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_725B_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #B */
@@ -421,7 +396,6 @@ static freq_info PM_725B_90[] = {
 	FREQ_INFO(1000, 1132, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1068, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_725C_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #C */
@@ -431,7 +405,6 @@ static freq_info PM_725C_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_725D_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #D */
@@ -441,7 +414,6 @@ static freq_info PM_725D_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_715A_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #A */
@@ -450,7 +422,6 @@ static freq_info PM_715A_90[] = {
 	FREQ_INFO(1000, 1148, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1068, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_715B_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #B */
@@ -459,7 +430,6 @@ static freq_info PM_715B_90[] = {
 	FREQ_INFO(1000, 1148, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1068, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_715C_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #C */
@@ -468,7 +438,6 @@ static freq_info PM_715C_90[] = {
 	FREQ_INFO(1000, 1132, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1068, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_715D_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #D */
@@ -477,7 +446,6 @@ static freq_info PM_715D_90[] = {
 	FREQ_INFO(1000, 1116, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1052, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_778_90[] = {
 	/* 90 nm 1.60GHz Low Voltage Pentium M */
@@ -491,7 +459,6 @@ static freq_info PM_778_90[] = {
 	FREQ_INFO( 900, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1020, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_758_90[] = {
 	/* 90 nm 1.50GHz Low Voltage Pentium M */
@@ -504,7 +471,6 @@ static freq_info PM_758_90[] = {
 	FREQ_INFO( 900, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1020, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_738_90[] = {
 	/* 90 nm 1.40GHz Low Voltage Pentium M */
@@ -516,7 +482,6 @@ static freq_info PM_738_90[] = {
 	FREQ_INFO( 900, 1036, INTEL_BUS_CLK),
 	FREQ_INFO( 800, 1020, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_773G_90[] = {
 	/* 90 nm 1.30GHz Ultra Low Voltage Pentium M, VID #G */
@@ -688,7 +653,6 @@ static freq_info PM_733_90[] = {
 	FREQ_INFO( 900,  892, INTEL_BUS_CLK),
 	FREQ_INFO( 800,  876, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  812, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 static freq_info PM_723_90[] = {
 	/* 90 nm 1.00GHz Ultra Low Voltage Pentium M */
@@ -696,7 +660,6 @@ static freq_info PM_723_90[] = {
 	FREQ_INFO( 900,  908, INTEL_BUS_CLK),
 	FREQ_INFO( 800,  876, INTEL_BUS_CLK),
 	FREQ_INFO( 600,  812, INTEL_BUS_CLK),
-	FREQ_INFO(   0,    0, 1),
 };
 
 /*
@@ -713,7 +676,6 @@ static freq_info C7M_795[] = {
 	FREQ_INFO_PWR( 800,  844, 133,  7000),
 	FREQ_INFO_PWR( 667,  844, 133,  6000),
 	FREQ_INFO_PWR( 533,  844, 133,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_785[] = {
 	/* 1.80GHz Centaur C7-M 533 Mhz FSB */
@@ -724,7 +686,6 @@ static freq_info C7M_785[] = {
 	FREQ_INFO_PWR( 800,  844, 133,  7000),
 	FREQ_INFO_PWR( 667,  844, 133,  6000),
 	FREQ_INFO_PWR( 533,  844, 133,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_765[] = {
 	/* 1.60GHz Centaur C7-M 533 Mhz FSB */
@@ -734,7 +695,6 @@ static freq_info C7M_765[] = {
 	FREQ_INFO_PWR( 800,  844, 133,  7000),
 	FREQ_INFO_PWR( 667,  844, 133,  6000),
 	FREQ_INFO_PWR( 533,  844, 133,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 
 static freq_info C7M_794[] = {
@@ -747,7 +707,6 @@ static freq_info C7M_794[] = {
 	FREQ_INFO_PWR( 800,  844, 100,  7000),
 	FREQ_INFO_PWR( 600,  844, 100,  6000),
 	FREQ_INFO_PWR( 400,  844, 100,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_784[] = {
 	/* 1.80GHz Centaur C7-M 400 Mhz FSB */
@@ -758,7 +717,6 @@ static freq_info C7M_784[] = {
 	FREQ_INFO_PWR( 800,  844, 100,  7000),
 	FREQ_INFO_PWR( 600,  844, 100,  6000),
 	FREQ_INFO_PWR( 400,  844, 100,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_764[] = {
 	/* 1.60GHz Centaur C7-M 400 Mhz FSB */
@@ -768,7 +726,6 @@ static freq_info C7M_764[] = {
 	FREQ_INFO_PWR( 800,  844, 100,  7000),
 	FREQ_INFO_PWR( 600,  844, 100,  6000),
 	FREQ_INFO_PWR( 400,  844, 100,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_754[] = {
 	/* 1.50GHz Centaur C7-M 400 Mhz FSB */
@@ -778,7 +735,6 @@ static freq_info C7M_754[] = {
 	FREQ_INFO_PWR( 800,  844, 100,  7000),
 	FREQ_INFO_PWR( 600,  844, 100,  6000),
 	FREQ_INFO_PWR( 400,  844, 100,  5000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_771[] = {
 	/* 1.20GHz Centaur C7-M 400 Mhz FSB */
@@ -787,7 +743,6 @@ static freq_info C7M_771[] = {
 	FREQ_INFO_PWR( 800,  844, 100,  5500),
 	FREQ_INFO_PWR( 600,  844, 100,  5000),
 	FREQ_INFO_PWR( 400,  844, 100,  4000),
-	FREQ_INFO(0, 0, 1),
 };
 
 static freq_info C7M_775_ULV[] = {
@@ -798,7 +753,6 @@ static freq_info C7M_775_ULV[] = {
 	FREQ_INFO_PWR( 800,  828, 100,  2800),
 	FREQ_INFO_PWR( 600,  796, 100,  2500),
 	FREQ_INFO_PWR( 400,  796, 100,  2000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_772_ULV[] = {
 	/* 1.20GHz Centaur C7-M ULV */
@@ -807,7 +761,6 @@ static freq_info C7M_772_ULV[] = {
 	FREQ_INFO_PWR( 800,  828, 100,  2800),
 	FREQ_INFO_PWR( 600,  796, 100,  2500),
 	FREQ_INFO_PWR( 400,  796, 100,  2000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_779_ULV[] = {
 	/* 1.00GHz Centaur C7-M ULV */
@@ -815,7 +768,6 @@ static freq_info C7M_779_ULV[] = {
 	FREQ_INFO_PWR( 800,  796, 100,  2800),
 	FREQ_INFO_PWR( 600,  796, 100,  2500),
 	FREQ_INFO_PWR( 400,  796, 100,  2000),
-	FREQ_INFO(0, 0, 1),
 };
 static freq_info C7M_770_ULV[] = {
 	/* 1.00GHz Centaur C7-M ULV */
@@ -823,7 +775,6 @@ static freq_info C7M_770_ULV[] = {
 	FREQ_INFO_PWR( 800,  796, 100,  2800),
 	FREQ_INFO_PWR( 600,  796, 100,  2500),
 	FREQ_INFO_PWR( 400,  796, 100,  2000),
-	FREQ_INFO(0, 0, 1),
 };
 
 static cpu_info ESTprocs[] = {
@@ -906,10 +857,13 @@ static int	est_probe(device_t parent);
 static int	est_attach(device_t parent);
 static int	est_detach(device_t parent);
 static int	est_get_info(device_t dev);
-static int	est_acpi_info(device_t dev, freq_info **freqs);
-static int	est_table_info(device_t dev, uint64_t msr, freq_info **freqs);
-static int	est_msr_info(device_t dev, uint64_t msr, freq_info **freqs);
-static freq_info *est_get_current(freq_info *freq_list);
+static int	est_acpi_info(device_t dev, freq_info **freqs,
+		size_t *freqslen);
+static int	est_table_info(device_t dev, uint64_t msr, freq_info **freqs,
+		size_t *freqslen);
+static int	est_msr_info(device_t dev, uint64_t msr, freq_info **freqs,
+		size_t *freqslen);
+static freq_info *est_get_current(freq_info *freq_list, size_t tablen);
 static int	est_settings(device_t dev, struct cf_setting *sets, int *count);
 static int	est_set(device_t dev, const struct cf_setting *set);
 static int	est_get(device_t dev, struct cf_setting *set);
@@ -1077,11 +1031,11 @@ est_get_info(device_t dev)
 
 	sc = device_get_softc(dev);
 	msr = rdmsr(MSR_PERF_STATUS);
-	error = est_table_info(dev, msr, &sc->freq_list);
+	error = est_table_info(dev, msr, &sc->freq_list, &sc->flist_len);
 	if (error)
-		error = est_acpi_info(dev, &sc->freq_list);
+		error = est_acpi_info(dev, &sc->freq_list, &sc->flist_len);
 	if (error)
-		error = est_msr_info(dev, msr, &sc->freq_list);
+		error = est_msr_info(dev, msr, &sc->freq_list, &sc->flist_len);
 
 	if (error) {
 		printf(
@@ -1094,7 +1048,7 @@ est_get_info(device_t dev)
 }
 
 static int
-est_acpi_info(device_t dev, freq_info **freqs)
+est_acpi_info(device_t dev, freq_info **freqs, size_t *freqslen)
 {
 	struct est_softc *sc;
 	struct cf_setting *sets;
@@ -1119,7 +1073,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		goto out;
 
 	/* Parse settings into our local table format. */
-	table = malloc((count + 1) * sizeof(freq_info), M_DEVBUF, M_NOWAIT);
+	table = malloc(count * sizeof(*table), M_DEVBUF, M_NOWAIT);
 	if (table == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -1147,11 +1101,9 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	/* restore saved setting */
 	est_set_id16(dev, saved_id16, 0);
 
-	/* Mark end of table with a terminator. */
-	bzero(&table[j], sizeof(freq_info));
-
 	sc->acpi_settings = TRUE;
 	*freqs = table;
+	*freqslen = j;
 	error = 0;
 
 out:
@@ -1163,7 +1115,7 @@ out:
 }
 
 static int
-est_table_info(device_t dev, uint64_t msr, freq_info **freqs)
+est_table_info(device_t dev, uint64_t msr, freq_info **freqs, size_t *freqslen)
 {
 	cpu_info *p;
 	uint32_t id;
@@ -1178,12 +1130,13 @@ est_table_info(device_t dev, uint64_t msr, freq_info **freqs)
 		return (EOPNOTSUPP);
 
 	/* Make sure the current setpoint is valid. */
-	if (est_get_current(p->freqtab) == NULL) {
+	if (est_get_current(p->freqtab, p->tablen) == NULL) {
 		device_printf(dev, "current setting not found in table\n");
 		return (EOPNOTSUPP);
 	}
 
 	*freqs = p->freqtab;
+	*freqslen = p->tablen;
 	return (0);
 }
 
@@ -1206,7 +1159,7 @@ bus_speed_ok(int bus)
  * based on the current clock speed and the upper 32 bits of the MSR.
  */
 static int
-est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
+est_msr_info(device_t dev, uint64_t msr, freq_info **freqs, size_t *freqslen)
 {
 	struct est_softc *sc;
 	freq_info *fp;
@@ -1236,7 +1189,7 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 
 	/* Fill out a new freq table containing just the high and low freqs. */
 	sc = device_get_softc(dev);
-	fp = malloc(sizeof(freq_info) * 3, M_DEVBUF, M_WAITOK | M_ZERO);
+	fp = malloc(sizeof(freq_info) * 2, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/* First, the high frequency. */
 	volts = id & 0xff;
@@ -1269,6 +1222,7 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 	/* Table is already terminated due to M_ZERO. */
 	sc->msr_settings = TRUE;
 	*freqs = fp;
+	*freqslen = 2;
 	return (0);
 }
 
@@ -1305,7 +1259,7 @@ est_set_id16(device_t dev, uint16_t id16, int need_check)
 }
 
 static freq_info *
-est_get_current(freq_info *freq_list)
+est_get_current(freq_info *freq_list, size_t tablen)
 {
 	freq_info *f;
 	int i;
@@ -1318,7 +1272,7 @@ est_get_current(freq_info *freq_list)
 	 */
 	for (i = 0; i < 5; i++) {
 		est_get_id16(&id16);
-		for (f = freq_list; f->id16 != 0; f++) {
+		for (f = freq_list; f < freq_list + tablen; f++) {
 			if (f->id16 == id16)
 				return (f);
 		}
@@ -1339,7 +1293,7 @@ est_settings(device_t dev, struct cf_setting *sets, int *count)
 		return (E2BIG);
 
 	i = 0;
-	for (f = sc->freq_list; f->freq != 0; f++, i++) {
+	for (f = sc->freq_list; f < sc->freq_list + sc->flist_len; f++, i++) {
 		sets[i].freq = f->freq;
 		sets[i].volts = f->volts;
 		sets[i].power = f->power;
@@ -1359,7 +1313,7 @@ est_set(device_t dev, const struct cf_setting *set)
 
 	/* Find the setting matching the requested one. */
 	sc = device_get_softc(dev);
-	for (f = sc->freq_list; f->freq != 0; f++) {
+	for (f = sc->freq_list; f < sc->freq_list + sc->flist_len; f++) {
 		if (f->freq == set->freq)
 			break;
 	}
@@ -1379,7 +1333,7 @@ est_get(device_t dev, struct cf_setting *set)
 	freq_info *f;
 
 	sc = device_get_softc(dev);
-	f = est_get_current(sc->freq_list);
+	f = est_get_current(sc->freq_list, sc->flist_len);
 	if (f == NULL)
 		return (ENXIO);
 

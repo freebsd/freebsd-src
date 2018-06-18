@@ -74,6 +74,7 @@
 
 void    enable_fpu(struct thread *);
 void    save_fpu(struct thread *);
+void    save_fpu_nodrop(struct thread *);
 
 #endif /* _KERNEL */
 

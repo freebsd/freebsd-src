@@ -150,7 +150,7 @@ kcs_error(struct ipmi_softc *sc)
 
 			/* Read error status */
 			data = INB(sc, KCS_DATA);
-			if (data != 0)
+			if (data != 0 && (data != 0xff || bootverbose))
 				device_printf(sc->ipmi_dev, "KCS error: %02x\n",
 				    data);
 
@@ -416,8 +416,10 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 
 	/* Next we read the completion code. */
 	if (kcs_read_byte(sc, &req->ir_compcode) != 1) {
-		device_printf(sc->ipmi_dev,
-		    "KCS: Failed to read completion code\n");
+		if (bootverbose) {
+			device_printf(sc->ipmi_dev,
+			    "KCS: Failed to read completion code\n");
+		}
 		goto fail;
 	}
 #ifdef KCS_DEBUG

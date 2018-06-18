@@ -1385,8 +1385,8 @@ struct cpuset *
 cpuset_thread0(void)
 {
 	struct cpuset *set;
-	int error;
 	int i;
+	int error __unused;
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_CACHE, 0);
@@ -2038,6 +2038,9 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (domainsetsize < sizeof(domainset_t) ||
 	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
 		return (ERANGE);
+	if (policy <= DOMAINSET_POLICY_INVALID ||
+	    policy > DOMAINSET_POLICY_MAX)
+		return (EINVAL);
 	/* In Capability mode, you can only set your own CPU set. */
 	if (IN_CAPABILITY_MODE(td)) {
 		if (level != CPU_LEVEL_WHICH)
@@ -2071,15 +2074,14 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	}
 	DOMAINSET_COPY(mask, &domain.ds_mask);
 	domain.ds_policy = policy;
-	if (policy <= DOMAINSET_POLICY_INVALID ||
-	    policy > DOMAINSET_POLICY_MAX)
-		return (EINVAL);
 
 	/* Translate preferred policy into a mask and fallback. */
 	if (policy == DOMAINSET_POLICY_PREFER) {
 		/* Only support a single preferred domain. */
-		if (DOMAINSET_COUNT(&domain.ds_mask) != 1)
-			return (EINVAL);
+		if (DOMAINSET_COUNT(&domain.ds_mask) != 1) {
+			error = EINVAL;
+			goto out;
+		}
 		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
 		/* This will be constrained by domainset_shadow(). */
 		DOMAINSET_FILL(&domain.ds_mask);

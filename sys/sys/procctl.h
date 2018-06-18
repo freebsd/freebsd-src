@@ -51,6 +51,8 @@
 #define	PROC_TRACE_STATUS	8	/* query tracing status */
 #define	PROC_TRAPCAP_CTL	9	/* trap capability errors */
 #define	PROC_TRAPCAP_STATUS	10	/* query trap capability status */
+#define	PROC_PDEATHSIG_CTL	11	/* set parent death signal */
+#define	PROC_PDEATHSIG_STATUS	12	/* get parent death signal */
 
 /* Operations for PROC_SPROTECT (passed in integer arg). */
 #define	PPROT_OP(x)	((x) & 0xf)

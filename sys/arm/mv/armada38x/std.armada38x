@@ -1,6 +1,4 @@
 # $FreeBSD$
-files		"../mv/armada38x/files.armada38x"
-files		"../mv/files.mv"
 files		"../mv/files.arm7"
 cpu		CPU_CORTEXA
 machine		arm	armv7

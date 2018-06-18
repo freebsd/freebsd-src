@@ -42,6 +42,7 @@ ID=$(( $ID + 1 ))
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print path details
@@ -49,6 +50,7 @@ exec 9<<EOF
 	printf("%s", this->path);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END

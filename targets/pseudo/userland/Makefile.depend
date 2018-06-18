@@ -810,7 +810,6 @@ DIRDEPS.amd64= \
 	usr.sbin/acpi/acpidump \
 	usr.sbin/acpi/iasl \
 	usr.sbin/apm \
-	usr.sbin/asf \
 	usr.sbin/bhyve \
 	usr.sbin/bhyvectl \
 	usr.sbin/bhyveload \
@@ -842,7 +841,6 @@ DIRDEPS.i386= \
 	sbin/sconfig \
 	usr.sbin/apm \
 	usr.sbin/apmd \
-	usr.sbin/asf \
 	usr.sbin/btxld \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \

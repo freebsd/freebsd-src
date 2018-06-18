@@ -61,8 +61,11 @@ __FBSDID("$FreeBSD$");
 #define	SID_RDKEY		0x60
 
 #define	SID_SRAM		0x200
-#define	SID_THERMAL_CALIB0	(SID_SRAM + 0x34)
-#define	SID_THERMAL_CALIB1	(SID_SRAM + 0x38)
+/* Offsets into efuse space, for convenience */
+#define	SID_THERMAL_CALIB0_OFF	(0x34)
+#define	SID_THERMAL_CALIB1_OFF	(0x38)
+#define	SID_THERMAL_CALIB0	(SID_SRAM + SID_THERMAL_CALIB0_OFF)
+#define	SID_THERMAL_CALIB1	(SID_SRAM + SID_THERMAL_CALIB1_OFF)
 
 #define	ROOT_KEY_SIZE		4
 
@@ -116,6 +119,7 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 struct aw_sid_softc {
+	device_t		sid_dev;
 	struct resource		*res;
 	struct aw_sid_conf	*sid_conf;
 	struct mtx		prctl_mtx;
@@ -134,6 +138,8 @@ enum sid_keys {
 
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+
+#define	PRCTL_RD4(sc, reg, val)	aw_sid_prctl_read((sc)->sid_dev, (reg), (val))
 
 static int aw_sid_sysctl(SYSCTL_HANDLER_ARGS);
 static int aw_sid_prctl_read(device_t dev, bus_size_t offset, uint32_t *val);
@@ -183,10 +189,9 @@ static int
 aw_sid_attach(device_t dev)
 {
 	struct aw_sid_softc *sc;
-	bus_size_t i;
-	uint32_t val;
 
 	sc = device_get_softc(dev);
+	sc->sid_dev = dev;
 
 	if (bus_alloc_resources(dev, aw_sid_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
@@ -197,19 +202,6 @@ aw_sid_attach(device_t dev)
 	sc->sid_conf = (struct aw_sid_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	aw_sid_sc = sc;
 
-	/*
-	 * This set of reads is solely for working around a silicon bug on some
-	 * SoC that require a prctl read in order for direct register access to
-	 * return a non-garbled value. Hence, the values we read are simply
-	 * ignored.
-	 */
-	if (sc->sid_conf->requires_prctl_read)
-		for (i = 0; i < sc->sid_conf->efuse_size; i += 4)
-			if (aw_sid_prctl_read(dev, i, &val) != 0) {
-				device_printf(dev, "failed prctl read\n");
-				goto fail;
-			}
-
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "rootkey",
@@ -217,11 +209,6 @@ aw_sid_attach(device_t dev)
 	    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
 
 	return (0);
-
-fail:
-	bus_release_resources(dev, aw_sid_spec, &sc->res);
-	mtx_destroy(&sc->prctl_mtx);
-	return (ENXIO);
 }
 
 int
@@ -235,8 +222,13 @@ aw_sid_read_tscalib(uint32_t *calib0, uint32_t *calib1)
 	if (!sc->sid_conf->has_thermal)
 		return (ENXIO);
 
-	*calib0 = RD4(sc, SID_THERMAL_CALIB0);
-	*calib1 = RD4(sc, SID_THERMAL_CALIB1);
+	if (sc->sid_conf->requires_prctl_read) {
+		PRCTL_RD4(sc, SID_THERMAL_CALIB0_OFF, calib0);
+		PRCTL_RD4(sc, SID_THERMAL_CALIB1_OFF, calib1);
+	} else {
+		*calib0 = RD4(sc, SID_THERMAL_CALIB0);
+		*calib1 = RD4(sc, SID_THERMAL_CALIB1);
+	}
 
 	return (0);
 }
@@ -254,7 +246,10 @@ aw_sid_get_rootkey(u_char *out)
 		return (ENXIO);
 	root_key_off = aw_sid_sc->sid_conf->rootkey_offset;
 	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
-		tmp = RD4(aw_sid_sc, root_key_off + (i * 4));
+		if (sc->sid_conf->requires_prctl_read)
+			PRCTL_RD4(sc, (i * 4), &tmp);
+		else
+			tmp = RD4(aw_sid_sc, root_key_off + (i * 4));
 		be32enc(&out[i * 4], tmp);
 	}
 

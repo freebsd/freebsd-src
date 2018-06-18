@@ -690,21 +690,22 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 		    qpair->queuemem_map);
 	}
 
-	if (qpair->dma_tag)
-		bus_dma_tag_destroy(qpair->dma_tag);
-
-	if (qpair->dma_tag_payload)
-		bus_dma_tag_destroy(qpair->dma_tag_payload);
-
 	if (qpair->act_tr)
 		free(qpair->act_tr, M_NVME);
 
 	while (!TAILQ_EMPTY(&qpair->free_tr)) {
 		tr = TAILQ_FIRST(&qpair->free_tr);
 		TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
-		bus_dmamap_destroy(qpair->dma_tag, tr->payload_dma_map);
+		bus_dmamap_destroy(qpair->dma_tag_payload,
+		    tr->payload_dma_map);
 		free(tr, M_NVME);
 	}
+
+	if (qpair->dma_tag)
+		bus_dma_tag_destroy(qpair->dma_tag);
+
+	if (qpair->dma_tag_payload)
+		bus_dma_tag_destroy(qpair->dma_tag_payload);
 }
 
 static void

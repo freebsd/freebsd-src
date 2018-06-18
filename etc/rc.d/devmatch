@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2018 Warner Losh
-# All rights reserved.
+# Copyright (c) 2018 M. Warner Losh
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -34,6 +33,7 @@
 
 name="devmatch"
 desc="Use devmatch(8) to load kernel modules"
+rcvar="${name}_enable"
 
 start_cmd="${name}_start"
 stop_cmd=':'

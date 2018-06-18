@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd January 13, 2002
+.Dd June 1, 2018
 .Dt "AT" 1
 .Os
 .Sh NAME
@@ -294,7 +294,7 @@ The hour of the day, from 0 to 23.
 .It Ar mm
 The minute of the hour, from 0 to 59.
 .It Ar SS
-The second of the minute, from 0 to 61.
+The second of the minute, from 0 to 60.
 .El
 .Pp
 If the

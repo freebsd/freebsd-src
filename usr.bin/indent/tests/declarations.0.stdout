@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 /* See r303570 */
 
+typedef void (*voidptr) (int *);
+
 static const struct {
 	double		x;
 	double		y, z;
@@ -30,12 +32,14 @@ t2(char *x, int y)
 	int		a, b, c;
 	int
 		       *d, *e, *f;
-	int 		(*g) (), (*h) (), (*i) ();
+	int		(*g) (), (*h) (), (*i) ();
 	int		j, k, l;
 	int		m
 		       ,n
 		       ,o
 		       ;
+	int		chars[ /* push the comma beyond column 74 .... */ ],
+			x;
 }
 
 const int	int_minimum_size =

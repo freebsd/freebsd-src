@@ -111,7 +111,7 @@ octeon_pmc_intr(void *arg)
 	struct trapframe *tf = PCPU_GET(curthread)->td_intr_frame;
 
 	if (pmc_intr)
-		(*pmc_intr)(PCPU_GET(cpuid), tf);
+		(*pmc_intr)(PCPU_GET(tf);
 
 	return (FILTER_HANDLED);
 }

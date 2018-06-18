@@ -55,7 +55,7 @@ which is the file format used by, among other programs,
 .BR tcpdump (1)
 and
 .BR tcpslice (1),
-or can have the pcap-ng file format, although not all pcap-ng files can
+or can have the pcapng file format, although not all pcapng files can
 be read.
 The name "-" is a synonym for
 .BR stdin .

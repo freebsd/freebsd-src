@@ -63,6 +63,7 @@ struct vnet;
  * private data and error information.
  */
 typedef	int so_upcall_t(struct socket *, void *, int);
+typedef	void so_dtor_t(struct socket *);
 
 struct socket;
 
@@ -84,7 +85,7 @@ struct socket {
 	struct selinfo	so_rdsel;	/* (b/cr) for so_rcv/so_comp */
 	struct selinfo	so_wrsel;	/* (b/cs) for so_snd */
 	short	so_type;		/* (a) generic type, see socket.h */
-	short	so_options;		/* (b) from socket call, see socket.h */
+	int	so_options;		/* (b) from socket call, see socket.h */
 	short	so_linger;		/* time to linger close(2) */
 	short	so_state;		/* (b) internal state flags SS_* */
 	void	*so_pcb;		/* protocol control block */
@@ -99,6 +100,7 @@ struct socket {
 	/* NB: generation count must not be first. */
 	so_gen_t so_gencnt;		/* (h) generation count */
 	void	*so_emuldata;		/* (b) private data for emulators */
+	so_dtor_t *so_dtor;		/* (b) optional destructor */
 	struct	osd	osd;		/* Object Specific extensions */
 	/*
 	 * so_fibnum, so_user_cookie and friends can be used to attach
@@ -397,6 +399,7 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 int	sodisconnect(struct socket *so);
+void	sodtor_set(struct socket *, so_dtor_t *);
 struct	sockaddr *sodupsockaddr(const struct sockaddr *sa, int mflags);
 void	sofree(struct socket *so);
 void	sohasoutofband(struct socket *so);

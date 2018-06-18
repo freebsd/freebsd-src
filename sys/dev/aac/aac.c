@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #define AAC_DRIVERNAME			"aac"
 
 #include "opt_aac.h"
-#include "opt_compat.h"
 
 /* #include <stddef.h> */
 #include <sys/param.h>

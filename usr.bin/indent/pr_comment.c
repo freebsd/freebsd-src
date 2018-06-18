@@ -91,9 +91,10 @@ pr_comment(void)
     char       *last_bl;	/* points to the last blank in the output
 				 * buffer */
     char       *t_ptr;		/* used for moving string */
-    int         break_delim = comment_delimiter_on_blankline;
+    int         break_delim = opt.comment_delimiter_on_blankline;
     int         l_just_saw_decl = ps.just_saw_decl;
-    adj_max_col = max_col;
+
+    adj_max_col = opt.max_col;
     ps.just_saw_decl = 0;
     last_bl = NULL;		/* no blanks found so far */
     ps.box_com = false;		/* at first, assume that we are not in
@@ -103,7 +104,7 @@ pr_comment(void)
 
     /* Figure where to align and how to treat the comment */
 
-    if (ps.col_1 && !format_col1_comments) {	/* if comment starts in column
+    if (ps.col_1 && !opt.format_col1_comments) {	/* if comment starts in column
 						 * 1 it should not be touched */
 	ps.box_com = true;
 	break_delim = false;
@@ -111,7 +112,7 @@ pr_comment(void)
     }
     else {
 	if (*buf_ptr == '-' || *buf_ptr == '*' ||
-	    (*buf_ptr == '\n' && !format_block_comments)) {
+	    (*buf_ptr == '\n' && !opt.format_block_comments)) {
 	    ps.box_com = true;	/* A comment with a '-' or '*' immediately
 				 * after the /+* is assumed to be a boxed
 				 * comment. A comment with a newline
@@ -127,10 +128,10 @@ pr_comment(void)
 	     * If this (*and previous lines are*) blank, dont put comment way
 	     * out at left
 	     */
-	    ps.com_col = (ps.ind_level - ps.unindent_displace) * ps.ind_size + 1;
-	    adj_max_col = block_comment_max_col;
+	    ps.com_col = (ps.ind_level - opt.unindent_displace) * opt.ind_size + 1;
+	    adj_max_col = opt.block_comment_max_col;
 	    if (ps.com_col <= 1)
-		ps.com_col = 1 + !format_col1_comments;
+		ps.com_col = 1 + !opt.format_col1_comments;
 	}
 	else {
 	    int target_col;
@@ -142,9 +143,9 @@ pr_comment(void)
 		if (s_lab != e_lab)
 		    target_col = count_spaces(compute_label_target(), s_lab);
 	    }
-	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? ps.decl_com_ind : ps.com_ind;
+	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? opt.decl_com_ind : opt.com_ind;
 	    if (ps.com_col <= target_col)
-		ps.com_col = tabsize * (1 + (target_col - 1) / tabsize) + 1;
+		ps.com_col = opt.tabsize * (1 + (target_col - 1) / opt.tabsize) + 1;
 	    if (ps.com_col + 24 > adj_max_col)
 		adj_max_col = ps.com_col + 24;
 	}
@@ -158,8 +159,11 @@ pr_comment(void)
 	 * The comment we're about to read usually comes from in_buffer,
 	 * unless it has been copied into save_com.
 	 */
-	char *start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ? bp_save : buf_ptr;
-	ps.n_comment_delta = 1 - count_spaces_until(1, in_buffer, start - 2);
+	char *start;
+
+	start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ?
+	    sc_buf : in_buffer;
+	ps.n_comment_delta = 1 - count_spaces_until(1, start, buf_ptr - 2);
     }
     else {
 	ps.n_comment_delta = 0;
@@ -190,30 +194,27 @@ pr_comment(void)
 	char       *t = e_com;
 	e_com = s_com + 2;
 	*e_com = 0;
-	if (blanklines_before_blockcomments && ps.last_token != lbrace)
+	if (opt.blanklines_before_blockcomments && ps.last_token != lbrace)
 	    prefix_blankline_requested = 1;
 	dump_line();
 	e_com = s_com = t;
-	if (!ps.box_com && star_comment_cont)
+	if (!ps.box_com && opt.star_comment_cont)
 	    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
     }
-
-    if (troff)
-	adj_max_col = 80;
 
     /* Start to copy the comment */
 
     while (1) {			/* this loop will go until the comment is
 				 * copied */
-	CHECK_SIZE_COM;
 	switch (*buf_ptr) {	/* this checks for various spcl cases */
 	case 014:		/* check for a form feed */
+	    CHECK_SIZE_COM(3);
 	    if (!ps.box_com) {	/* in a text comment, break the line here */
 		ps.use_ff = true;
 		/* fix so dump_line uses a form feed */
 		dump_line();
 		last_bl = NULL;
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		while (*++buf_ptr == ' ' || *buf_ptr == '\t')
 		    ;
@@ -232,17 +233,18 @@ pr_comment(void)
 		return;
 	    }
 	    last_bl = NULL;
+	    CHECK_SIZE_COM(4);
 	    if (ps.box_com || ps.last_nl) {	/* if this is a boxed comment,
 						 * we dont ignore the newline */
 		if (s_com == e_com)
 		    *e_com++ = ' ';
 		if (!ps.box_com && e_com - s_com > 3) {
 		    dump_line();
-		    if (star_comment_cont)
+		    if (opt.star_comment_cont)
 			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		}
 		dump_line();
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 	    }
 	    else {
@@ -255,7 +257,6 @@ pr_comment(void)
 		 */
 		else {		/* otherwise, insert one */
 		    last_bl = e_com;
-		    CHECK_SIZE_COM;
 		    *e_com++ = ' ';
 		}
 	    }
@@ -282,12 +283,11 @@ pr_comment(void)
 				 * of comment */
 	    if (++buf_ptr >= buf_end)	/* get to next char after * */
 		fill_buffer();
-
+	    CHECK_SIZE_COM(4);
 	    if (*buf_ptr == '/') {	/* it is the end!!! */
 	end_of_comment:
 		if (++buf_ptr >= buf_end)
 		    fill_buffer();
-		CHECK_SIZE_COM;
 		if (break_delim) {
 		    if (e_com > s_com + 3) {
 			dump_line();
@@ -308,6 +308,7 @@ pr_comment(void)
 	default:		/* we have a random char */
 	    now_col = count_spaces_until(ps.com_col, s_com, e_com);
 	    do {
+		CHECK_SIZE_COM(1);
 		*e_com = *buf_ptr++;
 		if (buf_ptr >= buf_end)
 		    fill_buffer();
@@ -324,24 +325,29 @@ pr_comment(void)
 		 */
 		if (last_bl == NULL) {
 		    dump_line();
-		    if (!ps.box_com && star_comment_cont)
+		    if (!ps.box_com && opt.star_comment_cont)
 			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		    break;
 		}
 		*e_com = '\0';
 		e_com = last_bl;
 		dump_line();
-		if (!ps.box_com && star_comment_cont)
+		if (!ps.box_com && opt.star_comment_cont)
 		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		for (t_ptr = last_bl + 1; *t_ptr == ' ' || *t_ptr == '\t';
 		    t_ptr++)
 			;
 		last_bl = NULL;
+		/*
+		 * t_ptr will be somewhere between e_com (dump_line() reset)
+		 * and l_com. So it's safe to copy byte by byte from t_ptr
+		 * to e_com without any CHECK_SIZE_COM().
+		 */
 		while (*t_ptr != '\0') {
 		    if (*t_ptr == ' ' || *t_ptr == '\t')
 			last_bl = e_com;
 		    *e_com++ = *t_ptr++;
- 		}
+		}
 	    }
 	    break;
 	}

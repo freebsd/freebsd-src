@@ -34,10 +34,6 @@
 #ifndef	__MIPS_TLS_H__
 #define	__MIPS_TLS_H__
 
-#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
-
 /*
  * TLS parameters
  */

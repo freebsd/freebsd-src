@@ -101,7 +101,6 @@ radeon_ioc32=		radeon_ioc32.c
 
 SRCS	+=								\
 	opt_acpi.h							\
-	opt_compat.h							\
 	opt_drm.h							\
 	opt_syscons.h							\
 	acpi_if.h							\
@@ -119,3 +118,4 @@ CFLAGS+=			-I${SRCTOP}/sys/dev/drm2/radeon
 CWARNFLAGS.radeon_cp.c=		-Wno-unused-value
 CWARNFLAGS.r600_cp.c=		-Wno-unused-value
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

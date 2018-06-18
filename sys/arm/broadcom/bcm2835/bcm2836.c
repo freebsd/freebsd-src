@@ -454,8 +454,10 @@ bcm_lintc_map_intr(device_t dev, struct intr_map_data *data,
 		return (ENOTSUP);
 
 	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 1 || daf->cells[0] >= BCM_LINTC_NIRQS)
+	if (daf->ncells > 2 || daf->cells[0] >= BCM_LINTC_NIRQS)
 		return (EINVAL);
+
+	/* TODO: handle IRQ type here */
 
 	sc = device_get_softc(dev);
 	*isrcp = &sc->bls_isrcs[daf->cells[0]].bli_isrc;
@@ -736,4 +738,4 @@ static driver_t bcm_lintc_driver = {
 static devclass_t bcm_lintc_devclass;
 
 EARLY_DRIVER_MODULE(local_intc, simplebus, bcm_lintc_driver, bcm_lintc_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_INTERRUPT);

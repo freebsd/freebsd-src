@@ -5,6 +5,7 @@
      added #ifdef VALGRIND to remove 298,384,660 'unused variable k8' warnings.
      added include of lookup3.h to check definitions match declarations.
      removed include of stdint - config.h takes care of platform independence.
+     added fallthrough comments for new gcc warning suppression.
   url http://burtleburtle.net/bob/hash/index.html.
 */
 /*
@@ -235,7 +236,9 @@ uint32_t        initval)         /* the previous hash, or an arbitrary value */
   switch(length)                     /* all the case statements fall through */
   { 
   case 3 : c+=k[2];
+  	/* fallthrough */
   case 2 : b+=k[1];
+  	/* fallthrough */
   case 1 : a+=k[0];
     final(a,b,c);
   case 0:     /* case 0: nothing left to add */
@@ -473,16 +476,27 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
     switch(length)                   /* all the case statements fall through */
     {
     case 12: c+=((uint32_t)k[11])<<24;
+  	/* fallthrough */
     case 11: c+=((uint32_t)k[10])<<16;
+  	/* fallthrough */
     case 10: c+=((uint32_t)k[9])<<8;
+  	/* fallthrough */
     case 9 : c+=k[8];
+  	/* fallthrough */
     case 8 : b+=((uint32_t)k[7])<<24;
+  	/* fallthrough */
     case 7 : b+=((uint32_t)k[6])<<16;
+  	/* fallthrough */
     case 6 : b+=((uint32_t)k[5])<<8;
+  	/* fallthrough */
     case 5 : b+=k[4];
+  	/* fallthrough */
     case 4 : a+=((uint32_t)k[3])<<24;
+  	/* fallthrough */
     case 3 : a+=((uint32_t)k[2])<<16;
+  	/* fallthrough */
     case 2 : a+=((uint32_t)k[1])<<8;
+  	/* fallthrough */
     case 1 : a+=k[0];
              break;
     case 0 : return c;

@@ -107,7 +107,6 @@ extern char *__progname;
 
 extern ServerOptions options;
 extern Buffer loginmsg;
-extern int compat20;
 extern u_int utmp_len;
 
 /* so we don't silently change behaviour */
@@ -289,18 +288,27 @@ sshpam_chauthtok_ruid(pam_handle_t *pamh, int flags)
 void
 sshpam_password_change_required(int reqd)
 {
+	extern struct sshauthopt *auth_opts;
+	static int saved_port, saved_agent, saved_x11;
+
 	debug3("%s %d", __func__, reqd);
 	if (sshpam_authctxt == NULL)
 		fatal("%s: PAM authctxt not initialized", __func__);
 	sshpam_authctxt->force_pwchange = reqd;
 	if (reqd) {
-		no_port_forwarding_flag |= 2;
-		no_agent_forwarding_flag |= 2;
-		no_x11_forwarding_flag |= 2;
+		saved_port = auth_opts->permit_port_forwarding_flag;
+		saved_agent = auth_opts->permit_agent_forwarding_flag;
+		saved_x11 = auth_opts->permit_x11_forwarding_flag;
+		auth_opts->permit_port_forwarding_flag = 0;
+		auth_opts->permit_agent_forwarding_flag = 0;
+		auth_opts->permit_x11_forwarding_flag = 0;
 	} else {
-		no_port_forwarding_flag &= ~2;
-		no_agent_forwarding_flag &= ~2;
-		no_x11_forwarding_flag &= ~2;
+		if (saved_port)
+			auth_opts->permit_port_forwarding_flag = saved_port;
+		if (saved_agent)
+			auth_opts->permit_agent_forwarding_flag = saved_agent;
+		if (saved_x11)
+			auth_opts->permit_x11_forwarding_flag = saved_x11;
 	}
 }
 
@@ -469,18 +477,16 @@ sshpam_thread(void *ctxtp)
 	if (sshpam_err != PAM_SUCCESS)
 		goto auth_fail;
 
-	if (compat20) {
-		if (!do_pam_account()) {
-			sshpam_err = PAM_ACCT_EXPIRED;
+	if (!do_pam_account()) {
+		sshpam_err = PAM_ACCT_EXPIRED;
+		goto auth_fail;
+	}
+	if (sshpam_authctxt->force_pwchange) {
+		sshpam_err = pam_chauthtok(sshpam_handle,
+		    PAM_CHANGE_EXPIRED_AUTHTOK);
+		if (sshpam_err != PAM_SUCCESS)
 			goto auth_fail;
-		}
-		if (sshpam_authctxt->force_pwchange) {
-			sshpam_err = pam_chauthtok(sshpam_handle,
-			    PAM_CHANGE_EXPIRED_AUTHTOK);
-			if (sshpam_err != PAM_SUCCESS)
-				goto auth_fail;
-			sshpam_password_change_required(0);
-		}
+		sshpam_password_change_required(0);
 	}
 
 	buffer_put_cstring(&buffer, "OK");
@@ -932,12 +938,35 @@ finish_pam(void)
 	sshpam_cleanup();
 }
 
+static void
+expose_authinfo(const char *caller)
+{
+	char *auth_info;
+
+	/*
+	 * Expose authentication information to PAM.
+	 * The enviornment variable is versioned. Please increment the
+	 * version suffix if the format of session_info changes.
+	 */
+	if (sshpam_authctxt->session_info == NULL)
+		auth_info = xstrdup("");
+	else if ((auth_info = sshbuf_dup_string(
+	    sshpam_authctxt->session_info)) == NULL)
+		fatal("%s: sshbuf_dup_string failed", __func__);
+
+	debug2("%s: auth information in SSH_AUTH_INFO_0", caller);
+	do_pam_putenv("SSH_AUTH_INFO_0", auth_info);
+	free(auth_info);
+}
+
 u_int
 do_pam_account(void)
 {
 	debug("%s: called", __func__);
 	if (sshpam_account_status != -1)
 		return (sshpam_account_status);
+
+	expose_authinfo(__func__);
 
 	sshpam_err = pam_acct_mgmt(sshpam_handle, 0);
 	debug3("PAM: %s pam_acct_mgmt = %d (%s)", __func__, sshpam_err,
@@ -1060,9 +1089,12 @@ do_pam_chauthtok(void)
 }
 
 void
-do_pam_session(void)
+do_pam_session(struct ssh *ssh)
 {
 	debug3("PAM: opening session");
+
+	expose_authinfo(__func__);
+
 	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
 	    (const void *)&store_conv);
 	if (sshpam_err != PAM_SUCCESS)
@@ -1073,7 +1105,7 @@ do_pam_session(void)
 		sshpam_session_open = 1;
 	else {
 		sshpam_session_open = 0;
-		disable_forwarding();
+		auth_restrict_session(ssh);
 		error("PAM: pam_open_session(): %s",
 		    pam_strerror(sshpam_handle, sshpam_err));
 	}

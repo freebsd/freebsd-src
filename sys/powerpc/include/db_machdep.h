@@ -40,8 +40,6 @@
 #define	DB_ELF_SYMBOLS
 #define	DB_ELFSIZE	__ELF_WORD_SIZE
 
-#define BYTE_MSF        (1)
-
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	intptr_t	db_expr_t;	/* expression - signed */
 
@@ -86,5 +84,9 @@ typedef	intptr_t	db_expr_t;	/* expression - signed */
 				 ((ins)&M_B  ) == I_B )
 #define	inst_load(ins)		0
 #define	inst_store(ins)		0
+
+#ifdef __powerpc64__
+#define DB_STOFFS(offs)		((offs) & ~DMAP_BASE_ADDRESS)
+#endif
 
 #endif	/* _POWERPC_DB_MACHDEP_H_ */

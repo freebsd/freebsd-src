@@ -36,9 +36,13 @@
 #include <stdbool.h>
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/disk/bsd.h>
 #include <efi.h>
 
 #include "boot_module.h"
+
+#define BSD_LABEL_BUFFER	8192
+#define BSD_LABEL_OFFSET	DEV_BSIZE
 
 static dev_info_t *devinfo;
 static dev_info_t *devices;
@@ -49,6 +53,7 @@ dskread(void *buf, uint64_t lba, int nblk)
 	int size;
 	EFI_STATUS status;
 
+	lba += devinfo->partoff;
 	lba = lba / (devinfo->dev->Media->BlockSize / DEV_BSIZE);
 	size = nblk * DEV_BSIZE;
 
@@ -73,11 +78,50 @@ static struct dmadat __dmadat;
 static int
 init_dev(dev_info_t* dev)
 {
+	char buffer[BSD_LABEL_BUFFER];
+	struct disklabel *dl;
+	uint64_t bs;
+	int ok;
 
 	devinfo = dev;
 	dmadat = &__dmadat;
 
-	return fsread(0, NULL, 0);
+	/*
+	 * First try offset 0. This is the typical GPT case where we have no
+	 * further partitioning (as well as the degenerate MBR case where
+	 * the bsdlabel has a 0 offset).
+	 */
+	devinfo->partoff = 0;
+	ok = fsread(0, NULL, 0);
+	if (ok >= 0)
+		return (ok);
+
+	/*
+	 * Next, we look for a bsdlabel. This is technically located in sector
+	 * 1. For 4k sectors, this offset is 4096, for 512b sectors it's
+	 * 512. However, we have to fall back to 512 here because we create
+	 * images that assume 512 byte blocks, but these can be put on devices
+	 * who have 4k (or other) block sizes. If there's a crazy block size, we
+	 * skip the 'at one sector' and go stright to checking at 512 bytes.
+	 * There are other offsets that are historic, but we don't probe those
+	 * since they were never used for MBR disks on FreeBSD on systems that
+	 * could boot UEFI. UEFI is little endian only, as are BSD labels. We
+	 * will retry fsread(0) only if there's a label found with a non-zero
+	 * offset.
+	 */
+	if (dskread(buffer, 0, BSD_LABEL_BUFFER / DEV_BSIZE) != 0)
+		return (-1);
+	dl = NULL;
+	bs = devinfo->dev->Media->BlockSize;
+	if (bs != 0 && bs <= BSD_LABEL_BUFFER / 2)
+		dl = (struct disklabel *)&buffer[bs];
+	if (dl == NULL || dl->d_magic != BSD_MAGIC || dl->d_magic2 != BSD_MAGIC)
+		dl = (struct disklabel *)&buffer[BSD_LABEL_OFFSET];
+	if (dl->d_magic != BSD_MAGIC || dl->d_magic2 != BSD_MAGIC ||
+	    dl->d_partitions[0].p_offset == 0)
+		return (-1);
+	devinfo->partoff = dl->d_partitions[0].p_offset;
+	return (fsread(0, NULL, 0));
 }
 
 static EFI_STATUS

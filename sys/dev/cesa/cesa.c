@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/fdt.h>
 
+#include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 static int	cesa_probe(device_t);
 static int	cesa_attach(device_t);
+static int	cesa_attach_late(device_t);
 static int	cesa_detach(device_t);
 static void	cesa_intr(void *);
 static int	cesa_newsession(device_t, u_int32_t *, struct cryptoini *);
@@ -1003,6 +1005,122 @@ cesa_setup_sram(struct cesa_softc *sc)
 	return (0);
 }
 
+/*
+ * Function: device_from_node
+ * This function returns appropriate device_t to phandle_t
+ * Parameters:
+ * root - device where you want to start search
+ *     if you provide NULL here, function will take
+ *     "root0" device as root.
+ * node - we are checking every device_t to be
+ *     appropriate with this.
+ */
+static device_t
+device_from_node(device_t root, phandle_t node)
+{
+	device_t *children, retval;
+	int nkid, i;
+
+	/* Nothing matches no node */
+	if (node == -1)
+		return (NULL);
+
+	if (root == NULL)
+		/* Get root of device tree */
+		if ((root = device_lookup_by_name("root0")) == NULL)
+			return (NULL);
+
+	if (device_get_children(root, &children, &nkid) != 0)
+		return (NULL);
+
+	retval = NULL;
+	for (i = 0; i < nkid; i++) {
+		/* Check if device and node matches */
+		if (OFW_BUS_GET_NODE(root, children[i]) == node) {
+			retval = children[i];
+			break;
+		}
+		/* or go deeper */
+		if ((retval = device_from_node(children[i], node)) != NULL)
+			break;
+	}
+	free(children, M_TEMP);
+
+	return (retval);
+}
+
+static int
+cesa_setup_sram_armada(struct cesa_softc *sc)
+{
+	phandle_t sram_node;
+	ihandle_t sram_ihandle;
+	pcell_t sram_handle[2];
+	void *sram_va;
+	int rv, j;
+	struct resource_list rl;
+	struct resource_list_entry *rle;
+	struct simplebus_softc *ssc;
+	device_t sdev;
+
+	/* Get refs to SRAMS from CESA node */
+	rv = OF_getencprop(ofw_bus_get_node(sc->sc_dev), "marvell,crypto-srams",
+	    (void *)sram_handle, sizeof(sram_handle));
+	if (rv <= 0)
+		return (rv);
+
+	if (sc->sc_cesa_engine_id >= 2)
+		return (ENXIO);
+
+	/* Get SRAM node on the basis of sc_cesa_engine_id */
+	sram_ihandle = (ihandle_t)sram_handle[sc->sc_cesa_engine_id];
+	sram_node = OF_instance_to_package(sram_ihandle);
+
+	/* Get device_t of simplebus (sram_node parent) */
+	sdev = device_from_node(NULL, OF_parent(sram_node));
+	if (!sdev)
+		return (ENXIO);
+
+	ssc = device_get_softc(sdev);
+
+	resource_list_init(&rl);
+	/* Parse reg property to resource list */
+	ofw_bus_reg_to_rl(sdev, sram_node, ssc->acells,
+	    ssc->scells, &rl);
+
+	/* We expect only one resource */
+	rle = resource_list_find(&rl, SYS_RES_MEMORY, 0);
+	if (rle == NULL)
+		return (ENXIO);
+
+	/* Remap through ranges property */
+	for (j = 0; j < ssc->nranges; j++) {
+		if (rle->start >= ssc->ranges[j].bus &&
+		    rle->end < ssc->ranges[j].bus + ssc->ranges[j].size) {
+			rle->start -= ssc->ranges[j].bus;
+			rle->start += ssc->ranges[j].host;
+			rle->end -= ssc->ranges[j].bus;
+			rle->end += ssc->ranges[j].host;
+		}
+	}
+
+	sc->sc_sram_base_pa = rle->start;
+	sc->sc_sram_size = rle->count;
+
+	/* SRAM memory was not mapped in platform_sram_devmap(), map it now */
+	sram_va = pmap_mapdev(sc->sc_sram_base_pa, sc->sc_sram_size);
+	if (sram_va == NULL)
+		return (ENOMEM);
+	sc->sc_sram_base_va = (vm_offset_t)sram_va;
+
+	return (0);
+}
+
+struct ofw_compat_data cesa_devices[] = {
+	{ "mrvl,cesa", (uintptr_t)true },
+	{ "marvell,armada-38x-crypto", (uintptr_t)true },
+	{ NULL, 0 }
+};
+
 static int
 cesa_probe(device_t dev)
 {
@@ -1010,7 +1128,7 @@ cesa_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "mrvl,cesa"))
+	if (!ofw_bus_search_compatible(dev, cesa_devices)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Cryptographic Engine and Security "
@@ -1021,6 +1139,77 @@ cesa_probe(device_t dev)
 
 static int
 cesa_attach(device_t dev)
+{
+	static int engine_idx = 0;
+	struct simplebus_devinfo *ndi;
+	struct resource_list *rl;
+	struct cesa_softc *sc;
+
+	if (!ofw_bus_is_compatible(dev, "marvell,armada-38x-crypto"))
+		return (cesa_attach_late(dev));
+
+	/*
+	 * Get simplebus_devinfo which contains
+	 * resource list filled with adresses and
+	 * interrupts read form FDT.
+	 * Let's correct it by splitting resources
+	 * for each engine.
+	 */
+	if ((ndi = device_get_ivars(dev)) == NULL)
+		return (ENXIO);
+
+	rl = &ndi->rl;
+
+	switch (engine_idx) {
+		case 0:
+			/* Update regs values */
+			resource_list_add(rl, SYS_RES_MEMORY, 0, CESA0_TDMA_ADDR,
+			    CESA0_TDMA_ADDR + CESA_TDMA_SIZE - 1, CESA_TDMA_SIZE);
+			resource_list_add(rl, SYS_RES_MEMORY, 1, CESA0_CESA_ADDR,
+			    CESA0_CESA_ADDR + CESA_CESA_SIZE - 1, CESA_CESA_SIZE);
+
+			/* Remove unused interrupt */
+			resource_list_delete(rl, SYS_RES_IRQ, 1);
+			break;
+
+		case 1:
+			/* Update regs values */
+			resource_list_add(rl, SYS_RES_MEMORY, 0, CESA1_TDMA_ADDR,
+			    CESA1_TDMA_ADDR + CESA_TDMA_SIZE - 1, CESA_TDMA_SIZE);
+			resource_list_add(rl, SYS_RES_MEMORY, 1, CESA1_CESA_ADDR,
+			    CESA1_CESA_ADDR + CESA_CESA_SIZE - 1, CESA_CESA_SIZE);
+
+			/* Remove unused interrupt */
+			resource_list_delete(rl, SYS_RES_IRQ, 0);
+			resource_list_find(rl, SYS_RES_IRQ, 1)->rid = 0;
+			break;
+
+		default:
+			device_printf(dev, "Bad cesa engine_idx\n");
+			return (ENXIO);
+	}
+
+	sc = device_get_softc(dev);
+	sc->sc_cesa_engine_id = engine_idx;
+
+	/*
+	 * Call simplebus_add_device only once.
+	 * It will create second cesa driver instance
+	 * with the same FDT node as first instance.
+	 * When second driver reach this function,
+	 * it will be configured to use second cesa engine
+	 */
+	if (engine_idx == 0)
+		simplebus_add_device(device_get_parent(dev), ofw_bus_get_node(dev),
+		    0, "cesa", 1, NULL);
+
+	engine_idx++;
+
+	return (cesa_attach_late(dev));
+}
+
+static int
+cesa_attach_late(device_t dev)
 {
 	struct cesa_softc *sc;
 	uint32_t d, r, val;
@@ -1086,7 +1275,11 @@ cesa_attach(device_t dev)
 	}
 
 	/* Acquire SRAM base address */
-	error = cesa_setup_sram(sc);
+	if (!ofw_bus_is_compatible(dev, "marvell,armada-38x-crypto"))
+		error = cesa_setup_sram(sc);
+	else
+		error = cesa_setup_sram_armada(sc);
+
 	if (error) {
 		device_printf(dev, "could not setup SRAM\n");
 		goto err1;

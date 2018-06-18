@@ -78,8 +78,6 @@ struct ptable {
 #include "geliboot.c"
 #endif /* LOADER_GELI_SUPPORT */
 
-CTASSERT(sizeof(struct i386_devdesc) >= sizeof(struct disk_devdesc));
-
 #define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
@@ -381,7 +379,7 @@ bd_print(int verbose)
 static int
 bd_open(struct open_file *f, ...)
 {
-	struct disk_devdesc *dev, rdev;
+	struct disk_devdesc *dev;
 	struct disk_devdesc disk;
 	int err, g_err;
 	va_list ap;
@@ -447,11 +445,8 @@ bd_open(struct open_file *f, ...)
 	dskp.part = dev->d_partition;
 	dskp.start = dev->d_offset;
 
-	memcpy(&rdev, dev, sizeof(rdev));
-	/* to read the GPT table, we need to read the first sector */
-	rdev.d_offset = 0;
 	/* We need the LBA of the end of the partition */
-	table = ptable_open(&rdev, BD(dev).bd_sectors,
+	table = ptable_open(&disk, BD(dev).bd_sectors,
 	    BD(dev).bd_sectorsize, ptblread);
 	if (table == NULL) {
 		DEBUG("Can't read partition table");
@@ -596,8 +591,8 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	*rsize = 0;
 
     /* Get disk blocks, this value is either for whole disk or for partition */
-    if (disk_ioctl(dev, DIOCGMEDIASIZE, &disk_blocks)) {
-	/* DIOCGMEDIASIZE does return bytes. */
+    if (disk_ioctl(dev, DIOCGMEDIASIZE, &disk_blocks) == 0) {
+	/* DIOCGMEDIASIZE returns bytes. */
         disk_blocks /= BD(dev).bd_sectorsize;
     } else {
 	/* We should not get here. Just try to survive. */
@@ -624,7 +619,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	if (blks && (rc = bd_read(dev, dblk, blks, buf))) {
 	    /* Filter out floppy controller errors */
 	    if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
-		printf("read %d from %lld to %p, error: 0x%x", blks, dblk,
+		printf("read %d from %lld to %p, error: 0x%x\n", blks, dblk,
 		    buf, rc);
 	    }
 	    return (EIO);
@@ -640,7 +635,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 #endif
 	break;
     case F_WRITE :
-	DEBUG("write %d from %d to %p", blks, dblk, buf);
+	DEBUG("write %d from %lld to %p", blks, dblk, buf);
 
 	if (blks && bd_write(dev, dblk, blks, buf)) {
 	    DEBUG("write error");
@@ -885,6 +880,12 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 			if (tmpbuf == NULL) {
 				return (-1);
 			}
+		}
+
+		if (alignlba + alignblks > BD(dev).bd_sectors) {
+			DEBUG("Shorted read at %llu from %d to %llu blocks",
+			    alignlba, alignblks, BD(dev).bd_sectors - alignlba);
+			alignblks = BD(dev).bd_sectors - alignlba;
 		}
 
 		err = bd_io(dev, alignlba, alignblks, tmpbuf, 0);

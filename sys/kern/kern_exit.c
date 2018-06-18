@@ -39,7 +39,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -481,6 +480,12 @@ exit1(struct thread *td, int rval, int signo)
 				PROC_LOCK(q->p_reaper);
 				pksignal(q->p_reaper, SIGCHLD, ksi1);
 				PROC_UNLOCK(q->p_reaper);
+			} else if (q->p_pdeathsig > 0) {
+				/*
+				 * The child asked to received a signal
+				 * when we exit.
+				 */
+				kern_psignal(q, q->p_pdeathsig);
 			}
 		} else {
 			/*
@@ -521,6 +526,13 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	while ((q = LIST_FIRST(&p->p_orphans)) != NULL) {
 		PROC_LOCK(q);
+		/*
+		 * If we are the real parent of this process
+		 * but it has been reparented to a debugger, then
+		 * check if it asked for a signal when we exit.
+		 */
+		if (q->p_pdeathsig > 0)
+			kern_psignal(q, q->p_pdeathsig);
 		CTR2(KTR_PTRACE, "exit: pid %d, clearing orphan %d", p->p_pid,
 		    q->p_pid);
 		clear_orphan(q);

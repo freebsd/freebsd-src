@@ -46,7 +46,7 @@
  */
 struct u_businfo {
 	int	ub_version;		/**< @brief interface version */
-#define BUS_USER_VERSION	1
+#define BUS_USER_VERSION	2
 	int	ub_generation;		/**< @brief generation count */
 };
 
@@ -63,20 +63,23 @@ typedef enum device_state {
 
 /**
  * @brief Device information exported to userspace.
+ * The strings are placed one after the other, separated by NUL characters.
+ * Fields should be added after the last one and order maintained for compatibility
  */
+#define BUS_USER_BUFFER		(3*1024)
 struct u_device {
 	uintptr_t	dv_handle;
 	uintptr_t	dv_parent;
-
-	char		dv_name[32];		/**< @brief Name of device in tree. */
-	char		dv_desc[32];		/**< @brief Driver description */
-	char		dv_drivername[32];	/**< @brief Driver name */
-	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
-	char		dv_location[128];	/**< @brief Where is the device? */
 	uint32_t	dv_devflags;		/**< @brief API Flags for device */
 	uint16_t	dv_flags;		/**< @brief flags for dev state */
 	device_state_t	dv_state;		/**< @brief State of attachment */
-	/* XXX more driver info? */
+	char		dv_fields[BUS_USER_BUFFER]; /**< @brief NUL terminated fields */
+	/* name (name of the device in tree) */
+	/* desc (driver description) */
+	/* drivername (Name of driver without unit number) */
+	/* pnpinfo (Plug and play information from bus) */
+	/* location (Location of device on parent */
+	/* NUL */
 };
 
 /* Flags exported via dv_flags. */
@@ -89,6 +92,7 @@ struct u_device {
 #define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
 #define	DF_REBID	0x80		/* Can rebid after attach */
 #define	DF_SUSPENDED	0x100		/* Device is suspended. */
+#define DF_QUIET_CHILDREN 0x200		/* Default to quiet for all my children */
 
 /**
  * @brief Device request structure used for ioctl's.
@@ -584,6 +588,7 @@ device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
 struct sysctl_ctx_list *device_get_sysctl_ctx(device_t dev);
 struct sysctl_oid *device_get_sysctl_tree(device_t dev);
+int	device_has_quiet_children(device_t dev);
 int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
@@ -597,6 +602,7 @@ int	device_probe_and_attach(device_t dev);
 int	device_probe_child(device_t bus, device_t dev);
 int	device_quiesce(device_t dev);
 void	device_quiet(device_t dev);
+void	device_quiet_children(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);

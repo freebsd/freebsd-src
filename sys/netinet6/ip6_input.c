@@ -222,7 +222,7 @@ ip6_init(void)
 	TUNABLE_INT_FETCH("net.inet6.ip6.accept_rtadv", &V_ip6_accept_rtadv);
 	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
 
-	TAILQ_INIT(&V_in6_ifaddrhead);
+	CK_STAILQ_INIT(&V_in6_ifaddrhead);
 	V_in6_ifaddrhashtbl = hashinit(IN6ADDR_NHASH, M_IFADDR,
 	    &V_in6_ifaddrhmask);
 
@@ -377,10 +377,10 @@ ip6_destroy(void *unused __unused)
 
 	/* Cleanup addresses. */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* Cannot lock here - lock recursion. */
 		/* IF_ADDR_LOCK(ifp); */
-		TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
+		CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
 
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;

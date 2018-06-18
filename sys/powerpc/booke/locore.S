@@ -906,68 +906,6 @@ ENTRY(bpred_enable)
 	isync
 	blr
 
-ENTRY(dataloss_erratum_access)
-	/* Lock two cache lines into I-Cache */
-	sync
-	mfspr	%r11, SPR_L1CSR1
-	rlwinm	%r11, %r11, 0, ~L1CSR1_ICUL
-	sync
-	isync
-	mtspr	SPR_L1CSR1, %r11
-	isync
-
-	lis	%r8, 2f@h
-	ori	%r8, %r8, 2f@l
-	icbtls	0, 0, %r8
-	addi	%r9, %r8, 64
-
-	sync
-	mfspr	%r11, SPR_L1CSR1
-3:	andi.	%r11, %r11, L1CSR1_ICUL
-	bne	3b
-
-	icbtls	0, 0, %r9
-
-	sync
-	mfspr	%r11, SPR_L1CSR1
-3:	andi.	%r11, %r11, L1CSR1_ICUL
-	bne	3b
-
-	b	2f
-	.align	6
-	/* Inside a locked cacheline, wait a while, write, then wait a while */
-2:	sync
-
-	mfspr	%r5, TBR_TBL
-4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
-	mfspr	%r5, TBR_TBL
-	subf.	%r5, %r5, %r11
-	bgt	4b
-
-	stw	%r4, 0(%r3)
-
-	mfspr	%r5, TBR_TBL
-4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
-	mfspr	%r5, TBR_TBL
-	subf.	%r5, %r5, %r11
-	bgt	4b
-
-	sync
-
-	/*
-	 * Fill out the rest of this cache line and the next with nops,
-	 * to ensure that nothing outside the locked area will be
-	 * fetched due to a branch.
-	 */
-	.rept 19
-	nop
-	.endr
-
-	icblc	0, 0, %r8
-	icblc	0, 0, %r9
-
-	blr
-
 /*
  * XXX: This should be moved to a shared AIM/booke asm file, if one ever is
  * created.

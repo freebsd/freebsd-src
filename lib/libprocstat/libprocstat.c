@@ -2192,6 +2192,7 @@ procstat_getrlimit_core(struct procstat_core *core, int which,
 		return (-1);
 	}
 	*rlimit = rlimits[which];
+	free(rlimits);
 	return (0);
 }
 

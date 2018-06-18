@@ -57,7 +57,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
@@ -149,6 +148,7 @@ extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
 
 extern void	*rstcode, *rstcodeend;
 extern void	*trapcode, *trapcodeend;
+extern void	*hypertrapcode, *hypertrapcodeend;
 extern void	*generictrap, *generictrap64;
 extern void	*alitrap, *aliend;
 extern void	*dsitrap, *dsiend;
@@ -213,6 +213,7 @@ aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 		case IBMPOWER7PLUS:
 		case IBMPOWER8:
 		case IBMPOWER8E:
+		case IBMPOWER9:
 			/* XXX: get from ibm,slb-size in device tree */
 			n_slbs = 32;
 			break;
@@ -360,6 +361,11 @@ aim_cpu_init(vm_offset_t toc)
 		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
 		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
 	}
+	#else
+	trapsize = (size_t)&hypertrapcodeend - (size_t)&hypertrapcode;
+	bcopy(&hypertrapcode, (void *)(EXC_HEA + trap_offset), trapsize);
+	bcopy(&hypertrapcode, (void *)(EXC_HMI + trap_offset), trapsize);
+	bcopy(&hypertrapcode, (void *)(EXC_HVI + trap_offset), trapsize);
 	#endif
 
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset), (size_t)&rstcodeend -
@@ -414,7 +420,9 @@ aim_cpu_init(vm_offset_t toc)
 	 * in case the platform module had a better idea of what we
 	 * should do.
 	 */
-	if (cpu_features & PPC_FEATURE_64)
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00)
+		pmap_mmu_install(MMU_TYPE_P9H, BUS_PROBE_GENERIC);
+	else if (cpu_features & PPC_FEATURE_64)
 		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);

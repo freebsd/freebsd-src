@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__TRANSACTION_H
-#define SVN_LIBSVN_FS__TRANSACTION_H
+#ifndef SVN_LIBSVN_FS_X_TRANSACTION_H
+#define SVN_LIBSVN_FS_X_TRANSACTION_H
 
 #include "fs.h"
 
@@ -64,8 +64,8 @@ svn_fs_x__with_txn_current_lock(svn_fs_t *fs,
    call BODY with BATON and that subpool, destroy the subpool (releasing
    the locks) and return what BODY returned.
 
-   This combines svn_fs_fs__with_write_lock, svn_fs_fs__with_pack_lock,
-   and svn_fs_fs__with_txn_current_lock, ensuring correct lock ordering. */
+   This combines svn_fs_x__with_write_lock, svn_fs_x__with_pack_lock,
+   and svn_fs_x__with_txn_current_lock, ensuring correct lock ordering. */
 svn_error_t *
 svn_fs_x__with_all_locks(svn_fs_t *fs,
                          svn_error_t *(*body)(void *baton,
@@ -128,7 +128,7 @@ svn_fs_x__reserve_copy_id(svn_fs_x__id_t *copy_id_p,
 /* Create an entirely new mutable node in the filesystem FS, whose
    node-revision is NODEREV.  COPY_ID is the copy_id to use in the
    node revision ID.  TXN_ID is the Subversion transaction  under
-   which this occurs. */
+   which this occurs.  Use SCRATCH_POOL for temporary allocations. */
 svn_error_t *
 svn_fs_x__create_node(svn_fs_t *fs,
                       svn_fs_x__noderev_t *noderev,
@@ -167,9 +167,9 @@ svn_fs_x__set_entry(svn_fs_t *fs,
                     apr_pool_t *scratch_pool);
 
 /* Add a change to the changes record for filesystem FS in transaction
-   TXN_ID.  Mark path PATH, having noderev-id ID, as changed according to
-   the type in CHANGE_KIND.  If the text representation was changed set
-   TEXT_MOD to TRUE, and likewise for PROP_MOD as well as MERGEINFO_MOD.
+   TXN_ID.  Mark path PATH as changed according to the type in
+   CHANGE_KIND.  If the text representation was changed set TEXT_MOD
+   to TRUE, and likewise for PROP_MOD as well as MERGEINFO_MOD.
    If this change was the result of a copy, set COPYFROM_REV and
    COPYFROM_PATH to the revision and path of the copy source, otherwise
    they should be set to SVN_INVALID_REVNUM and NULL.  Perform any
@@ -178,7 +178,6 @@ svn_error_t *
 svn_fs_x__add_change(svn_fs_t *fs,
                      svn_fs_x__txn_id_t txn_id,
                      const char *path,
-                     const svn_fs_x__id_t *id,
                      svn_fs_path_change_kind_t change_kind,
                      svn_boolean_t text_mod,
                      svn_boolean_t prop_mod,

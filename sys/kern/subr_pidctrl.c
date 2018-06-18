@@ -8,22 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice unmodified, this list of conditions, and the following
- *    disclaimer.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -59,14 +59,14 @@ pidctrl_init_sysctl(struct pidctrl *pc, struct sysctl_oid_list *parent)
 	    &pc->pc_olderror, 0, "Error value from last interval");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "integral", CTLFLAG_RD,
 	    &pc->pc_integral, 0, "Accumulated error integral (I)");
-	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "derivative",
-	    CTLFLAG_RD, &pc->pc_derivative, 0, "Error derivative (I)");
+	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "derivative", CTLFLAG_RD,
+	    &pc->pc_derivative, 0, "Error derivative (D)");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "input", CTLFLAG_RD,
 	    &pc->pc_input, 0, "Last controller process variable input");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "output", CTLFLAG_RD,
 	    &pc->pc_output, 0, "Last controller output");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "ticks", CTLFLAG_RD,
-	    &pc->pc_ticks, 0, "Last controler runtime");
+	    &pc->pc_ticks, 0, "Last controller runtime");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "setpoint", CTLFLAG_RW,
 	    &pc->pc_setpoint, 0, "Desired level for process variable");
 	SYSCTL_ADD_INT(NULL, parent, OID_AUTO, "interval", CTLFLAG_RD,
@@ -96,21 +96,20 @@ pidctrl_classic(struct pidctrl *pc, int input)
 	Kid = MAX(pc->pc_Kid, 1);
 	Kdd = MAX(pc->pc_Kdd, 1);
 
-	/* Compute P (proportional error), I (integral), D (derivative) */
+	/* Compute P (proportional error), I (integral), D (derivative). */
 	pc->pc_error = error;
 	pc->pc_integral =
 	    MAX(MIN(pc->pc_integral + error, pc->pc_bound), -pc->pc_bound);
 	pc->pc_derivative = error - pc->pc_olderror;
 
 	/* Divide by inverse gain values to produce output. */
-	output = ((pc->pc_error / pc->pc_Kpd) +
-	    (pc->pc_integral / pc->pc_Kid)) +
-	    (pc->pc_derivative / pc->pc_Kdd);
+	output = (pc->pc_error / Kpd) + (pc->pc_integral / Kid) +
+	    (pc->pc_derivative / Kdd);
 	/* Save for sysctl. */
 	pc->pc_output = output;
 	pc->pc_input = input;
 
-	return output;
+	return (output);
 }
 
 int
@@ -121,17 +120,18 @@ pidctrl_daemon(struct pidctrl *pc, int input)
 
 	error = pc->pc_setpoint - input;
 	/*
-	 * When ticks expired we reset our variables and start a new
+	 * When ticks expires we reset our variables and start a new
 	 * interval.  If we're called multiple times during one interval
 	 * we attempt to report a target as if the entire error came at
 	 * the interval boundary.
 	 */
-	if ((u_int)(ticks - pc->pc_ticks) >= pc->pc_interval) {
+	if ((u_int)ticks - pc->pc_ticks >= pc->pc_interval) {
 		pc->pc_ticks = ticks;
 		pc->pc_olderror = pc->pc_error;
 		pc->pc_output = pc->pc_error = 0;
 	} else {
-		error = MAX(error + pc->pc_error, 0);
+		/* Calculate the error relative to the last call. */
+		error -= pc->pc_error - pc->pc_output;
 	}
 
 	/* Fetch gains and prevent divide by zero. */
@@ -139,19 +139,19 @@ pidctrl_daemon(struct pidctrl *pc, int input)
 	Kid = MAX(pc->pc_Kid, 1);
 	Kdd = MAX(pc->pc_Kdd, 1);
 
-	/* Compute P (proportional error), I (integral), D (derivative) */
-	pc->pc_error = error;
+	/* Compute P (proportional error), I (integral), D (derivative). */
+	pc->pc_error += error;
 	pc->pc_integral =
 	    MAX(MIN(pc->pc_integral + error, pc->pc_bound), 0);
-	pc->pc_derivative = error - pc->pc_olderror;
+	pc->pc_derivative = pc->pc_error - pc->pc_olderror;
 
 	/* Divide by inverse gain values to produce output. */
-	output = ((error / pc->pc_Kpd) +
-	    (pc->pc_integral / pc->pc_Kid)) +
-	    (pc->pc_derivative / pc->pc_Kdd);
+	output = (pc->pc_error / Kpd) + (pc->pc_integral / Kid) +
+	    (pc->pc_derivative / Kdd);
 	output = MAX(output - pc->pc_output, 0);
+	/* Save for sysctl. */
 	pc->pc_output += output;
 	pc->pc_input = input;
 
-	return output;
+	return (output);
 }

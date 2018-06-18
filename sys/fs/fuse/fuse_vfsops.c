@@ -222,7 +222,6 @@ fuse_vfsop_mount(struct mount *mp)
 	struct file *fp, *fptmp;
 	char *fspec, *subtype;
 	struct vfsoptlist *opts;
-	cap_rights_t rights;
 
 	subtype = NULL;
 	max_read_set = 0;
@@ -292,7 +291,7 @@ fuse_vfsop_mount(struct mount *mp)
 
 	FS_DEBUG2G("mntopts 0x%jx\n", (uintmax_t)mntopts);
 
-	err = fget(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
+	err = fget(td, fd, &cap_read_rights, &fp);
 	if (err != 0) {
 		FS_DEBUG("invalid or not opened device: data=%p\n", data);
 		goto out;

@@ -585,7 +585,7 @@ aml8726_mmc_attach(device_t dev)
 	}
 
 	len = OF_getprop_alloc(OF_node_from_xref(prop[0]), "amlogic,function",
-	    sizeof(char), (void **)&function_name);
+	    (void **)&function_name);
 
 	if (len < 0) {
 		device_printf(dev,
@@ -635,7 +635,7 @@ aml8726_mmc_attach(device_t dev)
 	}
 
 	len = OF_getprop_alloc(node, "mmc-voltages",
-	    sizeof(char), (void **)&voltages);
+	    (void **)&voltages);
 
 	if (len < 0) {
 		device_printf(dev, "missing mmc-voltages attribute in FDT\n");

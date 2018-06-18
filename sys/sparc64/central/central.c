@@ -140,7 +140,7 @@ central_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "can't get ranges\n");
@@ -153,7 +153,7 @@ central_attach(device_t dev)
 			free(cdi, M_DEVBUF);
 			continue;
 		}
-		nreg = OF_getprop_alloc(child, "reg", sizeof(*reg),
+		nreg = OF_getprop_alloc_multi(child, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (nreg == -1) {
 			device_printf(dev, "<%s>: incomplete\n",

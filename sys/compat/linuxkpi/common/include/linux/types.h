@@ -62,6 +62,8 @@ typedef unsigned long pgoff_t;
 
 typedef u64 phys_addr_t;
 
+typedef size_t __kernel_size_t;
+
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
 

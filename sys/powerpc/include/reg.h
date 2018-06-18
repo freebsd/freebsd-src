@@ -4,10 +4,6 @@
 #ifndef _POWERPC_REG_H_
 #define	_POWERPC_REG_H_
 
-#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
-
 /* Must match struct trapframe */
 struct reg {
 	register_t fixreg[32];

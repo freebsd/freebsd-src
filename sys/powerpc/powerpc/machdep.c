@@ -57,7 +57,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
@@ -275,6 +274,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	bzero(__sbss_start, __sbss_end - __sbss_start);
 	bzero(__bss_start, _end - __bss_start);
 #endif
+
+	cpu_feature_setup();
 
 #ifdef AIM
 	aim_early_init(fdt, toc, ofentry, mdp, mdp_cookie);

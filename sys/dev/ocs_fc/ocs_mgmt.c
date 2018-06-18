@@ -2373,7 +2373,7 @@ static void
 get_nv_wwpn(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 {
 	char result_string[24];
-	static ocs_mgmt_get_nvparms_result_t result;
+	ocs_mgmt_get_nvparms_result_t result;
 
 	ocs_sem_init(&(result.semaphore), 0, "get_nv_wwpn");
 
@@ -2411,7 +2411,7 @@ static void
 get_nv_wwnn(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 {
 	char result_string[24];
-	static ocs_mgmt_get_nvparms_result_t result;
+	ocs_mgmt_get_nvparms_result_t result;
 
 	ocs_sem_init(&(result.semaphore), 0, "get_nv_wwnn");
 

@@ -63,7 +63,8 @@
 #define ALPS_TSBH1		13
 #define TUNER_MT2032		14
 #define	LG_TPI8PSB12P_PAL	15
-#define Bt848_MAX_TUNER		16
+#define PHILIPS_FI1216          16
+#define Bt848_MAX_TUNER		17
 
 /* experimental code for Automatic Frequency Control */ 
 #define TUNER_AFC

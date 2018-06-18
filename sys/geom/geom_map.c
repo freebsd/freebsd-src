@@ -407,3 +407,4 @@ static struct g_class g_map_class = {
 	.ctlreq = g_map_config,
 };
 DECLARE_GEOM_CLASS(g_map_class, g_map);
+MODULE_VERSION(geom_map, 0);

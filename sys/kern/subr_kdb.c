@@ -708,9 +708,10 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	kdb_active--;
 
 #ifdef SMP
-	CPU_AND(&other_cpus, &stopped_cpus);
-	if (did_stop_cpus)
+	if (did_stop_cpus) {
+		CPU_AND(&other_cpus, &stopped_cpus);
 		restart_cpus(other_cpus);
+	}
 #endif
 
 	intr_restore(intr);

@@ -272,18 +272,22 @@ getnextevent(void)
 #ifdef SMP
 	int	cpu;
 #endif
+#ifdef KTR
 	int	c;
 
+	c = -1;
+#endif
 	state = DPCPU_PTR(timerstate);
 	event = state->nextevent;
-	c = -1;
 #ifdef SMP
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 		CPU_FOREACH(cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			if (event > state->nextevent) {
 				event = state->nextevent;
+#ifdef KTR
 				c = cpu;
+#endif
 			}
 		}
 	}
@@ -692,6 +696,22 @@ cpu_initclocks_ap(void)
 	handleevents(state->now, 2);
 	td->td_intr_nesting_level--;
 	spinlock_exit();
+}
+
+void
+suspendclock(void)
+{
+	ET_LOCK();
+	configtimer(0);
+	ET_UNLOCK();
+}
+
+void
+resumeclock(void)
+{
+	ET_LOCK();
+	configtimer(1);
+	ET_UNLOCK();
 }
 
 /*

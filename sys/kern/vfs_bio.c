@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
-#include "opt_compat.h"
 #include "opt_swap.h"
 
 static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");
@@ -792,9 +791,12 @@ bufspace_daemon(void *arg)
 {
 	struct bufdomain *bd;
 
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kthread_shutdown, curthread,
+	    SHUTDOWN_PRI_LAST + 100);
+
 	bd = arg;
 	for (;;) {
-		kproc_suspend_check(curproc);
+		kthread_suspend_check();
 
 		/*
 		 * Free buffers from the clean queue until we meet our
@@ -1849,10 +1851,8 @@ bq_init(struct bufqueue *bq, int qindex, int subqueue, const char *lockname)
 static void
 bd_init(struct bufdomain *bd)
 {
-	int domain;
 	int i;
 
-	domain = bd - bdomain;
 	bd->bd_cleanq = &bd->bd_subq[mp_maxid + 1];
 	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_maxid + 1, "bufq clean lock");
 	bq_init(&bd->bd_dirtyq, QUEUE_DIRTY, -1, "bufq dirty lock");
@@ -2136,30 +2136,37 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
     void (*ckhashfunc)(struct buf *), struct buf **bpp)
 {
 	struct buf *bp;
-	int readwait, rv;
+	struct thread *td;
+	int error, readwait, rv;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
+	td = curthread;
 	/*
-	 * Can only return NULL if GB_LOCK_NOWAIT flag is specified.
+	 * Can only return NULL if GB_LOCK_NOWAIT or GB_SPARSE flags
+	 * are specified.
 	 */
-	*bpp = bp = getblk(vp, blkno, size, 0, 0, flags);
-	if (bp == NULL)
-		return (EBUSY);
+	error = getblkx(vp, blkno, size, 0, 0, flags, &bp);
+	if (error != 0) {
+		*bpp = NULL;
+		return (error);
+	}
+	flags &= ~GB_NOSPARSE;
+	*bpp = bp;
 
 	/*
 	 * If not found in cache, do some I/O
 	 */
 	readwait = 0;
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(curthread)) {
+		if (!TD_IS_IDLETHREAD(td)) {
 #ifdef RACCT
 			if (racct_enable) {
-				PROC_LOCK(curproc);
-				racct_add_buf(curproc, bp, 0);
-				PROC_UNLOCK(curproc);
+				PROC_LOCK(td->td_proc);
+				racct_add_buf(td->td_proc, bp, 0);
+				PROC_UNLOCK(td->td_proc);
 			}
 #endif /* RACCT */
-			curthread->td_ru.ru_inblock++;
+			td->td_ru.ru_inblock++;
 		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
@@ -2834,7 +2841,7 @@ vfs_vmio_iodone(struct buf *bp)
 	vm_ooffset_t foff;
 	vm_page_t m;
 	vm_object_t obj;
-	struct vnode *vp;
+	struct vnode *vp __unused;
 	int i, iosize, resid;
 	bool bogus;
 
@@ -2931,7 +2938,7 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 			 */
 			if (m->valid == 0 || (bp->b_flags & B_NOREUSE) != 0)
 				vm_page_deactivate_noreuse(m);
-			else if (m->queue == PQ_ACTIVE)
+			else if (vm_page_active(m))
 				vm_page_reference(m);
 			else
 				vm_page_deactivate(m);
@@ -3358,8 +3365,8 @@ buf_daemon()
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
 	 */
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, bufdaemonproc,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kthread_shutdown, curthread,
+	    SHUTDOWN_PRI_LAST + 100);
 
 	/*
 	 * Start the buf clean daemons as children threads.
@@ -3382,7 +3389,7 @@ buf_daemon()
 		bd_request = 0;
 		mtx_unlock(&bdlock);
 
-		kproc_suspend_check(bufdaemonproc);
+		kthread_suspend_check();
 
 		/*
 		 * Save speedupreq for this pass and reset to capture new
@@ -3820,8 +3827,21 @@ has_addr:
 	}
 }
 
+struct buf *
+getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+    int flags)
+{
+	struct buf *bp;
+	int error;
+
+	error = getblkx(vp, blkno, size, slpflag, slptimeo, flags, &bp);
+	if (error != 0)
+		return (NULL);
+	return (bp);
+}
+
 /*
- *	getblk:
+ *	getblkx:
  *
  *	Get a block given a specified block and offset into a file/device.
  *	The buffers B_DONE bit will be cleared on return, making it almost
@@ -3856,12 +3876,13 @@ has_addr:
  *	intends to issue a READ, the caller must clear B_INVAL and BIO_ERROR
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
-struct buf *
-getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
-    int flags)
+int
+getblkx(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+    int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	struct bufobj *bo;
+	daddr_t d_blkno;
 	int bsize, error, maxsize, vmio;
 	off_t offset;
 
@@ -3876,6 +3897,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 
 	bo = &vp->v_bufobj;
+	d_blkno = blkno;
 loop:
 	BO_RLOCK(bo);
 	bp = gbincore(bo, blkno);
@@ -3887,7 +3909,7 @@ loop:
 		 */
 		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
-		if (flags & GB_LOCK_NOWAIT)
+		if ((flags & GB_LOCK_NOWAIT) != 0)
 			lockflags |= LK_NOWAIT;
 
 		error = BUF_TIMELOCK(bp, lockflags,
@@ -3900,8 +3922,8 @@ loop:
 		if (error == ENOLCK)
 			goto loop;
 		/* We timed out or were interrupted. */
-		else if (error)
-			return (NULL);
+		else if (error != 0)
+			return (error);
 		/* If recursed, assume caller knows the rules. */
 		else if (BUF_LOCKRECURSED(bp))
 			goto end;
@@ -4006,10 +4028,10 @@ loop:
 		 * here.
 		 */
 		if (flags & GB_NOCREAT)
-			return NULL;
+			return (EEXIST);
 		if (bdomain[bo->bo_domain].bd_freebuffers == 0 &&
 		    TD_IS_IDLETHREAD(curthread))
-			return NULL;
+			return (EBUSY);
 
 		bsize = vn_isdisk(vp, NULL) ? DEV_BSIZE : bo->bo_bsize;
 		KASSERT(bsize != 0, ("bsize == 0, check bo->bo_bsize"));
@@ -4023,11 +4045,22 @@ loop:
 			flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 		}
 		maxsize = imax(maxsize, bsize);
+		if ((flags & GB_NOSPARSE) != 0 && vmio &&
+		    !vn_isdisk(vp, NULL)) {
+			error = VOP_BMAP(vp, blkno, NULL, &d_blkno, 0, 0);
+			KASSERT(error != EOPNOTSUPP,
+			    ("GB_NOSPARSE from fs not supporting bmap, vp %p",
+			    vp));
+			if (error != 0)
+				return (error);
+			if (d_blkno == -1)
+				return (EJUSTRETURN);
+		}
 
 		bp = getnewbuf(vp, slpflag, slptimeo, maxsize, flags);
 		if (bp == NULL) {
 			if (slpflag || slptimeo)
-				return NULL;
+				return (ETIMEDOUT);
 			/*
 			 * XXX This is here until the sleep path is diagnosed
 			 * enough to work under very low memory conditions.
@@ -4073,7 +4106,8 @@ loop:
 		 * Insert the buffer into the hash, so that it can
 		 * be found by incore.
 		 */
-		bp->b_blkno = bp->b_lblkno = blkno;
+		bp->b_lblkno = blkno;
+		bp->b_blkno = d_blkno;
 		bp->b_offset = offset;
 		bgetvp(vp, bp);
 		BO_UNLOCK(bo);
@@ -4108,7 +4142,8 @@ end:
 	buf_track(bp, __func__);
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
-	return (bp);
+	*bpp = bp;
+	return (0);
 }
 
 /*
@@ -4275,6 +4310,8 @@ allocbuf(struct buf *bp, int size)
 
 extern int inflight_transient_maps;
 
+static struct bio_queue nondump_bios;
+
 void
 biodone(struct bio *bp)
 {
@@ -4283,6 +4320,17 @@ biodone(struct bio *bp)
 	vm_offset_t start, end;
 
 	biotrack(bp, __func__);
+
+	/*
+	 * Avoid completing I/O when dumping after a panic since that may
+	 * result in a deadlock in the filesystem or pager code.  Note that
+	 * this doesn't affect dumps that were started manually since we aim
+	 * to keep the system usable after it has been resumed.
+	 */
+	if (__predict_false(dumping && SCHEDULER_STOPPED())) {
+		TAILQ_INSERT_HEAD(&nondump_bios, bp, bio_queue);
+		return;
+	}
 	if ((bp->bio_flags & BIO_TRANSIENT_MAPPING) != 0) {
 		bp->bio_flags &= ~BIO_TRANSIENT_MAPPING;
 		bp->bio_flags |= BIO_UNMAPPED;
@@ -4977,7 +5025,7 @@ bufsync(struct bufobj *bo, int waitfor)
 void
 bufstrategy(struct bufobj *bo, struct buf *bp)
 {
-	int i = 0;
+	int i __unused;
 	struct vnode *vp;
 
 	vp = bp->b_vp;

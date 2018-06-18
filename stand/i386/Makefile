@@ -5,7 +5,7 @@ NO_OBJ=t
 .include <bsd.init.mk>
 
 SUBDIR.yes=	mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
-		libi386
+		isoboot libi386
 
 SUBDIR.${MK_LOADER_FIREWIRE}+=	libfirewire
 

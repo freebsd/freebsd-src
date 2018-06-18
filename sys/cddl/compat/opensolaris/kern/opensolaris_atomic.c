@@ -52,7 +52,8 @@ atomic_init(void)
 }
 #endif
 
-#if !defined(__LP64__) && !defined(__mips_n32) && !defined(ARM_HAVE_ATOMIC64)
+#if !defined(__LP64__) && !defined(__mips_n32) && \
+    !defined(ARM_HAVE_ATOMIC64) && !defined(I386_HAVE_ATOMIC64)
 void
 atomic_add_64(volatile uint64_t *target, int64_t delta)
 {

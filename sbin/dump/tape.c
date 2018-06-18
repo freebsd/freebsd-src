@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <protocols/dumprestore.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -278,7 +279,9 @@ flushtape(void)
 	}
 
 	blks = 0;
-	if (spcl.c_type != TS_END) {
+	if (spcl.c_type != TS_END && spcl.c_type != TS_CLRI &&
+	    spcl.c_type != TS_BITS) {
+		assert(spcl.c_count <= TP_NINDIR);
 		for (i = 0; i < spcl.c_count; i++)
 			if (spcl.c_addr[i] != 0)
 				blks++;

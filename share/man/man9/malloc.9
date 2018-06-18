@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2018
+.Dd June 13, 2018
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -189,6 +189,11 @@ This option should only be used in combination with
 .Dv M_NOWAIT
 when an allocation failure cannot be tolerated by the caller without
 catastrophic effects on the system.
+.It Dv M_EXEC
+Indicates that the system should allocate executable memory.
+If this flag is not set, the system will not allocate executable memory.
+Not all platforms enforce a distinction between executable and
+non-executable memory.
 .El
 .Pp
 Exactly one of either

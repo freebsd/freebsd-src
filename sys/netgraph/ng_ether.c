@@ -868,7 +868,7 @@ vnet_ng_ether_init(const void *unused)
 
 	/* Create nodes for any already-existing Ethernet interfaces. */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type == IFT_ETHER
 		    || ifp->if_type == IFT_L2VLAN)
 			ng_ether_attach(ifp);

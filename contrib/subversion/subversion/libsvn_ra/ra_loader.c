@@ -80,7 +80,7 @@ static const struct ra_lib_defn {
   {
     "svn",
     svn_schemes,
-#ifdef SVN_LIBSVN_CLIENT_LINKS_RA_SVN
+#ifdef SVN_LIBSVN_RA_LINKS_RA_SVN
     svn_ra_svn__init,
     svn_ra_svn__deprecated_init
 #endif
@@ -89,7 +89,7 @@ static const struct ra_lib_defn {
   {
     "local",
     local_schemes,
-#ifdef SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL
+#ifdef SVN_LIBSVN_RA_LINKS_RA_LOCAL
     svn_ra_local__init,
     svn_ra_local__deprecated_init
 #endif
@@ -98,7 +98,7 @@ static const struct ra_lib_defn {
   {
     "serf",
     dav_schemes,
-#ifdef SVN_LIBSVN_CLIENT_LINKS_RA_SERF
+#ifdef SVN_LIBSVN_RA_LINKS_RA_SERF
     svn_ra_serf__init,
     svn_ra_serf__deprecated_init
 #endif
@@ -143,7 +143,7 @@ load_ra_module(svn_ra__init_func_t *func,
     const char *compat_funcname;
     apr_status_t status;
 
-    libname = apr_psprintf(pool, "libsvn_ra_%s-%d.so.%d",
+    libname = apr_psprintf(pool, "libsvn_ra_%s-" SVN_DSO_SUFFIX_FMT,
                            ra_name, SVN_VER_MAJOR, SVN_SOVERSION);
     funcname = apr_psprintf(pool, "svn_ra_%s__init", ra_name);
     compat_funcname = apr_psprintf(pool, "svn_ra_%s_init", ra_name);
@@ -410,6 +410,9 @@ svn_error_t *svn_ra_open4(svn_ra_session_t **session_p,
       return SVN_NO_ERROR;
     }
 
+  if (vtable->set_svn_ra_open)
+    SVN_ERR(vtable->set_svn_ra_open(session, svn_ra_open4));
+
   /* Check the UUID. */
   if (uuid)
     {
@@ -467,6 +470,9 @@ svn_ra__dup_session(svn_ra_session_t **new_session,
                                            session_url,
                                            result_pool,
                                            scratch_pool));
+
+  if (session->vtable->set_svn_ra_open)
+    SVN_ERR(session->vtable->set_svn_ra_open(session, svn_ra_open4));
 
   *new_session = session;
   return SVN_NO_ERROR;
@@ -637,6 +643,29 @@ svn_error_t *svn_ra_get_dir2(svn_ra_session_t *session,
   SVN_ERR_ASSERT(svn_relpath_is_canonical(path));
   return session->vtable->get_dir(session, dirents, fetched_rev, props,
                                   path, revision, dirent_fields, pool);
+}
+
+svn_error_t *
+svn_ra_list(svn_ra_session_t *session,
+            const char *path,
+            svn_revnum_t revision,
+            const apr_array_header_t *patterns,
+            svn_depth_t depth,
+            apr_uint32_t dirent_fields,
+            svn_ra_dirent_receiver_t receiver,
+            void *receiver_baton,
+            apr_pool_t *scratch_pool)
+{
+  SVN_ERR_ASSERT(svn_relpath_is_canonical(path));
+  if (!session->vtable->list)
+    return svn_error_create(SVN_ERR_UNSUPPORTED_FEATURE, NULL, NULL);
+
+  SVN_ERR(svn_ra__assert_capable_server(session, SVN_RA_CAPABILITY_LIST,
+                                        NULL, scratch_pool));
+
+  return session->vtable->list(session, path, revision, patterns, depth,
+                               dirent_fields, receiver, receiver_baton,
+                               scratch_pool);
 }
 
 svn_error_t *svn_ra_get_mergeinfo(svn_ra_session_t *session,
@@ -953,6 +982,7 @@ svn_error_t *svn_ra_get_locations(svn_ra_session_t *session,
 {
   svn_error_t *err;
 
+  SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(peg_revision));
   SVN_ERR_ASSERT(svn_relpath_is_canonical(path));
   err = session->vtable->get_locations(session, locations, path,
                                        peg_revision, location_revisions, pool);
@@ -1120,6 +1150,8 @@ svn_error_t *svn_ra_replay(svn_ra_session_t *session,
                            void *edit_baton,
                            apr_pool_t *pool)
 {
+  SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(revision)
+                 && SVN_IS_VALID_REVNUM(low_water_mark));
   return session->vtable->replay(session, revision, low_water_mark,
                                  text_deltas, editor, edit_baton, pool);
 }
@@ -1187,7 +1219,14 @@ svn_ra_replay_range(svn_ra_session_t *session,
                     void *replay_baton,
                     apr_pool_t *pool)
 {
-  svn_error_t *err =
+  svn_error_t *err;
+
+  SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(start_revision)
+                 && SVN_IS_VALID_REVNUM(end_revision)
+                 && start_revision <= end_revision
+                 && SVN_IS_VALID_REVNUM(low_water_mark));
+
+  err =
     session->vtable->replay_range(session, start_revision, end_revision,
                                   low_water_mark, text_deltas,
                                   revstart_func, revfinish_func,
@@ -1518,7 +1557,7 @@ svn_ra_get_ra_library(svn_ra_plugin_t **library,
    implementation for svn_ra_foo_init which returns a "not implemented"
    error. */
 
-#ifndef SVN_LIBSVN_CLIENT_LINKS_RA_NEON
+#ifndef SVN_LIBSVN_RA_LINKS_RA_NEON
 svn_error_t *
 svn_ra_dav_init(int abi_version,
                 apr_pool_t *pool,
@@ -1526,9 +1565,9 @@ svn_ra_dav_init(int abi_version,
 {
   return svn_error_create(SVN_ERR_RA_NOT_IMPLEMENTED, NULL, NULL);
 }
-#endif /* ! SVN_LIBSVN_CLIENT_LINKS_RA_NEON */
+#endif /* ! SVN_LIBSVN_RA_LINKS_RA_NEON */
 
-#ifndef SVN_LIBSVN_CLIENT_LINKS_RA_SVN
+#ifndef SVN_LIBSVN_RA_LINKS_RA_SVN
 svn_error_t *
 svn_ra_svn_init(int abi_version,
                 apr_pool_t *pool,
@@ -1536,9 +1575,9 @@ svn_ra_svn_init(int abi_version,
 {
   return svn_error_create(SVN_ERR_RA_NOT_IMPLEMENTED, NULL, NULL);
 }
-#endif /* ! SVN_LIBSVN_CLIENT_LINKS_RA_SVN */
+#endif /* ! SVN_LIBSVN_RA_LINKS_RA_SVN */
 
-#ifndef SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL
+#ifndef SVN_LIBSVN_RA_LINKS_RA_LOCAL
 svn_error_t *
 svn_ra_local_init(int abi_version,
                   apr_pool_t *pool,
@@ -1546,9 +1585,9 @@ svn_ra_local_init(int abi_version,
 {
   return svn_error_create(SVN_ERR_RA_NOT_IMPLEMENTED, NULL, NULL);
 }
-#endif /* ! SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL */
+#endif /* ! SVN_LIBSVN_RA_LINKS_RA_LOCAL */
 
-#ifndef SVN_LIBSVN_CLIENT_LINKS_RA_SERF
+#ifndef SVN_LIBSVN_RA_LINKS_RA_SERF
 svn_error_t *
 svn_ra_serf_init(int abi_version,
                  apr_pool_t *pool,
@@ -1556,4 +1595,4 @@ svn_ra_serf_init(int abi_version,
 {
   return svn_error_create(SVN_ERR_RA_NOT_IMPLEMENTED, NULL, NULL);
 }
-#endif /* ! SVN_LIBSVN_CLIENT_LINKS_RA_SERF */
+#endif /* ! SVN_LIBSVN_RA_LINKS_RA_SERF */

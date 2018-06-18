@@ -93,6 +93,8 @@ device		bcm2835_spi
 device		vchiq
 device		sound
 
+device		fdt_pinctrl
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 # Note:  DTB is normally loaded and modified by RPi boot loader, then

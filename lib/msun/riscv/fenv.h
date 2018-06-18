@@ -73,12 +73,20 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
-#ifndef SOFTFLOAT
+#if !defined(__riscv_float_abi_soft) && !defined(__riscv_float_abi_double)
+#if defined(__riscv_float_abi_single)
+#error single precision floating point ABI not supported
+#else
+#error compiler did not set soft/hard float macros
+#endif
+#endif
+
+#ifndef __riscv_float_abi_soft
 #define	__rfs(__fcsr)	__asm __volatile("csrr %0, fcsr" : "=r" (__fcsr))
 #define	__wfs(__fcsr)	__asm __volatile("csrw fcsr, %0" :: "r" (__fcsr))
 #endif
 
-#ifdef SOFTFLOAT
+#ifdef __riscv_float_abi_soft
 int feclearexcept(int __excepts);
 int fegetexceptflag(fexcept_t *__flagp, int __excepts);
 int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
@@ -206,13 +214,13 @@ feupdateenv(const fenv_t *__envp)
 
 	return (0);
 }
-#endif /* !SOFTFLOAT */
+#endif /* !__riscv_float_abi_soft */
 
 #if __BSD_VISIBLE
 
 /* We currently provide no external definitions of the functions below. */
 
-#ifdef SOFTFLOAT
+#ifdef __riscv_float_abi_soft
 int feenableexcept(int __mask);
 int fedisableexcept(int __mask);
 int fegetexcept(void);
@@ -243,7 +251,7 @@ fegetexcept(void)
 
 	return (0);
 }
-#endif /* !SOFTFLOAT */
+#endif /* !__riscv_float_abi_soft */
 
 #endif /* __BSD_VISIBLE */
 

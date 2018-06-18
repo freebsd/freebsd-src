@@ -33,6 +33,7 @@ arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
 arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
 arm/allwinner/aw_rtc.c		optional	aw_rtc fdt
 arm/allwinner/aw_sid.c		optional	aw_sid fdt
+arm/allwinner/aw_spi.c		optional	aw_spi fdt
 arm/allwinner/aw_thermal.c	optional	aw_thermal fdt
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy fdt
 arm/allwinner/aw_wdog.c		optional	aw_wdog fdt
@@ -66,6 +67,7 @@ arm/arm/gic.c			standard
 arm/arm/gic_acpi.c		optional	acpi
 arm/arm/gic_fdt.c		optional	fdt
 arm/arm/pmu.c			standard
+arm/arm/physmem.c		standard
 arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc soc_brcm_bcm2837 fdt
@@ -143,6 +145,15 @@ arm64/cavium/thunder_pcie_pem_fdt.c	optional	soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_common.c	optional	soc_cavm_thunderx pci
 arm64/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
+arm64/coresight/coresight.c			standard
+arm64/coresight/coresight_if.m			standard
+arm64/coresight/coresight-cmd.c			standard
+arm64/coresight/coresight-cpu-debug.c		standard
+arm64/coresight/coresight-dynamic-replicator.c	standard
+arm64/coresight/coresight-etm4x.c		standard
+arm64/coresight/coresight-funnel.c		standard
+arm64/coresight/coresight-tmc.c			standard
+arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
 contrib/vchiq/interface/compat/vchi_bsd.c	optional vchiq soc_brcm_bcm2837 \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 \
@@ -195,9 +206,11 @@ dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci
 dev/pci/pci_host_generic_acpi.c	optional	pci acpi
 dev/pci/pci_host_generic_fdt.c	optional	pci fdt
-dev/psci/psci.c			optional	psci
-dev/psci/psci_arm64.S		optional	psci
+dev/psci/psci.c			standard
+dev/psci/psci_arm64.S		standard
+dev/psci/smccc.c		standard
 dev/uart/uart_cpu_arm64.c	optional	uart
+dev/uart/uart_dev_mu.c		optional	uart uart_mu
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/ehci_mv.c	optional	ehci_mv fdt
@@ -233,9 +246,17 @@ cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}
 cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/aarch64/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
+arm64/rockchip/rk_i2c.c			optional rk_i2c fdt soc_rockchip_rk3328
+arm64/rockchip/rk_grf.c			optional fdt soc_rockchip_rk3328
+arm64/rockchip/rk_pinctrl.c		optional fdt soc_rockchip_rk3328
+arm64/rockchip/rk_gpio.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk_cru.c		optional fdt soc_rockchip_rk3328
+arm64/rockchip/clk/rk_clk_armclk.c	optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk_clk_composite.c	optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk_clk_gate.c	optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk_clk_mux.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk_clk_pll.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk3328_cru.c		optional fdt soc_rockchip_rk3328
+arm64/rockchip/if_dwc_rk.c		optional dwc_rk fdt soc_rockchip_rk3328
+dev/dwc/if_dwc.c			optional dwc_rk
+dev/dwc/if_dwc_if.m			optional dwc_rk

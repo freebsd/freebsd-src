@@ -2356,26 +2356,14 @@ sched_preempt(struct thread *td)
  * to static priorities in msleep() or similar.
  */
 void
-sched_userret(struct thread *td)
+sched_userret_slowpath(struct thread *td)
 {
-	/*
-	 * XXX we cheat slightly on the locking here to avoid locking in  
-	 * the usual case.  Setting td_priority here is essentially an
-	 * incomplete workaround for not setting it properly elsewhere.
-	 * Now that some interrupt handlers are threads, not setting it
-	 * properly elsewhere can clobber it in the window between setting
-	 * it here and returning to user mode, so don't waste time setting
-	 * it perfectly here.
-	 */
-	KASSERT((td->td_flags & TDF_BORROWING) == 0,
-	    ("thread with borrowed priority returning to userland"));
-	if (td->td_priority != td->td_user_pri) {
-		thread_lock(td);
-		td->td_priority = td->td_user_pri;
-		td->td_base_pri = td->td_user_pri;
-		tdq_setlowpri(TDQ_SELF(), td);
-		thread_unlock(td);
-        }
+
+	thread_lock(td);
+	td->td_priority = td->td_user_pri;
+	td->td_base_pri = td->td_user_pri;
+	tdq_setlowpri(TDQ_SELF(), td);
+	thread_unlock(td);
 }
 
 /*

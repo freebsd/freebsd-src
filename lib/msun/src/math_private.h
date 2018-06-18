@@ -294,8 +294,9 @@ do {								\
 
 /* Support switching the mode to FP_PE if necessary. */
 #if defined(__i386__) && !defined(NO_FPSETPREC)
-#define	ENTERI()				\
-	long double __retval;			\
+#define	ENTERI() ENTERIT(long double)
+#define	ENTERIT(returntype)			\
+	returntype __retval;			\
 	fp_prec_t __oprec;			\
 						\
 	if ((__oprec = fpgetprec()) != FP_PE)	\
@@ -318,6 +319,7 @@ do {								\
 } while (0)
 #else
 #define	ENTERI()
+#define	ENTERIT(x)
 #define	RETURNI(x)	RETURNF(x)
 #define	ENTERV()
 #define	RETURNV()	return

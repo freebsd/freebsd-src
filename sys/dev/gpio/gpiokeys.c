@@ -271,8 +271,8 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 	callout_init_mtx(&key->repeat_callout, &key->mtx, 0);
 
 	name = NULL;
-	if (OF_getprop_alloc(node, "label", 1, (void **)&name) == -1)
-		OF_getprop_alloc(node, "name", 1, (void **)&name);
+	if (OF_getprop_alloc(node, "label", (void **)&name) == -1)
+		OF_getprop_alloc(node, "name", (void **)&name);
 
 	if (name != NULL)
 		key_name = name;

@@ -175,7 +175,7 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	tuples = OF_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
 	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
 	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
 	if (tuples <= 0)
@@ -275,7 +275,7 @@ localbus_attach(device_t dev)
 		if (!(ofw_bus_node_status_okay(dt_child)))
 			continue;
 
-		if (!(fdt_pm_is_enabled(dt_child)))
+		if (!(mv_fdt_pm(dt_child)))
 			continue;
 
 		di = malloc(sizeof(*di), M_LOCALBUS, M_WAITOK | M_ZERO);

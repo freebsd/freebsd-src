@@ -29,11 +29,16 @@
 #include "svn_repos.h"
 #include "svn_compat.h"
 #include "svn_hash.h"
+#include "svn_path.h"
 #include "svn_props.h"
+#include "svn_pools.h"
 
 #include "svn_private_config.h"
 
 #include "repos.h"
+
+#include "private/svn_repos_private.h"
+#include "private/svn_subr_private.h"
 
 
 
@@ -503,8 +508,71 @@ svn_repos_fs_get_locks(apr_hash_t **locks,
                                                  authz_read_baton, pool));
 }
 
+static svn_error_t *
+mergeinfo_receiver(const char *path,
+                   svn_mergeinfo_t mergeinfo,
+                   void *baton,
+                   apr_pool_t *scratch_pool)
+{
+  svn_mergeinfo_catalog_t catalog = baton;
+  apr_pool_t *result_pool = apr_hash_pool_get(catalog);
+  apr_size_t len = strlen(path);
+
+  apr_hash_set(catalog,
+               apr_pstrmemdup(result_pool, path, len),
+               len,
+               svn_mergeinfo_dup(mergeinfo, result_pool));
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_repos_fs_get_mergeinfo(svn_mergeinfo_catalog_t *mergeinfo,
+                           svn_repos_t *repos,
+                           const apr_array_header_t *paths,
+                           svn_revnum_t rev,
+                           svn_mergeinfo_inheritance_t inherit,
+                           svn_boolean_t include_descendants,
+                           svn_repos_authz_func_t authz_read_func,
+                           void *authz_read_baton,
+                           apr_pool_t *pool)
+{
+  svn_mergeinfo_catalog_t result_catalog = svn_hash__make(pool);
+  SVN_ERR(svn_repos_fs_get_mergeinfo2(repos, paths, rev, inherit,
+                                      include_descendants,
+                                      authz_read_func, authz_read_baton,
+                                      mergeinfo_receiver, result_catalog,
+                                      pool));
+  *mergeinfo = result_catalog;
+
+  return SVN_NO_ERROR;
+}
 
 /*** From logs.c ***/
+svn_error_t *
+svn_repos_get_logs4(svn_repos_t *repos,
+                    const apr_array_header_t *paths,
+                    svn_revnum_t start,
+                    svn_revnum_t end,
+                    int limit,
+                    svn_boolean_t discover_changed_paths,
+                    svn_boolean_t strict_node_history,
+                    svn_boolean_t include_merged_revisions,
+                    const apr_array_header_t *revprops,
+                    svn_repos_authz_func_t authz_read_func,
+                    void *authz_read_baton,
+                    svn_log_entry_receiver_t receiver,
+                    void *receiver_baton,
+                    apr_pool_t *pool)
+{
+  return svn_repos__get_logs_compat(repos, paths, start, end, limit,
+                                    discover_changed_paths,
+                                    strict_node_history,
+                                    include_merged_revisions, revprops,
+                                    authz_read_func, authz_read_baton,
+                                    receiver, receiver_baton, pool);
+}
+
 svn_error_t *
 svn_repos_get_logs3(svn_repos_t *repos,
                     const apr_array_header_t *paths,
@@ -731,6 +799,34 @@ repos_notify_handler(void *baton,
   }
 }
 
+svn_error_t *
+svn_repos_dump_fs3(svn_repos_t *repos,
+                   svn_stream_t *stream,
+                   svn_revnum_t start_rev,
+                   svn_revnum_t end_rev,
+                   svn_boolean_t incremental,
+                   svn_boolean_t use_deltas,
+                   svn_repos_notify_func_t notify_func,
+                   void *notify_baton,
+                   svn_cancel_func_t cancel_func,
+                   void *cancel_baton,
+                   apr_pool_t *pool)
+{
+  return svn_error_trace(svn_repos_dump_fs4(repos,
+                                            stream,
+                                            start_rev,
+                                            end_rev,
+                                            incremental,
+                                            use_deltas,
+                                            TRUE,
+                                            TRUE,
+                                            notify_func,
+                                            notify_baton,
+                                            NULL, NULL,
+                                            cancel_func,
+                                            cancel_baton,
+                                            pool));
+}
 
 svn_error_t *
 svn_repos_dump_fs2(svn_repos_t *repos,
@@ -804,6 +900,31 @@ svn_repos_verify_fs(svn_repos_t *repos,
 }
 
 /*** From load.c ***/
+
+svn_error_t *
+svn_repos_load_fs5(svn_repos_t *repos,
+                   svn_stream_t *dumpstream,
+                   svn_revnum_t start_rev,
+                   svn_revnum_t end_rev,
+                   enum svn_repos_load_uuid uuid_action,
+                   const char *parent_dir,
+                   svn_boolean_t use_pre_commit_hook,
+                   svn_boolean_t use_post_commit_hook,
+                   svn_boolean_t validate_props,
+                   svn_boolean_t ignore_dates,
+                   svn_repos_notify_func_t notify_func,
+                   void *notify_baton,
+                   svn_cancel_func_t cancel_func,
+                   void *cancel_baton,
+                   apr_pool_t *pool)
+{
+  return svn_repos_load_fs6(repos, dumpstream, start_rev, end_rev,
+                            uuid_action, parent_dir,
+                            use_post_commit_hook, use_post_commit_hook,
+                            validate_props, ignore_dates, FALSE,
+                            notify_func, notify_baton,
+                            cancel_func, cancel_baton, pool);
+}
 
 svn_error_t *
 svn_repos_load_fs4(svn_repos_t *repos,
@@ -997,6 +1118,40 @@ svn_repos_load_fs(svn_repos_t *repos,
 }
 
 svn_error_t *
+svn_repos_get_fs_build_parser5(const svn_repos_parse_fns3_t **parser,
+                               void **parse_baton,
+                               svn_repos_t *repos,
+                               svn_revnum_t start_rev,
+                               svn_revnum_t end_rev,
+                               svn_boolean_t use_history,
+                               svn_boolean_t validate_props,
+                               enum svn_repos_load_uuid uuid_action,
+                               const char *parent_dir,
+                               svn_boolean_t use_pre_commit_hook,
+                               svn_boolean_t use_post_commit_hook,
+                               svn_boolean_t ignore_dates,
+                               svn_repos_notify_func_t notify_func,
+                               void *notify_baton,
+                               apr_pool_t *pool)
+{
+  SVN_ERR(svn_repos_get_fs_build_parser6(parser, parse_baton,
+                                         repos,
+                                         start_rev, end_rev,
+                                         use_history,
+                                         validate_props,
+                                         uuid_action,
+                                         parent_dir,
+                                         use_pre_commit_hook,
+                                         use_post_commit_hook,
+                                         ignore_dates,
+                                         FALSE /* normalize_props */,
+                                         notify_func,
+                                         notify_baton,
+                                         pool));
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
 svn_repos_get_fs_build_parser4(const svn_repos_parse_fns3_t **callbacks,
                                void **parse_baton,
                                svn_repos_t *repos,
@@ -1118,9 +1273,30 @@ svn_repos_fs_begin_txn_for_update(svn_fs_txn_t **txn_p,
 /*** From authz.c ***/
 
 svn_error_t *
+svn_repos_authz_read2(svn_authz_t **authz_p,
+                      const char *path,
+                      const char *groups_path,
+                      svn_boolean_t must_exist,
+                      apr_pool_t *pool)
+{
+  apr_pool_t *scratch_pool = svn_pool_create(pool);
+  svn_error_t *err = svn_repos_authz_read3(authz_p, path, groups_path,
+                                           must_exist, NULL,
+                                           pool, scratch_pool);
+  svn_pool_destroy(scratch_pool);
+
+  return svn_error_trace(err);
+}
+
+svn_error_t *
 svn_repos_authz_read(svn_authz_t **authz_p, const char *file,
                      svn_boolean_t must_exist, apr_pool_t *pool)
 {
-  return svn_repos__authz_read(authz_p, file, NULL, must_exist,
-                               FALSE, pool);
+  /* Prevent accidental new features in existing API. */
+  if (svn_path_is_url(file))
+    return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
+                             "'%s' is not a file name", file);
+
+  return svn_error_trace(svn_repos_authz_read2(authz_p, file, NULL,
+                                               must_exist, pool));
 }

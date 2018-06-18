@@ -55,7 +55,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_mfi.h"
 
 #include <sys/param.h>

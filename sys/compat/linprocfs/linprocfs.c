@@ -317,6 +317,32 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	return (0);
 }
+#else
+/* ARM64TODO: implement non-stubbed linprocfs_docpuinfo */
+static int
+linprocfs_docpuinfo(PFS_FILL_ARGS)
+{
+	int i;
+
+	for (i = 0; i < mp_ncpus; ++i) {
+		sbuf_printf(sb,
+		    "processor\t: %d\n"
+		    "BogoMIPS\t: %d.%02d\n",
+		    i, 0, 0);
+		sbuf_cat(sb, "Features\t: ");
+		sbuf_cat(sb, "\n");
+		sbuf_printf(sb,
+		    "CPU implementer\t: \n"
+		    "CPU architecture: \n"
+		    "CPU variant\t: 0x%x\n"
+		    "CPU part\t: 0x%x\n"
+		    "CPU revision\t: %d\n",
+		    0, 0, 0);
+		sbuf_cat(sb, "\n");
+	}
+
+	return (0);
+}
 #endif /* __i386__ || __amd64__ */
 
 /*
@@ -803,8 +829,8 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * Credentials
 	 */
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
-	sbuf_printf(sb, "PPid:\t%d\n",		p->p_pptr ?
-						p->p_pptr->p_pid : 0);
+	sbuf_printf(sb, "PPid:\t%d\n",		kp.ki_ppid );
+	sbuf_printf(sb, "TracerPid:\t%d\n",	kp.ki_tracer );
 	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,
 						p->p_ucred->cr_uid,
 						p->p_ucred->cr_svuid,
@@ -1138,7 +1164,7 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
-	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
 		if (ifscan == ifp)
 			return (snprintf(buffer, buflen, "eth%d", ethno));
 		if (IFP_IS_ETH(ifscan))
@@ -1166,7 +1192,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
 		sbuf_printf(sb, "%6.6s: ", ifname);
 		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
@@ -1273,6 +1299,21 @@ linprocfs_dosem(PFS_FILL_ARGS)
 
 	sbuf_printf(sb, "%d %d %d %d\n", seminfo.semmsl, seminfo.semmns,
 	    seminfo.semopm, seminfo.semmni);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/vm/min_free_kbytes
+ *
+ * This mirrors the approach in illumos to return zero for reads. Effectively,
+ * it says, no memory is kept in reserve for "atomic allocations". This class
+ * of allocation can be used at times when a thread cannot be suspended.
+ */
+static int
+linprocfs_dominfree(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", 0);
 	return (0);
 }
 
@@ -1536,6 +1577,7 @@ linprocfs_init(PFS_INIT_ARGS)
 {
 	struct pfs_node *root;
 	struct pfs_node *dir;
+	struct pfs_node *sys;
 
 	root = pi->pi_root;
 
@@ -1591,7 +1633,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
-	    &procfs_attr, &procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	    procfs_attr_rw, &procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	pfs_create_file(dir, "mounts", &linprocfs_domtab,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "root", &linprocfs_doprocroot,
@@ -1617,9 +1659,9 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/... */
-	dir = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
+	sys = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
 	/* /proc/sys/kernel/... */
-	dir = pfs_create_dir(dir, "kernel", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(sys, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "ostype", &linprocfs_doostype,
@@ -1638,6 +1680,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "uuid", &linprocfs_douuid,
 	    NULL, NULL, NULL, PFS_RD);
 
+	/* /proc/sys/vm/.... */
+	dir = pfs_create_dir(sys, "vm", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "min_free_kbytes", &linprocfs_dominfree,
+	    NULL, NULL, NULL, PFS_RD);
+
 	return (0);
 }
 
@@ -1652,8 +1699,8 @@ linprocfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linprocfs, 1, PR_ALLOW_MOUNT_LINPROCFS);
-#if defined(__amd64__)
+PSEUDOFS(linprocfs, 1, VFCF_JAIL);
+#if defined(__aarch64__) || defined(__amd64__)
 MODULE_DEPEND(linprocfs, linux_common, 1, 1, 1);
 #else
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);

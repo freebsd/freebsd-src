@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <netinet/sctp.h>
+#include <netinet/netdump/netdump.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/network/virtio_net.h>
 #include <dev/virtio/network/if_vtnetvar.h>
-
 #include "virtio_if.h"
 
 #include "opt_inet.h"
@@ -143,7 +143,7 @@ static struct mbuf *
 		    struct virtio_net_hdr *);
 static int	vtnet_txq_enqueue_buf(struct vtnet_txq *, struct mbuf **,
 		    struct vtnet_tx_header *);
-static int	vtnet_txq_encap(struct vtnet_txq *, struct mbuf **);
+static int	vtnet_txq_encap(struct vtnet_txq *, struct mbuf **, int);
 #ifdef VTNET_LEGACY_TX
 static void	vtnet_start_locked(struct vtnet_txq *, struct ifnet *);
 static void	vtnet_start(struct ifnet *);
@@ -230,6 +230,8 @@ static void	vtnet_disable_tx_interrupts(struct vtnet_softc *);
 static void	vtnet_disable_interrupts(struct vtnet_softc *);
 
 static int	vtnet_tunable_int(struct vtnet_softc *, const char *, int);
+
+NETDUMP_DEFINE(vtnet);
 
 /* Tunables. */
 static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD, 0, "VNET driver parameters");
@@ -1025,6 +1027,8 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 
 	vtnet_set_rx_process_limit(sc);
 	vtnet_set_tx_intr_threshold(sc);
+
+	NETDUMP_SET(ifp, vtnet);
 
 	return (0);
 }
@@ -2176,7 +2180,7 @@ fail:
 }
 
 static int
-vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head)
+vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head, int flags)
 {
 	struct vtnet_tx_header *txhdr;
 	struct virtio_net_hdr *hdr;
@@ -2186,7 +2190,7 @@ vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head)
 	m = *m_head;
 	M_ASSERTPKTHDR(m);
 
-	txhdr = uma_zalloc(vtnet_tx_header_zone, M_NOWAIT | M_ZERO);
+	txhdr = uma_zalloc(vtnet_tx_header_zone, flags | M_ZERO);
 	if (txhdr == NULL) {
 		m_freem(m);
 		*m_head = NULL;
@@ -2260,7 +2264,7 @@ again:
 		if (m0 == NULL)
 			break;
 
-		if (vtnet_txq_encap(txq, &m0) != 0) {
+		if (vtnet_txq_encap(txq, &m0, M_NOWAIT) != 0) {
 			if (m0 != NULL)
 				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
 			break;
@@ -2337,7 +2341,7 @@ again:
 			break;
 		}
 
-		if (vtnet_txq_encap(txq, &m) != 0) {
+		if (vtnet_txq_encap(txq, &m, M_NOWAIT) != 0) {
 			if (m != NULL)
 				drbr_putback(ifp, br, m);
 			else
@@ -3316,7 +3320,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 
 	/* Unicast MAC addresses: */
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		else if (memcmp(LLADDR((struct sockaddr_dl *)ifa->ifa_addr),
@@ -3343,7 +3347,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 
 	/* Multicast MAC addresses: */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		else if (mcnt == VTNET_MAX_MAC_ENTRIES) {
@@ -3976,3 +3980,69 @@ vtnet_tunable_int(struct vtnet_softc *sc, const char *knob, int def)
 
 	return (def);
 }
+
+#ifdef NETDUMP
+static void
+vtnet_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct vtnet_softc *sc;
+
+	sc = if_getsoftc(ifp);
+
+	VTNET_CORE_LOCK(sc);
+	*nrxr = sc->vtnet_max_vq_pairs;
+	*ncl = NETDUMP_MAX_IN_FLIGHT;
+	*clsize = sc->vtnet_rx_clsize;
+	VTNET_CORE_UNLOCK(sc);
+
+	/*
+	 * We need to allocate from this zone in the transmit path, so ensure
+	 * that we have at least one item per header available.
+	 * XXX add a separate zone like we do for mbufs? otherwise we may alloc
+	 * buckets
+	 */
+	uma_zone_reserve(vtnet_tx_header_zone, NETDUMP_MAX_IN_FLIGHT * 2);
+	uma_prealloc(vtnet_tx_header_zone, NETDUMP_MAX_IN_FLIGHT * 2);
+}
+
+static void
+vtnet_netdump_event(struct ifnet *ifp __unused, enum netdump_ev event __unused)
+{
+}
+
+static int
+vtnet_netdump_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	struct vtnet_softc *sc;
+	struct vtnet_txq *txq;
+	int error;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (EBUSY);
+
+	txq = &sc->vtnet_txqs[0];
+	error = vtnet_txq_encap(txq, &m, M_NOWAIT | M_USE_RESERVE);
+	if (error == 0)
+		(void)vtnet_txq_notify(txq);
+	return (error);
+}
+
+static int
+vtnet_netdump_poll(struct ifnet *ifp, int count)
+{
+	struct vtnet_softc *sc;
+	int i;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (EBUSY);
+
+	(void)vtnet_txq_eof(&sc->vtnet_txqs[0]);
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++)
+		(void)vtnet_rxq_eof(&sc->vtnet_rxqs[i]);
+	return (0);
+}
+#endif /* NETDUMP */

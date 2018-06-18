@@ -34,7 +34,7 @@
 .Os
 .Sh NAME
 .Nm umodem
-.Nd USB modem support
+.Nd USB Communication Device Class serial (CDC ACM) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -54,9 +54,10 @@ umodem_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for USB modems in the Communication
-Device Class using the Abstract Control Model.
-These modems are basically standard serial line modems, but they are
+driver provides support for USB modems and serial devices that
+implement the Communication Device Class Abstract Control Model (CDC ACM).
+It also provides device-side CDC ACM support.
+Supported modems are basically standard serial line modems, but they are
 accessed via USB instead.
 They support a regular AT command set.
 The commands can either be multiplexed with the data stream

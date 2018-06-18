@@ -203,7 +203,7 @@ dump_file(const char *fname)
     file_base = (const char *) objbase;	/* Makes address arithmetic easier */
 
     if (IS_ELF(*(const Elf32_Ehdr*) align_struct(file_base))) {
-	warnx("%s: this is an ELF program; use objdump to examine", fname);
+	warnx("%s: this is an ELF program; use readelf to examine", fname);
 	++error_count;
 	munmap(objbase, sb.st_size);
 	return;

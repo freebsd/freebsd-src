@@ -900,7 +900,8 @@ axp8xx_reg_attach(device_t dev, phandle_t node,
 	struct regnode *regnode;
 
 	memset(&initdef, 0, sizeof(initdef));
-	regulator_parse_ofw_stdparam(dev, node, &initdef);
+	if (regulator_parse_ofw_stdparam(dev, node, &initdef) != 0)
+		return (NULL);
 	if (initdef.std_param.min_uvolt == 0)
 		initdef.std_param.min_uvolt = def->voltage_min * 1000;
 	if (initdef.std_param.max_uvolt == 0)
@@ -1039,7 +1040,7 @@ axp8xx_attach(device_t dev)
 				device_printf(dev,
 				    "cannot attach regulator %s\n",
 				    regname);
-				return (ENXIO);
+				continue;
 			}
 			sc->regs[i] = reg;
 		}

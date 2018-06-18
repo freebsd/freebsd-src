@@ -1829,6 +1829,19 @@ DtCompileIort (
             NodeLength += Subtable->Length;
             break;
 
+        case ACPI_IORT_NODE_PMCG:
+
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort5,
+                &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            DtInsertSubtable (ParentTable, Subtable);
+            NodeLength += Subtable->Length;
+            break;
+
         default:
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "IORT");

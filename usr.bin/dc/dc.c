@@ -137,7 +137,7 @@ main(int argc, char *argv[])
 
 		if (caph_limit_stream(fd, CAPH_READ) < 0 ||
 		    caph_limit_stdio() < 0 ||
-		    (cap_enter() < 0 && errno != ENOSYS))
+		    caph_enter() < 0)
 			err(1, "capsicum");
 
 		procfd(fd, argv[0]);
@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 	if (preproc_done)
 		return (0);
 
-	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+	if (caph_limit_stdio() < 0 || caph_enter())
 		err(1, "capsicum");
 	src_setstream(&src, stdin);
 	reset_bmachine(&src);

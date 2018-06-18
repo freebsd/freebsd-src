@@ -5,8 +5,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -68,7 +66,7 @@ struct sysent sysent[] = {
 	{ compat11(AS(freebsd11_mknod_args),mknod), AUE_MKNOD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 14 = freebsd11 mknod */
 	{ AS(chmod_args), (sy_call_t *)sys_chmod, AUE_CHMOD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 15 = chmod */
 	{ AS(chown_args), (sy_call_t *)sys_chown, AUE_CHOWN, NULL, 0, 0, 0, SY_THR_STATIC },	/* 16 = chown */
-	{ AS(obreak_args), (sy_call_t *)sys_obreak, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 17 = break */
+	{ AS(break_args), (sy_call_t *)sys_break, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 17 = break */
 	{ compat4(AS(freebsd4_getfsstat_args),getfsstat), AUE_GETFSSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 18 = freebsd4 getfsstat */
 	{ compat(AS(olseek_args),lseek), AUE_LSEEK, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 19 = old lseek */
 	{ 0, (sy_call_t *)sys_getpid, AUE_GETPID, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 20 = getpid */
@@ -123,7 +121,7 @@ struct sysent sysent[] = {
 	{ AS(sbrk_args), (sy_call_t *)sys_sbrk, AUE_SBRK, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 69 = sbrk */
 	{ AS(sstk_args), (sy_call_t *)sys_sstk, AUE_SSTK, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 70 = sstk */
 	{ compat(AS(ommap_args),mmap), AUE_MMAP, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 71 = old mmap */
-	{ AS(ovadvise_args), (sy_call_t *)sys_ovadvise, AUE_O_VADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 72 = vadvise */
+	{ compat11(AS(freebsd11_vadvise_args),vadvise), AUE_O_VADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 72 = freebsd11 vadvise */
 	{ AS(munmap_args), (sy_call_t *)sys_munmap, AUE_MUNMAP, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 73 = munmap */
 	{ AS(mprotect_args), (sy_call_t *)sys_mprotect, AUE_MPROTECT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 74 = mprotect */
 	{ AS(madvise_args), (sy_call_t *)sys_madvise, AUE_MADVISE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 75 = madvise */

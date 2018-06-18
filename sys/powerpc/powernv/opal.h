@@ -72,19 +72,48 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
 #define	OPAL_CHECK_ASYNC_COMPLETION	86
+#define	OPAL_SENSOR_READ		88
+#define	OPAL_IPMI_SEND			107
+#define	OPAL_IPMI_RECV			108
 #define	OPAL_I2C_REQUEST		109
+#define	OPAL_INT_GET_XIRR		122
+#define	OPAL_INT_SET_CPPR		123
+#define	OPAL_INT_EOI			124
+#define	OPAL_INT_SET_MFRR		125
 #define	OPAL_PCI_TCE_KILL		126
+#define	OPAL_XIVE_RESET			128
+#define	OPAL_SENSOR_GROUP_CLEAR		156
+#define	OPAL_SENSOR_READ_U64		162
+#define	OPAL_SENSOR_GROUP_ENABLE	163
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0
 #define OPAL_MAP_PE			1
 
+#define	OPAL_PCI_BUS_ANY		0
+#define	OPAL_PCI_BUS_3BITS		2
+#define	OPAL_PCI_BUS_4BITS		3
+#define	OPAL_PCI_BUS_5BITS		4
+#define	OPAL_PCI_BUS_6BITS		5
+#define	OPAL_PCI_BUS_7BITS		6
+#define	OPAL_PCI_BUS_ALL		7 /* Match bus number exactly */
+
+#define	OPAL_IGNORE_RID_DEVICE_NUMBER	0
+#define	OPAL_COMPARE_RID_DEVICE_NUMBER	1
+
+#define	OPAL_IGNORE_RID_FUNC_NUMBER	0
+#define	OPAL_COMPARE_RID_FUNC_NUMBER	1
+
 #define	OPAL_SUCCESS			0
 #define	OPAL_PARAMETER			-1
 #define	OPAL_BUSY			-2
 #define	OPAL_CLOSED			-5
+#define	OPAL_HARDWARE			-6
+#define	OPAL_UNSUPPORTED		-7
+#define	OPAL_RESOURCE			-10
 #define	OPAL_BUSY_EVENT			-12
 #define	OPAL_ASYNC_COMPLETION		-15
+#define	OPAL_EMPTY			-16
 
 struct opal_msg {
 	uint32_t msg_type;
@@ -102,6 +131,15 @@ enum opal_msg_type {
 	OPAL_MSG_PRD		= 6,
 	OPAL_MSG_OCC		= 7,
 	OPAL_MSG_TYPE_MAX,
+};
+
+#define	OPAL_IPMI_MSG_FORMAT_VERSION_1	1
+
+struct opal_ipmi_msg {
+	uint8_t version;
+	uint8_t netfn;
+	uint8_t cmd;
+	uint8_t data[];
 };
 
 #endif

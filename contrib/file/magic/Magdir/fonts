@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.37 2017/06/24 00:39:00 christos Exp $
+# $File: fonts,v 1.38 2017/11/14 15:48:36 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -294,7 +294,7 @@
 0	string		OTTO		OpenType font data
 !:mime application/vnd.ms-opentype
 
-# Gurkan Sengun <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# From: Alex Myczko <alex@aiei.ch>
 0	string		SplineFontDB:	Spline Font Database
 !:mime application/vnd.font-fontforge-sfd
 >14	string		x		version %s

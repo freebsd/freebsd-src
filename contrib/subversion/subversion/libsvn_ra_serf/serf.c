@@ -153,7 +153,8 @@ load_http_auth_types(apr_pool_t *pool, svn_config_t *config,
 static svn_error_t *
 load_config(svn_ra_serf__session_t *session,
             apr_hash_t *config_hash,
-            apr_pool_t *pool)
+            apr_pool_t *result_pool,
+            apr_pool_t *scratch_pool)
 {
   svn_config_t *config, *config_client;
   const char *server_group;
@@ -179,9 +180,10 @@ load_config(svn_ra_serf__session_t *session,
       config_client = NULL;
     }
 
-  SVN_ERR(svn_config_get_bool(config, &session->using_compression,
-                              SVN_CONFIG_SECTION_GLOBAL,
-                              SVN_CONFIG_OPTION_HTTP_COMPRESSION, TRUE));
+  SVN_ERR(svn_config_get_tristate(config, &session->using_compression,
+                                  SVN_CONFIG_SECTION_GLOBAL,
+                                  SVN_CONFIG_OPTION_HTTP_COMPRESSION,
+                                  "auto", svn_tristate_unknown));
   svn_config_get(config, &timeout_str, SVN_CONFIG_SECTION_GLOBAL,
                  SVN_CONFIG_OPTION_HTTP_TIMEOUT, NULL);
 
@@ -207,7 +209,7 @@ load_config(svn_ra_serf__session_t *session,
                  SVN_CONFIG_OPTION_HTTP_PROXY_EXCEPTIONS, "");
   if (! svn_cstring_match_glob_list(session->session_url.hostname,
                                     svn_cstring_split(exceptions, ",",
-                                                      TRUE, pool)))
+                                                      TRUE, scratch_pool)))
     {
       svn_config_get(config, &proxy_host, SVN_CONFIG_SECTION_GLOBAL,
                      SVN_CONFIG_OPTION_HTTP_PROXY_HOST, NULL);
@@ -265,10 +267,10 @@ load_config(svn_ra_serf__session_t *session,
 
   if (server_group)
     {
-      SVN_ERR(svn_config_get_bool(config, &session->using_compression,
-                                  server_group,
-                                  SVN_CONFIG_OPTION_HTTP_COMPRESSION,
-                                  session->using_compression));
+      SVN_ERR(svn_config_get_tristate(config, &session->using_compression,
+                                      server_group,
+                                      SVN_CONFIG_OPTION_HTTP_COMPRESSION,
+                                      "auto", session->using_compression));
       svn_config_get(config, &timeout_str, server_group,
                      SVN_CONFIG_OPTION_HTTP_TIMEOUT, timeout_str);
 
@@ -340,7 +342,7 @@ load_config(svn_ra_serf__session_t *session,
                                                  (apr_uint32_t)log_components,
                                                  SERF_LOG_DEFAULT_LAYOUT,
                                                  stderr,
-                                                 pool);
+                                                 result_pool);
 
       if (!status)
           serf_logging_add_output(session->context, output);
@@ -359,19 +361,16 @@ load_config(svn_ra_serf__session_t *session,
   session->timeout = apr_time_from_sec(DEFAULT_HTTP_TIMEOUT);
   if (timeout_str)
     {
-      char *endstr;
-      const long int timeout = strtol(timeout_str, &endstr, 10);
-
-      if (*endstr)
-        return svn_error_create(SVN_ERR_BAD_CONFIG_VALUE, NULL,
-                                _("Invalid config: illegal character in "
-                                  "timeout value"));
-      if (timeout < 0)
-        return svn_error_create(SVN_ERR_BAD_CONFIG_VALUE, NULL,
-                                _("Invalid config: negative timeout value"));
+      apr_int64_t timeout;
+      svn_error_t *err;
+      
+      err = svn_cstring_strtoi64(&timeout, timeout_str, 0, APR_INT64_MAX, 10);
+      if (err)
+        return svn_error_createf(SVN_ERR_BAD_CONFIG_VALUE, err,
+                                _("invalid config: bad value for '%s' option"),
+                                SVN_CONFIG_OPTION_HTTP_TIMEOUT);
       session->timeout = apr_time_from_sec(timeout);
     }
-  SVN_ERR_ASSERT(session->timeout >= 0);
 
   /* Convert the proxy port value, if any. */
   if (port_str)
@@ -438,7 +437,7 @@ load_config(svn_ra_serf__session_t *session,
     }
 
   /* Setup authentication. */
-  SVN_ERR(load_http_auth_types(pool, config, server_group,
+  SVN_ERR(load_http_auth_types(result_pool, config, server_group,
                                &session->authn_types));
   serf_config_authn_types(session->context, session->authn_types);
   serf_config_credentials_callback(session->context,
@@ -449,12 +448,13 @@ load_config(svn_ra_serf__session_t *session,
 #undef DEFAULT_HTTP_TIMEOUT
 
 static void
-svn_ra_serf__progress(void *progress_baton, apr_off_t read, apr_off_t written)
+svn_ra_serf__progress(void *progress_baton, apr_off_t bytes_read,
+                      apr_off_t bytes_written)
 {
   const svn_ra_serf__session_t *serf_sess = progress_baton;
   if (serf_sess->progress_func)
     {
-      serf_sess->progress_func(read + written, -1,
+      serf_sess->progress_func(bytes_read + bytes_written, -1,
                                serf_sess->progress_baton,
                                serf_sess->pool);
     }
@@ -531,12 +531,13 @@ svn_ra_serf__open(svn_ra_session_t *session,
   /* We have to assume that the server only supports HTTP/1.0. Once it's clear
      HTTP/1.1 is supported, we can upgrade. */
   serf_sess->http10 = TRUE;
+  serf_sess->http20 = FALSE;
 
   /* If we switch to HTTP/1.1, then we will use chunked requests. We may disable
      this, if we find an intervening proxy does not support chunked requests.  */
   serf_sess->using_chunked_requests = TRUE;
 
-  SVN_ERR(load_config(serf_sess, config, serf_sess->pool));
+  SVN_ERR(load_config(serf_sess, config, serf_sess->pool, scratch_pool));
 
   serf_sess->conns[0] = apr_pcalloc(serf_sess->pool,
                                     sizeof(*serf_sess->conns[0]));
@@ -593,8 +594,12 @@ svn_ra_serf__open(svn_ra_session_t *session,
                  && apr_pool_is_ancestor(serf_sess->pool, scratch_pool));
 #endif
 
+  /* The actual latency will be determined as a part of the initial
+     OPTIONS request. */
+  serf_sess->conn_latency = -1;
+
   err = svn_ra_serf__exchange_capabilities(serf_sess, corrected_url,
-                                            result_pool, scratch_pool);
+                                           result_pool, scratch_pool);
 
   /* serf should produce a usable error code instead of APR_EGENERAL */
   if (err && err->apr_err == APR_EGENERAL)
@@ -637,6 +642,7 @@ ra_serf_dup_session(svn_ra_session_t *new_session,
   /* using_ssl */
   /* using_compression */
   /* http10 */
+  /* http20 */
   /* using_chunked_requests */
   /* detect_chunking */
 
@@ -685,7 +691,7 @@ ra_serf_dup_session(svn_ra_session_t *new_session,
 
   if (new_sess->proxy_password)
     {
-      new_sess->proxy_username
+      new_sess->proxy_password
                 = apr_pstrdup(result_pool, new_sess->proxy_password);
     }
 
@@ -733,11 +739,14 @@ ra_serf_dup_session(svn_ra_session_t *new_session,
     new_sess->server_allows_bulk = apr_pstrdup(result_pool,
                                                new_sess->server_allows_bulk);
 
-  new_sess->repos_root_str = apr_pstrdup(result_pool,
-                                         new_sess->repos_root_str);
-  SVN_ERR(svn_ra_serf__uri_parse(&new_sess->repos_root,
-                                 new_sess->repos_root_str,
-                                 result_pool));
+  if (new_sess->repos_root_str)
+    {
+      new_sess->repos_root_str = apr_pstrdup(result_pool,
+                                             new_sess->repos_root_str);
+      SVN_ERR(svn_ra_serf__uri_parse(&new_sess->repos_root,
+                                     new_sess->repos_root_str,
+                                     result_pool));
+    }
 
   new_sess->session_url_str = apr_pstrdup(result_pool, new_session_url);
 
@@ -747,10 +756,15 @@ ra_serf_dup_session(svn_ra_session_t *new_session,
 
   /* svn_boolean_t supports_inline_props */
   /* supports_rev_rsrc_replay */
+  /* supports_svndiff1 */
+  /* supports_svndiff2 */
+  /* supports_put_result_checksum */
+  /* conn_latency */
 
   new_sess->context = serf_context_create(result_pool);
 
-  SVN_ERR(load_config(new_sess, old_sess->config, result_pool));
+  SVN_ERR(load_config(new_sess, old_sess->config,
+                      result_pool, scratch_pool));
 
   new_sess->conns[0] = apr_pcalloc(result_pool,
                                    sizeof(*new_sess->conns[0]));
@@ -1047,8 +1061,12 @@ static const svn_ra__vtable_t serf_vtable = {
   svn_ra_serf__has_capability,
   svn_ra_serf__replay_range,
   svn_ra_serf__get_deleted_rev,
+  svn_ra_serf__get_inherited_props,
+  NULL /* set_svn_ra_open */,
+  svn_ra_serf__list,
   svn_ra_serf__register_editor_shim_callbacks,
-  svn_ra_serf__get_inherited_props
+  NULL /* commit_ev2 */,
+  NULL /* replay_range_ev2 */
 };
 
 svn_error_t *

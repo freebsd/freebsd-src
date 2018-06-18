@@ -20,10 +20,11 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS_TREE_H
-#define SVN_LIBSVN_FS_TREE_H
+#ifndef SVN_LIBSVN_FS_X_TREE_H
+#define SVN_LIBSVN_FS_X_TREE_H
 
 #include "fs.h"
+#include "dag.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,9 +32,13 @@ extern "C" {
 
 
 
-/* In RESULT_POOL, create an instance of a DAG node 1st level cache. */
-svn_fs_x__dag_cache_t*
-svn_fs_x__create_dag_cache(apr_pool_t *result_pool);
+/* Return the transaction ID to a given transaction ROOT. */
+svn_fs_x__txn_id_t
+svn_fs_x__root_txn_id(svn_fs_root_t *root);
+
+/* Return the change set to a given ROOT. */
+svn_fs_x__change_set_t
+svn_fs_x__root_change_set(svn_fs_root_t *root);
 
 /* Set *ROOT_P to the root directory of revision REV in filesystem FS.
    Allocate the structure in POOL. */
@@ -109,4 +114,4 @@ svn_fs_x__info_config_files(apr_array_header_t **files,
 }
 #endif /* __cplusplus */
 
-#endif /* SVN_LIBSVN_FS_TREE_H */
+#endif /* SVN_LIBSVN_FS_X_TREE_H */

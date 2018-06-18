@@ -48,6 +48,7 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_extern.h>

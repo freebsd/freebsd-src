@@ -170,7 +170,7 @@ rip_inshash(struct inpcb *inp)
 	} else
 		hash = 0;
 	pcbhash = &pcbinfo->ipi_hashbase[hash];
-	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+	CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
 }
 
 static void
@@ -180,7 +180,7 @@ rip_delhash(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	LIST_REMOVE(inp, inp_hash);
+	CK_LIST_REMOVE(inp, inp_hash);
 }
 #endif /* INET */
 
@@ -300,7 +300,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[hash], inp_hash) {
+	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[hash], inp_hash) {
 		if (inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
@@ -332,7 +332,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(inp);
 		last = inp;
 	}
-	LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
+	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
@@ -743,7 +743,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	switch (cmd) {
 	case PRC_IFDOWN:
 		IN_IFADDR_RLOCK(&in_ifa_tracker);
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
 				ifa_ref(&ia->ia_ifa);
@@ -769,7 +769,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	case PRC_IFUP:
 		IN_IFADDR_RLOCK(&in_ifa_tracker);
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}
@@ -851,6 +851,7 @@ rip_detach(struct socket *so)
 		ip_rsvp_force_done(so);
 	if (so == V_ip_rsvpd)
 		ip_rsvp_done();
+	/* XXX defer to epoch_call */
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
@@ -928,7 +929,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
 
-	if (TAILQ_EMPTY(&V_ifnet) ||
+	if (CK_STAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     (inp->inp_flags & INP_BINDANY) == 0 &&
@@ -953,7 +954,7 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
-	if (TAILQ_EMPTY(&V_ifnet))
+	if (CK_STAILQ_EMPTY(&V_ifnet))
 		return (EADDRNOTAVAIL);
 	if (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK)
 		return (EAFNOSUPPORT);
@@ -1020,6 +1021,7 @@ static int
 rip_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
+	struct in_pcblist *il;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -1054,13 +1056,12 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == NULL)
-		return (ENOMEM);
+	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO_INVARIANTS);
+	inp_list = il->il_inp_list;
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
-	for (inp = LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
-	     inp = LIST_NEXT(inp, inp_list)) {
+	for (inp = CK_LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
+	     inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
@@ -1085,14 +1086,9 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (!in_pcbrele_rlocked(inp))
-			INP_RUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
+	il->il_count = n;
+	il->il_pcbinfo = &V_ripcbinfo;
+	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
 
 	if (!error) {
 		/*
@@ -1108,7 +1104,6 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RUNLOCK(&V_ripcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
-	free(inp_list, M_TEMP);
 	return (error);
 }
 

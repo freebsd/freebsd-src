@@ -1,3 +1,20 @@
+2018-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20180420
+	* dirdeps.mk: include local.dirdeps-build.mk when .MAKE.LEVEL > 0
+	  ie. we are building something.
+
+2018-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* FILES: add dirdeps-options.mk to deal with optional DIRDEPS.
+
+2018-04-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20180405
+
+	* ldorder.mk: describe how to use LDORDER_EXTERN_BARRIER
+	  if needed.
+
 2018-01-18  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20180118

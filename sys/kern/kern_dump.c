@@ -330,12 +330,12 @@ dumpsys_generic(struct dumperinfo *di)
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION,
 	    dumpsize);
 
-	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
-	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
-
 	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
+
+	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
+	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
 
 	/* Dump ELF header */
 	error = dumpsys_buf_write(di, (char*)&ehdr, sizeof(ehdr));

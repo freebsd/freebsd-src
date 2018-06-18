@@ -92,6 +92,41 @@ arm_create_user() {
 	return 0
 }
 
+arm_setup_usb_otg() {
+	# Set up virtual serial port over USB OTG / device mode.
+	echo >> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '# Required for USB OTG virtual serial port.' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo 'notify 100 {' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "system"		"DEVFS";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "subsystem"	"CDEV";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "type"		"CREATE";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "cdev"		"ttyU[0-9]+";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	action "/sbin/init q";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '};' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+
+	echo '# USB OTG virtual serial port' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+	echo 'ttyU0	"/usr/libexec/getty 3wire"	vt100	onifconsole  secure' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+	echo 'ttyU1	"/usr/libexec/getty 3wire"	vt100	onifconsole  secure' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+
+	echo '# Configure USB OTG; see usb_template(4).' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'hw.usb.template=3' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'umodem_load="YES"' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
 arm_install_base() {
 	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
 	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
@@ -102,6 +137,7 @@ arm_install_base() {
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
 
 	arm_create_user
+	arm_setup_usb_otg
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab

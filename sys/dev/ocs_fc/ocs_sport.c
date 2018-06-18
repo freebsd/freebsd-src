@@ -781,7 +781,7 @@ __ocs_sport_attached(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	case OCS_EVT_ENTER: {
 		ocs_node_t *node;
 
-		ocs_log_debug(ocs, "[%s] SPORT attached WWPN %016llx WWNN %016llx \n", (unsigned long long)sport->display_name,
+		ocs_log_debug(ocs, "[%s] SPORT attached WWPN %016llx WWNN %016llx \n", sport->display_name,
 			sport->wwpn, sport->wwnn);
 		ocs_sport_lock(sport);
 			ocs_list_foreach(&sport->node_list, node) {
@@ -805,7 +805,7 @@ __ocs_sport_attached(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	}
 
 	case OCS_EVT_EXIT:
-		ocs_log_debug(ocs, "[%s] SPORT deattached WWPN %016llx WWNN %016llx \n", (unsigned long long)sport->display_name,
+		ocs_log_debug(ocs, "[%s] SPORT deattached WWPN %016llx WWNN %016llx \n", sport->display_name,
 			sport->wwpn, sport->wwnn);
 		if (sport->enable_ini) {
 			ocs_scsi_ini_del_sport(sport);

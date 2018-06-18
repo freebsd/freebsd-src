@@ -1148,6 +1148,10 @@ cam_periph_ccbwait(union ccb *ccb)
 	     ccb->ccb_h.status, ccb->ccb_h.pinfo.index));
 }
 
+/*
+ * Dispatch a CCB and wait for it to complete.  If the CCB has set a
+ * callback function (ccb->ccb_h.cbfcnp), it will be overwritten and lost.
+ */
 int
 cam_periph_runccb(union ccb *ccb,
 		  int (*error_routine)(union ccb *ccb,
@@ -1201,9 +1205,9 @@ cam_periph_runccb(union ccb *ccb,
 
 	/*
 	 * If we're polling, then we need to ensure that we have ample resources
-	 * in the periph.  
-	 * cam_periph_error can reschedule the ccb by calling xpt_action and returning
-	 * ERESTART, so we have to effect the polling in the do loop below.
+	 * in the periph.  cam_periph_error can reschedule the ccb by calling
+	 * xpt_action and returning ERESTART, so we have to effect the polling
+	 * in the do loop below.
 	 */
 	if (must_poll) {
 		timeout = xpt_poll_setup(ccb);

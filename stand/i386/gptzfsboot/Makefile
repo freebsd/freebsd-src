@@ -37,7 +37,7 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline -Wno-pointer-sign
+	-Wno-pointer-sign
 
 CFLAGS.clang+=	-Wno-tentative-definition-incomplete-type
 
@@ -75,7 +75,7 @@ gptzfsboot.bin: gptzfsboot.out
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o \
 	${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBZFSBOOT} ${LIBSA32}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBSA32}
 
 zfsboot.o: ${ZFSSRC}/zfsimpl.c
 

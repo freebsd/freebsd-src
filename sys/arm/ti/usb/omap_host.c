@@ -392,7 +392,7 @@ omap_uhh_attach(device_t dev)
 		snprintf(propname, sizeof(propname),
 		    "port%d-mode", i+1);
 
-		if (OF_getprop_alloc(node, propname, 1, (void**)&mode) <= 0)
+		if (OF_getprop_alloc(node, propname, (void**)&mode) <= 0)
 			continue;
 		if (strcmp(mode, "ehci-phy") == 0)
 			isc->port_mode[i] = EHCI_HCD_OMAP_MODE_PHY;

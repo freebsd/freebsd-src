@@ -42,7 +42,7 @@ while read ARCH FILENAME; do
 
 	dd if=/dev/zero of=$OUTPUT_FILE bs=512 count=$FAT_SIZE
 	DEVICE=`mdconfig -a -f $OUTPUT_FILE`
-	newfs_msdos -F 12 -L EFI $DEVICE
+	newfs_msdos -F 12 -L EFISYS $DEVICE
 	mkdir stub
 	mount -t msdosfs /dev/$DEVICE stub
 

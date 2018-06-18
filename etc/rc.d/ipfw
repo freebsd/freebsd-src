@@ -117,14 +117,14 @@ ipfw_stop()
 
 ipfw_status()
 {
-    status=$(sysctl -n net.inet.ip.fw.enable)
-    if [ ${status} -eq 0 ]; then
-	echo "ipfw is not enabled"
-	exit 1
-    else
-	echo "ipfw is enabled"
-	exit 0
-    fi
+	status=$(sysctl -i -n net.inet.ip.fw.enable)
+	if [ ${status:-0} -eq 0 ]; then
+		echo "ipfw is not enabled"
+		exit 1
+	else
+		echo "ipfw is enabled"
+		exit 0
+	fi
 }
 
 load_rc_config $name

@@ -47,7 +47,7 @@ linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
 {
 	int flags, ret;
 
-	MPASS((state & ~TASK_NORMAL) == 0);
+	MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
 
 	flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
 	    SLEEPQ_INTERRUPTIBLE : 0);
@@ -185,6 +185,17 @@ default_wake_function(wait_queue_t *wq, unsigned int state, int flags,
     void *key __unused)
 {
 	return (wake_up_task(wq->private, state));
+}
+
+void
+linux_init_wait_entry(wait_queue_t *wq, int flags)
+{
+
+	memset(wq, 0, sizeof(*wq));
+	wq->flags = flags;
+	wq->private = current;
+	wq->func = autoremove_wake_function;
+	INIT_LIST_HEAD(&wq->task_list);
 }
 
 void

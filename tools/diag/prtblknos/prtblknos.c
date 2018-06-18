@@ -27,231 +27,227 @@
  */
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
-#include <sys/time.h>
-
-#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
+#include <libufs.h>
 
 union dinode {
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
+	struct ufs1_dinode dp1;
+	struct ufs2_dinode dp2;
 };
-struct fs *sbp;
-char *fsname;
-int fd;
 
-void indirprt(int level, int blksperindir, int lbn, ufs2_daddr_t blkno,
-	int lastlbn);
-void printblk(int lbn, ufs2_daddr_t blkno, int numblks, int lastlbn);
+void prtblknos(struct uufsd *disk, union dinode *dp);
 
-/* 
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
-	int i, len, lbn, frags, inonum, numblks, blksperindir;
-	char sblock[SBLOCKSIZE], ibuf[MAXBSIZE];
-	ufs2_daddr_t blkno;
-	off_t size, offset;
-	union dinode dp;
-
-	if (argc < 3) {
-		(void)fprintf(stderr,"usage: prtblknos filesystem inode ...\n");
-		exit(1);
-	}
-
-	fsname = *++argv;
-
-	/* get the superblock. */
-	if ((fd = open(fsname, O_RDONLY, 0)) < 0)
-		err(1, "%s", fsname);
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (lseek(fd, sblock_try[i], SEEK_SET) < 0)
-			err(1, "lseek: %s", fsname);
-		if (read(fd, sblock, (long)SBLOCKSIZE) != SBLOCKSIZE)
-			err(1, "can't read superblock: %s", fsname);
-		sbp = (struct fs *)sblock;
-		if ((sbp->fs_magic == FS_UFS1_MAGIC ||
-		     (sbp->fs_magic == FS_UFS2_MAGIC &&
-		      sbp->fs_sblockloc == sblock_try[i])) &&
-		    sbp->fs_bsize <= MAXBSIZE &&
-		    sbp->fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1)
-		errx(1, "Cannot find file system superblock\n");
-
-	/* remaining arguments are inode numbers. */
-	while (*++argv) {
-		/* get the inode number. */
-		if ((inonum = atoi(*argv)) <= 0)
-			errx(1, "%s is not a valid inode number", *argv);
-		(void)printf("%d:", inonum);
-
-		/* read in the appropriate block. */
-		offset = ino_to_fsba(sbp, inonum);	/* inode to fs blk */
-		offset = fsbtodb(sbp, offset);		/* fs blk disk blk */
-		offset *= DEV_BSIZE;			/* disk blk to bytes */
-
-		/* seek and read the block */
-		if (lseek(fd, offset, SEEK_SET) < 0)
-			err(1, "%s", fsname);
-		if (read(fd, ibuf, sbp->fs_bsize) != sbp->fs_bsize)
-			err(1, "%s", fsname);
-
-		/* get the inode within the block. */
-		if (sbp->fs_magic == FS_UFS1_MAGIC) {
-			dp.dp1 = &((struct ufs1_dinode *)(ibuf))
-			    [ino_to_fsbo(sbp, inonum)];
-			size = dp.dp1->di_size;
-		} else {
-			dp.dp2 = &((struct ufs2_dinode *)(ibuf))
-			    [ino_to_fsbo(sbp, inonum)];
-			size = dp.dp2->di_size;
-		}
-
-		numblks = howmany(size, sbp->fs_bsize);
-		if (numblks == 0) {
-			printf(" empty file\n");
-			continue;
-		}
-		len = numblks < UFS_NDADDR ? numblks : UFS_NDADDR;
-		for (i = 0; i < len; i++) {
-			if (i < numblks - 1)
-				frags = sbp->fs_frag;
-			else
-				frags = howmany(size % sbp->fs_bsize,
-						  sbp->fs_fsize);
-			if (sbp->fs_magic == FS_UFS1_MAGIC)
-				blkno = dp.dp1->di_db[i];
-			else
-				blkno = dp.dp2->di_db[i];
-			printblk(i, blkno, frags, numblks);
-		}
-
-		blksperindir = 1;
-		len = numblks - UFS_NDADDR;
-		lbn = UFS_NDADDR;
-		for (i = 0; len > 0 && i < UFS_NIADDR; i++) {
-			if (sbp->fs_magic == FS_UFS1_MAGIC)
-				blkno = dp.dp1->di_ib[i];
-			else
-				blkno = dp.dp2->di_ib[i];
-			indirprt(i, blksperindir, lbn, blkno, numblks);
-			blksperindir *= NINDIR(sbp);
-			lbn += blksperindir;
-			len -= blksperindir;
-		}
-
-		/* dummy print to flush out last extent */
-		printblk(numblks, 0, frags, 0);
-	}
-	(void)close(fd);
-	exit(0);
-}
+static const char *distance(struct fs *, ufs2_daddr_t, ufs2_daddr_t);
+static void  printblk(struct fs *, ufs_lbn_t, ufs2_daddr_t, int, ufs_lbn_t);
+static void  indirprt(struct uufsd *, int, ufs_lbn_t, ufs_lbn_t, ufs2_daddr_t,
+		ufs_lbn_t);
 
 void
-indirprt(level, blksperindir, lbn, blkno, lastlbn)
-	int level;
-	int blksperindir;
-	int lbn;
+prtblknos(disk, dp)
+	struct uufsd *disk;
+	union dinode *dp;
+{
+	int i, mode, frags;
+	ufs_lbn_t lbn, lastlbn, len, blksperindir;
 	ufs2_daddr_t blkno;
-	int lastlbn;
+	struct fs *fs;
+	off_t size;
+
+	fs = (struct fs *)&disk->d_sb;
+	if (fs->fs_magic == FS_UFS1_MAGIC) {
+		size = dp->dp1.di_size;
+		mode = dp->dp1.di_mode;
+	} else {
+		size = dp->dp2.di_size;
+		mode = dp->dp2.di_mode;
+	}
+	switch (mode & IFMT) {
+	default:
+		printf("unknown inode type 0%d\n", (mode & IFMT));
+		return;
+	case 0:
+		printf("unallocated inode\n");
+		return;
+	case IFIFO:
+		printf("fifo\n");
+		return;
+	case IFCHR:
+		printf("character device\n");
+		return;
+	case IFBLK:
+		printf("block device\n");
+		return;
+	case IFSOCK:
+		printf("socket\n");
+		return;
+	case IFWHT:
+		printf("whiteout\n");
+		return;
+	case IFLNK:
+		if (size == 0) {
+			printf("empty symbolic link\n");
+			return;
+		}
+		if (size < fs->fs_maxsymlinklen) {
+			printf("symbolic link referencing %s\n",
+			    (fs->fs_magic == FS_UFS1_MAGIC) ?
+			    (char *)dp->dp1.di_db :
+			    (char *)dp->dp2.di_db);
+			return;
+		}
+		printf("symbolic link\n");
+		break;
+	case IFREG:
+		if (size == 0) {
+			printf("empty file\n");
+			return;
+		}
+		printf("regular file, size %jd\n", (intmax_t)size);
+		break;
+	case IFDIR:
+		if (size == 0) {
+			printf("empty directory\n");
+			return;
+		}
+		printf("directory, size %jd\n", (intmax_t)size);
+		break;
+	}
+	lastlbn = howmany(size, fs->fs_bsize);
+	len = lastlbn < UFS_NDADDR ? lastlbn : UFS_NDADDR;
+	for (i = 0; i < len; i++) {
+		if (i < lastlbn - 1)
+			frags = fs->fs_frag;
+		else
+			frags = howmany(size % fs->fs_bsize,
+					  fs->fs_fsize);
+		if (fs->fs_magic == FS_UFS1_MAGIC)
+			blkno = dp->dp1.di_db[i];
+		else
+			blkno = dp->dp2.di_db[i];
+		printblk(fs, i, blkno, frags, lastlbn);
+	}
+
+	blksperindir = 1;
+	len = lastlbn - UFS_NDADDR;
+	lbn = UFS_NDADDR;
+	for (i = 0; len > 0 && i < UFS_NIADDR; i++) {
+		if (fs->fs_magic == FS_UFS1_MAGIC)
+			blkno = dp->dp1.di_ib[i];
+		else
+			blkno = dp->dp2.di_ib[i];
+		indirprt(disk, i, blksperindir, lbn, blkno, lastlbn);
+		blksperindir *= NINDIR(fs);
+		lbn += blksperindir;
+		len -= blksperindir;
+	}
+
+	/* dummy print to flush out last extent */
+	printblk(fs, lastlbn, 0, frags, 0);
+}
+
+static void
+indirprt(disk, level, blksperindir, lbn, blkno, lastlbn)
+	struct uufsd *disk;
+	int level;
+	ufs_lbn_t blksperindir;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t blkno;
+	ufs_lbn_t lastlbn;
 {
 	char indir[MAXBSIZE];
-	off_t offset;
-	int i, last;
+	struct fs *fs;
+	ufs_lbn_t i, last;
 
-	printblk(lbn, blkno, sbp->fs_frag, -level);
+	fs = (struct fs *)&disk->d_sb;
+	if (blkno == 0) {
+		printblk(fs, lbn, blkno,
+		    blksperindir * NINDIR(fs) * fs->fs_frag, lastlbn);
+		return;
+	}
+	printblk(fs, lbn, blkno, fs->fs_frag, -level);
 	/* read in the indirect block. */
-	offset = fsbtodb(sbp, blkno);		/* fs blk disk blk */
-	offset *= DEV_BSIZE;			/* disk blk to bytes */
-	if (lseek(fd, offset, SEEK_SET) < 0)
-		err(1, "%s", fsname);
-	if (read(fd, indir, sbp->fs_bsize) != sbp->fs_bsize)
-		err(1, "%s", fsname);
-	last = howmany(lastlbn - lbn, blksperindir) < NINDIR(sbp) ?
-	    howmany(lastlbn - lbn, blksperindir) : NINDIR(sbp);
+	if (bread(disk, fsbtodb(fs, blkno), indir, fs->fs_bsize) == -1) {
+		warn("Read of indirect block %jd failed", (intmax_t)blkno);
+		/* List the unreadable part as a hole */
+		printblk(fs, lbn, 0,
+		    blksperindir * NINDIR(fs) * fs->fs_frag, lastlbn);
+		return;
+	}
+	last = howmany(lastlbn - lbn, blksperindir) < NINDIR(fs) ?
+	    howmany(lastlbn - lbn, blksperindir) : NINDIR(fs);
 	if (blksperindir == 1) {
 		for (i = 0; i < last; i++) {
-			if (sbp->fs_magic == FS_UFS1_MAGIC)
+			if (fs->fs_magic == FS_UFS1_MAGIC)
 				blkno = ((ufs1_daddr_t *)indir)[i];
 			else
 				blkno = ((ufs2_daddr_t *)indir)[i];
-			printblk(lbn + i, blkno, sbp->fs_frag, lastlbn);
+			printblk(fs, lbn + i, blkno, fs->fs_frag, lastlbn);
 		}
 		return;
 	}
 	for (i = 0; i < last; i++) {
-		if (sbp->fs_magic == FS_UFS1_MAGIC)
+		if (fs->fs_magic == FS_UFS1_MAGIC)
 			blkno = ((ufs1_daddr_t *)indir)[i];
 		else
 			blkno = ((ufs2_daddr_t *)indir)[i];
-		indirprt(level - 1, blksperindir / NINDIR(sbp),
+		indirprt(disk, level - 1, blksperindir / NINDIR(fs),
 		    lbn + blksperindir * i, blkno, lastlbn);
 	}
 }
 
-char *
-distance(lastblk, firstblk)
-	daddr_t lastblk;
-	daddr_t firstblk;
+static const char *
+distance(fs, lastblk, firstblk)
+	struct fs *fs;
+	ufs2_daddr_t lastblk;
+	ufs2_daddr_t firstblk;
 {
-	daddr_t delta;
+	ufs2_daddr_t delta;
 	int firstcg, lastcg;
 	static char buf[100];
 
 	if (lastblk == 0)
 		return ("");
 	delta = firstblk - lastblk - 1;
-	firstcg = dtog(sbp, firstblk);
-	lastcg = dtog(sbp, lastblk);
+	firstcg = dtog(fs, firstblk);
+	lastcg = dtog(fs, lastblk);
 	if (firstcg == lastcg) {
 		snprintf(buf, 100, " distance %jd", (intmax_t)delta);
 		return (&buf[0]);
 	}
 	snprintf(buf, 100, " cg %d blk %jd to cg %d blk %jd",
-	    lastcg, dtogd(sbp, lastblk), firstcg, dtogd(sbp, firstblk));
+	    lastcg, (intmax_t)dtogd(fs, lastblk), firstcg,
+	    (intmax_t)dtogd(fs, firstblk));
 	return (&buf[0]);
 }
 	
 
-char *indirname[UFS_NIADDR] = { "First", "Second", "Third" };
+static const char *indirname[UFS_NIADDR] = { "First", "Second", "Third" };
 
-void
-printblk(lbn, blkno, numblks, lastlbn)
-	int lbn;
+static void
+printblk(fs, lbn, blkno, numfrags, lastlbn)
+	struct fs *fs;
+	ufs_lbn_t lbn;
 	ufs2_daddr_t blkno;
-	int numblks;
-	int lastlbn;
+	int numfrags;
+	ufs_lbn_t lastlbn;
 {
 	static int seq;
-	static daddr_t lastindirblk, lastblk, firstblk;
+	static ufs2_daddr_t totfrags, lastindirblk, lastblk, firstblk;
 
 	if (lastlbn <= 0)
 		goto flush;
 	if (seq == 0) {
-		seq = 1;
+		seq = howmany(numfrags, fs->fs_frag);
+		totfrags = numfrags;
 		firstblk = blkno;
 		return;
 	}
 	if (lbn == 0) {
-		seq = 1;
+		seq = howmany(numfrags, fs->fs_frag);
+		totfrags = numfrags;
 		lastblk = 0;
 		firstblk = blkno;
 		lastindirblk = 0;
@@ -260,8 +256,9 @@ printblk(lbn, blkno, numblks, lastlbn)
 	if (lbn < lastlbn && ((firstblk == 0 && blkno == 0) ||
 	    (firstblk == BLK_NOCOPY && blkno == BLK_NOCOPY) ||
 	    (firstblk == BLK_SNAP && blkno == BLK_SNAP) ||
-	    blkno == firstblk + seq * numblks)) {
-		seq++;
+	    blkno == firstblk + seq * fs->fs_frag)) {
+		seq += howmany(numfrags, fs->fs_frag);
+		totfrags += numfrags;
 		return;
 	}
 flush:
@@ -269,46 +266,47 @@ flush:
 		goto prtindir;
 	if (firstblk <= BLK_SNAP) {
 		if (seq == 1)
-			printf("\tlbn %d %s\n", lbn - seq,
+			printf("\tlbn %jd %s\n", (intmax_t)(lbn - seq),
 			    firstblk == 0 ? "hole" :
 			    firstblk == BLK_NOCOPY ? "nocopy" :
 			    "snapblk");
 		else
-			printf("\tlbn %d-%d %s\n",
-			    lbn - seq, lbn - 1,
+			printf("\tlbn %jd-%jd %s\n",
+			    (intmax_t)lbn - seq, (intmax_t)lbn - 1,
 			    firstblk == 0 ? "hole" :
 			    firstblk == BLK_NOCOPY ? "nocopy" :
 			    "snapblk");
 	} else if (seq == 1) {
-		if (numblks == 1)
-			printf("\tlbn %d blkno %jd%s\n", lbn - seq,
-			    (intmax_t)firstblk, distance(lastblk, firstblk));
+		if (totfrags == 1)
+			printf("\tlbn %jd blkno %jd%s\n", (intmax_t)(lbn - seq),
+			   (intmax_t)firstblk, distance(fs, lastblk, firstblk));
 		else
-			printf("\tlbn %d blkno %jd-%jd%s\n", lbn - seq,
-			    (intmax_t)firstblk,
-			    (intmax_t)(firstblk + numblks - 1),
-			    distance(lastblk, firstblk));
-		lastblk = firstblk + numblks - 1;
+			printf("\tlbn %jd blkno %jd-%jd%s\n",
+			    (intmax_t)(lbn - seq), (intmax_t)firstblk,
+			    (intmax_t)(firstblk + totfrags - 1),
+			    distance(fs, lastblk, firstblk));
+		lastblk = firstblk + totfrags - 1;
 	} else {
-		printf("\tlbn %d-%d blkno %jd-%jd%s\n", lbn - seq, lbn - 1,
-		    (intmax_t)firstblk, (intmax_t)(firstblk +
-		    (seq - 1) * sbp->fs_frag + numblks - 1),
-		    distance(lastblk, firstblk));
-		lastblk = firstblk + (seq - 1) * sbp->fs_frag + numblks - 1;
+		printf("\tlbn %jd-%jd blkno %jd-%jd%s\n", (intmax_t)(lbn - seq),
+		    (intmax_t)(lbn - 1), (intmax_t)firstblk,
+		    (intmax_t)(firstblk + totfrags - 1),
+		    distance(fs, lastblk, firstblk));
+		lastblk = firstblk + totfrags - 1;
 	}
 	if (lastlbn > 0 || blkno == 0) {
 		seq = 1;
+		totfrags = numfrags;
 		firstblk = blkno;
 		return;
 	}
 prtindir:
-	if (seq != 0 && (sbp->fs_metaspace == 0 || lastindirblk == 0))
+	if (seq != 0 && (fs->fs_metaspace == 0 || lastindirblk == 0))
 		lastindirblk = lastblk;
 	printf("%s-level indirect, blkno %jd-%jd%s\n", indirname[-lastlbn],
-	    (intmax_t)blkno, (intmax_t)(blkno + numblks - 1),
-	    distance(lastindirblk, blkno));
-	lastindirblk = blkno + numblks - 1;
-	if (sbp->fs_metaspace == 0)
+	    (intmax_t)blkno, (intmax_t)(blkno + numfrags - 1),
+	    distance(fs, lastindirblk, blkno));
+	lastindirblk = blkno + numfrags - 1;
+	if (fs->fs_metaspace == 0)
 		lastblk = lastindirblk;
 	seq = 0;
 }

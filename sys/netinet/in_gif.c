@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (c) 2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,18 +39,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 #include <sys/malloc.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
@@ -70,35 +70,161 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-static int in_gif_input(struct mbuf **, int *, int);
-
-extern  struct domain inetdomain;
-static struct protosw in_gif_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		0/* IPPROTO_IPV[46] */,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		in_gif_input,
-	.pr_output =		rip_output,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-
 #define GIF_TTL		30
 static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(ip_gif_ttl), 0, "");
+    &VNET_NAME(ip_gif_ttl), 0, "Default TTL value for encapsulated packets");
+
+/*
+ * We keep interfaces in a hash table using src+dst as key.
+ * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
+ */
+static VNET_DEFINE(struct gif_list *, ipv4_hashtbl) = NULL;
+static VNET_DEFINE(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
+#define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
+#define	V_ipv4_list		VNET(ipv4_list)
+
+#define	GIF_HASH(src, dst)	(V_ipv4_hashtbl[\
+    in_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+#define	GIF_HASH_SC(sc)		GIF_HASH((sc)->gif_iphdr->ip_src.s_addr,\
+    (sc)->gif_iphdr->ip_dst.s_addr)
+static uint32_t
+in_gif_hashval(in_addr_t src, in_addr_t dst)
+{
+	uint32_t ret;
+
+	ret = fnv_32_buf(&src, sizeof(src), FNV1_32_INIT);
+	return (fnv_32_buf(&dst, sizeof(dst), ret));
+}
+
+static int
+in_gif_checkdup(const struct gif_softc *sc, in_addr_t src, in_addr_t dst)
+{
+	struct gif_softc *tmp;
+
+	if (sc->gif_family == AF_INET &&
+	    sc->gif_iphdr->ip_src.s_addr == src &&
+	    sc->gif_iphdr->ip_dst.s_addr == dst)
+		return (EEXIST);
+
+	CK_LIST_FOREACH(tmp, &GIF_HASH(src, dst), chain) {
+		if (tmp == sc)
+			continue;
+		if (tmp->gif_iphdr->ip_src.s_addr == src &&
+		    tmp->gif_iphdr->ip_dst.s_addr == dst)
+			return (EADDRNOTAVAIL);
+	}
+	return (0);
+}
+
+static void
+in_gif_attach(struct gif_softc *sc)
+{
+
+	if (sc->gif_options & GIF_IGNORE_SOURCE)
+		CK_LIST_INSERT_HEAD(&V_ipv4_list, sc, chain);
+	else
+		CK_LIST_INSERT_HEAD(&GIF_HASH_SC(sc), sc, chain);
+}
+
+int
+in_gif_setopts(struct gif_softc *sc, u_int options)
+{
+
+	/* NOTE: we are protected with gif_ioctl_sx lock */
+	MPASS(sc->gif_family == AF_INET);
+	MPASS(sc->gif_options != options);
+
+	if ((options & GIF_IGNORE_SOURCE) !=
+	    (sc->gif_options & GIF_IGNORE_SOURCE)) {
+		CK_LIST_REMOVE(sc, chain);
+		sc->gif_options = options;
+		in_gif_attach(sc);
+	}
+	return (0);
+}
+
+int
+in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
+{
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct sockaddr_in *dst, *src;
+	struct ip *ip;
+	int error;
+
+	/* NOTE: we are protected with gif_ioctl_sx lock */
+	error = EINVAL;
+	switch (cmd) {
+	case SIOCSIFPHYADDR:
+		src = &((struct in_aliasreq *)data)->ifra_addr;
+		dst = &((struct in_aliasreq *)data)->ifra_dstaddr;
+
+		/* sanity checks */
+		if (src->sin_family != dst->sin_family ||
+		    src->sin_family != AF_INET ||
+		    src->sin_len != dst->sin_len ||
+		    src->sin_len != sizeof(*src))
+			break;
+		if (src->sin_addr.s_addr == INADDR_ANY ||
+		    dst->sin_addr.s_addr == INADDR_ANY) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		if (V_ipv4_hashtbl == NULL)
+			V_ipv4_hashtbl = gif_hashinit();
+		error = in_gif_checkdup(sc, src->sin_addr.s_addr,
+		    dst->sin_addr.s_addr);
+		if (error == EADDRNOTAVAIL)
+			break;
+		if (error == EEXIST) {
+			/* Addresses are the same. Just return. */
+			error = 0;
+			break;
+		}
+		ip = malloc(sizeof(*ip), M_GIF, M_WAITOK | M_ZERO);
+		ip->ip_src.s_addr = src->sin_addr.s_addr;
+		ip->ip_dst.s_addr = dst->sin_addr.s_addr;
+		if (sc->gif_family != 0) {
+			/* Detach existing tunnel first */
+			CK_LIST_REMOVE(sc, chain);
+			GIF_WAIT();
+			free(sc->gif_hdr, M_GIF);
+			/* XXX: should we notify about link state change? */
+		}
+		sc->gif_family = AF_INET;
+		sc->gif_iphdr = ip;
+		in_gif_attach(sc);
+		break;
+	case SIOCGIFPSRCADDR:
+	case SIOCGIFPDSTADDR:
+		if (sc->gif_family != AF_INET) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		src = (struct sockaddr_in *)&ifr->ifr_addr;
+		memset(src, 0, sizeof(*src));
+		src->sin_family = AF_INET;
+		src->sin_len = sizeof(*src);
+		src->sin_addr = (cmd == SIOCGIFPSRCADDR) ?
+		    sc->gif_iphdr->ip_src: sc->gif_iphdr->ip_dst;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
+		if (error != 0)
+			memset(src, 0, sizeof(*src));
+		break;
+	}
+	return (error);
+}
 
 int
 in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 {
-	GIF_RLOCK_TRACKER;
 	struct gif_softc *sc = ifp->if_softc;
 	struct ip *ip;
 	int len;
 
 	/* prepend new IP header */
+	MPASS(in_epoch());
 	len = sizeof(struct ip);
 #ifndef __NO_STRICT_ALIGNMENT
 	if (proto == IPPROTO_ETHERIP)
@@ -117,15 +243,9 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	}
 #endif
 	ip = mtod(m, struct ip *);
-	GIF_RLOCK(sc);
-	if (sc->gif_family != AF_INET) {
-		m_freem(m);
-		GIF_RUNLOCK(sc);
-		return (ENETDOWN);
-	}
-	bcopy(sc->gif_iphdr, ip, sizeof(struct ip));
-	GIF_RUNLOCK(sc);
 
+	MPASS(sc->gif_family == AF_INET);
+	bcopy(sc->gif_iphdr, ip, sizeof(struct ip));
 	ip->ip_p = proto;
 	/* version will be set in ip_output() */
 	ip->ip_ttl = V_ip_gif_ttl;
@@ -136,15 +256,14 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 }
 
 static int
-in_gif_input(struct mbuf **mp, int *offp, int proto)
+in_gif_input(struct mbuf *m, int off, int proto, void *arg)
 {
-	struct mbuf *m = *mp;
-	struct gif_softc *sc;
+	struct gif_softc *sc = arg;
 	struct ifnet *gifp;
 	struct ip *ip;
 	uint8_t ecn;
 
-	sc = encap_getarg(m);
+	MPASS(in_epoch());
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
@@ -154,7 +273,7 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 	if ((gifp->if_flags & IFF_UP) != 0) {
 		ip = mtod(m, struct ip *);
 		ecn = ip->ip_tos;
-		m_adj(m, *offp);
+		m_adj(m, off);
 		gif_input(m, gifp, proto, ecn);
 	} else {
 		m_freem(m);
@@ -163,56 +282,122 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 }
 
-/*
- * we know that we are in IFF_UP, outer address available, and outer family
- * matched the physical addr family.  see gif_encapcheck().
- */
-int
-in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+static int
+in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 {
 	const struct ip *ip;
 	struct gif_softc *sc;
 	int ret;
 
-	/* sanity check done in caller */
-	sc = (struct gif_softc *)arg;
-	GIF_RLOCK_ASSERT(sc);
-
-	/* check for address match */
+	MPASS(in_epoch());
 	ip = mtod(m, const struct ip *);
-	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr)
+	/*
+	 * NOTE: it is safe to iterate without any locking here, because softc
+	 * can be reclaimed only when we are not within net_epoch_preempt
+	 * section, but ip_encap lookup+input are executed in epoch section.
+	 */
+	ret = 0;
+	CK_LIST_FOREACH(sc, &GIF_HASH(ip->ip_dst.s_addr,
+	    ip->ip_src.s_addr), chain) {
+		/*
+		 * This is an inbound packet, its ip_dst is source address
+		 * in softc.
+		 */
+		if (sc->gif_iphdr->ip_src.s_addr == ip->ip_dst.s_addr &&
+		    sc->gif_iphdr->ip_dst.s_addr == ip->ip_src.s_addr) {
+			ret = ENCAP_DRV_LOOKUP;
+			goto done;
+		}
+	}
+	/*
+	 * No exact match.
+	 * Check the list of interfaces with GIF_IGNORE_SOURCE flag.
+	 */
+	CK_LIST_FOREACH(sc, &V_ipv4_list, chain) {
+		if (sc->gif_iphdr->ip_src.s_addr == ip->ip_dst.s_addr) {
+			ret = 32 + 8; /* src + proto */
+			goto done;
+		}
+	}
+	return (0);
+done:
+	if ((GIF2IFP(sc)->if_flags & IFF_UP) == 0)
 		return (0);
-	ret = 32;
-	if (sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr) {
-		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
-			return (0);
-	} else
-		ret += 32;
-
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		struct nhop4_basic nh4;
 		struct in_addr dst;
 
 		dst = ip->ip_src;
-
 		if (fib4_lookup_nh_basic(sc->gif_fibnum, dst, 0, 0, &nh4) != 0)
 			return (0);
-
 		if (nh4.nh_ifp != m->m_pkthdr.rcvif)
 			return (0);
 	}
+	*arg = sc;
 	return (ret);
 }
 
-int
-in_gif_attach(struct gif_softc *sc)
-{
+static struct {
+	const struct encap_config encap;
+	const struct encaptab *cookie;
+} ipv4_encap_cfg[] = {
+	{
+		.encap = {
+			.proto = IPPROTO_IPV4,
+			.min_length = 2 * sizeof(struct ip),
+			.exact_match = ENCAP_DRV_LOOKUP,
+			.lookup = in_gif_lookup,
+			.input = in_gif_input
+		},
+	},
+#ifdef INET6
+	{
+		.encap = {
+			.proto = IPPROTO_IPV6,
+			.min_length = sizeof(struct ip) +
+			    sizeof(struct ip6_hdr),
+			.exact_match = ENCAP_DRV_LOOKUP,
+			.lookup = in_gif_lookup,
+			.input = in_gif_input
+		},
+	},
+#endif
+	{
+		.encap = {
+			.proto = IPPROTO_ETHERIP,
+			.min_length = sizeof(struct ip) +
+			    sizeof(struct etherip_header) +
+			    sizeof(struct ether_header),
+			.exact_match = ENCAP_DRV_LOOKUP,
+			.lookup = in_gif_lookup,
+			.input = in_gif_input
+		},
+	}
+};
 
-	KASSERT(sc->gif_ecookie == NULL, ("gif_ecookie isn't NULL"));
-	sc->gif_ecookie = encap_attach_func(AF_INET, -1, gif_encapcheck,
-	    &in_gif_protosw, sc);
-	if (sc->gif_ecookie == NULL)
-		return (EEXIST);
-	return (0);
+void
+in_gif_init(void)
+{
+	int i;
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+	for (i = 0; i < nitems(ipv4_encap_cfg); i++)
+		ipv4_encap_cfg[i].cookie = ip_encap_attach(
+		    &ipv4_encap_cfg[i].encap, NULL, M_WAITOK);
 }
+
+void
+in_gif_uninit(void)
+{
+	int i;
+
+	if (IS_DEFAULT_VNET(curvnet)) {
+		for (i = 0; i < nitems(ipv4_encap_cfg); i++)
+			ip_encap_detach(ipv4_encap_cfg[i].cookie);
+	}
+	if (V_ipv4_hashtbl != NULL)
+		gif_hashdestroy(V_ipv4_hashtbl);
+}
+

@@ -39,6 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
+#include <machine/psl.h>
 #include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
@@ -67,34 +68,39 @@ as_lapic_eoi:
  * translates that into a vector, and passes the vector to the
  * lapic_handle_intr() function.
  */
-#define	ISR_VEC(index, vec_name)					\
-	.text ;								\
-	SUPERALIGN_TEXT ;						\
-IDTVEC(vec_name ## _pti) ;						\
-IDTVEC(vec_name) ;							\
-	PUSH_FRAME ;							\
-	SET_KERNEL_SREGS ;						\
-	cld ;								\
-	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
-	cmpl	$0,x2apic_mode ;					\
-	je	1f ;							\
-	movl	$(MSR_APIC_ISR0 + index),%ecx ;				\
-	rdmsr ;								\
-	jmp	2f ;							\
-1: ;									\
-	movl	lapic_map, %edx ;/* pointer to local APIC */		\
-	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
-2: ;									\
-	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
-	jz	3f ;							\
-	addl	$(32 * index),%eax ;					\
-	pushl	%esp		;                                       \
-	pushl	%eax ;		/* pass the IRQ */			\
-	call	lapic_handle_intr ;					\
-	addl	$8, %esp ;	/* discard parameter */			\
-3: ;									\
-	MEXITCOUNT ;							\
+	.macro	ISR_VEC	index, vec_name
+	.text
+	SUPERALIGN_TEXT
+	.globl	X\()\vec_name\()_pti, X\()\vec_name
+
+X\()\vec_name\()_pti:
+X\()\vec_name:
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	KENTER
+	FAKE_MCOUNT(TF_EIP(%esp))
+	cmpl	$0,x2apic_mode
+	je	2f
+	movl	$(MSR_APIC_ISR0 + \index),%ecx
+	rdmsr
+	jmp	3f
+2:
+	movl	lapic_map, %edx		/* pointer to local APIC */
+	movl	LA_ISR + 16 * \index(%edx), %eax	/* load ISR */
+3:
+	bsrl	%eax, %eax	/* index of highest set bit in ISR */
+	jz	4f
+	addl	$(32 * \index),%eax
+	pushl	%esp
+	pushl	%eax		/* pass the IRQ */
+	movl	$lapic_handle_intr, %eax
+	call	*%eax
+	addl	$8, %esp	/* discard parameter */
+4:
+	MEXITCOUNT
 	jmp	doreti
+	.endm
 
 /*
  * Handle "spurious INTerrupts".
@@ -111,13 +117,13 @@ IDTVEC(spuriousint)
 
 	iret
 
-	ISR_VEC(1, apic_isr1)
-	ISR_VEC(2, apic_isr2)
-	ISR_VEC(3, apic_isr3)
-	ISR_VEC(4, apic_isr4)
-	ISR_VEC(5, apic_isr5)
-	ISR_VEC(6, apic_isr6)
-	ISR_VEC(7, apic_isr7)
+	ISR_VEC	1, apic_isr1
+	ISR_VEC	2, apic_isr2
+	ISR_VEC	3, apic_isr3
+	ISR_VEC	4, apic_isr4
+	ISR_VEC	5, apic_isr5
+	ISR_VEC	6, apic_isr6
+	ISR_VEC	7, apic_isr7
 
 /*
  * Local APIC periodic timer handler.
@@ -129,9 +135,11 @@ IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
+	KENTER
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
-	call	lapic_handle_timer
+	movl	$lapic_handle_timer, %eax
+	call	*%eax
 	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
@@ -146,8 +154,10 @@ IDTVEC(cmcint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
+	KENTER
 	FAKE_MCOUNT(TF_EIP(%esp))
-	call	lapic_handle_cmc
+	movl	$lapic_handle_cmc, %eax
+	call	*%eax
 	MEXITCOUNT
 	jmp	doreti
 
@@ -161,8 +171,10 @@ IDTVEC(errorint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
+	KENTER
 	FAKE_MCOUNT(TF_EIP(%esp))
-	call	lapic_handle_error
+	movl	$lapic_handle_error, %eax
+	call	*%eax
 	MEXITCOUNT
 	jmp	doreti
 
@@ -177,9 +189,11 @@ IDTVEC(xen_intr_upcall)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
+	KENTER
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
-	call	xen_intr_handle_upcall
+	movl	$xen_intr_handle_upcall, %eax
+	call	*%eax
 	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
@@ -200,9 +214,9 @@ IDTVEC(invltlb)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
-	call	invltlb_handler
-
+	KENTER
+	movl	$invltlb_handler, %eax
+	call	*%eax
 	jmp	invltlb_ret
 
 /*
@@ -214,9 +228,9 @@ IDTVEC(invlpg)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
-	call	invlpg_handler
-
+	KENTER
+	movl	$invlpg_handler, %eax
+	call	*%eax
 	jmp	invltlb_ret
 
 /*
@@ -228,9 +242,9 @@ IDTVEC(invlrng)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
-	call	invlrng_handler
-
+	KENTER
+	movl	$invlrng_handler, %eax
+	call	*%eax
 	jmp	invltlb_ret
 
 /*
@@ -242,9 +256,9 @@ IDTVEC(invlcache)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
-	call	invlcache_handler
-
+	KENTER
+	movl	$invlcache_handler, %eax
+	call	*%eax
 	jmp	invltlb_ret
 
 /*
@@ -256,12 +270,11 @@ IDTVEC(ipi_intr_bitmap_handler)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
+	KENTER
 	call	as_lapic_eoi
-	
 	FAKE_MCOUNT(TF_EIP(%esp))
-
-	call	ipi_bitmap_handler
+	movl	$ipi_bitmap_handler, %eax
+	call	*%eax
 	MEXITCOUNT
 	jmp	doreti
 
@@ -274,9 +287,10 @@ IDTVEC(cpustop)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
+	KENTER
 	call	as_lapic_eoi
-	call	cpustop_handler
+	movl	$cpustop_handler, %eax
+	call	*%eax
 	jmp	doreti
 
 /*
@@ -288,9 +302,10 @@ IDTVEC(cpususpend)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
+	KENTER
 	call	as_lapic_eoi
-	call	cpususpend_handler
+	movl	$cpususpend_handler, %eax
+	call	*%eax
 	jmp	doreti
 
 /*
@@ -304,14 +319,14 @@ IDTVEC(rendezvous)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	cld
-
+	KENTER
 #ifdef COUNT_IPIS
 	movl	PCPU(CPUID), %eax
 	movl	ipi_rendezvous_counts(,%eax,4), %eax
 	incl	(%eax)
 #endif
-	call	smp_rendezvous_action
-
+	movl	$smp_rendezvous_action, %eax
+	call	*%eax
 	call	as_lapic_eoi
 	jmp	doreti
 	

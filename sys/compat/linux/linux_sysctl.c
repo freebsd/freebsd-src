@@ -115,6 +115,7 @@ handle_string(struct l___sysctl_args *la, char *value)
 	return (0);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 {
@@ -191,3 +192,4 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 	return (ENOTDIR);
 }
+#endif

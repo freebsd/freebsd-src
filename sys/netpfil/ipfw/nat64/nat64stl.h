@@ -30,21 +30,21 @@
 #ifndef	_IP_FW_NAT64STL_H_
 #define	_IP_FW_NAT64STL_H_
 
+#include "ip_fw_nat64.h"
+#include "nat64_translate.h"
+
 struct nat64stl_cfg {
 	struct named_object	no;
 
 	uint16_t		map64;	/* table with 6to4 mapping */
 	uint16_t		map46;	/* table with 4to6 mapping */
 
-	struct in6_addr		prefix6;/* IPv6 prefix */
-	uint8_t			plen6;	/* prefix length */
-	uint8_t			flags;	/* flags for internal use */
+	struct nat64_config	base;
 #define	NAT64STL_KIDX		0x0100
 #define	NAT64STL_46T		0x0200
 #define	NAT64STL_64T		0x0400
 #define	NAT64STL_FLAGSMASK	(NAT64_LOG) /* flags to pass to userland */
 	char			name[64];
-	nat64_stats_block	stats;
 };
 
 VNET_DECLARE(uint16_t, nat64stl_eid);

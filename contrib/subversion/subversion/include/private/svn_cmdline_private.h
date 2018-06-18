@@ -63,6 +63,7 @@ svn_cmdline__print_xml_prop(svn_stringbuf_t **outstr,
  * Expects a @c svn_cmdline_prompt_baton2_t to be passed as @a baton.
  *
  * @since New in 1.6.
+ * @deprecated Only used by old libgome-keyring implementation.
  */
 svn_error_t *
 svn_cmdline__auth_gnome_keyring_unlock_prompt(char **keyring_password,
@@ -88,7 +89,7 @@ typedef struct svn_cmdline__config_argument_t
  * containing svn_cmdline__config_argument_t* elements, allocating the option
  * data in @a pool
  *
- * [Since 1.9/1.10:] If the file, section, or option value is not recognized,
+ * [Since 1.9:] If the file, section, or option value is not recognized,
  * warn to @c stderr, using @a prefix as in svn_handle_warning2().
  *
  * @since New in 1.7.
@@ -213,6 +214,18 @@ svn_cmdline__getopt_init(apr_getopt_t **os,
                          const char *argv[],
                          apr_pool_t *pool);
 
+/*  */
+svn_boolean_t
+svn_cmdline__stdin_is_a_terminal(void);
+
+/*  */
+svn_boolean_t
+svn_cmdline__stdout_is_a_terminal(void);
+
+/*  */
+svn_boolean_t
+svn_cmdline__stderr_is_a_terminal(void);
+
 /* Determine whether interactive mode should be enabled, based on whether
  * the user passed the --non-interactive or --force-interactive options.
  * If neither option was passed, interactivity is enabled if standard
@@ -238,6 +251,32 @@ svn_cmdline__parse_trust_options(
                         svn_boolean_t *trust_server_cert_other_failure,
                         const char *opt_arg,
                         apr_pool_t *scratch_pool);
+
+/* Setup signal handlers for signals such as SIGINT and return a
+   cancellation handler function.  This also sets some other signals
+   to be ignored. */
+svn_cancel_func_t
+svn_cmdline__setup_cancellation_handler(void);
+
+/* Set the handlers for signals such as SIGINT back to default. */
+void
+svn_cmdline__disable_cancellation_handler(void);
+
+/* Exit this process with a status that indicates the cancellation
+   signal, or return without exiting if there is no signal.  This
+   allows the shell to use WIFSIGNALED and WTERMSIG to detect the
+   signal.  See http://www.cons.org/cracauer/sigint.html */
+void
+svn_cmdline__cancellation_exit(void);
+
+/** Reads a string from stdin until a newline or EOF is found
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_cmdline__stdin_readline(const char **result,
+                            apr_pool_t *result_pool,
+                            apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

@@ -128,10 +128,10 @@ done_store_dr:
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
-	jne	3f
+	jne	2f
 	movq	PCB_SAVEFPU(%r8),%r8
 	clts
-	cmpl	$0,use_xsave
+	cmpl	$0,use_xsave(%rip)
 	jne	1f
 	fxsave	(%r8)
 	jmp	2f
@@ -143,12 +143,7 @@ ctx_switch_xsave:
 	/* This is patched to xsaveopt if supported, see fpuinit_bsp1() */
 	xsave	(%r8)
 	movq	%rcx,%rdx
-2:	smsw	%ax
-	orb	$CR0_TS,%al
-	lmsw	%ax
-	xorl	%eax,%eax
-	movq	%rax,PCPU(FPCURTHREAD)
-3:
+2:
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
 	movq	%rsi,%r12
 	movq	%rdi,%r13
@@ -215,10 +210,13 @@ done_tss:
 	movq	%r8,PCPU(RSP0)
 	movq	%r8,PCPU(CURPCB)
 	/* Update the TSS_RSP0 pointer for the next interrupt */
-	cmpb	$0,pti(%rip)
-	jne	1f
-	movq	%r8,TSS_RSP0(%rdx)
-1:	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
+	cmpq	$~0,PCPU(UCR3)
+	je	1f
+	movq	PCPU(PTI_RSP0),%rax
+	movq	%rax,TSS_RSP0(%rdx)
+	jmp	2f
+1:	movq	%r8,TSS_RSP0(%rdx)
+2:	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -235,6 +233,8 @@ done_load_dr:
 	movq	PCB_RBX(%r8),%rbx
 	movq	PCB_RIP(%r8),%rax
 	movq	%rax,(%rsp)
+	movq	PCPU(CURTHREAD),%rdi
+	call	fpu_activate_sw
 	ret
 
 	/*
@@ -295,12 +295,7 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	shrq	$8,%rcx
 	movl	%ecx,8(%rax)
 	movb	$0x89,5(%rax)	/* unset busy */
-	cmpb	$0,pti(%rip)
-	je	1f
-	movq	PCPU(PRVSPACE),%rax
-	addq	$PC_PTI_STACK+PC_PTI_STACK_SZ*8,%rax
-	movq	%rax,TSS_RSP0(%rdx)
-1:	movl	$TSSSEL,%eax
+	movl	$TSSSEL,%eax
 	ltr	%ax
 	jmp	done_tss
 

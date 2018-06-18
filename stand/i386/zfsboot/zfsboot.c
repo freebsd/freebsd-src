@@ -209,6 +209,12 @@ vdev_read(void *xvdev, void *priv, off_t off, void *buf, size_t bytes)
 		alignnb = roundup2(nb * DEV_BSIZE + diff, DEV_GELIBOOT_BSIZE)
 		    / DEV_BSIZE;
 
+		if (dsk->size > 0 && alignlba + alignnb > dsk->size + dsk->start) {
+			printf("Shortening read at %lld from %d to %lld\n", alignlba,
+			    alignnb, (dsk->size + dsk->start) - alignlba);
+			alignnb = (dsk->size + dsk->start) - alignlba;
+		}
+
 		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
 #ifdef LOADER_GELI_SUPPORT
@@ -687,6 +693,16 @@ main(void)
     }
     setheap(heap_next, heap_end);
 
+    /*
+     * Initialize the serial console early with a modern default of 115200.
+     * Later, we'll read PATH_DOTCONFIG and reconfigure serial according
+     * to the configuration provided.
+     */
+    opts = OPT_SET(RBX_DUAL);
+    ioctrl = (IO_SERIAL|IO_KEYBOARD);
+    if (sio_init(115200) != 0)
+	ioctrl &= ~IO_SERIAL;
+
     dsk = malloc(sizeof(struct dsk));
     dsk->drive = *(uint8_t *)PTOV(ARGS);
     dsk->type = dsk->drive & DRV_HARD ? TYPE_AD : TYPE_FD;
@@ -694,7 +710,7 @@ main(void)
     dsk->slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     dsk->part = 0;
     dsk->start = 0;
-    dsk->size = 0;
+    dsk->size = drvsize_ext(dsk);
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
@@ -745,7 +761,7 @@ main(void)
 	dsk->slice = 0;
 	dsk->part = 0;
 	dsk->start = 0;
-	dsk->size = 0;
+	dsk->size = drvsize_ext(dsk);
 	probe_drive(dsk);
     }
 

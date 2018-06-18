@@ -340,6 +340,9 @@ struct nfsclrecalllayout {
 	int				nfsrecly_recalltype;
 	uint32_t			nfsrecly_iomode;
 	uint32_t			nfsrecly_stateseqid;
+	uint32_t			nfsrecly_stat;
+	uint32_t			nfsrecly_op;
+	char				nfsrecly_devid[NFSX_V4DEVICEID];
 };
 
 /*

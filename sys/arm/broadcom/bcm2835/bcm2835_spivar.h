@@ -32,18 +32,6 @@
 #ifndef	_BCM2835_SPIVAR_H_
 #define	_BCM2835_SPIVAR_H_
 
-/*
- * Only the available pins are listed here.
- * i.e. CS2 isn't available.
- */
-uint32_t bcm_spi_pins[] = {
-	7,	/* CS1 */
-	8,	/* CS0 */
-	9,	/* MISO */
-	10,	/* MOSI */
-	11	/* SCLK */
-};
-
 struct bcm_spi_softc {
 	device_t		sc_dev;
 	struct mtx		sc_mtx;

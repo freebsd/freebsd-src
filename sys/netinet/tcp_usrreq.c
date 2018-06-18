@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_fastopen.h>
+#include <netinet/tcp_hpts.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -1095,7 +1096,9 @@ tcp_usr_abort(struct socket *so)
 	    !(inp->inp_flags & INP_DROPPED)) {
 		tp = intotcpcb(inp);
 		TCPDEBUG1();
-		tcp_drop(tp, ECONNABORTED);
+		tp = tcp_drop(tp, ECONNABORTED);
+		if (tp == NULL)
+			goto dropped;
 		TCPDEBUG2(PRU_ABORT);
 		TCP_PROBE2(debug__user, tp, PRU_ABORT);
 	}
@@ -1106,6 +1109,7 @@ tcp_usr_abort(struct socket *so)
 		inp->inp_flags |= INP_SOCKREF;
 	}
 	INP_WUNLOCK(inp);
+dropped:
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 
@@ -1518,22 +1522,41 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			 */
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		}
+#ifdef TCPHPTS 
+		/* Assure that we are not on any hpts */
+		tcp_hpts_remove(tp->t_inpcb, HPTS_REMOVE_ALL);
+#endif
+		if (blk->tfb_tcp_fb_init) {
+			error = (*blk->tfb_tcp_fb_init)(tp);
+			if (error) {
+				refcount_release(&blk->tfb_refcnt);
+				if (tp->t_fb->tfb_tcp_fb_init) {
+					if((*tp->t_fb->tfb_tcp_fb_init)(tp) != 0)  {
+						/* Fall back failed, drop the connection */
+						INP_WUNLOCK(inp);
+						soabort(so);
+						return(error);
+					}
+				}
+				goto err_out;
+			}
+		}
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_fb = blk;
-		if (tp->t_fb->tfb_tcp_fb_init) {
-			(*tp->t_fb->tfb_tcp_fb_init)(tp);
-		}
 #ifdef TCP_OFFLOAD
 		if (tp->t_flags & TF_TOE) {
 			tcp_offload_ctloutput(tp, sopt->sopt_dir,
 			     sopt->sopt_name);
 		}
 #endif
+err_out:
 		INP_WUNLOCK(inp);
 		return (error);
 	} else if ((sopt->sopt_dir == SOPT_GET) && 
 	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
-		strcpy(fsn.function_set_name, tp->t_fb->tfb_tcp_block_name);
+		strncpy(fsn.function_set_name, tp->t_fb->tfb_tcp_block_name,
+		    TCP_FUNCTION_NAME_LEN_MAX);
+		fsn.function_set_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
 		fsn.pcbcnt = tp->t_fb->tfb_refcnt;
 		INP_WUNLOCK(inp);
 		error = sooptcopyout(sopt, &fsn, sizeof fsn);

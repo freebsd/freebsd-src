@@ -246,12 +246,12 @@ minidumpsys(struct dumperinfo *di)
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
 	    dumpsize);
 
-	printf("Physical memory: %u MB\n", ptoa((uintmax_t)physmem) / 1048576);
-	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
-
 	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
+
+	printf("Physical memory: %u MB\n", ptoa((uintmax_t)physmem) / 1048576);
+	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
 	/* Dump my header */
 	bzero(dumpbuf, sizeof(dumpbuf));

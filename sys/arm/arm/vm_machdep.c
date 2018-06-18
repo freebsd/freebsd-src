@@ -42,8 +42,6 @@
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
 
-#include "opt_compat.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

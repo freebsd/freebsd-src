@@ -6,7 +6,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd February 5, 2017
+.Dd May 8, 2018
 .Dt ENIGMA 1
 .Os
 .Sh NAME
@@ -85,13 +85,8 @@ with other operating systems that also provide an implementation
 there).
 For real encryption, refer to
 .Xr openssl 1 ,
-.Xr pgp 1 Pq Pa ports/security/pgp ,
 or
-.Xr gpg 1 Pq Pa ports/security/gnupg .
-However, restrictions for exporting,
-importing or using such tools might exist in some countries, so those
-stronger programs are not being shipped as part of the operating
-system by default.
+.Xr gpg 1 Pq Pa security/gnupg1 .
 .Sh ENVIRONMENT
 .Bl -tag -offset indent -width ".Ev CrYpTkEy"
 .It Ev CrYpTkEy
@@ -116,7 +111,6 @@ This displays the previously created file on the terminal.
 .Sh SEE ALSO
 .Xr gpg 1 ,
 .Xr openssl 1 ,
-.Xr pgp 1 ,
 .Xr ps 1 ,
 .Xr getpass 3
 .Sh HISTORY

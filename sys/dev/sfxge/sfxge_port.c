@@ -369,7 +369,7 @@ sfxge_mac_multicast_list_set(struct sfxge_softc *sc)
 
 	port->mcast_count = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family == AF_LINK) {
 			if (port->mcast_count == EFX_MAC_MULTICAST_LIST_MAX) {
 				device_printf(sc->dev,

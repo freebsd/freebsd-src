@@ -128,8 +128,6 @@
         ..
         io
         ..
-        lmc
-        ..
         mfi
         ..
         mlx5
@@ -290,6 +288,8 @@
     netinet
         cc
         ..
+        netdump
+        ..
     ..
     netinet6
     ..
@@ -316,6 +316,18 @@
     nfsclient
     ..
     nfsserver
+    ..
+    opencsd
+        c_api
+        ..
+        etmv3
+        ..
+        etmv4
+        ..
+        ptm
+        ..
+        stm
+        ..
     ..
     openssl
     ..

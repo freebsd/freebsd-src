@@ -60,7 +60,6 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
-#include "opt_compat.h"
 #include "opt_rootdevname.h"
 #include "opt_geom.h"
 #include "opt_md.h"
@@ -181,6 +180,10 @@ SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
  */
 u_char mfs_root[MD_ROOT_SIZE*1024] __attribute__ ((section ("oldmfs")));
 const int mfs_root_size = sizeof(mfs_root);
+#elif defined(MD_ROOT_MEM)
+/* MD region already mapped in the memory */
+u_char *mfs_root;
+int mfs_root_size;
 #else
 extern volatile u_char __weak_symbol mfs_root;
 extern volatile u_char __weak_symbol mfs_root_end;
@@ -2075,8 +2078,12 @@ g_md_init(struct g_class *mp __unused)
 #ifdef MD_ROOT
 	if (mfs_root_size != 0) {
 		sx_xlock(&md_sx);
+#ifdef MD_ROOT_MEM
+		md_preloaded(mfs_root, mfs_root_size, NULL);
+#else
 		md_preloaded(__DEVOLATILE(u_char *, &mfs_root), mfs_root_size,
 		    NULL);
+#endif
 		sx_xunlock(&md_sx);
 	}
 #endif

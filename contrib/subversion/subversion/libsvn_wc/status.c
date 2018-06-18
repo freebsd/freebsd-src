@@ -69,6 +69,7 @@ typedef struct svn_wc__internal_status_t
   svn_wc_status3_t s; /* First member; same pointer*/
 
   svn_boolean_t has_descendants;
+  svn_boolean_t op_root;
 
   /* Make sure to update hash_stash() when adding values here */
 } svn_wc__internal_status_t;
@@ -587,7 +588,8 @@ assemble_status(svn_wc__internal_status_t **status,
      This filter should match the filter in is_sendable_status() */
   if (! get_all)
     if (((node_status == svn_wc_status_none)
-         || (node_status == svn_wc_status_normal))
+         || (node_status == svn_wc_status_normal)
+         || (node_status == svn_wc_status_deleted && !info->op_root))
 
         && (! switched_p)
         && (! info->locked)
@@ -606,6 +608,7 @@ assemble_status(svn_wc__internal_status_t **status,
   inner_stat = apr_pcalloc(result_pool, sizeof(*inner_stat));
   stat = &inner_stat->s;
   inner_stat->has_descendants = info->has_descendants;
+  inner_stat->op_root = info->op_root;
 
   switch (info->kind)
     {
@@ -1484,6 +1487,7 @@ hash_stash(void *baton,
   /* Copy the internal/private data. */
   svn_wc__internal_status_t *is = new_status;
   is->has_descendants = old_status->has_descendants;
+  is->op_root = old_status->op_root;
 
   assert(! svn_hash_gets(stat_hash, path));
   svn_hash_sets(stat_hash, apr_pstrdup(hash_pool, path), new_status);
@@ -1865,7 +1869,9 @@ is_sendable_status(const svn_wc__internal_status_t *i_status,
 
   /* If the text, property or tree state is interesting, send it. */
   if ((status->node_status != svn_wc_status_none)
-       && (status->node_status != svn_wc_status_normal))
+       && (status->node_status != svn_wc_status_normal)
+       && !(status->node_status == svn_wc_status_deleted
+            && !i_status->op_root))
     return TRUE;
 
   /* If it's switched, send it. */

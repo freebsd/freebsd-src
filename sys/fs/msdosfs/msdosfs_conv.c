@@ -570,7 +570,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 		if (!code)
 			end = WIN_LAST;
 	}
-	if (*un == '\0')
+	if (!unlen)
 		end = WIN_LAST;
 	wep->weCnt |= end;
 	return !end;

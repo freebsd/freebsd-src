@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/netdump/netdump.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>

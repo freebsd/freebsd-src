@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __sparc64__
 #include <machine/bus_private.h>
 #endif
+#include <machine/cpu.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -138,6 +139,7 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 		if (pmap_bootstrapped) {
 			sc->fb_flags &= ~FB_FLAG_NOWRITE;
 			ofwfb_initialize(vd);
+			vd->vd_driver->vd_blank(vd, TC_BLACK);
 		} else {
 			return;
 		}
@@ -317,7 +319,7 @@ ofwfb_initialize(struct vt_device *vd)
 		}
 		if (i != 16)
 			sc->iso_palette = 1;
-				
+
 		break;
 
 	case 32:
@@ -392,8 +394,7 @@ ofwfb_init(struct vt_device *vd)
 	/* Make sure we have needed properties */
 	if (OF_getproplen(node, "height") != sizeof(height) ||
 	    OF_getproplen(node, "width") != sizeof(width) ||
-	    OF_getproplen(node, "depth") != sizeof(depth) ||
-	    OF_getproplen(node, "linebytes") != sizeof(sc->fb.fb_stride))
+	    OF_getproplen(node, "depth") != sizeof(depth))
 		return (CN_DEAD);
 
 	/* Only support 8 and 32-bit framebuffers */
@@ -404,7 +405,9 @@ ofwfb_init(struct vt_device *vd)
 
 	OF_getprop(node, "height", &height, sizeof(height));
 	OF_getprop(node, "width", &width, sizeof(width));
-	OF_getprop(node, "linebytes", &stride, sizeof(stride));
+	if (OF_getprop(node, "linebytes", &stride, sizeof(stride)) !=
+	    sizeof(stride))
+		stride = width*depth/8;
 
 	sc->fb.fb_height = height;
 	sc->fb.fb_width = width;
@@ -417,7 +420,7 @@ ofwfb_init(struct vt_device *vd)
 	 * remapped for us when relocation turns on.
 	 */
 	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
-	 	/* XXX We assume #address-cells is 1 at this point. */
+		/* XXX We assume #address-cells is 1 at this point. */
 		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
 	#if defined(__powerpc__)
@@ -490,11 +493,6 @@ ofwfb_init(struct vt_device *vd)
 		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
 		    NULL);
 		sc->fb.fb_pbase = sc->fb.fb_vbase & ~DMAP_BASE_ADDRESS;
-		#ifdef __powerpc64__
-		/* Real mode under a hypervisor probably doesn't cover FB */
-		if (!(mfmsr() & (PSL_HV | PSL_DR)))
-			sc->fb.fb_flags |= FB_FLAG_NOWRITE;
-		#endif
 	#else
 		/* No ability to interpret assigned-addresses otherwise */
 		return (CN_DEAD);
@@ -502,6 +500,17 @@ ofwfb_init(struct vt_device *vd)
         }
 
 
+	#if defined(__powerpc__)
+	/*
+	 * If we are running on PowerPC in real mode (supported only on AIM
+	 * CPUs), the frame buffer may be inaccessible (real mode does not
+	 * necessarily cover all RAM) and may also be mapped with the wrong
+	 * cache properties (all real mode accesses are assumed cacheable).
+	 * Just don't write to it for the time being.
+	 */
+	if (!(cpu_features & PPC_FEATURE_BOOKE) && !(mfmsr() & PSL_DR))
+		sc->fb.fb_flags |= FB_FLAG_NOWRITE;
+	#endif
 	ofwfb_initialize(vd);
 	vt_fb_init(vd);
 

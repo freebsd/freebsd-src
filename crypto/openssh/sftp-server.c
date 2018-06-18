@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.110 2016/09/12 01:22:38 deraadt Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.111 2017/04/04 00:24:56 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -691,8 +691,8 @@ process_open(u_int32_t id)
 	logit("open \"%s\" flags %s mode 0%o",
 	    name, string_from_portable(pflags), mode);
 	if (readonly &&
-	    ((flags & O_ACCMODE) == O_WRONLY ||
-	    (flags & O_ACCMODE) == O_RDWR)) {
+	    ((flags & O_ACCMODE) != O_RDONLY ||
+	    (flags & (O_CREAT|O_TRUNC)) != 0)) {
 		verbose("Refusing open request in read-only mode");
 		status = SSH2_FX_PERMISSION_DENIED;
 	} else {

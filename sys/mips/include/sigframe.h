@@ -34,10 +34,6 @@
 #ifndef _MACHINE_SIGFRAME_H_
 #define	_MACHINE_SIGFRAME_H_
 
-#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
-
 /*
  * WARNING: code in locore.s assumes the layout shown for sf_signum
  * thru sf_addr so... don't alter them!

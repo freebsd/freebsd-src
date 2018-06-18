@@ -115,6 +115,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 
+#include <machine/cpu.h>
+#include <machine/hid.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
 
@@ -129,6 +131,11 @@ __FBSDID("$FreeBSD$");
 
 #define	VSID_HASH_MASK	0x0000007fffffffffULL
 
+/* POWER9 only permits a 64k partition table size. */
+#define	PART_SIZE	0x10000
+
+static int moea64_crop_tlbie;
+
 static __inline void
 TLBIE(uint64_t vpn) {
 #ifndef __powerpc64__
@@ -140,11 +147,13 @@ TLBIE(uint64_t vpn) {
 	static volatile u_int tlbie_lock = 0;
 
 	vpn <<= ADDR_PIDX_SHFT;
-	vpn &= ~(0xffffULL << 48);
 
 	/* Hobo spinlock: we need stronger guarantees than mutexes provide */
 	while (!atomic_cmpset_int(&tlbie_lock, 0, 1));
 	isync(); /* Flush instruction queue once lock acquired */
+
+	if (moea64_crop_tlbie)
+		vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
 	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
@@ -417,12 +426,21 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
+	switch (mfpvr() >> 16) {
+	case IBMPOWER4:
+	case IBMPOWER4PLUS:
+	case IBM970:
+	case IBM970FX:
+	case IBM970GX:
+	case IBM970MP:
+	    	moea64_crop_tlbie = true;
+	}
 	/*
 	 * Allocate PTEG table.
 	 */
 
 	size = moea64_pteg_count * sizeof(struct lpteg);
-	CTR2(KTR_PMAP, "moea64_bootstrap: %d PTEGs, %d bytes", 
+	CTR2(KTR_PMAP, "moea64_bootstrap: %lu PTEGs, %lu bytes", 
 	    moea64_pteg_count, size);
 	rw_init(&moea64_eviction_lock, "pte eviction");
 
@@ -432,8 +450,16 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 * allocate. We don't have BAT. So drop to data real mode for a minute
 	 * as a measure of last resort. We do this a couple times.
 	 */
-
-	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, size);
+	/*
+	 * PTEG table must be aligned on a 256k boundary, but can be placed
+	 * anywhere with that alignment on POWER ISA 3+ systems. On earlier
+	 * systems, offset addition is done by the CPU with bitwise OR rather
+	 * than addition, so the table must also be aligned on a boundary of
+	 * its own size. Pick the larger of the two, which works on all
+	 * systems.
+	 */
+	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, 
+	    MAX(256*1024, size));
 	if (hw_direct_map)
 		moea64_pteg_table =
 		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);

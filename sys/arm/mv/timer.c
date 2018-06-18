@@ -73,6 +73,9 @@ struct mv_timer_config {
 	mv_watchdog_enable_t	watchdog_enable;
 	mv_watchdog_disable_t	watchdog_disable;
 	unsigned int 		clock_src;
+	uint32_t 		bridge_irq_cause;
+	uint32_t 		irq_timer0_clr;
+	uint32_t 		irq_timer_wd_clr;
 };
 
 struct mv_timer_softc {
@@ -124,9 +127,7 @@ static void mv_watchdog_enable_armadaxp(void);
 static void mv_watchdog_disable_armv5(void);
 static void mv_watchdog_disable_armadaxp(void);
 
-#ifdef PLATFORM
-void mv_delay(int usec, void* arg);
-#endif
+static void mv_delay(int usec, void* arg);
 
 static struct mv_timer_config timer_armadaxp_config =
 {
@@ -134,6 +135,9 @@ static struct mv_timer_config timer_armadaxp_config =
 	&mv_watchdog_enable_armadaxp,
 	&mv_watchdog_disable_armadaxp,
 	MV_CLOCK_SRC_ARMV7,
+	BRIDGE_IRQ_CAUSE_ARMADAXP,
+	IRQ_TIMER0_CLR_ARMADAXP,
+	IRQ_TIMER_WD_CLR_ARMADAXP,
 };
 static struct mv_timer_config timer_armv5_config =
 {
@@ -141,6 +145,9 @@ static struct mv_timer_config timer_armv5_config =
 	&mv_watchdog_enable_armv5,
 	&mv_watchdog_disable_armv5,
 	0,
+	BRIDGE_IRQ_CAUSE,
+	IRQ_TIMER0_CLR,
+	IRQ_TIMER_WD_CLR,
 };
 
 static struct ofw_compat_data mv_timer_soc_config[] = {
@@ -230,10 +237,10 @@ mv_timer_attach(device_t dev)
 
 	mv_setup_timers();
 	if (sc->config->soc_family != MV_SOC_ARMADA_XP ) {
-		irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-		irq_cause &= IRQ_TIMER0_CLR;
+		irq_cause = read_cpu_ctrl(sc->config->bridge_irq_cause);
+		irq_cause &= sc->config->irq_timer0_clr;
 
-		write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+		write_cpu_ctrl(sc->config->bridge_irq_cause, irq_cause);
 		irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 		irq_mask |= IRQ_TIMER0_MASK;
 		irq_mask &= ~IRQ_TIMER1_MASK;
@@ -265,9 +272,9 @@ mv_hardclock(void *arg)
 	struct	mv_timer_softc *sc;
 	uint32_t irq_cause;
 
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= IRQ_TIMER0_CLR;
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_cause = read_cpu_ctrl(timer_softc->config->bridge_irq_cause);
+	irq_cause &= timer_softc->config->irq_timer0_clr;
+	write_cpu_ctrl(timer_softc->config->bridge_irq_cause, irq_cause);
 
 	sc = (struct mv_timer_softc *)arg;
 	if (sc->et.et_active)
@@ -291,7 +298,7 @@ static driver_t mv_timer_driver = {
 
 static devclass_t mv_timer_devclass;
 
-DRIVER_MODULE(timer, simplebus, mv_timer_driver, mv_timer_devclass, 0, 0);
+DRIVER_MODULE(timer_mv, simplebus, mv_timer_driver, mv_timer_devclass, 0, 0);
 
 static unsigned
 mv_timer_get_timecount(struct timecounter *tc)
@@ -300,24 +307,11 @@ mv_timer_get_timecount(struct timecounter *tc)
 	return (INITIAL_TIMECOUNTER - mv_get_timer(1));
 }
 
-#ifdef PLATFORM
-void
+static void
 mv_delay(int usec, void* arg)
-#else
-void
-DELAY(int usec)
-#endif
 {
 	uint32_t	val, val_temp;
 	int32_t		nticks;
-
-	if (!timers_initialized) {
-		for (; usec > 0; usec--)
-			for (val = 100; val > 0; val--)
-				__asm __volatile("nop" ::: "memory");
-		return;
-	}
-	TSENTER();
 
 	val = mv_get_timer(1);
 	nticks = ((timer_softc->config->clock_src / 1000000 + 1) * usec);
@@ -331,8 +325,25 @@ DELAY(int usec)
 
 		val = val_temp;
 	}
-	TSEXIT();
 }
+
+#ifndef PLATFORM
+void
+DELAY(int usec)
+{
+	uint32_t	val;
+
+	if (!timers_initialized) {
+		for (; usec > 0; usec--)
+			for (val = 100; val > 0; val--)
+				__asm __volatile("nop" ::: "memory");
+	} else {
+		TSENTER();
+		mv_delay(usec, NULL);
+		TSEXIT();
+	}
+}
+#endif
 
 static uint32_t
 mv_get_timer_control(void)
@@ -379,9 +390,9 @@ mv_watchdog_enable_armv5(void)
 {
 	uint32_t val, irq_cause, irq_mask;
 
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= IRQ_TIMER_WD_CLR;
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_cause = read_cpu_ctrl(timer_softc->config->bridge_irq_cause);
+	irq_cause &= timer_softc->config->irq_timer_wd_clr;
+	write_cpu_ctrl(timer_softc->config->bridge_irq_cause, irq_cause);
 
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER_WD_MASK;
@@ -401,17 +412,17 @@ mv_watchdog_enable_armadaxp(void)
 {
 	uint32_t irq_cause, val;
 
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= IRQ_TIMER_WD_CLR;
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_cause = read_cpu_ctrl(timer_softc->config->bridge_irq_cause);
+	irq_cause &= timer_softc->config->irq_timer_wd_clr;
+	write_cpu_ctrl(timer_softc->config->bridge_irq_cause, irq_cause);
 
 	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
 	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val &= ~RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, val);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, val);
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
@@ -435,9 +446,9 @@ mv_watchdog_disable_armv5(void)
 	irq_mask &= ~(IRQ_TIMER_WD_MASK);
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
 
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= IRQ_TIMER_WD_CLR;
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_cause = read_cpu_ctrl(timer_softc->config->bridge_irq_cause);
+	irq_cause &= timer_softc->config->irq_timer_wd_clr;
+	write_cpu_ctrl(timer_softc->config->bridge_irq_cause, irq_cause);
 }
 
 static void
@@ -449,13 +460,13 @@ mv_watchdog_disable_armadaxp(void)
 	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val |= RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, RSTOUTn_MASK_WD);
 
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= IRQ_TIMER_WD_CLR;
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_cause = read_cpu_ctrl(timer_softc->config->bridge_irq_cause);
+	irq_cause &= timer_softc->config->irq_timer_wd_clr;
+	write_cpu_ctrl(timer_softc->config->bridge_irq_cause, irq_cause);
 
 	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER2_EN | CPU_TIMER2_AUTO);

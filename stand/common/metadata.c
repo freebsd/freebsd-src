@@ -31,9 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
-#include <sys/boot.h>
+#include <sys/reboot.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
 #endif
@@ -94,13 +93,12 @@ md_bootserial(void)
 }
 #endif
 
-int
+static int
 md_getboothowto(char *kargs)
 {
     char	*cp;
     int		howto;
     int		active;
-    int		i;
 
     /* Parse kargs */
     howto = 0;
@@ -153,10 +151,7 @@ md_getboothowto(char *kargs)
 	}
     }
 
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
+    howto |= bootenv_flags();
 #if defined(__sparc64__)
     if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
@@ -307,7 +302,7 @@ md_copymodules(vm_offset_t addr, int kern64)
  * - The kernel environment is copied into kernel space.
  * - Module metadata are formatted and placed in kernel space.
  */
-int
+static int
 md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 {
     struct preloaded_file	*kfp;
@@ -460,13 +455,15 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     return(0);
 }
 
+#if !defined(__sparc64__)
 int
 md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
     return (md_load_dual(args, modulep, dtb, 0));
 }
+#endif
 
-#if defined(__mips__) || defined(__powerpc__)
+#if defined(__mips__) || defined(__powerpc__) || defined(__sparc64__)
 int
 md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {

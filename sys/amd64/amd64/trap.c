@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
+#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
@@ -102,6 +103,10 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <sys/dtrace_bsd.h>
 #endif
 
+extern inthand_t IDTVEC(bpt), IDTVEC(bpt_pti), IDTVEC(dbg),
+    IDTVEC(fast_syscall), IDTVEC(fast_syscall_pti), IDTVEC(fast_syscall32),
+    IDTVEC(int0x80_syscall_pti), IDTVEC(int0x80_syscall);
+
 void __noinline trap(struct trapframe *frame);
 void trap_check(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
@@ -121,7 +126,7 @@ static char *trap_msg[] = {
 	"",					/*  7 unused */
 	"",					/*  8 unused */
 	"general protection fault",		/*  9 T_PROTFLT */
-	"trace trap",				/* 10 T_TRCTRAP */
+	"debug exception",			/* 10 T_TRCTRAP */
 	"",					/* 11 unused */
 	"page fault",				/* 12 T_PAGEFLT */
 	"",					/* 13 unused */
@@ -168,10 +173,7 @@ trap(struct trapframe *frame)
 	ksiginfo_t ksi;
 	struct thread *td;
 	struct proc *p;
-	register_t addr;
-#ifdef KDB
-	register_t dr6;
-#endif
+	register_t addr, dr6;
 	int signo, ucode;
 	u_int type;
 
@@ -180,6 +182,7 @@ trap(struct trapframe *frame)
 	signo = 0;
 	ucode = 0;
 	addr = 0;
+	dr6 = 0;
 
 	VM_CNT_INC(v_trap);
 	type = frame->tf_trapno;
@@ -211,7 +214,7 @@ trap(struct trapframe *frame)
 		 * the NMI was consumed by it and we can return immediately.
 		 */
 		if (pmc_intr != NULL &&
-		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
+		    (*pmc_intr)(frame) != 0)
 			return;
 #endif
 
@@ -267,18 +270,29 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_BPTFLT:		/* bpt instruction fault */
-		case T_TRCTRAP:		/* trace trap */
 			enable_intr();
 #ifdef KDTRACE_HOOKS
-			if (type == T_BPTFLT) {
-				if (dtrace_pid_probe_ptr != NULL &&
-				    dtrace_pid_probe_ptr(frame) == 0)
-					return;
-			}
+			if (dtrace_pid_probe_ptr != NULL &&
+			    dtrace_pid_probe_ptr(frame) == 0)
+				return;
 #endif
-			frame->tf_rflags &= ~PSL_T;
 			signo = SIGTRAP;
-			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
+			ucode = TRAP_BRKPT;
+			break;
+
+		case T_TRCTRAP:		/* debug exception */
+			enable_intr();
+			signo = SIGTRAP;
+			ucode = TRAP_TRACE;
+			dr6 = rdr6();
+			if ((dr6 & DBREG_DR6_BS) != 0) {
+				PROC_LOCK(td->td_proc);
+				if ((td->td_dbgflags & TDB_STEP) != 0) {
+					td->td_frame->tf_rflags &= ~PSL_T;
+					td->td_dbgflags &= ~TDB_STEP;
+				}
+				PROC_UNLOCK(td->td_proc);
+			}
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
@@ -461,11 +475,13 @@ trap(struct trapframe *frame)
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
-				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
-				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
-				    sizeof(register_t))
+				if ((PCPU_GET(curpmap)->pm_ucr3 !=
+				    PMAP_NO_CR3) &&
+				    (frame->tf_rsp == (uintptr_t)PCPU_GET(
+				    pti_rsp0) - 5 * sizeof(register_t))) {
 					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
 					    sizeof(register_t);
+				}
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
@@ -514,9 +530,13 @@ trap(struct trapframe *frame)
 			}
 			break;
 
-		case T_TRCTRAP:	 /* trace trap */
+		case T_TRCTRAP:	 /* debug exception */
+			/* Clear any pending debug events. */
+			dr6 = rdr6();
+			load_dr6(0);
+
 			/*
-			 * Ignore debug register trace traps due to
+			 * Ignore debug register exceptions due to
 			 * accesses in the user's address space, which
 			 * can happen under several conditions such as
 			 * if a user sets a watchpoint on a buffer and
@@ -525,14 +545,54 @@ trap(struct trapframe *frame)
 			 * in kernel space because that is useful when
 			 * debugging the kernel.
 			 */
-			if (user_dbreg_trap()) {
-				/*
-				 * Reset breakpoint bits because the
-				 * processor doesn't
-				 */
-				load_dr6(rdr6() & ~0xf);
+			if (user_dbreg_trap(dr6))
 				return;
+
+			/*
+			 * Malicious user code can configure a debug
+			 * register watchpoint to trap on data access
+			 * to the top of stack and then execute 'pop
+			 * %ss; int 3'.  Due to exception deferral for
+			 * 'pop %ss', the CPU will not interrupt 'int
+			 * 3' to raise the DB# exception for the debug
+			 * register but will postpone the DB# until
+			 * execution of the first instruction of the
+			 * BP# handler (in kernel mode).  Normally the
+			 * previous check would ignore DB# exceptions
+			 * for watchpoints on user addresses raised in
+			 * kernel mode.  However, some CPU errata
+			 * include cases where DB# exceptions do not
+			 * properly set bits in %dr6, e.g. Haswell
+			 * HSD23 and Skylake-X SKZ24.
+			 *
+			 * A deferred DB# can also be raised on the
+			 * first instructions of system call entry
+			 * points or single-step traps via similar use
+			 * of 'pop %ss' or 'mov xxx, %ss'.
+			 */
+			if (pti) {
+				if (frame->tf_rip ==
+				    (uintptr_t)IDTVEC(fast_syscall_pti) ||
+#ifdef COMPAT_FREEBSD32
+				    frame->tf_rip ==
+				    (uintptr_t)IDTVEC(int0x80_syscall_pti) ||
+#endif
+				    frame->tf_rip == (uintptr_t)IDTVEC(bpt_pti))
+					return;
+			} else {
+				if (frame->tf_rip ==
+				    (uintptr_t)IDTVEC(fast_syscall) ||
+#ifdef COMPAT_FREEBSD32
+				    frame->tf_rip ==
+				    (uintptr_t)IDTVEC(int0x80_syscall) ||
+#endif
+				    frame->tf_rip == (uintptr_t)IDTVEC(bpt))
+					return;
 			}
+			if (frame->tf_rip == (uintptr_t)IDTVEC(dbg) ||
+			    /* Needed for AMD. */
+			    frame->tf_rip == (uintptr_t)IDTVEC(fast_syscall32))
+				return;
 			/*
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
@@ -542,9 +602,6 @@ trap(struct trapframe *frame)
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			/* XXX %dr6 is not quite reentrant. */
-			dr6 = rdr6();
-			load_dr6(dr6 & ~0x4000);
 			if (kdb_trap(type, dr6, frame))
 				return;
 #endif
@@ -587,6 +644,13 @@ trap(struct trapframe *frame)
 	}
 	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
+
+	/*
+	 * Clear any pending debug exceptions after allowing a
+	 * debugger to read DR6 while stopped in trapsignal().
+	 */
+	if (type == T_TRCTRAP)
+		load_dr6(0);
 userret:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
@@ -706,7 +770,8 @@ trap_pfault(struct trapframe *frame, int usermode)
 	 * If nx protection of the usermode portion of kernel page
 	 * tables caused trap, panic.
 	 */
-	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	if (PCPU_GET(curpmap)->pm_ucr3 != PMAP_NO_CR3 && usermode &&
+	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
 	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
 	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
 	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
@@ -761,6 +826,9 @@ trap_fatal(frame, eva)
 	u_int type;
 	struct soft_segment_descriptor softseg;
 	char *msg;
+#ifdef KDB
+	bool handled;
+#endif
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
@@ -811,9 +879,13 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active)
-		if (kdb_trap(type, 0, frame))
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
+		handled = kdb_trap(type, 0, frame);
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
 			return;
+	}
 #endif
 	printf("trap number		= %d\n", type);
 	if (type <= MAX_TRAP_MSG)
@@ -877,7 +949,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	reg = 0;
 	regcnt = 6;
 
-	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 	sa->code = frame->tf_rax;
 
 	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
@@ -899,9 +970,9 @@ cpu_fetch_syscall_args(struct thread *td)
 	error = 0;
 	argp = &frame->tf_rdi;
 	argp += reg;
-	bcopy(argp, sa->args, sizeof(sa->args[0]) * regcnt);
+	memcpy(sa->args, argp, sizeof(sa->args[0]) * 6);
 	if (sa->narg > regcnt) {
-		KASSERT(params != NULL, ("copyin args with no params!"));
+		params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 		error = copyin(params, &sa->args[regcnt],
 	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
 	}

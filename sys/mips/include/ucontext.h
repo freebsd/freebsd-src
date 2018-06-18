@@ -41,10 +41,6 @@
 
 #ifndef _LOCORE
 
-#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
-
 typedef struct	__mcontext {
 	/*
 	 * These fields must match the corresponding fields in struct 

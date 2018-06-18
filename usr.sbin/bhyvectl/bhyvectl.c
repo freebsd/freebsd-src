@@ -191,7 +191,8 @@ usage(bool cpu_intel)
 	"       [--get-msr-bitmap]\n"
 	"       [--get-msr-bitmap-address]\n"
 	"       [--get-guest-sysenter]\n"
-	"       [--get-exit-reason]\n",
+	"       [--get-exit-reason]\n"
+	"       [--get-cpu-topology]\n",
 	progname);
 
 	if (cpu_intel) {
@@ -285,6 +286,7 @@ static int set_x2apic_state, get_x2apic_state;
 enum x2apic_state x2apic_state;
 static int unassign_pptdev, bus, slot, func;
 static int run;
+static int get_cpu_topology;
 
 /*
  * VMCB specific.
@@ -846,7 +848,7 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 		if (error == 0)
 			printf("rflags[%d]\t0x%016lx\n", vcpu, rflags);
 	}
-	
+
 	return (error);
 }
 
@@ -1113,7 +1115,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
 	if (!error && (get_tpr_threshold || get_all)) {
 		uint64_t threshold;
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_TPR_THRESHOLD,
@@ -1131,7 +1133,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, insterr);
 		}
 	}
-	
+
 	if (!error && (get_exit_ctls || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_CTLS, &ctl);
 		if (error == 0)
@@ -1179,7 +1181,7 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 		if (error == 0)
 			printf("host_rsp[%d]\t\t0x%016lx\n", vcpu, rsp);
 	}
-	
+
 	if (!error && (get_vmcs_link || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_LINK_POINTER, &addr);
 		if (error == 0)
@@ -1456,6 +1458,7 @@ setup_options(bool cpu_intel)
 		{ "get-active-cpus", 	NO_ARG,	&get_active_cpus, 	1 },
 		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 	1 },
 		{ "get-intinfo", 	NO_ARG,	&get_intinfo,		1 },
+		{ "get-cpu-topology",	NO_ARG, &get_cpu_topology,	1 },
 	};
 
 	const struct option intel_opts[] = {
@@ -2310,6 +2313,14 @@ main(int argc, char *argv[])
 				printf("%-40s\t%ld\n", desc, stats[i]);
 			}
 		}
+	}
+
+	if (!error && (get_cpu_topology || get_all)) {
+		uint16_t sockets, cores, threads, maxcpus;
+
+		vm_get_topology(ctx, &sockets, &cores, &threads, &maxcpus);
+		printf("cpu_topology:\tsockets=%hu, cores=%hu, threads=%hu, "
+		    "maxcpus=%hu\n", sockets, cores, threads, maxcpus);
 	}
 
 	if (!error && run) {

@@ -347,7 +347,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	conn_t *conn = NULL;
 	int err = 0, sd = -1;
 
-	DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
+	DEBUGF("---> %s:%d\n", host, port);
 
 	/* resolve server address */
 	if (verbose)
@@ -1158,7 +1158,7 @@ fetch_getln(conn_t *conn)
 	} while (c != '\n');
 
 	conn->buf[conn->buflen] = '\0';
-	DEBUG(fprintf(stderr, "<<< %s", conn->buf));
+	DEBUGF("<<< %s", conn->buf);
 	return (0);
 }
 
@@ -1263,7 +1263,7 @@ fetch_putln(conn_t *conn, const char *str, size_t len)
 	struct iovec iov[2];
 	int ret;
 
-	DEBUG(fprintf(stderr, ">>> %s\n", str));
+	DEBUGF(">>> %s\n", str);
 	iov[0].iov_base = __DECONST(char *, str);
 	iov[0].iov_len = len;
 	iov[1].iov_base = __DECONST(char *, ENDL);
@@ -1361,19 +1361,20 @@ fetch_read_word(FILE *f)
 static int
 fetch_netrc_open(void)
 {
-	const char *p;
+	struct passwd *pwd;
 	char fn[PATH_MAX];
+	const char *p;
+	int fd, serrno;
 
 	if ((p = getenv("NETRC")) != NULL) {
+		DEBUGF("NETRC=%s\n", p);
 		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
 			fetch_info("$NETRC specifies a file name "
 			    "longer than PATH_MAX");
 			return (-1);
 		}
 	} else {
-		if ((p = getenv("HOME")) != NULL) {
-			struct passwd *pwd;
-
+		if ((p = getenv("HOME")) == NULL) {
 			if ((pwd = getpwuid(getuid())) == NULL ||
 			    (p = pwd->pw_dir) == NULL)
 				return (-1);
@@ -1382,7 +1383,12 @@ fetch_netrc_open(void)
 			return (-1);
 	}
 
-	return (open(fn, O_RDONLY));
+	if ((fd = open(fn, O_RDONLY)) < 0) {
+		serrno = errno;
+		DEBUGF("%s: %s\n", fn, strerror(serrno));
+		errno = serrno;
+	}
+	return (fd);
 }
 
 /*
@@ -1392,24 +1398,32 @@ int
 fetch_netrc_auth(struct url *url)
 {
 	const char *word;
+	int serrno;
 	FILE *f;
 
-	if (url->netrcfd == -2)
+	if (url->netrcfd < 0)
 		url->netrcfd = fetch_netrc_open();
 	if (url->netrcfd < 0)
 		return (-1);
-	if ((f = fdopen(url->netrcfd, "r")) == NULL)
+	if ((f = fdopen(url->netrcfd, "r")) == NULL) {
+		serrno = errno;
+		DEBUGF("fdopen(netrcfd): %s", strerror(errno));
+		close(url->netrcfd);
+		url->netrcfd = -1;
+		errno = serrno;
 		return (-1);
+	}
 	rewind(f);
+	DEBUGF("searching netrc for %s\n", url->host);
 	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "default") == 0) {
-			DEBUG(fetch_info("Using default .netrc settings"));
+			DEBUGF("using default netrc settings\n");
 			break;
 		}
 		if (strcmp(word, "machine") == 0 &&
 		    (word = fetch_read_word(f)) != NULL &&
 		    strcasecmp(word, url->host) == 0) {
-			DEBUG(fetch_info("Using .netrc settings for %s", word));
+			DEBUGF("using netrc settings for %s\n", word);
 			break;
 		}
 	}
@@ -1441,9 +1455,13 @@ fetch_netrc_auth(struct url *url)
 		}
 	}
 	fclose(f);
+	url->netrcfd = -1;
 	return (0);
- ferr:
+ferr:
+	serrno = errno;
 	fclose(f);
+	url->netrcfd = -1;
+	errno = serrno;
 	return (-1);
 }
 

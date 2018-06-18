@@ -1,4 +1,4 @@
-.\" Copyright (c) 2015, Chelsio Inc
+.\" Copyright (c) 2015, 2018 Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2017
+.Dd May 14, 2018
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -48,9 +48,19 @@
 .It
 .Nm Ar nexus Cm context Bro Cm ingress | egress | fl | cong Brc Ar cntxt_id
 .It
-.Nm Ar nexus Cm filter mode Op Ar match-criteria ...
+.Nm Ar nexus Cm hashfilter mode
 .It
-.Nm Ar nexus Cm filter Ar idx Bro Ar filter-specification | Cm delete Brc
+.Nm Ar nexus Cm hashfilter Ar filter-specification
+.It
+.Nm Ar nexus Cm hashfilter Ar idx Cm delete
+.It
+.Nm Ar nexus Cm hashfilter list
+.It
+.Nm Ar nexus Cm filter mode
+.It
+.Nm Ar nexus Cm filter Ar idx Ar filter-specification
+.It
+.Nm Ar nexus Cm filter Ar idx Cm delete
 .It
 .Nm Ar nexus Cm filter list
 .It
@@ -63,6 +73,10 @@
 .Nm Ar nexus Cm loadfw Ar fw-image.bin
 .It
 .Nm Ar nexus Cm memdump Ar addr len
+.It
+.Nm Ar nexus Cm policy Ar cop.txt
+.It
+.Nm Ar nexus Cm policy clear
 .It
 .Nm Ar nexus Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
 .It
@@ -137,44 +151,51 @@ context id of a freelist manager.
 The FLM context id is displayed in the
 egress context dump of a freelist as FLMcontextID.
 .El
-.It Cm filter mode Op Ar match-criteria ...
-Display or set the nexus's filter mode.
-.Ar match-criteria
-is a whitespace separated list of criteria from the table below.
-Each criteria has an associated budget which is also listed in the table.
-The total budget allowed is 36 and attempts to set a filter mode that
-exceeds this will be rejected.
-Every filter must conform to the filter mode -- multiple match criteria
-per filter are allowed but only from among those in the current setting
-of the filter mode.
-The filter mode can only be changed when there are no existing filters.
-Its default value is
-.Cm ipv4 ipv6 sip dip sport dport matchtype proto vlan iport fcoe
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter mode
+.It
+.Cm filter mode
+.El
+Display a list of match-criteria available for use in filter rules.
+A full list of match-criteria known to the chip is in the table below but not
+all can be used together and the firmware sets up the available parameters based
+on "filterMode" in the configuration file.
+Every filter must conform to the filter mode -- multiple match criteria per
+filter are allowed but only from among those in the current setting of the
+filter mode.
+The filter mode for hash filters is a subset of that for normal TCAM filters and
+depends on the "filterMask" setting in the firmware configuration file.
+Hash filters do not support masked matches and an exact value for every
+parameter in the output of "hashfilter mode" (except ipv4/ipv6) must be provided
+when creating a hash filter.
 .Pp
 (Note that
 .Ar mask
 defaults to all 1s when not provided explicitly.
+Hash filters do not support masked matches.
 Also note that many of the items being matched are discrete numeric
 values rather than bit fields and should be masked with caution.)
 .TS
 center expand;
-cb cb cb cbw(40m)
-cb c l l.
-Criteria	Budget	Usage	Matches if ...
+cb cb cbw(40m)
+cb l l.
+Criteria	Usage	Matches if ...
 _
-ipv4	0	T{
+ipv4	T{
 .Cm type ipv4
 T}	T{
 incoming packet is an IPv4 datagram.
 T}
 _
-ipv6	0	T{
+ipv6	T{
 .Cm type ipv6
 T}	T{
 incoming packet is an IPv6 datagram.
 T}
 _
-sip	0	T{
+sip	T{
 .Cm sip Ar addr Ns Op / Ns Ar mask
 T}	T{
 bitwise and of the source address in an incoming IP datagram with
@@ -185,7 +206,7 @@ equals
 can be an IPv4 or IPv6 address.
 T}
 _
-dip	0	T{
+dip	T{
 .Cm dip Ar addr Ns Op / Ns Ar mask
 T}	T{
 bitwise and of the destination address in an incoming IP datagram with
@@ -196,7 +217,7 @@ equals
 can be an IPv4 or IPv6 address.
 T}
 _
-sport	0	T{
+sport	T{
 .Cm sport Ar port Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the source port in an incoming TCP or UDP datagram with
@@ -205,7 +226,7 @@ equals
 .Ar port Ns .
 T}
 _
-dport	0	T{
+dport	T{
 .Cm dport Ar port Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the destination port in an incoming TCP or UDP datagram with
@@ -214,13 +235,13 @@ equals
 .Ar port Ns .
 T}
 _
-fcoe	1	T{
+fcoe	T{
 .Cm fcoe Brq 0 | 1
 T}	T{
 incoming frame is Fibre Channel over Ethernet(1) or not(0).
 T}
 _
-iport	3	T{
+iport	T{
 .Cm iport Ar val Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the ingress port with
@@ -235,7 +256,7 @@ Note that ingress port is not a bit field so it is not always possible
 to match an arbitrary subset of ingress ports with a single filter rule.
 T}
 _
-ovlan	17	T{
+ovlan	T{
 .Cm ovlan Ar tag Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the 16-bit outer VLAN tag of an incoming frame with
@@ -244,7 +265,7 @@ equals
 .Ar tag Ns .
 T}
 _
-vlan	17	T{
+vlan	T{
 .Cm vlan Ar tag Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the 16-bit VLAN tag of an incoming QinQ frame with
@@ -254,7 +275,7 @@ equals
 The inner VLAN tag is used if the incoming frame is QinQ.
 T}
 _
-tos	8	T{
+tos	T{
 .Cm tos Ar val Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the 8-bit IP Type of Service/IPv6 Traffic Class in an
@@ -264,7 +285,7 @@ equals
 .Ar val Ns .
 T}
 _
-proto	8	T{
+proto	T{
 .Cm proto Ar ipproto Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the 8-bit IP protocol in an incoming packet with
@@ -273,7 +294,7 @@ equals
 .Ar ipproto Ns .
 T}
 _
-ethtype	16	T{
+ethtype	T{
 .Cm ethtype Ar type Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the 16-bit Ethernet type field of an incoming frame with
@@ -282,7 +303,7 @@ equals
 .Ar type Ns .
 T}
 _
-macidx	9	T{
+macidx	T{
 .Cm macidx Ar idx Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the MAC Address Match Index of an incoming frame with
@@ -295,7 +316,7 @@ MPS hash.  See
 for more information.
 T}
 _
-matchtype	3	T{
+matchtype	T{
 .Cm matchtype Ar type Ns Op : Ns Ar mask
 T}	T{
 bitwise and of the Match Type of an incoming frame with
@@ -341,19 +362,138 @@ Not documented.  Do not use.
 .El
 T}
 _
-frag	1	T{
+frag	T{
 .Cm frag Brq 0 | 1
 T}	T{
 incoming frame is part of a fragmented IP datagram(1) or not(0).
 T}
 .TE
-.It Cm filter Ar idx Ar filter-specification
-Program a filter at the index specified by
-.Ar idx Ns .
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter Ar filter-specification
+.It
+.Cm filter Ar idx Ar filter-specification
+.El
+Program a filter.
+.Pp
+TCAM filters: The number of available filters is in
+dev.<nexus>.<instance>.nfilters.
+.Ar idx
+must be an unused index between 0 and nfilters - 1.
+IPv6 filters consume 4 consecutive entries on T4/T5 and and 2 on T6 and
+.Ar idx
+must be aligned to 4 or 2 in this case.
+.Pp
+Hash filters:  These reside in the card's memory instead of its TCAM and are
+enabled with a special configuration file that is selected with
+.Cm hw.cxgbe.config_file="hashfilter"
+in loader.conf.
+There are at least half a million filters available with the sample config
+shipped with the driver.
+Note that the hardware selects the index for a hashfilter and this index is
+displayed when the filter is created.
+Hash and TCAM filters can be used together.
+.Pp
 .Ar filter-specification
-consists of one or more matches to try against an incoming frame and an
-action to perform when all matches succeed.
-.It Cm filter Ar idx Cm delete
+consists of one or more matches (see Usage in the table above) to try against an
+incoming frame, an action to perform when all matches succeed, and some
+additional operational parameters.
+Hashfilters require an exact value for the 5-tuple (sip, dip, sport, dport,
+proto) and for any other match-criteria listed in "hashfilter mode".
+Possible filter actions are
+.Cm drop Ns ,
+.Cm pass Ns , or
+.Cm switch Ns .
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with all filters:
+.It Cm hitcnts
+Count filter hits: 0 or 1 (default).
+.It Cm prio
+Filter has priority over active and server regions of TCAM: 0 (default) or 1.
+.El
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with filters with
+.Cm action pass Ns :
+.It Cm queue
+Rx queue index to which to deliver the packet.  By default, packets that hit a
+filter with action pass are delivered based on their RSS hash as usual.  Use
+this to steer them to a particular queue.
+.It Cm rpttid
+Report the filter tid instead of the RSS hash in the rx descriptor.
+0 (default) or 1.
+.It Cm tcbhash
+Select TCB hash information in rx descriptor.
+0 (default) or 1
+.El
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with filters with
+.Cm action switch Ns :
+.It Cm eport
+Egress port number on which to send the packet matching the filter.
+0 to dev.<nexus>.<instance>.nports - 1.
+.It Cm dmac
+Replace packet destination MAC address with the one provided before switching
+it out of eport.
+.It Cm smac
+Replace packet source MAC address with the one provided before switching it
+out of eport.
+.It Cm swapmac
+Swap packet source and destination MAC addresses before switching it out of
+eport.
+.It Cm vlan
+Insert, remove, or rewrite the VLAN tag before switching the packet out of
+eport.
+.Cm vlan=none
+removes the tag,
+.Cm vlan= Ns Ar tag
+replaces the existing tag with the one provided, and
+.Cm vlan=+ Ns Ar tag
+inserts the given tag into the frame.
+.It Cm nat
+Specify the desired NAT mode. Valid NAT modes values are:
+.Bl -tag -width dip-dp-sip -compact
+.It Cm dip
+Perform NAT on destination IP.
+.It Cm dip-dp
+Perform NAT on destination IP, destination port.
+.It Cm dip-dp-sip
+Perform NAT on destination IP, destination port, source IP.
+.It Cm dip-dp-sp
+Perform NAT on destination IP, destination port, source port.
+.It Cm sip-sp
+Perform NAT on source IP, source port.
+.It Cm dip-sip-sp
+Perform NAT on destination IP, source IP, source port.
+.It Cm all
+Perform NAT on all 4-tuple fields.
+.El
+.It Cm natflag
+Perform NAT only on segments which do not have TCP FIN or RST set.
+.It Cm natseq
+Perform NAT only if incoming segment's sequence number + payload length is less
+than this supplied value.
+.It Cm nat_dip
+Perform NAT using this destination IP.
+.It Cm nat_sip
+Perform NAT using this source IP.
+.It Cm nat_dport
+Perform NAT using this destination port.
+.It Cm nat_sport
+Perform NAT using this source port.
+Perform NAT only if incoming segment's sequence number + payload length is less
+than this supplied value.
+.El
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter Ar idx Cm delete
+.It
+.Cm filter Ar idx Cm delete
+.El
 Delete filter that is at the given index.
 .It Cm filter Cm list
 List all filters programmed into the hardware.
@@ -378,6 +518,144 @@ bytes of data of the card's memory starting at
 .Ar addr Ns .
 The card's memory map is available in
 .Va dev.t4nex.%d.misc.meminfo Ns .
+.It Cm policy Ar cop.txt
+Install the Connection Offload Policy (COP) in
+.Ar cop.txt Ns .
+A COP offers fine-grained control over which connections get offloaded and with
+what parameters.
+Set
+.Cm hw.cxgbe.cop_managed_offloading="1"
+in loader.conf to ensure that t4_tom will not offload any connection before a
+COP is installed.
+Note that t4_tom must be loaded and operational (IFCAP_TOE enabled) as always
+for any kind of offload based on the hardware TOE.
+.Bl -column -offset indent "COP installed" "cop_managed_offloading" "Behavior"
+.It Sy COP installed Ta Sy cop_managed_offloading Ta Sy Behavior
+.It NO Ta 0 Ta offload all [Default]
+.It NO Ta 1 Ta no offload
+.It YES Ta Don't Care Ta Rule based offload
+.El
+.Pp
+The policy file consists of empty lines, comments (lines begining with #) and
+any number of rules.
+Rules are applied in the order they appear in the file and processing stops at
+the first match.
+There is an implicit rule that disables offload for connections that do not
+match anything in the policy.
+.Pp
+Each rule consists of a filter part, which determines what connections the
+rule applies to, and a settings part, which determines whether whether matching
+connections will be offloaded and, if so, with what settings.
+The general form of a rule is
+.Bl -ohang -offset indent
+.It Cm \&[ Ar socket-type Cm \&] Ar pcap-filter Cm => Ar settings
+.Pp
+.Ar socket-type
+is one of the following.
+.Bl -tag -width "X" -compact
+.It Sy A
+Active open.
+Connection is being opened by this host.
+.It Sy P
+Passive open.
+Connection was requested by a peer.
+.It Sy L
+Listen called on a socket.
+Disabling offload in such a rule will prevent a hardware listener from being started.
+.It Sy D
+Don't care.
+Matches all of the above.
+.El
+.Pp
+.Ar pcap-filter
+is an expression that follows the
+.Xr pcap-filter 7
+syntax, or it is the keyword
+.Cm all
+that matches everything.
+.Pp
+.Ar settings
+determine whether connections matching
+.Ar socket-type
+and
+.Ar pcap-filter
+are offloaded and optionally sets some per-connection properties if they are.
+A combination of the following is allowed.
+.Bl -tag -width "timestamp" -compact
+.It Cm offload
+Connection should be offloaded.
+Use
+.Cm !offload
+or
+.Cm not offload
+to disable offload instead.
+.It Cm coalesce
+Enable rx payload coalescing.
+Negate to disable.
+.It Cm timestamp
+Enable TCP timestamp option.
+Negate to disable.
+.It Cm sack
+Enable TCP Selective Acknowledgements (SACK).
+Negate to disable.
+.It Cm nagle
+Enable Nagle's algorithm.
+Negate to disable.
+.It Cm ecn
+Enable Explicit Congestion Notification (ECN).
+Negate to disable.
+.It Cm ddp
+Use Direct Data Placement (zero copy receive) and zero copy transmit on the
+connection to service AIO requests on the socket.
+Negate to disable.
+.It Cm tls
+Set ULP mode to ULP_MODE_TLS.
+.It Cm cong Ar algo
+Use the specified congestion control algorithm.
+.Ar algo
+must be one of
+.Cm reno Ns , Cm tahoe Ns , Cm newreno Ns , or Cm highspeed Ns .
+.It Cm class Ar sc
+Bind the connection to the specified tx scheduling class.
+Valid range is 0 to 14 (for T4) and 0 to 15 (T5 onwards).
+.It Cm rxq Ar qid
+Use the specified offload rx queue.
+.Ar qid
+should be between 0 and nofldrxq for the ifnet.
+.It Cm txq Ar qnum
+Use the specified offload tx queue.
+.Ar qid
+should be between 0 and nofldtxq for the ifnet.
+.It Cm bind Ar qnum
+Shorthand for
+.Cm rxq Ar qnum Cm txq Ar qnum Ns .
+Use only when nofldrxq is the same as nofldtxq.
+.It Cm mss Ar val
+Set the advertised TCP MSS in the SYN for this connection to
+.Ar val
+(in bytes).
+The hardware MTU table must already have an entry that is suitable for the MSS.
+.El
+.Pp
+.It Example of a COP.
+Note that hardware listener for port 22 will be IPv4 only because the rule
+before it will prevent any IPv6 servers other than the first two.  Also note
+that outgoing connections to 192.168/16 are the only outgoing connections that
+will get offloaded.
+.Bd -literal
+[L] port 80 => offload
+[L] port 443 => offload
+[L] ip6 => !offload
+[L] port 22 => offload
+[P] dst port 80 => offload cong highspeed !sack !ecn
+[P] dst port 443 => offload tls
+[A] dst net 192.168/16 => offload
+[A] all => !offload
+[D] port 22 => offload !nagle
+.Ed
+.El
+.It Cm policy clear
+Remove the Connection Offload Policy (COP) if one is in use.
 .It Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
 .It Cm regdump Op Ar register-block ...
 Display contents of device registers.
@@ -420,7 +698,7 @@ Class Rate Limiting.
 .It Sy cl-wrr
 Class Weighted Round Robin.
 .Pp
-.It Sy cl-wrr
+.It Sy ch-rl
 Channel Rate Limiting.
 .El
 .It Sy mode Ar scheduler-mode

@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -1099,11 +1098,14 @@ int
 __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	Elf_Addr *base;
-	Elf_Addr *pos;
+	Elf_Auxinfo *argarray, *pos;
+	Elf_Addr *base, *auxbase;
+	int error;
 
 	base = (Elf_Addr *)*stack_base;
-	pos = base + (imgp->args->argc + imgp->args->envc + 2);
+	auxbase = base + imgp->args->argc + 1 + imgp->args->envc + 1;
+	argarray = pos = malloc(AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
@@ -1143,9 +1145,16 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(argarray, auxbase, sizeof(*argarray) * AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
 
 	base--;
-	suword(base, (long)imgp->args->argc);
+	if (suword(base, imgp->args->argc) == -1)
+		return (EFAULT);
 	*stack_base = (register_t *)base;
 	return (0);
 }

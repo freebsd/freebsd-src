@@ -85,9 +85,11 @@ enum {
 	MTP_MAX_INDEX,
 };
 
+#define	MTP_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MTP_DEFAULT_PRODUCT_ID		0x27e2
 #define	MTP_DEFAULT_INTERFACE		"USB MTP Interface"
 #define	MTP_DEFAULT_CONFIGURATION	"Default Config"
-#define	MTP_DEFAULT_MANUFACTURER	"FreeBSD foundation"
+#define	MTP_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
 #define	MTP_DEFAULT_PRODUCT		"USB MTP"
 #define	MTP_DEFAULT_SERIAL_NUMBER	"June 2008"
 
@@ -162,8 +164,8 @@ static const struct usb_temp_interface_desc *mtp_interfaces[] = {
 
 static const struct usb_temp_config_desc mtp_config_desc = {
 	.ppIfaceDesc = mtp_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MTP_CONFIGURATION_INDEX,
 };
 
@@ -176,8 +178,8 @@ struct usb_temp_device_desc usb_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x0011,
+	.idVendor = MTP_DEFAULT_VENDOR_ID,
+	.idProduct = MTP_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,

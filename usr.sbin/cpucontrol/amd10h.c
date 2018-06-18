@@ -139,7 +139,8 @@ amd10h_update(const char *dev, const char *path)
 
 	WARNX(1, "found cpu family %#x model %#x "
 	    "stepping %#x extfamily %#x extmodel %#x.",
-	    (signature >> 8) & 0x0f, (signature >> 4) & 0x0f,
+	    ((signature >> 8) & 0x0f) + ((signature >> 20) & 0xff),
+	    (signature >> 4) & 0x0f,
 	    (signature >> 0) & 0x0f, (signature >> 20) & 0xff,
 	    (signature >> 16) & 0x0f);
 	WARNX(1, "microcode revision %#x", revision);
@@ -147,6 +148,7 @@ amd10h_update(const char *dev, const char *path)
 	/*
 	 * Open the firmware file.
 	 */
+	WARNX(1, "checking %s for update.", path);
 	fd = open(path, O_RDONLY, 0);
 	if (fd < 0) {
 		WARN(0, "open(%s)", path);
@@ -215,7 +217,9 @@ amd10h_update(const char *dev, const char *path)
 	for (i = 0; equiv_cpu_table[i].installed_cpu != 0; i++) {
 		if (signature == equiv_cpu_table[i].installed_cpu) {
 			equiv_id = equiv_cpu_table[i].equiv_cpu;
-			WARNX(3, "equiv_id: %x", equiv_id);
+			WARNX(3, "equiv_id: %x, signature %8x,"
+			    " equiv_cpu_table[%d] %8x", equiv_id, signature,
+			    i, equiv_cpu_table[i].installed_cpu);
 			break;
 		}
 	}
@@ -249,10 +253,16 @@ amd10h_update(const char *dev, const char *path)
 		fw_data += section_header->size;
 		fw_size -= section_header->size;
 
-		if (fw_header->processor_rev_id != equiv_id)
+		if (fw_header->processor_rev_id != equiv_id) {
+			WARNX(1, "firmware processort_rev_id %x, equiv_id %x",
+			    fw_header->processor_rev_id, equiv_id);
 			continue; /* different cpu */
-		if (fw_header->patch_id <= revision)
+		}
+		if (fw_header->patch_id <= revision) {
+			WARNX(1, "patch_id %x, revision %x",
+			    fw_header->patch_id, revision);
 			continue; /* not newer revision */
+		}
 		if (fw_header->nb_dev_id != 0 || fw_header->sb_dev_id != 0) {
 			WARNX(2, "Chipset-specific microcode is not supported");
 		}

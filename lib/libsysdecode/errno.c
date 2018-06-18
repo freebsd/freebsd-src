@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <sysdecode.h>
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 static
 #include <compat/linux/linux_errno.inc>
 #endif
@@ -130,7 +130,7 @@ sysdecode_abi_to_freebsd_errno(enum sysdecode_abi abi, int error)
 	case SYSDECODE_ABI_FREEBSD:
 	case SYSDECODE_ABI_FREEBSD32:
 		return (error);
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	case SYSDECODE_ABI_LINUX:
 	case SYSDECODE_ABI_LINUX32: {
 		unsigned int i;
@@ -166,7 +166,7 @@ sysdecode_freebsd_to_abi_errno(enum sysdecode_abi abi, int error)
 	case SYSDECODE_ABI_FREEBSD:
 	case SYSDECODE_ABI_FREEBSD32:
 		return (error);
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	case SYSDECODE_ABI_LINUX:
 	case SYSDECODE_ABI_LINUX32:
 		if (error >= 0 && error <= ELAST)

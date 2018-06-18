@@ -41,6 +41,11 @@ typedef struct svn_fnv1a_32__context_t svn_fnv1a_32__context_t;
 svn_fnv1a_32__context_t *
 svn_fnv1a_32__context_create(apr_pool_t *pool);
 
+/* Reset the FNV-1a checksum CONTEXT to initial state.
+ */
+void
+svn_fnv1a_32__context_reset(svn_fnv1a_32__context_t *context);
+
 /* Feed LEN bytes from DATA into the FNV-1a checksum creation CONTEXT.
  */
 void
@@ -62,6 +67,11 @@ typedef struct svn_fnv1a_32x4__context_t svn_fnv1a_32x4__context_t;
  */
 svn_fnv1a_32x4__context_t *
 svn_fnv1a_32x4__context_create(apr_pool_t *pool);
+
+/* Reset the modified FNV-1a checksum CONTEXT to initial state.
+ */
+void
+svn_fnv1a_32x4__context_reset(svn_fnv1a_32x4__context_t *context);
 
 /* Feed LEN bytes from DATA into the modified FNV-1a checksum creation
  * CONTEXT.

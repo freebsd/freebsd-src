@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define FDT_COMPAT_LEN	255
-#define FDT_TYPE_LEN	64
 
 #define FDT_REG_CELLS	4
 #define FDT_RANGES_SIZE 48
@@ -71,8 +70,6 @@ vm_offset_t fdt_immr_va;
 vm_offset_t fdt_immr_size;
 
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
-
-static int fdt_is_compatible(phandle_t, const char *);
 
 static int
 fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
@@ -216,7 +213,7 @@ fdt_immr_addr(vm_offset_t immr_va)
 	 * Try to access the SOC node directly i.e. through /aliases/.
 	 */
 	if ((node = OF_finddevice("soc")) != -1)
-		if (fdt_is_compatible(node, "simple-bus"))
+		if (ofw_bus_node_is_compatible(node, "simple-bus"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
@@ -235,45 +232,6 @@ moveon:
 	}
 
 	return (r);
-}
-
-/*
- * This routine is an early-usage version of the ofw_bus_is_compatible() when
- * the ofw_bus I/F is not available (like early console routines and similar).
- * Note the buffer has to be on the stack since malloc() is usually not
- * available in such cases either.
- */
-static int
-fdt_is_compatible(phandle_t node, const char *compatstr)
-{
-	char buf[FDT_COMPAT_LEN];
-	char *compat;
-	int len, onelen, l, rv;
-
-	if ((len = OF_getproplen(node, "compatible")) <= 0)
-		return (0);
-
-	compat = (char *)&buf;
-	bzero(compat, FDT_COMPAT_LEN);
-
-	if (OF_getprop(node, "compatible", compat, FDT_COMPAT_LEN) < 0)
-		return (0);
-
-	onelen = strlen(compatstr);
-	rv = 0;
-	while (len > 0) {
-		if (strncasecmp(compat, compatstr, onelen) == 0) {
-			/* Found it. */
-			rv = 1;
-			break;
-		}
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-
-	return (rv);
 }
 
 int
@@ -304,7 +262,7 @@ fdt_find_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (child = OF_child(start); child != 0; child = OF_peer(child))
-		if (fdt_is_compatible(child, compat)) {
+		if (ofw_bus_node_is_compatible(child, compat)) {
 			if (strict)
 				if (!fdt_is_compatible_strict(child, compat))
 					continue;
@@ -323,7 +281,7 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (fdt_is_compatible(node, compat) && 
+		if (ofw_bus_node_is_compatible(node, compat) &&
 		    (strict == 0 || fdt_is_compatible_strict(node, compat))) {
 			return (node);
 		}
@@ -331,24 +289,6 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 		if (child != 0)
 			return (child);
 	}
-	return (0);
-}
-
-int
-fdt_is_type(phandle_t node, const char *typestr)
-{
-	char type[FDT_TYPE_LEN];
-
-	if (OF_getproplen(node, "device_type") <= 0)
-		return (0);
-
-	if (OF_getprop(node, "device_type", type, FDT_TYPE_LEN) < 0)
-		return (0);
-
-	if (strncasecmp(type, typestr, FDT_TYPE_LEN) == 0)
-		/* This fits. */
-		return (1);
-
 	return (0);
 }
 
@@ -363,19 +303,6 @@ fdt_parent_addr_cells(phandle_t node)
 		return (2);
 
 	return ((int)fdt32_to_cpu(addr_cells));
-}
-
-int
-fdt_pm_is_enabled(phandle_t node)
-{
-	int ret;
-
-	ret = 1;
-
-#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-	ret = fdt_pm(node);
-#endif
-	return (ret);
 }
 
 u_long
@@ -570,6 +497,47 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 	rv = 0;
 out:
 	return (rv);
+}
+
+int
+fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
+{
+	pcell_t reg[FDT_REG_CELLS];
+	phandle_t child, root;
+	int addr_cells, size_cells;
+	int i, rv;
+
+	root = OF_finddevice("/reserved-memory");
+	if (root == -1) {
+		return (ENXIO);
+	}
+
+	if ((rv = fdt_addrsize_cells(root, &addr_cells, &size_cells)) != 0)
+		return (rv);
+
+	if (addr_cells + size_cells > FDT_REG_CELLS)
+		panic("Too many address and size cells %d %d", addr_cells,
+		    size_cells);
+
+	i = 0;
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		if (!OF_hasprop(child, "no-map"))
+			continue;
+
+		rv = OF_getprop(child, "reg", reg, sizeof(reg));
+		if (rv <= 0)
+			/* XXX: Does a no-map of a dynamic range make sense? */
+			continue;
+
+		fdt_data_to_res(reg, addr_cells, size_cells,
+		    (u_long *)&reserved[i].mr_start,
+		    (u_long *)&reserved[i].mr_size);
+		i++;
+	}
+
+	*mreserved = i;
+
+	return (0);
 }
 
 int

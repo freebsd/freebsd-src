@@ -253,7 +253,8 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			size_t nb, rem;
 
 			nb = blks;
-			rem = uio->uio_iov[ind].iov_len - k;
+			rem = MIN((size_t)i,
+			    uio->uio_iov[ind].iov_len - (size_t)k);
 			idat = (uint8_t *)uio->uio_iov[ind].iov_base + k;
 
 			if (exf->reinit) {

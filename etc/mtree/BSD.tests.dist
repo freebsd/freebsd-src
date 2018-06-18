@@ -430,6 +430,10 @@
         ..
         aio
         ..
+        audit
+        ..
+        capsicum
+        ..
         cddl
             zfs
                 bin
@@ -742,6 +746,8 @@
         ..
         netpfil
             pf
+                ioctl
+                ..
             ..
         ..
         opencrypto
@@ -1021,6 +1027,8 @@
         newsyslog
         ..
         nmtree
+        ..
+        praudit
         ..
         pw
         ..

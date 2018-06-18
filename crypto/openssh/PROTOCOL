@@ -33,8 +33,8 @@ The method is documented in:
 
 https://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
 
-1.3. transport: New public key algorithms "ssh-rsa-cert-v00@openssh.com",
-     "ssh-dsa-cert-v00@openssh.com",
+1.3. transport: New public key algorithms "ssh-rsa-cert-v01@openssh.com",
+     "ssh-dsa-cert-v01@openssh.com",
      "ecdsa-sha2-nistp256-cert-v01@openssh.com",
      "ecdsa-sha2-nistp384-cert-v01@openssh.com" and
      "ecdsa-sha2-nistp521-cert-v01@openssh.com"
@@ -295,10 +295,14 @@ has completed.
 	string[]	hostkeys
 
 Upon receiving this message, a client should check which of the
-supplied host keys are present in known_hosts. For keys that are
-not present, it should send a "hostkeys-prove@openssh.com" message
-to request the server prove ownership of the private half of the
-key.
+supplied host keys are present in known_hosts.
+
+Note that the server may send key types that the client does not
+support. The client should disgregard such keys if they are received.
+
+If the client identifies any keys that are not present for the host,
+it should send a "hostkeys-prove@openssh.com" message to request the
+server prove ownership of the private half of the key.
 
 	byte		SSH_MSG_GLOBAL_REQUEST
 	string		"hostkeys-prove-00@openssh.com"
@@ -454,4 +458,4 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.30 2016/04/08 06:35:54 djm Exp $
+$OpenBSD: PROTOCOL,v 1.32 2018/02/19 00:55:02 djm Exp $

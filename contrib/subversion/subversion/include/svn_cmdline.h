@@ -374,6 +374,7 @@ svn_cmdline_create_auth_baton2(svn_auth_baton_t **ab,
  * @deprecated Provided for backward compatibility with the 1.8 API.
  * @since New in 1.6.
  */
+SVN_DEPRECATED
 svn_error_t *
 svn_cmdline_create_auth_baton(svn_auth_baton_t **ab,
                               svn_boolean_t non_interactive,

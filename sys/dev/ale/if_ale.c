@@ -178,6 +178,8 @@ static driver_t ale_driver = {
 static devclass_t ale_devclass;
 
 DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ale, ale_devs,
+    sizeof(ale_devs[0]), nitems(ale_devs));
 DRIVER_MODULE(miibus, ale, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec ale_res_spec_mem[] = {
@@ -3038,7 +3040,7 @@ ale_rxfilter(struct ale_softc *sc)
 	bzero(mchash, sizeof(mchash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

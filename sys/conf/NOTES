@@ -145,7 +145,6 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	BOOTVERBOSE=1
 options 	BOOTHOWTO=RB_MULTIPLE
 
-options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
 options 	GEOM_CACHE		# Disk cache.
@@ -634,6 +633,8 @@ options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
 
 options 	TCP_OFFLOAD		# TCP offload support.
 
+options		TCPHPTS
+
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
@@ -846,12 +847,6 @@ device		wlan_xauth
 device		wlan_acl
 device		wlan_amrr
 
-#  The `fddi' device provides generic code to support FDDI.
-device		fddi
-
-#  The `arcnet' device provides generic code to support Arcnet.
-device		arcnet
-
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 device		sppp
@@ -1032,6 +1027,10 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 # a smooth scheduling of the traffic.
 options 	DUMMYNET
 
+# The NETDUMP option enables netdump(4) client support in the kernel.
+# This allows a panicking kernel to transmit a kernel dump to a remote host.
+options 	NETDUMP
+
 #####################################################################
 # FILESYSTEM OPTIONS
 
@@ -1113,6 +1112,9 @@ options 	MD_ROOT
 
 # Write-protect the md root device so that it may not be mounted writeable.
 options 	MD_ROOT_READONLY
+
+# Allow to read MD image from external memory regions
+options		MD_ROOT_MEM
 
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
@@ -1477,6 +1479,7 @@ options 	SC_PIXEL_MODE		# add support for the raster text mode
 options 	SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
 options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
 options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
+options 	SC_KERNEL_CONS_ATTRS=\"\x0c\x0d\x0e\x0f\x02\x09\x0a\x0b\"
 options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
 
 # The following options will let you change the default behavior of
@@ -1949,8 +1952,6 @@ device		xmphy		# XaQti XMAC II
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
 # bwn:	Broadcom BCM43xx family of wireless adapters.
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
-# cm:	Arcnet SMC COM90c26 / SMC COM90c56
-#	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # cxgb: Chelsio T3 based 1GbE/10GbE PCIe Ethernet adapters.
 # cxgbe:Chelsio T4, T5, and T6-based 1/10/25/40/100GbE PCIe Ethernet
 #	adapters.
@@ -1973,7 +1974,6 @@ device		xmphy		# XaQti XMAC II
 # ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
 #       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
@@ -1992,7 +1992,6 @@ device		xmphy		# XaQti XMAC II
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
 #	88E8055, 88E8056 and D-Link 560T/550SX.
-# lmc:	Support for the LMC/SBE wide-area network interface cards.
 # mlx5:	Mellanox ConnectX-4 and ConnectX-4 LX IB and Eth shared code module.
 # mlx5en:Mellanox ConnectX-4 and ConnectX-4 LX PCIe Ethernet adapters.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
@@ -2076,11 +2075,6 @@ device		xmphy		# XaQti XMAC II
 
 # Order for ISA devices is important here
 
-device		cm
-hint.cm.0.at="isa"
-hint.cm.0.port="0x2e0"
-hint.cm.0.irq="9"
-hint.cm.0.maddr="0xdc000"
 device		ep
 device		ex
 device		fe
@@ -2139,23 +2133,14 @@ device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
-device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ix		# Intel Pro/10Gbe PCIE Ethernet
 device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
-device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
 device		oce		# Emulex 10 GbE (OneConnect Ethernet)
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
-device		vxge		# Exar/Neterion XFrame 3100 10GbE
-
-# PCI FDDI NICs.
-device		fpa
-
-# PCI WAN adapters.
-device		lmc
 
 # PCI IEEE 802.11 Wireless NICs
 device		ath		# Atheros pci/cardbus NIC's
@@ -3013,6 +2998,26 @@ options 	MAXFILES=999
 # harvesting of Slab-Allocator entropy. In very high-rate
 # situations the value of doing this is dubious at best.
 options 	RANDOM_ENABLE_UMA	# slab allocator
+
+# Select this to allow high-rate but potentially expensive
+# harvesting of of the m_next pointer in the mbuf. Note that
+# the m_next pointer is NULL except when receiving > 4K
+# jumbo frames or sustained bursts by way of LRO. Thus in
+# the common case it is stirring zero in to the entropy
+# pool. In cases where it is not NULL it is pointing to one
+# of a small (in the thousands to 10s of thousands) number
+# of 256 byte aligned mbufs. Hence it is, even in the best
+# case, a poor source of entropy. And in the absence of actual
+# runtime analysis of entropy collection may mislead the user in
+# to believe that substantially more entropy is being collected
+# than in fact is - leading to a different class of security
+# risk. In high packet rate situations ethernet entropy
+# collection is also very expensive, possibly leading to as
+# much as a 50% drop in packets received.
+# This option is present to maintain backwards compatibility
+# if desired, however it cannot be recommended for use in any
+# environment.
+options 	RANDOM_ENABLE_ETHER	# ether_input
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

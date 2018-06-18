@@ -87,8 +87,7 @@
 					int mode, int dev); }
 15	AUE_CHMOD	NOPROTO	{ int chmod(char *path, int mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(char *path, int uid, int gid); }
-17	AUE_NULL	NOPROTO	{ int obreak(char *nsize); } break \
-				    obreak_args int
+17	AUE_NULL	NOPROTO	{ caddr_t break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int mode); }
@@ -156,8 +155,7 @@
 				    size_t count); }
 59	AUE_EXECVE	STD	{ int freebsd32_execve(char *fname, \
 				    uint32_t *argv, uint32_t *envv); }
-60	AUE_UMASK	NOPROTO	{ int umask(int newmask); } umask \
-				    umask_args int
+60	AUE_UMASK	NOPROTO	{ int umask(int newmask); }
 61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
 62	AUE_FSTAT	COMPAT	{ int freebsd32_fstat(int fd, \
 				    struct ostat32 *ub); }
@@ -173,8 +171,7 @@
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
 71	AUE_MMAP	COMPAT|NOPROTO	{ int mmap(void *addr, int len, \
 				    int prot, int flags, int fd, int pos); }
-72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
-				    ovadvise_args int
+72	AUE_O_VADVISE	COMPAT11|NOPROTO	{ int vadvise(int anom); }
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
 74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(void *addr, \
 				    size_t len, int prot); }

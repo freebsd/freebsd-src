@@ -752,6 +752,7 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 	int i;
 
 	*ncpp = ncp = NULL;
+	neglist = NULL;
 
 	for (i = start; i < numneglists; i++) {
 		neglist = &neglists[i];
@@ -1230,7 +1231,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	struct namecache_ts *ncp_ts;
 	struct namecache *ncp;
 	struct rwlock *blp;
-	struct mtx *dvlp, *dvlp2;
+	struct mtx *dvlp;
 	uint32_t hash;
 	int error, ltype;
 
@@ -1249,12 +1250,12 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 retry:
 	blp = NULL;
+	dvlp = NULL;
 	error = 0;
 	if (cnp->cn_namelen == 2 &&
 	    cnp->cn_nameptr[0] == '.' && cnp->cn_nameptr[1] == '.') {
 		counter_u64_add(dotdothits, 1);
 		dvlp = VP2VNODELOCK(dvp);
-		dvlp2 = NULL;
 		mtx_lock(dvlp);
 		ncp = dvp->v_cache_dd;
 		if (ncp == NULL) {
@@ -1629,6 +1630,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	cache_celockstate_init(&cel);
 	ndd = NULL;
+	ncp_ts = NULL;
 	flag = 0;
 	if (cnp->cn_nameptr[0] == '.') {
 		if (cnp->cn_namelen == 1)

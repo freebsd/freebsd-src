@@ -32,10 +32,13 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <sys/reboot.h>
+#include <sys/boot.h>
 #include <string.h>
 
 #include "bootstrap.h"
 
+static int	autoboot(int timeout, char *prompt);
 static char	*getbootfile(int try);
 static int	loadakernel(int try, int argc, char* argv[]);
 
@@ -158,6 +161,30 @@ autoboot_maybe()
 }
 
 int
+bootenv_flags()
+{
+	int i, howto;
+	char *val;
+
+	for (howto = 0, i = 0; howto_names[i].ev != NULL; i++) {
+		val = getenv(howto_names[i].ev);
+		if (val != NULL && strcasecmp(val, "no") != 0)
+			howto |= howto_names[i].mask;
+	}
+	return (howto);
+}
+
+void
+bootenv_set(int howto)
+{
+	int i;
+
+	for (i = 0; howto_names[i].ev != NULL; i++)
+		if (howto & howto_names[i].mask)
+			setenv(howto_names[i].ev, "YES", 1);
+}
+
+static int
 autoboot(int timeout, char *prompt)
 {
 	time_t	when, otime, ntime;

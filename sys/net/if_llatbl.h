@@ -34,13 +34,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
+#include <sys/epoch.h>
+#include <sys/ck.h>
 
 struct ifnet;
 struct sysctl_req;
 struct rt_msghdr;
 struct rt_addrinfo;
 struct llentry;
-LIST_HEAD(llentries, llentry);
+CK_LIST_HEAD(llentries, llentry);
 
 #define	LLE_MAX_LINKHDR		24	/* Full IB header */
 /*
@@ -48,7 +50,7 @@ LIST_HEAD(llentries, llentry);
  * a shared lock
  */
 struct llentry {
-	LIST_ENTRY(llentry)	 lle_next;
+	CK_LIST_ENTRY(llentry)	 lle_next;
 	union {
 		struct in_addr	addr4;
 		struct in6_addr	addr6;
@@ -76,10 +78,11 @@ struct llentry {
 	int			 lle_refcnt;
 	char			*ll_addr;	/* link-layer address */
 
-	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
+	CK_LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
 	struct callout		lle_timer;
 	struct rwlock		 lle_lock;
 	struct mtx		req_mtx;
+	struct epoch_context lle_epoch_ctx;
 };
 
 #define	LLE_WLOCK(lle)		rw_wlock(&(lle)->lle_lock)

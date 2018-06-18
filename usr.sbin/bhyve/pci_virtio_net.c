@@ -726,24 +726,24 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 static int
 pci_vtnet_parsemac(char *mac_str, uint8_t *mac_addr)
 {
-        struct ether_addr *ea;
-        char *tmpstr;
-        char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
+	struct ether_addr *ea;
+	char *tmpstr;
+	char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
 
-        tmpstr = strsep(&mac_str,"=");
-       
-        if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
-                ea = ether_aton(mac_str);
+	tmpstr = strsep(&mac_str,"=");
 
-                if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
-                    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
+	if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
+		ea = ether_aton(mac_str);
+
+		if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
+		    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
 			fprintf(stderr, "Invalid MAC %s\n", mac_str);
-                        return (EINVAL);
-                } else
-                        memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
-        }
+			return (EINVAL);
+		} else
+			memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
+	}
 
-        return (0);
+	return (0);
 }
 
 static void
@@ -932,7 +932,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
 	snprintf(tname, sizeof(tname), "vtnet-%d:%d tx", pi->pi_slot,
 	    pi->pi_func);
-        pthread_set_name_np(sc->tx_tid, tname);
+	pthread_set_name_np(sc->tx_tid, tname);
 
 	return (0);
 }

@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.9 2016/11/01 13:43:27 tb Exp $
+#	$OpenBSD: Makefile.inc,v 1.12 2017/12/21 00:41:22 djm Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -30,8 +30,8 @@ CDIAGFLAGS+=	-Wswitch
 CDIAGFLAGS+=	-Wtrigraphs
 CDIAGFLAGS+=	-Wuninitialized
 CDIAGFLAGS+=	-Wunused
-.if ${COMPILER_VERSION} == "gcc4"
-CDIAGFLAGS+=	-Wpointer-sign
+CDIAGFLAGS+=	-Wno-unused-parameter
+.if ${COMPILER_VERSION:L} != "gcc3"
 CDIAGFLAGS+=	-Wold-style-definition
 .endif
 
@@ -47,17 +47,7 @@ LDADD+=-L${.CURDIR}/../test_helper -ltest_helper
 DPADD+=${.CURDIR}/../test_helper/libtest_helper.a
 .endif
 
-.if exists(${.CURDIR}/${SSHREL}/lib/${__objdir})
-LDADD+=-L${.CURDIR}/${SSHREL}/lib/${__objdir} -lssh
-LIBSSH=${.CURDIR}/${SSHREL}/lib/${__objdir}/libssh.a
-.else
-LDADD+=-L${.CURDIR}/${SSHREL}/lib -lssh
-LIBSSH=${.CURDIR}/${SSHREL}/lib/libssh.a
-.endif
-DPADD+=${LIBSSH}
-${PROG}: ${LIBSSH}
-${LIBSSH}:
-	cd ${.CURDIR}/${SSHREL} && ${MAKE} lib
+.PATH: ${.CURDIR}/${SSHREL}
 
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}

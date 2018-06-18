@@ -85,7 +85,8 @@ struct ptnetmap_cfg {
 	uint16_t cfgtype;	/* how to interpret the cfg entries */
 	uint16_t entry_size;	/* size of a config entry */
 	uint32_t num_rings;	/* number of config entries */
-	void *ptrings;		/* ptrings inside CSB */
+	void *csb_gh;		/* CSB for guest --> host communication */
+	void *csb_hg;		/* CSB for host --> guest communication */
 	/* Configuration entries are allocated right after the struct. */
 };
 
@@ -109,33 +110,22 @@ struct ptnetmap_cfgentry_bhyve {
 };
 
 /*
- * Structure filled-in by the kernel when asked for allocator info
- * through NETMAP_POOLS_INFO_GET. Used by hypervisors supporting
- * ptnetmap.
- */
-struct netmap_pools_info {
-	uint64_t memsize;	/* same as nmr->nr_memsize */
-	uint32_t memid;		/* same as nmr->nr_arg2 */
-	uint32_t if_pool_offset;
-	uint32_t if_pool_objtotal;
-	uint32_t if_pool_objsize;
-	uint32_t ring_pool_offset;
-	uint32_t ring_pool_objtotal;
-	uint32_t ring_pool_objsize;
-	uint32_t buf_pool_offset;
-	uint32_t buf_pool_objtotal;
-	uint32_t buf_pool_objsize;
-};
-
-/*
  * Pass a pointer to a userspace buffer to be passed to kernelspace for write
- * or read. Used by NETMAP_PT_HOST_CREATE and NETMAP_POOLS_INFO_GET.
+ * or read. Used by NETMAP_PT_HOST_CREATE.
+ * XXX deprecated
  */
 static inline void
 nmreq_pointer_put(struct nmreq *nmr, void *userptr)
 {
 	uintptr_t *pp = (uintptr_t *)&nmr->nr_arg1;
 	*pp = (uintptr_t)userptr;
+}
+
+static inline void *
+nmreq_pointer_get(const struct nmreq *nmr)
+{
+	const uintptr_t *pp = (const uintptr_t *)&nmr->nr_arg1;
+	return (void *)*pp;
 }
 
 /* ptnetmap features */
@@ -146,8 +136,8 @@ nmreq_pointer_put(struct nmreq *nmr, void *userptr)
 #define PTNET_IO_PTCTL		4
 #define PTNET_IO_MAC_LO		8
 #define PTNET_IO_MAC_HI		12
-#define PTNET_IO_CSBBAH		16
-#define PTNET_IO_CSBBAL		20
+#define PTNET_IO_CSBBAH		16 /* deprecated */
+#define PTNET_IO_CSBBAL		20 /* deprecated */
 #define PTNET_IO_NIFP_OFS	24
 #define PTNET_IO_NUM_TX_RINGS	28
 #define PTNET_IO_NUM_RX_RINGS	32
@@ -155,7 +145,11 @@ nmreq_pointer_put(struct nmreq *nmr, void *userptr)
 #define PTNET_IO_NUM_RX_SLOTS	40
 #define PTNET_IO_VNET_HDR_LEN	44
 #define PTNET_IO_HOSTMEMID	48
-#define PTNET_IO_END		52
+#define PTNET_IO_CSB_GH_BAH     52
+#define PTNET_IO_CSB_GH_BAL     56
+#define PTNET_IO_CSB_HG_BAH     60
+#define PTNET_IO_CSB_HG_BAL     64
+#define PTNET_IO_END		68
 #define PTNET_IO_KICK_BASE	128
 #define PTNET_IO_MASK		0xff
 
@@ -163,26 +157,19 @@ nmreq_pointer_put(struct nmreq *nmr, void *userptr)
 #define PTNETMAP_PTCTL_CREATE		1
 #define PTNETMAP_PTCTL_DELETE		2
 
-/* If defined, CSB is allocated by the guest, not by the host. */
-#define PTNET_CSB_ALLOC
-
-/* ptnetmap ring fields shared between guest and host */
-struct ptnet_ring {
-	/* XXX revise the layout to minimize cache bounces. */
+/* ptnetmap synchronization variables shared between guest and host */
+struct ptnet_csb_gh {
 	uint32_t head;		  /* GW+ HR+ the head of the guest netmap_ring */
 	uint32_t cur;		  /* GW+ HR+ the cur of the guest netmap_ring */
 	uint32_t guest_need_kick; /* GW+ HR+ host-->guest notification enable */
 	uint32_t sync_flags;	  /* GW+ HR+ the flags of the guest [tx|rx]sync() */
+	char pad[48];		  /* pad to a 64 bytes cacheline */
+};
+struct ptnet_csb_hg {
 	uint32_t hwcur;		  /* GR+ HW+ the hwcur of the host netmap_kring */
 	uint32_t hwtail;	  /* GR+ HW+ the hwtail of the host netmap_kring */
 	uint32_t host_need_kick;  /* GR+ HW+ guest-->host notification enable */
-	char pad[4];
-};
-
-/* CSB for the ptnet device. */
-struct ptnet_csb {
-#define NETMAP_VIRT_CSB_SIZE   4096
-	struct ptnet_ring rings[NETMAP_VIRT_CSB_SIZE/sizeof(struct ptnet_ring)];
+	char pad[4+48];
 };
 
 #ifdef WITH_PTNETMAP_GUEST
@@ -197,7 +184,7 @@ uint32_t nm_os_pt_memdev_ioread(struct ptnetmap_memdev *, unsigned int);
 /* Guest driver: Write kring pointers (cur, head) to the CSB.
  * This routine is coupled with ptnetmap_host_read_kring_csb(). */
 static inline void
-ptnetmap_guest_write_kring_csb(struct ptnet_ring *ptr, uint32_t cur,
+ptnetmap_guest_write_kring_csb(struct ptnet_csb_gh *ptr, uint32_t cur,
 			       uint32_t head)
 {
     /*
@@ -228,16 +215,16 @@ ptnetmap_guest_write_kring_csb(struct ptnet_ring *ptr, uint32_t cur,
 /* Guest driver: Read kring pointers (hwcur, hwtail) from the CSB.
  * This routine is coupled with ptnetmap_host_write_kring_csb(). */
 static inline void
-ptnetmap_guest_read_kring_csb(struct ptnet_ring *ptr, struct netmap_kring *kring)
+ptnetmap_guest_read_kring_csb(struct ptnet_csb_hg *pthg, struct netmap_kring *kring)
 {
     /*
      * We place a memory barrier to make sure that the update of hwtail never
      * overtakes the update of hwcur.
      * (see explanation in ptnetmap_host_write_kring_csb).
      */
-    kring->nr_hwtail = ptr->hwtail;
+    kring->nr_hwtail = pthg->hwtail;
     mb();
-    kring->nr_hwcur = ptr->hwcur;
+    kring->nr_hwcur = pthg->hwcur;
 }
 
 #endif /* WITH_PTNETMAP_GUEST */
@@ -259,7 +246,7 @@ ptnetmap_guest_read_kring_csb(struct ptnet_ring *ptr, struct netmap_kring *kring
 /* Host netmap: Write kring pointers (hwcur, hwtail) to the CSB.
  * This routine is coupled with ptnetmap_guest_read_kring_csb(). */
 static inline void
-ptnetmap_host_write_kring_csb(struct ptnet_ring __user *ptr, uint32_t hwcur,
+ptnetmap_host_write_kring_csb(struct ptnet_csb_hg __user *ptr, uint32_t hwcur,
         uint32_t hwtail)
 {
     /*
@@ -285,7 +272,7 @@ ptnetmap_host_write_kring_csb(struct ptnet_ring __user *ptr, uint32_t hwcur,
 /* Host netmap: Read kring pointers (head, cur, sync_flags) from the CSB.
  * This routine is coupled with ptnetmap_guest_write_kring_csb(). */
 static inline void
-ptnetmap_host_read_kring_csb(struct ptnet_ring __user *ptr,
+ptnetmap_host_read_kring_csb(struct ptnet_csb_gh __user *ptr,
 			     struct netmap_ring *shadow_ring,
 			     uint32_t num_slots)
 {

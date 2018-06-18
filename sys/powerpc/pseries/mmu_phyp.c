@@ -403,7 +403,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 		return (0);
 	}
 	KASSERT(result == H_PTEG_FULL, ("Page insertion error: %ld "
-	    "(ptegidx: %#zx/%#x, PTE %#lx/%#lx", result, pvo->pvo_pte.slot,
+	    "(ptegidx: %#zx/%#lx, PTE %#lx/%#lx", result, pvo->pvo_pte.slot,
 	    moea64_pteg_count, pte.pte_hi, pte.pte_lo));
 
 	/*

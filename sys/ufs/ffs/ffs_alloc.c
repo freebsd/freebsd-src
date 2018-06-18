@@ -2438,7 +2438,6 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 {
 	struct cg *cgp;
 	struct buf *bp;
-	ufs2_daddr_t cgbno;
 	int error;
 	u_int cg;
 	u_int8_t *inosused;
@@ -2449,11 +2448,9 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 		/* devvp is a snapshot */
 		MPASS(devvp->v_mount->mnt_data == ump);
 		dev = ump->um_devvp->v_rdev;
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
 	} else {
 		bp = NULL;
 		return (0);
@@ -2505,21 +2502,13 @@ ffs_checkfreefile(fs, devvp, ino)
 {
 	struct cg *cgp;
 	struct buf *bp;
-	ufs2_daddr_t cgbno;
 	int ret, error;
 	u_int cg;
 	u_int8_t *inosused;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type == VREG) {
-		/* devvp is a snapshot */
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
-	} else if (devvp->v_type == VCHR) {
-		/* devvp is a normal disk device */
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
-	} else {
+	if ((devvp->v_type != VREG) && (devvp->v_type != VCHR))
 		return (1);
-	}
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		return (1);
 	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)

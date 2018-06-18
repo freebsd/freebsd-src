@@ -40,7 +40,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_posix.h"
 #include "opt_config.h"
 
@@ -89,11 +88,6 @@ SYSCTL_ROOT_NODE(OID_AUTO, security, CTLFLAG_RW, 0,
 #ifdef REGRESSION
 SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
-#endif
-
-#ifdef EXT_RESOURCES
-SYSCTL_ROOT_NODE(OID_AUTO, clock, CTLFLAG_RW, 0,
-	"Clocks");
 #endif
 
 SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,

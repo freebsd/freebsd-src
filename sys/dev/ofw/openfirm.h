@@ -114,10 +114,14 @@ int		OF_hasprop(phandle_t node, const char *propname);
 ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
 ssize_t		OF_searchencprop(phandle_t node, const char *propname,
-		    void *buf, size_t len);
+		    pcell_t *buf, size_t len);
 ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
+		    void **buf);
+ssize_t		OF_getprop_alloc_multi(phandle_t node, const char *propname,
 		    int elsz, void **buf);
 ssize_t		OF_getencprop_alloc(phandle_t node, const char *propname,
+		    void **buf);
+ssize_t		OF_getencprop_alloc_multi(phandle_t node, const char *propname,
 		    int elsz, void **buf);
 void		OF_prop_free(void *buf);
 int		OF_nextprop(phandle_t node, const char *propname, char *buf,

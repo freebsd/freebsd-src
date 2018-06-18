@@ -221,8 +221,13 @@ static int
 search_for_sig(u_int32_t target, int count)
 {
 	int     x;
-	u_int32_t *addr = (u_int32_t *) (KERNBASE + target);
+	u_int32_t *addr;
 
+#ifdef __amd64__
+	addr = (u_int32_t *) (KERNBASE + target);
+#else /* __i386__ */
+	addr = (u_int32_t *) (PMAP_MAP_LOW + target);
+#endif
 	for (x = 0; x < count; x += 4)
 		if (addr[x] == MP_SIG)
 			/* make array index a byte index */
@@ -253,7 +258,13 @@ mptable_probe(void)
 	u_int32_t target;
 
 	/* see if EBDA exists */
-	if ((segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) != 0) {
+	if ((segment = (u_long) * (u_short *) (
+#ifdef __amd64__
+	    KERNBASE
+#else /* __i386__ */
+	    PMAP_MAP_LOW
+#endif
+	    + 0x40e)) != 0) {
 		/* search first 1K of EBDA */
 		target = (u_int32_t) (segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)

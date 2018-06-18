@@ -35,6 +35,8 @@
 #ifndef _DEV_IF_ATSEREG_H
 #define _DEV_IF_ATSEREG_H
 
+#include <dev/xdma/xdma.h>
+
 #define	ATSE_VENDOR			0x6af7
 #define	ATSE_DEVICE			0x00bd
 
@@ -407,40 +409,13 @@ static char *fifo_memory_block[] = {
 
 struct atse_softc {
 	struct ifnet		*atse_ifp;
-	struct mbuf		*atse_rx_m;
-	struct mbuf		*atse_tx_m;
-	uint8_t			*atse_tx_buf;
 	struct resource		*atse_mem_res;
-	struct resource		*atse_rx_irq_res;
-	struct resource		*atse_rx_mem_res;
-	struct resource		*atse_rxc_mem_res;
-	struct resource		*atse_tx_irq_res;
-	struct resource		*atse_tx_mem_res;
-	struct resource		*atse_txc_mem_res;
 	device_t		atse_miibus;
 	device_t		atse_dev;
 	int			atse_unit;
 	int			atse_mem_rid;
-	int			atse_rx_irq_rid;
-	int			atse_rx_mem_rid;
-	int			atse_rxc_mem_rid;
-	int			atse_tx_irq_rid;
-	int			atse_tx_mem_rid;
-	int			atse_txc_mem_rid;
 	int			atse_phy_addr;
 	int			atse_if_flags;
-	int			atse_rx_irq;
-	int			atse_tx_irq;
-	u_long			atse_rx_maddr;
-	u_long			atse_rx_msize;
-	u_long			atse_tx_maddr;
-	u_long			atse_tx_msize;
-	u_long			atse_rxc_maddr;
-	u_long			atse_rxc_msize;
-	u_long			atse_txc_maddr;
-	u_long			atse_txc_msize;
-	void			*atse_rx_intrhand;
-	void			*atse_tx_intrhand;
 	bus_addr_t		atse_bmcr0;
 	bus_addr_t		atse_bmcr1;
 	uint32_t		atse_flags;
@@ -454,10 +429,6 @@ struct atse_softc {
 #define	ATSE_ETH_ADDR_SUPP3	0x08
 #define	ATSE_ETH_ADDR_SUPP4	0x10
 #define	ATSE_ETH_ADDR_ALL	0x1f
-	uint16_t		atse_watchdog_timer;
-	uint16_t		atse_tx_m_offset;
-	uint16_t		atse_tx_buf_len;
-	uint16_t		atse_rx_buf_len;
 	int16_t			atse_rx_cycles;		/* POLLING */
 #define	RX_CYCLES_IN_INTR	5
 	uint32_t		atse_rx_err[6];
@@ -470,6 +441,20 @@ struct atse_softc {
 #define	ATSE_RX_ERR_MAX			6
 	struct callout		atse_tick;
 	struct mtx		atse_mtx;
+	device_t		dev;
+
+	/* xDMA */
+	xdma_controller_t	*xdma_tx;
+	xdma_channel_t		*xchan_tx;
+	void			*ih_tx;
+	int			txcount;
+
+	xdma_controller_t	*xdma_rx;
+	xdma_channel_t		*xchan_rx;
+	void			*ih_rx;
+
+	struct buf_ring		*br;
+	struct mtx		br_mtx;
 };
 
 
@@ -484,5 +469,3 @@ void	atse_miibus_statchg(device_t);
 extern devclass_t atse_devclass;
 
 #endif /* _DEV_IF_ATSEREG_H */
-
-/* end */

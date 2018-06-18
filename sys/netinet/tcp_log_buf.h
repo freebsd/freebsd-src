@@ -94,7 +94,7 @@ struct tcp_log_bbr {
 	uint16_t flex7;
 	uint8_t bbr_state;
 	uint8_t bbr_substate;
-	uint8_t inpacer;
+	uint8_t inhpts;
 	uint8_t ininput;
 	uint8_t use_lt_bw;
 	uint8_t flex8;

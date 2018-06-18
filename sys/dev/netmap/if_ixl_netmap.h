@@ -331,7 +331,6 @@ ixl_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 */
 	if (netmap_no_pendintr || force_update) {
 		int crclen = ixl_crcstrip ? 0 : 4;
-		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		nic_i = rxr->next_check; // or also k2n(kring->nr_hwtail)
 		nm_i = netmap_idx_n2k(kring, nic_i);
@@ -346,7 +345,7 @@ ixl_netmap_rxsync(struct netmap_kring *kring, int flags)
 				break;
 			ring->slot[nm_i].len = ((qword & I40E_RXD_QW1_LENGTH_PBUF_MASK)
 			    >> I40E_RXD_QW1_LENGTH_PBUF_SHIFT) - crclen;
-			ring->slot[nm_i].flags = slot_flags;
+			ring->slot[nm_i].flags = 0;
 			bus_dmamap_sync(rxr->ptag,
 			    rxr->buffers[nic_i].pmap, BUS_DMASYNC_POSTREAD);
 			nm_i = nm_next(nm_i, lim);

@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/extres/clk/clk.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, clock, CTLFLAG_RD, NULL, "Clocks");
+
 MALLOC_DEFINE(M_CLOCK, "clocks", "Clock framework");
 
 /* Forward declarations. */
@@ -570,7 +572,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 
 	sysctl_ctx_init(&clknode->sysctl_ctx);
 	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_clock),
+	    SYSCTL_STATIC_CHILDREN(_hw_clock),
 	    OID_AUTO, clknode->name,
 	    CTLFLAG_RD, 0, "A clock node");
 
@@ -1263,43 +1265,95 @@ clk_get_by_id(device_t dev, struct clkdom *clkdom, intptr_t id, clk_t *clk)
 
 #ifdef FDT
 
+static void
+clk_set_assigned_parent(device_t dev, clk_t clk, int idx)
+{
+	clk_t parent;
+	const char *pname;
+	int rv;
+
+	rv = clk_get_by_ofw_index_prop(dev, 0,
+	    "assigned-clock-parents", idx, &parent);
+	if (rv != 0) {
+		device_printf(dev,
+		    "cannot get parent at idx %d\n", idx);
+		return;
+	}
+
+	pname = clk_get_name(parent);
+	rv = clk_set_parent_by_clk(clk, parent);
+	if (rv != 0)
+		device_printf(dev,
+		    "Cannot set parent %s for clock %s\n",
+		    pname, clk_get_name(clk));
+	else if (bootverbose)
+		device_printf(dev, "Set %s as the parent of %s\n",
+		    pname, clk_get_name(clk));
+	clk_release(parent);
+}
+
+static void
+clk_set_assigned_rates(device_t dev, clk_t clk, uint32_t freq)
+{
+	int rv;
+
+	rv = clk_set_freq(clk, freq, 0);
+	if (rv != 0) {
+		device_printf(dev, "Failed to set %s to a frequency of %u\n",
+		    clk_get_name(clk), freq);
+		return;
+	}
+	if (bootverbose)
+		device_printf(dev, "Set %s to %u\n",
+		    clk_get_name(clk), freq);
+}
+
 int
 clk_set_assigned(device_t dev, phandle_t node)
 {
-	clk_t clk, clk_parent;
-	int error, nclocks, i;
+	clk_t clk;
+	uint32_t *rates;
+	int rv, nclocks, nrates, nparents, i;
 
-	error = ofw_bus_parse_xref_list_get_length(node,
-	    "assigned-clock-parents", "#clock-cells", &nclocks);
+	rv = ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clocks", "#clock-cells", &nclocks);
 
-	if (error != 0) {
-		if (error != ENOENT)
+	if (rv != 0) {
+		if (rv != ENOENT)
 			device_printf(dev,
-			    "cannot parse assigned-clock-parents property\n");
-		return (error);
+			    "cannot parse assigned-clock property\n");
+		return (rv);
 	}
 
+	nrates = OF_getencprop_alloc_multi(node, "assigned-clock-rates",
+	    sizeof(*rates), (void **)&rates);
+	if (nrates <= 0)
+		nrates = 0;
+
+	nparents = ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clock-parents", "#clock-cells", &nparents);
+
 	for (i = 0; i < nclocks; i++) {
-		error = clk_get_by_ofw_index_prop(dev, 0,
-		    "assigned-clock-parents", i, &clk_parent);
-		if (error != 0) {
-			device_printf(dev, "cannot get parent %d\n", i);
-			return (error);
-		}
-
-		error = clk_get_by_ofw_index_prop(dev, 0, "assigned-clocks",
+		/* First get the clock we are supposed to modify */
+		rv = clk_get_by_ofw_index_prop(dev, 0, "assigned-clocks",
 		    i, &clk);
-		if (error != 0) {
-			device_printf(dev, "cannot get assigned clock %d\n", i);
-			clk_release(clk_parent);
-			return (error);
+		if (rv != 0) {
+			if (bootverbose)
+				device_printf(dev,
+				    "cannot get assigned clock at idx %d\n",
+				    i);
+			continue;
 		}
 
-		error = clk_set_parent_by_clk(clk, clk_parent);
-		clk_release(clk_parent);
+		/* First set it's parent if needed */
+		if (i <= nparents)
+			clk_set_assigned_parent(dev, clk, i);
+
+		/* Then set a new frequency */
+		if (i <= nrates && rates[i] != 0)
+			clk_set_assigned_rates(dev, clk, rates[i]);
+
 		clk_release(clk);
-		if (error != 0)
-			return (error);
 	}
 
 	return (0);
@@ -1409,7 +1463,7 @@ clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
 
 	if (!OF_hasprop(node, "clock-indices"))
 		return (name_items);
-	rv = OF_getencprop_alloc(node, "clock-indices", sizeof (uint32_t),
+	rv = OF_getencprop_alloc_multi(node, "clock-indices", sizeof (uint32_t),
 	    (void **)indices);
 	if (rv != name_items) {
 		device_printf(dev, " Size of 'clock-output-names' and "

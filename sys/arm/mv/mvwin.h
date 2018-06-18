@@ -202,6 +202,8 @@
 #define	MV_WIN_NETA_OFFSET		0x2000
 #define	MV_WIN_NETA_BASE(n)		MV_WIN_ETH_BASE(n) + MV_WIN_NETA_OFFSET
 
+#define MV_WIN_CESA_OFFSET		0x2000
+
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
 #define MV_WIN_ETH_SIZE(n)		(0x8 * (n) + 0x204)
 #define MV_WIN_ETH_REMAP(n)		(0x4 * (n) + 0x280)

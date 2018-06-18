@@ -58,10 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_arc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/fddi.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -303,7 +301,7 @@ nd6_ifdetach(struct ifnet *ifp, struct nd_ifinfo *nd)
 	struct ifaddr *ifa, *next;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
@@ -335,18 +333,7 @@ nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 	u_int32_t omaxmtu;
 
 	omaxmtu = ndi->maxmtu;
-
-	switch (ifp->if_type) {
-	case IFT_ARCNET:
-		ndi->maxmtu = MIN(ARC_PHDS_MAXMTU, ifp->if_mtu); /* RFC2497 */
-		break;
-	case IFT_FDDI:
-		ndi->maxmtu = MIN(FDDIIPMTU, ifp->if_mtu); /* RFC2467 */
-		break;
-	default:
-		ndi->maxmtu = ifp->if_mtu;
-		break;
-	}
+	ndi->maxmtu = ifp->if_mtu;
 
 	/*
 	 * Decreasing the interface MTU under IPV6 minimum MTU may cause
@@ -935,7 +922,7 @@ nd6_timer(void *arg)
 	 * XXXRW: in6_ifaddrhead locking.
 	 */
   addrloop:
-	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
+	CK_STAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
 		if (IFA6_IS_INVALID(ia6)) {
 			int regen = 0;
@@ -1081,7 +1068,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 
 	ifp = ia6->ia_ifa.ifa_ifp;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -1357,7 +1344,7 @@ restart:
 	 */
 	if (ifp->if_flags & IFF_POINTOPOINT) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sin6_family)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
@@ -1700,7 +1687,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 * See RFC 4862, Section 5.4.5.
 			 */
 			IF_ADDR_RLOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
@@ -1730,7 +1717,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			if (V_ip6_dad_count > 0 &&
 			    (ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD) == 0) {
 				IF_ADDR_RLOCK(ifp);
-				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
 					    AF_INET6)
@@ -1758,7 +1745,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 * assign one.
 				 */
 				IF_ADDR_RLOCK(ifp);
-				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
 					    AF_INET6)
@@ -1802,7 +1789,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		while ((pr = LIST_FIRST(&prl)) != NULL) {
 			LIST_REMOVE(pr, ndpr_entry);
 			/* XXXRW: in6_ifaddrhead locking. */
-			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
+			CK_STAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
 			    ia_next) {
 				if ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 					continue;
@@ -2146,7 +2133,7 @@ nd6_slowtimo(void *arg)
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
 		nd6if = ND_IFINFO(ifp);
@@ -2272,7 +2259,6 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	if (m != NULL && m->m_flags & M_MCAST) {
 		switch (ifp->if_type) {
 		case IFT_ETHER:
-		case IFT_FDDI:
 		case IFT_L2VLAN:
 		case IFT_BRIDGE:
 			ETHER_MAP_IPV6_MULTICAST(&dst6->sin6_addr,
@@ -2524,15 +2510,13 @@ nd6_need_cache(struct ifnet *ifp)
 {
 	/*
 	 * XXX: we currently do not make neighbor cache on any interface
-	 * other than ARCnet, Ethernet, FDDI and GIF.
+	 * other than Ethernet and GIF.
 	 *
 	 * RFC2893 says:
 	 * - unidirectional tunnels needs no ND
 	 */
 	switch (ifp->if_type) {
-	case IFT_ARCNET:
 	case IFT_ETHER:
-	case IFT_FDDI:
 	case IFT_IEEE1394:
 	case IFT_L2VLAN:
 	case IFT_INFINIBAND:

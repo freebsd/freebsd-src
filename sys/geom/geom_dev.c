@@ -38,8 +38,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -140,10 +138,11 @@ g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
 	int error, len;
 
 	if (dev == NULL || kda == NULL)
-		return (set_dumper(NULL, NULL, td, 0, 0, NULL, 0, NULL));
+		return (clear_dumper(td));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
+	memset(&kd, 0, len);
 	kd.offset = 0;
 	kd.length = OFF_MAX;
 	error = g_io_getattr("GEOM::kerneldump", cp, &len, &kd);
@@ -835,7 +834,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL, curthread, 0, 0, NULL, 0, NULL);
+		(void)clear_dumper(curthread);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

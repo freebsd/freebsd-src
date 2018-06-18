@@ -720,14 +720,11 @@ static void
 vm_object_terminate_pages(vm_object_t object)
 {
 	vm_page_t p, p_next;
-	struct mtx *mtx, *mtx1;
-	struct vm_pagequeue *pq, *pq1;
-	int dequeued;
+	struct mtx *mtx;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	mtx = NULL;
-	pq = NULL;
 
 	/*
 	 * Free any remaining pageable pages.  This also removes them from the
@@ -737,59 +734,20 @@ vm_object_terminate_pages(vm_object_t object)
 	 */
 	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		vm_page_assert_unbusied(p);
-		if ((object->flags & OBJ_UNMANAGED) == 0) {
+		if ((object->flags & OBJ_UNMANAGED) == 0)
 			/*
 			 * vm_page_free_prep() only needs the page
 			 * lock for managed pages.
 			 */
-			mtx1 = vm_page_lockptr(p);
-			if (mtx1 != mtx) {
-				if (mtx != NULL)
-					mtx_unlock(mtx);
-				if (pq != NULL) {
-					vm_pagequeue_cnt_add(pq, dequeued);
-					vm_pagequeue_unlock(pq);
-					pq = NULL;
-				}
-				mtx = mtx1;
-				mtx_lock(mtx);
-			}
-		}
+			vm_page_change_lock(p, &mtx);
 		p->object = NULL;
 		if (p->wire_count != 0)
-			goto unlist;
-		VM_CNT_INC(v_pfree);
-		p->flags &= ~PG_ZERO;
-		if (p->queue != PQ_NONE) {
-			KASSERT(p->queue < PQ_COUNT, ("vm_object_terminate: "
-			    "page %p is not queued", p));
-			pq1 = vm_page_pagequeue(p);
-			if (pq != pq1) {
-				if (pq != NULL) {
-					vm_pagequeue_cnt_add(pq, dequeued);
-					vm_pagequeue_unlock(pq);
-				}
-				pq = pq1;
-				vm_pagequeue_lock(pq);
-				dequeued = 0;
-			}
-			p->queue = PQ_NONE;
-			TAILQ_REMOVE(&pq->pq_pl, p, plinks.q);
-			dequeued--;
-		}
-		if (vm_page_free_prep(p, true))
 			continue;
-unlist:
-		TAILQ_REMOVE(&object->memq, p, listq);
-	}
-	if (pq != NULL) {
-		vm_pagequeue_cnt_add(pq, dequeued);
-		vm_pagequeue_unlock(pq);
+		VM_CNT_INC(v_pfree);
+		vm_page_free(p);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);
-
-	vm_page_free_phys_pglist(&object->memq);
 
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
@@ -1973,7 +1931,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 {
 	vm_page_t p, next;
 	struct mtx *mtx;
-	struct pglist pgl;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1982,7 +1939,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	if (object->resident_page_count == 0)
 		return;
 	vm_object_pip_add(object, 1);
-	TAILQ_INIT(&pgl);
 again:
 	p = vm_page_find_least(object, start);
 	mtx = NULL;
@@ -2036,13 +1992,10 @@ again:
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0 && object->ref_count != 0)
 			pmap_remove_all(p);
-		p->flags &= ~PG_ZERO;
-		if (vm_page_free_prep(p, false))
-			TAILQ_INSERT_TAIL(&pgl, p, listq);
+		vm_page_free(p);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);
-	vm_page_free_phys_pglist(&pgl);
 	vm_object_pip_wakeup(object);
 }
 
@@ -2426,9 +2379,9 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			 * sysctl is only meant to give an
 			 * approximation of the system anyway.
 			 */
-			if (vm_page_active(m))
+			if (m->queue == PQ_ACTIVE)
 				kvo->kvo_active++;
-			else if (vm_page_inactive(m))
+			else if (m->queue == PQ_INACTIVE)
 				kvo->kvo_inactive++;
 		}
 

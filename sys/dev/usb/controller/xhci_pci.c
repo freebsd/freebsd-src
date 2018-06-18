@@ -113,6 +113,8 @@ xhci_pci_match(device_t self)
 
 	case 0x10001b73:
 		return ("Fresco Logic FL1000G USB 3.0 controller");
+	case 0x11001b73:
+		return ("Fresco Logic FL1100 USB 3.0 controller");
 
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
@@ -256,6 +258,7 @@ xhci_pci_attach(device_t self)
 		 */
 		sc->sc_port_route = &xhci_pci_port_route;
 		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
+		sc->sc_ctlstep = 1;
 		break;
 	}
 

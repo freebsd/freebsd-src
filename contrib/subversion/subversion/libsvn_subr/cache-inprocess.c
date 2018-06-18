@@ -23,8 +23,6 @@
 
 #include <assert.h>
 
-#include <apr_thread_mutex.h>
-
 #include "svn_pools.h"
 
 #include "svn_private_config.h"

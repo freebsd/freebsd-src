@@ -188,7 +188,7 @@ al_msix_attach(device_t dev)
 	sc->gic_dev = gic_dev;
 
 	/* Manually read range of interrupts from DTB */
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getencprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr == 0) {
 		device_printf(dev, "Cannot read interrupts prop from DTB\n");

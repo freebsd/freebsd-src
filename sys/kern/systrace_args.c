@@ -118,9 +118,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* obreak */
+	/* break */
 	case 17: {
-		struct obreak_args *p = params;
+		struct break_args *p = params;
 		uarg[0] = (intptr_t) p->nsize; /* char * */
 		*n_args = 1;
 		break;
@@ -429,13 +429,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 70: {
 		struct sstk_args *p = params;
 		iarg[0] = p->incr; /* int */
-		*n_args = 1;
-		break;
-	}
-	/* ovadvise */
-	case 72: {
-		struct ovadvise_args *p = params;
-		iarg[0] = p->anom; /* int */
 		*n_args = 1;
 		break;
 	}
@@ -3466,7 +3459,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* obreak */
+	/* break */
 	case 17:
 		switch(ndx) {
 		case 0:
@@ -3941,16 +3934,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sstk */
 	case 70:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* ovadvise */
-	case 72:
 		switch(ndx) {
 		case 0:
 			p = "int";
@@ -8852,10 +8835,10 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* obreak */
+	/* break */
 	case 17:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "caddr_t";
 		break;
 	/* getpid */
 	case 20:
@@ -9030,11 +9013,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sstk */
 	case 70:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* ovadvise */
-	case 72:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

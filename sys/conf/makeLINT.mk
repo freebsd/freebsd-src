@@ -45,7 +45,6 @@ LINT: ${NOTES} ${MAKELINT_SED}
 	echo "nodevice sge"		>> ${.TARGET}-NOIP
 	echo "nodevice sk"		>> ${.TARGET}-NOIP
 	echo "nodevice txp"		>> ${.TARGET}-NOIP
-	echo "nodevice vxge"		>> ${.TARGET}-NOIP
 	echo "nodevice netmap"		>> ${.TARGET}-NOIP
 .endif
 .if ${TARGET} == "mips"
@@ -56,4 +55,8 @@ LINT: ${NOTES} ${MAKELINT_SED}
 	cat ${.TARGET} > ${.TARGET}64
 	echo "machine	${TARGET} powerpc" >> ${.TARGET}
 	echo "machine	${TARGET} powerpc64" >> ${.TARGET}64
+# mlx5 needs 64-bit atomics, so exclude from 32-bit PPC
+	echo "nodevice mlx5" >> ${.TARGET}
+	echo "nodevice mlx5en" >> ${.TARGET}
+	echo "nodevice mlx5ib" >> ${.TARGET}
 .endif

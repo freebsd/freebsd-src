@@ -89,6 +89,9 @@ MK_GCC_BOOTSTRAP=	no
 .if make(installworld) || make(install) || make(distributeworld) || \
     make(stageworld)
 .-include "${OBJTOP}/compiler-metadata.mk"
+.if !defined(_LOADED_COMPILER_METADATA)
+.error A build is required first.  You may have the wrong MAKEOBJDIRPREFIX set.
+.endif
 .endif
 
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early. Pull it from the
@@ -195,6 +198,7 @@ compiler-metadata.mk: .PHONY .META
 	@: > ${.TARGET}
 	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
 	    > ${.TARGET}
+	@echo "_LOADED_COMPILER_METADATA=t" >> ${.TARGET}
 .for v in ${_COMPILER_METADATA_VARS}
 	@echo "${v}=${${v}}" >> ${.TARGET}
 .endfor
@@ -241,6 +245,17 @@ X${BINUTIL}?=	${${BINUTIL}}
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
+# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
+# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
+# LOCAL_LIB_DIRS=foo/lib to behave as expected.
+.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
+_REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
+.endfor
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if ${_DIR} == ".WAIT" || (empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
+SUBDIR+=	${_DIR}
+.endif
+.endfor
 .if !defined(NO_ROOT) && (make(installworld) || make(install))
 # Ensure libraries are installed before progressing.
 SUBDIR+=.WAIT
@@ -270,26 +285,12 @@ SUBDIR+=sys usr.bin usr.sbin
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif
-.if ${MK_OFED} != "no"
-SUBDIR+=contrib/ofed
-.endif
 
 # Local directories are built in parallel with the base system directories.
 # Users may insert a .WAIT directive at the beginning or elsewhere within
 # the LOCAL_DIRS and LOCAL_LIB_DIRS lists as needed.
 .for _DIR in ${LOCAL_DIRS}
 .if ${_DIR} == ".WAIT" || exists(${.CURDIR}/${_DIR}/Makefile)
-SUBDIR+=	${_DIR}
-.endif
-.endfor
-# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
-# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
-# LOCAL_LIB_DIRS=foo/lib to behave as expected.
-.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
-_REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
-.endfor
-.for _DIR in ${LOCAL_LIB_DIRS}
-.if ${_DIR} == ".WAIT" || (empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
 SUBDIR+=	${_DIR}
 .endif
 .endfor
@@ -524,9 +525,9 @@ PACKAGE=	kernel
 #
 
 BOOTSTRAPPING?=	0
-# Keep these in sync -- see below for special case exception
-MINIMUM_SUPPORTED_OSREL?= 900044
-MINIMUM_SUPPORTED_REL?= 9.1
+# Keep these in sync
+MINIMUM_SUPPORTED_OSREL?= 1002501
+MINIMUM_SUPPORTED_REL?= 10.3
 
 # Common environment for world related stages
 CROSSENV+=	\
@@ -802,11 +803,16 @@ _sanity_check: .PHONY .MAKE
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
-# Syscall stubs rewritten in C
+# Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls
-# 20160829  r305012  ptrace
 # 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
-.for f in fstat fstatat fstatfs getdirentries getfsstat ptrace statfs           
+# 20180404  r332048  sigreturn
+# 20180405  r332080  shmat
+# 20180406  r332119  setlogin
+# 20180411  r332443  exect
+# 20180525  r334224  vadvise
+# 20180604  r334626  brk sbrk
+.for f in brk exect fstat fstatat fstatfs getdirentries getfsstat sbrk setlogin shmat sigreturn statfs vadvise
 .if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
@@ -1235,6 +1241,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
+	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -1837,23 +1844,12 @@ update: .PHONY
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # r296685 fix cross-endian objcopy
 # r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
-.if ${BOOTSTRAPPING} < 1200020
+# r334881 added libdwarf constants used by ctfconvert.
+.if ${BOOTSTRAPPING} < 1200067
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
 legacy: .PHONY
-# Temporary special case for automatically detecting the clang compiler issue
-# Note: 9.x didn't have FreeBSD_version bumps often enough, so you may need to
-# set BOOTSTRAPPING to 0 if you're stable/9 tree post-dates r286035 but is before
-# the version bump in r296219 (from July 29, 2015 -> Feb 29, 2016).
-.if ${BOOTSTRAPPING} != 0 && \
-	${WANT_COMPILER_TYPE} == "clang" && ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30601
-.if   ${BOOTSTRAPPING} > 10000000 && ${BOOTSTRAPPING} < 1002501
-	@echo "ERROR: Source upgrades from stable/10 prior to r286033 are not supported."; false
-.elif ${BOOTSTRAPPING} >  9000000 && ${BOOTSTRAPPING} <  903509
-	@echo "ERROR: Source upgrades from stable/9 prior to r286035 are not supported."; false
-.endif
-.endif
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
@@ -2038,6 +2034,11 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
+.if ${MK_PMC} != "no" && \
+    (${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386")
+_jevents=lib/libpmc/pmu-events
+.endif
+
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
 .if !defined(NO_CLEAN) && make(kernel-toolchain)
@@ -2048,6 +2049,7 @@ _bt_clean=	${CLEANDIR}
     ${_tcsh} \
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
+    ${_jevents} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_rescue} \
@@ -2457,24 +2459,16 @@ _lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"
-#
-# The OFED libraries are built in four steps
-# as reflected below, due to interdependencies.
-#
-# NOTE: Depending on contrib/ofed/include is only needed for
-# the lib32 compat build.
-#
-_ofed_lib= \
-contrib/ofed/include \
-contrib/ofed/usr.lib/0 \
-contrib/ofed/usr.lib/1 \
-contrib/ofed/usr.lib/2 \
-contrib/ofed/usr.lib/3
+_prebuild_libs+= \
+	lib/ofed/libibverbs \
+	lib/ofed/libibmad \
+	lib/ofed/libibumad \
+	lib/ofed/complib \
+	lib/ofed/libmlx5
 
-contrib/ofed/usr.lib/0__L: contrib/ofed/include__L lib/libthr__L
-contrib/ofed/usr.lib/1__L: contrib/ofed/usr.lib/0__L
-contrib/ofed/usr.lib/2__L: contrib/ofed/usr.lib/1__L
-contrib/ofed/usr.lib/3__L: contrib/ofed/usr.lib/2__L
+lib/ofed/libibmad__L:	lib/ofed/libibumad__L
+lib/ofed/complib__L:	lib/libthr__L
+lib/ofed/libmlx5__L:	lib/ofed/libibverbs__L lib/libthr__L
 .endif
 
 .if ${MK_CASPER} != "no"
@@ -2485,7 +2479,7 @@ lib/libpjdlog__L: lib/libutil__L
 lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 
-_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
+_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
 .if ${MK_IPFILTER} != "no"
 _generic_libs+=	sbin/ipf/libipf
 .endif

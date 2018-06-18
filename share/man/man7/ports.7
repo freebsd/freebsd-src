@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2014
+.Dd June 13, 2018
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@ The
 Ports Collection
 offers a simple way for users and
 administrators to install applications.
+It is also used to build the packages, to be installed using
+.Xr pkg 8 .
 Each
 .Em port
 contains any patches necessary to make the original
@@ -56,18 +58,17 @@ simply type
 .Nm make Cm install
 to install the application.
 .Pp
-For more information about using ports, see
-.Dq "Packages and Ports"
+For more information about using ports, see the
+.Dq "Packages and Ports" section
 in
-.%B "The FreeBSD Handbook" ,
-.Pa ( file:/usr/share/doc/en_US.ISO8859-1/books/handbook/ports.html
-or
-.Pa https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports.html ) .
-For information about creating new ports, see
-.%B "The Porter's Handbook"
-.Pa ( file:/usr/share/doc/en_US.ISO8859-1/books/porters-handbook/index.html
-or
-.Pa https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/porters-handbook/ ) .
+.%B "The FreeBSD Handbook":
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/books/handbook/ports.html
+.Pp
+For information about creating new ports, see:
+.%B "The Porter's Handbook":
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/books/porters-handbook/
 .Sh TARGETS
 Some of the targets work recursively through subdirectories.
 This lets you, for example, install all of the

@@ -196,8 +196,8 @@ jz4780_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 
 	node = OF_node_from_xref(cfgxref);
 
-	len = OF_getencprop_alloc(node, "ingenic,pins", sizeof(uint32_t) * 4,
-	    (void **)&value);
+	len = OF_getencprop_alloc_multi(node, "ingenic,pins",
+	    sizeof(uint32_t) * 4, (void **)&value);
 	if (len < 0) {
 		device_printf(dev,
 		    "missing ingenic,pins attribute in FDT\n");

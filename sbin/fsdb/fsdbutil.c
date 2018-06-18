@@ -53,9 +53,7 @@ static const char rcsid[] =
 #include "fsdb.h"
 #include "fsck.h"
 
-static int charsperline(void);
-static void printindir(ufs2_daddr_t blk, int level, char *bufp);
-static void printblocks(ino_t inum, union dinode *dp);
+void prtblknos(struct uufsd *disk, union dinode *dp);
 
 char **
 crack(char *line, int *argc)
@@ -200,127 +198,6 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 }
 
 
-/*
- * Determine the number of characters in a
- * single line.
- */
-
-static int
-charsperline(void)
-{
-	int columns;
-	char *cp;
-	struct winsize ws;
-
-	columns = 0;
-	if (ioctl(0, TIOCGWINSZ, &ws) != -1)
-		columns = ws.ws_col;
-	if (columns == 0 && (cp = getenv("COLUMNS")))
-		columns = atoi(cp);
-	if (columns == 0)
-		columns = 80;	/* last resort */
-	return (columns);
-}
-
-
-/*
- * Recursively print a list of indirect blocks.
- */
-static void
-printindir(ufs2_daddr_t blk, int level, char *bufp)
-{
-    struct bufarea buf, *bp;
-    char tempbuf[32];		/* enough to print an ufs2_daddr_t */
-    int i, j, cpl, charssofar;
-    ufs2_daddr_t blkno;
-
-    if (blk == 0)
-	return;
-    printf("%jd (%d) =>\n", (intmax_t)blk, level);
-    if (level == 0) {
-	/* for the final indirect level, don't use the cache */
-	bp = &buf;
-	bp->b_un.b_buf = bufp;
-	initbarea(bp, BT_UNKNOWN);
-
-	getblk(bp, blk, sblock.fs_bsize);
-    } else
-	bp = getdatablk(blk, sblock.fs_bsize, BT_UNKNOWN);
-
-    cpl = charsperline();
-    for (i = charssofar = 0; i < NINDIR(&sblock); i++) {
-	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		blkno = bp->b_un.b_indir1[i];
-	else
-		blkno = bp->b_un.b_indir2[i];
-	if (blkno == 0)
-	    continue;
-	j = sprintf(tempbuf, "%jd", (intmax_t)blkno);
-	if (level == 0) {
-	    charssofar += j;
-	    if (charssofar >= cpl - 2) {
-		putchar('\n');
-		charssofar = j;
-	    }
-	}
-	fputs(tempbuf, stdout);
-	if (level == 0) {
-	    printf(", ");
-	    charssofar += 2;
-	} else {
-	    printf(" =>\n");
-	    printindir(blkno, level - 1, bufp);
-	    printf("\n");
-	    charssofar = 0;
-	}
-    }
-    if (level == 0)
-	putchar('\n');
-    return;
-}
-
-
-/*
- * Print the block pointers for one inode.
- */
-static void
-printblocks(ino_t inum, union dinode *dp)
-{
-    char *bufp;
-    int i, nfrags;
-    long ndb, offset;
-    ufs2_daddr_t blkno;
-
-    printf("Blocks for inode %ju:\n", (uintmax_t)inum);
-    printf("Direct blocks:\n");
-    ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
-    for (i = 0; i < UFS_NDADDR && i < ndb; i++) {
-	if (i > 0)
-	    printf(", ");
-	blkno = DIP(dp, di_db[i]);
-	printf("%jd", (intmax_t)blkno);
-    }
-    if (ndb <= UFS_NDADDR) {
-	offset = blkoff(&sblock, DIP(dp, di_size));
-	if (offset != 0) {
-	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
-	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
-	}
-    }
-    putchar('\n');
-    if (ndb <= UFS_NDADDR)
-	return;
-
-    bufp = malloc((unsigned int)sblock.fs_bsize);
-    if (bufp == NULL)
-	errx(EEXIT, "cannot allocate indirect block buffer");
-    printf("Indirect blocks:\n");
-    for (i = 0; i < UFS_NIADDR; i++)
-	printindir(DIP(dp, di_ib[i]), i, bufp);
-    free(bufp);
-}
-
-
 int
 checkactive(void)
 {
@@ -359,7 +236,7 @@ printactive(int doblocks)
     case IFSOCK:
     case IFIFO:
 	if (doblocks)
-	    printblocks(curinum, curinode);
+	    prtblknos(&disk, curinode);
 	else
 	    printstat("current inode", curinum, curinode);
 	break;

@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_compat.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -91,7 +89,7 @@ module_init(void *arg)
 	    SHUTDOWN_PRI_DEFAULT);
 }
 
-SYSINIT(module, SI_SUB_KLD, SI_ORDER_FIRST, module_init, 0);
+SYSINIT(module, SI_SUB_KLD, SI_ORDER_FIRST, module_init, NULL);
 
 static void
 module_shutdown(void *arg1, int arg2)

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +65,13 @@ static void head_bytes(FILE *, off_t);
 static void obsolete(char *[]);
 static void usage(void);
 
+static const struct option long_opts[] =
+{
+	{"bytes",	required_argument,	NULL, 'c'},
+	{"lines",	required_argument,	NULL, 'n'},
+	{NULL,		no_argument,		NULL, 0}
+};
+
 int
 main(int argc, char *argv[])
 {
@@ -74,7 +82,7 @@ main(int argc, char *argv[])
 	char *ep;
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "n:c:")) != -1)
+	while ((ch = getopt_long(argc, argv, "+n:c:", long_opts, NULL)) != -1)
 		switch(ch) {
 		case 'c':
 			bytecnt = strtoimax(optarg, &ep, 10);

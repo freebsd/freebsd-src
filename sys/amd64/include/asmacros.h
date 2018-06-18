@@ -196,9 +196,12 @@
 
 	.macro	PTI_UENTRY has_err
 	swapgs
+	cmpq	$~0,PCPU(UCR3)
+	je	1f
 	pushq	%rax
 	pushq	%rdx
 	PTI_UUENTRY \has_err
+1:
 	.endm
 
 	.macro	PTI_ENTRY name, cont, has_err=0
@@ -220,9 +223,9 @@ X\name\()_pti:
 	.type	X\vec_name\()_pti,@function
 X\vec_name\()_pti:
 	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* err, %rax, %rdx not pushed */
-	jz	\vec_name\()_u
+	jz	.L\vec_name\()_u
 	PTI_UENTRY has_err=0
-	jmp	\vec_name\()_u
+	jmp	.L\vec_name\()_u
 	.endm
 
 	.macro	INTR_PUSH_FRAME vec_name
@@ -231,9 +234,9 @@ X\vec_name\()_pti:
 	.type	X\vec_name,@function
 X\vec_name:
 	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* come from kernel? */
-	jz	\vec_name\()_u		/* Yes, dont swapgs again */
+	jz	.L\vec_name\()_u		/* Yes, dont swapgs again */
 	swapgs
-\vec_name\()_u:
+.L\vec_name\()_u:
 	subq	$TF_RIP,%rsp	/* skip dummy tf_err and tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
@@ -257,6 +260,7 @@ X\vec_name:
 	jz	1f		/* yes, leave PCB_FULL_IRET alone */
 	movq	PCPU(CURPCB),%r8
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8)
+	call	handle_ibrs_entry
 1:
 	.endm
 

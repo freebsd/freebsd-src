@@ -89,7 +89,7 @@ gpioleds_attach_led(struct gpioleds_softc *sc, phandle_t node,
 
 	state = 0;
 	if (OF_getprop_alloc(node, "default-state",
-	    sizeof(char), (void **)&default_state) != -1) {
+	    (void **)&default_state) != -1) {
 		if (strcasecmp(default_state, "on") == 0)
 			state = 1;
 		else if (strcasecmp(default_state, "off") == 0)
@@ -105,8 +105,8 @@ gpioleds_attach_led(struct gpioleds_softc *sc, phandle_t node,
 	}
 
 	name = NULL;
-	if (OF_getprop_alloc(node, "label", 1, (void **)&name) == -1)
-		OF_getprop_alloc(node, "name", 1, (void **)&name);
+	if (OF_getprop_alloc(node, "label", (void **)&name) == -1)
+		OF_getprop_alloc(node, "name", (void **)&name);
 
 	if (name == NULL) {
 		device_printf(sc->sc_dev,

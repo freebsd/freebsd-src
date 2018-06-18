@@ -475,11 +475,10 @@ uart_opal_intr(void *v)
 {
 	struct uart_opal_softc *sc = v;
 	struct tty *tp = sc->tp;
-	unsigned char c;
-	int len;
+	int c;
 
 	tty_lock(tp);
-	while ((len = uart_opal_get(sc, &c, 1)) > 0)
+	while ((c = uart_opal_cngetc(NULL)) > 0)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
 	tty_unlock(tp);

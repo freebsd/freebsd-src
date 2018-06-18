@@ -27,9 +27,6 @@
 #include <x86/apicvar.h>
 #include <machine/pcb.h>
 
-/* global data in mpboot.s */
-extern int bootMP_size;
-
 /* functions in mpboot.s */
 void bootMP(void);
 

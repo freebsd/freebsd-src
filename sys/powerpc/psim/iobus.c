@@ -221,7 +221,7 @@ iobus_attach(device_t dev)
         root = sc->sc_node;
 
         for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-                OF_getprop_alloc(child, "name", 1, (void **)&name);
+                OF_getprop_alloc(child, "name", (void **)&name);
 
                 cdev = device_add_child(dev, NULL, -1);
                 if (cdev != NULL) {

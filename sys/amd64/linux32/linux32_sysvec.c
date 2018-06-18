@@ -34,7 +34,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include "opt_compat.h"
 
 #ifndef COMPAT_FREEBSD32
 #error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"
@@ -90,18 +89,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux, 1);
 
-#define	AUXARGS_ENTRY_32(pos, id, val)	\
-	do {				\
-		suword32(pos++, id);	\
-		suword32(pos++, val);	\
-	} while (0)
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define SHELLMAGIC      0x2123 /* #! */
-#else
-#define SHELLMAGIC      0x2321
-#endif
-
 /*
  * Allow the sendsig functions to use the ldebug() facility even though they
  * are not syscalls themselves.  Map them to syscall 0.  This is slightly less
@@ -125,7 +112,6 @@ static int	linux_fixup_elf(register_t **stack_base,
 		    struct image_params *iparams);
 static register_t *linux_copyout_strings(struct image_params *imgp);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static int	linux_exec_imgact_try(struct image_params *iparams);
 static void	linux_exec_setregs(struct thread *td,
 				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
@@ -210,10 +196,10 @@ static int
 linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args;
-	Elf32_Addr *base;
-	Elf32_Addr *pos;
+	Elf32_Auxinfo *argarray, *pos;
+	Elf32_Addr *auxbase, *base;
 	struct linux32_ps_strings *arginfo;
-	int issetugid;
+	int error, issetugid;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
 
@@ -221,13 +207,15 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	    ("unsafe linux_fixup_elf(), should be curproc"));
 	base = (Elf32_Addr *)*stack_base;
 	args = (Elf32_Auxargs *)imgp->auxargs;
-	pos = base + (imgp->args->argc + imgp->args->envc + 2);
+	auxbase = base + (imgp->args->argc + 1 + imgp->args->envc + 1);
+	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	issetugid = imgp->proc->p_flag & P_SUGID ? 1 : 0;
-	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO_EHDR,
+	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_HWCAP, cpu_feature);
+	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
+	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
 
 	/*
 	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
@@ -238,32 +226,40 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	 * Also see linux_times() implementation.
 	 */
 	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
-		AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, stclohz);
-	AUXARGS_ENTRY_32(pos, AT_PHDR, args->phdr);
-	AUXARGS_ENTRY_32(pos, AT_PHENT, args->phent);
-	AUXARGS_ENTRY_32(pos, AT_PHNUM, args->phnum);
-	AUXARGS_ENTRY_32(pos, AT_PAGESZ, args->pagesz);
-	AUXARGS_ENTRY_32(pos, AT_FLAGS, args->flags);
-	AUXARGS_ENTRY_32(pos, AT_ENTRY, args->entry);
-	AUXARGS_ENTRY_32(pos, AT_BASE, args->base);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_SECURE, issetugid);
-	AUXARGS_ENTRY_32(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
-	AUXARGS_ENTRY_32(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
-	AUXARGS_ENTRY_32(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
-	AUXARGS_ENTRY_32(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
+		AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
+	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
+	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
+	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
+	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
+	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
+	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
+	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
+	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
+	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
+	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, PTROUT(imgp->canary));
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
 	if (args->execfd != -1)
-		AUXARGS_ENTRY_32(pos, AT_EXECFD, args->execfd);
-	AUXARGS_ENTRY_32(pos, AT_NULL, 0);
+		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(&argarray[0], auxbase,
+	    sizeof(*argarray) * LINUX_AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
 
 	base--;
-	suword32(base, (uint32_t)imgp->args->argc);
+	if (suword32(base, (uint32_t)imgp->args->argc) == -1)
+		return (EFAULT);
 	*stack_base = (register_t *)base;
 	return (0);
 }
@@ -719,42 +715,6 @@ linux32_fetch_syscall_args(struct thread *td)
 }
 
 /*
- * If a Linux binary is exec'ing something, try this image activator
- * first.  We override standard shell script execution in order to
- * be able to modify the interpreter path.  We only do this if a Linux
- * binary is doing the exec, so we do not create an EXEC module for it.
- */
-static int
-linux_exec_imgact_try(struct image_params *imgp)
-{
-	const char *head = (const char *)imgp->image_header;
-	char *rpath;
-	int error = -1;
-
-	/*
-	 * The interpreter for shell scripts run from a Linux binary needs
-	 * to be located in /compat/linux if possible in order to recursively
-	 * maintain Linux path emulation.
-	 */
-	if (((const short *)head)[0] == SHELLMAGIC) {
-		/*
-		 * Run our normal shell image activator.  If it succeeds then
-		 * attempt to use the alternate path for the interpreter.  If
-		 * an alternate path is found, use our stringspace to store it.
-		 */
-		if ((error = exec_shell_imgact(imgp)) == 0) {
-			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
-			    AT_FDCWD);
-			if (rpath != NULL)
-				imgp->args->fname_buf =
-				    imgp->interpreter_name = rpath;
-		}
-	}
-	return (error);
-}
-
-/*
  * Clear registers on exec
  * XXX copied from ia32_signal.c.
  */
@@ -763,6 +723,10 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
+	register_t saved_rflags;
+
+	regs = td->td_frame;
+	pcb = td->td_pcb;
 
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
@@ -775,10 +739,11 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	critical_exit();
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
+	saved_rflags = regs->tf_rflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
-	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_rflags = PSL_USER | saved_rflags;
 	regs->tf_gs = _ugssel;
 	regs->tf_fs = _ufssel;
 	regs->tf_es = _udatasel;
@@ -832,30 +797,21 @@ linux_copyout_strings(struct image_params *imgp)
 	    roundup(sizeof(canary), sizeof(char *));
 	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
-	/* If we have a valid auxargs ptr, prepare some room on the stack. */
+	vectp = (uint32_t *)destp;
 	if (imgp->auxargs) {
 		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has LINUX_AT_COUNT entries.
 		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size :
-		    (LINUX_AT_COUNT * 2);
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size) *
-		    sizeof(u_int32_t));
+		vectp -= howmany(LINUX_AT_COUNT * sizeof(Elf32_Auxinfo),
+		    sizeof(*vectp));
+	}
 
-	} else
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (u_int32_t *)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2) * sizeof(u_int32_t));
+	/*
+	 * Allocate room for the argv[] and env vectors including the
+	 * terminating NULL pointers.
+	 */
+	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
 
 	/* vectp also becomes our initial stack base. */
 	stack_base = vectp;

@@ -49,6 +49,7 @@ struct linux_emuldata {
 
 struct linux_emuldata	*em_find(struct thread *);
 
+int	linux_exec_imgact_try(struct image_params *);
 void	linux_proc_init(struct thread *, struct thread *, int);
 void	linux_proc_exit(void *, struct proc *);
 void	linux_schedtail(struct thread *);

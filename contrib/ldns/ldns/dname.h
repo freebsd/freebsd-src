@@ -62,7 +62,7 @@ ldns_rdf *ldns_dname_cat_clone(const ldns_rdf *rd1, const ldns_rdf *rd2);
  * \param[in] rd2 the rightside
  * \return LDNS_STATUS_OK on success
  */
-ldns_status 	ldns_dname_cat(ldns_rdf *rd1, ldns_rdf *rd2);
+ldns_status 	ldns_dname_cat(ldns_rdf *rd1, const ldns_rdf *rd2);
 
 /**
  * Returns a clone of the given dname with the labels
@@ -108,7 +108,8 @@ uint8_t  ldns_dname_label_count(const ldns_rdf *r);
 ldns_rdf *ldns_dname_new_frm_str(const char *str);
 
 /**
- * Create a new dname rdf from a string
+ * Create a new dname rdf from a string. The data pointer
+ * is stored in the rdf, not a copy of the data
  * \param[in] s the size of the new dname
  * \param[in] *data pointer to the actual data
  *
@@ -165,7 +166,7 @@ int ldns_dname_match_wildcard(const ldns_rdf *dname, const ldns_rdf *wildcard);
 
 /**
  * check if middle lays in the interval defined by prev and next
- * prev <= middle < next. This is usefull for nsec checking
+ * prev <= middle < next. This is useful for nsec checking
  * \param[in] prev the previous dname
  * \param[in] middle the dname to check
  * \param[in] next the next dname

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pcap.h>
 
 #include "t4_ioctl.h"
 #include "tcb_common.h"
@@ -96,6 +97,10 @@ usage(FILE *fp)
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\thashfilter [<param> <val>] ...      set a hashfilter\n"
+	    "\thashfilter <idx> delete|clear       delete a hashfilter\n"
+	    "\thashfilter list                     list all hashfilters\n"
+	    "\thashfilter mode                     get global hashfilter mode\n"
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadboot <bi.bin> [pf|offset <val>] install boot image\n"
 	    "\tloadboot clear [pf|offset <val>]    remove boot image\n"
@@ -106,6 +111,8 @@ usage(FILE *fp)
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\tmodinfo <port> [raw]                optics/cable information\n"
+	    "\tpolicy <policy.txt>                 install offload policy\n"
+	    "\tpolicy clear                        remove offload policy\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
@@ -597,24 +604,35 @@ do_show_info_header(uint32_t mode)
  */
 static int
 parse_val_mask(const char *param, const char *args[], uint32_t *val,
-    uint32_t *mask)
+    uint32_t *mask, int hashfilter)
 {
+	long l;
 	char *p;
 
 	if (strcmp(param, args[0]) != 0)
 		return (EINVAL);
 
-	*val = strtoul(args[1], &p, 0);
-	if (p > args[1]) {
-		if (p[0] == 0) {
-			*mask = ~0;
-			return (0);
-		}
-
-		if (p[0] == ':' && p[1] != 0) {
-			*mask = strtoul(p+1, &p, 0);
-			if (p[0] == 0)
+	p = str_to_number(args[1], &l, NULL);
+	if (l >= 0 && l <= UINT32_MAX) {
+		*val = (uint32_t)l;
+		if (p > args[1]) {
+			if (p[0] == 0) {
+				*mask = ~0;
 				return (0);
+			}
+
+			if (p[0] == ':' && p[1] != 0) {
+				if (hashfilter) {
+					warnx("param %s: mask not allowed for "
+					    "hashfilter or nat params", param);
+					return (EINVAL);
+				}
+				p = str_to_number(p + 1, &l, NULL);
+				if (l >= 0 && l <= UINT32_MAX && p[0] == 0) {
+					*mask = (uint32_t)l;
+					return (0);
+				}
+			}
 		}
 	}
 
@@ -648,7 +666,7 @@ parse_val_mask(const char *param, const char *args[], uint32_t *val,
  */
 static int
 parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
-    uint8_t mask[])
+    uint8_t mask[], int maskless)
 {
 	const char *colon, *afn;
 	char *slash;
@@ -705,6 +723,11 @@ parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
 		char *p;
 		unsigned int prefix = strtoul(slash + 1, &p, 10);
 
+		if (maskless) {
+			warnx("mask cannot be provided for maskless specification");
+			return (EINVAL);
+		}
+
 		if (p == slash + 1) {
 			warnx("missing address prefix for %s", param);
 			return (EINVAL);
@@ -722,13 +745,15 @@ parse_ipaddr(const char *param, const char *args[], int *afp, uint8_t addr[],
 		masksize = prefix;
 	}
 
-	/*
-	 * Fill in mask.
-	 */
-	for (m = mask; masksize >= 8; m++, masksize -= 8)
-		*m = ~0;
-	if (masksize)
-		*m = ~0 << (8 - masksize);
+	if (mask != NULL) {
+		/*
+		 * Fill in mask.
+		 */
+		for (m = mask; masksize >= 8; m++, masksize -= 8)
+			*m = ~0;
+		if (masksize)
+			*m = ~0 << (8 - masksize);
+	}
 
 	return (0);
 }
@@ -744,16 +769,19 @@ static int
 parse_val(const char *param, const char *args[], uint32_t *val)
 {
 	char *p;
+	long l;
 
 	if (strcmp(param, args[0]) != 0)
 		return (EINVAL);
 
-	*val = strtoul(args[1], &p, 0);
-	if (p > args[1] && p[0] == 0)
-		return (0);
+	p = str_to_number(args[1], &l, NULL);
+	if (*p || l < 0 || l > UINT32_MAX) {
+		warnx("parameter \"%s\" has bad \"value\" %s", args[0], args[1]);
+		return (EINVAL);
+	}
 
-	warnx("parameter \"%s\" has bad \"value\" %s", args[0], args[1]);
-	return (EINVAL);
+	*val = (uint32_t)l;
+	return (0);
 }
 
 static void
@@ -914,7 +942,7 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 }
 
 static int
-show_filters(void)
+show_filters(int hash)
 {
 	uint32_t mode = 0, header = 0;
 	struct t4_filter t;
@@ -926,6 +954,7 @@ show_filters(void)
 		return (rc);
 
 	t.idx = 0;
+	t.fs.hash = hash;
 	for (t.idx = 0; ; t.idx++) {
 		rc = doit(CHELSIO_T4_GET_FILTER, &t);
 		if (rc != 0 || t.idx == 0xffffffff)
@@ -942,9 +971,9 @@ show_filters(void)
 }
 
 static int
-get_filter_mode(void)
+get_filter_mode(int hashfilter)
 {
-	uint32_t mode = 0;
+	uint32_t mode = hashfilter;
 	int rc;
 
 	rc = doit(CHELSIO_T4_GET_FILTER_MODE, &mode);
@@ -1063,19 +1092,20 @@ set_filter_mode(int argc, const char *argv[])
 }
 
 static int
-del_filter(uint32_t idx)
+del_filter(uint32_t idx, int hashfilter)
 {
 	struct t4_filter t;
 
+	t.fs.hash = hashfilter;
 	t.idx = idx;
 
 	return doit(CHELSIO_T4_DEL_FILTER, &t);
 }
 
 static int
-set_filter(uint32_t idx, int argc, const char *argv[])
+set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 {
-	int af = AF_UNSPEC, start_arg = 0;
+	int rc, af = AF_UNSPEC, start_arg = 0;
 	struct t4_filter t;
 
 	if (argc < 2) {
@@ -1085,6 +1115,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	bzero(&t, sizeof (t));
 	t.idx = idx;
 	t.fs.hitcnts = 1;
+	t.fs.hash = hash;
 
 	for (start_arg = 0; start_arg + 2 <= argc; start_arg += 2) {
 		const char **args = &argv[start_arg];
@@ -1108,66 +1139,74 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 				return (EINVAL);
 			}
 			af = newaf;
-		} else if (!parse_val_mask("fcoe", args, &val, &mask)) {
+		} else if (!parse_val_mask("fcoe", args, &val, &mask, hash)) {
 			t.fs.val.fcoe = val;
 			t.fs.mask.fcoe = mask;
-		} else if (!parse_val_mask("iport", args, &val, &mask)) {
+		} else if (!parse_val_mask("iport", args, &val, &mask, hash)) {
 			t.fs.val.iport = val;
 			t.fs.mask.iport = mask;
-		} else if (!parse_val_mask("ovlan", args, &val, &mask)) {
+		} else if (!parse_val_mask("ovlan", args, &val, &mask, hash)) {
 			t.fs.val.vnic = val;
 			t.fs.mask.vnic = mask;
 			t.fs.val.ovlan_vld = 1;
 			t.fs.mask.ovlan_vld = 1;
-		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
+		} else if (!parse_val_mask("ivlan", args, &val, &mask, hash)) {
 			t.fs.val.vlan = val;
 			t.fs.mask.vlan = mask;
 			t.fs.val.vlan_vld = 1;
 			t.fs.mask.vlan_vld = 1;
-		} else if (!parse_val_mask("pf", args, &val, &mask)) {
+		} else if (!parse_val_mask("pf", args, &val, &mask, hash)) {
 			t.fs.val.vnic &= 0x1fff;
 			t.fs.val.vnic |= (val & 0x7) << 13;
 			t.fs.mask.vnic &= 0x1fff;
 			t.fs.mask.vnic |= (mask & 0x7) << 13;
 			t.fs.val.pfvf_vld = 1;
 			t.fs.mask.pfvf_vld = 1;
-		} else if (!parse_val_mask("vf", args, &val, &mask)) {
+		} else if (!parse_val_mask("vf", args, &val, &mask, hash)) {
 			t.fs.val.vnic &= 0xe000;
 			t.fs.val.vnic |= val & 0x1fff;
 			t.fs.mask.vnic &= 0xe000;
 			t.fs.mask.vnic |= mask & 0x1fff;
 			t.fs.val.pfvf_vld = 1;
 			t.fs.mask.pfvf_vld = 1;
-		} else if (!parse_val_mask("tos", args, &val, &mask)) {
+		} else if (!parse_val_mask("tos", args, &val, &mask, hash)) {
 			t.fs.val.tos = val;
 			t.fs.mask.tos = mask;
-		} else if (!parse_val_mask("proto", args, &val, &mask)) {
+		} else if (!parse_val_mask("proto", args, &val, &mask, hash)) {
 			t.fs.val.proto = val;
 			t.fs.mask.proto = mask;
-		} else if (!parse_val_mask("ethtype", args, &val, &mask)) {
+		} else if (!parse_val_mask("ethtype", args, &val, &mask, hash)) {
 			t.fs.val.ethtype = val;
 			t.fs.mask.ethtype = mask;
-		} else if (!parse_val_mask("macidx", args, &val, &mask)) {
+		} else if (!parse_val_mask("macidx", args, &val, &mask, hash)) {
 			t.fs.val.macidx = val;
 			t.fs.mask.macidx = mask;
-		} else if (!parse_val_mask("matchtype", args, &val, &mask)) {
+		} else if (!parse_val_mask("matchtype", args, &val, &mask, hash)) {
 			t.fs.val.matchtype = val;
 			t.fs.mask.matchtype = mask;
-		} else if (!parse_val_mask("frag", args, &val, &mask)) {
+		} else if (!parse_val_mask("frag", args, &val, &mask, hash)) {
 			t.fs.val.frag = val;
 			t.fs.mask.frag = mask;
-		} else if (!parse_val_mask("dport", args, &val, &mask)) {
+		} else if (!parse_val_mask("dport", args, &val, &mask, hash)) {
 			t.fs.val.dport = val;
 			t.fs.mask.dport = mask;
-		} else if (!parse_val_mask("sport", args, &val, &mask)) {
+		} else if (!parse_val_mask("sport", args, &val, &mask, hash)) {
 			t.fs.val.sport = val;
 			t.fs.mask.sport = mask;
 		} else if (!parse_ipaddr("dip", args, &af, t.fs.val.dip,
-		    t.fs.mask.dip)) {
+		    t.fs.mask.dip, hash)) {
 			/* nada */;
 		} else if (!parse_ipaddr("sip", args, &af, t.fs.val.sip,
-		    t.fs.mask.sip)) {
+		    t.fs.mask.sip, hash)) {
 			/* nada */;
+		} else if (!parse_ipaddr("nat_dip", args, &af, t.fs.nat_dip, NULL, 1)) {
+			/*nada*/;
+		} else if (!parse_ipaddr("nat_sip", args, &af, t.fs.nat_sip, NULL, 1)) {
+			/*nada*/
+		} else if (!parse_val_mask("nat_dport", args, &val, &mask, 1)) {
+			t.fs.nat_dport = val;
+		} else if (!parse_val_mask("nat_sport", args, &val, &mask, 1)) {
+			t.fs.nat_sport = val;
 		} else if (!strcmp(argv[start_arg], "action")) {
 			if (!strcmp(argv[start_arg + 1], "pass"))
 				t.fs.action = FILTER_PASS;
@@ -1195,6 +1234,33 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			t.fs.dirsteerhash = 1;
 		} else if (!parse_val("eport", args, &val)) {
 			t.fs.eport = val;
+		} else if (!parse_val("swapmac", args, &val)) {
+			t.fs.swapmac = 1;
+		} else if (!strcmp(argv[start_arg], "nat")) {
+			if (!strcmp(argv[start_arg + 1], "dip"))
+				t.fs.nat_mode = NAT_MODE_DIP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp-sip"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP_SIP;
+			else if (!strcmp(argv[start_arg + 1], "dip-dp-sp"))
+				t.fs.nat_mode = NAT_MODE_DIP_DP_SP;
+			else if (!strcmp(argv[start_arg + 1], "sip-sp"))
+				t.fs.nat_mode = NAT_MODE_SIP_SP;
+			else if (!strcmp(argv[start_arg + 1], "dip-sip-sp"))
+				t.fs.nat_mode = NAT_MODE_DIP_SIP_SP;
+			else if (!strcmp(argv[start_arg + 1], "all"))
+				t.fs.nat_mode = NAT_MODE_ALL;
+			else {
+				warnx("unknown nat type \"%s\"; known types are dip, "
+				      "dip-dp, dip-dp-sip, dip-dp-sp, sip-sp, "
+				      "dip-sip-sp, and all", argv[start_arg + 1]);
+				return (EINVAL);
+			}
+		} else if (!parse_val("natseq", args, &val)) {
+			t.fs.nat_seq_chk = val;
+		} else if (!parse_val("natflag", args, &val)) {
+			t.fs.nat_flag_chk = 1;
 		} else if (!strcmp(argv[start_arg], "dmac")) {
 			struct ether_addr *daddr;
 
@@ -1226,7 +1292,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			} else if (argv[start_arg + 1][0] == '+') {
 				t.fs.newvlan = VLAN_INSERT;
 			} else if (isdigit(argv[start_arg + 1][0]) &&
-			    !parse_val_mask("vlan", args, &val, &mask)) {
+			    !parse_val_mask("vlan", args, &val, &mask, hash)) {
 				t.fs.val.vlan = val;
 				t.fs.mask.vlan = mask;
 				t.fs.val.vlan_vld = 1;
@@ -1262,9 +1328,15 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	 * Check basic sanity of option combinations.
 	 */
 	if (t.fs.action != FILTER_SWITCH &&
-	    (t.fs.eport || t.fs.newdmac || t.fs.newsmac || t.fs.newvlan)) {
-		warnx("prio, port dmac, smac and vlan only make sense with"
+	    (t.fs.eport || t.fs.newdmac || t.fs.newsmac || t.fs.newvlan ||
+	    t.fs.swapmac || t.fs.nat_mode)) {
+		warnx("port, dmac, smac, vlan, and nat only make sense with"
 		     " \"action switch\"");
+		return (EINVAL);
+	}
+	if (!t.fs.nat_mode && (t.fs.nat_seq_chk || t.fs.nat_flag_chk ||
+	    *t.fs.nat_dip || *t.fs.nat_sip || t.fs.nat_dport || t.fs.nat_sport)) {
+		warnx("nat params only make sense with valid nat mode");
 		return (EINVAL);
 	}
 	if (t.fs.action != FILTER_PASS &&
@@ -1279,18 +1351,21 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	}
 
 	t.fs.type = (af == AF_INET6 ? 1 : 0); /* default IPv4 */
-	return doit(CHELSIO_T4_SET_FILTER, &t);
+	rc = doit(CHELSIO_T4_SET_FILTER, &t);
+	if (hash && rc == 0)
+		printf("%d\n", t.idx);
+	return (rc);
 }
 
 static int
-filter_cmd(int argc, const char *argv[])
+filter_cmd(int argc, const char *argv[], int hashfilter)
 {
 	long long val;
 	uint32_t idx;
 	char *s;
 
 	if (argc == 0) {
-		warnx("filter: no arguments.");
+		warnx("%sfilter: no arguments.", hashfilter ? "hash" : "");
 		return (EINVAL);
 	};
 
@@ -1299,20 +1374,29 @@ filter_cmd(int argc, const char *argv[])
 		if (argc != 1)
 			warnx("trailing arguments after \"list\" ignored.");
 
-		return show_filters();
+		return show_filters(hashfilter);
 	}
 
 	/* mode */
 	if (argc == 1 && strcmp(argv[0], "mode") == 0)
-		return get_filter_mode();
+		return get_filter_mode(hashfilter);
 
 	/* mode <mode> */
-	if (strcmp(argv[0], "mode") == 0)
+	if (!hashfilter && strcmp(argv[0], "mode") == 0)
 		return set_filter_mode(argc - 1, argv + 1);
 
 	/* <idx> ... */
 	s = str_to_number(argv[0], NULL, &val);
-	if (*s || val > 0xffffffffU) {
+	if (*s || val < 0 || val > 0xffffffffU) {
+		if (hashfilter) {
+			/*
+			 * No numeric index means this must be a request to
+			 * create a new hashfilter and we are already at the
+			 * paramter/value list.
+			 */
+			idx = (uint32_t) -1;
+			goto setf;
+		}
 		warnx("\"%s\" is neither an index nor a filter subcommand.",
 		    argv[0]);
 		return (EINVAL);
@@ -1322,11 +1406,16 @@ filter_cmd(int argc, const char *argv[])
 	/* <idx> delete|clear */
 	if (argc == 2 &&
 	    (strcmp(argv[1], "delete") == 0 || strcmp(argv[1], "clear") == 0)) {
-		return del_filter(idx);
+		return del_filter(idx, hashfilter);
 	}
 
-	/* <idx> [<param> <val>] ... */
-	return set_filter(idx, argc - 1, argv + 1);
+	/* skip <idx> */
+	argc--;
+	argv++;
+
+setf:
+	/* [<param> <val>] ... */
+	return set_filter(idx, argc, argv, hashfilter);
 }
 
 /*
@@ -2890,6 +2979,453 @@ sched_queue(int argc, const char *argv[])
 }
 
 static int
+parse_offload_settings_word(const char *s, char **pnext, const char *ws,
+    int *pneg, struct offload_settings *os)
+{
+
+	while (*s == '!') {
+		(*pneg)++;
+		s++;
+	}
+
+	if (!strcmp(s, "not")) {
+		(*pneg)++;
+		return (0);
+	}
+
+	if (!strcmp(s, "offload")) {
+		os->offload = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s , "coalesce")) {
+		os->rx_coalesce = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "timestamp") || !strcmp(s, "tstamp")) {
+		os->tstamp = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "sack")) {
+		os->sack = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "nagle")) {
+		os->nagle = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "ecn")) {
+		os->ecn = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "ddp")) {
+		os->ddp = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "tls")) {
+		os->tls = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else {
+		char *param, *p;
+		long val;
+
+		/* Settings with additional parameter handled here. */
+
+		if (*pneg) {
+			warnx("\"%s\" is not a valid keyword, or it does not "
+			    "support negation.", s);
+			return (EINVAL);
+		}
+
+		while ((param = strsep(pnext, ws)) != NULL) {
+			if (*param != '\0')
+				break;
+		}
+		if (param == NULL) {
+			warnx("\"%s\" is not a valid keyword, or it requires a "
+			    "parameter that has not been provided.", s);
+			return (EINVAL);
+		}
+
+		if (!strcmp(s, "cong")) {
+			if (!strcmp(param, "reno"))
+				os->cong_algo = 0;
+			else if (!strcmp(param, "tahoe"))
+				os->cong_algo = 1;
+			else if (!strcmp(param, "newreno"))
+				os->cong_algo = 2;
+			else if (!strcmp(param, "highspeed"))
+				os->cong_algo = 3;
+			else {
+				warnx("unknown congestion algorithm \"%s\".", s);
+				return (EINVAL);
+			}
+		} else if (!strcmp(s, "class")) {
+			val = -1;
+			p = str_to_number(param, &val, NULL);
+			/* (nsched_cls - 1) is spelled 15 here. */
+			if (*p || val < 0 || val > 15) {
+				warnx("invalid scheduling class \"%s\".  "
+				    "\"class\" needs an integer value where "
+				    "0 <= value <= 15", param);
+				return (EINVAL);
+			}
+			os->sched_class = val;
+		} else if (!strcmp(s, "bind") || !strcmp(s, "txq") ||
+		    !strcmp(s, "rxq")) {
+			val = -1;
+			if (strcmp(param, "random")) {
+				p = str_to_number(param, &val, NULL);
+				if (*p || val < 0 || val > 0xffff) {
+					warnx("invalid queue specification "
+					    "\"%s\".  \"%s\" needs an integer"
+					    " value, or \"random\".",
+					    param, s);
+					return (EINVAL);
+				}
+			}
+			if (!strcmp(s, "bind")) {
+				os->txq = val;
+				os->rxq = val;
+			} else if (!strcmp(s, "txq")) {
+				os->txq = val;
+			} else if (!strcmp(s, "rxq")) {
+				os->rxq = val;
+			} else {
+				return (EDOOFUS);
+			}
+		} else if (!strcmp(s, "mss")) {
+			val = -1;
+			p = str_to_number(param, &val, NULL);
+			if (*p || val <= 0) {
+				warnx("invalid MSS specification \"%s\".  "
+				    "\"mss\" needs a positive integer value",
+				    param);
+				return (EINVAL);
+			}
+			os->mss = val;
+		} else  {
+			warnx("unknown settings keyword: \"%s\"", s);
+			return (EINVAL);
+		}
+	}
+
+	return (0);
+}
+
+static int
+parse_offload_settings(const char *settings_ro, struct offload_settings *os)
+{
+	const char *ws = " \f\n\r\v\t";
+	char *settings, *s, *next;
+	int rc, nsettings, neg;
+	static const struct offload_settings default_settings = {
+		.offload = 0,	/* No settings imply !offload */
+		.rx_coalesce = -1,
+		.cong_algo = -1,
+		.sched_class = -1,
+		.tstamp = -1,
+		.sack = -1,
+		.nagle = -1,
+		.ecn = -1,
+		.ddp = -1,
+		.tls = -1,
+		.txq = -1,
+		.rxq = -1,
+		.mss = -1,
+	};
+
+	*os = default_settings;
+
+	next = settings = strdup(settings_ro);
+	if (settings == NULL) {
+		warn (NULL);
+		return (errno);
+	}
+
+	nsettings = 0;
+	rc = 0;
+	neg = 0;
+	while ((s = strsep(&next, ws)) != NULL) {
+		if (*s == '\0')
+			continue;
+		nsettings++;
+		rc = parse_offload_settings_word(s, &next, ws, &neg, os);
+		if (rc != 0)
+			goto done;
+	}
+	if (nsettings == 0) {
+		warnx("no settings provided");
+		rc = EINVAL;
+		goto done;
+	}
+	if (neg > 0) {
+		warnx("%d stray negation(s) at end of offload settings", neg);
+		rc = EINVAL;
+		goto done;
+	}
+done:
+	free(settings);
+	return (rc);
+}
+
+static int
+isempty_line(char *line, size_t llen)
+{
+
+	/* skip leading whitespace */
+	while (isspace(*line)) {
+		line++;
+		llen--;
+	}
+	if (llen == 0 || *line == '#' || *line == '\n')
+		return (1);
+
+	return (0);
+}
+
+static int
+special_offload_rule(char *str)
+{
+
+	/* skip leading whitespaces */
+	while (isspace(*str))
+		str++;
+
+	/* check for special strings: "-", "all", "any" */
+	if (*str == '-') {
+		str++;
+	} else if (!strncmp(str, "all", 3) || !strncmp(str, "any", 3)) {
+		str += 3;
+	} else {
+		return (0);
+	}
+
+	/* skip trailing whitespaces */
+	while (isspace(*str))
+		str++;
+
+	return (*str == '\0');
+}
+
+/*
+ * A rule has 3 parts: an open-type, a match expression, and offload settings.
+ *
+ * [<open-type>] <expr> => <settings>
+ */
+static int
+parse_offload_policy_line(size_t lno, char *line, size_t llen, pcap_t *pd,
+    struct offload_rule *r)
+{
+	char *expr, *settings, *s;
+
+	bzero(r, sizeof(*r));
+
+	/* Skip leading whitespace. */
+	while (isspace(*line))
+		line++;
+	/* Trim trailing whitespace */
+	s = &line[llen - 1];
+	while (isspace(*s)) {
+		*s-- = '\0';
+		llen--;
+	}
+
+	/*
+	 * First part of the rule: '[X]' where X = A/D/L/P
+	 */
+	if (*line++ != '[') {
+		warnx("missing \"[\" on line %zd", lno);
+		return (EINVAL);
+	}
+	switch (*line) {
+	case 'A':
+	case 'D':
+	case 'L':
+	case 'P':
+		r->open_type = *line;
+		break;
+	default:
+		warnx("invalid socket-type \"%c\" on line %zd.", *line, lno);
+		return (EINVAL);
+	}
+	line++;
+	if (*line++ != ']') {
+		warnx("missing \"]\" after \"[%c\" on line %zd",
+		    r->open_type, lno);
+		return (EINVAL);
+	}
+
+	/* Skip whitespace. */
+	while (isspace(*line))
+		line++;
+
+	/*
+	 * Rest of the rule: <expr> => <settings>
+	 */
+	expr = line;
+	s = strstr(line, "=>");
+	if (s == NULL)
+		return (EINVAL);
+	settings = s + 2;
+	while (isspace(*settings))
+		settings++;
+	*s = '\0';
+
+	/*
+	 * <expr> is either a special name (all, any) or a pcap-filter(7).
+	 * In case of a special name the bpf_prog stays all-zero.
+	 */
+	if (!special_offload_rule(expr)) {
+		if (pcap_compile(pd, &r->bpf_prog, expr, 1,
+		    PCAP_NETMASK_UNKNOWN) < 0) {
+			warnx("failed to compile \"%s\" on line %zd: %s", expr,
+			    lno, pcap_geterr(pd));
+			return (EINVAL);
+		}
+	}
+
+	/* settings to apply on a match. */
+	if (parse_offload_settings(settings, &r->settings) != 0) {
+		warnx("failed to parse offload settings \"%s\" on line %zd",
+		    settings, lno);
+		pcap_freecode(&r->bpf_prog);
+		return (EINVAL);
+	}
+
+	return (0);
+
+}
+
+/*
+ * Note that op itself is not dynamically allocated.
+ */
+static void
+free_offload_policy(struct t4_offload_policy *op)
+{
+	int i;
+
+	for (i = 0; i < op->nrules; i++) {
+		/*
+		 * pcap_freecode can cope with empty bpf_prog, which is the case
+		 * for an rule that matches on 'any/all/-'.
+		 */
+		pcap_freecode(&op->rule[i].bpf_prog);
+	}
+	free(op->rule);
+	op->nrules = 0;
+	op->rule = NULL;
+}
+
+#define REALLOC_STRIDE 32
+
+/*
+ * Fills up op->nrules and op->rule.
+ */
+static int
+parse_offload_policy(const char *fname, struct t4_offload_policy *op)
+{
+	FILE *fp;
+	char *line;
+	int lno, maxrules, rc;
+	size_t lcap, llen;
+	struct offload_rule *r;
+	pcap_t *pd;
+
+	fp = fopen(fname, "r");
+	if (fp == NULL) {
+		warn("Unable to open file \"%s\"", fname);
+		return (errno);
+	}
+	pd = pcap_open_dead(DLT_EN10MB, 128);
+	if (pd == NULL) {
+		warnx("Failed to open pcap device");
+		fclose(fp);
+		return (EIO);
+	}
+
+	rc = 0;
+	lno = 0;
+	lcap = 0;
+	maxrules = 0;
+	op->nrules = 0;
+	op->rule = NULL;
+	line = NULL;
+
+	while ((llen = getline(&line, &lcap, fp)) != -1) {
+		lno++;
+
+		/* Skip empty lines. */
+		if (isempty_line(line, llen))
+			continue;
+
+		if (op->nrules == maxrules) {
+			maxrules += REALLOC_STRIDE;
+			r = realloc(op->rule,
+			    maxrules * sizeof(struct offload_rule));
+			if (r == NULL) {
+				warnx("failed to allocate memory for %d rules",
+				    maxrules);
+				rc = ENOMEM;
+				goto done;
+			}
+			op->rule = r;
+		}
+
+		r = &op->rule[op->nrules];
+		rc = parse_offload_policy_line(lno, line, llen, pd, r);
+		if (rc != 0) {
+			warnx("Error parsing line %d of \"%s\"", lno, fname);
+			goto done;
+		}
+
+		op->nrules++;
+	}
+	free(line);
+
+	if (!feof(fp)) {
+		warn("Error while reading from file \"%s\" at line %d",
+		    fname, lno);
+		rc = errno;
+		goto done;
+	}
+
+	if (op->nrules == 0) {
+		warnx("No valid rules found in \"%s\"", fname);
+		rc = EINVAL;
+	}
+done:
+	pcap_close(pd);
+	fclose(fp);
+	if (rc != 0) {
+		free_offload_policy(op);
+	}
+
+	return (rc);
+}
+
+static int
+load_offload_policy(int argc, const char *argv[])
+{
+	int rc = 0;
+	const char *fname = argv[0];
+	struct t4_offload_policy op = {0};
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (!strcmp(fname, "clear") || !strcmp(fname, "none")) {
+		/* op.nrules is 0 and that means clear policy */
+		return (doit(CHELSIO_T4_SET_OFLD_POLICY, &op));
+	}
+
+	rc = parse_offload_policy(fname, &op);
+	if (rc != 0) {
+		/* Error message displayed already */
+		return (EINVAL);
+	}
+
+	rc = doit(CHELSIO_T4_SET_OFLD_POLICY, &op);
+	free_offload_policy(&op);
+
+	return (rc);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -2906,7 +3442,7 @@ run_cmd(int argc, const char *argv[])
 	else if (!strcmp(cmd, "regdump"))
 		rc = dump_regs(argc, argv);
 	else if (!strcmp(cmd, "filter"))
-		rc = filter_cmd(argc, argv);
+		rc = filter_cmd(argc, argv, 0);
 	else if (!strcmp(cmd, "context"))
 		rc = get_sge_context(argc, argv);
 	else if (!strcmp(cmd, "loadfw"))
@@ -2935,6 +3471,10 @@ run_cmd(int argc, const char *argv[])
 		rc = loadbootcfg(argc, argv);
 	else if (!strcmp(cmd, "dumpstate"))
 		rc = dumpstate(argc, argv);
+	else if (!strcmp(cmd, "policy"))
+		rc = load_offload_policy(argc, argv);
+	else if (!strcmp(cmd, "hashfilter"))
+		rc = filter_cmd(argc, argv, 1);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

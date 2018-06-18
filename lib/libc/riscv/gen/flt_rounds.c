@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <fenv.h>
 #include <float.h>
 
-#ifdef	SOFTFLOAT
+#ifdef __riscv_float_abi_soft
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"
@@ -51,7 +51,7 @@ __flt_rounds(void)
 {
 	uint64_t mode;
 
-#ifdef SOFTFLOAT
+#ifdef __riscv_float_abi_soft
 	mode = __softfloat_float_rounding_mode;
 #else
 	__asm __volatile("csrr %0, fcsr" : "=r" (mode));

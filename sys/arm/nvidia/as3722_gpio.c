@@ -212,12 +212,12 @@ as3722_pinmux_read_node(struct as3722_softc *sc, phandle_t node,
 {
 	int rv, i;
 
-	*lpins = OF_getprop_alloc(node, "pins", 1, (void **)pins);
+	*lpins = OF_getprop_alloc(node, "pins", (void **)pins);
 	if (*lpins <= 0)
 		return (ENOENT);
 
 	/* Read function (mux) settings. */
-	rv = OF_getprop_alloc(node, "function", 1, (void **)&cfg->function);
+	rv = OF_getprop_alloc(node, "function", (void **)&cfg->function);
 	if (rv <= 0)
 		cfg->function = NULL;
 

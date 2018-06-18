@@ -71,6 +71,7 @@ static int regnode_method_status(struct regnode *regnode, int *status);
 static int regnode_method_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay);
 static int regnode_method_get_voltage(struct regnode *regnode, int *uvolt);
+static void regulator_shutdown(void *dummy);
 
 /*
  * Regulator controller methods.
@@ -150,6 +151,38 @@ SX_SYSINIT(regulator_topology, &regnode_topo_lock, "Regulator topology lock");
 #define REGNODE_SLOCK(_sc)	sx_slock(&((_sc)->lock))
 #define REGNODE_XLOCK(_sc)	sx_xlock(&((_sc)->lock))
 #define REGNODE_UNLOCK(_sc)	sx_unlock(&((_sc)->lock))
+
+SYSINIT(regulator_shutdown, SI_SUB_LAST, SI_ORDER_ANY, regulator_shutdown,
+    NULL);
+
+/*
+ * Disable unused regulator
+ * We run this function at SI_SUB_LAST which mean that every driver that needs
+ * regulator should have already enable them.
+ * All the remaining regulators should be those left enabled by the bootloader
+ * or enable by default by the PMIC.
+ */
+static void
+regulator_shutdown(void *dummy)
+{
+	struct regnode *entry;
+	int status, ret;
+	int disable = 1;
+
+	REG_TOPO_SLOCK();
+	TUNABLE_INT_FETCH("hw.regulator.disable_unused", &disable);
+	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
+		if (entry->std_param.always_on == 0 && disable) {
+			if (bootverbose)
+				printf("regulator: shutting down %s\n",
+				    entry->name);
+			ret = regnode_status(entry, &status);
+			if (ret == 0 && status == REGULATOR_STATUS_ENABLED)
+				regnode_stop(entry, 0);
+		}
+	}
+	REG_TOPO_UNLOCK();
+}
 
 /*
  * sysctl handler
@@ -346,15 +379,15 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 	    OID_AUTO, "enable_cnt",
 	    CTLFLAG_RD, &regnode->enable_cnt, 0,
 	    "The regulator enable counter");
-	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	SYSCTL_ADD_U8(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
 	    OID_AUTO, "boot_on",
-	    CTLFLAG_RD, (int *) &regnode->std_param.boot_on, 0,
+	    CTLFLAG_RD, (uint8_t *) &regnode->std_param.boot_on, 0,
 	    "Is enabled on boot");
-	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	SYSCTL_ADD_U8(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
 	    OID_AUTO, "always_on",
-	    CTLFLAG_RD, (int *)&regnode->std_param.always_on, 0,
+	    CTLFLAG_RD, (uint8_t *)&regnode->std_param.always_on, 0,
 	    "Is always enabled");
 
 	SYSCTL_ADD_PROC(&regnode->sysctl_ctx,
@@ -603,7 +636,7 @@ regnode_stop(struct regnode *regnode, int depth)
 	/* Disable regulator for each node in chain, starting from consumer */
 	if ((regnode->enable_cnt == 0) &&
 	    ((regnode->flags & REGULATOR_FLAGS_NOT_DISABLE) == 0)) {
-		rv = REGNODE_ENABLE(regnode, false, &udelay);
+		rv = REGNODE_STOP(regnode, &udelay);
 		if (rv != 0) {
 			REGNODE_UNLOCK(regnode);
 			return (rv);
@@ -615,7 +648,7 @@ regnode_stop(struct regnode *regnode, int depth)
 	rv = regnode_resolve_parent(regnode);
 	if (rv != 0)
 		return (rv);
-	if (regnode->parent != NULL)
+	if (regnode->parent != NULL && regnode->parent->enable_cnt == 0)
 		rv = regnode_stop(regnode->parent, depth + 1);
 	return (rv);
 }
@@ -976,7 +1009,7 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 	int rv;
 
 	par = &def->std_param;
-	rv = OF_getprop_alloc(node, "regulator-name", 1,
+	rv = OF_getprop_alloc(node, "regulator-name",
 	    (void **)&def->name);
 	if (rv <= 0) {
 		device_printf(pdev, "%s: Missing regulator name\n",
@@ -1026,7 +1059,7 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 	rv = OF_getencprop(node, "vin-supply", &supply_xref,
 	    sizeof(supply_xref));
 	if (rv >=  0) {
-		rv = OF_getprop_alloc(supply_xref, "regulator-name", 1,
+		rv = OF_getprop_alloc(supply_xref, "regulator-name",
 		    (void **)&def->parent_name);
 		if (rv <= 0)
 			def->parent_name = NULL;
@@ -1054,7 +1087,7 @@ regulator_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
 	}
 
 	cells = NULL;
-	ncells = OF_getencprop_alloc(cnode, name,  sizeof(*cells),
+	ncells = OF_getencprop_alloc_multi(cnode, name, sizeof(*cells),
 	    (void **)&cells);
 	if (ncells <= 0)
 		return (ENXIO);

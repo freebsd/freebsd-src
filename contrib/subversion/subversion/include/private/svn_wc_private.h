@@ -82,6 +82,8 @@ svn_wc__get_file_external_editor(const svn_delta_editor_t **editor,
                                  const char *recorded_url,
                                  const svn_opt_revision_t *recorded_peg_rev,
                                  const svn_opt_revision_t *recorded_rev,
+                                 svn_wc_conflict_resolver_func2_t conflict_func,
+                                 void *conflict_baton,
                                  svn_cancel_func_t cancel_func,
                                  void *cancel_baton,
                                  svn_wc_notify_func2_t notify_func,
@@ -345,6 +347,20 @@ svn_wc__get_wcroot(const char **wcroot_abspath,
                    const char *local_abspath,
                    apr_pool_t *result_pool,
                    apr_pool_t *scratch_pool);
+
+/** Set @a *dir to the abspath of the directory in which shelved patches
+ * are stored, which is inside the WC's administrative directory, and ensure
+ * the directory exists.
+ *
+ * @a local_abspath is any path in the WC, and is used to find the WC root.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_wc__get_shelves_dir(char **dir,
+                        svn_wc_context_t *wc_ctx,
+                        const char *local_abspath,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool);
 
 /**
  * The following are temporary APIs to aid in the transition from wc-1 to
@@ -1746,6 +1762,207 @@ svn_wc__resolve_conflicts(svn_wc_context_t *wc_ctx,
                           void *notify_baton,
                           apr_pool_t *scratch_pool);
 
+/** 
+ * Resolve the text conflict at LOCAL_ABSPATH as per CHOICE, and then
+ * mark the conflict resolved.
+ * The working copy must already be locked for resolving, e.g. by calling
+ * svn_wc__acquire_write_lock_for_resolve() first.
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_wc__conflict_text_mark_resolved(svn_wc_context_t *wc_ctx,
+                                    const char *local_abspath,
+                                    svn_wc_conflict_choice_t choice,
+                                    svn_cancel_func_t cancel_func,
+                                    void *cancel_baton,
+                                    svn_wc_notify_func2_t notify_func,
+                                    void *notify_baton,
+                                    apr_pool_t *scratch_pool);
+
+/** 
+ * Resolve the conflicted property PROPNAME at LOCAL_ABSPATH as per CHOICE,
+ * and then mark the conflict resolved.  If MERGED_VALUE is not NULL, this is
+ * the new merged property, used when choosing #svn_wc_conflict_choose_merged.
+ *
+ * The working copy must already be locked for resolving, e.g. by calling
+ * svn_wc__acquire_write_lock_for_resolve() first.
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_wc__conflict_prop_mark_resolved(svn_wc_context_t *wc_ctx,
+                                    const char *local_abspath,
+                                    const char *propname,
+                                    svn_wc_conflict_choice_t choice,
+                                    const svn_string_t *merged_value,
+                                    svn_wc_notify_func2_t notify_func,
+                                    void *notify_baton,
+                                    apr_pool_t *scratch_pool);
+
+/* Resolve a tree conflict where the victim at LOCAL_ABSPATH is a directory
+ * which was locally deleted, replaced or moved away, and which received an
+ * arbitrary incoming change during an update or switch operation.
+ *
+ * The conflict is resolved by accepting the current working copy state and
+ * breaking the 'moved-here' link for any files or directories which were
+ * moved out of the victim directory before the update operation.
+ * As a result, any such files or directories become copies (rather than moves)
+ * of content which the victim directory contained before it was updated.
+ *
+ * The tree conflict at LOCAL_ABSPATH must have the following properties or
+ * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
+ * 
+ * operation: svn_wc_operation_update or svn_wc_operation_switch
+ * local change: svn_wc_conflict_reason_deleted or
+ *               svn_wc_conflict_reason_replaced or
+ *               svn_wc_conflict_reason_moved_away
+ * incoming change: any
+ *
+ * The working copy must already be locked for resolving, e.g. by calling
+ * svn_wc__acquire_write_lock_for_resolve() first.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_wc__conflict_tree_update_break_moved_away(svn_wc_context_t *wc_ctx,
+                                              const char *local_abspath,
+                                              svn_cancel_func_t cancel_func,
+                                              void *cancel_baton,
+                                              svn_wc_notify_func2_t notify_func,
+                                              void *notify_baton,
+                                              apr_pool_t *scratch_pool);
+
+
+/* Resolve a tree conflict where the victim at LOCAL_ABSPATH is a directory
+ * which was locally deleted or replaced, and which received an edit (some
+ * change inside the directory, or a change to the direcotory's properties)
+ * during an update or switch operation.
+ *
+ * The conflict is resolved by keeping the victim deleted, and propagating
+ * its tree conflict to any children which were moved out of the directory
+ * before the update operation.
+ * As a result, any such files or directories become victims of the tree
+ * conflict as well and must be resolved independently.
+ * Additionally, LOCAL_ABSPATH itself may become the victim of a different
+ * tree conflict as a result of resolving the existing tree conflict.
+ *
+ * The tree conflict at LOCAL_ABSPATH must have the following properties or
+ * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
+ * 
+ * operation: svn_wc_operation_update or svn_wc_operation_switch
+ * local change: svn_wc_conflict_reason_deleted or
+ *               svn_wc_conflict_reason_replaced
+ * incoming change: svn_wc_conflict_action_edit
+ *
+ * If this conflict cannot be resolved because the conflict cannot be
+ * propagated to moved-away children, this function returns
+ * SVN_ERR_WC_OBSTRUCTED_UPDATE or SVN_ERR_WC_FOUND_CONFLICT.
+ * The caller should continue by resolving other conflicts and attempt to
+ * resolve this conflict again later.
+ *
+ * The working copy must already be locked for resolving, e.g. by calling
+ * svn_wc__acquire_write_lock_for_resolve() first.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_wc__conflict_tree_update_raise_moved_away(svn_wc_context_t *wc_ctx,
+                                              const char *local_abspath,
+                                              svn_cancel_func_t cancel_func,
+                                              void *cancel_baton,
+                                              svn_wc_notify_func2_t notify_func,
+                                              void *notify_baton,
+                                              apr_pool_t *scratch_pool);
+
+/* Resolve a tree conflict where the victim at LOCAL_ABSPATH is a file or
+ * directory which was locally moved away, and which received an edit (some
+ * change inside the directory or file, or a change to properties) during an
+ * update or switch operation.
+ *
+ * The conflict is resolved by keeping the victim moved-away, and propagating
+ * the incoming edits to the victim's moved-to location.
+ *
+ * The tree conflict at LOCAL_ABSPATH must have the following properties or
+ * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
+ * 
+ * operation: svn_wc_operation_update or svn_wc_operation_switch
+ * local change: svn_wc_conflict_reason_moved_away
+ * incoming change: svn_wc_conflict_action_edit
+ *
+ * If this conflict cannot be resolved this function returns
+ * SVN_ERR_WC_OBSTRUCTED_UPDATE or SVN_ERR_WC_FOUND_CONFLICT.
+ * The caller should continue by resolving other conflicts and attempt to
+ * resolve this conflict again later.
+ *
+ * The working copy must already be locked for resolving, e.g. by calling
+ * svn_wc__acquire_write_lock_for_resolve() first.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_wc__conflict_tree_update_moved_away_node(svn_wc_context_t *wc_ctx,
+                                             const char *local_abspath,
+                                             svn_cancel_func_t cancel_func,
+                                             void *cancel_baton,
+                                             svn_wc_notify_func2_t notify_func,
+                                             void *notify_baton,
+                                             apr_pool_t *scratch_pool);
+
+/* Merge local changes from a tree conflict victim of an incoming deletion
+ * to the specified DEST_ABSPATH added during an update. Both LOCAL_ABSPATH
+ * and DEST_ABSPATH must be directories.
+ *
+ * Assuming DEST_ABSPATH is the correct move destination, this function
+ * allows local changes to "follow" incoming moves during updates.
+ *
+ * @since New in 1.10. */
+svn_error_t *
+svn_wc__conflict_tree_update_incoming_move(svn_wc_context_t *wc_ctx,
+                                           const char *local_abspath,
+                                           const char *dest_abspath,
+                                           svn_cancel_func_t cancel_func,
+                                           void *cancel_baton,
+                                           svn_wc_notify_func2_t notify_func,
+                                           void *notify_baton,
+                                           apr_pool_t *scratch_pool);
+
+/* Resolve a 'local dir add vs incoming dir add' tree conflict upon update
+ * by merging the locally added directory with the incoming added directory.
+ *
+ * @since New in 1.10. */
+svn_error_t *
+svn_wc__conflict_tree_update_local_add(svn_wc_context_t *wc_ctx,
+                                       const char *local_abspath,
+                                       svn_cancel_func_t cancel_func,
+                                       void *cancel_baton,
+                                       svn_wc_notify_func2_t notify_func,
+                                       void *notify_baton,
+                                       apr_pool_t *scratch_pool);
+
+/* Find nodes in the working copy which corresponds to the new location
+ * MOVED_TO_REPOS_RELPATH of the tree conflict victim at VICTIM_ABSPATH.
+ * The nodes must be of the same node kind as VICTIM_NODE_KIND.
+ * If no such node can be found, set *POSSIBLE_TARGETS to an empty array.
+ *
+ * The nodes should be useful for conflict resolution, e.g. it should be
+ * possible to merge changes into these nodes to resolve an incoming-move
+ * tree conflict. But the exact criteria for selecting a node are left
+ * to the implementation of this function.
+ * Note that this function may not necessarily return a node which was
+ * actually moved. The only hard guarantee is that the node corresponds to
+ * the repository relpath MOVED_TO_REPOS_RELPATH specified by the caller.
+ * Users should perform a sanity check on the results returned from this
+ * function, e.g. establish whether the MOVED_TO_REPOS_RELPATH at its
+ * current checked-out revision shares ancestry with the conflict victim.
+ */
+svn_error_t *
+svn_wc__guess_incoming_move_target_nodes(apr_array_header_t **possible_targets,
+                                         svn_wc_context_t *wc_ctx,
+                                         const char *victim_abspath,
+                                         svn_node_kind_t victim_node_kind,
+                                         const char *moved_to_repos_relpath,
+                                         apr_pool_t *result_pool,
+                                         apr_pool_t *scratch_pool);
+
 /**
  * Move @a src_abspath to @a dst_abspath, by scheduling @a dst_abspath
  * for addition to the repository, remembering the history. Mark @a src_abspath
@@ -1846,6 +2063,28 @@ svn_wc__diff7(const char **root_relpath,
               void *cancel_baton,
               apr_pool_t *result_pool,
               apr_pool_t *scratch_pool);
+
+/**
+ * Read all conflicts at LOCAL_ABSPATH into an array containing pointers to
+ * svn_wc_conflict_description2_t data structures alloated in RESULT_POOL.
+ */
+svn_error_t *
+svn_wc__read_conflict_descriptions2_t(const apr_array_header_t **conflicts,
+                                      svn_wc_context_t *wc_ctx,
+                                      const char *local_abspath,
+                                      apr_pool_t *result_pool,
+                                      apr_pool_t *scratch_pool);
+
+/* Internal version of svn_wc_translated_stream(), accepting a working
+   copy context. */
+svn_error_t *
+svn_wc__translated_stream(svn_stream_t **stream,
+                          svn_wc_context_t *wc_ctx,
+                          const char *local_abspath,
+                          const char *versioned_abspath,
+                          apr_uint32_t flags,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

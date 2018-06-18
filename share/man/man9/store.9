@@ -34,13 +34,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2014
+.Dd April 17, 2018
 .Dt STORE 9
 .Os
 .Sh NAME
 .Nm store ,
 .Nm subyte ,
-.Nm suswintr ,
 .Nm suword
 .Nd store data to user-space
 .Sh SYNOPSIS
@@ -58,8 +57,6 @@
 .Ft int
 .Fn suword64 "volatile void *base" "int64_t word"
 .In sys/resourcevar.h
-.Ft int
-.Fn suswintr "void *base" "int word"
 .Sh DESCRIPTION
 The
 .Nm
@@ -70,7 +67,7 @@ The data written must be naturally aligned.
 The
 .Nm
 routines provide the following functionality:
-.Bl -tag -width "suswintr()"
+.Bl -tag -width "suword64()"
 .It Fn subyte
 Stores a byte of data to the user-space address
 .Pa base .
@@ -86,10 +83,6 @@ Stores 32 bits of data to the user-space address
 .It Fn suword64
 Stores 64 bits of data to the user-space address
 .Pa base .
-.It Fn suswintr
-Stores a short word of data to the user-space address
-.Pa base .
-This function is safe to call during an interrupt context.
 .El
 .Sh RETURN VALUES
 The

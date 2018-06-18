@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdhc.c,v 1.10 2015/01/26 06:10:03 djm Exp $ */
+/* $OpenBSD: kexecdhc.c,v 1.13 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -49,7 +49,7 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
-static int input_kex_ecdh_reply(int, u_int32_t, void *);
+static int input_kex_ecdh_reply(int, u_int32_t, struct ssh *);
 
 int
 kexecdh_client(struct ssh *ssh)
@@ -89,15 +89,13 @@ kexecdh_client(struct ssh *ssh)
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_ECDH_REPLY, &input_kex_ecdh_reply);
 	r = 0;
  out:
-	if (client_key)
-		EC_KEY_free(client_key);
+	EC_KEY_free(client_key);
 	return r;
 }
 
 static int
-input_kex_ecdh_reply(int type, u_int32_t seq, void *ctxt)
+input_kex_ecdh_reply(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	const EC_GROUP *group;
 	EC_POINT *server_public = NULL;
@@ -189,7 +187,7 @@ input_kex_ecdh_reply(int type, u_int32_t seq, void *ctxt)
 		goto out;
 
 	if ((r = sshkey_verify(server_host_key, signature, slen, hash,
-	    hashlen, ssh->compat)) != 0)
+	    hashlen, kex->hostkey_alg, ssh->compat)) != 0)
 		goto out;
 
 	/* save session id */
@@ -207,18 +205,14 @@ input_kex_ecdh_reply(int type, u_int32_t seq, void *ctxt)
 		r = kex_send_newkeys(ssh);
  out:
 	explicit_bzero(hash, sizeof(hash));
-	if (kex->ec_client_key) {
-		EC_KEY_free(kex->ec_client_key);
-		kex->ec_client_key = NULL;
-	}
-	if (server_public)
-		EC_POINT_clear_free(server_public);
+	EC_KEY_free(kex->ec_client_key);
+	kex->ec_client_key = NULL;
+	EC_POINT_clear_free(server_public);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	sshkey_free(server_host_key);
 	free(server_host_key_blob);
 	free(signature);

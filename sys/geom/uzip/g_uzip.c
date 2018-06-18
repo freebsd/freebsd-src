@@ -922,3 +922,4 @@ static struct g_class g_uzip_class = {
 
 DECLARE_GEOM_CLASS(g_uzip_class, g_uzip);
 MODULE_DEPEND(g_uzip, zlib, 1, 1, 1);
+MODULE_VERSION(geom_uzip, 0);

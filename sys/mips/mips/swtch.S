@@ -55,7 +55,6 @@
  *	assembly language support routines.
  */
 
-#include "opt_compat.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>

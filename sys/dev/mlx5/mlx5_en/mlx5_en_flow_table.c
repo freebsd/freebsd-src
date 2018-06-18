@@ -29,7 +29,6 @@
 
 #include <linux/list.h>
 #include <dev/mlx5/fs.h>
-
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
 enum {
@@ -696,6 +695,7 @@ mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
 	int err;
 	int i;
 
+	set_bit(0, priv->vlan.active_vlans);
 	for_each_set_bit(i, priv->vlan.active_vlans, VLAN_N_VID) {
 		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
 					  i);
@@ -727,6 +727,7 @@ mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv)
 
 	for_each_set_bit(i, priv->vlan.active_vlans, VLAN_N_VID)
 		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, i);
+	clear_bit(0, priv->vlan.active_vlans);
 }
 
 #define	mlx5e_for_each_hash_node(hn, tmp, hash, i) \
@@ -765,7 +766,7 @@ mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
 
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc,
@@ -774,7 +775,7 @@ mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 	if_addr_runlock(ifp);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_mc,

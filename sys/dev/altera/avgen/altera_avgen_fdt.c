@@ -100,13 +100,13 @@ altera_avgen_fdt_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if (OF_getprop(node, "sri-cambridge,width", &cell, sizeof(cell)) > 0)
 		sc->avg_width = cell;
-	(void)OF_getprop_alloc(node, "sri-cambridge,fileio", sizeof(char),
+	(void)OF_getprop_alloc(node, "sri-cambridge,fileio",
 	    (void **)&str_fileio);
-	(void)OF_getprop_alloc(node, "sri-cambridge,geomio", sizeof(char),
+	(void)OF_getprop_alloc(node, "sri-cambridge,geomio",
 	    (void **)&str_geomio);
-	(void)OF_getprop_alloc(node, "sri-cambridge,mmapio", sizeof(char),
+	(void)OF_getprop_alloc(node, "sri-cambridge,mmapio",
 	    (void **)&str_mmapio);
-	(void)OF_getprop_alloc(node,  "sri-cambridge,devname", sizeof(char),
+	(void)OF_getprop_alloc(node,  "sri-cambridge,devname",
 	    (void **)&str_devname);
 	if (OF_getprop(node, "sri-cambridge,devunit", &cell, sizeof(cell)) > 0)
 		devunit = cell;

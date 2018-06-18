@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2015 Netflix, Inc
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -121,7 +120,7 @@ nvme_op_string(const struct nvme_command *cmd)
 	uint8_t opc;
 
 	opc = (cmd->opc_fuse >> NVME_CMD_OPC_SHIFT) & NVME_CMD_OPC_MASK;
-	if (opc > nitems(nvme_opc2str))
+	if (opc >= nitems(nvme_opc2str))
 		return "UNKNOWN";
 
 	return nvme_opc2str[opc];

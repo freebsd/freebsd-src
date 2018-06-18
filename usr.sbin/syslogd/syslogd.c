@@ -28,6 +28,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Prodrive Technologies, https://prodrive-technologies.com/
+ * Author: Ed Schouten <ed@FreeBSD.org>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #ifndef lint
 static const char copyright[] =
@@ -71,8 +98,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Maximum number of characters in time of last occurrence */
-#define	MAXDATELEN	16
-#define	MAXLINE		1024		/* maximum line length */
+#define	MAXLINE		2048		/* maximum line length */
 #define	MAXSVLINE	MAXLINE		/* maximum saved line length */
 #define	DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define	DEFSPRI		(LOG_KERN|LOG_CRIT)
@@ -97,8 +123,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
-#include <netdb.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
@@ -107,8 +133,10 @@ __FBSDID("$FreeBSD$");
 #include <fnmatch.h>
 #include <libutil.h>
 #include <limits.h>
+#include <netdb.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -174,7 +202,16 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 #define	IGN_CONS	0x001	/* don't print on console */
 #define	SYNC_FILE	0x002	/* do fsync on file after printing */
 #define	MARK		0x008	/* this message is a mark */
-#define	ISKERNEL	0x010	/* kernel generated message */
+
+/* Timestamps of log entries. */
+struct logtime {
+	struct tm	tm;
+	suseconds_t	usec;
+};
+
+/* Traditional syslog timestamp format. */
+#define	RFC3164_DATELEN	15
+#define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
 
 /*
  * This structure represents the files that will have log
@@ -215,10 +252,9 @@ struct filed {
 #define	fu_pipe_pname	f_un.f_pipe.f_pname
 #define	fu_pipe_pid	f_un.f_pipe.f_pid
 	char	f_prevline[MAXSVLINE];		/* last message logged */
-	char	f_lasttime[MAXDATELEN];		/* time of last occurrence */
-	char	f_prevhost[MAXHOSTNAMELEN];	/* host from which recd. */
+	struct logtime f_lasttime;		/* time of last occurrence */
 	int	f_prevpri;			/* pri of f_prevline */
-	int	f_prevlen;			/* length of f_prevline */
+	size_t	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
 	int	f_flags;			/* file-specific flags */
@@ -332,8 +368,11 @@ static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
+static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
 
 static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
+
+struct iovlist;
 
 static int	allowaddr(char *);
 static int	addfile(struct filed *);
@@ -349,10 +388,14 @@ static void	die(int) __dead2;
 static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
-static void	fprintlog(struct filed *, int, const char *);
+static void	fprintlog_first(struct filed *, const char *, const char *,
+    const char *, const char *, const char *, const char *, int);
+static void	fprintlog_write(struct filed *, struct iovlist *, int);
+static void	fprintlog_successive(struct filed *, int);
 static void	init(int);
 static void	logerror(const char *);
-static void	logmsg(int, const char *, const char *, const char *, int);
+static void	logmsg(int, const struct logtime *, const char *, const char *,
+    const char *, const char *, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static int	socksetup(struct peer *);
@@ -460,7 +503,7 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNop:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNoO:p:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 #ifdef INET
@@ -543,7 +586,7 @@ main(int argc, char *argv[])
 			else if (ch == 'p') {
 				mode = DEFFILEMODE;
 				pflag = 1;
-			} else if (ch == 'S') {
+			} else {
 				mode = S_IRUSR | S_IWUSR;
 				Sflag = 1;
 			}
@@ -582,6 +625,16 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			resolve = 0;
+			break;
+		case 'O':
+			if (strcmp(optarg, "bsd") == 0 ||
+			    strcmp(optarg, "rfc3164") == 0)
+				RFC3164OutputFormat = true;
+			else if (strcmp(optarg, "syslog") == 0 ||
+			    strcmp(optarg, "rfc5424") == 0)
+				RFC3164OutputFormat = false;
+			else
+				usage();
 			break;
 		case 'o':
 			use_bootfile = 1;
@@ -691,7 +744,7 @@ main(int argc, char *argv[])
 			fdsrmax = sl->sl_socket;
 	}
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
-	    sizeof(fd_mask));
+	    sizeof(*fdsr));
 	if (fdsr == NULL)
 		errx(1, "calloc fd_set");
 
@@ -710,7 +763,7 @@ main(int argc, char *argv[])
 		}
 
 		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
-		    sizeof(fd_mask));
+		    sizeof(*fdsr));
 
 		STAILQ_FOREACH(sl, &shead, next) {
 			if (sl->sl_socket != -1 && sl->sl_recv != NULL)
@@ -842,27 +895,366 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdFHknosTuv] [-a allowed_peer]",
-		"               [-b bind_address] [-f config_file]",
-		"               [-l [mode:]path] [-m mark_interval]",
-		"               [-P pid_file] [-p log_socket]",
-		"               [-S logpriv_socket]");
+	fprintf(stderr,
+		"usage: syslogd [-468ACcdFHknosTuv] [-a allowed_peer]\n"
+		"               [-b bind_address] [-f config_file]\n"
+		"               [-l [mode:]path] [-m mark_interval]\n"
+		"               [-O format] [-P pid_file] [-p log_socket]\n"
+		"               [-S logpriv_socket]\n");
 	exit(1);
 }
 
 /*
- * Take a raw input line, extract PRI, TIMESTAMP and HOSTNAME from the message,
- * and print the message on the appropriate log files.
+ * Removes characters from log messages that are unsafe to display.
+ * TODO: Permit UTF-8 strings that include a BOM per RFC 5424?
+ */
+static void
+parsemsg_remove_unsafe_characters(const char *in, char *out, size_t outlen)
+{
+	char *q;
+	int c;
+
+	q = out;
+	while ((c = (unsigned char)*in++) != '\0' && q < out + outlen - 4) {
+		if (mask_C1 && (c & 0x80) && c < 0xA0) {
+			c &= 0x7F;
+			*q++ = 'M';
+			*q++ = '-';
+		}
+		if (isascii(c) && iscntrl(c)) {
+			if (c == '\n') {
+				*q++ = ' ';
+			} else if (c == '\t') {
+				*q++ = '\t';
+			} else {
+				*q++ = '^';
+				*q++ = c ^ 0100;
+			}
+		} else {
+			*q++ = c;
+		}
+	}
+	*q = '\0';
+}
+
+/*
+ * Parses a syslog message according to RFC 5424, assuming that PRI and
+ * VERSION (i.e., "<%d>1 ") have already been parsed by parsemsg(). The
+ * parsed result is passed to logmsg().
+ */
+static void
+parsemsg_rfc5424(const char *from, int pri, char *msg)
+{
+	const struct logtime *timestamp;
+	struct logtime timestamp_remote;
+	const char *omsg, *hostname, *app_name, *procid, *msgid,
+	    *structured_data;
+	char line[MAXLINE + 1];
+
+#define	FAIL_IF(field, expr) do {					\
+	if (expr) {							\
+		dprintf("Failed to parse " field " from %s: %s\n",	\
+		    from, omsg);					\
+		return;							\
+	}								\
+} while (0)
+#define	PARSE_CHAR(field, sep) do {					\
+	FAIL_IF(field, *msg != sep);					\
+	++msg;								\
+} while (0)
+#define	IF_NOT_NILVALUE(var)						\
+	if (msg[0] == '-' && msg[1] == ' ') {				\
+		msg += 2;						\
+		var = NULL;						\
+	} else if (msg[0] == '-' && msg[1] == '\0') {			\
+		++msg;							\
+		var = NULL;						\
+	} else
+
+	omsg = msg;
+	IF_NOT_NILVALUE(timestamp) {
+		/* Parse RFC 3339-like timestamp. */
+#define	PARSE_NUMBER(dest, length, min, max) do {			\
+	int i, v;							\
+									\
+	v = 0;								\
+	for (i = 0; i < length; ++i) {					\
+		FAIL_IF("TIMESTAMP", *msg < '0' || *msg > '9');		\
+		v = v * 10 + *msg++ - '0';				\
+	}								\
+	FAIL_IF("TIMESTAMP", v < min || v > max);			\
+	dest = v;							\
+} while (0)
+		/* Date and time. */
+		memset(&timestamp_remote, 0, sizeof(timestamp_remote));
+		PARSE_NUMBER(timestamp_remote.tm.tm_year, 4, 0, 9999);
+		timestamp_remote.tm.tm_year -= 1900;
+		PARSE_CHAR("TIMESTAMP", '-');
+		PARSE_NUMBER(timestamp_remote.tm.tm_mon, 2, 1, 12);
+		--timestamp_remote.tm.tm_mon;
+		PARSE_CHAR("TIMESTAMP", '-');
+		PARSE_NUMBER(timestamp_remote.tm.tm_mday, 2, 1, 31);
+		PARSE_CHAR("TIMESTAMP", 'T');
+		PARSE_NUMBER(timestamp_remote.tm.tm_hour, 2, 0, 23);
+		PARSE_CHAR("TIMESTAMP", ':');
+		PARSE_NUMBER(timestamp_remote.tm.tm_min, 2, 0, 59);
+		PARSE_CHAR("TIMESTAMP", ':');
+		PARSE_NUMBER(timestamp_remote.tm.tm_sec, 2, 0, 59);
+		/* Perform normalization. */
+		timegm(&timestamp_remote.tm);
+		/* Optional: fractional seconds. */
+		if (msg[0] == '.' && msg[1] >= '0' && msg[1] <= '9') {
+			int i;
+
+			++msg;
+			for (i = 100000; i != 0; i /= 10) {
+				if (*msg < '0' || *msg > '9')
+					break;
+				timestamp_remote.usec += (*msg++ - '0') * i;
+			}
+		}
+		/* Timezone. */
+		if (*msg == 'Z') {
+			/* UTC. */
+			++msg;
+		} else {
+			int sign, tz_hour, tz_min;
+
+			/* Local time zone offset. */
+			FAIL_IF("TIMESTAMP", *msg != '-' && *msg != '+');
+			sign = *msg++ == '-' ? -1 : 1;
+			PARSE_NUMBER(tz_hour, 2, 0, 23);
+			PARSE_CHAR("TIMESTAMP", ':');
+			PARSE_NUMBER(tz_min, 2, 0, 59);
+			timestamp_remote.tm.tm_gmtoff =
+			    sign * (tz_hour * 3600 + tz_min * 60);
+		}
+#undef PARSE_NUMBER
+		PARSE_CHAR("TIMESTAMP", ' ');
+		timestamp = RemoteAddDate ? NULL : &timestamp_remote;
+	}
+
+	/* String fields part of the HEADER. */
+#define	PARSE_STRING(field, var)					\
+	IF_NOT_NILVALUE(var) {						\
+		var = msg;						\
+		while (*msg >= '!' && *msg <= '~')			\
+			++msg;						\
+		FAIL_IF(field, var == msg);				\
+		PARSE_CHAR(field, ' ');					\
+		msg[-1] = '\0';						\
+	}
+	PARSE_STRING("HOSTNAME", hostname);
+	if (hostname == NULL || !RemoteHostname)
+		hostname = from;
+	PARSE_STRING("APP-NAME", app_name);
+	PARSE_STRING("PROCID", procid);
+	PARSE_STRING("MSGID", msgid);
+#undef PARSE_STRING
+
+	/* Structured data. */
+#define	PARSE_SD_NAME() do {						\
+	const char *start;						\
+									\
+	start = msg;							\
+	while (*msg >= '!' && *msg <= '~' && *msg != '=' &&		\
+	    *msg != ']' && *msg != '"')					\
+		++msg;							\
+	FAIL_IF("STRUCTURED-NAME", start == msg);			\
+} while (0)
+	IF_NOT_NILVALUE(structured_data) {
+		/* SD-ELEMENT. */
+		while (*msg == '[') {
+			++msg;
+			/* SD-ID. */
+			PARSE_SD_NAME();
+			/* SD-PARAM. */
+			while (*msg == ' ') {
+				++msg;
+				/* PARAM-NAME. */
+				PARSE_SD_NAME();
+				PARSE_CHAR("STRUCTURED-NAME", '=');
+				PARSE_CHAR("STRUCTURED-NAME", '"');
+				while (*msg != '"') {
+					FAIL_IF("STRUCTURED-NAME",
+					    *msg == '\0');
+					if (*msg++ == '\\') {
+						FAIL_IF("STRUCTURED-NAME",
+						    *msg == '\0');
+						++msg;
+					}
+				}
+				++msg;
+			}
+			PARSE_CHAR("STRUCTURED-NAME", ']');
+		}
+		PARSE_CHAR("STRUCTURED-NAME", ' ');
+		msg[-1] = '\0';
+	}
+#undef PARSE_SD_NAME
+
+#undef FAIL_IF
+#undef PARSE_CHAR
+#undef IF_NOT_NILVALUE
+
+	parsemsg_remove_unsafe_characters(msg, line, sizeof(line));
+	logmsg(pri, timestamp, hostname, app_name, procid, msgid,
+	    structured_data, line, 0);
+}
+
+/*
+ * Trims the application name ("TAG" in RFC 3164 terminology) and
+ * process ID from a message if present.
+ */
+static void
+parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
+    const char **procid) {
+	char *m, *app_name_begin, *procid_begin;
+	size_t app_name_length, procid_length;
+
+	m = *msg;
+
+	/* Application name. */
+	app_name_begin = m;
+	app_name_length = strspn(m,
+	    "abcdefghijklmnopqrstuvwxyz"
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	    "0123456789"
+	    "_-");
+	if (app_name_length == 0)
+		goto bad;
+	m += app_name_length;
+
+	/* Process identifier (optional). */
+	if (*m == '[') {
+		procid_begin = ++m;
+		procid_length = strspn(m, "0123456789");
+		if (procid_length == 0)
+			goto bad;
+		m += procid_length;
+		if (*m++ != ']')
+			goto bad;
+	} else {
+		procid_begin = NULL;
+		procid_length = 0;
+	}
+
+	/* Separator. */
+	if (m[0] != ':' || m[1] != ' ')
+		goto bad;
+
+	/* Split strings from input. */
+	app_name_begin[app_name_length] = '\0';
+	if (procid_begin != 0)
+		procid_begin[procid_length] = '\0';
+
+	*msg = m + 2;
+	*app_name = app_name_begin;
+	*procid = procid_begin;
+	return;
+bad:
+	*app_name = NULL;
+	*procid = NULL;
+}
+
+/*
+ * Parses a syslog message according to RFC 3164, assuming that PRI
+ * (i.e., "<%d>") has already been parsed by parsemsg(). The parsed
+ * result is passed to logmsg().
+ */
+static void
+parsemsg_rfc3164(const char *from, int pri, char *msg)
+{
+	struct tm tm_parsed;
+	const struct logtime *timestamp;
+	struct logtime timestamp_remote;
+	const char *app_name, *procid;
+	size_t i, msglen;
+	char line[MAXLINE + 1];
+
+	/* Parse the timestamp provided by the remote side. */
+	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) !=
+	    msg + RFC3164_DATELEN || msg[RFC3164_DATELEN] != ' ') {
+		dprintf("Failed to parse TIMESTAMP from %s: %s\n", from, msg);
+		return;
+	}
+	msg += RFC3164_DATELEN + 1;
+
+	if (!RemoteAddDate) {
+		struct tm tm_now;
+		time_t t_now;
+		int year;
+
+		/*
+		 * As the timestamp does not contain the year number,
+		 * daylight saving time information, nor a time zone,
+		 * attempt to infer it. Due to clock skews, the
+		 * timestamp may even be part of the next year. Use the
+		 * last year for which the timestamp is at most one week
+		 * in the future.
+		 *
+		 * This loop can only run for at most three iterations
+		 * before terminating.
+		 */
+		t_now = time(NULL);
+		localtime_r(&t_now, &tm_now);
+		for (year = tm_now.tm_year + 1;; --year) {
+			assert(year >= tm_now.tm_year - 1);
+			timestamp_remote.tm = tm_parsed;
+			timestamp_remote.tm.tm_year = year;
+			timestamp_remote.tm.tm_isdst = -1;
+			timestamp_remote.usec = 0;
+			if (mktime(&timestamp_remote.tm) <
+			    t_now + 7 * 24 * 60 * 60)
+				break;
+		}
+		timestamp = &timestamp_remote;
+	} else
+		timestamp = NULL;
+
+	/*
+	 * A single space character MUST also follow the HOSTNAME field.
+	 */
+	msglen = strlen(msg);
+	for (i = 0; i < MIN(MAXHOSTNAMELEN, msglen); i++) {
+		if (msg[i] == ' ') {
+			if (RemoteHostname) {
+				msg[i] = '\0';
+				from = msg;
+			}
+			msg += i + 1;
+			break;
+		}
+		/*
+		 * Support non RFC compliant messages, without hostname.
+		 */
+		if (msg[i] == ':')
+			break;
+	}
+	if (i == MIN(MAXHOSTNAMELEN, msglen)) {
+		dprintf("Invalid HOSTNAME from %s: %s\n", from, msg);
+		return;
+	}
+
+	/* Remove the TAG, if present. */
+	parsemsg_rfc3164_app_name_procid(&msg, &app_name, &procid);
+	parsemsg_remove_unsafe_characters(msg, line, sizeof(line));
+	logmsg(pri, timestamp, from, app_name, procid, NULL, NULL, line, 0);
+}
+
+/*
+ * Takes a raw input line, extracts PRI and determines whether the
+ * message is formatted according to RFC 3164 or RFC 5424. Continues
+ * parsing of addition fields in the message according to those
+ * standards and prints the message on the appropriate log files.
  */
 static void
 parsemsg(const char *from, char *msg)
 {
-	const char *timestamp;
 	char *q;
 	long n;
-	int i, c, pri, msglen;
-	char line[MAXLINE + 1];
+	size_t i;
+	int pri;
 
 	/* Parse PRI. */
 	if (msg[0] != '<' || !isdigit(msg[1])) {
@@ -900,75 +1292,12 @@ parsemsg(const char *from, char *msg)
 	if ((pri & LOG_FACMASK) == LOG_KERN && !KeepKernFac)
 		pri = LOG_MAKEPRI(LOG_USER, LOG_PRI(pri));
 
-	/*
-	 * The TIMESTAMP field is the local time and is in the format of
-	 * "Mmm dd hh:mm:ss" (without the quote marks).
-   	 * A single space character MUST follow the TIMESTAMP field.
-	 *
-	 * XXXGL: the check can be improved.
-	 */
+	/* Parse VERSION. */
 	msg += i + 1;
-	msglen = strlen(msg);
-	if (msglen < MAXDATELEN || msg[3] != ' ' || msg[6] != ' ' ||
-	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ') {
-		dprintf("Invalid TIMESTAMP from %s: %s\n", from, msg);
-		return;
-	}
-
-	if (!RemoteAddDate)
-		timestamp = msg;
+	if (msg[0] == '1' && msg[1] == ' ')
+		parsemsg_rfc5424(from, pri, msg + 2);
 	else
-		timestamp = NULL;
-	msg += MAXDATELEN;
-	msglen -= MAXDATELEN;
-
-	/*
-	 * A single space character MUST also follow the HOSTNAME field.
-	 */
-	for (i = 0; i < MIN(MAXHOSTNAMELEN, msglen); i++) {
-		if (msg[i] == ' ') {
-			if (RemoteHostname) {
-				msg[i] = '\0';
-				from = msg;
-			}
-			msg += i + 1;
-			break;
-		}
-		/*
-		 * Support non RFC compliant messages, without hostname.
-		 */
-		if (msg[i] == ':')
-			break;
-	}
-	if (i == MIN(MAXHOSTNAMELEN, msglen)) {
-		dprintf("Invalid HOSTNAME from %s: %s\n", from, msg);
-		return;
-	}
-
-	q = line;
-	while ((c = (unsigned char)*msg++) != '\0' &&
-	    q < &line[sizeof(line) - 4]) {
-		if (mask_C1 && (c & 0x80) && c < 0xA0) {
-			c &= 0x7F;
-			*q++ = 'M';
-			*q++ = '-';
-		}
-		if (isascii(c) && iscntrl(c)) {
-			if (c == '\n') {
-				*q++ = ' ';
-			} else if (c == '\t') {
-				*q++ = '\t';
-			} else {
-				*q++ = '^';
-				*q++ = c ^ 0100;
-			}
-		} else {
-			*q++ = c;
-		}
-	}
-	*q = '\0';
-
-	logmsg(pri, timestamp, line, from, 0);
+		parsemsg_rfc3164(from, pri, msg);
 }
 
 /*
@@ -1022,7 +1351,7 @@ printsys(char *msg)
 	long n;
 	int flags, isprintf, pri;
 
-	flags = ISKERNEL | SYNC_FILE;	/* fsync after write */
+	flags = SYNC_FILE;	/* fsync after write */
 	p = msg;
 	pri = DEFSPRI;
 	isprintf = 1;
@@ -1043,7 +1372,7 @@ printsys(char *msg)
 		flags |= IGN_CONS;
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFSPRI;
-	logmsg(pri, NULL, p, LocalHostName, flags);
+	logmsg(pri, NULL, LocalHostName, "kernel", NULL, NULL, NULL, p, flags);
 }
 
 static time_t	now;
@@ -1094,24 +1423,33 @@ skip_message(const char *name, const char *spec, int checkcase)
 }
 
 /*
- * Log a message to the appropriate log files, users, etc. based on
- * the priority.
+ * Logs a message to the appropriate log files, users, etc. based on the
+ * priority. Log messages are always formatted according to RFC 3164,
+ * even if they were in RFC 5424 format originally, The MSGID and
+ * STRUCTURED-DATA fields are thus discarded for the time being.
  */
 static void
-logmsg(int pri, const char *timestamp, const char *msg, const char *from,
-    int flags)
+logmsg(int pri, const struct logtime *timestamp, const char *hostname,
+    const char *app_name, const char *procid, const char *msgid,
+    const char *structured_data, const char *msg, int flags)
 {
+	struct timeval tv;
+	struct logtime timestamp_now;
 	struct filed *f;
-	int i, fac, msglen, prilev;
- 	char prog[NAME_MAX+1];
-	char buf[MAXLINE+1];
+	size_t savedlen;
+	int fac, prilev;
+	char saved[MAXSVLINE];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
-	    pri, flags, from, msg);
+	    pri, flags, hostname, msg);
 
-	(void)time(&now);
-	if (timestamp == NULL)
-		timestamp = ctime(&now) + 4;
+	(void)gettimeofday(&tv, NULL);
+	now = tv.tv_sec;
+	if (timestamp == NULL) {
+		localtime_r(&now, &timestamp_now.tm);
+		timestamp_now.usec = tv.tv_usec;
+		timestamp = &timestamp_now;
+	}
 
 	/* extract facility and priority level */
 	if (flags & MARK)
@@ -1125,23 +1463,6 @@ logmsg(int pri, const char *timestamp, const char *msg, const char *from,
 
 	prilev = LOG_PRI(pri);
 
-	/* Extract TAG part of the message (usually program name). */
-	for (i = 0; i < NAME_MAX; i++) {
-		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[' ||
-		    msg[i] == '/' || isspace(msg[i]))
-			break;
-		prog[i] = msg[i];
-	}
-	prog[i] = 0;
-
-	/* add kernel prefix for kernel messages */
-	if (flags & ISKERNEL) {
-		snprintf(buf, sizeof(buf), "%s: %s",
-		    use_bootfile ? bootfile : "kernel", msg);
-		msg = buf;
-	}
-	msglen = strlen(msg);
-
 	/* log the message to the particular outputs */
 	if (!Initialized) {
 		f = &consfile;
@@ -1152,14 +1473,28 @@ logmsg(int pri, const char *timestamp, const char *msg, const char *from,
 		f->f_file = open(ctty, O_WRONLY | O_NONBLOCK, 0);
 
 		if (f->f_file >= 0) {
-			(void)strlcpy(f->f_lasttime, timestamp,
-				sizeof(f->f_lasttime));
-			fprintlog(f, flags, msg);
+			f->f_lasttime = *timestamp;
+			fprintlog_first(f, hostname, app_name, procid, msgid,
+			    structured_data, msg, flags);
 			close(f->f_file);
 			f->f_file = -1;
 		}
 		return;
 	}
+
+	/*
+	 * Store all of the fields of the message, except the timestamp,
+	 * in a single string. This string is used to detect duplicate
+	 * messages.
+	 */
+	assert(hostname != NULL);
+	assert(msg != NULL);
+	savedlen = snprintf(saved, sizeof(saved),
+	    "%d %s %s %s %s %s %s", pri, hostname,
+	    app_name == NULL ? "-" : app_name, procid == NULL ? "-" : procid,
+	    msgid == NULL ? "-" : msgid,
+	    structured_data == NULL ? "-" : structured_data, msg);
+
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* skip messages that are incorrect priority */
 		if (!(((f->f_pcmp[fac] & PRI_EQ) && (f->f_pmask[fac] == prilev))
@@ -1170,11 +1505,12 @@ logmsg(int pri, const char *timestamp, const char *msg, const char *from,
 			continue;
 
 		/* skip messages with the incorrect hostname */
-		if (skip_message(from, f->f_host, 0))
+		if (skip_message(hostname, f->f_host, 0))
 			continue;
 
 		/* skip messages with the incorrect program name */
-		if (skip_message(prog, f->f_program, 1))
+		if (skip_message(app_name == NULL ? "" : app_name,
+		    f->f_program, 1))
 			continue;
 
 		/* skip message to console if it has already been printed */
@@ -1189,11 +1525,9 @@ logmsg(int pri, const char *timestamp, const char *msg, const char *from,
 		 * suppress duplicate lines to this file
 		 */
 		if (no_compress - (f->f_type != F_PIPE) < 1 &&
-		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
-		    !strcmp(msg, f->f_prevline) &&
-		    !strcasecmp(from, f->f_prevhost)) {
-			(void)strlcpy(f->f_lasttime, timestamp,
-				sizeof(f->f_lasttime));
+		    (flags & MARK) == 0 && savedlen == f->f_prevlen &&
+		    strcmp(saved, f->f_prevline) == 0) {
+			f->f_lasttime = *timestamp;
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
 			    f->f_prevcount, (long)(now - f->f_time),
@@ -1205,28 +1539,22 @@ logmsg(int pri, const char *timestamp, const char *msg, const char *from,
 			 * in the future.
 			 */
 			if (now > REPEATTIME(f)) {
-				fprintlog(f, flags, (char *)NULL);
+				fprintlog_successive(f, flags);
 				BACKOFF(f);
 			}
 		} else {
 			/* new line, save it */
 			if (f->f_prevcount)
-				fprintlog(f, 0, (char *)NULL);
+				fprintlog_successive(f, 0);
 			f->f_repeatcount = 0;
 			f->f_prevpri = pri;
-			(void)strlcpy(f->f_lasttime, timestamp,
-				sizeof(f->f_lasttime));
-			(void)strlcpy(f->f_prevhost, from,
-			    sizeof(f->f_prevhost));
-			if (msglen < MAXSVLINE) {
-				f->f_prevlen = msglen;
-				(void)strlcpy(f->f_prevline, msg, sizeof(f->f_prevline));
-				fprintlog(f, flags, (char *)NULL);
-			} else {
-				f->f_prevline[0] = 0;
-				f->f_prevlen = 0;
-				fprintlog(f, flags, msg);
-			}
+			f->f_lasttime = *timestamp;
+			static_assert(sizeof(f->f_prevline) == sizeof(saved),
+			    "Space to store saved line incorrect");
+			(void)strcpy(f->f_prevline, saved);
+			f->f_prevlen = savedlen;
+			fprintlog_first(f, hostname, app_name, procid, msgid,
+			    structured_data, msg, flags);
 		}
 	}
 }
@@ -1245,180 +1573,114 @@ dofsync(void)
 	}
 }
 
-#define IOV_SIZE 7
+/*
+ * List of iovecs to which entries can be appended.
+ * Used for constructing the message to be logged.
+ */
+struct iovlist {
+	struct iovec	iov[TTYMSG_IOV_MAX];
+	size_t		iovcnt;
+	size_t		totalsize;
+};
+
 static void
-fprintlog(struct filed *f, int flags, const char *msg)
+iovlist_init(struct iovlist *il)
 {
-	struct iovec iov[IOV_SIZE];
+
+	il->iovcnt = 0;
+	il->totalsize = 0;
+}
+
+static void
+iovlist_append(struct iovlist *il, const char *str)
+{
+	size_t size;
+
+	/* Discard components if we've run out of iovecs. */
+	if (il->iovcnt < nitems(il->iov)) {
+		size = strlen(str);
+		il->iov[il->iovcnt++] = (struct iovec){
+			.iov_base	= __DECONST(char *, str),
+			.iov_len	= size,
+		};
+		il->totalsize += size;
+	}
+}
+
+static void
+iovlist_truncate(struct iovlist *il, size_t size)
+{
+	struct iovec *last;
+	size_t diff;
+
+	while (il->totalsize > size) {
+		diff = il->totalsize - size;
+		last = &il->iov[il->iovcnt - 1];
+		if (diff >= last->iov_len) {
+			/* Remove the last iovec entirely. */
+			--il->iovcnt;
+			il->totalsize -= last->iov_len;
+		} else {
+			/* Remove the last iovec partially. */
+			last->iov_len -= diff;
+			il->totalsize -= diff;
+		}
+	}
+}
+
+static void
+fprintlog_write(struct filed *f, struct iovlist *il, int flags)
+{
+	struct msghdr msghdr;
 	struct addrinfo *r;
-	int l, lsent = 0;
-	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
-	char nul[] = "", space[] = " ", lf[] = "\n", crlf[] = "\r\n";
+	struct socklist *sl;
 	const char *msgret;
-
-	if (f->f_type == F_WALL) {
-		/* The time displayed is not synchornized with the other log
-		 * destinations (like messages).  Following fragment was using
-		 * ctime(&now), which was updating the time every 30 sec.
-		 * With f_lasttime, time is synchronized correctly.
-		 */
-		iov[0] = (struct iovec){
-			.iov_base = greetings,
-			.iov_len = snprintf(greetings, sizeof(greetings),
-				    "\r\n\7Message from syslogd@%s "
-				    "at %.24s ...\r\n",
-				    f->f_prevhost, f->f_lasttime)
-		};
-		if (iov[0].iov_len >= sizeof(greetings))
-			iov[0].iov_len = sizeof(greetings) - 1;
-		iov[1] = (struct iovec){
-			.iov_base = nul,
-			.iov_len = 0
-		};
-	} else {
-		iov[0] = (struct iovec){
-			.iov_base = f->f_lasttime,
-			.iov_len = strlen(f->f_lasttime)
-		};
-		iov[1] = (struct iovec){
-			.iov_base = space,
-			.iov_len = 1
-		};
-	}
-
-	if (LogFacPri) {
-	  	static char fp_buf[30];	/* Hollow laugh */
-		int fac = f->f_prevpri & LOG_FACMASK;
-		int pri = LOG_PRI(f->f_prevpri);
-		const char *f_s = NULL;
-		char f_n[5];	/* Hollow laugh */
-		const char *p_s = NULL;
-		char p_n[5];	/* Hollow laugh */
-
-		if (LogFacPri > 1) {
-		  const CODE *c;
-
-		  for (c = facilitynames; c->c_name; c++) {
-		    if (c->c_val == fac) {
-		      f_s = c->c_name;
-		      break;
-		    }
-		  }
-		  for (c = prioritynames; c->c_name; c++) {
-		    if (c->c_val == pri) {
-		      p_s = c->c_name;
-		      break;
-		    }
-		  }
-		}
-		if (!f_s) {
-		  snprintf(f_n, sizeof f_n, "%d", LOG_FAC(fac));
-		  f_s = f_n;
-		}
-		if (!p_s) {
-		  snprintf(p_n, sizeof p_n, "%d", pri);
-		  p_s = p_n;
-		}
-		snprintf(fp_buf, sizeof fp_buf, "<%s.%s> ", f_s, p_s);
-		iov[2] = (struct iovec){
-			.iov_base = fp_buf,
-			.iov_len = strlen(fp_buf)
-		};
-	} else {
-		iov[2] = (struct iovec){
-			.iov_base = nul,
-			.iov_len = 0
-		};
-	}
-	iov[3] = (struct iovec){
-		.iov_base = f->f_prevhost,
-		.iov_len = strlen(f->f_prevhost)
-	};
-	iov[4] = (struct iovec){
-		.iov_base = space,
-		.iov_len = 1
-	};
-	if (msg) {
-		wmsg = strdup(msg); /* XXX iov_base needs a `const' sibling. */
-		if (wmsg == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-		iov[5] = (struct iovec){
-			.iov_base = wmsg,
-			.iov_len = strlen(msg)
-		};
-	} else if (f->f_prevcount > 1) {
-		iov[5] = (struct iovec){
-			.iov_base = repbuf,
-			.iov_len = snprintf(repbuf, sizeof(repbuf),
-			    "last message repeated %d times", f->f_prevcount)
-		};
-	} else {
-		iov[5] = (struct iovec){
-			.iov_base = f->f_prevline,
-			.iov_len = f->f_prevlen
-		};
-	}
-	dprintf("Logging to %s", TypeNames[f->f_type]);
-	f->f_time = now;
+	ssize_t lsent;
 
 	switch (f->f_type) {
-	case F_UNUSED:
-		dprintf("\n");
-		break;
-
 	case F_FORW:
+		/* Truncate messages to RFC 5426 recommended size. */
 		dprintf(" %s", f->fu_forw_hname);
 		switch (f->fu_forw_addr->ai_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
 			dprintf(":%d\n",
 			    ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port));
+			iovlist_truncate(il, 480);
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
 			dprintf(":%d\n",
 			    ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port));
+			iovlist_truncate(il, 1180);
 			break;
 #endif
 		default:
 			dprintf("\n");
 		}
-		/* check for local vs remote messages */
-		if (strcasecmp(f->f_prevhost, LocalHostName))
-			l = snprintf(line, sizeof line - 1,
-			    "<%d>%.15s Forwarded from %s: %s",
-			    f->f_prevpri, (char *)iov[0].iov_base,
-			    f->f_prevhost, (char *)iov[5].iov_base);
-		else
-			l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
-			     f->f_prevpri, (char *)iov[0].iov_base,
-			    (char *)iov[5].iov_base);
-		if (l < 0)
-			l = 0;
-		else if (l > MAXLINE)
-			l = MAXLINE;
 
+		lsent = 0;
 		for (r = f->fu_forw_addr; r; r = r->ai_next) {
-			struct socklist *sl;
-
+			memset(&msghdr, 0, sizeof(msghdr));
+			msghdr.msg_name = r->ai_addr;
+			msghdr.msg_namelen = r->ai_addrlen;
+			msghdr.msg_iov = il->iov;
+			msghdr.msg_iovlen = il->iovcnt;
 			STAILQ_FOREACH(sl, &shead, next) {
 				if (sl->sl_ss.ss_family == AF_LOCAL ||
 				    sl->sl_ss.ss_family == AF_UNSPEC ||
 				    sl->sl_socket < 0)
 					continue;
-				lsent = sendto(sl->sl_socket, line, l, 0,
-				    r->ai_addr, r->ai_addrlen);
-				if (lsent == l)
+				lsent = sendmsg(sl->sl_socket, &msghdr, 0);
+				if (lsent == (ssize_t)il->totalsize)
 					break;
 			}
-			if (lsent == l && !send_to_all)
+			if (lsent == (ssize_t)il->totalsize && !send_to_all)
 				break;
 		}
-		dprintf("lsent/l: %d/%d\n", lsent, l);
-		if (lsent != l) {
+		dprintf("lsent/totalsize: %zd/%zu\n", lsent, il->totalsize);
+		if (lsent != (ssize_t)il->totalsize) {
 			int e = errno;
 			logerror("sendto");
 			errno = e;
@@ -1448,11 +1710,8 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_FILE:
 		dprintf(" %s\n", f->fu_fname);
-		iov[6] = (struct iovec){
-			.iov_base = lf,
-			.iov_len = 1
-		};
-		if (writev(f->f_file, iov, nitems(iov)) < 0) {
+		iovlist_append(il, "\n");
+		if (writev(f->f_file, il->iov, il->iovcnt) < 0) {
 			/*
 			 * If writev(2) fails for potentially transient errors
 			 * like the filesystem being full, ignore it.
@@ -1472,10 +1731,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_PIPE:
 		dprintf(" %s\n", f->fu_pipe_pname);
-		iov[6] = (struct iovec){
-			.iov_base = lf,
-			.iov_len = 1
-		};
+		iovlist_append(il, "\n");
 		if (f->fu_pipe_pid == 0) {
 			if ((f->f_file = p_open(f->fu_pipe_pname,
 						&f->fu_pipe_pid)) < 0) {
@@ -1483,7 +1739,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				break;
 			}
 		}
-		if (writev(f->f_file, iov, nitems(iov)) < 0) {
+		if (writev(f->f_file, il->iov, il->iovcnt) < 0) {
 			int e = errno;
 
 			deadq_enter(f->fu_pipe_pid, f->fu_pipe_pname);
@@ -1502,12 +1758,9 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_TTY:
 		dprintf(" %s%s\n", _PATH_DEV, f->fu_fname);
-		iov[6] = (struct iovec){
-			.iov_base = crlf,
-			.iov_len = 2
-		};
+		iovlist_append(il, "\r\n");
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(iov, nitems(iov), f->fu_fname, 10))) {
+		if ((msgret = ttymsg(il->iov, il->iovcnt, f->fu_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -1516,15 +1769,206 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	case F_USERS:
 	case F_WALL:
 		dprintf("\n");
-		iov[6] = (struct iovec){
-			.iov_base = crlf,
-			.iov_len = 2
-		};
-		wallmsg(f, iov, nitems(iov));
+		iovlist_append(il, "\r\n");
+		wallmsg(f, il->iov, il->iovcnt);
 		break;
 	}
+}
+
+static void
+fprintlog_rfc5424(struct filed *f, const char *hostname, const char *app_name,
+    const char *procid, const char *msgid, const char *structured_data,
+    const char *msg, int flags)
+{
+	struct iovlist il;
+	suseconds_t usec;
+	int i;
+	char timebuf[33], priority_number[5];
+
+	iovlist_init(&il);
+	if (f->f_type == F_WALL)
+		iovlist_append(&il, "\r\n\aMessage from syslogd ...\r\n");
+	iovlist_append(&il, "<");
+	snprintf(priority_number, sizeof(priority_number), "%d", f->f_prevpri);
+	iovlist_append(&il, priority_number);
+	iovlist_append(&il, ">1 ");
+	if (strftime(timebuf, sizeof(timebuf), "%FT%T.______%z",
+	    &f->f_lasttime.tm) == sizeof(timebuf) - 2) {
+		/* Add colon to the time zone offset, which %z doesn't do. */
+		timebuf[32] = '\0';
+		timebuf[31] = timebuf[30];
+		timebuf[30] = timebuf[29];
+		timebuf[29] = ':';
+
+		/* Overwrite space for microseconds with actual value. */
+		usec = f->f_lasttime.usec;
+		for (i = 25; i >= 20; --i) {
+			timebuf[i] = usec % 10 + '0';
+			usec /= 10;
+		}
+		iovlist_append(&il, timebuf);
+	} else
+		iovlist_append(&il, "-");
+	iovlist_append(&il, " ");
+	iovlist_append(&il, hostname);
+	iovlist_append(&il, " ");
+	iovlist_append(&il, app_name == NULL ? "-" : app_name);
+	iovlist_append(&il, " ");
+	iovlist_append(&il, procid == NULL ? "-" : procid);
+	iovlist_append(&il, " ");
+	iovlist_append(&il, msgid == NULL ? "-" : msgid);
+	iovlist_append(&il, " ");
+	iovlist_append(&il, structured_data == NULL ? "-" : structured_data);
+	iovlist_append(&il, " ");
+	iovlist_append(&il, msg);
+
+	fprintlog_write(f, &il, flags);
+}
+
+static void
+fprintlog_rfc3164(struct filed *f, const char *hostname, const char *app_name,
+    const char *procid, const char *msg, int flags)
+{
+	struct iovlist il;
+	const CODE *c;
+	int facility, priority;
+	char timebuf[RFC3164_DATELEN + 1], facility_number[5],
+	    priority_number[5];
+	bool facility_found, priority_found;
+
+	if (strftime(timebuf, sizeof(timebuf), RFC3164_DATEFMT,
+	    &f->f_lasttime.tm) == 0)
+		timebuf[0] = '\0';
+
+	iovlist_init(&il);
+	switch (f->f_type) {
+	case F_FORW:
+		/* Message forwarded over the network. */
+		iovlist_append(&il, "<");
+		snprintf(priority_number, sizeof(priority_number), "%d",
+		    f->f_prevpri);
+		iovlist_append(&il, priority_number);
+		iovlist_append(&il, ">");
+		iovlist_append(&il, timebuf);
+		if (strcasecmp(hostname, LocalHostName) != 0) {
+			iovlist_append(&il, " Forwarded from ");
+			iovlist_append(&il, hostname);
+			iovlist_append(&il, ":");
+		}
+		iovlist_append(&il, " ");
+		break;
+
+	case F_WALL:
+		/* Message written to terminals. */
+		iovlist_append(&il, "\r\n\aMessage from syslogd@");
+		iovlist_append(&il, hostname);
+		iovlist_append(&il, " at ");
+		iovlist_append(&il, timebuf);
+		iovlist_append(&il, " ...\r\n");
+		break;
+
+	default:
+		/* Message written to files. */
+		iovlist_append(&il, timebuf);
+		iovlist_append(&il, " ");
+		iovlist_append(&il, hostname);
+		iovlist_append(&il, " ");
+
+		if (LogFacPri) {
+			iovlist_append(&il, "<");
+
+			facility = f->f_prevpri & LOG_FACMASK;
+			facility_found = false;
+			if (LogFacPri > 1) {
+				for (c = facilitynames; c->c_name; c++) {
+					if (c->c_val == facility) {
+						iovlist_append(&il, c->c_name);
+						facility_found = true;
+						break;
+					}
+				}
+			}
+			if (!facility_found) {
+				snprintf(facility_number,
+				    sizeof(facility_number), "%d",
+				    LOG_FAC(facility));
+				iovlist_append(&il, facility_number);
+			}
+
+			iovlist_append(&il, ".");
+
+			priority = LOG_PRI(f->f_prevpri);
+			priority_found = false;
+			if (LogFacPri > 1) {
+				for (c = prioritynames; c->c_name; c++) {
+					if (c->c_val == priority) {
+						iovlist_append(&il, c->c_name);
+						priority_found = true;
+						break;
+					}
+				}
+			}
+			if (!priority_found) {
+				snprintf(priority_number,
+				    sizeof(priority_number), "%d", priority);
+				iovlist_append(&il, priority_number);
+			}
+
+			iovlist_append(&il, "> ");
+		}
+		break;
+	}
+
+	/* Message body with application name and process ID prefixed. */
+	if (app_name != NULL) {
+		iovlist_append(&il, app_name);
+		if (procid != NULL) {
+			iovlist_append(&il, "[");
+			iovlist_append(&il, procid);
+			iovlist_append(&il, "]");
+		}
+		iovlist_append(&il, ": ");
+	}
+	iovlist_append(&il, msg);
+
+	fprintlog_write(f, &il, flags);
+}
+
+static void
+fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
+    const char *procid, const char *msgid __unused,
+    const char *structured_data __unused, const char *msg, int flags)
+{
+
+	dprintf("Logging to %s", TypeNames[f->f_type]);
+	f->f_time = now;
 	f->f_prevcount = 0;
-	free(wmsg);
+	if (f->f_type == F_UNUSED) {
+		dprintf("\n");
+		return;
+	}
+
+	if (RFC3164OutputFormat)
+		fprintlog_rfc3164(f, hostname, app_name, procid, msg, flags);
+	else
+		fprintlog_rfc5424(f, hostname, app_name, procid, msgid,
+		    structured_data, msg, flags);
+}
+
+/*
+ * Prints a message to a log file that the previously logged message was
+ * received multiple times.
+ */
+static void
+fprintlog_successive(struct filed *f, int flags)
+{
+	char msg[100];
+
+	assert(f->f_prevcount > 0);
+	snprintf(msg, sizeof(msg), "last message repeated %d times",
+	    f->f_prevcount);
+	fprintlog_first(f, LocalHostName, "syslogd", NULL, NULL, NULL, msg,
+	    flags);
 }
 
 /*
@@ -1674,7 +2118,7 @@ domark(int signo __unused)
  * Print syslogd errors some place.
  */
 static void
-logerror(const char *type)
+logerror(const char *msg)
 {
 	char buf[512];
 	static int recursed = 0;
@@ -1683,14 +2127,15 @@ logerror(const char *type)
 	if (recursed)
 		return;
 	recursed++;
-	if (errno)
-		(void)snprintf(buf,
-		    sizeof buf, "syslogd: %s: %s", type, strerror(errno));
-	else
-		(void)snprintf(buf, sizeof buf, "syslogd: %s", type);
+	if (errno != 0) {
+		(void)snprintf(buf, sizeof(buf), "%s: %s", msg,
+		    strerror(errno));
+		msg = buf;
+	}
 	errno = 0;
 	dprintf("%s\n", buf);
-	logmsg(LOG_SYSLOG|LOG_ERR, NULL, buf, LocalHostName, 0);
+	logmsg(LOG_SYSLOG|LOG_ERR, NULL, LocalHostName, "syslogd", NULL, NULL,
+	    NULL, msg, 0);
 	recursed--;
 }
 
@@ -1704,7 +2149,7 @@ die(int signo)
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 		if (f->f_type == F_PIPE && f->fu_pipe_pid > 0)
 			close_filed(f);
 	}
@@ -1903,8 +2348,10 @@ init(int signo)
 	if (gethostname(LocalHostName, sizeof(LocalHostName)))
 		err(EX_OSERR, "gethostname() failed");
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
-		*p++ = '\0';
-		LocalDomain = p;
+		/* RFC 5424 prefers logging FQDNs. */
+		if (RFC3164OutputFormat)
+			*p = '\0';
+		LocalDomain = p + 1;
 	} else {
 		LocalDomain = "";
 	}
@@ -1934,7 +2381,7 @@ init(int signo)
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 
 		switch (f->f_type) {
 		case F_FILE:
@@ -2037,16 +2484,18 @@ init(int signo)
 		}
 	}
 
-	logmsg(LOG_SYSLOG|LOG_INFO, NULL, "syslogd: restart", LocalHostName, 0);
+	logmsg(LOG_SYSLOG | LOG_INFO, NULL, LocalHostName, "syslogd", NULL,
+	    NULL, NULL, "restart", 0);
 	dprintf("syslogd: restarted\n");
 	/*
 	 * Log a change in hostname, but only on a restart.
 	 */
 	if (signo != 0 && strcmp(oldLocalHostName, LocalHostName) != 0) {
 		(void)snprintf(hostMsg, sizeof(hostMsg),
-		    "syslogd: hostname changed, \"%s\" to \"%s\"",
+		    "hostname changed, \"%s\" to \"%s\"",
 		    oldLocalHostName, LocalHostName);
-		logmsg(LOG_SYSLOG|LOG_INFO, NULL, hostMsg, LocalHostName, 0);
+		logmsg(LOG_SYSLOG | LOG_INFO, NULL, LocalHostName, "syslogd",
+		    NULL, NULL, NULL, hostMsg, 0);
 		dprintf("%s\n", hostMsg);
 	}
 	/*
@@ -2055,8 +2504,9 @@ init(int signo)
 	 */
 	if (signo == 0 && !use_bootfile) {
 		(void)snprintf(bootfileMsg, sizeof(bootfileMsg),
-		    "syslogd: kernel boot file is %s", bootfile);
-		logmsg(LOG_KERN|LOG_INFO, NULL, bootfileMsg, LocalHostName, 0);
+		    "kernel boot file is %s", bootfile);
+		logmsg(LOG_KERN | LOG_INFO, NULL, LocalHostName, "syslogd",
+		    NULL, NULL, NULL, bootfileMsg, 0);
 		dprintf("%s\n", bootfileMsg);
 	}
 }
@@ -2365,7 +2815,8 @@ markit(void)
 	now = time((time_t *)NULL);
 	MarkSeq += TIMERINTVL;
 	if (MarkSeq >= MarkInterval) {
-		logmsg(LOG_INFO, NULL, "-- MARK --", LocalHostName, MARK);
+		logmsg(LOG_INFO, NULL, LocalHostName, NULL, NULL, NULL, NULL,
+		    "-- MARK --", MARK);
 		MarkSeq = 0;
 	}
 
@@ -2374,7 +2825,7 @@ markit(void)
 			dprintf("flush %s: repeated %d times, %d sec.\n",
 			    TypeNames[f->f_type], f->f_prevcount,
 			    repeatinterval[f->f_repeatcount]);
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 			BACKOFF(f);
 		}
 	}

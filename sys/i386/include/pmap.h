@@ -112,12 +112,10 @@
  * For PAE, the page table page unit size is 2MB.  This means that 512 pages
  * is 1 Gigabyte.  Double everything.  It must be a multiple of 8 for PAE.
  */
-#ifndef KVA_PAGES
 #if defined(PAE) || defined(PAE_TABLES)
-#define KVA_PAGES	512
+#define KVA_PAGES	(512*4)
 #else
-#define KVA_PAGES	256
-#endif
+#define KVA_PAGES	(256*4)
 #endif
 
 /*
@@ -150,12 +148,13 @@
 
 /*
  * The *PTDI values control the layout of virtual memory
- *
- * XXX This works for now, but I am not real happy with it, I'll fix it
- * right after I fix locore.s and the magic 28K hole
  */
-#define	KPTDI		(NPDEPTD-NKPDE)	/* start of kernel virtual pde's */
-#define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
+#define	KPTDI		0		/* start of kernel virtual pde's */
+#define	LOWPTDI		1		/* low memory map pde */
+#define	KERNPTDI	2		/* start of kernel text pde */
+#define	PTDPTDI		(NPDEPTD - 1 - NPGPTD)	/* ptd entry that points
+						   to ptd! */
+#define	TRPTDI		(NPDEPTD - 1)	/* u/k trampoline ptd */
 
 /*
  * XXX doesn't really belong here I guess...
@@ -311,6 +310,7 @@ struct pmap {
 						   table */
 #endif
 	struct vm_radix		pm_root;	/* spare page table pages */
+	vm_page_t		pm_ptdpg[NPGPTD];
 };
 
 typedef struct pmap	*pmap_t;
@@ -396,6 +396,8 @@ void	pmap_invalidate_cache(void);
 void	pmap_invalidate_cache_pages(vm_page_t *pages, int count);
 void	pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva,
 	    boolean_t force);
+void	*pmap_trm_alloc(size_t size, int flags);
+void	pmap_trm_free(void *addr, size_t size);
 
 void	invltlb_glob(void);
 

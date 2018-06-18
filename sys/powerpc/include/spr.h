@@ -97,6 +97,7 @@
 #define	SPR_RTCL_R		0x005	/* .6. 601 RTC Lower - Read */
 #define	SPR_LR			0x008	/* 468 Link Register */
 #define	SPR_CTR			0x009	/* 468 Count Register */
+#define	SPR_DSCR		0x011   /* Data Stream Control Register */
 #define	SPR_DSISR		0x012	/* .68 DSI exception source */
 #define	  DSISR_DIRECT		  0x80000000 /* Direct-store error exception */
 #define	  DSISR_NOTFOUND	  0x40000000 /* Translation not found */
@@ -120,6 +121,20 @@
 #define	SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define	SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
 #define	SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
+#define	SPR_FSCR		0x099	/* Facility Status and Control Register */
+#define FSCR_IC_MASK		  0xFF00000000000000ULL	/* FSCR[0:7] is Interrupt Cause */
+#define FSCR_IC_FP		  0x0000000000000000ULL	/* FP unavailable */
+#define FSCR_IC_VSX		  0x0100000000000000ULL	/* VSX unavailable */
+#define FSCR_IC_DSCR		  0x0200000000000000ULL	/* Access to the DSCR at SPRs 3 or 17 */
+#define FSCR_IC_PM		  0x0300000000000000ULL	/* Read or write access of a Performance Monitor SPR in group A */
+#define FSCR_IC_BHRB		  0x0400000000000000ULL	/* Execution of a BHRB Instruction */
+#define FSCR_IC_HTM		  0x0500000000000000ULL	/* Access to a Transactional Memory */
+/* Reserved 0x0600000000000000ULL */
+#define FSCR_IC_EBB		  0x0700000000000000ULL	/* Access to Event-Based Branch */
+#define FSCR_IC_TAR		  0x0800000000000000ULL	/* Access to Target Address Register */
+#define FSCR_IC_STOP		  0x0900000000000000ULL	/* Access to the 'stop' instruction in privileged non-hypervisor state */
+#define FSCR_IC_MSG		  0x0A00000000000000ULL	/* Access to 'msgsndp' or 'msgclrp' instructions */
+#define FSCR_IC_SCV		  0x0C00000000000000ULL	/* Execution of a 'scv' instruction */
 #define	SPR_USPRG0		0x100	/* 4.. User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
 #define	SPR_SPRG0		0x110	/* 468 SPR General 0 */
@@ -200,14 +215,6 @@
 #define	  FSL_E300C3		  0x8085
 #define	  FSL_E300C4		  0x8086
 
-#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
-#define	  LPCR_LPES		0x008	/* Bit 60 */
-#define   LPCR_PECE_DRBL        (1ULL << 16)    /* Directed Privileged Doorbell */
-#define   LPCR_PECE_HDRBL       (1ULL << 15)    /* Directed Hypervisor Doorbell */
-#define   LPCR_PECE_EXT         (1ULL << 14)    /* External exceptions */
-#define   LPCR_PECE_DECR        (1ULL << 13)    /* Decrementer exceptions */
-#define   LPCR_PECE_ME          (1ULL << 12)    /* Machine Check and Hypervisor */
-                                                /* Maintenance exceptions */
 #define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
  
 #define	SPR_EPCR		0x133
@@ -224,10 +231,20 @@
 #define	  EPCR_PMGS		  0x00200000
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 
+#define	SPR_HSRR0		0x13a
+#define	SPR_HSRR1		0x13b
 #define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
-#define	  LPCR_LPES		0x008	/* Bit 60 */
+#define	  LPCR_LPES		  0x008	/* Bit 60 */
+#define	  LPCR_HVICE		  0x002	/* Hypervisor Virtualization Interrupt (Arch 3.0) */
+#define	  LPCR_PECE_DRBL          (1ULL << 16) /* Directed Privileged Doorbell */
+#define	  LPCR_PECE_HDRBL         (1ULL << 15) /* Directed Hypervisor Doorbell */
+#define	  LPCR_PECE_EXT           (1ULL << 14) /* External exceptions */
+#define	  LPCR_PECE_DECR          (1ULL << 13) /* Decrementer exceptions */
+#define	  LPCR_PECE_ME            (1ULL << 12) /* Machine Check and Hypervisor */
+                                               /* Maintenance exceptions */
 #define	SPR_LPID		0x13f	/* Logical Partitioning Control */
 
+#define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
@@ -366,6 +383,7 @@
 #define	SPR_MD_CAM		0x338	/* ..8 IMMU CAM entry read */
 #define	SPR_MD_RAM0		0x339	/* ..8 IMMU RAM entry read reg 0 */
 #define	SPR_MD_RAM1		0x33a	/* ..8 IMMU RAM entry read reg 1 */
+#define	SPR_PSSCR		0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define	SPR_UMMCR2		0x3a0	/* .6. User Monitor Mode Control Register 2 */
 #define	SPR_UMMCR0		0x3a8	/* .6. User Monitor Mode Control Register 0 */
 #define	SPR_USIA		0x3ab	/* .6. User Sampled Instruction Address */

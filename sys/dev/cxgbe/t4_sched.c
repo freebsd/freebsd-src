@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 
 #include <sys/types.h>
 #include <sys/malloc.h>
@@ -463,3 +464,240 @@ t4_release_cl_rl_kbps(struct adapter *sc, int port_id, int tc_idx)
 	tc->refcount--;
 	mtx_unlock(&sc->tc_lock);
 }
+
+#ifdef RATELIMIT
+void
+t4_init_etid_table(struct adapter *sc)
+{
+	int i;
+	struct tid_info *t;
+
+	if (!is_ethoffload(sc))
+		return;
+
+	t = &sc->tids;
+	MPASS(t->netids > 0);
+
+	mtx_init(&t->etid_lock, "etid lock", NULL, MTX_DEF);
+	t->etid_tab = malloc(sizeof(*t->etid_tab) * t->netids, M_CXGBE,
+			M_ZERO | M_WAITOK);
+	t->efree = t->etid_tab;
+	t->etids_in_use = 0;
+	for (i = 1; i < t->netids; i++)
+		t->etid_tab[i - 1].next = &t->etid_tab[i];
+	t->etid_tab[t->netids - 1].next = NULL;
+}
+
+void
+t4_free_etid_table(struct adapter *sc)
+{
+	struct tid_info *t;
+
+	if (!is_ethoffload(sc))
+		return;
+
+	t = &sc->tids;
+	MPASS(t->netids > 0);
+
+	free(t->etid_tab, M_CXGBE);
+	t->etid_tab = NULL;
+
+	if (mtx_initialized(&t->etid_lock))
+		mtx_destroy(&t->etid_lock);
+}
+
+/* etid services */
+static int alloc_etid(struct adapter *, struct cxgbe_snd_tag *);
+static void free_etid(struct adapter *, int);
+
+static int
+alloc_etid(struct adapter *sc, struct cxgbe_snd_tag *cst)
+{
+	struct tid_info *t = &sc->tids;
+	int etid = -1;
+
+	mtx_lock(&t->etid_lock);
+	if (t->efree) {
+		union etid_entry *p = t->efree;
+
+		etid = p - t->etid_tab + t->etid_base;
+		t->efree = p->next;
+		p->cst = cst;
+		t->etids_in_use++;
+	}
+	mtx_unlock(&t->etid_lock);
+	return (etid);
+}
+
+struct cxgbe_snd_tag *
+lookup_etid(struct adapter *sc, int etid)
+{
+	struct tid_info *t = &sc->tids;
+
+	return (t->etid_tab[etid - t->etid_base].cst);
+}
+
+static void
+free_etid(struct adapter *sc, int etid)
+{
+	struct tid_info *t = &sc->tids;
+	union etid_entry *p = &t->etid_tab[etid - t->etid_base];
+
+	mtx_lock(&t->etid_lock);
+	p->next = t->efree;
+	t->efree = p;
+	t->etids_in_use--;
+	mtx_unlock(&t->etid_lock);
+}
+
+int
+cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **pt)
+{
+	int rc, schedcl;
+	struct vi_info *vi = ifp->if_softc;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+	struct cxgbe_snd_tag *cst;
+
+	if (params->hdr.type != IF_SND_TAG_TYPE_RATE_LIMIT)
+		return (ENOTSUP);
+
+	rc = t4_reserve_cl_rl_kbps(sc, pi->port_id,
+	    (params->rate_limit.max_rate * 8ULL / 1000), &schedcl);
+	if (rc != 0)
+		return (rc);
+	MPASS(schedcl >= 0 && schedcl < sc->chip_params->nsched_cls);
+
+	cst = malloc(sizeof(*cst), M_CXGBE, M_ZERO | M_NOWAIT);
+	if (cst == NULL) {
+failed:
+		t4_release_cl_rl_kbps(sc, pi->port_id, schedcl);
+		return (ENOMEM);
+	}
+
+	cst->etid = alloc_etid(sc, cst);
+	if (cst->etid < 0) {
+		free(cst, M_CXGBE);
+		goto failed;
+	}
+
+	mtx_init(&cst->lock, "cst_lock", NULL, MTX_DEF);
+	mbufq_init(&cst->pending_tx, INT_MAX);
+	mbufq_init(&cst->pending_fwack, INT_MAX);
+	cst->com.ifp = ifp;
+	cst->flags |= EO_FLOWC_PENDING | EO_SND_TAG_REF;
+	cst->adapter = sc;
+	cst->port_id = pi->port_id;
+	cst->schedcl = schedcl;
+	cst->max_rate = params->rate_limit.max_rate;
+	cst->tx_credits = sc->params.ofldq_wr_cred;
+	cst->tx_total = cst->tx_credits;
+	cst->plen = 0;
+	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+	    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+	    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
+
+	/*
+	 * Queues will be selected later when the connection flowid is available.
+	 */
+
+	*pt = &cst->com;
+	return (0);
+}
+
+/*
+ * Change in parameters, no change in ifp.
+ */
+int
+cxgbe_snd_tag_modify(struct m_snd_tag *mst,
+    union if_snd_tag_modify_params *params)
+{
+	int rc, schedcl;
+	struct cxgbe_snd_tag *cst = mst_to_cst(mst);
+	struct adapter *sc = cst->adapter;
+
+	/* XXX: is schedcl -1 ok here? */
+	MPASS(cst->schedcl >= 0 && cst->schedcl < sc->chip_params->nsched_cls);
+
+	mtx_lock(&cst->lock);
+	MPASS(cst->flags & EO_SND_TAG_REF);
+	rc = t4_reserve_cl_rl_kbps(sc, cst->port_id,
+	    (params->rate_limit.max_rate * 8ULL / 1000), &schedcl);
+	if (rc != 0)
+		return (rc);
+	MPASS(schedcl >= 0 && schedcl < sc->chip_params->nsched_cls);
+	t4_release_cl_rl_kbps(sc, cst->port_id, cst->schedcl);
+	cst->schedcl = schedcl;
+	cst->max_rate = params->rate_limit.max_rate;
+	mtx_unlock(&cst->lock);
+
+	return (0);
+}
+
+int
+cxgbe_snd_tag_query(struct m_snd_tag *mst,
+    union if_snd_tag_query_params *params)
+{
+	struct cxgbe_snd_tag *cst = mst_to_cst(mst);
+
+	params->rate_limit.max_rate = cst->max_rate;
+
+#define CST_TO_MST_QLEVEL_SCALE (IF_SND_QUEUE_LEVEL_MAX / cst->tx_total)
+	params->rate_limit.queue_level =
+		(cst->tx_total - cst->tx_credits) * CST_TO_MST_QLEVEL_SCALE;
+
+	return (0);
+}
+
+/*
+ * Unlocks cst and frees it.
+ */
+void
+cxgbe_snd_tag_free_locked(struct cxgbe_snd_tag *cst)
+{
+	struct adapter *sc = cst->adapter;
+
+	mtx_assert(&cst->lock, MA_OWNED);
+	MPASS((cst->flags & EO_SND_TAG_REF) == 0);
+	MPASS(cst->tx_credits == cst->tx_total);
+	MPASS(cst->plen == 0);
+	MPASS(mbufq_first(&cst->pending_tx) == NULL);
+	MPASS(mbufq_first(&cst->pending_fwack) == NULL);
+
+	if (cst->etid >= 0)
+		free_etid(sc, cst->etid);
+	if (cst->schedcl != -1)
+		t4_release_cl_rl_kbps(sc, cst->port_id, cst->schedcl);
+	mtx_unlock(&cst->lock);
+	mtx_destroy(&cst->lock);
+	free(cst, M_CXGBE);
+}
+
+void
+cxgbe_snd_tag_free(struct m_snd_tag *mst)
+{
+	struct cxgbe_snd_tag *cst = mst_to_cst(mst);
+
+	mtx_lock(&cst->lock);
+
+	/* The kernel is done with the snd_tag.  Remove its reference. */
+	MPASS(cst->flags & EO_SND_TAG_REF);
+	cst->flags &= ~EO_SND_TAG_REF;
+
+	if (cst->ncompl == 0) {
+		/*
+		 * No fw4_ack in flight.  Free the tag right away if there are
+		 * no outstanding credits.  Request the firmware to return all
+		 * credits for the etid otherwise.
+		 */
+		if (cst->tx_credits == cst->tx_total) {
+			cxgbe_snd_tag_free_locked(cst);
+			return;	/* cst is gone. */
+		}
+		send_etid_flush_wr(cst);
+	}
+	mtx_unlock(&cst->lock);
+}
+#endif

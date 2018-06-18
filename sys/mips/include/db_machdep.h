@@ -41,17 +41,12 @@
 
 #include <machine/frame.h>
 #include <machine/trap.h>
-#include <machine/endian.h>
 
 typedef struct trapframe db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	register_t	db_expr_t;	/* expression - signed */
-
-#if BYTE_ORDER == _BIG_ENDIAN
-#define	BYTE_MSF	(1)
-#endif
 
 #define	SOFTWARE_SSTEP		/* Need software single step */
 #define	SOFTWARE_SSTEP_EMUL	/* next_instr_address() emulates 100% */

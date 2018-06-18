@@ -61,6 +61,7 @@
 #include <sys/mount.h>
 
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/htree.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>

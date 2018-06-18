@@ -22,7 +22,6 @@
  * ====================================================================
  */
 
-#include <apr_signal.h>
 #include <apr_uri.h>
 
 #include "svn_pools.h"
@@ -47,27 +46,8 @@
 
 /*** Cancellation ***/
 
-/* A flag to see if we've been cancelled by the client or not. */
-static volatile sig_atomic_t cancelled = FALSE;
-
-/* A signal handler to support cancellation. */
-static void
-signal_handler(int signum)
-{
-  apr_signal(signum, SIG_IGN);
-  cancelled = TRUE;
-}
-
 /* Our cancellation callback. */
-static svn_error_t *
-check_cancel(void *baton)
-{
-  if (cancelled)
-    return svn_error_create(SVN_ERR_CANCELLED, NULL, _("Caught signal"));
-  else
-    return SVN_NO_ERROR;
-}
-
+static svn_cancel_func_t check_cancel = NULL;
 
 
 
@@ -79,6 +59,7 @@ enum svn_svnrdump__longopt_t
     opt_config_option,
     opt_auth_username,
     opt_auth_password,
+    opt_auth_password_from_stdin,
     opt_auth_nocache,
     opt_non_interactive,
     opt_skip_revprop,
@@ -93,6 +74,7 @@ enum svn_svnrdump__longopt_t
                                    opt_config_option, \
                                    opt_auth_username, \
                                    opt_auth_password, \
+                                   opt_auth_password_from_stdin, \
                                    opt_auth_nocache, \
                                    opt_trust_server_cert, \
                                    opt_trust_server_cert_failures, \
@@ -134,6 +116,8 @@ static const apr_getopt_option_t svnrdump__options[] =
                       N_("specify a username ARG")},
     {"password",      opt_auth_password, 1,
                       N_("specify a password ARG")},
+    {"password-from-stdin",   opt_auth_password_from_stdin, 0,
+                      N_("read password from stdin")},
     {"non-interactive", opt_non_interactive, 0,
                       N_("do no interactive prompting (default is to prompt\n"
                          "                             "
@@ -174,6 +158,7 @@ static const apr_getopt_option_t svnrdump__options[] =
                        "valid certificate) and 'other' (all other not\n"
                        "                             "
                        "separately classified certificate errors).")},
+    {"dumpfile", 'F', 1, N_("Read or write to a dumpfile instead of stdin/stdout")},
     {0, 0, 0, 0}
   };
 
@@ -194,6 +179,7 @@ typedef struct opt_baton_t {
   svn_client_ctx_t *ctx;
   svn_ra_session_t *session;
   const char *url;
+  const char *dumpfile;
   svn_boolean_t help;
   svn_boolean_t version;
   svn_opt_revision_t start_revision;
@@ -483,31 +469,39 @@ replay_revisions(svn_ra_session_t *session,
                  svn_revnum_t end_revision,
                  svn_boolean_t quiet,
                  svn_boolean_t incremental,
+                 const char *dumpfile,
                  apr_pool_t *pool)
 {
   struct replay_baton *replay_baton;
   const char *uuid;
-  svn_stream_t *stdout_stream;
+  svn_stream_t *output_stream;
 
-  SVN_ERR(svn_stream_for_stdout(&stdout_stream, pool));
+  if (dumpfile)
+    {
+      SVN_ERR(svn_stream_open_writable(&output_stream, dumpfile, pool, pool));
+    }
+  else
+    {
+      SVN_ERR(svn_stream_for_stdout(&output_stream, pool));
+    }
 
   replay_baton = apr_pcalloc(pool, sizeof(*replay_baton));
-  replay_baton->stdout_stream = stdout_stream;
+  replay_baton->stdout_stream = output_stream;
   replay_baton->extra_ra_session = extra_ra_session;
   replay_baton->quiet = quiet;
 
   /* Write the magic header and UUID */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
+  SVN_ERR(svn_stream_printf(output_stream, pool,
                             SVN_REPOS_DUMPFILE_MAGIC_HEADER ": %d\n\n",
                             SVN_REPOS_DUMPFILE_FORMAT_VERSION));
   SVN_ERR(svn_ra_get_uuid2(session, &uuid, pool));
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
+  SVN_ERR(svn_stream_printf(output_stream, pool,
                             SVN_REPOS_DUMPFILE_UUID ": %s\n\n", uuid));
 
   /* Fake revision 0 if necessary */
   if (start_revision == 0)
     {
-      SVN_ERR(dump_revision_header(session, stdout_stream,
+      SVN_ERR(dump_revision_header(session, output_stream,
                                    start_revision, pool));
 
       /* Revision 0 has no tree changes, so we're done. */
@@ -526,7 +520,7 @@ replay_revisions(svn_ra_session_t *session,
   if (!incremental)
     {
       SVN_ERR(dump_initial_full_revision(session, extra_ra_session,
-                                         stdout_stream, start_revision,
+                                         output_stream, start_revision,
                                          quiet, pool));
       start_revision++;
     }
@@ -546,7 +540,6 @@ replay_revisions(svn_ra_session_t *session,
 #endif
     }
 
-  SVN_ERR(svn_stream_close(stdout_stream));
   return SVN_NO_ERROR;
 }
 
@@ -559,22 +552,25 @@ replay_revisions(svn_ra_session_t *session,
 static svn_error_t *
 load_revisions(svn_ra_session_t *session,
                svn_ra_session_t *aux_session,
-               const char *url,
+               const char *dumpfile,
                svn_boolean_t quiet,
                apr_hash_t *skip_revprops,
                apr_pool_t *pool)
 {
-  apr_file_t *stdin_file;
-  svn_stream_t *stdin_stream;
+  svn_stream_t *output_stream;
 
-  apr_file_open_stdin(&stdin_file, pool);
-  stdin_stream = svn_stream_from_aprfile2(stdin_file, FALSE, pool);
+  if (dumpfile)
+    {
+      SVN_ERR(svn_stream_open_readonly(&output_stream, dumpfile, pool, pool));
+    }
+  else
+    {
+      SVN_ERR(svn_stream_for_stdin2(&output_stream, TRUE, pool));
+    }
 
-  SVN_ERR(svn_rdump__load_dumpstream(stdin_stream, session, aux_session,
+  SVN_ERR(svn_rdump__load_dumpstream(output_stream, session, aux_session,
                                      quiet, skip_revprops,
                                      check_cancel, NULL, pool));
-
-  SVN_ERR(svn_stream_close(stdin_stream));
 
   return SVN_NO_ERROR;
 }
@@ -641,7 +637,8 @@ dump_cmd(apr_getopt_t *os,
   return replay_revisions(opt_baton->session, extra_ra_session,
                           opt_baton->start_revision.value.number,
                           opt_baton->end_revision.value.number,
-                          opt_baton->quiet, opt_baton->incremental, pool);
+                          opt_baton->quiet, opt_baton->incremental,
+                          opt_baton->dumpfile, pool);
 }
 
 /* Handle the "load" subcommand.  Implements `svn_opt_subcommand_t'.  */
@@ -655,8 +652,9 @@ load_cmd(apr_getopt_t *os,
 
   SVN_ERR(svn_client_open_ra_session2(&aux_session, opt_baton->url, NULL,
                                       opt_baton->ctx, pool, pool));
-  return load_revisions(opt_baton->session, aux_session, opt_baton->url,
-                        opt_baton->quiet, opt_baton->skip_revprops, pool);
+  return load_revisions(opt_baton->session, aux_session,
+                        opt_baton->dumpfile, opt_baton->quiet,
+                        opt_baton->skip_revprops, pool);
 }
 
 /* Handle the "help" subcommand.  Implements `svn_opt_subcommand_t'.  */
@@ -795,42 +793,23 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   svn_boolean_t force_interactive = FALSE;
   apr_array_header_t *config_options = NULL;
   apr_getopt_t *os;
-  const char *first_arg;
   apr_array_header_t *received_opts;
   int i;
+  svn_boolean_t read_pass_from_stdin = FALSE;
 
   opt_baton = apr_pcalloc(pool, sizeof(*opt_baton));
   opt_baton->start_revision.kind = svn_opt_revision_unspecified;
   opt_baton->end_revision.kind = svn_opt_revision_unspecified;
   opt_baton->url = NULL;
   opt_baton->skip_revprops = apr_hash_make(pool);
+  opt_baton->dumpfile = NULL;
 
   SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
 
   os->interleave = TRUE; /* Options and arguments can be interleaved */
 
   /* Set up our cancellation support. */
-  apr_signal(SIGINT, signal_handler);
-#ifdef SIGBREAK
-  /* SIGBREAK is a Win32 specific signal generated by ctrl-break. */
-  apr_signal(SIGBREAK, signal_handler);
-#endif
-#ifdef SIGHUP
-  apr_signal(SIGHUP, signal_handler);
-#endif
-#ifdef SIGTERM
-  apr_signal(SIGTERM, signal_handler);
-#endif
-#ifdef SIGPIPE
-  /* Disable SIGPIPE generation for the platforms that have it. */
-  apr_signal(SIGPIPE, SIG_IGN);
-#endif
-#ifdef SIGXFSZ
-  /* Disable SIGXFSZ generation for the platforms that have it, otherwise
-   * working with large files when compiled against an APR that doesn't have
-   * large file support will crash the program, which is uncool. */
-  apr_signal(SIGXFSZ, SIG_IGN);
-#endif
+  check_cancel = svn_cmdline__setup_cancellation_handler();
 
   received_opts = apr_array_make(pool, SVN_OPT_MAX_OPTIONS, sizeof(int));
 
@@ -896,6 +875,9 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         case opt_auth_password:
           SVN_ERR(svn_utf_cstring_to_utf8(&password, opt_arg, pool));
           break;
+        case opt_auth_password_from_stdin:
+          read_pass_from_stdin = TRUE;
+          break;
         case opt_auth_nocache:
           no_auth_cache = TRUE;
           break;
@@ -936,6 +918,11 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
                                                      opt_arg, 
                                                      "svnrdump: ",
                                                      pool));
+          break;
+        case 'F':
+          SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
+          opt_baton->dumpfile = opt_arg;
+          break;
         }
     }
 
@@ -977,19 +964,19 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         }
       else
         {
-          first_arg = os->argv[os->ind++];
+          const char *first_arg;
+
+          SVN_ERR(svn_utf_cstring_to_utf8(&first_arg, os->argv[os->ind++],
+                                          pool));
           subcommand = svn_opt_get_canonical_subcommand2(svnrdump__cmd_table,
                                                          first_arg);
 
           if (subcommand == NULL)
             {
-              const char *first_arg_utf8;
-              SVN_ERR(svn_utf_cstring_to_utf8(&first_arg_utf8, first_arg,
-                                              pool));
               svn_error_clear(
                 svn_cmdline_fprintf(stderr, pool,
                                     _("Unknown subcommand: '%s'\n"),
-                                    first_arg_utf8));
+                                    first_arg));
               SVN_ERR(help_cmd(NULL, NULL, pool));
               *exit_code = EXIT_FAILURE;
               return SVN_NO_ERROR;
@@ -1051,6 +1038,24 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
                                   "--non-interactive"));
     }
 
+  if (read_pass_from_stdin && !non_interactive)
+    {
+      return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                              _("--password-from-stdin requires "
+                                "--non-interactive"));
+    }
+
+  if (strcmp(subcommand->name, "load") == 0)
+    {
+      if (read_pass_from_stdin && opt_baton->dumpfile == NULL)
+        {
+          /* error here, since load cannot process a password over stdin */
+          return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                  _("load subcommand with "
+                                    "--password-from-stdin requires -F"));
+        }
+    }
+
   /* Expect one more non-option argument:  the repository URL. */
   if (os->ind != os->argc - 1)
     {
@@ -1083,6 +1088,12 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
        */
       if (!non_interactive && !force_interactive)
         force_interactive = (username == NULL || password == NULL);
+    }
+
+  /* Get password from stdin if necessary */
+  if (read_pass_from_stdin)
+    {
+      SVN_ERR(svn_cmdline__stdin_readline(&password, pool, pool));
     }
 
   non_interactive = !svn_cmdline__be_interactive(non_interactive,
@@ -1162,5 +1173,8 @@ main(int argc, const char *argv[])
     }
 
   svn_pool_destroy(pool);
+
+  svn_cmdline__cancellation_exit();
+
   return exit_code;
 }

@@ -83,14 +83,6 @@ extern const struct decode_win *xor_wins;
 extern int idma_wins_no;
 extern int xor_wins_no;
 
-/* Function prototypes */
-int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
-    void (*hand)(void *), void *arg, int pin, int flags, void **cookiep);
-void mv_gpio_intr_mask(int pin);
-void mv_gpio_intr_unmask(int pin);
-void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
-uint8_t mv_gpio_in(uint32_t pin);
-
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
@@ -148,6 +140,9 @@ int mv_pci_devmap(phandle_t, struct devmap_entry *, vm_offset_t,
     vm_offset_t);
 int fdt_localbus_devmap(phandle_t, struct devmap_entry *, int, int *);
 enum soc_family mv_check_soc_family(void);
+
+int mv_fdt_is_type(phandle_t, const char *);
+int mv_fdt_pm(phandle_t);
 
 uint32_t get_tclk_armadaxp(void);
 uint32_t get_tclk_armada38x(void);

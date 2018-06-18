@@ -934,7 +934,7 @@ fts_stat(FTS *sp, FTSENT *p, int follow)
 		}
 	} else if (freebsd11_lstat(p->fts_accpath, sbp)) {
 		p->fts_errno = errno;
-err:		memset(sbp, 0, sizeof(struct stat));
+err:		memset(sbp, 0, sizeof(*sbp));
 		return (FTS_NS);
 	}
 

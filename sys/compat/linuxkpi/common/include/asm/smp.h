@@ -38,11 +38,11 @@ int	linux_wbinvd_on_all_cpus(void);
 #endif
 
 #define	get_cpu() ({			\
-	sched_pin();			\
+	critical_enter();		\
 	PCPU_GET(cpuid);		\
 })
 
 #define	put_cpu()			\
-	sched_unpin()
+	critical_exit()
 
 #endif /* _ASM_SMP_H_ */

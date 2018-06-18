@@ -31,6 +31,9 @@
 #ifndef	_IP_FW_NAT64LSN_H_
 #define	_IP_FW_NAT64LSN_H_
 
+#include "ip_fw_nat64.h"
+#include "nat64_translate.h"
+
 #define	NAT64_CHUNK_SIZE_BITS	6	/* 64 ports */
 #define	NAT64_CHUNK_SIZE	(1 << NAT64_CHUNK_SIZE_BITS)
 
@@ -187,27 +190,21 @@ _pg_get_free_idx(const struct nat64lsn_portgroup *pg)
 
 TAILQ_HEAD(nat64lsn_job_head, nat64lsn_job_item);
 
-#define	NAT64LSN_FLAGSMASK	(NAT64_LOG)
 struct nat64lsn_cfg {
 	struct named_object	no;
-	//struct nat64_exthost	*ex;	/* Pointer to external addr array */
 	struct nat64lsn_portgroup	**pg;	/* XXX: array of pointers */
 	struct nat64lsn_host	**ih;	/* Host hash */
 	uint32_t	prefix4;	/* IPv4 prefix */
 	uint32_t	pmask4;		/* IPv4 prefix mask */
 	uint32_t	ihsize;		/* IPv6 host hash size */
 	uint8_t		plen4;
-	uint8_t		plen6;
 	uint8_t		nomatch_verdict;/* What to return to ipfw on no-match */
-	uint8_t		nomatch_final;	/* Exit outer loop? */
-	struct in6_addr	prefix6;	/* IPv6 prefix to embed IPv4 hosts */
 
 	uint32_t	ihcount;	/* Number of items in host hash */
 	int		max_chunks;	/* Max chunks per client */
 	int		agg_prefix_len;	/* Prefix length to count */
 	int		agg_prefix_max;	/* Max hosts per agg prefix */
 	uint32_t	jmaxlen;	/* Max jobqueue length */
-	uint32_t	flags;
 	uint16_t	min_chunk;	/* Min port group # to use */
 	uint16_t	max_chunk;	/* Max port group # to use */
 	uint16_t	nh_delete_delay;	/* Stale host delete delay */
@@ -218,6 +215,8 @@ struct nat64lsn_cfg {
 	uint16_t	st_udp_ttl;	/* UDP expire */
 	uint16_t	st_icmp_ttl;	/* ICMP expire */
 	uint32_t	protochunks[NAT_MAX_PROTO];/* Number of chunks used */
+	struct nat64_config	base;
+#define	NAT64LSN_FLAGSMASK	(NAT64_LOG)
 
 	struct callout		periodic;
 	struct callout		jcallout;
@@ -226,7 +225,6 @@ struct nat64lsn_cfg {
 	struct nat64lsn_job_head	jhead;
 	int			jlen;
 	char			name[64];	/* Nat instance name */
-	nat64_stats_block	stats;
 };
 
 struct nat64lsn_cfg *nat64lsn_init_instance(struct ip_fw_chain *ch,

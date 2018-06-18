@@ -205,7 +205,7 @@ fhc_attach(device_t dev)
 	}
 
 	device_printf(dev, "board %d, ", board);
-	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
+	if (OF_getprop_alloc(node, "board-model", (void **)&name) != -1) {
 		printf("model %s\n", name);
 		OF_prop_free(name);
 	} else
@@ -227,7 +227,7 @@ fhc_attach(device_t dev)
 	bus_write_4(sc->sc_memres[FHC_INTERNAL], FHC_CTRL, ctrl);
 	(void)bus_read_4(sc->sc_memres[FHC_INTERNAL], FHC_CTRL);
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "cannot get ranges\n");
@@ -285,7 +285,7 @@ fhc_attach(device_t dev)
 			free(fdi, M_DEVBUF);
 			continue;
 		}
-		i = OF_getprop_alloc(child, "reg", sizeof(*reg),
+		i = OF_getprop_alloc_multi(child, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (i == -1) {
 			device_printf(dev, "<%s>: incomplete\n",
@@ -301,7 +301,7 @@ fhc_attach(device_t dev)
 			    reg[j].sbr_size, reg[j].sbr_size);
 		OF_prop_free(reg);
 		if (central == 1) {
-			i = OF_getprop_alloc(child, "interrupts",
+			i = OF_getprop_alloc_multi(child, "interrupts",
 			    sizeof(*intr), (void **)&intr);
 			if (i != -1) {
 				for (j = 0; j < i; j++) {

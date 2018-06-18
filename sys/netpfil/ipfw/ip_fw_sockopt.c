@@ -208,7 +208,7 @@ ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
 	struct ip_fw *rule;
 
 	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
-	rule->cntr = uma_zalloc(V_ipfw_cntr_zone, M_WAITOK | M_ZERO);
+	rule->cntr = uma_zalloc_pcpu(V_ipfw_cntr_zone, M_WAITOK | M_ZERO);
 
 	return (rule);
 }
@@ -217,7 +217,7 @@ static void
 free_rule(struct ip_fw *rule)
 {
 
-	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
+	uma_zfree_pcpu(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
 

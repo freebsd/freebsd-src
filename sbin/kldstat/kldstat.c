@@ -80,7 +80,7 @@ printfile(int fileid, int verbose, int humanized)
 	       printf("%2d %4d %p %5s %s",
 	           stat.id, stat.refs, stat.address, buf, stat.name);
 	} else {
-		printf("%2d %4d %p %-8zx %s",
+		printf("%2d %4d %p %8zx %s",
 		    stat.id, stat.refs, stat.address, stat.size, stat.name);
 	}
     }
@@ -190,9 +190,9 @@ main(int argc, char** argv)
     }
 
     if (humanized)
-	    printf("Id Refs Address%*c  Size Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %5s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     else
-	    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
+	    printf("Id Refs Address%*c %8s Name\n", POINTER_WIDTH - 7, ' ', "Size");
     if (fileid != 0)
 	printfile(fileid, verbose, humanized);
     else

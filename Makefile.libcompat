@@ -155,6 +155,14 @@ _LC_INCDIRS=	\
 		lib/ncurses/ncursesw \
 		${_LC_LIBDIRS.yes}
 
+.if ${MK_FILE} != "no"
+_libmagic=	lib/libmagic
+.endif
+.if ${MK_PMC} != "no" && ${TARGET_ARCH} == "amd64"
+_jevents=	lib/libpmc/pmu-events
+.endif
+
+
 # Shared logic
 build${libcompat}: .PHONY
 	@echo
@@ -192,7 +200,8 @@ build${libcompat}: .PHONY
 	    DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
-.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
+.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw ${_libmagic} ${_jevents}
+.for _t in ${_obj} build-tools
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
@@ -201,7 +210,8 @@ build${libcompat}: .PHONY
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-	    build-tools
+	    ${_t}
+.endfor
 .endfor
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries

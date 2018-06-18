@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.7 2017/03/14 01:10:07 dtucker Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.8 2018/02/08 08:46:20 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -164,6 +164,18 @@ main(int argc, char **argv)
 	if (!quiet_mode)
 		printf(" %u tests ok\n", test_number);
 	return 0;
+}
+
+int
+test_is_verbose()
+{
+	return verbose_mode;
+}
+
+int
+test_is_quiet()
+{
+	return quiet_mode;
 }
 
 const char *

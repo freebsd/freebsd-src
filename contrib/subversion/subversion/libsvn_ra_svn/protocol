@@ -188,6 +188,10 @@ capability and C indicates a client capability):
 [CS] svndiff1          If both the client and server support svndiff version
                        1, this will be used as the on-the-wire format for 
                        svndiff instead of svndiff version 0.
+[CS] accepts-svndiff2  This capability advertises support for accepting
+                       svndiff2 deltas.  The sender of a delta (= the editor
+                       driver) may send it in any svndiff version the receiver
+                       has announced it can accept.
 [CS] absent-entries    If the remote end announces support for this capability,
                        it will accept the absent-dir and absent-file editor
                        commands.
@@ -206,6 +210,8 @@ capability and C indicates a client capability):
                        retrieval of inherited properties via the get-dir and
                        get-file commands and also supports the get-iprops
                        command (see section 3.1.1).
+[S]  list              If the server presents this capability, it supports the
+                       list command (see section 3.1.1).
 
 3. Commands
 -----------
@@ -486,6 +492,21 @@ second place for auth-request point as noted below.
     params:   ( path:string [ rev:number ] )
     response: ( inherited-props:iproplist )
     New in svn 1.8.  If rev is not specified, the youngest revision is used.
+
+  list
+    params:   ( path:string [ rev:number ] depth:word
+                ( field:dirent-field ... ) ? ( pattern:string ... ) )
+    Before sending response, server sends dirents, ending with "done".
+    dirent:   ( rel-path:string kind:node-kind
+                ? [ size:number ] [ has-props:bool ] [ created-rev:number ]
+                  [ created-date:string ] [ last-author:string ] )
+              | done
+    dirent-field: kind | size | has-props | created-rev | time | last-author
+                  | word
+    response: ( )
+    New in svn 1.10.  If rev is not specified, the youngest revision is used.
+    If the dirent-fields don't contain "kind", "unknown" will be returned
+    in the kind field.
 
 3.1.2. Editor Command Set
 

@@ -625,8 +625,10 @@ compareproducts(char **one, char **two)
 			two++;
 		else if (strcmp(*one, *two))
 			return 1;
-		else
-			one++, two++;
+		else {
+			one++;
+			two++;
+		}
 	}
 	return 0;
 }
@@ -726,7 +728,7 @@ showanswer(struct unittype * have, struct unittype * want)
 }
 
 
-static void 
+static void __dead2
 usage(void)
 {
 	fprintf(stderr,
@@ -805,7 +807,6 @@ main(int argc, char **argv)
 			else
 				printf("Units data file not found");
 			exit(0);
-			break;
 		case 'h':
 			/* FALLTHROUGH */
 

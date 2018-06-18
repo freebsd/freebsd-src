@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #define AAC_DRIVERNAME			"aacraid"
 
 #include "opt_aacraid.h"
-#include "opt_compat.h"
 
 /* #include <stddef.h> */
 #include <sys/param.h>

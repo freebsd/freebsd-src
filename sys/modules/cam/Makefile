@@ -2,13 +2,12 @@
 
 S=	${SRCTOP}/sys
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/${MACHINE}/${MACHINE}
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme $S/${MACHINE}/${MACHINE}
 
 KMOD=	cam
 
 # See sys/conf/options for the flags that go into the different opt_*.h files.
 SRCS=	opt_cam.h
-SRCS+=	opt_compat.h
 SRCS+=	opt_ada.h
 SRCS+=	opt_scsi.h
 SRCS+=	opt_cd.h
@@ -46,6 +45,8 @@ SRCS+=	ata_machdep.c
 SRCS+=	ata_pmp.c
 SRCS+=	nvme_all.c
 SRCS+=	nvme_xpt.c
+SRCS+=	nvme_da.c
+SRCS+=	nvme_util.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 

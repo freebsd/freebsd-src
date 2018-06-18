@@ -26,7 +26,6 @@
  */
 
 #include "opt_acpi.h"
-#include "opt_compat.h"
 #include "opt_platform.h"
 #include "opt_ddb.h"
 
@@ -81,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/undefined.h>
 #include <machine/vmparam.h>
 
+#include <arm/include/physmem.h>
+
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
@@ -102,17 +103,8 @@ struct pcpu __pcpu[MAXCPU];
 
 static struct trapframe proc0_tf;
 
-vm_paddr_t phys_avail[PHYS_AVAIL_SIZE + 2];
-vm_paddr_t dump_avail[PHYS_AVAIL_SIZE + 2];
-
 int early_boot = 1;
 int cold = 1;
-long realmem = 0;
-long Maxmem = 0;
-
-#define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
-vm_paddr_t physmap[PHYSMAP_SIZE];
-u_int physmap_idx;
 
 struct kva_md_info kmi;
 
@@ -728,94 +720,95 @@ typedef struct {
 	uint64_t attr;
 } EFI_MEMORY_DESCRIPTOR;
 
-static int
-add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
-{
-	u_int i, insert_idx, _physmap_idx;
-
-	_physmap_idx = *physmap_idxp;
-
-	if (length == 0)
-		return (1);
-
-	/*
-	 * Find insertion point while checking for overlap.  Start off by
-	 * assuming the new entry will be added to the end.
-	 */
-	insert_idx = _physmap_idx;
-	for (i = 0; i <= _physmap_idx; i += 2) {
-		if (base < physmap[i + 1]) {
-			if (base + length <= physmap[i]) {
-				insert_idx = i;
-				break;
-			}
-			if (boothowto & RB_VERBOSE)
-				printf(
-		    "Overlapping memory regions, ignoring second region\n");
-			return (1);
-		}
-	}
-
-	/* See if we can prepend to the next entry. */
-	if (insert_idx <= _physmap_idx &&
-	    base + length == physmap[insert_idx]) {
-		physmap[insert_idx] = base;
-		return (1);
-	}
-
-	/* See if we can append to the previous entry. */
-	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
-		physmap[insert_idx - 1] += length;
-		return (1);
-	}
-
-	_physmap_idx += 2;
-	*physmap_idxp = _physmap_idx;
-	if (_physmap_idx == PHYSMAP_SIZE) {
-		printf(
-		"Too many segments in the physical address map, giving up\n");
-		return (0);
-	}
-
-	/*
-	 * Move the last 'N' entries down to make room for the new
-	 * entry if needed.
-	 */
-	for (i = _physmap_idx; i > insert_idx; i -= 2) {
-		physmap[i] = physmap[i - 2];
-		physmap[i + 1] = physmap[i - 1];
-	}
-
-	/* Insert the new entry. */
-	physmap[insert_idx] = base;
-	physmap[insert_idx + 1] = base + length;
-	return (1);
-}
-
-#ifdef FDT
-static void
-add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
-{
-
-	for (int i = 0; i < mrcnt; i++) {
-		if (!add_physmap_entry(mr[i].mr_start, mr[i].mr_size, physmap,
-		    physmap_idxp))
-			break;
-	}
-}
-#endif
+typedef void (*efi_map_entry_cb)(struct efi_md *);
 
 static void
-add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
+foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 {
 	struct efi_md *map, *p;
-	const char *type;
 	size_t efisz;
 	int ndesc, i;
 
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+
+	if (efihdr->descriptor_size == 0)
+		return;
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	for (i = 0, p = map; i < ndesc; i++,
+	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+		cb(p);
+	}
+}
+
+static void
+exclude_efi_map_entry(struct efi_md *p)
+{
+
+	switch (p->md_type) {
+	case EFI_MD_TYPE_CODE:
+	case EFI_MD_TYPE_DATA:
+	case EFI_MD_TYPE_BS_CODE:
+	case EFI_MD_TYPE_BS_DATA:
+	case EFI_MD_TYPE_FREE:
+		/*
+		 * We're allowed to use any entry with these types.
+		 */
+		break;
+	default:
+		arm_physmem_exclude_region(p->md_phys, p->md_pages * PAGE_SIZE,
+		    EXFLAG_NOALLOC);
+	}
+}
+
+static void
+exclude_efi_map_entries(struct efi_map_header *efihdr)
+{
+
+	foreach_efi_map_entry(efihdr, exclude_efi_map_entry);
+}
+
+static void
+add_efi_map_entry(struct efi_md *p)
+{
+
+	switch (p->md_type) {
+	case EFI_MD_TYPE_RT_DATA:
+		/*
+		 * Runtime data will be excluded after the DMAP
+		 * region is created to stop it from being added
+		 * to phys_avail.
+		 */
+	case EFI_MD_TYPE_CODE:
+	case EFI_MD_TYPE_DATA:
+	case EFI_MD_TYPE_BS_CODE:
+	case EFI_MD_TYPE_BS_DATA:
+	case EFI_MD_TYPE_FREE:
+		/*
+		 * We're allowed to use any entry with these types.
+		 */
+		arm_physmem_hardware_region(p->md_phys,
+		    p->md_pages * PAGE_SIZE);
+		break;
+	}
+}
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr)
+{
+
+	foreach_efi_map_entry(efihdr, add_efi_map_entry);
+}
+
+static void
+print_efi_map_entry(struct efi_md *p)
+{
+	const char *type;
 	static const char *types[] = {
 		"Reserved",
 		"LoaderCode",
@@ -834,75 +827,46 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		"PersistentMemory"
 	};
 
-	/*
-	 * Memory map data provided by UEFI via the GetMemoryMap
-	 * Boot Services API.
-	 */
-	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	if (p->md_type < nitems(types))
+		type = types[p->md_type];
+	else
+		type = "<INVALID>";
+	printf("%23s %012lx %12p %08lx ", type, p->md_phys,
+	    p->md_virt, p->md_pages);
+	if (p->md_attr & EFI_MD_ATTR_UC)
+		printf("UC ");
+	if (p->md_attr & EFI_MD_ATTR_WC)
+		printf("WC ");
+	if (p->md_attr & EFI_MD_ATTR_WT)
+		printf("WT ");
+	if (p->md_attr & EFI_MD_ATTR_WB)
+		printf("WB ");
+	if (p->md_attr & EFI_MD_ATTR_UCE)
+		printf("UCE ");
+	if (p->md_attr & EFI_MD_ATTR_WP)
+		printf("WP ");
+	if (p->md_attr & EFI_MD_ATTR_RP)
+		printf("RP ");
+	if (p->md_attr & EFI_MD_ATTR_XP)
+		printf("XP ");
+	if (p->md_attr & EFI_MD_ATTR_NV)
+		printf("NV ");
+	if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+		printf("MORE_RELIABLE ");
+	if (p->md_attr & EFI_MD_ATTR_RO)
+		printf("RO ");
+	if (p->md_attr & EFI_MD_ATTR_RT)
+		printf("RUNTIME");
+	printf("\n");
+}
 
-	if (efihdr->descriptor_size == 0)
-		return;
-	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+static void
+print_efi_map_entries(struct efi_map_header *efihdr)
+{
 
-	if (boothowto & RB_VERBOSE)
-		printf("%23s %12s %12s %8s %4s\n",
-		    "Type", "Physical", "Virtual", "#Pages", "Attr");
-
-	for (i = 0, p = map; i < ndesc; i++,
-	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
-		if (boothowto & RB_VERBOSE) {
-			if (p->md_type < nitems(types))
-				type = types[p->md_type];
-			else
-				type = "<INVALID>";
-			printf("%23s %012lx %12p %08lx ", type, p->md_phys,
-			    p->md_virt, p->md_pages);
-			if (p->md_attr & EFI_MD_ATTR_UC)
-				printf("UC ");
-			if (p->md_attr & EFI_MD_ATTR_WC)
-				printf("WC ");
-			if (p->md_attr & EFI_MD_ATTR_WT)
-				printf("WT ");
-			if (p->md_attr & EFI_MD_ATTR_WB)
-				printf("WB ");
-			if (p->md_attr & EFI_MD_ATTR_UCE)
-				printf("UCE ");
-			if (p->md_attr & EFI_MD_ATTR_WP)
-				printf("WP ");
-			if (p->md_attr & EFI_MD_ATTR_RP)
-				printf("RP ");
-			if (p->md_attr & EFI_MD_ATTR_XP)
-				printf("XP ");
-			if (p->md_attr & EFI_MD_ATTR_NV)
-				printf("NV ");
-			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
-				printf("MORE_RELIABLE ");
-			if (p->md_attr & EFI_MD_ATTR_RO)
-				printf("RO ");
-			if (p->md_attr & EFI_MD_ATTR_RT)
-				printf("RUNTIME");
-			printf("\n");
-		}
-
-		switch (p->md_type) {
-		case EFI_MD_TYPE_CODE:
-		case EFI_MD_TYPE_DATA:
-		case EFI_MD_TYPE_BS_CODE:
-		case EFI_MD_TYPE_BS_DATA:
-		case EFI_MD_TYPE_FREE:
-			/*
-			 * We're allowed to use any entry with these types.
-			 */
-			break;
-		default:
-			continue;
-		}
-
-		if (!add_physmap_entry(p->md_phys, (p->md_pages * PAGE_SIZE),
-		    physmap, physmap_idxp))
-			break;
-	}
+	printf("%23s %12s %12s %8s %4s\n",
+	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+	foreach_efi_map_entry(efihdr, print_efi_map_entry);
 }
 
 #ifdef FDT
@@ -1027,9 +991,7 @@ initarm(struct arm64_bootparams *abp)
 #endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
-	vm_paddr_t mem_len;
 	bool valid;
-	int i;
 
 	/* Set the module data location */
 	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
@@ -1052,31 +1014,22 @@ initarm(struct arm64_bootparams *abp)
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 
 	/* Load the physical memory ranges */
-	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL)
-		add_efi_map_entries(efihdr, physmap, &physmap_idx);
+		add_efi_map_entries(efihdr);
 #ifdef FDT
 	else {
 		/* Grab physical memory regions information from device tree. */
 		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
 		    NULL) != 0)
 			panic("Cannot get physical memory regions");
-		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
-		    &physmap_idx);
+		arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 	}
+	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0)
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
-
-	/* Print the memory map */
-	mem_len = 0;
-	for (i = 0; i < physmap_idx; i += 2) {
-		dump_avail[i] = physmap[i];
-		dump_avail[i + 1] = physmap[i + 1];
-		mem_len += physmap[i + 1] - physmap[i];
-	}
-	dump_avail[i] = 0;
-	dump_avail[i + 1] = 0;
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
@@ -1101,6 +1054,10 @@ initarm(struct arm64_bootparams *abp)
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
 	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
+	/* Exclude entries neexed in teh DMAP region, but not phys_avail */
+	if (efihdr != NULL)
+		exclude_efi_map_entries(efihdr);
+	arm_physmem_init_kernel_globals();
 
 	devmap_bootstrap(0, NULL);
 
@@ -1124,6 +1081,11 @@ initarm(struct arm64_bootparams *abp)
 	env = kern_getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
+
+	if (boothowto & RB_VERBOSE) {
+		print_efi_map_entries(efihdr);
+		arm_physmem_print_tables();
+	}
 
 	early_boot = 0;
 }

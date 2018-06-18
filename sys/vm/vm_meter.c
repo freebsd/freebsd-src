@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -60,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct vmmeter __exclusive_cache_line vm_cnt = {
+struct vmmeter __read_mostly vm_cnt = {
 	.v_swtch = EARLY_COUNTER,
 	.v_trap = EARLY_COUNTER,
 	.v_syscall = EARLY_COUNTER,

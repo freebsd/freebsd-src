@@ -49,6 +49,8 @@
 
 #include <arm/mv/mvwin.h>
 
+#include <machine/platformvar.h>
+
 #define MV_AXP_CPU_DIVCLK_BASE		(MV_BASE + 0x18700)
 #define CPU_DIVCLK_CTRL0		0x00
 #define CPU_DIVCLK_CTRL2_RATIO_FULL0	0x08
@@ -66,6 +68,9 @@
 void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
 
+void mv_axp_platform_mp_setmaxid(platform_t plat);
+void mv_axp_platform_mp_start_ap(platform_t plat);
+
 /* Coherency Fabric registers */
 static uint32_t
 read_cpu_clkdiv(uint32_t reg)
@@ -82,7 +87,7 @@ write_cpu_clkdiv(uint32_t reg, uint32_t val)
 }
 
 void
-platform_mp_setmaxid(void)
+mv_axp_platform_mp_setmaxid(platform_t plat)
 {
 
 	mp_ncpus = platform_get_ncpus();
@@ -94,7 +99,7 @@ void mptramp_end(void);
 extern vm_offset_t mptramp_pmu_boot;
 
 void
-platform_mp_start_ap(void)
+mv_axp_platform_mp_start_ap(platform_t plat)
 {
 	uint32_t reg, *src, *dst, cpu_num, div_val, cputype;
 	vm_offset_t pmu_boot_off;

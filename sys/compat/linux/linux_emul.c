@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
+ * Copyright (c) 1994-1996 Søren Schmidt
  * Copyright (c) 2006 Roman Divacky
  * Copyright (c) 2013 Dmitry Chagin
  * All rights reserved.
@@ -32,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -48,6 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_persona.h>
 #include <compat/linux/linux_util.h>
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define SHELLMAGIC	0x2123 /* #! */
+#else
+#define SHELLMAGIC	0x2321
+#endif
 
 /*
  * This returns reference to the thread emuldata entry (if found)
@@ -166,6 +173,42 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	sx_destroy(&pem->pem_sx);
 	free(pem, M_LINUX);
+}
+
+/*
+ * If a Linux binary is exec'ing something, try this image activator
+ * first.  We override standard shell script execution in order to
+ * be able to modify the interpreter path.  We only do this if a Linux
+ * binary is doing the exec, so we do not create an EXEC module for it.
+ */
+int
+linux_exec_imgact_try(struct image_params *imgp)
+{
+	const char *head = (const char *)imgp->image_header;
+	char *rpath;
+	int error = -1;
+
+	/*
+	 * The interpreter for shell scripts run from a Linux binary needs
+	 * to be located in /compat/linux if possible in order to recursively
+	 * maintain Linux path emulation.
+	 */
+	if (((const short *)head)[0] == SHELLMAGIC) {
+		/*
+		 * Run our normal shell image activator.  If it succeeds attempt
+		 * to use the alternate path for the interpreter.  If an
+		 * alternate path is found, use our stringspace to store it.
+		 */
+		if ((error = exec_shell_imgact(imgp)) == 0) {
+			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
+			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
+			    AT_FDCWD);
+			if (rpath != NULL)
+				imgp->args->fname_buf =
+				    imgp->interpreter_name = rpath;
+		}
+	}
+	return (error);
 }
 
 int

@@ -155,8 +155,8 @@ struct cam_ed {
 	STAILQ_ENTRY(cam_ed) highpowerq_entry;
 	struct mtx	 device_mtx;
 	struct task	 device_destroy_task;
-	const struct	 nvme_controller_data *nvme_cdata;
-	const struct	 nvme_namespace_data *nvme_data;
+	struct nvme_controller_data *nvme_cdata;
+	struct nvme_namespace_data *nvme_data;
 };
 
 /*

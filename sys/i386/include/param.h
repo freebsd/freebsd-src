@@ -164,7 +164,6 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#define INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MAXUSER_ADDRESS && \
-    ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
+#define INKERNEL(va)		(TRUE)
 
 #endif /* !_I386_INCLUDE_PARAM_H_ */

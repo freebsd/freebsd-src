@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/vnode.h>
 
-#include "opt_compat.h"
-
 static eventhandler_tag filemon_exec_tag;
 static eventhandler_tag filemon_exit_tag;
 static eventhandler_tag filemon_fork_tag;

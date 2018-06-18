@@ -80,7 +80,9 @@ static int
 read_sector(FILE *iso, daddr_t sector, char *buffer)
 {
 
-	fseek(iso, sector * ISO_DEFAULT_BLOCK_SIZE, SEEK_SET);
+	if (fseek(iso, sector * ISO_DEFAULT_BLOCK_SIZE, SEEK_SET) != 0) {
+		return (errno);
+	}
 	if (fread(buffer, ISO_DEFAULT_BLOCK_SIZE, 1, iso) != 1) {
 		return (errno);
 	}
@@ -255,7 +257,6 @@ main(int argc, char **argv)
 	argv += optind;
 
 	for (i = 0; i < argc; i++) {
-		printf("%d %s\n", optind, argv[i]);
 		if (strcmp(argv[i], "-") == 0) {
 			iso = stdin;
 		} else {

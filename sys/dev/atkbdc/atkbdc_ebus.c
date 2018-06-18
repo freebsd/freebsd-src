@@ -238,7 +238,7 @@ atkbdc_ebus_attach(device_t dev)
 	children = 0;
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {
-		if ((OF_getprop_alloc(child, "name", 1, (void **)&cname)) == -1)
+		if ((OF_getprop_alloc(child, "name", (void **)&cname)) == -1)
 			continue;
 		if (children >= 2) {
 			device_printf(dev,

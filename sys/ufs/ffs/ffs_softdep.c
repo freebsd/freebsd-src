@@ -688,6 +688,7 @@ static MALLOC_DEFINE(M_MOUNTDATA, "softdep", "Softdep per-mount data");
  * MUST match the defines above, such that memtype[D_XXX] == M_XXX
  */
 static struct malloc_type *memtype[] = {
+	NULL,
 	M_PAGEDEP,
 	M_INODEDEP,
 	M_BMSAFEMAP,
@@ -724,7 +725,8 @@ static struct malloc_type *memtype[] = {
  * Names of malloc types.
  */
 #define TYPENAME(type)  \
-	((unsigned)(type) <= D_LAST ? memtype[type]->ks_shortdesc : "???")
+	((unsigned)(type) <= D_LAST && (unsigned)(type) >= D_FIRST ? \
+	memtype[type]->ks_shortdesc : "???")
 /*
  * End system adaptation definitions.
  */
@@ -6291,7 +6293,9 @@ setup_trunc_indir(freeblks, ip, lbn, lastlbn, blkno)
 	 * live on this newblk.
 	 */
 	if ((indirdep->ir_state & DEPCOMPLETE) == 0) {
-		newblk_lookup(mp, dbtofsb(ump->um_fs, bp->b_blkno), 0, &newblk);
+		if (newblk_lookup(mp, dbtofsb(ump->um_fs, bp->b_blkno), 0,
+		    &newblk) == 0)
+			panic("setup_trunc_indir: lost block");
 		LIST_FOREACH(indirn, &newblk->nb_indirdeps, ir_next)
 			trunc_indirdep(indirn, freeblks, bp, off);
 	} else
@@ -12960,7 +12964,7 @@ flush_newblk_dep(vp, mp, lbn)
 			break;
 		}
 		if (newblk->nb_list.wk_type != D_ALLOCDIRECT)
-			panic("flush_newblk_deps: Bad newblk %p", newblk);
+			panic("flush_newblk_dep: Bad newblk %p", newblk);
 		/*
 		 * Flush the journal.
 		 */

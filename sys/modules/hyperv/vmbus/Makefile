@@ -18,7 +18,7 @@ SRCS=	hyperv.c \
 SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h pci_if.h pcib_if.h vmbus_if.h
 
 # XXX: for assym.inc
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h opt_compat.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
 .endif

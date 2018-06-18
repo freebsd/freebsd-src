@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.62 2016/12/15 21:20:41 dtucker Exp $ */
+/* $OpenBSD: dh.c,v 1.63 2018/02/07 02:06:50 jsing Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -25,6 +25,7 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
 
 #include <openssl/bn.h>
 #include <openssl/dh.h>
@@ -134,10 +135,8 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 	return 1;
 
  fail:
-	if (dhg->g != NULL)
-		BN_clear_free(dhg->g);
-	if (dhg->p != NULL)
-		BN_clear_free(dhg->p);
+	BN_clear_free(dhg->g);
+	BN_clear_free(dhg->p);
 	dhg->g = dhg->p = NULL;
 	return 0;
 }
@@ -465,3 +464,5 @@ dh_estimate(int bits)
 		return 7680;
 	return 8192;
 }
+
+#endif /* WITH_OPENSSL */

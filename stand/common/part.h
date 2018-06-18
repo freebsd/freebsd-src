@@ -36,7 +36,8 @@ enum ptable_type {
 	PTABLE_BSD,
 	PTABLE_MBR,
 	PTABLE_GPT,
-	PTABLE_VTOC8
+	PTABLE_VTOC8,
+	PTABLE_ISO9660
 };
 
 enum partition_type {
@@ -52,6 +53,7 @@ enum partition_type {
 	PART_LINUX,
 	PART_LINUX_SWAP,
 	PART_DOS,
+	PART_ISO9660
 };
 
 struct ptable_entry {

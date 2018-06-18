@@ -102,6 +102,54 @@ ATOMIC(subtract, sub)
 
 #define	ATOMIC_FCMPSET(bar, a, l)					\
 static __inline int							\
+atomic_fcmpset_##bar##8(volatile uint8_t *p, uint8_t *cmpval,		\
+    uint8_t newval)		 					\
+{									\
+	uint8_t tmp;							\
+	uint8_t _cmpval = *cmpval;					\
+	int res;							\
+									\
+	__asm __volatile(						\
+	    "1: mov      %w1, #1        \n"				\
+	    "   ld"#a"xrb %w0, [%2]     \n"				\
+	    "   cmp      %w0, %w3       \n"				\
+	    "   b.ne     2f             \n"				\
+	    "   st"#l"xrb %w1, %w4, [%2]\n"				\
+	    "2:"							\
+	    : "=&r"(tmp), "=&r"(res)					\
+	    : "r" (p), "r" (_cmpval), "r" (newval)			\
+	    : "cc", "memory"						\
+	);								\
+	*cmpval = tmp;							\
+									\
+	return (!res);							\
+}									\
+									\
+static __inline int							\
+atomic_fcmpset_##bar##16(volatile uint16_t *p, uint16_t *cmpval,	\
+    uint16_t newval)		 					\
+{									\
+	uint16_t tmp;							\
+	uint16_t _cmpval = *cmpval;					\
+	int res;							\
+									\
+	__asm __volatile(						\
+	    "1: mov      %w1, #1        \n"				\
+	    "   ld"#a"xh %w0, [%2]      \n"				\
+	    "   cmp      %w0, %w3       \n"				\
+	    "   b.ne     2f             \n"				\
+	    "   st"#l"xh %w1, %w4, [%2] \n"				\
+	    "2:"							\
+	    : "=&r"(tmp), "=&r"(res)					\
+	    : "r" (p), "r" (_cmpval), "r" (newval)			\
+	    : "cc", "memory"						\
+	);								\
+	*cmpval = tmp;							\
+									\
+	return (!res);							\
+}									\
+									\
+static __inline int							\
 atomic_fcmpset_##bar##32(volatile uint32_t *p, uint32_t *cmpval,	\
     uint32_t newval)		 					\
 {									\

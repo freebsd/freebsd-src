@@ -31,6 +31,8 @@
 
 #include "svn_types.h"
 
+#include "private/svn_string_private.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -69,6 +71,9 @@ typedef struct svn_cl__log_receiver_baton
   /* Log message search patterns. Log entries will only be shown if the author,
    * the log message, or a changed path matches one of these patterns. */
   apr_array_header_t *search_patterns;
+
+  /* Buffer for Unicode normalization and case folding. */
+  svn_membuf_t buffer;
 
   /* Pool for persistent allocations. */
   apr_pool_t *pool;

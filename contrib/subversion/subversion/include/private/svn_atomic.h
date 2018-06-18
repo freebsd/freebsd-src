@@ -76,20 +76,80 @@ extern "C" {
 /** @} */
 
 /**
+ * @name Single-threaded atomic initialization
+ * @{
+ */
+
+/**
+ * Callback for svn_atomic__init_once().
+ * @return an #svn_error_t if the initialization fails.
+ * @since New in 1.10
+ */
+typedef svn_error_t *(*svn_atomic__err_init_func_t)(void *baton,
+                                                    apr_pool_t *pool);
+
+/**
+ * Callback for svn_atomic__init_no_error().
+ * @return a string containing an error message if the initialization fails.
+ * @since New in 1.10
+ */
+typedef const char *(*svn_atomic__str_init_func_t)(void *baton);
+
+/**
  * Call an initialization function in a thread-safe manner.
  *
  * @a global_status must be a pointer to a global, zero-initialized
- * #svn_atomic_t. @a init_func is a pointer to the function that performs
- * the actual initialization. @a baton and and @a pool are passed on to the
- * init_func for its use.
+ * #svn_atomic_t. @a err_init_func is a pointer to the function that
+ * performs the actual initialization. @a baton and and @a pool are
+ * passed on to @a err_init_func for its use.
+ *
+ * @return the error returned by @a err_init_func.
  *
  * @since New in 1.5.
  */
 svn_error_t *
 svn_atomic__init_once(volatile svn_atomic_t *global_status,
-                      svn_error_t *(*init_func)(void*,apr_pool_t*),
+                      svn_atomic__err_init_func_t err_init_func,
                       void *baton,
                       apr_pool_t* pool);
+
+/**
+ * Call an initialization function in a thread-safe manner.
+ *
+ * Unlike svn_atomic__init_once(), this function does not need a pool
+ * and does not create an #svn_error_t, and neither should the
+ * @a str_init_func implementation.
+ *
+ * @a global_status must be a pointer to a global, zero-initialized
+ * #svn_atomic_t. @a str_init_func is a pointer to the function that
+ * performs the actual initialization. @a baton is passed on to
+ * @a str_init_func for its use.
+ *
+ * @return the error string returned by @a str_init_func.
+ *
+ * @since New in 1.10.
+ */
+const char *
+svn_atomic__init_once_no_error(volatile svn_atomic_t *global_status,
+                               svn_atomic__str_init_func_t str_init_func,
+                               void *baton);
+
+
+/**
+ * Query and increment the global counter and set @a value to the new
+ * counter value.
+ *
+ * This function is thread-safe and you should call it whenever you need
+ * a number that is unique within the current process. The values are > 0.
+ *
+ * @return the error object in case of a synchronization failure.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_atomic__unique_counter(apr_uint64_t* value);
+
+/** @} */
 
 #ifdef __cplusplus
 }

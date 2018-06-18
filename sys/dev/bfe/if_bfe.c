@@ -1109,7 +1109,7 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 	else {
 		val &= ~BFE_RXCONF_ALLMULTI;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			bfe_cam_write(sc,

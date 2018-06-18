@@ -457,6 +457,8 @@ umodem_attach(device_t dev)
 		mtx_unlock(&sc->sc_mtx);
 	}
 
+	ucom_set_usb_mode(&sc->sc_super_ucom, uaa->usb_mode);
+
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &umodem_callback, &sc->sc_mtx);
 	if (error) {

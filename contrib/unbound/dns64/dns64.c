@@ -411,31 +411,6 @@ handle_ipv6_ptr(struct module_qstate* qstate, int id)
     return module_wait_subquery;
 }
 
-/** allocate (special) rrset keys, return 0 on error */
-static int
-repinfo_alloc_rrset_keys(struct reply_info* rep, 
-	struct regional* region)
-{
-	size_t i;
-	for(i=0; i<rep->rrset_count; i++) {
-		if(region) {
-			rep->rrsets[i] = (struct ub_packed_rrset_key*)
-				regional_alloc(region, 
-				sizeof(struct ub_packed_rrset_key));
-			if(rep->rrsets[i]) {
-				memset(rep->rrsets[i], 0, 
-					sizeof(struct ub_packed_rrset_key));
-				rep->rrsets[i]->entry.key = rep->rrsets[i];
-			}
-		}
-		else return 0;/*	rep->rrsets[i] = alloc_special_obtain(alloc);*/
-		if(!rep->rrsets[i])
-			return 0;
-		rep->rrsets[i]->entry.data = NULL;
-	}
-	return 1;
-}
-
 static enum module_ext_state
 generate_type_A_query(struct module_qstate* qstate, int id)
 {
@@ -565,6 +540,7 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 		case module_event_new:
 			/* Tag this query as being new and fall through. */
 			qstate->minfo[id] = (void*)DNS64_NEW_QUERY;
+  			/* fallthrough */
 		case module_event_pass:
 			qstate->ext_state[id] = handle_event_pass(qstate, id);
 			break;
@@ -707,7 +683,7 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 		return;
 
 	/* allocate ub_key structures special or not */
-	if(!repinfo_alloc_rrset_keys(cp, super->region)) {
+	if(!reply_info_alloc_rrset_keys(cp, NULL, super->region)) {
 		return;
 	}
 
@@ -816,6 +792,10 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 					qstate->return_msg->rep))
 		return;
 
+	/* Use return code from A query in response to client. */
+	if (super->return_rcode != LDNS_RCODE_NOERROR)
+		super->return_rcode = qstate->return_rcode;
+
 	/* Generate a response suitable for the original query. */
 	if (qstate->qinfo.qtype == LDNS_RR_TYPE_A) {
 		dns64_adjust_a(id, super, qstate);
@@ -825,8 +805,9 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 	}
 
 	/* Store the generated response in cache. */
-	if (!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
-	    0, 0, 0, NULL, super->query_flags))
+	if (!super->no_cache_store &&
+		!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
+		0, 0, 0, NULL, super->query_flags))
 		log_err("out of memory");
 }
 

@@ -4,13 +4,10 @@
 .PATH: ${SRCTOP}/sys/dev/kbdmux
 
 KMOD=	kbdmux
-SRCS=	kbdmux.c opt_compat.h opt_evdev.h opt_kbd.h opt_kbdmux.h bus_if.h \
+SRCS=	kbdmux.c opt_evdev.h opt_kbd.h opt_kbdmux.h bus_if.h \
 	device_if.h
 
 .if !defined(KERNBUILDDIR)
-opt_compat.h:
-	echo "#define COMPAT_FREEBSD6 1" > ${.TARGET}
-
 opt_kbd.h:
 	echo "#define KBD_INSTALL_CDEV 1" > ${.TARGET}
 .endif

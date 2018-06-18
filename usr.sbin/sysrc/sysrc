@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2016 Devin Teske
+# Copyright (c) 2010-2018 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="7.1 Feb-2,2016"
+SYSRC_VERSION="7.2 Jun-16,2018"
 
 #
 # Options
@@ -368,6 +368,18 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 
 	exit $retval
 fi
+
+#
+# Validate arguments
+#
+for name in "$@"; do
+	# NB: shell expansion syntax removed first
+	name="${name%%:[+=-]*}"
+	name="${name%%[%#+=-]*}"
+	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
+		"%s: %s: name contains characters not allowed in shell" \
+		"$pgm" "$name"
+done
 
 #
 # Process `-s name' argument
@@ -842,7 +854,7 @@ while [ $# -gt 0 ]; do
 		#
 		if [ ! "$SHOW_VALUE" ]; then
 			echo "$NAME"
-			f_sysrc_set "$NAME" "$new"
+			f_sysrc_set "$NAME" "$new" || status=$FAILURE
 		else
 			if f_sysrc_set "$NAME" "$new"; then
 				if [ "$SHOW_FILE" ]; then
@@ -854,6 +866,8 @@ while [ $# -gt 0 ]; do
 				echo -n "$before${SHOW_EQUALS:+\" #}"
 				echo -n " -> ${SHOW_EQUALS:+\"}$after"
 				echo "${SHOW_EQUALS:+\"}"
+			else
+				status=$FAILURE
 			fi
 		fi
 		;;

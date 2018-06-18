@@ -94,12 +94,14 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 {
 	struct buf *bp, *rbp, *reqbp;
 	struct bufobj *bo;
+	struct thread *td;
 	daddr_t blkno, origblkno;
 	int maxra, racluster;
 	int error, ncontig;
 	int i;
 
 	error = 0;
+	td = curthread;
 	bo = &vp->v_bufobj;
 	if (!unmapped_buf_allowed)
 		gbflags &= ~GB_UNMAPPED;
@@ -118,10 +120,14 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	/*
 	 * get the requested block
 	 */
-	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0, gbflags);
-	if (bp == NULL)
-		return (EBUSY);
+	error = getblkx(vp, lblkno, size, 0, 0, gbflags, &bp);
+	if (error != 0) {
+		*bpp = NULL;
+		return (error);
+	}
+	gbflags &= ~GB_NOSPARSE;
 	origblkno = lblkno;
+	*bpp = reqbp = bp;
 
 	/*
 	 * if it is in the cache, then check to see if the reads have been
@@ -243,12 +249,12 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 		bstrategy(bp);
 #ifdef RACCT
 		if (racct_enable) {
-			PROC_LOCK(curproc);
-			racct_add_buf(curproc, bp, 0);
-			PROC_UNLOCK(curproc);
+			PROC_LOCK(td->td_proc);
+			racct_add_buf(td->td_proc, bp, 0);
+			PROC_UNLOCK(td->td_proc);
 		}
 #endif /* RACCT */
-		curthread->td_ru.ru_inblock++;
+		td->td_ru.ru_inblock++;
 	}
 
 	/*
@@ -303,12 +309,12 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 		bstrategy(rbp);
 #ifdef RACCT
 		if (racct_enable) {
-			PROC_LOCK(curproc);
-			racct_add_buf(curproc, rbp, 0);
-			PROC_UNLOCK(curproc);
+			PROC_LOCK(td->td_proc);
+			racct_add_buf(td->td_proc, rbp, 0);
+			PROC_UNLOCK(td->td_proc);
 		}
 #endif /* RACCT */
-		curthread->td_ru.ru_inblock++;
+		td->td_ru.ru_inblock++;
 	}
 
 	if (reqbp) {
@@ -555,8 +561,7 @@ clean_sbusy:
  * that we will need to shift around.
  */
 static void
-cluster_callback(bp)
-	struct buf *bp;
+cluster_callback(struct buf *bp)
 {
 	struct buf *nbp, *tbp;
 	int error = 0;

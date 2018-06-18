@@ -93,6 +93,8 @@ typedef void tf_putchar_t(void *, const teken_pos_t *, teken_char_t,
 typedef void tf_fill_t(void *, const teken_rect_t *, teken_char_t,
     const teken_attr_t *);
 typedef void tf_copy_t(void *, const teken_rect_t *, const teken_pos_t *);
+typedef void tf_pre_input_t(void *);
+typedef void tf_post_input_t(void *);
 typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SHOWCURSOR	0
 #define	TP_KEYPADAPP	1
@@ -114,11 +116,13 @@ typedef struct {
 	tf_putchar_t	*tf_putchar;
 	tf_fill_t	*tf_fill;
 	tf_copy_t	*tf_copy;
+	tf_pre_input_t	*tf_pre_input;
+	tf_post_input_t	*tf_post_input;
 	tf_param_t	*tf_param;
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
-typedef teken_char_t teken_scs_t(teken_t *, teken_char_t);
+typedef teken_char_t teken_scs_t(const teken_t *, teken_char_t);
 
 /*
  * Terminal state.
@@ -166,11 +170,11 @@ void	teken_init(teken_t *, const teken_funcs_t *, void *);
 void	teken_input(teken_t *, const void *, size_t);
 
 /* Get/set teken attributes. */
-const teken_pos_t *teken_get_cursor(teken_t *);
-const teken_attr_t *teken_get_curattr(teken_t *);
-const teken_attr_t *teken_get_defattr(teken_t *);
-void	teken_get_defattr_cons25(teken_t *, int *, int *);
-const teken_pos_t *teken_get_winsize(teken_t *);
+const teken_pos_t *teken_get_cursor(const teken_t *);
+const teken_attr_t *teken_get_curattr(const teken_t *);
+const teken_attr_t *teken_get_defattr(const teken_t *);
+void	teken_get_defattr_cons25(const teken_t *, int *, int *);
+const teken_pos_t *teken_get_winsize(const teken_t *);
 void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
@@ -202,7 +206,7 @@ void	teken_set_winsize_noreset(teken_t *, const teken_pos_t *);
 #define	TKEY_F10	0x13
 #define	TKEY_F11	0x14
 #define	TKEY_F12	0x15
-const char *teken_get_sequence(teken_t *, unsigned int);
+const char *teken_get_sequence(const teken_t *, unsigned int);
 
 /* Legacy features. */
 void	teken_set_8bit(teken_t *);

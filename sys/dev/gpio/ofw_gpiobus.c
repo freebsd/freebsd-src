@@ -364,7 +364,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 	pcell_t *gpios;
 	phandle_t gpio;
 
-	ncells = OF_getencprop_alloc(cnode, pname, sizeof(*gpios),
+	ncells = OF_getencprop_alloc_multi(cnode, pname, sizeof(*gpios),
             (void **)&gpios);
 	if (ncells == -1) {
 		device_printf(consumer,

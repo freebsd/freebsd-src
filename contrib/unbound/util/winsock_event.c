@@ -169,7 +169,7 @@ static void handle_timeouts(struct event_base* base, struct timeval* now,
 #endif
 	verbose(VERB_CLIENT, "winsock_event handle_timeouts");
 
-        while((rbnode_t*)(p = (struct event*)rbtree_first(base->times))
+        while((rbnode_type*)(p = (struct event*)rbtree_first(base->times))
                 !=RBTREE_NULL) {
 #ifndef S_SPLINT_S
                 if(p->ev_timeout.tv_sec > now->tv_sec ||

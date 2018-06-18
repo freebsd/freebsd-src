@@ -36,7 +36,7 @@
 /* Commands and return values; nonzero return sets command_errmsg != NULL */
 typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
 #define	COMMAND_ERRBUFSZ	(256)
-extern char	*command_errmsg;	
+extern const char *command_errmsg;
 extern char	command_errbuf[COMMAND_ERRBUFSZ];
 #define CMD_OK		0
 #define CMD_WARN	1
@@ -61,9 +61,10 @@ char	*backslash(const char *str);
 int	parse(int *argc, char ***argv, const char *str);
 
 /* boot.c */
-int	autoboot(int timeout, char *prompt);
 void	autoboot_maybe(void);
 int	getrootmount(char *rootdev);
+int	bootenv_flags(void);
+void	bootenv_set(int);
 
 /* misc.c */
 char	*unargv(int argc, char *argv[]);
@@ -158,6 +159,11 @@ char			*pnp_eisaformat(uint8_t *data);
  *  > 0	- ISA in system, value is read data port address
  */
 extern int			isapnp_readport;
+
+/*
+ * Version information
+ */
+extern char bootprog_info[];
 
 /*
  * Preloaded file metadata header.

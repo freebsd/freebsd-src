@@ -1,4 +1,4 @@
-/* fs_x.h : interface to the native filesystem layer
+/* fs_x.h : interface to the FSX layer
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__FS_X_H
-#define SVN_LIBSVN_FS__FS_X_H
+#ifndef SVN_LIBSVN_FS_X_FS_X_H
+#define SVN_LIBSVN_FS_X_FS_X_H
 
 #include "fs.h"
 
@@ -40,6 +40,16 @@ svn_error_t *
 svn_fs_x__open(svn_fs_t *fs,
                const char *path,
                apr_pool_t *scratch_pool);
+
+/* Initialize parts of the FS data that are being shared across multiple
+   filesystem objects.  Use COMMON_POOL for process-wide and SCRATCH_POOL
+   for temporary allocations.  Use COMMON_POOL_LOCK to ensure that the
+   initialization is serialized. */
+svn_error_t *
+svn_fs_x__initialize_shared_data(svn_fs_t *fs,
+                                 svn_mutex__t *common_pool_lock,
+                                 apr_pool_t *scratch_pool,
+                                 apr_pool_t *common_pool);
 
 /* Upgrade the fsx filesystem FS.  Indicate progress via the optional
  * NOTIFY_FUNC callback using NOTIFY_BATON.  The optional CANCEL_FUNC
@@ -138,11 +148,16 @@ svn_fs_x__create(svn_fs_t *fs,
 
 /* Set the uuid of repository FS to UUID and the instance ID to INSTANCE_ID.
    If any of them is NULL, use a newly generated UUID / ID instead.
+
+   If OVERWRITE is not set, the uuid file must not exist yet implying this
+   is a fresh repository.
+
    Perform temporary allocations in SCRATCH_POOL. */
 svn_error_t *
 svn_fs_x__set_uuid(svn_fs_t *fs,
                    const char *uuid,
                    const char *instance_id,
+                   svn_boolean_t overwrite,
                    apr_pool_t *scratch_pool);
 
 /* Read the format number and maximum number of files per directory
@@ -160,12 +175,15 @@ svn_fs_x__write_format(svn_fs_t *fs,
 
 /* Find the value of the property named PROPNAME in transaction REV.
    Return the contents in *VALUE_P, allocated from RESULT_POOL.
+   If REFRESH is not set, continue using the potentially outdated
+   revprop generation value in FS->FSAP_DATA.
    Use SCRATCH_POOL for temporary allocations. */
 svn_error_t *
 svn_fs_x__revision_prop(svn_string_t **value_p,
                         svn_fs_t *fs,
                         svn_revnum_t rev,
                         const char *propname,
+                        svn_boolean_t refresh,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool);
 

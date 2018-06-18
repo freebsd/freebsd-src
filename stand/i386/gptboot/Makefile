@@ -37,7 +37,7 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline -Wno-pointer-sign
+	-Wno-pointer-sign
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
@@ -64,7 +64,7 @@ gptboot.bin: gptboot.out
 	${OBJCOPY} -S -O binary gptboot.out ${.TARGET}
 
 gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o ${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
 
 .include <bsd.prog.mk>
 

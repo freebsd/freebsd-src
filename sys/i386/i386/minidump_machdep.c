@@ -190,7 +190,7 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 2MB of space
 		 */
 		ptesize += PAGE_SIZE;
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
@@ -254,12 +254,12 @@ minidumpsys(struct dumperinfo *di)
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION,
 	    dumpsize);
 
-	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
-	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
-
 	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
+
+	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
+	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
 	/* Dump my header */
 	bzero(&fakept, sizeof(fakept));
@@ -281,7 +281,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page table pages */
 	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
 		/* We always write a page, even if it is zero */
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is a single 2M block. Generate a fake PTP */

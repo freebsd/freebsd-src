@@ -76,15 +76,26 @@ options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
+options 	INTRNG
 
 # RISC-V SBI console
 device		rcons
+
+# VirtIO support
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+device		virtio_mmio		# VirtIO MMIO bus
 
 # Uncomment for memory disk
 # options 	MD_ROOT
 # options 	MD_ROOT_SIZE=32768	# 32MB ram disk
 # makeoptions	MFS_IMAGE=/path/to/img
 # options 	ROOTDEVNAME=\"ufs:/dev/md0\"
+
+# Uncomment for virtio block device
+# options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.

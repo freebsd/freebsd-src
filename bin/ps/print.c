@@ -662,7 +662,7 @@ getpmem(KINFO *k)
 		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	/* XXX don't have info about shared */
-	fracmem = ((float)k->ki_p->ki_rssize) / mempages;
+	fracmem = ((double)k->ki_p->ki_rssize) / mempages;
 	return (100.0 * fracmem);
 }
 
@@ -771,8 +771,6 @@ printval(void *bp, VAR *v)
 	case PGTOK:
 		(void)asprintf(&str, ofmt, ps_pgtok(*(u_long *)bp));
 		break;
-	default:
-		xo_errx(1, "unknown type %d", v->type);
 	}
 
 	return (str);

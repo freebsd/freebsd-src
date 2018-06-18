@@ -1,4 +1,4 @@
-#	$OpenBSD: principals-command.sh,v 1.3 2016/09/26 21:34:38 bluhm Exp $
+#	$OpenBSD: principals-command.sh,v 1.4 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="authorized principals command"
@@ -78,7 +78,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		# Empty authorized_principals
 		verbose "$tid: ${_prefix} empty authorized_principals"
 		echo > $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpectedly"
@@ -87,7 +87,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		# Wrong authorized_principals
 		verbose "$tid: ${_prefix} wrong authorized_principals"
 		echo gregorsamsa > $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpectedly"
@@ -96,7 +96,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		# Correct authorized_principals
 		verbose "$tid: ${_prefix} correct authorized_principals"
 		echo mekmitasdigoat > $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			fail "ssh cert connect failed"
@@ -105,7 +105,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		# authorized_principals with bad key option
 		verbose "$tid: ${_prefix} authorized_principals bad key opt"
 		echo 'blah mekmitasdigoat' > $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpectedly"
@@ -115,7 +115,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		verbose "$tid: ${_prefix} authorized_principals command=false"
 		echo 'command="false" mekmitasdigoat' > \
 		    $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpectedly"
@@ -125,7 +125,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 		verbose "$tid: ${_prefix} authorized_principals command=true"
 		echo 'command="true" mekmitasdigoat' > \
 		    $OBJ/authorized_principals_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost false >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			fail "ssh cert connect failed"
@@ -144,7 +144,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 			printf 'cert-authority,principals="gregorsamsa" '
 			cat $OBJ/user_ca_key.pub
 		) > $OBJ/authorized_keys_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpectedly"
@@ -156,7 +156,7 @@ if [ -x $PRINCIPALS_COMMAND ]; then
 			printf 'cert-authority,principals="mekmitasdigoat" '
 			cat $OBJ/user_ca_key.pub
 		) > $OBJ/authorized_keys_$USER
-		${SSH} -2i $OBJ/cert_user_key \
+		${SSH} -i $OBJ/cert_user_key \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			fail "ssh cert connect failed"

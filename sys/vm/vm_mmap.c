@@ -45,7 +45,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_vm.h"
 
@@ -242,8 +241,11 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
 		return (EINVAL);
 	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || fd != -1 ||
-	    pos != 0 || (flags & (MAP_SHARED | MAP_PRIVATE | MAP_PREFAULT |
-	    MAP_PREFAULT_READ | MAP_ANON | MAP_STACK)) != 0))
+	    pos != 0 || (flags & ~(MAP_FIXED | MAP_GUARD | MAP_EXCL |
+#ifdef MAP_32BIT
+	    MAP_32BIT |
+#endif
+	    MAP_ALIGNMENT_MASK)) != 0))
 		return (EINVAL);
 
 	/*
@@ -681,11 +683,6 @@ kern_madvise(struct thread *td, uintptr_t addr0, size_t len, int behav)
 	}
 
 	/*
-	 * Check for illegal behavior
-	 */
-	if (behav < 0 || behav > MADV_CORE)
-		return (EINVAL);
-	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
@@ -703,9 +700,10 @@ kern_madvise(struct thread *td, uintptr_t addr0, size_t len, int behav)
 	start = trunc_page(addr);
 	end = round_page(addr + len);
 
-	if (vm_map_madvise(map, start, end, behav))
-		return (EINVAL);
-	return (0);
+	/*
+	 * vm_map_madvise() checks for illegal values of behav.
+	 */
+	return (vm_map_madvise(map, start, end, behav));
 }
 
 #ifndef _SYS_SYSPROTO_H_

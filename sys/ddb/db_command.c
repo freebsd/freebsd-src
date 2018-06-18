@@ -812,6 +812,7 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 		if (!db_expression(&count)) {
 			db_printf("Count missing\n");
 			db_flush_lex();
+			db_radix = radix;
 			return;
 		}
 	} else {

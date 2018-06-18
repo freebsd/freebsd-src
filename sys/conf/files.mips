@@ -61,7 +61,6 @@ libkern/ffsll.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/flsll.c				standard
-libkern/memmove.c			standard
 libkern/cmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
 libkern/ucmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
 libkern/ashldi3.c			standard

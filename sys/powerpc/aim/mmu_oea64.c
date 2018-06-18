@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
  * correct.
  */
 
-#include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -160,8 +159,8 @@ struct mtx	moea64_slb_mutex;
 /*
  * PTEG data.
  */
-u_int		moea64_pteg_count;
-u_int		moea64_pteg_mask;
+u_long		moea64_pteg_count;
+u_long		moea64_pteg_mask;
 
 /*
  * PVO data.
@@ -696,12 +695,27 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		unmapped_buf_allowed = hw_direct_map;
 }
 
+/* Quick sort callout for comparing physical addresses. */
+static int
+pa_cmp(const void *a, const void *b)
+{
+	const vm_paddr_t *pa = a, *pb = b;
+
+	if (*pa < *pb)
+		return (-1);
+	else if (*pa > *pb)
+		return (1);
+	else
+		return (0);
+}
+
 void
 moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	int		i, j;
 	vm_size_t	physsz, hwphyssz;
 	vm_paddr_t	kernelphysstart, kernelphysend;
+	int		rm_pavail;
 
 #ifndef __powerpc64__
 	/* We don't have a direct map since there is no BAT */
@@ -764,9 +778,17 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 	}
 
 	/* Check for overlap with the kernel and exception vectors */
+	rm_pavail = 0;
 	for (j = 0; j < 2*phys_avail_count; j+=2) {
 		if (phys_avail[j] < EXC_LAST)
 			phys_avail[j] += EXC_LAST;
+
+		if (phys_avail[j] >= kernelphysstart &&
+		    phys_avail[j+1] <= kernelphysend) {
+			phys_avail[j] = phys_avail[j+1] = ~0;
+			rm_pavail++;
+			continue;
+		}
 
 		if (kernelphysstart >= phys_avail[j] &&
 		    kernelphysstart < phys_avail[j+1]) {
@@ -793,6 +815,16 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 			phys_avail[j] = (kernelphysend & ~PAGE_MASK) +
 			    PAGE_SIZE;
 		}
+	}
+
+	/* Remove physical available regions marked for removal (~0) */
+	if (rm_pavail) {
+		qsort(phys_avail, 2*phys_avail_count, sizeof(phys_avail[0]),
+			pa_cmp);
+		phys_avail_count -= rm_pavail;
+		for (i = 2*phys_avail_count;
+		     i < 2*(phys_avail_count + rm_pavail); i+=2)
+			phys_avail[i] = phys_avail[i+1] = 0;
 	}
 
 	physmem = btoc(physsz);
@@ -2414,7 +2446,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
  * calculated.
  */
 vm_offset_t
-moea64_bootstrap_alloc(vm_size_t size, u_int align)
+moea64_bootstrap_alloc(vm_size_t size, vm_size_t align)
 {
 	vm_offset_t	s, e;
 	int		i, j;

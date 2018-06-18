@@ -8,6 +8,7 @@ SRCS = \
 	bus_if.h \
 	pci_if.h \
 	opt_scsi.h \
+	opt_stack.h \
 	opt_cam.h
 
 # OS

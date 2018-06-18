@@ -265,8 +265,8 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * information in the vm_page.
 					 */
 #define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
-/*				0x0400	   Unused */
-#define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets */
+#define	UMA_ZONE_NOBUCKET	0x0400	/* Do not use buckets. */
+#define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets. */
 #define	UMA_ZONE_CACHESPREAD	0x1000	/*
 					 * Spread memory start locations across
 					 * all possible cache lines.  May
@@ -333,6 +333,7 @@ void uma_zdestroy(uma_zone_t zone);
  */
 
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
+void *uma_zalloc_pcpu_arg(uma_zone_t zone, void *arg, int flags);
 
 /*
  * Allocate an item from a specific NUMA domain.  This uses a slow path in
@@ -354,11 +355,18 @@ void *uma_zalloc_domain(uma_zone_t zone, void *arg, int domain, int flags);
  *
  */
 static __inline void *uma_zalloc(uma_zone_t zone, int flags);
+static __inline void *uma_zalloc_pcpu(uma_zone_t zone, int flags);
 
 static __inline void *
 uma_zalloc(uma_zone_t zone, int flags)
 {
 	return uma_zalloc_arg(zone, NULL, flags);
+}
+
+static __inline void *
+uma_zalloc_pcpu(uma_zone_t zone, int flags)
+{
+	return uma_zalloc_pcpu_arg(zone, NULL, flags);
 }
 
 /*
@@ -374,6 +382,7 @@ uma_zalloc(uma_zone_t zone, int flags)
  */
 
 void uma_zfree_arg(uma_zone_t zone, void *item, void *arg);
+void uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *arg);
 
 /*
  * Frees an item back to the specified zone's domain specific pool.
@@ -392,11 +401,18 @@ void uma_zfree_domain(uma_zone_t zone, void *item, void *arg);
  *
  */
 static __inline void uma_zfree(uma_zone_t zone, void *item);
+static __inline void uma_zfree_pcpu(uma_zone_t zone, void *item);
 
 static __inline void
 uma_zfree(uma_zone_t zone, void *item)
 {
 	uma_zfree_arg(zone, item, NULL);
+}
+
+static __inline void
+uma_zfree_pcpu(uma_zone_t zone, void *item)
+{
+	uma_zfree_pcpu_arg(zone, item, NULL);
 }
 
 /*
@@ -601,11 +617,12 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
  * These flags are setable in the allocf and visible in the freef.
  */
 #define UMA_SLAB_BOOT	0x01		/* Slab alloced from boot pages */
+#define UMA_SLAB_KRWX	0x02		/* Slab alloced from kernel_rwx_arena */
 #define UMA_SLAB_KERNEL	0x04		/* Slab alloced from kernel_map */
 #define UMA_SLAB_PRIV	0x08		/* Slab alloced from priv allocator */
 #define UMA_SLAB_OFFP	0x10		/* Slab is managed separately  */
 #define UMA_SLAB_MALLOC	0x20		/* Slab is a large malloc slab */
-/* 0x02, 0x40 and 0x80 are available */
+/* 0x40 and 0x80 are available */
 
 /*
  * Used to pre-fill a zone with some number of items

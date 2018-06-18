@@ -125,7 +125,7 @@ tegra_drm_encoder_attach(struct tegra_drm_encoder *output, phandle_t node)
 
 	/* XXX parse output panel here */
 
-	rv = OF_getencprop_alloc(node, "nvidia,edid", 1,
+	rv = OF_getencprop_alloc(node, "nvidia,edid",
 	    (void **)&output->edid);
 
 	/* EDID exist but have invalid size */

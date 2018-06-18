@@ -997,7 +997,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_le(sc,
@@ -1075,7 +1075,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 
 	/* Now program new ones. */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (DC_IS_CENTAUR(sc))
@@ -1148,7 +1148,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
@@ -1209,7 +1209,7 @@ dc_setfilt_uli(struct dc_softc *sc)
 	/* Now build perfect filters. */
 	mcnt = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (mcnt >= DC_ULI_FILTER_NPERF) {
@@ -1294,7 +1294,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_le(sc,

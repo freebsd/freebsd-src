@@ -30,8 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -2221,10 +2219,6 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 			return (error);
 		ccb->csio.cdb_io.cdb_ptr = cmd;
 	}
-
-	/*
-	 */
-	ccb->ccb_h.cbfcnp = passdone;
 
 	/*
 	 * Let cam_periph_mapmem do a sanity check on the data pointer format.

@@ -5,11 +5,6 @@
 .PATH: ${SRCTOP}/sys/net
 
 KMOD=	if_tap
-SRCS=	if_tap.c opt_compat.h opt_inet.h vnode_if.h
-
-.if !defined(KERNBUILDDIR)
-opt_compat.h:
-	echo "#define COMPAT_FREEBSD6 1" > ${.TARGET}
-.endif
+SRCS=	if_tap.c opt_inet.h vnode_if.h
 
 .include <bsd.kmod.mk>

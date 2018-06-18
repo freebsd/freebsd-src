@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Set this option to exclude the fastmatch implementation from
-.Xr bsdgrep 1 ,
-instead using only
-.Xr regex 3 .

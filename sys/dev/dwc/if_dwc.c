@@ -607,7 +607,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 		for (i = 0; i < nhash; i++)
 			hash[i] = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)

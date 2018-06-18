@@ -846,7 +846,7 @@ ixv_if_multi_set(if_ctx_t ctx)
 
 	IOCTL_DEBUGOUT("ixv_if_multi_set: begin");
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
@@ -1450,7 +1450,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(ifp);
-			struct netmap_kring *kring = &na->rx_rings[j];
+			struct netmap_kring *kring = na->rx_rings[j];
 			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
 
 			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), t);

@@ -820,6 +820,29 @@ main(int argc, char **argv)
 			opt->got_any++;
 			break;
 		default:
+			if (n == 1) {
+				ptr = argv[n];
+
+				if ((ptr[0] == 'u') &&
+				    (ptr[1] == 'g') &&
+				    (ptr[2] == 'e') &&
+				    (ptr[3] == 'n'))
+					ptr += 4;
+
+				if ((sscanf(ptr, "%d.%d",
+				    &unit, &addr) != 2) ||
+				    (unit < 0) || (unit > 65535) ||
+				    (addr < 0) || (addr > 65535)) {
+					usage();
+					break;
+				}
+
+				opt->bus = unit;
+				opt->addr = addr;
+				opt->got_bus = 1;
+				opt->got_addr = 1;
+				break;
+			}
 			usage();
 			break;
 		}

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdhs.c,v 1.15 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: kexecdhs.c,v 1.17 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -47,7 +47,7 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
-static int input_kex_ecdh_init(int, u_int32_t, void *);
+static int input_kex_ecdh_init(int, u_int32_t, struct ssh *);
 
 int
 kexecdh_server(struct ssh *ssh)
@@ -58,9 +58,8 @@ kexecdh_server(struct ssh *ssh)
 }
 
 static int
-input_kex_ecdh_init(int type, u_int32_t seq, void *ctxt)
+input_kex_ecdh_init(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	EC_POINT *client_public;
 	EC_KEY *server_key = NULL;
@@ -188,18 +187,14 @@ input_kex_ecdh_init(int type, u_int32_t seq, void *ctxt)
 		r = kex_send_newkeys(ssh);
  out:
 	explicit_bzero(hash, sizeof(hash));
-	if (kex->ec_client_key) {
-		EC_KEY_free(kex->ec_client_key);
-		kex->ec_client_key = NULL;
-	}
-	if (server_key)
-		EC_KEY_free(server_key);
+	EC_KEY_free(kex->ec_client_key);
+	kex->ec_client_key = NULL;
+	EC_KEY_free(server_key);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	free(server_host_key_blob);
 	free(signature);
 	return r;

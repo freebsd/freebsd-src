@@ -766,7 +766,6 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 int
 linux_connect(struct thread *td, struct linux_connect_args *args)
 {
-	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
 	struct file *fp;
@@ -788,7 +787,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
 	 */
-	error = getsock_cap(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	error = getsock_cap(td, args->s, &cap_connect_rights,
 	    &fp, &fflag, NULL);
 	if (error != 0)
 		return (error);
@@ -824,7 +823,6 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		socklen_t * __restrict anamelen;
 		int	flags;
 	} */ bsd_args;
-	cap_rights_t rights;
 	struct socket *so;
 	struct file *fp;
 	int error, error1;
@@ -842,8 +840,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
 			return (EINVAL);
 		if (error == EINVAL) {
-			error1 = getsock_cap(td, s,
-			    cap_rights_init(&rights, CAP_ACCEPT), &fp, NULL, NULL);
+			error1 = getsock_cap(td, s, &cap_accept_rights, &fp, NULL, NULL);
 			if (error1 != 0)
 				return (error1);
 			so = fp->f_data;

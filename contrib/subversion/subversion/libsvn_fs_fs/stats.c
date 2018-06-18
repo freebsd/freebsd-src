@@ -70,8 +70,9 @@ typedef enum rep_kind_t
  */
 typedef struct rep_stats_t
 {
-  /* absolute offset in the file */
-  apr_off_t offset;
+  /* offset in the revision file (phys. addressing) /
+   * item index within REVISION (log. addressing) */
+  apr_uint64_t item_index;
 
   /* item length in bytes */
   apr_uint64_t size;
@@ -92,7 +93,35 @@ typedef struct rep_stats_t
   /* classification of the representation. values of rep_kind_t */
   char kind;
 
+  /* length of the delta chain, including this representation,
+   * saturated to 255 - if need be */
+  apr_byte_t chain_length;
 } rep_stats_t;
+
+/* Represents a link in the rep delta chain.  REVISION + ITEM_INDEX points
+ * to BASE_REVISION + BASE_ITEM_INDEX.  We collect this info while scanning
+ * a f7 repo in a single pass and resolve it afterwards. */
+typedef struct rep_ref_t
+{
+  /* Revision that contains this representation. */
+  svn_revnum_t revision;
+
+  /* Item index of this rep within REVISION. */
+  apr_uint64_t item_index;
+
+  /* Revision of the representation we deltified against.
+   * -1 if this representation is either PLAIN or a self-delta. */
+  svn_revnum_t base_revision;
+
+  /* Item index of that rep within BASE_REVISION. */
+  apr_uint64_t base_item_index;
+
+  /* Length of the PLAIN / DELTA line in the source file in bytes.
+   * We use this to update the info in the rep stats after scanning the
+   * whole file. */
+  apr_uint16_t header_size;
+
+} rep_ref_t;
 
 /* Represents a single revision.
  * There will be only one instance per revision. */
@@ -175,23 +204,6 @@ typedef struct query_t
   /* Baton for CANCEL_FUNC. */
   void *cancel_baton;
 } query_t;
-
-/* Return the length of REV_FILE in *FILE_SIZE.
- * Use SCRATCH_POOL for temporary allocations.
- */
-static svn_error_t *
-get_file_size(apr_off_t *file_size,
-              svn_fs_fs__revision_file_t *rev_file,
-              apr_pool_t *scratch_pool)
-{
-  apr_finfo_t finfo;
-
-  SVN_ERR(svn_io_file_info_get(&finfo, APR_FINFO_SIZE, rev_file->file,
-                               scratch_pool));
-
-  *file_size = finfo.size;
-  return SVN_NO_ERROR;
-}
 
 /* Initialize the LARGEST_CHANGES member in STATS with a capacity of COUNT
  * entries.  Allocate the result in RESULT_POOL.
@@ -345,13 +357,13 @@ add_change(svn_fs_fs__stats_t *stats,
 
 /* Comparator used for binary search comparing the absolute file offset
  * of a representation to some other offset. DATA is a *rep_stats_t,
- * KEY is a pointer to an apr_off_t.
+ * KEY is a pointer to an apr_uint64_t.
  */
 static int
-compare_representation_offsets(const void *data, const void *key)
+compare_representation_item_index(const void *data, const void *key)
 {
-  apr_off_t lhs = (*(const rep_stats_t *const *)data)->offset;
-  apr_off_t rhs = *(const apr_off_t *)key;
+  apr_uint64_t lhs = (*(const rep_stats_t *const *)data)->item_index;
+  apr_uint64_t rhs = *(const apr_uint64_t *)key;
 
   if (lhs < rhs)
     return -1;
@@ -362,7 +374,7 @@ compare_representation_offsets(const void *data, const void *key)
  * return it in *REVISION_INFO. For performance reasons, we skip the
  * lookup if the info is already provided.
  *
- * In that revision, look for the rep_stats_t object for offset OFFSET.
+ * In that revision, look for the rep_stats_t object for item ITEM_INDEX.
  * If it already exists, set *IDX to its index in *REVISION_INFO's
  * representations list and return the representation object. Otherwise,
  * set the index to where it must be inserted and return NULL.
@@ -372,7 +384,7 @@ find_representation(int *idx,
                     query_t *query,
                     revision_info_t **revision_info,
                     svn_revnum_t revision,
-                    apr_off_t offset)
+                    apr_uint64_t item_index)
 {
   revision_info_t *info;
   *idx = -1;
@@ -392,14 +404,14 @@ find_representation(int *idx,
 
   /* look for the representation */
   *idx = svn_sort__bsearch_lower_bound(info->representations,
-                                       &offset,
-                                       compare_representation_offsets);
+                                       &item_index,
+                                       compare_representation_item_index);
   if (*idx < info->representations->nelts)
     {
       /* return the representation, if this is the one we were looking for */
       rep_stats_t *result
         = APR_ARRAY_IDX(info->representations, *idx, rep_stats_t *);
-      if (result->offset == offset)
+      if (result->item_index == item_index)
         return result;
     }
 
@@ -428,7 +440,7 @@ parse_representation(rep_stats_t **representation,
 
   /* look it up */
   result = find_representation(&idx, query, &revision_info, rep->revision,
-                               (apr_off_t)rep->item_index);
+                               rep->item_index);
   if (!result)
     {
       /* not parsed, yet (probably a rep in the same revision).
@@ -436,9 +448,8 @@ parse_representation(rep_stats_t **representation,
        */
       result = apr_pcalloc(result_pool, sizeof(*result));
       result->revision = rep->revision;
-      result->expanded_size = (rep->expanded_size ? rep->expanded_size
-                                                  : rep->size);
-      result->offset = (apr_off_t)rep->item_index;
+      result->expanded_size = rep->expanded_size;
+      result->item_index = rep->item_index;
       result->size = rep->size;
 
       /* In phys. addressing mode, follow link to the actual representation.
@@ -447,7 +458,8 @@ parse_representation(rep_stats_t **representation,
       if (!svn_fs_fs__use_log_addressing(query->fs))
         {
           svn_fs_fs__rep_header_t *header;
-          apr_off_t offset = revision_info->offset + result->offset;
+          apr_off_t offset = revision_info->offset
+                           + (apr_off_t)rep->item_index;
 
           SVN_ERR_ASSERT(revision_info->rev_file);
           SVN_ERR(svn_io_file_seek(revision_info->rev_file->file, APR_SET,
@@ -457,6 +469,23 @@ parse_representation(rep_stats_t **representation,
                                              scratch_pool, scratch_pool));
 
           result->header_size = header->header_size;
+
+          /* Determine length of the delta chain. */
+          if (header->type == svn_fs_fs__rep_delta)
+            {
+              int base_idx;
+              rep_stats_t *base_rep
+                = find_representation(&base_idx, query, NULL,
+                                      header->base_revision,
+                                      header->base_item_index);
+
+              result->chain_length = 1 + MIN(base_rep->chain_length,
+                                             (apr_byte_t)0xfe);
+            }
+          else
+            {
+              result->chain_length = 1;
+            }
         }
 
       svn_sort__array_insert(revision_info->representations, &result, idx);
@@ -588,6 +617,10 @@ read_noderev(query_t *query,
   svn_stream_t *stream = svn_stream_from_stringbuf(noderev_str, scratch_pool);
   SVN_ERR(svn_fs_fs__read_noderev(&noderev, stream, scratch_pool,
                                   scratch_pool));
+  SVN_ERR(svn_fs_fs__fixup_expanded_size(query->fs, noderev->data_rep,
+                                         scratch_pool));
+  SVN_ERR(svn_fs_fs__fixup_expanded_size(query->fs, noderev->prop_rep,
+                                         scratch_pool));
 
   if (noderev->data_rep)
     {
@@ -652,19 +685,25 @@ get_phys_change_count(query_t *query,
                       revision_info_t *revision_info,
                       apr_pool_t *scratch_pool)
 {
-  /* We are going to use our own sub-pool here because the changes object
-   * may well be >100MB and SCRATCH_POOL may not get cleared until all other
-   * info has been read by read_phys_revision().  Therefore, tidy up early.
-   */
-  apr_pool_t *subpool = svn_pool_create(scratch_pool);
-  apr_array_header_t *changes;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+  svn_fs_fs__changes_context_t *context;
 
-  SVN_ERR(svn_fs_fs__get_changes(&changes, query->fs,
-                                 revision_info->revision, subpool));
-  revision_info->change_count = changes->nelts;
+  /* Fetch the first block of data. */
+  SVN_ERR(svn_fs_fs__create_changes_context(&context, query->fs,
+                                            revision_info->revision,
+                                            scratch_pool));
 
-  /* Release potentially tons of memory. */
-  svn_pool_destroy(subpool);
+  revision_info->change_count = 0;
+  while (!context->eol)
+    {
+      apr_array_header_t *changes;
+
+      svn_pool_clear(iterpool);
+      SVN_ERR(svn_fs_fs__get_changes(&changes, context, iterpool, iterpool));
+      revision_info->change_count = changes->nelts;
+    }
+
+  svn_pool_destroy(iterpool);
 
   return SVN_NO_ERROR;
 }
@@ -729,12 +768,12 @@ read_phys_pack_file(query_t *query,
 {
   apr_pool_t *iterpool = svn_pool_create(scratch_pool);
   int i;
-  apr_off_t file_size = 0;
+  svn_filesize_t file_size = 0;
   svn_fs_fs__revision_file_t *rev_file;
 
   SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&rev_file, query->fs, base,
                                            scratch_pool, scratch_pool));
-  SVN_ERR(get_file_size(&file_size, rev_file, scratch_pool));
+  SVN_ERR(svn_io_file_size_get(&file_size, rev_file->file, scratch_pool));
 
   /* process each revision in the pack file */
   for (i = 0; i < query->shard_size; ++i)
@@ -798,7 +837,7 @@ read_phys_revision_file(query_t *query,
                         apr_pool_t *scratch_pool)
 {
   revision_info_t *info = apr_pcalloc(result_pool, sizeof(*info));
-  apr_off_t file_size = 0;
+  svn_filesize_t file_size = 0;
   svn_fs_fs__revision_file_t *rev_file;
 
   /* cancellation support */
@@ -808,7 +847,7 @@ read_phys_revision_file(query_t *query,
   /* read the whole pack file into memory */
   SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&rev_file, query->fs, revision,
                                            scratch_pool, scratch_pool));
-  SVN_ERR(get_file_size(&file_size, rev_file, scratch_pool));
+  SVN_ERR(svn_io_file_size_get(&file_size, rev_file->file, scratch_pool));
 
   /* create the revision info for the current rev */
   info->representations = apr_array_make(result_pool, 4, sizeof(rep_stats_t*));
@@ -885,6 +924,70 @@ read_item(svn_stringbuf_t **contents,
   return SVN_NO_ERROR;
 }
 
+/* Predicate comparing the two rep_ref_t** LHS and RHS by the respective
+ * representation's revision.
+ */
+static int
+compare_representation_refs(const void *lhs, const void *rhs)
+{
+  svn_revnum_t lhs_rev = (*(const rep_ref_t *const *)lhs)->revision;
+  svn_revnum_t rhs_rev = (*(const rep_ref_t *const *)rhs)->revision;
+
+  if (lhs_rev < rhs_rev)
+    return -1;
+  return (lhs_rev > rhs_rev ? 1 : 0);
+}
+
+/* Given all the presentations found in a single rev / pack file as
+ * rep_ref_t * in REP_REFS, update the delta chain lengths in QUERY.
+ * REP_REFS and its contents can then be discarded.
+ */
+static svn_error_t *
+resolve_representation_refs(query_t *query,
+                            apr_array_header_t *rep_refs)
+{
+  int i;
+
+  /* Because delta chains can only point to previous revs, after sorting
+   * REP_REFS, all base refs have already been updated. */
+  svn_sort__array(rep_refs, compare_representation_refs);
+
+  /* Build up the CHAIN_LENGTH values. */
+  for (i = 0; i < rep_refs->nelts; ++i)
+    {
+      int idx;
+      rep_ref_t *ref = APR_ARRAY_IDX(rep_refs, i, rep_ref_t *);
+      rep_stats_t *rep = find_representation(&idx, query, NULL,
+                                             ref->revision, ref->item_index);
+
+      /* No dangling pointers and all base reps have been processed. */
+      SVN_ERR_ASSERT(rep);
+      SVN_ERR_ASSERT(!rep->chain_length);
+
+      /* Set the HEADER_SIZE as we found it during the scan. */
+      rep->header_size = ref->header_size;
+
+      /* The delta chain got 1 element longer. */
+      if (ref->base_revision == SVN_INVALID_REVNUM)
+        {
+          rep->chain_length = 1;
+        }
+      else
+        {
+          rep_stats_t *base;
+
+          base = find_representation(&idx, query, NULL, ref->base_revision,
+                                     ref->base_item_index);
+          SVN_ERR_ASSERT(base);
+          SVN_ERR_ASSERT(base->chain_length);
+
+          rep->chain_length = 1 + MIN(base->chain_length, (apr_byte_t)0xfe);
+        }
+    }
+
+  return SVN_NO_ERROR;
+}
+
 /* Process the logically addressed revision contents of revisions BASE to
  * BASE + COUNT - 1 in QUERY.
  *
@@ -904,6 +1007,12 @@ read_log_rev_or_packfile(query_t *query,
   apr_off_t offset = 0;
   int i;
   svn_fs_fs__revision_file_t *rev_file;
+
+  /* We collect the delta chain links as we scan the file.  Afterwards,
+   * we determine the lengths of those delta chains and throw this
+   * temporary container away. */
+  apr_array_header_t *rep_refs = apr_array_make(scratch_pool, 64,
+                                                sizeof(rep_ref_t *));
 
   /* we will process every revision in the rev / pack file */
   for (i = 0; i < count; ++i)
@@ -947,6 +1056,8 @@ read_log_rev_or_packfile(query_t *query,
       /* process all entries (and later continue with the next block) */
       for (i = 0; i < entries->nelts; ++i)
         {
+          svn_stringbuf_t *item;
+          revision_info_t *info;
           svn_fs_fs__p2l_entry_t *entry
             = &APR_ARRAY_IDX(entries, i, svn_fs_fs__p2l_entry_t);
 
@@ -959,31 +1070,63 @@ read_log_rev_or_packfile(query_t *query,
             continue;
 
           /* read and process interesting items */
+          info = APR_ARRAY_IDX(query->revisions, entry->item.revision,
+                               revision_info_t*);
+
           if (entry->type == SVN_FS_FS__ITEM_TYPE_NODEREV)
             {
-              svn_stringbuf_t *item;
-              revision_info_t *info = APR_ARRAY_IDX(query->revisions,
-                                                    entry->item.revision,
-                                                    revision_info_t*);
               SVN_ERR(read_item(&item, rev_file, entry, iterpool, iterpool));
               SVN_ERR(read_noderev(query, item, info, result_pool, iterpool));
             }
           else if (entry->type == SVN_FS_FS__ITEM_TYPE_CHANGES)
             {
-              svn_stringbuf_t *item;
-              revision_info_t *info = APR_ARRAY_IDX(query->revisions,
-                                                    entry->item.revision,
-                                                    revision_info_t*);
               SVN_ERR(read_item(&item, rev_file, entry, iterpool, iterpool));
               info->change_count
                 = get_log_change_count(item->data + 0, item->len);
               info->changes_len += entry->size;
+            }
+          else if (   (entry->type == SVN_FS_FS__ITEM_TYPE_FILE_REP)
+                   || (entry->type == SVN_FS_FS__ITEM_TYPE_DIR_REP)
+                   || (entry->type == SVN_FS_FS__ITEM_TYPE_FILE_PROPS)
+                   || (entry->type == SVN_FS_FS__ITEM_TYPE_DIR_PROPS))
+            {
+              /* Collect the delta chain link. */
+              svn_fs_fs__rep_header_t *header;
+              rep_ref_t *ref = apr_pcalloc(scratch_pool, sizeof(*ref));
+
+              SVN_ERR(svn_io_file_aligned_seek(rev_file->file,
+                                               rev_file->block_size,
+                                               NULL, entry->offset,
+                                               iterpool));
+              SVN_ERR(svn_fs_fs__read_rep_header(&header,
+                                                 rev_file->stream,
+                                                 iterpool, iterpool));
+
+              ref->header_size = header->header_size;
+              ref->revision = entry->item.revision;
+              ref->item_index = entry->item.number;
+
+              if (header->type == svn_fs_fs__rep_delta)
+                {
+                  ref->base_item_index = header->base_item_index;
+                  ref->base_revision = header->base_revision;
+                }
+              else
+                {
+                  ref->base_item_index = SVN_FS_FS__ITEM_INDEX_UNUSED;
+                  ref->base_revision = SVN_INVALID_REVNUM;
+                }
+
+              APR_ARRAY_PUSH(rep_refs, rep_ref_t *) = ref;
             }
 
           /* advance offset */
           offset += entry->size;
         }
     }
+
+  /* Resolve the delta chain links. */
+  SVN_ERR(resolve_representation_refs(query, rep_refs));
 
   /* clean up and close file handles */
   svn_pool_destroy(iterpool);
@@ -1111,6 +1254,7 @@ add_rep_stats(svn_fs_fs__representation_stats_t *stats,
 
   stats->references += rep->ref_count;
   stats->expanded_size += rep->ref_count * rep->expanded_size;
+  stats->chain_len += rep->chain_length;
 }
 
 /* Aggregate the info the in revision_info_t * array REVISIONS into the

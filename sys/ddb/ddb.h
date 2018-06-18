@@ -72,6 +72,10 @@ SYSCTL_DECL(_debug_ddb);
 #define	DB_MAXSCRIPTRECURSION	3
 #endif
 
+#ifndef DB_STOFFS
+#define DB_STOFFS(offs)		(offs)
+#endif
+
 #ifndef DB_CALL
 #define	DB_CALL	db_fncall_generic
 #else

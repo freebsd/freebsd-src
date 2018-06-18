@@ -190,7 +190,7 @@ int ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 
 /**
  * Convert ip netblock (ip/netsize) string and port to sockaddr.
- * *SLOW*, does a malloc internally to avoid writing over 'ip' string.
+ * performs a copy internally to avoid writing over 'ip' string.
  * @param ip: ip4 or ip6 address string.
  * @param port: port number, host format.
  * @param addr: where to store sockaddr.
@@ -200,6 +200,29 @@ int ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
  */
 int netblockstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 	socklen_t* addrlen, int* net);
+
+/**
+ * Convert address string, with "@port" appendix, to sockaddr.
+ * It can also have an "#tls-auth-name" appendix (after the port).
+ * The returned tls-auth-name string is a pointer into the input string.
+ * Uses DNS port by default.
+ * @param str: the string
+ * @param addr: where to store sockaddr.
+ * @param addrlen: length of stored sockaddr is returned.
+ * @param auth_name: returned pointer to tls_auth_name, or NULL if none.
+ * @return 0 on error.
+ */
+int authextstrtoaddr(char* str, struct sockaddr_storage* addr, 
+	socklen_t* addrlen, char** auth_name);
+
+/**
+ * Store port number into sockaddr structure
+ * @param addr: sockaddr structure, ip4 or ip6.
+ * @param addrlen: length of addr.
+ * @param port: port number to put into the addr.
+ */
+void sockaddr_store_port(struct sockaddr_storage* addr, socklen_t addrlen,
+	int port);
 
 /**
  * Print string with neat domain name, type and class.
@@ -344,6 +367,19 @@ void sock_list_merge(struct sock_list** list, struct regional* region,
  * @param str: what failed.
  */
 void log_crypto_err(const char* str);
+
+/**
+ * Set SSL_OP_NOxxx options on SSL context to disable bad crypto
+ * @param ctxt: SSL_CTX*
+ * @return false on failure.
+ */
+int listen_sslctx_setup(void* ctxt);
+
+/**
+ * Further setup of listening SSL context, after keys loaded.
+ * @param ctxt: SSL_CTX*
+ */
+void listen_sslctx_setup_2(void* ctxt);
 
 /** 
  * create SSL listen context

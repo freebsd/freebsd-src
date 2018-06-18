@@ -52,7 +52,6 @@ static int userboot_zfs_found;
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
-extern char bootprog_info[];
 static jmp_buf jb;
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
@@ -155,20 +154,18 @@ static void
 extract_currdev(void)
 {
 	struct disk_devdesc dev;
-
-	//bzero(&dev, sizeof(dev));
-
+	struct devdesc *dd;
 #if defined(USERBOOT_ZFS_SUPPORT)
-	CTASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
+	struct zfs_devdesc zdev;
+
 	if (userboot_zfs_found) {
-		struct zfs_devdesc zdev;
 	
 		/* Leave the pool/root guid's unassigned */
 		bzero(&zdev, sizeof(zdev));
 		zdev.dd.d_dev = &zfs_dev;
 		
-		dev = *(struct disk_devdesc *)&zdev;
-		init_zfs_bootenv(zfs_fmtdev(&dev));
+		init_zfs_bootenv(zfs_fmtdev(&zdev));
+		dd = &zdev.dd;
 	} else
 #endif
 
@@ -185,14 +182,16 @@ extract_currdev(void)
 			dev.d_slice = -1;
 			dev.d_partition = -1;
 		}
+		dd = &dev.dd;
 	} else {
 		dev.dd.d_dev = &host_dev;
 		dev.dd.d_unit = 0;
+		dd = &dev.dd;
 	}
 
-	env_setenv("currdev", EV_VOLATILE, userboot_fmtdev(&dev),
+	env_setenv("currdev", EV_VOLATILE, userboot_fmtdev(dd),
 	    userboot_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, userboot_fmtdev(&dev),
+	env_setenv("loaddev", EV_VOLATILE, userboot_fmtdev(dd),
 	    env_noset, env_nounset);
 }
 

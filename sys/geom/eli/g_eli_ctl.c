@@ -59,9 +59,9 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	struct g_provider *pp;
 	const char *name;
 	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach, *readonly;
-	int keysize, error;
-	u_int nkey;
+	int *nargs, *detach, *readonly, *dryrun;
+	int keysize, error, nkey;
+	intmax_t *valp;
 
 	g_topology_assert();
 
@@ -81,9 +81,26 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
+	valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
+	if (valp == NULL) {
+		gctl_error(req, "No '%s' argument.", "keyno");
+		return;
+	}
+	nkey = *valp;
+	if (nkey < -1 || nkey >= G_ELI_MAXMKEYS) {
+		gctl_error(req, "Invalid '%s' argument.", "keyno");
+		return;
+	}
+
 	readonly = gctl_get_paraml(req, "readonly", sizeof(*readonly));
 	if (readonly == NULL) {
 		gctl_error(req, "No '%s' argument.", "readonly");
+		return;
+	}
+
+	dryrun = gctl_get_paraml(req, "dryrun", sizeof(*dryrun));
+	if (dryrun == NULL) {
+		gctl_error(req, "No '%s' argument.", "dryrun");
 		return;
 	}
 
@@ -123,7 +140,10 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	if (nkey == -1)
+		error = g_eli_mkey_decrypt_any(&md, key, mkey, &nkey);
+	else
+		error = g_eli_mkey_decrypt(&md, key, mkey, nkey);
 	explicit_bzero(key, keysize);
 	if (error == -1) {
 		explicit_bzero(&md, sizeof(md));
@@ -141,7 +161,8 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 	if (*readonly)
 		md.md_flags |= G_ELI_FLAG_RO;
-	g_eli_create(req, mp, pp, &md, mkey, nkey);
+	if (!*dryrun)
+		g_eli_create(req, mp, pp, &md, mkey, nkey);
 	explicit_bzero(mkey, sizeof(mkey));
 	explicit_bzero(&md, sizeof(md));
 }
@@ -974,7 +995,7 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	error = g_eli_mkey_decrypt_any(&md, key, mkey, &nkey);
 	explicit_bzero(key, keysize);
 	if (error == -1) {
 		explicit_bzero(&md, sizeof(md));

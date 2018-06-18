@@ -11,7 +11,7 @@ cd $ldns
 libtoolize --copy
 autoheader
 autoconf
-./configure --prefix= --exec-prefix=/usr
+./configure --prefix= --exec-prefix=/usr --disable-dane-ta-usage
 
 cd $ldns/drill
 autoheader

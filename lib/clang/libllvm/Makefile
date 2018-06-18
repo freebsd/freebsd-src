@@ -1042,6 +1042,7 @@ SRCS_MIN+=	Target/X86/X86FastISel.cpp
 SRCS_MIN+=	Target/X86/X86FixupBWInsts.cpp
 SRCS_MIN+=	Target/X86/X86FixupLEAs.cpp
 SRCS_MIN+=	Target/X86/X86FixupSetCC.cpp
+SRCS_MIN+=	Target/X86/X86FlagsCopyLowering.cpp
 SRCS_MIN+=	Target/X86/X86FloatingPoint.cpp
 SRCS_MIN+=	Target/X86/X86FrameLowering.cpp
 SRCS_MIN+=	Target/X86/X86ISelDAGToDAG.cpp

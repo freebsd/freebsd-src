@@ -354,8 +354,8 @@ create_pagetables:
 	mov	x6, #(KERNBASE)
 	/* Find modulep - begin */
 	sub	x8, x0, x6
-	/* Add a 2MiB page for the module data and round up */
-	ldr	x7, =(2 * L2_SIZE - 1)
+	/* Add two 2MiB pages for the module data and round up */
+	ldr	x7, =(3 * L2_SIZE - 1)
 	add	x8, x8, x7
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)

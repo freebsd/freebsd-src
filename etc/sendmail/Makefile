@@ -70,8 +70,6 @@ distribution:
 	    ${.CURDIR}/freebsd.submit.mc freebsd.submit.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 \
-	    /dev/null ${DESTDIR}/var/log/sendmail.st
 .if defined(INSTALL_CF)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${INSTALL_CF} ${DEST_CF}

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2017
+.Dd Jun 11, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -33,12 +33,22 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl abehuwxACHPSWY
-.Op Fl c Ar numcpus
+.Oo
+.Fl c\~ Ns
+.Oo
+.Op Ar cpus= Ns
+.Ar numcpus Ns
+.Oc Ns
+.Op Ar ,sockets=n Ns
+.Op Ar ,cores=n Ns
+.Op Ar ,threads=n
+.Oc
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl G Ar port
 .Op Fl U Ar uuid
 .Ar vmname
 .Sh DESCRIPTION
@@ -77,9 +87,30 @@ Enable a low-level console device supported by
 kernels compiled with
 .Cd "device bvmconsole" .
 This option will be deprecated in a future version.
-.It Fl c Ar numcpus
-Number of guest virtual CPUs.
-The default is 1 and the maximum is 16.
+.It Fl c Op Ar setting ...
+Number of guest virtual CPUs
+and/or the CPU topology.
+The default value for each of
+.Ar numcpus ,
+.Ar sockets ,
+.Ar cores ,
+and
+.Ar threads
+is 1.
+The current maximum number of guest virtual CPUs is 16.
+If
+.Ar numcpus
+is not specified then it will be calculated from the other arguments.
+The topology must be consistent in that the
+.Ar numcpus
+must equal the product of
+.Ar sockets ,
+.Ar cores ,
+and
+.Ar threads .
+If a
+.Ar setting
+is specified more than once the last one has precedence.
 .It Fl C
 Include guest memory in core file.
 .It Fl e
@@ -95,6 +126,19 @@ kernels compiled with
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
+.It Fl G Ar port
+Start a debug server that uses the GDB protocol to export guest state to a
+debugger.
+An IPv4 TCP socket will be bound to the supplied
+.Ar port
+to listen for debugger connections.
+Only a single debugger may be attached to the debug server at a time.
+If
+.Ar port
+begins with
+.Sq w ,
+.Nm
+will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl h
 Print help message and exit.
 .It Fl H
@@ -172,6 +216,8 @@ PCI pass-through device.
 Virtio network interface.
 .It Li virtio-blk
 Virtio block storage interface.
+.It Li virtio-scsi
+Virtio SCSI interface.
 .It Li virtio-rnd
 Virtio RNG interface.
 .It Li virtio-console
@@ -241,6 +287,11 @@ Force the file to be opened read-only.
 Specify the logical and physical sector sizes of the emulated disk.
 The physical sector size is optional and is equal to the logical sector size
 if not explicitly specified.
+.El
+.Pp
+SCSI devices:
+.Bl -tag -width 10n
+.It Pa /dev/cam/ Ns Oo , Ns Ar port and initiator_id Oc
 .El
 .Pp
 TTY devices:
@@ -408,6 +459,24 @@ Alphanumeric name of the guest.
 This should be the same as that created by
 .Xr bhyveload 8 .
 .El
+.Sh DEBUG SERVER
+The current debug server provides limited support for debuggers.
+.Ss Registers
+Each virtual CPU is exposed to the debugger as a thread.
+.Pp
+General purpose registers can be queried for each virtual CPU, but other
+registers such as floating-point and system registers cannot be queried.
+.Ss Memory
+Memory (including memory mapped I/O regions) can be read by the debugger,
+but not written.  Memory operations use virtual addresses that are resolved
+to physical addresses via the current virtual CPU's active address translation.
+.Ss Control
+The running guest can be interrupted by the debugger at any time
+.Pq for example, by pressing Ctrl-C in the debugger .
+.Pp
+Single stepping is only supported on Intel CPUs supporting the MTRAP VM exit.
+.Pp
+Breakpoints are not supported.
 .Sh SIGNAL HANDLING
 .Nm
 deals with the following signals:

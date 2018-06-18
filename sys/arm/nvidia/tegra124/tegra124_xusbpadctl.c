@@ -874,7 +874,7 @@ process_lane(struct padctl_softc *sc, phandle_t node, struct padctl_pad *pad)
 
 	name = NULL;
 	function = NULL;
-	rv = OF_getprop_alloc(node, "name", 1, (void **)&name);
+	rv = OF_getprop_alloc(node, "name", (void **)&name);
 	if (rv <= 0) {
 		device_printf(sc->dev, "Cannot read lane name.\n");
 		return (ENXIO);
@@ -888,7 +888,7 @@ process_lane(struct padctl_softc *sc, phandle_t node, struct padctl_pad *pad)
 	}
 
 	/* Read function (mux) settings. */
-	rv = OF_getprop_alloc(node, "nvidia,function", 1, (void **)&function);
+	rv = OF_getprop_alloc(node, "nvidia,function", (void **)&function);
 	if (rv <= 0) {
 		device_printf(sc->dev, "Cannot read lane function.\n");
 		rv = ENXIO;
@@ -947,7 +947,7 @@ process_pad(struct padctl_softc *sc, phandle_t node)
 	int rv;
 
 	name = NULL;
-	rv = OF_getprop_alloc(node, "name", 1, (void **)&name);
+	rv = OF_getprop_alloc(node, "name", (void **)&name);
 	if (rv <= 0) {
 		device_printf(sc->dev, "Cannot read pad name.\n");
 		return (ENXIO);
@@ -992,7 +992,7 @@ process_port(struct padctl_softc *sc, phandle_t node)
 	int rv;
 
 	name = NULL;
-	rv = OF_getprop_alloc(node, "name", 1, (void **)&name);
+	rv = OF_getprop_alloc(node, "name", (void **)&name);
 	if (rv <= 0) {
 		device_printf(sc->dev, "Cannot read port name.\n");
 		return (ENXIO);

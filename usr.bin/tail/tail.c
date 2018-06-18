@@ -51,6 +51,7 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,14 @@ static file_info_t *files;
 
 static void obsolete(char **);
 static void usage(void);
+
+static const struct option long_opts[] =
+{
+	{"blocks",	required_argument,	NULL, 'b'},
+	{"bytes",	required_argument,	NULL, 'c'},
+	{"lines",	required_argument,	NULL, 'n'},
+	{NULL,		no_argument,		NULL, 0}
+};
 
 int
 main(int argc, char *argv[])
@@ -113,7 +122,8 @@ main(int argc, char *argv[])
 	obsolete(argv);
 	style = NOTSET;
 	off = 0;
-	while ((ch = getopt(argc, argv, "Fb:c:fn:qr")) != -1)
+	while ((ch = getopt_long(argc, argv, "+Fb:c:fn:qr", long_opts, NULL)) !=
+	    -1)
 		switch(ch) {
 		case 'F':	/* -F is superset of (and implies) -f */
 			Fflag = fflag = 1;

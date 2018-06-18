@@ -191,6 +191,8 @@ print_ipsecstats(const struct ipsecstat *ipsecstat)
 
 #define	p(f, m) if (ipsecstat->f || sflag <= 1) \
 	xo_emit(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
+#define	p2(f, m) if (ipsecstat->f || sflag <= 1) \
+	xo_emit(m, (uintmax_t)ipsecstat->f, plurales(ipsecstat->f))
 
 	p(ips_in_polvio, "\t{:dropped-policy-violation/%ju} "
 	    "{N:/inbound packet%s violated process security policy}\n");
@@ -210,14 +212,15 @@ print_ipsecstats(const struct ipsecstat *ipsecstat)
 	    "{N:/invalid outbound packet%s}\n");
 	p(ips_out_bundlesa, "\t{:send-bundled-sa/%ju} "
 	    "{N:/outbound packet%s with bundled SAs}\n");
-	p(ips_mbcoalesced, "\t{:mbufs-coalesced-during-clone/%ju} "
-	    "{N:/mbuf%s coalesced during clone}\n");
-	p(ips_clcoalesced, "\t{:clusters-coalesced-during-clone/%ju} "
-	    "{N:/cluster%s coalesced during clone}\n");
+	p(ips_spdcache_hits, "\t{:spdcache-hits/%ju} "
+	    "{N:/spd cache hit%s}\n");
+	p2(ips_spdcache_misses, "\t{:spdcache-misses/%ju} "
+	    "{N:/spd cache miss%s}\n");
 	p(ips_clcopied, "\t{:clusters-copied-during-clone/%ju} "
 	    "{N:/cluster%s copied during clone}\n");
 	p(ips_mbinserted, "\t{:mbufs-inserted/%ju} "
 	    "{N:/mbuf%s inserted during makespace}\n");
+#undef p2
 #undef p
 	xo_close_container("ipsec-statistics");
 }
