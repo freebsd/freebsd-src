@@ -162,6 +162,14 @@ void nvlist_add_descriptor(nvlist_t *nvl, const char *name, int value);
 void nvlist_add_descriptor_array(nvlist_t *nvl, const char *name, const int *value, size_t nitems);
 #endif
 
+void nvlist_append_bool_array(nvlist_t *nvl, const char *name, const bool value);
+void nvlist_append_number_array(nvlist_t *nvl, const char *name, const uint64_t value);
+void nvlist_append_string_array(nvlist_t *nvl, const char *name, const char * const value);
+void nvlist_append_nvlist_array(nvlist_t *nvl, const char *name, const nvlist_t * const value);
+#ifndef _KERNEL
+void nvlist_append_descriptor_array(nvlist_t *nvl, const char *name, int value);
+#endif
+
 /*
  * The nvlist_move functions add the given name/value pair.
  * The functions consumes provided buffer.
