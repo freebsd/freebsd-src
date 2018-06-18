@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Cyril S. E. Schubert.  All rights reserved.
+ * Copyright (c) 2017 Cyril S. E. Schubert
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
