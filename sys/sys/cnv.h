@@ -82,18 +82,18 @@ const int		*cnvlist_get_descriptor_array(const void *cookie, size_t *nitemsp);
  * The caller is responsible for freeing received data.
  */
 
-bool			  cnvlist_take_bool(nvlist_t *nvl, void *cookie);
-uint64_t		  cnvlist_take_number(nvlist_t *nvl, void *cookie);
-char			 *cnvlist_take_string(nvlist_t *nvl, void *cookie);
-nvlist_t		 *cnvlist_take_nvlist(nvlist_t *nvl, void *cookie);
-void			 *cnvlist_take_binary(nvlist_t *nvl, void *cookie, size_t *sizep);
-bool			 *cnvlist_take_bool_array(nvlist_t *nvl, void *cookie, size_t *nitemsp);
-uint64_t		 *cnvlist_take_number_array(nvlist_t *nvl, void *cookie, size_t *nitemsp);
-char			**cnvlist_take_string_array(nvlist_t *nvl, void *cookie, size_t *nitemsp);
-nvlist_t		**cnvlist_take_nvlist_array(nvlist_t *nvl, void *cookie, size_t *nitemsp);
+bool			  cnvlist_take_bool(void *cookie);
+uint64_t		  cnvlist_take_number(void *cookie);
+char			 *cnvlist_take_string(void *cookie);
+nvlist_t		 *cnvlist_take_nvlist(void *cookie);
+void			 *cnvlist_take_binary(void *cookie, size_t *sizep);
+bool			 *cnvlist_take_bool_array(void *cookie, size_t *nitemsp);
+uint64_t		 *cnvlist_take_number_array(void *cookie, size_t *nitemsp);
+char			**cnvlist_take_string_array(void *cookie, size_t *nitemsp);
+nvlist_t		**cnvlist_take_nvlist_array(void *cookie, size_t *nitemsp);
 #ifndef _KERNEL
-int			  cnvlist_take_descriptor(nvlist_t *nvl, void *cookie);
-int			 *cnvlist_take_descriptor_array(nvlist_t *nvl, void *cookie, size_t *nitemsp);
+int			  cnvlist_take_descriptor(void *cookie);
+int			 *cnvlist_take_descriptor_array(void *cookie, size_t *nitemsp);
 #endif
 
 /*
@@ -101,18 +101,18 @@ int			 *cnvlist_take_descriptor_array(nvlist_t *nvl, void *cookie, size_t *nitem
  * and frees memory associated with it.
  */
 
-void	cnvlist_free_bool(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_number(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_string(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_nvlist(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_binary(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_bool_array(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_number_array(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_string_array(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_nvlist_array(nvlist_t *nvl, void *cookie);
+void	cnvlist_free_bool(void *cookie);
+void	cnvlist_free_number(void *cookie);
+void	cnvlist_free_string(void *cookie);
+void	cnvlist_free_nvlist(void *cookie);
+void	cnvlist_free_binary(void *cookie);
+void	cnvlist_free_bool_array(void *cookie);
+void	cnvlist_free_number_array(void *cookie);
+void	cnvlist_free_string_array(void *cookie);
+void	cnvlist_free_nvlist_array(void *cookie);
 #ifndef _KERNEL
-void	cnvlist_free_descriptor(nvlist_t *nvl, void *cookie);
-void	cnvlist_free_descriptor_array(nvlist_t *nvl, void *cookie);
+void	cnvlist_free_descriptor(void *cookie);
+void	cnvlist_free_descriptor_array(void *cookie);
 #endif
 
 __END_DECLS
