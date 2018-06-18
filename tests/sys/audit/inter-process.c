@@ -460,7 +460,7 @@ ATF_TC_BODY(shmat_success, tc)
 
 	/* Check for shared memory ID and process address in record */
 	snprintf(ipcregex, sizeof(ipcregex), "shmat.*Shared Memory "
-			"IPC.*%d.*return,success,%d", shmid, (int)addr);
+			"IPC.*%d.*return,success", shmid);
 	check_audit(fds, ipcregex, pipefd);
 
 	/* Destroy the shared memory with ID = shmid */
