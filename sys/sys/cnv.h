@@ -52,8 +52,8 @@ __BEGIN_DECLS
 /*
  * Functions which returns information about the given cookie.
  */
-const char	*cnvlist_name(void *cookie);
-int		 cnvlist_type(void *cookie);
+const char	*cnvlist_name(const void *cookie);
+int		 cnvlist_type(const void *cookie);
 
 /*
  * The cnvlist_get functions returns value associated with the given cookie.
@@ -61,18 +61,18 @@ int		 cnvlist_type(void *cookie);
  * not be freed by the caller.
  */
 
-bool			 cnvlist_get_bool(void *cookie);
-uint64_t		 cnvlist_get_number(void *cookie);
-const char		*cnvlist_get_string(void *cookie);
-const nvlist_t		*cnvlist_get_nvlist(void *cookie);
-const void		*cnvlist_get_binary(void *cookie, size_t *sizep);
-const bool		*cnvlist_get_bool_array(void *cookie, size_t *nitemsp);
-const uint64_t		*cnvlist_get_number_array(void *cookie, size_t *nitemsp);
-const char * const	*cnvlist_get_string_array(void *cookie, size_t *nitemsp);
-const nvlist_t * const	*cnvlist_get_nvlist_array(void *cookie, size_t *nitemsp);
+bool			 cnvlist_get_bool(const void *cookie);
+uint64_t		 cnvlist_get_number(const void *cookie);
+const char		*cnvlist_get_string(const void *cookie);
+const nvlist_t		*cnvlist_get_nvlist(const void *cookie);
+const void		*cnvlist_get_binary(const void *cookie, size_t *sizep);
+const bool		*cnvlist_get_bool_array(const void *cookie, size_t *nitemsp);
+const uint64_t		*cnvlist_get_number_array(const void *cookie, size_t *nitemsp);
+const char * const	*cnvlist_get_string_array(const void *cookie, size_t *nitemsp);
+const nvlist_t * const	*cnvlist_get_nvlist_array(const void *cookie, size_t *nitemsp);
 #ifndef _KERNEL
-int			 cnvlist_get_descriptor(void *cookie);
-const int		*cnvlist_get_descriptor_array(void *cookie, size_t *nitemsp);
+int			 cnvlist_get_descriptor(const void *cookie);
+const int		*cnvlist_get_descriptor_array(const void *cookie, size_t *nitemsp);
 #endif
 
 
