@@ -56,14 +56,14 @@ __FBSDID("$FreeBSD$");
 #include "nvpair_impl.h"
 
 const char *
-cnvlist_name(void *cookie)
+cnvlist_name(const void *cookie)
 {
 
 	return (nvpair_name(cookie));
 }
 
 int
-cnvlist_type(void *cookie)
+cnvlist_type(const void *cookie)
 {
 
 	return (nvpair_type(cookie));
@@ -71,7 +71,7 @@ cnvlist_type(void *cookie)
 
 #define	CNVLIST_GET(ftype, type, NVTYPE)				\
 ftype									\
-cnvlist_get_##type(void *cookie)					\
+cnvlist_get_##type(const void *cookie)					\
 {									\
 									\
 	if (nvpair_type(cookie) != NV_TYPE_##NVTYPE) {			\
@@ -93,7 +93,7 @@ CNVLIST_GET(int, descriptor, DESCRIPTOR)
 
 #define	CNVLIST_GET_ARRAY(ftype, type, NVTYPE)				\
 ftype									\
-cnvlist_get_##type(void *cookie, size_t *nitemsp)			\
+cnvlist_get_##type(const void *cookie, size_t *nitemsp)			\
 {									\
 									\
 	if (nvpair_type(cookie) != NV_TYPE_##NVTYPE) {			\
@@ -114,7 +114,7 @@ CNVLIST_GET_ARRAY(const int *, descriptor_array, DESCRIPTOR_ARRAY)
 #undef	CNVLIST_GET_ARRAY
 
 const void *
-cnvlist_get_binary(void *cookie, size_t *sizep)
+cnvlist_get_binary(const void *cookie, size_t *sizep)
 {
 
 	if (nvpair_type(cookie) != NV_TYPE_BINARY)

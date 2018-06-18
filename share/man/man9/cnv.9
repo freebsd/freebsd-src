@@ -38,32 +38,32 @@
 .Sh SYNOPSIS
 .In sys/cnv.h
 .Ft const char *
-.Fn cnvlist_name "void *cookie"
+.Fn cnvlist_name "const void *cookie"
 .Ft int
-.Fn cnvlist_type "void *cookie"
+.Fn cnvlist_type "const void *cookie"
 .\"
 .Ft bool
-.Fn cnvlist_get_bool "void *cookie"
+.Fn cnvlist_get_bool "const void *cookie"
 .Ft uint64_t
-.Fn cnvlist_get_number "void *cookie"
+.Fn cnvlist_get_number "const void *cookie"
 .Ft "const char *"
-.Fn cnvlist_get_string "void *cookie"
+.Fn cnvlist_get_string "const void *cookie"
 .Ft "const nvlist_t *"
-.Fn cnvlist_get_nvlist "void *cookie"
+.Fn cnvlist_get_nvlist "const void *cookie"
 .Ft "const void *"
-.Fn cnvlist_get_binary "void *cookie" "size_t *sizep"
+.Fn cnvlist_get_binary "const void *cookie" "size_t *sizep"
 .Ft "const bool *"
-.Fn cnvlist_get_bool_array "void *cookie" "size_t *nitemsp"
+.Fn cnvlist_get_bool_array "const void *cookie" "size_t *nitemsp"
 .Ft "const uint64_t *"
-.Fn cnvlist_get_number_array "void *cookie" "size_t *nitemsp"
+.Fn cnvlist_get_number_array "const void *cookie" "size_t *nitemsp"
 .Ft "const char * const *"
-.Fn cnvlist_get_string_array "void *cookie" "size_t *nitemsp"
+.Fn cnvlist_get_string_array "const void *cookie" "size_t *nitemsp"
 .Ft "const nvlist_t * const *"
-.Fn cnvlist_get_nvlist_array "void *cookie" "size_t *nitemsp"
+.Fn cnvlist_get_nvlist_array "const void *cookie" "size_t *nitemsp"
 .Ft int
-.Fn cnvlist_get_descriptor "void *cookie"
+.Fn cnvlist_get_descriptor "const void *cookie"
 .Ft "const int *"
-.Fn cnvlist_get_descriptor_array "void *cookie" "size_t *nitemsp"
+.Fn cnvlist_get_descriptor_array "const void *cookie" "size_t *nitemsp"
 .\"
 .Ft bool
 .Fn cnvlist_take_bool "nvlist_t *nvl" "void *cookie"
