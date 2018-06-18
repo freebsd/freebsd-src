@@ -190,11 +190,11 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_active =		-1; /* XXX */
 	tcps_lport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_lport);
 	tcps_rport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_fport);
-	tcps_laddr =		p == NULL ? 0 :
+	tcps_laddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
 	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id46_addr.ia46_addr4.s_addr) :
 	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id6_addr);
-	tcps_raddr =		p == NULL ? 0 :
+	tcps_raddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
 	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id46_addr.ia46_addr4.s_addr) :
 	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id6_addr);
