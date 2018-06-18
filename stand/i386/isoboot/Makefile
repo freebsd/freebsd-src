@@ -66,6 +66,6 @@ isoboot.bin: isoboot.out
 	${OBJCOPY} -S -O binary isoboot.out ${.TARGET}
 
 isoboot.out: ${BTXCRT} isoboot.o sio.o crc32.o drv.o cons.o ${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
 
 .include <bsd.prog.mk>
