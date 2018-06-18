@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	hxtool kadmin kcc kdestroy kgetcred kf kinit kpasswd krb5-config ksu \
+SUBDIR=	hxtool kadmin kcc kdestroy kgetcred kf kinit kpasswd ksu \
 	string2key verify_krb5_conf
 SUBDIR_PARALLEL=
 
