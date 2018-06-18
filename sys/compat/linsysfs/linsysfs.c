@@ -557,7 +557,7 @@ linsysfs_uninit(PFS_INIT_ARGS)
 }
 
 PSEUDOFS(linsysfs, 1, VFCF_JAIL);
-#if defined(__amd64__)
+#if defined(__aarch64__) || defined(__amd64__)
 MODULE_DEPEND(linsysfs, linux_common, 1, 1, 1);
 #else
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);
