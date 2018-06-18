@@ -2,6 +2,8 @@
 
 # $FreeBSD$
 
+do_boot1_efi=0
+
 #
 # Builds all the bat-shit crazy combinations we support booting from,
 # at least for amd64. It assume you have a ~sane kernel in /boot/kernel
@@ -29,6 +31,29 @@ cpsys() {
     (cd $src ; tar cf - .) | (cd $dst; tar xf -)
 }
 
+make_esp()
+{
+    local src dst md mntpt
+    src=$1
+    dst=$2
+
+    if [ "${do_boot1_efi}" -eq 1 ]; then
+	cp ${src}/boot/boot1.efifat ${dst}
+    else
+	dd if=/dev/zero of=${dst} count=1 seek=$((100 * 1024 * 1024 / 512))
+	md=$(mdconfig -f ${dst})
+	newfs_msdos -a 32 /dev/${md}
+	mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+	mount -t msdos /dev/${md} ${mntpt}
+#	mkdir -p ${mntpt}/efi/freebsd # not yet
+	mkdir -p ${mntpt}/efi/boot
+	cp ${src}/boot/loader.efi ${mntpt}/efi/boot/bootx64.efi
+	umount ${mntpt}
+	rmdir ${mntpt}
+	mdconfig -d -u ${md}
+    fi
+}
+
 mk_nogeli_gpt_ufs_legacy() {
     src=$1
     img=$2
@@ -50,8 +75,7 @@ mk_nogeli_gpt_ufs_uefi() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0p2	/		ufs	rw	1	1
 EOF
-# XXX need to make msdos part for this to work XXXX
-    cp ${src}/boot/boot1.efifat ${img}.p1
+    make_esp ${src} ${img}.p1
     makefs -t ffs -B little -s 200m ${img}.p2 ${src}
     mkimg -s gpt \
 	  -p efi:=${img}.p1 \
@@ -66,12 +90,11 @@ mk_nogeli_gpt_ufs_both() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0p3	/		ufs	rw	1	1
 EOF
-    # XXX need to make msdos part for this to work XXXX
-    cp ${src}/boot/boot1.efifat ${img}.p1
+    make_esp ${src} ${img}.p1
     makefs -t ffs -B little -s 200m ${img}.p3 ${src}
     # p1 is boot for uefi, p2 is boot for gpt, p3 is /
     mkimg -b ${src}/boot/pmbr -s gpt \
-	  -p efi:=${src}/boot/boot1.efifat \
+	  -p efi:=${img}.p1 \
 	  -p freebsd-boot:=${src}/boot/gptboot \
 	  -p freebsd-ufs:=${img}.p3 \
 	  -o ${img}
@@ -100,7 +123,7 @@ mk_nogeli_gpt_zfs_legacy() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -138,7 +161,7 @@ mk_nogeli_gpt_zfs_uefi() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -177,7 +200,7 @@ mk_nogeli_gpt_zfs_both() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -213,7 +236,7 @@ mk_nogeli_mbr_ufs_uefi() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0s1a	/		ufs	rw	1	1
 EOF
-    cp ${src}/boot/boot1.efifat ${img}.s1
+    make_esp ${src} ${img}.s1
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
     mkimg -s bsd -p freebsd-ufs:=${img}.s2a -o ${img}.s2
     mkimg -a 1 -s mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
@@ -227,7 +250,7 @@ mk_nogeli_mbr_ufs_both() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0s1a	/		ufs	rw	1	1
 EOF
-    cp ${src}/boot/boot1.efifat ${img}.s1
+    make_esp ${src} ${img}.s1
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
     mkimg -s bsd -b ${src}/boot/boot -p freebsd-ufs:=${img}.s2a -o ${img}.s2
     mkimg -a 2 -s mbr -b ${src}/boot/mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
@@ -258,7 +281,7 @@ mk_nogeli_mbr_zfs_legacy() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -299,7 +322,7 @@ mk_nogeli_mbr_zfs_uefi() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -340,7 +363,7 @@ mk_nogeli_mbr_zfs_both() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 EOF
@@ -489,7 +512,7 @@ mk_geli_gpt_zfs_legacy() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 geom_eli_load=YES
@@ -532,7 +555,7 @@ mk_geli_gpt_zfs_uefi() {
     # NB: The online guides go nuts customizing /var and other mountpoints here, no need
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
-    cat > ${mntpt}/boot/loader.conf <<EOF
+    cat >> ${mntpt}/boot/loader.conf <<EOF
 zfs_load=YES
 opensolaris_load=YES
 geom_eli_load=YES
@@ -744,6 +767,11 @@ mkdir -p ${DESTDIR}/boot/kernel
 cp /boot/boot1 ${DESTDIR}/boot
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
 echo -h -D -S115200 > ${DESTDIR}/boot.config
+cat > ${DESTDIR}/boot/loader.conf <<EOF
+console=comconsole
+comconsole_speed=115200
+boot_serial=-h
+EOF
 # XXX
 cp /boot/device.hints ${DESTDIR}/boot/device.hints
 # Assume we're already built
@@ -752,12 +780,13 @@ make install DESTDIR=${DESTDIR} MK_MAN=no MK_INSTALL_AS_USER=yes
 mkdir -p ${DESTDIR}/sbin ${DESTDIR}/bin \
       ${DESTDIR}/lib ${DESTDIR}/libexec \
       ${DESTDIR}/etc ${DESTDIR}/dev
-for f in /sbin/halt /sbin/init /bin/sh $(ldd /bin/sh | awk 'NF == 4 { print $3; }') /libexec/ld-elf.so.1; do
+for f in /sbin/halt /sbin/init /bin/sh /sbin/sysctl $(ldd /bin/sh | awk 'NF == 4 { print $3; }') /libexec/ld-elf.so.1; do
     cp $f ${DESTDIR}/$f
 done
 cat > ${DESTDIR}/etc/rc <<EOF
 #!/bin/sh
 
+sysctl machdep.bootmethod
 echo "RC COMMAND RUNNING -- SUCCESS!!!!!"
 halt -p
 EOF
