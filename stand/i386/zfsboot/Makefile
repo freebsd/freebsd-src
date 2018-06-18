@@ -82,7 +82,7 @@ zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
 zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBGELIBOOT} ${LIBSA32}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBSA32}
 
 SRCS=	zfsboot.c
 
