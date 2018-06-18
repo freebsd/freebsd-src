@@ -23,6 +23,7 @@
 #define	LINUX_SYS_linux_epoll_create1	20
 #define	LINUX_SYS_linux_epoll_ctl	21
 #define	LINUX_SYS_linux_epoll_pwait	22
+#define	LINUX_SYS_dup	23
 #define	LINUX_SYS_linux_dup3	24
 #define	LINUX_SYS_linux_fcntl	25
 #define	LINUX_SYS_linux_inotify_init1	26
