@@ -1997,6 +1997,7 @@ nvpair_append_nvlist_array(nvpair_t *nvp, const nvlist_t *value)
 	nvlist_set_flags(nvl, flags);
 
 	tmpnvp = NULL;
+	prev = NULL;
 	if (nvp->nvp_nitems > 0) {
 		nvlist_t **nvls = (void *)(uintptr_t)nvp->nvp_data;
 
