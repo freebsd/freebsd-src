@@ -232,6 +232,10 @@ X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
 
+# If a full path to an external linker is given, don't build lld.
+.if ${XLD:M/*}
+MK_LLD_BOOTSTRAP=	no
+.endif
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
