@@ -574,14 +574,16 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
 		xpt_path_inq(&start_ccb->cpi, periph->path);
-
 		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
-		init_standard_ccb(start_ccb, XPT_SET_TRAN_SETTINGS);
-		cts->ios.power_mode = power_off;
-		cts->ios_valid = MMC_PM;
+		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
 		xpt_action(start_ccb);
-		mtx_sleep(periph, p_mtx, 0, "mmcios", 100);
-
+		if (cts->ios.power_mode != power_off) {
+			init_standard_ccb(start_ccb, XPT_SET_TRAN_SETTINGS);
+			cts->ios.power_mode = power_off;
+			cts->ios_valid = MMC_PM;
+			xpt_action(start_ccb);
+			mtx_sleep(periph, p_mtx, 0, "mmcios", 100);
+		}
 		/* mmc_power_up */
 		/* Get the host OCR */
 		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
