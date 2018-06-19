@@ -1206,7 +1206,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				    tp->t_stats_gput_prev);
 			tp->t_flags &= ~TF_GPUTINPROG;
 			tp->t_stats_gput_prev = gput;
-
+#ifdef NETFLIX_CWV
 			if (tp->t_maxpeakrate) {
 				/*
 				 * We update t_peakrate_thr. This gives us roughly
@@ -1214,6 +1214,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				 */
 				tcp_update_peakrate_thr(tp);
 			}
+#endif
 		}
 #endif
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
@@ -1267,11 +1268,11 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 			tcp_newcwv_update_pipeack(tp, data);
 		}
 	}
-#endif
 	/* we enforce max peak rate if it is set. */
 	if (tp->t_peakrate_thr && tp->snd_cwnd > tp->t_peakrate_thr) {
 		tp->snd_cwnd = tp->t_peakrate_thr;
 	}
+#endif
 }
 
 static void
