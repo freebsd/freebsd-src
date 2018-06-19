@@ -455,6 +455,7 @@ format_header(const char *uname_field)
 	case DISP_IO:
 		prehead = io_header;
 		snprintf(Header, sizeof(Header), prehead,
+			ps.thread_id ? " THR" : "PID",
 		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		break;
