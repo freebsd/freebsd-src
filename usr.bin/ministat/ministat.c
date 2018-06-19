@@ -634,7 +634,7 @@ main(int argc, char **argv)
 			    setfilenames[i]);
 
 	/* Enter Capsicum sandbox. */
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(2, "unable to enter capability mode");
 
 	for (i = 0; i < nds; i++) {

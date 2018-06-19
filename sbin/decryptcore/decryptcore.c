@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -167,7 +168,7 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 		goto failed;
 	}
 
-	if (cap_enter() < 0 && errno != ENOSYS) {
+	if (caph_enter() < 0) {
 		pjdlog_errno(LOG_ERR, "Unable to enter capability mode");
 		goto failed;
 	}

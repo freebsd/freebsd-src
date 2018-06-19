@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/endian.h>
 
+#include <capsicum_helpers.h>
+
 #include <net80211/ieee80211_freebsd.h>
 
 #ifndef _PATH_VAREMPTY
@@ -539,7 +541,7 @@ main(int argc, char *argv[])
 
 	setproctitle("%s", ifi->name);
 
-	if (CASPER_SUPPORT && cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter_casper() < 0)
 		error("can't enter capability mode: %m");
 
 	if (immediate_daemon)

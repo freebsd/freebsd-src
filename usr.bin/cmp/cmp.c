@@ -188,7 +188,7 @@ main(int argc, char *argv[])
 
 	caph_cache_catpages();
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(ERR_EXIT, "unable to enter capability mode");
 
 	if (!special) {
