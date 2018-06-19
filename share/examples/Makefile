@@ -31,7 +31,6 @@ LDIRS=	BSD_daemon \
 	ses \
 	scsi_target \
 	sunrpc \
-	uefisign \
 	ypldap
 
 
@@ -343,8 +342,11 @@ SE_SUNRPC_SORT= \
 	sort.x \
 	sort_proc.c
 
+.if ${MK_EFI} != "no"
+LDIRS+=		uefisign
 SE_DIRS+=	uefisign
 SE_UEFISIGN=	uefikeys
+.endif
 
 SE_DIRS+=	ypldap
 SE_YPLDAP=	ypldap.conf
