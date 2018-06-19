@@ -147,7 +147,7 @@ III. git-svn-rebase
 
 git-svn-rebase is a script that helps you keep current when using git 
 plus subversion as outline in https://wiki.freebsd.org/GitWorkflow/GitSvn
-since it's otherwise a pain to have many branhes active. It will rebase
+since it's otherwise a pain to have many branches active. It will rebase
 those branches that haven't been merged yet. Some tweaking may be needed
 if you have other, weird branches in your tree (including any stable
 branches). To run it just cd into the git subversion tree somewhere and
