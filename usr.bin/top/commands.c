@@ -242,7 +242,7 @@ err_string(void)
 	errp = &(errs[cnt++]);
 	if (errp->errnum != currerr)
 	{
-	    if (currerr != -1)
+	    if (currerr >= 0)
 	    {
 		if ((stringlen = str_adderr(string, stringlen, currerr)) < 2)
 		{
