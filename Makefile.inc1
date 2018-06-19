@@ -190,6 +190,28 @@ compiler-metadata.mk: .PHONY .META
 	@echo ".export ${_COMPILER_METADATA_VARS}" >> ${.TARGET}
 	@echo ".export ${_COMPILER_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
 
+.if ${TARGET} == ${MACHINE}
+TARGET_CPUTYPE?=${CPUTYPE}
+.else
+TARGET_CPUTYPE?=
+.endif
+.if !empty(TARGET_CPUTYPE)
+_TARGET_CPUTYPE=${TARGET_CPUTYPE}
+.else
+_TARGET_CPUTYPE=dummy
+.endif
+.if ${TARGET} == "arm"
+.if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
+TARGET_ABI=	gnueabihf
+.else
+TARGET_ABI=	gnueabi
+.endif
+.endif
+MACHINE_ABI?=	unknown
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
+TARGET_ABI?=	unknown
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
+
 # Handle external binutils.
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -440,17 +462,6 @@ _t=		${TARGET_ARCH}/${TARGET}
 .endif
 .endfor
 
-.if ${TARGET} == ${MACHINE}
-TARGET_CPUTYPE?=${CPUTYPE}
-.else
-TARGET_CPUTYPE?=
-.endif
-
-.if !empty(TARGET_CPUTYPE)
-_TARGET_CPUTYPE=${TARGET_CPUTYPE}
-.else
-_TARGET_CPUTYPE=dummy
-.endif
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
 		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
 .if ${_CPUTYPE} != ${_TARGET_CPUTYPE}
@@ -634,17 +645,6 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
-.if ${TARGET} == "arm"
-.if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
-TARGET_ABI=	gnueabihf
-.else
-TARGET_ABI=	gnueabi
-.endif
-.endif
-MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
-TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
 .if ${WANT_COMPILER_TYPE} == gcc || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 # GCC requires -isystem and -L when using a cross-compiler.  --sysroot
