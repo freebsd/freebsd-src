@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2018
+.Dd June 19, 2018
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -554,6 +554,13 @@ with.
 This will be passed as arguments to the
 .Xr env 1
 utility.
+.It Va ${name}_env_file
+A file to source for environmental variables to run
+.Va command
+with.
+Note that all the variables which are being assigned in this file are going
+to be exported into the environment of
+.Va command .
 .It Va ${name}_fib
 FIB
 .Pa Routing Table
