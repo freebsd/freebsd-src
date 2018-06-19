@@ -1169,7 +1169,7 @@ restart:
 					clear_message();
 				break;
 			    case CMD_NONE:
-					assert("reached switch without command");
+					assert(false && "reached switch without command");
 			}
 			}
 		    }
