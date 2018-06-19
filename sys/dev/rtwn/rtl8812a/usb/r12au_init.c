@@ -72,19 +72,32 @@ r12au_init_rx_agg(struct rtwn_softc *sc)
 }
 
 void
+r12au_init_burstlen_usb2(struct rtwn_softc *sc)
+{
+	const uint8_t dma_count = R12A_DMA_MODE | SM(R12A_BURST_CNT, 3);
+
+	if ((rtwn_read_1(sc, R92C_USB_INFO) & 0x30) == 0) {
+		/* Set burst packet length to 512 B. */
+		rtwn_setbits_1(sc, R12A_RXDMA_PRO, R12A_BURST_SZ_M,
+		    dma_count | SM(R12A_BURST_SZ, R12A_BURST_SZ_USB2));
+	} else {
+		/* Set burst packet length to 64 B. */
+		rtwn_setbits_1(sc, R12A_RXDMA_PRO, R12A_BURST_SZ_M,
+		    dma_count | SM(R12A_BURST_SZ, R12A_BURST_SZ_USB1));
+	}
+}
+
+void
 r12au_init_burstlen(struct rtwn_softc *sc)
 {
-	if (rtwn_read_1(sc, R92C_TYPE_ID + 3) & 0x80)	{
-		if ((rtwn_read_1(sc, R92C_USB_INFO) & 0x30) == 0) {
-			/* Set burst packet length to 512 B. */
-			rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x20, 0x1e);
-		} else {
-			/* Set burst packet length to 64 B. */
-			rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x10, 0x2e);
-		}
-	} else {	/* USB 3.0 */
+	const uint8_t dma_count = R12A_DMA_MODE | SM(R12A_BURST_CNT, 3);
+
+	if (rtwn_read_1(sc, R92C_TYPE_ID + 3) & 0x80)
+		r12au_init_burstlen_usb2(sc);
+	else {		/* USB 3.0 */
 		/* Set burst packet length to 1 KB. */
-		rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x30, 0x0e);
+		rtwn_setbits_1(sc, R12A_RXDMA_PRO, R12A_BURST_SZ_M,
+		    dma_count | SM(R12A_BURST_SZ, R12A_BURST_SZ_USB3));
 
 		rtwn_setbits_1(sc, 0xf008, 0x18, 0);
 	}

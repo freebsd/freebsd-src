@@ -135,7 +135,7 @@ r21a_attach_private(struct rtwn_softc *sc)
 	rs->rs_fix_spur			= rtwn_nop_softc_chan;
 	rs->rs_set_band_2ghz		= r21a_set_band_2ghz;
 	rs->rs_set_band_5ghz		= r21a_set_band_5ghz;
-	rs->rs_init_burstlen		= r21au_init_burstlen;
+	rs->rs_init_burstlen		= r12au_init_burstlen_usb2;
 	rs->rs_init_ampdu_fwhw		= r21a_init_ampdu_fwhw;
 	rs->rs_crystalcap_write		= r21a_crystalcap_write;
 #ifndef RTWN_WITHOUT_UCODE
