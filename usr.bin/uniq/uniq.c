@@ -48,6 +48,7 @@ static const char rcsid[] =
 
 #include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -177,7 +178,7 @@ main (int argc, char *argv[])
 	}
 
 	strerror_init();
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
 	prevbuflen = thisbuflen = 0;

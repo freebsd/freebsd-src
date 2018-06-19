@@ -33,7 +33,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
 
 #ifndef UNITSFILE
 #define UNITSFILE "/usr/share/misc/definitions.units"
@@ -819,7 +819,7 @@ main(int argc, char **argv)
 		readunits(NULL);
 
 	if (optind == argc - 2) {
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 
 		havestr = argv[optind];
@@ -843,7 +843,7 @@ main(int argc, char **argv)
 		if (inhistory == 0)
 			err(1, "Could not initialize history");
 
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 
 		if (!quiet)

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -248,7 +249,7 @@ main(int argc, char **argv)
     cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
     if (cap_rights_limit(fileno(input), &rights) < 0 && errno != ENOSYS)
 	err(EXIT_FAILURE, "unable to limit rights for %s", in_name);
-    if (cap_enter() < 0 && errno != ENOSYS)
+    if (caph_enter() < 0)
 	err(EXIT_FAILURE, "unable to enter capability mode");
 
     if (opt.com_ind <= 1)

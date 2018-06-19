@@ -228,8 +228,7 @@ main(int argc, char *argv[])
 			if (*(argv + 1) == NULL) {
 				cap_rights_init(&rights, CAP_READ);
 				if ((cap_rights_limit(fd, &rights) < 0 &&
-				    errno != ENOSYS) ||
-				    (cap_enter() < 0 && errno != ENOSYS))
+				    errno != ENOSYS) || caph_enter() < 0)
 					err(1, "capsicum");
 			}
 			if ((p = Algorithm[digest].Fd(fd, buf)) == NULL) {
@@ -253,8 +252,7 @@ main(int argc, char *argv[])
 			}
 		} while (*++argv);
 	} else if (!sflag && (optind == 1 || qflag || rflag)) {
-		if (caph_limit_stdin() < 0 ||
-		    (cap_enter() < 0 && errno != ENOSYS))
+		if (caph_limit_stdin() < 0 || caph_enter() < 0)
 			err(1, "capsicum");
 		MDFilter(&Algorithm[digest], 0);
 	}

@@ -190,7 +190,7 @@ main(int argc, char *argv[])
 	if (setutxdb(UTXDB_LOG, file) != 0)
 		err(1, "%s", file != NULL ? file : "(default utx db)");
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "cap_enter");
 
 	if (sflag && width == 8) usage();

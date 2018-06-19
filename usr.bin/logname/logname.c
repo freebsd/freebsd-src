@@ -54,7 +54,7 @@ main(int argc, char *argv[] __unused)
 {
 	char *p;
 
-	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
 		err(1, "capsicum");
 
 	if (argc != 1)
