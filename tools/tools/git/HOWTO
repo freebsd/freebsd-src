@@ -142,3 +142,18 @@ and 5, the commit hashes of all of your commits changed, including C1 and C2.
 You must go back and find the new commit hashes of your commits to pass to
 importgit.  Passing -r C1~..C2 would import your commits as they were *before*
 your code review fixes were applied.
+
+III. git-svn-rebase
+
+git-svn-rebase is a script that helps you keep current when using git 
+plus subversion as outline in https://wiki.freebsd.org/GitWorkflow/GitSvn
+since it's otherwise a pain to have many branhes active. It will rebase
+those branches that haven't been merged yet. Some tweaking may be needed
+if you have other, weird branches in your tree (including any stable
+branches). To run it just cd into the git subversion tree somewhere and
+type
+    $ git-svn-rebase
+and it will do its thing and leave the tree on the master branch.
+
+Your tree must be clean to start this, and while it tries to catch
+some failures, not all of them have been allowed for.
