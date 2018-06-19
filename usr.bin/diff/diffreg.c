@@ -334,7 +334,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 
 		caph_cache_catpages();
 		caph_cache_tzdata();
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(2, "unable to enter capability mode");
 	}
 

@@ -1114,7 +1114,7 @@ main(int argc, char *argv[])
 	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 
-	if (cap_enter() == -1 && errno != ENOSYS)
+	if (caph_enter() == -1)
 		errx(EX_OSERR, "cap_enter() failed");
 #endif
 

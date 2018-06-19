@@ -98,7 +98,7 @@ main(int argc __unused, char *argv[])
 	setup();
 
 	caph_cache_catpages();
-	if (cap_enter() == -1 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
 	(void)signal(SIGINFO, siginfo_handler);

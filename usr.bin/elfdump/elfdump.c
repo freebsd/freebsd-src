@@ -579,7 +579,7 @@ main(int ac, char **av)
 	    caph_limit_stdout() < 0 || caph_limit_stderr() < 0) {
                 err(1, "unable to limit rights for stdio");
 	}
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)

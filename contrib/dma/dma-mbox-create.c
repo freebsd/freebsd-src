@@ -166,7 +166,7 @@ main(int argc, char **argv)
 		err(EX_OSERR, "can't limit maildirfd rights");
 
 	/* Enter Capsicum capability sandbox */
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(EX_OSERR, "cap_enter");
 #endif
 

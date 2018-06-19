@@ -19,7 +19,7 @@ main(int argc, char *argv[])
 	int c;
 	int status = 0;
 
-	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
 		err(1, "capsicum");
 
 	optind = 2;	/* Past the program name and the option letters. */
