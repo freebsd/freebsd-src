@@ -70,14 +70,3 @@ r21au_init_tx_agg(struct rtwn_softc *sc)
 	rtwn_write_1(sc, R21A_DWBCN1_CTRL, uc->tx_agg_desc_num << 1);
 }
 
-void
-r21au_init_burstlen(struct rtwn_softc *sc)
-{
-	if ((rtwn_read_1(sc, R92C_USB_INFO) & 0x30) == 0) {
-		/* Set burst packet length to 512 B. */
-		rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x20, 0x1e);
-	} else {
-		/* Set burst packet length to 64 B. */
-		rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x10, 0x2e);
-	}
-}
