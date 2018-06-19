@@ -152,11 +152,6 @@ struct xbpf_d {
 	u_int64_t	bd_spare[4];
 };
 
-#define BPFIF_RLOCK(bif)	rw_rlock(&(bif)->bif_lock)
-#define BPFIF_RUNLOCK(bif)	rw_runlock(&(bif)->bif_lock)
-#define BPFIF_WLOCK(bif)	rw_wlock(&(bif)->bif_lock)
-#define BPFIF_WUNLOCK(bif)	rw_wunlock(&(bif)->bif_lock)
-
 #define BPFIF_FLAG_DYING	1	/* Reject new bpf consumers */
 
 #endif
