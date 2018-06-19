@@ -98,7 +98,8 @@ typedef enum {
         PROBE_GET_CID,
         PROBE_GET_CSD,
         PROBE_SEND_RELATIVE_ADDR,
-        PROBE_SELECT_CARD,
+	PROBE_MMC_SET_RELATIVE_ADDR,
+	PROBE_SELECT_CARD,
 	PROBE_DONE,
 	PROBE_INVALID
 } probe_action;
@@ -114,6 +115,7 @@ static char *probe_action_text[] = {
         "PROBE_GET_CID",
         "PROBE_GET_CSD",
         "PROBE_SEND_RELATIVE_ADDR",
+	"PROBE_MMC_SET_RELATIVE_ADDR",
         "PROBE_SELECT_CARD",
 	"PROBE_DONE",
 	"PROBE_INVALID"
@@ -702,12 +704,18 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		mmcio->cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 		mmcio->stop.opcode = 0;
 		break;
-
 	case PROBE_SEND_RELATIVE_ADDR:
 		init_standard_ccb(start_ccb, XPT_MMC_IO);
 		mmcio->cmd.opcode = SD_SEND_RELATIVE_ADDR;
 		mmcio->cmd.arg = 0;
 		mmcio->cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
+		mmcio->stop.opcode = 0;
+		break;
+	case PROBE_MMC_SET_RELATIVE_ADDR:
+		init_standard_ccb(start_ccb, XPT_MMC_IO);
+		mmcio->cmd.opcode = MMC_SET_RELATIVE_ADDR;
+		mmcio->cmd.arg = MMC_PROPOSED_RCA << 16;
+		mmcio->cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		mmcio->stop.opcode = 0;
 		break;
 	case PROBE_SELECT_CARD:
@@ -985,7 +993,10 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
                            mmcp->card_cid[1],
                            mmcp->card_cid[2],
                            mmcp->card_cid[3]));
-                PROBE_SET_ACTION(softc, PROBE_SEND_RELATIVE_ADDR);
+		if (mmcp->card_features & CARD_FEATURE_MMC)
+			PROBE_SET_ACTION(softc, PROBE_MMC_SET_RELATIVE_ADDR);
+		else
+			PROBE_SET_ACTION(softc, PROBE_SEND_RELATIVE_ADDR);
                 break;
         }
         case PROBE_SEND_RELATIVE_ADDR: {
@@ -1010,6 +1021,18 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
                         PROBE_SET_ACTION(softc, PROBE_SELECT_CARD);
 		break;
         }
+	case PROBE_MMC_SET_RELATIVE_ADDR:
+		mmcio = &done_ccb->mmcio;
+		err = mmcio->cmd.error;
+		if (err != MMC_ERR_NONE) {
+			CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
+			    ("PROBE_MMC_SET_RELATIVE_ADDR: error %d\n", err));
+			PROBE_SET_ACTION(softc, PROBE_INVALID);
+			break;
+		}
+		path->device->mmc_ident_data.card_rca = MMC_PROPOSED_RCA;
+		PROBE_SET_ACTION(softc, PROBE_GET_CSD);
+		break;
         case PROBE_GET_CSD: {
 		mmcio = &done_ccb->mmcio;
 		err = mmcio->cmd.error;
