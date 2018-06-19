@@ -87,7 +87,7 @@ struct handle {
  */
 
 static const char io_header[] =
-    "  PID%*s %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
+    "  %s%*s %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
 
 static const char io_Proc_format[] =
     "%5d%*s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s";
@@ -103,7 +103,7 @@ static const char smp_Proc_format[] =
     "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s %2d%7s %6.2f%% %.*s";
 
 static char up_header_thr_and_pid[] =
-    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
+    "  %s%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 static char up_header_id_only[] =
     "  %s%*s %-*.*s   PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 static char up_Proc_format[] =
