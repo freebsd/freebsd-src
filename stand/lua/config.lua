@@ -425,8 +425,8 @@ function config.loadKernel(other_kernel)
 
 	local function tryLoad(names)
 		for name in names:gmatch("([^;]+)%s*;?") do
-			local r = loader.perform("load " .. flags ..
-			    " " .. name)
+			local r = loader.perform("load " .. name ..
+			     " " .. flags)
 			if r == 0 then
 				return name
 			end
