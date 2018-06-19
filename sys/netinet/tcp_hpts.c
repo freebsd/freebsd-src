@@ -1158,7 +1158,6 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		hpts->p_inp = inp;
 		drop_reason = inp->inp_hpts_drop_reas;
 		inp->inp_in_input = 0;
-		tp = intotcpcb(inp);
 		mtx_unlock(&hpts->p_mtx);
 		CURVNET_SET(inp->inp_vnet);
 		if (drop_reason) {
@@ -1183,6 +1182,7 @@ out:
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
+		tp = intotcpcb(inp);
 		if ((tp == NULL) || (tp->t_inpcb == NULL)) {
 			goto out;
 		}
