@@ -1979,7 +1979,7 @@ int
 nvpair_append_nvlist_array(nvpair_t *nvp, const nvlist_t *value)
 {
 	nvpair_t *tmpnvp;
-	nvlist_t *nvl, *prev;
+	nvlist_t *nvl, *prev = NULL;
 	int flags;
 
 	NVPAIR_ASSERT(nvp);
