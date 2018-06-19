@@ -39,12 +39,6 @@
 #ifndef _ARM_GIC_H_
 #define _ARM_GIC_H_
 
-#define	GIC_FIRST_SGI		 0	/* Irqs 0-15 are SGIs/IPIs. */
-#define	GIC_LAST_SGI		15
-#define	GIC_FIRST_PPI		16	/* Irqs 16-31 are private (per */
-#define	GIC_LAST_PPI		31	/* core) peripheral interrupts. */
-#define	GIC_FIRST_SPI		32	/* Irqs 32+ are shared peripherals. */
-
 #ifdef INTRNG
 struct arm_gic_range {
 	uint64_t bus;
