@@ -27,29 +27,63 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 
 #include <atf-c.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "utils.h"
 
-#define MAX_DATA 1024
+#define MAX_DATA 128
 #define SERVER_PATH "server"
 
+static pid_t pid;
+static mode_t mode = 0777;
 static int sockfd, sockfd2, connectfd;
 static ssize_t data_bytes;
+static socklen_t len = sizeof(struct sockaddr_un);
+static struct iovec io1, io2;
 static struct pollfd fds[1];
 static struct sockaddr_un server;
-static char extregex[80];
+static struct msghdr sendbuf, recvbuf;
+static char extregex[MAX_DATA];
 static char data[MAX_DATA];
-static socklen_t len = sizeof(struct sockaddr_un);
 static char msgbuff[MAX_DATA] = "This message does not exist";
 static const char *auclass = "nt";
+static const char *path = "fileforaudit";
 static const char *nosupregex = "return,failure : Address family "
 				"not supported by protocol family";
 static const char *invalregex = "return,failure : Bad file descriptor";
+
+/*
+ * Initialize iovec structure to be used as a field of struct msghdr
+ */
+static void
+init_iov(struct iovec *io, char msgbuf[], int datalen)
+{
+	io->iov_base = msgbuf;
+	io->iov_len = datalen;
+}
+
+/*
+ * Initialize msghdr structure for communication via datagram sockets
+ */
+static void
+init_msghdr(struct msghdr *hdrbuf, struct iovec *io, struct sockaddr_un *addr)
+{
+	socklen_t length;
+
+	bzero(hdrbuf, sizeof(*hdrbuf));
+	length = (socklen_t)sizeof(struct sockaddr_un);
+	hdrbuf->msg_name = addr;
+	hdrbuf->msg_namelen = length;
+	hdrbuf->msg_iov = io;
+	hdrbuf->msg_iovlen = 1;
+}
 
 /*
  * Variadic function to close socket descriptors
@@ -648,7 +682,6 @@ ATF_TC_BODY(recv_success, tc)
 
 	/* Receive data once connectfd is ready for reading */
 	FILE *pipefd = setup(fds, auclass);
-	//ATF_REQUIRE(check_readfs(connectfd) != 0);
 	ATF_REQUIRE((data_bytes = recv(connectfd, data, MAX_DATA, 0)) != 0);
 
 	/* Audit record must contain connectfd and data_bytes */
@@ -808,6 +841,253 @@ ATF_TC_CLEANUP(recvfrom_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(sendmsg_success);
+ATF_TC_HEAD(sendmsg_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"recvmsg(2) call");
+}
+
+ATF_TC_BODY(sendmsg_success, tc)
+{
+	assign_address(&server);
+	/* Create a datagram server socket & bind to UNIX address family */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_DGRAM, 0)) != -1);
+	ATF_REQUIRE_EQ(0, bind(sockfd, (struct sockaddr *)&server, len));
+
+	/* Message buffer to be sent to the server */
+	init_iov(&io1, msgbuff, sizeof(msgbuff));
+	init_msghdr(&sendbuf, &io1, &server);
+
+	/* Set up UDP client to communicate with the server */
+	ATF_REQUIRE((sockfd2 = socket(PF_UNIX, SOCK_DGRAM, 0)) != -1);
+
+	/* Send a sample message to the specified client address */
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((data_bytes = sendmsg(sockfd2, &sendbuf, 0)) != -1);
+
+	/* Audit record must contain sockfd2 and data_bytes */
+	snprintf(extregex, sizeof(extregex),
+		"sendmsg.*0x%x.*return,success,%zd", sockfd2, data_bytes);
+	check_audit(fds, extregex, pipefd);
+
+	/* Close all socket descriptors */
+	close_sockets(2, sockfd, sockfd2);
+}
+
+ATF_TC_CLEANUP(sendmsg_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(sendmsg_failure);
+ATF_TC_HEAD(sendmsg_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"sendmsg(2) call");
+}
+
+ATF_TC_BODY(sendmsg_failure, tc)
+{
+	snprintf(extregex, sizeof(extregex),
+		"sendmsg.*return,failure : Bad address");
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, sendmsg(-1, NULL, 0));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(sendmsg_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(recvmsg_success);
+ATF_TC_HEAD(recvmsg_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"recvmsg(2) call");
+}
+
+ATF_TC_BODY(recvmsg_success, tc)
+{
+	assign_address(&server);
+	/* Create a datagram server socket & bind to UNIX address family */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_DGRAM, 0)) != -1);
+	ATF_REQUIRE_EQ(0, bind(sockfd, (struct sockaddr *)&server, len));
+
+	/* Message buffer to be sent to the server */
+	init_iov(&io1, msgbuff, sizeof(msgbuff));
+	init_msghdr(&sendbuf, &io1, &server);
+
+	/* Prepare buffer to store the received data in */
+	init_iov(&io2, data, sizeof(data));
+	init_msghdr(&recvbuf, &io2, NULL);
+
+	/* Set up UDP client to communicate with the server */
+	ATF_REQUIRE((sockfd2 = socket(PF_UNIX, SOCK_DGRAM, 0)) != -1);
+	/* Send a sample message to the connected socket */
+	ATF_REQUIRE(sendmsg(sockfd2, &sendbuf, 0) != -1);
+
+	/* Receive data once clientfd is ready for reading */
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((data_bytes = recvmsg(sockfd, &recvbuf, 0)) != -1);
+
+	/* Audit record must contain sockfd and data_bytes */
+	snprintf(extregex, sizeof(extregex),
+		"recvmsg.*%#x.*return,success,%zd", sockfd, data_bytes);
+	check_audit(fds, extregex, pipefd);
+
+	/* Close all socket descriptors */
+	close_sockets(2, sockfd, sockfd2);
+}
+
+ATF_TC_CLEANUP(recvmsg_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(recvmsg_failure);
+ATF_TC_HEAD(recvmsg_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"recvmsg(2) call");
+}
+
+ATF_TC_BODY(recvmsg_failure, tc)
+{
+	snprintf(extregex, sizeof(extregex),
+		"recvmsg.*return,failure : Bad address");
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, recvmsg(-1, NULL, 0));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(recvmsg_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(shutdown_success);
+ATF_TC_HEAD(shutdown_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"shutdown(2) call");
+}
+
+ATF_TC_BODY(shutdown_success, tc)
+{
+	assign_address(&server);
+	/* Setup server socket and bind to the specified address */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	ATF_REQUIRE_EQ(0, bind(sockfd, (struct sockaddr *)&server, len));
+	ATF_REQUIRE_EQ(0, listen(sockfd, 1));
+
+	/* Setup client and connect with the blocking server */
+	ATF_REQUIRE((sockfd2 = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	ATF_REQUIRE_EQ(0, connect(sockfd2, (struct sockaddr *)&server, len));
+	ATF_REQUIRE((connectfd = accept(sockfd, NULL, &len)) != -1);
+
+	/* Audit record must contain clientfd */
+	snprintf(extregex, sizeof(extregex),
+		"shutdown.*%#x.*return,success", connectfd);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, shutdown(connectfd, SHUT_RDWR));
+	check_audit(fds, extregex, pipefd);
+
+	/* Close all socket descriptors */
+	close_sockets(3, sockfd, sockfd2, connectfd);
+}
+
+ATF_TC_CLEANUP(shutdown_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(shutdown_failure);
+ATF_TC_HEAD(shutdown_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"shutdown(2) call");
+}
+
+ATF_TC_BODY(shutdown_failure, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex),
+		"shutdown.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid socket descriptor */
+	ATF_REQUIRE_EQ(-1, shutdown(-1, SHUT_RDWR));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(shutdown_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(sendfile_success);
+ATF_TC_HEAD(sendfile_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"sendfile(2) call");
+}
+
+ATF_TC_BODY(sendfile_success, tc)
+{
+	int filedesc;
+	ATF_REQUIRE((filedesc = open(path, O_CREAT | O_RDONLY, mode)) != -1);
+	/* Create a simple UNIX socket to send out random data */
+	ATF_REQUIRE((sockfd = socket(PF_UNIX, SOCK_STREAM, 0)) != -1);
+	/* Check the presence of sockfd, non-file in the audit record */
+	snprintf(extregex, sizeof(extregex),
+		"sendfile.*%#x,non-file.*return,success", filedesc);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, sendfile(filedesc, sockfd, 0, 0, NULL, NULL, 0));
+	check_audit(fds, extregex, pipefd);
+
+	/* Teardown socket and file descriptors */
+	close_sockets(2, sockfd, filedesc);
+}
+
+ATF_TC_CLEANUP(sendfile_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(sendfile_failure);
+ATF_TC_HEAD(sendfile_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"sendfile(2) call");
+}
+
+ATF_TC_BODY(sendfile_failure, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex),
+		"sendfile.*%d.*return,failure", pid);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, sendfile(-1, -1, 0, 0, NULL, NULL, 0));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(sendfile_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, socket_success);
@@ -840,6 +1120,16 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sendto_failure);
 	ATF_TP_ADD_TC(tp, recvfrom_success);
 	ATF_TP_ADD_TC(tp, recvfrom_failure);
+
+	ATF_TP_ADD_TC(tp, sendmsg_success);
+	ATF_TP_ADD_TC(tp, sendmsg_failure);
+	ATF_TP_ADD_TC(tp, recvmsg_success);
+	ATF_TP_ADD_TC(tp, recvmsg_failure);
+
+	ATF_TP_ADD_TC(tp, shutdown_success);
+	ATF_TP_ADD_TC(tp, shutdown_failure);
+	ATF_TP_ADD_TC(tp, sendfile_success);
+	ATF_TP_ADD_TC(tp, sendfile_failure);
 
 	return (atf_no_error());
 }
