@@ -28,10 +28,13 @@
 #include <sys/types.h>
 #include <sys/extattr.h>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <atf-c.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "utils.h"
@@ -689,6 +692,257 @@ ATF_TC_CLEANUP(lchflags_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(utimes_success);
+ATF_TC_HEAD(utimes_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"utimes(2) call");
+}
+
+ATF_TC_BODY(utimes_success, tc)
+{
+	/* File needs to exist to call utimes(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, utimes(path, NULL));
+	check_audit(fds, successreg, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(utimes_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(utimes_failure);
+ATF_TC_HEAD(utimes_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"utimes(2) call");
+}
+
+ATF_TC_BODY(utimes_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: file does not exist */
+	ATF_REQUIRE_EQ(-1, utimes(errpath, NULL));
+	check_audit(fds, failurereg, pipefd);
+}
+
+ATF_TC_CLEANUP(utimes_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(futimes_success);
+ATF_TC_HEAD(futimes_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"futimes(2) call");
+}
+
+ATF_TC_BODY(futimes_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "futimes.*%d.*ret.*success", pid);
+
+	/* File needs to exist to call futimes(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, futimes(filedesc, NULL));
+	check_audit(fds, extregex, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(futimes_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(futimes_failure);
+ATF_TC_HEAD(futimes_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"futimes(2) call");
+}
+
+ATF_TC_BODY(futimes_failure, tc)
+{
+	const char *regex = "futimes.*return,failure : Bad file descriptor";
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid file descriptor */
+	ATF_REQUIRE_EQ(-1, futimes(-1, NULL));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(futimes_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(lutimes_success);
+ATF_TC_HEAD(lutimes_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"lutimes(2) call");
+}
+
+ATF_TC_BODY(lutimes_success, tc)
+{
+	/* Symbolic link needs to exist to call lutimes(2) */
+	ATF_REQUIRE_EQ(0, symlink("symlink", path));
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, lutimes(path, NULL));
+	check_audit(fds, successreg, pipefd);
+}
+
+ATF_TC_CLEANUP(lutimes_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(lutimes_failure);
+ATF_TC_HEAD(lutimes_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"lutimes(2) call");
+}
+
+ATF_TC_BODY(lutimes_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: symbolic link does not exist */
+	ATF_REQUIRE_EQ(-1, lutimes(errpath, NULL));
+	check_audit(fds, failurereg, pipefd);
+}
+
+ATF_TC_CLEANUP(lutimes_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(futimesat_success);
+ATF_TC_HEAD(futimesat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"futimesat(2) call");
+}
+
+ATF_TC_BODY(futimesat_success, tc)
+{
+	/* File needs to exist to call futimesat(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, futimesat(AT_FDCWD, path, NULL));
+	check_audit(fds, successreg, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(futimesat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(futimesat_failure);
+ATF_TC_HEAD(futimesat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"futimesat(2) call");
+}
+
+ATF_TC_BODY(futimesat_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: file does not exist */
+	ATF_REQUIRE_EQ(-1, futimesat(AT_FDCWD, errpath, NULL));
+	check_audit(fds, failurereg, pipefd);
+}
+
+ATF_TC_CLEANUP(futimesat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(mprotect_success);
+ATF_TC_HEAD(mprotect_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"mprotect(2) call");
+}
+
+ATF_TC_BODY(mprotect_success, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "mprotect.*%d.*ret.*success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, mprotect(NULL, 0, PROT_NONE));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(mprotect_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(mprotect_failure);
+ATF_TC_HEAD(mprotect_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"mprotect(2) call");
+}
+
+ATF_TC_BODY(mprotect_failure, tc)
+{
+	const char *regex = "mprotect.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, mprotect((void *)SIZE_MAX, -1, PROT_NONE));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(mprotect_failure, tc)
+{
+	cleanup();
+}
+
+/*
+ * undelete(2) only works on whiteout files in union file system. Hence, no
+ * test case for successful invocation.
+ */
+
+ATF_TC_WITH_CLEANUP(undelete_failure);
+ATF_TC_HEAD(undelete_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"undelete(2) call");
+}
+
+ATF_TC_BODY(undelete_failure, tc)
+{
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "undelete.*%d.*ret.*failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: File does not exist */
+	ATF_REQUIRE_EQ(-1, undelete(errpath));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(undelete_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TC_WITH_CLEANUP(extattr_set_file_success);
 ATF_TC_HEAD(extattr_set_file_success, tc)
 {
@@ -1049,6 +1303,19 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fchflags_failure);
 	ATF_TP_ADD_TC(tp, lchflags_success);
 	ATF_TP_ADD_TC(tp, lchflags_failure);
+
+	ATF_TP_ADD_TC(tp, utimes_success);
+	ATF_TP_ADD_TC(tp, utimes_failure);
+	ATF_TP_ADD_TC(tp, futimes_success);
+	ATF_TP_ADD_TC(tp, futimes_failure);
+	ATF_TP_ADD_TC(tp, lutimes_success);
+	ATF_TP_ADD_TC(tp, lutimes_failure);
+	ATF_TP_ADD_TC(tp, futimesat_success);
+	ATF_TP_ADD_TC(tp, futimesat_failure);
+
+	ATF_TP_ADD_TC(tp, mprotect_success);
+	ATF_TP_ADD_TC(tp, mprotect_failure);
+	ATF_TP_ADD_TC(tp, undelete_failure);
 
 	ATF_TP_ADD_TC(tp, extattr_set_file_success);
 	ATF_TP_ADD_TC(tp, extattr_set_file_failure);
