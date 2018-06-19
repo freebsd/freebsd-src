@@ -184,9 +184,6 @@ TUNABLE_INT("net.inet.tcp.hpts_logging_sz", &tcp_hpts_logging_size);
 
 static struct tcp_hptsi tcp_pace;
 
-static int
-tcp_hptsi_lock_inpinfo(struct inpcb *inp,
-    struct tcpcb **tp);
 static void tcp_wakehpts(struct tcp_hpts_entry *p);
 static void tcp_wakeinput(struct tcp_hpts_entry *p);
 static void tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv);
@@ -496,59 +493,6 @@ sysctl_tcp_hpts_log(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, log, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, sysctl_tcp_hpts_log, "A", "tcp hptsi log");
-
-
-/*
- * Try to get the INP_INFO lock.
- *
- * This function always succeeds in getting the lock. It will clear
- * *tpp and return (1) if something critical changed while the inpcb
- * was unlocked. Otherwise, it will leave *tpp unchanged and return (0).
- *
- * This function relies on the fact that the hpts always holds a
- * reference on the inpcb while the segment is on the hptsi wheel and
- * in the input queue.
- *
- */
-static int
-tcp_hptsi_lock_inpinfo(struct inpcb *inp, struct tcpcb **tpp)
-{
-	struct tcp_function_block *tfb;
-	struct tcpcb *tp;
-	void *ptr;
-
-	/* Try the easy way. */
-	if (INP_INFO_TRY_RLOCK(&V_tcbinfo))
-		return (0);
-
-	/*
-	 * OK, let's try the hard way. We'll save the function pointer block
-	 * to make sure that doesn't change while we aren't holding the
-	 * lock.
-	 */
-	tp = *tpp;
-	tfb = tp->t_fb;
-	ptr = tp->t_fb_ptr;
-	INP_WUNLOCK(inp);
-	INP_INFO_RLOCK(&V_tcbinfo);
-	INP_WLOCK(inp);
-	/* If the session went away, return an error. */
-	if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
-	    (inp->inp_flags2 & INP_FREED)) {
-		*tpp = NULL;
-		return (1);
-	}
-	/*
-	 * If the function block or stack-specific data block changed,
-	 * report an error.
-	 */
-	tp = intotcpcb(inp);
-	if ((tp->t_fb != tfb) && (tp->t_fb_ptr != ptr)) {
-		*tpp = NULL;
-		return (1);
-	}
-	return (0);
-}
 
 
 static void
@@ -1290,10 +1234,7 @@ out:
 		    (m->m_pkthdr.pace_lock == TI_RLOCKED ||
 		    tp->t_state != TCPS_ESTABLISHED)) {
 			ti_locked = TI_RLOCKED;
-			if (tcp_hptsi_lock_inpinfo(inp, &tp)) {
-				CURVNET_RESTORE();
-				goto out;
-			}
+			INP_INFO_RLOCK(&V_tcbinfo);
 			m = tp->t_in_pkt;
 		}
 		if (in_newts_every_tcb) {
@@ -1360,7 +1301,6 @@ out:
 				 */
 				if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
 				    (inp->inp_flags2 & INP_FREED)) {
-			out_free:
 					while (m) {
 						m_freem(m);
 						m = n;
@@ -1376,8 +1316,7 @@ out:
 				if (ti_locked == TI_UNLOCKED &&
 				    (tp->t_state != TCPS_ESTABLISHED)) {
 					ti_locked = TI_RLOCKED;
-					if (tcp_hptsi_lock_inpinfo(inp, &tp))
-						goto out_free;
+					INP_INFO_RLOCK(&V_tcbinfo);
 				}
 			}	/** end while(m) */
 		}		/** end if ((m != NULL)  && (m == tp->t_in_pkt)) */

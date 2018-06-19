@@ -960,25 +960,10 @@ findpcb:
 	 *
 	 * XXXRW: It may be time to rethink timewait locking.
 	 */
-relocked:
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		if (ti_locked == TI_UNLOCKED) {
-			if (INP_INFO_TRY_RLOCK(&V_tcbinfo) == 0) {
-				in_pcbref(inp);
-				INP_WUNLOCK(inp);
-				INP_INFO_RLOCK(&V_tcbinfo);
-				ti_locked = TI_RLOCKED;
-				INP_WLOCK(inp);
-				if (in_pcbrele_wlocked(inp)) {
-					inp = NULL;
-					goto findpcb;
-				} else if (inp->inp_flags & INP_DROPPED) {
-					INP_WUNLOCK(inp);
-					inp = NULL;
-					goto findpcb;
-				}
-			} else
-				ti_locked = TI_RLOCKED;
+			INP_INFO_RLOCK();
+			ti_locked = TI_RLOCKED;
 		}
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
@@ -1026,23 +1011,8 @@ relocked:
 	      (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN) &&
 	       !IS_FASTOPEN(tp->t_flags)))) {
 		if (ti_locked == TI_UNLOCKED) {
-			if (INP_INFO_TRY_RLOCK(&V_tcbinfo) == 0) {
-				in_pcbref(inp);
-				INP_WUNLOCK(inp);
-				INP_INFO_RLOCK(&V_tcbinfo);
-				ti_locked = TI_RLOCKED;
-				INP_WLOCK(inp);
-				if (in_pcbrele_wlocked(inp)) {
-					inp = NULL;
-					goto findpcb;
-				} else if (inp->inp_flags & INP_DROPPED) {
-					INP_WUNLOCK(inp);
-					inp = NULL;
-					goto findpcb;
-				}
-				goto relocked;
-			} else
-				ti_locked = TI_RLOCKED;
+			INP_INFO_RLOCK();
+			ti_locked = TI_RLOCKED;
 		}
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	}
