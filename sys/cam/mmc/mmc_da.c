@@ -1778,6 +1778,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 		mmcio->cmd.data->flags = (bp->bio_cmd == BIO_READ ? MMC_DATA_READ : MMC_DATA_WRITE);
 		/* Direct h/w to issue CMD12 upon completion */
 		if (count > 1) {
+			mmcio->cmd.data->flags |= MMC_DATA_MULTI;
 			mmcio->stop.opcode = MMC_STOP_TRANSMISSION;
 			mmcio->stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 			mmcio->stop.arg = 0;
