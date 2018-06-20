@@ -39,7 +39,7 @@
 # done
 
 # 20180615: asf(8) removed
-OLD_FILES+=usr/bin/asf
+OLD_FILES+=usr/sbin/asf
 OLD_FILES+=usr/share/man/man8/asf.8.gz
 # 20180609: obsolete libc++ files missed from the 5.0.0 import
 OLD_FILES+=usr/include/c++/v1/__refstring
