@@ -285,16 +285,6 @@ main(void)
 	bootinfo.bi_memsizes_valid++;
 	bootinfo.bi_bios_dev = dsk.drive;
 
-	/*
-	 * Initialize the serial console early with a modern default of 115200.
-	 * Later, we'll read PATH_DOTCONFIG and reconfigure serial according
-	 * to the configuration provided.
-	 */
-	opts = OPT_SET(RBX_DUAL);
-	ioctrl = (IO_SERIAL|IO_KEYBOARD);
-	if (sio_init(115200) != 0)
-		ioctrl &= ~IO_SERIAL;
-
 #ifdef LOADER_GELI_SUPPORT
 	geli_init();
 #endif
