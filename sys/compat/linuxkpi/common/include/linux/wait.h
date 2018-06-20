@@ -47,6 +47,10 @@
 #define	might_sleep()							\
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "might_sleep()")
 
+#define	might_sleep_if(cond) do { \
+	if (cond) { might_sleep(); } \
+} while (0)
+
 struct wait_queue;
 struct wait_queue_head;
 
