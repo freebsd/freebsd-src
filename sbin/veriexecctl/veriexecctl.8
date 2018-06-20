@@ -1,0 +1,121 @@
+.\" $NetBSD: veriexecctl.8,v 1.5 2004/03/06 23:40:13 wiz Exp $
+.\"
+.\" Copyright (c) 1999
+.\"	Brett Lymn - blymn@baea.com.au, brett_lymn@yahoo.com.au
+.\"
+.\" This code is donated to The NetBSD Foundation by the author.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the Author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 19, 2018
+.Dt VERIEXECCTL 8
+.Os
+.Sh NAME
+.Nm veriexecctl
+.Nd load verified exec fingerprints
+.Sh SYNOPSIS
+.Nm
+.Ar fingerprints
+.Sh DESCRIPTION
+The
+.Nm
+command loads an in-kernel metadata store of the fingerprints
+given in the
+.Ar fingerprints
+file.
+The kernel can then calculate the fingerprint of programs at time of
+execution or files that are opened with
+.Dv O_VERIFY
+and verify whether the fingerprints match.
+.Pp
+The
+.Ar fingerprints
+file contains lines of fields separated by one or more whitespace
+characters:
+.Pp
+.Dl path	type	fingerprint	options
+.Bl -tag -width fingerprint
+.It Em path
+Full path to the file.
+.It Em type
+Type of fingerprint used.
+Currently this may be any of rmd160, sha1, sha256, sha384, or sha512.
+Availability of these fingerprint types is dependent on kernel support.
+The
+.Va security.mac.veriexec.algorithms
+sysctl is consulted to determine the list of valid fingerprint types.
+.It Em fingerprint
+A hexadecimal representation of the fingerprint for the file.
+.It Em options
+Associated options for the file.
+Currently there are four valid options:
+.Bl -tag -width INDIRECT
+.It Pa INDIRECT
+If this option is set then the executable cannot be invoked directly, it
+can only be used as an interpreter in shell scripts.
+.It Pa FILE
+Indicates that the fingerprint is associated with a file, not an
+executable.
+Files have their fingerprints verified during
+.Xr open 2
+and are automatically made read only.
+This option may be used to verify shared libraries have not been
+tampered with.
+.It Pa NO_PTRACE
+If this option is set then the executable cannot be traced with the
+.Xr ptrace 2 process tracing and debugging call.
+.It Pa TRUSTED
+If this option is set then the executable is allowed to write to the
+.Xr mem 4
+devices.
+By default, when verified execution is enforced, no process
+is allowed to write to the
+.Xr mem 4
+devices.
+.El
+.El
+.Pp
+There must be only one executable/fingerprint pair per line.
+Comments are indicated by the first character of a line being a
+.Sq \&#
+character.
+.Sh FILES
+.Bl -tag -width /dev/veriexec -compact
+.It Pa /dev/veriexec
+verified executable device node
+.El
+.Sh SEE ALSO
+.Xr sysctl 3
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 2.0 .
+.Sh NOTES
+.Nm
+requires the kernel to have been configured with the
+.Dv MAC_VERIEXEC
+option and the veriexec pseudo-device.
