@@ -580,14 +580,12 @@ kdb_thr_first(void)
 	struct proc *p;
 	struct thread *thr;
 
-	p = LIST_FIRST(&allproc);
-	while (p != NULL) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_INMEM) {
 			thr = FIRST_THREAD_IN_PROC(p);
 			if (thr != NULL)
 				return (thr);
 		}
-		p = LIST_NEXT(p, p_list);
 	}
 	return (NULL);
 }
@@ -597,11 +595,9 @@ kdb_thr_from_pid(pid_t pid)
 {
 	struct proc *p;
 
-	p = LIST_FIRST(&allproc);
-	while (p != NULL) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_INMEM && p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));
-		p = LIST_NEXT(p, p_list);
 	}
 	return (NULL);
 }
