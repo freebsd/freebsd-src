@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2018 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,8 +100,7 @@ shell_spawn_pipecmd(const char *cmd, const char *label, pid_t *pid)
 	posix_spawn_file_actions_addclose(&action, stdin_pipe[1]);
 	error = posix_spawnp(pid, shellcmd, &action,
 	    (const posix_spawnattr_t *)NULL, shellcmd_argv, environ);
-	if (error != 0)
-		err(EXIT_FAILURE, "%s: posix_spawnp(3)", __func__);
+	if (error != 0) err(EXIT_FAILURE, "%s", shellcmd);
 
 	return stdin_pipe[1];
 }
