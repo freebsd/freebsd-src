@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -60,6 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 #include <vm/uma.h>
@@ -2529,3 +2534,54 @@ out:
 	free(fbuf, M_TEMP);
 	return (error);
 }
+
+#ifdef DDB
+static void
+db_print_vpath(struct vnode *vp)
+{
+
+	while (vp != NULL) {
+		db_printf("%p: ", vp);
+		if (vp == rootvnode) {
+			db_printf("/");
+			vp = NULL;
+		} else {
+			if (vp->v_vflag & VV_ROOT) {
+				db_printf("<mount point>");
+				vp = vp->v_mount->mnt_vnodecovered;
+			} else {
+				struct namecache *ncp;
+				char *ncn;
+				int i;
+
+				ncp = TAILQ_FIRST(&vp->v_cache_dst);
+				if (ncp != NULL) {
+					ncn = ncp->nc_name;
+					for (i = 0; i < ncp->nc_nlen; i++)
+						db_printf("%c", *ncn++);
+					vp = ncp->nc_dvp;
+				} else {
+					vp = NULL;
+				}
+			}
+		}
+		db_printf("\n");
+	}
+
+	return;
+}
+
+DB_SHOW_COMMAND(vpath, db_show_vpath)
+{
+	struct vnode *vp;
+
+	if (!have_addr) {
+		db_printf("usage: show vpath <struct vnode *>\n");
+		return;
+	}
+
+	vp = (struct vnode *)addr;
+	db_print_vpath(vp);
+}
+
+#endif
