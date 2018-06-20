@@ -97,98 +97,12 @@ MK_GCC_BOOTSTRAP=	no
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early. Pull it from the
 # tree to be friendlier to foreign OS builds. It's safe to do so unconditionally
 # here since we will always have the right make, unlike in src/Makefile
+# Don't include bsd.linker.mk yet until XBINUTILS is handled (after src.opts.mk)
+_NO_INCLUDE_LINKERMK=	t
 .include "share/mk/bsd.compiler.mk"
+.undef _NO_INCLUDE_LINKERMK
+# src.opts.mk depends on COMPILER_FEATURES
 .include "share/mk/src.opts.mk"
-
-# Check if there is a local compiler that can satisfy as an external compiler.
-# Which compiler is expected to be used?
-.if ${MK_CLANG_BOOTSTRAP} == "yes"
-WANT_COMPILER_TYPE=	clang
-.elif ${MK_GCC_BOOTSTRAP} == "yes"
-WANT_COMPILER_TYPE=	gcc
-.else
-WANT_COMPILER_TYPE=
-.endif
-.if !defined(WANT_COMPILER_FREEBSD_VERSION)
-.if ${WANT_COMPILER_TYPE} == "clang"
-WANT_COMPILER_FREEBSD_VERSION_FILE= lib/clang/freebsd_cc_version.h
-WANT_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
-	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
-WANT_COMPILER_VERSION_FILE= lib/clang/include/clang/Basic/Version.inc
-WANT_COMPILER_VERSION!= \
-	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
-	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
-.elif ${WANT_COMPILER_TYPE} == "gcc"
-WANT_COMPILER_FREEBSD_VERSION_FILE= gnu/usr.bin/cc/cc_tools/freebsd-native.h
-WANT_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
-	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
-WANT_COMPILER_VERSION_FILE= contrib/gcc/BASE-VER
-WANT_COMPILER_VERSION!= \
-	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
-	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
-.endif
-.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
-.endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
-# It needs to be the same revision as we would build for the bootstrap.
-# If the expected vs CC is different then we can't skip.
-# GCC cannot be used for cross-arch yet.  For clang we pass -target later if
-# TARGET_ARCH!=MACHINE_ARCH.
-.if ${MK_SYSTEM_COMPILER} == "yes" && \
-    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig) && !make(xdev*) && \
-    ${X_COMPILER_TYPE} == ${WANT_COMPILER_TYPE} && \
-    (${X_COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
-    ${X_COMPILER_VERSION} == ${WANT_COMPILER_VERSION} && \
-    ${X_COMPILER_FREEBSD_VERSION} == ${WANT_COMPILER_FREEBSD_VERSION}
-# Everything matches, disable the bootstrap compiler.
-MK_CLANG_BOOTSTRAP=	no
-MK_GCC_BOOTSTRAP=	no
-USING_SYSTEM_COMPILER=	yes
-.endif	# ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE}
-USING_SYSTEM_COMPILER?=	no
-TEST_SYSTEM_COMPILER_VARS= \
-	USING_SYSTEM_COMPILER MK_SYSTEM_COMPILER \
-	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP MK_GCC_BOOTSTRAP \
-	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
-	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
-	CC COMPILER_TYPE COMPILER_FEATURES COMPILER_VERSION \
-	COMPILER_FREEBSD_VERSION \
-	X_COMPILER_TYPE X_COMPILER_FEATURES X_COMPILER_VERSION \
-	X_COMPILER_FREEBSD_VERSION \
-	LINKER_TYPE LINKER_FEATURES LINKER_VERSION \
-	X_LINKER_TYPE X_LINKER_FEATURES X_LINKER_VERSION
-test-system-compiler: .PHONY
-.for v in ${TEST_SYSTEM_COMPILER_VARS}
-	${_+_}@printf "%-35s= %s\n" "${v}" "${${v}}"
-.endfor
-.if ${USING_SYSTEM_COMPILER} == "yes" && \
-    (make(buildworld) || make(buildkernel) || make(kernel-toolchain) || \
-    make(toolchain) || make(_cross-tools))
-.info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
-.endif
-
-# Store some compiler metadata for use in installworld where we don't
-# want to invoke CC at all.
-_COMPILER_METADATA_VARS=	COMPILER_VERSION \
-				COMPILER_TYPE \
-				COMPILER_FEATURES \
-				COMPILER_FREEBSD_VERSION \
-				LINKER_VERSION \
-				LINKER_FEATURES \
-				LINKER_TYPE
-compiler-metadata.mk: .PHONY .META
-	@: > ${.TARGET}
-	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
-	    > ${.TARGET}
-	@echo "_LOADED_COMPILER_METADATA=t" >> ${.TARGET}
-.for v in ${_COMPILER_METADATA_VARS}
-	@echo "${v}=${${v}}" >> ${.TARGET}
-	@echo "X_${v}=${X_${v}}" >> ${.TARGET}
-.endfor
-	@echo ".export ${_COMPILER_METADATA_VARS}" >> ${.TARGET}
-	@echo ".export ${_COMPILER_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
 
 .if ${TARGET} == ${MACHINE}
 TARGET_CPUTYPE?=${CPUTYPE}
@@ -244,6 +158,171 @@ X${BINUTIL}?=	${${BINUTIL}}
 .if ${XLD:M/*}
 MK_LLD_BOOTSTRAP=	no
 .endif
+
+.include "share/mk/bsd.linker.mk"
+
+# Begin WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
+
+# WITH_SYSTEM_COMPILER - Pull in needed values and make a decision.
+
+# Check if there is a local compiler that can satisfy as an external compiler.
+# Which compiler is expected to be used?
+.if ${MK_CLANG_BOOTSTRAP} == "yes"
+WANT_COMPILER_TYPE=	clang
+.elif ${MK_GCC_BOOTSTRAP} == "yes"
+WANT_COMPILER_TYPE=	gcc
+.else
+WANT_COMPILER_TYPE=
+.endif
+
+.if !defined(WANT_COMPILER_FREEBSD_VERSION)
+.if ${WANT_COMPILER_TYPE} == "clang"
+WANT_COMPILER_FREEBSD_VERSION_FILE= lib/clang/freebsd_cc_version.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= lib/clang/include/clang/Basic/Version.inc
+WANT_COMPILER_VERSION!= \
+	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.elif ${WANT_COMPILER_TYPE} == "gcc"
+WANT_COMPILER_FREEBSD_VERSION_FILE= gnu/usr.bin/cc/cc_tools/freebsd-native.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= contrib/gcc/BASE-VER
+WANT_COMPILER_VERSION!= \
+	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.endif
+.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
+.endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
+
+# It needs to be the same revision as we would build for the bootstrap.
+# If the expected vs CC is different then we can't skip.
+# GCC cannot be used for cross-arch yet.  For clang we pass -target later if
+# TARGET_ARCH!=MACHINE_ARCH.
+.if ${MK_SYSTEM_COMPILER} == "yes" && \
+    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    !make(showconfig) && !make(xdev*) && \
+    ${X_COMPILER_TYPE} == ${WANT_COMPILER_TYPE} && \
+    (${X_COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
+    ${X_COMPILER_VERSION} == ${WANT_COMPILER_VERSION} && \
+    ${X_COMPILER_FREEBSD_VERSION} == ${WANT_COMPILER_FREEBSD_VERSION}
+# Everything matches, disable the bootstrap compiler.
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
+USING_SYSTEM_COMPILER=	yes
+.endif	# ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE}
+
+# WITH_SYSTEM_LD - Pull in needed values and make a decision.
+
+# Check if there is a local linker that can satisfy as an external linker.
+# Which linker is expected to be used?
+.if ${MK_LLD_BOOTSTRAP} == "yes"
+WANT_LINKER_TYPE=		lld
+.elif ${MK_BINUTILS_BOOTSTRAP} == "yes"
+# Note that there's no support for bfd in WITH_SYSTEM_LINKER.
+WANT_LINKER_TYPE=	bfd
+.else
+WANT_LINKER_TYPE=
+.endif
+
+.if !defined(WANT_LINKER_FREEBSD_VERSION)
+.if ${WANT_LINKER_TYPE} == "lld"
+WANT_LINKER_FREEBSD_VERSION_FILE= lib/clang/include/lld/Common/Version.inc
+WANT_LINKER_FREEBSD_VERSION!= \
+	awk '$$2 == "LLD_REVISION_STRING" {gsub(/"/, "", $$3); print $$3}' \
+	${SRCDIR}/${WANT_LINKER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_LINKER_VERSION_FILE= lib/clang/include/lld/Common/Version.inc
+WANT_LINKER_VERSION!= \
+	awk '$$2 == "LLD_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/${WANT_LINKER_VERSION_FILE} || echo unknown
+.else
+WANT_LINKER_FREEBSD_VERSION_FILE=
+WANT_LINKER_FREEBSD_VERSION=
+.endif
+.export WANT_LINKER_FREEBSD_VERSION WANT_LINKER_VERSION
+.endif	# !defined(WANT_LINKER_FREEBSD_VERSION)
+
+.if ${MK_SYSTEM_LINKER} == "yes" && \
+    (${MK_LLD_BOOTSTRAP} == "yes") && \
+    !make(showconfig) && !make(xdev*) && \
+    ${X_LINKER_TYPE} == ${WANT_LINKER_TYPE} && \
+    ${X_LINKER_VERSION} == ${WANT_LINKER_VERSION} && \
+    ${X_LINKER_FREEBSD_VERSION} == ${WANT_LINKER_FREEBSD_VERSION}
+# Everything matches, disable the bootstrap linker.
+MK_LLD_BOOTSTRAP=	no
+USING_SYSTEM_LINKER=	yes
+.endif	# ${WANT_LINKER_TYPE} == ${LINKER_TYPE}
+
+# WITH_SYSTEM_COMPILER / WITH_SYSTEM_LINKER - Handle defaults and debug.
+USING_SYSTEM_COMPILER?=	no
+USING_SYSTEM_LINKER?=	no
+
+TEST_SYSTEM_COMPILER_VARS= \
+	USING_SYSTEM_COMPILER MK_SYSTEM_COMPILER \
+	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP MK_GCC_BOOTSTRAP \
+	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
+	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
+	CC COMPILER_TYPE COMPILER_FEATURES COMPILER_VERSION \
+	COMPILER_FREEBSD_VERSION \
+	XCC X_COMPILER_TYPE X_COMPILER_FEATURES X_COMPILER_VERSION \
+	X_COMPILER_FREEBSD_VERSION
+TEST_SYSTEM_LINKER_VARS= \
+	USING_SYSTEM_LINKER MK_SYSTEM_LINKER \
+	MK_LLD_BOOTSTRAP MK_BINUTILS_BOOTSTRAP \
+	WANT_LINKER_TYPE WANT_LINKER_VERSION WANT_LINKER_VERSION_FILE \
+	WANT_LINKER_FREEBSD_VERSION WANT_LINKER_FREEBSD_VERSION_FILE \
+	LD LINKER_TYPE LINKER_FEATURES LINKER_VERSION \
+	LINKER_FREEBSD_VERSION \
+	XLD X_LINKER_TYPE X_LINKER_FEATURES X_LINKER_VERSION \
+	X_LINKER_FREEBSD_VERSION
+
+.for _t in compiler linker
+test-system-${_t}: .PHONY
+.for v in ${TEST_SYSTEM_${_t:tu}_VARS}
+	${_+_}@printf "%-35s= %s\n" "${v}" "${${v}}"
+.endfor
+.endfor
+.if (make(buildworld) || make(buildkernel) || make(kernel-toolchain) || \
+    make(toolchain) || make(_cross-tools))
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
+.elif ${MK_CLANG_BOOTSTRAP} == "yes"
+.info SYSTEM_COMPILER: libclang will be built for bootstrapping a cross-compiler.
+.endif
+.if ${USING_SYSTEM_LINKER} == "yes"
+.info SYSTEM_LINKER: Determined that LD=${LD} matches the source tree.  Not bootstrapping a cross-linker.
+.elif ${MK_LLD_BOOTSTRAP} == "yes"
+.info SYSTEM_LINKER: libclang will be built for bootstrapping a cross-linker.
+.endif
+.endif
+
+# End WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
+
+# Store some compiler metadata for use in installworld where we don't
+# want to invoke CC at all.
+_COMPILER_METADATA_VARS=	COMPILER_VERSION \
+				COMPILER_TYPE \
+				COMPILER_FEATURES \
+				COMPILER_FREEBSD_VERSION \
+				LINKER_VERSION \
+				LINKER_FEATURES \
+				LINKER_TYPE \
+				LINKER_FREEBSD_VERSION
+compiler-metadata.mk: .PHONY .META
+	@: > ${.TARGET}
+	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
+	    > ${.TARGET}
+	@echo "_LOADED_COMPILER_METADATA=t" >> ${.TARGET}
+.for v in ${_COMPILER_METADATA_VARS}
+	@echo "${v}=${${v}}" >> ${.TARGET}
+	@echo "X_${v}=${X_${v}}" >> ${.TARGET}
+.endfor
+	@echo ".export ${_COMPILER_METADATA_VARS}" >> ${.TARGET}
+	@echo ".export ${_COMPILER_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
+
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -857,6 +936,9 @@ _worldtmp: .PHONY
 	fi
 .endfor
 .endif	# ${USING_SYSTEM_COMPILER} == "yes"
+.if ${USING_SYSTEM_LINKER} == "yes"
+	@rm -f ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/bin/ld.lld
+.endif	# ${USING_SYSTEM_LINKER} == "yes"
 .endif	# !defined(NO_CLEAN)
 	@mkdir -p ${WORLDTMP}
 	@touch ${WORLDTMP}/${.TARGET}

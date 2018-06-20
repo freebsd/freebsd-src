@@ -208,5 +208,7 @@ ${var}.${${X_}_cc_hash}:=	${${var}}
 .endif	# ${cc} == "CC" || !empty(XCC)
 .endfor	# .for cc in CC XCC
 
+.if !defined(_NO_INCLUDE_LINKERMK)
 .include <bsd.linker.mk>
+.endif
 .endif	# !target(__<bsd.compiler.mk>__)

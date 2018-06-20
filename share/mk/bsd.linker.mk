@@ -16,6 +16,8 @@
 # - retpoline: support for generating PLT with retpoline speculative
 #              execution vulnerability mitigation
 #
+# LINKER_FREEBSD_VERSION is the linker's internal source version.
+#
 # These variables with an X_ prefix will also be provided if XLD is set.
 #
 # This file may be included multiple times, but only has effect the first time.
@@ -29,7 +31,8 @@ __<bsd.linker.mk>__:
 # Try to import LINKER_TYPE and LINKER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts
 # LD and LINKER_* settings here.
-_exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION ${X_}LINKER_FEATURES
+_exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION ${X_}LINKER_FEATURES \
+		${X_}LINKER_FREEBSD_VERSION
 ${X_}_ld_hash=	${${ld}}${MACHINE}${PATH}
 ${X_}_ld_hash:=	${${X_}_ld_hash:hash}
 # Only import if none of the vars are set somehow else.
@@ -55,10 +58,14 @@ _ld_version!=	(${${ld}} --version || echo none) | sed -n 1p
 .endif
 .if ${_ld_version:[1..2]} == "GNU ld"
 ${X_}LINKER_TYPE=	bfd
+${X_}LINKER_FREEBSD_VERSION=	0
 _v=	${_ld_version:M[1-9].[0-9]*:[1]}
 .elif ${_ld_version:[1]} == "LLD"
 ${X_}LINKER_TYPE=	lld
 _v=	${_ld_version:[2]}
+${X_}LINKER_FREEBSD_VERSION!= \
+	${${ld}} --version | \
+	awk '$$3 ~ /FreeBSD/ {print substr($$4, 1, length($$4)-1)}'
 .else
 .warning Unknown linker from ${ld}=${${ld}}: ${_ld_version}, defaulting to bfd
 ${X_}LINKER_TYPE=	bfd
@@ -85,6 +92,7 @@ ${X_}LINKER_FEATURES+=	retpoline
 X_LINKER_TYPE=		${LINKER_TYPE}
 X_LINKER_VERSION=	${LINKER_VERSION}
 X_LINKER_FEATURES=	${LINKER_FEATURES}
+X_LINKER_FREEBSD_VERSION= ${LINKER_FREEBSD_VERSION}
 .endif	# ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 
 # Export the values so sub-makes don't have to look them up again, using the
