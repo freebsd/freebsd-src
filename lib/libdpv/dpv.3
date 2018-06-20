@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013-2016 Devin Teske
+.\" Copyright (c) 2013-2018 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 26, 2016
+.Dd March 13, 2018
 .Dt DPV 3
 .Os
 .Sh NAME
@@ -36,7 +36,8 @@
 .In dpv.h
 .Ft int
 .Fo dpv
-.Fa "struct dpv_config *config, struct dpv_file_node *file_list"
+.Fa "struct dpv_config *config"
+.Fa "struct dpv_file_node *file_list"
 .Fc
 .Ft void
 .Fo dpv_free
@@ -60,8 +61,7 @@ or
 The
 .Fn dpv
 .Fa config
-argument contains the following properties for configuring global display
-features:
+argument properties for configuring global display features:
 .Bd -literal -offset indent
 struct dpv_config {
     uint8_t          keep_tite;     /* Cleaner exit for scripts */
@@ -113,11 +113,12 @@ member of the
 .Fn dpv
 .Fa config
 argument is a mask of bit fields indicating various processing options.
-Possible flags are as follows:
+Possible flags are:
 .Bl -tag -width DPV_NO_OVERRUN
 .It Dv DPV_TEST_MODE
 Enable test mode.
-In test mode, the
+In test mode,
+the
 .Fn action
 callback of the
 .Fa config
@@ -126,18 +127,21 @@ Appends
 .Dq [TEST MODE]
 to the status line
 .Po
-to override, set the
+to override,
+set the
 .Va status_format
 member of the
 .Fn dpv
 .Fa config
 argument;
-e.g., to
+for example,
+to
 .Dv DPV_STATUS_DEFAULT
 .Pc .
 .It Dv DPV_WIDE_MODE
 Enable wide mode.
-In wide mode, the length of the
+In wide mode,
+the length of the
 .Va aprompt
 and
 .Va pprompt
@@ -169,7 +173,8 @@ does not support color
 environment variable is ignored
 .Pc .
 .It Dv DPV_NO_OVERRUN
-When enabled, callbacks for the current
+When enabled,
+callbacks for the current
 .Vt dpv_file_node
 are terminated when
 .Fn action
@@ -189,7 +194,7 @@ argument to
 .Fn dpv
 is a pointer to a
 .Dq linked-list ,
-described as follows in
+described in
 .In dpv.h :
 .Bd -literal -offset indent
 struct dpv_file_node {
@@ -206,7 +211,8 @@ struct dpv_file_node {
 For each of the items in the
 .Fa file_list
 .Dq linked-list
-argument, the
+argument,
+the
 .Fn action
 callback member of the
 .Fn dpv
@@ -214,7 +220,7 @@ callback member of the
 argument is called.
 The
 .Fn action
-function should perform a
+function performs a
 .Dq nominal
 action on the file and return.
 The return value of
@@ -231,7 +237,7 @@ provides a reference to the current
 .Vt dpv_file_node
 being processed.
 .Fa out
-provides a file descriptor where the data should go.
+provides a file descriptor where the data goes.
 .Pp
 If the
 .Va output
@@ -244,7 +250,7 @@ the
 .Fa out
 file descriptor of
 .Fn action
-will be zero and should be ignored.
+will be zero and can be ignored.
 If
 .Fa output
 was set to DPV_OUTPUT_FILE,
@@ -257,14 +263,16 @@ was set to DPV_OUTPUT_SHELL,
 will be an open file descriptor to a pipe for a spawned shell program.
 When
 .Fa out
-is greater than zero, you should write any data you have read back to
+is greater than zero,
+write data that has been read back to
 .Fa out .
 .Pp
 To abort
 .Fn dpv ,
 either from the
 .Fn action
-callback or asynchronously from a signal handler, two globals are provided via
+callback or asynchronously from a signal handler,
+two globals are provided via
 .In dpv.h :
 .Bd -literal -offset indent
 extern int dpv_interrupt; /* Set to TRUE in interrupt handler */
@@ -272,11 +280,12 @@ extern int dpv_abort;     /* Set to true in callback to abort */
 .Ed
 .Pp
 These globals are not automatically reset and must be manually maintained.
-Don't forget to reset these globals before subsequent invocations of
+Do not forget to reset these globals before subsequent invocations of
 .Fn dpv
 when making multiple calls from the same program.
 .Pp
-In addition, the
+In addition,
+the
 .Va status
 member of the
 .Fn action
@@ -284,7 +293,7 @@ member of the
 argument can be used to control callbacks for the current file.
 The
 .Va status
-member can be set to any of the following from
+member can be set to any of the below from
 .In dpv.h :
 .Bd -literal -offset indent
 enum dpv_status {
@@ -296,13 +305,17 @@ enum dpv_status {
 .Pp
 The default
 .Fa status
-is zero, DPV_STATUS_RUNING, which keeps the callbacks coming for the current
+is zero,
+DPV_STATUS_RUNNING,
+which keeps the callbacks coming for the current
 .Fn file .
 Setting
 .Ql file->status
 to anything other than DPV_STATUS_RUNNING will cause
 .Fn dpv
-to loop to the next file, effecting the next callback, if any.
+to loop to the next file,
+effecting the next callback,
+if any.
 .Pp
 The
 .Fn action
@@ -318,7 +331,7 @@ Percentages are reported through the
 return value of the
 .Fn action
 callback.
-Throughput statistics are calculated from the following global
+Throughput statistics are calculated from the below global
 .Vt int
 in
 .In dpv.h :
@@ -326,7 +339,7 @@ in
 extern int dpv_overall_read;
 .Ed
 .Pp
-This should be set to the number of bytes that have been read for all files.
+Set this to the number of bytes that have been read for all files.
 Throughput information is displayed in the status line
 .Pq only available when using Xr dialog 3
 at the bottom of the screen.
@@ -335,18 +348,20 @@ See DPV_DISPLAY_LIBDIALOG above.
 Note that
 .Va dpv_overall_read
 does not have to represent bytes.
-For example, you can change the
+For example,
+the
 .Va status_format
-to display something other than
+can be changed to display something other than
 .Dq Li bytes
 and increment
 .Va dpv_overall_read
 accordingly
-.Pq e.g., counting lines .
+.Pq for example, counting lines .
 .Pp
 When
 .Fn dpv
-is processing the current file, the
+is processing the current file,
+the
 .Va length
 and
 .Va read
@@ -355,7 +370,8 @@ members of the
 .Fa file
 argument are used for calculating the display of mini progress bars
 .Po
-if enabled; see
+if enabled;
+see
 .Va pbar_size
 above
 .Pc .
@@ -381,7 +397,7 @@ function performs
 on private global variables initialized by
 .Fn dpv .
 .Sh ENVIRONMENT
-The following environment variables are referenced by
+The below environment variables are referenced by
 .Nm :
 .Bl -tag -width ".Ev USE_COLOR"
 .It Ev DIALOG
@@ -398,17 +414,20 @@ or
 .Ql Xdialog
 .Pq for Dv DPV_DISPLAY_XDIALOG .
 .It Ev DIALOGRC
-If set and non-NULL, path to
+If set and non-NULL,
+path to
 .Ql .dialogrc
 file.
 .It Ev HOME
 If
 .Ql Ev $DIALOGRC
-is either not set or NULL, used as a prefix to
+is either not set or NULL,
+used as a prefix to
 .Ql .dialogrc
-.Pq i.e., Ql $HOME/.dialogrc .
+.Pq that is, Ql $HOME/.dialogrc .
 .It Ev USE_COLOR
-If set and NULL, disables the use of color when using
+If set and NULL,
+disables the use of color when using
 .Xr dialog 1
 .Pq does not apply to Xr Xdialog 1 .
 .It Ev msg_done Ev msg_fail Ev msg_pending
@@ -418,7 +437,8 @@ Internationalization strings for overriding the default English strings
 and
 .Ql Pending
 respectively.
-To prevent their usage, explicitly set the
+To prevent their usage,
+explicitly set the
 .Va msg_done ,
 .Va msg_fail ,
 and
@@ -471,11 +491,11 @@ This is a known issue with the
 .Ql --gauge
 widget in
 .Xr Xdialog 1 .
-Embed escaped newlines within prompt text(s) to force line breaks.
+Embed escaped newlines within prompt text to force line breaks.
 .Pp
 .Xr dialog 1
 does not display the first character after a series of escaped escape-sequences
-(e.g., ``\\\\n'' produces ``\\'' instead of ``\\n'').
+(for example, ``\\\\n'' produces ``\\'' instead of ``\\n'').
 This is a known issue with
 .Xr dialog 1
 and does not affect
@@ -483,10 +503,10 @@ and does not affect
 or
 .Xr Xdialog 1 .
 .Pp
-If your application ignores
+If an application ignores
 .Ev USE_COLOR
 when set and NULL before calling
-.Xr dpv 3
+.Fn dpv
 with color escape sequences anyway,
 .Xr dialog 3
 and
