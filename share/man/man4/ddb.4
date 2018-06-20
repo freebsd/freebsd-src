@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2017
+.Dd June 20, 2018
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1121,6 +1121,11 @@ header file.
 .Pp
 .It Ic show Cm vnodebufs Ar addr
 Shows clean/dirty buffer lists of the vnode located at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm vpath Ar addr
+Walk the namecache to lookup the pathname of the vnode located at
 .Ar addr .
 .\"
 .Pp
