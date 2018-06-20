@@ -191,10 +191,6 @@ ofw_cpu_probe(device_t dev)
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return (ENXIO);
 
-	/* Skip SMT CPUs, which we can't reasonably represent with this code */
-	if (OF_hasprop(ofw_bus_get_node(dev), "ibm,ppc-interrupt-server#s"))
-		return (ENXIO);
-
 	device_set_desc(dev, "Open Firmware CPU");
 	return (0);
 }
@@ -233,6 +229,43 @@ ofw_cpu_attach(device_t dev)
 	} else
 		sc->sc_reg_valid = true;
 
+#ifdef __powerpc__
+	/*
+	 * On powerpc, "interrupt-servers" denotes a SMT CPU.  Look for any
+	 * thread on this CPU, and assign that.
+	 */
+	if (OF_hasprop(node, "ibm,ppc-interrupt-server#s")) {
+		struct cpuref cpuref;
+		cell_t *servers;
+		int i, nservers, rv;
+		
+		if ((nservers = OF_getencprop_alloc(node, 
+		    "ibm,ppc-interrupt-server#s", (void **)&servers)) < 0)
+			return (ENXIO);
+		nservers /= sizeof(cell_t);
+		for (i = 0; i < nservers; i++) {
+			for (rv = platform_smp_first_cpu(&cpuref); rv == 0;
+			    rv = platform_smp_next_cpu(&cpuref)) {
+				if (cpuref.cr_hwref == servers[i]) {
+					sc->sc_cpu_pcpu =
+					    pcpu_find(cpuref.cr_cpuid);
+					if (sc->sc_cpu_pcpu == NULL) {
+						OF_prop_free(servers);
+						return (ENXIO);
+					}
+					break;
+				}
+			}
+			if (rv != ENOENT)
+				break;
+		}
+		OF_prop_free(servers);
+		if (sc->sc_cpu_pcpu == NULL) {
+			device_printf(dev, "No CPU found for this device.\n");
+			return (ENXIO);
+		}
+	} else
+#endif
 	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
