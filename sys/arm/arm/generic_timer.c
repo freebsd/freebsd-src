@@ -243,7 +243,7 @@ tmr_setup_user_access(void *arg __unused)
 	if (arm_tmr_sc != NULL)
 		smp_rendezvous(NULL, setup_user_access, NULL, NULL);
 }
-SYSINIT(tmr_ua, SI_SUB_SMP, SI_ORDER_SECOND, tmr_setup_user_access, NULL);
+SYSINIT(tmr_ua, SI_SUB_SMP, SI_ORDER_ANY, tmr_setup_user_access, NULL);
 
 static unsigned
 arm_tmr_get_timecount(struct timecounter *tc)
