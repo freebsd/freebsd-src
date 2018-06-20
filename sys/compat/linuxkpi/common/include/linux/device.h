@@ -461,6 +461,9 @@ device_destroy(struct class *class, dev_t devt)
 		device_unregister(device_get_softc(bsddev));
 }
 
+#define	dev_pm_set_driver_flags(dev, flags) do { \
+} while (0)
+
 static inline void
 linux_class_kfree(struct class *class)
 {
