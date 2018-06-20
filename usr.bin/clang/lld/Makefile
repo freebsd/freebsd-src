@@ -8,7 +8,8 @@ LLD_SRCS=	${LLVM_SRCS}/tools/lld
 PACKAGE=	lld
 PROG_CXX=	ld.lld
 
-.if ${MK_LLD_IS_LD} != "no"
+.if (!defined(TOOLS_PREFIX) && ${MK_LLD_IS_LD} != "no") || \
+    (defined(TOOLS_PREFIX) && ${MK_LLD_BOOTSTRAP} != "no")
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 MLINKS=		ld.lld.1 ld.1
 .endif
