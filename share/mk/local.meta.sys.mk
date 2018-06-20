@@ -212,7 +212,7 @@ BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
 
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
-    !make(showconfig) && \
+    !make(test-system-*) && !make(showconfig) && !make(print-dir) && \
     !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
 .for dir in /sbin /bin /usr/sbin /usr/bin
 PATH:= ${TOOLSDIR}${dir}:${PATH}

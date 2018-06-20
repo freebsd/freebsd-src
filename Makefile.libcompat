@@ -172,11 +172,12 @@ build${libcompat}: .PHONY
 .if !defined(NO_CLEAN)
 	rm -rf ${LIBCOMPATTMP}
 .else
-.if exists(${LIBCOMPATTMP})
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    DESTDIR=${LIBCOMPATTMP} \
-	    delete-old delete-old-libs >/dev/null
-.endif
+	${_+_}@if [ -e "${LIBCOMPATTMP}" ]; then \
+		echo ">>> Deleting stale files in build${libcompat} tree..."; \
+		cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+		    DESTDIR=${LIBCOMPATTMP} \
+		    delete-old delete-old-libs >/dev/null; \
+	fi
 .endif	# !defined(NO_CLEAN)
 
 	mkdir -p ${LIBCOMPATTMP}/usr/include
