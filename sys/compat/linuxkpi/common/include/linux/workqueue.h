@@ -117,6 +117,9 @@ do {									\
 #define	INIT_DELAYED_WORK(dwork, fn) \
 	linux_init_delayed_work(dwork, fn)
 
+#define	INIT_DELAYED_WORK_ONSTACK(dwork, fn) \
+	linux_init_delayed_work(dwork, fn)
+
 #define	INIT_DEFERRABLE_WORK(dwork, fn) \
 	INIT_DELAYED_WORK(dwork, fn)
 
