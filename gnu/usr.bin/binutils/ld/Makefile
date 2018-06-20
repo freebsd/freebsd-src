@@ -7,8 +7,10 @@ ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .PATH: ${SRCDIR}/ld
 
 PROG=	ld.bfd
-.if ${MK_LLD_IS_LD} == "no"
+.if (!defined(TOOLS_PREFIX) && ${MK_LLD_IS_LD} == "no") || \
+    (defined(TOOLS_PREFIX) && ${MK_LLD_BOOTSTRAP} == "no")
 MAN=	ld.1
+LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
 .else
 MAN=	ld.bfd.1
 CLEANFILES+=	ld.bfd.1
@@ -57,9 +59,6 @@ CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
-.if ${MK_LLD_IS_LD} == "no"
-LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
-.endif
 
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"
