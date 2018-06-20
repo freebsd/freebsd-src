@@ -1142,7 +1142,7 @@ pmap_kextract(vm_offset_t va)
  * Low level mapping routines.....
  ***************************************************/
 
-static void
+void
 pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 {
 	pd_entry_t *pde;
