@@ -85,6 +85,9 @@ struct linux_kmem_cache {
 #define	SLAB_DESTROY_BY_RCU \
 	SLAB_TYPESAFE_BY_RCU
 
+#define	ARCH_KMALLOC_MINALIGN \
+	__alignof(unsigned long long)
+
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
 {
