@@ -50,6 +50,10 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
+.if make(showconfig) || make(test-system-*)
+_MKSHOWCONFIG=	t
+.endif
+
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
@@ -175,7 +179,8 @@ WANT_COMPILER_TYPE=	gcc
 WANT_COMPILER_TYPE=
 .endif
 
-.if !defined(WANT_COMPILER_FREEBSD_VERSION)
+.if !defined(WANT_COMPILER_FREEBSD_VERSION) && !make(showconfig) && \
+    !make(test-system-linker)
 .if ${WANT_COMPILER_TYPE} == "clang"
 WANT_COMPILER_FREEBSD_VERSION_FILE= lib/clang/freebsd_cc_version.h
 WANT_COMPILER_FREEBSD_VERSION!= \
@@ -203,8 +208,9 @@ WANT_COMPILER_VERSION!= \
 # GCC cannot be used for cross-arch yet.  For clang we pass -target later if
 # TARGET_ARCH!=MACHINE_ARCH.
 .if ${MK_SYSTEM_COMPILER} == "yes" && \
+    defined(WANT_COMPILER_FREEBSD_VERSION) && \
     (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig) && !make(xdev*) && \
+    !make(xdev*) && \
     ${X_COMPILER_TYPE} == ${WANT_COMPILER_TYPE} && \
     (${X_COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
     ${X_COMPILER_VERSION} == ${WANT_COMPILER_VERSION} && \
@@ -228,7 +234,8 @@ WANT_LINKER_TYPE=	bfd
 WANT_LINKER_TYPE=
 .endif
 
-.if !defined(WANT_LINKER_FREEBSD_VERSION)
+.if !defined(WANT_LINKER_FREEBSD_VERSION) && !make(showconfig) && \
+    !make(test-system-compiler)
 .if ${WANT_LINKER_TYPE} == "lld"
 WANT_LINKER_FREEBSD_VERSION_FILE= lib/clang/include/lld/Common/Version.inc
 WANT_LINKER_FREEBSD_VERSION!= \
@@ -246,8 +253,9 @@ WANT_LINKER_FREEBSD_VERSION=
 .endif	# !defined(WANT_LINKER_FREEBSD_VERSION)
 
 .if ${MK_SYSTEM_LINKER} == "yes" && \
+    defined(WANT_LINKER_FREEBSD_VERSION) && \
     (${MK_LLD_BOOTSTRAP} == "yes") && \
-    !make(showconfig) && !make(xdev*) && \
+    !make(xdev*) && \
     ${X_LINKER_TYPE} == ${WANT_LINKER_TYPE} && \
     ${X_LINKER_VERSION} == ${WANT_LINKER_VERSION} && \
     ${X_LINKER_FREEBSD_VERSION} == ${WANT_LINKER_FREEBSD_VERSION}
@@ -437,6 +445,7 @@ BUILDENV_SHELL?=${SHELL}
 BUILDENV_SHELL?=/bin/sh
 .endif
 
+.if !defined(_MKSHOWCONFIG)
 .if !defined(SVN_CMD) || empty(SVN_CMD)
 . for _P in /usr/bin /usr/local/bin
 .  for _S in svn svnlite
@@ -505,6 +514,7 @@ EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
+.endif	# !defined(_MKSHOWCONFIG)
 
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
@@ -541,10 +551,12 @@ _t=		${TARGET_ARCH}/${TARGET}
 .endif
 .endfor
 
+.if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
 		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
 .if ${_CPUTYPE} != ${_TARGET_CPUTYPE}
 .error CPUTYPE global should be set with ?=.
+.endif
 .endif
 .if make(buildworld)
 BUILD_ARCH!=	uname -p
@@ -763,7 +775,7 @@ LIBCOMPAT= SOFT
 # to get updated host tools.
 .if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
     !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS) && \
-    !make(showconfig)
+    !defined(_MKSHOWCONFIG)
 # r318736 - ino64 major ABI breakage
 META_MODE_BAD_ABI_VERS+=	1200031
 
@@ -881,37 +893,33 @@ _cleanobj_fast_depend_hack: .PHONY
 # 20180525  r334224  vadvise
 # 20180604  r334626  brk sbrk
 .for f in brk exect fstat fstatat fstatfs getdirentries getfsstat sbrk setlogin shmat sigreturn statfs vadvise
-.if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
-	@if egrep -qw '${f}\.[sS]' \
-	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo Removing stale dependencies for ${f} syscall wrappers; \
+	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
+	    egrep -qw '${f}\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
+		echo "Removing stale dependencies for ${f} syscall wrappers"; \
 		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
-.endif
 .endfor
 # 20170607 remove stale dependencies for utimens* wrappers removed in r319663
 .for f in futimens utimensat
-.if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
-	@if egrep -q '/${f}.c' \
-	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo Removing stale dependencies for ${f} syscall wrappers; \
+	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
+	    egrep -q '/${f}.c' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
+		echo "Removing stale dependencies for ${f} syscall wrappers"; \
 		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
-.endif
 .endfor
 # 20170523 remove stale generated asm files for functions which are no longer
 # syscalls after r302092 (pipe) and r318736 (others)
 .for f in getdents lstat mknod pipe stat
-.if exists(${OBJTOP}/lib/libc/${f}.s) || \
-    exists(${OBJTOP}/lib/libc/${f}.S)
-	@echo Removing stale generated ${f} syscall files
-	@rm -f ${OBJTOP}/lib/libc/${f}.* \
-	    ${OBJTOP}/lib/libc/.depend.${f}.* \
-	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/${f}.*} \
-	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}
-.endif
+	@if [ -e "${OBJTOP}/lib/libc/${f}.s" ] || \
+	    [ -e "${OBJTOP}/lib/libc/${f}.S" ] ; then \
+		echo "Removing stale generated ${f} syscall files"; \
+		rm -f ${OBJTOP}/lib/libc/${f}.* \
+		    ${OBJTOP}/lib/libc/.depend.${f}.* \
+		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/${f}.*} \
+		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
+	fi
 .endfor
 
 _worldtmp: .PHONY
@@ -922,11 +930,11 @@ _worldtmp: .PHONY
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
 .else
-.if exists(${WORLDTMP})
-	@echo ">>> Deleting stale files in build tree..."
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    delete-old delete-old-libs >/dev/null
-.endif
+	${_+_}@if [ -e "${WORLDTMP}" ]; then \
+		echo ">>> Deleting stale files in build tree..."; \
+		cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+		    delete-old delete-old-libs >/dev/null; \
+	fi
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .if ${USING_SYSTEM_COMPILER} == "yes"
 .for cc in cc c++
@@ -1460,7 +1468,7 @@ INSTALLKERNEL=
 BUILDKERNELS+= dummy
 .endif
 .for _kernel in ${KERNCONF}
-.if exists(${KERNCONFDIR}/${_kernel})
+.if !defined(_MKSHOWCONFIG) && exists(${KERNCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
 .if empty(INSTALLKERNEL) && !defined(NO_INSTALLKERNEL)
 INSTALLKERNEL= ${_kernel}
@@ -1474,11 +1482,11 @@ INSTALLKERNEL= ${_kernel}
 
 _cleankernobj_fast_depend_hack: .PHONY
 # 20180320 remove stale generated assym.s after renaming to .inc in r331254
-.if exists(${OBJTOP}/sys/${KERNCONF}/assym.s)
-	@echo Removing stale generated assym files
-	@rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
-	    ${OBJTOP}/sys/${KERNCONF}/.depend.assym.*
-.endif
+	@if [ -e "${OBJTOP}/sys/${KERNCONF}/assym.s" ]; then \
+		echo "Removing stale generated assym files"; \
+		rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
+		    ${OBJTOP}/sys/${KERNCONF}/.depend.assym.*; \
+	fi
 
 ${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
@@ -1685,7 +1693,7 @@ PKGSIGNKEY?=	# empty
 .ORDER:		create-packages sign-packages
 
 _pkgbootstrap: .PHONY
-.if !exists(${LOCALBASE}/sbin/pkg)
+.if make(*package*) && !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
@@ -1771,7 +1779,7 @@ create-world-package-${pkgname}: .PHONY
 
 create-kernel-packages:	.PHONY
 _default_flavor=	-default
-.if exists(${KSTAGEDIR}/kernel.meta)
+.if make(*package*) && exists(${KSTAGEDIR}/kernel.meta)
 . if ${MK_DEBUG_FILES} != "no"
 _debug=-debug
 . endif
@@ -2669,7 +2677,7 @@ lib/libproc__L: gnu/lib/libsupc++__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE
-.if exists(${.CURDIR}/${_lib})
+.if !defined(_MKSHOWCONFIG) && exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
@@ -2682,7 +2690,7 @@ ${_lib}__PL: .PHONY .MAKE
 
 .for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
 ${_lib}__L: .PHONY .MAKE
-.if exists(${.CURDIR}/${_lib})
+.if !defined(_MKSHOWCONFIG) && exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
@@ -2888,7 +2896,7 @@ showconfig: .PHONY
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
-.if exists(${KERNCONFDIR}/${KERNCONF})
+.if !defined(_MKSHOWCONFIG) && exists(${KERNCONFDIR}/${KERNCONF})
 FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
 	'${KERNCONFDIR}/${KERNCONF}' ; echo
 .endif
