@@ -394,6 +394,7 @@ SUBDIR=	\
 	uinput \
 	unionfs \
 	usb \
+	veriexec \
 	${_vesa} \
 	${_virtio} \
 	vge \
