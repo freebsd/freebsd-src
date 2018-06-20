@@ -3176,7 +3176,7 @@ again:
 		}
 	}
 	/*  Did the loop above missed any stopped process ? */
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		/* No need for proc lock. */
 		if ((p->p_flag & P_TOTAL_STOP) != 0)
 			goto again;
