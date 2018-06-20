@@ -192,13 +192,8 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 	char path[96];
 	ssize_t rem = sizeof(path);
 	ssize_t len;
-	uint8_t val_8;
-	uint16_t val_16;
-	uint32_t val_32;
-	int val_int;
-	long val_long;
-	int64_t val_64;
-	quad_t val_quad;
+	uint8_t data[512] __aligned(sizeof(uint64_t));
+	int size;
 	int error;
 
 	path[--rem] = 0;
@@ -226,85 +221,88 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 
 	switch (oidp->oid_kind & CTLTYPE) {
 	case CTLTYPE_INT:
-		if (getenv_int(path + rem, &val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int), GETENV_SIGNED) == 0)
 			return;
-		req.newlen = sizeof(val_int);
-		req.newptr = &val_int;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_UINT:
-		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int), GETENV_UNSIGNED) == 0)
 			return;
-		req.newlen = sizeof(val_int);
-		req.newptr = &val_int;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_LONG:
-		if (getenv_long(path + rem, &val_long) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(long), GETENV_SIGNED) == 0)
 			return;
-		req.newlen = sizeof(val_long);
-		req.newptr = &val_long;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_ULONG:
-		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(long), GETENV_UNSIGNED) == 0)
 			return;
-		req.newlen = sizeof(val_long);
-		req.newptr = &val_long;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_S8:
-		if (getenv_int(path + rem, &val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int8_t), GETENV_SIGNED) == 0)
 			return;
-		val_8 = val_int;
-		req.newlen = sizeof(val_8);
-		req.newptr = &val_8;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_S16:
-		if (getenv_int(path + rem, &val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int16_t), GETENV_SIGNED) == 0)
 			return;
-		val_16 = val_int;
-		req.newlen = sizeof(val_16);
-		req.newptr = &val_16;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_S32:
-		if (getenv_long(path + rem, &val_long) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int32_t), GETENV_SIGNED) == 0)
 			return;
-		val_32 = val_long;
-		req.newlen = sizeof(val_32);
-		req.newptr = &val_32;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_S64:
-		if (getenv_quad(path + rem, &val_quad) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(int64_t), GETENV_SIGNED) == 0)
 			return;
-		val_64 = val_quad;
-		req.newlen = sizeof(val_64);
-		req.newptr = &val_64;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_U8:
-		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(uint8_t), GETENV_UNSIGNED) == 0)
 			return;
-		val_8 = val_int;
-		req.newlen = sizeof(val_8);
-		req.newptr = &val_8;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_U16:
-		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(uint16_t), GETENV_UNSIGNED) == 0)
 			return;
-		val_16 = val_int;
-		req.newlen = sizeof(val_16);
-		req.newptr = &val_16;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_U32:
-		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(uint32_t), GETENV_UNSIGNED) == 0)
 			return;
-		val_32 = val_long;
-		req.newlen = sizeof(val_32);
-		req.newptr = &val_32;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_U64:
-		/* XXX there is no getenv_uquad() */
-		if (getenv_quad(path + rem, &val_quad) == 0)
+		if (getenv_array(path + rem, data, sizeof(data), &size,
+		    sizeof(uint64_t), GETENV_UNSIGNED) == 0)
 			return;
-		val_64 = val_quad;
-		req.newlen = sizeof(val_64);
-		req.newptr = &val_64;
+		req.newlen = size;
+		req.newptr = data;
 		break;
 	case CTLTYPE_STRING:
 		penv = kern_getenv(path + rem);
