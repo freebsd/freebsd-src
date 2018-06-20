@@ -573,13 +573,13 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 universe_${target}_done: universe_${target}_kernels .PHONY
 universe_${target}_kernels: universe_${target}_worlds .PHONY
 universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
-.if exists(${KERNSRCDIR}/${target}/conf/NOTES)
-	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
+	@if [ -e "${KERNSRCDIR}/${target}/conf/NOTES" ]; then \
+	  (cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} LINT \
 	    > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
-	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
-.endif
+	    "check _.${target}.makeLINT for details"| ${MAKEFAIL})); \
+	fi
 	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
 .endif # !MAKE_JUST_WORLDS
