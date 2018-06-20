@@ -87,17 +87,6 @@ static wchar_t	*skip(wchar_t *);
 static void	 obsolete(char *[]);
 static void	 usage(void);
 
-static void
-strerror_init(void)
-{
-
-	/*
-	 * Cache NLS data before entering capability mode.
-	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
-	 */
-	(void)catopen("libc", NL_CAT_LOCALE);
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -177,7 +166,7 @@ main (int argc, char *argv[])
 		}
 	}
 
-	strerror_init();
+	caph_cache_catpages();
 	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 

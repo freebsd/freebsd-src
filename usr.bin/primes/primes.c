@@ -101,9 +101,7 @@ main(int argc, char *argv[])
 	int ch;
 	char *p;
 
-	/* Cache NLS data, for strerror, for err(3), before cap_enter. */
-	(void)catopen("libc", NL_CAT_LOCALE);
-
+	caph_cache_catpages();
 	if (caph_enter() < 0)
 		err(1, "cap_enter");
 
