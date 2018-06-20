@@ -45,8 +45,13 @@ hrtimer_call_handler(void *arg)
 
 	hrtimer = arg;
 	ret = hrtimer->function(hrtimer);
-	MPASS(ret == HRTIMER_NORESTART);
-	callout_deactivate(&hrtimer->callout);
+
+	if (ret == HRTIMER_RESTART) {
+		callout_schedule_sbt(&hrtimer->callout,
+		    nstosbt(hrtimer->expires), nstosbt(hrtimer->precision), 0);
+	} else {
+		callout_deactivate(&hrtimer->callout);
+	}
 }
 
 bool
@@ -57,6 +62,7 @@ linux_hrtimer_active(struct hrtimer *hrtimer)
 	mtx_lock(&hrtimer->mtx);
 	ret = callout_active(&hrtimer->callout);
 	mtx_unlock(&hrtimer->mtx);
+
 	return (ret);
 }
 
@@ -75,15 +81,16 @@ void
 linux_hrtimer_init(struct hrtimer *hrtimer)
 {
 
-	hrtimer->function = NULL;
-	mtx_init(&hrtimer->mtx, "hrtimer", NULL, MTX_DEF | MTX_RECURSE);
+	memset(hrtimer, 0, sizeof(*hrtimer));
+	mtx_init(&hrtimer->mtx, "hrtimer", NULL,
+	    MTX_DEF | MTX_RECURSE | MTX_NOWITNESS);
 	callout_init_mtx(&hrtimer->callout, &hrtimer->mtx, 0);
 }
 
 void
-linux_hrtimer_set_expires(struct hrtimer *hrtimer __unused,
-    ktime_t time __unused)
+linux_hrtimer_set_expires(struct hrtimer *hrtimer, ktime_t time)
 {
+	hrtimer->expires = ktime_to_ns(time);
 }
 
 void
@@ -94,11 +101,24 @@ linux_hrtimer_start(struct hrtimer *hrtimer, ktime_t time)
 }
 
 void
-linux_hrtimer_start_range_ns(struct hrtimer *hrtimer, ktime_t time, int64_t nsec)
+linux_hrtimer_start_range_ns(struct hrtimer *hrtimer, ktime_t time,
+    int64_t nsec)
 {
 
 	mtx_lock(&hrtimer->mtx);
-	callout_reset_sbt(&hrtimer->callout, nstosbt(time), nstosbt(nsec),
-	    hrtimer_call_handler, hrtimer, 0);
+	hrtimer->precision = nsec;
+	callout_reset_sbt(&hrtimer->callout, nstosbt(ktime_to_ns(time)),
+	    nstosbt(nsec), hrtimer_call_handler, hrtimer, 0);
 	mtx_unlock(&hrtimer->mtx);
 }
+
+void
+linux_hrtimer_forward_now(struct hrtimer *hrtimer, ktime_t interval)
+{
+
+	mtx_lock(&hrtimer->mtx);
+	callout_reset_sbt(&hrtimer->callout, nstosbt(ktime_to_ns(interval)),
+	    nstosbt(hrtimer->precision), hrtimer_call_handler, hrtimer, 0);
+	mtx_unlock(&hrtimer->mtx);
+}
+
