@@ -108,11 +108,12 @@ identify_error (struct image_params *imgp, struct thread *td, const char *msg)
 	gppid = (parent != NULL && parent->p_pptr != NULL) ?
 	    parent->p_pptr->p_pid : 0;
 
-	log(LOG_ERR, MAC_VERIEXEC_FULLNAME ": %s (file=%s fsid=%lu fileid=%lu "
+	log(LOG_ERR, MAC_VERIEXEC_FULLNAME ": %s (file=%s fsid=%ju fileid=%ju "
 	    "gen=%lu uid=%u pid=%u ppid=%u gppid=%u)", msg,
 	    (imgp->args != NULL) ? imgp->args->fname : "",
-	    imgp->attr->va_fsid, imgp->attr->va_fileid, imgp->attr->va_gen,
-	    td->td_ucred->cr_ruid, imgp->proc->p_pid, ppid, gppid);
+	    (uintmax_t)imgp->attr->va_fsid, (uintmax_t)imgp->attr->va_fileid,
+	    imgp->attr->va_gen, td->td_ucred->cr_ruid, imgp->proc->p_pid,
+	    ppid, gppid);
 }
 
 /**
@@ -217,8 +218,9 @@ mac_veriexec_fingerprint_check_vnode(struct vnode *vp,
 		return (ETXTBSY);
 
 	if ((vp->v_mount->mnt_flag & MNT_VERIFIED) != 0) {
-		VERIEXEC_DEBUG(2, ("file %lu.%lu on verified %s mount\n",
-		    ip->fileid, ip->gen, vp->v_mount->mnt_vfc->vfc_name));
+		VERIEXEC_DEBUG(2, ("file %ju.%lu on verified %s mount\n",
+		    (uintmax_t)ip->fileid, ip->gen,
+		    vp->v_mount->mnt_vfc->vfc_name));
 
 		/*
 		 * The VFS is backed by a file which has been verified.
