@@ -52,4 +52,17 @@ copy_from_user(void *to, const void *from, unsigned long n)
 #define	__copy_from_user(...)	copy_from_user(__VA_ARGS__)
 #define	__copy_in_user(...)	copy_from_user(__VA_ARGS__)
 
+#define	user_access_begin() do { } while (0)
+#define	user_access_end() do { } while (0)
+
+#define	unsafe_get_user(x, ptr, err) do { \
+	if (unlikely(__get_user(x, ptr))) \
+		goto err; \
+} while (0)
+
+#define	unsafe_put_user(x, ptr, err) do { \
+	if (unlikely(__put_user(x, ptr))) \
+		goto err; \
+} while (0)
+
 #endif	/* _ASM_UACCESS_H_ */
