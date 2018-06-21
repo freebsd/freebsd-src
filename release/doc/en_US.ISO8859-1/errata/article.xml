@@ -57,7 +57,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking
-	news</quote> about &os; &release; Before installing this
+	news</quote> about &os; &release;.  Before installing this
       version, it is important to consult this document to learn about
       any post-release discoveries or problems that may already have
       been found and fixed.</para>
@@ -121,19 +121,6 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>[2017-07-21] Due to a bug in earlier versions of
-	  &man.clang.1; that is difficult to work around in the
-	  upgrade process, to upgrade the system from sources via
-	  buildworld to -CURRENT or &release;, it is necessary to
-	  upgrade machines running 9.x to at least revision r286035,
-	  or machines running 10.x to revision r286033.  Source-based
-	  upgrades from 10.3-RELEASE are not affected.  This differs
-	  from the historical situation where one could generally
-	  upgrade from anywhere on earlier stable branches, so caution
-	  should be exercised.</para>
-      </listitem>
-
-      <listitem>
 	<para>[2017-07-25] &os;/&arch.arm64; currently lacks
 	  <acronym>EFI</acronym> real-time clock
 	  (<acronym>RTC</acronym>) support, which may cause the system
@@ -154,51 +141,6 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>[2017-07-26] Note for those upgrading from 11.1-RC2 in
-	  <application>VirtualBox</application>:</para>
-
-	<para>If system panics were experienced when upgrading from
-	  11.1-RC1 to 11.1-RC2, and the <filename
-	    role="package">emulators/virtualbox-ose-additions{,-nox11}</filename>
-	  port was built locally as a resolution, the port will either
-	  need to be rebuilt when upgrading from 11.1-RC2 to
-	  11.1-RELEASE, or reinstall the package from the pkg(8)
-	  mirrors using either:</para>
-
-	<screen> &prompt.root; <userinput>pkg install -f virtualbox-ose-additions</userinput></screen>
-
-	<para>or</para>
-
-	<screen> &prompt.root; <userinput>pkg install -f virtualbox-ose-additions-nox11</userinput></screen>
-
-	<para>To ensure the system does not panic after rebooting into
-	  the updated kernel, it is recommended to disable the
-	  <literal>vboxguest</literal> service in &man.rc.conf.5;
-	  prior to rebooting the system if possible, or use
-	  &man.pkg.8; to forcefully reinstall the package.</para>
-
-	<para>Systems being upgraded from 11.1-RC1 and earlier and
-	  11.1-RC3 to 11.1-RELEASE should be unaffected.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2017-07-27] The release notes erroneously state
-	  revision <literal>r315330</literal> was sponsored by Rubicon
-	  Communications, LLC (Netgate), when in fact this work was
-	  done by Hiroki Mori independently.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2017-08-09] The release notes stated the
-	  &man.ruptime.1;, &man.rwho.1;, and &man.rwhod.8; utilities
-	  have been marked &quot;deprecated&quot;, however this change
-	  was reversed in 12.0-CURRENT.</para>
-
-	<para>The other utilities mentioned in the entry in the
-	  release notes, however, are unchanged.</para>
-      </listitem>
-
-      <listitem>
 	<para>[2017-11-06] An issue with &os; virtual machines with
 	  <application>vagrant</application> was discovered that
 	  affects the <application>VirtualBox</application> where the
@@ -213,6 +155,23 @@ boot</screen>
 	  invocation of <literal>vagrant up</literal> will allow the
 	  virtual machine to successfully boot, allowing access via
 	  <literal>vagrant ssh</literal>.</para>
+      </listitem>
+
+      <listitem>
+	<para>[2018-06-21] An issue had been discovered late in the
+	  release cycle where removing <acronym>ZFS</acronym> vdevs
+	  from a pool under certain conditions would cause a system
+	  crash when &man.zfsd.8; is enabled in
+	  &man.rc.conf.5;.</para>
+
+	<para>At present, it is believed to be limited to removal of
+	  a <literal>mirror</literal> vdev from a pool consisting of
+	  multiple <literal>mirror</literal> vdevs.</para>
+
+	<para>See <acronym>PR</acronym> <link
+	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228750">228750</link>
+	  for more information and updates as the issue is
+	  investigated.</para>
       </listitem>
     </itemizedlist>
   </sect1>
