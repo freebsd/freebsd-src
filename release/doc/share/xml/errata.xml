@@ -19,81 +19,9 @@
 
     <tbody>
       <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:07.vnet.asc">FreeBSD-EN-17:07.vnet</link></entry>
-	<entry>10&nbsp;August&nbsp;2017</entry>
-	<entry><para>VNET kernel panic with asynchronous
-	    I/O</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:08.pf.asc">FreeBSD-EN-17:08.pf</link></entry>
-	<entry>10&nbsp;August&nbsp;2017</entry>
-	<entry><para>&man.pf.4; housekeeping thread causes kernel
-	    panic</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:09.tzdata.asc">FreeBSD-EN-17:09.tzdata</link></entry>
-	<entry>2&nbsp;November&nbsp;2017</entry>
-	<entry><para>Timezone database information
-	    update</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:01.tzdata.asc">FreeBSD-EN-18:01.tzdata</link></entry>
-	<entry>07&nbsp;March&nbsp;2018</entry>
-	<entry><para>Timezone database information
-	    update</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:02.file.asc">FreeBSD-EN-18:02.file</link></entry>
-	<entry>07&nbsp;March&nbsp;2018</entry>
-	<entry><para>Stack-based buffer overflow</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:03.tzdata.asc">FreeBSD-EN-18:03.tzdata</link></entry>
-	<entry>04&nbsp;April&nbsp;2018</entry>
-	<entry><para>Update timezone database
-	    information</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:04.mem.asc">FreeBSD-EN-18:04.mem</link></entry>
-	<entry>04&nbsp;April&nbsp;2018</entry>
-	<entry><para>Multiple small kernel memory
-	    disclosures</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:05.mem.asc">FreeBSD-EN-18:05.mem</link></entry>
-	<entry>08&nbsp;May&nbsp;2018</entry>
-	<entry><para>Multiple small kernel memory
-	    disclosures</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:06.tzdata.asc">FreeBSD-EN-18:06.tzdata</link></entry>
-	<entry>08&nbsp;May&nbsp;2018</entry>
-	<entry><para>Update timezone database
-	    information</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-18:07.pmap.asc">FreeBSD-EN-18:07.pmap</link></entry>
-	<entry>21&nbsp;June&nbsp;2018</entry>
-	<entry><para>Fix <acronym>TLB</acronym> for Xen guests</para></entry>
+	<entry>No erratas</entry>
+	<entry>&nbsp;</entry>
+	<entry>&nbsp;</entry>
       </row>
     </tbody>
   </tgroup>
