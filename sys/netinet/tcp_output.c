@@ -209,6 +209,8 @@ tcp_output(struct tcpcb *tp)
 	int32_t len;
 	uint32_t recwin, sendwin;
 	int off, flags, error = 0;	/* Keep compiler happy */
+	u_int if_hw_tsomaxsegcount = 0;
+	u_int if_hw_tsomaxsegsize;
 	struct mbuf *m;
 	struct ip *ip = NULL;
 #ifdef TCPDEBUG
@@ -879,9 +881,6 @@ send:
 
 		if (tso) {
 			u_int if_hw_tsomax;
-			u_int if_hw_tsomaxsegcount;
-			u_int if_hw_tsomaxsegsize;
-			struct mbuf *mb;
 			u_int moff;
 			int max_len;
 
@@ -913,65 +912,6 @@ send:
 					len = max_len;
 				}
 			}
-
-			/*
-			 * Check if we should limit by maximum segment
-			 * size and count:
-			 */
-			if (if_hw_tsomaxsegcount != 0 &&
-			    if_hw_tsomaxsegsize != 0) {
-				/*
-				 * Subtract one segment for the LINK
-				 * and TCP/IP headers mbuf that will
-				 * be prepended to this mbuf chain
-				 * after the code in this section
-				 * limits the number of mbufs in the
-				 * chain to if_hw_tsomaxsegcount.
-				 */
-				if_hw_tsomaxsegcount -= 1;
-				max_len = 0;
-				mb = sbsndmbuf(&so->so_snd, off, &moff);
-
-				while (mb != NULL && max_len < len) {
-					u_int mlen;
-					u_int frags;
-
-					/*
-					 * Get length of mbuf fragment
-					 * and how many hardware frags,
-					 * rounded up, it would use:
-					 */
-					mlen = (mb->m_len - moff);
-					frags = howmany(mlen,
-					    if_hw_tsomaxsegsize);
-
-					/* Handle special case: Zero Length Mbuf */
-					if (frags == 0)
-						frags = 1;
-
-					/*
-					 * Check if the fragment limit
-					 * will be reached or exceeded:
-					 */
-					if (frags >= if_hw_tsomaxsegcount) {
-						max_len += min(mlen,
-						    if_hw_tsomaxsegcount *
-						    if_hw_tsomaxsegsize);
-						break;
-					}
-					max_len += mlen;
-					if_hw_tsomaxsegcount -= frags;
-					moff = 0;
-					mb = mb->m_next;
-				}
-				if (max_len <= 0) {
-					len = 0;
-				} else if (len > max_len) {
-					sendalot = 1;
-					len = max_len;
-				}
-			}
-
 			/*
 			 * Prevent the last segment from being
 			 * fractional unless the send sockbuf can be
@@ -1006,7 +946,6 @@ send:
 			 */
 			if (tp->t_flags & TF_NEEDFIN)
 				sendalot = 1;
-
 		} else {
 			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
@@ -1041,6 +980,7 @@ send:
 	 */
 	if (len) {
 		struct mbuf *mb;
+		struct sockbuf *msb;
 		u_int moff;
 
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
@@ -1074,14 +1014,30 @@ send:
 		 * Start the m_copy functions from the closest mbuf
 		 * to the offset in the socket buffer chain.
 		 */
-		mb = sbsndptr(&so->so_snd, off, len, &moff);
-
+		mb = sbsndptr_noadv(&so->so_snd, off, &moff);
 		if (len <= MHLEN - hdrlen - max_linkhdr) {
 			m_copydata(mb, moff, len,
 			    mtod(m, caddr_t) + hdrlen);
+			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
+				sbsndptr_adv(&so->so_snd, mb, len);
 			m->m_len += len;
 		} else {
-			m->m_next = m_copym(mb, moff, len, M_NOWAIT);
+			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
+				msb = NULL;
+			else
+				msb = &so->so_snd;
+			m->m_next = tcp_m_copym(mb, moff,
+			    &len, if_hw_tsomaxsegcount,
+			    if_hw_tsomaxsegsize, msb);
+			if (len <= (tp->t_maxseg - optlen)) {
+				/* 
+				 * Must have ran out of mbufs for the copy
+				 * shorten it to no longer need tso. Lets
+				 * not put on sendalot since we are low on
+				 * mbufs.
+				 */
+				tso = 0;
+			}
 			if (m->m_next == NULL) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
