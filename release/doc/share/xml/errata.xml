@@ -88,6 +88,13 @@
 	<entry><para>Update timezone database
 	    information</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:07.pmap.asc">FreeBSD-EN-18:07.pmap</link></entry>
+	<entry>21&nbsp;June&nbsp;2018</entry>
+	<entry><para>Fix <acronym>TLB</acronym> for Xen guests</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
