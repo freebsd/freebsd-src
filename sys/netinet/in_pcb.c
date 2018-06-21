@@ -2214,7 +2214,6 @@ found:
 			INP_WUNLOCK(inp);
 		else
 			INP_RUNLOCK(inp);
-		INP_HASH_RUNLOCK(pcbinfo);
 		return (NULL);
 	} else if (!locked)
 		in_pcbref(inp);
@@ -2386,40 +2385,35 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     struct ifnet *ifp)
 {
 	struct inpcb *inp;
-	bool locked;
 
 	INP_HASH_RLOCK(pcbinfo);
 	inp = in_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
 	    (lookupflags & ~(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)), ifp);
 	if (inp != NULL) {
-		if (lookupflags & INPLOOKUP_WLOCKPCB)
-			locked = INP_TRY_WLOCK(inp);
-		else if (lookupflags & INPLOOKUP_RLOCKPCB)
-			locked = INP_TRY_RLOCK(inp);
-		else
-			panic("%s: locking bug", __func__);
-		if (!locked)
-			in_pcbref(inp);
-		INP_HASH_RUNLOCK(pcbinfo);
-		if (!locked) {
-			if (lookupflags & INPLOOKUP_WLOCKPCB) {
-				INP_WLOCK(inp);
-				if (in_pcbrele_wlocked(inp))
-					return (NULL);
-			} else {
-				INP_RLOCK(inp);
-				if (in_pcbrele_rlocked(inp))
-					return (NULL);
+		if (lookupflags & INPLOOKUP_WLOCKPCB) {
+			INP_WLOCK(inp);
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_WUNLOCK(inp);
+				inp = NULL;
 			}
-		}
+		} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
+			INP_RLOCK(inp);
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_RUNLOCK(inp);
+				inp = NULL;
+			}
+		} else
+			panic("%s: locking bug", __func__);
 #ifdef INVARIANTS
-		if (lookupflags & INPLOOKUP_WLOCKPCB)
-			INP_WLOCK_ASSERT(inp);
-		else
-			INP_RLOCK_ASSERT(inp);
+		if (inp != NULL) {
+			if (lookupflags & INPLOOKUP_WLOCKPCB)
+				INP_WLOCK_ASSERT(inp);
+			else
+				INP_RLOCK_ASSERT(inp);
+		}
 #endif
-	} else
-		INP_HASH_RUNLOCK(pcbinfo);
+	}
+	INP_HASH_RUNLOCK(pcbinfo);
 	return (inp);
 }
 
