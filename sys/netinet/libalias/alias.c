@@ -1749,7 +1749,8 @@ LibAliasUnLoadAllModule(void)
  * the input packet, on failure NULL. The input packet is always consumed.
  */
 struct mbuf *
-m_megapullup(struct mbuf *m, int len) {
+m_megapullup(struct mbuf *m, int len)
+{
 	struct mbuf *mcl;
 
 	if (len > m->m_pkthdr.len)
@@ -1758,7 +1759,14 @@ m_megapullup(struct mbuf *m, int len) {
 	if (m->m_next == NULL && M_WRITABLE(m))
 		return (m);
 
-	mcl = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (len <= MJUMPAGESIZE)
+		mcl = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	else if (len <= MJUM9BYTES)
+		mcl = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	else if (len <= MJUM16BYTES)
+		mcl = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
+	else
+		goto bad;
 	if (mcl == NULL)
 		goto bad;
 	m_align(mcl, len);
