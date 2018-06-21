@@ -1611,8 +1611,8 @@ iovlist_truncate(struct iovlist *il, size_t size)
 	struct iovec *last;
 	size_t diff;
 
-	while (size > il->totalsize) {
-		diff = size - il->totalsize;
+	while (il->totalsize > size) {
+		diff = il->totalsize - size;
 		last = &il->iov[il->iovcnt - 1];
 		if (diff >= last->iov_len) {
 			/* Remove the last iovec entirely. */
