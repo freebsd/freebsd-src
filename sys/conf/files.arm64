@@ -27,7 +27,7 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 # Allwinner common files
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
 arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
-arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt
+arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
 arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
