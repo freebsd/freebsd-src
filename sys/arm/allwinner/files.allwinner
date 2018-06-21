@@ -10,7 +10,7 @@ arm/allwinner/a10_sramc.c		standard
 arm/allwinner/aw_gpio.c			optional	gpio
 arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_machdep.c		standard
-arm/allwinner/aw_mmc.c			optional	mmc
+arm/allwinner/aw_mmc.c			optional	mmc | mmccam
 arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_rsb.c			optional	rsb | p2wi
