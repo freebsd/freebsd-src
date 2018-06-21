@@ -2182,7 +2182,7 @@ _binutils=	gnu/usr.bin/binutils
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		lib/libpe \
-		usr.bin/elfcopy \
+		usr.bin/objcopy \
 		usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
@@ -2195,7 +2195,7 @@ _elftctools+=	usr.bin/addr2line
 # the target (for at least crunchide).
 _elftctools=	lib/libelftc \
 		lib/libpe \
-		usr.bin/elfcopy
+		usr.bin/objcopy
 .endif
 
 .if ${MK_CLANG_BOOTSTRAP} != "no"
@@ -2280,7 +2280,7 @@ NXBDIRS+= \
     usr.bin/cmp \
     usr.bin/diff \
     usr.bin/dirname \
-    usr.bin/elfcopy \
+    usr.bin/objcopy \
     usr.bin/env \
     usr.bin/fetch \
     usr.bin/find \
