@@ -92,8 +92,8 @@ MK_GCC_BOOTSTRAP=	no
 # running CC from bsd.compiler.mk.
 .if make(installworld) || make(install) || make(distributeworld) || \
     make(stageworld)
-.-include "${OBJTOP}/compiler-metadata.mk"
-.if !defined(_LOADED_COMPILER_METADATA)
+.-include "${OBJTOP}/toolchain-metadata.mk"
+.if !defined(_LOADED_TOOLCHAIN_METADATA)
 .error A build is required first.  You may have the wrong MAKEOBJDIRPREFIX set.
 .endif
 .endif
@@ -311,7 +311,7 @@ test-system-${_t}: .PHONY
 
 # Store some compiler metadata for use in installworld where we don't
 # want to invoke CC at all.
-_COMPILER_METADATA_VARS=	COMPILER_VERSION \
+_TOOLCHAIN_METADATA_VARS=	COMPILER_VERSION \
 				COMPILER_TYPE \
 				COMPILER_FEATURES \
 				COMPILER_FREEBSD_VERSION \
@@ -319,17 +319,17 @@ _COMPILER_METADATA_VARS=	COMPILER_VERSION \
 				LINKER_FEATURES \
 				LINKER_TYPE \
 				LINKER_FREEBSD_VERSION
-compiler-metadata.mk: .PHONY .META
+toolchain-metadata.mk: .PHONY .META
 	@: > ${.TARGET}
-	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
+	@echo ".info Using cached toolchain metadata from build at $$(hostname) on $$(date)" \
 	    > ${.TARGET}
-	@echo "_LOADED_COMPILER_METADATA=t" >> ${.TARGET}
-.for v in ${_COMPILER_METADATA_VARS}
+	@echo "_LOADED_TOOLCHAIN_METADATA=t" >> ${.TARGET}
+.for v in ${_TOOLCHAIN_METADATA_VARS}
 	@echo "${v}=${${v}}" >> ${.TARGET}
 	@echo "X_${v}=${X_${v}}" >> ${.TARGET}
 .endfor
-	@echo ".export ${_COMPILER_METADATA_VARS}" >> ${.TARGET}
-	@echo ".export ${_COMPILER_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
+	@echo ".export ${_TOOLCHAIN_METADATA_VARS}" >> ${.TARGET}
+	@echo ".export ${_TOOLCHAIN_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
 
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
@@ -1015,7 +1015,7 @@ _cross-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	@rm -f ${OBJTOP}/compiler-metadata.mk
+	@rm -f ${OBJTOP}/toolchain-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _build-metadata:
@@ -1023,7 +1023,7 @@ _build-metadata:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.1: recording build metadata"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} compiler-metadata.mk
+	${_+_}cd ${.CURDIR}; ${WMAKE} toolchain-metadata.mk
 	${_+_}cd ${.CURDIR}; ${WMAKE} host-osreldate.h
 _includes:
 	@echo
