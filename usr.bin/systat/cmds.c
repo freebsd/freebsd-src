@@ -61,7 +61,7 @@ command(const char *cmd)
 	if (*cp)
 		*cp++ = '\0';
 	if (*tmpstr1 == '\0')
-		return;
+		goto done;
 	for (; *cp && isspace(*cp); cp++)
 		;
 	if (strcmp(tmpstr1, "quit") == 0 || strcmp(tmpstr1, "q") == 0)
