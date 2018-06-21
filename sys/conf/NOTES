@@ -2861,7 +2861,9 @@ options 	IFMEDIA_DEBUG	# enable debugging in net/if_media.c
 #
 # Make the SYSINIT process performed by mi_startup() verbose.  This is very
 # useful when porting to a new architecture.  If DDB is also enabled, this
-# will print function names instead of addresses.
+# will print function names instead of addresses.  If defined with a value
+# of zero, the verbose code is compiled-in but disabled by default, and can
+# be enabled with the debug.verbose_sysinit=1 tunable.
 options 	VERBOSE_SYSINIT
 
 #####################################################################
