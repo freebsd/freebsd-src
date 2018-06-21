@@ -331,6 +331,10 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(inp);
 		last = inp;
+		if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+			last = NULL;
+			INP_RUNLOCK(inp);
+		}
 	}
 	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
