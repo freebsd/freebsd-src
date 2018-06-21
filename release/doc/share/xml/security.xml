@@ -114,6 +114,14 @@
 	<entry><para>Mishandling of x86 debug
 	    exceptions</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:07.lazyfpu.asc">FreeBSD-SA-18:07.lazyfpu</link></entry>
+	<entry>21&nbsp;June&nbsp;2018</entry>
+	<entry><para>Fix Lazy <acronym>FPU</acronym> information
+	    disclosure</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
