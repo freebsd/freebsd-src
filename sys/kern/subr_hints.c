@@ -123,7 +123,7 @@ res_find(int *line, int *startln,
 {
 	int n = 0, hit, i = 0;
 	char r_name[32];
-	int r_unit, use_kenv = (hintmode == HINTMODE_FALLBACK);
+	int r_unit, use_kenv = (hintmode != HINTMODE_STATIC && dynamic_kenv);
 	char r_resname[32];
 	char r_value[128];
 	const char *s, *cp;
