@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  * Number of levels we can handle.  Levels are synthesized from settings
  * so for M settings and N drivers, there may be M*N levels.
  */
-#define CF_MAX_LEVELS	64
+#define CF_MAX_LEVELS	256
 
 struct cf_saved_freq {
 	struct cf_level			level;
