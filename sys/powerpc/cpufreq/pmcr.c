@@ -195,7 +195,7 @@ pmcr_set(device_t dev, const struct cf_setting *set)
 	pmcr = ((long)pstate_ids[set->spec[0]] << PMCR_LOWERPS_SHIFT) &
 	    PMCR_LOWERPS_MASK;
 	pmcr |= ((long)pstate_ids[set->spec[0]] << PMCR_UPPERPS_SHIFT) &
-	    PMCR_UPPERPS_MASK
+	    PMCR_UPPERPS_MASK;
 	pmcr |= PMCR_VERSION_1;
 
 	mtspr(SPR_PMCR, pmcr);
