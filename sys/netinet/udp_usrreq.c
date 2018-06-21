@@ -802,14 +802,15 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 					   INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
 			if (inp != NULL) {
 				struct udpcb *up;
+				void *ctx;
+				udp_tun_icmp_t func;
 
 				up = intoudpcb(inp);
-				if (up->u_icmp_func != NULL) {
-					INP_RUNLOCK(inp);
-					(*up->u_icmp_func)(cmd, sa, vip, up->u_tun_ctx);
-				} else {
-					INP_RUNLOCK(inp);
-				}
+				ctx = up->u_tun_ctx;
+				func = up->u_icmp_func;
+				INP_RUNLOCK(inp);
+				if (func != NULL)
+					(*func)(cmd, sa, vip, ctx);
 			}
 		}
 	} else
