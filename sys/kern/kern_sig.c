@@ -2581,7 +2581,6 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			}
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;
-				cv_broadcast(&p->p_dbgwait);
 			}
 stopme:
 			thread_suspend_switch(td, p);
