@@ -458,13 +458,6 @@
 	updated to default to <acronym>UEFI</acronym>-only
 	boot.</para>
     </sect2>
-
-    <sect2 xml:id="userland-rc">
-      <title><filename class="directory">/etc/rc.d</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">

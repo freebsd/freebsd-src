@@ -57,7 +57,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking
-	news</quote> about &os; &release; Before installing this
+	news</quote> about &os; &release;.  Before installing this
       version, it is important to consult this document to learn about
       any post-release discoveries or problems that may already have
       been found and fixed.</para>
@@ -155,6 +155,23 @@ boot</screen>
 	  invocation of <literal>vagrant up</literal> will allow the
 	  virtual machine to successfully boot, allowing access via
 	  <literal>vagrant ssh</literal>.</para>
+      </listitem>
+
+      <listitem>
+	<para>[2018-06-21] An issue had been discovered late in the
+	  release cycle where removing <acronym>ZFS</acronym> vdevs
+	  from a pool under certain conditions would cause a system
+	  crash when &man.zfsd.8; is enabled in
+	  &man.rc.conf.5;.</para>
+
+	<para>At present, it is believed to be limited to removal of
+	  a <literal>mirror</literal> vdev from a pool consisting of
+	  multiple <literal>mirror</literal> vdevs.</para>
+
+	<para>See <acronym>PR</acronym> <link
+	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228750">228750</link>
+	  for more information and updates as the issue is
+	  investigated.</para>
       </listitem>
     </itemizedlist>
   </sect1>
