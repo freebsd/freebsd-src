@@ -67,13 +67,14 @@
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];				\
+	register_t pc_pti_rsp0;						\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
 	uint32_t pc_pcid_next;						\
 	uint32_t pc_pcid_gen;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[96]		/* be divisor of PAGE_SIZE	\
+	char	__pad[88]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0

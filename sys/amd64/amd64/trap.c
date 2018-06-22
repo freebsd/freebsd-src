@@ -463,11 +463,13 @@ trap(struct trapframe *frame)
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
-				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
-				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
-				    sizeof(register_t))
+				if ((PCPU_GET(curpmap)->pm_ucr3 !=
+				    PMAP_NO_CR3) &&
+				    (frame->tf_rsp == (uintptr_t)PCPU_GET(
+				    pti_rsp0) - 5 * sizeof(register_t))) {
 					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
 					    sizeof(register_t);
+				}
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
