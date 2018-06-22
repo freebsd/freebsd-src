@@ -722,7 +722,7 @@ _read_write(int hdev, void *bufw, void *bufr, int cbrw, int lsb)
 static int
 _do_data_output(void *pr, struct spi_options *popt)
 {
-	int	err, index, icount;
+	int	err, idx, icount;
 	const char *sz_bytes, *sz_byte2;
 	const uint8_t *pbuf;
 
@@ -758,8 +758,8 @@ _do_data_output(void *pr, struct spi_options *popt)
 			    sz_bytes);
 
 		/* ASCII output */
-		for (index = 0; !err && index < icount; index++) {
-			if (index) {
+		for (idx = 0; !err && idx < icount; idx++) {
+			if (idx) {
 				/*
 				 * not the first time, insert separating space
 				 */
@@ -767,7 +767,7 @@ _do_data_output(void *pr, struct spi_options *popt)
 			}
 
 			if (!err)
-				err = fprintf(stdout, "%02hhx", pbuf[index]) < 0;
+				err = fprintf(stdout, "%02hhx", pbuf[idx]) < 0;
 		}
 
 		if (!err)
@@ -902,7 +902,7 @@ static void
 verbose_dump_buffer(void *pbuf, int icount, int lsb)
 {
 	uint8_t	ch;
-	int	ictr, ictr2, index;
+	int	ictr, ictr2, idx;
 
 	fputs("        |  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F "
 	      "|                  |\n", stderr);
@@ -911,10 +911,10 @@ verbose_dump_buffer(void *pbuf, int icount, int lsb)
 		fprintf(stderr, " %6x | ", ictr & 0xfffff0);
 
 		for (ictr2 = 0; ictr2 < 16; ictr2++) {
-			index = ictr + ictr2;
+			idx = ictr + ictr2;
 
-			if (index < icount) {
-				ch = ((uint8_t *) pbuf)[index];
+			if (idx < icount) {
+				ch = ((uint8_t *) pbuf)[idx];
 
 				if (lsb)
 					ch = reversebits[ch];
@@ -929,10 +929,10 @@ verbose_dump_buffer(void *pbuf, int icount, int lsb)
 		fputs("| ", stderr);
 
 		for (ictr2 = 0; ictr2 < 16; ictr2++) {
-			index = ictr + ictr2;
+			idx = ictr + ictr2;
 
-			if (index < icount) {
-				ch = ((uint8_t *) pbuf)[index];
+			if (idx < icount) {
+				ch = ((uint8_t *) pbuf)[idx];
 
 				if (lsb)
 					ch = reversebits[ch];
@@ -942,7 +942,7 @@ verbose_dump_buffer(void *pbuf, int icount, int lsb)
 
 				fprintf(stderr, "%c", ch);
 			}
-			else if (index < icount) {
+			else if (idx < icount) {
 		out_of_range:
 				fputc('.', stderr);
 			}
