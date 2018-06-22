@@ -281,7 +281,7 @@ main(int argc, char *argv[])
     /* get our name */
     /* initialize some selection options */
     ps.idle    = true;
-    ps.self    = false;
+    ps.self    = true;
     ps.system  = false;
     reset_uids();
     ps.thread  = false;
