@@ -90,7 +90,7 @@ static const char io_Proc_format[] =
     "%5d%*s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s";
 
 static const char smp_Proc_format[] =
-    "%5d%*s %-*.*s %s%3d %4s%6s %5s%*.*s %-6.6s %2d%7s %6.2f%% %.*s";
+    "%5d%*s %-*.*s %s%3d %4s%6s %5s%*.*s %-6.6s %3d%7s %6.2f%% %.*s";
 
 static char up_Proc_format[] =
     "%5d%*s %-*.*s %s%3d %4s%6s %5s%*.*s %-6.6s%.0d%7s %6.2f%% %.*s";
@@ -406,7 +406,7 @@ format_header(const char *uname_field)
 		sbuf_cat(header, "  THR PRI NICE  SIZE   RES");
 		sbuf_printf(header, "%*s", ps.swap ? TOP_SWAP_LEN : 0,
 									ps.swap ? "   SWAP" : "");
-		sbuf_printf(header, "%s", smpmode ? " STATE   C   " : " STATE    ");
+		sbuf_printf(header, "%s", smpmode ? " STATE    C   " : " STATE    ");
 		sbuf_cat(header, "TIME");
 		sbuf_printf(header, " %7s", ps.wcpu ? "WCPU" : "CPU");
 		sbuf_cat(header, " COMMAND");
