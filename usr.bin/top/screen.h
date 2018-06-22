@@ -28,10 +28,9 @@ extern int  screen_width;
 int		clear_eol(int len);
 void	top_standout(const char *msg);
 void	top_clear(void);
-void	go_home(void);
 void	reinit_screen(void);
 void	get_screensize(void);
-void	init_termcap(int interactive);
+void	init_termcap(bool interactive);
 void	end_screen(void);
 void	init_screen(void);
 
