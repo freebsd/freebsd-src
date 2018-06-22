@@ -167,11 +167,11 @@ readboot(int dosfs, struct bootblock *boot)
 			 * requirement is suspect.  For now, just
 			 * print out useful information and continue.
 			 */
-			pfatal("backup (block %d) mismatch with primary bootblock:\n",
+			pwarn("backup (block %d) mismatch with primary bootblock:\n",
 			        boot->bpbBackup);
 			for (i = 11; i < 11 + 90; i++) {
 				if (block[i] != backup[i])
-					pfatal("\ti=%d\tprimary 0x%02x\tbackup 0x%02x\n",
+					pwarn("\ti=%d\tprimary 0x%02x\tbackup 0x%02x\n",
 					       i, block[i], backup[i]);
 			}
 		}
