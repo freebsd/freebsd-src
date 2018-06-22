@@ -469,9 +469,21 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	return (0);
 }
 
-
 /*
  * Filler function for proc/stat
+ *
+ * Output depends on kernel version:
+ *
+ * v2.5.40 <=
+ *   user nice system idle
+ * v2.5.41
+ *   user nice system idle iowait
+ * v2.6.11
+ *   user nice system idle iowait irq softirq steal
+ * v2.6.24
+ *   user nice system idle iowait irq softirq steal guest
+ * v2.6.33 >=
+ *   user nice system idle iowait irq softirq steal guest guest_nice
  */
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
@@ -481,22 +493,54 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	long *cp;
 	struct timeval boottime;
 	int i;
+	char *zero_pad;
+	bool has_intr = true;
+
+	if (linux_kernver(td) >= LINUX_KERNVER(2,6,33)) {
+		zero_pad = " 0 0 0 0\n";
+	} else if (linux_kernver(td) >= LINUX_KERNVER(2,6,24)) {
+		zero_pad = " 0 0 0\n";
+	} else if (linux_kernver(td) >= LINUX_KERNVER(2,6,11)) {
+		zero_pad = " 0 0\n";
+	} else if (linux_kernver(td) >= LINUX_KERNVER(2,5,41)) {
+		has_intr = false;
+		zero_pad = " 0\n";
+	} else {
+		has_intr = false;
+		zero_pad = "\n";
+	}
 
 	read_cpu_time(cp_time);
 	getboottime(&boottime);
-	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
+	/* Parameters common to all versions */
+	sbuf_printf(sb, "cpu %lu %lu %lu %lu",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
-	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
+	    T2J(cp_time[CP_SYS]),
 	    T2J(cp_time[CP_IDLE]));
+
+	/* Print interrupt stats if available */
+	if (has_intr) {
+		sbuf_printf(sb, " 0 %lu", T2J(cp_time[CP_INTR]));
+	}
+
+	/* Pad out remaining fields depending on version */
+	sbuf_printf(sb, "%s", zero_pad);
+
 	CPU_FOREACH(i) {
 		pcpu = pcpu_find(i);
 		cp = pcpu->pc_cp_time;
-		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
+		sbuf_printf(sb, "cpu%d %lu %lu %lu %lu", i,
 		    T2J(cp[CP_USER]),
 		    T2J(cp[CP_NICE]),
-		    T2J(cp[CP_SYS] /*+ cp[CP_INTR]*/),
+		    T2J(cp[CP_SYS]),
 		    T2J(cp[CP_IDLE]));
+
+		if (has_intr) {
+			sbuf_printf(sb, " 0 %lu", T2J(cp[CP_INTR]));
+		}
+
+		sbuf_printf(sb, "%s", zero_pad);
 	}
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
