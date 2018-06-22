@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <sys/msg.h>
 #include <sys/shm.h>
+#define _WANT_SEMUN
+#include <sys/sem.h>
 #include <sys/stat.h>
 
 #include <atf-c.h>
@@ -45,13 +47,17 @@ struct msgstr {
 };
 typedef struct msgstr msgstr_t;
 
+
 static pid_t pid;
-static int msqid, shmid;
+static int msqid, shmid, semid;
+static union semun semarg;
 static struct pollfd fds[1];
 static struct msqid_ds msgbuff;
 static struct shmid_ds shmbuff;
+static struct semid_ds sembuff;
 static char ipcregex[BUFFSIZE];
 static const char *auclass = "ip";
+static unsigned short semvals[BUFFSIZE];
 
 
 ATF_TC_WITH_CLEANUP(msgget_success);
@@ -729,6 +735,669 @@ ATF_TC_CLEANUP(shmctl_illegal_command, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(semget_success);
+ATF_TC_HEAD(semget_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semget(2) call");
+}
+
+ATF_TC_BODY(semget_success, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	/* Check the presence of semaphore set ID in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semget.*return,success,%d", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semget_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semget_failure);
+ATF_TC_HEAD(semget_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semget(2) call");
+}
+
+ATF_TC_BODY(semget_failure, tc)
+{
+	pid = getpid();
+	snprintf(ipcregex, sizeof(ipcregex), "semget.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: nsems is a negative number */
+	ATF_REQUIRE_EQ(-1, semget(IPC_PRIVATE, -1, 0));
+	check_audit(fds, ipcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(semget_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semop_success);
+ATF_TC_HEAD(semop_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semop(2) call");
+}
+
+ATF_TC_BODY(semop_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	/* Initialize a sembuf structure to operate on semaphore set */
+	struct sembuf sop[1] = {{0, 1, 0}};
+	/* Check the presence of semaphore set ID in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semop.*Semaphore IPC.*%d.*return,success", semid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semop(semid, sop, sizeof(sop)/sizeof(struct sembuf)));
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semop_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semop_failure);
+ATF_TC_HEAD(semop_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semop(2) call");
+}
+
+ATF_TC_BODY(semop_failure, tc)
+{
+	const char *regex = "semop.*0xffff.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semop(-1, NULL, 0));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semop_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getval_success);
+ATF_TC_HEAD(semctl_getval_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for GETVAL command");
+}
+
+ATF_TC_BODY(semctl_getval_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, GETVAL));
+	/* Check the presence of semaphore ID and GETVAL in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*GETVAL.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_getval_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getval_failure);
+ATF_TC_HEAD(semctl_getval_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for GETVAL command");
+}
+
+ATF_TC_BODY(semctl_getval_failure, tc)
+{
+	const char *regex = "semctl.*GETVAL.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, GETVAL));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_getval_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_setval_success);
+ATF_TC_HEAD(semctl_setval_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for SETVAL command");
+}
+
+ATF_TC_BODY(semctl_setval_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.val = 1;
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, SETVAL, semarg));
+	/* Check the presence of semaphore ID and SETVAL in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*SETVAL.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_setval_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_setval_failure);
+ATF_TC_HEAD(semctl_setval_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for SETVAL command");
+}
+
+ATF_TC_BODY(semctl_setval_failure, tc)
+{
+	const char *regex = "semctl.*SETVAL.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, SETVAL, semarg));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_setval_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getpid_success);
+ATF_TC_HEAD(semctl_getpid_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for GETPID command");
+}
+
+ATF_TC_BODY(semctl_getpid_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, GETPID));
+	/* Check the presence of semaphore ID and GETVAL in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*GETPID.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_getpid_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getpid_failure);
+ATF_TC_HEAD(semctl_getpid_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for GETPID command");
+}
+
+ATF_TC_BODY(semctl_getpid_failure, tc)
+{
+	const char *regex = "semctl.*GETPID.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, GETPID));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_getpid_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getncnt_success);
+ATF_TC_HEAD(semctl_getncnt_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for GETNCNT command");
+}
+
+ATF_TC_BODY(semctl_getncnt_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, GETNCNT));
+	/* Check the presence of semaphore ID and GETNCNT in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*GETNCNT.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_getncnt_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getncnt_failure);
+ATF_TC_HEAD(semctl_getncnt_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for GETNCNT command");
+}
+
+ATF_TC_BODY(semctl_getncnt_failure, tc)
+{
+	const char *regex = "semctl.*GETNCNT.*return,failure.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, GETNCNT));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_getncnt_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getzcnt_success);
+ATF_TC_HEAD(semctl_getzcnt_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for GETZCNT command");
+}
+
+ATF_TC_BODY(semctl_getzcnt_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, GETZCNT));
+	/* Check the presence of semaphore ID and GETZCNT in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*GETZCNT.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_getzcnt_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getzcnt_failure);
+ATF_TC_HEAD(semctl_getzcnt_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for GETZCNT command");
+}
+
+ATF_TC_BODY(semctl_getzcnt_failure, tc)
+{
+	const char *regex = "semctl.*GETZCNT.*return,failure.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, GETZCNT));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_getzcnt_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getall_success);
+ATF_TC_HEAD(semctl_getall_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for GETALL command");
+}
+
+ATF_TC_BODY(semctl_getall_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.array = semvals;
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE(semctl(semid, 0, GETALL, semarg) != -1);
+	/* Check the presence of semaphore ID and GETALL in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*GETALL.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_getall_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_getall_failure);
+ATF_TC_HEAD(semctl_getall_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for GETALL command");
+}
+
+ATF_TC_BODY(semctl_getall_failure, tc)
+{
+	const char *regex = "semctl.*GETALL.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, GETALL, semarg));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_getall_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_setall_success);
+ATF_TC_HEAD(semctl_setall_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for SETALL command");
+}
+
+ATF_TC_BODY(semctl_setall_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.array = semvals;
+	/* Initialize semvals to be used with SETALL */
+	ATF_REQUIRE(semctl(semid, 0, GETALL, semarg) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, SETALL, semarg));
+	/* Check the presence of semaphore ID and SETALL in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*SETALL.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_setall_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_setall_failure);
+ATF_TC_HEAD(semctl_setall_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for SETALL command");
+}
+
+ATF_TC_BODY(semctl_setall_failure, tc)
+{
+	const char *regex = "semctl.*SETALL.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, SETALL, semarg));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_setall_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_stat_success);
+ATF_TC_HEAD(semctl_stat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for IPC_STAT command");
+}
+
+ATF_TC_BODY(semctl_stat_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.buf = &sembuff;
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_STAT, semarg));
+	/* Check the presence of semaphore ID and IPC_STAT in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*IPC_STAT.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_stat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_stat_failure);
+ATF_TC_HEAD(semctl_stat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for IPC_STAT command");
+}
+
+ATF_TC_BODY(semctl_stat_failure, tc)
+{
+	const char *regex = "semctl.*IPC_STAT.*return,fail.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, IPC_STAT, semarg));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_stat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_set_success);
+ATF_TC_HEAD(semctl_set_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for IPC_SET command");
+}
+
+ATF_TC_BODY(semctl_set_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.buf = &sembuff;
+	/* Fill up the sembuff structure to be used with IPC_SET */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_STAT, semarg));
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_SET, semarg));
+	/* Check the presence of semaphore ID and IPC_SET in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*IPC_SET.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_set_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_set_failure);
+ATF_TC_HEAD(semctl_set_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for IPC_SET command");
+}
+
+ATF_TC_BODY(semctl_set_failure, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	semarg.buf = &sembuff;
+	/* Fill up the sembuff structure to be used with IPC_SET */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_STAT, semarg));
+
+	const char *regex = "semctl.*IPC_SET.*return,failure.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, IPC_SET, semarg));
+	check_audit(fds, regex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_set_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_rmid_success);
+ATF_TC_HEAD(semctl_rmid_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"semctl(2) call for IPC_RMID command");
+}
+
+ATF_TC_BODY(semctl_rmid_success, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID, semarg));
+	/* Check the presence of semaphore ID and IPC_RMID in audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"semctl.*IPC_RMID.*%d.*return,success", semid);
+	check_audit(fds, ipcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_rmid_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_rmid_failure);
+ATF_TC_HEAD(semctl_rmid_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for IPC_RMID command");
+}
+
+ATF_TC_BODY(semctl_rmid_failure, tc)
+{
+	const char *regex = "semctl.*IPC_RMID.*return,fail.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(-1, 0, IPC_RMID, semarg));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(semctl_rmid_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(semctl_illegal_command);
+ATF_TC_HEAD(semctl_illegal_command, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"semctl(2) call for illegal cmd value");
+}
+
+ATF_TC_BODY(semctl_illegal_command, tc)
+{
+	/* Create a semaphore set and obtain the set identifier */
+	ATF_REQUIRE((semid =
+		semget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR)) != -1);
+
+	const char *regex = "semctl.*illegal command.*fail.*Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, semctl(semid, 0, -1));
+	check_audit(fds, regex, pipefd);
+
+	/* Destroy the semaphore set with ID = semid */
+	ATF_REQUIRE_EQ(0, semctl(semid, 0, IPC_RMID));
+}
+
+ATF_TC_CLEANUP(semctl_illegal_command, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, msgget_success);
@@ -760,6 +1429,33 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, shmctl_set_success);
 	ATF_TP_ADD_TC(tp, shmctl_set_failure);
 	ATF_TP_ADD_TC(tp, shmctl_illegal_command);
+
+	ATF_TP_ADD_TC(tp, semget_success);
+	ATF_TP_ADD_TC(tp, semget_failure);
+	ATF_TP_ADD_TC(tp, semop_success);
+	ATF_TP_ADD_TC(tp, semop_failure);
+
+	ATF_TP_ADD_TC(tp, semctl_getval_success);
+	ATF_TP_ADD_TC(tp, semctl_getval_failure);
+	ATF_TP_ADD_TC(tp, semctl_setval_success);
+	ATF_TP_ADD_TC(tp, semctl_setval_failure);
+	ATF_TP_ADD_TC(tp, semctl_getpid_success);
+	ATF_TP_ADD_TC(tp, semctl_getpid_failure);
+	ATF_TP_ADD_TC(tp, semctl_getncnt_success);
+	ATF_TP_ADD_TC(tp, semctl_getncnt_failure);
+	ATF_TP_ADD_TC(tp, semctl_getzcnt_success);
+	ATF_TP_ADD_TC(tp, semctl_getzcnt_failure);
+	ATF_TP_ADD_TC(tp, semctl_getall_success);
+	ATF_TP_ADD_TC(tp, semctl_getall_failure);
+	ATF_TP_ADD_TC(tp, semctl_setall_success);
+	ATF_TP_ADD_TC(tp, semctl_setall_failure);
+	ATF_TP_ADD_TC(tp, semctl_stat_success);
+	ATF_TP_ADD_TC(tp, semctl_stat_failure);
+	ATF_TP_ADD_TC(tp, semctl_set_success);
+	ATF_TP_ADD_TC(tp, semctl_set_failure);
+	ATF_TP_ADD_TC(tp, semctl_rmid_success);
+	ATF_TP_ADD_TC(tp, semctl_rmid_failure);
+	ATF_TP_ADD_TC(tp, semctl_illegal_command);
 
 	return (atf_no_error());
 }
