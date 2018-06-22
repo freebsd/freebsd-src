@@ -871,13 +871,12 @@ get_process_info(struct system_info *si, struct process_select *sel,
 static char fmt[512];	/* static area where result is built */
 
 char *
-format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
+format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
 	long cputime;
 	double pct;
-	struct handle *hp;
 	char status[22];
 	int cpu;
 	size_t state;
@@ -891,9 +890,8 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 	const int cmdlen = 128;
 
 	/* find and remember the next proc structure */
-	hp = (struct handle *)xhandle;
-	pp = *(hp->next_proc++);
-	hp->remaining--;
+	pp = *(xhandle->next_proc++);
+	xhandle->remaining--;
 
 	/* get the process's command name */
 	if ((pp->ki_flag & P_INMEM) == 0) {
@@ -1544,28 +1542,6 @@ int (*compares[])(const void *arg1, const void *arg2) = {
 	NULL
 };
 
-
-/*
- * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
- *		the process does not exist.
- */
-
-int
-proc_owner(int pid)
-{
-	int cnt;
-	struct kinfo_proc **prefp;
-	struct kinfo_proc *pp;
-
-	prefp = pref;
-	cnt = pref_len;
-	while (--cnt >= 0) {
-		pp = *prefp++;
-		if (pp->ki_pid == (pid_t)pid)
-			return ((int)pp->ki_ruid);
-	}
-	return (-1);
-}
 
 static int
 swapmode(int *retavail, int *retfree)
