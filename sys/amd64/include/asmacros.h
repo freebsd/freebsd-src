@@ -194,9 +194,12 @@
 
 	.macro	PTI_UENTRY has_err
 	swapgs
+	cmpq	$~0,PCPU(UCR3)
+	je	1f
 	pushq	%rax
 	pushq	%rdx
 	PTI_UUENTRY \has_err
+1:
 	.endm
 
 	.macro	PTI_ENTRY name, cont, has_err=0

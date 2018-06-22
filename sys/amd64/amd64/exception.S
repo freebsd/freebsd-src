@@ -298,11 +298,15 @@ IDTVEC(page_pti)
 	jz	Xpage
 	swapgs
 	pushq	%rax
-	pushq	%rdx
 	movq	%cr3,%rax
 	movq	%rax,PCPU(SAVED_UCR3)
+	cmpq	$~0,PCPU(UCR3)
+	jne	1f
+	popq	%rax
+	jmp	2f
+1:	pushq	%rdx
 	PTI_UUENTRY has_err=1
-	subq	$TF_ERR,%rsp
+2:	subq	$TF_ERR,%rsp
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
@@ -347,9 +351,11 @@ page_cr2:
 	 */
 	.macro PROTF_ENTRY name,trapno
 \name\()_pti_doreti:
+	swapgs
+	cmpq	$~0,PCPU(UCR3)
+	je	1f
 	pushq	%rax
 	pushq	%rdx
-	swapgs
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
@@ -362,7 +368,7 @@ page_cr2:
 	movq	%rax,%rsp
 	popq	%rdx
 	popq	%rax
-	swapgs
+1:	swapgs
 	jmp	X\name
 IDTVEC(\name\()_pti)
 	cmpq	$doreti_iret,PTI_RIP-2*8(%rsp)
@@ -438,6 +444,8 @@ prot_addrf:
 IDTVEC(fast_syscall_pti)
 	swapgs
 	movq	%rax,PCPU(SCRATCH_RAX)
+	cmpq	$~0,PCPU(UCR3)
+	je	fast_syscall_common
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
 	jmp	fast_syscall_common
@@ -503,7 +511,7 @@ fast_syscall_common:
 	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
 	movq	TF_RSP(%rsp),%rsp	/* user stack pointer */
-	cmpb	$0,pti
+	cmpq	$~0,PCPU(UCR3)
 	je	2f
 	movq	PCPU(UCR3),%r9
 	movq	%r9,%cr3
@@ -1126,11 +1134,11 @@ ld_regs:
 	jz	2f			/* keep running with kernel GS.base */
 	cli
 	call	handle_ibrs_exit_rs
-	cmpb	$0,pti
+	cmpq	$~0,PCPU(UCR3)
 	je	1f
 	pushq	%rdx
-	movq	PCPU(PRVSPACE),%rdx
-	addq	$PC_PTI_STACK+PC_PTI_STACK_SZ*8-PTI_SIZE,%rdx
+	movq	PCPU(PTI_RSP0),%rdx
+	subq	$PTI_SIZE,%rdx
 	movq	%rax,PTI_RAX(%rdx)
 	popq	%rax
 	movq	%rax,PTI_RDX(%rdx)
