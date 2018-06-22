@@ -157,6 +157,9 @@ static int nfsv2_procid[NFS_V3NPROCS] = {
 /*
  * Initialize sockets and congestion for a new NFS connection.
  * We do not free the sockaddr if error.
+ * Which arguments are set to NULL indicate what kind of call it is.
+ * cred == NULL --> a call to connect to a pNFS DS
+ * nmp == NULL --> indicates an upcall to userland or a NFSv4.0 callback
  */
 int
 newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
@@ -293,24 +296,38 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 				retries = nmp->nm_retry;
 		} else
 			retries = INT_MAX;
-		/* cred == NULL for DS connects. */
-		if (NFSHASNFSV4N(nmp) && cred != NULL) {
-			/*
-			 * Make sure the nfscbd_pool doesn't get destroyed
-			 * while doing this.
-			 */
-			NFSD_LOCK();
-			if (nfs_numnfscbd > 0) {
-				nfs_numnfscbd++;
-				NFSD_UNLOCK();
-				xprt = svc_vc_create_backchannel(nfscbd_pool);
-				CLNT_CONTROL(client, CLSET_BACKCHANNEL, xprt);
+		if (NFSHASNFSV4N(nmp)) {
+			if (cred != NULL) {
+				/*
+				 * Make sure the nfscbd_pool doesn't get
+				 * destroyed while doing this.
+				 */
 				NFSD_LOCK();
-				nfs_numnfscbd--;
-				if (nfs_numnfscbd == 0)
-					wakeup(&nfs_numnfscbd);
+				if (nfs_numnfscbd > 0) {
+					nfs_numnfscbd++;
+					NFSD_UNLOCK();
+					xprt = svc_vc_create_backchannel(
+					    nfscbd_pool);
+					CLNT_CONTROL(client, CLSET_BACKCHANNEL,
+					    xprt);
+					NFSD_LOCK();
+					nfs_numnfscbd--;
+					if (nfs_numnfscbd == 0)
+						wakeup(&nfs_numnfscbd);
+				}
+				NFSD_UNLOCK();
+			} else {
+				/*
+				 * cred == NULL for a DS connect.
+				 * For connects to a DS, set a retry limit
+				 * so that failed DSs will be detected.
+				 * This is ok for NFSv4.1, since a DS does
+				 * not maintain open/lock state and is the
+				 * only case where using a "soft" mount is
+				 * recommended for NFSv4.
+				 */
+				retries = 2;
 			}
-			NFSD_UNLOCK();
 		}
 	} else {
 		/*
@@ -762,6 +779,7 @@ tryagain:
 	else
 		stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum,
 		    nd->nd_mreq, &nd->nd_mrep, timo);
+	NFSCL_DEBUG(2, "clnt call=%d\n", stat);
 
 	if (rep != NULL) {
 		/*
@@ -789,6 +807,36 @@ tryagain:
 		error = EPROTONOSUPPORT;
 	} else if (stat == RPC_INTR) {
 		error = EINTR;
+	} else if (stat == RPC_CANTSEND || stat == RPC_CANTRECV ||
+	     stat == RPC_SYSTEMERROR) {
+		/* Check for a session slot that needs to be free'd. */
+		if ((nd->nd_flag & (ND_NFSV41 | ND_HASSLOTID)) ==
+		    (ND_NFSV41 | ND_HASSLOTID) && nmp != NULL &&
+		    nd->nd_procnum != NFSPROC_NULL) {
+			/*
+			 * This should only occur when either the MDS or
+			 * a client has an RPC against a DS fail.
+			 * This happens because these cases use "soft"
+			 * connections that can time out and fail.
+			 * The slot used for this RPC is now in a
+			 * non-deterministic state, but if the slot isn't
+			 * free'd, threads can get stuck waiting for a slot.
+			 */
+			if (sep == NULL)
+				sep = nfsmnt_mdssession(nmp);
+			/*
+			 * Bump the sequence# out of range, so that reuse of
+			 * this slot will result in an NFSERR_SEQMISORDERED
+			 * error and not a bogus cached RPC reply.
+			 */
+			mtx_lock(&sep->nfsess_mtx);
+			sep->nfsess_slotseq[nd->nd_slotid] += 10;
+			mtx_unlock(&sep->nfsess_mtx);
+			/* And free the slot. */
+			nfsv4_freeslot(sep, nd->nd_slotid);
+		}
+		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		error = ENXIO;
 	} else {
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = EACCES;
