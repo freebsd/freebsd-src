@@ -1,0 +1,37 @@
+/* $FreeBSD$ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2836";
+};
+	
+&{/soc/spi@7e204000} {
+	status = "okay";
+	spigen0: spigen0 {
+		compatible = "freebsd,spigen";
+		reg = <0>;
+		status = "okay";
+	};
+	spigen1: spigen1 {
+		compatible = "freebsd,spigen";
+		reg = <1>;
+		status = "okay";
+	};
+	spigen2: spigen2 {
+		compatible = "freebsd,spigen";
+		reg = <2>;
+		status = "okay";
+	};
+};
+
+&{/soc/gpio@7e200000/spi0_cs_pins} {
+	brcm,pins = <8 7 16>;
+	brcm,function = <4>; /* ALT0 */
+};
+
+&{/soc/gpio@7e200000/spi0_gpio7} {
+	brcm,pins = <7 8 16 9 10 11>;
+};
+
