@@ -93,6 +93,9 @@ struct hpet_softc {
 		struct hpet_softc	*sc;
 		int			num;
 		int			mode;
+#define	TIMER_STOPPED	0
+#define	TIMER_PERIODIC	1
+#define	TIMER_ONESHOT	2
 		int			intr_rid;
 		int			irq;
 		int			pcpu_cpu;
@@ -171,10 +174,10 @@ hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
 	if (period != 0) {
-		t->mode = 1;
+		t->mode = TIMER_PERIODIC;
 		t->div = (sc->freq * period) >> 32;
 	} else {
-		t->mode = 2;
+		t->mode = TIMER_ONESHOT;
 		t->div = 0;
 	}
 	if (first != 0)
@@ -187,7 +190,7 @@ hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 restart:
 	t->next = now + fdiv;
-	if (t->mode == 1 && (t->caps & HPET_TCAP_PER_INT)) {
+	if (t->mode == TIMER_PERIODIC && (t->caps & HPET_TCAP_PER_INT)) {
 		t->caps |= HPET_TCNF_TYPE;
 		bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num),
 		    t->caps | HPET_TCNF_VAL_SET);
@@ -218,7 +221,7 @@ hpet_stop(struct eventtimer *et)
 	struct hpet_softc *sc = mt->sc;
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
-	t->mode = 0;
+	t->mode = TIMER_STOPPED;
 	t->caps &= ~(HPET_TCNF_INT_ENB | HPET_TCNF_TYPE);
 	bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num), t->caps);
 	return (0);
@@ -232,7 +235,7 @@ hpet_intr_single(void *arg)
 	struct hpet_softc *sc = t->sc;
 	uint32_t now;
 
-	if (t->mode == 0)
+	if (t->mode == TIMER_STOPPED)
 		return (FILTER_STRAY);
 	/* Check that per-CPU timer interrupt reached right CPU. */
 	if (t->pcpu_cpu >= 0 && t->pcpu_cpu != curcpu) {
@@ -246,8 +249,9 @@ hpet_intr_single(void *arg)
 		 * Reload timer, hoping that next time may be more lucky
 		 * (system will manage proper interrupt binding).
 		 */
-		if ((t->mode == 1 && (t->caps & HPET_TCAP_PER_INT) == 0) ||
-		    t->mode == 2) {
+		if ((t->mode == TIMER_PERIODIC &&
+		    (t->caps & HPET_TCAP_PER_INT) == 0) ||
+		    t->mode == TIMER_ONESHOT) {
 			t->next = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER) +
 			    sc->freq / 8;
 			bus_write_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num),
@@ -255,7 +259,7 @@ hpet_intr_single(void *arg)
 		}
 		return (FILTER_HANDLED);
 	}
-	if (t->mode == 1 &&
+	if (t->mode == TIMER_PERIODIC &&
 	    (t->caps & HPET_TCAP_PER_INT) == 0) {
 		t->next += t->div;
 		now = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
@@ -263,8 +267,8 @@ hpet_intr_single(void *arg)
 			t->next = now + t->div / 2;
 		bus_write_4(sc->mem_res,
 		    HPET_TIMER_COMPARATOR(t->num), t->next);
-	} else if (t->mode == 2)
-		t->mode = 0;
+	} else if (t->mode == TIMER_ONESHOT)
+		t->mode = TIMER_STOPPED;
 	mt = (t->pcpu_master < 0) ? t : &sc->t[t->pcpu_master];
 	if (mt->et.et_active)
 		mt->et.et_event_cb(&mt->et, mt->et.et_arg);
@@ -483,7 +487,7 @@ hpet_attach(device_t dev)
 		t = &sc->t[i];
 		t->sc = sc;
 		t->num = i;
-		t->mode = 0;
+		t->mode = TIMER_STOPPED;
 		t->intr_rid = -1;
 		t->irq = -1;
 		t->pcpu_cpu = -1;
@@ -822,10 +826,11 @@ hpet_resume(device_t dev)
 			}
 		}
 #endif
-		if (t->mode == 0)
+		if (t->mode == TIMER_STOPPED)
 			continue;
 		t->next = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
-		if (t->mode == 1 && (t->caps & HPET_TCAP_PER_INT)) {
+		if (t->mode == TIMER_PERIODIC &&
+		    (t->caps & HPET_TCAP_PER_INT) != 0) {
 			t->caps |= HPET_TCNF_TYPE;
 			t->next += t->div;
 			bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(t->num),
