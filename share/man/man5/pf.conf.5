@@ -498,6 +498,31 @@ For example:
 .Bd -literal -offset indent
 set block-policy return
 .Ed
+
+.It Ar set fail-policy
+The
+.Ar fail-policy
+option sets the behaviour of rules which should pass a packet but were unable to
+do so. This might happen when a nat or route-to rule uses an empty table as list
+of targets or if a rule fails to create state or source node.
+The following
+.Ar block
+actions are possible:
+.Pp
+.Bl -tag -width xxxxxxxx -compact
+.It Ar drop
+Incoming packet is silently dropped.
+.It Ar return
+Incoming packet is dropped and TCP RST is returned for TCP packets,
+an ICMP UNREACHABLE is returned for UDP packets,
+and no response is sent for other packets.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+set fail-policy return
+.Ed
+
 .It Ar set state-policy
 The
 .Ar state-policy
