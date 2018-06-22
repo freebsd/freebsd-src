@@ -100,12 +100,16 @@ static void	amdsbwd_identify(driver_t *driver, device_t parent);
 static int	amdsbwd_probe(device_t dev);
 static int	amdsbwd_attach(device_t dev);
 static int	amdsbwd_detach(device_t dev);
+static int	amdsbwd_suspend(device_t dev);
+static int	amdsbwd_resume(device_t dev);
 
 static device_method_t amdsbwd_methods[] = {
 	DEVMETHOD(device_identify,	amdsbwd_identify),
 	DEVMETHOD(device_probe,		amdsbwd_probe),
 	DEVMETHOD(device_attach,	amdsbwd_attach),
 	DEVMETHOD(device_detach,	amdsbwd_detach),
+	DEVMETHOD(device_suspend,	amdsbwd_suspend),
+	DEVMETHOD(device_resume,	amdsbwd_resume),
 #if 0
 	DEVMETHOD(device_shutdown,	amdsbwd_detach),
 #endif
@@ -549,3 +553,30 @@ amdsbwd_detach(device_t dev)
 	return (0);
 }
 
+static int
+amdsbwd_suspend(device_t dev)
+{
+	struct amdsbwd_softc *sc;
+	uint32_t val;
+
+	sc = device_get_softc(dev);
+	val = wdctrl_read(sc);
+	val &= ~AMDSB_WD_RUN;
+	wdctrl_write(sc, val);
+	return (0);
+}
+
+static int
+amdsbwd_resume(device_t dev)
+{
+	struct amdsbwd_softc *sc;
+
+	sc = device_get_softc(dev);
+	wdctrl_write(sc, AMDSB_WD_FIRED);
+	if (sc->active) {
+		amdsbwd_tmr_set(sc, sc->timeout);
+		amdsbwd_tmr_enable(sc);
+		amdsbwd_tmr_reload(sc);
+	}
+	return (0);
+}
