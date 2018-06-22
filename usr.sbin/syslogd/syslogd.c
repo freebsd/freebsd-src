@@ -1172,68 +1172,70 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 	size_t i, msglen;
 	char line[MAXLINE + 1];
 
-	/* Parse the timestamp provided by the remote side. */
-	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) !=
-	    msg + RFC3164_DATELEN || msg[RFC3164_DATELEN] != ' ') {
-		dprintf("Failed to parse TIMESTAMP from %s: %s\n", from, msg);
-		return;
-	}
-	msg += RFC3164_DATELEN + 1;
+	/*
+	 * Parse the TIMESTAMP provided by the remote side. If none is
+	 * found, assume this is not an RFC 3164 formatted message,
+	 * only containing a TAG and a MSG.
+	 */
+	timestamp = NULL;
+	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) ==
+	    msg + RFC3164_DATELEN && msg[RFC3164_DATELEN] == ' ') {
+		msg += RFC3164_DATELEN + 1;
+		if (!RemoteAddDate) {
+			struct tm tm_now;
+			time_t t_now;
+			int year;
 
-	if (!RemoteAddDate) {
-		struct tm tm_now;
-		time_t t_now;
-		int year;
+			/*
+			 * As the timestamp does not contain the year
+			 * number, daylight saving time information, nor
+			 * a time zone, attempt to infer it. Due to
+			 * clock skews, the timestamp may even be part
+			 * of the next year. Use the last year for which
+			 * the timestamp is at most one week in the
+			 * future.
+			 *
+			 * This loop can only run for at most three
+			 * iterations before terminating.
+			 */
+			t_now = time(NULL);
+			localtime_r(&t_now, &tm_now);
+			for (year = tm_now.tm_year + 1;; --year) {
+				assert(year >= tm_now.tm_year - 1);
+				timestamp_remote.tm = tm_parsed;
+				timestamp_remote.tm.tm_year = year;
+				timestamp_remote.tm.tm_isdst = -1;
+				timestamp_remote.usec = 0;
+				if (mktime(&timestamp_remote.tm) <
+				    t_now + 7 * 24 * 60 * 60)
+					break;
+			}
+			timestamp = &timestamp_remote;
+		}
 
 		/*
-		 * As the timestamp does not contain the year number,
-		 * daylight saving time information, nor a time zone,
-		 * attempt to infer it. Due to clock skews, the
-		 * timestamp may even be part of the next year. Use the
-		 * last year for which the timestamp is at most one week
-		 * in the future.
-		 *
-		 * This loop can only run for at most three iterations
-		 * before terminating.
+		 * A single space character MUST also follow the HOSTNAME field.
 		 */
-		t_now = time(NULL);
-		localtime_r(&t_now, &tm_now);
-		for (year = tm_now.tm_year + 1;; --year) {
-			assert(year >= tm_now.tm_year - 1);
-			timestamp_remote.tm = tm_parsed;
-			timestamp_remote.tm.tm_year = year;
-			timestamp_remote.tm.tm_isdst = -1;
-			timestamp_remote.usec = 0;
-			if (mktime(&timestamp_remote.tm) <
-			    t_now + 7 * 24 * 60 * 60)
+		msglen = strlen(msg);
+		for (i = 0; i < MIN(MAXHOSTNAMELEN, msglen); i++) {
+			if (msg[i] == ' ') {
+				if (RemoteHostname) {
+					msg[i] = '\0';
+					from = msg;
+				}
+				msg += i + 1;
+				break;
+			}
+			/*
+			 * Support non RFC compliant messages, without hostname.
+			 */
+			if (msg[i] == ':')
 				break;
 		}
-		timestamp = &timestamp_remote;
-	} else
-		timestamp = NULL;
-
-	/*
-	 * A single space character MUST also follow the HOSTNAME field.
-	 */
-	msglen = strlen(msg);
-	for (i = 0; i < MIN(MAXHOSTNAMELEN, msglen); i++) {
-		if (msg[i] == ' ') {
-			if (RemoteHostname) {
-				msg[i] = '\0';
-				from = msg;
-			}
-			msg += i + 1;
-			break;
+		if (i == MIN(MAXHOSTNAMELEN, msglen)) {
+			dprintf("Invalid HOSTNAME from %s: %s\n", from, msg);
+			return;
 		}
-		/*
-		 * Support non RFC compliant messages, without hostname.
-		 */
-		if (msg[i] == ':')
-			break;
-	}
-	if (i == MIN(MAXHOSTNAMELEN, msglen)) {
-		dprintf("Invalid HOSTNAME from %s: %s\n", from, msg);
-		return;
 	}
 
 	/* Remove the TAG, if present. */
