@@ -1607,7 +1607,7 @@ cxgbe_init(void *arg)
 static int
 cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 {
-	int rc = 0, mtu, flags, can_sleep;
+	int rc = 0, mtu, can_sleep, if_flags, if_drv_flags, vi_if_flags;
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
@@ -1633,48 +1633,57 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
-		can_sleep = 0;
-redo_sifflags:
+		/*
+		 * Decide what to do, with the port lock held.
+		 */
+		PORT_LOCK(pi);
+		if_flags = ifp->if_flags;
+		if_drv_flags = ifp->if_drv_flags;
+		vi_if_flags = vi->if_flags;
+		if (if_flags & IFF_UP && if_drv_flags & IFF_DRV_RUNNING &&
+		    (vi_if_flags ^ if_flags) & (IFF_PROMISC | IFF_ALLMULTI)) {
+			can_sleep = 0;
+		} else {
+			can_sleep = 1;
+		}
+		PORT_UNLOCK(pi);
+
+		/*
+		 * ifp/vi flags may change here but we'll just do what our local
+		 * copy of the flags indicates and then update the driver owned
+		 * ifp/vi flags (in a synch-op and with the port lock held) to
+		 * reflect what we did.
+		 */
+
 		rc = begin_synchronized_op(sc, vi,
 		    can_sleep ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4flg");
 		if (rc) {
 			if_printf(ifp, "%ssleepable synch operation failed: %d."
 			    "  if_flags 0x%08x, if_drv_flags 0x%08x\n",
-			    can_sleep ? "" : "non-", rc, ifp->if_flags,
-			    ifp->if_drv_flags);
+			    can_sleep ? "" : "non-", rc, if_flags,
+			    if_drv_flags);
 			return (rc);
 		}
 
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				flags = vi->if_flags;
-				if ((ifp->if_flags ^ flags) &
+		if (if_flags & IFF_UP) {
+			if (if_drv_flags & IFF_DRV_RUNNING) {
+				if ((if_flags ^ vi_if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
-					if (can_sleep == 1) {
-						end_synchronized_op(sc, 0);
-						can_sleep = 0;
-						goto redo_sifflags;
-					}
+					MPASS(can_sleep == 0);
 					rc = update_mac_settings(ifp,
 					    XGMAC_PROMISC | XGMAC_ALLMULTI);
 				}
 			} else {
-				if (can_sleep == 0) {
-					end_synchronized_op(sc, LOCK_HELD);
-					can_sleep = 1;
-					goto redo_sifflags;
-				}
+				MPASS(can_sleep == 1);
 				rc = cxgbe_init_synchronized(vi);
 			}
-			vi->if_flags = ifp->if_flags;
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if (can_sleep == 0) {
-				end_synchronized_op(sc, LOCK_HELD);
-				can_sleep = 1;
-				goto redo_sifflags;
-			}
+		} else if (if_drv_flags & IFF_DRV_RUNNING) {
+			MPASS(can_sleep == 1);
 			rc = cxgbe_uninit_synchronized(vi);
 		}
+		PORT_LOCK(pi);
+		vi->if_flags = if_flags;
+		PORT_UNLOCK(pi);
 		end_synchronized_op(sc, can_sleep ? 0 : LOCK_HELD);
 		break;
 
