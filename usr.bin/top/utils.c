@@ -268,10 +268,8 @@ format_time(long seconds)
 /*
  * format_k(amt) - format a kilobyte memory value, returning a string
  *		suitable for display.  Returns a pointer to a static
- *		area that changes each call.  "amt" is converted to a
- *		string with a trailing "K".  If "amt" is 10000 or greater,
- *		then it is formatted as megabytes (rounded) with a
- *		trailing "M".
+ *		area that changes each call.  "amt" is converted to a fixed
+ *		size humanize_number call
  */
 
 /*
@@ -299,7 +297,7 @@ format_k(int64_t amt)
 
     ret = retarray[index];
 	index = (index + 1) % NUM_STRINGS;
-	humanize_number(ret, 6, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
+	humanize_number(ret, 5, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
 	return (ret);
 }
 

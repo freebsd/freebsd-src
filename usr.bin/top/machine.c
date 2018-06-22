@@ -22,6 +22,7 @@
 #include <sys/priority.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/user.h>
@@ -49,18 +50,14 @@
 #include "layout.h"
 
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
-#define	SMPUNAMELEN	13
-#define	UPUNAMELEN	15
 
 extern struct timeval timeout;
 static int smpmode;
 enum displaymodes displaymode;
-static int namelength = 8;
+static const int namelength = 10;
 /* TOP_JID_LEN based on max of 999999 */
-#define TOP_JID_LEN 7
-#define TOP_SWAP_LEN 6
-static int jidlength;
-static int swaplength;
+#define TOP_JID_LEN 6
+#define TOP_SWAP_LEN 5
 static int cmdlengthdelta;
 
 /* get_process_info passes back a handle.  This is what it looks like: */
@@ -92,23 +89,11 @@ static const char io_header[] =
 static const char io_Proc_format[] =
     "%5d%*s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s";
 
-/* XXX: build up header instead of statically defining them.
- * This will also allow for a "format string" to be supplied
- * as an argument to top(1) instead of having predefined options */
-static const char smp_header_thr_and_pid[] =
-    "  %s%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
-static const char smp_header_id_only[] =
-    "  %s%*s %-*.*s  PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
 static const char smp_Proc_format[] =
-    "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s %2d%7s %6.2f%% %.*s";
+    "%5d%*s %-*.*s %s%3d %4s%6s %5s%*.*s %-6.6s %2d%7s %6.2f%% %.*s";
 
-static char up_header_thr_and_pid[] =
-    "  %s%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
-static char up_header_id_only[] =
-    "  %s%*s %-*.*s   PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 static char up_Proc_format[] =
-    "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s%.0d%7s %6.2f%% %.*s";
-
+    "%5d%*s %-*.*s %s%3d %4s%6s %5s%*.*s %-6.6s%.0d%7s %6.2f%% %.*s";
 
 /* process state names for the "STATE" column of the display */
 /* the extra nulls in the string "run" are for adding a slash and
@@ -325,12 +310,6 @@ machine_init(struct statics *statics)
 	    NULL, 0) == 0 && carc_en == 1)
 		carc_enabled = 1;
 
-	namelength = MAXLOGNAME;
-	if (smpmode && namelength > SMPUNAMELEN)
-		namelength = SMPUNAMELEN;
-	else if (namelength > UPUNAMELEN)
-		namelength = UPUNAMELEN;
-
 	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
 	if (kd == NULL)
 		return (-1);
@@ -407,63 +386,46 @@ machine_init(struct statics *statics)
 	return (0);
 }
 
-const char *
+char *
 format_header(const char *uname_field)
 {
-	static char Header[128];
-	const char *prehead;
+	static struct sbuf* header = NULL;
 
-	if (ps.jail)
-		jidlength = TOP_JID_LEN + 1;	/* +1 for extra left space. */
-	else
-		jidlength = 0;
-
-	if (ps.swap)
-		swaplength = TOP_SWAP_LEN + 1;  /* +1 for extra left space */
-	else
-		swaplength = 0;
+	/* clean up from last time. */
+	if (header != NULL) {
+		sbuf_delete(header);
+	}
+	header = sbuf_new_auto();
 
 	switch (displaymode) {
-	case DISP_CPU:
-		/*
-		 * The logic of picking the right header is confusing, and
-		 * depends on too much. We should instead have a struct of
-		 * "header name", and "header format" which we build up.
-		 * This would also fix the duplicate of effort into up vs smp
-		 * mode.
-		 */
-		if (smpmode) {
-			prehead = ps.thread ?
-				smp_header_id_only : smp_header_thr_and_pid;
-			snprintf(Header, sizeof(Header), prehead,
-					ps.thread_id ? " THR" : "PID",
-					jidlength, ps.jail ? " JID" : "",
-					namelength, namelength, uname_field,
-					swaplength, ps.swap ? " SWAP" : "",
-					ps.wcpu ? "WCPU" : "CPU");
-		} else {
-			prehead = ps.thread ?
-				up_header_id_only : up_header_thr_and_pid;
-			snprintf(Header, sizeof(Header), prehead,
-					ps.thread_id ? " THR" : "PID",
-					jidlength, ps.jail ? " JID" : "",
-					namelength, namelength, uname_field,
-					swaplength, ps.swap ? " SWAP" : "",
-					ps.wcpu ? "WCPU" : "CPU");
-		}
+	case DISP_CPU: {
+		sbuf_printf(header, "  %s", ps.thread_id ? " THR" : "PID");
+		sbuf_printf(header, "%*s", ps.jail ? TOP_JID_LEN : 0,
+									ps.jail ? " JID" : "");
+		sbuf_printf(header, " %-*.*s", namelength, namelength, uname_field);
+		sbuf_cat(header, "  THR PRI NICE  SIZE   RES");
+		sbuf_printf(header, "%*s", ps.swap ? TOP_SWAP_LEN : 0,
+									ps.swap ? "   SWAP" : "");
+		sbuf_printf(header, "%s", smpmode ? " STATE   C   " : " STATE    ");
+		sbuf_cat(header, "TIME");
+		sbuf_printf(header, " %7s", ps.wcpu ? "WCPU" : "CPU");
+		sbuf_cat(header, " COMMAND");
+		sbuf_finish(header);
 		break;
-	case DISP_IO:
-		prehead = io_header;
-		snprintf(Header, sizeof(Header), prehead,
+	}
+	case DISP_IO: {
+		sbuf_printf(header, io_header,
 			ps.thread_id ? " THR" : "PID",
-		    jidlength, ps.jail ? " JID" : "",
+		    ps.jail ? TOP_JID_LEN : 0, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		break;
+	}
 	case DISP_MAX:
 		assert("displaymode must not be set to DISP_MAX");
 	}
-	cmdlengthdelta = strlen(Header) - 7;
-	return (Header);
+
+	cmdlengthdelta = sbuf_len(header) - 7;
+	return sbuf_data(header);
 }
 
 static int swappgsin = -1;
@@ -923,7 +885,7 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 	long p_tot, s_tot;
 	const char *proc_fmt;
 	char thr_buf[6];
-	char jid_buf[TOP_JID_LEN + 1], swap_buf[TOP_SWAP_LEN + 1];
+	char jid_buf[TOP_JID_LEN], swap_buf[TOP_SWAP_LEN];
 	char *cmdbuf = NULL;
 	char **args;
 	const int cmdlen = 128;
@@ -1081,13 +1043,13 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 		jid_buf[0] = '\0';
 	else
 		snprintf(jid_buf, sizeof(jid_buf), "%*d",
-		    jidlength - 1, pp->ki_jid);
+		    TOP_JID_LEN - 1, pp->ki_jid);
 
 	if (ps.swap == 0)
 		swap_buf[0] = '\0';
 	else
 		snprintf(swap_buf, sizeof(swap_buf), "%*s",
-		    swaplength - 1,
+		    TOP_SWAP_LEN - 1,
 		    format_k(pagetok(ki_swap(pp)))); /* XXX */
 
 	if (displaymode == DISP_IO) {
@@ -1109,7 +1071,7 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 
 		snprintf(fmt, sizeof(fmt), io_Proc_format,
 		    pp->ki_pid,
-		    jidlength, jid_buf,
+		    ps.jail ? TOP_JID_LEN : 0, jid_buf,
 		    namelength, namelength, (*get_userid)(pp->ki_ruid),
 		    rup->ru_nvcsw,
 		    rup->ru_nivcsw,
@@ -1142,16 +1104,17 @@ format_next_process(void* xhandle, char *(*get_userid)(int), int flags)
 		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
 		    (int)(sizeof(thr_buf) - 2), pp->ki_numthreads);
 
+
 	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    (ps.thread_id) ? pp->ki_tid : pp->ki_pid,
-	    jidlength, jid_buf,
+	    ps.jail ? TOP_JID_LEN : 0, jid_buf,
 	    namelength, namelength, (*get_userid)(pp->ki_ruid),
 	    thr_buf,
 	    pp->ki_pri.pri_level - PZERO,
 	    format_nice(pp),
 	    format_k(PROCSIZE(pp)),
 	    format_k(pagetok(pp->ki_rssize)),
-	    swaplength, swaplength, swap_buf,
+	    ps.swap ? TOP_SWAP_LEN : 0, ps.swap ? TOP_SWAP_LEN : 0, swap_buf,
 	    status,
 	    cpu,
 	    format_time(cputime),
