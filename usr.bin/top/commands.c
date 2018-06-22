@@ -1,5 +1,6 @@
 /*
  *  Top users/processes display for Unix
+ *  Version 3
  *
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.

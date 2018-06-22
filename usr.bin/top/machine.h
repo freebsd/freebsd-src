@@ -78,7 +78,7 @@ struct process_select
 
 /* routines defined by the machine dependent module */
 
-const char	*format_header(const char *uname_field);
+char	*format_header(const char *uname_field);
 char	*format_next_process(void* handle, char *(*get_userid)(int),
 	    int flags);
 void	 toggle_pcpustats(void);
