@@ -2258,7 +2258,9 @@ void
 uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *udata)
 {
 
+#ifdef SMP
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
+#endif
 	uma_zfree_arg(zone, item, udata);
 }
 
