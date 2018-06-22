@@ -128,6 +128,7 @@ static int nfsrv_returnoldstateid = 0, nfsrv_clients = 0;
 static int nfsrv_clienthighwater = NFSRV_CLIENTHIGHWATER;
 static int nfsrv_nogsscallback = 0;
 static volatile int nfsrv_writedelegcnt = 0;
+static int nfsrv_faildscnt;
 
 /* local functions */
 static void nfsrv_dumpaclient(struct nfsclient *clp,
@@ -6748,10 +6749,9 @@ nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp, int maxcnt,
 			NFSD_DEBUG(4, "flexlayouterr op=%d stat=%d\n", opnum,
 			    stat);
 			/*
-			 * Except for NFSERR_ACCES errors for Reading,
-			 * shut the mirror down.
+			 * Except for NFSERR_ACCES errors, disable the mirror.
 			 */
-			if (opnum != NFSV4OP_READ || stat != NFSERR_ACCES)
+			if (stat != NFSERR_ACCES)
 				nfsrv_delds(devid, p);
 		}
 	}
@@ -7514,6 +7514,10 @@ nfsrv_deldsnmp(struct nfsmount *nmp, NFSPROC_T *p)
 
 	NFSD_DEBUG(4, "deldsdvp\n");
 	NFSDDSLOCK();
+	if (nfsrv_faildscnt <= 0) {
+		NFSDDSUNLOCK();
+		return (NULL);
+	}
 	fndds = nfsv4_findmirror(nmp);
 	if (fndds != NULL)
 		nfsrv_deleteds(fndds);
@@ -7547,6 +7551,10 @@ nfsrv_delds(char *devid, NFSPROC_T *p)
 	nmp = NULL;
 	fndmirror = 0;
 	NFSDDSLOCK();
+	if (nfsrv_faildscnt <= 0) {
+		NFSDDSUNLOCK();
+		return (ENXIO);
+	}
 	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 		if (NFSBCMP(ds->nfsdev_deviceid, devid, NFSX_V4DEVICEID) == 0 &&
 		    ds->nfsdev_nmp != NULL) {
@@ -7593,6 +7601,7 @@ nfsrv_deleteds(struct nfsdevice *fndds)
 
 	NFSD_DEBUG(4, "deleteds: deleting a mirror\n");
 	fndds->nfsdev_nmp = NULL;
+	nfsrv_faildscnt--;
 }
 
 /*
@@ -7714,6 +7723,8 @@ nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 		nfsrv_maxpnfsmirror = 1;
 		return (ENXIO);
 	}
+	/* We can fail at most one less DS than the mirror level. */
+	nfsrv_faildscnt = nfsrv_maxpnfsmirror - 1;
 
 	/*
 	 * Allocate the nfslayout hash table now, since this is a pNFS server.
