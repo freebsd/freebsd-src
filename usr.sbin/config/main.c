@@ -118,7 +118,7 @@ main(int argc, char **argv)
 	printmachine = 0;
 	kernfile = NULL;
 	SLIST_INIT(&includepath);
-	while ((ch = getopt(argc, argv, "CI:d:gmpsVx:")) != -1)
+	while ((ch = getopt(argc, argv, "CI:d:gmps:Vx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
