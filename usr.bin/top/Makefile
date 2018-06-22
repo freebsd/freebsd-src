@@ -16,5 +16,5 @@ NO_WERROR=
 .endif
 CFLAGS.clang=-Wno-error=incompatible-pointer-types-discards-qualifiers -Wno-error=cast-qual
 
-LIBADD=	ncursesw m kvm jail util
+LIBADD=	ncursesw m kvm jail util sbuf
 .include <bsd.prog.mk>
