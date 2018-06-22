@@ -317,16 +317,23 @@ amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 static void
 amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint8_t	val;
-	int	i;
+	uint32_t	val;
+	int		i;
 
 	/* Report cause of previous reset for user's convenience. */
-	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS0);
+
+	val = pmio_read(pmres, AMDSB8_PM_RESET_CTRL);
+	if ((val & AMDSB8_RST_STS_DIS) != 0) {
+		val &= ~AMDSB8_RST_STS_DIS;
+		pmio_write(pmres, AMDSB8_PM_RESET_CTRL, val);
+	}
+	val = 0;
+	for (i = 3; i >= 0; i--) {
+		val <<= 8;
+		val |= pmio_read(pmres, AMDSB8_PM_RESET_STATUS + i);
+	}
 	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus0 = %#04x\n", val);
-	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS1);
-	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus1 = %#04x\n", val);
+		amdsbwd_verbose_printf(dev, "ResetStatus = 0x%08x\n", val);
 	if ((val & AMDSB8_WD_RST_STS) != 0)
 		device_printf(dev, "Previous Reset was caused by Watchdog\n");
 
