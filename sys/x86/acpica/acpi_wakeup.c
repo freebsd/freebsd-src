@@ -77,6 +77,7 @@ CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
 
 extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
+extern int		acpi_susp_bounce;
 
 #ifdef SMP
 extern struct susppcb	**susppcbs;
@@ -257,6 +258,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			    AcpiFormatException(status));
 			return (0);	/* couldn't sleep */
 		}
+
+		if (acpi_susp_bounce)
+			resumectx(pcb);
 
 		for (;;)
 			ia32_pause();
