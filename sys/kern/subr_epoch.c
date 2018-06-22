@@ -307,6 +307,7 @@ epoch_enter(epoch_t epoch)
 	struct thread *td;
 
 	MPASS(cold || epoch != NULL);
+	INIT_CHECK(epoch);
 	td = curthread;
 
 	critical_enter();
@@ -344,6 +345,7 @@ epoch_exit(epoch_t epoch)
 	ck_epoch_record_t *record;
 	struct thread *td;
 
+	INIT_CHECK(epoch);
 	td = curthread;
 	td->td_epochnest--;
 	record = &epoch->e_pcpu[curcpu]->eps_record.er_record;
