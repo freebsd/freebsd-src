@@ -25,8 +25,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2018
-.Dt OF_CHILD 9
+.Dd June 23, 2018
+.Dt OF_GETPROP 9
 .Os
 .Sh NAME
 .Nm OF_getprop ,
@@ -37,6 +37,8 @@
 .Nm OF_searchencprop ,
 .Nm OF_getprop_alloc ,
 .Nm OF_getencprop_alloc ,
+.Nm OF_getprop_alloc_multi ,
+.Nm OF_getencprop_alloc_multi ,
 .Nm OF_prop_free ,
 .Nm OF_nextprop ,
 .Nm OF_setprop
@@ -66,6 +68,12 @@
 .Ft ssize_t
 .Fn OF_getencprop_alloc "phandle_t node" "const char *propname" \
 "pcell_t **buf"
+.Ft ssize_t
+.Fn OF_getprop_alloc_multi "phandle_t node" "const char *propname" \
+"int elsz" "void **buf"
+.Ft ssize_t
+.Fn OF_getencprop_alloc_multi "phandle_t node" "const char *propname" \
+"int elsz" "pcell_t **buf"
 .Ft void
 .Fn OF_prop_free "void *buf"
 .Ft int
@@ -204,7 +212,60 @@ If the property has zero-length value,
 .Fa *buf
 is set to NULL.
 Returns -1 if the property does not exist or
-memory allocation failed.
+memory allocation failed or the size of the value is not
+divisible by a cell size (4 bytes).
+Allocated memory should be released when no longer required
+by calling
+.Fn OF_prop_free .
+The function might sleep when allocating memory.
+.Pp
+.Fn OF_getprop_alloc_multi
+allocates memory large enough to hold the
+value associated with the property
+.Fa propname
+of the device node
+.Fa node
+and copies the value into the newly allocated memory region.
+The value is expected to be an array of zero or more elements
+.Fa elsz
+bytes long.
+Returns the number of elements in the value and stores
+the address of the allocated memory in
+.Fa *buf .
+If the property has a zero-sized value
+.Fa *buf
+is set NULL.
+Returns -1 if the property does not exist or
+memory allocation failed or the size of the value is not
+divisible by
+.Fa elsz .
+Allocated memory should be released when no longer required
+by calling
+.Fn OF_prop_free .
+The function might sleep when allocating memory.
+.Pp
+.Fn OF_getencprop_alloc_multi
+allocates memory large enough to hold the
+value associated with the property
+.Fa propname
+of the device node
+.Fa node
+and copies the value into the newly allocated memory region, and
+then converts cell values from big-endian to host byte
+order.
+The value is expected to be an array of zero or more elements
+.Fa elsz
+bytes long.
+Returns the number of elements in the value and stores
+the address of the allocated memory in
+.Fa *buf .
+If the property has a zero-sized value
+.Fa *buf
+is set NULL.
+Returns -1 if the property does not exist or
+memory allocation failed or the size of the value is not
+divisible by
+.Fa elsz .
 Allocated memory should be released when no longer required
 by calling
 .Fn OF_prop_free .
@@ -214,9 +275,10 @@ The function might sleep when allocating memory.
 releases memory at
 .Fa buf
 that was allocated by
-.Fn OF_getprop_alloc
-or
-.Fn OF_getencprop_alloc .
+.Fn OF_getprop_alloc ,
+.Fn OF_getencprop_alloc ,
+.Fn OF_getprop_alloc_multi ,
+.Fn OF_getencprop_alloc_multi .
 .Pp
 .Fn OF_nextprop
 copies a maximum of
