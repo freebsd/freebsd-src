@@ -176,8 +176,17 @@ done:
 	global_epoch = epoch_alloc(0);
 	global_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
 }
-
 SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
+
+#if !defined(EARLY_AP_STARTUP)
+static void
+epoch_init_smp(void *dummy __unused)
+{
+	inited = 2;
+}
+SYSINIT(epoch_smp, SI_SUB_SMP + 1, SI_ORDER_FIRST, epoch_init_smp, NULL);
+#endif
+
 
 static void
 epoch_init_numa(epoch_t epoch)
@@ -570,6 +579,10 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 	/* too early in boot to have epoch set up */
 	if (__predict_false(epoch == NULL))
 		goto boottime;
+#if !defined(EARLY_AP_STARTUP)
+	if (__predict_false(inited < 2))
+		goto boottime;
+#endif
 
 	critical_enter();
 	*DPCPU_PTR(epoch_cb_count) += 1;
