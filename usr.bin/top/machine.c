@@ -29,6 +29,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <libgen.h>
 #include <kvm.h>
 #include <math.h>
 #include <paths.h>
@@ -992,11 +993,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			dst = argbuf;
 
 			/* Extract cmd name from argv */
-			cmd = strrchr(*args, '/');
-			if (cmd == NULL)
-				cmd = *args;
-			else
-				cmd++;
+			cmd = basename(*args);
 
 			for (; (src = *args++) != NULL; ) {
 				if (*src == '\0')
