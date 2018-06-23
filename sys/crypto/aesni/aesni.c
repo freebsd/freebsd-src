@@ -890,6 +890,10 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 		break;
 	}
 
+	if (allocated)
+		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, buf);
+
 out:
 	if (allocated) {
 		explicit_bzero(buf, enccrd->crd_len);
