@@ -896,7 +896,7 @@ dbtrap:
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
 
-	ld	%r1,TRAP_TOCBASE(0)		/* get new SP */
+	GET_TOCBASE(%r1)			/* get new SP */
 	ld	%r1,TOC_REF(tmpstk)(%r1)
 	addi	%r1,%r1,(TMPSTKSZ-48)
 
