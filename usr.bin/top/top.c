@@ -243,7 +243,6 @@ main(int argc, char *argv[])
     int  preset_argc = 0;
     const char **av = NULL;
     int  ac = -1;
-    bool dostates = false;
     bool do_unames = true;
     char interactive = 2;
     char warnings = 0;
@@ -641,25 +640,7 @@ restart:
 	/* display process state breakdown */
 	(*d_procstates)(system_info.p_total,
 			system_info.procstates);
-
-	/* display the cpu state percentage breakdown */
-	if (dostates)	/* but not the first time */
-	{
-	    (*d_cpustates)(system_info.cpustates);
-	}
-	else
-	{
-	    /* we'll do it next time */
-	    if (smart_terminal)
-	    {
-		z_cpustates();
-	    }
-	    else
-	    {
-		putchar('\n');
-	    }
-	    dostates = true;
-	}
+	(*d_cpustates)(system_info.cpustates);
 
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
