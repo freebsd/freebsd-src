@@ -191,6 +191,12 @@ as binary data, piped through
 displaying it as two hexadecimal unsigned short integer values.
 .Pp
 echo "00 01" | spi -A -b -d rw -c 4 | od -t x2
+.It
+Query the manufacturer ID and size from a standard spiflash device, by
+sending the command byte 0x9f and displaying the 3-byte reply in ASCII hex.
+.Pp
+spi -f spigen0.0 -m 0 -s 1000000 -d r -c 3 -A -C 9f
+
 .El
 .Pp
 .Sh SEE ALSO
