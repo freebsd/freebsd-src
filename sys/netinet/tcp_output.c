@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 #include <netinet/tcp.h>
+#define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
@@ -166,26 +167,6 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 	}
 }
 #endif
-
-/*
- * Flags used when sending segments in tcp_output.  Basic flags (TH_RST,
- * TH_ACK,TH_SYN,TH_FIN) are totally determined by state, with the proviso
- * that TH_FIN is sent only if all data queued for output is included in the
- * segment.
- */
-u_char	tcp_outflags[TCP_NSTATES] = {
-	TH_RST|TH_ACK,		/* 0, CLOSED */
-	0,			/* 1, LISTEN */
-	TH_SYN,			/* 2, SYN_SENT */
-	TH_SYN|TH_ACK,		/* 3, SYN_RECEIVED */
-	TH_ACK,			/* 4, ESTABLISHED */
-	TH_ACK,			/* 5, CLOSE_WAIT */
-	TH_FIN|TH_ACK,		/* 6, FIN_WAIT_1 */
-	TH_FIN|TH_ACK,		/* 7, CLOSING */
-	TH_FIN|TH_ACK,		/* 8, LAST_ACK */
-	TH_ACK,			/* 9, FIN_WAIT_2 */
-	TH_ACK,			/* 10, TIME_WAIT */
-};
 
 /*
  * CC wrapper hook functions
