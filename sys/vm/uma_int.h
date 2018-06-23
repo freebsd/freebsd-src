@@ -222,9 +222,8 @@ typedef struct uma_domain * uma_domain_t;
  *
  */
 struct uma_keg {
-	struct mtx_padalign	uk_lock;	/* Lock for the keg */
+	struct mtx	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
-
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
 	uint32_t	uk_cursor;	/* Domain alloc cursor. */
@@ -315,40 +314,48 @@ typedef struct uma_zone_domain * uma_zone_domain_t;
  *
  */
 struct uma_zone {
-	struct mtx_padalign	uz_lock;	/* Lock for the zone */
-	struct mtx_padalign	*uz_lockptr;
-	const char		*uz_name;	/* Text name of the zone */
-
-	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
+	/* Offset 0, used in alloc/free fast/medium fast path and const. */
+	struct mtx	*uz_lockptr;
+	const char	*uz_name;	/* Text name of the zone */
 	struct uma_zone_domain	*uz_domain;	/* per-domain buckets */
-
-	LIST_HEAD(,uma_klink)	uz_kegs;	/* List of kegs. */
-	struct uma_klink	uz_klink;	/* klink for first keg. */
-
-	uma_slaballoc	uz_slab;	/* Allocate a slab from the backend. */
+	uint32_t	uz_flags;	/* Flags inherited from kegs */
+	uint32_t	uz_size;	/* Size inherited from kegs */
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
 	uma_init	uz_init;	/* Initializer for each item */
 	uma_fini	uz_fini;	/* Finalizer for each item. */
+
+	/* Offset 64, used in bucket replenish. */
 	uma_import	uz_import;	/* Import new memory to cache. */
 	uma_release	uz_release;	/* Release memory from cache. */
 	void		*uz_arg;	/* Import/release argument. */
+	uma_slaballoc	uz_slab;	/* Allocate a slab from the backend. */
+	uint16_t	uz_count;	/* Amount of items in full bucket */
+	uint16_t	uz_count_min;	/* Minimal amount of items there */
+	/* 32bit pad on 64bit. */
+	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
+	LIST_HEAD(,uma_klink)	uz_kegs;	/* List of kegs. */
 
-	uint32_t	uz_flags;	/* Flags inherited from kegs */
-	uint32_t	uz_size;	/* Size inherited from kegs */
+	/* Offset 128 Rare. */
+	/*
+	 * The lock is placed here to avoid adjacent line prefetcher
+	 * in fast paths and to take up space near infrequently accessed
+	 * members to reduce alignment overhead.
+	 */
+	struct mtx	uz_lock;	/* Lock for the zone */
+	struct uma_klink	uz_klink;	/* klink for first keg. */
+	/* The next two fields are used to print a rate-limited warnings. */
+	const char	*uz_warning;	/* Warning to print on failure */
+	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
+	struct task	uz_maxaction;	/* Task to run when at limit */
 
+	/* 16 bytes of pad. */
+
+	/* Offset 256, atomic stats. */
 	volatile u_long	uz_allocs UMA_ALIGN; /* Total number of allocations */
 	volatile u_long	uz_fails;	/* Total number of alloc failures */
 	volatile u_long	uz_frees;	/* Total number of frees */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
-	uint16_t	uz_count;	/* Amount of items in full bucket */
-	uint16_t	uz_count_min;	/* Minimal amount of items there */
-
-	/* The next two fields are used to print a rate-limited warnings. */
-	const char	*uz_warning;	/* Warning to print on failure */
-	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
-
-	struct task	uz_maxaction;	/* Task to run when at limit */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size
