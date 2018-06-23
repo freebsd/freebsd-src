@@ -4587,6 +4587,8 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
 	if (error == 0) {
+		nd->nd_flag |= ND_HASSLOTID;
+		nd->nd_slotid = slotpos;
 		*tl++ = txdr_unsigned(slotseq);
 		*tl++ = txdr_unsigned(slotpos);
 		*tl++ = txdr_unsigned(maxslot);
