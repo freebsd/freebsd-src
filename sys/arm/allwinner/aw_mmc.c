@@ -529,21 +529,21 @@ aw_mmc_attach(device_t dev)
 	    &sc->sim_mtx, 1, 1, sc->devq);
 
 	if (sc->sim == NULL) {
-                cam_simq_free(sc->devq);
-                device_printf(dev, "cannot allocate CAM SIM\n");
-                goto fail;
-        }
+		cam_simq_free(sc->devq);
+		device_printf(dev, "cannot allocate CAM SIM\n");
+		goto fail;
+	}
 
 	mtx_lock(&sc->sim_mtx);
-        if (xpt_bus_register(sc->sim, sc->aw_dev, 0) != 0) {
-                device_printf(dev, "cannot register SCSI pass-through bus\n");
-                cam_sim_free(sc->sim, FALSE);
-                cam_simq_free(sc->devq);
-                mtx_unlock(&sc->sim_mtx);
-                goto fail;
-        }
+	if (xpt_bus_register(sc->sim, sc->aw_dev, 0) != 0) {
+		device_printf(dev, "cannot register SCSI pass-through bus\n");
+		cam_sim_free(sc->sim, FALSE);
+		cam_simq_free(sc->devq);
+		mtx_unlock(&sc->sim_mtx);
+		goto fail;
+	}
 
-        mtx_unlock(&sc->sim_mtx);
+	mtx_unlock(&sc->sim_mtx);
 #else /* !MMCCAM */
 	child = device_add_child(dev, "mmc", -1);
 	if (child == NULL) {
@@ -566,14 +566,14 @@ fail:
 
 #ifdef MMCCAM
 	if (sc->sim != NULL) {
-                mtx_lock(&sc->sim_mtx);
-                xpt_bus_deregister(cam_sim_path(sc->sim));
-                cam_sim_free(sc->sim, FALSE);
-                mtx_unlock(&sc->sim_mtx);
-        }
+		mtx_lock(&sc->sim_mtx);
+		xpt_bus_deregister(cam_sim_path(sc->sim));
+		cam_sim_free(sc->sim, FALSE);
+		mtx_unlock(&sc->sim_mtx);
+	}
 
-        if (sc->devq != NULL)
-                cam_simq_free(sc->devq);
+	if (sc->devq != NULL)
+		cam_simq_free(sc->devq);
 #endif
 	return (ENXIO);
 }
