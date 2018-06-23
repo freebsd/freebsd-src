@@ -148,7 +148,8 @@ ntpd_fetch_leapfile() {
 		     "$ntp_expiry_tmp" -eq "$ntp_expiry_db" -a \
 		     "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
 			$verbose using $url as $ntp_db_leapfile
-			mv $ntp_tmp_leapfile $ntp_db_leapfile
+			mv -f $ntp_tmp_leapfile $ntp_db_leapfile ||
+			    $verbose "warning: cannot replace $ntp_db_leapfile (read-only fs?)"
 		else
 			$verbose using existing $ntp_db_leapfile
 		fi
