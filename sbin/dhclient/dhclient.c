@@ -65,8 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 
 #include <capsicum_helpers.h>
+#include <libgen.h>
 
 #include <net80211/ieee80211_freebsd.h>
+
 
 #ifndef _PATH_VAREMPTY
 #define	_PATH_VAREMPTY	"/var/empty"
@@ -91,21 +93,21 @@ __FBSDID("$FreeBSD$");
 cap_channel_t *capsyslog;
 
 time_t cur_time;
-time_t default_lease_time = 43200; /* 12 hours... */
+static time_t default_lease_time = 43200; /* 12 hours... */
 
 const char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
 char *path_dhclient_db = NULL;
 
 int log_perror = 1;
-int privfd;
-int nullfd = -1;
+static int privfd;
+static int nullfd = -1;
 
-char hostname[_POSIX_HOST_NAME_MAX + 1];
+static char hostname[_POSIX_HOST_NAME_MAX + 1];
 
-struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
-struct in_addr inaddr_any, inaddr_broadcast;
+static struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
+static struct in_addr inaddr_any, inaddr_broadcast;
 
-char *path_dhclient_pidfile;
+static char *path_dhclient_pidfile;
 struct pidfh *pidfile;
 
 /*
@@ -121,9 +123,9 @@ struct pidfh *pidfile;
 #define TIME_MAX        ((((time_t) 1 << (sizeof(time_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
 
 int		log_priority;
-int		no_daemon;
-int		unknown_ok = 1;
-int		routefd;
+static int		no_daemon;
+static int		unknown_ok = 1;
+static int		routefd;
 
 struct interface_info	*ifi;
 
@@ -147,6 +149,7 @@ int		 fork_privchld(int, int);
 #define MIN_MTU 68
 
 static time_t	scripttime;
+static char	*__progname;
 
 int
 findproto(char *cp, int n)
@@ -197,8 +200,8 @@ get_ifa(char *cp, int n)
 	return (NULL);
 }
 
-struct iaddr defaddr = { .len = 4 };
-uint8_t curbssid[6];
+static struct iaddr defaddr = { .len = 4 };
+static uint8_t curbssid[6];
 
 static void
 disassoc(void *arg)
@@ -369,13 +372,14 @@ init_casper(void)
 int
 main(int argc, char *argv[])
 {
-	extern char		*__progname;
 	int			 ch, fd, quiet = 0, i = 0;
 	int			 pipe_fd[2];
 	int			 immediate_daemon = 0;
 	struct passwd		*pw;
 	pid_t			 otherpid;
 	cap_rights_t		 rights;
+
+	__progname = basename(argv[0]);
 
 	init_casper();
 
@@ -561,7 +565,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	extern char	*__progname;
 
 	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
@@ -1903,7 +1906,7 @@ free_client_lease(struct client_lease *lease)
 	free(lease);
 }
 
-FILE *leaseFile;
+static FILE *leaseFile;
 
 void
 rewrite_client_leases(void)
