@@ -121,7 +121,7 @@ static char	*dkname;
 static char	*disktype;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
-static struct disklabel *getdisklabel(char *s);
+static struct disklabel *getdisklabel(void);
 static void usage(void);
 static int expand_number_int(const char *buf, int *num);
 
@@ -185,6 +185,7 @@ main(int argc, char *argv[])
 		case 'j':
 			jflag = 1;
 			/* fall through to enable soft updates */
+			/* FALLTHROUGH */
 		case 'U':
 			Uflag = 1;
 			break;
@@ -351,7 +352,7 @@ main(int argc, char *argv[])
 		getfssize(&fssize, special, mediasize / sectorsize, reserved);
 	}
 	pp = NULL;
-	lp = getdisklabel(special);
+	lp = getdisklabel();
 	if (lp != NULL) {
 		if (!is_file) /* already set for files */
 			part_name = special[strlen(special) - 1];
@@ -426,7 +427,7 @@ getfssize(intmax_t *fsz, const char *s, intmax_t disksize, intmax_t reserved)
 }
 
 struct disklabel *
-getdisklabel(char *s)
+getdisklabel(void)
 {
 	static struct disklabel lab;
 	struct disklabel *lp;
@@ -453,7 +454,7 @@ getdisklabel(char *s)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	    "usage: %s [ -fsoptions ] special-device%s\n",
