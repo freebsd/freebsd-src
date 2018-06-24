@@ -572,9 +572,9 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
  
 	/* using the pci device id and revision id */
 	/* and determine the card type            */
-	if (PCI_VENDOR(pci_id) == PCI_VENDOR_BROOKTREE)
+	if (BKTR_PCI_VENDOR(pci_id) == PCI_VENDOR_BROOKTREE)
 	{
-		switch (PCI_PRODUCT(pci_id)) {
+		switch (BKTR_PCI_PRODUCT(pci_id)) {
 		case PCI_PRODUCT_BROOKTREE_BT848:
 			if (rev == 0x12)
 				bktr->id = BROOKTREE_848A;
