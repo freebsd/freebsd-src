@@ -3,8 +3,6 @@
 
 .include <src.opts.mk>
 
-# XXX MISSING:		icheck ncheck
-
 SUBDIR=adjkerntz \
 	camcontrol \
 	clri \
