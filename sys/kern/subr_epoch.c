@@ -375,9 +375,11 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 	struct turnstile *ts;
 	struct lock_object *lock;
 	int spincount, gen;
+	int locksheld __unused;
 
 	record = __containerof(cr, struct epoch_record, er_record);
 	td = curthread;
+	locksheld = td->td_locks;
 	spincount = 0;
 	counter_u64_add(block_count, 1);
 	if (record->er_cpuid != curcpu) {
@@ -470,8 +472,8 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 				turnstile_unlock(ts, lock);
 			thread_lock(td);
 			critical_exit();
-			KASSERT(td->td_locks == 0,
-			    ("%d locks held", td->td_locks));
+			KASSERT(td->td_locks == locksheld,
+			    ("%d extra locks held", td->td_locks - locksheld));
 		}
 	}
 	/*
@@ -499,23 +501,20 @@ epoch_wait_preempt(epoch_t epoch)
 	int old_cpu;
 	int old_pinned;
 	u_char old_prio;
-#ifdef INVARIANTS
-	int locks;
-
-	locks = curthread->td_locks;
-#endif
+	int locks __unused;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
-
-	MPASS(epoch->e_flags & EPOCH_PREEMPT);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "epoch_wait() can sleep");
-
 	td = curthread;
+#ifdef INVARIANTS
+	locks = curthread->td_locks;
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+	if ((epoch->e_flags & EPOCH_LOCKED) == 0)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "epoch_wait() can be long running");
 	KASSERT(td->td_epochnest == 0, ("epoch_wait() in the middle of an epoch section"));
+#endif
 	thread_lock(td);
-
 	DROP_GIANT();
 
 	old_cpu = PCPU_GET(cpuid);
