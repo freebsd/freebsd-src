@@ -1582,11 +1582,9 @@ static void
 in_pcbfree_deferred(epoch_context_t ctx)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	int released __unused;
 
 	inp = __containerof(ctx, struct inpcb, inp_epoch_ctx);
-	pcbinfo = inp->inp_pcbinfo;
 
 	INP_WLOCK(inp);
 #ifdef INET
