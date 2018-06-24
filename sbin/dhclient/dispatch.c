@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 /* Assert that pointer p is aligned to at least align bytes */
 #define assert_aligned(p, align) assert((((uintptr_t)p) & ((align) - 1)) == 0)
 
-struct protocol *protocols;
-struct timeout *timeouts;
+static struct protocol *protocols;
+static struct timeout *timeouts;
 static struct timeout *free_timeouts;
 static int interfaces_invalidated;
 void (*bootp_packet_handler)(struct interface_info *,
