@@ -49,10 +49,9 @@ __FBSDID("$FreeBSD$");
 #include "dhctoken.h"
 
 struct client_config top_level_config;
-struct interface_info *dummy_interfaces;
-extern struct interface_info *ifi;
+static struct interface_info *dummy_interfaces;
 
-char client_script_name[] = "/sbin/dhclient-script";
+static char client_script_name[] = "/sbin/dhclient-script";
 
 /*
  * client-conf-file :== client-declarations EOF

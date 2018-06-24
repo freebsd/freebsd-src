@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 int lexline;
 int lexchar;
 char *token_line;
-char *prev_line;
-char *cur_line;
+static char *prev_line;
+static char *cur_line;
 const char *tlname;
 int eol_token;
 
@@ -347,6 +347,7 @@ intern(char *atom, int dfv)
 			return (BOOTING);
 		if (!strcasecmp(atom + 1, "oot-unknown-clients"))
 			return (BOOT_UNKNOWN_CLIENTS);
+		break;
 	case 'c':
 		if (!strcasecmp(atom + 1, "lass"))
 			return (CLASS);

@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 #define DHCP_OPTION_DATA
 #include "dhcpd.h"
 
-int bad_options = 0;
-int bad_options_max = 5;
+static int bad_options = 0;
+static int bad_options_max = 5;
 
 void	parse_options(struct packet *);
 void	parse_option_buffer(struct packet *, unsigned char *, int);
