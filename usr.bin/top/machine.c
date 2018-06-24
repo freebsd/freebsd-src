@@ -398,7 +398,7 @@ format_header(const char *uname_field)
 			sbuf_cat(header, "C   ");
 		}
 		sbuf_cat(header, "TIME ");
-		sbuf_printf(header, "%6s ", ps.wcpu ? "WCPU" : "CPU");
+		sbuf_printf(header, " %6s ", ps.wcpu ? "WCPU" : "CPU");
 		sbuf_cat(header, "COMMAND");
 		sbuf_finish(header);
 		break;
@@ -1084,7 +1084,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			}
 			sbuf_printf(procbuf, "%3d ", cpu);
 		}
-		sbuf_printf(procbuf, "%6s", format_time(cputime));
+		sbuf_printf(procbuf, "%6s ", format_time(cputime));
 		sbuf_printf(procbuf, "%6.2f%% ", ps.wcpu ? 100.0 * weighted_cpu(PCTCPU(pp), pp) : 100.0 * PCTCPU(pp));
 	}
 	sbuf_printf(procbuf, "%.*s",
