@@ -105,7 +105,7 @@ cap_init(void)
 {
 	cap_channel_t *chan;
 
-	chan = malloc(sizeof(*chan));
+	chan = (cap_channel_t *)malloc(sizeof(*chan));
 	if (chan != NULL) {
 		chan->cch_fd = -1;
 	}
