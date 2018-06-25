@@ -2,7 +2,8 @@
 
 PROG=	rup
 
-WARNS?=	3
 LIBADD=	rpcsvc
+
+NO_WCAST_ALIGN=	# Size is explicitly handled
 
 .include <bsd.prog.mk>
