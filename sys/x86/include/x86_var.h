@@ -116,6 +116,7 @@ cpu_getmaxphyaddr(void)
 #endif
 }
 
+bool	acpi_get_fadt_bootflags(uint16_t *flagsp);
 void	*alloc_fpusave(int flags);
 void	busdma_swi(void);
 bool	cpu_mwait_usable(void);
