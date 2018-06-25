@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <utmpx.h>
@@ -56,7 +57,7 @@ main(int argc, char **)
 
 	setutxent();
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter())
 		err(1, "Failed to enter capability mode.");
 
 	while ((ut = getutxent()) != NULL)
