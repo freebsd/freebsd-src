@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <x86/vmware.h>
 #include <dev/acpica/acpi_hpet.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "cpufreq_if.h"
 
@@ -81,8 +82,9 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 
 static int	tsc_skip_calibration;
-SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
-    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN |
+    CTLFLAG_NOFETCH, &tsc_skip_calibration, 0,
+    "Disable TSC frequency calibration");
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
@@ -213,6 +215,7 @@ probe_tsc_freq(void)
 {
 	u_int regs[4];
 	uint64_t tsc1, tsc2;
+	uint16_t bootflags;
 
 	if (cpu_high >= 6) {
 		do_cpuid(6, regs);
@@ -272,6 +275,25 @@ probe_tsc_freq(void)
 		break;
 	}
 
+	if (!TUNABLE_INT_FETCH("machdep.disable_tsc_calibration",
+	    &tsc_skip_calibration)) {
+		/*
+		 * User did not give the order about calibration.
+		 * If he did, we do not try to guess.
+		 *
+		 * Otherwise, if ACPI FADT reports that the platform
+		 * is legacy-free and CPUID provides TSC frequency,
+		 * use it.  The calibration could fail anyway since
+		 * ISA timer can be absent or power gated.
+		 */
+		if (acpi_get_fadt_bootflags(&bootflags) &&
+		    (bootflags & ACPI_FADT_LEGACY_DEVICES) == 0 &&
+		    tsc_freq_cpuid()) {
+			printf("Skipping TSC calibration since no legacy "
+			    "devices reported by FADT and CPUID works\n");
+			tsc_skip_calibration = 1;
+		}
+	}
 	if (tsc_skip_calibration) {
 		if (tsc_freq_cpuid())
 			;
