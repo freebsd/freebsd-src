@@ -124,6 +124,7 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_REG_LCR2		0x25
 
 #define	UCHCOM_VER_20		0x20
+#define	UCHCOM_VER_30		0x30
 
 #define	UCHCOM_BASE_UNKNOWN	0
 #define	UCHCOM_BPS_MOD_BASE	20000000
@@ -704,11 +705,26 @@ uchcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
-	uchcom_get_version(sc, 0);
+	uchcom_get_version(sc, NULL);
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
 	uchcom_set_baudrate(sc, t->c_ospeed);
-	uchcom_read_reg(sc, 0x18, 0, 0x25, 0);
-	uchcom_write_reg(sc, 0x18, 0x50, 0x25, 0x00);
+	if (sc->sc_version < UCHCOM_VER_30) {
+		uchcom_read_reg(sc, UCHCOM_REG_LCR1, NULL,
+		    UCHCOM_REG_LCR2, NULL);
+		uchcom_write_reg(sc, UCHCOM_REG_LCR1, 0x50,
+		    UCHCOM_REG_LCR2, 0x00);
+	} else {
+		/*
+		 * Set up line control:
+		 * - enable transmit and receive
+		 * - set 8n1 mode
+		 * To do: support other sizes, parity, stop bits.
+		 */
+		uchcom_write_reg(sc,
+		    UCHCOM_REG_LCR1,
+		    UCHCOM_LCR1_RX | UCHCOM_LCR1_TX | UCHCOM_LCR1_CS8,
+		    UCHCOM_REG_LCR2, 0x00);
+	}
 	uchcom_update_status(sc);
 	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0x501f, 0xd90a);
 	uchcom_set_baudrate(sc, t->c_ospeed);
