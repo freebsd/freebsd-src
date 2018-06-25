@@ -120,7 +120,6 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_REG_BPS_MOD	0x14
 #define	UCHCOM_REG_BPS_PAD	0x0F
 #define	UCHCOM_REG_BREAK1	0x05
-#define	UCHCOM_REG_BREAK2	0x18
 #define	UCHCOM_REG_LCR1		0x18
 #define	UCHCOM_REG_LCR2		0x25
 
@@ -133,12 +132,14 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_DTR_MASK		0x20
 #define	UCHCOM_RTS_MASK		0x40
 
-#define	UCHCOM_BRK1_MASK	0x01
-#define	UCHCOM_BRK2_MASK	0x40
+#define	UCHCOM_BRK_MASK		0x01
 
 #define	UCHCOM_LCR1_MASK	0xAF
 #define	UCHCOM_LCR2_MASK	0x07
-#define	UCHCOM_LCR1_PARENB	0x80
+#define	UCHCOM_LCR1_RX		0x80
+#define	UCHCOM_LCR1_TX		0x40
+#define	UCHCOM_LCR1_PARENB	0x08
+#define	UCHCOM_LCR1_CS8		0x03
 #define	UCHCOM_LCR2_PAREVEN	0x07
 #define	UCHCOM_LCR2_PARODD	0x06
 #define	UCHCOM_LCR2_PARMARK	0x05
@@ -554,17 +555,17 @@ uchcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	uint8_t brk1;
 	uint8_t brk2;
 
-	uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_BREAK2, &brk2);
+	uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_LCR1, &brk2);
 	if (onoff) {
 		/* on - clear bits */
-		brk1 &= ~UCHCOM_BRK1_MASK;
-		brk2 &= ~UCHCOM_BRK2_MASK;
+		brk1 &= ~UCHCOM_BRK_MASK;
+		brk2 &= ~UCHCOM_LCR1_TX;
 	} else {
 		/* off - set bits */
-		brk1 |= UCHCOM_BRK1_MASK;
-		brk2 |= UCHCOM_BRK2_MASK;
+		brk1 |= UCHCOM_BRK_MASK;
+		brk2 |= UCHCOM_LCR1_TX;
 	}
-	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_BREAK2, brk2);
+	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_LCR1, brk2);
 }
 
 static int
