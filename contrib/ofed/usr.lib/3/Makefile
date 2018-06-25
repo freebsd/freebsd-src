@@ -2,7 +2,8 @@
 
 SUBDIR= \
 ../../libibnetdisc \
-../../opensm/libopensm
+../../opensm/libopensm \
+../../../../lib/libpcap
 
 SUBDIR_PARALLEL=
 
