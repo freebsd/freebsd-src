@@ -414,6 +414,8 @@ uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 0);
 
+	DPRINTF("WR REQ 0x%02X VAL 0x%04X IDX 0x%04X\n",
+	    reqno, value, index);
 	ucom_cfg_do_request(sc->sc_udev,
 	    &sc->sc_ucom, &req, NULL, 0, 1000);
 }
@@ -430,6 +432,8 @@ uchcom_ctrl_read(struct uchcom_softc *sc, uint8_t reqno,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, buflen);
 
+	DPRINTF("RD REQ 0x%02X VAL 0x%04X IDX 0x%04X LEN %d\n",
+	    reqno, value, index, buflen);
 	ucom_cfg_do_request(sc->sc_udev,
 	    &sc->sc_ucom, &req, buf, USB_SHORT_XFER_OK, 1000);
 }
@@ -504,6 +508,7 @@ static void
 uchcom_update_version(struct uchcom_softc *sc)
 {
 	uchcom_get_version(sc, &sc->sc_version);
+	DPRINTF("Chip version: 0x%02x\n", sc->sc_version);
 }
 
 static void
