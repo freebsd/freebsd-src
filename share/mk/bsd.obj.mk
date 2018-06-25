@@ -157,6 +157,7 @@ whereobj:
 	@echo ${.OBJDIR}
 .endif
 
+# Same check in bsd.progs.mk
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
 	-rm -rf ${CANONICALOBJDIR}
@@ -182,9 +183,9 @@ clean:
 .endif
 .ORDER: clean all
 
-cleandir: cleanobj
-
 .include <bsd.subdir.mk>
+
+cleandir: .WAIT cleanobj
 
 .if make(destroy*) && defined(OBJROOT)
 # this (rm -rf objdir) is much faster and more reliable than cleaning.
