@@ -35,9 +35,16 @@ linux_locore.o: linux_locore.s linux_assym.h
 	-Wl,-soname=${VDSO}.so.1,-warn-common -nostdlib			\
 	    ${.IMPSRC} -o ${.TARGET}
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+OBJCOPY_TARGET=--output-target elf64-littleaarch64 --binary-architecture aarch64
+.elif ${MACHINE_CPUARCH} == "amd64"
+OBJCOPY_TARGET=--output-target elf64-x86-64 --binary-architecture i386:x86-64
+.else
+.error ${MACHINE_CPUARCH} not yet supported by linux64
+.endif
 ${VDSO}.so: linux_locore.o
-	${OBJCOPY} --input-target binary --output-target elf64-x86-64 \
-	    -S -g --binary-architecture i386:x86-64 linux_locore.o ${.TARGET}
+	${OBJCOPY} --input-target binary ${OBJCOPY_TARGET} -S -g \
+	    linux_locore.o ${.TARGET}
 	strip -N _binary_linux_locore_o_size ${.TARGET}
 
 linux_support.o: assym.inc linux_assym.h
