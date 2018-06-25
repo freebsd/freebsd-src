@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #define HOST_WIDTH 15
 
-struct host_list {
+static struct host_list {
 	struct host_list *next;
 	struct in_addr addr;
 } *hosts;
@@ -93,7 +93,7 @@ remember_host(struct in_addr addr)
 }
 
 static bool_t
-rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
+rstat_reply(statstime *host_stat, struct sockaddr_in *raddrp)
 {
 	struct tm *tmp_time;
 	struct tm host_time;
@@ -102,7 +102,6 @@ rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 	char hours_buf[16];
 	struct hostent *hp;
 	char *host;
-	statstime *host_stat = (statstime *)replyp;
 	time_t tmp_time_t;
 
 	if (search_host(raddrp->sin_addr))
@@ -207,7 +206,7 @@ onehost(char *host)
 	}
 
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
-	rstat_reply((caddr_t)&host_stat, &addr);
+	rstat_reply(&host_stat, &addr);
 	clnt_destroy(rstat_clnt);
 	return (0);
 }
@@ -242,7 +241,6 @@ main(int argc, char *argv[])
 		switch (ch) {
 		default:
 			usage();
-			/*NOTREACHED*/
 		}
 
 	setlinebuf(stdout);
