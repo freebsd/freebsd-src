@@ -475,7 +475,7 @@ static int get_dst_addr(char *dst, struct sockaddr *addr)
 
 static int run(void)
 {
-	int i, ret;
+	int i, ret, err;
 
 	printf("mckey: starting %s\n", is_sender ? "client" : "server");
 	if (src_addr) {
@@ -543,10 +543,12 @@ static int run(void)
 	}
 out:
 	for (i = 0; i < connections; i++) {
-		ret = rdma_leave_multicast(test.nodes[i].cma_id,
+		err = rdma_leave_multicast(test.nodes[i].cma_id,
 					   test.dst_addr);
-		if (ret)
+		if (err) {
 			perror("mckey: failure leaving");
+			ret = err;
+		}
 	}
 	return ret;
 }
