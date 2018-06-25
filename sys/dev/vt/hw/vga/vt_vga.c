@@ -1217,6 +1217,12 @@ vga_acpi_disabled(void)
 	ACPI_TABLE_FADT *fadt;
 	vm_paddr_t physaddr;
 	uint16_t flags;
+	int ignore;
+
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+
+	if (ignore)
+	    return (false);
 
 	physaddr = acpi_find_table(ACPI_SIG_FADT);
 	if (physaddr == 0)
