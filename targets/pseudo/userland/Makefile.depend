@@ -70,22 +70,6 @@ DIRDEPS+= \
 	sbin/fsdb \
 	sbin/fsirand \
 	sbin/gbde \
-	sbin/geom/class/cache \
-	sbin/geom/class/concat \
-	sbin/geom/class/eli \
-	sbin/geom/class/journal \
-	sbin/geom/class/label \
-	sbin/geom/class/mirror \
-	sbin/geom/class/mountver \
-	sbin/geom/class/multipath \
-	sbin/geom/class/nop \
-	sbin/geom/class/part \
-	sbin/geom/class/raid \
-	sbin/geom/class/raid3 \
-	sbin/geom/class/sched \
-	sbin/geom/class/shsec \
-	sbin/geom/class/stripe \
-	sbin/geom/class/virstor \
 	sbin/geom/core \
 	sbin/ggate/ggatec \
 	sbin/ggate/ggated \
