@@ -8,6 +8,8 @@
     lib32
         dtrace
         ..
+        geom
+        ..
         i18n
         ..
     ..
