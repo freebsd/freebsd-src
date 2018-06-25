@@ -204,6 +204,7 @@ main(int argc, char **argv)
 	STAILQ_INIT(&fntab);
 	STAILQ_INIT(&ftab);
 	STAILQ_INIT(&hints);
+	STAILQ_INIT(&envvars);
 	if (yyparse())
 		exit(3);
 

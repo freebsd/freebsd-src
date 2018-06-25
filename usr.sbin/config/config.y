@@ -12,6 +12,7 @@
 %token	DEVICE
 %token	NODEVICE
 %token	ENV
+%token	ENVVAR
 %token	EQUALS
 %token	PLUSEQUALS
 %token	HINTS
@@ -26,6 +27,7 @@
 %token	INCLUDE
 %token	FILES
 
+%token	<str>	ENVLINE
 %token	<str>	ID
 %token	<val>	NUMBER
 
@@ -193,6 +195,15 @@ Config_spec:
 		env = $2;
 		envmode = 1;
 		} |
+	ENVVAR ENVLINE {
+		struct envvar *envvar;
+
+		envvar = (struct envvar *)calloc(1, sizeof (struct envvar));
+		if (envvar == NULL)
+			err(EXIT_FAILURE, "calloc");
+		envvar->env_str = $2;
+		STAILQ_INSERT_TAIL(&envvars, envvar, envvar_next);
+	        } |
 	HINTS ID {
 		struct hint *hint;
 
