@@ -320,12 +320,16 @@ uchcom_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	switch (uaa->info.bcdDevice) {
-	case UCHCOM_REV_CH340:
+	switch (uaa->info.idProduct) {
+	case USB_PRODUCT_WCH2_CH341SER:
 		device_printf(dev, "CH340 detected\n");
 		break;
-	default:
+	case USB_PRODUCT_WCH2_CH341SER_2:
 		device_printf(dev, "CH341 detected\n");
+		break;
+	default:
+		device_printf(dev, "New CH340/CH341 product 0x%04x detected\n",
+		    uaa->info.idProduct);
 		break;
 	}
 
