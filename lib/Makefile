@@ -83,7 +83,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopenbsd \
 	libopie \
 	libpam \
-	libpcap \
+	${_libpcap} \
 	${_libpe} \
 	libpjdlog \
 	${_libpmc} \
@@ -269,6 +269,14 @@ _libvmmapi=	libvmmapi
 .if ${MACHINE_CPUARCH} == "mips"
 _libproc=	libproc
 _librtld_db=	librtld_db
+.endif
+
+.if ${MK_OFED} == "no"
+#
+# When OFED is enabled libpcap is built as part of
+# OFED due to library dependencies
+#
+_libpcap=	libpcap
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
