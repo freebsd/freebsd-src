@@ -143,25 +143,9 @@ linux_fetch_syscall_args(struct thread *td)
 static void
 linux_set_syscall_retval(struct thread *td, int error)
 {
-	struct trapframe *frame;
 
-	frame = td->td_frame;
-
-	switch (error) {
-	case 0:
-		frame->tf_x[0] = td->td_retval[0];
-		frame->tf_x[1] = td->td_retval[1];
-		break;
-	case ERESTART:
-		/* LINUXTODO: verify */
-		frame->tf_elr -= 4;
-		break;
-	case EJUSTRETURN:
-		break;
-	default:
-		frame->tf_x[0] = error;
-		break;
-	}
+	td->td_retval[1] = td->td_frame->tf_x[1];
+	cpu_set_syscall_retval(td, error);
 }
 
 static int
