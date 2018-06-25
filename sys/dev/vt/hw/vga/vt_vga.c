@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #if defined(__amd64__) || defined(__i386__)
+#include <contrib/dev/acpica/include/acpi.h>
 #include <machine/md_var.h>
 #endif
 
@@ -1212,7 +1213,7 @@ vga_initialize(struct vt_device *vd, int textmode)
 static bool
 vga_acpi_disabled(void)
 {
-#if (defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	uint16_t flags;
 	int ignore;
 
