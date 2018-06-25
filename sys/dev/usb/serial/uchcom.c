@@ -686,6 +686,10 @@ uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	default:
 		return (EIO);
 	}
+	if ((t->c_cflag & CSTOPB) != 0)
+		return (EIO);
+	if ((t->c_cflag & PARENB) != 0)
+		return (EIO);
 
 	if (uchcom_calc_divider_settings(&dv, t->c_ospeed)) {
 		return (EIO);
