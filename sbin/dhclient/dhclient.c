@@ -149,7 +149,6 @@ int		 fork_privchld(int, int);
 #define MIN_MTU 68
 
 static time_t	scripttime;
-static char	*__progname;
 
 int
 findproto(char *cp, int n)
@@ -379,12 +378,10 @@ main(int argc, char *argv[])
 	pid_t			 otherpid;
 	cap_rights_t		 rights;
 
-	__progname = basename(argv[0]);
-
 	init_casper();
 
 	/* Initially, log errors to stderr as well as to syslogd. */
-	cap_openlog(capsyslog, __progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
+	cap_openlog(capsyslog, getprogname(), LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	cap_setlogmask(capsyslog, LOG_UPTO(LOG_DEBUG));
 
 	while ((ch = getopt(argc, argv, "bc:dl:p:qu")) != -1)
@@ -566,7 +563,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdqu] ", getprogname());
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
