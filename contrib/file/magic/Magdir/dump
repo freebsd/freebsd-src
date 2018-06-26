@@ -6,8 +6,8 @@
 # We specify both byte orders in order to recognize byte-swapped dumps.
 #
 0	name	new-dump-be
->4	bedate	x		Previous dump %s,
->8	bedate	x		This dump %s,
+>4	bedate	x		This dump %s,
+>8	bedate	x		Previous dump %s,
 >12	belong	>0		Volume %d,
 >692	belong	0		Level zero, type:
 >692	belong	>0		Level %d, type:
@@ -25,8 +25,8 @@
 >888	belong	>0		Flags %x
 
 0	name	old-dump-be
-#>4	bedate	x		Previous dump %s,
-#>8	bedate	x		This dump %s,
+#>4	bedate	x		This dump %s,
+#>8	bedate	x		Previous dump %s,
 >12	belong	>0		Volume %d,
 >692	belong	0		Level zero, type:
 >692	belong	>0		Level %d, type:
@@ -44,8 +44,8 @@
 >888	belong	>0		Flags %x
 
 0	name	ufs2-dump-be
->896	beqdate	x		Previous dump %s,
->904	beqdate	x		This dump %s,
+>896	beqdate	x		This dump %s,
+>904	beqdate	x		Previous dump %s,
 >12	belong	>0		Volume %d,
 >692	belong	0		Level zero, type:
 >692	belong	>0		Level %d, type:
