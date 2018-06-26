@@ -190,6 +190,19 @@ boot</screen>
 	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228535">228535</link>
 	  for more information.</para>
       </listitem>
+
+      <listitem>
+	<para>[2018-06-26] It was discovered after the <filename
+	    class="directory">releng/11.2</filename> branch was tagged
+	  for &os;&nbsp;11.2-RELEASE that a few device drivers were
+	  missing from the <link
+	    xlink:href="https://www.FreeBSD.org/releases/11.2R/hardware.html">hardware</link>
+	  page.  The missing drivers, &man.alc.4;, &man.cxgbev.4;,
+	  &man.liquidio.4;, and &man.mos.4; were added to the
+	  11-STABLE <link
+	    xlink:href="https://www.FreeBSD.org/relnotes/11-STABLE/hardware/support.html">hardware
+	    page</link>.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
