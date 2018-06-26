@@ -129,8 +129,9 @@ All
 .Ic env
 and
 .Ic envvar
-directives will be processed and added to the staitc environment in the order of
-appearance.
+directives will be processed and added to the static environment in reversed
+order of appearance so that later specified variables properly override earlier
+specified variables.
 Note that within
 .Ar filename ,
 the first appearance of a given variable will be the first one seen by the
@@ -150,8 +151,9 @@ All
 .Ic env
 and
 .Ic envvar
-directives will be processed and added to the staitc environment in the order of
-appearance.
+directives will be processed and added to the static environment in reversed
+order of appearance so that later specified variables properly override earlier
+specified variables.
 .\" -------- FILES --------
 .Pp
 .It Ic files Ar filename
@@ -178,7 +180,9 @@ The file
 must conform to the syntax specified by
 .Xr device.hints 5 .
 Multiple hints lines are allowed.
-The resulting hints will be the files concatenated in the order of appearance.
+The resulting hints will be the files concatenated in reverse order of
+appearance so that hints in later files properly override hints in earlier
+files.
 .\" -------- IDENT --------
 .Pp
 .It Ic ident Ar name
