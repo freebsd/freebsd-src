@@ -692,6 +692,22 @@ cpu_initclocks_ap(void)
 	spinlock_exit();
 }
 
+void
+suspendclock(void)
+{
+	ET_LOCK();
+	configtimer(0);
+	ET_UNLOCK();
+}
+
+void
+resumeclock(void)
+{
+	ET_LOCK();
+	configtimer(1);
+	ET_UNLOCK();
+}
+
 /*
  * Switch to profiling clock rates.
  */

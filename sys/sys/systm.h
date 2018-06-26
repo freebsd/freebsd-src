@@ -318,6 +318,8 @@ void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
+void	suspendclock(void);
+void	resumeclock(void);
 sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);

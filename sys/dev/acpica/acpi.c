@@ -2909,6 +2909,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
+    suspendclock();
     intr = intr_disable();
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
@@ -2979,6 +2980,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
      * process.  This handles both the error and success cases.
      */
 backout:
+    if (slp_state >= ACPI_SS_SLP_PREP)
+	resumeclock();
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
