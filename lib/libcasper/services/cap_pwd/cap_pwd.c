@@ -100,7 +100,7 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 	if (!nvlist_exists_string(nvl, "pw_name"))
 		return (EINVAL);
 
-	memset(pwd, 0, sizeof(*pwd));
+	explicit_bzero(pwd, sizeof(*pwd));
 
 	error = passwd_unpack_string(nvl, "pw_name", &pwd->pw_name, &buffer,
 	    &bufsize);
