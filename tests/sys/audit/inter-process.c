@@ -36,6 +36,7 @@
 
 #include <atf-c.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "utils.h"
@@ -47,7 +48,6 @@ struct msgstr {
 };
 typedef struct msgstr msgstr_t;
 
-
 static pid_t pid;
 static int msqid, shmid, semid;
 static union semun semarg;
@@ -57,6 +57,7 @@ static struct shmid_ds shmbuff;
 static struct semid_ds sembuff;
 static char ipcregex[BUFFSIZE];
 static const char *auclass = "ip";
+static char path[BUFFSIZE] = "/fileforaudit";
 static unsigned short semvals[BUFFSIZE];
 
 
@@ -1398,6 +1399,194 @@ ATF_TC_CLEANUP(semctl_illegal_command, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(shm_open_success);
+ATF_TC_HEAD(shm_open_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"shm_open(2) call");
+}
+
+ATF_TC_BODY(shm_open_success, tc)
+{
+	pid = getpid();
+	snprintf(ipcregex, sizeof(ipcregex), "shm_open.*%d.*ret.*success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE(shm_open(SHM_ANON, O_CREAT | O_TRUNC | O_RDWR, 0600) != -1);
+	check_audit(fds, ipcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(shm_open_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(shm_open_failure);
+ATF_TC_HEAD(shm_open_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"shm_open(2) call");
+}
+
+ATF_TC_BODY(shm_open_failure, tc)
+{
+	const char *regex = "shm_open.*fileforaudit.*return,failure";
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: File does not exist */
+	ATF_REQUIRE_EQ(-1, shm_open(path, O_TRUNC | O_RDWR, 0600));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(shm_open_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(shm_unlink_success);
+ATF_TC_HEAD(shm_unlink_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"shm_unlink(2) call");
+}
+
+ATF_TC_BODY(shm_unlink_success, tc)
+{
+	/* Build an absolute path to a file in the test-case directory */
+	char dirpath[50];
+	ATF_REQUIRE(getcwd(dirpath, sizeof(dirpath)) != NULL);
+	strlcat(dirpath, path, sizeof(dirpath));
+	ATF_REQUIRE(shm_open(dirpath, O_CREAT | O_TRUNC | O_RDWR, 0600) != -1);
+
+	const char *regex = "shm_unlink.*fileforaudit.*return,success";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, shm_unlink(dirpath));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(shm_unlink_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(shm_unlink_failure);
+ATF_TC_HEAD(shm_unlink_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"shm_unlink(2) call");
+}
+
+ATF_TC_BODY(shm_unlink_failure, tc)
+{
+	const char *regex = "shm_unlink.*fileforaudit.*return,failure";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, shm_unlink(path));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(shm_unlink_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(pipe_success);
+ATF_TC_HEAD(pipe_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"pipe(2) call");
+}
+
+ATF_TC_BODY(pipe_success, tc)
+{
+	int filedesc[2];
+	pid = getpid();
+	snprintf(ipcregex, sizeof(ipcregex), "pipe.*%d.*return,success", pid);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, pipe(filedesc));
+	check_audit(fds, ipcregex, pipefd);
+
+	close(filedesc[0]);
+	close(filedesc[1]);
+}
+
+ATF_TC_CLEANUP(pipe_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(pipe_failure);
+ATF_TC_HEAD(pipe_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"pipe(2) call");
+}
+
+ATF_TC_BODY(pipe_failure, tc)
+{
+	pid = getpid();
+	snprintf(ipcregex, sizeof(ipcregex), "pipe.*%d.*return.failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, pipe(NULL));
+	check_audit(fds, ipcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(pipe_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(posix_openpt_success);
+ATF_TC_HEAD(posix_openpt_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"posix_openpt(2) call");
+}
+
+ATF_TC_BODY(posix_openpt_success, tc)
+{
+	int filedesc;
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((filedesc = posix_openpt(O_RDWR | O_NOCTTY)) != -1);
+	/* Check for the presence of filedesc in the audit record */
+	snprintf(ipcregex, sizeof(ipcregex),
+		"posix_openpt.*return,success,%d", filedesc);
+	check_audit(fds, ipcregex, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(posix_openpt_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(posix_openpt_failure);
+ATF_TC_HEAD(posix_openpt_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"posix_openpt(2) call");
+}
+
+ATF_TC_BODY(posix_openpt_failure, tc)
+{
+	const char *regex = "posix_openpt.*return,failure : Invalid argument";
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, posix_openpt(-1));
+	check_audit(fds, regex, pipefd);
+}
+
+ATF_TC_CLEANUP(posix_openpt_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, msgget_success);
@@ -1456,6 +1645,16 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, semctl_rmid_success);
 	ATF_TP_ADD_TC(tp, semctl_rmid_failure);
 	ATF_TP_ADD_TC(tp, semctl_illegal_command);
+
+	ATF_TP_ADD_TC(tp, shm_open_success);
+	ATF_TP_ADD_TC(tp, shm_open_failure);
+	ATF_TP_ADD_TC(tp, shm_unlink_success);
+	ATF_TP_ADD_TC(tp, shm_unlink_failure);
+
+	ATF_TP_ADD_TC(tp, pipe_success);
+	ATF_TP_ADD_TC(tp, pipe_failure);
+	ATF_TP_ADD_TC(tp, posix_openpt_success);
+	ATF_TP_ADD_TC(tp, posix_openpt_failure);
 
 	return (atf_no_error());
 }
