@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static cn_probe_t uart_cnprobe;
 static cn_init_t uart_cninit;
+static cn_init_t uart_cnresume;
 static cn_term_t uart_cnterm;
 static cn_getc_t uart_cngetc;
 static cn_putc_t uart_cnputc;
@@ -67,7 +68,10 @@ static tsw_modem_t uart_tty_modem;
 static tsw_free_t uart_tty_free;
 static tsw_busy_t uart_tty_busy;
 
-CONSOLE_DRIVER(uart);
+CONSOLE_DRIVER(
+	uart,
+	.cn_resume = uart_cnresume,
+);
 
 static struct uart_devinfo uart_console;
 
@@ -110,6 +114,13 @@ uart_cninit(struct consdev *cp)
 	di->type = UART_DEV_CONSOLE;
 	uart_add_sysdev(di);
 	uart_init(di);
+}
+
+static void
+uart_cnresume(struct consdev *cp)
+{
+
+	uart_init(cp->cn_arg);
 }
 
 static void
