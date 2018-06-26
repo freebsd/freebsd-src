@@ -450,7 +450,7 @@ adj_smp_tsc(void *arg)
 }
 
 static int
-test_tsc(void)
+test_tsc(int adj_max_count)
 {
 	uint64_t *data, *tsc;
 	u_int i, size, adj;
@@ -466,7 +466,7 @@ retry:
 	smp_tsc = 1;	/* XXX */
 	smp_rendezvous(smp_no_rendezvous_barrier, comp_smp_tsc,
 	    smp_no_rendezvous_barrier, data);
-	if (!smp_tsc && adj < smp_tsc_adjust) {
+	if (!smp_tsc && adj < adj_max_count) {
 		adj++;
 		smp_rendezvous(smp_no_rendezvous_barrier, adj_smp_tsc,
 		    smp_no_rendezvous_barrier, data);
@@ -503,19 +503,6 @@ retry:
 }
 
 #undef N
-
-#else
-
-/*
- * The function is not called, it is provided to avoid linking failure
- * on uniprocessor kernel.
- */
-static int
-test_tsc(void)
-{
-
-	return (0);
-}
 
 #endif /* SMP */
 
@@ -577,9 +564,12 @@ init_TSC_tc(void)
 	 * non-zero value.  The TSC seems unreliable in virtualized SMP
 	 * environments, so it is set to a negative quality in those cases.
 	 */
+#ifdef SMP
 	if (mp_ncpus > 1)
-		tsc_timecounter.tc_quality = test_tsc();
-	else if (tsc_is_invariant)
+		tsc_timecounter.tc_quality = test_tsc(smp_tsc_adjust);
+	else
+#endif /* SMP */
+	if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
@@ -613,6 +603,32 @@ init:
 	}
 }
 SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
+
+void
+resume_TSC(void)
+{
+#ifdef SMP
+	int quality;
+
+	/* If TSC was not good on boot, it is unlikely to become good now. */
+	if (tsc_timecounter.tc_quality < 0)
+		return;
+	/* Nothing to do with UP. */
+	if (mp_ncpus < 2)
+		return;
+
+	/*
+	 * If TSC was good, a single synchronization should be enough,
+	 * but honour smp_tsc_adjust if it's set.
+	 */
+	quality = test_tsc(MAX(smp_tsc_adjust, 1));
+	if (quality != tsc_timecounter.tc_quality) {
+		printf("TSC timecounter quality changed: %d -> %d\n",
+		    tsc_timecounter.tc_quality, quality);
+		tsc_timecounter.tc_quality = quality;
+	}
+#endif /* SMP */
+}
 
 /*
  * When cpufreq levels change, find out about the (new) max frequency.  We
