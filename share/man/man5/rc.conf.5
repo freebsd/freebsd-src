@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2018
+.Dd June 27, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2011,6 +2011,13 @@ List of devices to automatically attach on boot.
 Note that .eli devices from
 .Pa /etc/fstab
 are automatically appended to this list.
+.It Va geli_groups
+.Pq Vt str
+List of groups containing devices to automatically attach on boot with the same
+keyfiles and passphrase.
+This must be accompanied with a corresponding
+.Va geli_ Ns Ao Ar group Ac Ns Va _devices
+variable.
 .It Va geli_tries
 .Pq Vt int
 Number of times user is asked for the pass-phrase.
@@ -2022,8 +2029,10 @@ sysctl variable.
 Default flags to use by
 .Xr geli 8
 when configuring disk encryption.
-Flags can be configured for every device separately by defining
+Flags can be configured for every device separately by defining the
 .Va geli_ Ns Ao Ar device Ac Ns Va _flags
+variable, and for every group separately by defining the
+.Va geli_ Ns Ao Ar group Ac Ns Va _flags
 variable.
 .It Va geli_autodetach
 .Pq Vt str
@@ -2031,7 +2040,7 @@ Specifies if GELI devices should be marked for detach on last close after
 file systems are mounted.
 Default is
 .Dq Li YES .
-This can be changed for every device separately by defining
+This can be changed for every device separately by defining the
 .Va geli_ Ns Ao Ar device Ac Ns Va _autodetach
 variable.
 .It Va root_rw_mount
