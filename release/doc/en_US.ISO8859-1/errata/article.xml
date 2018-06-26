@@ -203,6 +203,14 @@ boot</screen>
 	    xlink:href="https://www.FreeBSD.org/relnotes/11-STABLE/hardware/support.html">hardware
 	    page</link>.</para>
       </listitem>
+
+      <listitem>
+	<para>[2018-06-26] The <acronym>URL</acronym> to the
+	  instructions for source-based upgrades in
+	  <filename>UPDATING</filename> incorrectly points to a page
+	  that no longer exists.  The correct URL is <link
+	    xlink:href="https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html" />.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
