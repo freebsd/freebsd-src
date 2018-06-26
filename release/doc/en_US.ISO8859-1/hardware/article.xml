@@ -822,6 +822,8 @@
 
       &hwlist.age;
 
+      &hwlist.alc;
+
       &hwlist.ale;
 
       &hwlist.aue;
@@ -854,6 +856,8 @@
       &hwlist.cxgb;
 
       &hwlist.cxgbe;
+
+      &hwlist.cxgbev;
 
       &hwlist.dc;
 
@@ -895,6 +899,8 @@
       &hwlist.kue;
 
       &hwlist.lge;
+
+      &hwlist.liquidio;
 
       &hwlist.mlx4en;
 
@@ -1094,6 +1100,8 @@
       &hwlist.ctau;
 
       &hwlist.cm;
+
+      &hwlist.mos;
     </sect2>
 
     <sect2 xml:id="serial">
