@@ -1102,6 +1102,8 @@ del_filter(uint32_t idx, int hashfilter)
 	return doit(CHELSIO_T4_DEL_FILTER, &t);
 }
 
+#define MAX_VLANID (4095)
+
 static int
 set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 {
@@ -1308,7 +1310,8 @@ set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 			    t.fs.newvlan == VLAN_INSERT) {
 				t.fs.vlan = strtoul(argv[start_arg + 1] + 1,
 				    &p, 0);
-				if (p == argv[start_arg + 1] + 1 || p[0] != 0) {
+				if (p == argv[start_arg + 1] + 1 || p[0] != 0 ||
+				    t.fs.vlan > MAX_VLANID) {
 					warnx("invalid vlan \"%s\"",
 					     argv[start_arg + 1]);
 					return (EINVAL);
