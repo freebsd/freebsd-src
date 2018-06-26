@@ -605,6 +605,76 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
 }
 
 /*
+ * Tries to allocate the specified number of pages from the specified pool
+ * within the specified domain.  Returns the actual number of allocated pages
+ * and a pointer to each page through the array ma[].
+ *
+ * The returned pages may not be physically contiguous.  However, in contrast to
+ * performing multiple, back-to-back calls to vm_phys_alloc_pages(..., 0),
+ * calling this function once to allocate the desired number of pages will avoid
+ * wasted time in vm_phys_split_pages().
+ *
+ * The free page queues for the specified domain must be locked.
+ */
+int
+vm_phys_alloc_npages(int domain, int pool, int npages, vm_page_t ma[])
+{
+	struct vm_freelist *alt, *fl;
+	vm_page_t m;
+	int avail, end, flind, freelist, i, need, oind, pind;
+
+	KASSERT(domain >= 0 && domain < vm_ndomains,
+	    ("vm_phys_alloc_npages: domain %d is out of range", domain));
+	KASSERT(pool < VM_NFREEPOOL,
+	    ("vm_phys_alloc_npages: pool %d is out of range", pool));
+	KASSERT(npages <= 1 << (VM_NFREEORDER - 1),
+	    ("vm_phys_alloc_npages: npages %d is out of range", npages));
+	vm_domain_free_assert_locked(VM_DOMAIN(domain));
+	i = 0;
+	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
+		flind = vm_freelist_to_flind[freelist];
+		if (flind < 0)
+			continue;
+		fl = vm_phys_free_queues[domain][flind][pool];
+		for (oind = 0; oind < VM_NFREEORDER; oind++) {
+			while ((m = TAILQ_FIRST(&fl[oind].pl)) != NULL) {
+				vm_freelist_rem(fl, m, oind);
+				avail = 1 << oind;
+				need = imin(npages - i, avail);
+				for (end = i + need; i < end;)
+					ma[i++] = m++;
+				if (need < avail) {
+					vm_phys_free_contig(m, avail - need);
+					return (npages);
+				} else if (i == npages)
+					return (npages);
+			}
+		}
+		for (oind = VM_NFREEORDER - 1; oind >= 0; oind--) {
+			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
+				alt = vm_phys_free_queues[domain][flind][pind];
+				while ((m = TAILQ_FIRST(&alt[oind].pl)) !=
+				    NULL) {
+					vm_freelist_rem(alt, m, oind);
+					vm_phys_set_pool(pool, m, oind);
+					avail = 1 << oind;
+					need = imin(npages - i, avail);
+					for (end = i + need; i < end;)
+						ma[i++] = m++;
+					if (need < avail) {
+						vm_phys_free_contig(m, avail -
+						    need);
+						return (npages);
+					} else if (i == npages)
+						return (npages);
+				}
+			}
+		}
+	}
+	return (i);
+}
+
+/*
  * Allocate a contiguous, power of two-sized set of physical pages
  * from the free lists.
  *
@@ -622,26 +692,6 @@ vm_phys_alloc_pages(int domain, int pool, int order)
 			return (m);
 	}
 	return (NULL);
-}
-
-int
-vm_phys_alloc_npages(int domain, int pool, vm_page_t *mp, int cnt)
-{
-	vm_page_t m;
-	int order, freelist;
-
-	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
-		for (order = fls(cnt) -1; order >= 0; order--) {
-			m = vm_phys_alloc_freelist_pages(domain, freelist,
-			    pool, order);
-			if (m != NULL) {
-				*mp = m;
-				return (1 << order);
-			}
-		}
-	}
-	*mp = NULL;
-	return (0);
 }
 
 /*
