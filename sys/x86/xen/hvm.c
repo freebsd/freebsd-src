@@ -124,7 +124,6 @@ static int
 xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t base, regs[4];
-	int i;
 
 	if (xen_pv_domain()) {
 		/* hypercall page is already set in the PV case */
@@ -167,9 +166,10 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	 * Find the hypercall pages.
 	 */
 	do_cpuid(base + 2, regs);
+	if (regs[0] != 1)
+		return (EINVAL);
 
-	for (i = 0; i < regs[0]; i++)
-		wrmsr(regs[1], vtophys(&hypercall_page + i * PAGE_SIZE) + i);
+	wrmsr(regs[1], vtophys(&hypercall_page));
 
 	return (0);
 }
