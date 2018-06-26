@@ -336,8 +336,6 @@ makeenv(void)
 		}
 	}
 	fprintf(ofp, "\"\\0\"\n};\n");
-	if (ifp)
-		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("env.c.new"), path("env.c"));
 }
