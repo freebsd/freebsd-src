@@ -218,8 +218,6 @@ SUBDIR=	\
 	libalias \
 	libiconv \
 	libmchain \
-	${_linprocfs} \
-	${_linsysfs} \
 	${_linux} \
 	${_linux_common} \
 	${_linux64} \
@@ -493,6 +491,12 @@ SUBDIR+=	iscsi
 SUBDIR+=	iscsi_initiator
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} != "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+SUBDIR+=	linprocfs
+SUBDIR+=	linsysfs
+.endif
+
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
 _nandfs=	nandfs
 _nandsim=	nandsim
@@ -607,8 +611,6 @@ _iser=		iser
 .endif
 _ix=		ix
 _ixv=		ixv
-_linprocfs=	linprocfs
-_linsysfs=	linsysfs
 _linux=		linux
 .if ${MK_SOURCELESS_UCODE} != "no"
 _lio=		lio
