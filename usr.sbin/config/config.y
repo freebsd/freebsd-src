@@ -203,6 +203,7 @@ Config_spec:
 			err(EXIT_FAILURE, "calloc");
 		envvar->env_str = $2;
 		STAILQ_INSERT_TAIL(&envvars, envvar, envvar_next);
+		envmode = 1;
 	        } |
 	HINTS ID {
 		struct hint *hint;
