@@ -453,6 +453,7 @@ MLINKS+=altq.9 ALTQ.9
 MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_clear.9 \
 	atomic.9 atomic_cmpset.9 \
+	atomic.9 atomic_fcmpset.9 \
 	atomic.9 atomic_fetchadd.9 \
 	atomic.9 atomic_load.9 \
 	atomic.9 atomic_readandclear.9 \
