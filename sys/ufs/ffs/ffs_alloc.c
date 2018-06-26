@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <geom/geom.h>
+#include <geom/geom_vfs.h>
 
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
@@ -109,7 +110,7 @@ static ufs2_daddr_t
 static void	ffs_blkfree_cg(struct ufsmount *, struct fs *,
 		    struct vnode *, ufs2_daddr_t, long, ino_t,
 		    struct workhead *);
-static void	ffs_blkfree_trim_completed(struct bio *);
+static void	ffs_blkfree_trim_completed(struct buf *);
 static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
 #ifdef INVARIANTS
 static int	ffs_checkblk(struct inode *, ufs2_daddr_t, long);
@@ -2280,13 +2281,13 @@ ffs_blkfree_trim_task(ctx, pending)
 }
 
 static void
-ffs_blkfree_trim_completed(bip)
-	struct bio *bip;
+ffs_blkfree_trim_completed(bp)
+	struct buf *bp;
 {
 	struct ffs_blkfree_trim_params *tp;
 
-	tp = bip->bio_caller2;
-	g_destroy_bio(bip);
+	tp = bp->b_fsprivate1;
+	free(bp, M_TEMP);
 	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
 	taskqueue_enqueue(tp->ump->um_trim_tq, &tp->task);
 }
@@ -2303,7 +2304,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	struct workhead *dephd;
 {
 	struct mount *mp;
-	struct bio *bip;
+	struct buf *bp;
 	struct ffs_blkfree_trim_params *tp;
 
 	/*
@@ -2346,16 +2347,16 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	} else
 		tp->pdephd = NULL;
 
-	bip = g_alloc_bio();
-	bip->bio_cmd = BIO_DELETE;
-	bip->bio_offset = dbtob(fsbtodb(fs, bno));
-	bip->bio_done = ffs_blkfree_trim_completed;
-	bip->bio_length = size;
-	bip->bio_caller2 = tp;
+	bp = malloc(sizeof(*bp), M_TEMP, M_WAITOK | M_ZERO);
+	bp->b_iocmd = BIO_DELETE;
+	bp->b_iooffset = dbtob(fsbtodb(fs, bno));
+	bp->b_iodone = ffs_blkfree_trim_completed;
+	bp->b_bcount = size;
+	bp->b_fsprivate1 = tp;
 
 	mp = UFSTOVFS(ump);
 	vn_start_secondary_write(NULL, &mp, 0);
-	g_io_request(bip, (struct g_consumer *)devvp->v_bufobj.bo_private);
+	g_vfs_strategy(ump->um_bo, bp);
 }
 
 #ifdef INVARIANTS
