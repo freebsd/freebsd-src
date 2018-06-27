@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <limits.h>
 #include <locale.h>
 #include <nl_types.h>
@@ -64,6 +65,17 @@ static const char rcsid[] =
 
 static int cflag, dflag, uflag, iflag;
 static int numchars, numfields, repeats;
+
+static const struct option long_opts[] =
+{
+	{"count",	no_argument,		NULL, 'c'},
+	{"repeated",	no_argument,		NULL, 'd'},
+	{"skip-fields",	required_argument,	NULL, 'f'},
+	{"ignore-case",	no_argument,		NULL, 'i'},
+	{"skip-chars",	required_argument,	NULL, 's'},
+	{"unique",	no_argument,		NULL, 'u'},
+	{NULL,		no_argument,		NULL, 0}
+};
 
 static FILE	*file(const char *, const char *);
 static wchar_t	*convert(const char *);
@@ -98,7 +110,8 @@ main (int argc, char *argv[])
 	(void) setlocale(LC_ALL, "");
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "cdif:s:u")) != -1)
+	while ((ch = getopt_long(argc, argv, "+cdif:s:u", long_opts,
+	    NULL)) != -1)
 		switch (ch) {
 		case 'c':
 			cflag = 1;

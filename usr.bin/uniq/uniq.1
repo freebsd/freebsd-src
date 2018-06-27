@@ -31,7 +31,7 @@
 .\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2017
+.Dd May 1, 2018
 .Dt UNIQ 1
 .Os
 .Sh NAME
@@ -71,34 +71,34 @@ so it may be necessary to sort the files first.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
-.It Fl c
+.It Fl c , Fl -count
 Precede each output line with the count of the number of times the line
 occurred in the input, followed by a single space.
-.It Fl d
+.It Fl d , Fl -repeated
 Only output lines that are repeated in the input.
-.It Fl f Ar num
+.It Fl f Ar num , Fl -skip-fields Ar num
 Ignore the first
 .Ar num
 fields in each input line when doing comparisons.
 A field is a string of non-blank characters separated from adjacent fields
 by blanks.
 Field numbers are one based, i.e., the first field is field one.
-.It Fl s Ar chars
+.It Fl i , Fl -ignore-case
+Case insensitive comparison of lines.
+.It Fl s Ar chars , Fl -skip-chars Ar chars
 Ignore the first
 .Ar chars
 characters in each input line when doing comparisons.
 If specified in conjunction with the
-.Fl f
+.Fl f , Fl -unique
 option, the first
 .Ar chars
 characters after the first
 .Ar num
 fields will be ignored.
 Character numbers are one based, i.e., the first character is character one.
-.It Fl u
+.It Fl u , Fl -unique
 Only output lines that are not repeated in the input.
-.It Fl i
-Case insensitive comparison of lines.
 .\".It Fl Ns Ar n
 .\"(Deprecated; replaced by
 .\".Fl f ) .
