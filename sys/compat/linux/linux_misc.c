@@ -232,22 +232,18 @@ int
 linux_brk(struct thread *td, struct linux_brk_args *args)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
-	vm_offset_t new, old;
-	struct break_args /* {
-		char * nsize;
-	} */ tmp;
+	uintptr_t new, old;
 
 #ifdef DEBUG
 	if (ldebug(brk))
 		printf(ARGS(brk, "%p"), (void *)(uintptr_t)args->dsend);
 #endif
-	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
-	new = (vm_offset_t)args->dsend;
-	tmp.nsize = (char *)new;
-	if (((caddr_t)new > vm->vm_daddr) && !sys_break(td, &tmp))
-		td->td_retval[0] = (long)new;
+	old = (uintptr_t)vm->vm_daddr + ctob(vm->vm_dsize);
+	new = (uintptr_t)args->dsend;
+	if ((caddr_t)new > vm->vm_daddr && !kern_break(td, &new))
+		td->td_retval[0] = (register_t)new;
 	else
-		td->td_retval[0] = (long)old;
+		td->td_retval[0] = (register_t)old;
 
 	return (0);
 }
