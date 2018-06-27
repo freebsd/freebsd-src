@@ -117,6 +117,18 @@ int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
+#ifdef VERBOSE_SYSINIT
+/*
+ * We'll use the defined value of VERBOSE_SYSINIT from the kernel config to
+ * dictate the default VERBOSE_SYSINIT behavior.  Significant values for this
+ * option and associated tunable are:
+ * - 0, 'compiled in but silent by default'
+ * - 1, 'compiled in but verbose by default' (default)
+ */
+int	verbose_sysinit = VERBOSE_SYSINIT;
+TUNABLE_INT("debug.verbose_sysinit", &verbose_sysinit);
+#endif
+
 #ifdef INVARIANTS
 FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
 #endif
@@ -264,7 +276,7 @@ restart:
 			continue;
 
 #if defined(VERBOSE_SYSINIT)
-		if ((*sipp)->subsystem > last) {
+		if ((*sipp)->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
 			last = (*sipp)->subsystem;
 			printf("subsystem %x\n", last);
