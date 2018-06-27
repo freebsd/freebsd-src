@@ -211,6 +211,13 @@ boot</screen>
 	  that no longer exists.  The correct URL is <link
 	    xlink:href="https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html" />.</para>
       </listitem>
+
+      <listitem>
+	<para>[2018-06-27] The announcement email for &os;&nbsp;11.2
+	  incorrectly states the <literal>ocs_fw(4)</literal> driver
+	  had been added; this should have stated
+	  &man.ocs.fc.4;.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
