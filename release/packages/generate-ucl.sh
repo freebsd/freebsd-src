@@ -132,13 +132,11 @@ main() {
 
 	cp "${uclsource}" "${uclfile}"
 	cap_arg="$(make -C ${srctree}/etc -VCAP_MKDB_ENDIAN)"
-	pwd_arg="$(make -C ${srctree}/etc -VPWD_MKDB_ENDIAN)"
 	sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%PKGNAME%/${origname}/" \
 		-e "s/%COMMENT%/${comment}/" \
 		-e "s/%DESC%/${desc}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
-		-e "s/%PWD_MKDB_ENDIAN%/${pwd_arg}/g" \
 		-e "s/%PKGDEPS%/${pkgdeps}/" \
 		${uclfile}
 	return 0
