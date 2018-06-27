@@ -696,6 +696,8 @@
             regress.multitest.out
             ..
         ..
+        seq
+        ..
         soelim
         ..
         stat
