@@ -156,7 +156,6 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
-void devctl_safe_quote(char *__dst, const char *__src, size_t __len);
 struct sbuf;
 void devctl_safe_quote_sb(struct sbuf *__sb, const char *__src);
 
