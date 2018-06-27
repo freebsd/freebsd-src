@@ -70,6 +70,46 @@ static int set_hashfilter(struct adapter *, struct t4_filter *, uint64_t,
 static int del_hashfilter(struct adapter *, struct t4_filter *);
 static int configure_hashfilter_tcb(struct adapter *, struct filter_entry *);
 
+static int
+alloc_hftid_tab(struct tid_info *t, int flags)
+{
+
+	MPASS(t->ntids > 0);
+	MPASS(t->hftid_tab == NULL);
+
+	t->hftid_tab = malloc(sizeof(*t->hftid_tab) * t->ntids, M_CXGBE,
+	    M_ZERO | flags);
+	if (t->hftid_tab == NULL)
+		return (ENOMEM);
+	mtx_init(&t->hftid_lock, "T4 hashfilters", 0, MTX_DEF);
+	cv_init(&t->hftid_cv, "t4hfcv");
+
+	return (0);
+}
+
+void
+free_hftid_tab(struct tid_info *t)
+{
+	int i;
+
+	if (t->hftid_tab != NULL) {
+		MPASS(t->ntids > 0);
+		for (i = 0; t->tids_in_use > 0 && i < t->ntids; i++) {
+			if (t->hftid_tab[i] == NULL)
+				continue;
+			free(t->hftid_tab[i], M_CXGBE);
+			t->tids_in_use--;
+		}
+		free(t->hftid_tab, M_CXGBE);
+		t->hftid_tab = NULL;
+	}
+
+	if (mtx_initialized(&t->hftid_lock)) {
+		mtx_destroy(&t->hftid_lock);
+		cv_destroy(&t->hftid_cv);
+	}
+}
+
 static void
 insert_hftid(struct adapter *sc, int tid, void *ctx, int ntids)
 {
@@ -653,14 +693,9 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	}
 	if (t->fs.hash) {
 		if (__predict_false(ti->hftid_tab == NULL)) {
-			ti->hftid_tab = malloc(sizeof(*ti->hftid_tab) * ti->ntids,
-			    M_CXGBE, M_NOWAIT | M_ZERO);
-			if (ti->hftid_tab == NULL) {
-				rc = ENOMEM;
+			rc = alloc_hftid_tab(&sc->tids, M_NOWAIT);
+			if (rc != 0)
 				goto done;
-			}
-			mtx_init(&ti->hftid_lock, "T4 hashfilters", 0, MTX_DEF);
-			cv_init(&ti->hftid_cv, "t4hfcv");
 		}
 		if (__predict_false(sc->tids.atid_tab == NULL)) {
 			rc = alloc_atid_tab(&sc->tids, M_NOWAIT);
