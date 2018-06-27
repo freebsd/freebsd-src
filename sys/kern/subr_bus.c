@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/random.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
@@ -880,6 +881,29 @@ devctl_safe_quote(char *dst, const char *src, size_t len)
 		*walker++ = *src++;
 	}
 	*walker = '\0';
+}
+
+/**
+ * @brief safely quotes strings that might have double quotes in them.
+ *
+ * The devctl protocol relies on quoted strings having matching quotes.
+ * This routine quotes any internal quotes so the resulting string
+ * is safe to pass to snprintf to construct, for example pnp info strings.
+ * Strings are always terminated with a NUL, but may be truncated if longer
+ * than @p len bytes after quotes.
+ *
+ * @param sb	sbuf to place the characters into
+ * @param src	Original buffer.
+ */
+void
+devctl_safe_quote_sb(struct sbuf *sb, const char *src)
+{
+
+	while (*src != '\0') {
+		if (*src == '"' || *src == '\\')
+			sbuf_putc(sb, '\\');
+		sbuf_putc(sb, *src++);
+	}
 }
 
 /* End of /dev/devctl code */
