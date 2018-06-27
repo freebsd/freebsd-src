@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,14 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int	lflag, sflag, xflag, zflag;
+
+static const struct option long_opts[] =
+{
+	{"verbose",	no_argument,		NULL, 'l'},
+	{"silent",	no_argument,		NULL, 's'},
+	{"quiet",	no_argument,		NULL, 's'},
+	{NULL,		no_argument,		NULL, 0}
+};
 
 static void usage(void);
 
@@ -68,7 +77,7 @@ main(int argc, char *argv[])
 	const char *file1, *file2;
 
 	oflag = O_RDONLY;
-	while ((ch = getopt(argc, argv, "hlsxz")) != -1)
+	while ((ch = getopt_long(argc, argv, "+hlsxz", long_opts, NULL)) != -1)
 		switch (ch) {
 		case 'h':		/* Don't follow symlinks */
 			oflag |= O_NOFOLLOW;
