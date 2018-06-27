@@ -43,8 +43,8 @@
    /usr/lib directory.  */
 
 #undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
-#define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
-#define STARTFILE_PREFIX_SPEC		PREFIX"/lib/"
+#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
+#define STARTFILE_PREFIX_SPEC		"/usr/lib/"
 
 #if 0
 #define LIBGCC_SPEC		"%{shared: -lgcc_pic} \
