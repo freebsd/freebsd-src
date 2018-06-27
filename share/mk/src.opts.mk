@@ -259,15 +259,17 @@ __LLVM_TARGETS= \
 		sparc \
 		x86
 __LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/sparc64/sparc/:S/arm64/aarch64/
-# Default the given TARGET_ARCH's LLVM_TARGET support to the value of
-# MK_CLANG.
+.for __llt in ${__LLVM_TARGETS}
+# Default the given TARGET's LLVM_TARGET support to the value of MK_CLANG.
+.if ${__TT:${__LLVM_TARGET_FILT}} == ${__llt}
+__DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/CLANG
+# aarch64 needs arm for -m32 support.
+.elif ${__TT} == "arm64" && ${__llt} == "arm"
+__DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_ARM/LLVM_TARGET_AARCH64
 # Default the rest of the LLVM_TARGETs to the value of MK_LLVM_TARGET_ALL
 # which is based on MK_CLANG.
-.for __llt in ${__LLVM_TARGETS}
-.if ${__llt} != ${__TT:${__LLVM_TARGET_FILT}}
-__DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM_TARGET_ALL
 .else
-__DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/CLANG
+__DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM_TARGET_ALL
 .endif
 .endfor
 
