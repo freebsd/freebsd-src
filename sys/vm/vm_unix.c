@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -69,6 +70,22 @@ int
 sys_break(struct thread *td, struct break_args *uap)
 {
 #if !defined(__aarch64__) && !defined(__riscv__)
+	uintptr_t addr;
+	int error;
+
+	addr = (uintptr_t)uap->nsize;
+	error = kern_break(td, &addr);
+	if (error == 0)
+		td->td_retval[0] = addr;
+	return (error);
+#else /* defined(__aarch64__) || defined(__riscv__) */
+	return (ENOSYS);
+#endif /* defined(__aarch64__) || defined(__riscv__) */
+}
+
+int
+kern_break(struct thread *td, uintptr_t *addr)
+{
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_map_t map = &vm->vm_map;
 	vm_offset_t new, old, base;
@@ -82,7 +99,7 @@ sys_break(struct thread *td, struct break_args *uap)
 	vmemlim = lim_cur(td, RLIMIT_VMEM);
 
 	do_map_wirefuture = FALSE;
-	new = round_page((vm_offset_t)uap->nsize);
+	new = round_page(*addr);
 	vm_map_lock(map);
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
@@ -226,12 +243,9 @@ done:
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
 	if (error == 0)
-		td->td_retval[0] = new;
+		*addr = new;
 
 	return (error);
-#else /* defined(__aarch64__) || defined(__riscv__) */
-	return (ENOSYS);
-#endif /* defined(__aarch64__) || defined(__riscv__) */
 }
 
 #ifdef COMPAT_FREEBSD11
