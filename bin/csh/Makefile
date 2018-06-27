@@ -113,7 +113,7 @@ build-tools: gethost
 
 gethost: gethost.c sh.err.h tc.const.h sh.h ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
-	${CC} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \
+	${CC:N${CCACHE_BIN}} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \
 	    ${TCSHDIR}/gethost.c
 
 tc.defs.c: gethost ${TCSHDIR}/host.defs
