@@ -227,7 +227,7 @@ file_list_init(struct file_list *fl, bool tmp)
  * Add a file name to the list
  */
 void
-file_list_add(struct file_list *fl, char *fn, bool allocate)
+file_list_add(struct file_list *fl, const char *fn, bool allocate)
 {
 
 	if (fl && fn) {
@@ -1116,7 +1116,7 @@ file_headers_merge(size_t fnum, struct file_header **fh, FILE *f_out)
  * stdout.
  */
 static void
-merge_files_array(size_t argc, char **argv, const char *fn_out)
+merge_files_array(size_t argc, const char **argv, const char *fn_out)
 {
 
 	if (argv && fn_out) {
