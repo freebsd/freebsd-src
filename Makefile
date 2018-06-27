@@ -169,7 +169,7 @@ META_TGT_WHITELIST+= \
 	buildworld everything kernel-toolchain kernel-toolchains kernel \
 	kernels libraries native-xtools showconfig test-system-compiler \
 	test-system-linker tinderbox toolchain \
-	toolchains universe world worlds xdev xdev-build
+	toolchains universe universe-toolchain world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distrib-dirs
@@ -480,7 +480,8 @@ worlds: .PHONY
 # with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
-.if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
+.if make(universe) || make(universe_kernels) || make(tinderbox) || \
+    make(targets) || make(universe-toolchain)
 TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armeb armv6 armv7
@@ -542,6 +543,36 @@ universe_prologue: .PHONY
 .if defined(DOING_TINDERBOX)
 	@rm -f ${FAILFILE}
 .endif
+
+universe-toolchain: .PHONY universe_prologue
+	@echo "--------------------------------------------------------------"
+	@echo "> Toolchain bootstrap started on `LC_ALL=C date`"
+	@echo "--------------------------------------------------------------"
+	${_+_}@cd ${.CURDIR}; \
+	    env PATH=${PATH} ${SUB_MAKE} ${JFLAG} kernel-toolchain \
+	    TARGET=${MACHINE} TARGET_ARCH=${MACHINE_ARCH} \
+	    OBJTOP="${HOST_OBJTOP}" \
+	    WITHOUT_SYSTEM_COMPILER=yes \
+	    WITHOUT_SYSTEM_LINKER=yes \
+	    TOOLS_PREFIX_UNDEF= \
+	    kernel-toolchain \
+	    MK_LLVM_TARGET_ALL=yes \
+	    > _.${.TARGET} 2>&1 || \
+	    (echo "${.TARGET} failed," \
+	    "check _.${.TARGET} for details" | \
+	    ${MAKEFAIL}; false)
+	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/cc" ]; then \
+	    echo "Missing host compiler at ${HOST_OBJTOP}/tmp/usr/bin/cc?" >&2; \
+	    false; \
+	fi
+	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/ld" ]; then \
+	    echo "Missing host linker at ${HOST_OBJTOP}/tmp/usr/bin/cc?" >&2; \
+	    false; \
+	fi
+	@echo "--------------------------------------------------------------"
+	@echo "> Toolchain bootstrap completed on `LC_ALL=C date`"
+	@echo "--------------------------------------------------------------"
+
 .for target in ${_UNIVERSE_TARGETS}
 universe: universe_${target}
 universe_epilogue: universe_${target}
@@ -550,10 +581,56 @@ universe_${target}_prologue: universe_prologue .PHONY
 	@echo ">> ${target} started on `LC_ALL=C date`"
 universe_${target}_worlds: .PHONY
 
+.if !make(targets) && !make(universe-toolchain)
+.for target_arch in ${TARGET_ARCHES_${target}}
+.if !defined(_need_clang_${target}_${target_arch})
+_need_clang_${target}_${target_arch} != \
+	env TARGET=${target} TARGET_ARCH=${target_arch} \
+	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-compiler \
+	    -V MK_CLANG_BOOTSTRAP
+.export _need_clang_${target}_${target_arch}
+.endif
+.if !defined(_need_lld_${target}_${target_arch})
+_need_lld_${target}_${target_arch} != \
+	env TARGET=${target} TARGET_ARCH=${target_arch} \
+	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-linker \
+	    -V MK_LLD_BOOTSTRAP
+.export _need_lld_${target}_${target_arch}
+.endif
+# Setup env for each arch to use the one clang.
+.if defined(_need_clang_${target}_${target_arch}) && \
+    ${_need_clang_${target}_${target_arch}} != "no"
+# No check on existing XCC or CROSS_BINUTILS_PREFIX, etc, is needed since
+# we use the test-system-compiler logic to determine if clang needs to be
+# built.  It will be no from that logic if already using an external
+# toolchain or /usr/bin/cc.
+# XXX: Passing HOST_OBJTOP into the PATH would allow skipping legacy,
+#      bootstrap-tools, and cross-tools.  Need to ensure each tool actually
+#      supports all TARGETS though.
+MAKE_PARAMS_${target}+= \
+	XCC="${HOST_OBJTOP}/tmp/usr/bin/cc" \
+	XCXX="${HOST_OBJTOP}/tmp/usr/bin/c++" \
+	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp"
+.endif
+.if defined(_need_lld_${target}_${target_arch}) && \
+    ${_need_lld_${target}_${target_arch}} != "no"
+MAKE_PARAMS_${target}+= \
+	XLD="${HOST_OBJTOP}/tmp/usr/bin/ld"
+.endif
+.endfor
+.endif	# !make(targets)
+
 .if !defined(MAKE_JUST_KERNELS)
 universe_${target}_done: universe_${target}_worlds .PHONY
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}_worlds: universe_${target}_${target_arch} .PHONY
+.if (defined(_need_clang_${target}_${target_arch}) && \
+    ${_need_clang_${target}_${target_arch}} != "no") || \
+    (defined(_need_lld_${target}_${target_arch}) && \
+    ${_need_lld_${target}_${target_arch}} != "no")
+universe_${target}_${target_arch}: universe-toolchain
+universe_${target}_prologue: universe-toolchain
+.endif
 universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
