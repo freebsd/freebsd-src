@@ -130,6 +130,15 @@ MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACH
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
 
+# If all targets are disabled for system llvm then don't expect it to work
+# for cross-builds.
+.if ${MK_LLVM_TARGET_ALL} == "no" && \
+    ${MACHINE} != ${TARGET} && ${MACHINE_ARCH} != ${TARGET_ARCH} && \
+    !make(showconfig)
+MK_SYSTEM_COMPILER=	no
+MK_SYSTEM_LINKER=	no
+.endif
+
 # Handle external binutils.
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
