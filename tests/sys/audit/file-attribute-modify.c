@@ -46,7 +46,7 @@ static int filedesc, retval;
 static struct pollfd fds[1];
 static mode_t mode = 0777;
 static char extregex[80];
-static const char *buff = "ezio";
+static char buff[] = "ezio";
 static const char *auclass = "fm";
 static const char *name = "authorname";
 static const char *path = "fileforaudit";

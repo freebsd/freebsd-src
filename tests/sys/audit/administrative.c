@@ -163,7 +163,7 @@ ATF_TC_BODY(nfs_getfh_success, tc)
 	snprintf(adregex, sizeof(adregex), "nfs_getfh.*%d.*ret.*success", pid);
 
 	/* File needs to exist to call getfh(2) */
-	ATF_REQUIRE(filedesc = open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, getfh(path, &fhp));
 	check_audit(fds, adregex, pipefd);
