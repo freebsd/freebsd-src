@@ -590,10 +590,13 @@ universe_${target}_done:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 .if make(universe_kernconfs) || make(universe_kernels)
-universe_kernels: universe_kernconfs .PHONY
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
+universe_kernels_prologue: .PHONY
+	@echo ">> ${TARGET} kernels started on `LC_ALL=C date`"
+universe_kernels: universe_kernconfs .PHONY
+	@echo ">> ${TARGET} kernels completed on `LC_ALL=C date`"
 .if defined(MAKE_ALL_KERNELS)
 _THINNER=cat
 .elif defined(MAKE_LINT_KERNELS)
@@ -606,7 +609,7 @@ KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		-type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES | \
 		${_THINNER}
-universe_kernconfs: .PHONY
+universe_kernconfs: universe_kernels_prologue .PHONY
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
@@ -616,6 +619,7 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 .endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}: .MAKE
+	@echo ">> ${TARGET}.${TARGET_ARCH_${kernel}} ${kernel} kernel started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
@@ -625,6 +629,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \
 	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
+	@echo ">> ${TARGET}.${TARGET_ARCH_${kernel}} ${kernel} kernel completed on `LC_ALL=C date`"
 .endfor
 .endif	# make(universe_kernels)
 universe: universe_epilogue
