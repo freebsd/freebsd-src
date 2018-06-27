@@ -207,6 +207,27 @@ __DEFAULT_NO_OPTIONS = \
     ZONEINFO_LEAPSECONDS_SUPPORT \
     ZONEINFO_OLD_TIMEZONES_SUPPORT \
 
+# LEFT/RIGHT. Left options which default to "yes" unless their corresponding
+# RIGHT option is disabled.
+__DEFAULT_DEPENDENT_OPTIONS= \
+	CLANG_FULL/CLANG \
+
+# MK_*_SUPPORT options which default to "yes" unless their corresponding
+# MK_* variable is set to "no".
+#
+.for var in \
+    BLACKLIST \
+    BZIP2 \
+    INET \
+    INET6 \
+    KERBEROS \
+    KVM \
+    NETGRAPH \
+    PAM \
+    TESTS \
+    WIRELESS
+__DEFAULT_DEPENDENT_OPTIONS+= ${var}_SUPPORT/${var}
+.endfor
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -236,7 +257,7 @@ __TT=${MACHINE}
 .if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
     ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 __DEFAULT_YES_OPTIONS+=LLVM_TARGET_AARCH64 LLVM_TARGET_ARM LLVM_TARGET_MIPS
 __DEFAULT_YES_OPTIONS+=LLVM_TARGET_POWERPC LLVM_TARGET_SPARC LLVM_TARGET_X86
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
@@ -244,14 +265,14 @@ __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but GCC is installed as the
 # default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX GPL_DTC LLD
+__DEFAULT_YES_OPTIONS+=CLANG GCC GCC_BOOTSTRAP GNUCXX GPL_DTC LLD
 __DEFAULT_YES_OPTIONS+=LLVM_TARGET_AARCH64 LLVM_TARGET_ARM LLVM_TARGET_MIPS
 __DEFAULT_YES_OPTIONS+=LLVM_TARGET_POWERPC LLVM_TARGET_SPARC LLVM_TARGET_X86
 __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 .else
 # Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_AARCH64 LLVM_TARGET_ARM LLVM_TARGET_MIPS
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_POWERPC LLVM_TARGET_SPARC LLVM_TARGET_X86
 .endif
@@ -491,28 +512,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
 #
 # Set defaults for the MK_*_SUPPORT variables.
 #
-
-#
-# MK_*_SUPPORT options which default to "yes" unless their corresponding
-# MK_* variable is set to "no".
-#
-.for var in \
-    BLACKLIST \
-    BZIP2 \
-    INET \
-    INET6 \
-    KERBEROS \
-    KVM \
-    NETGRAPH \
-    PAM \
-    TESTS \
-    WIRELESS
-.if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
-MK_${var}_SUPPORT:= no
-.else
-MK_${var}_SUPPORT:= yes
-.endif
-.endfor
 
 .if !${COMPILER_FEATURES:Mc++11}
 MK_LLDB:=	no
