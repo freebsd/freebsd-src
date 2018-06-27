@@ -288,7 +288,7 @@ init_dynamic_kenv(void *data __unused)
 			if (i < KENV_SIZE) {
 				kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 				strcpy(kenvp[i++], cp);
-				memset(cp, 0, strlen(cp));
+				explicit_bzero(cp, strlen(cp));
 			} else
 				printf(
 				"WARNING: too many kenv strings, ignoring %s\n",
@@ -307,7 +307,7 @@ freeenv(char *env)
 {
 
 	if (dynamic_kenv && env != NULL) {
-		memset(env, 0, strlen(env));
+		explicit_bzero(env, strlen(env));
 		free(env, M_KENV);
 	}
 }
@@ -485,7 +485,7 @@ kern_unsetenv(const char *name)
 			kenvp[i++] = kenvp[j];
 		kenvp[i] = NULL;
 		mtx_unlock(&kenv_lock);
-		memset(oldenv, 0, strlen(oldenv));
+		explicit_bzero(oldenv, strlen(oldenv));
 		free(oldenv, M_KENV);
 		return (0);
 	}
