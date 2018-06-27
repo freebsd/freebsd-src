@@ -686,6 +686,9 @@ TMAKE=		\
 XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no
+.if empty(.MAKEOVERRIDES:MMK_LLVM_TARGET_ALL)
+XMAKE+=		MK_LLVM_TARGET_ALL=no
+.endif
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
