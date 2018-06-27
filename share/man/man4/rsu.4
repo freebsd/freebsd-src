@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd October 15, 2015
+.Dd April 4, 2018
 .Dt RSU 4
 .Os
 .Sh NAME
@@ -30,22 +30,15 @@ place the following lines in your kernel configuration file:
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device rsu"
+.Cd "device rsufw"
 .Cd "device wlan"
 .Ed
 .Pp
 Alternatively, to load the driver as a module at boot time,
-place the following line in
+place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_rsu_load="YES"
-.Ed
-.Pp
-After you have read the license in
-.Pa /usr/share/doc/legal/realtek.LICENSE
-you will want to add the following lines to
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-legal.realtek.license_ack=1
 rsu-rtl8712fw_load="YES"
 .Ed
 .Sh DESCRIPTION
@@ -96,6 +89,12 @@ The
 driver can be configured at runtime with
 .Xr ifconfig 8 .
 .Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
+.Nm
+firmware license
+.El
+.Pp
 The driver needs at least version 1.2 of the following firmware file,
 which is loaded when an interface is attached:
 .Pp
