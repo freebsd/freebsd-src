@@ -871,7 +871,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 	long p_tot, s_tot;
 	char *cmdbuf = NULL;
 	char **args;
-	const int cmdlen = 128;
+	const int cmdlen = 256;
 	static struct sbuf* procbuf = NULL;
 
 	/* clean up from last time. */
