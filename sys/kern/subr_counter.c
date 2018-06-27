@@ -140,7 +140,7 @@ counter_ratecheck(struct counter_rate *cr, int64_t limit)
 	val = cr->cr_over;
 	now = ticks;
 
-	if (abs(now - cr->cr_ticks) >= hz) {
+	if ((u_int)(now - cr->cr_ticks) >= hz) {
 		/*
 		 * Time to clear the structure, we are in the next second.
 		 * First try unlocked read, and then proceed with atomic.
@@ -151,7 +151,7 @@ counter_ratecheck(struct counter_rate *cr, int64_t limit)
 			 * Check if other thread has just went through the
 			 * reset sequence before us.
 			 */
-			if (abs(now - cr->cr_ticks) >= hz) {
+			if ((u_int)(now - cr->cr_ticks) >= hz) {
 				val = counter_u64_fetch(cr->cr_rate);
 				counter_u64_zero(cr->cr_rate);
 				cr->cr_over = 0;
