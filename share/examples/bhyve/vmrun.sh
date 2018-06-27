@@ -132,7 +132,7 @@ vncport=${DEFAULT_VNCPORT}
 vncsize=${DEFAULT_VNCSIZE}
 tablet=""
 
-while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:n:p:P:t:Tuvw c ; do
+while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:L:m:n:p:P:t:Tuvw c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
