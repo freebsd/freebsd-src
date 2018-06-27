@@ -9,6 +9,8 @@ PROG=	fsck_msdosfs
 MAN=	fsck_msdosfs.8
 SRCS=	main.c check.c boot.c fat.c dir.c fsutil.c
 
+DEBUG_FLAGS+=	-g
+
 CFLAGS+= -I${FSCK}
 
 .include <bsd.prog.mk>
