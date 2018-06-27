@@ -2019,9 +2019,11 @@ tcp_drain(void)
 	 */
 		INP_INFO_WLOCK(&V_tcbinfo);
 		CK_LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
-			if (inpb->inp_flags & INP_TIMEWAIT)
-				continue;
 			INP_WLOCK(inpb);
+			if (inpb->inp_flags & INP_TIMEWAIT) {
+				INP_WUNLOCK(inpb);
+				continue;
+			}
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
