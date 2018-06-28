@@ -640,6 +640,8 @@ string
 config::shell_quote(const string &s)
 {
 	string buffer;
+	const char *cs, *ce;
+	char c;
 
 	/*
 	 * Enclose the string in $' ' with escapes for ' and / characters making
@@ -649,7 +651,10 @@ config::shell_quote(const string &s)
 	buffer.reserve(s.length() * 3 / 2);
 	buffer += '$';
 	buffer += '\'';
-	for (const char &c : s) {
+	cs = s.c_str();
+	ce = cs + strlen(cs);
+	for (; cs < ce; cs++) {
+		c = *cs;
 		if (c == '\'' || c == '\\') {
 			buffer += '\\';
 		}
