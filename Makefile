@@ -587,19 +587,21 @@ universe_${target}_worlds: .PHONY
 _need_clang_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-compiler \
-	    ${MAKE_PARAMS_${target}} -V MK_CLANG_BOOTSTRAP
+	    ${MAKE_PARAMS_${target}} -V MK_CLANG_BOOTSTRAP 2>/dev/null || \
+	    echo unknown
 .export _need_clang_${target}_${target_arch}
 .endif
 .if !defined(_need_lld_${target}_${target_arch})
 _need_lld_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-linker \
-	    ${MAKE_PARAMS_${target}} -V MK_LLD_BOOTSTRAP
+	    ${MAKE_PARAMS_${target}} -V MK_LLD_BOOTSTRAP 2>/dev/null || \
+	    echo unknown
 .export _need_lld_${target}_${target_arch}
 .endif
 # Setup env for each arch to use the one clang.
 .if defined(_need_clang_${target}_${target_arch}) && \
-    ${_need_clang_${target}_${target_arch}} != "no"
+    ${_need_clang_${target}_${target_arch}} == "yes"
 # No check on existing XCC or CROSS_BINUTILS_PREFIX, etc, is needed since
 # we use the test-system-compiler logic to determine if clang needs to be
 # built.  It will be no from that logic if already using an external
@@ -613,7 +615,7 @@ MAKE_PARAMS_${target}+= \
 	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp"
 .endif
 .if defined(_need_lld_${target}_${target_arch}) && \
-    ${_need_lld_${target}_${target_arch}} != "no"
+    ${_need_lld_${target}_${target_arch}} == "yes"
 MAKE_PARAMS_${target}+= \
 	XLD="${HOST_OBJTOP}/tmp/usr/bin/ld"
 .endif
@@ -625,9 +627,9 @@ universe_${target}_done: universe_${target}_worlds .PHONY
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}_worlds: universe_${target}_${target_arch} .PHONY
 .if (defined(_need_clang_${target}_${target_arch}) && \
-    ${_need_clang_${target}_${target_arch}} != "no") || \
+    ${_need_clang_${target}_${target_arch}} == "yes") || \
     (defined(_need_lld_${target}_${target_arch}) && \
-    ${_need_lld_${target}_${target_arch}} != "no")
+    ${_need_lld_${target}_${target_arch}} == "yes")
 universe_${target}_${target_arch}: universe-toolchain
 universe_${target}_prologue: universe-toolchain
 .endif
