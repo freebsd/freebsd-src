@@ -132,7 +132,7 @@ TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGE
 
 # If all targets are disabled for system llvm then don't expect it to work
 # for cross-builds.
-.if ${MK_LLVM_TARGET_ALL} == "no" && \
+.if !defined(TOOLS_PREFIX) && ${MK_LLVM_TARGET_ALL} == "no" && \
     ${MACHINE} != ${TARGET} && ${MACHINE_ARCH} != ${TARGET_ARCH} && \
     !make(showconfig)
 MK_SYSTEM_COMPILER=	no
