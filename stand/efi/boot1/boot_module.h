@@ -51,7 +51,7 @@ typedef struct dev_info
 	EFI_HANDLE *devhandle;
 	void *devdata;
 	uint64_t partoff;
-	BOOLEAN preferred;
+	int preferred;
 	struct dev_info *next;
 } dev_info_t;
 
