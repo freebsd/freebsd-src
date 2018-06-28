@@ -106,8 +106,8 @@ ntpd_needfetch_leapfile() {
 	ntp_expiry_src=$(get_ntp_leapfile_expiry $ntp_src_leapfile)
 	ntp_ver_no_db=$(get_ntp_leapfile_ver $ntp_db_leapfile)
 	ntp_expiry_db=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
-	$verbose ntp_src_leapfile version is $ntp_ver_no_src
-	$verbose ntp_db_leapfile version is $ntp_ver_no_db
+	$verbose ntp_src_leapfile version is $ntp_ver_no_src expires $ntp_expiry_src
+	$verbose ntp_db_leapfile version is $ntp_ver_no_db expires $ntp_expiry_db
 
 	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" -o \
 	     "$ntp_ver_no_src" -eq "$ntp_ver_no_db" -a \
