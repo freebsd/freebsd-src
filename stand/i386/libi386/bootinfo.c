@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
-#include <sys/boot.h>
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
@@ -43,7 +42,6 @@ bi_getboothowto(char *kargs)
     char	*curpos, *next, *string;
     int		howto;
     int		active;
-    int		i;
     int		vidconsole;
 
     /* Parse kargs */
@@ -96,10 +94,7 @@ bi_getboothowto(char *kargs)
 	    cp++;
 	}
     }
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
+    howto |= bootenv_flags();
 
     /* Enable selected consoles */
     string = next = strdup(getenv("console"));
@@ -134,11 +129,8 @@ bi_getboothowto(char *kargs)
 void
 bi_setboothowto(int howto)
 {
-    int		i;
 
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (howto & howto_names[i].mask)
-	    setenv(howto_names[i].ev, "YES", 1);
+    bootenv_set(howto);
 }
 
 /*
