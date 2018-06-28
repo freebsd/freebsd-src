@@ -4829,6 +4829,7 @@ retry:
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	origpte = *pte;
+	pv = NULL;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -4870,6 +4871,43 @@ retry:
 				goto unchanged;
 			goto validate;
 		}
+
+		/*
+		 * The physical page has changed.  Temporarily invalidate
+		 * the mapping.  This ensures that all threads sharing the
+		 * pmap keep a consistent view of the mapping, which is
+		 * necessary for the correct handling of COW faults.  It
+		 * also permits reuse of the old mapping's PV entry,
+		 * avoiding an allocation.
+		 *
+		 * For consistency, handle unmanaged mappings the same way.
+		 */
+		origpte = pte_load_clear(pte);
+		KASSERT((origpte & PG_FRAME) == opa,
+		    ("pmap_enter: unexpected pa update for %#lx", va));
+		if ((origpte & PG_MANAGED) != 0) {
+			om = PHYS_TO_VM_PAGE(opa);
+
+			/*
+			 * The pmap lock is sufficient to synchronize with
+			 * concurrent calls to pmap_page_test_mappings() and
+			 * pmap_ts_referenced().
+			 */
+			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+				vm_page_dirty(om);
+			if ((origpte & PG_A) != 0)
+				vm_page_aflag_set(om, PGA_REFERENCED);
+			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+			pv = pmap_pvh_remove(&om->md, pmap, va);
+			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			    TAILQ_EMPTY(&om->md.pv_list) &&
+			    ((om->flags & PG_FICTITIOUS) != 0 ||
+			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+				vm_page_aflag_clear(om, PGA_WRITEABLE);
+		}
+		if ((origpte & PG_A) != 0)
+			pmap_invalidate_page(pmap, va);
+		origpte = 0;
 	} else {
 		/*
 		 * Increment the counters.
@@ -4883,8 +4921,10 @@ retry:
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((newpte & PG_MANAGED) != 0) {
-		pv = get_pv_entry(pmap, &lock);
-		pv->pv_va = va;
+		if (pv == NULL) {
+			pv = get_pv_entry(pmap, &lock);
+			pv->pv_va = va;
+		}
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
@@ -4898,25 +4938,10 @@ retry:
 	if ((origpte & PG_V) != 0) {
 validate:
 		origpte = pte_load_store(pte, newpte);
-		opa = origpte & PG_FRAME;
-		if (opa != pa) {
-			if ((origpte & PG_MANAGED) != 0) {
-				om = PHYS_TO_VM_PAGE(opa);
-				if ((origpte & (PG_M | PG_RW)) == (PG_M |
-				    PG_RW))
-					vm_page_dirty(om);
-				if ((origpte & PG_A) != 0)
-					vm_page_aflag_set(om, PGA_REFERENCED);
-				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
-				pmap_pvh_free(&om->md, pmap, va);
-				if ((om->aflags & PGA_WRITEABLE) != 0 &&
-				    TAILQ_EMPTY(&om->md.pv_list) &&
-				    ((om->flags & PG_FICTITIOUS) != 0 ||
-				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-					vm_page_aflag_clear(om, PGA_WRITEABLE);
-			}
-		} else if ((newpte & PG_M) == 0 && (origpte & (PG_M |
-		    PG_RW)) == (PG_M | PG_RW)) {
+		KASSERT((origpte & PG_FRAME) == pa,
+		    ("pmap_enter: unexpected pa update for %#lx", va));
+		if ((newpte & PG_M) == 0 && (origpte & (PG_M | PG_RW)) ==
+		    (PG_M | PG_RW)) {
 			if ((origpte & PG_MANAGED) != 0)
 				vm_page_dirty(m);
 
