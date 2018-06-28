@@ -609,10 +609,10 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
  * within the specified domain.  Returns the actual number of allocated pages
  * and a pointer to each page through the array ma[].
  *
- * The returned pages may not be physically contiguous.  However, in contrast to
- * performing multiple, back-to-back calls to vm_phys_alloc_pages(..., 0),
- * calling this function once to allocate the desired number of pages will avoid
- * wasted time in vm_phys_split_pages().
+ * The returned pages may not be physically contiguous.  However, in contrast
+ * to performing multiple, back-to-back calls to vm_phys_alloc_pages(..., 0),
+ * calling this function once to allocate the desired number of pages will
+ * avoid wasted time in vm_phys_split_pages().
  *
  * The free page queues for the specified domain must be locked.
  */
