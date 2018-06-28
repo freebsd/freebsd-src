@@ -58,10 +58,7 @@
 	.fflags = (d),				\
 	.data = (e),				\
 	.udata = (f),				\
-	.ext[0] = 0,				\
-	.ext[1] = 0,				\
-	.ext[2] = 0,				\
-	.ext[3] = 0,				\
+	.ext = {0},				\
     };						\
 } while(0)
 #else /* Pre-C99 or not STDC (e.g., C++) */
