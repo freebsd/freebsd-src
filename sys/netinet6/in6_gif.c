@@ -309,6 +309,9 @@ in6_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	struct gif_softc *sc;
 	int ret;
 
+	if (V_ipv6_hashtbl == NULL)
+		return (0);
+
 	MPASS(in_epoch());
 	/*
 	 * NOTE: it is safe to iterate without any locking here, because softc
