@@ -129,6 +129,40 @@ MACHINE_ABI?=	unknown
 MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
+KNOWN_ARCHES?=	aarch64/arm64 \
+		amd64 \
+		arm \
+		armeb/arm \
+		armv6/arm \
+		armv7/arm \
+		i386 \
+		mips \
+		mipsel/mips \
+		mips64el/mips \
+		mipsn32el/mips \
+		mips64/mips \
+		mipsn32/mips \
+		mipshf/mips \
+		mipselhf/mips \
+		mips64elhf/mips \
+		mips64hf/mips \
+		powerpc \
+		powerpc64/powerpc \
+		powerpcspe/powerpc \
+		riscv64/riscv \
+		riscv64sf/riscv \
+		sparc64
+
+.if ${TARGET} == ${TARGET_ARCH}
+_t=		${TARGET}
+.else
+_t=		${TARGET_ARCH}/${TARGET}
+.endif
+.for _t in ${_t}
+.if empty(KNOWN_ARCHES:M${_t})
+.error Unknown target ${TARGET_ARCH}:${TARGET}.
+.endif
+.endfor
 
 # If all targets are disabled for system llvm then don't expect it to work
 # for cross-builds.
@@ -524,41 +558,6 @@ EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(_MKSHOWCONFIG)
-
-KNOWN_ARCHES?=	aarch64/arm64 \
-		amd64 \
-		arm \
-		armeb/arm \
-		armv6/arm \
-		armv7/arm \
-		i386 \
-		mips \
-		mipsel/mips \
-		mips64el/mips \
-		mipsn32el/mips \
-		mips64/mips \
-		mipsn32/mips \
-		mipshf/mips \
-		mipselhf/mips \
-		mips64elhf/mips \
-		mips64hf/mips \
-		powerpc \
-		powerpc64/powerpc \
-		powerpcspe/powerpc \
-		riscv64/riscv \
-		riscv64sf/riscv \
-		sparc64
-
-.if ${TARGET} == ${TARGET_ARCH}
-_t=		${TARGET}
-.else
-_t=		${TARGET_ARCH}/${TARGET}
-.endif
-.for _t in ${_t}
-.if empty(KNOWN_ARCHES:M${_t})
-.error Unknown target ${TARGET_ARCH}:${TARGET}.
-.endif
-.endfor
 
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
