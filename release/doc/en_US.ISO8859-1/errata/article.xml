@@ -218,6 +218,22 @@ boot</screen>
 	  had been added; this should have stated
 	  &man.ocs.fc.4;.</para>
       </listitem>
+
+      <listitem>
+	<para>[2018-06-28] An issue had been reported after the
+	  release of &os;&nbsp;11.2 with <filename
+	    role="package">x11/nvidia-driver</filename> installed from
+	  the upstream package mirrors via &man.pkg.8;.</para>
+
+	<para>Building <filename
+	    role="package">x11/nvidia-driver</filename> from
+	  the &man.ports.7; collection has been reported to resolve
+	  the issue.</para>
+
+	<para>See <acronym>PR</acronym> <link
+	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228536">228536</link>
+	  for more information.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
