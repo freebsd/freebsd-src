@@ -289,6 +289,9 @@ in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	struct gif_softc *sc;
 	int ret;
 
+	if (V_ipv4_hashtbl == NULL)
+		return (0);
+
 	MPASS(in_epoch());
 	ip = mtod(m, const struct ip *);
 	/*
