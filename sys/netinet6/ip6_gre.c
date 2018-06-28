@@ -107,6 +107,9 @@ in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	const struct ip6_hdr *ip6;
 	struct gre_softc *sc;
 
+	if (V_ipv6_hashtbl == NULL)
+		return (0);
+
 	MPASS(in_epoch());
 	ip6 = mtod(m, const struct ip6_hdr *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
