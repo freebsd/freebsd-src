@@ -750,19 +750,6 @@ BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${WANT_COMPILER_TYPE} == gcc || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
-# GCC requires -isystem and -L when using a cross-compiler.  --sysroot
-# won't set header path and -L is used to ensure the base library path
-# is added before the port PREFIX library path.
-XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
-# GCC requires -B to find /usr/lib/crti.o when using a cross-compiler
-# combined with --sysroot.
-XCFLAGS+=	-B${WORLDTMP}/usr/lib
-# Force using libc++ for external GCC.
-.if defined(X_COMPILER_TYPE) && \
-    ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
-XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
-		-nostdinc++
-.endif
 .elif ${WANT_COMPILER_TYPE} == clang || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == clang)
 XCFLAGS+=	-target ${TARGET_TRIPLE}
