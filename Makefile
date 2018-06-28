@@ -587,14 +587,14 @@ universe_${target}_worlds: .PHONY
 _need_clang_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-compiler \
-	    -V MK_CLANG_BOOTSTRAP
+	    ${MAKE_PARAMS_${target}} -V MK_CLANG_BOOTSTRAP
 .export _need_clang_${target}_${target_arch}
 .endif
 .if !defined(_need_lld_${target}_${target_arch})
 _need_lld_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-linker \
-	    -V MK_LLD_BOOTSTRAP
+	    ${MAKE_PARAMS_${target}} -V MK_LLD_BOOTSTRAP
 .export _need_lld_${target}_${target_arch}
 .endif
 # Setup env for each arch to use the one clang.
