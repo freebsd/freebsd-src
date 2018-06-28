@@ -178,13 +178,6 @@ distribute:
 	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
-.if ${TARGET_ENDIANNESS} == "1234"
-CAP_MKDB_ENDIAN?= -l
-.elif ${TARGET_ENDIANNESS} == "4321"
-CAP_MKDB_ENDIAN?= -b
-.else
-CAP_MKDB_ENDIAN?=
-.endif
 
 .if defined(NO_ROOT)
 METALOG.add?=	cat -l >> ${METALOG}
