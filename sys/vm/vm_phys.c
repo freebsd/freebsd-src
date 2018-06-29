@@ -1239,7 +1239,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
 	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	/* Compute the queue that is the best fit for npages. */
-	for (order = 0; (1 << order) < npages; order++);
+	order = flsl(npages - 1);
 	/* Search for a run satisfying the specified conditions. */
 	size = npages << PAGE_SHIFT;
 	for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER;
@@ -1297,14 +1297,12 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 done:
 	for (m = m_ret; m < &m_ret[npages]; m = &m[1 << oind]) {
 		fl = (*seg->free_queues)[m->pool];
-		vm_freelist_rem(fl, m, m->order);
+		vm_freelist_rem(fl, m, oind);
+		if (m->pool != VM_FREEPOOL_DEFAULT)
+			vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, oind);
 	}
-	if (m_ret->pool != VM_FREEPOOL_DEFAULT)
-		vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m_ret, oind);
-	fl = (*seg->free_queues)[m_ret->pool];
-	vm_phys_split_pages(m_ret, oind, fl, order);
 	/* Return excess pages to the free lists. */
-	npages_end = roundup2(npages, 1 << imin(oind, order));
+	npages_end = roundup2(npages, 1 << oind);
 	if (npages < npages_end)
 		vm_phys_free_contig(&m_ret[npages], npages_end - npages);
 	return (m_ret);
