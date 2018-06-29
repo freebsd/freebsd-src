@@ -1,4 +1,63 @@
 ----------------------------------------
+29 June 2018. Summary of changes for version 20180629:
+
+
+1) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a regression related to the use of the ASL External 
+statement. Error checking for the use of the External() statement has 
+been relaxed. Previously, a restriction on the use of External meant that 
+the referenced named object was required to be defined in a different 
+table (an SSDT). Thus it would be an error to declare an object as an 
+external and then define the same named object in the same table. For 
+example:
+    DefinitionBlock (...)
+    {
+        External (DEV1)
+        Device (DEV1){...} // This was an error
+    }
+However, this behavior has caused regressions in some existing ASL code, 
+because there is code that depends on named objects and externals (with 
+the same name) being declared in the same table. This change will allow 
+the ASL code above to compile without errors or warnings.
+
+iASL: Implemented ASL language extensions for four operators to make some 
+of their arguments optional instead of required:
+    1) Field (RegionName, AccessType, LockRule, UpdateRule)
+    2) BankField (RegionName, BankName, BankValue,
+                AccessType, LockRule, UpdateRule)
+    3) IndexField (IndexName, DataName,
+                AccessType, LockRule, UpdateRule)
+For the Field operators above, the AccessType, LockRule, and UpdateRule 
+are now optional arguments. The default values are:
+        AccessType: AnyAcc
+        LockRule:   NoLock
+        UpdateRule: Preserve
+    4) Mutex (MutexName, SyncLevel)
+For this operator, the SyncLevel argument is now optional. This argument 
+is rarely used in any meaningful way by ASL code, and thus it makes sense 
+to make it optional. The default value is:
+        SyncLevel:  0
+
+iASL: Attempted use of the ASL Unload() operator now results in the 
+following warning:
+    "Unload is not supported by all operating systems"
+This is in fact very true, and the Unload operator may be completely 
+deprecated in the near future.
+
+AcpiExec: Fixed a regression for the -fi option (Namespace initialization 
+file. Recent changes in the ACPICA module-level code support altered the 
+table load/initialization sequence . This means that the table load has 
+become a large method execution of the table itself. If Operation Region 
+Fields are used within any module-level code and the -fi option was 
+specified, the initialization values were populated only after the table 
+had completely finished loading (and thus the module-level code had 
+already been executed). This change moves the initialization of objects 
+listed in the initialization file to before the table is executed as a 
+method. Field unit values are now initialized before the table execution 
+is performed.
+
+----------------------------------------
 31 May 2018. Summary of changes for version 20180531:
 
 

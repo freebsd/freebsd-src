@@ -1080,7 +1080,7 @@ AslDoResponseFile (
      * Process all lines in the response file. There must be one complete
      * option per line
      */
-    while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ResponseFile))
+    while (fgets (StringBuffer, ASL_STRING_BUFFER_SIZE, ResponseFile))
     {
         /* Compress all tokens, allowing us to use a single argv entry */
 

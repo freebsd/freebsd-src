@@ -183,7 +183,6 @@ AsCountLines (
     char                    *Filename);
 
 
-
 #define MODULE_HEADER_BEGIN "/******************************************************************************\n *\n * Module Name:";
 #define MODULE_HEADER_END   " *****************************************************************************/\n\n"
 #define INTEL_COPYRIGHT     " * Copyright (C) 2000 - 2018, Intel Corp.\n"
