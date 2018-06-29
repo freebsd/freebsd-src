@@ -359,6 +359,7 @@ typedef enum
     ASL_MSG_EXTERN_FOUND_HERE,
     ASL_MSG_OEM_TABLE_ID,
     ASL_MSG_OEM_ID,
+    ASL_MSG_UNLOAD,
 
     /* These messages are used by the Data Table compiler only */
 
