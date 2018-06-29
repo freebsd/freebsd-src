@@ -38,6 +38,7 @@
 
 #include <atf-c.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -70,7 +71,6 @@ ATF_TC_BODY(fork_success, tc)
 		check_audit(fds, pcregex, pipefd);
 	else
 		_exit(0);
-
 }
 
 ATF_TC_CLEANUP(fork_success, tc)
@@ -102,7 +102,6 @@ ATF_TC_BODY(rfork_success, tc)
 		check_audit(fds, pcregex, pipefd);
 	else
 		_exit(0);
-
 }
 
 ATF_TC_CLEANUP(rfork_success, tc)
@@ -130,6 +129,163 @@ ATF_TC_BODY(rfork_failure, tc)
 }
 
 ATF_TC_CLEANUP(rfork_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(wait4_success);
+ATF_TC_HEAD(wait4_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"wait4(2) call");
+}
+
+ATF_TC_BODY(wait4_success, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "wait4.*%d.*return,success", pid);
+
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid) {
+		FILE *pipefd = setup(fds, auclass);
+		/* wpid = -1 : Wait for any child process */
+		ATF_REQUIRE(wait4(-1, &status, 0, NULL) != -1);
+		check_audit(fds, pcregex, pipefd);
+	}
+	else
+		_exit(0);
+}
+
+ATF_TC_CLEANUP(wait4_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(wait4_failure);
+ATF_TC_HEAD(wait4_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"wait4(2) call");
+}
+
+ATF_TC_BODY(wait4_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "wait4.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: No child process to wait for */
+	ATF_REQUIRE_EQ(-1, wait4(-1, NULL, 0, NULL));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(wait4_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(wait6_success);
+ATF_TC_HEAD(wait6_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"wait6(2) call");
+}
+
+ATF_TC_BODY(wait6_success, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "wait6.*%d.*return,success", pid);
+
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid) {
+		FILE *pipefd = setup(fds, auclass);
+		ATF_REQUIRE(wait6(P_ALL, 0, &status, WEXITED, NULL,NULL) != -1);
+		check_audit(fds, pcregex, pipefd);
+	}
+	else
+		_exit(0);
+}
+
+ATF_TC_CLEANUP(wait6_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(wait6_failure);
+ATF_TC_HEAD(wait6_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"wait6(2) call");
+}
+
+ATF_TC_BODY(wait6_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "wait6.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid argument */
+	ATF_REQUIRE_EQ(-1, wait6(0, 0, NULL, 0, NULL, NULL));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(wait6_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(kill_success);
+ATF_TC_HEAD(kill_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"kill(2) call");
+}
+
+ATF_TC_BODY(kill_success, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "kill.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Don't send any signal to anyone, live in peace! */
+	ATF_REQUIRE_EQ(0, kill(0, 0));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(kill_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(kill_failure);
+ATF_TC_HEAD(kill_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"kill(2) call");
+}
+
+ATF_TC_BODY(kill_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "kill.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/*
+	 * Failure reason: Non existent process with PID '-2'
+	 * Note: '-1' is not used as it means sending no signal to
+	 * all non-system processes: A successful invocation
+	 */
+	ATF_REQUIRE_EQ(-1, kill(0, -2));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(kill_failure, tc)
 {
 	cleanup();
 }
@@ -781,6 +937,69 @@ ATF_TC_CLEANUP(setpgrp_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(setsid_success);
+ATF_TC_HEAD(setsid_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"setsid(2) call");
+}
+
+ATF_TC_BODY(setsid_success, tc)
+{
+	/* Main procedure is carried out from within the child process */
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid) {
+		ATF_REQUIRE(wait(&status) != -1);
+	} else {
+		pid = getpid();
+		snprintf(pcregex, sizeof(pcregex), "setsid.*%d.*success", pid);
+
+		FILE *pipefd = setup(fds, auclass);
+		ATF_REQUIRE(setsid() != -1);
+		check_audit(fds, pcregex, pipefd);
+	}
+}
+
+ATF_TC_CLEANUP(setsid_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setsid_failure);
+ATF_TC_HEAD(setsid_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"setsid(2) call");
+}
+
+ATF_TC_BODY(setsid_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "setsid.*%d.*return,failure", pid);
+
+	/*
+	 * Here, we are intentionally ignoring the output of the setsid()
+	 * call because it may or may not be a process leader already. But it
+	 * ensures that the next invocation of setsid() will definitely fail.
+	 */
+	setsid();
+	FILE *pipefd = setup(fds, auclass);
+	/*
+	 * Failure reason: [EPERM] Creating a new session is not permitted
+	 * as the PID of calling process matches the PGID of a process group
+	 * created by premature setsid() call.
+	 */
+	ATF_REQUIRE_EQ(-1, setsid());
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setsid_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TC_WITH_CLEANUP(setrlimit_success);
 ATF_TC_HEAD(setrlimit_success, tc)
 {
@@ -1210,6 +1429,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rfork_success);
 	ATF_TP_ADD_TC(tp, rfork_failure);
 
+	ATF_TP_ADD_TC(tp, wait4_success);
+	ATF_TP_ADD_TC(tp, wait4_failure);
+	ATF_TP_ADD_TC(tp, wait6_success);
+	ATF_TP_ADD_TC(tp, wait6_failure);
+	ATF_TP_ADD_TC(tp, kill_success);
+	ATF_TP_ADD_TC(tp, kill_failure);
+
 	ATF_TP_ADD_TC(tp, chdir_success);
 	ATF_TP_ADD_TC(tp, chdir_failure);
 	ATF_TP_ADD_TC(tp, fchdir_success);
@@ -1239,6 +1465,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, setgroups_failure);
 	ATF_TP_ADD_TC(tp, setpgrp_success);
 	ATF_TP_ADD_TC(tp, setpgrp_failure);
+	ATF_TP_ADD_TC(tp, setsid_success);
+	ATF_TP_ADD_TC(tp, setsid_failure);
 	ATF_TP_ADD_TC(tp, setrlimit_success);
 	ATF_TP_ADD_TC(tp, setrlimit_failure);
 
