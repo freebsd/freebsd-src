@@ -496,6 +496,11 @@ TrTransformSubtree (
         Op->Asl.Value.String = "\\";
         break;
 
+    case PARSEOP_UNLOAD:
+
+        AslError (ASL_WARNING, ASL_MSG_UNLOAD, Op, NULL);
+        break;
+
     default:
 
         /* Nothing to do here for other opcodes */
