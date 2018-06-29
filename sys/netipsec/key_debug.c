@@ -85,7 +85,7 @@ static void kdebug_sadb_x_natt(struct sadb_ext *);
 
 /* NOTE: host byte order */
 
-const char*
+static const char*
 kdebug_sadb_type(uint8_t type)
 {
 #define	SADB_NAME(n)	case SADB_ ## n: return (#n)
@@ -120,7 +120,7 @@ kdebug_sadb_type(uint8_t type)
 #undef SADB_NAME
 }
 
-const char*
+static const char*
 kdebug_sadb_exttype(uint16_t type)
 {
 #define	EXT_NAME(n)	case SADB_EXT_ ## n: return (#n)
