@@ -61,14 +61,22 @@ namespace {
 
   static QualType getType(APValue::LValueBase B) {
     if (!B) return QualType();
-    if (const ValueDecl *D = B.dyn_cast<const ValueDecl*>())
+    if (const ValueDecl *D = B.dyn_cast<const ValueDecl*>()) {
       // FIXME: It's unclear where we're supposed to take the type from, and
-      // this actually matters for arrays of unknown bound. Using the type of
-      // the most recent declaration isn't clearly correct in general. Eg:
+      // this actually matters for arrays of unknown bound. Eg:
       //
       // extern int arr[]; void f() { extern int arr[3]; };
       // constexpr int *p = &arr[1]; // valid?
-      return cast<ValueDecl>(D->getMostRecentDecl())->getType();
+      //
+      // For now, we take the array bound from the most recent declaration.
+      for (auto *Redecl = cast<ValueDecl>(D->getMostRecentDecl()); Redecl;
+           Redecl = cast_or_null<ValueDecl>(Redecl->getPreviousDecl())) {
+        QualType T = Redecl->getType();
+        if (!T->isIncompleteArrayType())
+          return T;
+      }
+      return D->getType();
+    }
 
     const Expr *Base = B.get<const Expr*>();
 
@@ -8535,9 +8543,6 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
             (LHSValue.Base && isZeroSized(RHSValue)))
           return Error(E);
         // Pointers with different bases cannot represent the same object.
-        // (Note that clang defaults to -fmerge-all-constants, which can
-        // lead to inconsistent results for comparisons involving the address
-        // of a constant; this generally doesn't matter in practice.)
         return Success(E->getOpcode() == BO_NE, E);
       }
 
