@@ -165,16 +165,16 @@ build${libcompat}: .PHONY
 .endif	# !defined(NO_CLEAN)
 
 	mkdir -p ${LIBCOMPATTMP}/usr/include
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIBCOMPATTMP}/usr/include >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${LIBCOMPATTMP}/usr/lib >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${LIBCOMPATTMP}/usr/lib/debug/usr >/dev/null
 .endif
 	mkdir -p ${WORLDTMP}

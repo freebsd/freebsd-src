@@ -852,6 +852,19 @@ IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
 .endif
 
+DESTDIR_MTREEFLAGS=	-deU
+# When creating worldtmp we don't need to set the directories as owned by root
+# so we also pass -W
+WORLDTMP_MTREEFLAGS=	-deUW
+.if defined(NO_ROOT)
+# When building with -DNO_ROOT we shouldn't be changing the directories
+# that are created by mtree to be owned by root/wheel.
+DESTDIR_MTREEFLAGS+=	-W
+.endif
+MTREE?=	mtree
+WORLDTMP_MTREE=	${MTREE} ${WORLDTMP_MTREEFLAGS}
+DESTDIR_MTREE=	${MTREE} ${DESTDIR_MTREEFLAGS}
+
 # kernel stage
 KMAKEENV=	${WMAKEENV:NSYSROOT=*}
 KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
@@ -954,23 +967,23 @@ _worldtmp: .PHONY
     lib lib/casper lib/geom usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/legacy/usr/include >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
-	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
+	${WORLDTMP_MTREE} -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
 .endfor
 _legacy:
 	@echo
@@ -1274,42 +1287,42 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.root.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist} >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
 .if defined(LIBCOMPAT)
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/usr >/dev/null
 .endif
 .endif
 .if ${MK_TESTS} != "no" && ${dist} == "tests"
 	-mkdir -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE} >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/${TESTSBASE} >/dev/null
 .endif
 .endif
 .if defined(NO_ROOT)
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
 .if defined(LIBCOMPAT)
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
+	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endif
 .endif
@@ -2144,7 +2157,7 @@ build-tools: build-tools_${_tool}
 #
 kernel-tools: .PHONY
 	mkdir -p ${WORLDTMP}/usr
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 
 #
@@ -2401,9 +2414,9 @@ native-xtools: .PHONY
 
 native-xtools-install: .PHONY
 	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${NXBDESTDIR}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${NXBDESTDIR}/usr/include >/dev/null
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} \
 	    DESTDIR=${NXBDESTDIR} \
@@ -3016,7 +3029,7 @@ xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools .PH
 
 _xb-worldtmp: .PHONY
 	mkdir -p ${CDTMP}/usr
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${CDTMP}/usr >/dev/null
 
 _xb-bootstrap-tools: .PHONY
@@ -3055,19 +3068,19 @@ _xb-cross-tools: .PHONY
 _xi-mtree: .PHONY
 	${_+_}@${ECHODIR} "mtree populating ${XDDESTDIR}"
 	mkdir -p ${XDDESTDIR}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.root.dist \
 	    -p ${XDDESTDIR} >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${XDDESTDIR}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 .if defined(LIBCOMPAT)
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${XDDESTDIR}/usr >/dev/null
 .endif
 .if ${MK_TESTS} != "no"
 	mkdir -p ${XDDESTDIR}${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
 	    -p ${XDDESTDIR}${TESTSBASE} >/dev/null
 .endif
 
