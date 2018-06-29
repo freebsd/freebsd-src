@@ -3859,8 +3859,8 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	i = dsdir[0] = ds->nfsdev_nextdir;
 	ds->nfsdev_nextdir = (ds->nfsdev_nextdir + 1) % nfsrv_dsdirsize;
 	dvp[0] = ds->nfsdev_dsdir[i];
-	if (nfsrv_maxpnfsmirror > 1) {
-		mds = TAILQ_NEXT(ds, nfsdev_list);
+	mds = TAILQ_NEXT(ds, nfsdev_list);
+	if (nfsrv_maxpnfsmirror > 1 && mds != NULL) {
 		TAILQ_FOREACH_FROM(mds, &nfsrv_devidhead, nfsdev_list) {
 			if (mds->nfsdev_nmp != NULL) {
 				dsdir[mirrorcnt] = i;
@@ -3879,7 +3879,8 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	if (mirrorcnt > 1)
 		tdsc = dsc = malloc(sizeof(*dsc) * (mirrorcnt - 1), M_TEMP,
 		    M_WAITOK | M_ZERO);
-	tpf = pf = malloc(sizeof(*pf) * mirrorcnt, M_TEMP, M_WAITOK | M_ZERO);
+	tpf = pf = malloc(sizeof(*pf) * nfsrv_maxpnfsmirror, M_TEMP, M_WAITOK |
+	    M_ZERO);
 
 	error = nfsvno_getfh(vp, &fh, p);
 	if (error == 0)
@@ -3987,11 +3988,27 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	NFSFREECRED(tcred);
 	if (error == 0) {
 		ASSERT_VOP_ELOCKED(vp, "nfsrv_pnfscreate vp");
+
+		NFSD_DEBUG(4, "nfsrv_pnfscreate: mirrorcnt=%d maxmirror=%d\n",
+		    mirrorcnt, nfsrv_maxpnfsmirror);
+		/*
+		 * For all mirrors that couldn't be created, fill in the
+		 * *pf structure, but with an IP address == 0.0.0.0.
+		 */
+		tpf = pf + mirrorcnt;
+		for (i = mirrorcnt; i < nfsrv_maxpnfsmirror; i++, tpf++) {
+			*tpf = *pf;
+			tpf->dsf_sin.sin_family = AF_INET;
+			tpf->dsf_sin.sin_len = sizeof(struct sockaddr_in);
+			tpf->dsf_sin.sin_addr.s_addr = 0;
+			tpf->dsf_sin.sin_port = 0;
+		}
+
 		error = vn_start_write(vp, &mp, V_WAIT);
 		if (error == 0) {
 			error = vn_extattr_set(vp, IO_NODELOCKED,
 			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
-			    sizeof(*pf) * mirrorcnt, (char *)pf, p);
+			    sizeof(*pf) * nfsrv_maxpnfsmirror, (char *)pf, p);
 			if (error == 0)
 				error = vn_extattr_set(vp, IO_NODELOCKED,
 				    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
