@@ -86,10 +86,9 @@ struct ufsmount {
 	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
-	int	um_candelete;			/* devvp supports TRIM */
-	int	um_writesuspended;		/* suspension in progress */
-	u_int	um_trim_inflight;
-	struct taskqueue *um_trim_tq;
+	u_int	um_flags;			/* filesystem flags */
+	u_int	um_trim_inflight;		/* outstanding trim count */
+	struct	taskqueue *um_trim_tq;		/* trim request queue */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
 		    int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
@@ -103,6 +102,15 @@ struct ufsmount {
 	void	(*um_snapgone)(struct inode *);
 };
 
+/*
+ * filesystem flags
+ */
+#define UM_CANDELETE		0x00000001	/* devvp supports TRIM */
+#define UM_WRITESUSPENDED	0x00000002	/* suspension in progress */
+
+/*
+ * function prototypes
+ */
 #define	UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
 #define	UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
 #define	UFS_TRUNCATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd)
