@@ -70,13 +70,13 @@ struct uart_opal_softc {
 	char opal_inbuf[16];
 	uint64_t inbuflen;
 	uint8_t outseqno;
+#if defined(KDB)
+	int alt_break_state;
+#endif
 };
 
 static struct uart_opal_softc	*console_sc = NULL;
-
-#if defined(KDB)
-static int			alt_break_state;
-#endif
+static struct consdev *stdout_cp;
 
 enum {
 	OPAL_RAW, OPAL_HVSI
@@ -112,6 +112,7 @@ static driver_t uart_opal_driver = {
  
 DRIVER_MODULE(uart_opal, opalcons, uart_opal_driver, uart_devclass, 0, 0);
 
+static int uart_opal_getc(struct uart_opal_softc *sc);
 static cn_probe_t uart_opal_cnprobe;
 static cn_init_t uart_opal_cninit;
 static cn_term_t uart_opal_cnterm;
@@ -248,6 +249,8 @@ uart_opal_cnprobe(struct consdev *cp)
 
 	cp->cn_pri = CN_NORMAL;
 	console_sc = &sc;
+	cp->cn_arg = console_sc;
+	stdout_cp = cp;
 	return;
 	
 fail:
@@ -262,23 +265,25 @@ uart_opal_attach(device_t dev)
 	int unit;
 
 	sc = device_get_softc(dev);
-	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
 	uart_opal_probe_node(sc);
 
 	unit = device_get_unit(dev);
-	sc->tp = tty_alloc(&uart_opal_tty_class, sc);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL,
 	    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	if (console_sc != NULL && console_sc->vtermid == sc->vtermid) {
 		device_printf(dev, "console\n");
-		sc->outseqno = console_sc->outseqno;
-		console_sc = sc;
+		device_set_softc(dev, console_sc);
+		sc = console_sc;
 		sprintf(uart_opal_consdev.cn_name, "ttyu%r", unit);
-		tty_init_console(sc->tp, 0);
 	}
+	sc->tp = tty_alloc(&uart_opal_tty_class, sc);
 
+	if (console_sc == sc)
+		tty_init_console(sc->tp, 0);
+
+	sc->dev = dev;
 	sc->irqrid = 0;
 	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -419,14 +424,20 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 static int
 uart_opal_cngetc(struct consdev *cp)
 {
+	return (uart_opal_getc(cp->cn_arg));
+}
+
+static int
+uart_opal_getc(struct uart_opal_softc *sc)
+{
 	unsigned char c;
 	int retval;
 
-	retval = uart_opal_get(console_sc, &c, 1);
+	retval = uart_opal_get(sc, &c, 1);
 	if (retval != 1)
 		return (-1);
 #if defined(KDB)
-	kdb_alt_break(c, &alt_break_state);
+	kdb_alt_break(c, &sc->alt_break_state);
 #endif
 
 	return (c);
@@ -444,7 +455,7 @@ uart_opal_cnputc(struct consdev *cp, int c)
 			opal_call(OPAL_POLL_EVENTS, NULL);
 		}
 	}
-	uart_opal_put(console_sc, &ch, 1);
+	uart_opal_put(cp->cn_arg, &ch, 1);
 }
 
 static void
@@ -478,7 +489,7 @@ uart_opal_intr(void *v)
 	int c;
 
 	tty_lock(tp);
-	while ((c = uart_opal_cngetc(NULL)) > 0)
+	while ((c = uart_opal_getc(sc)) > 0)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
 	tty_unlock(tp);
