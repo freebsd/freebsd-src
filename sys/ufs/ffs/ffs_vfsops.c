@@ -770,6 +770,7 @@ ffs_mountfs(devvp, mp, td)
 	struct ucred *cred;
 	struct g_consumer *cp;
 	struct mount *nmp;
+	int candelete;
 
 	fs = NULL;
 	ump = NULL;
@@ -960,8 +961,10 @@ ffs_mountfs(devvp, mp, td)
 	if ((fs->fs_flags & FS_TRIM) != 0) {
 		len = sizeof(int);
 		if (g_io_getattr("GEOM::candelete", cp, &len,
-		    &ump->um_candelete) == 0) {
-			if (!ump->um_candelete)
+		    &candelete) == 0) {
+			if (candelete)
+				ump->um_flags |= UM_CANDELETE;
+			else
 				printf("WARNING: %s: TRIM flag on fs but disk "
 				    "does not support TRIM\n",
 				    mp->mnt_stat.f_mntonname);
@@ -969,9 +972,8 @@ ffs_mountfs(devvp, mp, td)
 			printf("WARNING: %s: TRIM flag on fs but disk does "
 			    "not confirm that it supports TRIM\n",
 			    mp->mnt_stat.f_mntonname);
-			ump->um_candelete = 0;
 		}
-		if (ump->um_candelete) {
+		if (((ump->um_flags) & UM_CANDELETE) != 0) {
 			ump->um_trim_tq = taskqueue_create("trim", M_WAITOK,
 			    taskqueue_thread_enqueue, &ump->um_trim_tq);
 			taskqueue_start_threads(&ump->um_trim_tq, 1, PVFS,

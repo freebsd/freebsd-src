@@ -495,7 +495,7 @@ ffs_reallocblks(ap)
 	 * optimization. Also skip if reallocblks has been disabled globally.
 	 */
 	ump = ap->a_vp->v_mount->mnt_data;
-	if (ump->um_candelete || doreallocblks == 0)
+	if (((ump->um_flags) & UM_CANDELETE) != 0 || doreallocblks == 0)
 		return (ENOSPC);
 
 	/*
@@ -2322,7 +2322,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	 * Nothing to delay if TRIM is disabled, or the operation is
 	 * performed on the snapshot.
 	 */
-	if (!ump->um_candelete || devvp->v_type == VREG) {
+	if (((ump->um_flags) & UM_CANDELETE) == 0 || devvp->v_type == VREG) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
 		return;
 	}
