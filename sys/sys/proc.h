@@ -655,8 +655,7 @@ struct proc {
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
 	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
-	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
-					   after fork. */
+	struct cv	p_pad_dbgwait;
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
 	int		p_throttled;	/* (c) Flag for racct pcpu throttling */
