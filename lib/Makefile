@@ -83,7 +83,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopenbsd \
 	libopie \
 	libpam \
-	${_libpcap} \
+	libpcap \
 	${_libpe} \
 	libpjdlog \
 	${_libpmc} \
@@ -156,6 +156,9 @@ SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
 SUBDIR_DEPEND_liblzma= ${_libthr}
+.if ${MK_OFED} != "no"
+SUBDIR_DEPEND_libpcap= ofed
+.endif
 
 # NB: keep these sorted by MK_* knobs
 
@@ -271,14 +274,6 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
-.if ${MK_OFED} == "no"
-#
-# When OFED is enabled libpcap is built as part of
-# OFED due to library dependencies
-#
-_libpcap=	libpcap
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -293,6 +288,7 @@ _libdl=		libdl
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
+SUBDIR.${MK_OFED}+=	ofed
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
