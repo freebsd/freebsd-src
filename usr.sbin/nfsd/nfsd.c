@@ -180,6 +180,8 @@ main(int argc, char **argv)
 	struct nfsd_nfsd_args nfsdargs;
 
 	nfsdargs.mirrorcnt = 1;
+	nfsdargs.addr = NULL;
+	nfsdargs.addrlen = 0;
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
