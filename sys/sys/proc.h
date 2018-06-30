@@ -669,7 +669,7 @@ struct proc {
 	 */
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
-	u_int		p_ptevents;	/* (c) ptrace() event mask. */
+	u_int		p_ptevents;	/* (c + e) ptrace() event mask. */
 	uint16_t	p_elf_machine;	/* (x) ELF machine type */
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
