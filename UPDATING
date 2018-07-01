@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180701:
+	The '%I' format in the kern.corefile sysctl limits the number of
+	core files that a process can generate to the number stored in the
+	debug.ncores sysctl. The '%I' format is replaced by the single digit
+	index. Previously, if all indexes were taken the kernel would overwrite
+	only a core file with the highest index in a filename.
+	Currently the system will create a new core file if there is a free
+	index or if all slots are taken it will overwrite the oldest one.
 
 20180630:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
