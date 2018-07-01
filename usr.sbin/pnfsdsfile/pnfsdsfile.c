@@ -50,6 +50,7 @@ static void usage(void);
 
 static struct option longopts[] = {
 	{ "changeds",	required_argument,	NULL,	'c'	},
+	{ "mirror",	required_argument,	NULL,	'm'	},
 	{ "quiet",	no_argument,		NULL,	'q'	},
 	{ "zerods",	required_argument,	NULL,	'r'	},
 	{ "ds",		required_argument,	NULL,	's'	},
@@ -71,27 +72,27 @@ main(int argc, char *argv[])
 	struct sockaddr_in6 *sin6, adsin6;
 	char hostn[2 * NI_MAXHOST + 2], *cp;
 	struct pnfsdsfile dsfile[NFSDEV_MAXMIRRORS];
-	int ch, dosetxattr, i, mirrorcnt, quiet, zerods, zerofh;
+	int ch, dosetxattr, i, mirrorcnt, mirrorit, quiet, zerods, zerofh;
 	in_port_t tport;
 	ssize_t xattrsize, xattrsize2;
 
 	zerods = 0;
 	zerofh = 0;
+	mirrorit = 0;
 	quiet = 0;
 	dosetxattr = 0;
 	res = NULL;
 	newres = NULL;
 	cp = NULL;
-	while ((ch = getopt_long(argc, argv, "c:qr:s:z", longopts, NULL)) != -1)
-	    {
+	while ((ch = getopt_long(argc, argv, "c:m:qr:s:z", longopts, NULL)) !=
+	    -1) {
 		switch (ch) {
 		case 'c':
 			/* Replace the first DS server with the second one. */
-			if (zerofh != 0 || zerods != 0)
-				errx(1, "-c, -r and -z are mutually "
-				    "exclusive");
-			if (res != NULL)
-				errx(1, "-c and -s are mutually exclusive");
+			if (zerofh != 0 || zerods != 0 || mirrorit != 0 ||
+			    newres != NULL || res != NULL)
+				errx(1, "-c, -m, -r, -s and -z are mutually "
+				    "exclusive and only can be used once");
 			strlcpy(hostn, optarg, 2 * NI_MAXHOST + 2);
 			cp = strchr(hostn, ',');
 			if (cp == NULL)
@@ -103,31 +104,44 @@ main(int argc, char *argv[])
 			if (getaddrinfo(cp, NULL, NULL, &newres) != 0)
 				errx(1, "Can't get IP# for %s", cp);
 			break;
+		case 'm':
+			/* Add 0.0.0.0 entries up to mirror level. */
+			if (zerofh != 0 || zerods != 0 || mirrorit != 0 ||
+			    newres != NULL || res != NULL)
+				errx(1, "-c, -m, -r, -s and -z are mutually "
+				    "exclusive and only can be used once");
+			mirrorit = atoi(optarg);
+			if (mirrorit < 2 || mirrorit > NFSDEV_MAXMIRRORS)
+				errx(1, "-m %d out of range", mirrorit);
+			break;
 		case 'q':
 			quiet = 1;
 			break;
 		case 'r':
 			/* Reset the DS server in a mirror with 0.0.0.0. */
-			if (zerofh != 0 || res != NULL || newres != NULL)
-				errx(1, "-r and -s, -z or -c are mutually "
-				    "exclusive");
+			if (zerofh != 0 || zerods != 0 || mirrorit != 0 ||
+			    newres != NULL || res != NULL)
+				errx(1, "-c, -m, -r, -s and -z are mutually "
+				    "exclusive and only can be used once");
 			zerods = 1;
 			/* Translate the server name to an IP address. */
 			if (getaddrinfo(optarg, NULL, NULL, &res) != 0)
 				errx(1, "Can't get IP# for %s", optarg);
 			break;
 		case 's':
-			if (res != NULL)
-				errx(1, "-s, -c and -r are mutually "
-				    "exclusive");
 			/* Translate the server name to an IP address. */
+			if (zerods != 0 || mirrorit != 0 || newres != NULL ||
+			    res != NULL)
+				errx(1, "-c, -m and -r are mutually exclusive "
+				    "from use with -s and -z");
 			if (getaddrinfo(optarg, NULL, NULL, &res) != 0)
 				errx(1, "Can't get IP# for %s", optarg);
 			break;
 		case 'z':
-			if (newres != NULL || zerods != 0)
-				errx(1, "-c, -r and -z are mutually "
-				    "exclusive");
+			if (zerofh != 0 || zerods != 0 || mirrorit != 0 ||
+			    newres != NULL)
+				errx(1, "-c, -m and -r are mutually exclusive "
+				    "from use with -s and -z");
 			zerofh = 1;
 			break;
 		default:
@@ -309,8 +323,26 @@ main(int argc, char *argv[])
 			    dsfile[i].dsf_filename);
 		}
 	}
+	/* Add entrie(s) with IP address set to 0.0.0.0, as required. */
+	for (i = mirrorcnt; i < mirrorit; i++) {
+		dsfile[i] = dsfile[0];
+		dsfile[i].dsf_sin.sin_family = AF_INET;
+		dsfile[i].dsf_sin.sin_len = sizeof(struct sockaddr_in);
+		dsfile[i].dsf_sin.sin_addr.s_addr = 0;
+		dsfile[i].dsf_sin.sin_port = 0;
+		if (quiet == 0) {
+			/* Print out the 0.0.0.0 entry. */
+			printf("\t0.0.0.0\tds%d/%s", dsfile[i].dsf_dir,
+			    dsfile[i].dsf_filename);
+		}
+	}
+	if (mirrorit > mirrorcnt) {
+		xattrsize = mirrorit * sizeof(struct pnfsdsfile);
+		dosetxattr = 1;
+	}
 	if (quiet == 0)
 		printf("\n");
+
 	if (dosetxattr != 0 && extattr_set_file(*argv, EXTATTR_NAMESPACE_SYSTEM,
 	    "pnfsd.dsfile", dsfile, xattrsize) != xattrsize)
 		err(1, "Can't set pnfsd.dsfile");
