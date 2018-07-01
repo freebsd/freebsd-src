@@ -1258,19 +1258,43 @@ line_update(char *old, char *new, int start, int line)
 char *
 printable(char str[])
 {
-    char *ptr;
-    char ch;
+	char *ptr;
+	char ch;
 
-    ptr = str;
-    while ((ch = *ptr) != '\0')
-    {
-	if (!isprint(ch))
-	{
-	    *ptr = '?';
+	ptr = str;
+	if (utf8flag) {
+		while ((ch = *ptr) != '\0') {
+			if (0x00 == (0x80 & ch)) {
+				if (!isprint(ch)) {
+					*ptr = '?';
+				}
+				++ptr;
+			} else if (0xC0 == (0xE0 & ch)) {
+				++ptr;
+				if ('\0' != *ptr) ++ptr;
+			} else if (0xE0 == (0xF0 & ch)) {
+				++ptr;
+				if ('\0' != *ptr) ++ptr;
+				if ('\0' != *ptr) ++ptr;
+			} else if (0xF0 == (0xF8 & ch)) {
+				++ptr;
+				if ('\0' != *ptr) ++ptr;
+				if ('\0' != *ptr) ++ptr;
+				if ('\0' != *ptr) ++ptr;
+			} else {
+				*ptr = '?';
+				++ptr;
+			}
+		}
+	} else {
+		while ((ch = *ptr) != '\0') {
+			if (!isprint(ch)) {
+				*ptr = '?';
+			}
+			ptr++;
+		}
 	}
-	ptr++;
-    }
-    return(str);
+	return(str);
 }
 
 void

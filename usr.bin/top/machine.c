@@ -988,9 +988,13 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 				if (*src == '\0')
 					continue;
 				len = (argbuflen - (dst - argbuf) - 1) / 4;
-				strvisx(dst, src,
-				    MIN(strlen(src), len),
-				    VIS_NL | VIS_CSTYLE);
+				if (utf8flag) {
+					utf8strvisx(dst, src, MIN(strlen(src), len));
+				} else {
+					strvisx(dst, src,
+					    MIN(strlen(src), len),
+					    VIS_NL | VIS_CSTYLE);
+				}
 				while (*dst != '\0')
 					dst++;
 				if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
