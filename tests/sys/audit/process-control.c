@@ -29,6 +29,7 @@
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/mman.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/rtprio.h>
@@ -1423,6 +1424,54 @@ ATF_TC_CLEANUP(ktrace_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(procctl_success);
+ATF_TC_HEAD(procctl_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"procctl(2) call");
+}
+
+ATF_TC_BODY(procctl_success, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "procctl.*%d.*return,success", pid);
+
+	struct procctl_reaper_status reapstat;
+	FILE *pipefd = setup(fds, auclass);
+	/* Retrieve information about the reaper of current process (pid) */
+	ATF_REQUIRE_EQ(0, procctl(P_PID, pid, PROC_REAP_STATUS, &reapstat));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(procctl_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(procctl_failure);
+ATF_TC_HEAD(procctl_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"procctl(2) call");
+}
+
+ATF_TC_BODY(procctl_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "procctl.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, procctl(-1, -1, -1, NULL));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(procctl_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, fork_success);
@@ -1488,6 +1537,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace_failure);
 	ATF_TP_ADD_TC(tp, ktrace_success);
 	ATF_TP_ADD_TC(tp, ktrace_failure);
+	ATF_TP_ADD_TC(tp, procctl_success);
+	ATF_TP_ADD_TC(tp, procctl_failure);
 
 	return (atf_no_error());
 }
