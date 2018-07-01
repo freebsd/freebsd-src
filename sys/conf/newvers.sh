@@ -65,7 +65,8 @@ findvcs()
 	cd ${SYSDIR}/..
 	while [ $(pwd) != "/" ]; do
 		if [ -e "./$1" ]; then
-			VCSDIR=$(pwd)"/$1"
+			VCSTOP=$(pwd)
+			VCSDIR=${VCSTOP}"/$1"
 			cd ${savedir}
 			return 0
 		fi
@@ -239,7 +240,7 @@ if [ -n "$git_cmd" ] ; then
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
 	fi
-	if $git_cmd --work-tree=${VCSDIR}/.. diff-index \
+	if $git_cmd --work-tree=${VCSTOP} diff-index \
 	    --name-only HEAD | read dummy; then
 		git="${git}-dirty"
 		modified=true

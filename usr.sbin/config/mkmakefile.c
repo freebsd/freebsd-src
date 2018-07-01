@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
@@ -238,6 +239,63 @@ makehints(void)
 	moveifchanged(path("hints.c.new"), path("hints.c"));
 }
 
+static void
+sanitize_envline(char *result, const char *src)
+{
+	const char *eq;
+	char c, *dst;
+	bool leading;
+
+	/* If there is no '=' it's not a well-formed name=value line. */
+	if ((eq = strchr(src, '=')) == NULL) {
+		*result = 0;
+		return;
+	}
+	dst = result;
+
+	/* Copy chars before the '=', skipping any leading spaces/quotes. */
+	leading = true;
+	while (src < eq) {
+		c = *src++;
+		if (leading && (isspace(c) || c == '"'))
+			continue;
+		*dst++ = c;
+		leading = false;
+	}
+
+	/* If it was all leading space, we don't have a well-formed line. */
+	if (leading) {
+		*result = 0;
+		return;
+	}
+
+	/* Trim spaces/quotes immediately before the '=', then copy the '='. */
+	while (isspace(dst[-1]) || dst[-1] == '"')
+		--dst;
+	*dst++ = *src++;
+
+	/* Copy chars after the '=', skipping any leading whitespace. */
+	leading = true;
+	while ((c = *src++) != 0) {
+		if (leading && (isspace(c) || c == '"'))
+			continue;
+		*dst++ = c;
+		leading = false;
+	}
+
+	/* If it was all leading space, it's a valid 'var=' (nil value). */
+	if (leading) {
+		*dst = 0;
+		return;
+	}
+
+	/* Trim trailing whitespace and quotes. */
+	while (isspace(dst[-1]) || dst[-1] == '"')
+		--dst;
+
+	*dst = 0;
+}
+
 /*
  * Build env.c from the skeleton
  */
@@ -245,16 +303,9 @@ void
 makeenv(void)
 {
 	FILE *ifp, *ofp;
-	char line[BUFSIZ];
-	char *s;
+	char line[BUFSIZ], result[BUFSIZ], *linep;
+	struct envvar *envvar;
 
-	if (env) {
-		ifp = fopen(env, "r");
-		if (ifp == NULL)
-			err(1, "%s", env);
-	} else {
-		ifp = NULL;
-	}
 	ofp = fopen(path("env.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("env.c.new"));
@@ -263,40 +314,28 @@ makeenv(void)
 	fprintf(ofp, "\n");
 	fprintf(ofp, "int envmode = %d;\n", envmode);
 	fprintf(ofp, "char static_env[] = {\n");
-	if (ifp) {
-		while (fgets(line, BUFSIZ, ifp) != NULL) {
-			/* zap trailing CR and/or LF */
-			while ((s = strrchr(line, '\n')) != NULL)
-				*s = '\0';
-			while ((s = strrchr(line, '\r')) != NULL)
-				*s = '\0';
-			/* remove # comments */
-			s = strchr(line, '#');
-			if (s)
-				*s = '\0';
-			/* remove any whitespace and " characters */
-			s = line;
-			while (*s) {
-				if (*s == ' ' || *s == '\t' || *s == '"') {
-					while (*s) {
-						s[0] = s[1];
-						s++;
-					}
-					/* start over */
-					s = line;
+	STAILQ_FOREACH(envvar, &envvars, envvar_next) {
+		if (envvar->env_is_file) {
+			ifp = fopen(envvar->env_str, "r");
+			if (ifp == NULL)
+				err(1, "%s", envvar->env_str);
+			while (fgets(line, BUFSIZ, ifp) != NULL) {
+				sanitize_envline(result, line);
+				/* anything left? */
+				if (*result == '\0')
 					continue;
-				}
-				s++;
+				fprintf(ofp, "\"%s\\0\"\n", result);
 			}
-			/* anything left? */
-			if (*line == '\0')
+			fclose(ifp);
+		} else {
+			linep = envvar->env_str;
+			sanitize_envline(result, linep);
+			if (*result == '\0')
 				continue;
-			fprintf(ofp, "\"%s\\0\"\n", line);
+			fprintf(ofp, "\"%s\\0\"\n", result);
 		}
 	}
 	fprintf(ofp, "\"\\0\"\n};\n");
-	if (ifp)
-		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("env.c.new"), path("env.c"));
 }

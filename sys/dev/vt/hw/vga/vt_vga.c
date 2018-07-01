@@ -48,9 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
-
-#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
+#if defined(__amd64__) || defined(__i386__)
 #include <contrib/dev/acpica/include/acpi.h>
+#include <machine/md_var.h>
 #endif
 
 struct vga_softc {
@@ -1213,29 +1213,18 @@ vga_initialize(struct vt_device *vd, int textmode)
 static bool
 vga_acpi_disabled(void)
 {
-#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
-	ACPI_TABLE_FADT *fadt;
-	vm_paddr_t physaddr;
+#if defined(__amd64__) || defined(__i386__)
 	uint16_t flags;
+	int ignore;
 
-	physaddr = acpi_find_table(ACPI_SIG_FADT);
-	if (physaddr == 0)
-		return (false);
-
-	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
-	if (fadt == NULL) {
-		printf("vt_vga: unable to map FADT ACPI table\n");
-		return (false);
-	}
-
-	flags = fadt->BootFlags;
-	acpi_unmap_table(fadt);
-
-	if (flags & ACPI_FADT_NO_VGA)
-		return (true);
-#endif
-
+	ignore = 0;
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+	if (ignore || !acpi_get_fadt_bootflags(&flags))
+ 		return (false);
+	return ((flags & ACPI_FADT_NO_VGA) != 0);
+#else
 	return (false);
+#endif
 }
 
 static int

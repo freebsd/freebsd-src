@@ -26,6 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
+#include "opt_spi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,6 +65,9 @@ __FBSDID("$FreeBSD$");
 struct spigen_softc {
 	device_t sc_dev;
 	struct cdev *sc_cdev;
+#ifdef SPIGEN_LEGACY_CDEVNAME
+	struct cdev *sc_adev;           /* alias device */
+#endif
 	struct mtx sc_mtx;
 	uint32_t sc_command_length_max; /* cannot change while mmapped */
 	uint32_t sc_data_length_max;    /* cannot change while mmapped */
@@ -186,15 +190,46 @@ spigen_attach(device_t dev)
 {
 	struct spigen_softc *sc;
 	const int unit = device_get_unit(dev);
+	int cs, res;
+	struct make_dev_args mda;
+
+	spibus_get_cs(dev, &cs);
+	cs &= ~SPIBUS_CS_HIGH; /* trim 'cs high' bit */
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_cdev = make_dev(&spigen_cdevsw, unit,
-	    UID_ROOT, GID_OPERATOR, 0660, "spigen%d", unit);
-	sc->sc_cdev->si_drv1 = dev;
 	sc->sc_command_length_max = PAGE_SIZE;
 	sc->sc_data_length_max = PAGE_SIZE;
+
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+
+	make_dev_args_init(&mda);
+	mda.mda_flags = MAKEDEV_WAITOK;
+	mda.mda_devsw = &spigen_cdevsw;
+	mda.mda_cr = NULL;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_OPERATOR;
+	mda.mda_mode = 0660;
+	mda.mda_unit = unit;
+	mda.mda_si_drv1 = dev;
+
+	res = make_dev_s(&mda, &(sc->sc_cdev), "spigen%d.%d",
+	    device_get_unit(device_get_parent(dev)), cs);
+	if (res) {
+		return res;
+	}
+
+#ifdef SPIGEN_LEGACY_CDEVNAME
+	res = make_dev_alias_p(0, &sc->sc_adev, sc->sc_cdev, "spigen%d", unit);
+	if (res) {
+		if (sc->sc_cdev) {
+			destroy_dev(sc->sc_cdev);
+			sc->sc_cdev = NULL;
+		}
+		return res;
+	}
+#endif
+
 	spigen_sysctl_init(sc);
 
 	return (0);
@@ -429,8 +464,13 @@ spigen_detach(device_t dev)
 
 	mtx_destroy(&sc->sc_mtx);
 
-        if (sc->sc_cdev)
-                destroy_dev(sc->sc_cdev);
+#ifdef SPIGEN_LEGACY_CDEVNAME
+	if (sc->sc_adev)
+		destroy_dev(sc->sc_adev);
+#endif
+
+	if (sc->sc_cdev)
+		destroy_dev(sc->sc_cdev);
 	
 	return (0);
 }

@@ -127,6 +127,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "broadcom,bcm2708-vc",	1 },
 	{ "brcm,bcm2709",	1 },
 	{ "brcm,bcm2836",	1 },
+	{ "brcm,bcm2837",	1 },
 	{ NULL, 0 }
 };
 

@@ -39,6 +39,7 @@ struct epoch;
 typedef struct epoch *epoch_t;
 
 #define EPOCH_PREEMPT 0x1
+#define EPOCH_LOCKED 0x2
 
 extern epoch_t global_epoch;
 extern epoch_t global_epoch_preempt;

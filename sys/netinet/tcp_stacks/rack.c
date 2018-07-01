@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/tcp.h>
+#define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
@@ -1206,7 +1207,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				    tp->t_stats_gput_prev);
 			tp->t_flags &= ~TF_GPUTINPROG;
 			tp->t_stats_gput_prev = gput;
-
+#ifdef NETFLIX_CWV
 			if (tp->t_maxpeakrate) {
 				/*
 				 * We update t_peakrate_thr. This gives us roughly
@@ -1214,6 +1215,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				 */
 				tcp_update_peakrate_thr(tp);
 			}
+#endif
 		}
 #endif
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
@@ -1267,11 +1269,11 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 			tcp_newcwv_update_pipeack(tp, data);
 		}
 	}
-#endif
 	/* we enforce max peak rate if it is set. */
 	if (tp->t_peakrate_thr && tp->snd_cwnd > tp->t_peakrate_thr) {
 		tp->snd_cwnd = tp->t_peakrate_thr;
 	}
+#endif
 }
 
 static void
@@ -6837,34 +6839,8 @@ rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * Initial input (ACK to SYN-ACK etc)lets go ahead and get
 		 * it processed
 		 */
-		if (ti_locked != TI_RLOCKED && INP_INFO_TRY_RLOCK(&V_tcbinfo))
-			ti_locked = TI_RLOCKED;
-		if (ti_locked != TI_RLOCKED) {
-			inp = tp->t_inpcb;
-			tfb = tp->t_fb;
-			in_pcbref(inp);
-			INP_WUNLOCK(inp);
-			INP_INFO_RLOCK(&V_tcbinfo);
-			ti_locked = TI_RLOCKED;
-			INP_WLOCK(inp);
-			if (in_pcbrele_wlocked(inp))
-				inp = NULL;
-			if (inp == NULL || (inp->inp_flags2 & INP_FREED) ||
-			    (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED))) {
-				/* The TCPCB went away. Free the packet. */
-				INP_INFO_RUNLOCK(&V_tcbinfo);
-				if (inp)
-					INP_WUNLOCK(inp);
-				m_freem(m);
-				return;
-			}
-			/* If the stack changed, call the correct stack. */
-			if (tp->t_fb != tfb) {
-				tp->t_fb->tfb_tcp_do_segment(m, th, so, tp,
-				    drop_hdrlen, tlen, iptos, ti_locked);
-				return;
-			}
-		}
+		INP_INFO_RLOCK();
+		ti_locked = TI_RLOCKED;
 		tcp_get_usecs(&tv);
 		rack_hpts_do_segment(m, th, so, tp, drop_hdrlen,
 		    tlen, iptos, ti_locked, 0, &tv);

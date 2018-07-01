@@ -1403,7 +1403,8 @@ t4_detach_common(device_t dev)
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
-	free(sc->tids.hftid_tab, M_CXGBE);
+	if (sc->tids.hftid_tab)
+		free_hftid_tab(&sc->tids);
 	free(sc->tids.atid_tab, M_CXGBE);
 	free(sc->tids.tid_tab, M_CXGBE);
 	free(sc->tt.tls_rx_ports, M_CXGBE);
@@ -1419,10 +1420,6 @@ t4_detach_common(device_t dev)
 	if (mtx_initialized(&sc->tids.ftid_lock)) {
 		mtx_destroy(&sc->tids.ftid_lock);
 		cv_destroy(&sc->tids.ftid_cv);
-	}
-	if (mtx_initialized(&sc->tids.hftid_lock)) {
-		mtx_destroy(&sc->tids.hftid_lock);
-		cv_destroy(&sc->tids.hftid_cv);
 	}
 	if (mtx_initialized(&sc->tids.atid_lock))
 		mtx_destroy(&sc->tids.atid_lock);

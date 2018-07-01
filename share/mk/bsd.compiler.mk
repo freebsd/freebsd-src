@@ -39,7 +39,7 @@ CCACHE_BUILD_TYPE?=	command
 # Handle ccache after CC is determined, but not if CC/CXX are already
 # overridden with a manual setup.
 .if ${MK_CCACHE_BUILD:Uno} == "yes" && \
-    !make(showconfig) && \
+    !make(test-system-*) && !make(print-dir) && !make(showconfig) && \
     (${CC:M*ccache/world/*} == "" || ${CXX:M*ccache/world/*} == "")
 # CC is always prepended with the ccache wrapper rather than modifying
 # PATH since it is more clear that ccache is used and avoids wasting time
@@ -148,7 +148,7 @@ ${X_}COMPILER_TYPE= none
 ${X_}COMPILER_VERSION= 0
 ${X_}COMPILER_FREEBSD_VERSION= 0
 .elif !defined(${X_}COMPILER_TYPE) || !defined(${X_}COMPILER_VERSION)
-_v!=	${${cc}} --version || echo 0.0.0
+_v!=	${${cc}:N${CCACHE_BIN}} --version || echo 0.0.0
 
 .if !defined(${X_}COMPILER_TYPE)
 . if ${${cc}:T:M*gcc*}
@@ -171,7 +171,7 @@ ${X_}COMPILER_VERSION!=echo "${_v:M[1-9].[0-9]*}" | awk -F. '{print $$1 * 10000 
 .undef _v
 .endif
 .if !defined(${X_}COMPILER_FREEBSD_VERSION)
-${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | sed -n '$$p'
+${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}:N${CCACHE_BIN}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | sed -n '$$p'
 # If we get a literal "__FreeBSD_cc_version" back then the compiler
 # is a non-FreeBSD build that doesn't support it or some other error
 # occurred.
@@ -208,5 +208,7 @@ ${var}.${${X_}_cc_hash}:=	${${var}}
 .endif	# ${cc} == "CC" || !empty(XCC)
 .endfor	# .for cc in CC XCC
 
+.if !defined(_NO_INCLUDE_LINKERMK)
 .include <bsd.linker.mk>
+.endif
 .endif	# !target(__<bsd.compiler.mk>__)

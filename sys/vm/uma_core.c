@@ -2234,13 +2234,19 @@ void *
 uma_zalloc_pcpu_arg(uma_zone_t zone, void *udata, int flags)
 {
 	void *item;
+#ifdef SMP
 	int i;
 
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
+#endif
 	item = uma_zalloc_arg(zone, udata, flags &~ M_ZERO);
 	if (item != NULL && (flags & M_ZERO)) {
+#ifdef SMP
 		CPU_FOREACH(i)
 			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
+#else
+		bzero(item, zone->uz_size);
+#endif
 	}
 	return (item);
 }
@@ -2252,7 +2258,9 @@ void
 uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *udata)
 {
 
+#ifdef SMP
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
+#endif
 	uma_zfree_arg(zone, item, udata);
 }
 

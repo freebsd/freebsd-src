@@ -2235,24 +2235,16 @@ static int
 vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct vm_domain *vmd;
-	vm_page_t m;
-	int i, j, n;
+	int i;
 
 	vmd = arg;
 	/* Only import if we can bring in a full bucket. */
 	if (cnt == 1 || !vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
 		return (0);
 	domain = vmd->vmd_domain;
-	n = 64;	/* Starting stride, arbitrary. */
 	vm_domain_free_lock(vmd);
-	for (i = 0; i < cnt; i+=n) {
-		n = vm_phys_alloc_npages(domain, VM_FREELIST_DEFAULT, &m,
-		    MIN(n, cnt-i));
-		if (n == 0)
-			break;
-		for (j = 0; j < n; j++)
-			store[i+j] = m++;
-	}
+	i = vm_phys_alloc_npages(domain, VM_FREEPOOL_DEFAULT, cnt,
+	    (vm_page_t *)store);
 	vm_domain_free_unlock(vmd);
 	if (cnt != i)
 		vm_domain_freecnt_inc(vmd, cnt - i);

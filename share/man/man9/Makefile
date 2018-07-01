@@ -453,6 +453,7 @@ MLINKS+=altq.9 ALTQ.9
 MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_clear.9 \
 	atomic.9 atomic_cmpset.9 \
+	atomic.9 atomic_fcmpset.9 \
 	atomic.9 atomic_fetchadd.9 \
 	atomic.9 atomic_load.9 \
 	atomic.9 atomic_readandclear.9 \
@@ -460,7 +461,9 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_store.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
-	atomic.9 atomic_testandset.9
+	atomic.9 atomic_testandclear.9 \
+	atomic.9 atomic_testandset.9 \
+	atomic.9 atomic_thread_fence.9
 MLINKS+=bhnd.9 BHND_MATCH_BOARD_TYPE.9 \
 	bhnd.9 BHND_MATCH_BOARD_VENDOR.9 \
 	bhnd.9 BHND_MATCH_CHIP_ID.9 \
@@ -1540,7 +1543,9 @@ MLINKS+=OF_device_from_xref.9 OF_device_register_xref.9 \
 	OF_device_from_xref.9 OF_xref_from_device.9
 MLINKS+=OF_getprop.9 OF_getencprop.9 \
 	OF_getprop.9 OF_getencprop_alloc.9 \
+	OF_getprop.9 OF_getencprop_alloc_multi.9 \
 	OF_getprop.9 OF_getprop_alloc.9 \
+	OF_getprop.9 OF_getprop_alloc_multi.9 \
 	OF_getprop.9 OF_getproplen.9 \
 	OF_getprop.9 OF_hasprop.9 \
 	OF_getprop.9 OF_nextprop.9 \

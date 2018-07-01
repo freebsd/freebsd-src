@@ -1,4 +1,5 @@
 _.tinderbox.*
+_.universe-toolchain
 _.amd64.*
 _.arm.*
 _.arm64.*

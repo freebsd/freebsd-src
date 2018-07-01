@@ -70,16 +70,18 @@ rk3328_set_delays(struct syscon *grf, phandle_t node)
 {
 	uint32_t tx, rx;
 
-	if (OF_getencprop(node, "tx-delay", &tx, sizeof(tx)) >= 0)
+	if (OF_getencprop(node, "tx_delay", &tx, sizeof(tx)) <= 0)
 		tx = 0x30;
-	if (OF_getencprop(node, "rx-delay", &rx, sizeof(rx)) >= 0)
+	if (OF_getencprop(node, "rx_delay", &rx, sizeof(rx)) <= 0)
 		rx = 0x10;
 
 	tx = ((tx & RK3328_GRF_MAC_CON0_TX_MASK) <<
 	    RK3328_GRF_MAC_CON0_TX_SHIFT);
 	rx = ((rx & RK3328_GRF_MAC_CON0_TX_MASK) <<
 	    RK3328_GRF_MAC_CON0_RX_SHIFT);
-	SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx);
+
+	/* Disable delays as values conflict between DTS */
+	/* SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx | 0xFFFF0000); */
 }
 
 static int

@@ -34,25 +34,25 @@
 /* #undef LLVM_HOST_TRIPLE */
 
 /* LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCH X86
+/* #undef LLVM_NATIVE_ARCH */
 
 /* LLVM name for the native AsmParser init function, if available */
-#define LLVM_NATIVE_ASMPARSER LLVMInitializeX86AsmParser
+/* #undef LLVM_NATIVE_ASMPARSER */
 
 /* LLVM name for the native AsmPrinter init function, if available */
-#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
+/* #undef LLVM_NATIVE_ASMPRINTER */
 
 /* LLVM name for the native Disassembler init function, if available */
-#define LLVM_NATIVE_DISASSEMBLER LLVMInitializeX86Disassembler
+/* #undef LLVM_NATIVE_DISASSEMBLER */
 
 /* LLVM name for the native Target init function, if available */
-#define LLVM_NATIVE_TARGET LLVMInitializeX86Target
+/* #undef LLVM_NATIVE_TARGET */
 
 /* LLVM name for the native TargetInfo init function, if available */
-#define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
+/* #undef LLVM_NATIVE_TARGETINFO */
 
 /* LLVM name for the native target MC init function, if available */
-#define LLVM_NATIVE_TARGETMC LLVMInitializeX86TargetMC
+/* #undef LLVM_NATIVE_TARGETMC */
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -73,9 +73,9 @@
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 0
+#define LLVM_VERSION_PATCH 1
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "6.0.0"
+#define LLVM_VERSION_STRING "6.0.1"
 
 #endif

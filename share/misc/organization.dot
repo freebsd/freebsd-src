@@ -48,13 +48,13 @@ clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nallanjude, br
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith, peter"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
 perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
-postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, ler, pi, rea, remko, zi"]
+postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, krion, ler, philip, pi, rea, remko, zi"]
 refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
 webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
 
 # Misc hats go here alphabetically sorted
 
-donations [label="Donations Team\ndonations@FreeBSD.org\nwilko, gahr, pgolluci,\nobrien, trhodes, ds,\nrwatson"]
+donations [label="Donations Team\ndonations@FreeBSD.org\nwilko, gahr, pgolluci,\nobrien, ds,\nrwatson"]
 marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, dru, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
 vendorrelations [label="Vendor Relations\nvendor-relations@FreeBSD.org\ncore, FreeBSD Foundation"]
 

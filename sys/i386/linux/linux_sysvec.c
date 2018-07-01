@@ -970,10 +970,11 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 		return (false);
 
 	/*
-	 * For Linux we encode osrel as follows (see linux_mib.c):
-	 * VVVMMMIII (version, major, minor), see linux_mib.c.
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
 	 */
-	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
 
 	return (true);
 }

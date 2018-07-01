@@ -277,7 +277,7 @@ rk_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	sc = device_get_softc(dev);
 
 	RK_GPIO_LOCK(sc);
-	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DR);
+	reg = RK_GPIO_READ(sc, RK_GPIO_EXT_PORTA);
 	RK_GPIO_UNLOCK(sc);
 
 	*val = reg & (1 << pin) ? 1 : 0;

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -227,7 +228,7 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	if (fp == NULL)
 		err(1, "Unable to open %s", pubkeyfile);
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "Unable to enter capability mode");
 
 	pubkey = RSA_new();

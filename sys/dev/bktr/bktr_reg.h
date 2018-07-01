@@ -88,15 +88,15 @@
  * Definitions for the Brooktree 848/878 video capture to pci interface.
  */
 #ifndef __NetBSD__
-#define PCI_VENDOR_SHIFT                        0
-#define PCI_VENDOR_MASK                         0xffff
-#define PCI_VENDOR(id) \
-            (((id) >> PCI_VENDOR_SHIFT) & PCI_VENDOR_MASK)
+#define BKTR_PCI_VENDOR_SHIFT                        0
+#define BKTR_PCI_VENDOR_MASK                         0xffff
+#define BKTR_PCI_VENDOR(id) \
+            (((id) >> BKTR_PCI_VENDOR_SHIFT) & BKTR_PCI_VENDOR_MASK)
 
-#define PCI_PRODUCT_SHIFT                       16
-#define PCI_PRODUCT_MASK                        0xffff
-#define PCI_PRODUCT(id) \
-            (((id) >> PCI_PRODUCT_SHIFT) & PCI_PRODUCT_MASK)
+#define BKTR_PCI_PRODUCT_SHIFT                       16
+#define BKTR_PCI_PRODUCT_MASK                        0xffff
+#define BKTR_PCI_PRODUCT(id) \
+            (((id) >> BKTR_PCI_PRODUCT_SHIFT) & BKTR_PCI_PRODUCT_MASK)
 
 /* PCI vendor ID */
 #define PCI_VENDOR_BROOKTREE    0x109e                /* Brooktree */

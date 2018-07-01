@@ -275,7 +275,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld) && ${MK_DEBUG_FILES} == "no"
-	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
@@ -291,7 +291,7 @@ ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
-	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 
 ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
@@ -398,7 +398,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
-	${INSTALL_SYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
 .endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
@@ -437,6 +437,11 @@ _libinstall:
 .include <bsd.confs.mk>
 .endif
 
+LINKOWN?=	${LIBOWN}
+LINKGRP?=	${LIBGRP}
+LINKMODE?=	${LIBMODE}
+SYMLINKOWN?=	${LIBOWN}
+SYMLINKGRP?=	${LIBGRP}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2018
+.Dd June 28, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3834,9 +3834,9 @@ In the following example per-interface firewall is created:
 .Dl "ipfw table OUT add vlan20 22000"
 .Dl "ipfw table OUT add vlan30 23000"
 .Dl ".."
-.Dl "ipfw add 100 ipfw setfib tablearg ip from any to any recv 'table(IN)' in"
-.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any recv 'table(IN)' in"
-.Dl "ipfw add 300 ipfw skipto tablearg ip from any to any xmit 'table(OUT)' out"
+.Dl "ipfw add 100 setfib tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 200 skipto tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 300 skipto tablearg ip from any to any xmit 'table(OUT)' out"
 .Pp
 The following example illustrate usage of flow tables:
 .Pp

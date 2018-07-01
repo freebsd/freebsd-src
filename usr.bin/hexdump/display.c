@@ -372,7 +372,7 @@ next(char **argv)
 		 * We've opened our last input file; enter capsicum sandbox.
 		 */
 		if (statok == 0 || *(_argv + 1) == NULL) {
-			if (cap_enter() < 0 && errno != ENOSYS)
+			if (caph_enter() < 0)
 				err(1, "unable to enter capability mode");
 		}
 

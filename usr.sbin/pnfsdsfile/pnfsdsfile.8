@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2018
+.Dd June 30, 2018
 .Dt PNFSDSFILE 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@ extended attribute for them
 .Op Fl qz
 .Op Fl s Ar dshostname
 .Op Fl c Ar old-dshostname,new-dshostname
+.Op Fl m Ar mirror_level
 .Op Fl r Ar dshostname
 .Ar mdsfile
 .Sh DESCRIPTION
@@ -91,6 +92,16 @@ or AF_INET6 address that
 returns for the new-dshostname.
 Changing a DS server's host IP# should be avoided, but this option will
 allow it to be changed, if the change is unavoidable.
+.It Fl m Ar mirror_level
+This option adds entrie(s) to the extended attributes with IP address set
+to 0.0.0.0 to bring the number of entries up to
+.Dq mirror_level .
+It can be used by a system administrator to prepare a file for mirroring
+via the
+.Xr pnfsdscopymr
+command with
+.Fl r
+option.
 .It Fl r Ar dshostname
 This option sets the IP address of the extended attribute entry for the
 .Ar dshostname

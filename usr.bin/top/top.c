@@ -69,6 +69,7 @@ static int max_topn;		/* maximum displayable processes */
 struct process_select ps;
 const char * myname = "top";
 pid_t mypid;
+bool utf8flag = false;
 
 /* pointers to display routines */
 static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
@@ -243,7 +244,6 @@ main(int argc, char *argv[])
     int  preset_argc = 0;
     const char **av = NULL;
     int  ac = -1;
-    bool dostates = false;
     bool do_unames = true;
     char interactive = 2;
     char warnings = 0;
@@ -281,7 +281,7 @@ main(int argc, char *argv[])
     /* get our name */
     /* initialize some selection options */
     ps.idle    = true;
-    ps.self    = false;
+    ps.self    = true;
     ps.system  = false;
     reset_uids();
     ps.thread  = false;
@@ -607,6 +607,14 @@ main(int argc, char *argv[])
 	fputc('\n', stderr);
     }
 
+	/* check if you are using UTF-8 */
+	char *env_lang;
+	if (NULL != (env_lang = getenv("LANG")) && 
+		0 != strcmp(env_lang, "") &&
+		NULL != strstr(env_lang, "UTF-8")) {
+		utf8flag = true;
+	}
+
 restart:
 
     /*
@@ -641,25 +649,7 @@ restart:
 	/* display process state breakdown */
 	(*d_procstates)(system_info.p_total,
 			system_info.procstates);
-
-	/* display the cpu state percentage breakdown */
-	if (dostates)	/* but not the first time */
-	{
-	    (*d_cpustates)(system_info.cpustates);
-	}
-	else
-	{
-	    /* we'll do it next time */
-	    if (smart_terminal)
-	    {
-		z_cpustates();
-	    }
-	    else
-	    {
-		putchar('\n');
-	    }
-	    dostates = true;
-	}
+	(*d_cpustates)(system_info.cpustates);
 
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
@@ -852,13 +842,6 @@ restart:
 				break;
 
 			    case CMD_update:	/* merely update display */
-				/* is the load average high? */
-				if (system_info.load_avg[0] > LoadMax)
-				{
-				    /* yes, go home for visual feedback */
-				    go_home();
-				    fflush(stdout);
-				}
 				break;
 
 			    case CMD_quit:
@@ -1169,7 +1152,7 @@ restart:
 					clear_message();
 				break;
 			    case CMD_NONE:
-					assert("reached switch without command");
+					assert(false && "reached switch without command");
 			}
 			}
 		    }

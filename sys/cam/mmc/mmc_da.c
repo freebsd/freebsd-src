@@ -818,6 +818,7 @@ mmc_app_get_scr(struct cam_periph *periph, union ccb *ccb, uint32_t *rawscr) {
 	struct mmc_data d;
 
 	memset(&cmd, 0, sizeof(cmd));
+	memset(&d, 0, sizeof(d));
 
 	memset(rawscr, 0, 8);
 	cmd.opcode = ACMD_SEND_SCR;
@@ -1296,13 +1297,13 @@ sdda_start_init(void *context, union ccb *start_ccb)
 		/* Find out if the card supports High speed timing */
 		if (mmcp->card_features & CARD_FEATURE_SD20) {
 			/* Get and decode SCR */
-			uint32_t rawscr;
+			uint32_t rawscr[2];
 			uint8_t res[64];
-			if (mmc_app_get_scr(periph, start_ccb, &rawscr)) {
+			if (mmc_app_get_scr(periph, start_ccb, rawscr)) {
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Cannot get SCR\n"));
 				goto finish_hs_tests;
 			}
-			mmc_app_decode_scr(&rawscr, &softc->scr);
+			mmc_app_decode_scr(rawscr, &softc->scr);
 
 			if ((softc->scr.sda_vsn >= 1) && (softc->csd.ccc & (1<<10))) {
 				mmc_sd_switch(periph, start_ccb, SD_SWITCH_MODE_CHECK,
@@ -1778,6 +1779,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 		mmcio->cmd.data->flags = (bp->bio_cmd == BIO_READ ? MMC_DATA_READ : MMC_DATA_WRITE);
 		/* Direct h/w to issue CMD12 upon completion */
 		if (count > 1) {
+			mmcio->cmd.data->flags |= MMC_DATA_MULTI;
 			mmcio->stop.opcode = MMC_STOP_TRANSMISSION;
 			mmcio->stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 			mmcio->stop.arg = 0;

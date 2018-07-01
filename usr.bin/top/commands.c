@@ -1,5 +1,6 @@
 /*
  *  Top users/processes display for Unix
+ *  Version 3
  *
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
@@ -242,7 +243,7 @@ err_string(void)
 	errp = &(errs[cnt++]);
 	if (errp->errnum != currerr)
 	{
-	    if (currerr != -1)
+	    if (currerr >= 0)
 	    {
 		if ((stringlen = str_adderr(string, stringlen, currerr)) < 2)
 		{

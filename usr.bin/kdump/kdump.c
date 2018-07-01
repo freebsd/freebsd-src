@@ -434,12 +434,12 @@ main(int argc, char *argv[])
 		}
 	}
 	if (resolv == 0 || (cappwd != NULL && capgrp != NULL)) {
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 	}
 #else
 	if (resolv == 0) {
-		if (cap_enter() < 0 && errno != ENOSYS)
+		if (caph_enter() < 0)
 			err(1, "unable to enter capability mode");
 	}
 #endif

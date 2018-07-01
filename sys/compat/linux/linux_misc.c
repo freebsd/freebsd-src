@@ -232,22 +232,18 @@ int
 linux_brk(struct thread *td, struct linux_brk_args *args)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
-	vm_offset_t new, old;
-	struct break_args /* {
-		char * nsize;
-	} */ tmp;
+	uintptr_t new, old;
 
 #ifdef DEBUG
 	if (ldebug(brk))
 		printf(ARGS(brk, "%p"), (void *)(uintptr_t)args->dsend);
 #endif
-	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
-	new = (vm_offset_t)args->dsend;
-	tmp.nsize = (char *)new;
-	if (((caddr_t)new > vm->vm_daddr) && !sys_break(td, &tmp))
-		td->td_retval[0] = (long)new;
+	old = (uintptr_t)vm->vm_daddr + ctob(vm->vm_dsize);
+	new = (uintptr_t)args->dsend;
+	if ((caddr_t)new > vm->vm_daddr && !kern_break(td, &new))
+		td->td_retval[0] = (register_t)new;
 	else
-		td->td_retval[0] = (long)old;
+		td->td_retval[0] = (register_t)old;
 
 	return (0);
 }
@@ -1867,7 +1863,9 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 		/* NOTREACHED */
 }
 
-#define _LINUX_CAPABILITY_VERSION  0x19980330
+#define _LINUX_CAPABILITY_VERSION_1  0x19980330
+#define _LINUX_CAPABILITY_VERSION_2  0x20071026
+#define _LINUX_CAPABILITY_VERSION_3  0x20080522
 
 struct l_user_cap_header {
 	l_int	version;
@@ -1881,27 +1879,35 @@ struct l_user_cap_data {
 };
 
 int
-linux_capget(struct thread *td, struct linux_capget_args *args)
+linux_capget(struct thread *td, struct linux_capget_args *uap)
 {
 	struct l_user_cap_header luch;
-	struct l_user_cap_data lucd;
-	int error;
+	struct l_user_cap_data lucd[2];
+	int error, u32s;
 
-	if (args->hdrp == NULL)
+	if (uap->hdrp == NULL)
 		return (EFAULT);
 
-	error = copyin(args->hdrp, &luch, sizeof(luch));
+	error = copyin(uap->hdrp, &luch, sizeof(luch));
 	if (error != 0)
 		return (error);
 
-	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+	switch (luch.version) {
+	case _LINUX_CAPABILITY_VERSION_1:
+		u32s = 1;
+		break;
+	case _LINUX_CAPABILITY_VERSION_2:
+	case _LINUX_CAPABILITY_VERSION_3:
+		u32s = 2;
+		break;
+	default:
 #ifdef DEBUG
 		if (ldebug(capget))
 			printf(LMSG("invalid capget capability version 0x%x"),
 			    luch.version);
 #endif
-		luch.version = _LINUX_CAPABILITY_VERSION;
-		error = copyout(&luch, args->hdrp, sizeof(luch));
+		luch.version = _LINUX_CAPABILITY_VERSION_1;
+		error = copyout(&luch, uap->hdrp, sizeof(luch));
 		if (error)
 			return (error);
 		return (EINVAL);
@@ -1910,42 +1916,50 @@ linux_capget(struct thread *td, struct linux_capget_args *args)
 	if (luch.pid)
 		return (EPERM);
 
-	if (args->datap) {
+	if (uap->datap) {
 		/*
 		 * The current implementation doesn't support setting
 		 * a capability (it's essentially a stub) so indicate
 		 * that no capabilities are currently set or available
 		 * to request.
 		 */
-		bzero (&lucd, sizeof(lucd));
-		error = copyout(&lucd, args->datap, sizeof(lucd));
+		memset(&lucd, 0, u32s * sizeof(lucd[0]));
+		error = copyout(&lucd, uap->datap, u32s * sizeof(lucd[0]));
 	}
 
 	return (error);
 }
 
 int
-linux_capset(struct thread *td, struct linux_capset_args *args)
+linux_capset(struct thread *td, struct linux_capset_args *uap)
 {
 	struct l_user_cap_header luch;
-	struct l_user_cap_data lucd;
-	int error;
+	struct l_user_cap_data lucd[2];
+	int error, i, u32s;
 
-	if (args->hdrp == NULL || args->datap == NULL)
+	if (uap->hdrp == NULL || uap->datap == NULL)
 		return (EFAULT);
 
-	error = copyin(args->hdrp, &luch, sizeof(luch));
+	error = copyin(uap->hdrp, &luch, sizeof(luch));
 	if (error != 0)
 		return (error);
 
-	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+	switch (luch.version) {
+	case _LINUX_CAPABILITY_VERSION_1:
+		u32s = 1;
+		break;
+	case _LINUX_CAPABILITY_VERSION_2:
+	case _LINUX_CAPABILITY_VERSION_3:
+		u32s = 2;
+		break;
+	default:
 #ifdef DEBUG
 		if (ldebug(capset))
 			printf(LMSG("invalid capset capability version 0x%x"),
 			    luch.version);
 #endif
-		luch.version = _LINUX_CAPABILITY_VERSION;
-		error = copyout(&luch, args->hdrp, sizeof(luch));
+		luch.version = _LINUX_CAPABILITY_VERSION_1;
+		error = copyout(&luch, uap->hdrp, sizeof(luch));
 		if (error)
 			return (error);
 		return (EINVAL);
@@ -1954,18 +1968,21 @@ linux_capset(struct thread *td, struct linux_capset_args *args)
 	if (luch.pid)
 		return (EPERM);
 
-	error = copyin(args->datap, &lucd, sizeof(lucd));
+	error = copyin(uap->datap, &lucd, u32s * sizeof(lucd[0]));
 	if (error != 0)
 		return (error);
 
 	/* We currently don't support setting any capabilities. */
-	if (lucd.effective || lucd.permitted || lucd.inheritable) {
-		linux_msg(td,
-			  "capset effective=0x%x, permitted=0x%x, "
-			  "inheritable=0x%x is not implemented",
-			  (int)lucd.effective, (int)lucd.permitted,
-			  (int)lucd.inheritable);
-		return (EPERM);
+	for (i = 0; i < u32s; i++) {
+		if (lucd[i].effective || lucd[i].permitted ||
+		    lucd[i].inheritable) {
+			linux_msg(td,
+			    "capset[%d] effective=0x%x, permitted=0x%x, "
+			    "inheritable=0x%x is not implemented", i,
+			    (int)lucd[i].effective, (int)lucd[i].permitted,
+			    (int)lucd[i].inheritable);
+			return (EPERM);
+		}
 	}
 
 	return (0);

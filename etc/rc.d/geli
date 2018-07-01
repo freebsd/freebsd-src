@@ -34,7 +34,7 @@
 
 name="geli"
 desc="GELI disk encryption"
-start_precmd='[ -n "$(geli_make_list)" ]'
+start_precmd='[ -n "$(geli_make_list)" -o -n "${geli_groups}" ]'
 start_cmd="geli_start"
 stop_cmd="geli_stop"
 required_modules="geom_eli:g_eli"
@@ -72,11 +72,47 @@ geli_start()
 			done
 		fi
 	done
+
+	for group in ${geli_groups}; do
+		group_=`ltr ${group} '/-' '_'`
+
+		eval "flags=\${geli_${group_}_flags}"
+		if [ -z "${flags}" ]; then
+			flags=${geli_default_flags}
+		fi
+
+		eval "providers=\${geli_${group_}_devices}"
+		if [ -z "${providers}" ]; then
+			echo "No devices listed in geli group ${group}."
+			continue
+		fi
+
+		if [ -e "/dev/${providers%% *}" -a ! -e "/dev/${providers%% *}.eli" ]; then
+			echo "Configuring Disk Encryption for geli group ${group}, containing ${providers}."
+			count=1
+			while [ ${count} -le ${geli_tries} ]; do
+				geli attach ${flags} ${providers}
+				if [ -e "/dev/${providers%% *}.eli" ]; then
+					break
+				fi
+				echo "Attach failed; attempt ${count} of ${geli_tries}."
+				count=$((count+1))
+			done
+		fi
+	done
 }
 
 geli_stop()
 {
 	devices=`geli_make_list`
+
+	for group in ${geli_groups}; do
+		group_=`ltr ${group} '/-' '_'`
+
+		eval "providers=\${geli_${group_}_devices}"
+
+		devices="${devices} ${providers}"
+	done
 
 	for provider in ${devices}; do
 		if [ -e "/dev/${provider}.eli" ]; then

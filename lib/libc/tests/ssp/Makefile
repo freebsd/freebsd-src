@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
-.include <host-target.mk>
-# XXX ---
-
 .include <bsd.own.mk>
 
 NO_WERROR=
@@ -35,21 +31,16 @@ PROGS+=		h_memset
 # probably needs to be fixed as it's currently hardcoded.
 #
 # sanitizer is not tested or supported for ARM right now. sbruno
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang" && ${MK_TOOLCHAIN} == "yes"
-.if ${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}
-
-# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
-.if ${MACHINE_CPUARCH} == ${_HOST_ARCH}
-# XXX ---
-
+.if ${COMPILER_TYPE} == "clang" && !defined(_SKIP_BUILD) && \
+    (!defined(_RECURSING_PROGS) || ${PROG} == "h_raw")
+.if !defined(_CLANG_RESOURCE_DIR)
+_CLANG_RESOURCE_DIR!=	${CC:N${CCACHE_BIN}} -print-resource-dir
+.export _CLANG_RESOURCE_DIR
+.endif
+_libclang_rt_arch=	${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}
+_libclang_rt_ubsan=	${_CLANG_RESOURCE_DIR}/lib/freebsd/libclang_rt.ubsan_standalone-${_libclang_rt_arch}.a
+.if exists(${_libclang_rt_ubsan})
 PROGS+=		h_raw
-
-# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
-.endif
-# XXX ---
-
-.endif
 .endif
 .endif
 PROGS+=		h_read

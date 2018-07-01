@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2018
+.Dd July 1, 2018
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ An arbitrary number of virtual host IDs can be configured on an interface.
 An arbitrary number of IPv4 or IPv6 addresses can be attached to a particular
 vhid.
 It is important that all hosts participating in a vhid have the same list
-of prefixes configured on the vhid, since all prefixes are included in the
+of prefixes configured on the vhid, since all the prefixes are included in the
 cryptographic checksum supplied in each advertisement.
 Multiple vhids running on one interface participate in master/backup
 elections independently.
@@ -104,6 +104,12 @@ Allow virtual hosts to preempt each other.
 When enabled, a vhid in a backup state would preempt a master that
 is announcing itself with a lower advskew.
 Disabled by default.
+.It Va net.inet.carp.dscp
+DSCP value in carp packet.
+Valid Values are 0 to 63.
+A value of 4 is equivalent to the old standard of TOS LOW_DELAY.
+TOS values were deprecated and replaced by DSCP in 1998.
+The default value is 56 (CS7/Network Control).
 .It Va net.inet.carp.log
 Determines what events relating to
 .Nm
@@ -117,10 +123,10 @@ Values above 1 enable logging of bad
 packets.
 The default value is 1.
 .It Va net.inet.carp.demotion
-This value shows current level of CARP demotion.
+This value shows the current level of CARP demotion.
 The value is added to the actual advskew sent in announcements for
 all vhids.
-At normal system operation the demotion factor is zero.
+During normal system operation the demotion factor is zero.
 However, problematic conditions raise its level: when
 .Nm
 experiences problem with sending announcements, when an interface
@@ -294,11 +300,11 @@ To see
 .Nm
 packets decoded in
 .Xr tcpdump 1
-output, one needs to specify
+output, one needs to specify the
 .Fl T Ar carp
 option, otherwise
 .Xr tcpdump 1
-tries to interpret them as VRRP packets:
+will interpret them as VRRP packets:
 .Bd -literal -offset indent
 tcpdump -npi vlan0 -T carp
 .Ed

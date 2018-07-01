@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -132,7 +132,7 @@ i40e_free_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem)
 	bus_dmamap_unload(mem->tag, mem->map);
 	bus_dmamem_free(mem->tag, mem->va, mem->map);
 	bus_dma_tag_destroy(mem->tag);
-	return (0);
+	return (I40E_SUCCESS);
 }
 
 void

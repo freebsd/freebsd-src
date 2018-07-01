@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/signal.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
 
 #include <vm/vm.h>
@@ -154,7 +155,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_spsr |= PSR_C;	/* carry bit */
-		frame->tf_x[0] = error;
+		frame->tf_x[0] = SV_ABI_ERRNO(td->td_proc, error);
 		break;
 	}
 }

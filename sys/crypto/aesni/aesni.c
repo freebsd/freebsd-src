@@ -555,24 +555,36 @@ MODULE_VERSION(aesni, 1);
 MODULE_DEPEND(aesni, crypto, 1, 1, 1);
 
 static int
+aesni_authprepare(struct aesni_session *ses, int klen, const void *cri_key)
+{
+	int keylen;
+
+	if (klen % 8 != 0)
+		return (EINVAL);
+	keylen = klen / 8;
+	if (keylen > sizeof(ses->hmac_key))
+		return (EINVAL);
+	if (ses->auth_algo == CRYPTO_SHA1 && keylen > 0)
+		return (EINVAL);
+	memcpy(ses->hmac_key, cri_key, keylen);
+	return (0);
+}
+
+static int
 aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
     struct cryptoini *authini)
 {
 	struct fpu_kern_ctx *ctx;
-	int kt, ctxidx, keylen, error;
+	int kt, ctxidx, error;
 
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
-		if (authini->cri_klen % 8 != 0)
-			return (EINVAL);
-		keylen = authini->cri_klen / 8;
-		if (keylen > sizeof(ses->hmac_key))
-			return (EINVAL);
-		if (ses->auth_algo == CRYPTO_SHA1 && keylen > 0)
-			return (EINVAL);
-		memcpy(ses->hmac_key, authini->cri_key, keylen);
+		error = aesni_authprepare(ses, authini->cri_klen,
+		    authini->cri_key);
+		if (error != 0)
+			return (error);
 		ses->mlen = authini->cri_mlen;
 	}
 
@@ -878,6 +890,10 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 		break;
 	}
 
+	if (allocated)
+		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, buf);
+
 out:
 	if (allocated) {
 		explicit_bzero(buf, enccrd->crd_len);
@@ -899,10 +915,18 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		struct sha1_ctxt sha1 __aligned(16);
 	} sctx;
 	uint32_t res[SHA2_256_HASH_LEN / sizeof(uint32_t)];
-	int hashlen;
+	int hashlen, error;
 
-	if (crd->crd_flags != 0)
+	if ((crd->crd_flags & ~CRD_F_KEY_EXPLICIT) != 0) {
+		CRYPTDEB("%s: Unsupported MAC flags: 0x%x", __func__,
+		    (crd->crd_flags & ~CRD_F_KEY_EXPLICIT));
 		return (EINVAL);
+	}
+	if ((crd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
+		error = aesni_authprepare(ses, crd->crd_klen, crd->crd_key);
+		if (error != 0)
+			return (error);
+	}
 
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1_HMAC:

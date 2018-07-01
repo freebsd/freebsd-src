@@ -312,6 +312,9 @@ me_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	const struct ip *ip;
 	struct me_softc *sc;
 
+	if (V_me_hashtbl == NULL)
+		return (0);
+
 	MPASS(in_epoch());
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &ME_HASH(ip->ip_dst.s_addr,

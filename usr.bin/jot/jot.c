@@ -123,7 +123,7 @@ main(int argc, char **argv)
 	 */
 	caph_cache_catpages();
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)

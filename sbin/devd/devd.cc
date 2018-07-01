@@ -636,6 +636,35 @@ config::is_id_char(char ch) const
 	    ch == '-'));
 }
 
+string
+config::shell_quote(const string &s)
+{
+	string buffer;
+	const char *cs, *ce;
+	char c;
+
+	/*
+	 * Enclose the string in $' ' with escapes for ' and / characters making
+	 * it one argument and ensuring the shell won't be affected by its
+	 * usual list of candidates.
+	 */
+	buffer.reserve(s.length() * 3 / 2);
+	buffer += '$';
+	buffer += '\'';
+	cs = s.c_str();
+	ce = cs + strlen(cs);
+	for (; cs < ce; cs++) {
+		c = *cs;
+		if (c == '\'' || c == '\\') {
+			buffer += '\\';
+		}
+		buffer += c;
+	}
+	buffer += '\'';
+
+	return buffer;
+}
+
 void
 config::expand_one(const char *&src, string &dst)
 {
@@ -650,8 +679,7 @@ config::expand_one(const char *&src, string &dst)
 	}
 
 	// $(foo) -> $(foo)
-	// Not sure if I want to support this or not, so for now we just pass
-	// it through.
+	// This is the escape hatch for passing down shell subcommands
 	if (*src == '(') {
 		dst += '$';
 		count = 1;
@@ -677,7 +705,7 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer += *src++;
 	} while (is_id_char(*src));
-	dst.append(get_variable(buffer));
+	dst.append(shell_quote(get_variable(buffer)));
 }
 
 const string

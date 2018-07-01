@@ -20,7 +20,7 @@ fetch_cmd="ntpd_fetch_leapfile"
 needfetch_cmd="ntpd_needfetch_leapfile"
 start_precmd="ntpd_precmd"
 
-ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
+_ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
 
 load_rc_config $name
 
@@ -56,7 +56,7 @@ ntpd_precmd()
 		( cd /dev ; /bin/pax -rw -pe clockctl "${ntpd_chrootdir}/dev" )
 	fi
 	ln -fs "${ntpd_chrootdir}/var/db/ntp.drift" /var/db/ntp.drift
-	ln -fs "${ntpd_chrootdir}${ntp_tmp_leapfile}" ${ntp_tmp_leapfile}
+	ln -fs "${ntpd_chrootdir}${_ntp_tmp_leapfile}" ${_ntp_tmp_leapfile}
 
 	#	Change run_rc_commands()'s internal copy of $ntpd_flags
 	#
@@ -106,8 +106,8 @@ ntpd_needfetch_leapfile() {
 	ntp_expiry_src=$(get_ntp_leapfile_expiry $ntp_src_leapfile)
 	ntp_ver_no_db=$(get_ntp_leapfile_ver $ntp_db_leapfile)
 	ntp_expiry_db=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
-	$verbose ntp_src_leapfile version is $ntp_ver_no_src
-	$verbose ntp_db_leapfile version is $ntp_ver_no_db
+	$verbose ntp_src_leapfile version is $ntp_ver_no_src expires $ntp_expiry_src
+	$verbose ntp_db_leapfile version is $ntp_ver_no_db expires $ntp_expiry_db
 
 	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" -o \
 	     "$ntp_ver_no_src" -eq "$ntp_ver_no_db" -a \
@@ -140,15 +140,16 @@ ntpd_fetch_leapfile() {
 	if ntpd_needfetch_leapfile ; then
 		for url in $ntp_leapfile_sources ; do
 			$verbose fetching $url
-			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break
+			fetch $ntp_leapfile_fetch_opts -o $_ntp_tmp_leapfile $url && break
 		done
-		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
-		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $ntp_tmp_leapfile)
+		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $_ntp_tmp_leapfile)
+		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $_ntp_tmp_leapfile)
 		if [ "$ntp_expiry_tmp" -gt "$ntp_expiry_db" -o \
 		     "$ntp_expiry_tmp" -eq "$ntp_expiry_db" -a \
 		     "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
 			$verbose using $url as $ntp_db_leapfile
-			mv $ntp_tmp_leapfile $ntp_db_leapfile
+			mv -f $_ntp_tmp_leapfile $ntp_db_leapfile ||
+			    $verbose "warning: cannot replace $ntp_db_leapfile (read-only fs?)"
 		else
 			$verbose using existing $ntp_db_leapfile
 		fi

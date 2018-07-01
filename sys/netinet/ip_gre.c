@@ -115,6 +115,9 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	const struct ip *ip;
 	struct gre_softc *sc;
 
+	if (V_ipv4_hashtbl == NULL)
+		return (0);
+
 	MPASS(in_epoch());
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,

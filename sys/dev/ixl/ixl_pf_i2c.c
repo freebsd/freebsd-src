@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -46,9 +46,9 @@
 #define IXL_I2C_CLOCK_STRETCHING_TIMEOUT 500
 
 #define IXL_I2C_REG(_hw)	\
-    I40E_GLGEN_I2CPARAMS(((struct i40e_osdep *)(_hw)->back)->i2c_intfc_num)
+    I40E_GLGEN_I2CPARAMS(_hw->func_caps.mdio_port_num)
 
-
+/* I2C bit-banging functions */
 static s32	ixl_set_i2c_data(struct ixl_pf *pf, u32 *i2cctl, bool data);
 static bool	ixl_get_i2c_data(struct ixl_pf *pf, u32 *i2cctl);
 static void	ixl_raise_i2c_clk(struct ixl_pf *pf, u32 *i2cctl);
@@ -61,6 +61,8 @@ static s32	ixl_clock_in_i2c_byte(struct ixl_pf *pf, u8 *data);
 static void 	ixl_i2c_bus_clear(struct ixl_pf *pf);
 static void	ixl_i2c_start(struct ixl_pf *pf);
 static void	ixl_i2c_stop(struct ixl_pf *pf);
+
+static s32	ixl_wait_for_i2c_completion(struct i40e_hw *hw, u8 portnum);
 
 /**
  *  ixl_i2c_bus_clear - Clears the I2C bus
@@ -449,10 +451,10 @@ ixl_i2c_start(struct ixl_pf *pf)
 }
 
 /**
- *  ixl_read_i2c_byte - Reads 8 bit word over I2C
+ *  ixl_read_i2c_byte_bb - Reads 8 bit word over I2C
  **/
 s32
-ixl_read_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+ixl_read_i2c_byte_bb(struct ixl_pf *pf, u8 byte_offset,
 		  u8 dev_addr, u8 *data)
 {
 	struct i40e_hw *hw = &pf->hw;
@@ -523,9 +525,9 @@ fail:
 		i40e_msec_delay(100);
 		retry++;
 		if (retry < max_retry)
-			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read error - Retrying.\n");
+			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read error - Retrying\n");
 		else
-			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read error.\n");
+			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read error\n");
 
 	} while (retry < max_retry);
 done:
@@ -538,10 +540,10 @@ done:
 }
 
 /**
- *  ixl_write_i2c_byte - Writes 8 bit word over I2C
+ *  ixl_write_i2c_byte_bb - Writes 8 bit word over I2C
  **/
 s32
-ixl_write_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+ixl_write_i2c_byte_bb(struct ixl_pf *pf, u8 byte_offset,
 		       u8 dev_addr, u8 data)
 {
 	struct i40e_hw *hw = &pf->hw;
@@ -589,9 +591,9 @@ fail:
 		i40e_msec_delay(100);
 		retry++;
 		if (retry < max_retry)
-			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write error - Retrying.\n");
+			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write error - Retrying\n");
 		else
-			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write error.\n");
+			ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write error\n");
 	} while (retry < max_retry);
 
 write_byte_out:
@@ -603,3 +605,139 @@ write_byte_out:
 	return status;
 }
 
+/**
+ *  ixl_read_i2c_byte - Reads 8 bit word over I2C using a hardware register
+ **/
+s32
+ixl_read_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
+		  u8 dev_addr, u8 *data)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg = 0;
+	s32 status;
+	*data = 0;
+
+	reg |= (byte_offset << I40E_GLGEN_I2CCMD_REGADD_SHIFT);
+	reg |= (((dev_addr >> 1) & 0x7) << I40E_GLGEN_I2CCMD_PHYADD_SHIFT);
+	reg |= I40E_GLGEN_I2CCMD_OP_MASK;
+	wr32(hw, I40E_GLGEN_I2CCMD(hw->func_caps.mdio_port_num), reg);
+
+	status = ixl_wait_for_i2c_completion(hw, hw->func_caps.mdio_port_num);
+
+	/* Get data from I2C register */
+	reg = rd32(hw, I40E_GLGEN_I2CCMD(hw->func_caps.mdio_port_num));
+
+	/* Retrieve data readed from EEPROM */
+	*data = (u8)(reg & 0xff);
+
+	if (status)
+		ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read error\n");
+	return status;
+}
+
+/**
+ *  ixl_write_i2c_byte - Writes 8 bit word over I2C using a hardware register
+ **/
+s32
+ixl_write_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
+		       u8 dev_addr, u8 data)
+{
+	struct i40e_hw *hw = &pf->hw;
+	s32 status = I40E_SUCCESS;
+	u32 reg = 0;
+	u8 upperbyte = 0;
+	u16 datai2c = 0;
+
+	status = ixl_read_i2c_byte_reg(pf, byte_offset + 1, dev_addr, &upperbyte);
+	datai2c = ((u16)upperbyte << 8) | (u16)data;
+	reg = rd32(hw, I40E_GLGEN_I2CCMD(hw->func_caps.mdio_port_num));
+
+	/* Form write command */
+	reg &= ~I40E_GLGEN_I2CCMD_PHYADD_MASK;
+	reg |= (((dev_addr >> 1) & 0x7) << I40E_GLGEN_I2CCMD_PHYADD_SHIFT);
+	reg &= ~I40E_GLGEN_I2CCMD_REGADD_MASK;
+	reg |= (byte_offset << I40E_GLGEN_I2CCMD_REGADD_SHIFT);
+	reg &= ~I40E_GLGEN_I2CCMD_DATA_MASK;
+	reg |= (datai2c << I40E_GLGEN_I2CCMD_DATA_SHIFT);
+	reg &= ~I40E_GLGEN_I2CCMD_OP_MASK;
+
+	/* Write command to registers controling I2C - data and address. */
+	wr32(hw, I40E_GLGEN_I2CCMD(hw->func_caps.mdio_port_num), reg);
+
+	status = ixl_wait_for_i2c_completion(hw, hw->func_caps.mdio_port_num);
+
+	if (status)
+		ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write error\n");
+	return status;
+}
+
+/**
+ *  ixl_wait_for_i2c_completion
+ **/
+static s32
+ixl_wait_for_i2c_completion(struct i40e_hw *hw, u8 portnum)
+{
+	s32 status = 0;
+	u32 timeout = 100;
+	u32 reg;
+	do {
+		reg = rd32(hw, I40E_GLGEN_I2CCMD(portnum));
+		if ((reg & I40E_GLGEN_I2CCMD_R_MASK) != 0)
+			break;
+		i40e_usec_delay(10);
+	} while (timeout-- > 0);
+
+	if (timeout == 0)
+		return I40E_ERR_TIMEOUT;
+	else
+		return status;
+}
+
+/**
+ *  ixl_read_i2c_byte - Reads 8 bit word over I2C using a hardware register
+ **/
+s32
+ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
+		  u8 dev_addr, u8 *data)
+{
+	struct i40e_hw *hw = &pf->hw;
+	s32 status = I40E_SUCCESS;
+	u32 reg;
+
+	status = i40e_aq_get_phy_register(hw,
+					I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+					dev_addr,
+					byte_offset,
+					&reg, NULL);
+
+	if (status)
+		ixl_dbg(pf, IXL_DBG_I2C, "I2C byte read status %s, error %s\n",
+		    i40e_stat_str(hw, status), i40e_aq_str(hw, hw->aq.asq_last_status));
+	else
+		*data = (u8)reg;
+
+	return status;
+}
+
+/**
+ *  ixl_write_i2c_byte - Writes 8 bit word over I2C using a hardware register
+ **/
+s32
+ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
+		       u8 dev_addr, u8 data)
+{
+	struct i40e_hw *hw = &pf->hw;
+	s32 status = I40E_SUCCESS;
+
+	status = i40e_aq_set_phy_register(hw,
+					I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+					dev_addr,
+					byte_offset,
+					data, NULL);
+
+	if (status)
+		ixl_dbg(pf, IXL_DBG_I2C, "I2C byte write status %s, error %s\n",
+		    i40e_stat_str(hw, status), i40e_aq_str(hw, hw->aq.asq_last_status));
+
+	return status;
+}

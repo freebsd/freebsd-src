@@ -67,7 +67,7 @@ smccc_init(void *dummy)
 		    SMCCC_VERSION_MINOR(smccc_version));
 	}
 }
-SYSINIT(smccc_start, SI_SUB_DRIVERS, SI_ORDER_ANY, smccc_init, NULL);
+SYSINIT(smccc_start, SI_SUB_CONFIGURE, SI_ORDER_ANY, smccc_init, NULL);
 
 int32_t
 smccc_arch_features(uint32_t smccc_func_id)

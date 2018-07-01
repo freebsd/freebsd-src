@@ -176,8 +176,17 @@ done:
 	global_epoch = epoch_alloc(0);
 	global_epoch_preempt = epoch_alloc(EPOCH_PREEMPT);
 }
-
 SYSINIT(epoch, SI_SUB_TASKQ + 1, SI_ORDER_FIRST, epoch_init, NULL);
+
+#if !defined(EARLY_AP_STARTUP)
+static void
+epoch_init_smp(void *dummy __unused)
+{
+	inited = 2;
+}
+SYSINIT(epoch_smp, SI_SUB_SMP + 1, SI_ORDER_FIRST, epoch_init_smp, NULL);
+#endif
+
 
 static void
 epoch_init_numa(epoch_t epoch)
@@ -307,6 +316,7 @@ epoch_enter(epoch_t epoch)
 	struct thread *td;
 
 	MPASS(cold || epoch != NULL);
+	INIT_CHECK(epoch);
 	td = curthread;
 
 	critical_enter();
@@ -344,6 +354,7 @@ epoch_exit(epoch_t epoch)
 	ck_epoch_record_t *record;
 	struct thread *td;
 
+	INIT_CHECK(epoch);
 	td = curthread;
 	td->td_epochnest--;
 	record = &epoch->e_pcpu[curcpu]->eps_record.er_record;
@@ -364,9 +375,11 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 	struct turnstile *ts;
 	struct lock_object *lock;
 	int spincount, gen;
+	int locksheld __unused;
 
 	record = __containerof(cr, struct epoch_record, er_record);
 	td = curthread;
+	locksheld = td->td_locks;
 	spincount = 0;
 	counter_u64_add(block_count, 1);
 	if (record->er_cpuid != curcpu) {
@@ -459,8 +472,8 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 				turnstile_unlock(ts, lock);
 			thread_lock(td);
 			critical_exit();
-			KASSERT(td->td_locks == 0,
-			    ("%d locks held", td->td_locks));
+			KASSERT(td->td_locks == locksheld,
+			    ("%d extra locks held", td->td_locks - locksheld));
 		}
 	}
 	/*
@@ -488,23 +501,20 @@ epoch_wait_preempt(epoch_t epoch)
 	int old_cpu;
 	int old_pinned;
 	u_char old_prio;
-#ifdef INVARIANTS
-	int locks;
-
-	locks = curthread->td_locks;
-#endif
+	int locks __unused;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
-
-	MPASS(epoch->e_flags & EPOCH_PREEMPT);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "epoch_wait() can sleep");
-
 	td = curthread;
+#ifdef INVARIANTS
+	locks = curthread->td_locks;
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+	if ((epoch->e_flags & EPOCH_LOCKED) == 0)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "epoch_wait() can be long running");
 	KASSERT(td->td_epochnest == 0, ("epoch_wait() in the middle of an epoch section"));
+#endif
 	thread_lock(td);
-
 	DROP_GIANT();
 
 	old_cpu = PCPU_GET(cpuid);
@@ -568,6 +578,10 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 	/* too early in boot to have epoch set up */
 	if (__predict_false(epoch == NULL))
 		goto boottime;
+#if !defined(EARLY_AP_STARTUP)
+	if (__predict_false(inited < 2))
+		goto boottime;
+#endif
 
 	critical_enter();
 	*DPCPU_PTR(epoch_cb_count) += 1;

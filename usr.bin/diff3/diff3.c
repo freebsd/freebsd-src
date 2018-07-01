@@ -756,7 +756,7 @@ main(int argc, char **argv)
 	nleft++;
 
 	caph_cache_catpages();
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(2, "unable to enter capability mode");
 
 	/* parse diffs */

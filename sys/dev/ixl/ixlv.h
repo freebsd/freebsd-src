@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -38,8 +38,7 @@
 
 #include "ixlv_vc_mgr.h"
 
-#define IXLV_AQ_MAX_ERR		30
-#define IXLV_MAX_INIT_WAIT	120
+#define IXLV_AQ_MAX_ERR		200
 #define IXLV_MAX_FILTERS	128
 #define IXLV_MAX_QUEUES		16
 #define IXLV_AQ_TIMEOUT		(1 * hz)
@@ -78,6 +77,8 @@
     "\22I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING" \
     "\23I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2" \
     "\24I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF"
+
+static MALLOC_DEFINE(M_IXLV, "ixlv", "ixlv driver allocations");
 
 /* Driver state */
 enum ixlv_state_t {
@@ -144,9 +145,10 @@ struct ixlv_sc {
 	u32			qbase;
 	u32 			admvec;
 	struct timeout_task	timeout;
+#ifdef notyet
 	struct task     	aq_irq;
 	struct task     	aq_sched;
-	struct taskqueue	*tq;
+#endif
 
 	struct ixl_vsi		vsi;
 
@@ -186,7 +188,6 @@ struct ixlv_sc {
 	u8			aq_buffer[IXL_AQ_BUF_SZ];
 };
 
-#define IXLV_CORE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
 /*
 ** This checks for a zero mac addr, something that will be likely
 ** unless the Admin on the Host has created one.
@@ -205,6 +206,8 @@ ixlv_check_ether_addr(u8 *addr)
 /*
 ** VF Common function prototypes
 */
+void	ixlv_if_init(if_ctx_t ctx);
+
 int	ixlv_send_api_ver(struct ixlv_sc *);
 int	ixlv_verify_api_ver(struct ixlv_sc *);
 int	ixlv_send_vf_config_msg(struct ixlv_sc *);

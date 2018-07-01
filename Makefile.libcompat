@@ -100,22 +100,6 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
 
-.if ${WANT_COMPILER_TYPE} == gcc || \
-    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
-# GCC requires -isystem when using a cross-compiler and --sysroot.  Note that
-# Makefile.inc1 only applies this with an external compiler but libcompat
-# always does since even in-tree GCC 4.2 needs this to override the built-in
-# sysroot path which --sysroot does not actually do for headers.
-LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
-# Force using libc++ for external GCC.
-.if defined(X_COMPILER_TYPE) && \
-    ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800 && \
-    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
-LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
-			-nostdinc++
-.endif
-.endif
-
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -172,24 +156,25 @@ build${libcompat}: .PHONY
 .if !defined(NO_CLEAN)
 	rm -rf ${LIBCOMPATTMP}
 .else
-.if exists(${LIBCOMPATTMP})
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    DESTDIR=${LIBCOMPATTMP} \
-	    delete-old delete-old-libs >/dev/null
-.endif
+	${_+_}@if [ -e "${LIBCOMPATTMP}" ]; then \
+		echo ">>> Deleting stale files in build${libcompat} tree..."; \
+		cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+		    DESTDIR=${LIBCOMPATTMP} \
+		    delete-old delete-old-libs >/dev/null; \
+	fi
 .endif	# !defined(NO_CLEAN)
 
 	mkdir -p ${LIBCOMPATTMP}/usr/include
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIBCOMPATTMP}/usr/include >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${LIBCOMPATTMP}/usr/lib >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${LIBCOMPATTMP}/usr/lib/debug/usr >/dev/null
 .endif
 	mkdir -p ${WORLDTMP}

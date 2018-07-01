@@ -225,6 +225,24 @@ MANMODE		Manual mode.
 
 MANOWN		Manual owner.
 
+INSTALL_LINK	Command to install a hard link.
+
+INSTALL_SYMLINK	Command to install a symbolic link.
+
+INSTALL_RSYMLINK	Command to install a relative symbolic link.
+
+LINKOWN		Owner of hard links created by INSTALL_LINK.
+
+LINKGRP		Group of hard links created by INSTALL_LINK.
+
+LINKMODE	Mode of hard links created by INSTALL_LINK.
+
+SYMLINKOWN	Owner of hard links created by INSTALL_[R]SYMLINK.
+
+SYMLINKGRP	Group of hard links created by INSTALL_[R]SYMLINK.
+
+SYMLINKMODE	Mode of hard links created by INSTALL_[R]SYMLINK.
+
 This file is generally useful when building your own Makefiles so that
 they use the same default owners etc. as the rest of the tree.
 
@@ -319,6 +337,13 @@ LINKS		The list of binary links; should be full pathnames, the
 		/bin/test and /bin/[, use:
 
 			LINKS=	/bin/test /bin/[
+
+LINKOWN		Owner of links created with LINKS [${BINOWN}].
+
+LINKGRP		Group of links created with LINKS [${BINGRP}].
+
+LINKMODE	Mode of links created with LINKS [${BINMODE}].
+
 
 MAN		Manual pages.  If no MAN variable is defined,
 		"MAN=${PROG}.1" is assumed. See bsd.man.mk for more details.
@@ -528,6 +553,21 @@ LIB_CXX		The name of the library to build. It also causes
 		of LIB if LIB is also set.  Both a shared and static library
 		will be built.  NO_PIC can be set to only build a static
 		library.
+
+LINKS		The list of binary links; should be full pathnames, the
+		linked-to file coming first, followed by the linked
+		file.  The files are hard-linked.  For example, to link
+		/bin/test and /bin/[, use:
+
+			LINKS=	/bin/test /bin/[
+
+LINKOWN		Owner of links created with LINKS [${LIBOWN}].
+
+LINKGRP		Group of links created with LINKS [${LIBGRP}].
+
+LINKMODE	Mode of links created with LINKS [${LIBMODE}].
+
+LINTLIBDIR	Target directory for lint libraries.
 
 MAN		The manual pages to be installed. See bsd.man.mk for more
 		details.

@@ -256,7 +256,7 @@ main(int argc, char **argv)
 	}
 
 	/* Enter Capsicum sandbox. */
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(EXIT_FAILURE, "unable to enter capability mode");
 
 	for (i = 0; i < (int)nfds; i++) {

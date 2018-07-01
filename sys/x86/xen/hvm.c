@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/hvm.h>
 #include <xen/xen_intr.h>
 
+#include <xen/interface/arch-x86/cpuid.h>
 #include <xen/interface/hvm/params.h>
 #include <xen/interface/vcpu.h>
 
@@ -103,6 +104,9 @@ TUNABLE_INT("hw.xen.disable_pv_disks", &xen_disable_pv_disks);
 TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
 
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
+
+static uint32_t cpuid_base;
+
 static uint32_t
 xen_hvm_cpuid_base(void)
 {
@@ -123,22 +127,21 @@ xen_hvm_cpuid_base(void)
 static int
 xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
-	uint32_t base, regs[4];
-	int i;
+	uint32_t regs[4];
 
 	if (xen_pv_domain()) {
 		/* hypercall page is already set in the PV case */
 		return (0);
 	}
 
-	base = xen_hvm_cpuid_base();
-	if (base == 0)
+	cpuid_base = xen_hvm_cpuid_base();
+	if (cpuid_base == 0)
 		return (ENXIO);
 
 	if (init_type == XEN_HVM_INIT_COLD) {
 		int major, minor;
 
-		do_cpuid(base + 1, regs);
+		do_cpuid(cpuid_base + 1, regs);
 
 		major = regs[0] >> 16;
 		minor = regs[0] & 0xffff;
@@ -166,10 +169,11 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	/*
 	 * Find the hypercall pages.
 	 */
-	do_cpuid(base + 2, regs);
+	do_cpuid(cpuid_base + 2, regs);
+	if (regs[0] != 1)
+		return (EINVAL);
 
-	for (i = 0; i < regs[0]; i++)
-		wrmsr(regs[1], vtophys(&hypercall_page + i * PAGE_SIZE) + i);
+	wrmsr(regs[1], vtophys(&hypercall_page));
 
 	return (0);
 }
@@ -371,31 +375,14 @@ xen_hvm_sysinit(void *arg __unused)
 {
 	xen_hvm_init(XEN_HVM_INIT_COLD);
 }
-
-static void
-xen_set_vcpu_id(void)
-{
-	struct pcpu *pc;
-	int i;
-
-	if (!xen_hvm_domain())
-		return;
-
-	/* Set vcpu_id to acpi_id */
-	CPU_FOREACH(i) {
-		pc = pcpu_find(i);
-		pc->pc_vcpu_id = pc->pc_acpi_id;
-		if (bootverbose)
-			printf("XEN: CPU %u has VCPU ID %u\n",
-			       i, pc->pc_vcpu_id);
-	}
-}
+SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 
 static void
 xen_hvm_cpu_init(void)
 {
 	struct vcpu_register_vcpu_info info;
 	struct vcpu_info *vcpu_info;
+	uint32_t regs[4];
 	int cpu, rc;
 
 	if (!xen_domain())
@@ -410,6 +397,22 @@ xen_hvm_cpu_init(void)
 		return;
 	}
 
+	/*
+	 * Set vCPU ID. If available fetch the ID from CPUID, if not just use
+	 * the ACPI ID.
+	 */
+	KASSERT(cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(cpuid_base + 4, 0, regs);
+	PCPU_SET(vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
+	    regs[1] : PCPU_GET(acpi_id));
+
+	/*
+	 * Set the vCPU info.
+	 *
+	 * NB: the vCPU info for vCPUs < 32 can be fetched from the shared info
+	 * page, but in order to make sure the mapping code is correct always
+	 * attempt to map the vCPU info at a custom place.
+	 */
 	vcpu_info = DPCPU_PTR(vcpu_local_info);
 	cpu = PCPU_GET(vcpu_id);
 	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
@@ -421,7 +424,4 @@ xen_hvm_cpu_init(void)
 	else
 		DPCPU_SET(vcpu_info, vcpu_info);
 }
-
-SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
-SYSINIT(xen_set_vcpu_id, SI_SUB_CPU, SI_ORDER_ANY, xen_set_vcpu_id, NULL);

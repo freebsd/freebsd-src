@@ -86,7 +86,7 @@ main(int argc, char *argv[])
 	caph_cache_catpages();
 	if (caph_limit_stdio() < 0)
 		err(1, "Unable to limit stdio");
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "Unable to enter capability mode");
 
 	if (count == -1)

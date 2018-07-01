@@ -117,6 +117,11 @@ struct bpf_if {
 
 CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
 
+#define BPFIF_RLOCK(bif)	rw_rlock(&(bif)->bif_lock)
+#define BPFIF_RUNLOCK(bif)	rw_runlock(&(bif)->bif_lock)
+#define BPFIF_WLOCK(bif)	rw_wlock(&(bif)->bif_lock)
+#define BPFIF_WUNLOCK(bif)	rw_wunlock(&(bif)->bif_lock)
+
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
 #define PRINET  26			/* interruptible */

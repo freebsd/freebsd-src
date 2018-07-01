@@ -278,7 +278,7 @@ SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, ccache_buckets,
     CTLFLAG_VNET | CTLFLAG_RDTUN, &VNET_NAME(tcp_fastopen_ccache_buckets), 0,
     "Client cookie cache number of buckets (power of 2)");
 
-VNET_DEFINE(unsigned int, tcp_fastopen_client_enable) = 0;
+VNET_DEFINE(unsigned int, tcp_fastopen_client_enable) = 1;
 static int sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, client_enable,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, NULL, 0,

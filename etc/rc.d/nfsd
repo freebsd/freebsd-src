@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: nfsd
-# REQUIRE: mountd hostname gssd nfsuserd
+# REQUIRE: mountcritremote mountd hostname gssd nfsuserd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr

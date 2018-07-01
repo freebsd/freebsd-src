@@ -312,25 +312,31 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			continue;
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
+		if (last != NULL) {
+			struct mbuf *n;
+
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+			if (n != NULL)
+			    (void) rip_append(last, ip, n, &ripsrc);
+			/* XXX count dropped packet */
+			INP_RUNLOCK(last);
+			last = NULL;
+		}
+		INP_RLOCK(inp);
+		if (__predict_false(inp->inp_flags2 & INP_FREED))
+			goto skip_1;
 		if (jailed_without_vnet(inp->inp_cred)) {
 			/*
 			 * XXX: If faddr was bound to multicast group,
 			 * jailed raw socket will drop datagram.
 			 */
 			if (prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
-				continue;
+				goto skip_1;
 		}
-		if (last != NULL) {
-			struct mbuf *n;
-
-			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
-			if (n != NULL)
-		    	    (void) rip_append(last, ip, n, &ripsrc);
-			/* XXX count dropped packet */
-			INP_RUNLOCK(last);
-		}
-		INP_RLOCK(inp);
 		last = inp;
+		continue;
+	skip_1:
+		INP_RUNLOCK(inp);
 	}
 	CK_LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
@@ -346,6 +352,19 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		if (!in_nullhost(inp->inp_faddr) &&
 		    !in_hosteq(inp->inp_faddr, ip->ip_src))
 			continue;
+		if (last != NULL) {
+			struct mbuf *n;
+
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+			if (n != NULL)
+				(void) rip_append(last, ip, n, &ripsrc);
+			/* XXX count dropped packet */
+			INP_RUNLOCK(last);
+			last = NULL;
+		}
+		INP_RLOCK(inp);
+		if (__predict_false(inp->inp_flags2 & INP_FREED))
+			goto skip_2;
 		if (jailed_without_vnet(inp->inp_cred)) {
 			/*
 			 * Allow raw socket in jail to receive multicast;
@@ -354,7 +373,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (!IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 			    prison_check_ip4(inp->inp_cred, &ip->ip_dst) != 0)
-				continue;
+				goto skip_2;
 		}
 		/*
 		 * If this raw socket has multicast state, and we
@@ -395,20 +414,13 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 
 			if (blocked != MCAST_PASS) {
 				IPSTAT_INC(ips_notmember);
-				continue;
+				goto skip_2;
 			}
 		}
-		if (last != NULL) {
-			struct mbuf *n;
-
-			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
-			if (n != NULL)
-				(void) rip_append(last, ip, n, &ripsrc);
-			/* XXX count dropped packet */
-			INP_RUNLOCK(last);
-		}
-		INP_RLOCK(inp);
 		last = inp;
+		continue;
+	skip_2:
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 	if (last != NULL) {
