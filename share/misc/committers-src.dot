@@ -349,6 +349,7 @@ versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
 whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
+will [label="Will Andrews\nwill@FreeBSD.org\n2000/03/20"]
 wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wma [label="Wojciech Macek\nwma@FreeBSD.org\n2016/01/18"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
@@ -419,6 +420,7 @@ billf -> gad
 billf -> jedgar
 billf -> jhb
 billf -> shafeeq
+billf -> will
 
 bmilekic -> csjp
 
@@ -645,6 +647,7 @@ ken -> asomers
 ken -> chuck
 ken -> ram
 ken -> slm
+ken -> will
 
 kib -> ae
 kib -> badger
