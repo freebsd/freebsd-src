@@ -2,6 +2,7 @@
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
  *
+ *  Copyright (c) 2018, Daichi Goto
  *  Copyright (c) 2018, Eitan Adler
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
@@ -327,4 +328,62 @@ find_pid(pid_t pid)
 done:
 	kvm_close(kd);
 	return ret;
+}
+
+/*
+ * utf8strvisx(dst,src,src_len) 
+ *	strvisx(dst,src,src_len,VIS_NL|VIS_CSTYLE) coresponding to UTF-8.
+ */
+static const char *vis_encodes[] = {
+	"\\0", "\\^A", "\\^B", "\\^C", "\\^D", "\\^E", "\\^F", "\\a",
+	"\\b", "\t", "\\n", "\\v", "\\f", "\\r", "\\^N", "\\^O", "\\^P",
+	"\\^Q", "\\^R", "\\^S", "\\^T", "\\^U", "\\^V", "\\^W", "\\^X",
+	"\\^Y", "\\^Z", "\\^[", "\\^\\", "\\^]", "\\^^", "\\^_"
+};
+
+int
+utf8strvisx(char *dst, const char *src, size_t src_len)
+{
+	const char *src_p;
+	char *dst_p;
+	int i, j, olen, len;
+
+	src_p = src;
+	dst_p = dst;
+	i = olen = 0;
+	len = (int)src_len;
+	while (i < len) {
+		if (0x00 == (0x80 & *src_p)) {
+			if (0 <= *src_p && *src_p <= 31) {
+				j = strlen(vis_encodes[(int)*src_p]);
+				strcpy(dst_p, vis_encodes[(int)*src_p]);
+				dst_p += j;
+				olen += j;
+			} else if (127 == *src_p) {
+				strcpy(dst_p, "\\^?");
+				olen += 3;
+			} else {
+				*dst_p++ = *src_p;
+				++olen;
+			}
+			++i;
+			++src_p;
+		} else if (0xC0 == (0xE0 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else if (0xE0 == (0xF0 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else if (0xF0 == (0xF8 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else {
+			*dst_p++ = '?'; ++i; ++olen;
+		}
+	}
+
+	return olen;
 }
