@@ -304,7 +304,7 @@ extern struct mtx_padalign pa_lock[];
 
 #define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
 
-#ifdef KLD_MODULE
+#if defined(KLD_MODULE) && !defined(KLD_TIED)
 #define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
@@ -734,7 +734,7 @@ vm_page_dirty(vm_page_t m)
 {
 
 	/* Use vm_page_dirty_KBI() under INVARIANTS to save memory. */
-#if defined(KLD_MODULE) || defined(INVARIANTS)
+#if (defined(KLD_MODULE) && !defined(KLD_TIED)) || defined(INVARIANTS)
 	vm_page_dirty_KBI(m);
 #else
 	m->dirty = VM_PAGE_BITS_ALL;

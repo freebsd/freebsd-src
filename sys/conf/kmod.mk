@@ -111,6 +111,9 @@ WERROR?=	-Werror
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
+.if defined(MODULE_TIED)
+CFLAGS+=	-DKLD_TIED
+.endif
 
 # Don't use any standard or source-relative include directories.
 NOSTDINC=	-nostdinc

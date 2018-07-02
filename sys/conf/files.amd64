@@ -126,7 +126,6 @@ acpi_wakedata.h			optional	acpi			\
 	clean		"acpi_wakedata.h"
 #
 #amd64/amd64/apic_vector.S	standard
-amd64/amd64/atomic.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
 amd64/amd64/cpu_switch.S	standard

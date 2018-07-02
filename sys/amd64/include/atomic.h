@@ -96,7 +96,7 @@
  * Kernel modules call real functions which are built into the kernel.
  * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
+#if !defined(__GNUCLIKE_ASM)
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
