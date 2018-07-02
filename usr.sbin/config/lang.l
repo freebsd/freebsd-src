@@ -68,6 +68,7 @@ struct kt {
 	{ "nodevice",	NODEVICE },
 	{ "nodevices",	NODEVICE },
 	{ "env",	ENV },
+	{ "envvar",	ENVVAR },
 	{ "hints",	HINTS },
 	{ "ident",	IDENT },
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
@@ -103,7 +104,13 @@ int yyerror(const char *);
 ID	[A-Za-z_][-A-Za-z_0-9]*
 PATH	[./][-/.%^A-Za-z_0-9]+
 %START TOEOL
+%START ENVC
 %%
+<ENVC>[^#\n]*	{
+			BEGIN 0;
+			yylval.str = strdup(yytext);
+			return ENVLINE;
+		}
 {ID}		{
 			int i;
 
@@ -113,6 +120,9 @@ PATH	[./][-/.%^A-Za-z_0-9]+
 				yylval.str = strdup(yytext);
 				return ID;
 			}
+			/* We'll glom onto the rest of an envvar line */
+			if (i == ENVVAR)
+				BEGIN ENVC;
 			return i;
 		}
 \\\"[^"]+\\\"	{

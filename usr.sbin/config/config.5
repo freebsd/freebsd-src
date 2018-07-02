@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2016
+.Dd June 22, 2018
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -124,6 +124,20 @@ the compiled-in environment instead, unless the boot environment contains
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
 .Xr loader 8 .
+.\" -------- ENVVAR --------
+.Pp
+.It Ic envvar Ar setting
+Specifies an individual environment setting to be added to the kernel's
+compiled-in environment.
+.Ar setting
+must be of the form
+.Dq Va name=value .
+Optional quotes are supported in both name and value.
+All environment variables specified with
+.Ic envvar
+will be set after any
+.Ic env
+files are included.
 .\" -------- FILES --------
 .Pp
 .It Ic files Ar filename
