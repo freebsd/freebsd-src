@@ -943,7 +943,6 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		rw_wunlock(&tcp_function_lock);
 
 		VNET_LIST_RLOCK();
-		/* XXX handle */
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 			INP_INFO_WLOCK(&V_tcbinfo);
@@ -1733,7 +1732,6 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 					tmpalgo = CC_ALGO(tp);
 					/* NewReno does not require any init. */
 					CC_ALGO(tp) = &newreno_cc_algo;
-					/* XXX defer to epoch_call */
 					if (tmpalgo->cb_destroy != NULL)
 						tmpalgo->cb_destroy(tp->ccv);
 				}
@@ -2106,7 +2104,6 @@ static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, m, n, pcb_count;
-	struct in_pcblist *il;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -2153,8 +2150,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO_INVARIANTS);
-	inp_list = il->il_inp_list;
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
@@ -2197,10 +2193,14 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-
-	il->il_count = n;
-	il->il_pcbinfo = &V_tcbinfo;
-	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
+	INP_INFO_RLOCK(&V_tcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
+	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	if (!error) {
 		/*
@@ -2217,6 +2217,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_LIST_RUNLOCK(&V_tcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
+	free(inp_list, M_TEMP);
 	return (error);
 }
 
