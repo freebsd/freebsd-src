@@ -77,11 +77,13 @@ printfile(int fileid, int verbose, int humanized)
 		humanize_number(buf, sizeof(buf), stat.size,
 		    "", HN_AUTOSCALE, HN_DECIMAL | HN_NOSPACE);
 
-		printf("%2d %4d %p %5s %s",
-		    stat.id, stat.refs, stat.address, buf, stat.name);
+		printf("%2d %4d %*p %5s %s",
+		    stat.id, stat.refs, POINTER_WIDTH, stat.address, buf,
+		    stat.name);
 	} else {
-		printf("%2d %4d %p %8zx %s",
-		    stat.id, stat.refs, stat.address, stat.size, stat.name);
+		printf("%2d %4d %*p %8zx %s",
+		    stat.id, stat.refs, POINTER_WIDTH, stat.address, stat.size,
+		    stat.name);
 	}
     }
 
