@@ -138,7 +138,7 @@ void	_thread_lock(struct thread *td, int opts, const char *file, int line);
 void	_thread_lock(struct thread *);
 #endif
 
-#if defined(LOCK_PROFILING) || defined(KLD_MODULE)
+#if defined(LOCK_PROFILING) || (defined(KLD_MODULE) && !defined(KLD_TIED))
 #define	thread_lock(tdp)						\
 	thread_lock_flags_((tdp), 0, __FILE__, __LINE__)
 #elif LOCK_DEBUG > 0
