@@ -137,6 +137,13 @@ struct opt_list {
 
 SLIST_HEAD(, opt_list) otab;
 
+struct envvar {
+	char	*env_str;
+	STAILQ_ENTRY(envvar) envvar_next;
+};
+
+STAILQ_HEAD(envvar_head, envvar) envvars;
+
 struct hint {
 	char	*hint_name;
 	STAILQ_ENTRY(hint) hint_next;
