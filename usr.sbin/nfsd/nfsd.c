@@ -1180,9 +1180,11 @@ static void
 parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 {
 	char *ad, *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
+	char *mdspath, *mdsp;
 	int ecode;
 	u_int adsiz, dsaddrcnt, dshostcnt, dspathcnt, hostsiz, pathsiz;
-	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz;
+	u_int mdspathcnt;
+	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz, mdspathsiz;
 	struct addrinfo hints, *ai_tcp;
 	struct sockaddr_in sin;
 
@@ -1206,6 +1208,11 @@ parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 	dsaddr = malloc(dsaddrsiz);
 	if (dsaddr == NULL)
 		errx(1, "Out of memory");
+	mdspathsiz = 1024;
+	mdspathcnt = 0;
+	mdspath = malloc(mdspathsiz);
+	if (mdspath == NULL)
+		errx(1, "Out of memory");
 
 	/* Put the NFS port# in "." form. */
 	snprintf(nfsprt, 9, ".%d.%d", 2049 >> 8, 2049 & 0xff);
@@ -1227,6 +1234,14 @@ parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 			usage();
 		*dsvol++ = '\0';
 
+		/* Optional path for MDS file system to be stored on DS. */
+		mdsp = strchr(dsvol, '#');
+		if (mdsp != NULL) {
+			if (*(mdsp + 1) == '\0' || mdsp <= dsvol)
+				usage();
+			*mdsp++ = '\0';
+		}
+
 		/* Append this pathname to dspath. */
 		pathsiz = strlen(dsvol);
 		if (dspathcnt + pathsiz + 1 > dspathsiz) {
@@ -1237,6 +1252,23 @@ parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 		}
 		strcpy(&dspath[dspathcnt], dsvol);
 		dspathcnt += pathsiz + 1;
+
+		/* Append this pathname to mdspath. */
+		if (mdsp != NULL)
+			pathsiz = strlen(mdsp);
+		else
+			pathsiz = 0;
+		if (mdspathcnt + pathsiz + 1 > mdspathsiz) {
+			mdspathsiz *= 2;
+			mdspath = realloc(mdspath, mdspathsiz);
+			if (mdspath == NULL)
+				errx(1, "Out of memory");
+		}
+		if (mdsp != NULL)
+			strcpy(&mdspath[mdspathcnt], mdsp);
+		else
+			mdspath[mdspathcnt] = '\0';
+		mdspathcnt += pathsiz + 1;
 
 		if (ai_tcp != NULL)
 			freeaddrinfo(ai_tcp);
@@ -1290,6 +1322,8 @@ parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 	nfsdargp->dnshostlen = dshostcnt;
 	nfsdargp->dspath = dspath;
 	nfsdargp->dspathlen = dspathcnt;
+	nfsdargp->mdspath = mdspath;
+	nfsdargp->mdspathlen = mdspathcnt;
 	freeaddrinfo(ai_tcp);
 }
 
