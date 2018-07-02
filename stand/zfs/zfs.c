@@ -662,7 +662,7 @@ zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
 	if (*np != ':')
 		return (EINVAL);
 	np++;
-	end = strchr(np, ':');
+	end = strrchr(np, ':');
 	if (end == NULL)
 		return (EINVAL);
 	sep = strchr(np, '/');
