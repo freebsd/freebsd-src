@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2018
+.Dd July 2, 2018
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -348,6 +348,10 @@ logged with each locally-written message.
 If specified more than once,
 the names of the facility and priority are logged with each locally-written
 message.
+.Pp
+This option only affects the formatting of RFC 3164 messages.
+Messages formatted according to RFC 5424 always include a
+facility/priority number.
 .El
 .Pp
 The
