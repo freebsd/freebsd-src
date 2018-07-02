@@ -2,6 +2,9 @@
 
 # $FreeBSD$
 
+passphrase=x
+iterations=5000
+
 do_boot1_efi=0
 
 #
@@ -394,8 +397,8 @@ mk_geli_gpt_ufs_legacy() {
     gpart add -t freebsd-boot -s 400k -a 4k	${md}	# <= ~540k
     gpart add -t freebsd-ufs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p2
-    echo passphrase | geli attach -j - ${md}p2
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
+    echo ${passphrase} | geli attach -j - ${md}p2
     newfs /dev/${md}p2.eli
     mount /dev/${md}p2.eli ${mntpt}
     cpsys ${src} ${mntpt}
@@ -430,8 +433,8 @@ mk_geli_gpt_ufs_uefi() {
     gpart add -t efi -s 800k -a 4k ${md}
     gpart add -t freebsd-ufs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p2
-    echo passphrase | geli attach -j - ${md}p2
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
+    echo ${passphrase} | geli attach -j - ${md}p2
     newfs /dev/${md}p2.eli
     mount /dev/${md}p2.eli ${mntpt}
     cpsys ${src} ${mntpt}
@@ -467,8 +470,8 @@ mk_geli_gpt_ufs_both() {
     gpart add -t freebsd-boot -s 400k -a 4k	${md}	# <= ~540k
     gpart add -t freebsd-ufs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p3
-    echo passphrase | geli attach -j - ${md}p3
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p3
+    echo ${passphrase} | geli attach -j - ${md}p3
     newfs /dev/${md}p3.eli
     mount /dev/${md}p3.eli ${mntpt}
     cpsys ${src} ${mntpt}
@@ -504,8 +507,8 @@ mk_geli_gpt_zfs_legacy() {
     gpart add -t freebsd-boot -s 400k -a 4k	${md}	# <= ~540k
     gpart add -t freebsd-zfs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p2
-    echo passphrase | geli attach -j - ${md}p2
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
+    echo ${passphrase} | geli attach -j - ${md}p2
     zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p2.eli
     zpool set bootfs=${pool} ${pool}
     zfs create -po mountpoint=/ ${pool}/ROOT/default
@@ -547,8 +550,8 @@ mk_geli_gpt_zfs_uefi() {
     gpart add -t efi -s 800k -a 4k ${md}
     gpart add -t freebsd-zfs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p2
-    echo passphrase | geli attach -j - ${md}p2
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
+    echo ${passphrase} | geli attach -j - ${md}p2
     zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p2.eli
     zpool set bootfs=${pool} ${pool}
     zfs create -po mountpoint=/ ${pool}/ROOT/default
@@ -591,8 +594,8 @@ mk_geli_gpt_zfs_both() {
     gpart add -t freebsd-boot -s 400k -a 4k	${md}	# <= ~540k
     gpart add -t freebsd-zfs -l root $md
     # install-boot will make this bootable
-    echo passphrase | geli init -bg -e AES-XTS -i 50000 -J - -l 256 -s 4096 ${md}p3
-    echo passphrase | geli attach -j - ${md}p3
+    echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p3
+    echo ${passphrase} | geli attach -j - ${md}p3
     zpool create -O mountpoint=none -R ${mntpt} ${pool} ${md}p3.eli
     zpool set bootfs=${pool} ${pool}
     zfs create -po mountpoint=/ ${pool}/ROOT/default
