@@ -185,6 +185,8 @@ struct nfsd_nfsd_args {
 	int	dnshostlen;	/* Length of DNS names */
 	char	*dspath;	/* DS Mount path on MDS */
 	int	dspathlen;	/* Length of DS Mount path on MDS */
+	char	*mdspath;	/* MDS mount for DS path on MDS */
+	int	mdspathlen;	/* Length of MDS mount for DS path on MDS */
 	int	mirrorcnt;	/* Number of mirrors to create on DSs */
 };
 
