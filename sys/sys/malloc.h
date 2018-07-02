@@ -63,13 +63,6 @@
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
-#ifdef INVARIANTS
-#define	M_ZERO_INVARIANTS		M_ZERO
-#else
-#define	M_ZERO_INVARIANTS		0
-#endif
-
-
 /*
  * Two malloc type structures are present: malloc_type, which is used by a
  * type owner to declare the type, and malloc_type_internal, which holds
