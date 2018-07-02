@@ -2,8 +2,8 @@
 
 # $FreeBSD$
 
-passphrase=x
-iterations=5000
+passphrase=passphrase
+iterations=50000
 
 do_boot1_efi=0
 
