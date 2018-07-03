@@ -237,7 +237,7 @@ mk_nogeli_mbr_ufs_uefi() {
     img=$2
 
     cat > ${src}/etc/fstab <<EOF
-/dev/ada0s1a	/		ufs	rw	1	1
+/dev/ada0s2a	/		ufs	rw	1	1
 EOF
     make_esp ${src} ${img}.s1
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
@@ -251,7 +251,7 @@ mk_nogeli_mbr_ufs_both() {
     img=$2
 
     cat > ${src}/etc/fstab <<EOF
-/dev/ada0s1a	/		ufs	rw	1	1
+/dev/ada0s2a	/		ufs	rw	1	1
 EOF
     make_esp ${src} ${img}.s1
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
