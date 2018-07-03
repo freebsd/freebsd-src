@@ -344,7 +344,7 @@ static const char *vis_encodes[] = {
 int
 utf8strvisx(char *dst, const char *src, size_t src_len)
 {
-	const char *src_p;
+	const signed char *src_p;
 	char *dst_p;
 	int i, j, olen, len;
 
