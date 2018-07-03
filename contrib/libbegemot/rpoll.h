@@ -47,16 +47,11 @@ int	poll_start_utimer(unsigned long long usecs, int repeat, timer_f func,
     void *arg);
 void	poll_stop_timer(int);
 
-# if defined(POLL_IN)
-#  undef POLL_IN
-# endif
-# if defined(POLL_OUT)
-#  undef POLL_OUT
-# endif
-
-# define POLL_IN	1
-# define POLL_OUT	2
-# define POLL_EXCEPT	4
+enum {
+	RPOLL_IN	= 1,
+	RPOLL_OUT	= 2,
+	RPOLL_EXCEPT	= 4,
+};
 
 extern int	rpoll_policy;
 extern int	rpoll_trace;

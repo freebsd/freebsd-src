@@ -328,7 +328,7 @@ udp_recv(struct tport *tp, struct port_input *pi)
 			    sizeof(struct in_addr));
 		if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS)
-			cred = (struct sockcred *)CMSG_DATA(cmsg);
+			cred = (struct sockcred *)(void *)CMSG_DATA(cmsg);
 	}
 
 	if (pi->cred)
