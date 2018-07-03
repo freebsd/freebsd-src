@@ -195,8 +195,8 @@ genoffset.o: $S/kern/genoffset.c
 # is to exercise the CTASSERT that checks that the offsets in the offset.inc
 # _lite struct(s) match those in the original(s). 
 genoffset_test.o: $S/kern/genoffset.c offset.inc
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} -DOFFSET_TEST ${.ALLSRC:M*.c} \
-	    -o ${.TARGET}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} -DOFFSET_TEST \
+	    $S/kern/genoffset.c -o ${.TARGET}
 
 assym.inc: $S/kern/genassym.sh genassym.o genoffset_test.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
