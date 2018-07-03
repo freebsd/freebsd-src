@@ -57,7 +57,7 @@ linux32_vdso.so		optional	compat_linux32			\
 	clean		"linux32_vdso.so"
 #
 ia32_genassym.o			standard				\
-	dependency 	"$S/compat/ia32/ia32_genassym.c"		\
+	dependency 	"$S/compat/ia32/ia32_genassym.c offset.inc"		\
 	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"ia32_genassym.o"
