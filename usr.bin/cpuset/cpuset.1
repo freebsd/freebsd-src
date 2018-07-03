@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2018
+.Dd July 3, 2018
 .Dt CPUSET 1
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@
 .Nm
 .Fl g
 .Op Fl cir
-.Op Fl d Ar domain | Fl j Ar jailid | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
+.Op Fl d Ar domain | Fl j Ar jail | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,7 +68,7 @@ available processors and memory domains in the system.
 .Nm
 requires a target to modify or query.
 The target may be specified as a command, process id, thread id, a
-cpuset id, an irq, a jail id, or a NUMA domain.
+cpuset id, an irq, a jail, or a NUMA domain.
 Using
 .Fl g
 the target's set id or mask may be queried.
@@ -136,8 +136,8 @@ the id of the target.
 When used with the
 .Fl g
 option print the id rather than the valid mask of the target.
-.It Fl j Ar jailid
-Specifies a jail id as the target of the operation.
+.It Fl j Ar jail
+Specifies a jail id or name as the target of the operation.
 .It Fl l Ar cpu-list
 Specifies a list of CPUs to apply to a target.
 Specification may include
