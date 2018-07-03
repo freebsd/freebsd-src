@@ -29,7 +29,7 @@
 
 #ifndef _SYS_KPILITE_H_
 #define _SYS_KPILITE_H_
-#if !defined(GENOFFSET) && !defined(KLD_MODULE) && defined(_KERNEL)
+#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED)) && defined(_KERNEL)
 #include "offset.inc"
 
 static __inline void
