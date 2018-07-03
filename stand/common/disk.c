@@ -244,6 +244,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	partdev.d_slice = -1;
 	partdev.d_partition = -1;
 
+	dev->d_offset = 0;
 	table = NULL;
 	slice = dev->d_slice;
 	partition = dev->d_partition;
