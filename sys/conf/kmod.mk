@@ -467,6 +467,9 @@ CLEANFILES+=	assym.inc
 DEPENDOBJS+=	genassym.o
 DPSRCS+=	offset.inc
 .endif
+.if defined(MODULE_TIED)
+DPSRCS+=	offset.inc
+.endif
 .if !empty(SRCS:Moffset.inc) || !empty(DPSRCS:Moffset.inc)
 CLEANFILES+=	offset.inc genoffset.o
 DEPENDOBJS+=	genoffset.o
