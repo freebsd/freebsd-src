@@ -76,7 +76,7 @@ ${VDSO}.so: linux${SFX}_locore.o
 	strip -N _binary_linux_locore_o_size ${.TARGET}
 .endif
 
-linux${SFX}_genassym.o:
+linux${SFX}_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)

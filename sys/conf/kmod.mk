@@ -463,8 +463,14 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 .endif
 
 .if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
-CLEANFILES+=	assym.inc genassym.o genoffset.o
-DEPENDOBJS+=	genassym.o genoffset.o
+CLEANFILES+=	assym.inc
+DEPENDOBJS+=	genassym.o
+DPSRCS+=	offset.inc
+.endif
+.if !empty(SRCS:Moffset.inc) || !empty(DPSRCS:Moffset.inc)
+CLEANFILES+=	offset.inc genoffset.o
+DEPENDOBJS+=	genoffset.o
+.endif
 assym.inc: genassym.o
 offset.inc: genoffset.o
 .if defined(KERNBUILDDIR)
@@ -482,7 +488,6 @@ genoffset.o: ${SYSDIR}/kern/genoffset.c
 genoffset.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/kern/genoffset.c
-.endif
 
 .if defined(KERNBUILDDIR)
 ${OBJS}: opt_global.h
