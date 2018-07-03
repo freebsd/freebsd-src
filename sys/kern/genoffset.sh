@@ -39,7 +39,7 @@ work()
 {
 	echo "#ifndef _OFFSET_INC_"
 	echo "#define _OFFSET_INC_"
-	echo "#if !defined(GENOFFSET) && !defined(KLD_MODULE)"
+	echo "#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED))"
 	${NM:='nm'} ${NMFLAGS} "$1" | ${AWK:='awk'} '
 	/ C .*_datatype_*/ {
 		type = substr($3, match($3, "_datatype_") + length("_datatype_"))
