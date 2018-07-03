@@ -355,6 +355,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				int			 blocked;
 
 				INP_RLOCK(inp);
+				if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+					INP_RUNLOCK(inp);
+					continue;
+				}
 
 				bzero(&mcaddr, sizeof(struct sockaddr_in6));
 				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
@@ -382,10 +386,12 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
 				    NULL) {
 					INP_RLOCK(last);
-					UDP_PROBE(receive, NULL, last, ip6,
-					    last, uh);
-					if (udp6_append(last, n, off, fromsa))
-						goto inp_lost;
+					if (__predict_true(inp->inp_flags2 & INP_FREED) == 0) {
+						UDP_PROBE(receive, NULL, last, ip6,
+					        last, uh);
+						if (udp6_append(last, n, off, fromsa))
+							goto inp_lost;
+					}
 					INP_RUNLOCK(last);
 				}
 			}
@@ -414,10 +420,13 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badheadlocked;
 		}
 		INP_RLOCK(last);
-		INP_INFO_RUNLOCK(pcbinfo);
-		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		if (udp6_append(last, m, off, fromsa) == 0) 
+		if (__predict_true(inp->inp_flags2 & INP_FREED) == 0) {
+			UDP_PROBE(receive, NULL, last, ip6, last, uh);
+			if (udp6_append(last, m, off, fromsa) == 0)
+				INP_RUNLOCK(last);
+		} else
 			INP_RUNLOCK(last);
+		INP_INFO_RUNLOCK(pcbinfo);
 	inp_lost:
 		return (IPPROTO_DONE);
 	}
