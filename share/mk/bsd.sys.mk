@@ -154,6 +154,16 @@ CWARNFLAGS+=	-Wno-error=bool-operation		\
 		-Wno-error=stringop-overflow
 .endif
 
+# GCC 8.1.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80100
+CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
+		-Wno-error=cast-function-type			\
+		-Wno-error=multistatement-macros		\
+		-Wno-error=restrict				\
+		-Wno-error=sizeof-pointer-memaccess		\
+		-Wno-error=stringop-truncation
+.endif
+
 # How to handle FreeBSD custom printf format specifiers.
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
