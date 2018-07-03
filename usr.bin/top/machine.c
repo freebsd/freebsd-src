@@ -408,6 +408,7 @@ format_header(const char *uname_field)
 		    ps.jail ? TOP_JID_LEN : 0, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		sbuf_cat(header, "   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND");
+		sbuf_finish(header);
 		break;
 	}
 	case DISP_MAX:
