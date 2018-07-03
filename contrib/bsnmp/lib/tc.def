@@ -38,3 +38,11 @@ typedef RowStatus ENUM (
 	6 destroy
 )
 
+typedef StorageType ENUM (
+	1 other
+	2 volatile
+	3 nonVolatile
+	4 permanent
+	5 readOnly
+)
+

@@ -4,7 +4,6 @@
 
 MOD=	wlan
 SRCS=	wlan_snmp.c wlan_sys.c
-CFLAGS+= -DSNMPTREE_TYPES
 
 XSYM=	begemotWlan
 

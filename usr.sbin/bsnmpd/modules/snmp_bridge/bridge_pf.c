@@ -48,6 +48,7 @@
 #include <bsnmp/snmpmod.h>
 #include <bsnmp/snmp_mibII.h>
 
+#define	SNMPTREE_TYPES
 #include "bridge_tree.h"
 #include "bridge_snmp.h"
 
