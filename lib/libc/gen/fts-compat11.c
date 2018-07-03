@@ -26,14 +26,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * from: $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
+ * From: @(#)fts.c	8.6 (Berkeley) 8/14/94
+ * From: $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
-
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
-#endif /* LIBC_SCCS and not lint */
-#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");

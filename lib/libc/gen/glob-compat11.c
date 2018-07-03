@@ -34,12 +34,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * from: $FreeBSD$
+ * From: @(#)glob.c	8.3 (Berkeley) 10/13/93
+ * From: FreeBSD: head/lib/libc/gen/glob.c 317913 2017-05-07 19:52:56Z jilles
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
