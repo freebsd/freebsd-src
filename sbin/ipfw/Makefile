@@ -13,7 +13,7 @@ SRCS+=	altq.c
 CFLAGS+=-DPF
 .endif
 
-LIBADD=	util
+LIBADD=	jail util
 MAN=	ipfw.8
 
 .include <bsd.prog.mk>
