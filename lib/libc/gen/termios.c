@@ -29,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)termios.c	8.2 (Berkeley) 2/21/94");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
