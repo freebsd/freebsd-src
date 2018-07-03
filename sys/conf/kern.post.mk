@@ -156,7 +156,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 
-OBJS_DEPEND_GUESS+=	assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
+OBJS_DEPEND_GUESS+=	offset.inc assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
 			${MFILES:T:S/.m$/.h/}
 
 .for mfile in ${MFILES}
