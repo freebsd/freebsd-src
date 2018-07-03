@@ -107,6 +107,12 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
 #endif
 
+#if defined(_KERNEL)
+#include <sys/param.h>		/* MAXCPU */
+#include <sys/pcpu.h>		/* curthread */
+#include <sys/kpilite.h>
+#endif
+
 /*
  * Assert that a pointer can be loaded from memory atomically.
  *
@@ -214,12 +220,44 @@ void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);
 void	cpu_rootconf(void);
-void	critical_enter(void);
-void	critical_exit(void);
+void	critical_enter_KBI(void);
+void	critical_exit_KBI(void);
+void	critical_exit_preempt(void);
 void	init_param1(void);
 void	init_param2(long physpages);
 void	init_static_kenv(char *, size_t);
 void	tablefull(const char *);
+
+#if defined(KLD_MODULE) || defined(KTR_CRITICAL) || !defined(_KERNEL) || defined(GENOFFSET)
+#define critical_enter() critical_enter_KBI()
+#define critical_exit() critical_exit_KBI()
+#else
+static __inline void
+critical_enter(void)
+{
+	struct thread_lite *td;
+
+	td = (struct thread_lite *)curthread;
+	td->td_critnest++;
+}
+
+static __inline void
+critical_exit(void)
+{
+	struct thread_lite *td;
+
+	td = (struct thread_lite *)curthread;
+	KASSERT(td->td_critnest != 0,
+	    ("critical_exit: td_critnest == 0"));
+	td->td_critnest--;
+	__compiler_membar();
+	if (__predict_false(td->td_owepreempt))
+		critical_exit_preempt();
+
+}
+#endif
+
+
 #ifdef  EARLY_PRINTF
 typedef void early_putc_t(int ch);
 extern early_putc_t *early_putc;
