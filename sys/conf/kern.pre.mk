@@ -195,7 +195,7 @@ OFEDCFLAGS=	${CFLAGS:N-I*} -DCONFIG_INFINIBAND_USER_MEM \
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
 
-GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
+GEN_CFILES= $S/$M/$M/genassym.c $S/kern/genoffset.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
