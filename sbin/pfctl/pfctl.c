@@ -2409,7 +2409,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((rulesopt != NULL) && (loadopt & PFCTL_FLAG_OPTION) &&
-	    !anchorname[0])
+	    !anchorname[0] && !(opts & PF_OPT_NOACTION))
 		if (pfctl_get_skip_ifaces())
 			error = 1;
 
