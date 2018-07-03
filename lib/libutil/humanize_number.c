@@ -143,7 +143,8 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 		 */
 		for (i = 0;
 		    (quotient >= max || (quotient == max - 1 &&
-		    remainder >= divisordeccut)) && i < maxscale; i++) {
+		    (remainder >= divisordeccut || remainder >=
+		    divisor / 2))) && i < maxscale; i++) {
 			remainder = quotient % divisor;
 			quotient /= divisor;
 		}
