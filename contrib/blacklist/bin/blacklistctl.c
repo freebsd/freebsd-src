@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: blacklistctl.c,v 1.21 2016/11/02 03:15:07 jnemeth Exp $");
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
 #ifdef HAVE_LIBUTIL_H
