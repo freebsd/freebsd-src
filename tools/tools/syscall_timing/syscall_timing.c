@@ -688,14 +688,14 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg __unused, const char *pat
 }
 
 static uintmax_t
-test_dup(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_shmfd_dup(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 	int fd, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
-		err(-1, "test_dup: shm_open");
+		err(-1, "test_shmfd_dup: shm_open");
 	fd = dup(shmfd);
 	if (fd >= 0)
 		close(fd);
@@ -732,7 +732,7 @@ test_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 }
 
 static uintmax_t
-test_fstat_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_shmfd_fstat(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	struct stat sb;
 	uintmax_t i;
@@ -740,9 +740,9 @@ test_fstat_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __u
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
-		err(-1, "test_fstat_shmfd: shm_open");
+		err(-1, "test_shmfd_fstat: shm_open");
 	if (fstat(shmfd, &sb) < 0)
-		err(-1, "test_fstat_shmfd: fstat");
+		err(-1, "test_shmfd_fstat: fstat");
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
 		(void)fstat(shmfd, &sb);
@@ -880,9 +880,9 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram, .t_flags = 0 },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
-	{ "dup", test_dup, .t_flags = 0 },
+	{ "shmfd_dup", test_shmfd_dup, .t_flags = 0 },
 	{ "shmfd", test_shmfd, .t_flags = 0 },
-	{ "fstat_shmfd", test_fstat_shmfd, .t_flags = 0 },
+	{ "shmfd_fstat", test_shmfd_fstat, .t_flags = 0 },
 	{ "vfork", test_vfork, .t_flags = 0 },
 	{ "vfork_exec", test_vfork_exec, .t_flags = 0 },
 };
