@@ -387,7 +387,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
 				    NULL) {
 					INP_RLOCK(last);
-					if (__predict_true(inp->inp_flags2 & INP_FREED) == 0) {
+					if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
 						UDP_PROBE(receive, NULL, last, ip6,
 					        last, uh);
 						if (udp6_append(last, n, off, fromsa))
@@ -421,7 +421,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badheadlocked;
 		}
 		INP_RLOCK(last);
-		if (__predict_true(inp->inp_flags2 & INP_FREED) == 0) {
+		if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
 			UDP_PROBE(receive, NULL, last, ip6, last, uh);
 			if (udp6_append(last, m, off, fromsa) == 0)
 				INP_RUNLOCK(last);
