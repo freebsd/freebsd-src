@@ -419,6 +419,7 @@ FBSD_1.5 {
 	scandir;
 	scandir_b;
 	sem_clockwait_np;
+	setproctitle_fast;
 };
 
 FBSDprivate_1.0 {
