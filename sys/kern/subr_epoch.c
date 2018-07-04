@@ -421,7 +421,9 @@ epoch_wait_preempt(epoch_t epoch)
 	if ((epoch->e_flags & EPOCH_LOCKED) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "epoch_wait() can be long running");
-	KASSERT(td->td_epochnest == 0, ("epoch_wait() in the middle of an epoch section"));
+	KASSERT(!in_epoch(epoch),
+			("epoch_wait_preempt() called in the middle "
+			 "of an epoch section of the same epoch"));
 #endif
 	thread_lock(td);
 	DROP_GIANT();
