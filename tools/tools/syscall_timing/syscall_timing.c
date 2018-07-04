@@ -66,7 +66,7 @@ static volatile int alarm_fired;
 #define	BENCHMARK_FOREACH(I, NUM) for (I = 0; I < NUM && alarm_fired == 0; I++)
 
 static void
-alarm_handler(int signum)
+alarm_handler(int signum __unused)
 {
 
 	alarm_fired = 1;
@@ -95,8 +95,8 @@ benchmark_stop(void)
 	assert(error == 0);
 }
   
-uintmax_t
-test_getuid(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_getuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -112,8 +112,8 @@ test_getuid(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_getppid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -129,8 +129,8 @@ test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_getresuid(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_getresuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uid_t ruid, euid, suid;
 	uintmax_t i;
@@ -143,8 +143,8 @@ test_getresuid(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_clock_gettime(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	struct timespec ts;
 	uintmax_t i;
@@ -157,8 +157,8 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_gettimeofday(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	struct timeval tv;
 	uintmax_t i;
@@ -171,8 +171,8 @@ test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_getpriority(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -188,8 +188,8 @@ test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
  * The point of this one is to figure out the cost of a call into libc,
  * through PLT, and back.
  */
-uintmax_t
-test_getprogname(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_getprogname(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -201,10 +201,11 @@ test_getprogname(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_pipe(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
-	int fd[2], i;
+	int fd[2];
+	uintmax_t i;
 
 	/*
 	 * pipe creation is expensive, as it will allocate a new file
@@ -227,13 +228,12 @@ test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_select(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_select(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	fd_set readfds, writefds, exceptfds;
 	struct timeval tv;
 	uintmax_t i;
-	int error;
 
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
@@ -250,8 +250,8 @@ test_select(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 {
 	uintmax_t i;
 	int so;
@@ -271,8 +271,8 @@ test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_socket_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_socket_dgram(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 {
 	uintmax_t i;
 	int so;
@@ -292,8 +292,8 @@ test_socket_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_socketpair_stream(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_socketpair_stream(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 	int so[2];
@@ -313,8 +313,8 @@ test_socketpair_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_socketpair_dgram(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 	int so[2];
@@ -334,8 +334,8 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_access(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_access(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
 	uintmax_t i;
 	int fd;
@@ -354,8 +354,8 @@ test_access(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_create_unlink(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
 	uintmax_t i;
 	int fd;
@@ -380,8 +380,8 @@ test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_open_close(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
 	uintmax_t i;
 	int fd;
@@ -402,8 +402,8 @@ test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_bad_open(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_bad_open(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -415,7 +415,7 @@ test_bad_open(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
+static uintmax_t
 test_read(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	char buf[int_arg];
@@ -436,7 +436,7 @@ test_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
+static uintmax_t
 test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	char buf[int_arg];
@@ -461,10 +461,11 @@ test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_dup(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_dup(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
-	int fd, i, shmfd;
+	uintmax_t i;
+	int fd, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
@@ -483,8 +484,8 @@ test_dup(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 	int shmfd;
@@ -504,8 +505,8 @@ test_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_fstat_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_fstat_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	struct stat sb;
 	uintmax_t i;
@@ -525,8 +526,8 @@ test_fstat_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_fork(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_fork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	pid_t pid;
 	uintmax_t i;
@@ -552,8 +553,8 @@ test_fork(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_vfork(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_vfork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	pid_t pid;
 	uintmax_t i;
@@ -580,11 +581,11 @@ test_vfork(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 #define	USR_BIN_TRUE	"/usr/bin/true"
-static char *execve_args[] = { USR_BIN_TRUE, NULL};
+static char *execve_args[] = { __DECONST(char *, USR_BIN_TRUE), NULL};
 extern char **environ;
 
-uintmax_t
-test_fork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_fork_exec(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	pid_t pid;
 	uintmax_t i;
@@ -614,8 +615,8 @@ test_fork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_vfork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_vfork_exec(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	pid_t pid;
 	uintmax_t i;
@@ -645,8 +646,8 @@ test_vfork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_chroot(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_chroot(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
@@ -661,8 +662,8 @@ test_chroot(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-uintmax_t
-test_setuid(uintmax_t num, uintmax_t int_arg, const char *path)
+static uintmax_t
+test_setuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uid_t uid;
 	uintmax_t i;
@@ -689,24 +690,24 @@ struct test {
 #define	FLAG_PATH	0x00000001
 
 static const struct test tests[] = {
-	{ "getuid", test_getuid },
-	{ "getppid", test_getppid },
-	{ "getresuid", test_getresuid },
-	{ "clock_gettime", test_clock_gettime },
-	{ "gettimeofday", test_gettimeofday },
-	{ "getpriority", test_getpriority },
-	{ "getprogname", test_getprogname },
-	{ "pipe", test_pipe },
-	{ "select", test_select },
+	{ "getuid", test_getuid, .t_flags = 0 },
+	{ "getppid", test_getppid, .t_flags = 0 },
+	{ "getresuid", test_getresuid, .t_flags = 0 },
+	{ "clock_gettime", test_clock_gettime, .t_flags = 0 },
+	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
+	{ "getpriority", test_getpriority, .t_flags = 0 },
+	{ "getprogname", test_getprogname, .t_flags = 0 },
+	{ "pipe", test_pipe, .t_flags = 0 },
+	{ "select", test_select, .t_flags = 0 },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
 	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
-	{ "socketpair_stream", test_socketpair_stream },
-	{ "socketpair_dgram", test_socketpair_dgram },
+	{ "socketpair_stream", test_socketpair_stream, .t_flags = 0 },
+	{ "socketpair_dgram", test_socketpair_dgram, .t_flags = 0 },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
 	{ "access", test_access, .t_flags = FLAG_PATH },
 	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
-	{ "bad_open", test_bad_open },
+	{ "bad_open", test_bad_open, .t_flags = 0 },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
 	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
 	    .t_int = 1 },
@@ -729,15 +730,15 @@ static const struct test tests[] = {
 	{ "read_10000", test_read, .t_flags = FLAG_PATH, .t_int = 10000 },
 	{ "read_100000", test_read, .t_flags = FLAG_PATH, .t_int = 100000 },
 	{ "read_1000000", test_read, .t_flags = FLAG_PATH, .t_int = 1000000 },
-	{ "dup", test_dup },
-	{ "shmfd", test_shmfd },
-	{ "fstat_shmfd", test_fstat_shmfd },
-	{ "fork", test_fork },
-	{ "vfork", test_vfork },
-	{ "fork_exec", test_fork_exec },
-	{ "vfork_exec", test_vfork_exec },
-	{ "chroot", test_chroot },
-	{ "setuid", test_setuid },
+	{ "dup", test_dup, .t_flags = 0 },
+	{ "shmfd", test_shmfd, .t_flags = 0 },
+	{ "fstat_shmfd", test_fstat_shmfd, .t_flags = 0 },
+	{ "fork", test_fork, .t_flags = 0 },
+	{ "vfork", test_vfork, .t_flags = 0 },
+	{ "fork_exec", test_fork_exec, .t_flags = 0 },
+	{ "vfork_exec", test_vfork_exec, .t_flags = 0 },
+	{ "chroot", test_chroot, .t_flags = 0 },
+	{ "setuid", test_setuid, .t_flags = 0 },
 };
 static const int tests_count = sizeof(tests) / sizeof(tests[0]);
 
@@ -762,8 +763,8 @@ main(int argc, char *argv[])
 	char *tmp_dir, *tmp_path;
 	long long ll;
 	char *endp;
-	int ch, fd, error, i, j, k, rv;
-	uintmax_t iterations, loops;
+	int ch, fd, error, i, j, rv;
+	uintmax_t iterations, k, loops;
 
 	alarm_timeout = 1;
 	iterations = 0;
@@ -877,7 +878,7 @@ main(int argc, char *argv[])
 			calls = the_test->t_func(iterations, the_test->t_int,
 			    path);
 			timespecsub(&ts_end, &ts_start);
-			printf("%s\t%d\t", the_test->t_name, k);
+			printf("%s\t%ju\t", the_test->t_name, k);
 			printf("%ju.%09ju\t%ju\t", (uintmax_t)ts_end.tv_sec,
 			    (uintmax_t)ts_end.tv_nsec, calls);
 
