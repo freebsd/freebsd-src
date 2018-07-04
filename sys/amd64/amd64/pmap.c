@@ -2319,7 +2319,8 @@ retry:
 				    &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
-				vm_page_hold(m);
+				if (m != NULL)
+					vm_page_hold(m);
 			}
 		}
 	}
