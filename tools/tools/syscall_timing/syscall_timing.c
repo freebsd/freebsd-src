@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/procdesc.h>
@@ -47,6 +48,7 @@
 #ifdef WITH_PTHREAD
 #include <pthread.h>
 #endif
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -606,6 +608,65 @@ test_select(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused
 }
 
 static uintmax_t
+test_semaping(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	uintmax_t i;
+	pid_t pid;
+	sem_t *buf;
+	int error, j, procfd;
+
+	buf = mmap(0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+	if (buf == MAP_FAILED)
+		err(1, "mmap");
+
+	for (j = 0; j < 2; j++) {
+		error = sem_init(&buf[j], 1, 0);
+		if (error != 0)
+			err(1, "sem_init");
+	}
+
+	pid = pdfork(&procfd, 0);
+	if (pid < 0)
+		err(1, "pdfork");
+
+	if (pid == 0) {
+		for (;;) {
+			error = sem_wait(&buf[0]);
+			if (error != 0)
+				err(1, "sem_wait");
+			error = sem_post(&buf[1]);
+			if (error != 0)
+				err(1, "sem_post");
+		}
+	}
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		error = sem_post(&buf[0]);
+		if (error != 0)
+			err(1, "sem_post");
+		error = sem_wait(&buf[1]);
+		if (error != 0)
+			err(1, "sem_wait");
+	}
+	benchmark_stop();
+
+	close(procfd);
+
+	for (j = 0; j < 2; j++) {
+		error = sem_destroy(&buf[j]);
+		if (error != 0)
+			err(1, "sem_destroy");
+	}
+
+	error = munmap(buf, PAGE_SIZE);
+	if (error != 0)
+		err(1, "munmap");
+
+	return (i);
+}
+
+static uintmax_t
 test_setuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uid_t uid;
@@ -900,6 +961,7 @@ static const struct test tests[] = {
 	{ "read_100000", test_read, .t_flags = FLAG_PATH, .t_int = 100000 },
 	{ "read_1000000", test_read, .t_flags = FLAG_PATH, .t_int = 1000000 },
 	{ "select", test_select, .t_flags = 0 },
+	{ "semaping", test_semaping, .t_flags = 0 },
 	{ "setuid", test_setuid, .t_flags = 0 },
 	{ "shmfd", test_shmfd, .t_flags = 0 },
 	{ "shmfd_dup", test_shmfd_dup, .t_flags = 0 },
