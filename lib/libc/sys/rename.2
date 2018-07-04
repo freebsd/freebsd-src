@@ -28,7 +28,7 @@
 .\"     @(#)rename.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2017
+.Dd June 21, 2018
 .Dt RENAME 2
 .Os
 .Sh NAME
@@ -75,6 +75,15 @@ If the final component of
 is a symbolic link,
 the symbolic link is renamed,
 not the file or directory to which it points.
+.Pp
+If
+.Fa from
+and
+.Fa to
+resolve to the same directory entry, or to different directory
+entries for the same existing file,
+.Fn rename
+returns success without taking any further action.
 .Pp
 The
 .Fn renameat
