@@ -951,7 +951,6 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 		}
 	} else {
 		if (pp->ki_flag & P_SYSTEM ||
-		    pp->ki_args == NULL ||
 		    (args = kvm_getargv(kd, pp, cmdlen)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
