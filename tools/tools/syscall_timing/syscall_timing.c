@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,6 +156,73 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg __unused, const char *path _
 		(void)clock_gettime(CLOCK_REALTIME, &ts);
 	}
 	benchmark_stop();
+	return (i);
+}
+
+struct pipepingtd_ctx {
+	int		fd;
+	uintmax_t	int_arg;
+};
+
+static void *
+pipepingtd_proc(void *arg)
+{
+	struct pipepingtd_ctx *ctxp;
+	int fd;
+	void *buf;
+	uintmax_t int_arg;
+	ssize_t ret;
+
+	ctxp = arg;
+	fd = ctxp->fd;
+	int_arg = ctxp->int_arg;
+
+	buf = malloc(int_arg);
+	if (buf == NULL)
+		err(1, "malloc");
+
+	for (;;) {
+		ret = read(fd, buf, int_arg);
+		if ((uintmax_t)ret != int_arg)
+			err(1, "read");
+		ret = write(fd, buf, int_arg);
+		if ((uintmax_t)ret != int_arg)
+			err(1, "write");
+	}
+}
+
+static uintmax_t
+test_pipepingtd(uintmax_t num, uintmax_t int_arg, const char *path __unused)
+{
+	struct pipepingtd_ctx ctx;
+	char buf[int_arg];
+	pthread_t td;
+	uintmax_t i;
+	ssize_t ret;
+	int error, fd[2];
+
+	if (pipe(fd) < 0)
+		err(-1, "pipe");
+
+	ctx.fd = fd[1];
+	ctx.int_arg = int_arg;
+
+	error = pthread_create(&td, NULL, pipepingtd_proc, &ctx);
+	if (error != 0)
+		err(1, "pthread_create");
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		ret = write(fd[0], buf, int_arg);
+		if ((uintmax_t)ret != int_arg)
+			err(1, "write");
+		ret = read(fd[0], buf, int_arg);
+		if ((uintmax_t)ret != int_arg)
+			err(1, "read");
+	}
+	benchmark_stop();
+	pthread_cancel(td);
+
 	return (i);
 }
 
@@ -752,6 +820,18 @@ static const struct test tests[] = {
 	 */
 	{ "pipeping_100000", test_pipeping, .t_flags = 0, .t_int = 100000 },
 	{ "pipeping_1000000", test_pipeping, .t_flags = 0, .t_int = 1000000 },
+#endif
+	{ "pipepingtd_1", test_pipepingtd, .t_flags = 0, .t_int = 1 },
+	{ "pipepingtd_10", test_pipepingtd, .t_flags = 0, .t_int = 10 },
+	{ "pipepingtd_100", test_pipepingtd, .t_flags = 0, .t_int = 100 },
+	{ "pipepingtd_1000", test_pipepingtd, .t_flags = 0, .t_int = 1000 },
+	{ "pipepingtd_10000", test_pipepingtd, .t_flags = 0, .t_int = 10000 },
+#ifdef notyet
+	/*
+	 * XXX: Doesn't work; kernel pipe buffer too small?
+	 */
+	{ "pipepingtd_100000", test_pipepingtd, .t_flags = 0, .t_int = 100000 },
+	{ "pipepingtd_1000000", test_pipepingtd, .t_flags = 0, .t_int = 1000000 },
  #endif
 	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
 	{ "getpriority", test_getpriority, .t_flags = 0 },
