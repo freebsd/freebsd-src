@@ -144,7 +144,7 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 # We often need to use the tree's version of make to build it.
 # Choices add to complexity though.
 # We cannot blindly use a make which may not be the one we want
-# so be exlicit - until all choice is removed.
+# so be explicit - until all choice is removed.
 .if !defined(WITHOUT_BMAKE)
 WANT_MAKE=	bmake
 .else
