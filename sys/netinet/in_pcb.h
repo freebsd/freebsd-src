@@ -632,16 +632,17 @@ int	inp_so_options(const struct inpcb *inp);
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	mtx_init(&(ipi)->ipi_lock, (d), NULL, MTX_DEF| MTX_RECURSE)
 #define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_lock)
-#define INP_INFO_RLOCK(ipi)	NET_EPOCH_ENTER()
+#define INP_INFO_RLOCK_ET(ipi, et)	NET_EPOCH_ENTER_ET((et))
 #define INP_INFO_WLOCK(ipi) mtx_lock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_WLOCK(ipi)	mtx_trylock(&(ipi)->ipi_lock)
 #define INP_INFO_WLOCKED(ipi)	mtx_owned(&(ipi)->ipi_lock)
-#define INP_INFO_RUNLOCK(ipi)	NET_EPOCH_EXIT()
+#define INP_INFO_RUNLOCK_ET(ipi, et)	NET_EPOCH_EXIT_ET((et))
+#define INP_INFO_RUNLOCK_TP(ipi, tp)	NET_EPOCH_EXIT_ET(*(tp)->t_inpcb->inp_et)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_lock)
-#define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(in_epoch() || mtx_owned(&(ipi)->ipi_lock))
-#define INP_INFO_RLOCK_ASSERT(ipi)	MPASS(in_epoch())
+#define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_lock))
+#define INP_INFO_RLOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt))
 #define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_lock, MA_OWNED)
-#define INP_INFO_UNLOCK_ASSERT(ipi)	MPASS(!in_epoch() && !mtx_owned(&(ipi)->ipi_lock))
+#define INP_INFO_UNLOCK_ASSERT(ipi)	MPASS(!in_epoch(net_epoch_preempt) && !mtx_owned(&(ipi)->ipi_lock))
 
 #define INP_LIST_LOCK_INIT(ipi, d) \
         rw_init_flags(&(ipi)->ipi_list_lock, (d), 0)
@@ -664,11 +665,13 @@ int	inp_so_options(const struct inpcb *inp);
 
 #define	INP_HASH_LOCK_INIT(ipi, d) mtx_init(&(ipi)->ipi_hash_lock, (d), NULL, MTX_DEF)
 #define	INP_HASH_LOCK_DESTROY(ipi)	mtx_destroy(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_RLOCK(ipi)		NET_EPOCH_ENTER()
+#define	INP_HASH_RLOCK(ipi)		struct epoch_tracker inp_hash_et; epoch_enter_preempt(net_epoch_preempt, &inp_hash_et)
+#define	INP_HASH_RLOCK_ET(ipi, et)		epoch_enter_preempt(net_epoch_preempt, &(et))
 #define	INP_HASH_WLOCK(ipi)		mtx_lock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_RUNLOCK(ipi)		NET_EPOCH_EXIT()
+#define	INP_HASH_RUNLOCK(ipi)		NET_EPOCH_EXIT_ET(inp_hash_et)
+#define	INP_HASH_RUNLOCK_ET(ipi, et)		NET_EPOCH_EXIT_ET((et))
 #define	INP_HASH_WUNLOCK(ipi)		mtx_unlock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(in_epoch() || mtx_owned(&(ipi)->ipi_hash_lock))
+#define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_hash_lock))
 #define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, MA_OWNED);
 
 #define	INP_GROUP_LOCK_INIT(ipg, d)	mtx_init(&(ipg)->ipg_lock, (d), NULL, \

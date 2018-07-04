@@ -73,10 +73,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_lagg.h>
 #include <net/ieee8023ad_lacp.h>
 
-#define	LAGG_RLOCK()	epoch_enter_preempt(net_epoch_preempt)
-#define	LAGG_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt)
-#define	LAGG_RLOCK_ASSERT()	MPASS(in_epoch())
-#define	LAGG_UNLOCK_ASSERT()	MPASS(!in_epoch())
+#define	LAGG_RLOCK()	struct epoch_tracker lagg_et; epoch_enter_preempt(net_epoch_preempt, &lagg_et)
+#define	LAGG_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt, &lagg_et)
+#define	LAGG_RLOCK_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
+#define	LAGG_UNLOCK_ASSERT()	MPASS(!in_epoch(net_epoch_preempt))
 
 #define	LAGG_SX_INIT(_sc)	sx_init(&(_sc)->sc_sx, "if_lagg sx")
 #define	LAGG_SX_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx)
@@ -1791,6 +1791,7 @@ struct lagg_port *
 lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 {
 	struct lagg_port *lp_next, *rval = NULL;
+	struct epoch_tracker net_et;
 
 	/*
 	 * Search a port which reports an active link state.
@@ -1809,15 +1810,14 @@ lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 	}
 
  search:
-	LAGG_RLOCK();
+	epoch_enter_preempt(net_epoch_preempt, &net_et);
 	CK_SLIST_FOREACH(lp_next, &sc->sc_ports, lp_entries) {
 		if (LAGG_PORTACTIVE(lp_next)) {
-			LAGG_RUNLOCK();
-			rval = lp_next;
-			goto found;
+			epoch_exit_preempt(net_epoch_preempt, &net_et);
+			return (lp_next);
 		}
 	}
-	LAGG_RUNLOCK();
+	epoch_exit_preempt(net_epoch_preempt, &net_et);
 found:
 	return (rval);
 }

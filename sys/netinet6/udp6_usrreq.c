@@ -214,6 +214,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	int off = *offp;
 	int cscov_partial;
 	int plen, ulen;
+	struct epoch_tracker et;
 	struct sockaddr_in6 fromsa[2];
 	struct m_tag *fwd_tag;
 	uint16_t uh_sum;
@@ -300,7 +301,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		struct inpcbhead *pcblist;
 		struct ip6_moptions *imo;
 
-		INP_INFO_RLOCK(pcbinfo);
+		INP_INFO_RLOCK_ET(pcbinfo, et);
 		/*
 		 * In the event that laddr should be set to the link-local
 		 * address (this happens in RIPng), the multicast address
@@ -426,7 +427,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				INP_RUNLOCK(last);
 		} else
 			INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK(pcbinfo);
+		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 	inp_lost:
 		return (IPPROTO_DONE);
 	}
@@ -508,7 +509,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 
 badheadlocked:
-	INP_INFO_RUNLOCK(pcbinfo);
+	INP_INFO_RUNLOCK_ET(pcbinfo, et);
 badunlocked:
 	if (m)
 		m_freem(m);

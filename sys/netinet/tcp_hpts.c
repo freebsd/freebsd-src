@@ -998,7 +998,7 @@ __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int3
 
 void
 tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked)
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos)
 {
 	/* Setup packet for input first */
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -1006,7 +1006,7 @@ tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	m->m_pkthdr.pace_tlen = (uint16_t) tlen;
 	m->m_pkthdr.pace_drphdrlen = drop_hdrlen;
 	m->m_pkthdr.pace_tos = iptos;
-	m->m_pkthdr.pace_lock = (uint8_t) ti_locked;
+	m->m_pkthdr.pace_lock = (curthread->td_epochnest != 0);
 	if (tp->t_in_pkt == NULL) {
 		tp->t_in_pkt = m;
 		tp->t_tail_pkt = m;
@@ -1019,11 +1019,11 @@ tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 
 int32_t
 __tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked, int32_t line){
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line){
 	struct tcp_hpts_entry *hpts;
 	int32_t ret;
 
-	tcp_queue_pkt_to_input(tp, m, th, tlen, drop_hdrlen, iptos, ti_locked);
+	tcp_queue_pkt_to_input(tp, m, th, tlen, drop_hdrlen, iptos);
 	hpts = tcp_input_lock(tp->t_inpcb);
 	ret = __tcp_queue_to_input_locked(tp->t_inpcb, hpts, line);
 	mtx_unlock(&hpts->p_mtx);
@@ -1145,6 +1145,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 	int16_t set_cpu;
 	uint32_t did_prefetch = 0;
 	int32_t ti_locked = TI_UNLOCKED;
+	struct epoch_tracker et;
 
 	HPTS_MTX_ASSERT(hpts);
 	while ((inp = TAILQ_FIRST(&hpts->p_input)) != NULL) {
@@ -1161,7 +1162,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		mtx_unlock(&hpts->p_mtx);
 		CURVNET_SET(inp->inp_vnet);
 		if (drop_reason) {
-			INP_INFO_RLOCK(&V_tcbinfo);
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 			ti_locked = TI_RLOCKED;
 		} else {
 			ti_locked = TI_UNLOCKED;
@@ -1172,7 +1173,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 out:
 			hpts->p_inp = NULL;
 			if (ti_locked == TI_RLOCKED) {
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			}
 			if (in_pcbrele_wlocked(inp) == 0) {
 				INP_WUNLOCK(inp);
@@ -1201,7 +1202,7 @@ out:
 					n = m->m_nextpkt;
 			}
 			tp = tcp_drop(tp, drop_reason);
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			if (tp == NULL) {
 				INP_WLOCK(inp);
 			}
@@ -1234,7 +1235,7 @@ out:
 		    (m->m_pkthdr.pace_lock == TI_RLOCKED ||
 		    tp->t_state != TCPS_ESTABLISHED)) {
 			ti_locked = TI_RLOCKED;
-			INP_INFO_RLOCK(&V_tcbinfo);
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 			m = tp->t_in_pkt;
 		}
 		if (in_newts_every_tcb) {
@@ -1270,13 +1271,15 @@ out:
 					/* Use the hpts specific do_segment */
 					(*tp->t_fb->tfb_tcp_hpts_do_segment) (m, th, inp->inp_socket,
 					    tp, drop_hdrlen,
-					    tlen, iptos, ti_locked, nxt_pkt, tv);
+					    tlen, iptos, nxt_pkt, tv);
 				} else {
 					/* Use the default do_segment */
 					(*tp->t_fb->tfb_tcp_do_segment) (m, th, inp->inp_socket,
 					    tp, drop_hdrlen,
-					    tlen, iptos, ti_locked);
+						tlen, iptos);
 				}
+				if (ti_locked == TI_RLOCKED)
+					INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				/*
 				 * Do segment returns unlocked we need the
 				 * lock again but we also need some kasserts
@@ -1289,7 +1292,7 @@ out:
 					n = m->m_nextpkt;
 				if (m != NULL &&
 				    m->m_pkthdr.pace_lock == TI_RLOCKED) {
-					INP_INFO_RLOCK(&V_tcbinfo);
+					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 					ti_locked = TI_RLOCKED;
 				} else
 					ti_locked = TI_UNLOCKED;
@@ -1316,14 +1319,14 @@ out:
 				if (ti_locked == TI_UNLOCKED &&
 				    (tp->t_state != TCPS_ESTABLISHED)) {
 					ti_locked = TI_RLOCKED;
-					INP_INFO_RLOCK(&V_tcbinfo);
+					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 				}
 			}	/** end while(m) */
 		}		/** end if ((m != NULL)  && (m == tp->t_in_pkt)) */
 		if (in_pcbrele_wlocked(inp) == 0)
 			INP_WUNLOCK(inp);
 		if (ti_locked == TI_RLOCKED)
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		INP_UNLOCK_ASSERT(inp);
 		ti_locked = TI_UNLOCKED;

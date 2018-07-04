@@ -274,55 +274,10 @@ tcp_timer_delack(void *xtp)
 	CURVNET_RESTORE();
 }
 
-/*
- * When a timer wants to remove a TCB it must
- * hold the INP_INFO_RLOCK(). The timer function
- * should only have grabbed the INP_WLOCK() when
- * it entered. To safely switch to holding both the
- * INP_INFO_RLOCK() and the INP_WLOCK() we must first
- * grab a reference on the inp, which will hold the inp
- * so that it can't be removed. We then unlock the INP_WLOCK(), 
- * and grab the INP_INFO_RLOCK() lock. Once we have the INP_INFO_RLOCK()
- * we proceed again to get the INP_WLOCK() (this preserves proper
- * lock order). After acquiring the INP_WLOCK we must check if someone 
- * else deleted the pcb i.e. the inp_flags check.
- * If so we return 1 otherwise we return 0.
- *
- * No matter what the tcp_inpinfo_lock_add() function
- * returns the caller must afterwards call tcp_inpinfo_lock_del()
- * to drop the locks and reference properly.
- */
-
-int
-tcp_inpinfo_lock_add(struct inpcb *inp)
-{
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_RLOCK(&V_tcbinfo);
-	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		return(1);
-	}
-	return(0);
-
-}
-
 void
 tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp)
 {
-	INP_INFO_RUNLOCK(&V_tcbinfo);
-	if (inp && (tp == NULL)) {
-		/*
-		 * If tcp_close/drop() gets called and tp
-		 * returns NULL, then the function dropped
-		 * the inp lock, we hold a reference keeping
-		 * this around, so we must re-aquire the 
-		 * INP_WLOCK() in order to proceed with
-		 * our dropping the inp reference.
-		 */
-		INP_WLOCK(inp);
-	}
-	if (inp && in_pcbrele_wlocked(inp) == 0)
+	if (inp && tp != NULL)
 		INP_WUNLOCK(inp);
 }
 
@@ -331,6 +286,7 @@ tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
@@ -377,11 +333,13 @@ tcp_timer_2msl(void *xtp)
 	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
-		if (tcp_inpinfo_lock_add(inp)) {
+		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		tp = tcp_close(tp);             
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	} else {
@@ -389,15 +347,17 @@ tcp_timer_2msl(void *xtp)
 			callout_reset(&tp->t_timers->tt_2msl,
 				      TP_KEEPINTVL(tp), tcp_timer_2msl, tp);
 		} else {
-			if (tcp_inpinfo_lock_add(inp)) {
+			if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 				tcp_inpinfo_lock_del(inp, tp);
 				goto out;
 			}
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 			tp = tcp_close(tp);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-       }
+	}
 
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
@@ -418,6 +378,7 @@ tcp_timer_keep(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
@@ -511,11 +472,11 @@ tcp_timer_keep(void *xtp)
 
 dropit:
 	TCPSTAT_INC(tcps_keepdrops);
-
-	if (tcp_inpinfo_lock_add(inp)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
@@ -524,8 +485,9 @@ dropit:
 			  PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	tcp_inpinfo_lock_del(inp, tp);
-out:
+ out:
 	CURVNET_RESTORE();
 }
 
@@ -534,6 +496,7 @@ tcp_timer_persist(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
@@ -573,11 +536,13 @@ tcp_timer_persist(void *xtp)
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		TCPSTAT_INC(tcps_persistdrop);
-		if (tcp_inpinfo_lock_add(inp)) {
+		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		tp = tcp_drop(tp, ETIMEDOUT);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
@@ -588,11 +553,13 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		TCPSTAT_INC(tcps_persistdrop);
-		if (tcp_inpinfo_lock_add(inp)) {
+		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		tp = tcp_drop(tp, ETIMEDOUT);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
@@ -618,6 +585,7 @@ tcp_timer_rexmt(void * xtp)
 	CURVNET_SET(tp->t_vnet);
 	int rexmt;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -654,11 +622,13 @@ tcp_timer_rexmt(void * xtp)
 	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		TCPSTAT_INC(tcps_timeoutdrop);
-		if (tcp_inpinfo_lock_add(inp)) {
+		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		tp = tcp_drop(tp, ETIMEDOUT);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}

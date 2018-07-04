@@ -121,12 +121,10 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 static void	 tcp_do_segment_fastslow(struct mbuf *, struct tcphdr *,
-			struct socket *, struct tcpcb *, int, int, uint8_t,
-			int);
+			struct socket *, struct tcpcb *, int, int, uint8_t);
 
 static void	 tcp_do_segment_fastack(struct mbuf *, struct tcphdr *,
-			struct socket *, struct tcpcb *, int, int, uint8_t,
-			int);
+			struct socket *, struct tcpcb *, int, int, uint8_t);
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
@@ -154,7 +152,7 @@ static void	 tcp_do_segment_fastack(struct mbuf *, struct tcphdr *,
 static void
 tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	       struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-	       int ti_locked, uint32_t tiwin)
+	       uint32_t tiwin)
 {
 	int acked;
 	uint16_t nsegs;
@@ -170,6 +168,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct tcphdr tcp_savetcp;
 	short ostate = 0;
 #endif
+
         /*
 	 * The following if statement will be true if
 	 * we are doing the win_up_in_fp <and>
@@ -207,11 +206,6 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * This is a pure ack for outstanding data.
 	 */
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
-
 	TCPSTAT_INC(tcps_predack);
 
 	/*
@@ -310,9 +304,6 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	sowwakeup(so);
 	if (sbavail(&so->so_snd))
 		(void) tcp_output(tp);
-	KASSERT(ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
-					    __func__, ti_locked));
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (tp->t_flags & TF_DELACK) {
@@ -330,7 +321,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static void
 tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		   struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-		   int ti_locked, uint32_t tiwin)
+		   uint32_t tiwin)
 {
 	int newsize = 0;	/* automatic sockbuf scaling */
 #ifdef TCPDEBUG
@@ -353,16 +344,6 @@ tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->ts_recent_age = tcp_ts_getticks();
 		tp->ts_recent = to->to_tsval;
 	}
-
-	/*
-	 * This is a pure, in-sequence data packet with
-	 * nothing on the reassembly queue and we have enough
-	 * buffer space to take it.
-	 */
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
 
 	/* Clean receiver SACK report if present */
 	if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks)
@@ -413,9 +394,6 @@ tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->t_flags |= TF_ACKNOW;
 		tcp_output(tp);
 	}
-	KASSERT(ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
-					    __func__, ti_locked));
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (tp->t_flags & TF_DELACK) {
@@ -434,7 +412,7 @@ tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static void
 tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-		int ti_locked, uint32_t tiwin, int thflags)
+		uint32_t tiwin, int thflags)
 {
 	int  acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
@@ -464,7 +442,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (win < 0)
 		win = 0;
 	tp->rcv_wnd = imax(win, (int)(tp->rcv_adv - tp->rcv_nxt));
-
 	switch (tp->t_state) {
 
 	/*
@@ -569,8 +546,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tcp_state_change(tp, TCPS_SYN_RECEIVED);
 		}
 
-		KASSERT(ti_locked == TI_RLOCKED, ("%s: trimthenstep6: "
-		    "ti_locked %d", __func__, ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -644,9 +619,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
 		    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-			KASSERT(ti_locked == TI_RLOCKED,
-			    ("%s: TH_RST ti_locked %d, th %p tp %p",
-			    __func__, ti_locked, th, tp));
 			KASSERT(tp->t_state != TCPS_SYN_SENT,
 			    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 			    __func__, th, tp));
@@ -688,8 +660,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * Send challenge ACK for any SYN in synchronized state.
 	 */
 	if ((thflags & TH_SYN) && tp->t_state != TCPS_SYN_SENT) {
-		KASSERT(ti_locked == TI_RLOCKED,
-		    ("tcp_do_segment: TH_SYN ti_locked %d", ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 		TCPSTAT_INC(tcps_badsyn);
@@ -803,8 +773,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
-		KASSERT(ti_locked == TI_RLOCKED, ("%s: SS_NOFDEREF && "
-		    "CLOSE_WAIT && tlen ti_locked %d", __func__, ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
@@ -1333,7 +1301,6 @@ process_ACK:
 			if (ourfinisacked) {
 				INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 				tcp_twstart(tp);
-				INP_INFO_RUNLOCK(&V_tcbinfo);
 				m_freem(m);
 				return;
 			}
@@ -1562,20 +1529,10 @@ dodata:							/* XXX */
 		 */
 		case TCPS_FIN_WAIT_2:
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-			KASSERT(ti_locked == TI_RLOCKED, ("%s: dodata "
-			    "TCP_FIN_WAIT_2 ti_locked: %d", __func__,
-			    ti_locked));
-
 			tcp_twstart(tp);
-			INP_INFO_RUNLOCK(&V_tcbinfo);
 			return;
 		}
 	}
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
-
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
@@ -1589,9 +1546,6 @@ dodata:							/* XXX */
 	if (needoutput || (tp->t_flags & TF_ACKNOW))
 		(void) tp->t_fb->tfb_tcp_output(tp);
 
-	KASSERT(ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
-	    __func__, ti_locked));
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (tp->t_flags & TF_DELACK) {
@@ -1629,11 +1583,6 @@ dropafterack:
 			  &tcp_savetcp, 0);
 #endif
 	TCP_PROBE3(debug__drop, tp, th, m);
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
-
 	tp->t_flags |= TF_ACKNOW;
 	(void) tp->t_fb->tfb_tcp_output(tp);
 	INP_WUNLOCK(tp->t_inpcb);
@@ -1641,11 +1590,6 @@ dropafterack:
 	return;
 
 dropwithreset:
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
-
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
 		INP_WUNLOCK(tp->t_inpcb);
@@ -1654,15 +1598,6 @@ dropwithreset:
 	return;
 
 drop:
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		ti_locked = TI_UNLOCKED;
-	}
-#ifdef INVARIANTS
-	else
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-#endif
-
 	/*
 	 * Drop space held by incoming segment and return.
 	 */
@@ -1687,8 +1622,7 @@ drop:
  */
 void
 tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
-			struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos,
-			int ti_locked)
+	struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
 {
 	int thflags;
 	uint32_t tiwin;
@@ -1709,19 +1643,7 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
 	    tp->t_state != TCPS_ESTABLISHED) {
-		KASSERT(ti_locked == TI_RLOCKED, ("%s ti_locked %d for "
-						  "SYN/FIN/RST/!EST", __func__, ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-	} else {
-#ifdef INVARIANTS
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		} else {
-			KASSERT(ti_locked == TI_UNLOCKED, ("%s: EST "
-							   "ti_locked: %d", __func__, ti_locked));
-			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-		}
-#endif
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
@@ -1736,9 +1658,6 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			    "sysctl setting)\n", s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RUNLOCK(&V_tcbinfo);
-		}
 		INP_WUNLOCK(tp->t_inpcb);
 		m_freem(m);
 		return;
@@ -1751,9 +1670,6 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((tp->t_state == TCPS_SYN_SENT) && (thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->iss) || SEQ_GT(th->th_ack, tp->snd_max))) {
 		tcp_dropwithreset(m, th, tp, tlen, BANDLIM_UNLIMITED);
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RUNLOCK(&V_tcbinfo);
-		}
 		INP_WUNLOCK(tp->t_inpcb);
 		return;
 	}
@@ -1919,19 +1835,19 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		     TAILQ_EMPTY(&tp->snd_holes)))) {
 			/* We are done */
 			tcp_do_fastack(m, th, so, tp, &to, drop_hdrlen, tlen, 
-				       ti_locked, tiwin);
+			    tiwin);
 			return;
 		} else if ((tlen) &&
 			   (th->th_ack == tp->snd_una &&
 			    tlen <= sbspace(&so->so_rcv))) {
 			tcp_do_fastnewdata(m, th, so, tp, &to, drop_hdrlen, tlen, 
-					   ti_locked, tiwin);
+				tiwin);
 			/* We are done */
 			return;
 		}
 	}
 	tcp_do_slowpath(m, th, so, tp, &to, drop_hdrlen, tlen,
-			ti_locked, tiwin, thflags);
+	    tiwin, thflags);
 }
 
 
@@ -1947,7 +1863,7 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	       struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-	       int ti_locked, uint32_t tiwin)
+	       uint32_t tiwin)
 {
 	int acked;
 	uint16_t nsegs;
@@ -2039,11 +1955,6 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * This is a pure ack for outstanding data.
 	 */
-	if (ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
-	ti_locked = TI_UNLOCKED;
-
 	TCPSTAT_INC(tcps_predack);
 
 	/*
@@ -2138,9 +2049,6 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	if (sbavail(&so->so_snd))
 		(void) tcp_output(tp);
-	KASSERT(ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
-					    __func__, ti_locked));
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (tp->t_flags & TF_DELACK) {
@@ -2167,8 +2075,7 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
  */
 void
 tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
-		       struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos,
-		       int ti_locked)
+	struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
 {
 	int thflags;
 	uint32_t tiwin;
@@ -2186,19 +2093,7 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
 	    tp->t_state != TCPS_ESTABLISHED) {
-		KASSERT(ti_locked == TI_RLOCKED, ("%s ti_locked %d for "
-						  "SYN/FIN/RST/!EST", __func__, ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-	} else {
-#ifdef INVARIANTS
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		} else {
-			KASSERT(ti_locked == TI_UNLOCKED, ("%s: EST "
-							   "ti_locked: %d", __func__, ti_locked));
-			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-		}
-#endif
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
@@ -2213,9 +2108,6 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			    "sysctl setting)\n", s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RUNLOCK(&V_tcbinfo);
-		}
 		INP_WUNLOCK(tp->t_inpcb);
 		m_freem(m);
 		return;
@@ -2228,9 +2120,6 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((tp->t_state == TCPS_SYN_SENT) && (thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->iss) || SEQ_GT(th->th_ack, tp->snd_max))) {
 		tcp_dropwithreset(m, th, tp, tlen, BANDLIM_UNLIMITED);
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RUNLOCK(&V_tcbinfo);
-		}
 		INP_WUNLOCK(tp->t_inpcb);
 		return;
 	}
@@ -2367,12 +2256,12 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    __predict_true(LIST_EMPTY(&tp->t_segq)) &&
 	    __predict_true(th->th_seq == tp->rcv_nxt)) {
 		    if (tcp_fastack(m, th, so, tp, &to, drop_hdrlen, tlen, 
-				    ti_locked, tiwin)) {
+				    tiwin)) {
 			    return;
 		    }
 	} 
 	tcp_do_slowpath(m, th, so, tp, &to, drop_hdrlen, tlen,
-			ti_locked, tiwin, thflags);
+			tiwin, thflags);
 }
 
 struct tcp_function_block __tcp_fastslow = {
