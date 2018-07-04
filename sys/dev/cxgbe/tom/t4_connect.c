@@ -115,18 +115,19 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 	struct toedev *tod = &toep->td->tod;
+	struct epoch_tracker et;
 
 	free_atid(sc, atid);
 	toep->tid = -1;
 
 	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	INP_WLOCK(inp);
 	toe_connect_failed(tod, inp, status);
 	final_cpl_received(toep);	/* unlocks inp */
 	if (status != EAGAIN)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
 }
 

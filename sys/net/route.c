@@ -733,7 +733,7 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 	struct ifaddr *ifa;
 	int not_found = 0;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	if ((flags & RTF_GATEWAY) == 0) {
 		/*
 		 * If we are adding a route to an interface,

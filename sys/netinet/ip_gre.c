@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -118,7 +119,7 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
 	    ip->ip_src.s_addr), chain) {
