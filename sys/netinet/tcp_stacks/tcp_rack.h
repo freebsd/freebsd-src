@@ -281,7 +281,7 @@ struct tcp_rack {
 	TAILQ_ENTRY(tcp_rack) r_hpts;	/* hptsi queue next Lock(b) */
 	int32_t(*r_substate) (struct mbuf *, struct tcphdr *,
 	    struct socket *, struct tcpcb *, struct tcpopt *,
-	    int32_t, int32_t, int32_t *, uint32_t, int, int);	/* Lock(a) */
+	    int32_t, int32_t, uint32_t, int, int);	/* Lock(a) */
 	struct tcpcb *rc_tp;	/* The tcpcb Lock(a) */
 	struct inpcb *rc_inp;	/* The inpcb Lock(a) */
 	uint32_t rc_free_cnt;	/* Number of free entries on the rc_free list

@@ -112,8 +112,8 @@ static struct mtx encapmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
 #define	ENCAP_WLOCK()		mtx_lock(&encapmtx)
 #define	ENCAP_WUNLOCK()		mtx_unlock(&encapmtx)
-#define	ENCAP_RLOCK()		epoch_enter_preempt(net_epoch_preempt)
-#define	ENCAP_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt)
+#define	ENCAP_RLOCK()		struct epoch_tracker encap_et; epoch_enter_preempt(net_epoch_preempt, &encap_et)
+#define	ENCAP_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &encap_et)
 #define	ENCAP_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
 static struct encaptab *

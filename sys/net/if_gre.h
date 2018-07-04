@@ -91,8 +91,8 @@ MALLOC_DECLARE(M_GRE);
 #endif
 
 #define	GRE2IFP(sc)		((sc)->gre_ifp)
-#define	GRE_RLOCK()		epoch_enter_preempt(net_epoch_preempt)
-#define	GRE_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt)
+#define	GRE_RLOCK()		struct epoch_tracker gre_et; epoch_enter_preempt(net_epoch_preempt, &gre_et)
+#define	GRE_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &gre_et)
 #define	GRE_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
 #define	gre_hdr			gre_uhdr.hdr

@@ -381,6 +381,8 @@ struct ifnet {
 	 */
 	struct netdump_methods *if_netdump_methods;
 	struct epoch_context	if_epoch_ctx;
+	struct epoch_tracker	if_addr_et;
+	struct epoch_tracker	if_maddr_et;
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so
@@ -398,15 +400,17 @@ struct ifnet {
  */
 #define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_lock, "if_addr_lock", NULL, MTX_DEF)
 #define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_lock)
-#define	IF_ADDR_RLOCK(if)       epoch_enter_preempt(net_epoch_preempt);
-#define	IF_ADDR_RUNLOCK(if)     epoch_exit_preempt(net_epoch_preempt);
+#define	IF_ADDR_RLOCK(if)       struct epoch_tracker if_addr_et; epoch_enter_preempt(net_epoch_preempt, &if_addr_et);
+#define	IF_ADDR_RUNLOCK(if)     epoch_exit_preempt(net_epoch_preempt, &if_addr_et);
 
 #define	IF_ADDR_WLOCK(if)	mtx_lock(&(if)->if_addr_lock)
 #define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_lock)
-#define	IF_ADDR_LOCK_ASSERT(if)	MPASS(in_epoch() || mtx_owned(&(if)->if_addr_lock))
+#define	IF_ADDR_LOCK_ASSERT(if)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(if)->if_addr_lock))
 #define	IF_ADDR_WLOCK_ASSERT(if) mtx_assert(&(if)->if_addr_lock, MA_OWNED)
-#define	NET_EPOCH_ENTER() epoch_enter_preempt(net_epoch_preempt)
-#define	NET_EPOCH_EXIT() epoch_exit_preempt(net_epoch_preempt)
+#define	NET_EPOCH_ENTER() struct epoch_tracker nep_et; epoch_enter_preempt(net_epoch_preempt, &nep_et)
+#define	NET_EPOCH_ENTER_ET(et) epoch_enter_preempt(net_epoch_preempt, &(et))
+#define	NET_EPOCH_EXIT() epoch_exit_preempt(net_epoch_preempt, &nep_et)
+#define	NET_EPOCH_EXIT_ET(et) epoch_exit_preempt(net_epoch_preempt, &(et))
 
 
 /*
@@ -482,16 +486,16 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 	mtx_init(&(ifp)->if_afdata_lock, "if_afdata", NULL, MTX_DEF)
 
 #define	IF_AFDATA_WLOCK(ifp)	mtx_lock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RLOCK(ifp)	epoch_enter_preempt(net_epoch_preempt)
+#define	IF_AFDATA_RLOCK(ifp)	struct epoch_tracker if_afdata_et; epoch_enter_preempt(net_epoch_preempt, &if_afdata_et)
 #define	IF_AFDATA_WUNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RUNLOCK(ifp)	epoch_exit_preempt(net_epoch_preempt)
+#define	IF_AFDATA_RUNLOCK(ifp)	epoch_exit_preempt(net_epoch_preempt, &if_afdata_et)
 #define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
 #define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
 #define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_lock)
 #define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_lock)
 
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	MPASS(in_epoch() || mtx_owned(&(ifp)->if_afdata_lock))
-#define	IF_AFDATA_RLOCK_ASSERT(ifp)	MPASS(in_epoch());
+#define	IF_AFDATA_LOCK_ASSERT(ifp)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ifp)->if_afdata_lock))
+#define	IF_AFDATA_RLOCK_ASSERT(ifp)	MPASS(in_epoch(net_epoch_preempt));
 #define	IF_AFDATA_WLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_OWNED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_NOTOWNED)
 
@@ -573,16 +577,16 @@ extern	struct sx ifnet_sxlock;
  * write, but also whether it was acquired with sleep support or not.
  */
 #define	IFNET_RLOCK_ASSERT()		sx_assert(&ifnet_sxlock, SA_SLOCKED)
-#define	IFNET_RLOCK_NOSLEEP_ASSERT()	MPASS(in_epoch())
+#define	IFNET_RLOCK_NOSLEEP_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
 #define	IFNET_WLOCK_ASSERT() do {					\
 	sx_assert(&ifnet_sxlock, SA_XLOCKED);				\
 	rw_assert(&ifnet_rwlock, RA_WLOCKED);				\
 } while (0)
 
 #define	IFNET_RLOCK()		sx_slock(&ifnet_sxlock)
-#define	IFNET_RLOCK_NOSLEEP()	epoch_enter_preempt(net_epoch_preempt)
+#define	IFNET_RLOCK_NOSLEEP()	struct epoch_tracker ifnet_rlock_et; epoch_enter_preempt(net_epoch_preempt, &ifnet_rlock_et)
 #define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
-#define	IFNET_RUNLOCK_NOSLEEP()	epoch_exit_preempt(net_epoch_preempt)
+#define	IFNET_RUNLOCK_NOSLEEP()	epoch_exit_preempt(net_epoch_preempt, &ifnet_rlock_et)
 
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a

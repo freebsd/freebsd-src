@@ -1760,29 +1760,35 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 void
 if_addr_rlock(struct ifnet *ifp)
 {
-
-	IF_ADDR_RLOCK(ifp);
+	MPASS(*(uint64_t *)&ifp->if_addr_et == 0);
+	epoch_enter_preempt(net_epoch_preempt, &ifp->if_addr_et);
 }
 
 void
 if_addr_runlock(struct ifnet *ifp)
 {
-
-	IF_ADDR_RUNLOCK(ifp);
+	epoch_exit_preempt(net_epoch_preempt, &ifp->if_addr_et);
+#ifdef INVARIANTS
+	bzero(&ifp->if_addr_et, sizeof(struct epoch_tracker));
+#endif
 }
 
 void
 if_maddr_rlock(if_t ifp)
 {
 
-	IF_ADDR_RLOCK((struct ifnet *)ifp);
+	MPASS(*(uint64_t *)&ifp->if_maddr_et == 0);
+	epoch_enter_preempt(net_epoch_preempt, &ifp->if_maddr_et);
 }
 
 void
 if_maddr_runlock(if_t ifp)
 {
 
-	IF_ADDR_RUNLOCK((struct ifnet *)ifp);
+	epoch_exit_preempt(net_epoch_preempt, &ifp->if_maddr_et);
+#ifdef INVARIANTS
+	bzero(&ifp->if_maddr_et, sizeof(struct epoch_tracker));
+#endif
 }
 
 /*
@@ -1926,7 +1932,7 @@ ifa_ifwithaddr(const struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1969,7 +1975,7 @@ ifa_ifwithbroadaddr(const struct sockaddr *addr, int fibnum)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
 			continue;
@@ -1999,7 +2005,7 @@ ifa_ifwithdstaddr(const struct sockaddr *addr, int fibnum)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
@@ -2032,7 +2038,7 @@ ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 	u_int af = addr->sa_family;
 	const char *addr_data = addr->sa_data, *cplim;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	/*
 	 * AF_LINK addresses can be looked up directly by their index number,
 	 * so do that if we can.
@@ -2069,7 +2075,6 @@ next:				continue;
 				 */
 				if (ifa->ifa_dstaddr != NULL &&
 				    sa_equal(addr, ifa->ifa_dstaddr)) {
-					IF_ADDR_RUNLOCK(ifp);
 					goto done;
 				}
 			} else {
@@ -2128,7 +2133,8 @@ ifaof_ifpforaddr(const struct sockaddr *addr, struct ifnet *ifp)
 
 	if (af >= AF_MAX)
 		return (NULL);
-	MPASS(in_epoch());
+
+	MPASS(in_epoch(net_epoch_preempt));
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;

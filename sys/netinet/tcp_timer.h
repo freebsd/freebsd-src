@@ -214,7 +214,6 @@ VNET_DECLARE(int, tcp_pmtud_blackhole_mss);
 VNET_DECLARE(int, tcp_v6pmtud_blackhole_mss);
 #define V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 
-int tcp_inpinfo_lock_add(struct inpcb *inp);
 void tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp);
 
 void	tcp_timer_init(void);

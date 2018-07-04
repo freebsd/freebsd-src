@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -224,7 +225,7 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	int len;
 
 	/* prepend new IP header */
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	len = sizeof(struct ip);
 #ifndef __NO_STRICT_ALIGNMENT
 	if (proto == IPPROTO_ETHERIP)
@@ -263,7 +264,7 @@ in_gif_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip *ip;
 	uint8_t ecn;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
@@ -292,7 +293,7 @@ in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip = mtod(m, const struct ip *);
 	/*
 	 * NOTE: it is safe to iterate without any locking here, because softc

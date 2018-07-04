@@ -206,11 +206,12 @@ void
 tcp_tw_destroy(void)
 {
 	struct tcptw *tw;
+	struct epoch_tracker et;
 
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	while ((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
 	TW_LOCK_DESTROY(V_tw_lock);
 	uma_zdestroy(V_tcptw_zone);
@@ -674,6 +675,7 @@ tcp_tw_2msl_scan(int reuse)
 {
 	struct tcptw *tw;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 
 #ifdef INVARIANTS
 	if (reuse) {
@@ -707,12 +709,12 @@ tcp_tw_2msl_scan(int reuse)
 		in_pcbref(inp);
 		TW_RUNLOCK(V_tw_lock);
 
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		INP_WLOCK(inp);
 		tw = intotw(inp);
 		if (in_pcbrele_wlocked(inp)) {
 			if (__predict_true(tw == NULL)) {
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				continue;
 			} else {
 				/* This should not happen as in TIMEWAIT
@@ -731,7 +733,7 @@ tcp_tw_2msl_scan(int reuse)
 					"|| inp last reference) && tw != "
 					"NULL", __func__);
 #endif
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				break;
 			}
 		}
@@ -739,12 +741,12 @@ tcp_tw_2msl_scan(int reuse)
 		if (tw == NULL) {
 			/* tcp_twclose() has already been called */
 			INP_WUNLOCK(inp);
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			continue;
 		}
 
 		tcp_twclose(tw, reuse);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		if (reuse)
 			return tw;
 	}
