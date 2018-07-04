@@ -63,6 +63,8 @@ static volatile int alarm_fired;
 		}							\
 	} while (0)
 
+#define	BENCHMARK_FOREACH(I, NUM) for (I = 0; I < NUM && alarm_fired == 0; I++)
+
 static void
 alarm_handler(int signum)
 {
@@ -103,9 +105,7 @@ test_getuid(uintmax_t num, uintmax_t int_arg, const char *path)
 	 * call is MPSAFE.
 	 */
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		getuid();
 	}
 	benchmark_stop();
@@ -122,9 +122,7 @@ test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
 	 * lock.
 	 */
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		getppid();
 	}
 	benchmark_stop();
@@ -138,9 +136,7 @@ test_getresuid(uintmax_t num, uintmax_t int_arg, const char *path)
 	uintmax_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)getresuid(&ruid, &euid, &suid);
 	}
 	benchmark_stop();
@@ -154,9 +150,7 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 	uintmax_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)clock_gettime(CLOCK_REALTIME, &ts);
 	}
 	benchmark_stop();
@@ -170,9 +164,7 @@ test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
 	uintmax_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)gettimeofday(&tv, NULL);
 	}
 	benchmark_stop();
@@ -185,9 +177,7 @@ test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
 	uintmax_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)getpriority(PRIO_PROCESS, 0);
 	}
 	benchmark_stop();
@@ -210,9 +200,7 @@ test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(fd[0]);
 	close(fd[1]);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		if (pipe(fd) == -1)
 			err(-1, "test_pipe: pipe");
 		close(fd[0]);
@@ -238,9 +226,7 @@ test_select(uintmax_t num, uintmax_t int_arg, const char *path)
 	tv.tv_usec = 0;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)select(0, &readfds, &writefds, &exceptfds, &tv);
 	}
 	benchmark_stop();
@@ -258,9 +244,7 @@ test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 		err(-1, "test_socket_stream: socket");
 	close(so);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		so = socket(int_arg, SOCK_STREAM, 0);
 		if (so == -1)
 			err(-1, "test_socket_stream: socket");
@@ -281,9 +265,7 @@ test_socket_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 		err(-1, "test_socket_dgram: socket");
 	close(so);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		so = socket(int_arg, SOCK_DGRAM, 0);
 		if (so == -1)
 			err(-1, "test_socket_dgram: socket");
@@ -304,9 +286,7 @@ test_socketpair_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(so[0]);
 	close(so[1]);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
 			err(-1, "test_socketpair_stream: socketpair");
 		close(so[0]);
@@ -327,9 +307,7 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(so[0]);
 	close(so[1]);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
 			err(-1, "test_socketpair_dgram: socketpair");
 		close(so[0]);
@@ -351,9 +329,7 @@ test_access(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(fd);
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		access(path, O_RDONLY);
 		close(fd);
 	}
@@ -375,9 +351,7 @@ test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (unlink(path) < 0)
 		err(-1, "test_create_unlink: unlink: %s", path);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		fd = open(path, O_RDWR | O_CREAT, 0600);
 		if (fd < 0)
 			err(-1, "test_create_unlink: create: %s", path);
@@ -401,9 +375,7 @@ test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(fd);
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		fd = open(path, O_RDONLY);
 		if (fd < 0)
 			err(-1, "test_open_close: %s", path);
@@ -419,9 +391,7 @@ test_bad_open(uintmax_t num, uintmax_t int_arg, const char *path)
 	uintmax_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		open("", O_RDONLY);
 	}
 	benchmark_stop();
@@ -441,9 +411,7 @@ test_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	(void)pread(fd, buf, int_arg, 0);
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)pread(fd, buf, int_arg, 0);
 	}
 	benchmark_stop();
@@ -465,9 +433,7 @@ test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 	close(fd);
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		fd = open(path, O_RDONLY);
 		if (fd < 0)
 			err(-1, "test_open_read_close: %s", path);
@@ -490,9 +456,7 @@ test_dup(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (fd >= 0)
 		close(fd);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		fd = dup(shmfd);
 		if (fd >= 0)
 			close(fd);
@@ -513,9 +477,7 @@ test_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 		err(-1, "test_shmfd: shm_open");
 	close(shmfd);
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 		if (shmfd < 0)
 			err(-1, "test_shmfd: shm_open");
@@ -538,9 +500,7 @@ test_fstat_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (fstat(shmfd, &sb) < 0)
 		err(-1, "test_fstat_shmfd: fstat");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		(void)fstat(shmfd, &sb);
 	}
 	benchmark_stop();
@@ -562,9 +522,7 @@ test_fork(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_fork: waitpid");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		pid = fork();
 		if (pid < 0)
 			err(-1, "test_fork: fork");
@@ -591,9 +549,7 @@ test_vfork(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_vfork: waitpid");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		pid = vfork();
 		if (pid < 0)
 			err(-1, "test_vfork: vfork");
@@ -626,9 +582,7 @@ test_fork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_fork: waitpid");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		pid = fork();
 		if (pid < 0)
 			err(-1, "test_fork_exec: fork");
@@ -659,9 +613,7 @@ test_vfork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_vfork_exec: waitpid");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		pid = vfork();
 		if (pid < 0)
 			err(-1, "test_vfork_exec: vfork");
@@ -684,9 +636,7 @@ test_chroot(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (chroot("/") < 0)
 		err(-1, "test_chroot: chroot");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		if (chroot("/") < 0)
 			err(-1, "test_chroot: chroot");
 	}
@@ -704,9 +654,7 @@ test_setuid(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (setuid(uid) < 0)
 		err(-1, "test_setuid: setuid");
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
+	BENCHMARK_FOREACH(i, num) {
 		if (setuid(uid) < 0)
 			err(-1, "test_setuid: setuid");
 	}
