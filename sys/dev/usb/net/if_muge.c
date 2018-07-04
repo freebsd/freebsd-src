@@ -54,16 +54,14 @@ __FBSDID("$FreeBSD$");
  * A number of features supported by the lan78xx are not yet implemented in
  * this driver:
  *
- * 1. RX/TX checksum offloading: Nothing has been implemented yet for
- *    TX checksumming. RX checksumming works with ICMP messages, but is broken
- *    for TCP/UDP packets.
- * 2. Direct address translation filtering: Implemented but untested.
- * 3. VLAN tag removal.
- * 4. Reading MAC address from the device tree: Specific to the RPi 3B+.
- *    Currently, the driver assigns a random MAC address itself.
- * 5. Support for USB interrupt endpoints.
- * 6. Latency Tolerance Messaging (LTM) support.
- * 7. TCP LSO support.
+ * - RX/TX checksum offloading: Nothing has been implemented yet for
+ *   TX checksumming. RX checksumming works with ICMP messages, but is broken
+ *   for TCP/UDP packets.
+ * - Direct address translation filtering: Implemented but untested.
+ * - VLAN tag removal.
+ * - Support for USB interrupt endpoints.
+ * - Latency Tolerance Messaging (LTM) support.
+ * - TCP LSO support.
  *
  */
 
