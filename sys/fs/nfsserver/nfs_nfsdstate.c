@@ -7597,7 +7597,7 @@ nfsrv_delds(char *devid, NFSPROC_T *p)
 	}
 	if (fndds->nfsdev_mdsisset == 0 && nfsrv_faildscnt > 0)
 		fndmirror = 1;
-	else {
+	else if (fndds->nfsdev_mdsisset != 0) {
 		/* For the fsid is set case, search for a mirror. */
 		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 			if (ds != fndds && ds->nfsdev_nmp != NULL &&
@@ -8463,7 +8463,7 @@ nfsrv_findmirroredds(struct nfsmount *nmp)
 		return (fndds);
 	if (fndds->nfsdev_mdsisset == 0 && nfsrv_faildscnt > 0)
 		fndmirror = 1;
-	else {
+	else if (fndds->nfsdev_mdsisset != 0) {
 		/* For the fsid is set case, search for a mirror. */
 		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 			if (ds != fndds && ds->nfsdev_nmp != NULL &&
