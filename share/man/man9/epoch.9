@@ -108,7 +108,7 @@ A caller should never call
 .Fn epoch_wait
 in the middle of an epoch section for the same epoch as this will lead to a deadlock.
 .Pp
-Be default mutexes cannot be held across
+By default mutexes cannot be held across
 .Fn epoch_wait_preempt .
 To permit this the epoch must be allocated with
 EPOCH_LOCKED.
