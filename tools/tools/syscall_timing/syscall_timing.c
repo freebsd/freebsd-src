@@ -159,73 +159,6 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg __unused, const char *path _
 	return (i);
 }
 
-struct pipepingtd_ctx {
-	int		fd;
-	uintmax_t	int_arg;
-};
-
-static void *
-pipepingtd_proc(void *arg)
-{
-	struct pipepingtd_ctx *ctxp;
-	int fd;
-	void *buf;
-	uintmax_t int_arg;
-	ssize_t ret;
-
-	ctxp = arg;
-	fd = ctxp->fd;
-	int_arg = ctxp->int_arg;
-
-	buf = malloc(int_arg);
-	if (buf == NULL)
-		err(1, "malloc");
-
-	for (;;) {
-		ret = read(fd, buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "read");
-		ret = write(fd, buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "write");
-	}
-}
-
-static uintmax_t
-test_pipepingtd(uintmax_t num, uintmax_t int_arg, const char *path __unused)
-{
-	struct pipepingtd_ctx ctx;
-	char buf[int_arg];
-	pthread_t td;
-	uintmax_t i;
-	ssize_t ret;
-	int error, fd[2];
-
-	if (pipe(fd) < 0)
-		err(-1, "pipe");
-
-	ctx.fd = fd[1];
-	ctx.int_arg = int_arg;
-
-	error = pthread_create(&td, NULL, pipepingtd_proc, &ctx);
-	if (error != 0)
-		err(1, "pthread_create");
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		ret = write(fd[0], buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "write");
-		ret = read(fd[0], buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "read");
-	}
-	benchmark_stop();
-	pthread_cancel(td);
-
-	return (i);
-}
-
 static uintmax_t
 test_gettimeofday(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
@@ -319,12 +252,41 @@ test_select(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused
 	return (i);
 }
 
+static void
+readx(int fd, char *buf, size_t size)
+{
+	ssize_t ret;
+
+	do {
+		ret = read(fd, buf, size);
+		if (ret == -1)
+			err(1, "read");
+		assert((size_t)ret <= size);
+		size -= ret;
+		buf += ret;
+	} while (size > 0);
+}
+
+static void
+writex(int fd, const char *buf, size_t size)
+{
+	ssize_t ret;
+
+	do {
+		ret = write(fd, buf, size);
+		if (ret == -1)
+			err(1, "write");
+		assert((size_t)ret <= size);
+		size -= ret;
+		buf += ret;
+	} while (size > 0);
+}
+
 static uintmax_t
 test_pipeping(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 {
 	char buf[int_arg];
 	uintmax_t i;
-	ssize_t ret;
 	pid_t pid;
 	int fd[2], procfd;
 
@@ -339,12 +301,8 @@ test_pipeping(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 		close(fd[0]);
 
 		for (;;) {
-			ret = read(fd[1], buf, int_arg);
-			if ((uintmax_t)ret != int_arg)
-				err(1, "read");
-			ret = write(fd[1], buf, int_arg);
-			if ((uintmax_t)ret != int_arg)
-				err(1, "write");
+			readx(fd[1], buf, int_arg);
+			writex(fd[1], buf, int_arg);
 		}
 	}
 
@@ -352,16 +310,69 @@ test_pipeping(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
-		ret = write(fd[0], buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "write");
-		ret = read(fd[0], buf, int_arg);
-		if ((uintmax_t)ret != int_arg)
-			err(1, "read");
+		writex(fd[0], buf, int_arg);
+		readx(fd[0], buf, int_arg);
 	}
 	benchmark_stop();
 
 	close(procfd);
+	return (i);
+}
+
+struct pipepingtd_ctx {
+	int		fd;
+	uintmax_t	int_arg;
+};
+
+static void *
+pipepingtd_proc(void *arg)
+{
+	struct pipepingtd_ctx *ctxp;
+	int fd;
+	void *buf;
+	uintmax_t int_arg;
+
+	ctxp = arg;
+	fd = ctxp->fd;
+	int_arg = ctxp->int_arg;
+
+	buf = malloc(int_arg);
+	if (buf == NULL)
+		err(1, "malloc");
+
+	for (;;) {
+		readx(fd, buf, int_arg);
+		writex(fd, buf, int_arg);
+	}
+}
+
+static uintmax_t
+test_pipepingtd(uintmax_t num, uintmax_t int_arg, const char *path __unused)
+{
+	struct pipepingtd_ctx ctx;
+	char buf[int_arg];
+	pthread_t td;
+	uintmax_t i;
+	int error, fd[2];
+
+	if (pipe(fd) < 0)
+		err(-1, "pipe");
+
+	ctx.fd = fd[1];
+	ctx.int_arg = int_arg;
+
+	error = pthread_create(&td, NULL, pipepingtd_proc, &ctx);
+	if (error != 0)
+		err(1, "pthread_create");
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		writex(fd[0], buf, int_arg);
+		readx(fd[0], buf, int_arg);
+	}
+	benchmark_stop();
+	pthread_cancel(td);
+
 	return (i);
 }
 
@@ -814,25 +825,15 @@ static const struct test tests[] = {
 	{ "pipeping_100", test_pipeping, .t_flags = 0, .t_int = 100 },
 	{ "pipeping_1000", test_pipeping, .t_flags = 0, .t_int = 1000 },
 	{ "pipeping_10000", test_pipeping, .t_flags = 0, .t_int = 10000 },
-#ifdef notyet
-	/*
-	 * XXX: Doesn't work; kernel pipe buffer too small?
-	 */
 	{ "pipeping_100000", test_pipeping, .t_flags = 0, .t_int = 100000 },
 	{ "pipeping_1000000", test_pipeping, .t_flags = 0, .t_int = 1000000 },
-#endif
 	{ "pipepingtd_1", test_pipepingtd, .t_flags = 0, .t_int = 1 },
 	{ "pipepingtd_10", test_pipepingtd, .t_flags = 0, .t_int = 10 },
 	{ "pipepingtd_100", test_pipepingtd, .t_flags = 0, .t_int = 100 },
 	{ "pipepingtd_1000", test_pipepingtd, .t_flags = 0, .t_int = 1000 },
 	{ "pipepingtd_10000", test_pipepingtd, .t_flags = 0, .t_int = 10000 },
-#ifdef notyet
-	/*
-	 * XXX: Doesn't work; kernel pipe buffer too small?
-	 */
 	{ "pipepingtd_100000", test_pipepingtd, .t_flags = 0, .t_int = 100000 },
 	{ "pipepingtd_1000000", test_pipepingtd, .t_flags = 0, .t_int = 1000000 },
- #endif
 	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
 	{ "getpriority", test_getpriority, .t_flags = 0 },
 	{ "getprogname", test_getprogname, .t_flags = 0 },
