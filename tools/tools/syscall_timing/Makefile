@@ -6,7 +6,7 @@ PROG=	syscall_timing
 CFLAGS+=	-static -O
 MAN=
 
-LIBADD=	pthread
+#LIBADD=	pthread
 
 WARNS=	6
 
