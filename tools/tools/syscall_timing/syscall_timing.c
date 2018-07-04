@@ -184,6 +184,23 @@ test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
+/*
+ * The point of this one is to figure out the cost of a call into libc,
+ * through PLT, and back.
+ */
+uintmax_t
+test_getprogname(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		(void)getprogname();
+	}
+	benchmark_stop();
+	return (i);
+}
+
 uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 {
@@ -678,6 +695,7 @@ static const struct test tests[] = {
 	{ "clock_gettime", test_clock_gettime },
 	{ "gettimeofday", test_gettimeofday },
 	{ "getpriority", test_getpriority },
+	{ "getprogname", test_getprogname },
 	{ "pipe", test_pipe },
 	{ "select", test_select },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
