@@ -4193,6 +4193,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_set_multicast_list(sc);
 		mtx_unlock(&sc->driver_mtx);
 		break;
@@ -4278,6 +4282,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCGIFMEDIA:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_media_probe(sc);
 		mtx_unlock(&sc->driver_mtx);
 		err = ifmedia_ioctl(ifp, (struct ifreq *)data,
