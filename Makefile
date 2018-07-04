@@ -181,7 +181,7 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
 # We often need to use the tree's version of make to build it.
 # Choices add to complexity though.
 # We cannot blindly use a make which may not be the one we want
-# so be exlicit - until all choice is removed.
+# so be explicit - until all choice is removed.
 WANT_MAKE=	bmake
 .if !empty(.MAKE.MODE:Mmeta)
 # 20160604 - support missing-meta,missing-filemon and performance improvements
