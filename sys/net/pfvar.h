@@ -1385,17 +1385,19 @@ struct pfioc_iface {
 #define DIOCGETRULE	_IOWR('D',  7, struct pfioc_rule)
 /* XXX cut 8 - 17 */
 #define DIOCCLRSTATES	_IOWR('D', 18, struct pfioc_state_kill)
-/* XXX cut 19 */
+#define DIOCGETSTATE	_IOWR('D', 19, struct pfioc_state)
 #define DIOCSETSTATUSIF _IOWR('D', 20, struct pfioc_if)
 #define DIOCGETSTATUS	_IOWR('D', 21, struct pf_status)
 #define DIOCCLRSTATUS	_IO  ('D', 22)
 #define DIOCNATLOOK	_IOWR('D', 23, struct pfioc_natlook)
 #define DIOCSETDEBUG	_IOWR('D', 24, u_int32_t)
 #define DIOCGETSTATES	_IOWR('D', 25, struct pfioc_states)
+#define DIOCCHANGERULE	_IOWR('D', 26, struct pfioc_rule)
 /* XXX cut 26 - 28 */
 #define DIOCSETTIMEOUT	_IOWR('D', 29, struct pfioc_tm)
 #define DIOCGETTIMEOUT	_IOWR('D', 30, struct pfioc_tm)
-/* XXX cut 31-38 */
+#define DIOCADDSTATE	_IOWR('D', 37, struct pfioc_state)
+#define DIOCCLRRULECTRS	_IO  ('D', 38)
 #define DIOCGETLIMIT	_IOWR('D', 39, struct pfioc_limit)
 #define DIOCSETLIMIT	_IOWR('D', 40, struct pfioc_limit)
 #define DIOCKILLSTATES	_IOWR('D', 41, struct pfioc_state_kill)
@@ -1404,12 +1406,13 @@ struct pfioc_iface {
 #define DIOCADDALTQ	_IOWR('D', 45, struct pfioc_altq)
 #define DIOCGETALTQS	_IOWR('D', 47, struct pfioc_altq)
 #define DIOCGETALTQ	_IOWR('D', 48, struct pfioc_altq)
-/* XXX cut 49 */
+#define DIOCCHANGEALTQ	_IOWR('D', 49, struct pfioc_altq)
 #define DIOCGETQSTATS	_IOWR('D', 50, struct pfioc_qstats)
 #define DIOCBEGINADDRS	_IOWR('D', 51, struct pfioc_pooladdr)
 #define DIOCADDADDR	_IOWR('D', 52, struct pfioc_pooladdr)
 #define DIOCGETADDRS	_IOWR('D', 53, struct pfioc_pooladdr)
 #define DIOCGETADDR	_IOWR('D', 54, struct pfioc_pooladdr)
+#define DIOCCHANGEADDR	_IOWR('D', 55, struct pfioc_pooladdr)
 /* XXX cut 55 - 57 */
 #define	DIOCGETRULESETS	_IOWR('D', 58, struct pfioc_ruleset)
 #define	DIOCGETRULESET	_IOWR('D', 59, struct pfioc_ruleset)
