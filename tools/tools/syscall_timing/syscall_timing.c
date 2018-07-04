@@ -343,6 +343,26 @@ test_getuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused
 }
 
 static uintmax_t
+test_memcpy(uintmax_t num, uintmax_t int_arg, const char *path __unused)
+{
+	char buf[int_arg], buf2[int_arg];
+	uintmax_t i;
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		/*
+		 * Copy the memory there and back, to match the total amount
+		 * moved by pipeping/pipepingtd tests.
+		 */
+		memcpy(buf2, buf, int_arg);
+		memcpy(buf, buf2, int_arg);
+	}
+	benchmark_stop();
+
+	return (i);
+}
+
+static uintmax_t
 test_open_close(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
 	uintmax_t i;
@@ -833,6 +853,13 @@ static const struct test tests[] = {
 	{ "getresuid", test_getresuid, .t_flags = 0 },
 	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
 	{ "getuid", test_getuid, .t_flags = 0 },
+	{ "memcpy_1", test_memcpy, .t_flags = 0, .t_int = 1 },
+	{ "memcpy_10", test_memcpy, .t_flags = 0, .t_int = 10 },
+	{ "memcpy_100", test_memcpy, .t_flags = 0, .t_int = 100 },
+	{ "memcpy_1000", test_memcpy, .t_flags = 0, .t_int = 1000 },
+	{ "memcpy_10000", test_memcpy, .t_flags = 0, .t_int = 10000 },
+	{ "memcpy_100000", test_memcpy, .t_flags = 0, .t_int = 100000 },
+	{ "memcpy_1000000", test_memcpy, .t_flags = 0, .t_int = 1000000 },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
 	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
 	    .t_int = 1 },
