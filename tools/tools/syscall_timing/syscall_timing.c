@@ -98,50 +98,51 @@ benchmark_stop(void)
 	error = clock_gettime(CLOCK_REALTIME, &ts_end);
 	assert(error == 0);
 }
-  
+
 static uintmax_t
-test_getuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_access(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
 	uintmax_t i;
+	int fd;
 
-	/*
-	 * Thread-local data should require no locking if system
-	 * call is MPSAFE.
-	 */
+	fd = access(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_access: %s", path);
+	close(fd);
+
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
-		getuid();
+		access(path, O_RDONLY);
+		close(fd);
 	}
 	benchmark_stop();
 	return (i);
 }
 
 static uintmax_t
-test_getppid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_bad_open(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
 
-	/*
-	 * This is process-local, but can change, so will require a
-	 * lock.
-	 */
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
-		getppid();
+		open("", O_RDONLY);
 	}
 	benchmark_stop();
 	return (i);
 }
 
 static uintmax_t
-test_getresuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_chroot(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
-	uid_t ruid, euid, suid;
 	uintmax_t i;
 
+	if (chroot("/") < 0)
+		err(-1, "test_chroot: chroot");
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
-		(void)getresuid(&ruid, &euid, &suid);
+		if (chroot("/") < 0)
+			err(-1, "test_chroot: chroot");
 	}
 	benchmark_stop();
 	return (i);
@@ -162,14 +163,105 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg __unused, const char *path _
 }
 
 static uintmax_t
-test_gettimeofday(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+test_create_unlink(uintmax_t num, uintmax_t int_arg __unused, const char *path)
 {
-	struct timeval tv;
 	uintmax_t i;
+	int fd;
 
+	(void)unlink(path);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
+	if (fd < 0)
+		err(-1, "test_create_unlink: create: %s", path);
+	close(fd);
+	if (unlink(path) < 0)
+		err(-1, "test_create_unlink: unlink: %s", path);
 	benchmark_start();
 	BENCHMARK_FOREACH(i, num) {
-		(void)gettimeofday(&tv, NULL);
+		fd = open(path, O_RDWR | O_CREAT, 0600);
+		if (fd < 0)
+			err(-1, "test_create_unlink: create: %s", path);
+		close(fd);
+		if (unlink(path) < 0)
+			err(-1, "test_create_unlink: unlink: %s", path);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_fork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	pid_t pid;
+	uintmax_t i;
+
+	pid = fork();
+	if (pid < 0)
+		err(-1, "test_fork: fork");
+	if (pid == 0)
+		_exit(0);
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_fork: waitpid");
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		pid = fork();
+		if (pid < 0)
+			err(-1, "test_fork: fork");
+		if (pid == 0)
+			_exit(0);
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_fork: waitpid");
+	}
+	benchmark_stop();
+	return (i);
+}
+
+#define	USR_BIN_TRUE	"/usr/bin/true"
+static char *execve_args[] = { __DECONST(char *, USR_BIN_TRUE), NULL};
+extern char **environ;
+
+static uintmax_t
+test_fork_exec(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	pid_t pid;
+	uintmax_t i;
+
+	pid = fork();
+	if (pid < 0)
+		err(-1, "test_fork_exec: fork");
+	if (pid == 0) {
+		(void)execve(USR_BIN_TRUE, execve_args, environ);
+		err(-1, "execve");
+	}
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_fork: waitpid");
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		pid = fork();
+		if (pid < 0)
+			err(-1, "test_fork_exec: fork");
+		if (pid == 0) {
+			(void)execve(USR_BIN_TRUE, execve_args, environ);
+			err(-1, "test_fork_exec: execve");
+		}
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_fork_exec: waitpid");
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_getppid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	uintmax_t i;
+
+	/*
+	 * This is process-local, but can change, so will require a
+	 * lock.
+	 */
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		getppid();
 	}
 	benchmark_stop();
 	return (i);
@@ -206,6 +298,98 @@ test_getprogname(uintmax_t num, uintmax_t int_arg __unused, const char *path __u
 }
 
 static uintmax_t
+test_getresuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	uid_t ruid, euid, suid;
+	uintmax_t i;
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		(void)getresuid(&ruid, &euid, &suid);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_gettimeofday(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	struct timeval tv;
+	uintmax_t i;
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		(void)gettimeofday(&tv, NULL);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_getuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	uintmax_t i;
+
+	/*
+	 * Thread-local data should require no locking if system
+	 * call is MPSAFE.
+	 */
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		getuid();
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_open_close(uintmax_t num, uintmax_t int_arg __unused, const char *path)
+{
+	uintmax_t i;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_close: %s", path);
+	close(fd);
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			err(-1, "test_open_close: %s", path);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	char buf[int_arg];
+	uintmax_t i;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_read_close: %s", path);
+	(void)read(fd, buf, int_arg);
+	close(fd);
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			err(-1, "test_open_read_close: %s", path);
+		(void)read(fd, buf, int_arg);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	int fd[2];
@@ -227,28 +411,6 @@ test_pipe(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 			err(-1, "test_pipe: pipe");
 		close(fd[0]);
 		close(fd[1]);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_select(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	fd_set readfds, writefds, exceptfds;
-	struct timeval tv;
-	uintmax_t i;
-
-	FD_ZERO(&readfds);
-	FD_ZERO(&writefds);
-	FD_ZERO(&exceptfds);
-
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		(void)select(0, &readfds, &writefds, &exceptfds, &tv);
 	}
 	benchmark_stop();
 	return (i);
@@ -381,6 +543,67 @@ test_pipepingtd(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 #endif /* WITH_PTHREAD */
 
 static uintmax_t
+test_read(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	char buf[int_arg];
+	uintmax_t i;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_read: %s", path);
+	(void)pread(fd, buf, int_arg, 0);
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		(void)pread(fd, buf, int_arg, 0);
+	}
+	benchmark_stop();
+	close(fd);
+	return (i);
+}
+
+static uintmax_t
+test_select(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	fd_set readfds, writefds, exceptfds;
+	struct timeval tv;
+	uintmax_t i;
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	FD_ZERO(&exceptfds);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		(void)select(0, &readfds, &writefds, &exceptfds, &tv);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
+test_setuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
+{
+	uid_t uid;
+	uintmax_t i;
+
+	uid = getuid();
+	if (setuid(uid) < 0)
+		err(-1, "test_setuid: setuid");
+	benchmark_start();
+	BENCHMARK_FOREACH(i, num) {
+		if (setuid(uid) < 0)
+			err(-1, "test_setuid: setuid");
+	}
+	benchmark_stop();
+	return (i);
+}
+
+static uintmax_t
 test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path __unused)
 {
 	uintmax_t i;
@@ -465,133 +688,6 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg __unused, const char *pat
 }
 
 static uintmax_t
-test_access(uintmax_t num, uintmax_t int_arg __unused, const char *path)
-{
-	uintmax_t i;
-	int fd;
-
-	fd = access(path, O_RDONLY);
-	if (fd < 0)
-		err(-1, "test_access: %s", path);
-	close(fd);
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		access(path, O_RDONLY);
-		close(fd);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_create_unlink(uintmax_t num, uintmax_t int_arg __unused, const char *path)
-{
-	uintmax_t i;
-	int fd;
-
-	(void)unlink(path);
-	fd = open(path, O_RDWR | O_CREAT, 0600);
-	if (fd < 0)
-		err(-1, "test_create_unlink: create: %s", path);
-	close(fd);
-	if (unlink(path) < 0)
-		err(-1, "test_create_unlink: unlink: %s", path);
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		fd = open(path, O_RDWR | O_CREAT, 0600);
-		if (fd < 0)
-			err(-1, "test_create_unlink: create: %s", path);
-		close(fd);
-		if (unlink(path) < 0)
-			err(-1, "test_create_unlink: unlink: %s", path);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_open_close(uintmax_t num, uintmax_t int_arg __unused, const char *path)
-{
-	uintmax_t i;
-	int fd;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		err(-1, "test_open_close: %s", path);
-	close(fd);
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		fd = open(path, O_RDONLY);
-		if (fd < 0)
-			err(-1, "test_open_close: %s", path);
-		close(fd);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_bad_open(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	uintmax_t i;
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		open("", O_RDONLY);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_read(uintmax_t num, uintmax_t int_arg, const char *path)
-{
-	char buf[int_arg];
-	uintmax_t i;
-	int fd;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		err(-1, "test_open_read: %s", path);
-	(void)pread(fd, buf, int_arg, 0);
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		(void)pread(fd, buf, int_arg, 0);
-	}
-	benchmark_stop();
-	close(fd);
-	return (i);
-}
-
-static uintmax_t
-test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
-{
-	char buf[int_arg];
-	uintmax_t i;
-	int fd;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		err(-1, "test_open_read_close: %s", path);
-	(void)read(fd, buf, int_arg);
-	close(fd);
-
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		fd = open(path, O_RDONLY);
-		if (fd < 0)
-			err(-1, "test_open_read_close: %s", path);
-		(void)read(fd, buf, int_arg);
-		close(fd);
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
 test_dup(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	uintmax_t i;
@@ -657,33 +753,6 @@ test_fstat_shmfd(uintmax_t num, uintmax_t int_arg __unused, const char *path __u
 }
 
 static uintmax_t
-test_fork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	pid_t pid;
-	uintmax_t i;
-
-	pid = fork();
-	if (pid < 0)
-		err(-1, "test_fork: fork");
-	if (pid == 0)
-		_exit(0);
-	if (waitpid(pid, NULL, 0) < 0)
-		err(-1, "test_fork: waitpid");
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		pid = fork();
-		if (pid < 0)
-			err(-1, "test_fork: fork");
-		if (pid == 0)
-			_exit(0);
-		if (waitpid(pid, NULL, 0) < 0)
-			err(-1, "test_fork: waitpid");
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
 test_vfork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 {
 	pid_t pid;
@@ -705,41 +774,6 @@ test_vfork(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
 			_exit(0);
 		if (waitpid(pid, NULL, 0) < 0)
 			err(-1, "test_vfork: waitpid");
-	}
-	benchmark_stop();
-	return (i);
-}
-
-#define	USR_BIN_TRUE	"/usr/bin/true"
-static char *execve_args[] = { __DECONST(char *, USR_BIN_TRUE), NULL};
-extern char **environ;
-
-static uintmax_t
-test_fork_exec(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	pid_t pid;
-	uintmax_t i;
-
-	pid = fork();
-	if (pid < 0)
-		err(-1, "test_fork_exec: fork");
-	if (pid == 0) {
-		(void)execve(USR_BIN_TRUE, execve_args, environ);
-		err(-1, "execve");
-	}
-	if (waitpid(pid, NULL, 0) < 0)
-		err(-1, "test_fork: waitpid");
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		pid = fork();
-		if (pid < 0)
-			err(-1, "test_fork_exec: fork");
-		if (pid == 0) {
-			(void)execve(USR_BIN_TRUE, execve_args, environ);
-			err(-1, "test_fork_exec: execve");
-		}
-		if (waitpid(pid, NULL, 0) < 0)
-			err(-1, "test_fork_exec: waitpid");
 	}
 	benchmark_stop();
 	return (i);
@@ -776,40 +810,6 @@ test_vfork_exec(uintmax_t num, uintmax_t int_arg __unused, const char *path __un
 	return (i);
 }
 
-static uintmax_t
-test_chroot(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	uintmax_t i;
-
-	if (chroot("/") < 0)
-		err(-1, "test_chroot: chroot");
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		if (chroot("/") < 0)
-			err(-1, "test_chroot: chroot");
-	}
-	benchmark_stop();
-	return (i);
-}
-
-static uintmax_t
-test_setuid(uintmax_t num, uintmax_t int_arg __unused, const char *path __unused)
-{
-	uid_t uid;
-	uintmax_t i;
-
-	uid = getuid();
-	if (setuid(uid) < 0)
-		err(-1, "test_setuid: setuid");
-	benchmark_start();
-	BENCHMARK_FOREACH(i, num) {
-		if (setuid(uid) < 0)
-			err(-1, "test_setuid: setuid");
-	}
-	benchmark_stop();
-	return (i);
-}
-
 struct test {
 	const char	*t_name;
 	uintmax_t	(*t_func)(uintmax_t, uintmax_t, const char *);
@@ -820,10 +820,35 @@ struct test {
 #define	FLAG_PATH	0x00000001
 
 static const struct test tests[] = {
-	{ "getuid", test_getuid, .t_flags = 0 },
-	{ "getppid", test_getppid, .t_flags = 0 },
-	{ "getresuid", test_getresuid, .t_flags = 0 },
+	{ "access", test_access, .t_flags = FLAG_PATH },
+	{ "bad_open", test_bad_open, .t_flags = 0 },
+	{ "chroot", test_chroot, .t_flags = 0 },
 	{ "clock_gettime", test_clock_gettime, .t_flags = 0 },
+	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
+	{ "fork", test_fork, .t_flags = 0 },
+	{ "fork_exec", test_fork_exec, .t_flags = 0 },
+	{ "getppid", test_getppid, .t_flags = 0 },
+	{ "getpriority", test_getpriority, .t_flags = 0 },
+	{ "getprogname", test_getprogname, .t_flags = 0 },
+	{ "getresuid", test_getresuid, .t_flags = 0 },
+	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
+	{ "getuid", test_getuid, .t_flags = 0 },
+	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
+	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 1 },
+	{ "open_read_close_10", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 10 },
+	{ "open_read_close_100", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 100 },
+	{ "open_read_close_1000", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 1000 },
+	{ "open_read_close_10000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 10000 },
+	{ "open_read_close_100000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 100000 },
+	{ "open_read_close_1000000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 1000000 },
+	{ "pipe", test_pipe, .t_flags = 0 },
 	{ "pipeping_1", test_pipeping, .t_flags = 0, .t_int = 1 },
 	{ "pipeping_10", test_pipeping, .t_flags = 0, .t_int = 10 },
 	{ "pipeping_100", test_pipeping, .t_flags = 0, .t_int = 100 },
@@ -840,35 +865,6 @@ static const struct test tests[] = {
 	{ "pipepingtd_100000", test_pipepingtd, .t_flags = 0, .t_int = 100000 },
 	{ "pipepingtd_1000000", test_pipepingtd, .t_flags = 0, .t_int = 1000000 },
 #endif
-	{ "gettimeofday", test_gettimeofday, .t_flags = 0 },
-	{ "getpriority", test_getpriority, .t_flags = 0 },
-	{ "getprogname", test_getprogname, .t_flags = 0 },
-	{ "pipe", test_pipe, .t_flags = 0 },
-	{ "select", test_select, .t_flags = 0 },
-	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
-	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
-	{ "socketpair_stream", test_socketpair_stream, .t_flags = 0 },
-	{ "socketpair_dgram", test_socketpair_dgram, .t_flags = 0 },
-	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
-	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
-	{ "access", test_access, .t_flags = FLAG_PATH },
-	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
-	{ "bad_open", test_bad_open, .t_flags = 0 },
-	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
-	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
-	    .t_int = 1 },
-	{ "open_read_close_10", test_open_read_close, .t_flags = FLAG_PATH,
-	    .t_int = 10 },
-	{ "open_read_close_100", test_open_read_close, .t_flags = FLAG_PATH,
-	    .t_int = 100 },
-	{ "open_read_close_1000", test_open_read_close, .t_flags = FLAG_PATH,
-	    .t_int = 1000 },
-	{ "open_read_close_10000", test_open_read_close,
-	    .t_flags = FLAG_PATH, .t_int = 10000 },
-	{ "open_read_close_100000", test_open_read_close,
-	    .t_flags = FLAG_PATH, .t_int = 100000 },
-	{ "open_read_close_1000000", test_open_read_close,
-	    .t_flags = FLAG_PATH, .t_int = 1000000 },
 	{ "read_1", test_read, .t_flags = FLAG_PATH, .t_int = 1 },
 	{ "read_10", test_read, .t_flags = FLAG_PATH, .t_int = 10 },
 	{ "read_100", test_read, .t_flags = FLAG_PATH, .t_int = 100 },
@@ -876,15 +872,19 @@ static const struct test tests[] = {
 	{ "read_10000", test_read, .t_flags = FLAG_PATH, .t_int = 10000 },
 	{ "read_100000", test_read, .t_flags = FLAG_PATH, .t_int = 100000 },
 	{ "read_1000000", test_read, .t_flags = FLAG_PATH, .t_int = 1000000 },
+	{ "select", test_select, .t_flags = 0 },
+	{ "setuid", test_setuid, .t_flags = 0 },
+	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
+	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
+	{ "socketpair_stream", test_socketpair_stream, .t_flags = 0 },
+	{ "socketpair_dgram", test_socketpair_dgram, .t_flags = 0 },
+	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
+	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
 	{ "dup", test_dup, .t_flags = 0 },
 	{ "shmfd", test_shmfd, .t_flags = 0 },
 	{ "fstat_shmfd", test_fstat_shmfd, .t_flags = 0 },
-	{ "fork", test_fork, .t_flags = 0 },
 	{ "vfork", test_vfork, .t_flags = 0 },
-	{ "fork_exec", test_fork_exec, .t_flags = 0 },
 	{ "vfork_exec", test_vfork_exec, .t_flags = 0 },
-	{ "chroot", test_chroot, .t_flags = 0 },
-	{ "setuid", test_setuid, .t_flags = 0 },
 };
 static const int tests_count = sizeof(tests) / sizeof(tests[0]);
 
