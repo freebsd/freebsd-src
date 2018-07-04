@@ -476,9 +476,6 @@ DEPENDOBJS+=	genoffset.o
 .endif
 assym.inc: genassym.o
 offset.inc: genoffset.o
-.if defined(KERNBUILDDIR)
-genassym.o: opt_global.h
-.endif
 assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c offset.inc
@@ -492,16 +489,15 @@ genoffset.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/kern/genoffset.c
 
-.if defined(KERNBUILDDIR)
-${OBJS}: opt_global.h
-.endif
-
 CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
 cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if defined(KERNBUILDDIR)
+OBJS_DEPEND_GUESS+= opt_global.h
+.endif
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
