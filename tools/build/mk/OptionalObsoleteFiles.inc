@@ -7527,6 +7527,10 @@ OLD_DIRS+=usr/share/sendmail/cf
 OLD_DIRS+=usr/share/sendmail
 .endif
 
+.if ${MK_SERVICESDB} == no
+OLD_FILES+=var/db/services.db
+.endif
+
 .if ${MK_SHAREDOCS} == no
 OLD_FILES+=usr/share/doc/pjdfstest/README
 OLD_DIRS+=usr/share/doc/pjdfstest
