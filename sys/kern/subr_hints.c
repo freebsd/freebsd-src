@@ -31,60 +31,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#define	HINTMODE_KENV		0
-#define	HINTMODE_STATIC		1
-#define	HINTMODE_FALLBACK	2
+#define	FBACK_MDENV	0	/* MD env (e.g. loader.conf) */
+#define	FBACK_STENV	1	/* Static env */
+#define	FBACK_STATIC	2	/* static_hints */
+
+/*
+ * We'll use hintenv_merged to indicate that the dynamic environment has been
+ * properly prepared for hint usage.  This implies that the dynamic environment
+ * has already been setup (dynamic_kenv) and that we have added any supplied
+ * static_hints to the dynamic environment.
+ */
+static int	hintenv_merged;
 
 /*
  * Access functions for device resources.
  */
 
-static int checkmethod = 1;
-static char *hintp;
-
-/*
- * Define kern.hintmode sysctl, which only accept value 2, that cause to
- * switch from Static KENV mode to Dynamic KENV. So systems that have hints
- * compiled into kernel will be able to see/modify KENV (and hints too).
- */
-
-static int
-sysctl_hintmode(SYSCTL_HANDLER_ARGS)
+static void
+static_hints_to_env(void *data __unused)
 {
 	const char *cp;
 	char *line, *eq;
-	int eqidx, error, i, value;
-
-	value = hintmode;
-
-	/* Fetch candidate for new hintmode value */
-	error = sysctl_handle_int(oidp, &value, 0, req);
-	if (error || req->newptr == NULL)
-		return (error);
-
-	if (value != HINTMODE_FALLBACK)
-		/* Only accept swithing to hintmode 2 */
-		return (EINVAL);
-
-	/*
-	 * The rest of the sysctl handler is just making sure that our
-	 * environment is consistent with the world we've already seen.
-	 * If we came from kenv at all, then we have nothing to do: static
-	 * kenv will get merged into dynamic kenv as soon as kmem becomes
-	 * available, dynamic kenv is the environment we'd be setting these
-	 * things in anyways. Therefore, we have nothing left to do unless
-	 * we came from a static hints configuration.
-	 */
-	if (hintmode != HINTMODE_STATIC) {
-		hintmode = value;
-		return (0);
-	}
+	int eqidx, i;
 
 	cp = static_hints;
 	while (cp && *cp != '\0') {
@@ -95,20 +70,48 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 		eqidx = eq - cp;
 
 		i = strlen(cp);
-		line = malloc(i+1, M_TEMP, M_WAITOK);
+		line = malloc(i + 1, M_TEMP, M_WAITOK);
 		strcpy(line, cp);
-		line[eqidx] = '\0';
-		kern_setenv(line, line + eqidx + 1);
+		line[eqidx] = line[i] = '\0';
+		/*
+		 * Before adding a hint to the dynamic environment, check if
+		 * another value for said hint has already been added.  This is
+		 * needed because static environment overrides static hints and
+		 * dynamic environment overrides all.
+		 */
+		if (testenv(line) == 0)
+			kern_setenv(line, line + eqidx + 1);
 		free(line, M_TEMP);
 		cp += i + 1;
 	}
-
-	hintmode = value;
-	return (0);
+	hintenv_merged = 1;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, hintmode, CTLTYPE_INT|CTLFLAG_RW,
-    &hintmode, 0, sysctl_hintmode, "I", "Get/set current hintmode");
+/* Any time after dynamic env is setup */
+SYSINIT(hintenv, SI_SUB_KMEM, SI_ORDER_ANY, static_hints_to_env, NULL);
+
+/*
+ * Checks the environment to see if we even have any hints.  If it has no hints,
+ * then res_find can take the hint that there's no point in searching it and
+ * either move on to the next environment or fail early.
+ */
+static bool
+_res_checkenv(char *envp)
+{
+	char *cp;
+
+	cp = envp;
+	while (cp) {
+		if (strncmp(cp, "hint.", 5) == 0)
+			return (true);
+		while (*cp != '\0')
+			cp++;
+		cp++;
+		if (*cp == '\0')
+			break;
+	}
+	return (false);
+}
 
 /*
  * Evil wildcarding resource string lookup.
@@ -116,82 +119,103 @@ SYSCTL_PROC(_kern, OID_AUTO, hintmode, CTLTYPE_INT|CTLFLAG_RW,
  * The start point can be remembered for incremental searches.
  */
 static int
-res_find(int *line, int *startln,
+res_find(char **hintp_cookie, int *line, int *startln,
     const char *name, int *unit, const char *resname, const char *value,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int n = 0, hit, i = 0;
+	int dyn_used = 0, fbacklvl = FBACK_MDENV, hit, i = 0, n = 0;
 	char r_name[32];
-	int r_unit, use_kenv = (hintmode != HINTMODE_STATIC && dynamic_kenv);
+	int r_unit;
 	char r_resname[32];
 	char r_value[128];
 	const char *s, *cp;
-	char *p;
+	char *hintp, *p;
 
-	if (checkmethod) {
+
+	/*
+	 * We are expecting that the caller will pass us a hintp_cookie that
+	 * they are tracking.  Upon entry, if *hintp_cookie is *not* set, this
+	 * indicates to us that we should be figuring out based on the current
+	 * environment where to search.  This keeps us sane throughout the
+	 * entirety of a single search.
+	 */
+	if (*hintp_cookie == NULL) {
 		hintp = NULL;
-
-		switch (hintmode) {
-		case HINTMODE_KENV:	/* loader hints in environment only */
-			break;
-		case HINTMODE_STATIC:	/* static hints only */
-			hintp = static_hints;
-			checkmethod = 0;
-			break;
-		case HINTMODE_FALLBACK:		/* fallback mode */
-			if (dynamic_kenv) {
-				mtx_lock(&kenv_lock);
-				cp = kenvp[0];
-				for (i = 0; cp != NULL; cp = kenvp[++i]) {
-					if (!strncmp(cp, "hint.", 5)) {
-						use_kenv = 1;
-						checkmethod = 0;
-						break;
-					}
-				}
-				mtx_unlock(&kenv_lock);
-			} else {
-				cp = kern_envp;
-				while (cp) {
-					if (strncmp(cp, "hint.", 5) == 0) {
-						cp = NULL;
-						hintp = kern_envp;
-						break;
-					}
-					while (*cp != '\0')
-						cp++;
-					cp++;
-					if (*cp == '\0') {
-						cp = NULL;
-						hintp = static_hints;
-						break;
-					}
+		if (hintenv_merged) {
+			/*
+			 * static_hints, if it was previously used, has
+			 * already been folded in to the environment
+			 * by this point.
+			 */
+			mtx_lock(&kenv_lock);
+			cp = kenvp[0];
+			for (i = 0; cp != NULL; cp = kenvp[++i]) {
+				if (!strncmp(cp, "hint.", 5)) {
+					hintp = kenvp[0];
+					break;
 				}
 			}
-			break;
-		default:
-			break;
-		}
-		if (hintp == NULL) {
-			if (dynamic_kenv) {
-				use_kenv = 1;
-				checkmethod = 0;
-			} else
+			mtx_unlock(&kenv_lock);
+			dyn_used = 1;
+		} else {
+			/*
+			 * We'll have a chance to keep coming back here until
+			 * we've actually exhausted all of our possibilities.
+			 * We might have chosen the MD/Static env because it
+			 * had some kind of hints, but perhaps it didn't have
+			 * the hint we are looking for.  We don't provide any
+			 * fallback when searching the dynamic environment.
+			 */
+fallback:
+			if (dyn_used || fbacklvl >= FBACK_STATIC)
+				return (ENOENT);
+
+			if (fbacklvl <= FBACK_MDENV &&
+			    _res_checkenv(md_envp)) {
+				hintp = md_envp;
+				goto found;
+			}
+			fbacklvl++;
+
+			if (fbacklvl <= FBACK_STENV &&
+			    _res_checkenv(kern_envp)) {
 				hintp = kern_envp;
+				goto found;
+			}
+			fbacklvl++;
+
+			/* We'll fallback to static_hints if needed/can */
+			if (fbacklvl <= FBACK_STATIC &&
+			    _res_checkenv(static_hints))
+				hintp = static_hints;
+found:
+			fbacklvl++;
 		}
+
+		if (hintp == NULL)
+			return (ENOENT);
+		*hintp_cookie = hintp;
+	} else {
+		hintp = *hintp_cookie;
+		if (hintenv_merged && hintp == kenvp[0])
+			dyn_used = 1;
+		else
+			/*
+			 * If we aren't using the dynamic environment, we need
+			 * to run through the proper fallback procedure again.
+			 * This is so that we do continuations right if we're
+			 * working with *line and *startln.
+			 */
+			goto fallback;
 	}
 
-	if (use_kenv) {
+	if (dyn_used) {
 		mtx_lock(&kenv_lock);
 		i = 0;
-		cp = kenvp[0];
-		if (cp == NULL) {
-			mtx_unlock(&kenv_lock);
-			return (ENOENT);
-		}
-	} else
-		cp = hintp;
+	}
+
+	cp = hintp;
 	while (cp) {
 		hit = 1;
 		(*line)++;
@@ -200,25 +224,28 @@ res_find(int *line, int *startln,
 		else
 			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s",
 			    r_name, &r_unit, r_resname, r_value);
-		if (hit && n != 4) {
-			printf("CONFIG: invalid hint '%s'\n", cp);
-			p = strchr(cp, 'h');
-			*p = 'H';
-			hit = 0;
+		/* We'll circumvent all of the checks if we already know */
+		if (hit) {
+			if (n != 4) {
+				printf("CONFIG: invalid hint '%s'\n", cp);
+				p = strchr(cp, 'h');
+				*p = 'H';
+				hit = 0;
+			}
+			if (hit && startln && *startln >= 0 && *line < *startln)
+				hit = 0;
+			if (hit && name && strcmp(name, r_name) != 0)
+				hit = 0;
+			if (hit && unit && *unit != r_unit)
+				hit = 0;
+			if (hit && resname && strcmp(resname, r_resname) != 0)
+				hit = 0;
+			if (hit && value && strcmp(value, r_value) != 0)
+				hit = 0;
+			if (hit)
+				break;
 		}
-		if (hit && startln && *startln >= 0 && *line < *startln)
-			hit = 0;
-		if (hit && name && strcmp(name, r_name) != 0)
-			hit = 0;
-		if (hit && unit && *unit != r_unit)
-			hit = 0;
-		if (hit && resname && strcmp(resname, r_resname) != 0)
-			hit = 0;
-		if (hit && value && strcmp(value, r_value) != 0)
-			hit = 0;
-		if (hit)
-			break;
-		if (use_kenv) {
+		if (dyn_used) {
 			cp = kenvp[++i];
 			if (cp == NULL)
 				break;
@@ -232,10 +259,10 @@ res_find(int *line, int *startln,
 			}
 		}
 	}
-	if (use_kenv)
+	if (dyn_used)
 		mtx_unlock(&kenv_lock);
 	if (cp == NULL)
-		return ENOENT;
+		goto fallback;
 
 	s = cp;
 	/* This is a bit of a hack, but at least is reentrant */
@@ -273,11 +300,13 @@ resource_find(int *line, int *startln,
 {
 	int i;
 	int un;
+	char *hintp;
 
 	*line = 0;
+	hintp = NULL;
 
 	/* Search for exact unit matches first */
-	i = res_find(line, startln, name, unit, resname, value,
+	i = res_find(&hintp, line, startln, name, unit, resname, value,
 	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
 	    ret_value);
 	if (i == 0)
@@ -286,7 +315,7 @@ resource_find(int *line, int *startln,
 		return ENOENT;
 	/* If we are still here, search for wildcard matches */
 	un = -1;
-	i = res_find(line, startln, name, &un, resname, value,
+	i = res_find(&hintp, line, startln, name, &un, resname, value,
 	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
 	    ret_value);
 	if (i == 0)
