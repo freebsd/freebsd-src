@@ -35,12 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
+#define	HINTMODE_KENV		0
+#define	HINTMODE_STATIC		1
+#define	HINTMODE_FALLBACK	2
+
 /*
  * Access functions for device resources.
  */
 
 static int checkmethod = 1;
-static int use_kenv;
 static char *hintp;
 
 /*
@@ -54,10 +57,8 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 {
 	const char *cp;
 	char *line, *eq;
-	int eqidx, error, from_kenv, i, value;
+	int eqidx, error, i, value;
 
-	from_kenv = 0;
-	cp = kern_envp;
 	value = hintmode;
 
 	/* Fetch candidate for new hintmode value */
@@ -65,47 +66,33 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		return (error);
 
-	if (value != 2)
+	if (value != HINTMODE_FALLBACK)
 		/* Only accept swithing to hintmode 2 */
 		return (EINVAL);
 
-	/* Migrate from static to dynamic hints */
-	switch (hintmode) {
-	case 0:
-		if (dynamic_kenv) {
-			/*
-			 * Already here. But assign hintmode to 2, to not
-			 * check it in the future.
-			 */
-			hintmode = 2;
-			return (0);
-		}
-		from_kenv = 1;
-		cp = kern_envp;
-		break;
-	case 1:
-		cp = static_hints;
-		break;
-	case 2:
-		/* Nothing to do, hintmode already 2 */
+	/*
+	 * The rest of the sysctl handler is just making sure that our
+	 * environment is consistent with the world we've already seen.
+	 * If we came from kenv at all, then we have nothing to do: static
+	 * kenv will get merged into dynamic kenv as soon as kmem becomes
+	 * available, dynamic kenv is the environment we'd be setting these
+	 * things in anyways. Therefore, we have nothing left to do unless
+	 * we came from a static hints configuration.
+	 */
+	if (hintmode != HINTMODE_STATIC) {
+		hintmode = value;
 		return (0);
 	}
 
-	while (cp) {
-		i = strlen(cp);
-		if (i == 0)
-			break;
-		if (from_kenv) {
-			if (strncmp(cp, "hint.", 5) != 0)
-				/* kenv can have not only hints */
-				continue;
-		}
+	cp = static_hints;
+	while (cp && *cp != '\0') {
 		eq = strchr(cp, '=');
 		if (eq == NULL)
 			/* Bad hint value */
 			continue;
 		eqidx = eq - cp;
 
+		i = strlen(cp);
 		line = malloc(i+1, M_TEMP, M_WAITOK);
 		strcpy(line, cp);
 		line[eqidx] = '\0';
@@ -115,7 +102,6 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 	}
 
 	hintmode = value;
-	use_kenv = 1;
 	return (0);
 }
 
@@ -135,7 +121,7 @@ res_find(int *line, int *startln,
 {
 	int n = 0, hit, i = 0;
 	char r_name[32];
-	int r_unit;
+	int r_unit, use_kenv = (hintmode != HINTMODE_STATIC && dynamic_kenv);
 	char r_resname[32];
 	char r_value[128];
 	const char *s, *cp;
@@ -145,13 +131,13 @@ res_find(int *line, int *startln,
 		hintp = NULL;
 
 		switch (hintmode) {
-		case 0:		/* loader hints in environment only */
+		case HINTMODE_KENV:	/* loader hints in environment only */
 			break;
-		case 1:		/* static hints only */
+		case HINTMODE_STATIC:	/* static hints only */
 			hintp = static_hints;
 			checkmethod = 0;
 			break;
-		case 2:		/* fallback mode */
+		case HINTMODE_FALLBACK:		/* fallback mode */
 			if (dynamic_kenv) {
 				mtx_lock(&kenv_lock);
 				cp = kenvp[0];
