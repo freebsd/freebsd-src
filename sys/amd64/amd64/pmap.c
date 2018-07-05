@@ -2308,7 +2308,6 @@ retry:
 				    PG_PS_FRAME) | (va & PDRMASK), &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_hold(m);
 			}
 		} else {
 			pte = *pmap_pde_to_pte(pdep, va);
@@ -2318,10 +2317,10 @@ retry:
 				    &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE(pa);
-				if (m != NULL)
-					vm_page_hold(m);
 			}
 		}
+		if (m != NULL)
+			vm_page_hold(m);
 	}
 	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
