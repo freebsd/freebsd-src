@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 11, 2018
+.Dd Jul 05, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -241,6 +241,8 @@ The LPC bridge emulation can only be configured on bus 0.
 Raw framebuffer device attached to VNC server.
 .It Li xhci
 eXtensible Host Controller Interface (xHCI) USB controller.
+.It Li nvme
+NVM Express (NVMe) controller.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -432,6 +434,27 @@ xHCI USB devices:
 .It Li tablet
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
+.El
+.Pp
+NVMe devices:
+.Bl -tag -width 10n
+.It Li devpath
+Accepted device paths are:
+.Ar /dev/blockdev
+or
+.Ar /path/to/image
+or
+.Ar ram=size_in_MiB .
+.It Li maxq
+Max number of queues.
+.It Li qsz
+Max elements in each queue.
+.It Li ioslots
+Max number of concurrent I/O requests.
+.It Li sectsz
+Sector size (defaults to blockif sector size).
+.It Li ser
+Serial number with maximum 20 characters.
 .El
 .El
 .It Fl S
