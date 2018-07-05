@@ -48,8 +48,6 @@ SRCS+= brk.c
 SRCS+= pipe.c
 SRCS+= vadvise.c
 
-SRCS+=	compat-stub.c
-
 INTERPOSED = \
 	accept \
 	accept4 \
