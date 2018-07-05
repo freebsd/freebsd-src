@@ -219,7 +219,7 @@ static VNET_DEFINE(struct dyn_ipv6_slist, dyn_expired_ipv6);
  * and must not be reclaimed by expiration callout.
  */
 static void **dyn_hp_cache;
-static DPCPU_DEFINE(void *, dyn_hp);
+DPCPU_DEFINE_STATIC(void *, dyn_hp);
 #define	DYNSTATE_GET(cpu)	ck_pr_load_ptr(DPCPU_ID_PTR((cpu), dyn_hp))
 #define	DYNSTATE_PROTECT(v)	ck_pr_store_ptr(DPCPU_PTR(dyn_hp), (v))
 #define	DYNSTATE_RELEASE()	DYNSTATE_PROTECT(NULL)

@@ -81,7 +81,11 @@ extern uintptr_t dpcpu_off[];
  */
 #define	DPCPU_NAME(n)		pcpu_entry_##n
 #define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
-#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+/* struct _hack is to stop this from being used with the static keyword. */
+#define	DPCPU_DEFINE(t, n)	\
+    struct _hack; t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+#define	DPCPU_DEFINE_STATIC(t, n)	\
+    static t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 
 /*
  * Accessors with a given base.

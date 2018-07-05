@@ -382,7 +382,7 @@ int	profprocs;
 volatile int	ticks;
 int	psratio;
 
-static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
+DPCPU_DEFINE_STATIC(int, pcputicks);	/* Per-CPU version of ticks. */
 #ifdef DEVICE_POLLING
 static int devpoll_run = 0;
 #endif

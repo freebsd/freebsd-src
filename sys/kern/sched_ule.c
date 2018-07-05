@@ -283,7 +283,7 @@ static int trysteal_limit = 2;
 static struct tdq	tdq_cpu[MAXCPU];
 static struct tdq	*balance_tdq;
 static int balance_ticks;
-static DPCPU_DEFINE(uint32_t, randomval);
+DPCPU_DEFINE_STATIC(uint32_t, randomval);
 
 #define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
 #define	TDQ_CPU(x)	(&tdq_cpu[(x)])
