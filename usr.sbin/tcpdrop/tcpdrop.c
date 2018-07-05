@@ -235,7 +235,7 @@ tcpdropall(const char *stack, int state)
 	head = getxpcblist("net.inet.tcp.pcblist");
 
 #define	XINP_NEXT(xinp)							\
-	((struct xinpgen *)((uintptr_t)(xinp) + (xinp)->xig_len))
+	((struct xinpgen *)(long)((uintptr_t)(xinp) + (xinp)->xig_len))
 
 	for (xinp = XINP_NEXT(head); xinp->xig_len > sizeof *xinp;
 	    xinp = XINP_NEXT(xinp)) {
