@@ -55,7 +55,7 @@ struct linux_idr_cache {
 	unsigned count;
 };
 
-static DPCPU_DEFINE(struct linux_idr_cache, linux_idr_cache);
+DPCPU_DEFINE_STATIC(struct linux_idr_cache, linux_idr_cache);
 
 /*
  * IDR Implementation.

@@ -134,7 +134,7 @@ extern int	vmem_startup_count(void);
 
 struct vm_domain vm_dom[MAXMEMDOM];
 
-static DPCPU_DEFINE(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
+DPCPU_DEFINE_STATIC(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
