@@ -116,6 +116,9 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # options 	EARLY_PRINTF
 # options 	VERBOSE_SYSINIT
 
+# Kernel dump features.
+options		ZSTDIO			# zstd-compressed kernel and user dumps
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
