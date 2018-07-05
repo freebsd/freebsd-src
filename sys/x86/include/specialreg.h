@@ -1008,6 +1008,7 @@
 #define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
 #define	MSR_VM_CR	0xc0010114	/* SVM: feature control */
 #define	MSR_VM_HSAVE_PA 0xc0010117	/* SVM: host save area address */
+#define	MSR_AMD_CPUID07	0xc0011002	/* CPUID 07 %ebx override */
 #define	MSR_EXTFEATURES	0xc0011005	/* Extended CPUID Features override */
 #define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 
