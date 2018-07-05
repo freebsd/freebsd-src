@@ -103,7 +103,7 @@ struct xen_intr_pcpu_data {
  * Start the scan at port 0 by initializing the last scanned
  * location as the highest numbered event channel port.
  */
-static DPCPU_DEFINE(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
+DPCPU_DEFINE_STATIC(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
 	.last_processed_l1i = LONG_BIT - 1,
 	.last_processed_l2i = LONG_BIT - 1
 };
