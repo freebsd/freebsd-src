@@ -156,7 +156,7 @@ static vm_page_t vm_phys_alloc_seg_contig(struct vm_phys_seg *seg,
 static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
-    int order);
+    int order, int tail);
 
 /*
  * Red-black tree helpers for vm fictitious range management.
@@ -588,9 +588,16 @@ vm_phys_init(void)
 
 /*
  * Split a contiguous, power of two-sized set of physical pages.
+ *
+ * When this function is called by a page allocation function, the caller
+ * should request insertion at the head unless the order [order, oind) queues
+ * are known to be empty.  The objective being to reduce the likelihood of
+ * long-term fragmentation by promoting contemporaneous allocation and
+ * (hopefully) deallocation.
  */
 static __inline void
-vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
+vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order,
+    int tail)
 {
 	vm_page_t m_buddy;
 
@@ -600,7 +607,7 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
 		KASSERT(m_buddy->order == VM_NFREEORDER,
 		    ("vm_phys_split_pages: page %p has unexpected order %d",
 		    m_buddy, m_buddy->order));
-		vm_freelist_add(fl, m_buddy, oind, 0);
+		vm_freelist_add(fl, m_buddy, oind, tail);
         }
 }
 
@@ -777,7 +784,8 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 		m = TAILQ_FIRST(&fl[oind].pl);
 		if (m != NULL) {
 			vm_freelist_rem(fl, m, oind);
-			vm_phys_split_pages(m, oind, fl, order);
+			/* The order [order, oind) queues are empty. */
+			vm_phys_split_pages(m, oind, fl, order, 1);
 			return (m);
 		}
 	}
@@ -795,7 +803,8 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 			if (m != NULL) {
 				vm_freelist_rem(alt, m, oind);
 				vm_phys_set_pool(pool, m, oind);
-				vm_phys_split_pages(m, oind, fl, order);
+				/* The order [order, oind) queues are empty. */
+				vm_phys_split_pages(m, oind, fl, order, 1);
 				return (m);
 			}
 		}
