@@ -60,7 +60,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1200071	/* Master, propagated to newvers */
+#define __FreeBSD_version 1200072	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,

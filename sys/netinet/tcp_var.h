@@ -677,7 +677,7 @@ void hhook_run_tcp_est_out(struct tcpcb *tp,
  */
 #if defined(_NETINET_IN_PCB_H_) && defined(_SYS_SOCKETVAR_H_)
 struct xtcpcb {
-	size_t		xt_len;		/* length of this structure */
+	ksize_t	xt_len;		/* length of this structure */
 	struct xinpcb	xt_inp;
 	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (s) */
 	char		xt_logid[TCP_LOG_ID_LEN];	/* (s) */

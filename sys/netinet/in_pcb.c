@@ -2906,7 +2906,7 @@ in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
 		bzero(&xi->xi_socket, sizeof(struct xsocket));
 	bcopy(&inp->inp_inc, &xi->inp_inc, sizeof(struct in_conninfo));
 	xi->inp_gencnt = inp->inp_gencnt;
-	xi->inp_ppcb = inp->inp_ppcb;
+	xi->inp_ppcb = (kvaddr_t)inp->inp_ppcb;
 	xi->inp_flow = inp->inp_flow;
 	xi->inp_flowid = inp->inp_flowid;
 	xi->inp_flowtype = inp->inp_flowtype;

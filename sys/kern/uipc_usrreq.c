@@ -1853,7 +1853,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 
 		if (freeunp == 0 && unp->unp_gencnt <= gencnt) {
 			xu->xu_len = sizeof *xu;
-			xu->xu_unpp = unp;
+			xu->xu_unpp = (kvaddr_t)unp;
 			/*
 			 * XXX - need more locking here to protect against
 			 * connect/disconnect races for SMP.
@@ -1870,10 +1870,10 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 				      unp->unp_conn->unp_addr->sun_len);
 			else
 				bzero(&xu->xu_caddr, sizeof(xu->xu_caddr));
-			xu->unp_vnode = unp->unp_vnode;
-			xu->unp_conn = unp->unp_conn;
-			xu->xu_firstref = LIST_FIRST(&unp->unp_refs);
-			xu->xu_nextref = LIST_NEXT(unp, unp_reflink);
+			xu->unp_vnode = (kvaddr_t)unp->unp_vnode;
+			xu->unp_conn = (kvaddr_t)unp->unp_conn;
+			xu->xu_firstref = (kvaddr_t)LIST_FIRST(&unp->unp_refs);
+			xu->xu_nextref = (kvaddr_t)LIST_NEXT(unp, unp_reflink);
 			xu->unp_gencnt = unp->unp_gencnt;
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
 			UNP_PCB_UNLOCK(unp);

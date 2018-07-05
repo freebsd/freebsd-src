@@ -474,13 +474,13 @@ int	accept_filt_generic_mod_event(module_t mod, int event, void *data);
  * Structure to export socket from kernel to utilities, via sysctl(3).
  */
 struct xsocket {
-	size_t		xso_len;	/* length of this structure */
+	ksize_t		xso_len;	/* length of this structure */
 	union {
-		void	*xso_so;	/* kernel address of struct socket */
+		kvaddr_t xso_so;	/* kernel address of struct socket */
 		int64_t ph_so;
 	};
 	union {
-		void 	*so_pcb;	/* kernel address of struct inpcb */
+		kvaddr_t so_pcb;	/* kernel address of struct inpcb */
 		int64_t ph_pcb;
 	};
 	uint64_t	so_oobmark;

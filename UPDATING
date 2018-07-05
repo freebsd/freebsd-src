@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180705:
+	The ABI of syscalls used by management tools like sockstat and
+	netstat has been broken to allow 32-bit binaries to work on
+	64-bit kernels without modification.  These programs will need
+	to match the kernel in order to function.  External programs may
+	require minor modifications to accommodate a change of type in
+	structures from pointers to 64-bit virtual addresses.
+
 20180702:
 	On i386 and amd64 atomics are now inlined. Out of tree modules using
 	atomics will need to be rebuilt.
