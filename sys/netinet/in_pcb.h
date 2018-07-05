@@ -366,12 +366,12 @@ struct inpcb {
  */
 #ifdef _SYS_SOCKETVAR_H_
 struct xinpcb {
-	size_t		xi_len;		/* length of this structure */
+	ksize_t		xi_len;			/* length of this structure */
 	struct xsocket	xi_socket;		/* (s,p) */
 	struct in_conninfo inp_inc;		/* (s,p) */
 	uint64_t	inp_gencnt;		/* (s,p) */
 	union {
-		void	*inp_ppcb;		/* (s) netstat(1) */
+		kvaddr_t inp_ppcb;		/* (s) netstat(1) */
 		int64_t	ph_ppcb;
 	};
 	int64_t		inp_spare64[4];
@@ -394,10 +394,12 @@ struct xinpcb {
 } __aligned(8);
 
 struct xinpgen {
-	size_t		xig_len;	/* length of this structure */
+	ksize_t	xig_len;	/* length of this structure */
 	u_int		xig_count;	/* number of PCBs at this time */
+	uint32_t	_xig_spare32;
 	inp_gen_t	xig_gen;	/* generation count at this time */
 	so_gen_t	xig_sogen;	/* socket generation count this time */
+	uint64_t	_xig_spare64[4];
 } __aligned(8);
 #ifdef	_KERNEL
 void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);

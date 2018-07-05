@@ -61,8 +61,6 @@ typedef	__ssize_t	ssize_t;
 #define	_SSIZE_T_DECLARED
 #endif
 
-typedef	uint64_t kvaddr_t;		/* An address in a target image. */
-
 struct kvm_nlist {
 	const char *n_name;
 	unsigned char n_type;
