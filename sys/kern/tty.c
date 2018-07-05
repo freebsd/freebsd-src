@@ -269,7 +269,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
     struct thread *td)
 {
 	struct tty *tp;
-	int error;
+	int cflags, error;
 
 	tp = dev->si_drv1;
 	error = 0;
@@ -325,7 +325,14 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
 		if (TTY_CALLOUT(tp, dev) || dev == dev_console)
 			tp->t_termios.c_cflag |= CLOCAL;
 
-		ttydevsw_modem(tp, SER_DTR|SER_RTS, 0);
+		cflags = 0;
+		if (tp->t_termios.c_cflag & CDTR_IFLOW)
+			cflags |= SER_DTR;
+		if (tp->t_termios.c_cflag & CRTS_IFLOW)
+			cflags |= SER_RTS;
+
+		if (cflags != 0)
+			ttydevsw_modem(tp, cflags, 0);
 
 		error = ttydevsw_open(tp);
 		if (error != 0)
