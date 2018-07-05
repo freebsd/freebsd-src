@@ -286,7 +286,7 @@ dump_nvlist(nvlist_t *nvl, FILE *ofp)
 		fprintf(ofp, "\"%s=%s\\0\"\n", name,
 		     cnvlist_get_string(cookie));
 
-		cnvlist_free_string(nvl, cookie);
+		cnvlist_free_string(cookie);
 	}
 }
 

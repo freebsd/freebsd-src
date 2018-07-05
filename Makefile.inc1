@@ -2063,6 +2063,15 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
+# Later config(8) requires newer libnv cnvlist* API
+.if ${BOOTSTRAPPING} < 1200070
+_config= \
+	lib/libnv \
+	usr.sbin/config
+.else
+_config= usr.sbin/config
+.endif
+
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 
 bootstrap-tools: .PHONY
@@ -2087,7 +2096,7 @@ bootstrap-tools: .PHONY
     ${_lex} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config \
+    ${_config} \
     ${_crunchide} \
     ${_crunchgen} \
     ${_nmtree} \
