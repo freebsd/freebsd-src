@@ -113,4 +113,4 @@ cddl/dev/dtrace/mips/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/mips/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
 # Zstd
-contrib/zstd/lib/freebsd/zstd_kfreebsd.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}
