@@ -143,6 +143,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jrm [label="Joseph R. Mingrone\njrm@FreeBSD.org\n2016/09/17"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
+jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
@@ -553,6 +554,7 @@ miwi -> farrokhi
 miwi -> fluffy
 miwi -> gahr
 miwi -> joneum
+miwi -> jsm
 miwi -> kmoore
 miwi -> lme
 miwi -> makc
@@ -658,6 +660,7 @@ swills -> dch
 swills -> feld
 swills -> jmd
 swills -> jrm
+swills -> jsm
 swills -> mfechner
 swills -> milki
 swills -> pclin
