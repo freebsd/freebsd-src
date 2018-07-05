@@ -551,6 +551,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t biggestsize, last_pa, pa;
 	u_long pagecount;
 	int biggestone, i, segind;
+#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+	long ii;
+#endif
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -789,6 +792,13 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page structures and add every available page to the
 	 * physical memory allocator's free lists.
 	 */
+#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+	for (ii = 0; ii < vm_page_array_size; ii++) {
+		m = &vm_page_array[ii];
+		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0);
+		m->flags = PG_FICTITIOUS;
+	}
+#endif
 	vm_cnt.v_page_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
