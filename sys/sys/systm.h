@@ -156,11 +156,10 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * XXX most of these variables should be const.
  */
 extern int osreldate;
-extern int envmode;
-extern int hintmode;		/* 0 = off. 1 = config, 2 = fallback */
 extern int dynamic_kenv;
 extern struct mtx kenv_lock;
 extern char *kern_envp;
+extern char *md_envp;
 extern char static_env[];
 extern char static_hints[];	/* by config for now */
 
