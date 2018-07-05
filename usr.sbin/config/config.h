@@ -179,6 +179,8 @@ SLIST_HEAD(, includepath) includepath;
 extern char	*ident;
 extern char	kernconfstr[];
 extern int	do_trace;
+extern int	envmode;
+extern int	hintmode;
 extern int	incignore;
 
 char	*get_word(FILE *);
