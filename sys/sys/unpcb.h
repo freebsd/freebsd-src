@@ -138,12 +138,12 @@ struct unpcb {
  */
 #ifdef	_SYS_SOCKETVAR_H_
 struct xunpcb {
-	size_t		xu_len;			/* length of this structure */
-	void		*xu_unpp;		/* to help netstat, fstat */
-	void		*unp_vnode;		/* (s) */
-	void		*unp_conn;		/* (s) */
-	void		*xu_firstref;		/* (s) */
-	void		*xu_nextref;		/* (s) */
+	ksize_t		xu_len;			/* length of this structure */
+	kvaddr_t	xu_unpp;		/* to help netstat, fstat */
+	kvaddr_t	unp_vnode;		/* (s) */
+	kvaddr_t	unp_conn;		/* (s) */
+	kvaddr_t	xu_firstref;		/* (s) */
+	kvaddr_t	xu_nextref;		/* (s) */
 	unp_gen_t	unp_gencnt;		/* (s) */
 	int64_t		xu_spare64[8];
 	int32_t		xu_spare32[8];
@@ -159,7 +159,7 @@ struct xunpcb {
 } __aligned(8);
 
 struct xunpgen {
-	size_t	xug_len;
+	ksize_t	xug_len;
 	u_int	xug_count;
 	unp_gen_t xug_gen;
 	so_gen_t xug_sogen;
