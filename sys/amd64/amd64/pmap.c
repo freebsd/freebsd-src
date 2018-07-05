@@ -2307,8 +2307,7 @@ retry:
 				if (vm_page_pa_tryrelock(pmap, (pde &
 				    PG_PS_FRAME) | (va & PDRMASK), &pa))
 					goto retry;
-				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
-				    (va & PDRMASK));
+				m = PHYS_TO_VM_PAGE(pa);
 				vm_page_hold(m);
 			}
 		} else {
@@ -2318,7 +2317,7 @@ retry:
 				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME,
 				    &pa))
 					goto retry;
-				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
+				m = PHYS_TO_VM_PAGE(pa);
 				if (m != NULL)
 					vm_page_hold(m);
 			}
