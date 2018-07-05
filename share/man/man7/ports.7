@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2018
+.Dd July 5, 2018
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -530,6 +530,13 @@ The default ports directory
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
 .El
+.Sh EXAMPLES
+Build and install Emacs:
+.Bd -literal -offset indent
+cd /usr/ports/editors/emacs
+make install
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr make 1 ,
 .Xr make.conf 5 ,
