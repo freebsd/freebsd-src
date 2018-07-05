@@ -140,11 +140,7 @@ cp_slow0(vm_offset_t uva, size_t len, bool write,
 		sx_xunlock(&pc->pc_copyout_slock);
 	else
 		mtx_unlock(&pc->pc_copyout_mlock);
-	for (i = 0; i < plen; i++) {
-		vm_page_lock(m[i]);
-		vm_page_unhold(m[i]);
-		vm_page_unlock(m[i]);
-	}
+	vm_page_unhold_pages(m, plen);
 	return (error);
 }
 
