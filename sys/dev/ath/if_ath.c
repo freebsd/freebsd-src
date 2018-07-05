@@ -2151,7 +2151,7 @@ ath_intr(void *arg)
 	if (ah->ah_syncstate != 0) {
 		int i;
 		for (i = 0; i < 32; i++)
-			if (ah->ah_syncstate & (i << i))
+			if (ah->ah_syncstate & (1 << i))
 				sc->sc_intr_stats.sync_intr[i]++;
 	}
 
