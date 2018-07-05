@@ -421,6 +421,8 @@ vybrid_ehci_detach(device_t dev)
 		sc->sc_intr_hdl = NULL;
 	}
 
+	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
+
 	bus_release_resources(dev, vybrid_ehci_spec, esc->res);
 
 	return (0);
