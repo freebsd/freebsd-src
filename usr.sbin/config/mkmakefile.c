@@ -197,7 +197,6 @@ makehints(void)
 	fprintf(ofp, "#include <sys/types.h>\n");
 	fprintf(ofp, "#include <sys/systm.h>\n");
 	fprintf(ofp, "\n");
-	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
 	STAILQ_FOREACH(hint, &hints, hint_next) {
 		ifp = fopen(hint->hint_name, "r");
@@ -312,7 +311,6 @@ makeenv(void)
 	fprintf(ofp, "#include <sys/types.h>\n");
 	fprintf(ofp, "#include <sys/systm.h>\n");
 	fprintf(ofp, "\n");
-	fprintf(ofp, "int envmode = %d;\n", envmode);
 	fprintf(ofp, "char static_env[] = {\n");
 	STAILQ_FOREACH(envvar, &envvars, envvar_next) {
 		if (envvar->env_is_file) {
