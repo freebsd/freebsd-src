@@ -14,11 +14,11 @@ kernconf.c: kernconf.tmpl
 	${FILE2C} 'char kernconfstr[] = {' ',0};' < \
 	    ${SRCDIR}/kernconf.tmpl > kernconf.c
 
-CFLAGS+= -I. -I${SRCDIR} -I${SRCTOP}/sys
+CFLAGS+= -I. -I${SRCDIR}
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-LIBADD=	l nv sbuf
+LIBADD=	l sbuf
 
 CLEANFILES+=	kernconf.c
 
