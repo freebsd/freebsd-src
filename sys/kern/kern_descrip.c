@@ -3362,10 +3362,10 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
-			xf.xf_file = (kvaddr_t)fp;
-			xf.xf_data = (kvaddr_t)fp->f_data;
-			xf.xf_vnode = (kvaddr_t)fp->f_vnode;
-			xf.xf_type = (kvaddr_t)fp->f_type;
+			xf.xf_file = (kvaddr_t)(uintptr_t)fp;
+			xf.xf_data = (kvaddr_t)(uintptr_t)fp->f_data;
+			xf.xf_vnode = (kvaddr_t)(uintptr_t)fp->f_vnode;
+			xf.xf_type = (kvaddr_t)(uintptr_t)fp->f_type;
 			xf.xf_count = fp->f_count;
 			xf.xf_msgcount = 0;
 			xf.xf_offset = foffset_get(fp);
