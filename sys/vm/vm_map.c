@@ -3158,7 +3158,14 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if (entry->wired_count != 0)
 			vm_map_entry_unwire(map, entry);
 
-		pmap_remove(map->pmap, entry->start, entry->end);
+		/*
+		 * Remove mappings for the pages, but only if the
+		 * mappings could exist.  For instance, it does not
+		 * make sense to call pmap_remove() for guard entries.
+		 */
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
+		    entry->object.vm_object != NULL)
+			pmap_remove(map->pmap, entry->start, entry->end);
 
 		/*
 		 * Delete the entry only after removing all pmap
