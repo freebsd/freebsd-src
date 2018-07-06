@@ -118,7 +118,7 @@ psci_init(void *dummy)
 	psci_callfn_t new_callfn;
 
 	if (psci_find_callfn(&new_callfn) != PSCI_RETVAL_SUCCESS) {
-		printf("No PSCI/SMCCC call function found");
+		printf("No PSCI/SMCCC call function found\n");
 		return;
 	}
 
