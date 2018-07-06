@@ -870,7 +870,6 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 	long p_tot, s_tot;
 	char *cmdbuf = NULL;
 	char **args;
-	const int cmdlen = 256;
 	static struct sbuf* procbuf = NULL;
 
 	/* clean up from last time. */
@@ -935,31 +934,31 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 		break;
 	}
 
-	cmdbuf = calloc(cmdlen + 1, 1);
+	cmdbuf = calloc(screen_width + 1, 1);
 	if (cmdbuf == NULL) {
-		warn("calloc(%d)", cmdlen + 1);
+		warn("calloc(%d)", screen_width + 1);
 		return NULL;
 	}
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    pp->ki_tdname[0]) {
-			snprintf(cmdbuf, cmdlen, "%s{%s%s}", pp->ki_comm,
+			snprintf(cmdbuf, screen_width, "%s{%s%s}", pp->ki_comm,
 			    pp->ki_tdname, pp->ki_moretdname);
 		} else {
-			snprintf(cmdbuf, cmdlen, "%s", pp->ki_comm);
+			snprintf(cmdbuf, screen_width, "%s", pp->ki_comm);
 		}
 	} else {
 		if (pp->ki_flag & P_SYSTEM ||
-		    (args = kvm_getargv(kd, pp, cmdlen)) == NULL ||
+		    (args = kvm_getargv(kd, pp, screen_width)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    	    pp->ki_tdname[0]) {
-				snprintf(cmdbuf, cmdlen,
+				snprintf(cmdbuf, screen_width,
 				    "[%s{%s%s}]", pp->ki_comm, pp->ki_tdname,
 				    pp->ki_moretdname);
 			} else {
-				snprintf(cmdbuf, cmdlen,
+				snprintf(cmdbuf, screen_width,
 				    "[%s]", pp->ki_comm);
 			}
 		} else {
@@ -969,7 +968,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			size_t argbuflen;
 			size_t len;
 
-			argbuflen = cmdlen * 4;
+			argbuflen = screen_width * 4;
 			argbuf = calloc(argbuflen + 1, 1);
 			if (argbuf == NULL) {
 				warn("calloc(%zu)", argbuflen + 1);
@@ -1005,21 +1004,21 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			if (strcmp(cmd, pp->ki_comm) != 0) {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s (%s){%s%s}", argbuf,
 					    pp->ki_comm, pp->ki_tdname,
 					    pp->ki_moretdname);
 				else
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s (%s)", argbuf, pp->ki_comm);
 			} else {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s{%s%s}", argbuf, pp->ki_tdname,
 					    pp->ki_moretdname);
 				else
-					strlcpy(cmdbuf, argbuf, cmdlen);
+					strlcpy(cmdbuf, argbuf, screen_width);
 			}
 			free(argbuf);
 		}
