@@ -1941,13 +1941,19 @@ update: .PHONY
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
+# An updated libnv is needed for the cnv(9) API used in config(8).
+# r335343 stabilized the cnvlist API used by config(8)
+.if ${BOOTSTRAPPING} < 1200070
+_libnv=	lib/libnv
+.endif
+
 legacy: .PHONY
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
 .endif
 
-.for _tool in tools/build ${_elftoolchain_libs}
+.for _tool in tools/build ${_elftoolchain_libs} ${_libnv}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
