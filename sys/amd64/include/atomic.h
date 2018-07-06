@@ -132,7 +132,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * For userland, always use lock prefixes so that the binaries will run
  * on both SMP and !SMP systems.
  */
-#if defined(SMP) || !defined(_KERNEL)
+#if defined(SMP) || !defined(_KERNEL) || defined(KLD_MODULE)
 #define	MPLOCKED	"lock ; "
 #else
 #define	MPLOCKED
@@ -354,7 +354,7 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
  */
 #define	OFFSETOF_MONITORBUF	0x100
 
-#if defined(SMP)
+#if defined(SMP) || defined(KLD_MODULE)
 static __inline void
 __storeload_barrier(void)
 {
