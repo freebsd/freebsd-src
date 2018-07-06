@@ -29,18 +29,18 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-#ifdef _KERNEL
-
-#include <machine/armreg.h>
-
-void pan_enable(void);
-
 static __inline void
 breakpoint(void)
 {
 
 	__asm("brk #0");
 }
+
+#ifdef _KERNEL
+
+#include <machine/armreg.h>
+
+void pan_enable(void);
 
 static __inline register_t
 dbg_disable(void)

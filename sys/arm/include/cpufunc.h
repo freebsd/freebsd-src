@@ -54,7 +54,7 @@
 static __inline void
 breakpoint(void)
 {
-	__asm(".word      0xe7ffffff");
+	__asm("udf        0xffff");
 }
 
 struct cpu_functions {
@@ -494,6 +494,19 @@ extern int	arm_dcache_align_mask;
 extern u_int	arm_cache_level;
 extern u_int	arm_cache_loc;
 extern u_int	arm_cache_type[14];
+
+#else	/* !_KERNEL */
+
+static __inline void
+breakpoint(void)
+{
+
+	/*
+	 * This matches the instruction used by GDB for software
+	 * breakpoints.
+	 */
+	__asm("udf        0xfdee");
+}
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */
