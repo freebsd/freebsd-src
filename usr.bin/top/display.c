@@ -960,7 +960,7 @@ new_message(int type, const char *msgfmt, ...)
     va_start(args, msgfmt);
 
     /* first, format the message */
-    vsnprintf(next_msg, sizeof(next_msg), msgfmt, args);
+    vsnprintf(next_msg, strlen(next_msg), msgfmt, args);
 
     va_end(args);
 
