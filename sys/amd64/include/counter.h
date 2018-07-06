@@ -83,18 +83,11 @@ counter_u64_zero_inline(counter_u64_t c)
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
-	int64_t *p;
-#ifdef notyet
+
 	__asm __volatile("addq\t%1,%%gs:(%0)"
 	    :
 	    : "r" ((char *)c - (char *)&__pcpu[0]), "ri" (inc)
 	    : "memory", "cc");
-#endif
-	/* temporary */
-	critical_enter();
-	p = zpcpu_get(c);
-	*p += inc;
-	critical_exit();
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
