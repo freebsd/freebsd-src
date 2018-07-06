@@ -32,6 +32,7 @@
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <jail.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -4581,13 +4582,12 @@ read_options:
 		case TOK_JAIL:
 			NEED1("jail requires argument");
 		    {
-			char *end;
 			int jid;
 
 			cmd->opcode = O_JAIL;
-			jid = (int)strtol(*av, &end, 0);
-			if (jid < 0 || *end != '\0')
-				errx(EX_DATAERR, "jail requires prison ID");
+			jid = jail_getid(*av);
+			if (jid < 0)
+				errx(EX_DATAERR, "%s", jail_errmsg);
 			cmd32->d[0] = (uint32_t)jid;
 			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			av++;
