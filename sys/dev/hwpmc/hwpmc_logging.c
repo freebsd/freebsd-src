@@ -65,15 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #endif
 
-#ifdef NUMA
-#define NDOMAINS vm_ndomains
 #define curdomain PCPU_GET(domain)
-#else
-#define NDOMAINS 1
-#define curdomain 0
-#define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
-#define free_domain(addr, type) free(addr, type)
-#endif
 
 /*
  * Sysctl tunables
@@ -1261,7 +1253,7 @@ pmclog_initialize()
 		pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
 	}
-	for (domain = 0; domain < NDOMAINS; domain++) {
+	for (domain = 0; domain < vm_ndomains; domain++) {
 		int ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
 		int total = ncpus*pmc_nlogbuffers_pcpu;
 
@@ -1293,7 +1285,7 @@ pmclog_shutdown()
 
 	mtx_destroy(&pmc_kthread_mtx);
 
-	for (domain = 0; domain < NDOMAINS; domain++) {
+	for (domain = 0; domain < vm_ndomains; domain++) {
 		while ((plb = TAILQ_FIRST(&pmc_dom_hdrs[domain]->pdbh_head)) != NULL) {
 			TAILQ_REMOVE(&pmc_dom_hdrs[domain]->pdbh_head, plb, plb_next);
 			free(plb->plb_base, M_PMC);
