@@ -88,7 +88,7 @@ static_hints_to_env(void *data __unused)
 }
 
 /* Any time after dynamic env is setup */
-SYSINIT(hintenv, SI_SUB_KMEM, SI_ORDER_ANY, static_hints_to_env, NULL);
+SYSINIT(hintenv, SI_SUB_KMEM + 1, SI_ORDER_SECOND, static_hints_to_env, NULL);
 
 /*
  * Checks the environment to see if we even have any hints.  If it has no hints,
