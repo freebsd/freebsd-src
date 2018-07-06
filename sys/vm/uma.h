@@ -279,8 +279,7 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * mini-dumps.
 					 */
 #define	UMA_ZONE_PCPU		0x8000	/*
-					 * Allocates mp_maxid + 1 slabs sized to
-					 * sizeof(struct pcpu).
+					 * Allocates mp_maxid + 1 slabs of PAGE_SIZE
 					 */
 #define	UMA_ZONE_NUMA		0x10000	/*
 					 * NUMA aware Zone.  Implements a best

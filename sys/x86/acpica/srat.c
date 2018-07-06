@@ -532,11 +532,15 @@ srat_set_cpus(void *dummy)
 		if (!cpu->enabled)
 			panic("SRAT: CPU with APIC ID %u is not known",
 			    pc->pc_apic_id);
+#ifdef NUMA
 		pc->pc_domain = cpu->domain;
-		CPU_SET(i, &cpuset_domain[cpu->domain]);
+#else
+		pc->pc_domain = 0;
+#endif
+		CPU_SET(i, &cpuset_domain[pc->pc_domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
-			    cpu->domain);
+			    pc->pc_domain);
 	}
 
 	/* Last usage of the cpus array, unmap it. */
