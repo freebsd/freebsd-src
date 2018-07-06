@@ -207,19 +207,21 @@ extern struct pcpu *cpuid_to_pcpu[];
 #endif
 #define	curvidata	PCPU_GET(vidata)
 
+#define UMA_PCPU_ALLOC_SIZE		PAGE_SIZE
+
 /* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
 static inline void *
 zpcpu_get(void *base)
 {
 
-	return ((char *)(base) + sizeof(struct pcpu) * curcpu);
+	return ((char *)(base) + UMA_PCPU_ALLOC_SIZE * curcpu);
 }
 
 static inline void *
 zpcpu_get_cpu(void *base, int cpu)
 {
 
-	return ((char *)(base) + sizeof(struct pcpu) * cpu);
+	return ((char *)(base) + UMA_PCPU_ALLOC_SIZE * cpu);
 }
 
 /*
