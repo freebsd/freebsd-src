@@ -135,6 +135,7 @@ brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
 bryanv [label="Bryan Venteicher\nbryanv@FreeBSD.org\n2012/11/03"]
 bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
+bwidawsk [label="Ben Widawsky\nbwidawsk@FreeBSD.org\n2018/07/05"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 cem [label="Conrad Meyer\ncem@FreeBSD.org\n2015/07/05"]
 chuck [label="Chuck Tuffli\nchuck@FreeBSD.org\n2017/09/06"]
@@ -495,6 +496,7 @@ eivind -> des
 eivind -> rwatson
 
 emaste -> achim
+emaste -> bwidawsk
 emaste -> dteske
 emaste -> kevans
 emaste -> markj
