@@ -6750,9 +6750,10 @@ nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp, int maxcnt,
 			NFSD_DEBUG(4, "flexlayouterr op=%d stat=%d\n", opnum,
 			    stat);
 			/*
-			 * Except for NFSERR_ACCES errors, disable the mirror.
+			 * Except for NFSERR_ACCES and NFSERR_STALE errors,
+			 * disable the mirror.
 			 */
-			if (stat != NFSERR_ACCES)
+			if (stat != NFSERR_ACCES && stat != NFSERR_STALE)
 				nfsrv_delds(devid, p);
 		}
 	}
