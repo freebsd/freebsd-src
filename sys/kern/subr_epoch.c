@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/uma.h>
 
 #include <ck_epoch.h>
 
@@ -93,29 +94,23 @@ TAILQ_HEAD (threadlist, thread);
 CK_STACK_CONTAINER(struct ck_epoch_entry, stack_entry,
     ck_epoch_entry_container)
 
-	epoch_t	allepochs[MAX_EPOCHS];
+epoch_t	allepochs[MAX_EPOCHS];
 
 DPCPU_DEFINE(struct grouptask, epoch_cb_task);
 DPCPU_DEFINE(int, epoch_cb_count);
 
-static __read_mostly int domcount[MAXMEMDOM];
-static __read_mostly int domoffsets[MAXMEMDOM];
 static __read_mostly int inited;
 static __read_mostly int epoch_count;
 __read_mostly epoch_t global_epoch;
 __read_mostly epoch_t global_epoch_preempt;
 
 static void epoch_call_task(void *context __unused);
+static 	uma_zone_t pcpu_zone_record;
 
-#if defined(__powerpc64__) || defined(__powerpc__) || !defined(NUMA)
-static bool usedomains = false;
-#else
-static bool usedomains = true;
-#endif
 static void
 epoch_init(void *arg __unused)
 {
-	int domain, cpu;
+	int cpu;
 
 	block_count = counter_u64_alloc(M_WAITOK);
 	migrate_count = counter_u64_alloc(M_WAITOK);
@@ -123,25 +118,9 @@ epoch_init(void *arg __unused)
 	switch_count = counter_u64_alloc(M_WAITOK);
 	epoch_call_count = counter_u64_alloc(M_WAITOK);
 	epoch_call_task_count = counter_u64_alloc(M_WAITOK);
-	if (usedomains == false)
-		goto done;
-	domain = 0;
-	domoffsets[0] = 0;
-	for (domain = 0; domain < vm_ndomains; domain++) {
-		domcount[domain] = CPU_COUNT(&cpuset_domain[domain]);
-		if (bootverbose)
-			printf("domcount[%d] %d\n", domain, domcount[domain]);
-	}
-	for (domain = 1; domain < vm_ndomains; domain++)
-		domoffsets[domain] = domoffsets[domain - 1] + domcount[domain - 1];
 
-	for (domain = 0; domain < vm_ndomains; domain++) {
-		if (domcount[domain] == 0) {
-			usedomains = false;
-			break;
-		}
-	}
-done:
+	pcpu_zone_record = uma_zcreate("epoch_record pcpu", sizeof(struct epoch_record),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	CPU_FOREACH(cpu) {
 		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, epoch_cb_task), 0, epoch_call_task, NULL);
 		taskqgroup_attach_cpu(qgroup_softirq, DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, -1, "epoch call task");
@@ -161,39 +140,19 @@ epoch_init_smp(void *dummy __unused)
 SYSINIT(epoch_smp, SI_SUB_SMP + 1, SI_ORDER_FIRST, epoch_init_smp, NULL);
 #endif
 
-
 static void
-epoch_init_numa(epoch_t epoch)
-{
-	int domain, cpu_offset;
-	epoch_record_t er;
-
-	for (domain = 0; domain < vm_ndomains; domain++) {
-		er = malloc_domain(sizeof(*er) * domcount[domain], M_EPOCH,
-		    domain, M_ZERO | M_WAITOK);
-		epoch->e_pcpu_dom[domain] = er;
-		cpu_offset = domoffsets[domain];
-		for (int i = 0; i < domcount[domain]; i++, er++) {
-			epoch->e_pcpu[cpu_offset + i] = er;
-			ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
-			TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
-			er->er_cpuid = cpu_offset + i;
-		}
-	}
-}
-
-static void
-epoch_init_legacy(epoch_t epoch)
+epoch_ctor(epoch_t epoch)
 {
 	epoch_record_t er;
+	int cpu;
 
-	er = malloc(sizeof(*er) * mp_ncpus, M_EPOCH, M_ZERO | M_WAITOK);
-	epoch->e_pcpu_dom[0] = er;
-	for (int i = 0; i < mp_ncpus; i++, er++) {
-		epoch->e_pcpu[i] = er;
+	epoch->e_pcpu_record = uma_zalloc_pcpu(pcpu_zone_record, M_WAITOK);
+	CPU_FOREACH(cpu) {
+		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
+		bzero(er, sizeof(*er));
 		ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 		TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
-		er->er_cpuid = i;
+		er->er_cpuid = cpu;
 	}
 }
 
@@ -204,13 +163,9 @@ epoch_alloc(int flags)
 
 	if (__predict_false(!inited))
 		panic("%s called too early in boot", __func__);
-	epoch = malloc(sizeof(struct epoch) + mp_ncpus * sizeof(void *),
-	    M_EPOCH, M_ZERO | M_WAITOK);
+	epoch = malloc(sizeof(struct epoch), M_EPOCH, M_ZERO | M_WAITOK);
 	ck_epoch_init(&epoch->e_epoch);
-	if (usedomains)
-		epoch_init_numa(epoch);
-	else
-		epoch_init_legacy(epoch);
+	epoch_ctor(epoch);
 	MPASS(epoch_count < MAX_EPOCHS - 2);
 	epoch->e_flags = flags;
 	epoch->e_idx = epoch_count;
@@ -221,23 +176,18 @@ epoch_alloc(int flags)
 void
 epoch_free(epoch_t epoch)
 {
-	int domain;
 #ifdef INVARIANTS
 	struct epoch_record *er;
 	int cpu;
 
 	CPU_FOREACH(cpu) {
-		er = epoch->e_pcpu[cpu];
+		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
 		MPASS(TAILQ_EMPTY(&er->er_tdlist));
 	}
 #endif
 	allepochs[epoch->e_idx] = NULL;
 	epoch_wait(global_epoch);
-	if (usedomains)
-		for (domain = 0; domain < vm_ndomains; domain++)
-			free_domain(epoch->e_pcpu_dom[domain], M_EPOCH);
-	else
-		free(epoch->e_pcpu_dom[0], M_EPOCH);
+	uma_zfree_pcpu(pcpu_zone_record, epoch->e_pcpu_record);
 	free(epoch, M_EPOCH);
 }
 
@@ -496,7 +446,7 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 
 	critical_enter();
 	*DPCPU_PTR(epoch_cb_count) += 1;
-	er = epoch->e_pcpu[curcpu];
+	er = epoch_currecord(epoch);
 	ck_epoch_call(&er->er_record, cb, (ck_epoch_cb_t *)callback);
 	critical_exit();
 	return;
@@ -509,6 +459,7 @@ epoch_call_task(void *arg __unused)
 {
 	ck_stack_entry_t *cursor, *head, *next;
 	ck_epoch_record_t *record;
+	epoch_record_t er;
 	epoch_t epoch;
 	ck_stack_t cb_stack;
 	int i, npending, total;
@@ -519,7 +470,8 @@ epoch_call_task(void *arg __unused)
 	for (total = i = 0; i < epoch_count; i++) {
 		if (__predict_false((epoch = allepochs[i]) == NULL))
 			continue;
-		record = &epoch->e_pcpu[curcpu]->er_record;
+		er = epoch_currecord(epoch);
+		record = &er->er_record;
 		if ((npending = record->n_pending) == 0)
 			continue;
 		ck_epoch_poll_deferred(record, &cb_stack);
@@ -555,7 +507,7 @@ in_epoch_verbose(epoch_t epoch, int dump_onfail)
 	if (__predict_false((epoch) == NULL))
 		return (0);
 	critical_enter();
-	er = epoch->e_pcpu[curcpu];
+	er = epoch_currecord(epoch);
 	TAILQ_FOREACH(tdwait, &er->er_tdlist, et_link)
 		if (tdwait->et_td == td) {
 			critical_exit();
