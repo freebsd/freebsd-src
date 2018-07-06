@@ -17,6 +17,9 @@ SRCS+=	msgio.c
 SRCS+=	nvlist.c
 SRCS+=	nvpair.c
 
+INCSDIR=	${INCLUDEDIR}/sys
+INCS=	${SRCTOP}/sys/sys/cnv.h ${SRCTOP}/sys/sys/nv.h
+
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
