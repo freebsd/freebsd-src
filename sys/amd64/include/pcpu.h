@@ -76,7 +76,8 @@
 	uint32_t pc_pcid_gen;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[3288]		/* pad to UMA_PCPU_ALLOC_SIZE */
+	char	__pad[216]		/* be divisor of PAGE_SIZE	\
+					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1
