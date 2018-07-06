@@ -97,11 +97,16 @@ typedef struct epoch_record {
 
 struct epoch {
 	struct ck_epoch e_epoch __aligned(EPOCH_ALIGN);
-	struct epoch_record *e_pcpu_dom[MAXMEMDOM] __aligned(EPOCH_ALIGN);
+	epoch_record_t e_pcpu_record;
 	int	e_idx;
 	int	e_flags;
-	struct epoch_record *e_pcpu[0];
 };
+
+static epoch_record_t
+epoch_currecord(epoch_t epoch)
+{
+	return zpcpu_get_cpu(epoch->e_pcpu_record, curcpu);
+}
 
 #define INIT_CHECK(epoch)							\
 	do {											\
@@ -115,6 +120,7 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	struct epoch_record *er;
 	struct epoch_thread *etd;
 	struct thread_lite *td;
+
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 	etd = (void *)et;
@@ -130,7 +136,7 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	sched_pin_lite(td);
 
 	td->td_pre_epoch_prio = td->td_priority;
-	er = epoch->e_pcpu[curcpu];
+	er = epoch_currecord(epoch);
 	TAILQ_INSERT_TAIL(&er->er_tdlist, etd, et_link);
 	ck_epoch_begin(&er->er_record, (ck_epoch_section_t *)&etd->et_section);
 	critical_exit_sa(td);
@@ -139,16 +145,17 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 static __inline void
 epoch_enter(epoch_t epoch)
 {
-	ck_epoch_record_t *record;
 	struct thread_lite *td;
+	epoch_record_t er;
+
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 	td = (struct thread_lite *)curthread;
 
 	td->td_epochnest++;
 	critical_enter_sa(td);
-	record = &epoch->e_pcpu[curcpu]->er_record;
-	ck_epoch_begin(record, NULL);
+	er = epoch_currecord(epoch);
+	ck_epoch_begin(&er->er_record, NULL);
 }
 
 static __inline void
@@ -164,7 +171,7 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	sched_unpin_lite(td);
 	MPASS(td->td_epochnest);
 	td->td_epochnest--;
-	er = epoch->e_pcpu[curcpu];
+	er = epoch_currecord(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	etd = (void *)et;
 #ifdef INVARIANTS
@@ -188,15 +195,15 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 static __inline void
 epoch_exit(epoch_t epoch)
 {
-	ck_epoch_record_t *record;
 	struct thread_lite *td;
+	epoch_record_t er;
 
 	INIT_CHECK(epoch);
 	td = (struct thread_lite *)curthread;
 	MPASS(td->td_epochnest);
 	td->td_epochnest--;
-	record = &epoch->e_pcpu[curcpu]->er_record;
-	ck_epoch_end(record, NULL);
+	er = epoch_currecord(epoch);
+	ck_epoch_end(&er->er_record, NULL);
 	critical_exit_sa(td);
 }
 #endif /* _KERNEL */
