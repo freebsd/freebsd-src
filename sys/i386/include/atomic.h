@@ -143,7 +143,7 @@ void		atomic_subtract_64(volatile uint64_t *, uint64_t);
  * For userland, always use lock prefixes so that the binaries will run
  * on both SMP and !SMP systems.
  */
-#if defined(SMP) || !defined(_KERNEL)
+#if defined(SMP) || !defined(_KERNEL) || defined(KLD_MODULE)
 #define	MPLOCKED	"lock ; "
 #else
 #define	MPLOCKED
@@ -302,7 +302,7 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
  */
 
 #if defined(_KERNEL)
-#if defined(SMP)
+#if defined(SMP) || defined(KLD_MODULE)
 #define	__storeload_barrier()	__mbk()
 #else /* _KERNEL && UP */
 #define	__storeload_barrier()	__compiler_membar()
