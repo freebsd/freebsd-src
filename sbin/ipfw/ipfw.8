@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2018
+.Dd July 3, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1535,10 +1535,10 @@ Matches all TCP or UDP packets sent by or received for a
 A
 .Ar group
 may be specified by name or number.
-.It Cm jail Ar prisonID
+.It Cm jail Ar jail
 Matches all TCP or UDP packets sent by or received for the
-jail whos prison ID is
-.Ar prisonID .
+jail whose ID or name is
+.Ar jail .
 .It Cm icmptypes Ar types
 Matches ICMP packets whose ICMP type is in the list
 .Ar types .

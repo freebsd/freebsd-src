@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <jail.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,7 +234,9 @@ main(int argc, char *argv[])
 		case 'j':
 			jflag = 1;
 			which = CPU_WHICH_JAIL;
-			id = atoi(optarg);
+			id = jail_getid(optarg);
+			if (id < 0)
+				errx(EXIT_FAILURE, "%s", jail_errmsg);
 			break;
 		case 'l':
 			lflag = 1;
