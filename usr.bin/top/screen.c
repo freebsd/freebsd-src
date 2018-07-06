@@ -62,8 +62,7 @@ init_termcap(bool interactive)
     char *term_name;
     int status;
 
-    /* set defaults in case we aren't smart */
-    screen_width = MAX_COLS;
+    screen_width = 0;
     screen_length = 0;
 
     if (!interactive)
