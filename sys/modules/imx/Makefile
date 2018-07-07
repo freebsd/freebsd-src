@@ -5,5 +5,6 @@ SUBDIR = \
 	../ffec \
 	imx_i2c \
 	imx_spi \
+	imx_wdog \
 	
 .include <bsd.subdir.mk>
