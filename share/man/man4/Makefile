@@ -54,7 +54,6 @@ MAN=	aac.4 \
 	${_aout.4} \
 	${_apic.4} \
 	arcmsr.4 \
-	${_armv8crypto.4} \
 	${_asmc.4} \
 	ata.4 \
 	ath.4 \
@@ -70,16 +69,9 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
-	${_aw_gpio.4} \
-	${_aw_mmc.4} \
-	${_aw_rtc.4} \
-	${_aw_sid.4} \
-	${_aw_spi.4} \
-	${_aw_syscon.4} \
 	axe.4 \
 	axge.4 \
 	bce.4 \
-	${_bcm283x_pwm.4} \
 	bcma.4 \
 	bfe.4 \
 	bge.4 \
@@ -444,10 +436,6 @@ MAN=	aac.4 \
 	re.4 \
 	rgephy.4 \
 	rights.4 \
-	${_rk_gpio.4} \
-	${_rk_grf.4} \
-	${_rk_i2c.4} \
-	${_rk_pinctrl.4} \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -762,23 +750,6 @@ MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
-.if ${MACHINE_CPUARCH} == "aarch64"
-_armv8crypto.4=	armv8crypto.4
-_rk_gpio.4=	rk_gpio.4
-_rk_grf.4=	rk_grf.4
-_rk_i2c.4=	rk_i2c.4
-_rk_pinctrl.4=	rk_pinctrl.4
-.endif
-
-.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
-_aw_gpio.4=	aw_gpio.4
-_aw_mmc.4=	aw_mmc.4
-_aw_rtc.4=	aw_rtc.4
-_aw_sid.4=	aw_sid.4
-_aw_spi.4=	aw_spi.4
-_aw_syscon.4=	aw_syscon.4
-.endif
-
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
 _acpi_asus_wmi.4=	acpi_asus_wmi.4
@@ -894,10 +865,6 @@ _nvram2env.4=	nvram2env.4
 .if ${MACHINE_CPUARCH} == "powerpc"
 _nvd.4= 	nvd.4
 _nvme.4=	nvme.4
-.endif
-
-.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
-_bcm283x_pwm.4=  bcm283x_pwm.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
