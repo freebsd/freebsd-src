@@ -90,6 +90,7 @@ static int opal_i2c_callback(device_t, int, caddr_t);
 static int opal_i2c_probe(device_t);
 static int opal_i2c_transfer(device_t, struct iic_msg *, uint32_t);
 static int i2c_opal_send_request(uint32_t, struct opal_i2c_request *);
+static phandle_t opal_i2c_get_node(device_t bus, device_t dev);
 
 static device_method_t opal_i2c_methods[] = {
 	/* Device interface */
@@ -99,6 +100,7 @@ static device_method_t opal_i2c_methods[] = {
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	opal_i2c_callback),
 	DEVMETHOD(iicbus_transfer,	opal_i2c_transfer),
+	DEVMETHOD(ofw_bus_get_node,	opal_i2c_get_node),
 	DEVMETHOD_END
 };
 
@@ -111,7 +113,7 @@ static device_method_t opal_i2c_methods[] = {
 static devclass_t opal_i2c_devclass;
 
 static driver_t opal_i2c_driver = {
-	"i2c",
+	"iichb",
 	opal_i2c_methods,
 	sizeof(struct opal_i2c_softc),
 };
@@ -244,6 +246,14 @@ opal_i2c_callback(device_t dev, int index, caddr_t data)
 	}
 
 	return (error);
+}
+
+static phandle_t
+opal_i2c_get_node(device_t bus, device_t dev)
+{
+
+	/* Share controller node with iibus device. */
+	return (ofw_bus_get_node(bus));
 }
 
 DRIVER_MODULE(opal_i2c, opal_i2cm, opal_i2c_driver, opal_i2c_devclass, NULL,
