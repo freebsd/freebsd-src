@@ -63,6 +63,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	needed to be changed to work with it. This change was made with r335763
 	and requires a mergemaster / etcupdate / etc to update the installed file.
 
+20180628:
+	r335753 introduced a new quoting method. However, etc/devd/devmatch.conf
+	needed to be changed to work with it. This change was made with r335763
+	and requires a mergemaster / etcupdate / etc to update the installed file.
+
 20180612:
 	r334930 changed the interface between the NFS modules, so they all
 	need to be rebuilt.  r335018 did a __FreeBSD_version bump for this.
