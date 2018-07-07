@@ -118,8 +118,7 @@ imx_watchdog(void *arg, u_int cmd, int *error)
 				sc->sc_timeout = timeout;
 				reg = RD2(sc, WDOG_CR_REG);
 				reg &= ~WDOG_CR_WT_MASK;
-				reg |= (timeout << (WDOG_CR_WT_SHIFT + 1)) &
-				    WDOG_CR_WT_MASK;
+				reg |= ((2 * timeout - 1) << WDOG_CR_WT_SHIFT);
 				WR2(sc, WDOG_CR_REG, reg | WDOG_CR_WDE);
 			}
 			/* Refresh counter */
