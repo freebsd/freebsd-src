@@ -865,7 +865,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st = pf_find_state_byid(sp->id, sp->creatorid);
 		if (st == NULL) {
 			/* insert the update */
-			if (pfsync_state_import(sp, 0))
+			if (pfsync_state_import(sp, pkt->flags))
 				V_pfsyncstats.pfsyncs_badstate++;
 			continue;
 		}
