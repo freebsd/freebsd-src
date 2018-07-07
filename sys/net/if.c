@@ -2969,8 +2969,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #ifdef COMPAT_FREEBSD32
 	caddr_t saved_data = NULL;
 	struct ifmediareq ifmr;
-#endif
 	struct ifmediareq *ifmrp;
+#endif
 	struct ifnet *ifp;
 	struct ifreq *ifr;
 	int error;
@@ -3016,8 +3016,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #endif
 	}
 
-	ifmrp = NULL;
 #ifdef COMPAT_FREEBSD32
+	ifmrp = NULL;
 	switch (cmd) {
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
