@@ -6656,6 +6656,13 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if ((tp->t_flags & TF_SACK_PERMIT) &&
 			    (to.to_flags & TOF_SACKPERM) == 0)
 				tp->t_flags &= ~TF_SACK_PERMIT;
+			if (IS_FASTOPEN(tp->t_flags)) {
+				if (to.to_flags & TOF_FASTOPEN)
+					tcp_fastopen_update_cache(tp, to.to_mss,
+					    to.to_tfo_len, to.to_tfo_cookie);
+				else
+					tcp_fastopen_disable_path(tp);
+			}
 		}
 		/*
 		 * At this point we are at the initial call. Here we decide
