@@ -3848,7 +3848,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     NFSPROC_T *p)
 {
 	struct nfsrvdscreate *dsc, *tdsc;
-	struct nfsdevice *ds, *mds;
+	struct nfsdevice *ds, *tds, *fds;
 	struct mount *mp;
 	struct pnfsdsfile *pf, *tpf;
 	struct pnfsdsattr dsattr;
@@ -3866,12 +3866,25 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	/* Get a DS server directory in a round-robin order. */
 	mirrorcnt = 1;
 	mp = vp->v_mount;
+	ds = fds = NULL;
 	NFSDDSLOCK();
-	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
-		if (ds->nfsdev_nmp != NULL && (ds->nfsdev_mdsisset == 0 ||
-		    (mp->mnt_stat.f_fsid.val[0] == ds->nfsdev_mdsfsid.val[0] &&
-		     mp->mnt_stat.f_fsid.val[1] == ds->nfsdev_mdsfsid.val[1])))
-			break;
+	/*
+	 * Search for the first entry that handles this MDS fs, but use the
+	 * first entry for all MDS fs's otherwise.
+	 */
+	TAILQ_FOREACH(tds, &nfsrv_devidhead, nfsdev_list) {
+		if (tds->nfsdev_nmp != NULL) {
+			if (tds->nfsdev_mdsisset == 0 && ds == NULL)
+				ds = tds;
+			else if (tds->nfsdev_mdsisset != 0 &&
+			    mp->mnt_stat.f_fsid.val[0] ==
+			    tds->nfsdev_mdsfsid.val[0] &&
+			    mp->mnt_stat.f_fsid.val[1] ==
+			    tds->nfsdev_mdsfsid.val[1]) {
+				ds = fds = tds;
+				break;
+			}
+		}
 	}
 	if (ds == NULL) {
 		NFSDDSUNLOCK();
@@ -3881,17 +3894,18 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	i = dsdir[0] = ds->nfsdev_nextdir;
 	ds->nfsdev_nextdir = (ds->nfsdev_nextdir + 1) % nfsrv_dsdirsize;
 	dvp[0] = ds->nfsdev_dsdir[i];
-	mds = TAILQ_NEXT(ds, nfsdev_list);
-	if (nfsrv_maxpnfsmirror > 1 && mds != NULL) {
-		TAILQ_FOREACH_FROM(mds, &nfsrv_devidhead, nfsdev_list) {
-			if (mds->nfsdev_nmp != NULL &&
-			    (mds->nfsdev_mdsisset == 0 ||
-			     (mp->mnt_stat.f_fsid.val[0] ==
-			      mds->nfsdev_mdsfsid.val[0] &&
+	tds = TAILQ_NEXT(ds, nfsdev_list);
+	if (nfsrv_maxpnfsmirror > 1 && tds != NULL) {
+		TAILQ_FOREACH_FROM(tds, &nfsrv_devidhead, nfsdev_list) {
+			if (tds->nfsdev_nmp != NULL &&
+			    ((tds->nfsdev_mdsisset == 0 && fds == NULL) ||
+			     (tds->nfsdev_mdsisset != 0 && fds != NULL &&
+			      mp->mnt_stat.f_fsid.val[0] ==
+			      tds->nfsdev_mdsfsid.val[0] &&
 			      mp->mnt_stat.f_fsid.val[1] ==
-			      mds->nfsdev_mdsfsid.val[1]))) {
+			      tds->nfsdev_mdsfsid.val[1]))) {
 				dsdir[mirrorcnt] = i;
-				dvp[mirrorcnt] = mds->nfsdev_dsdir[i];
+				dvp[mirrorcnt] = tds->nfsdev_dsdir[i];
 				mirrorcnt++;
 				if (mirrorcnt >= nfsrv_maxpnfsmirror)
 					break;
@@ -4495,7 +4509,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 	struct nfsmount *nmp, *newnmp;
 	struct sockaddr *sad;
 	struct sockaddr_in *sin;
-	struct nfsdevice *ds, *fndds;
+	struct nfsdevice *ds, *tds, *fndds;
 	struct pnfsdsfile *pf;
 	uint32_t dsdir;
 	int error, fhiszero, fnd, gotone, i, mirrorcnt;
@@ -4563,6 +4577,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 			/* Use the socket address to find the mount point. */
 			fndds = NULL;
 			NFSDDSLOCK();
+			/* Find a match for the IP address. */
 			TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 				if (ds->nfsdev_nmp != NULL) {
 					dvp = ds->nfsdev_dvp;
@@ -4570,25 +4585,41 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 					if (nmp != ds->nfsdev_nmp)
 						printf("different2 nmp %p %p\n",
 						    nmp, ds->nfsdev_nmp);
-					if (nfsaddr2_match(sad, nmp->nm_nam))
+					if (nfsaddr2_match(sad, nmp->nm_nam)) {
 						fndds = ds;
-					else if (newnmpp != NULL &&
-					    newnmp == NULL &&
-					    (*newnmpp == NULL ||
-					     fndds == NULL) &&
-					    (ds->nfsdev_mdsisset == 0 ||
-					     (ds->nfsdev_mdsfsid.val[0] ==
+						break;
+					}
+				}
+			}
+			if (fndds != NULL && newnmpp != NULL &&
+			    newnmp == NULL) {
+				/* Search for a place to make a mirror copy. */
+				TAILQ_FOREACH(tds, &nfsrv_devidhead,
+				    nfsdev_list) {
+					if (tds->nfsdev_nmp != NULL &&
+					    fndds != tds &&
+					    ((tds->nfsdev_mdsisset == 0 &&
+					      fndds->nfsdev_mdsisset == 0) ||
+					     (tds->nfsdev_mdsisset != 0 &&
+					      fndds->nfsdev_mdsisset != 0 &&
+					      tds->nfsdev_mdsfsid.val[0] ==
 					      mp->mnt_stat.f_fsid.val[0] &&
-					      ds->nfsdev_mdsfsid.val[1] ==
-					      mp->mnt_stat.f_fsid.val[1])))
-						/*
-						 * Return a destination for the
-						 * copy in newnmpp. Choose the
-						 * last valid one before the
-						 * source mirror, so it isn't
-						 * always the first one.
-						 */
-						*newnmpp = nmp;
+					      tds->nfsdev_mdsfsid.val[1] ==
+					      mp->mnt_stat.f_fsid.val[1]))) {
+						*newnmpp = tds->nfsdev_nmp;
+						break;
+					}
+				}
+				if (tds != NULL) {
+					/*
+					 * Move this entry to the end of the
+					 * list, so it won't be selected as
+					 * easily the next time.
+					 */
+					TAILQ_REMOVE(&nfsrv_devidhead, tds,
+					    nfsdev_list);
+					TAILQ_INSERT_TAIL(&nfsrv_devidhead, tds,
+					    nfsdev_list);
 				}
 			}
 			NFSDDSUNLOCK();
