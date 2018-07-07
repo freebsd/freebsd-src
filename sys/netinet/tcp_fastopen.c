@@ -408,7 +408,13 @@ tcp_fastopen_init(void)
 		TAILQ_INIT(&V_tcp_fastopen_ccache.base[i].ccb_entries);
 		mtx_init(&V_tcp_fastopen_ccache.base[i].ccb_mtx, "tfo_ccache_bucket",
 			 NULL, MTX_DEF);
-		V_tcp_fastopen_ccache.base[i].ccb_num_entries = -1; /* bucket disabled */
+		if (V_tcp_fastopen_client_enable) {
+			/* enable bucket */
+			V_tcp_fastopen_ccache.base[i].ccb_num_entries = 0;
+		} else {
+			/* disable bucket */
+			V_tcp_fastopen_ccache.base[i].ccb_num_entries = -1;
+		}
 		V_tcp_fastopen_ccache.base[i].ccb_ccache = &V_tcp_fastopen_ccache;
 	}
 
@@ -824,6 +830,9 @@ sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
 			/* enabled -> disabled */
 			for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
 				ccb = &V_tcp_fastopen_ccache.base[i];
+				KASSERT(ccb->ccb_num_entries > -1,
+				    ("%s: ccb->ccb_num_entries %d is negative",
+					__func__, ccb->ccb_num_entries));
 				tcp_fastopen_ccache_bucket_trim(ccb, 0);
 			}
 			V_tcp_fastopen_client_enable = 0;
