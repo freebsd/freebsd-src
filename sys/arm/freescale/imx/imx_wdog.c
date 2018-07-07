@@ -209,6 +209,13 @@ imx_wdog_attach(device_t dev)
 		sc->sc_pde_enabled = true;
 
 	EVENTHANDLER_REGISTER(watchdog_list, imx_watchdog, sc, 0);
+
+	/*
+	 * The watchdog hardware cannot be disabled, so there's little point in
+	 * coding up a detach() routine to carefully tear everything down, just
+	 * make the device busy so that detach can't happen.
+	 */
+	device_busy(sc->sc_dev);
 	return (0);
 }
 
@@ -227,3 +234,4 @@ static driver_t imx_wdog_driver = {
 static devclass_t imx_wdog_devclass;
 
 DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0, 0);
+SIMPLEBUS_PNP_INFO(compat_data);
