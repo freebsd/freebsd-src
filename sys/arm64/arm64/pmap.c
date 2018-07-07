@@ -2108,8 +2108,9 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 {
 	struct pch new_tail;
 	struct pv_chunk *pc;
-	int avail, free;
 	vm_page_t m;
+	int avail, free;
+	bool reclaimed;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reserve_pv_entries: lockp is NULL"));
@@ -2132,13 +2133,14 @@ retry:
 		if (avail >= needed)
 			break;
 	}
-	for (; avail < needed; avail += _NPCPV) {
+	for (reclaimed = false; avail < needed; avail += _NPCPV) {
 		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
 		    VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
 				goto retry;
+			reclaimed = true;
 		}
 		PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 		PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
@@ -2151,6 +2153,14 @@ retry:
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 		PV_STAT(atomic_add_int(&pv_entry_spare, _NPCPV));
+
+		/*
+		 * The reclaim might have freed a chunk from the current pmap.
+		 * If that chunk contained available entries, we need to
+		 * re-count the number of available entries.
+		 */
+		if (reclaimed)
+			goto retry;
 	}
 	if (!TAILQ_EMPTY(&new_tail)) {
 		mtx_lock(&pv_chunks_mutex);
