@@ -2860,7 +2860,9 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 {
 	uma_slab_t slab;
 	uma_keg_t keg;
+#ifdef NUMA
 	int stripe;
+#endif
 	int i;
 
 	slab = NULL;
@@ -2870,7 +2872,9 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 		if ((slab = zone->uz_slab(zone, keg, domain, flags)) == NULL)
 			break;
 		keg = slab->us_keg;
+#ifdef NUMA
 		stripe = howmany(max, vm_ndomains);
+#endif
 		while (slab->us_freecount && i < max) { 
 			bucket[i++] = slab_alloc_item(keg, slab);
 			if (keg->uk_free <= keg->uk_reserve)
