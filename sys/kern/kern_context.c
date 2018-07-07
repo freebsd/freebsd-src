@@ -51,14 +51,14 @@ __FBSDID("$FreeBSD$");
 #ifndef _SYS_SYSPROTO_H_
 struct getcontext_args {
 	struct __ucontext *ucp;
-}
+};
 struct setcontext_args {
 	const struct __ucontext_t *ucp;
-}
+};
 struct swapcontext_args {
 	struct __ucontext *oucp;
 	const struct __ucontext_t *ucp;
-}
+};
 #endif
 
 int
