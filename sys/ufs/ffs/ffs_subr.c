@@ -473,7 +473,8 @@ ffs_clusteracct(struct fs *fs, struct cg *cgp, ufs1_daddr_t blkno, int cnt)
 	int32_t *sump;
 	int32_t *lp;
 	u_char *freemapp, *mapp;
-	int i, start, end, forw, back, map, bit;
+	int i, start, end, forw, back, map;
+	u_int bit;
 
 	if (fs->fs_contigsumsize <= 0)
 		return;
@@ -495,7 +496,7 @@ ffs_clusteracct(struct fs *fs, struct cg *cgp, ufs1_daddr_t blkno, int cnt)
 		end = cgp->cg_nclusterblks;
 	mapp = &freemapp[start / NBBY];
 	map = *mapp++;
-	bit = 1 << (start % NBBY);
+	bit = 1U << (start % NBBY);
 	for (i = start; i < end; i++) {
 		if ((map & bit) == 0)
 			break;
@@ -516,7 +517,7 @@ ffs_clusteracct(struct fs *fs, struct cg *cgp, ufs1_daddr_t blkno, int cnt)
 		end = -1;
 	mapp = &freemapp[start / NBBY];
 	map = *mapp--;
-	bit = 1 << (start % NBBY);
+	bit = 1U << (start % NBBY);
 	for (i = start; i > end; i--) {
 		if ((map & bit) == 0)
 			break;
@@ -524,7 +525,7 @@ ffs_clusteracct(struct fs *fs, struct cg *cgp, ufs1_daddr_t blkno, int cnt)
 			bit >>= 1;
 		} else {
 			map = *mapp--;
-			bit = 1 << (NBBY - 1);
+			bit = 1U << (NBBY - 1);
 		}
 	}
 	back = start - i;
