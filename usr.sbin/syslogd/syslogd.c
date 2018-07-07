@@ -1120,7 +1120,7 @@ parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
 	    "abcdefghijklmnopqrstuvwxyz"
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	    "0123456789"
-	    "_-");
+	    "_-/");
 	if (app_name_length == 0)
 		goto bad;
 	m += app_name_length;
