@@ -86,7 +86,7 @@ struct ath_pci_softc {
 	PCI_DEV(v,d)
 
 #define	PCI_DEVICE_SUB(v, d, sv, sd)		\
-	PCI_DEV(v, d), PCI_SUBDEV(v, d)
+	PCI_DEV(v, d), PCI_SUBDEV(sv, sd)
 
 #define	PCI_VENDOR_ID_ATHEROS		0x168c
 #define	PCI_VENDOR_ID_SAMSUNG		0x144d
