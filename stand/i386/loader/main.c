@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "btxv86.h"
 
 #ifdef LOADER_ZFS_SUPPORT
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 #endif
 
 CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);

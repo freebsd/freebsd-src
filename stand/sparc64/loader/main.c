@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #ifdef LOADER_ZFS_SUPPORT
 #include <sys/vtoc.h>
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 #endif
 
 #include <vm/vm.h>
