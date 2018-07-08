@@ -261,6 +261,9 @@ device		cesa
 device		crypto
 device		cryptodev
 
+# imx6 on-chip RTC
+device		imx_snvs		# On-chip RTC
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/imx6 dtb/nvidia dtb/rpi dtb/zynq dtb/omap4"
