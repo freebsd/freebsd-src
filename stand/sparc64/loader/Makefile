@@ -44,7 +44,7 @@ LDFLAGS+=	-static
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
 CFLAGS+=	-I${BOOTSRC}/ofw/libofw/
 
-DPADD=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
-LDADD=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
+LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
 
 .include <bsd.prog.mk>

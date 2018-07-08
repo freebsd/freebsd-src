@@ -155,4 +155,9 @@ SRCS+=  explicit_bzero.c
 .include "${SASRC}/geli/Makefile.inc"
 .endif
 
+# Maybe ZFS
+.if ${MK_ZFS} == "yes"
+.include "${SASRC}/zfs/Makefile.inc"
+.endif
+
 .include <bsd.lib.mk>
