@@ -4,6 +4,7 @@
 SUBDIR = \
 	../ffec \
 	imx6_ahci \
+	imx6_snvs \
 	imx_i2c \
 	imx_spi \
 	imx_wdog \
