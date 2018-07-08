@@ -6,8 +6,5 @@ makeoptions	CONF_CFLAGS="-march=armv7a"
 options		IPI_IRQ_START=0
 options		IPI_IRQ_END=15
 
-device		fdt_pinctrl
-device	 	imx6_snvs
-
 files "../freescale/imx/files.imx6"
 
