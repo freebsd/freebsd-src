@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "disk.h"
 #include "libi386.h"
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 
 static int	i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path);
 

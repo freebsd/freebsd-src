@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include "libi386/libi386.h"
 #if defined(LOADER_ZFS_SUPPORT)
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 #endif
 
 /*
