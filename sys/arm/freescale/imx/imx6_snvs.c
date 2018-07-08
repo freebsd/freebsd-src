@@ -137,35 +137,33 @@ snvs_gettime(device_t dev, struct timespec *ts)
 
 	*ts = sbttots(counter1);
 
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_READ, ts); 
+
 	return (0);
 }
 
 static int
-snvs_settime(device_t dev, struct timespec *unused)
+snvs_settime(device_t dev, struct timespec *ts)
 {
 	struct snvs_softc *sc;
-	struct bintime bt;
 	sbintime_t sbt;
 
 	sc = device_get_softc(dev);
 
 	/*
-	 * Ignore the inaccurate time passed in from the common clock code and
-	 * obtain a time worthy of our 30us accuracy.
+	 * The hardware format is the same as sbt (with fewer fractional bits),
+	 * so first convert the time to sbt.  It takes two clock cycles for the
+	 * counter to start after setting the enable bit, so add two SBT_LSBs to
+	 * what we're about to set.
 	 */
-	bintime(&bt);
-	bt.sec -= utc_offset();
-	sbt = bttosbt(bt);
-
-	/*
-	 * It takes two clock cycles for the counter to start after setting the
-	 * enable bit, so add two SBT_LSBs to what we're about to set.
-	 */
+	sbt = tstosbt(*ts);
 	sbt += 2 << SBT_LSB;
 	snvs_rtc_enable(sc, false);
 	WR4(sc, SNVS_LPSRTCMR, (uint32_t)(sbt >> (SBT_LSB + 32)));
 	WR4(sc, SNVS_LPSRTCLR, (uint32_t)(sbt >> (SBT_LSB)));
 	snvs_rtc_enable(sc, true);
+
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_WRITE, ts); 
 
 	return (0);
 }
