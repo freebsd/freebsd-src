@@ -125,6 +125,6 @@ device		ffec			# Freescale Fast Ethernet Controller
 device		fsliic			# Freescale i2c/iic
 device		iic			# iic protocol
 device		iicbus			# iic bus
-device		imx_snvs		# On-chip RTC
+device		imx6_snvs		# On-chip RTC
 device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 
