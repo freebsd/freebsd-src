@@ -2875,6 +2875,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_SW_WIRED;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		new_l3 |= ATTR_SW_MANAGED;
 
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);
 
@@ -2920,7 +2922,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * otherwise we will need to create the intermediate tables
 		 */
 		if (lvl < 2) {
-			switch(lvl) {
+			switch (lvl) {
 			default:
 			case -1:
 				/* Get the l0 pde to update */
@@ -2974,11 +2976,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		}
 	}
 	l3 = pmap_l2_to_l3(pde, va);
-havel3:
 
-	om = NULL;
+havel3:
 	orig_l3 = pmap_load(l3);
 	opa = orig_l3 & ~ATTR_MASK;
+	pv = NULL;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -3015,7 +3017,6 @@ havel3:
 			 * No, might be a protection or wiring change.
 			 */
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
-				new_l3 |= ATTR_SW_MANAGED;
 				if ((new_l3 & ATTR_AP(ATTR_AP_RW)) ==
 				    ATTR_AP(ATTR_AP_RW)) {
 					vm_page_aflag_set(m, PGA_WRITEABLE);
@@ -3023,6 +3024,37 @@ havel3:
 			}
 			goto validate;
 		}
+
+		/*
+		 * The physical page has changed.
+		 */
+		(void)pmap_load_clear(l3);
+		KASSERT((orig_l3 & ~ATTR_MASK) == opa,
+		    ("pmap_enter: unexpected pa update for %#lx", va));
+		if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
+			om = PHYS_TO_VM_PAGE(opa);
+
+			/*
+			 * The pmap lock is sufficient to synchronize with
+			 * concurrent calls to pmap_page_test_mappings() and
+			 * pmap_ts_referenced().
+			 */
+			if (pmap_page_dirty(orig_l3))
+				vm_page_dirty(om);
+			if ((orig_l3 & ATTR_AF) != 0)
+				vm_page_aflag_set(om, PGA_REFERENCED);
+			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+			pv = pmap_pvh_remove(&om->md, pmap, va);
+			if ((m->oflags & VPO_UNMANAGED) != 0)
+				free_pv_entry(pmap, pv);
+			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			    TAILQ_EMPTY(&om->md.pv_list) &&
+			    ((om->flags & PG_FICTITIOUS) != 0 ||
+			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+				vm_page_aflag_clear(om, PGA_WRITEABLE);
+		}
+		pmap_invalidate_page(pmap, va);
+		orig_l3 = 0;
 	} else {
 		/*
 		 * Increment the counters.
@@ -3035,9 +3067,10 @@ havel3:
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		new_l3 |= ATTR_SW_MANAGED;
-		pv = get_pv_entry(pmap, &lock);
-		pv->pv_va = va;
+		if (pv == NULL) {
+			pv = get_pv_entry(pmap, &lock);
+			pv->pv_va = va;
+		}
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
@@ -3066,24 +3099,8 @@ validate:
 	 * Update the L3 entry
 	 */
 	if (pmap_l3_valid(orig_l3)) {
-		if (opa != pa) {
-			/* different PA  */
-			pmap_update_entry(pmap, l3, new_l3, va, PAGE_SIZE);
-			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
-				om = PHYS_TO_VM_PAGE(opa);
-				if (pmap_page_dirty(orig_l3))
-					vm_page_dirty(om);
-				if ((orig_l3 & ATTR_AF) != 0)
-					vm_page_aflag_set(om, PGA_REFERENCED);
-				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
-				pmap_pvh_free(&om->md, pmap, va);
-				if ((om->aflags & PGA_WRITEABLE) != 0 &&
-				    TAILQ_EMPTY(&om->md.pv_list) &&
-				    ((om->flags & PG_FICTITIOUS) != 0 ||
-				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-					vm_page_aflag_clear(om, PGA_WRITEABLE);
-			}
-		} else if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
+		KASSERT(opa == pa, ("pmap_enter: invalid update"));
+		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
