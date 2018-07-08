@@ -60,6 +60,7 @@ NFSSTATESPINLOCK;
 extern struct nfsdontlisthead nfsrv_dontlisthead;
 extern volatile int nfsrv_devidcnt;
 extern struct nfslayouthead nfsrv_recalllisthead;
+extern char *nfsrv_zeropnfsdat;
 
 SYSCTL_DECL(_vfs_nfsd);
 int	nfsrv_statehashsize = NFSSTATEHASHSIZE;
@@ -8124,9 +8125,15 @@ tryagain2:
 		if (retacl != 0 && retacl != ENOATTR)
 			NFSD_DEBUG(1, "nfsrv_copymr: vop_getacl=%d\n", retacl);
 		dat = malloc(PNFSDS_COPYSIZ, M_TEMP, M_WAITOK);
+		/* Malloc a block of 0s used to check for holes. */
+		if (nfsrv_zeropnfsdat == NULL)
+			nfsrv_zeropnfsdat = malloc(PNFSDS_COPYSIZ, M_TEMP,
+			    M_WAITOK | M_ZERO);
 		rdpos = wrpos = 0;
 		mp = NULL;
 		ret = vn_start_write(tvp, &mp, V_WAIT | PCATCH);
+		if (ret == 0)
+			ret = VOP_GETATTR(fvp, &va, cred);
 		aresid = 0;
 		while (ret == 0 && aresid == 0) {
 			ret = vn_rdwr(UIO_READ, fvp, dat, PNFSDS_COPYSIZ,
@@ -8135,9 +8142,16 @@ tryagain2:
 			xfer = PNFSDS_COPYSIZ - aresid;
 			if (ret == 0 && xfer > 0) {
 				rdpos += xfer;
-				ret = vn_rdwr(UIO_WRITE, tvp, dat, xfer,
-				    wrpos, UIO_SYSSPACE, IO_NODELOCKED,
-				    cred, NULL, NULL, p);
+				/*
+				 * Skip the write for holes, except for the
+				 * last block.
+				 */
+				if (xfer < PNFSDS_COPYSIZ || rdpos ==
+				    va.va_size || NFSBCMP(dat,
+				    nfsrv_zeropnfsdat, PNFSDS_COPYSIZ) != 0)
+					ret = vn_rdwr(UIO_WRITE, tvp, dat, xfer,
+					    wrpos, UIO_SYSSPACE, IO_NODELOCKED,
+					    cred, NULL, NULL, p);
 				if (ret == 0)
 					wrpos += xfer;
 			}
