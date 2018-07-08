@@ -202,6 +202,8 @@ static driver_t ipw_driver = {
 static devclass_t ipw_devclass;
 
 DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ipw, ipw_ident_table,
+    sizeof(ipw_ident_table[0]), nitems(ipw_ident_table) - 1);
 
 MODULE_VERSION(ipw, 1);
 
