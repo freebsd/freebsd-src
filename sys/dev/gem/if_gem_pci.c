@@ -74,6 +74,22 @@ static int	gem_pci_probe(device_t dev);
 static int	gem_pci_resume(device_t dev);
 static int	gem_pci_suspend(device_t dev);
 
+static const struct gem_pci_dev {
+	uint32_t	gpd_devid;
+	int		gpd_variant;
+	const char	*gpd_desc;
+} gem_pci_devlist[] = {
+	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
+	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
+	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },
+	{ 0x0024106b, GEM_APPLE_GMAC,	"Apple Pangea GMAC Ethernet" },
+	{ 0x0032106b, GEM_APPLE_GMAC,	"Apple UniNorth2 GMAC Ethernet" },
+	{ 0x004c106b, GEM_APPLE_K2_GMAC,"Apple K2 GMAC Ethernet" },
+	{ 0x0051106b, GEM_APPLE_GMAC,	"Apple Shasta GMAC Ethernet" },
+	{ 0x006b106b, GEM_APPLE_GMAC,	"Apple Intrepid 2 GMAC Ethernet" },
+	{ 0, 0, NULL }
+};
+
 static device_method_t gem_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gem_pci_probe),
@@ -99,24 +115,10 @@ static driver_t gem_pci_driver = {
 };
 
 DRIVER_MODULE(gem, pci, gem_pci_driver, gem_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device", pci, gem, gem_pci_devlist,
+    sizeof(gem_pci_devlist[0]), nitems(gem_pci_devlist) - 1);
 MODULE_DEPEND(gem, pci, 1, 1, 1);
 MODULE_DEPEND(gem, ether, 1, 1, 1);
-
-static const struct gem_pci_dev {
-	uint32_t	gpd_devid;
-	int		gpd_variant;
-	const char	*gpd_desc;
-} gem_pci_devlist[] = {
-	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
-	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
-	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },
-	{ 0x0024106b, GEM_APPLE_GMAC,	"Apple Pangea GMAC Ethernet" },
-	{ 0x0032106b, GEM_APPLE_GMAC,	"Apple UniNorth2 GMAC Ethernet" },
-	{ 0x004c106b, GEM_APPLE_K2_GMAC,"Apple K2 GMAC Ethernet" },
-	{ 0x0051106b, GEM_APPLE_GMAC,	"Apple Shasta GMAC Ethernet" },
-	{ 0x006b106b, GEM_APPLE_GMAC,	"Apple Intrepid 2 GMAC Ethernet" },
-	{ 0, 0, NULL }
-};
 
 static int
 gem_pci_probe(device_t dev)
