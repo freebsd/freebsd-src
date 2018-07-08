@@ -30,7 +30,6 @@ CFLAGS.zfs_module.c+=	-I${ZFSSRC}
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
@@ -72,8 +71,8 @@ LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBEFI} ${LIBZFSBOOT} ${LIBSA}
-LDADD+=		${LIBEFI} ${LIBZFSBOOT} ${LIBSA}
+DPADD+=		${LIBEFI} ${LIBSA}
+LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 
