@@ -271,6 +271,7 @@ static char daytime[DAYTIME_LEN];/* The current time in human readable form,
 static char daytime_rfc5424[DAYTIME_RFC5424_LEN];
 
 static char hostname[MAXHOSTNAMELEN]; /* hostname */
+static size_t hostname_shortlen;
 
 static const char *path_syslogpid = _PATH_SYSLOGPID;
 
@@ -657,10 +658,7 @@ parse_args(int argc, char **argv)
 
 	/* Let's get our hostname */
 	(void)gethostname(hostname, sizeof(hostname));
-
-	/* Truncate domain */
-	if ((p = strchr(hostname, '.')) != NULL)
-		*p = '\0';
+	hostname_shortlen = strcspn(hostname, ".");
 
 	/* Parse command line options. */
 	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:S:")) != -1)
@@ -2349,14 +2347,20 @@ log_trim(const char *logname, const struct conf_entry *log_ent)
 		}
 	} else {
 		if (log_ent->firstcreate)
-			fprintf(f, "%s %s newsyslog[%d]: logfile first created%s\n",
-			    daytime, hostname, getpid(), xtra);
+			fprintf(f,
+			    "%s %.*s newsyslog[%d]: logfile first created%s\n",
+			    daytime, (int)hostname_shortlen, hostname, getpid(),
+			    xtra);
 		else if (log_ent->r_reason != NULL)
-			fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
-			    daytime, hostname, getpid(), log_ent->r_reason, xtra);
+			fprintf(f,
+			    "%s %.*s newsyslog[%d]: logfile turned over%s%s\n",
+			    daytime, (int)hostname_shortlen, hostname, getpid(),
+			    log_ent->r_reason, xtra);
 		else
-			fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
-			    daytime, hostname, getpid(), xtra);
+			fprintf(f,
+			    "%s %.*s newsyslog[%d]: logfile turned over%s\n",
+			    daytime, (int)hostname_shortlen, hostname, getpid(),
+			    xtra);
 	}
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose");
