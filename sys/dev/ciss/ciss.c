@@ -222,11 +222,6 @@ static driver_t ciss_pci_driver = {
     sizeof(struct ciss_softc)
 };
 
-static devclass_t	ciss_devclass;
-DRIVER_MODULE(ciss, pci, ciss_pci_driver, ciss_devclass, 0, 0);
-MODULE_DEPEND(ciss, cam, 1, 1, 1);
-MODULE_DEPEND(ciss, pci, 1, 1, 1);
-
 /*
  * Control device interface.
  */
@@ -270,6 +265,7 @@ TUNABLE_INT("hw.ciss.force_transport", &ciss_force_transport);
  */
 static int ciss_force_interrupt = 0;
 TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
+
 
 /************************************************************************
  * CISS adapters amazingly don't have a defined programming interface
@@ -365,6 +361,13 @@ static struct
     { 0x103C, 0x21CE, CISS_BOARD_SA5,   "HP Smart Array H240nr" },
     { 0, 0, 0, NULL }
 };
+
+static devclass_t	ciss_devclass;
+DRIVER_MODULE(ciss, pci, ciss_pci_driver, ciss_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;", pci, ciss, ciss_vendor_data,
+    sizeof(ciss_vendor_data[0]), nitems(ciss_vendor_data) - 1);
+MODULE_DEPEND(ciss, cam, 1, 1, 1);
+MODULE_DEPEND(ciss, pci, 1, 1, 1);
 
 /************************************************************************
  * Find a match for the device in our list of known adapters.
