@@ -547,6 +547,8 @@ static driver_t bge_driver = {
 static devclass_t bge_devclass;
 
 DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, bge, bge_devs,
+    sizeof(bge_devs), nitems(bge_devs) - 1);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
 static int bge_allow_asf = 1;
