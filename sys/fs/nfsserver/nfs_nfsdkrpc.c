@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 NFSDLOCKMUTEX;
 NFSV4ROOTLOCKMUTEX;
 struct nfsv4lock nfsd_suspend_lock;
+char *nfsrv_zeropnfsdat = NULL;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -565,6 +566,8 @@ nfsrvd_init(int terminating)
 		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
 		svcpool_close(nfsrvd_pool);
+		free(nfsrv_zeropnfsdat, M_TEMP);
+		nfsrv_zeropnfsdat = NULL;
 		NFSD_LOCK();
 	} else {
 		NFSD_UNLOCK();
