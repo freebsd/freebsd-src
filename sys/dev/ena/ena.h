@@ -151,8 +151,8 @@ struct msix_entry {
 };
 
 typedef struct _ena_vendor_info_t {
-	unsigned int vendor_id;
-	unsigned int device_id;
+	uint16_t vendor_id;
+	uint16_t device_id;
 	unsigned int index;
 } ena_vendor_info_t;
 
