@@ -1,4 +1,3 @@
-
 /* @(#)e_jn.c 1.4 95/01/18 */
 /*
  * ====================================================
@@ -6,7 +5,7 @@
  *
  * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
@@ -18,7 +17,7 @@ __FBSDID("$FreeBSD$");
  * __ieee754_jn(n, x), __ieee754_yn(n, x)
  * floating point Bessel's function of the 1st and 2nd kind
  * of order n
- *          
+ *
  * Special cases:
  *	y0(0)=y1(0)=yn(n,0) = -inf with division by zero signal;
  *	y0(-ve)=y1(-ve)=yn(n,-ve) are NaN with invalid signal.
@@ -37,7 +36,6 @@ __FBSDID("$FreeBSD$");
  *	yn(n,x) is similar in all respects, except
  *	that forward recursion is used for all
  *	values of n>1.
- *	
  */
 
 #include "math.h"
@@ -66,7 +64,7 @@ __ieee754_jn(int n, double x)
 	ix = 0x7fffffff&hx;
     /* if J(n,NaN) is NaN */
 	if((ix|((u_int32_t)(lx|-lx))>>31)>0x7ff00000) return x+x;
-	if(n<0){		
+	if(n<0){
 		n = -n;
 		x = -x;
 		hx ^= 0x80000000;
@@ -77,14 +75,14 @@ __ieee754_jn(int n, double x)
 	x = fabs(x);
 	if((ix|lx)==0||ix>=0x7ff00000) 	/* if x is 0 or inf */
 	    b = zero;
-	else if((double)n<=x) {   
+	else if((double)n<=x) {
 		/* Safe to use J(n+1,x)=2n/x *J(n,x)-J(n-1,x) */
 	    if(ix>=0x52D00000) { /* x > 2**302 */
-    /* (x >> n**2) 
+    /* (x >> n**2)
      *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
      *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-     *	    Let s=sin(x), c=cos(x), 
-     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
+     *	    Let s=sin(x), c=cos(x),
+     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2), then
      *
      *		   n	sin(xn)*sqt2	cos(xn)*sqt2
      *		----------------------------------
@@ -100,7 +98,7 @@ __ieee754_jn(int n, double x)
 		    case 3: temp =  cos(x)-sin(x); break;
 		}
 		b = invsqrtpi*temp/sqrt(x);
-	    } else {	
+	    } else {
 	        a = __ieee754_j0(x);
 	        b = __ieee754_j1(x);
 	        for(i=1;i<n;i++){
@@ -111,7 +109,7 @@ __ieee754_jn(int n, double x)
 	    }
 	} else {
 	    if(ix<0x3e100000) {	/* x < 2**-29 */
-    /* x is tiny, return the first Taylor expansion of J(n,x) 
+    /* x is tiny, return the first Taylor expansion of J(n,x)
      * J(n,x) = 1/n!*(x/2)^n  - ...
      */
 		if(n>33)	/* underflow */
@@ -126,14 +124,14 @@ __ieee754_jn(int n, double x)
 		}
 	    } else {
 		/* use backward recurrence */
-		/* 			x      x^2      x^2       
+		/* 			x      x^2      x^2
 		 *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
 		 *			2n  - 2(n+1) - 2(n+2)
 		 *
-		 * 			1      1        1       
+		 * 			1      1        1
 		 *  (for large x)   =  ----  ------   ------   .....
 		 *			2n   2(n+1)   2(n+2)
-		 *			-- - ------ - ------ - 
+		 *			-- - ------ - ------ -
 		 *			 x     x         x
 		 *
 		 * Let w = 2n/x and h=2/x, then the above quotient
@@ -149,9 +147,9 @@ __ieee754_jn(int n, double x)
 		 * To determine how many terms needed, let
 		 * Q(0) = w, Q(1) = w(w+h) - 1,
 		 * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
-		 * When Q(k) > 1e4	good for single 
-		 * When Q(k) > 1e9	good for double 
-		 * When Q(k) > 1e17	good for quadruple 
+		 * When Q(k) > 1e4	good for single
+		 * When Q(k) > 1e9	good for double
+		 * When Q(k) > 1e17	good for quadruple
 		 */
 	    /* determine k */
 		double t,v;
@@ -237,11 +235,11 @@ __ieee754_yn(int n, double x)
 	if(n==1) return(sign*__ieee754_y1(x));
 	if(ix==0x7ff00000) return zero;
 	if(ix>=0x52D00000) { /* x > 2**302 */
-    /* (x >> n**2) 
+    /* (x >> n**2)
      *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
      *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-     *	    Let s=sin(x), c=cos(x), 
-     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
+     *	    Let s=sin(x), c=cos(x),
+     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2), then
      *
      *		   n	sin(xn)*sqt2	cos(xn)*sqt2
      *		----------------------------------
