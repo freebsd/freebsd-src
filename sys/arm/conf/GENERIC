@@ -262,7 +262,7 @@ device		crypto
 device		cryptodev
 
 # imx6 on-chip RTC
-device		imx_snvs		# On-chip RTC
+device		imx6_snvs		# On-chip RTC
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
