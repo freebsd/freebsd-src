@@ -46,23 +46,23 @@ static const char rcsid[] =
 
 static void	usage(void);
 
-static int	no_create;
-static int	do_relative;
-static int	do_refer;
-static int	got_size;
-
 int
 main(int argc, char **argv)
 {
-	struct stat	sb;
-	mode_t	omode;
-	off_t	oflow, rsize, sz, tsize;
+	struct stat sb;
+	mode_t omode;
+	off_t oflow, rsize, sz, tsize;
 	uint64_t usz;
-	int	ch, error, fd, oflags;
-	char   *fname, *rname;
+	int ch, error, fd, oflags;
+	int no_create;
+	int do_relative;
+	int do_refer;
+	int got_size;
+	char *fname, *rname;
 
 	fd = -1;
 	rsize = tsize = sz = 0;
+	no_create = do_relative = do_refer = got_size = 0;
 	error = 0;
 	rname = NULL;
 	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
