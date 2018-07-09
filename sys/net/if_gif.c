@@ -104,7 +104,6 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-static int	gif_check_nesting(struct ifnet *, struct mbuf *);
 static void	gif_delete_tunnel(struct gif_softc *);
 static int	gif_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gif_transmit(struct ifnet *, struct mbuf *);
@@ -256,6 +255,7 @@ gif_hashdestroy(struct gif_list *hash)
 	free(hash, M_GIF);
 }
 
+#define	MTAG_GIF	1080679712
 static int
 gif_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -285,7 +285,8 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
 	    sc->gif_family == 0 ||
-	    (error = gif_check_nesting(ifp, m)) != 0) {
+	    (error = if_tunnel_check_nesting(ifp, m, MTAG_GIF,
+		V_max_gif_nesting)) != 0) {
 		m_freem(m);
 		goto err;
 	}
@@ -378,42 +379,6 @@ gif_qflush(struct ifnet *ifp __unused)
 
 }
 
-#define	MTAG_GIF	1080679712
-static int
-gif_check_nesting(struct ifnet *ifp, struct mbuf *m)
-{
-	struct m_tag *mtag;
-	int count;
-
-	/*
-	 * gif may cause infinite recursion calls when misconfigured.
-	 * We'll prevent this by detecting loops.
-	 *
-	 * High nesting level may cause stack exhaustion.
-	 * We'll prevent this by introducing upper limit.
-	 */
-	count = 1;
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GIF, 0, mtag)) != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", if_name(ifp));
-			return (EIO);
-		}
-		count++;
-	}
-	if (count > V_max_gif_nesting) {
-		log(LOG_NOTICE,
-		    "%s: if_output recursively called too many times(%d)\n",
-		    if_name(ifp), count);
-		return (EIO);
-	}
-	mtag = m_tag_alloc(MTAG_GIF, 0, sizeof(struct ifnet *), M_NOWAIT);
-	if (mtag == NULL)
-		return (ENOMEM);
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-	return (0);
-}
 
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,

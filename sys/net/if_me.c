@@ -455,36 +455,6 @@ drop:
 	return (IPPROTO_DONE);
 }
 
-#define	MTAG_ME	1414491977
-static int
-me_check_nesting(struct ifnet *ifp, struct mbuf *m)
-{
-	struct m_tag *mtag;
-	int count;
-
-	count = 1;
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_ME, 0, mtag)) != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
-			return (EIO);
-		}
-		count++;
-	}
-	if (count > V_max_me_nesting) {
-		log(LOG_NOTICE,
-		    "%s: if_output recursively called too many times(%d)\n",
-		    ifp->if_xname, count);
-		return (EIO);
-	}
-	mtag = m_tag_alloc(MTAG_ME, 0, sizeof(struct ifnet *), M_NOWAIT);
-	if (mtag == NULL)
-		return (ENOMEM);
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-	return (0);
-}
-
 static int
 me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
    struct route *ro __unused)
@@ -499,6 +469,7 @@ me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	return (ifp->if_transmit(ifp, m));
 }
 
+#define	MTAG_ME	1414491977
 static int
 me_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -519,7 +490,8 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (sc == NULL || !ME_READY(sc) ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
-	    (error = me_check_nesting(ifp, m) != 0)) {
+	    (error = if_tunnel_check_nesting(ifp, m, MTAG_ME,
+		V_max_me_nesting)) != 0) {
 		m_freem(m);
 		goto drop;
 	}
