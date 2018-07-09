@@ -61,6 +61,54 @@ static	int SHA256Update_int(void *, const u_int8_t *, u_int16_t);
 static	int SHA384Update_int(void *, const u_int8_t *, u_int16_t);
 static	int SHA512Update_int(void *, const u_int8_t *, u_int16_t);
 
+/* Plain hashes */
+struct auth_hash auth_hash_sha2_224 = {
+	.type = CRYPTO_SHA2_224,
+	.name = "SHA2-224",
+	.hashsize = SHA2_224_HASH_LEN,
+	.ctxsize = sizeof(SHA224_CTX),
+	.blocksize = SHA2_224_BLOCK_LEN,
+	.Init = (void (*)(void *)) SHA224_Init,
+	.Update = SHA224Update_int,
+	.Final = (void (*)(u_int8_t *, void *)) SHA224_Final,
+};
+
+struct auth_hash auth_hash_sha2_256 = {
+	.type = CRYPTO_SHA2_256,
+	.name = "SHA2-256",
+	.keysize = SHA2_256_BLOCK_LEN,
+	.hashsize = SHA2_256_HASH_LEN,
+	.ctxsize = sizeof(SHA256_CTX),
+	.blocksize = SHA2_256_BLOCK_LEN,
+	.Init = (void (*)(void *)) SHA256_Init,
+	.Update = SHA256Update_int,
+	.Final = (void (*)(u_int8_t *, void *)) SHA256_Final,
+};
+
+struct auth_hash auth_hash_sha2_384 = {
+	.type = CRYPTO_SHA2_384,
+	.name = "SHA2-384",
+	.keysize = SHA2_384_BLOCK_LEN,
+	.hashsize = SHA2_384_HASH_LEN,
+	.ctxsize = sizeof(SHA384_CTX),
+	.blocksize = SHA2_384_BLOCK_LEN,
+	.Init = (void (*)(void *)) SHA384_Init,
+	.Update = SHA384Update_int,
+	.Final = (void (*)(u_int8_t *, void *)) SHA384_Final,
+};
+
+struct auth_hash auth_hash_sha2_512 = {
+	.type = CRYPTO_SHA2_512,
+	.name = "SHA2-512",
+	.keysize = SHA2_512_BLOCK_LEN,
+	.hashsize = SHA2_512_HASH_LEN,
+	.ctxsize = sizeof(SHA512_CTX),
+	.blocksize = SHA2_512_BLOCK_LEN,
+	.Init = (void (*)(void *)) SHA512_Init,
+	.Update = SHA512Update_int,
+	.Final = (void (*)(u_int8_t *, void *)) SHA512_Final,
+};
+
 /* Authentication instances */
 struct auth_hash auth_hash_hmac_sha2_224 = {
 	.type = CRYPTO_SHA2_224_HMAC,

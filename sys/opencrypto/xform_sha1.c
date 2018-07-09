@@ -57,6 +57,18 @@ static	void SHA1Init_int(void *);
 static	int SHA1Update_int(void *, const u_int8_t *, u_int16_t);
 static	void SHA1Final_int(u_int8_t *, void *);
 
+/* Plain hash */
+struct auth_hash auth_hash_sha1 = {
+	.type = CRYPTO_SHA1,
+	.name = "SHA1",
+	.hashsize = SHA1_HASH_LEN,
+	.ctxsize = sizeof(SHA1_CTX),
+	.blocksize = SHA1_BLOCK_LEN,
+	.Init = SHA1Init_int,
+	.Update = SHA1Update_int,
+	.Final = SHA1Final_int,
+};
+
 /* Authentication instances */
 struct auth_hash auth_hash_hmac_sha1 = {
 	.type = CRYPTO_SHA1_HMAC,
