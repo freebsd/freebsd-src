@@ -560,6 +560,9 @@ acpi_res_set_memory(device_t dev, void *context, uint64_t base,
     if (cp == NULL)
 	return;
 
+    while (bus_get_resource_start(dev, SYS_RES_MEMORY, cp->ar_nmem))
+	cp->ar_nmem++;
+
     bus_set_resource(dev, SYS_RES_MEMORY, cp->ar_nmem++, base, length);
 }
 
