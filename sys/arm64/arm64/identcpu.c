@@ -134,6 +134,7 @@ static const struct cpu_parts cpu_parts_arm[] = {
 /* Cavium */
 static const struct cpu_parts cpu_parts_cavium[] = {
 	{ CPU_PART_THUNDERX, "ThunderX" },
+	{ CPU_PART_THUNDERX2, "ThunderX2" },
 	CPU_PART_NONE,
 };
 
