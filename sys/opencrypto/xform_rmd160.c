@@ -59,10 +59,10 @@ static	int RMD160Update_int(void *, const u_int8_t *, u_int16_t);
 struct auth_hash auth_hash_hmac_ripemd_160 = {
 	.type = CRYPTO_RIPEMD160_HMAC,
 	.name = "HMAC-RIPEMD-160",
-	.keysize = RIPEMD160_HMAC_BLOCK_LEN,
+	.keysize = RIPEMD160_BLOCK_LEN,
 	.hashsize = RIPEMD160_HASH_LEN,
 	.ctxsize = sizeof(RMD160_CTX),
-	.blocksize = RIPEMD160_HMAC_BLOCK_LEN,
+	.blocksize = RIPEMD160_BLOCK_LEN,
 	.Init = (void (*)(void *)) RMD160Init,
 	.Update = RMD160Update_int,
 	.Final = (void (*)(u_int8_t *, void *)) RMD160Final,

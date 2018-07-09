@@ -61,10 +61,10 @@ static	void SHA1Final_int(u_int8_t *, void *);
 struct auth_hash auth_hash_hmac_sha1 = {
 	.type = CRYPTO_SHA1_HMAC,
 	.name = "HMAC-SHA1",
-	.keysize = SHA1_HMAC_BLOCK_LEN,
+	.keysize = SHA1_BLOCK_LEN,
 	.hashsize = SHA1_HASH_LEN,
 	.ctxsize = sizeof(SHA1_CTX),
-	.blocksize = SHA1_HMAC_BLOCK_LEN,
+	.blocksize = SHA1_BLOCK_LEN,
 	.Init = SHA1Init_int,
 	.Update = SHA1Update_int,
 	.Final = SHA1Final_int,
