@@ -503,36 +503,6 @@ drop:
 	return (IPPROTO_DONE);
 }
 
-#define	MTAG_GRE	1307983903
-static int
-gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
-{
-	struct m_tag *mtag;
-	int count;
-
-	count = 1;
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
-			return (EIO);
-		}
-		count++;
-	}
-	if (count > V_max_gre_nesting) {
-		log(LOG_NOTICE,
-		    "%s: if_output recursively called too many times(%d)\n",
-		    ifp->if_xname, count);
-		return (EIO);
-	}
-	mtag = m_tag_alloc(MTAG_GRE, 0, sizeof(struct ifnet *), M_NOWAIT);
-	if (mtag == NULL)
-		return (ENOMEM);
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-	return (0);
-}
-
 static int
 gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
    struct route *ro)
@@ -569,6 +539,7 @@ gre_setseqn(struct grehdr *gh, uint32_t seq)
 	*opts = htonl(seq);
 }
 
+#define	MTAG_GRE	1307983903
 static int
 gre_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -592,7 +563,8 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
 	    sc->gre_family == 0 ||
-	    (error = gre_check_nesting(ifp, m)) != 0) {
+	    (error = if_tunnel_check_nesting(ifp, m, MTAG_GRE,
+		V_max_gre_nesting)) != 0) {
 		m_freem(m);
 		goto drop;
 	}
