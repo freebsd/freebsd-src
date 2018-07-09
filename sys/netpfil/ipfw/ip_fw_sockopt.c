@@ -1750,6 +1750,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 #endif
 		case O_IP4:
 		case O_TAG:
+		case O_SKIP_ACTION:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
