@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.90"
+#define BXE_DRIVER_VERSION "1.78.91"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -11991,61 +11991,78 @@ bxe_initial_phy_init(struct bxe_softc *sc,
 }
 
 /* must be called under IF_ADDR_LOCK */
-
 static int
-bxe_set_mc_list(struct bxe_softc *sc)
+bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
+                         struct ecore_mcast_ramrod_params *p)
 {
-    struct ecore_mcast_ramrod_params rparam = { NULL };
-    int rc = 0;
-    int mc_count = 0;
-    int mcnt, i;
-    struct ecore_mcast_list_elem *mc_mac, *mc_mac_start;
-    unsigned char *mta;
     if_t ifp = sc->ifp;
+    int mc_count = 0;
+    struct ifmultiaddr *ifma;
+    struct ecore_mcast_list_elem *mc_mac;
 
-    mc_count = if_multiaddr_count(ifp, -1);/* XXX they don't have a limit */
-    if (!mc_count)
-        return (0);
+    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+        if (ifma->ifma_addr->sa_family != AF_LINK) {
+            continue;
+        }
 
-    mta = malloc(sizeof(unsigned char) * ETHER_ADDR_LEN *
-            mc_count, M_DEVBUF, M_NOWAIT);
-
-    if(mta == NULL) {
-        BLOGE(sc, "Failed to allocate temp mcast list\n");
-        return (-1);
+        mc_count++;
     }
-    bzero(mta, (sizeof(unsigned char) * ETHER_ADDR_LEN * mc_count));
-    
-    mc_mac = malloc(sizeof(*mc_mac) * mc_count, M_DEVBUF, (M_NOWAIT | M_ZERO));
-    mc_mac_start = mc_mac;
 
+    ECORE_LIST_INIT(&p->mcast_list);
+    p->mcast_list_len = 0;
+
+    if (!mc_count) {
+        return (0);
+    }
+
+    mc_mac = malloc(sizeof(*mc_mac) * mc_count, M_DEVBUF,
+                    (M_NOWAIT | M_ZERO));
     if (!mc_mac) {
-        free(mta, M_DEVBUF);
         BLOGE(sc, "Failed to allocate temp mcast list\n");
         return (-1);
     }
     bzero(mc_mac, (sizeof(*mc_mac) * mc_count));
 
-    /* mta and mcnt not expected to be  different */
-    if_multiaddr_array(ifp, mta, &mcnt, mc_count);
+    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+        if (ifma->ifma_addr->sa_family != AF_LINK) {
+            continue;
+        }
 
-
-    rparam.mcast_obj = &sc->mcast_obj;
-    ECORE_LIST_INIT(&rparam.mcast_list);
-
-    for(i=0; i< mcnt; i++) {
-
-        mc_mac->mac = (uint8_t *)(mta + (i * ETHER_ADDR_LEN));
-        ECORE_LIST_PUSH_TAIL(&mc_mac->link, &rparam.mcast_list);
+        mc_mac->mac = (uint8_t *)LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+        ECORE_LIST_PUSH_TAIL(&mc_mac->link, &p->mcast_list);
 
         BLOGD(sc, DBG_LOAD,
-              "Setting MCAST %02X:%02X:%02X:%02X:%02X:%02X\n",
+              "Setting MCAST %02X:%02X:%02X:%02X:%02X:%02X and mc_count %d\n",
               mc_mac->mac[0], mc_mac->mac[1], mc_mac->mac[2],
-              mc_mac->mac[3], mc_mac->mac[4], mc_mac->mac[5]);
-
-        mc_mac++;
+              mc_mac->mac[3], mc_mac->mac[4], mc_mac->mac[5], mc_count);
+       mc_mac++;
     }
-    rparam.mcast_list_len = mc_count;
+
+    p->mcast_list_len = mc_count;
+
+    return (0);
+}
+
+static void
+bxe_free_mcast_macs_list(struct ecore_mcast_ramrod_params *p)
+{
+    struct ecore_mcast_list_elem *mc_mac =
+        ECORE_LIST_FIRST_ENTRY(&p->mcast_list,
+                               struct ecore_mcast_list_elem,
+                               link);
+
+    if (mc_mac) {
+        /* only a single free as all mc_macs are in the same heap array */
+        free(mc_mac, M_DEVBUF);
+    }
+}
+static int
+bxe_set_mc_list(struct bxe_softc *sc)
+{
+    struct ecore_mcast_ramrod_params rparam = { NULL };
+    int rc = 0;
+
+    rparam.mcast_obj = &sc->mcast_obj;
 
     BXE_MCAST_LOCK(sc);
 
@@ -12053,9 +12070,16 @@ bxe_set_mc_list(struct bxe_softc *sc)
     rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_DEL);
     if (rc < 0) {
         BLOGE(sc, "Failed to clear multicast configuration: %d\n", rc);
+        /* Manual backport parts of FreeBSD upstream r284470. */
         BXE_MCAST_UNLOCK(sc);
-    	free(mc_mac_start, M_DEVBUF);
-        free(mta, M_DEVBUF);
+        return (rc);
+    }
+
+    /* configure a new MACs list */
+    rc = bxe_init_mcast_macs_list(sc, &rparam);
+    if (rc) {
+        BLOGE(sc, "Failed to create mcast MACs list (%d)\n", rc);
+        BXE_MCAST_UNLOCK(sc);
         return (rc);
     }
 
@@ -12065,10 +12089,9 @@ bxe_set_mc_list(struct bxe_softc *sc)
         BLOGE(sc, "Failed to set new mcast config (%d)\n", rc);
     }
 
-    BXE_MCAST_UNLOCK(sc);
+    bxe_free_mcast_macs_list(&rparam);
 
-    free(mc_mac_start, M_DEVBUF);
-    free(mta, M_DEVBUF);
+    BXE_MCAST_UNLOCK(sc);
 
     return (rc);
 }
