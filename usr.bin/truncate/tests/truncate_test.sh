@@ -57,7 +57,7 @@ create_stderr_usage_file()
 	_custom_create_file creat
 	_custom_create_file print "${1}"
 	_custom_create_file print \
-	    "usage: truncate [-c] -s [+|-]size[K|k|M|m|G|g|T|t] file ..."
+	    "usage: truncate [-c] -s [+|-|%|/]size[K|k|M|m|G|g|T|t] file ..."
 	_custom_create_file print "       truncate [-c] -r rfile file ..."
 }
 
@@ -378,6 +378,66 @@ negative_body()
 	[ ${st_size} -eq 0 ] || atf_fail "new file should now be zero bytes"
 }
 
+atf_test_case roundup
+roundup_head()
+{
+	atf_set "descr" "Verifies truncate round up"
+}
+roundup_body()
+{
+	# Create a 5 byte file.
+	printf "abcd\n" > afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 5 ] || atf_fail "afile file should be 5 bytes"
+
+	create_stderr_file
+
+	# Create a new file and do a 100 byte roundup.
+	atf_check -e file:stderr.txt truncate -s%100 afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 100 ] || atf_fail "new file should now be 100 bytes"
+}
+
+atf_test_case rounddown
+rounddown_head()
+{
+	atf_set "descr" "Verifies truncate round down"
+}
+rounddown_body()
+{
+	# Create a 5 byte file.
+	printf "abcd\n" > afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 5 ] || atf_fail "afile file should be 5 bytes"
+
+	create_stderr_file
+
+	# Create a new file and do a 2 byte roundup.
+	atf_check -e file:stderr.txt truncate -s/2 afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 4 ] || atf_fail "new file should now be 4 bytes"
+}
+
+atf_test_case rounddown_zero
+rounddown_zero_head()
+{
+	atf_set "descr" "Verifies truncate round down to zero"
+}
+rounddown_zero_body()
+{
+	# Create a 5 byte file.
+	printf "abcd\n" > afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 5 ] || atf_fail "afile file should be 5 bytes"
+
+	create_stderr_file
+
+	# Create a new file and do a 10 byte roundup.
+	atf_check -e file:stderr.txt truncate -s/10 afile
+	eval $(stat -s afile)
+	[ ${st_size} -eq 0 ] || atf_fail "new file should now be 0 bytes"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case illegal_option
@@ -396,4 +456,7 @@ atf_init_test_cases()
 	atf_add_test_case reference
 	atf_add_test_case new_zero
 	atf_add_test_case negative
+	atf_add_test_case roundup
+	atf_add_test_case rounddown
+	atf_add_test_case rounddown_zero
 }
