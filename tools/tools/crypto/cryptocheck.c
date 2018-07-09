@@ -137,6 +137,8 @@ struct alg {
 } algs[] = {
 	{ .name = "sha1", .mac = CRYPTO_SHA1_HMAC, .type = T_HMAC,
 	  .evp_md = EVP_sha1 },
+	{ .name = "sha224", .mac = CRYPTO_SHA2_224_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha224 },
 	{ .name = "sha256", .mac = CRYPTO_SHA2_256_HMAC, .type = T_HMAC,
 	  .evp_md = EVP_sha256 },
 	{ .name = "sha384", .mac = CRYPTO_SHA2_384_HMAC, .type = T_HMAC,
