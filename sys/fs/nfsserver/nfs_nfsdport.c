@@ -3433,12 +3433,13 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		free(nfsdarg.mdspath, M_TEMP);
 	} else if (uap->flag & NFSSVC_PNFSDS) {
 		error = copyin(uap->argp, &pnfsdarg, sizeof(pnfsdarg));
-		if (error == 0 && pnfsdarg.op == PNFSDOP_DELDSSERVER) {
+		if (error == 0 && (pnfsdarg.op == PNFSDOP_DELDSSERVER ||
+		    pnfsdarg.op == PNFSDOP_FORCEDELDS)) {
 			cp = malloc(PATH_MAX + 1, M_TEMP, M_WAITOK);
 			error = copyinstr(pnfsdarg.dspath, cp, PATH_MAX + 1,
 			    NULL);
 			if (error == 0)
-				error = nfsrv_deldsserver(cp, td);
+				error = nfsrv_deldsserver(pnfsdarg.op, cp, td);
 			free(cp, M_TEMP);
 		} else if (error == 0 && pnfsdarg.op == PNFSDOP_COPYMR) {
 			cp = malloc(PATH_MAX + 1, M_TEMP, M_WAITOK);
@@ -4014,7 +4015,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		     NFSMNTP_CANCELRPCS)) == 0) {
 			nmp->nm_privflag |= NFSMNTP_CANCELRPCS;
 			NFSUNLOCKMNT(nmp);
-			ds = nfsrv_deldsnmp(nmp, p);
+			ds = nfsrv_deldsnmp(PNFSDOP_DELDSSERVER, nmp, p);
 			NFSD_DEBUG(4, "dscreatfail fail=%d ds=%p\n", failpos,
 			    ds);
 			if (ds != NULL)
@@ -4248,7 +4249,7 @@ nfsrv_pnfsremove(struct vnode **dvp, int mirrorcnt, char *fname, fhandle_t *fhp,
 		     NFSMNTP_CANCELRPCS)) == 0) {
 			nmp->nm_privflag |= NFSMNTP_CANCELRPCS;
 			NFSUNLOCKMNT(nmp);
-			ds = nfsrv_deldsnmp(nmp, p);
+			ds = nfsrv_deldsnmp(PNFSDOP_DELDSSERVER, nmp, p);
 			NFSD_DEBUG(4, "dsremovefail fail=%d ds=%p\n", failpos,
 			    ds);
 			if (ds != NULL)
@@ -4463,7 +4464,8 @@ tryagain:
 			     NFSMNTP_CANCELRPCS)) == 0) {
 				failnmp->nm_privflag |= NFSMNTP_CANCELRPCS;
 				NFSUNLOCKMNT(failnmp);
-				ds = nfsrv_deldsnmp(failnmp, p);
+				ds = nfsrv_deldsnmp(PNFSDOP_DELDSSERVER,
+				    failnmp, p);
 				NFSD_DEBUG(4, "dsldsnmp fail=%d ds=%p\n",
 				    failpos, ds);
 				if (ds != NULL)
