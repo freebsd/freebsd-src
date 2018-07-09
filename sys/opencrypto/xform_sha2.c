@@ -50,16 +50,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <crypto/sha2/sha224.h>
 #include <crypto/sha2/sha256.h>
 #include <crypto/sha2/sha384.h>
 #include <crypto/sha2/sha512.h>
 #include <opencrypto/xform_auth.h>
 
+static	int SHA224Update_int(void *, const u_int8_t *, u_int16_t);
 static	int SHA256Update_int(void *, const u_int8_t *, u_int16_t);
 static	int SHA384Update_int(void *, const u_int8_t *, u_int16_t);
 static	int SHA512Update_int(void *, const u_int8_t *, u_int16_t);
 
 /* Authentication instances */
+struct auth_hash auth_hash_hmac_sha2_224 = {
+	.type = CRYPTO_SHA2_224_HMAC,
+	.name = "HMAC-SHA2-224",
+	.keysize = SHA2_224_BLOCK_LEN,
+	.hashsize = SHA2_224_HASH_LEN,
+	.ctxsize = sizeof(SHA224_CTX),
+	.blocksize = SHA2_224_BLOCK_LEN,
+	.Init = (void (*)(void *)) SHA224_Init,
+	.Update = SHA224Update_int,
+	.Final = (void (*)(u_int8_t *, void *)) SHA224_Final,
+};
+
 struct auth_hash auth_hash_hmac_sha2_256 = {
 	.type = CRYPTO_SHA2_256_HMAC,
 	.name = "HMAC-SHA2-256",
@@ -99,6 +113,13 @@ struct auth_hash auth_hash_hmac_sha2_512 = {
 /*
  * And now for auth.
  */
+static int
+SHA224Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+{
+	SHA224_Update(ctx, buf, len);
+	return 0;
+}
+
 static int
 SHA256Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
 {

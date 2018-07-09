@@ -460,6 +460,9 @@ cryptof_ioctl(
 		case CRYPTO_SHA1_HMAC:
 			thash = &auth_hash_hmac_sha1;
 			break;
+		case CRYPTO_SHA2_224_HMAC:
+			thash = &auth_hash_hmac_sha2_224;
+			break;
 		case CRYPTO_SHA2_256_HMAC:
 			thash = &auth_hash_hmac_sha2_256;
 			break;

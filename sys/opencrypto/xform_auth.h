@@ -69,6 +69,7 @@ extern struct auth_hash auth_hash_key_sha1;
 extern struct auth_hash auth_hash_hmac_md5;
 extern struct auth_hash auth_hash_hmac_sha1;
 extern struct auth_hash auth_hash_hmac_ripemd_160;
+extern struct auth_hash auth_hash_hmac_sha2_224;
 extern struct auth_hash auth_hash_hmac_sha2_256;
 extern struct auth_hash auth_hash_hmac_sha2_384;
 extern struct auth_hash auth_hash_hmac_sha2_512;
