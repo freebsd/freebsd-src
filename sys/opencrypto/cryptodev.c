@@ -489,10 +489,23 @@ cryptof_ioctl(
 		case CRYPTO_MD5:
 			thash = &auth_hash_md5;
 			break;
+#endif
 		case CRYPTO_SHA1:
 			thash = &auth_hash_sha1;
 			break;
-#endif
+		case CRYPTO_SHA2_224:
+			thash = &auth_hash_sha2_224;
+			break;
+		case CRYPTO_SHA2_256:
+			thash = &auth_hash_sha2_256;
+			break;
+		case CRYPTO_SHA2_384:
+			thash = &auth_hash_sha2_384;
+			break;
+		case CRYPTO_SHA2_512:
+			thash = &auth_hash_sha2_512;
+			break;
+
 		case CRYPTO_NULL_HMAC:
 			thash = &auth_hash_null;
 			break;
