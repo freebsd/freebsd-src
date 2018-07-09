@@ -83,16 +83,17 @@
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
+#define	MD5_BLOCK_LEN		64
+#define	SHA1_BLOCK_LEN		64
+#define	RIPEMD160_BLOCK_LEN	64
+#define	SHA2_256_BLOCK_LEN	64
+#define	SHA2_384_BLOCK_LEN	128
+#define	SHA2_512_BLOCK_LEN	128
+
 /* HMAC values */
 #define	NULL_HMAC_BLOCK_LEN		64
-#define	MD5_HMAC_BLOCK_LEN		64
-#define	SHA1_HMAC_BLOCK_LEN		64
-#define	RIPEMD160_HMAC_BLOCK_LEN	64
-#define	SHA2_256_HMAC_BLOCK_LEN	64
-#define	SHA2_384_HMAC_BLOCK_LEN	128
-#define	SHA2_512_HMAC_BLOCK_LEN	128
 /* Maximum HMAC block length */
-#define	HMAC_MAX_BLOCK_LEN	SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
+#define	HMAC_MAX_BLOCK_LEN	SHA2_512_BLOCK_LEN /* Keep this updated */
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
 /* HMAC Key Length */
