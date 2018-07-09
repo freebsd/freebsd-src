@@ -24,6 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "sha.h"
+#include "sha224.h"
 #include "sha256.h"
 #include "sha384.h"
 #include "sha512.h"
@@ -38,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #if SHA == 1
 #undef SHA_Data
 #define SHA_Data SHA1_Data
+#elif SHA == 224
+#undef SHA_Data
+#define SHA_Data SHA224_Data
 #elif SHA == 256
 #undef SHA_Data
 #define SHA_Data SHA256_Data

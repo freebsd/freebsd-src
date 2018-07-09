@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <ripemd.h>
 #include <sha.h>
+#include <sha224.h>
 #include <sha256.h>
 #include <sha384.h>
 #include <sha512.h>
@@ -59,6 +60,7 @@ typedef char *(DIGEST_End)(void *, char *);
 
 extern const char *MD5TestOutput[MDTESTCOUNT];
 extern const char *SHA1_TestOutput[MDTESTCOUNT];
+extern const char *SHA224_TestOutput[MDTESTCOUNT];
 extern const char *SHA256_TestOutput[MDTESTCOUNT];
 extern const char *SHA384_TestOutput[MDTESTCOUNT];
 extern const char *SHA512_TestOutput[MDTESTCOUNT];
@@ -89,6 +91,7 @@ static void usage(const Algorithm_t *);
 typedef union {
 	MD5_CTX md5;
 	SHA1_CTX sha1;
+	SHA224_CTX sha224;
 	SHA256_CTX sha256;
 	SHA384_CTX sha384;
 	SHA512_CTX sha512;
@@ -112,6 +115,9 @@ static const struct Algorithm_t Algorithm[] = {
 	{ "sha1", "SHA1", &SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
 		(DIGEST_Update*)&SHA1_Update, (DIGEST_End*)&SHA1_End,
 		&SHA1_Data, &SHA1_Fd },
+	{ "sha224", "SHA224", &SHA224_TestOutput, (DIGEST_Init*)&SHA224_Init,
+		(DIGEST_Update*)&SHA224_Update, (DIGEST_End*)&SHA224_End,
+		&SHA224_Data, &SHA224_Fd },
 	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
 		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
 		&SHA256_Data, &SHA256_Fd },
@@ -366,6 +372,17 @@ const char *SHA1_TestOutput[MDTESTCOUNT] = {
 	"761c457bf73b14d27e9e9265c46f4b4dda11f940",
 	"50abf5706a150990a08b2c5ea40fa0e585554732",
 	"18eca4333979c4181199b7b4fab8786d16cf2846"
+};
+
+const char *SHA224_TestOutput[MDTESTCOUNT] = {
+	"d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f",
+	"abd37534c7d9a2efb9465de931cd7055ffdb8879563ae98078d6d6d5",
+	"23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
+	"2cb21c83ae2f004de7e81c3c7019cbcb65b71ab656b22d6d0c39b8eb",
+	"45a5f72c39c5cff2522eb3429799e49e5f44b356ef926bcf390dccc2",
+	"bff72b4fcb7d75e5632900ac5f90d219e05e97a7bde72e740db393d9",
+	"b50aecbe4e9bb0b57bc5f3ae760a8e01db24f203fb3cdcd13148046e",
+	"5ae55f3779c8a1204210d7ed7689f661fbe140f96f272ab79e19d470"
 };
 
 const char *SHA256_TestOutput[MDTESTCOUNT] = {

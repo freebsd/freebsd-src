@@ -9,10 +9,17 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2016
+.Dd July 9, 2018
 .Dt SHA256 3
 .Os
 .Sh NAME
+.Nm SHA224_Init ,
+.Nm SHA224_Update ,
+.Nm SHA224_Final ,
+.Nm SHA224_End ,
+.Nm SHA224_File ,
+.Nm SHA224_FileChunk ,
+.Nm SHA224_Data ,
 .Nm SHA256_Init ,
 .Nm SHA256_Update ,
 .Nm SHA256_Final ,
@@ -20,11 +27,26 @@
 .Nm SHA256_File ,
 .Nm SHA256_FileChunk ,
 .Nm SHA256_Data
-.Nd calculate the FIPS 180-2 ``SHA-256'' message digest
+.Nd calculate the FIPS 180-2 ``SHA-256'' (or SHA-224) message digest
 .Sh LIBRARY
 .Lb libmd
 .Sh SYNOPSIS
 .In sys/types.h
+.In sha224.h
+.Ft void
+.Fn SHA224_Init "SHA224_CTX *context"
+.Ft void
+.Fn SHA224_Update "SHA224_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA224_Final "unsigned char digest[32]" "SHA224_CTX *context"
+.Ft "char *"
+.Fn SHA224_End "SHA224_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA224_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA224_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA224_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .In sha256.h
 .Ft void
 .Fn SHA256_Init "SHA256_CTX *context"
@@ -119,12 +141,14 @@ after use.
 If the
 .Fa buf
 argument is non-null it must point to at least 65 characters of buffer space.
+.Pp
+SHA224 is identical SHA256, except it has slightly different initialization
+vectors, and is truncated to a shorter digest.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
 .Xr ripemd 3 ,
 .Xr sha 3 ,
-.Xr sha256 3 ,
 .Xr sha512 3 ,
 .Xr skein 3
 .Sh HISTORY
