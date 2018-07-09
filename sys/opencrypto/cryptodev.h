@@ -186,7 +186,12 @@
 #define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
 #define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
 #define	CRYPTO_SHA2_224_HMAC	32
-#define	CRYPTO_ALGORITHM_MAX	32 /* Keep updated - see below */
+#define	CRYPTO_RIPEMD160	33
+#define	CRYPTO_SHA2_224		34
+#define	CRYPTO_SHA2_256		35
+#define	CRYPTO_SHA2_384		36
+#define	CRYPTO_SHA2_512		37
+#define	CRYPTO_ALGORITHM_MAX	37 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
