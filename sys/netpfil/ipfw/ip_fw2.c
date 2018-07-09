@@ -2584,7 +2584,9 @@ do {								\
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
 			 *   not real 'actions', and are stored right
-			 *   before the 'action' part of the rule.
+			 *   before the 'action' part of the rule (one
+			 *   exception is O_SKIP_ACTION which could be
+			 *   between these opcodes and 'action' one).
 			 *   These opcodes try to install an entry in the
 			 *   state tables; if successful, we continue with
 			 *   the next opcode (match=1; break;), otherwise
@@ -2601,6 +2603,16 @@ do {								\
 			 *   further instances of these opcodes become NOPs.
 			 *   The jump to the next rule is done by setting
 			 *   l=0, cmdlen=0.
+			 *
+			 * O_SKIP_ACTION: this opcode is not a real 'action'
+			 *  either, and is stored right before the 'action'
+			 *  part of the rule, right after the O_KEEP_STATE
+			 *  opcode. It causes match failure so the real
+			 *  'action' could be executed only if the rule
+			 *  is checked via dynamic rule from the state
+			 *  table, as in such case execution starts
+			 *  from the true 'action' opcode directly.
+			 *   
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
@@ -2651,6 +2663,11 @@ do {								\
 				if (cmd->opcode == O_CHECK_STATE)
 					l = 0;	/* exit inner loop */
 				match = 1;
+				break;
+
+			case O_SKIP_ACTION:
+				match = 0;	/* skip to the next rule */
+				l = 0;		/* exit inner loop */
 				break;
 
 			case O_ACCEPT:
