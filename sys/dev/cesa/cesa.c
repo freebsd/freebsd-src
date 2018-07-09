@@ -471,26 +471,26 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 	switch (alg) {
 	case CRYPTO_MD5_HMAC:
 		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, ipad, MD5_HMAC_BLOCK_LEN);
+		MD5Update(&md5ctx, ipad, MD5_BLOCK_LEN);
 		memcpy(hin, md5ctx.state, sizeof(md5ctx.state));
 		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, opad, MD5_HMAC_BLOCK_LEN);
+		MD5Update(&md5ctx, opad, MD5_BLOCK_LEN);
 		memcpy(hout, md5ctx.state, sizeof(md5ctx.state));
 		break;
 	case CRYPTO_SHA1_HMAC:
 		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, ipad, SHA1_HMAC_BLOCK_LEN);
+		SHA1Update(&sha1ctx, ipad, SHA1_BLOCK_LEN);
 		memcpy(hin, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
 		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, opad, SHA1_HMAC_BLOCK_LEN);
+		SHA1Update(&sha1ctx, opad, SHA1_BLOCK_LEN);
 		memcpy(hout, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
 		break;
 	case CRYPTO_SHA2_256_HMAC:
 		SHA256_Init(&sha256ctx);
-		SHA256_Update(&sha256ctx, ipad, SHA2_256_HMAC_BLOCK_LEN);
+		SHA256_Update(&sha256ctx, ipad, SHA2_256_BLOCK_LEN);
 		memcpy(hin, sha256ctx.state, sizeof(sha256ctx.state));
 		SHA256_Init(&sha256ctx);
-		SHA256_Update(&sha256ctx, opad, SHA2_256_HMAC_BLOCK_LEN);
+		SHA256_Update(&sha256ctx, opad, SHA2_256_BLOCK_LEN);
 		memcpy(hout, sha256ctx.state, sizeof(sha256ctx.state));
 		break;
 	default:
@@ -1684,7 +1684,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			cs->cs_config |= CESA_CSHD_MD5;
 			break;
 		case CRYPTO_MD5_HMAC:
-			cs->cs_mblen = MD5_HMAC_BLOCK_LEN;
+			cs->cs_mblen = MD5_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_MD5_HMAC;
@@ -1698,7 +1698,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			cs->cs_config |= CESA_CSHD_SHA1;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			cs->cs_mblen = SHA1_HMAC_BLOCK_LEN;
+			cs->cs_mblen = SHA1_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
@@ -1706,7 +1706,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
 			break;
 		case CRYPTO_SHA2_256_HMAC:
-			cs->cs_mblen = SHA2_256_HMAC_BLOCK_LEN;
+			cs->cs_mblen = SHA2_256_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA2_256_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_SHA2_256_HMAC;
