@@ -117,8 +117,7 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_APL_I2C_4, "Intel Apollo Lake I2C Controller-4", IG4_APL},
 	{ PCI_CHIP_APL_I2C_5, "Intel Apollo Lake I2C Controller-5", IG4_APL},
 	{ PCI_CHIP_APL_I2C_6, "Intel Apollo Lake I2C Controller-6", IG4_APL},
-	{ PCI_CHIP_APL_I2C_7, "Intel Apollo Lake I2C Controller-7", IG4_APL},
-	{ 0, NULL, 0 },
+	{ PCI_CHIP_APL_I2C_7, "Intel Apollo Lake I2C Controller-7", IG4_APL}
 };
 
 static int
@@ -129,7 +128,7 @@ ig4iic_pci_probe(device_t dev)
 	int i;
 
 	devid = pci_get_devid(dev);
-	for (i = 0; ig4iic_pci_devices[i].devid != 0; i++) {
+	for (i = 0; i < nitems(ig4iic_pci_devices); i++) {
 		if (ig4iic_pci_devices[i].devid == devid) {
 			device_set_desc(dev, ig4iic_pci_devices[i].desc);
 			sc->version = ig4iic_pci_devices[i].version;
@@ -229,3 +228,5 @@ DRIVER_MODULE_ORDERED(ig4iic_pci, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0
 MODULE_DEPEND(ig4iic_pci, pci, 1, 1, 1);
 MODULE_DEPEND(ig4iic_pci, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(ig4iic_pci, 1);
+MODULE_PNP_INFO("W32:vendor/device", pci, ig4iic_pci, ig4iic_pci_devices,
+    sizeof(ig4iic_pci_devices[0]), nitems(ig4iic_pci_devices));
