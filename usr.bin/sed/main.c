@@ -250,6 +250,8 @@ again:
 			s = script->s;
 			state = ST_STRING;
 			goto again;
+		default:
+			__unreachable();
 		}
 	case ST_FILE:
 		if ((p = fgets(buf, n, f)) != NULL) {
