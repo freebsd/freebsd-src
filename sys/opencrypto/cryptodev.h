@@ -74,6 +74,7 @@
 #define	MD5_HASH_LEN		16
 #define	SHA1_HASH_LEN		20
 #define	RIPEMD160_HASH_LEN	20
+#define	SHA2_224_HASH_LEN	28
 #define	SHA2_256_HASH_LEN	32
 #define	SHA2_384_HASH_LEN	48
 #define	SHA2_512_HASH_LEN	64
@@ -86,6 +87,7 @@
 #define	MD5_BLOCK_LEN		64
 #define	SHA1_BLOCK_LEN		64
 #define	RIPEMD160_BLOCK_LEN	64
+#define	SHA2_224_BLOCK_LEN	64
 #define	SHA2_256_BLOCK_LEN	64
 #define	SHA2_384_BLOCK_LEN	128
 #define	SHA2_512_BLOCK_LEN	128
@@ -183,7 +185,8 @@
 #define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
 #define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
 #define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
-#define	CRYPTO_ALGORITHM_MAX	31 /* Keep updated - see below */
+#define	CRYPTO_SHA2_224_HMAC	32
+#define	CRYPTO_ALGORITHM_MAX	32 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
