@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
  * static_hints to the dynamic environment.
  */
 static bool	hintenv_merged;
-
+/* Static environment and static hints cannot change, so we'll skip known bad */
+static bool	stenv_skip;
+static bool	sthints_skip;
 /*
  * Access functions for device resources.
  */
@@ -179,17 +181,21 @@ fallback:
 			}
 			fbacklvl++;
 
-			if (fbacklvl <= FBACK_STENV &&
+			if (!stenv_skip && fbacklvl <= FBACK_STENV &&
 			    _res_checkenv(kern_envp)) {
 				hintp = kern_envp;
 				goto found;
-			}
+			} else
+				stenv_skip = true;
+
 			fbacklvl++;
 
 			/* We'll fallback to static_hints if needed/can */
-			if (fbacklvl <= FBACK_STATIC &&
+			if (!sthints_skip && fbacklvl <= FBACK_STATIC &&
 			    _res_checkenv(static_hints))
 				hintp = static_hints;
+			else
+				sthints_skip = true;
 found:
 			fbacklvl++;
 		}
