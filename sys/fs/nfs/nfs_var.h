@@ -96,6 +96,7 @@ int nfsrv_getclient(nfsquad_t, int, struct nfsclient **, struct nfsdsession *,
 int nfsrv_destroyclient(nfsquad_t, NFSPROC_T *);
 int nfsrv_destroysession(struct nfsrv_descript *, uint8_t *);
 int nfsrv_freestateid(struct nfsrv_descript *, nfsv4stateid_t *, NFSPROC_T *);
+int nfsrv_teststateid(struct nfsrv_descript *, nfsv4stateid_t *, NFSPROC_T *);
 int nfsrv_adminrevoke(struct nfsd_clid *, NFSPROC_T *);
 void nfsrv_dumpclients(struct nfsd_dumpclients *, int);
 void nfsrv_dumplocks(vnode_t, struct nfsd_dumplocks *, int, NFSPROC_T *);
@@ -233,6 +234,8 @@ int nfsrvd_destroyclientid(struct nfsrv_descript *, int,
 int nfsrvd_destroysession(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_freestateid(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_teststateid(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_notsupp(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
