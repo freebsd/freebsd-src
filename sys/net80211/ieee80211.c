@@ -276,14 +276,14 @@ null_update_chw(struct ieee80211com *ic)
 
 int
 ic_printf(struct ieee80211com *ic, const char * fmt, ...)
-{ 
+{
 	va_list ap;
 	int retval;
 
 	retval = printf("%s: ", ic->ic_name);
 	va_start(ap, fmt);
 	retval += vprintf(fmt, ap);
-	va_end(ap);  
+	va_end(ap);
 	return (retval);
 }
 
@@ -385,6 +385,15 @@ void
 ieee80211_ifdetach(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap;
+
+	/*
+	 * We use this as an indicator that ifattach never had a chance to be
+	 * called, e.g. early driver attach failed and ifdetach was called
+	 * during subsequent detach.  Never fear, for we have nothing to do
+	 * here.
+	 */
+	if (ic->ic_tq == NULL)
+		return;
 
 	mtx_lock(&ic_list_mtx);
 	LIST_REMOVE(ic, ic_next);
@@ -702,7 +711,7 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 	return 1;
 }
 
-/* 
+/*
  * Tear down vap state and reclaim the ifnet.
  * The driver is assumed to have prepared for
  * this; e.g. by turning off interrupts for the
@@ -1760,7 +1769,7 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 #define	ADD(_ic, _s, _o) \
 	ifmedia_add(media, \
 		IFM_MAKEWORD(IFM_IEEE80211, (_s), (_o), 0), 0, NULL)
-	static const u_int mopts[IEEE80211_MODE_MAX] = { 
+	static const u_int mopts[IEEE80211_MODE_MAX] = {
 	    [IEEE80211_MODE_AUTO]	= IFM_AUTO,
 	    [IEEE80211_MODE_11A]	= IFM_IEEE80211_11A,
 	    [IEEE80211_MODE_11B]	= IFM_IEEE80211_11B,
@@ -2386,13 +2395,13 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	case IEEE80211_MODE_11NA:
 	case IEEE80211_MODE_TURBO_A:
 	case IEEE80211_MODE_STURBO_A:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_11A);
 	case IEEE80211_MODE_11B:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_11B);
 	case IEEE80211_MODE_FH:
-		return findmedia(rates, nitems(rates), 
+		return findmedia(rates, nitems(rates),
 		    rate | IFM_IEEE80211_FH);
 	case IEEE80211_MODE_AUTO:
 		/* NB: ic may be NULL for some drivers */
