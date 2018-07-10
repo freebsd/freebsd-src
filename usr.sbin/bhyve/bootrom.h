@@ -33,6 +33,6 @@
 
 struct vmctx;
 
-int	bootrom_init(struct vmctx *ctx, const char *romfile);
+int bootrom_init(struct vmctx *ctx, const char *romfile);
 
 #endif

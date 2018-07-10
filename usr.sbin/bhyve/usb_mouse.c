@@ -220,16 +220,16 @@ struct umouse_bos_desc umouse_bosd = {
 		HSETW(.wTotalLength, sizeof(umouse_bosd)),
 		.bNumDeviceCaps = 1,
 	},
-        .usbssd = {
-                .bLength = sizeof(umouse_bosd.usbssd),
-                .bDescriptorType = UDESC_DEVICE_CAPABILITY,
-                .bDevCapabilityType = 3,
-                .bmAttributes = 0,
-                HSETW(.wSpeedsSupported, 0x08),
-                .bFunctionalitySupport = 3,
-                .bU1DevExitLat = 0xa,   /* dummy - not used */
-                .wU2DevExitLat = { 0x20, 0x00 },
-        }
+	.usbssd = {
+		.bLength = sizeof(umouse_bosd.usbssd),
+		.bDescriptorType = UDESC_DEVICE_CAPABILITY,
+		.bDevCapabilityType = 3,
+		.bmAttributes = 0,
+		HSETW(.wSpeedsSupported, 0x08),
+		.bFunctionalitySupport = 3,
+		.bU1DevExitLat = 0xa,   /* dummy - not used */
+		.wU2DevExitLat = { 0x20, 0x00 },
+	}
 };
 
 

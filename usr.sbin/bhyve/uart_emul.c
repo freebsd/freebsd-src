@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "uart_emul.h"
 
 #define	COM1_BASE      	0x3F8
-#define COM1_IRQ	4
+#define	COM1_IRQ	4
 #define	COM2_BASE      	0x2F8
-#define COM2_IRQ	3
+#define	COM2_IRQ	3
 
 #define	DEFAULT_RCLK	1843200
 #define	DEFAULT_BAUD	9600
@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	MSR_DELTA_MASK	0x0f
 
 #ifndef REG_SCR
-#define REG_SCR		com_scr
+#define	REG_SCR		com_scr
 #endif
 
 #define	FIFOSZ	16
