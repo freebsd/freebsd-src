@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2018
+.Dd July 9, 2018
 .Dt PNFSDSKILL 8
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 disables a pNFS data storage server (DS)
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Ar mounted-on-DS-dir
 .Sh DESCRIPTION
 The
@@ -42,6 +43,18 @@ may use this command on the metadata server (MDS) to disable use of this mirror.
 This command must be used on the MDS and the
 .Ar mounted-on-DS-dir
 must be the exact pathname used when mounting the DS on the MDS.
+Normally this command will fail if there is no valid mirror for the DS
+available.
+.Pp
+The following option is available:
+.Bl -tag -width Ds
+.It Fl f
+This option forces the DS to be disabled even if there is no valid mirror
+for the DS available.
+It should only be used to allow the
+.Xr nfsd 8
+threads to be terminated.
+.El
 .Pp
 If this command fails with
 .Dq Device not configured
