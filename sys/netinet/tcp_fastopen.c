@@ -81,6 +81,9 @@
  *                          (RDTUN, default TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT)
  *     The number of client cookie cache buckets.
  *
+ * net.inet.tcp.fastopen.ccache_list (RO)
+ *     Print the client cookie cache.
+ *
  * net.inet.tcp.fastopen.client_enable (RW, default 0)
  *     When zero, no new active (i.e., client) TFO connections can be
  *     created.  On the transition from enabled to disabled, the client
@@ -166,11 +169,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/hash.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/rmlock.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -342,6 +348,12 @@ SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, setpsk,
     CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_WR, NULL, 0,
     &sysctl_net_inet_tcp_fastopen_setpsk, "",
     "Install a new pre-shared key");
+
+static int sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_list,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, NULL, 0,
+    sysctl_net_inet_tcp_fastopen_ccache_list, "A",
+    "List of all client cookie cache entries");
 
 static VNET_DEFINE(struct rmlock, tcp_fastopen_keylock);
 #define	V_tcp_fastopen_keylock	VNET(tcp_fastopen_keylock)
@@ -1133,5 +1145,81 @@ tcp_fastopen_ccache_entry_drop(struct tcp_fastopen_ccache_entry *cce,
 	TAILQ_REMOVE(&ccb->ccb_entries, cce, cce_link);
 	ccb->ccb_num_entries--;
 	uma_zfree(V_tcp_fastopen_ccache.zone, cce);
+}
+
+static int
+sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct tcp_fastopen_ccache_bucket *ccb;
+	struct tcp_fastopen_ccache_entry *cce;
+	sbintime_t now, duration, limit;
+	const int linesize = 128;
+	int i, error, num_entries;
+	unsigned int j;
+#ifdef INET6
+	char clt_buf[INET6_ADDRSTRLEN], srv_buf[INET6_ADDRSTRLEN];
+#else
+	char clt_buf[INET_ADDRSTRLEN], srv_buf[INET_ADDRSTRLEN];
+#endif
+
+	if (jailed_without_vnet(curthread->td_ucred) != 0)
+		return (EPERM);
+
+	/* Only allow root to read the client cookie cache */
+	if (curthread->td_ucred->cr_uid != 0)
+		return (EPERM);
+
+	num_entries = 0;
+	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
+		ccb = &V_tcp_fastopen_ccache.base[i];
+		CCB_LOCK(ccb);
+		if (ccb->ccb_num_entries > 0)
+			num_entries += ccb->ccb_num_entries;
+		CCB_UNLOCK(ccb);
+	}
+	sbuf_new(&sb, NULL, linesize * (num_entries + 1), SBUF_INCLUDENUL);
+
+	sbuf_printf(&sb,
+	            "\nLocal IP address     Remote IP address     Port   MSS"
+	            " Disabled Cookie\n");
+
+	now = getsbinuptime();
+	limit = (sbintime_t)V_tcp_fastopen_path_disable_time << 32;
+	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
+		ccb = &V_tcp_fastopen_ccache.base[i];
+		CCB_LOCK(ccb);
+		TAILQ_FOREACH(cce, &ccb->ccb_entries, cce_link) {
+			if (cce->disable_time != 0) {
+				duration = now - cce->disable_time;
+				if (limit >= duration)
+					duration = limit - duration;
+				else
+					duration = 0;
+			} else
+				duration = 0;
+			sbuf_printf(&sb,
+			            "%-20s %-20s %5u %5u ",
+			            inet_ntop(cce->af, &cce->cce_client_ip,
+			                clt_buf, sizeof(clt_buf)),
+			            inet_ntop(cce->af, &cce->cce_server_ip,
+			                srv_buf, sizeof(srv_buf)),
+			            ntohs(cce->server_port),
+			            cce->server_mss);
+			if (duration > 0)
+				sbuf_printf(&sb, "%7ds ", sbintime_getsec(duration));
+			else
+				sbuf_printf(&sb, "%8s ", "No");
+			for (j = 0; j < cce->cookie_len; j++)
+				sbuf_printf(&sb, "%02x", cce->cookie[j]);
+			sbuf_putc(&sb, '\n');
+		}
+		CCB_UNLOCK(ccb);
+	}
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
+	return (error);
 }
 
