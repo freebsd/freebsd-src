@@ -8692,7 +8692,6 @@ sysctl_cpus(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 
 	return (rc);
-
 }
 
 #ifdef TCP_OFFLOAD
