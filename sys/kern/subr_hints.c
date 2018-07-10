@@ -124,7 +124,7 @@ res_find(char **hintp_cookie, int *line, int *startln,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int dyn_used = 0, fbacklvl = FBACK_MDENV, hit, i = 0, n = 0;
+	int dyn_used = 0, fbacklvl = FBACK_MDENV, i = 0, n = 0;
 	char r_name[32];
 	int r_unit;
 	char r_resname[32];
@@ -217,34 +217,30 @@ found:
 
 	cp = hintp;
 	while (cp) {
-		hit = 1;
 		(*line)++;
 		if (strncmp(cp, "hint.", 5) != 0)
-			hit = 0;
-		else
-			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s",
-			    r_name, &r_unit, r_resname, r_value);
-		/* We'll circumvent all of the checks if we already know */
-		if (hit) {
-			if (n != 4) {
-				printf("CONFIG: invalid hint '%s'\n", cp);
-				p = strchr(cp, 'h');
-				*p = 'H';
-				hit = 0;
-			}
-			if (hit && startln && *startln >= 0 && *line < *startln)
-				hit = 0;
-			if (hit && name && strcmp(name, r_name) != 0)
-				hit = 0;
-			if (hit && unit && *unit != r_unit)
-				hit = 0;
-			if (hit && resname && strcmp(resname, r_resname) != 0)
-				hit = 0;
-			if (hit && value && strcmp(value, r_value) != 0)
-				hit = 0;
-			if (hit)
-				break;
+			goto nexthint;
+		n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s", r_name, &r_unit,
+		    r_resname, r_value);
+		if (n != 4) {
+			printf("CONFIG: invalid hint '%s'\n", cp);
+			p = strchr(cp, 'h');
+			*p = 'H';
+			goto nexthint;
 		}
+		if (startln && *startln >= 0 && *line < *startln)
+			goto nexthint;
+		if (name && strcmp(name, r_name) != 0)
+			goto nexthint;
+		if (unit && *unit != r_unit)
+			goto nexthint;
+		if (resname && strcmp(resname, r_resname) != 0)
+			goto nexthint;
+		if (value && strcmp(value, r_value) != 0)
+			goto nexthint;
+		/* Successfully found a hint matching all criteria */
+		break;
+nexthint:
 		if (dyn_used) {
 			cp = kenvp[++i];
 			if (cp == NULL)
