@@ -739,14 +739,15 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func)
 		/* got scrub start cmd, resume paused scrub */
 		int err = dsl_scrub_set_pause_resume(scn->scn_dp,
 		    POOL_SCRUB_NORMAL);
-		if (err == 0)
+		if (err == 0) {
+			spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_RESUME);
 			return (ECANCELED);
-
+		}
 		return (SET_ERROR(err));
 	}
 
 	return (dsl_sync_task(spa_name(spa), dsl_scan_setup_check,
-	    dsl_scan_setup_sync, &func, 0, ZFS_SPACE_CHECK_NONE));
+	    dsl_scan_setup_sync, &func, 0, ZFS_SPACE_CHECK_EXTRA_RESERVED));
 }
 
 /* ARGSUSED */
@@ -2110,7 +2111,6 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 {
 	dsl_pool_t *dp = scn->scn_dp;
 	dsl_dataset_t *ds;
-	objset_t *os;
 
 	VERIFY3U(0, ==, dsl_dataset_hold_obj(dp, dsobj, FTAG, &ds));
 
@@ -2154,9 +2154,6 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 		goto out;
 	}
 
-	if (dmu_objset_from_ds(ds, &os))
-		goto out;
-
 	/*
 	 * Only the ZIL in the head (non-snapshot) is valid. Even though
 	 * snapshots can have ZIL block pointers (which may be the same
@@ -2166,8 +2163,14 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 	 * rather than in scan_recurse(), because the regular snapshot
 	 * block-sharing rules don't apply to it.
 	 */
-	if (!ds->ds_is_snapshot)
+	if (DSL_SCAN_IS_SCRUB_RESILVER(scn) && !dsl_dataset_is_snapshot(ds) &&
+	    ds->ds_dir != dp->dp_origin_snap->ds_dir) {
+		objset_t *os;
+		if (dmu_objset_from_ds(ds, &os) != 0) {
+			goto out;
+		}
 		dsl_scan_zil(dp, &os->os_zil_header);
+	}
 
 	/*
 	 * Iterate over the bps in this ds.
@@ -2878,22 +2881,6 @@ dsl_scan_free_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 	return (0);
 }
 
-static int
-dsl_scan_obsolete_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
-{
-	dsl_scan_t *scn = arg;
-	const dva_t *dva = &bp->blk_dva[0];
-
-	if (dsl_scan_async_block_should_pause(scn))
-		return (SET_ERROR(ERESTART));
-
-	spa_vdev_indirect_mark_obsolete(scn->scn_dp->dp_spa,
-	    DVA_GET_VDEV(dva), DVA_GET_OFFSET(dva),
-	    DVA_GET_ASIZE(dva), tx);
-	scn->scn_visited_this_txg++;
-	return (0);
-}
-
 static void
 dsl_scan_update_stats(dsl_scan_t *scn)
 {
@@ -2929,6 +2916,22 @@ dsl_scan_update_stats(dsl_scan_t *scn)
 	scn->scn_zios_this_txg = zio_count_total;
 }
 
+static int
+dsl_scan_obsolete_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
+{
+	dsl_scan_t *scn = arg;
+	const dva_t *dva = &bp->blk_dva[0];
+
+	if (dsl_scan_async_block_should_pause(scn))
+		return (SET_ERROR(ERESTART));
+
+	spa_vdev_indirect_mark_obsolete(scn->scn_dp->dp_spa,
+	    DVA_GET_VDEV(dva), DVA_GET_OFFSET(dva),
+	    DVA_GET_ASIZE(dva), tx);
+	scn->scn_visited_this_txg++;
+	return (0);
+}
+
 boolean_t
 dsl_scan_active(dsl_scan_t *scn)
 {
@@ -2950,12 +2953,51 @@ dsl_scan_active(dsl_scan_t *scn)
 	return (used != 0);
 }
 
+static boolean_t
+dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
+    uint64_t phys_birth)
+{
+	vdev_t *vd;
+
+	if (DVA_GET_GANG(dva)) {
+		/*
+		 * Gang members may be spread across multiple
+		 * vdevs, so the best estimate we have is the
+		 * scrub range, which has already been checked.
+		 * XXX -- it would be better to change our
+		 * allocation policy to ensure that all
+		 * gang members reside on the same vdev.
+		 */
+		return (B_TRUE);
+	}
+
+	vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
+
+	/*
+	 * Check if the txg falls within the range which must be
+	 * resilvered.  DVAs outside this range can always be skipped.
+	 */
+	if (!vdev_dtl_contains(vd, DTL_PARTIAL, phys_birth, 1))
+		return (B_FALSE);
+
+	/*
+	 * Check if the top-level vdev must resilver this offset.
+	 * When the offset does not intersect with a dirty leaf DTL
+	 * then it may be possible to skip the resilver IO.  The psize
+	 * is provided instead of asize to simplify the check for RAIDZ.
+	 */
+	if (!vdev_dtl_need_resilver(vd, DVA_GET_OFFSET(dva), psize))
+		return (B_FALSE);
+
+	return (B_TRUE);
+}
+
 static int
 dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 {
+	int err = 0;
 	dsl_scan_t *scn = dp->dp_scan;
 	spa_t *spa = dp->dp_spa;
-	int err = 0;
 
 	if (spa_suspend_async_destroy(spa))
 		return (0);
@@ -3092,45 +3134,6 @@ dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 	return (0);
 }
 
-static boolean_t
-dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
-    uint64_t phys_birth)
-{
-	vdev_t *vd;
-
-	if (DVA_GET_GANG(dva)) {
-		/*
-		 * Gang members may be spread across multiple
-		 * vdevs, so the best estimate we have is the
-		 * scrub range, which has already been checked.
-		 * XXX -- it would be better to change our
-		 * allocation policy to ensure that all
-		 * gang members reside on the same vdev.
-		 */
-		return (B_TRUE);
-	}
-
-	vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
-
-	/*
-	 * Check if the txg falls within the range which must be
-	 * resilvered.  DVAs outside this range can always be skipped.
-	 */
-	if (!vdev_dtl_contains(vd, DTL_PARTIAL, phys_birth, 1))
-		return (B_FALSE);
-
-	/*
-	 * Check if the top-level vdev must resilver this offset.
-	 * When the offset does not intersect with a dirty leaf DTL
-	 * then it may be possible to skip the resilver IO.  The psize
-	 * is provided instead of asize to simplify the check for RAIDZ.
-	 */
-	if (!vdev_dtl_need_resilver(vd, DVA_GET_OFFSET(dva), psize))
-		return (B_FALSE);
-
-	return (B_TRUE);
-}
-
 /*
  * This is the primary entry point for scans that is called from syncing
  * context. Scans must happen entirely during syncing context so that we
@@ -3142,9 +3145,9 @@ dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
 void
 dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 {
-	int err = 0;
 	dsl_scan_t *scn = dp->dp_scan;
 	spa_t *spa = dp->dp_spa;
+	int err = 0;
 	state_sync_type_t sync_type = SYNC_OPTIONAL;
 
 	/*
