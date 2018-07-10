@@ -1798,12 +1798,12 @@ create-world-package-${pkgname}: .PHONY
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 
-create-kernel-packages:	.PHONY
 _default_flavor=	-default
 .if make(*package*) && exists(${KSTAGEDIR}/kernel.meta)
 . if ${MK_DEBUG_FILES} != "no"
 _debug=-debug
 . endif
+create-kernel-packages:	.PHONY
 . for flavor in "" ${_debug}
 create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
