@@ -703,6 +703,7 @@ u_swap(int *stats)
  *	respect to screen updates).
  */
 
+#define NEXT_MSG_ADDLEN 5
 static char *next_msg = NULL;
 static int msglen = 0;
 /* Invariant: msglen is always the length of the message currently displayed
@@ -711,7 +712,7 @@ static int msglen = 0;
 void
 i_message(void)
 {
-    next_msg = setup_buffer(next_msg, 5);
+    next_msg = setup_buffer(next_msg, NEXT_MSG_ADDLEN);
 
     while (lastline < y_message)
     {
@@ -960,7 +961,8 @@ new_message(int type, const char *msgfmt, ...)
     va_start(args, msgfmt);
 
     /* first, format the message */
-    vsnprintf(next_msg, strlen(next_msg), msgfmt, args);
+    vsnprintf(next_msg, setup_buffer_bufsiz + NEXT_MSG_ADDLEN,
+		    msgfmt, args);
 
     va_end(args);
 
@@ -1343,6 +1345,8 @@ i_uptime(struct timeval *bt, time_t *tod)
     }
 }
 
+#define SETUPBUFFER_REQUIRED_ADDBUFSIZ 2
+
 static char *
 setup_buffer(char *buffer, int addlen)
 {
@@ -1350,12 +1354,15 @@ setup_buffer(char *buffer, int addlen)
 
 	if (NULL == buffer) {
 		setup_buffer_bufsiz = screen_width;
-		b = calloc(setup_buffer_bufsiz + addlen, sizeof(char));
+		b = calloc(setup_buffer_bufsiz + addlen +
+				SETUPBUFFER_REQUIRED_ADDBUFSIZ,
+				sizeof(char));
 	} else {
 		if (screen_width > setup_buffer_bufsiz) {
 			setup_buffer_bufsiz = screen_width;
 			free(buffer);
-			b = calloc(setup_buffer_bufsiz + addlen,
+			b = calloc(setup_buffer_bufsiz + addlen +
+					SETUPBUFFER_REQUIRED_ADDBUFSIZ,
 					sizeof(char));
 		} else {
 			b = buffer;
