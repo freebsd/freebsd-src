@@ -69,7 +69,6 @@ static int max_topn;		/* maximum displayable processes */
 struct process_select ps;
 const char * myname = "top";
 pid_t mypid;
-bool utf8flag = false;
 
 /* pointers to display routines */
 static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
@@ -606,14 +605,6 @@ main(int argc, char *argv[])
 	sleep(3 * warnings);
 	fputc('\n', stderr);
     }
-
-	/* check if you are using UTF-8 */
-	char *env_lang;
-	if (NULL != (env_lang = getenv("LANG")) && 
-		0 != strcmp(env_lang, "") &&
-		NULL != strstr(env_lang, "UTF-8")) {
-		utf8flag = true;
-	}
 
 restart:
 
