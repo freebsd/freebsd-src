@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
  * has already been setup (dynamic_kenv) and that we have added any supplied
  * static_hints to the dynamic environment.
  */
-static int	hintenv_merged;
+static bool	hintenv_merged;
 
 /*
  * Access functions for device resources.
@@ -84,7 +84,7 @@ static_hints_to_env(void *data __unused)
 		free(line, M_TEMP);
 		cp += i + 1;
 	}
-	hintenv_merged = 1;
+	hintenv_merged = true;
 }
 
 /* Any time after dynamic env is setup */
@@ -124,13 +124,14 @@ res_find(char **hintp_cookie, int *line, int *startln,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int dyn_used = 0, fbacklvl = FBACK_MDENV, i = 0, n = 0;
+	int fbacklvl = FBACK_MDENV, i = 0, n = 0;
 	char r_name[32];
 	int r_unit;
 	char r_resname[32];
 	char r_value[128];
 	const char *s, *cp;
 	char *hintp, *p;
+	bool dyn_used = false;
 
 
 	/*
@@ -157,7 +158,7 @@ res_find(char **hintp_cookie, int *line, int *startln,
 				}
 			}
 			mtx_unlock(&kenv_lock);
-			dyn_used = 1;
+			dyn_used = true;
 		} else {
 			/*
 			 * We'll have a chance to keep coming back here until
@@ -199,7 +200,7 @@ found:
 	} else {
 		hintp = *hintp_cookie;
 		if (hintenv_merged && hintp == kenvp[0])
-			dyn_used = 1;
+			dyn_used = true;
 		else
 			/*
 			 * If we aren't using the dynamic environment, we need
