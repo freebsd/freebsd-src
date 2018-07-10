@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2018
+.Dd July 10, 2018
 .Dt PNFS 4
 .Os
 .Sh NAME
@@ -67,7 +67,8 @@ It is for a byte range of a file and is either Read or Read/Write.
 For the FreeBSD server, a layout covers all bytes of a file.
 A layout may be recalled by the MDS using a LayoutRecall callback.
 When a client returns a layout via the LayoutReturn operation it can
-indicate that error(s) were encountered while doing I/O on the DS.
+indicate that error(s) were encountered while doing I/O on the DS,
+at least for certain layout types such as the Flexible File Layout.
 .Pp
 The FreeBSD client and server supports two layout types.
 .Pp
@@ -94,7 +95,9 @@ For a non-mirrored configuration, the FreeBSD server will issue File Layout
 layouts by default.
 However that default can be set to the Flexible File Layout by setting the
 .Xr sysctl 1
-sysctl ``vfs.nfsd.default_flexfile'' to one.
+sysctl
+.Dq vfs.nfsd.default_flexfile
+to one.
 Mirrored server configurations will only issue Flexible File Layouts.
 .Tn pNFS
 clients mount the MDS as they would a single NFS server.
@@ -115,14 +118,14 @@ Each of these files will also have two extended attributes in the system
 attribute name space:
 .Bd -literal -offset indent
 pnfsd.dsfile - This extended attrbute stores the information that the
-    MDS needs to find the data file on a DS for this file.
+    MDS needs to find the data file on a DS(s) for this file.
 pnfsd.dsattr - This extended attribute stores the Size, AccessTime,
     ModifyTime and Change attributes for the file.
 .Ed
 .Pp
 For each regular (VREG) file, the MDS creates a data file on one
 (or on N of them for the mirrored case, where N is the mirror_level)
-of the DSs where the file's data will be stored.
+of the DS(s) where the file's data will be stored.
 The name of this file is
 the file handle of the file on the MDS in hexadecimal at time of file creation.
 The data file will have the same file ownership, mode and NFSv4 ACL
@@ -143,6 +146,17 @@ For the non-pNFS aware client, the MDS will perform I/O operations on the approp
 a proxy for the non-pNFS aware client.
 This is also true for NFSv3 and NFSv4.0 mounts, since these are always non-pNFS
 aware.
+.Pp
+It is possible to assign a DS to an MDS exported file system so that it will
+store data for files on the MDS exported file system.
+If a DS is not assigned to an MDS exported file system, it will store data
+for files on all exported file systems on the MDS.
+.Pp
+If mirroring is enabled, the pNFS service will continue to function when
+DS(s) have failed, so long is there is at least one DS still operational
+that stores data for files on all of the MDS exported file systems.
+After a disabled mirrored DS is repaired, it is possible to recover the DS
+as a mirror while the pNFS service continues to function.
 .Pp
 See
 .Bd -literal -offset indent
