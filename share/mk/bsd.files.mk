@@ -80,7 +80,7 @@ _${group}FILES+= ${file}
 
 
 installdirs-${group}:
-	@echo installing dirs ${group}DIR ${${group}DIR}
+	@${ECHO} installing dirs ${group}DIR ${${group}DIR}
 .for dir in ${${group}DIR}
 .if defined(NO_ROOT)
 	${INSTALL} ${${group}TAG_ARGS} -d ${DESTDIR}${dir}
