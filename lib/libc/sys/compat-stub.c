@@ -54,3 +54,5 @@ __sym_compat(symbol, __compat_enosys ## symbol, version)
 
 __compat_nosys(netbsd_lchown, FBSD_1.0);
 __compat_nosys(netbsd_msync, FBSD_1.0);
+__compat_nosys(numa_getaffinity, FBSD_1.4);
+__compat_nosys(numa_setaffinity, FBSD_1.4);

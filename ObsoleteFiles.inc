@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180710: old numa cleanup
+OLD_FILES+=usr/include/sys/numa.h
+OLD_FILES+=usr/share/man/man2/numa_getaffinity.2.gz
+OLD_FILES+=usr/share/man/man2/numa_setaffinity.2.gz
+OLD_FILES+=usr/share/man/man1/numactl.1.gz
+OLD_FILES+=usr/bin/numactl
 # 20180630: new clang import which bumps version from 6.0.0 to 6.0.1.
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/asan_interface.h
