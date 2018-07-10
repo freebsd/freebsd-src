@@ -226,9 +226,9 @@
 #define	FREEBSD32_SYS_freebsd32_lio_listio	257
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
-#define	FREEBSD32_SYS_netbsd_lchown	275
+				/* 275 is obsolete netbsd_lchown */
 #define	FREEBSD32_SYS_freebsd32_lutimes	276
-#define	FREEBSD32_SYS_netbsd_msync	277
+				/* 277 is obsolete netbsd_msync */
 #define	FREEBSD32_SYS_freebsd11_nstat	278
 #define	FREEBSD32_SYS_freebsd11_nfstat	279
 #define	FREEBSD32_SYS_freebsd11_nlstat	280
