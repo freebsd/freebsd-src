@@ -3985,12 +3985,12 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 {
 
 	xso->xso_len = sizeof *xso;
-	xso->xso_so = (kvaddr_t)(uintptr_t)so;
+	xso->xso_so = (uintptr_t)so;
 	xso->so_type = so->so_type;
 	xso->so_options = so->so_options;
 	xso->so_linger = so->so_linger;
 	xso->so_state = so->so_state;
-	xso->so_pcb = (kvaddr_t)(uintptr_t)so->so_pcb;
+	xso->so_pcb = (uintptr_t)so->so_pcb;
 	xso->xso_protocol = so->so_proto->pr_protocol;
 	xso->xso_family = so->so_proto->pr_domain->dom_family;
 	xso->so_timeo = so->so_timeo;

@@ -409,7 +409,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
 		xinpcb.fragmentation_point = inp->sctp_frag_point;
-		xinpcb.socket = (kvaddr_t)(uintptr_t)inp->sctp_socket;
+		xinpcb.socket = (uintptr_t)inp->sctp_socket;
 		so = inp->sctp_socket;
 		if ((so == NULL) ||
 		    (!SCTP_IS_LISTENING(inp)) ||
