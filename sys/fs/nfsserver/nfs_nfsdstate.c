@@ -6078,6 +6078,32 @@ nfsrv_freestateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 }
 
 /*
+ * Test a stateid.
+ */
+int
+nfsrv_teststateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
+    NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	struct nfsstate *stp;
+	int error;
+
+	NFSLOCKSTATE();
+	/*
+	 * Look up the stateid
+	 */
+	error = nfsrv_getclient((nfsquad_t)((u_quad_t)0), CLOPS_RENEW, &clp,
+	    NULL, (nfsquad_t)((u_quad_t)0), 0, nd, p);
+	if (error == 0)
+		error = nfsrv_getstate(clp, stateidp, 0, &stp);
+	if (error == 0 && stateidp->seqid != 0 &&
+	    SEQ_LT(stateidp->seqid, stp->ls_stateid.seqid))
+		error = NFSERR_OLDSTATEID;
+	NFSUNLOCKSTATE();
+	return (error);
+}
+
+/*
  * Generate the xdr for an NFSv4.1 CBSequence Operation.
  */
 static int
