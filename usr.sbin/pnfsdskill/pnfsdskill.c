@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,6 +45,11 @@ __FBSDID("$FreeBSD$");
 
 static void usage(void);
 
+static struct option longopts[] = {
+	{ "force",	no_argument,	NULL,	'f'	},
+	{ NULL,		0,		NULL,	0	}
+};
+
 /*
  * This program disables use of a DS mirror.  The "dspath" command line
  * argument must be an exact match for the mounted-on path of the DS.
@@ -54,23 +60,39 @@ int
 main(int argc, char *argv[])
 {
 	struct nfsd_pnfsd_args pnfsdarg;
+	int ch, force;
 
-	if (argc != 2)
-		usage();
 	if (geteuid() != 0)
 		errx(1, "Must be run as root/su");
+	force = 0;
+	while ((ch = getopt_long(argc, argv, "f", longopts, NULL)) != -1) {
+		switch (ch) {
+		case 'f':
+			force = 1;
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+	if (argc != 1)
+		usage();
 
-	pnfsdarg.op = PNFSDOP_DELDSSERVER;
-	pnfsdarg.dspath = argv[1];
+	if (force != 0)
+		pnfsdarg.op = PNFSDOP_FORCEDELDS;
+	else
+		pnfsdarg.op = PNFSDOP_DELDSSERVER;
+	pnfsdarg.dspath = *argv;
 	if (nfssvc(NFSSVC_PNFSDS, &pnfsdarg) < 0)
-		err(1, "Can't kill %s", argv[1]);
+		err(1, "Can't kill %s", *argv);
 }
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "pnfsdsfile [filepath]\n");
+	fprintf(stderr, "pnfsdsfile [-f] mounted-on-DS-dir\n");
 	exit(1);
 }
 
