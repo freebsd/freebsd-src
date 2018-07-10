@@ -231,9 +231,9 @@
 #define	SYS_lio_listio	257
 #define	SYS_freebsd11_getdents	272
 #define	SYS_lchmod	274
-#define	SYS_netbsd_lchown	275
+				/* 275 is obsolete netbsd_lchown */
 #define	SYS_lutimes	276
-#define	SYS_netbsd_msync	277
+				/* 277 is obsolete netbsd_msync */
 #define	SYS_freebsd11_nstat	278
 #define	SYS_freebsd11_nfstat	279
 #define	SYS_freebsd11_nlstat	280
