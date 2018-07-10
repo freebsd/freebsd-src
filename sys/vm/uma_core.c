@@ -1186,13 +1186,12 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	struct pcpu *pc;
 #endif
 
-	TAILQ_INIT(&alloctail);
-	MPASS(bytes == (mp_maxid+1)*PAGE_SIZE);
-	*pflag = UMA_SLAB_KERNEL;
+	MPASS(bytes == (mp_maxid + 1) * PAGE_SIZE);
 
+	TAILQ_INIT(&alloctail);
 	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-		((wait & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
-		 VM_ALLOC_NOWAIT);
+	    malloc2vm_flags(wait);
+	*pflag = UMA_SLAB_KERNEL;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
 			p = vm_page_alloc(NULL, 0, flags);
@@ -2328,10 +2327,10 @@ uma_zalloc_pcpu_arg(uma_zone_t zone, void *udata, int flags)
 
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
 #endif
-	item = uma_zalloc_arg(zone, udata, flags &~ M_ZERO);
+	item = uma_zalloc_arg(zone, udata, flags & ~M_ZERO);
 	if (item != NULL && (flags & M_ZERO)) {
 #ifdef SMP
-		CPU_FOREACH(i)
+		for (i = 0; i <= mp_maxid; i++)
 			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
 #else
 		bzero(item, zone->uz_size);
