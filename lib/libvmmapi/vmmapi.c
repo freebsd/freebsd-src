@@ -83,19 +83,19 @@ struct vmctx {
 static int
 vm_device_open(const char *name)
 {
-        int fd, len;
-        char *vmfile;
+	int fd, len;
+	char *vmfile;
 
 	len = strlen("/dev/vmm/") + strlen(name) + 1;
 	vmfile = malloc(len);
 	assert(vmfile != NULL);
 	snprintf(vmfile, len, "/dev/vmm/%s", name);
 
-        /* Open the device file */
-        fd = open(vmfile, O_RDWR, 0);
+	/* Open the device file */
+	fd = open(vmfile, O_RDWR, 0);
 
 	free(vmfile);
-        return (fd);
+	return (fd);
 }
 
 int
@@ -840,7 +840,7 @@ vm_set_capability(struct vmctx *ctx, int vcpu, enum vm_cap_type cap, int val)
 	vmcap.cpuid = vcpu;
 	vmcap.captype = cap;
 	vmcap.capval = val;
-	
+
 	return (ioctl(ctx->fd, VM_SET_CAPABILITY, &vmcap));
 }
 
@@ -1457,4 +1457,3 @@ vm_get_ioctls(size_t *len)
 	*len = nitems(vm_ioctl_cmds);
 	return (NULL);
 }
-

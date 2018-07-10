@@ -2210,12 +2210,12 @@ pci_xhci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 
 	sc = pi->pi_arg;
 
-        assert(baridx == 0);
+	assert(baridx == 0);
 
 
-        pthread_mutex_lock(&sc->mtx);
+	pthread_mutex_lock(&sc->mtx);
 	if (offset < XHCI_CAPLEN)	/* read only registers */
-                WPRINTF(("pci_xhci: write RO-CAPs offset %ld\r\n", offset));
+		WPRINTF(("pci_xhci: write RO-CAPs offset %ld\r\n", offset));
 	else if (offset < sc->dboff)
 		pci_xhci_hostop_write(sc, offset, value);
 	else if (offset < sc->rtsoff)
@@ -2223,9 +2223,9 @@ pci_xhci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	else if (offset < sc->regsend)
 		pci_xhci_rtsregs_write(sc, offset, value);
 	else
-                WPRINTF(("pci_xhci: write invalid offset %ld\r\n", offset));
+		WPRINTF(("pci_xhci: write invalid offset %ld\r\n", offset));
 
-        pthread_mutex_unlock(&sc->mtx);
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 static uint64_t
@@ -2433,9 +2433,9 @@ pci_xhci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-        assert(baridx == 0);
+	assert(baridx == 0);
 
-        pthread_mutex_lock(&sc->mtx);
+	pthread_mutex_lock(&sc->mtx);
 	if (offset < XHCI_CAPLEN)
 		value = pci_xhci_hostcap_read(sc, offset);
 	else if (offset < sc->dboff)
@@ -2448,10 +2448,10 @@ pci_xhci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		value = pci_xhci_xecp_read(sc, offset);
 	else {
 		value = 0;
-                WPRINTF(("pci_xhci: read invalid offset %ld\r\n", offset));
+		WPRINTF(("pci_xhci: read invalid offset %ld\r\n", offset));
 	}
 
-        pthread_mutex_unlock(&sc->mtx);
+	pthread_mutex_unlock(&sc->mtx);
 
 	switch (size) {
 	case 1:

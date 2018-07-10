@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	RTC_HMEM_SB	0x5c
 #define	RTC_HMEM_MSB	0x5d
 
-#define m_64KB		(64*1024)
+#define	m_64KB		(64*1024)
 #define	m_16MB		(16*1024*1024)
 #define	m_4GB		(4ULL*1024*1024*1024)
 

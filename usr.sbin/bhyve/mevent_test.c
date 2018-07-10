@@ -199,25 +199,25 @@ acceptor(void *param)
 	int s;
 	static int first;
 
-        if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-                perror("socket");
-                exit(1);
-        }
+	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("socket");
+		exit(1);
+	}
 
-        sin.sin_len = sizeof(sin);
-        sin.sin_family = AF_INET;
-        sin.sin_addr.s_addr = htonl(INADDR_ANY);
-        sin.sin_port = htons(TEST_PORT);
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_port = htons(TEST_PORT);
 
-        if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-                perror("bind");
-                exit(1);
-        }
+	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+		perror("bind");
+		exit(1);
+	}
 
-        if (listen(s, 1) < 0) {
-                perror("listen");
-                exit(1);
-        }
+	if (listen(s, 1) < 0) {
+		perror("listen");
+		exit(1);
+	}
 
 	(void) mevent_add(s, EVF_READ, acceptor_callback, NULL);
 
