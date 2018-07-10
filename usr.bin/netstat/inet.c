@@ -159,12 +159,12 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 
 	bzero(xso, sizeof *xso);
 	xso->xso_len = sizeof *xso;
-	xso->xso_so = (kvaddr_t)(long)so;
+	xso->xso_so = (uintptr_t)so;
 	xso->so_type = so->so_type;
 	xso->so_options = so->so_options;
 	xso->so_linger = so->so_linger;
 	xso->so_state = so->so_state;
-	xso->so_pcb = (kvaddr_t)(long)so->so_pcb;
+	xso->so_pcb = (uintptr_t)so->so_pcb;
 	if (kread((uintptr_t)so->so_proto, &proto, sizeof(proto)) != 0)
 		return (-1);
 	xso->xso_protocol = proto.pr_protocol;
