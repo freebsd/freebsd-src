@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
  *	- make bzip2/compress -v/-t/-l support work as well as possible
  */
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -1016,10 +1017,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 					maybe_warnx("truncated input");
 					goto stop_and_fail;
 				}
-				origcrc = ((unsigned)z.next_in[0] & 0xff) |
-					((unsigned)z.next_in[1] & 0xff) << 8 |
-					((unsigned)z.next_in[2] & 0xff) << 16 |
-					((unsigned)z.next_in[3] & 0xff) << 24;
+				origcrc = le32dec(&z.next_in[0]);
 				if (origcrc != crc) {
 					maybe_warnx("invalid compressed"
 					     " data--crc error");
@@ -1047,10 +1045,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 					maybe_warnx("truncated input");
 					goto stop_and_fail;
 				}
-				origlen = ((unsigned)z.next_in[0] & 0xff) |
-					((unsigned)z.next_in[1] & 0xff) << 8 |
-					((unsigned)z.next_in[2] & 0xff) << 16 |
-					((unsigned)z.next_in[3] & 0xff) << 24;
+				origlen = le32dec(&z.next_in[0]);
 
 				if (origlen != out_sub_tot) {
 					maybe_warnx("invalid compressed"
@@ -1497,7 +1492,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			goto lose;
 		}
 		infile_newdata(rv);
-		timestamp = ts[3] << 24 | ts[2] << 16 | ts[1] << 8 | ts[0];
+		timestamp = le32dec(&ts[0]);
 
 		if (header1[3] & ORIG_NAME) {
 			rbytes = pread(fd, name, sizeof(name) - 1, GZIP_ORIGNAME);
@@ -2177,16 +2172,10 @@ print_list(int fd, off_t out, const char *outfile, time_t ts)
 				maybe_warnx("read of uncompressed size");
 
 			else {
-				usize = buf[4];
-				usize |= (unsigned int)buf[5] << 8;
-				usize |= (unsigned int)buf[6] << 16;
-				usize |= (unsigned int)buf[7] << 24;
+				usize = le32dec(&buf[4]);
 				in = (off_t)usize;
 #ifndef SMALL
-				crc = buf[0];
-				crc |= (unsigned int)buf[1] << 8;
-				crc |= (unsigned int)buf[2] << 16;
-				crc |= (unsigned int)buf[3] << 24;
+				crc = le32dec(&buf[0]);
 #endif
 			}
 		}
