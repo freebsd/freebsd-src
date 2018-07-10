@@ -41,23 +41,23 @@
  */
 #define	RB_AUTOBOOT	0	/* flags for system auto-booting itself */
 
-#define	RB_ASKNAME	0x001	/* ask for file name to reboot from */
+#define	RB_ASKNAME	0x001	/* force prompt of device of root filesystem */
 #define	RB_SINGLE	0x002	/* reboot to single user only */
 #define	RB_NOSYNC	0x004	/* dont sync before reboot */
 #define	RB_HALT		0x008	/* don't reboot, just halt */
-#define	RB_INITNAME	0x010	/* name given for /etc/init (unused) */
+#define	RB_INITNAME	0x010	/* Unused placeholder to specify init path */
 #define	RB_DFLTROOT	0x020	/* use compiled-in rootdev */
 #define	RB_KDB		0x040	/* give control to kernel debugger */
 #define	RB_RDONLY	0x080	/* mount root fs read-only */
 #define	RB_DUMP		0x100	/* dump kernel memory before reboot */
-#define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
+#define	RB_MINIROOT	0x200	/* Unused placeholder */
 #define	RB_VERBOSE	0x800	/* print all potentially useful info */
 #define	RB_SERIAL	0x1000	/* use serial port as console */
 #define	RB_CDROM	0x2000	/* use cdrom as root */
 #define	RB_POWEROFF	0x4000	/* turn the power off if possible */
 #define	RB_GDB		0x8000	/* use GDB remote debugger instead of DDB */
 #define	RB_MUTE		0x10000	/* start up with the console muted */
-#define	RB_SELFTEST	0x20000	/* don't complete the boot; do selftest */
+#define	RB_SELFTEST	0x20000	/* unused placeholder */
 #define	RB_RESERVED1	0x40000	/* reserved for internal use of boot blocks */
 #define	RB_RESERVED2	0x80000	/* reserved for internal use of boot blocks */
 #define	RB_PAUSE	0x100000 /* pause after each output line during probe */
