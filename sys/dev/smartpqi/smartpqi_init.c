@@ -96,17 +96,17 @@ static int pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	softs->ib_spanning_supported = iu_layer_desc->ib_spanning_supported;
 	softs->ob_spanning_supported = iu_layer_desc->ob_spanning_supported;
 
-	DBG_INFO("softs->pqi_dev_cap.max_iqs: %d\n", softs->pqi_dev_cap.max_iqs);
-	DBG_INFO("softs->pqi_dev_cap.max_iq_elements: %d\n", softs->pqi_dev_cap.max_iq_elements);
-	DBG_INFO("softs->pqi_dev_cap.max_iq_elem_len: %d\n", softs->pqi_dev_cap.max_iq_elem_len);
-	DBG_INFO("softs->pqi_dev_cap.min_iq_elem_len: %d\n", softs->pqi_dev_cap.min_iq_elem_len);
-	DBG_INFO("softs->pqi_dev_cap.max_oqs: %d\n", softs->pqi_dev_cap.max_oqs);
-	DBG_INFO("softs->pqi_dev_cap.max_oq_elements: %d\n", softs->pqi_dev_cap.max_oq_elements);
-	DBG_INFO("softs->pqi_dev_cap.max_oq_elem_len: %d\n", softs->pqi_dev_cap.max_oq_elem_len);
-	DBG_INFO("softs->pqi_dev_cap.intr_coales_time_granularity: %d\n", softs->pqi_dev_cap.intr_coales_time_granularity);
-	DBG_INFO("softs->max_ib_iu_length_per_fw: %d\n", softs->max_ib_iu_length_per_fw);
-	DBG_INFO("softs->ib_spanning_supported: %d\n", softs->ib_spanning_supported);
-	DBG_INFO("softs->ob_spanning_supported: %d\n", softs->ob_spanning_supported);
+	DBG_INIT("softs->pqi_dev_cap.max_iqs: %d\n", softs->pqi_dev_cap.max_iqs);
+	DBG_INIT("softs->pqi_dev_cap.max_iq_elements: %d\n", softs->pqi_dev_cap.max_iq_elements);
+	DBG_INIT("softs->pqi_dev_cap.max_iq_elem_len: %d\n", softs->pqi_dev_cap.max_iq_elem_len);
+	DBG_INIT("softs->pqi_dev_cap.min_iq_elem_len: %d\n", softs->pqi_dev_cap.min_iq_elem_len);
+	DBG_INIT("softs->pqi_dev_cap.max_oqs: %d\n", softs->pqi_dev_cap.max_oqs);
+	DBG_INIT("softs->pqi_dev_cap.max_oq_elements: %d\n", softs->pqi_dev_cap.max_oq_elements);
+	DBG_INIT("softs->pqi_dev_cap.max_oq_elem_len: %d\n", softs->pqi_dev_cap.max_oq_elem_len);
+	DBG_INIT("softs->pqi_dev_cap.intr_coales_time_granularity: %d\n", softs->pqi_dev_cap.intr_coales_time_granularity);
+	DBG_INIT("softs->max_ib_iu_length_per_fw: %d\n", softs->max_ib_iu_length_per_fw);
+	DBG_INIT("softs->ib_spanning_supported: %d\n", softs->ib_spanning_supported);
+	DBG_INIT("softs->ob_spanning_supported: %d\n", softs->ob_spanning_supported);
 	
 
 	os_mem_free(softs, (void *)capability,
@@ -165,11 +165,11 @@ static int pqisrc_allocate_rcb(pqisrc_softstate_t *softs)
 	/* Set maximum outstanding requests */
 	/* The valid tag values are from 1, 2, ..., softs->max_outstanding_io
 	 * The rcb will be accessed by using the tag as index
-     * As 0 tag index is not used, we need to allocate one extra.
+	 * * As 0 tag index is not used, we need to allocate one extra.
 	 */
 	softs->max_outstanding_io = softs->pqi_cap.max_outstanding_io;
 	num_req = softs->max_outstanding_io + 1;
-	DBG_INFO("Max Outstanding IO reset to %d\n", num_req);
+	DBG_INIT("Max Outstanding IO reset to %d\n", num_req);
 
 	alloc_size = num_req * sizeof(rcb_t);
 
@@ -225,7 +225,7 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	DBG_INFO("softs->intr_count : %d  softs->num_cpus_online : %d", 
+	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d", 
 		softs->intr_count, softs->num_cpus_online);
 	
 	if (softs->intr_count == 1 || softs->num_cpus_online == 1) {
@@ -241,16 +241,14 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 		softs->share_opq_and_eventq = false;
 	}
 
-#ifdef MULTIPLE_MSIX
 	/* 
 	 * softs->num_cpus_online is set as number of physical CPUs,
 	 * So we can have more queues/interrupts .
 	 */
 	if (softs->intr_count > 1)	 
 		softs->share_opq_and_eventq = false;
-#endif
 	
-	DBG_INFO("softs->num_op_obq : %d\n",softs->num_op_obq);
+	DBG_INIT("softs->num_op_obq : %d\n",softs->num_op_obq);
 
 	softs->num_op_raid_ibq = softs->num_op_obq;
 	softs->num_op_aio_ibq = softs->num_op_raid_ibq;
@@ -286,10 +284,10 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 				sizeof(sgt_t)) +
 				MAX_EMBEDDED_SG_IN_FIRST_IU;
 
-	DBG_INFO("softs->max_ib_iu_length: %d\n", softs->max_ib_iu_length);
-	DBG_INFO("softs->num_elem_per_op_ibq: %d\n", softs->num_elem_per_op_ibq);
-	DBG_INFO("softs->num_elem_per_op_obq: %d\n", softs->num_elem_per_op_obq);
-	DBG_INFO("softs->max_sg_per_iu: %d\n", softs->max_sg_per_iu);
+	DBG_INIT("softs->max_ib_iu_length: %d\n", softs->max_ib_iu_length);
+	DBG_INIT("softs->num_elem_per_op_ibq: %d\n", softs->num_elem_per_op_ibq);
+	DBG_INIT("softs->num_elem_per_op_obq: %d\n", softs->num_elem_per_op_obq);
+	DBG_INIT("softs->max_sg_per_iu: %d\n", softs->max_sg_per_iu);
 
 	DBG_FUNC("OUT\n");
 }
@@ -479,7 +477,7 @@ int pqisrc_wait_for_pqi_reset_completion(pqisrc_softstate_t *softs)
 
 	max_timeout = (val & 0xFFFF00000000) >> 32;
 
-	DBG_INFO("max_timeout for PQI reset completion in 100 msec units = %u\n", max_timeout);
+	DBG_INIT("max_timeout for PQI reset completion in 100 msec units = %u\n", max_timeout);
 
 	while(1) {
 		if (pqi_reset_timeout++ == max_timeout) {
@@ -566,6 +564,8 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 		goto err_out;
 	}
 	
+	softs->intr_type = INTR_TYPE_NONE;	
+
 	/* Get the interrupt count, type, priority available from OS */
 	ret = os_get_intr_config(softs);
 	if (ret) {
@@ -573,7 +573,15 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 			ret);
 		goto err_out;
 	}
-	
+
+	/*Enable/Set Legacy INTx Interrupt mask clear pqi register,
+	 *if allocated interrupt is legacy type.
+	 */
+	if (INTR_TYPE_FIXED == softs->intr_type) {
+		pqisrc_configure_legacy_intx(softs, true);
+		sis_enable_intx(softs);
+	}
+
 	/* Create Admin Queue pair*/		
 	ret = pqisrc_create_admin_queue(softs);
 	if(ret) {
@@ -639,7 +647,7 @@ int pqisrc_force_sis(pqisrc_softstate_t *softs)
 	int ret = PQI_STATUS_SUCCESS;
 
 	if (SIS_IS_KERNEL_PANIC(softs)) {
-		DBG_INFO("Controller FW is not runnning");
+		DBG_INIT("Controller FW is not runnning");
 		return PQI_STATUS_FAILURE;
 	}
 
@@ -652,7 +660,7 @@ int pqisrc_force_sis(pqisrc_softstate_t *softs)
 		return ret;
 	}
 	/* Disable interrupts ? */
-	sis_disable_msix(softs);
+	sis_disable_interrupt(softs);
 
 	/* reset pqi, this will delete queues */
 	ret = pqi_reset(softs);
@@ -670,14 +678,54 @@ int pqisrc_force_sis(pqisrc_softstate_t *softs)
 	return ret;	
 }
 
+int pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
+{
+	int ret = PQI_STATUS_SUCCESS;
+	int tmo = PQI_CMND_COMPLETE_TMO;
+	
+	COND_WAIT((softs->taglist.num_elem == softs->max_outstanding_io), tmo);
+	if (!tmo) {
+		DBG_ERR("Pending commands %x!!!",softs->taglist.num_elem);
+		ret = PQI_STATUS_TIMEOUT;
+	}
+	return ret;
+}
+
+void pqisrc_complete_internal_cmds(pqisrc_softstate_t *softs)
+{
+	int tag = 0;
+	rcb_t *rcb;
+	
+	for (tag = 1; tag <= softs->max_outstanding_io; tag++) {
+		rcb = &softs->rcb[tag];
+		if(rcb->req_pending && is_internal_req(rcb)) {
+			rcb->status = REQUEST_FAILED;
+			rcb->req_pending = false;
+		}
+	}
+}
+
 /*
  * Uninitialize the resources used during PQI initialization.
  */
 void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 {
-	int i;
+	int i, ret;
+
 	DBG_FUNC("IN\n");
-    
+	
+	/* Wait for any rescan to finish */
+	pqisrc_wait_for_rescan_complete(softs);
+
+	/* Wait for commands to complete */
+	ret = pqisrc_wait_for_cmnd_complete(softs);
+	
+	/* Complete all pending commands. */
+	if(ret != PQI_STATUS_SUCCESS) {
+		pqisrc_complete_internal_cmds(softs);
+		os_complete_outstanding_cmds_nodevice(softs);
+	}
+
     if(softs->devlist_lockcreated==true){    
         os_uninit_spinlock(&softs->devlist_lock);
         softs->devlist_lockcreated = false;
@@ -701,9 +749,6 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	os_dma_mem_free(softs, &softs->op_ibq_dma_mem);
 	os_dma_mem_free(softs, &softs->op_obq_dma_mem);
 	os_dma_mem_free(softs, &softs->event_q_dma_mem);
-
-	/* Complete all pending commands. */
-	os_complete_outstanding_cmds_nodevice(softs);
 	
 	/* Free  rcb */
 	pqisrc_free_rcb(softs, softs->max_outstanding_io + 1);
@@ -711,10 +756,10 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	/* Free request id lists */
 	pqisrc_destroy_taglist(softs,&softs->taglist);
 
-    if(softs->admin_ib_queue.lockcreated==true){
-	OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);	
-        softs->admin_ib_queue.lockcreated = false;
-    }
+	if(softs->admin_ib_queue.lockcreated==true){
+		OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);	
+        	softs->admin_ib_queue.lockcreated = false;
+	}
 
 	/* Free Admin Queue */
 	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);
@@ -744,6 +789,12 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 	if (ret) {
 		DBG_ERR("SIS Init failed with error %d\n", ret);
 		goto err_out;
+	}
+
+	ret = os_create_semaphore("scan_lock", 1, &softs->scan_lock);
+	if(ret != PQI_STATUS_SUCCESS){
+		DBG_ERR(" Failed to initialize scan lock\n");
+		goto err_scan_lock;
 	}
 
 	/* Init the PQI interface */
@@ -798,12 +849,6 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 	}
 	softs->devlist_lockcreated = true;
 	
-	ret = os_create_semaphore("scan_lock", 1, &softs->scan_lock);
-	if(ret != PQI_STATUS_SUCCESS){
-		DBG_ERR(" Failed to initialize scan lock\n");
-		goto err_scan_lock;
-	}
-		
 	OS_ATOMIC64_SET(softs, num_intrs, 0);
 	softs->prev_num_intrs = softs->num_intrs;
 
@@ -825,12 +870,12 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 		for(j = 0; j < PQI_MAX_MULTILUN; j++)
 			softs->device_list[i][j] = NULL;
 
+	pqisrc_init_targetid_pool(softs);
+
 	DBG_FUNC("OUT\n");
 	return ret;
 
 err_config_tab:
-	os_destroy_semaphore(&softs->scan_lock);
-err_scan_lock:
 	if(softs->devlist_lockcreated==true){    
 		os_uninit_spinlock(&softs->devlist_lock);
 		softs->devlist_lockcreated = false;
@@ -843,6 +888,8 @@ err_host_wellness:
 err_intr:
 	pqisrc_pqi_uninit(softs);
 err_pqi:
+	os_destroy_semaphore(&softs->scan_lock);
+err_scan_lock:
 	pqisrc_sis_uninit(softs);
 err_out:
 	DBG_FUNC("OUT failed\n");
@@ -899,13 +946,13 @@ void pqisrc_uninit(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
 	
-	os_destroy_intr(softs);
-	
-	os_destroy_semaphore(&softs->scan_lock);
-	
 	pqisrc_pqi_uninit(softs);
 
 	pqisrc_sis_uninit(softs);
+
+	os_destroy_semaphore(&softs->scan_lock);
+	
+	os_destroy_intr(softs);
 
 	pqisrc_cleanup_devices(softs);
 
