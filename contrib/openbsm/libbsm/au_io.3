@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 4, 2009
+.Dd May 30, 2018
 .Dt AU_IO 3
 .Os
 .Sh NAME
@@ -129,14 +129,14 @@ would be used to free the record buffer.
 Finally, the source stream would be closed by a call to
 .Xr fclose 3 .
 .Sh RETURN VALUES
-The
+On success,
 .Fn au_fetch_tok
-and
+returns 0 while
 .Fn au_read_rec
-functions
-return 0 on success, or \-1 on failure along with additional error information
-returned via
-.Va errno .
+returns the number of bytes read.
+Both functions return \-1 on failure with
+.Va errno
+set appropriately.
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr libbsm 3
