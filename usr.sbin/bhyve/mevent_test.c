@@ -143,7 +143,7 @@ echoer(void *param)
 	mev = mevent_add(fd, EVF_READ, echoer_callback, &sync);
 	if (mev == NULL) {
 		printf("Could not allocate echoer event\n");
-		exit(1);
+		exit(4);
 	}
 
 	while (!pthread_cond_wait(&sync.e_cond, &sync.e_mt)) {
@@ -200,8 +200,8 @@ acceptor(void *param)
 	static int first;
 
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		exit(1);
+		perror("cannot create socket");
+		exit(4);
 	}
 
 	sin.sin_len = sizeof(sin);
@@ -210,13 +210,13 @@ acceptor(void *param)
 	sin.sin_port = htons(TEST_PORT);
 
 	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("bind");
-		exit(1);
+		perror("cannot bind socket");
+		exit(4);
 	}
 
 	if (listen(s, 1) < 0) {
-		perror("listen");
-		exit(1);
+		perror("cannot listen socket");
+		exit(4);
 	}
 
 	(void) mevent_add(s, EVF_READ, acceptor_callback, NULL);
