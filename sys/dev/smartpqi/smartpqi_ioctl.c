@@ -166,6 +166,10 @@ static int smartpqi_ioctl(struct cdev *cdev, u_long cmd, caddr_t udata,
 	return error;
 }
 
+static d_open_t         smartpqi_open;
+static d_ioctl_t        smartpqi_ioctl;
+static d_close_t        smartpqi_close;
+
 static struct cdevsw smartpqi_cdevsw =
 {
 	.d_version = D_VERSION,
@@ -312,6 +316,11 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		request.sg_descriptors[0].flags =  SG_FLAG_LAST;
 	}
 	tag = pqisrc_get_tag(&softs->taglist);
+	if (INVALID_ELEM == tag) {
+		DBG_ERR("Tag not available\n");
+		ret = PQI_STATUS_FAILURE;
+		goto free_mem;
+	}
 	request.request_id = tag;
 	request.response_queue_id = ob_q->q_id;
 	request.error_index = request.request_id;

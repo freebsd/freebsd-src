@@ -41,6 +41,38 @@ static inline boolean_t pqisrc_scsi_sense_valid(const struct sense_header_scsi *
 	return (sshdr->response_code & 0x70) == 0x70;
 }
 
+/* Initialize target ID pool for HBA/PDs */
+void  pqisrc_init_targetid_pool(pqisrc_softstate_t *softs)
+{
+	int i, tid = PQI_MAX_PHYSICALS + PQI_MAX_LOGICALS - 1;
+
+	for(i = 0; i < PQI_MAX_PHYSICALS; i++) {
+		softs->tid_pool.tid[i] = tid--;
+	}
+	softs->tid_pool.index = i - 1;
+}
+
+int pqisrc_alloc_tid(pqisrc_softstate_t *softs)
+{
+	if(softs->tid_pool.index <= -1) {
+		DBG_ERR("Target ID exhausted\n");
+		return INVALID_ELEM;
+	}
+	
+	return  softs->tid_pool.tid[softs->tid_pool.index--];
+}
+
+void pqisrc_free_tid(pqisrc_softstate_t *softs, int tid)
+{
+	if(softs->tid_pool.index >= PQI_MAX_PHYSICALS) {
+		DBG_ERR("Target ID queue is full\n");
+		return;
+	}
+	
+	softs->tid_pool.index++;
+	softs->tid_pool.tid[softs->tid_pool.index] = tid;
+}
+
 /* Update scsi sense info to a local buffer*/
 boolean_t pqisrc_update_scsi_sense(const uint8_t *buff, int len,
 			      struct sense_header_scsi *header)
@@ -176,6 +208,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 		break;
 	case SA_CACHE_FLUSH:
 		request->data_direction = SOP_DATA_DIR_FROM_DEVICE;
+		memcpy(device_mem.virt_addr, buff, datasize);
 		cdb[0] = BMIC_WRITE;
 		cdb[6] = BMIC_CACHE_FLUSH;
 		cdb[7] = (uint8_t)((datasize)  << 8);
@@ -258,7 +291,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 				ret = PQI_STATUS_SUCCESS;
 			}
 			else{
-				DBG_INFO("Error!! Bus=%u Target=%u, Cmd=0x%x," 
+				DBG_DISC("Error!! Bus=%u Target=%u, Cmd=0x%x," 
 					"Ret=%d\n", BMIC_GET_LEVEL_2_BUS(scsi3addr), 
 					BMIC_GET_LEVEL_TWO_TARGET(scsi3addr), 
 					cmd, ret);
@@ -342,7 +375,7 @@ retry:
 	}
 		
 	if (list_len == 0) {
-		DBG_INFO("list_len is 0\n");
+		DBG_DISC("list_len is 0\n");
 		memcpy(lun_data, &report_lun_header, sizeof(report_lun_header));
 		goto out;
 	}
@@ -491,7 +524,7 @@ static void pqisrc_assign_btl(pqi_scsi_dev_t *device)
 
 	if (pqisrc_is_logical_device(device)) {
 		if (pqisrc_is_external_raid_device(device)) {
-			DBG_INFO("External Raid Device!!!");
+			DBG_DISC("External Raid Device!!!");
 			bus = PQI_EXTERNAL_RAID_VOLUME_BUS;
 			target = (lunid >> 16) & 0x3fff;
 			lun = lunid & 0xff;
@@ -504,9 +537,6 @@ static void pqisrc_assign_btl(pqi_scsi_dev_t *device)
 		device->target_lun_valid = true;
 		return;
 	}
-
-	/* physical device */
-	pqisrc_set_btl(device, PQI_PHYSICAL_DEVICE_BUS, PQI_PD_INDEX(scsi3addr[6]), 0);
 
 	DBG_FUNC("OUT\n");
 }
@@ -547,7 +577,7 @@ static void pqisrc_fetch_sense_info(const uint8_t *sense_data,
 		*ascq = header.ascq;
 	}
 
-	DBG_INFO("sense_key: %x asc: %x ascq: %x\n", *sense_key, *asc, *ascq);
+	DBG_DISC("sense_key: %x asc: %x ascq: %x\n", *sense_key, *asc, *ascq);
 
 	DBG_FUNC("OUT\n");
 }
@@ -636,7 +666,7 @@ static uint8_t pqisrc_get_dev_vol_status(pqisrc_softstate_t *softs,
 	/* Determine the reason for not ready state. */
 	off_status = pqisrc_get_volume_offline_status(softs, scsi3addr);
 
-	DBG_INFO("offline_status 0x%x\n", off_status);
+	DBG_DISC("offline_status 0x%x\n", off_status);
 
 	/* Keep volume offline in certain cases. */
 	switch (off_status) {
@@ -806,7 +836,7 @@ static void pqisrc_get_dev_ioaccel_status(pqisrc_softstate_t *softs,
 			device->offload_enabled_pending = false;
 	}
 	
-	DBG_INFO("offload_config: 0x%x offload_enabled_pending: 0x%x \n", 
+	DBG_DISC("offload_config: 0x%x offload_enabled_pending: 0x%x \n", 
 			device->offload_config, device->offload_enabled_pending);
 
 err_out:
@@ -839,7 +869,7 @@ static void pqisrc_get_dev_raid_level(pqisrc_softstate_t *softs,
 	}
 
 	device->raid_level = raid_level;
-	DBG_INFO("RAID LEVEL: %x \n",  raid_level);
+	DBG_DISC("RAID LEVEL: %x \n",  raid_level);
 	DBG_FUNC("OUT\n");
 }
 
@@ -869,7 +899,7 @@ static int pqisrc_get_dev_data(pqisrc_softstate_t *softs,
 		sizeof(device->vendor));
 	memcpy(device->model, &inq_buff[16],
 		sizeof(device->model));
-	DBG_INFO("DEV_TYPE: %x VENDOR: %s MODEL: %s\n",  device->devtype, device->vendor, device->model);
+	DBG_DISC("DEV_TYPE: %x VENDOR: %s MODEL: %s\n",  device->devtype, device->vendor, device->model);
 
 	if (pqisrc_is_logical_device(device) && device->devtype == DISK_DEVICE) {
 		if (pqisrc_is_external_raid_device(device)) {
@@ -950,7 +980,7 @@ int pqisrc_get_ctrl_fw_version(pqisrc_softstate_t *softs)
 		"-%u", identify_ctrl->fw_build_number);
 out:
 	os_mem_free(softs, (char *)identify_ctrl, sizeof(*identify_ctrl));
-	DBG_INFO("Firmware version: %s Firmware build number: %d\n", softs->fw_version, softs->fw_build_number);
+	DBG_INIT("Firmware version: %s Firmware build number: %d\n", softs->fw_version, softs->fw_build_number);
 	DBG_FUNC("OUT\n");
 	return ret;
 }
@@ -1012,7 +1042,7 @@ static void pqisrc_get_physical_device_info(pqisrc_softstate_t *softs,
 		sizeof(device->phys_connector));
 	device->bay = id_phys->phys_bay_in_box;
 
-	DBG_INFO("BMIC DEV_TYPE: %x QUEUE DEPTH: 0x%x \n",  device->device_type, device->queue_depth);
+	DBG_DISC("BMIC DEV_TYPE: %x QUEUE DEPTH: 0x%x \n",  device->device_type, device->queue_depth);
 	DBG_FUNC("OUT\n");
 }
 
@@ -1126,7 +1156,8 @@ static void pqisrc_update_log_dev_qdepth(pqisrc_softstate_t *softs)
 	raidmap_data_t *dev_data;
 	pqi_scsi_dev_t *phys_disk;
 	unsigned j;
-	
+	unsigned k;
+
 	DBG_FUNC("IN\n");
 
 	for(i = 0; i < PQI_MAX_DEVICES; i++) {
@@ -1152,9 +1183,9 @@ static void pqisrc_update_log_dev_qdepth(pqisrc_softstate_t *softs)
 						LE_16(raid_map->row_cnt);
 
 			queue_depth = 0;
-			for (i = 0; i < num_raidmap_entries; i++) {
+			for (k = 0; k < num_raidmap_entries; k++) {
 				phys_disk = pqisrc_identify_device_via_ioaccel(softs,
-						dev_data[i].ioaccel_handle);
+						dev_data[k].ioaccel_handle);
 
 				if (!phys_disk) {
 					DBG_WARN(
@@ -1182,7 +1213,7 @@ static int pqisrc_add_device(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t *device)
 {
 	DBG_FUNC("IN\n");
-	DBG_INFO("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
+	DBG_WARN("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
 		device->vendor, device->model, device->bus, device->target, device->lun, device->is_physical_device, device->expose_device, device->volume_offline, device->volume_status);
 
 	device->invalid = false;
@@ -1201,7 +1232,7 @@ void pqisrc_remove_device(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t *device)
 {
 	DBG_FUNC("IN\n");
-	DBG_INFO("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
+	DBG_DISC("vendor: %s model: %s bus:%d target:%d lun:%d is_physical_device:0x%x expose_device:0x%x volume_offline 0x%x volume_status 0x%x \n",
 		device->vendor, device->model, device->bus, device->target, device->lun, device->is_physical_device, device->expose_device, device->volume_offline, device->volume_status);
 
 	/* TBD: Call OS upper layer function to remove the device entry */
@@ -1285,21 +1316,21 @@ static void pqisrc_display_volume_status(pqisrc_softstate_t *softs,
 		break;
 	}
 
-	DBG_INFO("scsi BTL %d:%d:%d %s\n",
+	DBG_DISC("scsi BTL %d:%d:%d %s\n",
 		device->bus, device->target, device->lun, status);
 	DBG_FUNC("OUT\n");
 }
 
 void pqisrc_device_mem_free(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 {
-	DBG_INFO("IN\n");
+	DBG_FUNC("IN\n");
 	if (!device)
 		return;
 	if (device->raid_map) {
 			os_mem_free(softs, (char *)device->raid_map, sizeof(pqisrc_raid_map_t));
 	}
 	os_mem_free(softs, (char *)device,sizeof(*device));
-	DBG_INFO("OUT\n");
+	DBG_FUNC("OUT\n");
 	
 }
 
@@ -1308,6 +1339,9 @@ void pqisrc_free_device(pqisrc_softstate_t * softs,pqi_scsi_dev_t *device)
 {
 
 		OS_ACQUIRE_SPINLOCK(&softs->devlist_lock);
+		if (!pqisrc_is_logical_device(device)) {
+			pqisrc_free_tid(softs,device->target);
+		}
 		pqisrc_device_mem_free(softs, device);
 		OS_RELEASE_SPINLOCK(&softs->devlist_lock);
 
@@ -1327,7 +1361,9 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t **removed = NULL;
 	int nadded = 0, nremoved = 0;
 	int j;
-	DBG_INFO("IN\n");
+	int tid = 0;
+
+	DBG_FUNC("IN\n");
 
 	added = os_mem_alloc(softs, sizeof(*added) * PQI_MAX_DEVICES);
 	removed = os_mem_alloc(softs, sizeof(*removed) * PQI_MAX_DEVICES);
@@ -1395,8 +1431,15 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 		if (device->volume_offline)
 			continue;
 		
+		/* physical device */
+		if (!pqisrc_is_logical_device(device)) {
+			tid = pqisrc_alloc_tid(softs);
+			if(INVALID_ELEM != tid)
+				pqisrc_set_btl(device, PQI_PHYSICAL_DEVICE_BUS, tid, 0);
+		}
+
  		softs->device_list[device->target][device->lun] = device;
-		DBG_INFO("Added device %p at B : %d T : %d L : %d\n",device,
+		DBG_DISC("Added device %p at B : %d T : %d L : %d\n",device,
 			device->bus,device->target,device->lun);
 		/* To prevent this entry from being freed later. */
 		new_device_list[i] = NULL;
@@ -1479,7 +1522,7 @@ free_and_out:
 		os_mem_free(softs, (char *)removed,
 			    sizeof(*removed) * PQI_MAX_DEVICES); 
 
-	DBG_INFO("OUT\n");
+	DBG_FUNC("OUT\n");
 }
 
 /*
@@ -1517,7 +1560,7 @@ int pqisrc_write_driver_version_to_host_wellness(pqisrc_softstate_t *softs)
         strncpy(host_wellness_driver_ver->driver_version + strlen(softs->os_name), PQISRC_DRIVER_VERSION,
 			sizeof(host_wellness_driver_ver->driver_version) -  strlen(softs->os_name));
     } else {
-        DBG_INFO("OS name length(%lu) is longer than buffer of driver_version\n",
+        DBG_DISC("OS name length(%lu) is longer than buffer of driver_version\n",
             strlen(softs->os_name));
     }
 	host_wellness_driver_ver->driver_version[sizeof(host_wellness_driver_ver->driver_version) - 1] = '\0';
@@ -1618,7 +1661,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 	logical_cnt = BE_32(logical_dev_list->header.list_length)
 		/ sizeof(logical_dev_list->lun_entries[0]);
 
-	DBG_INFO("physical_cnt %d logical_cnt %d\n", physical_cnt, logical_cnt);
+	DBG_DISC("physical_cnt %d logical_cnt %d\n", physical_cnt, logical_cnt);
 
 	if (physical_cnt) {
 		bmic_phy_info = os_mem_alloc(softs, sizeof(*bmic_phy_info));
@@ -1663,9 +1706,15 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 		}
 
 		scsi3addr = lun_ext_entry->lunid;
+		/* Save the target sas adderess for external raid device */
+		if(lun_ext_entry->device_type == CONTROLLER_DEVICE) {
+			int target = lun_ext_entry->lunid[3] & 0x3f;
+			softs->target_sas_addr[target] = BE_64(lun_ext_entry->wwid);
+		}
 
 		/* Skip masked physical non-disk devices. */
-		if (MASKED_DEVICE(scsi3addr) && is_physical_device) 
+		if (MASKED_DEVICE(scsi3addr) && is_physical_device
+				&& (lun_ext_entry->ioaccel_handle == 0))
 			continue;
 
 		device = new_device_list[new_dev_cnt];
@@ -1683,7 +1732,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 		if (ret) {
 			DBG_WARN("Inquiry failed, skipping device %016llx\n",
 				 (unsigned long long)BE_64(device->scsi3addr[0]));
-			DBG_INFO("INQUIRY FAILED \n");
+			DBG_DISC("INQUIRY FAILED \n");
 			continue;
 		}
 		pqisrc_assign_btl(device);
@@ -1724,11 +1773,6 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 				pqisrc_get_physical_device_info(softs, device,
 					bmic_phy_info);
 			}
-			/* Logical device doesn't have SAS address
-			 * so requires target SAS address for MSA.
-			 */ 
-			if(device->is_external_raid_device)
-				device->sas_address = BE_64((uint64_t)lun_ext_entry->lunid);
 			new_dev_cnt++;
 			break;
 		case ENCLOSURE_DEVICE:
@@ -1751,9 +1795,12 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 			if (pqisrc_is_hba_lunid(scsi3addr))
 				new_dev_cnt++;
 			break;
+		case SES_DEVICE:
+		case CONTROLLER_DEVICE:
+			break;
 		}
 	}
-	DBG_INFO("new_dev_cnt %d\n", new_dev_cnt);
+	DBG_DISC("new_dev_cnt %d\n", new_dev_cnt);
 
 	pqisrc_update_device_list(softs, new_device_list, new_dev_cnt);
 	
