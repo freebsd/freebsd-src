@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "utils/ext_password.h"
+#include "common/version.h"
 #include "config.h"
 #include "eapol_supp/eapol_supp_sm.h"
 #include "eap_peer/eap.h"
@@ -192,7 +193,7 @@ static void ieee802_1x_encapsulate_radius(struct eapol_test_data *e,
 		return;
 	}
 
-	radius_msg_make_authenticator(msg, (u8 *) e, sizeof(*e));
+	radius_msg_make_authenticator(msg);
 
 	hdr = (const struct eap_hdr *) eap;
 	pos = (const u8 *) (hdr + 1);
@@ -254,6 +255,13 @@ static void ieee802_1x_encapsulate_radius(struct eapol_test_data *e,
 	    !radius_msg_add_attr_int32(msg, RADIUS_ATTR_NAS_PORT_TYPE,
 				       RADIUS_NAS_PORT_TYPE_IEEE_802_11)) {
 		printf("Could not add NAS-Port-Type\n");
+		goto fail;
+	}
+
+	if (!find_extra_attr(e->extra_attrs, RADIUS_ATTR_SERVICE_TYPE) &&
+	    !radius_msg_add_attr_int32(msg, RADIUS_ATTR_SERVICE_TYPE,
+				       RADIUS_SERVICE_TYPE_FRAMED)) {
+		printf("Could not add Service-Type\n");
 		goto fail;
 	}
 
@@ -1239,7 +1247,7 @@ static void eapol_test_terminate(int sig, void *signal_ctx)
 static void usage(void)
 {
 	printf("usage:\n"
-	       "eapol_test [-enWS] -c<conf> [-a<AS IP>] [-p<AS port>] "
+	       "eapol_test [-enWSv] -c<conf> [-a<AS IP>] [-p<AS port>] "
 	       "[-s<AS secret>]\\\n"
 	       "           [-r<count>] [-t<timeout>] [-C<Connect-Info>] \\\n"
 	       "           [-M<client MAC address>] [-o<server cert file] \\\n"
@@ -1264,6 +1272,7 @@ static void usage(void)
 	       "  -W = wait for a control interface monitor before starting\n"
 	       "  -S = save configuration after authentication\n"
 	       "  -n = no MPPE keys expected\n"
+	       "  -v = show version\n"
 	       "  -t<timeout> = sets timeout in seconds (default: 30 s)\n"
 	       "  -C<Connect-Info> = RADIUS Connect-Info (default: "
 	       "CONNECT 11Mbps 802.11b)\n"
@@ -1317,7 +1326,7 @@ int main(int argc, char *argv[])
 	wpa_debug_show_keys = 1;
 
 	for (;;) {
-		c = getopt(argc, argv, "a:A:c:C:ei:M:nN:o:p:P:r:R:s:St:T:W");
+		c = getopt(argc, argv, "a:A:c:C:ei:M:nN:o:p:P:r:R:s:St:T:vW");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -1383,6 +1392,9 @@ int main(int argc, char *argv[])
 			ctrl_iface = optarg;
 			eapol_test.ctrl_iface = 1;
 			break;
+		case 'v':
+			printf("eapol_test v" VERSION_STR "\n");
+			return 0;
 		case 'W':
 			wait_for_monitor++;
 			break;

@@ -18,7 +18,7 @@
 #include "wpa_i.h"
 
 
-#ifdef IEEE8021X_EAPOL
+#if defined(IEEE8021X_EAPOL) && !defined(CONFIG_NO_WPA)
 
 #define PMKID_CANDIDATE_PRIO_SCAN 1000
 
@@ -93,7 +93,7 @@ static void rsn_preauth_eapol_cb(struct eapol_sm *eapol,
 			wpa_hexdump_key(MSG_DEBUG, "RSN: PMK from pre-auth",
 					pmk, pmk_len);
 			sm->pmk_len = pmk_len;
-			pmksa_cache_add(sm->pmksa, pmk, pmk_len,
+			pmksa_cache_add(sm->pmksa, pmk, pmk_len, NULL,
 					NULL, 0,
 					sm->preauth_bssid, sm->own_addr,
 					sm->network_ctx,
@@ -538,4 +538,4 @@ int rsn_preauth_in_progress(struct wpa_sm *sm)
 	return sm->preauth_eapol != NULL;
 }
 
-#endif /* IEEE8021X_EAPOL */
+#endif /* IEEE8021X_EAPOL && !CONFIG_NO_WPA */

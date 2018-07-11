@@ -11,11 +11,14 @@
 #ifndef WPS_UPNP_H
 #define WPS_UPNP_H
 
+#include "utils/list.h"
+
 struct upnp_wps_device_sm;
 struct wps_context;
 struct wps_data;
 
 struct upnp_wps_peer {
+	struct dl_list list;
 	struct wps_data *wps;
 };
 

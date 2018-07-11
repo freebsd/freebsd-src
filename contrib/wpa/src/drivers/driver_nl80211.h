@@ -25,6 +25,7 @@
 #endif /* CONFIG_LIBNL20 */
 
 struct nl80211_global {
+	void *ctx;
 	struct dl_list interfaces;
 	int if_add_ifindex;
 	u64 if_add_wdevid;
@@ -84,6 +85,7 @@ struct wpa_driver_nl80211_data {
 	struct dl_list list;
 	struct dl_list wiphy_list;
 	char phyname[32];
+	unsigned int wiphy_idx;
 	u8 perm_addr[ETH_ALEN];
 	void *ctx;
 	int ifindex;
@@ -94,6 +96,13 @@ struct wpa_driver_nl80211_data {
 	struct wpa_driver_capa capa;
 	u8 *extended_capa, *extended_capa_mask;
 	unsigned int extended_capa_len;
+	struct drv_nl80211_ext_capa {
+		enum nl80211_iftype iftype;
+		u8 *ext_capa, *ext_capa_mask;
+		unsigned int ext_capa_len;
+	} iface_ext_capa[NL80211_IFTYPE_MAX];
+	unsigned int num_iface_ext_capa;
+
 	int has_capability;
 
 	int operstate;
@@ -148,9 +157,16 @@ struct wpa_driver_nl80211_data {
 	unsigned int setband_vendor_cmd_avail:1;
 	unsigned int get_pref_freq_list:1;
 	unsigned int set_prob_oper_freq:1;
+	unsigned int scan_vendor_cmd_avail:1;
+	unsigned int connect_reassoc:1;
+	unsigned int set_wifi_conf_vendor_cmd_avail:1;
 
+	u64 vendor_scan_cookie;
 	u64 remain_on_chan_cookie;
 	u64 send_action_cookie;
+#define MAX_SEND_ACTION_COOKIES 20
+	u64 send_action_cookies[MAX_SEND_ACTION_COOKIES];
+	unsigned int num_send_action_cookies;
 
 	unsigned int last_mgmt_freq;
 
@@ -166,7 +182,10 @@ struct wpa_driver_nl80211_data {
 	struct nl_handle *rtnl_sk; /* nl_sock for NETLINK_ROUTE */
 
 	int default_if_indices[16];
+	/* the AP/AP_VLAN iface that is in this bridge */
+	int default_if_indices_reason[16];
 	int *if_indices;
+	int *if_indices_reason;
 	int num_if_indices;
 
 	/* From failed authentication command */
@@ -182,6 +201,13 @@ struct wpa_driver_nl80211_data {
 	int auth_wep_tx_keyidx;
 	int auth_local_state_change;
 	int auth_p2p;
+
+	/*
+	 * Tells whether the last scan issued from wpa_supplicant was a normal
+	 * scan (NL80211_CMD_TRIGGER_SCAN) or a vendor scan
+	 * (NL80211_CMD_VENDOR). 0 if no pending scan request.
+	 */
+	int last_scan_cmd;
 };
 
 struct nl_msg;
@@ -233,6 +259,8 @@ nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags);
 int process_global_event(struct nl_msg *msg, void *arg);
 int process_bss_event(struct nl_msg *msg, void *arg);
 
+const char * nl80211_iftype_str(enum nl80211_iftype mode);
+
 #ifdef ANDROID
 int android_nl_socket_set_nonblocking(struct nl_handle *handle);
 int android_pno_start(struct i802_bss *bss,
@@ -267,11 +295,13 @@ void wpa_driver_nl80211_scan_timeout(void *eloop_ctx, void *timeout_ctx);
 int wpa_driver_nl80211_scan(struct i802_bss *bss,
 			    struct wpa_driver_scan_params *params);
 int wpa_driver_nl80211_sched_scan(void *priv,
-				  struct wpa_driver_scan_params *params,
-				  u32 interval);
+				  struct wpa_driver_scan_params *params);
 int wpa_driver_nl80211_stop_sched_scan(void *priv);
 struct wpa_scan_results * wpa_driver_nl80211_get_scan_results(void *priv);
 void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv);
-const u8 * nl80211_get_ie(const u8 *ies, size_t ies_len, u8 ie);
+int wpa_driver_nl80211_abort_scan(void *priv);
+int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,
+				   struct wpa_driver_scan_params *params);
+int nl80211_set_default_scan_ies(void *priv, const u8 *ies, size_t ies_len);
 
 #endif /* DRIVER_NL80211_H */
