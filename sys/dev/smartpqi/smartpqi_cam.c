@@ -137,7 +137,6 @@ void os_remove_device(pqisrc_softstate_t *softs,
 		xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 		xpt_free_path(tmppath);
 		pqisrc_free_device(softs, device);
-		OS_SLEEP(10000);
 	}
 
 	DBG_FUNC("OUT\n");
@@ -1199,3 +1198,7 @@ void deregister_sim(struct pqisrc_softstate *softs)
 
 	DBG_FUNC("OUT\n");
 }
+
+static void smartpqi_cam_action(struct cam_sim *, union ccb *);
+static void smartpqi_poll(struct cam_sim *);
+

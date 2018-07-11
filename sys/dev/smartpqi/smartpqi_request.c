@@ -268,6 +268,8 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	aio_req->res3 = 0;
 	aio_req->err_idx = aio_req->req_id;
 	aio_req->cdb_len = rcb->cmdlen;
+	if(rcb->cmdlen > sizeof(aio_req->cdb))
+		rcb->cmdlen = sizeof(aio_req->cdb);
 	memcpy(aio_req->cdb, rcb->cdbp, rcb->cmdlen);
 #if 0
 	DBG_IO("CDB : \n");
@@ -565,7 +567,8 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 
 	/* Calculate stripe information for the request. */
 	blks_per_row = data_disks_per_row * strip_sz;
-
+	if (!blks_per_row)
+		return PQI_STATUS_FAILURE;
 	/* use __udivdi3 ? */
 	fst_row = fst_blk / blks_per_row;
 	lst_row = lst_blk / blks_per_row;

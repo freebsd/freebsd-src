@@ -512,7 +512,7 @@ typedef struct ib_queue {
 	boolean_t	created;
 	boolean_t	lockcreated;
 	char		lockname[LOCKNAME_SIZE];
-	OS_LOCK_T	lock	OS_ATTRIBUTE_ALIGNED(8);
+	OS_PQILOCK_T	lock	OS_ATTRIBUTE_ALIGNED(8);
 }ib_queue_t;
 
 typedef struct ob_queue {
@@ -931,6 +931,11 @@ typedef struct request_container_block {
 	boolean_t		req_pending;
 }rcb_t;
 
+typedef struct tid_pool {
+	int 			tid[PQI_MAX_PHYSICALS];
+	int			index;
+}tid_pool_t;
+
 typedef struct pqisrc_softstate {
 	OS_SPECIFIC_T			os_specific;  
 	struct ioa_registers		*ioa_reg; 
@@ -992,6 +997,7 @@ typedef struct pqisrc_softstate {
 	pqi_scsi_dev_t			*device_list[PQI_MAX_DEVICES][PQI_MAX_MULTILUN];
 	OS_SEMA_LOCK_T			scan_lock;
 	uint8_t				lun_count[PQI_MAX_DEVICES];
+	uint64_t			target_sas_addr[PQI_MAX_EXT_TARGETS];
 	OS_ATOMIC64_T			num_intrs;
 	uint64_t			prev_num_intrs;
 	uint64_t			prev_heartbeat_count;
@@ -1005,6 +1011,7 @@ typedef struct pqisrc_softstate {
 	boolean_t			ctrl_online;
 	uint8_t				pqi_reset_quiesce_allowed : 1;
 	boolean_t 			ctrl_in_pqi_mode;
+	tid_pool_t			tid_pool;	
 }pqisrc_softstate_t;
 
 #endif

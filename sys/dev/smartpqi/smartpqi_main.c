@@ -75,6 +75,10 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x806, PQI_HWIF_SRCV, "SmartRAID 3100"},
 	{0x9005, 0x028f, 0x9005, 0x807, PQI_HWIF_SRCV, "SmartRAID 3162-8i"},
 	{0x9005, 0x028f, 0x152d, 0x8a22, PQI_HWIF_SRCV, "QS-8204-8i"},
+	{0x9005, 0x028f, 0x193d, 0xf460, PQI_HWIF_SRCV, "UN RAID P460-M4"},
+	{0x9005, 0x028f, 0x193d, 0xf461, PQI_HWIF_SRCV, "UN RAID P460-B4"},
+	{0x9005, 0x028f, 0x1bd4, 0x004b, PQI_HWIF_SRCV, "INSPUR RAID PM8204-2GB"},
+	{0x9005, 0x028f, 0x1bd4, 0x004c, PQI_HWIF_SRCV, "INSPUR RAID PM8204-4GB"},
 
 	/* (MSCC PM8222 8x12G based) */
 	{0x9005, 0x028f, 0x9005, 0x900, PQI_HWIF_SRCV, "SmartHBA 2100-8i"},
@@ -87,6 +91,10 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x907, PQI_HWIF_SRCV, "HBA 1100"},
 	{0x9005, 0x028f, 0x9005, 0x908, PQI_HWIF_SRCV, "SmartHBA 2100"},
 	{0x9005, 0x028f, 0x9005, 0x90a, PQI_HWIF_SRCV, "SmartHBA 2100A-8i"},
+	{0x9005, 0x028f, 0x193d, 0x8460, PQI_HWIF_SRCV, "UN HBA H460-M1"},
+	{0x9005, 0x028f, 0x193d, 0x8461, PQI_HWIF_SRCV, "UN HBA H460-B1"},
+	{0x9005, 0x028f, 0x1bd4, 0x004a, PQI_HWIF_SRCV, "INSPUR SMART-HBA PM8222-SHBA"},
+	{0x9005, 0x028f, 0x13fe, 0x8312, PQI_HWIF_SRCV, "MIC-8312BridgeB"},
 
 	/* (SRCx MSCC FVB 24x12G based) */
 	{0x9005, 0x028f, 0x103c, 0x1001, PQI_HWIF_SRCV, "MSCC FVB"},
@@ -99,10 +107,13 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x1301, PQI_HWIF_SRCV, "HBA 1100-24i"},
 	{0x9005, 0x028f, 0x9005, 0x1302, PQI_HWIF_SRCV, "SmartHBA 2100-8i8e"},
 	{0x9005, 0x028f, 0x9005, 0x1303, PQI_HWIF_SRCV, "SmartHBA 2100-24i"},
+	{0x9005, 0x028f, 0x105b, 0x1321, PQI_HWIF_SRCV, "8242-24i"},
+	{0x9005, 0x028f, 0x1bd4, 0x0045, PQI_HWIF_SRCV, "INSPUR SMART-HBA 8242-24i"},
 
 	/* (MSCC PM8236 16x12G based) */
 	{0x9005, 0x028f, 0x152d, 0x8a24, PQI_HWIF_SRCV, "QS-8236-16i"},
 	{0x9005, 0x028f, 0x9005, 0x1380, PQI_HWIF_SRCV, "SmartRAID 3154-16i"},
+	{0x9005, 0x028f, 0x1bd4, 0x0046, PQI_HWIF_SRCV, "INSPUR RAID 8236-16i"},
 
 	/* (MSCC PM8237 24x12G based) */
 	{0x9005, 0x028f, 0x103c, 0x1100, PQI_HWIF_SRCV, "P816i-a SR Gen10"},
@@ -112,12 +123,16 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x152d, 0x8a23, PQI_HWIF_SRCV, "QS-8238-16i"},
 	{0x9005, 0x028f, 0x9005, 0x1280, PQI_HWIF_SRCV, "HBA 1100-16i"},
 	{0x9005, 0x028f, 0x9005, 0x1281, PQI_HWIF_SRCV, "HBA 1100-16e"},
+	{0x9005, 0x028f, 0x105b, 0x1211, PQI_HWIF_SRCV, "8238-16i"},
+	{0x9005, 0x028f, 0x1bd4, 0x0048, PQI_HWIF_SRCV, "INSPUR SMART-HBA 8238-16i"},
+	{0x9005, 0x028f, 0x9005, 0x1282, PQI_HWIF_SRCV, "SmartHBA 2100-16i"},
 
 	/* (MSCC PM8240 24x12G based) */
 	{0x9005, 0x028f, 0x152d, 0x8a36, PQI_HWIF_SRCV, "QS-8240-24i"},
 	{0x9005, 0x028f, 0x9005, 0x1200, PQI_HWIF_SRCV, "SmartRAID 3154-24i"},
 	{0x9005, 0x028f, 0x9005, 0x1201, PQI_HWIF_SRCV, "SmartRAID 3154-8i16e"},
 	{0x9005, 0x028f, 0x9005, 0x1202, PQI_HWIF_SRCV, "SmartRAID 3154-8i8e"},
+	{0x9005, 0x028f, 0x1bd4, 0x0047, PQI_HWIF_SRCV, "INSPUR RAID 8240-24i"},
 
 	{0, 0, 0, 0, 0, 0}
 };
@@ -466,6 +481,12 @@ smartpqi_shutdown(void *arg)
 		
 	return rval;
 }
+
+static int      smartpqi_probe(device_t dev);
+static int      smartpqi_attach(device_t dev);
+static int      smartpqi_detach(device_t dev);
+static int      smartpqi_suspend(device_t dev);
+static int      smartpqi_resume(device_t dev);
 
 /*
  * PCI bus interface.
