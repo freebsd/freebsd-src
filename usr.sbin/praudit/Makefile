@@ -12,4 +12,7 @@ WARNS?=	3
 
 LIBADD=	bsm
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>
