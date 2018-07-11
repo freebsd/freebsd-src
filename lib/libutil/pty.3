@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd November 11, 2015
+.Dd June 2, 2018
 .Dt PTY 3
 .Os
 .Sh NAME
@@ -143,3 +143,18 @@ may set it to any value as described for
 .Xr pty 4 ,
 .Xr termios 4 ,
 .Xr group 5
+.Sh HISTORY
+The
+.Fn openpty
+and
+.Fn forkpty
+functions first appeared in
+.Bx 4.3 Reno.
+.Sh BUGS
+.Fn openpty
+writes the slave terminal's name to
+.Fa name ,
+but does not check that sufficient space is available.
+It is advisable to use
+.Xr ptsname 3
+instead.
