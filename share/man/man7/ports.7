@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2018
+.Dd July 11, 2018
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -35,28 +35,33 @@
 The
 .Fx
 Ports Collection
-offers a simple way for users and
-administrators to install applications.
-It is also used to build the packages, to be installed using
+offers a simple way to compile and install third party applications.
+It is also used to build packages, to be installed using
 .Xr pkg 8 .
-Each
-.Em port
-contains any patches necessary to make the original
-application source code compile and run on
+It can be installed and updated using
+.Xr portsnap 8 .
+.Pp
+The ports tree, typically located at
+.Pa /usr/ports ,
+consists of subdirectories, one for each category; those in turn contain
+individual ports.
+Each port is a directory with metadata and patches necessary to make
+the original application source code compile and run on
 .Fx .
 Compiling an
 application is as simple as typing
 .Nm make Cm build
-in the port directory!
+in the port directory.
 The
 .Pa Makefile
 automatically fetches the
-application source code, either from a local disk or via FTP, unpacks it
-on your system, applies the patches, and compiles it.
-If all goes well,
-simply type
+application source code, either from a local disk or the network, unpacks it,
+applies the patches, and compiles it.
+It also recursively handles dependencies \(em other pieces of software
+the port depends on in order to build and work.
+Afterwards,
 .Nm make Cm install
-to install the application.
+installs the application.
 .Pp
 For more information about using ports, see the
 .Dq "Packages and Ports" section
@@ -65,12 +70,14 @@ in
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/books/handbook/ports.html
 .Pp
-For information about creating new ports, see:
+For information about creating new ports, see
 .%B "The Porter's Handbook":
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/books/porters-handbook/
 .Sh TARGETS
-Some of the targets work recursively through subdirectories.
+Some of the
+.Xr make 1
+targets work recursively through subdirectories.
 This lets you, for example, install all of the
 .Dq Li biology
 ports.
