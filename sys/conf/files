@@ -1785,10 +1785,10 @@ dev/firewire/if_fwip.c		optional fwip
 dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
-dev/flash/cqspi.c		optional cqspi
+dev/flash/cqspi.c		optional cqspi fdt xdma
 dev/flash/mx25l.c		optional mx25l
-dev/flash/n25q.c		optional n25q
-dev/flash/qspi_if.m		optional cqspi | n25q
+dev/flash/n25q.c		optional n25q fdt
+dev/flash/qspi_if.m		optional cqspi fdt | n25q fdt
 dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
