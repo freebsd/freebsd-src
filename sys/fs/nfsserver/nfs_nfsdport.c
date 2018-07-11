@@ -2101,6 +2101,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	}
 	fullsiz = siz;
 	nd->nd_repstat = getret = nfsvno_getattr(vp, &at, nd, p, 1, NULL);
+#if 0
 	if (!nd->nd_repstat) {
 	    if (off && verf != at.na_filerev) {
 		/*
@@ -2109,17 +2110,14 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 		 * removed/added unless that offset cookies returned to
 		 * the client are no longer valid.
 		 */
-#if 0
 		if (nd->nd_flag & ND_NFSV4) {
 			nd->nd_repstat = NFSERR_NOTSAME;
 		} else {
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 		}
-#endif
-	    } else if ((nd->nd_flag & ND_NFSV4) && off == 0 && verf != 0) {
-		nd->nd_repstat = NFSERR_BAD_COOKIE;
 	    }
 	}
+#endif
 	if (!nd->nd_repstat && vp->v_type != VDIR)
 		nd->nd_repstat = NFSERR_NOTDIR;
 	if (!nd->nd_repstat && cnt == 0)
