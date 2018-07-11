@@ -1945,11 +1945,20 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 
 	if (req->newlen > ps_arg_cache_limit - sizeof(struct pargs))
 		return (ENOMEM);
-	newpa = pargs_alloc(req->newlen);
-	error = SYSCTL_IN(req, newpa->ar_args, req->newlen);
-	if (error != 0) {
-		pargs_free(newpa);
-		return (error);
+
+	if (req->newlen == 0) {
+		/*
+		 * Clear the argument pointer, so that we'll fetch arguments
+		 * with proc_getargv() until further notice.
+		 */
+		newpa = NULL;
+	} else {
+		newpa = pargs_alloc(req->newlen);
+		error = SYSCTL_IN(req, newpa->ar_args, req->newlen);
+		if (error != 0) {
+			pargs_free(newpa);
+			return (error);
+		}
 	}
 	PROC_LOCK(p);
 	pa = p->p_args;
