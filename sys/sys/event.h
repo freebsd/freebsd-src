@@ -45,6 +45,21 @@
 #define EVFILT_SENDFILE		(-12)	/* attached to sendfile requests */
 #define EVFILT_SYSCOUNT		12
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#define	EV_SET(kevp_, a, b, c, d, e, f) do {	\
+	*(kevp_) = (struct kevent){		\
+	    .ident = (a),			\
+	    .filter = (b),			\
+	    .flags = (c),			\
+	    .fflags = (d),			\
+	    .data = (e),			\
+	    .udata = (f),			\
+	};					\
+} while(0)
+#else /* Pre-C99 or not STDC (e.g., C++) */
+/* The definition of the local variable kevp could possibly conflict
+ * with a user-defined value passed in parameters a-f.
+ */
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
 	(kevp)->ident = (a);			\
@@ -54,6 +69,7 @@
 	(kevp)->data = (e);			\
 	(kevp)->udata = (f);			\
 } while(0)
+#endif
 
 struct kevent {
 	uintptr_t	ident;		/* identifier for this event */
