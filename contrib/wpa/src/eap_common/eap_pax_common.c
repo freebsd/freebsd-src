@@ -57,7 +57,8 @@ int eap_pax_kdf(u8 mac_id, const u8 *key, size_t key_len,
 	left = output_len;
 	for (counter = 1; counter <= (u8) num_blocks; counter++) {
 		size_t clen = left > EAP_PAX_MAC_LEN ? EAP_PAX_MAC_LEN : left;
-		hmac_sha1_vector(key, key_len, 3, addr, len, mac);
+		if (hmac_sha1_vector(key, key_len, 3, addr, len, mac) < 0)
+			return -1;
 		os_memcpy(pos, mac, clen);
 		pos += clen;
 		left -= clen;
@@ -106,7 +107,8 @@ int eap_pax_mac(u8 mac_id, const u8 *key, size_t key_len,
 	len[2] = data3_len;
 
 	count = (data1 ? 1 : 0) + (data2 ? 1 : 0) + (data3 ? 1 : 0);
-	hmac_sha1_vector(key, key_len, count, addr, len, hash);
+	if (hmac_sha1_vector(key, key_len, count, addr, len, hash) < 0)
+		return -1;
 	os_memcpy(mac, hash, EAP_PAX_MAC_LEN);
 
 	return 0;

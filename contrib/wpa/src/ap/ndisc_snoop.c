@@ -17,6 +17,7 @@
 #include "ap_drv_ops.h"
 #include "list.h"
 #include "x_snoop.h"
+#include "ndisc_snoop.h"
 
 struct ip6addr {
 	struct in6_addr addr;

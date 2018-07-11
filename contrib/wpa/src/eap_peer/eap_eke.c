@@ -452,6 +452,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 	/* DHComponent_P = Encr(key, y_p) */
 	rpos = wpabuf_put(resp, data->sess.dhcomp_len);
 	if (eap_eke_dhcomp(&data->sess, key, pub, rpos) < 0) {
+		wpabuf_free(resp);
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to build DHComponent_P");
 		os_memset(key, 0, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
@@ -770,7 +771,6 @@ static u8 * eap_eke_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_eke_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_EKE, "EKE");
@@ -785,8 +785,5 @@ int eap_peer_eke_register(void)
 	eap->get_emsk = eap_eke_get_emsk;
 	eap->getSessionId = eap_eke_get_session_id;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

@@ -66,7 +66,6 @@ struct wiphy_info_data {
 	unsigned int device_ap_sme:1;
 	unsigned int poll_command_supported:1;
 	unsigned int data_tx_status:1;
-	unsigned int monitor_supported:1;
 	unsigned int auth_supported:1;
 	unsigned int connect_supported:1;
 	unsigned int p2p_go_supported:1;
@@ -128,9 +127,6 @@ static void wiphy_info_supported_iftypes(struct wiphy_info_data *info,
 			break;
 		case NL80211_IFTYPE_P2P_CLIENT:
 			info->p2p_client_supported = 1;
-			break;
-		case NL80211_IFTYPE_MONITOR:
-			info->monitor_supported = 1;
 			break;
 		}
 	}
@@ -352,13 +348,20 @@ static void wiphy_info_ext_feature_flags(struct wiphy_info_data *info,
 					 struct nlattr *tb)
 {
 	struct wpa_driver_capa *capa = info->capa;
+	u8 *ext_features;
+	int len;
 
 	if (tb == NULL)
 		return;
 
-	if (ext_feature_isset(nla_data(tb), nla_len(tb),
-			      NL80211_EXT_FEATURE_VHT_IBSS))
+	ext_features = nla_data(tb);
+	len = nla_len(tb);
+
+	if (ext_feature_isset(ext_features, len, NL80211_EXT_FEATURE_VHT_IBSS))
 		capa->flags |= WPA_DRIVER_FLAGS_VHT_IBSS;
+
+	if (ext_feature_isset(ext_features, len, NL80211_EXT_FEATURE_RRM))
+		capa->rrm_flags |= WPA_DRIVER_FLAGS_SUPPORT_RRM;
 }
 
 
@@ -428,6 +431,9 @@ static void wiphy_info_feature_flags(struct wiphy_info_data *info,
 
 	if (flags & NL80211_FEATURE_HT_IBSS)
 		capa->flags |= WPA_DRIVER_FLAGS_HT_IBSS;
+
+	if (flags & NL80211_FEATURE_FULL_AP_CLIENT_STATE)
+		capa->flags |= WPA_DRIVER_FLAGS_FULL_AP_CLIENT_STATE;
 }
 
 
@@ -476,6 +482,74 @@ static void wiphy_info_wowlan_triggers(struct wpa_driver_capa *capa,
 }
 
 
+static void wiphy_info_extended_capab(struct wpa_driver_nl80211_data *drv,
+				      struct nlattr *tb)
+{
+	int rem = 0, i;
+	struct nlattr *tb1[NL80211_ATTR_MAX + 1], *attr;
+
+	if (!tb || drv->num_iface_ext_capa == NL80211_IFTYPE_MAX)
+		return;
+
+	nla_for_each_nested(attr, tb, rem) {
+		unsigned int len;
+		struct drv_nl80211_ext_capa *capa;
+
+		nla_parse(tb1, NL80211_ATTR_MAX, nla_data(attr),
+			  nla_len(attr), NULL);
+
+		if (!tb1[NL80211_ATTR_IFTYPE] ||
+		    !tb1[NL80211_ATTR_EXT_CAPA] ||
+		    !tb1[NL80211_ATTR_EXT_CAPA_MASK])
+			continue;
+
+		capa = &drv->iface_ext_capa[drv->num_iface_ext_capa];
+		capa->iftype = nla_get_u32(tb1[NL80211_ATTR_IFTYPE]);
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Driver-advertised extended capabilities for interface type %s",
+			   nl80211_iftype_str(capa->iftype));
+
+		len = nla_len(tb1[NL80211_ATTR_EXT_CAPA]);
+		capa->ext_capa = os_malloc(len);
+		if (!capa->ext_capa)
+			goto err;
+
+		os_memcpy(capa->ext_capa, nla_data(tb1[NL80211_ATTR_EXT_CAPA]),
+			  len);
+		capa->ext_capa_len = len;
+		wpa_hexdump(MSG_DEBUG, "nl80211: Extended capabilities",
+			    capa->ext_capa, capa->ext_capa_len);
+
+		len = nla_len(tb1[NL80211_ATTR_EXT_CAPA_MASK]);
+		capa->ext_capa_mask = os_malloc(len);
+		if (!capa->ext_capa_mask)
+			goto err;
+
+		os_memcpy(capa->ext_capa_mask,
+			  nla_data(tb1[NL80211_ATTR_EXT_CAPA_MASK]), len);
+		wpa_hexdump(MSG_DEBUG, "nl80211: Extended capabilities mask",
+			    capa->ext_capa_mask, capa->ext_capa_len);
+
+		drv->num_iface_ext_capa++;
+		if (drv->num_iface_ext_capa == NL80211_IFTYPE_MAX)
+			break;
+	}
+
+	return;
+
+err:
+	/* Cleanup allocated memory on error */
+	for (i = 0; i < NL80211_IFTYPE_MAX; i++) {
+		os_free(drv->iface_ext_capa[i].ext_capa);
+		drv->iface_ext_capa[i].ext_capa = NULL;
+		os_free(drv->iface_ext_capa[i].ext_capa_mask);
+		drv->iface_ext_capa[i].ext_capa_mask = NULL;
+		drv->iface_ext_capa[i].ext_capa_len = 0;
+	}
+	drv->num_iface_ext_capa = 0;
+}
+
+
 static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 {
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
@@ -486,6 +560,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (tb[NL80211_ATTR_WIPHY])
+		drv->wiphy_idx = nla_get_u32(tb[NL80211_ATTR_WIPHY]);
 
 	if (tb[NL80211_ATTR_WIPHY_NAME])
 		os_strlcpy(drv->phyname,
@@ -498,6 +575,19 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 	if (tb[NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS])
 		capa->max_sched_scan_ssids =
 			nla_get_u8(tb[NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS]);
+
+	if (tb[NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS] &&
+	    tb[NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL] &&
+	    tb[NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS]) {
+		capa->max_sched_scan_plans =
+			nla_get_u32(tb[NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS]);
+
+		capa->max_sched_scan_plan_interval =
+			nla_get_u32(tb[NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL]);
+
+		capa->max_sched_scan_plan_iterations =
+			nla_get_u32(tb[NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS]);
+	}
 
 	if (tb[NL80211_ATTR_MAX_MATCH_SETS])
 		capa->max_match_sets =
@@ -550,6 +640,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 				  nla_len(tb[NL80211_ATTR_EXT_CAPA]));
 			drv->extended_capa_len =
 				nla_len(tb[NL80211_ATTR_EXT_CAPA]);
+			wpa_hexdump(MSG_DEBUG,
+				    "nl80211: Driver-advertised extended capabilities (default)",
+				    drv->extended_capa, drv->extended_capa_len);
 		}
 		drv->extended_capa_mask =
 			os_malloc(nla_len(tb[NL80211_ATTR_EXT_CAPA_MASK]));
@@ -557,12 +650,18 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 			os_memcpy(drv->extended_capa_mask,
 				  nla_data(tb[NL80211_ATTR_EXT_CAPA_MASK]),
 				  nla_len(tb[NL80211_ATTR_EXT_CAPA_MASK]));
+			wpa_hexdump(MSG_DEBUG,
+				    "nl80211: Driver-advertised extended capabilities mask (default)",
+				    drv->extended_capa_mask,
+				    drv->extended_capa_len);
 		} else {
 			os_free(drv->extended_capa);
 			drv->extended_capa = NULL;
 			drv->extended_capa_len = 0;
 		}
 	}
+
+	wiphy_info_extended_capab(drv, tb[NL80211_ATTR_IFTYPE_EXT_CAPA]);
 
 	if (tb[NL80211_ATTR_VENDOR_DATA]) {
 		struct nlattr *nl;
@@ -580,6 +679,7 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 				case QCA_NL80211_VENDOR_SUBCMD_TEST:
 					drv->vendor_cmd_test_avail = 1;
 					break;
+#ifdef CONFIG_DRIVER_NL80211_QCA
 				case QCA_NL80211_VENDOR_SUBCMD_ROAMING:
 					drv->roaming_vendor_cmd_avail = 1;
 					break;
@@ -602,6 +702,13 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 				case QCA_NL80211_VENDOR_SUBCMD_SETBAND:
 					drv->setband_vendor_cmd_avail = 1;
 					break;
+				case QCA_NL80211_VENDOR_SUBCMD_TRIGGER_SCAN:
+					drv->scan_vendor_cmd_avail = 1;
+					break;
+				case QCA_NL80211_VENDOR_SUBCMD_SET_WIFI_CONFIGURATION:
+					drv->set_wifi_conf_vendor_cmd_avail = 1;
+					break;
+#endif /* CONFIG_DRIVER_NL80211_QCA */
 				}
 			}
 
@@ -632,6 +739,10 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 	if (tb[NL80211_ATTR_MAX_AP_ASSOC_STA])
 		capa->max_stations =
 			nla_get_u32(tb[NL80211_ATTR_MAX_AP_ASSOC_STA]);
+
+	if (tb[NL80211_ATTR_MAX_CSA_COUNTERS])
+		capa->max_csa_counters =
+			nla_get_u8(tb[NL80211_ATTR_MAX_CSA_COUNTERS]);
 
 	return NL_SKIP;
 }
@@ -689,8 +800,6 @@ static int wpa_driver_nl80211_get_info(struct wpa_driver_nl80211_data *drv,
 	if (!drv->capa.max_remain_on_chan)
 		drv->capa.max_remain_on_chan = 5000;
 
-	if (info->channel_switch_supported)
-		drv->capa.flags |= WPA_DRIVER_FLAGS_AP_CSA;
 	drv->capa.wmm_ac_supported = info->wmm_ac_supported;
 
 	drv->capa.mac_addr_rand_sched_scan_supported =
@@ -698,9 +807,23 @@ static int wpa_driver_nl80211_get_info(struct wpa_driver_nl80211_data *drv,
 	drv->capa.mac_addr_rand_scan_supported =
 		info->mac_addr_rand_scan_supported;
 
+	if (info->channel_switch_supported) {
+		drv->capa.flags |= WPA_DRIVER_FLAGS_AP_CSA;
+		if (!drv->capa.max_csa_counters)
+			drv->capa.max_csa_counters = 1;
+	}
+
+	if (!drv->capa.max_sched_scan_plans) {
+		drv->capa.max_sched_scan_plans = 1;
+		drv->capa.max_sched_scan_plan_interval = UINT32_MAX;
+		drv->capa.max_sched_scan_plan_iterations = 0;
+	}
+
 	return 0;
 }
 
+
+#ifdef CONFIG_DRIVER_NL80211_QCA
 
 static int dfs_info_handler(struct nl_msg *msg, void *arg)
 {
@@ -780,8 +903,12 @@ static int features_info_handler(struct nl_msg *msg, void *arg)
 
 		attr = tb_vendor[QCA_WLAN_VENDOR_ATTR_FEATURE_FLAGS];
 		if (attr) {
-			info->flags = nla_data(attr);
-			info->flags_len = nla_len(attr);
+			int len = nla_len(attr);
+			info->flags = os_malloc(len);
+			if (info->flags != NULL) {
+				os_memcpy(info->flags, nla_data(attr), len);
+				info->flags_len = len;
+			}
 		}
 		attr = tb_vendor[QCA_WLAN_VENDOR_ATTR_CONCURRENCY_CAPA];
 		if (attr)
@@ -840,7 +967,16 @@ static void qca_nl80211_get_features(struct wpa_driver_nl80211_data *drv)
 
 	if (check_feature(QCA_WLAN_VENDOR_FEATURE_SUPPORT_HW_MODE_ANY, &info))
 		drv->capa.flags |= WPA_DRIVER_FLAGS_SUPPORT_HW_MODE_ANY;
+
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_OFFCHANNEL_SIMULTANEOUS,
+			  &info))
+		drv->capa.flags |= WPA_DRIVER_FLAGS_OFFCHANNEL_SIMULTANEOUS;
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_P2P_LISTEN_OFFLOAD, &info))
+		drv->capa.flags |= WPA_DRIVER_FLAGS_P2P_LISTEN_OFFLOAD;
+	os_free(info.flags);
 }
+
+#endif /* CONFIG_DRIVER_NL80211_QCA */
 
 
 int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
@@ -898,21 +1034,8 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 	 * If poll command and tx status are supported, mac80211 is new enough
 	 * to have everything we need to not need monitor interfaces.
 	 */
-	drv->use_monitor = !info.poll_command_supported || !info.data_tx_status;
-
-	if (drv->device_ap_sme && drv->use_monitor) {
-		/*
-		 * Non-mac80211 drivers may not support monitor interface.
-		 * Make sure we do not get stuck with incorrect capability here
-		 * by explicitly testing this.
-		 */
-		if (!info.monitor_supported) {
-			wpa_printf(MSG_DEBUG, "nl80211: Disable use_monitor "
-				   "with device_ap_sme since no monitor mode "
-				   "support detected");
-			drv->use_monitor = 0;
-		}
-	}
+	drv->use_monitor = !info.device_ap_sme &&
+		(!info.poll_command_supported || !info.data_tx_status);
 
 	/*
 	 * If we aren't going to use monitor interfaces, but the
@@ -922,8 +1045,20 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 	if (!drv->use_monitor && !info.data_tx_status)
 		drv->capa.flags &= ~WPA_DRIVER_FLAGS_EAPOL_TX_STATUS;
 
+#ifdef CONFIG_DRIVER_NL80211_QCA
 	qca_nl80211_check_dfs_capa(drv);
 	qca_nl80211_get_features(drv);
+
+	/*
+	 * To enable offchannel simultaneous support in wpa_supplicant, the
+	 * underlying driver needs to support the same along with offchannel TX.
+	 * Offchannel TX support is needed since remain_on_channel and
+	 * action_tx use some common data structures and hence cannot be
+	 * scheduled simultaneously.
+	 */
+	if (!(drv->capa.flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX))
+		drv->capa.flags &= ~WPA_DRIVER_FLAGS_OFFCHANNEL_SIMULTANEOUS;
+#endif /* CONFIG_DRIVER_NL80211_QCA */
 
 	return 0;
 }
@@ -933,6 +1068,7 @@ struct phy_info_arg {
 	u16 *num_modes;
 	struct hostapd_hw_modes *modes;
 	int last_mode, last_chan_idx;
+	int failed;
 };
 
 static void phy_info_ht_capa(struct hostapd_hw_modes *mode, struct nlattr *capa,
@@ -1050,7 +1186,7 @@ static int phy_info_freqs(struct phy_info_arg *phy_info,
 				   mode->num_channels + new_channels,
 				   sizeof(struct hostapd_channel_data));
 	if (!channel)
-		return NL_SKIP;
+		return NL_STOP;
 
 	mode->channels = channel;
 	mode->num_channels += new_channels;
@@ -1096,7 +1232,7 @@ static int phy_info_rates(struct hostapd_hw_modes *mode, struct nlattr *tb)
 
 	mode->rates = os_calloc(mode->num_rates, sizeof(int));
 	if (!mode->rates)
-		return NL_SKIP;
+		return NL_STOP;
 
 	idx = 0;
 
@@ -1125,8 +1261,10 @@ static int phy_info_band(struct phy_info_arg *phy_info, struct nlattr *nl_band)
 		mode = os_realloc_array(phy_info->modes,
 					*phy_info->num_modes + 1,
 					sizeof(*mode));
-		if (!mode)
-			return NL_SKIP;
+		if (!mode) {
+			phy_info->failed = 1;
+			return NL_STOP;
+		}
 		phy_info->modes = mode;
 
 		mode = &phy_info->modes[*(phy_info->num_modes)];
@@ -1162,11 +1300,12 @@ static int phy_info_band(struct phy_info_arg *phy_info, struct nlattr *nl_band)
 	phy_info_vht_capa(mode, tb_band[NL80211_BAND_ATTR_VHT_CAPA],
 			  tb_band[NL80211_BAND_ATTR_VHT_MCS_SET]);
 	ret = phy_info_freqs(phy_info, mode, tb_band[NL80211_BAND_ATTR_FREQS]);
-	if (ret != NL_OK)
+	if (ret == NL_OK)
+		ret = phy_info_rates(mode, tb_band[NL80211_BAND_ATTR_RATES]);
+	if (ret != NL_OK) {
+		phy_info->failed = 1;
 		return ret;
-	ret = phy_info_rates(mode, tb_band[NL80211_BAND_ATTR_RATES]);
-	if (ret != NL_OK)
-		return ret;
+	}
 
 	return NL_OK;
 }
@@ -1381,7 +1520,7 @@ static void nl80211_reg_rule_sec(struct nlattr *tb[],
 
 
 static void nl80211_set_vht_mode(struct hostapd_hw_modes *mode, int start,
-				 int end)
+				 int end, int max_bw)
 {
 	int c;
 
@@ -1398,6 +1537,32 @@ static void nl80211_set_vht_mode(struct hostapd_hw_modes *mode, int start,
 
 		if (chan->freq - 70 >= start && chan->freq + 10 <= end)
 			chan->flag |= HOSTAPD_CHAN_VHT_70_10;
+
+		if (max_bw >= 160) {
+			if (chan->freq - 10 >= start && chan->freq + 150 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_10_150;
+
+			if (chan->freq - 30 >= start && chan->freq + 130 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_30_130;
+
+			if (chan->freq - 50 >= start && chan->freq + 110 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_50_110;
+
+			if (chan->freq - 70 >= start && chan->freq + 90 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_70_90;
+
+			if (chan->freq - 90 >= start && chan->freq + 70 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_90_70;
+
+			if (chan->freq - 110 >= start && chan->freq + 50 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_110_50;
+
+			if (chan->freq - 130 >= start && chan->freq + 30 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_130_30;
+
+			if (chan->freq - 150 >= start && chan->freq + 10 <= end)
+				chan->flag |= HOSTAPD_CHAN_VHT_150_10;
+		}
 	}
 }
 
@@ -1428,7 +1593,7 @@ static void nl80211_reg_rule_vht(struct nlattr *tb[],
 		if (!results->modes[m].vht_capab)
 			continue;
 
-		nl80211_set_vht_mode(&results->modes[m], start, end);
+		nl80211_set_vht_mode(&results->modes[m], start, end, max_bw);
 	}
 }
 
@@ -1566,6 +1731,7 @@ nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags)
 		.num_modes = num_modes,
 		.modes = NULL,
 		.last_mode = -1,
+		.failed = 0,
 	};
 
 	*num_modes = 0;
@@ -1582,6 +1748,16 @@ nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags)
 
 	if (send_and_recv_msgs(drv, msg, phy_info_handler, &result) == 0) {
 		nl80211_set_regulatory_flags(drv, &result);
+		if (result.failed) {
+			int i;
+
+			for (i = 0; result.modes && i < *num_modes; i++) {
+				os_free(result.modes[i].channels);
+				os_free(result.modes[i].rates);
+			}
+			os_free(result.modes);
+			return NULL;
+		}
 		return wpa_driver_nl80211_postprocess_modes(result.modes,
 							    num_modes);
 	}

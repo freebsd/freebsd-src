@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / UDP socket -based control interface
- * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -48,13 +48,33 @@ struct ctrl_iface_priv {
 	u8 cookie[COOKIE_LEN];
 };
 
+struct ctrl_iface_global_priv {
+	int sock;
+	struct wpa_ctrl_dst *ctrl_dst;
+	u8 cookie[COOKIE_LEN];
+};
 
-static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
+
+static void wpa_supplicant_ctrl_iface_send(struct wpa_supplicant *wpa_s,
+					   const char *ifname, int sock,
+					   struct wpa_ctrl_dst **head,
 					   int level, const char *buf,
 					   size_t len);
 
 
-static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
+static void wpas_ctrl_iface_free_dst(struct wpa_ctrl_dst *dst)
+{
+	struct wpa_ctrl_dst *prev;
+
+	while (dst) {
+		prev = dst;
+		dst = dst->next;
+		os_free(prev);
+	}
+}
+
+
+static int wpa_supplicant_ctrl_iface_attach(struct wpa_ctrl_dst **head,
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 					    struct sockaddr_in6 *from,
 #else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
@@ -73,8 +93,8 @@ static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
 	os_memcpy(&dst->addr, from, sizeof(*from));
 	dst->addrlen = fromlen;
 	dst->debug_level = MSG_INFO;
-	dst->next = priv->ctrl_dst;
-	priv->ctrl_dst = dst;
+	dst->next = *head;
+	*head = dst;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor attached %s:%d",
 		   inet_ntop(AF_INET6, &from->sin6_addr, addr, sizeof(*from)),
@@ -87,7 +107,7 @@ static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
 }
 
 
-static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
+static int wpa_supplicant_ctrl_iface_detach(struct wpa_ctrl_dst **head,
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 					    struct sockaddr_in6 *from,
 #else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
@@ -100,7 +120,7 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 	char addr[INET6_ADDRSTRLEN];
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
-	dst = priv->ctrl_dst;
+	dst = *head;
 	while (dst) {
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 		if (from->sin6_port == dst->addr.sin6_port &&
@@ -118,7 +138,7 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 				   ntohs(from->sin_port));
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 			if (prev == NULL)
-				priv->ctrl_dst = dst->next;
+				*head = dst->next;
 			else
 				prev->next = dst->next;
 			os_free(dst);
@@ -282,14 +302,16 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		pos++;
 
 	if (os_strcmp(pos, "ATTACH") == 0) {
-		if (wpa_supplicant_ctrl_iface_attach(priv, &from, fromlen))
+		if (wpa_supplicant_ctrl_iface_attach(&priv->ctrl_dst,
+						     &from, fromlen))
 			reply_len = 1;
 		else {
 			new_attached = 1;
 			reply_len = 2;
 		}
 	} else if (os_strcmp(pos, "DETACH") == 0) {
-		if (wpa_supplicant_ctrl_iface_detach(priv, &from, fromlen))
+		if (wpa_supplicant_ctrl_iface_detach(&priv->ctrl_dst,
+						     &from, fromlen))
 			reply_len = 1;
 		else
 			reply_len = 2;
@@ -327,9 +349,28 @@ static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level,
 					     const char *txt, size_t len)
 {
 	struct wpa_supplicant *wpa_s = ctx;
-	if (wpa_s == NULL || wpa_s->ctrl_iface == NULL)
+
+	if (!wpa_s)
 		return;
-	wpa_supplicant_ctrl_iface_send(wpa_s->ctrl_iface, level, txt, len);
+
+	if (type != WPA_MSG_NO_GLOBAL && wpa_s->global->ctrl_iface) {
+		struct ctrl_iface_global_priv *priv = wpa_s->global->ctrl_iface;
+
+		if (priv->ctrl_dst) {
+			wpa_supplicant_ctrl_iface_send(
+				wpa_s,
+				type != WPA_MSG_PER_INTERFACE ?
+				NULL : wpa_s->ifname,
+				priv->sock, &priv->ctrl_dst, level, txt, len);
+		}
+	}
+
+	if (type == WPA_MSG_ONLY_GLOBAL || !wpa_s->ctrl_iface)
+		return;
+
+	wpa_supplicant_ctrl_iface_send(wpa_s, NULL, wpa_s->ctrl_iface->sock,
+				       &wpa_s->ctrl_iface->ctrl_dst,
+				       level, txt, len);
 }
 
 
@@ -337,7 +378,9 @@ struct ctrl_iface_priv *
 wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 {
 	struct ctrl_iface_priv *priv;
+	char port_str[40];
 	int port = WPA_CTRL_IFACE_PORT;
+	char *pos;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	struct sockaddr_in6 addr;
 	int domain = PF_INET6;
@@ -355,6 +398,17 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 
 	if (wpa_s->conf->ctrl_interface == NULL)
 		return priv;
+
+	pos = os_strstr(wpa_s->conf->ctrl_interface, "udp:");
+	if (pos) {
+		pos += 4;
+		port = atoi(pos);
+		if (port <= 0) {
+			wpa_printf(MSG_ERROR, "Invalid ctrl_iface UDP port: %s",
+				   wpa_s->conf->ctrl_interface);
+			goto fail;
+		}
+	}
 
 	priv->sock = socket(domain, SOCK_DGRAM, 0);
 	if (priv->sock < 0) {
@@ -392,6 +446,15 @@ try_again:
 		goto fail;
 	}
 
+	/* Update the ctrl_interface value to match the selected port */
+	os_snprintf(port_str, sizeof(port_str), "udp:%d", port);
+	os_free(wpa_s->conf->ctrl_interface);
+	wpa_s->conf->ctrl_interface = os_strdup(port_str);
+	if (!wpa_s->conf->ctrl_interface) {
+		wpa_msg(wpa_s, MSG_ERROR, "Failed to malloc ctrl_interface");
+		goto fail;
+	}
+
 #ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
 	wpa_msg(wpa_s, MSG_DEBUG, "ctrl_iface_init UDP port: %d", port);
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
@@ -412,8 +475,6 @@ fail:
 
 void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 {
-	struct wpa_ctrl_dst *dst, *prev;
-
 	if (priv->sock > -1) {
 		eloop_unregister_read_sock(priv->sock);
 		if (priv->ctrl_dst) {
@@ -430,22 +491,19 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 		priv->sock = -1;
 	}
 
-	dst = priv->ctrl_dst;
-	while (dst) {
-		prev = dst;
-		dst = dst->next;
-		os_free(prev);
-	}
+	wpas_ctrl_iface_free_dst(priv->ctrl_dst);
 	os_free(priv);
 }
 
 
-static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
+static void wpa_supplicant_ctrl_iface_send(struct wpa_supplicant *wpa_s,
+					   const char *ifname, int sock,
+					   struct wpa_ctrl_dst **head,
 					   int level, const char *buf,
 					   size_t len)
 {
 	struct wpa_ctrl_dst *dst, *next;
-	char levelstr[10];
+	char levelstr[64];
 	int idx;
 	char *sbuf;
 	int llen;
@@ -453,11 +511,15 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 	char addr[INET6_ADDRSTRLEN];
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
-	dst = priv->ctrl_dst;
-	if (priv->sock < 0 || dst == NULL)
+	dst = *head;
+	if (sock < 0 || dst == NULL)
 		return;
 
-	os_snprintf(levelstr, sizeof(levelstr), "<%d>", level);
+	if (ifname)
+		os_snprintf(levelstr, sizeof(levelstr), "IFACE=%s <%d>",
+			    ifname, level);
+	else
+		os_snprintf(levelstr, sizeof(levelstr), "<%d>", level);
 
 	llen = os_strlen(levelstr);
 	sbuf = os_malloc(llen + len);
@@ -481,7 +543,7 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 				   inet_ntoa(dst->addr.sin_addr),
 				   ntohs(dst->addr.sin_port));
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
-			if (sendto(priv->sock, sbuf, llen + len, 0,
+			if (sendto(sock, sbuf, llen + len, 0,
 				   (struct sockaddr *) &dst->addr,
 				   sizeof(dst->addr)) < 0) {
 				wpa_printf(MSG_ERROR,
@@ -490,7 +552,7 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 				dst->errors++;
 				if (dst->errors > 10) {
 					wpa_supplicant_ctrl_iface_detach(
-						priv, &dst->addr,
+						head, &dst->addr,
 						dst->addrlen);
 				}
 			} else
@@ -512,12 +574,6 @@ void wpa_supplicant_ctrl_iface_wait(struct ctrl_iface_priv *priv)
 
 
 /* Global ctrl_iface */
-
-struct ctrl_iface_global_priv {
-	int sock;
-	u8 cookie[COOKIE_LEN];
-};
-
 
 static char *
 wpa_supplicant_global_get_cookie(struct ctrl_iface_global_priv *priv,
@@ -546,9 +602,13 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	struct ctrl_iface_global_priv *priv = sock_ctx;
 	char buf[256], *pos;
 	int res;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	struct sockaddr_in6 from;
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	struct sockaddr_in from;
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	socklen_t fromlen = sizeof(from);
-	char *reply;
+	char *reply = NULL;
 	size_t reply_len;
 	u8 cookie[COOKIE_LEN];
 
@@ -561,6 +621,7 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	}
 
 #ifndef CONFIG_CTRL_IFACE_UDP_REMOTE
+#ifndef CONFIG_CTRL_IFACE_UDP_IPV6
 	if (from.sin_addr.s_addr != htonl((127 << 24) | 1)) {
 		/*
 		 * The OS networking stack is expected to drop this kind of
@@ -572,6 +633,7 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 			   "source %s", inet_ntoa(from.sin_addr));
 		return;
 	}
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 
 	buf[res] = '\0';
@@ -603,16 +665,33 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	while (*pos == ' ')
 		pos++;
 
-	reply = wpa_supplicant_global_ctrl_iface_process(global, pos,
-							 &reply_len);
+	if (os_strcmp(pos, "ATTACH") == 0) {
+		if (wpa_supplicant_ctrl_iface_attach(&priv->ctrl_dst,
+						     &from, fromlen))
+			reply_len = 1;
+		else
+			reply_len = 2;
+	} else if (os_strcmp(pos, "DETACH") == 0) {
+		if (wpa_supplicant_ctrl_iface_detach(&priv->ctrl_dst,
+						     &from, fromlen))
+			reply_len = 1;
+		else
+			reply_len = 2;
+	} else {
+		reply = wpa_supplicant_global_ctrl_iface_process(global, pos,
+								 &reply_len);
+	}
 
  done:
 	if (reply) {
 		sendto(sock, reply, reply_len, 0, (struct sockaddr *) &from,
 		       fromlen);
 		os_free(reply);
-	} else if (reply_len) {
+	} else if (reply_len == 1) {
 		sendto(sock, "FAIL\n", 5, 0, (struct sockaddr *) &from,
+		       fromlen);
+	} else if (reply_len == 2) {
+		sendto(sock, "OK\n", 3, 0, (struct sockaddr *) &from,
 		       fromlen);
 	}
 }
@@ -623,6 +702,7 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 {
 	struct ctrl_iface_global_priv *priv;
 	struct sockaddr_in addr;
+	char *pos;
 	int port = WPA_GLOBAL_CTRL_IFACE_PORT;
 
 	priv = os_zalloc(sizeof(*priv));
@@ -636,6 +716,17 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 
 	wpa_printf(MSG_DEBUG, "Global control interface '%s'",
 		   global->params.ctrl_interface);
+
+	pos = os_strstr(global->params.ctrl_interface, "udp:");
+	if (pos) {
+		pos += 4;
+		port = atoi(pos);
+		if (port <= 0) {
+			wpa_printf(MSG_ERROR, "Invalid global ctrl UDP port %s",
+				   global->params.ctrl_interface);
+			goto fail;
+		}
+	}
 
 	priv->sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (priv->sock < 0) {
@@ -655,7 +746,7 @@ try_again:
 	if (bind(priv->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		port++;
 		if ((port - WPA_GLOBAL_CTRL_IFACE_PORT) <
-		    WPA_GLOBAL_CTRL_IFACE_PORT_LIMIT)
+		    WPA_GLOBAL_CTRL_IFACE_PORT_LIMIT && !pos)
 			goto try_again;
 		wpa_printf(MSG_ERROR, "bind(AF_INET): %s", strerror(errno));
 		goto fail;
@@ -668,6 +759,7 @@ try_again:
 	eloop_register_read_sock(priv->sock,
 				 wpa_supplicant_global_ctrl_iface_receive,
 				 global, priv);
+	wpa_msg_register_cb(wpa_supplicant_ctrl_iface_msg_cb);
 
 	return priv;
 
@@ -686,5 +778,7 @@ wpa_supplicant_global_ctrl_iface_deinit(struct ctrl_iface_global_priv *priv)
 		eloop_unregister_read_sock(priv->sock);
 		close(priv->sock);
 	}
+
+	wpas_ctrl_iface_free_dst(priv->ctrl_dst);
 	os_free(priv);
 }

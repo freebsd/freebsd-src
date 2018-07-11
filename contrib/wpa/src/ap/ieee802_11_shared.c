@@ -172,6 +172,8 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx)
 	case 0: /* Bits 0-7 */
 		if (hapd->iconf->obss_interval)
 			*pos |= 0x01; /* Bit 0 - Coexistence management */
+		if (hapd->iface->drv_flags & WPA_DRIVER_FLAGS_AP_CSA)
+			*pos |= 0x04; /* Bit 2 - Extended Channel Switching */
 		break;
 	case 1: /* Bits 8-15 */
 		if (hapd->conf->proxy_arp)
@@ -207,10 +209,20 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx)
 		if (hapd->conf->hs20)
 			*pos |= 0x40; /* Bit 46 - WNM-Notification */
 #endif /* CONFIG_HS20 */
+#ifdef CONFIG_MBO
+		if (hapd->conf->mbo_enabled)
+			*pos |= 0x40; /* Bit 46 - WNM-Notification */
+#endif /* CONFIG_MBO */
 		break;
 	case 6: /* Bits 48-55 */
 		if (hapd->conf->ssid.utf8_ssid)
 			*pos |= 0x01; /* Bit 48 - UTF-8 SSID */
+		break;
+	case 8: /* Bits 64-71 */
+		if (hapd->conf->ftm_responder)
+			*pos |= 0x40; /* Bit 70 - FTM responder */
+		if (hapd->conf->ftm_initiator)
+			*pos |= 0x80; /* Bit 71 - FTM initiator */
 		break;
 	}
 }
@@ -231,6 +243,9 @@ u8 * hostapd_eid_ext_capab(struct hostapd_data *hapd, u8 *eid)
 		len = 1;
 	if (len < 7 && hapd->conf->ssid.utf8_ssid)
 		len = 7;
+	if (len < 9 &&
+	    (hapd->conf->ftm_initiator || hapd->conf->ftm_responder))
+		len = 9;
 #ifdef CONFIG_WNM
 	if (len < 4)
 		len = 4;
@@ -239,6 +254,10 @@ u8 * hostapd_eid_ext_capab(struct hostapd_data *hapd, u8 *eid)
 	if (hapd->conf->hs20 && len < 6)
 		len = 6;
 #endif /* CONFIG_HS20 */
+#ifdef CONFIG_MBO
+	if (hapd->conf->mbo_enabled && len < 6)
+		len = 6;
+#endif /* CONFIG_MBO */
 	if (len < hapd->iface->extended_capa_len)
 		len = hapd->iface->extended_capa_len;
 	if (len == 0)
@@ -505,4 +524,63 @@ u8 * hostapd_eid_bss_max_idle_period(struct hostapd_data *hapd, u8 *eid)
 #endif /* CONFIG_WNM */
 
 	return pos;
+}
+
+
+#ifdef CONFIG_MBO
+
+u8 * hostapd_eid_mbo(struct hostapd_data *hapd, u8 *eid, size_t len)
+{
+	u8 mbo[6], *mbo_pos = mbo;
+	u8 *pos = eid;
+
+	if (!hapd->conf->mbo_enabled)
+		return eid;
+
+	*mbo_pos++ = MBO_ATTR_ID_AP_CAPA_IND;
+	*mbo_pos++ = 1;
+	/* Not Cellular aware */
+	*mbo_pos++ = 0;
+
+	if (hapd->mbo_assoc_disallow) {
+		*mbo_pos++ = MBO_ATTR_ID_ASSOC_DISALLOW;
+		*mbo_pos++ = 1;
+		*mbo_pos++ = hapd->mbo_assoc_disallow;
+	}
+
+	pos += mbo_add_ie(pos, len, mbo, mbo_pos - mbo);
+
+	return pos;
+}
+
+
+u8 hostapd_mbo_ie_len(struct hostapd_data *hapd)
+{
+	if (!hapd->conf->mbo_enabled)
+		return 0;
+
+	/*
+	 * MBO IE header (6) + Capability Indication attribute (3) +
+	 * Association Disallowed attribute (3) = 12
+	 */
+	return 6 + 3 + (hapd->mbo_assoc_disallow ? 3 : 0);
+}
+
+#endif /* CONFIG_MBO */
+
+
+void ap_copy_sta_supp_op_classes(struct sta_info *sta,
+				 const u8 *supp_op_classes,
+				 size_t supp_op_classes_len)
+{
+	if (!supp_op_classes)
+		return;
+	os_free(sta->supp_op_classes);
+	sta->supp_op_classes = os_malloc(1 + supp_op_classes_len);
+	if (!sta->supp_op_classes)
+		return;
+
+	sta->supp_op_classes[0] = supp_op_classes_len;
+	os_memcpy(sta->supp_op_classes + 1, supp_op_classes,
+		  supp_op_classes_len);
 }

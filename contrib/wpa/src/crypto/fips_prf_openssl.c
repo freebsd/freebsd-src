@@ -17,6 +17,19 @@ static void sha1_transform(u32 *state, const u8 data[64])
 {
 	SHA_CTX context;
 	os_memset(&context, 0, sizeof(context));
+#if defined(OPENSSL_IS_BORINGSSL) && !defined(ANDROID)
+	context.h[0] = state[0];
+	context.h[1] = state[1];
+	context.h[2] = state[2];
+	context.h[3] = state[3];
+	context.h[4] = state[4];
+	SHA1_Transform(&context, data);
+	state[0] = context.h[0];
+	state[1] = context.h[1];
+	state[2] = context.h[2];
+	state[3] = context.h[3];
+	state[4] = context.h[4];
+#else
 	context.h0 = state[0];
 	context.h1 = state[1];
 	context.h2 = state[2];
@@ -28,6 +41,7 @@ static void sha1_transform(u32 *state, const u8 data[64])
 	state[2] = context.h2;
 	state[3] = context.h3;
 	state[4] = context.h4;
+#endif
 }
 
 
@@ -62,12 +76,11 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 			/* w_i = G(t, XVAL) */
 			os_memcpy(_t, t, 20);
 			sha1_transform(_t, xkey);
-			_t[0] = host_to_be32(_t[0]);
-			_t[1] = host_to_be32(_t[1]);
-			_t[2] = host_to_be32(_t[2]);
-			_t[3] = host_to_be32(_t[3]);
-			_t[4] = host_to_be32(_t[4]);
-			os_memcpy(xpos, _t, 20);
+			WPA_PUT_BE32(xpos, _t[0]);
+			WPA_PUT_BE32(xpos + 4, _t[1]);
+			WPA_PUT_BE32(xpos + 8, _t[2]);
+			WPA_PUT_BE32(xpos + 12, _t[3]);
+			WPA_PUT_BE32(xpos + 16, _t[4]);
 
 			/* XKEY = (1 + XKEY + w_i) mod 2^b */
 			carry = 1;
