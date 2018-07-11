@@ -50,16 +50,16 @@
 #define EVFILT_SYSCOUNT		13
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-#define EV_SET(kevp_, a, b, c, d, e, f) do {	\
-    *(kevp_) = (struct kevent){			\
-	.ident = (a),				\
-	.filter = (b),				\
-	.flags = (c),				\
-	.fflags = (d),				\
-	.data = (e),				\
-	.udata = (f),				\
-	.ext = {0},				\
-    };						\
+#define	EV_SET(kevp_, a, b, c, d, e, f) do {	\
+	*(kevp_) = (struct kevent){		\
+	    .ident = (a),			\
+	    .filter = (b),			\
+	    .flags = (c),			\
+	    .fflags = (d),			\
+	    .data = (e),			\
+	    .udata = (f),			\
+	    .ext = {0},				\
+	};					\
 } while(0)
 #else /* Pre-C99 or not STDC (e.g., C++) */
 /* The definition of the local variable kevp could possibly conflict
