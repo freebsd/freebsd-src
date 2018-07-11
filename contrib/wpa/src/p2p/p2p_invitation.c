@@ -284,7 +284,7 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 
 		if (!p2p_channels_includes(&intersection, reg_class, channel))
 		{
-			p2p_dbg(p2p, "forced freq %d MHz not in the supported channels interaction",
+			p2p_dbg(p2p, "forced freq %d MHz not in the supported channels intersection",
 				op_freq);
 			status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 			goto fail;
@@ -418,7 +418,7 @@ fail:
 	p2p->pending_action_state = P2P_PENDING_INVITATION_RESPONSE;
 	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
-			    wpabuf_head(resp), wpabuf_len(resp), 200) < 0) {
+			    wpabuf_head(resp), wpabuf_len(resp), 50) < 0) {
 		p2p_dbg(p2p, "Failed to send Action frame");
 	}
 

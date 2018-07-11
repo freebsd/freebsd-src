@@ -31,7 +31,7 @@
 /**
  * P2P_MAX_REG_CLASSES - Maximum number of regulatory classes
  */
-#define P2P_MAX_REG_CLASSES 10
+#define P2P_MAX_REG_CLASSES 15
 
 /**
  * P2P_MAX_REG_CLASS_CHANNELS - Maximum number of channels per regulatory class
@@ -98,6 +98,10 @@ struct p2p_go_neg_results {
 	int ht40;
 
 	int vht;
+
+	u8 max_oper_chwidth;
+
+	unsigned int vht_center_freq2;
 
 	/**
 	 * ssid - SSID of the group
@@ -222,6 +226,16 @@ struct p2ps_provision {
 	 * The CPT priority list is 0 terminated.
 	 */
 	u8 cpt_priority[P2PS_FEATURE_CAPAB_CPT_MAX + 1];
+
+	/**
+	 * force_freq - The only allowed channel frequency in MHz or 0.
+	 */
+	unsigned int force_freq;
+
+	/**
+	 * pref_freq - Preferred operating frequency in MHz or 0.
+	 */
+	unsigned int pref_freq;
 
 	/**
 	 * info - Vendor defined extra Provisioning information
@@ -1024,6 +1038,8 @@ struct p2p_config {
 	 * @ssid_len: Buffer for returning length of @ssid
 	 * @group_iface: Buffer for returning whether a separate group interface
 	 *	would be used
+	 * @freq: Variable for returning the current operating frequency of a
+	 *	currently running P2P GO.
 	 * Returns: 1 if GO info found, 0 otherwise
 	 *
 	 * This is used to compose New Group settings (SSID, and intended
@@ -1031,7 +1047,8 @@ struct p2p_config {
 	 * result in our being an autonomous GO.
 	 */
 	int (*get_go_info)(void *ctx, u8 *intended_addr,
-			   u8 *ssid, size_t *ssid_len, int *group_iface);
+			   u8 *ssid, size_t *ssid_len, int *group_iface,
+			   unsigned int *freq);
 
 	/**
 	 * remove_stale_groups - Remove stale P2PS groups
@@ -1056,7 +1073,9 @@ struct p2p_config {
 				   const u8 *persist_ssid,
 				   size_t persist_ssid_size, int response_done,
 				   int prov_start, const char *session_info,
-				   const u8 *feat_cap, size_t feat_cap_len);
+				   const u8 *feat_cap, size_t feat_cap_len,
+				   unsigned int freq, const u8 *group_ssid,
+				   size_t group_ssid_len);
 
 	/**
 	 * prov_disc_resp_cb - Callback for indicating completion of PD Response
@@ -1070,14 +1089,20 @@ struct p2p_config {
 
 	/**
 	 * p2ps_group_capability - Determine group capability
+	 * @ctx: Callback context from cb_ctx
+	 * @incoming: Peer requested roles, expressed with P2PS_SETUP_* bitmap.
+	 * @role: Local roles, expressed with P2PS_SETUP_* bitmap.
+	 * @force_freq: Variable for returning forced frequency for the group.
+	 * @pref_freq: Variable for returning preferred frequency for the group.
+	 * Returns: P2PS_SETUP_* bitmap of group capability result.
 	 *
-	 * This function can be used to determine group capability based on
-	 * information from P2PS PD exchange and the current state of ongoing
-	 * groups and driver capabilities.
-	 *
-	 * P2PS_SETUP_* bitmap is used as the parameters and return value.
+	 * This function can be used to determine group capability and
+	 * frequencies based on information from P2PS PD exchange and the
+	 * current state of ongoing groups and driver capabilities.
 	 */
-	u8 (*p2ps_group_capability)(void *ctx, u8 incoming, u8 role);
+	u8 (*p2ps_group_capability)(void *ctx, u8 incoming, u8 role,
+				    unsigned int *force_freq,
+				    unsigned int *pref_freq);
 
 	/**
 	 * get_pref_freq_list - Get preferred frequency list for an interface
@@ -1530,12 +1555,13 @@ enum p2p_probe_req_status {
  * @ie: Information elements from the Probe Request frame body
  * @ie_len: Length of ie buffer in octets
  * @rx_freq: Probe Request frame RX frequency
+ * @p2p_lo_started: Whether P2P Listen Offload is started
  * Returns: value indicating the type and status of the probe request
  */
 enum p2p_probe_req_status
 p2p_probe_req_rx(struct p2p_data *p2p, const u8 *addr, const u8 *dst,
 		 const u8 *bssid, const u8 *ie, size_t ie_len,
-		 unsigned int rx_freq);
+		 unsigned int rx_freq, int p2p_lo_started);
 
 /**
  * p2p_rx_action - Report received Action frame
@@ -1689,6 +1715,12 @@ struct p2p_group_config {
 	 * freq - Operating channel of the group
 	 */
 	int freq;
+
+	/**
+	 * ip_addr_alloc - Whether IP address allocation within 4-way handshake
+	 *	is supported
+	 */
+	int ip_addr_alloc;
 
 	/**
 	 * cb_ctx - Context to use with callback functions
@@ -1877,8 +1909,10 @@ int p2p_assoc_req_ie(struct p2p_data *p2p, const u8 *bssid, u8 *buf,
  * @p2p: P2P module context from p2p_init()
  * @ies: Buffer for writing P2P IE
  * @dev_id: Device ID to search for or %NULL for any
+ * @bands: Frequency bands used in the scan (enum wpa_radio_work_band bitmap)
  */
-void p2p_scan_ie(struct p2p_data *p2p, struct wpabuf *ies, const u8 *dev_id);
+void p2p_scan_ie(struct p2p_data *p2p, struct wpabuf *ies, const u8 *dev_id,
+		 unsigned int bands);
 
 /**
  * p2p_scan_ie_buf_len - Get maximum buffer length needed for p2p_scan_ie
@@ -2100,6 +2134,16 @@ int p2p_client_limit_reached(struct p2p_group *group);
 const u8 * p2p_iterate_group_members(struct p2p_group *group, void **next);
 
 /**
+ * p2p_group_get_client_interface_addr - Get P2P Interface Address of a client in a group
+ * @group: P2P group context from p2p_group_init()
+ * @dev_addr: P2P Device Address of the client
+ * Returns: P2P Interface Address of the client if found or %NULL if no match
+ * found
+ */
+const u8 * p2p_group_get_client_interface_addr(struct p2p_group *group,
+					       const u8 *dev_addr);
+
+/**
  * p2p_group_get_dev_addr - Get a P2P Device Address of a client in a group
  * @group: P2P group context from p2p_group_init()
  * @addr: P2P Interface Address of the client
@@ -2241,7 +2285,7 @@ struct wpabuf * wifi_display_encaps(struct wpabuf *subelems);
  * discovery (p2p_find). A random number of 100 TU units is picked for each
  * Listen state iteration from [min_disc_int,max_disc_int] range.
  *
- * max_disc_tu can be used to futher limit the discoverable duration. However,
+ * max_disc_tu can be used to further limit the discoverable duration. However,
  * it should be noted that use of this parameter is not recommended since it
  * would not be compliant with the P2P specification.
  */
@@ -2339,5 +2383,8 @@ void p2p_set_own_pref_freq_list(struct p2p_data *p2p,
  */
 int p2p_group_get_common_freqs(struct p2p_group *group, int *common_freqs,
 			       unsigned int *num);
+
+struct wpabuf * p2p_build_probe_resp_template(struct p2p_data *p2p,
+					      unsigned int freq);
 
 #endif /* P2P_H */

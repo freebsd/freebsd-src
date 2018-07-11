@@ -310,3 +310,33 @@ void wpabuf_printf(struct wpabuf *buf, char *fmt, ...)
 		wpabuf_overflow(buf, res);
 	buf->used += res;
 }
+
+
+/**
+ * wpabuf_parse_bin - Parse a null terminated string of binary data to a wpabuf
+ * @buf: Buffer with null terminated string (hexdump) of binary data
+ * Returns: wpabuf or %NULL on failure
+ *
+ * The string len must be a multiple of two and contain only hexadecimal digits.
+ */
+struct wpabuf * wpabuf_parse_bin(const char *buf)
+{
+	size_t len;
+	struct wpabuf *ret;
+
+	len = os_strlen(buf);
+	if (len & 0x01)
+		return NULL;
+	len /= 2;
+
+	ret = wpabuf_alloc(len);
+	if (ret == NULL)
+		return NULL;
+
+	if (hexstr2bin(buf, wpabuf_put(ret, len), len)) {
+		wpabuf_free(ret);
+		return NULL;
+	}
+
+	return ret;
+}

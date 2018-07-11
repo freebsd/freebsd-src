@@ -1,6 +1,6 @@
 /*
  * SHA256-based PRF (IEEE 802.11r)
- * Copyright (c) 2003-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -22,14 +22,16 @@
  * @data_len: Length of the data
  * @buf: Buffer for the generated pseudo-random key
  * @buf_len: Number of bytes of key to generate
+ * Returns: 0 on success, -1 on failure
  *
  * This function is used to derive new, cryptographically separate keys from a
  * given key.
  */
-void sha256_prf(const u8 *key, size_t key_len, const char *label,
+int sha256_prf(const u8 *key, size_t key_len, const char *label,
 		const u8 *data, size_t data_len, u8 *buf, size_t buf_len)
 {
-	sha256_prf_bits(key, key_len, label, data, data_len, buf, buf_len * 8);
+	return sha256_prf_bits(key, key_len, label, data, data_len, buf,
+			       buf_len * 8);
 }
 
 
@@ -42,15 +44,16 @@ void sha256_prf(const u8 *key, size_t key_len, const char *label,
  * @data_len: Length of the data
  * @buf: Buffer for the generated pseudo-random key
  * @buf_len: Number of bits of key to generate
+ * Returns: 0 on success, -1 on failure
  *
  * This function is used to derive new, cryptographically separate keys from a
  * given key. If the requested buf_len is not divisible by eight, the least
  * significant 1-7 bits of the last octet in the output are not part of the
  * requested output.
  */
-void sha256_prf_bits(const u8 *key, size_t key_len, const char *label,
-		     const u8 *data, size_t data_len, u8 *buf,
-		     size_t buf_len_bits)
+int sha256_prf_bits(const u8 *key, size_t key_len, const char *label,
+		    const u8 *data, size_t data_len, u8 *buf,
+		    size_t buf_len_bits)
 {
 	u16 counter = 1;
 	size_t pos, plen;
@@ -75,11 +78,14 @@ void sha256_prf_bits(const u8 *key, size_t key_len, const char *label,
 		plen = buf_len - pos;
 		WPA_PUT_LE16(counter_le, counter);
 		if (plen >= SHA256_MAC_LEN) {
-			hmac_sha256_vector(key, key_len, 4, addr, len,
-					   &buf[pos]);
+			if (hmac_sha256_vector(key, key_len, 4, addr, len,
+					       &buf[pos]) < 0)
+				return -1;
 			pos += SHA256_MAC_LEN;
 		} else {
-			hmac_sha256_vector(key, key_len, 4, addr, len, hash);
+			if (hmac_sha256_vector(key, key_len, 4, addr, len,
+					       hash) < 0)
+				return -1;
 			os_memcpy(&buf[pos], hash, plen);
 			pos += plen;
 			break;
@@ -97,4 +103,6 @@ void sha256_prf_bits(const u8 *key, size_t key_len, const char *label,
 	}
 
 	os_memset(hash, 0, sizeof(hash));
+
+	return 0;
 }

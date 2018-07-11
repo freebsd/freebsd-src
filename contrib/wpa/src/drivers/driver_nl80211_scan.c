@@ -1,5 +1,6 @@
 /*
  * Driver interaction with Linux nl80211/cfg80211 - Scanning
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * Copyright (c) 2002-2014, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2007, Johannes Berg <johannes@sipsolutions.net>
  * Copyright (c) 2009-2010, Atheros Communications
@@ -14,6 +15,8 @@
 #include "utils/common.h"
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
+#include "common/qca-vendor.h"
 #include "driver_nl80211.h"
 
 
@@ -93,12 +96,20 @@ static int nl80211_get_noise_for_scan_results(
 void wpa_driver_nl80211_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_driver_nl80211_data *drv = eloop_ctx;
+
+	wpa_printf(MSG_DEBUG, "nl80211: Scan timeout - try to abort it");
+	if (!wpa_driver_nl80211_abort_scan(drv->first_bss))
+		return;
+
+	wpa_printf(MSG_DEBUG, "nl80211: Failed to abort scan");
+
 	if (drv->ap_scan_as_station != NL80211_IFTYPE_UNSPECIFIED) {
 		wpa_driver_nl80211_set_mode(drv->first_bss,
 					    drv->ap_scan_as_station);
 		drv->ap_scan_as_station = NL80211_IFTYPE_UNSPECIFIED;
 	}
-	wpa_printf(MSG_DEBUG, "Scan timeout - try to get results");
+
+	wpa_printf(MSG_DEBUG, "nl80211: Try to get scan results");
 	wpa_supplicant_event(timeout_ctx, EVENT_SCAN_RESULTS, NULL);
 }
 
@@ -131,6 +142,8 @@ nl80211_scan_common(struct i802_bss *bss, u8 cmd,
 				goto fail;
 		}
 		nla_nest_end(msg, ssids);
+	} else {
+		wpa_printf(MSG_DEBUG, "nl80211: Passive scan requested");
 	}
 
 	if (params->extra_ies) {
@@ -252,6 +265,13 @@ int wpa_driver_nl80211_scan(struct i802_bss *bss,
 			goto fail;
 	}
 
+	if (params->bssid) {
+		wpa_printf(MSG_DEBUG, "nl80211: Scan for a specific BSSID: "
+			   MACSTR, MAC2STR(params->bssid));
+		if (nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, params->bssid))
+			goto fail;
+	}
+
 	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
 	msg = NULL;
 	if (ret) {
@@ -297,6 +317,7 @@ int wpa_driver_nl80211_scan(struct i802_bss *bss,
 	eloop_cancel_timeout(wpa_driver_nl80211_scan_timeout, drv, drv->ctx);
 	eloop_register_timeout(timeout, 0, wpa_driver_nl80211_scan_timeout,
 			       drv, drv->ctx);
+	drv->last_scan_cmd = NL80211_CMD_TRIGGER_SCAN;
 
 fail:
 	nlmsg_free(msg);
@@ -304,16 +325,82 @@ fail:
 }
 
 
+static int
+nl80211_sched_scan_add_scan_plans(struct wpa_driver_nl80211_data *drv,
+				  struct nl_msg *msg,
+				  struct wpa_driver_scan_params *params)
+{
+	struct nlattr *plans;
+	struct sched_scan_plan *scan_plans = params->sched_scan_plans;
+	unsigned int i;
+
+	plans = nla_nest_start(msg, NL80211_ATTR_SCHED_SCAN_PLANS);
+	if (!plans)
+		return -1;
+
+	for (i = 0; i < params->sched_scan_plans_num; i++) {
+		struct nlattr *plan = nla_nest_start(msg, i + 1);
+
+		if (!plan)
+			return -1;
+
+		if (!scan_plans[i].interval ||
+		    scan_plans[i].interval >
+		    drv->capa.max_sched_scan_plan_interval) {
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: sched scan plan no. %u: Invalid interval: %u",
+				   i, scan_plans[i].interval);
+			return -1;
+		}
+
+		if (nla_put_u32(msg, NL80211_SCHED_SCAN_PLAN_INTERVAL,
+				scan_plans[i].interval))
+			return -1;
+
+		if (scan_plans[i].iterations >
+		    drv->capa.max_sched_scan_plan_iterations) {
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: sched scan plan no. %u: Invalid number of iterations: %u",
+				   i, scan_plans[i].iterations);
+			return -1;
+		}
+
+		if (scan_plans[i].iterations &&
+		    nla_put_u32(msg, NL80211_SCHED_SCAN_PLAN_ITERATIONS,
+				scan_plans[i].iterations))
+			return -1;
+
+		nla_nest_end(msg, plan);
+
+		/*
+		 * All the scan plans must specify the number of iterations
+		 * except the last plan, which will run infinitely. So if the
+		 * number of iterations is not specified, this ought to be the
+		 * last scan plan.
+		 */
+		if (!scan_plans[i].iterations)
+			break;
+	}
+
+	if (i != params->sched_scan_plans_num - 1) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: All sched scan plans but the last must specify number of iterations");
+		return -1;
+	}
+
+	nla_nest_end(msg, plans);
+	return 0;
+}
+
+
 /**
  * wpa_driver_nl80211_sched_scan - Initiate a scheduled scan
  * @priv: Pointer to private driver data from wpa_driver_nl80211_init()
  * @params: Scan parameters
- * @interval: Interval between scan cycles in milliseconds
  * Returns: 0 on success, -1 on failure or if not supported
  */
 int wpa_driver_nl80211_sched_scan(void *priv,
-				  struct wpa_driver_scan_params *params,
-				  u32 interval)
+				  struct wpa_driver_scan_params *params)
 {
 	struct i802_bss *bss = priv;
 	struct wpa_driver_nl80211_data *drv = bss->drv;
@@ -328,10 +415,26 @@ int wpa_driver_nl80211_sched_scan(void *priv,
 		return android_pno_start(bss, params);
 #endif /* ANDROID */
 
+	if (!params->sched_scan_plans_num ||
+	    params->sched_scan_plans_num > drv->capa.max_sched_scan_plans) {
+		wpa_printf(MSG_ERROR,
+			   "nl80211: Invalid number of sched scan plans: %u",
+			   params->sched_scan_plans_num);
+		return -1;
+	}
+
 	msg = nl80211_scan_common(bss, NL80211_CMD_START_SCHED_SCAN, params);
-	if (!msg ||
-	    nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL, interval))
+	if (!msg)
 		goto fail;
+
+	if (drv->capa.max_sched_scan_plan_iterations) {
+		if (nl80211_sched_scan_add_scan_plans(drv, msg, params))
+			goto fail;
+	} else {
+		if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL,
+				params->sched_scan_plans[0].interval * 1000))
+			goto fail;
+	}
 
 	if ((drv->num_filter_ssids &&
 	    (int) drv->num_filter_ssids <= drv->capa.max_match_sets) ||
@@ -395,8 +498,7 @@ int wpa_driver_nl80211_sched_scan(void *priv,
 		goto fail;
 	}
 
-	wpa_printf(MSG_DEBUG, "nl80211: Sched scan requested (ret=%d) - "
-		   "scan interval %d msec", ret, interval);
+	wpa_printf(MSG_DEBUG, "nl80211: Sched scan requested (ret=%d)", ret);
 
 fail:
 	nlmsg_free(msg);
@@ -436,28 +538,6 @@ int wpa_driver_nl80211_stop_sched_scan(void *priv)
 }
 
 
-const u8 * nl80211_get_ie(const u8 *ies, size_t ies_len, u8 ie)
-{
-	const u8 *end, *pos;
-
-	if (ies == NULL)
-		return NULL;
-
-	pos = ies;
-	end = ies + ies_len;
-
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
-			break;
-		if (pos[0] == ie)
-			return pos;
-		pos += 2 + pos[1];
-	}
-
-	return NULL;
-}
-
-
 static int nl80211_scan_filtered(struct wpa_driver_nl80211_data *drv,
 				 const u8 *ie, size_t ie_len)
 {
@@ -467,7 +547,7 @@ static int nl80211_scan_filtered(struct wpa_driver_nl80211_data *drv,
 	if (drv->filter_ssids == NULL)
 		return 0;
 
-	ssid = nl80211_get_ie(ie, ie_len, WLAN_EID_SSID);
+	ssid = get_ie(ie, ie_len, WLAN_EID_SSID);
 	if (ssid == NULL)
 		return 1;
 
@@ -628,9 +708,9 @@ int bss_info_handler(struct nl_msg *msg, void *arg)
 		if (os_memcmp(res->res[i]->bssid, r->bssid, ETH_ALEN) != 0)
 			continue;
 
-		s1 = nl80211_get_ie((u8 *) (res->res[i] + 1),
-				    res->res[i]->ie_len, WLAN_EID_SSID);
-		s2 = nl80211_get_ie((u8 *) (r + 1), r->ie_len, WLAN_EID_SSID);
+		s1 = get_ie((u8 *) (res->res[i] + 1),
+			    res->res[i]->ie_len, WLAN_EID_SSID);
+		s2 = get_ie((u8 *) (r + 1), r->ie_len, WLAN_EID_SSID);
 		if (s1 == NULL || s2 == NULL || s1[1] != s2[1] ||
 		    os_memcmp(s1, s2, 2 + s1[1]) != 0)
 			continue;
@@ -781,3 +861,263 @@ void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv)
 
 	wpa_scan_results_free(res);
 }
+
+
+int wpa_driver_nl80211_abort_scan(void *priv)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	int ret;
+	struct nl_msg *msg;
+
+	wpa_printf(MSG_DEBUG, "nl80211: Abort scan");
+	msg = nl80211_cmd_msg(bss, 0, NL80211_CMD_ABORT_SCAN);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	if (ret) {
+		wpa_printf(MSG_DEBUG, "nl80211: Abort scan failed: ret=%d (%s)",
+			   ret, strerror(-ret));
+	}
+
+	return ret;
+}
+
+
+#ifdef CONFIG_DRIVER_NL80211_QCA
+
+static int scan_cookie_handler(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	u64 *cookie = arg;
+
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (tb[NL80211_ATTR_VENDOR_DATA]) {
+		struct nlattr *nl_vendor = tb[NL80211_ATTR_VENDOR_DATA];
+		struct nlattr *tb_vendor[QCA_WLAN_VENDOR_ATTR_SCAN_MAX + 1];
+
+		nla_parse(tb_vendor, QCA_WLAN_VENDOR_ATTR_SCAN_MAX,
+			  nla_data(nl_vendor), nla_len(nl_vendor), NULL);
+
+		if (tb_vendor[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE])
+			*cookie = nla_get_u64(
+				tb_vendor[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE]);
+	}
+
+	return NL_SKIP;
+}
+
+
+/**
+ * wpa_driver_nl80211_vendor_scan - Request the driver to initiate a vendor scan
+ * @bss: Pointer to private driver data from wpa_driver_nl80211_init()
+ * @params: Scan parameters
+ * Returns: 0 on success, -1 on failure
+ */
+int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,
+				   struct wpa_driver_scan_params *params)
+{
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg = NULL;
+	struct nlattr *attr;
+	size_t i;
+	u32 scan_flags = 0;
+	int ret = -1;
+	u64 cookie = 0;
+
+	wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: vendor scan request");
+	drv->scan_for_auth = 0;
+
+	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
+	    nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_QCA) ||
+	    nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD,
+			QCA_NL80211_VENDOR_SUBCMD_TRIGGER_SCAN) )
+		goto fail;
+
+	attr = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
+	if (attr == NULL)
+		goto fail;
+
+	if (params->num_ssids) {
+		struct nlattr *ssids;
+
+		ssids = nla_nest_start(msg, QCA_WLAN_VENDOR_ATTR_SCAN_SSIDS);
+		if (ssids == NULL)
+			goto fail;
+		for (i = 0; i < params->num_ssids; i++) {
+			wpa_hexdump_ascii(MSG_MSGDUMP, "nl80211: Scan SSID",
+					params->ssids[i].ssid,
+					params->ssids[i].ssid_len);
+			if (nla_put(msg, i + 1, params->ssids[i].ssid_len,
+				    params->ssids[i].ssid))
+				goto fail;
+		}
+		nla_nest_end(msg, ssids);
+	}
+
+	if (params->extra_ies) {
+		wpa_hexdump(MSG_MSGDUMP, "nl80211: Scan extra IEs",
+			    params->extra_ies, params->extra_ies_len);
+		if (nla_put(msg, QCA_WLAN_VENDOR_ATTR_SCAN_IE,
+			    params->extra_ies_len, params->extra_ies))
+			goto fail;
+	}
+
+	if (params->freqs) {
+		struct nlattr *freqs;
+
+		freqs = nla_nest_start(msg,
+				       QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES);
+		if (freqs == NULL)
+			goto fail;
+		for (i = 0; params->freqs[i]; i++) {
+			wpa_printf(MSG_MSGDUMP,
+				   "nl80211: Scan frequency %u MHz",
+				   params->freqs[i]);
+			if (nla_put_u32(msg, i + 1, params->freqs[i]))
+				goto fail;
+		}
+		nla_nest_end(msg, freqs);
+	}
+
+	os_free(drv->filter_ssids);
+	drv->filter_ssids = params->filter_ssids;
+	params->filter_ssids = NULL;
+	drv->num_filter_ssids = params->num_filter_ssids;
+
+	if (params->low_priority && drv->have_low_prio_scan) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Add NL80211_SCAN_FLAG_LOW_PRIORITY");
+		scan_flags |= NL80211_SCAN_FLAG_LOW_PRIORITY;
+	}
+
+	if (params->mac_addr_rand) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Add NL80211_SCAN_FLAG_RANDOM_ADDR");
+		scan_flags |= NL80211_SCAN_FLAG_RANDOM_ADDR;
+
+		if (params->mac_addr) {
+			wpa_printf(MSG_DEBUG, "nl80211: MAC address: " MACSTR,
+				   MAC2STR(params->mac_addr));
+			if (nla_put(msg, QCA_WLAN_VENDOR_ATTR_SCAN_MAC,
+				    ETH_ALEN, params->mac_addr))
+				goto fail;
+		}
+
+		if (params->mac_addr_mask) {
+			wpa_printf(MSG_DEBUG, "nl80211: MAC address mask: "
+				   MACSTR, MAC2STR(params->mac_addr_mask));
+			if (nla_put(msg, QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK,
+				    ETH_ALEN, params->mac_addr_mask))
+				goto fail;
+		}
+	}
+
+	if (scan_flags &&
+	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, scan_flags))
+		goto fail;
+
+	if (params->p2p_probe) {
+		struct nlattr *rates;
+
+		wpa_printf(MSG_DEBUG, "nl80211: P2P probe - mask SuppRates");
+
+		rates = nla_nest_start(msg,
+				       QCA_WLAN_VENDOR_ATTR_SCAN_SUPP_RATES);
+		if (rates == NULL)
+			goto fail;
+
+		/*
+		 * Remove 2.4 GHz rates 1, 2, 5.5, 11 Mbps from supported rates
+		 * by masking out everything else apart from the OFDM rates 6,
+		 * 9, 12, 18, 24, 36, 48, 54 Mbps from non-MCS rates. All 5 GHz
+		 * rates are left enabled.
+		 */
+		if (nla_put(msg, NL80211_BAND_2GHZ, 8,
+			    "\x0c\x12\x18\x24\x30\x48\x60\x6c"))
+			goto fail;
+		nla_nest_end(msg, rates);
+
+		if (nla_put_flag(msg, QCA_WLAN_VENDOR_ATTR_SCAN_TX_NO_CCK_RATE))
+			goto fail;
+	}
+
+	nla_nest_end(msg, attr);
+
+	ret = send_and_recv_msgs(drv, msg, scan_cookie_handler, &cookie);
+	msg = NULL;
+	if (ret) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Vendor scan trigger failed: ret=%d (%s)",
+			   ret, strerror(-ret));
+		goto fail;
+	}
+
+	drv->vendor_scan_cookie = cookie;
+	drv->scan_state = SCAN_REQUESTED;
+
+	wpa_printf(MSG_DEBUG,
+		   "nl80211: Vendor scan requested (ret=%d) - scan timeout 30 seconds, scan cookie:0x%llx",
+		   ret, (long long unsigned int) cookie);
+	eloop_cancel_timeout(wpa_driver_nl80211_scan_timeout, drv, drv->ctx);
+	eloop_register_timeout(30, 0, wpa_driver_nl80211_scan_timeout,
+			       drv, drv->ctx);
+	drv->last_scan_cmd = NL80211_CMD_VENDOR;
+
+fail:
+	nlmsg_free(msg);
+	return ret;
+}
+
+
+/**
+ * nl80211_set_default_scan_ies - Set the scan default IEs to the driver
+ * @priv: Pointer to private driver data from wpa_driver_nl80211_init()
+ * @ies: Pointer to IEs buffer
+ * @ies_len: Length of IEs in bytes
+ * Returns: 0 on success, -1 on failure
+ */
+int nl80211_set_default_scan_ies(void *priv, const u8 *ies, size_t ies_len)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg = NULL;
+	struct nlattr *attr;
+	int ret = -1;
+
+	if (!drv->set_wifi_conf_vendor_cmd_avail)
+		return -1;
+
+	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
+	    nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_QCA) ||
+	    nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD,
+			QCA_NL80211_VENDOR_SUBCMD_SET_WIFI_CONFIGURATION))
+		goto fail;
+
+	attr = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
+	if (attr == NULL)
+		goto fail;
+
+	wpa_hexdump(MSG_MSGDUMP, "nl80211: Scan default IEs", ies, ies_len);
+	if (nla_put(msg, QCA_WLAN_VENDOR_ATTR_CONFIG_SCAN_DEFAULT_IES,
+		    ies_len, ies))
+		goto fail;
+
+	nla_nest_end(msg, attr);
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	msg = NULL;
+	if (ret) {
+		wpa_printf(MSG_ERROR,
+			   "nl80211: Set scan default IEs failed: ret=%d (%s)",
+			   ret, strerror(-ret));
+		goto fail;
+	}
+
+fail:
+	nlmsg_free(msg);
+	return ret;
+}
+
+#endif /* CONFIG_DRIVER_NL80211_QCA */

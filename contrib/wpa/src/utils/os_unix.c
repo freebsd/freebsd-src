@@ -399,6 +399,7 @@ void os_program_deinit(void)
 	if (total)
 		wpa_printf(MSG_INFO, "MEMLEAK: total %lu bytes",
 			   (unsigned long) total);
+	wpa_trace_deinit();
 #endif /* WPA_TRACE */
 }
 
@@ -461,11 +462,7 @@ char * os_readfile(const char *name, size_t *len)
 
 int os_file_exists(const char *fname)
 {
-	FILE *f = fopen(fname, "rb");
-	if (f == NULL)
-		return 0;
-	fclose(f);
-	return 1;
+	return access(fname, F_OK) == 0;
 }
 
 

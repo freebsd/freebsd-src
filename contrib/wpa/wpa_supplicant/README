@@ -1,7 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2016, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -72,11 +72,13 @@ Supported WPA/IEEE 802.11i features:
   * EAP-TTLS/CHAP
   * EAP-SIM
   * EAP-AKA
+  * EAP-AKA'
   * EAP-PSK
   * EAP-PAX
   * EAP-SAKE
   * EAP-IKEv2
   * EAP-GPSK
+  * EAP-pwd
   * LEAP (note: requires special support from the driver for IEEE 802.11
 	  authentication)
   (following methods are supported, but since they do not generate keying
@@ -163,16 +165,10 @@ systems. In case of Windows builds, WinPcap is used by default
 
 
 Optional libraries for EAP-TLS, EAP-PEAP, and EAP-TTLS:
-- OpenSSL (tested with 0.9.7c and 0.9.7d, and 0.9.8 versions; assumed to
+- OpenSSL (tested with 1.0.1 and 1.0.2 versions; assumed to
   work with most relatively recent versions; this is likely to be
   available with most distributions, http://www.openssl.org/)
 - GnuTLS
-- internal TLSv1 implementation
-
-TLS options for EAP-FAST:
-- OpenSSL 0.9.8d _with_ openssl-0.9.8d-tls-extensions.patch applied
-  (i.e., the default OpenSSL package does not include support for
-  extensions needed for EAP-FAST)
 - internal TLSv1 implementation
 
 One of these libraries is needed when EAP-TLS, EAP-PEAP, EAP-TTLS, or
@@ -308,7 +304,7 @@ Following build time configuration options are used to control IEEE
 802.1X/EAPOL and EAP state machines and all EAP methods. Including
 TLS, PEAP, or TTLS will require linking wpa_supplicant with OpenSSL
 library for TLS implementation. Alternatively, GnuTLS or the internal
-TLSv1 implementation can be used for TLS functionaly.
+TLSv1 implementation can be used for TLS functionality.
 
 CONFIG_IEEE8021X_EAPOL=y
 CONFIG_EAP_MD5=y
@@ -320,15 +316,17 @@ CONFIG_EAP_GTC=y
 CONFIG_EAP_OTP=y
 CONFIG_EAP_SIM=y
 CONFIG_EAP_AKA=y
+CONFIG_EAP_AKA_PRIME=y
 CONFIG_EAP_PSK=y
 CONFIG_EAP_SAKE=y
 CONFIG_EAP_GPSK=y
 CONFIG_EAP_PAX=y
 CONFIG_EAP_LEAP=y
 CONFIG_EAP_IKEV2=y
+CONFIG_EAP_PWD=y
 
 Following option can be used to include GSM SIM/USIM interface for GSM/UMTS
-authentication algorithm (for EAP-SIM/EAP-AKA). This requires pcsc-lite
+authentication algorithm (for EAP-SIM/EAP-AKA/EAP-AKA'). This requires pcsc-lite
 (http://www.linuxnet.com/) for smart card access.
 
 CONFIG_PCSC=y
@@ -409,10 +407,10 @@ Command line options
 --------------------
 
 usage:
-  wpa_supplicant [-BddfhKLqqtuvwW] [-P<pid file>] [-g<global ctrl>] \
+  wpa_supplicant [-BddfhKLqqtuvW] [-P<pid file>] [-g<global ctrl>] \
         [-G<group>] \
         -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] [-p<driver_param>] \
-        [-b<br_ifname> [-N -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
+        [-b<br_ifname> [-MN -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
         [-p<driver_param>] [-b<br_ifname>] [-m<P2P Device config file>] ...
 
 options:
@@ -435,8 +433,8 @@ options:
   -q = decrease debugging verbosity (-qq even less)
   -u = enable DBus control interface
   -v = show version
-  -w = wait for interface to be added, if needed
   -W = wait for a control interface monitor before starting
+  -M = start describing matching interface
   -N = start describing new interface
   -m = Configuration file for the P2P Device
 
@@ -479,6 +477,22 @@ wpa_supplicant \
 	-c wpa2.conf -i wlan1 -D wext
 
 
+If the interfaces on which wpa_supplicant is to run are not known or do
+not exist, wpa_supplicant can match an interface when it arrives. Each
+matched interface is separated with -M argument and the -i argument now
+allows for pattern matching.
+
+As an example, the following command would start wpa_supplicant for a
+specific wired interface called lan0, any interface starting with wlan
+and lastly any other interface. Each match has its own configuration
+file, and for the wired interface a specific driver has also been given.
+
+wpa_supplicant \
+	-M -c wpa_wired.conf -ilan0 -D wired \
+	-M -c wpa1.conf -iwlan* \
+	-M -c wpa2.conf
+
+
 If the interface is added in a Linux bridge (e.g., br0), the bridge
 interface needs to be configured to wpa_supplicant in addition to the
 main interface:
@@ -500,7 +514,7 @@ reloading can be triggered with 'wpa_cli reconfigure' command.
 
 Configuration file can include one or more network blocks, e.g., one
 for each used SSID. wpa_supplicant will automatically select the best
-betwork based on the order of network blocks in the configuration
+network based on the order of network blocks in the configuration
 file, network security level (WPA/WPA2 is preferred), and signal
 strength.
 
@@ -792,7 +806,7 @@ addresses, etc.
 
 One wpa_cli process in "action" mode needs to be started for each
 interface. For example, the following command starts wpa_cli for the
-default ingterface (-i can be used to select the interface in case of
+default interface (-i can be used to select the interface in case of
 more than one interface being used at the same time):
 
 wpa_cli -a/sbin/wpa_action.sh -B
@@ -1008,8 +1022,8 @@ event message is indicated that the external processing can start. Once
 the operation has been completed, "RADIO_WORK done <id>" is used to
 indicate that to wpa_supplicant. This allows other radio works to be
 performed. If this command is forgotten (e.g., due to the external
-program terminating), wpa_supplicant will time out the radio owrk item
-and send "EXT-RADIO-WORK-TIMEOUT <id>" event ot indicate that this has
+program terminating), wpa_supplicant will time out the radio work item
+and send "EXT-RADIO-WORK-TIMEOUT <id>" event to indicate that this has
 happened. "RADIO_WORK done <id>" can also be used to cancel items that
 have not yet been started.
 
