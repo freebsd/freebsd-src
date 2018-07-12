@@ -57,6 +57,10 @@ static int	nfsignore_eexist = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, ignore_eexist, CTLFLAG_RW,
     &nfsignore_eexist, 0, "NFS ignore EEXIST replies for mkdir/symlink");
 
+static int	nfscl_dssameconn = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, dssameconn, CTLFLAG_RW,
+    &nfscl_dssameconn, 0, "Use same TCP connection to multiple DSs");
+
 /*
  * Global variables
  */
@@ -162,7 +166,7 @@ static int nfsrpc_writedsmir(vnode_t, int *, int *, nfsv4stateid_t *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, struct mbuf *, int, int,
     struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
-    struct nfsclds *, struct nfsclds **);
+    struct nfsclds *, struct nfsclds **, uint32_t *);
 static int nfsio_commitds(vnode_t, uint64_t, int, struct nfsclds *,
     struct nfsfh *, int, int, struct nfsclwritedsdorpc *, struct ucred *,
     NFSPROC_T *);
@@ -5498,9 +5502,14 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		dsp->nfsclds_sockp = nrp;
 		if (vers == NFS_VER4) {
 			NFSLOCKMNT(nmp);
-			retv = nfscl_getsameserver(nmp, dsp, &tdsp);
+			retv = nfscl_getsameserver(nmp, dsp, &tdsp,
+			    &sequenceid);
 			NFSCL_DEBUG(3, "getsame ret=%d\n", retv);
-			if (retv == NFSDSP_USETHISSESSION) {
+			if (retv == NFSDSP_USETHISSESSION &&
+			    nfscl_dssameconn != 0) {
+				NFSLOCKDS(tdsp);
+				tdsp->nfsclds_flags |= NFSCLDS_SAMECONN;
+				NFSUNLOCKDS(tdsp);
 				NFSUNLOCKMNT(nmp);
 				/*
 				 * If there is already a session for this
@@ -5511,10 +5520,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 				*dspp = tdsp;
 				return (0);
 			}
-			if (retv == NFSDSP_SEQTHISSESSION)
-				sequenceid =
-				    tdsp->nfsclds_sess.nfsess_sequenceid;
-			else
+			if (retv == NFSDSP_NOTFOUND)
 				sequenceid =
 				    dsp->nfsclds_sess.nfsess_sequenceid;
 			NFSUNLOCKMNT(nmp);
@@ -6516,15 +6522,16 @@ nfscl_freenfsclds(struct nfsclds *dsp)
 
 static enum nfsclds_state
 nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
-    struct nfsclds **retdspp)
+    struct nfsclds **retdspp, uint32_t *sequencep)
 {
-	struct nfsclds *dsp, *cur_dsp;
+	struct nfsclds *dsp;
+	int fndseq;
 
 	/*
 	 * Search the list of nfsclds structures for one with the same
 	 * server.
 	 */
-	cur_dsp = NULL;
+	fndseq = 0;
 	TAILQ_FOREACH(dsp, &nmp->nm_sess, nfsclds_list) {
 		if (dsp->nfsclds_servownlen == newdsp->nfsclds_servownlen &&
 		    dsp->nfsclds_servownlen != 0 &&
@@ -6534,24 +6541,22 @@ nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
 			NFSCL_DEBUG(4, "fnd same fdsp=%p dsp=%p flg=0x%x\n",
 			    TAILQ_FIRST(&nmp->nm_sess), dsp,
 			    dsp->nfsclds_flags);
+			if (fndseq == 0) {
+				/* Get sequenceid# from first entry. */
+				*sequencep =
+				    dsp->nfsclds_sess.nfsess_sequenceid;
+				fndseq = 1;
+			}
 			/* Server major id matches. */
 			if ((dsp->nfsclds_flags & NFSCLDS_DS) != 0) {
 				*retdspp = dsp;
 				return (NFSDSP_USETHISSESSION);
 			}
 
-			/*
-			 * Note the first match, so it can be used for
-			 * sequence'ing new sessions.
-			 */
-			if (cur_dsp == NULL)
-				cur_dsp = dsp;
 		}
 	}
-	if (cur_dsp != NULL) {
-		*retdspp = cur_dsp;
+	if (fndseq != 0)
 		return (NFSDSP_SEQTHISSESSION);
-	}
 	return (NFSDSP_NOTFOUND);
 }
 
