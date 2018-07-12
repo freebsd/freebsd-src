@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2018
+.Dd July 11, 2018
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -125,13 +125,24 @@ environment will take precedence over environment variables specified in
 and environment variables specified in the dynamic environment take precedence
 over both of these.
 .Pp
+.Va loader_env.disabled=1
+may be specified in the static environment to disable the
+.Xr loader 8
+environment.
+Disabling the
+.Xr loader 8
+should be done with caution and due consideration for whether or not it supplies
+environment variables needed for properly booting the system.
+.Pp
 .Va static_env.disabled=1
 may be specified in the
 .Xr loader 8
-environment to disable use of this compiled-in environment.
+environment to disable use of the static environment.
 This option has no effect if specified in any environment after the
 .Xr loader 8
 environment is processed.
+This option is not usable in conjunction with
+.Va loader_env.disabled .
 .Pp
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
