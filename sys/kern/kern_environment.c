@@ -249,11 +249,10 @@ init_static_kenv(char *buf, size_t len)
 {
 	char *eval;
 
-	md_envp = buf;
-	md_env_len = len;
-	md_env_pos = 0;
-
 	/*
+	 * Give the static environment a chance to disable the loader(8)
+	 * environment first.  This is done with loader_env.disabled=1.
+	 *
 	 * static_env and static_hints may both be disabled, but in slightly
 	 * different ways.  For static_env, we just don't setup kern_envp and
 	 * it's as if a static env wasn't even provided.  For static_hints,
@@ -263,10 +262,21 @@ init_static_kenv(char *buf, size_t len)
 	 * We're intentionally setting this up so that static_hints.disabled may
 	 * be specified in either the MD env or the static env. This keeps us
 	 * consistent in our new world view.
+	 *
+	 * As a warning, the static environment may not be disabled in any way
+	 * if the static environment has disabled the loader environment.
 	 */
-	eval = kern_getenv("static_env.disabled");
-	if (eval == NULL || strcmp(eval, "1") != 0)
-		kern_envp = static_env;
+	kern_envp = static_env;
+	eval = kern_getenv("loader_env.disabled");
+	if (eval == NULL || strcmp(eval, "1") != 0) {
+		md_envp = buf;
+		md_env_len = len;
+		md_env_pos = 0;
+
+		eval = kern_getenv("static_env.disabled");
+		if (eval != NULL && strcmp(eval, "1") == 0)
+			*kern_envp = '\0';
+	}
 	eval = kern_getenv("static_hints.disabled");
 	if (eval != NULL && strcmp(eval, "1") == 0)
 		*static_hints = '\0';
