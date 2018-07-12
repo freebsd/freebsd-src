@@ -3135,14 +3135,6 @@ zfree_start:
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
-	/*
-	 * Since we have locked the zone we may as well send back our stats.
-	 */
-	atomic_add_long(&zone->uz_allocs, cache->uc_allocs);
-	atomic_add_long(&zone->uz_frees, cache->uc_frees);
-	cache->uc_allocs = 0;
-	cache->uc_frees = 0;
-
 	bucket = cache->uc_freebucket;
 	if (bucket != NULL && bucket->ub_cnt < bucket->ub_entries) {
 		ZONE_UNLOCK(zone);
