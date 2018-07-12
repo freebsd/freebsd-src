@@ -1,0 +1,23 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/sun8i-h3-ccu.h>
+#include <dt-bindings/reset/sun8i-h3-ccu.h>
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-h3";
+};
+
+&{/soc} {
+	rtp: rtp@1c25000 {
+		compatible = "allwinner,sun8i-h3-ts";
+		reg = <0x01c25000 0x400>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&ccu CLK_BUS_THS>, <&ccu CLK_THS>;
+		clock-names = "ahb", "ths";
+		resets = <&ccu RST_BUS_THS>;
+		#thermal-sensor-cells = <0>;
+		status = "okay";
+	};
+};
