@@ -1181,12 +1181,13 @@ void
 ixl_update_link_status(struct ixl_pf *pf)
 {
 	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = &pf->hw;
 	u64 baudrate;
 
 	if (pf->link_up) { 
 		if (vsi->link_active == FALSE) {
 			vsi->link_active = TRUE;
-			baudrate = ixl_max_aq_speed_to_value(pf->link_speed);
+			baudrate = ixl_max_aq_speed_to_value(hw->phy.link_info.link_speed);
 			iflib_link_state_change(vsi->ctx, LINK_STATE_UP, baudrate);
 			ixl_link_up_msg(pf);
 #ifdef PCI_IOV
