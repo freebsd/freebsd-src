@@ -33,9 +33,9 @@ make_esp() {
     dev=$1
     dst=$2
 
-    newfs_msdos -a 32 /dev/${dev}
+    newfs_msdos -a 32 ${dev}
     mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
-    mount -t msdos /dev/${md} ${mntpt}
+    mount -t msdos ${dev} ${mntpt}
     mkdir -p ${mntpt}/efi/boot
     cp ${dst}/boot/loader.efi ${mntpt}/efi/boot/bootx64.efi
     umount ${mntpt}
