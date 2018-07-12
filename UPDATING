@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180711:
+	The static environment setup in kernel configs is no longer mutually
+	exclusive with the loader(8) environment by default.  In order to
+	restore the previous default behavior of disabling the loader(8)
+	environment if a static environment is present, you must specify
+	loader_env.disabled=1 in the static environment.
+
 20180705:
 	The ABI of syscalls used by management tools like sockstat and
 	netstat has been broken to allow 32-bit binaries to work on
