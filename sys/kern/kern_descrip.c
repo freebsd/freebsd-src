@@ -1865,7 +1865,8 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 		}
 		return (ENFILE);
 	}
-	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
+	fp = uma_zalloc(file_zone, M_WAITOK);
+	bzero(fp, sizeof(*fp));
 	refcount_init(&fp->f_count, 1);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
