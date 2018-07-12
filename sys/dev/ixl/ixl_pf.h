@@ -120,7 +120,6 @@ struct ixl_pf {
 	int			rx_itr;
 
 	bool			link_up;
-	u32			link_speed;
 	int			advertised_speed;
 	int			fc; /* link flow ctrl setting */
 	enum ixl_dbg_mask	dbg_mask;
