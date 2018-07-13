@@ -93,11 +93,11 @@ static int	madt_setup_io(void);
 static void	madt_walk_table(acpi_subtable_handler *handler, void *arg);
 
 static struct apic_enumerator madt_enumerator = {
-	"MADT",
-	madt_probe,
-	madt_probe_cpus,
-	madt_setup_local,
-	madt_setup_io
+	.apic_name = "MADT",
+	.apic_probe = madt_probe,
+	.apic_probe_cpus = madt_probe_cpus,
+	.apic_setup_local = madt_setup_local,
+	.apic_setup_io = madt_setup_io
 };
 
 /*
