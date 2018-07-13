@@ -681,6 +681,7 @@ qemu_aarch64_uefi()
         -bios QEMU_EFI.fd ${qser} \
         -drive if=none,file=${img},id=hd0 \
         -device virtio-blk-device,drive=hd0" > $sh
+    chmod 755 $sh
 # https://wiki.freebsd.org/arm64/QEMU also has
 #       -device virtio-net-device,netdev=net0
 #       -netdev user,id=net0
@@ -693,6 +694,7 @@ qemu_amd64_legacy()
     sh=$2
 
     echo "qemu-system-x86_64 -m 256m --drive file=${img},format=raw ${qser}" > $sh
+    chmod 755 $sh
 }
 
 qemu_amd64_uefi()
@@ -701,6 +703,7 @@ qemu_amd64_uefi()
     sh=$2
 
     echo "qemu-system-x86_64 -m 256m -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
+    chmod 755 $sh
 }
 
 qemu_amd64_both()
@@ -710,6 +713,7 @@ qemu_amd64_both()
 
     echo "qemu-system-x86_64 -m 256m --drive file=${img},format=raw ${qser}" > $sh
     echo "qemu-system-x86_64 -m 256m -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" >> $sh
+    chmod 755 $sh
 }
 
 # arm
@@ -722,6 +726,7 @@ qemu_i386_legacy()
     sh=$2
 
     echo "qemu-system-i386 --drive file=${img},format=raw ${qser}" > $sh
+    chmod 755 $sh
 }
 
 # Not yet supported
@@ -731,6 +736,7 @@ qemu_i386_uefi()
     sh=$2
 
     echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" > $sh
+    chmod 755 $sh
 }
 
 # Needs UEFI to be supported
@@ -741,6 +747,7 @@ qemu_i386_both()
 
     echo "qemu-system-i386 --drive file=${img},format=raw ${qser}" > $sh
     echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" >> $sh
+    chmod 755 $sh
 }
 
 make_one_image()
