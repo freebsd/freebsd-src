@@ -48,10 +48,7 @@ make_esp_mbr() {
 
     s=$(find-part $dev "!239")
     if [ -z "$s" ] ; then
-	s=$(find-part $dev "efi")
-	if [ -z "$s" ] ; then
-	    die "No ESP slice found"
-    	fi
+	die "No ESP slice found"
     fi
     make_esp /dev/${dev}s${s} ${dst}
 }
@@ -152,7 +149,7 @@ boot_nogeli_mbr_zfs_legacy() {
 }
 
 boot_nogeli_mbr_zfs_uefi() {
-    make_esp_mbr $1 $2
+    make_eps_mbr $1 $2
 }
 
 boot_nogeli_mbr_zfs_both() {
