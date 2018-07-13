@@ -106,6 +106,7 @@ options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
 options 	SOC_BRCM_BCM2837
 options 	SOC_ROCKCHIP_RK3328
+options 	SOC_XILINX_ZYNQ
 
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
