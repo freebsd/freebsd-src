@@ -87,6 +87,10 @@ readboot(int dosfs, struct bootblock *boot)
 		pfatal("Invalid sector size: %u", boot->bpbBytesPerSec);
 		return FSFATAL;
 	}
+	if (boot->bpbFATs == 0) {
+		pfatal("Invalid number of FATs: %u", boot->bpbFATs);
+		return FSFATAL;
+	}
 	if (!boot->bpbRootDirEnts)
 		boot->flags |= FAT32;
 	if (boot->flags & FAT32) {
