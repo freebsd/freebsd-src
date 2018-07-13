@@ -175,7 +175,7 @@ main(void)
 	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
 	    if (zargs->size >= offsetof(struct zfs_boot_args, keybuf_sentinel) &&
 	      zargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_save_keybuf(zargs->keybuf);
+		geli_import_key_buffer(zargs->keybuf);
 	    }
 	    if (zargs->gelipw[0] != '\0') {
 		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
@@ -190,7 +190,7 @@ main(void)
 	gargs = (struct geli_boot_args *)(kargs + 1);
 	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
 	    if (gargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_save_keybuf(gargs->keybuf);
+		geli_import_key_buffer(gargs->keybuf);
 	    }
 	    if (gargs->gelipw[0] != '\0') {
 		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);

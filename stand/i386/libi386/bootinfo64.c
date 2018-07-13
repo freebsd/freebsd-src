@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.h"
-
-static const size_t keybuf_size = sizeof(struct keybuf) +
-    (GELI_MAX_KEYS * sizeof(struct keybuf_ent));
 #endif
 
 /*
@@ -196,10 +193,6 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     vm_offset_t			size;
     char			*rootdevname;
     int				howto;
-#ifdef LOADER_GELI_SUPPORT
-    char                        buf[keybuf_size];
-    struct keybuf               *keybuf = (struct keybuf *)buf;
-#endif
 
     if (!bi_checkcpu()) {
 	printf("CPU doesn't support long mode\n");
@@ -248,11 +241,8 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof module, &module);
     if (add_smap != 0)
         bios_addsmapdata(kfp);
-
 #ifdef LOADER_GELI_SUPPORT
-    geli_fill_keybuf(keybuf);
-    file_addmetadata(kfp, MODINFOMD_KEYBUF, keybuf_size, buf);
-    bzero(buf, sizeof(buf));
+    geli_export_key_metadata(kfp);
 #endif
 
     size = bi_copymodules64(0);
