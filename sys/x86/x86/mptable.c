@@ -206,11 +206,11 @@ static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
 static int	search_for_sig(u_int32_t target, int count);
 
 static struct apic_enumerator mptable_enumerator = {
-	"MPTable",
-	mptable_probe,
-	mptable_probe_cpus,
-	mptable_setup_local,
-	mptable_setup_io
+	.apic_name = "MPTable",
+	.apic_probe = mptable_probe,
+	.apic_probe_cpus = mptable_probe_cpus,
+	.apic_setup_local = mptable_setup_local,
+	.apic_setup_io = mptable_setup_io
 };
 
 /*
