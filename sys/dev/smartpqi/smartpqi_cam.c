@@ -1198,7 +1198,3 @@ void deregister_sim(struct pqisrc_softstate *softs)
 
 	DBG_FUNC("OUT\n");
 }
-
-static void smartpqi_cam_action(struct cam_sim *, union ccb *);
-static void smartpqi_poll(struct cam_sim *);
-

@@ -238,21 +238,17 @@ void os_stop_heartbeat_timer(pqisrc_softstate_t *);
 void os_start_heartbeat_timer(void *);
 
 /* FreeBSD_cam.c */
-int pqisrc_scsi_setup(struct pqisrc_softstate *);
-void pqisrc_scsi_cleanup(struct pqisrc_softstate *);
 uint8_t os_get_task_attr(rcb_t *);
 void os_wellness_periodic(void *);
 void smartpqi_target_rescan(struct pqisrc_softstate *);
 
 /* FreeBSD_intr.c FreeBSD_main.c */
-void pqisrc_event_worker(void *, int);
 void os_add_device(pqisrc_softstate_t *, pqi_scsi_dev_t *);
 void os_remove_device(pqisrc_softstate_t *, pqi_scsi_dev_t *); 
 void os_io_response_success(rcb_t *);
 void os_aio_response_error(rcb_t *, aio_path_error_info_elem_t *);
 void smartpqi_adjust_queue_depth(struct cam_path *, uint32_t );
 void os_raid_response_error(rcb_t *, raid_path_error_info_elem_t *);
-void os_wellness_periodic(void *);
 void os_reset_rcb( rcb_t *);
 int register_sim(struct pqisrc_softstate *, int);
 void deregister_sim(struct pqisrc_softstate *);

@@ -482,12 +482,6 @@ smartpqi_shutdown(void *arg)
 	return rval;
 }
 
-static int      smartpqi_probe(device_t dev);
-static int      smartpqi_attach(device_t dev);
-static int      smartpqi_detach(device_t dev);
-static int      smartpqi_suspend(device_t dev);
-static int      smartpqi_resume(device_t dev);
-
 /*
  * PCI bus interface.
  */
