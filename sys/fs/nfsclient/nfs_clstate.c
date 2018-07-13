@@ -125,6 +125,7 @@ static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
 static void nfscl_retoncloselayout(vnode_t, struct nfsclclient *, uint8_t *,
     int, struct nfsclrecalllayout **);
 static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
+static void nfscl_cancelreqs(struct nfsclds *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
 static struct nfscldevinfo *nfscl_finddevinfo(struct nfsclclient *, uint8_t *);
@@ -4971,14 +4972,16 @@ nfscl_retoncloselayout(vnode_t vp, struct nfsclclient *clp, uint8_t *fhp,
 
 /*
  * Mark the layout to be recalled and with an error.
+ * Also, disable the dsp from further use.
  */
 void
 nfscl_dserr(uint32_t op, uint32_t stat, struct nfscldevinfo *dp,
-    struct nfscllayout *lyp, __unused struct nfsclds *dsp)
+    struct nfscllayout *lyp, struct nfsclds *dsp)
 {
 	struct nfsclrecalllayout *recallp;
 	uint32_t iomode;
 
+	printf("DS being disabled, error=%d\n", stat);
 	/* Set up the return of the layout. */
 	recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL, M_WAITOK);
 	iomode = 0;
@@ -4997,6 +5000,39 @@ nfscl_dserr(uint32_t op, uint32_t stat, struct nfscldevinfo *dp,
 		NFSUNLOCKCLSTATE();
 		free(recallp, M_NFSLAYRECALL);
 	}
+
+	/* If the connection isn't used for other DSs, we can shut it down. */
+	if ((dsp->nfsclds_flags & NFSCLDS_SAMECONN) == 0)
+		nfscl_cancelreqs(dsp);
+}
+
+/*
+ * Cancel all RPCs for this "dsp" by closing the connection.
+ * Also, mark the session as defunct.
+ */
+static void
+nfscl_cancelreqs(struct nfsclds *dsp)
+{
+	struct __rpc_client *cl;
+	static int non_event;
+
+	NFSLOCKDS(dsp);
+	if ((dsp->nfsclds_flags & (NFSCLDS_CLOSED | NFSCLDS_SAMECONN)) == 0 &&
+	    dsp->nfsclds_sockp != NULL &&
+	    dsp->nfsclds_sockp->nr_client != NULL) {
+		dsp->nfsclds_flags |= NFSCLDS_CLOSED;
+		cl = dsp->nfsclds_sockp->nr_client;
+		dsp->nfsclds_sess.nfsess_defunct = 1;
+		NFSUNLOCKDS(dsp);
+		CLNT_CLOSE(cl);
+		/*
+		 * This 1sec sleep is done to reduce the number of reconnect
+		 * attempts made on the DS while it has failed.
+		 */
+		tsleep(&non_event, PVFS, "ndscls", hz);
+		return;
+	}
+	NFSUNLOCKDS(dsp);
 }
 
 /*
