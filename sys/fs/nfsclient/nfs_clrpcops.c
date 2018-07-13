@@ -6046,7 +6046,8 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    *dspp, fhp, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "commitds=%d\n", error);
-				if (error != 0 && error != EACCES) {
+				if (error != 0 && error != EACCES && error !=
+				    ESTALE) {
 					NFSCL_DEBUG(4,
 					    "DS layreterr for commit\n");
 					nfscl_dserr(NFSV4OP_COMMIT, error, dp,
@@ -6071,7 +6072,7 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			    off, xfer, fhp, 1, dp->nfsdi_vers,
 			    dp->nfsdi_minorvers, tcred, p);
 			NFSCL_DEBUG(4, "readds=%d\n", error);
-			if (error != 0 && error != EACCES) {
+			if (error != 0 && error != EACCES && error != ESTALE) {
 				NFSCL_DEBUG(4, "DS layreterr for read\n");
 				nfscl_dserr(NFSV4OP_READ, error, dp, lyp,
 				    *dspp);
@@ -6107,7 +6108,8 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    xfer, fhp, m, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
-				if (error != 0 && error != EACCES) {
+				if (error != 0 && error != EACCES && error !=
+				    ESTALE) {
 					NFSCL_DEBUG(4,
 					    "DS layreterr for write\n");
 					nfscl_dserr(NFSV4OP_WRITE, error, dp,
