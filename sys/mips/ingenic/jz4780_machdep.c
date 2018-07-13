@@ -173,50 +173,7 @@ mips_init(void)
 #endif
 }
 
-static void
-_parse_bootarg(char *v)
-{
-	char *n;
-
-	if (*v == '-') {
-		while (*v != '\0') {
-			v++;
-			switch (*v) {
-			case 'a': boothowto |= RB_ASKNAME; break;
-			/* Someone should simulate that ;-) */
-			case 'C': boothowto |= RB_CDROM; break;
-			case 'd': boothowto |= RB_KDB; break;
-			case 'D': boothowto |= RB_MULTIPLE; break;
-			case 'm': boothowto |= RB_MUTE; break;
-			case 'g': boothowto |= RB_GDB; break;
-			case 'h': boothowto |= RB_SERIAL; break;
-			case 'p': boothowto |= RB_PAUSE; break;
-			case 'r': boothowto |= RB_DFLTROOT; break;
-			case 's': boothowto |= RB_SINGLE; break;
-			case 'v': boothowto |= RB_VERBOSE; break;
-			}
-		}
-	} else {
-		n = strsep(&v, "=");
-		if (v == NULL)
-			kern_setenv(n, "1");
-		else
-			kern_setenv(n, v);
-	}
-}
-
-static void
-_parse_cmdline(int argc, char *argv[])
-{
-	int i;
-
-	for (i = 1; i < argc; i++)
-		_parse_bootarg(argv[i]);
-}
-
 #ifdef FDT
-/* Parse cmd line args as env - copied from xlp_machdep. */
-/* XXX-BZ this should really be centrally provided for all (boot) code. */
 static void
 _parse_bootargs(char *cmdline)
 {
@@ -225,7 +182,7 @@ _parse_bootargs(char *cmdline)
 	while ((v = strsep(&cmdline, " \n")) != NULL) {
 		if (*v == '\0')
 			continue;
-		_parse_bootarg(v);
+		boothowto |= boot_parse_arg(v);
 	}
 }
 #endif
@@ -285,12 +242,12 @@ platform_start(__register_t a0,  __register_t a1,
 	 */
 	chosen = OF_finddevice("/chosen");
 	if (OF_getprop(chosen, "bootargs", buf, sizeof(buf)) != -1)
-		_parse_bootargs(buf);
+		boothowto |= boot_parse_cmdline(buf);
 #endif
 	/* Parse cmdline from U-Boot */
 	argc = a0;
 	argv = (char **)a1;
-	_parse_cmdline(argc, argv);
+	boothowto |= boot_parse_cmdline(argc, argv);
 
 	mips_init();
 }
