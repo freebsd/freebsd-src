@@ -973,7 +973,6 @@
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
 /* AMD64 MSR's */
-#define	MSR_PATCH_LEVEL	0x0000008b	/* microcode revision number */
 #define	MSR_EFER	0xc0000080	/* extended features */
 #define	MSR_STAR	0xc0000081	/* legacy mode SYSCALL target/cs/ss */
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
