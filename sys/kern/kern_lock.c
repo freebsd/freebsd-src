@@ -112,11 +112,21 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 	}								\
 } while (0)
 
-#define	LK_CAN_SHARE(x, flags)						\
-	(((x) & LK_SHARE) &&						\
-	(((x) & (LK_EXCLUSIVE_WAITERS | LK_EXCLUSIVE_SPINNERS)) == 0 ||	\
-	(curthread->td_lk_slocks != 0 && !(flags & LK_NODDLKTREAT)) ||	\
-	(curthread->td_pflags & TDP_DEADLKTREAT)))
+static bool __always_inline
+LK_CAN_SHARE(uintptr_t x, int flags, bool fp)
+{
+
+	if ((x & (LK_SHARE | LK_EXCLUSIVE_WAITERS | LK_EXCLUSIVE_SPINNERS)) ==
+	    LK_SHARE)
+		return (true);
+	if (fp || (!(x & LK_SHARE)))
+		return (false);
+	if ((curthread->td_lk_slocks != 0 && !(flags & LK_NODDLKTREAT)) ||
+	    (curthread->td_pflags & TDP_DEADLKTREAT))
+		return (true);
+	return (false);
+}
+
 #define	LK_TRYOP(x)							\
 	((x) & LK_NOWAIT)
 
@@ -169,7 +179,7 @@ struct lockmgr_wait {
 };
 
 static bool __always_inline lockmgr_slock_try(struct lock *lk, uintptr_t *xp,
-    int flags);
+    int flags, bool fp);
 static bool __always_inline lockmgr_sunlock_try(struct lock *lk, uintptr_t *xp);
 
 static void
@@ -498,7 +508,7 @@ lockdestroy(struct lock *lk)
 }
 
 static bool __always_inline
-lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags)
+lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags, bool fp)
 {
 
 	/*
@@ -509,7 +519,7 @@ lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags)
 	 * loop back and retry.
 	 */
 	*xp = lk->lk_lock;
-	while (LK_CAN_SHARE(*xp, flags)) {
+	while (LK_CAN_SHARE(*xp, flags, fp)) {
 		if (atomic_fcmpset_acq_ptr(&lk->lk_lock, xp,
 		    *xp + LK_ONE_SHARER)) {
 			return (true);
@@ -523,26 +533,9 @@ lockmgr_sunlock_try(struct lock *lk, uintptr_t *xp)
 {
 
 	for (;;) {
-		/*
-		 * If there is more than one shared lock held, just drop one
-		 * and return.
-		 */
-		if (LK_SHARERS(*xp) > 1) {
+		if (LK_SHARERS(*xp) > 1 || !(*xp & LK_ALL_WAITERS)) {
 			if (atomic_fcmpset_rel_ptr(&lk->lk_lock, xp,
 			    *xp - LK_ONE_SHARER))
-				return (true);
-			continue;
-		}
-
-		/*
-		 * If there are not waiters on the exclusive queue, drop the
-		 * lock quickly.
-		 */
-		if ((*xp & LK_ALL_WAITERS) == 0) {
-			MPASS((*xp & ~LK_EXCLUSIVE_SPINNERS) ==
-			    LK_SHARERS_LOCK(1));
-			if (atomic_fcmpset_rel_ptr(&lk->lk_lock, xp,
-			    LK_UNLOCKED))
 				return (true);
 			continue;
 		}
@@ -574,7 +567,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
 		    file, line, flags & LK_INTERLOCK ? ilk : NULL);
 	for (;;) {
-		if (lockmgr_slock_try(lk, &x, flags))
+		if (lockmgr_slock_try(lk, &x, flags, false))
 			break;
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
@@ -617,7 +610,7 @@ retry_sleepq:
 		 * if the lock can be acquired in shared mode, try
 		 * again.
 		 */
-		if (LK_CAN_SHARE(x, flags)) {
+		if (LK_CAN_SHARE(x, flags, false)) {
 			sleepq_release(&lk->lock_object);
 			continue;
 		}
@@ -932,7 +925,7 @@ lockmgr_lock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    file, line, flags & LK_INTERLOCK ? ilk : NULL);
 		if (__predict_false(lk->lock_object.lo_flags & LK_NOSHARE))
 			break;
-		if (lockmgr_slock_try(lk, &x, flags)) {
+		if (lockmgr_slock_try(lk, &x, flags, true)) {
 			lockmgr_note_shared_acquire(lk, 0, 0,
 			    file, line, flags);
 			locked = true;
