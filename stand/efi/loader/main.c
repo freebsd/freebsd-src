@@ -28,11 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stand.h>
+
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
+#include <sys/boot.h>
 #include <stdint.h>
-#include <stand.h>
 #include <string.h>
 #include <setjmp.h>
 #include <disk.h>
@@ -481,7 +483,7 @@ main(int argc, CHAR16 *argv[])
 
 	howto = parse_args(argc, argv, has_kbd);
 
-	bootenv_set(howto);
+	boot_howto_to_env(howto);
 
 	/*
 	 * XXX we need fallback to this stuff after looking at the ConIn, ConOut and ConErr variables
