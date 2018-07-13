@@ -265,7 +265,7 @@ crypt_kop_to_32(const struct crypt_kop *from, struct crypt_kop32 *to)
 
 struct csession {
 	TAILQ_ENTRY(csession) next;
-	u_int64_t	sid;
+	crypto_session_t sid;
 	u_int32_t	ses;
 	struct mtx	lock;		/* for op submission */
 
@@ -320,7 +320,7 @@ static struct fileops cryptofops = {
 static struct csession *csefind(struct fcrypt *, u_int);
 static int csedelete(struct fcrypt *, struct csession *);
 static struct csession *cseadd(struct fcrypt *, struct csession *);
-static struct csession *csecreate(struct fcrypt *, u_int64_t, caddr_t,
+static struct csession *csecreate(struct fcrypt *, crypto_session_t, caddr_t,
     u_int64_t, caddr_t, u_int64_t, u_int32_t, u_int32_t, struct enc_xform *,
     struct auth_hash *);
 static int csefree(struct csession *);
@@ -378,7 +378,7 @@ cryptof_ioctl(
 	struct enc_xform *txform = NULL;
 	struct auth_hash *thash = NULL;
 	struct crypt_kop *kop;
-	u_int64_t sid;
+	crypto_session_t sid;
 	u_int32_t ses;
 	int error = 0, crid;
 #ifdef COMPAT_FREEBSD32
@@ -1350,7 +1350,7 @@ cseadd(struct fcrypt *fcr, struct csession *cse)
 }
 
 struct csession *
-csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
+csecreate(struct fcrypt *fcr, crypto_session_t sid, caddr_t key, u_int64_t keylen,
     caddr_t mackey, u_int64_t mackeylen, u_int32_t cipher, u_int32_t mac,
     struct enc_xform *txform, struct auth_hash *thash)
 {

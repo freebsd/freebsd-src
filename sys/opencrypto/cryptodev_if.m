@@ -39,7 +39,7 @@ METHOD int newsession {
 
 METHOD int freesession {
 	device_t	dev;
-	uint64_t	sid;
+	crypto_session_t sid;
 };
 
 METHOD int process {
