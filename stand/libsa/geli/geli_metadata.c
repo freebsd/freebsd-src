@@ -1,7 +1,7 @@
 /*-
- * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
- * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Ian Lepore <ian@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,45 +27,26 @@
  * $FreeBSD$
  */
 
-#ifndef _GELIBOOT_INTERNAL_H_
-#define _GELIBOOT_INTERNAL_H_
-
-#define _STRING_H_
-#define _STRINGS_H_
-#define _STDIO_H_
-
-#include <sys/endian.h>
-#include <sys/queue.h>
-
-#include <geom/eli/g_eli.h>
-#include <geom/eli/pkcs5v2.h>
-
+#include <stand.h>
 #include <bootstrap.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include "geliboot.h"
 
-/* Pull in the md5, sha256, and sha512 implementations */
-#include <sys/md5.h>
-#include <crypto/sha2/sha256.h>
-#include <crypto/sha2/sha512.h>
+/*
+ * Export a keybuf as metadata attached to a kernel module.  This is separate
+ * from the lower-level key management functions to avoid creating a linker
+ * dependency on the libsa metadata routines when the geli code is linked into
+ * early-stage bootloaders such as gptboot.  Only loader(8) variants call this.
+ */
+void
+geli_export_key_metadata(struct preloaded_file *kfp)
+{
+    struct keybuf *keybuf;
 
-/* Pull in AES implementation */
-#include <crypto/rijndael/rijndael-api-fst.h>
-
-/* AES-XTS implementation */
-#define _STAND 1
-#define STAND_H /* We don't want stand.h in {gpt,zfs,gptzfs}boot */
-#include <opencrypto/xform_enc.h>
-
-#define GELIDEV_NAMELEN	32
-
-struct geli_dev {
-	off_t			part_end;
-	struct g_eli_softc	sc;
-	struct g_eli_metadata	md;
-	int			keybuf_slot;
-	char                    *name; /* for prompting; it ends in ':' */
-};
-
-int geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
-    const u_char *key, size_t keysize, u_char *iv);
-
-#endif /* _GELIBOOT_INTERNAL_H_ */
+    keybuf = malloc(GELI_KEYBUF_SIZE);
+    geli_export_key_buffer(keybuf);
+    file_addmetadata(kfp, MODINFOMD_KEYBUF, GELI_KEYBUF_SIZE, keybuf);
+    explicit_bzero(keybuf, GELI_KEYBUF_SIZE);
+    free(keybuf);
+}

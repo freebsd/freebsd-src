@@ -32,6 +32,8 @@
 #ifndef _GELIBOOT_H_
 #define _GELIBOOT_H_
 
+#include <geom/eli/g_eli.h>
+
 #ifndef DEV_BSIZE
 #define DEV_BSIZE 			512
 #endif
@@ -44,26 +46,50 @@
 #endif
 
 #define	GELI_MAX_KEYS			64
-#define GELI_PW_MAXLEN			256
+#define	GELI_PW_MAXLEN			256
+#define	GELI_KEYBUF_SIZE		(sizeof(struct keybuf) + \
+    (GELI_MAX_KEYS * sizeof(struct keybuf_ent)))
 
 extern void pwgets(char *buf, int n, int hide);
 
-struct dsk;
+typedef u_char geli_ukey[G_ELI_USERKEYLEN];
 
-void geli_init(void);
-int geli_taste(int read_func(void *vdev, void *priv, off_t off,
-    void *buf, size_t bytes), struct dsk *dsk, daddr_t lastsector);
-int is_geli(struct dsk *dsk);
-int geli_read(struct dsk *dsk, off_t offset, u_char *buf, size_t bytes);
-int geli_decrypt(u_int algo, u_char *data, size_t datasize,
-    const u_char *key, size_t keysize, const uint8_t* iv);
-int geli_havekey(struct dsk *dskp);
-int geli_passphrase(char *pw, int disk, int parttype, int part, struct dsk *dskp);
+/*
+ * An opaque struct used internally by geliboot functions. Returned by
+ * geli_taste(), a pointer to one of these is essentially a device handle. There
+ * is no need to release or free or "give back" the pointer.
+ */
+struct geli_dev;
 
-int geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
-    const u_char *key, size_t keysize, u_char *iv);
+/* Forward decls. */
+struct open_file;
+struct preloaded_file;
 
-void geli_fill_keybuf(struct keybuf *keybuf);
-void geli_save_keybuf(struct keybuf *keybuf);
+/*
+ * Low-level interface, used by early-stage bootloaders...
+ */
+
+/* Read callback function type for geli_taste(). */
+typedef int (*geli_readfunc)(void *vdev, void *readpriv, off_t offbytes,
+    void *buf, size_t sizebytes);
+
+struct geli_dev * geli_taste(geli_readfunc readfunc, void *readpriv,
+    daddr_t lastsector, const char *namefmt, ...);
+int geli_read(struct geli_dev *gdev, off_t offset, u_char *buf, size_t bytes);
+int geli_havekey(struct geli_dev *gdev);
+int geli_passphrase(struct geli_dev *gdev, char *pw);
+
+/*
+ * Libsa device-and-file-level interface.
+ */
+void geli_probe_and_attach(struct open_file *f);
+
+/*
+ * Manage key data.
+ */
+void geli_add_key(geli_ukey key);
+void geli_import_key_buffer(struct keybuf *keybuf);
+void geli_export_key_buffer(struct keybuf *keybuf);
+void geli_export_key_metadata(struct preloaded_file *kfp);
 
 #endif /* _GELIBOOT_H_ */

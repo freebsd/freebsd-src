@@ -343,10 +343,6 @@ BROKEN_OPTIONS+=SSP
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
-# GELI isn't supported on !x86
-.if ${__T} != "i386" && ${__T} != "amd64"
-BROKEN_OPTIONS+=LOADER_GELI
-.endif
 # OFW is only for powerpc and sparc64, exclude others
 .if ${__T:Mpowerpc*} == "" && ${__T:Msparc64} == ""
 BROKEN_OPTIONS+=LOADER_OFW
