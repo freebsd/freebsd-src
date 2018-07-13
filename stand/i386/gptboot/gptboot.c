@@ -400,9 +400,10 @@ load(void)
 	if (!(ino = lookup(kname))) {
 		if (!ls) {
 			printf("%s: No %s on %u:%s(%up%u)\n", BOOTPROG,
-		kname, gdsk.dsk.drive & DRV_MASK, dev_nm[gdsk.dsk.type], 
-		gdsk.dsk.unit, gdsk.dsk.part);
-	}
+			    kname, gdsk.dsk.drive & DRV_MASK,
+			    dev_nm[gdsk.dsk.type], gdsk.dsk.unit,
+			    gdsk.dsk.part);
+		}
 		return;
 	}
 	if (xfsread(ino, &hdr, sizeof(hdr)))
