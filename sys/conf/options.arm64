@@ -20,3 +20,4 @@ SOC_BRCM_BCM2837		opt_soc.h
 SOC_CAVM_THUNDERX		opt_soc.h
 SOC_HISI_HI6220			opt_soc.h
 SOC_ROCKCHIP_RK3328		opt_soc.h
+SOC_XILINX_ZYNQ			opt_soc.h
