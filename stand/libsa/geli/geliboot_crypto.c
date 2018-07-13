@@ -59,15 +59,14 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 			return (err);
 		}
 
-		switch (enc) {
-		case 0: /* decrypt */
+		if (enc == 0) {
+			/* decrypt */
 			blks = rijndael_blockDecrypt(&cipher, &aeskey, data, 
 			    datasize * 8, data);
-			break;
-		case 1: /* encrypt */
+		} else {
+			/* encrypt */
 			blks = rijndael_blockEncrypt(&cipher, &aeskey, data, 
 			    datasize * 8, data);
-			break;
 		}
 		if (datasize != (blks / 8)) {
 			printf("Failed to decrypt the entire input: "
