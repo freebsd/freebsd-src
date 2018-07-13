@@ -280,7 +280,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t addr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hlen = IPCOMP_HLENGTH, error, clen;
 	int skip, protoff;
 	uint8_t nproto;
@@ -531,7 +531,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	u_int idx;
 	int error, skip, protoff;
 

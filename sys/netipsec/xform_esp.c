@@ -271,7 +271,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	struct newesp *esp;
 	uint8_t *ivp;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int alen, error, hlen, plen;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
@@ -448,7 +448,7 @@ esp_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
 	crd = crp->crp_desc;
@@ -637,7 +637,8 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct secasindex *saidx;
 	unsigned char *pad;
 	uint8_t *ivp;
-	uint64_t cntr, cryptoid;
+	uint64_t cntr;
+	crypto_session_t cryptoid;
 	int hlen, rlen, padding, blks, alen, i, roff;
 	int error, maxpacketsize;
 	uint8_t prot;
@@ -883,7 +884,7 @@ esp_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	u_int idx;
 	int error;
 

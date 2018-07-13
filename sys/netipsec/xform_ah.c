@@ -544,7 +544,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	struct xform_data *xd;
 	struct newah *ah;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hl, rplen, authsize, ahsize, error;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
@@ -699,7 +699,7 @@ ah_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int authsize, rplen, ahsize, error, skip, protoff;
 	uint8_t nxt;
 
@@ -849,7 +849,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct mbuf *mi;
 	struct cryptop *crp;
 	struct newah *ah;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	uint16_t iplen;
 	int error, rplen, authsize, ahsize, maxpacketsize, roff;
 	uint8_t prot;
@@ -1082,7 +1082,7 @@ ah_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	caddr_t ptr;
 	u_int idx;
 	int skip, error;

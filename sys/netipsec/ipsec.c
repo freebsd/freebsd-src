@@ -1322,9 +1322,10 @@ ok:
 }
 
 int
-ipsec_updateid(struct secasvar *sav, uint64_t *new, uint64_t *old)
+ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
+    crypto_session_t *old)
 {
-	uint64_t tmp;
+	crypto_session_t tmp;
 
 	/*
 	 * tdb_cryptoid is initialized by xform_init().

@@ -488,7 +488,7 @@ again:
  * must be capable of the requested crypto algorithms.
  */
 int
-crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int crid)
+crypto_newsession(crypto_session_t *sid, struct cryptoini *cri, int crid)
 {
 	struct cryptocap *cap;
 	u_int32_t hid, lid;
@@ -548,7 +548,7 @@ crypto_remove(struct cryptocap *cap)
  * driver).
  */
 int
-crypto_freesession(u_int64_t sid)
+crypto_freesession(crypto_session_t sid)
 {
 	struct cryptocap *cap;
 	u_int32_t hid;
@@ -1162,7 +1162,7 @@ crypto_invoke(struct cryptocap *cap, struct cryptop *crp, int hint)
 #endif
 	if (cap->cc_flags & CRYPTOCAP_F_CLEANUP) {
 		struct cryptodesc *crd;
-		u_int64_t nid;
+		crypto_session_t nid;
 
 		/*
 		 * Driver has unregistered; migrate the session and return

@@ -332,7 +332,7 @@ int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 
 int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
-int ipsec_updateid(struct secasvar *, uint64_t *, uint64_t *);
+int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
 int ipsec_initialized(void);
 
 void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
