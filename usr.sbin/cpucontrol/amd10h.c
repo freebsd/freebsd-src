@@ -129,7 +129,7 @@ amd10h_update(const char *dev, const char *path)
 	}
 	signature = idargs.data[0];
 
-	msrargs.msr = MSR_PATCH_LEVEL;
+	msrargs.msr = MSR_BIOS_SIGN;
 	error = ioctl(devfd, CPUCTL_RDMSR, &msrargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
@@ -295,7 +295,7 @@ amd10h_update(const char *dev, const char *path)
 		fprintf(stderr, "done.\n");
 	}
 
-	msrargs.msr = MSR_PATCH_LEVEL;
+	msrargs.msr = MSR_BIOS_SIGN;
 	error = ioctl(devfd, CPUCTL_RDMSR, &msrargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
