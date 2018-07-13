@@ -123,7 +123,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -I. -I$S -c \
 	    -DKZIP -DELF_TRAMPOLINE \
-	    $S/kern/inflate.c \
+	    $S/kern/subr_inflate.c \
 	    -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp \
