@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #define	debugf(fmt, args...)
 #endif
 
+static char static_kenv[4096];
+
 extern int *end;
 
 static uint32_t board_revision;
@@ -146,9 +148,8 @@ arm_print_kenv(void)
 static void
 cmdline_set_env(char *cmdline, const char *guard)
 {
-	char *cmdline_next, *env;
+	char *cmdline_next;
 	size_t size, guard_len;
-	int i;
 
 	size = strlen(cmdline);
 	/* Skip leading spaces. */
@@ -164,37 +165,27 @@ cmdline_set_env(char *cmdline, const char *guard)
 		size -= guard_len;
 	}
 
-	/* Skip leading spaces. */
-	for (; isspace(*cmdline) && (size > 0); cmdline++)
-		size--;
-
-	/* Replace ',' with '\0'. */
-	/* TODO: implement escaping for ',' character. */
-	cmdline_next = cmdline;
-	while(strsep(&cmdline_next, ",") != NULL)
-		;
-	init_static_kenv(cmdline, 0);
-	/* Parse boothowto. */
-	for (i = 0; howto_names[i].ev != NULL; i++) {
-		env = kern_getenv(howto_names[i].ev);
-		if (env != NULL) {
-			if (strtoul(env, NULL, 10) != 0)
-				boothowto |= howto_names[i].mask;
-			freeenv(env);
-		}
-	}
+	boothowto |= boot_parse_cmdline();
 }
 
+/*
+ * Called for armv6 and newer.
+ */
 void arm_parse_fdt_bootargs(void)
 {
 
 #ifdef FDT
 	if (loader_envp == NULL && fdt_get_chosen_bootargs(linux_command_line,
-	    LBABI_MAX_COMMAND_LINE) == 0)
+	    LBABI_MAX_COMMAND_LINE) == 0) {
+		init_static_kenv(static_kenv, sizeof(static_kenv));
 		cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+	}
 #endif
 }
 
+/*
+ * Called for armv[45].
+ */
 static vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
@@ -271,6 +262,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
 	lastaddr = fake_preload_metadata(abp, NULL, 0);
+	init_static_kenv(static_kenv, sizeof(static_kenv));
 	cmdline_set_env(linux_command_line, CMDLINE_GUARD);
 	return lastaddr;
 }
