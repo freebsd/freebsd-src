@@ -101,7 +101,7 @@ md_getboothowto(char *kargs)
 
     /* Parse kargs */
     howto = boot_parse_cmdline(kargs);
-    howto |= bootenv_flags();
+    howto |= boot_env_to_howto();
 #if defined(__sparc64__)
     if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
