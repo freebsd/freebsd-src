@@ -113,7 +113,7 @@ sysctl_mac_veriexec_db(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
-	mac_veriexec_print_db(&sb);
+	mac_veriexec_metadata_print_db(&sb);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 
