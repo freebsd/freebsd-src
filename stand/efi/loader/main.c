@@ -622,6 +622,8 @@ main(int argc, CHAR16 *argv[])
 	 */
 	boot_howto_to_env(howto);
 	
+	printf("  Keyboard: %s", has_kbd ? "yes" : "no");
+
 	if (efi_copy_init()) {
 		printf("failed to allocate staging area\n");
 		return (EFI_BUFFER_TOO_SMALL);
