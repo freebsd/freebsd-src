@@ -193,7 +193,8 @@ bgx_fdt_phy_name_match(struct bgx *bgx, char *phy_name, ssize_t size)
 
 	if (sz > size)
 		return (FALSE);
-	if (strncmp(phy_name, type, sz) == 0)
+	if (strncmp(phy_name, type, sz - 1) == 0 &&
+	    (phy_name[sz - 1] == '\0' || phy_name[sz - 1] == '@'))
 		return (TRUE);
 
 	return (FALSE);
