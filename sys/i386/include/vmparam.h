@@ -175,12 +175,12 @@
  *
  * 0x00000000 - 0x003fffff	Transient identity map of low memory (0-4M),
  *				normally disabled to catch NULL derefs.
- * 0x00400000 - 0x007fffff	Fixed mapping of the low memory (0-4M).
+ * 0x00400000 - 0x007fffff	Fixed mapping of the low memory (4-8M).
  * 0x00800000 - 0xffbfffff	KERNBASE (VA) == KERNLOAD (PA), kernel
  *				text + data and all kernel maps.  Managed
  *				by MI VM.
  * 0xffc00000 - 0xffdfffff	Recursive kernel page table mapping, pointed
- *				to by PTmap.  PTD[] recusively points
+ *				to by PTmap.  PTD[] recursively points
  *				into PTmap.
  * 0xffe00000 - 0xffffffff	Kernel/User mode shared PDE, contains GDT,
  *				IDT, TSS, LDT, trampoline code and stacks.
