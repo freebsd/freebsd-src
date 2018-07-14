@@ -9,9 +9,11 @@ ATF_TESTS_SH+=	pass_block \
 		forward \
 		fragmentation \
 		set_tos \
-		route_to
+		route_to \
+		synproxy
 
 ${PACKAGE}FILES+=	utils.subr \
+			echo_inetd.conf \
 			pft_ping.py
 
 ${PACKAGE}FILESMODE_pft_ping.py=	0555
