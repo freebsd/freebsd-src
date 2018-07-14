@@ -5722,12 +5722,15 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				}
 			}
 			for (i = firstmirror; i < mirrorcnt && error == 0; i++){
-				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0)
+				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0) {
 					dev = rflp->nfsfl_ffm[i].dev;
-				else
+					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
+					    rflp->nfsfl_ffm[i].devp);
+				} else {
 					dev = rflp->nfsfl_dev;
-				dip = nfscl_getdevinfo(nmp->nm_clp, dev,
-				    rflp->nfsfl_devp);
+					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
+					    rflp->nfsfl_devp);
+				}
 				if (dip != NULL) {
 					if ((rflp->nfsfl_flags & NFSFL_FLEXFILE)
 					    != 0)
@@ -6828,7 +6831,8 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 			    sizeof(struct nfsffm), M_NFSFLAYOUT, M_WAITOK);
 			flp->nfsfl_flags = NFSFL_FLEXFILE;
 			flp->nfsfl_mirrorcnt = mirrorcnt;
-			flp->nfsfl_devp = NULL;
+			for (j = 0; j < mirrorcnt; j++)
+				flp->nfsfl_ffm[j].devp = NULL;
 			flp->nfsfl_off = off;
 			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
 				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
@@ -7588,6 +7592,7 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 	struct nfsclflayout *tflp;
 	struct nfscldevinfo *dip;
 	uint8_t *dev;
+	int i, mirrorcnt;
 
 	if (laystat == NFSERR_UNKNLAYOUTTYPE) {
 		NFSLOCKMNT(nmp);
@@ -7604,25 +7609,35 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 	if (laystat == 0) {
 		NFSCL_DEBUG(4, "nfsrpc_layoutgetres at FOREACH\n");
 		LIST_FOREACH(tflp, flhp, nfsfl_list) {
-			laystat = nfscl_adddevinfo(nmp, NULL, tflp);
-			NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
-			if (laystat != 0) {
-				if (layouttype == NFSLAYOUT_FLEXFILE)
-					dev = tflp->nfsfl_ffm[0].dev;
-				else
-					dev = tflp->nfsfl_dev;
-				laystat = nfsrpc_getdeviceinfo(nmp, dev,
-				    layouttype, notifybit, &dip, cred, p);
-				NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
-				    laystat);
-				if (laystat != 0)
-					break;
-				laystat = nfscl_adddevinfo(nmp, dip, tflp);
-				if (laystat != 0)
-					printf("getlayout: cannot add\n");
+			if (layouttype == NFSLAYOUT_FLEXFILE)
+				mirrorcnt = tflp->nfsfl_mirrorcnt;
+			else
+				mirrorcnt = 1;
+			for (i = 0; i < mirrorcnt; i++) {
+				laystat = nfscl_adddevinfo(nmp, NULL, i, tflp);
+				NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
+				if (laystat != 0) {
+					if (layouttype == NFSLAYOUT_FLEXFILE)
+						dev = tflp->nfsfl_ffm[i].dev;
+					else
+						dev = tflp->nfsfl_dev;
+					laystat = nfsrpc_getdeviceinfo(nmp, dev,
+					    layouttype, notifybit, &dip, cred,
+					    p);
+					NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
+					    laystat);
+					if (laystat != 0)
+						goto out;
+					laystat = nfscl_adddevinfo(nmp, dip, i,
+					    tflp);
+					if (laystat != 0)
+						printf("nfsrpc_layoutgetresout"
+						    ": cannot add\n");
+				}
 			}
 		}
 	}
+out:
 	if (laystat == 0) {
 		/*
 		 * nfscl_layout() always returns with the nfsly_lock
