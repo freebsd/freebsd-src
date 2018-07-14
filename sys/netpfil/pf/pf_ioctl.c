@@ -3951,7 +3951,6 @@ pf_unload_vnet(void)
 
 	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
-	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
 	if (error) {
 		/*
@@ -3966,6 +3965,8 @@ pf_unload_vnet(void)
 	PF_RULES_WLOCK();
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
+
+	swi_remove(V_pf_swi_cookie);
 
 	pf_unload_vnet_purge();
 
