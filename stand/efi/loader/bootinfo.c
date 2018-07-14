@@ -67,10 +67,11 @@ extern EFI_SYSTEM_TABLE	*ST;
 static int
 bi_getboothowto(char *kargs)
 {
-	const char *sw;
+	const char *sw, *tmp;
 	char *opts;
 	char *console;
-	int howto;
+	int howto, speed, port;
+	char buf[50];
 
 	howto = boot_parse_cmdline(kargs);
 	howto |= boot_env_to_howto();
@@ -81,6 +82,35 @@ bi_getboothowto(char *kargs)
 			howto |= RB_SERIAL;
 		if (strcmp(console, "nullconsole") == 0)
 			howto |= RB_MUTE;
+		if (strcmp(console, "efi") == 0) {
+			/*
+			 * If we found a com port and com speed, we need to tell
+			 * the kernel where the serial port is, and how
+			 * fast. Ideally, we'd get the port from ACPI, but that
+			 * isn't running in the loader. Do the next best thing
+			 * by allowing it to be set by a loader.conf variable,
+			 * either a EFI specific one, or the compatible
+			 * comconsole_port if not. PCI support is needed, but
+			 * for that we'd ideally refactor the
+			 * libi386/comconsole.c code to have identical behavior.
+			 */
+			tmp = getenv("efi_com_speed");
+			if (tmp != NULL) {
+				speed = strtol(tmp, NULL, 0);
+				tmp = getenv("efi_com_port");
+				if (tmp == NULL)
+					tmp = getenv("comconsole_port");
+				/* XXX fallback to EFI variable set in rc.d? */
+				if (tmp != NULL)
+					port = strtol(tmp, NULL, 0);
+				else
+					port = 0x3f8;
+				snprintf(buf, sizeof(buf), "io:%d,br:%d", port,
+				    speed);
+				env_setenv("hw.uart.console", EV_VOLATILE, buf,
+				    NULL, NULL);
+			}
+		}
 	}
 
 	return (howto);
