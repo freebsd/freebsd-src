@@ -126,4 +126,4 @@ status=$?
 cd /
 /bin/rm -rf $DIR
 
-exit $?
+exit $status
