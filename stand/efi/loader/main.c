@@ -316,11 +316,6 @@ find_currdev(EFI_LOADED_IMAGE *img)
 		if (dp->pd_parent != NULL) {
 			dp = dp->pd_parent;
 			STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
-				text = efi_devpath_name(pp->pd_devpath);
-				if (text != NULL) {
-					printf("And now the part: %S\n", text);
-					efi_free_devpath_name(text);
-				}
 				/*
 				 * Roll up the ZFS special case
 				 * for those partitions that have
@@ -454,7 +449,7 @@ parse_uefi_con_out(void)
 		goto out;
 	ep = buf + sz;
 	node = (EFI_DEVICE_PATH *)buf;
-	while ((char *)node < ep && !IsDevicePathEndType(node)) {
+	while ((char *)node < ep) {
 		pci_pending = false;
 		if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 		    DevicePathSubType(node) == ACPI_DP) {
@@ -469,7 +464,6 @@ parse_uefi_con_out(void)
 			uart = (void *)node;
 			snprintf(bd, sizeof(bd), "%d", uart->BaudRate);
 			setenv("efi_com_speed", bd, 1);
-			printf("Console speed is %d\n", uart->BaudRate);
 		} else if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 		    DevicePathSubType(node) == ACPI_ADR_DP) {
 			/* Check for AcpiAdr() Node for video */
@@ -560,6 +554,7 @@ main(int argc, CHAR16 *argv[])
 	 * eg. the boot device, which we can't do yet.  We can use
 	 * printf() etc. once this is done.
 	 */
+	setenv("console", "efi", 1);
 	cons_probe();
 
 	/*
@@ -622,8 +617,6 @@ main(int argc, CHAR16 *argv[])
 	 */
 	boot_howto_to_env(howto);
 	
-	printf("  Keyboard: %s", has_kbd ? "yes" : "no");
-
 	if (efi_copy_init()) {
 		printf("failed to allocate staging area\n");
 		return (EFI_BUFFER_TOO_SMALL);
@@ -643,18 +636,17 @@ main(int argc, CHAR16 *argv[])
 	} else
 		printf("efipart_inithandles failed %d, expect failures", i);
 
-	printf("Command line arguments:");
+	printf("%s\n", bootprog_info);
+	printf("   Command line arguments:");
 	for (i = 0; i < argc; i++)
 		printf(" %S", argv[i]);
 	printf("\n");
 
-	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
-	printf("EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
+	printf("   EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
-	printf("EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
+	printf("   EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 
-	printf("\n%s", bootprog_info);
 
 	/* Determine the devpath of our image so we can prefer it. */
 	text = efi_devpath_name(img->FilePath);
@@ -710,7 +702,6 @@ main(int argc, CHAR16 *argv[])
 			return (EFI_NOT_FOUND);
 
 	efi_init_environment();
-	setenv("LINES", "24", 1);	/* optional */
 
 #if !defined(__arm__)
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
