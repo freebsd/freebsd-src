@@ -68,7 +68,9 @@ __FBSDID("$FreeBSD$");
 #define	debugf(fmt, args...)
 #endif
 
+#ifdef LINUX_BOOT_ABI
 static char static_kenv[4096];
+#endif
 
 extern int *end;
 
