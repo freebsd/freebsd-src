@@ -1256,18 +1256,12 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case IP_OPTIONS:
 		case IP_RETOPTS:
-			if (inp->inp_options) {
-				unsigned long len = ulmin(inp->inp_options->m_len, sopt->sopt_valsize);
-				struct mbuf *options = malloc(len, M_TEMP, M_WAITOK);
-				INP_RLOCK(inp);
-				bcopy(inp->inp_options, options, len);
-				INP_RUNLOCK(inp);
+			if (inp->inp_options)
 				error = sooptcopyout(sopt,
-						     mtod(options,
+						     mtod(inp->inp_options,
 							  char *),
-						     len);
-				free(options, M_TEMP);
-			} else
+						     inp->inp_options->m_len);
+			else
 				sopt->sopt_valsize = 0;
 			break;
 
