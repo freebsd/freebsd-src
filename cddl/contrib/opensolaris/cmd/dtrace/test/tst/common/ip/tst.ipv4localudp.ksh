@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/usr/bin/env ksh
 #
 # CDDL HEADER START
 #
@@ -36,14 +36,14 @@
 # 4. An unlikely race causes the unlocked global send/receive
 #    variables to be corrupted.
 #
-# This test sends a UDP message using ping and checks that at least the
+# This test sends a UDP message using perl and checks that at least the
 # following counts were traced:
 #
-# 1 x ip:::send (UDP sent to ping's base UDP port)
-# 1 x udp:::send (UDP sent to ping's base UDP port)
+# 1 x ip:::send (UDP sent to UDP port 33434)
+# 1 x udp:::send (UDP sent to UDP port 33434)
 # 1 x ip:::receive (UDP received)
 # 
-# No udp:::receive event is expected as the response ping -U elicits is
+# No udp:::receive event is expected since the UDP packet elicts
 # an ICMP PORT_UNREACHABLE response rather than a UDP packet, and locally
 # the echo request UDP packet only reaches IP, so the udp:::receive probe
 # is not triggered by it.
@@ -56,8 +56,25 @@ fi
 
 dtrace=$1
 local=127.0.0.1
+port=33434
+DIR=/var/tmp/dtest.$$
 
-$dtrace -c "/sbin/ping -U $local" -qs /dev/stdin <<EOF | grep -v 'is alive'
+mkdir $DIR
+cd $DIR
+
+cat > test.pl <<-EOPERL
+	use IO::Socket;
+	my \$s = IO::Socket::INET->new(
+	    Proto => "udp",
+	    PeerAddr => "$local",
+	    PeerPort => $port);
+	die "Could not create UDP socket $local port $port" unless \$s;
+	send \$s, "Hello", 0;
+	close \$s;
+	sleep(2);
+EOPERL
+
+$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = udpsend = ipreceive = 0;
@@ -90,4 +107,11 @@ END
 	printf("ip:::receive - %s\n", ipreceive >= 1 ? "yes" : "no");
 	printf("udp:::send - %s\n", udpsend >= 1 ? "yes" : "no");
 }
-EOF
+EODTRACE
+
+status=$?
+
+cd /
+/bin/rm -rf $DIR
+
+exit $status
