@@ -125,7 +125,6 @@ static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
 static void nfscl_retoncloselayout(vnode_t, struct nfsclclient *, uint8_t *,
     int, struct nfsclrecalllayout **);
 static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
-static void nfscl_cancelreqs(struct nfsclds *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
 static struct nfscldevinfo *nfscl_finddevinfo(struct nfsclclient *, uint8_t *);
@@ -5001,16 +5000,17 @@ nfscl_dserr(uint32_t op, uint32_t stat, struct nfscldevinfo *dp,
 		free(recallp, M_NFSLAYRECALL);
 	}
 
-	/* If the connection isn't used for other DSs, we can shut it down. */
-	if ((dsp->nfsclds_flags & NFSCLDS_SAMECONN) == 0)
-		nfscl_cancelreqs(dsp);
+	/* And shut the TCP connection down. */
+	nfscl_cancelreqs(dsp);
 }
 
 /*
  * Cancel all RPCs for this "dsp" by closing the connection.
  * Also, mark the session as defunct.
+ * If NFSCLDS_SAMECONN is set, the connection is shared with other DSs and
+ * cannot be shut down.
  */
-static void
+APPLESTATIC void
 nfscl_cancelreqs(struct nfsclds *dsp)
 {
 	struct __rpc_client *cl;
