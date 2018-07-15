@@ -32,8 +32,7 @@
 # 1. A change to the ip stack breaking expected probe behavior,
 #    which is the reason we are testing.
 # 2. The lo0 interface missing or not up.
-# 3. The local ssh service is not online.
-# 4. An unlikely race causes the unlocked global send/receive
+# 3. An unlikely race causes the unlocked global send/receive
 #    variables to be corrupted.
 #
 # This test performs a TCP connection and checks that at least the
