@@ -128,7 +128,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 		/*
 		 * it is a group as part of a while, for, etc.
 		 */
-		if (ps.p_stack[ps.tos] == swstmt && ps.case_indent >= 1)
+		if (ps.p_stack[ps.tos] == swstmt && opt.case_indent >= 1)
 		    --ps.ind_level;
 		/*
 		 * for a switch, brace should be two levels out from the code
@@ -189,10 +189,10 @@ parse(int tk) /* tk: the code for the construct scanned */
 	ps.cstk[ps.tos] = case_ind;
 	/* save current case indent level */
 	ps.il[ps.tos] = ps.i_l_follow;
-	case_ind = ps.i_l_follow + ps.case_indent;	/* cases should be one
+	case_ind = ps.i_l_follow + opt.case_indent;	/* cases should be one
 							 * level down from
 							 * switch */
-	ps.i_l_follow += ps.case_indent + 1;	/* statements should be two
+	ps.i_l_follow += opt.case_indent + 1;	/* statements should be two
 						 * levels in */
 	ps.search_brace = opt.btype_2;
 	break;
