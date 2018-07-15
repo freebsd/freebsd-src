@@ -4408,9 +4408,12 @@ nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
 	if (dsp == NULL)
 		error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred,
 		    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	else
+	else {
 		error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred,
 		    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+		if (error == ENXIO)
+			nfscl_cancelreqs(dsp);
+	}
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
