@@ -793,17 +793,21 @@ recheck:
 		 * If the page has been referenced and the object is not dead,
 		 * reactivate or requeue the page depending on whether the
 		 * object is mapped.
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
 		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
 		if (object->ref_count != 0)
-			act_delta += pmap_ts_referenced(m);
+			act_delta = pmap_ts_referenced(m);
 		else {
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
@@ -1215,14 +1219,11 @@ act_scan:
 
 		/*
 		 * Check to see "how much" the page has been used.
-		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
-
-		/*
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
+		 *
 		 * Perform an unsynchronized object ref count check.  While
 		 * the page lock ensures that the page is not reallocated to
 		 * another object, in particular, one with unmanaged mappings
@@ -1236,7 +1237,13 @@ act_scan:
 		 *    worst, we will deactivate and reactivate the page.
 		 */
 		if (m->object->ref_count != 0)
-			act_delta += pmap_ts_referenced(m);
+			act_delta = pmap_ts_referenced(m);
+		else
+			act_delta = 0;
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
+		}
 
 		/*
 		 * Advance or decay the act_count based on recent usage.
@@ -1482,17 +1489,21 @@ recheck:
 		 * If the page has been referenced and the object is not dead,
 		 * reactivate or requeue the page depending on whether the
 		 * object is mapped.
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
 		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
-		if (object->ref_count != 0) {
-			act_delta += pmap_ts_referenced(m);
-		} else {
+		if (object->ref_count != 0)
+			act_delta = pmap_ts_referenced(m);
+		else {
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
