@@ -420,7 +420,7 @@ parse_entry(struct mod_metadata *md, const char *cval,
 		break;
 	case MDT_PNP_INFO:
 		check(EF_SEG_READ_REL(ef, data, sizeof(pnp), &pnp));
-		check(EF_SEG_READ(ef, (Elf_Off)pnp.descr, sizeof(descr), descr));
+		check(EF_SEG_READ_STRING(ef, (Elf_Off)pnp.descr, sizeof(descr), descr));
 		descr[sizeof(descr) - 1] = '\0';
 		if (dflag) {
 			printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
@@ -510,7 +510,7 @@ parse_entry(struct mod_metadata *md, const char *cval,
 							ptr = *(char **)(walker + elt->pe_offset);
 							buffer[0] = '\0';
 							if (ptr != NULL) {
-								EF_SEG_READ(ef, (Elf_Off)ptr,
+								EF_SEG_READ_STRING(ef, (Elf_Off)ptr,
 								    sizeof(buffer), buffer);
 								buffer[sizeof(buffer) - 1] = '\0';
 							}
