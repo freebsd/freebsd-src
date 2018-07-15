@@ -255,7 +255,7 @@ set_defaults(void)
      * Because ps.case_indent is a float, we can't initialize it from the
      * table:
      */
-    ps.case_indent = 0.0;	/* -cli0.0 */
+    opt.case_indent = 0.0;	/* -cli0.0 */
     for (p = pro; p->p_name; p++)
 	if (p->p_type != PRO_SPECIAL)
 	    *p->p_obj = p->p_default;
@@ -284,7 +284,7 @@ found:
 	case CLI:
 	    if (*param_start == 0)
 		goto need_param;
-	    ps.case_indent = atof(param_start);
+	    opt.case_indent = atof(param_start);
 	    break;
 
 	case STDIN:

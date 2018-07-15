@@ -165,6 +165,8 @@ struct options {
     int         cuddle_else;	/* true if else should cuddle up to '}' */
     int         continuation_indent; /* set to the indentation between the
 				 * edge of code and continuation lines */
+    float       case_indent;	/* The distance to indent case labels from the
+				 * switch statement */
     int         com_ind;	/* the column in which comments to the right
 				 * of code should start */
     int         decl_indent;	/* column to indent declared identifiers to */
@@ -304,8 +306,6 @@ struct parser_state {
 				 * ignored in some cases.) */
     int         keyword;	/* the type of a keyword or 0 */
     int         dumped_decl_indent;
-    float       case_indent;	/* The distance to indent case labels from the
-				 * switch statement */
     int         in_parameter_declaration;
     int         tos;		/* pointer to top of stack */
     char        procname[100];	/* The name of the current procedure */
