@@ -201,8 +201,8 @@ struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-int pgeflag = 0;		/* PG_G or-in */
-int pseflag = 0;		/* PG_PS or-in */
+static int pgeflag = 0;		/* PG_G or-in */
+static int pseflag = 0;		/* PG_PS or-in */
 
 static int nkpt = NKPT;
 vm_offset_t kernel_vm_end = /* 0 + */ NKPT * NBPDR;
@@ -518,6 +518,7 @@ pmap_cold(void)
 	ncr4 = 0;
 	if ((cpu_feature & CPUID_PSE) != 0) {
 		ncr4 |= CR4_PSE;
+		pseflag = PG_PS;
 		/*
 		 * Superpage mapping of the kernel text.  Existing 4k
 		 * page table pages are wasted.
@@ -1791,7 +1792,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	sva = va;
 	while (start < end) {
 		if ((start & PDRMASK) == 0 && end - start >= NBPDR &&
-		    pseflag) {
+		    pseflag != 0) {
 			KASSERT((va & PDRMASK) == 0,
 			    ("pmap_map: misaligned va %#x", va));
 			newpde = start | PG_PS | PG_RW | PG_V;
@@ -4175,7 +4176,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
-	if (pseflag && 
+	if (pg_ps_enabled &&
 	    (addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
