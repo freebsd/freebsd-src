@@ -65,6 +65,9 @@ bp[] = {1.0, 1.5,},
 dp_h[] = { 0.0, 5.84962487220764160156e-01,}, /* 0x3FE2B803, 0x40000000 */
 dp_l[] = { 0.0, 1.35003920212974897128e-08,}, /* 0x3E4CFDEB, 0x43CFD006 */
 zero    =  0.0,
+half    =  0.5,
+qrtr    =  0.25,
+thrd    =  3.3333333333333331e-01, /* 0x3fd55555, 0x55555555 */
 one	=  1.0,
 two	=  2.0,
 two53	=  9007199254740992.0,	/* 0x43400000, 0x00000000 */
@@ -197,7 +200,7 @@ __ieee754_pow(double x, double y)
 	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
 	    t = ax-one;		/* t has 20 trailing zeros */
-	    w = (t*t)*(0.5-t*(0.3333333333333333333333-t*0.25));
+	    w = (t*t)*(half-t*(thrd-t*qrtr));
 	    u = ivln2_h*t;	/* ivln2_h has 21 sig. bits */
 	    v = t*ivln2_l-w*ivln2;
 	    t1 = u+v;
@@ -234,9 +237,9 @@ __ieee754_pow(double x, double y)
 	    r = s2*s2*(L1+s2*(L2+s2*(L3+s2*(L4+s2*(L5+s2*L6)))));
 	    r += s_l*(s_h+ss);
 	    s2  = s_h*s_h;
-	    t_h = 3.0+s2+r;
+	    t_h = 3+s2+r;
 	    SET_LOW_WORD(t_h,0);
-	    t_l = r-((t_h-3.0)-s2);
+	    t_l = r-((t_h-3)-s2);
 	/* u+v = ss*(1+...) */
 	    u = s_h*t_h;
 	    v = s_l*t_h+t_l*ss;
@@ -247,7 +250,7 @@ __ieee754_pow(double x, double y)
 	    z_h = cp_h*p_h;		/* cp_h+cp_l = 2/(3*log2) */
 	    z_l = cp_l*p_h+p_l*cp+dp_l[k];
 	/* log2(ax) = (ss+..)*2/(3*log2) = n + dp_h + z_h + z_l */
-	    t = (double)n;
+	    t = n;
 	    t1 = (((z_h+z_l)+dp_h[k])+t);
 	    SET_LOW_WORD(t1,0);
 	    t2 = z_l-(((t1-t)-dp_h[k])-z_h);
