@@ -48,6 +48,47 @@
 #define	IEEE_WORD_ORDER	BYTE_ORDER
 #endif
 
+/* A union which permits us to convert between a long double and
+   four 32 bit ints.  */
+
+#if IEEE_WORD_ORDER == BIG_ENDIAN
+
+typedef union
+{
+  long double value;
+  struct {
+    u_int32_t mswhi;
+    u_int32_t mswlo;
+    u_int32_t lswhi;
+    u_int32_t lswlo;
+  } parts32;
+  struct {
+    u_int64_t msw;
+    u_int64_t lsw;
+  } parts64;
+} ieee_quad_shape_type;
+
+#endif
+
+#if IEEE_WORD_ORDER == LITTLE_ENDIAN
+
+typedef union
+{
+  long double value;
+  struct {
+    u_int32_t lswlo;
+    u_int32_t lswhi;
+    u_int32_t mswlo;
+    u_int32_t mswhi;
+  } parts32;
+  struct {
+    u_int64_t lsw;
+    u_int64_t msw;
+  } parts64;
+} ieee_quad_shape_type;
+
+#endif
+
 #if IEEE_WORD_ORDER == BIG_ENDIAN
 
 typedef union
@@ -786,5 +827,8 @@ float complex __ldexp_cexpf(float complex,int);
 long double __kernel_sinl(long double, long double, int);
 long double __kernel_cosl(long double, long double);
 long double __kernel_tanl(long double, long double, int);
+
+long double __p1evll(long double, void *, int);
+long double __polevll(long double, void *, int);
 
 #endif /* !_MATH_PRIVATE_H_ */
