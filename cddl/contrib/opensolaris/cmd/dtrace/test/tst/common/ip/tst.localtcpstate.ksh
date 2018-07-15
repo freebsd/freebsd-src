@@ -36,12 +36,11 @@
 # 1. A change to the ip stack breaking expected probe behavior,
 #    which is the reason we are testing.
 # 2. The lo0 interface missing or not up.
-# 3. The local ssh service is not online.
-# 4. An unlikely race causes the unlocked global send/receive
+# 3. An unlikely race causes the unlocked global send/receive
 #    variables to be corrupted.
 #
-# This test performs a TCP connection to the ssh service (port 22) and
-# checks that at least the following packet counts were traced:
+# This test performs a TCP connection and checks that at least the
+# following packet counts were traced:
 #
 # 3 x ip:::send (2 during the TCP handshake, then a FIN)
 # 4 x tcp:::send (2 during the TCP handshake, 1 message then a FIN)
@@ -63,11 +62,24 @@ fi
 
 dtrace=$1
 local=127.0.0.1
-tcpport=22
 DIR=/var/tmp/dtest.$$
+
+tcpport=1024
+bound=5000
+while [ $tcpport -lt $bound ]; do
+	nc -z $local $tcpport >/dev/null || break
+	tcpport=$(($tcpport + 1))
+done
+if [ $tcpport -eq $bound ]; then
+	echo "couldn't find an available TCP port"
+	exit 1
+fi
 
 mkdir $DIR
 cd $DIR
+
+# nc will exit when the connection is closed.
+nc -l $local $tcpport &
 
 cat > test.pl <<-EOPERL
 	use IO::Socket;
@@ -77,7 +89,6 @@ cat > test.pl <<-EOPERL
 	    PeerPort => $tcpport,
 	    Timeout => 3);
 	die "Could not connect to host $local port $tcpport" unless \$s;
-	print \$s "testing state machine transitions";
 	close \$s;
 	sleep(2);
 EOPERL
