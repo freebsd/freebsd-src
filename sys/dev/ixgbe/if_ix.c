@@ -1180,15 +1180,6 @@ ixgbe_setup_interface(if_ctx_t ctx)
 
 	adapter->max_frame_size = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-	/*
-	 * Don't turn this on by default, if vlans are
-	 * created on another pseudo device (eg. lagg)
-	 * then vlan events are not passed thru, breaking
-	 * operation, but with HW FILTER off it works. If
-	 * using vlans directly on the ixgbe driver you can
-	 * enable this and get full hardware tag filtering.
-	 */
-	if_setcapenablebit(ifp, 0, IFCAP_VLAN_HWFILTER);
 	adapter->phy_layer = ixgbe_get_supported_physical_layer(&adapter->hw);
 
 	ixgbe_add_media_types(ctx);
