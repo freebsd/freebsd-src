@@ -33,7 +33,6 @@ exclude EXFAIL common/funcs/tst.copyin.d
 exclude EXFAIL common/funcs/tst.copyinto.d
 exclude EXFAIL common/funcs/tst.ddi_pathname.d
 exclude EXFAIL common/io/tst.fds.d
-exclude EXFAIL common/ip/tst.ipv4localudp.ksh
 exclude EXFAIL common/mdb/tst.dtracedcmd.ksh
 exclude EXFAIL common/misc/tst.dofmax.ksh
 exclude EXFAIL common/misc/tst.include.ksh
