@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -228,7 +229,6 @@ int
 child(const char *inpath, const char *outpath, int pipefd,
     bool Vflag, bool vflag)
 {
-	int error;
 	FILE *outfp = NULL, *infp = NULL;
 	struct executable *x;
 
@@ -236,8 +236,7 @@ child(const char *inpath, const char *outpath, int pipefd,
 	if (outpath != NULL)
 		outfp = checked_fopen(outpath, "w");
 
-	error = cap_enter();
-	if (error != 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "cap_enter");
 
 	x = calloc(1, sizeof(*x));
