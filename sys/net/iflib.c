@@ -1574,14 +1574,22 @@ iflib_txsd_alloc(iflib_txq_t txq)
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	device_t dev = ctx->ifc_dev;
+	bus_size_t tsomaxsize;
 	int err, nsegments, ntsosegments;
 
 	nsegments = scctx->isc_tx_nsegments;
 	ntsosegments = scctx->isc_tx_tso_segments_max;
+	tsomaxsize = scctx->isc_tx_tso_size_max;
+	if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_VLAN_MTU)
+		tsomaxsize += sizeof(struct ether_vlan_header);
 	MPASS(scctx->isc_ntxd[0] > 0);
 	MPASS(scctx->isc_ntxd[txq->ift_br_offset] > 0);
 	MPASS(nsegments > 0);
-	MPASS(ntsosegments > 0);
+	if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) {
+		MPASS(ntsosegments > 0);
+		MPASS(sctx->isc_tso_maxsize >= tsomaxsize);
+	}
+
 	/*
 	 * Setup DMA descriptor areas.
 	 */
@@ -1602,14 +1610,15 @@ iflib_txsd_alloc(iflib_txq_t txq)
 		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
 		goto fail;
 	}
-	if ((err = bus_dma_tag_create(bus_get_dma_tag(dev),
+	if ((if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) &
+	    (err = bus_dma_tag_create(bus_get_dma_tag(dev),
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       scctx->isc_tx_tso_size_max,		/* maxsize */
+			       tsomaxsize,		/* maxsize */
 			       ntsosegments,	/* nsegments */
-			       scctx->isc_tx_tso_segsize_max,	/* maxsegsize */
+			       sctx->isc_tso_maxsegsize,/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockfuncarg */
@@ -3279,6 +3288,8 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 		desc_tag = txq->ift_tso_desc_tag;
 		max_segs = scctx->isc_tx_tso_segments_max;
+		MPASS(desc_tag != NULL);
+		MPASS(max_segs > 0);
 	} else {
 		desc_tag = txq->ift_desc_tag;
 		max_segs = scctx->isc_tx_nsegments;
@@ -4379,12 +4390,12 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_txrx = *scctx->isc_txrx;
 
 #ifdef INVARIANTS
-	MPASS(scctx->isc_capenable);
-	if (scctx->isc_capenable & IFCAP_TXCSUM)
+	MPASS(scctx->isc_capabilities);
+	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
 #endif
 
-	if_setcapabilities(ifp, scctx->isc_capenable | IFCAP_HWSTATS);
+	if_setcapabilities(ifp, scctx->isc_capabilities | IFCAP_HWSTATS);
 	if_setcapenable(ifp, scctx->isc_capenable | IFCAP_HWSTATS);
 
 	if (scctx->isc_ntxqsets == 0 || (scctx->isc_ntxqsets_max && scctx->isc_ntxqsets_max < scctx->isc_ntxqsets))
@@ -4432,16 +4443,25 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		scctx->isc_tx_tso_segments_max = max(1,
 		    scctx->isc_ntxd[main_txq] / MAX_SINGLE_PACKET_FRACTION);
 
-	/*
-	 * Protect the stack against modern hardware
-	 */
-	if (scctx->isc_tx_tso_size_max > FREEBSD_TSO_SIZE_MAX)
-		scctx->isc_tx_tso_size_max = FREEBSD_TSO_SIZE_MAX;
-
 	/* TSO parameters - dig these out of the data sheet - simply correspond to tag setup */
-	ifp->if_hw_tsomaxsegcount = scctx->isc_tx_tso_segments_max;
-	ifp->if_hw_tsomax = scctx->isc_tx_tso_size_max;
-	ifp->if_hw_tsomaxsegsize = scctx->isc_tx_tso_segsize_max;
+	if (if_getcapabilities(ifp) & IFCAP_TSO) {
+		/*
+		 * The stack can't handle a TSO size larger than IP_MAXPACKET,
+		 * but some MACs do.
+		 */
+		if_sethwtsomax(ifp, min(scctx->isc_tx_tso_size_max,
+		    IP_MAXPACKET));
+		/*
+		 * Take maximum number of m_pullup(9)'s in iflib_parse_header()
+		 * into account.  In the worst case, each of these calls will
+		 * add another mbuf and, thus, the requirement for another DMA
+		 * segment.  So for best performance, it doesn't make sense to
+		 * advertize a maximum of TSO segments that typically will
+		 * require defragmentation in iflib_encap().
+		 */
+		if_sethwtsomaxsegcount(ifp, scctx->isc_tx_tso_segments_max - 3);
+		if_sethwtsomaxsegsize(ifp, scctx->isc_tx_tso_segsize_max);
+	}
 	if (scctx->isc_rss_table_size == 0)
 		scctx->isc_rss_table_size = 64;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size-1;
@@ -4512,11 +4532,22 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			goto fail_intr_free;
 		}
 	}
+
 	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+
 	if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
 		goto fail_detach;
 	}
+
+	/*
+	 * Tell the upper layer(s) if IFCAP_VLAN_MTU is supported.
+	 * This must appear after the call to ether_ifattach() because
+	 * ether_ifattach() sets if_hdrlen to the default value.
+	 */
+	if (if_getcapabilities(ifp) & IFCAP_VLAN_MTU)
+		if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+
 	if ((err = iflib_netmap_attach(ctx))) {
 		device_printf(ctx->ifc_dev, "netmap attach failed: %d\n", err);
 		goto fail_detach;
@@ -4599,12 +4630,12 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	ifmedia_set(&ctx->ifc_media, IFM_ETHER | IFM_AUTO);
 
 #ifdef INVARIANTS
-	MPASS(scctx->isc_capenable);
-	if (scctx->isc_capenable & IFCAP_TXCSUM)
+	MPASS(scctx->isc_capabilities);
+	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
 #endif
 
-	if_setcapabilities(ifp, scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_LINKSTATE);
+	if_setcapabilities(ifp, scctx->isc_capabilities | IFCAP_HWSTATS | IFCAP_LINKSTATE);
 	if_setcapenable(ifp, scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_LINKSTATE);
 
 	ifp->if_flags |= IFF_NOGROUP;
@@ -4616,6 +4647,15 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 			goto fail_detach;
 		}
 		*ctxp = ctx;
+
+		/*
+		 * Tell the upper layer(s) if IFCAP_VLAN_MTU is supported.
+		 * This must appear after the call to ether_ifattach() because
+		 * ether_ifattach() sets if_hdrlen to the default value.
+		 */
+		if (if_getcapabilities(ifp) & IFCAP_VLAN_MTU)
+			if_setifheaderlen(ifp,
+			    sizeof(struct ether_vlan_header));
 
 		if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
 		iflib_add_device_sysctl_post(ctx);
@@ -4662,16 +4702,25 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		scctx->isc_tx_tso_segments_max = max(1,
 		    scctx->isc_ntxd[main_txq] / MAX_SINGLE_PACKET_FRACTION);
 
-	/*
-	 * Protect the stack against modern hardware
-	 */
-	if (scctx->isc_tx_tso_size_max > FREEBSD_TSO_SIZE_MAX)
-		scctx->isc_tx_tso_size_max = FREEBSD_TSO_SIZE_MAX;
-
 	/* TSO parameters - dig these out of the data sheet - simply correspond to tag setup */
-	ifp->if_hw_tsomaxsegcount = scctx->isc_tx_tso_segments_max;
-	ifp->if_hw_tsomax = scctx->isc_tx_tso_size_max;
-	ifp->if_hw_tsomaxsegsize = scctx->isc_tx_tso_segsize_max;
+	if (if_getcapabilities(ifp) & IFCAP_TSO) {
+		/*
+		 * The stack can't handle a TSO size larger than IP_MAXPACKET,
+		 * but some MACs do.
+		 */
+		if_sethwtsomax(ifp, min(scctx->isc_tx_tso_size_max,
+		    IP_MAXPACKET));
+		/*
+		 * Take maximum number of m_pullup(9)'s in iflib_parse_header()
+		 * into account.  In the worst case, each of these calls will
+		 * add another mbuf and, thus, the requirement for another DMA
+		 * segment.  So for best performance, it doesn't make sense to
+		 * advertize a maximum of TSO segments that typically will
+		 * require defragmentation in iflib_encap().
+		 */
+		if_sethwtsomaxsegcount(ifp, scctx->isc_tx_tso_segments_max - 3);
+		if_sethwtsomaxsegsize(ifp, scctx->isc_tx_tso_segsize_max);
+	}
 	if (scctx->isc_rss_table_size == 0)
 		scctx->isc_rss_table_size = 64;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size-1;
@@ -4693,6 +4742,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		device_printf(dev, "qset structure setup failed %d\n", err);
 		goto fail_queues;
 	}
+
 	/*
 	 * XXX What if anything do we want to do about interrupts?
 	 */
@@ -4701,6 +4751,15 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
 		goto fail_detach;
 	}
+
+	/*
+	 * Tell the upper layer(s) if IFCAP_VLAN_MTU is supported.
+	 * This must appear after the call to ether_ifattach() because
+	 * ether_ifattach() sets if_hdrlen to the default value.
+	 */
+	if (if_getcapabilities(ifp) & IFCAP_VLAN_MTU)
+		if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+
 	/* XXX handle more than one queue */
 	for (i = 0; i < scctx->isc_nrxqsets; i++)
 		IFDI_RX_CLSET(ctx, 0, i, ctx->ifc_rxqs[i].ifr_fl[0].ifl_sds.ifsd_cl);
