@@ -1219,8 +1219,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	/* Set VLAN receive stripping mode */
 	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
 	ctxt.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL;
-	// TODO: Call function to get this cap bit, instead
-	if (vsi->ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (if_getcapenable(vsi->ifp) & IFCAP_VLAN_HWTAGGING)
 		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
 	else
 		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
