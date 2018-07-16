@@ -64,7 +64,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	struct cryptoini cri;
 	struct cryptop *crp;
 	struct cryptodesc *crd;
-	uint64_t sid;
+	crypto_session_t sid;
 	u_char *p;
 	int error;
 
