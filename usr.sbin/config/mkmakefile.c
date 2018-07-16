@@ -304,13 +304,6 @@ makeenv(void)
 	char line[BUFSIZ], result[BUFSIZ], *linep;
 	struct envvar *envvar;
 
-	if (env) {
-		ifp = fopen(env, "r");
-		if (ifp == NULL)
-			err(1, "%s", env);
-	} else {
-		ifp = NULL;
-	}
 	ofp = fopen(path("env.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("env.c.new"));
@@ -319,25 +312,28 @@ makeenv(void)
 	fprintf(ofp, "\n");
 	fprintf(ofp, "int envmode = %d;\n", envmode);
 	fprintf(ofp, "char static_env[] = {\n");
-	if (ifp) {
-		while (fgets(line, BUFSIZ, ifp) != NULL) {
-			sanitize_envline(result, line);
-			/* anything left? */
+	STAILQ_FOREACH(envvar, &envvars, envvar_next) {
+		if (envvar->env_is_file) {
+			ifp = fopen(envvar->env_str, "r");
+			if (ifp == NULL)
+				err(1, "%s", envvar->env_str);
+			while (fgets(line, BUFSIZ, ifp) != NULL) {
+				sanitize_envline(result, line);
+				/* anything left? */
+				if (*result == '\0')
+					continue;
+				fprintf(ofp, "\"%s\\0\"\n", result);
+			}
+			fclose(ifp);
+		} else {
+			linep = envvar->env_str;
+			sanitize_envline(result, linep);
 			if (*result == '\0')
 				continue;
 			fprintf(ofp, "\"%s\\0\"\n", result);
 		}
 	}
-	STAILQ_FOREACH(envvar, &envvars, envvar_next) {
-		linep = envvar->env_str;
-		sanitize_envline(result, linep);
-		if (*result == '\0')
-			continue;
-		fprintf(ofp, "\"%s\\0\"\n", result);
-	}
 	fprintf(ofp, "\"\\0\"\n};\n");
-	if (ifp)
-		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("env.c.new"), path("env.c"));
 }

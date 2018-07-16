@@ -80,7 +80,6 @@
 
 struct	device_head dtab;
 char	*ident;
-char	*env;
 int	envmode;
 int	hintmode;
 int	yyline;
@@ -97,6 +96,7 @@ int yywrap(void);
 
 static void newdev(char *name);
 static void newfile(char *name);
+static void newenvvar(char *name, bool is_file);
 static void rmdev_schedule(struct device_head *dh, char *name);
 static void newopt(struct opt_head *list, char *name, char *value, int append);
 static void rmopt_schedule(struct opt_head *list, char *name);
@@ -189,20 +189,8 @@ Config_spec:
 		|
 	MAXUSERS NUMBER { maxusers = $2; } |
 	PROFILE NUMBER { profiling = $2; } |
-	ENV ID {
-		env = $2;
-		envmode = 1;
-		} |
-	ENVVAR ENVLINE {
-		struct envvar *envvar;
-
-		envvar = (struct envvar *)calloc(1, sizeof (struct envvar));
-		if (envvar == NULL)
-			err(EXIT_FAILURE, "calloc");
-		envvar->env_str = $2;
-		STAILQ_INSERT_TAIL(&envvars, envvar, envvar_next);
-		envmode = 1;
-	        } |
+	ENV ID { newenvvar($2, true); } |
+	ENVVAR ENVLINE { newenvvar($2, false); } |
 	HINTS ID {
 		struct hint *hint;
 
@@ -210,7 +198,7 @@ Config_spec:
 		if (hint == NULL)
 			err(EXIT_FAILURE, "calloc");	
 		hint->hint_name = $2;
-		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
+		STAILQ_INSERT_HEAD(&hints, hint, hint_next);
 		hintmode = 1;
 	        }
 
@@ -359,7 +347,21 @@ newfile(char *name)
 	nl->f_name = name;
 	STAILQ_INSERT_TAIL(&fntab, nl, f_next);
 }
-	
+
+static void
+newenvvar(char *name, bool is_file)
+{
+	struct envvar *envvar;
+
+	envvar = (struct envvar *)calloc(1, sizeof (struct envvar));
+	if (envvar == NULL)
+		err(EXIT_FAILURE, "calloc");
+	envvar->env_str = name;
+	envvar->env_is_file = is_file;
+	STAILQ_INSERT_HEAD(&envvars, envvar, envvar_next);
+	envmode = 1;
+}
+
 /*
  * Find a device in the list of devices.
  */
