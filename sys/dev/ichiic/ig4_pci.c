@@ -228,5 +228,7 @@ DRIVER_MODULE_ORDERED(ig4iic_pci, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0
 MODULE_DEPEND(ig4iic_pci, pci, 1, 1, 1);
 MODULE_DEPEND(ig4iic_pci, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(ig4iic_pci, 1);
-MODULE_PNP_INFO("W32:vendor/device", pci, ig4iic_pci, ig4iic_pci_devices,
-    sizeof(ig4iic_pci_devices[0]), nitems(ig4iic_pci_devices));
+/*
+ * Loading this module breaks suspend/resume on laptops
+ * Do not add MODULE_PNP_INFO until it's impleneted
+ */ 
