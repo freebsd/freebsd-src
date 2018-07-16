@@ -314,7 +314,7 @@ nvlist_set_flags(nvlist_t *nvl, int flags)
 	nvl->nvl_flags = flags;
 }
 
-static void
+void
 nvlist_report_missing(int type, const char *name)
 {
 
