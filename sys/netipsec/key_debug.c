@@ -83,6 +83,85 @@ static void kdebug_sadb_x_natt(struct sadb_ext *);
 
 /* NOTE: host byte order */
 
+static const char*
+kdebug_sadb_type(uint8_t type)
+{
+#define	SADB_NAME(n)	case SADB_ ## n: return (#n)
+
+	switch (type) {
+	SADB_NAME(RESERVED);
+	SADB_NAME(GETSPI);
+	SADB_NAME(UPDATE);
+	SADB_NAME(ADD);
+	SADB_NAME(DELETE);
+	SADB_NAME(GET);
+	SADB_NAME(ACQUIRE);
+	SADB_NAME(REGISTER);
+	SADB_NAME(EXPIRE);
+	SADB_NAME(FLUSH);
+	SADB_NAME(DUMP);
+	SADB_NAME(X_PROMISC);
+	SADB_NAME(X_PCHANGE);
+	SADB_NAME(X_SPDUPDATE);
+	SADB_NAME(X_SPDADD);
+	SADB_NAME(X_SPDDELETE);
+	SADB_NAME(X_SPDGET);
+	SADB_NAME(X_SPDACQUIRE);
+	SADB_NAME(X_SPDDUMP);
+	SADB_NAME(X_SPDFLUSH);
+	SADB_NAME(X_SPDSETIDX);
+	SADB_NAME(X_SPDEXPIRE);
+	SADB_NAME(X_SPDDELETE2);
+	default:
+		return ("UNKNOWN");
+	}
+#undef SADB_NAME
+}
+
+static const char*
+kdebug_sadb_exttype(uint16_t type)
+{
+#define	EXT_NAME(n)	case SADB_EXT_ ## n: return (#n)
+#define	X_NAME(n)	case SADB_X_EXT_ ## n: return (#n)
+
+	switch (type) {
+	EXT_NAME(RESERVED);
+	EXT_NAME(SA);
+	EXT_NAME(LIFETIME_CURRENT);
+	EXT_NAME(LIFETIME_HARD);
+	EXT_NAME(LIFETIME_SOFT);
+	EXT_NAME(ADDRESS_SRC);
+	EXT_NAME(ADDRESS_DST);
+	EXT_NAME(ADDRESS_PROXY);
+	EXT_NAME(KEY_AUTH);
+	EXT_NAME(KEY_ENCRYPT);
+	EXT_NAME(IDENTITY_SRC);
+	EXT_NAME(IDENTITY_DST);
+	EXT_NAME(SENSITIVITY);
+	EXT_NAME(PROPOSAL);
+	EXT_NAME(SUPPORTED_AUTH);
+	EXT_NAME(SUPPORTED_ENCRYPT);
+	EXT_NAME(SPIRANGE);
+	X_NAME(KMPRIVATE);
+	X_NAME(POLICY);
+	X_NAME(SA2);
+	X_NAME(NAT_T_TYPE);
+	X_NAME(NAT_T_SPORT);
+	X_NAME(NAT_T_DPORT);
+	X_NAME(NAT_T_OAI);
+	X_NAME(NAT_T_OAR);
+	X_NAME(NAT_T_FRAG);
+	X_NAME(SA_REPLAY);
+	X_NAME(NEW_ADDRESS_SRC);
+	X_NAME(NEW_ADDRESS_DST);
+	default:
+		return ("UNKNOWN");
+	};
+#undef EXT_NAME
+#undef X_NAME
+}
+
+
 /* %%%: about struct sadb_msg */
 void
 kdebug_sadb(struct sadb_msg *base)
@@ -94,8 +173,9 @@ kdebug_sadb(struct sadb_msg *base)
 	if (base == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("sadb_msg{ version=%u type=%u errno=%u satype=%u\n",
+	printf("sadb_msg{ version=%u type=%u(%s) errno=%u satype=%u\n",
 	    base->sadb_msg_version, base->sadb_msg_type,
+	    kdebug_sadb_type(base->sadb_msg_type),
 	    base->sadb_msg_errno, base->sadb_msg_satype);
 	printf("  len=%u reserved=%u seq=%u pid=%u\n",
 	    base->sadb_msg_len, base->sadb_msg_reserved,
@@ -105,8 +185,9 @@ kdebug_sadb(struct sadb_msg *base)
 	ext = (struct sadb_ext *)((caddr_t)base + sizeof(struct sadb_msg));
 
 	while (tlen > 0) {
-		printf("sadb_ext{ len=%u type=%u }\n",
-		    ext->sadb_ext_len, ext->sadb_ext_type);
+		printf("sadb_ext{ len=%u type=%u(%s) }\n",
+		    ext->sadb_ext_len, ext->sadb_ext_type,
+		    kdebug_sadb_exttype(ext->sadb_ext_type));
 
 		if (ext->sadb_ext_len == 0) {
 			printf("%s: invalid ext_len=0 was passed.\n", __func__);
