@@ -177,7 +177,7 @@ contrib/vchiq/interface/vchiq_arm/vchiq_util.c	optional vchiq soc_brcm_bcm2837 \
 crypto/armv8/armv8_crypto.c	optional	armv8crypto
 armv8_crypto_wrap.o		optional	armv8crypto		\
 	dependency	"$S/crypto/armv8/armv8_crypto_wrap.c"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -march=armv8-a+crypto ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${PROF} -march=armv8-a+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"armv8_crypto_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
