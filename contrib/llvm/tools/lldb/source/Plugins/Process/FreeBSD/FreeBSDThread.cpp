@@ -169,7 +169,6 @@ lldb::RegisterContextSP FreeBSDThread::GetRegisterContext() {
     RegisterInfoInterface *reg_interface = NULL;
     const ArchSpec &target_arch = GetProcess()->GetTarget().GetArchitecture();
 
-    assert(target_arch.GetTriple().getOS() == llvm::Triple::FreeBSD);
     switch (target_arch.GetMachine()) {
     case llvm::Triple::aarch64:
       reg_interface = new RegisterInfoPOSIX_arm64(target_arch);
