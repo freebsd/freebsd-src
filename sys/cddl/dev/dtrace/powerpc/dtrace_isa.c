@@ -561,19 +561,19 @@ dtrace_getreg(struct trapframe *rp, uint_t reg)
 		return (rp->fixreg[reg]);
 
 	switch (reg) {
-	case 33:
+	case 32:
 		return (rp->lr);
-	case 34:
+	case 33:
 		return (rp->cr);
-	case 35:
+	case 34:
 		return (rp->xer);
-	case 36:
+	case 35:
 		return (rp->ctr);
-	case 37:
+	case 36:
 		return (rp->srr0);
-	case 38:
+	case 37:
 		return (rp->srr1);
-	case 39:
+	case 38:
 		return (rp->exc);
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
