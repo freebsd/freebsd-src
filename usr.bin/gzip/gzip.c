@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.112 2017/08/23 13:04:17 christos Exp $	*/
+/*	$NetBSD: gzip.c,v 1.113 2018/06/12 00:42:17 kamil Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
@@ -2170,12 +2170,16 @@ print_list(int fd, off_t out, const char *outfile, time_t ts)
 				maybe_warnx("read of uncompressed size");
 
 			else {
-				usize = buf[4] | buf[5] << 8 |
-					buf[6] << 16 | buf[7] << 24;
+				usize = buf[4];
+				usize |= (unsigned int)buf[5] << 8;
+				usize |= (unsigned int)buf[6] << 16;
+				usize |= (unsigned int)buf[7] << 24;
 				in = (off_t)usize;
 #ifndef SMALL
-				crc = buf[0] | buf[1] << 8 |
-				      buf[2] << 16 | buf[3] << 24;
+				crc = buf[0];
+				crc |= (unsigned int)buf[1] << 8;
+				crc |= (unsigned int)buf[2] << 16;
+				crc |= (unsigned int)buf[3] << 24;
 #endif
 			}
 		}
