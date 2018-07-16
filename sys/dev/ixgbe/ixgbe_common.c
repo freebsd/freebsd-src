@@ -5380,7 +5380,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		 * Section 73.10.2, we may have to wait up to 500ms if KR is
 		 * attempted.  82599 uses the same timing for 10g SFI.
 		 */
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 10; i++) {
 			/* Wait for the link partner to also set speed */
 			msec_delay(100);
 
