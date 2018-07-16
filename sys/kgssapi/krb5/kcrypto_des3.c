@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 struct des3_state {
 	struct mtx	ds_lock;
-	uint64_t	ds_session;
+	crypto_session_t ds_session;
 };
 
 static void
