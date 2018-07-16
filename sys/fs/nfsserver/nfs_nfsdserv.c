@@ -3095,7 +3095,13 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATEWRITE);
 		else if (retext != 0) {
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATENONEEXT);
-			if ((rflags & NFSV4OPEN_WDCONTENTION) != 0) {
+			if ((rflags & NFSV4OPEN_WDNOTWANTED) != 0) {
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV4OPEN_NOTWANTED);
+			} else if ((rflags & NFSV4OPEN_WDSUPPFTYPE) != 0) {
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV4OPEN_NOTSUPPFTYPE);
+			} else if ((rflags & NFSV4OPEN_WDCONTENTION) != 0) {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV4OPEN_CONTENTION);
 				*tl = newnfs_false;
