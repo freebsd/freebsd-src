@@ -507,12 +507,13 @@ static struct if_shared_ctx em_sctx_init = {
 
 if_shared_ctx_t em_sctx = &em_sctx_init;
 
-
 static struct if_shared_ctx igb_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_q_align = PAGE_SIZE,
-	.isc_tx_maxsize = EM_TSO_SIZE,
+	.isc_tx_maxsize = EM_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_tx_maxsegsize = PAGE_SIZE,
+	.isc_tso_maxsize = EM_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = EM_TSO_SEG_SIZE,
 	.isc_rx_maxsize = MJUM9BYTES,
 	.isc_rx_nsegments = 1,
 	.isc_rx_maxsegsize = MJUM9BYTES,
