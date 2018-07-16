@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 struct aes_state {
 	struct mtx	as_lock;
-	uint64_t	as_session_aes;
-	uint64_t	as_session_sha1;
+	crypto_session_t as_session_aes;
+	crypto_session_t as_session_sha1;
 };
 
 static void
