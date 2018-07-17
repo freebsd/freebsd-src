@@ -2381,14 +2381,15 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		break;
 
 	default:
-		break;
+		/* unsupported event */
+		return;
 	}
 
 	ibev.device	      = &ibdev->ib_dev;
 	ibev.element.port_num = port;
 
 	if (port < 1 || port > ibdev->num_ports) {
-		mlx5_ib_warn(ibdev, "warning: event on port %d\n", port);
+		mlx5_ib_warn(ibdev, "warning: event(%d) on port %d\n", event, port);
 		return;
 	}
 
