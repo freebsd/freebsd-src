@@ -35,16 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include "math_private.h"
 
-/*
- * gcc doesn't implement complex multiplication or division correctly,
- * so we need to handle infinities specially. We turn on this pragma to
- * notify conforming c99 compilers that the fast-but-incorrect code that
- * gcc generates is acceptable, since the special cases have already been
- * handled.
- */
-#pragma	STDC CX_LIMITED_RANGE	ON
-
-/* We risk spurious overflow for components >= DBL_MAX / (1 + sqrt(2)). */
+/* For avoiding overflow for components >= DBL_MAX / (1 + sqrt(2)). */
 #define	THRESH	0x1.a827999fcef32p+1022
 
 double complex

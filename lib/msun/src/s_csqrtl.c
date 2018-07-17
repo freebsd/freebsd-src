@@ -36,24 +36,17 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 /*
- * gcc doesn't implement complex multiplication or division correctly,
- * so we need to handle infinities specially. We turn on this pragma to
- * notify conforming c99 compilers that the fast-but-incorrect code that
- * gcc generates is acceptable, since the special cases have already been
- * handled.
- */
-#pragma	STDC CX_LIMITED_RANGE	ON
-
-/*
- * We risk spurious overflow for components >= LDBL_MAX / (1 + sqrt(2)).
- * Rather than determining the fully precise value at which we might
- * overflow, just use a threshold of approximately LDBL_MAX / 4.
+ * THRESH is now calculated portably (up to 113-bit precision).  However,
+ * the denormal threshold is hard-coded for a 15-bit exponent with the usual
+ * bias.  s_logl.c and e_hypotl have less hard-coding but end up requiring
+ * the same for the exponent and more for the mantissa.
  */
 #if LDBL_MAX_EXP != 0x4000
 #error "Unsupported long double format"
-#else
-#define	THRESH	0x1p16382L
 #endif
+
+/* For avoiding overflow for components >= LDBL_MAX / (1 + sqrt(2)). */
+#define	THRESH	(LDBL_MAX / 2.414213562373095048801688724209698L)
 
 long double complex
 csqrtl(long double complex z)
