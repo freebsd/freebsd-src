@@ -916,27 +916,75 @@ static const char *mlx5e_port_stats_debug_desc[] = {
 };
 
 static int
+mlx5e_ethtool_debug_channel_info(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv;
+	struct sbuf sb;
+	struct mlx5e_channel *c;
+	struct mlx5e_sq *sq;
+	struct mlx5e_rq *rq;
+	int error, i, tc;
+
+	priv = arg1;
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	if (sbuf_new_for_sysctl(&sb, NULL, 128, req) == NULL)
+		return (ENOMEM);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+
+	PRIV_LOCK(priv);
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
+		goto out;
+	for (i = 0; i < priv->params.num_channels; i++) {
+		c = priv->channel[i];
+		rq = &c->rq;
+		sbuf_printf(&sb, "channel %d rq %d cq %d\n",
+		    c->ix, rq->rqn, rq->cq.mcq.cqn);
+		for (tc = 0; tc < c->num_tc; tc++) {
+			sq = &c->sq[tc];
+			sbuf_printf(&sb, "channel %d tc %d sq %d cq %d\n",
+			    c->ix, tc, sq->sqn, sq->cq.mcq.cqn);
+		}
+	}
+out:
+	PRIV_UNLOCK(priv);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
+}
+
+static int
 mlx5e_ethtool_debug_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
-	int error;
-	int sys_debug;
+	int error, sys_debug;
 
 	sys_debug = priv->sysctl_debug;
 	error = sysctl_handle_int(oidp, &priv->sysctl_debug, 0, req);
-	if (error || !req->newptr)
+	if (error != 0 || !req->newptr)
 		return (error);
-	priv->sysctl_debug = !!priv->sysctl_debug;
+	priv->sysctl_debug = priv->sysctl_debug != 0;
 	if (sys_debug == priv->sysctl_debug)
-		return (error);
-	if (priv->sysctl_debug)
+		return (0);
+
+	PRIV_LOCK(priv);
+	if (priv->sysctl_debug) {
 		mlx5e_create_stats(&priv->stats.port_stats_debug.ctx,
 		    SYSCTL_CHILDREN(priv->sysctl_ifnet), "debug_stats",
 		    mlx5e_port_stats_debug_desc, MLX5E_PORT_STATS_DEBUG_NUM,
 		    priv->stats.port_stats_debug.arg);
-	else
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx_channel_debug,
+		    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
+		    "hw_ctx_debug",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_STRING, priv, 0,
+		    mlx5e_ethtool_debug_channel_info, "S", "");
+	} else {
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
-	return (error);
+		sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
+	}
+	PRIV_UNLOCK(priv);
+	return (0);
 }
 
 static void
