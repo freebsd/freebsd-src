@@ -279,7 +279,6 @@ CFLAGS+=        -std=${CSTD}
 LD_EMULATION_aarch64=aarch64elf
 LD_EMULATION_amd64=elf_x86_64_fbsd
 LD_EMULATION_arm=armelf_fbsd
-LD_EMULATION_armeb=armelfb_fbsd
 LD_EMULATION_armv6=armelf_fbsd
 LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
