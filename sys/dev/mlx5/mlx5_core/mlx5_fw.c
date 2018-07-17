@@ -159,8 +159,7 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
-	if (
-	    MLX5_CAP_GEN(dev, eswitch_flow_table)) {
+	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE);
 		if (err)
 			return err;
