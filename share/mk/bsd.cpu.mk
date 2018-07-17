@@ -346,7 +346,7 @@ MACHINE_CPU += armv7
 . endif
 # armv6 and armv7 are a hybrid. It can use the softfp ABI, but doesn't emulate
 # floating point in the general case, so don't define softfp for it at this
-# time. arm and armeb are pure softfp, so define it for them.
+# time. arm is pure softfp, so define it for them.
 . if ${MACHINE_ARCH:Marmv[67]*} == ""
 MACHINE_CPU += softfp
 . endif
