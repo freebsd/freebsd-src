@@ -3367,8 +3367,8 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	char path[96];
 	int error;
 
-	/* Only receiving pauseframes is enabled by default */
-	priv->params.tx_pauseframe_control = 0;
+	/* enable pauseframes by default */
+	priv->params.tx_pauseframe_control = 1;
 	priv->params.rx_pauseframe_control = 1;
 
 	/* disable ports flow control, PFC, by default */
