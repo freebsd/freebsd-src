@@ -682,7 +682,6 @@ struct mlx5_core_dev {
 	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
 	struct mlx5_dump_data	*dump_data;
-	u32			vsec_addr;
 };
 
 enum {
@@ -1055,8 +1054,11 @@ int mlx5_vsc_find_cap(struct mlx5_core_dev *mdev);
 int mlx5_vsc_lock(struct mlx5_core_dev *mdev);
 void mlx5_vsc_unlock(struct mlx5_core_dev *mdev);
 int mlx5_vsc_set_space(struct mlx5_core_dev *mdev, u16 space);
-int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
+int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, const u32 *data);
 int mlx5_vsc_read(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
+int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr);
+int mlx5_vsc_unlock_addr_space(struct mlx5_core_dev *mdev, u32 addr);
+
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
 	return mkey >> 8;
