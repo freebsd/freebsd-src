@@ -346,9 +346,12 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		    ifp->if_addrlen, MAX_ADDR_LEN);
 		error = 0;
 	} else if (IN_MULTICAST(ntohl(dst_tmp.sin_addr.s_addr))) {
+		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
 		error = addr_resolve_multi(edst, ifp, (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
+		else if (is_gw)
+			addr->network = RDMA_NETWORK_IPV4;
 	} else if (ifp->if_flags & IFF_LOOPBACK) {
 		memset(edst, 0, MAX_ADDR_LEN);
 		error = 0;
@@ -360,7 +363,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		    edst, NULL, NULL);
 		if (error != 0)
 			goto error_put_ifp;
-		else if (is_gw != 0)
+		else if (is_gw)
 			addr->network = RDMA_NETWORK_IPV4;
 	}
 
@@ -515,10 +518,13 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	 * Step 3 - resolve destination MAC address
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&dst_tmp.sin6_addr)) {
+		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
 		error = addr_resolve_multi(edst, ifp,
 		    (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
+		else if (is_gw)
+			addr->network = RDMA_NETWORK_IPV6;
 	} else if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
 		memset(edst, 0, MAX_ADDR_LEN);
 		error = 0;
@@ -530,7 +536,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		    edst, NULL, NULL);
 		if (error != 0)
 			goto error_put_ifp;
-		else if (is_gw != 0)
+		else if (is_gw)
 			addr->network = RDMA_NETWORK_IPV6;
 	}
 
