@@ -1940,7 +1940,13 @@ static void __ib_drain_sq(struct ib_qp *qp)
 {
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe sdrain;
-	struct ib_send_wr swr = {}, *bad_swr;
+	struct ib_send_wr *bad_swr;
+	struct ib_rdma_wr swr = {
+		.wr = {
+			.opcode	= IB_WR_RDMA_WRITE,
+			.wr_cqe	= &sdrain.cqe,
+		},
+	};
 	int ret;
 
 	if (qp->send_cq->poll_ctx == IB_POLL_DIRECT) {
@@ -1949,7 +1955,6 @@ static void __ib_drain_sq(struct ib_qp *qp)
 		return;
 	}
 
-	swr.wr_cqe = &sdrain.cqe;
 	sdrain.cqe.done = ib_drain_qp_done;
 	init_completion(&sdrain.done);
 
@@ -1959,7 +1964,7 @@ static void __ib_drain_sq(struct ib_qp *qp)
 		return;
 	}
 
-	ret = ib_post_send(qp, &swr, &bad_swr);
+	ret = ib_post_send(qp, &swr.wr, &bad_swr);
 	if (ret) {
 		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
 		return;
