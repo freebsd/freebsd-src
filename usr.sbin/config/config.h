@@ -212,6 +212,7 @@ extern int	debugging;
 extern int	found_defaults;
 
 extern int	maxusers;
+extern int	versreq;
 
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
