@@ -285,14 +285,16 @@ static void ib_gid_to_mlx5_roce_addr(const union ib_gid *gid,
 					       source_l3_address);
 	void *mlx5_addr_mac	= MLX5_ADDR_OF(roce_addr_layout, mlx5_addr,
 					       source_mac_47_32);
+	u16 vlan_id;
 
 	if (!gid)
 		return;
 	ether_addr_copy(mlx5_addr_mac, IF_LLADDR(attr->ndev));
 
-	if (is_vlan_dev(attr->ndev)) {
+	vlan_id = rdma_vlan_dev_vlan_id(attr->ndev);
+	if (vlan_id != 0xffff) {
 		MLX5_SET_RA(mlx5_addr, vlan_valid, 1);
-		MLX5_SET_RA(mlx5_addr, vlan_id, vlan_dev_vlan_id(attr->ndev));
+		MLX5_SET_RA(mlx5_addr, vlan_id, vlan_id);
 	}
 
 	switch (attr->gid_type) {
