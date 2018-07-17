@@ -34,20 +34,14 @@ __FBSDID("$FreeBSD$");
 
 #include "math_private.h"
 
-/*
- * gcc doesn't implement complex multiplication or division correctly,
- * so we need to handle infinities specially. We turn on this pragma to
- * notify conforming c99 compilers that the fast-but-incorrect code that
- * gcc generates is acceptable, since the special cases have already been
- * handled.
- */
-#pragma	STDC CX_LIMITED_RANGE	ON
-
 float complex
 csqrtf(float complex z)
 {
-	float a = crealf(z), b = cimagf(z);
 	double t;
+	float a, b;
+
+	a = creal(z);
+	b = cimag(z);
 
 	/* Handle special cases. */
 	if (z == 0)
@@ -82,9 +76,9 @@ csqrtf(float complex z)
 	 */
 	if (a >= 0) {
 		t = sqrt((a + hypot(a, b)) * 0.5);
-		return (CMPLXF(t, b / (2.0 * t)));
+		return (CMPLXF(t, b / (2 * t)));
 	} else {
 		t = sqrt((-a + hypot(a, b)) * 0.5);
-		return (CMPLXF(fabsf(b) / (2.0 * t), copysignf(t, b)));
+		return (CMPLXF(fabsf(b) / (2 * t), copysignf(t, b)));
 	}
 }
