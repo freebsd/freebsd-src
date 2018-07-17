@@ -6,7 +6,6 @@ SRCS= \
 mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
-mlx5_crspace.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_fs_cmd.c \
