@@ -193,8 +193,7 @@ DIRDEPS = \
 
 .if ${MK_CLANG} != "no" && \
     (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
-    (${MACHINE_CPUARCH} == "i386"))
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386")
 DIRDEPS+= \
 	lib/libclang_rt/asan-preinit \
 	lib/libclang_rt/asan \
