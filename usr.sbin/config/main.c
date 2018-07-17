@@ -93,6 +93,7 @@ static void get_srcdir(void);
 static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
+static void badversion(void);
 static void checkversion(void);
 extern int yyparse(void);
 
@@ -743,8 +744,8 @@ kernconfdump(const char *file)
 	fclose(fp);
 }
 
-static void 
-badversion()
+static void
+badversion(void)
 {
 	fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
 	fprintf(stderr, "config version = %d, ", CONFIGVERS);
