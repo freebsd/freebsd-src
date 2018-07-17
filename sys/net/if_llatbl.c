@@ -436,6 +436,9 @@ llentry_free(struct llentry *lle)
 
 	pkts_dropped = lltable_drop_entry_queue(lle);
 
+	/* cancel timer */
+	if (callout_stop(&lle->lle_timer) > 0)
+		LLE_REMREF(lle);
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);
@@ -522,8 +525,6 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	CK_LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		if (callout_stop(&lle->lle_timer) > 0)
-			LLE_REMREF(lle);
 		llentry_free(lle);
 	}
 

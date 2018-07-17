@@ -1165,10 +1165,6 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	/* cancel timer */
-	if (callout_stop(&lle->lle_timer) > 0)
-		LLE_REMREF(lle);
-
 	/* Drop hold queue */
 	pkts_dropped = llentry_free(lle);
 	ARPSTAT_ADD(dropped, pkts_dropped);
