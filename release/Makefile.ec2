@@ -8,10 +8,10 @@
 .if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
 AMINAMESUFFIX!=	date +-%Y-%m-%d
 .endif
-.if defined(EC2PUBLIC)
+.if defined(EC2PUBLIC) && !empty(EC2PUBLIC)
 PUBLISH=	--public
 .endif
-.if defined(EC2SNSTOPIC)
+.if defined(EC2SNSTOPIC) && !empty(EC2SNSTOPIC)
 EC2SNSREL=	${REVISION}-${BRANCH}
 EC2_SVNBRANCH!=	svn info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
 EC2_SVNREV!=	svn info --show-item last-changed-revision ${WORLDDIR}
