@@ -402,12 +402,8 @@ static bool find_gid_index(const union ib_gid *gid,
 
 	if (ctx->gid_type != gid_attr->gid_type)
 		return false;
-
-	if ((!!(ctx->vlan_id != 0xffff) == !is_vlan_dev(gid_attr->ndev)) ||
-	    (is_vlan_dev(gid_attr->ndev) &&
-	     vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id))
+	if (rdma_vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id)
 		return false;
-
 	return true;
 }
 
@@ -484,7 +480,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 
 	if (rdma_protocol_roce(device, port_num)) {
 		struct ib_gid_attr dgid_attr;
-		const u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
+		const u16 vlan_id = (wc->wc_flags & IB_WC_WITH_VLAN) ?
 				wc->vlan_id : 0xffff;
 
 		if (!(wc->wc_flags & IB_WC_GRH))
