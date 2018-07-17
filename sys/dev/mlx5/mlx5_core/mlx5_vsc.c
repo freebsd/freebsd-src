@@ -29,6 +29,8 @@
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
+#define	MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
+
 struct mlx5_ifc_vsc_space_bits {
 	u8 status[0x3];
 	u8 reserved0[0xd];
@@ -139,7 +141,7 @@ int mlx5_vsc_set_space(struct mlx5_core_dev *mdev, u16 space)
 	return 0;
 }
 
-int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, u32 *data)
+int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, const u32 *data)
 {
 	device_t dev = mdev->pdev->dev.bsddev;
 	int vsc_addr = mdev->vsc_addr;
@@ -185,6 +187,60 @@ int mlx5_vsc_read(struct mlx5_core_dev *mdev, u32 addr, u32 *data)
 	}
 
 	*data = pci_read_config(dev, vsc_addr + MLX5_VSC_DATA_OFFSET, 4);
+
+	return 0;
+}
+
+int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
+{
+	device_t dev = mdev->pdev->dev.bsddev;
+	int vsc_addr = mdev->vsc_addr;
+	u32 data;
+	int ret;
+	u32 id;
+
+	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	if (ret)
+		return ret;
+
+	/* Get a unique ID based on the counter */
+	id = pci_read_config(dev, vsc_addr + MLX5_VSC_COUNTER_OFFSET, 4);
+
+	/* Try to modify lock */
+	ret = mlx5_vsc_write(mdev, addr, &id);
+	if (ret)
+		return ret;
+
+	/* Verify */
+	ret = mlx5_vsc_read(mdev, addr, &data);
+	if (ret)
+		return ret;
+	if (data != id)
+		return EBUSY;
+
+	return 0;
+}
+
+int mlx5_vsc_unlock_addr_space(struct mlx5_core_dev *mdev, u32 addr)
+{
+	u32 data = 0;
+	int ret;
+
+	ret = mlx5_vsc_set_space(mdev, MLX5_SEMAPHORE_SPACE_DOMAIN);
+	if (ret)
+		return ret;
+
+	/* Try to modify lock */
+	ret = mlx5_vsc_write(mdev, addr, &data);
+	if (ret)
+		return ret;
+
+	/* Verify */
+	ret = mlx5_vsc_read(mdev, addr, &data);
+	if (ret)
+		return ret;
+	if (data != 0)
+		return EBUSY;
 
 	return 0;
 }
