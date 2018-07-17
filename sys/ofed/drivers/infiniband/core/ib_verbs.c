@@ -1172,6 +1172,19 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
 		return 0;
 
+	if (rdma_is_multicast_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+		if (ipv6_addr_v4mapped((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+			__be32 addr = 0;
+
+			memcpy(&addr, ah_attr->grh.dgid.raw + 12, 4);
+			ip_eth_mc_map(addr, (char *)ah_attr->dmac);
+		} else {
+			ipv6_eth_mc_map((struct in6_addr *)ah_attr->grh.dgid.raw,
+					(char *)ah_attr->dmac);
+		}
+		return 0;
+	}
+
 	ret = ib_query_gid(device,
 			   ah_attr->port_num,
 			   ah_attr->grh.sgid_index,
