@@ -466,6 +466,7 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->uid = cmd.uid;
 	cm_id = rdma_create_id(TD_TO_VNET(curthread),
 			       ucma_event_handler, ctx, cmd.ps, qp_type);
 	if (IS_ERR(cm_id)) {
