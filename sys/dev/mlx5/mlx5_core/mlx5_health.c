@@ -219,20 +219,18 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	u32 fatal_error;
 	int lock = -EBUSY;
 
-	mutex_lock(&dev->intf_state_mutex);
-	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		goto unlock;
-		return;
-	}
-
 	fatal_error = check_fatal_sensors(dev);
 
 	if (fatal_error || force) {
+		if (xchg(&dev->state, MLX5_DEVICE_STATE_INTERNAL_ERROR) ==
+		    MLX5_DEVICE_STATE_INTERNAL_ERROR)
+			return;
 		if (!force)
 			mlx5_core_err(dev, "internal state error detected\n");
-		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		mlx5_trigger_cmd_completions(dev);
 	}
+
+	mutex_lock(&dev->intf_state_mutex);
 
 	if (force)
 		goto err_state_done;
@@ -272,7 +270,6 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 
 err_state_done:
 	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 0);
-unlock:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
