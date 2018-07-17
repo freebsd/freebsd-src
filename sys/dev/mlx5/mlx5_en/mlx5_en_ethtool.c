@@ -1123,9 +1123,14 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 				priv, i, mlx5e_dscp_prio_handler, "CU",
 				"Set DSCP to priority mapping, 0..7");
 		}
+#define	A	"Set trust state, 1:PCP 2:DSCP"
+#define	B	" 3:BOTH"
 		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
 		    OID_AUTO, "trust_state", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    priv, 0, mlx5e_trust_state_handler, "CU",
-		    "Set trust state, 1:PCP 2:DSCP 3:BOTH");
+		    MLX5_CAP_QCAM_FEATURE(mdev, qpts_trust_both) ?
+		    A B : A);
+#undef B
+#undef A
 	}
 }
