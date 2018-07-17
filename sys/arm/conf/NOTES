@@ -6,8 +6,6 @@ cpu	CPU_ARM9
 cpu	CPU_ARM9E
 cpu	CPU_FA526
 cpu 	CPU_XSCALE_81342
-cpu 	CPU_XSCALE_IXP425
-cpu 	CPU_XSCALE_IXP435
 cpu	CPU_XSCALE_PXA2X0
 
 files	"../at91/files.at91"
@@ -19,8 +17,6 @@ files	"../mv/orion/files.db88f5xxx"
 files	"../mv/orion/files.ts7800"
 files	"../xscale/i8134x/files.crb"
 files	"../xscale/i8134x/files.i81342"
-files	"../xscale/ixp425/files.avila"
-files	"../xscale/ixp425/files.ixp425"
 files	"../xscale/pxa/files.pxa"
 
 options 	PHYSADDR=0x00000000

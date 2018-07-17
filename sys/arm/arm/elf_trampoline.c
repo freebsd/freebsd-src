@@ -70,7 +70,7 @@ extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
+#elif defined(CPU_XSCALE_PXA2X0)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 extern void xscale_cache_purgeID(void);
 #elif defined(CPU_XSCALE_81342)

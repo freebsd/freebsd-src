@@ -119,13 +119,6 @@ static const char * const pxa27x_steppings[16] = {
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
 };
 
-static const char * const ixp425_steppings[16] = {
-	"step 0 (A0)",	"rev 1 (ARMv5TE)", "rev 2",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
 struct cpuidtab {
 	u_int32_t	cpuid;
 	enum		cpu_class cpu_class;
@@ -199,17 +192,6 @@ const struct cpuidtab cpuids[] = {
 	  pxa255_steppings },
 	{ CPU_ID_PXA210C, 	CPU_CLASS_XSCALE,	"PXA210",
 	  pxa2x0_steppings },
-
-	{ CPU_ID_IXP425_533,	CPU_CLASS_XSCALE,	"IXP425 533MHz",
-	  ixp425_steppings },
-	{ CPU_ID_IXP425_400,	CPU_CLASS_XSCALE,	"IXP425 400MHz",
-	  ixp425_steppings },
-	{ CPU_ID_IXP425_266,	CPU_CLASS_XSCALE,	"IXP425 266MHz",
-	  ixp425_steppings },
-
-	/* XXX ixp435 steppings? */
-	{ CPU_ID_IXP435,	CPU_CLASS_XSCALE,	"IXP435",
-	  ixp425_steppings },
 
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },
