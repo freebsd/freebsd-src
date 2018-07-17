@@ -93,7 +93,7 @@ architectures, the final release.
 .It alpha       Ta 3.2   Ta 6.4
 .It amd64       Ta 5.1
 .It arm         Ta 6.0
-.It armeb       Ta 8.0
+.It armeb       Ta 8.0	Ta 11.x
 .It armv6       Ta 10.0
 .It armv7       Ta 12.0
 .It arm64       Ta 11.0
@@ -193,7 +193,6 @@ Machine-dependent type sizes:
 .It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
 .It amd64       Ta 8 Ta 16 Ta 8
 .It arm         Ta 4 Ta  8 Ta 8
-.It armeb       Ta 4 Ta  8 Ta 8
 .It armv6       Ta 4 Ta  8 Ta 8
 .It arm64       Ta 8 Ta 16 Ta 8
 .It i386        Ta 4 Ta 12 Ta 4
@@ -221,7 +220,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It amd64       Ta little Ta   signed
 .It arm         Ta little Ta unsigned
-.It armeb       Ta big    Ta unsigned
 .It armv6       Ta little Ta unsigned
 .It armv7       Ta little Ta unsigned
 .It arm64       Ta little Ta unsigned
@@ -247,7 +245,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Page Sizes
 .It amd64       Ta 4K, 2M, 1G
 .It arm         Ta 4K
-.It armeb       Ta 4K
 .It armv6       Ta 4K, 1M
 .It armv7       Ta 4K, 1M
 .It arm64       Ta 4K, 2M, 1G
@@ -273,7 +270,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It amd64       Ta hard Ta hard, 80 bit
 .It arm         Ta soft Ta soft, double precision
-.It armeb       Ta soft Ta soft, double precision
 .It armv6       Ta hard(1) Ta hard, double precision
 .It armv7       Ta hard(1) Ta hard, double precision
 .It arm64       Ta hard Ta soft, quad precision
@@ -326,7 +322,6 @@ Architecture-specific macros:
 .It Sy Architecture Ta Sy Predefined macros
 .It amd64       Ta Dv __amd64__, Dv __x86_64__
 .It arm         Ta Dv __arm__
-.It armeb       Ta Dv __arm__
 .It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
 .It armv7       Ta Dv __arm__, Dv __ARM_ARCH >= 7
 .It arm64       Ta Dv __aarch64__
