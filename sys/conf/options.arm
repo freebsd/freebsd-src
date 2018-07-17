@@ -17,8 +17,6 @@ CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
 CPU_MV_PJ4B		opt_global.h
 CPU_XSCALE_81342	opt_global.h
-CPU_XSCALE_IXP425	opt_global.h
-CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
 SMP_ON_UP		opt_global.h # Runtime detection of MP extensions
 DEV_GIC			opt_global.h
@@ -30,7 +28,6 @@ INTRNG			opt_global.h
 IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
-IXP4XX_FLASH_SIZE	opt_global.h
 KERNBASE		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h

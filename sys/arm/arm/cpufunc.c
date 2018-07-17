@@ -65,11 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 
-#ifdef CPU_XSCALE_IXP425
-#include <arm/xscale/ixp425/ixp425reg.h>
-#include <arm/xscale/ixp425/ixp425var.h>
-#endif
-
 /* PRIMARY CACHE VARIABLES */
 int	arm_picache_size;
 int	arm_picache_line_size;
@@ -259,7 +254,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 };
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
+#if defined(CPU_XSCALE_PXA2X0)
 
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
@@ -309,7 +304,7 @@ struct cpu_functions xscale_cpufuncs = {
 	xscale_setup			/* cpu setup		*/
 };
 #endif
-/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
+/* CPU_XSCALE_PXA2X0 */
 
 #ifdef CPU_XSCALE_81342
 struct cpu_functions xscalec3_cpufuncs = {
@@ -467,7 +462,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
   defined(CPU_ARM1176) ||	\
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
+  defined(CPU_XSCALE_PXA2X0) || \
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
@@ -725,18 +720,6 @@ set_cpufuncs(void)
 		goto out;
 	}
 #endif /* CPU_XSCALE_PXA2X0 */
-#ifdef CPU_XSCALE_IXP425
-	if (cputype == CPU_ID_IXP425_533 || cputype == CPU_ID_IXP425_400 ||
-            cputype == CPU_ID_IXP425_266 || cputype == CPU_ID_IXP435) {
-
-		cpufuncs = xscale_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
-		get_cachetype_cp15();
-		pmap_pte_init_xscale();
-
-		goto out;
-	}
-#endif /* CPU_XSCALE_IXP425 */
 	/*
 	 * Bzzzz. And the answer was ...
 	 */
@@ -950,8 +933,7 @@ fa526_setup(void)
 }
 #endif	/* CPU_FA526 */
 
-#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
 void
 xscale_setup(void)
 {
@@ -1017,4 +999,4 @@ xscale_setup(void)
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
 }
-#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
+#endif	/* CPU_XSCALE_PXA2X0 */
