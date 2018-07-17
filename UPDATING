@@ -22,6 +22,9 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	prerequisites and upgrading, if you are not already using clang 3.5.0
 	or higher.
 
+20180601:
+	The releng/11.2 branch has been created from stable/11@r334458.
+
 20180504:
 	The tz database (tzdb) has been updated to 2018e.  This version more
 	correctly models time stamps in time zones with negative DST such as
@@ -87,6 +90,9 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	forground mode (i.e., do not use the -p or -y options). As it
 	starts, fsck will ask ``SAVE DATA TO FIND ALTERNATE SUPERBLOCKS''
 	to which you should answer yes.
+
+20170629:
+	The releng/11.1 branch has been created from stable/11@r320475.
 
 20170518:
 	arm64 builds now use the base system LLD 4.0.0 linker by default,
@@ -174,6 +180,12 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	to use an extension of .pico instead.  The purpose of this change is
 	to avoid a name clash with shared libraries on case-insensitive file
 	systems.  On those file systems, foo.So is the same file as foo.so.
+
+20160811:
+	The releng/11.0 branch has been created from stable/11@r303970.
+
+20160708:
+	The stable/11 branch has been created from head@r302406.
 
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
