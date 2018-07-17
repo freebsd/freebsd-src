@@ -44,7 +44,7 @@ remquo(double x, double y, int *quo)
     /* purge off exception values */
 	if((hy|ly)==0||(hx>=0x7ff00000)||	/* y=0,or x not finite */
 	  ((hy|((ly|-ly)>>31))>0x7ff00000))	/* or y is NaN */
-	    return (x*y)/(x*y);
+	    return nan_mix(x, y)/nan_mix(x, y);
 	if(hx<=hy) {
 	    if((hx<hy)||(lx<ly)) {
 		q = 0;

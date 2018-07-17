@@ -119,7 +119,7 @@ __ieee754_pow(double x, double y)
     /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
 	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0)))
-		return (x+0.0)+(y+0.0);
+	    return nan_mix(x, y);
 
     /* determine if y is an odd int when x < 0
      * yisint = 0	... y is not an integer

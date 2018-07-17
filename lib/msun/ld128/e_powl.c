@@ -182,7 +182,7 @@ powl(long double x, long double y)
       || (iy > 0x7fff0000)
       || ((iy == 0x7fff0000)
 	  && ((q.parts32.mswlo | q.parts32.lswhi | q.parts32.lswlo) != 0)))
-    return x + y;
+    return nan_mix(x, y);
 
   /* determine if y is an odd int when x < 0
    * yisint = 0       ... y is not an integer

@@ -41,7 +41,7 @@ remquof(float x, float y, int *quo)
 
     /* purge off exception values */
 	if(hy==0||hx>=0x7f800000||hy>0x7f800000) /* y=0,NaN;or x not finite */
-	    return (x*y)/(x*y);
+	    return nan_mix(x, y)/nan_mix(x, y);
 	if(hx<hy) {
 	    q = 0;
 	    goto fixup;	/* |x|<|y| return x or x-y */
