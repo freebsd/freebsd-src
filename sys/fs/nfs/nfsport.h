@@ -588,6 +588,7 @@ struct nfst_rec {
 #define	NFSNST_NEWSTATE	0x1
 #define	NFSNST_REVOKE		0x2
 #define	NFSNST_GOTSTATE		0x4
+#define	NFSNST_RECLAIMED	0x8
 
 /*
  * This structure is linked onto nfsrv_stablefirst for the duration of
