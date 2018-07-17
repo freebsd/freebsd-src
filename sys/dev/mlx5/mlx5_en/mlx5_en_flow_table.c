@@ -29,6 +29,7 @@
 
 #include <linux/list.h>
 #include <dev/mlx5/fs.h>
+
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
 enum {
