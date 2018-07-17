@@ -121,10 +121,13 @@ enum {
 };
 
 enum {
+	MLX5_REG_QPTS		 = 0x4002,
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QPDP		 = 0x4007,
 	MLX5_REG_QTCT		 = 0x400A,
+	MLX5_REG_QPDPM		 = 0x4013,
 	MLX5_REG_QHLL		 = 0x4016,
+	MLX5_REG_QCAM		 = 0x4019,
 	MLX5_REG_DCBX_PARAM	 = 0x4020,
 	MLX5_REG_DCBX_APP	 = 0x4021,
 	MLX5_REG_PCAP		 = 0x5001,
@@ -652,6 +655,9 @@ struct mlx5_core_dev {
 	struct mlx5_port_caps	port_caps[MLX5_MAX_PORTS];
 	u32 hca_caps_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
+	struct {
+		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
+	} caps;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	enum mlx5_device_state	state;

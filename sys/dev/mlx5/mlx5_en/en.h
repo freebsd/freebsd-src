@@ -477,6 +477,8 @@ struct mlx5e_params_ethtool {
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
 	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8	prio_tc[IEEE_8021QAZ_MAX_TCS];
+	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
+	u8	trust_state;
 };
 
 /* EEPROM Standards for plug in modules */
