@@ -73,7 +73,7 @@ csqrtl(long double complex z)
 		return (CMPLXL(INFINITY, b));
 	if (isnan(a)) {
 		t = (b - b) / (b - b);	/* raise invalid if b is not a NaN */
-		return (CMPLXL(a, t));	/* return NaN + NaN i */
+		return (CMPLXL(a + 0.0L + t, a + 0.0L + t)); /* NaN + NaN i */
 	}
 	if (isinf(a)) {
 		/*
@@ -87,10 +87,10 @@ csqrtl(long double complex z)
 		else
 			return (CMPLXL(a, copysignl(b - b, b)));
 	}
-	/*
-	 * The remaining special case (b is NaN) is handled just fine by
-	 * the normal code path below.
-	 */
+	if (isnan(b)) {
+		t = (a - a) / (a - a);	/* raise invalid */
+		return (CMPLXL(b + 0.0L + t, b + 0.0L + t)); /* NaN + NaN i */
+	}
 
 	/* Scale to avoid overflow. */
 	if (fabsl(a) >= THRESH || fabsl(b) >= THRESH) {

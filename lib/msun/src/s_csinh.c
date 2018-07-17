@@ -145,7 +145,8 @@ csinh(double complex z)
 	 * Optionally raises the invalid floating-point exception for finite
 	 * nonzero y.  Choice = don't raise (except for signaling NaNs).
 	 */
-	return (CMPLX((x + x) * (y - y), (x * x) * (y - y)));
+	return (CMPLX(((long double)x + x) * (y - y),
+	    ((long double)x * x) * (y - y)));
 }
 
 double complex

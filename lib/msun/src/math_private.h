@@ -478,6 +478,24 @@ do {								\
  */
 void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 
+/*
+ * Mix 1 or 2 NaNs.  First add 0 to each arg.  This normally just turns
+ * signaling NaNs into quiet NaNs by setting a quiet bit.  We do this
+ * because we want to never return a signaling NaN, and also because we
+ * don't want the quiet bit to affect the result.  Then mix the converted
+ * args using addition.  The result is typically the arg whose mantissa
+ * bits (considered as in integer) are largest.
+ *
+ * Technical complications: the result in bits might depend on the precision
+ * and/or on compiler optimizations, especially when different register sets
+ * are used for different precisions.  Try to make the result not depend on
+ * at least the precision by always doing the main mixing step in long double
+ * precision.  Try to reduce dependencies on optimizations by adding the
+ * the 0's in different precisions (unless everything is in long double
+ * precision).
+ */
+#define	nan_mix(x, y)	(((x) + 0.0L) + ((y) + 0))
+
 #ifdef _COMPLEX_H
 
 /*

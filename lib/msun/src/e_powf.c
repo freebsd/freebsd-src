@@ -76,7 +76,7 @@ __ieee754_powf(float x, float y)
     /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7f800000 ||
 	   iy > 0x7f800000)
-		return (x+0.0F)+(y+0.0F);
+	    return nan_mix(x, y);
 
     /* determine if y is an odd int when x < 0
      * yisint = 0	... y is not an integer

@@ -216,9 +216,9 @@ if( x == 1.0L )
 	return( 1.0L );
 
 if( isnan(x) )
-	return( x );
+	return ( nan_mix(x, y) );
 if( isnan(y) )
-	return( y );
+	return ( nan_mix(x, y) );
 
 if( y == 1.0L )
 	return( x );
