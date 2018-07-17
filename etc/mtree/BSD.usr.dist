@@ -13,6 +13,8 @@
             ..
             bsdstat
             ..
+            com_err
+            ..
             event
             ..
             hdb

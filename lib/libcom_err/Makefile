@@ -2,8 +2,9 @@
 
 PACKAGE=lib${LIB}
 LIB=	com_err
+PRIVATELIB=	true
 SRCS=	com_err.c error.c
-INCS=	${COM_ERRDIR}/com_err.h ${COM_ERRDIR}/com_right.h
+INCS=	com_err.h com_right.h
 MAN=	com_err.3
 COM_ERRDIR=	${SRCTOP}/contrib/com_err
 CFLAGS+=	-I${COM_ERRDIR}

@@ -11,6 +11,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/hx509 \
 		-I${.OBJDIR:H:H}/lib/libroken \
 		-I${.OBJDIR:H:H}/lib/libasn1 \
 		-I${.OBJDIR:H:H}/lib/libkrb5 \
+		-I${SRCTOP}/contrib/com_err \
 		-I.
 LIBADD=	krb5 roken asn1 vers
 

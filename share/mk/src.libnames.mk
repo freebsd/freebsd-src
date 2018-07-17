@@ -17,6 +17,7 @@ _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
 		bsdstat \
+		com_err \
 		devdctl \
 		event \
 		gssapi \
@@ -94,7 +95,6 @@ _LIBRARIES=	\
 		cap_random \
 		cap_sysctl \
 		cap_syslog \
-		com_err \
 		compiler_rt \
 		crypt \
 		crypto \

@@ -624,6 +624,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/krb5 \
 		-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind \
 		-I${KRB5DIR}/lib/hx509 -I${.OBJDIR:H}/libhx509 \
 		-I${KRB5DIR}/lib/ipc \
+		-I${SRCTOP}/contrib/com_err \
 		-I${KRB5DIR}/base -I.
 
 .include <bsd.lib.mk>

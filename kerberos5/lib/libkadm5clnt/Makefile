@@ -38,7 +38,8 @@ SRCS=	ad.c \
 CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
 	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
 	-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
-	-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb -I.
+	-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb \
+	-I${SRCTOP}/contrib/com_err -I.
 
 .include <bsd.lib.mk>
 

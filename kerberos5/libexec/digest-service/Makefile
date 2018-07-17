@@ -18,7 +18,8 @@ CFLAGS+=	-I${KRB5DIR}/base \
 		-I${KRB5DIR}/lib/hdb \
 		-I${.OBJDIR:H:H}/lib/libhdb \
 		-I${KRB5DIR}/lib/ntlm \
-		-I${.OBJDIR:H:H}/lib/libheimntlm
+		-I${.OBJDIR:H:H}/lib/libheimntlm \
+		-I${SRCTOP}/contrib/com_err
 LIBADD=	hdb kdc heimipcs krb5 roken asn1 crypto vers heimntlm
 LDFLAGS=${LDAPLDFLAGS}
 

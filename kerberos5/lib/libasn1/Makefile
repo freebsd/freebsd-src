@@ -23,7 +23,7 @@ SRCS=	asn1_err.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
-	-I${.OBJDIR:H}/libroken -I.
+	-I${.OBJDIR:H}/libroken -I${SRCTOP}/contrib/com_err -I.
 
 GEN_RFC2459=	asn1_rfc2459_asn1.x rfc2459_asn1.hx rfc2459_asn1-priv.hx
 GEN_CMS= 	asn1_cms_asn1.x cms_asn1.hx cms_asn1-priv.hx

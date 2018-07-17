@@ -36,6 +36,7 @@ CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken \
 	-I${.OBJDIR:H:H}/lib/libwind \
 	-I${.OBJDIR:H:H}/lib/libhx509 \
 	-I${.OBJDIR:H:H}/lib/libhdb \
+	-I${SRCTOP}/contrib/com_err \
 	-I. \
 	${LDAPCFLAGS}
 LIBADD=	kadm5clnt kadm5srv hdb krb5 roken vers sl asn1 crypto edit

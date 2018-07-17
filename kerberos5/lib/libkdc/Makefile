@@ -34,6 +34,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
 		-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb \
 		-I${KRB5DIR}/lib/ntlm -I${.OBJDIR:H}/libheimntlm \
 		-I${KRB5DIR}/kdc \
+		-I${SRCTOP}/contrib/com_err \
 		-I${KRB5DIR}/base
 
 .include <bsd.lib.mk>

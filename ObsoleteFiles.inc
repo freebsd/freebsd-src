@@ -38,6 +38,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180708: libcom_err is private
+OLD_FILES+=usr/include/com_err.h
+OLD_LIBS+=usr/lib/libcom_err.a
+OLD_LIBS+=usr/lib/libcom_err.so
+OLD_LIBS+=usr/lib/libcom_err.so.5
+OLD_LIBS+=usr/lib/libcom_err_p.a
+OLD_LIBS+=/usr/lib32/libcom_err.a
+OLD_LIBS+=/usr/lib32/libcom_err.so
+OLD_LIBS+=/usr/lib32/libcom_err.so.5
 # 20180630: new clang import which bumps version from 6.0.0 to 6.0.1.
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/asan_interface.h

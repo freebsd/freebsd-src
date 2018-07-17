@@ -20,6 +20,7 @@ CFLAGS+=-I${.OBJDIR:H:H}/lib/libheimntlm
 CFLAGS+=-I${.OBJDIR:H:H}/lib/libwind
 CFLAGS+=-I${.OBJDIR:H:H}/lib/libhdb
 CFLAGS+=-I${.OBJDIR:H:H}/lib/libheimbase
+CFLAGS+=-I${SRCTOP}/contrib/com_err
 LIBADD=	hdb krb5 roken vers
 DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}

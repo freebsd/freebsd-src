@@ -17,7 +17,8 @@ CFLAGS+=	-I${KRB5DIR}/kdc \
 		-I${.OBJDIR:H:H}/lib/libwind \
 		-I${.OBJDIR:H:H}/lib/libhx509 \
 		-I${.OBJDIR:H:H}/lib/libhdb \
-		-I${.OBJDIR:H:H}/lib/libheimntlm
+		-I${.OBJDIR:H:H}/lib/libheimntlm \
+		-I${SRCTOP}/contrib/com_err
 LIBADD=	krb5 roken crypto vers
 
 .include <bsd.prog.mk>

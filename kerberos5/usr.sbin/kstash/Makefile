@@ -16,6 +16,7 @@ CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken \
 	-I${.OBJDIR:H:H}/lib/libhx509 \
 	-I${.OBJDIR:H:H}/lib/libhdb \
 	-I${.OBJDIR:H:H}/lib/libheimntlm \
+	-I${SRCTOP}/contrib/com_err \
 	${LDAPCFLAGS}
 LIBADD=	hdb krb5 crypto vers
 DPADD=	${LDAPDPADD}

@@ -43,6 +43,7 @@ CFLAGS+=	-I${SRCTOP}/kerberos5/include \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libkrb5 \
  		-I${KRB5DIR}/lib/asn1 \
-		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libasn1
+		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libasn1 \
+		-I${SRCTOP}/contrib/com_err
 
 .include <bsd.lib.mk>

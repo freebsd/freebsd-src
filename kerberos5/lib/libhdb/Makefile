@@ -64,6 +64,7 @@ CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
 	-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind \
 	-I${KRB5DIR}/lib/hx509 -I${.OBJDIR:H}/libhx509 \
 	-I${KRB5DIR}/base \
+	-I${SRCTOP}/contrib/com_err \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
 
