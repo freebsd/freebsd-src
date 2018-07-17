@@ -654,6 +654,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Remove the openbsd_poll system call.
 	__FreeBSD_version has been bumped because of this.
 
+20160708:
+	The stable/11 branch has been created from head@r302406.
+
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
 	a wrapper that calls the pipe2(2) system call and the pipe(2)
