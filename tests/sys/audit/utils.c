@@ -211,6 +211,14 @@ FILE
 	ATF_REQUIRE((pipestream = fdopen(fd[0].fd, "r")) != NULL);
 	fd[0].events = POLLIN;
 
+	/*
+	 * Disable stream buffering for read operations from /dev/auditpipe.
+	 * Otherwise it is possible that fread(3), called via au_read_rec(3),
+	 * can store buffered data in user-space unbeknown to ppoll(2), which
+	 * as a result, reports that /dev/auditpipe is empty.
+	 */
+	ATF_REQUIRE_EQ(0, setvbuf(pipestream, NULL, _IONBF, 0));
+
 	/* Set local preselection audit_class as "no" for audit startup */
 	set_preselect_mode(fd[0].fd, &nomask);
 	ATF_REQUIRE_EQ(0, system("service auditd onestatus || \
