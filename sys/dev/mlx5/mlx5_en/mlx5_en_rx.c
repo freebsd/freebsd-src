@@ -513,7 +513,10 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
 	int i = 0;
 
 #ifdef HAVE_PER_CQ_EVENT_PACKET
-	struct mbuf *mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rq->wqe_sz);
+#if (MHLEN < 15)
+#error "MHLEN is too small"
+#endif
+	struct mbuf *mb = m_gethdr(M_NOWAIT, MT_DATA);
 
 	if (mb != NULL) {
 		/* this code is used for debugging purpose only */
