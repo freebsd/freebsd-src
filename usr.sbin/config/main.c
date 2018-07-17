@@ -86,6 +86,7 @@ int	incignore;
  * literally).
  */
 int	filebased = 0;
+int	versreq;
 
 static void configfile(void);
 static void get_srcdir(void);
@@ -743,7 +744,7 @@ kernconfdump(const char *file)
 }
 
 static void 
-badversion(int versreq)
+badversion()
 {
 	fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
 	fprintf(stderr, "config version = %d, ", CONFIGVERS);
@@ -763,7 +764,6 @@ checkversion(void)
 {
 	FILE *ifp;
 	char line[BUFSIZ];
-	int versreq;
 
 	ifp = open_makefile_template();
 	while (fgets(line, BUFSIZ, ifp) != 0) {
@@ -775,7 +775,7 @@ checkversion(void)
 		if (MAJOR_VERS(versreq) == MAJOR_VERS(CONFIGVERS) &&
 		    versreq <= CONFIGVERS)
 			continue;
-		badversion(versreq);
+		badversion();
 	}
 	fclose(ifp);
 }
