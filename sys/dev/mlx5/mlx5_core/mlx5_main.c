@@ -846,10 +846,7 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_clr_master;
 	}
 
-	if (mlx5_vsc_find_cap(dev))
-		dev_err(&pdev->dev, "Unable to find vendor specific capabilities\n");
-
-        return 0;
+	return 0;
 
 err_clr_master:
 	pci_clear_master(dev->pdev);
