@@ -32,6 +32,9 @@
  * SOFTWARE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "ipoib.h"
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
