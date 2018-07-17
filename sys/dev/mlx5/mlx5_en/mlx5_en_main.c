@@ -1337,7 +1337,7 @@ mlx5e_open_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_disable_sq;
 
-	atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_READY);
+	WRITE_ONCE(sq->queue_state, MLX5E_SQ_READY);
 
 	return (0);
 
