@@ -87,7 +87,7 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create one free page lists: VM_FREELIST_DEFAULT is for all physical
+ * Create one free page list: VM_FREELIST_DEFAULT is for all physical
  * pages.
  */
 #define	VM_NFREELIST		1
