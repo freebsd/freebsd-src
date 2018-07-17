@@ -11,6 +11,12 @@ AMINAMESUFFIX!=	date +-%Y-%m-%d
 .if defined(EC2PUBLIC)
 PUBLISH=	--public
 .endif
+.if defined(EC2SNSTOPIC)
+EC2SNSREL=	${REVISION}-${BRANCH}
+EC2_SVNBRANCH!=	svn info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
+EC2_SVNREV!=	svn info --show-item last-changed-revision ${WORLDDIR}
+EC2SNSVERS=	${EC2_SVNBRANCH}@${EC2_SVNREV}
+.endif
 
 CLEANFILES+=		ec2ami
 
@@ -55,5 +61,6 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}" \
-	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE}
+	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE} \
+	    ${EC2SNSTOPIC} ${EC2SNSREL} ${EC2SNSVERS}
 	@touch ${.TARGET}
