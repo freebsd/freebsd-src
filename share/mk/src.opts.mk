@@ -321,7 +321,7 @@ __DEFAULT_YES_OPTIONS+=LLDB
 __DEFAULT_NO_OPTIONS+=LLDB
 .endif
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
-.if ${__T} == "arm" || ${__T} == "armeb"
+.if ${__T} == "arm"
 BROKEN_OPTIONS+=LLDB
 .endif
 # GDB in base is generally less functional than GDB in ports.  Ports GDB
