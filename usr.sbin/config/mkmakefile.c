@@ -307,6 +307,13 @@ makehints(void)
 	fprintf(ofp, "#include <sys/types.h>\n");
 	fprintf(ofp, "#include <sys/systm.h>\n");
 	fprintf(ofp, "\n");
+	/*
+	 * Write out hintmode for older kernels. Remove when config(8) major
+	 * version rolls over.
+	 */
+	if (versreq <= CONFIGVERS_ENVMODE_REQ)
+		fprintf(ofp, "int hintmode = %d;\n",
+			STAILQ_EMPTY(&hints) ? 1 : 0);
 	fprintf(ofp, "char static_hints[] = {\n");
 	nvl = nvlist_create(0);
 	STAILQ_FOREACH(hint, &hints, hint_next) {
@@ -341,6 +348,13 @@ makeenv(void)
 	fprintf(ofp, "#include <sys/types.h>\n");
 	fprintf(ofp, "#include <sys/systm.h>\n");
 	fprintf(ofp, "\n");
+	/*
+	 * Write out envmode for older kernels. Remove when config(8) major
+	 * version rolls over.
+	 */
+	if (versreq <= CONFIGVERS_ENVMODE_REQ)
+		fprintf(ofp, "int envmode = %d;\n",
+			STAILQ_EMPTY(&envvars) ? 1 : 0);
 	fprintf(ofp, "char static_env[] = {\n");
 	nvl = nvlist_create(0);
 	STAILQ_FOREACH(envvar, &envvars, envvar_next) {
