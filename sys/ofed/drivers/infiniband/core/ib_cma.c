@@ -2451,14 +2451,8 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 
 static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 {
-	/* get service level, SL, from type of service, TOS */
-	int sl = tos;
-
-	/* range check input argument and map 1:1 */
-	if (sl > 255)
-		sl = 255;
-	else if (sl < 0)
-		sl = 0;
+	/* get service level, SL, from IPv4 type of service, TOS */
+	int sl = (tos >> 5) & 0x7;
 
 	/* final mappings are done by the vendor specific drivers */
 	return sl;
@@ -2543,6 +2537,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->path_rec->pkey = cpu_to_be16(0xffff);
 	route->path_rec->mtu_selector = IB_SA_EQ;
 	route->path_rec->sl = iboe_tos_to_sl(ndev, id_priv->tos);
+	route->path_rec->traffic_class = id_priv->tos;
 	route->path_rec->mtu = iboe_get_mtu(ndev->if_mtu);
 	route->path_rec->rate_selector = IB_SA_EQ;
 	route->path_rec->rate = iboe_get_rate(ndev);
