@@ -1160,7 +1160,10 @@ EXPORT_SYMBOL(ib_modify_qp_is_ok);
 int ib_resolve_eth_dmac(struct ib_device *device,
 			struct ib_ah_attr *ah_attr)
 {
-	int           ret = 0;
+	struct ib_gid_attr sgid_attr;
+	union ib_gid sgid;
+	int hop_limit;
+	int ret;
 
 	if (ah_attr->port_num < rdma_start_port(device) ||
 	    ah_attr->port_num > rdma_end_port(device))
@@ -1169,35 +1172,22 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
 		return 0;
 
-	if (rdma_link_local_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
-		rdma_get_ll_mac((struct in6_addr *)ah_attr->grh.dgid.raw,
-				ah_attr->dmac);
-	} else {
-		union ib_gid		sgid;
-		struct ib_gid_attr	sgid_attr;
-		int			hop_limit;
+	ret = ib_query_gid(device,
+			   ah_attr->port_num,
+			   ah_attr->grh.sgid_index,
+			   &sgid, &sgid_attr);
+	if (ret != 0)
+		return (ret);
+	if (!sgid_attr.ndev)
+		return -ENXIO;
 
-		ret = ib_query_gid(device,
-				   ah_attr->port_num,
-				   ah_attr->grh.sgid_index,
-				   &sgid, &sgid_attr);
+	ret = rdma_addr_find_l2_eth_by_grh(&sgid,
+					   &ah_attr->grh.dgid,
+					   ah_attr->dmac,
+					   sgid_attr.ndev, &hop_limit);
+	dev_put(sgid_attr.ndev);
 
-		if (ret || !sgid_attr.ndev) {
-			if (!ret)
-				ret = -ENXIO;
-			goto out;
-		}
-
-		ret = rdma_addr_find_l2_eth_by_grh(&sgid,
-						   &ah_attr->grh.dgid,
-						   ah_attr->dmac,
-						   sgid_attr.ndev, &hop_limit);
-
-		dev_put(sgid_attr.ndev);
-
-		ah_attr->grh.hop_limit = hop_limit;
-	}
-out:
+	ah_attr->grh.hop_limit = hop_limit;
 	return ret;
 }
 EXPORT_SYMBOL(ib_resolve_eth_dmac);
