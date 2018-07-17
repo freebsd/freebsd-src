@@ -59,9 +59,7 @@ long double complex
 csqrtl(long double complex z)
 {
 	long double complex result;
-	long double a, b;
-	long double t;
-	int scale;
+	long double a, b, rx, ry, scale, t;
 
 	a = creall(z);
 	b = cimagl(z);
@@ -94,25 +92,37 @@ csqrtl(long double complex z)
 
 	/* Scale to avoid overflow. */
 	if (fabsl(a) >= THRESH || fabsl(b) >= THRESH) {
-		a *= 0.25;
-		b *= 0.25;
-		scale = 1;
+		/*
+		 * Don't scale a or b if this might give (spurious)
+		 * underflow.  Then the unscaled value is an equivalent
+		 * infinitesmal (or 0).
+		 */
+		if (fabsl(a) >= 0x1p-16380L)
+			a *= 0.25;
+		if (fabsl(b) >= 0x1p-16380L)
+			b *= 0.25;
+		scale = 2;
 	} else {
-		scale = 0;
+		scale = 1;
+	}
+
+	/* Scale to reduce inaccuracies when both components are denormal. */
+	if (fabsl(a) < 0x1p-16382L && fabsl(b) < 0x1p-16382L) {
+		a *= 0x1p64;
+		b *= 0x1p64;
+		scale = 0x1p-32;
 	}
 
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
 		t = sqrtl((a + hypotl(a, b)) * 0.5);
-		result = CMPLXL(t, b / (2 * t));
+		rx = t;
+		ry = b / (2 * t);
 	} else {
 		t = sqrtl((-a + hypotl(a, b)) * 0.5);
-		result = CMPLXL(fabsl(b) / (2 * t), copysignl(t, b));
+		rx = fabsl(b) / (2 * t);
+		ry = copysignl(t, b);
 	}
 
-	/* Rescale. */
-	if (scale)
-		return (result * 2);
-	else
-		return (result);
+	return (CMPLXL(rx * scale, ry * scale));
 }
