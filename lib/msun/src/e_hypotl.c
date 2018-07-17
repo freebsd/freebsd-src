@@ -64,7 +64,7 @@ hypotl(long double x, long double y)
 	   if(ha >= ESW(MAX_EXP)) {	/* Inf or NaN */
 	       man_t manh, manl;
 	       /* Use original arg order iff result is NaN; quieten sNaNs. */
-	       w = fabsl(x+0.0)-fabsl(y+0.0);
+	       w = fabsl(x+0.0L)-fabsl(y+0);
 	       GET_LDBL_MAN(manh,manl,a);
 	       if (manh == LDBL_NBIT && manl == 0) w = a;
 	       GET_LDBL_MAN(manh,manl,b);
