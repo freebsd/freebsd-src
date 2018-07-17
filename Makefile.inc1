@@ -132,7 +132,6 @@ TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGE
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		arm \
-		armeb/arm \
 		armv6/arm \
 		armv7/arm \
 		i386 \
