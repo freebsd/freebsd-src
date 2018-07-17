@@ -51,9 +51,7 @@ double complex
 csqrt(double complex z)
 {
 	double complex result;
-	double a, b;
-	double t;
-	int scale;
+	double a, b, rx, ry, scale, t;
 
 	a = creal(z);
 	b = cimag(z);
@@ -86,27 +84,39 @@ csqrt(double complex z)
 
 	/* Scale to avoid overflow. */
 	if (fabs(a) >= THRESH || fabs(b) >= THRESH) {
-		a *= 0.25;
-		b *= 0.25;
-		scale = 1;
+		/*
+		 * Don't scale a or b if this might give (spurious)
+		 * underflow.  Then the unscaled value is an equivalent
+		 * infinitesmal (or 0).
+		 */
+		if (fabs(a) >= 0x1p-1020)
+			a *= 0.25;
+		if (fabs(b) >= 0x1p-1020)
+			b *= 0.25;
+		scale = 2;
 	} else {
-		scale = 0;
+		scale = 1;
+	}
+
+	/* Scale to reduce inaccuracies when both components are denormal. */
+	if (fabs(a) < 0x1p-1022 && fabs(b) < 0x1p-1022) {
+		a *= 0x1p54;
+		b *= 0x1p54;
+		scale = 0x1p-27;
 	}
 
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
 		t = sqrt((a + hypot(a, b)) * 0.5);
-		result = CMPLX(t, b / (2 * t));
+		rx = t;
+		ry = b / (2 * t);
 	} else {
 		t = sqrt((-a + hypot(a, b)) * 0.5);
-		result = CMPLX(fabs(b) / (2 * t), copysign(t, b));
+		rx = fabs(b) / (2 * t);
+		ry = copysign(t, b);
 	}
 
-	/* Rescale. */
-	if (scale)
-		return (result * 2);
-	else
-		return (result);
+	return (CMPLX(rx * scale, ry * scale));
 }
 
 #if LDBL_MANT_DIG == 53
