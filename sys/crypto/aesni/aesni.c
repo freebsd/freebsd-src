@@ -541,6 +541,12 @@ intel_sha1_update(void *vctx, const void *vdata, u_int datalen)
 }
 
 static void
+SHA1_Init_fn(void *ctx)
+{
+	sha1_init(ctx);
+}
+
+static void
 SHA1_Finalize_fn(void *digest, void *ctx)
 {
 	sha1_result(ctx, digest);
@@ -587,6 +593,12 @@ intel_sha256_update(void *vctx, const void *vdata, u_int len)
 	/* Copy left over data into buffer */
 	memcpy(ctx->buf, src, len);
 	return (0);
+}
+
+static void
+SHA256_Init_fn(void *ctx)
+{
+	SHA256_Init(ctx);
 }
 
 static void
@@ -813,6 +825,12 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 	} sctx;
 	uint32_t res[SHA2_256_HASH_LEN / sizeof(uint32_t)];
 	int hashlen, error;
+	void *ctx;
+	void (*InitFn)(void *);
+	int (*UpdateFn)(void *, const void *, unsigned);
+	void (*FinalizeFn)(void *, void *);
+
+	bool hmac;
 
 	if ((crd->crd_flags & ~CRD_F_KEY_EXPLICIT) != 0) {
 		CRYPTDEB("%s: Unsupported MAC flags: 0x%x", __func__,
@@ -825,39 +843,26 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 			return (error);
 	}
 
+	hmac = false;
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1_HMAC:
-		hashlen = SHA1_HASH_LEN;
-		/* Inner hash: (K ^ IPAD) || data */
-		sha1_init(&sctx.sha1);
-		hmac_internal(&sctx.sha1, res, intel_sha1_update,
-		    SHA1_Finalize_fn, ses->hmac_key, 0x36, crp->crp_buf,
-		    crd->crd_skip, crd->crd_len, crp->crp_flags);
-		/* Outer hash: (K ^ OPAD) || inner hash */
-		sha1_init(&sctx.sha1);
-		hmac_internal(&sctx.sha1, res, intel_sha1_update,
-		    SHA1_Finalize_fn, ses->hmac_key, 0x5C, res, 0, hashlen, 0);
-		break;
+		hmac = true;
+		/* FALLTHROUGH */
 	case CRYPTO_SHA1:
 		hashlen = SHA1_HASH_LEN;
-		sha1_init(&sctx.sha1);
-		crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
-		    crd->crd_len, __DECONST(int (*)(void *, void *, u_int),
-		    intel_sha1_update), &sctx.sha1);
-		sha1_result(&sctx.sha1, (void *)res);
+		InitFn = SHA1_Init_fn;
+		UpdateFn = intel_sha1_update;
+		FinalizeFn = SHA1_Finalize_fn;
+		ctx = &sctx.sha1;
 		break;
+
 	case CRYPTO_SHA2_256_HMAC:
+		hmac = true;
 		hashlen = SHA2_256_HASH_LEN;
-		/* Inner hash: (K ^ IPAD) || data */
-		SHA256_Init(&sctx.sha2);
-		hmac_internal(&sctx.sha2, res, intel_sha256_update,
-		    SHA256_Finalize_fn, ses->hmac_key, 0x36, crp->crp_buf,
-		    crd->crd_skip, crd->crd_len, crp->crp_flags);
-		/* Outer hash: (K ^ OPAD) || inner hash */
-		SHA256_Init(&sctx.sha2);
-		hmac_internal(&sctx.sha2, res, intel_sha256_update,
-		    SHA256_Finalize_fn, ses->hmac_key, 0x5C, res, 0, hashlen,
-		    0);
+		InitFn = SHA256_Init_fn;
+		UpdateFn = intel_sha256_update;
+		FinalizeFn = SHA256_Finalize_fn;
+		ctx = &sctx.sha2;
 		break;
 	default:
 		/*
@@ -865,6 +870,24 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		 * enccrd
 		 */
 		return (0);
+	}
+
+	if (hmac) {
+		/* Inner hash: (K ^ IPAD) || data */
+		InitFn(ctx);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
+		    0x36, crp->crp_buf, crd->crd_skip, crd->crd_len,
+		    crp->crp_flags);
+		/* Outer hash: (K ^ OPAD) || inner hash */
+		InitFn(ctx);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
+		    0x5C, res, 0, hashlen, 0);
+	} else {
+		InitFn(ctx);
+		crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
+		    crd->crd_len, __DECONST(int (*)(void *, void *, u_int),
+		    UpdateFn), ctx);
+		FinalizeFn(res, ctx);
 	}
 
 	if (ses->mlen != 0 && ses->mlen < hashlen)
