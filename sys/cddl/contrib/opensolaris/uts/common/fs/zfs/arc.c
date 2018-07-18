@@ -1398,10 +1398,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_data_esize, CTLFLAG_RD,
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2c_only_size, CTLFLAG_RD,
     &ARC_l2c_only.arcs_size.rc_count, 0, "size of mru state");
 
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, arc_min_prfetch_ms, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, arc_min_prefetch_ms, CTLFLAG_RW,
     &zfs_arc_min_prefetch_ms, 0, "Min life of prefetch block in ms");
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, arc_min_prescient_prefetch_ms, CTLFLAG_RW,
-    &zfs_arc_min_prescient_prefetch_ms, 0, "Min life oof prescient prefetched block in ms");
+    &zfs_arc_min_prescient_prefetch_ms, 0, "Min life of prescient prefetched block in ms");
 
 /*
  * L2ARC Internals
