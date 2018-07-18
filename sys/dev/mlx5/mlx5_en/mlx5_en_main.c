@@ -1174,6 +1174,9 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
 	sq->tc = tc;
+	sq->max_inline = priv->params.tx_max_inline;
+	sq->min_inline_mode = priv->params.tx_min_inline_mode;
+	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
 
 	/* check if we should allocate a second packet buffer */
 	if (priv->params_ethtool.tx_bufring_disable == 0) {
@@ -3021,6 +3024,16 @@ mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return (0);
 }
 
+static u16
+mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
+{
+	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+
+	return bf_buf_size -
+	       sizeof(struct mlx5e_tx_wqe) +
+	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+}
+
 static void
 mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
     struct mlx5e_priv *priv,
@@ -3056,6 +3069,8 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	priv->params.num_tc = 1;
 	priv->params.default_vlan_prio = 0;
 	priv->counter_set_id = -1;
+	priv->params.tx_max_inline = mlx5e_get_max_inline_cap(mdev);
+	mlx5_query_min_inline(mdev, &priv->params.tx_min_inline_mode);
 
 	/*
 	 * hw lro is currently defaulted to off. when it won't anymore we
@@ -3314,6 +3329,20 @@ mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
 		else
 			mlx5e_enable_rx_dma(priv->channel[i]);
 	}
+}
+
+u8
+mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev)
+{
+	u8 min_inline_mode;
+
+	min_inline_mode = MLX5_INLINE_MODE_L2;
+	mlx5_query_min_inline(mdev, &min_inline_mode);
+	if (min_inline_mode == MLX5_INLINE_MODE_NONE &&
+	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
+		min_inline_mode = MLX5_INLINE_MODE_L2;
+
+	return (min_inline_mode);
 }
 
 static void

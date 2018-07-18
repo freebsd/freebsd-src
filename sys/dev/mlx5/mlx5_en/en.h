@@ -451,6 +451,8 @@ struct mlx5e_params {
 	u32	rx_pauseframe_control __aligned(4);
 	u32	tx_priority_flow_control __aligned(4);
 	u32	rx_priority_flow_control __aligned(4);
+	u16	tx_max_inline;
+	u8	tx_min_inline_mode;
 };
 
 #define	MLX5E_PARAMS(m)							\
@@ -613,6 +615,9 @@ struct mlx5e_sq {
 	u32	sqn;
 	u32	bf_buf_size;
 	u32	mkey_be;
+	u16	max_inline;
+	u8	min_inline_mode;
+	u8	vlan_inline_cap;
 
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
@@ -933,5 +938,6 @@ void	mlx5e_drain_sq(struct mlx5e_sq *);
 void	mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_resume_sq(struct mlx5e_sq *sq);
+u8	mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
 
 #endif					/* _MLX5_EN_H_ */
