@@ -62,13 +62,36 @@ typedef struct ocs_intr_ctx_s {
 	char		name[64];	/** label for this context */
 } ocs_intr_ctx_t;
 
-typedef struct ocs_fcport_s {
-	struct cam_sim          *sim;
-	struct cam_path         *path;
-	uint32_t                role;
+typedef struct ocs_fc_rport_db_s {
+	uint32_t	node_id;
+	uint32_t	state;
+	uint8_t		is_target;
+	uint8_t		is_initiator;
 
-	ocs_tgt_resource_t      targ_rsrc_wildcard;
-	ocs_tgt_resource_t      targ_rsrc[OCS_MAX_LUN];
+	uint32_t	port_id;
+	uint64_t	wwnn;
+	uint64_t	wwpn;
+	uint32_t	gone_timer;
+
+} ocs_fc_target_t;
+
+#define OCS_TGT_STATE_NONE		0	/* Empty DB slot */
+#define OCS_TGT_STATE_VALID		1	/* Valid*/
+#define OCS_TGT_STATE_LOST		2	/* LOST*/
+
+typedef struct ocs_fcport_s {
+	ocs_t			*ocs;
+	struct cam_sim		*sim;
+	struct cam_path		*path;
+	uint32_t		role;
+
+	ocs_fc_target_t	tgt[OCS_MAX_TARGETS];
+	int lost_device_time;
+	struct callout ldt;     /* device lost timer */
+	struct task ltask;
+
+	ocs_tgt_resource_t	targ_rsrc_wildcard;
+	ocs_tgt_resource_t	targ_rsrc[OCS_MAX_LUN];
 	ocs_vport_spec_t	*vport;
 } ocs_fcport;
 
@@ -169,7 +192,7 @@ struct ocs_softc {
 	uint32_t		enable_task_set_full;		
 	uint32_t		io_in_use;		
 	uint32_t		io_high_watermark; /**< used to send task set full */
-	struct mtx              sim_lock;
+	struct mtx		sim_lock;
 	uint32_t		config_tgt:1,	/**< Configured to support target mode */
 				config_ini:1;	/**< Configured to support initiator mode */
 
