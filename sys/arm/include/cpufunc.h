@@ -275,14 +275,9 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#if defined(CPU_MV_PJ4B)
-void	armv6_idcache_wbinv_all		(void);
-#endif
 #if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-void	armv7_idcache_wbinv_all		(void);
 void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
-void	armv7_drain_writebuf		(void);
 
 void 	cortexa_setup			(void);
 #endif
@@ -292,8 +287,6 @@ void	pj4bv7_setup			(void);
 #endif
 
 #if defined(CPU_ARM1176)
-void	arm11_drain_writebuf	(void);
-
 void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
@@ -457,12 +450,6 @@ intr_restore(register_t s)
 
 void set_stackptr	(u_int mode, u_int address);
 u_int get_stackptr	(u_int mode);
-
-/*
- * Miscellany
- */
-
-int get_pc_str_offset	(void);
 
 /*
  * CPU functions from locore.S

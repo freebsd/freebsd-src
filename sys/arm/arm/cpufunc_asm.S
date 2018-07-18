@@ -134,26 +134,6 @@ END(cpufunc_control)
 
 /* Random odd functions */
 
-/*
- * Function to get the offset of a stored program counter from the
- * instruction doing the store.  This offset is defined to be the same
- * for all STRs and STMs on a given implementation.  Code based on
- * section 2.4.3 of the ARM ARM (2nd Ed.), with modifications to work
- * in 26-bit modes as well.
- */
-ENTRY(get_pc_str_offset)
-	mov	ip, sp
-	stmfd	sp!, {fp, ip, lr, pc}
-	sub	fp, ip, #4
-	sub	sp, sp, #4
-	mov	r1, pc		/* R1 = addr of following STR */
-	mov	r0, r0
-	str	pc, [sp]	/* [SP] = . + offset */
-	ldr	r0, [sp]
-	sub	r0, r0, r1
-	ldmdb	fp, {fp, sp, pc}
-END(get_pc_str_offset)
-
 /* Allocate and lock a cacheline for the specified address. */
 
 #define CPWAIT_BRANCH			\
