@@ -545,17 +545,29 @@ interface_set_mtu_priv(char *ifname, u_int16_t mtu)
 {
 	struct ifreq ifr;
 	int sock;
+	u_int16_t old_mtu;
 
 	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
 		error("Can't create socket");
 
 	memset(&ifr, 0, sizeof(ifr));
+	old_mtu = 0;
 
 	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-	ifr.ifr_mtu = mtu;
 
-	if (ioctl(sock, SIOCSIFMTU, &ifr) == -1)
-		warning("SIOCSIFMTU failed (%d): %s", mtu,
+	if (ioctl(sock, SIOCGIFMTU, (caddr_t)&ifr) == -1)
+		warning("SIOCGIFMTU failed (%s): %s", ifname,
 			strerror(errno));
+	else
+		old_mtu = ifr.ifr_mtu;
+
+	if (mtu != old_mtu) {
+		ifr.ifr_mtu = mtu;
+
+		if (ioctl(sock, SIOCSIFMTU, &ifr) == -1)
+			warning("SIOCSIFMTU failed (%d): %s", mtu,
+				strerror(errno));
+	}
+
 	close(sock);
 }
