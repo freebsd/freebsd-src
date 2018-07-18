@@ -346,7 +346,7 @@ bucket_init(void)
 	int size;
 
 	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
-		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
+		size = roundup2(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
