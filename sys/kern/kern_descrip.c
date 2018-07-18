@@ -3431,7 +3431,7 @@ pack_kinfo(struct kinfo_file *kif)
 
 	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 	    strlen(kif->kf_path) + 1;
-	kif->kf_structsize = roundup(kif->kf_structsize, sizeof(uint64_t));
+	kif->kf_structsize = roundup2(kif->kf_structsize, sizeof(uint64_t));
 }
 
 static void
