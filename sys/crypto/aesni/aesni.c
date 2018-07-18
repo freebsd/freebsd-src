@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/aesni/aesni.h>
 #include <crypto/aesni/sha_sse.h>
 #include <crypto/sha1.h>
+#include <crypto/sha2/sha224.h>
 #include <crypto/sha2/sha256.h>
 
 #include <opencrypto/cryptodev.h>
@@ -196,6 +197,8 @@ aesni_attach(device_t dev)
 	if (sc->has_sha) {
 		crypto_register(sc->cid, CRYPTO_SHA1, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA1_HMAC, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_224, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_224_HMAC, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA2_256, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 	}
@@ -266,6 +269,8 @@ aesni_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			break;
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224:
+		case CRYPTO_SHA2_224_HMAC:
 		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (!sc->has_sha)
@@ -352,6 +357,8 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		case CRYPTO_AES_256_NIST_GMAC:
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224:
+		case CRYPTO_SHA2_224_HMAC:
 		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (authcrd != NULL) {
@@ -480,6 +487,8 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_224:
+	case CRYPTO_SHA2_224_HMAC:
 	case CRYPTO_SHA2_256:
 	case CRYPTO_SHA2_256_HMAC:
 		error = aesni_authprepare(ses, authini->cri_klen,
@@ -597,6 +606,18 @@ intel_sha256_update(void *vctx, const void *vdata, u_int len)
 	/* Copy left over data into buffer */
 	memcpy(ctx->buf, src, len);
 	return (0);
+}
+
+static void
+SHA224_Init_fn(void *ctx)
+{
+	SHA224_Init(ctx);
+}
+
+static void
+SHA224_Finalize_fn(void *digest, void *ctx)
+{
+	SHA224_Final(digest, ctx);
 }
 
 static void
@@ -868,6 +889,17 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		InitFn = SHA256_Init_fn;
 		UpdateFn = intel_sha256_update;
 		FinalizeFn = SHA256_Finalize_fn;
+		ctx = &sctx.sha2;
+		break;
+
+	case CRYPTO_SHA2_224_HMAC:
+		hmac = true;
+		/* FALLTHROUGH */
+	case CRYPTO_SHA2_224:
+		hashlen = SHA2_224_HASH_LEN;
+		InitFn = SHA224_Init_fn;
+		UpdateFn = intel_sha256_update;
+		FinalizeFn = SHA224_Finalize_fn;
 		ctx = &sctx.sha2;
 		break;
 	default:
