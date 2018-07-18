@@ -158,6 +158,7 @@ CWARNFLAGS+=	-Wno-error=bool-operation		\
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80100
 CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=cast-function-type			\
+		-Wno-error=catch-value				\
 		-Wno-error=multistatement-macros		\
 		-Wno-error=restrict				\
 		-Wno-error=sizeof-pointer-memaccess		\
