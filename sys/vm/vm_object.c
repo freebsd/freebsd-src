@@ -2442,7 +2442,7 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		/* Pack record size down */
 		kvo->kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path)
 		    + strlen(kvo->kvo_path) + 1;
-		kvo->kvo_structsize = roundup(kvo->kvo_structsize,
+		kvo->kvo_structsize = roundup2(kvo->kvo_structsize,
 		    sizeof(uint64_t));
 		error = SYSCTL_OUT(req, kvo, kvo->kvo_structsize);
 		mtx_lock(&vm_object_list_mtx);
