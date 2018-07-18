@@ -217,7 +217,7 @@ exec_aout_imgact(struct image_params *imgp)
 		}
 	}
 
-	bss_size = roundup(a_out->a_bss, PAGE_SIZE);
+	bss_size = roundup2(a_out->a_bss, PAGE_SIZE);
 
 	/*
 	 * Check various fields in header for validity/bounds.
