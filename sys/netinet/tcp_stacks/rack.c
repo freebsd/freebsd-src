@@ -1627,7 +1627,6 @@ rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tc
 static void
 rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
 {
-
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	TCPSTAT_INC(tcps_badsyn);
@@ -6103,7 +6102,6 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	if (ourfinisacked) {
-
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tp = tcp_close(tp);
 		rack_do_drop(m, tp);
