@@ -166,16 +166,21 @@ out:
 }
 
 static void
+set_currdev(const char *devname)
+{
+
+	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, devname, env_noset, env_nounset);
+}
+
+static void
 set_currdev_devdesc(struct devdesc *currdev)
 {
 	const char *devname;
 
 	devname = efi_fmtdev(currdev);
-
 	printf("Setting currdev to %s\n", devname);
-
-	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, devname, env_noset, env_nounset);
+	set_currdev(devname);
 }
 
 static void
@@ -279,6 +284,14 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	struct devsw *dev;
 	int unit;
 	uint64_t extra;
+	char *rootdev;
+
+	rootdev = getenv("rootdev");
+	if (rootdev != NULL) {
+		printf("Setting currdev to configured rootdev %s\n", rootdev);
+		set_currdev(rootdev);
+		return (0);
+	}
 
 #ifdef EFI_ZFS_BOOT
 	/*
@@ -616,7 +629,7 @@ main(int argc, CHAR16 *argv[])
 	 * set the env based on it.
 	 */
 	boot_howto_to_env(howto);
-	
+
 	if (efi_copy_init()) {
 		printf("failed to allocate staging area\n");
 		return (EFI_BUFFER_TOO_SMALL);
