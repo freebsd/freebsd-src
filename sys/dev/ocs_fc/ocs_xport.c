@@ -251,8 +251,10 @@ ocs_xport_attach(ocs_xport_t *xport)
 
 	ocs_hw_get(&ocs->hw, OCS_HW_MAX_NODES, &max_remote_nodes);
 
-	rc = ocs_node_create_pool(ocs, (ocs->max_remote_nodes) ?
-				 ocs->max_remote_nodes : max_remote_nodes);
+	if (!ocs->max_remote_nodes)
+		ocs->max_remote_nodes = max_remote_nodes;
+
+	rc = ocs_node_create_pool(ocs, ocs->max_remote_nodes);
 	if (rc) {
 		ocs_log_err(ocs, "Can't allocate node pool\n");
 		goto ocs_xport_attach_cleanup;
