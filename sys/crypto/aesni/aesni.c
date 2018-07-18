@@ -315,12 +315,10 @@ unhandled:
 static int
 aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct aesni_softc *sc;
 	struct aesni_session *ses;
 	struct cryptodesc *crd, *enccrd, *authcrd;
 	int error, needauth;
 
-	sc = device_get_softc(dev);
 	ses = NULL;
 	error = 0;
 	enccrd = NULL;
