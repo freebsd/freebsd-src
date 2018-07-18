@@ -567,7 +567,6 @@ main(int argc, CHAR16 *argv[])
 	 * eg. the boot device, which we can't do yet.  We can use
 	 * printf() etc. once this is done.
 	 */
-	setenv("console", "efi", 1);
 	cons_probe();
 
 	/*
@@ -579,49 +578,49 @@ main(int argc, CHAR16 *argv[])
 	if (!has_kbd && (howto & RB_PROBE))
 		howto |= RB_SERIAL | RB_MULTIPLE;
 	howto &= ~RB_PROBE;
-
 	uhowto = parse_uefi_con_out();
 
 	/*
 	 * We now have two notions of console. howto should be viewed as
-	 * overrides.
+	 * overrides. If console is already set, don't set it again.
 	 */
 #define	VIDEO_ONLY	0
 #define	SERIAL_ONLY	RB_SERIAL
 #define	VID_SER_BOTH	RB_MULTIPLE
 #define	SER_VID_BOTH	(RB_SERIAL | RB_MULTIPLE)
 #define	CON_MASK	(RB_SERIAL | RB_MULTIPLE)
-
-	if ((howto & CON_MASK) == 0) {
-		/* No override, uhowto is controlling and efi cons is perfect */
-		howto = howto | (uhowto & CON_MASK);
-		setenv("console", "efi", 1);
-	} else if ((howto & CON_MASK) == (uhowto & CON_MASK)) {
-		/* override matches what UEFI told us, efi console is perfect */
-		setenv("console", "efi", 1);
-	} else if ((uhowto & (CON_MASK)) != 0) {
-		/*
-		 * We detected a serial console on ConOut. All possible
-		 * overrides include serial. We can't really override what efi
-		 * gives us, so we use it knowing it's the best choice.
-		 */
-		setenv("console", "efi", 1);
-	} else {
-		/*
-		 * We detected some kind of serial in the override, but ConOut
-		 * has no serial, so we have to sort out which case it really is.
-		 */
-		switch (howto & CON_MASK) {
-		case SERIAL_ONLY:
-			setenv("console", "comconsole", 1);
-			break;
-		case VID_SER_BOTH:
-			setenv("console", "efi comconsole", 1);
-			break;
-		case SER_VID_BOTH:
-			setenv("console", "comconsole efi", 1);
-			break;
-		/* case VIDEO_ONLY can't happen -- it's the first if above */
+	if (getenv("console") == NULL) {
+		if ((howto & CON_MASK) == 0) {
+			/* No override, uhowto is controlling and efi cons is perfect */
+			howto = howto | (uhowto & CON_MASK);
+			setenv("console", "efi", 1);
+		} else if ((howto & CON_MASK) == (uhowto & CON_MASK)) {
+			/* override matches what UEFI told us, efi console is perfect */
+			setenv("console", "efi", 1);
+		} else if ((uhowto & (CON_MASK)) != 0) {
+			/*
+			 * We detected a serial console on ConOut. All possible
+			 * overrides include serial. We can't really override what efi
+			 * gives us, so we use it knowing it's the best choice.
+			 */
+			setenv("console", "efi", 1);
+		} else {
+			/*
+			 * We detected some kind of serial in the override, but ConOut
+			 * has no serial, so we have to sort out which case it really is.
+			 */
+			switch (howto & CON_MASK) {
+			case SERIAL_ONLY:
+				setenv("console", "comconsole", 1);
+				break;
+			case VID_SER_BOTH:
+				setenv("console", "efi comconsole", 1);
+				break;
+			case SER_VID_BOTH:
+				setenv("console", "comconsole efi", 1);
+				break;
+				/* case VIDEO_ONLY can't happen -- it's the first if above */
+			}
 		}
 	}
 	/*
