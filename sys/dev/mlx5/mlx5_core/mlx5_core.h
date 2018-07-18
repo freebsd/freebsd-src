@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,9 +34,9 @@
 
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.4.1"
+#define DRIVER_VERSION "3.4.2"
 #endif
-#define DRIVER_RELDATE "February 2018"
+#define DRIVER_RELDATE "July 2018"
 
 extern int mlx5_core_debug_mask;
 

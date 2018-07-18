@@ -31,7 +31,7 @@
 #include <machine/atomic.h>
 
 #ifndef ETH_DRIVER_VERSION
-#define	ETH_DRIVER_VERSION	"3.4.1"
+#define	ETH_DRIVER_VERSION	"3.4.2"
 #endif
 
 char mlx5e_version[] = "Mellanox Ethernet driver"
