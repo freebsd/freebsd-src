@@ -47,10 +47,6 @@
 #define	UBS_MAX_AGGR		5	/* Maximum aggregation count */
 #endif
 
-#define	UBSEC_CARD(sid)		(((sid) & 0xf0000000) >> 28)
-#define	UBSEC_SESSION(sid)	( (sid) & 0x0fffffff)
-#define	UBSEC_SID(crd, sesn)	(((crd) << 28) | ((sesn) & 0x0fffffff))
-
 #define UBS_DEF_RTY		0xff	/* PCI Retry Timeout */
 #define UBS_DEF_TOUT		0xff	/* PCI TRDY Timeout */
 #define UBS_DEF_CACHELINE	0x01	/* Cache Line setting */
@@ -158,7 +154,6 @@ struct ubsec_q {
 	struct ubsec_operand		q_src;
 	struct ubsec_operand		q_dst;
 
-	int				q_sesn;
 	int				q_flags;
 };
 
@@ -202,8 +197,6 @@ struct ubsec_softc {
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_queue2;	/* packet queue, mcr2 */
 	int			sc_nqueue2;	/* count enqueued, mcr2 */
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_qchip2;	/* on chip, mcr2 */
-	int			sc_nsessions;	/* # of sessions */
-	struct ubsec_session	*sc_sessions;	/* sessions */
 	struct callout		sc_rngto;	/* rng timeout */
 	int			sc_rnghz;	/* rng poll time */
 	struct ubsec_q2_rng	sc_rng;
@@ -218,7 +211,6 @@ struct ubsec_softc {
 #define	UBSEC_QFLAGS_COPYOUTIV		0x1
 
 struct ubsec_session {
-	u_int32_t	ses_used;
 	u_int32_t	ses_deskey[6];		/* 3DES key */
 	u_int32_t	ses_mlen;		/* hmac length */
 	u_int32_t	ses_hminner[5];		/* hmac inner state */

@@ -73,9 +73,6 @@ struct padlock_session {
 	uint8_t		*ses_ictx;
 	uint8_t		*ses_octx;
 	int		ses_mlen;
-	int		ses_used;
-	uint32_t	ses_id;
-	TAILQ_ENTRY(padlock_session) ses_next;
 	struct fpu_kern_ctx *ses_fpu_ctx;
 };
 

@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/rwlock.h>
 #include <sys/bus.h>
 #include <sys/uio.h>
 #include <sys/mbuf.h>
@@ -69,13 +68,9 @@ static struct mtx_padalign *ctx_mtx;
 static struct fpu_kern_ctx **ctx_fpu;
 
 struct aesni_softc {
-	int	dieing;
 	int32_t cid;
-	uint32_t sid;
 	bool	has_aes;
 	bool	has_sha;
-	TAILQ_HEAD(aesni_sessions_head, aesni_session) sessions;
-	struct rwlock lock;
 };
 
 #define ACQUIRE_CTX(i, ctx)					\
@@ -91,10 +86,8 @@ struct aesni_softc {
 		(ctx) = NULL;					\
 	} while (0)
 
-static int aesni_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
-static int aesni_freesession(device_t, uint64_t tid);
-static void aesni_freesession_locked(struct aesni_softc *sc,
-    struct aesni_session *ses);
+static int aesni_newsession(device_t, crypto_session_t cses,
+    struct cryptoini *cri);
 static int aesni_cipher_setup(struct aesni_session *ses,
     struct cryptoini *encini, struct cryptoini *authini);
 static int aesni_cipher_process(struct aesni_session *ses,
@@ -172,12 +165,9 @@ aesni_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	sc->dieing = 0;
-	TAILQ_INIT(&sc->sessions);
-	sc->sid = 1;
 
-	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
-	    CRYPTOCAP_F_SYNC);
+	sc->cid = crypto_get_driverid(dev, sizeof(struct aesni_session),
+	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
@@ -192,8 +182,6 @@ aesni_attach(device_t dev)
 		ctx_fpu[i] = fpu_kern_alloc_ctx(0);
 		mtx_init(&ctx_mtx[i], "anifpumtx", NULL, MTX_DEF|MTX_NEW);
 	}
-
-	rw_init(&sc->lock, "aesni_lock");
 
 	detect_cpu_features(&sc->has_aes, &sc->has_sha);
 	if (sc->has_aes) {
@@ -217,28 +205,10 @@ static int
 aesni_detach(device_t dev)
 {
 	struct aesni_softc *sc;
-	struct aesni_session *ses;
 
 	sc = device_get_softc(dev);
 
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH(ses, &sc->sessions, next) {
-		if (ses->used) {
-			rw_wunlock(&sc->lock);
-			device_printf(dev,
-			    "Cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
-	sc->dieing = 1;
-	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-		free(ses, M_AESNI);
-	}
-	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
-
-	rw_destroy(&sc->lock);
 
 	aesni_cleanctx();
 
@@ -246,7 +216,7 @@ aesni_detach(device_t dev)
 }
 
 static int
-aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+aesni_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct aesni_softc *sc;
 	struct aesni_session *ses;
@@ -254,16 +224,16 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	bool gcm_hash, gcm;
 	int error;
 
-	if (sidp == NULL || cri == NULL) {
-		CRYPTDEB("no sidp or cri");
+	KASSERT(cses != NULL, ("EDOOFUS"));
+	if (cri == NULL) {
+		CRYPTDEB("no cri");
 		return (EINVAL);
 	}
 
 	sc = device_get_softc(dev);
-	if (sc->dieing)
-		return (EINVAL);
 
-	ses = NULL;
+	ses = crypto_get_driver_session(cses);
+
 	authini = NULL;
 	encini = NULL;
 	gcm = false;
@@ -321,30 +291,6 @@ unhandled:
 	if (gcm_hash != gcm)
 		return (EINVAL);
 
-	rw_wlock(&sc->lock);
-	if (sc->dieing) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	/*
-	 * Free sessions are inserted at the head of the list.  So if the first
-	 * session is used, none are free and we must allocate a new one.
-	 */
-	ses = TAILQ_FIRST(&sc->sessions);
-	if (ses == NULL || ses->used) {
-		ses = malloc(sizeof(*ses), M_AESNI, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->id = sc->sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-	}
-	ses->used = 1;
-	TAILQ_INSERT_TAIL(&sc->sessions, ses, next);
-	rw_wunlock(&sc->lock);
-
 	if (encini != NULL)
 		ses->algo = encini->cri_alg;
 	if (authini != NULL)
@@ -353,50 +299,9 @@ unhandled:
 	error = aesni_cipher_setup(ses, encini, authini);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
-		rw_wlock(&sc->lock);
-		aesni_freesession_locked(sc, ses);
-		rw_wunlock(&sc->lock);
 		return (error);
 	}
 
-	*sidp = ses->id;
-	return (0);
-}
-
-static void
-aesni_freesession_locked(struct aesni_softc *sc, struct aesni_session *ses)
-{
-	uint32_t sid;
-
-	rw_assert(&sc->lock, RA_WLOCKED);
-
-	sid = ses->id;
-	TAILQ_REMOVE(&sc->sessions, ses, next);
-	explicit_bzero(ses, sizeof(*ses));
-	ses->id = sid;
-	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
-}
-
-static int
-aesni_freesession(device_t dev, uint64_t tid)
-{
-	struct aesni_softc *sc;
-	struct aesni_session *ses;
-	uint32_t sid;
-
-	sc = device_get_softc(dev);
-	sid = ((uint32_t)tid) & 0xffffffff;
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, aesni_sessions_head, next) {
-		if (ses->id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	aesni_freesession_locked(sc, ses);
-	rw_wunlock(&sc->lock);
 	return (0);
 }
 
@@ -419,7 +324,8 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 	if (crp == NULL)
 		return (EINVAL);
 
-	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
+	if (crp->crp_callback == NULL || crp->crp_desc == NULL ||
+	    crp->crp_session == NULL) {
 		error = EINVAL;
 		goto out;
 	}
@@ -472,16 +378,8 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	rw_rlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, aesni_sessions_head, next) {
-		if (ses->id == (crp->crp_sid & 0xffffffff))
-			break;
-	}
-	rw_runlock(&sc->lock);
-	if (ses == NULL) {
-		error = EINVAL;
-		goto out;
-	}
+	ses = crypto_get_driver_session(crp->crp_session);
+	KASSERT(ses != NULL, ("EDOOFUS"));
 
 	error = aesni_cipher_process(ses, enccrd, authcrd, crp);
 	if (error != 0)
@@ -537,7 +435,6 @@ static device_method_t aesni_methods[] = {
 	DEVMETHOD(device_detach, aesni_detach),
 
 	DEVMETHOD(cryptodev_newsession, aesni_newsession),
-	DEVMETHOD(cryptodev_freesession, aesni_freesession),
 	DEVMETHOD(cryptodev_process, aesni_process),
 
 	DEVMETHOD_END

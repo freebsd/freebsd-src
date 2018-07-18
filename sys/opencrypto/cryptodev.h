@@ -229,6 +229,11 @@ struct session_op {
   	u_int32_t	ses;		/* returns: session # */ 
 };
 
+/*
+ * session and crypt _op structs are used by userspace programs to interact
+ * with /dev/crypto.  Confusingly, the internal kernel interface is named
+ * "cryptop" (no underscore).
+ */
 struct session2_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
@@ -412,7 +417,7 @@ struct cryptop {
 
 	struct task	crp_task;
 
-	crypto_session_t crp_sid;	/* Session ID */
+	crypto_session_t crp_session;	/* Session */
 	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
 
@@ -421,7 +426,7 @@ struct cryptop {
 					 * All error codes except EAGAIN
 					 * indicate possible data corruption (as in,
 					 * the data have been touched). On all
-					 * errors, the crp_sid may have changed
+					 * errors, the crp_session may have changed
 					 * (reset to a new one), so the caller
 					 * should always check and use the new
 					 * value on future requests.
@@ -463,7 +468,7 @@ struct cryptop {
 
 #define	CRYPTOP_ASYNC(crp) \
 	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
-	CRYPTO_SESID2CAPS((crp)->crp_sid) & CRYPTOCAP_F_SYNC)
+	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
 #define	CRYPTOP_ASYNC_KEEPORDER(crp) \
 	(CRYPTOP_ASYNC(crp) && \
 	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
@@ -493,25 +498,19 @@ struct cryptkop {
 	int		(*krp_callback)(struct cryptkop *);
 };
 
-/*
- * Session ids are 64 bits.  The lower 32 bits contain a "local id" which
- * is a driver-private session identifier.  The upper 32 bits contain a
- * "hardware id" used by the core crypto code to identify the driver and
- * a copy of the driver's capabilities that can be used by client code to
- * optimize operation.
- */
-#define	CRYPTO_SESID2HID(_sid)	(((_sid) >> 32) & 0x00ffffff)
-#define	CRYPTO_SESID2CAPS(_sid)	(((_sid) >> 32) & 0xff000000)
-#define	CRYPTO_SESID2LID(_sid)	(((u_int32_t) (_sid)) & 0xffffffff)
+uint32_t crypto_ses2hid(crypto_session_t crypto_session);
+uint32_t crypto_ses2caps(crypto_session_t crypto_session);
+void *crypto_get_driver_session(crypto_session_t crypto_session);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
-extern	int crypto_newsession(crypto_session_t *sid, struct cryptoini *cri, int hard);
-extern	int crypto_freesession(crypto_session_t sid);
+extern	int crypto_newsession(crypto_session_t *cses, struct cryptoini *cri, int hard);
+extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
-extern	int32_t crypto_get_driverid(device_t dev, int flags);
+extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
+    int flags);
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
 extern	int crypto_getcaps(int hid);
