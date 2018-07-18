@@ -30,6 +30,9 @@ older version of current is a bit fragile.
 	why, only to subsequently discover during installkernel that the
 	desired kernel was never built in the first place.
 
+20170915:
+	The releng/10.4 branch has been created from stable/10@r323601
+
 20170824:
 	Since the switch to GPT disk labels, fsck for UFS/FFS has been
 	unable to automatically find alternate superblocks. As of r322860,
@@ -64,6 +67,9 @@ older version of current is a bit fragile.
 	has been reimplemented.  It's not possible now to create a snapshot
 	by mkdir under .zfs/snapshot/.  That should be the only user visible
 	change.
+
+20160304:
+	The releng/10.3 branch has been created from stable/10@r296371
 
 20160124:
 	The NONE and HPN patches has been removed from OpenSSH.  They are
@@ -123,6 +129,9 @@ older version of current is a bit fragile.
 
 	Please consider using 'options KSTACK_PAGES=X' where X is greater
 	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
+20150723:
+	The releng/10.2 branch has been created from stable/10@r285827
 
 20150703:
 	The default Unbound configuration now enables remote control
@@ -190,6 +199,9 @@ older version of current is a bit fragile.
 
 20141118:
 	10.1-RELEASE.
+
+20141207:
+	The releng/10.1 branch has been created from stable/10@r272459.
 
 20140904:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
@@ -305,6 +317,9 @@ older version of current is a bit fragile.
 	big-endian integer in accordance with RFC 4402.
 	__FreeBSD_version is bumped to 1000701.
 
+20131207:
+	The releng/10.0 branch has been created from stable/10@r259064.
+	
 20131108:
 	The WITHOUT_ATF build knob has been removed and its functionality
 	has been subsumed into the more generic WITHOUT_TESTS.  If you were
@@ -326,6 +341,10 @@ older version of current is a bit fragile.
 	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
 	  or
 	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
+20131010:
+	The stable/10 branch has been created in subversion from head
+	revision r256279.
 
 20131010:
 	The rc.d/jail script has been updated to support jail(8)
