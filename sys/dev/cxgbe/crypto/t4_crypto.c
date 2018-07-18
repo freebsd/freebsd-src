@@ -173,8 +173,6 @@ struct ccr_softc {
 	device_t dev;
 	uint32_t cid;
 	int tx_channel_id;
-	struct ccr_session *sessions;
-	int nsessions;
 	struct mtx lock;
 	bool detaching;
 	struct sge_wrq *txq;
@@ -379,7 +377,7 @@ ccr_use_imm_data(u_int transhdr_len, u_int input_len)
 
 static void
 ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
-    u_int wr_len, uint32_t sid, u_int imm_len, u_int sgl_len, u_int hash_size,
+    u_int wr_len, u_int imm_len, u_int sgl_len, u_int hash_size,
     struct cryptop *crp)
 {
 	u_int cctx_size;
@@ -393,7 +391,7 @@ ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
 	    V_FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE(cctx_size >> 4));
 	crwr->wreq.len16_pkd = htobe32(
 	    V_FW_CRYPTO_LOOKASIDE_WR_LEN16(wr_len / 16));
-	crwr->wreq.session_id = htobe32(sid);
+	crwr->wreq.session_id = 0;
 	crwr->wreq.rx_chid_to_rx_q_id = htobe32(
 	    V_FW_CRYPTO_LOOKASIDE_WR_RX_CHID(sc->tx_channel_id) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_LCB(0) |
@@ -422,8 +420,7 @@ ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
 }
 
 static int
-ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
-    struct cryptop *crp)
+ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
@@ -483,7 +480,7 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
 
-	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
+	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, imm_len, sgl_len,
 	    hash_size_in_response, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
@@ -555,8 +552,7 @@ ccr_hmac_done(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
 }
 
 static int
-ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
-    struct cryptop *crp)
+ccr_blkcipher(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
 	struct chcr_wr *crwr;
@@ -649,7 +645,7 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 			    crd->crd_inject, s->blkcipher.iv_len, iv);
 	}
 
-	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len, 0,
+	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
 	    crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
@@ -758,8 +754,8 @@ ccr_hmac_ctrl(unsigned int hashsize, unsigned int authsize)
 }
 
 static int
-ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
-    struct cryptop *crp, struct cryptodesc *crda, struct cryptodesc *crde)
+ccr_authenc(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
+    struct cryptodesc *crda, struct cryptodesc *crde)
 {
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
 	struct chcr_wr *crwr;
@@ -979,7 +975,7 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 			    crde->crd_inject, s->blkcipher.iv_len, iv);
 	}
 
-	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
+	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, imm_len, sgl_len,
 	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
@@ -1108,8 +1104,8 @@ ccr_authenc_done(struct ccr_softc *sc, struct ccr_session *s,
 }
 
 static int
-ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
-    struct cryptop *crp, struct cryptodesc *crda, struct cryptodesc *crde)
+ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
+    struct cryptodesc *crda, struct cryptodesc *crde)
 {
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
 	struct chcr_wr *crwr;
@@ -1312,8 +1308,8 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	if (s->blkcipher.iv_len == 12)
 		*(uint32_t *)&iv[12] = htobe32(1);
 
-	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    0, crp);
+	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
+	    crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -1650,7 +1646,8 @@ ccr_attach(device_t dev)
 	sc->adapter = device_get_softc(device_get_parent(dev));
 	sc->txq = &sc->adapter->sge.ctrlq[0];
 	sc->rxq = &sc->adapter->sge.rxq[0];
-	cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	cid = crypto_get_driverid(dev, sizeof(struct ccr_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		return (ENXIO);
@@ -1687,22 +1684,15 @@ static int
 ccr_detach(device_t dev)
 {
 	struct ccr_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->lock);
-	for (i = 0; i < sc->nsessions; i++) {
-		if (sc->sessions[i].active || sc->sessions[i].pending != 0) {
-			mtx_unlock(&sc->lock);
-			return (EBUSY);
-		}
-	}
 	sc->detaching = true;
 	mtx_unlock(&sc->lock);
 
 	crypto_unregister_all(sc->cid);
-	free(sc->sessions, M_CCR);
+
 	mtx_destroy(&sc->lock);
 	sglist_free(sc->sg_iv_aad);
 	free(sc->iv_aad_buf, M_CCR);
@@ -1881,7 +1871,7 @@ ccr_aes_setkey(struct ccr_session *s, int alg, const void *key, int klen)
 }
 
 static int
-ccr_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct ccr_softc *sc;
 	struct ccr_session *s;
@@ -1889,10 +1879,10 @@ ccr_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *c, *hash, *cipher;
 	unsigned int auth_mode, cipher_mode, iv_len, mk_size;
 	unsigned int partial_digest_len;
-	int error, i, sess;
+	int error;
 	bool gcm_hash;
 
-	if (sidp == NULL || cri == NULL)
+	if (cri == NULL)
 		return (EINVAL);
 
 	gcm_hash = false;
@@ -1999,29 +1989,8 @@ ccr_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		mtx_unlock(&sc->lock);
 		return (ENXIO);
 	}
-	sess = -1;
-	for (i = 0; i < sc->nsessions; i++) {
-		if (!sc->sessions[i].active && sc->sessions[i].pending == 0) {
-			sess = i;
-			break;
-		}
-	}
-	if (sess == -1) {
-		s = malloc(sizeof(*s) * (sc->nsessions + 1), M_CCR,
-		    M_NOWAIT | M_ZERO);
-		if (s == NULL) {
-			mtx_unlock(&sc->lock);
-			return (ENOMEM);
-		}
-		if (sc->sessions != NULL)
-			memcpy(s, sc->sessions, sizeof(*s) * sc->nsessions);
-		sess = sc->nsessions;
-		free(sc->sessions, M_CCR);
-		sc->sessions = s;
-		sc->nsessions++;
-	}
 
-	s = &sc->sessions[sess];
+	s = crypto_get_driver_session(cses);
 
 	if (gcm_hash)
 		s->mode = GCM;
@@ -2061,33 +2030,24 @@ ccr_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	s->active = true;
 	mtx_unlock(&sc->lock);
-
-	*sidp = sess;
 	return (0);
 }
 
-static int
-ccr_freesession(device_t dev, uint64_t tid)
+static void
+ccr_freesession(device_t dev, crypto_session_t cses)
 {
 	struct ccr_softc *sc;
-	uint32_t sid;
-	int error;
+	struct ccr_session *s;
 
 	sc = device_get_softc(dev);
-	sid = CRYPTO_SESID2LID(tid);
+	s = crypto_get_driver_session(cses);
 	mtx_lock(&sc->lock);
-	if (sid >= sc->nsessions || !sc->sessions[sid].active)
-		error = EINVAL;
-	else {
-		if (sc->sessions[sid].pending != 0)
-			device_printf(dev,
-			    "session %d freed with %d pending requests\n", sid,
-			    sc->sessions[sid].pending);
-		sc->sessions[sid].active = false;
-		error = 0;
-	}
+	if (s->pending != 0)
+		device_printf(dev,
+		    "session %p freed with %d pending requests\n", s,
+		    s->pending);
+	s->active = false;
 	mtx_unlock(&sc->lock);
-	return (error);
 }
 
 static int
@@ -2096,35 +2056,28 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 	struct ccr_softc *sc;
 	struct ccr_session *s;
 	struct cryptodesc *crd, *crda, *crde;
-	uint32_t sid;
 	int error;
 
 	if (crp == NULL)
 		return (EINVAL);
 
 	crd = crp->crp_desc;
-	sid = CRYPTO_SESID2LID(crp->crp_sid);
+	s = crypto_get_driver_session(crp->crp_session);
 	sc = device_get_softc(dev);
-	mtx_lock(&sc->lock);
-	if (sid >= sc->nsessions || !sc->sessions[sid].active) {
-		sc->stats_bad_session++;
-		error = EINVAL;
-		goto out;
-	}
 
+	mtx_lock(&sc->lock);
 	error = ccr_populate_sglist(sc->sg_crp, crp);
 	if (error) {
 		sc->stats_sglist_error++;
 		goto out;
 	}
 
-	s = &sc->sessions[sid];
 	switch (s->mode) {
 	case HMAC:
 		if (crd->crd_flags & CRD_F_KEY_EXPLICIT)
 			ccr_init_hmac_digest(s, crd->crd_alg, crd->crd_key,
 			    crd->crd_klen);
-		error = ccr_hmac(sc, sid, s, crp);
+		error = ccr_hmac(sc, s, crp);
 		if (error == 0)
 			sc->stats_hmac++;
 		break;
@@ -2137,7 +2090,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			ccr_aes_setkey(s, crd->crd_alg, crd->crd_key,
 			    crd->crd_klen);
 		}
-		error = ccr_blkcipher(sc, sid, s, crp);
+		error = ccr_blkcipher(sc, s, crp);
 		if (error == 0) {
 			if (crd->crd_flags & CRD_F_ENCRYPT)
 				sc->stats_blkcipher_encrypt++;
@@ -2181,7 +2134,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			ccr_aes_setkey(s, crde->crd_alg, crde->crd_key,
 			    crde->crd_klen);
 		}
-		error = ccr_authenc(sc, sid, s, crp, crda, crde);
+		error = ccr_authenc(sc, s, crp, crda, crde);
 		if (error == 0) {
 			if (crde->crd_flags & CRD_F_ENCRYPT)
 				sc->stats_authenc_encrypt++;
@@ -2213,7 +2166,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			ccr_gcm_soft(s, crp, crda, crde);
 			return (0);
 		}
-		error = ccr_gcm(sc, sid, s, crp, crda, crde);
+		error = ccr_gcm(sc, s, crp, crda, crde);
 		if (error == EMSGSIZE) {
 			sc->stats_sw_fallback++;
 			mtx_unlock(&sc->lock);
@@ -2254,7 +2207,7 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 	struct ccr_session *s;
 	const struct cpl_fw6_pld *cpl;
 	struct cryptop *crp;
-	uint32_t sid, status;
+	uint32_t status;
 	int error;
 
 	if (m != NULL)
@@ -2263,7 +2216,7 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 		cpl = (const void *)(rss + 1);
 
 	crp = (struct cryptop *)(uintptr_t)be64toh(cpl->data[1]);
-	sid = CRYPTO_SESID2LID(crp->crp_sid);
+	s = crypto_get_driver_session(crp->crp_session);
 	status = be64toh(cpl->data[0]);
 	if (CHK_MAC_ERR_BIT(status) || CHK_PAD_ERR_BIT(status))
 		error = EBADMSG;
@@ -2271,8 +2224,6 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 		error = 0;
 
 	mtx_lock(&sc->lock);
-	MPASS(sid < sc->nsessions);
-	s = &sc->sessions[sid];
 	s->pending--;
 	sc->stats_inflight--;
 

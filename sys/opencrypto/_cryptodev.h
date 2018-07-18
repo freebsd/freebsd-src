@@ -5,4 +5,4 @@
  */
 #pragma once
 
-typedef __uint64_t	crypto_session_t;
+typedef struct crypto_session	*crypto_session_t;

@@ -97,7 +97,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	bzero(crd->crd_iv, sizeof(crd->crd_iv));
 	crd->crd_next = NULL;
 
-	crp->crp_sid = sid;
+	crp->crp_session = sid;
 	crp->crp_ilen = datasize;
 	crp->crp_olen = datasize;
 	crp->crp_opaque = NULL;

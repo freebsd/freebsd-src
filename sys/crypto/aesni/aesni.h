@@ -66,8 +66,6 @@ struct aesni_session {
 	int used;
 	int auth_algo;
 	int mlen;
-	uint32_t id;
-	TAILQ_ENTRY(aesni_session) next;
 };
 
 /*

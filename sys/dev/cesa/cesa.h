@@ -193,7 +193,6 @@ struct cesa_sa_desc {
 };
 
 struct cesa_session {
-	uint32_t			cs_sid;
 	uint32_t			cs_config;
 	unsigned int			cs_klen;
 	unsigned int			cs_ivlen;
@@ -203,8 +202,6 @@ struct cesa_session {
 	uint8_t				cs_aes_dkey[CESA_MAX_KEY_LEN];
 	uint8_t				cs_hiv_in[CESA_MAX_HASH_LEN];
 	uint8_t				cs_hiv_out[CESA_MAX_HASH_LEN];
-
-	STAILQ_ENTRY(cesa_session)	cs_stq;
 };
 
 struct cesa_request {
@@ -264,10 +261,7 @@ struct cesa_softc {
 	STAILQ_HEAD(, cesa_request)	sc_ready_requests;
 	STAILQ_HEAD(, cesa_request)	sc_queued_requests;
 
-	/* Sessions pool */
 	struct mtx			sc_sessions_lock;
-	struct cesa_session		sc_sessions[CESA_SESSIONS];
-	STAILQ_HEAD(, cesa_session)	sc_free_sessions;
 
 	/* CESA SRAM Address */
 	bus_addr_t			sc_sram_base_pa;

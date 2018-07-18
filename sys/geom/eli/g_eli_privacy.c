@@ -279,7 +279,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 
-		crp->crp_sid = wr->w_sid;
+		crp->crp_session = wr->w_sid;
 		crp->crp_ilen = secsize;
 		crp->crp_olen = secsize;
 		crp->crp_opaque = (void *)bp;

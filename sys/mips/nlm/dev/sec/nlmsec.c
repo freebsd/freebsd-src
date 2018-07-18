@@ -74,8 +74,7 @@ unsigned int creditleft;
 void xlp_sec_print_data(struct cryptop *crp);
 
 static	int xlp_sec_init(struct xlp_sec_softc *sc);
-static	int xlp_sec_newsession(device_t , uint32_t *, struct cryptoini *);
-static	int xlp_sec_freesession(device_t , uint64_t);
+static	int xlp_sec_newsession(device_t , crypto_session_t, struct cryptoini *);
 static	int xlp_sec_process(device_t , struct cryptop *, int);
 static  int xlp_copyiv(struct xlp_sec_softc *, struct xlp_sec_command *,
     struct cryptodesc *enccrd);
@@ -99,7 +98,6 @@ static device_method_t xlp_sec_methods[] = {
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession, xlp_sec_newsession),
-	DEVMETHOD(cryptodev_freesession,xlp_sec_freesession),
 	DEVMETHOD(cryptodev_process,    xlp_sec_process),
 
 	DEVMETHOD_END
@@ -205,8 +203,8 @@ xlp_sec_print_data(struct cryptop *crp)
 	int i, key_len;
 	struct cryptodesc *crp_desc;
 
-	printf("session id = 0x%llx, crp_ilen = %d, crp_olen=%d \n",
-	    crp->crp_sid, crp->crp_ilen, crp->crp_olen);
+	printf("session = %p, crp_ilen = %d, crp_olen=%d \n", crp->crp_session,
+	    crp->crp_ilen, crp->crp_olen);
 
 	printf("crp_flags = 0x%x\n", crp->crp_flags);
 
@@ -325,7 +323,7 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 			    XLP_SEC_AES_IV_LENGTH : XLP_SEC_DES_IV_LENGTH);
 			crypto_copydata(cmd->crp->crp_flags, cmd->crp->crp_buf,
 			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-			    sc->sc_sessions[cmd->session_num].ses_iv);
+			    cmd->ses->ses_iv);
 		}
 	}
 
@@ -387,7 +385,8 @@ xlp_sec_attach(device_t dev)
 		device_printf(dev, "SAE Freq: %dMHz\n", freq);
 	if(pci_get_device(dev) == PCI_DEVICE_ID_NLM_SAE) {
 		device_set_desc(dev, "XLP Security Accelerator");
-		sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+		sc->sc_cid = crypto_get_driverid(dev,
+		    sizeof(struct xlp_sec_session), CRYPTOCAP_F_HARDWARE);
 		if (sc->sc_cid < 0) {
 			printf("xlp_sec - error : could not get the driver"
 			    " id\n");
@@ -444,56 +443,20 @@ xlp_sec_detach(device_t dev)
 	return (0);
 }
 
-/*
- * Allocate a new 'session' and return an encoded session id.  'sidp'
- * contains our registration id, and should contain an encoded session
- * id on successful allocation.
- */
 static int
-xlp_sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+xlp_sec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct cryptoini *c;
 	struct xlp_sec_softc *sc = device_get_softc(dev);
-	int mac = 0, cry = 0, sesn;
-	struct xlp_sec_session *ses = NULL;
+	int mac = 0, cry = 0;
+	struct xlp_sec_session *ses;
 	struct xlp_sec_command *cmd = NULL;
 
-	if (sidp == NULL || cri == NULL || sc == NULL)
+	if (cri == NULL || sc == NULL)
 		return (EINVAL);
 
-	if (sc->sc_sessions == NULL) {
-		ses = sc->sc_sessions = malloc(sizeof(struct xlp_sec_session),
-		    M_DEVBUF, M_NOWAIT);
-		if (ses == NULL)
-			return (ENOMEM);
-		sesn = 0;
-		sc->sc_nsessions = 1;
-	} else {
-		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
-			if (!sc->sc_sessions[sesn].hs_used) {
-				ses = &sc->sc_sessions[sesn];
-				break;
-			}
-		}
-
-		if (ses == NULL) {
-			sesn = sc->sc_nsessions;
-			ses = malloc((sesn + 1)*sizeof(struct xlp_sec_session),
-			    M_DEVBUF, M_NOWAIT);
-			if (ses == NULL)
-				return (ENOMEM);
-			bcopy(sc->sc_sessions, ses, sesn * sizeof(*ses));
-			bzero(sc->sc_sessions, sesn * sizeof(*ses));
-			free(sc->sc_sessions, M_DEVBUF);
-			sc->sc_sessions = ses;
-			ses = &sc->sc_sessions[sesn];
-			sc->sc_nsessions++;
-		}
-	}
-	bzero(ses, sizeof(*ses));
-	ses->sessionid = sesn;
+	ses = crypto_get_driver_session(cses);
 	cmd = &ses->cmd;
-	ses->hs_used = 1;
 
 	for (c = cri; c != NULL; c = c->cri_next) {
 		switch (c->cri_alg) {
@@ -539,43 +502,22 @@ xlp_sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 		return (EINVAL);
 
 	cmd->hash_dst_len = ses->hs_mlen;
-	*sidp = XLP_SEC_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
 }
 
 /*
- * Deallocate a session.
- * XXX this routine should run a zero'd mac/encrypt key into context ram.
- * XXX to blow away any keys already stored there.
+ * XXX freesession routine should run a zero'd mac/encrypt key into context
+ * ram.  to blow away any keys already stored there.
  */
-static int
-xlp_sec_freesession(device_t dev, u_int64_t tid)
-{
-	struct xlp_sec_softc *sc = device_get_softc(dev);
-	int session;
-	u_int32_t sid = CRYPTO_SESID2LID(tid);
-
-	if (sc == NULL)
-		return (EINVAL);
-
-	session = XLP_SEC_SESSION(sid);
-	if (session >= sc->sc_nsessions)
-		return (EINVAL);
-
-	sc->sc_sessions[session].hs_used = 0;
-	return (0);
-}
 
 static int
 xlp_copyiv(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
     struct cryptodesc *enccrd)
 {
 	unsigned int ivlen = 0;
-	int session;
 	struct cryptop *crp = NULL;
 
 	crp = cmd->crp;
-	session = cmd->session_num;
 
 	if (enccrd->crd_alg != CRYPTO_ARC4) {
 		ivlen = ((enccrd->crd_alg == CRYPTO_AES_CBC) ?
@@ -584,8 +526,7 @@ xlp_copyiv(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
 			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
 				bcopy(enccrd->crd_iv, cmd->iv, ivlen);
 			} else {
-				bcopy(sc->sc_sessions[session].ses_iv, cmd->iv,
-				    ivlen);
+				bcopy(cmd->ses->ses_iv, cmd->iv, ivlen);
 			}
 			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
 				crypto_copyback(crp->crp_flags,
@@ -698,7 +639,7 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 {
 	struct xlp_sec_softc *sc = device_get_softc(dev);
 	struct xlp_sec_command *cmd = NULL;
-	int session, err = -1, ret = 0;
+	int err = -1, ret = 0;
 	struct cryptodesc *crd1, *crd2;
 	struct xlp_sec_session *ses;
 	unsigned int nsegs = 0;
@@ -706,12 +647,11 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 	if (crp == NULL || crp->crp_callback == NULL) {
 		return (EINVAL);
 	}
-	session = XLP_SEC_SESSION(crp->crp_sid);
-	if (sc == NULL || session >= sc->sc_nsessions) {
+	if (sc == NULL) {
 		err = EINVAL;
 		goto errout;
 	}
-	ses = &sc->sc_sessions[session];
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	if ((cmd = malloc(sizeof(struct xlp_sec_command), M_DEVBUF,
 	    M_NOWAIT | M_ZERO)) == NULL) {
@@ -720,7 +660,7 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	cmd->crp = crp;
-	cmd->session_num = session;
+	cmd->ses = ses;
 	cmd->hash_dst_len = ses->hs_mlen;
 
 	if ((crd1 = crp->crp_desc) == NULL) {

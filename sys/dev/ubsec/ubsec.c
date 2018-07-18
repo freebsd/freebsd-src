@@ -111,8 +111,7 @@ static	int ubsec_suspend(device_t);
 static	int ubsec_resume(device_t);
 static	int ubsec_shutdown(device_t);
 
-static	int ubsec_newsession(device_t, u_int32_t *, struct cryptoini *);
-static	int ubsec_freesession(device_t, u_int64_t);
+static	int ubsec_newsession(device_t, crypto_session_t, struct cryptoini *);
 static	int ubsec_process(device_t, struct cryptop *, int);
 static	int ubsec_kprocess(device_t, struct cryptkop *, int);
 
@@ -127,7 +126,6 @@ static device_method_t ubsec_methods[] = {
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
-	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
@@ -350,7 +348,8 @@ ubsec_attach(device_t dev)
 		goto bad2;
 	}
 
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct ubsec_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto bad3;
@@ -895,14 +894,13 @@ ubsec_setup_mackey(struct ubsec_session *ses, int algo, caddr_t key, int klen)
  * id on successful allocation.
  */
 static int
-ubsec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+ubsec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
 	struct ubsec_session *ses = NULL;
-	int sesn;
 
-	if (sidp == NULL || cri == NULL || sc == NULL)
+	if (cri == NULL || sc == NULL)
 		return (EINVAL);
 
 	for (c = cri; c != NULL; c = c->cri_next) {
@@ -922,40 +920,7 @@ ubsec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	if (encini == NULL && macini == NULL)
 		return (EINVAL);
 
-	if (sc->sc_sessions == NULL) {
-		ses = sc->sc_sessions = (struct ubsec_session *)malloc(
-		    sizeof(struct ubsec_session), M_DEVBUF, M_NOWAIT);
-		if (ses == NULL)
-			return (ENOMEM);
-		sesn = 0;
-		sc->sc_nsessions = 1;
-	} else {
-		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
-			if (sc->sc_sessions[sesn].ses_used == 0) {
-				ses = &sc->sc_sessions[sesn];
-				break;
-			}
-		}
-
-		if (ses == NULL) {
-			sesn = sc->sc_nsessions;
-			ses = (struct ubsec_session *)malloc((sesn + 1) *
-			    sizeof(struct ubsec_session), M_DEVBUF, M_NOWAIT);
-			if (ses == NULL)
-				return (ENOMEM);
-			bcopy(sc->sc_sessions, ses, sesn *
-			    sizeof(struct ubsec_session));
-			bzero(sc->sc_sessions, sesn *
-			    sizeof(struct ubsec_session));
-			free(sc->sc_sessions, M_DEVBUF);
-			sc->sc_sessions = ses;
-			ses = &sc->sc_sessions[sesn];
-			sc->sc_nsessions++;
-		}
-	}
-	bzero(ses, sizeof(struct ubsec_session));
-	ses->ses_used = 1;
-
+	ses = crypto_get_driver_session(cses);
 	if (encini) {
 		/* get an IV, network byte order */
 		/* XXX may read fewer than requested */
@@ -982,32 +947,7 @@ ubsec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 		}
 	}
 
-	*sidp = UBSEC_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
-}
-
-/*
- * Deallocate a session.
- */
-static int
-ubsec_freesession(device_t dev, u_int64_t tid)
-{
-	struct ubsec_softc *sc = device_get_softc(dev);
-	int session, ret;
-	u_int32_t sid = CRYPTO_SESID2LID(tid);
-
-	if (sc == NULL)
-		return (EINVAL);
-
-	session = UBSEC_SESSION(sid);
-	if (session < sc->sc_nsessions) {
-		bzero(&sc->sc_sessions[session],
-			sizeof(sc->sc_sessions[session]));
-		ret = 0;
-	} else
-		ret = EINVAL;
-
-	return (ret);
 }
 
 static void
@@ -1047,10 +987,6 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		ubsecstats.hst_invalid++;
 		return (EINVAL);
 	}
-	if (UBSEC_SESSION(crp->crp_sid) >= sc->sc_nsessions) {
-		ubsecstats.hst_badsession++;
-		return (EINVAL);
-	}
 
 	mtx_lock(&sc->sc_freeqlock);
 	if (SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
@@ -1067,9 +1003,8 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 	bzero(q, sizeof(struct ubsec_q));
 	bzero(&ctx, sizeof(ctx));
 
-	q->q_sesn = UBSEC_SESSION(crp->crp_sid);
 	q->q_dma = dmap;
-	ses = &sc->sc_sessions[q->q_sesn];
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	if (crp->crp_flags & CRYPTO_F_IMBUF) {
 		q->q_src_m = (struct mbuf *)crp->crp_buf;
@@ -1561,8 +1496,11 @@ static void
 ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 {
 	struct cryptop *crp = (struct cryptop *)q->q_crp;
+	struct ubsec_session *ses;
 	struct cryptodesc *crd;
 	struct ubsec_dma *dmap = q->q_dma;
+
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	ubsecstats.hst_opackets++;
 	ubsecstats.hst_obytes += dmap->d_alloc.dma_size;
@@ -1592,7 +1530,7 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 				continue;
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
 			    crd->crd_skip + crd->crd_len - 8, 8,
-			    (caddr_t)sc->sc_sessions[q->q_sesn].ses_iv);
+			    (caddr_t)ses->ses_iv);
 			break;
 		}
 	}
@@ -1602,8 +1540,7 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 		    crd->crd_alg != CRYPTO_SHA1_HMAC)
 			continue;
 		crypto_copyback(crp->crp_flags, crp->crp_buf, crd->crd_inject,
-		    sc->sc_sessions[q->q_sesn].ses_mlen,
-		    (caddr_t)dmap->d_dma->d_macbuf);
+		    ses->ses_mlen, (caddr_t)dmap->d_dma->d_macbuf);
 		break;
 	}
 	mtx_lock(&sc->sc_freeqlock);
