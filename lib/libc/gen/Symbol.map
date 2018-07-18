@@ -420,6 +420,7 @@ FBSD_1.4 {
 
 FBSD_1.5 {
 	sem_clockwait_np;
+	setproctitle_fast;
 };
 
 FBSDprivate_1.0 {
