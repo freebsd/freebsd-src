@@ -196,6 +196,7 @@ aesni_attach(device_t dev)
 	if (sc->has_sha) {
 		crypto_register(sc->cid, CRYPTO_SHA1, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA1_HMAC, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_256, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 	}
 	return (0);
@@ -265,6 +266,7 @@ aesni_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			break;
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (!sc->has_sha)
 				goto unhandled;
@@ -350,6 +352,7 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		case CRYPTO_AES_256_NIST_GMAC:
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (authcrd != NULL) {
 				error = EINVAL;
@@ -477,6 +480,7 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_256:
 	case CRYPTO_SHA2_256_HMAC:
 		error = aesni_authprepare(ses, authini->cri_klen,
 		    authini->cri_key);
@@ -858,6 +862,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 
 	case CRYPTO_SHA2_256_HMAC:
 		hmac = true;
+		/* FALLTHROUGH */
+	case CRYPTO_SHA2_256:
 		hashlen = SHA2_256_HASH_LEN;
 		InitFn = SHA256_Init_fn;
 		UpdateFn = intel_sha256_update;
