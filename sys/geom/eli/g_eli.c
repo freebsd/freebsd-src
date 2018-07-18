@@ -199,10 +199,10 @@ g_eli_crypto_rerun(struct cryptop *crp)
 			break;
 	}
 	KASSERT(wr != NULL, ("Invalid worker (%u).", bp->bio_pflags));
-	G_ELI_DEBUG(1, "Rerunning crypto %s request (sid: %ju -> %ju).",
-	    bp->bio_cmd == BIO_READ ? "READ" : "WRITE", (uintmax_t)wr->w_sid,
-	    (uintmax_t)crp->crp_sid);
-	wr->w_sid = crp->crp_sid;
+	G_ELI_DEBUG(1, "Rerunning crypto %s request (sid: %p -> %p).",
+	    bp->bio_cmd == BIO_READ ? "READ" : "WRITE", wr->w_sid,
+	    crp->crp_session);
+	wr->w_sid = crp->crp_session;
 	crp->crp_etype = 0;
 	error = crypto_dispatch(crp);
 	if (error == 0)

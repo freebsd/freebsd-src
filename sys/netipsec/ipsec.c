@@ -1351,8 +1351,8 @@ ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
 	 * XXXAE: check this more carefully.
 	 */
 	KEYDBG(IPSEC_STAMP,
-	    printf("%s: SA(%p) moves cryptoid %jd -> %jd\n",
-		__func__, sav, (uintmax_t)(*old), (uintmax_t)(*new)));
+	    printf("%s: SA(%p) moves cryptoid %p -> %p\n",
+		__func__, sav, *old, *new));
 	KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
 	SECASVAR_LOCK(sav);
 	if (sav->tdb_cryptoid != *old) {

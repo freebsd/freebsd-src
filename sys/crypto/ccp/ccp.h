@@ -134,8 +134,6 @@ struct ccp_completion_ctx {
 struct ccp_softc {
 	device_t dev;
 	int32_t cid;
-	struct ccp_session *sessions;
-	int nsessions;
 	struct mtx lock;
 	bool detaching;
 
