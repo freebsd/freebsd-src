@@ -150,6 +150,12 @@ struct	pmap {
 	struct pvo_tree pmap_pvo;
 };
 
+struct	md_page {
+	volatile int32_t mdpg_attrs;
+	vm_memattr_t	 mdpg_cache_attrs;
+	struct	pvo_head mdpg_pvoh;
+};
+
 #define	pmap_page_get_memattr(m)	((m)->md.mdpg_cache_attrs)
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
 
@@ -206,6 +212,11 @@ struct pv_entry {
 };
 typedef struct pv_entry *pv_entry_t;
 
+struct md_page {
+	TAILQ_HEAD(, pv_entry) pv_list;
+	int	pv_tracked;
+};
+
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
@@ -220,20 +231,6 @@ struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 };
 #endif /* AIM */
-
-struct md_page {
-	union {
-		struct md_page_booke {
-			TAILQ_HEAD(, pv_entry) pv_list;
-			int	pv_tracked;
-		};
-		struct md_page_aim {
-			volatile int32_t mdpg_attrs;
-			vm_memattr_t	 mdpg_cache_attrs;
-			struct	pvo_head mdpg_pvoh;
-		};
-	};
-};
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
