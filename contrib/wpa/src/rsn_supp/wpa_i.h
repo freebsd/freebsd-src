@@ -24,7 +24,6 @@ struct wpa_sm {
 	struct wpa_ptk ptk, tptk;
 	int ptk_set, tptk_set;
 	unsigned int msg_3_of_4_ok:1;
-	unsigned int tk_to_set:1;
 	u8 snonce[WPA_NONCE_LEN];
 	u8 anonce[WPA_NONCE_LEN]; /* ANonce from the last 1/4 msg */
 	int renew_snonce;
