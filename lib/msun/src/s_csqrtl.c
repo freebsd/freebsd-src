@@ -36,17 +36,22 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 /*
- * THRESH is now calculated portably (up to 113-bit precision).  However,
- * the denormal threshold is hard-coded for a 15-bit exponent with the usual
- * bias.  s_logl.c and e_hypotl have less hard-coding but end up requiring
- * the same for the exponent and more for the mantissa.
+ * Several thresholds require a 15-bit exponent and also the usual bias.
+ * s_logl.c and e_hypotl have less hard-coding but end up requiring the
+ * same for the exponent and more for the mantissa.
  */
 #if LDBL_MAX_EXP != 0x4000
 #error "Unsupported long double format"
 #endif
 
-/* For avoiding overflow for components >= LDBL_MAX / (1 + sqrt(2)). */
-#define	THRESH	(LDBL_MAX / 2.414213562373095048801688724209698L)
+/*
+ * Overflow must be avoided for components >= LDBL_MAX / (1 + sqrt(2)).
+ * The precise threshold is nontrivial to determine and spell, so use a
+ * lower threshold of approximaely LDBL_MAX / 4, and don't use LDBL_MAX
+ * to spell this since LDBL_MAX is broken on i386 (it overflows in 53-bit
+ * precision).
+ */
+#define	THRESH	0x1p16382L
 
 long double complex
 csqrtl(long double complex z)
