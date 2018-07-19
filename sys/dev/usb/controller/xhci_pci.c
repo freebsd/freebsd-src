@@ -99,7 +99,8 @@ xhci_pci_match(device_t self)
 		return ("AMD KERNCZ USB 3.0 controller");
 	case 0x43ba1022:
 		return ("AMD X399 USB 3.0 controller");
-	case 0x43bb1022:
+	case 0x43b91022: /* X370 */
+	case 0x43bb1022: /* B350 */
 		return ("AMD 300 Series USB 3.0 controller");
 	case 0x78141022:
 		return ("AMD FCH USB 3.0 controller");
