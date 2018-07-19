@@ -233,6 +233,8 @@ device		bcm2835_spi	# Broadcom BCM283x SPI bus
 device		vt
 device		kbdmux
 
+device		vt_efifb
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
