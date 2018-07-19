@@ -83,10 +83,12 @@ counter_u64_zero_inline(counter_u64_t c)
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
+	uint64_t *counter_addr;
 
-	__asm __volatile("addq\t%1,%%gs:(%0)"
+	counter_addr = zpcpu_get(c);
+	__asm __volatile("addq\t%1,(%0)"
 	    :
-	    : "r" ((char *)c - (char *)&__pcpu[0]), "ri" (inc)
+	    : "r" (counter_addr), "ri" (inc)
 	    : "memory", "cc");
 }
 
