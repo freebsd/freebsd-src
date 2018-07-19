@@ -66,7 +66,7 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 	"adcl	4(%%edi),%%ecx\n\t"
 	"cmpxchg8b (%%esi)\n\t"
 	"jnz	1b"
-	: /* no output registers */
+	:
 	: "S" (p), "D" (&inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
