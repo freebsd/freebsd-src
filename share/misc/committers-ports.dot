@@ -40,6 +40,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current ports committers go here. Try to keep things sorted.
 
+0mp [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2018/06/16"]
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
@@ -480,6 +481,7 @@ koobs -> kami
 koobs -> woodsb02
 koobs -> xmj
 
+krion -> 0mp
 krion -> brooks
 krion -> miwi
 krion -> novel
@@ -525,6 +527,7 @@ makc -> bf
 makc -> jhale
 makc -> rakuco
 
+mat -> 0mp
 mat -> bmah
 mat -> dteske
 mat -> dvl
