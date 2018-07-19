@@ -102,6 +102,10 @@ ofwfb_probe(struct vt_device *vd)
 	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
 	    sizeof(stdout))
 		node = OF_instance_to_package(stdout);
+	if (node == -1)
+	    if (OF_getprop(chosen, "stdout-path", &stdout, sizeof(stdout)) ==
+		sizeof(stdout))
+		    node = OF_instance_to_package(stdout);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
