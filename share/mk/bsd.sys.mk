@@ -149,6 +149,7 @@ CWARNFLAGS+=	-Wno-error=bool-operation		\
 		-Wno-error=implicit-fallthrough		\
 		-Wno-error=int-in-bool-context		\
 		-Wno-error=memset-elt-size		\
+		-Wno-error=noexcept-type		\
 		-Wno-error=nonnull			\
 		-Wno-error=pointer-compare		\
 		-Wno-error=stringop-overflow
