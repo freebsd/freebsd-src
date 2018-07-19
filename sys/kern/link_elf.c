@@ -1168,8 +1168,8 @@ link_elf_unload_file(linker_file_t file)
 static void
 link_elf_unload_preload(linker_file_t file)
 {
-	if (file->filename != NULL)
-		preload_delete_name(file->filename);
+	if (file->pathname != NULL)
+		preload_delete_name(file->pathname);
 }
 
 static const char *
