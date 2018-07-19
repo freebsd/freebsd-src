@@ -87,7 +87,7 @@ NON_GPROF_ENTRY(xen_start)
 	xorl	%ebp, %ebp
 
 	/* u_int64_t hammer_time_xen(start_info_t *si, u_int64_t xenstack); */
-	call	hammer_time_xen
+	call	hammer_time_xen_legacy
 	movq	%rax, %rsp		/* set up kstack for mi_startup() */
 	call	mi_startup		/* autoconfiguration, mountroot etc */
 

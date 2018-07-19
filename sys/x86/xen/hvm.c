@@ -82,6 +82,12 @@ static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
  */
 int xen_vector_callback_enabled;
 
+/**
+ * Start info flags. ATM this only used to store the initial domain flag for
+ * PVHv2, and it's always empty for HVM guests.
+ */
+uint32_t hvm_start_flags;
+
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
@@ -469,7 +475,7 @@ static uint32_t
 hvm_get_start_flags(void)
 {
 
-	return (0);
+	return (hvm_start_flags);
 }
 
 struct hypervisor_info hypervisor_info = {
