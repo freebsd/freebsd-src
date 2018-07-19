@@ -94,8 +94,6 @@ DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 shared_info_t *HYPERVISOR_shared_info;
-start_info_t *HYPERVISOR_start_info;
-
 
 /*------------------------------ Sysctl tunables -----------------------------*/
 int xen_disable_pv_disks = 0;
@@ -425,3 +423,47 @@ xen_hvm_cpu_init(void)
 		DPCPU_SET(vcpu_info, vcpu_info);
 }
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
+
+/* HVM/PVH start_info accessors */
+static vm_paddr_t
+hvm_get_xenstore_mfn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_STORE_PFN));
+}
+
+static evtchn_port_t
+hvm_get_xenstore_evtchn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_STORE_EVTCHN));
+}
+
+static vm_paddr_t
+hvm_get_console_mfn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_PFN));
+}
+
+static evtchn_port_t
+hvm_get_console_evtchn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN));
+}
+
+static uint32_t
+hvm_get_start_flags(void)
+{
+
+	return (0);
+}
+
+struct hypervisor_info hypervisor_info = {
+	.get_xenstore_mfn		= hvm_get_xenstore_mfn,
+	.get_xenstore_evtchn		= hvm_get_xenstore_evtchn,
+	.get_console_mfn		= hvm_get_console_mfn,
+	.get_console_evtchn		= hvm_get_console_evtchn,
+	.get_start_flags		= hvm_get_start_flags,
+};
