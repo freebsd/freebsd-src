@@ -99,15 +99,15 @@ csqrt(double complex z)
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
 		t = sqrt((a + hypot(a, b)) * 0.5);
-		rx = t;
-		ry = b / (2 * t);
+		rx = scale * t;
+		ry = scale * b / (2 * t);
 	} else {
 		t = sqrt((-a + hypot(a, b)) * 0.5);
-		rx = fabs(b) / (2 * t);
-		ry = copysign(t, b);
+		rx = scale * fabs(b) / (2 * t);
+		ry = copysign(scale * t, b);
 	}
 
-	return (CMPLX(rx * scale, ry * scale));
+	return (CMPLX(rx, ry));
 }
 
 #if LDBL_MANT_DIG == 53
