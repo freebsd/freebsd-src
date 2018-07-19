@@ -1040,7 +1040,6 @@ link_elf_unload_file(linker_file_t file)
 		free(ef->typoff, M_LINKER);
 		if (file->pathname != NULL)
 			preload_delete_name(file->pathname);
-		/* XXX reclaim module memory? */
 		return;
 	}
 
