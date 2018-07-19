@@ -65,6 +65,7 @@ struct wpa_state_machine {
 	struct wpa_ptk PTK;
 	Boolean PTK_valid;
 	Boolean pairwise_set;
+	Boolean tk_already_set;
 	int keycount;
 	Boolean Pair;
 	struct wpa_key_replay_counter {
