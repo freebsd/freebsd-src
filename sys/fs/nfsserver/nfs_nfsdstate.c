@@ -4254,9 +4254,10 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	 */
 	(void) newnfs_sndlock(&clp->lc_req.nr_lock);
 	if (clp->lc_req.nr_client == NULL) {
-		if ((clp->lc_flags & LCL_NFSV41) != 0)
+		if ((clp->lc_flags & LCL_NFSV41) != 0) {
 			error = ECONNREFUSED;
-		else if (nd->nd_procnum == NFSV4PROC_CBNULL)
+			nfsrv_freesession(sep, NULL);
+		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
 			    NULL, 1);
 		else
