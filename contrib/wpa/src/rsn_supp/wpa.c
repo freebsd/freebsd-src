@@ -510,7 +510,6 @@ static void wpa_supplicant_process_1_of_4(struct wpa_sm *sm,
 		os_memset(buf, 0, sizeof(buf));
 	}
 	sm->tptk_set = 1;
-	sm->tk_to_set = 1;
 
 	kde = sm->assoc_wpa_ie;
 	kde_len = sm->assoc_wpa_ie_len;
