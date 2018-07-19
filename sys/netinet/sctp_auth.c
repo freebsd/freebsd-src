@@ -1309,6 +1309,7 @@ sctp_auth_setactivekey(struct sctp_tcb *stcb, uint16_t keyid)
 		/* can't reactivate a deactivated key with other refcounts */
 		return (-1);
 	}
+
 	/* set the (new) active key */
 	stcb->asoc.authinfo.active_keyid = keyid;
 	/* reset the deactivated flag */
@@ -1363,6 +1364,7 @@ sctp_deact_sharedkey(struct sctp_tcb *stcb, uint16_t keyid)
 		sctp_ulp_notify(SCTP_NOTIFY_AUTH_FREE_KEY, stcb, keyid, 0,
 		    SCTP_SO_LOCKED);
 	}
+
 	/* mark the key as deactivated */
 	skey->deactivated = 1;
 
@@ -1582,6 +1584,7 @@ sctp_fill_hmac_digest_m(struct mbuf *m, uint32_t auth_offset,
 			    "Assoc Key");
 #endif
 	}
+
 	/* set in the active key id */
 	auth->shared_key_id = htons(keyid);
 
@@ -1769,6 +1772,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		/* If the socket is gone we are out of here */
 		return;
 	}
+
 	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_AUTHEVNT))
 		/* event not enabled */
 		return;
@@ -1929,6 +1933,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 			if (num_chunks)
 				got_chklist = 1;
 		}
+
 		offset += SCTP_SIZE32(plen);
 		if (offset >= limit) {
 			break;
@@ -2023,6 +2028,7 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 					new_key->key[keylen++] = i;
 			}
 		}
+
 		/* append in the HMACs */
 		ph = (struct sctp_paramhdr *)(new_key->key + keylen);
 		ph->param_type = htons(SCTP_HMAC_LIST);

@@ -185,6 +185,7 @@ sctp_allocate_vrf(int vrf_id)
 		SCTP_FREE(vrf, SCTP_M_VRF);
 		return (NULL);
 	}
+
 	/* Add it to the hash table */
 	bucket = &SCTP_BASE_INFO(sctp_vrfhash)[(vrf_id & SCTP_BASE_INFO(hashvrfmark))];
 	LIST_INSERT_HEAD(bucket, vrf, next_vrf);
@@ -736,6 +737,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 		SCTPDBG(SCTP_DEBUG_PCB4, "Can't find vrf_id 0x%x\n", vrf_id);
 		goto out_now;
 	}
+
 #ifdef SCTP_DEBUG
 	SCTPDBG(SCTP_DEBUG_PCB4, "vrf_id 0x%x: deleting address:", vrf_id);
 	SCTPDBG_ADDR(SCTP_DEBUG_PCB4, addr);
@@ -864,6 +866,7 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 		SCTP_IPI_ADDR_RUNLOCK();
 		return (0);
 	}
+
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
 			if ((loopback_scope == 0) &&
@@ -1025,6 +1028,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 	if ((to == NULL) || (from == NULL)) {
 		return (NULL);
 	}
+
 	switch (to->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -1387,6 +1391,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 							if (locked_tcb) {
 								atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
 							}
+
 							SCTP_INP_WUNLOCK(inp);
 							SCTP_INP_INFO_RUNLOCK();
 							return (stcb);
@@ -2252,6 +2257,7 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 			return (stcb);
 		}
 	}
+
 	if (inp_p) {
 		stcb = sctp_findassociation_addr_sa(src, dst, inp_p, netp,
 		    1, vrf_id);
@@ -2847,6 +2853,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 					return (EINVAL);
 				}
+
 				sin = (struct sockaddr_in *)addr;
 				lport = sin->sin_port;
 				/*
@@ -3501,6 +3508,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		LIST_REMOVE(inp, sctp_hash);
 		inp->sctp_flags |= SCTP_PCB_FLAGS_UNBOUND;
 	}
+
 	/*
 	 * If there is a timer running to kill us, forget it, since it may
 	 * have a contest on the INP lock.. which would cause us to die ...
@@ -3633,6 +3641,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		(void)sctp_m_free(ip_pcb->inp_options);
 		ip_pcb->inp_options = 0;
 	}
+
+
 #ifdef INET6
 	if (ip_pcb->inp_vflag & INP_IPV6) {
 		struct in6pcb *in6p;
@@ -4860,6 +4870,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_sorwakeup(inp, so);
 			sctp_sowwakeup(inp, so);
 		}
+
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, stcb, 9);
 #endif
@@ -4918,6 +4929,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			}
 		}
 	}
+
 	/*
 	 * Make it invalid too, that way if its about to run it will abort
 	 * and return.
@@ -5335,6 +5347,7 @@ sctp_update_ep_vflag(struct sctp_inpcb *inp)
 			    __func__);
 			continue;
 		}
+
 		if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
 			continue;
 		}
@@ -5748,6 +5761,7 @@ sctp_startup_mcore_threads(void)
 			i++;
 		}
 	}
+
 	/* Now start them all */
 	CPU_FOREACH(cpu) {
 		(void)kproc_create(sctp_mcore_thread,
@@ -6282,6 +6296,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 						}
 						SCTP_TCB_UNLOCK(stcb_tmp);
 					}
+
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-12);
@@ -7001,6 +7016,7 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 		if (!fnd) {
 			asoc->highest_tsn_inside_map = asoc->mapping_array_base_tsn - 1;
 		}
+
 		/*
 		 * Question, should we go through the delivery queue? The
 		 * only reason things are on here is the app not reading OR
