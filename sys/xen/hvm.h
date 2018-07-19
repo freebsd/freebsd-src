@@ -102,4 +102,7 @@ int xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type);
 void xen_hvm_set_callback(device_t);
 void xen_hvm_suspend(void);
 void xen_hvm_resume(bool suspend_cancelled);
+
+extern uint32_t hvm_start_flags;
+
 #endif	/* __XEN_HVM_H__ */
