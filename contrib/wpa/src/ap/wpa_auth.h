@@ -267,7 +267,7 @@ void wpa_receive(struct wpa_authenticator *wpa_auth,
 		 u8 *data, size_t data_len);
 enum wpa_event {
 	WPA_AUTH, WPA_ASSOC, WPA_DISASSOC, WPA_DEAUTH, WPA_REAUTH,
-	WPA_REAUTH_EAPOL, WPA_ASSOC_FT
+	WPA_REAUTH_EAPOL, WPA_ASSOC_FT, WPA_DRV_STA_REMOVED
 };
 void wpa_remove_ptk(struct wpa_state_machine *sm);
 int wpa_auth_sm_event(struct wpa_state_machine *sm, enum wpa_event event);
