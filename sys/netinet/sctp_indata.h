@@ -81,7 +81,7 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
 void sctp_set_rwnd(struct sctp_tcb *, struct sctp_association *);
 
 uint32_t
-         sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
+sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
@@ -99,8 +99,7 @@ void
 sctp_handle_forward_tsn(struct sctp_tcb *,
     struct sctp_forward_tsn_chunk *, int *, struct mbuf *, int);
 
-struct sctp_tmit_chunk *
-                sctp_try_advance_peer_ack_point(struct sctp_tcb *, struct sctp_association *);
+struct sctp_tmit_chunk *sctp_try_advance_peer_ack_point(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_service_queues(struct sctp_tcb *, struct sctp_association *);
 
