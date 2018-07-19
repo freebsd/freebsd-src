@@ -59,7 +59,7 @@ cpowf(float complex a, float complex z)
 	y = cimagf(z);
 	absa = cabsf (a);
 	if (absa == 0.0f) {
-		return (CMPLXF(0.0f, 0.0f));
+		return (0.0f + 0.0f * I);
 	}
 	arga = cargf (a);
 	r = powf (absa, x);
@@ -68,6 +68,6 @@ cpowf(float complex a, float complex z)
 		r = r * expf (-y * arga);
 		theta = theta + y * logf (absa);
 	}
-	w = CMPLXF(r * cosf (theta), r * sinf (theta));
+	w = r * cosf (theta) + (r * sinf (theta)) * I;
 	return (w);
 }
