@@ -145,8 +145,8 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	SCTPDBG(SCTP_DEBUG_TIMER4, "Overall error count for %p now %d thresh:%u state:%x\n",
 	    (void *)&stcb->asoc, stcb->asoc.overall_error_count,
-	    (uint32_t)threshold,
-	    ((net == NULL) ? (uint32_t)0 : (uint32_t)net->dest_state));
+	    (uint32_t) threshold,
+	    ((net == NULL) ? (uint32_t) 0 : (uint32_t) net->dest_state));
 	/*
 	 * We specifically do not do >= to give the assoc one more change
 	 * before we fail it.
@@ -649,6 +649,7 @@ start_again:
 					sctp_log_fr(chk->rec.data.tsn, chk->snd_count,
 					    0, SCTP_FR_T3_MARKED);
 				}
+
 				if (chk->rec.data.chunk_was_revoked) {
 					/* deflate the cwnd */
 					chk->whoTo->cwnd -= chk->book_size;
@@ -660,7 +661,7 @@ start_again:
 					sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND_TO,
 					    chk->whoTo->flight_size,
 					    chk->book_size,
-					    (uint32_t)(uintptr_t)chk->whoTo,
+					    (uint32_t) (uintptr_t) chk->whoTo,
 					    chk->rec.data.tsn);
 				}
 				sctp_flight_size_decrease(chk);
@@ -715,6 +716,7 @@ start_again:
 		/* we did not subtract the same things? */
 		audit_tf = 1;
 	}
+
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 		sctp_log_fr(tsnfirst, tsnlast, num_mk, SCTP_FR_T3_TIMEOUT);
 	}
@@ -786,9 +788,10 @@ start_again:
 					sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
 					    chk->whoTo->flight_size,
 					    chk->book_size,
-					    (uint32_t)(uintptr_t)chk->whoTo,
+					    (uint32_t) (uintptr_t) chk->whoTo,
 					    chk->rec.data.tsn);
 				}
+
 				sctp_flight_size_increase(chk);
 				sctp_total_flight_increase(stcb, chk);
 			}
@@ -909,6 +912,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	    (net->flight_size == 0)) {
 		(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
 	}
+
 	/*
 	 * setup the sat loss recovery that prevents satellite cwnd advance.
 	 */
@@ -937,6 +941,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			RTFREE(net->ro.ro_rt);
 			net->ro.ro_rt = NULL;
 		}
+
 		/* Was it our primary? */
 		if ((stcb->asoc.primary_destination == net) && (alt != net)) {
 			/*
@@ -1210,6 +1215,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			asconf->whoTo = alt;
 			atomic_add_int(&alt->ref_count, 1);
 		}
+
 		/* See if an ECN Echo is also stranded */
 		TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 			if ((chk->whoTo == net) &&
@@ -1439,8 +1445,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 			SCTP_GETTIME_TIMEVAL(&diff);
 			timevalsub(&diff, &net->last_sent_time);
-			ms_gone_by = (uint32_t)(diff.tv_sec * 1000) +
-			    (uint32_t)(diff.tv_usec / 1000);
+			ms_gone_by = (uint32_t) (diff.tv_sec * 1000) +
+			    (uint32_t) (diff.tv_usec / 1000);
 		} else {
 			ms_gone_by = 0xffffffff;
 		}
@@ -1481,7 +1487,7 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 
 				net->ro._s_addr = sctp_source_address_selection(inp,
 				    stcb,
-				    (sctp_route_t *)&net->ro,
+				    (sctp_route_t *) & net->ro,
 				    net, 0, stcb->asoc.vrf_id);
 #if defined(INET6) && defined(SCTP_EMBEDDED_V6_SCOPE)
 				if (net->ro._l_addr.sa.sa_family == AF_INET6) {

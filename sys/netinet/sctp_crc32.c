@@ -51,8 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static uint32_t
-sctp_finalize_crc32c(uint32_t crc32c)
-{
+sctp_finalize_crc32c(uint32_t crc32c) {
 	uint32_t result;
 #if BYTE_ORDER == BIG_ENDIAN
 	uint8_t byte0, byte1, byte2, byte3;
@@ -88,13 +87,12 @@ sctp_finalize_crc32c(uint32_t crc32c)
  * it is compiled on a kernel with SCTP support.
  */
 uint32_t
-sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
-{
+sctp_calculate_cksum(struct mbuf *m, uint32_t offset){
 	uint32_t base = 0xffffffff;
 
 	while (offset > 0) {
 		KASSERT(m != NULL, ("sctp_calculate_cksum, offset > length of mbuf chain"));
-		if (offset < (uint32_t)m->m_len) {
+		if (offset < (uint32_t) m->m_len) {
 			break;
 		}
 		offset -= m->m_len;
@@ -131,7 +129,7 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 	SCTP_STAT_INCR(sctps_sendswcrc);
 	offset += offsetof(struct sctphdr, checksum);
 
-	if (offset + sizeof(uint32_t) > (uint32_t)(m->m_len)) {
+	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
 #ifdef INVARIANTS
 		panic("sctp_delayed_cksum(): m->m_len: %d, offset: %u.",
 		    m->m_len, offset);
@@ -141,6 +139,6 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #endif
 		return;
 	}
-	*(uint32_t *)(m->m_data + offset) = checksum;
+	*(uint32_t *) (m->m_data + offset) = checksum;
 }
 #endif
