@@ -31,6 +31,10 @@ struct wpa_sm {
 	u8 rx_replay_counter[WPA_REPLAY_COUNTER_LEN];
 	int rx_replay_counter_set;
 	u8 request_counter[WPA_REPLAY_COUNTER_LEN];
+	struct wpa_gtk gtk;
+#ifdef CONFIG_IEEE80211W
+	struct wpa_igtk igtk;
+#endif /* CONFIG_IEEE80211W */
 
 	struct eapol_sm *eapol; /* EAPOL state machine from upper level code */
 
