@@ -397,7 +397,7 @@ xencons_early_init(void)
 
 	mtx_init(&main_cons.mtx, "XCONS LOCK", NULL, MTX_SPIN);
 
-	if (xen_initial_domain())
+	if (xen_get_console_evtchn() == 0)
 		main_cons.ops = &xencons_hypervisor_ops;
 	else
 		main_cons.ops = &xencons_ring_ops;
@@ -586,7 +586,7 @@ static void
 xencons_cnprobe(struct consdev *cp)
 {
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return;
 
 	cp->cn_pri = CN_REMOTE;
@@ -701,13 +701,8 @@ xencons_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-#if defined(__arm__) || defined(__aarch64__)
-	if (!xen_domain())
+	if (main_cons.ops == NULL)
 		return;
-#else
-	if (!xen_pv_domain())
-		return;
-#endif
 
 	child = BUS_ADD_CHILD(parent, 0, driver_name, 0);
 }
