@@ -1745,6 +1745,9 @@ int wpa_auth_sm_event(struct wpa_state_machine *sm, enum wpa_event event)
 #else /* CONFIG_IEEE80211R */
 		break;
 #endif /* CONFIG_IEEE80211R */
+	case WPA_DRV_STA_REMOVED:
+		sm->tk_already_set = FALSE;
+		return 0;
 	}
 
 #ifdef CONFIG_IEEE80211R
