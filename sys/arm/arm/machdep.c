@@ -272,8 +272,22 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+#if __ARM_ARCH >= 6
+	struct pcpu *pc;
 
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+
+	if (pc->pc_clock == 0)
+		return (EOPNOTSUPP);
+
+	*rate = pc->pc_clock;
+
+	return (0);
+#else
 	return (ENXIO);
+#endif
 }
 
 void
