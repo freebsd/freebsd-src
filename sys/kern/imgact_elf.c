@@ -861,7 +861,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
 				    NOCRED, NULL, td);
 				if (error != 0) {
-					uprintf("i/o error PT_INTERP\n");
+					uprintf("i/o error PT_INTERP %d\n",
+					    error);
 					goto ret;
 				}
 				interp_buf[interp_name_len] = '\0';
