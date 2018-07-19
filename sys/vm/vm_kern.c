@@ -688,6 +688,38 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	vm_map_unlock(m);
 }
 
+/*
+ *	kmem_bootstrap_free:
+ *
+ *	Free pages backing preloaded data (e.g., kernel modules) to the
+ *	system.  Currently only supported on platforms that create a
+ *	vm_phys segment for preloaded data.
+ */
+void
+kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
+{
+#if defined(__i386__) || defined(__amd64__)
+	struct vm_domain *vmd;
+	vm_offset_t end;
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	end = trunc_page(start + size);
+	start = round_page(start);
+
+	(void)vm_map_remove(kernel_map, start, end);
+	for (; start < end; start += PAGE_SIZE) {
+		pa = pmap_kextract(start);
+		m = PHYS_TO_VM_PAGE(pa);
+
+		vmd = vm_pagequeue_domain(m);
+		vm_domain_free_lock(vmd);
+		vm_phys_free_pages(m, 0);
+		vm_domain_free_unlock(vmd);
+	}
+#endif
+}
+
 #ifdef DIAGNOSTIC
 /*
  * Allow userspace to directly trigger the VM drain routine for testing
