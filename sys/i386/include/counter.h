@@ -161,12 +161,12 @@ counter_u64_zero_inline(counter_u64_t c)
 #define	counter_u64_add_protected(c, inc)	do {	\
 	uint64_t *counter_addr;				\
 							\
-	counter_addr = zpcpu_get(c);			\
+	counter_addr = zpcpu_get((c));			\
 	if ((cpu_feature & CPUID_CX8) == 0) {		\
 		CRITICAL_ASSERT(curthread);		\
 		*counter_addr += (inc);			\
 	} else						\
-		counter_64_inc_8b((counter_addr), (inc));	 \
+		counter_64_inc_8b(counter_addr, (inc));	\
 } while (0)
 
 static inline void
