@@ -146,7 +146,8 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 
 
 static uint32_t
-sctp_is_desired_interface_type(struct ifnet *ifn){
+sctp_is_desired_interface_type(struct ifnet *ifn)
+{
 	int result;
 
 	/* check the interface type to see if it's one we care about */
@@ -304,12 +305,10 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		SCTP_BASE_VAR(first_time) = 1;
 		sctp_init_ifns_for_vrf(SCTP_DEFAULT_VRFID);
 	}
-
 	if ((cmd != RTM_ADD) && (cmd != RTM_DELETE)) {
 		/* don't know what to do with this */
 		return;
 	}
-
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
@@ -477,7 +476,7 @@ again_locked:
 	lenat++;
 	*lenat = value;
 	lenat++;
-	tick_tock = (uint32_t *) lenat;
+	tick_tock = (uint32_t *)lenat;
 	lenat++;
 	*tick_tock = sctp_get_tick_count();
 	copyto = (void *)lenat;
@@ -498,7 +497,7 @@ no_log:
 
 
 int
-sctp_copy_out_packet_log(uint8_t * target, int length)
+sctp_copy_out_packet_log(uint8_t *target, int length)
 {
 	/*
 	 * We wind through the packet log starting at start copying up to
