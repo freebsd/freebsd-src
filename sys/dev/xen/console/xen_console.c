@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
@@ -128,12 +131,6 @@ struct xencons_priv {
 static struct xencons_priv main_cons;
 
 #define XC_POLLTIME 	(hz/10)
-
-/*
- * Virtual address of the shared console page (only for PV guest)
- * TODO: Introduce a function to set it
- */
-char *console_page;
 
 /*----------------------------- Debug function ------------------------------*/
 struct putchar_arg {
@@ -273,9 +270,9 @@ static const struct xencons_ops xencons_hypervisor_ops = {
 static void
 xencons_early_init_ring(struct xencons_priv *cons)
 {
-	/* The shared page for PV is already mapped by the boot code */
-	cons->intf = (struct xencons_interface *)console_page;
-	cons->evtchn = HYPERVISOR_start_info->console.domU.evtchn;
+	cons->intf = pmap_mapdev_attr(ptoa(xen_get_console_mfn()), PAGE_SIZE,
+	    PAT_WRITE_BACK);
+	cons->evtchn = xen_get_console_evtchn();
 }
 
 static int

@@ -125,9 +125,55 @@ struct init_ops xen_init_ops = {
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
 
+static start_info_t *legacy_start_info;
+
+/*----------------------- Legacy PVH start_info accessors --------------------*/
+static vm_paddr_t
+legacy_get_xenstore_mfn(void)
+{
+
+	return (legacy_start_info->store_mfn);
+}
+
+static evtchn_port_t
+legacy_get_xenstore_evtchn(void)
+{
+
+	return (legacy_start_info->store_evtchn);
+}
+
+static vm_paddr_t
+legacy_get_console_mfn(void)
+{
+
+	return (legacy_start_info->console.domU.mfn);
+}
+
+static evtchn_port_t
+legacy_get_console_evtchn(void)
+{
+
+	return (legacy_start_info->console.domU.evtchn);
+}
+
+static uint32_t
+legacy_get_start_flags(void)
+{
+
+	return (legacy_start_info->flags);
+}
+
+struct hypervisor_info legacy_info = {
+	.get_xenstore_mfn		= legacy_get_xenstore_mfn,
+	.get_xenstore_evtchn		= legacy_get_xenstore_evtchn,
+	.get_console_mfn		= legacy_get_console_mfn,
+	.get_console_evtchn		= legacy_get_console_evtchn,
+	.get_start_flags		= legacy_get_start_flags,
+};
+
 /*-------------------------------- Xen PV init -------------------------------*/
 /*
- * First function called by the Xen PVH boot sequence.
+ * First function called by the Xen legacy PVH boot sequence.
  *
  * Set some Xen global variables and prepare the environment so it is
  * as similar as possible to what native FreeBSD init function expects.
@@ -155,20 +201,9 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	physfree = xenstack + 3 * PAGE_SIZE - KERNBASE;
 
 	/* Setup Xen global variables */
-	HYPERVISOR_start_info = si;
+	legacy_start_info = si;
 	HYPERVISOR_shared_info =
 	    (shared_info_t *)(si->shared_info + KERNBASE);
-
-	/*
-	 * Setup some misc global variables for Xen devices
-	 *
-	 * XXX: Devices that need these specific variables should
-	 *      be rewritten to fetch this info by themselves from the
-	 *      start_info page.
-	 */
-	xen_store = (struct xenstore_domain_interface *)
-	    (ptoa(si->store_mfn) + KERNBASE);
-	console_page = (char *)(ptoa(si->console.domU.mfn) + KERNBASE);
 
 	/*
 	 * Use the stack Xen gives us to build the page tables
@@ -202,6 +237,7 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	/* Set the hooks for early functions that diverge from bare metal */
 	init_ops = xen_init_ops;
 	apic_ops = xen_apic_ops;
+	hypervisor_info = legacy_info;
 
 	/* Now we can jump into the native init function */
 	return (hammer_time(0, physfree));
@@ -291,8 +327,8 @@ xen_pv_set_env(void)
 	char *cmd_line_next, *cmd_line;
 	size_t env_size;
 
-	cmd_line = HYPERVISOR_start_info->cmd_line;
-	env_size = sizeof(HYPERVISOR_start_info->cmd_line);
+	cmd_line = legacy_start_info->cmd_line;
+	env_size = sizeof(legacy_start_info->cmd_line);
 
 	/* Skip leading spaces */
 	for (; isspace(*cmd_line) && (env_size != 0); cmd_line++)
@@ -322,9 +358,8 @@ xen_pv_parse_symtab(void)
 	int i, j;
 
 	size = end;
-	sym_end = HYPERVISOR_start_info->mod_start != 0 ?
-	    HYPERVISOR_start_info->mod_start :
-	    HYPERVISOR_start_info->mfn_list;
+	sym_end = legacy_start_info->mod_start != 0 ?
+	    legacy_start_info->mod_start : legacy_start_info->mfn_list;
 
 	/*
 	 * Make sure the size is right headed, sym_end is just a
@@ -375,8 +410,8 @@ xen_pv_parse_preload_data(u_int64_t modulep)
 	vm_paddr_t	 metadata;
 	char             *envp;
 
-	if (HYPERVISOR_start_info->mod_start != 0) {
-		preload_metadata = (caddr_t)(HYPERVISOR_start_info->mod_start);
+	if (legacy_start_info->mod_start != 0) {
+		preload_metadata = (caddr_t)legacy_start_info->mod_start;
 
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp == NULL)
@@ -391,7 +426,7 @@ xen_pv_parse_preload_data(u_int64_t modulep)
 		 * which contains the relocated modulep address.
 		 */
 		metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
-		off = HYPERVISOR_start_info->mod_start - metadata;
+		off = legacy_start_info->mod_start - metadata;
 
 		preload_bootstrap_relocate(off);
 
