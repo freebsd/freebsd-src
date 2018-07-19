@@ -215,6 +215,7 @@ struct wpa_ptk {
 	size_t kck_len;
 	size_t kek_len;
 	size_t tk_len;
+	int installed; /* 1 if key has already been installed to driver */
 };
 
 struct wpa_gtk {
