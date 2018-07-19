@@ -680,7 +680,7 @@ cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
 {
 	struct cf_level_lst *list;
 	struct cf_level *level, *search;
-	int i;
+	int i, inserted;
 
 	CF_MTX_ASSERT(&sc->lock);
 
@@ -693,6 +693,7 @@ cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
 		level->total_set = sets[i];
 		level->total_set.dev = NULL;
 		sc->all_count++;
+		inserted = 0;
 
 		if (TAILQ_EMPTY(list)) {
 			CF_DEBUG("adding abs setting %d at head\n",
@@ -701,15 +702,26 @@ cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
 			continue;
 		}
 
-		TAILQ_FOREACH_REVERSE(search, list, cf_level_lst, link) {
+		TAILQ_FOREACH_REVERSE(search, list, cf_level_lst, link)
 			if (sets[i].freq <= search->total_set.freq) {
 				CF_DEBUG("adding abs setting %d after %d\n",
 				    sets[i].freq, search->total_set.freq);
 				TAILQ_INSERT_AFTER(list, search, level, link);
+				inserted = 1;
 				break;
 			}
+
+		if (inserted == 0) {
+			TAILQ_FOREACH(search, list, link)
+				if (sets[i].freq >= search->total_set.freq) {
+					CF_DEBUG("adding abs setting %d before %d\n",
+					    sets[i].freq, search->total_set.freq);
+					TAILQ_INSERT_BEFORE(search, level, link);
+					break;
+				}
 		}
 	}
+
 	return (0);
 }
 
