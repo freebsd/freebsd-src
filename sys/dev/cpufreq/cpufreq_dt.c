@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.Org>
  * Copyright (c) 2016 Jared McNeill <jmcneill@invisible.ca>
  * All rights reserved.
  *
@@ -51,18 +52,35 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 
+#if 0
+#define DEBUG(dev, msg...) device_printf(dev, "cpufreq_dt: " msg);
+#else
+#define DEBUG(dev, msg...)
+#endif
+
+enum opp_version {
+	OPP_V1 = 1,
+	OPP_V2,
+};
+
 struct cpufreq_dt_opp {
-	uint32_t	freq_khz;
-	uint32_t	voltage_uv;
+	uint64_t	freq;
+	uint32_t	uvolt_target;
+	uint32_t	uvolt_min;
+	uint32_t	uvolt_max;
+	uint32_t	uamps;
+	uint32_t	clk_latency;
+	bool		turbo_mode;
+	bool		opp_suspend;
 };
 
 struct cpufreq_dt_softc {
+	device_t dev;
 	clk_t clk;
 	regulator_t reg;
 
 	struct cpufreq_dt_opp *opp;
 	ssize_t nopp;
-	int clk_latency;
 
 	cpuset_t cpus;
 };
@@ -70,7 +88,6 @@ struct cpufreq_dt_softc {
 static void
 cpufreq_dt_notify(device_t dev, uint64_t freq)
 {
-#ifdef __aarch64__
 	struct cpufreq_dt_softc *sc;
 	struct pcpu *pc;
 	int cpu;
@@ -83,21 +100,22 @@ cpufreq_dt_notify(device_t dev, uint64_t freq)
 			pc->pc_clock = freq;
 		}
 	}
-#endif
 }
 
 static const struct cpufreq_dt_opp *
-cpufreq_dt_find_opp(device_t dev, uint32_t freq_mhz)
+cpufreq_dt_find_opp(device_t dev, uint64_t freq)
 {
 	struct cpufreq_dt_softc *sc;
 	ssize_t n;
 
 	sc = device_get_softc(dev);
 
+	DEBUG(dev, "Looking for freq %ju\n", freq);
 	for (n = 0; n < sc->nopp; n++)
-		if (CPUFREQ_CMP(sc->opp[n].freq_khz / 1000, freq_mhz))
+		if (CPUFREQ_CMP(sc->opp[n].freq, freq))
 			return (&sc->opp[n]);
 
+	DEBUG(dev, "Couldn't find one\n");
 	return (NULL);
 }
 
@@ -110,10 +128,10 @@ cpufreq_dt_opp_to_setting(device_t dev, const struct cpufreq_dt_opp *opp,
 	sc = device_get_softc(dev);
 
 	memset(set, 0, sizeof(*set));
-	set->freq = opp->freq_khz / 1000;
-	set->volts = opp->voltage_uv / 1000;
+	set->freq = opp->freq / 1000000;
+	set->volts = opp->uvolt_target / 1000;
 	set->power = CPUFREQ_VAL_UNKNOWN;
-	set->lat = sc->clk_latency;
+	set->lat = opp->clk_latency;
 	set->dev = dev;
 }
 
@@ -126,15 +144,19 @@ cpufreq_dt_get(device_t dev, struct cf_setting *set)
 
 	sc = device_get_softc(dev);
 
+	DEBUG(dev, "cpufreq_dt_get\n");
 	if (clk_get_freq(sc->clk, &freq) != 0)
 		return (ENXIO);
 
-	opp = cpufreq_dt_find_opp(dev, freq / 1000000);
-	if (opp == NULL)
+	opp = cpufreq_dt_find_opp(dev, freq);
+	if (opp == NULL) {
+		device_printf(dev, "Can't find the current freq in opp\n");
 		return (ENOENT);
+	}
 
 	cpufreq_dt_opp_to_setting(dev, opp, set);
 
+	DEBUG(dev, "Current freq %dMhz\n", set->freq);
 	return (0);
 }
 
@@ -144,42 +166,61 @@ cpufreq_dt_set(device_t dev, const struct cf_setting *set)
 	struct cpufreq_dt_softc *sc;
 	const struct cpufreq_dt_opp *opp, *copp;
 	uint64_t freq;
-	int error;
+	int error = 0;
 
 	sc = device_get_softc(dev);
 
-	if (clk_get_freq(sc->clk, &freq) != 0)
+	if (clk_get_freq(sc->clk, &freq) != 0) {
+		device_printf(dev, "Can't get current clk freq\n");
 		return (ENXIO);
+	}
 
-	copp = cpufreq_dt_find_opp(dev, freq / 1000000);
-	if (copp == NULL)
+	DEBUG(sc->dev, "Current freq %ju\n", freq);
+	DEBUG(sc->dev, "Target freq %ju\n", (uint64_t)set->freq * 1000000);
+	copp = cpufreq_dt_find_opp(sc->dev, freq);
+	if (copp == NULL) {
+		device_printf(dev, "Can't find the current freq in opp\n");
 		return (ENOENT);
-	opp = cpufreq_dt_find_opp(dev, set->freq);
-	if (opp == NULL)
+	}
+	opp = cpufreq_dt_find_opp(sc->dev, set->freq * 1000000);
+	if (opp == NULL) {
+		device_printf(dev, "Couldn't find an opp for this freq\n");
 		return (EINVAL);
-
-	if (copp->voltage_uv < opp->voltage_uv) {
-		error = regulator_set_voltage(sc->reg, opp->voltage_uv,
-		    opp->voltage_uv);
-		if (error != 0)
-			return (ENXIO);
 	}
 
-	error = clk_set_freq(sc->clk, (uint64_t)opp->freq_khz * 1000, 0);
+	if (copp->uvolt_target < opp->uvolt_target) {
+		DEBUG(dev, "Changing regulator from %u to %u\n",
+		    copp->uvolt_target, opp->uvolt_target);
+		error = regulator_set_voltage(sc->reg,
+		    opp->uvolt_min,
+		    opp->uvolt_max);
+		if (error != 0) {
+			DEBUG(dev, "Failed, backout\n");
+			return (ENXIO);
+		}
+	}
+
+	DEBUG(dev, "Setting clk to %ju\n", opp->freq);
+	error = clk_set_freq(sc->clk, opp->freq, 0);
 	if (error != 0) {
+		DEBUG(dev, "Failed, backout\n");
 		/* Restore previous voltage (best effort) */
-		(void)regulator_set_voltage(sc->reg, copp->voltage_uv,
-		    copp->voltage_uv);
+		error = regulator_set_voltage(sc->reg,
+		    copp->uvolt_min,
+		    copp->uvolt_max);
 		return (ENXIO);
 	}
 
-	if (copp->voltage_uv > opp->voltage_uv) {
-		error = regulator_set_voltage(sc->reg, opp->voltage_uv,
-		    opp->voltage_uv);
+	if (copp->uvolt_target > opp->uvolt_target) {
+		error = regulator_set_voltage(sc->reg,
+		    opp->uvolt_min,
+		    opp->uvolt_max);
 		if (error != 0) {
+			DEBUG(dev, "Failed to switch regulator to %d\n",
+			    opp->uvolt_target);
 			/* Restore previous CPU frequency (best effort) */
 			(void)clk_set_freq(sc->clk,
-			    (uint64_t)copp->freq_khz * 1000, 0);
+			    copp->freq, 0);
 			return (ENXIO);
 		}
 	}
@@ -207,6 +248,7 @@ cpufreq_dt_settings(device_t dev, struct cf_setting *sets, int *count)
 	struct cpufreq_dt_softc *sc;
 	ssize_t n;
 
+	DEBUG(dev, "cpufreq_dt_settings\n");
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 
@@ -234,9 +276,12 @@ cpufreq_dt_identify(driver_t *driver, device_t parent)
 	node = ofw_bus_get_node(parent);
 
 	/* The cpu@0 node must have the following properties */
-	if (!OF_hasprop(node, "operating-points") ||
-	    !OF_hasprop(node, "clocks") ||
+	if (!OF_hasprop(node, "clocks") ||
 	    !OF_hasprop(node, "cpu-supply"))
+		return;
+
+	if (!OF_hasprop(node, "operating-points") &&
+	    !OF_hasprop(node, "operating-points-v2"))
 		return;
 
 	if (device_find_child(parent, "cpufreq_dt", -1) != NULL)
@@ -253,9 +298,12 @@ cpufreq_dt_probe(device_t dev)
 
 	node = ofw_bus_get_node(device_get_parent(dev));
 
-	if (!OF_hasprop(node, "operating-points") ||
-	    !OF_hasprop(node, "clocks") ||
+	if (!OF_hasprop(node, "clocks") ||
 	    !OF_hasprop(node, "cpu-supply"))
+		return (ENXIO);
+
+	if (!OF_hasprop(node, "operating-points") &&
+	  !OF_hasprop(node, "operating-points-v2"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Generic cpufreq driver");
@@ -263,16 +311,130 @@ cpufreq_dt_probe(device_t dev)
 }
 
 static int
+cpufreq_dt_oppv1_parse(struct cpufreq_dt_softc *sc, phandle_t node)
+{
+	uint32_t *opp, lat;
+	ssize_t n;
+
+	sc->nopp = OF_getencprop_alloc_multi(node, "operating-points",
+	    sizeof(uint32_t) * 2, (void **)&opp);
+	if (sc->nopp == -1)
+		return (ENXIO);
+
+	if (OF_getencprop(node, "clock-latency", &lat, sizeof(lat)) == -1)
+		lat = CPUFREQ_VAL_UNKNOWN;
+
+	sc->opp = malloc(sizeof(*sc->opp) * sc->nopp, M_DEVBUF, M_WAITOK);
+
+	for (n = 0; n < sc->nopp; n++) {
+		sc->opp[n].freq = opp[n * 2 + 0] * 1000;
+		sc->opp[n].uvolt_min = opp[n * 2 + 1];
+		sc->opp[n].uvolt_max = sc->opp[n].uvolt_min;
+		sc->opp[n].uvolt_target = sc->opp[n].uvolt_min;
+		sc->opp[n].clk_latency = lat;
+
+		if (bootverbose)
+			device_printf(sc->dev, "%ju.%03ju MHz, %u uV\n",
+			    sc->opp[n].freq / 1000000,
+			    sc->opp[n].freq % 1000000,
+			    sc->opp[n].uvolt_target);
+	}
+	free(opp, M_OFWPROP);
+
+	return (0);
+}
+
+static int
+cpufreq_dt_oppv2_parse(struct cpufreq_dt_softc *sc, phandle_t node)
+{
+	phandle_t opp, opp_table, opp_xref;
+	pcell_t cell[2];
+	uint32_t *volts, lat;
+	int nvolt, i;
+
+	if (OF_getencprop(node, "operating-points-v2", &opp_xref,
+	    sizeof(opp_xref)) == -1) {
+		device_printf(sc->dev, "Cannot get xref to oppv2 table\n");
+		return (ENXIO);
+	}
+
+	opp_table = OF_node_from_xref(opp_xref);
+	if (opp_table == opp_xref)
+		return (ENXIO);
+
+	if (!OF_hasprop(opp_table, "opp-shared")) {
+		device_printf(sc->dev, "Only opp-shared is supported\n");
+		return (ENXIO);
+	}
+
+	for (opp = OF_child(opp_table); opp > 0; opp = OF_peer(opp))
+		sc->nopp += 1;
+
+	sc->opp = malloc(sizeof(*sc->opp) * sc->nopp, M_DEVBUF, M_WAITOK);
+
+	for (i = 0, opp_table = OF_child(opp_table); opp_table > 0;
+	     opp_table = OF_peer(opp_table), i++) {
+		/* opp-hz is a required property */
+		if (OF_getencprop(opp_table, "opp-hz", cell,
+		    sizeof(cell)) == -1)
+			continue;
+
+		sc->opp[i].freq = cell[0];
+		sc->opp[i].freq <<= 32;
+		sc->opp[i].freq |= cell[1];
+
+		if (OF_getencprop(opp_table, "clock-latency", &lat,
+		    sizeof(lat)) == -1)
+			sc->opp[i].clk_latency = CPUFREQ_VAL_UNKNOWN;
+		else
+			sc->opp[i].clk_latency = (int)lat;
+
+		if (OF_hasprop(opp_table, "turbo-mode"))
+			sc->opp[i].turbo_mode = true;
+		if (OF_hasprop(opp_table, "opp-suspend"))
+			sc->opp[i].opp_suspend = true;
+
+		nvolt = OF_getencprop_alloc_multi(opp_table, "opp-microvolt",
+		  sizeof(*volts), (void **)&volts);
+		if (nvolt == 1) {
+			sc->opp[i].uvolt_target = volts[0];
+			sc->opp[i].uvolt_min = volts[0];
+			sc->opp[i].uvolt_max = volts[0];
+		} else if (nvolt == 3) {
+			sc->opp[i].uvolt_target = volts[0];
+			sc->opp[i].uvolt_min = volts[1];
+			sc->opp[i].uvolt_max = volts[2];
+		} else {
+			device_printf(sc->dev,
+			    "Wrong count of opp-microvolt property\n");
+			OF_prop_free(volts);
+			free(sc->opp, M_DEVBUF);
+			return (ENXIO);
+		}
+		OF_prop_free(volts);
+
+		if (bootverbose)
+			device_printf(sc->dev, "%ju.%03ju Mhz (%u uV)\n",
+			    sc->opp[i].freq / 1000000,
+			    sc->opp[i].freq % 1000000,
+			    sc->opp[i].uvolt_target);
+	}
+	return (0);
+}
+
+static int
 cpufreq_dt_attach(device_t dev)
 {
 	struct cpufreq_dt_softc *sc;
-	uint32_t *opp, lat;
-	phandle_t node, cnode;
-	uint64_t freq;
-	ssize_t n;
+	phandle_t node;
+	phandle_t cnode, opp, copp;
 	int cpu;
+	uint64_t freq;
+	int rv = 0;
+	enum opp_version version;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	node = ofw_bus_get_node(device_get_parent(dev));
 
 	if (regulator_get_by_ofw_property(dev, node,
@@ -289,39 +451,41 @@ cpufreq_dt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->nopp = OF_getencprop_alloc_multi(node, "operating-points",
-	    sizeof(*sc->opp), (void **)&opp);
-	if (sc->nopp == -1)
-		return (ENXIO);
-	sc->opp = malloc(sizeof(*sc->opp) * sc->nopp, M_DEVBUF, M_WAITOK);
-	for (n = 0; n < sc->nopp; n++) {
-		sc->opp[n].freq_khz = opp[n * 2 + 0];
-		sc->opp[n].voltage_uv = opp[n * 2 + 1];
-
-		if (bootverbose)
-			device_printf(dev, "%u.%03u MHz, %u uV\n",
-			    sc->opp[n].freq_khz / 1000,
-			    sc->opp[n].freq_khz % 1000,
-			    sc->opp[n].voltage_uv);
+	if (OF_hasprop(node, "operating-points")) {
+		version = OPP_V1;
+		rv = cpufreq_dt_oppv1_parse(sc, node);
+		if (rv != 0) {
+			device_printf(dev, "Failed to parse opp-v1 table\n");
+			return (rv);
+		}
+		OF_getencprop(node, "operating-points", &opp,
+		    sizeof(opp));
+	} else {
+		version = OPP_V2;
+		rv = cpufreq_dt_oppv2_parse(sc, node);
+		if (rv != 0) {
+			device_printf(dev, "Failed to parse opp-v2 table\n");
+			return (rv);
+		}
+		OF_getencprop(node, "operating-points-v2", &opp,
+		    sizeof(opp));
 	}
-	free(opp, M_OFWPROP);
-
-	if (OF_getencprop(node, "clock-latency", &lat, sizeof(lat)) == -1)
-		sc->clk_latency = CPUFREQ_VAL_UNKNOWN;
-	else
-		sc->clk_latency = (int)lat;
 
 	/*
-	 * Find all CPUs that share the same voltage and CPU frequency
-	 * controls. Start with the current node and move forward until
-	 * the end is reached or a peer has an "operating-points" property.
+	 * Find all CPUs that share the same opp table
 	 */
 	CPU_ZERO(&sc->cpus);
 	cpu = device_get_unit(device_get_parent(dev));
 	for (cnode = node; cnode > 0; cnode = OF_peer(cnode), cpu++) {
-		if (cnode != node && OF_hasprop(cnode, "operating-points"))
-			break;
-		CPU_SET(cpu, &sc->cpus);
+		copp = -1;
+		if (version == OPP_V1)
+			OF_getencprop(cnode, "operating-points", &copp,
+			    sizeof(copp));
+		else if (version == OPP_V2)
+			OF_getencprop(cnode, "operating-points-v2",
+			    &copp, sizeof(copp));
+		if (opp == copp)
+			CPU_SET(cpu, &sc->cpus);
 	}
 
 	if (clk_get_freq(sc->clk, &freq) == 0)
