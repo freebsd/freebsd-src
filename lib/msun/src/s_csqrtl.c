@@ -114,13 +114,13 @@ csqrtl(long double complex z)
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
 		t = sqrtl((a + hypotl(a, b)) * 0.5);
-		rx = t;
-		ry = b / (2 * t);
+		rx = scale * t;
+		ry = scale * b / (2 * t);
 	} else {
 		t = sqrtl((-a + hypotl(a, b)) * 0.5);
-		rx = fabsl(b) / (2 * t);
-		ry = copysignl(t, b);
+		rx = scale * fabsl(b) / (2 * t);
+		ry = copysignl(scale * t, b);
 	}
 
-	return (CMPLXL(rx * scale, ry * scale));
+	return (CMPLXL(rx, ry));
 }
