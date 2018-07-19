@@ -1433,6 +1433,7 @@ select_a_new_ep:
 			atomic_add_int(&it->stcb->asoc.refcnt, -1);
 			iteration_count = 0;
 		}
+
 		/* run function on this one */
 		(*it->function_assoc) (it->inp, it->stcb, it->pointer, it->val);
 
@@ -1786,6 +1787,7 @@ sctp_timeout_handler(void *t)
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
 		}
+
 		if (sctp_cookie_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
@@ -1981,6 +1983,7 @@ out_decr:
 	if (inp) {
 		SCTP_INP_DECR_REF(inp);
 	}
+
 out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type = %d)\n", type);
 	CURVNET_RESTORE();
@@ -2496,9 +2499,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	}
 	timevalsub(&now, old);
 	/* store the current RTT in us */
-	net->rtt = (uint64_t)1000000 *(uint64_t)now.tv_sec +
-	        (uint64_t)now.tv_usec;
-
+	net->rtt = (uint64_t)1000000 * (uint64_t)now.tv_sec +
+	    (uint64_t)now.tv_usec;
 	/* compute rtt in ms */
 	rtt = (int32_t)(net->rtt / 1000);
 	if ((asoc->cc_functions.sctp_rtt_calculated) && (rtt_from_sack == SCTP_RTT_FROM_DATA)) {
@@ -2520,6 +2522,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 			net->lan_type = SCTP_LAN_LOCAL;
 		}
 	}
+
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
 	/***************************/
@@ -2958,6 +2961,7 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 		/* event not enabled */
 		return;
 	}
+
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		notifhdr_len = sizeof(struct sctp_send_failed_event);
 	} else {
@@ -3186,6 +3190,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_adaption_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3242,6 +3247,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ) {
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3350,6 +3356,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -3399,6 +3406,7 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_sender_dry_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL) {
 		/* no space left */
@@ -3555,6 +3563,7 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -4969,6 +4978,7 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 	if (holds_lock == 0) {
 		SCTP_INP_RLOCK(inp);
 	}
+
 	LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 		if (laddr->ifa == NULL)
 			continue;
@@ -5058,6 +5068,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 			SCTP_IPI_ADDR_RUNLOCK();
 		return (NULL);
 	}
+
 	hash_of_addr = sctp_get_ifa_hash_val(addr);
 
 	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_addr_hashmark)];
@@ -5182,6 +5193,7 @@ out:
 	if (so && r_unlocked && hold_rlock) {
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
 	}
+
 	SCTP_INP_DECR_REF(stcb->sctp_ep);
 no_lock:
 	atomic_add_int(&stcb->asoc.refcnt, -1);
@@ -5231,6 +5243,7 @@ sctp_sorecvmsg(struct socket *so,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 		return (EINVAL);
 	}
+
 	if (msg_flags) {
 		in_flags = *msg_flags;
 		if (in_flags & MSG_PEEK)
@@ -5274,6 +5287,8 @@ sctp_sorecvmsg(struct socket *so,
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, (uint32_t)uio->uio_resid);
 	}
+
+
 	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
 	if (error) {
 		goto release_unlocked;
@@ -5383,6 +5398,7 @@ restart_nosblocks:
 		hold_rlock = 0;
 		goto restart;
 	}
+
 	if ((control->length == 0) &&
 	    (control->do_not_ref_stcb)) {
 		/*
@@ -5566,6 +5582,7 @@ found_one:
 	    control->do_not_ref_stcb == 0) {
 		stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
+
 	/* First lets get off the sinfo and sockaddr info */
 	if ((sinfo != NULL) && (filling_sinfo != 0)) {
 		sinfo->sinfo_stream = control->sinfo_stream;
@@ -5727,6 +5744,7 @@ get_more_data:
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				goto release;
 			}
+
 			if ((control->do_not_ref_stcb == 0) && stcb &&
 			    stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				no_rcv_needed = 1;
@@ -5939,6 +5957,7 @@ wait_some_more:
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			goto release;
 		}
+
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)
 			goto release;
 
@@ -6067,6 +6086,7 @@ release:
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
 	}
+
 	sbunlock(&so->so_rcv);
 	sockbuf_lock = 0;
 
@@ -6104,6 +6124,7 @@ out:
 	if (sockbuf_lock) {
 		sbunlock(&so->so_rcv);
 	}
+
 	if (freecnt_applied) {
 		/*
 		 * The lock on the socket buffer protects us so the free
@@ -6701,6 +6722,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 		SCTP_IPI_ADDR_RUNLOCK();
 		return (0);
 	}
+
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		/*
 		 * bound all case: go through all ifns on the vrf

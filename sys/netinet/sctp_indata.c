@@ -90,6 +90,7 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	if (stcb->sctp_socket == NULL) {
 		return (calc);
 	}
+
 	KASSERT(asoc->cnt_on_reasm_queue > 0 || asoc->size_on_reasm_queue == 0,
 	    ("size_on_reasm_queue is %u", asoc->size_on_reasm_queue));
 	KASSERT(asoc->cnt_on_all_streams > 0 || asoc->size_on_all_streams == 0,
@@ -115,6 +116,7 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 		/* out of space */
 		return (calc);
 	}
+
 	/* what is the overhead of all these rwnd's */
 	calc = sctp_sbspace_sub(calc, stcb->asoc.my_rwnd_control_len);
 	/*
@@ -185,6 +187,7 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 		/* user does not want any ancillary data */
 		return (NULL);
 	}
+
 	len = 0;
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO)) {
 		len += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
@@ -1044,6 +1047,7 @@ place_chunk:
 			    SCTP_FROM_SCTP_INDATA + SCTP_LOC_5);
 			return;
 		}
+
 	}
 	if (inserted == 0) {
 		/* Its at the end */
@@ -2138,6 +2142,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		control = NULL;
 		goto finish_express_del;
 	}
+
 	/* Now will we need a chunk too? */
 	if ((chk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
 		sctp_alloc_a_chunk(stcb, chk);
@@ -3096,6 +3101,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 								tp1->do_rtt = 0;
 							}
 						}
+
 					}
 					if (tp1->sent <= SCTP_DATAGRAM_RESEND) {
 						if (SCTP_TSN_GT(tp1->rec.data.tsn,
@@ -3361,6 +3367,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					continue;
 				}
 			}
+
 		}
 		if (SCTP_TSN_GT(tp1->rec.data.tsn, asoc->this_sack_highest_gap) &&
 		    !(accum_moved && asoc->fast_retran_loss_recovery)) {
@@ -3596,6 +3603,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    tp1);
 				}
 			}
+
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
 				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
 				    asoc->peers_rwnd, tp1->send_size, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
@@ -3677,6 +3685,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
 				}
+
 			} else {	/* CMT is OFF */
 
 #ifdef SCTP_FR_TO_ALTERNATE
@@ -3965,6 +3974,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 		return;
 	}
+
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (SCTP_TSN_GT(cumack, net->cwr_window_tsn)) {
@@ -4230,6 +4240,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
 	}
+
 	/* RWND update */
 	asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
 	    (uint32_t)(asoc->total_flight + (asoc->total_flight_count * SCTP_BASE_SYSCTL(sctp_peer_chunk_oh))));
@@ -4482,6 +4493,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		sctp_misc_ints(SCTP_SACK_LOG_NORMAL, cum_ack,
 		    rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
 	}
+
 	old_rwnd = stcb->asoc.peers_rwnd;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -4553,6 +4565,7 @@ hopeless_peer:
 		/* acking something behind */
 		return;
 	}
+
 	/* update the Rwnd of the peer */
 	if (TAILQ_EMPTY(&asoc->sent_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
@@ -4606,6 +4619,7 @@ hopeless_peer:
 		if (stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) {
 			(*stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) (stcb, net);
 		}
+
 		/*
 		 * CMT: SFR algo (and HTNA) - this_sack_highest_newack has
 		 * to be greater than the cumack. Also reset saw_newack to 0
@@ -4841,6 +4855,7 @@ hopeless_peer:
 #endif
 		asoc->total_flight = 0;
 	}
+
 	/* sa_ignore NO_NULL_CHK */
 	if ((wake_him) && (stcb->sctp_socket)) {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -4945,6 +4960,7 @@ hopeless_peer:
 					sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
 					    0, (void *)net, SCTP_SO_NOT_LOCKED);
 				}
+
 				if (net == stcb->asoc.primary_destination) {
 					if (stcb->asoc.alternate) {
 						/*
@@ -4955,6 +4971,7 @@ hopeless_peer:
 						stcb->asoc.alternate = NULL;
 					}
 				}
+
 				if (net->dest_state & SCTP_ADDR_PF) {
 					net->dest_state &= ~SCTP_ADDR_PF;
 					sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT,
@@ -4977,6 +4994,7 @@ hopeless_peer:
 		}
 		asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, accum_moved, reneged_all, will_exit_fast_recovery);
 	}
+
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
 		/* nothing left in-flight */
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
@@ -4990,6 +5008,7 @@ hopeless_peer:
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
 	}
+
 	/**********************************/
 	/* Now what about shutdown issues */
 	/**********************************/
@@ -5124,6 +5143,7 @@ hopeless_peer:
 	if (asoc->peers_rwnd > old_rwnd) {
 		win_probe_recovery = 1;
 	}
+
 	/*
 	 * Now we must setup so we have a timer up for anyone with
 	 * outstanding data.
