@@ -31,6 +31,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180717:
+	Big endian arm support has been removed.
+
 20180711:
 	The static environment setup in kernel configs is no longer mutually
 	exclusive with the loader(8) environment by default.  In order to
