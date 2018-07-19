@@ -255,7 +255,7 @@ sctp_ss_default_packet_done(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets 
 
 static int
 sctp_ss_default_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
-    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t * value SCTP_UNUSED)
+    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t *value SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return (-1);
@@ -551,7 +551,7 @@ prio_again:
 
 static int
 sctp_ss_prio_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
-    struct sctp_stream_out *strq, uint16_t * value)
+    struct sctp_stream_out *strq, uint16_t *value)
 {
 	if (strq == NULL) {
 		return (-1);
