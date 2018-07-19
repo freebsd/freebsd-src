@@ -57,17 +57,17 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 {
 
 	__asm __volatile(
-	"movl	%%fs:(%%esi),%%eax\n\t"
-	"movl	%%fs:4(%%esi),%%edx\n"
+	"movl	(%%esi),%%eax\n\t"
+	"movl	4(%%esi),%%edx\n"
 "1:\n\t"
 	"movl	%%eax,%%ebx\n\t"
 	"movl	%%edx,%%ecx\n\t"
 	"addl	(%%edi),%%ebx\n\t"
 	"adcl	4(%%edi),%%ecx\n\t"
-	"cmpxchg8b %%fs:(%%esi)\n\t"
+	"cmpxchg8b (%%esi)\n\t"
 	"jnz	1b"
-	:
-	: "S" ((char *)p - (char *)&__pcpu[0]), "D" (&inc)
+	: /* no output registers */
+	: "S" (p), "D" (&inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
@@ -159,23 +159,28 @@ counter_u64_zero_inline(counter_u64_t c)
 #endif
 
 #define	counter_u64_add_protected(c, inc)	do {	\
+	uint64_t *counter_addr;				\
+							\
+	counter_addr = zpcpu_get(c);			\
 	if ((cpu_feature & CPUID_CX8) == 0) {		\
 		CRITICAL_ASSERT(curthread);		\
-		*(uint64_t *)zpcpu_get(c) += (inc);	\
+		*counter_addr += (inc);			\
 	} else						\
-		counter_64_inc_8b((c), (inc));		\
+		counter_64_inc_8b((counter_addr), (inc));	 \
 } while (0)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
+	uint64_t *counter_addr;
 
+	counter_addr = zpcpu_get(c);
 	if ((cpu_feature & CPUID_CX8) == 0) {
 		critical_enter();
-		*(uint64_t *)zpcpu_get(c) += inc;
+		*counter_addr += inc;
 		critical_exit();
 	} else {
-		counter_64_inc_8b(c, inc);
+		counter_64_inc_8b(counter_addr, inc);
 	}
 }
 
