@@ -71,7 +71,7 @@ If the
 .Cm bootfs
 property is not set, then the root filesystem of the pool is used as
 the default.
-.Xr zfsloader 8
+.Xr loader 8
 is loaded from the boot filesystem.
 If
 .Pa /boot.config
@@ -83,7 +83,7 @@ in the same way as
 .Pp
 The ZFS GUIDs of the first successfully probed device and the first
 detected pool are made available to
-.Xr zfsloader 8
+.Xr loader 8
 in the
 .Cm vfs.zfs.boot.primary_vdev
 and
@@ -104,7 +104,7 @@ accepts all the options that
 supports.
 .Pp
 The filesystem specification and the path to
-.Xr zfsloader 8
+.Xr loader 8
 are different from
 .Xr boot 8 .
 The format is
@@ -116,7 +116,7 @@ The format is
 Both the filesystem and the path can be specified.
 If only a path is specified, then the default filesystem is used.
 If only a pool and filesystem are specified, then
-.Pa /boot/zfsloader
+.Pa /boot/loader
 is used as a path.
 .Pp
 Additionally, the
@@ -128,7 +128,7 @@ The output format is similar to that of
 .Pp
 The configured or automatically determined ZFS boot filesystem is
 stored in the
-.Xr zfsloader 8
+.Xr loader 8
 .Cm loaddev
 variable, and also set as the initial value of the
 .Cm currdev
@@ -171,7 +171,6 @@ gpart bootcode -p /boot/gptzfsboot -i 1 ada0
 .Xr boot 8 ,
 .Xr gpart 8 ,
 .Xr loader 8 ,
-.Xr zfsloader 8 ,
 .Xr zpool 8
 .Sh HISTORY
 .Nm
