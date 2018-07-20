@@ -523,10 +523,8 @@ RIPEMD160_CTX *c;
 	l=c->D; l2c(l,cp);
 	l=c->E; l2c(l,cp);
 
-	/* clear stuff, ripemd160_block may be leaving some stuff on the stack
-	 * but I'm not worried :-) */
-	c->num=0;
-/*	memset((char *)&c,0,sizeof(c));*/
+	/* Clear the context state */
+	explicit_bzero(&c, sizeof(c));
 	}
 
 #ifdef undef
