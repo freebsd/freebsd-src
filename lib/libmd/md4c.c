@@ -183,7 +183,7 @@ MD4_CTX *context;                                        /* context */
 
   /* Zeroize sensitive information.
    */
-  memset ((POINTER)context, 0, sizeof (*context));
+  explicit_bzero(context, sizeof(*context));
 }
 
 /* MD4 basic transformation. Transforms state based on block.
