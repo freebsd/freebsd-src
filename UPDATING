@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180720:
+	zfsloader's functionality has now been folded into loader.
+	zfsloader is no longer necesasary once you've updated your
+	boot blocks. For a transition period, there will be a symlink
+	in place from zfsloader to loader to allow a smooth transition
+	until the boot blocks can be updated.
+
 20180717:
 	Big endian arm support has been removed.
 
