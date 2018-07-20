@@ -124,7 +124,7 @@ main(int argc, char** argv)
 			"/dev/gpt/system0",
 			"/dev/gpt/system1",
 			"-",
-			"/boot/zfsloader",
+			"/boot/loader",
 			"/boot/support.4th",
 			"/boot/kernel/kernel",
 			NULL,
