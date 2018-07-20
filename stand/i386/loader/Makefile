@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_ZFS=		${MK_ZFS}
+
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
@@ -62,6 +64,9 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
+.if ${MK_ZFS} == "yes"
+SYMLINKS=	${BINDIR}/${LOADER} ${BINDIR}/zfs${LOADER}
+.endif
 FILES+=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b

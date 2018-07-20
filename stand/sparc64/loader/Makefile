@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_ZFS=		${MK_ZFS}
+
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
@@ -39,6 +41,10 @@ HELP_FILES=	${.CURDIR}/help.sparc64
 .include	"${BOOTSRC}/loader.mk"
 
 LDFLAGS+=	-static
+
+.if ${MK_ZFS} == "yes"
+SYMLINKS=	${BINDIR}/loader ${BINDIR}/zfsloader
+.endif
 
 # Open Firmware standalone support library
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
