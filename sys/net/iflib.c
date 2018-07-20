@@ -197,6 +197,7 @@ struct iflib_ctx {
 	uint16_t ifc_sysctl_nrxqs;
 	uint16_t ifc_sysctl_qs_eq_override;
 	uint16_t ifc_sysctl_rx_budget;
+	uint16_t ifc_sysctl_tx_abdicate;
 
 	qidx_t ifc_sysctl_ntxds[8];
 	qidx_t ifc_sysctl_nrxds[8];
@@ -3756,6 +3757,7 @@ _task_fn_tx(void *context)
 	iflib_txq_t txq = context;
 	if_ctx_t ctx = txq->ift_ctx;
 	struct ifnet *ifp = ctx->ifc_ifp;
+	int abdicate = ctx->ifc_sysctl_tx_abdicate;
 
 #ifdef IFLIB_DIAGNOSTICS
 	txq->ift_cpu_exec_count[curcpu]++;
@@ -3769,7 +3771,14 @@ _task_fn_tx(void *context)
 		return;
 	}
 	if (txq->ift_db_pending)
-		ifmp_ring_enqueue(txq->ift_br, (void **)&txq, 1, TX_BATCH_SIZE);
+		ifmp_ring_enqueue(txq->ift_br, (void **)&txq, 1, TX_BATCH_SIZE, abdicate);
+	else if (!abdicate)
+		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
+	/*
+	 * When abdicating, we always need to check drainage, not just when we don't enqueue
+	 */
+	if (abdicate)
+		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
@@ -3940,6 +3949,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 
 	iflib_txq_t txq;
 	int err, qidx;
+	int abdicate = ctx->ifc_sysctl_tx_abdicate;
 
 	if (__predict_false((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
 		DBG_COUNTER_INC(tx_frees);
@@ -3991,10 +4001,13 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	}
 #endif
 	DBG_COUNTER_INC(tx_seen);
-	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE);
+	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE, abdicate);
 
-	GROUPTASK_ENQUEUE(&txq->ift_task);
-	if (err) {
+	if (abdicate)
+		GROUPTASK_ENQUEUE(&txq->ift_task);
+ 	if (err) {
+		if (!abdicate)
+			GROUPTASK_ENQUEUE(&txq->ift_task);
 		/* support forthcoming later */
 #ifdef DRIVER_BACKPRESSURE
 		txq->ift_closed = TRUE;
@@ -6200,6 +6213,9 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0,
                        "set the rx budget");
+	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "tx_abdicate",
+		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
+		       "cause tx to abdicate instead of running to completion");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
