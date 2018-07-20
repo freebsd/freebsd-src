@@ -1086,8 +1086,8 @@ It searches through the GPT for
 .Cm freebsd-zfs
 partitions, trying to detect ZFS pools.
 After all pools are detected,
-.Pa /boot/zfsloader
-is started from the first one found.
+.Pa /boot/loader
+is started from the first one found set as bootable.
 .Pp
 The VTOC8 scheme does not support embedding bootstrap code.
 Instead, the 8 KBytes bootstrap code image
