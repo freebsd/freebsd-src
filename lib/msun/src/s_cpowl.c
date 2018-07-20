@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <complex.h>
 #include <math.h>
+#include "math_private.h"
 
 long double complex
 cpowl(long double complex a, long double complex z)
@@ -59,7 +60,7 @@ cpowl(long double complex a, long double complex z)
 	y = cimagl(z);
 	absa = cabsl(a);
 	if (absa == 0.0L) {
-		return (0.0L + 0.0L * I);
+		return (CMPLXL(0.0L, 0.0L));
 	}
 	arga = cargl(a);
 	r = powl(absa, x);
@@ -68,6 +69,6 @@ cpowl(long double complex a, long double complex z)
 		r = r * expl(-y * arga);
 		theta = theta + y * logl(absa);
 	}
-	w = r * cosl(theta) + (r * sinl(theta)) * I;
+	w = CMPLXL(r * cosl(theta), r * sinl(theta));
 	return (w);
 }

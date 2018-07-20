@@ -914,7 +914,4 @@ long double __kernel_sinl(long double, long double, int);
 long double __kernel_cosl(long double, long double);
 long double __kernel_tanl(long double, long double, int);
 
-long double __p1evll(long double, void *, int);
-long double __polevll(long double, void *, int);
-
 #endif /* !_MATH_PRIVATE_H_ */
