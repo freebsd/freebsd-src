@@ -5,7 +5,7 @@ _spath=	${SRCTOP}/contrib/ofed/libibverbs
 
 LIB=		ibverbs
 SHLIB_MAJOR=	1
-SHLIBDIR?=	/usr/lib
+SHLIBDIR?=	/lib
 MK_PROFILE=	no
 VERSION_MAP=	${_spath}/libibverbs.map
 
