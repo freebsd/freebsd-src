@@ -483,6 +483,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ntohs(uh->uh_sport));
 		}
+		UDP_PROBE(receive, NULL, NULL, ip6, NULL, uh);
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & M_MCAST) {
 			printf("UDP6: M_MCAST is set in a unicast packet.\n");
