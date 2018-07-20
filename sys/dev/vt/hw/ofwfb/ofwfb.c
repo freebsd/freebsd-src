@@ -370,9 +370,11 @@ ofwfb_init(struct vt_device *vd)
 	/* Initialize softc */
 	vd->vd_softc = sc = &ofwfb_conssoftc;
 
+	node = -1;
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &sc->sc_handle, sizeof(ihandle_t));
-	node = OF_instance_to_package(sc->sc_handle);
+	if (OF_getprop(chosen, "stdout", &sc->sc_handle,
+	    sizeof(ihandle_t)) == sizeof(ihandle_t))
+		node = OF_instance_to_package(sc->sc_handle);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
