@@ -4,8 +4,6 @@
 
 FILES=		boot boot1 boot2
 
-NM?=		nm
-
 # A value of 0x80 enables LBA support.
 BOOT_BOOT1_FLAGS?=	0x80
 
