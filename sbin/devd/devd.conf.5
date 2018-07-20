@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd July 18, 2018
+.Dd July 20, 2018
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -259,6 +259,10 @@ CIS-product.
 CIS-vendor.
 .It Li class
 Device class.
+.It Li comm
+Executable name (kernel).
+.It Li core
+Path to core file (kernel).
 .It Li device
 Device ID.
 .It Li devclass
@@ -496,11 +500,22 @@ Events related to the kernel.
 .Bl -tag -width ".Sy Subsystem" -compact
 .It Sy Subsystem
 .It Li power
-Information about the state of the system.
 .Bl -tag -width ".li resume" -compact
 .It Sy Type
 .It Li resume
 Notification that the system has woken from the suspended state.
+.El
+.El
+.Pp
+.It Li kernel
+More events related to the kernel.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li signal
+.Bl -tag -width ".li resume" -compact
+.It Sy Type
+.It Li coredump
+Notification that a process has crashed and dumped core.
 .El
 .El
 .Pp
