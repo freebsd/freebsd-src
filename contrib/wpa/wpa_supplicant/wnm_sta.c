@@ -198,8 +198,8 @@ static void wnm_sleep_mode_exit_success(struct wpa_supplicant *wpa_s,
 		return;
 	}
 
-	while (ptr + 1 < end) {
-		if (ptr + 2 + ptr[1] > end) {
+	while (end - ptr > 1) {
+		if (2 + ptr[1] > end - ptr) {
 			wpa_printf(MSG_DEBUG, "WNM: Invalid Key Data element "
 				   "length");
 			if (end > ptr) {
