@@ -8,8 +8,6 @@
 FILES=		isoboot
 MAN=		isoboot.8
 
-NM?=		nm
-
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
 B2SIOFMT?=	0x3

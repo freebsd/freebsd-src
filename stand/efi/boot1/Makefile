@@ -76,9 +76,6 @@ LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 
-NM?=		nm
-OBJCOPY?=	objcopy
-
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
 .elif ${MACHINE_CPUARCH} == "i386"
