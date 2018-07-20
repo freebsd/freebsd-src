@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2018
+.Dd July 20, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -575,6 +575,14 @@ Module-specific parameters include:
 .It Va allow.mount.fdescfs
 privileged users inside the jail will be able to mount and unmount the
 fdescfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.fusefs
+privileged users inside the jail will be able to mount and unmount 
+fuse-based file systems.
 This permission is effective only together with
 .Va allow.mount
 and only when
