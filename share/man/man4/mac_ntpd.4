@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2018
+.Dd July 20, 2018
 .Dt MAC_NTPD 4
 .Os
 .Sh NAME
@@ -45,8 +45,9 @@ place the following line in your kernel configuration file:
 .Pp
 and in
 .Xr loader.conf 5 :
-.Pp
-.Dl "mac_ntpd_load=""YES"""
+.Bd -literal -offset indent
+mac_ntpd_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,30 +59,28 @@ system time, and to (re-)bind to the privileged NTP port.
 When
 .Xr ntpd 8
 is started with
-.Sq -u\ <user>
+.Sq Fl u Ar <user>[:group]
 on the command line, it performs all initializations requiring root
 privileges, then drops root privileges by switching to the given user id.
 From that point on, the only privileges it requires are the ability
 to manipulate system time, and the ability to re-bind a UDP socket
 to the NTP port (port 123) after a network interface change.
-By default,
-.Fx
-starts
-.Xr ntpd 8
-with
-.Sq -u\ ntpd:ntpd
-on the command line, if the mac_ntpd policy is available to grant
-the required privileges.
+.Pp
+With the
+.Nm
+policy active, it may also be possible to start ntpd as a non-root user,
+because the default ntpd options don't require any additional root
+privileges beyond those granted by the policy.
 .Pp
 .Ss Privileges Granted
 The exact set of kernel privileges granted to any process running
 with the configured uid is:
 .Bl -inset -compact -offset indent
-.It PRIV_ADJTIME
-.It PRIV_CLOCK_SETTIME
-.It PRIV_NTP_ADJTIME
-.It PRIV_NETINET_RESERVEDPORT
-.It PRIV_NETINET_REUSEPORT
+.It Dv PRIV_ADJTIME
+.It Dv PRIV_CLOCK_SETTIME
+.It Dv PRIV_NTP_ADJTIME
+.It Dv PRIV_NETINET_RESERVEDPORT
+.It Dv PRIV_NETINET_REUSEPORT
 .El
 .Pp
 .Ss Runtime Configuration
