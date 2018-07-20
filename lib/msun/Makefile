@@ -56,7 +56,6 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	imprecise.c \
 	k_cos.c k_cosf.c k_exp.c k_expf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
-	polevll.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
 	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_clog.c s_clogf.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
