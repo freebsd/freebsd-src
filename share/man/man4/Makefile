@@ -868,9 +868,18 @@ _nvd.4= 	nvd.4
 _nvme.4=	nvme.4
 .endif
 
-.if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
-SUBDIR=	man4.${MACHINE_CPUARCH}
+.if empty(MAN_ARCH)
+__arches=	${MACHINE} ${MACHINE_ARCH} ${MACHINE_CPUARCH}
+.elif ${MAN_ARCH} == "all"
+__arches=	${:!/bin/sh -c "/bin/ls -d ${.CURDIR}/man4.*"!:E}
+.else
+__arches=	${MAN_ARCH}
 .endif
+.for __arch in ${__arches:O:u}
+.if exists(${.CURDIR}/man4.${__arch})
+SUBDIR+=	man4.${__arch}
+.endif
+.endfor
 
 .if ${MK_BLUETOOTH} != "no"
 MAN+=		ng_bluetooth.4
