@@ -146,6 +146,7 @@ typedef struct iflib_fl *iflib_fl_t;
 struct iflib_ctx;
 
 static void iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid);
+static void iflib_timer(void *arg);
 
 typedef struct iflib_filter_info {
 	driver_filter_t *ifi_filter;
@@ -356,6 +357,7 @@ struct iflib_txq {
 	uint64_t	ift_map_failed;
 	uint64_t	ift_txd_encap_efbig;
 	uint64_t	ift_pullups;
+	uint64_t	ift_last_timer_tick;
 
 	struct mtx	ift_mtx;
 	struct mtx	ift_db_mtx;
@@ -916,7 +918,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
 	struct netmap_ring *ring = kring->ring;
-	u_int nm_i;	/* index into the netmap ring */
+	u_int nm_i;	/* index into the netmap kring */
 	u_int nic_i;	/* index into the NIC ring */
 	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
@@ -939,7 +941,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	/*
 	 * First part: process new packets to send.
-	 * nm_i is the current index in the netmap ring,
+	 * nm_i is the current index in the netmap kring,
 	 * nic_i is the corresponding index in the NIC ring.
 	 *
 	 * If we have packets to send (nm_i != head)
@@ -959,7 +961,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	 * to prefetch the next slot and txr entry.
 	 */
 
-	nm_i = netmap_idx_n2k(kring, kring->nr_hwcur);
+	nm_i = kring->nr_hwcur;
 	if (nm_i != head) {	/* we have new packets to send */
 		pkt_info_zero(&pi);
 		pi.ipi_segs = txq->ift_segs;
@@ -1012,7 +1014,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
-		kring->nr_hwcur = head;
+		kring->nr_hwcur = nm_i;
 
 		/* synchronize the NIC ring */
 		if (txq->ift_sds.ifsd_map)
@@ -1031,18 +1033,17 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	 * minimal delay, then trigger the tx handler which will spin in the
 	 * group task queue.
 	 */
-	if (kring->nr_hwtail != nm_prev(head, lim)) {
+	if (kring->nr_hwtail != nm_prev(kring->nr_hwcur, lim)) {
 		if (iflib_tx_credits_update(ctx, txq)) {
 			/* some tx completed, increment avail */
 			nic_i = txq->ift_cidx_processed;
 			kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
 		}
-		else {
-			if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
-				DELAY(1);
-				GROUPTASK_ENQUEUE(&ctx->ifc_txqs[txq->ift_id].ift_task);
-			}
-		}
+	}
+	if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ))
+		if (kring->nr_hwtail != nm_prev(kring->nr_hwcur, lim)) {
+			callout_reset_on(&txq->ift_timer, hz < 2000 ? 1 : hz / 1000,
+			    iflib_timer, txq, txq->ift_timer.c_cpu);
 	}
 	return (0);
 }
@@ -1069,7 +1070,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	uint32_t nic_i;	/* index into the NIC ring */
 	u_int i, n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = netmap_idx_n2k(kring, kring->rhead);
+	u_int const head = kring->rhead;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 	struct if_rxd_info ri;
 
@@ -1134,7 +1135,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 					iflib_rx_miss_bufs += n;
 				}
 				fl->ifl_cidx = nic_i;
-				kring->nr_hwtail = netmap_idx_k2n(kring, nm_i);
+				kring->nr_hwtail = nm_i;
 			}
 			kring->nr_kflags &= ~NKR_PENDINTR;
 		}
@@ -1148,7 +1149,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * nm_i == (nic_i + kring->nkr_hwofs) % ring_size
 	 */
 	/* XXX not sure how this will work with multiple free lists */
-	nm_i = netmap_idx_n2k(kring, kring->nr_hwcur);
+	nm_i = kring->nr_hwcur;
 
 	return (netmap_fl_refill(rxq, kring, nm_i, false));
 }
@@ -1234,6 +1235,25 @@ iflib_netmap_rxq_init(if_ctx_t ctx, iflib_rxq_t rxq)
 	netmap_fl_refill(rxq, kring, nm_i, true);
 }
 
+static void
+iflib_netmap_timer_adjust(if_ctx_t ctx, uint16_t txqid, uint32_t *reset_on)
+{
+	struct netmap_kring *kring;
+
+	kring = NA(ctx->ifc_ifp)->tx_rings[txqid];
+
+	if (kring->nr_hwcur != nm_next(kring->nr_hwtail, kring->nkr_num_slots - 1)) {
+		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txqid, false))
+			netmap_tx_irq(ctx->ifc_ifp, txqid);
+		if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
+			if (hz < 2000)
+				*reset_on = 1;
+			else
+				*reset_on = hz / 1000;
+		}
+	}
+}
+
 #define iflib_netmap_detach(ifp) netmap_detach(ifp)
 
 #else
@@ -1244,6 +1264,7 @@ iflib_netmap_rxq_init(if_ctx_t ctx, iflib_rxq_t rxq)
 #define iflib_netmap_attach(ctx) (0)
 #define netmap_rx_irq(ifp, qid, budget) (0)
 #define netmap_tx_irq(ifp, qid) do {} while (0)
+#define iflib_netmap_timer_adjust(ctx, txqid, reset_on)
 
 #endif
 
@@ -2196,6 +2217,8 @@ iflib_timer(void *arg)
 	iflib_txq_t txq = arg;
 	if_ctx_t ctx = txq->ift_ctx;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
+	uint64_t this_tick = ticks;
+	uint32_t reset_on = hz / 2;
 
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
@@ -2204,22 +2227,29 @@ iflib_timer(void *arg)
 	** can be done without the lock because its RO
 	** and the HUNG state will be static if set.
 	*/
-	IFDI_TIMER(ctx, txq->ift_id);
-	if ((txq->ift_qstatus == IFLIB_QUEUE_HUNG) &&
-	    ((txq->ift_cleaned_prev == txq->ift_cleaned) ||
-	     (sctx->isc_pause_frames == 0)))
-		goto hung;
+	if (this_tick - txq->ift_last_timer_tick >= hz / 2) {
+		txq->ift_last_timer_tick = this_tick;
+		IFDI_TIMER(ctx, txq->ift_id);
+		if ((txq->ift_qstatus == IFLIB_QUEUE_HUNG) &&
+		    ((txq->ift_cleaned_prev == txq->ift_cleaned) ||
+		     (sctx->isc_pause_frames == 0)))
+			goto hung;
 
-	if (ifmp_ring_is_stalled(txq->ift_br))
-		txq->ift_qstatus = IFLIB_QUEUE_HUNG;
-	txq->ift_cleaned_prev = txq->ift_cleaned;
+		if (ifmp_ring_is_stalled(txq->ift_br))
+			txq->ift_qstatus = IFLIB_QUEUE_HUNG;
+		txq->ift_cleaned_prev = txq->ift_cleaned;
+	}
+#ifdef DEV_NETMAP
+	if (if_getcapenable(ctx->ifc_ifp) & IFCAP_NETMAP)
+		iflib_netmap_timer_adjust(ctx, txq->ift_id, &reset_on);
+#endif
 	/* handle any laggards */
 	if (txq->ift_db_pending)
 		GROUPTASK_ENQUEUE(&txq->ift_task);
 
 	sctx->isc_pause_frames = 0;
 	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
-		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
+		callout_reset_on(&txq->ift_timer, reset_on, iflib_timer, txq, txq->ift_timer.c_cpu);
 	return;
  hung:
 	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
@@ -3733,10 +3763,6 @@ _task_fn_tx(void *context)
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
 	if (if_getcapenable(ifp) & IFCAP_NETMAP) {
-		/*
-		 * If there are no available credits, and TX IRQs are not in use,
-		 * re-schedule the task immediately.
-		 */
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
@@ -3808,6 +3834,7 @@ _task_fn_admin(void *context)
 	iflib_txq_t txq;
 	int i;
 	bool oactive, running, do_reset, do_watchdog;
+	uint32_t reset_on = hz / 2;
 
 	STATE_LOCK(ctx);
 	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
@@ -3832,8 +3859,14 @@ _task_fn_admin(void *context)
 		IFDI_WATCHDOG_RESET(ctx);
 	}
 	IFDI_UPDATE_ADMIN_STATUS(ctx);
-	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
-		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
+	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
+#ifdef DEV_NETMAP
+		reset_on = hz / 2;
+		if (if_getcapenable(ctx->ifc_ifp) & IFCAP_NETMAP)
+			iflib_netmap_timer_adjust(ctx, txq->ift_id, &reset_on);
+#endif
+		callout_reset_on(&txq->ift_timer, reset_on, iflib_timer, txq, txq->ift_timer.c_cpu);
+	}
 	IFDI_LINK_INTR_ENABLE(ctx);
 	if (do_reset)
 		iflib_if_init_locked(ctx);
