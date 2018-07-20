@@ -471,6 +471,7 @@ static int wpa_driver_wired_set_ifflags(const char *ifname, int flags)
 	return 0;
 }
 
+
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
 static int wpa_driver_wired_get_ifstatus(const char *ifname, int *status)
 {
@@ -558,7 +559,7 @@ static int wpa_driver_wired_multi(const char *ifname, const u8 *addr, int add)
 static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 {
 	struct wpa_driver_wired_data *drv;
-	int flags, status;
+	int flags;
 
 	drv = os_zalloc(sizeof(*drv));
 	if (drv == NULL)
