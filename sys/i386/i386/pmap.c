@@ -1081,7 +1081,7 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 }
 
 bool
-pmap_ps_enabled(pmap_t pmap)
+pmap_ps_enabled(pmap_t pmap __unused)
 {
 
 	return (pg_ps_enabled);
