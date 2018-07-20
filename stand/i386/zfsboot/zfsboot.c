@@ -848,7 +848,7 @@ main(void)
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
+	memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
