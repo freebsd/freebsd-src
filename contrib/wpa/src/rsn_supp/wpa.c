@@ -860,7 +860,7 @@ static int wpa_supplicant_pairwise_gtk(struct wpa_sm *sm,
 	    (wpa_supplicant_check_group_cipher(sm, sm->group_cipher,
 					       gtk_len, gtk_len,
 					       &gd.key_rsc_len, &gd.alg) ||
-	     wpa_supplicant_install_gtk(sm, &gd, key->key_rsc, 0))) {
+	     wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0))) {
 		wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
 			"RSN: Failed to install GTK");
 		os_memset(&gd, 0, sizeof(gd));
@@ -1592,13 +1592,13 @@ static void wpa_supplicant_process_1_of_2(struct wpa_sm *sm,
 	if (wpa_supplicant_rsc_relaxation(sm, key->key_rsc))
 		key_rsc = null_rsc;
 
-	if (wpa_supplicant_install_gtk(sm, &gd, key->key_rsc, 0) ||
-	    wpa_supplicant_send_2_of_2(sm, key, ver, key_info))
+	if (wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0) ||
+	    wpa_supplicant_send_2_of_2(sm, key, ver, key_info) < 0)
 		goto failed;
 	os_memset(&gd, 0, sizeof(gd));
 
 	if (rekey) {
-		wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG, "WPA: Group rekeying "
+		wpa_msg(sm->ctx->msg_ctx, MSG_INFO, "WPA: Group rekeying "
 			"completed with " MACSTR " [GTK=%s]",
 			MAC2STR(sm->bssid), wpa_cipher_txt(sm->group_cipher));
 		wpa_sm_cancel_auth_timeout(sm);
