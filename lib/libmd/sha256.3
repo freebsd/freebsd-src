@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2018
+.Dd July 20, 2018
 .Dt SHA256 3
 .Os
 .Sh NAME
@@ -88,7 +88,9 @@ initialize it with
 run over the data with
 .Fn SHA256_Update ,
 and finally extract the result using
-.Fn SHA256_Final .
+.Fn SHA256_Final ,
+which will also erase the
+.Vt SHA256_CTX .
 .Pp
 .Fn SHA256_End
 is a wrapper for
