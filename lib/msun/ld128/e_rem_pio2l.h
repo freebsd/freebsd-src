@@ -74,14 +74,9 @@ __ieee754_rem_pio2l(long double x, long double *y)
 	if (ex < BIAS + 45 || ex == BIAS + 45 &&
 	    u.bits.manh < 0x921fb54442d1LL) {
 	    /* |x| ~< 2^45*(pi/2), medium size */
-	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	    fn = x*invpio2+0x1.8p112;
-	    fn = fn-0x1.8p112;
-#ifdef HAVE_EFFICIENT_I64RINT
+	    /* TODO: use only double precision for fn, as in expl(). */
+	    fn = rnintl(x * invpio2);
 	    n  = i64rint(fn);
-#else
-	    n  = fn;
-#endif
 	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 180 bit */
 	    {
