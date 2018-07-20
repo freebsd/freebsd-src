@@ -239,8 +239,6 @@ crypt_sha256(const char *key, const char *salt, char *buffer)
 	memset(temp_result, '\0', sizeof(temp_result));
 	memset(p_bytes, '\0', key_len);
 	memset(s_bytes, '\0', salt_len);
-	memset(&ctx, '\0', sizeof(ctx));
-	memset(&alt_ctx, '\0', sizeof(alt_ctx));
 
 	return (0);
 }
