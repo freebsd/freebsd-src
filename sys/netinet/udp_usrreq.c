@@ -685,6 +685,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			    inet_ntoa_r(ip->ip_dst, dst), ntohs(uh->uh_dport),
 			    inet_ntoa_r(ip->ip_src, src), ntohs(uh->uh_sport));
 		}
+		UDP_PROBE(receive, NULL, NULL, ip, NULL, uh);
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			UDPSTAT_INC(udps_noportbcast);
@@ -704,6 +705,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	INP_RLOCK_ASSERT(inp);
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
+		UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 		INP_RUNLOCK(inp);
 		m_freem(m);
 		return (IPPROTO_DONE);
