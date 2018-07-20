@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2017
+.Dd July 20, 2018
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -399,6 +399,14 @@ Set this to disable assertions and statistics gathering in
 .Xr malloc 3 .
 It also defaults the A and J runtime options to off.
 Disabled by default on -CURRENT.
+.It Va MAN_ARCH
+.Pq Vt str
+Space-delimited list of one or more MACHINE and/or MACHINE_ARCH values
+for which section 4 man pages will be installed.
+The special value
+.Sq all
+installs all available architectures.
+The default is the MACHINE and MACHINE_ARCH being built.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
