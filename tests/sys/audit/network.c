@@ -1088,6 +1088,58 @@ ATF_TC_CLEANUP(sendfile_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(setfib_success);
+ATF_TC_HEAD(setfib_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"setfib(2) call");
+}
+
+ATF_TC_BODY(setfib_success, tc)
+{
+	/* BSM conversion requested for unknown event 43228 */
+	atf_tc_expect_fail("PR 228374: setfib(2) does not get audited in success mode");
+
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "setfib.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, setfib(0));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setfib_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(setfib_failure);
+ATF_TC_HEAD(setfib_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"setfib(2) call");
+}
+
+ATF_TC_BODY(setfib_failure, tc)
+{
+	/* BSM conversion requested for unknown event 43228 */
+	atf_tc_expect_fail("PR 228374: setfib(2) does not get audited in failure mode");
+
+	pid = getpid();
+	snprintf(extregex, sizeof(extregex), "setfib.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(-1, setfib(-1));
+	check_audit(fds, extregex, pipefd);
+}
+
+ATF_TC_CLEANUP(setfib_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, socket_success);
@@ -1130,6 +1182,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, shutdown_failure);
 	ATF_TP_ADD_TC(tp, sendfile_success);
 	ATF_TP_ADD_TC(tp, sendfile_failure);
+	ATF_TP_ADD_TC(tp, setfib_success);
+	ATF_TP_ADD_TC(tp, setfib_failure);
 
 	return (atf_no_error());
 }
