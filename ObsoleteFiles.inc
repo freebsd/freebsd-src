@@ -38,9 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20180721: Purge some old forgotten apmd files
-OLD_FILES+=etc/apmd.conf
-OLD_FILES+=etc/rc.d/apmd
 # 20180721: move of libmlx5.so.1 and libibverbs.so.1
 OLD_LIBS+=usr/lib/libmlx5.so.1
 OLD_LIBS+=usr/lib/libibverbs.so.1

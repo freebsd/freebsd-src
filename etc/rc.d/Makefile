@@ -157,6 +157,9 @@ AMDPACKAGE=	amd
 .if ${MK_APM} != "no"
 FILESGROUPS+=	APM
 APM+=		apm
+.if ${MACHINE} == "i386"
+APM+=		apmd
+.endif
 APMPACKAGE=	apm
 .endif
 
