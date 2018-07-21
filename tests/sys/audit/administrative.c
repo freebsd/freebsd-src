@@ -39,6 +39,7 @@
 #include <ufs/ufs/quota.h>
 
 #include <atf-c.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
@@ -48,6 +49,8 @@
 
 static pid_t pid;
 static int filedesc;
+/* Default argument for handling ENOSYS in auditon(2) functions */
+static int auditon_def = 0;
 static mode_t mode = 0777;
 static struct pollfd fds[1];
 static char adregex[80];
@@ -739,6 +742,63 @@ ATF_TC_CLEANUP(setaudit_addr_failure, tc)
 	cleanup();
 }
 
+/*
+ * Note: The test-case uses A_GETFSIZE as the command argument but since it is
+ * not an independent audit event, it will be used to check the default mode
+ * auditing of auditon(2) system call.
+ *
+ * Please See: sys/security/audit/audit_bsm_klib.c
+ * function(): au_event_t auditon_command_event() :: case A_GETFSIZE:
+ */
+ATF_TC_WITH_CLEANUP(auditon_default_success);
+ATF_TC_HEAD(auditon_default_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"auditon(2) call");
+}
+
+ATF_TC_BODY(auditon_default_success, tc)
+{
+	au_fstat_t fsize_arg;
+	bzero(&fsize_arg, sizeof(au_fstat_t));
+
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "auditon.*%d.*return,success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, auditon(A_GETFSIZE, &fsize_arg, sizeof(fsize_arg)));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_default_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_default_failure);
+ATF_TC_HEAD(auditon_default_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call");
+}
+
+ATF_TC_BODY(auditon_default_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "auditon.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: Invalid argument */
+	ATF_REQUIRE_EQ(-1, auditon(A_GETFSIZE, NULL, 0));
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_default_failure, tc)
+{
+	cleanup();
+}
+
 
 ATF_TC_WITH_CLEANUP(auditon_getpolicy_success);
 ATF_TC_HEAD(auditon_getpolicy_success, tc)
@@ -1240,6 +1300,160 @@ ATF_TC_CLEANUP(auditon_setcond_failure, tc)
 	cleanup();
 }
 
+/*
+ * Following test-cases for auditon(2) are all in failure mode only as although
+ * auditable, they have not been implemented and return ENOSYS whenever called.
+ *
+ * Commands: A_GETCWD  A_GETCAR  A_GETSTAT  A_SETSTAT  A_SETUMASK  A_SETSMASK
+ */
+
+ATF_TC_WITH_CLEANUP(auditon_getcwd_failure);
+ATF_TC_HEAD(auditon_getcwd_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_GETCWD");
+}
+
+ATF_TC_BODY(auditon_getcwd_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "get cwd.*%d.*failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_GETCWD, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_getcwd_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_getcar_failure);
+ATF_TC_HEAD(auditon_getcar_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_GETCAR");
+}
+
+ATF_TC_BODY(auditon_getcar_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex), "get car.*%d.*failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_GETCAR, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_getcar_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_getstat_failure);
+ATF_TC_HEAD(auditon_getstat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_GETSTAT");
+}
+
+ATF_TC_BODY(auditon_getstat_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"get audit statistics.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_GETSTAT, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_getstat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_setstat_failure);
+ATF_TC_HEAD(auditon_setstat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_SETSTAT");
+}
+
+ATF_TC_BODY(auditon_setstat_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"set audit statistics.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_SETSTAT, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_setstat_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_setumask_failure);
+ATF_TC_HEAD(auditon_setumask_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_SETUMASK");
+}
+
+ATF_TC_BODY(auditon_setumask_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"set mask per uid.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_SETUMASK, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_setumask_failure, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(auditon_setsmask_failure);
+ATF_TC_HEAD(auditon_setsmask_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"auditon(2) call for cmd: A_SETSMASK");
+}
+
+ATF_TC_BODY(auditon_setsmask_failure, tc)
+{
+	pid = getpid();
+	snprintf(adregex, sizeof(adregex),
+		"set mask per session.*%d.*return,failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_ERRNO(ENOSYS, auditon(A_SETSMASK, &auditon_def,
+		sizeof(auditon_def)) == -1);
+	check_audit(fds, adregex, pipefd);
+}
+
+ATF_TC_CLEANUP(auditon_setsmask_failure, tc)
+{
+	cleanup();
+}
+
 
 /*
  * Audit of reboot(2) cannot be tested in normal conditions as we don't want
@@ -1426,6 +1640,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, setaudit_addr_success);
 	ATF_TP_ADD_TC(tp, setaudit_addr_failure);
 
+	ATF_TP_ADD_TC(tp, auditon_default_success);
+	ATF_TP_ADD_TC(tp, auditon_default_failure);
+
 	ATF_TP_ADD_TC(tp, auditon_getpolicy_success);
 	ATF_TP_ADD_TC(tp, auditon_getpolicy_failure);
 	ATF_TP_ADD_TC(tp, auditon_setpolicy_success);
@@ -1450,6 +1667,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, auditon_getcond_failure);
 	ATF_TP_ADD_TC(tp, auditon_setcond_success);
 	ATF_TP_ADD_TC(tp, auditon_setcond_failure);
+
+	ATF_TP_ADD_TC(tp, auditon_getcwd_failure);
+	ATF_TP_ADD_TC(tp, auditon_getcar_failure);
+	ATF_TP_ADD_TC(tp, auditon_getstat_failure);
+	ATF_TP_ADD_TC(tp, auditon_setstat_failure);
+	ATF_TP_ADD_TC(tp, auditon_setumask_failure);
+	ATF_TP_ADD_TC(tp, auditon_setsmask_failure);
 
 	ATF_TP_ADD_TC(tp, reboot_failure);
 	ATF_TP_ADD_TC(tp, quotactl_failure);
