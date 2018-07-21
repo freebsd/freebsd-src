@@ -41,6 +41,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
+options 	MAC			# Support for Mandatory Access Control (MAC)
 
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
