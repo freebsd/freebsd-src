@@ -1397,6 +1397,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 */
 	ui = mtod(m, struct udpiphdr *);
 	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
+	ui->ui_v = IPVERSION << 4;
 	ui->ui_pr = pr;
 	ui->ui_src = laddr;
 	ui->ui_dst = faddr;
@@ -1419,8 +1420,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
 		cscov_partial = (cscov == 0) ? 0 : 1;
-	} else
-		ui->ui_v = IPVERSION << 4;
+	}
 
 	/*
 	 * Set the Don't Fragment bit in the IP header.
