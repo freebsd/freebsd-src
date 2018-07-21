@@ -5,6 +5,19 @@
 # Makefile for creating an EC2 AMI from a disk image.
 #
 
+# Figure out where SVN is
+.if !defined(SVN_CMD) || empty(SVN_CMD)
+. for _P in /usr/bin /usr/local/bin
+.  for _S in svn svnlite
+.   if exists(${_P}/${_S})
+SVN_CMD=   ${_P}/${_S}
+.   endif
+.  endfor
+. endfor
+.endif
+EC2_SVNBRANCH!=	${SVN_CMD} info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
+EC2_SVNREV!=	${SVN_CMD} info --show-item last-changed-revision ${WORLDDIR}
+
 .if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
 AMINAMESUFFIX!=	date +-%Y-%m-%d
 .endif
@@ -13,8 +26,6 @@ PUBLISH=	--public
 .endif
 .if defined(EC2SNSTOPIC) && !empty(EC2SNSTOPIC)
 EC2SNSREL=	${REVISION}-${BRANCH}
-EC2_SVNBRANCH!=	svn info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
-EC2_SVNREV!=	svn info --show-item last-changed-revision ${WORLDDIR}
 EC2SNSVERS=	${EC2_SVNBRANCH}@${EC2_SVNREV}
 .endif
 
@@ -60,7 +71,7 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH} --sriov --ena \
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
-	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}" \
+	    "${TYPE}/${TARGET} ${EC2_SVNBRANCH}@${EC2_SVNREV}" \
 	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE} \
 	    ${EC2SNSTOPIC} ${EC2SNSREL} ${EC2SNSVERS}
 	@touch ${.TARGET}
