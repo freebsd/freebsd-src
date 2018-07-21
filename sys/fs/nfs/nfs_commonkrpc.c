@@ -98,6 +98,7 @@ extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
 extern int nfs_numnfscbd;
 extern int nfscl_debuglevel;
+extern int nfsrv_lease;
 
 SVCPOOL		*nfscbd_pool;
 static int	nfsrv_gsscallbackson = 0;
@@ -105,6 +106,7 @@ static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
+static int	nfs_dsretries = 2;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -116,6 +118,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_del
     "Number of seconds to delay a retry after receiving EJUKEBOX");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, dsretries, CTLFLAG_RW, &nfs_dsretries, 0,
+    "Number of retries for a DS RPC before failure");
 
 static void	nfs_down(struct nfsmount *, struct thread *, const char *,
     int, int);
@@ -298,6 +302,30 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			retries = INT_MAX;
 		if (NFSHASNFSV4N(nmp)) {
 			if (cred != NULL) {
+				if (NFSHASSOFT(nmp)) {
+					/*
+					 * This should be a DS mount.
+					 * Use CLSET_TIMEOUT to set the timeout
+					 * for connections to DSs instead of
+					 * specifying a timeout on each RPC.
+					 * This is done so that SO_SNDTIMEO
+					 * is set on the TCP socket as well
+					 * as specifying a time limit when
+					 * waiting for an RPC reply.  Useful
+					 * if the send queue for the TCP
+					 * connection has become constipated,
+					 * due to a failed DS.
+					 * The choice of lease_duration / 4 is
+					 * fairly arbitrary, but seems to work
+					 * ok, with a lower bound of 10sec.
+					 */
+					timo.tv_sec = nfsrv_lease / 4;
+					if (timo.tv_sec < 10)
+						timo.tv_sec = 10;
+					timo.tv_usec = 0;
+					CLNT_CONTROL(client, CLSET_TIMEOUT,
+					    &timo);
+				}
 				/*
 				 * Make sure the nfscbd_pool doesn't get
 				 * destroyed while doing this.
@@ -325,8 +353,18 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 				 * not maintain open/lock state and is the
 				 * only case where using a "soft" mount is
 				 * recommended for NFSv4.
+				 * For mounts from the MDS to DS, this is done
+				 * via mount options, but that is not the case
+				 * here.  The retry limit here can be adjusted
+				 * via the sysctl vfs.nfs.dsretries.
+				 * See the comment above w.r.t. timeout.
 				 */
-				retries = 2;
+				timo.tv_sec = nfsrv_lease / 4;
+				if (timo.tv_sec < 10)
+					timo.tv_sec = 10;
+				timo.tv_usec = 0;
+				CLNT_CONTROL(client, CLSET_TIMEOUT, &timo);
+				retries = nfs_dsretries;
 			}
 		}
 	} else {
