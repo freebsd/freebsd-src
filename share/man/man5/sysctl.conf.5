@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1999
+.Dd July 21, 2018
 .Dt SYSCTL.CONF 5
 .Os
 .Sh NAME
@@ -37,9 +37,9 @@ file is read in when the system goes into multi-user mode to set default
 settings for the kernel.
 The
 .Pa /etc/sysctl.conf
-is in the format of the
+file is in the format of the
 .Xr sysctl 8
-command, i.e.\&
+command, i.e.,
 .Bd -literal -offset indent
 sysctl_mib=value
 .Ed
@@ -62,7 +62,7 @@ To turn off logging of programs that exit due to fatal signals you may use
 a configuration like
 .Bd -literal -offset indent
 # Configure logging.
-kern.logsigexit=0	# Do not log fatal signal exits (e.g. sig 11)
+kern.logsigexit=0	# Do not log fatal signal exits (e.g., sig 11)
 .Ed
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
@@ -78,7 +78,11 @@ If loadable kernel modules are used to introduce additional kernel
 functionality and sysctls to manage that functionality,
 .Nm
 may be processed too early in the boot process to set those sysctls.
-For example, sysctls to manage the linux emulator cannot be set in
+For example, sysctls to manage the Linux compatibility layer
+.Po
+.Xr linux 4
+.Pc
+cannot be set in
 .Nm
-if the linux emulator is loaded as a module rather than
+if the Linux compatibility layer is loaded as a module rather than
 compiled into the kernel.
