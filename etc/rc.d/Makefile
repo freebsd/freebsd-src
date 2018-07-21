@@ -157,7 +157,6 @@ AMDPACKAGE=	amd
 .if ${MK_APM} != "no"
 FILESGROUPS+=	APM
 APM+=		apm
-APM+=		apmd
 APMPACKAGE=	apm
 .endif
 
