@@ -1097,9 +1097,6 @@ ATF_TC_HEAD(setfib_success, tc)
 
 ATF_TC_BODY(setfib_success, tc)
 {
-	/* BSM conversion requested for unknown event 43228 */
-	atf_tc_expect_fail("PR 228374: setfib(2) does not get audited in success mode");
-
 	pid = getpid();
 	snprintf(extregex, sizeof(extregex), "setfib.*%d.*return,success", pid);
 
@@ -1123,9 +1120,6 @@ ATF_TC_HEAD(setfib_failure, tc)
 
 ATF_TC_BODY(setfib_failure, tc)
 {
-	/* BSM conversion requested for unknown event 43228 */
-	atf_tc_expect_fail("PR 228374: setfib(2) does not get audited in failure mode");
-
 	pid = getpid();
 	snprintf(extregex, sizeof(extregex), "setfib.*%d.*return,failure", pid);
 

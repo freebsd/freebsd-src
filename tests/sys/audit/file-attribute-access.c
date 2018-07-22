@@ -383,9 +383,6 @@ ATF_TC_HEAD(lgetfh_success, tc)
 
 ATF_TC_BODY(lgetfh_success, tc)
 {
-	/* BSM conversion requested for unknown event 43061 */
-	atf_tc_expect_fail("PR 228374: lgetfh(2) does not get audited in success mode");
-
 	/* Symbolic link needs to exist to get a file-handle */
 	ATF_REQUIRE_EQ(0, symlink("symlink", path));
 	const char *regex = "lgetfh.*return,success";
@@ -409,9 +406,6 @@ ATF_TC_HEAD(lgetfh_failure, tc)
 
 ATF_TC_BODY(lgetfh_failure, tc)
 {
-	/* BSM conversion requested for unknown event 43061 */
-	atf_tc_expect_fail("PR 228374: lgetfh(2) does not get audited in failure mode");
-
 	const char *regex = "lgetfh.*return,failure";
 	FILE *pipefd = setup(fds, "fa");
 	/* Failure reason: symbolic link does not exist */
