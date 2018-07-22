@@ -127,9 +127,7 @@ newreno_malloc(struct cc_var *ccv)
 static void
 newreno_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_NEWRENO);
+	free(ccv->cc_data, M_NEWRENO);
 }
 
 static void

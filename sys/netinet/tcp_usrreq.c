@@ -1729,6 +1729,7 @@ unlock_and_done:
 			 */
 			if (CC_ALGO(tp)->cb_destroy != NULL)
 				CC_ALGO(tp)->cb_destroy(tp->ccv);
+			CC_DATA(tp) = NULL;
 			CC_ALGO(tp) = algo;
 			/*
 			 * If something goes pear shaped initialising the new
