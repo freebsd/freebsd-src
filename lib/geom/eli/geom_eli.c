@@ -941,18 +941,26 @@ eli_attach(struct gctl_req *req)
 		prov = gctl_get_ascii(req, "arg%d", i);
 		gctl_ro_param(r, "arg0", -1, prov);
 
-		if (eli_metadata_read(r, prov, &md) == -1)
-			return;
+		if (eli_metadata_read(r, prov, &md) == -1) {
+			/*
+			 * Error reading metadata - details added to geom
+			 * request by eli_metadata_read().
+			 */
+			goto out;
+		}
 
 		mediasize = g_get_mediasize(prov);
 		if (md.md_provsize != (uint64_t)mediasize) {
 			gctl_error(r, "Provider size mismatch.");
-			return;
+			goto out;
 		}
 
 		if (eli_genkey(r, &md, key, false) == NULL) {
-			explicit_bzero(key, sizeof(key));
-			return;
+			/*
+			 * Error generating key - details added to geom request
+			 * by eli_genkey().
+			 */
+			goto out;
 		}
 
 		gctl_ro_param(r, "key", sizeof(key), key);
@@ -962,19 +970,20 @@ eli_attach(struct gctl_req *req)
 				printf("Attached to %s.\n", prov);
 		}
 
+out:
 		/* Print error for this request, and set parent request error message */
-	        if (r->error != NULL && r->error[0] != '\0') {
-	                warnx("%s", r->error);
-			gctl_error(req, "At least one provider failed to attach.");
-	        }
+		if (r->error != NULL && r->error[0] != '\0') {
+			warnx("%s", r->error);
+			gctl_error(req, "There was an error with at least one provider.");
+		}
 
 		gctl_free(r);
 
-		/* Clear the derived key */
+		/* Clear sensitive data from memory. */
 		explicit_bzero(key, sizeof(key));
 	}
 
-	/* Clear the cached passphrase */
+	/* Clear sensitive data from memory. */
 	explicit_bzero(cached_passphrase, sizeof(cached_passphrase));
 }
 
