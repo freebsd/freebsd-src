@@ -1722,7 +1722,6 @@ em_if_update_admin_status(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &adapter->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	u32 link_check, thstat, ctrl;
 
@@ -1786,8 +1785,8 @@ em_if_update_admin_status(if_ctx_t ctx)
 			    "Full Duplex" : "Half Duplex"));
 		adapter->link_active = 1;
 		adapter->smartspeed = 0;
-		if_setbaudrate(ifp, adapter->link_speed * 1000000);
-		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_GMII) &&
+		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_MASK) ==
+		    E1000_CTRL_EXT_LINK_MODE_GMII &&
 		    (thstat & E1000_THSTAT_LINK_THROTTLE))
 			device_printf(dev, "Link: thermal downshift\n");
 		/* Delay Link Up for Phy update */
@@ -1802,17 +1801,15 @@ em_if_update_admin_status(if_ctx_t ctx)
 			adapter->flags |= IGB_MEDIA_RESET;
 			em_reset(ctx);
 		}
-		iflib_link_state_change(ctx, LINK_STATE_UP, ifp->if_baudrate);
+		iflib_link_state_change(ctx, LINK_STATE_UP,
+		    IF_Mbps(adapter->link_speed));
 		printf("Link state changed to up\n");
 	} else if (!link_check && (adapter->link_active == 1)) {
-		if_setbaudrate(ifp, 0);
 		adapter->link_speed = 0;
 		adapter->link_duplex = 0;
-		if (bootverbose)
-			device_printf(dev, "Link is Down\n");
 		adapter->link_active = 0;
-		iflib_link_state_change(ctx, LINK_STATE_DOWN, ifp->if_baudrate);
-		printf("link state changed to down\n");
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		printf("Link state changed to down\n");
 	}
 	em_update_stats_counters(adapter);
 
@@ -1985,7 +1982,6 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	vector = 0;
 	for (i = 0; i < adapter->tx_num_queues; i++, tx_que++, vector++) {
-		rid = vector + 1;
 		snprintf(buf, sizeof(buf), "txq%d", i);
 		tx_que = &adapter->tx_queues[i];
 		iflib_softirq_alloc_generic(ctx,
@@ -2324,7 +2320,7 @@ igb_init_dmac(struct adapter *adapter, u32 pba)
 			dmac = pba - 10;
 		reg = E1000_READ_REG(hw, E1000_DMACR);
 		reg &= ~E1000_DMACR_DMACTHR_MASK;
-		reg = ((dmac << E1000_DMACR_DMACTHR_SHIFT)
+		reg |= ((dmac << E1000_DMACR_DMACTHR_SHIFT)
 		    & E1000_DMACR_DMACTHR_MASK);
 
 		/* transition to L0x or L1 if available..*/
