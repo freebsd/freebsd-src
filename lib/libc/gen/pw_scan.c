@@ -170,7 +170,8 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 		if (p[0])
 			pw->pw_fields |= _PWF_EXPIRE;
 		pw->pw_expire = atol(p);
-	}
+	} else
+		pw->pw_class = NULL;
 	if (!(pw->pw_gecos = strsep(&bp, ":")))		/* gecos */
 		goto fmt;
 	if (pw->pw_gecos[0])
