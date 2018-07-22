@@ -1175,14 +1175,14 @@ __installcheck_DESTDIR: .PHONY
 #
 CHECK_UIDS=	auditdistd
 CHECK_GIDS=	audit
-CHECK_UIDS+=	smmsp
-CHECK_GIDS+=	smmsp
-CHECK_UIDS+=	proxy
-CHECK_GIDS+=	proxy authpf
-CHECK_UIDS+=	unbound
-CHECK_GIDS+=	unbound
 CHECK_UIDS+=	ntpd
 CHECK_GIDS+=	ntpd
+CHECK_UIDS+=	proxy
+CHECK_GIDS+=	proxy authpf
+CHECK_UIDS+=	smmsp
+CHECK_GIDS+=	smmsp
+CHECK_UIDS+=	unbound
+CHECK_GIDS+=	unbound
 _installcheck_world: __installcheck_UGID
 __installcheck_UGID: .PHONY
 .for uid in ${CHECK_UIDS}
