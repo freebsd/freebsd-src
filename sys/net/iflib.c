@@ -2831,7 +2831,8 @@ txq_max_rs_deferred(iflib_txq_t txq)
 
 /* XXX we should be setting this to something other than zero */
 #define RECLAIM_THRESH(ctx) ((ctx)->ifc_sctx->isc_tx_reclaim_thresh)
-#define MAX_TX_DESC(ctx) ((ctx)->ifc_softc_ctx.isc_tx_tso_segments_max)
+#define	MAX_TX_DESC(ctx) max((ctx)->ifc_softc_ctx.isc_tx_tso_segments_max, \
+    (ctx)->ifc_softc_ctx.isc_tx_nsegments)
 
 static inline bool
 iflib_txd_db_check(if_ctx_t ctx, iflib_txq_t txq, int ring, qidx_t in_use)
