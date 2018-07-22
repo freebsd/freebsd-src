@@ -42,17 +42,13 @@
 # This test performs a TCP connection and checks that at least the
 # following packet counts were traced:
 #
-# 3 x ip:::send (2 during the TCP handshake, then a FIN)
-# 4 x tcp:::send (2 during the TCP handshake, 1 message then a FIN)
-# 2 x ip:::receive (1 during the TCP handshake, then the FIN ACK)
-# 3 x tcp:::receive (1 during the TCP handshake, 1 message then the FIN ACK)
+# 7 x ip:::send (3 during the setup, 4 during the teardown)
+# 7 x tcp:::send (3 during the setup, 4 during the teardown)
+# 7 x ip:::receive (3 during the setup, 4 during the teardown)
+# 7 x tcp:::receive (3 during the setup, 4 during the teardown)
 #
-# The actual ip count tested is 5 each way, since we are tracing both
-# source and destination events.  The actual tcp count tested is 7
-# each way, since the TCP fusion send/receive events will not reach IP.
-#
-# For this test to work, we are assuming that the TCP handshake and
-# TCP close will enter the IP code path and not use tcp fusion.
+# The actual count tested is 7 each way, since we are tracing both
+# source and destination events.
 #
 
 if (( $# != 1 )); then
@@ -157,8 +153,8 @@ tcp:::accept-established
 END
 {
 	printf("Minimum TCP events seen\n\n");
-	printf("ip:::send - %s\n", ipsend >= 5 ? "yes" : "no");
-	printf("ip:::receive - %s\n", ipreceive >= 5 ? "yes" : "no");
+	printf("ip:::send - %s\n", ipsend >= 7 ? "yes" : "no");
+	printf("ip:::receive - %s\n", ipreceive >= 7 ? "yes" : "no");
 	printf("tcp:::send - %s\n", tcpsend >= 7 ? "yes" : "no");
 	printf("tcp:::receive - %s\n", tcpreceive >= 7 ? "yes" : "no");
 	printf("tcp:::state-change to syn-sent - %s\n",
