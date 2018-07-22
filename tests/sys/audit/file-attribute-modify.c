@@ -701,9 +701,6 @@ ATF_TC_HEAD(chflagsat_success, tc)
 
 ATF_TC_BODY(chflagsat_success, tc)
 {
-	/* BSM conversion requested for unknown event 43209 */
-	atf_tc_expect_fail("PR 228374: chflagsat(2) does not get audited in success mode");
-
 	/* File needs to exist to call chflagsat(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
@@ -727,9 +724,6 @@ ATF_TC_HEAD(chflagsat_failure, tc)
 
 ATF_TC_BODY(chflagsat_failure, tc)
 {
-	/* BSM conversion requested for unknown event 43209 */
-	atf_tc_expect_fail("PR 228374: chflagsat(2) does not get audited in failure mode");
-
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
 	ATF_REQUIRE_EQ(-1, chflagsat(AT_FDCWD, errpath, SF_IMMUTABLE, 0));
