@@ -121,9 +121,6 @@ exclude EXFAIL common/ip/tst.ipv4remotetcp.ksh
 exclude EXFAIL common/ip/tst.ipv4remoteudp.ksh
 exclude EXFAIL common/ip/tst.ipv6remoteicmp.ksh
 exclude EXFAIL common/ip/tst.ipv4remoteicmp.ksh
-
-# FreeBSD never places tcpcbs in the TIME_WAIT state, so the probe never fires.
-exclude EXFAIL common/ip/tst.localtcpstate.ksh
 exclude EXFAIL common/ip/tst.remotetcpstate.ksh
 
 # Tries to enable pid$target:libc::entry, though there's no "libc" module.

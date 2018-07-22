@@ -38,16 +38,13 @@
 # This test performs a TCP connection and checks that at least the
 # following packet counts were traced:
 #
-# 3 x ip:::send (2 during the TCP handshake, then a FIN)
-# 3 x tcp:::send (2 during the TCP handshake, then a FIN)
-# 2 x ip:::receive (1 during the TCP handshake, then the FIN ACK)
-# 2 x tcp:::receive (1 during the TCP handshake, then the FIN ACK)
+# 7 x ip:::send (3 during the setup, 4 during the teardown)
+# 7 x tcp:::send (3 during the setup, 4 during the teardown)
+# 7 x ip:::receive (3 during the setup, 4 during the teardown)
+# 7 x tcp:::receive (3 during the setup, 4 during the teardown)
 
-# The actual count tested is 5 each way, since we are tracing both
+# The actual count tested is 7 each way, since we are tracing both
 # source and destination events.
-#
-# For this test to work, we are assuming that the TCP handshake and
-# TCP close will enter the IP code path and not use tcp fusion.
 #
 
 if (( $# != 1 )); then
@@ -123,10 +120,10 @@ tcp:::receive
 END
 {
 	printf("Minimum TCP events seen\n\n");
-	printf("ip:::send - %s\n", ipsend >= 5 ? "yes" : "no");
-	printf("ip:::receive - %s\n", ipreceive >= 5 ? "yes" : "no");
-	printf("tcp:::send - %s\n", tcpsend >= 5 ? "yes" : "no");
-	printf("tcp:::receive - %s\n", tcpreceive >= 5 ? "yes" : "no");
+	printf("ip:::send - %s\n", ipsend >= 7 ? "yes" : "no");
+	printf("ip:::receive - %s\n", ipreceive >= 7 ? "yes" : "no");
+	printf("tcp:::send - %s\n", tcpsend >= 7 ? "yes" : "no");
+	printf("tcp:::receive - %s\n", tcpreceive >= 7 ? "yes" : "no");
 }
 EODTRACE
 
