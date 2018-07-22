@@ -307,8 +307,7 @@ static void
 chd_cb_destroy(struct cc_var *ccv)
 {
 
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_CHD);
+	free(ccv->cc_data, M_CHD);
 }
 
 static int

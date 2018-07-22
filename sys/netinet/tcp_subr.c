@@ -1730,10 +1730,18 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 				 */
 				if (CC_ALGO(tp) == unload_algo) {
 					tmpalgo = CC_ALGO(tp);
-					/* NewReno does not require any init. */
-					CC_ALGO(tp) = &newreno_cc_algo;
 					if (tmpalgo->cb_destroy != NULL)
 						tmpalgo->cb_destroy(tp->ccv);
+					CC_DATA(tp) = NULL;
+					/*
+					 * NewReno may allocate memory on
+					 * demand for certain stateful
+					 * configuration as needed, but is
+					 * coded to never fail on memory
+					 * allocation failure so it is a safe
+					 * fallback.
+					 */
+					CC_ALGO(tp) = &newreno_cc_algo;
 				}
 			}
 			INP_WUNLOCK(inp);
@@ -1885,6 +1893,7 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
+	CC_DATA(tp) = NULL;
 
 #ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);
