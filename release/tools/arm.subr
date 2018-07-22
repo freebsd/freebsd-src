@@ -165,6 +165,36 @@ arm_install_base() {
 	return 0
 }
 
+arm_install_boot() {
+	FATMOUNT="${DESTDIR%${KERNEL}}/fat"
+	UFSMOUNT="${DESTDIR%${KERNEL}}/ufs"
+	chroot ${CHROOTDIR} mkdir -p "${FATMOUNT}" "${UFSMOUNT}"
+	chroot ${CHROOTDIR} mount_msdosfs /dev/${mddev}s1 ${FATMOUNT}
+	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${UFSMOUNT}
+
+	if [ "${EMBEDDED_TARGET}" == "arm" ]; then
+	chroot ${CHROOTDIR} cp -p ${UFSMOUNT}/boot/ubldr.bin \
+		${FATMOUNT}/ubldr.bin
+	fi
+
+	BOOTFILES="$(chroot ${CHROOTDIR} \
+		env TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(chroot ${CHROOTDIR} realpath ${BOOTFILES})"
+
+	chroot ${CHROOTDIR} mkdir -p ${FATMOUNT}/EFI/BOOT
+	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader/loader.efi \
+		${FATMOUNT}/EFI/BOOT/$(efi_boot_name ${EMBEDDED_TARGET})
+
+	chroot ${CHROOTDIR} touch ${UFSMOUNT}/firstboot
+	sync
+	umount_loop ${CHROOTDIR}/${FATMOUNT}
+	umount_loop ${CHROOTDIR}/${UFSMOUNT}
+	chroot ${CHROOTDIR} rmdir ${FATMOUNT}
+	chroot ${CHROOTDIR} rmdir ${UFSMOUNT}
+}
+
 arm_install_uboot() {
 	# Override in the arm/KERNEL.conf file.
 
