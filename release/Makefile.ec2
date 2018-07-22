@@ -15,8 +15,13 @@ SVN_CMD=   ${_P}/${_S}
 .  endfor
 . endfor
 .endif
+.if exists($SRCTOP/.svn)
 EC2_SVNBRANCH!=	${SVN_CMD} info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
 EC2_SVNREV!=	${SVN_CMD} info --show-item last-changed-revision ${WORLDDIR}
+.else
+EC2_SVNBRANCH=	unknown
+EC2_SVNREV=	unknown
+.endif
 
 .if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
 AMINAMESUFFIX!=	date +-%Y-%m-%d
