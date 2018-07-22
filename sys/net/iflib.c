@@ -2663,7 +2663,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		return (false);
 	}
 
-	for (budget_left = budget; (budget_left > 0) && (avail > 0); budget_left--, avail--) {
+	for (budget_left = budget; budget_left > 0 && avail > 0;) {
 		if (__predict_false(!CTX_ACTIVE(ctx))) {
 			DBG_COUNTER_INC(rx_ctx_inactive);
 			break;
@@ -2697,6 +2697,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 
 		/* will advance the cidx on the corresponding free lists */
 		m = iflib_rxd_pkt_get(rxq, &ri);
+		avail--;
+		budget_left--;
 		if (avail == 0 && budget_left)
 			avail = iflib_rxd_avail(ctx, rxq, *cidxp, budget_left);
 
@@ -2873,14 +2875,14 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 	struct ether_vlan_header *eh;
 	struct mbuf *m, *n;
 
-	n = m = *mp;
+	m = *mp;
 	if ((sctx->isc_flags & IFLIB_NEED_SCRATCH) &&
 	    M_WRITABLE(m) == 0) {
 		if ((m = m_dup(m, M_NOWAIT)) == NULL) {
 			return (ENOMEM);
 		} else {
 			m_freem(*mp);
-			n = *mp = m;
+			*mp = m;
 		}
 	}
 
@@ -3048,6 +3050,8 @@ collapse_pkthdr(struct mbuf *m0)
 	}
 	m = m0;
 	m->m_next = m_next;
+	if (m_next == NULL)
+		return (m);
 	if ((m_next->m_flags & M_EXT) == 0) {
 		m = m_defrag(m, M_NOWAIT);
 	} else {
@@ -3108,7 +3112,7 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 	 * Please don't ever do this
 	 */
 	if (__predict_false(m->m_len == 0))
-		*m0 = m = collapse_pkthdr(m);
+		*m0 = collapse_pkthdr(m);
 
 	ctx = txq->ift_ctx;
 	sctx = ctx->ifc_sctx;
@@ -3285,7 +3289,6 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	int err, nsegs, ndesc, max_segs, pidx, cidx, next, ntxd;
 	bus_dma_tag_t desc_tag;
 
-	segs = txq->ift_segs;
 	ctx = txq->ift_ctx;
 	sctx = ctx->ifc_sctx;
 	scctx = &ctx->ifc_softc_ctx;
