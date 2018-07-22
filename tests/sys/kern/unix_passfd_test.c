@@ -23,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -100,6 +101,23 @@ dofstat(int fd, struct stat *sb)
 	    "fstat failed: %s", strerror(errno));
 }
 
+static int
+getnfds(void)
+{
+	size_t len;
+	int mib[4], n, rc;
+
+	len = sizeof(n);
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_NFDS;
+	mib[3] = 0;
+
+	rc = sysctl(mib, 4, &n, &len, NULL, 0);
+	ATF_REQUIRE_MSG(rc != -1, "sysctl(KERN_PROC_NFDS) failed");
+	return (n);
+}
+
 static void
 samefile(struct stat *sb1, struct stat *sb2)
 {
@@ -129,7 +147,7 @@ sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
 
-	cmsghdr = (struct cmsghdr *)(void*)message;
+	cmsghdr = (struct cmsghdr *)(void *)message;
 	cmsghdr->cmsg_len = CMSG_LEN(sizeof(int));
 	cmsghdr->cmsg_level = SOL_SOCKET;
 	cmsghdr->cmsg_type = SCM_RIGHTS;
@@ -380,6 +398,55 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	closesocketpair(fd);
 }
 
+/*
+ * Test for PR 131876. Receiver uses a control message buffer that is too
+ * small for the incoming SCM_RIGHTS message, so the message is truncated.
+ * The kernel must not leak the copied right into the receiver's namespace.
+ */
+ATF_TC_WITHOUT_HEAD(truncated_rights);
+ATF_TC_BODY(truncated_rights, tc)
+{
+	struct iovec iovec;
+	struct msghdr msghdr;
+	char buf[16], message[CMSG_SPACE(0)];
+	ssize_t len;
+	int fd[2], nfds, putfd;
+
+	atf_tc_expect_fail("PR 131876: "
+	    "FD leak when 'control' message is truncated");
+
+	memset(buf, 42, sizeof(buf));
+	domainsocketpair(fd);
+	devnull(&putfd);
+	nfds = getnfds();
+
+	sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+
+	bzero(&msghdr, sizeof(msghdr));
+	bzero(message, sizeof(message));
+
+	iovec.iov_base = buf;
+	iovec.iov_len = sizeof(buf);
+	msghdr.msg_control = message;
+	msghdr.msg_controllen = sizeof(message);
+	msghdr.msg_iov = &iovec;
+	msghdr.msg_iovlen = 1;
+
+	len = recvmsg(fd[1], &msghdr, 0);
+	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG((size_t)len == sizeof(buf),
+	    "recvmsg: %zd bytes received; expected %zd", len, sizeof(buf));
+	for (size_t i = 0; i < sizeof(buf); i++)
+		ATF_REQUIRE_MSG(buf[i] == 42, "unexpected buffer contents");
+
+	ATF_REQUIRE_MSG((msghdr.msg_flags & MSG_CTRUNC) != 0,
+	    "MSG_CTRUNC not set after truncation");
+	ATF_REQUIRE(getnfds() == nfds);
+
+	close(putfd);
+	closesocketpair(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -391,6 +458,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bundle_cancel);
 	ATF_TP_ADD_TC(tp, devfs_orphan);
 	ATF_TP_ADD_TC(tp, rights_creds_payload);
+	ATF_TP_ADD_TC(tp, truncated_rights);
 
 	return (atf_no_error());
 }
