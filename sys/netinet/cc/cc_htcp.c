@@ -238,9 +238,7 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 htcp_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_HTCP);
+	free(ccv->cc_data, M_HTCP);
 }
 
 static int

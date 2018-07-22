@@ -184,8 +184,7 @@ dctcp_after_idle(struct cc_var *ccv)
 static void
 dctcp_cb_destroy(struct cc_var *ccv)
 {
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_dctcp);
+	free(ccv->cc_data, M_dctcp);
 }
 
 static int
