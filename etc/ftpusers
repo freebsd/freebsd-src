@@ -11,6 +11,7 @@ tty
 kmem
 games
 news
+ntpd
 man
 sshd
 smmsp
