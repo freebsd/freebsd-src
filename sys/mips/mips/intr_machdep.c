@@ -257,7 +257,7 @@ cpu_intr(struct trapframe *tf)
 			break;
 		}
 
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 			printf("stray %s interrupt %d\n",
 			    hard ? "hard" : "soft", i);
 			continue;
