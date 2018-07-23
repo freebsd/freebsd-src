@@ -567,6 +567,7 @@ main(int argc, CHAR16 *argv[])
 	 * eg. the boot device, which we can't do yet.  We can use
 	 * printf() etc. once this is done.
 	 */
+	setenv("console", "efi", 1);
 	cons_probe();
 
 	/*
@@ -589,7 +590,7 @@ main(int argc, CHAR16 *argv[])
 #define	VID_SER_BOTH	RB_MULTIPLE
 #define	SER_VID_BOTH	(RB_SERIAL | RB_MULTIPLE)
 #define	CON_MASK	(RB_SERIAL | RB_MULTIPLE)
-	if (getenv("console") == NULL) {
+	if (strcmp(getenv("console"), "efi") == 0) {
 		if ((howto & CON_MASK) == 0) {
 			/* No override, uhowto is controlling and efi cons is perfect */
 			howto = howto | (uhowto & CON_MASK);
