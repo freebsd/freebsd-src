@@ -33,7 +33,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20180723:
 	loader.efi has been augmented to participate more fully in the
-	UEFI boot manager protocol.
+	UEFI boot manager protocol. loader.efi will now look at the
+	BootXXXX environment variable to determine if a specific kernel
+	or root partition was specified. XXXX is derived from BootCurrent.
+	efibootmgr(8) manages these standard UEFI variables.
 
 20180720:
 	zfsloader's functionality has now been folded into loader.
