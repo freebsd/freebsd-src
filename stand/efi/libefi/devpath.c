@@ -195,3 +195,19 @@ efi_devpath_is_prefix(EFI_DEVICE_PATH *prefix, EFI_DEVICE_PATH *path)
 	}
 	return (true);
 }
+
+/*
+ * Skip over the 'prefix' part of path and return the part of the path
+ * that starts with the first node that's a MEDIA_DEVICE_PATH.
+ */
+EFI_DEVICE_PATH *
+efi_devpath_to_media_path(EFI_DEVICE_PATH *path)
+{
+
+	while (!IsDevicePathEnd(path)) {
+		if (DevicePathType(path) == MEDIA_DEVICE_PATH)
+			return (path);
+		path = NextDevicePathNode(path);
+	}
+	return (NULL);
+}
