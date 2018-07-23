@@ -65,7 +65,7 @@ ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
 .if ${MK_ZFS} == "yes"
-SYMLINKS=	${BINDIR}/${LOADER} ${BINDIR}/zfs${LOADER}
+LINKS=		${BINDIR}/${LOADER} ${BINDIR}/zfs${LOADER}
 .endif
 FILES+=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b

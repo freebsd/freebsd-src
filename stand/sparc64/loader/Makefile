@@ -43,7 +43,7 @@ HELP_FILES=	${.CURDIR}/help.sparc64
 LDFLAGS+=	-static
 
 .if ${MK_ZFS} == "yes"
-SYMLINKS=	${BINDIR}/loader ${BINDIR}/zfsloader
+LINKS=		${BINDIR}/loader ${BINDIR}/zfsloader
 .endif
 
 # Open Firmware standalone support library
