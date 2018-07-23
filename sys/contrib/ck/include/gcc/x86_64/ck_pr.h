@@ -332,17 +332,17 @@ CK_PR_FAA_S(8,  uint8_t,  "xaddb")
 	}
 
 #define CK_PR_UNARY_V(K, S, T, C, I)					\
-	CK_CC_INLINE static void					\
-	ck_pr_##K##_##S##_zero(T *target, bool *r)			\
+	CK_CC_INLINE static bool					\
+	ck_pr_##K##_##S##_is_zero(T *target)				\
 	{								\
+		bool ret;						\
 		__asm__ __volatile__(CK_PR_LOCK_PREFIX I " %0; setz %1"	\
 					: "+m" (*(C *)target),		\
-					  "=m" (*r)			\
+					  "=rm" (ret)			\
 					:				\
 					: "memory", "cc");		\
-		return;							\
+		return ret;						\
 	}
-
 
 #define CK_PR_UNARY_S(K, S, T, I) CK_PR_UNARY(K, S, T, T, I)
 
