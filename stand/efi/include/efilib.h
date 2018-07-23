@@ -90,6 +90,7 @@ bool efi_devpath_is_prefix(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
 void efi_free_devpath_name(CHAR16 *);
 EFI_DEVICE_PATH *efi_devpath_to_media_path(EFI_DEVICE_PATH *);
+UINTN efi_devpath_length(EFI_DEVICE_PATH *);
 
 int efi_status_to_errno(EFI_STATUS);
 EFI_STATUS errno_to_efi_status(int errno);

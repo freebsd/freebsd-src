@@ -219,3 +219,13 @@ efi_devpath_to_media_path(EFI_DEVICE_PATH *path)
 	}
 	return (NULL);
 }
+
+UINTN
+efi_devpath_length(EFI_DEVICE_PATH  *path)
+{
+	EFI_DEVICE_PATH *start = path;
+
+	while (!IsDevicePathEnd(path))
+		path = NextDevicePathNode(path);
+	return ((UINTN)path - (UINTN)start) + DevicePathNodeLength(path);
+}
