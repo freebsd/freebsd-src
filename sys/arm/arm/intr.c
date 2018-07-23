@@ -170,7 +170,7 @@ arm_remove_irqhandler(int irq, void *cookie)
 
 	error = intr_event_remove_handler(cookie);
 
-	if (!TAILQ_EMPTY(&event->ie_handlers))
+	if (!CK_SLIST_EMPTY(&event->ie_handlers))
 		arm_unmask_irq(irq);
 	return (error);
 }
