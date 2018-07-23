@@ -22,6 +22,7 @@ bsd.confs.mk		- install of configuration files
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
 bsd.crunchgen.mk	- building crunched binaries using crunchgen(1)
 bsd.dep.mk		- handle Makefile dependencies
+bsd.dirs.mk		- handle directory creation
 bsd.doc.mk		- building troff system documents
 bsd.endian.mk		- TARGET_ENDIAN=1234(little) or 4321 (big) for target
 bsd.files.mk		- install of general purpose files
@@ -291,6 +292,18 @@ CFLAGS		Flags to the compiler when creating C objects.
 CLEANDIRS	Additional files (CLEANFILES) and directories (CLEANDIRS) to
 CLEANFILES	remove during clean and cleandir targets.  "rm -rf" and
 		"rm -f" are used, respectively.
+
+DIRS		A list of variables referring to directories.  For example:
+
+			DIRS+=	FOO
+			FOO=	/usr/share/foo
+
+		Owner, Group, Mode and Flags are handled by FOO_OWN,
+		FOO_GRP, FOO_MODE and FOO_FLAGS, respectively.
+
+		This allows FILESDIR to be set to FOO, and the directory
+		will be created before the files are installed and the
+		dependencies will be set correctly.
 
 DPADD		Additional dependencies for the program.  Usually used for
 		libraries.  For example, to depend on the compatibility and
