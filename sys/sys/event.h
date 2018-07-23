@@ -74,9 +74,9 @@
 struct kevent {
 	uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	intptr_t	data;
+	u_short		flags;		/* action flags for kqueue */
+	u_int		fflags;		/* filter flag value */
+	intptr_t	data;		/* filter data value */
 	void		*udata;		/* opaque user data identifier */
 };
 
