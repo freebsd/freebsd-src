@@ -762,7 +762,7 @@ mtk_pci_intr(void *arg)
 		if (reg & (1u<<irq)) {
 			irqidx = irq - sc->sc_irq_start;
 			event = sc->sc_eventstab[irqidx];
-			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 				if (irq != 0)
 					printf("Stray PCI IRQ %d\n", irq);
 				continue;
