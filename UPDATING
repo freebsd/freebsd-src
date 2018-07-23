@@ -34,9 +34,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20180720:
 	zfsloader's functionality has now been folded into loader.
 	zfsloader is no longer necesasary once you've updated your
-	boot blocks. For a transition period, there will be a symlink
-	in place from zfsloader to loader to allow a smooth transition
-	until the boot blocks can be updated.
+	boot blocks. For a transition period, we will install a
+	hardlink for zfsloader to loader to allow a smooth transition
+	until the boot blocks can be updated (hard link because old
+	zfs boot blocks don't understand symlinks).
 
 20180719:
 	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
