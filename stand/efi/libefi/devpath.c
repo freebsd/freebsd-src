@@ -140,25 +140,33 @@ efi_devpath_handle(EFI_DEVICE_PATH *devpath)
 }
 
 bool
-efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
+efi_devpath_match_node(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 {
 	size_t len;
 
 	if (devpath1 == NULL || devpath2 == NULL)
 		return (false);
+	if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
+	    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
+		return (false);
+	len = DevicePathNodeLength(devpath1);
+	if (len != DevicePathNodeLength(devpath2))
+		return (false);
+	if (memcmp(devpath1, devpath2, len) != 0)
+		return (false);
+	return (true);
+}
+
+bool
+efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
+{
+
+	if (devpath1 == NULL || devpath2 == NULL)
+		return (false);
 
 	while (true) {
-		if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
-		    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
-			return (false);
-
-		len = DevicePathNodeLength(devpath1);
-		if (len != DevicePathNodeLength(devpath2))
-			return (false);
-
-		if (memcmp(devpath1, devpath2, len) != 0)
-			return (false);
-
+		if (!efi_devpath_match_node(devpath1, devpath2))
+			return false;
 		if (IsDevicePathEnd(devpath1))
 			break;
 		devpath1 = NextDevicePathNode(devpath1);
