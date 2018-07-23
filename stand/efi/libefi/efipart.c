@@ -210,7 +210,7 @@ efipart_inithandles(void)
 		return (efi_status_to_errno(status));
 
 	efipart_handles = hin;
-	efipart_nhandles = sz;
+	efipart_nhandles = sz / sizeof(*hin);
 #ifdef EFIPART_DEBUG
 	printf("%s: Got %d BLOCK IO MEDIA handle(s)\n", __func__,
 	    efipart_nhandles);
@@ -246,7 +246,7 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 static bool
 efipart_hdd(EFI_DEVICE_PATH *dp)
 {
-	unsigned i, nin;
+	unsigned i;
 	EFI_DEVICE_PATH *devpath, *node;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
@@ -264,8 +264,7 @@ efipart_hdd(EFI_DEVICE_PATH *dp)
 	 * Test every EFI BLOCK IO handle to make sure dp is not device path
 	 * for CD/DVD.
 	 */
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			return (false);
@@ -340,10 +339,9 @@ efipart_updatefd(void)
 {
 	EFI_DEVICE_PATH *devpath, *node;
 	ACPI_HID_DEVICE_PATH *acpi;
-	int i, nin;
+	int i;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;
@@ -410,14 +408,13 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 static void
 efipart_updatecd(void)
 {
-	int i, nin;
+	int i;
 	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
 	EFI_HANDLE handle;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;
@@ -666,14 +663,13 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 static void
 efipart_updatehd(void)
 {
-	int i, nin;
+	int i;
 	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
 	EFI_HANDLE handle;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;
