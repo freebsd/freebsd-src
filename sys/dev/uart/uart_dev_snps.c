@@ -107,7 +107,7 @@ snps_uart_attach(struct uart_softc *uart_sc)
 	sc = (struct snps_softc *)uart_sc;
 
 	/* UART requires to read USR reg when IIR_BUSY */
-	sc->ns8250.busy_detect = 1;
+	uart_sc->sc_bas.busy_detect = 1;
 
 	return (ns8250_bus_attach(uart_sc));
 }
