@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static VNET_DEFINE(uma_zone_t, tcptw_zone);
+VNET_DEFINE_STATIC(uma_zone_t, tcptw_zone);
 #define	V_tcptw_zone		VNET(tcptw_zone)
 static int	maxtcptw;
 
@@ -111,11 +111,11 @@ static int	maxtcptw;
  *  - a tcptw relies on its inpcb reference counting for memory stability
  *  - a tcptw is dereferenceable only while its inpcb is locked
  */
-static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
+VNET_DEFINE_STATIC(TAILQ_HEAD(, tcptw), twq_2msl);
 #define	V_twq_2msl		VNET(twq_2msl)
 
 /* Global timewait lock */
-static VNET_DEFINE(struct rwlock, tw_lock);
+VNET_DEFINE_STATIC(struct rwlock, tw_lock);
 #define	V_tw_lock		VNET(tw_lock)
 
 #define	TW_LOCK_INIT(tw, d)	rw_init_flags(&(tw), (d), 0)
@@ -172,7 +172,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-static VNET_DEFINE(int, nolocaltimewait) = 0;
+VNET_DEFINE_STATIC(int, nolocaltimewait) = 0;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,

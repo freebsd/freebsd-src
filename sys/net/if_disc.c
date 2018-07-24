@@ -76,7 +76,7 @@ static void	disc_clone_destroy(struct ifnet *);
 static const char discname[] = "disc";
 static MALLOC_DEFINE(M_DISC, discname, "Discard interface");
 
-static VNET_DEFINE(struct if_clone *, disc_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, disc_cloner);
 #define	V_disc_cloner	VNET(disc_cloner)
 
 static int

@@ -74,7 +74,7 @@ VNET_DEFINE(int, ip_gre_ttl) = GRE_TTL;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
-static VNET_DEFINE(struct gre_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv4_hashtbl) = NULL;
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv4_hashtbl[\
     in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])

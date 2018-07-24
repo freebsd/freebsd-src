@@ -187,31 +187,31 @@ static int proto_reg[] = {-1, -1};
  */
 
 /* Accept incoming CARP packets. */
-static VNET_DEFINE(int, carp_allow) = 1;
+VNET_DEFINE_STATIC(int, carp_allow) = 1;
 #define	V_carp_allow	VNET(carp_allow)
 
 /* Set DSCP in outgoing CARP packets. */
-static VNET_DEFINE(int, carp_dscp) = 56;
+VNET_DEFINE_STATIC(int, carp_dscp) = 56;
 #define	V_carp_dscp	VNET(carp_dscp)
 
 /* Preempt slower nodes. */
-static VNET_DEFINE(int, carp_preempt) = 0;
+VNET_DEFINE_STATIC(int, carp_preempt) = 0;
 #define	V_carp_preempt	VNET(carp_preempt)
 
 /* Log level. */
-static VNET_DEFINE(int, carp_log) = 1;
+VNET_DEFINE_STATIC(int, carp_log) = 1;
 #define	V_carp_log	VNET(carp_log)
 
 /* Global advskew demotion. */
-static VNET_DEFINE(int, carp_demotion) = 0;
+VNET_DEFINE_STATIC(int, carp_demotion) = 0;
 #define	V_carp_demotion	VNET(carp_demotion)
 
 /* Send error demotion factor. */
-static VNET_DEFINE(int, carp_senderr_adj) = CARP_MAXSKEW;
+VNET_DEFINE_STATIC(int, carp_senderr_adj) = CARP_MAXSKEW;
 #define	V_carp_senderr_adj	VNET(carp_senderr_adj)
 
 /* Iface down demotion factor. */
-static VNET_DEFINE(int, carp_ifdown_adj) = CARP_MAXSKEW;
+VNET_DEFINE_STATIC(int, carp_ifdown_adj) = CARP_MAXSKEW;
 #define	V_carp_ifdown_adj	VNET(carp_ifdown_adj)
 
 static int carp_allow_sysctl(SYSCTL_HANDLER_ARGS);

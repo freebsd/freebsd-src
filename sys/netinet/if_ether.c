@@ -94,13 +94,13 @@ static SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 static SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
 
 /* timer values */
-static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
+VNET_DEFINE_STATIC(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
-static VNET_DEFINE(int, arp_maxtries) = 5;
-static VNET_DEFINE(int, arp_proxyall) = 0;
-static VNET_DEFINE(int, arpt_down) = 20;	/* keep incomplete entries for
+VNET_DEFINE_STATIC(int, arp_maxtries) = 5;
+VNET_DEFINE_STATIC(int, arp_proxyall) = 0;
+VNET_DEFINE_STATIC(int, arpt_down) = 20;	/* keep incomplete entries for
 						 * 20 seconds */
-static VNET_DEFINE(int, arpt_rexmit) = 1;	/* retransmit arp entries, sec*/
+VNET_DEFINE_STATIC(int, arpt_rexmit) = 1;	/* retransmit arp entries, sec*/
 VNET_PCPUSTAT_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 VNET_PCPUSTAT_SYSINIT(arpstat);
 
@@ -108,7 +108,7 @@ VNET_PCPUSTAT_SYSINIT(arpstat);
 VNET_PCPUSTAT_SYSUNINIT(arpstat);
 #endif /* VIMAGE */
 
-static VNET_DEFINE(int, arp_maxhold) = 1;
+VNET_DEFINE_STATIC(int, arp_maxhold) = 1;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)

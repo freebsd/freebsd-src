@@ -257,13 +257,13 @@ static void tcp_fastopen_ccache_entry_drop(struct tcp_fastopen_ccache_entry *,
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, fastopen, CTLFLAG_RW, 0, "TCP Fast Open");
 
-static VNET_DEFINE(int, tcp_fastopen_acceptany) = 0;
+VNET_DEFINE_STATIC(int, tcp_fastopen_acceptany) = 0;
 #define	V_tcp_fastopen_acceptany	VNET(tcp_fastopen_acceptany)
 SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, acceptany,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_fastopen_acceptany), 0,
     "Accept any non-empty cookie");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_autokey) = 120;
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_autokey) = 120;
 #define	V_tcp_fastopen_autokey	VNET(tcp_fastopen_autokey)
 static int sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, autokey,
@@ -277,7 +277,7 @@ SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_bucket_limit,
     &sysctl_net_inet_tcp_fastopen_ccache_bucket_limit, "IU",
     "Max entries per bucket in client cookie cache");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_ccache_buckets) =
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_ccache_buckets) =
     TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT;
 #define	V_tcp_fastopen_ccache_buckets VNET(tcp_fastopen_ccache_buckets)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, ccache_buckets,
@@ -303,26 +303,26 @@ SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, maxpsks,
     CTLFLAG_RD, SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_MAX_PSKS,
     "Maximum number of pre-shared keys supported");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_numkeys) = 0;
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_numkeys) = 0;
 #define	V_tcp_fastopen_numkeys	VNET(tcp_fastopen_numkeys)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, numkeys,
     CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(tcp_fastopen_numkeys), 0,
     "Number of keys installed");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_numpsks) = 0;
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_numpsks) = 0;
 #define	V_tcp_fastopen_numpsks	VNET(tcp_fastopen_numpsks)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, numpsks,
     CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(tcp_fastopen_numpsks), 0,
     "Number of pre-shared keys installed");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_path_disable_time) =
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_path_disable_time) =
     TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT;
 #define	V_tcp_fastopen_path_disable_time VNET(tcp_fastopen_path_disable_time)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, path_disable_time,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_fastopen_path_disable_time), 0,
     "Seconds a TFO failure disables a {client_ip, server_ip, server_port} path");
 
-static VNET_DEFINE(unsigned int, tcp_fastopen_psk_enable) = 0;
+VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_psk_enable) = 0;
 #define	V_tcp_fastopen_psk_enable	VNET(tcp_fastopen_psk_enable)
 static int sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, psk_enable,
@@ -355,7 +355,7 @@ SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_list,
     sysctl_net_inet_tcp_fastopen_ccache_list, "A",
     "List of all client cookie cache entries");
 
-static VNET_DEFINE(struct rmlock, tcp_fastopen_keylock);
+VNET_DEFINE_STATIC(struct rmlock, tcp_fastopen_keylock);
 #define	V_tcp_fastopen_keylock	VNET(tcp_fastopen_keylock)
 
 #define TCP_FASTOPEN_KEYS_RLOCK(t)	rm_rlock(&V_tcp_fastopen_keylock, (t))
@@ -363,18 +363,18 @@ static VNET_DEFINE(struct rmlock, tcp_fastopen_keylock);
 #define TCP_FASTOPEN_KEYS_WLOCK()	rm_wlock(&V_tcp_fastopen_keylock)
 #define TCP_FASTOPEN_KEYS_WUNLOCK()	rm_wunlock(&V_tcp_fastopen_keylock)
 
-static VNET_DEFINE(struct tcp_fastopen_keylist, tcp_fastopen_keys);
+VNET_DEFINE_STATIC(struct tcp_fastopen_keylist, tcp_fastopen_keys);
 #define V_tcp_fastopen_keys	VNET(tcp_fastopen_keys)
 
-static VNET_DEFINE(struct tcp_fastopen_callout, tcp_fastopen_autokey_ctx);
+VNET_DEFINE_STATIC(struct tcp_fastopen_callout, tcp_fastopen_autokey_ctx);
 #define V_tcp_fastopen_autokey_ctx	VNET(tcp_fastopen_autokey_ctx)
 
-static VNET_DEFINE(uma_zone_t, counter_zone);
+VNET_DEFINE_STATIC(uma_zone_t, counter_zone);
 #define	V_counter_zone			VNET(counter_zone)
 
 static MALLOC_DEFINE(M_TCP_FASTOPEN_CCACHE, "tfo_ccache", "TFO client cookie cache buckets");
 
-static VNET_DEFINE(struct tcp_fastopen_ccache, tcp_fastopen_ccache);
+VNET_DEFINE_STATIC(struct tcp_fastopen_ccache, tcp_fastopen_ccache);
 #define V_tcp_fastopen_ccache	VNET(tcp_fastopen_ccache)
 
 #define	CCB_LOCK(ccb)		mtx_lock(&(ccb)->ccb_mtx)

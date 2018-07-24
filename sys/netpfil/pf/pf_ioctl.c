@@ -117,7 +117,7 @@ static void		 pf_addr_copyout(struct pf_addr_wrap *);
 VNET_DEFINE(struct pf_rule,	pf_default_rule);
 
 #ifdef ALTQ
-static VNET_DEFINE(int,		pf_altq_running);
+VNET_DEFINE_STATIC(int,		pf_altq_running);
 #define	V_pf_altq_running	VNET(pf_altq_running)
 #endif
 
@@ -187,7 +187,7 @@ static struct cdevsw pf_cdevsw = {
 	.d_version =	D_VERSION,
 };
 
-static volatile VNET_DEFINE(int, pf_pfil_hooked);
+volatile VNET_DEFINE_STATIC(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
 
 /*

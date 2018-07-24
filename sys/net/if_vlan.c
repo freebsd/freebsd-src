@@ -335,7 +335,7 @@ static  void vlan_lladdr_fn(void *arg, int pending);
 static struct if_clone *vlan_cloner;
 
 #ifdef VIMAGE
-static VNET_DEFINE(struct if_clone *, vlan_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, vlan_cloner);
 #define	V_vlan_cloner	VNET(vlan_cloner)
 #endif
 

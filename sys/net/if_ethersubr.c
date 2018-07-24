@@ -1291,7 +1291,7 @@ static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
 static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
     "for consistency");
 
-static VNET_DEFINE(int, soft_pad);
+VNET_DEFINE_STATIC(int, soft_pad);
 #define	V_soft_pad	VNET(soft_pad)
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(soft_pad), 0,

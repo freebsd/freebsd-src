@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-static VNET_DEFINE(uint16_t, tcpmod_setmss_eid) = 0;
+VNET_DEFINE_STATIC(uint16_t, tcpmod_setmss_eid) = 0;
 #define	V_tcpmod_setmss_eid	VNET(tcpmod_setmss_eid)
 
 static int
