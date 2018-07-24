@@ -140,7 +140,7 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, reply_from_interface, CTLFLAG_VNET | CTLFLA
 	&VNET_NAME(icmp_rfi), 0,
 	"ICMP reply from incoming interface for non-local packets");
 /* Router requirements RFC 1812 section 4.3.2.3 requires 576 - 28. */
-VNET_DEFINE_STATIC(int, icmp_quotelen) = 8;
+VNET_DEFINE_STATIC(int, icmp_quotelen) = 548;
 #define	V_icmp_quotelen			VNET(icmp_quotelen)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmp_quotelen), 0,
