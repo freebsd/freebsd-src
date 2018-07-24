@@ -39,7 +39,7 @@ __ieee754_remainderf(float x, float p)
 	if((hp==0)||			 	/* p = 0 */
 	  (hx>=0x7f800000)||			/* x not finite */
 	  ((hp>0x7f800000)))			/* p is NaN */
-	    return nan_mix(x, p)/nan_mix(x, p);
+	    return nan_mix_op(x, p, *)/nan_mix_op(x, p, *);
 
 
 	if (hp<=0x7effffff) x = __ieee754_fmodf(x,p+p);	/* now x < 2p */
