@@ -79,7 +79,6 @@ remquol(long double x, long double y, int *quo)
 	sxy = sx ^ uy.bits.sign;
 	ux.bits.sign = 0;	/* |x| */
 	uy.bits.sign = 0;	/* |y| */
-	x = ux.e;
 
     /* purge off exception values */
 	if((uy.bits.exp|uy.bits.manh|uy.bits.manl)==0 || /* y=0 */
@@ -126,7 +125,6 @@ remquol(long double x, long double y, int *quo)
     /* fix point fmod */
 	n = ix - iy;
 	q = 0;
-
 	while(n--) {
 	    hz=hx-hy;lz=lx-ly; if(lx<ly) hz -= 1;
 	    if(hz<0){hx = hx+hx+(lx>>MANL_SHIFT); lx = lx+lx;}
@@ -154,9 +152,8 @@ remquol(long double x, long double y, int *quo)
 	} else {
 	    ux.bits.exp = iy + BIAS;
 	}
-	ux.bits.sign = 0;
-	x = ux.e;
 fixup:
+	x = ux.e;		/* |x| */
 	y = fabsl(y);
 	if (y < LDBL_MIN * 2) {
 	    if (x+x>y || (x+x==y && (q & 1))) {
@@ -167,11 +164,9 @@ fixup:
 	    q++;
 	    x-=y;
 	}
-
 	ux.e = x;
 	ux.bits.sign ^= sx;
 	x = ux.e;
-
 	q &= 0x7fffffff;
 	*quo = (sxy ? -q : q);
 	return x;
