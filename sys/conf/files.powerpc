@@ -163,6 +163,7 @@ powerpc/ofw/ofwcall32.S		optional	aim powerpc
 powerpc/ofw/ofwcall64.S		optional	aim powerpc64
 powerpc/ofw/openpic_ofw.c	standard
 powerpc/ofw/rtas.c		optional	aim
+powerpc/ofw/ofw_initrd.c	optional	md_root_mem powerpc64
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
