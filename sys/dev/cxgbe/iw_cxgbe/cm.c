@@ -947,7 +947,6 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 {
 	struct c4iw_listen_ep *real_lep = NULL;
 	struct c4iw_ep *new_ep = NULL;
-	struct sockaddr_in *remote = NULL;
 	int ret = 0;
 
 	MPASS(new_so != NULL);
@@ -992,20 +991,6 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	START_EP_TIMER(new_ep);
 
 	setiwsockopt(new_so);
-	ret = soaccept(new_so, (struct sockaddr **)&remote);
-	if (ret != 0) {
-		CTR4(KTR_IW_CXGBE,
-				"%s:listen sock:%p, new sock:%p, ret:%d\n",
-				__func__, master_lep->com.so, new_so, ret);
-		if (remote != NULL)
-			free(remote, M_SONAME);
-		uninit_iwarp_socket(new_so);
-		soclose(new_so);
-		c4iw_put_ep(&new_ep->com);
-		c4iw_put_ep(&real_lep->com);
-		return;
-	}
-	free(remote, M_SONAME);
 
 	/* MPA request might have been queued up on the socket already, so we
 	 * initialize the socket/upcall_handler under lock to prevent processing
@@ -1118,8 +1103,10 @@ dequeue_socket(struct socket *head)
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 	remote = NULL;
-	soaccept(so, (struct sockaddr **)&remote);
-
+	if (soaccept(so, (struct sockaddr **)&remote) != 0) {
+		soclose(so);
+		so = NULL;
+	}
 	free(remote, M_SONAME);
 	return so;
 }
