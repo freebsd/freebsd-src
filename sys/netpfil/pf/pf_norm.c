@@ -109,17 +109,17 @@ MTX_SYSINIT(pf_frag_mtx, &pf_frag_mtx, "pf fragments", MTX_DEF);
 
 VNET_DEFINE(uma_zone_t, pf_state_scrub_z);	/* XXX: shared with pfsync */
 
-static VNET_DEFINE(uma_zone_t, pf_frent_z);
+VNET_DEFINE_STATIC(uma_zone_t, pf_frent_z);
 #define	V_pf_frent_z	VNET(pf_frent_z)
-static VNET_DEFINE(uma_zone_t, pf_frag_z);
+VNET_DEFINE_STATIC(uma_zone_t, pf_frag_z);
 #define	V_pf_frag_z	VNET(pf_frag_z)
 
 TAILQ_HEAD(pf_fragqueue, pf_fragment);
 TAILQ_HEAD(pf_cachequeue, pf_fragment);
-static VNET_DEFINE(struct pf_fragqueue,	pf_fragqueue);
+VNET_DEFINE_STATIC(struct pf_fragqueue,	pf_fragqueue);
 #define	V_pf_fragqueue			VNET(pf_fragqueue)
 RB_HEAD(pf_frag_tree, pf_fragment);
-static VNET_DEFINE(struct pf_frag_tree,	pf_frag_tree);
+VNET_DEFINE_STATIC(struct pf_frag_tree,	pf_frag_tree);
 #define	V_pf_frag_tree			VNET(pf_frag_tree)
 static int		 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);

@@ -88,8 +88,8 @@ static void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
 static void	newreno_post_recovery(struct cc_var *ccv);
 static int newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf);
 
-static VNET_DEFINE(uint32_t, newreno_beta) = 50;
-static VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
+VNET_DEFINE_STATIC(uint32_t, newreno_beta) = 50;
+VNET_DEFINE_STATIC(uint32_t, newreno_beta_ecn) = 80;
 #define V_newreno_beta VNET(newreno_beta)
 #define V_newreno_beta_ecn VNET(newreno_beta_ecn)
 

@@ -205,13 +205,13 @@ static MALLOC_DEFINE(M_CDG, "cdg data",
 
 static int ertt_id;
 
-static VNET_DEFINE(uint32_t, cdg_alpha_inc);
-static VNET_DEFINE(uint32_t, cdg_beta_delay);
-static VNET_DEFINE(uint32_t, cdg_beta_loss);
-static VNET_DEFINE(uint32_t, cdg_smoothing_factor);
-static VNET_DEFINE(uint32_t, cdg_exp_backoff_scale);
-static VNET_DEFINE(uint32_t, cdg_consec_cong);
-static VNET_DEFINE(uint32_t, cdg_hold_backoff);
+VNET_DEFINE_STATIC(uint32_t, cdg_alpha_inc);
+VNET_DEFINE_STATIC(uint32_t, cdg_beta_delay);
+VNET_DEFINE_STATIC(uint32_t, cdg_beta_loss);
+VNET_DEFINE_STATIC(uint32_t, cdg_smoothing_factor);
+VNET_DEFINE_STATIC(uint32_t, cdg_exp_backoff_scale);
+VNET_DEFINE_STATIC(uint32_t, cdg_consec_cong);
+VNET_DEFINE_STATIC(uint32_t, cdg_hold_backoff);
 #define	V_cdg_alpha_inc		VNET(cdg_alpha_inc)
 #define	V_cdg_beta_delay	VNET(cdg_beta_delay)
 #define	V_cdg_beta_loss		VNET(cdg_beta_loss)

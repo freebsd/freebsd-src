@@ -94,7 +94,7 @@ CK_LIST_HEAD(me_list, me_softc);
 #ifndef ME_HASH_SIZE
 #define	ME_HASH_SIZE	(1 << 4)
 #endif
-static VNET_DEFINE(struct me_list *, me_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct me_list *, me_hashtbl) = NULL;
 #define	V_me_hashtbl		VNET(me_hashtbl)
 #define	ME_HASH(src, dst)	(V_me_hashtbl[\
     me_hashval((src), (dst)) & (ME_HASH_SIZE - 1)])
@@ -104,7 +104,7 @@ SX_SYSINIT(me_ioctl_sx, &me_ioctl_sx, "me_ioctl");
 
 static int	me_clone_create(struct if_clone *, int, caddr_t);
 static void	me_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, me_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, me_cloner);
 #define	V_me_cloner	VNET(me_cloner)
 
 static void	me_qflush(struct ifnet *);
@@ -124,7 +124,7 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW, 0,
 #define MAX_ME_NEST 1
 #endif
 
-static VNET_DEFINE(int, max_me_nesting) = MAX_ME_NEST;
+VNET_DEFINE_STATIC(int, max_me_nesting) = MAX_ME_NEST;
 #define	V_max_me_nesting	VNET(max_me_nesting)
 SYSCTL_INT(_net_link_me, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_me_nesting), 0, "Max nested tunnels");

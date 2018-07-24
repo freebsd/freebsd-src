@@ -99,7 +99,7 @@ static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
 static void nd6_ns_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, const struct in6_addr *, uint8_t *, u_int);
 
-static VNET_DEFINE(int, dad_enhanced) = 1;
+VNET_DEFINE_STATIC(int, dad_enhanced) = 1;
 #define	V_dad_enhanced			VNET(dad_enhanced)
 
 SYSCTL_DECL(_net_inet6_ip6);
@@ -107,7 +107,7 @@ SYSCTL_INT(_net_inet6_ip6, OID_AUTO, dad_enhanced, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(dad_enhanced), 0,
     "Enable Enhanced DAD, which adds a random nonce to NS messages for DAD.");
 
-static VNET_DEFINE(int, dad_maxtry) = 15;	/* max # of *tries* to
+VNET_DEFINE_STATIC(int, dad_maxtry) = 15;	/* max # of *tries* to
 						   transmit DAD packet */
 #define	V_dad_maxtry			VNET(dad_maxtry)
 
@@ -1120,8 +1120,8 @@ struct dadq {
 	bool dad_ondadq;	/* on dadq? Protected by DADQ_WLOCK. */
 };
 
-static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
-static VNET_DEFINE(struct rwlock, dad_rwlock);
+VNET_DEFINE_STATIC(TAILQ_HEAD(, dadq), dadq);
+VNET_DEFINE_STATIC(struct rwlock, dad_rwlock);
 #define	V_dadq			VNET(dadq)
 #define	V_dad_rwlock		VNET(dad_rwlock)
 

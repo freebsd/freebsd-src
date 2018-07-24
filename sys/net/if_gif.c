@@ -110,7 +110,7 @@ static int	gif_transmit(struct ifnet *, struct mbuf *);
 static void	gif_qflush(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, gif_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, gif_cloner);
 #define	V_gif_cloner	VNET(gif_cloner)
 
 SYSCTL_DECL(_net_link);
@@ -127,7 +127,7 @@ static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
+VNET_DEFINE_STATIC(int, max_gif_nesting) = MAX_GIF_NEST;
 #define	V_max_gif_nesting	VNET(max_gif_nesting)
 SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");

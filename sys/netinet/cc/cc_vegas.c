@@ -100,8 +100,8 @@ struct vegas {
 
 static int32_t ertt_id;
 
-static VNET_DEFINE(uint32_t, vegas_alpha) = 1;
-static VNET_DEFINE(uint32_t, vegas_beta) = 3;
+VNET_DEFINE_STATIC(uint32_t, vegas_alpha) = 1;
+VNET_DEFINE_STATIC(uint32_t, vegas_beta) = 3;
 #define	V_vegas_alpha	VNET(vegas_alpha)
 #define	V_vegas_beta	VNET(vegas_beta)
 
