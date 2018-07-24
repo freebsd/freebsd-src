@@ -72,9 +72,9 @@ struct ipqbucket {
 	struct mtx		 lock;
 };
 
-static VNET_DEFINE(struct ipqbucket, ipq[IPREASS_NHASH]);
+VNET_DEFINE_STATIC(struct ipqbucket, ipq[IPREASS_NHASH]);
 #define	V_ipq		VNET(ipq)
-static VNET_DEFINE(uint32_t, ipq_hashseed);
+VNET_DEFINE_STATIC(uint32_t, ipq_hashseed);
 #define V_ipq_hashseed   VNET(ipq_hashseed)
 
 #define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
@@ -110,7 +110,7 @@ ipq_drop(struct ipqhead *head, struct ipq *fp)
 	ipq_free(head, fp);
 }
 
-static VNET_DEFINE(uma_zone_t, ipq_zone);
+VNET_DEFINE_STATIC(uma_zone_t, ipq_zone);
 #define	V_ipq_zone	VNET(ipq_zone)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_VNET |
     CTLTYPE_INT | CTLFLAG_RW, NULL, 0, sysctl_maxfragpackets, "I",
@@ -119,10 +119,10 @@ SYSCTL_UMA_CUR(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET,
     &VNET_NAME(ipq_zone),
     "Current number of IPv4 fragment reassembly queue entries");
 
-static VNET_DEFINE(int, noreass);
+VNET_DEFINE_STATIC(int, noreass);
 #define	V_noreass	VNET(noreass)
 
-static VNET_DEFINE(int, maxfragsperpacket);
+VNET_DEFINE_STATIC(int, maxfragsperpacket);
 #define	V_maxfragsperpacket	VNET(maxfragsperpacket)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,

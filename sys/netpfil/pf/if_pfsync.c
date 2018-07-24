@@ -229,13 +229,13 @@ struct pfsync_softc {
 
 static const char pfsyncname[] = "pfsync";
 static MALLOC_DEFINE(M_PFSYNC, pfsyncname, "pfsync(4) data");
-static VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
+VNET_DEFINE_STATIC(struct pfsync_softc	*, pfsyncif) = NULL;
 #define	V_pfsyncif		VNET(pfsyncif)
-static VNET_DEFINE(void *, pfsync_swi_cookie) = NULL;
+VNET_DEFINE_STATIC(void *, pfsync_swi_cookie) = NULL;
 #define	V_pfsync_swi_cookie	VNET(pfsync_swi_cookie)
-static VNET_DEFINE(struct pfsyncstats, pfsyncstats);
+VNET_DEFINE_STATIC(struct pfsyncstats, pfsyncstats);
 #define	V_pfsyncstats		VNET(pfsyncstats)
-static VNET_DEFINE(int, pfsync_carp_adj) = CARP_MAXSKEW;
+VNET_DEFINE_STATIC(int, pfsync_carp_adj) = CARP_MAXSKEW;
 #define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
 
 static void	pfsync_timeout(void *);

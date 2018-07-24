@@ -144,7 +144,7 @@ VNET_DEFINE(struct inpcbhead, udb);		/* from udp_var.h */
 VNET_DEFINE(struct inpcbinfo, udbinfo);
 VNET_DEFINE(struct inpcbhead, ulitecb);
 VNET_DEFINE(struct inpcbinfo, ulitecbinfo);
-static VNET_DEFINE(uma_zone_t, udpcb_zone);
+VNET_DEFINE_STATIC(uma_zone_t, udpcb_zone);
 #define	V_udpcb_zone			VNET(udpcb_zone)
 
 #ifndef UDBHASHSIZE

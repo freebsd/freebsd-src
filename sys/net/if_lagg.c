@@ -97,7 +97,7 @@ static struct {
 
 VNET_DEFINE(SLIST_HEAD(__trhead, lagg_softc), lagg_list); /* list of laggs */
 #define	V_lagg_list	VNET(lagg_list)
-static VNET_DEFINE(struct mtx, lagg_list_mtx);
+VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	V_lagg_list_mtx	VNET(lagg_list_mtx)
 #define	LAGG_LIST_LOCK_INIT(x)		mtx_init(&V_lagg_list_mtx, \
 					"if_lagg list", NULL, MTX_DEF)
@@ -108,7 +108,7 @@ eventhandler_tag	lagg_detach_cookie = NULL;
 
 static int	lagg_clone_create(struct if_clone *, int, caddr_t);
 static void	lagg_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, lagg_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, lagg_cloner);
 #define	V_lagg_cloner	VNET(lagg_cloner)
 static const char laggname[] = "lagg";
 
@@ -249,21 +249,21 @@ SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
     "Link Aggregation");
 
 /* Allow input on any failover links */
-static VNET_DEFINE(int, lagg_failover_rx_all);
+VNET_DEFINE_STATIC(int, lagg_failover_rx_all);
 #define	V_lagg_failover_rx_all	VNET(lagg_failover_rx_all)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(lagg_failover_rx_all), 0,
     "Accept input from any interface in a failover lagg");
 
 /* Default value for using flowid */
-static VNET_DEFINE(int, def_use_flowid) = 0;
+VNET_DEFINE_STATIC(int, def_use_flowid) = 0;
 #define	V_def_use_flowid	VNET(def_use_flowid)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &VNET_NAME(def_use_flowid), 0,
     "Default setting for using flow id for load sharing");
 
 /* Default value for flowid shift */
-static VNET_DEFINE(int, def_flowid_shift) = 16;
+VNET_DEFINE_STATIC(int, def_flowid_shift) = 16;
 #define	V_def_flowid_shift	VNET(def_flowid_shift)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
     &VNET_NAME(def_flowid_shift), 0,

@@ -180,7 +180,7 @@ STAILQ_HEAD(eid_list, epair_ifp_drain);
 static MALLOC_DEFINE(M_EPAIR, epairname,
     "Pair of virtual cross-over connected Ethernet-like interfaces");
 
-static VNET_DEFINE(struct if_clone *, epair_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, epair_cloner);
 #define	V_epair_cloner	VNET(epair_cloner)
 
 /*

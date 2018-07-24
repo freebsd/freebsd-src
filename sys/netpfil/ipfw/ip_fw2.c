@@ -110,10 +110,10 @@ __FBSDID("$FreeBSD$");
  * All ipfw global variables are here.
  */
 
-static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+VNET_DEFINE_STATIC(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
-static VNET_DEFINE(int, fw_permit_single_frag6) = 1;
+VNET_DEFINE_STATIC(int, fw_permit_single_frag6) = 1;
 #define	V_fw_permit_single_frag6	VNET(fw_permit_single_frag6)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT

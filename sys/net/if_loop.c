@@ -99,7 +99,7 @@ static void	lo_clone_destroy(struct ifnet *);
 VNET_DEFINE(struct ifnet *, loif);	/* Used externally */
 
 #ifdef VIMAGE
-static VNET_DEFINE(struct if_clone *, lo_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, lo_cloner);
 #define	V_lo_cloner		VNET(lo_cloner)
 #endif
 

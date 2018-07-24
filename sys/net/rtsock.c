@@ -140,7 +140,7 @@ typedef struct {
 	int	ip6_count;	/* attached w/ AF_INET6 */
 	int	any_count;	/* total attached */
 } route_cb_t;
-static VNET_DEFINE(route_cb_t, route_cb);
+VNET_DEFINE_STATIC(route_cb_t, route_cb);
 #define	V_route_cb VNET(route_cb)
 
 struct mtx rtsock_mtx;

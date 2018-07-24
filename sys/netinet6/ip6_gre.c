@@ -65,7 +65,7 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, OID_AUTO, grehlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gre_hlim), 0, "Default hop limit for encapsulated packets");
 
-static VNET_DEFINE(struct gre_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv6_hashtbl) = NULL;
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv6_hashtbl[\
     in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])

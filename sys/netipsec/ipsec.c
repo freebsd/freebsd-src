@@ -119,11 +119,11 @@ VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
 /* ECN ignore(-1)/forbidden(0)/allowed(1) */
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
 
-static VNET_DEFINE(int, ip4_filtertunnel) = 0;
+VNET_DEFINE_STATIC(int, ip4_filtertunnel) = 0;
 #define	V_ip4_filtertunnel VNET(ip4_filtertunnel)
-static VNET_DEFINE(int, check_policy_history) = 0;
+VNET_DEFINE_STATIC(int, check_policy_history) = 0;
 #define	V_check_policy_history	VNET(check_policy_history)
-static VNET_DEFINE(struct secpolicy *, def_policy) = NULL;
+VNET_DEFINE_STATIC(struct secpolicy *, def_policy) = NULL;
 #define	V_def_policy	VNET(def_policy)
 static int
 sysctl_def_policy(SYSCTL_HANDLER_ARGS)
@@ -249,7 +249,7 @@ VNET_DEFINE(int, ip6_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip6_ah_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
 
-static VNET_DEFINE(int, ip6_filtertunnel) = 0;
+VNET_DEFINE_STATIC(int, ip6_filtertunnel) = 0;
 #define	V_ip6_filtertunnel	VNET(ip6_filtertunnel)
 
 SYSCTL_DECL(_net_inet6_ipsec6);
