@@ -474,7 +474,8 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu.a
 
-LIBBE?=		${DESTDIR}${LIBDIR}/libbe.a
+LIBBEDIR=	${OBJTOP}/lib/libbe
+LIBBE?=		${LIBBEDIR}/libbe.a
 
 LIBPMCSTATDIR=	${OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat.a
