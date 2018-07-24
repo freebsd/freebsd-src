@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
-PROG=	be
+PROG=	bectl
 WARNS?=	1
-MAN=	be.1
+MAN=	bectl.8
 
 LIBADD+= be
 LIBADD+= nvpair
