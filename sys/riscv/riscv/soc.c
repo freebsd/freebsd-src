@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 struct soc_softc {
+	struct simplebus_softc	simplebus_sc;
 	device_t		dev;
 };
 
