@@ -63,6 +63,18 @@ In
 .Cd hint.jedec_ts.7.at="smbus0"
 .Cd hint.jedec_ts.7.addr="0x3E"
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 12.0
+and later.
+A superset of its functionality is available in the
+.Xr jedec_dimm 4
+driver.
+That driver's manpage includes instructions on updating
+.Pa /boot/device.hints
+accordingly.
 .Sh DESCRIPTION
 The
 .Nm
