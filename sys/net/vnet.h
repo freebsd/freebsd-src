@@ -93,6 +93,8 @@ struct vnet {
 
 #define	VNET_PCPUSTAT_DEFINE(type, name)	\
     VNET_DEFINE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+#define	VNET_PCPUSTAT_DEFINE_STATIC(type, name)	\
+    VNET_DEFINE_STATIC(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
 
 #define	VNET_PCPUSTAT_ALLOC(name, wait)	\
     COUNTER_ARRAY_ALLOC(VNET(name), \
@@ -268,7 +270,10 @@ extern struct sx vnet_sxlock;
  */
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
-#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
+#define	VNET_DEFINE(t, n)	\
+    t VNET_NAME(n) __section(VNET_SETNAME) __used
+#define	VNET_DEFINE_STATIC(t, n) \
+    static t VNET_NAME(n) __section(VNET_SETNAME) __used
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
 				    ((b) + (uintptr_t)&VNET_NAME(n))
 
@@ -400,7 +405,8 @@ do {									\
  */
 #define	VNET_NAME(n)		n
 #define	VNET_DECLARE(t, n)	extern t n
-#define	VNET_DEFINE(t, n)	t n
+#define	VNET_DEFINE(t, n)	struct _hack; t n
+#define	VNET_DEFINE_STATIC(t, n)	static t n
 #define	_VNET_PTR(b, n)		&VNET_NAME(n)
 
 /*
