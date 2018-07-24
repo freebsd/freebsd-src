@@ -2874,7 +2874,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 {
 	if_shared_ctx_t sctx = txq->ift_ctx->ifc_sctx;
 	struct ether_vlan_header *eh;
-	struct mbuf *m, *n;
+	struct mbuf *m;
 
 	m = *mp;
 	if ((sctx->isc_flags & IFLIB_NEED_SCRATCH) &&
@@ -2910,6 +2910,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 #ifdef INET
 	case ETHERTYPE_IP:
 	{
+		struct mbuf *n;
 		struct ip *ip = NULL;
 		struct tcphdr *th = NULL;
 		int minthlen;
