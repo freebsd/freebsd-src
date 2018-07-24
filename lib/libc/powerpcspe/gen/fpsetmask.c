@@ -45,8 +45,8 @@ fpsetmask(fp_except_t mask)
 	fp_rnd_t old;
 
 	__asm__ __volatile("mfspr %0, %1" : "=r"(fpscr) : "K"(SPR_SPEFSCR));
-	old = (fp_rnd_t)((fpscr >> 3) & 0x1f);
-	fpscr = (fpscr & 0xffffff07) | (mask << 3);
+	old = (fp_rnd_t)((fpscr >> 2) & 0x1f);
+	fpscr = (fpscr & 0xffffff83) | (mask << 2);
 	__asm__ __volatile("mtspr %1,%0" :: "r"(fpscr), "K"(SPR_SPEFSCR));
 	return (old);
 }
