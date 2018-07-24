@@ -49,7 +49,7 @@ __ieee754_remainder(double x, double p)
 	  (hx>=0x7ff00000)||			/* x not finite */
 	  ((hp>=0x7ff00000)&&			/* p is NaN */
 	  (((hp-0x7ff00000)|lp)!=0)))
-	    return nan_mix(x, p)/nan_mix(x, p);
+	    return nan_mix_op(x, p, *)/nan_mix_op(x, p, *);
 
 
 	if (hp<=0x7fdfffff) x = __ieee754_fmod(x,p+p);	/* now x < 2p */

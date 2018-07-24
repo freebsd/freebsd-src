@@ -79,7 +79,7 @@ fmodl(long double x, long double y)
 	   (ux.bits.exp == BIAS + LDBL_MAX_EXP) ||	 /* or x not finite */
 	   (uy.bits.exp == BIAS + LDBL_MAX_EXP &&
 	    ((uy.bits.manh&~LDBL_NBIT)|uy.bits.manl)!=0)) /* or y is NaN */
-	    return nan_mix(x, y)/nan_mix(x, y);
+	    return nan_mix_op(x, y, *)/nan_mix_op(x, y, *);
 	if(ux.bits.exp<=uy.bits.exp) {
 	    if((ux.bits.exp<uy.bits.exp) ||
 	       (ux.bits.manh<=uy.bits.manh &&
