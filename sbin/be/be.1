@@ -1,0 +1,220 @@
+.\"
+.\" be - Utility to manage Boot Environments on the ZFS filesystem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\"
+.\"     @(#)be.1
+.\" $FreeBSD$
+.\"
+.Dd June 15, 2017
+.Dt BE 1
+.Os FreeBSD
+.Sh NAME
+.Nm be
+.Nd Utility to manage Boot Environments on ZFS
+.Sh SYNOPSIS
+.Nm
+activate
+.Op Fl t
+.Ao Ar beName Ac
+.Nm
+create
+.Op Fl r
+.Op Fl e Ar nonActiveBe | Fl e Ar beName@snapshot
+.Ao Ar beName Ac
+.Nm
+create
+.Op Fl r
+.Ao Ar beName@snapshot Ac
+.Nm
+destroy
+.Op Fl F
+.Ao Ar beName | beName@snapshot Ac
+.Nm
+jail
+.Ao Ar jailID | jailName Ac
+.Ao Ar bootenv Ac
+.Nm
+list
+.Op Fl a
+.Op Fl D
+.Op Fl H
+.Op Fl s
+.Nm
+mount
+.Ao Ar beName Ac
+.Op mountpoint
+.Nm
+rename
+.Ao Ar origBeName Ac
+.Ao Ar newBeName Ac
+.Nm
+{ ujail | unjail }
+.Ao Ar jailID | jailName Ac
+.Ao Ar bootenv Ac
+.Nm
+{ umount | unmount }
+.Op Fl f
+.Ao Ar beName Ac
+.Sh DESCRIPTION
+The
+.Nm
+command is used to setup and interact with ZFS boot environments, which are bootable clones of datasets.
+.Pp
+.Em Boot Environments
+allows the system to be upgraded, while preserving the old system environment in a separate ZFS dataset.
+.Pp
+.Sh COMMANDS
+The following commands are supported by
+.Nm :
+.Bl -tag -width activate
+.It Ic activate
+.Op Fl t
+.Ar <beName>
+.Pp
+Activate the given
+.Ar beName
+as the default boot filesystem. If the
+.Op Fl t
+flag is given, this takes effect only for the next boot.
+.Pp
+.It Ic create
+.Op Fl r
+.Op Fl e Ar nonActiveBe | Fl e Ar beName@snapshot
+.Ao Ar beName Ac
+.Pp
+Creates a new boot environment named
+.Ar beName .
+If the -e param is specified, the new environment will be cloned from the given
+.Ar nonActiveBe | Ar beName@snapshot .
+If the
+.Op Fl r
+flag is given, a recursive boot environment will be made.
+.Pp
+.It Ic create
+.Op Fl r
+.Ao Ar beName@snapshot Ac
+.Pp
+Creates a snapshot of the existing boot environment named
+.Ar beName .
+If the
+.Op Fl r
+flag is given, a recursive boot environment will be made.
+.Pp
+.It Ic destroy
+.Op Fl F
+.Ao Ar beName | beName@snapshot Ac
+.Pp
+Destroys the given
+.Ar beName
+boot environment or
+.Ar beName@snapshot
+snapshot.
+Specifying
+.Fl F
+will automatically unmount without confirmation.
+.Pp
+.It Ic jail
+.Ao Ar jailID | jailName Ac
+.Ao Ar bootenv Ac
+.Pp
+Creates a jail of the given boot environment.
+.Pp
+.It Ic list
+.Op Fl a
+.Op Fl D
+.Op Fl H
+.Op Fl s
+.Pp
+Displays all boot environments.
+The Active field indicates whether the boot environment is active now (N); active on reboot (R); or both (NR).
+.Pp
+If
+.Fl a
+is used, display all datasets.
+If
+.Fl D
+is used, display the full space usage for each boot environment, assuming all other boot environments were destroyed.
+The
+.Fl H
+option is used for scripting. It does not print headers and separate fields by a single tab instead of arbitrary white space.
+If
+.Fl s
+is used, display all snapshots as well.
+.Pp
+.It Ic mount
+.Ao Ar beName Ac
+.Op mountpoint
+.Pp
+Temporarily mount the boot environment.
+Mount at the specified
+.Ar mountpoint
+if provided.
+.Pp
+.It Ic rename Ao Ar origBeName Ac Ao Ar newBeName Ac
+.Pp
+Renames the given nonactive
+.Ar origBeName
+to the given
+.Ar newBeName
+.Pp
+.It Ic unmount
+.Op Fl f
+.Ao Ar beName Ac
+.Pp
+Unmount the given boot environment, if it is mounted.
+Specifying
+.Fl f
+will force the unmount if busy.
+.Pp
+.It Ic unjail
+.Ao Ar beName Ac
+.Pp
+Destroys the jail created from the given boot environment.
+.Pp
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+To fill in with jail upgrade example when behavior is firm.
+.Pp
+.Sh SEE ALSO
+.Xr jail 8 ,
+.Xr zfs 8 ,
+.Xr zpool 8
+.Sh HISTORY
+.Nm
+is based on
+.Xr beadm 1
+and was implemented as a project for the 2017 Summer of Code, along with
+.Xr libbe 3 .
+.Sh AUTHORS
+.Bl -bullet
+.It
+Kyle Kneitinger (kneitinger)
+.Ar kyle@kneit.in
+.Pp
+Creator of
+.Nm .
+.It
+Slawomir Wojciech Wojtczak (vermaden)
+.Ar vermaden@interia.pl
+.Pp
+Creator and maintainer of
+.Xr beadm 1 .
+.It
+Bryan Drewery (bdrewery)
+.Ar bryan@shatow.net
+.Pp
+Wrote the original
+.Xr beadm 1
+manual page that this one is derived from.
+.El

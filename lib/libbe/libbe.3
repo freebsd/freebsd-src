@@ -1,0 +1,192 @@
+.\"
+.\" Copyright (c) 2017 Kyle Kneitinger
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This manual page is based on the mp(3X) manual page from Sun Release
+.\" 4.1, dated 7 September 1989.  It's an old, crufty, and relatively ugly
+.\" manual page, but it does document what appears to be the "traditional"
+.\" libmp interface.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 28, 2017
+.Dt LIBBE 3
+.Os
+.Sh NAME
+.Nm libbe
+.Nd library for creating, destroying and modifying ZFS boot environments.
+.Sh SYNOPSIS
+.In be.h
+.Pp
+Function prototypes are given in the main body of the text.
+.Pp
+Applications using this interface must be linked with
+.Fl l Ns Ar be
+.Sh DESCRIPTION
+.Pp
+.Nm
+interfaces with libzfs to provide a set of functions for various operations
+regarding ZFS boot environments including "deep" boot environments in which
+a boot environments has child datasets.
+.Pp
+A context structure is passed to each function, allowing for a small amount
+of state to be retained, such as errors from previous operations.
+.\" TODO: describe break on err functionality
+.Pp
+.Ft "libbe_handle_t *" Ns
+.Fn libbe_init "void" ;
+.Pp
+.Ft void
+.Fn libbe_close "libbe_handle_t *" ;
+.Pp
+.Ft "const char *" Ns
+.Fn be_active_name "libbe_handle_t *" ;
+.Pp
+.Ft "const char *" Ns
+.Fn be_active_path "libbe_handle_t *" ;
+.Pp
+.Ft "const char *" Ns
+.Fn be_root_path "libbe_handle_t *" ;
+.Pp
+.Ft "nvlist_t *" Ns
+.Fn  libbe_handle_t "libbe_handle_t " ;
+.Pp
+.Ft int
+.Fn be_create "libbe_handle_t *, char *" ;
+.Pp
+.Ft int
+.Fn be_create_from_existing "libbe_handle_t *, char *, char *" ;
+.Pp
+.Ft int
+.Fn be_rename "libbe_handle_t *, char *, char *" ;
+.Pp
+.\" TODO: Write up of destroy options
+.\" typedef enum {
+.\"	BE_DESTROY_FORCE = 1 << 0,
+.\" } be_destroy_opt_t;
+.Ft int
+.Fn be_destroy "libbe_handle_t *, char *, int" ;
+.Pp
+.\" TODO: Write up of mount options
+.\" typedef enum {
+.\"	BE_MNT_FORCE		= 1 << 0,
+.\"	BE_MNT_DEEP		= 1 << 1,
+.\" } be_mount_opt_t;
+.Ft int
+.Fn be_mount "libbe_handle_t *, char *, char *, int" ;
+.Pp
+.Ft int
+.Fn be_unmount "libbe_handle_t *, char *, int" ;
+.Pp
+.Ft int
+.Fn libbe_errno "libbe_handle_t *" ;
+.Pp
+.Ft "const char *" Ns
+.Fn libbe_error_description "libbe_handle_t *" ;
+.Pp
+.Ft void
+.Fn libbe_print_on_error "libbe_handle_t *, bool" ;
+.Pp
+.Ft int
+.Fn be_root_concat "libbe_handle_t *, char *, char *" ;
+.Pp
+.Ft int
+.Fn be_validate_name "libbe_handle_t *, char *" ;
+.Pp
+.Ft int
+.Fn be_validate_snap "libbe_handle_t *, char *" ;
+.Pp
+.Ft bool
+.Fn be_exists "libbe_handle_t *, char *" ;
+.Pp
+.Ft int
+.Fn be_export "libbe_handle_t *, char *, int fd" ;
+.Pp
+.Ft int
+.Fn be_import "libbe_handle_t *, char *, int fd" ;
+.Pp
+.Ft int
+.Fn be_add_child "libbe_handle_t *, char *, bool" ;
+.Pp
+.\" .Ft void
+.\" .Fn mp_mfree "MINT *mp" ;
+.\" .Bd -ragged -offset indent
+.\" .Fn mp_itom
+.\" returns an
+.\" .Vt MINT
+.\" with the value of
+.\" .Fa n .
+.\" .Fn mp_xtom
+.\" returns an
+.\" .Vt MINT
+.\" with the value of
+.\" .Fa s ,
+.\" which is treated to be in hexadecimal.
+.\" The return values from
+.\" .Fn mp_itom
+.\" and
+.\" .Fn mp_xtom
+.\" must be released with
+.\" .Fn mp_mfree
+.\" when they are no longer needed.
+.\" .Fn mp_mtox
+.\" returns a null-terminated hexadecimal string having the value of
+.\" .Fa mp ;
+.\" its return value must be released with
+.\" .Fn free
+.\" .Pq Xr free 3
+.\" when it is no longer needed.
+.\" .Ed
+.\" .Pp
+.Sh DIAGNOSTICS
+Upon error, one of the following values will be returned.
+.\" TODO: make each entry on its own line.
+.Bd -ragged -offset indent
+BE_ERR_SUCCESS,
+BE_ERR_INVALIDNAME,
+BE_ERR_EXISTS,
+BE_ERR_NOENT,
+BE_ERR_PERMS,
+BE_ERR_DESTROYACT,
+BE_ERR_DESTROYMNT,
+BE_ERR_PATHLEN,
+BE_ERR_INVORIGIN,
+BE_ERR_NOORIGIN,
+BE_ERR_MOUNTED,
+BE_ERR_NOMOUNT,
+BE_ERR_ZFSOPEN,
+BE_ERR_ZFSCLONE,
+BE_ERR_UNKNOWN
+.Ed
+.Sh SEE ALSO
+.Xr be 1 ,
+.Sh HISTORY
+.Nm
+and it's corresponding command,
+.Xr be 3 ,
+were written as a 2017 Google Summer of Code project with Allan Jude serving
+as a mentor.
+.\" TODO: update when implementation complete.
+.\" .Sh BUGS
+
