@@ -432,9 +432,9 @@ _libinstall:
 
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
+.include <bsd.confs.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
-.include <bsd.confs.mk>
 .endif
 
 LINKOWN?=	${LIBOWN}

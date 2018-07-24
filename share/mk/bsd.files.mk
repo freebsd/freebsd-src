@@ -121,4 +121,6 @@ buildfiles: stage_as
 .endif
 .endif
 
+.include <bsd.dirs.mk>
+
 .endif # !target(__<bsd.files.mk>__)
