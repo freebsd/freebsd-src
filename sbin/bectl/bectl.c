@@ -54,7 +54,7 @@ static int bectl_cmd_rename(int argc, char *argv[]);
 static int bectl_cmd_unjail(int argc, char *argv[]);
 static int bectl_cmd_unmount(int argc, char *argv[]);
 
-libbe_handle_t *be;
+static libbe_handle_t *be;
 
 static int
 usage(bool explicit)
@@ -108,7 +108,7 @@ static struct command_map_entry command_map[] =
 };
 
 static int
-get_cmd_index(char *cmd, int *index)
+get_cmd_index(const char *cmd, int *index)
 {
 	int map_size;
 
@@ -127,7 +127,6 @@ get_cmd_index(char *cmd, int *index)
 static int
 bectl_cmd_activate(int argc, char *argv[])
 {
-	char *bootenv;
 	int err, opt;
 	bool temp;
 
@@ -210,7 +209,7 @@ bectl_cmd_create(int argc, char *argv[])
 	} else {
 		if ((snapname = strchr(bootenv, '@')) != NULL) {
 			*(snapname++) = '\0';
-			if ((err = be_snapshot(be, (char *)be_active_path(be),
+			if ((err = be_snapshot(be, be_active_path(be),
 			    snapname, true, NULL)) != BE_ERR_SUCCESS)
 				fprintf(stderr, "failed to create snapshot\n");
 			asprintf(&source, "%s@%s", be_active_path(be), snapname);
@@ -242,7 +241,6 @@ static int
 bectl_cmd_export(int argc, char *argv[])
 {
 	char *bootenv;
-	int opt;
 
 	if (argc == 1) {
 		fprintf(stderr, "bectl export: missing boot environment name\n");
@@ -299,7 +297,6 @@ bectl_cmd_import(int argc, char *argv[])
 static int
 bectl_cmd_add(int argc, char *argv[])
 {
-	char *bootenv;
 
 	if (argc < 2) {
 		fprintf(stderr, "bectl add: must provide at least one path\n");
@@ -358,7 +355,7 @@ bectl_cmd_jail(int argc, char *argv[])
 	char *bootenv;
 	char mnt_loc[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN*2];
-	int err, jid;
+	int err;
 
 	/* struct jail be_jail = { 0 }; */
 
@@ -418,7 +415,6 @@ static int
 bectl_cmd_list(int argc, char *argv[])
 {
 	nvlist_t *props;
-	char *bootenv;
 	int opt;
 	bool show_all_datasets, show_space, hide_headers, show_snaps;
 
@@ -625,7 +621,7 @@ bectl_cmd_unmount(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-	char *command;
+	const char *command;
 	int command_index, rc;
 
 	if (argc < 2) {

@@ -38,12 +38,11 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 {
 	char be[BE_MAXPATHLEN];
 	char mnt_temp[BE_MAXPATHLEN];
-	zfs_handle_t *zfs_hdl;
 	char *path;
 	int mntflags;
 	int err;
 
-	if (err = be_root_concat(lbh, bootenv, be))
+	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
 
 	if (!be_exists(lbh, bootenv))
@@ -63,8 +62,8 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	}
 
 	char opt = '\0';
-	if (err = zmount(be, (mountpoint == NULL) ? mnt_temp : mountpoint,
-	    mntflags, MNTTYPE_ZFS, NULL, 0, &opt, 1))
+	if ((err = zmount(be, (mountpoint == NULL) ? mnt_temp : mountpoint,
+	    mntflags, __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0)
 		/*
 		 * XXX TODO: zmount returns the nmount error, look into what
 		 * kind of errors we can report from that
@@ -90,7 +89,7 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 	int mntsize;
 	char *mntpath;
 
-	if (err = be_root_concat(lbh, bootenv, be))
+	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
 
 	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
@@ -114,7 +113,7 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
 
-	if (err = unmount(mntpath, mntflags))
+	if ((err = unmount(mntpath, mntflags)) != 0)
 		/* XXX TODO correct error */
 		return (set_error(lbh, BE_ERR_NOMOUNT));
 

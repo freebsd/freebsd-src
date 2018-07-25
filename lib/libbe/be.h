@@ -67,14 +67,15 @@ const char *be_nextboot_path(libbe_handle_t *);
 const char *be_root_path(libbe_handle_t *);
 
 int be_get_bootenv_props(libbe_handle_t *, nvlist_t *);
+void be_prop_list_free(nvlist_t *be_list);
 
 int be_activate(libbe_handle_t *, char *, bool);
 
 /* Bootenv creation functions */
 int be_create(libbe_handle_t *, char *);
-int be_create_from_existing(libbe_handle_t *, char *, char *);
-int be_create_from_existing_snap(libbe_handle_t *, char *, char *);
-int be_snapshot(libbe_handle_t *, char *, char *, bool, char *);
+int be_create_from_existing(libbe_handle_t *, const char *, const char *);
+int be_create_from_existing_snap(libbe_handle_t *, const char *, const char *);
+int be_snapshot(libbe_handle_t *, const char *, const char *, bool, char *);
 
 /* Bootenv manipulation functions */
 int be_rename(libbe_handle_t *, char *, char *);
@@ -103,9 +104,9 @@ const char *libbe_error_description(libbe_handle_t *);
 void libbe_print_on_error(libbe_handle_t *, bool);
 
 /* Utility Functions */
-int be_root_concat(libbe_handle_t *, char *, char *);
-int be_validate_name(libbe_handle_t *, char *);
-int be_validate_snap(libbe_handle_t *, char *);
+int be_root_concat(libbe_handle_t *, const char *, char *);
+int be_validate_name(libbe_handle_t * __unused, const char *);
+int be_validate_snap(libbe_handle_t *, const char *);
 bool be_exists(libbe_handle_t *, char *);
 
 int be_export(libbe_handle_t *, char *, int fd);
