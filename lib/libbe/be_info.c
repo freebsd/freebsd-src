@@ -119,7 +119,7 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	libbe_handle_t *lbh;
 	nvlist_t *props;
 	const char *dataset, *name;
-	boolean_t mounted, active, nextboot;
+	boolean_t mounted;
 
 	/*
 	 * XXX TODO:

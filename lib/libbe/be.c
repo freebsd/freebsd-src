@@ -139,7 +139,7 @@ libbe_init(void)
 	zfs_iter_filesystems(rootds, be_locate_rootfs, lbh);
 	zfs_close(rootds);
 	rootds = NULL;
-	if (lbh->rootfs == NULL)
+	if (*lbh->rootfs == '\0')
 		goto err;
 
 	return (lbh);
@@ -212,7 +212,7 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	/* Check if mounted, unmount if force is specified */
-	if (mounted = zfs_is_mounted(fs, NULL)) {
+	if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
 		if (force)
 			zfs_unmount(fs, NULL, 0);
 		else
@@ -230,7 +230,7 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 
 
 int
-be_snapshot(libbe_handle_t *lbh, char *source, char *snap_name,
+be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
     bool recursive, char *result)
 {
 	char buf[BE_MAXPATHLEN];
@@ -257,7 +257,7 @@ be_snapshot(libbe_handle_t *lbh, char *source, char *snap_name,
 			strcpy(result, strrchr(buf, '/') + 1);
 	}
 
-	if (err = zfs_snapshot(lbh->lzh, buf, recursive, NULL) != 0) {
+	if ((err = zfs_snapshot(lbh->lzh, buf, recursive, NULL)) != 0) {
 		switch (err) {
 		case EZFS_INVALIDNAME:
 			return (set_error(lbh, BE_ERR_INVALIDNAME));
@@ -280,7 +280,7 @@ be_create(libbe_handle_t *lbh, char *name)
 {
 	int err;
 
-	err = be_create_from_existing(lbh, name, (char *)be_active_path(lbh));
+	err = be_create_from_existing(lbh, name, be_active_path(lbh));
 
 	return (set_error(lbh, err));
 }
@@ -327,7 +327,6 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	int err;
 	char be_path[BE_MAXPATHLEN];
 	char snap_path[BE_MAXPATHLEN];
-	char mp[BE_MAXPATHLEN];
 	const char *dspath;
 	char *dsname;
 	zfs_handle_t *snap_hdl;
@@ -364,7 +363,7 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
 
-	if (err = zfs_clone(snap_hdl, be_path, props)) {
+	if ((err = zfs_clone(snap_hdl, be_path, props)) != 0) {
 		switch (err) {
 		case EZFS_SUCCESS:
 			err = BE_ERR_SUCCESS;
@@ -392,23 +391,25 @@ be_deep_clone(zfs_handle_t *ds, void *data)
  * Create the boot environment from pre-existing snapshot
  */
 int
-be_create_from_existing_snap(libbe_handle_t *lbh, char *name, char *snap)
+be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
+    const char *snap)
 {
 	int err;
 	char be_path[BE_MAXPATHLEN];
 	char snap_path[BE_MAXPATHLEN];
-	char *parentname, *bename, *snapname;
+	const char *bename;
+	char *parentname, *snapname;
 	zfs_handle_t *parent_hdl;
 	struct libbe_deep_clone sdc;
 
-	if (err = be_validate_name(lbh, name))
+	if ((err = be_validate_name(lbh, name)) != 0)
 		return (set_error(lbh, err));
-	if (err = be_root_concat(lbh, snap, snap_path))
+	if ((err = be_root_concat(lbh, snap, snap_path)) != 0)
 		return (set_error(lbh, err));
-	if (err = be_validate_snap(lbh, snap_path))
+	if ((err = be_validate_snap(lbh, snap_path)) != 0)
 		return (set_error(lbh, err));
 
-	if (err = be_root_concat(lbh, name, be_path))
+	if ((err = be_root_concat(lbh, name, be_path)) != 0)
 		return (set_error(lbh, err));
 
 	if ((bename = strrchr(name, '/')) == NULL)
@@ -444,7 +445,7 @@ be_create_from_existing_snap(libbe_handle_t *lbh, char *name, char *snap)
  * Create a boot environment from an existing boot environment
  */
 int
-be_create_from_existing(libbe_handle_t *lbh, char *name, char *old)
+be_create_from_existing(libbe_handle_t *lbh, const char *name, const char *old)
 {
 	int err;
 	char buf[BE_MAXPATHLEN];
@@ -464,12 +465,11 @@ be_create_from_existing(libbe_handle_t *lbh, char *name, char *old)
  * failure. Does not set the internal library error state.
  */
 int
-be_validate_snap(libbe_handle_t *lbh, char *snap_name)
+be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 {
 	zfs_handle_t *zfs_hdl;
 	char buf[BE_MAXPATHLEN];
 	char *delim_pos;
-	char *mountpoint;
 	int err = BE_ERR_SUCCESS;
 
 	if (strlen(snap_name) >= BE_MAXPATHLEN)
@@ -490,8 +490,8 @@ be_validate_snap(libbe_handle_t *lbh, char *snap_name)
 	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (BE_ERR_NOORIGIN);
 
-	if (err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, BE_MAXPATHLEN,
-	    NULL, NULL, 0, 1))
+	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, BE_MAXPATHLEN,
+	    NULL, NULL, 0, 1)) != 0)
 		err = BE_ERR_INVORIGIN;
 
 	if ((err != 0) && (strncmp(buf, "/", BE_MAXPATHLEN) != 0))
@@ -512,7 +512,7 @@ be_validate_snap(libbe_handle_t *lbh, char *snap_name)
  * zfs_be_root. Does not set internal library error state.
  */
 int
-be_root_concat(libbe_handle_t *lbh, char *name, char *result)
+be_root_concat(libbe_handle_t *lbh, const char *name, char *result)
 {
 	size_t name_len, root_len;
 
@@ -545,7 +545,7 @@ be_root_concat(libbe_handle_t *lbh, char *name, char *result)
  * Does not set internal library error state.
  */
 int
-be_validate_name(libbe_handle_t *lbh, char *name)
+be_validate_name(libbe_handle_t *lbh __unused, const char *name)
 {
 	for (int i = 0; *name; i++) {
 		char c = *(name++);
@@ -569,12 +569,12 @@ be_rename(libbe_handle_t *lbh, char *old, char *new)
 	zfs_handle_t *zfs_hdl;
 	int err;
 
-	if (err = be_root_concat(lbh, old, full_old))
+	if ((err = be_root_concat(lbh, old, full_old)) != 0)
 		return (set_error(lbh, err));
-	if (err = be_root_concat(lbh, new, full_new))
+	if ((err = be_root_concat(lbh, new, full_new)) != 0)
 		return (set_error(lbh, err));
 
-	if (be_validate_name(lbh, new))
+	if (be_validate_name(lbh, new) != 0)
 		return (BE_ERR_UNKNOWN);
 		/* XXX TODO set and return correct error */
 
@@ -621,7 +621,7 @@ be_export(libbe_handle_t *lbh, char *bootenv, int fd)
 	zfs_handle_t *zfs;
 	int err;
 
-	if (err = be_snapshot(lbh, bootenv, NULL, true, snap_name))
+	if ((err = be_snapshot(lbh, bootenv, NULL, true, snap_name)) != 0)
 		/* XXX TODO error handle */
 		return (-1);
 
@@ -648,7 +648,7 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 	 * XXX TODO: this is a very likely name for someone to already have
 	 * used... we should avoid it.
 	 */
-	if (err = be_root_concat(lbh, "be_import_temp", buf))
+	if ((err = be_root_concat(lbh, "be_import_temp", buf)) != 0)
 		/* XXX TODO error handle */
 		return (-1);
 
@@ -658,7 +658,7 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 	    "@%F-%T", localtime(&rawtime));
 
 	/* lzc_receive(SNAPNAME, PROPS, ORIGIN, FORCE, fd)) { */
-	if (err = lzc_receive(buf, NULL, NULL, false, fd)) {
+	if ((err = lzc_receive(buf, NULL, NULL, false, fd)) != 0) {
 		/* TODO: go through libzfs_core's recv_impl and find returned
 		 * errors and set appropriate BE_ERR
 		 * edit: errors are not in libzfs_core, my assumption is
@@ -737,8 +737,8 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 		nvlist_add_string(props, "mountpoint", child_path);
 
 		/* Create */
-		if (err =
-		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props))
+		if ((err =
+		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props)) != 0)
 			/* XXX TODO handle error */
 			return (-1);
 		nvlist_free(props);
@@ -749,7 +749,7 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 			return (-1);
 
 		/* Set props */
-		if (err = zfs_prop_set(zfs, "canmount", "noauto"))
+		if ((err = zfs_prop_set(zfs, "canmount", "noauto")) != 0)
 			/* TODO handle error */
 			return (-1);
 	} else if (cp_if_exists) {
@@ -767,7 +767,7 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 
 		snprintf(buf, BE_MAXPATHLEN, "%s@%ld", child_path, snap_name);
 
-		if (err = zfs_snapshot(lbh->lzh, buf, false, NULL))
+		if ((err = zfs_snapshot(lbh->lzh, buf, false, NULL)) != 0)
 			/* XXX TODO correct error */
 			return (-1);
 
@@ -777,7 +777,7 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 			/* XXX TODO correct error */
 			return (-1);
 
-		if (err = zfs_clone(zfs, active, NULL))
+		if ((err = zfs_clone(zfs, active, NULL)) != 0)
 			/* XXX TODO correct error */
 			return (-1);
 
@@ -797,8 +797,6 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 	char buf[BE_MAXPATHLEN];
 	uint64_t pool_guid;
 	uint64_t vdev_guid;
-	int zfs_fd;
-	int len;
 	int err;
 
 	be_root_concat(lbh, bootenv, be_path);

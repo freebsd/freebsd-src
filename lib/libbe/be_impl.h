@@ -46,9 +46,9 @@ struct libbe_handle {
 
 struct libbe_deep_clone {
 	libbe_handle_t *lbh;
-	char *bename;
-	char *snapname;
-	char *be_root;
+	const char *bename;
+	const char *snapname;
+	const char *be_root;
 };
 
 struct libbe_dccb {

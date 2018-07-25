@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2017
+.Dd July 25, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -76,7 +76,7 @@ of state to be retained, such as errors from previous operations.
 .Fn be_create "libbe_handle_t *, char *" ;
 .Pp
 .Ft int
-.Fn be_create_from_existing "libbe_handle_t *, char *, char *" ;
+.Fn be_create_from_existing "libbe_handle_t *, const char *, const char *" ;
 .Pp
 .Ft int
 .Fn be_rename "libbe_handle_t *, char *, char *" ;
@@ -109,13 +109,13 @@ of state to be retained, such as errors from previous operations.
 .Fn libbe_print_on_error "libbe_handle_t *, bool" ;
 .Pp
 .Ft int
-.Fn be_root_concat "libbe_handle_t *, char *, char *" ;
+.Fn be_root_concat "libbe_handle_t *, const char *, char *" ;
 .Pp
 .Ft int
-.Fn be_validate_name "libbe_handle_t *, char *" ;
+.Fn be_validate_name "libbe_handle_t *, const char *" ;
 .Pp
 .Ft int
-.Fn be_validate_snap "libbe_handle_t *, char *" ;
+.Fn be_validate_snap "libbe_handle_t *, const char *" ;
 .Pp
 .Ft bool
 .Fn be_exists "libbe_handle_t *, char *" ;
