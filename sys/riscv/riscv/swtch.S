@@ -208,8 +208,6 @@ ENTRY(cpu_throw)
 #endif
 
 	ret
-.Lcpu_throw_panic_str:
-	.asciz "cpu_throw: %p\0"
 END(cpu_throw)
 
 /*
