@@ -58,10 +58,17 @@ __FBSDID("$FreeBSD$");
 #include "nvm_cfg.h"
 #include "ecore_dev_api.h"
 #include "ecore_dbg_fw_funcs.h"
+#include "ecore_iov_api.h"
+#include "ecore_vf_api.h"
 
 #include "qlnx_ioctl.h"
 #include "qlnx_def.h"
 #include "qlnx_ver.h"
+
+#ifdef QLNX_ENABLE_IWARP
+#include "qlnx_rdma.h"
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
 #include <sys/smp.h>
 
 
@@ -159,11 +166,32 @@ static int qlnx_pci_probe (device_t);
 static int qlnx_pci_attach (device_t);
 static int qlnx_pci_detach (device_t);
 
+#ifndef QLNX_VF
+
+#ifdef CONFIG_ECORE_SRIOV
+
+static int qlnx_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params);
+static void qlnx_iov_uninit(device_t dev);
+static int qlnx_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params);
+static void qlnx_initialize_sriov(qlnx_host_t *ha);
+static void qlnx_pf_taskqueue(void *context, int pending);
+static int qlnx_create_pf_taskqueues(qlnx_host_t *ha);
+static void qlnx_destroy_pf_taskqueues(qlnx_host_t *ha);
+static void qlnx_inform_vf_link_state(struct ecore_hwfn *p_hwfn, qlnx_host_t *ha);
+
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+
 static device_method_t qlnx_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, qlnx_pci_probe),
 	DEVMETHOD(device_attach, qlnx_pci_attach),
 	DEVMETHOD(device_detach, qlnx_pci_detach),
+
+#ifdef CONFIG_ECORE_SRIOV
+	DEVMETHOD(pci_iov_init, qlnx_iov_init),
+	DEVMETHOD(pci_iov_uninit, qlnx_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, qlnx_iov_add_vf),
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
 	{ 0, 0 }
 };
 
@@ -179,12 +207,35 @@ DRIVER_MODULE(if_qlnxe, pci, qlnx_pci_driver, qlnx_devclass, 0, 0);
 MODULE_DEPEND(if_qlnxe, pci, 1, 1, 1);
 MODULE_DEPEND(if_qlnxe, ether, 1, 1, 1);
 
+#else
+
+static device_method_t qlnxv_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, qlnx_pci_probe),
+	DEVMETHOD(device_attach, qlnx_pci_attach),
+	DEVMETHOD(device_detach, qlnx_pci_detach),
+	{ 0, 0 }
+};
+
+static driver_t qlnxv_pci_driver = {
+	"ql", qlnxv_pci_methods, sizeof (qlnx_host_t),
+};
+
+static devclass_t qlnxv_devclass;
+MODULE_VERSION(if_qlnxev,1);
+DRIVER_MODULE(if_qlnxev, pci, qlnxv_pci_driver, qlnxv_devclass, 0, 0);
+
+MODULE_DEPEND(if_qlnxev, pci, 1, 1, 1);
+MODULE_DEPEND(if_qlnxev, ether, 1, 1, 1);
+
+#endif /* #ifdef QLNX_VF */
+
 MALLOC_DEFINE(M_QLNXBUF, "qlnxbuf", "Buffers for qlnx driver");
 
 
-char qlnx_dev_str[64];
-char qlnx_ver_str[VER_SIZE];
-char qlnx_name_str[NAME_SIZE];
+static char qlnx_dev_str[128];
+static char qlnx_ver_str[VER_SIZE];
+static char qlnx_name_str[NAME_SIZE];
 
 /*
  * Some PCI Configuration Space Related Defines
@@ -219,28 +270,115 @@ char qlnx_name_str[NAME_SIZE];
 #define QLOGIC_PCI_DEVICE_ID_8070	0x8070
 #endif
 
+/* SRIOV Device (All Speeds) Adapter QLE41xxx*/
+#ifndef QLOGIC_PCI_DEVICE_ID_8090
+#define QLOGIC_PCI_DEVICE_ID_8090	0x8090
+#endif
+
+
+
 SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD, 0, "qlnxe driver parameters");
+
 /* Number of Queues: 0 (Auto) or 1 to 32 (fixed queue number) */
 static int qlnxe_queue_count = QLNX_DEFAULT_RSS;
+
+#if __FreeBSD_version < 1100000
+
+TUNABLE_INT("hw.qlnxe.queue_count", &qlnxe_queue_count);
+
+#endif
+
 SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 		&qlnxe_queue_count, 0, "Multi-Queue queue count");
 
-static int
-qlnx_valid_device(device_t dev)
+
+/*
+ * Note on RDMA personality setting
+ * 
+ * Read the personality configured in NVRAM
+ * If the personality is ETH_ONLY, ETH_IWARP or ETH_ROCE and 
+ * the configured personality in sysctl is QLNX_PERSONALITY_DEFAULT 
+ * use the personality in NVRAM.
+
+ * Otherwise use t the personality configured in sysctl.
+ *
+ */
+#define QLNX_PERSONALITY_DEFAULT	0x0  /* use personality in NVRAM */
+#define QLNX_PERSONALITY_ETH_ONLY	0x1  /* Override with ETH_ONLY */
+#define QLNX_PERSONALITY_ETH_IWARP	0x2  /* Override with ETH_IWARP */
+#define QLNX_PERSONALITY_ETH_ROCE	0x3  /* Override with ETH_ROCE */
+#define QLNX_PERSONALITY_BITS_PER_FUNC	4
+#define QLNX_PERSONALIY_MASK		0xF
+
+/* RDMA configuration; 64bit field allows setting for 16 physical functions*/
+static uint64_t qlnxe_rdma_configuration = 0x22222222; 
+
+#if __FreeBSD_version < 1100000
+
+TUNABLE_QUAD("hw.qlnxe.rdma_configuration", &qlnxe_rdma_configuration);
+
+SYSCTL_UQUAD(_hw_qlnxe, OID_AUTO, rdma_configuration, CTLFLAG_RDTUN,
+               &qlnxe_rdma_configuration, 0, "RDMA Configuration");
+
+#else
+
+SYSCTL_U64(_hw_qlnxe, OID_AUTO, rdma_configuration, CTLFLAG_RDTUN,
+                &qlnxe_rdma_configuration, 0, "RDMA Configuration");
+
+#endif /* #if __FreeBSD_version < 1100000 */
+
+int
+qlnx_vf_device(qlnx_host_t *ha)
 {
         uint16_t	device_id;
 
-        device_id = pci_get_device(dev);
+        device_id = ha->device_id;
 
+        if (device_id == QLOGIC_PCI_DEVICE_ID_8090)
+                return 0;
+
+        return -1;
+}
+
+static int
+qlnx_valid_device(qlnx_host_t *ha)
+{
+        uint16_t device_id;
+
+        device_id = ha->device_id;
+
+#ifndef QLNX_VF
         if ((device_id == QLOGIC_PCI_DEVICE_ID_1634) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_1644) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_1654) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_8070))
                 return 0;
+#else
+        if (device_id == QLOGIC_PCI_DEVICE_ID_8090)
+		return 0;
 
+#endif /* #ifndef QLNX_VF */
         return -1;
 }
+
+#ifdef QLNX_ENABLE_IWARP
+static int
+qlnx_rdma_supported(struct qlnx_host *ha)
+{
+	uint16_t device_id;
+
+	device_id = pci_get_device(ha->pci_dev);
+
+	if ((device_id == QLOGIC_PCI_DEVICE_ID_1634) ||
+		(device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
+		(device_id == QLOGIC_PCI_DEVICE_ID_1654) ||
+		(device_id == QLOGIC_PCI_DEVICE_ID_8070))
+		return (0);
+
+	return (-1);
+}
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 
 /*
  * Name:	qlnx_pci_probe
@@ -258,6 +396,8 @@ qlnx_pci_probe(device_t dev)
 	}
 
         switch (pci_get_device(dev)) {
+
+#ifndef QLNX_VF
 
         case QLOGIC_PCI_DEVICE_ID_1644:
 		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
@@ -297,7 +437,18 @@ qlnx_pci_probe(device_t dev)
 
 	case QLOGIC_PCI_DEVICE_ID_8070:
 		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
-			"Qlogic 10GbE/25GbE/40GbE PCI CNA (AH) "
+			"Qlogic 10GbE/25GbE/40GbE PCI CNA (AH)"
+			" Adapter-Ethernet Function",
+			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
+			QLNX_VERSION_BUILD);
+		device_set_desc_copy(dev, qlnx_dev_str);
+
+		break;
+
+#else
+	case QLOGIC_PCI_DEVICE_ID_8090:
+		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+			"Qlogic SRIOV PCI CNA (AH) "
 			"Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
@@ -305,9 +456,15 @@ qlnx_pci_probe(device_t dev)
 
 		break;
 
+#endif /* #ifndef QLNX_VF */
+
         default:
                 return (ENXIO);
         }
+
+#ifdef QLNX_ENABLE_IWARP
+	qlnx_rdma_init();
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 
         return (BUS_PROBE_DEFAULT);
 }
@@ -389,7 +546,7 @@ qlnx_create_sp_taskqueues(qlnx_host_t *ha)
 
 		TASK_INIT(&ha->sp_task[i], 0, qlnx_sp_taskqueue, p_hwfn);
 
-		ha->sp_taskqueue[i] = taskqueue_create_fast(tq_name, M_NOWAIT,
+		ha->sp_taskqueue[i] = taskqueue_create(tq_name, M_NOWAIT,
 			 taskqueue_thread_enqueue, &ha->sp_taskqueue[i]);
 
 		if (ha->sp_taskqueue[i] == NULL) 
@@ -425,82 +582,14 @@ qlnx_fp_taskqueue(void *context, int pending)
         qlnx_host_t		*ha;
         struct ifnet		*ifp;
 
-#ifdef QLNX_RCV_IN_TASKQ
-	int			lro_enable;
-	int			rx_int = 0, total_rx_count = 0;
-	struct thread		*cthread;
-#endif /* #ifdef QLNX_RCV_IN_TASKQ */
-
         fp = context;
 
         if (fp == NULL)
                 return;
 
-        ha = (qlnx_host_t *)fp->edev;
+	ha = (qlnx_host_t *)fp->edev;
 
-        ifp = ha->ifp;
-
-#ifdef QLNX_RCV_IN_TASKQ
-
-	cthread = curthread;
-
-	thread_lock(cthread);
-
-	if (!sched_is_bound(cthread))
-		sched_bind(cthread, fp->rss_id);
-
-	thread_unlock(cthread);
-
-	lro_enable = ifp->if_capenable & IFCAP_LRO;
-
-	rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold, lro_enable);
-
-	if (rx_int) {
-		fp->rx_pkts += rx_int;
-		total_rx_count += rx_int;
-	}
-
-#ifdef QLNX_SOFT_LRO
-	{
-		struct lro_ctrl *lro;
-
-		lro = &fp->rxq->lro;
-
-		if (lro_enable && total_rx_count) {
-
-#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
-
-			if (ha->dbg_trace_lro_cnt) {
-				if (lro->lro_mbuf_count & ~1023)
-					fp->lro_cnt_1024++;
-				else if (lro->lro_mbuf_count & ~511)
-					fp->lro_cnt_512++;
-				else if (lro->lro_mbuf_count & ~255)
-					fp->lro_cnt_256++;
-				else if (lro->lro_mbuf_count & ~127)
-					fp->lro_cnt_128++;
-				else if (lro->lro_mbuf_count & ~63)
-					fp->lro_cnt_64++;
-			}
-			tcp_lro_flush_all(lro);
-
-#else
-			struct lro_entry *queued;
-
-			while ((!SLIST_EMPTY(&lro->lro_active))) {
-				queued = SLIST_FIRST(&lro->lro_active);
-				SLIST_REMOVE_HEAD(&lro->lro_active, next);
-				tcp_lro_flush(lro, queued);
-			}
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
-		}
-	}
-#endif /* #ifdef QLNX_SOFT_LRO */
-
-	ecore_sb_update_sb_idx(fp->sb_info);
-	rmb();
-
-#endif /* #ifdef QLNX_RCV_IN_TASKQ */
+	ifp = ha->ifp;
 
         if(ifp->if_drv_flags & IFF_DRV_RUNNING) {
 
@@ -526,18 +615,6 @@ qlnx_fp_taskqueue(void *context, int pending)
                 }
         }
 
-#ifdef QLNX_RCV_IN_TASKQ
-	if (rx_int) {
-		if (fp->fp_taskqueue != NULL)
-			taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
-	} else {
-		if (fp->tx_ring_full) {
-			qlnx_mdelay(__func__, 100);
-		}
-		ecore_sb_ack(fp->sb_info, IGU_INT_ENABLE, 1);
-	}
-#endif /* #ifdef QLNX_RCV_IN_TASKQ */
-
         QL_DPRINT2(ha, "exit \n");
         return;
 }
@@ -558,7 +635,7 @@ qlnx_create_fp_taskqueues(qlnx_host_t *ha)
 
 		TASK_INIT(&fp->fp_task, 0, qlnx_fp_taskqueue, fp);
 
-		fp->fp_taskqueue = taskqueue_create_fast(tq_name, M_NOWAIT,
+		fp->fp_taskqueue = taskqueue_create(tq_name, M_NOWAIT,
 					taskqueue_thread_enqueue,
 					&fp->fp_taskqueue);
 
@@ -623,6 +700,76 @@ qlnx_get_params(qlnx_host_t *ha)
 	return;
 }
 
+static void
+qlnx_error_recovery_taskqueue(void *context, int pending)
+{
+        qlnx_host_t *ha;
+
+        ha = context;
+
+        QL_DPRINT2(ha, "enter\n");
+
+        QLNX_LOCK(ha);
+        qlnx_stop(ha);
+        QLNX_UNLOCK(ha);
+
+#ifdef QLNX_ENABLE_IWARP
+	qlnx_rdma_dev_remove(ha);
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
+        qlnx_slowpath_stop(ha);
+        qlnx_slowpath_start(ha);
+
+#ifdef QLNX_ENABLE_IWARP
+	qlnx_rdma_dev_add(ha);
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
+        qlnx_init(ha);
+
+        callout_reset(&ha->qlnx_callout, hz, qlnx_timer, ha);
+
+        QL_DPRINT2(ha, "exit\n");
+
+        return;
+}
+
+static int
+qlnx_create_error_recovery_taskqueue(qlnx_host_t *ha)
+{
+        uint8_t tq_name[32];
+
+        bzero(tq_name, sizeof (tq_name));
+        snprintf(tq_name, sizeof (tq_name), "ql_err_tq");
+
+        TASK_INIT(&ha->err_task, 0, qlnx_error_recovery_taskqueue, ha);
+
+        ha->err_taskqueue = taskqueue_create(tq_name, M_NOWAIT,
+                                taskqueue_thread_enqueue, &ha->err_taskqueue);
+
+
+        if (ha->err_taskqueue == NULL)
+                return (-1);
+
+        taskqueue_start_threads(&ha->err_taskqueue, 1, PI_NET, "%s", tq_name);
+
+        QL_DPRINT1(ha, "%p\n",ha->err_taskqueue);
+
+        return (0);
+}
+
+static void
+qlnx_destroy_error_recovery_taskqueue(qlnx_host_t *ha)
+{
+        if (ha->err_taskqueue != NULL) {
+                taskqueue_drain(ha->err_taskqueue, &ha->err_task);
+                taskqueue_free(ha->err_taskqueue);
+        }
+
+        ha->err_taskqueue = NULL;
+
+        return;
+}
+
 /*
  * Name:	qlnx_pci_attach
  * Function:	attaches the device to the operating system
@@ -636,6 +783,8 @@ qlnx_pci_attach(device_t dev)
 	uint32_t	rsrc_len_msix = 0;
 	int		i;
 	uint32_t	mfw_ver;
+	uint32_t	num_sp_msix = 0;
+	uint32_t	num_rdma_irqs = 0;
 
         if ((ha = device_get_softc(dev)) == NULL) {
                 device_printf(dev, "cannot get softc\n");
@@ -644,7 +793,9 @@ qlnx_pci_attach(device_t dev)
 
         memset(ha, 0, sizeof (qlnx_host_t));
 
-        if (qlnx_valid_device(dev) != 0) {
+        ha->device_id = pci_get_device(dev);
+
+        if (qlnx_valid_device(ha) != 0) {
                 device_printf(dev, "device is not valid device\n");
                 return (ENXIO);
 	}
@@ -674,21 +825,29 @@ qlnx_pci_attach(device_t dev)
         rsrc_len_reg = (uint32_t) bus_get_resource_count(dev, SYS_RES_MEMORY,
                                         ha->reg_rid);
 
-        ha->dbells_rid = PCIR_BAR(2);
-        ha->pci_dbells = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-                        &ha->dbells_rid, RF_ACTIVE);
+	ha->dbells_rid = PCIR_BAR(2);
+	rsrc_len_dbells = (uint32_t) bus_get_resource_count(dev,
+					SYS_RES_MEMORY,
+					ha->dbells_rid);
+	if (rsrc_len_dbells) {
 
-        if (ha->pci_dbells == NULL) {
-                device_printf(dev, "unable to map BAR1\n");
-                goto qlnx_pci_attach_err;
+		ha->pci_dbells = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+					&ha->dbells_rid, RF_ACTIVE);
+
+		if (ha->pci_dbells == NULL) {
+			device_printf(dev, "unable to map BAR1\n");
+			goto qlnx_pci_attach_err;
+		}
+		ha->dbells_phys_addr = (uint64_t)
+			bus_get_resource_start(dev, SYS_RES_MEMORY, ha->dbells_rid);
+
+		ha->dbells_size = rsrc_len_dbells;
+	} else {
+		if (qlnx_vf_device(ha) != 0) {
+			device_printf(dev, " BAR1 size is zero\n");
+			goto qlnx_pci_attach_err;
+		}
 	}
-
-        rsrc_len_dbells = (uint32_t) bus_get_resource_count(dev, SYS_RES_MEMORY,
-                                        ha->dbells_rid);
-
-	ha->dbells_phys_addr = (uint64_t)
-		bus_get_resource_start(dev, SYS_RES_MEMORY, ha->dbells_rid);;
-	ha->dbells_size = rsrc_len_dbells;
 
         ha->msix_rid = PCIR_BAR(4);
         ha->msix_bar = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -701,6 +860,19 @@ qlnx_pci_attach(device_t dev)
 
         rsrc_len_msix = (uint32_t) bus_get_resource_count(dev, SYS_RES_MEMORY,
                                         ha->msix_rid);
+
+	ha->dbg_level = 0x0000;
+
+	QL_DPRINT1(ha, "\n\t\t\t"
+		"pci_dev = %p pci_reg = %p, reg_len = 0x%08x reg_rid = 0x%08x"
+		"\n\t\t\tdbells = %p, dbells_len = 0x%08x dbells_rid = 0x%08x"
+		"\n\t\t\tmsix = %p, msix_len = 0x%08x msix_rid = 0x%08x"
+		" msix_avail = 0x%x "
+		"\n\t\t\t[ncpus = %d]\n",
+		ha->pci_dev, ha->pci_reg, rsrc_len_reg,
+		ha->reg_rid, ha->pci_dbells, rsrc_len_dbells, ha->dbells_rid,
+		ha->msix_bar, rsrc_len_msix, ha->msix_rid, pci_msix_count(dev),
+		mp_ncpus);
 	/*
 	 * allocate dma tags
 	 */
@@ -717,6 +889,8 @@ qlnx_pci_attach(device_t dev)
 
 	if (qlnx_init_hw(ha) != 0)
 		goto qlnx_pci_attach_err;
+		
+        ha->flags.hw_init = 1;
 
 	qlnx_get_params(ha);
 
@@ -728,38 +902,68 @@ qlnx_pci_attach(device_t dev)
 	/*
 	 * Allocate MSI-x vectors
 	 */
-	if(qlnxe_queue_count == 0)
-		ha->num_rss = QLNX_DEFAULT_RSS;
-	 else
-		ha->num_rss = qlnxe_queue_count;
+	if (qlnx_vf_device(ha) != 0) {
+
+		if (qlnxe_queue_count == 0)
+			ha->num_rss = QLNX_DEFAULT_RSS;
+		else
+			ha->num_rss = qlnxe_queue_count;
+
+		num_sp_msix = ha->cdev.num_hwfns;
+	} else {
+		uint8_t max_rxq;
+		uint8_t max_txq;
+		
+		ecore_vf_get_num_rxqs(&ha->cdev.hwfns[0], &max_rxq);
+		ecore_vf_get_num_rxqs(&ha->cdev.hwfns[0], &max_txq);
+
+		if (max_rxq < max_txq)
+			ha->num_rss = max_rxq;
+		else
+			ha->num_rss = max_txq;
+
+		if (ha->num_rss > QLNX_MAX_VF_RSS)
+			ha->num_rss = QLNX_MAX_VF_RSS;
+
+		num_sp_msix = 0;
+	}
+
+	if (ha->num_rss > mp_ncpus)
+		ha->num_rss = mp_ncpus;
 
 	ha->num_tc = QLNX_MAX_TC;
 
         ha->msix_count = pci_msix_count(dev);
 
-	if (ha->msix_count > (mp_ncpus + ha->cdev.num_hwfns))
-		ha->msix_count = mp_ncpus + ha->cdev.num_hwfns;
+#ifdef QLNX_ENABLE_IWARP
+
+	num_rdma_irqs = qlnx_rdma_get_num_irqs(ha);
+
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 
         if (!ha->msix_count ||
-		(ha->msix_count < (ha->cdev.num_hwfns + 1 ))) {
+		(ha->msix_count < (num_sp_msix + 1 + num_rdma_irqs))) {
                 device_printf(dev, "%s: msix_count[%d] not enough\n", __func__,
                         ha->msix_count);
                 goto qlnx_pci_attach_err;
         }
 
-	if (ha->msix_count > (ha->num_rss + ha->cdev.num_hwfns ))
-		ha->msix_count = ha->num_rss + ha->cdev.num_hwfns;
+	if (ha->msix_count > (ha->num_rss + num_sp_msix + num_rdma_irqs))
+		ha->msix_count = ha->num_rss + num_sp_msix + num_rdma_irqs;
 	else
-		ha->num_rss = ha->msix_count - ha->cdev.num_hwfns;
+		ha->num_rss = ha->msix_count - (num_sp_msix + num_rdma_irqs);
 
-	QL_DPRINT1(ha, "\n\t\t\tpci_reg [%p, 0x%08x 0x%08x]"
-		"\n\t\t\tdbells [%p, 0x%08x 0x%08x]"
-		"\n\t\t\tmsix [%p, 0x%08x 0x%08x 0x%x 0x%x]"
+	QL_DPRINT1(ha, "\n\t\t\t"
+		"pci_reg = %p, reg_len = 0x%08x reg_rid = 0x%08x"
+		"\n\t\t\tdbells = %p, dbells_len = 0x%08x dbells_rid = 0x%08x"
+		"\n\t\t\tmsix = %p, msix_len = 0x%08x msix_rid = 0x%08x"
+		" msix_avail = 0x%x msix_alloc = 0x%x"
 		"\n\t\t\t[ncpus = %d][num_rss = 0x%x] [num_tc = 0x%x]\n",
 		 ha->pci_reg, rsrc_len_reg,
 		ha->reg_rid, ha->pci_dbells, rsrc_len_dbells, ha->dbells_rid,
 		ha->msix_bar, rsrc_len_msix, ha->msix_rid, pci_msix_count(dev),
 		ha->msix_count, mp_ncpus, ha->num_rss, ha->num_tc);
+
         if (pci_alloc_msix(dev, &ha->msix_count)) {
                 device_printf(dev, "%s: pci_alloc_msix[%d] failed\n", __func__,
                         ha->msix_count);
@@ -770,35 +974,38 @@ qlnx_pci_attach(device_t dev)
 	/*
 	 * Initialize slow path interrupt and task queue
 	 */
-	if (qlnx_create_sp_taskqueues(ha) != 0)
-		goto qlnx_pci_attach_err;
 
-	for (i = 0; i < ha->cdev.num_hwfns; i++) {
+	if (num_sp_msix) {
 
-                struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
+		if (qlnx_create_sp_taskqueues(ha) != 0)
+			goto qlnx_pci_attach_err;
 
-        	ha->sp_irq_rid[i] = i + 1;
-        	ha->sp_irq[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-                                &ha->sp_irq_rid[i],
-                                (RF_ACTIVE | RF_SHAREABLE));
-        	if (ha->sp_irq[i] == NULL) {
-                	device_printf(dev,
-				"could not allocate mbx interrupt\n");
-                	goto qlnx_pci_attach_err;
-        	}
+		for (i = 0; i < ha->cdev.num_hwfns; i++) {
 
-        	if (bus_setup_intr(dev, ha->sp_irq[i],
+			struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
+
+			ha->sp_irq_rid[i] = i + 1;
+			ha->sp_irq[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+						&ha->sp_irq_rid[i],
+						(RF_ACTIVE | RF_SHAREABLE));
+			if (ha->sp_irq[i] == NULL) {
+                		device_printf(dev,
+					"could not allocate mbx interrupt\n");
+				goto qlnx_pci_attach_err;
+			}
+
+			if (bus_setup_intr(dev, ha->sp_irq[i],
 				(INTR_TYPE_NET | INTR_MPSAFE), NULL,
 				qlnx_sp_intr, p_hwfn, &ha->sp_handle[i])) {
-                	device_printf(dev,
-				"could not setup slow path interrupt\n");
-			goto qlnx_pci_attach_err;
+				device_printf(dev,
+					"could not setup slow path interrupt\n");
+				goto qlnx_pci_attach_err;
+			}
+
+			QL_DPRINT1(ha, "p_hwfn [%p] sp_irq_rid %d"
+				" sp_irq %p sp_handle %p\n", p_hwfn,
+				ha->sp_irq_rid[i], ha->sp_irq[i], ha->sp_handle[i]);
 		}
-
-		QL_DPRINT1(ha, "p_hwfn [%p] sp_irq_rid %d"
-			" sp_irq %p sp_handle %p\n", p_hwfn,
-			ha->sp_irq_rid[i], ha->sp_irq[i], ha->sp_handle[i]);
-
 	}
 
 	/*
@@ -810,7 +1017,7 @@ qlnx_pci_attach(device_t dev)
         for (i = 0; i < ha->num_rss; i++) {
                 ha->irq_vec[i].rss_idx = i;
                 ha->irq_vec[i].ha = ha;
-                ha->irq_vec[i].irq_rid = (1 + ha->cdev.num_hwfns) + i;
+                ha->irq_vec[i].irq_rid = (1 + num_sp_msix) + i;
 
                 ha->irq_vec[i].irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
                                 &ha->irq_vec[i].irq_rid,
@@ -818,7 +1025,8 @@ qlnx_pci_attach(device_t dev)
 
                 if (ha->irq_vec[i].irq == NULL) {
                         device_printf(dev,
-				"could not allocate interrupt[%d]\n", i);
+				"could not allocate interrupt[%d] irq_rid = %d\n",
+				i, ha->irq_vec[i].irq_rid);
                         goto qlnx_pci_attach_err;
                 }
 		
@@ -829,65 +1037,74 @@ qlnx_pci_attach(device_t dev)
 		}
 	}
 
-	callout_init(&ha->qlnx_callout, 1);
-	ha->flags.callout_init = 1;
 
-	for (i = 0; i < ha->cdev.num_hwfns; i++) {
+	if (qlnx_vf_device(ha) != 0) {
 
-		if (qlnx_grc_dumpsize(ha, &ha->grcdump_size[i], i) != 0)
-			goto qlnx_pci_attach_err;
-		if (ha->grcdump_size[i] == 0)
-			goto qlnx_pci_attach_err;
+		callout_init(&ha->qlnx_callout, 1);
+		ha->flags.callout_init = 1;
 
-		ha->grcdump_size[i] = ha->grcdump_size[i] << 2;
-		QL_DPRINT1(ha, "grcdump_size[%d] = 0x%08x\n",
-			i, ha->grcdump_size[i]);
+		for (i = 0; i < ha->cdev.num_hwfns; i++) {
 
-		ha->grcdump[i] = qlnx_zalloc(ha->grcdump_size[i]);
-		if (ha->grcdump[i] == NULL) {
-			device_printf(dev, "grcdump alloc[%d] failed\n", i);
-			goto qlnx_pci_attach_err;
+			if (qlnx_grc_dumpsize(ha, &ha->grcdump_size[i], i) != 0)
+				goto qlnx_pci_attach_err;
+			if (ha->grcdump_size[i] == 0)
+				goto qlnx_pci_attach_err;
+
+			ha->grcdump_size[i] = ha->grcdump_size[i] << 2;
+			QL_DPRINT1(ha, "grcdump_size[%d] = 0x%08x\n",
+				i, ha->grcdump_size[i]);
+
+			ha->grcdump[i] = qlnx_zalloc(ha->grcdump_size[i]);
+			if (ha->grcdump[i] == NULL) {
+				device_printf(dev, "grcdump alloc[%d] failed\n", i);
+				goto qlnx_pci_attach_err;
+			}
+
+			if (qlnx_idle_chk_size(ha, &ha->idle_chk_size[i], i) != 0)
+				goto qlnx_pci_attach_err;
+			if (ha->idle_chk_size[i] == 0)
+				goto qlnx_pci_attach_err;
+
+			ha->idle_chk_size[i] = ha->idle_chk_size[i] << 2;
+			QL_DPRINT1(ha, "idle_chk_size[%d] = 0x%08x\n",
+				i, ha->idle_chk_size[i]);
+
+			ha->idle_chk[i] = qlnx_zalloc(ha->idle_chk_size[i]);
+
+			if (ha->idle_chk[i] == NULL) {
+				device_printf(dev, "idle_chk alloc failed\n");
+				goto qlnx_pci_attach_err;
+			}
 		}
 
-		if (qlnx_idle_chk_size(ha, &ha->idle_chk_size[i], i) != 0)
+		if (qlnx_create_error_recovery_taskqueue(ha) != 0)
 			goto qlnx_pci_attach_err;
-		if (ha->idle_chk_size[i] == 0)
-			goto qlnx_pci_attach_err;
-
-		ha->idle_chk_size[i] = ha->idle_chk_size[i] << 2;
-		QL_DPRINT1(ha, "idle_chk_size[%d] = 0x%08x\n",
-			i, ha->idle_chk_size[i]);
-
-		ha->idle_chk[i] = qlnx_zalloc(ha->idle_chk_size[i]);
-
-		if (ha->idle_chk[i] == NULL) {
-			device_printf(dev, "idle_chk alloc failed\n");
-			goto qlnx_pci_attach_err;
-		}
 	}
 
-	if (qlnx_slowpath_start(ha) != 0) {
-
-		qlnx_mdelay(__func__, 1000);
-		qlnx_trigger_dump(ha);
-
-		goto qlnx_pci_attach_err0;
-	} else
+	if (qlnx_slowpath_start(ha) != 0)
+		goto qlnx_pci_attach_err;
+	else
 		ha->flags.slowpath_start = 1;
 
-	if (qlnx_get_flash_size(ha, &ha->flash_size) != 0) {
-		qlnx_mdelay(__func__, 1000);
-		qlnx_trigger_dump(ha);
+	if (qlnx_vf_device(ha) != 0) {
+		if (qlnx_get_flash_size(ha, &ha->flash_size) != 0) {
+			qlnx_mdelay(__func__, 1000);
+			qlnx_trigger_dump(ha);
 
-		goto qlnx_pci_attach_err0;
+			goto qlnx_pci_attach_err0;
+		}
+
+		if (qlnx_get_mfw_version(ha, &mfw_ver) != 0) {
+			qlnx_mdelay(__func__, 1000);
+			qlnx_trigger_dump(ha);
+
+			goto qlnx_pci_attach_err0;
+		}
+	} else {
+		struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[0];
+		ecore_mcp_get_mfw_ver(p_hwfn, NULL, &mfw_ver, NULL);
 	}
 
-	if (qlnx_get_mfw_version(ha, &mfw_ver) != 0) {
-		qlnx_mdelay(__func__, 1000);
-		qlnx_trigger_dump(ha);
-
-		goto qlnx_pci_attach_err0;
-	}
 	snprintf(ha->mfw_ver, sizeof(ha->mfw_ver), "%d.%d.%d.%d",
 		((mfw_ver >> 24) & 0xFF), ((mfw_ver >> 16) & 0xFF),
 		((mfw_ver >> 8) & 0xFF), (mfw_ver & 0xFF));
@@ -909,10 +1126,26 @@ qlnx_pci_attach_err0:
         /*
 	 * create ioctl device interface
 	 */
-        if (qlnx_make_cdev(ha)) {
-                device_printf(dev, "%s: ql_make_cdev failed\n", __func__);
-                goto qlnx_pci_attach_err;
-        }
+	if (qlnx_vf_device(ha) != 0) {
+
+		if (qlnx_make_cdev(ha)) {
+			device_printf(dev, "%s: ql_make_cdev failed\n", __func__);
+			goto qlnx_pci_attach_err;
+		}
+
+#ifdef QLNX_ENABLE_IWARP
+		qlnx_rdma_dev_add(ha);
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+	}
+
+#ifndef QLNX_VF
+#ifdef CONFIG_ECORE_SRIOV
+
+	if (qlnx_vf_device(ha) != 0)
+		qlnx_initialize_sriov(ha);
+
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+#endif /* #ifdef QLNX_VF */
 
 	QL_DPRINT2(ha, "success\n");
 
@@ -935,9 +1168,27 @@ qlnx_pci_detach(device_t dev)
 	qlnx_host_t	*ha = NULL;
 
         if ((ha = device_get_softc(dev)) == NULL) {
-                device_printf(dev, "cannot get softc\n");
+                device_printf(dev, "%s: cannot get softc\n", __func__);
                 return (ENOMEM);
         }
+
+	if (qlnx_vf_device(ha) != 0) {
+#ifdef CONFIG_ECORE_SRIOV
+		int ret;
+
+		ret = pci_iov_detach(dev);
+		if (ret) {
+                	device_printf(dev, "%s: SRIOV in use\n", __func__);
+			return (ret);
+		}
+
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+
+#ifdef QLNX_ENABLE_IWARP
+		if (qlnx_rdma_dev_remove(ha) != 0)
+			return (EBUSY);
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+	}
 
 	QLNX_LOCK(ha);
 	qlnx_stop(ha);
@@ -947,6 +1198,61 @@ qlnx_pci_detach(device_t dev)
 
         return (0);
 }
+
+#ifdef QLNX_ENABLE_IWARP
+
+static uint8_t
+qlnx_get_personality(uint8_t pci_func)
+{
+	uint8_t personality;
+
+	personality = (qlnxe_rdma_configuration >>
+				(pci_func * QLNX_PERSONALITY_BITS_PER_FUNC)) &
+				QLNX_PERSONALIY_MASK;
+	return (personality);
+}
+
+static void
+qlnx_set_personality(qlnx_host_t *ha)
+{
+	struct ecore_hwfn *p_hwfn;
+	uint8_t personality;
+
+	p_hwfn = &ha->cdev.hwfns[0];
+
+	personality = qlnx_get_personality(ha->pci_func);
+
+	switch (personality) {
+
+	case QLNX_PERSONALITY_DEFAULT:
+               	device_printf(ha->pci_dev, "%s: DEFAULT\n",
+			__func__);
+		ha->personality = ECORE_PCI_DEFAULT;
+		break;
+
+	case QLNX_PERSONALITY_ETH_ONLY:
+               	device_printf(ha->pci_dev, "%s: ETH_ONLY\n",
+			__func__);
+		ha->personality = ECORE_PCI_ETH;
+		break;
+
+	case QLNX_PERSONALITY_ETH_IWARP:
+               	device_printf(ha->pci_dev, "%s: ETH_IWARP\n",
+			__func__);
+		ha->personality = ECORE_PCI_ETH_IWARP;
+		break;
+
+	case QLNX_PERSONALITY_ETH_ROCE:
+               	device_printf(ha->pci_dev, "%s: ETH_ROCE\n",
+			__func__);
+		ha->personality = ECORE_PCI_ETH_ROCE;
+		break;
+	}
+ 
+	return;
+}
+
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 
 static int
 qlnx_init_hw(qlnx_host_t *ha)
@@ -963,18 +1269,43 @@ qlnx_init_hw(qlnx_host_t *ha)
 				ECORE_MSG_SPQ |
 				ECORE_MSG_RDMA;
 	ha->dp_level = ECORE_LEVEL_VERBOSE;*/
+	//ha->dp_module = ECORE_MSG_RDMA | ECORE_MSG_INTR | ECORE_MSG_LL2;
 	ha->dp_level = ECORE_LEVEL_NOTICE;
+	//ha->dp_level = ECORE_LEVEL_VERBOSE;
 
 	ecore_init_dp(&ha->cdev, ha->dp_module, ha->dp_level, ha->pci_dev);
 
 	ha->cdev.regview = ha->pci_reg;
-	ha->cdev.doorbells = ha->pci_dbells;
-	ha->cdev.db_phys_addr = ha->dbells_phys_addr;
-	ha->cdev.db_size = ha->dbells_size;
-
-	bzero(&params, sizeof (struct ecore_hw_prepare_params));
 
 	ha->personality = ECORE_PCI_DEFAULT;
+
+	if (qlnx_vf_device(ha) == 0) {
+		ha->cdev.b_is_vf = true;
+
+		if (ha->pci_dbells != NULL) {
+			ha->cdev.doorbells = ha->pci_dbells;
+			ha->cdev.db_phys_addr = ha->dbells_phys_addr;
+			ha->cdev.db_size = ha->dbells_size;
+		} else {
+			ha->pci_dbells = ha->pci_reg;
+		}
+	} else {
+		ha->cdev.doorbells = ha->pci_dbells;
+		ha->cdev.db_phys_addr = ha->dbells_phys_addr;
+		ha->cdev.db_size = ha->dbells_size;
+
+#ifdef QLNX_ENABLE_IWARP
+
+		if (qlnx_rdma_supported(ha) == 0)
+			qlnx_set_personality(ha);
+		
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
+	}
+	QL_DPRINT2(ha, "%s: %s\n", __func__,
+		(ha->personality == ECORE_PCI_ETH_IWARP ? "iwarp": "ethernet"));
+
+	bzero(&params, sizeof (struct ecore_hw_prepare_params));
 
 	params.personality = ha->personality;
 
@@ -986,6 +1317,9 @@ qlnx_init_hw(qlnx_host_t *ha)
 	ecore_hw_prepare(&ha->cdev, &params);
 
 	qlnx_set_id(&ha->cdev, qlnx_name_str, qlnx_ver_str);
+
+	QL_DPRINT1(ha, "ha = %p cdev = %p p_hwfn = %p\n",
+		ha, &ha->cdev, &ha->cdev.hwfns[0]);
 
 	return (rval);
 }
@@ -1019,7 +1353,8 @@ qlnx_release(qlnx_host_t *ha)
 		qlnx_slowpath_stop(ha);
 	}
 
-	ecore_hw_remove(&ha->cdev);
+        if (ha->flags.hw_init)
+		ecore_hw_remove(&ha->cdev);
 
         qlnx_del_cdev(ha);
 
@@ -1031,6 +1366,10 @@ qlnx_release(qlnx_host_t *ha)
 	qlnx_free_rx_dma_tag(ha);
 
 	qlnx_free_parent_dma_tag(ha);
+
+	if (qlnx_vf_device(ha) != 0) {
+		qlnx_destroy_error_recovery_taskqueue(ha);
+	}
 
         for (i = 0; i < ha->num_rss; i++) {
 		struct qlnx_fastpath *fp = &ha->fp_array[i];
@@ -1073,7 +1412,7 @@ qlnx_release(qlnx_host_t *ha)
                 (void) bus_release_resource(dev, SYS_RES_MEMORY, ha->reg_rid,
                                 ha->pci_reg);
 
-        if (ha->pci_dbells)
+        if (ha->dbells_size && ha->pci_dbells)
                 (void) bus_release_resource(dev, SYS_RES_MEMORY, ha->dbells_rid,
                                 ha->pci_dbells);
 
@@ -1094,6 +1433,11 @@ qlnx_trigger_dump(qlnx_host_t *ha)
 		ha->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 
 	QL_DPRINT2(ha, "enter\n");
+
+	if (qlnx_vf_device(ha) == 0)
+		return;
+
+	ha->error_recovery = 1;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
 		qlnx_grc_dump(ha, &ha->grcdump_dwords[i], i);
@@ -1138,6 +1482,9 @@ qlnx_set_tx_coalesce(SYSCTL_HANDLER_ARGS)
 
         ha = (qlnx_host_t *)arg1;
 
+	if (qlnx_vf_device(ha) == 0)
+		return (-1);
+
 	for (i = 0; i < ha->num_rss; i++) {
 
 		p_hwfn = &ha->cdev.hwfns[(i % ha->cdev.num_hwfns)];
@@ -1170,6 +1517,9 @@ qlnx_set_rx_coalesce(SYSCTL_HANDLER_ARGS)
                 return (err);
 
         ha = (qlnx_host_t *)arg1;
+
+	if (qlnx_vf_device(ha) == 0)
+		return (-1);
 
 	for (i = 0; i < ha->num_rss; i++) {
 
@@ -1867,7 +2217,9 @@ qlnx_add_sysctls(qlnx_host_t *ha)
 
 	qlnx_add_fp_stats_sysctls(ha);
 	qlnx_add_sp_stats_sysctls(ha);
-	qlnx_add_hw_stats_sysctls(ha);
+
+	if (qlnx_vf_device(ha) != 0)
+		qlnx_add_hw_stats_sysctls(ha);
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "Driver_Version",
 		CTLFLAG_RD, qlnx_ver_str, 0,
@@ -1922,39 +2274,60 @@ qlnx_add_sysctls(qlnx_host_t *ha)
                 OID_AUTO, "err_inject", CTLFLAG_RW,
                 &ha->err_inject, ha->err_inject, "Error Inject");
 
-        ha->storm_stats_enable = 0;
+	ha->storm_stats_enable = 0;
 
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "storm_stats_enable", CTLFLAG_RW,
-                &ha->storm_stats_enable, ha->storm_stats_enable,
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "storm_stats_enable", CTLFLAG_RW,
+		&ha->storm_stats_enable, ha->storm_stats_enable,
 		"Enable Storm Statistics Gathering");
 
-        ha->storm_stats_index = 0;
+	ha->storm_stats_index = 0;
 
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "storm_stats_index", CTLFLAG_RD,
-                &ha->storm_stats_index, ha->storm_stats_index,
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "storm_stats_index", CTLFLAG_RD,
+		&ha->storm_stats_index, ha->storm_stats_index,
 		"Enable Storm Statistics Gathering Current Index");
 
-        ha->grcdump_taken = 0;
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "grcdump_taken", CTLFLAG_RD,
-                &ha->grcdump_taken, ha->grcdump_taken, "grcdump_taken");
+	ha->grcdump_taken = 0;
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "grcdump_taken", CTLFLAG_RD,
+		&ha->grcdump_taken, ha->grcdump_taken,
+		"grcdump_taken");
 
-        ha->idle_chk_taken = 0;
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "idle_chk_taken", CTLFLAG_RD,
-                &ha->idle_chk_taken, ha->idle_chk_taken, "idle_chk_taken");
+	ha->idle_chk_taken = 0;
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "idle_chk_taken", CTLFLAG_RD,
+		&ha->idle_chk_taken, ha->idle_chk_taken,
+		"idle_chk_taken");
 
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "rx_coalesce_usecs", CTLFLAG_RD,
-                &ha->rx_coalesce_usecs, ha->rx_coalesce_usecs,
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "rx_coalesce_usecs", CTLFLAG_RD,
+		&ha->rx_coalesce_usecs, ha->rx_coalesce_usecs,
 		"rx_coalesce_usecs");
 
-        SYSCTL_ADD_UINT(ctx, children,
-                OID_AUTO, "tx_coalesce_usecs", CTLFLAG_RD,
-                &ha->tx_coalesce_usecs, ha->tx_coalesce_usecs,
+	SYSCTL_ADD_UINT(ctx, children,
+		OID_AUTO, "tx_coalesce_usecs", CTLFLAG_RD,
+		&ha->tx_coalesce_usecs, ha->tx_coalesce_usecs,
 		"tx_coalesce_usecs");
+
+	SYSCTL_ADD_PROC(ctx, children,
+		OID_AUTO, "trigger_dump", (CTLTYPE_INT | CTLFLAG_RW),
+		(void *)ha, 0,
+		qlnx_trigger_dump_sysctl, "I", "trigger_dump");
+
+	SYSCTL_ADD_PROC(ctx, children,
+		OID_AUTO, "set_rx_coalesce_usecs",
+		(CTLTYPE_INT | CTLFLAG_RW),
+		(void *)ha, 0,
+		qlnx_set_rx_coalesce, "I",
+		"rx interrupt coalesce period microseconds");
+
+	SYSCTL_ADD_PROC(ctx, children,
+		OID_AUTO, "set_tx_coalesce_usecs",
+		(CTLTYPE_INT | CTLFLAG_RW),
+		(void *)ha, 0,
+		qlnx_set_tx_coalesce, "I",
+		"tx interrupt coalesce period microseconds");
 
 	ha->rx_pkt_threshold = 128;
         SYSCTL_ADD_UINT(ctx, children,
@@ -1968,23 +2341,6 @@ qlnx_add_sysctls(qlnx_host_t *ha)
                 &ha->rx_jumbo_buf_eq_mtu, ha->rx_jumbo_buf_eq_mtu,
 		"== 0 => Rx Jumbo buffers are capped to 4Kbytes\n"
 		"otherwise Rx Jumbo buffers are set to >= MTU size\n");
-
-	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "trigger_dump", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
-		qlnx_trigger_dump_sysctl, "I", "trigger_dump");
-
-	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "set_rx_coalesce_usecs", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
-		qlnx_set_rx_coalesce, "I",
-		"rx interrupt coalesce period microseconds");
-
-	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "set_tx_coalesce_usecs", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
-		qlnx_set_tx_coalesce, "I",
-		"tx interrupt coalesce period microseconds");
 
 	SYSCTL_ADD_QUAD(ctx, children,
                 OID_AUTO, "err_illegal_intr", CTLFLAG_RD,
@@ -2058,7 +2414,23 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ha->max_frame_size = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
         memcpy(ha->primary_mac, qlnx_get_mac_addr(ha), ETH_ALEN);
-        ether_ifattach(ifp, ha->primary_mac);
+
+	if (!ha->primary_mac[0] && !ha->primary_mac[1] &&
+		!ha->primary_mac[2] && !ha->primary_mac[3] &&
+		!ha->primary_mac[4] && !ha->primary_mac[5]) {
+		uint32_t rnd;
+
+		rnd = arc4random();
+
+		ha->primary_mac[0] = 0x00;
+		ha->primary_mac[1] = 0x0e;
+		ha->primary_mac[2] = 0x1e;
+		ha->primary_mac[3] = rnd & 0xFF;
+		ha->primary_mac[4] = (rnd >> 8) & 0xFF;
+		ha->primary_mac[5] = (rnd >> 16) & 0xFF;
+	}
+
+	ether_ifattach(ifp, ha->primary_mac);
 	bcopy(IF_LLADDR(ha->ifp), ha->primary_mac, ETHER_ADDR_LEN);
 
 	ifp->if_capabilities = IFCAP_HWCSUM;
@@ -2132,8 +2504,15 @@ qlnx_init_locked(qlnx_host_t *ha)
 	qlnx_stop(ha);
 
 	if (qlnx_load(ha) == 0) {
+
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+#ifdef QLNX_ENABLE_IWARP
+		if (qlnx_vf_device(ha) != 0) {
+			qlnx_rdma_dev_open(ha);
+		}
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 	}
 
 	return;
@@ -2276,6 +2655,9 @@ qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 	struct ifnet		*ifp = ha->ifp;
 	int			ret = 0;
 
+	if (qlnx_vf_device(ha) == 0)
+		return (0);
+
 	if_maddr_rlock(ifp);
 
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -2307,6 +2689,9 @@ qlnx_set_promisc(qlnx_host_t *ha)
 	int	rc = 0;
 	uint8_t	filter;
 
+	if (qlnx_vf_device(ha) == 0)
+		return (0);
+
 	filter = ha->filter;
 	filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
 	filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
@@ -2320,6 +2705,9 @@ qlnx_set_allmulti(qlnx_host_t *ha)
 {
 	int	rc = 0;
 	uint8_t	filter;
+
+	if (qlnx_vf_device(ha) == 0)
+		return (0);
 
 	filter = ha->filter;
 	filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
@@ -2450,8 +2838,12 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
 
-		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			qlnx_init(ha);
+		QLNX_LOCK(ha);
+
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			qlnx_init_locked(ha);
+
+		QLNX_UNLOCK(ha);
 
 		VLAN_CAPABILITIES(ifp);
 		break;
@@ -2845,7 +3237,7 @@ qlnx_txq_doorbell_wr32(qlnx_host_t *ha, void *reg_addr, uint32_t value)
 
 	cdev = &ha->cdev;
 		
-	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)cdev->doorbells);
+	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)ha->pci_dbells);
 
 	bus_write_4(ha->pci_dbells, offset, value);
 	bus_barrier(ha->pci_reg,  0, 0, BUS_SPACE_BARRIER_READ);
@@ -2921,45 +3313,45 @@ qlnx_tso_check(struct qlnx_fastpath *fp, bus_dma_segment_t *segs, int nsegs,
 {
 	int			i;
 	uint32_t		sum, nbds_in_hdr = 1;
-	uint32_t		window;
+        uint32_t		window;
         bus_dma_segment_t	*s_seg;
 
-	/* If the header spans mulitple segments, skip those segments */
+        /* If the header spans mulitple segments, skip those segments */
 
-	if (nsegs < ETH_TX_LSO_WINDOW_BDS_NUM)
-		return (0);
+        if (nsegs < ETH_TX_LSO_WINDOW_BDS_NUM)
+                return (0);
 
-	i = 0;
+        i = 0;
 
-	while ((i < nsegs) && (offset >= segs->ds_len)) {
-		offset = offset - segs->ds_len;
-		segs++;
-		i++;
-		nbds_in_hdr++;
-	}
+        while ((i < nsegs) && (offset >= segs->ds_len)) {
+                offset = offset - segs->ds_len;
+                segs++;
+                i++;
+                nbds_in_hdr++;
+        }
 
-	window = ETH_TX_LSO_WINDOW_BDS_NUM - nbds_in_hdr;
+        window = ETH_TX_LSO_WINDOW_BDS_NUM - nbds_in_hdr;
 
-	nsegs = nsegs - i;
+        nsegs = nsegs - i;
 
-	while (nsegs >= window) {
+        while (nsegs >= window) {
 
-		sum = 0;
-		s_seg = segs;
+                sum = 0;
+                s_seg = segs;
 
-		for (i = 0; i < window; i++){
-			sum += s_seg->ds_len;
-			s_seg++;
-		}
+                for (i = 0; i < window; i++){
+                        sum += s_seg->ds_len;
+                        s_seg++;
+                }
 
-		if (sum < ETH_TX_LSO_WINDOW_MIN_LEN) {
-			fp->tx_lso_wnd_min_len++;
-			return (-1);
-		}
+                if (sum < ETH_TX_LSO_WINDOW_MIN_LEN) {
+                        fp->tx_lso_wnd_min_len++;
+                        return (-1);
+                }
 
-		nsegs = nsegs - 1;
-		segs++;
-	}
+                nsegs = nsegs - 1;
+                segs++;
+        }
 
 	return (0);
 }
@@ -2991,7 +3383,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
         uint16_t                bd_used;
 #endif
 
-	QL_DPRINT8(ha, "enter\n");
+	QL_DPRINT8(ha, "enter[%d]\n", fp->rss_id);
 
 	if (!ha->link_up)
 		return (-1);
@@ -3466,7 +3858,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 	qlnx_txq_doorbell_wr32(ha, txq->doorbell_addr, txq->tx_db.raw);
    
-	QL_DPRINT8(ha, "exit\n");
+	QL_DPRINT8(ha, "exit[%d]\n", fp->rss_id);
 	return (0);
 }
 
@@ -3500,6 +3892,11 @@ qlnx_stop(qlnx_host_t *ha)
 					&fp->fp_task);
 		}
 	}
+#ifdef QLNX_ENABLE_IWARP
+	if (qlnx_vf_device(ha) != 0) {
+		qlnx_rdma_dev_close(ha);
+	}
+#endif /* #ifdef QLNX_ENABLE_IWARP */
 
 	qlnx_unload(ha);
 
@@ -3516,9 +3913,24 @@ uint8_t *
 qlnx_get_mac_addr(qlnx_host_t *ha)
 {
 	struct ecore_hwfn	*p_hwfn;
+	unsigned char mac[ETHER_ADDR_LEN];
+	uint8_t			p_is_forced;
 
 	p_hwfn = &ha->cdev.hwfns[0];
-        return (p_hwfn->hw_info.hw_mac_addr);
+
+	if (qlnx_vf_device(ha) != 0) 
+		return (p_hwfn->hw_info.hw_mac_addr);
+
+	ecore_vf_read_bulletin(p_hwfn, &p_is_forced);
+	if (ecore_vf_bulletin_get_forced_mac(p_hwfn, mac, &p_is_forced) ==
+		true) {
+		device_printf(ha->pci_dev, "%s: p_is_forced = %d"
+			" mac_addr = %02x:%02x:%02x:%02x:%02x:%02x\n", __func__,
+			p_is_forced, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        	memcpy(ha->primary_mac, mac, ETH_ALEN);
+	}
+
+	return (ha->primary_mac);
 }
 
 static uint32_t
@@ -4264,10 +4676,10 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	QLNX_INC_IPACKETS(ifp);
 	QLNX_INC_IBYTES(ifp, (cqe->total_packet_len));
 
-        QL_DPRINT7(ha, "[%d]: 8 csum_data = 0x%x csum_flags = 0x%lx\n \
+        QL_DPRINT7(ha, "[%d]: 8 csum_data = 0x%x csum_flags = 0x%" PRIu64 "\n \
 		m_len = 0x%x m_pkthdr_len = 0x%x\n",
                 fp->rss_id, mp->m_pkthdr.csum_data,
-                mp->m_pkthdr.csum_flags, mp->m_len, mp->m_pkthdr.len);
+                (uint64_t)mp->m_pkthdr.csum_flags, mp->m_len, mp->m_pkthdr.len);
 
 	(*ifp->if_input)(ifp, mp);
 
@@ -4379,13 +4791,13 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
                 fp_cqe = &cqe->fast_path_regular;/* MK CR TPA check assembly */
                 len =  le16toh(fp_cqe->pkt_len);
                 pad = fp_cqe->placement_offset;
-
+#if 0
 		QL_DPRINT3(ha, "CQE type = %x, flags = %x, vlan = %x,"
 			" len %u, parsing flags = %d pad  = %d\n",
 			cqe_type, fp_cqe->bitfields,
 			le16toh(fp_cqe->vlan_tag),
 			len, le16toh(fp_cqe->pars_flags.flags), pad);
-
+#endif
 		data = mtod(mp, uint8_t *);
 		data = data + pad;
 
@@ -4433,8 +4845,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 		m_adj(mp, pad);
 		mp->m_pkthdr.len = len;
 
-		QL_DPRINT1(ha, "len = %d len_on_first_bd = %d\n",
-			   len, len_on_first_bd);
 		if ((len > 60 ) && (len > len_on_first_bd)) {
 
 			mp->m_len = len_on_first_bd;
@@ -4595,12 +5005,6 @@ qlnx_fp_isr(void *arg)
         if (fp == NULL) {
                 ha->err_fp_null++;
         } else {
-
-#ifdef QLNX_RCV_IN_TASKQ
-                ecore_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0);
-		if (fp->fp_taskqueue != NULL)
-			taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
-#else
 		int			rx_int = 0, total_rx_count = 0;
 		int 			lro_enable, tc;
 		struct qlnx_tx_queue	*txq;
@@ -4696,8 +5100,6 @@ qlnx_fp_isr(void *arg)
                 ecore_sb_update_sb_idx(fp->sb_info);
                 rmb();
                 ecore_sb_ack(fp->sb_info, IGU_INT_ENABLE, 1);
-
-#endif /* #ifdef QLNX_RCV_IN_TASKQ */
         }
 
         return;
@@ -4843,11 +5245,11 @@ qlnx_dma_alloc_coherent(void *ecore_dev, bus_addr_t *phys, uint32_t size)
 	dma_p = (qlnx_dma_t *)((uint8_t *)dma_buf.dma_b + size);
 
 	memcpy(dma_p, &dma_buf, sizeof(qlnx_dma_t));
-/*
+
 	QL_DPRINT5(ha, "[%p %p %p %p 0x%08x ]\n",
 		(void *)dma_buf.dma_map, (void *)dma_buf.dma_tag,
 		dma_buf.dma_b, (void *)dma_buf.dma_addr, size);
-*/
+
 	return (dma_buf.dma_b);
 }
 
@@ -4868,13 +5270,14 @@ qlnx_dma_free_coherent(void *ecore_dev, void *v_addr, bus_addr_t phys,
 	size = (size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 
 	dma_p = (qlnx_dma_t *)((uint8_t *)v_addr + size);
-/*
+
 	QL_DPRINT5(ha, "[%p %p %p %p 0x%08x ]\n",
 		(void *)dma_p->dma_map, (void *)dma_p->dma_tag,
 		dma_p->dma_b, (void *)dma_p->dma_addr, size);
-*/
+
 	dma_buf = *dma_p;
 
+	if (!ha->qlnxr_debug)
 	qlnx_free_dmabuf((qlnx_host_t *)ecore_dev, &dma_buf);
 	return;
 }
@@ -5058,7 +5461,6 @@ qlnx_pci_write_config_dword(void *ecore_dev, uint32_t pci_reg,
 	return;
 }
 
-
 int
 qlnx_pci_find_capability(void *ecore_dev, int cap)
 {
@@ -5075,21 +5477,32 @@ qlnx_pci_find_capability(void *ecore_dev, int cap)
 	}
 }
 
+int
+qlnx_pci_find_ext_capability(void *ecore_dev, int ext_cap)
+{
+	int		reg;
+	qlnx_host_t	*ha;
+
+	ha = ecore_dev;
+
+	if (pci_find_extcap(ha->pci_dev, ext_cap, &reg) == 0)
+		return reg;
+	else {
+		QL_DPRINT1(ha, "failed\n");
+		return 0;
+	}
+}
+
 uint32_t
 qlnx_reg_rd32(void *hwfn, uint32_t reg_addr)
 {
 	uint32_t		data32;
-	struct ecore_dev	*cdev;
 	struct ecore_hwfn	*p_hwfn;
 
 	p_hwfn = hwfn;
 
-	cdev = p_hwfn->p_dev;
-
-	reg_addr = (uint32_t)((uint8_t *)(p_hwfn->regview) -
-			(uint8_t *)(cdev->regview)) + reg_addr;
-
-	data32 = bus_read_4(((qlnx_host_t *)cdev)->pci_reg, reg_addr);
+	data32 = bus_read_4(((qlnx_host_t *)p_hwfn->p_dev)->pci_reg, \
+			(bus_size_t)(p_hwfn->reg_offset + reg_addr));
 
 	return (data32);
 }
@@ -5097,17 +5510,10 @@ qlnx_reg_rd32(void *hwfn, uint32_t reg_addr)
 void
 qlnx_reg_wr32(void *hwfn, uint32_t reg_addr, uint32_t value)
 {
-	struct ecore_dev	*cdev;
-	struct ecore_hwfn	*p_hwfn;
+	struct ecore_hwfn	*p_hwfn = hwfn;
 
-	p_hwfn = hwfn;
-
-	cdev = p_hwfn->p_dev;
-
-	reg_addr = (uint32_t)((uint8_t *)(p_hwfn->regview) -
-			(uint8_t *)(cdev->regview)) + reg_addr;
-
-	bus_write_4(((qlnx_host_t *)cdev)->pci_reg, reg_addr, value);
+	bus_write_4(((qlnx_host_t *)p_hwfn->p_dev)->pci_reg, \
+		(bus_size_t)(p_hwfn->reg_offset + reg_addr), value);
 
 	return;
 }
@@ -5115,17 +5521,26 @@ qlnx_reg_wr32(void *hwfn, uint32_t reg_addr, uint32_t value)
 void
 qlnx_reg_wr16(void *hwfn, uint32_t reg_addr, uint16_t value)
 {
+	struct ecore_hwfn	*p_hwfn = hwfn;
+	
+	bus_write_2(((qlnx_host_t *)p_hwfn->p_dev)->pci_reg, \
+		(bus_size_t)(p_hwfn->reg_offset + reg_addr), value);
+	return;
+}
+
+void
+qlnx_dbell_wr32_db(void *hwfn, void *reg_addr, uint32_t value)
+{
 	struct ecore_dev	*cdev;
 	struct ecore_hwfn	*p_hwfn;
+	uint32_t	offset;
 
 	p_hwfn = hwfn;
 
 	cdev = p_hwfn->p_dev;
 
-	reg_addr = (uint32_t)((uint8_t *)(p_hwfn->regview) -
-			(uint8_t *)(cdev->regview)) + reg_addr;
-
-	bus_write_2(((qlnx_host_t *)cdev)->pci_reg, reg_addr, value);
+	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)(p_hwfn->doorbells));
+	bus_write_4(((qlnx_host_t *)cdev)->pci_dbells, offset, value);
 
 	return;
 }
@@ -5133,17 +5548,10 @@ qlnx_reg_wr16(void *hwfn, uint32_t reg_addr, uint16_t value)
 void
 qlnx_dbell_wr32(void *hwfn, uint32_t reg_addr, uint32_t value)
 {
-	struct ecore_dev	*cdev;
-	struct ecore_hwfn	*p_hwfn;
+	struct ecore_hwfn	*p_hwfn = hwfn;
 
-	p_hwfn = hwfn;
-
-	cdev = p_hwfn->p_dev;
-
-	reg_addr = (uint32_t)((uint8_t *)(p_hwfn->doorbells) -
-			(uint8_t *)(cdev->doorbells)) + reg_addr;
-
-	bus_write_4(((qlnx_host_t *)cdev)->pci_dbells, reg_addr, value);
+	bus_write_4(((qlnx_host_t *)p_hwfn->p_dev)->pci_dbells, \
+		(bus_size_t)(p_hwfn->db_offset + reg_addr), value);
 
 	return;
 }
@@ -5152,11 +5560,11 @@ uint32_t
 qlnx_direct_reg_rd32(void *p_hwfn, uint32_t *reg_addr)
 {
 	uint32_t		data32;
-	uint32_t		offset;
+	bus_size_t		offset;
 	struct ecore_dev	*cdev;
 
 	cdev = ((struct ecore_hwfn *)p_hwfn)->p_dev;
-	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
+	offset = (bus_size_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
 
 	data32 = bus_read_4(((qlnx_host_t *)cdev)->pci_reg, offset);
 
@@ -5166,11 +5574,11 @@ qlnx_direct_reg_rd32(void *p_hwfn, uint32_t *reg_addr)
 void
 qlnx_direct_reg_wr32(void *p_hwfn, void *reg_addr, uint32_t value)
 {
-	uint32_t		offset;
+	bus_size_t		offset;
 	struct ecore_dev	*cdev;
 
 	cdev = ((struct ecore_hwfn *)p_hwfn)->p_dev;
-	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
+	offset = (bus_size_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
 
 	bus_write_4(((qlnx_host_t *)cdev)->pci_reg, offset, value);
 
@@ -5180,11 +5588,11 @@ qlnx_direct_reg_wr32(void *p_hwfn, void *reg_addr, uint32_t value)
 void
 qlnx_direct_reg_wr64(void *p_hwfn, void *reg_addr, uint64_t value)
 {
-	uint32_t		offset;
+	bus_size_t		offset;
 	struct ecore_dev	*cdev;
 
 	cdev = ((struct ecore_hwfn *)p_hwfn)->p_dev;
-	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
+	offset = (bus_size_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
 
 	bus_write_8(((qlnx_host_t *)cdev)->pci_reg, offset, value);
 	return;
@@ -5217,7 +5625,7 @@ qlnx_link_update(void *p_hwfn)
 
 	ha = (qlnx_host_t *)((struct ecore_hwfn *)p_hwfn)->p_dev;
 
-	qlnx_fill_link(p_hwfn, &ha->if_link);
+	qlnx_fill_link(ha, p_hwfn, &ha->if_link);
 
 	prev_link_state = ha->link_up;
 	ha->link_up = ha->if_link.link_up;
@@ -5229,27 +5637,81 @@ qlnx_link_update(void *p_hwfn)
                         if_link_state_change(ha->ifp, LINK_STATE_DOWN);
                 }
         }
+#ifndef QLNX_VF
+#ifdef CONFIG_ECORE_SRIOV
+
+	if (qlnx_vf_device(ha) != 0) {
+		if (ha->sriov_initialized)
+			qlnx_inform_vf_link_state(p_hwfn, ha);
+	}
+
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
+#endif /* #ifdef QLNX_VF */
+
         return;
 }
 
+static void
+__qlnx_osal_vf_fill_acquire_resc_req(struct ecore_hwfn *p_hwfn,
+	struct ecore_vf_acquire_sw_info *p_sw_info)
+{
+	p_sw_info->driver_version = (QLNX_VERSION_MAJOR << 24) |
+					(QLNX_VERSION_MINOR << 16) |
+					 QLNX_VERSION_BUILD;
+	p_sw_info->os_type = VFPF_ACQUIRE_OS_FREEBSD;
+
+	return;
+}
+
 void
-qlnx_fill_link(struct ecore_hwfn *hwfn, struct qlnx_link_output *if_link)
+qlnx_osal_vf_fill_acquire_resc_req(void *p_hwfn, void *p_resc_req,
+	void *p_sw_info)
+{
+	__qlnx_osal_vf_fill_acquire_resc_req(p_hwfn, p_sw_info);
+
+	return;
+}
+
+void
+qlnx_fill_link(qlnx_host_t *ha, struct ecore_hwfn *hwfn,
+	struct qlnx_link_output *if_link)
 {
 	struct ecore_mcp_link_params    link_params;
 	struct ecore_mcp_link_state     link_state;
+	uint8_t				p_change;
+	struct ecore_ptt *p_ptt = NULL;
+
 
 	memset(if_link, 0, sizeof(*if_link));
 	memset(&link_params, 0, sizeof(struct ecore_mcp_link_params));
 	memset(&link_state, 0, sizeof(struct ecore_mcp_link_state));
 
+	ha = (qlnx_host_t *)hwfn->p_dev;
+
 	/* Prepare source inputs */
 	/* we only deal with physical functions */
-	memcpy(&link_params, ecore_mcp_get_link_params(hwfn),
-		sizeof(link_params));
-	memcpy(&link_state, ecore_mcp_get_link_state(hwfn),
-		sizeof(link_state));
+	if (qlnx_vf_device(ha) != 0) {
 
-	ecore_mcp_get_media_type(hwfn->p_dev, &if_link->media_type);
+        	p_ptt = ecore_ptt_acquire(hwfn);
+
+	        if (p_ptt == NULL) {
+			QL_DPRINT1(ha, "ecore_ptt_acquire failed\n");
+			return;
+		}
+
+		ecore_mcp_get_media_type(hwfn, p_ptt, &if_link->media_type);
+		ecore_ptt_release(hwfn, p_ptt);
+
+		memcpy(&link_params, ecore_mcp_get_link_params(hwfn),
+			sizeof(link_params));
+		memcpy(&link_state, ecore_mcp_get_link_state(hwfn),
+			sizeof(link_state));
+	} else {
+		ecore_mcp_get_media_type(hwfn, NULL, &if_link->media_type);
+		ecore_vf_read_bulletin(hwfn, &p_change);
+		ecore_vf_get_link_params(hwfn, &link_params);
+		ecore_vf_get_link_state(hwfn, &link_state);
+	}
 
 	/* Set the link parameters to pass to protocol driver */
 	if (link_state.link_up) {
@@ -5338,6 +5800,20 @@ qlnx_fill_link(struct ecore_hwfn *hwfn, struct qlnx_link_output *if_link)
 	return;
 }
 
+void
+qlnx_schedule_recovery(void *p_hwfn)
+{
+	qlnx_host_t	*ha;
+
+	ha = (qlnx_host_t *)((struct ecore_hwfn *)p_hwfn)->p_dev;
+
+	if (qlnx_vf_device(ha) != 0) {
+		taskqueue_enqueue(ha->err_taskqueue, &ha->err_task);
+	}
+
+	return;
+}
+
 static int
 qlnx_nic_setup(struct ecore_dev *cdev, struct ecore_pf_params *func_params)
 {
@@ -5346,6 +5822,13 @@ qlnx_nic_setup(struct ecore_dev *cdev, struct ecore_pf_params *func_params)
         for (i = 0; i < cdev->num_hwfns; i++) {
                 struct ecore_hwfn *p_hwfn = &cdev->hwfns[i];
                 p_hwfn->pf_params = *func_params;
+
+#ifdef QLNX_ENABLE_IWARP
+		if (qlnx_vf_device((qlnx_host_t *)cdev) != 0) {
+			p_hwfn->using_ll2 = true;
+		}
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
         }
 
         rc = ecore_resc_alloc(cdev);
@@ -5393,6 +5876,27 @@ qlnx_slowpath_start(qlnx_host_t *ha)
 	pf_params.eth_pf_params.num_cons  =
 		(ha->num_rss) * (ha->num_tc + 1);
 
+#ifdef QLNX_ENABLE_IWARP
+	if (qlnx_vf_device(ha) != 0) {
+		if(ha->personality == ECORE_PCI_ETH_IWARP) {
+			device_printf(ha->pci_dev, "setting parameters required by iWARP dev\n");	
+			pf_params.rdma_pf_params.num_qps = 1024;
+			pf_params.rdma_pf_params.num_srqs = 1024;
+			pf_params.rdma_pf_params.gl_pi = ECORE_ROCE_PROTOCOL_INDEX;
+			pf_params.rdma_pf_params.rdma_protocol = ECORE_RDMA_PROTOCOL_IWARP;
+		} else if(ha->personality == ECORE_PCI_ETH_ROCE) {
+			device_printf(ha->pci_dev, "setting parameters required by RoCE dev\n");	
+			pf_params.rdma_pf_params.num_qps = 8192;
+			pf_params.rdma_pf_params.num_srqs = 8192;
+			//pf_params.rdma_pf_params.min_dpis = 0;
+			pf_params.rdma_pf_params.min_dpis = 8;
+			pf_params.rdma_pf_params.roce_edpm_mode = 0;
+			pf_params.rdma_pf_params.gl_pi = ECORE_ROCE_PROTOCOL_INDEX;
+			pf_params.rdma_pf_params.rdma_protocol = ECORE_RDMA_PROTOCOL_ROCE;
+		}
+	}
+#endif /* #ifdef QLNX_ENABLE_IWARP */
+
 	cdev = &ha->cdev;
 
 	rc = qlnx_nic_setup(cdev, &pf_params);
@@ -5411,6 +5915,10 @@ qlnx_slowpath_start(qlnx_host_t *ha)
 
 	ha->rx_coalesce_usecs = cdev->rx_coalesce_usecs;
 	ha->tx_coalesce_usecs = cdev->tx_coalesce_usecs;
+
+#ifdef QLNX_USER_LLDP
+	(void)qlnx_set_lldp_tlvx(ha, NULL);
+#endif /* #ifdef QLNX_USER_LLDP */
 
 qlnx_slowpath_start_exit:
 
@@ -5609,7 +6117,7 @@ qlnx_init_fp(qlnx_host_t *ha)
 	return;
 }
 
-static void
+void
 qlnx_free_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info)
 {
 	struct ecore_dev	*cdev;
@@ -5648,7 +6156,7 @@ qlnx_sb_init(struct ecore_dev *cdev, struct ecore_sb_info *sb_info,
 }
 
 /* This function allocates fast-path status block memory */
-static int
+int
 qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info, u16 sb_id)
 {
         struct status_block_e4	*sb_virt;
@@ -6751,7 +7259,7 @@ qlnx_remove_all_mcast_mac(qlnx_host_t *ha)
 			ha->mcast[i].addr[2] || ha->mcast[i].addr[3] ||
 			ha->mcast[i].addr[4] || ha->mcast[i].addr[5]) {
 
-			memcpy(&mcast->mac[i], &ha->mcast[i].addr[0], ETH_ALEN);
+			memcpy(&mcast->mac[i][0], &ha->mcast[i].addr[0], ETH_ALEN);
 			mcast->num_mc_addrs++;
 		}
 	}
@@ -6826,6 +7334,11 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 	filter = ECORE_ACCEPT_UCAST_MATCHED |
 			ECORE_ACCEPT_MCAST_MATCHED |
 			ECORE_ACCEPT_BCAST;
+
+	if (qlnx_vf_device(ha) == 0) {
+		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	}
 	ha->filter = filter;
 
 	rc = qlnx_set_rx_accept_filter(ha, filter);
@@ -6840,6 +7353,9 @@ qlnx_set_link(qlnx_host_t *ha, bool link_up)
 	struct ecore_dev	*cdev;
 	struct ecore_hwfn	*hwfn;
 	struct ecore_ptt	*ptt;
+
+	if (qlnx_vf_device(ha) == 0)
+		return (0);
 
 	cdev = &ha->cdev;
 
@@ -6937,6 +7453,12 @@ qlnx_timer(void *arg)
 
 	ha = (qlnx_host_t *)arg;
 
+	if (ha->error_recovery) {
+		ha->error_recovery = 0;
+		taskqueue_enqueue(ha->err_taskqueue, &ha->err_task);
+		return;
+	}
+
        	ecore_get_vport_stats(&ha->cdev, &ha->hw_stats);
 
 	if (ha->storm_stats_gather)
@@ -7005,6 +7527,9 @@ qlnx_load(qlnx_host_t *ha)
 
         /* Ask for link-up using current configuration */
 	qlnx_set_link(ha, true);
+
+	if (qlnx_vf_device(ha) == 0)
+		qlnx_link_update(&ha->cdev.hwfns[0]);
 
         ha->state = QLNX_STATE_OPEN;
 
@@ -7441,3 +7966,694 @@ qlnx_dump_buf8(qlnx_host_t *ha, const char *msg, void *dbuf, uint32_t len)
         return;
 }
 
+#ifdef CONFIG_ECORE_SRIOV
+
+static void
+__qlnx_osal_iov_vf_cleanup(struct ecore_hwfn *p_hwfn, uint8_t rel_vf_id)
+{
+        struct ecore_public_vf_info *vf_info;
+
+        vf_info = ecore_iov_get_public_vf_info(p_hwfn, rel_vf_id, false);
+
+        if (!vf_info)
+                return;
+
+        /* Clear the VF mac */
+        memset(vf_info->forced_mac, 0, ETH_ALEN);
+
+        vf_info->forced_vlan = 0;
+
+	return;
+}
+
+void
+qlnx_osal_iov_vf_cleanup(void *p_hwfn, uint8_t relative_vf_id)
+{
+	__qlnx_osal_iov_vf_cleanup(p_hwfn, relative_vf_id);
+	return;
+}
+
+static int
+__qlnx_iov_chk_ucast(struct ecore_hwfn *p_hwfn, int vfid,
+	struct ecore_filter_ucast *params)
+{
+        struct ecore_public_vf_info *vf;
+
+	if (!ecore_iov_vf_has_vport_instance(p_hwfn, vfid)) {
+		QL_DPRINT1(((qlnx_host_t *)p_hwfn->p_dev),
+			"VF[%d] vport not initialized\n", vfid);
+		return ECORE_INVAL;
+	}
+
+        vf = ecore_iov_get_public_vf_info(p_hwfn, vfid, true);
+        if (!vf)
+                return -EINVAL;
+
+        /* No real decision to make; Store the configured MAC */
+        if (params->type == ECORE_FILTER_MAC ||
+            params->type == ECORE_FILTER_MAC_VLAN)
+                memcpy(params->mac, vf->forced_mac, ETH_ALEN);
+
+        return 0;
+}
+
+int
+qlnx_iov_chk_ucast(void *p_hwfn, int vfid, void *params)
+{
+	return (__qlnx_iov_chk_ucast(p_hwfn, vfid, params));
+}
+
+static int
+__qlnx_iov_update_vport(struct ecore_hwfn *hwfn, uint8_t vfid,
+        struct ecore_sp_vport_update_params *params, uint16_t * tlvs)
+{
+        uint8_t mask;
+        struct ecore_filter_accept_flags *flags;
+
+	if (!ecore_iov_vf_has_vport_instance(hwfn, vfid)) {
+		QL_DPRINT1(((qlnx_host_t *)hwfn->p_dev),
+			"VF[%d] vport not initialized\n", vfid);
+		return ECORE_INVAL;
+	}
+
+        /* Untrusted VFs can't even be trusted to know that fact.
+         * Simply indicate everything is configured fine, and trace
+         * configuration 'behind their back'.
+         */
+        mask = ECORE_ACCEPT_UCAST_UNMATCHED | ECORE_ACCEPT_MCAST_UNMATCHED;
+        flags = &params->accept_flags;
+        if (!(*tlvs & BIT(ECORE_IOV_VP_UPDATE_ACCEPT_PARAM)))
+                return 0;
+
+        return 0;
+
+}
+int
+qlnx_iov_update_vport(void *hwfn, uint8_t vfid, void *params, uint16_t *tlvs)
+{
+	return(__qlnx_iov_update_vport(hwfn, vfid, params, tlvs));
+}
+
+static int
+qlnx_find_hwfn_index(struct ecore_hwfn *p_hwfn)
+{
+	int			i;
+	struct ecore_dev	*cdev;
+
+	cdev = p_hwfn->p_dev;
+
+	for (i = 0; i < cdev->num_hwfns; i++) { 
+		if (&cdev->hwfns[i] == p_hwfn)
+			break;
+	}
+
+	if (i >= cdev->num_hwfns)
+		return (-1);
+
+	return (i);
+}
+
+static int
+__qlnx_pf_vf_msg(struct ecore_hwfn *p_hwfn, uint16_t rel_vf_id)
+{
+	qlnx_host_t *ha = (qlnx_host_t *)p_hwfn->p_dev;
+	int i;
+
+	QL_DPRINT2(ha, "ha = %p cdev = %p p_hwfn = %p rel_vf_id = %d\n",
+		ha, p_hwfn->p_dev, p_hwfn, rel_vf_id);
+
+	if ((i = qlnx_find_hwfn_index(p_hwfn)) == -1)
+		return (-1);
+
+	if (ha->sriov_task[i].pf_taskqueue != NULL) {
+
+		atomic_testandset_32(&ha->sriov_task[i].flags,
+			QLNX_SRIOV_TASK_FLAGS_VF_PF_MSG);
+
+		taskqueue_enqueue(ha->sriov_task[i].pf_taskqueue,
+			&ha->sriov_task[i].pf_task);
+
+	}
+
+	return (ECORE_SUCCESS);
+}
+
+
+int
+qlnx_pf_vf_msg(void *p_hwfn, uint16_t relative_vf_id)
+{
+	return (__qlnx_pf_vf_msg(p_hwfn, relative_vf_id));
+}
+
+static void
+__qlnx_vf_flr_update(struct ecore_hwfn *p_hwfn)
+{
+	qlnx_host_t *ha = (qlnx_host_t *)p_hwfn->p_dev;
+	int i;
+
+	if (!ha->sriov_initialized)
+		return;
+
+	QL_DPRINT2(ha,  "ha = %p cdev = %p p_hwfn = %p \n",
+		ha, p_hwfn->p_dev, p_hwfn);
+
+	if ((i = qlnx_find_hwfn_index(p_hwfn)) == -1)
+		return;
+
+
+	if (ha->sriov_task[i].pf_taskqueue != NULL) {
+
+		atomic_testandset_32(&ha->sriov_task[i].flags,
+			QLNX_SRIOV_TASK_FLAGS_VF_FLR_UPDATE);
+
+		taskqueue_enqueue(ha->sriov_task[i].pf_taskqueue,
+			&ha->sriov_task[i].pf_task);
+	}
+
+	return;
+}
+
+
+void
+qlnx_vf_flr_update(void *p_hwfn)
+{
+	__qlnx_vf_flr_update(p_hwfn);
+
+	return;
+}
+
+#ifndef QLNX_VF
+
+static void
+qlnx_vf_bulleting_update(struct ecore_hwfn *p_hwfn)
+{
+	qlnx_host_t *ha = (qlnx_host_t *)p_hwfn->p_dev;
+	int i;
+
+	QL_DPRINT2(ha,  "ha = %p cdev = %p p_hwfn = %p \n",
+		ha, p_hwfn->p_dev, p_hwfn);
+
+	if ((i = qlnx_find_hwfn_index(p_hwfn)) == -1)
+		return;
+
+	QL_DPRINT2(ha,  "ha = %p cdev = %p p_hwfn = %p i = %d\n",
+		ha, p_hwfn->p_dev, p_hwfn, i);
+
+	if (ha->sriov_task[i].pf_taskqueue != NULL) {
+
+		atomic_testandset_32(&ha->sriov_task[i].flags,
+			QLNX_SRIOV_TASK_FLAGS_BULLETIN_UPDATE);
+
+		taskqueue_enqueue(ha->sriov_task[i].pf_taskqueue,
+			&ha->sriov_task[i].pf_task);
+	}
+}
+
+static void
+qlnx_initialize_sriov(qlnx_host_t *ha)
+{
+	device_t	dev;
+	nvlist_t	*pf_schema, *vf_schema;
+	int		iov_error;
+
+	dev = ha->pci_dev;
+
+	pf_schema = pci_iov_schema_alloc_node();
+	vf_schema = pci_iov_schema_alloc_node();
+
+	pci_iov_schema_add_unicast_mac(vf_schema, "mac-addr", 0, NULL);
+	pci_iov_schema_add_bool(vf_schema, "allow-set-mac",
+		IOV_SCHEMA_HASDEFAULT, FALSE);
+	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
+		IOV_SCHEMA_HASDEFAULT, FALSE);
+	pci_iov_schema_add_uint16(vf_schema, "num-queues",
+		IOV_SCHEMA_HASDEFAULT, 1);
+
+	iov_error = pci_iov_attach(dev, pf_schema, vf_schema);
+
+	if (iov_error != 0) {
+		ha->sriov_initialized = 0;
+	} else {
+		device_printf(dev, "SRIOV initialized\n");
+		ha->sriov_initialized = 1;
+	}
+			
+	return;
+}
+
+static void
+qlnx_sriov_disable(qlnx_host_t *ha)
+{
+	struct ecore_dev *cdev;
+	int i, j;
+
+	cdev = &ha->cdev;
+
+	ecore_iov_set_vfs_to_disable(cdev, true);
+
+
+	for_each_hwfn(cdev, i) {
+
+		struct ecore_hwfn *hwfn = &cdev->hwfns[i];
+		struct ecore_ptt *ptt = ecore_ptt_acquire(hwfn);
+
+		if (!ptt) {
+			QL_DPRINT1(ha, "Failed to acquire ptt\n");
+			return;
+		}
+		/* Clean WFQ db and configure equal weight for all vports */
+		ecore_clean_wfq_db(hwfn, ptt);
+
+		ecore_for_each_vf(hwfn, j) {
+			int k = 0;
+
+			if (!ecore_iov_is_valid_vfid(hwfn, j, true, false))
+				continue;
+
+			if (ecore_iov_is_vf_started(hwfn, j)) {
+				/* Wait until VF is disabled before releasing */
+
+				for (k = 0; k < 100; k++) {
+					if (!ecore_iov_is_vf_stopped(hwfn, j)) {
+						qlnx_mdelay(__func__, 10);
+					} else
+						break;
+				}
+			}
+
+			if (k < 100)
+				ecore_iov_release_hw_for_vf(&cdev->hwfns[i],
+                                                          ptt, j);
+			else {
+				QL_DPRINT1(ha,
+					"Timeout waiting for VF's FLR to end\n");
+			}
+		}
+		ecore_ptt_release(hwfn, ptt);
+	}
+
+	ecore_iov_set_vfs_to_disable(cdev, false);
+
+	return;
+}
+
+
+static void
+qlnx_sriov_enable_qid_config(struct ecore_hwfn *hwfn, u16 vfid,
+	struct ecore_iov_vf_init_params *params)
+{
+        u16 base, i;
+
+        /* Since we have an equal resource distribution per-VF, and we assume
+         * PF has acquired the ECORE_PF_L2_QUE first queues, we start setting
+         * sequentially from there.
+         */
+        base = FEAT_NUM(hwfn, ECORE_PF_L2_QUE) + vfid * params->num_queues;
+
+        params->rel_vf_id = vfid;
+
+        for (i = 0; i < params->num_queues; i++) {
+                params->req_rx_queue[i] = base + i;
+                params->req_tx_queue[i] = base + i;
+        }
+
+        /* PF uses indices 0 for itself; Set vport/RSS afterwards */
+        params->vport_id = vfid + 1;
+        params->rss_eng_id = vfid + 1;
+
+	return;
+}
+
+static int
+qlnx_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *nvlist_params)
+{
+	qlnx_host_t		*ha;
+	struct ecore_dev	*cdev;
+	struct ecore_iov_vf_init_params params;
+	int ret, j, i;
+	uint32_t max_vfs;
+
+	if ((ha = device_get_softc(dev)) == NULL) {
+		device_printf(dev, "%s: cannot get softc\n", __func__);
+		return (-1);
+	}
+
+	if (qlnx_create_pf_taskqueues(ha) != 0)
+		goto qlnx_iov_init_err0;
+
+	cdev = &ha->cdev;
+
+	max_vfs = RESC_NUM(&cdev->hwfns[0], ECORE_VPORT);
+
+	QL_DPRINT2(ha," dev = %p enter num_vfs = %d max_vfs = %d\n",
+		dev, num_vfs, max_vfs);
+
+        if (num_vfs >= max_vfs) {
+                QL_DPRINT1(ha, "Can start at most %d VFs\n",
+                          (RESC_NUM(&cdev->hwfns[0], ECORE_VPORT) - 1));
+		goto qlnx_iov_init_err0;
+        }
+
+	ha->vf_attr =  malloc(((sizeof (qlnx_vf_attr_t) * num_vfs)), M_QLNXBUF,
+				M_NOWAIT);
+
+	if (ha->vf_attr == NULL)
+		goto qlnx_iov_init_err0;
+
+
+        memset(&params, 0, sizeof(params));
+
+        /* Initialize HW for VF access */
+        for_each_hwfn(cdev, j) {
+                struct ecore_hwfn *hwfn = &cdev->hwfns[j];
+                struct ecore_ptt *ptt = ecore_ptt_acquire(hwfn);
+
+                /* Make sure not to use more than 16 queues per VF */
+                params.num_queues = min_t(int,
+                                          (FEAT_NUM(hwfn, ECORE_VF_L2_QUE) / num_vfs),
+                                          16);
+
+                if (!ptt) {
+                        QL_DPRINT1(ha, "Failed to acquire ptt\n");
+                        goto qlnx_iov_init_err1;
+                }
+
+                for (i = 0; i < num_vfs; i++) {
+
+                        if (!ecore_iov_is_valid_vfid(hwfn, i, false, true))
+                                continue;
+
+                        qlnx_sriov_enable_qid_config(hwfn, i, &params);
+
+                        ret = ecore_iov_init_hw_for_vf(hwfn, ptt, &params);
+
+                        if (ret) {
+                                QL_DPRINT1(ha, "Failed to enable VF[%d]\n", i);
+                                ecore_ptt_release(hwfn, ptt);
+                                goto qlnx_iov_init_err1;
+                        }
+                }
+
+                ecore_ptt_release(hwfn, ptt);
+        }
+
+	ha->num_vfs = num_vfs;
+	qlnx_inform_vf_link_state(&cdev->hwfns[0], ha);
+
+	QL_DPRINT2(ha," dev = %p exit num_vfs = %d\n", dev, num_vfs);
+
+	return (0);
+
+qlnx_iov_init_err1:
+	qlnx_sriov_disable(ha);
+
+qlnx_iov_init_err0:
+	qlnx_destroy_pf_taskqueues(ha);
+	ha->num_vfs = 0;
+
+	return (-1);
+}
+
+static void
+qlnx_iov_uninit(device_t dev)
+{
+	qlnx_host_t	*ha;
+
+	if ((ha = device_get_softc(dev)) == NULL) {
+		device_printf(dev, "%s: cannot get softc\n", __func__);
+		return;
+	}
+
+	QL_DPRINT2(ha," dev = %p enter\n", dev);
+
+	qlnx_sriov_disable(ha);
+	qlnx_destroy_pf_taskqueues(ha);
+
+	free(ha->vf_attr, M_QLNXBUF);
+	ha->vf_attr = NULL;
+
+	ha->num_vfs = 0;
+
+	QL_DPRINT2(ha," dev = %p exit\n", dev);
+	return;
+}
+
+static int
+qlnx_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
+{
+	qlnx_host_t	*ha;
+	qlnx_vf_attr_t	*vf_attr;
+	unsigned const char *mac;
+	size_t size;
+	struct ecore_hwfn *p_hwfn;
+
+	if ((ha = device_get_softc(dev)) == NULL) {
+		device_printf(dev, "%s: cannot get softc\n", __func__);
+		return (-1);
+	}
+
+	QL_DPRINT2(ha," dev = %p enter vfnum = %d\n", dev, vfnum);
+
+	if (vfnum > (ha->num_vfs - 1)) {
+		QL_DPRINT1(ha, " VF[%d] is greater than max allowed [%d]\n",
+			vfnum, (ha->num_vfs - 1));
+	}
+		
+	vf_attr = &ha->vf_attr[vfnum];
+
+        if (nvlist_exists_binary(params, "mac-addr")) {
+                mac = nvlist_get_binary(params, "mac-addr", &size);
+                bcopy(mac, vf_attr->mac_addr, ETHER_ADDR_LEN);
+		device_printf(dev,
+			"%s: mac_addr = %02x:%02x:%02x:%02x:%02x:%02x\n", 
+			__func__, vf_attr->mac_addr[0],
+			vf_attr->mac_addr[1], vf_attr->mac_addr[2],
+			vf_attr->mac_addr[3], vf_attr->mac_addr[4],
+			vf_attr->mac_addr[5]);
+		p_hwfn = &ha->cdev.hwfns[0];
+		ecore_iov_bulletin_set_mac(p_hwfn, vf_attr->mac_addr,
+			vfnum);
+	}
+
+	QL_DPRINT2(ha," dev = %p exit vfnum = %d\n", dev, vfnum);
+	return (0);
+}
+
+static void
+qlnx_handle_vf_msg(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
+{
+        uint64_t events[ECORE_VF_ARRAY_LENGTH];
+        struct ecore_ptt *ptt;
+        int i;
+
+        ptt = ecore_ptt_acquire(p_hwfn);
+        if (!ptt) {
+                QL_DPRINT1(ha, "Can't acquire PTT; re-scheduling\n");
+		__qlnx_pf_vf_msg(p_hwfn, 0);
+                return;
+        }
+
+        ecore_iov_pf_get_pending_events(p_hwfn, events);
+
+        QL_DPRINT2(ha, "Event mask of VF events:"
+		"0x%" PRIu64 "0x%" PRIu64 " 0x%" PRIu64 "\n",
+                   events[0], events[1], events[2]);
+
+        ecore_for_each_vf(p_hwfn, i) {
+
+                /* Skip VFs with no pending messages */
+                if (!(events[i / 64] & (1ULL << (i % 64))))
+                        continue;
+
+		QL_DPRINT2(ha, 
+                           "Handling VF message from VF 0x%02x [Abs 0x%02x]\n",
+                           i, p_hwfn->p_dev->p_iov_info->first_vf_in_pf + i);
+
+                /* Copy VF's message to PF's request buffer for that VF */
+                if (ecore_iov_copy_vf_msg(p_hwfn, ptt, i))
+                        continue;
+
+                ecore_iov_process_mbx_req(p_hwfn, ptt, i);
+        }
+
+        ecore_ptt_release(p_hwfn, ptt);
+
+	return;
+}
+
+static void
+qlnx_handle_vf_flr_update(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
+{
+        struct ecore_ptt *ptt;
+	int ret;
+
+	ptt = ecore_ptt_acquire(p_hwfn);
+
+	if (!ptt) {
+                QL_DPRINT1(ha, "Can't acquire PTT; re-scheduling\n");
+		__qlnx_vf_flr_update(p_hwfn);
+                return;
+	}
+
+	ret = ecore_iov_vf_flr_cleanup(p_hwfn, ptt);
+
+	if (ret) {
+                QL_DPRINT1(ha, "ecore_iov_vf_flr_cleanup failed; re-scheduling\n");
+	}
+		
+	ecore_ptt_release(p_hwfn, ptt);
+
+	return;
+}
+
+static void
+qlnx_handle_bulletin_update(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
+{
+        struct ecore_ptt *ptt;
+	int i;
+
+	ptt = ecore_ptt_acquire(p_hwfn);
+
+	if (!ptt) {
+                QL_DPRINT1(ha, "Can't acquire PTT; re-scheduling\n");
+		qlnx_vf_bulleting_update(p_hwfn);
+                return;
+	}
+
+	ecore_for_each_vf(p_hwfn, i) {
+		QL_DPRINT1(ha, "ecore_iov_post_vf_bulletin[%p, %d]\n",
+			p_hwfn, i);
+		ecore_iov_post_vf_bulletin(p_hwfn, i, ptt);
+	}
+		
+	ecore_ptt_release(p_hwfn, ptt);
+
+	return;
+}
+
+static void
+qlnx_pf_taskqueue(void *context, int pending)
+{
+	struct ecore_hwfn	*p_hwfn;
+	qlnx_host_t		*ha;
+	int			i;
+
+	p_hwfn = context;
+
+	if (p_hwfn == NULL)
+		return;
+
+	ha = (qlnx_host_t *)(p_hwfn->p_dev);
+
+	if ((i = qlnx_find_hwfn_index(p_hwfn)) == -1)
+		return;
+
+	if (atomic_testandclear_32(&ha->sriov_task[i].flags,
+		QLNX_SRIOV_TASK_FLAGS_VF_PF_MSG))
+		qlnx_handle_vf_msg(ha, p_hwfn);
+
+	if (atomic_testandclear_32(&ha->sriov_task[i].flags,
+		QLNX_SRIOV_TASK_FLAGS_VF_FLR_UPDATE))
+		qlnx_handle_vf_flr_update(ha, p_hwfn);
+
+	if (atomic_testandclear_32(&ha->sriov_task[i].flags,
+		QLNX_SRIOV_TASK_FLAGS_BULLETIN_UPDATE))
+		qlnx_handle_bulletin_update(ha, p_hwfn);
+
+	return;
+}
+
+static int
+qlnx_create_pf_taskqueues(qlnx_host_t *ha)
+{
+	int	i;
+	uint8_t	tq_name[32];
+
+	for (i = 0; i < ha->cdev.num_hwfns; i++) {
+
+                struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
+
+		bzero(tq_name, sizeof (tq_name));
+		snprintf(tq_name, sizeof (tq_name), "ql_pf_tq_%d", i);
+
+		TASK_INIT(&ha->sriov_task[i].pf_task, 0, qlnx_pf_taskqueue, p_hwfn);
+
+		ha->sriov_task[i].pf_taskqueue = taskqueue_create(tq_name, M_NOWAIT,
+			 taskqueue_thread_enqueue,
+			&ha->sriov_task[i].pf_taskqueue);
+
+		if (ha->sriov_task[i].pf_taskqueue == NULL) 
+			return (-1);
+
+		taskqueue_start_threads(&ha->sriov_task[i].pf_taskqueue, 1,
+			PI_NET, "%s", tq_name);
+
+		QL_DPRINT1(ha, "%p\n", ha->sriov_task[i].pf_taskqueue);
+	}
+
+	return (0);
+}
+
+static void
+qlnx_destroy_pf_taskqueues(qlnx_host_t *ha)
+{
+	int	i;
+
+	for (i = 0; i < ha->cdev.num_hwfns; i++) {
+		if (ha->sriov_task[i].pf_taskqueue != NULL) {
+			taskqueue_drain(ha->sriov_task[i].pf_taskqueue,
+				&ha->sriov_task[i].pf_task);
+			taskqueue_free(ha->sriov_task[i].pf_taskqueue);
+			ha->sriov_task[i].pf_taskqueue = NULL;
+		}
+	}
+	return;
+}
+
+static void
+qlnx_inform_vf_link_state(struct ecore_hwfn *p_hwfn, qlnx_host_t *ha)
+{
+	struct ecore_mcp_link_capabilities caps;
+	struct ecore_mcp_link_params params;
+	struct ecore_mcp_link_state link;
+	int i;
+
+	if (!p_hwfn->pf_iov_info)
+		return;
+
+	memset(&params, 0, sizeof(struct ecore_mcp_link_params));
+	memset(&link, 0, sizeof(struct ecore_mcp_link_state));
+	memset(&caps, 0, sizeof(struct ecore_mcp_link_capabilities));
+
+	memcpy(&caps, ecore_mcp_get_link_capabilities(p_hwfn), sizeof(caps));
+        memcpy(&link, ecore_mcp_get_link_state(p_hwfn), sizeof(link));
+        memcpy(&params, ecore_mcp_get_link_params(p_hwfn), sizeof(params));
+
+	QL_DPRINT2(ha, "called\n");
+
+        /* Update bulletin of all future possible VFs with link configuration */
+        for (i = 0; i < p_hwfn->p_dev->p_iov_info->total_vfs; i++) {
+
+                /* Modify link according to the VF's configured link state */
+
+                link.link_up = false;
+
+                if (ha->link_up) {
+                        link.link_up = true;
+                        /* Set speed according to maximum supported by HW.
+                         * that is 40G for regular devices and 100G for CMT
+                         * mode devices.
+                         */
+                        link.speed = (p_hwfn->p_dev->num_hwfns > 1) ?
+						100000 : link.speed;
+		}
+		QL_DPRINT2(ha, "link [%d] = %d\n", i, link.link_up);
+                ecore_iov_set_link(p_hwfn, i, &params, &link, &caps);
+        }
+
+	qlnx_vf_bulleting_update(p_hwfn);
+
+	return;
+}
+#endif /* #ifndef QLNX_VF */
+#endif /* #ifdef CONFIG_ECORE_SRIOV */
