@@ -52,63 +52,82 @@ libbe_init(void)
 	struct stat sb;
 	dev_t root_dev, boot_dev;
 	libbe_handle_t *lbh;
-	char *pos;
+	char *poolname, *pos;
+	int pnamelen;
 
-	// TODO: use errno here??
-
+	lbh = NULL;
+	poolname = pos = NULL;
+	pnamelen = 0;
 	/* Verify that /boot and / are mounted on the same filesystem */
-	if (stat("/", &sb) != 0) {
-		return (NULL);
-	}
+	/* TODO: use errno here?? */
+	if (stat("/", &sb) != 0)
+		goto err;
 
 	root_dev = sb.st_dev;
 
-	if (stat("/boot", &sb) != 0) {
-		return (NULL);
-	}
+	if (stat("/boot", &sb) != 0)
+		goto err;
 
 	boot_dev = sb.st_dev;
 
 	if (root_dev != boot_dev) {
 		fprintf(stderr, "/ and /boot not on same device, quitting\n");
-		return (NULL);
+		goto err;
 	}
 
-	if ((lbh = calloc(1, sizeof(libbe_handle_t))) == NULL) {
-		return (NULL);
-	}
+	if ((lbh = calloc(1, sizeof(libbe_handle_t))) == NULL)
+		goto err;
 
-	if ((lbh->lzh = libzfs_init()) == NULL) {
-		free(lbh);
-		return (NULL);
-	}
-
-	/* Obtain path to active boot environment */
-	if ((kenv(KENV_GET, "zfs_be_active", lbh->active,
-	    BE_MAXPATHLEN)) == -1) {
-		libzfs_fini(lbh->lzh);
-		free(lbh);
-		return (NULL);
-	}
-
-	/* Remove leading 'zfs:' if present, otherwise use value as-is */
-	if ((pos = strrchr(lbh->active, ':')) != NULL) {
-		strncpy(lbh->active, pos + sizeof(char), BE_MAXPATHLEN);
-	}
+	if ((lbh->lzh = libzfs_init()) == NULL)
+		goto err;
 
 	/* Obtain path to boot environment root */
-	if ((kenv(KENV_GET, "zfs_be_root", lbh->root, BE_MAXPATHLEN)) == -1) {
-		libzfs_fini(lbh->lzh);
-		free(lbh);
-		return (NULL);
-	}
+	if ((kenv(KENV_GET, "zfs_be_root", lbh->root, BE_MAXPATHLEN)) == -1)
+		goto err;
 
 	/* Remove leading 'zfs:' if present, otherwise use value as-is */
-	if ((pos = strrchr(lbh->root, ':')) != NULL) {
-		strncpy(lbh->root, pos + sizeof(char), BE_MAXPATHLEN);
-	}
+	if (strcmp(lbh->root, "zfs:") == 0)
+		strncpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
+		    BE_MAXPATHLEN);
+
+	if ((pos = strchr(lbh->root, '/')) == NULL)
+		goto err;
+
+	pnamelen = pos - lbh->root;
+	poolname = malloc(pnamelen + 1);
+	if (poolname == NULL)
+		goto err;
+
+	strncpy(poolname, lbh->root, pnamelen);
+	poolname[pnamelen] = '\0';
+	if ((lbh->active_phandle = zpool_open(lbh->lzh, poolname)) == NULL)
+		goto err;
+
+	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
+	    BE_MAXPATHLEN, NULL, true) != 0)
+		goto err;
+
+	/* Obtain path to boot environment rootfs (currently booted) */
+	/* XXX Get dataset mounted at / by kenv/GUID from mountroot? */
+	if ((kenv(KENV_GET, "zfs_be_active", lbh->rootfs, BE_MAXPATHLEN)) == -1)
+		goto err;
+
+	/* Remove leading 'zfs:' if present, otherwise use value as-is */
+	if (strcmp(lbh->rootfs, "zfs:") == 0)
+		strncpy(lbh->rootfs, strchr(lbh->rootfs, ':') + sizeof(char),
+		    BE_MAXPATHLEN);
 
 	return (lbh);
+err:
+	if (lbh != NULL) {
+		if (lbh->active_phandle != NULL)
+			zpool_close(lbh->active_phandle);
+		if (lbh->lzh != NULL)
+			libzfs_fini(lbh->lzh);
+		free(lbh);
+	}
+	free(poolname);
+	return (NULL);
 }
 
 
@@ -118,6 +137,8 @@ libbe_init(void)
 void
 libbe_close(libbe_handle_t *lbh)
 {
+	if (lbh->active_phandle != NULL)
+		zpool_close(lbh->active_phandle);
 	libzfs_fini(lbh->lzh);
 	free(lbh);
 }
@@ -148,7 +169,7 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 			return (set_error(lbh, BE_ERR_NOENT));
 		}
 
-		if (strcmp(path, lbh->active) == 0) {
+		if (strcmp(path, lbh->rootfs) == 0) {
 			return (set_error(lbh, BE_ERR_DESTROYACT));
 		}
 
@@ -802,7 +823,6 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
-	zpool_handle_t *zph;
 	uint64_t pool_guid;
 	uint64_t vdev_guid;
 	int zfs_fd;
@@ -852,17 +872,7 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 		return (BE_ERR_SUCCESS);
 	} else {
 		/* Obtain bootenv zpool */
-		strncpy(buf, be_path, BE_MAXPATHLEN);
-		*(strchr(buf, '/')) = '\0';
-
-		if ((zph = zpool_open(lbh->lzh, buf)) == NULL) {
-			// TODO: create error for this
-			return (-1);
-		}
-		printf("asdf\n");
-
-		err = zpool_set_prop(zph, "bootfs", be_path);
-		zpool_close(zph);
+		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
 
 		switch (err) {
 		case 0:
