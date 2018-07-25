@@ -43,41 +43,36 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	int mntflags;
 	int err;
 
-	if (err = be_root_concat(lbh, bootenv, be)) {
+	if (err = be_root_concat(lbh, bootenv, be))
 		return (set_error(lbh, err));
-	}
 
-	if (!be_exists(lbh, bootenv)) {
+	if (!be_exists(lbh, bootenv))
 		return (set_error(lbh, BE_ERR_NOENT));
-	}
 
-	if (is_mounted(lbh->lzh, be, &path)) {
+	if (is_mounted(lbh->lzh, be, &path))
 		return (set_error(lbh, BE_ERR_MOUNTED));
-	}
-
 
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
 
 	/* Create mountpoint if it is not specified */
 	if (mountpoint == NULL) {
 		strcpy(mnt_temp, "/tmp/be_mount.XXXX");
-		if (mkdtemp(mnt_temp) == NULL) {
-			// TODO: create error for this
+		if (mkdtemp(mnt_temp) == NULL)
+			/* XXX TODO: create error for this */
 			return (set_error(lbh, BE_ERR_UNKNOWN));
-		}
 	}
 
 	char opt = '\0';
 	if (err = zmount(be, (mountpoint == NULL) ? mnt_temp : mountpoint,
-	    mntflags, MNTTYPE_ZFS, NULL, 0, &opt, 1)) {
-		// TODO: zmount returns the nmount error, look into what kind of
-		// errors we can report from that
+	    mntflags, MNTTYPE_ZFS, NULL, 0, &opt, 1))
+		/*
+		 * XXX TODO: zmount returns the nmount error, look into what
+		 * kind of errors we can report from that
+		 */
 		return (set_error(lbh, BE_ERR_UNKNOWN));
-	}
 
-	if (result_loc != NULL) {
+	if (result_loc != NULL)
 		strcpy(result_loc, mountpoint == NULL ? mnt_temp : mountpoint);
-	}
 
 	return (BE_ERR_SUCCESS);
 }
@@ -95,21 +90,18 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 	int mntsize;
 	char *mntpath;
 
-	if (err = be_root_concat(lbh, bootenv, be)) {
+	if (err = be_root_concat(lbh, bootenv, be))
 		return (set_error(lbh, err));
-	}
 
-	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0) {
-		// TODO correct error
+	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
+		/* XXX TODO correct error */
 		return (set_error(lbh, BE_ERR_NOMOUNT));
-	}
 
 	mntpath = NULL;
 	for (int i = 0; i < mntsize; ++i) {
 		/* 0x000000de is the type number of zfs */
-		if (mntbuf[i].f_type != 0x000000de) {
+		if (mntbuf[i].f_type != 0x000000de)
 			continue;
-		}
 
 		if (strcmp(mntbuf[i].f_mntfromname, be) == 0) {
 			mntpath = mntbuf[i].f_mntonname;
@@ -117,16 +109,14 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 		}
 	}
 
-	if (mntpath == NULL) {
+	if (mntpath == NULL)
 		return (set_error(lbh, BE_ERR_NOMOUNT));
-	}
 
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
 
-	if (err = unmount(mntpath, mntflags)) {
-		// TODO correct error
+	if (err = unmount(mntpath, mntflags))
+		/* XXX TODO correct error */
 		return (set_error(lbh, BE_ERR_NOMOUNT));
-	}
 
 	return (set_error(lbh, BE_ERR_SUCCESS));
 }
