@@ -43,6 +43,7 @@ static int prop_list_builder(prop_data_t *);
 const char *
 be_active_name(libbe_handle_t *lbh)
 {
+
 	return (strrchr(lbh->rootfs, '/') + sizeof(char));
 }
 
@@ -53,6 +54,7 @@ be_active_name(libbe_handle_t *lbh)
 const char *
 be_active_path(libbe_handle_t *lbh)
 {
+
 	return (lbh->rootfs);
 }
 
@@ -63,6 +65,7 @@ be_active_path(libbe_handle_t *lbh)
 const char *
 be_root_path(libbe_handle_t *lbh)
 {
+
 	return (lbh->root);
 }
 
@@ -91,38 +94,33 @@ be_get_bootenv_props(libbe_handle_t *lbh)
 static int
 prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 {
+	char buf[512];
+	prop_data_t *data;
+	libbe_handle_t *lbh;
+	nvlist_t *props;
+	const char *dataset, *name;
+	boolean_t mounted, active, nextboot;
+
 	/*
-	 * TODO:
+	 * XXX TODO:
 	 *      some system for defining constants for the nvlist keys
 	 *      error checking
 	 */
-
-	char buf[512];
-	prop_data_t *data;
-	boolean_t mounted, active, nextboot;
-
-
 	data = (prop_data_t *)data_p;
-
-
-	nvlist_t *props;
-
-	libbe_handle_t *lbh = data->lbh;
-
+	lbh = data->lbh;
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 
-	const char *dataset = zfs_get_name(zfs_hdl);
+	dataset = zfs_get_name(zfs_hdl);
 	nvlist_add_string(props, "dataset", dataset);
 
-	const char *name = strrchr(dataset, '/') + 1;
+	name = strrchr(dataset, '/') + 1;
 	nvlist_add_string(props, "name", name);
-
 
 	mounted = zfs_prop_get_int(zfs_hdl, ZFS_PROP_MOUNTED);
 	nvlist_add_boolean_value(props, "mounted", mounted);
 
-	// TODO: NOT CORRECT! Must use is_mounted
+	/* XXX TODO: NOT CORRECT! Must use is_mounted */
 	if (mounted) {
 		zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, 512,
 		    NULL, NULL, 0, 1);
@@ -130,44 +128,37 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_ORIGIN, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "origin", buf);
-	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_CREATION, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "creation", buf);
-	}
 
 	nvlist_add_boolean_value(props, "active",
 	    (strcmp(be_active_path(lbh), dataset) == 0));
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USED, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "used", buf);
-	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDDS, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "usedds", buf);
-	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDSNAP, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "usedsnap", buf);
-	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDREFRESERV, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "usedrefreserv", buf);
-	}
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_REFERENCED, buf, 512,
-	    NULL, NULL, 0, 1)) {
+	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "referenced", buf);
-	}
 
-	/* TODO figure out how to read nextboot (set in libzfs_pool.c) */
+	/* XXX TODO: Add bootfs info */
 
 	nvlist_add_nvlist(data->list, name, props);
 
@@ -177,8 +168,8 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 
 /*
  * Updates the properties of each bootenv in the libbe handle
- * TODO: rename to be_proplist_update
- * TODO: ensure that this is always consistent (run after adds, deletes,
+ * XXX TODO: rename to be_proplist_update
+ * XXX TODO: ensure that this is always consistent (run after adds, deletes,
  *       renames,etc
  */
 static int
@@ -186,19 +177,15 @@ prop_list_builder(prop_data_t *data)
 {
 	zfs_handle_t *root_hdl;
 
-	if (nvlist_alloc(&(data->list), NV_UNIQUE_NAME, KM_SLEEP) != 0) {
-		/* TODO: actually handle error */
+	if (nvlist_alloc(&(data->list), NV_UNIQUE_NAME, KM_SLEEP) != 0)
+		/* XXX TODO: actually handle error */
 		return (1);
-	}
 
-
-	if ((root_hdl =
-	    zfs_open(data->lbh->lzh, data->lbh->root,
-	    ZFS_TYPE_FILESYSTEM)) == NULL) {
+	if ((root_hdl = zfs_open(data->lbh->lzh, data->lbh->root,
+	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (BE_ERR_ZFSOPEN);
-	}
 
-	// TODO: some error checking here
+	/* XXX TODO: some error checking here */
 	zfs_iter_filesystems(root_hdl, prop_list_builder_cb, data);
 
 	zfs_close(root_hdl);
@@ -214,17 +201,15 @@ void
 be_prop_list_free(nvlist_t *be_list)
 {
 	nvlist_t *prop_list;
+	nvpair_t *be_pair;
 
-	nvpair_t *be_pair = nvlist_next_nvpair(be_list, NULL);
-
-	if (nvpair_value_nvlist(be_pair, &prop_list) == 0) {
+	be_pair = nvlist_next_nvpair(be_list, NULL);
+	if (nvpair_value_nvlist(be_pair, &prop_list) == 0)
 		nvlist_free(prop_list);
-	}
 
 	while ((be_pair = nvlist_next_nvpair(be_list, be_pair)) != NULL) {
-		if (nvpair_value_nvlist(be_pair, &prop_list) == 0) {
+		if (nvpair_value_nvlist(be_pair, &prop_list) == 0)
 			nvlist_free(prop_list);
-		}
 	}
 }
 
@@ -239,7 +224,9 @@ be_exists(libbe_handle_t *lbh, char *be)
 
 	be_root_concat(lbh, be, buf);
 
-	// TODO: check mountpoint prop and see if its /, AND that result with below
-	// expression
+	/*
+	 * XXX TODO: check mountpoint prop and see if its /, AND that result
+	 * with below expression.
+	 */
 	return (zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_DATASET));
 }

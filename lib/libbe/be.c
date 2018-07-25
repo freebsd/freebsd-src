@@ -161,6 +161,7 @@ err:
 void
 libbe_close(libbe_handle_t *lbh)
 {
+
 	if (lbh->active_phandle != NULL)
 		zpool_close(lbh->active_phandle);
 	libzfs_fini(lbh->lzh);
@@ -179,30 +180,27 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 {
 	zfs_handle_t *fs;
 	char path[BE_MAXPATHLEN];
-	char *p = path;
-	int mounted;
-	int force = options & BE_DESTROY_FORCE;
+	char *p;
+	int err, force, mounted;
 
-	int err = BE_ERR_SUCCESS;
+	p = path;
+	force = options & BE_DESTROY_FORCE;
+	err = BE_ERR_SUCCESS;
 
 	be_root_concat(lbh, name, path);
-	printf("path: %s\n", path);
 
 	if (strchr(name, '@') == NULL) {
-		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_FILESYSTEM)) {
+		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_FILESYSTEM))
 			return (set_error(lbh, BE_ERR_NOENT));
-		}
 
-		if (strcmp(path, lbh->rootfs) == 0) {
+		if (strcmp(path, lbh->rootfs) == 0)
 			return (set_error(lbh, BE_ERR_DESTROYACT));
-		}
 
 		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_FILESYSTEM);
 	} else {
 
-		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT)) {
+		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
 			return (set_error(lbh, BE_ERR_NOENT));
-		}
 
 		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_SNAPSHOT);
 	}
@@ -212,19 +210,17 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 
 	/* Check if mounted, unmount if force is specified */
 	if (mounted = zfs_is_mounted(fs, NULL)) {
-		if (force) {
+		if (force)
 			zfs_unmount(fs, NULL, 0);
-		} else {
+		else
 			return (set_error(lbh, BE_ERR_DESTROYMNT));
-		}
 	}
 
 
-	// TODO: convert this to use zfs_iter_children first for deep bes
-	// XXX note: errno 16 (device busy) occurs when chilren are present
-	if ((err = zfs_destroy(fs, false)) != 0) {
+	/* XXX TODO: convert this to use zfs_iter_children first for deep BEs */
+	/* XXX Note: errno 16 (device busy) occurs when chilren are present */
+	if ((err = zfs_destroy(fs, false)) != 0)
 		fprintf(stderr, "delete failed errno: %d\n", errno);
-	}
 
 	return (err);
 }
@@ -240,25 +236,22 @@ be_snapshot(libbe_handle_t *lbh, char *source, char *snap_name,
 
 	be_root_concat(lbh, source, buf);
 
-	if (!be_exists(lbh, buf)) {
+	if (!be_exists(lbh, buf))
 		return (BE_ERR_NOENT);
-	}
 
 	if (snap_name != NULL) {
 		strcat(buf, "@");
 		strcat(buf, snap_name);
-		if (result != NULL) {
+		if (result != NULL)
 			snprintf(result, BE_MAXPATHLEN, "%s@%s", source,
 			    snap_name);
-		}
 	} else {
 		time(&rawtime);
 		len = strlen(buf);
 		strftime(buf + len, BE_MAXPATHLEN - len,
 		    "@%F-%T", localtime(&rawtime));
-		if (result != NULL) {
+		if (result != NULL)
 			strcpy(result, strrchr(buf, '/') + 1);
-		}
 	}
 
 	if (err = zfs_snapshot(lbh->lzh, buf, recursive, NULL) != 0) {
@@ -267,7 +260,7 @@ be_snapshot(libbe_handle_t *lbh, char *source, char *snap_name,
 			return (set_error(lbh, BE_ERR_INVALIDNAME));
 
 		default:
-			// TODO: elaborate return codes
+			/* XXX TODO: elaborate return codes */
 			return (set_error(lbh, BE_ERR_UNKNOWN));
 		}
 	}
@@ -294,11 +287,12 @@ static int
 be_deep_clone_prop(int prop, void *cb)
 {
 	int err;
-        struct libbe_dccb *dccb = cb;
+        struct libbe_dccb *dccb;
 	zprop_source_t src;
 	char pval[BE_MAXPATHLEN];
 	char source[BE_MAXPATHLEN];
 
+	dccb = cb;
 	/* Skip some properties we don't want to touch */
 	switch (prop) {
 		case ZFS_PROP_CANMOUNT:
@@ -307,19 +301,17 @@ be_deep_clone_prop(int prop, void *cb)
 	}
 
 	/* Don't copy readonly properties */
-	if (zfs_prop_readonly(prop)) {
+	if (zfs_prop_readonly(prop))
 		return (ZPROP_CONT);
-	}
 
 	if ((err = zfs_prop_get(dccb->zhp, prop, (char *)&pval,
-	    sizeof(pval), &src, (char *)&source, sizeof(source), false))) {
+	    sizeof(pval), &src, (char *)&source, sizeof(source), false)))
 		/* Just continue if we fail to read a property */
 		return (ZPROP_CONT);
-	}
+
 	/* Only copy locally defined properties */
-	if (src != ZPROP_SRC_LOCAL) {
+	if (src != ZPROP_SRC_LOCAL)
 		return (ZPROP_CONT);
-	}
 
 	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), (char *)pval);
 
@@ -337,30 +329,28 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	char *dsname;
 	zfs_handle_t *snap_hdl;
 	nvlist_t *props;
-	struct libbe_deep_clone sdc;
-	struct libbe_deep_clone *isdc = (struct libbe_deep_clone *)data;
+	struct libbe_deep_clone *isdc, sdc;
 	struct libbe_dccb dccb;
 
+	isdc = (struct libbe_deep_clone *)data;
 	dspath = zfs_get_name(ds);
-	if ((dsname = strrchr(dspath, '/')) == NULL) {
+	if ((dsname = strrchr(dspath, '/')) == NULL)
 		return (BE_ERR_UNKNOWN);
-	}
 	dsname++;
-	if (isdc->bename == NULL) {
+
+	if (isdc->bename == NULL)
 		snprintf(be_path, sizeof(be_path), "%s/%s", isdc->be_root, dsname);
-	} else {
+	else
 		snprintf(be_path, sizeof(be_path), "%s/%s", isdc->be_root, isdc->bename);
-	}
+
 	snprintf(snap_path, sizeof(snap_path), "%s@%s", dspath, isdc->snapname);
 
-	if (zfs_dataset_exists(isdc->lbh->lzh, be_path, ZFS_TYPE_DATASET)) {
+	if (zfs_dataset_exists(isdc->lbh->lzh, be_path, ZFS_TYPE_DATASET))
 		return (set_error(isdc->lbh, BE_ERR_EXISTS));
-	}
 
 	if ((snap_hdl =
-	    zfs_open(isdc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT)) == NULL) {
+	    zfs_open(isdc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT)) == NULL)
 		return (set_error(isdc->lbh, BE_ERR_ZFSOPEN));
-	}
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
@@ -368,9 +358,8 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	dccb.zhp = ds;
 	dccb.props = props;
 	if (zprop_iter(be_deep_clone_prop, &dccb, B_FALSE, B_FALSE,
-	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL) {
+	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
-	}
 
 	if (err = zfs_clone(snap_hdl, be_path, props)) {
 		switch (err) {
@@ -409,27 +398,21 @@ be_create_from_existing_snap(libbe_handle_t *lbh, char *name, char *snap)
 	zfs_handle_t *parent_hdl;
 	struct libbe_deep_clone sdc;
 
-	if (err = be_validate_name(lbh, name)) {
+	if (err = be_validate_name(lbh, name))
 		return (set_error(lbh, err));
-	}
-
-	if (err = be_root_concat(lbh, snap, snap_path)) {
+	if (err = be_root_concat(lbh, snap, snap_path))
 		return (set_error(lbh, err));
-	}
-
-	if (err = be_validate_snap(lbh, snap_path)) {
+	if (err = be_validate_snap(lbh, snap_path))
 		return (set_error(lbh, err));
-	}
 
-	if (err = be_root_concat(lbh, name, be_path)) {
+	if (err = be_root_concat(lbh, name, be_path))
 		return (set_error(lbh, err));
-	}
 
-	if ((bename = strrchr(name, '/')) == NULL) {
+	if ((bename = strrchr(name, '/')) == NULL)
 		bename = name;
-	} else {
+	else
 		bename++;
-	}
+
 	if ((parentname = strdup(snap_path)) == NULL) {
 		err = BE_ERR_UNKNOWN;
 		return (set_error(lbh, err));
@@ -463,9 +446,8 @@ be_create_from_existing(libbe_handle_t *lbh, char *name, char *old)
 	int err;
 	char buf[BE_MAXPATHLEN];
 
-	if ((err = be_snapshot(lbh, old, NULL, true, (char *)&buf))) {
+	if ((err = be_snapshot(lbh, old, NULL, true, (char *)&buf)))
 		return (set_error(lbh, err));
-	}
 
 	err = be_create_from_existing_snap(lbh, name, (char *)buf);
 
@@ -487,38 +469,30 @@ be_validate_snap(libbe_handle_t *lbh, char *snap_name)
 	char *mountpoint;
 	int err = BE_ERR_SUCCESS;
 
-	if (strlen(snap_name) >= BE_MAXPATHLEN) {
+	if (strlen(snap_name) >= BE_MAXPATHLEN)
 		return (BE_ERR_PATHLEN);
-	}
 
 	if (!zfs_dataset_exists(lbh->lzh, snap_name,
-	    ZFS_TYPE_SNAPSHOT)) {
+	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
-	}
 
 	strncpy(buf, snap_name, BE_MAXPATHLEN);
 
 	/* Find the base filesystem of the snapshot */
-	if ((delim_pos = strchr(buf, '@')) == NULL) {
+	if ((delim_pos = strchr(buf, '@')) == NULL)
 		return (BE_ERR_INVALIDNAME);
-	}
 	*delim_pos = '\0';
 
 	if ((zfs_hdl =
-	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL) {
+	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (BE_ERR_NOORIGIN);
-	}
 
-	if (err =
-	    zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf,
-	    BE_MAXPATHLEN,
-	    NULL, NULL, 0, 1)) {
+	if (err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, BE_MAXPATHLEN,
+	    NULL, NULL, 0, 1))
 		err = BE_ERR_INVORIGIN;
-	}
 
-	if ((err != 0) && (strncmp(buf, "/", BE_MAXPATHLEN) != 0)) {
+	if ((err != 0) && (strncmp(buf, "/", BE_MAXPATHLEN) != 0))
 		err = BE_ERR_INVORIGIN;
-	}
 
 	zfs_close(zfs_hdl);
 
@@ -544,13 +518,11 @@ be_root_concat(libbe_handle_t *lbh, char *name, char *result)
 
 	/* Act idempotently; return be name if it is already a full path */
 	if (strrchr(name, '/') != NULL) {
-		if (strstr(name, lbh->root) != name) {
+		if (strstr(name, lbh->root) != name)
 			return (BE_ERR_INVALIDNAME);
-		}
 
-		if (name_len >= BE_MAXPATHLEN) {
+		if (name_len >= BE_MAXPATHLEN)
 			return (BE_ERR_PATHLEN);
-		}
 
 		strncpy(result, name, BE_MAXPATHLEN);
 		return (BE_ERR_SUCCESS);
@@ -574,10 +546,8 @@ be_validate_name(libbe_handle_t *lbh, char *name)
 {
 	for (int i = 0; *name; i++) {
 		char c = *(name++);
-		if (isalnum(c) || (c == '-') || (c == '_') ||
-		    (c == '.')) {
+		if (isalnum(c) || (c == '-') || (c == '_') || (c == '.'))
 			continue;
-		}
 		return (BE_ERR_INVALIDNAME);
 	}
 
@@ -596,50 +566,42 @@ be_rename(libbe_handle_t *lbh, char *old, char *new)
 	zfs_handle_t *zfs_hdl;
 	int err;
 
-
-	if (err = be_root_concat(lbh, old, full_old)) {
+	if (err = be_root_concat(lbh, old, full_old))
 		return (set_error(lbh, err));
-	}
-	if (err = be_root_concat(lbh, new, full_new)) {
+	if (err = be_root_concat(lbh, new, full_new))
 		return (set_error(lbh, err));
-	}
 
-	if (be_validate_name(lbh, new)) {
+	if (be_validate_name(lbh, new))
 		return (BE_ERR_UNKNOWN);
-		// TODO set and return correct error
-	}
+		/* XXX TODO set and return correct error */
 
-	// check if old is active be
-	if (strcmp(full_new, be_active_path(lbh)) == 0) {
+	/* Check if old is active BE */
+	if (strcmp(full_new, be_active_path(lbh)) == 0)
 		return (BE_ERR_UNKNOWN);
-		// TODO set and return correct error
-	}
+		/* XXX TODO set and return correct error */
 
-	if (!zfs_dataset_exists(lbh->lzh, full_old, ZFS_TYPE_DATASET)) {
+	if (!zfs_dataset_exists(lbh->lzh, full_old, ZFS_TYPE_DATASET))
 		return (BE_ERR_UNKNOWN);
-		// TODO set and return correct error
-	}
+		/* XXX TODO set and return correct error */
 
-	if (zfs_dataset_exists(lbh->lzh, full_new, ZFS_TYPE_DATASET)) {
+	if (zfs_dataset_exists(lbh->lzh, full_new, ZFS_TYPE_DATASET))
 		return (BE_ERR_UNKNOWN);
-		// TODO set and return correct error
-	}
+		/* XXX TODO set and return correct error */
 
-	// TODO: what about mounted bes?
-	//              - if mounted error out unless a force flag is set?
-
-
+	/* XXX TODO
+	 * - What about mounted BEs?
+	 * - if mounted error out unless a force flag is set?
+	 */
 	if ((zfs_hdl = zfs_open(lbh->lzh, full_old,
-	    ZFS_TYPE_FILESYSTEM)) == NULL) {
+	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (BE_ERR_UNKNOWN);
-		// TODO set and return correct error
-	}
+		/* XXX TODO set and return correct error */
 
 
-	// recurse, nounmount, forceunmount
+	/* recurse, nounmount, forceunmount */
 	struct renameflags flags = { 0, 0, 0 };
 
-	// TODO: error log on this call
+	/* XXX TODO: error log on this call */
 	err = zfs_rename(zfs_hdl, NULL, full_new, flags);
 
 	zfs_close(zfs_hdl);
@@ -656,16 +618,14 @@ be_export(libbe_handle_t *lbh, char *bootenv, int fd)
 	zfs_handle_t *zfs;
 	int err;
 
-	if (err = be_snapshot(lbh, bootenv, NULL, true, snap_name)) {
-		// TODO error handle
+	if (err = be_snapshot(lbh, bootenv, NULL, true, snap_name))
+		/* XXX TODO error handle */
 		return (-1);
-	}
 
 	be_root_concat(lbh, snap_name, buf);
 
-	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL) {
+	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (BE_ERR_ZFSOPEN);
-	}
 
 	err = zfs_send_one(zfs, NULL, fd, 0);
 	return (err);
@@ -681,32 +641,33 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 	zfs_handle_t *zfs;
 	int err, len;
 
-	// TODO: this is a very likely name for someone to already have used
-	if (err = be_root_concat(lbh, "be_import_temp", buf)) {
-		// TODO error handle
+	/*
+	 * XXX TODO: this is a very likely name for someone to already have
+	 * used... we should avoid it.
+	 */
+	if (err = be_root_concat(lbh, "be_import_temp", buf))
+		/* XXX TODO error handle */
 		return (-1);
-	}
 
 	time(&rawtime);
 	len = strlen(buf);
 	strftime(buf + len, BE_MAXPATHLEN - len,
 	    "@%F-%T", localtime(&rawtime));
 
-
-	// lzc_receive(SNAPNAME, PROPS, ORIGIN, FORCE, fd)) {
+	/* lzc_receive(SNAPNAME, PROPS, ORIGIN, FORCE, fd)) { */
 	if (err = lzc_receive(buf, NULL, NULL, false, fd)) {
 		/* TODO: go through libzfs_core's recv_impl and find returned
 		 * errors and set appropriate BE_ERR
 		 * edit: errors are not in libzfs_core, my assumption is
 		 *  that they use libzfs errors
-		 * note: 17 is err for dataset already existing */
+		 * note: 17 is err for dataset already existing
+		 */
 		return (err);
 	}
 
-	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL) {
-		// TODO correct error
+	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
+		/* XXX TODO correct error */
 		return (-1);
-	}
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
@@ -719,8 +680,7 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 
 	nvlist_free(props);
 
-	// TODO: recursively delete be_import_temp dataset
-
+	/* XXX TODO: recursively delete be_import_temp dataset */
 	return (err);
 }
 
@@ -736,10 +696,9 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 	int err;
 
 	/* Require absolute paths */
-	if (*child_path != '/') {
-		/* TODO: create appropriate error */
+	if (*child_path != '/')
+		/* XXX TODO: create appropriate error */
 		return (-1);
-	}
 
 	strncpy(active, be_active_path(lbh), BE_MAXPATHLEN);
 	strcpy(buf, active);
@@ -761,82 +720,68 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 	/* Path does not exist as a descendent of / yet */
 	int pos = strlen(active);
 
-	/* TODO: Verify that resulting str is less than BE_MAXPATHLEN */
+	/* XXX TODO: Verify that resulting str is less than BE_MAXPATHLEN */
 	strncpy(&active[pos], child_path, BE_MAXPATHLEN-pos);
-
 
 	if (stat(child_path, &sb) != 0) {
 		/* Verify that error is ENOENT */
-		if (errno != 2) {
-			/* TODO: create appropriate error */
+		if (errno != 2)
+			/* XXX TODO: create appropriate error */
 			return (-1);
-		}
 
 		nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 		nvlist_add_string(props, "canmount", "noauto");
 		nvlist_add_string(props, "mountpoint", child_path);
 
-		// create
+		/* Create */
 		if (err =
-		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props)) {
-			/* TODO handle error */
+		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props))
+			/* XXX TODO handle error */
 			return (-1);
-		}
 		nvlist_free(props);
 
 		if ((zfs =
-		    zfs_open(lbh->lzh, active, ZFS_TYPE_DATASET)) == NULL) {
-			/* TODO handle error */
+		    zfs_open(lbh->lzh, active, ZFS_TYPE_DATASET)) == NULL)
+			/* XXX TODO handle error */
 			return (-1);
-		}
 
-		// set props
-		if (err = zfs_prop_set(zfs, "canmount", "noauto")) {
+		/* Set props */
+		if (err = zfs_prop_set(zfs, "canmount", "noauto"))
 			/* TODO handle error */
 			return (-1);
-		}
 	} else if (cp_if_exists) {
 		/* Path is already a descendent of / and should be copied */
 
-
-
-		// TODO
+		/* XXX TODO ? */
 
 		/*
 		 * Establish if the existing path is a zfs dataset or just
 		 * the subdirectory of one
 		 */
 
-
-		// TODO: use mktemp
+		/* XXX TODO: use mktemp */
 		long int snap_name = random();
 
 		snprintf(buf, BE_MAXPATHLEN, "%s@%ld", child_path, snap_name);
 
-		if (err = zfs_snapshot(lbh->lzh, buf, false, NULL)) {
-			// TODO correct error
+		if (err = zfs_snapshot(lbh->lzh, buf, false, NULL))
+			/* XXX TODO correct error */
 			return (-1);
-		}
 
-		// clone
+		/* Clone */
 		if ((zfs =
-		    zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL) {
-			// TODO correct error
+		    zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
+			/* XXX TODO correct error */
 			return (-1);
-		}
 
-		if (err = zfs_clone(zfs, active, NULL)) {
-			// TODO correct error
+		if (err = zfs_clone(zfs, active, NULL))
+			/* XXX TODO correct error */
 			return (-1);
-		}
 
-
-		// set props
-	} else {
+		/* set props */
+	} else
 		/* TODO: error code for exists, but not cp? */
 		return (-1);
-	}
-
 
 	return (BE_ERR_SUCCESS);
 }
@@ -855,29 +800,26 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 
 	be_root_concat(lbh, bootenv, be_path);
 
-
 	/* Note: be_exists fails if mountpoint is not / */
-	if (!be_exists(lbh, be_path)) {
+	if (!be_exists(lbh, be_path))
 		return (BE_ERR_NOENT);
-	}
 
 	if (temporary) {
-		// TODO: give proper attribution to author(s) of zfsbootcfg
-		// for this snippet
+		/*
+		 * XXX TODO: give proper attribution to author(s) of zfsbootcfg
+		 * for this snippet.
+		 */
 
 		if (kenv(KENV_GET, "vfs.zfs.boot.primary_pool", buf,
-		    sizeof(buf)) <= 0) {
+		    sizeof(buf)) <= 0)
 			return (1);
-		}
 		pool_guid = strtoumax(buf, NULL, 10);
-		if (pool_guid == 0) {
+		if (pool_guid == 0)
 			return (1);
-		}
 
 		if (kenv(KENV_GET, "vfs.zfs.boot.primary_vdev", buf,
-		    sizeof(buf)) <= 0) {
+		    sizeof(buf)) <= 0)
 			return (1);
-		}
 		vdev_guid = strtoumax(buf, NULL, 10);
 		if (vdev_guid == 0) {
 			return (1);
@@ -903,7 +845,7 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 			return (BE_ERR_SUCCESS);
 
 		default:
-			// TODO correct errors
+			/* XXX TODO correct errors */
 			return (-1);
 		}
 	}

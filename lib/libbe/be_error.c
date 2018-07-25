@@ -35,6 +35,7 @@
 int
 libbe_errno(libbe_handle_t *lbh)
 {
+
 	return (lbh->error);
 }
 
@@ -42,6 +43,7 @@ libbe_errno(libbe_handle_t *lbh)
 const char *
 libbe_error_description(libbe_handle_t *lbh)
 {
+
 	switch (lbh->error) {
 	case BE_ERR_INVALIDNAME:
 		return ("invalid boot environment name");
@@ -95,6 +97,7 @@ libbe_error_description(libbe_handle_t *lbh)
 void
 libbe_print_on_error(libbe_handle_t *lbh, bool val)
 {
+
 	lbh->print_on_err = val;
 	libzfs_print_on_error(lbh->lzh, val);
 }
@@ -103,13 +106,11 @@ libbe_print_on_error(libbe_handle_t *lbh, bool val)
 int
 set_error(libbe_handle_t *lbh, be_error_t err)
 {
-	// TODO: should the old error be overwritten or no?
 
+	/* XXX TODO: should the old error be overwritten or no? */
 	lbh->error = err;
-
-	if (lbh->print_on_err && (err != BE_ERR_SUCCESS)) {
+	if (lbh->print_on_err && (err != BE_ERR_SUCCESS))
 		fprintf(stderr, "%s\n", libbe_error_description(lbh));
-	}
 
 	return (err);
 }
