@@ -297,7 +297,7 @@ format_k(int64_t amt)
 
     ret = retarray[index];
 	index = (index + 1) % NUM_STRINGS;
-	humanize_number(ret, 5, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
+	humanize_number(ret, 6, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
 	return (ret);
 }
 
