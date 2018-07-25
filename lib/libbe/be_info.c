@@ -114,7 +114,7 @@ be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
 static int
 prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 {
-	char buf[512];
+	char buf[512], *mountpoint;
 	prop_data_t *data;
 	libbe_handle_t *lbh;
 	nvlist_t *props;
@@ -137,15 +137,11 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	name = strrchr(dataset, '/') + 1;
 	nvlist_add_string(props, "name", name);
 
-	mounted = zfs_prop_get_int(zfs_hdl, ZFS_PROP_MOUNTED);
+	mounted = zfs_is_mounted(zfs_hdl, &mountpoint);
 	nvlist_add_boolean_value(props, "mounted", mounted);
 
-	/* XXX TODO: NOT CORRECT! Must use is_mounted */
-	if (mounted) {
-		zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, 512,
-		    NULL, NULL, 0, 1);
-		nvlist_add_string(props, "mountpoint", buf);
-	}
+	if (mounted)
+		nvlist_add_string(props, "mountpoint", mountpoint);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_ORIGIN, buf, 512,
 	    NULL, NULL, 0, 1))
