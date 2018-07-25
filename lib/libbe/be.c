@@ -42,22 +42,46 @@
 #include "be_impl.h"
 
 /*
+ * Iterator function for locating the rootfs amongst the children of the
+ * zfs_be_root set by loader(8).  data is expected to be a libbe_handle_t *.
+ */
+static int
+be_locate_rootfs(zfs_handle_t *chkds, void *data)
+{
+	libbe_handle_t *lbh;
+	char *mntpoint;
+
+	lbh = (libbe_handle_t *)data;
+	if (lbh == NULL)
+		return (1);
+
+	if (zfs_is_mounted(chkds, &mntpoint) && strcmp(mntpoint, "/") == 0) {
+		strncpy(lbh->rootfs, zfs_get_name(chkds), BE_MAXPATHLEN);
+		return (1);
+	}
+
+	return (0);
+}
+
+/*
  * Initializes the libbe context to operate in the root boot environment
  * dataset, for example, zroot/ROOT.
  */
 libbe_handle_t *
 libbe_init(void)
 {
-	char buf[BE_MAXPATHLEN];
 	struct stat sb;
 	dev_t root_dev, boot_dev;
 	libbe_handle_t *lbh;
+	zfs_handle_t *rootds;
 	char *poolname, *pos;
 	int pnamelen;
 
 	lbh = NULL;
 	poolname = pos = NULL;
 	pnamelen = 0;
+	rootds = NULL;
+
 	/* Verify that /boot and / are mounted on the same filesystem */
 	/* TODO: use errno here?? */
 	if (stat("/", &sb) != 0)
@@ -109,13 +133,11 @@ libbe_init(void)
 
 	/* Obtain path to boot environment rootfs (currently booted) */
 	/* XXX Get dataset mounted at / by kenv/GUID from mountroot? */
-	if ((kenv(KENV_GET, "zfs_be_active", lbh->rootfs, BE_MAXPATHLEN)) == -1)
+	if ((rootds = zfs_open(lbh->lzh, lbh->root, ZFS_TYPE_DATASET)) == NULL)
 		goto err;
 
-	/* Remove leading 'zfs:' if present, otherwise use value as-is */
-	if (strcmp(lbh->rootfs, "zfs:") == 0)
-		strncpy(lbh->rootfs, strchr(lbh->rootfs, ':') + sizeof(char),
-		    BE_MAXPATHLEN);
+	zfs_iter_filesystems(rootds, be_locate_rootfs, lbh);
+	zfs_close(rootds);
 
 	return (lbh);
 err:
@@ -126,6 +148,8 @@ err:
 			libzfs_fini(lbh->lzh);
 		free(lbh);
 	}
+	if (rootds != NULL)
+		zfs_close(rootds);
 	free(poolname);
 	return (NULL);
 }
