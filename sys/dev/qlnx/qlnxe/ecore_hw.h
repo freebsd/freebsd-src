@@ -113,15 +113,6 @@ enum _ecore_status_t ecore_ptt_pool_alloc(struct ecore_hwfn *p_hwfn);
 void ecore_ptt_pool_free(struct ecore_hwfn *p_hwfn);
 
 /**
- * @brief ecore_ptt_get_hw_addr - Get PTT's GRC/HW address
- *
- * @param p_ptt
- *
- * @return u32
- */
-u32 ecore_ptt_get_hw_addr(struct ecore_ptt *p_ptt);
-
-/**
  * @brief ecore_ptt_get_bar_addr - Get PPT's external BAR address
  *
  * @param p_hwfn
@@ -158,8 +149,8 @@ struct ecore_ptt *ecore_get_reserved_ptt(struct ecore_hwfn	*p_hwfn,
  *
  * @param p_hwfn
  * @param p_ptt
- * @param val
  * @param hw_addr
+ * @param val
  */
 void ecore_wr(struct ecore_hwfn	*p_hwfn,
 	      struct ecore_ptt	*p_ptt,
@@ -171,7 +162,6 @@ void ecore_wr(struct ecore_hwfn	*p_hwfn,
  *
  * @param p_hwfn
  * @param p_ptt
- * @param val
  * @param hw_addr
  */
 u32 ecore_rd(struct ecore_hwfn	*p_hwfn,
@@ -276,5 +266,34 @@ enum _ecore_status_t ecore_init_fw_data(struct ecore_dev *p_dev,
 
 void ecore_hw_err_notify(struct ecore_hwfn *p_hwfn,
 			 enum ecore_hw_err_type err_type);
+
+enum _ecore_status_t ecore_dmae_sanity(struct ecore_hwfn *p_hwfn,
+				       struct ecore_ptt *p_ptt,
+				       const char *phase);
+
+/**
+ * @brief ecore_ppfid_wr - Write value to BAR using the given ptt while
+ *	pretending to a PF to which the given PPFID pertains.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param abs_ppfid
+ * @param hw_addr
+ * @param val
+ */
+void ecore_ppfid_wr(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+		    u8 abs_ppfid, u32 hw_addr, u32 val);
+
+/**
+ * @brief ecore_ppfid_rd - Read value from BAR using the given ptt while
+ *	 pretending to a PF to which the given PPFID pertains.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param abs_ppfid
+ * @param hw_addr
+ */
+u32 ecore_ppfid_rd(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+		   u8 abs_ppfid, u32 hw_addr);
 
 #endif /* __ECORE_HW_H__ */

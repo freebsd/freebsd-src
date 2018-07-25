@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,62 @@
 #ifndef __ECORE_ISCSI_API_H__
 #define __ECORE_ISCSI_API_H__
 
+#ifndef __EXTRACT__LINUX__IF__
 typedef enum _ecore_status_t (*iscsi_event_cb_t)(void *context,
 						 u8 fw_event_code,
 						 void *fw_handle);
 
+struct ecore_iscsi_stats
+{
+	u64 iscsi_rx_bytes_cnt;
+	u64 iscsi_rx_packet_cnt;
+	u64 iscsi_rx_new_ooo_isle_events_cnt;
+	u32 iscsi_cmdq_threshold_cnt;
+	u32 iscsi_rq_threshold_cnt;
+	u32 iscsi_immq_threshold_cnt;
+
+	u64 iscsi_rx_dropped_pdus_task_not_valid;
+
+	u64 iscsi_rx_data_pdu_cnt;
+	u64 iscsi_rx_r2t_pdu_cnt;
+	u64 iscsi_rx_total_pdu_cnt;
+
+	u64 iscsi_tx_go_to_slow_start_event_cnt;
+	u64 iscsi_tx_fast_retransmit_event_cnt;
+
+	u64 iscsi_tx_data_pdu_cnt;
+	u64 iscsi_tx_r2t_pdu_cnt;
+	u64 iscsi_tx_total_pdu_cnt;
+
+	u64 iscsi_tx_bytes_cnt;
+	u64 iscsi_tx_packet_cnt;
+
+	u64 iscsi_rx_tcp_payload_bytes_cnt;
+	u64 iscsi_rx_tcp_pkt_cnt;
+	u64 iscsi_rx_pure_ack_cnt;
+
+	u64 iscsi_rx_dup_ack_cnt;
+
+	u64 iscsi_tx_pure_ack_cnt;
+	u64 iscsi_tx_delayed_ack_cnt;
+
+	u64 iscsi_tx_tcp_payload_bytes_cnt;
+	u64 iscsi_tx_tcp_pkt_cnt;
+};
+
+struct ecore_iscsi_tcp_stats
+{
+	u64 iscsi_tcp_tx_packets_cnt;
+	u64 iscsi_tcp_tx_bytes_cnt;
+	u64 iscsi_tcp_tx_rxmit_cnt;
+	u64 iscsi_tcp_rx_packets_cnt;
+	u64 iscsi_tcp_rx_bytes_cnt;
+	u64 iscsi_tcp_rx_dup_ack_cnt;
+	u32 iscsi_tcp_rx_chksum_err_cnt;
+};
+#endif
+
+#ifndef __EXTRACT__LINUX__C__
 struct ecore_iscsi_conn {
 	osal_list_entry_t	list_entry;
 	bool			free_on_delete;
@@ -54,6 +106,8 @@ struct ecore_iscsi_conn {
 
 	struct tcp_upload_params *tcp_upload_params_virt_addr;
 	dma_addr_t		tcp_upload_params_phys_addr;
+	struct iscsi_conn_stats_params *conn_stats_params_virt_addr;
+	dma_addr_t		conn_stats_params_phys_addr;
 	struct scsi_terminate_extra_params *queue_cnts_virt_addr;
 	dma_addr_t		queue_cnts_phys_addr;
 	dma_addr_t		syn_phy_addr;
@@ -62,7 +116,7 @@ struct ecore_iscsi_conn {
 	u8			local_mac[6];
 	u8			remote_mac[6];
 	u16			vlan_id;
-	u8			tcp_flags;
+	u16			tcp_flags;
 	u8			ip_version;
 	u32			remote_ip[4];
 	u32			local_ip[4];
@@ -148,32 +202,7 @@ struct ecore_iscsi_conn {
 	u8			crc_seed;		/* 0=0x0000, 1=0xffff */
 	u8			keep_ref_tag_const;
 };
-
-struct ecore_iscsi_stats
-{
-	u64 iscsi_rx_bytes_cnt;
-	u64 iscsi_rx_packet_cnt;
-	u64 iscsi_rx_new_ooo_isle_events_cnt;
-	u32 iscsi_cmdq_threshold_cnt;
-	u32 iscsi_rq_threshold_cnt;
-	u32 iscsi_immq_threshold_cnt;
-
-	u64 iscsi_rx_dropped_pdus_task_not_valid;
-
-	u64 iscsi_rx_data_pdu_cnt;
-	u64 iscsi_rx_r2t_pdu_cnt;
-	u64 iscsi_rx_total_pdu_cnt;
-
-	u64 iscsi_tx_go_to_slow_start_event_cnt;
-	u64 iscsi_tx_fast_retransmit_event_cnt;
-
-	u64 iscsi_tx_data_pdu_cnt;
-	u64 iscsi_tx_r2t_pdu_cnt;
-	u64 iscsi_tx_total_pdu_cnt;
-
-	u64 iscsi_tx_bytes_cnt;
-	u64 iscsi_tx_packet_cnt;
-};
+#endif
 
 /**
  * @brief ecore_iscsi_acquire_connection - allocate resources, 
@@ -188,6 +217,15 @@ enum _ecore_status_t
 ecore_iscsi_acquire_connection(struct ecore_hwfn *p_hwfn,
 			       struct ecore_iscsi_conn *p_in_conn,
 			       struct ecore_iscsi_conn **p_out_conn);
+
+/**
+ * @brief ecore_iscsi_setup_connection- initialize connection data.
+ *
+ * @param p_conn  container of iSCSI connection data
+ * @return enum _ecore_status_t
+ */
+enum _ecore_status_t
+ecore_iscsi_setup_connection(struct ecore_iscsi_conn *p_conn);
 
 void OSAL_IOMEM *ecore_iscsi_get_db_addr(struct ecore_hwfn *p_hwfn,
 					 u32 cid);
@@ -266,6 +304,24 @@ ecore_iscsi_update_connection(struct ecore_hwfn *p_hwfn,
 enum _ecore_status_t
 ecore_iscsi_update_remote_mac(struct ecore_hwfn *p_hwfn,
 			      struct ecore_iscsi_conn *p_conn);
+
+/**
+ * @brief ecore_iscsi_get_tcp_stats - get and optionally reset TCP statistics
+ *        of offloaded iSCSI connection
+ *
+ *
+ * @param p_path
+ * @param p_conn  container of iSCSI connection data
+ * @param p_stats - buffer to place extracted stats
+ * @param reset - 1 - for reset stats (after extraction of accumulated
+ *                statistics in optionally provided buffer)
+ * @return enum _ecore_status_t
+ */
+enum _ecore_status_t
+ecore_iscsi_get_tcp_stats(struct ecore_hwfn *p_hwfn,
+			  struct ecore_iscsi_conn *p_conn,
+			  struct ecore_iscsi_tcp_stats *p_stats,
+			  u8 reset);
 
 /**
  * @brief ecore_iscsi_clear_connection_sq - clear SQ
