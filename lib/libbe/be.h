@@ -29,6 +29,7 @@
 #ifndef _LIBBE_H
 #define _LIBBE_H
 
+#include <libnvpair.h>
 #include <stdbool.h>
 
 #define BE_MAXPATHLEN    512
@@ -63,7 +64,7 @@ const char *be_active_name(libbe_handle_t *);
 const char *be_active_path(libbe_handle_t *);
 const char *be_root_path(libbe_handle_t *);
 
-/* nvlist_t *be_get_bootenv_props(libbe_handle_t *); */
+int be_get_bootenv_props(libbe_handle_t *, nvlist_t *);
 
 int be_activate(libbe_handle_t *, char *, bool);
 
