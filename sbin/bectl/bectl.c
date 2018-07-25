@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -38,7 +39,6 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <sys/nv.h>
 #include <be.h>
 
 static int bectl_cmd_activate(int argc, char *argv[]);
@@ -417,8 +417,8 @@ bectl_cmd_jail(int argc, char *argv[])
 static int
 bectl_cmd_list(int argc, char *argv[])
 {
-	char *bootenv;
 	nvlist_t *props;
+	char *bootenv;
 	int opt;
 	bool show_all_datasets, show_space, hide_headers, show_snaps;
 
@@ -451,7 +451,20 @@ bectl_cmd_list(int argc, char *argv[])
 		return (usage(false));
 	}
 
-	/* props = be_get_bootenv_props(be); */
+
+	if (nvlist_alloc(&props, NV_UNIQUE_NAME, M_WAITOK) != 0) {
+		fprintf(stderr, "bectl list: failed to allocate prop nvlist\n");
+		return (1);
+	}
+	if (be_get_bootenv_props(be, props) != 0) {
+		/* XXX TODO: Real errors */
+		fprintf(stderr, "bectl list: failed to fetch boot environments\n");
+		return (1);
+	}
+
+	dump_nvlist(props, 0);
+	nvlist_free(props);
+
 	return (0);
 }
 

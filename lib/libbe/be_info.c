@@ -71,18 +71,17 @@ be_root_path(libbe_handle_t *lbh)
 
 
 /*
- * Returns an nvlist of the bootenv's properties
- * TODO: the nvlist should be passed as a param and ints should return status
+ * Populates dsnvl with one nvlist per bootenv dataset describing the properties
+ * of that dataset that we've declared ourselves to care about.
  */
-nvlist_t *
-be_get_bootenv_props(libbe_handle_t *lbh)
+int
+be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
 {
 	prop_data_t data;
 
 	data.lbh = lbh;
-	prop_list_builder(&data);
-
-	return (data.list);
+	data.list = dsnvl;
+	return (prop_list_builder(&data));
 }
 
 
@@ -176,10 +175,6 @@ static int
 prop_list_builder(prop_data_t *data)
 {
 	zfs_handle_t *root_hdl;
-
-	if (nvlist_alloc(&(data->list), NV_UNIQUE_NAME, KM_SLEEP) != 0)
-		/* XXX TODO: actually handle error */
-		return (1);
 
 	if ((root_hdl = zfs_open(data->lbh->lzh, data->lbh->root,
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
