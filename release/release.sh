@@ -358,6 +358,21 @@ chroot_build_release() {
 	return 0
 } # chroot_build_release()
 
+efi_boot_name()
+{
+	case $1 in
+		arm)
+			echo "bootarm.efi"
+			;;
+		arm64)
+			echo "bootaa64.efi"
+			;;
+		amd64)
+			echo "bootx86.efi"
+			;;
+	esac
+}
+
 # chroot_arm_build_release(): Create arm SD card image.
 chroot_arm_build_release() {
 	load_target_env
@@ -385,6 +400,7 @@ chroot_arm_build_release() {
 		mdconfig -f ${IMGBASE##${CHROOTDIR}} ${MD_ARGS})
 	arm_create_disk
 	arm_install_base
+	arm_install_boot
 	arm_install_uboot
 	mdconfig -d -u ${mddev}
 	chroot ${CHROOTDIR} rmdir ${DESTDIR}
