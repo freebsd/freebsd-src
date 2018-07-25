@@ -739,6 +739,10 @@ static int iflib_msix_init(if_ctx_t ctx);
 static int iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filterarg, int *rid, const char *str);
 static void iflib_txq_check_drain(iflib_txq_t txq, int budget);
 static uint32_t iflib_txq_can_drain(struct ifmp_ring *);
+#ifdef ALTQ
+static void iflib_altq_if_start(if_t ifp);
+static int iflib_altq_if_transmit(if_t ifp, struct mbuf *m);
+#endif
 static int iflib_register(if_ctx_t);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
@@ -3775,6 +3779,10 @@ _task_fn_tx(void *context)
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
 	}
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		iflib_altq_if_start(ifp);
+#endif
 	if (txq->ift_db_pending)
 		ifmp_ring_enqueue(txq->ift_br, (void **)&txq, 1, TX_BATCH_SIZE, abdicate);
 	else if (!abdicate)
@@ -3963,8 +3971,9 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	}
 
 	MPASS(m->m_nextpkt == NULL);
+	/* ALTQ-enabled interfaces always use queue 0. */
 	qidx = 0;
-	if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m))
+	if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m) && !ALTQ_IS_ENABLED(&ifp->if_snd))
 		qidx = QIDX(ctx, m);
 	/*
 	 * XXX calculate buf_ring based on flowid (divvy up bits?)
@@ -4024,6 +4033,59 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	return (err);
 }
 
+#ifdef ALTQ
+/*
+ * The overall approach to integrating iflib with ALTQ is to continue to use
+ * the iflib mp_ring machinery between the ALTQ queue(s) and the hardware
+ * ring.  Technically, when using ALTQ, queueing to an intermediate mp_ring
+ * is redundant/unnecessary, but doing so minimizes the amount of
+ * ALTQ-specific code required in iflib.  It is assumed that the overhead of
+ * redundantly queueing to an intermediate mp_ring is swamped by the
+ * performance limitations inherent in using ALTQ.
+ *
+ * When ALTQ support is compiled in, all iflib drivers will use a transmit
+ * routine, iflib_altq_if_transmit(), that checks if ALTQ is enabled for the
+ * given interface.  If ALTQ is enabled for an interface, then all
+ * transmitted packets for that interface will be submitted to the ALTQ
+ * subsystem via IFQ_ENQUEUE().  We don't use the legacy if_transmit()
+ * implementation because it uses IFQ_HANDOFF(), which will duplicatively
+ * update stats that the iflib machinery handles, and which is sensitve to
+ * the disused IFF_DRV_OACTIVE flag.  Additionally, iflib_altq_if_start()
+ * will be installed as the start routine for use by ALTQ facilities that
+ * need to trigger queue drains on a scheduled basis.
+ *
+ */
+static void
+iflib_altq_if_start(if_t ifp)
+{
+	struct ifaltq *ifq = &ifp->if_snd;
+	struct mbuf *m;
+	
+	IFQ_LOCK(ifq);
+	IFQ_DEQUEUE_NOLOCK(ifq, m);
+	while (m != NULL) {
+		iflib_if_transmit(ifp, m);
+		IFQ_DEQUEUE_NOLOCK(ifq, m);
+	}
+	IFQ_UNLOCK(ifq);
+}
+
+static int
+iflib_altq_if_transmit(if_t ifp, struct mbuf *m)
+{
+	int err;
+
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_ENQUEUE(&ifp->if_snd, m, err);
+		if (err == 0)
+			iflib_altq_if_start(ifp);
+	} else
+		err = iflib_if_transmit(ifp, m);
+
+	return (err);
+}
+#endif /* ALTQ */
+
 static void
 iflib_if_qflush(if_t ifp)
 {
@@ -4041,6 +4103,10 @@ iflib_if_qflush(if_t ifp)
 	ctx->ifc_flags &= ~IFC_QFLUSH;
 	STATE_UNLOCK(ctx);
 
+	/*
+	 * When ALTQ is enabled, this will also take care of purging the
+	 * ALTQ queue(s).
+	 */
 	if_qflush(ifp);
 }
 
@@ -5165,7 +5231,12 @@ iflib_register(if_ctx_t ctx)
 	if_setdev(ifp, dev);
 	if_setinitfn(ifp, iflib_if_init);
 	if_setioctlfn(ifp, iflib_if_ioctl);
+#ifdef ALTQ
+	if_setstartfn(ifp, iflib_altq_if_start);
+	if_settransmitfn(ifp, iflib_altq_if_transmit);
+#else
 	if_settransmitfn(ifp, iflib_if_transmit);
+#endif
 	if_setqflushfn(ifp, iflib_if_qflush);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
