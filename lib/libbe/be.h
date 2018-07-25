@@ -62,6 +62,8 @@ void libbe_close(libbe_handle_t *);
 /* Bootenv information functions: be_info.c */
 const char *be_active_name(libbe_handle_t *);
 const char *be_active_path(libbe_handle_t *);
+const char *be_nextboot_name(libbe_handle_t *);
+const char *be_nextboot_path(libbe_handle_t *);
 const char *be_root_path(libbe_handle_t *);
 
 int be_get_bootenv_props(libbe_handle_t *, nvlist_t *);
