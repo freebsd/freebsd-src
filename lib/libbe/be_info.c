@@ -207,6 +207,13 @@ prop_list_builder(prop_data_t *data)
 }
 
 
+int
+be_prop_list_alloc(nvlist_t **be_list)
+{
+
+	return (nvlist_alloc(be_list, NV_UNIQUE_NAME, KM_SLEEP));
+}
+
 /*
  * frees property list and its children
  */

@@ -28,7 +28,6 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -418,6 +417,7 @@ bectl_cmd_list(int argc, char *argv[])
 	int opt;
 	bool show_all_datasets, show_space, hide_headers, show_snaps;
 
+	props = NULL;
 	show_all_datasets = show_space = hide_headers = show_snaps = false;
 	while ((opt = getopt(argc, argv, "aDHs")) != -1) {
 		switch (opt) {
@@ -448,7 +448,7 @@ bectl_cmd_list(int argc, char *argv[])
 	}
 
 
-	if (nvlist_alloc(&props, NV_UNIQUE_NAME, M_WAITOK) != 0) {
+	if (be_prop_list_alloc(&props) != 0) {
 		fprintf(stderr, "bectl list: failed to allocate prop nvlist\n");
 		return (1);
 	}
@@ -459,7 +459,7 @@ bectl_cmd_list(int argc, char *argv[])
 	}
 
 	dump_nvlist(props, 0);
-	nvlist_free(props);
+	be_prop_list_free(props);
 
 	return (0);
 }

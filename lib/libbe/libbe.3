@@ -129,6 +129,14 @@ of state to be retained, such as errors from previous operations.
 .Ft int
 .Fn be_add_child "libbe_handle_t *, char *, bool" ;
 .Pp
+.Ft int
+.Fn be_prop_list_alloc "nvlist_t **" ;
+.Pp
+.Ft int
+.Fn be_get_bootenv_props "libbe_handle_t *, nvlist_t *" ;
+.Pp
+.Ft void
+.Fn be_prop_list_free "nvlist_t *" ;
 .\" .Ft void
 .\" .Fn mp_mfree "MINT *mp" ;
 .\" .Bd -ragged -offset indent
