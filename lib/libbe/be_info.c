@@ -43,7 +43,7 @@ static int prop_list_builder(prop_data_t *);
 const char *
 be_active_name(libbe_handle_t *lbh)
 {
-	return (strrchr(lbh->active, '/') + sizeof(char));
+	return (strrchr(lbh->rootfs, '/') + sizeof(char));
 }
 
 
@@ -53,7 +53,7 @@ be_active_name(libbe_handle_t *lbh)
 const char *
 be_active_path(libbe_handle_t *lbh)
 {
-	return (lbh->active);
+	return (lbh->rootfs);
 }
 
 
