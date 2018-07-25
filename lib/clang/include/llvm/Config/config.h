@@ -2,9 +2,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* Get __FreeBSD_version. */
-#include <osreldate.h>
-
 /* Exported configuration */
 #include "llvm/Config/llvm-config.h"
 
@@ -17,12 +14,10 @@
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
 
-#if __FreeBSD_version >= 1000052
 /* Define to 1 if you have the `backtrace' function. */
 #define HAVE_BACKTRACE TRUE
 
 #define BACKTRACE_HEADER <execinfo.h>
-#endif
 
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
@@ -81,7 +76,7 @@
 /* #undef HAVE_FFI_H */
 
 /* Define to 1 if you have the `futimens' function. */
-#if __FreeBSD_version >= 1100056
+#if __FreeBSD__ >= 11
 #define HAVE_FUTIMENS 1
 #endif
 
