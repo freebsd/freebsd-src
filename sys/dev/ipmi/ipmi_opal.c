@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ipmi.h>
 #include <dev/ipmi/ipmivars.h>
 
-#include "opal.h"
+#include <powerpc/powernv/opal.h>
 
 struct opal_ipmi_softc {
 	struct ipmi_softc ipmi;
