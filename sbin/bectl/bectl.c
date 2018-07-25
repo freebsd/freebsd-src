@@ -136,7 +136,7 @@ bectl_cmd_activate(int argc, char *argv[])
 			temp = true;
 			break;
 		default:
-			fprintf(stderr, "be activate: unknown option '-%c'\n",
+			fprintf(stderr, "bectl activate: unknown option '-%c'\n",
 			    optopt);
 			return (usage(false));
 		}
@@ -146,7 +146,7 @@ bectl_cmd_activate(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "be activate: wrong number of arguments\n");
+		fprintf(stderr, "bectl activate: wrong number of arguments\n");
 		return (usage(false));
 	}
 
@@ -185,7 +185,7 @@ bectl_cmd_create(int argc, char *argv[])
 			snapname = optarg;
 			break;
 		default:
-			fprintf(stderr, "be create: unknown option '-%c'\n",
+			fprintf(stderr, "bectl create: unknown option '-%c'\n",
 			    optopt);
 			return (usage(false));
 		}
@@ -195,12 +195,11 @@ bectl_cmd_create(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "be create: wrong number of arguments\n");
+		fprintf(stderr, "bectl create: wrong number of arguments\n");
 		return (usage(false));
 	}
 
 	bootenv = *argv;
-
 
 	if (snapname != NULL) {
 		if (strchr(snapname, '@') != NULL) {
@@ -251,19 +250,19 @@ bectl_cmd_export(int argc, char *argv[])
 
 
 	if (argc == 1) {
-		fprintf(stderr, "be export: missing boot environment name\n");
+		fprintf(stderr, "bectl export: missing boot environment name\n");
 		return (usage(false));
 	}
 
 	if (argc > 2) {
-		fprintf(stderr, "be export: extra arguments provided\n");
+		fprintf(stderr, "bectl export: extra arguments provided\n");
 		return (usage(false));
 	}
 
 	bootenv = argv[1];
 
 	if (isatty(STDOUT_FILENO)) {
-		fprintf(stderr, "be export: must redirect output\n");
+		fprintf(stderr, "bectl export: must redirect output\n");
 		return (EX_USAGE);
 	}
 
@@ -281,20 +280,20 @@ bectl_cmd_import(int argc, char *argv[])
 
 
 	if (argc == 1) {
-		fprintf(stderr, "be import: missing boot environment name\n");
+		fprintf(stderr, "bectl import: missing boot environment name\n");
 		return (usage(false));
 	}
 
 
 	if (argc > 2) {
-		fprintf(stderr, "be import: extra arguments provided\n");
+		fprintf(stderr, "bectl import: extra arguments provided\n");
 		return (usage(false));
 	}
 
 	bootenv = argv[1];
 
 	if (isatty(STDIN_FILENO)) {
-		fprintf(stderr, "be import: input can not be from terminal\n");
+		fprintf(stderr, "bectl import: input can not be from terminal\n");
 		return (EX_USAGE);
 	}
 
@@ -310,7 +309,7 @@ bectl_cmd_add(int argc, char *argv[])
 	char *bootenv;
 
 	if (argc < 2) {
-		fprintf(stderr, "be add: must provide at least one path\n");
+		fprintf(stderr, "bectl add: must provide at least one path\n");
 		return (usage(false));
 	}
 
@@ -338,7 +337,7 @@ bectl_cmd_destroy(int argc, char *argv[])
 			force = true;
 			break;
 		default:
-			fprintf(stderr, "be destroy: unknown option '-%c'\n",
+			fprintf(stderr, "bectl destroy: unknown option '-%c'\n",
 			    optopt);
 			return (usage(false));
 		}
@@ -348,7 +347,7 @@ bectl_cmd_destroy(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "be destroy: wrong number of arguments\n");
+		fprintf(stderr, "bectl destroy: wrong number of arguments\n");
 		return (usage(false));
 	}
 
@@ -371,11 +370,11 @@ bectl_cmd_jail(int argc, char *argv[])
 	//struct jail be_jail = { 0 };
 
 	if (argc == 1) {
-		fprintf(stderr, "be jail: missing boot environment name\n");
+		fprintf(stderr, "bectl jail: missing boot environment name\n");
 		return (usage(false));
 	}
 	if (argc > 2) {
-		fprintf(stderr, "be jail: too many arguments\n");
+		fprintf(stderr, "bectl jail: too many arguments\n");
 		return (usage(false));
 	}
 
@@ -440,7 +439,7 @@ bectl_cmd_list(int argc, char *argv[])
 			show_space = true;
 			break;
 		default:
-			fprintf(stderr, "be list: unknown option '-%c'\n",
+			fprintf(stderr, "bectl list: unknown option '-%c'\n",
 			    optopt);
 			return (usage(false));
 		}
@@ -449,7 +448,7 @@ bectl_cmd_list(int argc, char *argv[])
 	argc -= optind;
 
 	if (argc != 0) {
-		fprintf(stderr, "be list: extra argument provided\n");
+		fprintf(stderr, "bectl list: extra argument provided\n");
 		return (usage(false));
 	}
 
@@ -468,12 +467,12 @@ bectl_cmd_mount(int argc, char *argv[])
 	char *mountpoint;
 
 	if (argc < 2) {
-		fprintf(stderr, "be mount: missing argument(s)\n");
+		fprintf(stderr, "bectl mount: missing argument(s)\n");
 		return (usage(false));
 	}
 
 	if (argc > 3) {
-		fprintf(stderr, "be mount: too many arguments\n");
+		fprintf(stderr, "bectl mount: too many arguments\n");
 		return (usage(false));
 	}
 
@@ -506,12 +505,12 @@ bectl_cmd_rename(int argc, char *argv[])
 	int err;
 
 	if (argc < 3) {
-		fprintf(stderr, "be rename: missing argument\n");
+		fprintf(stderr, "bectl rename: missing argument\n");
 		return (usage(false));
 	}
 
 	if (argc > 3) {
-		fprintf(stderr, "be rename: too many arguments\n");
+		fprintf(stderr, "bectl rename: too many arguments\n");
 		return (usage(false));
 	}
 
@@ -549,7 +548,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 			force = true;
 			break;
 		default:
-			fprintf(stderr, "be %s: unknown option '-%c'\n",
+			fprintf(stderr, "bectl %s: unknown option '-%c'\n",
 			    cmd, optopt);
 			return (usage(false));
 		}
@@ -559,7 +558,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "be %s: wrong number of arguments\n", cmd);
+		fprintf(stderr, "bectl %s: wrong number of arguments\n", cmd);
 		return (usage(false));
 	}
 
@@ -587,7 +586,7 @@ bectl_cmd_unmount(int argc, char *argv[])
 			flags |= BE_MNT_FORCE;
 			break;
 		default:
-			fprintf(stderr, "be %s: unknown option '-%c'\n",
+			fprintf(stderr, "bectl %s: unknown option '-%c'\n",
 			    cmd, optopt);
 			return (usage(false));
 		}
@@ -597,7 +596,7 @@ bectl_cmd_unmount(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "be %s: wrong number of arguments\n", cmd);
+		fprintf(stderr, "bectl %s: wrong number of arguments\n", cmd);
 		return (usage(false));
 	}
 
