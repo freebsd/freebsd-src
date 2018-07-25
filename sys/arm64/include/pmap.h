@@ -84,6 +84,7 @@ struct pmap {
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	struct vm_radix		pm_root;	/* spare page table pages */
 };
+typedef struct pmap *pmap_t;
 
 typedef struct pv_entry {
 	vm_offset_t		pv_va;	/* virtual address for mapping */
@@ -96,15 +97,20 @@ typedef struct pv_entry {
  */
 #define	_NPCM	3
 #define	_NPCPV	168
-struct pv_chunk {
-	struct pmap *		pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	uint64_t		pc_map[_NPCM];  /* bitmap; 1 = free */
+#define	PV_CHUNK_HEADER							\
+	pmap_t			pc_pmap;				\
+	TAILQ_ENTRY(pv_chunk)	pc_list;				\
+	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */	\
 	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	struct pv_entry		pc_pventry[_NPCPV];
+
+struct pv_chunk_header {
+	PV_CHUNK_HEADER
 };
 
-typedef struct pmap *pmap_t;
+struct pv_chunk {
+	PV_CHUNK_HEADER
+	struct pv_entry		pc_pventry[_NPCPV];
+};
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
