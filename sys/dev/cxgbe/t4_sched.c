@@ -76,6 +76,7 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	int rc, top_speed, fw_level, fw_mode, fw_rateunit, fw_ratemode;
 	struct port_info *pi;
 	struct tx_cl_rl_params *tc;
+	bool check_pktsize = false;
 
 	if (p->level == SCHED_CLASS_LEVEL_CL_RL)
 		fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
@@ -86,28 +87,20 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	else
 		return (EINVAL);
 
-	if (p->mode == SCHED_CLASS_MODE_CLASS)
-		fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
-	else if (p->mode == SCHED_CLASS_MODE_FLOW)
-		fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
-	else
-		return (EINVAL);
+	if (p->level == SCHED_CLASS_LEVEL_CL_RL) {
+		if (p->mode == SCHED_CLASS_MODE_CLASS)
+			fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
+		else if (p->mode == SCHED_CLASS_MODE_FLOW) {
+			check_pktsize = true;
+			fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
+		} else
+			return (EINVAL);
+	} else
+		fw_mode = 0;
 
-	if (p->rateunit == SCHED_CLASS_RATEUNIT_BITS)
-		fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
-	else if (p->rateunit == SCHED_CLASS_RATEUNIT_PKTS)
-		fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
-	else
+	/* Valid channel must always be provided. */
+	if (p->channel < 0)
 		return (EINVAL);
-
-	if (p->ratemode == SCHED_CLASS_RATEMODE_REL)
-		fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
-	else if (p->ratemode == SCHED_CLASS_RATEMODE_ABS)
-		fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
-	else
-		return (EINVAL);
-
-	/* Vet our parameters ... */
 	if (!in_range(p->channel, 0, sc->chip_params->nchan - 1))
 		return (ERANGE);
 
@@ -117,41 +110,81 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	MPASS(pi->tx_chan == p->channel);
 	top_speed = port_top_speed(pi) * 1000000; /* Gbps -> Kbps */
 
-	if (!in_range(p->cl, 0, sc->chip_params->nsched_cls) ||
-	    !in_range(p->minrate, 0, top_speed) ||
-	    !in_range(p->maxrate, 0, top_speed) ||
-	    !in_range(p->weight, 0, 100))
-		return (ERANGE);
+	if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
+	    p->level == SCHED_CLASS_LEVEL_CH_RL) {
+		/*
+		 * Valid rate (mode, unit and values) must be provided.
+		 */
 
-	/*
-	 * Translate any unset parameters into the firmware's
-	 * nomenclature and/or fail the call if the parameters
-	 * are required ...
-	 */
-	if (p->rateunit < 0 || p->ratemode < 0 || p->channel < 0 || p->cl < 0)
-		return (EINVAL);
+		if (p->minrate < 0)
+			p->minrate = 0;
+		if (p->maxrate < 0)
+			return (EINVAL);
 
-	if (p->minrate < 0)
-		p->minrate = 0;
-	if (p->maxrate < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
-		    p->level == SCHED_CLASS_LEVEL_CH_RL)
+		if (p->rateunit == SCHED_CLASS_RATEUNIT_BITS) {
+			fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
+			/* ratemode could be relative (%) or absolute. */
+			if (p->ratemode == SCHED_CLASS_RATEMODE_REL) {
+				fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
+				/* maxrate is % of port bandwidth. */
+				if (!in_range(p->minrate, 0, 100) ||
+				    !in_range(p->maxrate, 0, 100)) {
+					return (ERANGE);
+				}
+			} else if (p->ratemode == SCHED_CLASS_RATEMODE_ABS) {
+				fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
+				/* maxrate is absolute value in kbps. */
+				if (!in_range(p->minrate, 0, top_speed) ||
+				    !in_range(p->maxrate, 0, top_speed)) {
+					return (ERANGE);
+				}
+			} else
+				return (EINVAL);
+		} else if (p->rateunit == SCHED_CLASS_RATEUNIT_PKTS) {
+			/* maxrate is the absolute value in pps. */
+			check_pktsize = true;
+			fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
+		} else
 			return (EINVAL);
-		else
-			p->maxrate = 0;
+
+		if (p->level == SCHED_CLASS_LEVEL_CL_RL) {
+			/*
+			 * Valid pkt-size must be provided.
+			 */
+			if (p->pktsize < 0)
+				return (EINVAL);
+		}
+	} else {
+		MPASS(p->level == SCHED_CLASS_LEVEL_CL_WRR);
+
+		/*
+		 * Valid weight must be provided.
+		 */
+		if (p->weight < 0)
+		       return (EINVAL);
+		if (!in_range(p->weight, 1, 99))
+			return (ERANGE);
+
+		fw_rateunit = 0;
+		fw_ratemode = 0;
 	}
-	if (p->weight < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_WRR)
+
+	if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
+	    p->level == SCHED_CLASS_LEVEL_CL_WRR) {
+		/*
+		 * Valid scheduling class must be provided.
+		 */
+		if (p->cl < 0)
 			return (EINVAL);
-		else
-			p->weight = 0;
+		if (!in_range(p->cl, 0, sc->chip_params->nsched_cls - 1))
+			return (ERANGE);
 	}
-	if (p->pktsize < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
-		    p->level == SCHED_CLASS_LEVEL_CH_RL)
+
+	if (check_pktsize) {
+		if (p->pktsize < 0)
 			return (EINVAL);
-		else
-			p->pktsize = 0;
+		if (!in_range(p->pktsize, 64, pi->vi[0].ifp->if_mtu))
+			return (ERANGE);
 	}
 
 	rc = begin_synchronized_op(sc, NULL,
