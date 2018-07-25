@@ -58,6 +58,27 @@ be_active_path(libbe_handle_t *lbh)
 	return (lbh->rootfs);
 }
 
+/*
+ * Returns the name of the next active boot environment
+ */
+const char *
+be_nextboot_name(libbe_handle_t *lbh)
+{
+
+	return (strrchr(lbh->bootfs, '/') + sizeof(char));
+}
+
+
+/*
+ * Returns full path of the active boot environment
+ */
+const char *
+be_nextboot_path(libbe_handle_t *lbh)
+{
+
+	return (lbh->bootfs);
+}
+
 
 /*
  * Returns the path of the boot environment root dataset
@@ -157,7 +178,8 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	    NULL, NULL, 0, 1))
 		nvlist_add_string(props, "referenced", buf);
 
-	/* XXX TODO: Add bootfs info */
+	nvlist_add_boolean_value(props, "nextboot",
+	    (strcmp(be_nextboot_path(lbh), dataset) == 0));
 
 	nvlist_add_nvlist(data->list, name, props);
 

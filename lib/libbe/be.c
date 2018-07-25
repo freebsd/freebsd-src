@@ -138,6 +138,9 @@ libbe_init(void)
 
 	zfs_iter_filesystems(rootds, be_locate_rootfs, lbh);
 	zfs_close(rootds);
+	rootds = NULL;
+	if (lbh->rootfs == NULL)
+		goto err;
 
 	return (lbh);
 err:
