@@ -143,7 +143,11 @@ struct tb_regulator {
 #define	ALTRQ_PURGE		1	/* purge all packets */
 
 #define	ALTQ_IS_READY(ifq)		((ifq)->altq_flags & ALTQF_READY)
+#ifdef ALTQ
 #define	ALTQ_IS_ENABLED(ifq)		((ifq)->altq_flags & ALTQF_ENABLED)
+#else
+#define	ALTQ_IS_ENABLED(ifq)		0
+#endif
 #define	ALTQ_NEEDS_CLASSIFY(ifq)	((ifq)->altq_flags & ALTQF_CLASSIFY)
 #define	ALTQ_IS_CNDTNING(ifq)		((ifq)->altq_flags & ALTQF_CNDTNING)
 
