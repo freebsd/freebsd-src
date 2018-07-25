@@ -321,9 +321,8 @@ __DEFAULT_NO_OPTIONS+=LLDB
 BROKEN_OPTIONS+=LLDB
 .endif
 # GDB in base is generally less functional than GDB in ports.  Ports GDB
-# does not yet contain kernel support for arm, and sparc64 kernel support
-# has not been tested.
-.if ${__T:Marm*} != "" || ${__T} == "sparc64"
+# sparc64 kernel support has not been tested.
+.if ${__T} == "sparc64"
 __DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
 .else
 __DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
