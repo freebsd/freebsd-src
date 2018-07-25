@@ -146,14 +146,6 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 			fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
 		} else
 			return (EINVAL);
-
-		if (p->level == SCHED_CLASS_LEVEL_CL_RL) {
-			/*
-			 * Valid pkt-size must be provided.
-			 */
-			if (p->pktsize < 0)
-				return (EINVAL);
-		}
 	} else {
 		MPASS(p->level == SCHED_CLASS_LEVEL_CL_WRR);
 
