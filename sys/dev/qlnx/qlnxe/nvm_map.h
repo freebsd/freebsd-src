@@ -41,6 +41,8 @@
 
 #define CRC_MAGIC_VALUE                     0xDEBB20E3
 #define CRC32_POLYNOMIAL                    0xEDB88320
+#define _KB(x) (x*1024)
+#define _MB(x) (_KB(x)*1024)
 #define NVM_CRC_SIZE				(sizeof(u32))
 enum nvm_sw_arbitrator {
 	NVM_SW_ARB_HOST,
@@ -109,6 +111,12 @@ enum nvm_image_type {
 	NVM_TYPE_8485X_PHY_FW = 0x23,
 	NVM_TYPE_PUB_KEY    = 0x24,
 	NVM_TYPE_RECOVERY   = 0x25,
+	NVM_TYPE_PLDM       = 0x26,
+	NVM_TYPE_UPK1       = 0x27,
+	NVM_TYPE_UPK2       = 0x28,
+	NVM_TYPE_MASTER_KC  = 0x29,
+	NVM_TYPE_BACKUP_KC  = 0x2a,
+	NVM_TYPE_ROM_TEST   = 0xf0,
 	NVM_TYPE_MAX,
 };
 
@@ -154,7 +162,13 @@ struct image_map g_image_table[] = {
 	{"ETH_PHY_FW2", "-ethphy2", NVM_TYPE_ETH_PHY_FW2},
 	{"BDN",         "-bdn",     NVM_TYPE_BDN},
 	{"PK",          "-pk",      NVM_TYPE_PUB_KEY},
-	{"RECOVERY",    "-recovery",NVM_TYPE_RECOVERY}
+	{"RECOVERY",    "-recovery",NVM_TYPE_RECOVERY},
+	{"PLDM",        "-pldm",    NVM_TYPE_PLDM},
+	{"UPK1",        "-upk1",    NVM_TYPE_UPK1},
+	{"UPK2",        "-upk2",    NVM_TYPE_UPK2},
+	{"ROMTEST",     "-romtest" ,NVM_TYPE_ROM_TEST},
+	{"MASTER_KC",	"-kc" 	   ,NVM_TYPE_MASTER_KC},
+	{"BACKUP_KC",	"" 	   ,NVM_TYPE_BACKUP_KC}
 };
 
 #define IMAGE_TABLE_SIZE (sizeof(g_image_table) / sizeof(struct image_map))
@@ -163,7 +177,14 @@ struct image_map g_image_table[] = {
 #define MAX_NVM_DIR_ENTRIES 150
 /* Note: The has given 150 possible entries since anyway each file captures at least one page. */
 
-struct nvm_dir { 
+struct nvm_dir_meta {
+	u32 dir_id;
+	u32 nvm_dir_addr;
+	u32 num_images;
+	u32 next_mfw_to_run;
+};
+
+struct nvm_dir {
 	s32 seq; /* This dword is used to indicate whether this dir is valid, and whether it is more updated than the other dir */
 #define NVM_DIR_NEXT_MFW_MASK	0x00000001
 #define NVM_DIR_SEQ_MASK	0xfffffffe
@@ -201,8 +222,10 @@ struct nvm_vpd_image {
 
 #define FLASH_PAGE_SIZE 0x1000
 #define NVM_DIR_MAX_SIZE    (FLASH_PAGE_SIZE) 		/* 4Kb */
-#define ASIC_MIM_MAX_SIZE   (300*FLASH_PAGE_SIZE)	/* 1.2Mb */
-#define FPGA_MIM_MAX_SIZE   (62*FLASH_PAGE_SIZE)	/* 250Kb */
+#define LEGACY_ASIC_MIM_MAX_SIZE  	(_KB(1200))	/* 1.2Mb - E4*/
+#define NG_ASIC_MIM_MAX_SIZE		(_MB(2))	/* 2Mb - E5 */
+
+#define FPGA_MIM_MAX_SIZE   (0x3E000)			/* 250Kb */
 
 /* Each image must start on its own page. Bootstrap and LIM are bound together, so they can share the same page.
  * The LIM itself should be very small, so limit it to 8Kb, but in order to open a new page, we decrement the bootstrap size out of it.
@@ -210,48 +233,53 @@ struct nvm_vpd_image {
 #define LIM_MAX_SIZE	    ((2*FLASH_PAGE_SIZE) - sizeof(struct legacy_bootstrap_region) - NVM_RSV_SIZE)
 #define LIM_OFFSET          (NVM_OFFSET(lim_image))
 #define NVM_RSV_SIZE		(44)
-#define MIM_MAX_SIZE(is_asic) ((is_asic) ? ASIC_MIM_MAX_SIZE : FPGA_MIM_MAX_SIZE )
-#define MIM_OFFSET(idx, is_asic) (NVM_OFFSET(dir[MAX_MFW_BUNDLES]) + ((idx == NVM_TYPE_MIM2) ? MIM_MAX_SIZE(is_asic) : 0))
-#define NVM_FIXED_AREA_SIZE(is_asic) (sizeof(struct nvm_image) + MIM_MAX_SIZE(is_asic)*2)
+#define GET_MIM_MAX_SIZE(is_asic, is_e4) ((!is_asic) ? FPGA_MIM_MAX_SIZE : ((is_e4) ?  LEGACY_ASIC_MIM_MAX_SIZE : NG_ASIC_MIM_MAX_SIZE))
+#define GET_MIM_OFFSET(idx, is_asic, is_e4) (NVM_OFFSET(dir[MAX_MFW_BUNDLES]) + ((idx == NVM_TYPE_MIM2) ?GET_MIM_MAX_SIZE(is_asic, is_e4) : 0))
+#define GET_NVM_FIXED_AREA_SIZE(is_asic, is_e4) (sizeof(struct nvm_image) + GET_MIM_MAX_SIZE(is_asic, is_e4)*2)
+
+#define EMUL_NVM_FIXED_AREA_SIZE() (sizeof(struct nvm_image) + GET_MIM_MAX_SIZE(0, 0))
+
+#define E5_MASTER_KEY_CHAIN_ADDR 0x1000
+#define E5_BACKUP_KEY_CHAIN_ADDR ((0x20000 << (REG_READ(0, MCP_REG_NVM_CFG4) & 0x7)) - 0x1000)
 
 union nvm_dir_union {
 	struct nvm_dir dir;
 	u8 page[FLASH_PAGE_SIZE];
 };
 
-/*                        Address
- *  +-------------------+ 0x000000
- *  |    Bootstrap:     |
- *  | magic_number      |
- *  | sram_start_addr   |
- *  | code_len  	|
- *  | code_start_addr   |
- *  | crc               |
- *  +-------------------+ 0x000014
- *  | rsrv              |
- *  +-------------------+ 0x000040
- *  | LIM               |
- *  +-------------------+ 0x002000
- *  | Dir1              |
- *  +-------------------+ 0x003000
- *  | Dir2              |
- *  +-------------------+ 0x004000
- *  | MIM1              |
- *  +-------------------+ 0x130000
- *  | MIM2              |
- *  +-------------------+ 0x25C000
- *  | Rest Images:      |
- *  | TIM1/2    	|
- *  | MFW_TRACE1/2      |
- *  | Eagle/Falcon FW   |
- *  | PCIE/AVS FW       |
- *  | MBA/CCM/L2B       |
- *  | VPD       	|
- *  | optic_modules     |
- *  |  ...              |
- *  +-------------------+ 0x400000
-*/
-struct nvm_image {
+/*          E4            Address                                 E5            Address  
+ *  +-------------------+ 0x000000                     *  +-------------------+ 0x000000                 
+ *  |    Bootstrap:     |                              *  |                   |                          
+ *  | magic_number      |                              *  |                   |                          
+ *  | sram_start_addr   |                              *  |                   |                          
+ *  | code_len  	|                              *  |                   |                          
+ *  | code_start_addr   |                              *  |                   |                          
+ *  | crc               |                              *  |                   |                          
+ *  +-------------------+ 0x000014                     *  |                   |                          
+ *  | rsrv              |                              *  | rsrv              |                          
+ *  +-------------------+ 0x000040                     *  +-------------------+ 0x001000                 
+ *  | LIM               |                              *  | Master Key Chain  |                          
+ *  +-------------------+ 0x002000                     *  +-------------------+ 0x002000                 
+ *  | Dir1              |                              *  | Dir1              |                          
+ *  +-------------------+ 0x003000                     *  +-------------------+ 0x003000                 
+ *  | Dir2              |                              *  | Dir2              |                          
+ *  +-------------------+ 0x004000                     *  +-------------------+ 0x004000                 
+ *  | MIM1              |                              *  | MIM1              |                          
+ *  +-------------------+ 0x130000                     *  +-------------------+ 0x130000                 
+ *  | MIM2              |                              *  | MIM2              |                          
+ *  +-------------------+ 0x25C000                     *  +-------------------+ 0x25C000                 
+ *  | Rest Images:      |                              *  | Rest Images:      |                          
+ *  | TIM1/2    	|                              *  | TIM1/2            |                          
+ *  | MFW_TRACE1/2      |                              *  | MFW_TRACE1/2      |                          
+ *  | Eagle/Falcon FW   |                              *  | Eagle/Falcon FW   |                          
+ *  | PCIE/AVS FW       |                              *  | PCIE/AVS FW       |                          
+ *  | MBA/CCM/L2B       |                              *  | MBA/CCM/L2B       |                          
+ *  | VPD       	|                              *  | VPD               |                          
+ *  | optic_modules     |                              *  +-------------------+ Flash end - 0x1000       
+ *  |  ...              |                              *  | Backup Key Chain  |                          
+ *  +-------------------+ 0x400000                     *  +-------------------+ Flash end                
+*/                                                                                                       
+struct nvm_image {                                                                                       
 /*********** !!!  FIXED SECTIONS  !!! DO NOT MODIFY !!! **********************/
 						/* NVM Offset  (size) */
 	struct legacy_bootstrap_region bootstrap;	/* 0x000000 (0x000014) */
@@ -264,6 +292,7 @@ struct nvm_image {
 };				/* 0x134 */
 
 #define NVM_OFFSET(f)       ((u32_t)((int_ptr_t)(&(((struct nvm_image*)0)->f))))
+
 
 struct hw_set_info {
 	u32 reg_type;
