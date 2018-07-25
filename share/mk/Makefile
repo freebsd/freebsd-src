@@ -23,6 +23,7 @@ FILES=	\
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
+	bsd.dirs.mk \
 	bsd.doc.mk \
 	bsd.dtb.mk \
 	bsd.endian.mk \
