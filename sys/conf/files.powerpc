@@ -43,6 +43,7 @@ dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
+dev/ipmi/ipmi_opal.c		optional	powernv ipmi
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/nand/nfc_rb.c		optional	nand mpc85xx
 # Most ofw stuff below is brought in by conf/files for options FDT, but
@@ -192,7 +193,6 @@ powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
-powerpc/powernv/opal_ipmi.c	optional	powernv ipmi
 powerpc/powernv/opal_pci.c	optional	powernv pci
 powerpc/powernv/opal_sensor.c	optional	powernv
 powerpc/powernv/opalcall.S	optional	powernv
