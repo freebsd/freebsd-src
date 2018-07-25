@@ -41,18 +41,18 @@
 #include <sys/nv.h>
 #include <be.h>
 
-static int be_cmd_activate(int argc, char *argv[]);
-static int be_cmd_create(int argc, char *argv[]);
-static int be_cmd_destroy(int argc, char *argv[]);
-static int be_cmd_export(int argc, char *argv[]);
-static int be_cmd_import(int argc, char *argv[]);
-static int be_cmd_add(int argc, char *argv[]);
-static int be_cmd_jail(int argc, char *argv[]);
-static int be_cmd_list(int argc, char *argv[]);
-static int be_cmd_mount(int argc, char *argv[]);
-static int be_cmd_rename(int argc, char *argv[]);
-static int be_cmd_unjail(int argc, char *argv[]);
-static int be_cmd_unmount(int argc, char *argv[]);
+static int bectl_cmd_activate(int argc, char *argv[]);
+static int bectl_cmd_create(int argc, char *argv[]);
+static int bectl_cmd_destroy(int argc, char *argv[]);
+static int bectl_cmd_export(int argc, char *argv[]);
+static int bectl_cmd_import(int argc, char *argv[]);
+static int bectl_cmd_add(int argc, char *argv[]);
+static int bectl_cmd_jail(int argc, char *argv[]);
+static int bectl_cmd_list(int argc, char *argv[]);
+static int bectl_cmd_mount(int argc, char *argv[]);
+static int bectl_cmd_rename(int argc, char *argv[]);
+static int bectl_cmd_unjail(int argc, char *argv[]);
+static int bectl_cmd_unmount(int argc, char *argv[]);
 
 libbe_handle_t *be;
 
@@ -62,20 +62,20 @@ usage(bool explicit)
 	FILE *fp = explicit ? stdout : stderr;
 
 	fprintf(fp,
-	    "usage:\tbe ( -h | -? | subcommand [args...] )\n"
-	    "\tbe activate [-t] beName\n"
-	    "\tbe create [-e nonActiveBe | -e beName@snapshot] beName\n"
-	    "\tbe create beName@snapshot\n"
-	    "\tbe destroy [-F] beName | beName@snapshot⟩\n"
-	    "\tbe export sourceBe\n"
-	    "\tbe import targetBe\n"
-	    "\tbe add (path)*\n"
-	    "\tbe jail bootenv\n"
-	    "\tbe list [-a] [-D] [-H] [-s]\n"
-	    "\tbe mount beName [mountpoint]\n"
-	    "\tbe rename origBeName newBeName\n"
-	    "\tbe { ujail | unjail } ⟨jailID | jailName⟩ bootenv\n"
-	    "\tbe { umount | unmount } [-f] beName\n");
+	    "usage:\tbectl ( -h | -? | subcommand [args...] )\n"
+	    "\tbectl activate [-t] beName\n"
+	    "\tbectl create [-e nonActiveBe | -e beName@snapshot] beName\n"
+	    "\tbectl create beName@snapshot\n"
+	    "\tbectl destroy [-F] beName | beName@snapshot⟩\n"
+	    "\tbectl export sourceBe\n"
+	    "\tbectl import targetBe\n"
+	    "\tbectl add (path)*\n"
+	    "\tbectl jail bootenv\n"
+	    "\tbectl list [-a] [-D] [-H] [-s]\n"
+	    "\tbectl mount beName [mountpoint]\n"
+	    "\tbectl rename origBeName newBeName\n"
+	    "\tbectl { ujail | unjail } ⟨jailID | jailName⟩ bootenv\n"
+	    "\tbectl { umount | unmount } [-f] beName\n");
 
 	return (explicit ? 0 : EX_USAGE);
 }
@@ -92,18 +92,18 @@ struct command_map_entry {
 
 static struct command_map_entry command_map[] =
 {
-	{ "activate", be_cmd_activate },
-	{ "create",   be_cmd_create   },
-	{ "destroy",  be_cmd_destroy  },
-	{ "export",   be_cmd_export   },
-	{ "import",   be_cmd_import   },
-	{ "add",      be_cmd_add      },
-	{ "jail",     be_cmd_jail     },
-	{ "list",     be_cmd_list     },
-	{ "mount",    be_cmd_mount    },
-	{ "rename",   be_cmd_rename   },
-	{ "unjail",   be_cmd_unjail   },
-	{ "unmount",  be_cmd_unmount  },
+	{ "activate", bectl_cmd_activate },
+	{ "create",   bectl_cmd_create   },
+	{ "destroy",  bectl_cmd_destroy  },
+	{ "export",   bectl_cmd_export   },
+	{ "import",   bectl_cmd_import   },
+	{ "add",      bectl_cmd_add      },
+	{ "jail",     bectl_cmd_jail     },
+	{ "list",     bectl_cmd_list     },
+	{ "mount",    bectl_cmd_mount    },
+	{ "rename",   bectl_cmd_rename   },
+	{ "unjail",   bectl_cmd_unjail   },
+	{ "unmount",  bectl_cmd_unmount  },
 };
 
 static int
@@ -123,7 +123,7 @@ get_cmd_index(char *cmd, int *index)
 
 
 static int
-be_cmd_activate(int argc, char *argv[])
+bectl_cmd_activate(int argc, char *argv[])
 {
 	int err, opt;
 	bool temp;
@@ -171,7 +171,7 @@ be_cmd_activate(int argc, char *argv[])
 // TODO: when only one arg is given, and it contains an "@" the this should
 // create that snapshot
 static int
-be_cmd_create(int argc, char *argv[])
+bectl_cmd_create(int argc, char *argv[])
 {
 	int err, opt;
 	char *snapname;
@@ -244,7 +244,7 @@ be_cmd_create(int argc, char *argv[])
 
 
 static int
-be_cmd_export(int argc, char *argv[])
+bectl_cmd_export(int argc, char *argv[])
 {
 	int opt;
 	char *bootenv;
@@ -274,7 +274,7 @@ be_cmd_export(int argc, char *argv[])
 
 
 static int
-be_cmd_import(int argc, char *argv[])
+bectl_cmd_import(int argc, char *argv[])
 {
 	char *bootenv;
 	int err;
@@ -305,7 +305,7 @@ be_cmd_import(int argc, char *argv[])
 
 
 static int
-be_cmd_add(int argc, char *argv[])
+bectl_cmd_add(int argc, char *argv[])
 {
 	char *bootenv;
 
@@ -325,7 +325,7 @@ be_cmd_add(int argc, char *argv[])
 
 
 static int
-be_cmd_destroy(int argc, char *argv[])
+bectl_cmd_destroy(int argc, char *argv[])
 {
 	int opt, err;
 	bool force;
@@ -361,7 +361,7 @@ be_cmd_destroy(int argc, char *argv[])
 
 
 static int
-be_cmd_jail(int argc, char *argv[])
+bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv;
 	char mnt_loc[BE_MAXPATHLEN];
@@ -417,7 +417,7 @@ be_cmd_jail(int argc, char *argv[])
 
 
 static int
-be_cmd_list(int argc, char *argv[])
+bectl_cmd_list(int argc, char *argv[])
 {
 	int opt;
 	bool show_all_datasets, show_space, hide_headers, show_snaps;
@@ -460,7 +460,7 @@ be_cmd_list(int argc, char *argv[])
 
 
 static int
-be_cmd_mount(int argc, char *argv[])
+bectl_cmd_mount(int argc, char *argv[])
 {
 	int err;
 	char result_loc[BE_MAXPATHLEN];
@@ -499,7 +499,7 @@ be_cmd_mount(int argc, char *argv[])
 
 
 static int
-be_cmd_rename(int argc, char *argv[])
+bectl_cmd_rename(int argc, char *argv[])
 {
 	char *src;
 	char *dest;
@@ -533,7 +533,7 @@ be_cmd_rename(int argc, char *argv[])
 
 
 static int
-be_cmd_unjail(int argc, char *argv[])
+bectl_cmd_unjail(int argc, char *argv[])
 {
 	int opt;
 	char *cmd, *target;
@@ -572,7 +572,7 @@ be_cmd_unjail(int argc, char *argv[])
 
 
 static int
-be_cmd_unmount(int argc, char *argv[])
+bectl_cmd_unmount(int argc, char *argv[])
 {
 	int err, flags, opt;
 	char *cmd, *bootenv;
