@@ -31,7 +31,8 @@ __FBSDID("$FreeBSD$");
  * double fabs(double)
  */
 ENTRY(fabs)
-	efdabs	%r3,%r3
+	/* arg is split in two words, clear sign bit only, in r3. */
+	clrlwi	%r3,%r3,1
 	blr
 END(fabs)
 
