@@ -8612,34 +8612,35 @@ sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 	tc = sc->port[port_id]->sched_params->cl_rl[i];
 	mtx_unlock(&sc->tc_lock);
 
-	if (tc.flags & TX_CLRL_ERROR) {
-		sbuf_printf(sb, "error");
-		goto done;
-	}
-
-	if (tc.ratemode == SCHED_CLASS_RATEMODE_REL) {
-		/* XXX: top speed or actual link speed? */
-		gbps = port_top_speed(sc->port[port_id]);
-		sbuf_printf(sb, " %u%% of %uGbps", tc.maxrate, gbps);
-	} else if (tc.ratemode == SCHED_CLASS_RATEMODE_ABS) {
-		switch (tc.rateunit) {
-		case SCHED_CLASS_RATEUNIT_BITS:
+	switch (tc.rateunit) {
+	case SCHED_CLASS_RATEUNIT_BITS:
+		switch (tc.ratemode) {
+		case SCHED_CLASS_RATEMODE_REL:
+			/* XXX: top speed or actual link speed? */
+			gbps = port_top_speed(sc->port[port_id]);
+			sbuf_printf(sb, "%u%% of %uGbps", tc.maxrate, gbps);
+			break;
+		case SCHED_CLASS_RATEMODE_ABS:
 			mbps = tc.maxrate / 1000;
 			gbps = tc.maxrate / 1000000;
 			if (tc.maxrate == gbps * 1000000)
-				sbuf_printf(sb, " %uGbps", gbps);
+				sbuf_printf(sb, "%uGbps", gbps);
 			else if (tc.maxrate == mbps * 1000)
-				sbuf_printf(sb, " %uMbps", mbps);
+				sbuf_printf(sb, "%uMbps", mbps);
 			else
-				sbuf_printf(sb, " %uKbps", tc.maxrate);
-			break;
-		case SCHED_CLASS_RATEUNIT_PKTS:
-			sbuf_printf(sb, " %upps", tc.maxrate);
+				sbuf_printf(sb, "%uKbps", tc.maxrate);
 			break;
 		default:
 			rc = ENXIO;
 			goto done;
 		}
+		break;
+	case SCHED_CLASS_RATEUNIT_PKTS:
+		sbuf_printf(sb, "%upps", tc.maxrate);
+		break;
+	default:
+		rc = ENXIO;
+		goto done;
 	}
 
 	switch (tc.mode) {
