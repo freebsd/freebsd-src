@@ -296,8 +296,6 @@ distribution:
 		${INSTALL_SYMLINK} mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
-	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
-	    ${DESTDIR}/etc/dumpdates
 .if ${MK_LOCATE} != "no"
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
