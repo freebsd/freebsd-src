@@ -29,14 +29,6 @@
 #include "be.h"
 #include "be_impl.h"
 
-typedef struct prop_data {
-	nvlist_t *list;
-	libbe_handle_t *lbh;
-} prop_data_t;
-
-static int prop_list_builder_cb(zfs_handle_t *, void *);
-static int prop_list_builder(prop_data_t *);
-
 /*
  * Returns the name of the active boot environment
  */
@@ -111,7 +103,7 @@ be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
  * the bootenv root, populate an nvlist_t of its relevant properties.
  * TODO: should any other properties be included?
  */
-static int
+int
 prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 {
 	char buf[512], *mountpoint;
@@ -189,7 +181,7 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
  * XXX TODO: ensure that this is always consistent (run after adds, deletes,
  *       renames,etc
  */
-static int
+int
 prop_list_builder(prop_data_t *data)
 {
 	zfs_handle_t *root_hdl;

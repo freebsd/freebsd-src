@@ -29,6 +29,69 @@
 #include "be.h"
 #include "be_impl.h"
 
+struct be_mountcheck_info {
+	const char *path;
+	char *name;
+};
+
+static int
+be_mountcheck_cb(zfs_handle_t *zfs_hdl, void *data)
+{
+	struct be_mountcheck_info *info;
+	char *mountpoint;
+
+	if (data == NULL)
+		return (1);
+	info = (struct be_mountcheck_info *)data;
+	if (!zfs_is_mounted(zfs_hdl, &mountpoint))
+		return (0);
+	if (strcmp(mountpoint, info->path) == 0) {
+		info->name = strdup(zfs_get_name(zfs_hdl));
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * usage
+ */
+int
+be_mounted_at(libbe_handle_t *lbh, const char *path, nvlist_t *details)
+{
+	char be[BE_MAXPATHLEN + 1];
+	zfs_handle_t *root_hdl;
+	struct be_mountcheck_info info;
+	prop_data_t propinfo;
+
+	bzero(&be, BE_MAXPATHLEN + 1);
+	if ((root_hdl = zfs_open(lbh->lzh, lbh->root,
+	    ZFS_TYPE_FILESYSTEM)) == NULL)
+		return (BE_ERR_ZFSOPEN);
+
+	info.path = path;
+	info.name = NULL;
+	zfs_iter_filesystems(root_hdl, be_mountcheck_cb, &info);
+	zfs_close(root_hdl);
+
+	if (info.name != NULL) {
+		if (details != NULL) {
+			if ((root_hdl = zfs_open(lbh->lzh, lbh->root,
+			    ZFS_TYPE_FILESYSTEM)) == NULL) {
+				free(info.name);
+				return (BE_ERR_ZFSOPEN);
+			}
+
+			propinfo.lbh = lbh;
+			propinfo.list = details;
+			prop_list_builder_cb(root_hdl, &propinfo);
+			zfs_close(root_hdl);
+		}
+		free(info.name);
+		return (0);
+	}
+	return (1);
+}
+
 /*
  * usage
  */

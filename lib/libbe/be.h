@@ -98,6 +98,7 @@ typedef enum {
 
 int be_mount(libbe_handle_t *, char *, char *, int, char *);
 int be_unmount(libbe_handle_t *, char *, int);
+int be_mounted_at(libbe_handle_t *, const char *path, nvlist_t *);
 
 /* Error related functions: be_error.c */
 int libbe_errno(libbe_handle_t *);
