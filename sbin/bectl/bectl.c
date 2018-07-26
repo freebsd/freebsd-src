@@ -520,7 +520,6 @@ bectl_cmd_list(int argc, char *argv[])
 			printf("%s", buf);
 		}
 
-		// creation
 		printf("\n");
 	}
 	be_prop_list_free(props);
