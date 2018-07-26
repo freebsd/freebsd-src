@@ -619,6 +619,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 	}
 
 	jail_remove(jid);
+	unmount(path, 0);
 
 	return (0);
 }
