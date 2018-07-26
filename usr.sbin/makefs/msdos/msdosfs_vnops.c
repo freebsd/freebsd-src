@@ -230,7 +230,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 					slotoffset = diroff;
 				}
 				if (dep->deName[0] == SLOT_EMPTY) {
-					brelse(bp, 0);
+					brelse(bp);
 					goto notfound;
 				}
 			} else {
@@ -291,7 +291,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 		 * Release the buffer holding the directory cluster just
 		 * searched.
 		 */
-		brelse(bp, 0);
+		brelse(bp);
 	}	/* for (frcn = 0; ; frcn++) */
 
 notfound:
