@@ -30,6 +30,7 @@
 #include <sys/jail.h>
 #include <sys/mount.h>
 #include <errno.h>
+#include <jail.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -50,6 +51,8 @@ static int bectl_cmd_jail(int argc, char *argv[]);
 static int bectl_cmd_list(int argc, char *argv[]);
 static int bectl_cmd_mount(int argc, char *argv[]);
 static int bectl_cmd_rename(int argc, char *argv[]);
+static int bectl_search_jail_paths(const char *mnt);
+static int bectl_locate_jail(const char *ident);
 static int bectl_cmd_unjail(int argc, char *argv[]);
 static int bectl_cmd_unmount(int argc, char *argv[]);
 
@@ -74,7 +77,7 @@ usage(bool explicit)
 	    "\tbectl list [-a] [-D] [-H] [-s]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
-	    "\tbectl { ujail | unjail } ⟨jailID | jailName⟩ bootenv\n"
+	    "\tbectl { ujail | unjail } ⟨jailID | jailName | bootenv)\n"
 	    "\tbectl { umount | unmount } [-f] beName\n");
 
 	return (explicit ? 0 : EX_USAGE);
@@ -447,7 +450,6 @@ bectl_cmd_list(int argc, char *argv[])
 		return (usage(false));
 	}
 
-
 	if (be_prop_list_alloc(&props) != 0) {
 		fprintf(stderr, "bectl list: failed to allocate prop nvlist\n");
 		return (1);
@@ -534,41 +536,100 @@ bectl_cmd_rename(int argc, char *argv[])
 	return (0);
 }
 
+static int
+bectl_search_jail_paths(const char *mnt)
+{
+	char jailpath[MAXPATHLEN + 1];
+	int jid;
+
+	jid = 0;
+	(void)mnt;
+	while ((jid = jail_getv(0, "lastjid", &jid, "path", &jailpath,
+	    NULL)) != -1) {
+		if (strcmp(jailpath, mnt) == 0)
+			return (jid);
+	}
+
+	return (-1);
+}
+
+/*
+ * Locate a jail based on an arbitrary identifier.  This may be either a name,
+ * a jid, or a BE name.  Returns the jid or -1 on failure.
+ */
+static int
+bectl_locate_jail(const char *ident)
+{
+	nvlist_t *belist, *props;
+	char *mnt;
+	int jid;
+
+	/* Try the easy-match first */
+	jid = jail_getid(ident);
+	if (jid != -1)
+		return (jid);
+
+	/* Attempt to try it as a BE name, first */
+	if (be_prop_list_alloc(&belist) != 0)
+		return (-1);
+
+	if (be_get_bootenv_props(be, belist) != 0)
+		return (-1);
+
+	if (nvlist_lookup_nvlist(belist, ident, &props) == 0) {
+		/* We'll attempt to resolve the jid by way of mountpoint */
+		if (nvlist_lookup_string(props, "mountpoint", &mnt) == 0) {
+			jid = bectl_search_jail_paths(mnt);
+			be_prop_list_free(belist);
+			return (jid);
+		}
+
+		be_prop_list_free(belist);
+	}
+
+	return (-1);
+}
 
 static int
 bectl_cmd_unjail(int argc, char *argv[])
 {
-	char *cmd, *target;
-	int opt;
-	bool force;
+	char path[MAXPATHLEN + 1];
+	char *cmd, *name, *target;
+	int jid;
 
 	/* Store alias used */
 	cmd = argv[0];
 
-	force = false;
-	while ((opt = getopt(argc, argv, "f")) != -1) {
-		switch (opt) {
-		case 'f':
-			force = true;
-			break;
-		default:
-			fprintf(stderr, "bectl %s: unknown option '-%c'\n",
-			    cmd, optopt);
-			return (usage(false));
-		}
-	}
-
-	argc -= optind;
-	argv += optind;
-
-	if (argc != 1) {
+	if (argc != 2) {
 		fprintf(stderr, "bectl %s: wrong number of arguments\n", cmd);
 		return (usage(false));
 	}
 
-	target = argv[0];
+	target = argv[1];
 
-	/* unjail logic goes here */
+	/* Locate the jail */
+	if ((jid = bectl_locate_jail(target)) == -1) {
+		fprintf(stderr, "bectl %s: failed to locate BE by '%s'\n", cmd, target);
+		return (1);
+	}
+
+	bzero(&path, MAXPATHLEN + 1);
+	name = jail_getname(jid);
+	if (jail_getv(0, "name", name, "path", path, NULL) != jid) {
+		free(name);
+		fprintf(stderr, "bectl %s: failed to get path for jail requested by '%s'\n", cmd, target);
+		return (1);
+	}
+
+	free(name);
+
+	if (be_mounted_at(be, path, NULL) != 0) {
+		fprintf(stderr, "bectl %s: jail requested by '%s' not a BE\n", cmd, target);
+		return (1);
+	}
+
+	jail_remove(jid);
+
 	return (0);
 }
 
