@@ -6,6 +6,7 @@ MAN=	bectl.8
 LIBADD+= be
 LIBADD+= jail
 LIBADD+= nvpair
+LIBADD+= util
 
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
 CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris

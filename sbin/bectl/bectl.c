@@ -31,15 +31,23 @@
 #include <sys/mount.h>
 #include <errno.h>
 #include <jail.h>
+#include <libutil.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <be.h>
+
+#define	HEADER_BE		"BE"
+#define	HEADER_ACTIVE	"Active"
+#define	HEADER_MOUNT	"Mountpoint"
+#define	HEADER_SPACE	"Space"
+#define	HEADER_CREATED	"Created"
 
 static int bectl_cmd_activate(int argc, char *argv[]);
 static int bectl_cmd_create(int argc, char *argv[]);
@@ -406,8 +414,14 @@ bectl_cmd_jail(int argc, char *argv[])
 static int
 bectl_cmd_list(int argc, char *argv[])
 {
-	nvlist_t *props;
-	int opt;
+#define	BUFSZ	64
+	nvpair_t *cur;
+	nvlist_t *props, *dsprops;
+	unsigned long long ctimenum, space;
+	size_t be_maxcol;
+	int active_colsz, active_colsz_def, be_colsz, mount_colsz, opt, space_colsz;
+	char buf[BUFSZ], *creation, *mnt, *spacestr;
+	boolean_t active_now, active_reboot;
 	bool show_all_datasets, show_space, hide_headers, show_snaps;
 
 	props = NULL;
@@ -450,10 +464,69 @@ bectl_cmd_list(int argc, char *argv[])
 		return (1);
 	}
 
-	dump_nvlist(props, 0);
+	be_maxcol = strlen(HEADER_BE);
+	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
+	    cur = nvlist_next_nvpair(props, cur)) {
+		be_maxcol = MAX(be_maxcol, strlen(nvpair_name(cur)));
+	}
+
+	be_colsz = -be_maxcol;
+	/* To be made negative after calculating final col sz */
+	active_colsz_def = strlen(HEADER_ACTIVE);
+	mount_colsz = -(int)strlen(HEADER_MOUNT);
+	space_colsz = -(int)strlen(HEADER_SPACE);
+	printf("%*s %s %s %s %s\n", be_colsz, HEADER_BE, HEADER_ACTIVE,
+	    HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
+	buf[5] = '\0';
+	cur = NULL;
+	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
+	    cur = nvlist_next_nvpair(props, cur)) {
+		printf("%*s ", be_colsz, nvpair_name(cur));
+		// NR
+		active_colsz = active_colsz_def;
+		nvpair_value_nvlist(cur, &dsprops);
+		if (nvlist_lookup_boolean_value(dsprops, "active",
+		    &active_now) == 0 && active_now) {
+			printf("N");
+			active_colsz--;
+		}
+		if (nvlist_lookup_boolean_value(dsprops, "nextboot",
+		    &active_reboot) == 0 && active_reboot) {
+			printf("R");
+			active_colsz--;
+		}
+		if (active_colsz == active_colsz_def) {
+			printf("-");
+			active_colsz--;
+		}
+		printf("%*s ", -active_colsz, " ");
+		if (nvlist_lookup_string(dsprops, "mountpoint", &mnt) == 0)
+			printf("%*s ", mount_colsz, mnt);
+		else
+			printf("%*s ", mount_colsz, "-");
+		// used
+		if (nvlist_lookup_string(dsprops, "used", &spacestr) == 0) {
+			space = strtoull(spacestr, NULL, 10);
+			humanize_number(buf, 6, space, "", HN_AUTOSCALE,
+				HN_DECIMAL | HN_NOSPACE | HN_B);
+			printf("%*s ", space_colsz, buf);
+		} else
+			printf("%*s ", space_colsz, "-");
+
+		if (nvlist_lookup_string(dsprops, "creation", &creation) == 0) {
+			ctimenum = strtoull(creation, NULL, 10);
+			strftime(buf, BUFSZ, "%Y-%m-%d %H:%M",
+			    localtime((time_t *)&ctimenum));
+			printf("%s", buf);
+		}
+
+		// creation
+		printf("\n");
+	}
 	be_prop_list_free(props);
 
 	return (0);
+#undef BUFSZ
 }
 
 
