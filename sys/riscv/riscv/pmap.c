@@ -389,6 +389,13 @@ pmap_l3_valid_cacheable(pt_entry_t l3)
 
 #define	PTE_SYNC(pte)	cpu_dcache_wb_range((vm_offset_t)pte, sizeof(*pte))
 
+static inline int
+pmap_page_accessed(pt_entry_t pte)
+{
+
+	return (pte & PTE_A);
+}
+
 /* Checks if the page is dirty. */
 static inline int
 pmap_page_dirty(pt_entry_t pte)
@@ -3176,8 +3183,47 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
+	pt_entry_t *l2, *l3, tpte;
+	vm_paddr_t pa;
+	int val;
+	bool managed;
 
-	panic("RISCVTODO: pmap_mincore");
+	PMAP_LOCK(pmap);
+retry:
+	managed = false;
+	val = 0;
+
+	l2 = pmap_l2(pmap, addr);
+	if (l2 != NULL && ((tpte = pmap_load(l2)) & PTE_V) != 0) {
+		if ((tpte & (PTE_R | PTE_W | PTE_X)) != 0) {
+			pa = PTE_TO_PHYS(tpte) | (addr & L2_OFFSET);
+			val = MINCORE_INCORE | MINCORE_SUPER;
+		} else {
+			l3 = pmap_l2_to_l3(l2, addr);
+			tpte = pmap_load(l3);
+			if ((tpte & PTE_V) == 0)
+				goto done;
+			pa = PTE_TO_PHYS(tpte) | (addr & L3_OFFSET);
+			val = MINCORE_INCORE;
+		}
+
+		if (pmap_page_dirty(tpte))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if (pmap_page_accessed(tpte))
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+		managed = (tpte & PTE_SW_MANAGED) == PTE_SW_MANAGED;
+	}
+
+done:
+	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
+	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) && managed) {
+		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
+		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
+			goto retry;
+	} else
+		PA_UNLOCK_COND(*locked_pa);
+	PMAP_UNLOCK(pmap);
+	return (val);
 }
 
 void
