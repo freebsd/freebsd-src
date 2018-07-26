@@ -356,24 +356,6 @@ t4_init_tx_sched(struct adapter *sc)
 	const int n = sc->chip_params->nsched_cls;
 	struct port_info *pi;
 	struct tx_cl_rl_params *tc;
-	static const uint32_t init_kbps[] = {
-		100 * 1000,
-		200 * 1000,
-		400 * 1000,
-		500 * 1000,
-		800 * 1000,
-		1000 * 1000,
-		1200 * 1000,
-		1500 * 1000,
-		1800 * 1000,
-		2000 * 1000,
-		2500 * 1000,
-		3000 * 1000,
-		3500 * 1000,
-		4000 * 1000,
-		5000 * 1000,
-		10000 * 1000
-	};
 
 	mtx_init(&sc->tc_lock, "tx_sched lock", NULL, MTX_DEF);
 	TASK_INIT(&sc->tc_task, 0, update_tx_sched, sc);
@@ -386,9 +368,8 @@ t4_init_tx_sched(struct adapter *sc)
 			tc->refcount = 0;
 			tc->ratemode = FW_SCHED_PARAMS_RATE_ABS;
 			tc->rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
-			tc->mode = FW_SCHED_PARAMS_MODE_FLOW;
-			tc->maxrate = init_kbps[min(j, nitems(init_kbps) - 1)];
-			tc->pktsize = ETHERMTU;	/* XXX */
+			tc->mode = FW_SCHED_PARAMS_MODE_CLASS;
+			tc->maxrate = 1000 * 1000;	/* 1 Gbps.  Arbitrary */
 
 			if (t4_sched_params_cl_rl_kbps(sc, pi->tx_chan, j,
 			    tc->mode, tc->maxrate, tc->pktsize, 1) == 0)
