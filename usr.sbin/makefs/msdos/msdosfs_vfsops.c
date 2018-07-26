@@ -326,7 +326,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	/*
 	 * Release the bootsector buffer.
 	 */
-	brelse(bp, BC_AGE);
+	brelse(bp);
 	bp = NULL;
 
 	/*
@@ -353,7 +353,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
 		else
 			pmp->pm_fsinfo = 0;
-		brelse(bp, 0);
+		brelse(bp);
 		bp = NULL;
 	}
 
