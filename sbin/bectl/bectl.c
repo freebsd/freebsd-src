@@ -356,8 +356,7 @@ bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv;
 	char mnt_loc[BE_MAXPATHLEN];
-	char buf[BE_MAXPATHLEN*2];
-	int err;
+	int err, jid;
 
 	/* struct jail be_jail = { 0 }; */
 
@@ -376,39 +375,30 @@ bectl_cmd_jail(int argc, char *argv[])
 	 * XXX TODO: if its already mounted, perhaps there should be a flag to
 	 * indicate its okay to proceed??
 	 */
-	if ((err = be_mount(be, bootenv, NULL, 0, mnt_loc)) != BE_ERR_SUCCESS)
+	if ((err = be_mount(be, bootenv, NULL, 0, mnt_loc)) != BE_ERR_SUCCESS) {
 		fprintf(stderr, "could not mount bootenv\n");
+		return (1);
+	}
 
-	/*
-	 * NOTE: this is not quite functional:
-	 * see https://github.com/vermaden/beadm/blob/master/HOWTO.htm on
-	 * neccesary modifications to correctly boot the jail
-	 */
+	/* XXX TODO: Make the IP/hostname configurable? */
+	jid = jail_setv(JAIL_CREATE | JAIL_ATTACH,
+	    "name", bootenv,
+	    "path", mnt_loc,
+	    "host.hostname", bootenv,
+	    "persist", "true",
+	    "ip4.addr", "10.20.30.40",
+	    "allow.mount", "true",
+	    "allow.mount.devfs", "true",
+	    "enforce_statfs", "1",
+	    NULL);
+	if (jid == -1) {
+		fprintf(stderr, "unable to create jail.  error: %d\n", errno);
+		return (1);
+	}
 
-	/*
-	 * snprintf(buf, BE_MAXPATHLEN*2, "jail %s %s %s /bin/sh /etc/rc",
-	 *    mnt_loc, bootenv, "192.168.1.123");
-	 */
-	snprintf(buf, BE_MAXPATHLEN*2, "jail %s %s %s /bin/sh", mnt_loc,
-	    bootenv, "192.168.1.123");
-	system(buf);
-
-	unmount(mnt_loc, 0);
-
-	/*
-	 * be_jail.version = JAIL_API_VERSION;
-	 * be_jail.path = "/tmp/be_mount.hCCk";
-	 * be_jail.jailname = "sdfs";
-	 *
-	 * if ((jid = jail(&be_jail)) != -1) {
-	 *      printf("jail %d created at %s\n", jid, mnt_loc);
-	 *      err = 0;
-	 * } else {
-	 *      fprintf(stderr, "unable to create jail.  error: %d\n", errno);
-	 *      err = errno;
-	 * }
-	 */
-
+	/* We're attached within the jail... good bye! */
+	chdir("/");
+	execl("/bin/sh", "/bin/sh", NULL);
 	return (0);
 }
 
