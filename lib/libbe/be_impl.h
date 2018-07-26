@@ -33,7 +33,6 @@
 
 #include "be.h"
 
-
 struct libbe_handle {
 	libzfs_handle_t *lzh;
 	zpool_handle_t *active_phandle;
@@ -55,6 +54,14 @@ struct libbe_dccb {
 	zfs_handle_t *zhp;
 	nvlist_t *props;
 };
+
+typedef struct prop_data {
+	nvlist_t *list;
+	libbe_handle_t *lbh;
+} prop_data_t;
+
+int prop_list_builder_cb(zfs_handle_t *, void *);
+int prop_list_builder(prop_data_t *);
 
 int set_error(libbe_handle_t *, be_error_t);
 
