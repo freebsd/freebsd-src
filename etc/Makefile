@@ -76,12 +76,6 @@ BSM_ETC_DIR=			${DESTDIR}/etc/security
 BIN1+= amd.map
 .endif
 
-.if ${MACHINE} == "i386"
-.if ${MK_APM} != "no"
-BIN1+= apmd.conf
-.endif
-.endif
-
 .if ${MK_AUTOFS} != "no"
 BIN1+=	auto_master
 .endif
