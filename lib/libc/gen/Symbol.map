@@ -510,6 +510,7 @@ FBSDprivate_1.0 {
 	__opendir2;
 	__pause;
 	_pause;
+	__pw_initpwd;	/* Used by (at least) libutil */
 	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;
