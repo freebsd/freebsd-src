@@ -355,9 +355,14 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 
 	/*
 	 * If there's only one item in the list, then nothing was
-	 * specified.
+	 * specified. Or if the last path doesn't have a media
+	 * path in it. Those show up as various VenHw() nodes
+	 * which are basically opaque to us. Don't count those
+	 * as something specifc.
 	 */
 	if (last_dp == first_dp)
+		return NOT_SPECIFIC;
+	if (efi_devpath_to_media_path(last_dp) == NULL)
 		return NOT_SPECIFIC;
 
 	/*
