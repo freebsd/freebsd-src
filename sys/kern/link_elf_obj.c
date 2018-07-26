@@ -1030,9 +1030,8 @@ link_elf_unload_file(linker_file_t file)
 		free(ef->ctftab, M_LINKER);
 		free(ef->ctfoff, M_LINKER);
 		free(ef->typoff, M_LINKER);
-		if (file->filename != NULL)
-			preload_delete_name(file->filename);
-		/* XXX reclaim module memory? */
+		if (file->pathname != NULL)
+			preload_delete_name(file->pathname);
 		return;
 	}
 
