@@ -4611,6 +4611,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	 * If the page table page is new, initialize it.
 	 */
 	if (ml3->wire_count == 1) {
+		ml3->wire_count = NL3PG;
 		for (i = 0; i < Ln_ENTRIES; i++) {
 			l3[i] = newl3 | phys;
 			phys += L3_SIZE;
