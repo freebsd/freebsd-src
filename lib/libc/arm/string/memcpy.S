@@ -2,8 +2,4 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
-#if !defined(_ARM_ARCH_5E) || defined(_STANDALONE)
 #include "memcpy_arm.S"
-#else
-#include "memcpy_xscale.S"
-#endif

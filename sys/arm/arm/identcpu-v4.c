@@ -65,60 +65,6 @@ static const char * const generic_steppings[16] = {
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
 };
 
-static const char * const xscale_steppings[16] = {
-	"step A-0",	"step A-1",	"step B-0",	"step C-0",
-	"step D-0",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const i80219_steppings[16] = {
-	"step A-0",	"rev 1",	"rev 2",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const i80321_steppings[16] = {
-	"step A-0",	"step B-0",	"rev 2",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const i81342_steppings[16] = {
-	"step A-0",	"rev 1",	"rev 2",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-/* Steppings for PXA2[15]0 */
-static const char * const pxa2x0_steppings[16] = {
-	"step A-0",	"step A-1",	"step B-0",	"step B-1",
-	"step B-2",	"step C-0",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-/* Steppings for PXA255/26x.
- * rev 5: PXA26x B0, rev 6: PXA255 A0
- */
-static const char * const pxa255_steppings[16] = {
-	"rev 0",	"rev 1",	"rev 2",	"step A-0",
-	"rev 4",	"step B-0",	"step A-0",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-/* Stepping for PXA27x */
-static const char * const pxa27x_steppings[16] = {
-	"step A-0",	"step A-1",	"step B-0",	"step B-1",
-	"step C-0",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
 struct cpuidtab {
 	u_int32_t	cpuid;
 	enum		cpu_class cpu_class;
@@ -158,41 +104,6 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_ARM1026EJS,	CPU_CLASS_ARM10EJ,	"ARM1026EJ-S",
 	  generic_steppings },
 
-	{ CPU_ID_80200,		CPU_CLASS_XSCALE,	"i80200",
-	  xscale_steppings },
-
-	{ CPU_ID_80321_400,	CPU_CLASS_XSCALE,	"i80321 400MHz",
-	  i80321_steppings },
-	{ CPU_ID_80321_600,	CPU_CLASS_XSCALE,	"i80321 600MHz",
-	  i80321_steppings },
-	{ CPU_ID_80321_400_B0,	CPU_CLASS_XSCALE,	"i80321 400MHz",
-	  i80321_steppings },
-	{ CPU_ID_80321_600_B0,	CPU_CLASS_XSCALE,	"i80321 600MHz",
-	  i80321_steppings },
-
-	{ CPU_ID_81342,		CPU_CLASS_XSCALE,	"i81342",
-	  i81342_steppings },
-
-	{ CPU_ID_80219_400,	CPU_CLASS_XSCALE,	"i80219 400MHz",
-	  i80219_steppings },
-	{ CPU_ID_80219_600,	CPU_CLASS_XSCALE,	"i80219 600MHz",
-	  i80219_steppings },
-
-	{ CPU_ID_PXA27X,	CPU_CLASS_XSCALE,	"PXA27x",
-	  pxa27x_steppings },
-	{ CPU_ID_PXA250A,	CPU_CLASS_XSCALE,	"PXA250",
-	  pxa2x0_steppings },
-	{ CPU_ID_PXA210A,	CPU_CLASS_XSCALE,	"PXA210",
-	  pxa2x0_steppings },
-	{ CPU_ID_PXA250B,	CPU_CLASS_XSCALE,	"PXA250",
-	  pxa2x0_steppings },
-	{ CPU_ID_PXA210B,	CPU_CLASS_XSCALE,	"PXA210",
-	  pxa2x0_steppings },
-	{ CPU_ID_PXA250C, 	CPU_CLASS_XSCALE,	"PXA255",
-	  pxa255_steppings },
-	{ CPU_ID_PXA210C, 	CPU_CLASS_XSCALE,	"PXA210",
-	  pxa2x0_steppings },
-
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },
 
@@ -214,7 +125,6 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM9EJ-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9EJS */
 	{ "ARM10E",	"CPU_ARM10" },		/* CPU_CLASS_ARM10E */
 	{ "ARM10EJ",	"CPU_ARM10" },		/* CPU_CLASS_ARM10EJ */
-	{ "XScale",	"CPU_XSCALE_..." },	/* CPU_CLASS_XSCALE */
 	{ "Marvell",	"CPU_MARVELL" },	/* CPU_CLASS_MARVELL */
 };
 
@@ -313,13 +223,9 @@ identify_arm_cpu(void)
 	case CPU_CLASS_ARM9EJS:
 	case CPU_CLASS_ARM10E:
 	case CPU_CLASS_ARM10EJ:
-	case CPU_CLASS_XSCALE:
 	case CPU_CLASS_MARVELL:
 		print_enadis(ctrl & CPU_CONTROL_DC_ENABLE, "DC");
 		print_enadis(ctrl & CPU_CONTROL_IC_ENABLE, "IC");
-#ifdef CPU_XSCALE_81342
-		print_enadis(ctrl & CPU_CONTROL_L2_ENABLE, "L2");
-#endif
 #if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 		i = sheeva_control_ext(0, 0);
 		print_enadis(i & MV_WA_ENABLE, "WA");
