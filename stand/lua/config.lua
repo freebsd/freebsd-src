@@ -317,7 +317,7 @@ local function readFile(name, silent)
 end
 
 local function checkNextboot()
-	local nextboot_file = loader.getenv("nextboot_file")
+	local nextboot_file = loader.getenv("nextboot_conf")
 	if nextboot_file == nil then
 		return
 	end
