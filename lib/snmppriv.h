@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,11 +34,13 @@
 
 enum asn_err snmp_binding_encode(struct asn_buf *, const struct snmp_value *);
 enum snmp_code snmp_pdu_encode_header(struct asn_buf *, struct snmp_pdu *);
-enum snmp_code snmp_fix_encoding(struct asn_buf *, const struct snmp_pdu *);
-enum asn_err snmp_parse_message_hdr(struct asn_buf *b, struct snmp_pdu *pdu,
-    asn_len_t *lenp);
+enum snmp_code snmp_fix_encoding(struct asn_buf *, struct snmp_pdu *);
 enum asn_err snmp_parse_pdus_hdr(struct asn_buf *b, struct snmp_pdu *pdu,
     asn_len_t *lenp);
+
+enum snmp_code snmp_pdu_calc_digest(const struct snmp_pdu *, uint8_t *);
+enum snmp_code snmp_pdu_encrypt(const struct snmp_pdu *);
+enum snmp_code snmp_pdu_decrypt(const struct snmp_pdu *);
 
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT "snmp"

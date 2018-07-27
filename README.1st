@@ -1,0 +1,5 @@
+Make the infrastructure:
+
+	libtoolize -c
+	aclocal
+	autoconf

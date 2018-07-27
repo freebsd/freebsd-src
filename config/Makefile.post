@@ -4,15 +4,14 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/config/Makefile.post,v 1.4 2005/10/04 11:21:28 brandt_h Exp $
+# $Begemot: bsnmp/trunk/config/Makefile.post 2117 2015-09-16 14:09:31Z brandt_h $
 #
 
 .SUFFIXES: .lo
 .c.lo:
 	@test -d .deps || mkdir .deps >/dev/null 2>&1
-	$(LIBTOOL) --mode=compile $(CC) -c $(CFLAGS) -o $@ $<
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) -c $(CFLAGS) -o $@ $<
 
-LIBTOOL_DEPS= @LIBTOOL_DEPS@
 $(LIBTOOL): $(LIBTOOL_DEPS)
 	$(SHELL) ../config.status --recheck
 
@@ -76,7 +75,11 @@ INCDIR= $(includedir)/bsnmp
 install-incs:
 	@$(srcdir)/../config/mkinstalldirs $(INCDIR)
 	for f in $(INCS) ; do \
-		$(BSD_INSTALL_DATA) $(srcdir)/$$f $(INCDIR) ; \
+		if [ -r $(builddir)/$$f ] ; then \
+			$(BSD_INSTALL_DATA) $(builddir)/$$f $(INCDIR) ; \
+		else \
+			$(BSD_INSTALL_DATA) $(srcdir)/$$f $(INCDIR) ; \
+		fi ; \
 	done
 
 else

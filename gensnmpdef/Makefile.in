@@ -4,7 +4,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/gensnmpdef/Makefile.in,v 1.2 2004/04/14 09:54:51 novo Exp $
+# $Begemot: bsnmp/trunk/gensnmpdef/Makefile.in 1487 2008-12-23 19:03:33Z brandt_h $
 #
 
 PROG=	gensnmpdef
@@ -15,3 +15,5 @@ CFLAGS+= -I/usr/local/include
 
 $(PROG): $(SRCS:.c=.lo)
 	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -o $@ $(SRCS:.c=.lo) -lsmi
+
+CLEANFILES+= *.1out

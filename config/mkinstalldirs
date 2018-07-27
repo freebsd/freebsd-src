@@ -4,7 +4,7 @@
 # Created: 1993-05-16
 # Public domain
 
-# $Id: mkinstalldirs,v 1.1 1999/06/17 13:26:38 maw Exp $
+# $Begemot: bsnmp/trunk/config/mkinstalldirs 1487 2008-12-23 19:03:33Z brandt_h $
 
 errstatus=0
 

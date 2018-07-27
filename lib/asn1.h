@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -93,7 +93,7 @@ enum asn_err asn_get_header(struct asn_buf *, u_char *, asn_len_t *);
 enum asn_err asn_put_header(struct asn_buf *, u_char, asn_len_t);
 
 enum asn_err asn_put_temp_header(struct asn_buf *, u_char, u_char **);
-enum asn_err asn_commit_header(struct asn_buf *, u_char *);
+enum asn_err asn_commit_header(struct asn_buf *, u_char *, size_t *);
 
 enum asn_err asn_get_integer_raw(struct asn_buf *, asn_len_t, int32_t *);
 enum asn_err asn_get_integer(struct asn_buf *, int32_t *);
@@ -129,6 +129,7 @@ enum asn_err asn_get_timeticks(struct asn_buf *, uint32_t *);
 enum asn_err asn_put_timeticks(struct asn_buf *, uint32_t);
 
 enum asn_err asn_skip(struct asn_buf *, asn_len_t);
+enum asn_err asn_pad(struct asn_buf *, asn_len_t);
 
 /*
  * Utility functions for OIDs

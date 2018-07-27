@@ -4,7 +4,13 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,6 +36,8 @@
  *
  * SNMPd main stuff.
  */
+
+#include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/un.h>
 #include <sys/ucred.h>
@@ -45,7 +53,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <dlfcn.h>
-#include <inttypes.h>
 
 #ifdef USE_TCPWRAPPERS
 #include <arpa/inet.h>
@@ -60,6 +67,7 @@
 
 #define	PATH_PID	"/var/run/%s.pid"
 #define PATH_CONFIG	"/etc/%s.config"
+#define	PATH_ENGINE	"/var/%s.engine"
 
 uint64_t this_tick;	/* start of processing of current packet (absolute) */
 uint64_t start_tick;	/* start of processing */
@@ -87,8 +95,15 @@ struct snmpd snmpd = {
 };
 struct snmpd_stats snmpd_stats;
 
+struct snmpd_usmstat snmpd_usmstats;
+
+/* snmpEngine */
+struct snmp_engine snmpd_engine;
+
 /* snmpSerialNo */
 int32_t snmp_serial_no;
+
+struct snmpd_target_stats snmpd_target_stats;
 
 /* search path for config files */
 const char *syspath = PATH_SYSCONFIG;
@@ -101,6 +116,33 @@ static struct lmodules modules_start = TAILQ_HEAD_INITIALIZER(modules_start);
 
 /* list of all known communities */
 struct community_list community_list = TAILQ_HEAD_INITIALIZER(community_list);
+
+/* list of all known USM users */
+static struct usm_userlist usm_userlist = SLIST_HEAD_INITIALIZER(usm_userlist);
+
+/* A list of all VACM users configured, including v1, v2c and v3 */
+static struct vacm_userlist vacm_userlist =
+    SLIST_HEAD_INITIALIZER(vacm_userlist);
+
+/* A list of all VACM groups */
+static struct vacm_grouplist vacm_grouplist =
+    SLIST_HEAD_INITIALIZER(vacm_grouplist);
+
+static struct vacm_group vacm_default_group = {
+	.groupname = "",
+};
+
+/* The list of configured access entries */
+static struct vacm_accesslist vacm_accesslist =
+    TAILQ_HEAD_INITIALIZER(vacm_accesslist);
+
+/* The list of configured views */
+static struct vacm_viewlist vacm_viewlist =
+    SLIST_HEAD_INITIALIZER(vacm_viewlist);
+
+/* The list of configured contexts */
+static struct vacm_contextlist vacm_contextlist =
+    SLIST_HEAD_INITIALIZER(vacm_contextlist);
 
 /* list of all installed object resources */
 struct objres_list objres_list = TAILQ_HEAD_INITIALIZER(objres_list);
@@ -128,9 +170,13 @@ static int nprogargs;
 u_int	community;
 static struct community *comm;
 
+/* current USM user */
+struct usm_user *usm_user;
+
 /* file names */
 static char config_file[MAXPATHLEN + 1];
 static char pid_file[MAXPATHLEN + 1];
+char engine_file[MAXPATHLEN + 1];
 
 #ifndef USE_LIBBEGEMOT
 /* event context */
@@ -154,6 +200,12 @@ static const struct asn_oid
 
 const struct asn_oid oid_zeroDotZero = { 2, { 0, 0 }};
 
+const struct asn_oid oid_usmUnknownEngineIDs =
+	{ 11, { 1, 3, 6, 1, 6, 3, 15, 1, 1, 4, 0}};
+
+const struct asn_oid oid_usmNotInTimeWindows =
+	{ 11, { 1, 3, 6, 1, 6, 3, 15, 1, 1, 2, 0}};
+
 /* request id generator for traps */
 u_int trap_reqid;
 
@@ -161,13 +213,15 @@ u_int trap_reqid;
 static const char usgtxt[] = "\
 Begemot simple SNMP daemon. Copyright (c) 2001-2002 Fraunhofer Institute for\n\
 Open Communication Systems (FhG Fokus). All rights reserved.\n\
-usage: snmpd [-dh] [-c file] [-D options] [-I path] [-l prefix]\n\
-             [-m variable=value] [-p file]\n\
+Copyright (c) 2010 The FreeBSD Foundation. All rights reserved.\n\
+usage: snmpd [-dh] [-c file] [-D options] [-e file] [-I path]\n\
+             [-l prefix] [-m variable=value] [-p file]\n\
 options:\n\
   -d		don't daemonize\n\
   -h		print this info\n\
   -c file	specify configuration file\n\
   -D options	debugging options\n\
+  -e file	specify engine id file\n\
   -I path	system include path\n\
   -l prefix	default basename for pid and config file\n\
   -m var=val	define variable\n\
@@ -227,12 +281,13 @@ snmp_output(struct snmp_pdu *pdu, u_char *sndbuf, size_t *sndlen,
     const char *dest)
 {
 	struct asn_buf resp_b;
+	enum snmp_code code;
 
 	resp_b.asn_ptr = sndbuf;
 	resp_b.asn_len = snmpd.txbuf;
 
-	if (snmp_pdu_encode(pdu, &resp_b) != 0) {
-		syslog(LOG_ERR, "cannot encode message");
+	if ((code = snmp_pdu_encode(pdu, &resp_b)) != SNMP_CODE_OK) {
+		syslog(LOG_ERR, "cannot encode message (code=%d)", code);
 		abort();
 	}
 	if (debug.dump_pdus) {
@@ -243,7 +298,184 @@ snmp_output(struct snmp_pdu *pdu, u_char *sndbuf, size_t *sndlen,
 }
 
 /*
- * SNMP input. Start: decode the PDU, find the community.
+ * Check USM PDU header credentials against local SNMP Engine & users.
+ */
+static enum snmp_code
+snmp_pdu_auth_user(struct snmp_pdu *pdu)
+{
+	usm_user = NULL;
+
+	/* un-authenticated snmpEngineId discovery */
+	if (pdu->engine.engine_len == 0 && strlen(pdu->user.sec_name) == 0) {
+		pdu->engine.engine_len = snmpd_engine.engine_len;
+		memcpy(pdu->engine.engine_id, snmpd_engine.engine_id,
+		    snmpd_engine.engine_len);
+		update_snmpd_engine_time();
+		pdu->engine.engine_boots = snmpd_engine.engine_boots;
+		pdu->engine.engine_time = snmpd_engine.engine_time;
+		pdu->flags |= SNMP_MSG_AUTODISCOVER;
+		return (SNMP_CODE_OK);
+	}
+
+	if ((usm_user = usm_find_user(pdu->engine.engine_id,
+	    pdu->engine.engine_len, pdu->user.sec_name)) == NULL ||
+	    usm_user->status != 1 /* active */)
+		return (SNMP_CODE_BADUSER);
+
+	if (usm_user->user_engine_len != snmpd_engine.engine_len ||
+	    memcmp(usm_user->user_engine_id, snmpd_engine.engine_id,
+	    snmpd_engine.engine_len) != 0)
+		return (SNMP_CODE_BADENGINE);
+
+	pdu->user.priv_proto = usm_user->suser.priv_proto;
+	memcpy(pdu->user.priv_key, usm_user->suser.priv_key,
+	    sizeof(pdu->user.priv_key));
+
+	/* authenticated snmpEngineId discovery */
+	if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0) {
+		update_snmpd_engine_time();
+		pdu->user.auth_proto = usm_user->suser.auth_proto;
+		memcpy(pdu->user.auth_key, usm_user->suser.auth_key,
+		    sizeof(pdu->user.auth_key));
+
+		if (pdu->engine.engine_boots == 0 &&
+		    pdu->engine.engine_time == 0) {
+			update_snmpd_engine_time();
+		    	pdu->flags |= SNMP_MSG_AUTODISCOVER;
+			return (SNMP_CODE_OK);
+		}
+
+		if (pdu->engine.engine_boots != snmpd_engine.engine_boots ||
+		    abs(pdu->engine.engine_time - snmpd_engine.engine_time) >
+		    SNMP_TIME_WINDOW)
+			return (SNMP_CODE_NOTINTIME);
+	}
+
+	if (((pdu->flags & SNMP_MSG_PRIV_FLAG) != 0 &&
+	    (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0) ||
+	    ((pdu->flags & SNMP_MSG_AUTH_FLAG) == 0 &&
+	    usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH) ||
+	    ((pdu->flags & SNMP_MSG_PRIV_FLAG) == 0 &&
+	    usm_user->suser.priv_proto != SNMP_PRIV_NOPRIV))
+		return (SNMP_CODE_BADSECLEVEL);
+
+	return (SNMP_CODE_OK);
+}
+
+/*
+ * Check whether access to each of var bindings in the PDU is allowed based
+ * on the user credentials against the configured User groups & VACM views.
+ */
+enum snmp_code
+snmp_pdu_auth_access(struct snmp_pdu *pdu, int32_t *ip)
+{
+	const char *uname;
+	int32_t suboid, smodel;
+	uint32_t i;
+	struct vacm_user *vuser;
+	struct vacm_access *acl;
+	struct vacm_context *vacmctx;
+	struct vacm_view *view;
+
+	/*
+	 * At least a default context exists if the snmpd_vacm(3) module is
+	 * running.
+	 */
+	if (SLIST_EMPTY(&vacm_contextlist) ||
+	    (pdu->flags & SNMP_MSG_AUTODISCOVER) != 0)
+		return (SNMP_CODE_OK);
+
+	switch (pdu->version) {
+	case SNMP_V1:
+		if ((uname = comm_string(community)) == NULL)
+			return (SNMP_CODE_FAILED);
+		smodel = SNMP_SECMODEL_SNMPv1;
+		break;
+
+	case SNMP_V2c:
+		if ((uname = comm_string(community)) == NULL)
+			return (SNMP_CODE_FAILED);
+		smodel = SNMP_SECMODEL_SNMPv2c;
+		break;
+
+	case SNMP_V3:
+		uname = pdu->user.sec_name;
+		if ((smodel = pdu->security_model) !=  SNMP_SECMODEL_USM)
+			return (SNMP_CODE_FAILED);
+		/* Compare the PDU context engine id against the agent's */
+		if (pdu->context_engine_len != snmpd_engine.engine_len ||
+		    memcmp(pdu->context_engine, snmpd_engine.engine_id,
+		    snmpd_engine.engine_len) != 0)
+			return (SNMP_CODE_FAILED);
+		break;
+
+	default:
+		abort();
+	}
+
+	SLIST_FOREACH(vuser, &vacm_userlist, vvu)
+		if (strcmp(uname, vuser->secname) == 0 &&
+		    vuser->sec_model == smodel)
+			break;
+
+	if (vuser == NULL || vuser->group == NULL)
+		return (SNMP_CODE_FAILED);
+
+	/* XXX: shteryana - recheck */
+	TAILQ_FOREACH_REVERSE(acl, &vacm_accesslist, vacm_accesslist, vva) {
+		if (acl->group != vuser->group)
+			continue;
+		SLIST_FOREACH(vacmctx, &vacm_contextlist, vcl)
+			if (memcmp(vacmctx->ctxname, acl->ctx_prefix,
+			    acl->ctx_match) == 0)
+				goto match;
+	}
+
+	return (SNMP_CODE_FAILED);
+
+match:
+
+	switch (pdu->type) {
+	case SNMP_PDU_GET:
+	case SNMP_PDU_GETNEXT:
+	case SNMP_PDU_GETBULK:
+		if ((view = acl->read_view) == NULL)
+			return (SNMP_CODE_FAILED);
+		break;
+
+	case SNMP_PDU_SET:
+		if ((view = acl->write_view) == NULL)
+			return (SNMP_CODE_FAILED);
+		break;
+
+	case SNMP_PDU_TRAP:
+	case SNMP_PDU_INFORM:
+	case SNMP_PDU_TRAP2:
+	case SNMP_PDU_REPORT:
+		if ((view = acl->notify_view) == NULL)
+			return (SNMP_CODE_FAILED);
+		break;
+	case SNMP_PDU_RESPONSE:
+		/* NOTREACHED */
+			return (SNMP_CODE_FAILED);
+	default:
+		abort();
+	}
+
+	for (i = 0; i < pdu->nbindings; i++) {
+		/* XXX - view->mask*/
+		suboid = asn_is_suboid(&view->subtree, &pdu->bindings[i].var);
+		if ((!suboid && !view->exclude) || (suboid && view->exclude)) {
+			*ip = i + 1;
+			return (SNMP_CODE_FAILED);
+		}
+	}
+
+	return (SNMP_CODE_OK);
+}
+
+/*
+ * SNMP input. Start: decode the PDU, find the user or community.
  */
 enum snmpd_input_err
 snmp_input_start(const u_char *buf, size_t len, const char *source,
@@ -254,8 +486,13 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	enum snmpd_input_err ret;
 	int sret;
 
+	/* update uptime */
+	this_tick = get_ticks();
+
 	b.asn_cptr = buf;
 	b.asn_len = len;
+
+	ret = SNMPD_INPUT_OK;
 
 	/* look whether we have enough bytes for the entire PDU. */
 	switch (sret = snmp_pdu_snoop(&b)) {
@@ -269,11 +506,25 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	}
 	b.asn_len = *pdulen = (size_t)sret;
 
-	code = snmp_pdu_decode(&b, pdu, ip);
+	memset(pdu, 0, sizeof(*pdu));
+	if ((code = snmp_pdu_decode_header(&b, pdu)) != SNMP_CODE_OK)
+		goto decoded;
 
+	if (pdu->version == SNMP_V3) {
+		if (pdu->security_model != SNMP_SECMODEL_USM) {
+			code = SNMP_CODE_FAILED;
+			goto decoded;
+		}
+		if ((code = snmp_pdu_auth_user(pdu)) != SNMP_CODE_OK)
+		    	goto decoded;
+		if ((code =  snmp_pdu_decode_secmode(&b, pdu)) != SNMP_CODE_OK)
+			goto decoded;
+	}
+	code = snmp_pdu_decode_scoped(&b, pdu, ip);
+
+decoded:
 	snmpd_stats.inPkts++;
 
-	ret = SNMPD_INPUT_OK;
 	switch (code) {
 
 	  case SNMP_CODE_FAILED:
@@ -300,6 +551,30 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 			ret = SNMPD_INPUT_VALBADENC;
 		break;
 
+	  case SNMP_CODE_BADSECLEVEL:
+		snmpd_usmstats.unsupported_seclevels++;
+		return (SNMPD_INPUT_FAILED);
+
+	  case SNMP_CODE_NOTINTIME:
+		snmpd_usmstats.not_in_time_windows++;
+		return (SNMPD_INPUT_FAILED);
+
+	  case SNMP_CODE_BADUSER:
+		snmpd_usmstats.unknown_users++;
+		return (SNMPD_INPUT_FAILED);
+
+	  case SNMP_CODE_BADENGINE:
+		snmpd_usmstats.unknown_engine_ids++;
+		return (SNMPD_INPUT_FAILED);
+
+	  case SNMP_CODE_BADDIGEST:
+		snmpd_usmstats.wrong_digests++;
+		return (SNMPD_INPUT_FAILED);
+
+	  case SNMP_CODE_EDECRYPT:
+		snmpd_usmstats.decrypt_errors++;
+		return (SNMPD_INPUT_FAILED);
+
 	  case SNMP_CODE_OK:
 		switch (pdu->version) {
 
@@ -310,6 +585,11 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 
 		  case SNMP_V2c:
 			if (!(snmpd.version_enable & VERS_ENABLE_V2C))
+				goto bad_vers;
+			break;
+
+		  case SNMP_V3:
+		  	if (!(snmpd.version_enable & VERS_ENABLE_V3))
 				goto bad_vers;
 			break;
 
@@ -325,25 +605,48 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	}
 
 	/*
-	 * Look, whether we know the community
+	 * Look, whether we know the community or user
 	 */
-	TAILQ_FOREACH(comm, &community_list, link)
-		if (comm->string != NULL &&
-		    strcmp(comm->string, pdu->community) == 0)
-			break;
 
-	if (comm == NULL) {
-		snmpd_stats.inBadCommunityNames++;
-		snmp_pdu_free(pdu);
-		if (snmpd.auth_traps)
-			snmp_send_trap(&oid_authenticationFailure,
-			    (struct snmp_value *)NULL);
-		ret = SNMPD_INPUT_BAD_COMM;
-	} else
-		community = comm->value;
+	if (pdu->version != SNMP_V3) {
+		TAILQ_FOREACH(comm, &community_list, link)
+			if (comm->string != NULL &&
+			    strcmp(comm->string, pdu->community) == 0)
+				break;
 
-	/* update uptime */
-	this_tick = get_ticks();
+		if (comm == NULL) {
+			snmpd_stats.inBadCommunityNames++;
+			snmp_pdu_free(pdu);
+			if (snmpd.auth_traps)
+				snmp_send_trap(&oid_authenticationFailure,
+				    (struct snmp_value *)NULL);
+			ret = SNMPD_INPUT_BAD_COMM;
+		} else
+			community = comm->value;
+	} else if (pdu->nbindings == 0) {
+		/* RFC 3414 - snmpEngineID Discovery */
+		if (strlen(pdu->user.sec_name) == 0) {
+			asn_append_oid(&(pdu->bindings[pdu->nbindings++].var),
+			    &oid_usmUnknownEngineIDs);
+			pdu->context_engine_len = snmpd_engine.engine_len;
+			memcpy(pdu->context_engine, snmpd_engine.engine_id,
+			    snmpd_engine.engine_len);
+		} else if (pdu->engine.engine_boots == 0 &&
+		    pdu->engine.engine_time == 0) {
+			asn_append_oid(&(pdu->bindings[pdu->nbindings++].var),
+			    &oid_usmNotInTimeWindows);
+			update_snmpd_engine_time();
+			pdu->engine.engine_boots = snmpd_engine.engine_boots;
+			pdu->engine.engine_time = snmpd_engine.engine_time;
+		}
+	} else if (usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH &&
+	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
+		snmpd_usmstats.not_in_time_windows++;
+		ret = SNMPD_INPUT_FAILED;
+	}
+
+	if ((code = snmp_pdu_auth_access(pdu, ip)) != SNMP_CODE_OK)
+		ret = SNMPD_INPUT_FAILED;
 
 	return (ret);
 }
@@ -624,7 +927,7 @@ fd_resume(void *p)
 #ifdef USE_LIBBEGEMOT
 	if (f->id >= 0)
 		return (0);
-	if ((f->id = poll_register(f->fd, input, f, POLL_IN)) < 0) {
+	if ((f->id = poll_register(f->fd, input, f, RPOLL_IN)) < 0) {
 		err = errno;
 		syslog(LOG_ERR, "select fd %d: %m", f->fd);
 		errno = err;
@@ -721,162 +1024,6 @@ snmp_input_consume(struct port_input *pi)
 	pi->length -= pi->consumed;
 }
 
-struct credmsg {
-	struct cmsghdr hdr;
-	struct cmsgcred cred;
-};
-
-static void
-check_priv(struct port_input *pi, struct msghdr *msg)
-{
-	struct credmsg *cmsg;
-	struct xucred ucred;
-	socklen_t ucredlen;
-
-	pi->priv = 0;
-
-	if (msg->msg_controllen == sizeof(*cmsg)) {
-		/* process explicitly sends credentials */
-
-		cmsg = (struct credmsg *)msg->msg_control;
-		pi->priv = (cmsg->cred.cmcred_euid == 0);
-		return;
-	}
-
-	/* ok, obtain the accept time credentials */
-	ucredlen = sizeof(ucred);
-
-	if (getsockopt(pi->fd, 0, LOCAL_PEERCRED, &ucred, &ucredlen) == 0 &&
-	    ucredlen >= sizeof(ucred) && ucred.cr_version == XUCRED_VERSION)
-		pi->priv = (ucred.cr_uid == 0);
-}
-
-/*
- * Input from a stream socket.
- */
-static int
-recv_stream(struct port_input *pi)
-{
-	struct msghdr msg;
-	struct iovec iov[1];
-	ssize_t len;
-	struct credmsg cmsg;
-
-	if (pi->buf == NULL) {
-		/* no buffer yet - allocate one */
-		if ((pi->buf = buf_alloc(0)) == NULL) {
-			/* ups - could not get buffer. Return an error
-			 * the caller must close the transport. */
-			return (-1);
-		}
-		pi->buflen = buf_size(0);
-		pi->consumed = 0;
-		pi->length = 0;
-	}
-
-	/* try to get a message */
-	msg.msg_name = pi->peer;
-	msg.msg_namelen = pi->peerlen;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	if (pi->cred) {
-		msg.msg_control = &cmsg;
-		msg.msg_controllen = sizeof(cmsg);
-
-		cmsg.hdr.cmsg_len = sizeof(cmsg);
-		cmsg.hdr.cmsg_level = SOL_SOCKET;
-		cmsg.hdr.cmsg_type = SCM_CREDS;
-	} else {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-	}
-	msg.msg_flags = 0;
-
-	iov[0].iov_base = pi->buf + pi->length;
-	iov[0].iov_len = pi->buflen - pi->length;
-
-	len = recvmsg(pi->fd, &msg, 0);
-
-	if (len == -1 || len == 0)
-		/* receive error */
-		return (-1);
-
-	pi->length += len;
-
-	if (pi->cred)
-		check_priv(pi, &msg);
-
-	return (0);
-}
-
-/*
- * Input from a datagram socket.
- * Each receive should return one datagram.
- */
-static int
-recv_dgram(struct port_input *pi)
-{
-	u_char embuf[1000];
-	struct msghdr msg;
-	struct iovec iov[1];
-	ssize_t len;
-	struct credmsg cmsg;
-
-	if (pi->buf == NULL) {
-		/* no buffer yet - allocate one */
-		if ((pi->buf = buf_alloc(0)) == NULL) {
-			/* ups - could not get buffer. Read away input
-			 * and drop it */
-			(void)recvfrom(pi->fd, embuf, sizeof(embuf),
-			    0, NULL, NULL);
-			/* return error */
-			return (-1);
-		}
-		pi->buflen = buf_size(0);
-	}
-
-	/* try to get a message */
-	msg.msg_name = pi->peer;
-	msg.msg_namelen = pi->peerlen;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	if (pi->cred) {
-		msg.msg_control = &cmsg;
-		msg.msg_controllen = sizeof(cmsg);
-
-		cmsg.hdr.cmsg_len = sizeof(cmsg);
-		cmsg.hdr.cmsg_level = SOL_SOCKET;
-		cmsg.hdr.cmsg_type = SCM_CREDS;
-	} else {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-	}
-	msg.msg_flags = 0;
-
-	iov[0].iov_base = pi->buf;
-	iov[0].iov_len = pi->buflen;
-
-	len = recvmsg(pi->fd, &msg, 0);
-
-	if (len == -1 || len == 0)
-		/* receive error */
-		return (-1);
-
-	if (msg.msg_flags & MSG_TRUNC) {
-		/* truncated - drop */
-		snmpd_stats.silentDrops++;
-		snmpd_stats.inTooLong++;
-		return (-1);
-	}
-
-	pi->length = (size_t)len;
-
-	if (pi->cred)
-		check_priv(pi, &msg);
-
-	return (0);
-}
-
 /*
  * Input from a socket
  */
@@ -888,20 +1035,13 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	struct snmp_pdu pdu;
 	enum snmpd_input_err ierr, ferr;
 	enum snmpd_proxy_err perr;
+	ssize_t ret, slen;
 	int32_t vi;
-	int ret;
-	ssize_t slen;
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
 
-	/* get input depending on the transport */
-	if (pi->stream) {
-		ret = recv_stream(pi);
-	} else {
-		ret = recv_dgram(pi);
-	}
-
+	ret = tport->transport->vtab->recv(tport, pi);
 	if (ret == -1)
 		return (-1);
 
@@ -909,7 +1049,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	/*
 	 * In case of AF_INET{6} peer, do hosts_access(5) check.
 	 */
-	if (inet_ntop(pi->peer->sa_family,
+	if (pi->peer->sa_family != AF_LOCAL &&
+	    inet_ntop(pi->peer->sa_family,
 	    &((const struct sockaddr_in *)(const void *)pi->peer)->sin_addr,
 	    client, sizeof(client)) != NULL) {
 		request_set(&req, RQ_CLIENT_ADDR, client, 0);
@@ -918,7 +1059,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 			    eval_client(&req));
 			return (-1);
 		}
-	} else
+	} else if (pi->peer->sa_family != AF_LOCAL)
 		syslog(LOG_ERR, "inet_ntop(): %m");
 #endif
 
@@ -960,7 +1101,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	 * If that is a module community and the module has a proxy function,
 	 * the hand it over to the module.
 	 */
-	if (comm->owner != NULL && comm->owner->config->proxy != NULL) {
+	if (comm != NULL && comm->owner != NULL &&
+	    comm->owner->config->proxy != NULL) {
 		perr = (*comm->owner->config->proxy)(&pdu, tport->transport,
 		    &tport->index, pi->peer, pi->peerlen, ierr, vi,
 		    !pi->cred || pi->priv);
@@ -1016,9 +1158,10 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	/*
 	 * Check community
 	 */
-	if ((pi->cred && !pi->priv && pdu.type == SNMP_PDU_SET) ||
-	    (community != COMM_WRITE &&
-            (pdu.type == SNMP_PDU_SET || community != COMM_READ))) {
+	if (pdu.version < SNMP_V3 &&
+	    ((pi->cred && !pi->priv && pdu.type == SNMP_PDU_SET) ||
+	    (comm != NULL && comm->private != COMM_WRITE &&
+            (pdu.type == SNMP_PDU_SET || comm->private != COMM_READ)))) {
 		snmpd_stats.inBadCommunityUses++;
 		snmp_pdu_free(&pdu);
 		snmp_input_consume(pi);
@@ -1041,13 +1184,15 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		slen = sendto(pi->fd, sndbuf, sndlen, 0, pi->peer, pi->peerlen);
+		slen = tport->transport->vtab->send(tport, sndbuf, sndlen,
+		    pi->peer, pi->peerlen);
 		if (slen == -1)
-			syslog(LOG_ERR, "sendto: %m");
+			syslog(LOG_ERR, "send*: %m");
 		else if ((size_t)slen != sndlen)
-			syslog(LOG_ERR, "sendto: short write %zu/%zu",
-			    sndlen, (size_t)slen);
+			syslog(LOG_ERR, "send*: short write %zu/%zu", sndlen,
+			    (size_t)slen);
 	}
+
 	snmp_pdu_free(&pdu);
 	free(sndbuf);
 	snmp_input_consume(pi);
@@ -1337,7 +1482,7 @@ main(int argc, char *argv[])
 	struct tport *p;
 	const char *prefix = "snmpd";
 	struct lmodule *m;
-	char *value, *option;
+	char *value = NULL, *option; /* XXX */
 	struct transport *t;
 
 #define DBG_DUMP	0
@@ -1355,7 +1500,7 @@ main(int argc, char *argv[])
 	snmp_debug = snmp_debug_func;
 	asn_error = asn_error_func;
 
-	while ((opt = getopt(argc, argv, "c:dD:hI:l:m:p:")) != EOF)
+	while ((opt = getopt(argc, argv, "c:dD:e:hI:l:m:p:")) != EOF)
 		switch (opt) {
 
 		  case 'c':
@@ -1401,6 +1546,9 @@ main(int argc, char *argv[])
 			}
 			break;
 
+		  case 'e':
+			strlcpy(engine_file, optarg, sizeof(engine_file));
+			break;
 		  case 'h':
 			fprintf(stderr, "%s", usgtxt);
 			exit(0);
@@ -1461,8 +1609,8 @@ main(int argc, char *argv[])
 	/*
 	 * Get standard communities
 	 */
-	(void)comm_define(1, "SNMP read", NULL, NULL);
-	(void)comm_define(2, "SNMP write", NULL, NULL);
+	comm_define(COMM_READ, "SNMP read", NULL, NULL);
+	comm_define(COMM_WRITE, "SNMP write", NULL, NULL);
 	community = COMM_INITIALIZE;
 
 	trap_reqid = reqid_allocate(512, NULL);
@@ -1471,6 +1619,7 @@ main(int argc, char *argv[])
 		snprintf(config_file, sizeof(config_file), PATH_CONFIG, prefix);
 
 	init_actvals();
+	init_snmpd_engine();
 
 	this_tick = get_ticks();
 	start_tick = this_tick;
@@ -1496,6 +1645,9 @@ main(int argc, char *argv[])
 	if (debug.evdebug > 0)
 		evSetDebug(evctx, 10, stderr);
 #endif
+
+	if (engine_file[0] == '\0')
+		snprintf(engine_file, sizeof(engine_file), PATH_ENGINE, prefix);
 
 	if (read_config(config_file, NULL)) {
 		syslog(LOG_ERR, "error in config file");
@@ -1532,13 +1684,13 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	snmp_send_trap(&oid_coldStart, (struct snmp_value *)NULL);
-
 	while ((m = TAILQ_FIRST(&modules_start)) != NULL) {
 		m->flags &= ~LM_ONSTARTLIST;
 		TAILQ_REMOVE(&modules_start, m, start);
 		lm_start(m);
 	}
+
+	snmp_send_trap(&oid_coldStart, (struct snmp_value *)NULL);
 
 	for (;;) {
 #ifndef USE_LIBBEGEMOT
@@ -1601,7 +1753,7 @@ main(int argc, char *argv[])
 }
 
 uint64_t
-get_ticks()
+get_ticks(void)
 {
 	struct timeval tv;
 	uint64_t ret;
@@ -1875,11 +2027,58 @@ asn_error_func(const struct asn_buf *b, const char *err, ...)
 /*
  * Create a new community
  */
+struct community*
+comm_define_ordered(u_int priv, const char *descr, struct asn_oid *idx,
+    struct lmodule *owner, const char *str)
+{
+	struct community *c, *p;
+	u_int ncomm;
+
+	ncomm = idx->subs[idx->len - 1];
+
+	/* check that community doesn't already exist */
+	TAILQ_FOREACH(c, &community_list, link)
+		if (c->value == ncomm)
+			return (c);
+
+	if ((c = malloc(sizeof(struct community))) == NULL) {
+		syslog(LOG_ERR, "%s: %m", __func__);
+		return (NULL);
+	}
+	c->owner = owner;
+	c->value = ncomm;
+	c->descr = descr;
+	c->string = NULL;
+	c->private = priv;
+
+	if (str != NULL) {
+		if((c->string = malloc(strlen(str)+1)) == NULL) {
+			free(c);
+			return (NULL);
+		}
+		strcpy(c->string, str);
+	}
+	/*
+	 * Insert ordered
+	 */
+	c->index = *idx;
+	TAILQ_FOREACH(p, &community_list, link) {
+		if (asn_compare_oid(&p->index, &c->index) > 0) {
+			TAILQ_INSERT_BEFORE(p, c, link);
+			break;
+		}
+	}
+	if (p == NULL)
+		TAILQ_INSERT_TAIL(&community_list, c, link);
+	return (c);
+}
+
 u_int
 comm_define(u_int priv, const char *descr, struct lmodule *owner,
     const char *str)
 {
-	struct community *c, *p;
+	struct asn_oid idx, *p;
+	struct community *c;
 	u_int ncomm;
 
 	/* generate an identifier */
@@ -1891,44 +2090,18 @@ comm_define(u_int priv, const char *descr, struct lmodule *owner,
 				break;
 	} while (c != NULL);
 
-	if ((c = malloc(sizeof(struct community))) == NULL) {
-		syslog(LOG_ERR, "comm_define: %m");
-		return (0);
-	}
-	c->owner = owner;
-	c->value = ncomm;
-	c->descr = descr;
-	c->string = NULL;
-	c->private = priv;
-
-	if (str != NULL) {
-		if((c->string = malloc(strlen(str)+1)) == NULL) {
-			free(c);
-			return (0);
-		}
-		strcpy(c->string, str);
-	}
-
 	/* make index */
-	if (c->owner == NULL) {
-		c->index.len = 1;
-		c->index.subs[0] = 0;
-	} else {
-		c->index = c->owner->index;
+	if (owner != NULL)
+		p = &owner->index;
+	else {
+		p = &idx;
+		p->len = 1;
+		p->subs[0] = 0;
 	}
-	c->index.subs[c->index.len++] = c->private;
-
-	/*
-	 * Insert ordered
-	 */
-	TAILQ_FOREACH(p, &community_list, link) {
-		if (asn_compare_oid(&p->index, &c->index) > 0) {
-			TAILQ_INSERT_BEFORE(p, c, link);
-			break;
-		}
-	}
-	if (p == NULL)
-		TAILQ_INSERT_TAIL(&community_list, c, link);
+	p->subs[p->len++] = ncomm;
+	c = comm_define_ordered(priv, descr, p, owner, str);
+	if (c == NULL)
+		return (0);
 	return (c->value);
 }
 
@@ -2172,13 +2345,12 @@ lm_load(const char *path, const char *section)
 	}
 	m->handle = NULL;
 	m->flags = 0;
-	strcpy(m->section, section);
+	strlcpy(m->section, section, sizeof(m->section));
 
-	if ((m->path = malloc(strlen(path) + 1)) == NULL) {
+	if ((m->path = strdup(path)) == NULL) {
 		syslog(LOG_ERR, "lm_load: %m");
 		goto err;
 	}
-	strcpy(m->path, path);
 
 	/*
 	 * Make index
@@ -2372,5 +2544,568 @@ or_unregister(u_int idx)
 			TAILQ_REMOVE(&objres_list, objres, link);
 			free(objres);
 			return;
+		}
+}
+
+/*
+ * RFC 3414 User-based Security Model support
+ */
+
+struct snmpd_usmstat *
+bsnmpd_get_usm_stats(void)
+{
+	return (&snmpd_usmstats);
+}
+
+void
+bsnmpd_reset_usm_stats(void)
+{
+	memset(&snmpd_usmstats, 0, sizeof(snmpd_usmstats));
+}
+
+struct usm_user *
+usm_first_user(void)
+{
+	return (SLIST_FIRST(&usm_userlist));
+}
+
+struct usm_user *
+usm_next_user(struct usm_user *uuser)
+{
+	if (uuser == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(uuser, up));
+}
+
+struct usm_user *
+usm_find_user(uint8_t *engine, uint32_t elen, char *uname)
+{
+	struct usm_user *uuser;
+
+	SLIST_FOREACH(uuser, &usm_userlist, up)
+		if (uuser->user_engine_len == elen &&
+		    memcmp(uuser->user_engine_id, engine, elen) == 0 &&
+		    strlen(uuser->suser.sec_name) == strlen(uname) &&
+		    strcmp(uuser->suser.sec_name, uname) == 0)
+			break;
+
+	return (uuser);
+}
+
+static int
+usm_compare_user(struct usm_user *u1, struct usm_user *u2)
+{
+	uint32_t i;
+
+	if (u1->user_engine_len < u2->user_engine_len)
+		return (-1);
+	if (u1->user_engine_len > u2->user_engine_len)
+		return (1);
+
+	for (i = 0; i < u1->user_engine_len; i++) {
+		if (u1->user_engine_id[i] < u2->user_engine_id[i])
+			return (-1);
+		if (u1->user_engine_id[i] > u2->user_engine_id[i])
+			return (1);
+	}
+
+	if (strlen(u1->suser.sec_name) < strlen(u2->suser.sec_name))
+		return (-1);
+	if (strlen(u1->suser.sec_name) > strlen(u2->suser.sec_name))
+		return (1);
+
+	for (i = 0; i < strlen(u1->suser.sec_name); i++) {
+		if (u1->suser.sec_name[i] < u2->suser.sec_name[i])
+			return (-1);
+		if (u1->suser.sec_name[i] > u2->suser.sec_name[i])
+			return (1);
+	}
+
+	return (0);
+}
+
+struct usm_user *
+usm_new_user(uint8_t *eid, uint32_t elen, char *uname)
+{
+	int cmp;
+	struct usm_user *uuser, *temp, *prev;
+
+	for (uuser = usm_first_user(); uuser != NULL;
+	    (uuser = usm_next_user(uuser))) {
+		if (uuser->user_engine_len == elen &&
+		    strlen(uname) == strlen(uuser->suser.sec_name) &&
+		    strcmp(uname, uuser->suser.sec_name) == 0 &&
+		    memcmp(eid, uuser->user_engine_id, elen) == 0)
+			return (NULL);
+	}
+
+	if ((uuser = (struct usm_user *)malloc(sizeof(*uuser))) == NULL)
+		return (NULL);
+
+	memset(uuser, 0, sizeof(*uuser));
+	strlcpy(uuser->suser.sec_name, uname, SNMP_ADM_STR32_SIZ);
+	memcpy(uuser->user_engine_id, eid, elen);
+	uuser->user_engine_len = elen;
+
+	if ((prev = SLIST_FIRST(&usm_userlist)) == NULL ||
+	    usm_compare_user(uuser, prev) < 0) {
+		SLIST_INSERT_HEAD(&usm_userlist, uuser, up);
+		return (uuser);
+	}
+
+	SLIST_FOREACH(temp, &usm_userlist, up) {
+		if ((cmp = usm_compare_user(uuser, temp)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, uuser, up);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, uuser, up);
+	else {
+		syslog(LOG_ERR, "User %s exists", uuser->suser.sec_name);
+		free(uuser);
+		return (NULL);
+	}
+
+	return (uuser);
+}
+
+void
+usm_delete_user(struct usm_user *uuser)
+{
+	SLIST_REMOVE(&usm_userlist, uuser, usm_user, up);
+	free(uuser);
+}
+
+void
+usm_flush_users(void)
+{
+	struct usm_user *uuser;
+
+	while ((uuser = SLIST_FIRST(&usm_userlist)) != NULL) {
+		SLIST_REMOVE_HEAD(&usm_userlist, up);
+		free(uuser);
+	}
+
+	SLIST_INIT(&usm_userlist);
+}
+
+/*
+ * RFC 3415 View-based Access Control Model support
+ */
+struct vacm_user *
+vacm_first_user(void)
+{
+	return (SLIST_FIRST(&vacm_userlist));
+}
+
+struct vacm_user *
+vacm_next_user(struct vacm_user *vuser)
+{
+	if (vuser == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(vuser, vvu));
+}
+
+static int
+vacm_compare_user(struct vacm_user *v1, struct vacm_user *v2)
+{
+	uint32_t i;
+
+	if (v1->sec_model < v2->sec_model)
+		return (-1);
+	if (v1->sec_model > v2->sec_model)
+		return (1);
+
+	if (strlen(v1->secname) < strlen(v2->secname))
+		return (-1);
+	if (strlen(v1->secname) > strlen(v2->secname))
+		return (1);
+
+	for (i = 0; i < strlen(v1->secname); i++) {
+		if (v1->secname[i] < v2->secname[i])
+			return (-1);
+		if (v1->secname[i] > v2->secname[i])
+			return (1);
+	}
+
+	return (0);
+}
+
+struct vacm_user *
+vacm_new_user(int32_t smodel, char *uname)
+{
+	int cmp;
+	struct vacm_user *user, *temp, *prev;
+
+	SLIST_FOREACH(user, &vacm_userlist, vvu)
+		if (strcmp(uname, user->secname) == 0 &&
+		    smodel == user->sec_model)
+			return (NULL);
+
+	if ((user = (struct vacm_user *)malloc(sizeof(*user))) == NULL)
+		return (NULL);
+
+	memset(user, 0, sizeof(*user));
+	user->group = &vacm_default_group;
+	SLIST_INSERT_HEAD(&vacm_default_group.group_users, user, vvg);
+	user->sec_model = smodel;
+	strlcpy(user->secname, uname, sizeof(user->secname));
+
+	if ((prev = SLIST_FIRST(&vacm_userlist)) == NULL ||
+	    vacm_compare_user(user, prev) < 0) {
+		SLIST_INSERT_HEAD(&vacm_userlist, user, vvu);
+		return (user);
+	}
+
+	SLIST_FOREACH(temp, &vacm_userlist, vvu) {
+		if ((cmp = vacm_compare_user(user, temp)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, user, vvu);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, user, vvu);
+	else {
+		syslog(LOG_ERR, "User %s exists", user->secname);
+		free(user);
+		return (NULL);
+	}
+
+	return (user);
+}
+
+int
+vacm_delete_user(struct vacm_user *user)
+{
+	if (user->group != NULL && user->group != &vacm_default_group) {
+		SLIST_REMOVE(&user->group->group_users, user, vacm_user, vvg);
+		if (SLIST_EMPTY(&user->group->group_users)) {
+			SLIST_REMOVE(&vacm_grouplist, user->group,
+			    vacm_group, vge);
+			free(user->group);
+		}
+	}
+
+	SLIST_REMOVE(&vacm_userlist, user, vacm_user, vvu);
+	free(user);
+
+	return (0);
+}
+
+int
+vacm_user_set_group(struct vacm_user *user, u_char *octets, u_int len)
+{
+	struct vacm_group *group;
+
+	if (len >= SNMP_ADM_STR32_SIZ)
+		return (-1);
+
+	SLIST_FOREACH(group, &vacm_grouplist, vge)
+		if (strlen(group->groupname) == len &&
+		    memcmp(octets, group->groupname, len) == 0)
+			break;
+
+	if (group == NULL) {
+		if ((group = (struct vacm_group *)malloc(sizeof(*group))) == NULL)
+			return (-1);
+		memset(group, 0, sizeof(*group));
+		memcpy(group->groupname, octets, len);
+		group->groupname[len] = '\0';
+		SLIST_INSERT_HEAD(&vacm_grouplist, group, vge);
+	}
+
+	SLIST_REMOVE(&user->group->group_users, user, vacm_user, vvg);
+	SLIST_INSERT_HEAD(&group->group_users, user, vvg);
+	user->group = group;
+
+	return (0);
+}
+
+void
+vacm_groups_init(void)
+{
+	SLIST_INSERT_HEAD(&vacm_grouplist, &vacm_default_group, vge);
+}
+
+struct vacm_access *
+vacm_first_access_rule(void)
+{
+	return (TAILQ_FIRST(&vacm_accesslist));
+}
+
+struct vacm_access *
+vacm_next_access_rule(struct vacm_access *acl)
+{
+	if (acl == NULL)
+		return (NULL);
+
+	return (TAILQ_NEXT(acl, vva));
+}
+
+static int
+vacm_compare_access_rule(struct vacm_access *v1, struct vacm_access *v2)
+{
+	uint32_t i;
+
+	if (strlen(v1->group->groupname) < strlen(v2->group->groupname))
+		return (-1);
+	if (strlen(v1->group->groupname) > strlen(v2->group->groupname))
+		return (1);
+
+	for (i = 0; i < strlen(v1->group->groupname); i++) {
+		if (v1->group->groupname[i] < v2->group->groupname[i])
+			return (-1);
+		if (v1->group->groupname[i] > v2->group->groupname[i])
+			return (1);
+	}
+
+	if (strlen(v1->ctx_prefix) < strlen(v2->ctx_prefix))
+		return (-1);
+	if (strlen(v1->ctx_prefix) > strlen(v2->ctx_prefix))
+		return (1);
+
+	for (i = 0; i < strlen(v1->ctx_prefix); i++) {
+		if (v1->ctx_prefix[i] < v2->ctx_prefix[i])
+			return (-1);
+		if (v1->ctx_prefix[i] > v2->ctx_prefix[i])
+			return (1);
+	}
+
+	if (v1->sec_model < v2->sec_model)
+		return (-1);
+	if (v1->sec_model > v2->sec_model)
+		return (1);
+
+	if (v1->sec_level < v2->sec_level)
+		return (-1);
+	if (v1->sec_level > v2->sec_level)
+		return (1);
+
+	return (0);
+}
+
+struct vacm_access *
+vacm_new_access_rule(char *gname, char *cprefix, int32_t smodel, int32_t slevel)
+{
+	struct vacm_group *group;
+	struct vacm_access *acl, *temp;
+
+	TAILQ_FOREACH(acl, &vacm_accesslist, vva) {
+		if (acl->group == NULL)
+			continue;
+		if (strcmp(gname, acl->group->groupname) == 0 &&
+		    strcmp(cprefix, acl->ctx_prefix) == 0 &&
+		    acl->sec_model == smodel && acl->sec_level == slevel)
+			return (NULL);
+	}
+
+	/* Make sure the group exists */
+	SLIST_FOREACH(group, &vacm_grouplist, vge)
+		if (strcmp(gname, group->groupname) == 0)
+			break;
+
+	if (group == NULL)
+		return (NULL);
+
+	if ((acl = (struct vacm_access *)malloc(sizeof(*acl))) == NULL)
+		return (NULL);
+
+	memset(acl, 0, sizeof(*acl));
+	acl->group = group;
+	strlcpy(acl->ctx_prefix, cprefix, sizeof(acl->ctx_prefix));
+	acl->sec_model = smodel;
+	acl->sec_level = slevel;
+
+	if ((temp = TAILQ_FIRST(&vacm_accesslist)) == NULL ||
+	    vacm_compare_access_rule(acl, temp) < 0) {
+		TAILQ_INSERT_HEAD(&vacm_accesslist, acl, vva);
+		return (acl);
+	}
+
+	TAILQ_FOREACH(temp, &vacm_accesslist, vva)
+		if (vacm_compare_access_rule(acl, temp) < 0) {
+		    	TAILQ_INSERT_BEFORE(temp, acl, vva);
+			return (acl);
+		}
+
+	TAILQ_INSERT_TAIL(&vacm_accesslist, acl, vva);
+
+	return (acl);
+}
+
+int
+vacm_delete_access_rule(struct vacm_access *acl)
+{
+	TAILQ_REMOVE(&vacm_accesslist, acl, vva);
+	free(acl);
+
+	return (0);
+}
+
+struct vacm_view *
+vacm_first_view(void)
+{
+	return (SLIST_FIRST(&vacm_viewlist));
+}
+
+struct vacm_view *
+vacm_next_view(struct vacm_view *view)
+{
+	if (view == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(view, vvl));
+}
+
+static int
+vacm_compare_view(struct vacm_view *v1, struct vacm_view *v2)
+{
+	uint32_t i;
+
+	if (strlen(v1->viewname) < strlen(v2->viewname))
+		return (-1);
+	if (strlen(v1->viewname) > strlen(v2->viewname))
+		return (1);
+
+	for (i = 0; i < strlen(v1->viewname); i++) {
+		if (v1->viewname[i] < v2->viewname[i])
+			return (-1);
+		if (v1->viewname[i] > v2->viewname[i])
+			return (1);
+	}
+
+	return (asn_compare_oid(&v1->subtree, &v2->subtree));
+}
+
+struct vacm_view *
+vacm_new_view(char *vname, struct asn_oid *oid)
+{
+	int cmp;
+	struct vacm_view *view, *temp, *prev;
+
+	SLIST_FOREACH(view, &vacm_viewlist, vvl)
+		if (strcmp(vname, view->viewname) == 0)
+			return (NULL);
+
+	if ((view = (struct vacm_view *)malloc(sizeof(*view))) == NULL)
+		return (NULL);
+
+	memset(view, 0, sizeof(*view));
+	strlcpy(view->viewname, vname, sizeof(view->viewname));
+	asn_append_oid(&view->subtree, oid);
+
+	if ((prev = SLIST_FIRST(&vacm_viewlist)) == NULL ||
+	    vacm_compare_view(view, prev) < 0) {
+		SLIST_INSERT_HEAD(&vacm_viewlist, view, vvl);
+		return (view);
+	}
+
+	SLIST_FOREACH(temp, &vacm_viewlist, vvl) {
+		if ((cmp = vacm_compare_view(view, temp)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, view, vvl);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, view, vvl);
+	else {
+		syslog(LOG_ERR, "View %s exists", view->viewname);
+		free(view);
+		return (NULL);
+	}
+
+	return (view);
+}
+
+int
+vacm_delete_view(struct vacm_view *view)
+{
+	SLIST_REMOVE(&vacm_viewlist, view, vacm_view, vvl);
+	free(view);
+
+	return (0);
+}
+
+struct vacm_context *
+vacm_first_context(void)
+{
+	return (SLIST_FIRST(&vacm_contextlist));
+}
+
+struct vacm_context *
+vacm_next_context(struct vacm_context *vacmctx)
+{
+	if (vacmctx == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(vacmctx, vcl));
+}
+
+struct vacm_context *
+vacm_add_context(char *ctxname, int regid)
+{
+	int cmp;
+	struct vacm_context *ctx, *temp, *prev;
+
+	SLIST_FOREACH(ctx, &vacm_contextlist, vcl)
+		if (strcmp(ctxname, ctx->ctxname) == 0) {
+			syslog(LOG_ERR, "Context %s exists", ctx->ctxname);
+			return (NULL);
+		}
+
+	if ((ctx = (struct vacm_context *)malloc(sizeof(*ctx))) == NULL)
+		return (NULL);
+
+	memset(ctx, 0, sizeof(*ctx));
+	strlcpy(ctx->ctxname, ctxname, sizeof(ctx->ctxname));
+	ctx->regid = regid;
+
+	if ((prev = SLIST_FIRST(&vacm_contextlist)) == NULL ||
+	    strlen(ctx->ctxname) < strlen(prev->ctxname) ||
+	    strcmp(ctx->ctxname, prev->ctxname) < 0) {
+		SLIST_INSERT_HEAD(&vacm_contextlist, ctx, vcl);
+		return (ctx);
+	}
+
+	SLIST_FOREACH(temp, &vacm_contextlist, vcl) {
+		if (strlen(ctx->ctxname) < strlen(temp->ctxname) ||
+		    strcmp(ctx->ctxname, temp->ctxname) < 0) {
+		    	cmp = -1;
+			break;
+		}
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, ctx, vcl);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, ctx, vcl);
+	else {
+		syslog(LOG_ERR, "Context %s exists", ctx->ctxname);
+		free(ctx);
+		return (NULL);
+	}
+
+	return (ctx);
+}
+
+void
+vacm_flush_contexts(int regid)
+{
+	struct vacm_context *ctx, *temp;
+
+	SLIST_FOREACH_SAFE(ctx, &vacm_contextlist, vcl, temp)
+		if (ctx->regid == regid) {
+			SLIST_REMOVE(&vacm_contextlist, ctx, vacm_context, vcl);
+			free(ctx);
 		}
 }

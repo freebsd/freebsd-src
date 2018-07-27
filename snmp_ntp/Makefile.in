@@ -4,7 +4,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/snmp_ntp/Makefile.in,v 1.2 2005/05/23 09:03:47 brandt_h Exp $
+# $Begemot: bsnmp/trunk/snmp_ntp/Makefile.in 1487 2008-12-23 19:03:33Z brandt_h $
 #
 MOD=	ntp
 SRCS=	${MOD}_tree.c snmp_ntp.c
@@ -26,7 +26,7 @@ CFLAGS+= -I$(srcdir) -I$(srcdir)/../lib -I$(builddir) -I$(srcdir)/../snmpd
 CLEANFILES += ${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 
 # for bootstrapping
-GENSNMPTREE= ${builddir}/../gensnmptree/gensnmptree
+GENSNMPTREE= $(builddir)/../gensnmptree/gensnmptree -I${srcdir}/../lib
 
 $(LIB): ${MOD}_oid.h ${MOD}_tree.h $(SRCS:.c=.lo) 
 	$(LIBTOOL) --mode=link $(CC) $(LDLAGS) -module -o $@ $(SRCS:.c=.lo) -rpath $(libdir) -version-info $(SHLIB_MAJOR):$(SHLIB_MINOR)
