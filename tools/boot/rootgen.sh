@@ -799,7 +799,8 @@ echo -h -D -S115200 > ${DESTDIR}/boot.config
 cat > ${DESTDIR}/boot/loader.conf <<EOF
 console=comconsole
 comconsole_speed=115200
-boot_serial=-h
+boot_serial=yes
+boot_multicons=yes
 EOF
 # XXX
 cp /boot/device.hints ${DESTDIR}/boot/device.hints
