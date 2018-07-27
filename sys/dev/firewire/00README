@@ -9,7 +9,7 @@ IEEE 1394 support for FreeBSD-5.X and 4.X.
 	modified by Hidetoshi Shimokawa <simokawa@freebsd.org>.
 	Please note this driver is still under development.
 	You can find latest snapshots under:
-		http://people.freebsd.org/~simokawa/
+		https://people.freebsd.org/~simokawa/
 	named firewire-2002XXXX.tar.gz
 
 	The driver consists of 6 parts:
