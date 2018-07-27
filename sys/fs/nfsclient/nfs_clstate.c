@@ -1890,8 +1890,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 	 * mutex for NFSLOCKCLSTATE(), so it is "m" for the following
 	 * explanation, courtesy of Alan Cox.
 	 * What follows is a snippet from Alan Cox's email at:
-	 * http://docs.FreeBSD.org/cgi/
-	 *     mid.cgi?BANLkTikR3d65zPHo9==08ZfJ2vmqZucEvw
+	 * https://docs.FreeBSD.org/cgi/mid.cgi?BANLkTikR3d65zPHo9==08ZfJ2vmqZucEvw
 	 * 
 	 * 1. Set MNTK_UNMOUNTF
 	 * 2. Acquire a standard FreeBSD mutex "m".
