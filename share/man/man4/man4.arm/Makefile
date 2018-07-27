@@ -21,7 +21,6 @@ MAN=	\
 MLINKS= cgem.4 if_cgem.4
 MLINKS+= imx_wdog.4 imxwdt.4
 MLINKS+= mge.4 if_mge.4
-MLINKS+=npe.4 if_npe.4
 
 MANSUBDIR=/arm
 
