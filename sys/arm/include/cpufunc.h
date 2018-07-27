@@ -306,7 +306,8 @@ void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
 #if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
-  defined(CPU_FA526)
+  defined(CPU_FA526) ||							\
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
 
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushD	(void);
@@ -315,6 +316,71 @@ void	armv4_tlb_flushD_SE	(u_int va);
 void	armv4_drain_writebuf	(void);
 void	armv4_idcache_inv_all	(void);
 #endif
+
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
+void	xscale_cpwait		(void);
+
+void	xscale_cpu_sleep	(int mode);
+
+u_int	xscale_control		(u_int clear, u_int bic);
+
+void	xscale_setttb		(u_int ttb);
+
+void	xscale_tlb_flushID_SE	(u_int va);
+
+void	xscale_cache_flushID	(void);
+void	xscale_cache_flushI	(void);
+void	xscale_cache_flushD	(void);
+void	xscale_cache_flushD_SE	(u_int entry);
+
+void	xscale_cache_cleanID	(void);
+void	xscale_cache_cleanD	(void);
+void	xscale_cache_cleanD_E	(u_int entry);
+
+void	xscale_cache_clean_minidata (void);
+
+void	xscale_cache_purgeID	(void);
+void	xscale_cache_purgeID_E	(u_int entry);
+void	xscale_cache_purgeD	(void);
+void	xscale_cache_purgeD_E	(u_int entry);
+
+void	xscale_cache_syncI	(void);
+void	xscale_cache_cleanID_rng (vm_offset_t start, vm_size_t end);
+void	xscale_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
+void	xscale_cache_purgeID_rng (vm_offset_t start, vm_size_t end);
+void	xscale_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
+void	xscale_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
+void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
+
+void	xscale_context_switch	(void);
+
+void	xscale_setup		(void);
+#endif	/* CPU_XSCALE_PXA2X0 */
+
+#ifdef	CPU_XSCALE_81342
+
+void	xscalec3_l2cache_purge	(void);
+void	xscalec3_cache_purgeID	(void);
+void	xscalec3_cache_purgeD	(void);
+void	xscalec3_cache_cleanID	(void);
+void	xscalec3_cache_cleanD	(void);
+void	xscalec3_cache_syncI	(void);
+
+void	xscalec3_cache_purgeID_rng 	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_cleanID_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
+
+void	xscalec3_l2cache_flush_rng	(vm_offset_t, vm_size_t);
+void	xscalec3_l2cache_clean_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_l2cache_purge_rng	(vm_offset_t start, vm_size_t end);
+
+
+void	xscalec3_setttb		(u_int ttb);
+void	xscalec3_context_switch	(void);
+
+#endif /* CPU_XSCALE_81342 */
 
 /*
  * Macros for manipulating CPU interrupts

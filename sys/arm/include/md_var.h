@@ -62,7 +62,7 @@ enum cpu_class {
 	CPU_CLASS_ARM10EJ,
 	CPU_CLASS_CORTEXA,
 	CPU_CLASS_KRAIT,
-	CPU_CLASS_reserved,	/* XXX audit and remove ? */
+	CPU_CLASS_XSCALE,
 	CPU_CLASS_ARM11J,
 	CPU_CLASS_MARVELL
 };

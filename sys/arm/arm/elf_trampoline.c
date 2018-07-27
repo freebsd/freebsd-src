@@ -70,6 +70,16 @@ extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
+#elif defined(CPU_XSCALE_PXA2X0)
+#define cpu_idcache_wbinv_all	xscale_cache_purgeID
+extern void xscale_cache_purgeID(void);
+#elif defined(CPU_XSCALE_81342)
+#define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+extern void xscalec3_cache_purgeID(void);
+#endif
+#ifdef CPU_XSCALE_81342
+#define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
+extern void xscalec3_l2cache_purge(void);
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 extern void sheeva_l2cache_wbinv_all(void);
