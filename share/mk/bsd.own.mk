@@ -267,7 +267,7 @@ XZ_CMD?=	xz
 PKG_CMD?=	pkg
 
 # Pointer to the top directory into which tests are installed.  Should not be
-# overriden by Makefiles, but the user may choose to set this in src.conf(5).
+# overridden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
 
 DEPENDFILE?=	.depend
