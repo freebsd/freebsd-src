@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,6 +31,7 @@
  * Parse configuration file.
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -134,7 +135,7 @@ struct macro {
 	LIST_ENTRY(macro) link;
 	int	perm;
 };
-static LIST_HEAD(, macro) macros = LIST_HEAD_INITIALIZER(&macros);
+static LIST_HEAD(, macro) macros = LIST_HEAD_INITIALIZER(macros);
 
 enum {
 	TOK_EOF	= 0200,
@@ -662,7 +663,7 @@ gettoken()
 			printf("(EOL)");
 			break;
 		  case TOK_NUM:
-			printf("(NUM %llu)", numval);
+			printf("(NUM %ju)", (uintmax_t)numval);
 			break;
 		  case TOK_STR:
 			printf("(STR %.*s)", (int)strvallen, strval);
@@ -810,6 +811,7 @@ parse_oid(const char *varname, struct asn_oid *oid)
 	struct snmp_node *node;
 	u_int i;
 	u_char ip[4];
+	struct asn_oid str_oid;
 
 	for (node = tree; node < &tree[tree_size]; node++)
 		if (strcmp(varname, node->name) == 0)
@@ -821,10 +823,23 @@ parse_oid(const char *varname, struct asn_oid *oid)
 	while (token == '.') {
 		if (gettoken() == TOK_NUM) {
 			if (numval > ASN_MAXID)
-				report("subid too large %#"QUADXFMT, numval);
+				report("subid too large %#jx",
+				    (uintmax_t)numval);
 			if (oid->len == ASN_MAXOIDLEN)
 				report("index too long");
-			oid->subs[oid->len++] = numval;
+			if (gettoken() != ':')
+				oid->subs[oid->len++] = numval;
+			else {
+				str_oid.len = 0;
+				str_oid.subs[str_oid.len++] = numval;
+				while (gettoken() == TOK_NUM) {
+					str_oid.subs[str_oid.len++] = numval;
+					if (gettoken() != ':')
+						break;
+				}
+				oid->subs[oid->len++] = str_oid.len;
+				asn_append_oid(oid, &str_oid);
+			}
 
 		} else if (token == TOK_STR) {
 			if (strvallen + oid->len + 1 > ASN_MAXOIDLEN)
@@ -832,6 +847,7 @@ parse_oid(const char *varname, struct asn_oid *oid)
 			oid->subs[oid->len++] = strvallen;
 			for (i = 0; i < strvallen; i++)
 				oid->subs[oid->len++] = strval[i];
+			gettoken();
 
 		} else if (token == TOK_HOST) {
 			gethost(strval, ip);
@@ -839,10 +855,9 @@ parse_oid(const char *varname, struct asn_oid *oid)
 				report("index too long");
 			for (i = 0; i < 4; i++)
 				oid->subs[oid->len++] = ip[i];
-
+			gettoken();
 		} else
 			report("bad token in index");
-		gettoken();
 	}
 
 	return (node);
@@ -864,7 +879,7 @@ parse_syntax_integer(struct snmp_value *value)
 	if (token != TOK_NUM)
 		report("bad INTEGER syntax");
 	if (numval > 0x7fffffff)
-		report("INTEGER too large %"QUADFMT, numval);
+		report("INTEGER too large %ju", (uintmax_t)numval);
 
 	value->v.integer = numval;
 	gettoken();
@@ -1006,7 +1021,7 @@ parse_assign(const char *varname)
 
 	node = parse_oid(varname, &vindex);
 	if (token != '=')
-		report("'=' expected");
+		report("'=' expected, got '%c'", token);
 	gettoken();
 
 	if (ignore) {
@@ -1136,7 +1151,8 @@ parse_define(const char *varname)
 			free(m->value);
 			m->value = string;
 			m->length = length;
-		}
+		} else
+			free(string);
 	}
 
 	token = TOK_EOL;

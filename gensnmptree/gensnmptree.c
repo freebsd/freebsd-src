@@ -3,12 +3,12 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
  *
- * Copyright (c) 2004-2006
+ * Copyright (c) 2004-2006,2018
  *	Hartmut Brandt.
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -110,12 +110,14 @@ static int debug;
 
 static const char usgtxt[] = "\
 Generate SNMP tables.\n\
-usage: gensnmptree [-dEehlt] [-I directory] [-i infile] [-p prefix]\n\
+usage: gensnmptree [-dEeFfhlt] [-I directory] [-i infile] [-p prefix]\n\
 	    [name]...\n\
 options:\n\
   -d		debug mode\n\
-  -E		extract the named enums and bits only\n\
+  -E		extract the named or all enums and bits only\n\
   -e		extract the named oids or enums\n\
+  -F		generate functions for -E into a .c file\n\
+  -f		generate functions for -E into the header\n\
   -h		print this info\n\
   -I directory	add directory to include path\n\
   -i ifile	read from the named file instead of stdin\n\
@@ -420,10 +422,9 @@ static const struct {
 
 /* arbitrary upper limit on node names and function names */
 #define	MAXSTR	1000
-char	str[MAXSTR];
-u_long	val;		/* integer values */
-int	all_cond;	/* all conditions are true */
-int	saved_token = -1;
+static char	str[MAXSTR];
+static u_long	val;		/* integer values */
+static int	saved_token = -1;
 
 /*
  * Report an error and exit.
@@ -738,15 +739,13 @@ parse_type(enum tok *tok, struct type *t, const char *vname)
 				e->value = -(long)val;
 			} else
 				e->value = val;
-			
+
 			if (*tok != TOK_NUM)
 				report("need value for ENUM/BITS");
 			if (gettoken() != TOK_STR)
 				report("need string in ENUM/BITS");
-			if (e != NULL) {
-				e->name = savetok();
-				TAILQ_INSERT_TAIL(&t->enums, e, link);
-			}
+			e->name = savetok();
+			TAILQ_INSERT_TAIL(&t->enums, e, link);
 			if ((*tok = gettoken()) == TOK_EOF)
 				report("unexpected EOF in ENUM/BITS");
 		} while (*tok != ')');
@@ -1380,6 +1379,13 @@ unminus(FILE *fp, const char *s)
 	}
 }
 
+/**
+ * Generate a definition for the enum packed into a guard against multiple
+ * definitions.
+ *
+ * \param fp	file to write definition to
+ * \param t	type
+ */
 static void
 gen_enum(FILE *fp, const struct type *t)
 {
@@ -1404,12 +1410,112 @@ gen_enum(FILE *fp, const struct type *t)
 	fprintf(fp, "#define	STROFF_%s %ld\n", t->name, min);
 	fprintf(fp, "#define	STRING_%s \\\n", t->name);
 	TAILQ_FOREACH(e, &t->enums, link) {
-		fprintf(fp, "\t[%ld] \"%s_", e->value - min, t->name);
+		fprintf(fp, "\t[%ld] = \"%s_", e->value - min, t->name);
 		unminus(fp, e->name);
 		fprintf(fp, "\",\\\n");
 	}
 	fprintf(fp, "\n");
 	fprintf(fp, "#endif /* %s_defined__ */\n", t->name);
+}
+
+/**
+ * Generate helper functions for an enum.
+ *
+ * We always generate a switch statement for the isok function. The compiler
+ * optimizes this into range checks if possible.
+ *
+ * \param fp		file to write to
+ * \param t		type
+ * \param ccode		generate externally visible non-inline functions
+ */
+static void
+gen_enum_funcs(FILE *fp, const struct type *t, int ccode)
+{
+	fprintf(fp, "\n");
+
+	if (!ccode)
+		fprintf(fp, "static inline ");
+	fprintf(fp, "int\n");
+	fprintf(fp, "isok_%s(enum %s s)\n", t->name, t->name);
+	fprintf(fp, "{\n");
+	fprintf(fp, "	switch (s) {\n");
+
+	const struct enums *e;
+	TAILQ_FOREACH(e, &t->enums, link) {
+		fprintf(fp, "\t  case %s_", t->name);
+		unminus(fp, e->name);
+		fprintf(fp, ":\n");
+	}
+
+	fprintf(fp, "		return (1);\n");
+	fprintf(fp, "	}\n");
+	fprintf(fp, "	return (0);\n");
+	fprintf(fp, "}\n\n");
+
+	if (!ccode)
+		fprintf(fp, "static inline ");
+	fprintf(fp, "const char *\n");
+	fprintf(fp, "tostr_%s(enum %s s)\n", t->name, t->name);
+	fprintf(fp, "{\n");
+	fprintf(fp, "	static const char *vals[] = { STRING_%s };\n", t->name);
+	fprintf(fp, "\n");
+	fprintf(fp, "	if (isok_%s(s))\n", t->name);
+	fprintf(fp, "		return (vals[(int)s - STROFF_%s]);\n", t->name);
+	fprintf(fp, "	return (\"%s???\");\n", t->name);
+	fprintf(fp, "}\n\n");
+
+	if (!ccode)
+		fprintf(fp, "static inline ");
+	fprintf(fp, "int\n");
+	fprintf(fp, "fromstr_%s(const char *str, enum %s *s)\n",
+	    t->name, t->name);
+	fprintf(fp, "{\n");
+	fprintf(fp, "	static const char *vals[] = { STRING_%s };\n", t->name);
+	fprintf(fp, "\n");
+	fprintf(fp, "	for (size_t i = 0; i < sizeof(vals)/sizeof(vals[0]); i++) {\n");
+	fprintf(fp, "		if (vals[i] != NULL && strcmp(vals[i], str) == 0) {\n");
+	fprintf(fp, "			*s = i + STROFF_%s;\n", t->name);
+	fprintf(fp, "			return (1);\n");
+	fprintf(fp, "		}\n");
+	fprintf(fp, "	}\n");
+	fprintf(fp, "	return (0);\n");
+	fprintf(fp, "}\n");
+}
+
+/**
+ * Generate helper functions for an enum. This generates code for a c file.
+ *
+ * \param fp		file to write to
+ * \param name		enum name
+ */
+static int
+gen_enum_funcs_str(FILE *fp, const char *name)
+{
+	const struct type *t;
+
+	LIST_FOREACH(t, &types, link)
+		if ((t->is_enum || t->is_bits) && strcmp(t->name, name) == 0) {
+			gen_enum_funcs(fp, t, 1);
+			return (0);
+		}
+
+	return (-1);
+}
+
+/**
+ * Generate helper functions for all enums.
+ *
+ * \param fp		file to write to
+ * \param ccode		generate externally visible non-inline functions
+ */
+static void
+gen_all_enum_funcs(FILE *fp, int ccode)
+{
+	const struct type *t;
+
+	LIST_FOREACH(t, &types, link)
+		if (t->is_enum || t->is_bits)
+			gen_enum_funcs(fp, t, ccode);
 }
 
 static void
@@ -1422,17 +1528,79 @@ gen_enums(FILE *fp)
 			gen_enum(fp, t);
 }
 
+/**
+ * Extract a given enum to the specified file and optionally generate static
+ * inline helper functions for them.
+ *
+ * \param fp		file to print on
+ * \param name		name of the enum
+ * \param gen_funcs	generate the functions too
+ *
+ * \return 0 if found, -1 otherwise
+ */
 static int
-extract_enum(FILE *fp, const char *name)
+extract_enum(FILE *fp, const char *name, int gen_funcs)
 {
 	const struct type *t;
 
 	LIST_FOREACH(t, &types, link)
 		if ((t->is_enum || t->is_bits) && strcmp(t->name, name) == 0) {
 			gen_enum(fp, t);
+			if (gen_funcs)
+				gen_enum_funcs(fp, t, 0);
 			return (0);
 		}
 	return (-1);
+}
+
+/**
+ * Extract all enums to the given file and optionally generate static inline
+ * helper functions for them.
+ *
+ * \param fp		file to print on
+ * \param gen_funcs	generate the functions too
+ */
+static void
+extract_all_enums(FILE *fp, int gen_funcs)
+{
+	const struct type *t;
+
+	LIST_FOREACH(t, &types, link)
+		if (t->is_enum || t->is_bits) {
+			gen_enum(fp, t);
+			if (gen_funcs)
+				gen_enum_funcs(fp, t, 0);
+		}
+}
+
+/**
+ * Extract enums and optionally generate some helper functions for them.
+ *
+ * \param argc		number of arguments
+ * \param argv		arguments (enum names)
+ * \param gen_funcs_h	generate functions into the header file
+ * \param gen_funcs_c	generate a .c file with functions
+ */
+static void
+make_enums(int argc, char *argv[], int gen_funcs_h, int gen_funcs_c)
+{
+	if (gen_funcs_c) {
+		if (argc == 0)
+			gen_all_enum_funcs(stdout, 1);
+		else {
+			for (int i = 0; i < argc; i++)
+				if (gen_enum_funcs_str(stdout, argv[i]))
+					errx(1, "enum not found: %s", argv[i]);
+		}
+	} else {
+		if (argc == 0)
+			extract_all_enums(stdout, gen_funcs_h);
+		else {
+			for (int i = 0; i < argc; i++)
+				if (extract_enum(stdout, argv[i], gen_funcs_h))
+					errx(1, "enum not found: %s", argv[i]);
+		}
+	}
 }
 
 int
@@ -1441,6 +1609,8 @@ main(int argc, char *argv[])
 	int do_extract = 0;
 	int do_tree = 0;
 	int do_enums = 0;
+	int gen_funcs_h = 0;
+	int gen_funcs_c = 0;
 	int opt;
 	struct node *root;
 	char fname[MAXPATHLEN + 1];
@@ -1448,16 +1618,12 @@ main(int argc, char *argv[])
 	FILE *fp;
 	char *infile = NULL;
 
-	while ((opt = getopt(argc, argv, "dEehI:i:lp:t")) != EOF)
+	while ((opt = getopt(argc, argv, "dEeFfhI:i:lp:t")) != EOF)
 		switch (opt) {
 
 		  case 'd':
 			debug = 1;
 			break;
-
-		  case 'h':
-			fprintf(stderr, "%s", usgtxt);
-			exit(0);
 
 		  case 'E':
 			do_enums = 1;
@@ -1466,6 +1632,18 @@ main(int argc, char *argv[])
 		  case 'e':
 			do_extract = 1;
 			break;
+
+		  case 'F':
+			gen_funcs_c = 1;
+			break;
+
+		  case 'f':
+			gen_funcs_h = 1;
+			break;
+
+		  case 'h':
+			fprintf(stderr, "%s", usgtxt);
+			exit(0);
 
 		  case 'I':
 			path_new(optarg);
@@ -1495,8 +1673,13 @@ main(int argc, char *argv[])
 		errx(1, "conflicting options -e/-t/-E");
 	if (!do_extract && !do_enums && argc != optind)
 		errx(1, "no arguments allowed");
-	if ((do_extract || do_enums) && argc == optind)
+	if (do_extract && argc == optind)
 		errx(1, "no objects specified");
+
+	if ((gen_funcs_h || gen_funcs_c) && !do_enums)
+		errx(1, "-f and -F require -E");
+	if (gen_funcs_h && gen_funcs_c)
+		errx(1, "-f and -F are mutually exclusive");
 
 	if (infile == NULL) {
 		input_new(stdin, NULL, "<stdin>");
@@ -1510,7 +1693,8 @@ main(int argc, char *argv[])
 	while ((tok = gettoken()) != TOK_EOF)
 		merge(&root, parse_top(tok));
 
-	check_tree(root);
+	if (root)
+		check_tree(root);
 
 	if (do_extract) {
 		while (optind < argc) {
@@ -1521,11 +1705,8 @@ main(int argc, char *argv[])
 		return (0);
 	}
 	if (do_enums) {
-		while (optind < argc) {
-			if (extract_enum(stdout, argv[optind]))
-				errx(1, "enum not found: %s", argv[optind]);
-			optind++;
-		}
+		make_enums(argc - optind, argv + optind,
+		    gen_funcs_h, gen_funcs_c);
 		return (0);
 	}
 	if (do_tree) {

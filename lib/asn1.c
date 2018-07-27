@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -196,7 +196,7 @@ asn_put_temp_header(struct asn_buf *b, u_char type, u_char **ptr)
 	return (ret);
 }
 enum asn_err
-asn_commit_header(struct asn_buf *b, u_char *ptr)
+asn_commit_header(struct asn_buf *b, u_char *ptr, size_t *moved)
 {
 	asn_len_t len;
 	u_int lenlen, shift;
@@ -215,6 +215,8 @@ asn_commit_header(struct asn_buf *b, u_char *ptr)
 		memmove(ptr + 1 + lenlen, ptr + TEMP_LEN, len);
 		b->asn_ptr -= shift;
 		b->asn_len += shift;
+		if (moved != NULL)
+			*moved = shift;
 	}
 	return (ASN_ERR_OK);
 }
@@ -283,7 +285,7 @@ asn_put_real_integer(struct asn_buf *b, u_char type, int64_t ival)
 	enum asn_err ret;
 
 	if (ival < 0) {
-		/* this may fail if |INT64_MIN| > |INT64_MAX| and 
+		/* this may fail if |INT64_MIN| > |INT64_MAX| and
 		 * the value is between * INT64_MIN <= ival < -(INT64_MAX+1) */
 		val = (uint64_t)-(ival + 1);
 		neg = 1;
@@ -650,7 +652,7 @@ asn_put_objid(struct asn_buf *b, const struct asn_oid *oid)
 			err = ASN_ERR_RANGE;
 		}
 		if (oid->subs[0] > 2 ||
-		    (oid->subs[0] < 2 && oid->subs[0] >= 40)) {
+		    (oid->subs[0] < 2 && oid->subs[1] >= 40)) {
 			asn_error(NULL, "oid out of range (%u,%u)",
 			    oid->subs[0], oid->subs[1]);
 			err = ASN_ERR_RANGE;
@@ -888,7 +890,7 @@ asn_slice_oid(struct asn_oid *dest, const struct asn_oid *src,
 	memcpy(dest->subs, &src->subs[from], dest->len * sizeof(dest->subs[0]));
 }
 
-/* 
+/*
  * Append from to to
  */
 void
@@ -909,6 +911,20 @@ asn_skip(struct asn_buf *b, asn_len_t len)
 		return (ASN_ERR_EOBUF);
 	b->asn_cptr += len;
 	b->asn_len -= len;
+	return (ASN_ERR_OK);
+}
+
+/*
+ * Add a padding
+ */
+enum asn_err
+asn_pad(struct asn_buf *b, asn_len_t len)
+{
+	if (b->asn_len < len)
+		return (ASN_ERR_EOBUF);
+	b->asn_ptr += len;
+	b->asn_len -= len;
+
 	return (ASN_ERR_OK);
 }
 

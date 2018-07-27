@@ -4,19 +4,26 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/Makefile.in,v 1.4 2005/10/04 11:21:22 brandt_h Exp $
+# $Begemot: bsnmp/tags/RELENG_1_13/Makefile.in 2238 2018-06-27 14:58:50Z brandt_h $
 #
 
-SUBDIR=	lib gensnmptree snmpd snmp_mibII snmp_ntp
+SUBDIR=	gensnmptree lib snmpd
+
+ifeq "$(BUILD_MODULES)" "yes"
+SUBDIR+= snmp_mibII snmp_ntp snmp_target snmp_usm snmp_vacm
+endif
 
 ifeq "$(HAVE_LIBSMI)" "yes"
 SUBDIR += gensnmpdef
 endif
 
+PKGFILES=libbsnmp.pc
+PKGFILESDIR= ${prefix}/libdata/pkgconfig
+
 all:
 	+@for f in $(SUBDIR) ; do			\
 		echo "==> $$f" ;			\
-		if ! $(SUBMAKE) -C $$f all ; then	\
+		if ! $(MAKE) -C $$f all ; then	\
 			break ;				\
 		fi ;					\
 	done
@@ -28,6 +35,10 @@ install:
 			break ;				\
 		fi ;					\
 	done
+	@$(srcdir)/config/mkinstalldirs $(PKGFILESDIR)
+	for f in $(PKGFILES) ; do \
+		$(BSD_INSTALL_DATA) $(builddir)/$$f $(PKGFILESDIR) ; \
+	done
 
 clean:
 	+@for f in $(SUBDIR) ; do			\
@@ -36,3 +47,4 @@ clean:
 			break ;				\
 		fi ;					\
 	done
+	-rm -f $(PKGFILES)

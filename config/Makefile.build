@@ -4,7 +4,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/config/Makefile.build,v 1.1 2004/04/13 17:01:31 novo Exp $
+# $Begemot: bsnmp/trunk/config/Makefile.build 1487 2008-12-23 19:03:33Z brandt_h $
 #
 
 all: build-prog build-lib build-man1 build-man3

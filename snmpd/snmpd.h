@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  *
  * Private SNMPd data and functions.
  */
-#include <sys/queue.h>
+
 #ifdef USE_LIBBEGEMOT
 #include <rpoll.h>
 #else
@@ -193,6 +193,7 @@ struct transport_def {
 
 	ssize_t		(*send)(struct tport *, const u_char *, size_t,
 			    const struct sockaddr *, size_t);
+	ssize_t         (*recv)(struct tport *, struct port_input *);
 };
 struct transport {
 	struct asn_oid	index;		/* transport table index */
@@ -247,7 +248,8 @@ extern struct snmpd snmpd;
 
 #define	VERS_ENABLE_V1	0x00000001
 #define	VERS_ENABLE_V2C	0x00000002
-#define	VERS_ENABLE_ALL	0x00000003
+#define	VERS_ENABLE_V3	0x00000004
+#define	VERS_ENABLE_ALL	(VERS_ENABLE_V1 | VERS_ENABLE_V2C | VERS_ENABLE_V3)
 
 /*
  * The debug group
@@ -280,6 +282,11 @@ struct snmpd_stats {
 extern struct snmpd_stats snmpd_stats;
 
 /*
+ * SNMPd Engine
+ */
+extern struct snmp_engine snmpd_engine;
+
+/*
  * OR Table
  */
 struct objres {
@@ -301,7 +308,7 @@ struct trapsink {
 	struct asn_oid	index;
 	u_int		status;
 	int		socket;
-	u_char		comm[SNMP_COMMUNITY_MAXLEN];
+	u_char		comm[SNMP_COMMUNITY_MAXLEN + 1];
 	int		version;
 };
 enum {
@@ -322,6 +329,12 @@ extern const char *syspath;
 extern int32_t snmp_serial_no;
 
 int init_actvals(void);
+
+extern char engine_file[];
+int init_snmpd_engine(void);
+int set_snmpd_engine(void);
+void update_snmpd_engine_time(void);
+
 int read_config(const char *, struct lmodule *);
 int define_macro(const char *name, const char *value);
 

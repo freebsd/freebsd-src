@@ -7,7 +7,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-# $Begemot: bsnmp/config/Makefile.pre,v 1.5 2005/10/04 11:21:28 brandt_h Exp $
+# $Begemot: bsnmp/trunk/config/Makefile.pre 2117 2015-09-16 14:09:31Z brandt_h $
 #
 
 @SET_MAKE@
@@ -25,6 +25,7 @@ libdir= @libdir@
 includedir= @includedir@
 mandir= @mandir@
 datadir= @datadir@
+datarootdir= @datarootdir@
 
 INSTALL= @INSTALL@
 INSTALL_PROGRAM= @INSTALL_PROGRAM@
@@ -42,25 +43,26 @@ BSD_INSTALL_PROGRAM = ${INSTALL_PROGRAM}
 endif
 
 LIBTOOL= @LIBTOOL@
+LIBTOOL_DEPS= @LIBTOOL_DEPS@
+SHELL = @SHELL@
 CC=	@CC@
 DEFINES=@DEFS@
+CPPFLAGS= @CPPFLAGS@
 CFLAGS=	@CFLAGS@
 LDFLAGS= @LDFLAGS@
 
 LIBEV=	@LIBEV@
 LIBWRAP= @LIBWRAP@
+LIBDL=	@LIBDL@
 
 # Assume a Posix-ish make that passes MAKEFLAGS in the environment.
 SUBMAKE= $(MAKE) --no-print-directory
 
-WARNS=	-Wsystem-headers -Werror -Wall -Wno-format-y2k -W	\
-	-Wstrict-prototypes -Wmissing-prototypes		\
-	-Wpointer-arith -Wreturn-type -Wcast-qual		\
-	-Wwrite-strings -Wswitch -Wshadow -Wcast-align		\
-	-Wbad-function-cast -Wchar-subscripts -Winline		\
-	-Wnested-externs -Wredundant-decls -std=c99
+WARNS=	@WARNS@
 
 CFLAGS+= $(WARNS) -Wp,-MD,.deps/$(*F).d
 CFLAGS+= $(DEFINES)
 
 HAVE_LIBSMI=@HAVE_LIBSMI@
+
+BUILD_MODULES=@BUILD_MODULES@
