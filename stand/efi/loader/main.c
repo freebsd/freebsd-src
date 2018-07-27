@@ -368,11 +368,11 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	 * path in it...
 	 */
 	if (last_dp == first_dp) {
-		printf("Ignoring BootXXX: Only one DP found\n");
+		printf("Ignoring Boot%04x: Only one DP found\n", boot_current);
 		return NOT_SPECIFIC;
 	}
-	if (efi_devpath_to_media_path(path) == NULL) {
-		printf("Ignoring BootXXXX: No Media Path\n");
+	if (efi_devpath_to_media_path(last_dp) == NULL) {
+		printf("Ignoring Boot%04x: No Media Path\n", boot_current);
 		return NOT_SPECIFIC;
 	}
 
@@ -382,12 +382,12 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	 */
 	pp = efiblk_get_pdinfo_by_device_path(last_dp);
 	if (pp == NULL) {
-		printf("Ignoring BootXXXX: Device Path not found\n");
+		printf("Ignoring Boot%04x: Device Path not found\n", boot_current);
 		return BAD_CHOICE;
 	}
 	set_currdev_pdinfo(pp);
 	if (!sanity_check_currdev()){
-		printf("Ignoring BootXXX: sanity check failed\n");
+		printf("Ignoring Boot%04x: sanity check failed\n", boot_current);
 		return BAD_CHOICE;
 	}
 
@@ -402,27 +402,29 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	dp = efi_devpath_last_node(last_dp);
 	if (DevicePathType(dp) !=  MEDIA_DEVICE_PATH ||
 	    DevicePathSubType(dp) != MEDIA_FILEPATH_DP) {
-		printf("Using BootXXXX for root partition\n");
+		printf("Using Boot%04x for root partition\n", boot_current);
 		return (BOOT_INFO_OK);		/* use currdir, default kernel */
 	}
 	fp = (FILEPATH_DEVICE_PATH *)dp;
 	ucs2_to_utf8(fp->PathName, &kernel);
 	if (kernel == NULL) {
-		printf("Not using BootXXX: can't decode kernel\n");
+		printf("Not using Boot%04x: can't decode kernel\n", boot_current);
 		return (BAD_CHOICE);
 	}
 	if (*kernel == '\\' || isupper(*kernel))
 		fix_dosisms(kernel);
 	if (stat(kernel, &st) != 0) {
 		free(kernel);
-		printf("Not using BootXXX: can't find %s\n", kernel);
+		printf("Not using Boot%04x: can't find %s\n", boot_current,
+		    kernel);
 		return (BAD_CHOICE);
 	}
 	setenv("kernel", kernel, 1);
 	free(kernel);
 	text = efi_devpath_name(last_dp);
 	if (text) {
-		printf("Using BootXXX %S + %s\n", text, kernel);
+		printf("Using Boot$04x %S + %s\n", boot_current, text,
+		    kernel);
 		efi_free_devpath_name(text);
 	}
 
