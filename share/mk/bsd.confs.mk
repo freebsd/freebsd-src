@@ -107,6 +107,12 @@ ${group}NAME_${cnf}?=	${${group}NAME}
 ${group}NAME_${cnf}?=	${cnf:T}
 .          endif # defined(${group}NAME)
 
+# Work around a bug with install(1) -C and /dev/null
+.          if ${cnf} == "/dev/null"
+INSTALL_COPY=
+.          else
+INSTALL_COPY=  -C
+.          endif
 
 STAGE_AS_SETS+= ${cnf:T}
 STAGE_AS_${cnf:T}= ${${group}NAME_${cnf:T}}
@@ -116,7 +122,7 @@ stage_as.${cnf:T}: ${cnf}
 
 realinstallconfig: installdirs-${_${group}DIR_${cnf}} _${group}INS_${cnf:T}
 _${group}INS_${cnf:T}: ${cnf}
-	${INSTALL} ${${group}TAG_ARGS} -C -o ${${group}OWN_${cnf}} \
+	${INSTALL} ${${group}TAG_ARGS} ${INSTALL_COPY} -o ${${group}OWN_${cnf}} \
 	    -g ${${group}GRP_${cnf}} -m ${${group}MODE_${cnf}} \
 	    ${.ALLSRC} ${${group}PREFIX_${cnf}}/${${group}NAME_${cnf}}
 .        endfor # for cnf in ${${group}}
