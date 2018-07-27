@@ -48,14 +48,6 @@
 	__weak_reference(imprecise_## x, x);\
 	WARN_IMPRECISE(x)
 
-long double
-imprecise_powl(long double x, long double y)
-{
-
-	return pow(x, y);
-}
-DECLARE_WEAK(powl);
-
 #define DECLARE_IMPRECISE(f) \
 	long double imprecise_ ## f ## l(long double v) { return f(v); }\
 	DECLARE_WEAK(f ## l)
