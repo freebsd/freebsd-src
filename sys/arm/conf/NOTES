@@ -8,7 +8,6 @@ cpu	CPU_FA526
 cpu 	CPU_XSCALE_81342
 cpu	CPU_XSCALE_PXA2X0
 
-files	"../cavium/cns11xx/files.econa"
 files	"../mv/files.mv"
 files	"../mv/discovery/files.db78xxx"
 files	"../mv/kirkwood/files.kirkwood"
