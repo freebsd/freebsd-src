@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
  * to produce the hexadecimal values shown.
  */
 
+#include <float.h>
 #include "math.h"
 #include "math_private.h"
 
@@ -307,3 +308,7 @@ __ieee754_pow(double x, double y)
 	else SET_HIGH_WORD(z,j);
 	return s*z;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(pow, powl);
+#endif
