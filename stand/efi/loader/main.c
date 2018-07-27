@@ -832,7 +832,6 @@ main(int argc, CHAR16 *argv[])
 			}
 		}
 	}
-	printf("howto %#x console set to %s\n", howto, getenv("console"));
 
 	/*
 	 * howto is set now how we want to export the flags to the kernel, so
@@ -869,6 +868,8 @@ main(int argc, CHAR16 *argv[])
 	    ST->Hdr.Revision & 0xffff);
 	printf("   EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
+	printf("   Console: %s (%#x)\n", getenv("console"), howto);
+
 
 
 	/* Determine the devpath of our image so we can prefer it. */
