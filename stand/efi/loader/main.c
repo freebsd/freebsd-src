@@ -422,7 +422,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	free(kernel);
 	text = efi_devpath_name(last_dp);
 	if (text) {
-		printf("Using Boot$04x %S + %s\n", boot_current, text,
+		printf("Using Boot%04x %S + %s\n", boot_current, text,
 		    kernel);
 		efi_free_devpath_name(text);
 	}
