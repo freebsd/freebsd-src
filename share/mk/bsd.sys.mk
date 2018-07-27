@@ -221,7 +221,7 @@ CFLAGS+=	${SSP_CFLAGS}
 DEBUG_FILES_CFLAGS?= -g
 
 # Allow user-specified additional warning flags, plus compiler and file
-# specific flag overrides, unless we've overriden this...
+# specific flag overrides, unless we've overridden this...
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
