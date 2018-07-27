@@ -110,7 +110,6 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
 	__PMC_CPU(INTEL_BROADWELL_XEON, 0x97,   "Intel Broadwell Xeon") \
 	__PMC_CPU(INTEL_SKYLAKE, 0x98,   "Intel Skylake")		\
 	__PMC_CPU(INTEL_SKYLAKE_XEON, 0x99,   "Intel Skylake Xeon")	\
-	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
 	__PMC_CPU(MIPS_74K,     0x202,  "MIPS 74K")		\
@@ -151,7 +150,6 @@ enum pmc_cputype {
 	__PMC_CLASS(IAP,	0x07,	"Intel Core...Atom, programmable") \
 	__PMC_CLASS(UCF,	0x08,	"Intel Uncore fixed function")	\
 	__PMC_CLASS(UCP,	0x09,	"Intel Uncore programmable")	\
-	__PMC_CLASS(XSCALE,	0x0A,	"Intel XScale counters")	\
 	__PMC_CLASS(MIPS24K,	0x0B,	"MIPS 24K")			\
 	__PMC_CLASS(OCTEON,	0x0C,	"Cavium Octeon")		\
 	__PMC_CLASS(PPC7450,	0x0D,	"Motorola MPC7450 class")	\

@@ -47,9 +47,6 @@
 	.word	_C_LABEL(_min_memcpy_size)
 
 __FBSDID("$FreeBSD$");
-#ifdef _ARM_ARCH_5E
-#include <arm/arm/bcopyinout_xscale.S>
-#else
 
 	.text
 	.align	2
@@ -559,7 +556,6 @@ ENTRY(copyout)
 
 	RET
 END(copyout)
-#endif
 
 /*
  * int badaddr_read_1(const uint8_t *src, uint8_t *dest)
