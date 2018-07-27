@@ -36,7 +36,7 @@
 .Op Fl T
 .Op Fl o Ar bootorder
 .Op Fl verbose
-.Op Fl c -k Ar kernel -l Ar loader [-L Ar label] [--dry-run] 
+.Op Fl c -k Ar kernel -l Ar loader [-L Ar label] [--dry-run] [-b Bootvar]
 .Sh "DESCRIPTION"
 .Nm
 manipulates how UEFI Boot Managers boot the system.
@@ -70,6 +70,9 @@ Create a new Boot Variable
 The path to and name of the loader.
 .It Fl k -kernel Ar kernel
 The path to and name of the kernel.
+.It Fl b Bootvar
+When creating an entry, use Bootvar as the index.
+Fail if it already exists.
 .It Fl L -label Ar label
 An optional description for the entry.
 .It Fl D -dry-run
