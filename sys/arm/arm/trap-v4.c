@@ -514,13 +514,6 @@ dab_align(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
  * If pcb_onfault is set, flag the fault and return to the handler.
  * If the fault occurred in user mode, give the process a SIGBUS.
  *
- * Note: On XScale, FAULT_BUSERR_0, FAULT_BUSERR_1, and FAULT_BUSERR_2
- * can be flagged as imprecise in the FSR. This causes a real headache
- * since some of the machine state is lost. In this case, tf->tf_pc
- * may not actually point to the offending instruction. In fact, if
- * we've taken a double abort fault, it generally points somewhere near
- * the top of "data_abort_entry" in exception.S.
- *
  * In all other cases, these data aborts are considered fatal.
  */
 static int
@@ -528,52 +521,6 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
     struct ksig *ksig)
 {
 	struct pcb *pcb = td->td_pcb;
-
-#ifdef __XSCALE__
-	if ((fsr & FAULT_IMPRECISE) != 0 &&
-	    (tf->tf_spsr & PSR_MODE) == PSR_ABT32_MODE) {
-		/*
-		 * Oops, an imprecise, double abort fault. We've lost the
-		 * r14_abt/spsr_abt values corresponding to the original
-		 * abort, and the spsr saved in the trapframe indicates
-		 * ABT mode.
-		 */
-		tf->tf_spsr &= ~PSR_MODE;
-
-		/*
-		 * We use a simple heuristic to determine if the double abort
-		 * happened as a result of a kernel or user mode access.
-		 * If the current trapframe is at the top of the kernel stack,
-		 * the fault _must_ have come from user mode.
-		 */
-		if (tf != ((struct trapframe *)pcb->pcb_regs.sf_sp) - 1) {
-			/*
-			 * Kernel mode. We're either about to die a
-			 * spectacular death, or pcb_onfault will come
-			 * to our rescue. Either way, the current value
-			 * of tf->tf_pc is irrelevant.
-			 */
-			tf->tf_spsr |= PSR_SVC32_MODE;
-			if (pcb->pcb_onfault == NULL)
-				printf("\nKernel mode double abort!\n");
-		} else {
-			/*
-			 * User mode. We've lost the program counter at the
-			 * time of the fault (not that it was accurate anyway;
-			 * it's not called an imprecise fault for nothing).
-			 * About all we can do is copy r14_usr to tf_pc and
-			 * hope for the best. The process is about to get a
-			 * SIGBUS, so it's probably history anyway.
-			 */
-			tf->tf_spsr |= PSR_USR32_MODE;
-			tf->tf_pc = tf->tf_usr_lr;
-		}
-	}
-
-	/* FAR is invalid for imprecise exceptions */
-	if ((fsr & FAULT_IMPRECISE) != 0)
-		far = 0;
-#endif /* __XSCALE__ */
 
 	if (pcb->pcb_onfault) {
 		tf->tf_r0 = EFAULT;

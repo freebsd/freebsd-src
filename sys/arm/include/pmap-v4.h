@@ -63,13 +63,7 @@
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if (defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342))
-#define	ARM_MMU_XSCALE		1
-#else
-#define	ARM_MMU_XSCALE		0
-#endif
-
-#define	ARM_NMMUS		(ARM_MMU_GENERIC + ARM_MMU_XSCALE)
+#define	ARM_NMMUS		ARM_MMU_GENERIC
 #if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NMMUS is 0
 #endif
@@ -277,35 +271,15 @@ extern int pmap_needs_pte_sync;
  */
 
 #define	L1_S_CACHE_MASK_generic	(L1_S_B|L1_S_C)
-#define	L1_S_CACHE_MASK_xscale	(L1_S_B|L1_S_C|L1_S_XSCALE_TEX(TEX_XSCALE_X)|\
-    				L1_S_XSCALE_TEX(TEX_XSCALE_T))
-
 #define	L2_L_CACHE_MASK_generic	(L2_B|L2_C)
-#define	L2_L_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_L_TEX(TEX_XSCALE_X) | \
-    				L2_XSCALE_L_TEX(TEX_XSCALE_T))
-
 #define	L2_S_PROT_U_generic	(L2_AP(AP_U))
 #define	L2_S_PROT_W_generic	(L2_AP(AP_W))
 #define	L2_S_PROT_MASK_generic	(L2_S_PROT_U|L2_S_PROT_W)
-
-#define	L2_S_PROT_U_xscale	(L2_AP0(AP_U))
-#define	L2_S_PROT_W_xscale	(L2_AP0(AP_W))
-#define	L2_S_PROT_MASK_xscale	(L2_S_PROT_U|L2_S_PROT_W)
-
 #define	L2_S_CACHE_MASK_generic	(L2_B|L2_C)
-#define	L2_S_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_T_TEX(TEX_XSCALE_X)| \
-    				 L2_XSCALE_T_TEX(TEX_XSCALE_X))
-
 #define	L1_S_PROTO_generic	(L1_TYPE_S | L1_S_IMP)
-#define	L1_S_PROTO_xscale	(L1_TYPE_S)
-
 #define	L1_C_PROTO_generic	(L1_TYPE_C | L1_C_IMP2)
-#define	L1_C_PROTO_xscale	(L1_TYPE_C)
-
 #define	L2_L_PROTO		(L2_TYPE_L)
-
 #define	L2_S_PROTO_generic	(L2_TYPE_S)
-#define	L2_S_PROTO_xscale	(L2_TYPE_XSCALE_XS)
 
 /*
  * User-visible names for the ones that vary with MMU class.
@@ -338,29 +312,9 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROTO		L1_S_PROTO_generic
 #define	L1_C_PROTO		L1_C_PROTO_generic
 #define	L2_S_PROTO		L2_S_PROTO_generic
-
-#elif ARM_MMU_XSCALE == 1
-#define	L2_S_PROT_U		L2_S_PROT_U_xscale
-#define	L2_S_PROT_W		L2_S_PROT_W_xscale
-#define	L2_S_PROT_MASK		L2_S_PROT_MASK_xscale
-
-#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_xscale
-#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_xscale
-#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_xscale
-
-#define	L1_S_PROTO		L1_S_PROTO_xscale
-#define	L1_C_PROTO		L1_C_PROTO_xscale
-#define	L2_S_PROTO		L2_S_PROTO_xscale
-
-#endif /* ARM_NMMUS > 1 */
-
-#if defined(CPU_XSCALE_81342)
-#define CPU_XSCALE_CORE3
-#define PMAP_NEEDS_PTE_SYNC	1
-#define PMAP_INCLUDE_PTE_SYNC
-#else
-#define	PMAP_NEEDS_PTE_SYNC	0
 #endif
+
+#define	PMAP_NEEDS_PTE_SYNC	0
 
 /*
  * These macros return various bits based on kernel/user and protection.
@@ -457,26 +411,12 @@ extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
     vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_81342)
+#if ARM_MMU_GENERIC != 0
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
 void	pmap_pte_init_generic(void);
 #endif /* ARM_MMU_GENERIC != 0 */
-
-#if ARM_MMU_XSCALE == 1
-void	pmap_copy_page_xscale(vm_paddr_t, vm_paddr_t);
-void	pmap_zero_page_xscale(vm_paddr_t, int, int);
-
-void	pmap_pte_init_xscale(void);
-
-void	xscale_setup_minidata(vm_offset_t, vm_offset_t, vm_offset_t);
-
-void	pmap_use_minicache(vm_offset_t, vm_size_t);
-#endif /* ARM_MMU_XSCALE == 1 */
-#if defined(CPU_XSCALE_81342)
-#define ARM_HAVE_SUPERSECTIONS
-#endif
 
 #define PTE_KERNEL	0
 #define PTE_USER	1
@@ -488,9 +428,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define l2pte_index(v)		(((v) & L1_S_OFFSET) >> L2_S_SHIFT)
 #define	l2pte_valid(pte)	((pte) != 0)
 #define	l2pte_pa(pte)		((pte) & L2_S_FRAME)
-#define l2pte_minidata(pte)	(((pte) & \
-				 (L2_B | L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X)))\
-				 == (L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X)))
 
 /* L1 and L2 page table macros */
 #define pmap_pde_v(pde)		l1pte_valid(*(pde))

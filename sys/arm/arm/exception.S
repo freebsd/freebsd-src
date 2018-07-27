@@ -321,10 +321,6 @@ END(exception_exit)
  * on exit (without transitioning back through the abort mode stack).
  */
 ASENTRY_NP(prefetch_abort_entry)
-#ifdef __XSCALE__
-	nop				/* Make absolutely sure any pending */
-	nop				/* imprecise aborts have occurred. */
-#endif
 	sub	lr, lr, #4		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit	/* Return from handler via standard */
@@ -341,10 +337,6 @@ END(prefetch_abort_entry)
  * on exit (without transitioning back through the abort mode stack).
  */
 ASENTRY_NP(data_abort_entry)
-#ifdef __XSCALE__
-	nop				/* Make absolutely sure any pending */
-	nop				/* imprecise aborts have occurred. */
-#endif
 	sub	lr, lr, #8		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit	/* Exception exit routine */
