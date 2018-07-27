@@ -420,6 +420,7 @@ i_cpustates(int *states)
     int value;
     const char * const *names;
     const char *thisname;
+    int *hstates = states;
     int cpu;
 
 for (cpu = 0; cpu < num_cpus; cpu++) {
@@ -453,6 +454,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 
     /* copy over values into "last" array */
+    states = hstates;
     memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
 }
 
@@ -462,6 +464,7 @@ u_cpustates(int *states)
     int value;
     const char * const *names;
     const char *thisname;
+    int *hstates = states;
     int *lp;
     int *colp;
     int cpu;
@@ -504,6 +507,8 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 	colp++;
     }
 }
+
+    states = hstates;
 }
 
 void
