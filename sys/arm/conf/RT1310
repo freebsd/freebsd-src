@@ -8,7 +8,7 @@
 
 ident		RT1310
 include 	"std.arm"
-hints		"RT1310.hints"
+include 	"../ralink/std.ralink"
 
 # Flattened Device Tree
 options 	FDT
