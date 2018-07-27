@@ -1,0 +1,5 @@
+# $FreeBSD$
+files		"../ralink/files.ralink"
+cpu		CPU_ARM9
+machine 	arm
+options		INTRNG
