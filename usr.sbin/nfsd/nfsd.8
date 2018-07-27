@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2018
+.Dd July 27, 2018
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -117,15 +117,10 @@ The
 .Ar pnfs_setup
 string is a set of fields separated by ',' characters:
 .Bl -tag -width Ds
-Each of these fields specifies one Data Server.
+Each of these fields specifies one DS.
 It consists of a server hostname, followed by a ':'
 and the directory path where the DS's data storage file system is mounted on
 this MDS server.
-At this time, only IPv4 addresses are supported by the interface to the kernel,
-so the
-.Dq server hostname
-must resolve to an IPv4 address and support mounts on that address.
-This needs to be extended to support IPv6 addresses in the near future.
 This can optionally be followed by a '#' and the mds_path, which is the
 directory path for an exported file system on this MDS.
 If this is specified, it means that this DS is to be used to store data
@@ -161,6 +156,18 @@ data files for
 and nfsv4-data1 will be used to store data files for
 .Dq /export2 .
 .El
+.sp
+When using IPv6 addresses for DSs
+be wary of using link local addresses.
+The IPv6 address for the DS is sent to the client and there is no scope
+zone in it.
+As such, a link local address may not work for a pNFS client to DS
+TCP connection.
+When parsed,
+.Nm
+will only use a link local address if it is the only address returned by
+.Xr getaddrinfo 3
+for the DS hostname.
 .It Fl m Ar mirror_level
 This option is only meaningful when used with the
 .Fl p
