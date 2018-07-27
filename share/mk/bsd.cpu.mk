@@ -104,7 +104,11 @@ _CPUCFLAGS = -march=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "amd64"
 _CPUCFLAGS = -march=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "arm"
-.  if ${CPUTYPE:M*soft*} != ""
+.  if ${CPUTYPE} == "xscale"
+#XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
+#_CPUCFLAGS = -mcpu=xscale
+_CPUCFLAGS = -march=armv5te -D__XSCALE__
+.  elif ${CPUTYPE:M*soft*} != ""
 _CPUCFLAGS = -mfloat-abi=softfp
 .  elif ${CPUTYPE} == "cortexa"
 _CPUCFLAGS = -march=armv7 -mfpu=vfp

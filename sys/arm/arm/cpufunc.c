@@ -61,6 +61,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 
+#if defined(CPU_XSCALE_81342)
+#include <arm/xscale/i8134x/i81342reg.h>
+#endif
+
 /* PRIMARY CACHE VARIABLES */
 int	arm_picache_size;
 int	arm_picache_line_size;
@@ -250,6 +254,109 @@ struct cpu_functions pj4bv7_cpufuncs = {
 };
 #endif /* CPU_MV_PJ4B */
 
+#if defined(CPU_XSCALE_PXA2X0)
+
+struct cpu_functions xscale_cpufuncs = {
+	/* CPU functions */
+
+	xscale_cpwait,			/* cpwait		*/
+
+	/* MMU functions */
+
+	xscale_control,			/* control		*/
+	xscale_setttb,			/* setttb		*/
+
+	/* TLB functions */
+
+	armv4_tlb_flushID,		/* tlb_flushID		*/
+	xscale_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	armv4_tlb_flushD,		/* tlb_flushD		*/
+	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
+
+	/* Cache operations */
+
+	xscale_cache_syncI_rng,		/* icache_sync_range	*/
+
+	xscale_cache_purgeD,		/* dcache_wbinv_all	*/
+	xscale_cache_purgeD_rng,	/* dcache_wbinv_range	*/
+	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
+	xscale_cache_cleanD_rng,	/* dcache_wb_range	*/
+
+	xscale_cache_flushID,		/* idcache_inv_all	*/
+	xscale_cache_purgeID,		/* idcache_wbinv_all	*/
+	xscale_cache_purgeID_rng,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all 	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
+
+	/* Other functions */
+
+	armv4_drain_writebuf,		/* drain_writebuf	*/
+
+	xscale_cpu_sleep,		/* sleep		*/
+
+	/* Soft functions */
+
+	xscale_context_switch,		/* context_switch	*/
+
+	xscale_setup			/* cpu setup		*/
+};
+#endif
+/* CPU_XSCALE_PXA2X0 */
+
+#ifdef CPU_XSCALE_81342
+struct cpu_functions xscalec3_cpufuncs = {
+	/* CPU functions */
+
+	xscale_cpwait,			/* cpwait		*/
+
+	/* MMU functions */
+
+	xscale_control,			/* control		*/
+	xscalec3_setttb,		/* setttb		*/
+
+	/* TLB functions */
+
+	armv4_tlb_flushID,		/* tlb_flushID		*/
+	xscale_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	armv4_tlb_flushD,		/* tlb_flushD		*/
+	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
+
+	/* Cache operations */
+
+	xscalec3_cache_syncI_rng,	/* icache_sync_range	*/
+
+	xscalec3_cache_purgeD,		/* dcache_wbinv_all	*/
+	xscalec3_cache_purgeD_rng,	/* dcache_wbinv_range	*/
+	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
+	xscalec3_cache_cleanD_rng,	/* dcache_wb_range	*/
+
+	xscale_cache_flushID,		/* idcache_inv_all	*/
+	xscalec3_cache_purgeID,		/* idcache_wbinv_all	*/
+	xscalec3_cache_purgeID_rng,	/* idcache_wbinv_range	*/
+	xscalec3_l2cache_purge,		/* l2cache_wbinv_all	*/
+	xscalec3_l2cache_purge_rng,	/* l2cache_wbinv_range	*/
+	xscalec3_l2cache_flush_rng,	/* l2cache_inv_range	*/
+	xscalec3_l2cache_clean_rng,	/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
+
+	/* Other functions */
+
+	armv4_drain_writebuf,		/* drain_writebuf	*/
+
+	xscale_cpu_sleep,		/* sleep		*/
+
+	/* Soft functions */
+
+	xscalec3_context_switch,	/* context_switch	*/
+
+	xscale_setup			/* cpu setup		*/
+};
+#endif /* CPU_XSCALE_81342 */
+
+
 #if defined(CPU_FA526)
 struct cpu_functions fa526_cpufuncs = {
 	/* CPU functions */
@@ -355,7 +462,9 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
   defined(CPU_ARM1176) ||	\
+  defined(CPU_XSCALE_PXA2X0) || \
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
+  defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
@@ -480,7 +589,7 @@ get_cachetype_cp15(void)
 		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
 }
-#endif /* ARM9 */
+#endif /* ARM9 || XSCALE */
 
 /*
  * Cannot panic here as we may not have a console yet ...
@@ -588,6 +697,29 @@ set_cpufuncs(void)
 	}
 #endif	/* CPU_FA526 */
 
+#if defined(CPU_XSCALE_81342)
+	if (cputype == CPU_ID_81342) {
+		cpufuncs = xscalec3_cpufuncs;
+		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
+		get_cachetype_cp15();
+		pmap_pte_init_xscale();
+		goto out;
+	}
+#endif /* CPU_XSCALE_81342 */
+#ifdef CPU_XSCALE_PXA2X0
+	/* ignore core revision to test PXA2xx CPUs */
+	if ((cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA250 ||
+	    (cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA27X ||
+	    (cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA210) {
+
+		cpufuncs = xscale_cpufuncs;
+		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
+		get_cachetype_cp15();
+		pmap_pte_init_xscale();
+
+		goto out;
+	}
+#endif /* CPU_XSCALE_PXA2X0 */
 	/*
 	 * Bzzzz. And the answer was ...
 	 */
@@ -800,3 +932,71 @@ fa526_setup(void)
 	cpu_control(0xffffffff, cpuctrl);
 }
 #endif	/* CPU_FA526 */
+
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
+void
+xscale_setup(void)
+{
+	uint32_t auxctl;
+	int cpuctrl, cpuctrlmask;
+
+	/*
+	 * The XScale Write Buffer is always enabled.  Our option
+	 * is to enable/disable coalescing.  Note that bits 6:3
+	 * must always be enabled.
+	 */
+
+	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
+		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
+		 | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
+		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_LABT_ENABLE
+		 | CPU_CONTROL_BPRD_ENABLE;
+	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
+		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
+		 | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
+		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_ROM_ENABLE
+		 | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
+		 | CPU_CONTROL_LABT_ENABLE | CPU_CONTROL_BPRD_ENABLE
+		 | CPU_CONTROL_CPCLK | CPU_CONTROL_VECRELOC | \
+		 CPU_CONTROL_L2_ENABLE;
+
+#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
+	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
+#endif
+
+#ifdef __ARMEB__
+	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
+#endif
+
+	if (vector_page == ARM_VECTORS_HIGH)
+		cpuctrl |= CPU_CONTROL_VECRELOC;
+#ifdef CPU_XSCALE_CORE3
+	cpuctrl |= CPU_CONTROL_L2_ENABLE;
+#endif
+
+	/* Clear out the cache */
+	cpu_idcache_wbinv_all();
+
+	/*
+	 * Set the control register.  Note that bits 6:3 must always
+	 * be set to 1.
+	 */
+/*	cpu_control(cpuctrlmask, cpuctrl);*/
+	cpu_control(0xffffffff, cpuctrl);
+
+	/* Make sure write coalescing is turned on */
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 1"
+		: "=r" (auxctl));
+#ifdef XSCALE_NO_COALESCE_WRITES
+	auxctl |= XSCALE_AUXCTL_K;
+#else
+	auxctl &= ~XSCALE_AUXCTL_K;
+#endif
+#ifdef CPU_XSCALE_CORE3
+	auxctl |= XSCALE_AUXCTL_LLR;
+	auxctl |= XSCALE_AUXCTL_MD_MASK;
+#endif
+	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
+		: : "r" (auxctl));
+}
+#endif	/* CPU_XSCALE_PXA2X0 */

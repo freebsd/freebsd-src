@@ -180,6 +180,9 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	L1_S_APX	(1 << 15)
 #define	L1_SHARED	(1 << 16)
 
+#define	L1_S_XSCALE_P	0x00000200	/* ECC enable for this section */
+#define	L1_S_XSCALE_TEX(x) ((x) << 12)	/* Type Extension */
+
 #define L1_S_SUPERSEC	((1) << 18)	/* Section is a super-section. */
 
 /* L1 Coarse Descriptor */
@@ -190,6 +193,8 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	L1_C_DOM_MASK	L1_C_DOM(0xf)
 #define	L1_C_ADDR_MASK	0xfffffc00	/* phys address of L2 Table */
 
+#define	L1_C_XSCALE_P	0x00000200	/* ECC enable for this section */
+
 /* L1 Fine Descriptor */
 #define	L1_F_IMP0	0x00000004	/* implementation defined */
 #define	L1_F_IMP1	0x00000008	/* implementation defined */
@@ -197,6 +202,8 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	L1_F_DOM(x)	((x) << 5)	/* domain */
 #define	L1_F_DOM_MASK	L1_F_DOM(0xf)
 #define	L1_F_ADDR_MASK	0xfffff000	/* phys address of L2 Table */
+
+#define	L1_F_XSCALE_P	0x00000200	/* ECC enable for this section */
 
 /*
  * ARM L2 Descriptors
@@ -207,6 +214,15 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	L2_TYPE_S	0x02		/* Small Page */
 #define	L2_TYPE_T	0x03		/* Tiny Page */
 #define	L2_TYPE_MASK	0x03		/* mask of type bits */
+
+	/*
+	 * This L2 Descriptor type is available on XScale processors
+	 * when using a Coarse L1 Descriptor.  The Extended Small
+	 * Descriptor has the same format as the XScale Tiny Descriptor,
+	 * but describes a 4K page, rather than a 1K page.
+	 */
+#define	L2_TYPE_XSCALE_XS 0x03		/* XScale Extended Small Page */
+
 #define	L2_B		0x00000004	/* Bufferable page */
 #define	L2_C		0x00000008	/* Cacheable page */
 #define	L2_AP0(x)	((x) << 4)	/* access permissions (sp 0) */
@@ -221,6 +237,10 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	L2_L_TEX(x)	(((x) & 0x7) << 12)
 #define	L2_S_TEX_MASK	(0x7 << 6)	/* Type Extension */
 #define	L2_S_TEX(x)	(((x) & 0x7) << 6)
+
+#define	L2_XSCALE_L_TEX(x) ((x) << 12)	/* Type Extension */
+#define L2_XSCALE_L_S(x)   (1 << 15)	/* Shared */
+#define	L2_XSCALE_T_TEX(x) ((x) << 6)	/* Type Extension */
 
 /*
  * Access Permissions for L1 and L2 Descriptors.
@@ -247,6 +267,30 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define	DOMAIN_CLIENT	0x01		/* client */
 #define	DOMAIN_RESERVED	0x02		/* reserved */
 #define	DOMAIN_MANAGER	0x03		/* manager */
+
+/*
+ * Type Extension bits for XScale processors.
+ *
+ * Behavior of C and B when X == 0:
+ *
+ * C B  Cacheable  Bufferable  Write Policy  Line Allocate Policy
+ * 0 0      N          N            -                 -
+ * 0 1      N          Y            -                 -
+ * 1 0      Y          Y       Write-through    Read Allocate
+ * 1 1      Y          Y        Write-back      Read Allocate
+ *
+ * Behavior of C and B when X == 1:
+ * C B  Cacheable  Bufferable  Write Policy  Line Allocate Policy
+ * 0 0      -          -            -                 -           DO NOT USE
+ * 0 1      N          Y            -                 -
+ * 1 0  Mini-Data      -            -                 -
+ * 1 1      Y          Y        Write-back       R/W Allocate
+ */
+#define	TEX_XSCALE_X	0x01		/* X modifies C and B */
+#define TEX_XSCALE_E	0x02
+#define TEX_XSCALE_T	0x04
+
+/* Xscale core 3 */
 
 /*
  *

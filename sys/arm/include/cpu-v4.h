@@ -95,6 +95,9 @@ _WF1(cp15_cpacr_set, CP15_CPACR(%0))
 _RF0(cp15_dfsr_get, CP15_DFSR(%0))
 _RF0(cp15_ttbr_get, CP15_TTBR0(%0))
 _RF0(cp15_dfar_get, CP15_DFAR(%0))
+/* XScale */
+_RF0(cp15_actlr_get, CP15_ACTLR(%0))
+_WF1(cp15_actlr_set, CP15_ACTLR(%0))
 
 /*CPU id registers */
 _RF0(cp15_midr_get, CP15_MIDR(%0))

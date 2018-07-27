@@ -13,6 +13,9 @@ files	"../mv/discovery/files.db78xxx"
 files	"../mv/kirkwood/files.kirkwood"
 files	"../mv/orion/files.db88f5xxx"
 files	"../mv/orion/files.ts7800"
+files	"../xscale/i8134x/files.crb"
+files	"../xscale/i8134x/files.i81342"
+files	"../xscale/pxa/files.pxa"
 
 options 	PHYSADDR=0x00000000
 
