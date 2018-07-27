@@ -3237,10 +3237,7 @@ dev/ubsec/ubsec.c		optional ubsec
 #
 # USB controller drivers
 #
-dev/usb/controller/at91dci.c		optional at91dci
-dev/usb/controller/at91dci_atmelarm.c	optional at91dci at91rm9200
 dev/usb/controller/musb_otg.c		optional musb
-dev/usb/controller/musb_otg_atmelarm.c	optional musb at91rm9200
 dev/usb/controller/dwc_otg.c		optional dwcotg
 dev/usb/controller/dwc_otg_fdt.c	optional dwcotg fdt
 dev/usb/controller/ehci.c		optional ehci
@@ -3255,7 +3252,6 @@ dev/usb/controller/xhci_pci.c		optional xhci pci
 dev/usb/controller/saf1761_otg.c	optional saf1761otg
 dev/usb/controller/saf1761_otg_fdt.c	optional saf1761otg fdt
 dev/usb/controller/uss820dci.c		optional uss820dci
-dev/usb/controller/uss820dci_atmelarm.c	optional uss820dci at91rm9200
 dev/usb/controller/usb_controller.c	optional usb
 #
 # USB storage drivers
