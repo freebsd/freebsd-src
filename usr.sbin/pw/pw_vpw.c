@@ -113,18 +113,6 @@ vnextpwent(char const *nam, uid_t uid, int doclose)
 	}
 	free(line);
 
-	/*
-	 * If we read the non-master passwd, some fields may not have been
-	 * populated.  Clean them up so that the output looks the same as that
-	 * generated using getpwnam() which also inits them to these values.
-	 */
-	if (!(pw->pw_fields & _PWF_CLASS))
-		pw->pw_class = "";
-	if (!(pw->pw_fields & _PWF_CHANGE))
-		pw->pw_change = 0;
-	if (!(pw->pw_fields & _PWF_EXPIRE))
-		pw->pw_expire = 0;
-
 	return (pw);
 }
 
