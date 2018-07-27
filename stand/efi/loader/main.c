@@ -365,7 +365,6 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	 * path in it. Those show up as various VenHw() nodes
 	 * which are basically opaque to us. Don't count those
 	 * as something specifc.
-	 * path in it...
 	 */
 	if (last_dp == first_dp) {
 		printf("Ignoring Boot%04x: Only one DP found\n", boot_current);
@@ -386,7 +385,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 		return BAD_CHOICE;
 	}
 	set_currdev_pdinfo(pp);
-	if (!sanity_check_currdev()){
+	if (!sanity_check_currdev()) {
 		printf("Ignoring Boot%04x: sanity check failed\n", boot_current);
 		return BAD_CHOICE;
 	}
