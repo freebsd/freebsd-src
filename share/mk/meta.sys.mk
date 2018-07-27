@@ -23,7 +23,7 @@
 
 .-include "local.meta.sys.mk"
 
-# absoulte path to what we are reading.
+# absolute path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:tA}
 
 .if !defined(SYS_MK_DIR)

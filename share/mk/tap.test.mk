@@ -18,7 +18,7 @@
 # PROGS, PROGS_CXX and SCRIPTS, respectively.
 #
 # Test programs registered in this manner are set to be installed into TESTSDIR
-# (which should be overriden by the Makefile) and are not required to provide a
+# (which should be overridden by the Makefile) and are not required to provide a
 # manpage.
 TAP_TESTS_C?=
 TAP_TESTS_CXX?=
