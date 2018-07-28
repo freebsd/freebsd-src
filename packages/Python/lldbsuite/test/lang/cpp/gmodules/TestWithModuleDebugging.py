@@ -9,17 +9,17 @@ class TestWithGmodulesDebugInfo(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
+    @skipIf(bugnumber="llvm.org/pr36146", oslist=["linux"], archs=["i386"])
     @add_test_categories(["gmodules"])
     def test_specialized_typedef_from_pch(self):
         self.build()
-        cwd = os.getcwd()
 
-        src_file = os.path.join(cwd, "main.cpp")
+        src_file = os.path.join(self.getSourceDir(), "main.cpp")
         src_file_spec = lldb.SBFileSpec(src_file)
         self.assertTrue(src_file_spec.IsValid(), "breakpoint file")
 
         # Get the path of the executable
-        exe_path = os.path.join(cwd, 'a.out')
+        exe_path = self.getBuildArtifact("a.out")
 
         # Load the executable
         target = self.dbg.CreateTarget(exe_path)
@@ -69,3 +69,26 @@ class TestWithGmodulesDebugInfo(TestBase):
             42,
             memberValue.GetValueAsSigned(),
             "Member value incorrect")
+
+        testValue = frame.EvaluateExpression("bar")
+        self.assertTrue(
+            testValue.GetError().Success(),
+            "Test expression value invalid: %s" %
+            (testValue.GetError().GetCString()))
+        self.assertTrue(
+            testValue.GetTypeName() == "Foo::Bar",
+            "Test expression type incorrect")
+
+        memberValue = testValue.GetChildMemberWithName("i")
+        self.assertTrue(
+            memberValue.GetError().Success(),
+            "Member value missing or invalid: %s" %
+            (testValue.GetError().GetCString()))
+        self.assertTrue(
+            memberValue.GetTypeName() == "int",
+            "Member type incorrect")
+        self.assertEqual(
+            123,
+            memberValue.GetValueAsSigned(),
+            "Member value incorrect")
+

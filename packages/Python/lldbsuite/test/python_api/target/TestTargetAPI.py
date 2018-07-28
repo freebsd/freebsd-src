@@ -46,6 +46,14 @@ class TargetAPITestCase(TestBase):
         self.find_global_variables('b.out')
 
     @add_test_categories(['pyapi'])
+    def test_find_compile_units(self):
+        """Exercise SBTarget.FindCompileUnits() API."""
+        d = {'EXE': 'b.out'}
+        self.build(dictionary=d)
+        self.setTearDownCleanup(dictionary=d)
+        self.find_compile_units(self.getBuildArtifact('b.out'))
+
+    @add_test_categories(['pyapi'])
     @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24778")
     def test_find_functions(self):
         """Exercise SBTarget.FindFunctions() API."""
@@ -61,12 +69,7 @@ class TargetAPITestCase(TestBase):
         self.get_description()
 
     @add_test_categories(['pyapi'])
-    def test_launch_new_process_and_redirect_stdout(self):
-        """Exercise SBTarget.Launch() API."""
-        self.build()
-        self.launch_new_process_and_redirect_stdout()
-
-    @add_test_categories(['pyapi'])
+    @expectedFailureAll(oslist=["windows"], bugnumber='llvm.org/pr21765')
     def test_resolve_symbol_context_with_address(self):
         """Exercise SBTarget.ResolveSymbolContextForAddress() API."""
         self.build()
@@ -149,7 +152,7 @@ class TargetAPITestCase(TestBase):
         self.assertEqual(len(content), 1)
 
     def create_simple_target(self, fn):
-        exe = os.path.join(os.getcwd(), fn)
+        exe = self.getBuildArtifact(fn)
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
         return target
@@ -175,7 +178,7 @@ class TargetAPITestCase(TestBase):
 
     def find_global_variables(self, exe_name):
         """Exercise SBTaget.FindGlobalVariables() API."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -216,8 +219,7 @@ class TargetAPITestCase(TestBase):
         # While we are at it, let's also exercise the similar
         # SBModule.FindGlobalVariables() API.
         for m in target.module_iter():
-            if os.path.normpath(m.GetFileSpec().GetDirectory()) == os.getcwd(
-            ) and m.GetFileSpec().GetFilename() == exe_name:
+            if os.path.normpath(m.GetFileSpec().GetDirectory()) == self.getBuildDir() and m.GetFileSpec().GetFilename() == exe_name:
                 value_list = m.FindGlobalVariables(
                     target, 'my_global_var_of_char_type', 3)
                 self.assertTrue(value_list.GetSize() == 1)
@@ -225,9 +227,23 @@ class TargetAPITestCase(TestBase):
                     value_list.GetValueAtIndex(0).GetValue() == "'X'")
                 break
 
+    def find_compile_units(self, exe):
+        """Exercise SBTarget.FindCompileUnits() API."""
+        source_name = "main.c"
+
+        # Create a target by the debugger.
+        target = self.dbg.CreateTarget(exe)
+        self.assertTrue(target, VALID_TARGET)
+
+        list = target.FindCompileUnits(lldb.SBFileSpec(source_name, False))
+        # Executable has been built just from one source file 'main.c',
+        # so we may check only the first element of list.
+        self.assertTrue(
+            list[0].GetCompileUnit().GetFileSpec().GetFilename() == source_name)
+
     def find_functions(self, exe_name):
         """Exercise SBTaget.FindFunctions() API."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -243,7 +259,7 @@ class TargetAPITestCase(TestBase):
 
     def get_description(self):
         """Exercise SBTaget.GetDescription() API."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -269,9 +285,12 @@ class TargetAPITestCase(TestBase):
                     substrs=['a.out', 'Target', 'Module', 'Breakpoint'])
 
     @not_remote_testsuite_ready
-    def launch_new_process_and_redirect_stdout(self):
+    @add_test_categories(['pyapi'])
+    @no_debug_info_test
+    def test_launch_new_process_and_redirect_stdout(self):
         """Exercise SBTaget.Launch() API with redirected stdout."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        self.build()
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -286,9 +305,12 @@ class TargetAPITestCase(TestBase):
         # Now launch the process, do not stop at entry point, and redirect stdout to "stdout.txt" file.
         # The inferior should run to completion after "process.Continue()"
         # call.
-        local_path = "stdout.txt"
+        local_path = self.getBuildArtifact("stdout.txt")
+        if os.path.exists(local_path):
+            os.remove(local_path)
+
         if lldb.remote_platform:
-            stdout_path = lldbutil.append_to_process_working_directory(
+            stdout_path = lldbutil.append_to_process_working_directory(self,
                 "lldb-stdout-redirect.txt")
         else:
             stdout_path = local_path
@@ -314,26 +336,19 @@ class TargetAPITestCase(TestBase):
 
         # The 'stdout.txt' file should now exist.
         self.assertTrue(
-            os.path.isfile("stdout.txt"),
+            os.path.isfile(local_path),
             "'stdout.txt' exists due to redirected stdout via SBTarget.Launch() API.")
 
         # Read the output file produced by running the program.
-        with open('stdout.txt', 'r') as f:
+        with open(local_path, 'r') as f:
             output = f.read()
-
-        # Let's delete the 'stdout.txt' file as a cleanup step.
-        try:
-            os.remove("stdout.txt")
-            pass
-        except OSError:
-            pass
 
         self.expect(output, exe=False,
                     substrs=["a(1)", "b(2)", "a(3)"])
 
     def resolve_symbol_context_with_address(self):
         """Exercise SBTaget.ResolveSymbolContextForAddress() API."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)

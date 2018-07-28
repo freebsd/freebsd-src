@@ -59,6 +59,7 @@ class RegisterCommandsTestCase(TestBase):
     # problem
     @skipIfTargetAndroid(archs=["i386"])
     @skipIf(archs=no_match(['amd64', 'arm', 'i386', 'x86_64']))
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37995")
     def test_fp_register_write(self):
         """Test commands that write to registers, in particular floating-point registers."""
         self.build()
@@ -69,6 +70,8 @@ class RegisterCommandsTestCase(TestBase):
     @expectedFailureAndroid(archs=["i386"])
     @skipIfFreeBSD  # llvm.org/pr25057
     @skipIf(archs=no_match(['amd64', 'i386', 'x86_64']))
+    @skipIfOutOfTreeDebugserver
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37995")
     def test_fp_special_purpose_register_read(self):
         """Test commands that read fpu special purpose registers."""
         self.build()
@@ -76,6 +79,7 @@ class RegisterCommandsTestCase(TestBase):
 
     @skipIfiOSSimulator
     @skipIf(archs=no_match(['amd64', 'arm', 'i386', 'x86_64']))
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37683")
     def test_register_expressions(self):
         """Test expression evaluation with commands related to registers."""
         self.build()
@@ -104,6 +108,7 @@ class RegisterCommandsTestCase(TestBase):
 
     @skipIfiOSSimulator
     @skipIf(archs=no_match(['amd64', 'x86_64']))
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37683")
     def test_convenience_registers(self):
         """Test convenience registers."""
         self.build()
@@ -111,6 +116,7 @@ class RegisterCommandsTestCase(TestBase):
 
     @skipIfiOSSimulator
     @skipIf(archs=no_match(['amd64', 'x86_64']))
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37683")
     def test_convenience_registers_with_process_attach(self):
         """Test convenience registers after a 'process attach'."""
         self.build()
@@ -118,13 +124,14 @@ class RegisterCommandsTestCase(TestBase):
 
     @skipIfiOSSimulator
     @skipIf(archs=no_match(['amd64', 'x86_64']))
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37683")
     def test_convenience_registers_16bit_with_process_attach(self):
         """Test convenience registers after a 'process attach'."""
         self.build()
         self.convenience_registers_with_process_attach(test_16bit_regs=True)
 
     def common_setup(self):
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
@@ -149,7 +156,7 @@ class RegisterCommandsTestCase(TestBase):
             self.platform = "posix"
 
         if self.platform != "":
-            self.log_file = os.path.join(os.getcwd(), 'TestRegisters.log')
+            self.log_file = self.getBuildArtifact('TestRegisters.log')
             self.runCmd(
                 "log enable " +
                 self.platform +
@@ -185,7 +192,7 @@ class RegisterCommandsTestCase(TestBase):
                 new_value])
 
     def fp_special_purpose_register_read(self):
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -266,7 +273,7 @@ class RegisterCommandsTestCase(TestBase):
                 1 << fstat_top_pointer_initial)
 
     def fp_register_write(self):
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)
@@ -371,6 +378,8 @@ class RegisterCommandsTestCase(TestBase):
             self.write_and_read(currentFrame, reg, val, must)
 
         if self.getArchitecture() in ['amd64', 'i386', 'x86_64']:
+            if st0regname is None:
+                self.fail("st0regname could not be determined")
             self.runCmd(
                 "register write " +
                 st0regname +
@@ -441,7 +450,7 @@ class RegisterCommandsTestCase(TestBase):
 
     def convenience_registers_with_process_attach(self, test_16bit_regs):
         """Test convenience registers after a 'process attach'."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         # Spawn a new process
         pid = self.spawnSubprocess(exe, ['wait_for_attach']).pid

@@ -261,7 +261,6 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
             lldbgdbserverutils.parse_reg_info_response(reg_info_packet))
 
     @debugserver_test
-    @expectedFailureDarwin("llvm.org/pr25486")
     @skipIfDarwinEmbedded # <rdar://problem/34539270> lldb-server tests not updated to work on ios etc yet
     def test_qRegisterInfo_returns_one_valid_result_debugserver(self):
         self.init_debugserver_test()
@@ -294,7 +293,6 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
             self.assert_valid_reg_info(reg_info)
 
     @debugserver_test
-    @expectedFailureDarwin("llvm.org/pr25486")
     @skipIfDarwinEmbedded # <rdar://problem/34539270> lldb-server tests not updated to work on ios etc yet
     def test_qRegisterInfo_returns_all_valid_results_debugserver(self):
         self.init_debugserver_test()
@@ -332,8 +330,9 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         # Ensure we have a program counter register.
         self.assertTrue('pc' in generic_regs)
 
-        # Ensure we have a frame pointer register.
-        self.assertTrue('fp' in generic_regs)
+        # Ensure we have a frame pointer register. PPC64le's FP is the same as SP
+        if self.getArchitecture() != 'powerpc64le':
+            self.assertTrue('fp' in generic_regs)
 
         # Ensure we have a stack pointer register.
         self.assertTrue('sp' in generic_regs)
@@ -558,7 +557,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.assertIsNotNone(reg_infos)
         self.assertTrue(len(reg_infos) > 0)
 
-        inferior_exe_path = os.path.abspath("a.out")
+        inferior_exe_path = self.getBuildArtifact("a.out")
         Target = self.dbg.CreateTarget(inferior_exe_path)
         byte_order = Target.GetByteOrder()
 

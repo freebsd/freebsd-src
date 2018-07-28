@@ -37,6 +37,7 @@
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
+#include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionValueBoolean.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -76,8 +77,7 @@ static constexpr std::chrono::seconds g_utility_function_timeout(2);
 static const char *g_get_dynamic_class_info_name =
     "__lldb_apple_objc_v2_get_dynamic_class_info";
 // Testing using the new C++11 raw string literals. If this breaks GCC then we
-// will
-// need to revert to the code above...
+// will need to revert to the code above...
 static const char *g_get_dynamic_class_info_body = R"(
 
 extern "C"
@@ -161,8 +161,7 @@ __lldb_apple_objc_v2_get_dynamic_class_info (void *gdb_objc_realized_classes_ptr
 static const char *g_get_shared_cache_class_info_name =
     "__lldb_apple_objc_v2_get_shared_cache_class_info";
 // Testing using the new C++11 raw string literals. If this breaks GCC then we
-// will
-// need to revert to the code above...
+// will need to revert to the code above...
 static const char *g_get_shared_cache_class_info_body = R"(
 
 extern "C"
@@ -385,7 +384,9 @@ AppleObjCRuntimeV2::AppleObjCRuntimeV2(Process *process,
       m_get_class_info_args_mutex(), m_get_shared_cache_class_info_code(),
       m_get_shared_cache_class_info_args(LLDB_INVALID_ADDRESS),
       m_get_shared_cache_class_info_args_mutex(), m_decl_vendor_ap(),
-      m_isa_hash_table_ptr(LLDB_INVALID_ADDRESS), m_hash_signature(),
+      m_tagged_pointer_obfuscator(LLDB_INVALID_ADDRESS),
+      m_isa_hash_table_ptr(LLDB_INVALID_ADDRESS),
+      m_hash_signature(),
       m_has_object_getClass(false), m_loaded_objc_opt(false),
       m_non_pointer_isa_cache_ap(
           NonPointerISACache::CreateInstance(*this, objc_module_sp)),
@@ -406,10 +407,9 @@ bool AppleObjCRuntimeV2::GetDynamicTypeAndAddress(
   assert(m_process != NULL);
 
   // The Runtime is attached to a particular process, you shouldn't pass in a
-  // value from another process.
-  // Note, however, the process might be NULL (e.g. if the value was made with
-  // SBTarget::EvaluateExpression...)
-  // in which case it is sufficient if the target's match:
+  // value from another process. Note, however, the process might be NULL (e.g.
+  // if the value was made with SBTarget::EvaluateExpression...) in which case
+  // it is sufficient if the target's match:
 
   Process *process = in_value.GetProcessSP().get();
   if (process)
@@ -422,8 +422,8 @@ bool AppleObjCRuntimeV2::GetDynamicTypeAndAddress(
 
   // Make sure we can have a dynamic value before starting...
   if (CouldHaveDynamicValue(in_value)) {
-    // First job, pull out the address at 0 offset from the object  That will be
-    // the ISA pointer.
+    // First job, pull out the address at 0 offset from the object  That will
+    // be the ISA pointer.
     ClassDescriptorSP objc_class_sp(GetNonKVOClassDescriptor(in_value));
     if (objc_class_sp) {
       const addr_t object_ptr = in_value.GetPointerValue();
@@ -682,7 +682,7 @@ protected:
           if (!arg_str)
             continue;
           Status error;
-          lldb::addr_t arg_addr = Args::StringToAddress(
+          lldb::addr_t arg_addr = OptionArgParser::ToAddress(
               &exe_ctx, arg_str, LLDB_INVALID_ADDRESS, &error);
           if (arg_addr == 0 || arg_addr == LLDB_INVALID_ADDRESS || error.Fail())
             continue;
@@ -771,7 +771,7 @@ public:
 
 void AppleObjCRuntimeV2::Initialize() {
   PluginManager::RegisterPlugin(
-      GetPluginNameStatic(), "Apple Objective C Language Runtime - Version 2",
+      GetPluginNameStatic(), "Apple Objective-C Language Runtime - Version 2",
       CreateInstance,
       [](CommandInterpreter &interpreter) -> lldb::CommandObjectSP {
         return CommandObjectSP(new CommandObjectMultiwordObjC(interpreter));
@@ -870,8 +870,8 @@ size_t AppleObjCRuntimeV2::GetByteOffsetForIvar(CompilerType &parent_ast_type,
   const char *class_name = parent_ast_type.GetConstTypeName().AsCString();
   if (class_name && class_name[0] && ivar_name && ivar_name[0]) {
     //----------------------------------------------------------------------
-    // Make the objective C V2 mangled name for the ivar offset from the
-    // class name and ivar name
+    // Make the objective C V2 mangled name for the ivar offset from the class
+    // name and ivar name
     //----------------------------------------------------------------------
     std::string buffer("OBJC_IVAR_$_");
     buffer.append(class_name);
@@ -880,8 +880,8 @@ size_t AppleObjCRuntimeV2::GetByteOffsetForIvar(CompilerType &parent_ast_type,
     ConstString ivar_const_str(buffer.c_str());
 
     //----------------------------------------------------------------------
-    // Try to get the ivar offset address from the symbol table first using
-    // the name we created above
+    // Try to get the ivar offset address from the symbol table first using the
+    // name we created above
     //----------------------------------------------------------------------
     SymbolContextList sc_list;
     Target &target = m_process->GetTarget();
@@ -914,11 +914,9 @@ size_t AppleObjCRuntimeV2::GetByteOffsetForIvar(CompilerType &parent_ast_type,
 }
 
 // tagged pointers are special not-a-real-pointer values that contain both type
-// and value information
-// this routine attempts to check with as little computational effort as
-// possible whether something
-// could possibly be a tagged pointer - false positives are possible but false
-// negatives shouldn't
+// and value information this routine attempts to check with as little
+// computational effort as possible whether something could possibly be a
+// tagged pointer - false positives are possible but false negatives shouldn't
 bool AppleObjCRuntimeV2::IsTaggedPointer(addr_t ptr) {
   if (!m_tagged_pointer_vendor_ap)
     return false;
@@ -950,11 +948,11 @@ public:
     Status err;
 
     // This currently holds true for all platforms we support, but we might
-    // need to change this to use get the actually byte size of "unsigned"
-    // from the target AST...
+    // need to change this to use get the actually byte size of "unsigned" from
+    // the target AST...
     const uint32_t unsigned_byte_size = sizeof(uint32_t);
-    // Skip the prototype as we don't need it (const struct +NXMapTablePrototype
-    // *prototype)
+    // Skip the prototype as we don't need it (const struct
+    // +NXMapTablePrototype *prototype)
 
     bool success = true;
     if (load_addr == LLDB_INVALID_ADDRESS)
@@ -988,8 +986,8 @@ public:
     return success;
   }
 
-  // const_iterator mimics NXMapState and its code comes from NXInitMapState and
-  // NXNextMapState.
+  // const_iterator mimics NXMapState and its code comes from NXInitMapState
+  // and NXNextMapState.
   typedef std::pair<ConstString, ObjCLanguageRuntime::ObjCISA> element;
 
   friend class const_iterator;
@@ -1132,8 +1130,8 @@ bool AppleObjCRuntimeV2::HashTableSignature::NeedsUpdate(
     return false; // Failed to parse the header, no need to update anything
   }
 
-  // Check with out current signature and return true if the count,
-  // number of buckets or the hash table address changes.
+  // Check with out current signature and return true if the count, number of
+  // buckets or the hash table address changes.
   if (m_count == hash_table.GetCount() &&
       m_num_buckets == hash_table.GetBucketCount() &&
       m_buckets_ptr == hash_table.GetBucketDataPointer()) {
@@ -1167,9 +1165,9 @@ AppleObjCRuntimeV2::GetClassDescriptor(ValueObject &valobj) {
     }
     return nullptr;
   }
-  // if we get an invalid VO (which might still happen when playing around
-  // with pointers returned by the expression parser, don't consider this
-  // a valid ObjC object)
+  // if we get an invalid VO (which might still happen when playing around with
+  // pointers returned by the expression parser, don't consider this a valid
+  // ObjC object)
   if (valobj.GetCompilerType().IsValid()) {
     addr_t isa_pointer = valobj.GetPointerValue();
 
@@ -1198,6 +1196,38 @@ AppleObjCRuntimeV2::GetClassDescriptor(ValueObject &valobj) {
     }
   }
   return objc_class_sp;
+}
+
+lldb::addr_t AppleObjCRuntimeV2::GetTaggedPointerObfuscator() {
+  if (m_tagged_pointer_obfuscator != LLDB_INVALID_ADDRESS)
+    return m_tagged_pointer_obfuscator;
+
+
+  Process *process = GetProcess();
+  ModuleSP objc_module_sp(GetObjCModule());
+
+  if (!objc_module_sp)
+    return LLDB_INVALID_ADDRESS;
+
+  static ConstString g_gdb_objc_obfuscator("objc_debug_taggedpointer_obfuscator");
+
+  const Symbol *symbol = objc_module_sp->FindFirstSymbolWithNameAndType(
+  g_gdb_objc_obfuscator, lldb::eSymbolTypeAny);
+  if (symbol) {
+    lldb::addr_t g_gdb_obj_obfuscator_ptr =
+      symbol->GetLoadAddress(&process->GetTarget());
+
+    if (g_gdb_obj_obfuscator_ptr != LLDB_INVALID_ADDRESS) {
+      Status error;
+      m_tagged_pointer_obfuscator = process->ReadPointerFromMemory(
+        g_gdb_obj_obfuscator_ptr, error);
+    }
+  }
+  // If we don't have a correct value at this point, there must be no obfuscation.
+  if (m_tagged_pointer_obfuscator == LLDB_INVALID_ADDRESS)
+    m_tagged_pointer_obfuscator = 0;
+
+  return m_tagged_pointer_obfuscator;
 }
 
 lldb::addr_t AppleObjCRuntimeV2::GetISAHashTablePointer() {
@@ -1359,8 +1389,8 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapDynamic(
   arguments.GetValueAtIndex(1)->GetScalar() = class_infos_addr;
   arguments.GetValueAtIndex(2)->GetScalar() = class_infos_byte_size;
   
-  // Only dump the runtime classes from the expression evaluation if the
-  // log is verbose:
+  // Only dump the runtime classes from the expression evaluation if the log is
+  // verbose:
   Log *type_log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES);
   bool dump_log = type_log && type_log->GetVerbose();
   
@@ -1440,7 +1470,8 @@ uint32_t AppleObjCRuntimeV2::ParseClassInfoArray(const DataExtractor &data,
   //        uint32_t hash;
   //    } __attribute__((__packed__));
 
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_TYPES));
+  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES));
+  bool should_log = log && log->GetVerbose();
 
   uint32_t num_parsed = 0;
 
@@ -1450,15 +1481,15 @@ uint32_t AppleObjCRuntimeV2::ParseClassInfoArray(const DataExtractor &data,
     ObjCISA isa = data.GetPointer(&offset);
 
     if (isa == 0) {
-      if (log)
+      if (should_log)
         log->Printf(
             "AppleObjCRuntimeV2 found NULL isa, ignoring this class info");
       continue;
     }
-    // Check if we already know about this ISA, if we do, the info will
-    // never change, so we can just skip it.
+    // Check if we already know about this ISA, if we do, the info will never
+    // change, so we can just skip it.
     if (ISAIsCached(isa)) {
-      if (log)
+      if (should_log)
         log->Printf("AppleObjCRuntimeV2 found cached isa=0x%" PRIx64
                     ", ignoring this class info",
                     isa);
@@ -1469,14 +1500,14 @@ uint32_t AppleObjCRuntimeV2::ParseClassInfoArray(const DataExtractor &data,
       ClassDescriptorSP descriptor_sp(new ClassDescriptorV2(*this, isa, NULL));
       AddClass(isa, descriptor_sp, name_hash);
       num_parsed++;
-      if (log)
+      if (should_log)
         log->Printf("AppleObjCRuntimeV2 added isa=0x%" PRIx64
                     ", hash=0x%8.8x, name=%s",
                     isa, name_hash,
                     descriptor_sp->GetClassName().AsCString("<unknown>"));
     }
   }
-  if (log)
+  if (should_log)
     log->Printf("AppleObjCRuntimeV2 parsed %" PRIu32 " class infos",
                 num_parsed);
   return num_parsed;
@@ -1607,8 +1638,8 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapSharedCache() {
   arguments.GetValueAtIndex(0)->GetScalar() = objc_opt_ptr;
   arguments.GetValueAtIndex(1)->GetScalar() = class_infos_addr;
   arguments.GetValueAtIndex(2)->GetScalar() = class_infos_byte_size;
-  // Only dump the runtime classes from the expression evaluation if the
-  // log is verbose:
+  // Only dump the runtime classes from the expression evaluation if the log is
+  // verbose:
   Log *type_log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES);
   bool dump_log = type_log && type_log->GetVerbose();
   
@@ -1788,21 +1819,17 @@ void AppleObjCRuntimeV2::UpdateISAToDescriptorMapIfNeeded() {
     DescriptorMapUpdateResult dynamic_update_result =
         UpdateISAToDescriptorMapDynamic(hash_table);
 
-    // Now get the objc classes that are baked into the Objective C runtime
-    // in the shared cache, but only once per process as this data never
-    // changes
+    // Now get the objc classes that are baked into the Objective-C runtime in
+    // the shared cache, but only once per process as this data never changes
     if (!m_loaded_objc_opt) {
       // it is legitimately possible for the shared cache to be empty - in that
-      // case, the dynamic hash table
-      // will contain all the class information we need; the situation we're
-      // trying to detect is one where
-      // we aren't seeing class information from the runtime - in order to
-      // detect that vs. just the shared cache
-      // being empty or sparsely populated, we set an arbitrary (very low)
-      // threshold for the number of classes
-      // that we want to see in a "good" scenario - anything below that is
-      // suspicious (Foundation alone has thousands
-      // of classes)
+      // case, the dynamic hash table will contain all the class information we
+      // need; the situation we're trying to detect is one where we aren't
+      // seeing class information from the runtime - in order to detect that
+      // vs. just the shared cache being empty or sparsely populated, we set an
+      // arbitrary (very low) threshold for the number of classes that we want
+      // to see in a "good" scenario - anything below that is suspicious
+      // (Foundation alone has thousands of classes)
       const uint32_t num_classes_to_warn_at = 500;
 
       DescriptorMapUpdateResult shared_cache_update_result =
@@ -2089,8 +2116,8 @@ AppleObjCRuntimeV2::TaggedPointerVendorV2::CreateInstance(
   if (error.Fail())
     return new TaggedPointerVendorLegacy(runtime);
 
-  // try to detect the "extended tagged pointer" variables - if any are missing,
-  // use the non-extended vendor
+  // try to detect the "extended tagged pointer" variables - if any are
+  // missing, use the non-extended vendor
   do {
     auto objc_debug_taggedpointer_ext_mask = ExtractRuntimeGlobalSymbol(
         process, ConstString("objc_debug_taggedpointer_ext_mask"),
@@ -2143,8 +2170,8 @@ AppleObjCRuntimeV2::TaggedPointerVendorV2::CreateInstance(
         objc_debug_taggedpointer_classes, objc_debug_taggedpointer_ext_classes);
   } while (false);
 
-  // we might want to have some rules to outlaw these values (e.g if the table's
-  // address is zero)
+  // we might want to have some rules to outlaw these values (e.g if the
+  // table's address is zero)
 
   return new TaggedPointerVendorRuntimeAssisted(
       runtime, objc_debug_taggedpointer_mask,
@@ -2217,7 +2244,9 @@ AppleObjCRuntimeV2::TaggedPointerVendorLegacy::GetClassDescriptor(
       return ObjCLanguageRuntime::ClassDescriptorSP();
     }
   }
-  return ClassDescriptorSP(new ClassDescriptorV2Tagged(name, ptr));
+
+  lldb::addr_t unobfuscated = ptr ^ m_runtime.GetTaggedPointerObfuscator();
+  return ClassDescriptorSP(new ClassDescriptorV2Tagged(name, unobfuscated));
 }
 
 AppleObjCRuntimeV2::TaggedPointerVendorRuntimeAssisted::
@@ -2249,8 +2278,9 @@ AppleObjCRuntimeV2::TaggedPointerVendorRuntimeAssisted::GetClassDescriptor(
     lldb::addr_t ptr) {
   ClassDescriptorSP actual_class_descriptor_sp;
   uint64_t data_payload;
+  uint64_t unobfuscated = (ptr) ^ m_runtime.GetTaggedPointerObfuscator();
 
-  if (!IsPossibleTaggedPointer(ptr))
+  if (!IsPossibleTaggedPointer(unobfuscated))
     return ObjCLanguageRuntime::ClassDescriptorSP();
 
   uintptr_t slot = (ptr >> m_objc_debug_taggedpointer_slot_shift) &
@@ -2276,7 +2306,7 @@ AppleObjCRuntimeV2::TaggedPointerVendorRuntimeAssisted::GetClassDescriptor(
   }
 
   data_payload =
-      (((uint64_t)ptr << m_objc_debug_taggedpointer_payload_lshift) >>
+      (((uint64_t)unobfuscated << m_objc_debug_taggedpointer_payload_lshift) >>
        m_objc_debug_taggedpointer_payload_rshift);
 
   return ClassDescriptorSP(
@@ -2333,11 +2363,12 @@ AppleObjCRuntimeV2::TaggedPointerVendorExtended::GetClassDescriptor(
     lldb::addr_t ptr) {
   ClassDescriptorSP actual_class_descriptor_sp;
   uint64_t data_payload;
+  uint64_t unobfuscated = (ptr) ^ m_runtime.GetTaggedPointerObfuscator();
 
-  if (!IsPossibleTaggedPointer(ptr))
+  if (!IsPossibleTaggedPointer(unobfuscated))
     return ObjCLanguageRuntime::ClassDescriptorSP();
 
-  if (!IsPossibleExtendedTaggedPointer(ptr))
+  if (!IsPossibleExtendedTaggedPointer(unobfuscated))
     return this->TaggedPointerVendorRuntimeAssisted::GetClassDescriptor(ptr);
 
   uintptr_t slot = (ptr >> m_objc_debug_taggedpointer_ext_slot_shift) &
@@ -2363,7 +2394,7 @@ AppleObjCRuntimeV2::TaggedPointerVendorExtended::GetClassDescriptor(
   }
 
   data_payload =
-      (((uint64_t)ptr << m_objc_debug_taggedpointer_ext_payload_lshift) >>
+      (((uint64_t)unobfuscated << m_objc_debug_taggedpointer_ext_payload_lshift) >>
        m_objc_debug_taggedpointer_ext_payload_rshift);
 
   return ClassDescriptorSP(
@@ -2414,11 +2445,10 @@ bool AppleObjCRuntimeV2::NonPointerISACache::EvaluateNonPointerISA(
   if ((isa & ~m_objc_debug_isa_class_mask) == 0)
     return false;
 
-  // If all of the indexed ISA variables are set, then its possible that
-  // this ISA is indexed, and we should first try to get its value using
-  // the index.
-  // Note, we check these varaibles first as the ObjC runtime will set at
-  // least one of their values to 0 if they aren't needed.
+  // If all of the indexed ISA variables are set, then its possible that this
+  // ISA is indexed, and we should first try to get its value using the index.
+  // Note, we check these varaibles first as the ObjC runtime will set at least
+  // one of their values to 0 if they aren't needed.
   if (m_objc_debug_indexed_isa_magic_mask &&
       m_objc_debug_indexed_isa_magic_value &&
       m_objc_debug_indexed_isa_index_mask &&
@@ -2431,10 +2461,10 @@ bool AppleObjCRuntimeV2::NonPointerISACache::EvaluateNonPointerISA(
       // Magic bits are correct, so try extract the index.
       uintptr_t index = (isa & m_objc_debug_indexed_isa_index_mask) >>
                         m_objc_debug_indexed_isa_index_shift;
-      // If the index is out of bounds of the length of the array then
-      // check if the array has been updated.  If that is the case then
-      // we should try read the count again, and update the cache if the
-      // count has been updated.
+      // If the index is out of bounds of the length of the array then check if
+      // the array has been updated.  If that is the case then we should try
+      // read the count again, and update the cache if the count has been
+      // updated.
       if (index > m_indexed_isa_cache.size()) {
         if (log)
           log->Printf("AOCRT::NPI (index = %" PRIu64
@@ -2459,9 +2489,9 @@ bool AppleObjCRuntimeV2::NonPointerISACache::EvaluateNonPointerISA(
                       (uint64_t)objc_indexed_classes_count);
 
         if (objc_indexed_classes_count > m_indexed_isa_cache.size()) {
-          // Read the class entries we don't have.  We should just
-          // read all of them instead of just the one we need as then
-          // we can cache those we may need later.
+          // Read the class entries we don't have.  We should just read all of
+          // them instead of just the one we need as then we can cache those we
+          // may need later.
           auto num_new_classes =
               objc_indexed_classes_count - m_indexed_isa_cache.size();
           const uint32_t addr_size = process->GetAddressByteSize();
@@ -2504,8 +2534,8 @@ bool AppleObjCRuntimeV2::NonPointerISACache::EvaluateNonPointerISA(
     return false;
   }
 
-  // Definately not an indexed ISA, so try to use a mask to extract
-  // the pointer from the ISA.
+  // Definately not an indexed ISA, so try to use a mask to extract the pointer
+  // from the ISA.
   if ((isa & m_objc_debug_isa_magic_mask) == m_objc_debug_isa_magic_value) {
     ret_isa = isa & m_objc_debug_isa_class_mask;
     return (ret_isa != 0); // this is a pointer so 0 is not a valid value
@@ -2533,14 +2563,14 @@ bool AppleObjCRuntimeV2::GetCFBooleanValuesIfNeeded() {
   if (m_CFBoolean_values)
     return true;
 
-  static ConstString g_kCFBooleanFalse("kCFBooleanFalse");
-  static ConstString g_kCFBooleanTrue("kCFBooleanTrue");
+  static ConstString g_kCFBooleanFalse("__kCFBooleanFalse");
+  static ConstString g_kCFBooleanTrue("__kCFBooleanTrue");
 
   std::function<lldb::addr_t(ConstString)> get_symbol =
       [this](ConstString sym) -> lldb::addr_t {
     SymbolContextList sc_list;
     if (GetProcess()->GetTarget().GetImages().FindSymbolsWithNameAndType(
-            g_kCFBooleanFalse, lldb::eSymbolTypeData, sc_list) == 1) {
+            sym, lldb::eSymbolTypeData, sc_list) == 1) {
       SymbolContext sc;
       sc_list.GetContextAtIndex(0, sc);
       if (sc.symbol)

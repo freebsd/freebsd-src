@@ -19,8 +19,7 @@ class CppValueCastTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @unittest2.expectedFailure(
-        "rdar://problem/10808472 SBValue::Cast test case is failing (virtual inheritance)")
+    @skipIf(bugnumber="llvm.org/PR36714")
     @add_test_categories(['pyapi'])
     def test_value_cast_with_virtual_inheritance(self):
         """Test SBValue::Cast(SBType) API for C++ types with virtual inheritance."""
@@ -51,7 +50,7 @@ class CppValueCastTestCase(TestBase):
 
     def do_sbvalue_cast(self, exe_name):
         """Test SBValue::Cast(SBType) API for C++ types."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         # Create a target from the debugger.
 

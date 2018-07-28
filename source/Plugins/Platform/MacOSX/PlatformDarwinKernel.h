@@ -127,6 +127,9 @@ protected:
                                       const lldb_private::FileSpec &file_spec,
                                       bool recurse);
 
+  static std::vector<lldb_private::FileSpec>
+  SearchForExecutablesRecursively(const std::string &dir);
+
   static void AddKextToMap(PlatformDarwinKernel *thisp,
                            const lldb_private::FileSpec &file_spec);
 
@@ -201,6 +204,7 @@ public:
 // source/Host/macosx/cfcpp utilities.
 
 class PlatformDarwinKernel {
+public:
   static lldb_private::ConstString GetPluginNameStatic();
 };
 

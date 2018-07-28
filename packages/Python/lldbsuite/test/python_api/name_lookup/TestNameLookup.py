@@ -20,6 +20,7 @@ class TestNameLookup(TestBase):
     mydir = TestBase.compute_mydir(__file__)
 
     @add_test_categories(['pyapi'])
+    @expectedFailureAll(oslist=["windows"], bugnumber='llvm.org/pr21765')
     def test_target(self):
         """Exercise SBTarget.FindFunctions() with various name masks.
         
@@ -28,7 +29,7 @@ class TestNameLookup(TestBase):
         and that using a function basename with eFunctionNameTypeFull works for all
         C++ functions that are at the global namespace level."""
         self.build();
-        exe = os.path.join(os.getcwd(), 'a.out')
+        exe = self.getBuildArtifact("a.out")
 
         # Create a target by the debugger.
         target = self.dbg.CreateTarget(exe)

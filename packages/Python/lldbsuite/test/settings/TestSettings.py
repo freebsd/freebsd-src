@@ -17,16 +17,8 @@ from lldbsuite.test import lldbutil
 class SettingsCommandTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
-    @classmethod
-    def classCleanup(cls):
-        """Cleanup the test byproducts."""
-        cls.RemoveTempFile("output1.txt")
-        cls.RemoveTempFile("output2.txt")
-        cls.RemoveTempFile("stderr.txt")
-        cls.RemoveTempFile("stdout.txt")
-
-    @no_debug_info_test
     def test_apropos_should_also_search_settings_description(self):
         """Test that 'apropos' command should also search descriptions for the settings variables."""
 
@@ -35,7 +27,6 @@ class SettingsCommandTestCase(TestBase):
                              "environment variables",
                              "executable's environment"])
 
-    @no_debug_info_test
     def test_append_target_env_vars(self):
         """Test that 'append target.run-args' works."""
         # Append the env-vars.
@@ -48,7 +39,6 @@ class SettingsCommandTestCase(TestBase):
         self.expect('settings show target.env-vars',
                     substrs=['MY_ENV_VAR=YES'])
 
-    @no_debug_info_test
     def test_insert_before_and_after_target_run_args(self):
         """Test that 'insert-before/after target.run-args' works."""
         # Set the run-args first.
@@ -70,7 +60,6 @@ class SettingsCommandTestCase(TestBase):
                              '[3]: "b"',
                              '[4]: "c"'])
 
-    @no_debug_info_test
     def test_replace_target_run_args(self):
         """Test that 'replace target.run-args' works."""
         # Set the run-args and then replace the index-0 element.
@@ -88,7 +77,6 @@ class SettingsCommandTestCase(TestBase):
                              '[1]: "b"',
                              '[2]: "c"'])
 
-    @no_debug_info_test
     def test_set_prompt(self):
         """Test that 'set prompt' actually changes the prompt."""
 
@@ -106,7 +94,6 @@ class SettingsCommandTestCase(TestBase):
         # Use '-r' option to reset to the original default prompt.
         self.runCmd("settings clear prompt")
 
-    @no_debug_info_test
     def test_set_term_width(self):
         """Test that 'set term-width' actually changes the term-width."""
 
@@ -125,7 +112,7 @@ class SettingsCommandTestCase(TestBase):
         """Test that 'set frame-format' with a backtick char in the format string works as well as fullpath."""
         self.build()
 
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         def cleanup():
@@ -153,15 +140,16 @@ class SettingsCommandTestCase(TestBase):
                     substrs=[format_string])
 
         self.runCmd("breakpoint set -n main")
-        self.runCmd("run")
+        self.runCmd("process launch --working-dir '{0}'".format(self.get_process_working_directory()),
+                RUN_SUCCEEDED)
         self.expect("thread backtrace",
-                    substrs=["`main", os.getcwd()])
+                    substrs=["`main", self.getSourceDir()])
 
     def test_set_auto_confirm(self):
         """Test that after 'set auto-confirm true', manual confirmation should not kick in."""
         self.build()
 
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         self.runCmd("settings set auto-confirm true")
@@ -186,7 +174,7 @@ class SettingsCommandTestCase(TestBase):
         """Test that user options for the disassembler take effect."""
         self.build()
 
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # AT&T syntax
@@ -219,7 +207,7 @@ class SettingsCommandTestCase(TestBase):
     def test_run_args_and_env_vars(self):
         """Test that run-args and env-vars are passed to the launched process."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # Set the run-args and the env-vars.
@@ -231,13 +219,11 @@ class SettingsCommandTestCase(TestBase):
         self.addTearDownHook(
             lambda: self.runCmd("settings clear target.env-vars"))
 
-        self.runCmd("run", RUN_SUCCEEDED)
+        self.runCmd("process launch --working-dir '{0}'".format(self.get_process_working_directory()),
+                RUN_SUCCEEDED)
 
         # Read the output file produced by running the program.
-        if lldb.remote_platform:
-            self.runCmd('platform get-file "output2.txt" "output2.txt"')
-        with open('output2.txt', 'r') as f:
-            output = f.read()
+        output = lldbutil.read_file_from_process_wd(self, "output2.txt")
 
         self.expect(
             output,
@@ -253,7 +239,7 @@ class SettingsCommandTestCase(TestBase):
         """Test that the host env vars are passed to the launched process."""
         self.build()
 
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # By default, inherit-env is 'true'.
@@ -272,13 +258,11 @@ class SettingsCommandTestCase(TestBase):
             os.environ.pop("MY_HOST_ENV_VAR2")
 
         self.addTearDownHook(unset_env_variables)
-        self.runCmd("run", RUN_SUCCEEDED)
+        self.runCmd("process launch --working-dir '{0}'".format(self.get_process_working_directory()),
+                RUN_SUCCEEDED)
 
         # Read the output file produced by running the program.
-        if lldb.remote_platform:
-            self.runCmd('platform get-file "output1.txt" "output1.txt"')
-        with open('output1.txt', 'r') as f:
-            output = f.read()
+        output = lldbutil.read_file_from_process_wd(self, "output1.txt")
 
         self.expect(
             output,
@@ -292,12 +276,14 @@ class SettingsCommandTestCase(TestBase):
         """Test that setting target.error/output-path for the launched process works."""
         self.build()
 
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # Set the error-path and output-path and verify both are set.
-        self.runCmd("settings set target.error-path stderr.txt")
-        self.runCmd("settings set target.output-path stdout.txt")
+        self.runCmd("settings set target.error-path '{0}'".format(
+            lldbutil.append_to_process_working_directory(self, "stderr.txt")))
+        self.runCmd("settings set target.output-path '{0}".format(
+            lldbutil.append_to_process_working_directory(self, "stdout.txt")))
         # And add hooks to restore the original settings during tearDown().
         self.addTearDownHook(
             lambda: self.runCmd("settings clear target.output-path"))
@@ -306,44 +292,26 @@ class SettingsCommandTestCase(TestBase):
 
         self.expect("settings show target.error-path",
                     SETTING_MSG("target.error-path"),
-                    substrs=['target.error-path (file) = "stderr.txt"'])
+                    substrs=['target.error-path (file)', 'stderr.txt"'])
 
         self.expect("settings show target.output-path",
                     SETTING_MSG("target.output-path"),
-                    substrs=['target.output-path (file) = "stdout.txt"'])
+                    substrs=['target.output-path (file)', 'stdout.txt"'])
 
-        self.runCmd("run", RUN_SUCCEEDED)
+        self.runCmd("process launch --working-dir '{0}'".format(self.get_process_working_directory()),
+                RUN_SUCCEEDED)
 
-        if lldb.remote_platform:
-            self.runCmd('platform get-file "stderr.txt" "stderr.txt"')
-            self.runCmd('platform get-file "stdout.txt" "stdout.txt"')
-
-        # The 'stderr.txt' file should now exist.
-        self.assertTrue(os.path.isfile("stderr.txt"),
-                        "'stderr.txt' exists due to target.error-path.")
-
-        # Read the output file produced by running the program.
-        with open('stderr.txt', 'r') as f:
-            output = f.read()
-
+        output = lldbutil.read_file_from_process_wd(self, "stderr.txt")
         message = "This message should go to standard error."
         if lldbplatformutil.hasChattyStderr(self):
             self.expect(output, exe=False, substrs=[message])
         else:
             self.expect(output, exe=False, startstr=message)
 
-        # The 'stdout.txt' file should now exist.
-        self.assertTrue(os.path.isfile("stdout.txt"),
-                        "'stdout.txt' exists due to target.output-path.")
-
-        # Read the output file produced by running the program.
-        with open('stdout.txt', 'r') as f:
-            output = f.read()
-
+        output = lldbutil.read_file_from_process_wd(self, "stdout.txt")
         self.expect(output, exe=False,
                     startstr="This message should go to standard out.")
 
-    @no_debug_info_test
     def test_print_dictionary_setting(self):
         self.runCmd("settings clear target.env-vars")
         self.runCmd("settings set target.env-vars [\"MY_VAR\"]=some-value")
@@ -351,7 +319,6 @@ class SettingsCommandTestCase(TestBase):
                     substrs=["MY_VAR=some-value"])
         self.runCmd("settings clear target.env-vars")
 
-    @no_debug_info_test
     def test_print_array_setting(self):
         self.runCmd("settings clear target.run-args")
         self.runCmd("settings set target.run-args gobbledy-gook")
@@ -359,7 +326,6 @@ class SettingsCommandTestCase(TestBase):
                     substrs=['[0]: "gobbledy-gook"'])
         self.runCmd("settings clear target.run-args")
 
-    @no_debug_info_test
     def test_settings_with_quotes(self):
         self.runCmd("settings clear target.run-args")
         self.runCmd("settings set target.run-args a b c")
@@ -392,7 +358,6 @@ class SettingsCommandTestCase(TestBase):
                     'thread-format (format-string) = "abc def   "')
         self.runCmd('settings clear thread-format')
 
-    @no_debug_info_test
     def test_settings_with_trailing_whitespace(self):
 
         # boolean
@@ -421,8 +386,8 @@ class SettingsCommandTestCase(TestBase):
                     startstr='target.arg0 (string) = "cde"')
         self.runCmd("settings clear target.arg0", check=False)
         # file
-        path1 = os.path.join(os.getcwd(), "path1.txt")
-        path2 = os.path.join(os.getcwd(), "path2.txt")
+        path1 = self.getBuildArtifact("path1.txt")
+        path2 = self.getBuildArtifact("path2.txt")
         self.runCmd(
             "settings set target.output-path %s" %
             path1)   # Set to known value
@@ -517,7 +482,6 @@ class SettingsCommandTestCase(TestBase):
                     substrs=['disassembly-format (format-string) = "foo "'])
         self.runCmd("settings clear disassembly-format", check=False)
 
-    @no_debug_info_test
     def test_all_settings_exist(self):
         self.expect("settings show",
                     substrs=["auto-confirm",
@@ -560,3 +524,41 @@ class SettingsCommandTestCase(TestBase):
                              "target.process.extra-startup-command",
                              "target.process.thread.step-avoid-regexp",
                              "target.process.thread.trace-thread"])
+
+    # settings under an ".experimental" domain should have two properties:
+    #   1. If the name does not exist with "experimental" in the name path,
+    #      the name lookup should try to find it without "experimental".  So
+    #      a previously-experimental setting that has been promoted to a 
+    #      "real" setting will still be set by the original name.
+    #   2. Changing a setting with .experimental., name, where the setting
+    #      does not exist either with ".experimental." or without, should
+    #      not generate an error.  So if an experimental setting is removed,
+    #      people who may have that in their ~/.lldbinit files should not see
+    #      any errors.
+    def test_experimental_settings(self):
+        cmdinterp = self.dbg.GetCommandInterpreter()
+        result = lldb.SBCommandReturnObject()
+
+        # Set target.arg0 to a known value, check that we can retrieve it via
+        # the actual name and via .experimental.
+        self.expect('settings set target.arg0 first-value')
+        self.expect('settings show target.arg0', substrs=['first-value'])
+        self.expect('settings show target.experimental.arg0', substrs=['first-value'], error=False)
+
+        # Set target.arg0 to a new value via a target.experimental.arg0 name,
+        # verify that we can read it back via both .experimental., and not.
+        self.expect('settings set target.experimental.arg0 second-value', error=False)
+        self.expect('settings show target.arg0', substrs=['second-value'])
+        self.expect('settings show target.experimental.arg0', substrs=['second-value'], error=False)
+
+        # showing & setting an undefined .experimental. setting should generate no errors.
+        self.expect('settings show target.experimental.setting-which-does-not-exist', patterns=['^\s$'], error=False)
+        self.expect('settings set target.experimental.setting-which-does-not-exist true', error=False)
+
+        # A domain component before .experimental. which does not exist should give an error
+        # But the code does not yet do that.
+        # self.expect('settings set target.setting-which-does-not-exist.experimental.arg0 true', error=True)
+
+        # finally, confirm that trying to set a setting that does not exist still fails.
+        # (SHOWING a setting that does not exist does not currently yield an error.)
+        self.expect('settings set target.setting-which-does-not-exist true', error=True)

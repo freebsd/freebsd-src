@@ -6,6 +6,7 @@
 # OBJC_SOURCES :=
 # OBJCXX_SOURCES :=
 # DYLIB_C_SOURCES :=
+# DYLIB_OBJC_SOURCES :=
 # DYLIB_CXX_SOURCES :=
 #
 # Specifying DYLIB_ONLY has the effect of building dylib only, skipping
@@ -27,20 +28,21 @@
 # Uncomment line below for debugging shell commands
 # SHELL = /bin/sh -x
 
-THIS_FILE_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/
+SRCDIR := $(shell dirname $(firstword $(MAKEFILE_LIST)))/
+THIS_FILE_DIR := $(shell dirname $(lastword $(MAKEFILE_LIST)))/
 LLDB_BASE_DIR := $(THIS_FILE_DIR)../../../../../
 
 
 #----------------------------------------------------------------------
 # If OS is not defined, use 'uname -s' to determine the OS name.
 #
-# uname on Windows gives "windows32", but most environments standardize
-# on "Windows_NT", so we'll make it consistent here.  When running
-# tests from Visual Studio, the environment variable isn't inherited
-# all the way down to the process spawned for make.
+# uname on Windows gives "windows32" or "server version windows32", but most
+# environments standardize on "Windows_NT", so we'll make it consistent here.
+# When running tests from Visual Studio, the environment variable isn't
+# inherited all the way down to the process spawned for make.
 #----------------------------------------------------------------------
 HOST_OS = $(shell uname -s)
-ifeq "$(HOST_OS)" "windows32"
+ifneq (,$(findstring windows32,$(HOST_OS)))
 	HOST_OS = Windows_NT
 endif
 ifeq "$(OS)" ""
@@ -145,7 +147,7 @@ ARCHFLAG ?= -arch
 # Change any build/tool options needed
 #----------------------------------------------------------------------
 ifeq "$(OS)" "Darwin"
-	DS := $(shell xcrun -find -toolchain default dsymutil)
+	DS := $(DSYMUTIL)
 	DSFLAGS =
 	DSYM = $(EXE).dSYM
 	AR := $(CROSS_COMPILE)libtool
@@ -223,7 +225,7 @@ else
 	CFLAGS += $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) -I$(LLDB_BASE_DIR)include
 endif
 
-CFLAGS += -include $(THIS_FILE_DIR)test_common.h -I$(THIS_FILE_DIR)
+CFLAGS += -I$(SRCDIR) -include $(THIS_FILE_DIR)test_common.h -I$(THIS_FILE_DIR)
 CFLAGS += $(NO_LIMIT_DEBUG_INFO_FLAGS) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
 
 # Use this one if you want to build one part of the result without debug information:
@@ -237,13 +239,15 @@ ifeq "$(MAKE_DWO)" "YES"
 	CFLAGS += -gsplit-dwarf
 endif
 
+CLANG_MODULE_CACHE_DIR := module-cache
+
+MANDATORY_MODULE_BUILD_CFLAGS := -fmodules -gmodules -fmodules-cache-path=$(CLANG_MODULE_CACHE_DIR)
+
 ifeq "$(MAKE_GMODULES)" "YES"
-	CFLAGS += -fmodules -gmodules
+	CFLAGS += $(MANDATORY_MODULE_BUILD_CFLAGS)
 endif
 
-CXXFLAGS += -std=c++11
-# FIXME: C++ modules aren't supported on all platforms.
-CXXFLAGS += $(subst -fmodules,, $(CFLAGS))
+CXXFLAGS += -std=c++11 $(CFLAGS) $(ARCH_CXXFLAGS)
 LD = $(CC)
 LDFLAGS ?= $(CFLAGS)
 LDFLAGS += $(LD_EXTRAS) $(ARCH_LDFLAGS)
@@ -492,23 +496,6 @@ endif
 #----------------------------------------------------------------------
 
 #----------------------------------------------------------------------
-# Make the dSYM file from the executable if $(MAKE_DSYM) != "NO"
-#----------------------------------------------------------------------
-ifneq "$(DYLIB_ONLY)" "YES"
-$(DSYM) : $(EXE)
-ifeq "$(OS)" "Darwin"
-ifneq "$(MAKE_DSYM)" "NO"
-	"$(DS)" $(DSFLAGS) -o "$(DSYM)" "$(EXE)"
-endif
-else
-ifeq "$(SPLIT_DEBUG_SYMBOLS)" "YES"
-	$(OBJCOPY) --only-keep-debug "$(EXE)" "$(DSYM)"
-	$(OBJCOPY) --strip-debug --add-gnu-debuglink="$(DSYM)" "$(EXE)" "$(EXE)"
-endif
-endif
-endif
-
-#----------------------------------------------------------------------
 # Compile the executable from all the objects.
 #----------------------------------------------------------------------
 ifneq "$(DYLIB_NAME)" ""
@@ -521,6 +508,22 @@ endif
 else
 $(EXE) : $(OBJECTS) $(ARCHIVE_NAME)
 	$(LD) $(OBJECTS) $(LDFLAGS) $(ARCHIVE_NAME) -o "$(EXE)"
+endif
+
+#----------------------------------------------------------------------
+# Make the dSYM file from the executable if $(MAKE_DSYM) != "NO"
+#----------------------------------------------------------------------
+$(DSYM) : $(EXE)
+ifeq "$(OS)" "Darwin"
+ifneq "$(MAKE_DSYM)" "NO"
+	"$(DS)" $(DSFLAGS) -o "$(DSYM)" "$(EXE)"
+else
+endif
+else
+ifeq "$(SPLIT_DEBUG_SYMBOLS)" "YES"
+	$(OBJCOPY) --only-keep-debug "$(EXE)" "$(DSYM)"
+	$(OBJCOPY) --strip-debug --add-gnu-debuglink="$(DSYM)" "$(EXE)" "$(EXE)"
+endif
 endif
 
 #----------------------------------------------------------------------
@@ -540,6 +543,11 @@ endif
 # Make the dylib
 #----------------------------------------------------------------------
 $(DYLIB_OBJECTS) : CFLAGS += -DCOMPILING_LLDB_TEST_DLL
+
+ifneq "$(OS)" "Windows_NT"
+$(DYLIB_OBJECTS) : CFLAGS += -fPIC
+$(DYLIB_OBJECTS) : CXXFLAGS += -fPIC
+endif
 
 $(DYLIB_FILENAME) : $(DYLIB_OBJECTS)
 ifeq "$(OS)" "Darwin"
@@ -563,7 +571,7 @@ endif
 
 #ifneq "$(PCH_OUTPUT)" ""
 $(PCH_OUTPUT) : $(PCH_CXX_SOURCE)
-	$(CXX) $(CXXFLAGS) -x c++-header -o $(PCH_OUTPUT) $(PCH_CXX_SOURCE)
+	$(CXX) $(CXXFLAGS) -x c++-header -o $@ $<
 %.o : %.cpp $(PCH_OUTPUT)
 	$(CXX) $(PCHFLAGS) $(CXXFLAGS) -c -o $@ $<
 #endif
@@ -636,7 +644,7 @@ endif
 dsym:	$(DSYM)
 all:	$(EXE) $(DSYM)
 clean::
-	$(RM) $(OBJECTS) $(PREREQS) $(PREREQS:.d=.d.tmp) $(DWOS) $(ARCHIVE_NAME) $(ARCHIVE_OBJECTS)
+	$(RM) -rf $(OBJECTS) $(PREREQS) $(PREREQS:.d=.d.tmp) $(DWOS) $(ARCHIVE_NAME) $(ARCHIVE_OBJECTS) $(CLANG_MODULE_CACHE_DIR)
 ifneq "$(DYLIB_NAME)" ""
 	$(RM) -r $(DYLIB_FILENAME).dSYM
 	$(RM) $(DYLIB_OBJECTS) $(DYLIB_PREREQS) $(DYLIB_PREREQS:.d=.d.tmp) $(DYLIB_DWOS) $(DYLIB_FILENAME) $(DYLIB_FILENAME).debug
@@ -660,7 +668,7 @@ endif
 
 #----------------------------------------------------------------------
 # From http://blog.melski.net/tag/debugging-makefiles/
-# 
+#
 # Usage: make print-CC print-CXX print-LD
 #----------------------------------------------------------------------
 print-%:

@@ -1,17 +1,28 @@
 add_lldb_unittest(UtilityTests
+  AnsiTerminalTest.cpp
+  ArgsTest.cpp
+  OptionsWithRawTest.cpp
   ArchSpecTest.cpp
+  CleanUpTest.cpp
   ConstStringTest.cpp
+  CompletionRequestTest.cpp
+  EnvironmentTest.cpp
+  FileSpecTest.cpp
+  FlagsTest.cpp
   JSONTest.cpp
   LogTest.cpp
   NameMatchesTest.cpp
   StatusTest.cpp
+  StreamTeeTest.cpp
   StringExtractorTest.cpp
   StructuredDataTest.cpp
   TildeExpressionResolverTest.cpp
   TimeoutTest.cpp
   TimerTest.cpp
   UriParserTest.cpp
+  UUIDTest.cpp
   VASprintfTest.cpp
+  VMRangeTest.cpp
 
   LINK_LIBS
       lldbUtility

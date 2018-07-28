@@ -41,16 +41,18 @@ endif()
 
 add_lldb_library(lldbUtility
   ArchSpec.cpp
+  Args.cpp
   Baton.cpp
   Connection.cpp
   ConstString.cpp
+  CompletionRequest.cpp
   DataBufferHeap.cpp
   DataBufferLLVM.cpp
   DataEncoder.cpp
   DataExtractor.cpp
+  Environment.cpp
   FastDemangle.cpp
   FileSpec.cpp
-  History.cpp
   IOObject.cpp
   JSON.cpp
   LLDBAssert.cpp

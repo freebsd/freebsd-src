@@ -18,6 +18,7 @@ class MiLibraryLoadedTestCase(lldbmi_testcase.MiTestCaseBase):
     @skipIfWindows  # llvm.org/pr24452: Get lldb-mi tests working on Windows
     @skipIfFreeBSD  # llvm.org/pr22411: Failure presumably due to known thread races
     @skipIfRemote   # We do not currently support remote debugging via the MI.
+    @skipIfDarwin
     def test_lldbmi_library_loaded(self):
         """Test that 'lldb-mi --interpreter' shows the =library-loaded notifications."""
 
@@ -29,13 +30,13 @@ class MiLibraryLoadedTestCase(lldbmi_testcase.MiTestCaseBase):
 
         # Test =library-loaded
         import os
-        path = os.path.join(os.getcwd(), self.myexe)
+        path = self.getBuildArtifact(self.myexe)
         symbols_path = os.path.join(
             path + ".dSYM",
             "Contents",
             "Resources",
             "DWARF",
-            self.myexe)
+            "a.out")
 
         def add_slashes(x): return x.replace(
             "\\",

@@ -36,6 +36,25 @@ class MiInterpreterExecTestCase(lldbmi_testcase.MiTestCaseBase):
         self.expect("\^running")
         self.expect("\*stopped,reason=\"breakpoint-hit\"")
 
+    @skipIfRemote   # We do not currently support remote debugging via the MI.
+    @skipIfWindows  # llvm.org/pr24452: Get lldb-mi tests working on Windows.
+    @skipIfFreeBSD  # llvm.org/pr22411: Failure presumably due to known thread races.
+    def test_lldbmi_target_list(self):
+        """Test that 'lldb-mi --interpreter' can list targets by 'target list' command."""
+
+        self.spawnLldbMi(args=None)
+
+        # Test that initially there are no targets.
+        self.runCmd("-interpreter-exec console \"target list\"")
+        self.expect(r"~\"No targets.\\n\"")
+
+        # Add target.
+        self.runCmd("-file-exec-and-symbols %s" % self.myexe)
+
+        # Test that "target list" lists added target.
+        self.runCmd("-interpreter-exec console \"target list\"")
+        self.expect(r"~\"Current targets:\\n\* target #0: %s" % self.myexe)
+
     @skipIfWindows  # llvm.org/pr24452: Get lldb-mi tests working on Windows
     @skipIfFreeBSD  # llvm.org/pr22411: Failure presumably due to known thread races
     @skipIfRemote   # We do not currently support remote debugging via the MI.
@@ -92,53 +111,6 @@ class MiInterpreterExecTestCase(lldbmi_testcase.MiTestCaseBase):
 
         # Test that program exited normally
         self.expect("\*stopped,reason=\"exited-normally\"")
-
-    @skipIfWindows  # llvm.org/pr24452: Get lldb-mi tests working on Windows
-    @skipIfFreeBSD  # llvm.org/pr22411: Failure presumably due to known thread races
-    @expectedFailureAll(
-        oslist=["linux"],
-        bugnumber="Failing in ~9/600 dosep runs (build 3120-3122)")
-    @skipIfRemote   # We do not currently support remote debugging via the MI.
-    def test_lldbmi_settings_set_target_run_args_after(self):
-        """Test that 'lldb-mi --interpreter' can set target arguments by 'setting set target.run-args' command after than target was created."""
-
-        self.spawnLldbMi(args=None)
-
-        # Load executable
-        self.runCmd("-file-exec-and-symbols %s" % self.myexe)
-        self.expect("\^done")
-
-        # Test that "settings set target.run-args" passes arguments to executable
-        # FIXME: --arg1 causes an error
-        self.runCmd(
-            "-interpreter-exec console \"setting set target.run-args arg1 \\\"2nd arg\\\" third_arg fourth=\\\"4th arg\\\"\"")
-        self.expect("\^done")
-
-        # Run to BP_printf
-        line = line_number('main.cpp', '// BP_printf')
-        self.runCmd("-break-insert main.cpp:%d" % line)
-        self.expect("\^done,bkpt={number=\"1\"")
-        self.runCmd("-exec-run")
-        self.expect("\^running")
-        self.expect("\*stopped,reason=\"breakpoint-hit\"")
-
-        # Run to BP_return
-        line = line_number('main.cpp', '// BP_return')
-        self.runCmd("-break-insert main.cpp:%d" % line)
-        self.expect("\^done,bkpt={number=\"2\"")
-        self.runCmd("-exec-continue")
-        self.expect("\^running")
-
-        # Test that arguments were passed properly
-        self.expect("@\"argc=5\\\\r\\\\n\"")
-        self.expect("@\"argv.0.=.*lldb-mi")
-        self.expect("@\"argv.1.=arg1\\\\r\\\\n\"")
-        self.expect("@\"argv.2.=2nd arg\\\\r\\\\n\"")
-        self.expect("@\"argv.3.=third_arg\\\\r\\\\n\"")
-        self.expect("@\"argv.4.=fourth=4th arg\\\\r\\\\n\"")
-
-        # Hit BP_return
-        self.expect("\*stopped,reason=\"breakpoint-hit\"")
 
     @skipIfWindows  # llvm.org/pr24452: Get lldb-mi tests working on Windows
     @skipIfFreeBSD  # llvm.org/pr22411: Failure presumably due to known thread races

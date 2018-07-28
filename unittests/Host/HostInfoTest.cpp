@@ -9,6 +9,7 @@
 
 #include "lldb/Host/HostInfo.h"
 #include "lldb/lldb-defines.h"
+#include "TestingSupport/TestUtilities.h"
 #include "gtest/gtest.h"
 
 using namespace lldb_private;

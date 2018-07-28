@@ -16,18 +16,19 @@ import lldbsuite.test.lldbutil as lldbutil
 class NumberOfThreadsTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
     def setUp(self):
         # Call super's setUp().
         TestBase.setUp(self)
         # Find the line numbers for our break points.
         self.thread3_notify_all_line = line_number('main.cpp', '// Set thread3 break point on notify_all at this line.')
-        self.thread3_before_lock_line = line_number('main.cpp', '// Set thread3 break point on lock at this line.')
+        self.thread3_before_lock_line = line_number('main.cpp', '// thread3-before-lock')
 
     def test_number_of_threads(self):
         """Test number of threads."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # This should create a breakpoint with 1 location.
@@ -63,10 +64,11 @@ class NumberOfThreadsTestCase(TestBase):
             'Number of expected threads and actual threads do not match.')
 
     @skipIfDarwin # rdar://33462362
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37658")
     def test_unique_stacks(self):
         """Test backtrace unique with multiple threads executing the same stack."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # Set a break point on the thread3 notify all (should get hit on threads 4-13).

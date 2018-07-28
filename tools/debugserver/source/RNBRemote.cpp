@@ -4651,6 +4651,8 @@ rnb_err_t RNBRemote::HandlePacket_qHostInfo(const char *p) {
     strm << "ostype:tvos;";
 #elif defined(TARGET_OS_WATCH) && TARGET_OS_WATCH == 1
     strm << "ostype:watchos;";
+#elif defined(TARGET_OS_BRIDGE) && TARGET_OS_BRIDGE == 1
+    strm << "ostype:bridgeos;";
 #else
     strm << "ostype:ios;";
 #endif
@@ -4981,6 +4983,13 @@ void UpdateTargetXML() {
   s << g_target_xml_header << std::endl;
 
   // Set the architecture
+  //
+  // On raw targets (no OS, vendor info), I've seen replies like
+  // <architecture>i386:x86-64</architecture> (for x86_64 systems - from vmware)
+  // <architecture>arm</architecture> (for an unspecified arm device - from a Segger JLink)
+  // For good interop, I'm not sure what's expected here.  e.g. will anyone understand
+  // <architecture>x86_64</architecture> ? Or is i386:x86_64 the expected phrasing?
+  //
   // s << "<architecture>" << arch "</architecture>" << std::endl;
 
   // Set the OSABI
@@ -5437,11 +5446,6 @@ rnb_err_t RNBRemote::HandlePacket_jThreadExtendedInfo(const char *p) {
                                                  p);
     uint64_t dti_qos_class_index =
         get_integer_value_for_key_name_from_json("dti_qos_class_index", p);
-    // Commented out the two variables below as they are not being used
-    //        uint64_t dti_queue_index =
-    //        get_integer_value_for_key_name_from_json ("dti_queue_index", p);
-    //        uint64_t dti_voucher_index =
-    //        get_integer_value_for_key_name_from_json ("dti_voucher_index", p);
 
     if (tid != INVALID_NUB_ADDRESS) {
       nub_addr_t pthread_t_value = DNBGetPThreadT(pid, tid);
@@ -6082,49 +6086,21 @@ rnb_err_t RNBRemote::HandlePacket_qProcessInfo(const char *p) {
       for (uint32_t i = 0; i < mh.ncmds && !os_handled; ++i) {
         const nub_size_t bytes_read =
             DNBProcessMemoryRead(pid, load_command_addr, sizeof(lc), &lc);
-        uint32_t raw_cmd = lc.cmd & ~LC_REQ_DYLD;
-        if (bytes_read != sizeof(lc))
-          break;
-        switch (raw_cmd) {
-        case LC_VERSION_MIN_IPHONEOS:
-          os_handled = true;
-          rep << "ostype:ios;";
-          DNBLogThreadedIf(LOG_RNB_PROC,
-                           "LC_VERSION_MIN_IPHONEOS -> 'ostype:ios;'");
-          break;
+        (void)bytes_read;
 
-        case LC_VERSION_MIN_MACOSX:
+        uint32_t major_version, minor_version, patch_version;
+        auto *platform = DNBGetDeploymentInfo(pid, lc, load_command_addr,
+                                              major_version, minor_version,
+                                              patch_version);
+        if (platform) {
           os_handled = true;
-          rep << "ostype:macosx;";
-          DNBLogThreadedIf(LOG_RNB_PROC,
-                           "LC_VERSION_MIN_MACOSX -> 'ostype:macosx;'");
-          break;
-
-#if defined(LC_VERSION_MIN_TVOS)
-        case LC_VERSION_MIN_TVOS:
-          os_handled = true;
-          rep << "ostype:tvos;";
-          DNBLogThreadedIf(LOG_RNB_PROC,
-                           "LC_VERSION_MIN_TVOS -> 'ostype:tvos;'");
-          break;
-#endif
-
-#if defined(LC_VERSION_MIN_WATCHOS)
-        case LC_VERSION_MIN_WATCHOS:
-          os_handled = true;
-          rep << "ostype:watchos;";
-          DNBLogThreadedIf(LOG_RNB_PROC,
-                           "LC_VERSION_MIN_WATCHOS -> 'ostype:watchos;'");
-          break;
-#endif
-
-        default:
+          rep << "ostype:" << platform << ";";
           break;
         }
         load_command_addr = load_command_addr + lc.cmdsize;
       }
     }
-#endif
+#endif // when compiling this on x86 targets
   }
 
   // If we weren't able to find the OS in a LC_VERSION_MIN load command, try
@@ -6138,6 +6114,8 @@ rnb_err_t RNBRemote::HandlePacket_qProcessInfo(const char *p) {
       rep << "ostype:tvos;";
 #elif defined(TARGET_OS_WATCH) && TARGET_OS_WATCH == 1
       rep << "ostype:watchos;";
+#elif defined(TARGET_OS_BRIDGE) && TARGET_OS_BRIDGE == 1
+      rep << "ostype:bridgeos;";
 #else
       rep << "ostype:ios;";
 #endif
@@ -6189,6 +6167,8 @@ rnb_err_t RNBRemote::HandlePacket_qProcessInfo(const char *p) {
         rep << "ostype:tvos;";
 #elif defined(TARGET_OS_WATCH) && TARGET_OS_WATCH == 1
         rep << "ostype:watchos;";
+#elif defined(TARGET_OS_BRIDGE) && TARGET_OS_BRIDGE == 1
+        rep << "ostype:bridgeos;";
 #else
         rep << "ostype:ios;";
 #endif
