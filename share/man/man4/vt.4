@@ -44,6 +44,7 @@
 In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
+.Cd hw.vga.acpi_ignore_no_vga=1
 .Cd kern.vty=vt
 .Cd kern.vt.color.<colornum>.rgb="<colorspec>"
 .Cd kern.vt.fb.default_mode="<X>x<Y>"
@@ -196,6 +197,10 @@ prompt or in
 Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
+.It Va hw.vga.acpi_ignore_no_vga
+Set to 1 to force the usage of the VGA driver regardless of whether
+ACPI IAPC_BOOT_ARCH signals no VGA support.
+Can be used to workaround firmware bugs in the ACPI tables.
 .It Va kern.vty
 Set this value to
 .Ql vt
