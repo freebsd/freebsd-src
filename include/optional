@@ -22,7 +22,7 @@ namespace std {
 
   // 23.6.4, no-value state indicator
   struct nullopt_t{see below };
-  constexpr nullopt_t nullopt(unspecified );
+  inline constexpr nullopt_t nullopt(unspecified );
 
   // 23.6.5, class bad_optional_access
   class bad_optional_access;
@@ -139,6 +139,10 @@ namespace std {
   private:
     T *val; // exposition only
   };
+
+template<class T>
+  optional(T) -> optional<T>;
+
 } // namespace std
 
 */
@@ -195,7 +199,7 @@ struct nullopt_t
     _LIBCPP_INLINE_VISIBILITY constexpr explicit nullopt_t(__secret_tag, __secret_tag) noexcept {}
 };
 
-/* inline */ constexpr nullopt_t nullopt{nullopt_t::__secret_tag{}, nullopt_t::__secret_tag{}};
+_LIBCPP_INLINE_VAR constexpr nullopt_t nullopt{nullopt_t::__secret_tag{}, nullopt_t::__secret_tag{}};
 
 template <class _Tp, bool = is_trivially_destructible<_Tp>::value>
 struct __optional_destruct_base;
@@ -612,8 +616,8 @@ private:
     };
     template <class _Up>
     using _CheckOptionalArgsCtor = conditional_t<
-        !is_same_v<decay_t<_Up>, in_place_t> &&
-        !is_same_v<decay_t<_Up>, optional>,
+        !is_same_v<__uncvref_t<_Up>, in_place_t> &&
+        !is_same_v<__uncvref_t<_Up>, optional>,
         _CheckOptionalArgsConstructor,
         __check_tuple_constructor_fail
     >;
@@ -761,7 +765,7 @@ public:
               class = enable_if_t
                       <__lazy_and<
                           integral_constant<bool,
-                              !is_same_v<decay_t<_Up>, optional> &&
+                              !is_same_v<__uncvref_t<_Up>, optional> &&
                               !(is_same_v<_Up, value_type> && is_scalar_v<value_type>)
                           >,
                           is_constructible<value_type, _Up>,
@@ -1002,6 +1006,11 @@ private:
         return &__x;
     }
 };
+
+#ifndef _LIBCPP_HAS_NO_DEDUCTION_GUIDES
+template<class T>
+    optional(T) -> optional<T>;
+#endif
 
 // Comparisons between optionals
 template <class _Tp, class _Up>

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <ostream>
 
-#include "benchmark/macros.h"
+#include "benchmark/benchmark.h"
 
 namespace benchmark {
 namespace internal {
@@ -66,8 +66,9 @@ inline LogType& GetLogInstanceForLevel(int level) {
 }  // end namespace internal
 }  // end namespace benchmark
 
+// clang-format off
 #define VLOG(x)                                                               \
   (::benchmark::internal::GetLogInstanceForLevel(x) << "-- LOG(" << x << "):" \
                                                                          " ")
-
+// clang-format on
 #endif
