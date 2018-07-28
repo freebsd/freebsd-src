@@ -2,10 +2,10 @@
 
 .include <src.opts.mk>
 
-BINDIR=		/etc/rc.d
-FILESGROUPS=	FILES
+CONFSDIR=	/etc/rc.d
+CONFSGROUPS=	CONFS
 
-FILES=	DAEMON \
+CONFS=	DAEMON \
 	FILESYSTEMS \
 	LOGIN \
 	NETWORKING \
@@ -75,7 +75,6 @@ FILES=	DAEMON \
 	netif \
 	netoptions \
 	netwait \
-	newsyslog \
 	nfsclient \
 	nfscbd \
 	nfsd \
@@ -113,8 +112,6 @@ FILES=	DAEMON \
 	stf \
 	swap \
 	swaplate \
-	sysctl \
-	syslogd \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
@@ -123,7 +120,7 @@ FILES=	DAEMON \
 	watchdogd
 
 .if ${MK_NIS} != "no"
-FILES+=	ypbind \
+CONFS+=	ypbind \
 	ypldap \
 	yppasswdd \
 	ypserv \
@@ -133,29 +130,29 @@ FILES+=	ypbind \
 .endif
 
 .if ${MK_ACCT} != "no"
-FILESGROUPS+=	ACCT
+CONFSGROUPS+=	ACCT
 ACCT+=		accounting
 ACCTPACKAGE=	acct
 .endif
 
 .if ${MK_ACPI} != "no"
-FILESGROUPS+=	ACPI
+CONFSGROUPS+=	ACPI
 ACPI=		power_profile
 ACPIPACKAGE=	acpi
 .endif
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
-FILES+=		powerd
+CONFS+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
-FILESGROUPS+=	AMD
+CONFSGROUPS+=	AMD
 AMD+=		amd
 AMDPACKAGE=	amd
 .endif
 
 .if ${MK_APM} != "no"
-FILESGROUPS+=	APM
+CONFSGROUPS+=	APM
 APM+=		apm
 .if ${MACHINE} == "i386"
 APM+=		apmd
@@ -164,9 +161,9 @@ APMPACKAGE=	apm
 .endif
 
 .if ${MK_AUTOFS} != "no"
-FILES+=		automount
-FILES+=		automountd
-FILES+=		autounmountd
+CONFS+=		automount
+CONFS+=		automountd
+CONFS+=		autounmountd
 .endif
 
 .if ${MK_BLACKLIST} != "no"
@@ -177,77 +174,81 @@ _blacklistd+=	blacklistd
 _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
-FILES+=		rfcomm_pppd_server
-FILES+=		sdpd
+CONFS+=		rfcomm_pppd_server
+CONFS+=		sdpd
 _ubthidhci=	ubthidhci
 .endif
 
 .if ${MK_BOOTPARAMD} != "no"
-FILES+=		bootparams
+CONFS+=		bootparams
 .endif
 
 .if ${MK_BSNMP} != "no"
-FILESGROUPS+=	BSNMP
+CONFSGROUPS+=	BSNMP
 BSNMP+=		bsnmpd
 BSNMPPACKAGE=	bsnmp
 .endif
 
 .if ${MK_CCD} != "no"
-FILES+=		ccd
+CONFS+=		ccd
 .endif
 
 .if ${MK_FTP} != "no"
-FILES+=		ftpd
+CONFS+=		ftpd
 .endif
 
 .if ${MK_HAST} != "no"
-FILESGROUPS+=	HAST
+CONFSGROUPS+=	HAST
 HAST=		hastd
 HASTPACKAGE=	hast
 .endif
 
 .if ${MK_INETD} != "no"
-FILES+=		inetd
+CONFS+=		inetd
 .endif
 
 .if ${MK_IPFW} != "no"
-FILES+=		ipfw
+CONFS+=		ipfw
 .if ${MK_NETGRAPH} != "no"
-FILES+=		ipfw_netflow
+CONFS+=		ipfw_netflow
 .endif
 .endif
 
 .if ${MK_ISCSI} != "no"
-FILES+=		iscsictl
-FILES+=		iscsid
+CONFS+=		iscsictl
+CONFS+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
-FILESGROUPS+=	JAIL
+CONFSGROUPS+=	JAIL
 JAIL+=		jail
 JAILPACKAGE=	jail
 .endif
 
 .if ${MK_LEGACY_CONSOLE} != "no"
-FILES+=		moused
-FILES+=		syscons
+CONFS+=		moused
+CONFS+=		syscons
 .endif
 
 .if ${MK_LPR} != "no"
-FILES+=		lpd
+CONFS+=		lpd
 .endif
 
 .if ${MK_KERBEROS} != "no"
-FILES+=		ipropd_master
-FILES+=		ipropd_slave
+CONFS+=		ipropd_master
+CONFS+=		ipropd_slave
 _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
 _kpasswdd=	kpasswdd
+
+DIRS+=	VAR_HEMIDAL
+VAR_HEMIDAL=	/var/heimdal
+VAR_HEMIDAL_MODE=	700
 .endif
 
 .if ${MK_MAIL} != "no"
-FILES+=		othermta
+CONFS+=		othermta
 .endif
 
 .if ${MK_NS_CACHING} != "no"
@@ -255,7 +256,7 @@ _nscd=		nscd
 .endif
 
 .if ${MK_NTP} != "no"
-FILES+=		ntpd
+CONFS+=		ntpd
 .endif
 
 .if ${MK_OFED} != "no"
@@ -263,35 +264,35 @@ _opensm=	opensm
 .endif
 
 .if ${MK_OPENSSL} != "no"
-FILES+=		keyserv
+CONFS+=		keyserv
 .endif
 
 .if ${MK_OPENSSH} != "no"
-FILESGROUPS+=	SSH
+CONFSGROUPS+=	SSH
 SSH=		sshd
 SSHPACKAGE=	ssh
 .endif
 
 .if ${MK_PF} != "no"
-FILES+=		ftp-proxy
+CONFS+=		ftp-proxy
 .endif
 
 .if ${MK_ROUTED} != "no"
-FILES+=		routed
+CONFS+=		routed
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILESGROUPS+=	SMRCD
+CONFSGROUPS+=	SMRCD
 SMRCD=		sendmail
 SMRCDPACKAGE=	sendmail
 .endif
 
 .if ${MK_TIMED} != "no"
-FILES+=		timed
+CONFS+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"
-FILESGROUPS+=	UNBOUND
+CONFSGROUPS+=	UNBOUND
 UNBOUND+=	local_unbound
 UNBOUNDPACKAGE=	unbound
 .endif
@@ -301,26 +302,29 @@ _utx=		utx
 .endif
 
 .if ${MK_VI} != "no"
-FILESGROUPS+=	VI
+CONFSGROUPS+=	VI
 VI+=		virecover
 VIPACKAGE=	vi
 .endif
 
 .if ${MK_WIRELESS} != "no"
-FILES+=		hostapd
-FILES+=		wpa_supplicant
+CONFS+=		hostapd
+CONFS+=		wpa_supplicant
 .endif
 
 .if ${MK_ZFS} != "no"
-FILESGROUPS+=	ZFS
+CONFSGROUPS+=	ZFS
 ZFS+=		zfs
 ZFS+=		zfsbe
 ZFS+=		zfsd
 ZFS+=		zvol
 ZFSPACKAGE=	zfs
+DIRS+=	ETC_ZFS
+ETC_ZFS=	/etc/zfs
+ETC_ZFSPACKAGE=	zfs
 .endif
 
-.for fg in ${FILESGROUPS}
+.for fg in ${CONFSGROUPS}
 ${fg}MODE?=	${BINMODE}
 .endfor
 
