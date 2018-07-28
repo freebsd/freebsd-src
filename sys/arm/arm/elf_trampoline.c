@@ -61,26 +61,11 @@ extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
 
-#if defined(CPU_ARM9)
-#define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
-extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526)
-#define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
-extern void fa526_idcache_wbinv_all(void);
-#elif defined(CPU_ARM9E)
+#if defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_XSCALE_PXA2X0)
-#define cpu_idcache_wbinv_all	xscale_cache_purgeID
-extern void xscale_cache_purgeID(void);
-#elif defined(CPU_XSCALE_81342)
-#define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
-extern void xscalec3_cache_purgeID(void);
 #endif
-#ifdef CPU_XSCALE_81342
-#define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
-extern void xscalec3_l2cache_purge(void);
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 extern void sheeva_l2cache_wbinv_all(void);
 #else
@@ -121,11 +106,6 @@ static int      arm_dcache_l2_linesize;
  */
 static struct arm_boot_params s_boot_params;
 
-extern int arm9_dcache_sets_inc;
-extern int arm9_dcache_sets_max;
-extern int arm9_dcache_index_max;
-extern int arm9_dcache_index_inc;
-
 static __inline void *
 memcpy(void *dst, const void *src, int len)
 {
@@ -164,8 +144,6 @@ bzero(void *addr, int count)
 		}
 	}
 }
-
-static void arm9_setup(void);
 
 void
 _startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3)
@@ -250,13 +228,6 @@ _startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3)
 			 "2: nop\n"
 			 "mov sp, %2\n"
 			 : "=r" (tmp1), "+r" (kernphysaddr), "+r" (sp));
-#ifndef KZIP
-#ifdef CPU_ARM9
-	/* So that idcache_wbinv works; */
-	if ((cpu_ident() & 0x0000f000) == 0x00009000)
-		arm9_setup();
-#endif
-#endif
 	__start();
 }
 
@@ -366,18 +337,6 @@ get_cachetype_cp15()
 	out:
 		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
-}
-
-static void
-arm9_setup(void)
-{
-
-	get_cachetype_cp15();
-	arm9_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
-	arm9_dcache_sets_max = (1U << (arm_dcache_l2_linesize +
-	    arm_dcache_l2_nsets)) - arm9_dcache_sets_inc;
-	arm9_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
-	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
 }
 
 #ifdef KZIP
@@ -684,11 +643,6 @@ __start(void)
 		pt_addr = L1_TABLE_SIZE +
 		    rounddown2((int)&_end + KERNSIZE + 0x100, L1_TABLE_SIZE);
 
-#ifdef CPU_ARM9
-		/* So that idcache_wbinv works; */
-		if ((cpu_ident() & 0x0000f000) == 0x00009000)
-			arm9_setup();
-#endif
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
 		    (vm_paddr_t)curaddr + 0x10000000, 1);
 		/* Gzipped kernel */
