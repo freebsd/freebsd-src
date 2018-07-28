@@ -117,7 +117,7 @@ struct filesystem {
  */
 
 #define MAX_OVERLAPPED	8
-#define BUFFER_SIZE	(1024 * 8)
+#define READ_BUFFER_SIZE	(1024 * 64) /* Default to 64KB per https://technet.microsoft.com/en-us/library/cc938632.aspx */
 #define DIRECT_IO	0/* Disabled */
 #define ASYNC_IO	1/* Enabled */
 
@@ -567,7 +567,7 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 	/* Allocate read buffer. */
 	if (olp->buff == NULL) {
 		void *p;
-		size_t s = (size_t)align_num_per_sector(t, BUFFER_SIZE);
+		size_t s = (size_t)align_num_per_sector(t, READ_BUFFER_SIZE);
 		p = VirtualAlloc(NULL, s, MEM_COMMIT, PAGE_READWRITE);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -683,7 +683,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 				break;
 		} while (r == ARCHIVE_OK && t->ol_num_doing < MAX_OVERLAPPED);
 	} else {
-		if (start_next_async_read(a, t) == ARCHIVE_FATAL)
+		if ((r = start_next_async_read(a, t)) == ARCHIVE_FATAL)
 			goto abort_read_data;
 	}
 
@@ -2276,10 +2276,10 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 				if (range.Length.QuadPart > 0)
 					continue;
 			} else {
-				/* The remaining data is hole. */
+				/* The entire file is a hole. Add one data block of size 0 at the end. */
 				archive_entry_sparse_add_entry(entry,
-				    range.FileOffset.QuadPart,
-				    range.Length.QuadPart);
+				    entry_size,
+				    0);
 			}
 			break;
 		} else {

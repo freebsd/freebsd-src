@@ -28,6 +28,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_leading_slash.c
     test_missing_file.c
     test_option_C_upper.c
+    test_option_C_mtree.c
     test_option_H_upper.c
     test_option_L_upper.c
     test_option_O_upper.c
