@@ -268,11 +268,6 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
   defined(CPU_MV_PJ4B) ||			\
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
-/* Global cache line sizes, use 32 as default */
-int	arm_dcache_min_line_size = 32;
-int	arm_icache_min_line_size = 32;
-int	arm_idcache_min_line_size = 32;
-
 static void get_cachetype_cp15(void);
 
 /* Additional cache information local to this file.  Log2 of some of the
@@ -304,12 +299,6 @@ get_cachetype_cp15(void)
 		goto out;
 
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
-		/* Resolve minimal cache line sizes */
-		arm_dcache_min_line_size = 1 << (CPU_CT_DMINLINE(ctype) + 2);
-		arm_icache_min_line_size = 1 << (CPU_CT_IMINLINE(ctype) + 2);
-		arm_idcache_min_line_size =
-		    min(arm_icache_min_line_size, arm_dcache_min_line_size);
-
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
 		arm_cache_level = clevel;
