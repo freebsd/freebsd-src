@@ -30,16 +30,13 @@ arm/arm/busdma_machdep-v6.c 	optional	armv7 | armv6 | ARM_USE_V6_BUSDMA
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9 | cpu_arm9e
+arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
-arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_pxa2x0 | cpu_xscale_81342
+arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_armv5_ec.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
-arm/arm/cpufunc_asm_fa526.S	optional	cpu_fa526
 arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
 arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
-arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_pxa2x0 | cpu_xscale_81342
-arm/arm/cpufunc_asm_xscale_c3.S	optional	cpu_xscale_81342
 arm/arm/cpuinfo.c		standard
 arm/arm/cpu_asm-v6.S		optional	armv7 | armv6
 arm/arm/db_disasm.c		optional	ddb

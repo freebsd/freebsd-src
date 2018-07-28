@@ -9,12 +9,10 @@ ARM_USE_V6_BUSDMA	opt_global.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPSW_ETHERSWITCH	opt_cpsw.h
-CPU_ARM9		opt_global.h
 CPU_ARM9E		opt_global.h
 CPU_ARM1176		opt_global.h
 CPU_CORTEXA		opt_global.h
 CPU_KRAIT		opt_global.h
-CPU_FA526		opt_global.h
 CPU_MV_PJ4B		opt_global.h
 SMP_ON_UP		opt_global.h # Runtime detection of MP extensions
 DEV_GIC			opt_global.h
