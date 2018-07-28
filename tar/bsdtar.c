@@ -920,7 +920,7 @@ usage(void)
 static void
 version(void)
 {
-	printf("bsdtar %s - %s\n",
+	printf("bsdtar %s - %s \n",
 	    BSDTAR_VERSION_STRING,
 	    archive_version_details());
 	exit(0);

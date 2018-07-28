@@ -972,6 +972,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
 	tar/test/test_missing_file.c \
+	tar/test/test_option_C_mtree.c \
 	tar/test/test_option_C_upper.c \
 	tar/test/test_option_H_upper.c \
 	tar/test/test_option_L_upper.c \

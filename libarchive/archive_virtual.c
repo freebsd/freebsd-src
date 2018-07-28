@@ -124,13 +124,13 @@ archive_write_finish_entry(struct archive *a)
 	return ((a->vtable->archive_write_finish_entry)(a));
 }
 
-ssize_t
+la_ssize_t
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
-ssize_t
+la_ssize_t
 archive_write_data_block(struct archive *a, const void *buff, size_t s,
     la_int64_t o)
 {

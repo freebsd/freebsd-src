@@ -42,6 +42,7 @@
 
 #include <sys/types.h>
 #include <stddef.h>  /* for wchar_t */
+#include <stdint.h>
 #include <time.h>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
