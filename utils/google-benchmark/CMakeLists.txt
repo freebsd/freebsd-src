@@ -1,9 +1,11 @@
 cmake_minimum_required (VERSION 2.8.12)
+
 project (benchmark)
 
 foreach(p
     CMP0054 # CMake 3.1
     CMP0056 # export EXE_LINKER_FLAGS to try_run
+    CMP0057 # Support no if() IN_LIST operator
     )
   if(POLICY ${p})
     cmake_policy(SET ${p} NEW)
@@ -14,10 +16,58 @@ option(BENCHMARK_ENABLE_TESTING "Enable testing of the benchmark library." ON)
 option(BENCHMARK_ENABLE_EXCEPTIONS "Enable the use of exceptions in the benchmark library." ON)
 option(BENCHMARK_ENABLE_LTO "Enable link time optimisation of the benchmark library." OFF)
 option(BENCHMARK_USE_LIBCXX "Build and test using libc++ as the standard library." OFF)
-option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library" OFF)
+option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library." OFF)
+option(BENCHMARK_ENABLE_INSTALL "Enable installation of benchmark. (Projects embedding benchmark may want to turn this OFF.)" ON)
+
+# Allow unmet dependencies to be met using CMake's ExternalProject mechanics, which
+# may require downloading the source code.
+option(BENCHMARK_DOWNLOAD_DEPENDENCIES "Allow the downloading and in-tree building of unmet dependencies" OFF)
+
+# This option can be used to disable building and running unit tests which depend on gtest
+# in cases where it is not possible to build or find a valid version of gtest.
+option(BENCHMARK_ENABLE_GTEST_TESTS "Enable building the unit tests which depend on gtest" ON)
+
+set(ENABLE_ASSEMBLY_TESTS_DEFAULT OFF)
+function(should_enable_assembly_tests)
+  if(CMAKE_BUILD_TYPE)
+    string(TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_LOWER)
+    if (${CMAKE_BUILD_TYPE_LOWER} MATCHES "coverage")
+      # FIXME: The --coverage flag needs to be removed when building assembly
+      # tests for this to work.
+      return()
+    endif()
+  endif()
+  if (MSVC)
+    return()
+  elseif(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    return()
+  elseif(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # FIXME: Make these work on 32 bit builds
+    return()
+  elseif(BENCHMARK_BUILD_32_BITS)
+     # FIXME: Make these work on 32 bit builds
+    return()
+  endif()
+  find_program(LLVM_FILECHECK_EXE FileCheck)
+  if (LLVM_FILECHECK_EXE)
+    set(LLVM_FILECHECK_EXE "${LLVM_FILECHECK_EXE}" CACHE PATH "llvm filecheck" FORCE)
+    message(STATUS "LLVM FileCheck Found: ${LLVM_FILECHECK_EXE}")
+  else()
+    message(STATUS "Failed to find LLVM FileCheck")
+    return()
+  endif()
+  set(ENABLE_ASSEMBLY_TESTS_DEFAULT ON PARENT_SCOPE)
+endfunction()
+should_enable_assembly_tests()
+
+# This option disables the building and running of the assembly verification tests
+option(BENCHMARK_ENABLE_ASSEMBLY_TESTS "Enable building and running the assembly tests"
+    ${ENABLE_ASSEMBLY_TESTS_DEFAULT})
 
 # Make sure we can import out CMake functions
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 
 # Read the git tags to determine the project version
 include(GetGitVersion)
@@ -80,7 +130,6 @@ else()
 
   # Turn compiler warnings up to 11
   add_cxx_compiler_flag(-Wall)
-
   add_cxx_compiler_flag(-Wextra)
   add_cxx_compiler_flag(-Wshadow)
   add_cxx_compiler_flag(-Werror RELEASE)
@@ -89,14 +138,24 @@ else()
   add_cxx_compiler_flag(-pedantic)
   add_cxx_compiler_flag(-pedantic-errors)
   add_cxx_compiler_flag(-Wshorten-64-to-32)
-  add_cxx_compiler_flag(-Wfloat-equal)
   add_cxx_compiler_flag(-fstrict-aliasing)
+  # Disable warnings regarding deprecated parts of the library while building
+  # and testing those parts of the library.
+  add_cxx_compiler_flag(-Wno-deprecated-declarations)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # Intel silently ignores '-Wno-deprecated-declarations',
+    # warning no. 1786 must be explicitly disabled.
+    # See #631 for rationale.
+    add_cxx_compiler_flag(-wd1786)
+  endif()
+  # Disable deprecation warnings for release builds (when -Werror is enabled).
+  add_cxx_compiler_flag(-Wno-deprecated RELEASE)
+  add_cxx_compiler_flag(-Wno-deprecated RELWITHDEBINFO)
+  add_cxx_compiler_flag(-Wno-deprecated MINSIZEREL)
   if (NOT BENCHMARK_ENABLE_EXCEPTIONS)
     add_cxx_compiler_flag(-fno-exceptions)
   endif()
-  if (NOT BENCHMARK_USE_LIBCXX)
-    add_cxx_compiler_flag(-Wzero-as-null-pointer-constant)
-  endif()
+
   if (HAVE_CXX_FLAG_FSTRICT_ALIASING)
     if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel") #ICC17u2: Many false positives for Wstrict-aliasing
       add_cxx_compiler_flag(-Wstrict-aliasing)
@@ -130,28 +189,27 @@ else()
       if (GCC_RANLIB)
         set(CMAKE_RANLIB ${GCC_RANLIB})
       endif()
+    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+      include(llvm-toolchain)
     endif()
   endif()
 
   # Coverage build type
-  set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS_DEBUG}" CACHE STRING
-    "Flags used by the C++ compiler during coverage builds."
+  set(BENCHMARK_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS_DEBUG}"
+    CACHE STRING "Flags used by the C++ compiler during coverage builds."
     FORCE)
-  set(CMAKE_EXE_LINKER_FLAGS_COVERAGE
-    "${CMAKE_EXE_LINKER_FLAGS_DEBUG}" CACHE STRING
-    "Flags used for linking binaries during coverage builds."
+  set(BENCHMARK_EXE_LINKER_FLAGS_COVERAGE "${CMAKE_EXE_LINKER_FLAGS_DEBUG}"
+    CACHE STRING "Flags used for linking binaries during coverage builds."
     FORCE)
-  set(CMAKE_SHARED_LINKER_FLAGS_COVERAGE
-    "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}" CACHE STRING
-    "Flags used by the shared libraries linker during coverage builds."
+  set(BENCHMARK_SHARED_LINKER_FLAGS_COVERAGE "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}"
+    CACHE STRING "Flags used by the shared libraries linker during coverage builds."
     FORCE)
   mark_as_advanced(
-    CMAKE_CXX_FLAGS_COVERAGE
-    CMAKE_EXE_LINKER_FLAGS_COVERAGE
-    CMAKE_SHARED_LINKER_FLAGS_COVERAGE)
+    BENCHMARK_CXX_FLAGS_COVERAGE
+    BENCHMARK_EXE_LINKER_FLAGS_COVERAGE
+    BENCHMARK_SHARED_LINKER_FLAGS_COVERAGE)
   set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING
-    "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel Coverage."
-    FORCE)
+    "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel Coverage.")
   add_cxx_compiler_flag(--coverage COVERAGE)
 endif()
 
@@ -169,7 +227,7 @@ if (BENCHMARK_USE_LIBCXX)
     # linker flags appear before all linker inputs and -lc++ must appear after.
     list(APPEND BENCHMARK_CXX_LIBRARIES c++)
   else()
-    message(FATAL "-DBENCHMARK_USE_LIBCXX:BOOL=ON is not supported for compiler")
+    message(FATAL_ERROR "-DBENCHMARK_USE_LIBCXX:BOOL=ON is not supported for compiler")
   endif()
 endif(BENCHMARK_USE_LIBCXX)
 
@@ -197,5 +255,8 @@ add_subdirectory(src)
 
 if (BENCHMARK_ENABLE_TESTING)
   enable_testing()
+  if (BENCHMARK_ENABLE_GTEST_TESTS)
+    include(HandleGTest)
+  endif()
   add_subdirectory(test)
 endif()
