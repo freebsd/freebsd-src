@@ -1,5 +1,6 @@
 # $FreeBSD$
 files		"../ralink/files.ralink"
-cpu		CPU_ARM9
+cpu		CPU_ARM9E
 machine 	arm
+makeoptions	CONF_CFLAGS="-march=armv5te"
 options		INTRNG
