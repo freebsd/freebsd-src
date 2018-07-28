@@ -6064,7 +6064,7 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
  * Check/set reclaim complete for this session/clientid.
  */
 int
-nfsrv_checkreclaimcomplete(struct nfsrv_descript *nd)
+nfsrv_checkreclaimcomplete(struct nfsrv_descript *nd, int onefs)
 {
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
@@ -6080,8 +6080,10 @@ nfsrv_checkreclaimcomplete(struct nfsrv_descript *nd)
 		return (NFSERR_BADSESSION);
 	}
 
-	/* Check to see if reclaim complete has already happened. */
-	if ((sep->sess_clp->lc_flags & LCL_RECLAIMCOMPLETE) != 0)
+	if (onefs != 0)
+		sep->sess_clp->lc_flags |= LCL_RECLAIMONEFS;
+		/* Check to see if reclaim complete has already happened. */
+	else if ((sep->sess_clp->lc_flags & LCL_RECLAIMCOMPLETE) != 0)
 		error = NFSERR_COMPLETEALREADY;
 	else {
 		sep->sess_clp->lc_flags |= LCL_RECLAIMCOMPLETE;
