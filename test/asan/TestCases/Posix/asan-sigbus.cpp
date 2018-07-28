@@ -5,6 +5,8 @@
 // RUN: %env_asan_opts=handle_sigbus=0 not --crash %run %t 2>&1 | FileCheck %s
 
 // UNSUPPORTED: ios
+// Instead of getting a SIGBUS error, we get a SIGSEGV
+// XFAIL: freebsd
 
 #include <assert.h>
 #include <fcntl.h>
@@ -13,6 +15,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string>
+
+#ifndef MAP_FILE
+#define MAP_FILE 0
+#endif
 
 char array[4096];
 int main(int argc, char **argv) {

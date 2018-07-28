@@ -7,6 +7,8 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
+#if !defined(__Fuchsia__)
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +21,7 @@
 #include "WindowsMMap.h"
 /* For _chsize_s */
 #include <io.h>
+#include <process.h>
 #else
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -68,6 +71,7 @@ typedef struct lprofFilename {
    * by runtime. */
   unsigned OwnsFilenamePat;
   const char *ProfilePathPrefix;
+  const char *Filename;
   char PidChars[MAX_PID_SIZE];
   char Hostname[COMPILER_RT_MAX_HOSTLEN];
   unsigned NumPids;
@@ -83,11 +87,11 @@ typedef struct lprofFilename {
   ProfileNameSpecifier PNS;
 } lprofFilename;
 
-COMPILER_RT_WEAK lprofFilename lprofCurFilename = {0, 0, 0, {0}, {0},
-                                                   0, 0, 0, PNS_unknown};
+COMPILER_RT_WEAK lprofFilename lprofCurFilename = {0,   0, 0, 0, {0},
+                                                   {0}, 0, 0, 0, PNS_unknown};
 
 static int getCurFilenameLength();
-static const char *getCurFilename(char *FilenameBuf);
+static const char *getCurFilename(char *FilenameBuf, int ForceUseBuf);
 static unsigned doMerging() { return lprofCurFilename.MergePoolSize; }
 
 /* Return 1 if there is an error, otherwise return  0.  */
@@ -183,8 +187,12 @@ static int doProfileMerging(FILE *ProfileFile, int *MergeDone) {
 
   /* Now start merging */
   __llvm_profile_merge_from_buffer(ProfileBuffer, ProfileFileSize);
-  (void)munmap(ProfileBuffer, ProfileFileSize);
 
+  // Truncate the file in case merging of value profile did not happend to
+  // prevent from leaving garbage data at the end of the profile file.
+  COMPILER_RT_FTRUNCATE(ProfileFile, __llvm_profile_get_size_for_buffer());
+
+  (void)munmap(ProfileBuffer, ProfileFileSize);
   *MergeDone = 1;
 
   return 0;
@@ -234,6 +242,7 @@ static int writeFile(const char *OutputName) {
   FILE *OutputFile;
 
   int MergeDone = 0;
+  VPMergeHook = &lprofMergeValueProfData;
   if (!doMerging())
     OutputFile = fopen(OutputName, "ab");
   else
@@ -260,7 +269,7 @@ static void truncateCurrentFile(void) {
 
   Length = getCurFilenameLength();
   FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
-  Filename = getCurFilename(FilenameBuf);
+  Filename = getCurFilename(FilenameBuf, 0);
   if (!Filename)
     return;
 
@@ -305,14 +314,17 @@ static int parseFilenamePattern(const char *FilenamePat,
   char *Hostname = &lprofCurFilename.Hostname[0];
   int MergingEnabled = 0;
 
-  /* Clean up cached prefix.  */
+  /* Clean up cached prefix and filename.  */
   if (lprofCurFilename.ProfilePathPrefix)
     free((void *)lprofCurFilename.ProfilePathPrefix);
-  memset(&lprofCurFilename, 0, sizeof(lprofCurFilename));
+  if (lprofCurFilename.Filename)
+    free((void *)lprofCurFilename.Filename);
 
   if (lprofCurFilename.FilenamePat && lprofCurFilename.OwnsFilenamePat) {
     free((void *)lprofCurFilename.FilenamePat);
   }
+
+  memset(&lprofCurFilename, 0, sizeof(lprofCurFilename));
 
   if (!CopyFilenamePat)
     lprofCurFilename.FilenamePat = FilenamePat;
@@ -422,17 +434,25 @@ static int getCurFilenameLength() {
 /* Return the pointer to the current profile file name (after substituting
  * PIDs and Hostnames in filename pattern. \p FilenameBuf is the buffer
  * to store the resulting filename. If no substitution is needed, the
- * current filename pattern string is directly returned. */
-static const char *getCurFilename(char *FilenameBuf) {
-  int I, J, PidLength, HostNameLength;
+ * current filename pattern string is directly returned, unless ForceUseBuf
+ * is enabled. */
+static const char *getCurFilename(char *FilenameBuf, int ForceUseBuf) {
+  int I, J, PidLength, HostNameLength, FilenamePatLength;
   const char *FilenamePat = lprofCurFilename.FilenamePat;
 
   if (!lprofCurFilename.FilenamePat || !lprofCurFilename.FilenamePat[0])
     return 0;
 
   if (!(lprofCurFilename.NumPids || lprofCurFilename.NumHosts ||
-        lprofCurFilename.MergePoolSize))
-    return lprofCurFilename.FilenamePat;
+        lprofCurFilename.MergePoolSize)) {
+    if (!ForceUseBuf)
+      return lprofCurFilename.FilenamePat;
+
+    FilenamePatLength = strlen(lprofCurFilename.FilenamePat);
+    memcpy(FilenameBuf, lprofCurFilename.FilenamePat, FilenamePatLength);
+    FilenameBuf[FilenamePatLength] = '\0';
+    return FilenameBuf;
+  }
 
   PidLength = strlen(lprofCurFilename.PidChars);
   HostNameLength = strlen(lprofCurFilename.Hostname);
@@ -486,7 +506,7 @@ const char *__llvm_profile_get_path_prefix(void) {
 
   Length = getCurFilenameLength();
   FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
-  Filename = getCurFilename(FilenameBuf);
+  Filename = getCurFilename(FilenameBuf, 0);
   if (!Filename)
     return "\0";
 
@@ -504,6 +524,29 @@ const char *__llvm_profile_get_path_prefix(void) {
   Prefix[Length] = '\0';
   lprofCurFilename.ProfilePathPrefix = Prefix;
   return Prefix;
+}
+
+COMPILER_RT_VISIBILITY
+const char *__llvm_profile_get_filename(void) {
+  int Length;
+  char *FilenameBuf;
+  const char *Filename;
+
+  if (lprofCurFilename.Filename)
+    return lprofCurFilename.Filename;
+
+  Length = getCurFilenameLength();
+  FilenameBuf = (char *)malloc(Length + 1);
+  if (!FilenameBuf) {
+    PROF_ERR("Failed to %s\n", "allocate memory.");
+    return "\0";
+  }
+  Filename = getCurFilename(FilenameBuf, 1);
+  if (!Filename)
+    return "\0";
+
+  lprofCurFilename.Filename = FilenameBuf;
+  return FilenameBuf;
 }
 
 /* This method is invoked by the runtime initialization hook
@@ -562,7 +605,7 @@ int __llvm_profile_write_file(void) {
 
   Length = getCurFilenameLength();
   FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
-  Filename = getCurFilename(FilenameBuf);
+  Filename = getCurFilename(FilenameBuf, 0);
 
   /* Check the filename. */
   if (!Filename) {
@@ -620,3 +663,5 @@ int __llvm_profile_register_write_file_atexit(void) {
   HasBeenRegistered = 1;
   return atexit(writeFileWithoutReturn);
 }
+
+#endif
