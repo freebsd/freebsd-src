@@ -23,8 +23,6 @@ EFI			opt_platform.h
 FLASHADDR		opt_global.h
 GIC_DEFAULT_ICFGR_INIT	opt_global.h
 INTRNG			opt_global.h
-IPI_IRQ_START		opt_smp.h
-IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
 KERNBASE		opt_global.h
 KERNVIRTADDR		opt_global.h
