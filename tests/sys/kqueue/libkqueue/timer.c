@@ -239,7 +239,7 @@ test_abstime(void)
     kev.fflags = 0;
     kevent_cmp(&kev, kevent_get(kqfd));
     if (time(NULL) < when + timeout)
-    	err(1, "too early %jd %jd", time(NULL), (intmax_t)(when + timeout));
+    	err(1, "too early %jd %jd", (intmax_t)time(NULL), (intmax_t)(when + timeout));
 
     /* Check if the event occurs again */
     sleep(3);
