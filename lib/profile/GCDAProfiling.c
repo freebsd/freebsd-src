@@ -20,6 +20,8 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
+#if !defined(__Fuchsia__)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -79,38 +81,83 @@ static FILE *output_file = NULL;
  * Buffer that we write things into.
  */
 #define WRITE_BUFFER_SIZE (128 * 1024)
-static char *write_buffer = NULL;
+static unsigned char *write_buffer = NULL;
 static uint64_t cur_buffer_size = 0;
 static uint64_t cur_pos = 0;
 static uint64_t file_size = 0;
 static int new_file = 0;
 static int fd = -1;
 
-/*
- * A list of functions to write out the data.
- */
-typedef void (*writeout_fn)();
+typedef void (*fn_ptr)();
 
-struct writeout_fn_node {
-  writeout_fn fn;
-  struct writeout_fn_node *next;
+typedef void* dynamic_object_id;
+// The address of this variable identifies a given dynamic object.
+static dynamic_object_id current_id;
+#define CURRENT_ID (&current_id)
+
+struct fn_node {
+  dynamic_object_id id;
+  fn_ptr fn;
+  struct fn_node* next;
 };
 
-static struct writeout_fn_node *writeout_fn_head = NULL;
-static struct writeout_fn_node *writeout_fn_tail = NULL;
-
-/*
- *  A list of flush functions that our __gcov_flush() function should call.
- */
-typedef void (*flush_fn)();
-
-struct flush_fn_node {
-  flush_fn fn;
-  struct flush_fn_node *next;
+struct fn_list {
+  struct fn_node *head, *tail;
 };
 
-static struct flush_fn_node *flush_fn_head = NULL;
-static struct flush_fn_node *flush_fn_tail = NULL;
+/*
+ * A list of functions to write out the data, shared between all dynamic objects.
+ */
+struct fn_list writeout_fn_list;
+
+/*
+ *  A list of flush functions that our __gcov_flush() function should call, shared between all dynamic objects.
+ */
+struct fn_list flush_fn_list;
+
+static void fn_list_insert(struct fn_list* list, fn_ptr fn) {
+  struct fn_node* new_node = malloc(sizeof(struct fn_node));
+  new_node->fn = fn;
+  new_node->next = NULL;
+  new_node->id = CURRENT_ID;
+
+  if (!list->head) {
+    list->head = list->tail = new_node;
+  } else {
+    list->tail->next = new_node;
+    list->tail = new_node;
+  }
+}
+
+static void fn_list_remove(struct fn_list* list) {
+  struct fn_node* curr = list->head;
+  struct fn_node* prev = NULL;
+  struct fn_node* next = NULL;
+
+  while (curr) {
+    next = curr->next;
+
+    if (curr->id == CURRENT_ID) {
+      if (curr == list->head) {
+        list->head = next;
+      }
+
+      if (curr == list->tail) {
+        list->tail = prev;
+      }
+
+      if (prev) {
+        prev->next = next;
+      }
+
+      free(curr);
+    } else {
+      prev = curr;
+    }
+
+    curr = next;
+  }
+}
 
 static void resize_write_buffer(uint64_t size) {
   if (!new_file) return;
@@ -133,7 +180,12 @@ static void write_32bit_value(uint32_t i) {
 }
 
 static void write_64bit_value(uint64_t i) {
-  write_bytes((char*)&i, 8);
+  // GCOV uses a lo-/hi-word format even on big-endian systems.
+  // See also GCOVBuffer::readInt64 in LLVM.
+  uint32_t lo = (uint32_t) i;
+  uint32_t hi = (uint32_t) (i >> 32);
+  write_32bit_value(lo);
+  write_32bit_value(hi);
 }
 
 static uint32_t length_of_string(const char *s) {
@@ -158,15 +210,24 @@ static uint32_t read_32bit_value() {
   return val;
 }
 
-static uint64_t read_64bit_value() {
-  uint64_t val;
+static uint32_t read_le_32bit_value() {
+  uint32_t val = 0;
+  int i;
 
   if (new_file)
-    return (uint64_t)-1;
+    return (uint32_t)-1;
 
-  val = *(uint64_t*)&write_buffer[cur_pos];
-  cur_pos += 8;
+  for (i = 0; i < 4; i++)
+    val |= write_buffer[cur_pos++] << (8*i);
   return val;
+}
+
+static uint64_t read_64bit_value() {
+  // GCOV uses a lo-/hi-word format even on big-endian systems.
+  // See also GCOVBuffer::readInt64 in LLVM.
+  uint32_t lo = read_32bit_value();
+  uint32_t hi = read_32bit_value();
+  return ((uint64_t)hi << 32) | ((uint64_t)lo);
 }
 
 static char *mangle_filename(const char *orig_filename) {
@@ -228,6 +289,7 @@ static void unmap_file() {
  * profiling enabled will emit to a different file. Only one file may be
  * started at a time.
  */
+COMPILER_RT_VISIBILITY
 void llvm_gcda_start_file(const char *orig_filename, const char version[4],
                           uint32_t checksum) {
   const char *mode = "r+b";
@@ -295,6 +357,7 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
 /* Given an array of pointers to counters (counters), increment the n-th one,
  * where we're also given a pointer to n (predecessor).
  */
+COMPILER_RT_VISIBILITY
 void llvm_gcda_increment_indirect_counter(uint32_t *predecessor,
                                           uint64_t **counters) {
   uint64_t *counter;
@@ -317,6 +380,7 @@ void llvm_gcda_increment_indirect_counter(uint32_t *predecessor,
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_emit_function(uint32_t ident, const char *function_name,
                              uint32_t func_checksum, uint8_t use_extra_checksum,
                              uint32_t cfg_checksum) {
@@ -343,6 +407,7 @@ void llvm_gcda_emit_function(uint32_t ident, const char *function_name,
     write_string(function_name);
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
   uint32_t i;
   uint64_t *old_ctrs = NULL;
@@ -351,7 +416,7 @@ void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
 
   if (!output_file) return;
 
-  val = read_32bit_value();
+  val = read_le_32bit_value();
 
   if (val != (uint32_t)-1) {
     /* There are counters present in the file. Merge them. */
@@ -394,16 +459,18 @@ void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_summary_info() {
   const uint32_t obj_summary_len = 9; /* Length for gcov compatibility. */
   uint32_t i;
   uint32_t runs = 1;
+  static uint32_t run_counted = 0; // We only want to increase the run count once.
   uint32_t val = 0;
   uint64_t save_cur_pos = cur_pos;
 
   if (!output_file) return;
 
-  val = read_32bit_value();
+  val = read_le_32bit_value();
 
   if (val != (uint32_t)-1) {
     /* There are counters present in the file. Merge them. */
@@ -424,7 +491,9 @@ void llvm_gcda_summary_info() {
 
     read_32bit_value(); /* checksum, unused */
     read_32bit_value(); /* num, unused */
-    runs += read_32bit_value(); /* Add previous run count to new counter. */
+    uint32_t prev_runs = read_32bit_value();
+    /* Add previous run count to new counter, if not already counted before. */
+    runs = run_counted ? prev_runs : prev_runs + 1;
   }
 
   cur_pos = save_cur_pos;
@@ -442,11 +511,14 @@ void llvm_gcda_summary_info() {
   write_bytes("\0\0\0\xa3", 4); /* tag indicates 1 program */
   write_32bit_value(0); /* 0 length */
 
+  run_counted = 1;
+
 #ifdef DEBUG_GCDAPROFILING
   fprintf(stderr, "llvmgcda:   %u runs\n", runs);
 #endif
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_gcda_end_file() {
   /* Write out EOF record. */
   if (output_file) {
@@ -459,6 +531,7 @@ void llvm_gcda_end_file() {
       unmap_file();
     }
 
+    fflush(output_file);
     lprofUnlockFd(fd);
     fclose(output_file);
     output_file = NULL;
@@ -471,53 +544,35 @@ void llvm_gcda_end_file() {
 #endif
 }
 
-void llvm_register_writeout_function(writeout_fn fn) {
-  struct writeout_fn_node *new_node = malloc(sizeof(struct writeout_fn_node));
-  new_node->fn = fn;
-  new_node->next = NULL;
-
-  if (!writeout_fn_head) {
-    writeout_fn_head = writeout_fn_tail = new_node;
-  } else {
-    writeout_fn_tail->next = new_node;
-    writeout_fn_tail = new_node;
-  }
+COMPILER_RT_VISIBILITY
+void llvm_register_writeout_function(fn_ptr fn) {
+  fn_list_insert(&writeout_fn_list, fn);
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_writeout_files(void) {
-  struct writeout_fn_node *curr = writeout_fn_head;
+  struct fn_node *curr = writeout_fn_list.head;
 
   while (curr) {
-    curr->fn();
+    if (curr->id == CURRENT_ID) {
+      curr->fn();
+    }
     curr = curr->next;
   }
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_delete_writeout_function_list(void) {
-  while (writeout_fn_head) {
-    struct writeout_fn_node *node = writeout_fn_head;
-    writeout_fn_head = writeout_fn_head->next;
-    free(node);
-  }
-  
-  writeout_fn_head = writeout_fn_tail = NULL;
+  fn_list_remove(&writeout_fn_list);
 }
 
-void llvm_register_flush_function(flush_fn fn) {
-  struct flush_fn_node *new_node = malloc(sizeof(struct flush_fn_node));
-  new_node->fn = fn;
-  new_node->next = NULL;
-
-  if (!flush_fn_head) {
-    flush_fn_head = flush_fn_tail = new_node;
-  } else {
-    flush_fn_tail->next = new_node;
-    flush_fn_tail = new_node;
-  }
+COMPILER_RT_VISIBILITY
+void llvm_register_flush_function(fn_ptr fn) {
+  fn_list_insert(&flush_fn_list, fn);
 }
 
 void __gcov_flush() {
-  struct flush_fn_node *curr = flush_fn_head;
+  struct fn_node* curr = flush_fn_list.head;
 
   while (curr) {
     curr->fn();
@@ -525,17 +580,13 @@ void __gcov_flush() {
   }
 }
 
+COMPILER_RT_VISIBILITY
 void llvm_delete_flush_function_list(void) {
-  while (flush_fn_head) {
-    struct flush_fn_node *node = flush_fn_head;
-    flush_fn_head = flush_fn_head->next;
-    free(node);
-  }
-
-  flush_fn_head = flush_fn_tail = NULL;
+  fn_list_remove(&flush_fn_list);
 }
 
-void llvm_gcov_init(writeout_fn wfn, flush_fn ffn) {
+COMPILER_RT_VISIBILITY
+void llvm_gcov_init(fn_ptr wfn, fn_ptr ffn) {
   static int atexit_ran = 0;
 
   if (wfn)
@@ -553,3 +604,5 @@ void llvm_gcov_init(writeout_fn wfn, flush_fn ffn) {
     atexit(llvm_writeout_files);
   }
 }
+
+#endif
