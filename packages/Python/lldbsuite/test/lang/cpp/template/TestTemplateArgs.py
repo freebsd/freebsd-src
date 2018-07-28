@@ -19,7 +19,7 @@ class TemplateArgsTestCase(TestBase):
         self.build()
 
         # Create a target by the debugger.
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
 
@@ -82,6 +82,35 @@ class TemplateArgsTestCase(TestBase):
         self.assertTrue(
             expr_result.GetType().GetName() == "int",
             'expr_result.GetType().GetName() == "int"')
+
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24489")
+    def test_template_template_args(self):
+        frame = self.prepareProcess()
+
+        c1 = frame.FindVariable('c1')
+        self.assertTrue(
+            c1.IsValid(),
+            'make sure we find a local variabble named "c1"')
+        self.assertTrue(c1.GetType().GetName() == 'C<float, T1>')
+        f1 = c1.GetChildMemberWithName("V").GetChildAtIndex(0).GetChildMemberWithName("f")
+        self.assertTrue(f1.GetType().GetName() == 'float')
+        self.assertTrue(f1.GetValue() == '1.5')
+
+        c2 = frame.FindVariable('c2')
+        self.assertTrue(
+            c2.IsValid(),
+            'make sure we find a local variabble named "c2"')
+        self.assertTrue(c2.GetType().GetName() == 'C<double, T1, T2>')
+        f2 = c2.GetChildMemberWithName("V").GetChildAtIndex(0).GetChildMemberWithName("f")
+        self.assertTrue(f2.GetType().GetName() == 'double')
+        self.assertTrue(f2.GetValue() == '1.5')
+        f3 = c2.GetChildMemberWithName("V").GetChildAtIndex(1).GetChildMemberWithName("f")
+        self.assertTrue(f3.GetType().GetName() == 'double')
+        self.assertTrue(f3.GetValue() == '2.5')
+        f4 = c2.GetChildMemberWithName("V").GetChildAtIndex(1).GetChildMemberWithName("i")
+        self.assertTrue(f4.GetType().GetName() == 'int')
+        self.assertTrue(f4.GetValue() == '42')
+
 
     # Gcc does not generate the necessary DWARF attribute for enum template
     # parameters.

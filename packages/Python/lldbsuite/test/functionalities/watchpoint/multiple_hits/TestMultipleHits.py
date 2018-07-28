@@ -21,10 +21,10 @@ class MultipleHitsTestCase(TestBase):
     @expectedFailureAll(
         oslist=["windows"],
         bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
-    @skipIf(bugnumber="llvm.org/pr30758", oslist=["linux"], archs=["arm", "aarch64"])
+    @skipIf(bugnumber="llvm.org/pr30758", oslist=["linux"], archs=["arm", "aarch64", "powerpc64le"])
     def test(self):
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target and target.IsValid(), VALID_TARGET)
 

@@ -51,6 +51,7 @@ class ThreadAPITestCase(TestBase):
         self.step_out_of_malloc_into_function_b(self.exe_name)
 
     @add_test_categories(['pyapi'])
+    @expectedFailureAll(oslist=["windows"], bugnumber='llvm.org/pr32343')
     def test_step_over_3_times(self):
         """Test Python SBThread.StepOver() API."""
         # We build a different executable than the default build() does.
@@ -78,7 +79,7 @@ class ThreadAPITestCase(TestBase):
 
     def get_process(self):
         """Test Python SBThread.GetProcess() API."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
@@ -105,7 +106,7 @@ class ThreadAPITestCase(TestBase):
 
     def get_stop_description(self):
         """Test Python SBThread.GetStopDescription() API."""
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
@@ -134,7 +135,7 @@ class ThreadAPITestCase(TestBase):
 
     def step_out_of_malloc_into_function_b(self, exe_name):
         """Test Python SBThread.StepOut() API to step out of a malloc call where the call site is at function b()."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
@@ -181,7 +182,7 @@ class ThreadAPITestCase(TestBase):
 
     def step_over_3_times(self, exe_name):
         """Test Python SBThread.StepOver() API."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)
@@ -227,7 +228,7 @@ class ThreadAPITestCase(TestBase):
 
     def run_to_address(self, exe_name):
         """Test Python SBThread.RunToAddress() API."""
-        exe = os.path.join(os.getcwd(), exe_name)
+        exe = self.getBuildArtifact(exe_name)
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)

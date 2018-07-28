@@ -27,7 +27,7 @@ class WatchpointSlotsTestCase(TestBase):
         self.source = 'main.c'
 
         # Output filename.
-        self.exe_name = 'a.out'
+        self.exe_name = self.getBuildArtifact("a.out")
         self.d = {'C_SOURCES': self.source, 'EXE': self.exe_name}
 
     # This is a arm and aarch64 specific test case. No other architectures tested.
@@ -37,7 +37,7 @@ class WatchpointSlotsTestCase(TestBase):
         self.build(dictionary=self.d)
         self.setTearDownCleanup(dictionary=self.d)
 
-        exe = os.path.join(os.getcwd(), self.exe_name)
+        exe = self.getBuildArtifact(self.exe_name)
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # Detect line number after which we are going to increment arrayName.

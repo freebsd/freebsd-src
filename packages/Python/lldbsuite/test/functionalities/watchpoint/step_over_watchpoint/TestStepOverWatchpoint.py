@@ -29,7 +29,7 @@ class TestStepOverWatchpoint(TestBase):
     def test(self):
         """Test stepping over watchpoints."""
         self.build()
-        exe = os.path.join(os.getcwd(), 'a.out')
+        exe = self.getBuildArtifact("a.out")
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(self.target, VALID_TARGET)
@@ -81,7 +81,7 @@ class TestStepOverWatchpoint(TestBase):
         # Most of the MIPS boards provide only one H/W watchpoints, and S/W
         # watchpoints are not supported yet
         arch = self.getArchitecture()
-        if re.match("^mips", arch):
+        if re.match("^mips", arch) or re.match("powerpc64le", arch):
             self.runCmd("watchpoint delete 1")
 
         # resolve_location=True, read=False, write=True

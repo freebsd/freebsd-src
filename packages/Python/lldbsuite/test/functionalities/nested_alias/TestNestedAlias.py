@@ -26,10 +26,10 @@ class NestedAliasTestCase(TestBase):
     def test_nested_alias(self):
         """Test that an alias can reference other aliases without crashing."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
-        # Break in main() aftre the variables are assigned values.
+        # Break in main() after the variables are assigned values.
         lldbutil.run_break_set_by_file_and_line(
             self, "main.cpp", self.line, num_expected_locations=1, loc_exact=True)
 

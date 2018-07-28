@@ -50,8 +50,8 @@ void OperatingSystemPython::Terminate() {
 
 OperatingSystem *OperatingSystemPython::CreateInstance(Process *process,
                                                        bool force) {
-  // Python OperatingSystem plug-ins must be requested by name, so force must be
-  // true
+  // Python OperatingSystem plug-ins must be requested by name, so force must
+  // be true
   FileSpec python_os_plugin_spec(process->GetPythonOSPluginPath());
   if (python_os_plugin_spec && python_os_plugin_spec.Exists()) {
     std::unique_ptr<OperatingSystemPython> os_ap(
@@ -156,9 +156,10 @@ bool OperatingSystemPython::UpdateThreadList(ThreadList &old_thread_list,
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OS));
 
-  // First thing we have to do is to try to get the API lock, and the run lock.
-  // We're going to change the thread content of the process, and we're going
-  // to use python, which requires the API lock to do it.
+  // First thing we have to do is to try to get the API lock, and the
+  // interpreter lock. We're going to change the thread content of the process,
+  // and we're going to use python, which requires the API lock to do it. We
+  // need the interpreter lock to make sure thread_info_dict stays alive.
   //
   // If someone already has the API lock, that is ok, we just want to avoid
   // external code from making new API calls while this call is happening.
@@ -166,9 +167,10 @@ bool OperatingSystemPython::UpdateThreadList(ThreadList &old_thread_list,
   // This is a recursive lock so we can grant it to any Python code called on
   // the stack below us.
   Target &target = m_process->GetTarget();
-  std::unique_lock<std::recursive_mutex> lock(target.GetAPIMutex(),
-                                              std::defer_lock);
-  lock.try_lock();
+  std::unique_lock<std::recursive_mutex> api_lock(target.GetAPIMutex(),
+                                                  std::defer_lock);
+  api_lock.try_lock();
+  auto interpreter_lock = m_interpreter->AcquireInterpreterLock();
 
   if (log)
     log->Printf("OperatingSystemPython::UpdateThreadList() fetching thread "
@@ -176,20 +178,16 @@ bool OperatingSystemPython::UpdateThreadList(ThreadList &old_thread_list,
                 m_process->GetID());
 
   // The threads that are in "new_thread_list" upon entry are the threads from
-  // the
-  // lldb_private::Process subclass, no memory threads will be in this list.
-
-  auto interpreter_lock =
-      m_interpreter
-          ->AcquireInterpreterLock(); // to make sure threads_list stays alive
+  // the lldb_private::Process subclass, no memory threads will be in this
+  // list.
   StructuredData::ArraySP threads_list =
       m_interpreter->OSPlugin_ThreadsInfo(m_python_object_sp);
 
   const uint32_t num_cores = core_thread_list.GetSize(false);
 
   // Make a map so we can keep track of which cores were used from the
-  // core_thread list. Any real threads/cores that weren't used should
-  // later be put back into the "new_thread_list".
+  // core_thread list. Any real threads/cores that weren't used should later be
+  // put back into the "new_thread_list".
   std::vector<bool> core_used_map(num_cores, false);
   if (threads_list) {
     if (log) {
@@ -214,8 +212,7 @@ bool OperatingSystemPython::UpdateThreadList(ThreadList &old_thread_list,
 
   // Any real core threads that didn't end up backing a memory thread should
   // still be in the main thread list, and they should be inserted at the
-  // beginning
-  // of the list
+  // beginning of the list
   uint32_t insert_idx = 0;
   for (uint32_t core_idx = 0; core_idx < num_cores; ++core_idx) {
     if (core_used_map[core_idx] == false) {
@@ -256,8 +253,8 @@ ThreadSP OperatingSystemPython::CreateThreadFromThreadInfo(
     // plug-in generated thread.
     if (!IsOperatingSystemPluginThread(thread_sp)) {
       // We have thread ID overlap between the protocol threads and the
-      // operating system threads, clear the thread so we create an
-      // operating system thread for this.
+      // operating system threads, clear the thread so we create an operating
+      // system thread for this.
       thread_sp.reset();
     }
   }
@@ -301,20 +298,24 @@ OperatingSystemPython::CreateRegisterContextForThread(Thread *thread,
   if (!IsOperatingSystemPluginThread(thread->shared_from_this()))
     return reg_ctx_sp;
 
-  // First thing we have to do is get the API lock, and the run lock.  We're
-  // going to change the thread
-  // content of the process, and we're going to use python, which requires the
-  // API lock to do it.
-  // So get & hold that.  This is a recursive lock so we can grant it to any
-  // Python code called on the stack below us.
+  // First thing we have to do is to try to get the API lock, and the
+  // interpreter lock. We're going to change the thread content of the process,
+  // and we're going to use python, which requires the API lock to do it. We
+  // need the interpreter lock to make sure thread_info_dict stays alive.
+  //
+  // If someone already has the API lock, that is ok, we just want to avoid
+  // external code from making new API calls while this call is happening.
+  //
+  // This is a recursive lock so we can grant it to any Python code called on
+  // the stack below us.
   Target &target = m_process->GetTarget();
-  std::lock_guard<std::recursive_mutex> guard(target.GetAPIMutex());
+  std::unique_lock<std::recursive_mutex> api_lock(target.GetAPIMutex(),
+                                                  std::defer_lock);
+  api_lock.try_lock();
+  auto interpreter_lock = m_interpreter->AcquireInterpreterLock();
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_THREAD));
 
-  auto lock =
-      m_interpreter
-          ->AcquireInterpreterLock(); // to make sure python objects stays alive
   if (reg_data_addr != LLDB_INVALID_ADDRESS) {
     // The registers data is in contiguous memory, just create the register
     // context using the address provided
@@ -326,8 +327,8 @@ OperatingSystemPython::CreateRegisterContextForThread(Thread *thread,
     reg_ctx_sp.reset(new RegisterContextMemory(
         *thread, 0, *GetDynamicRegisterInfo(), reg_data_addr));
   } else {
-    // No register data address is provided, query the python plug-in to let
-    // it make up the data as it sees fit
+    // No register data address is provided, query the python plug-in to let it
+    // make up the data as it sees fit
     if (log)
       log->Printf("OperatingSystemPython::CreateRegisterContextForThread (tid "
                   "= 0x%" PRIx64 ", 0x%" PRIx64
@@ -383,18 +384,23 @@ lldb::ThreadSP OperatingSystemPython::CreateThread(lldb::tid_t tid,
                 tid, context);
 
   if (m_interpreter && m_python_object_sp) {
-    // First thing we have to do is get the API lock, and the run lock.  We're
-    // going to change the thread
-    // content of the process, and we're going to use python, which requires the
-    // API lock to do it.
-    // So get & hold that.  This is a recursive lock so we can grant it to any
-    // Python code called on the stack below us.
+    // First thing we have to do is to try to get the API lock, and the
+    // interpreter lock. We're going to change the thread content of the
+    // process, and we're going to use python, which requires the API lock to
+    // do it. We need the interpreter lock to make sure thread_info_dict stays
+    // alive.
+    //
+    // If someone already has the API lock, that is ok, we just want to avoid
+    // external code from making new API calls while this call is happening.
+    //
+    // This is a recursive lock so we can grant it to any Python code called on
+    // the stack below us.
     Target &target = m_process->GetTarget();
-    std::lock_guard<std::recursive_mutex> guard(target.GetAPIMutex());
+    std::unique_lock<std::recursive_mutex> api_lock(target.GetAPIMutex(),
+                                                    std::defer_lock);
+    api_lock.try_lock();
+    auto interpreter_lock = m_interpreter->AcquireInterpreterLock();
 
-    auto lock = m_interpreter->AcquireInterpreterLock(); // to make sure
-                                                         // thread_info_dict
-                                                         // stays alive
     StructuredData::DictionarySP thread_info_dict =
         m_interpreter->OSPlugin_CreateThread(m_python_object_sp, tid, context);
     std::vector<bool> core_used_map;

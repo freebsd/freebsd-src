@@ -21,6 +21,7 @@ class ThreadSpecificBreakPlusConditionTestCase(TestBase):
 
     # test frequently times out or hangs
     @skipIf(oslist=['windows', 'freebsd'])
+    @skipIfDarwin
     # hits break in another thread in testrun
     @expectedFailureAll(oslist=['freebsd'], bugnumber='llvm.org/pr18522')
     @add_test_categories(['pyapi'])
@@ -28,7 +29,7 @@ class ThreadSpecificBreakPlusConditionTestCase(TestBase):
     def test_python(self):
         """Test that we obey thread conditioned breakpoints."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
 
         target = self.dbg.CreateTarget(exe)
         self.assertTrue(target, VALID_TARGET)

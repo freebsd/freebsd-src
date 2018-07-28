@@ -45,7 +45,7 @@ class SharedLibTestCase(TestBase):
         """Test that types work when defined in a shared library and forward-declared in the main executable, but with preloading disabled"""
         self.common_test_expr(False)
 
-    @unittest2.expectedFailure("rdar://problem/10704639")
+    @unittest2.expectedFailure("llvm.org/PR36712")
     def test_frame_variable(self):
         """Test that types work when defined in a shared library and forward-declared in the main executable"""
         self.build()
@@ -73,7 +73,7 @@ class SharedLibTestCase(TestBase):
         self.dbg.SetAsync(False)
 
         # Create a target by the debugger.
-        target = self.dbg.CreateTarget("a.out")
+        target = self.dbg.CreateTarget(self.getBuildArtifact("a.out"))
         self.assertTrue(target, VALID_TARGET)
 
         self.runCmd("settings set target.preload-symbols " + str(preload_symbols).lower())

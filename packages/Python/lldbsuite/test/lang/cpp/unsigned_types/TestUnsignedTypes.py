@@ -27,13 +27,13 @@ class UnsignedTypesTestCase(TestBase):
     def test(self):
         """Test that variables with unsigned types display correctly."""
         self.build()
-        exe = os.path.join(os.getcwd(), "a.out")
+        exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # GCC puts a breakpoint on the last line of a multi-line expression, so
         # if GCC is the target compiler, we cannot rely on an exact line match.
         need_exact = "gcc" not in self.getCompiler()
-        # Break on line 19 in main() aftre the variables are assigned values.
+        # Break on line 19 in main() after the variables are assigned values.
         lldbutil.run_break_set_by_file_and_line(
             self,
             "main.cpp",

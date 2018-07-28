@@ -32,7 +32,7 @@ class GdbRemoteTestCaseBase(TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
 
-    _TIMEOUT_SECONDS = 7
+    _TIMEOUT_SECONDS = 120
 
     _GDBREMOTE_KILL_PACKET = "$k#6b"
 
@@ -483,7 +483,7 @@ class GdbRemoteTestCaseBase(TestBase):
         # This process needs to be started so that it just hangs around for a while.  We'll
         # have it sleep.
         if not exe_path:
-            exe_path = os.path.abspath("a.out")
+            exe_path = self.getBuildArtifact("a.out")
 
         args = []
         if inferior_args:
@@ -546,10 +546,10 @@ class GdbRemoteTestCaseBase(TestBase):
         if self._inferior_startup == self._STARTUP_LAUNCH:
             # Build launch args
             if not inferior_exe_path:
-                inferior_exe_path = os.path.abspath("a.out")
+                inferior_exe_path = self.getBuildArtifact("a.out")
 
             if lldb.remote_platform:
-                remote_path = lldbutil.append_to_process_working_directory(
+                remote_path = lldbutil.append_to_process_working_directory(self,
                     os.path.basename(inferior_exe_path))
                 remote_file_spec = lldb.SBFileSpec(remote_path, False)
                 err = lldb.remote_platform.Install(lldb.SBFileSpec(
@@ -1008,9 +1008,10 @@ class GdbRemoteTestCaseBase(TestBase):
                     reg_info["name"] in PREFERRED_REGISTER_NAMES):
                 # We found a preferred register.  Use it.
                 return reg_info["lldb_register_index"]
-            if ("generic" in reg_info) and (reg_info["generic"] == "fp"):
-                # A frame pointer register will do as a register to modify
-                # temporarily.
+            if ("generic" in reg_info) and (reg_info["generic"] == "fp" or
+                    reg_info["generic"] == "arg1"):
+                # A frame pointer or first arg register will do as a
+                # register to modify temporarily.
                 alternative_register_index = reg_info["lldb_register_index"]
 
         # We didn't find a preferred register.  Return whatever alternative register
@@ -1076,6 +1077,18 @@ class GdbRemoteTestCaseBase(TestBase):
 
         auxv_dict = {}
 
+        # PowerPC64le's auxvec has a special key that must be ignored.
+        # This special key may be used multiple times, resulting in
+        # multiple key/value pairs with the same key, which would otherwise
+        # break this test check for repeated keys.
+        #
+        # AT_IGNOREPPC = 22
+        ignored_keys_for_arch = { 'powerpc64le' : [22] }
+        arch = self.getArchitecture()
+        ignore_keys = None
+        if arch in ignored_keys_for_arch:
+            ignore_keys = ignored_keys_for_arch[arch]
+
         while len(auxv_data) > 0:
             # Chop off key.
             raw_key = auxv_data[:word_size]
@@ -1088,6 +1101,9 @@ class GdbRemoteTestCaseBase(TestBase):
             # Convert raw text from target endian.
             key = unpack_endian_binary_string(endian, raw_key)
             value = unpack_endian_binary_string(endian, raw_value)
+
+            if ignore_keys and key in ignore_keys:
+                continue
 
             # Handle ending entry.
             if key == 0:
@@ -1607,10 +1623,10 @@ class GdbRemoteTestCaseBase(TestBase):
             '.*' if lldbplatformutil.hasChattyStderr(self) else '^' + regex + '$'
 
     def install_and_create_launch_args(self):
-        exe_path = os.path.abspath('a.out')
+        exe_path = self.getBuildArtifact("a.out")
         if not lldb.remote_platform:
             return [exe_path]
-        remote_path = lldbutil.append_to_process_working_directory(
+        remote_path = lldbutil.append_to_process_working_directory(self,
             os.path.basename(exe_path))
         remote_file_spec = lldb.SBFileSpec(remote_path, False)
         err = lldb.remote_platform.Install(lldb.SBFileSpec(exe_path, True),

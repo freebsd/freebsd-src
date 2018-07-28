@@ -28,7 +28,7 @@ class HelloWatchpointTestCase(TestBase):
         # And the watchpoint variable declaration line number.
         self.decl = line_number(self.source,
                                 '// Watchpoint variable declaration.')
-        self.exe_name = 'a.out'
+        self.exe_name = self.getBuildArtifact('a.out')
         self.d = {'C_SOURCES': self.source, 'EXE': self.exe_name}
 
     @expectedFailureAll(
@@ -40,7 +40,7 @@ class HelloWatchpointTestCase(TestBase):
         self.build(dictionary=self.d)
         self.setTearDownCleanup(dictionary=self.d)
 
-        exe = os.path.join(os.getcwd(), self.exe_name)
+        exe = self.getBuildArtifact(self.exe_name)
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         # Add a breakpoint to set a watchpoint when stopped on the breakpoint.

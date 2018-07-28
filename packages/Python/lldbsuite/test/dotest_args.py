@@ -83,6 +83,8 @@ def create_parser():
         help=textwrap.dedent('''Specify the extra flags to be passed to the toolchain when building the inferior programs to be debugged
                                                            suggestions: do not lump the "-A arch1 -A arch2" together such that the -E option applies to only one of the architectures'''))
 
+    group.add_argument('--dsymutil', metavar='dsymutil', dest='dsymutil', help=textwrap.dedent('Specify which dsymutil to use.'))
+
     # Test filtering options
     group = parser.add_argument_group('Test filtering options')
     group.add_argument(
@@ -127,6 +129,11 @@ def create_parser():
         metavar='server-path',
         help='The path to the debug server executable to use')
     group.add_argument(
+        '--out-of-tree-debugserver',
+        dest='out_of_tree_debugserver',
+        action='store_true',
+        help='A flag to indicate an out-of-tree debug server is being used')
+    group.add_argument(
         '-s',
         metavar='name',
         help='Specify the name of the dir created to store the session files of tests with errored or failed status. If not specified, the test driver uses the timestamp as the session dir name')
@@ -159,6 +166,12 @@ def create_parser():
         metavar='Codesigning identity',
         default='lldb_codesign',
         help='The codesigning identity to use')
+    group.add_argument(
+        '--build-dir',
+        dest='test_build_dir',
+        metavar='Test build directory',
+        default='lldb-test-build.noindex',
+        help='The root build directory for the tests. It will be removed before running.')
 
     # Configuration options
     group = parser.add_argument_group('Remote platform options')
