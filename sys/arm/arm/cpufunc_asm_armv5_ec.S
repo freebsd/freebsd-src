@@ -39,6 +39,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef ELF_TRAMPOLINE
 /*
  * Functions to set the MMU Translation Table Base register
  *
@@ -192,6 +193,7 @@ ENTRY(armv5_ec_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv5_ec_idcache_wbinv_range)
+#endif /* !ELF_TRAMPOLINE */
 
 ENTRY_NP(armv5_ec_idcache_wbinv_all)
 .Larmv5_ec_idcache_wbinv_all:
@@ -204,6 +206,7 @@ ENTRY_NP(armv5_ec_idcache_wbinv_all)
 	/* Fall through to purge Dcache. */
 END(armv5_ec_idcache_wbinv_all)
 
+#ifndef ELF_TRAMPOLINE
 ENTRY(armv5_ec_dcache_wbinv_all)
 .Larmv5_ec_dcache_wbinv_all:
 1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
@@ -211,4 +214,4 @@ ENTRY(armv5_ec_dcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv5_ec_dcache_wbinv_all)
-
+#endif
