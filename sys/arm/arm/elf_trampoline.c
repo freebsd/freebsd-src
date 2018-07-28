@@ -56,7 +56,6 @@ void _start(void);
 void __start(void);
 void __startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3);
 
-extern unsigned int cpu_ident(void);
 extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
