@@ -23,7 +23,6 @@ buildconfig: ${${group}}
 all: buildconfig
 .  endif
 
-.  if !target(installconfig)
 .    for group in ${CONFGROUPS}
 .      if defined(${group}) && !empty(${group})
 
@@ -130,8 +129,6 @@ _${group}INS_${cnf:T}: ${cnf}
 
 .    endif # defined(${group}) && !empty(${group})
 .  endfor
-
-.endif # !target(installconfig)
 
 .if ${MK_STAGING} != "no"
 .  if !empty(STAGE_SETS)
