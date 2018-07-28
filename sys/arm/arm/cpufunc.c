@@ -81,6 +81,19 @@ u_int	arm_cache_type[14];
 u_int	arm_cache_loc;
 
 #if defined(CPU_ARM9E)
+static void arm10_setup(void);
+#endif
+#ifdef CPU_MV_PJ4B
+static void pj4bv7_setup(void);
+#endif
+#if defined(CPU_ARM1176)
+static void arm11x6_setup(void);
+#endif
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+static void cortexa_setup(void);
+#endif
+
+#if defined(CPU_ARM9E)
 struct cpu_functions armv5_ec_cpufuncs = {
 	/* CPU functions */
 
@@ -473,7 +486,7 @@ out:
  */
 
 #if defined(CPU_ARM9E)
-void
+static void
 arm10_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
@@ -544,7 +557,7 @@ cpu_scc_setup_ccnt(void)
 #endif
 
 #if defined(CPU_ARM1176)
-void
+static void
 arm11x6_setup(void)
 {
 	uint32_t auxctrl, auxctrl_wax;
@@ -576,7 +589,7 @@ arm11x6_setup(void)
 #endif  /* CPU_ARM1176 */
 
 #ifdef CPU_MV_PJ4B
-void
+static void
 pj4bv7_setup(void)
 {
 
@@ -586,8 +599,7 @@ pj4bv7_setup(void)
 #endif /* CPU_MV_PJ4B */
 
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-
-void
+static void
 cortexa_setup(void)
 {
 
