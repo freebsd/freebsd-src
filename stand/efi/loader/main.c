@@ -644,6 +644,15 @@ parse_args(int argc, CHAR16 *argv[])
 	return (howto);
 }
 
+static void
+setenv_int(const char *key, int val)
+{
+	char buf[20];
+
+	snprintf(buf, sizeof(buf), "%d", val);
+	setenv(key, buf, 1);
+}
+
 /*
  * Parse ConOut (the list of consoles active) and see if we can find a
  * serial port and/or a video port. It would be nice to also walk the
@@ -675,15 +684,15 @@ parse_uefi_con_out(void)
 		    DevicePathSubType(node) == ACPI_DP) {
 			/* Check for Serial node */
 			acpi = (void *)node;
-			if (EISA_ID_TO_NUM(acpi->HID) == 0x501)
+			if (EISA_ID_TO_NUM(acpi->HID) == 0x501) {
+				setenv_int("efi_8250_uid", acpi->UID);
 				com_seen = ++seen;
+			}
 		} else if (DevicePathType(node) == MESSAGING_DEVICE_PATH &&
 		    DevicePathSubType(node) == MSG_UART_DP) {
-			char bd[16];
 
 			uart = (void *)node;
-			snprintf(bd, sizeof(bd), "%d", uart->BaudRate);
-			setenv("efi_com_speed", bd, 1);
+			setenv_int("efi_com_speed", uart->BaudRate);
 		} else if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 		    DevicePathSubType(node) == ACPI_ADR_DP) {
 			/* Check for AcpiAdr() Node for video */
