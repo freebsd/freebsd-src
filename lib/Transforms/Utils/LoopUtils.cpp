@@ -16,13 +16,16 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -30,6 +33,7 @@
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -77,10 +81,13 @@ bool RecurrenceDescriptor::isArithmeticRecurrenceKind(RecurrenceKind Kind) {
   return false;
 }
 
-Instruction *
-RecurrenceDescriptor::lookThroughAnd(PHINode *Phi, Type *&RT,
-                                     SmallPtrSetImpl<Instruction *> &Visited,
-                                     SmallPtrSetImpl<Instruction *> &CI) {
+/// Determines if Phi may have been type-promoted. If Phi has a single user
+/// that ANDs the Phi with a type mask, return the user. RT is updated to
+/// account for the narrower bit width represented by the mask, and the AND
+/// instruction is added to CI.
+static Instruction *lookThroughAnd(PHINode *Phi, Type *&RT,
+                                   SmallPtrSetImpl<Instruction *> &Visited,
+                                   SmallPtrSetImpl<Instruction *> &CI) {
   if (!Phi->hasOneUse())
     return Phi;
 
@@ -101,70 +108,92 @@ RecurrenceDescriptor::lookThroughAnd(PHINode *Phi, Type *&RT,
   return Phi;
 }
 
-bool RecurrenceDescriptor::getSourceExtensionKind(
-    Instruction *Start, Instruction *Exit, Type *RT, bool &IsSigned,
-    SmallPtrSetImpl<Instruction *> &Visited,
-    SmallPtrSetImpl<Instruction *> &CI) {
+/// Compute the minimal bit width needed to represent a reduction whose exit
+/// instruction is given by Exit.
+static std::pair<Type *, bool> computeRecurrenceType(Instruction *Exit,
+                                                     DemandedBits *DB,
+                                                     AssumptionCache *AC,
+                                                     DominatorTree *DT) {
+  bool IsSigned = false;
+  const DataLayout &DL = Exit->getModule()->getDataLayout();
+  uint64_t MaxBitWidth = DL.getTypeSizeInBits(Exit->getType());
 
-  SmallVector<Instruction *, 8> Worklist;
-  bool FoundOneOperand = false;
-  unsigned DstSize = RT->getPrimitiveSizeInBits();
-  Worklist.push_back(Exit);
+  if (DB) {
+    // Use the demanded bits analysis to determine the bits that are live out
+    // of the exit instruction, rounding up to the nearest power of two. If the
+    // use of demanded bits results in a smaller bit width, we know the value
+    // must be positive (i.e., IsSigned = false), because if this were not the
+    // case, the sign bit would have been demanded.
+    auto Mask = DB->getDemandedBits(Exit);
+    MaxBitWidth = Mask.getBitWidth() - Mask.countLeadingZeros();
+  }
 
-  // Traverse the instructions in the reduction expression, beginning with the
-  // exit value.
-  while (!Worklist.empty()) {
-    Instruction *I = Worklist.pop_back_val();
-    for (Use &U : I->operands()) {
-
-      // Terminate the traversal if the operand is not an instruction, or we
-      // reach the starting value.
-      Instruction *J = dyn_cast<Instruction>(U.get());
-      if (!J || J == Start)
-        continue;
-
-      // Otherwise, investigate the operation if it is also in the expression.
-      if (Visited.count(J)) {
-        Worklist.push_back(J);
-        continue;
-      }
-
-      // If the operand is not in Visited, it is not a reduction operation, but
-      // it does feed into one. Make sure it is either a single-use sign- or
-      // zero-extend instruction.
-      CastInst *Cast = dyn_cast<CastInst>(J);
-      bool IsSExtInst = isa<SExtInst>(J);
-      if (!Cast || !Cast->hasOneUse() || !(isa<ZExtInst>(J) || IsSExtInst))
-        return false;
-
-      // Ensure the source type of the extend is no larger than the reduction
-      // type. It is not necessary for the types to be identical.
-      unsigned SrcSize = Cast->getSrcTy()->getPrimitiveSizeInBits();
-      if (SrcSize > DstSize)
-        return false;
-
-      // Furthermore, ensure that all such extends are of the same kind.
-      if (FoundOneOperand) {
-        if (IsSigned != IsSExtInst)
-          return false;
-      } else {
-        FoundOneOperand = true;
-        IsSigned = IsSExtInst;
-      }
-
-      // Lastly, if the source type of the extend matches the reduction type,
-      // add the extend to CI so that we can avoid accounting for it in the
-      // cost model.
-      if (SrcSize == DstSize)
-        CI.insert(Cast);
+  if (MaxBitWidth == DL.getTypeSizeInBits(Exit->getType()) && AC && DT) {
+    // If demanded bits wasn't able to limit the bit width, we can try to use
+    // value tracking instead. This can be the case, for example, if the value
+    // may be negative.
+    auto NumSignBits = ComputeNumSignBits(Exit, DL, 0, AC, nullptr, DT);
+    auto NumTypeBits = DL.getTypeSizeInBits(Exit->getType());
+    MaxBitWidth = NumTypeBits - NumSignBits;
+    KnownBits Bits = computeKnownBits(Exit, DL);
+    if (!Bits.isNonNegative()) {
+      // If the value is not known to be non-negative, we set IsSigned to true,
+      // meaning that we will use sext instructions instead of zext
+      // instructions to restore the original type.
+      IsSigned = true;
+      if (!Bits.isNegative())
+        // If the value is not known to be negative, we don't known what the
+        // upper bit is, and therefore, we don't know what kind of extend we
+        // will need. In this case, just increase the bit width by one bit and
+        // use sext.
+        ++MaxBitWidth;
     }
   }
-  return true;
+  if (!isPowerOf2_64(MaxBitWidth))
+    MaxBitWidth = NextPowerOf2(MaxBitWidth);
+
+  return std::make_pair(Type::getIntNTy(Exit->getContext(), MaxBitWidth),
+                        IsSigned);
+}
+
+/// Collect cast instructions that can be ignored in the vectorizer's cost
+/// model, given a reduction exit value and the minimal type in which the
+/// reduction can be represented.
+static void collectCastsToIgnore(Loop *TheLoop, Instruction *Exit,
+                                 Type *RecurrenceType,
+                                 SmallPtrSetImpl<Instruction *> &Casts) {
+
+  SmallVector<Instruction *, 8> Worklist;
+  SmallPtrSet<Instruction *, 8> Visited;
+  Worklist.push_back(Exit);
+
+  while (!Worklist.empty()) {
+    Instruction *Val = Worklist.pop_back_val();
+    Visited.insert(Val);
+    if (auto *Cast = dyn_cast<CastInst>(Val))
+      if (Cast->getSrcTy() == RecurrenceType) {
+        // If the source type of a cast instruction is equal to the recurrence
+        // type, it will be eliminated, and should be ignored in the vectorizer
+        // cost model.
+        Casts.insert(Cast);
+        continue;
+      }
+
+    // Add all operands to the work list if they are loop-varying values that
+    // we haven't yet visited.
+    for (Value *O : cast<User>(Val)->operands())
+      if (auto *I = dyn_cast<Instruction>(O))
+        if (TheLoop->contains(I) && !Visited.count(I))
+          Worklist.push_back(I);
+  }
 }
 
 bool RecurrenceDescriptor::AddReductionVar(PHINode *Phi, RecurrenceKind Kind,
                                            Loop *TheLoop, bool HasFunNoNaNAttr,
-                                           RecurrenceDescriptor &RedDes) {
+                                           RecurrenceDescriptor &RedDes,
+                                           DemandedBits *DB,
+                                           AssumptionCache *AC,
+                                           DominatorTree *DT) {
   if (Phi->getNumIncomingValues() != 2)
     return false;
 
@@ -353,13 +382,48 @@ bool RecurrenceDescriptor::AddReductionVar(PHINode *Phi, RecurrenceKind Kind,
   if (!FoundStartPHI || !FoundReduxOp || !ExitInstruction)
     return false;
 
-  // If we think Phi may have been type-promoted, we also need to ensure that
-  // all source operands of the reduction are either SExtInsts or ZEstInsts. If
-  // so, we will be able to evaluate the reduction in the narrower bit width.
-  if (Start != Phi)
-    if (!getSourceExtensionKind(Start, ExitInstruction, RecurrenceType,
-                                IsSigned, VisitedInsts, CastInsts))
+  if (Start != Phi) {
+    // If the starting value is not the same as the phi node, we speculatively
+    // looked through an 'and' instruction when evaluating a potential
+    // arithmetic reduction to determine if it may have been type-promoted.
+    //
+    // We now compute the minimal bit width that is required to represent the
+    // reduction. If this is the same width that was indicated by the 'and', we
+    // can represent the reduction in the smaller type. The 'and' instruction
+    // will be eliminated since it will essentially be a cast instruction that
+    // can be ignore in the cost model. If we compute a different type than we
+    // did when evaluating the 'and', the 'and' will not be eliminated, and we
+    // will end up with different kinds of operations in the recurrence
+    // expression (e.g., RK_IntegerAND, RK_IntegerADD). We give up if this is
+    // the case.
+    //
+    // The vectorizer relies on InstCombine to perform the actual
+    // type-shrinking. It does this by inserting instructions to truncate the
+    // exit value of the reduction to the width indicated by RecurrenceType and
+    // then extend this value back to the original width. If IsSigned is false,
+    // a 'zext' instruction will be generated; otherwise, a 'sext' will be
+    // used.
+    //
+    // TODO: We should not rely on InstCombine to rewrite the reduction in the
+    //       smaller type. We should just generate a correctly typed expression
+    //       to begin with.
+    Type *ComputedType;
+    std::tie(ComputedType, IsSigned) =
+        computeRecurrenceType(ExitInstruction, DB, AC, DT);
+    if (ComputedType != RecurrenceType)
       return false;
+
+    // The recurrence expression will be represented in a narrower type. If
+    // there are any cast instructions that will be unnecessary, collect them
+    // in CastInsts. Note that the 'and' instruction was already included in
+    // this list.
+    //
+    // TODO: A better way to represent this may be to tag in some way all the
+    //       instructions that are a part of the reduction. The vectorizer cost
+    //       model could then apply the recurrence type to these instructions,
+    //       without needing a white list of instructions to ignore.
+    collectCastsToIgnore(TheLoop, ExitInstruction, RecurrenceType, CastInsts);
+  }
 
   // We found a reduction var if we have reached the original phi node and we
   // only have a single instruction with out-of-loop users.
@@ -480,48 +544,59 @@ bool RecurrenceDescriptor::hasMultipleUsesOf(
   return false;
 }
 bool RecurrenceDescriptor::isReductionPHI(PHINode *Phi, Loop *TheLoop,
-                                          RecurrenceDescriptor &RedDes) {
+                                          RecurrenceDescriptor &RedDes,
+                                          DemandedBits *DB, AssumptionCache *AC,
+                                          DominatorTree *DT) {
 
   BasicBlock *Header = TheLoop->getHeader();
   Function &F = *Header->getParent();
   bool HasFunNoNaNAttr =
       F.getFnAttribute("no-nans-fp-math").getValueAsString() == "true";
 
-  if (AddReductionVar(Phi, RK_IntegerAdd, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an ADD reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerAdd, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an ADD reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_IntegerMult, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found a MUL reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerMult, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found a MUL reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_IntegerOr, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an OR reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerOr, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an OR reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_IntegerAnd, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an AND reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerAnd, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an AND reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_IntegerXor, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found a XOR reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerXor, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found a XOR reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_IntegerMinMax, TheLoop, HasFunNoNaNAttr,
-                      RedDes)) {
-    DEBUG(dbgs() << "Found a MINMAX reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_IntegerMinMax, TheLoop, HasFunNoNaNAttr, RedDes,
+                      DB, AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found a MINMAX reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_FloatMult, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an FMult reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_FloatMult, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an FMult reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_FloatAdd, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an FAdd reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_FloatAdd, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an FAdd reduction PHI." << *Phi << "\n");
     return true;
   }
-  if (AddReductionVar(Phi, RK_FloatMinMax, TheLoop, HasFunNoNaNAttr, RedDes)) {
-    DEBUG(dbgs() << "Found an float MINMAX reduction PHI." << *Phi << "\n");
+  if (AddReductionVar(Phi, RK_FloatMinMax, TheLoop, HasFunNoNaNAttr, RedDes, DB,
+                      AC, DT)) {
+    LLVM_DEBUG(dbgs() << "Found an float MINMAX reduction PHI." << *Phi
+                      << "\n");
     return true;
   }
   // Not a reduction of known type.
@@ -849,13 +924,13 @@ bool InductionDescriptor::isFPInductionPHI(PHINode *Phi, const Loop *TheLoop,
 }
 
 /// This function is called when we suspect that the update-chain of a phi node
-/// (whose symbolic SCEV expression sin \p PhiScev) contains redundant casts, 
-/// that can be ignored. (This can happen when the PSCEV rewriter adds a runtime 
-/// predicate P under which the SCEV expression for the phi can be the 
-/// AddRecurrence \p AR; See createAddRecFromPHIWithCast). We want to find the 
-/// cast instructions that are involved in the update-chain of this induction. 
-/// A caller that adds the required runtime predicate can be free to drop these 
-/// cast instructions, and compute the phi using \p AR (instead of some scev 
+/// (whose symbolic SCEV expression sin \p PhiScev) contains redundant casts,
+/// that can be ignored. (This can happen when the PSCEV rewriter adds a runtime
+/// predicate P under which the SCEV expression for the phi can be the
+/// AddRecurrence \p AR; See createAddRecFromPHIWithCast). We want to find the
+/// cast instructions that are involved in the update-chain of this induction.
+/// A caller that adds the required runtime predicate can be free to drop these
+/// cast instructions, and compute the phi using \p AR (instead of some scev
 /// expression with casts).
 ///
 /// For example, without a predicate the scev expression can take the following
@@ -890,7 +965,7 @@ static bool getCastsForInductionPHI(PredicatedScalarEvolution &PSE,
   assert(PSE.getSCEV(PN) == AR && "Unexpected phi node SCEV expression");
   const Loop *L = AR->getLoop();
 
-  // Find any cast instructions that participate in the def-use chain of 
+  // Find any cast instructions that participate in the def-use chain of
   // PhiScev in the loop.
   // FORNOW/TODO: We currently expect the def-use chain to include only
   // two-operand instructions, where one of the operands is an invariant.
@@ -978,7 +1053,7 @@ bool InductionDescriptor::isInductionPHI(PHINode *Phi, const Loop *TheLoop,
     AR = PSE.getAsAddRec(Phi);
 
   if (!AR) {
-    DEBUG(dbgs() << "LV: PHI is not a poly recurrence.\n");
+    LLVM_DEBUG(dbgs() << "LV: PHI is not a poly recurrence.\n");
     return false;
   }
 
@@ -1012,14 +1087,15 @@ bool InductionDescriptor::isInductionPHI(
   const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(PhiScev);
 
   if (!AR) {
-    DEBUG(dbgs() << "LV: PHI is not a poly recurrence.\n");
+    LLVM_DEBUG(dbgs() << "LV: PHI is not a poly recurrence.\n");
     return false;
   }
 
   if (AR->getLoop() != TheLoop) {
     // FIXME: We should treat this as a uniform. Unfortunately, we
     // don't currently know how to handled uniform PHIs.
-    DEBUG(dbgs() << "LV: PHI is a recurrence with respect to an outer loop.\n");
+    LLVM_DEBUG(
+        dbgs() << "LV: PHI is a recurrence with respect to an outer loop.\n");
     return false;
   }
 
@@ -1100,11 +1176,12 @@ bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
         BB, InLoopPredecessors, ".loopexit", DT, LI, PreserveLCSSA);
 
     if (!NewExitBB)
-      DEBUG(dbgs() << "WARNING: Can't create a dedicated exit block for loop: "
-                   << *L << "\n");
+      LLVM_DEBUG(
+          dbgs() << "WARNING: Can't create a dedicated exit block for loop: "
+                 << *L << "\n");
     else
-      DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block "
-                   << NewExitBB->getName() << "\n");
+      LLVM_DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block "
+                        << NewExitBB->getName() << "\n");
     return true;
   };
 
@@ -1127,7 +1204,7 @@ bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
   return Changed;
 }
 
-/// \brief Returns the instructions that use values defined in the loop.
+/// Returns the instructions that use values defined in the loop.
 SmallVector<Instruction *, 8> llvm::findDefsUsedOutsideOfLoop(Loop *L) {
   SmallVector<Instruction *, 8> UsedOutside;
 
@@ -1204,7 +1281,7 @@ void llvm::initializeLoopPassPass(PassRegistry &Registry) {
   INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
 }
 
-/// \brief Find string metadata for loop
+/// Find string metadata for loop
 ///
 /// If it has a value (e.g. {"llvm.distribute", 1} return the value as an
 /// operand or null otherwise.  If the string metadata is not found return
@@ -1321,13 +1398,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
 
   // Rewrite phis in the exit block to get their inputs from the Preheader
   // instead of the exiting block.
-  BasicBlock::iterator BI = ExitBlock->begin();
-  while (PHINode *P = dyn_cast<PHINode>(BI)) {
+  for (PHINode &P : ExitBlock->phis()) {
     // Set the zero'th element of Phi to be from the preheader and remove all
     // other incoming values. Given the loop has dedicated exits, all other
     // incoming values must be from the exiting blocks.
     int PredIndex = 0;
-    P->setIncomingBlock(PredIndex, Preheader);
+    P.setIncomingBlock(PredIndex, Preheader);
     // Removes all incoming values from all other exiting blocks (including
     // duplicate values from an exiting block).
     // Nuke all entries except the zero'th entry which is the preheader entry.
@@ -1335,13 +1411,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
     // below, to keep the indices valid for deletion (removeIncomingValues
     // updates getNumIncomingValues and shifts all values down into the operand
     // being deleted).
-    for (unsigned i = 0, e = P->getNumIncomingValues() - 1; i != e; ++i)
-      P->removeIncomingValue(e - i, false);
+    for (unsigned i = 0, e = P.getNumIncomingValues() - 1; i != e; ++i)
+      P.removeIncomingValue(e - i, false);
 
-    assert((P->getNumIncomingValues() == 1 &&
-            P->getIncomingBlock(PredIndex) == Preheader) &&
+    assert((P.getNumIncomingValues() == 1 &&
+            P.getIncomingBlock(PredIndex) == Preheader) &&
            "Should have exactly one value and that's from the preheader!");
-    ++BI;
   }
 
   // Disconnect the loop body by branching directly to its exit.
@@ -1357,6 +1432,32 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
     // Inform the dominator tree about the removed edge.
     DT->deleteEdge(Preheader, L->getHeader());
   }
+
+  // Given LCSSA form is satisfied, we should not have users of instructions
+  // within the dead loop outside of the loop. However, LCSSA doesn't take
+  // unreachable uses into account. We handle them here.
+  // We could do it after drop all references (in this case all users in the
+  // loop will be already eliminated and we have less work to do but according
+  // to API doc of User::dropAllReferences only valid operation after dropping
+  // references, is deletion. So let's substitute all usages of
+  // instruction from the loop with undef value of corresponding type first.
+  for (auto *Block : L->blocks())
+    for (Instruction &I : *Block) {
+      auto *Undef = UndefValue::get(I.getType());
+      for (Value::use_iterator UI = I.use_begin(), E = I.use_end(); UI != E;) {
+        Use &U = *UI;
+        ++UI;
+        if (auto *Usr = dyn_cast<Instruction>(U.getUser()))
+          if (L->contains(Usr->getParent()))
+            continue;
+        // If we have a DT then we can check that uses outside a loop only in
+        // unreachable block.
+        if (DT)
+          assert(!DT->isReachableFromEntry(U) &&
+                 "Unexpected user in reachable block");
+        U.set(Undef);
+      }
+    }
 
   // Remove the block from the reference counting scheme, so that we can
   // delete it freely later.
@@ -1385,54 +1486,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
   }
 }
 
-/// Returns true if the instruction in a loop is guaranteed to execute at least
-/// once.
-bool llvm::isGuaranteedToExecute(const Instruction &Inst,
-                                 const DominatorTree *DT, const Loop *CurLoop,
-                                 const LoopSafetyInfo *SafetyInfo) {
-  // We have to check to make sure that the instruction dominates all
-  // of the exit blocks.  If it doesn't, then there is a path out of the loop
-  // which does not execute this instruction, so we can't hoist it.
-
-  // If the instruction is in the header block for the loop (which is very
-  // common), it is always guaranteed to dominate the exit blocks.  Since this
-  // is a common case, and can save some work, check it now.
-  if (Inst.getParent() == CurLoop->getHeader())
-    // If there's a throw in the header block, we can't guarantee we'll reach
-    // Inst.
-    return !SafetyInfo->HeaderMayThrow;
-
-  // Somewhere in this loop there is an instruction which may throw and make us
-  // exit the loop.
-  if (SafetyInfo->MayThrow)
-    return false;
-
-  // Get the exit blocks for the current loop.
-  SmallVector<BasicBlock *, 8> ExitBlocks;
-  CurLoop->getExitBlocks(ExitBlocks);
-
-  // Verify that the block dominates each of the exit blocks of the loop.
-  for (BasicBlock *ExitBlock : ExitBlocks)
-    if (!DT->dominates(Inst.getParent(), ExitBlock))
-      return false;
-
-  // As a degenerate case, if the loop is statically infinite then we haven't
-  // proven anything since there are no exit blocks.
-  if (ExitBlocks.empty())
-    return false;
-
-  // FIXME: In general, we have to prove that the loop isn't an infinite loop.
-  // See http::llvm.org/PR24078 .  (The "ExitBlocks.empty()" check above is
-  // just a special case of this.)
-  return true;
-}
-
 Optional<unsigned> llvm::getLoopEstimatedTripCount(Loop *L) {
   // Only support loops with a unique exiting block, and a latch.
   if (!L->getExitingBlock())
     return None;
 
-  // Get the branch weights for the the loop's backedge.
+  // Get the branch weights for the loop's backedge.
   BranchInst *LatchBR =
       dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator());
   if (!LatchBR || LatchBR->getNumSuccessors() != 2)
@@ -1460,7 +1519,7 @@ Optional<unsigned> llvm::getLoopEstimatedTripCount(Loop *L) {
     return (FalseVal + (TrueVal / 2)) / TrueVal;
 }
 
-/// \brief Adds a 'fast' flag to floating point operations.
+/// Adds a 'fast' flag to floating point operations.
 static Value *addFastMathFlag(Value *V) {
   if (isa<FPMathOperator>(V)) {
     FastMathFlags Flags;
@@ -1468,6 +1527,38 @@ static Value *addFastMathFlag(Value *V) {
     cast<Instruction>(V)->setFastMathFlags(Flags);
   }
   return V;
+}
+
+// Helper to generate an ordered reduction.
+Value *
+llvm::getOrderedReduction(IRBuilder<> &Builder, Value *Acc, Value *Src,
+                          unsigned Op,
+                          RecurrenceDescriptor::MinMaxRecurrenceKind MinMaxKind,
+                          ArrayRef<Value *> RedOps) {
+  unsigned VF = Src->getType()->getVectorNumElements();
+
+  // Extract and apply reduction ops in ascending order:
+  // e.g. ((((Acc + Scl[0]) + Scl[1]) + Scl[2]) + ) ... + Scl[VF-1]
+  Value *Result = Acc;
+  for (unsigned ExtractIdx = 0; ExtractIdx != VF; ++ExtractIdx) {
+    Value *Ext =
+        Builder.CreateExtractElement(Src, Builder.getInt32(ExtractIdx));
+
+    if (Op != Instruction::ICmp && Op != Instruction::FCmp) {
+      Result = Builder.CreateBinOp((Instruction::BinaryOps)Op, Result, Ext,
+                                   "bin.rdx");
+    } else {
+      assert(MinMaxKind != RecurrenceDescriptor::MRK_Invalid &&
+             "Invalid min/max");
+      Result = RecurrenceDescriptor::createMinMaxOp(Builder, MinMaxKind, Result,
+                                                    Ext);
+    }
+
+    if (!RedOps.empty())
+      propagateIRFlags(Result, RedOps);
+  }
+
+  return Result;
 }
 
 // Helper to generate a log2 shuffle reduction.

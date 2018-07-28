@@ -63,6 +63,14 @@ struct MIToken {
     kw_renamable,
     kw_tied_def,
     kw_frame_setup,
+    kw_frame_destroy,
+    kw_nnan,
+    kw_ninf,
+    kw_nsz,
+    kw_arcp,
+    kw_contract,
+    kw_afn,
+    kw_reassoc,
     kw_debug_location,
     kw_cfi_same_value,
     kw_cfi_offset,
@@ -92,6 +100,7 @@ struct MIToken {
     kw_non_temporal,
     kw_invariant,
     kw_align,
+    kw_addrspace,
     kw_stack,
     kw_got,
     kw_jump_table,
@@ -114,12 +123,10 @@ struct MIToken {
 
     // Identifier tokens
     Identifier,
-    IntegerType,
     NamedRegister,
+    NamedVirtualRegister,
     MachineBasicBlockLabel,
     MachineBasicBlock,
-    PointerType,
-    ScalarType,
     StackObject,
     FixedStackObject,
     NamedGlobalValue,
@@ -168,7 +175,7 @@ public:
 
   bool isRegister() const {
     return Kind == NamedRegister || Kind == underscore ||
-           Kind == VirtualRegister;
+           Kind == NamedVirtualRegister || Kind == VirtualRegister;
   }
 
   bool isRegisterFlag() const {

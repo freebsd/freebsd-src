@@ -357,7 +357,11 @@ private:
   /// recomputed by LiveRangeCalc::extend regardless of the number of defs.
   /// This is used for values whose live range doesn't match RegAssign exactly.
   /// They could have rematerialized, or back-copies may have been moved.
-  void forceRecompute(unsigned RegIdx, const VNInfo *ParentVNI);
+  void forceRecompute(unsigned RegIdx, const VNInfo &ParentVNI);
+
+  /// Calls forceRecompute() on any affected regidx and on ParentVNI
+  /// predecessors in case of a phi definition.
+  void forceRecomputeVNI(const VNInfo &ParentVNI);
 
   /// defFromParent - Define Reg from ParentVNI at UseIdx using either
   /// rematerialization or a COPY from parent. Return the new value.
@@ -417,7 +421,7 @@ private:
 
   SlotIndex buildSingleSubRegCopy(unsigned FromReg, unsigned ToReg,
       MachineBasicBlock &MB, MachineBasicBlock::iterator InsertBefore,
-      unsigned SubIdx, LiveInterval &DestLI, bool Late, SlotIndex PrevCopy);
+      unsigned SubIdx, LiveInterval &DestLI, bool Late, SlotIndex Def);
 
 public:
   /// Create a new SplitEditor for editing the LiveInterval analyzed by SA.

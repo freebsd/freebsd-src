@@ -15,8 +15,8 @@
 ; RUN:     -passes='thinlto-pre-link<O2>,name-anon-globals' -S  %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-O2,CHECK-PRELINK-O,CHECK-PRELINK-O-NODIS,CHECK-PRELINK-O2
 ; RUN: opt -disable-verify -debug-pass-manager \
-; RUN:     -passes='thinlto-pre-link<O3>,name-anon-globals' -S  %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-O3,CHECK-PRELINK-O,CHECK-PRELINK-O-NODIS,CHECK-PRELINK-O3
+; RUN:     -passes='thinlto-pre-link<O3>,name-anon-globals' -S -passes-ep-pipeline-start='no-op-module' %s 2>&1 \
+; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-O3,CHECK-PRELINK-O,CHECK-PRELINK-O-NODIS,CHECK-PRELINK-O3,CHECK-EP-PIPELINE-START
 ; RUN: opt -disable-verify -debug-pass-manager \
 ; RUN:     -passes='thinlto-pre-link<Os>,name-anon-globals' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-Os,CHECK-PRELINK-O,CHECK-PRELINK-O-NODIS,CHECK-PRELINK-Os
@@ -34,7 +34,7 @@
 ; RUN: opt -disable-verify -debug-pass-manager \
 ; RUN:     -passes='thinlto<O2>' -S  %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-O2,CHECK-POSTLINK-O,CHECK-POSTLINK-O2
-; RUN: opt -disable-verify -debug-pass-manager \
+; RUN: opt -disable-verify -debug-pass-manager -passes-ep-pipeline-start='no-op-module' \
 ; RUN:     -passes='thinlto<O3>' -S  %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK-O,CHECK-O3,CHECK-POSTLINK-O,CHECK-POSTLINK-O3
 ; RUN: opt -disable-verify -debug-pass-manager \
@@ -51,6 +51,7 @@
 ; CHECK-O-NEXT: Running pass: PassManager<{{.*}}Module{{.*}}>
 ; CHECK-O-NEXT: Starting llvm::Module pass manager run.
 ; CHECK-O-NEXT: Running pass: ForceFunctionAttrsPass
+; CHECK-EP-PIPELINE-START-NEXT: Running pass: NoOpModulePass
 ; CHECK-DIS-NEXT: Running pass: ModuleToFunctionPassAdaptor<{{.*}}AddDiscriminatorsPass{{.*}}>
 ; CHECK-DIS-NEXT: Running analysis: InnerAnalysisManagerProxy
 ; CHECK-POSTLINK-O-NEXT: Running pass: PGOIndirectCallPromotion
@@ -97,8 +98,8 @@
 ; CHECK-O-NEXT: Starting CGSCC pass manager run.
 ; CHECK-O-NEXT: Running pass: InlinerPass
 ; CHECK-O-NEXT: Running analysis: OuterAnalysisManagerProxy<{{.*}}LazyCallGraph{{.*}}>
-; CHECK-O-NEXT: Running pass: PostOrderFunctionAttrsPass
 ; CHECK-O-NEXT: Running analysis: FunctionAnalysisManagerCGSCCProxy
+; CHECK-O-NEXT: Running pass: PostOrderFunctionAttrsPass
 ; CHECK-O3-NEXT: Running pass: ArgumentPromotionPass
 ; CHECK-O-NEXT: Running pass: CGSCCToFunctionPassAdaptor<{{.*}}PassManager{{.*}}>
 ; CHECK-O-NEXT: Starting llvm::Function pass manager run.
@@ -110,6 +111,7 @@
 ; CHECK-O-NEXT: Running analysis: LazyValueAnalysis
 ; CHECK-O-NEXT: Running pass: CorrelatedValuePropagationPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O3-NEXT: Running pass: AggressiveInstCombinePass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O1-NEXT: Running pass: LibCallsShrinkWrapPass
 ; CHECK-O2-NEXT: Running pass: LibCallsShrinkWrapPass
@@ -119,10 +121,16 @@
 ; CHECK-O-NEXT: Running pass: ReassociatePass
 ; CHECK-O-NEXT: Running pass: RequireAnalysisPass<{{.*}}OptimizationRemarkEmitterAnalysis
 ; CHECK-O-NEXT: Running pass: FunctionToLoopPassAdaptor<{{.*}}LoopStandardAnalysisResults{{.*}}>
+; CHECK-O-NEXT: Starting llvm::Function pass manager run
+; CHECK-O-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-O-NEXT: Running analysis: LoopAnalysis
+; CHECK-O-NEXT: Running pass: LCSSAPass
+; CHECK-O-NEXT: Finished llvm::Function pass manager run
 ; CHECK-O-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; CHECK-O-NEXT: Running analysis: InnerAnalysisManagerProxy
 ; CHECK-O-NEXT: Starting Loop pass manager run.
+; CHECK-O-NEXT: Running pass: LoopInstSimplifyPass
+; CHECK-O-NEXT: Running pass: LoopSimplifyCFGPass
 ; CHECK-O-NEXT: Running pass: LoopRotatePass
 ; CHECK-O-NEXT: Running pass: LICM
 ; CHECK-O-NEXT: Running analysis: OuterAnalysisManagerProxy
@@ -131,6 +139,10 @@
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running pass: FunctionToLoopPassAdaptor<{{.*}}LoopStandardAnalysisResults{{.*}}>
+; CHECK-O-NEXT: Starting llvm::Function pass manager run
+; CHECK-O-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O-NEXT: Running pass: LCSSAPass
+; CHECK-O-NEXT: Finished llvm::Function pass manager run
 ; CHECK-O-NEXT: Starting Loop pass manager run.
 ; CHECK-O-NEXT: Running pass: IndVarSimplifyPass
 ; CHECK-O-NEXT: Running pass: LoopIdiomRecognizePass
@@ -159,6 +171,10 @@
 ; CHECK-O-NEXT: Running pass: CorrelatedValuePropagationPass
 ; CHECK-O-NEXT: Running pass: DSEPass
 ; CHECK-O-NEXT: Running pass: FunctionToLoopPassAdaptor<{{.*}}LICMPass{{.*}}>
+; CHECK-O-NEXT: Starting llvm::Function pass manager run
+; CHECK-O-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O-NEXT: Running pass: LCSSAPass
+; CHECK-O-NEXT: Finished llvm::Function pass manager run
 ; CHECK-O-NEXT: Running pass: ADCEPass
 ; CHECK-O-NEXT: Running analysis: PostDominatorTreeAnalysis
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
@@ -178,6 +194,10 @@
 ; CHECK-POSTLINK-O-NEXT: Starting llvm::Function pass manager run.
 ; CHECK-POSTLINK-O-NEXT: Running pass: Float2IntPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: FunctionToLoopPassAdaptor<{{.*}}LoopRotatePass
+; CHECK-POSTLINK-O-NEXT: Starting llvm::Function pass manager run
+; CHECK-POSTLINK-O-NEXT: Running pass: LoopSimplifyPass
+; CHECK-POSTLINK-O-NEXT: Running pass: LCSSAPass
+; CHECK-POSTLINK-O-NEXT: Finished llvm::Function pass manager run
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopDistributePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopVectorizePass
 ; CHECK-POSTLINK-O-NEXT: Running analysis: BlockFrequencyAnalysis
@@ -193,13 +213,18 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: RequireAnalysisPass<{{.*}}OptimizationRemarkEmitterAnalysis
 ; CHECK-POSTLINK-O-NEXT: Running pass: FunctionToLoopPassAdaptor<{{.*}}LICMPass
+; CHECK-POSTLINK-O-NEXT: Starting llvm::Function pass manager run
+; CHECK-POSTLINK-O-NEXT: Running pass: LoopSimplifyPass
+; CHECK-POSTLINK-O-NEXT: Running pass: LCSSAPass
+; CHECK-POSTLINK-O-NEXT: Finished llvm::Function pass manager run
 ; CHECK-POSTLINK-O-NEXT: Running pass: AlignmentFromAssumptionsPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopSinkPass
-; CHECK-POSTLINK-O-NEXT: Running pass: InstSimplifierPass
+; CHECK-POSTLINK-O-NEXT: Running pass: InstSimplifyPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: DivRemPairsPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: SimplifyCFGPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: SpeculateAroundPHIsPass
 ; CHECK-POSTLINK-O-NEXT: Finished llvm::Function pass manager run.
+; CHECK-POSTLINK-O-NEXT: Running pass: CGProfilePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: GlobalDCEPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: ConstantMergePass
 ; CHECK-POSTLINK-O-NEXT: Finished llvm::Module pass manager run.

@@ -17,9 +17,9 @@
 ; CHECK: .debug_loc contents:
 ;
 
-; CHECK: 0x0000000000000000 - [[LTMP3:.*]]: DW_OP_reg5 RDI, DW_OP_piece 0x8, DW_OP_reg4 RSI, DW_OP_piece 0x4
+; CHECK: [0x0000000000000000, 0x[[LTMP3:.*]]): DW_OP_reg5 RDI, DW_OP_piece 0x8, DW_OP_reg4 RSI, DW_OP_piece 0x4
 ; 0x0000000000000006 - 0x0000000000000008: rbp-8, piece 0x8, rax, piece 0x4 )
-; CHECK: [[LTMP3]] - {{.*}}: DW_OP_breg6 RBP-8, DW_OP_piece 0x8, DW_OP_reg4 RSI, DW_OP_piece 0x4
+; CHECK: [0x[[LTMP3]], {{.*}}): DW_OP_breg6 RBP-8, DW_OP_piece 0x8, DW_OP_reg4 RSI, DW_OP_piece 0x4
 
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.9.0"
@@ -48,7 +48,7 @@ attributes #1 = { nounwind readnone }
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: true, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
 !1 = !DIFile(filename: "pieces.c", directory: "")
 !2 = !{}
-!4 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !0, scopeLine: 3, file: !1, scope: !5, type: !6, variables: !15)
+!4 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !0, scopeLine: 3, file: !1, scope: !5, type: !6, retainedNodes: !15)
 !5 = !DIFile(filename: "pieces.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !9}

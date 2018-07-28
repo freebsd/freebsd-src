@@ -35,7 +35,7 @@ STATISTIC(NumRemovedInPreEmit,
           "Number of instructions deleted in pre-emit peephole");
 
 static cl::opt<bool>
-RunPreEmitPeephole("ppc-late-peephole", cl::Hidden, cl::init(false),
+RunPreEmitPeephole("ppc-late-peephole", cl::Hidden, cl::init(true),
                    cl::desc("Run pre-emit peephole optimizations."));
 
 namespace {
@@ -67,8 +67,8 @@ namespace {
           if (TII->convertToImmediateForm(MI, &DefMIToErase)) {
             Changed = true;
             NumRRConvertedInPreEmit++;
-            DEBUG(dbgs() << "Converted instruction to imm form: ");
-            DEBUG(MI.dump());
+            LLVM_DEBUG(dbgs() << "Converted instruction to imm form: ");
+            LLVM_DEBUG(MI.dump());
             if (DefMIToErase) {
               InstrsToErase.push_back(DefMIToErase);
             }
@@ -76,8 +76,8 @@ namespace {
         }
       }
       for (MachineInstr *MI : InstrsToErase) {
-        DEBUG(dbgs() << "PPC pre-emit peephole: erasing instruction: ");
-        DEBUG(MI->dump());
+        LLVM_DEBUG(dbgs() << "PPC pre-emit peephole: erasing instruction: ");
+        LLVM_DEBUG(MI->dump());
         MI->eraseFromParent();
         NumRemovedInPreEmit++;
       }

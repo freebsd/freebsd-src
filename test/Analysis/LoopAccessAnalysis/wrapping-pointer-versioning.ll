@@ -33,7 +33,7 @@ target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 ;    i64 {0,+,2}<%for.body>
 
 ; LAA: [PSE]  %arrayidxA = getelementptr i16, i16* %a, i64 %mul_ext:
-; LAA-NEXT: ((2 * (zext i32 {0,+,2}<%for.body> to i64)) + %a)
+; LAA-NEXT: ((2 * (zext i32 {0,+,2}<%for.body> to i64))<nuw><nsw> + %a)
 ; LAA-NEXT: --> {%a,+,4}<%for.body>
 
 
@@ -58,10 +58,10 @@ target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 ; LV-NEXT: [[OFMul1:%[^ ]*]] = call { i64, i1 } @llvm.umul.with.overflow.i64(i64 4, i64 [[BE]])
 ; LV-NEXT: [[OFMulResult1:%[^ ]*]] = extractvalue { i64, i1 } [[OFMul1]], 0
 ; LV-NEXT: [[OFMulOverflow1:%[^ ]*]] = extractvalue { i64, i1 } [[OFMul1]], 1
-; LV-NEXT: [[AddEnd1:%[^ ]*]] = add i64 %a2, [[OFMulResult1]]
-; LV-NEXT: [[SubEnd1:%[^ ]*]] = sub i64 %a2, [[OFMulResult1]]
-; LV-NEXT: [[CmpNeg1:%[^ ]*]] = icmp ugt i64 [[SubEnd1]], %a2
-; LV-NEXT: [[CmpPos1:%[^ ]*]] = icmp ult i64 [[AddEnd1]], %a2
+; LV-NEXT: [[AddEnd1:%[^ ]*]] = add i64 [[A0:%[^ ]*]], [[OFMulResult1]]
+; LV-NEXT: [[SubEnd1:%[^ ]*]] = sub i64 [[A0]], [[OFMulResult1]]
+; LV-NEXT: [[CmpNeg1:%[^ ]*]] = icmp ugt i64 [[SubEnd1]], [[A0]]
+; LV-NEXT: [[CmpPos1:%[^ ]*]] = icmp ult i64 [[AddEnd1]], [[A0]]
 ; LV-NEXT: [[Cmp:%[^ ]*]] = select i1 false, i1 [[CmpNeg1]], i1 [[CmpPos1]]
 ; LV-NEXT: [[PredCheck1:%[^ ]*]] = or i1 [[Cmp]], [[OFMulOverflow1]]
 
@@ -122,7 +122,7 @@ for.end:                                          ; preds = %for.body
 ; LAA: Memory dependences are safe{{$}}
 ; LAA: SCEV assumptions:
 ; LAA-NEXT: {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> Added Flags: <nusw>
-; LAA-NEXT: {((2 * (zext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body> Added Flags: <nusw>
+; LAA-NEXT: {((4 * (zext i31 (trunc i64 %N to i31) to i64)) + %a),+,-4}<%for.body> Added Flags: <nusw>
 
 ; The expression for %mul_ext as analyzed by SCEV is
 ;     (zext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64)
@@ -130,8 +130,8 @@ for.end:                                          ; preds = %for.body
 ;     i64 {zext i32 (2 * (trunc i64 %N to i32)) to i64,+,-2}<%for.body>
 
 ; LAA: [PSE]  %arrayidxA = getelementptr i16, i16* %a, i64 %mul_ext:
-; LAA-NEXT: ((2 * (zext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64)) + %a)
-; LAA-NEXT: --> {((2 * (zext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body>
+; LAA-NEXT: ((2 * (zext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64))<nuw><nsw> + %a)
+; LAA-NEXT: --> {((4 * (zext i31 (trunc i64 %N to i31) to i64)) + %a),+,-4}<%for.body>
 
 ; LV-LABEL: f2
 ; LV-LABEL: for.body.lver.check
@@ -210,7 +210,7 @@ for.end:                                          ; preds = %for.body
 ;     i64 {0,+,2}<%for.body>
 
 ; LAA: [PSE]  %arrayidxA = getelementptr i16, i16* %a, i64 %mul_ext:
-; LAA-NEXT: ((2 * (sext i32 {0,+,2}<%for.body> to i64)) + %a)
+; LAA-NEXT: ((2 * (sext i32 {0,+,2}<%for.body> to i64))<nsw> + %a)
 ; LAA-NEXT: --> {%a,+,4}<%for.body>
 
 ; LV-LABEL: f3
@@ -233,10 +233,10 @@ for.end:                                          ; preds = %for.body
 ; LV: [[OFMul1:%[^ ]*]] = call { i64, i1 } @llvm.umul.with.overflow.i64(i64 4, i64 [[BE:%[^ ]*]])
 ; LV-NEXT: [[OFMulResult1:%[^ ]*]] = extractvalue { i64, i1 } [[OFMul1]], 0
 ; LV-NEXT: [[OFMulOverflow1:%[^ ]*]] = extractvalue { i64, i1 } [[OFMul1]], 1
-; LV-NEXT: [[AddEnd1:%[^ ]*]] = add i64 %a2, [[OFMulResult1]]
-; LV-NEXT: [[SubEnd1:%[^ ]*]] = sub i64 %a2, [[OFMulResult1]]
-; LV-NEXT: [[CmpNeg1:%[^ ]*]] = icmp ugt i64 [[SubEnd1]], %a2
-; LV-NEXT: [[CmpPos1:%[^ ]*]] = icmp ult i64 [[AddEnd1]], %a2
+; LV-NEXT: [[AddEnd1:%[^ ]*]] = add i64 [[A0:%[^ ]*]], [[OFMulResult1]]
+; LV-NEXT: [[SubEnd1:%[^ ]*]] = sub i64 [[A0]], [[OFMulResult1]]
+; LV-NEXT: [[CmpNeg1:%[^ ]*]] = icmp ugt i64 [[SubEnd1]], [[A0]]
+; LV-NEXT: [[CmpPos1:%[^ ]*]] = icmp ult i64 [[AddEnd1]], [[A0]]
 ; LV-NEXT: [[Cmp:%[^ ]*]] = select i1 false, i1 [[CmpNeg1]], i1 [[CmpPos1]]
 ; LV-NEXT: [[PredCheck1:%[^ ]*]] = or i1 [[Cmp]], [[OFMulOverflow1]]
 
@@ -278,7 +278,7 @@ for.end:                                          ; preds = %for.body
 ; LAA: Memory dependences are safe{{$}}
 ; LAA: SCEV assumptions:
 ; LAA-NEXT: {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> Added Flags: <nssw>
-; LAA-NEXT: {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body> Added Flags: <nusw>
+; LAA-NEXT: {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64))<nsw> + %a),+,-4}<%for.body> Added Flags: <nusw>
 
 ; The expression for %mul_ext as analyzed by SCEV is
 ;     i64  (sext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64)
@@ -286,8 +286,8 @@ for.end:                                          ; preds = %for.body
 ;     i64 {sext i32 (2 * (trunc i64 %N to i32)) to i64,+,-2}<%for.body>
 
 ; LAA: [PSE]  %arrayidxA = getelementptr i16, i16* %a, i64 %mul_ext:
-; LAA-NEXT: ((2 * (sext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64)) + %a)
-; LAA-NEXT: --> {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body>
+; LAA-NEXT: ((2 * (sext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64))<nsw> + %a)
+; LAA-NEXT: --> {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64))<nsw> + %a),+,-4}<%for.body>
 
 ; LV-LABEL: f4
 ; LV-LABEL: for.body.lver.check
@@ -362,11 +362,11 @@ for.end:                                          ; preds = %for.body
 ; LAA: Memory dependences are safe{{$}}
 ; LAA: SCEV assumptions:
 ; LAA-NEXT: {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> Added Flags: <nssw>
-; LAA-NEXT: {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body> Added Flags: <nusw>
+; LAA-NEXT: {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64))<nsw> + %a),+,-4}<%for.body> Added Flags: <nusw>
 
 ; LAA: [PSE]  %arrayidxA = getelementptr inbounds i16, i16* %a, i32 %mul:
 ; LAA-NEXT: ((2 * (sext i32 {(2 * (trunc i64 %N to i32)),+,-2}<%for.body> to i64))<nsw> + %a)<nsw>
-; LAA-NEXT: --> {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64)) + %a),+,-4}<%for.body>
+; LAA-NEXT: --> {((2 * (sext i32 (2 * (trunc i64 %N to i32)) to i64))<nsw> + %a),+,-4}<%for.body>
 
 ; LV-LABEL: f5
 ; LV-LABEL: for.body.lver.check

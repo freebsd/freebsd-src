@@ -8,12 +8,14 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief Utilities to print analysis info for various kinds of passes.
+/// Utilities to print analysis info for various kinds of passes.
 ///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_TOOLS_OPT_PASSPRINTERS_H
 #define LLVM_TOOLS_OPT_PASSPRINTERS_H
+
+#include "llvm/IR/PassManager.h"
 
 namespace llvm {
 
@@ -25,6 +27,7 @@ class LoopPass;
 class PassInfo;
 class raw_ostream;
 class RegionPass;
+class Module;
 
 FunctionPass *createFunctionPassPrinter(const PassInfo *PI, raw_ostream &out,
                                         bool Quiet);

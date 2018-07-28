@@ -36,11 +36,11 @@ class MCCodeEmitter;
 class MCContext;
 struct MCDwarfLineTableParams;
 class MCInstrInfo;
-class MCObjectFileInfo;
 class MCRegisterInfo;
 class MCStreamer;
 class MCSubtargetInfo;
 class raw_fd_ostream;
+class TargetLoweringObjectFile;
 class TargetMachine;
 class Triple;
 
@@ -89,6 +89,14 @@ public:
   /// \param U the unsigned integer to encode.
   void addAttribute(uint16_t Attr, dwarf::Form Form, uint64_t U);
 
+  /// Add an attribute value to be encoded as a DIEExpr
+  ///
+  /// \param Attr a dwarf::Attribute enumeration value or any uint16_t that
+  /// represents a user defined DWARF attribute.
+  /// \param Form the dwarf::Form to use when encoding the attribute.
+  /// \param Expr the MC expression used to compute the value.
+  void addAttribute(uint16_t Attr, dwarf::Form Form, const MCExpr &Expr);
+
   /// Add an attribute value to be encoded as a DIEString or DIEInlinedString.
   ///
   /// \param Attr a dwarf::Attribute enumeration value or any uint16_t that
@@ -123,6 +131,9 @@ public:
   /// \param S the size in bytes of the data pointed to by P .
   void addAttribute(uint16_t Attr, dwarf::Form Form, const void *P, size_t S);
 
+  /// Add a DW_AT_str_offsets_base attribute to this DIE.
+  void addStrOffsetsBaseAttribute();
+
   /// Add a new child to this DIE object.
   ///
   /// \param Tag the dwarf::Tag to assing to the llvm::DIE object.
@@ -153,6 +164,72 @@ public:
   void setLength(uint64_t Length) { DU.setLength(Length); }
 };
 
+/// A DWARF line unit-like class used to generate DWARF line units.
+///
+/// Instances of this class are created by instances of the Generator class.
+class LineTable {
+public:
+  enum ValueLength { Byte = 1, Half = 2, Long = 4, Quad = 8, ULEB, SLEB };
+
+  struct ValueAndLength {
+    uint64_t Value;
+    ValueLength Length;
+  };
+
+  LineTable(uint16_t Version, dwarf::DwarfFormat Format, uint8_t AddrSize,
+            uint8_t SegSize = 0)
+      : Version(Version), Format(Format), AddrSize(AddrSize), SegSize(SegSize) {
+    assert(Version >= 2 && Version <= 5 && "unsupported version");
+  }
+
+  // Create a Prologue suitable to pass to setPrologue, with a single file and
+  // include directory entry.
+  DWARFDebugLine::Prologue createBasicPrologue() const;
+
+  // Set or replace the current prologue with the specified prologue. If no
+  // prologue is set, a default one will be used when generating.
+  void setPrologue(DWARFDebugLine::Prologue NewPrologue);
+  // Used to write an arbitrary payload instead of the standard prologue. This
+  // is useful if you wish to test handling of corrupt .debug_line sections.
+  void setCustomPrologue(ArrayRef<ValueAndLength> NewPrologue);
+
+  // Add a byte to the program, with the given value. This can be used to
+  // specify a special opcode, or to add arbitrary contents to the section.
+  void addByte(uint8_t Value);
+  // Add a standard opcode to the program. The opcode and operands do not have
+  // to be valid.
+  void addStandardOpcode(uint8_t Opcode, ArrayRef<ValueAndLength> Operands);
+  // Add an extended opcode to the program with the specified length, opcode,
+  // and operands. These values do not have to be valid.
+  void addExtendedOpcode(uint64_t Length, uint8_t Opcode,
+                         ArrayRef<ValueAndLength> Operands);
+
+  // Write the contents of the LineUnit to the current section in the generator.
+  void generate(MCContext &MC, AsmPrinter &Asm) const;
+
+private:
+  void writeData(ArrayRef<ValueAndLength> Data, AsmPrinter &Asm) const;
+  MCSymbol *writeDefaultPrologue(AsmPrinter &Asm) const;
+  void writePrologue(AsmPrinter &Asm) const;
+
+  void writeProloguePayload(const DWARFDebugLine::Prologue &Prologue,
+                            AsmPrinter &Asm) const;
+
+  llvm::Optional<DWARFDebugLine::Prologue> Prologue;
+  std::vector<ValueAndLength> CustomPrologue;
+  std::vector<ValueAndLength> Contents;
+
+  // The Version field is used for determining how to write the Prologue, if a
+  // non-custom prologue is used. The version value actually written, will be
+  // that specified in the Prologue, if a custom prologue has been passed in.
+  // Otherwise, it will be this value.
+  uint16_t Version;
+
+  dwarf::DwarfFormat Format;
+  uint8_t AddrSize;
+  uint8_t SegSize;
+};
+
 /// A DWARF generator.
 ///
 /// Generate DWARF for unit tests by creating any instance of this class and
@@ -161,7 +238,6 @@ public:
 class Generator {
   std::unique_ptr<MCRegisterInfo> MRI;
   std::unique_ptr<MCAsmInfo> MAI;
-  std::unique_ptr<MCObjectFileInfo> MOFI;
   std::unique_ptr<MCContext> MC;
   MCAsmBackend *MAB; // Owned by MCStreamer
   std::unique_ptr<MCInstrInfo> MII;
@@ -169,11 +245,15 @@ class Generator {
   MCCodeEmitter *MCE; // Owned by MCStreamer
   MCStreamer *MS;     // Owned by AsmPrinter
   std::unique_ptr<TargetMachine> TM;
+  TargetLoweringObjectFile *TLOF; // Owned by TargetMachine;
   std::unique_ptr<AsmPrinter> Asm;
   BumpPtrAllocator Allocator;
   std::unique_ptr<DwarfStringPool> StringPool; // Entries owned by Allocator.
   std::vector<std::unique_ptr<CompileUnit>> CompileUnits;
+  std::vector<std::unique_ptr<LineTable>> LineTables;
   DIEAbbrevSet Abbreviations;
+
+  MCSymbol *StringOffsetsStartSym;
 
   SmallString<4096> FileBytes;
   /// The stream we use to generate the DWARF into as an ELF file.
@@ -210,14 +290,23 @@ public:
   ///
   /// \returns a dwarfgen::CompileUnit that can be used to retrieve the compile
   /// unit dwarfgen::DIE that can be used to add attributes and add child DIE
-  /// objedts to.
+  /// objects to.
   dwarfgen::CompileUnit &addCompileUnit();
+
+  /// Add a line table unit to be generated.
+  /// \param DwarfFormat the DWARF format to use (DWARF32 or DWARF64).
+  ///
+  /// \returns a dwarfgen::LineTable that can be used to customise the contents
+  /// of the line table.
+  LineTable &
+  addLineTable(dwarf::DwarfFormat DwarfFormat = dwarf::DwarfFormat::DWARF32);
 
   BumpPtrAllocator &getAllocator() { return Allocator; }
   AsmPrinter *getAsmPrinter() const { return Asm.get(); }
   MCContext *getMCContext() const { return MC.get(); }
   DIEAbbrevSet &getAbbrevSet() { return Abbreviations; }
   DwarfStringPool &getStringPool() { return *StringPool; }
+  MCSymbol *getStringOffsetsStartSym() const { return StringOffsetsStartSym; }
 
   /// Save the generated DWARF file to disk.
   ///

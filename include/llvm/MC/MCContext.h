@@ -11,6 +11,7 @@
 #define LLVM_MC_MCCONTEXT_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
@@ -18,11 +19,14 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/MC/MCAsmMacro.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/MD5.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -132,6 +136,9 @@ namespace llvm {
 
     /// The compilation directory to use for DW_AT_comp_dir.
     SmallString<128> CompilationDir;
+
+    /// Prefix replacement map for source file information.
+    std::map<const std::string, const std::string> DebugPrefixMap;
 
     /// The main file name if passed in explicitly.
     std::string MainFileName;
@@ -268,6 +275,9 @@ namespace llvm {
                                        unsigned UniqueID,
                                        const MCSymbolELF *Associated);
 
+    /// Map of currently defined macros.
+    StringMap<MCAsmMacro> MacroMap;
+
   public:
     explicit MCContext(const MCAsmInfo *MAI, const MCRegisterInfo *MRI,
                        const MCObjectFileInfo *MOFI,
@@ -287,6 +297,10 @@ namespace llvm {
     const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
 
     CodeViewContext &getCVContext();
+
+    /// Clear the current cv_loc, if there is one. Avoids lazily creating a
+    /// CodeViewContext if none is needed.
+    void clearCVLocSeen();
 
     void setAllowTemporaryLabels(bool Value) { AllowTemporaryLabels = Value; }
     void setUseNamesOnTempLabels(bool Value) { UseNamesOnTempLabels = Value; }
@@ -331,7 +345,7 @@ namespace llvm {
     /// Gets a symbol that will be defined to the final stack offset of a local
     /// variable after codegen.
     ///
-    /// \param Idx - The index of a local variable passed to @llvm.localescape.
+    /// \param Idx - The index of a local variable passed to \@llvm.localescape.
     MCSymbol *getOrCreateFrameAllocSymbol(StringRef FuncName, unsigned Idx);
 
     MCSymbol *getOrCreateParentFrameOffsetSymbol(StringRef FuncName);
@@ -471,25 +485,39 @@ namespace llvm {
     /// \name Dwarf Management
     /// @{
 
-    /// \brief Get the compilation directory for DW_AT_comp_dir
+    /// Get the compilation directory for DW_AT_comp_dir
     /// The compilation directory should be set with \c setCompilationDir before
     /// calling this function. If it is unset, an empty string will be returned.
     StringRef getCompilationDir() const { return CompilationDir; }
 
-    /// \brief Set the compilation directory for DW_AT_comp_dir
+    /// Set the compilation directory for DW_AT_comp_dir
     void setCompilationDir(StringRef S) { CompilationDir = S.str(); }
 
-    /// \brief Get the main file name for use in error messages and debug
+    /// Get the debug prefix map.
+    const std::map<const std::string, const std::string> &
+    getDebugPrefixMap() const {
+      return DebugPrefixMap;
+    }
+
+    /// Add an entry to the debug prefix map.
+    void addDebugPrefixMapEntry(const std::string &From, const std::string &To);
+
+    // Remaps all debug directory paths in-place as per the debug prefix map.
+    void RemapDebugPaths();
+
+    /// Get the main file name for use in error messages and debug
     /// info. This can be set to ensure we've got the correct file name
     /// after preprocessing or for -save-temps.
     const std::string &getMainFileName() const { return MainFileName; }
 
-    /// \brief Set the main file name and override the default.
+    /// Set the main file name and override the default.
     void setMainFileName(StringRef S) { MainFileName = S; }
 
     /// Creates an entry in the dwarf file and directory tables.
-    unsigned getDwarfFile(StringRef Directory, StringRef FileName,
-                          unsigned FileNumber, unsigned CUID);
+    Expected<unsigned> getDwarfFile(StringRef Directory, StringRef FileName,
+                                    unsigned FileNumber,
+                                    MD5::MD5Result *Checksum,
+                                    Optional<StringRef> Source, unsigned CUID);
 
     bool isValidDwarfFileNumber(unsigned FileNumber, unsigned CUID = 0);
 
@@ -528,8 +556,18 @@ namespace llvm {
       DwarfCompileUnitID = CUIndex;
     }
 
-    void setMCLineTableCompilationDir(unsigned CUID, StringRef CompilationDir) {
-      getMCDwarfLineTable(CUID).setCompilationDir(CompilationDir);
+    /// Specifies the "root" file and directory of the compilation unit.
+    /// These are "file 0" and "directory 0" in DWARF v5.
+    void setMCLineTableRootFile(unsigned CUID, StringRef CompilationDir,
+                                StringRef Filename, MD5::MD5Result *Checksum,
+                                Optional<StringRef> Source) {
+      getMCDwarfLineTable(CUID).setRootFile(CompilationDir, Filename, Checksum,
+                                            Source);
+    }
+
+    /// Reports whether MD5 checksum usage is consistent (all-or-none).
+    bool isDwarfMD5UsageConsistent(unsigned CUID) const {
+      return getMCDwarfLineTable(CUID).isMD5UsageConsistent();
     }
 
     /// Saves the information from the currently parsed dwarf .loc directive
@@ -618,13 +656,24 @@ namespace llvm {
     // FIXME: We should really do something about that.
     LLVM_ATTRIBUTE_NORETURN void reportFatalError(SMLoc L,
                                                   const Twine &Msg);
+
+    const MCAsmMacro *lookupMacro(StringRef Name) {
+      StringMap<MCAsmMacro>::iterator I = MacroMap.find(Name);
+      return (I == MacroMap.end()) ? nullptr : &I->getValue();
+    }
+
+    void defineMacro(StringRef Name, MCAsmMacro Macro) {
+      MacroMap.insert(std::make_pair(Name, std::move(Macro)));
+    }
+
+    void undefineMacro(StringRef Name) { MacroMap.erase(Name); }
   };
 
 } // end namespace llvm
 
 // operator new and delete aren't allowed inside namespaces.
 // The throw specifications are mandated by the standard.
-/// \brief Placement new for using the MCContext's allocator.
+/// Placement new for using the MCContext's allocator.
 ///
 /// This placement form of operator new uses the MCContext's allocator for
 /// obtaining memory. It is a non-throwing new, which means that it returns
@@ -650,7 +699,7 @@ inline void *operator new(size_t Bytes, llvm::MCContext &C,
                           size_t Alignment = 8) noexcept {
   return C.allocate(Bytes, Alignment);
 }
-/// \brief Placement delete companion to the new above.
+/// Placement delete companion to the new above.
 ///
 /// This operator is just a companion to the new above. There is no way of
 /// invoking it directly; see the new operator for more details. This operator
@@ -684,7 +733,7 @@ inline void *operator new[](size_t Bytes, llvm::MCContext &C,
   return C.allocate(Bytes, Alignment);
 }
 
-/// \brief Placement delete[] companion to the new[] above.
+/// Placement delete[] companion to the new[] above.
 ///
 /// This operator is just a companion to the new[] above. There is no way of
 /// invoking it directly; see the new[] operator for more details. This operator

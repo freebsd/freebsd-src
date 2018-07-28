@@ -22,6 +22,7 @@
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -254,23 +255,23 @@ std::string RegionBase<Tr>::getNameStr() const {
 template <class Tr>
 void RegionBase<Tr>::verifyBBInRegion(BlockT *BB) const {
   if (!contains(BB))
-    llvm_unreachable("Broken region found: enumerated BB not in region!");
+    report_fatal_error("Broken region found: enumerated BB not in region!");
 
   BlockT *entry = getEntry(), *exit = getExit();
 
   for (BlockT *Succ :
        make_range(BlockTraits::child_begin(BB), BlockTraits::child_end(BB))) {
     if (!contains(Succ) && exit != Succ)
-      llvm_unreachable("Broken region found: edges leaving the region must go "
-                       "to the exit node!");
+      report_fatal_error("Broken region found: edges leaving the region must go "
+                         "to the exit node!");
   }
 
   if (entry != BB) {
     for (BlockT *Pred : make_range(InvBlockTraits::child_begin(BB),
                                    InvBlockTraits::child_end(BB))) {
       if (!contains(Pred))
-        llvm_unreachable("Broken region found: edges entering the region must "
-                         "go to the entry node!");
+        report_fatal_error("Broken region found: edges entering the region must "
+                           "go to the entry node!");
     }
   }
 }
@@ -557,7 +558,7 @@ void RegionInfoBase<Tr>::verifyBBMap(const RegionT *R) const {
     } else {
       BlockT *BB = Element->template getNodeAs<BlockT>();
       if (getRegionFor(BB) != R)
-        llvm_unreachable("BB map does not match region nesting");
+        report_fatal_error("BB map does not match region nesting");
     }
   }
 }
@@ -674,7 +675,7 @@ typename Tr::RegionT *RegionInfoBase<Tr>::createRegion(BlockT *entry,
 #ifdef EXPENSIVE_CHECKS
   region->verifyRegion();
 #else
-  DEBUG(region->verifyRegion());
+  LLVM_DEBUG(region->verifyRegion());
 #endif
 
   updateStatistics(region);

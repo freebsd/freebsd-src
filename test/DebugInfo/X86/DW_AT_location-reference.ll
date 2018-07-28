@@ -16,7 +16,7 @@
 ; // This ref is not relocatable on Darwin, and is relocatable elsewhere.
 ; extern int g(int, int);
 ; extern int a;
-; 
+;
 ; void f(void) {
 ;   int x;
 ;   a = g(0, 0);
@@ -34,10 +34,10 @@
 ; CHECK-NEXT:   DW_AT_location [DW_FORM_sec_offset] (0x00000000
 ; Check that the location contains only 4 ranges - this verifies that the 4th
 ; and 5th ranges were successfully merged into a single range.
-; CHECK-NEXT:   0x{{[0-9a-f]*}} - 0x{{[0-9a-f]*}}:
-; CHECK-NEXT:   0x{{[0-9a-f]*}} - 0x{{[0-9a-f]*}}:
-; CHECK-NEXT:   0x{{[0-9a-f]*}} - 0x{{[0-9a-f]*}}:
-; CHECK-NEXT:   0x{{[0-9a-f]*}} - 0x{{[0-9a-f]*}}: {{.*}})
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}): {{.*}})
 ; CHECK-NEXT:   DW_AT_name {{.*}} "x"
 ; CHECK-NEXT:   DW_AT_decl_file
 ; CHECK-NEXT:   DW_AT_decl_line
@@ -49,7 +49,7 @@
 ; Check we have a relocation for the debug_loc entry in Linux output.
 ; LINUX: RELOCATION RECORDS FOR [.rela.debug_info]
 ; LINUX-NOT: RELOCATION RECORDS
-; LINUX: R_X86_64{{.*}} .debug_loc+0
+; LINUX: R_X86_64{{.*}} .debug_loc
 
 ; ModuleID = 'simple.c'
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-n32"
@@ -98,7 +98,7 @@ declare void @llvm.dbg.value(metadata, metadata, metadata) nounwind readnone
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!24}
 
-!0 = distinct !DISubprogram(name: "f", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !2, scopeLine: 4, file: !23, scope: !1, type: !3, variables: !22)
+!0 = distinct !DISubprogram(name: "f", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !2, scopeLine: 4, file: !23, scope: !1, type: !3, retainedNodes: !22)
 !1 = !DIFile(filename: "simple.c", directory: "/home/rengol01/temp/tests/dwarf/relocation")
 !2 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk)", isOptimized: true, emissionKind: FullDebug, file: !23, enums: !{}, retainedTypes: !{}, imports:  null)
 !3 = !DISubroutineType(types: !4)

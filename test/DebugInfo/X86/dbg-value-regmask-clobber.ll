@@ -5,7 +5,7 @@
 ; of individual register def operands.
 
 ; ASM: main: # @main
-; ASM: #DEBUG_VALUE: main:argc <- %ecx
+; ASM: #DEBUG_VALUE: main:argc <- $ecx
 ; ASM: movl $1, x(%rip)
 ; ASM: callq clobber
 ; ASM-NEXT: [[argc_range_end:.Ltmp[0-9]+]]:
@@ -23,7 +23,7 @@
 ; DWARF: .debug_info contents:
 ; DWARF:  DW_TAG_formal_parameter
 ; DWARF-NEXT:    DW_AT_location [DW_FORM_sec_offset]   ({{0x.*}}
-; DWARF-NEXT:      0x0000000000000000 - 0x0000000000000013: DW_OP_reg2 RCX)
+; DWARF-NEXT:      [0x0000000000000000, 0x0000000000000013): DW_OP_reg2 RCX)
 ; DWARF-NEXT:    DW_AT_name [DW_FORM_strp]     {{.*}} "argc"
 
 ; ModuleID = 't.cpp'
@@ -83,7 +83,7 @@ attributes #2 = { nounwind }
 !9 = !{i32 2, !"Debug Info Version", i32 3}
 !10 = !{i32 1, !"PIC Level", i32 2}
 !11 = !{!"clang version 3.9.0 (trunk 260617) (llvm/trunk 260619)"}
-!12 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 4, type: !13, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagPrototyped, isOptimized: true, unit: !2, variables: !18)
+!12 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 4, type: !13, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagPrototyped, isOptimized: true, unit: !2, retainedNodes: !18)
 !13 = !DISubroutineType(types: !14)
 !14 = !{!7, !7, !15}
 !15 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !16, size: 64, align: 64)

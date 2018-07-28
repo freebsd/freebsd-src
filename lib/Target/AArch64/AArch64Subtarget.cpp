@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/Support/TargetParser.h"
 
 using namespace llvm;
 
@@ -81,6 +82,12 @@ void AArch64Subtarget::initializeProperties() {
     MaxJumpTableSize = 8;
     PrefFunctionAlignment = 4;
     PrefLoopAlignment = 3;
+    break;
+  case ExynosM3:
+    MaxInterleaveFactor = 4;
+    MaxJumpTableSize = 20;
+    PrefFunctionAlignment = 5;
+    PrefLoopAlignment = 4;
     break;
   case Falkor:
     MaxInterleaveFactor = 4;
@@ -145,7 +152,7 @@ AArch64Subtarget::AArch64Subtarget(const Triple &TT, const std::string &CPU,
                                    const std::string &FS,
                                    const TargetMachine &TM, bool LittleEndian)
     : AArch64GenSubtargetInfo(TT, CPU, FS),
-      ReserveX18(TT.isOSDarwin() || TT.isOSWindows()), IsLittle(LittleEndian),
+      ReserveX18(AArch64::isX18ReservedByDefault(TT)), IsLittle(LittleEndian),
       TargetTriple(TT), FrameLowering(),
       InstrInfo(initializeSubtargetDependencies(FS, CPU)), TSInfo(),
       TLInfo(TM, *this) {
@@ -189,15 +196,18 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
   if (TM.getCodeModel() == CodeModel::Large && isTargetMachO())
     return AArch64II::MO_GOT;
 
+  unsigned Flags = GV->hasDLLImportStorageClass() ? AArch64II::MO_DLLIMPORT
+                                                  : AArch64II::MO_NO_FLAG;
+
   if (!TM.shouldAssumeDSOLocal(*GV->getParent(), GV))
-    return AArch64II::MO_GOT;
+    return AArch64II::MO_GOT | Flags;
 
   // The small code model's direct accesses use ADRP, which cannot
   // necessarily produce the value 0 (if the code is above 4GB).
   if (useSmallAddressing() && GV->hasExternalWeakLinkage())
-    return AArch64II::MO_GOT;
+    return AArch64II::MO_GOT | Flags;
 
-  return AArch64II::MO_NO_FLAG;
+  return Flags;
 }
 
 unsigned char AArch64Subtarget::classifyGlobalFunctionReference(
@@ -249,4 +259,14 @@ bool AArch64Subtarget::supportsAddressTopByteIgnored() const {
 std::unique_ptr<PBQPRAConstraint>
 AArch64Subtarget::getCustomPBQPConstraints() const {
   return balanceFPOps() ? llvm::make_unique<A57ChainingConstraint>() : nullptr;
+}
+
+void AArch64Subtarget::mirFileLoaded(MachineFunction &MF) const {
+  // We usually compute max call frame size after ISel. Do the computation now
+  // if the .mir file didn't specify it. Note that this will probably give you
+  // bogus values after PEI has eliminated the callframe setup/destroy pseudo
+  // instructions, specify explicitely if you need it to be correct.
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  if (!MFI.isMaxCallFrameSizeComputed())
+    MFI.computeMaxCallFrameSize(MF);
 }

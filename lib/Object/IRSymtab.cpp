@@ -15,7 +15,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Analysis/ObjectUtils.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Comdat.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalAlias.h"
@@ -41,6 +41,12 @@
 
 using namespace llvm;
 using namespace irsymtab;
+
+static const char *LibcallRoutineNames[] = {
+#define HANDLE_LIBCALL(code, name) name,
+#include "llvm/IR/RuntimeLibcalls.def"
+#undef HANDLE_LIBCALL
+};
 
 namespace {
 
@@ -226,13 +232,19 @@ Error Builder::addSymbol(const ModuleSymbolTable &Msymtab,
 
   setStr(Sym.IRName, GV->getName());
 
-  if (Used.count(GV))
+  bool IsBuiltinFunc = false;
+
+  for (const char *LibcallName : LibcallRoutineNames)
+    if (GV->getName() == LibcallName)
+      IsBuiltinFunc = true;
+
+  if (Used.count(GV) || IsBuiltinFunc)
     Sym.Flags |= 1 << storage::Symbol::FB_used;
   if (GV->isThreadLocal())
     Sym.Flags |= 1 << storage::Symbol::FB_tls;
   if (GV->hasGlobalUnnamedAddr())
     Sym.Flags |= 1 << storage::Symbol::FB_unnamed_addr;
-  if (canBeOmittedFromSymbolTable(GV))
+  if (GV->canBeOmittedFromSymbolTable())
     Sym.Flags |= 1 << storage::Symbol::FB_may_omit;
   Sym.Flags |= unsigned(GV->getVisibility()) << storage::Symbol::FB_visibility;
 

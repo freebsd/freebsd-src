@@ -37,8 +37,7 @@ define signext i1 @or_i1(i1 signext %a, i1 signext %b) {
 ;
 ; MM32R6-LABEL: or_i1:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    or16 $4, $5
-; MM32R6-NEXT:    move $2, $4
+; MM32R6-NEXT:    or $2, $4, $5
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i1 %a, %b
@@ -65,8 +64,7 @@ define signext i8 @or_i8(i8 signext %a, i8 signext %b) {
 ;
 ; MM32R6-LABEL: or_i8:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    or16 $4, $5
-; MM32R6-NEXT:    move $2, $4
+; MM32R6-NEXT:    or $2, $4, $5
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i8 %a, %b
@@ -93,8 +91,7 @@ define signext i16 @or_i16(i16 signext %a, i16 signext %b) {
 ;
 ; MM32R6-LABEL: or_i16:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    or16 $4, $5
-; MM32R6-NEXT:    move $2, $4
+; MM32R6-NEXT:    or $2, $4, $5
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i16 %a, %b
@@ -109,9 +106,8 @@ define signext i32 @or_i32(i32 signext %a, i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32:
 ; GP64:       # %bb.0: # %entry
-; GP64-NEXT:    or $1, $4, $5
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    sll $2, $1, 0
+; GP64-NEXT:    or $2, $4, $5
 ;
 ; MM32-LABEL: or_i32:
 ; MM32:       # %bb.0: # %entry
@@ -121,8 +117,7 @@ define signext i32 @or_i32(i32 signext %a, i32 signext %b) {
 ;
 ; MM32R6-LABEL: or_i32:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    or16 $4, $5
-; MM32R6-NEXT:    move $2, $4
+; MM32R6-NEXT:    or $2, $4, $5
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i32 %a, %b
@@ -151,10 +146,8 @@ define signext i64 @or_i64(i64 signext %a, i64 signext %b) {
 ;
 ; MM32R6-LABEL: or_i64:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    or16 $4, $6
-; MM32R6-NEXT:    or16 $5, $7
-; MM32R6-NEXT:    move $2, $4
-; MM32R6-NEXT:    move $3, $5
+; MM32R6-NEXT:    or $2, $4, $6
+; MM32R6-NEXT:    or $3, $5, $7
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i64 %a, %b
@@ -182,8 +175,7 @@ define signext i128 @or_i128(i128 signext %a, i128 signext %b) {
 ;
 ; MM32-LABEL: or_i128:
 ; MM32:       # %bb.0: # %entry
-; MM32-NEXT:    lw $3, 20($sp)
-; MM32-NEXT:    lw $2, 16($sp)
+; MM32-NEXT:    lwp $2, 16($sp)
 ; MM32-NEXT:    or16 $2, $4
 ; MM32-NEXT:    or16 $3, $5
 ; MM32-NEXT:    lw $4, 24($sp)
@@ -194,14 +186,14 @@ define signext i128 @or_i128(i128 signext %a, i128 signext %b) {
 ;
 ; MM32R6-LABEL: or_i128:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    lw $3, 20($sp)
+; MM32R6-NEXT:    lw $1, 20($sp)
 ; MM32R6-NEXT:    lw $2, 16($sp)
-; MM32R6-NEXT:    or16 $2, $4
-; MM32R6-NEXT:    or16 $3, $5
-; MM32R6-NEXT:    lw $4, 24($sp)
-; MM32R6-NEXT:    or16 $4, $6
-; MM32R6-NEXT:    lw $5, 28($sp)
-; MM32R6-NEXT:    or16 $5, $7
+; MM32R6-NEXT:    or $2, $4, $2
+; MM32R6-NEXT:    or $3, $5, $1
+; MM32R6-NEXT:    lw $1, 24($sp)
+; MM32R6-NEXT:    or $4, $6, $1
+; MM32R6-NEXT:    lw $1, 28($sp)
+; MM32R6-NEXT:    or $5, $7, $1
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i128 %a, %b
@@ -291,8 +283,9 @@ define signext i32 @or_i32_4(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_4:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 4
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 4
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_4:
 ; MM32:       # %bb.0: # %entry
@@ -457,8 +450,9 @@ define signext i32 @or_i32_31(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_31:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 31
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 31
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_31:
 ; MM32:       # %bb.0: # %entry
@@ -623,8 +617,9 @@ define signext i32 @or_i32_255(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_255:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 255
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 255
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_255:
 ; MM32:       # %bb.0: # %entry
@@ -777,8 +772,8 @@ define signext i16 @or_i16_32768(i16 signext %b) {
 ;
 ; MM32R6-LABEL: or_i16_32768:
 ; MM32R6:       # %bb.0: # %entry
-; MM32R6-NEXT:    addiu $2, $zero, -32768
-; MM32R6-NEXT:    or16 $2, $4
+; MM32R6-NEXT:    addiu $1, $zero, -32768
+; MM32R6-NEXT:    or $2, $4, $1
 ; MM32R6-NEXT:    jrc $ra
 entry:
   %r = or i16 32768, %b
@@ -793,8 +788,9 @@ define signext i32 @or_i32_32768(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_32768:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 32768
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 32768
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_32768:
 ; MM32:       # %bb.0: # %entry
@@ -959,8 +955,9 @@ define signext i32 @or_i32_65(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_65:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 65
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 65
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_65:
 ; MM32:       # %bb.0: # %entry
@@ -1125,8 +1122,9 @@ define signext i32 @or_i32_256(i32 signext %b) {
 ;
 ; GP64-LABEL: or_i32_256:
 ; GP64:       # %bb.0: # %entry
+; GP64-NEXT:    ori $1, $4, 256
 ; GP64-NEXT:    jr $ra
-; GP64-NEXT:    ori $2, $4, 256
+; GP64-NEXT:    sll $2, $1, 0
 ;
 ; MM32-LABEL: or_i32_256:
 ; MM32:       # %bb.0: # %entry

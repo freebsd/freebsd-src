@@ -10,7 +10,7 @@
 ;  b.f3 = p1;
 ;  a = b = c;
 ; }
-; 
+;
 ; int main() { return 0; }
 ;
 ; This is similar to the bug in test/DebugInfo/ARM/PR26163.ll, except that there is an
@@ -19,8 +19,8 @@
 ; AS in 26163, we expect two ranges (as opposed to one), the first one being zero sized
 ;
 ;
-; CHECK: 0x0000000000000004 - 0x0000000000000004: DW_OP_constu 0x3, DW_OP_piece 0x4, DW_OP_reg5 RDI, DW_OP_piece 0x2
-; CHECK: 0x0000000000000004 - 0x0000000000000014: DW_OP_constu 0x3, DW_OP_piece 0x4, DW_OP_constu 0x0, DW_OP_piece 0x4
+; CHECK: [0x0000000000000004, 0x0000000000000004): DW_OP_constu 0x3, DW_OP_piece 0x4, DW_OP_reg5 RDI, DW_OP_piece 0x2
+; CHECK: [0x0000000000000004, 0x0000000000000014): DW_OP_constu 0x3, DW_OP_piece 0x4, DW_OP_constu 0x0, DW_OP_piece 0x4
 
 source_filename = "test/DebugInfo/X86/PR26148.ll"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
@@ -82,7 +82,7 @@ attributes #1 = { "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf
 !13 = !{i32 2, !"Debug Info Version", i32 3}
 !14 = !{i32 1, !"PIC Level", i32 2}
 !15 = !{!"clang version 3.9.0 (https://github.com/llvm-mirror/clang 8f258397c5afd7a708bd95770c718e81d08fb11a) (https://github.com/llvm-mirror/llvm 18481855bdfa1b4a424f81be8525db002671348d)"}
-!16 = distinct !DISubprogram(name: "fn1", scope: !3, file: !3, line: 5, type: !17, isLocal: false, isDefinition: true, scopeLine: 5, flags: DIFlagPrototyped, isOptimized: true, unit: !2, variables: !19)
+!16 = distinct !DISubprogram(name: "fn1", scope: !3, file: !3, line: 5, type: !17, isLocal: false, isDefinition: true, scopeLine: 5, flags: DIFlagPrototyped, isOptimized: true, unit: !2, retainedNodes: !19)
 !17 = !DISubroutineType(types: !18)
 !18 = !{null, !9}
 !19 = !{!20, !21, !22}
@@ -98,7 +98,7 @@ attributes #1 = { "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf
 !29 = !DIExpression(DW_OP_LLVM_fragment, 32, 16)
 !30 = !DILocation(line: 8, column: 9, scope: !16)
 !31 = !DILocation(line: 9, column: 1, scope: !16)
-!32 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 11, type: !33, isLocal: false, isDefinition: true, scopeLine: 11, isOptimized: true, unit: !2, variables: !4)
+!32 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 11, type: !33, isLocal: false, isDefinition: true, scopeLine: 11, isOptimized: true, unit: !2, retainedNodes: !4)
 !33 = !DISubroutineType(types: !34)
 !34 = !{!11}
 !35 = !DILocation(line: 11, column: 14, scope: !32)

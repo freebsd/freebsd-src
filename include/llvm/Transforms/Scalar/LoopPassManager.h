@@ -71,7 +71,7 @@ PassManager<Loop, LoopAnalysisManager, LoopStandardAnalysisResults &,
 extern template class PassManager<Loop, LoopAnalysisManager,
                                   LoopStandardAnalysisResults &, LPMUpdater &>;
 
-/// \brief The Loop pass manager.
+/// The Loop pass manager.
 ///
 /// See the documentation for the PassManager template for details. It runs
 /// a sequence of Loop passes over each Loop that the manager is run over. This
@@ -253,7 +253,7 @@ private:
       : Worklist(Worklist), LAM(LAM) {}
 };
 
-/// \brief Adaptor that maps from a function to its loops.
+/// Adaptor that maps from a function to its loops.
 ///
 /// Designed to allow composition of a LoopPass(Manager) and a
 /// FunctionPassManager. Note that if this pass is constructed with a \c
@@ -264,12 +264,13 @@ template <typename LoopPassT>
 class FunctionToLoopPassAdaptor
     : public PassInfoMixin<FunctionToLoopPassAdaptor<LoopPassT>> {
 public:
-  explicit FunctionToLoopPassAdaptor(LoopPassT Pass) : Pass(std::move(Pass)) {
+  explicit FunctionToLoopPassAdaptor(LoopPassT Pass, bool DebugLogging = false)
+      : Pass(std::move(Pass)), LoopCanonicalizationFPM(DebugLogging) {
     LoopCanonicalizationFPM.addPass(LoopSimplifyPass());
     LoopCanonicalizationFPM.addPass(LCSSAPass());
   }
 
-  /// \brief Runs the loop passes across every loop in the function.
+  /// Runs the loop passes across every loop in the function.
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
     // Before we even compute any loop analyses, first run a miniature function
     // pass pipeline to put loops into their canonical form. Note that we can
@@ -380,15 +381,15 @@ private:
   FunctionPassManager LoopCanonicalizationFPM;
 };
 
-/// \brief A function to deduce a loop pass type and wrap it in the templated
+/// A function to deduce a loop pass type and wrap it in the templated
 /// adaptor.
 template <typename LoopPassT>
 FunctionToLoopPassAdaptor<LoopPassT>
-createFunctionToLoopPassAdaptor(LoopPassT Pass) {
-  return FunctionToLoopPassAdaptor<LoopPassT>(std::move(Pass));
+createFunctionToLoopPassAdaptor(LoopPassT Pass, bool DebugLogging = false) {
+  return FunctionToLoopPassAdaptor<LoopPassT>(std::move(Pass), DebugLogging);
 }
 
-/// \brief Pass for printing a loop's contents as textual IR.
+/// Pass for printing a loop's contents as textual IR.
 class PrintLoopPass : public PassInfoMixin<PrintLoopPass> {
   raw_ostream &OS;
   std::string Banner;

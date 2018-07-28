@@ -35,6 +35,10 @@ def AMDGPUFPPackOp : SDTypeProfile<1, 2,
   [SDTCisFP<1>, SDTCisSameAs<1, 2>]
 >;
 
+def AMDGPUIntPackOp : SDTypeProfile<1, 2,
+  [SDTCisInt<1>, SDTCisSameAs<1, 2>]
+>;
+
 def AMDGPUDivScaleOp : SDTypeProfile<2, 3,
   [SDTCisFP<0>, SDTCisInt<1>, SDTCisSameAs<0, 2>, SDTCisSameAs<0, 3>, SDTCisSameAs<0, 4>]
 >;
@@ -136,12 +140,18 @@ def AMDGPUrsq : SDNode<"AMDGPUISD::RSQ", SDTFPUnaryOp>;
 def AMDGPUrcp_legacy : SDNode<"AMDGPUISD::RCP_LEGACY", SDTFPUnaryOp>;
 def AMDGPUrsq_legacy : SDNode<"AMDGPUISD::RSQ_LEGACY", SDTFPUnaryOp>;
 
+def AMDGPUrcp_iflag : SDNode<"AMDGPUISD::RCP_IFLAG", SDTFPUnaryOp>;
+
 // out = 1.0 / sqrt(a) result clamped to +/- max_float.
 def AMDGPUrsq_clamp : SDNode<"AMDGPUISD::RSQ_CLAMP", SDTFPUnaryOp>;
 
 def AMDGPUldexp : SDNode<"AMDGPUISD::LDEXP", AMDGPULdExpOp>;
 
 def AMDGPUpkrtz_f16_f32 : SDNode<"AMDGPUISD::CVT_PKRTZ_F16_F32", AMDGPUFPPackOp>;
+def AMDGPUpknorm_i16_f32 : SDNode<"AMDGPUISD::CVT_PKNORM_I16_F32", AMDGPUFPPackOp>;
+def AMDGPUpknorm_u16_f32 : SDNode<"AMDGPUISD::CVT_PKNORM_U16_F32", AMDGPUFPPackOp>;
+def AMDGPUpk_i16_i32 : SDNode<"AMDGPUISD::CVT_PK_I16_I32", AMDGPUIntPackOp>;
+def AMDGPUpk_u16_u32 : SDNode<"AMDGPUISD::CVT_PK_U16_U32", AMDGPUIntPackOp>;
 def AMDGPUfp_to_f16 : SDNode<"AMDGPUISD::FP_TO_FP16" , SDTFPToIntOp>;
 def AMDGPUfp16_zext : SDNode<"AMDGPUISD::FP16_ZEXT" , SDTFPToIntOp>;
 
@@ -159,8 +169,6 @@ def AMDGPUfmax_legacy : SDNode<"AMDGPUISD::FMAX_LEGACY", SDTFPBinOp,
 def AMDGPUfmul_legacy : SDNode<"AMDGPUISD::FMUL_LEGACY", SDTFPBinOp,
   [SDNPCommutative, SDNPAssociative]
 >;
-
-def AMDGPUclamp : SDNode<"AMDGPUISD::CLAMP", SDTFPUnaryOp>;
 
 // out = min(a, b) a and b are floats, where a nan comparison fails.
 def AMDGPUfmin_legacy : SDNode<"AMDGPUISD::FMIN_LEGACY", SDTFPBinOp,
@@ -332,6 +340,13 @@ def AMDGPUumed3 : SDNode<"AMDGPUISD::UMED3", AMDGPUDTIntTernaryOp,
 >;
 
 def AMDGPUfmed3 : SDNode<"AMDGPUISD::FMED3", SDTFPTernaryOp, []>;
+
+def AMDGPUfdot2 : SDNode<"AMDGPUISD::FDOT2",
+                  SDTypeProfile<1, 3, [SDTCisSameAs<0, 3>, SDTCisSameAs<1, 2>,
+                                       SDTCisFP<0>, SDTCisVec<1>]>,
+                  []>;
+
+def AMDGPUperm : SDNode<"AMDGPUISD::PERM", AMDGPUDTIntTernaryOp, []>;
 
 def AMDGPUinit_exec : SDNode<"AMDGPUISD::INIT_EXEC",
                       SDTypeProfile<0, 1, [SDTCisInt<0>]>,

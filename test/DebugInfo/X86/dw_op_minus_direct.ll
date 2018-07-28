@@ -17,7 +17,7 @@
 
 ; CHECK: .debug_loc contents:
 ; CHECK: 0x00000000:
-; CHECK-NEXT:   0x0000000000000000 - 0x0000000000000004: DW_OP_breg0 RAX+0, DW_OP_constu 0xffffffff, DW_OP_and, DW_OP_constu 0x1, DW_OP_minus, DW_OP_stack_value
+; CHECK-NEXT:   [0x0000000000000000, 0x0000000000000004): DW_OP_breg0 RAX+0, DW_OP_constu 0xffffffff, DW_OP_and, DW_OP_constu 0x1, DW_OP_minus, DW_OP_stack_value
 ;        rax+0, constu 0xffffffff, and, constu 0x00000001, minus, stack-value
 
 source_filename = "minus.c"
@@ -46,7 +46,7 @@ attributes #1 = { nounwind readnone }
 !4 = !{i32 2, !"Debug Info Version", i32 3}
 !5 = !{i32 1, !"PIC Level", i32 2}
 !6 = !{!"clang version 4.0.0 (trunk 286322) (llvm/trunk 286305)"}
-!7 = distinct !DISubprogram(name: "inc", scope: !1, file: !1, line: 1, type: !8, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: true, unit: !0, variables: !11)
+!7 = distinct !DISubprogram(name: "inc", scope: !1, file: !1, line: 1, type: !8, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !11)
 !8 = !DISubroutineType(types: !9)
 !9 = !{!10, !10}
 !10 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)

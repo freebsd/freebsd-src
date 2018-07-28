@@ -32,6 +32,7 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   FaultMaps FM;
   std::unique_ptr<MCCodeEmitter> CodeEmitter;
   bool EmitFPOData = false;
+  bool NeedsRetpoline = false;
 
   // This utility class tracks the length of a stackmap instruction's 'shadow'.
   // It is used by the X86AsmPrinter to ensure that the stackmap shadow
@@ -94,6 +95,8 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   void LowerPATCHABLE_RET(const MachineInstr &MI, X86MCInstLower &MCIL);
   void LowerPATCHABLE_TAIL_CALL(const MachineInstr &MI, X86MCInstLower &MCIL);
   void LowerPATCHABLE_EVENT_CALL(const MachineInstr &MI, X86MCInstLower &MCIL);
+  void LowerPATCHABLE_TYPED_EVENT_CALL(const MachineInstr &MI,
+                                       X86MCInstLower &MCIL);
 
   void LowerFENTRY_CALL(const MachineInstr &MI, X86MCInstLower &MCIL);
 
@@ -126,9 +129,6 @@ public:
   bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                              unsigned AsmVariant, const char *ExtraCode,
                              raw_ostream &OS) override;
-
-  /// \brief Return the symbol for the specified constant pool entry.
-  MCSymbol *GetCPISymbol(unsigned CPID) const override;
 
   bool doInitialization(Module &M) override {
     SMShadowTracker.reset(0);

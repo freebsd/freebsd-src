@@ -9,8 +9,8 @@
 ; CHECK: DW_TAG_inlined_subroutine
 ; CHECK: DW_TAG_variable
 ; CHECK:   DW_AT_location [DW_FORM_sec_offset] ({{.*}}
-; CHECK:      0x0000000000000004 - 0x0000000000000004: DW_OP_constu 0x0, DW_OP_stack_value, DW_OP_piece 0x8
-; CHECK:      0x0000000000000004 - 0x0000000000000014: DW_OP_constu 0x0, DW_OP_stack_value, DW_OP_piece 0x4)
+; CHECK:      [0x00000004, 0x00000004): DW_OP_constu 0x0, DW_OP_stack_value, DW_OP_piece 0x8
+; CHECK:      [0x00000004, 0x00000014): DW_OP_constu 0x0, DW_OP_stack_value, DW_OP_piece 0x4)
 
 ; Created form the following test case (PR26163) with
 ; clang -cc1 -triple armv4t--freebsd11.0-gnueabi -emit-obj -debug-info-kind=standalone -O2 -x c test.c
@@ -20,26 +20,26 @@
 ; 	long long tv_sec;
 ; 	int tv_usec;
 ; };
-; 
+;
 ; void *memset(void *, int, size_t);
 ; void foo(void);
-; 
+;
 ; static void
 ; bar(int value)
 ; {
 ; 	struct timeval lifetime;
-; 
+;
 ; 	memset(&lifetime, 0, sizeof(struct timeval));
 ; 	lifetime.tv_sec = value;
-; 
+;
 ; 	foo();
 ; }
-; 
+;
 ; int
 ; parse_config_file(void)
 ; {
 ; 	int value;
-; 
+;
 ; 	bar(value);
 ; 	return (0);
 ; }
@@ -72,14 +72,14 @@ entry:
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.9.0 (https://github.com/llvm-mirror/clang 89dda3855cda574f355e6defa1d77bdae5053994) (llvm/trunk 257891)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "/home/ubuntu/bugs")
 !2 = !{}
-!4 = distinct !DISubprogram(name: "parse_config_file", scope: !5, file: !5, line: 22, type: !6, isLocal: false, isDefinition: true, scopeLine: 23, flags: DIFlagPrototyped, isOptimized: true, unit: !0, variables: !9)
+!4 = distinct !DISubprogram(name: "parse_config_file", scope: !5, file: !5, line: 22, type: !6, isLocal: false, isDefinition: true, scopeLine: 23, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !9)
 !5 = !DIFile(filename: "test.c", directory: "/home/ubuntu/bugs")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}
 !8 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
 !10 = !DILocalVariable(name: "value", scope: !4, file: !5, line: 24, type: !8)
-!11 = distinct !DISubprogram(name: "bar", scope: !5, file: !5, line: 11, type: !12, isLocal: true, isDefinition: true, scopeLine: 12, flags: DIFlagPrototyped, isOptimized: true, unit: !0, variables: !14)
+!11 = distinct !DISubprogram(name: "bar", scope: !5, file: !5, line: 11, type: !12, isLocal: true, isDefinition: true, scopeLine: 12, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !14)
 !12 = !DISubroutineType(types: !13)
 !13 = !{null, !8}
 !14 = !{!15, !16}
