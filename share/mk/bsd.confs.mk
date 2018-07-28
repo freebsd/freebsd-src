@@ -23,12 +23,12 @@ buildconfig: ${${group}}
 all: buildconfig
 .  endif
 
-.    for group in ${CONFGROUPS}
-.      if defined(${group}) && !empty(${group})
+.  for group in ${CONFGROUPS}
+.    if defined(${group}) && !empty(${group})
 
-.        if !target(afterinstallconfig)
+.      if !target(afterinstallconfig)
 afterinstallconfig:
-.        endif
+.      endif
 installconfig:	realinstallconfig afterinstallconfig
 .ORDER:		realinstallconfig afterinstallconfig
 
@@ -39,79 +39,79 @@ ${group}DIR?=	${CONFDIR}
 STAGE_SETS+=	${group:C,[/*],_,g}
 STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
 
-.        if defined(NO_ROOT)
-.          if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
-.            if defined(${${group}PACKAGE})
+.      if defined(NO_ROOT)
+.        if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
+.          if defined(${${group}PACKAGE})
 ${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
-.            else
+.          else
 ${group}TAGS+=		package=${PACKAGE:Uruntime}
-.            endif
 .          endif
+.        endif
 ${group}TAGS+=		config
 ${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
-.        endif
+.      endif
 
 
-.        if ${${group}DIR:S/^\///} == ${${group}DIR}
+.      if ${${group}DIR:S/^\///} == ${${group}DIR}
 # ${group}DIR specifies a variable that specifies a path
 DIRS+=	${${group}DIR}
 _${group}DIR=	${${group}DIR}
-.        else
+.      else
 # ${group}DIR specifies a path
 DIRS+=	${group}DIR
 _${group}DIR=	${group}DIR
-.        endif
+.      endif
 
 
-.        for cnf in ${${group}}
+.      for cnf in ${${group}}
 ${group}OWN_${cnf}?=	${${group}OWN}
 ${group}GRP_${cnf}?=	${${group}GRP}
 ${group}MODE_${cnf}?=	${${group}MODE}
 ${group}DIR_${cnf}?=	${${group}DIR}
-.          if defined(${group}NAME)
+.        if defined(${group}NAME)
 ${group}NAME_${cnf}?=	${${group}NAME}
-.          else
+.        else
 ${group}NAME_${cnf}?=	${cnf:T}
-.          endif
+.        endif
 
 
 # Determine the directory for the current file.  Default to the parent group
 # DIR, then check to see how to pass that variable on below.
 ${group}DIR_${cnf}?=	${${group}DIR}
-.          if ${${group}DIR_${cnf}:S/^\///} == ${${group}DIR_${cnf}}
+.        if ${${group}DIR_${cnf}:S/^\///} == ${${group}DIR_${cnf}}
 # DIR specifies a variable that specifies a path
 _${group}DIR_${cnf}=	${${group}DIR_${cnf}}
-.          else
+.        else
 # DIR directly specifies a path
 _${group}DIR_${cnf}=	${group}DIR_${cnf}
-.          endif
+.        endif
 ${group}PREFIX_${cnf}=	${DESTDIR}${${_${group}DIR_${cnf}}}
 
 # Append DIR to DIRS if not already in place -- DIRS is already filtered, so
 # this is primarily to ease inspection.
-.          for d in ${DIRS}
+.        for d in ${DIRS}
 _DIRS+=	${${d}}
-.          endfor
-.          if ${DIRS:M${_${group}DIR_${cnf}}} == ""
-.            if ${_DIRS:M${${_${group}DIR_${cnf}}}} == ""
+.        endfor
+.        if ${DIRS:M${_${group}DIR_${cnf}}} == ""
+.          if ${_DIRS:M${${_${group}DIR_${cnf}}}} == ""
 DIRS+=	${_${group}DIR_${cnf}}
-.            else
-_${group}DIR_${cnf}=	${group}DIR
-.            endif
-.          endif
-
-.          if defined(${group}NAME)
-${group}NAME_${cnf}?=	${${group}NAME}
 .          else
+_${group}DIR_${cnf}=	${group}DIR
+.          endif
+.        endif
+
+.        if defined(${group}NAME)
+${group}NAME_${cnf}?=	${${group}NAME}
+.        else
 ${group}NAME_${cnf}?=	${cnf:T}
-.          endif # defined(${group}NAME)
+.        endif # defined(${group}NAME)
 
 # Work around a bug with install(1) -C and /dev/null
-.          if ${cnf} == "/dev/null"
+.        if ${cnf} == "/dev/null"
 INSTALL_COPY=
-.          else
+.        else
 INSTALL_COPY=  -C
-.          endif
+.        endif
 
 STAGE_AS_SETS+= ${cnf:T}
 STAGE_AS_${cnf:T}= ${${group}NAME_${cnf:T}}
@@ -124,8 +124,7 @@ _${group}INS_${cnf:T}: ${cnf}
 	${INSTALL} ${${group}TAG_ARGS} ${INSTALL_COPY} -o ${${group}OWN_${cnf}} \
 	    -g ${${group}GRP_${cnf}} -m ${${group}MODE_${cnf}} \
 	    ${.ALLSRC} ${${group}PREFIX_${cnf}}/${${group}NAME_${cnf}}
-.        endfor # for cnf in ${${group}}
-
+.      endfor # for cnf in ${${group}}
 
 .    endif # defined(${group}) && !empty(${group})
 .  endfor
