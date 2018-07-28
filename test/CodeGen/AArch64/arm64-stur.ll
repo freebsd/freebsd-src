@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=arm64-eabi -aarch64-neon-syntax=apple -mcpu=cyclone | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi -aarch64-neon-syntax=apple -mcpu=cyclone -mattr=+slow-misaligned-128store | FileCheck %s
 %struct.X = type <{ i32, i64, i64 }>
 
 define void @foo1(i32* %p, i64 %val) nounwind {
@@ -55,11 +55,11 @@ define void @foo(%struct.X* nocapture %p) nounwind optsize ssp {
 ; CHECK-NEXT: ret
   %B = getelementptr inbounds %struct.X, %struct.X* %p, i64 0, i32 1
   %val = bitcast i64* %B to i8*
-  call void @llvm.memset.p0i8.i64(i8* %val, i8 0, i64 16, i32 1, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* %val, i8 0, i64 16, i1 false)
   ret void
 }
 
-declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i1) nounwind
 
 ; Unaligned 16b stores are split into 8b stores for performance.
 ; radar://15424193

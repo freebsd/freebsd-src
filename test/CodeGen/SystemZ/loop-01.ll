@@ -39,7 +39,7 @@ entry:
 loop:
   %count = phi i32 [ 0, %entry ], [ %next, %loop.next ]
   %next = add i32 %count, 1
-  %val = load volatile i32 , i32 *%src
+  %val = load volatile i32, i32 *%src
   %cmp = icmp eq i32 %val, 0
   br i1 %cmp, label %loop.next, label %loop.store
 
@@ -69,7 +69,7 @@ entry:
 loop:
   %count = phi i64 [ 0, %entry ], [ %next, %loop.next ]
   %next = add i64 %count, 1
-  %val = load volatile i64 , i64 *%src
+  %val = load volatile i64, i64 *%src
   %cmp = icmp eq i64 %val, 0
   br i1 %cmp, label %loop.next, label %loop.store
 
@@ -102,7 +102,7 @@ entry:
 loop:
   %left = phi i64 [ %count, %entry ], [ %next, %loop.next ]
   store volatile i64 %left, i64 *%dest2
-  %val = load volatile i32 , i32 *%src
+  %val = load volatile i32, i32 *%src
   %cmp = icmp eq i32 %val, 0
   br i1 %cmp, label %loop.next, label %loop.store
 
@@ -246,7 +246,7 @@ for.body:                           ; preds = %for.body.preheader, %for.body
 %2 = type <{ %3, i32, [4 x i8] }>
 %3 = type { i16*, i16*, i16* }
 
-declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture writeonly, i8* nocapture readonly, i64, i32, i1) #0
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture writeonly, i8* nocapture readonly, i64, i1) #0
 
 define void @f8() {
 ; CHECK-Z13-LABEL: f8:
@@ -274,22 +274,22 @@ bb5:                                              ; preds = %bb5, %bb2
   %tmp9 = getelementptr inbounds %0, %0* %tmp6, i64 -1
   %tmp10 = bitcast %0* %tmp9 to i8*
   %tmp11 = bitcast %0* %tmp8 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* %tmp10, i8* %tmp11, i64 24, i32 8, i1 false)
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %tmp10, i8* align 8 %tmp11, i64 24, i1 false)
   %tmp12 = getelementptr inbounds %0, %0* %tmp7, i64 -2
   %tmp13 = getelementptr inbounds %0, %0* %tmp6, i64 -2
   %tmp14 = bitcast %0* %tmp13 to i8*
   %tmp15 = bitcast %0* %tmp12 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* %tmp14, i8* %tmp15, i64 24, i32 8, i1 false)
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %tmp14, i8* align 8 %tmp15, i64 24, i1 false)
   %tmp16 = getelementptr inbounds %0, %0* %tmp7, i64 -3
   %tmp17 = getelementptr inbounds %0, %0* %tmp6, i64 -3
   %tmp18 = bitcast %0* %tmp17 to i8*
   %tmp19 = bitcast %0* %tmp16 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* %tmp18, i8* %tmp19, i64 24, i32 8, i1 false)
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %tmp18, i8* align 8 %tmp19, i64 24, i1 false)
   %tmp20 = getelementptr inbounds %0, %0* %tmp7, i64 -4
   %tmp21 = getelementptr inbounds %0, %0* %tmp6, i64 -4
   %tmp22 = bitcast %0* %tmp21 to i8*
   %tmp23 = bitcast %0* %tmp20 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* %tmp22, i8* %tmp23, i64 24, i32 8, i1 false)
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %tmp22, i8* align 8 %tmp23, i64 24, i1 false)
   br label %bb5
 }
 

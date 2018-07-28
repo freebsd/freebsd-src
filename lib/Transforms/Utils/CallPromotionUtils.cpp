@@ -47,14 +47,11 @@ using namespace llvm;
 ///
 static void fixupPHINodeForNormalDest(InvokeInst *Invoke, BasicBlock *OrigBlock,
                                       BasicBlock *MergeBlock) {
-  for (auto &I : *Invoke->getNormalDest()) {
-    auto *Phi = dyn_cast<PHINode>(&I);
-    if (!Phi)
-      break;
-    int Idx = Phi->getBasicBlockIndex(OrigBlock);
+  for (PHINode &Phi : Invoke->getNormalDest()->phis()) {
+    int Idx = Phi.getBasicBlockIndex(OrigBlock);
     if (Idx == -1)
       continue;
-    Phi->setIncomingBlock(Idx, MergeBlock);
+    Phi.setIncomingBlock(Idx, MergeBlock);
   }
 }
 
@@ -82,16 +79,13 @@ static void fixupPHINodeForNormalDest(InvokeInst *Invoke, BasicBlock *OrigBlock,
 static void fixupPHINodeForUnwindDest(InvokeInst *Invoke, BasicBlock *OrigBlock,
                                       BasicBlock *ThenBlock,
                                       BasicBlock *ElseBlock) {
-  for (auto &I : *Invoke->getUnwindDest()) {
-    auto *Phi = dyn_cast<PHINode>(&I);
-    if (!Phi)
-      break;
-    int Idx = Phi->getBasicBlockIndex(OrigBlock);
+  for (PHINode &Phi : Invoke->getUnwindDest()->phis()) {
+    int Idx = Phi.getBasicBlockIndex(OrigBlock);
     if (Idx == -1)
       continue;
-    auto *V = Phi->getIncomingValue(Idx);
-    Phi->setIncomingBlock(Idx, ThenBlock);
-    Phi->addIncoming(V, ElseBlock);
+    auto *V = Phi.getIncomingValue(Idx);
+    Phi.setIncomingBlock(Idx, ThenBlock);
+    Phi.addIncoming(V, ElseBlock);
   }
 }
 
@@ -395,12 +389,14 @@ Instruction *llvm::promoteCall(CallSite CS, Function *Callee,
   // Inspect the arguments of the call site. If an argument's type doesn't
   // match the corresponding formal argument's type in the callee, bitcast it
   // to the correct type.
-  for (Use &U : CS.args()) {
-    unsigned ArgNo = CS.getArgumentNo(&U);
-    Type *FormalTy = Callee->getFunctionType()->getParamType(ArgNo);
-    Type *ActualTy = U.get()->getType();
+  auto CalleeType = Callee->getFunctionType();
+  auto CalleeParamNum = CalleeType->getNumParams();
+  for (unsigned ArgNo = 0; ArgNo < CalleeParamNum; ++ArgNo) {
+    auto *Arg = CS.getArgument(ArgNo); 
+    Type *FormalTy = CalleeType->getParamType(ArgNo);
+    Type *ActualTy = Arg->getType();
     if (FormalTy != ActualTy) {
-      auto *Cast = CastInst::Create(Instruction::BitCast, U.get(), FormalTy, "",
+      auto *Cast = CastInst::Create(Instruction::BitCast, Arg, FormalTy, "",
                                     CS.getInstruction());
       CS.setArgument(ArgNo, Cast);
     }

@@ -17,16 +17,58 @@
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/TypeBuilder.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "gtest/gtest.h"
+
 #include <memory>
 
 namespace llvm {
+
+namespace orc {
+// CoreAPIsStandardTest that saves a bunch of boilerplate by providing the
+// following:
+//
+// (1) ES -- An ExecutionSession
+// (2) Foo, Bar, Baz, Qux -- SymbolStringPtrs for strings "foo", "bar", "baz",
+//     and "qux" respectively.
+// (3) FooAddr, BarAddr, BazAddr, QuxAddr -- Dummy addresses. Guaranteed
+//     distinct and non-null.
+// (4) FooSym, BarSym, BazSym, QuxSym -- JITEvaluatedSymbols with FooAddr,
+//     BarAddr, BazAddr, and QuxAddr respectively. All with default strong,
+//     linkage and non-hidden visibility.
+// (5) V -- A VSO associated with ES.
+class CoreAPIsBasedStandardTest : public testing::Test {
+public:
+protected:
+  ExecutionSession ES;
+  VSO &V = ES.createVSO("V");
+  SymbolStringPtr Foo = ES.getSymbolStringPool().intern("foo");
+  SymbolStringPtr Bar = ES.getSymbolStringPool().intern("bar");
+  SymbolStringPtr Baz = ES.getSymbolStringPool().intern("baz");
+  SymbolStringPtr Qux = ES.getSymbolStringPool().intern("qux");
+  static const JITTargetAddress FooAddr = 1U;
+  static const JITTargetAddress BarAddr = 2U;
+  static const JITTargetAddress BazAddr = 3U;
+  static const JITTargetAddress QuxAddr = 4U;
+  JITEvaluatedSymbol FooSym =
+      JITEvaluatedSymbol(FooAddr, JITSymbolFlags::Exported);
+  JITEvaluatedSymbol BarSym =
+      JITEvaluatedSymbol(BarAddr, JITSymbolFlags::Exported);
+  JITEvaluatedSymbol BazSym =
+      JITEvaluatedSymbol(BazAddr, JITSymbolFlags::Exported);
+  JITEvaluatedSymbol QuxSym =
+      JITEvaluatedSymbol(QuxAddr, JITSymbolFlags::Exported);
+};
+
+} // end namespace orc
 
 class OrcNativeTarget {
 public:
@@ -59,15 +101,26 @@ public:
       // If we found a TargetMachine, check that it's one that Orc supports.
       const Triple& TT = TM->getTargetTriple();
 
+      // Bail out for windows platforms. We do not support these yet.
       if ((TT.getArch() != Triple::x86_64 && TT.getArch() != Triple::x86) ||
-          TT.isOSWindows())
-        TM = nullptr;
+           TT.isOSWindows())
+        return;
+
+      // Target can JIT?
+      SupportsJIT = TM->getTarget().hasJIT();
+      // Use ability to create callback manager to detect whether Orc
+      // has indirection support on this platform. This way the test
+      // and Orc code do not get out of sync.
+      SupportsIndirection = !!orc::createLocalCompileCallbackManager(TT, ES, 0);
     }
   };
 
 protected:
+  orc::ExecutionSession ES;
   LLVMContext Context;
   std::unique_ptr<TargetMachine> TM;
+  bool SupportsJIT = false;
+  bool SupportsIndirection = false;
 };
 
 class ModuleBuilder {

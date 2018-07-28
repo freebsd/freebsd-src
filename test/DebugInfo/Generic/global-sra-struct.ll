@@ -24,7 +24,7 @@ target triple = "x86_64-apple-macosx10.12.0"
 
 ; CHECK: ![[EL0]] = !DIGlobalVariableExpression(var: ![[VAR:.*]], expr: !DIExpression(DW_OP_LLVM_fragment, 0, 32))
 ; CHECK: ![[VAR]] = distinct !DIGlobalVariable(name: "static_struct"
-; CHECK: ![[EL1]] = !DIGlobalVariableExpression(var: ![[VAR]], expr: !DIExpression(DW_OP_LLVM_fragment, 32, 64))
+; CHECK: ![[EL1]] = !DIGlobalVariableExpression(var: ![[VAR]], expr: !DIExpression(DW_OP_LLVM_fragment, 64, 64))
 
 @static_struct = internal global %struct.mystruct zeroinitializer, align 8, !dbg !0
 
@@ -104,7 +104,7 @@ attributes #2 = { optsize }
 !21 = !{!"Simple C/C++ TBAA"}
 !22 = !{!"long long", !20, i64 0}
 !23 = !{!18, !22, i64 8}
-!24 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 7, type: !25, isLocal: false, isDefinition: true, scopeLine: 8, flags: DIFlagPrototyped, isOptimized: true, unit: !2, variables: !30)
+!24 = distinct !DISubprogram(name: "main", scope: !3, file: !3, line: 7, type: !25, isLocal: false, isDefinition: true, scopeLine: 8, flags: DIFlagPrototyped, isOptimized: true, unit: !2, retainedNodes: !30)
 !25 = !DISubroutineType(types: !26)
 !26 = !{!9, !9, !27}
 !27 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !28, size: 64)

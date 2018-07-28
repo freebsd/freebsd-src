@@ -35,6 +35,15 @@ OPTIONS
  Produce a flat dSYM file. A ``.dwarf`` extension will be appended to the
  executable name unless the output file is specified using the -o option.
 
+
+.. option:: -z, --minimize
+
+ When used when creating a dSYM file, this option will suppress the emission of
+ the .debug_inlines, .debug_pubnames, and .debug_pubtypes sections since
+ dsymutil currently has better equivalents: .apple_names and .apple_types. When
+ used in conjunction with --update option, this option will cause redundant
+ accelerator tables to be removed.
+
 .. option:: --no-odr
 
  Do not use ODR (One Definition Rule) for uniquing C++ types.
@@ -61,9 +70,26 @@ OPTIONS
 
  Specifies a ``path`` to prepend to all debug symbol object file paths.
 
+.. option:: --papertrail
+
+ When running dsymutil as part of your build system, it can be desirable for
+ warnings to be part of the end product, rather than just being emitted to the
+ output stream. When enabled warnings are embedded in the linked DWARF debug
+ information.
+
 .. option:: -s, --symtab
 
  Dumps the symbol table found in *executable* or object file(s) and exits.
+
+.. option:: --toolchain
+
+ Embed the toolchain in the dSYM bundle's property list.
+
+.. option:: -u, --update
+
+ Update an existing dSYM file to contain the latest accelerator tables and
+ other DWARF optimizations. This option will rebuild the '.apple_names' and
+ '.apple_types' hashed accelerator tables.
 
 .. option:: -v, --verbose
 

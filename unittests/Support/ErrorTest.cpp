@@ -32,7 +32,7 @@ public:
 
   // Log this error to a stream.
   void log(raw_ostream &OS) const override {
-    OS << "CustomError { " << getInfo() << "}";
+    OS << "CustomError {" << getInfo() << "}";
   }
 
   std::error_code convertToErrorCode() const override {
@@ -443,6 +443,29 @@ TEST(Error, StringError) {
     << "Failed to convert StringError to error_code.";
 }
 
+TEST(Error, createStringError) {
+  static const char *Bar = "bar";
+  static const std::error_code EC = errc::invalid_argument;
+  std::string Msg;
+  raw_string_ostream S(Msg);
+  logAllUnhandledErrors(createStringError(EC, "foo%s%d0x%" PRIx8, Bar, 1, 0xff),
+                        S, "");
+  EXPECT_EQ(S.str(), "foobar10xff\n")
+    << "Unexpected createStringError() log result";
+
+  S.flush();
+  Msg.clear();
+  logAllUnhandledErrors(createStringError(EC, Bar), S, "");
+  EXPECT_EQ(S.str(), "bar\n")
+    << "Unexpected createStringError() (overloaded) log result";
+
+  S.flush();
+  Msg.clear();
+  auto Res = errorToErrorCode(createStringError(EC, "foo%s", Bar));
+  EXPECT_EQ(Res, EC)
+    << "Failed to convert createStringError() result to error_code.";
+}
+
 // Test that the ExitOnError utility works as expected.
 TEST(Error, ExitOnError) {
   ExitOnError ExitOnErr;
@@ -702,35 +725,79 @@ TEST(Error, ErrorMessage) {
   EXPECT_EQ(toString(Error::success()).compare(""), 0);
 
   Error E1 = make_error<CustomError>(0);
-  EXPECT_EQ(toString(std::move(E1)).compare("CustomError { 0}"), 0);
+  EXPECT_EQ(toString(std::move(E1)).compare("CustomError {0}"), 0);
 
   Error E2 = make_error<CustomError>(0);
   handleAllErrors(std::move(E2), [](const CustomError &CE) {
-    EXPECT_EQ(CE.message().compare("CustomError { 0}"), 0);
+    EXPECT_EQ(CE.message().compare("CustomError {0}"), 0);
   });
 
   Error E3 = joinErrors(make_error<CustomError>(0), make_error<CustomError>(1));
   EXPECT_EQ(toString(std::move(E3))
-                .compare("CustomError { 0}\n"
-                         "CustomError { 1}"),
+                .compare("CustomError {0}\n"
+                         "CustomError {1}"),
             0);
+}
+
+TEST(Error, Stream) {
+  {
+    Error OK = Error::success();
+    std::string Buf;
+    llvm::raw_string_ostream S(Buf);
+    S << OK;
+    EXPECT_EQ("success", S.str());
+    consumeError(std::move(OK));
+  }
+  {
+    Error E1 = make_error<CustomError>(0);
+    std::string Buf;
+    llvm::raw_string_ostream S(Buf);
+    S << E1;
+    EXPECT_EQ("CustomError {0}", S.str());
+    consumeError(std::move(E1));
+  }
 }
 
 TEST(Error, ErrorMatchers) {
   EXPECT_THAT_ERROR(Error::success(), Succeeded());
   EXPECT_NONFATAL_FAILURE(
       EXPECT_THAT_ERROR(make_error<CustomError>(0), Succeeded()),
-      "Expected: succeeded\n  Actual: failed  (CustomError { 0})");
+      "Expected: succeeded\n  Actual: failed  (CustomError {0})");
 
   EXPECT_THAT_ERROR(make_error<CustomError>(0), Failed());
   EXPECT_NONFATAL_FAILURE(EXPECT_THAT_ERROR(Error::success(), Failed()),
                           "Expected: failed\n  Actual: succeeded");
 
+  EXPECT_THAT_ERROR(make_error<CustomError>(0), Failed<CustomError>());
+  EXPECT_NONFATAL_FAILURE(
+      EXPECT_THAT_ERROR(Error::success(), Failed<CustomError>()),
+      "Expected: failed with Error of given type\n  Actual: succeeded");
+  EXPECT_NONFATAL_FAILURE(
+      EXPECT_THAT_ERROR(make_error<CustomError>(0), Failed<CustomSubError>()),
+      "Error was not of given type");
+  EXPECT_NONFATAL_FAILURE(
+      EXPECT_THAT_ERROR(
+          joinErrors(make_error<CustomError>(0), make_error<CustomError>(1)),
+          Failed<CustomError>()),
+      "multiple errors");
+
+  EXPECT_THAT_ERROR(
+      make_error<CustomError>(0),
+      Failed<CustomError>(testing::Property(&CustomError::getInfo, 0)));
+  EXPECT_NONFATAL_FAILURE(
+      EXPECT_THAT_ERROR(
+          make_error<CustomError>(0),
+          Failed<CustomError>(testing::Property(&CustomError::getInfo, 1))),
+      "Expected: failed with Error of given type and the error is an object "
+      "whose given property is equal to 1\n"
+      "  Actual: failed  (CustomError {0})");
+  EXPECT_THAT_ERROR(make_error<CustomError>(0), Failed<ErrorInfoBase>());
+
   EXPECT_THAT_EXPECTED(Expected<int>(0), Succeeded());
   EXPECT_NONFATAL_FAILURE(
       EXPECT_THAT_EXPECTED(Expected<int>(make_error<CustomError>(0)),
                            Succeeded()),
-      "Expected: succeeded\n  Actual: failed  (CustomError { 0})");
+      "Expected: succeeded\n  Actual: failed  (CustomError {0})");
 
   EXPECT_THAT_EXPECTED(Expected<int>(make_error<CustomError>(0)), Failed());
   EXPECT_NONFATAL_FAILURE(
@@ -742,7 +809,7 @@ TEST(Error, ErrorMatchers) {
       EXPECT_THAT_EXPECTED(Expected<int>(make_error<CustomError>(0)),
                            HasValue(0)),
       "Expected: succeeded with value (is equal to 0)\n"
-      "  Actual: failed  (CustomError { 0})");
+      "  Actual: failed  (CustomError {0})");
   EXPECT_NONFATAL_FAILURE(
       EXPECT_THAT_EXPECTED(Expected<int>(1), HasValue(0)),
       "Expected: succeeded with value (is equal to 0)\n"
@@ -762,7 +829,7 @@ TEST(Error, ErrorMatchers) {
       EXPECT_THAT_EXPECTED(Expected<int>(make_error<CustomError>(0)),
                            HasValue(testing::Gt(1))),
       "Expected: succeeded with value (is > 1)\n"
-      "  Actual: failed  (CustomError { 0})");
+      "  Actual: failed  (CustomError {0})");
 }
 
 } // end anon namespace

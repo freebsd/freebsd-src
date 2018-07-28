@@ -147,11 +147,9 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   if (isa<PHINode>(BB->begin())) {
     SmallDenseMap<BasicBlock *, Value *, 8> ValueMapping(PredValues.begin(),
                                                          PredValues.end());
-    PHINode *SomePHI;
-    for (BasicBlock::iterator It = BB->begin();
-         (SomePHI = dyn_cast<PHINode>(It)); ++It) {
-      if (IsEquivalentPHI(SomePHI, ValueMapping))
-        return SomePHI;
+    for (PHINode &SomePHI : BB->phis()) {
+      if (IsEquivalentPHI(&SomePHI, ValueMapping))
+        return &SomePHI;
     }
   }
 
@@ -180,7 +178,7 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   // If the client wants to know about all new instructions, tell it.
   if (InsertedPHIs) InsertedPHIs->push_back(InsertedPHI);
 
-  DEBUG(dbgs() << "  Inserted PHI: " << *InsertedPHI << "\n");
+  LLVM_DEBUG(dbgs() << "  Inserted PHI: " << *InsertedPHI << "\n");
   return InsertedPHI;
 }
 

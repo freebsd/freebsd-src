@@ -5,6 +5,9 @@
 ; RUN: llc -split-dwarf-file=foo.dwo -O0 %s -mtriple=x86_64-unknown-linux-gnu -filetype=obj -o %t
 ; RUN: llvm-dwarfdump -debug-abbrev %t | FileCheck --check-prefix=NO-FUNCTION-SECTIONS %s
 
+; RUN: llc -dwarf-version=5 -O0 %s -mtriple=x86_64-unknown-linux-gnu -filetype=obj -o %t
+; RUN: llvm-dwarfdump -v %t | FileCheck --check-prefix=DWARF5 %s
+
 ; From:
 ; int foo (int a) {
 ;   return a+1;
@@ -23,6 +26,14 @@
 ; NO-FUNCTION-SECTIONS-NOT: DW_AT_ranges
 ; NO-FUNCTION-SECTIONS: DW_AT_low_pc DW_FORM_addr
 ; NO-FUNCTION-SECTIONS-NOT: DW_AT_ranges
+
+; For Dwarf 5 check that we neither generate DW_AT_rnglists_base for the CU DIE nor 
+; a .debug_rnglists section. There is only 1 CU range with no scope ranges.
+;
+; DWARF5:     .debug_info contents:
+; DWARF5:     DW_TAG_compile_unit
+; DWARF5-NOT: DW_AT_rnglists_base [DW_FORM_sec_offset]   
+; DWARF5-NOT: .debug_rnglists contents:
 
 ; Function Attrs: nounwind uwtable
 define i32 @foo(i32 %a) #0 !dbg !4 {
@@ -59,12 +70,12 @@ attributes #1 = { nounwind readnone }
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 (trunk 204164) (llvm/trunk 204183)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
 !1 = !DIFile(filename: "z.c", directory: "/usr/local/google/home/echristo")
 !2 = !{}
-!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, retainedNodes: !2)
 !5 = !DIFile(filename: "z.c", directory: "/usr/local/google/home/echristo")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!9 = distinct !DISubprogram(name: "bar", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 2, file: !1, scope: !5, type: !6, variables: !2)
+!9 = distinct !DISubprogram(name: "bar", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 2, file: !1, scope: !5, type: !6, retainedNodes: !2)
 !10 = !{i32 2, !"Dwarf Version", i32 4}
 !11 = !{i32 1, !"Debug Info Version", i32 3}
 !12 = !{!"clang version 3.5.0 (trunk 204164) (llvm/trunk 204183)"}

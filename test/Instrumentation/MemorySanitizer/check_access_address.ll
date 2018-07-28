@@ -13,7 +13,7 @@ entry:
 }
 
 ; CHECK-LABEL: @ByValArgumentShadowLargeAlignment
-; CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* {{.*}}, i8* {{.*}}, i64 16, i32 8, i1 false)
+; CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 {{.*}}, i8* align 8 {{.*}}, i64 16, i1 false)
 ; CHECK: ret <2 x i64>
 
 
@@ -24,7 +24,7 @@ entry:
 }
 
 ; CHECK-LABEL: @ByValArgumentShadowSmallAlignment
-; CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* {{.*}}, i8* {{.*}}, i64 2, i32 2, i1 false)
+; CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 2 {{.*}}, i8* align 2 {{.*}}, i64 2, i1 false)
 ; CHECK: ret i16
 
 
@@ -38,11 +38,14 @@ entry:
 
 ; CHECK-LABEL: @Store
 ; CHECK: load {{.*}} @__msan_param_tls
+; Shadow calculations must happen after the check.
+; CHECK-NOT: xor
 ; CHECK: icmp
 ; CHECK: br i1
 ; CHECK: <label>
 ; CHECK: call void @__msan_warning_noreturn
 ; CHECK: <label>
+; CHECK: xor
 ; CHECK: store
 ; CHECK: store i32 %x
 ; CHECK: ret void

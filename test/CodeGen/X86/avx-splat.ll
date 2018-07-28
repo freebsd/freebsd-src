@@ -15,8 +15,8 @@ entry:
 define <16 x i16> @funcB(<16 x i16> %a) nounwind uwtable readnone ssp {
 ; CHECK-LABEL: funcB:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    vpshufhw {{.*#+}} xmm0 = xmm0[0,1,2,3,5,5,5,5]
-; CHECK-NEXT:    vpshufd {{.*#+}} xmm0 = xmm0[2,2,3,3]
+; CHECK-NEXT:    vpshufhw {{.*#+}} xmm0 = xmm0[0,1,2,3,5,5,6,7]
+; CHECK-NEXT:    vpshufd {{.*#+}} xmm0 = xmm0[2,2,2,2]
 ; CHECK-NEXT:    vinsertf128 $1, %xmm0, %ymm0, %ymm0
 ; CHECK-NEXT:    retq
 entry:
@@ -58,10 +58,10 @@ entry:
 ;
 define <8 x float> @funcE() nounwind {
 ; CHECK-LABEL: funcE:
-; CHECK:       # %bb.0: # %for_exit499
+; CHECK:       # %bb.0: # %allocas
 ; CHECK-NEXT:    xorl %eax, %eax
 ; CHECK-NEXT:    testb %al, %al
-; CHECK-NEXT:    # implicit-def: %ymm0
+; CHECK-NEXT:    # implicit-def: $ymm0
 ; CHECK-NEXT:    jne .LBB4_2
 ; CHECK-NEXT:  # %bb.1: # %load.i1247
 ; CHECK-NEXT:    pushq %rbp

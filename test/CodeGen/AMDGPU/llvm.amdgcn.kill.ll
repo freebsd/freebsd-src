@@ -234,6 +234,43 @@ define amdgpu_ps void @wqm(float %a) {
   ret void
 }
 
+; This checks that we use the 64-bit encoding when the operand is a SGPR.
+; SI-LABEL: {{^}}test_sgpr:
+; SI: v_cmpx_ge_f32_e64
+define amdgpu_ps void @test_sgpr(float inreg %a) #0 {
+  %c = fcmp ole float %a, 1.000000e+00
+  call void @llvm.amdgcn.kill(i1 %c) #1
+  ret void
+}
+
+; SI-LABEL: {{^}}test_non_inline_imm_sgpr:
+; SI-NOT: v_cmpx_ge_f32_e64
+define amdgpu_ps void @test_non_inline_imm_sgpr(float inreg %a) #0 {
+  %c = fcmp ole float %a, 1.500000e+00
+  call void @llvm.amdgcn.kill(i1 %c) #1
+  ret void
+}
+
+; SI-LABEL: {{^}}test_scc_liveness:
+; SI: v_cmp
+; SI: s_and_b64 exec
+; SI: s_cmp
+; SI: s_cbranch_scc
+define amdgpu_ps void @test_scc_liveness() #0 {
+main_body:
+  br label %loop3
+
+loop3:                                            ; preds = %loop3, %main_body
+  %tmp = phi i32 [ 0, %main_body ], [ %tmp5, %loop3 ]
+  %tmp1 = icmp sgt i32 %tmp, 0
+  call void @llvm.amdgcn.kill(i1 %tmp1) #1
+  %tmp5 = add i32 %tmp, 1
+  br i1 %tmp1, label %endloop15, label %loop3
+
+endloop15:                                        ; preds = %loop3
+  ret void
+}
+
 declare void @llvm.amdgcn.kill(i1) #0
 declare void @llvm.amdgcn.exp.f32(i32, i32, float, float, float, float, i1, i1) #0
 declare i1 @llvm.amdgcn.wqm.vote(i1)

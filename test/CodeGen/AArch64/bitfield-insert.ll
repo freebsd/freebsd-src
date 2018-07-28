@@ -137,7 +137,7 @@ define void @test_32bit_complexmask(i32 *%existing, i32 *%new) {
   ret void
 }
 
-; Neither mask is is a contiguous set of 1s. BFI can't be used
+; Neither mask is a contiguous set of 1s. BFI can't be used
 define void @test_32bit_badmask(i32 *%existing, i32 *%new) {
 ; CHECK-LABEL: test_32bit_badmask:
 ; CHECK-NOT: bfi
@@ -479,4 +479,21 @@ define i32 @test9(i64 %b, i32 %e) {
   %g = and i32 %e, -8388608
   %h = or i32 %g, %f
   ret i32 %h
+}
+
+; CHECK-LABEL: test_complex_type:
+; CHECK: ldr d0, [x0], #8
+; CHECK: orr [[BOTH:x[0-9]+]], x0, x1, lsl #32
+; CHECK: str [[BOTH]], [x2]
+define <2 x i32> @test_complex_type(<2 x i32>* %addr, i64 %in, i64* %bf ) {
+  %vec = load <2 x i32>, <2 x i32>* %addr
+
+  %vec.next = getelementptr <2 x i32>, <2 x i32>* %addr, i32 1
+  %lo = ptrtoint <2 x i32>* %vec.next to i64
+
+  %hi = shl i64 %in, 32
+  %both = or i64 %lo, %hi
+  store i64 %both, i64* %bf
+
+  ret <2 x i32> %vec
 }

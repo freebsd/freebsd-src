@@ -36,9 +36,17 @@ if( LLVM_USE_INTEL_JITEVENTS )
     )
 endif( LLVM_USE_INTEL_JITEVENTS )
 
+if( LLVM_USE_PERF )
+  set(LLVM_LINK_COMPONENTS
+    ${LLVM_LINK_COMPONENTS}
+    DebugInfoDWARF
+    PerfJITEvents
+    Object
+    )
+endif( LLVM_USE_PERF )
+
 add_llvm_tool(lli
   lli.cpp
-  OrcLazyJIT.cpp
 
   DEPENDS
   intrinsics_gen
