@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -verify -fopenmp -fopenmp-version=45 -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -fopenmp-version=45 -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -fopenmp-version=45 -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -fopenmp-version=45 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-version=45 -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-version=45 -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -65,7 +69,7 @@ T tmain(T argc, T *argv) {
 // CHECK: template <typename T, int C> T tmain(T argc, T *argv) {
 // CHECK-NEXT: T i, j, b, c, d, e, x[20];
 // CHECK-NEXT: i = argc;
-// CHECK-NEXT: #pragma omp target enter data map(to: i)
+// CHECK-NEXT: #pragma omp target enter data map(to: i){{$}}
 // CHECK-NEXT: #pragma omp target enter data map(to: i) if(target enter data: j > 0)
 // CHECK-NEXT: #pragma omp target enter data map(to: i) if(b)
 // CHECK-NEXT: #pragma omp target enter data map(to: c)

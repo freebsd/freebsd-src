@@ -9,6 +9,16 @@
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o %t %s
 // RUN: %clang_cc1 -fopenmp -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix TCHECK --check-prefix TCHECK-32
 
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm-bc %s -o %t-ppc-host.bc
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm-bc %s -o %t-x86-host.bc
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
+
 // expected-no-diagnostics
 #ifndef HEADER
 #define HEADER
@@ -35,28 +45,28 @@ int foo(int n) {
   {
   }
 
-  // TCHECK:  define void @__omp_offloading_{{.+}}()
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}()
   // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}},
   // TCHECK-NOT: store {{.+}}, {{.+}} [[A]],
-  // TCHECK:  ret void  
+  // TCHECK:  ret void
 
 #pragma omp target private(a)
   {
     a = 1;
   }
 
-  // TCHECK:  define void @__omp_offloading_{{.+}}()
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}()
   // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}},
   // TCHECK:  store i{{[0-9]+}} 1, i{{[0-9]+}}* [[A]],
   // TCHECK:  ret void
-  
-  #pragma omp target private(a, aa)
+
+#pragma omp target private(a, aa)
   {
     a = 1;
     aa = 1;
   }
 
-  // TCHECK:  define void @__omp_offloading_{{.+}}()
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}()
   // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}},
   // TCHECK:  [[A2:%.+]] = alloca i{{[0-9]+}},
   // TCHECK:  store i{{[0-9]+}} 1, i{{[0-9]+}}* [[A]],
@@ -75,7 +85,7 @@ int foo(int n) {
   }
   // make sure that private variables are generated in all cases and that we use those instances for operations inside the
   // target region
-  // TCHECK:  define void @__omp_offloading_{{.+}}(i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]], i{{[0-9]+}} [[VLA3:%.+]])
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}(i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]], i{{[0-9]+}} [[VLA3:%.+]])
   // TCHECK:  [[VLA_ADDR:%.+]] = alloca i{{[0-9]+}},
   // TCHECK:  [[VLA_ADDR2:%.+]] = alloca i{{[0-9]+}},
   // TCHECK:  [[VLA_ADDR4:%.+]] = alloca i{{[0-9]+}},
@@ -102,7 +112,7 @@ int foo(int n) {
   // b[2] = 1.0
   // TCHECK:  [[B_GEP:%.+]] = getelementptr inbounds [10 x float], [10 x float]* [[B]], i{{[0-9]+}} 0, i{{[0-9]+}} 2
   // TCHECK:  store float 1.0{{.*}}, float* [[B_GEP]],
-  
+
   // bn[3] = 1.0
   // TCHECK:  [[BN_GEP:%.+]] = getelementptr inbounds float, float* [[VLA5]], i{{[0-9]+}} 3
   // TCHECK:  store float 1.0{{.*}}, float* [[BN_GEP]],
@@ -121,7 +131,7 @@ int foo(int n) {
   // d.X = 1
   // [[X_FIELD:%.+]] = getelementptr inbounds [[TT]] [[TT]]* [[D]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
   // store i{{[0-9]+}} 1, i{{[0-9]+}}* [[X_FIELD]],
-  
+
   // d.Y = 1
   // [[Y_FIELD:%.+]] = getelementptr inbounds [[TT]] [[TT]]* [[D]], i{{[0-9]+}} 0, i{{[0-9]+}} 1
   // store i{{[0-9]+}} 1, i{{[0-9]+}}* [[Y_FIELD]],
@@ -169,7 +179,7 @@ int fstatic(int n) {
   return a;
 }
 
-// TCHECK: define void @__omp_offloading_{{.+}}()
+// TCHECK: define weak void @__omp_offloading_{{.+}}()
 // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}},
 // TCHECK:  [[A2:%.+]] = alloca i{{[0-9]+}},
 // TCHECK:  [[A3:%.+]] = alloca i{{[0-9]+}},
@@ -197,7 +207,7 @@ struct S1 {
     return c[1][1] + (int)b;
   }
 
-  // TCHECK: define void @__omp_offloading_{{.+}}([[S1]]* [[TH:%.+]], i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]])
+  // TCHECK: define weak void @__omp_offloading_{{.+}}([[S1]]* [[TH:%.+]], i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]])
   // TCHECK: [[TH_ADDR:%.+]] = alloca [[S1]]*,
   // TCHECK: [[VLA_ADDR:%.+]] = alloca i{{[0-9]+}},
   // TCHECK: [[VLA_ADDR2:%.+]] = alloca i{{[0-9]+}},
@@ -251,7 +261,7 @@ int bar(int n){
 }
 
 // template
-// TCHECK: define void @__omp_offloading_{{.+}}()
+// TCHECK: define weak void @__omp_offloading_{{.+}}()
 // TCHECK: [[A:%.+]] = alloca i{{[0-9]+}},
 // TCHECK: [[A2:%.+]] = alloca i{{[0-9]+}},
 // TCHECK: [[B:%.+]] = alloca [10 x i{{[0-9]+}}],

@@ -1,4 +1,4 @@
-//===--- CheckerManager.h - Static Analyzer Checker Manager -----*- C++ -*-===//
+//===- CheckerManager.h - Static Analyzer Checker Manager -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,51 +16,62 @@
 
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/Basic/LangOptions.h"
-#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState_Fwd.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
-#include <utility>
+#include "llvm/ADT/StringRef.h"
 #include <vector>
 
 namespace clang {
-  class Decl;
-  class Stmt;
-  class CallExpr;
+
+class AnalyzerOptions;
+class CallExpr;
+class CXXNewExpr;
+class Decl;
+class LocationContext;
+class Stmt;
+class TranslationUnitDecl;
 
 namespace ento {
-  class CheckerBase;
-  class CheckerRegistry;
-  class ExprEngine;
-  class AnalysisManager;
-  class BugReporter;
-  class CheckerContext;
-  class ObjCMethodCall;
-  class SVal;
-  class ExplodedNode;
-  class ExplodedNodeSet;
-  class ExplodedGraph;
-  class ProgramState;
-  class NodeBuilder;
-  struct NodeBuilderContext;
-  class MemRegion;
-  class SymbolReaper;
+
+class AnalysisManager;
+class BugReporter;
+class CallEvent;
+class CheckerBase;
+class CheckerContext;
+class CheckerRegistry;
+class ExplodedGraph;
+class ExplodedNode;
+class ExplodedNodeSet;
+class ExprEngine;
+class MemRegion;
+struct NodeBuilderContext;
+class ObjCMethodCall;
+class RegionAndSymbolInvalidationTraits;
+class SVal;
+class SymbolReaper;
 
 template <typename T> class CheckerFn;
 
 template <typename RET, typename... Ps>
 class CheckerFn<RET(Ps...)> {
-  typedef RET (*Func)(void *, Ps...);
+  using Func = RET (*)(void *, Ps...);
+
   Func Fn;
+
 public:
   CheckerBase *Checker;
-  CheckerFn(CheckerBase *checker, Func fn) : Fn(fn), Checker(checker) { }
+
+  CheckerFn(CheckerBase *checker, Func fn) : Fn(fn), Checker(checker) {}
+
   RET operator()(Ps... ps) const {
     return Fn(Checker, ps...);
   }
 };
 
-/// \brief Describes the different reasons a pointer escapes
+/// Describes the different reasons a pointer escapes
 /// during analysis.
 enum PointerEscapeKind {
   /// A pointer escapes due to binding its value to a location
@@ -85,12 +96,15 @@ enum PointerEscapeKind {
 // name strings have a lifetime that keeps them alive at least until the path
 // diagnostics have been processed.
 class CheckName {
-  StringRef Name;
   friend class ::clang::ento::CheckerRegistry;
+
+  StringRef Name;
+
   explicit CheckName(StringRef Name) : Name(Name) {}
 
 public:
   CheckName() = default;
+
   StringRef getName() const { return Name; }
 };
 
@@ -121,40 +135,27 @@ public:
   const LangOptions &getLangOpts() const { return LangOpts; }
   AnalyzerOptions &getAnalyzerOptions() { return AOptions; }
 
-  typedef CheckerBase *CheckerRef;
-  typedef const void *CheckerTag;
-  typedef CheckerFn<void ()> CheckerDtor;
+  using CheckerRef = CheckerBase *;
+  using CheckerTag = const void *;
+  using CheckerDtor = CheckerFn<void ()>;
 
 //===----------------------------------------------------------------------===//
 // registerChecker
 //===----------------------------------------------------------------------===//
 
-  /// \brief Used to register checkers.
+  /// Used to register checkers.
+  /// All arguments are automatically passed through to the checker
+  /// constructor.
   ///
   /// \returns a pointer to the checker object.
-  template <typename CHECKER>
-  CHECKER *registerChecker() {
+  template <typename CHECKER, typename... AT>
+  CHECKER *registerChecker(AT... Args) {
     CheckerTag tag = getTag<CHECKER>();
     CheckerRef &ref = CheckerTags[tag];
     if (ref)
       return static_cast<CHECKER *>(ref); // already registered.
 
-    CHECKER *checker = new CHECKER();
-    checker->Name = CurrentCheckName;
-    CheckerDtors.push_back(CheckerDtor(checker, destruct<CHECKER>));
-    CHECKER::_register(checker, *this);
-    ref = checker;
-    return checker;
-  }
-
-  template <typename CHECKER>
-  CHECKER *registerChecker(AnalyzerOptions &AOpts) {
-    CheckerTag tag = getTag<CHECKER>();
-    CheckerRef &ref = CheckerTags[tag];
-    if (ref)
-      return static_cast<CHECKER *>(ref); // already registered.
-
-    CHECKER *checker = new CHECKER(AOpts);
+    CHECKER *checker = new CHECKER(Args...);
     checker->Name = CurrentCheckName;
     CheckerDtors.push_back(CheckerDtor(checker, destruct<CHECKER>));
     CHECKER::_register(checker, *this);
@@ -166,11 +167,11 @@ public:
 // Functions for running checkers for AST traversing..
 //===----------------------------------------------------------------------===//
 
-  /// \brief Run checkers handling Decls.
+  /// Run checkers handling Decls.
   void runCheckersOnASTDecl(const Decl *D, AnalysisManager& mgr,
                             BugReporter &BR);
 
-  /// \brief Run checkers handling Decls containing a Stmt body.
+  /// Run checkers handling Decls containing a Stmt body.
   void runCheckersOnASTBody(const Decl *D, AnalysisManager& mgr,
                             BugReporter &BR);
 
@@ -178,7 +179,7 @@ public:
 // Functions for running checkers for path-sensitive checking.
 //===----------------------------------------------------------------------===//
 
-  /// \brief Run checkers for pre-visiting Stmts.
+  /// Run checkers for pre-visiting Stmts.
   ///
   /// The notification is performed for every explored CFGElement, which does
   /// not include the control flow statements such as IfStmt.
@@ -191,7 +192,7 @@ public:
     runCheckersForStmt(/*isPreVisit=*/true, Dst, Src, S, Eng);
   }
 
-  /// \brief Run checkers for post-visiting Stmts.
+  /// Run checkers for post-visiting Stmts.
   ///
   /// The notification is performed for every explored CFGElement, which does
   /// not include the control flow statements such as IfStmt.
@@ -205,13 +206,13 @@ public:
     runCheckersForStmt(/*isPreVisit=*/false, Dst, Src, S, Eng, wasInlined);
   }
 
-  /// \brief Run checkers for visiting Stmts.
+  /// Run checkers for visiting Stmts.
   void runCheckersForStmt(bool isPreVisit,
                           ExplodedNodeSet &Dst, const ExplodedNodeSet &Src,
                           const Stmt *S, ExprEngine &Eng,
                           bool wasInlined = false);
 
-  /// \brief Run checkers for pre-visiting obj-c messages.
+  /// Run checkers for pre-visiting obj-c messages.
   void runCheckersForPreObjCMessage(ExplodedNodeSet &Dst,
                                     const ExplodedNodeSet &Src,
                                     const ObjCMethodCall &msg,
@@ -219,7 +220,7 @@ public:
     runCheckersForObjCMessage(ObjCMessageVisitKind::Pre, Dst, Src, msg, Eng);
   }
 
-  /// \brief Run checkers for post-visiting obj-c messages.
+  /// Run checkers for post-visiting obj-c messages.
   void runCheckersForPostObjCMessage(ExplodedNodeSet &Dst,
                                      const ExplodedNodeSet &Src,
                                      const ObjCMethodCall &msg,
@@ -229,7 +230,7 @@ public:
                               wasInlined);
   }
 
-  /// \brief Run checkers for visiting an obj-c message to nil.
+  /// Run checkers for visiting an obj-c message to nil.
   void runCheckersForObjCMessageNil(ExplodedNodeSet &Dst,
                                     const ExplodedNodeSet &Src,
                                     const ObjCMethodCall &msg,
@@ -238,21 +239,20 @@ public:
                               Eng);
   }
 
-
-  /// \brief Run checkers for visiting obj-c messages.
+  /// Run checkers for visiting obj-c messages.
   void runCheckersForObjCMessage(ObjCMessageVisitKind visitKind,
                                  ExplodedNodeSet &Dst,
                                  const ExplodedNodeSet &Src,
                                  const ObjCMethodCall &msg, ExprEngine &Eng,
                                  bool wasInlined = false);
 
-  /// \brief Run checkers for pre-visiting obj-c messages.
+  /// Run checkers for pre-visiting obj-c messages.
   void runCheckersForPreCall(ExplodedNodeSet &Dst, const ExplodedNodeSet &Src,
                              const CallEvent &Call, ExprEngine &Eng) {
     runCheckersForCallEvent(/*isPreVisit=*/true, Dst, Src, Call, Eng);
   }
 
-  /// \brief Run checkers for post-visiting obj-c messages.
+  /// Run checkers for post-visiting obj-c messages.
   void runCheckersForPostCall(ExplodedNodeSet &Dst, const ExplodedNodeSet &Src,
                               const CallEvent &Call, ExprEngine &Eng,
                               bool wasInlined = false) {
@@ -260,13 +260,13 @@ public:
                             wasInlined);
   }
 
-  /// \brief Run checkers for visiting obj-c messages.
+  /// Run checkers for visiting obj-c messages.
   void runCheckersForCallEvent(bool isPreVisit, ExplodedNodeSet &Dst,
                                const ExplodedNodeSet &Src,
                                const CallEvent &Call, ExprEngine &Eng,
                                bool wasInlined = false);
 
-  /// \brief Run checkers for load/store of a location.
+  /// Run checkers for load/store of a location.
   void runCheckersForLocation(ExplodedNodeSet &Dst,
                               const ExplodedNodeSet &Src,
                               SVal location,
@@ -275,35 +275,43 @@ public:
                               const Stmt *BoundEx,
                               ExprEngine &Eng);
 
-  /// \brief Run checkers for binding of a value to a location.
+  /// Run checkers for binding of a value to a location.
   void runCheckersForBind(ExplodedNodeSet &Dst,
                           const ExplodedNodeSet &Src,
                           SVal location, SVal val,
                           const Stmt *S, ExprEngine &Eng,
                           const ProgramPoint &PP);
 
-  /// \brief Run checkers for end of analysis.
+  /// Run checkers for end of analysis.
   void runCheckersForEndAnalysis(ExplodedGraph &G, BugReporter &BR,
                                  ExprEngine &Eng);
 
-  /// \brief Run checkers on beginning of function.
+  /// Run checkers on beginning of function.
   void runCheckersForBeginFunction(ExplodedNodeSet &Dst,
                                    const BlockEdge &L,
                                    ExplodedNode *Pred,
                                    ExprEngine &Eng);
 
-  /// \brief Run checkers on end of function.
+  /// Run checkers on end of function.
   void runCheckersForEndFunction(NodeBuilderContext &BC,
                                  ExplodedNodeSet &Dst,
                                  ExplodedNode *Pred,
-                                 ExprEngine &Eng);
+                                 ExprEngine &Eng,
+                                 const ReturnStmt *RS);
 
-  /// \brief Run checkers for branch condition.
+  /// Run checkers for branch condition.
   void runCheckersForBranchCondition(const Stmt *condition,
                                      ExplodedNodeSet &Dst, ExplodedNode *Pred,
                                      ExprEngine &Eng);
 
-  /// \brief Run checkers for live symbols.
+  /// Run checkers between C++ operator new and constructor calls.
+  void runCheckersForNewAllocator(const CXXNewExpr *NE, SVal Target,
+                                  ExplodedNodeSet &Dst,
+                                  ExplodedNode *Pred,
+                                  ExprEngine &Eng,
+                                  bool wasInlined = false);
+
+  /// Run checkers for live symbols.
   ///
   /// Allows modifying SymbolReaper object. For example, checkers can explicitly
   /// register symbols of interest as live. These symbols will not be marked
@@ -311,7 +319,7 @@ public:
   void runCheckersForLiveSymbols(ProgramStateRef state,
                                  SymbolReaper &SymReaper);
 
-  /// \brief Run checkers for dead symbols.
+  /// Run checkers for dead symbols.
   ///
   /// Notifies checkers when symbols become dead. For example, this allows
   /// checkers to aggressively clean up/reduce the checker state and produce
@@ -322,7 +330,7 @@ public:
                                  ExprEngine &Eng,
                                  ProgramPoint::Kind K);
 
-  /// \brief Run checkers for region changes.
+  /// Run checkers for region changes.
   ///
   /// This corresponds to the check::RegionChanges callback.
   /// \param state The current program state.
@@ -341,7 +349,7 @@ public:
                               const LocationContext *LCtx,
                               const CallEvent *Call);
 
-  /// \brief Run checkers when pointers escape.
+  /// Run checkers when pointers escape.
   ///
   /// This notifies the checkers about pointer escape, which occurs whenever
   /// the analyzer cannot track the symbol any more. For example, as a
@@ -361,25 +369,25 @@ public:
                               const InvalidatedSymbols &Escaped,
                               const CallEvent *Call,
                               PointerEscapeKind Kind,
-                             RegionAndSymbolInvalidationTraits *ITraits);
+                              RegionAndSymbolInvalidationTraits *ITraits);
 
-  /// \brief Run checkers for handling assumptions on symbolic values.
+  /// Run checkers for handling assumptions on symbolic values.
   ProgramStateRef runCheckersForEvalAssume(ProgramStateRef state,
                                            SVal Cond, bool Assumption);
 
-  /// \brief Run checkers for evaluating a call.
+  /// Run checkers for evaluating a call.
   ///
   /// Warning: Currently, the CallEvent MUST come from a CallExpr!
   void runCheckersForEvalCall(ExplodedNodeSet &Dst,
                               const ExplodedNodeSet &Src,
                               const CallEvent &CE, ExprEngine &Eng);
   
-  /// \brief Run checkers for the entire Translation Unit.
+  /// Run checkers for the entire Translation Unit.
   void runCheckersOnEndOfTranslationUnit(const TranslationUnitDecl *TU,
                                          AnalysisManager &mgr,
                                          BugReporter &BR);
 
-  /// \brief Run checkers for debug-printing a ProgramState.
+  /// Run checkers for debug-printing a ProgramState.
   ///
   /// Unlike most other callbacks, any checker can simply implement the virtual
   /// method CheckerBase::printState if it has custom data to print.
@@ -397,10 +405,11 @@ public:
   // Functions used by the registration mechanism, checkers should not touch
   // these directly.
 
-  typedef CheckerFn<void (const Decl *, AnalysisManager&, BugReporter &)>
-      CheckDeclFunc;
+  using CheckDeclFunc =
+      CheckerFn<void (const Decl *, AnalysisManager&, BugReporter &)>;
 
-  typedef bool (*HandlesDeclFunc)(const Decl *D);
+  using HandlesDeclFunc = bool (*)(const Decl *D);
+
   void _registerForDecl(CheckDeclFunc checkfn, HandlesDeclFunc isForDeclFn);
 
   void _registerForBody(CheckDeclFunc checkfn);
@@ -409,67 +418,67 @@ public:
 // Internal registration functions for path-sensitive checking.
 //===----------------------------------------------------------------------===//
 
-  typedef CheckerFn<void (const Stmt *, CheckerContext &)> CheckStmtFunc;
+  using CheckStmtFunc = CheckerFn<void (const Stmt *, CheckerContext &)>;
   
-  typedef CheckerFn<void (const ObjCMethodCall &, CheckerContext &)>
-      CheckObjCMessageFunc;
+  using CheckObjCMessageFunc =
+      CheckerFn<void (const ObjCMethodCall &, CheckerContext &)>;
 
-  typedef CheckerFn<void (const CallEvent &, CheckerContext &)>
-      CheckCallFunc;
+  using CheckCallFunc =
+      CheckerFn<void (const CallEvent &, CheckerContext &)>;
   
-  typedef CheckerFn<void (const SVal &location, bool isLoad,
-                          const Stmt *S,
-                          CheckerContext &)>
-      CheckLocationFunc;
+  using CheckLocationFunc =
+      CheckerFn<void (const SVal &location, bool isLoad, const Stmt *S,
+                      CheckerContext &)>;
   
-  typedef CheckerFn<void (const SVal &location, const SVal &val, 
-                          const Stmt *S, CheckerContext &)> 
-      CheckBindFunc;
+  using CheckBindFunc =
+      CheckerFn<void (const SVal &location, const SVal &val, const Stmt *S,
+                      CheckerContext &)>;
   
-  typedef CheckerFn<void (ExplodedGraph &, BugReporter &, ExprEngine &)>
-      CheckEndAnalysisFunc;
+  using CheckEndAnalysisFunc =
+      CheckerFn<void (ExplodedGraph &, BugReporter &, ExprEngine &)>;
 
-  typedef CheckerFn<void (CheckerContext &)>
-      CheckBeginFunctionFunc;
+  using CheckBeginFunctionFunc = CheckerFn<void (CheckerContext &)>;
 
-  typedef CheckerFn<void (CheckerContext &)>
-      CheckEndFunctionFunc;
+  using CheckEndFunctionFunc =
+      CheckerFn<void (const ReturnStmt *, CheckerContext &)>;
   
-  typedef CheckerFn<void (const Stmt *, CheckerContext &)>
-      CheckBranchConditionFunc;
-  
-  typedef CheckerFn<void (SymbolReaper &, CheckerContext &)>
-      CheckDeadSymbolsFunc;
-  
-  typedef CheckerFn<void (ProgramStateRef,SymbolReaper &)> CheckLiveSymbolsFunc;
-  
-  typedef CheckerFn<ProgramStateRef (ProgramStateRef,
-                                     const InvalidatedSymbols *symbols,
-                                     ArrayRef<const MemRegion *> ExplicitRegions,
-                                     ArrayRef<const MemRegion *> Regions,
-                                     const LocationContext *LCtx,
-                                     const CallEvent *Call)>
-      CheckRegionChangesFunc;
-  
-  typedef CheckerFn<ProgramStateRef (ProgramStateRef,
-                                     const InvalidatedSymbols &Escaped,
-                                     const CallEvent *Call,
-                                     PointerEscapeKind Kind,
-                                     RegionAndSymbolInvalidationTraits *ITraits)>
-      CheckPointerEscapeFunc;
-  
-  typedef CheckerFn<ProgramStateRef (ProgramStateRef,
-                                          const SVal &cond, bool assumption)>
-      EvalAssumeFunc;
-  
-  typedef CheckerFn<bool (const CallExpr *, CheckerContext &)>
-      EvalCallFunc;
+  using CheckBranchConditionFunc =
+      CheckerFn<void (const Stmt *, CheckerContext &)>;
 
-  typedef CheckerFn<void (const TranslationUnitDecl *,
-                          AnalysisManager&, BugReporter &)>
-      CheckEndOfTranslationUnit;
+  using CheckNewAllocatorFunc =
+      CheckerFn<void (const CXXNewExpr *, SVal, CheckerContext &)>;
+  
+  using CheckDeadSymbolsFunc =
+      CheckerFn<void (SymbolReaper &, CheckerContext &)>;
+  
+  using CheckLiveSymbolsFunc = CheckerFn<void (ProgramStateRef,SymbolReaper &)>;
+  
+  using CheckRegionChangesFunc =
+      CheckerFn<ProgramStateRef (ProgramStateRef,
+                                 const InvalidatedSymbols *symbols,
+                                 ArrayRef<const MemRegion *> ExplicitRegions,
+                                 ArrayRef<const MemRegion *> Regions,
+                                 const LocationContext *LCtx,
+                                 const CallEvent *Call)>;
+  
+  using CheckPointerEscapeFunc =
+      CheckerFn<ProgramStateRef (ProgramStateRef,
+                                 const InvalidatedSymbols &Escaped,
+                                 const CallEvent *Call, PointerEscapeKind Kind,
+                                 RegionAndSymbolInvalidationTraits *ITraits)>;
+  
+  using EvalAssumeFunc =
+      CheckerFn<ProgramStateRef (ProgramStateRef, const SVal &cond,
+                                 bool assumption)>;
+  
+  using EvalCallFunc = CheckerFn<bool (const CallExpr *, CheckerContext &)>;
 
-  typedef bool (*HandlesStmtFunc)(const Stmt *D);
+  using CheckEndOfTranslationUnit =
+      CheckerFn<void (const TranslationUnitDecl *, AnalysisManager &,
+                      BugReporter &)>;
+
+  using HandlesStmtFunc = bool (*)(const Stmt *D);
+
   void _registerForPreStmt(CheckStmtFunc checkfn,
                            HandlesStmtFunc isForStmtFn);
   void _registerForPostStmt(CheckStmtFunc checkfn,
@@ -489,10 +498,12 @@ public:
 
   void _registerForEndAnalysis(CheckEndAnalysisFunc checkfn);
 
-  void _registerForBeginFunction(CheckEndFunctionFunc checkfn);
+  void _registerForBeginFunction(CheckBeginFunctionFunc checkfn);
   void _registerForEndFunction(CheckEndFunctionFunc checkfn);
 
   void _registerForBranchCondition(CheckBranchConditionFunc checkfn);
+
+  void _registerForNewAllocator(CheckNewAllocatorFunc checkfn);
 
   void _registerForLiveSymbols(CheckLiveSymbolsFunc checkfn);
 
@@ -514,8 +525,8 @@ public:
 // Internal registration functions for events.
 //===----------------------------------------------------------------------===//
 
-  typedef void *EventTag;
-  typedef CheckerFn<void (const void *event)> CheckEventFunc;
+  using EventTag = void *;
+  using CheckEventFunc = CheckerFn<void (const void *event)>;
 
   template <typename EVENT>
   void _registerListenerForEvent(CheckEventFunc checkfn) {
@@ -535,8 +546,8 @@ public:
     if (I == Events.end())
       return;
     const EventInfo &info = I->second;
-    for (unsigned i = 0, e = info.Checkers.size(); i != e; ++i)
-      info.Checkers[i](&event);
+    for (const auto Checker : info.Checkers)
+      Checker(&event);
   }
 
 //===----------------------------------------------------------------------===//
@@ -562,8 +573,8 @@ private:
 
   std::vector<CheckDeclFunc> BodyCheckers;
 
-  typedef SmallVector<CheckDeclFunc, 4> CachedDeclCheckers;
-  typedef llvm::DenseMap<unsigned, CachedDeclCheckers> CachedDeclCheckersMapTy;
+  using CachedDeclCheckers = SmallVector<CheckDeclFunc, 4>;
+  using CachedDeclCheckersMapTy = llvm::DenseMap<unsigned, CachedDeclCheckers>;
   CachedDeclCheckersMapTy CachedDeclCheckersMap;
 
   struct StmtCheckerInfo {
@@ -573,8 +584,8 @@ private:
   };
   std::vector<StmtCheckerInfo> StmtCheckers;
 
-  typedef SmallVector<CheckStmtFunc, 4> CachedStmtCheckers;
-  typedef llvm::DenseMap<unsigned, CachedStmtCheckers> CachedStmtCheckersMapTy;
+  using CachedStmtCheckers = SmallVector<CheckStmtFunc, 4>;
+  using CachedStmtCheckersMapTy = llvm::DenseMap<unsigned, CachedStmtCheckers>;
   CachedStmtCheckersMapTy CachedStmtCheckersMap;
 
   const CachedStmtCheckers &getCachedStmtCheckersFor(const Stmt *S,
@@ -603,6 +614,8 @@ private:
 
   std::vector<CheckBranchConditionFunc> BranchConditionCheckers;
 
+  std::vector<CheckNewAllocatorFunc> NewAllocatorCheckers;
+
   std::vector<CheckLiveSymbolsFunc> LiveSymbolsCheckers;
 
   std::vector<CheckDeadSymbolsFunc> DeadSymbolsCheckers;
@@ -619,16 +632,17 @@ private:
 
   struct EventInfo {
     SmallVector<CheckEventFunc, 4> Checkers;
-    bool HasDispatcher;
-    EventInfo() : HasDispatcher(false) { }
+    bool HasDispatcher = false;
+
+    EventInfo() = default;
   };
   
-  typedef llvm::DenseMap<EventTag, EventInfo> EventsTy;
+  using EventsTy = llvm::DenseMap<EventTag, EventInfo>;
   EventsTy Events;
 };
 
-} // end ento namespace
+} // namespace ento
 
-} // end clang namespace
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_STATICANALYZER_CORE_CHECKERMANAGER_H

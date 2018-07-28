@@ -4,6 +4,14 @@
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -std=c++11 -DLAMBDA -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck -check-prefix=LAMBDA %s
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -fblocks -DBLOCKS -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck -check-prefix=BLOCKS %s
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -std=c++11 -DARRAY -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck -check-prefix=ARRAY %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple x86_64-apple-darwin10 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple x86_64-apple-darwin10 -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -std=c++11 -DLAMBDA -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -fblocks -DBLOCKS -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -std=c++11 -DARRAY -triple x86_64-apple-darwin10 -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
 // expected-no-diagnostics
 // It doesn't pass on win32.
 // REQUIRES: shell
@@ -190,7 +198,7 @@ int main() {
 // CHECK: [[SHAREDS_REF_ADDR:%.+]] = getelementptr inbounds [[KMP_TASK_T_TY]], [[KMP_TASK_T_TY]]* [[TASK]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[SHAREDS_REF:%.+]] = load i8*, i8** [[SHAREDS_REF_ADDR]],
 // CHECK: [[CAPTURES_ADDR:%.+]] = bitcast [[CAP_MAIN_TY]]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[SHAREDS_REF]], i8* [[CAPTURES_ADDR]], i64 40, i32 8, i1 false)
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[SHAREDS_REF]], i8* align 8 [[CAPTURES_ADDR]], i64 40, i1 false)
 
 // Initialize kmp_task_t->privates with default values (no init for simple types, default constructors for classes).
 // Also copy address of private copy to the corresponding shareds reference.
@@ -279,18 +287,18 @@ int main() {
 // CHECK-NEXT: br i1
 // CHECK: bitcast [[S_DOUBLE_TY]]* %{{.+}} to i8*
 // CHECK: bitcast [[S_DOUBLE_TY]]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: load i32, i32* %
 // CHECK: store i32 %{{.+}}, i32* %
 // CHECK: getelementptr inbounds [2 x [[S_DOUBLE_TY]]], [2 x [[S_DOUBLE_TY]]]* %
 // CHECK: phi [[S_DOUBLE_TY]]*
 // CHECK: phi [[S_DOUBLE_TY]]*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: icmp eq [[S_DOUBLE_TY]]* %
 // CHECK-NEXT: br i1
 // CHECK: bitcast [2 x i32]* %{{.+}} to i8*
 // CHECK: bitcast [2 x i32]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: load i32, i32* %
 // CHECK: store i32 %{{.+}}, i32* %
 // CHECK: br label
@@ -364,7 +372,7 @@ int main() {
 // CHECK: [[SHAREDS_REF_ADDR:%.+]] = getelementptr inbounds [[KMP_TASK_T_TY]], [[KMP_TASK_T_TY]]* [[TASK]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[SHAREDS_REF:%.+]] = load i8*, i8** [[SHAREDS_REF_ADDR]],
 // CHECK: [[CAPTURES_ADDR:%.+]] = bitcast [[CAP_TMAIN_TY]]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[SHAREDS_REF]], i8* [[CAPTURES_ADDR]], i64 32, i32 8, i1 false)
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[SHAREDS_REF]], i8* align 8 [[CAPTURES_ADDR]], i64 32, i1 false)
 
 // Initialize kmp_task_t->privates with default values (no init for simple types, default constructors for classes).
 // CHECK: [[PRIVATES:%.+]] = getelementptr inbounds [[KMP_TASK_TMAIN_TY]], [[KMP_TASK_TMAIN_TY]]* [[RES_KMP_TASK]], i{{[0-9]+}} 0, i{{[0-9]+}} 2
@@ -445,16 +453,16 @@ int main() {
 // CHECK: store i32 %{{.+}}, i32* %
 // CHECK: bitcast [2 x i32]* %{{.+}} to i8*
 // CHECK: bitcast [2 x i32]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: getelementptr inbounds [2 x [[S_INT_TY]]], [2 x [[S_INT_TY]]]* %
 // CHECK: phi [[S_INT_TY]]*
 // CHECK: phi [[S_INT_TY]]*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: icmp eq [[S_INT_TY]]* %
 // CHECK-NEXT: br i1
 // CHECK: bitcast [[S_INT_TY]]* %{{.+}} to i8*
 // CHECK: bitcast [[S_INT_TY]]* %{{.+}} to i8*
-// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* %
+// CHECK: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align {{[0-9]+}} %
 // CHECK: br label
 // CHECK: ret
 

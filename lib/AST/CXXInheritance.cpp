@@ -34,13 +34,13 @@
 
 using namespace clang;
 
-/// \brief Computes the set of declarations referenced by these base
+/// Computes the set of declarations referenced by these base
 /// paths.
 void CXXBasePaths::ComputeDeclsFound() {
   assert(NumDeclsFound == 0 && !DeclsFound &&
          "Already computed the set of declarations");
 
-  llvm::SetVector<NamedDecl *, SmallVector<NamedDecl *, 8>> Decls;
+  llvm::SmallSetVector<NamedDecl *, 8> Decls;
   for (paths_iterator Path = begin(), PathEnd = end(); Path != PathEnd; ++Path)
     Decls.insert(Path->Decls.front());
 
@@ -63,8 +63,8 @@ CXXBasePaths::decl_range CXXBasePaths::found_decls() {
 /// an unqualified, canonical class type.
 bool CXXBasePaths::isAmbiguous(CanQualType BaseType) {
   BaseType = BaseType.getUnqualifiedType();
-  std::pair<bool, unsigned>& Subobjects = ClassSubobjects[BaseType];
-  return Subobjects.second + (Subobjects.first? 1 : 0) > 1;
+  IsVirtBaseAndNumberNonVirtBases Subobjects = ClassSubobjects[BaseType];
+  return Subobjects.NumberOfNonVirtBases + (Subobjects.IsVirtBase ? 1 : 0) > 1;
 }
 
 /// clear - Clear out all prior path information.
@@ -76,7 +76,7 @@ void CXXBasePaths::clear() {
   DetectedVirtual = nullptr;
 }
 
-/// @brief Swaps the contents of this CXXBasePaths structure with the
+/// Swaps the contents of this CXXBasePaths structure with the
 /// contents of Other.
 void CXXBasePaths::swap(CXXBasePaths &Other) {
   std::swap(Origin, Other.Origin);
@@ -217,21 +217,21 @@ bool CXXBasePaths::lookupInBases(ASTContext &Context,
     
     // Determine whether we need to visit this base class at all,
     // updating the count of subobjects appropriately.
-    std::pair<bool, unsigned>& Subobjects = ClassSubobjects[BaseType];
+    IsVirtBaseAndNumberNonVirtBases &Subobjects = ClassSubobjects[BaseType];
     bool VisitBase = true;
     bool SetVirtual = false;
     if (BaseSpec.isVirtual()) {
-      VisitBase = !Subobjects.first;
-      Subobjects.first = true;
+      VisitBase = !Subobjects.IsVirtBase;
+      Subobjects.IsVirtBase = true;
       if (isDetectingVirtual() && DetectedVirtual == nullptr) {
         // If this is the first virtual we find, remember it. If it turns out
         // there is no base path here, we'll reset it later.
         DetectedVirtual = BaseType->getAs<RecordType>();
         SetVirtual = true;
       }
-    } else
-      ++Subobjects.second;
-    
+    } else {
+      ++Subobjects.NumberOfNonVirtBases;
+    }
     if (isRecordingPaths()) {
       // Add this base specifier to the current path.
       CXXBasePathElement Element;
@@ -240,7 +240,7 @@ bool CXXBasePaths::lookupInBases(ASTContext &Context,
       if (BaseSpec.isVirtual())
         Element.SubobjectNumber = 0;
       else
-        Element.SubobjectNumber = Subobjects.second;
+        Element.SubobjectNumber = Subobjects.NumberOfNonVirtBases;
       ScratchPath.push_back(Element);
 
       // Calculate the "top-down" access to this base class.
@@ -567,11 +567,11 @@ void OverridingMethods::replaceAll(UniqueVirtualMethod Overriding) {
 namespace {
 
 class FinalOverriderCollector {
-  /// \brief The number of subobjects of a given class type that
+  /// The number of subobjects of a given class type that
   /// occur within the class hierarchy.
   llvm::DenseMap<const CXXRecordDecl *, unsigned> SubobjectCount;
 
-  /// \brief Overriders for each virtual base subobject.
+  /// Overriders for each virtual base subobject.
   llvm::DenseMap<const CXXRecordDecl *, CXXFinalOverriderMap *> VirtualOverriders;
 
   CXXFinalOverriderMap FinalOverriders;
@@ -637,8 +637,7 @@ void FinalOverriderCollector::Collect(const CXXRecordDecl *RD,
                                OMEnd = BaseOverriders->end();
            OM != OMEnd;
            ++OM) {
-        const CXXMethodDecl *CanonOM
-          = cast<CXXMethodDecl>(OM->first->getCanonicalDecl());
+        const CXXMethodDecl *CanonOM = OM->first->getCanonicalDecl();
         Overriders[CanonOM].add(OM->second);
       }
     }
@@ -649,7 +648,7 @@ void FinalOverriderCollector::Collect(const CXXRecordDecl *RD,
     if (!M->isVirtual())
       continue;
 
-    CXXMethodDecl *CanonM = cast<CXXMethodDecl>(M->getCanonicalDecl());
+    CXXMethodDecl *CanonM = M->getCanonicalDecl();
     using OverriddenMethodsRange =
         llvm::iterator_range<CXXMethodDecl::method_iterator>;
     OverriddenMethodsRange OverriddenMethods = CanonM->overridden_methods();

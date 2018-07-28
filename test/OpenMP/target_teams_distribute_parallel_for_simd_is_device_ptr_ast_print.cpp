@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -verify -fopenmp -std=c++11 -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++11 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -56,7 +60,7 @@ struct SA {
 // CHECK-NEXT: int aa[10];
 // CHECK-NEXT: arr &raa = this->aa;
 // CHECK-NEXT: func(
-// CHECK-NEXT: #pragma omp target teams distribute parallel for simd is_device_ptr(this->k)
+// CHECK-NEXT: #pragma omp target teams distribute parallel for simd is_device_ptr(this->k){{$}}
 // CHECK-NEXT: for (int i = 0; i < 100; i++)
 // CHECK-NEXT: ;
 // CHECK-NEXT: #pragma omp target teams distribute parallel for simd is_device_ptr(this->z)

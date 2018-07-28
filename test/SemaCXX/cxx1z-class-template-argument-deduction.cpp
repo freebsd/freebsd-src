@@ -309,6 +309,70 @@ namespace dependent {
   template int New(int);
 }
 
+namespace injected_class_name {
+  template<typename T = void> struct A {
+    A();
+    template<typename U> A(A<U>);
+  };
+  A<int> a;
+  A b = a;
+  using T = decltype(a);
+  using T = decltype(b);
+}
+
+namespace member_guides {
+  // PR34520
+  template<class>
+  struct Foo {
+    template <class T> struct Bar {
+      Bar(...) {}
+    };
+    Bar(int) -> Bar<int>;
+  };
+  Foo<int>::Bar b = 0;
+
+  struct A {
+    template<typename T> struct Public; // expected-note {{declared public}}
+    Public(float) -> Public<float>;
+  protected: // expected-note {{declared protected by intervening access specifier}}
+    template<typename T> struct Protected; // expected-note 2{{declared protected}}
+    Protected(float) -> Protected<float>;
+    Public(int) -> Public<int>; // expected-error {{different access}}
+  private: // expected-note {{declared private by intervening access specifier}}
+    template<typename T> struct Private; // expected-note {{declared private}}
+    Protected(int) -> Protected<int>; // expected-error {{different access}}
+  public: // expected-note 2{{declared public by intervening access specifier}}
+    template<typename T> Public(T) -> Public<T>;
+    template<typename T> Protected(T) -> Protected<T>; // expected-error {{different access}}
+    template<typename T> Private(T) -> Private<T>; // expected-error {{different access}}
+  };
+}
+
+namespace rdar41903969 {
+template <class T> struct A {};
+template <class T> struct B;
+template <class T> struct C {
+  C(A<T>&);
+  C(B<T>&);
+};
+
+void foo(A<int> &a, B<int> &b) {
+  (void)C{b};
+  (void)C{a};
+}
+
+template<typename T> struct X {
+  X(std::initializer_list<T>) = delete;
+  X(const X&);
+};
+
+template <class T> struct D : X<T> {};
+
+void bar(D<int>& d) {
+  (void)X{d};
+}
+}
+
 #else
 
 // expected-no-diagnostics

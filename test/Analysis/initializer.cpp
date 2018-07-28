@@ -1,5 +1,7 @@
 // RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-inlining=constructors -std=c++11 -verify %s
 // RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-inlining=constructors -std=c++17 -DCPLUSPLUS17 -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-inlining=constructors -std=c++11 -DTEST_INLINABLE_ALLOCATORS -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-inlining=constructors -std=c++17 -DCPLUSPLUS17 -DTEST_INLINABLE_ALLOCATORS -verify %s
 
 void clang_analyzer_eval(bool);
 
@@ -176,29 +178,6 @@ namespace ReferenceInitialization {
     const MyStruct &myStruct(OtherStruct(5));
     myStruct.method(); // no-warning
   }
-
-  struct HasMyStruct {
-    const MyStruct &ms; // expected-note {{reference member declared here}}
-    const MyStruct &msWithCleanups; // expected-note {{reference member declared here}}
-
-    // clang's Sema issues a warning when binding a reference member to a
-    // temporary value.
-    HasMyStruct() : ms(5), msWithCleanups(OtherStruct(5)) {
-        // expected-warning@-1 {{binding reference member 'ms' to a temporary value}}
-        // expected-warning@-2 {{binding reference member 'msWithCleanups' to a temporary value}}
-
-      // At this point the members are not garbage so we should not expect an
-      // analyzer warning here even though binding a reference member
-      // to a member is a terrible idea.
-      ms.method(); // no-warning
-      msWithCleanups.method(); // no-warning
-    }
-  };
-
-  void referenceInitializeField() {
-    HasMyStruct hms;
-  }
-
 };
 
 namespace PR31592 {

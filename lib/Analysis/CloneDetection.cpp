@@ -381,7 +381,7 @@ void RecursiveCloneTypeIIHashConstraint::constrain(
     for (unsigned i = 0; i < StmtsByHash.size() - 1; ++i) {
       const auto Current = StmtsByHash[i];
 
-      // It's likely that we just found an sequence of StmtSequences that
+      // It's likely that we just found a sequence of StmtSequences that
       // represent a CloneGroup, so we create a new group and start checking and
       // adding the StmtSequences in this sequence.
       CloneDetector::CloneGroup NewGroup;
@@ -534,14 +534,14 @@ void VariablePattern::addVariableOccurence(const VarDecl *VarDecl,
   // First check if we already reference this variable
   for (size_t KindIndex = 0; KindIndex < Variables.size(); ++KindIndex) {
     if (Variables[KindIndex] == VarDecl) {
-      // If yes, add a new occurence that points to the existing entry in
+      // If yes, add a new occurrence that points to the existing entry in
       // the Variables vector.
       Occurences.emplace_back(KindIndex, Mention);
       return;
     }
   }
   // If this variable wasn't already referenced, add it to the list of
-  // referenced variables and add a occurence that points to this new entry.
+  // referenced variables and add a occurrence that points to this new entry.
   Occurences.emplace_back(Variables.size(), Mention);
   Variables.push_back(VarDecl);
 }

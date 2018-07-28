@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -fsyntax-only -verify -std=c++11 -Wsign-conversion %s
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -fsyntax-only -verify -std=c++17 -Wsign-conversion %s
 
 // C++ rules for ?: are a lot stricter than C rules, and have to take into
 // account more conversion options.
@@ -149,7 +150,7 @@ void test()
   i1 = i1 ? i1 : I();
   I i2(i1 ? I() : J());
   I i3(i1 ? J() : I());
-  // "the type [it] woud have if E2 were converted to an rvalue"
+  // "the type [it] would have if E2 were converted to an rvalue"
   vfn pfn = i1 ? F() : test;
   pfn = i1 ? test : F();
   (void)(i1 ? A() : B()); // expected-error {{conversion from 'B' to 'A' is ambiguous}}
@@ -228,7 +229,7 @@ void test()
   // be properly tested at runtime, though.
 
   const Abstract &abstract1 = true ? static_cast<const Abstract&>(Derived1()) : Derived2(); // expected-error {{allocating an object of abstract class type 'const Abstract'}}
-  const Abstract &abstract2 = true ? static_cast<const Abstract&>(Derived1()) : throw 3; // ok
+  const Abstract &abstract2 = true ? static_cast<const Abstract&>(Derived1()) : throw 3;
 }
 
 namespace PR6595 {
@@ -392,4 +393,19 @@ Base b;
 Derived d;
 typedef decltype(true ? static_cast<Base&&>(b) : static_cast<Derived&&>(d)) x;
 typedef Base &&x;
+}
+
+namespace lifetime_extension {
+  struct A {};
+  struct B : A { B(); ~B(); };
+  struct C : A { C(); ~C(); };
+
+  void f(bool b) {
+    A &&r = b ? static_cast<A&&>(B()) : static_cast<A&&>(C());
+  }
+
+  struct D { A &&a; };
+  void f_indirect(bool b) {
+    D d = b ? D{B()} : D{C()};
+  }
 }

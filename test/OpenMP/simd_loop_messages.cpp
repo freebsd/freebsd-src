@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -fopenmp -x c++ -std=c++11 -fexceptions -fcxx-exceptions -verify %s
 
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -x c++ -std=c++11 -fexceptions -fcxx-exceptions -verify %s
+
 static int sii;
 // expected-note@+1 {{defined as threadprivate or thread local}}
 #pragma omp threadprivate(sii)
@@ -234,9 +236,7 @@ int test_iteration_spaces() {
   for (ii = 0; ii < 10; ii++)
     c[ii] = a[ii];
 
-  // expected-error@+3 {{unexpected OpenMP clause 'shared' in directive '#pragma omp simd'}}
-  // expected-note@+2  {{defined as shared}}
-  // expected-error@+2 {{loop iteration variable in the associated loop of 'omp simd' directive may not be shared, predetermined as linear}}
+  // expected-error@+1 {{unexpected OpenMP clause 'shared' in directive '#pragma omp simd'}}
   #pragma omp simd shared(ii)
   for (ii = 0; ii < 10; ii++)
     c[ii] = a[ii];

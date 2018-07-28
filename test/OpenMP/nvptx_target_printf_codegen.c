@@ -3,12 +3,8 @@
 // RUN: %clang_cc1 -verify -fopenmp -x c -triple nvptx64-unknown-unknown -fopenmp-targets=nvptx64-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-64
 // RUN: %clang_cc1 -verify -fopenmp -x c -triple i386-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm-bc %s -o %t-x86-host.bc
 // RUN: %clang_cc1 -verify -fopenmp -x c -triple nvptx-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
-
-#include <stdarg.h>
-
 // expected-no-diagnostics
 extern int printf(const char *, ...);
-extern int vprintf(const char *, va_list);
 
 // Check a simple call to printf end-to-end.
 // CHECK: [[SIMPLE_PRINTF_TY:%[a-zA-Z0-9_]+]] = type { i32, i64, double }
@@ -33,7 +29,7 @@ int CheckSimple() {
     // CHECK: [[MASTER]]
     // CHECK-DAG: [[MNTH:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
     // CHECK-DAG: [[MWS:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.warpsize()
-    // CHECK: [[MTMP1:%.+]] = sub i32 [[MNTH]], [[MWS]]
+    // CHECK: [[MTMP1:%.+]] = sub nuw i32 [[MNTH]], [[MWS]]
     // CHECK: call void @__kmpc_kernel_init(i32 [[MTMP1]]
 
     // printf in master-only basic block.
@@ -73,7 +69,7 @@ void CheckNoArgs() {
     // CHECK: [[MASTER]]
     // CHECK-DAG: [[MNTH:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
     // CHECK-DAG: [[MWS:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.warpsize()
-    // CHECK: [[MTMP1:%.+]] = sub i32 [[MNTH]], [[MWS]]
+    // CHECK: [[MTMP1:%.+]] = sub nuw i32 [[MNTH]], [[MWS]]
     // CHECK: call void @__kmpc_kernel_init(i32 [[MTMP1]]
 
     // printf in master-only basic block.
@@ -106,7 +102,7 @@ void CheckAllocaIsInEntryBlock() {
     // CHECK: [[MASTER]]
     // CHECK-DAG: [[MNTH:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
     // CHECK-DAG: [[MWS:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.warpsize()
-    // CHECK: [[MTMP1:%.+]] = sub i32 [[MNTH]], [[MWS]]
+    // CHECK: [[MTMP1:%.+]] = sub nuw i32 [[MNTH]], [[MWS]]
     // CHECK: call void @__kmpc_kernel_init(i32 [[MTMP1]]
 
     if (foo) {

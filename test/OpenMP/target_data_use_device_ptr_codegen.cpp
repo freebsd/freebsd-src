@@ -9,6 +9,14 @@
 // RUN: %clang_cc1 -DCK1 -verify -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -emit-llvm %s -o - | FileCheck %s  --check-prefix CK1 --check-prefix CK1-32
 // RUN: %clang_cc1 -DCK1 -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -std=c++11 -triple i386-unknown-unknown -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s  --check-prefix CK1 --check-prefix CK1-32
+
+// RUN: %clang_cc1 -DCK1 -verify -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -triple powerpc64le-unknown-unknown -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DCK1 -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -triple powerpc64le-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DCK1 -verify -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DCK1 -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -std=c++11 -triple i386-unknown-unknown -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
 #ifdef CK1
 
 double *g;
@@ -327,13 +335,21 @@ void bar(float *&a, int *&b) {
 // RUN: %clang_cc1 -DCK2 -verify -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -emit-llvm %s -o - | FileCheck %s  --check-prefix CK2 --check-prefix CK2-32
 // RUN: %clang_cc1 -DCK2 -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -std=c++11 -triple i386-unknown-unknown -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s  --check-prefix CK2 --check-prefix CK2-32
+
+// RUN: %clang_cc1 -DCK2 -verify -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -triple powerpc64le-unknown-unknown -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1 -DCK2 -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-targets=powerpc64le-ibm-linux-gnu -x c++ -triple powerpc64le-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1 -DCK2 -verify -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1 -DCK2 -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -std=c++11 -triple i386-unknown-unknown -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fopenmp-targets=i386-pc-linux-gnu -x c++ -triple i386-unknown-unknown -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// SIMD-ONLY1-NOT: {{__kmpc|__tgt}}
 #ifdef CK2
 
 // CK2: [[ST:%.+]] = type { double*, double** }
-// CK2: [[MTYPE00:@.+]] = {{.*}}constant [2 x i64] [i64 35, i64 83]
-// CK2: [[MTYPE01:@.+]] = {{.*}}constant [3 x i64] [i64 32, i64 19, i64 83]
-// CK2: [[MTYPE02:@.+]] = {{.*}}constant [2 x i64] [i64 96, i64 35]
-// CK2: [[MTYPE03:@.+]] = {{.*}}constant [4 x i64] [i64 96, i64 32, i64 19, i64 83]
+// CK2: [[MTYPE00:@.+]] = {{.*}}constant [2 x i64] [i64 32, i64 281474976710739]
+// CK2: [[MTYPE01:@.+]] = {{.*}}constant [2 x i64] [i64 32, i64 281474976710739]
+// CK2: [[MTYPE02:@.+]] = {{.*}}constant [3 x i64] [i64 35, i64 32, i64 562949953421392]
+// CK2: [[MTYPE03:@.+]] = {{.*}}constant [3 x i64] [i64 32, i64 281474976710739, i64 281474976710736]
 
 template <typename T>
 struct ST {
@@ -366,7 +382,7 @@ struct ST {
     // CK2:     getelementptr inbounds double, double* [[TTT]], i32 1
     a++;
 
-    // CK2:     [[BP:%.+]] = getelementptr inbounds [3 x i8*], [3 x i8*]* %{{.+}}, i32 0, i32 2
+    // CK2:     [[BP:%.+]] = getelementptr inbounds [2 x i8*], [2 x i8*]* %{{.+}}, i32 0, i32 1
     // CK2:     [[CBP:%.+]] = bitcast i8** [[BP]] to double***
     // CK2:     store double** [[RVAL:%.+]], double*** [[CBP]],
     // CK2:     call void @__tgt_target_data_begin{{.+}}[[MTYPE01]]
@@ -388,11 +404,12 @@ struct ST {
     // CK2:     getelementptr inbounds double, double* [[TTTT]], i32 1
     b++;
 
-    // CK2:     [[BP:%.+]] = getelementptr inbounds [2 x i8*], [2 x i8*]* %{{.+}}, i32 0, i32 0
-    // CK2:     [[CBP:%.+]] = bitcast i8** [[BP]] to double**
-    // CK2:     store double* [[RVAL:%.+]], double** [[CBP]],
+    // CK2:     [[BP:%.+]] = getelementptr inbounds [3 x i8*], [3 x i8*]* %{{.+}}, i32 0, i32 2
+    // CK2:     [[CBP:%.+]] = bitcast i8** [[BP]] to double***
+    // CK2:     store double** [[RVAL:%.+]], double*** [[CBP]],
     // CK2:     call void @__tgt_target_data_begin{{.+}}[[MTYPE02]]
-    // CK2:     [[VAL:%.+]] = load double*, double** [[CBP]],
+    // CK2:     [[CVAL:%.+]] = bitcast double*** [[CBP]] to double**
+    // CK2:     [[VAL:%.+]] = load double*, double** [[CVAL]],
     // CK2:     store double* [[VAL]], double** [[PVT:%.+]],
     // CK2:     store double** [[PVT]], double*** [[PVT2:%.+]],
     // CK2:     [[TT1:%.+]] = load double**, double*** [[PVT2]],
@@ -410,26 +427,27 @@ struct ST {
     a++;
     la++;
 
-    // CK2:     [[BP:%.+]] = getelementptr inbounds [4 x i8*], [4 x i8*]* %{{.+}}, i32 0, i32 0
-    // CK2:     [[CBP:%.+]] = bitcast i8** [[BP]] to double**
-    // CK2:     store double* [[RVAL:%.+]], double** [[CBP]],
-    // CK2:     [[_BP:%.+]] = getelementptr inbounds [4 x i8*], [4 x i8*]* %{{.+}}, i32 0, i32 3
-    // CK2:     [[_CBP:%.+]] = bitcast i8** [[_BP]] to double***
-    // CK2:     store double** [[_RVAL:%.+]], double*** [[_CBP]],
+    // CK2:     [[BP1:%.+]] = getelementptr inbounds [3 x i8*], [3 x i8*]* %{{.+}}, i32 0, i32 1
+    // CK2:     [[CBP1:%.+]] = bitcast i8** [[BP1]] to double***
+    // CK2:     store double** [[RVAL1:%.+]], double*** [[CBP1]],
+    // CK2:     [[BP2:%.+]] = getelementptr inbounds [3 x i8*], [3 x i8*]* %{{.+}}, i32 0, i32 2
+    // CK2:     [[CBP2:%.+]] = bitcast i8** [[BP2]] to double***
+    // CK2:     store double** [[RVAL2:%.+]], double*** [[CBP2]],
     // CK2:     call void @__tgt_target_data_begin{{.+}}[[MTYPE03]]
-    // CK2:     [[VAL:%.+]] = load double*, double** [[CBP]],
-    // CK2:     store double* [[VAL]], double** [[PVT:%.+]],
-    // CK2:     store double** [[PVT]], double*** [[PVT2:%.+]],
-    // CK2:     [[_CBP1:%.+]] = bitcast double*** [[_CBP]] to double**
-    // CK2:     [[_VAL:%.+]] = load double*, double** [[_CBP1]],
-    // CK2:     store double* [[_VAL]], double** [[_PVT:%.+]],
-    // CK2:     store double** [[_PVT]], double*** [[_PVT2:%.+]],
-    // CK2:     [[TT1:%.+]] = load double**, double*** [[PVT2]],
-    // CK2:     [[TT2:%.+]] = load double*, double** [[TT1]],
-    // CK2:     getelementptr inbounds double, double* [[TT2]], i32 1
-    // CK2:     [[_TT1:%.+]] = load double**, double*** [[_PVT2]],
-    // CK2:     [[_TT2:%.+]] = load double*, double** [[_TT1]],
+    // CK2:     [[_CBP2:%.+]] = bitcast double*** [[CBP2]] to double**
+    // CK2:     [[VAL2:%.+]] = load double*, double** [[_CBP2]],
+    // CK2:     store double* [[VAL2]], double** [[PVT2:%.+]],
+    // CK2:     store double** [[PVT2]], double*** [[_PVT2:%.+]],
+    // CK2:     [[_CBP1:%.+]] = bitcast double*** [[CBP1]] to double**
+    // CK2:     [[VAL1:%.+]] = load double*, double** [[_CBP1]],
+    // CK2:     store double* [[VAL1]], double** [[PVT1:%.+]],
+    // CK2:     store double** [[PVT1]], double*** [[_PVT1:%.+]],
+    // CK2:     [[TT2:%.+]] = load double**, double*** [[_PVT2]],
+    // CK2:     [[_TT2:%.+]] = load double*, double** [[TT2]],
     // CK2:     getelementptr inbounds double, double* [[_TT2]], i32 1
+    // CK2:     [[TT1:%.+]] = load double**, double*** [[_PVT1]],
+    // CK2:     [[_TT1:%.+]] = load double*, double** [[TT1]],
+    // CK2:     getelementptr inbounds double, double* [[_TT1]], i32 1
     #pragma omp target data map(b[:10]) use_device_ptr(a, b)
     {
       a++;
