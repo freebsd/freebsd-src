@@ -73,8 +73,6 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 		rm ${FULLKERNEL}.noheader
 
 FILES_CPU_FUNC = \
-	$S/$M/$M/cpufunc_asm_arm9.S \
-	$S/$M/$M/cpufunc_asm.S \
 	$S/$M/$M/cpufunc_asm_armv5_ec.S \
 	$S/$M/$M/cpufunc_asm_sheeva.S
 
