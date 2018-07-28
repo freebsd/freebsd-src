@@ -34,12 +34,11 @@
 #include "LinkerScript.h"
 #include "OutputSections.h"
 #include "Relocations.h"
-#include "Strings.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
 #include "lld/Common/Memory.h"
-
+#include "lld/Common/Strings.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -47,6 +46,7 @@
 using namespace llvm;
 using namespace llvm::ELF;
 using namespace llvm::object;
+using namespace llvm::support;
 using namespace llvm::support::endian;
 
 using namespace lld;
@@ -341,7 +341,7 @@ static bool is843419ErratumSequence(uint32_t Instr1, uint32_t Instr2,
 // patch or 0 if no patch required.
 static uint64_t scanCortexA53Errata843419(InputSection *IS, uint64_t &Off,
                                           uint64_t Limit) {
-  uint64_t ISAddr = IS->getParent()->Addr + IS->OutSecOff;
+  uint64_t ISAddr = IS->getVA(0);
 
   // Advance Off so that (ISAddr + Off) modulo 0x1000 is at least 0xff8.
   uint64_t InitialPageOff = (ISAddr + Off) & 0xfff;
@@ -357,7 +357,7 @@ static uint64_t scanCortexA53Errata843419(InputSection *IS, uint64_t &Off,
 
   uint64_t PatchOff = 0;
   const uint8_t *Buf = IS->Data.begin();
-  const uint32_t *InstBuf = reinterpret_cast<const uint32_t *>(Buf + Off);
+  const ulittle32_t *InstBuf = reinterpret_cast<const ulittle32_t *>(Buf + Off);
   uint32_t Instr1 = *InstBuf++;
   uint32_t Instr2 = *InstBuf++;
   uint32_t Instr3 = *InstBuf++;
@@ -405,7 +405,7 @@ lld::elf::Patch843419Section::Patch843419Section(InputSection *P, uint64_t Off)
 }
 
 uint64_t lld::elf::Patch843419Section::getLDSTAddr() const {
-  return Patchee->getParent()->Addr + Patchee->OutSecOff + PatcheeOffset;
+  return Patchee->getVA(PatcheeOffset);
 }
 
 void lld::elf::Patch843419Section::writeTo(uint8_t *Buf) {
@@ -554,9 +554,8 @@ static void implementPatch(uint64_t AdrpAddr, uint64_t PatcheeOffset,
   if (RelIt != IS->Relocations.end() && RelIt->Type == R_AARCH64_JUMP26)
     return;
 
-  if (Config->Verbose)
-    message("detected cortex-a53-843419 erratum sequence starting at " +
-            utohexstr(AdrpAddr) + " in unpatched output.");
+  log("detected cortex-a53-843419 erratum sequence starting at " +
+      utohexstr(AdrpAddr) + " in unpatched output.");
 
   auto *PS = make<Patch843419Section>(IS, PatcheeOffset);
   Patches.push_back(PS);
@@ -602,7 +601,7 @@ AArch64Err843419Patcher::patchInputSectionDescription(
           (DataSym == MapSyms.end()) ? IS->Data.size() : (*DataSym)->Value;
 
       while (Off < Limit) {
-        uint64_t StartAddr = IS->getParent()->Addr + IS->OutSecOff + Off;
+        uint64_t StartAddr = IS->getVA(Off);
         if (uint64_t PatcheeOffset = scanCortexA53Errata843419(IS, Off, Limit))
           implementPatch(StartAddr, PatcheeOffset, IS, Patches);
       }
