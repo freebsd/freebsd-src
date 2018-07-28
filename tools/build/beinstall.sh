@@ -69,7 +69,7 @@ cleanup() {
 
 errx() {
 	cleanup
-	echo "error: $*"
+	echo "error: $@"
 	exit 1
 }
 
@@ -107,16 +107,17 @@ if [ -e .git ] ; then
     [ $? -ne 0 ] && errx "Can't lookup git commit timestamp"
     commit_ts=$(date -r ${commit_time} '+%Y%m%d.%H%M%S')
 elif [ -d .svn ] ; then
-    if [ -f /usr/bin/svnlite ]; then
-        commit_ts=$( svnlite info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )
-    elif [ -f /usr/local/bin/svn ]; then
-        commit_ts=$( svn info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )
-    else
-        errx "Can't lookup Subversion commit timestamp"
-    fi
+      if [ -e /usr/bin/svnlite ]; then
+        svn=/usr/bin/svnlite
+      elif [ -e /usr/local/bin/svn ]; then
+        svn=/usr/local/bin/svn
+      else
+        errx "Unable to find subversion"
+      fi
+      commit_ts="$( "$svn" info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )"
     [ $? -ne 0 ] && errx "Can't lookup Subversion commit timestamp"
 else
-    errx "Unable to determine sandbox type"
+    errx "Unable to determine source control type"
 fi
 
 commit_ver=$(${objdir}/bin/freebsd-version/freebsd-version -u 2>/dev/null)
@@ -137,8 +138,8 @@ beadm create ${BENAME} >/dev/null || errx "Unable to create BE ${BENAME}"
 beadm mount ${BENAME} ${BE_TMP}/mnt || errx "Unable to mount BE ${BENAME}."
 
 echo "Mounted ${BENAME} to ${BE_MNTPT}, performing install/update ..."
-make $* DESTDIR=${BE_MNTPT} installkernel || errx "Installkernel failed!"
-make $* DESTDIR=${BE_MNTPT} installworld || errx "Installworld failed!"
+make "$@" DESTDIR=${BE_MNTPT} installkernel || errx "Installkernel failed!"
+make "$@" DESTDIR=${BE_MNTPT} installworld || errx "Installworld failed!"
 
 if [ -n "${CONFIG_UPDATER}" ]; then
 	"update_${CONFIG_UPDATER}"
