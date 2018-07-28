@@ -284,10 +284,8 @@ get_cachetype_cp15(void)
 	u_int multiplier;
 	u_char type;
 
-	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
-		: "=r" (ctype));
-
-	cpuid = cpu_ident();
+	ctype = cp15_ctr_get();
+	cpuid = cp15_midr_get();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
@@ -388,7 +386,7 @@ get_cachetype_cp15(void)
 int
 set_cpufuncs(void)
 {
-	cputype = cpu_ident();
+	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
 #if defined(CPU_ARM9E)
@@ -553,7 +551,7 @@ arm11x6_setup(void)
 	uint32_t tmp, tmp2;
 	uint32_t cpuid;
 
-	cpuid = cpu_ident();
+	cpuid = cp15_midr_get();
 
 	auxctrl = 0;
 	auxctrl_wax = ~0;
