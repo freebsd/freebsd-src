@@ -4051,6 +4051,45 @@ nfsmout:
 }
 
 /*
+ * nfsv4 bind connection to session service
+ */
+APPLESTATIC int
+nfsrvd_bindconnsess(struct nfsrv_descript *nd, __unused int isdgram,
+    __unused vnode_t vp, NFSPROC_T *p, __unused struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	uint8_t sessid[NFSX_V4SESSIONID];
+	int error = 0, foreaft;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID + 2 * NFSX_UNSIGNED);
+	NFSBCOPY(tl, sessid, NFSX_V4SESSIONID);
+	tl += (NFSX_V4SESSIONID / NFSX_UNSIGNED);
+	foreaft = fxdr_unsigned(int, *tl++);
+	if (*tl == newnfs_true) {
+		/* RDMA is not supported. */
+		nd->nd_repstat = NFSERR_NOTSUPP;
+		goto nfsmout;
+	}
+
+	nd->nd_repstat = nfsrv_bindconnsess(nd, sessid, &foreaft);
+	if (nd->nd_repstat == 0) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 2 *
+		    NFSX_UNSIGNED);
+		NFSBCOPY(sessid, tl, NFSX_V4SESSIONID);
+		tl += (NFSX_V4SESSIONID / NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(foreaft);
+		*tl = newnfs_false;
+	}
+nfsmout:
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
  * nfsv4 destroy session service
  */
 APPLESTATIC int
