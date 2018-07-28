@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare %s -Wno-unreachable-code
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare -Wtautological-constant-in-range-compare %s -Wno-unreachable-code
 
 int test(char *C) { // nothing here should warn.
   return C != ((void*)0);
@@ -390,4 +390,17 @@ typedef char two_chars[2];
 
 void test12(unsigned a) {
   if (0 && -1 > a) { }
+}
+
+// PR36008
+
+enum PR36008EnumTest {
+  kPR36008Value = 0,
+};
+
+void pr36008(enum PR36008EnumTest lhs) {
+  __typeof__(lhs) x = lhs;
+  __typeof__(kPR36008Value) y = (kPR36008Value);
+  if (x == y) x = y; // no warning
+  if (y == x) y = x; // no warning
 }

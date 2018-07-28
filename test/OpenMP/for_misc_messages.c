@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -fopenmp -triple x86_64-unknown-unknown -verify %s
 
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -triple x86_64-unknown-unknown -verify %s
+
 // expected-error@+1 {{unexpected OpenMP directive '#pragma omp for'}}
 #pragma omp for
 
@@ -50,6 +52,20 @@ void test_invalid_clause() {
 #pragma omp parallel
 // expected-warning@+1 {{extra tokens at the end of '#pragma omp for' are ignored}}
 #pragma omp for foo bar
+  for (i = 0; i < 16; ++i)
+    ;
+// At one time, this failed an assert.
+// expected-error@+1 {{unexpected OpenMP clause 'num_teams' in directive '#pragma omp for'}}
+#pragma omp for num_teams(3)
+  for (i = 0; i < 16; ++i)
+    ;
+// At one time, this error was reported twice.
+// expected-error@+1 {{unexpected OpenMP clause 'uniform' in directive '#pragma omp for'}}
+#pragma omp for uniform
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{unexpected OpenMP clause 'if' in directive '#pragma omp for'}}
+#pragma omp for if(0)
   for (i = 0; i < 16; ++i)
     ;
 }

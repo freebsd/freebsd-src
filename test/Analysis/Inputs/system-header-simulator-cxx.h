@@ -252,6 +252,12 @@ namespace std {
       return size_t(_finish - _start);
     }
 
+    void clear();
+
+    void push_back(const T &value);
+    void push_back(T &&value);
+    void pop_back();
+
     T &operator[](size_t n) {
       return _start[n];
     }
@@ -295,6 +301,8 @@ namespace std {
     list& operator=(list &&other);
     list& operator=(std::initializer_list<T> ilist);
 
+    void clear();
+
     iterator begin() { return iterator(_start); }
     const_iterator begin() const { return const_iterator(_start); }
     const_iterator cbegin() const { return const_iterator(_start); }
@@ -330,6 +338,16 @@ namespace std {
       return size_t(_finish - _start);
     }
     
+    void clear();
+
+    void push_back(const T &value);
+    void push_back(T &&value);
+    void pop_back();
+
+    void push_front(const T &value);
+    void push_front(T &&value);
+    void pop_front();
+
     T &operator[](size_t n) {
       return _start[n];
     }
@@ -369,6 +387,12 @@ namespace std {
     forward_list(forward_list &&other);
     ~forward_list();
     
+    void clear();
+
+    void push_front(const T &value);
+    void push_front(T &&value);
+    void pop_front();
+
     iterator begin() { return iterator(_start); }
     const_iterator begin() const { return const_iterator(_start); }
     const_iterator cbegin() const { return const_iterator(_start); }
@@ -584,10 +608,21 @@ namespace std {
 
 }
 
+#ifdef TEST_INLINABLE_ALLOCATORS
+namespace std {
+  void *malloc(size_t);
+  void free(void *);
+}
+void* operator new(std::size_t size, const std::nothrow_t&) throw() { return std::malloc(size); }
+void* operator new[](std::size_t size, const std::nothrow_t&) throw() { return std::malloc(size); }
+void operator delete(void* ptr, const std::nothrow_t&) throw() { std::free(ptr); }
+void operator delete[](void* ptr, const std::nothrow_t&) throw() { std::free(ptr); }
+#else
 void* operator new(std::size_t, const std::nothrow_t&) throw();
 void* operator new[](std::size_t, const std::nothrow_t&) throw();
 void operator delete(void*, const std::nothrow_t&) throw();
 void operator delete[](void*, const std::nothrow_t&) throw();
+#endif
 
 void* operator new (std::size_t size, void* ptr) throw() { return ptr; };
 void* operator new[] (std::size_t size, void* ptr) throw() { return ptr; };

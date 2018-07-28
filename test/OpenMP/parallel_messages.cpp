@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -std=c++11 -o - %s
 
+// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 -std=c++11 -o - %s
+
 void foo() {
 }
 
@@ -29,6 +31,8 @@ int main(int argc, char **argv) {
   foo();
   L1:
     foo();
+  #pragma omp parallel ordered // expected-error {{unexpected OpenMP clause 'ordered' in directive '#pragma omp parallel'}}
+    ;
   #pragma omp parallel
   ;
   #pragma omp parallel

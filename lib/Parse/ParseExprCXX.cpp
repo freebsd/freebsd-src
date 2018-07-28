@@ -100,7 +100,7 @@ void Parser::CheckForTemplateAndDigraph(Token &Next, ParsedType ObjectType,
              /*AtDigraph*/false);
 }
 
-/// \brief Parse global scope or nested-name-specifier if present.
+/// Parse global scope or nested-name-specifier if present.
 ///
 /// Parses a C++ global scope specifier ('::') or nested-name-specifier (which
 /// may be preceded by '::'). Note that this routine will not parse ::new or
@@ -292,8 +292,8 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
           break;
         }
 
-        if (TemplateName.getKind() != UnqualifiedId::IK_OperatorFunctionId &&
-            TemplateName.getKind() != UnqualifiedId::IK_LiteralOperatorId) {
+        if (TemplateName.getKind() != UnqualifiedIdKind::IK_OperatorFunctionId &&
+            TemplateName.getKind() != UnqualifiedIdKind::IK_LiteralOperatorId) {
           Diag(TemplateName.getSourceRange().getBegin(),
                diag::err_id_after_template_in_nested_name_spec)
             << TemplateName.getSourceRange();
@@ -515,7 +515,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
           << FixItHint::CreateInsertion(Tok.getLocation(), "template ");
 
         if (TemplateNameKind TNK = Actions.ActOnDependentTemplateName(
-                getCurScope(), SS, SourceLocation(), TemplateName, ObjectType,
+                getCurScope(), SS, Tok.getLocation(), TemplateName, ObjectType,
                 EnteringContext, Template, /*AllowInjectedClassName*/ true)) {
           // Consume the identifier.
           ConsumeToken();
@@ -553,7 +553,7 @@ ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS, bool isAddressOfOpe
                          /*AllowDestructorName=*/false,
                          /*AllowConstructorName=*/false,
                          /*AllowDeductionGuide=*/false,
-                         /*ObjectType=*/nullptr, TemplateKWLoc, Name))
+                         /*ObjectType=*/nullptr, &TemplateKWLoc, Name))
     return ExprError();
 
   // This is only the direct operand of an & operator if it is not
@@ -561,10 +561,13 @@ ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS, bool isAddressOfOpe
   if (isAddressOfOperand && isPostfixExpressionSuffixStart())
     isAddressOfOperand = false;
 
-  return Actions.ActOnIdExpression(getCurScope(), SS, TemplateKWLoc, Name,
-                                   Tok.is(tok::l_paren), isAddressOfOperand,
-                                   nullptr, /*IsInlineAsmIdentifier=*/false,
-                                   &Replacement);
+  ExprResult E = Actions.ActOnIdExpression(
+      getCurScope(), SS, TemplateKWLoc, Name, Tok.is(tok::l_paren),
+      isAddressOfOperand, nullptr, /*IsInlineAsmIdentifier=*/false,
+      &Replacement);
+  if (!E.isInvalid() && !E.isUnset() && Tok.is(tok::less))
+    checkPotentialAngleBracket(E);
+  return E;
 }
 
 /// ParseCXXIdExpression - Handle id-expression.
@@ -730,7 +733,7 @@ ExprResult Parser::TryParseLambdaExpression() {
   return ParseLambdaExpressionAfterIntroducer(Intro);
 }
 
-/// \brief Parse a lambda introducer.
+/// Parse a lambda introducer.
 /// \param Intro A LambdaIntroducer filled in with information about the
 ///        contents of the lambda-introducer.
 /// \param SkippedInits If non-null, we are disambiguating between an Obj-C
@@ -805,6 +808,7 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro,
     IdentifierInfo *Id = nullptr;
     SourceLocation EllipsisLoc;
     ExprResult Init;
+    SourceLocation LocStart = Tok.getLocation();
 
     if (Tok.is(tok::star)) {
       Loc = ConsumeToken(); 
@@ -978,8 +982,11 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro,
           Loc, Kind == LCK_ByRef, Id, InitKind, InitExpr);
       Init = InitExpr;
     }
+
+    SourceLocation LocEnd = PrevTokLocation;
+
     Intro.addCapture(Kind, Loc, Id, EllipsisLoc, InitKind, Init,
-                     InitCaptureType);
+                     InitCaptureType, SourceRange(LocStart, LocEnd));
   }
 
   T.consumeClose();
@@ -1090,7 +1097,7 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
 
   // Parse lambda-declarator[opt].
   DeclSpec DS(AttrFactory);
-  Declarator D(DS, Declarator::LambdaExprContext);
+  Declarator D(DS, DeclaratorContext::LambdaExprContext);
   TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
   Actions.PushLambdaScope();
 
@@ -1106,12 +1113,12 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
   // after '(...)'. nvcc doesn't accept this.
   auto WarnIfHasCUDATargetAttr = [&] {
     if (getLangOpts().CUDA)
-      for (auto *A = Attr.getList(); A != nullptr; A = A->getNext())
-        if (A->getKind() == AttributeList::AT_CUDADevice ||
-            A->getKind() == AttributeList::AT_CUDAHost ||
-            A->getKind() == AttributeList::AT_CUDAGlobal)
-          Diag(A->getLoc(), diag::warn_cuda_attr_lambda_position)
-              << A->getName()->getName();
+      for (const ParsedAttr &A : Attr)
+        if (A.getKind() == ParsedAttr::AT_CUDADevice ||
+            A.getKind() == ParsedAttr::AT_CUDAHost ||
+            A.getKind() == ParsedAttr::AT_CUDAGlobal)
+          Diag(A.getLoc(), diag::warn_cuda_attr_lambda_position)
+              << A.getName()->getName();
   };
 
   TypeResult TrailingReturnType;
@@ -1183,7 +1190,8 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     if (Tok.is(tok::arrow)) {
       FunLocalRangeEnd = Tok.getLocation();
       SourceRange Range;
-      TrailingReturnType = ParseTrailingReturnType(Range);
+      TrailingReturnType =
+          ParseTrailingReturnType(Range, /*MayBeFollowedByDirectInit*/ false);
       if (Range.getEnd().isValid())
         DeclEndLoc = Range.getEnd();
     }
@@ -1193,29 +1201,23 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     WarnIfHasCUDATargetAttr();
 
     SourceLocation NoLoc;
-    D.AddTypeInfo(DeclaratorChunk::getFunction(/*hasProto=*/true,
-                                           /*isAmbiguous=*/false,
-                                           LParenLoc,
-                                           ParamInfo.data(), ParamInfo.size(),
-                                           EllipsisLoc, RParenLoc,
-                                           DS.getTypeQualifiers(),
-                                           /*RefQualifierIsLValueRef=*/true,
-                                           /*RefQualifierLoc=*/NoLoc,
-                                           /*ConstQualifierLoc=*/NoLoc,
-                                           /*VolatileQualifierLoc=*/NoLoc,
-                                           /*RestrictQualifierLoc=*/NoLoc,
-                                           MutableLoc,
-                                           ESpecType, ESpecRange,
-                                           DynamicExceptions.data(),
-                                           DynamicExceptionRanges.data(),
-                                           DynamicExceptions.size(),
-                                           NoexceptExpr.isUsable() ?
-                                             NoexceptExpr.get() : nullptr,
-                                           /*ExceptionSpecTokens*/nullptr,
-                                           /*DeclsInPrototype=*/None,
-                                           LParenLoc, FunLocalRangeEnd, D,
-                                           TrailingReturnType),
-                  Attr, DeclEndLoc);
+    D.AddTypeInfo(DeclaratorChunk::getFunction(
+                      /*hasProto=*/true,
+                      /*isAmbiguous=*/false, LParenLoc, ParamInfo.data(),
+                      ParamInfo.size(), EllipsisLoc, RParenLoc,
+                      DS.getTypeQualifiers(),
+                      /*RefQualifierIsLValueRef=*/true,
+                      /*RefQualifierLoc=*/NoLoc,
+                      /*ConstQualifierLoc=*/NoLoc,
+                      /*VolatileQualifierLoc=*/NoLoc,
+                      /*RestrictQualifierLoc=*/NoLoc, MutableLoc, ESpecType,
+                      ESpecRange, DynamicExceptions.data(),
+                      DynamicExceptionRanges.data(), DynamicExceptions.size(),
+                      NoexceptExpr.isUsable() ? NoexceptExpr.get() : nullptr,
+                      /*ExceptionSpecTokens*/ nullptr,
+                      /*DeclsInPrototype=*/None, LParenLoc, FunLocalRangeEnd, D,
+                      TrailingReturnType),
+                  std::move(Attr), DeclEndLoc);
   } else if (Tok.isOneOf(tok::kw_mutable, tok::arrow, tok::kw___attribute,
                          tok::kw_constexpr) ||
              (Tok.is(tok::l_square) && NextToken().is(tok::l_square))) {
@@ -1253,7 +1255,8 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     // Parse the return type, if there is one.
     if (Tok.is(tok::arrow)) {
       SourceRange Range;
-      TrailingReturnType = ParseTrailingReturnType(Range);
+      TrailingReturnType =
+          ParseTrailingReturnType(Range, /*MayBeFollowedByDirectInit*/ false);
       if (Range.getEnd().isValid())
         DeclEndLoc = Range.getEnd();
     }
@@ -1261,31 +1264,29 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     WarnIfHasCUDATargetAttr();
 
     SourceLocation NoLoc;
-    D.AddTypeInfo(DeclaratorChunk::getFunction(/*hasProto=*/true,
-                                               /*isAmbiguous=*/false,
-                                               /*LParenLoc=*/NoLoc,
-                                               /*Params=*/nullptr,
-                                               /*NumParams=*/0,
-                                               /*EllipsisLoc=*/NoLoc,
-                                               /*RParenLoc=*/NoLoc,
-                                               /*TypeQuals=*/0,
-                                               /*RefQualifierIsLValueRef=*/true,
-                                               /*RefQualifierLoc=*/NoLoc,
-                                               /*ConstQualifierLoc=*/NoLoc,
-                                               /*VolatileQualifierLoc=*/NoLoc,
-                                               /*RestrictQualifierLoc=*/NoLoc,
-                                               MutableLoc,
-                                               EST_None,
-                                               /*ESpecRange=*/SourceRange(),
-                                               /*Exceptions=*/nullptr,
-                                               /*ExceptionRanges=*/nullptr,
-                                               /*NumExceptions=*/0,
-                                               /*NoexceptExpr=*/nullptr,
-                                               /*ExceptionSpecTokens=*/nullptr,
-                                               /*DeclsInPrototype=*/None,
-                                               DeclLoc, DeclEndLoc, D,
-                                               TrailingReturnType),
-                  Attr, DeclEndLoc);
+    D.AddTypeInfo(DeclaratorChunk::getFunction(
+                      /*hasProto=*/true,
+                      /*isAmbiguous=*/false,
+                      /*LParenLoc=*/NoLoc,
+                      /*Params=*/nullptr,
+                      /*NumParams=*/0,
+                      /*EllipsisLoc=*/NoLoc,
+                      /*RParenLoc=*/NoLoc,
+                      /*TypeQuals=*/0,
+                      /*RefQualifierIsLValueRef=*/true,
+                      /*RefQualifierLoc=*/NoLoc,
+                      /*ConstQualifierLoc=*/NoLoc,
+                      /*VolatileQualifierLoc=*/NoLoc,
+                      /*RestrictQualifierLoc=*/NoLoc, MutableLoc, EST_None,
+                      /*ESpecRange=*/SourceRange(),
+                      /*Exceptions=*/nullptr,
+                      /*ExceptionRanges=*/nullptr,
+                      /*NumExceptions=*/0,
+                      /*NoexceptExpr=*/nullptr,
+                      /*ExceptionSpecTokens=*/nullptr,
+                      /*DeclsInPrototype=*/None, DeclLoc, DeclEndLoc, D,
+                      TrailingReturnType),
+                  std::move(Attr), DeclEndLoc);
   }
 
   // FIXME: Rename BlockScope -> ClosureScope if we decide to continue using
@@ -1353,7 +1354,7 @@ ExprResult Parser::ParseCXXCasts() {
   ParseSpecifierQualifierList(DS);
 
   // Parse the abstract-declarator, if present.
-  Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+  Declarator DeclaratorInfo(DS, DeclaratorContext::TypeNameContext);
   ParseDeclarator(DeclaratorInfo);
 
   SourceLocation RAngleBracketLoc = Tok.getLocation();
@@ -1498,7 +1499,7 @@ ExprResult Parser::ParseCXXUuidof() {
   return Result;
 }
 
-/// \brief Parse a C++ pseudo-destructor expression after the base,
+/// Parse a C++ pseudo-destructor expression after the base,
 /// . or -> operator, and nested-name-specifier have already been
 /// parsed.
 ///
@@ -1619,7 +1620,7 @@ ExprResult Parser::ParseThrowExpression() {
   }
 }
 
-/// \brief Parse the C++ Coroutines co_yield expression.
+/// Parse the C++ Coroutines co_yield expression.
 ///
 ///       co_yield-expression:
 ///         'co_yield' assignment-expression[opt]
@@ -1660,7 +1661,7 @@ ExprResult Parser::ParseCXXThis() {
 /// In C++1z onwards, the type specifier can also be a template-name.
 ExprResult
 Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
-  Declarator DeclaratorInfo(DS, Declarator::FunctionalCastContext);
+  Declarator DeclaratorInfo(DS, DeclaratorContext::FunctionalCastContext);
   ParsedType TypeRep = Actions.ActOnTypeName(getCurScope(), DeclaratorInfo).get();
 
   assert((Tok.is(tok::l_paren) ||
@@ -1672,9 +1673,9 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
     if (Init.isInvalid())
       return Init;
     Expr *InitList = Init.get();
-    return Actions.ActOnCXXTypeConstructExpr(TypeRep, SourceLocation(),
-                                             MultiExprArg(&InitList, 1),
-                                             SourceLocation());
+    return Actions.ActOnCXXTypeConstructExpr(
+        TypeRep, InitList->getLocStart(), MultiExprArg(&InitList, 1),
+        InitList->getLocEnd(), /*ListInitialization=*/true);
   } else {
     BalancedDelimiterTracker T(*this, tok::l_paren);
     T.consumeOpen();
@@ -1702,9 +1703,9 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
 
     assert((Exprs.size() == 0 || Exprs.size()-1 == CommaLocs.size())&&
            "Unexpected number of commas!");
-    return Actions.ActOnCXXTypeConstructExpr(TypeRep, T.getOpenLocation(), 
-                                             Exprs,
-                                             T.getCloseLocation());
+    return Actions.ActOnCXXTypeConstructExpr(TypeRep, T.getOpenLocation(),
+                                             Exprs, T.getCloseLocation(),
+                                             /*ListInitialization=*/false);
   }
 }
 
@@ -1733,6 +1734,8 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
 Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
                                                 SourceLocation Loc,
                                                 Sema::ConditionKind CK) {
+  ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Condition);
     cutOffParsing();
@@ -1742,10 +1745,26 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
   ParsedAttributesWithRange attrs(AttrFactory);
   MaybeParseCXX11Attributes(attrs);
 
+  const auto WarnOnInit = [this, &CK] {
+    Diag(Tok.getLocation(), getLangOpts().CPlusPlus17
+                                ? diag::warn_cxx14_compat_init_statement
+                                : diag::ext_init_statement)
+        << (CK == Sema::ConditionKind::Switch);
+  };
+
   // Determine what kind of thing we have.
   switch (isCXXConditionDeclarationOrInitStatement(InitStmt)) {
   case ConditionOrInitStatement::Expression: {
     ProhibitAttributes(attrs);
+
+    // We can have an empty expression here.
+    //   if (; true);
+    if (InitStmt && Tok.is(tok::semi)) {
+      WarnOnInit();
+      SourceLocation SemiLoc = ConsumeToken();
+      *InitStmt = Actions.ActOnNullStmt(SemiLoc);
+      return ParseCXXCondition(nullptr, Loc, CK);
+    }
 
     // Parse the expression.
     ExprResult Expr = ParseExpression(); // expression
@@ -1753,6 +1772,7 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
       return Sema::ConditionError();
 
     if (InitStmt && Tok.is(tok::semi)) {
+      WarnOnInit();
       *InitStmt = Actions.ActOnExprStmt(Expr.get());
       ConsumeToken();
       return ParseCXXCondition(nullptr, Loc, CK);
@@ -1762,13 +1782,11 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
   }
 
   case ConditionOrInitStatement::InitStmtDecl: {
-    Diag(Tok.getLocation(), getLangOpts().CPlusPlus17
-                                ? diag::warn_cxx14_compat_init_statement
-                                : diag::ext_init_statement)
-        << (CK == Sema::ConditionKind::Switch);
+    WarnOnInit();
     SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
-    DeclGroupPtrTy DG = ParseSimpleDeclaration(
-        Declarator::InitStmtContext, DeclEnd, attrs, /*RequireSemi=*/true);
+    DeclGroupPtrTy DG =
+        ParseSimpleDeclaration(DeclaratorContext::InitStmtContext, DeclEnd,
+                               attrs, /*RequireSemi=*/true);
     *InitStmt = Actions.ActOnDeclStmt(DG, DeclStart, DeclEnd);
     return ParseCXXCondition(nullptr, Loc, CK);
   }
@@ -1781,10 +1799,10 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
   // type-specifier-seq
   DeclSpec DS(AttrFactory);
   DS.takeAttributesFrom(attrs);
-  ParseSpecifierQualifierList(DS, AS_none, DSC_condition);
+  ParseSpecifierQualifierList(DS, AS_none, DeclSpecContext::DSC_condition);
 
   // declarator
-  Declarator DeclaratorInfo(DS, Declarator::ConditionContext);
+  Declarator DeclaratorInfo(DS, DeclaratorContext::ConditionContext);
   ParseDeclarator(DeclaratorInfo);
 
   // simple-asm-expr[opt]
@@ -1945,6 +1963,9 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
   case tok::kw_wchar_t:
     DS.SetTypeSpecType(DeclSpec::TST_wchar, Loc, PrevSpec, DiagID, Policy);
     break;
+  case tok::kw_char8_t:
+    DS.SetTypeSpecType(DeclSpec::TST_char8, Loc, PrevSpec, DiagID, Policy);
+    break;
   case tok::kw_char16_t:
     DS.SetTypeSpecType(DeclSpec::TST_char16, Loc, PrevSpec, DiagID, Policy);
     break;
@@ -1982,12 +2003,12 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
 ///     type-specifier type-specifier-seq[opt]
 ///
 bool Parser::ParseCXXTypeSpecifierSeq(DeclSpec &DS) {
-  ParseSpecifierQualifierList(DS, AS_none, DSC_type_specifier);
+  ParseSpecifierQualifierList(DS, AS_none, DeclSpecContext::DSC_type_specifier);
   DS.Finish(Actions, Actions.getASTContext().getPrintingPolicy());
   return false;
 }
 
-/// \brief Finish parsing a C++ unqualified-id that is a template-id of
+/// Finish parsing a C++ unqualified-id that is a template-id of
 /// some form. 
 ///
 /// This routine is invoked when a '<' is encountered after an identifier or
@@ -2027,15 +2048,14 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
                                           ParsedType ObjectType,
                                           UnqualifiedId &Id,
                                           bool AssumeTemplateId) {
-  assert((AssumeTemplateId || Tok.is(tok::less)) &&
-         "Expected '<' to finish parsing a template-id");
-  
+  assert(Tok.is(tok::less) && "Expected '<' to finish parsing a template-id");
+
   TemplateTy Template;
   TemplateNameKind TNK = TNK_Non_template;
   switch (Id.getKind()) {
-  case UnqualifiedId::IK_Identifier:
-  case UnqualifiedId::IK_OperatorFunctionId:
-  case UnqualifiedId::IK_LiteralOperatorId:
+  case UnqualifiedIdKind::IK_Identifier:
+  case UnqualifiedIdKind::IK_OperatorFunctionId:
+  case UnqualifiedIdKind::IK_LiteralOperatorId:
     if (AssumeTemplateId) {
       // We defer the injected-class-name checks until we've found whether
       // this template-id is used to form a nested-name-specifier or not.
@@ -2058,11 +2078,11 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
         // parse correctly as a template, so suggest the keyword 'template'
         // before 'getAs' and treat this as a dependent template name.
         std::string Name;
-        if (Id.getKind() == UnqualifiedId::IK_Identifier)
+        if (Id.getKind() == UnqualifiedIdKind::IK_Identifier)
           Name = Id.Identifier->getName();
         else {
           Name = "operator ";
-          if (Id.getKind() == UnqualifiedId::IK_OperatorFunctionId)
+          if (Id.getKind() == UnqualifiedIdKind::IK_OperatorFunctionId)
             Name += getOperatorSpelling(Id.OperatorFunctionId.Operator);
           else
             Name += Id.Identifier->getName();
@@ -2079,7 +2099,7 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
     }
     break;
       
-  case UnqualifiedId::IK_ConstructorName: {
+  case UnqualifiedIdKind::IK_ConstructorName: {
     UnqualifiedId TemplateName;
     bool MemberOfUnknownSpecialization;
     TemplateName.setIdentifier(Name, NameLoc);
@@ -2090,7 +2110,7 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
     break;
   }
       
-  case UnqualifiedId::IK_DestructorName: {
+  case UnqualifiedIdKind::IK_DestructorName: {
     UnqualifiedId TemplateName;
     bool MemberOfUnknownSpecialization;
     TemplateName.setIdentifier(Name, NameLoc);
@@ -2125,22 +2145,24 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
   // Parse the enclosed template argument list.
   SourceLocation LAngleLoc, RAngleLoc;
   TemplateArgList TemplateArgs;
-  if (Tok.is(tok::less) && ParseTemplateIdAfterTemplateName(
-                               true, LAngleLoc, TemplateArgs, RAngleLoc))
+  if (ParseTemplateIdAfterTemplateName(true, LAngleLoc, TemplateArgs,
+                                       RAngleLoc))
     return true;
-  
-  if (Id.getKind() == UnqualifiedId::IK_Identifier ||
-      Id.getKind() == UnqualifiedId::IK_OperatorFunctionId ||
-      Id.getKind() == UnqualifiedId::IK_LiteralOperatorId) {
+
+  if (Id.getKind() == UnqualifiedIdKind::IK_Identifier ||
+      Id.getKind() == UnqualifiedIdKind::IK_OperatorFunctionId ||
+      Id.getKind() == UnqualifiedIdKind::IK_LiteralOperatorId) {
     // Form a parsed representation of the template-id to be stored in the
     // UnqualifiedId.
 
     // FIXME: Store name for literal operator too.
     IdentifierInfo *TemplateII =
-        Id.getKind() == UnqualifiedId::IK_Identifier ? Id.Identifier : nullptr;
-    OverloadedOperatorKind OpKind = Id.getKind() == UnqualifiedId::IK_Identifier
-                                        ? OO_None
-                                        : Id.OperatorFunctionId.Operator;
+        Id.getKind() == UnqualifiedIdKind::IK_Identifier ? Id.Identifier
+                                                         : nullptr;
+    OverloadedOperatorKind OpKind =
+        Id.getKind() == UnqualifiedIdKind::IK_Identifier
+            ? OO_None
+            : Id.OperatorFunctionId.Operator;
 
     TemplateIdAnnotation *TemplateId = TemplateIdAnnotation::Create(
         SS, TemplateKWLoc, Id.StartLocation, TemplateII, OpKind, Template, TNK,
@@ -2162,7 +2184,7 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
   if (Type.isInvalid())
     return true;
   
-  if (Id.getKind() == UnqualifiedId::IK_ConstructorName)
+  if (Id.getKind() == UnqualifiedIdKind::IK_ConstructorName)
     Id.setConstructorName(Type.get(), NameLoc, RAngleLoc);
   else
     Id.setDestructorName(Id.StartLocation, Type.get(), RAngleLoc);
@@ -2170,7 +2192,7 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
   return false;
 }
 
-/// \brief Parse an operator-function-id or conversion-function-id as part
+/// Parse an operator-function-id or conversion-function-id as part
 /// of a C++ unqualified-id.
 ///
 /// This routine is responsible only for parsing the operator-function-id or
@@ -2395,7 +2417,7 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
   
   // Parse the conversion-declarator, which is merely a sequence of
   // ptr-operators.
-  Declarator D(DS, Declarator::ConversionIdContext);
+  Declarator D(DS, DeclaratorContext::ConversionIdContext);
   ParseDeclaratorInternal(D, /*DirectDeclParser=*/nullptr);
 
   // Finish up the type.
@@ -2409,7 +2431,7 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
   return false;  
 }
 
-/// \brief Parse a C++ unqualified-id (or a C identifier), which describes the
+/// Parse a C++ unqualified-id (or a C identifier), which describes the
 /// name of an entity.
 ///
 /// \code
@@ -2446,16 +2468,23 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
                                 bool AllowConstructorName,
                                 bool AllowDeductionGuide,
                                 ParsedType ObjectType,
-                                SourceLocation& TemplateKWLoc,
+                                SourceLocation *TemplateKWLoc,
                                 UnqualifiedId &Result) {
+  if (TemplateKWLoc)
+    *TemplateKWLoc = SourceLocation();
 
   // Handle 'A::template B'. This is for template-ids which have not
   // already been annotated by ParseOptionalCXXScopeSpecifier().
   bool TemplateSpecified = false;
-  if (getLangOpts().CPlusPlus && Tok.is(tok::kw_template) &&
-      (ObjectType || SS.isSet())) {
-    TemplateSpecified = true;
-    TemplateKWLoc = ConsumeToken();
+  if (Tok.is(tok::kw_template)) {
+    if (TemplateKWLoc && (ObjectType || SS.isSet())) {
+      TemplateSpecified = true;
+      *TemplateKWLoc = ConsumeToken();
+    } else {
+      SourceLocation TemplateLoc = ConsumeToken();
+      Diag(TemplateLoc, diag::err_unexpected_template_in_unqualified_id)
+        << FixItHint::CreateRemoval(TemplateLoc);
+    }
   }
 
   // unqualified-id:
@@ -2477,10 +2506,10 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     if (AllowConstructorName && 
         Actions.isCurrentClassName(*Id, getCurScope(), &SS)) {
       // We have parsed a constructor name.
-      ParsedType Ty = Actions.getTypeName(*Id, IdLoc, getCurScope(), &SS, false,
-                                          false, nullptr,
-                                          /*IsCtorOrDtorName=*/true,
-                                          /*NonTrivialTypeSourceInfo=*/true);
+      ParsedType Ty = Actions.getConstructorName(*Id, IdLoc, getCurScope(), SS,
+                                                 EnteringContext);
+      if (!Ty)
+        return true;
       Result.setConstructorName(Ty, IdLoc, IdLoc);
     } else if (getLangOpts().CPlusPlus17 &&
                AllowDeductionGuide && SS.isEmpty() &&
@@ -2494,11 +2523,18 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     }
 
     // If the next token is a '<', we may have a template.
-    if (TemplateSpecified || Tok.is(tok::less))
-      return ParseUnqualifiedIdTemplateId(SS, TemplateKWLoc, Id, IdLoc,
-                                          EnteringContext, ObjectType,
-                                          Result, TemplateSpecified);
-    
+    TemplateTy Template;
+    if (Tok.is(tok::less))
+      return ParseUnqualifiedIdTemplateId(
+          SS, TemplateKWLoc ? *TemplateKWLoc : SourceLocation(), Id, IdLoc,
+          EnteringContext, ObjectType, Result, TemplateSpecified);
+    else if (TemplateSpecified &&
+             Actions.ActOnDependentTemplateName(
+                 getCurScope(), SS, *TemplateKWLoc, Result, ObjectType,
+                 EnteringContext, Template,
+                 /*AllowInjectedClassName*/ true) == TNK_Non_template)
+      return true;
+
     return false;
   }
   
@@ -2520,11 +2556,11 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
           << TemplateId->Name
           << FixItHint::CreateRemoval(
                     SourceRange(TemplateId->LAngleLoc, TemplateId->RAngleLoc));
-        ParsedType Ty =
-            Actions.getTypeName(*TemplateId->Name, TemplateId->TemplateNameLoc,
-                                getCurScope(), &SS, false, false, nullptr,
-                                /*IsCtorOrDtorName=*/true,
-                                /*NontrivialTypeSourceInfo=*/true);
+        ParsedType Ty = Actions.getConstructorName(
+            *TemplateId->Name, TemplateId->TemplateNameLoc, getCurScope(), SS,
+            EnteringContext);
+        if (!Ty)
+          return true;
         Result.setConstructorName(Ty, TemplateId->TemplateNameLoc,
                                   TemplateId->RAngleLoc);
         ConsumeAnnotationToken();
@@ -2539,7 +2575,14 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     // We have already parsed a template-id; consume the annotation token as
     // our unqualified-id.
     Result.setTemplateId(TemplateId);
-    TemplateKWLoc = TemplateId->TemplateKWLoc;
+    SourceLocation TemplateLoc = TemplateId->TemplateKWLoc;
+    if (TemplateLoc.isValid()) {
+      if (TemplateKWLoc && (ObjectType || SS.isSet()))
+        *TemplateKWLoc = TemplateLoc;
+      else
+        Diag(TemplateLoc, diag::err_unexpected_template_in_unqualified_id)
+            << FixItHint::CreateRemoval(TemplateLoc);
+    }
     ConsumeAnnotationToken();
     return false;
   }
@@ -2556,13 +2599,20 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     // 
     //   template-id:
     //     operator-function-id < template-argument-list[opt] >
-    if ((Result.getKind() == UnqualifiedId::IK_OperatorFunctionId ||
-         Result.getKind() == UnqualifiedId::IK_LiteralOperatorId) &&
-        (TemplateSpecified || Tok.is(tok::less)))
-      return ParseUnqualifiedIdTemplateId(SS, TemplateKWLoc,
-                                          nullptr, SourceLocation(),
-                                          EnteringContext, ObjectType,
-                                          Result, TemplateSpecified);
+    TemplateTy Template;
+    if ((Result.getKind() == UnqualifiedIdKind::IK_OperatorFunctionId ||
+         Result.getKind() == UnqualifiedIdKind::IK_LiteralOperatorId) &&
+        Tok.is(tok::less))
+      return ParseUnqualifiedIdTemplateId(
+          SS, TemplateKWLoc ? *TemplateKWLoc : SourceLocation(), nullptr,
+          SourceLocation(), EnteringContext, ObjectType, Result,
+          TemplateSpecified);
+    else if (TemplateSpecified &&
+             Actions.ActOnDependentTemplateName(
+                 getCurScope(), SS, *TemplateKWLoc, Result, ObjectType,
+                 EnteringContext, Template,
+                 /*AllowInjectedClassName*/ true) == TNK_Non_template)
+      return true;
 
     return false;
   }
@@ -2630,12 +2680,11 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     IdentifierInfo *ClassName = Tok.getIdentifierInfo();
     SourceLocation ClassNameLoc = ConsumeToken();
 
-    if (TemplateSpecified || Tok.is(tok::less)) {
+    if (Tok.is(tok::less)) {
       Result.setDestructorName(TildeLoc, nullptr, ClassNameLoc);
-      return ParseUnqualifiedIdTemplateId(SS, TemplateKWLoc,
-                                          ClassName, ClassNameLoc,
-                                          EnteringContext, ObjectType,
-                                          Result, TemplateSpecified);
+      return ParseUnqualifiedIdTemplateId(
+          SS, TemplateKWLoc ? *TemplateKWLoc : SourceLocation(), ClassName,
+          ClassNameLoc, EnteringContext, ObjectType, Result, TemplateSpecified);
     }
 
     // Note that this is a destructor name.
@@ -2696,7 +2745,7 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
 
   SourceRange TypeIdParens;
   DeclSpec DS(AttrFactory);
-  Declarator DeclaratorInfo(DS, Declarator::CXXNewContext);
+  Declarator DeclaratorInfo(DS, DeclaratorContext::CXXNewContext);
   if (Tok.is(tok::l_paren)) {
     // If it turns out to be a placement, we change the type location.
     BalancedDelimiterTracker T(*this, tok::l_paren);
@@ -2836,10 +2885,9 @@ void Parser::ParseDirectNewDeclarator(Declarator &D) {
 
     D.AddTypeInfo(DeclaratorChunk::getArray(0,
                                             /*static=*/false, /*star=*/false,
-                                            Size.get(),
-                                            T.getOpenLocation(),
+                                            Size.get(), T.getOpenLocation(),
                                             T.getCloseLocation()),
-                  Attrs, T.getCloseLocation());
+                  std::move(Attrs), T.getCloseLocation());
 
     if (T.getCloseLocation().isInvalid())
       return;
@@ -2954,7 +3002,7 @@ static unsigned TypeTraitArity(tok::TokenKind kind) {
   }
 }
 
-/// \brief Parse the built-in type-trait pseudo-functions that allow 
+/// Parse the built-in type-trait pseudo-functions that allow 
 /// implementation of the TR1/C++11 type traits templates.
 ///
 ///       primary-expression:
@@ -3172,7 +3220,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
   if (ParseAs >= CompoundLiteral) {
     // Parse the type declarator.
     DeclSpec DS(AttrFactory);
-    Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+    Declarator DeclaratorInfo(DS, DeclaratorContext::TypeNameContext);
     {
       ColonProtectionRAIIObject InnerColonProtection(*this);
       ParseSpecifierQualifierList(DS);

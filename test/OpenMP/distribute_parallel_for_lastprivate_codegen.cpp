@@ -5,12 +5,28 @@
 // RUN: %clang_cc1 -DLAMBDA -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -o %t %s
 // RUN: %clang_cc1 -DLAMBDA -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix LAMBDA --check-prefix LAMBDA-32
 
+// RUN: %clang_cc1 -DLAMBDA -verify -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DLAMBDA -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -o %t %s
+// RUN: %clang_cc1 -DLAMBDA -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DLAMBDA -verify -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -DLAMBDA -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -o %t %s
+// RUN: %clang_cc1 -DLAMBDA -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
+
 // RUN: %clang_cc1  -verify -fopenmp -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-64
 // RUN: %clang_cc1  -fopenmp -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -o %t %s
 // RUN: %clang_cc1  -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-64
 // RUN: %clang_cc1  -verify -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm %s -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
 // RUN: %clang_cc1  -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -o %t %s
 // RUN: %clang_cc1  -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
+
+// RUN: %clang_cc1  -verify -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1  -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -o %t %s
+// RUN: %clang_cc1  -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1  -verify -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm %s -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// RUN: %clang_cc1  -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -o %t %s
+// RUN: %clang_cc1  -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY1 %s
+// SIMD-ONLY1-NOT: {{__kmpc|__tgt}}
 // expected-no-diagnostics
 #ifndef HEADER
 #define HEADER
@@ -333,7 +349,7 @@ int main() {
 // CHECK: store i{{[0-9]+}} [[T_VAR_VAL]], i{{[0-9]+}}* [[T_VAR_ADDR_REF]],
 // CHECK: [[BCAST_VEC_ADDR_REF:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_ADDR_REF]] to i8*
 // CHECK: [[BCAST_VEC_PRIV:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_PRIV]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[BCAST_VEC_ADDR_REF]], i8* [[BCAST_VEC_PRIV]],
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[BCAST_VEC_ADDR_REF]], i8* align {{[0-9]+}} [[BCAST_VEC_PRIV]],
 // CHECK: [[S_ARR_BEGIN:%.+]] = getelementptr inbounds [2 x [[S_FLOAT_TY]]], [2 x [[S_FLOAT_TY]]]* [[S_ARR_ADDR_REF]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[S_ARR_PRIV_BCAST:%.+]] = bitcast [2 x [[S_FLOAT_TY]]]* [[S_ARR_PRIV]] to [[S_FLOAT_TY]]*
 // CHECK: [[S_ARR_BEGIN_GEP:%.+]] = getelementptr [[S_FLOAT_TY]], [[S_FLOAT_TY]]* [[S_ARR_BEGIN]], i{{[0-9]+}} 2
@@ -344,7 +360,7 @@ int main() {
 // CHECK: [[S_ARR_DST_EL:%.+]] = phi [[S_FLOAT_TY]]*{{.+}}
 // CHECK: [[S_ARR_DST_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[S_ARR_DST_EL]] to i8*
 // CHECK: [[S_ARR_SRC_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[S_ARR_SRC_EL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_DST_BCAST]], i8* [[S_ARR_SRC_BCAST]]{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_DST_BCAST]], i8* align {{[0-9]+}} [[S_ARR_SRC_BCAST]]{{.+}})
 // CHECK: [[S_ARR_DST_NEXT:%.+]] = getelementptr [[S_FLOAT_TY]], [[S_FLOAT_TY]]* [[S_ARR_DST_EL]], i{{[0-9]+}} 1
 // CHECK: [[S_ARR_SRC_NEXT:%.+]] = getelementptr{{.+}}
 // CHECK: [[CPY_IS_FINISHED:%.+]] = icmp eq [[S_FLOAT_TY]]* [[S_ARR_DST_NEXT]], [[S_ARR_BEGIN_GEP]]
@@ -353,7 +369,7 @@ int main() {
 // CHECK: [[TMP_VAL1:%.+]] = load [[S_FLOAT_TY]]*, [[S_FLOAT_TY]]** [[TMP_PRIV]],
 // CHECK: [[VAR_ADDR_REF_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[TMP_REF]] to i8*
 // CHECK: [[TMP_VAL1_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[TMP_VAL1]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[VAR_ADDR_REF_BCAST]], i8* [[TMP_VAL1_BCAST]],{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[VAR_ADDR_REF_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL1_BCAST]],{{.+}})
 // CHECK: [[SVAR_VAL:%.+]] = load i{{[0-9]+}}, i{{[0-9]+}}* [[S_VAR_PRIV]],
 // CHECK: store i{{[0-9]+}} [[SVAR_VAL]], i{{[0-9]+}}* [[SVAR_ADDR_REF]],
 // CHECK: ret void
@@ -425,7 +441,7 @@ int main() {
 // CHECK-DAG: [[TMP_VAL:%.+]] = load [[S_FLOAT_TY]]*, [[S_FLOAT_TY]]** [[TMP_PRIV]],
 // CHECK-DAG: [[S_ARR_PTR_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[S_ARR_PTR]] to i8*
 // CHECK-DAG: [[TMP_VAL_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[TMP_VAL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_PTR_BCAST]], i8* [[TMP_VAL_BCAST]],
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_PTR_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL_BCAST]],
 
 // CHECK: call void @__kmpc_for_static_fini(
 
@@ -439,7 +455,7 @@ int main() {
 // CHECK: store i{{[0-9]+}} [[T_VAR_VAL]], i{{[0-9]+}}* [[T_VAR_ADDR_REF]],
 // CHECK: [[BCAST_VEC_ADDR_REF:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_ADDR_REF]] to i8*
 // CHECK: [[BCAST_VEC_PRIV:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_PRIV]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[BCAST_VEC_ADDR_REF]], i8* [[BCAST_VEC_PRIV]],
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[BCAST_VEC_ADDR_REF]], i8* align {{[0-9]+}} [[BCAST_VEC_PRIV]],
 // CHECK: [[S_ARR_BEGIN:%.+]] = getelementptr inbounds [2 x [[S_FLOAT_TY]]], [2 x [[S_FLOAT_TY]]]* [[S_ARR_ADDR_REF]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[S_ARR_PRIV_BCAST:%.+]] = bitcast [2 x [[S_FLOAT_TY]]]* [[S_ARR_PRIV]] to [[S_FLOAT_TY]]*
 // CHECK: [[S_ARR_BEGIN_GEP:%.+]] = getelementptr [[S_FLOAT_TY]], [[S_FLOAT_TY]]* [[S_ARR_BEGIN]], i{{[0-9]+}} 2
@@ -450,7 +466,7 @@ int main() {
 // CHECK: [[S_ARR_DST_EL:%.+]] = phi [[S_FLOAT_TY]]*{{.+}}
 // CHECK: [[S_ARR_DST_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[S_ARR_DST_EL]] to i8*
 // CHECK: [[S_ARR_SRC_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[S_ARR_SRC_EL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_DST_BCAST]], i8* [[S_ARR_SRC_BCAST]]{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_DST_BCAST]], i8* align {{[0-9]+}} [[S_ARR_SRC_BCAST]]{{.+}})
 // CHECK: [[S_ARR_DST_NEXT:%.+]] = getelementptr [[S_FLOAT_TY]], [[S_FLOAT_TY]]* [[S_ARR_DST_EL]], i{{[0-9]+}} 1
 // CHECK: [[S_ARR_SRC_NEXT:%.+]] = getelementptr{{.+}}
 // CHECK: [[CPY_IS_FINISHED:%.+]] = icmp eq [[S_FLOAT_TY]]* [[S_ARR_DST_NEXT]], [[S_ARR_BEGIN_GEP]]
@@ -459,7 +475,7 @@ int main() {
 // CHECK: [[TMP_VAL1:%.+]] = load [[S_FLOAT_TY]]*, [[S_FLOAT_TY]]** [[TMP_PRIV]],
 // CHECK: [[VAR_ADDR_REF_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[VAR_ADDR_REF]] to i8*
 // CHECK: [[TMP_VAL1_BCAST:%.+]] = bitcast [[S_FLOAT_TY]]* [[TMP_VAL1]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[VAR_ADDR_REF_BCAST]], i8* [[TMP_VAL1_BCAST]],{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[VAR_ADDR_REF_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL1_BCAST]],{{.+}})
 // CHECK: [[SVAR_VAL:%.+]] = load i{{[0-9]+}}, i{{[0-9]+}}* [[S_VAR_PRIV]],
 // CHECK: store i{{[0-9]+}} [[SVAR_VAL]], i{{[0-9]+}}* [[SVAR_ADDR_REF]],
 // CHECK: ret void
@@ -533,7 +549,7 @@ int main() {
 // CHECK: store i{{[0-9]+}} [[T_VAR_VAL]], i{{[0-9]+}}* [[T_VAR_ADDR_REF]],
 // CHECK: [[BCAST_VEC_ADDR_REF:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_ADDR_REF]] to i8*
 // CHECK: [[BCAST_VEC_PRIV:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_PRIV]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[BCAST_VEC_ADDR_REF]], i8* [[BCAST_VEC_PRIV]],
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[BCAST_VEC_ADDR_REF]], i8* align {{[0-9]+}} [[BCAST_VEC_PRIV]],
 // CHECK: [[S_ARR_BEGIN:%.+]] = getelementptr inbounds [2 x [[S_INT_TY]]], [2 x [[S_INT_TY]]]* [[S_ARR_ADDR_REF]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[S_ARR_PRIV_BCAST:%.+]] = bitcast [2 x [[S_INT_TY]]]* [[S_ARR_PRIV]] to [[S_INT_TY]]*
 // CHECK: [[S_ARR_BEGIN_GEP:%.+]] = getelementptr [[S_INT_TY]], [[S_INT_TY]]* [[S_ARR_BEGIN]], i{{[0-9]+}} 2
@@ -544,7 +560,7 @@ int main() {
 // CHECK: [[S_ARR_DST_EL:%.+]] = phi [[S_INT_TY]]*{{.+}}
 // CHECK: [[S_ARR_DST_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[S_ARR_DST_EL]] to i8*
 // CHECK: [[S_ARR_SRC_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[S_ARR_SRC_EL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_DST_BCAST]], i8* [[S_ARR_SRC_BCAST]]{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_DST_BCAST]], i8* align {{[0-9]+}} [[S_ARR_SRC_BCAST]]{{.+}})
 // CHECK: [[S_ARR_DST_NEXT:%.+]] = getelementptr [[S_INT_TY]], [[S_INT_TY]]* [[S_ARR_DST_EL]], i{{[0-9]+}} 1
 // CHECK: [[S_ARR_SRC_NEXT:%.+]] = getelementptr{{.+}}
 // CHECK: [[CPY_IS_FINISHED:%.+]] = icmp eq [[S_INT_TY]]* [[S_ARR_DST_NEXT]], [[S_ARR_BEGIN_GEP]]
@@ -553,7 +569,7 @@ int main() {
 // CHECK: [[TMP_VAL:%.+]] = load [[S_INT_TY]]*, [[S_INT_TY]]** [[TMP_PRIV]],
 // CHECK: [[VAR_ADDR_REF_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[TMP_REF]] to i8*
 // CHECK: [[TMP_VAL_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[TMP_VAL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[VAR_ADDR_REF_BCAST]], i8* [[TMP_VAL_BCAST]],{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[VAR_ADDR_REF_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL_BCAST]],{{.+}})
 // CHECK: ret void
 
 // outlined function for 'parallel for'
@@ -619,7 +635,7 @@ int main() {
 // CHECK-DAG: [[TMP_VAL:%.+]] = load [[S_INT_TY]]*, [[S_INT_TY]]** [[TMP_PRIV]],
 // CHECK-DAG: [[S_ARR_PTR_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[S_ARR_PTR]] to i8*
 // CHECK-DAG: [[TMP_VAL_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[TMP_VAL]] to i8*
-// CHECK-DAG: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_PTR_BCAST]], i8* [[TMP_VAL_BCAST]],
+// CHECK-DAG: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_PTR_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL_BCAST]],
 
 // CHECK: call void @__kmpc_for_static_fini(
 
@@ -633,7 +649,7 @@ int main() {
 // CHECK: store i{{[0-9]+}} [[T_VAR_VAL]], i{{[0-9]+}}* [[T_VAR_ADDR_REF]],
 // CHECK: [[BCAST_VEC_ADDR_REF:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_ADDR_REF]] to i8*
 // CHECK: [[BCAST_VEC_PRIV:%.+]] = bitcast [2 x i{{[0-9]+}}]* [[VEC_PRIV]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[BCAST_VEC_ADDR_REF]], i8* [[BCAST_VEC_PRIV]],
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[BCAST_VEC_ADDR_REF]], i8* align {{[0-9]+}} [[BCAST_VEC_PRIV]],
 // CHECK: [[S_ARR_BEGIN:%.+]] = getelementptr inbounds [2 x [[S_INT_TY]]], [2 x [[S_INT_TY]]]* [[S_ARR_ADDR_REF]], i{{[0-9]+}} 0, i{{[0-9]+}} 0
 // CHECK: [[S_ARR_PRIV_BCAST:%.+]] = bitcast [2 x [[S_INT_TY]]]* [[S_ARR_PRIV]] to [[S_INT_TY]]*
 // CHECK: [[S_ARR_BEGIN_GEP:%.+]] = getelementptr [[S_INT_TY]], [[S_INT_TY]]* [[S_ARR_BEGIN]], i{{[0-9]+}} 2
@@ -644,7 +660,7 @@ int main() {
 // CHECK: [[S_ARR_DST_EL:%.+]] = phi [[S_INT_TY]]*{{.+}}
 // CHECK: [[S_ARR_DST_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[S_ARR_DST_EL]] to i8*
 // CHECK: [[S_ARR_SRC_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[S_ARR_SRC_EL]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[S_ARR_DST_BCAST]], i8* [[S_ARR_SRC_BCAST]]{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[S_ARR_DST_BCAST]], i8* align {{[0-9]+}} [[S_ARR_SRC_BCAST]]{{.+}})
 // CHECK: [[S_ARR_DST_NEXT:%.+]] = getelementptr [[S_INT_TY]], [[S_INT_TY]]* [[S_ARR_DST_EL]], i{{[0-9]+}} 1
 // CHECK: [[S_ARR_SRC_NEXT:%.+]] = getelementptr{{.+}}
 // CHECK: [[CPY_IS_FINISHED:%.+]] = icmp eq [[S_INT_TY]]* [[S_ARR_DST_NEXT]], [[S_ARR_BEGIN_GEP]]
@@ -653,7 +669,7 @@ int main() {
 // CHECK: [[TMP_VAL1:%.+]] = load [[S_INT_TY]]*, [[S_INT_TY]]** [[TMP_PRIV]],
 // CHECK: [[VAR_ADDR_REF_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[VAR_ADDR_REF]] to i8*
 // CHECK: [[TMP_VAL1_BCAST:%.+]] = bitcast [[S_INT_TY]]* [[TMP_VAL1]] to i8*
-// CHECK: call void @llvm.memcpy.{{.+}}(i8* [[VAR_ADDR_REF_BCAST]], i8* [[TMP_VAL1_BCAST]],{{.+}})
+// CHECK: call void @llvm.memcpy.{{.+}}(i8* align {{[0-9]+}} [[VAR_ADDR_REF_BCAST]], i8* align {{[0-9]+}} [[TMP_VAL1_BCAST]],{{.+}})
 // CHECK: ret void
 
 #endif

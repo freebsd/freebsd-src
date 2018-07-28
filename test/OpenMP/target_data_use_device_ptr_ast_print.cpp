@@ -1,6 +1,9 @@
 // RxUN: %clang_cc1 -verify -fopenmp -std=c++11 -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -23,7 +26,7 @@ struct SA {
 };
 // CHECK: struct SA
 // CHECK: void func(
-// CHECK: #pragma omp target data map(tofrom: this->i) use_device_ptr(this->k)
+// CHECK: #pragma omp target data map(tofrom: this->i) use_device_ptr(this->k){{$}}
 // CHECK: #pragma omp target data map(tofrom: this->i) use_device_ptr(this->z)
 struct SB {
   unsigned A;

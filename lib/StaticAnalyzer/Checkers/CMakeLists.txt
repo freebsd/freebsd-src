@@ -37,9 +37,11 @@ add_clang_library(clangStaticAnalyzerCheckers
   DynamicTypeChecker.cpp
   ExprInspectionChecker.cpp
   FixedAddressChecker.cpp
+  GCDAntipatternChecker.cpp
   GenericTaintChecker.cpp
   GTestChecker.cpp
   IdenticalExprChecker.cpp
+  InnerPointerChecker.cpp
   IteratorChecker.cpp
   IvarInvalidationChecker.cpp
   LLVMConventionsChecker.cpp
@@ -49,6 +51,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   MallocChecker.cpp
   MallocOverflowSecurityChecker.cpp
   MallocSizeofChecker.cpp
+  MmapWriteExecChecker.cpp
   MisusedMovedObjectChecker.cpp
   MPI-Checker/MPIBugReporter.cpp
   MPI-Checker/MPIChecker.cpp
@@ -61,6 +64,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   NullabilityChecker.cpp
   NumberObjectConversionChecker.cpp
   ObjCAtSyncChecker.cpp
+  ObjCAutoreleaseWriteChecker.cpp
   ObjCContainersASTChecker.cpp
   ObjCContainersChecker.cpp
   ObjCMissingSuperCallChecker.cpp
@@ -75,6 +79,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   RetainCountChecker.cpp
   ReturnPointerRangeChecker.cpp
   ReturnUndefChecker.cpp
+  RunLoopAutoreleaseLeakChecker.cpp
   SimpleStreamChecker.cpp
   StackAddrEscapeChecker.cpp
   StdLibraryFunctionsChecker.cpp
@@ -82,11 +87,13 @@ add_clang_library(clangStaticAnalyzerCheckers
   TaintTesterChecker.cpp
   TestAfterDivZeroChecker.cpp
   TraversalChecker.cpp
+  TrustNonnullChecker.cpp
   UndefBranchChecker.cpp
   UndefCapturedBlockVarChecker.cpp
   UndefResultChecker.cpp
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
+  UninitializedObjectChecker.cpp
   UnixAPIChecker.cpp
   UnreachableCodeChecker.cpp
   VforkChecker.cpp

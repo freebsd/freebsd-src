@@ -58,14 +58,22 @@ template<typename T> struct X {
   static int a;
   static inline int b;
   static int c;
+  static const int d;
+  static int e;
 };
 // CHECK: @_ZN1XIiE1aE = linkonce_odr global i32 10
 // CHECK: @_ZN1XIiE1bE = global i32 20
 // CHECK-NOT: @_ZN1XIiE1cE
+// CHECK: @_ZN1XIiE1dE = linkonce_odr constant i32 40
+// CHECK: @_ZN1XIiE1eE = linkonce_odr global i32 50
 template<> inline int X<int>::a = 10;
 int &use3 = X<int>::a;
 template<> int X<int>::b = 20;
 template<> inline int X<int>::c = 30;
+template<typename T> constexpr int X<T>::d = 40;
+template<typename T> inline int X<T>::e = 50;
+const int *use_x_int_d = &X<int>::d;
+const int *use_x_int_e = &X<int>::e;
 
 template<typename T> struct Y;
 template<> struct Y<int> {
@@ -103,3 +111,29 @@ int e = d<int>;
 // CHECK-NOT: __cxa_guard_acquire(i64* @_ZGV1b)
 // CHECK: call i32 @_Z1fv
 // CHECK-NOT: __cxa_guard_release(i64* @_ZGV1b)
+
+namespace PR35599 {
+struct Marker1 {};
+struct Marker2 {};
+
+template <typename>
+struct Foo {
+  struct Bar { Bar(); };
+  inline static Bar bar;
+};
+
+void run() {
+  // All we want here are ODR uses. Anything that requires that the type is
+  // complete is uninteresting.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+  Foo<Marker1>::bar;
+#pragma clang diagnostic pop
+  static_cast<void>(Foo<Marker2>::bar);
+}
+
+// CHECK-LABEL: define {{.*}}global_var_init{{.*}}comdat
+// CHECK: call void @_ZN7PR355993FooINS_7Marker1EE3BarC1Ev
+// CHECK-LABEL: define {{.*}}global_var_init{{.*}}comdat
+// CHECK: call void @_ZN7PR355993FooINS_7Marker2EE3BarC1Ev
+}

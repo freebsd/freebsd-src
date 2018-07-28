@@ -579,11 +579,9 @@ bool SwiftAggLowering::shouldPassIndirectly(bool asReturnValue) const {
   // Empty types don't need to be passed indirectly.
   if (Entries.empty()) return false;
 
-  CharUnits totalSize = Entries.back().End;
-
   // Avoid copying the array of types when there's just a single element.
   if (Entries.size() == 1) {
-    return getSwiftABIInfo(CGM).shouldPassIndirectlyForSwift(totalSize,
+    return getSwiftABIInfo(CGM).shouldPassIndirectlyForSwift(
                                                            Entries.back().Type,
                                                              asReturnValue);    
   }
@@ -593,8 +591,14 @@ bool SwiftAggLowering::shouldPassIndirectly(bool asReturnValue) const {
   for (auto &entry : Entries) {
     componentTys.push_back(entry.Type);
   }
-  return getSwiftABIInfo(CGM).shouldPassIndirectlyForSwift(totalSize,
-                                                           componentTys,
+  return getSwiftABIInfo(CGM).shouldPassIndirectlyForSwift(componentTys,
+                                                           asReturnValue);
+}
+
+bool swiftcall::shouldPassIndirectly(CodeGenModule &CGM,
+                                     ArrayRef<llvm::Type*> componentTys,
+                                     bool asReturnValue) {
+  return getSwiftABIInfo(CGM).shouldPassIndirectlyForSwift(componentTys,
                                                            asReturnValue);
 }
 
@@ -736,24 +740,12 @@ void swiftcall::legalizeVectorType(CodeGenModule &CGM, CharUnits origVectorSize,
   components.append(numElts, eltTy);
 }
 
-bool swiftcall::shouldPassCXXRecordIndirectly(CodeGenModule &CGM,
-                                              const CXXRecordDecl *record) {
-  // Following a recommendation from Richard Smith, pass a C++ type
-  // indirectly only if the destructor is non-trivial or *all* of the
-  // copy/move constructors are deleted or non-trivial.
-
-  if (record->hasNonTrivialDestructor())
-    return true;
-
-  // It would be nice if this were summarized on the CXXRecordDecl.
-  for (auto ctor : record->ctors()) {
-    if (ctor->isCopyOrMoveConstructor() && !ctor->isDeleted() &&
-        ctor->isTrivial()) {
-      return false;
-    }
-  }
-
-  return true;
+bool swiftcall::mustPassRecordIndirectly(CodeGenModule &CGM,
+                                         const RecordDecl *record) {
+  // FIXME: should we not rely on the standard computation in Sema, just in
+  // case we want to diverge from the platform ABI (e.g. on targets where
+  // that uses the MSVC rule)?
+  return !record->canPassInRegisters();
 }
 
 static ABIArgInfo classifyExpandedType(SwiftAggLowering &lowering,
@@ -775,10 +767,8 @@ static ABIArgInfo classifyType(CodeGenModule &CGM, CanQualType type,
     auto record = recordType->getDecl();
     auto &layout = CGM.getContext().getASTRecordLayout(record);
 
-    if (auto cxxRecord = dyn_cast<CXXRecordDecl>(record)) {
-      if (shouldPassCXXRecordIndirectly(CGM, cxxRecord))
-        return ABIArgInfo::getIndirect(layout.getAlignment(), /*byval*/ false);
-    }
+    if (mustPassRecordIndirectly(CGM, record))
+      return ABIArgInfo::getIndirect(layout.getAlignment(), /*byval*/ false);
 
     SwiftAggLowering lowering(CGM);
     lowering.addTypedData(recordType->getDecl(), CharUnits::Zero(), layout);

@@ -375,7 +375,7 @@ void CheckUseZeroReallocatedPathWarn(_Bool b) {
 // or inter-procedural analysis, this is a conservative answer.
 int *f3() {
   static int *p = 0;
-  p = malloc(12); 
+  p = malloc(12);
   return p; // no-warning
 }
 
@@ -384,7 +384,7 @@ int *f3() {
 // functions or inter-procedural analysis, this is a conservative answer.
 static int *p_f4 = 0;
 int *f4() {
-  p_f4 = malloc(12); 
+  p_f4 = malloc(12);
   return p_f4; // no-warning
 }
 
@@ -1232,7 +1232,7 @@ void radar10978247(int myValueSize) {
 
   if (myValueSize <= sizeof(stackBuffer))
     buffer = stackBuffer;
-  else 
+  else
     buffer = malloc(myValueSize);
 
   // do stuff with the buffer
@@ -1246,7 +1246,7 @@ void radar10978247_positive(int myValueSize) {
 
   if (myValueSize <= sizeof(stackBuffer))
     buffer = stackBuffer;
-  else 
+  else
     buffer = malloc(myValueSize);
 
   // do stuff with the buffer
@@ -1254,7 +1254,7 @@ void radar10978247_positive(int myValueSize) {
     return;
   else
     return; // expected-warning {{leak}}
-}
+}
 // <rdar://problem/11269741> Previously this triggered a false positive
 // because malloc() is known to return uninitialized memory and the binding
 // of 'o' to 'p->n' was not getting propertly handled.  Now we report a leak.
@@ -1698,7 +1698,7 @@ void testReallocEscaped(void **memory) {
 void *smallocNoWarn(size_t size) {
   if (size == 0) {
     return malloc(1); // this branch is never called
-  } 
+  }
   else {
     return malloc(size);
   }
@@ -1718,13 +1718,6 @@ void *smallocWarn(size_t size) {
   else {
     return malloc(size);
   }
-}
-
-char *dupstrWarn(const char *s) {
-  const int len = strlen(s);
-  char *p = (char*) smallocWarn(len + 1);
-  strcpy(p, s); // expected-warning{{String copy function overflows destination buffer}}
-  return p;
 }
 
 int *radar15580979() {
@@ -1783,6 +1776,18 @@ void freeIndirectFunctionPtr() {
 void freeFunctionPtr() {
   free((void *)fnptr); // expected-warning {{Argument to free() is a function pointer}}
 }
+
+void allocateSomeMemory(void *offendingParameter, void **ptr) {
+  *ptr = malloc(1);
+}
+
+void testNoCrashOnOffendingParameter() {
+  // "extern" is necessary to avoid unrelated warnings
+  // on passing uninitialized value.
+  extern void *offendingParameter;
+  void* ptr;
+  allocateSomeMemory(offendingParameter, &ptr);
+} // expected-warning {{Potential leak of memory pointed to by 'ptr'}}
 
 // ----------------------------------------------------------------------------
 // False negatives.

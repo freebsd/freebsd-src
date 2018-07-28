@@ -9,6 +9,16 @@
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o %t %s
 // RUN: %clang_cc1 -fopenmp -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix TCHECK --check-prefix TCHECK-32
 
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm-bc %s -o %t-ppc-host.bc
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm-bc %s -o %t-x86-host.bc
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -emit-pch -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple i386-unknown-unknown -fopenmp-targets=i386-pc-linux-gnu -std=c++11 -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
+
 // expected-no-diagnostics
 #ifndef HEADER
 #define HEADER
@@ -35,7 +45,7 @@ int foo(int n) {
   {
   }
 
-  // TCHECK: define void @__omp_offloading_{{.+}}(i32*{{.+}} %{{.+}})
+  // TCHECK: define weak void @__omp_offloading_{{.+}}(i32*{{.+}} %{{.+}})
   // TCHECK: [[A:%.+]] = alloca i{{[0-9]+}}*,
   // TCHECK: store {{.+}}, {{.+}} [[A]],
   // TCHECK: load i32*, i32** [[A]],
@@ -46,7 +56,7 @@ int foo(int n) {
     a = 1;
   }
 
-  // TCHECK:  define void @__omp_offloading_{{.+}}(i32*{{.+}} %{{.+}})
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}(i32*{{.+}} %{{.+}})
   // TCHECK: [[A:%.+]] = alloca i{{[0-9]+}}*,
   // TCHECK: store {{.+}}, {{.+}} [[A]],
   // TCHECK: [[REF:%.+]] = load i32*, i32** [[A]],
@@ -59,7 +69,7 @@ int foo(int n) {
     aa = 1;
   }
 
-  // TCHECK:  define void @__omp_offloading_{{.+}}(i32*{{.+}} [[A:%.+]], i16*{{.+}} [[AA:%.+]])
+  // TCHECK:  define weak void @__omp_offloading_{{.+}}(i32*{{.+}} [[A:%.+]], i16*{{.+}} [[AA:%.+]])
   // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}}*,
   // TCHECK:  [[AA:%.+]] = alloca i{{[0-9]+}}*,
   // TCHECK: store {{.+}}, {{.+}} [[A]],
@@ -108,7 +118,7 @@ int fstatic(int n) {
   return a;
 }
 
-// TCHECK: define void @__omp_offloading_{{.+}}(i32*{{.+}}, i16*{{.+}}, i8*{{.+}}, [10 x i32]*{{.+}})
+// TCHECK: define weak void @__omp_offloading_{{.+}}(i32*{{.+}}, i16*{{.+}}, i8*{{.+}}, [10 x i32]*{{.+}})
 // TCHECK:  [[A:%.+]] = alloca i{{[0-9]+}}*,
 // TCHECK:  [[A2:%.+]] = alloca i{{[0-9]+}}*,
 // TCHECK:  [[A3:%.+]] = alloca i{{[0-9]+}}*,
@@ -144,7 +154,7 @@ struct S1 {
     return c[1][1] + (int)b;
   }
 
-  // TCHECK: define void @__omp_offloading_{{.+}}([[S1]]* [[TH:%.+]], i32*{{.+}}, i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]], i16*{{.+}})
+  // TCHECK: define weak void @__omp_offloading_{{.+}}([[S1]]* [[TH:%.+]], i32*{{.+}}, i{{[0-9]+}} [[VLA:%.+]], i{{[0-9]+}} [[VLA1:%.+]], i16*{{.+}})
   // TCHECK: [[TH_ADDR:%.+]] = alloca [[S1]]*,
   // TCHECK: [[B_ADDR:%.+]] = alloca i{{[0-9]+}}*,
   // TCHECK: [[VLA_ADDR:%.+]] = alloca i{{[0-9]+}},
@@ -196,7 +206,7 @@ int bar(int n){
 }
 
 // template
-// TCHECK: define void @__omp_offloading_{{.+}}(i{{[0-9]+}}*{{.+}}, i{{[0-9]+}}*{{.+}}, [10 x i32]*{{.+}})
+// TCHECK: define weak void @__omp_offloading_{{.+}}(i{{[0-9]+}}*{{.+}}, i{{[0-9]+}}*{{.+}}, [10 x i32]*{{.+}})
 // TCHECK: [[A:%.+]] = alloca i{{[0-9]+}}*,
 // TCHECK: [[A2:%.+]] = alloca i{{[0-9]+}}*,
 // TCHECK: [[B:%.+]] = alloca [10 x i{{[0-9]+}}]*,

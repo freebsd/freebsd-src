@@ -1,5 +1,8 @@
-// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-pc-windows-msvc18.0.0 -std=c++11 -fms-compatibility-version=18 -fms-extensions -emit-llvm %s -fexceptions -fcxx-exceptions -o - -O1 | FileCheck %s
-// REQUIRES: x86-registered-target
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-pc-windows-msvc18.0.0 -std=c++11 -fms-compatibility-version=18 -fms-extensions -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple x86_64-pc-windows-msvc18.0.0 -std=c++11 -fms-compatibility-version=18 -fms-extensions -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
 // expected-no-diagnostics
 
 void foo();
@@ -30,7 +33,7 @@ struct Test {
 int main() {
   // CHECK: call void @{{.+}}main
   Test::main();
-  // CHECK: call void (%ident_t*, i32, void (i32*, i32*, ...)*, ...) @__kmpc_fork_call(%ident_t* {{.*}}@0, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED:@.+]] to void (i32*, i32*, ...)*))
+  // CHECK: call void (%struct.ident_t*, i32, void (i32*, i32*, ...)*, ...) @__kmpc_fork_call(%struct.ident_t* {{.*}}@0, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED:@.+]] to void (i32*, i32*, ...)*))
 #pragma omp parallel
   {
     try {
@@ -47,15 +50,21 @@ int main() {
 }
 
 // CHECK: define internal void [[OUTLINED]](
-// CHECK: [[GID:%.+]] = {{.*}}call i32 @__kmpc_global_thread_num(%ident_t* {{.*}}@0)
+// CHECK: [[GID:%.+]] = {{.*}}call i32 @__kmpc_global_thread_num(%struct.ident_t* {{.*}}@0)
 // CHECK: invoke void @{{.+}}foo
-// CHECK: catchswitch within
-// CHECK: catchpad within
-// CHECK: call void @__kmpc_critical(%ident_t* {{.*}}@0, i32 [[GID]],
+// CHECK: [[CATCHSWITCH:%.+]] = catchswitch within none
+// CHECK: [[CATCHPAD:%.+]] = catchpad within [[CATCHSWITCH]]
+// CHECK: call void @__kmpc_critical(%struct.ident_t* {{.*}}@0, i32 [[GID]],
 // CHECK: invoke void @{{.+}}bar
-// CHECK: call void @__kmpc_end_critical(%ident_t* {{.*}}@0, i32 [[GID]],
-// CHECK: catchret from
-// CHECK: cleanuppad within
-// CHECK: call void @__kmpc_end_critical(%ident_t* {{.*}}@0, i32 [[GID]],
-// CHECK: cleanupret from
-
+// CHECK: call void @__kmpc_end_critical(%struct.ident_t* {{.*}}@0, i32 [[GID]],
+// CHECK: catchret from [[CATCHPAD]] to
+// CHECK:      cleanuppad within [[CATCHPAD]] []
+// CHECK-NEXT: call void @__kmpc_end_critical(%struct.ident_t* {{.*}}@0, i32 [[GID]],
+// CHECK-NEXT: cleanupret from {{.*}} unwind label %[[CATCHTERM:[^ ]+]]
+// CHECK:      cleanuppad within none []
+// CHECK-NEXT: call void @"?terminate@@YAXXZ"() #5 [ "funclet"(token %{{.*}}) ]
+// CHECK-NEXT: unreachable
+// CHECK:      [[CATCHTERM]]
+// CHECK-NEXT: cleanuppad within [[CATCHPAD]] []
+// CHECK-NEXT: call void @"?terminate@@YAXXZ"() #5 [ "funclet"(token %{{.*}}) ]
+// CHECK-NEXT: unreachable

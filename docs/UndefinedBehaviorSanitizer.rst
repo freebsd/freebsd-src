@@ -180,6 +180,13 @@ will need to:
    ``UBSAN_OPTIONS=print_stacktrace=1``.
 #. Make sure ``llvm-symbolizer`` binary is in ``PATH``.
 
+Silencing Unsigned Integer Overflow
+===================================
+To silence reports from unsigned integer overflow, you can set
+``UBSAN_OPTIONS=silence_unsigned_overflow=1``.  This feature, combined with
+``-fsanitize-recover=unsigned-integer-overflow``, is particularly useful for
+providing fuzzing signal without blowing up logs.
+
 Issue Suppression
 =================
 
@@ -245,16 +252,10 @@ UndefinedBehaviorSanitizer is supported on the following OS:
 
 * Android
 * Linux
+* NetBSD
 * FreeBSD
+* OpenBSD
 * OS X 10.6 onwards
-
-and for the following architectures:
-
-* i386/x86\_64
-* ARM
-* AArch64
-* PowerPC64
-* MIPS/MIPS64
 
 Current Status
 ==============

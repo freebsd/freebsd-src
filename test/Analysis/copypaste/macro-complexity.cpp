@@ -1,7 +1,7 @@
 // RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=alpha.clone.CloneChecker -analyzer-config alpha.clone.CloneChecker:MinimumCloneComplexity=10 -verify %s
 
 // Tests that the complexity value of a macro expansion is about the same as
-// the complexity value of a normal function call and the the macro body doesn't
+// the complexity value of a normal function call and the macro body doesn't
 // influence the complexity. See the CloneSignature class in CloneDetection.h
 // for more information about complexity values of clones.
 
@@ -20,7 +20,7 @@ int manualMacroClone(int a, int b) { // expected-note{{Similar code here}}
 }
 
 // Now we actually use the macro to generate the same AST as above. They
-// shouldn't be reported because the macros only slighly increase the complexity
+// shouldn't be reported because the macros only slightly increase the complexity
 // value and the resulting code will never pass the MinimumCloneComplexity
 // constraint.
 

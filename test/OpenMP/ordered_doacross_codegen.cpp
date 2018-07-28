@@ -1,6 +1,11 @@
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-unknown-unknown -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck --check-prefix SIMD-ONLY0 %s
+// SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -19,7 +24,7 @@ int main() {
 // CHECK: icmp
 // CHECK-NEXT: br i1 %
 // CHECK: [[CAST:%.+]] = bitcast [[KMP_DIM]]* [[DIMS]] to i8*
-// CHECK: call void @llvm.memset.p0i8.i64(i8* [[CAST]], i8 0, i64 24, i32 8, i1 false)
+// CHECK: call void @llvm.memset.p0i8.i64(i8* align 8 [[CAST]], i8 0, i64 24, i1 false)
 // CHECK: getelementptr inbounds [[KMP_DIM]], [[KMP_DIM]]* [[DIMS]], i32 0, i32 1
 // CHECK: store i64 %{{.+}}, i64* %
 // CHECK: getelementptr inbounds [[KMP_DIM]], [[KMP_DIM]]* [[DIMS]], i32 0, i32 2
@@ -76,7 +81,7 @@ struct TestStruct {
 // CHECK: icmp
 // CHECK-NEXT: br i1 %
 // CHECK: [[CAST:%.+]] = bitcast [[KMP_DIM]]* [[DIMS]] to i8*
-// CHECK: call void @llvm.memset.p0i8.i64(i8* [[CAST]], i8 0, i64 24, i32 8, i1 false)
+// CHECK: call void @llvm.memset.p0i8.i64(i8* align 8 [[CAST]], i8 0, i64 24, i1 false)
 // CHECK: getelementptr inbounds [[KMP_DIM]], [[KMP_DIM]]* [[DIMS]], i32 0, i32 1
 // CHECK: store i64 %{{.+}}, i64* %
 // CHECK: getelementptr inbounds [[KMP_DIM]], [[KMP_DIM]]* [[DIMS]], i32 0, i32 2

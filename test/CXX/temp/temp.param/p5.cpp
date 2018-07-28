@@ -1,13 +1,13 @@
 // RUN: %clang_cc1 -verify %s -std=c++14
 
-template<const int I> struct S {
+template<const int I> struct S { // expected-error {{reference member 'r' binds to a temporary object}}
   decltype(I) n;
-  int &&r = I; // expected-warning 2{{binding reference member 'r' to a temporary value}} expected-note 2{{declared here}}
+  int &&r = I; // expected-note {{default member initializer}}
 };
-S<5> s; // expected-note {{instantiation}}
+S<5> s; // expected-note {{implicit default constructor}}
 
-template<typename T, T v> struct U {
+template<typename T, T v> struct U { // expected-error {{reference member 'r' binds to a temporary object}}
   decltype(v) n;
-  int &&r = v; // expected-warning {{binding reference member 'r' to a temporary value}} expected-note {{declared here}}
+  int &&r = v; // expected-note {{default member initializer}}
 };
-U<const int, 6> u; // expected-note {{instantiation}}
+U<const int, 6> u; // expected-note {{implicit default constructor}}

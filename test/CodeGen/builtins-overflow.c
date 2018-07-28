@@ -14,7 +14,7 @@ extern long long LongLongErrorCode;
 void overflowed(void);
 
 unsigned test_add_overflow_uint_uint_uint(unsigned x, unsigned y) {
-  // CHECK-LABEL: define i32 @test_add_overflow_uint_uint_uint
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_add_overflow_uint_uint_uint
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.uadd.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[Q:%.+]] = extractvalue { i32, i1 } [[S]], 0
@@ -28,7 +28,7 @@ unsigned test_add_overflow_uint_uint_uint(unsigned x, unsigned y) {
 }
 
 int test_add_overflow_int_int_int(int x, int y) {
-  // CHECK-LABEL: define i32 @test_add_overflow_int_int_int
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_add_overflow_int_int_int
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.sadd.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[C:%.+]] = extractvalue { i32, i1 } [[S]], 1
@@ -42,7 +42,7 @@ int test_add_overflow_int_int_int(int x, int y) {
 }
 
 unsigned test_sub_overflow_uint_uint_uint(unsigned x, unsigned y) {
-  // CHECK-LABEL: define i32 @test_sub_overflow_uint_uint_uint
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_sub_overflow_uint_uint_uint
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.usub.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[Q:%.+]] = extractvalue { i32, i1 } [[S]], 0
@@ -56,7 +56,7 @@ unsigned test_sub_overflow_uint_uint_uint(unsigned x, unsigned y) {
 }
 
 int test_sub_overflow_int_int_int(int x, int y) {
-  // CHECK-LABEL: define i32 @test_sub_overflow_int_int_int
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_sub_overflow_int_int_int
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.ssub.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[C:%.+]] = extractvalue { i32, i1 } [[S]], 1
@@ -70,7 +70,7 @@ int test_sub_overflow_int_int_int(int x, int y) {
 }
 
 unsigned test_mul_overflow_uint_uint_uint(unsigned x, unsigned y) {
-  // CHECK-LABEL: define i32 @test_mul_overflow_uint_uint_uint
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_mul_overflow_uint_uint_uint
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.umul.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[Q:%.+]] = extractvalue { i32, i1 } [[S]], 0
@@ -84,7 +84,7 @@ unsigned test_mul_overflow_uint_uint_uint(unsigned x, unsigned y) {
 }
 
 int test_mul_overflow_int_int_int(int x, int y) {
-  // CHECK-LABEL: define i32 @test_mul_overflow_int_int_int
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_mul_overflow_int_int_int
   // CHECK-NOT: ext
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.smul.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[C:%.+]] = extractvalue { i32, i1 } [[S]], 1
@@ -98,7 +98,7 @@ int test_mul_overflow_int_int_int(int x, int y) {
 }
 
 int test_add_overflow_uint_int_int(unsigned x, int y) {
-  // CHECK-LABEL: define i32 @test_add_overflow_uint_int_int
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_add_overflow_uint_int_int
   // CHECK: [[XE:%.+]] = zext i32 %{{.+}} to i33
   // CHECK: [[YE:%.+]] = sext i32 %{{.+}} to i33
   // CHECK: [[S:%.+]] = call { i33, i1 } @llvm.sadd.with.overflow.i33(i33 [[XE]], i33 [[YE]])
@@ -136,7 +136,7 @@ _Bool test_add_overflow_uint_uint_bool(unsigned x, unsigned y) {
 }
 
 unsigned test_add_overflow_bool_bool_uint(_Bool x, _Bool y) {
-  // CHECK-LABEL: define i32 @test_add_overflow_bool_bool_uint
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_add_overflow_bool_bool_uint
   // CHECK: [[XE:%.+]] = zext i1 %{{.+}} to i32
   // CHECK: [[YE:%.+]] = zext i1 %{{.+}} to i32
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.uadd.with.overflow.i32(i32 [[XE]], i32 [[YE]])
@@ -165,7 +165,7 @@ _Bool test_add_overflow_bool_bool_bool(_Bool x, _Bool y) {
 }
 
 int test_add_overflow_volatile(int x, int y) {
-  // CHECK-LABEL: define i32 @test_add_overflow_volatile
+  // CHECK-LABEL: define {{(dso_local )?}}i32 @test_add_overflow_volatile
   // CHECK: [[S:%.+]] = call { i32, i1 } @llvm.sadd.with.overflow.i32(i32 %{{.+}}, i32 %{{.+}})
   // CHECK-DAG: [[Q:%.+]] = extractvalue { i32, i1 } [[S]], 0
   // CHECK-DAG: [[C:%.+]] = extractvalue { i32, i1 } [[S]], 1
@@ -373,7 +373,9 @@ int test_mixed_sign_mull_overflow_unsigned(int x, unsigned y) {
 // CHECK-NEXT:  [[NotNull:%.*]] = icmp ne i32 [[UnsignedResult]], 0
 // CHECK-NEXT:  [[Underflow:%.*]] = and i1 [[IsNeg]], [[NotNull]]
 // CHECK-NEXT:  [[OFlow:%.*]] = or i1 [[UnsignedOFlow]], [[Underflow]]
-// CHECK-NEXT:  store i32 [[UnsignedResult]], i32* %{{.*}}, align 4
+// CHECK-NEXT:  [[NegatedResult:%.*]] = sub i32 0, [[UnsignedResult]]
+// CHECK-NEXT:  [[Result:%.*]] = select i1 [[IsNeg]], i32 [[NegatedResult]], i32 [[UnsignedResult]]
+// CHECK-NEXT:  store i32 [[Result]], i32* %{{.*}}, align 4
 // CHECK:       br i1 [[OFlow]]
 
   unsigned result;
@@ -432,7 +434,9 @@ long long test_mixed_sign_mulll_overflow_trunc_unsigned(long long x, unsigned lo
 // CHECK-NEXT:  [[OVERFLOW_PRE_TRUNC:%.*]] = or i1 {{.*}}, [[UNDERFLOW]]
 // CHECK-NEXT:  [[TRUNC_OVERFLOW:%.*]] = icmp ugt i64 [[UNSIGNED_RESULT]], 4294967295
 // CHECK-NEXT:  [[OVERFLOW:%.*]] = or i1 [[OVERFLOW_PRE_TRUNC]], [[TRUNC_OVERFLOW]]
-// CHECK-NEXT:  trunc i64 [[UNSIGNED_RESULT]] to i32
+// CHECK-NEXT:  [[NEGATED:%.*]] = sub i64 0, [[UNSIGNED_RESULT]]
+// CHECK-NEXT:  [[RESULT:%.*]] = select i1 {{.*}}, i64 [[NEGATED]], i64 [[UNSIGNED_RESULT]]
+// CHECK-NEXT:  trunc i64 [[RESULT]] to i32
 // CHECK-NEXT:  store
   unsigned result;
   if (__builtin_mul_overflow(y, x, &result))

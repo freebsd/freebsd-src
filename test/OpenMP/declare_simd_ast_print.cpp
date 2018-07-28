@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -std=c++11 -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -std=c++11 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -80,8 +84,8 @@ private:
 // CHECK-NEXT: float taddpf(float *a, T *&b) {
 // CHECK-NEXT: return *a + *b;
 // CHECK-NEXT: }
-// CHECK: #pragma omp declare simd
-// CHECK-NEXT: #pragma omp declare simd
+// CHECK: #pragma omp declare simd uniform(this, b)
+// CHECK-NEXT: #pragma omp declare simd{{$}}
 // CHECK-NEXT: int tadd(int b) {
 // CHECK-NEXT: return this->x[b] + b;
 // CHECK-NEXT: }
