@@ -1,15 +1,15 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
-FILESGROUPS=	FILESETC FILESETCEXEC FILESETCDEFAULTS
-FILESETCDIR=	/etc
-FILESETC=	network.subr rc rc.initdiskless rc.subr rc.shutdown
-FILESETCMODE=	644
-FILESETCEXEC=	netstart pccard_ether rc.resume rc.suspend
-FILESETCEXECDIR=	/etc
-FILESETCEXECMODE=	755
-FILESETCDEFAULTSDIR=	/etc/defaults
-FILESETCDEFAULTS=	rc.conf
+CONFGROUPS=	CONFETC CONFETCEXEC CONFETCDEFAULTS
+CONFETCDIR=	/etc
+CONFETC=	network.subr rc rc.initdiskless rc.subr rc.shutdown
+CONFETCMODE=	644
+CONFETCEXEC=	netstart pccard_ether rc.resume rc.suspend
+CONFETCEXECDIR=	/etc
+CONFETCEXECMODE=	755
+CONFETCDEFAULTSDIR=	/etc/defaults
+CONFETCDEFAULTS=	rc.conf
 PACKAGE=runtime
 PROG=	init
 SRCS=	init.c getmntopts.c
