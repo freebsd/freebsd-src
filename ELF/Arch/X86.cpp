@@ -21,7 +21,7 @@ using namespace lld;
 using namespace lld::elf;
 
 namespace {
-class X86 final : public TargetInfo {
+class X86 : public TargetInfo {
 public:
   X86();
   RelExpr getRelExpr(RelType Type, const Symbol &S,
@@ -46,7 +46,6 @@ public:
 } // namespace
 
 X86::X86() {
-  GotBaseSymOff = -1;
   CopyRel = R_386_COPY;
   GotRel = R_386_GLOB_DAT;
   PltRel = R_386_JUMP_SLOT;
@@ -74,9 +73,9 @@ RelExpr X86::getRelExpr(RelType Type, const Symbol &S,
   case R_386_TLS_LDO_32:
     return R_ABS;
   case R_386_TLS_GD:
-    return R_TLSGD;
+    return R_TLSGD_GOT_FROM_END;
   case R_386_TLS_LDM:
-    return R_TLSLD;
+    return R_TLSLD_GOT_FROM_END;
   case R_386_PLT32:
     return R_PLT_PC;
   case R_386_PC8:
@@ -224,7 +223,7 @@ void X86::writePlt(uint8_t *Buf, uint64_t GotPltEntryAddr,
   }
 
   write32le(Buf + 7, RelOff);
-  write32le(Buf + 12, -Index * PltEntrySize - PltHeaderSize - 16);
+  write32le(Buf + 12, -getPltEntryOffset(Index) - 16);
 }
 
 int64_t X86::getImplicitAddend(const uint8_t *Buf, RelType Type) const {
@@ -256,15 +255,15 @@ void X86::relocateOne(uint8_t *Loc, RelType Type, uint64_t Val) const {
     // R_386_{PC,}{8,16} are not part of the i386 psABI, but they are
     // being used for some 16-bit programs such as boot loaders, so
     // we want to support them.
-    checkUInt<8>(Loc, Val, Type);
+    checkIntUInt(Loc, Val, 8, Type);
     *Loc = Val;
     break;
   case R_386_PC8:
-    checkInt<8>(Loc, Val, Type);
+    checkInt(Loc, Val, 8, Type);
     *Loc = Val;
     break;
   case R_386_16:
-    checkUInt<16>(Loc, Val, Type);
+    checkIntUInt(Loc, Val, 16, Type);
     write16le(Loc, Val);
     break;
   case R_386_PC16:
@@ -278,7 +277,7 @@ void X86::relocateOne(uint8_t *Loc, RelType Type, uint64_t Val) const {
     // current location subtracted from it.
     // We just check that Val fits in 17 bits. This misses some cases, but
     // should have no false positives.
-    checkInt<17>(Loc, Val, Type);
+    checkInt(Loc, Val, 17, Type);
     write16le(Loc, Val);
     break;
   case R_386_32:
@@ -301,7 +300,7 @@ void X86::relocateOne(uint8_t *Loc, RelType Type, uint64_t Val) const {
   case R_386_TLS_LE_32:
   case R_386_TLS_TPOFF:
   case R_386_TLS_TPOFF32:
-    checkInt<32>(Loc, Val, Type);
+    checkInt(Loc, Val, 32, Type);
     write32le(Loc, Val);
     break;
   default:
@@ -399,7 +398,152 @@ void X86::relaxTlsLdToLe(uint8_t *Loc, RelType Type, uint64_t Val) const {
   memcpy(Loc - 2, Inst, sizeof(Inst));
 }
 
+namespace {
+class RetpolinePic : public X86 {
+public:
+  RetpolinePic();
+  void writeGotPlt(uint8_t *Buf, const Symbol &S) const override;
+  void writePltHeader(uint8_t *Buf) const override;
+  void writePlt(uint8_t *Buf, uint64_t GotPltEntryAddr, uint64_t PltEntryAddr,
+                int32_t Index, unsigned RelOff) const override;
+};
+
+class RetpolineNoPic : public X86 {
+public:
+  RetpolineNoPic();
+  void writeGotPlt(uint8_t *Buf, const Symbol &S) const override;
+  void writePltHeader(uint8_t *Buf) const override;
+  void writePlt(uint8_t *Buf, uint64_t GotPltEntryAddr, uint64_t PltEntryAddr,
+                int32_t Index, unsigned RelOff) const override;
+};
+} // namespace
+
+RetpolinePic::RetpolinePic() {
+  PltHeaderSize = 48;
+  PltEntrySize = 32;
+}
+
+void RetpolinePic::writeGotPlt(uint8_t *Buf, const Symbol &S) const {
+  write32le(Buf, S.getPltVA() + 17);
+}
+
+void RetpolinePic::writePltHeader(uint8_t *Buf) const {
+  const uint8_t Insn[] = {
+      0xff, 0xb3, 0,    0,    0,    0,          // 0:    pushl GOTPLT+4(%ebx)
+      0x50,                                     // 6:    pushl %eax
+      0x8b, 0x83, 0,    0,    0,    0,          // 7:    mov GOTPLT+8(%ebx), %eax
+      0xe8, 0x0e, 0x00, 0x00, 0x00,             // d:    call next
+      0xf3, 0x90,                               // 12: loop: pause
+      0x0f, 0xae, 0xe8,                         // 14:   lfence
+      0xeb, 0xf9,                               // 17:   jmp loop
+      0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, // 19:   int3; .align 16
+      0x89, 0x0c, 0x24,                         // 20: next: mov %ecx, (%esp)
+      0x8b, 0x4c, 0x24, 0x04,                   // 23:   mov 0x4(%esp), %ecx
+      0x89, 0x44, 0x24, 0x04,                   // 27:   mov %eax ,0x4(%esp)
+      0x89, 0xc8,                               // 2b:   mov %ecx, %eax
+      0x59,                                     // 2d:   pop %ecx
+      0xc3,                                     // 2e:   ret
+      0xcc,                                     // 2f:   int3; padding
+  };
+  memcpy(Buf, Insn, sizeof(Insn));
+
+  uint32_t Ebx = InX::Got->getVA() + InX::Got->getSize();
+  uint32_t GotPlt = InX::GotPlt->getVA() - Ebx;
+  write32le(Buf + 2, GotPlt + 4);
+  write32le(Buf + 9, GotPlt + 8);
+}
+
+void RetpolinePic::writePlt(uint8_t *Buf, uint64_t GotPltEntryAddr,
+                            uint64_t PltEntryAddr, int32_t Index,
+                            unsigned RelOff) const {
+  const uint8_t Insn[] = {
+      0x50,                            // pushl %eax
+      0x8b, 0x83, 0,    0,    0,    0, // mov foo@GOT(%ebx), %eax
+      0xe8, 0,    0,    0,    0,       // call plt+0x20
+      0xe9, 0,    0,    0,    0,       // jmp plt+0x12
+      0x68, 0,    0,    0,    0,       // pushl $reloc_offset
+      0xe9, 0,    0,    0,    0,       // jmp plt+0
+      0xcc, 0xcc, 0xcc, 0xcc, 0xcc,    // int3; padding
+  };
+  memcpy(Buf, Insn, sizeof(Insn));
+
+  uint32_t Ebx = InX::Got->getVA() + InX::Got->getSize();
+  unsigned Off = getPltEntryOffset(Index);
+  write32le(Buf + 3, GotPltEntryAddr - Ebx);
+  write32le(Buf + 8, -Off - 12 + 32);
+  write32le(Buf + 13, -Off - 17 + 18);
+  write32le(Buf + 18, RelOff);
+  write32le(Buf + 23, -Off - 27);
+}
+
+RetpolineNoPic::RetpolineNoPic() {
+  PltHeaderSize = 48;
+  PltEntrySize = 32;
+}
+
+void RetpolineNoPic::writeGotPlt(uint8_t *Buf, const Symbol &S) const {
+  write32le(Buf, S.getPltVA() + 16);
+}
+
+void RetpolineNoPic::writePltHeader(uint8_t *Buf) const {
+  const uint8_t Insn[] = {
+      0xff, 0x35, 0,    0,    0,    0, // 0:    pushl GOTPLT+4
+      0x50,                            // 6:    pushl %eax
+      0xa1, 0,    0,    0,    0,       // 7:    mov GOTPLT+8, %eax
+      0xe8, 0x0f, 0x00, 0x00, 0x00,    // c:    call next
+      0xf3, 0x90,                      // 11: loop: pause
+      0x0f, 0xae, 0xe8,                // 13:   lfence
+      0xeb, 0xf9,                      // 16:   jmp loop
+      0xcc, 0xcc, 0xcc, 0xcc, 0xcc,    // 18:   int3
+      0xcc, 0xcc, 0xcc,                // 1f:   int3; .align 16
+      0x89, 0x0c, 0x24,                // 20: next: mov %ecx, (%esp)
+      0x8b, 0x4c, 0x24, 0x04,          // 23:   mov 0x4(%esp), %ecx
+      0x89, 0x44, 0x24, 0x04,          // 27:   mov %eax ,0x4(%esp)
+      0x89, 0xc8,                      // 2b:   mov %ecx, %eax
+      0x59,                            // 2d:   pop %ecx
+      0xc3,                            // 2e:   ret
+      0xcc,                            // 2f:   int3; padding
+  };
+  memcpy(Buf, Insn, sizeof(Insn));
+
+  uint32_t GotPlt = InX::GotPlt->getVA();
+  write32le(Buf + 2, GotPlt + 4);
+  write32le(Buf + 8, GotPlt + 8);
+}
+
+void RetpolineNoPic::writePlt(uint8_t *Buf, uint64_t GotPltEntryAddr,
+                              uint64_t PltEntryAddr, int32_t Index,
+                              unsigned RelOff) const {
+  const uint8_t Insn[] = {
+      0x50,                         // 0:  pushl %eax
+      0xa1, 0,    0,    0,    0,    // 1:  mov foo_in_GOT, %eax
+      0xe8, 0,    0,    0,    0,    // 6:  call plt+0x20
+      0xe9, 0,    0,    0,    0,    // b:  jmp plt+0x11
+      0x68, 0,    0,    0,    0,    // 10: pushl $reloc_offset
+      0xe9, 0,    0,    0,    0,    // 15: jmp plt+0
+      0xcc, 0xcc, 0xcc, 0xcc, 0xcc, // 1a: int3; padding
+      0xcc,                         // 1f: int3; padding
+  };
+  memcpy(Buf, Insn, sizeof(Insn));
+
+  unsigned Off = getPltEntryOffset(Index);
+  write32le(Buf + 2, GotPltEntryAddr);
+  write32le(Buf + 7, -Off - 11 + 32);
+  write32le(Buf + 12, -Off - 16 + 17);
+  write32le(Buf + 17, RelOff);
+  write32le(Buf + 22, -Off - 26);
+}
+
 TargetInfo *elf::getX86TargetInfo() {
-  static X86 Target;
-  return &Target;
+  if (Config->ZRetpolineplt) {
+    if (Config->Pic) {
+      static RetpolinePic T;
+      return &T;
+    }
+    static RetpolineNoPic T;
+    return &T;
+  }
+
+  static X86 T;
+  return &T;
 }
