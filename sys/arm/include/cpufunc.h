@@ -220,8 +220,6 @@ u_int	cpu_pfr			(int);
 void	arm9_tlb_flushID_SE	(u_int va);
 void	arm9_context_switch	(void);
 
-void	arm10_setup		(void);
-
 u_int	sheeva_control_ext 		(u_int, u_int);
 void	sheeva_cpu_sleep		(int);
 void	sheeva_setttb			(u_int);
@@ -238,17 +236,12 @@ void	sheeva_l2cache_wbinv_all	(void);
 
 #if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 void	armv7_cpu_sleep			(int);
-void	armv7_setup			(void);
-
-void 	cortexa_setup			(void);
 #endif
 #if defined(CPU_MV_PJ4B)
 void	pj4b_config			(void);
-void	pj4bv7_setup			(void);
 #endif
 
 #if defined(CPU_ARM1176)
-void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
 
