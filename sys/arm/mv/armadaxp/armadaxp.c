@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <machine/bus.h>
 #include <machine/armreg.h>
+#include <machine/bus.h>
+#include <machine/cpu.h>
 
 #include <arm/mv/mvwin.h>
 #include <arm/mv/mvreg.h>
@@ -142,7 +143,7 @@ get_tclk_armadaxp(void)
 {
  	uint32_t cputype;
 
-	cputype = cpu_ident();
+	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
 	if (cputype == CPU_ID_MV88SV584X_V7)

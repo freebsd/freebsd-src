@@ -208,12 +208,8 @@ int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
-u_int	cpu_ident		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpu_domains		(u_int domains);
-u_int	cpu_faultstatus		(void);
-u_int	cpu_faultaddress	(void);
-u_int	cpu_get_control		(void);
 u_int	cpu_pfr			(int);
 
 #if defined(CPU_ARM9E)

@@ -62,35 +62,10 @@ END(cpufunc_nullop)
  *
  */
 
-ENTRY(cpu_ident)
-	mrc	p15, 0, r0, c0, c0, 0
-	RET
-END(cpu_ident)
-
-ENTRY(cpu_get_control)
-	mrc	CP15_SCTLR(r0)
-	RET
-END(cpu_get_control)
-
-ENTRY(cpu_read_cache_config)
-	mrc	p15, 0, r0, c0, c0, 1
-	RET
-END(cpu_read_cache_config)
-
-ENTRY(cpu_faultstatus)
-	mrc	p15, 0, r0, c5, c0, 0
-	RET
-END(cpu_faultstatus)
-
-ENTRY(cpu_faultaddress)
-	mrc	p15, 0, r0, c6, c0, 0
-	RET
-END(cpu_faultaddress)
-
 /*
  * Generic functions to write the internal coprocessor registers
  *
- *
+
  * Currently these registers are
  *  c1 - CPU Control
  *  c3 - Domain Access Control
