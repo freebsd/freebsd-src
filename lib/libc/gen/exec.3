@@ -28,7 +28,7 @@
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2016
+.Dd July 28, 2018
 .Dt EXEC 3
 .Os
 .Sh NAME
@@ -46,16 +46,11 @@
 .In unistd.h
 .Vt extern char **environ ;
 .Ft int
-.Fn execl "const char *path" "const char *arg" ... /* "(char *)0" */
+.Fn execl "const char *path" "const char *arg" ... NULL
 .Ft int
-.Fn execlp "const char *file" "const char *arg" ... /* "(char *)0" */
+.Fn execlp "const char *file" "const char *arg" ... NULL
 .Ft int
-.Fo execle
-.Fa "const char *path" "const char *arg" ...
-.Fa /*
-.Bk -words
-.Fa "(char *)0" "char *const envp[]" */
-.Ek
+.Fn execle "const char *path" "const char *arg" ... NULL "char *const envp[]"
 .Fc
 .Ft int
 .Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
