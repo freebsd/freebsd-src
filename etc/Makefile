@@ -47,7 +47,6 @@ BIN1=	crontab \
 	remote \
 	rpc \
 	services \
-	shells \
 	sysctl.conf \
 	syslog.conf \
 	termcap.small
