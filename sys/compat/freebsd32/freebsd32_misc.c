@@ -883,9 +883,10 @@ freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 	int error;
 
 	error = kern_getrusage(td, uap->who, &s);
-	freebsd32_rusage_out(&s, &s32);
-	if (error == 0)
+	if (error == 0) {
+		freebsd32_rusage_out(&s, &s32);
 		error = copyout(&s32, uap->rusage, sizeof(s32));
+	}
 	return (error);
 }
 
