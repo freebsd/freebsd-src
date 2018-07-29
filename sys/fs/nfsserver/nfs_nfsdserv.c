@@ -3852,7 +3852,7 @@ nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
     __unused NFSPROC_T *p, __unused struct nfsexstuff *exp)
 {
 	u_int32_t *tl;
-	int error = 0, createdir;
+	int error = 0, createdir __unused;
 
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	createdir = fxdr_unsigned(int, *tl);

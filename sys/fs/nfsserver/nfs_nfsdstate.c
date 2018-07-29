@@ -5765,7 +5765,7 @@ nfsrv_localunlock(vnode_t vp, struct nfslockfile *lfp, uint64_t init_first,
     uint64_t init_end, NFSPROC_T *p)
 {
 	struct nfslock *lop;
-	uint64_t first, end, prevfirst;
+	uint64_t first, end, prevfirst __unused;
 
 	first = init_first;
 	end = init_end;
