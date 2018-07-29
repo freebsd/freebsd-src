@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2018
+.Dd July 29, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -553,6 +553,16 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
+.It Va allow.mlock
+Locking or unlocking physical pages in memory are normally not available
+within a jail.
+When this parameter is set, users may
+.Xr mlock 2
+or
+.Xr munlock 2
+memory subject to
+.Va security.bsd.unprivileged_mlock
+and resource limits.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
 .El
