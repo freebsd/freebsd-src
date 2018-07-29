@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.259 2018/03/11 01:23:52 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.262 2018/06/22 20:39:50 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -53,8 +53,7 @@ private int mget(struct magic_set *, struct magic *, const struct buffer *,
 private int msetoffset(struct magic_set *, struct magic *, struct buffer *,
     const struct buffer *, size_t, unsigned int);
 private int magiccheck(struct magic_set *, struct magic *);
-private int32_t mprint(struct magic_set *, struct magic *,
-    const struct buffer *);
+private int32_t mprint(struct magic_set *, struct magic *);
 private int moffset(struct magic_set *, struct magic *, const struct buffer *,
     int32_t *);
 private void mdebug(uint32_t, const char *, size_t);
@@ -62,8 +61,7 @@ private int mcopy(struct magic_set *, union VALUETYPE *, int, int,
     const unsigned char *, uint32_t, size_t, struct magic *);
 private int mconvert(struct magic_set *, struct magic *, int);
 private int print_sep(struct magic_set *, int);
-private int handle_annotation(struct magic_set *, struct magic *,
-    const struct buffer *, int);
+private int handle_annotation(struct magic_set *, struct magic *, int);
 private int cvt_8(union VALUETYPE *, const struct magic *);
 private int cvt_16(union VALUETYPE *, const struct magic *);
 private int cvt_32(union VALUETYPE *, const struct magic *);
@@ -240,7 +238,7 @@ flush:
 			goto flush;
 		}
 
-		if ((e = handle_annotation(ms, m, b, firstline)) != 0) {
+		if ((e = handle_annotation(ms, m, firstline)) != 0) {
 			*need_separator = 1;
 			*printed_something = 1;
 			*returnval = 1;
@@ -258,7 +256,7 @@ flush:
 				return -1;
 		}
 
-		if (print && mprint(ms, m, b) == -1)
+		if (print && mprint(ms, m) == -1)
 			return -1;
 
 		switch (moffset(ms, m, &bb, &ms->c.li[cont_level].off)) {
@@ -339,7 +337,7 @@ flush:
 				} else
 					ms->c.li[cont_level].got_match = 1;
 
-				if ((e = handle_annotation(ms, m, b, firstline))
+				if ((e = handle_annotation(ms, m, firstline))
 				    != 0) {
 					*need_separator = 1;
 					*printed_something = 1;
@@ -373,7 +371,7 @@ flush:
 						return -1;
 					*need_separator = 0;
 				}
-				if (print && mprint(ms, m, b) == -1)
+				if (print && mprint(ms, m) == -1)
 					return -1;
 
 				switch (moffset(ms, m, &bb,
@@ -433,8 +431,11 @@ check_fmt(struct magic_set *ms, const char *fmt)
 	return rv;
 }
 
-#ifndef HAVE_STRNDUP
-char * strndup(const char *, size_t);
+#if !defined(HAVE_STRNDUP) || defined(__aiws__)
+# ifdef __aiws__
+#  define strndup aix_strndup	/* aix is broken */
+# endif
+char *strndup(const char *, size_t);
 
 char *
 strndup(const char *str, size_t n)
@@ -453,7 +454,7 @@ strndup(const char *str, size_t n)
 #endif /* HAVE_STRNDUP */
 
 static int
-varexpand(char *buf, size_t len, const struct buffer *b, const char *str)
+varexpand(struct magic_set *ms, char *buf, size_t len, const char *str)
 {
 	const char *ptr, *sptr, *e, *t, *ee, *et;
 	size_t l;
@@ -478,7 +479,7 @@ varexpand(char *buf, size_t len, const struct buffer *b, const char *str)
 			return -1;
 		switch (*ptr) {
 		case 'x':
-			if (b->st.st_mode & 0111) {
+			if (ms->mode & 0111) {
 				ptr = t;
 				l = et - t;
 			} else {
@@ -508,7 +509,7 @@ varexpand(char *buf, size_t len, const struct buffer *b, const char *str)
 
 
 private int32_t
-mprint(struct magic_set *ms, struct magic *m, const struct buffer *b)
+mprint(struct magic_set *ms, struct magic *m)
 {
 	uint64_t v;
 	float vf;
@@ -518,7 +519,7 @@ mprint(struct magic_set *ms, struct magic *m, const struct buffer *b)
 	const char *desc;
 	union VALUETYPE *p = &ms->ms_value;
 
-	if (varexpand(ebuf, sizeof(ebuf), b, m->desc) == -1)
+	if (varexpand(ms, ebuf, sizeof(ebuf), m->desc) == -1)
 		desc = m->desc;
 	else
 		desc = ebuf;
@@ -1534,6 +1535,14 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 			case FILE_MELONG:
 				off = SEXT(sgn,32,ME32(q));
 				break;
+			case FILE_BEQUAD:
+				off = SEXT(sgn,64,BE64(q));
+				break;
+			case FILE_LEQUAD:
+				off = SEXT(sgn,64,LE64(q));
+				break;
+			default:
+				abort();
 			}
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				fprintf(stderr, "indirect offs=%jd\n", off);
@@ -1587,8 +1596,18 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 				return 0;
 			offset = do_ops(m, SEXT(sgn,32,p->l), off);
 			break;
-		default:
+		case FILE_LEQUAD:
+			if (OFFSET_OOB(nbytes, offset, 8))
+				return 0;
+			offset = do_ops(m, SEXT(sgn,64,LE64(p)), off);
 			break;
+		case FILE_BEQUAD:
+			if (OFFSET_OOB(nbytes, offset, 8))
+				return 0;
+			offset = do_ops(m, SEXT(sgn,64,BE64(p)), off);
+			break;
+		default:
+			abort();
 		}
 
 		if (m->flag & INDIROFFADD) {
@@ -2159,8 +2178,7 @@ magiccheck(struct magic_set *ms, struct magic *m)
 }
 
 private int
-handle_annotation(struct magic_set *ms, struct magic *m, const struct buffer *b,
-    int firstline)
+handle_annotation(struct magic_set *ms, struct magic *m, int firstline)
 {
 	if ((ms->flags & MAGIC_APPLE) && m->apple[0]) {
 		if (!firstline && file_printf(ms, "\n- ") == -1)
@@ -2181,7 +2199,7 @@ handle_annotation(struct magic_set *ms, struct magic *m, const struct buffer *b,
 		const char *p;
 		if (!firstline && file_printf(ms, "\n- ") == -1)
 			return -1;
-		if (varexpand(buf, sizeof(buf), b, m->mimetype) == -1)
+		if (varexpand(ms, buf, sizeof(buf), m->mimetype) == -1)
 			p = m->mimetype;
 		else
 			p = buf;
