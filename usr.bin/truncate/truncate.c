@@ -27,10 +27,8 @@
  *
  */
 
-#ifndef lint
 static const char rcsid[] =
     "$FreeBSD$";
-#endif
 
 #include <sys/stat.h>
 
