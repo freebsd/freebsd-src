@@ -128,6 +128,7 @@ acpi_wakedata.h			optional	acpi			\
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
+amd64/amd64/copyout.c		standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
