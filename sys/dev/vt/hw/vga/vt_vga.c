@@ -1213,6 +1213,7 @@ vga_acpi_disabled(void)
 	uint16_t flags;
 	int ignore;
 
+	ignore = 0;
 	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
 
 	if (ignore)
