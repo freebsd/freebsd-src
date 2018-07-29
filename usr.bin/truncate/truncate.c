@@ -51,7 +51,7 @@ main(int argc, char **argv)
 {
 	struct stat sb;
 	mode_t omode;
-	off_t oflow, rsize, sz, tsize;
+	off_t oflow, rsize, sz, tsize, round;
 	uint64_t usz;
 	int ch, error, fd, oflags;
 	int no_create;
@@ -59,7 +59,6 @@ main(int argc, char **argv)
 	int do_round;
 	int do_refer;
 	int got_size;
-	int round;
 	char *fname, *rname;
 
 	fd = -1;
