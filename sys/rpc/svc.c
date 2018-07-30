@@ -1183,7 +1183,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			/*
 			 * Enforce maxthreads count.
 			 */
-			if (grp->sg_threadcount > grp->sg_maxthreads)
+			if (!ismaster && grp->sg_threadcount >
+			    grp->sg_maxthreads)
 				break;
 
 			/*
