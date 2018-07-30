@@ -142,14 +142,13 @@ arm_install_boot() {
 		${FATMOUNT}/ubldr.bin
 	fi
 
-	# Ensure the correct .OBJDIR exists.
-	chroot ${CHROOTDIR} env TARGET=${EMBEDDED_TARGET} \
-		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} WITH_UNIFIED_OBJDIR=yes \
-		make -C ${WORLDDIR}/stand obj
-	BOOTFILES="$(chroot ${CHROOTDIR} \
-		env TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
-		WITH_UNIFIED_OBJDIR=yes \
-		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	# Ensure the correct .OBJDIR is used for BOOTFILES.
+	_OBJDIR="$(chroot ${CHROOTDIR} make -C /usr/src -V .OBJDIR)"
+	if [ -d "/${CHROOTDIR}/${_OBJDIR%%/usr/src}/${EMBEDDED_TARGET}.${EMBEDDED_TARGET_ARCH}/usr/src/stand" ]; then
+		BOOTFILES=/${_OBJDIR%%/usr/src}/${EMBEDDED_TARGET}.${EMBEDDED_TARGET_ARCH}/usr/src/stand
+	else
+		BOOTFILES=/${_OBJDIR}/stand
+	fi
 	BOOTFILES="$(chroot ${CHROOTDIR} realpath ${BOOTFILES})"
 
 	chroot ${CHROOTDIR} mkdir -p ${FATMOUNT}/EFI/BOOT
