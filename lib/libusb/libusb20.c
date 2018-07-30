@@ -812,6 +812,7 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 {
 	struct LIBUSB20_CONTROL_SETUP_DECODED req;
 	int error;
+	int flags;
 
 	/* make sure memory is initialised */
 	memset(ptr, 0, len);
@@ -838,22 +839,24 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 	error = libusb20_dev_request_sync(pdev, &req,
 	    ptr, NULL, 1000, LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK);
 	if (error) {
-		return (error);
+		/* try to request full string */
+		req.wLength = 255;
+		flags = 0;
+	} else {
+		/* extract length and request full string */
+		req.wLength = *(uint8_t *)ptr;
+		flags = LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK;
 	}
-	req.wLength = *(uint8_t *)ptr;	/* bytes */
 	if (req.wLength > len) {
 		/* partial string read */
 		req.wLength = len;
 	}
-	error = libusb20_dev_request_sync(pdev, &req,
-	    ptr, NULL, 1000, LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK);
-
-	if (error) {
+	error = libusb20_dev_request_sync(pdev, &req, ptr, NULL, 1000, flags);
+	if (error)
 		return (error);
-	}
-	if (((uint8_t *)ptr)[1] != LIBUSB20_DT_STRING) {
+
+	if (((uint8_t *)ptr)[1] != LIBUSB20_DT_STRING)
 		return (LIBUSB20_ERROR_OTHER);
-	}
 	return (0);			/* success */
 }
 
