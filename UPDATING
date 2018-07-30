@@ -45,7 +45,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20180720:
 	zfsloader's functionality has now been folded into loader.
-	zfsloader is no longer necesasary once you've updated your
+	zfsloader is no longer necessary once you've updated your
 	boot blocks. For a transition period, we will install a
 	hardlink for zfsloader to loader to allow a smooth transition
 	until the boot blocks can be updated (hard link because old
@@ -180,7 +180,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Support for FDDI networks has been removed.  If you have device
 	fddi or device fpa in your kernel config file they must be
 	removed.
-	
+
 20180406:
 	In addition to supporting RFC 3164 formatted messages, the
 	syslogd(8) service is now capable of parsing RFC 5424 formatted
