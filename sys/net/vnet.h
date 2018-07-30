@@ -270,8 +270,9 @@ extern struct sx vnet_sxlock;
  */
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
+/* struct _hack is to stop this from being used with static data */
 #define	VNET_DEFINE(t, n)	\
-    t VNET_NAME(n) __section(VNET_SETNAME) __used
+    struct _hack; t VNET_NAME(n) __section(VNET_SETNAME) __used
 #define	VNET_DEFINE_STATIC(t, n) \
     static t VNET_NAME(n) __section(VNET_SETNAME) __used
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
