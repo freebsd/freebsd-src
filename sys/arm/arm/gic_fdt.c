@@ -54,12 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/arm/gic.h>
 #include <arm/arm/gic_common.h>
 
-#ifdef INTRNG
 struct arm_gic_devinfo {
 	struct ofw_bus_devinfo	obdinfo;
 	struct resource_list	rl;
 };
-#endif
 
 struct arm_gic_fdt_softc {
 	struct arm_gic_softc	base;
@@ -70,10 +68,8 @@ struct arm_gic_fdt_softc {
 static device_probe_t gic_fdt_probe;
 static device_attach_t gic_fdt_attach;
 static ofw_bus_get_devinfo_t gic_ofw_get_devinfo;
-#ifdef INTRNG
 static bus_get_resource_list_t gic_fdt_get_resource_list;
 static bool arm_gic_add_children(device_t);
-#endif
 
 static struct ofw_compat_data compat_data[] = {
 	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
@@ -92,7 +88,6 @@ static device_method_t gic_fdt_methods[] = {
 	DEVMETHOD(device_probe,		gic_fdt_probe),
 	DEVMETHOD(device_attach,	gic_fdt_attach),
 
-#ifdef INTRNG
 	/* Bus interface */
 	DEVMETHOD(bus_get_resource_list,gic_fdt_get_resource_list),
 
@@ -103,7 +98,6 @@ static device_method_t gic_fdt_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-#endif
 
 	DEVMETHOD_END,
 };
@@ -134,22 +128,17 @@ gic_fdt_probe(device_t dev)
 static int
 gic_fdt_attach(device_t dev)
 {
-#ifdef INTRNG
 	struct arm_gic_fdt_softc *sc = device_get_softc(dev);
 	phandle_t pxref;
 	intptr_t xref;
-#endif
 	int err;
 
-#ifdef INTRNG
 	sc->base.gic_bus = GIC_BUS_FDT;
-#endif
 
 	err = arm_gic_attach(dev);
 	if (err != 0)
 		return (err);
 
-#ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 
 	/*
@@ -196,18 +185,14 @@ gic_fdt_attach(device_t dev)
 		bus_generic_probe(dev);
 		return (bus_generic_attach(dev));
 	}
-#endif
 
 	return (0);
 
-#ifdef INTRNG
 cleanup:
 	arm_gic_detach(dev);
 	return(ENXIO);
-#endif
 }
 
-#ifdef INTRNG
 static struct resource_list *
 gic_fdt_get_resource_list(device_t bus, device_t child)
 {
@@ -376,4 +361,3 @@ static devclass_t arm_gicv2m_fdt_devclass;
 
 EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_fdt_driver,
     arm_gicv2m_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-#endif
