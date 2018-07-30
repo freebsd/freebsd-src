@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 #define	COMPRESS_SUFFIX_ZST	".zst"
 #endif
 
-#define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ))
+#define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ)),sizeof(COMPRESS_SUFFIX_ZST))
 
 /*
  * Compression types
@@ -2027,7 +2027,7 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	char command[BUFSIZ];
 	char **args;
-	int c;
+	int c, i;
 
 	assert(zwork != NULL);
 	pgm_path = NULL;
@@ -2043,10 +2043,10 @@ do_zipwork(struct zipwork_entry *zwork)
 				(void) strlcat(zresult,
 				    compress_type[c].suffix, sizeof(zresult));
 				/* the first argument is always NULL, skip it */
-				for (c = 1; c < ARGS_NUM; c++) {
-					if (compress_type[c].args[c] == NULL)
+				for (i = 1; i < ARGS_NUM; i++) {
+					if (compress_type[c].args[i] == NULL)
 						break;
-					args[c] = compress_type[c].args[c];
+					args[i] = compress_type[c].args[i];
 				}
 				break;
 			}
