@@ -41,6 +41,7 @@
 #include <dev/pci/pcivar.h>
 
 #include <sys/ctype.h>
+#include <sys/endian.h>
 #include <sys/taskqueue.h>
 
 #include <dev/sound/pci/hda/hdac_private.h>
@@ -900,7 +901,7 @@ hdac_rirb_flush(struct hdac_softc *sc)
 {
 	struct hdac_rirb *rirb_base, *rirb;
 	nid_t cad;
-	uint32_t resp;
+	uint32_t resp, resp_ex;
 	uint8_t rirbwp;
 	int ret;
 
@@ -916,9 +917,10 @@ hdac_rirb_flush(struct hdac_softc *sc)
 		sc->rirb_rp++;
 		sc->rirb_rp %= sc->rirb_size;
 		rirb = &rirb_base[sc->rirb_rp];
-		cad = HDAC_RIRB_RESPONSE_EX_SDATA_IN(rirb->response_ex);
-		resp = rirb->response;
-		if (rirb->response_ex & HDAC_RIRB_RESPONSE_EX_UNSOLICITED) {
+		resp = le32toh(rirb->response);
+		resp_ex = le32toh(rirb->response_ex);
+		cad = HDAC_RIRB_RESPONSE_EX_SDATA_IN(resp_ex);
+		if (resp_ex & HDAC_RIRB_RESPONSE_EX_UNSOLICITED) {
 			sc->unsolq[sc->unsolq_wp++] = resp;
 			sc->unsolq_wp %= HDAC_UNSOLQ_MAX;
 			sc->unsolq[sc->unsolq_wp++] = cad;
@@ -985,7 +987,7 @@ hdac_send_command(struct hdac_softc *sc, nid_t cad, uint32_t verb)
 	bus_dmamap_sync(sc->corb_dma.dma_tag,
 	    sc->corb_dma.dma_map, BUS_DMASYNC_PREWRITE);
 #endif
-	corb[sc->corb_wp] = verb;
+	corb[sc->corb_wp] = htole32(verb);
 #if 0
 	bus_dmamap_sync(sc->corb_dma.dma_tag,
 	    sc->corb_dma.dma_map, BUS_DMASYNC_POSTWRITE);
