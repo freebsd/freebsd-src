@@ -535,6 +535,10 @@ nextparam:;
 		tp = new_fent();
 		tp->f_fn = this;
 		tp->f_type = filetype;
+		if (filetype == LOCAL)
+			tp->f_srcprefix = "";
+		else
+			tp->f_srcprefix = "$S/";
 		if (imp_rule)
 			tp->f_flags |= NO_IMPLCT_RULE;
 		if (no_obj)
@@ -610,7 +614,8 @@ do_before_depend(FILE *fp)
 			if (tp->f_flags & NO_IMPLCT_RULE)
 				fprintf(fp, "%s ", tp->f_fn);
 			else
-				fprintf(fp, "$S/%s ", tp->f_fn);
+				fprintf(fp, "%s%s ", tp->f_srcprefix,
+				    tp->f_fn);
 			lpos += len + 1;
 		}
 	if (lpos != 8)
@@ -675,10 +680,7 @@ do_xxfiles(char *tag, FILE *fp)
 				lpos = 8;
 				fputs("\\\n\t", fp);
 			}
-			if (tp->f_type != LOCAL)
-				fprintf(fp, "$S/%s ", tp->f_fn);
-			else
-				fprintf(fp, "%s ", tp->f_fn);
+			fprintf(fp, "%s%s ", tp->f_srcprefix, tp->f_fn);
 			lpos += len + 1;
 		}
 	free(suff);
@@ -724,25 +726,30 @@ do_rules(FILE *f)
 		else {
 			*cp = '\0';
 			if (och == 'o') {
-				fprintf(f, "%s%so:\n\t-cp $S/%so .\n\n",
-					ftp->f_objprefix, tail(np), np);
+				fprintf(f, "%s%so:\n\t-cp %s%so .\n\n",
+					ftp->f_objprefix, tail(np),
+					ftp->f_srcprefix, np);
 				continue;
 			}
 			if (ftp->f_depends) {
-				fprintf(f, "%s%sln: $S/%s%c %s\n",
-					ftp->f_objprefix, tail(np), np, och,
+				fprintf(f, "%s%sln: %s%s%c %s\n",
+					ftp->f_objprefix, tail(np),
+					ftp->f_srcprefix, np, och,
 					ftp->f_depends);
 				fprintf(f, "\t${NORMAL_LINT}\n\n");
-				fprintf(f, "%s%so: $S/%s%c %s\n",
-					ftp->f_objprefix, tail(np), np, och,
+				fprintf(f, "%s%so: %s%s%c %s\n",
+					ftp->f_objprefix, tail(np),
+					ftp->f_srcprefix, np, och,
 					ftp->f_depends);
 			}
 			else {
-				fprintf(f, "%s%sln: $S/%s%c\n",
-					ftp->f_objprefix, tail(np), np, och);
+				fprintf(f, "%s%sln: %s%s%c\n",
+					ftp->f_objprefix, tail(np),
+					ftp->f_srcprefix, np, och);
 				fprintf(f, "\t${NORMAL_LINT}\n\n");
-				fprintf(f, "%s%so: $S/%s%c\n",
-					ftp->f_objprefix, tail(np), np, och);
+				fprintf(f, "%s%so: %s%s%c\n",
+					ftp->f_objprefix, tail(np),
+					ftp->f_srcprefix, np, och);
 			}
 		}
 		compilewith = ftp->f_compilewith;
@@ -771,7 +778,8 @@ do_rules(FILE *f)
 		}
 		*cp = och;
 		if (strlen(ftp->f_objprefix))
-			fprintf(f, "\t%s $S/%s\n", compilewith, np);
+			fprintf(f, "\t%s %s%s\n", compilewith,
+			    ftp->f_srcprefix, np);
 		else
 			fprintf(f, "\t%s\n", compilewith);
 
