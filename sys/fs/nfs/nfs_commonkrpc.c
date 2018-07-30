@@ -849,9 +849,9 @@ tryagain:
 			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
 			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0))
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
-			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) ||
-			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j == 0)
-			    ) {
+			if (((nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) ||
+			    (clp != NULL && i == NFSV4OP_CBSEQUENCE &&
+			    j == 0)) && sep != NULL) {
 				if (i == NFSV4OP_SEQUENCE)
 					NFSM_DISSECT(tl, uint32_t *,
 					    NFSX_V4SESSIONID +
@@ -893,7 +893,8 @@ tryagain:
 		}
 		if (nd->nd_repstat != 0) {
 			if (nd->nd_repstat == NFSERR_BADSESSION &&
-			    nmp != NULL && dssep == NULL) {
+			    nmp != NULL && dssep == NULL &&
+			    (nd->nd_flag & ND_NFSV41) != 0) {
 				/*
 				 * If this is a client side MDS RPC, mark
 				 * the MDS session defunct and initiate

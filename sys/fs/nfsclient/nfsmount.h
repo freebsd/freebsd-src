@@ -127,8 +127,10 @@ nfsmnt_mdssession(struct nfsmount *nmp)
 {
 	struct nfsclsession *tsep;
 
+	tsep = NULL;
 	mtx_lock(&nmp->nm_mtx);
-	tsep = NFSMNT_MDSSESSION(nmp);
+	if (TAILQ_FIRST(&nmp->nm_sess) != NULL)
+		tsep = NFSMNT_MDSSESSION(nmp);
 	mtx_unlock(&nmp->nm_mtx);
 	return (tsep);
 }
