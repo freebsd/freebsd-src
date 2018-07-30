@@ -569,7 +569,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	    NULL,				/* lockfuncarg */
 	    &dma->dma_tag);			/* dmat */
 	if (result != 0) {
-		device_printf(sc->dev, "%s: bus_dma_tag_create failed (%x)\n",
+		device_printf(sc->dev, "%s: bus_dma_tag_create failed (%d)\n",
 		    __func__, result);
 		goto hdac_dma_alloc_fail;
 	}
@@ -582,7 +582,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	    ((sc->flags & HDAC_F_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
 	    &dma->dma_map);
 	if (result != 0) {
-		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%x)\n",
+		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%d)\n",
 		    __func__, result);
 		goto hdac_dma_alloc_fail;
 	}
@@ -597,7 +597,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	if (result != 0 || dma->dma_paddr == 0) {
 		if (result == 0)
 			result = ENOMEM;
-		device_printf(sc->dev, "%s: bus_dmamem_load failed (%x)\n",
+		device_printf(sc->dev, "%s: bus_dmamem_load failed (%d)\n",
 		    __func__, result);
 		goto hdac_dma_alloc_fail;
 	}
@@ -718,7 +718,7 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	    NULL, hdac_intr_handler, sc, &irq->irq_handle);
 	if (result != 0) {
 		device_printf(sc->dev,
-		    "%s: Unable to setup interrupt handler (%x)\n",
+		    "%s: Unable to setup interrupt handler (%d)\n",
 		    __func__, result);
 		goto hdac_irq_alloc_fail;
 	}
@@ -1285,7 +1285,7 @@ hdac_attach(device_t dev)
 	    NULL,				/* lockfuncarg */
 	    &sc->chan_dmat);			/* dmat */
 	if (result != 0) {
-		device_printf(dev, "%s: bus_dma_tag_create failed (%x)\n",
+		device_printf(dev, "%s: bus_dma_tag_create failed (%d)\n",
 		     __func__, result);
 		goto hdac_attach_fail;
 	}
