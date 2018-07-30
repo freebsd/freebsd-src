@@ -2382,8 +2382,8 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 	if (error == 0 && args->tsp != NULL) {
 		if (td->td_retval[0]) {
 			nanotime(&ts1);
-			timespecsub(&ts1, &ts0);
-			timespecsub(&uts, &ts1);
+			timespecsub(&ts1, &ts0, &ts1);
+			timespecsub(&uts, &ts1, &uts);
 			if (uts.tv_sec < 0)
 				timespecclear(&uts);
 		} else

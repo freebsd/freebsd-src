@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #define _WANT_FREEBSD11_STAT
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
@@ -2639,7 +2640,7 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 	t = trussinfo->curthread;
 	sc = t->cs.sc;
 	if (trussinfo->flags & COUNTONLY) {
-		timespecsubt(&t->after, &t->before, &timediff);
+		timespecsub(&t->after, &t->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
 		if (errorp)
