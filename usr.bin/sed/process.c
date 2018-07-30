@@ -79,8 +79,8 @@ static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
 struct s_appends *appends;	/* Array of pointers to strings to append. */
-static int appendx;		/* Index into appends array. */
-int appendnum;			/* Size of appends array. */
+static unsigned int appendx;	/* Index into appends array. */
+unsigned int appendnum;		/* Size of appends array. */
 
 static int lastaddr;		/* Set by applies if last address of a range. */
 static int sdone;		/* If any substitutes since last line input. */
@@ -385,7 +385,7 @@ substitute(struct s_command *cp)
 	regex_t *re;
 	regoff_t slen;
 	int lastempty, n;
-	size_t le = 0;
+	regoff_t le = 0;
 	char *s;
 
 	s = ps;
@@ -550,13 +550,13 @@ static void
 flush_appends(void)
 {
 	FILE *f;
-	int count, i;
+	unsigned int count, idx;
 	char buf[8 * 1024];
 
-	for (i = 0; i < appendx; i++)
-		switch (appends[i].type) {
+	for (idx = 0; idx < appendx; idx++)
+		switch (appends[idx].type) {
 		case AP_STRING:
-			fwrite(appends[i].s, sizeof(char), appends[i].len,
+			fwrite(appends[idx].s, sizeof(char), appends[idx].len,
 			    outfile);
 			break;
 		case AP_FILE:
@@ -568,7 +568,7 @@ flush_appends(void)
 			 * would be truly bizarre, but possible.  It's probably
 			 * not that big a performance win, anyhow.
 			 */
-			if ((f = fopen(appends[i].s, "r")) == NULL)
+			if ((f = fopen(appends[idx].s, "r")) == NULL)
 				break;
 			while ((count = fread(buf, sizeof(char), sizeof(buf), f)))
 				(void)fwrite(buf, sizeof(char), count, outfile);
