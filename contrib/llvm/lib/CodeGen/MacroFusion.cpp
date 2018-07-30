@@ -66,11 +66,11 @@ static bool fuseInstructionPair(ScheduleDAGMI &DAG, SUnit &FirstSU,
     if (SI.getSUnit() == &FirstSU)
       SI.setLatency(0);
 
-  DEBUG(dbgs() << "Macro fuse: ";
-        FirstSU.print(dbgs(), &DAG); dbgs() << " - ";
-        SecondSU.print(dbgs(), &DAG); dbgs() << " /  ";
-        dbgs() << DAG.TII->getName(FirstSU.getInstr()->getOpcode()) << " - " <<
-                  DAG.TII->getName(SecondSU.getInstr()->getOpcode()) << '\n'; );
+  LLVM_DEBUG(
+      dbgs() << "Macro fuse: "; FirstSU.print(dbgs(), &DAG); dbgs() << " - ";
+      SecondSU.print(dbgs(), &DAG); dbgs() << " /  ";
+      dbgs() << DAG.TII->getName(FirstSU.getInstr()->getOpcode()) << " - "
+             << DAG.TII->getName(SecondSU.getInstr()->getOpcode()) << '\n';);
 
   // Make data dependencies from the FirstSU also dependent on the SecondSU to
   // prevent them from being scheduled between the FirstSU and the SecondSU.
@@ -80,24 +80,32 @@ static bool fuseInstructionPair(ScheduleDAGMI &DAG, SUnit &FirstSU,
       if (SI.isWeak() || isHazard(SI) ||
           SU == &DAG.ExitSU || SU == &SecondSU || SU->isPred(&SecondSU))
         continue;
-      DEBUG(dbgs() << "  Bind ";
-            SecondSU.print(dbgs(), &DAG); dbgs() << " - ";
-            SU->print(dbgs(), &DAG); dbgs() << '\n';);
+      LLVM_DEBUG(dbgs() << "  Bind "; SecondSU.print(dbgs(), &DAG);
+                 dbgs() << " - "; SU->print(dbgs(), &DAG); dbgs() << '\n';);
       DAG.addEdge(SU, SDep(&SecondSU, SDep::Artificial));
     }
 
   // Make the FirstSU also dependent on the dependencies of the SecondSU to
   // prevent them from being scheduled between the FirstSU and the SecondSU.
-  if (&FirstSU != &DAG.EntrySU)
+  if (&FirstSU != &DAG.EntrySU) {
     for (const SDep &SI : SecondSU.Preds) {
       SUnit *SU = SI.getSUnit();
       if (SI.isWeak() || isHazard(SI) || &FirstSU == SU || FirstSU.isSucc(SU))
         continue;
-      DEBUG(dbgs() << "  Bind ";
-            SU->print(dbgs(), &DAG); dbgs() << " - ";
-            FirstSU.print(dbgs(), &DAG); dbgs() << '\n';);
+      LLVM_DEBUG(dbgs() << "  Bind "; SU->print(dbgs(), &DAG); dbgs() << " - ";
+                 FirstSU.print(dbgs(), &DAG); dbgs() << '\n';);
       DAG.addEdge(&FirstSU, SDep(SU, SDep::Artificial));
     }
+    // ExitSU comes last by design, which acts like an implicit dependency
+    // between ExitSU and any bottom root in the graph. We should transfer
+    // this to FirstSU as well.
+    if (&SecondSU == &DAG.ExitSU) {
+      for (SUnit &SU : DAG.SUnits) {
+        if (SU.Succs.empty())
+          DAG.addEdge(&FirstSU, SDep(&SU, SDep::Artificial));
+      }
+    }
+  }
 
   ++NumFused;
   return true;
@@ -105,7 +113,7 @@ static bool fuseInstructionPair(ScheduleDAGMI &DAG, SUnit &FirstSU,
 
 namespace {
 
-/// \brief Post-process the DAG to create cluster edges between instrs that may
+/// Post-process the DAG to create cluster edges between instrs that may
 /// be fused by the processor into a single operation.
 class MacroFusion : public ScheduleDAGMutation {
   ShouldSchedulePredTy shouldScheduleAdjacent;
@@ -135,7 +143,7 @@ void MacroFusion::apply(ScheduleDAGInstrs *DAGInstrs) {
     scheduleAdjacentImpl(*DAG, DAG->ExitSU);
 }
 
-/// \brief Implement the fusion of instr pairs in the scheduling DAG,
+/// Implement the fusion of instr pairs in the scheduling DAG,
 /// anchored at the instr in AnchorSU..
 bool MacroFusion::scheduleAdjacentImpl(ScheduleDAGMI &DAG, SUnit &AnchorSU) {
   const MachineInstr &AnchorMI = *AnchorSU.getInstr();

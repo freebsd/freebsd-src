@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief  This file implements the PredicateInfo analysis, which creates an Extended
+///  This file implements the PredicateInfo analysis, which creates an Extended
 /// SSA form for operations used in branch comparisons and llvm.assume
 /// comparisons.
 ///
@@ -31,7 +31,7 @@
 /// %cmp = icmp eq i32, %x, 50
 /// br i1 %cmp, label %true, label %false
 /// true:
-/// %x.0 = call @llvm.ssa_copy.i32(i32 %x)
+/// %x.0 = call \@llvm.ssa_copy.i32(i32 %x)
 /// ret i32 %x.0
 /// false:
 /// ret i32 1
@@ -54,6 +54,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
@@ -69,6 +70,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "llvm/Support/Casting.h"
@@ -193,7 +195,7 @@ namespace PredicateInfoClasses {
 struct ValueDFS;
 }
 
-/// \brief Encapsulates PredicateInfo, including all data associated with memory
+/// Encapsulates PredicateInfo, including all data associated with memory
 /// accesses.
 class PredicateInfo {
 private:
@@ -261,6 +263,8 @@ private:
   // The set of edges along which we can only handle phi uses, due to critical
   // edges.
   DenseSet<std::pair<BasicBlock *, BasicBlock *>> EdgeUsesOnly;
+  // The set of ssa_copy declarations we created with our custom mangling.
+  SmallSet<AssertingVH<Function>, 20> CreatedDeclarations;
 };
 
 // This pass does eager building and then printing of PredicateInfo. It is used
@@ -275,7 +279,7 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override;
 };
 
-/// \brief Printer pass for \c PredicateInfo.
+/// Printer pass for \c PredicateInfo.
 class PredicateInfoPrinterPass
     : public PassInfoMixin<PredicateInfoPrinterPass> {
   raw_ostream &OS;
@@ -285,7 +289,7 @@ public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
-/// \brief Verifier pass for \c PredicateInfo.
+/// Verifier pass for \c PredicateInfo.
 struct PredicateInfoVerifierPass : PassInfoMixin<PredicateInfoVerifierPass> {
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
