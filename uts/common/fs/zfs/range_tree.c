@@ -179,7 +179,7 @@ range_tree_add(void *arg, uint64_t start, uint64_t size)
 	}
 
 	/* Make sure we don't overlap with either of our neighbors */
-	VERIFY(rs == NULL);
+	VERIFY3P(rs, ==, NULL);
 
 	rs_before = avl_nearest(&rt->rt_root, where, AVL_BEFORE);
 	rs_after = avl_nearest(&rt->rt_root, where, AVL_AFTER);
