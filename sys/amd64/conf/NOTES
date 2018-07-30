@@ -613,7 +613,7 @@ device		amdsmn
 #
 options 	NKPT=31
 
-# EFI Runtime Services support (not functional yet).
+# EFI Runtime Services support
 options 	EFIRT
 
 
