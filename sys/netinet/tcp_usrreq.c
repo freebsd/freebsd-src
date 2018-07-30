@@ -378,6 +378,11 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			struct sockaddr_in sin;
 
 			in6_sin6_2_sin(&sin, sin6p);
+			if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
+				error = EAFNOSUPPORT;
+				INP_HASH_WUNLOCK(&V_tcbinfo);
+				goto out;
+			}
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
 			error = in_pcbbind(inp, (struct sockaddr *)&sin,
@@ -607,6 +612,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		}
 
 		in6_sin6_2_sin(&sin, sin6p);
+		if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
 		if ((error = prison_remote_ip4(td->td_ucred,
@@ -892,6 +901,9 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	struct epoch_tracker net_et;
+#ifdef INET
+	struct sockaddr_in sin, *sinp;
+#endif
 #ifdef INET6
 	int isipv6;
 #endif
@@ -918,11 +930,124 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		error = ECONNRESET;
 		goto out;
 	}
-#ifdef INET6
-	isipv6 = nam && nam->sa_family == AF_INET6;
-#endif /* INET6 */
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+	if (nam != NULL && tp->t_state < TCPS_SYN_SENT) {
+		switch (nam->sa_family) {
+#ifdef INET
+		case AF_INET:
+			sinp = (struct sockaddr_in *)nam;
+			if (sinp->sin_len != sizeof(struct sockaddr_in)) {
+				if (m)
+					m_freem(m);
+				error = EINVAL;
+				goto out;
+			}
+			if ((inp->inp_vflag & INP_IPV6) != 0) {
+				if (m)
+					m_freem(m);
+				error = EAFNOSUPPORT;
+				goto out;
+			}
+			if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+				if (m)
+					m_freem(m);
+				error = EAFNOSUPPORT;
+				goto out;
+			}
+			if ((error = prison_remote_ip4(td->td_ucred,
+			    &sinp->sin_addr))) {
+				if (m)
+					m_freem(m);
+				goto out;
+			}
+#ifdef INET6
+			isipv6 = 0;
+#endif
+			break;
+#endif /* INET */
+#ifdef INET6
+		case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6p;
+
+			sin6p = (struct sockaddr_in6 *)nam;
+			if (sin6p->sin6_len != sizeof(struct sockaddr_in6)) {
+				if (m)
+					m_freem(m);
+				error = EINVAL;
+				goto out;
+			}
+			if (IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
+				if (m)
+					m_freem(m);
+				error = EAFNOSUPPORT;
+				goto out;
+			}
+			if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
+#ifdef INET
+				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
+					error = EINVAL;
+					if (m)
+						m_freem(m);
+					goto out;
+				}
+				if ((inp->inp_vflag & INP_IPV4) == 0) {
+					error = EAFNOSUPPORT;
+					if (m)
+						m_freem(m);
+					goto out;
+				}
+				inp->inp_vflag &= ~INP_IPV6;
+				sinp = &sin;
+				in6_sin6_2_sin(sinp, sin6p);
+				if (IN_MULTICAST(
+				    ntohl(sinp->sin_addr.s_addr))) {
+					error = EAFNOSUPPORT;
+					if (m)
+						m_freem(m);
+					goto out;
+				}
+				if ((error = prison_remote_ip4(td->td_ucred,
+				    &sinp->sin_addr))) {
+					if (m)
+						m_freem(m);
+					goto out;
+				}
+				isipv6 = 0;
+#else /* !INET */
+				error = EAFNOSUPPORT;
+				if (m)
+					m_freem(m);
+				goto out;
+#endif /* INET */
+			} else {
+				if ((inp->inp_vflag & INP_IPV6) == 0) {
+					if (m)
+						m_freem(m);
+					error = EAFNOSUPPORT;
+					goto out;
+				}
+				inp->inp_vflag &= ~INP_IPV4;
+				inp->inp_inc.inc_flags |= INC_ISIPV6;
+				if ((error = prison_remote_ip6(td->td_ucred,
+				    &sin6p->sin6_addr))) {
+					if (m)
+						m_freem(m);
+					goto out;
+				}
+				isipv6 = 1;
+			}
+			break;
+		}
+#endif /* INET6 */
+		default:
+			if (m)
+				m_freem(m);
+			error = EAFNOSUPPORT;
+			goto out;
+		}
+	}
 	if (control) {
 		/* TCP doesn't do control messages (rights, creds, etc) */
 		if (control->m_len) {
@@ -950,7 +1075,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp, nam, td);
+				error = tcp_connect(tp,
+				    (struct sockaddr *)sinp, td);
 #endif
 			if (error)
 				goto out;
@@ -1019,7 +1145,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp, nam, td);
+				error = tcp_connect(tp,
+				    (struct sockaddr *)sinp, td);
 #endif
 			if (error)
 				goto out;
