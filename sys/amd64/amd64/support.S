@@ -307,7 +307,6 @@ ENTRY(copyout_smap)
 	movq	%rdx,%rcx
 
 	shrq	$3,%rcx
-	cld
 	stac
 	rep
 	movsq
@@ -358,7 +357,6 @@ ENTRY(copyin_nosmap)
 	movq	%rdx,%rcx
 	movb	%cl,%al
 	shrq	$3,%rcx				/* copy longword-wise */
-	cld
 	rep
 	movsq
 	movb	%al,%cl
@@ -887,7 +885,6 @@ ENTRY(copyinstr_nosmap)
 	movq	%rax,%r8
 1:
 	incq	%rdx
-	cld
 
 2:
 	decq	%rdx
