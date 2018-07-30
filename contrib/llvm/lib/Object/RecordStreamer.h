@@ -47,25 +47,31 @@ private:
 public:
   RecordStreamer(MCContext &Context, const Module &M);
 
-  using const_iterator = StringMap<State>::const_iterator;
-
-  const_iterator begin();
-  const_iterator end();
   void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
                        bool) override;
   void EmitLabel(MCSymbol *Symbol, SMLoc Loc = SMLoc()) override;
   void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) override;
   bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) override;
   void EmitZerofill(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
-                    unsigned ByteAlignment) override;
+                    unsigned ByteAlignment, SMLoc Loc = SMLoc()) override;
   void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                         unsigned ByteAlignment) override;
   /// Record .symver aliases for later processing.
   void emitELFSymverDirective(StringRef AliasName,
                               const MCSymbol *Aliasee) override;
+
   // Emit ELF .symver aliases and ensure they have the same binding as the
   // defined symbol they alias with.
   void flushSymverDirectives();
+
+  // Symbols iterators
+  using const_iterator = StringMap<State>::const_iterator;
+  const_iterator begin();
+  const_iterator end();
+
+  // SymverAliasMap iterators
+  using const_symver_iterator = decltype(SymverAliasMap)::const_iterator;
+  iterator_range<const_symver_iterator> symverAliases();
 };
 
 } // end namespace llvm

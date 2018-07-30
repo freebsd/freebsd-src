@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/DIE.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/Allocator.h"
+#include <map>
 #include <memory>
 #include <utility>
 
@@ -43,8 +44,23 @@ class DwarfFile {
 
   DwarfStringPool StrPool;
 
-  // Collection of dbg variables of a scope.
-  DenseMap<LexicalScope *, SmallVector<DbgVariable *, 8>> ScopeVariables;
+  /// DWARF v5: The symbol that designates the start of the contribution to
+  /// the string offsets table. The contribution is shared by all units.
+  MCSymbol *StringOffsetsStartSym = nullptr;
+
+  /// DWARF v5: The symbol that designates the base of the range list table.
+  /// The table is shared by all units.
+  MCSymbol *RnglistsTableBaseSym = nullptr;
+
+  /// The variables of a lexical scope.
+  struct ScopeVars {
+    /// We need to sort Args by ArgNo and check for duplicates. This could also
+    /// be implemented as a list or vector + std::lower_bound().
+    std::map<unsigned, DbgVariable *> Args;
+    SmallVector<DbgVariable *, 8> Locals;
+  };
+  /// Collection of DbgVariables of each lexical scope.
+  DenseMap<LexicalScope *, ScopeVars> ScopeVariables;
 
   // Collection of abstract subprogram DIEs.
   DenseMap<const MDNode *, DIE *> AbstractSPDies;
@@ -62,39 +78,51 @@ public:
     return CUs;
   }
 
-  /// \brief Compute the size and offset of a DIE given an incoming Offset.
+  /// Compute the size and offset of a DIE given an incoming Offset.
   unsigned computeSizeAndOffset(DIE &Die, unsigned Offset);
 
-  /// \brief Compute the size and offset of all the DIEs.
+  /// Compute the size and offset of all the DIEs.
   void computeSizeAndOffsets();
 
-  /// \brief Compute the size and offset of all the DIEs in the given unit.
+  /// Compute the size and offset of all the DIEs in the given unit.
   /// \returns The size of the root DIE.
   unsigned computeSizeAndOffsetsForUnit(DwarfUnit *TheU);
 
-  /// \brief Add a unit to the list of CUs.
+  /// Add a unit to the list of CUs.
   void addUnit(std::unique_ptr<DwarfCompileUnit> U);
 
-  /// \brief Emit all of the units to the section listed with the given
+  /// Emit all of the units to the section listed with the given
   /// abbreviation section.
   void emitUnits(bool UseOffsets);
 
-  /// \brief Emit the given unit to its section.
+  /// Emit the given unit to its section.
   void emitUnit(DwarfUnit *U, bool UseOffsets);
 
-  /// \brief Emit a set of abbreviations to the specific section.
+  /// Emit a set of abbreviations to the specific section.
   void emitAbbrevs(MCSection *);
 
-  /// \brief Emit all of the strings to the section given.
-  void emitStrings(MCSection *StrSection, MCSection *OffsetSection = nullptr);
+  /// Emit all of the strings to the section given. If OffsetSection is
+  /// non-null, emit a table of string offsets to it. If UseRelativeOffsets
+  /// is false, emit absolute offsets to the strings. Otherwise, emit
+  /// relocatable references to the strings if they are supported by the target.
+  void emitStrings(MCSection *StrSection, MCSection *OffsetSection = nullptr,
+                   bool UseRelativeOffsets = false);
 
-  /// \brief Returns the string pool.
+  /// Returns the string pool.
   DwarfStringPool &getStringPool() { return StrPool; }
+
+  MCSymbol *getStringOffsetsStartSym() const { return StringOffsetsStartSym; }
+
+  void setStringOffsetsStartSym(MCSymbol *Sym) { StringOffsetsStartSym = Sym; }
+
+  MCSymbol *getRnglistsTableBaseSym() const { return RnglistsTableBaseSym; }
+
+  void setRnglistsTableBaseSym(MCSymbol *Sym) { RnglistsTableBaseSym = Sym; }
 
   /// \returns false if the variable was merged with a previous one.
   bool addScopeVariable(LexicalScope *LS, DbgVariable *Var);
 
-  DenseMap<LexicalScope *, SmallVector<DbgVariable *, 8>> &getScopeVariables() {
+  DenseMap<LexicalScope *, ScopeVars> &getScopeVariables() {
     return ScopeVariables;
   }
 

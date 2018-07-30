@@ -379,7 +379,7 @@ public:
         Traits::AddPHIOperand(PHI, PredInfo->AvailableVal, Pred);
       }
 
-      DEBUG(dbgs() << "  Inserted PHI: " << *PHI << "\n");
+      LLVM_DEBUG(dbgs() << "  Inserted PHI: " << *PHI << "\n");
 
       // If the client wants to know about all new instructions, tell it.
       if (InsertedPHIs) InsertedPHIs->push_back(PHI);
@@ -389,12 +389,8 @@ public:
   /// FindExistingPHI - Look through the PHI nodes in a block to see if any of
   /// them match what is needed.
   void FindExistingPHI(BlkT *BB, BlockListTy *BlockList) {
-    for (typename BlkT::iterator BBI = BB->begin(), BBE = BB->end();
-         BBI != BBE; ++BBI) {
-      PhiT *SomePHI = Traits::InstrIsPHI(&*BBI);
-      if (!SomePHI)
-        break;
-      if (CheckIfPHIMatches(SomePHI)) {
+    for (auto &SomePHI : BB->phis()) {
+      if (CheckIfPHIMatches(&SomePHI)) {
         RecordMatchingPHIs(BlockList);
         break;
       }
