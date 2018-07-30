@@ -3849,18 +3849,36 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte2, om;
-	boolean_t wired;
+	int rv;
 
 	va = trunc_page(va);
-	mpte2 = NULL;
-	wired = (flags & PMAP_ENTER_WIRED) != 0;
-
 	KASSERT(va <= vm_max_kernel_address, ("%s: toobig", __func__));
 	KASSERT(va < UPT2V_MIN_ADDRESS || va >= UPT2V_MAX_ADDRESS,
 	    ("%s: invalid to pmap_enter page table pages (va: 0x%x)", __func__,
 	    va));
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
+	    va >= kmi.clean_eva,
+	    ("%s: managed mapping within the clean submap", __func__));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
+	KASSERT((flags & PMAP_ENTER_RESERVED) == 0,
+	    ("%s: flags %u has reserved bits set", __func__, flags));
+	pa = VM_PAGE_TO_PHYS(m);
+	npte2 = PTE2(pa, PTE2_A, vm_page_pte2_attr(m));
+	if ((flags & VM_PROT_WRITE) == 0)
+		npte2 |= PTE2_NM;
+	if ((prot & VM_PROT_WRITE) == 0)
+		npte2 |= PTE2_RO;
+	KASSERT((npte2 & (PTE2_NM | PTE2_RO)) != PTE2_RO,
+	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		npte2 |= PTE2_NX;
+	if ((flags & PMAP_ENTER_WIRED) != 0)
+		npte2 |= PTE2_W;
+	if (va < VM_MAXUSER_ADDRESS)
+		npte2 |= PTE2_U;
+	if (pmap != kernel_pmap)
+		npte2 |= PTE2_NG;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -3875,12 +3893,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (mpte2 == NULL) {
 			KASSERT((flags & PMAP_ENTER_NOSLEEP) != 0,
 			    ("pmap_allocpte2 failed with sleep allowed"));
-			sched_unpin();
-			rw_wunlock(&pvh_global_lock);
-			PMAP_UNLOCK(pmap);
-			return (KERN_RESOURCE_SHORTAGE);
+			rv = KERN_RESOURCE_SHORTAGE;
+			goto out;
 		}
-	}
+	} else
+		mpte2 = NULL;
 	pte1p = pmap_pte1(pmap, va);
 	if (pte1_is_section(pte1_load(pte1p)))
 		panic("%s: attempted on 1MB page", __func__);
@@ -3889,7 +3906,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		panic("%s: invalid L1 page table entry va=%#x", __func__, va);
 
 	om = NULL;
-	pa = VM_PAGE_TO_PHYS(m);
 	opte2 = pte2_load(pte2p);
 	opa = pte2_pa(opte2);
 	/*
@@ -3902,9 +3918,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT2 page will be also.
 		 */
-		if (wired && !pte2_is_wired(opte2))
+		if (pte2_is_wired(npte2) && !pte2_is_wired(opte2))
 			pmap->pm_stats.wired_count++;
-		else if (!wired && pte2_is_wired(opte2))
+		else if (!pte2_is_wired(npte2) && pte2_is_wired(opte2))
 			pmap->pm_stats.wired_count--;
 
 		/*
@@ -3953,11 +3969,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-		    ("%s: managed mapping within the clean submap", __func__));
-		if (pv == NULL)
+		if (pv == NULL) {
 			pv = get_pv_entry(pmap, FALSE);
-		pv->pv_va = va;
+			pv->pv_va = va;
+		}
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	} else if (pv != NULL)
 		free_pv_entry(pmap, pv);
@@ -3965,28 +3980,17 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Increment counters
 	 */
-	if (wired)
+	if (pte2_is_wired(npte2))
 		pmap->pm_stats.wired_count++;
 
 validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	npte2 = PTE2(pa, PTE2_NM, vm_page_pte2_attr(m));
 	if (prot & VM_PROT_WRITE) {
 		if (pte2_is_managed(npte2))
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
-	else
-		npte2 |= PTE2_RO;
-	if ((prot & VM_PROT_EXECUTE) == 0)
-		npte2 |= PTE2_NX;
-	if (wired)
-		npte2 |= PTE2_W;
-	if (va < VM_MAXUSER_ADDRESS)
-		npte2 |= PTE2_U;
-	if (pmap != kernel_pmap)
-		npte2 |= PTE2_NG;
 
 	/*
 	 * If the mapping or permission bits are different, we need
@@ -4016,9 +4020,6 @@ validate:
 		    (opa != pa || (opte2 & PTE2_NX)))
 			cache_icache_sync_fresh(va, pa, PAGE_SIZE);
 
-		npte2 |= PTE2_A;
-		if (flags & VM_PROT_WRITE)
-			npte2 &= ~PTE2_NM;
 		if (opte2 & PTE2_V) {
 			/* Change mapping with break-before-make approach. */
 			opte2 = pte2_load_clear(pte2p);
@@ -4063,10 +4064,13 @@ validate:
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pte1(pmap, pte1p, va);
 #endif
+
+	rv = KERN_SUCCESS;
+out:
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
-	return (KERN_SUCCESS);
+	return (rv);
 }
 
 /*
