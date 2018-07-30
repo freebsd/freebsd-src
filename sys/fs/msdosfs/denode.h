@@ -174,6 +174,8 @@ struct denode {
 #define	DE_MODIFIED	0x0020	/* Denode has been modified */
 #define	DE_RENAME	0x0040	/* Denode is in the process of being renamed */
 
+/* Maximum size of a file on a FAT filesystem */
+#define MSDOSFS_FILESIZE_MAX	0xFFFFFFFFLL
 
 /*
  * Transfer directory entries between internal and external form.

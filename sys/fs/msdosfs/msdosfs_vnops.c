@@ -79,8 +79,6 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
-#define	DOS_FILESIZE_MAX	0xffffffff
-
 /*
  * Prototypes for MSDOSFS vnode operations
  */
@@ -548,7 +546,7 @@ msdosfs_read(struct vop_read_args *ap)
 	 * The caller is supposed to ensure that
 	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
 	 * We don't need to check for large offsets as in ffs because
-	 * dep->de_FileSize <= DOS_FILESIZE_MAX < OFF_MAX, so large
+	 * dep->de_FileSize <= MSDOSFS_FILESIZE_MAX < OFF_MAX, so large
 	 * offsets cannot cause overflow even in theory.
 	 */
 
@@ -663,7 +661,7 @@ msdosfs_write(struct vop_write_args *ap)
 	 * The caller is supposed to ensure that
 	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
 	 */
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > MSDOSFS_FILESIZE_MAX)
 		return (EFBIG);
 
 	/*
