@@ -16,7 +16,7 @@ SRCS+=	acpi_if.h isa_if.h pci_if.h smbus_if.h
 SUBDIR+= ipmi_linux
 
 .elif ${MACHINE_ARCH} == "powerpc64"
-SRCS+=	ipmi_opal.c
+SRCS+=	ipmi_opal.c ofw_bus_if.h
 .endif
 
 .include <bsd.kmod.mk>
