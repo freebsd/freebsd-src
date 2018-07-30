@@ -33,7 +33,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20180730:
 	amd64/GENERIC now has EFI runtime services, EFIRT, enabled by default.
-	This should have no effect if the kernel is booted via UEFI/legacy boot.
+	This should have no effect if the kernel is booted via BIOS/legacy boot.
 	EFIRT may be disabled via a loader tunable, efi.rt_disabled, if a system
 	has a buggy firmware that prevents a successful boot due to use of
 	runtime services.
