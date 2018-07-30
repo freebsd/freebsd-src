@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+#include <machine/asm.h>
 #include <machine/debug_monitor.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
@@ -107,6 +108,10 @@ __FBSDID("$FreeBSD$");
 
 #if __ARM_ARCH >= 6 && !defined(INTRNG)
 #error armv6 requires INTRNG
+#endif
+
+#ifndef _ARM_ARCH_5E
+#error FreeBSD requires ARMv5 or later
 #endif
 
 struct pcpu __pcpu[MAXCPU];
