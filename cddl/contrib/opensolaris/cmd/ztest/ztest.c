@@ -195,6 +195,7 @@ extern uint64_t zfs_deadman_synctime_ms;
 extern int metaslab_preload_limit;
 extern boolean_t zfs_compressed_arc_enabled;
 extern boolean_t zfs_abd_scatter_enabled;
+extern boolean_t zfs_force_some_double_word_sm_entries;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -6397,6 +6398,12 @@ main(int argc, char **argv)
 
 	dprintf_setup(&argc, argv);
 	zfs_deadman_synctime_ms = 300000;
+	/*
+	 * As two-word space map entries may not come up often (especially
+	 * if pool and vdev sizes are small) we want to force at least some
+	 * of them so the feature get tested.
+	 */
+	zfs_force_some_double_word_sm_entries = B_TRUE;
 
 	ztest_fd_rand = open("/dev/urandom", O_RDONLY);
 	ASSERT3S(ztest_fd_rand, >=, 0);
