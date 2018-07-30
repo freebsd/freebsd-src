@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -42,6 +42,7 @@
 #include <sys/zfeature.h>
 #include <sys/metaslab_impl.h>
 #include <sys/abd.h>
+#include <sys/cityhash.h>
 
 /*
  * ==========================================================================
@@ -2230,7 +2231,8 @@ zio_write_gang_block(zio_t *pio)
 		ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
 
 		flags |= METASLAB_ASYNC_ALLOC;
-		VERIFY(refcount_held(&mc->mc_alloc_slots, pio));
+		VERIFY(refcount_held(&mc->mc_alloc_slots[pio->io_allocator],
+		    pio));
 
 		/*
 		 * The logical zio has already placed a reservation for
@@ -2241,12 +2243,12 @@ zio_write_gang_block(zio_t *pio)
 		 * additional reservations for gang blocks.
 		 */
 		VERIFY(metaslab_class_throttle_reserve(mc, gbh_copies - copies,
-		    pio, flags));
+		    pio->io_allocator, pio, flags));
 	}
 
 	error = metaslab_alloc(spa, mc, SPA_GANGBLOCKSIZE,
 	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp, flags,
-	    &pio->io_alloc_list, pio);
+	    &pio->io_alloc_list, pio, pio->io_allocator);
 	if (error) {
 		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
@@ -2260,7 +2262,7 @@ zio_write_gang_block(zio_t *pio)
 			 * stage.
 			 */
 			metaslab_class_throttle_unreserve(mc,
-			    gbh_copies - copies, pio);
+			    gbh_copies - copies, pio->io_allocator, pio);
 		}
 		pio->io_error = error;
 		return (ZIO_PIPELINE_CONTINUE);
@@ -2318,7 +2320,7 @@ zio_write_gang_block(zio_t *pio)
 			 * slot for them here.
 			 */
 			VERIFY(metaslab_class_throttle_reserve(mc,
-			    zp.zp_copies, cio, flags));
+			    zp.zp_copies, cio->io_allocator, cio, flags));
 		}
 		zio_nowait(cio);
 	}
@@ -2808,13 +2810,13 @@ zio_ddt_free(zio_t *zio)
  */
 
 static zio_t *
-zio_io_to_allocate(spa_t *spa)
+zio_io_to_allocate(spa_t *spa, int allocator)
 {
 	zio_t *zio;
 
-	ASSERT(MUTEX_HELD(&spa->spa_alloc_lock));
+	ASSERT(MUTEX_HELD(&spa->spa_alloc_locks[allocator]));
 
-	zio = avl_first(&spa->spa_alloc_tree);
+	zio = avl_first(&spa->spa_alloc_trees[allocator]);
 	if (zio == NULL)
 		return (NULL);
 
@@ -2824,12 +2826,13 @@ zio_io_to_allocate(spa_t *spa)
 	 * Try to place a reservation for this zio. If we're unable to
 	 * reserve then we throttle.
 	 */
+	ASSERT3U(zio->io_allocator, ==, allocator);
 	if (!metaslab_class_throttle_reserve(spa_normal_class(spa),
-	    zio->io_prop.zp_copies, zio, 0)) {
+	    zio->io_prop.zp_copies, zio->io_allocator, zio, 0)) {
 		return (NULL);
 	}
 
-	avl_remove(&spa->spa_alloc_tree, zio);
+	avl_remove(&spa->spa_alloc_trees[allocator], zio);
 	ASSERT3U(zio->io_stage, <, ZIO_STAGE_DVA_ALLOCATE);
 
 	return (zio);
@@ -2853,13 +2856,23 @@ zio_dva_throttle(zio_t *zio)
 	ASSERT3U(zio->io_queued_timestamp, >, 0);
 	ASSERT(zio->io_stage == ZIO_STAGE_DVA_THROTTLE);
 
-	mutex_enter(&spa->spa_alloc_lock);
+	zbookmark_phys_t *bm = &zio->io_bookmark;
+	/*
+	 * We want to try to use as many allocators as possible to help improve
+	 * performance, but we also want logically adjacent IOs to be physically
+	 * adjacent to improve sequential read performance. We chunk each object
+	 * into 2^20 block regions, and then hash based on the objset, object,
+	 * level, and region to accomplish both of these goals.
+	 */
+	zio->io_allocator = cityhash4(bm->zb_objset, bm->zb_object,
+	    bm->zb_level, bm->zb_blkid >> 20) % spa->spa_alloc_count;
+	mutex_enter(&spa->spa_alloc_locks[zio->io_allocator]);
 
 	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
-	avl_add(&spa->spa_alloc_tree, zio);
+	avl_add(&spa->spa_alloc_trees[zio->io_allocator], zio);
 
-	nio = zio_io_to_allocate(zio->io_spa);
-	mutex_exit(&spa->spa_alloc_lock);
+	nio = zio_io_to_allocate(zio->io_spa, zio->io_allocator);
+	mutex_exit(&spa->spa_alloc_locks[zio->io_allocator]);
 
 	if (nio == zio)
 		return (ZIO_PIPELINE_CONTINUE);
@@ -2880,13 +2893,13 @@ zio_dva_throttle(zio_t *zio)
 }
 
 void
-zio_allocate_dispatch(spa_t *spa)
+zio_allocate_dispatch(spa_t *spa, int allocator)
 {
 	zio_t *zio;
 
-	mutex_enter(&spa->spa_alloc_lock);
-	zio = zio_io_to_allocate(spa);
-	mutex_exit(&spa->spa_alloc_lock);
+	mutex_enter(&spa->spa_alloc_locks[allocator]);
+	zio = zio_io_to_allocate(spa, allocator);
+	mutex_exit(&spa->spa_alloc_locks[allocator]);
 	if (zio == NULL)
 		return;
 
@@ -2927,7 +2940,7 @@ zio_dva_allocate(zio_t *zio)
 
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
 	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
-	    &zio->io_alloc_list, zio);
+	    &zio->io_alloc_list, zio, zio->io_allocator);
 
 	if (error != 0) {
 		spa_dbgmsg(spa, "%s: metaslab allocation failure: zio %p, "
@@ -2987,8 +3000,8 @@ zio_dva_unallocate(zio_t *zio, zio_gang_node_t *gn, blkptr_t *bp)
  * Try to allocate an intent log block.  Return 0 on success, errno on failure.
  */
 int
-zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
-    uint64_t size, boolean_t *slog)
+zio_alloc_zil(spa_t *spa, uint64_t objset, uint64_t txg, blkptr_t *new_bp,
+    blkptr_t *old_bp, uint64_t size, boolean_t *slog)
 {
 	int error = 1;
 	zio_alloc_list_t io_alloc_list;
@@ -2996,14 +3009,22 @@ zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
 	ASSERT(txg > spa_syncing_txg(spa));
 
 	metaslab_trace_init(&io_alloc_list);
+	/*
+	 * When allocating a zil block, we don't have information about
+	 * the final destination of the block except the objset it's part
+	 * of, so we just hash the objset ID to pick the allocator to get
+	 * some parallelism.
+	 */
 	error = metaslab_alloc(spa, spa_log_class(spa), size, new_bp, 1,
-	    txg, old_bp, METASLAB_HINTBP_AVOID, &io_alloc_list, NULL);
+	    txg, old_bp, METASLAB_HINTBP_AVOID, &io_alloc_list, NULL,
+	    cityhash4(0, 0, 0, objset) % spa->spa_alloc_count);
 	if (error == 0) {
 		*slog = TRUE;
 	} else {
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
 		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID,
-		    &io_alloc_list, NULL);
+		    &io_alloc_list, NULL, cityhash4(0, 0, 0, objset) %
+		    spa->spa_alloc_count);
 		if (error == 0)
 			*slog = FALSE;
 	}
@@ -3493,8 +3514,8 @@ zio_ready(zio_t *zio)
 			 */
 			metaslab_class_throttle_unreserve(
 			    spa_normal_class(zio->io_spa),
-			    zio->io_prop.zp_copies, zio);
-			zio_allocate_dispatch(zio->io_spa);
+			    zio->io_prop.zp_copies, zio->io_allocator, zio);
+			zio_allocate_dispatch(zio->io_spa, zio->io_allocator);
 		}
 	}
 
@@ -3577,18 +3598,19 @@ zio_dva_throttle_done(zio_t *zio)
 	ASSERT0(zio->io_flags & ZIO_FLAG_NOPWRITE);
 
 	mutex_enter(&pio->io_lock);
-	metaslab_group_alloc_decrement(zio->io_spa, vd->vdev_id, pio, flags);
+	metaslab_group_alloc_decrement(zio->io_spa, vd->vdev_id, pio, flags,
+	    pio->io_allocator, B_TRUE);
 	mutex_exit(&pio->io_lock);
 
 	metaslab_class_throttle_unreserve(spa_normal_class(zio->io_spa),
-	    1, pio);
+	    1, pio->io_allocator, pio);
 
 	/*
 	 * Call into the pipeline to see if there is more work that
 	 * needs to be done. If there is work to be done it will be
 	 * dispatched to another taskq thread.
 	 */
-	zio_allocate_dispatch(zio->io_spa);
+	zio_allocate_dispatch(zio->io_spa, pio->io_allocator);
 }
 
 static int
@@ -3631,8 +3653,10 @@ zio_done(zio_t *zio)
 		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
 		ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
 		ASSERT(bp != NULL);
-		metaslab_group_alloc_verify(spa, zio->io_bp, zio);
-		VERIFY(refcount_not_held(&mc->mc_alloc_slots, zio));
+		metaslab_group_alloc_verify(spa, zio->io_bp, zio,
+		    zio->io_allocator);
+		VERIFY(refcount_not_held(&mc->mc_alloc_slots[zio->io_allocator],
+		    zio));
 	}
 
 	for (int c = 0; c < ZIO_CHILD_TYPES; c++)
