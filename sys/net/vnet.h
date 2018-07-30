@@ -273,8 +273,17 @@ extern struct sx vnet_sxlock;
 /* struct _hack is to stop this from being used with static data */
 #define	VNET_DEFINE(t, n)	\
     struct _hack; t VNET_NAME(n) __section(VNET_SETNAME) __used
+#if defined(KLD_MODULE) && defined(__aarch64__)
+/*
+ * As with DPCPU_DEFINE_STATIC we are unable to mark this data as static
+ * in modules on some architectures.
+ */
+#define	VNET_DEFINE_STATIC(t, n) \
+    t VNET_NAME(n) __section(VNET_SETNAME) __used
+#else
 #define	VNET_DEFINE_STATIC(t, n) \
     static t VNET_NAME(n) __section(VNET_SETNAME) __used
+#endif
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
 				    ((b) + (uintptr_t)&VNET_NAME(n))
 

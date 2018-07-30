@@ -97,7 +97,9 @@ extern uintptr_t dpcpu_off[];
  * wrong location.
  *
  * This is a workaround until a better solution can be found.
-*/
+ *
+ * VNET_DEFINE_STATIC also has the same workaround.
+ */
 #define	DPCPU_DEFINE_STATIC(t, n)	\
     t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 #else
