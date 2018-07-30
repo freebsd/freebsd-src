@@ -694,7 +694,7 @@ out1:
 	vfs_write_resume(vp->v_mount, VR_START_WRITE | VR_NO_SUSPCLR);
 	if (collectsnapstats && starttime.tv_sec > 0) {
 		nanotime(&endtime);
-		timespecsub(&endtime, &starttime);
+		timespecsub(&endtime, &starttime, &endtime);
 		printf("%s: suspended %ld.%03ld sec, redo %ld of %d\n",
 		    vp->v_mount->mnt_stat.f_mntonname, (long)endtime.tv_sec,
 		    endtime.tv_nsec / 1000000, redo, fs->fs_ncg);

@@ -1267,7 +1267,7 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 				mbuf_tstmp2timespec(m, &t.ts);
 				getboottimebin(&boottimebin);
 				bintime2timespec(&boottimebin, &ts1);
-				timespecadd(&t.ts, &ts1);
+				timespecadd(&t.ts, &ts1, &t.ts);
 			} else {
 				nanotime(&t.ts);
 			}
