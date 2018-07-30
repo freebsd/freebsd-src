@@ -57,16 +57,6 @@
 
 #define	min(x, y)	(x < y ? x : y)
 
-#define timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-
 
 /*
  * Gist of each client worker: build up to mflag connections at a time, and
@@ -336,7 +326,7 @@ tcpp_client(void)
 	if (sysctlbyname(SYSCTLNAME_CPTIME, &cp_time_finish, &size, NULL, 0)
 	    < 0)
 		err(-1, "sysctlbyname: %s", SYSCTLNAME_CPTIME);
-	timespecsub(&ts_finish, &ts_start);
+	timespecsub(&ts_finish, &ts_start, &ts_finish);
 
 	if (failed)
 		errx(-1, "Too many errors");
