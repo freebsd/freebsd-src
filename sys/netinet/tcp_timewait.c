@@ -230,6 +230,7 @@ tcp_twstart(struct tcpcb *tp)
 	struct tcptw twlocal, *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
+	uint32_t recwin;
 	bool acknow, local;
 #ifdef INET6
 	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
@@ -292,10 +293,16 @@ tcp_twstart(struct tcpcb *tp)
 	/*
 	 * Recover last window size sent.
 	 */
-	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt))
-		tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
-	else
-		tw->last_win = 0;
+	so = inp->inp_socket;
+	recwin = lmin(lmax(sbspace(&so->so_rcv), 0),
+	    (long)TCP_MAXWIN << tp->rcv_scale);
+	if (recwin < (so->so_rcv.sb_hiwat / 4) &&
+	    recwin < tp->t_maxseg)
+		recwin = 0;
+	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
+	    recwin < (tp->rcv_adv - tp->rcv_nxt))
+		recwin = (tp->rcv_adv - tp->rcv_nxt);
+	tw->last_win = htons((u_short)(recwin >> tp->rcv_scale));
 
 	/*
 	 * Set t_recent if timestamps are used on the connection.
@@ -332,7 +339,6 @@ tcp_twstart(struct tcpcb *tp)
 	 * and might not be needed here any longer.
 	 */
 	tcp_discardcb(tp);
-	so = inp->inp_socket;
 	soisdisconnected(so);
 	tw->tw_so_options = so->so_options;
 	inp->inp_flags |= INP_TIMEWAIT;
