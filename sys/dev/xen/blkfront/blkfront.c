@@ -602,8 +602,8 @@ xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	int sbp;
 	int rc = 0;
 
-	if (length <= 0)
-		return (rc);
+	if (length == 0)
+		return (0);
 
 	xbd_quiesce(sc);	/* All quiet on the western front. */
 
