@@ -322,6 +322,7 @@ mixer_set(struct snd_mixer *m, u_int dev, u_int lev)
 	MIXER_SET_LOCK(m, dropmtx);
 
 	m->level[dev] = l | (r << 8);
+	m->modify_counter++;
 
 	return 0;
 }
