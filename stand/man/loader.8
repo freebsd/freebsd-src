@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2018
+.Dd July 30, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -588,6 +588,10 @@ explicitly.
 Other variables are used to override kernel tunable parameters.
 The following tunables are available:
 .Bl -tag -width Va
+.It Va efi.rt.disabled
+Disable UEFI runtime services in the kernel, if applicable.
+Runtime services are only available and used if the kernel is booted in a UEFI
+environment.
 .It Va hw.physmem
 Limit the amount of physical memory the system will use.
 By default the size is in bytes, but the

@@ -136,7 +136,7 @@ efi_init(void)
 	int rt_disabled;
 
 	rt_disabled = 0;
-	TUNABLE_INT_FETCH("efi.rt_disabled", &rt_disabled);
+	TUNABLE_INT_FETCH("efi.rt.disabled", &rt_disabled);
 	if (rt_disabled == 1)
 		return (0);
 	mtx_init(&efi_lock, "efi", NULL, MTX_DEF);
