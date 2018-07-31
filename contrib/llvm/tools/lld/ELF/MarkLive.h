@@ -1,4 +1,4 @@
-//===- MapFile.h ------------------------------------------------*- C++ -*-===//
+//===- MarkLive.h -----------------------------------------------*- C++ -*-===//
 //
 //                             The LLVM Linker
 //
@@ -7,14 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_ELF_MAPFILE_H
-#define LLD_ELF_MAPFILE_H
+#ifndef LLD_ELF_MARKLIVE_H
+#define LLD_ELF_MARKLIVE_H
 
 namespace lld {
 namespace elf {
-void writeMapFile();
-void writeCrossReferenceTable();
+
+template <class ELFT> void markLive();
+
 } // namespace elf
 } // namespace lld
 
-#endif
+#endif // LLD_ELF_MARKLIVE_H

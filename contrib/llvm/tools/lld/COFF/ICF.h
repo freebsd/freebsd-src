@@ -1,4 +1,4 @@
-//===- Strings.h ------------------------------------------------*- C++ -*-===//
+//===- ICF.h --------------------------------------------------------------===//
 //
 //                             The LLVM Linker
 //
@@ -7,17 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_COFF_STRINGS_H
-#define LLD_COFF_STRINGS_H
+#ifndef LLD_COFF_ICF_H
+#define LLD_COFF_ICF_H
 
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/StringRef.h"
-#include <string>
+#include "lld/Common/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace lld {
 namespace coff {
-llvm::Optional<std::string> demangleMSVC(llvm::StringRef S);
-}
-}
+
+class Chunk;
+
+void doICF(ArrayRef<Chunk *> Chunks);
+
+} // namespace coff
+} // namespace lld
 
 #endif
