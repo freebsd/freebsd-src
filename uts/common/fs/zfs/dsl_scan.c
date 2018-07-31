@@ -1988,7 +1988,16 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 
 		/* if it's a resilver, this may not be in the target range */
 		if (!needs_io) {
-			if (DVA_GET_GANG(&bp->blk_dva[d])) {
+			if (vd->vdev_ops == &vdev_indirect_ops) {
+				/*
+				 * The indirect vdev can point to multiple
+				 * vdevs.  For simplicity, always create
+				 * the resilver zio_t. zio_vdev_io_start()
+				 * will bypass the child resilver i/o's if
+				 * they are on vdevs that don't have DTL's.
+				 */
+				needs_io = B_TRUE;
+			} else if (DVA_GET_GANG(&bp->blk_dva[d])) {
 				/*
 				 * Gang members may be spread across multiple
 				 * vdevs, so the best estimate we have is the
