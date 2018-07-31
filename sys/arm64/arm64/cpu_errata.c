@@ -126,10 +126,10 @@ install_ssbd_workaround(void)
 
 	switch(ssbd_method) {
 	case SSBD_FORCE_ON:
-		smccc_arch_workaround_2(true);
+		smccc_arch_workaround_2(1);
 		break;
 	case SSBD_FORCE_OFF:
-		smccc_arch_workaround_2(false);
+		smccc_arch_workaround_2(0);
 		break;
 	case SSBD_KERNEL:
 	default:
