@@ -1930,10 +1930,10 @@ hdac_stream_start(device_t dev, device_t child,
 	addr = (uint64_t)buf;
 	bdle = (struct hdac_bdle *)sc->streams[ss].bdl.dma_vaddr;
 	for (i = 0; i < blkcnt; i++, bdle++) {
-		bdle->addrl = (uint32_t)addr;
-		bdle->addrh = (uint32_t)(addr >> 32);
-		bdle->len = blksz;
-		bdle->ioc = 1;
+		bdle->addrl = htole32((uint32_t)addr);
+		bdle->addrh = htole32((uint32_t)(addr >> 32));
+		bdle->len = htole32(blksz);
+		bdle->ioc = htole32(1);
 		addr += blksz;
 	}
 
