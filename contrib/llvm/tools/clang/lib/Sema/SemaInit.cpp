@@ -15,6 +15,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/ExprOpenMP.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/Designator.h"
@@ -32,7 +33,7 @@ using namespace clang;
 // Sema Initialization Checking
 //===----------------------------------------------------------------------===//
 
-/// \brief Check whether T is compatible with a wide character type (wchar_t,
+/// Check whether T is compatible with a wide character type (wchar_t,
 /// char16_t or char32_t).
 static bool IsWideCharCompatible(QualType T, ASTContext &Context) {
   if (Context.typesAreCompatible(Context.getWideCharType(), T))
@@ -49,10 +50,12 @@ enum StringInitFailureKind {
   SIF_NarrowStringIntoWideChar,
   SIF_WideStringIntoChar,
   SIF_IncompatWideStringIntoWideChar,
+  SIF_UTF8StringIntoPlainChar,
+  SIF_PlainStringIntoUTF8Char,
   SIF_Other
 };
 
-/// \brief Check whether the array of type AT can be initialized by the Init
+/// Check whether the array of type AT can be initialized by the Init
 /// expression by means of string initialization. Returns SIF_None if so,
 /// otherwise returns a StringInitFailureKind that describes why the
 /// initialization would not work.
@@ -77,12 +80,21 @@ static StringInitFailureKind IsStringInit(Expr *Init, const ArrayType *AT,
       Context.getCanonicalType(AT->getElementType()).getUnqualifiedType();
 
   switch (SL->getKind()) {
-  case StringLiteral::Ascii:
   case StringLiteral::UTF8:
+    // char8_t array can be initialized with a UTF-8 string.
+    if (ElemTy->isChar8Type())
+      return SIF_None;
+    LLVM_FALLTHROUGH;
+  case StringLiteral::Ascii:
     // char array can be initialized with a narrow string.
     // Only allow char x[] = "foo";  not char x[] = L"foo";
     if (ElemTy->isCharType())
-      return SIF_None;
+      return (SL->getKind() == StringLiteral::UTF8 &&
+              Context.getLangOpts().Char8)
+                 ? SIF_UTF8StringIntoPlainChar
+                 : SIF_None;
+    if (ElemTy->isChar8Type())
+      return SIF_PlainStringIntoUTF8Char;
     if (IsWideCharCompatible(ElemTy, Context))
       return SIF_NarrowStringIntoWideChar;
     return SIF_Other;
@@ -94,7 +106,7 @@ static StringInitFailureKind IsStringInit(Expr *Init, const ArrayType *AT,
   case StringLiteral::UTF16:
     if (Context.typesAreCompatible(Context.Char16Ty, ElemTy))
       return SIF_None;
-    if (ElemTy->isCharType())
+    if (ElemTy->isCharType() || ElemTy->isChar8Type())
       return SIF_WideStringIntoChar;
     if (IsWideCharCompatible(ElemTy, Context))
       return SIF_IncompatWideStringIntoWideChar;
@@ -102,7 +114,7 @@ static StringInitFailureKind IsStringInit(Expr *Init, const ArrayType *AT,
   case StringLiteral::UTF32:
     if (Context.typesAreCompatible(Context.Char32Ty, ElemTy))
       return SIF_None;
-    if (ElemTy->isCharType())
+    if (ElemTy->isCharType() || ElemTy->isChar8Type())
       return SIF_WideStringIntoChar;
     if (IsWideCharCompatible(ElemTy, Context))
       return SIF_IncompatWideStringIntoWideChar;
@@ -110,7 +122,7 @@ static StringInitFailureKind IsStringInit(Expr *Init, const ArrayType *AT,
   case StringLiteral::Wide:
     if (Context.typesAreCompatible(Context.getWideCharType(), ElemTy))
       return SIF_None;
-    if (ElemTy->isCharType())
+    if (ElemTy->isCharType() || ElemTy->isChar8Type())
       return SIF_WideStringIntoChar;
     if (IsWideCharCompatible(ElemTy, Context))
       return SIF_IncompatWideStringIntoWideChar;
@@ -206,7 +218,7 @@ static void CheckStringInit(Expr *Str, QualType &DeclT, const ArrayType *AT,
 
 namespace {
 
-/// @brief Semantic checking for initializer lists.
+/// Semantic checking for initializer lists.
 ///
 /// The InitListChecker class contains a set of routines that each
 /// handle the initialization of a certain kind of entity, e.g.,
@@ -366,7 +378,7 @@ public:
                   bool TreatUnavailableAsInvalid);
   bool HadError() { return hadError; }
 
-  // @brief Retrieves the fully-structured initializer list used for
+  // Retrieves the fully-structured initializer list used for
   // semantic analysis and code generation.
   InitListExpr *getFullyStructuredList() const { return FullyStructuredList; }
 };
@@ -561,6 +573,7 @@ void InitListChecker::FillInEmptyInitForField(unsigned Init, FieldDecl *Field,
         hadError = true;
         return;
       }
+      SemaRef.checkInitializerLifetime(MemberEntity, DIE.get());
       if (Init < NumInits)
         ILE->setInit(Init, DIE.get());
       else {
@@ -739,6 +752,9 @@ InitListChecker::FillInEmptyInitializations(const InitializedEntity &Entity,
     if (ElementEntity.getKind() == InitializedEntity::EK_ArrayElement ||
         ElementEntity.getKind() == InitializedEntity::EK_VectorElement)
       ElementEntity.setElementIndex(Init);
+
+    if (Init >= NumInits && ILE->hasArrayFiller())
+      return;
 
     Expr *InitExpr = (Init < NumInits ? ILE->getInit(Init) : nullptr);
     if (!InitExpr && Init < NumInits && ILE->hasArrayFiller())
@@ -1005,6 +1021,7 @@ static void warnBracedScalarInit(Sema &S, const InitializedEntity &Entity,
   case InitializedEntity::EK_BlockElement:
   case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
   case InitializedEntity::EK_Binding:
+  case InitializedEntity::EK_StmtExprResult:
     llvm_unreachable("unexpected braced scalar init");
   }
 
@@ -2014,7 +2031,7 @@ void InitListChecker::CheckStructUnionTypes(
                           StructuredList, StructuredIndex);
 }
 
-/// \brief Expand a field designator that refers to a member of an
+/// Expand a field designator that refers to a member of an
 /// anonymous struct or union into a series of field designators that
 /// refers to the field within the appropriate subobject.
 ///
@@ -2078,7 +2095,7 @@ class FieldInitializerValidatorCCC : public CorrectionCandidateCallback {
 
 } // end anonymous namespace
 
-/// @brief Check the well-formedness of a C99 designated initializer.
+/// Check the well-formedness of a C99 designated initializer.
 ///
 /// Determines whether the designated initializer @p DIE, which
 /// resides at the given @p Index within the initializer list @p
@@ -2985,6 +3002,7 @@ DeclarationName InitializedEntity::getName() const {
     return DeclarationName(Capture.VarID);
       
   case EK_Result:
+  case EK_StmtExprResult:
   case EK_Exception:
   case EK_New:
   case EK_Temporary:
@@ -3015,6 +3033,7 @@ ValueDecl *InitializedEntity::getDecl() const {
     return reinterpret_cast<ParmVarDecl*>(Parameter & ~0x1);
 
   case EK_Result:
+  case EK_StmtExprResult:
   case EK_Exception:
   case EK_New:
   case EK_Temporary:
@@ -3040,6 +3059,7 @@ bool InitializedEntity::allowsNRVO() const {
   case EK_Exception:
     return LocAndNRVO.NRVO;
 
+  case EK_StmtExprResult:
   case EK_Variable:
   case EK_Parameter:
   case EK_Parameter_CF_Audited:
@@ -3075,6 +3095,7 @@ unsigned InitializedEntity::dumpImpl(raw_ostream &OS) const {
   case EK_Parameter_CF_Audited: OS << "CF audited function Parameter";
     break;
   case EK_Result: OS << "Result"; break;
+  case EK_StmtExprResult: OS << "StmtExprResult"; break;
   case EK_Exception: OS << "Exception"; break;
   case EK_Member: OS << "Member"; break;
   case EK_Binding: OS << "Binding"; break;
@@ -3185,6 +3206,8 @@ bool InitializationSequence::isAmbiguous() const {
   case FK_NarrowStringIntoWideCharArray:
   case FK_WideStringIntoCharArray:
   case FK_IncompatWideStringIntoWideChar:
+  case FK_PlainStringIntoUTF8Char:
+  case FK_UTF8StringIntoPlainChar:
   case FK_AddressOfOverloadFailed: // FIXME: Could do better
   case FK_NonConstLValueReferenceBindingToTemporary:
   case FK_NonConstLValueReferenceBindingToBitfield:
@@ -3517,7 +3540,8 @@ static void MaybeProduceObjCObject(Sema &S,
   /// retainable type, then returns need to immediately retain the
   /// object.  If an autorelease is required, it will be done at the
   /// last instant.
-  } else if (Entity.getKind() == InitializedEntity::EK_Result) {
+  } else if (Entity.getKind() == InitializedEntity::EK_Result ||
+             Entity.getKind() == InitializedEntity::EK_StmtExprResult) {
     if (!Entity.getType()->isObjCRetainableType())
       return;
 
@@ -3532,7 +3556,7 @@ static void TryListInitialization(Sema &S,
                                   InitializationSequence &Sequence,
                                   bool TreatUnavailableAsInvalid);
 
-/// \brief When initializing from init list via constructor, handle
+/// When initializing from init list via constructor, handle
 /// initialization of an object of type std::initializer_list<T>.
 ///
 /// \return true if we have handled initialization of an object of type
@@ -3558,8 +3582,8 @@ static bool TryInitializerListConstruction(Sema &S,
       clang::ArrayType::Normal, 0);
   InitializedEntity HiddenArray =
       InitializedEntity::InitializeTemporary(ArrayType);
-  InitializationKind Kind =
-      InitializationKind::CreateDirectList(List->getExprLoc());
+  InitializationKind Kind = InitializationKind::CreateDirectList(
+      List->getExprLoc(), List->getLocStart(), List->getLocEnd());
   TryListInitialization(S, HiddenArray, Kind, List, Sequence,
                         TreatUnavailableAsInvalid);
   if (Sequence)
@@ -3693,7 +3717,7 @@ ResolveConstructorOverload(Sema &S, SourceLocation DeclLoc,
   return CandidateSet.BestViableFunction(S, DeclLoc, Best);
 }
 
-/// \brief Attempt initialization by constructor (C++ [dcl.init]), which
+/// Attempt initialization by constructor (C++ [dcl.init]), which
 /// enumerates the constructors of the initialized entity and performs overload
 /// resolution to select the best.
 /// \param DestType       The destination class type.
@@ -3910,7 +3934,7 @@ static void TryValueInitialization(Sema &S,
                                    InitializationSequence &Sequence,
                                    InitListExpr *InitList = nullptr);
 
-/// \brief Attempt list initialization of a reference.
+/// Attempt list initialization of a reference.
 static void TryReferenceListInitialization(Sema &S,
                                            const InitializedEntity &Entity,
                                            const InitializationKind &Kind,
@@ -3984,7 +4008,7 @@ static void TryReferenceListInitialization(Sema &S,
   }
 }
 
-/// \brief Attempt list initialization (C++0x [dcl.init.list])
+/// Attempt list initialization (C++0x [dcl.init.list])
 static void TryListInitialization(Sema &S,
                                   const InitializedEntity &Entity,
                                   const InitializationKind &Kind,
@@ -4179,7 +4203,7 @@ static void TryListInitialization(Sema &S,
   Sequence.AddListInitializationStep(DestType);
 }
 
-/// \brief Try a reference initialization that involves calling a conversion
+/// Try a reference initialization that involves calling a conversion
 /// function.
 static OverloadingResult TryRefInitWithConversionFunction(
     Sema &S, const InitializedEntity &Entity, const InitializationKind &Kind,
@@ -4208,9 +4232,11 @@ static OverloadingResult TryRefInitWithConversionFunction(
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByUserDefinedConversion);
 
-  // Determine whether we are allowed to call explicit constructors or
-  // explicit conversion operators.
-  bool AllowExplicit = Kind.AllowExplicit();
+  // Determine whether we are allowed to call explicit conversion operators.
+  // Note that none of [over.match.copy], [over.match.conv], nor
+  // [over.match.ref] permit an explicit constructor to be chosen when
+  // initializing a reference, not even for direct-initialization.
+  bool AllowExplicitCtors = false;
   bool AllowExplicitConvs = Kind.allowExplicitConversionFunctionsInRefBinding();
 
   const RecordType *T1RecordType = nullptr;
@@ -4226,7 +4252,7 @@ static OverloadingResult TryRefInitWithConversionFunction(
         continue;
 
       if (!Info.Constructor->isInvalidDecl() &&
-          Info.Constructor->isConvertingConstructor(AllowExplicit)) {
+          Info.Constructor->isConvertingConstructor(AllowExplicitCtors)) {
         if (Info.ConstructorTmpl)
           S.AddTemplateOverloadCandidate(Info.ConstructorTmpl, Info.FoundDecl,
                                          /*ExplicitArgs*/ nullptr,
@@ -4369,7 +4395,7 @@ static void CheckCXX98CompatAccessibleCopy(Sema &S,
                                            const InitializedEntity &Entity,
                                            Expr *CurInitExpr);
 
-/// \brief Attempt reference initialization (C++0x [dcl.init.ref])
+/// Attempt reference initialization (C++0x [dcl.init.ref])
 static void TryReferenceInitialization(Sema &S,
                                        const InitializedEntity &Entity,
                                        const InitializationKind &Kind,
@@ -4396,13 +4422,13 @@ static void TryReferenceInitialization(Sema &S,
 }
 
 /// Determine whether an expression is a non-referenceable glvalue (one to
-/// which a reference can never bind). Attemting to bind a reference to
+/// which a reference can never bind). Attempting to bind a reference to
 /// such a glvalue will always create a temporary.
 static bool isNonReferenceableGLValue(Expr *E) {
   return E->refersToBitField() || E->refersToVectorElement();
 }
 
-/// \brief Reference initialization without resolving overloaded functions.
+/// Reference initialization without resolving overloaded functions.
 static void TryReferenceInitializationCore(Sema &S,
                                            const InitializedEntity &Entity,
                                            const InitializationKind &Kind,
@@ -4662,7 +4688,7 @@ static void TryReferenceInitializationCore(Sema &S,
   Sequence.AddReferenceBindingStep(cv1T1, /*bindingTemporary=*/true);
 }
 
-/// \brief Attempt character array initialization from a string literal
+/// Attempt character array initialization from a string literal
 /// (C++ [dcl.init.string], C99 6.7.8).
 static void TryStringLiteralInitialization(Sema &S,
                                            const InitializedEntity &Entity,
@@ -4672,7 +4698,7 @@ static void TryStringLiteralInitialization(Sema &S,
   Sequence.AddStringInitStep(Entity.getType());
 }
 
-/// \brief Attempt value initialization (C++ [dcl.init]p7).
+/// Attempt value initialization (C++ [dcl.init]p7).
 static void TryValueInitialization(Sema &S,
                                    const InitializedEntity &Entity,
                                    const InitializationKind &Kind,
@@ -4750,7 +4776,7 @@ static void TryValueInitialization(Sema &S,
   Sequence.AddZeroInitializationStep(Entity.getType());
 }
 
-/// \brief Attempt default initialization (C++ [dcl.init]p6).
+/// Attempt default initialization (C++ [dcl.init]p6).
 static void TryDefaultInitialization(Sema &S,
                                      const InitializedEntity &Entity,
                                      const InitializationKind &Kind,
@@ -4789,7 +4815,7 @@ static void TryDefaultInitialization(Sema &S,
   }
 }
 
-/// \brief Attempt a user-defined conversion between two types (C++ [dcl.init]),
+/// Attempt a user-defined conversion between two types (C++ [dcl.init]),
 /// which enumerates all conversion functions and performs overload resolution
 /// to select the best.
 static void TryUserDefinedConversion(Sema &S,
@@ -5068,7 +5094,7 @@ static void checkIndirectCopyRestoreSource(Sema &S, Expr *src) {
     << src->getSourceRange();
 }
 
-/// \brief Determine whether we have compatible array types for the
+/// Determine whether we have compatible array types for the
 /// purposes of GNU by-copy array initialization.
 static bool hasCompatibleArrayTypes(ASTContext &Context, const ArrayType *Dest,
                                     const ArrayType *Source) {
@@ -5362,6 +5388,12 @@ void InitializationSequence::InitializeFrom(Sema &S,
       case SIF_IncompatWideStringIntoWideChar:
         SetFailed(FK_IncompatWideStringIntoWideChar);
         return;
+      case SIF_PlainStringIntoUTF8Char:
+        SetFailed(FK_PlainStringIntoUTF8Char);
+        return;
+      case SIF_UTF8StringIntoPlainChar:
+        SetFailed(FK_UTF8StringIntoPlainChar);
+        return;
       case SIF_Other:
         break;
       }
@@ -5607,6 +5639,7 @@ getAssignmentAction(const InitializedEntity &Entity, bool Diagnose = false) {
     return !Diagnose ? Sema::AA_Passing : Sema::AA_Passing_CFAudited;
       
   case InitializedEntity::EK_Result:
+  case InitializedEntity::EK_StmtExprResult: // FIXME: Not quite right.
     return Sema::AA_Returning;
 
   case InitializedEntity::EK_Temporary:
@@ -5629,13 +5662,14 @@ getAssignmentAction(const InitializedEntity &Entity, bool Diagnose = false) {
   llvm_unreachable("Invalid EntityKind!");
 }
 
-/// \brief Whether we should bind a created object as a temporary when
+/// Whether we should bind a created object as a temporary when
 /// initializing the given entity.
 static bool shouldBindAsTemporary(const InitializedEntity &Entity) {
   switch (Entity.getKind()) {
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_Member:
   case InitializedEntity::EK_Result:
+  case InitializedEntity::EK_StmtExprResult:
   case InitializedEntity::EK_New:
   case InitializedEntity::EK_Variable:
   case InitializedEntity::EK_Base:
@@ -5660,11 +5694,12 @@ static bool shouldBindAsTemporary(const InitializedEntity &Entity) {
   llvm_unreachable("missed an InitializedEntity kind?");
 }
 
-/// \brief Whether the given entity, when initialized with an object
+/// Whether the given entity, when initialized with an object
 /// created for that initialization, requires destruction.
 static bool shouldDestroyEntity(const InitializedEntity &Entity) {
   switch (Entity.getKind()) {
     case InitializedEntity::EK_Result:
+    case InitializedEntity::EK_StmtExprResult:
     case InitializedEntity::EK_New:
     case InitializedEntity::EK_Base:
     case InitializedEntity::EK_Delegating:
@@ -5691,11 +5726,12 @@ static bool shouldDestroyEntity(const InitializedEntity &Entity) {
   llvm_unreachable("missed an InitializedEntity kind?");
 }
 
-/// \brief Get the location at which initialization diagnostics should appear.
+/// Get the location at which initialization diagnostics should appear.
 static SourceLocation getInitializationLoc(const InitializedEntity &Entity,
                                            Expr *Initializer) {
   switch (Entity.getKind()) {
   case InitializedEntity::EK_Result:
+  case InitializedEntity::EK_StmtExprResult:
     return Entity.getReturnLoc();
 
   case InitializedEntity::EK_Exception:
@@ -5727,7 +5763,7 @@ static SourceLocation getInitializationLoc(const InitializedEntity &Entity,
   llvm_unreachable("missed an InitializedEntity kind?");
 }
 
-/// \brief Make a (potentially elidable) temporary copy of the object
+/// Make a (potentially elidable) temporary copy of the object
 /// provided by the given initializer by calling the appropriate copy
 /// constructor.
 ///
@@ -5892,7 +5928,7 @@ static ExprResult CopyObject(Sema &S,
   return CurInit;
 }
 
-/// \brief Check whether elidable copy construction for binding a reference to
+/// Check whether elidable copy construction for binding a reference to
 /// a temporary would have succeeded if we were building in C++98 mode, for
 /// -Wc++98-compat.
 static void CheckCXX98CompatAccessibleCopy(Sema &S,
@@ -6056,10 +6092,7 @@ PerformConstructorInitialization(Sema &S,
     TypeSourceInfo *TSInfo = Entity.getTypeSourceInfo();
     if (!TSInfo)
       TSInfo = S.Context.getTrivialTypeSourceInfo(Entity.getType(), Loc);
-    SourceRange ParenOrBraceRange =
-      (Kind.getKind() == InitializationKind::IK_DirectList)
-      ? SourceRange(LBraceLoc, RBraceLoc)
-      : Kind.getParenRange();
+    SourceRange ParenOrBraceRange = Kind.getParenOrBraceRange();
 
     if (auto *Shadow = dyn_cast<ConstructorUsingShadowDecl>(
             Step.Function.FoundDecl.getDecl())) {
@@ -6093,7 +6126,7 @@ PerformConstructorInitialization(Sema &S,
     if (IsListInitialization)
       ParenOrBraceRange = SourceRange(LBraceLoc, RBraceLoc);
     else if (Kind.getKind() == InitializationKind::IK_Direct)
-      ParenOrBraceRange = Kind.getParenRange();
+      ParenOrBraceRange = Kind.getParenOrBraceRange();
 
     // If the entity allows NRVO, mark the construction as elidable
     // unconditionally.
@@ -6134,90 +6167,96 @@ PerformConstructorInitialization(Sema &S,
   return CurInit;
 }
 
-/// Determine whether the specified InitializedEntity definitely has a lifetime
-/// longer than the current full-expression. Conservatively returns false if
-/// it's unclear.
-static bool
-InitializedEntityOutlivesFullExpression(const InitializedEntity &Entity) {
-  const InitializedEntity *Top = &Entity;
-  while (Top->getParent())
-    Top = Top->getParent();
+namespace {
+enum LifetimeKind {
+  /// The lifetime of a temporary bound to this entity ends at the end of the
+  /// full-expression, and that's (probably) fine.
+  LK_FullExpression,
 
-  switch (Top->getKind()) {
-  case InitializedEntity::EK_Variable:
-  case InitializedEntity::EK_Result:
-  case InitializedEntity::EK_Exception:
-  case InitializedEntity::EK_Member:
-  case InitializedEntity::EK_Binding:
-  case InitializedEntity::EK_New:
-  case InitializedEntity::EK_Base:
-  case InitializedEntity::EK_Delegating:
-    return true;
+  /// The lifetime of a temporary bound to this entity is extended to the
+  /// lifeitme of the entity itself.
+  LK_Extended,
 
-  case InitializedEntity::EK_ArrayElement:
-  case InitializedEntity::EK_VectorElement:
-  case InitializedEntity::EK_BlockElement:
-  case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
-  case InitializedEntity::EK_ComplexElement:
-    // Could not determine what the full initialization is. Assume it might not
-    // outlive the full-expression.
-    return false;
+  /// The lifetime of a temporary bound to this entity probably ends too soon,
+  /// because the entity is allocated in a new-expression.
+  LK_New,
 
-  case InitializedEntity::EK_Parameter:
-  case InitializedEntity::EK_Parameter_CF_Audited:
-  case InitializedEntity::EK_Temporary:
-  case InitializedEntity::EK_LambdaCapture:
-  case InitializedEntity::EK_CompoundLiteralInit:
-  case InitializedEntity::EK_RelatedResult:
-    // The entity being initialized might not outlive the full-expression.
-    return false;
-  }
+  /// The lifetime of a temporary bound to this entity ends too soon, because
+  /// the entity is a return object.
+  LK_Return,
 
-  llvm_unreachable("unknown entity kind");
+  /// The lifetime of a temporary bound to this entity ends too soon, because
+  /// the entity is the result of a statement expression.
+  LK_StmtExprResult,
+
+  /// This is a mem-initializer: if it would extend a temporary (other than via
+  /// a default member initializer), the program is ill-formed.
+  LK_MemInitializer,
+};
+using LifetimeResult =
+    llvm::PointerIntPair<const InitializedEntity *, 3, LifetimeKind>;
 }
 
 /// Determine the declaration which an initialized entity ultimately refers to,
 /// for the purpose of lifetime-extending a temporary bound to a reference in
 /// the initialization of \p Entity.
-static const InitializedEntity *getEntityForTemporaryLifetimeExtension(
+static LifetimeResult getEntityLifetime(
     const InitializedEntity *Entity,
-    const InitializedEntity *FallbackDecl = nullptr) {
+    const InitializedEntity *InitField = nullptr) {
   // C++11 [class.temporary]p5:
   switch (Entity->getKind()) {
   case InitializedEntity::EK_Variable:
     //   The temporary [...] persists for the lifetime of the reference
-    return Entity;
+    return {Entity, LK_Extended};
 
   case InitializedEntity::EK_Member:
     // For subobjects, we look at the complete object.
     if (Entity->getParent())
-      return getEntityForTemporaryLifetimeExtension(Entity->getParent(),
-                                                    Entity);
+      return getEntityLifetime(Entity->getParent(), Entity);
 
     //   except:
-    //   -- A temporary bound to a reference member in a constructor's
-    //      ctor-initializer persists until the constructor exits.
-    return Entity;
+    // C++17 [class.base.init]p8:
+    //   A temporary expression bound to a reference member in a
+    //   mem-initializer is ill-formed.
+    // C++17 [class.base.init]p11:
+    //   A temporary expression bound to a reference member from a
+    //   default member initializer is ill-formed.
+    //
+    // The context of p11 and its example suggest that it's only the use of a
+    // default member initializer from a constructor that makes the program
+    // ill-formed, not its mere existence, and that it can even be used by
+    // aggregate initialization.
+    return {Entity, Entity->isDefaultMemberInitializer() ? LK_Extended
+                                                         : LK_MemInitializer};
 
   case InitializedEntity::EK_Binding:
     // Per [dcl.decomp]p3, the binding is treated as a variable of reference
     // type.
-    return Entity;
+    return {Entity, LK_Extended};
 
   case InitializedEntity::EK_Parameter:
   case InitializedEntity::EK_Parameter_CF_Audited:
     //   -- A temporary bound to a reference parameter in a function call
     //      persists until the completion of the full-expression containing
     //      the call.
+    return {nullptr, LK_FullExpression};
+
   case InitializedEntity::EK_Result:
     //   -- The lifetime of a temporary bound to the returned value in a
     //      function return statement is not extended; the temporary is
     //      destroyed at the end of the full-expression in the return statement.
+    return {nullptr, LK_Return};
+
+  case InitializedEntity::EK_StmtExprResult:
+    // FIXME: Should we lifetime-extend through the result of a statement
+    // expression?
+    return {nullptr, LK_StmtExprResult};
+
   case InitializedEntity::EK_New:
     //   -- A temporary bound to a reference in a new-initializer persists
     //      until the completion of the full-expression containing the
     //      new-initializer.
-    return nullptr;
+    return {nullptr, LK_New};
 
   case InitializedEntity::EK_Temporary:
   case InitializedEntity::EK_CompoundLiteralInit:
@@ -6225,56 +6264,122 @@ static const InitializedEntity *getEntityForTemporaryLifetimeExtension(
     // We don't yet know the storage duration of the surrounding temporary.
     // Assume it's got full-expression duration for now, it will patch up our
     // storage duration if that's not correct.
-    return nullptr;
+    return {nullptr, LK_FullExpression};
 
   case InitializedEntity::EK_ArrayElement:
     // For subobjects, we look at the complete object.
-    return getEntityForTemporaryLifetimeExtension(Entity->getParent(),
-                                                  FallbackDecl);
+    return getEntityLifetime(Entity->getParent(), InitField);
 
   case InitializedEntity::EK_Base:
     // For subobjects, we look at the complete object.
     if (Entity->getParent())
-      return getEntityForTemporaryLifetimeExtension(Entity->getParent(),
-                                                    Entity);
-    LLVM_FALLTHROUGH;
+      return getEntityLifetime(Entity->getParent(), InitField);
+    return {InitField, LK_MemInitializer};
+
   case InitializedEntity::EK_Delegating:
     // We can reach this case for aggregate initialization in a constructor:
     //   struct A { int &&r; };
     //   struct B : A { B() : A{0} {} };
-    // In this case, use the innermost field decl as the context.
-    return FallbackDecl;
+    // In this case, use the outermost field decl as the context.
+    return {InitField, LK_MemInitializer};
 
   case InitializedEntity::EK_BlockElement:
   case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
   case InitializedEntity::EK_LambdaCapture:
-  case InitializedEntity::EK_Exception:
   case InitializedEntity::EK_VectorElement:
   case InitializedEntity::EK_ComplexElement:
-    return nullptr;
+    return {nullptr, LK_FullExpression};
+
+  case InitializedEntity::EK_Exception:
+    // FIXME: Can we diagnose lifetime problems with exceptions?
+    return {nullptr, LK_FullExpression};
   }
   llvm_unreachable("unknown entity kind");
 }
 
-static void performLifetimeExtension(Expr *Init,
-                                     const InitializedEntity *ExtendingEntity);
+namespace {
+enum ReferenceKind {
+  /// Lifetime would be extended by a reference binding to a temporary.
+  RK_ReferenceBinding,
+  /// Lifetime would be extended by a std::initializer_list object binding to
+  /// its backing array.
+  RK_StdInitializerList,
+};
 
-/// Update a glvalue expression that is used as the initializer of a reference
-/// to note that its lifetime is extended.
-/// \return \c true if any temporary had its lifetime extended.
-static bool
-performReferenceExtension(Expr *Init,
-                          const InitializedEntity *ExtendingEntity) {
+/// A temporary or local variable. This will be one of:
+///  * A MaterializeTemporaryExpr.
+///  * A DeclRefExpr whose declaration is a local.
+///  * An AddrLabelExpr.
+///  * A BlockExpr for a block with captures.
+using Local = Expr*;
+
+/// Expressions we stepped over when looking for the local state. Any steps
+/// that would inhibit lifetime extension or take us out of subexpressions of
+/// the initializer are included.
+struct IndirectLocalPathEntry {
+  enum EntryKind {
+    DefaultInit,
+    AddressOf,
+    VarInit,
+    LValToRVal,
+  } Kind;
+  Expr *E;
+  Decl *D = nullptr;
+  IndirectLocalPathEntry() {}
+  IndirectLocalPathEntry(EntryKind K, Expr *E) : Kind(K), E(E) {}
+  IndirectLocalPathEntry(EntryKind K, Expr *E, Decl *D) : Kind(K), E(E), D(D) {}
+};
+
+using IndirectLocalPath = llvm::SmallVectorImpl<IndirectLocalPathEntry>;
+
+struct RevertToOldSizeRAII {
+  IndirectLocalPath &Path;
+  unsigned OldSize = Path.size();
+  RevertToOldSizeRAII(IndirectLocalPath &Path) : Path(Path) {}
+  ~RevertToOldSizeRAII() { Path.resize(OldSize); }
+};
+
+using LocalVisitor = llvm::function_ref<bool(IndirectLocalPath &Path, Local L,
+                                             ReferenceKind RK)>;
+}
+
+static bool isVarOnPath(IndirectLocalPath &Path, VarDecl *VD) {
+  for (auto E : Path)
+    if (E.Kind == IndirectLocalPathEntry::VarInit && E.D == VD)
+      return true;
+  return false;
+}
+
+static bool pathContainsInit(IndirectLocalPath &Path) {
+  return std::any_of(Path.begin(), Path.end(), [=](IndirectLocalPathEntry E) {
+    return E.Kind == IndirectLocalPathEntry::DefaultInit ||
+           E.Kind == IndirectLocalPathEntry::VarInit;
+  });
+}
+
+static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
+                                             Expr *Init, LocalVisitor Visit,
+                                             bool RevisitSubinits);
+
+/// Visit the locals that would be reachable through a reference bound to the
+/// glvalue expression \c Init.
+static void visitLocalsRetainedByReferenceBinding(IndirectLocalPath &Path,
+                                                  Expr *Init, ReferenceKind RK,
+                                                  LocalVisitor Visit) {
+  RevertToOldSizeRAII RAII(Path);
+
   // Walk past any constructs which we can lifetime-extend across.
   Expr *Old;
   do {
     Old = Init;
 
+    if (auto *EWC = dyn_cast<ExprWithCleanups>(Init))
+      Init = EWC->getSubExpr();
+
     if (InitListExpr *ILE = dyn_cast<InitListExpr>(Init)) {
-      if (ILE->getNumInits() == 1 && ILE->isGLValue()) {
-        // This is just redundant braces around an initializer. Step over it.
+      // If this is just redundant braces around an initializer, step over it.
+      if (ILE->isTransparent())
         Init = ILE->getInit(0);
-      }
     }
 
     // Step over any subobject adjustments; we may have a materialized
@@ -6288,43 +6393,134 @@ performReferenceExtension(Expr *Init,
         Init = CE->getSubExpr();
 
     // Per the current approach for DR1299, look through array element access
-    // when performing lifetime extension.
-    if (auto *ASE = dyn_cast<ArraySubscriptExpr>(Init))
+    // on array glvalues when performing lifetime extension.
+    if (auto *ASE = dyn_cast<ArraySubscriptExpr>(Init)) {
       Init = ASE->getBase();
+      auto *ICE = dyn_cast<ImplicitCastExpr>(Init);
+      if (ICE && ICE->getCastKind() == CK_ArrayToPointerDecay)
+        Init = ICE->getSubExpr();
+      else
+        // We can't lifetime extend through this but we might still find some
+        // retained temporaries.
+        return visitLocalsRetainedByInitializer(Path, Init, Visit, true);
+    }
+
+    // Step into CXXDefaultInitExprs so we can diagnose cases where a
+    // constructor inherits one as an implicit mem-initializer.
+    if (auto *DIE = dyn_cast<CXXDefaultInitExpr>(Init)) {
+      Path.push_back(
+          {IndirectLocalPathEntry::DefaultInit, DIE, DIE->getField()});
+      Init = DIE->getExpr();
+    }
   } while (Init != Old);
 
-  if (MaterializeTemporaryExpr *ME = dyn_cast<MaterializeTemporaryExpr>(Init)) {
-    // Update the storage duration of the materialized temporary.
-    // FIXME: Rebuild the expression instead of mutating it.
-    ME->setExtendingDecl(ExtendingEntity->getDecl(),
-                         ExtendingEntity->allocateManglingNumber());
-    performLifetimeExtension(ME->GetTemporaryExpr(), ExtendingEntity);
-    return true;
+  if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
+    if (Visit(Path, Local(MTE), RK))
+      visitLocalsRetainedByInitializer(Path, MTE->GetTemporaryExpr(), Visit,
+                                       true);
   }
 
-  return false;
+  switch (Init->getStmtClass()) {
+  case Stmt::DeclRefExprClass: {
+    // If we find the name of a local non-reference parameter, we could have a
+    // lifetime problem.
+    auto *DRE = cast<DeclRefExpr>(Init);
+    auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
+    if (VD && VD->hasLocalStorage() &&
+        !DRE->refersToEnclosingVariableOrCapture()) {
+      if (!VD->getType()->isReferenceType()) {
+        Visit(Path, Local(DRE), RK);
+      } else if (isa<ParmVarDecl>(DRE->getDecl())) {
+        // The lifetime of a reference parameter is unknown; assume it's OK
+        // for now.
+        break;
+      } else if (VD->getInit() && !isVarOnPath(Path, VD)) {
+        Path.push_back({IndirectLocalPathEntry::VarInit, DRE, VD});
+        visitLocalsRetainedByReferenceBinding(Path, VD->getInit(),
+                                              RK_ReferenceBinding, Visit);
+      }
+    }
+    break;
+  }
+
+  case Stmt::UnaryOperatorClass: {
+    // The only unary operator that make sense to handle here
+    // is Deref.  All others don't resolve to a "name."  This includes
+    // handling all sorts of rvalues passed to a unary operator.
+    const UnaryOperator *U = cast<UnaryOperator>(Init);
+    if (U->getOpcode() == UO_Deref)
+      visitLocalsRetainedByInitializer(Path, U->getSubExpr(), Visit, true);
+    break;
+  }
+
+  case Stmt::OMPArraySectionExprClass: {
+    visitLocalsRetainedByInitializer(
+        Path, cast<OMPArraySectionExpr>(Init)->getBase(), Visit, true);
+    break;
+  }
+
+  case Stmt::ConditionalOperatorClass:
+  case Stmt::BinaryConditionalOperatorClass: {
+    auto *C = cast<AbstractConditionalOperator>(Init);
+    if (!C->getTrueExpr()->getType()->isVoidType())
+      visitLocalsRetainedByReferenceBinding(Path, C->getTrueExpr(), RK, Visit);
+    if (!C->getFalseExpr()->getType()->isVoidType())
+      visitLocalsRetainedByReferenceBinding(Path, C->getFalseExpr(), RK, Visit);
+    break;
+  }
+
+  // FIXME: Visit the left-hand side of an -> or ->*.
+
+  default:
+    break;
+  }
 }
 
-/// Update a prvalue expression that is going to be materialized as a
-/// lifetime-extended temporary.
-static void performLifetimeExtension(Expr *Init,
-                                     const InitializedEntity *ExtendingEntity) {
+/// Visit the locals that would be reachable through an object initialized by
+/// the prvalue expression \c Init.
+static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
+                                             Expr *Init, LocalVisitor Visit,
+                                             bool RevisitSubinits) {
+  RevertToOldSizeRAII RAII(Path);
+
+  // Step into CXXDefaultInitExprs so we can diagnose cases where a
+  // constructor inherits one as an implicit mem-initializer.
+  if (auto *DIE = dyn_cast<CXXDefaultInitExpr>(Init)) {
+    Path.push_back({IndirectLocalPathEntry::DefaultInit, DIE, DIE->getField()});
+    Init = DIE->getExpr();
+  }
+
+  if (auto *EWC = dyn_cast<ExprWithCleanups>(Init))
+    Init = EWC->getSubExpr();
+
   // Dig out the expression which constructs the extended temporary.
   Init = const_cast<Expr *>(Init->skipRValueSubobjectAdjustments());
 
   if (CXXBindTemporaryExpr *BTE = dyn_cast<CXXBindTemporaryExpr>(Init))
     Init = BTE->getSubExpr();
 
-  if (CXXStdInitializerListExpr *ILE =
-          dyn_cast<CXXStdInitializerListExpr>(Init)) {
-    performReferenceExtension(ILE->getSubExpr(), ExtendingEntity);
-    return;
-  }
+  // C++17 [dcl.init.list]p6:
+  //   initializing an initializer_list object from the array extends the
+  //   lifetime of the array exactly like binding a reference to a temporary.
+  if (auto *ILE = dyn_cast<CXXStdInitializerListExpr>(Init))
+    return visitLocalsRetainedByReferenceBinding(Path, ILE->getSubExpr(),
+                                                 RK_StdInitializerList, Visit);
 
   if (InitListExpr *ILE = dyn_cast<InitListExpr>(Init)) {
+    // We already visited the elements of this initializer list while
+    // performing the initialization. Don't visit them again unless we've
+    // changed the lifetime of the initialized entity.
+    if (!RevisitSubinits)
+      return;
+
+    if (ILE->isTransparent())
+      return visitLocalsRetainedByInitializer(Path, ILE->getInit(0), Visit,
+                                              RevisitSubinits);
+
     if (ILE->getType()->isArrayType()) {
       for (unsigned I = 0, N = ILE->getNumInits(); I != N; ++I)
-        performLifetimeExtension(ILE->getInit(I), ExtendingEntity);
+        visitLocalsRetainedByInitializer(Path, ILE->getInit(I), Visit,
+                                         RevisitSubinits);
       return;
     }
 
@@ -6336,7 +6532,8 @@ static void performLifetimeExtension(Expr *Init,
       // bound to temporaries, those temporaries are also lifetime-extended.
       if (RD->isUnion() && ILE->getInitializedFieldInUnion() &&
           ILE->getInitializedFieldInUnion()->getType()->isReferenceType())
-        performReferenceExtension(ILE->getInit(0), ExtendingEntity);
+        visitLocalsRetainedByReferenceBinding(Path, ILE->getInit(0),
+                                              RK_ReferenceBinding, Visit);
       else {
         unsigned Index = 0;
         for (const auto *I : RD->fields()) {
@@ -6346,51 +6543,365 @@ static void performLifetimeExtension(Expr *Init,
             continue;
           Expr *SubInit = ILE->getInit(Index);
           if (I->getType()->isReferenceType())
-            performReferenceExtension(SubInit, ExtendingEntity);
-          else if (isa<InitListExpr>(SubInit) ||
-                   isa<CXXStdInitializerListExpr>(SubInit))
-            // This may be either aggregate-initialization of a member or
-            // initialization of a std::initializer_list object. Either way,
+            visitLocalsRetainedByReferenceBinding(Path, SubInit,
+                                                  RK_ReferenceBinding, Visit);
+          else
+            // This might be either aggregate-initialization of a member or
+            // initialization of a std::initializer_list object. Regardless,
             // we should recursively lifetime-extend that initializer.
-            performLifetimeExtension(SubInit, ExtendingEntity);
+            visitLocalsRetainedByInitializer(Path, SubInit, Visit,
+                                             RevisitSubinits);
           ++Index;
         }
       }
     }
+    return;
   }
-}
 
-static void warnOnLifetimeExtension(Sema &S, const InitializedEntity &Entity,
-                                    const Expr *Init, bool IsInitializerList,
-                                    const ValueDecl *ExtendingDecl) {
-  // Warn if a field lifetime-extends a temporary.
-  if (isa<FieldDecl>(ExtendingDecl)) {
-    if (IsInitializerList) {
-      S.Diag(Init->getExprLoc(), diag::warn_dangling_std_initializer_list)
-        << /*at end of constructor*/true;
+  // Step over value-preserving rvalue casts.
+  while (auto *CE = dyn_cast<CastExpr>(Init)) {
+    switch (CE->getCastKind()) {
+    case CK_LValueToRValue:
+      // If we can match the lvalue to a const object, we can look at its
+      // initializer.
+      Path.push_back({IndirectLocalPathEntry::LValToRVal, CE});
+      return visitLocalsRetainedByReferenceBinding(
+          Path, Init, RK_ReferenceBinding,
+          [&](IndirectLocalPath &Path, Local L, ReferenceKind RK) -> bool {
+        if (auto *DRE = dyn_cast<DeclRefExpr>(L)) {
+          auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
+          if (VD && VD->getType().isConstQualified() && VD->getInit()) {
+            Path.push_back({IndirectLocalPathEntry::VarInit, DRE, VD});
+            visitLocalsRetainedByInitializer(Path, VD->getInit(), Visit, true);
+          }
+        } else if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(L)) {
+          if (MTE->getType().isConstQualified())
+            visitLocalsRetainedByInitializer(Path, MTE->GetTemporaryExpr(),
+                                             Visit, true);
+        }
+        return false;
+      });
+
+      // We assume that objects can be retained by pointers cast to integers,
+      // but not if the integer is cast to floating-point type or to _Complex.
+      // We assume that casts to 'bool' do not preserve enough information to
+      // retain a local object.
+    case CK_NoOp:
+    case CK_BitCast:
+    case CK_BaseToDerived:
+    case CK_DerivedToBase:
+    case CK_UncheckedDerivedToBase:
+    case CK_Dynamic:
+    case CK_ToUnion:
+    case CK_IntegralToPointer:
+    case CK_PointerToIntegral:
+    case CK_VectorSplat:
+    case CK_IntegralCast:
+    case CK_CPointerToObjCPointerCast:
+    case CK_BlockPointerToObjCPointerCast:
+    case CK_AnyPointerToBlockPointerCast:
+    case CK_AddressSpaceConversion:
+      break;
+
+    case CK_ArrayToPointerDecay:
+      // Model array-to-pointer decay as taking the address of the array
+      // lvalue.
+      Path.push_back({IndirectLocalPathEntry::AddressOf, CE});
+      return visitLocalsRetainedByReferenceBinding(Path, CE->getSubExpr(),
+                                                   RK_ReferenceBinding, Visit);
+
+    default:
       return;
     }
 
-    bool IsSubobjectMember = false;
-    for (const InitializedEntity *Ent = Entity.getParent(); Ent;
-         Ent = Ent->getParent()) {
-      if (Ent->getKind() != InitializedEntity::EK_Base) {
-        IsSubobjectMember = true;
+    Init = CE->getSubExpr();
+  }
+
+  Init = Init->IgnoreParens();
+  switch (Init->getStmtClass()) {
+  case Stmt::UnaryOperatorClass: {
+    auto *UO = cast<UnaryOperator>(Init);
+    // If the initializer is the address of a local, we could have a lifetime
+    // problem.
+    if (UO->getOpcode() == UO_AddrOf) {
+      // If this is &rvalue, then it's ill-formed and we have already diagnosed
+      // it. Don't produce a redundant warning about the lifetime of the
+      // temporary.
+      if (isa<MaterializeTemporaryExpr>(UO->getSubExpr()))
+        return;
+
+      Path.push_back({IndirectLocalPathEntry::AddressOf, UO});
+      visitLocalsRetainedByReferenceBinding(Path, UO->getSubExpr(),
+                                            RK_ReferenceBinding, Visit);
+    }
+    break;
+  }
+
+  case Stmt::BinaryOperatorClass: {
+    // Handle pointer arithmetic.
+    auto *BO = cast<BinaryOperator>(Init);
+    BinaryOperatorKind BOK = BO->getOpcode();
+    if (!BO->getType()->isPointerType() || (BOK != BO_Add && BOK != BO_Sub))
+      break;
+
+    if (BO->getLHS()->getType()->isPointerType())
+      visitLocalsRetainedByInitializer(Path, BO->getLHS(), Visit, true);
+    else if (BO->getRHS()->getType()->isPointerType())
+      visitLocalsRetainedByInitializer(Path, BO->getRHS(), Visit, true);
+    break;
+  }
+
+  case Stmt::ConditionalOperatorClass:
+  case Stmt::BinaryConditionalOperatorClass: {
+    auto *C = cast<AbstractConditionalOperator>(Init);
+    // In C++, we can have a throw-expression operand, which has 'void' type
+    // and isn't interesting from a lifetime perspective.
+    if (!C->getTrueExpr()->getType()->isVoidType())
+      visitLocalsRetainedByInitializer(Path, C->getTrueExpr(), Visit, true);
+    if (!C->getFalseExpr()->getType()->isVoidType())
+      visitLocalsRetainedByInitializer(Path, C->getFalseExpr(), Visit, true);
+    break;
+  }
+
+  case Stmt::BlockExprClass:
+    if (cast<BlockExpr>(Init)->getBlockDecl()->hasCaptures()) {
+      // This is a local block, whose lifetime is that of the function.
+      Visit(Path, Local(cast<BlockExpr>(Init)), RK_ReferenceBinding);
+    }
+    break;
+
+  case Stmt::AddrLabelExprClass:
+    // We want to warn if the address of a label would escape the function.
+    Visit(Path, Local(cast<AddrLabelExpr>(Init)), RK_ReferenceBinding);
+    break;
+
+  default:
+    break;
+  }
+}
+
+/// Determine whether this is an indirect path to a temporary that we are
+/// supposed to lifetime-extend along (but don't).
+static bool shouldLifetimeExtendThroughPath(const IndirectLocalPath &Path) {
+  for (auto Elem : Path) {
+    if (Elem.Kind != IndirectLocalPathEntry::DefaultInit)
+      return false;
+  }
+  return true;
+}
+
+/// Find the range for the first interesting entry in the path at or after I.
+static SourceRange nextPathEntryRange(const IndirectLocalPath &Path, unsigned I,
+                                      Expr *E) {
+  for (unsigned N = Path.size(); I != N; ++I) {
+    switch (Path[I].Kind) {
+    case IndirectLocalPathEntry::AddressOf:
+    case IndirectLocalPathEntry::LValToRVal:
+      // These exist primarily to mark the path as not permitting or
+      // supporting lifetime extension.
+      break;
+
+    case IndirectLocalPathEntry::DefaultInit:
+    case IndirectLocalPathEntry::VarInit:
+      return Path[I].E->getSourceRange();
+    }
+  }
+  return E->getSourceRange();
+}
+
+void Sema::checkInitializerLifetime(const InitializedEntity &Entity,
+                                    Expr *Init) {
+  LifetimeResult LR = getEntityLifetime(&Entity);
+  LifetimeKind LK = LR.getInt();
+  const InitializedEntity *ExtendingEntity = LR.getPointer();
+
+  // If this entity doesn't have an interesting lifetime, don't bother looking
+  // for temporaries within its initializer.
+  if (LK == LK_FullExpression)
+    return;
+
+  auto TemporaryVisitor = [&](IndirectLocalPath &Path, Local L,
+                              ReferenceKind RK) -> bool {
+    SourceRange DiagRange = nextPathEntryRange(Path, 0, L);
+    SourceLocation DiagLoc = DiagRange.getBegin();
+
+    switch (LK) {
+    case LK_FullExpression:
+      llvm_unreachable("already handled this");
+
+    case LK_Extended: {
+      auto *MTE = dyn_cast<MaterializeTemporaryExpr>(L);
+      if (!MTE) {
+        // The initialized entity has lifetime beyond the full-expression,
+        // and the local entity does too, so don't warn.
+        //
+        // FIXME: We should consider warning if a static / thread storage
+        // duration variable retains an automatic storage duration local.
+        return false;
+      }
+
+      // Lifetime-extend the temporary.
+      if (Path.empty()) {
+        // Update the storage duration of the materialized temporary.
+        // FIXME: Rebuild the expression instead of mutating it.
+        MTE->setExtendingDecl(ExtendingEntity->getDecl(),
+                              ExtendingEntity->allocateManglingNumber());
+        // Also visit the temporaries lifetime-extended by this initializer.
+        return true;
+      }
+
+      if (shouldLifetimeExtendThroughPath(Path)) {
+        // We're supposed to lifetime-extend the temporary along this path (per
+        // the resolution of DR1815), but we don't support that yet.
+        //
+        // FIXME: Properly handle this situation. Perhaps the easiest approach
+        // would be to clone the initializer expression on each use that would
+        // lifetime extend its temporaries.
+        Diag(DiagLoc, diag::warn_unsupported_lifetime_extension)
+            << RK << DiagRange;
+      } else {
+        // If the path goes through the initialization of a variable or field,
+        // it can't possibly reach a temporary created in this full-expression.
+        // We will have already diagnosed any problems with the initializer.
+        if (pathContainsInit(Path))
+          return false;
+
+        Diag(DiagLoc, diag::warn_dangling_variable)
+            << RK << !Entity.getParent() << ExtendingEntity->getDecl()
+            << Init->isGLValue() << DiagRange;
+      }
+      break;
+    }
+
+    case LK_MemInitializer: {
+      if (isa<MaterializeTemporaryExpr>(L)) {
+        // Under C++ DR1696, if a mem-initializer (or a default member
+        // initializer used by the absence of one) would lifetime-extend a
+        // temporary, the program is ill-formed.
+        if (auto *ExtendingDecl =
+                ExtendingEntity ? ExtendingEntity->getDecl() : nullptr) {
+          bool IsSubobjectMember = ExtendingEntity != &Entity;
+          Diag(DiagLoc, shouldLifetimeExtendThroughPath(Path)
+                            ? diag::err_dangling_member
+                            : diag::warn_dangling_member)
+              << ExtendingDecl << IsSubobjectMember << RK << DiagRange;
+          // Don't bother adding a note pointing to the field if we're inside
+          // its default member initializer; our primary diagnostic points to
+          // the same place in that case.
+          if (Path.empty() ||
+              Path.back().Kind != IndirectLocalPathEntry::DefaultInit) {
+            Diag(ExtendingDecl->getLocation(),
+                 diag::note_lifetime_extending_member_declared_here)
+                << RK << IsSubobjectMember;
+          }
+        } else {
+          // We have a mem-initializer but no particular field within it; this
+          // is either a base class or a delegating initializer directly
+          // initializing the base-class from something that doesn't live long
+          // enough.
+          //
+          // FIXME: Warn on this.
+          return false;
+        }
+      } else {
+        // Paths via a default initializer can only occur during error recovery
+        // (there's no other way that a default initializer can refer to a
+        // local). Don't produce a bogus warning on those cases.
+        if (pathContainsInit(Path))
+          return false;
+
+        auto *DRE = dyn_cast<DeclRefExpr>(L);
+        auto *VD = DRE ? dyn_cast<VarDecl>(DRE->getDecl()) : nullptr;
+        if (!VD) {
+          // A member was initialized to a local block.
+          // FIXME: Warn on this.
+          return false;
+        }
+
+        if (auto *Member =
+                ExtendingEntity ? ExtendingEntity->getDecl() : nullptr) {
+          bool IsPointer = Member->getType()->isAnyPointerType();
+          Diag(DiagLoc, IsPointer ? diag::warn_init_ptr_member_to_parameter_addr
+                                  : diag::warn_bind_ref_member_to_parameter)
+              << Member << VD << isa<ParmVarDecl>(VD) << DiagRange;
+          Diag(Member->getLocation(),
+               diag::note_ref_or_ptr_member_declared_here)
+              << (unsigned)IsPointer;
+        }
+      }
+      break;
+    }
+
+    case LK_New:
+      if (isa<MaterializeTemporaryExpr>(L)) {
+        Diag(DiagLoc, RK == RK_ReferenceBinding
+                          ? diag::warn_new_dangling_reference
+                          : diag::warn_new_dangling_initializer_list)
+            << !Entity.getParent() << DiagRange;
+      } else {
+        // We can't determine if the allocation outlives the local declaration.
+        return false;
+      }
+      break;
+
+    case LK_Return:
+    case LK_StmtExprResult:
+      if (auto *DRE = dyn_cast<DeclRefExpr>(L)) {
+        // We can't determine if the local variable outlives the statement
+        // expression.
+        if (LK == LK_StmtExprResult)
+          return false;
+        Diag(DiagLoc, diag::warn_ret_stack_addr_ref)
+            << Entity.getType()->isReferenceType() << DRE->getDecl()
+            << isa<ParmVarDecl>(DRE->getDecl()) << DiagRange;
+      } else if (isa<BlockExpr>(L)) {
+        Diag(DiagLoc, diag::err_ret_local_block) << DiagRange;
+      } else if (isa<AddrLabelExpr>(L)) {
+        Diag(DiagLoc, diag::warn_ret_addr_label) << DiagRange;
+      } else {
+        Diag(DiagLoc, diag::warn_ret_local_temp_addr_ref)
+         << Entity.getType()->isReferenceType() << DiagRange;
+      }
+      break;
+    }
+
+    for (unsigned I = 0; I != Path.size(); ++I) {
+      auto Elem = Path[I];
+
+      switch (Elem.Kind) {
+      case IndirectLocalPathEntry::AddressOf:
+      case IndirectLocalPathEntry::LValToRVal:
+        // These exist primarily to mark the path as not permitting or
+        // supporting lifetime extension.
+        break;
+
+      case IndirectLocalPathEntry::DefaultInit: {
+        auto *FD = cast<FieldDecl>(Elem.D);
+        Diag(FD->getLocation(), diag::note_init_with_default_member_initalizer)
+            << FD << nextPathEntryRange(Path, I + 1, L);
+        break;
+      }
+
+      case IndirectLocalPathEntry::VarInit:
+        const VarDecl *VD = cast<VarDecl>(Elem.D);
+        Diag(VD->getLocation(), diag::note_local_var_initializer)
+            << VD->getType()->isReferenceType() << VD->getDeclName()
+            << nextPathEntryRange(Path, I + 1, L);
         break;
       }
     }
-    S.Diag(Init->getExprLoc(),
-           diag::warn_bind_ref_member_to_temporary)
-      << ExtendingDecl << Init->getSourceRange()
-      << IsSubobjectMember << IsInitializerList;
-    if (IsSubobjectMember)
-      S.Diag(ExtendingDecl->getLocation(),
-             diag::note_ref_subobject_of_member_declared_here);
-    else
-      S.Diag(ExtendingDecl->getLocation(),
-             diag::note_ref_or_ptr_member_declared_here)
-        << /*is pointer*/false;
-  }
+
+    // We didn't lifetime-extend, so don't go any further; we don't need more
+    // warnings or errors on inner temporaries within this one's initializer.
+    return false;
+  };
+
+  llvm::SmallVector<IndirectLocalPathEntry, 8> Path;
+  if (Init->isGLValue())
+    visitLocalsRetainedByReferenceBinding(Path, Init, RK_ReferenceBinding,
+                                          TemporaryVisitor);
+  else
+    visitLocalsRetainedByInitializer(Path, Init, TemporaryVisitor, false);
 }
 
 static void DiagnoseNarrowingInInitList(Sema &S,
@@ -6427,13 +6938,7 @@ static void CheckMoveOnConstruction(Sema &S, const Expr *InitExpr,
 
   // Find the std::move call and get the argument.
   const CallExpr *CE = dyn_cast<CallExpr>(InitExpr->IgnoreParens());
-  if (!CE || CE->getNumArgs() != 1)
-    return;
-
-  const FunctionDecl *MoveFunction = CE->getDirectCallee();
-  if (!MoveFunction || !MoveFunction->isInStdNamespace() ||
-      !MoveFunction->getIdentifier() ||
-      !MoveFunction->getIdentifier()->isStr("move"))
+  if (!CE || !CE->isCallToStdMove())
     return;
 
   const Expr *Arg = CE->getArg(0)->IgnoreImplicit();
@@ -6490,7 +6995,7 @@ static void CheckMoveOnConstruction(Sema &S, const Expr *InitExpr,
   // macro only if it is at the beginning of the macro.
   while (ArgLoc.isMacroID() &&
          S.getSourceManager().isAtStartOfImmediateMacroExpansion(ArgLoc)) {
-    ArgLoc = S.getSourceManager().getImmediateExpansionRange(ArgLoc).first;
+    ArgLoc = S.getSourceManager().getImmediateExpansionRange(ArgLoc).getBegin();
   }
 
   if (LParen.isMacroID())
@@ -6619,7 +7124,7 @@ InitializationSequence::Perform(Sema &S,
     if (Kind.getKind() == InitializationKind::IK_Direct &&
         !Kind.isExplicitCast()) {
       // Rebuild the ParenListExpr.
-      SourceRange ParenRange = Kind.getParenRange();
+      SourceRange ParenRange = Kind.getParenOrBraceRange();
       return S.ActOnParenListExpr(ParenRange.getBegin(), ParenRange.getEnd(),
                                   Args);
     }
@@ -6656,20 +7161,6 @@ InitializationSequence::Perform(Sema &S,
     S.Diag(Args[0]->getLocStart(), diag::err_opencl_atomic_init) << 1 <<
     SourceRange(Entity.getDecl()->getLocStart(), Args[0]->getLocEnd());
     return ExprError();
-  }
-
-  // Diagnose cases where we initialize a pointer to an array temporary, and the
-  // pointer obviously outlives the temporary.
-  if (Args.size() == 1 && Args[0]->getType()->isArrayType() &&
-      Entity.getType()->isPointerType() &&
-      InitializedEntityOutlivesFullExpression(Entity)) {
-    const Expr *Init = Args[0]->skipRValueSubobjectAdjustments();
-    if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(Init))
-      Init = MTE->GetTemporaryExpr();
-    Expr::LValueClassification Kind = Init->ClassifyLValue(S.Context);
-    if (Kind == Expr::LV_ClassTemporary || Kind == Expr::LV_ArrayTemporary)
-      S.Diag(Init->getLocStart(), diag::warn_temporary_array_to_pointer_decay)
-        << Init->getSourceRange();
   }
 
   QualType DestType = Entity.getType().getNonReferenceType();
@@ -6822,16 +7313,6 @@ InitializationSequence::Perform(Sema &S,
         }
       }
 
-      // Even though we didn't materialize a temporary, the binding may still
-      // extend the lifetime of a temporary. This happens if we bind a reference
-      // to the result of a cast to reference type.
-      if (const InitializedEntity *ExtendingEntity =
-              getEntityForTemporaryLifetimeExtension(&Entity))
-        if (performReferenceExtension(CurInit.get(), ExtendingEntity))
-          warnOnLifetimeExtension(S, Entity, CurInit.get(),
-                                  /*IsInitializerList=*/false,
-                                  ExtendingEntity->getDecl());
-
       CheckForNullPointerDereference(S, CurInit.get());
       break;
 
@@ -6846,23 +7327,13 @@ InitializationSequence::Perform(Sema &S,
       // Materialize the temporary into memory.
       MaterializeTemporaryExpr *MTE = S.CreateMaterializeTemporaryExpr(
           Step->Type, CurInit.get(), Entity.getType()->isLValueReferenceType());
-
-      // Maybe lifetime-extend the temporary's subobjects to match the
-      // entity's lifetime.
-      if (const InitializedEntity *ExtendingEntity =
-              getEntityForTemporaryLifetimeExtension(&Entity))
-        if (performReferenceExtension(MTE, ExtendingEntity))
-          warnOnLifetimeExtension(S, Entity, CurInit.get(),
-                                  /*IsInitializerList=*/false,
-                                  ExtendingEntity->getDecl());
+      CurInit = MTE;
 
       // If we're extending this temporary to automatic storage duration -- we
       // need to register its cleanup during the full-expression's cleanups.
       if (MTE->getStorageDuration() == SD_Automatic &&
           MTE->getType().isDestructedType())
         S.Cleanup.setExprNeedsCleanups(true);
-
-      CurInit = MTE;
       break;
     }
 
@@ -6935,16 +7406,6 @@ InitializationSequence::Perform(Sema &S,
         if (S.DiagnoseUseOfDecl(FoundFn, Kind.getLocation()))
           return ExprError();
 
-        // FIXME: Should we move this initialization into a separate
-        // derived-to-base conversion? I believe the answer is "no", because
-        // we don't want to turn off access control here for c-style casts.
-        CurInit = S.PerformObjectArgumentInitialization(CurInit.get(),
-                                                        /*Qualifier=*/nullptr,
-                                                        FoundFn, Conversion);
-        if (CurInit.isInvalid())
-          return ExprError();
-
-        // Build the actual call to the conversion function.
         CurInit = S.BuildCXXMemberCallExpr(CurInit.get(), FoundFn, Conversion,
                                            HadMultipleCandidates);
         if (CurInit.isInvalid())
@@ -7139,14 +7600,17 @@ InitializationSequence::Perform(Sema &S,
       bool IsStdInitListInit =
           Step->Kind == SK_StdInitializerListConstructorCall;
       Expr *Source = CurInit.get();
+      SourceRange Range = Kind.hasParenOrBraceRange()
+                              ? Kind.getParenOrBraceRange()
+                              : SourceRange();
       CurInit = PerformConstructorInitialization(
           S, UseTemporary ? TempEntity : Entity, Kind,
           Source ? MultiExprArg(Source) : Args, *Step,
           ConstructorInitRequiresZeroInit,
           /*IsListInitialization*/ IsStdInitListInit,
           /*IsStdInitListInitialization*/ IsStdInitListInit,
-          /*LBraceLoc*/ SourceLocation(),
-          /*RBraceLoc*/ SourceLocation());
+          /*LBraceLoc*/ Range.getBegin(),
+          /*RBraceLoc*/ Range.getEnd());
       break;
     }
 
@@ -7302,15 +7766,6 @@ InitializationSequence::Perform(Sema &S,
           CurInit.get()->getType(), CurInit.get(),
           /*BoundToLvalueReference=*/false);
 
-      // Maybe lifetime-extend the array temporary's subobjects to match the
-      // entity's lifetime.
-      if (const InitializedEntity *ExtendingEntity =
-              getEntityForTemporaryLifetimeExtension(&Entity))
-        if (performReferenceExtension(MTE, ExtendingEntity))
-          warnOnLifetimeExtension(S, Entity, CurInit.get(),
-                                  /*IsInitializerList=*/true,
-                                  ExtendingEntity->getDecl());
-
       // Wrap it in a construction of a std::initializer_list<T>.
       CurInit = new (S.Context) CXXStdInitializerListExpr(Step->Type, MTE);
 
@@ -7432,6 +7887,11 @@ InitializationSequence::Perform(Sema &S,
     }
   }
 
+  // Check whether the initializer has a shorter lifetime than the initialized
+  // entity, and if not, either lifetime-extend or warn as appropriate.
+  if (auto *Init = CurInit.get())
+    S.checkInitializerLifetime(Entity, Init);
+
   // Diagnose non-fatal problems with the completed initialization.
   if (Entity.getKind() == InitializedEntity::EK_Member &&
       cast<FieldDecl>(Entity.getDecl())->isBitField())
@@ -7549,6 +8009,19 @@ bool InitializationSequence::Diagnose(Sema &S,
   if (!Failed())
     return false;
 
+  // When we want to diagnose only one element of a braced-init-list,
+  // we need to factor it out.
+  Expr *OnlyArg;
+  if (Args.size() == 1) {
+    auto *List = dyn_cast<InitListExpr>(Args[0]);
+    if (List && List->getNumInits() == 1)
+      OnlyArg = List->getInit(0);
+    else
+      OnlyArg = Args[0];
+  }
+  else
+    OnlyArg = nullptr;
+
   QualType DestType = Entity.getType();
   switch (Failure) {
   case FK_TooManyInitsForReference:
@@ -7591,6 +8064,17 @@ bool InitializationSequence::Diagnose(Sema &S,
     S.Diag(Kind.getLocation(),
            diag::err_array_init_incompat_wide_string_into_wchar);
     break;
+  case FK_PlainStringIntoUTF8Char:
+    S.Diag(Kind.getLocation(),
+           diag::err_array_init_plain_string_into_char8_t);
+    S.Diag(Args.front()->getLocStart(),
+           diag::note_array_init_plain_string_into_char8_t)
+      << FixItHint::CreateInsertion(Args.front()->getLocStart(), "u8");
+    break;
+  case FK_UTF8StringIntoPlainChar:
+    S.Diag(Kind.getLocation(),
+           diag::err_array_init_utf8_string_into_char);
+    break;
   case FK_ArrayTypeMismatch:
   case FK_NonConstantArrayInit:
     S.Diag(Kind.getLocation(),
@@ -7598,7 +8082,7 @@ bool InitializationSequence::Diagnose(Sema &S,
               ? diag::err_array_init_different_type
               : diag::err_array_init_non_constant_array))
       << DestType.getNonReferenceType()
-      << Args[0]->getType()
+      << OnlyArg->getType()
       << Args[0]->getSourceRange();
     break;
 
@@ -7609,7 +8093,7 @@ bool InitializationSequence::Diagnose(Sema &S,
 
   case FK_AddressOfOverloadFailed: {
     DeclAccessPair Found;
-    S.ResolveAddressOfOverloadedFunction(Args[0],
+    S.ResolveAddressOfOverloadedFunction(OnlyArg,
                                          DestType.getNonReferenceType(),
                                          true,
                                          Found);
@@ -7617,9 +8101,9 @@ bool InitializationSequence::Diagnose(Sema &S,
   }
 
   case FK_AddressOfUnaddressableFunction: {
-    auto *FD = cast<FunctionDecl>(cast<DeclRefExpr>(Args[0])->getDecl());
+    auto *FD = cast<FunctionDecl>(cast<DeclRefExpr>(OnlyArg)->getDecl());
     S.checkAddressOfFunctionIsAvailable(FD, /*Complain=*/true,
-                                        Args[0]->getLocStart());
+                                        OnlyArg->getLocStart());
     break;
   }
 
@@ -7629,11 +8113,11 @@ bool InitializationSequence::Diagnose(Sema &S,
     case OR_Ambiguous:
       if (Failure == FK_UserConversionOverloadFailed)
         S.Diag(Kind.getLocation(), diag::err_typecheck_ambiguous_condition)
-          << Args[0]->getType() << DestType
+          << OnlyArg->getType() << DestType
           << Args[0]->getSourceRange();
       else
         S.Diag(Kind.getLocation(), diag::err_ref_init_ambiguous)
-          << DestType << Args[0]->getType()
+          << DestType << OnlyArg->getType()
           << Args[0]->getSourceRange();
 
       FailedCandidateSet.NoteCandidates(S, OCD_ViableCandidates, Args);
@@ -7643,10 +8127,10 @@ bool InitializationSequence::Diagnose(Sema &S,
       if (!S.RequireCompleteType(Kind.getLocation(),
                                  DestType.getNonReferenceType(),
                           diag::err_typecheck_nonviable_condition_incomplete,
-                               Args[0]->getType(), Args[0]->getSourceRange()))
+                               OnlyArg->getType(), Args[0]->getSourceRange()))
         S.Diag(Kind.getLocation(), diag::err_typecheck_nonviable_condition)
           << (Entity.getKind() == InitializedEntity::EK_Result)
-          << Args[0]->getType() << Args[0]->getSourceRange()
+          << OnlyArg->getType() << Args[0]->getSourceRange()
           << DestType.getNonReferenceType();
 
       FailedCandidateSet.NoteCandidates(S, OCD_AllCandidates, Args);
@@ -7654,7 +8138,7 @@ bool InitializationSequence::Diagnose(Sema &S,
 
     case OR_Deleted: {
       S.Diag(Kind.getLocation(), diag::err_typecheck_deleted_function)
-        << Args[0]->getType() << DestType.getNonReferenceType()
+        << OnlyArg->getType() << DestType.getNonReferenceType()
         << Args[0]->getSourceRange();
       OverloadCandidateSet::iterator Best;
       OverloadingResult Ovl
@@ -7690,7 +8174,7 @@ bool InitializationSequence::Diagnose(Sema &S,
              : diag::err_lvalue_reference_bind_to_unrelated)
       << DestType.getNonReferenceType().isVolatileQualified()
       << DestType.getNonReferenceType()
-      << Args[0]->getType()
+      << OnlyArg->getType()
       << Args[0]->getSourceRange();
     break;
 
@@ -7715,12 +8199,12 @@ bool InitializationSequence::Diagnose(Sema &S,
 
   case FK_RValueReferenceBindingToLValue:
     S.Diag(Kind.getLocation(), diag::err_lvalue_to_rvalue_ref)
-      << DestType.getNonReferenceType() << Args[0]->getType()
+      << DestType.getNonReferenceType() << OnlyArg->getType()
       << Args[0]->getSourceRange();
     break;
 
   case FK_ReferenceInitDropsQualifiers: {
-    QualType SourceType = Args[0]->getType();
+    QualType SourceType = OnlyArg->getType();
     QualType NonRefType = DestType.getNonReferenceType();
     Qualifiers DroppedQualifiers =
         SourceType.getQualifiers() - NonRefType.getQualifiers();
@@ -7736,18 +8220,18 @@ bool InitializationSequence::Diagnose(Sema &S,
   case FK_ReferenceInitFailed:
     S.Diag(Kind.getLocation(), diag::err_reference_bind_failed)
       << DestType.getNonReferenceType()
-      << Args[0]->isLValue()
-      << Args[0]->getType()
+      << OnlyArg->isLValue()
+      << OnlyArg->getType()
       << Args[0]->getSourceRange();
     emitBadConversionNotes(S, Entity, Args[0]);
     break;
 
   case FK_ConversionFailed: {
-    QualType FromType = Args[0]->getType();
+    QualType FromType = OnlyArg->getType();
     PartialDiagnostic PDiag = S.PDiag(diag::err_init_conversion_failed)
       << (int)Entity.getKind()
       << DestType
-      << Args[0]->isLValue()
+      << OnlyArg->isLValue()
       << FromType
       << Args[0]->getSourceRange();
     S.HandleFunctionTypeMismatch(PDiag, FromType, DestType);
@@ -7998,6 +8482,14 @@ void InitializationSequence::dump(raw_ostream &OS) const {
 
     case FK_IncompatWideStringIntoWideChar:
       OS << "incompatible wide string into wide char array";
+      break;
+
+    case FK_PlainStringIntoUTF8Char:
+      OS << "plain string literal into char8_t array";
+      break;
+
+    case FK_UTF8StringIntoPlainChar:
+      OS << "u8 string literal into char array";
       break;
 
     case FK_ArrayTypeMismatch:
@@ -8290,6 +8782,11 @@ void InitializationSequence::dump() const {
   dump(llvm::errs());
 }
 
+static bool NarrowingErrs(const LangOptions &L) {
+  return L.CPlusPlus11 &&
+         (!L.MicrosoftExt || L.isCompatibleWithMSVC(LangOptions::MSVC2015));
+}
+
 static void DiagnoseNarrowingInInitList(Sema &S,
                                         const ImplicitConversionSequence &ICS,
                                         QualType PreNarrowingType,
@@ -8323,35 +8820,34 @@ static void DiagnoseNarrowingInInitList(Sema &S,
     // This was a floating-to-integer conversion, which is always considered a
     // narrowing conversion even if the value is a constant and can be
     // represented exactly as an integer.
-    S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_type_narrowing
-               : diag::ext_init_list_type_narrowing)
-      << PostInit->getSourceRange()
-      << PreNarrowingType.getLocalUnqualifiedType()
-      << EntityType.getLocalUnqualifiedType();
+    S.Diag(PostInit->getLocStart(), NarrowingErrs(S.getLangOpts())
+                                        ? diag::ext_init_list_type_narrowing
+                                        : diag::warn_init_list_type_narrowing)
+        << PostInit->getSourceRange()
+        << PreNarrowingType.getLocalUnqualifiedType()
+        << EntityType.getLocalUnqualifiedType();
     break;
 
   case NK_Constant_Narrowing:
     // A constant value was narrowed.
     S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_constant_narrowing
-               : diag::ext_init_list_constant_narrowing)
-      << PostInit->getSourceRange()
-      << ConstantValue.getAsString(S.getASTContext(), ConstantType)
-      << EntityType.getLocalUnqualifiedType();
+           NarrowingErrs(S.getLangOpts())
+               ? diag::ext_init_list_constant_narrowing
+               : diag::warn_init_list_constant_narrowing)
+        << PostInit->getSourceRange()
+        << ConstantValue.getAsString(S.getASTContext(), ConstantType)
+        << EntityType.getLocalUnqualifiedType();
     break;
 
   case NK_Variable_Narrowing:
     // A variable's value may have been narrowed.
     S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_variable_narrowing
-               : diag::ext_init_list_variable_narrowing)
-      << PostInit->getSourceRange()
-      << PreNarrowingType.getLocalUnqualifiedType()
-      << EntityType.getLocalUnqualifiedType();
+           NarrowingErrs(S.getLangOpts())
+               ? diag::ext_init_list_variable_narrowing
+               : diag::warn_init_list_variable_narrowing)
+        << PostInit->getSourceRange()
+        << PreNarrowingType.getLocalUnqualifiedType()
+        << EntityType.getLocalUnqualifiedType();
     break;
   }
 
@@ -8624,6 +9120,7 @@ QualType Sema::DeduceTemplateSpecializationFromInitializer(
       Expr *E = ListInit->getInit(0);
       auto *RD = E->getType()->getAsCXXRecordDecl();
       if (!isa<InitListExpr>(E) && RD &&
+          isCompleteType(Kind.getLocation(), E->getType()) &&
           isOrIsDerivedFromSpecializationOf(RD, Template))
         TryListConstructors = false;
     }

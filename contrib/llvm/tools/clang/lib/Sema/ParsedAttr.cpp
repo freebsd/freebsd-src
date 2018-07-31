@@ -1,4 +1,4 @@
-//===--- AttributeList.cpp --------------------------------------*- C++ -*-===//
+//======- ParsedAttr.cpp --------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,20 +7,23 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the AttributeList class implementation
+// This file defines the ParsedAttr class implementation
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/AttributeList.h"
+#include "clang/Sema/ParsedAttr.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/DeclCXX.h"
-#include "clang/AST/DeclTemplate.h"
-#include "clang/AST/Expr.h"
 #include "clang/Basic/AttrSubjectMatchRules.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include <cassert>
+#include <cstddef>
+#include <utility>
+
 using namespace clang;
 
 IdentifierLoc *IdentifierLoc::create(ASTContext &Ctx, SourceLocation Loc,
@@ -31,91 +34,79 @@ IdentifierLoc *IdentifierLoc::create(ASTContext &Ctx, SourceLocation Loc,
   return Result;
 }
 
-size_t AttributeList::allocated_size() const {
+size_t ParsedAttr::allocated_size() const {
   if (IsAvailability) return AttributeFactory::AvailabilityAllocSize;
   else if (IsTypeTagForDatatype)
     return AttributeFactory::TypeTagForDatatypeAllocSize;
   else if (IsProperty)
     return AttributeFactory::PropertyAllocSize;
-  return (sizeof(AttributeList) + NumArgs * sizeof(ArgsUnion));
+  else if (HasParsedType)
+    return sizeof(ParsedAttr) + sizeof(void *);
+  return (sizeof(ParsedAttr) + NumArgs * sizeof(ArgsUnion));
 }
 
 AttributeFactory::AttributeFactory() {
   // Go ahead and configure all the inline capacity.  This is just a memset.
   FreeLists.resize(InlineFreeListsCapacity);
 }
-AttributeFactory::~AttributeFactory() {}
+AttributeFactory::~AttributeFactory() = default;
 
 static size_t getFreeListIndexForSize(size_t size) {
-  assert(size >= sizeof(AttributeList));
+  assert(size >= sizeof(ParsedAttr));
   assert((size % sizeof(void*)) == 0);
-  return ((size - sizeof(AttributeList)) / sizeof(void*));
+  return ((size - sizeof(ParsedAttr)) / sizeof(void *));
 }
 
 void *AttributeFactory::allocate(size_t size) {
   // Check for a previously reclaimed attribute.
   size_t index = getFreeListIndexForSize(size);
-  if (index < FreeLists.size()) {
-    if (AttributeList *attr = FreeLists[index]) {
-      FreeLists[index] = attr->NextInPool;
-      return attr;
-    }
+  if (index < FreeLists.size() && !FreeLists[index].empty()) {
+    ParsedAttr *attr = FreeLists[index].back();
+    FreeLists[index].pop_back();
+    return attr;
   }
 
   // Otherwise, allocate something new.
   return Alloc.Allocate(size, alignof(AttributeFactory));
 }
 
-void AttributeFactory::reclaimPool(AttributeList *cur) {
-  assert(cur && "reclaiming empty pool!");
-  do {
-    // Read this here, because we're going to overwrite NextInPool
-    // when we toss 'cur' into the appropriate queue.
-    AttributeList *next = cur->NextInPool;
+void AttributeFactory::deallocate(ParsedAttr *Attr) {
+  size_t size = Attr->allocated_size();
+  size_t freeListIndex = getFreeListIndexForSize(size);
 
-    size_t size = cur->allocated_size();
-    size_t freeListIndex = getFreeListIndexForSize(size);
+  // Expand FreeLists to the appropriate size, if required.
+  if (freeListIndex >= FreeLists.size())
+    FreeLists.resize(freeListIndex + 1);
 
-    // Expand FreeLists to the appropriate size, if required.
-    if (freeListIndex >= FreeLists.size())
-      FreeLists.resize(freeListIndex+1);
+#if !NDEBUG
+  // In debug mode, zero out the attribute to help find memory overwriting.
+  memset(Attr, 0, size);
+#endif
 
-    // Add 'cur' to the appropriate free-list.
-    cur->NextInPool = FreeLists[freeListIndex];
-    FreeLists[freeListIndex] = cur;
-    
-    cur = next;
-  } while (cur);
+  // Add 'Attr' to the appropriate free-list.
+  FreeLists[freeListIndex].push_back(Attr);
 }
 
-void AttributePool::takePool(AttributeList *pool) {
-  assert(pool);
+void AttributeFactory::reclaimPool(AttributePool &cur) {
+  for (ParsedAttr *AL : cur.Attrs)
+    deallocate(AL);
+}
 
-  // Fast path:  this pool is empty.
-  if (!Head) {
-    Head = pool;
-    return;
-  }
-
-  // Reverse the pool onto the current head.  This optimizes for the
-  // pattern of pulling a lot of pools into a single pool.
-  do {
-    AttributeList *next = pool->NextInPool;
-    pool->NextInPool = Head;
-    Head = pool;
-    pool = next;
-  } while (pool);
+void AttributePool::takePool(AttributePool &pool) {
+  Attrs.insert(Attrs.end(), pool.Attrs.begin(), pool.Attrs.end());
+  pool.Attrs.clear();
 }
 
 #include "clang/Sema/AttrParsedAttrKinds.inc"
 
 static StringRef normalizeAttrName(StringRef AttrName, StringRef ScopeName,
-                                   AttributeList::Syntax SyntaxUsed) {
+                                   ParsedAttr::Syntax SyntaxUsed) {
   // Normalize the attribute name, __foo__ becomes foo. This is only allowable
   // for GNU attributes.
-  bool IsGNU = SyntaxUsed == AttributeList::AS_GNU ||
-               ((SyntaxUsed == AttributeList::AS_CXX11 ||
-                SyntaxUsed == AttributeList::AS_C2x) && ScopeName == "gnu");
+  bool IsGNU = SyntaxUsed == ParsedAttr::AS_GNU ||
+               ((SyntaxUsed == ParsedAttr::AS_CXX11 ||
+                 SyntaxUsed == ParsedAttr::AS_C2x) &&
+                ScopeName == "gnu");
   if (IsGNU && AttrName.size() >= 4 && AttrName.startswith("__") &&
       AttrName.endswith("__"))
     AttrName = AttrName.slice(2, AttrName.size() - 2);
@@ -123,9 +114,9 @@ static StringRef normalizeAttrName(StringRef AttrName, StringRef ScopeName,
   return AttrName;
 }
 
-AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
-                                           const IdentifierInfo *ScopeName,
-                                           Syntax SyntaxUsed) {
+ParsedAttr::Kind ParsedAttr::getKind(const IdentifierInfo *Name,
+                                     const IdentifierInfo *ScopeName,
+                                     Syntax SyntaxUsed) {
   StringRef AttrName = Name->getName();
 
   SmallString<64> FullName;
@@ -143,12 +134,12 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
   return ::getAttrKind(FullName, SyntaxUsed);
 }
 
-unsigned AttributeList::getAttributeSpellingListIndex() const {
+unsigned ParsedAttr::getAttributeSpellingListIndex() const {
   // Both variables will be used in tablegen generated
   // attribute spell list index matching code.
   StringRef Scope = ScopeName ? ScopeName->getName() : "";
   StringRef Name = normalizeAttrName(AttrName->getName(), Scope,
-                                     (AttributeList::Syntax)SyntaxUsed);
+                                     (ParsedAttr::Syntax)SyntaxUsed);
 
 #include "clang/Sema/AttrSpellingListIndex.inc"
 
@@ -164,85 +155,78 @@ struct ParsedAttrInfo {
   unsigned IsKnownToGCC : 1;
   unsigned IsSupportedByPragmaAttribute : 1;
 
-  bool (*DiagAppertainsToDecl)(Sema &S, const AttributeList &Attr,
-                               const Decl *);
-  bool (*DiagLangOpts)(Sema &S, const AttributeList &Attr);
+  bool (*DiagAppertainsToDecl)(Sema &S, const ParsedAttr &Attr, const Decl *);
+  bool (*DiagLangOpts)(Sema &S, const ParsedAttr &Attr);
   bool (*ExistsInTarget)(const TargetInfo &Target);
-  unsigned (*SpellingIndexToSemanticSpelling)(const AttributeList &Attr);
+  unsigned (*SpellingIndexToSemanticSpelling)(const ParsedAttr &Attr);
   void (*GetPragmaAttributeMatchRules)(
       llvm::SmallVectorImpl<std::pair<attr::SubjectMatchRule, bool>> &Rules,
       const LangOptions &LangOpts);
 };
 
 namespace {
-  #include "clang/Sema/AttrParsedAttrImpl.inc"
-}
 
-static const ParsedAttrInfo &getInfo(const AttributeList &A) {
+#include "clang/Sema/AttrParsedAttrImpl.inc"
+
+} // namespace
+
+static const ParsedAttrInfo &getInfo(const ParsedAttr &A) {
   return AttrInfoMap[A.getKind()];
 }
 
-unsigned AttributeList::getMinArgs() const {
-  return getInfo(*this).NumArgs;
-}
+unsigned ParsedAttr::getMinArgs() const { return getInfo(*this).NumArgs; }
 
-unsigned AttributeList::getMaxArgs() const {
+unsigned ParsedAttr::getMaxArgs() const {
   return getMinArgs() + getInfo(*this).OptArgs;
 }
 
-bool AttributeList::hasCustomParsing() const {
+bool ParsedAttr::hasCustomParsing() const {
   return getInfo(*this).HasCustomParsing;
 }
 
-bool AttributeList::diagnoseAppertainsTo(Sema &S, const Decl *D) const {
+bool ParsedAttr::diagnoseAppertainsTo(Sema &S, const Decl *D) const {
   return getInfo(*this).DiagAppertainsToDecl(S, *this, D);
 }
 
-bool AttributeList::appliesToDecl(const Decl *D,
-                                  attr::SubjectMatchRule MatchRule) const {
+bool ParsedAttr::appliesToDecl(const Decl *D,
+                               attr::SubjectMatchRule MatchRule) const {
   return checkAttributeMatchRuleAppliesTo(D, MatchRule);
 }
 
-void AttributeList::getMatchRules(
+void ParsedAttr::getMatchRules(
     const LangOptions &LangOpts,
     SmallVectorImpl<std::pair<attr::SubjectMatchRule, bool>> &MatchRules)
     const {
   return getInfo(*this).GetPragmaAttributeMatchRules(MatchRules, LangOpts);
 }
 
-bool AttributeList::diagnoseLangOpts(Sema &S) const {
+bool ParsedAttr::diagnoseLangOpts(Sema &S) const {
   return getInfo(*this).DiagLangOpts(S, *this);
 }
 
-bool AttributeList::isTargetSpecificAttr() const {
+bool ParsedAttr::isTargetSpecificAttr() const {
   return getInfo(*this).IsTargetSpecific;
 }
 
-bool AttributeList::isTypeAttr() const {
-  return getInfo(*this).IsType;
-}
+bool ParsedAttr::isTypeAttr() const { return getInfo(*this).IsType; }
 
-bool AttributeList::isStmtAttr() const {
-  return getInfo(*this).IsStmt;
-}
+bool ParsedAttr::isStmtAttr() const { return getInfo(*this).IsStmt; }
 
-bool AttributeList::existsInTarget(const TargetInfo &Target) const {
+bool ParsedAttr::existsInTarget(const TargetInfo &Target) const {
   return getInfo(*this).ExistsInTarget(Target);
 }
 
-bool AttributeList::isKnownToGCC() const {
-  return getInfo(*this).IsKnownToGCC;
-}
+bool ParsedAttr::isKnownToGCC() const { return getInfo(*this).IsKnownToGCC; }
 
-bool AttributeList::isSupportedByPragmaAttribute() const {
+bool ParsedAttr::isSupportedByPragmaAttribute() const {
   return getInfo(*this).IsSupportedByPragmaAttribute;
 }
 
-unsigned AttributeList::getSemanticSpelling() const {
+unsigned ParsedAttr::getSemanticSpelling() const {
   return getInfo(*this).SpellingIndexToSemanticSpelling(*this);
 }
 
-bool AttributeList::hasVariadicArg() const {
+bool ParsedAttr::hasVariadicArg() const {
   // If the attribute has the maximum number of optional arguments, we will
   // claim that as being variadic. If we someday get an attribute that
   // legitimately bumps up against that maximum, we can use another bit to track
