@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -5919,7 +5919,6 @@ ztest_run(ztest_shared_t *zs)
 	 */
 	kernel_init(FREAD | FWRITE);
 	VERIFY0(spa_open(ztest_opts.zo_pool, &spa, FTAG));
-	spa->spa_debug = B_TRUE;
 	metaslab_preload_limit = ztest_random(20) + 1;
 	ztest_spa = spa;
 
@@ -6076,7 +6075,6 @@ ztest_freeze(void)
 	kernel_init(FREAD | FWRITE);
 	VERIFY3U(0, ==, spa_open(ztest_opts.zo_pool, &spa, FTAG));
 	VERIFY3U(0, ==, ztest_dataset_open(0));
-	spa->spa_debug = B_TRUE;
 	ztest_spa = spa;
 
 	/*
@@ -6147,7 +6145,6 @@ ztest_freeze(void)
 	VERIFY3U(0, ==, ztest_dataset_open(0));
 	ztest_dataset_close(0);
 
-	spa->spa_debug = B_TRUE;
 	ztest_spa = spa;
 	txg_wait_synced(spa_get_dsl(spa), 0);
 	ztest_reguid(NULL, 0);
