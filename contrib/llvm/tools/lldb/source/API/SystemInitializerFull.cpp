@@ -11,7 +11,7 @@
 #include "Plugins/ScriptInterpreter/Python/lldb-python.h"
 #endif
 
-#include "lldb/API/SystemInitializerFull.h"
+#include "SystemInitializerFull.h"
 
 #include "lldb/API/SBCommandInterpreter.h"
 
@@ -51,6 +51,7 @@
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
 #include "Plugins/Architecture/Arm/ArchitectureArm.h"
+#include "Plugins/Architecture/PPC64/ArchitecturePPC64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
 #ifdef LLDB_ENABLE_ALL
 #include "Plugins/DynamicLoader/MacOSX-DYLD/DynamicLoaderMacOS.h"
@@ -62,6 +63,7 @@
 #include "Plugins/DynamicLoader/Windows-DYLD/DynamicLoaderWindowsDYLD.h"
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/Instruction/ARM64/EmulateInstructionARM64.h"
+#include "Plugins/Instruction/PPC64/EmulateInstructionPPC64.h"
 #include "Plugins/InstrumentationRuntime/ASan/ASanRuntime.h"
 #include "Plugins/InstrumentationRuntime/MainThreadChecker/MainThreadCheckerRuntime.h"
 #ifdef LLDB_ENABLE_ALL
@@ -86,7 +88,10 @@
 #include "Plugins/LanguageRuntime/RenderScript/RenderScriptRuntime/RenderScriptRuntime.h"
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/MemoryHistory/asan/MemoryHistoryASan.h"
+#include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
 #ifdef LLDB_ENABLE_ALL
+#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
+#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/OperatingSystem/Go/OperatingSystemGo.h"
 #include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
 #include "Plugins/Platform/Android/PlatformAndroid.h"
@@ -105,6 +110,7 @@
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemote.h"
 #ifdef LLDB_ENABLE_ALL
+#include "Plugins/Process/mach-core/ProcessMachCore.h"
 #include "Plugins/Process/minidump/ProcessMinidump.h"
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/ScriptInterpreter/None/ScriptInterpreterNone.h"
@@ -130,7 +136,6 @@
 #include "Plugins/Platform/MacOSX/PlatformRemoteAppleWatch.h"
 #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
 #include "Plugins/Process/MacOSX-Kernel/ProcessKDP.h"
-#include "Plugins/Process/mach-core/ProcessMachCore.h"
 #include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
 #endif
 #ifdef LLDB_ENABLE_ALL
@@ -166,11 +171,10 @@ extern "C" void init_lldb(void);
 #define LLDBSwigPyInit init_lldb
 #endif
 
-// these are the Pythonic implementations of the required callbacks
-// these are scripting-language specific, which is why they belong here
-// we still need to use function pointers to them instead of relying
-// on linkage-time resolution because the SWIG stuff and this file
-// get built at different times
+// these are the Pythonic implementations of the required callbacks these are
+// scripting-language specific, which is why they belong here we still need to
+// use function pointers to them instead of relying on linkage-time resolution
+// because the SWIG stuff and this file get built at different times
 extern "C" bool LLDBSwigPythonBreakpointCallbackFunction(
     const char *python_function_name, const char *session_dictionary_name,
     const lldb::StackFrameSP &sb_frame,
@@ -280,6 +284,13 @@ SystemInitializerFull::~SystemInitializerFull() {}
 
 void SystemInitializerFull::Initialize() {
   SystemInitializerCommon::Initialize();
+
+  ObjectFileELF::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  ObjectFileMachO::Initialize();
+  ObjectFilePECOFF::Initialize();
+#endif // LLDB_ENABLE_ALL
+
   ScriptInterpreterNone::Initialize();
 
 #ifndef LLDB_DISABLE_PYTHON
@@ -292,10 +303,9 @@ void SystemInitializerFull::Initialize() {
 #if !defined(LLDB_DISABLE_PYTHON)
   InitializeSWIG();
 
-  // ScriptInterpreterPython::Initialize() depends on things like HostInfo being
-  // initialized
-  // so it can compute the python directory etc, so we need to do this after
-  // SystemInitializerCommon::Initialize().
+  // ScriptInterpreterPython::Initialize() depends on things like HostInfo
+  // being initialized so it can compute the python directory etc, so we need
+  // to do this after SystemInitializerCommon::Initialize().
   ScriptInterpreterPython::Initialize();
 #endif
 
@@ -347,12 +357,14 @@ void SystemInitializerFull::Initialize() {
 #endif // LLDB_ENABLE_ALL
 
   ArchitectureArm::Initialize();
+  ArchitecturePPC64::Initialize();
 
   DisassemblerLLVMC::Initialize();
 
   JITLoaderGDB::Initialize();
   ProcessElfCore::Initialize();
 #ifdef LLDB_ENABLE_ALL
+  ProcessMachCore::Initialize();
   minidump::ProcessMinidump::Initialize();
 #endif // LLDB_ENABLE_ALL
   MemoryHistoryASan::Initialize();
@@ -372,6 +384,7 @@ void SystemInitializerFull::Initialize() {
   UnwindAssemblyInstEmulation::Initialize();
   UnwindAssembly_x86::Initialize();
   EmulateInstructionARM64::Initialize();
+  EmulateInstructionPPC64::Initialize();
   SymbolFileDWARFDebugMap::Initialize();
   ItaniumABILanguageRuntime::Initialize();
 #ifdef LLDB_ENABLE_ALL
@@ -401,7 +414,6 @@ void SystemInitializerFull::Initialize() {
 #if defined(__APPLE__)
   SymbolVendorMacOSX::Initialize();
   ProcessKDP::Initialize();
-  ProcessMachCore::Initialize();
   PlatformAppleTVSimulator::Initialize();
   PlatformAppleWatchSimulator::Initialize();
   PlatformRemoteAppleTV::Initialize();
@@ -409,8 +421,8 @@ void SystemInitializerFull::Initialize() {
   DynamicLoaderDarwinKernel::Initialize();
 #endif
 
-  // This plugin is valid on any host that talks to a Darwin remote.
-  // It shouldn't be limited to __APPLE__.
+  // This plugin is valid on any host that talks to a Darwin remote. It
+  // shouldn't be limited to __APPLE__.
 #ifdef LLDB_ENABLE_ALL
   StructuredDataDarwinLog::Initialize();
 #endif // LLDB_ENABLE_ALL
@@ -434,8 +446,8 @@ void SystemInitializerFull::Initialize() {
   // Scan for any system or user LLDB plug-ins
   PluginManager::Initialize();
 
-  // The process settings need to know about installed plug-ins, so the Settings
-  // must be initialized
+  // The process settings need to know about installed plug-ins, so the
+  // Settings must be initialized
   // AFTER PluginManager::Initialize is called.
 
   Debugger::SettingsInitialize();
@@ -501,6 +513,7 @@ void SystemInitializerFull::Terminate() {
   JITLoaderGDB::Terminate();
   ProcessElfCore::Terminate();
 #ifdef LLDB_ENABLE_ALL
+  ProcessMachCore::Terminate();
   minidump::ProcessMinidump::Terminate();
 #endif // LLDB_ENABLE_ALL
   MemoryHistoryASan::Terminate();
@@ -519,6 +532,7 @@ void SystemInitializerFull::Terminate() {
   UnwindAssembly_x86::Terminate();
   UnwindAssemblyInstEmulation::Terminate();
   EmulateInstructionARM64::Terminate();
+  EmulateInstructionPPC64::Terminate();
   SymbolFileDWARFDebugMap::Terminate();
   ItaniumABILanguageRuntime::Terminate();
 #ifdef LLDB_ENABLE_ALL
@@ -540,7 +554,6 @@ void SystemInitializerFull::Terminate() {
 
 #if defined(__APPLE__)
   DynamicLoaderDarwinKernel::Terminate();
-  ProcessMachCore::Terminate();
   ProcessKDP::Terminate();
   SymbolVendorMacOSX::Terminate();
   PlatformAppleTVSimulator::Terminate();
@@ -590,6 +603,12 @@ void SystemInitializerFull::Terminate() {
   PlatformiOSSimulator::Terminate();
   PlatformDarwinKernel::Terminate();
 #endif
+
+  ObjectFileELF::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  ObjectFileMachO::Terminate();
+  ObjectFilePECOFF::Terminate();
+#endif // LLDB_ENABLE_ALL
 
   // Now shutdown the common parts, in reverse order.
   SystemInitializerCommon::Terminate();
