@@ -247,6 +247,9 @@ ts_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, 0,
 	    ts_temp_sysctl, "IK4", "Current temperature");
 
+	gone_in_dev(dev, 12,
+	    "jedec_ts(4) driver; see COMPATIBILITY section of jedec_dimm(4)");
+
 	return (0);
 }
 

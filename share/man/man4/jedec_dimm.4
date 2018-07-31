@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2018
+.Dd July 24, 2018
 .Dt JEDEC_DIMM 4
 .Os
 .Sh NAME
@@ -163,6 +163,9 @@ dev.jedec_dimm.6.temp: 43.1C
 dev.jedec_dimm.6.type: DDR4
 .Ed
 .Sh COMPATIBILITY
+.Nm
+implements a superset of the functionality of
+.Xr jedec_ts 4 .
 Hints for
 .Xr jedec_ts 4
 can be mechanically converted for use with
