@@ -289,7 +289,7 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	if (dep->de_Attributes & ATTR_READONLY)
 		mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
-	vap->va_mode = mode & 
+	vap->va_mode = mode &
 	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
 	vap->va_gid = pmp->pm_gid;
