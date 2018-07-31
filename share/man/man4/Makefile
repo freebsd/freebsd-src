@@ -897,7 +897,8 @@ _dtrace_provs=	dtrace_io.4 \
 		dtrace_sched.4 \
 		dtrace_sctp.4 \
 		dtrace_tcp.4 \
-		dtrace_udp.4
+		dtrace_udp.4 \
+		dtrace_udplite.4
 .endif
 
 .if ${MK_ISCSI} != "no"
