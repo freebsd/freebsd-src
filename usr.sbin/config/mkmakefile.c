@@ -250,8 +250,7 @@ sanitize_envline(char *result, const char *src)
 static bool
 preprocess(char *line, char *result)
 {
-
-	char result[BUFSIZ], *s;
+	char *s;
 
 	/* Strip any comments */
 	if ((s = strchr(line, '#')) != NULL)
