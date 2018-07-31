@@ -2241,8 +2241,10 @@ pci_snapshot(struct vmctx *ctx, const char *dev_name, void *buffer,
 		}
 	}
 
-	fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
-	return (-1);
+	fprintf(stderr, "%s: no such name: %s\r\n", __func__, dev_name);
+	*snapshot_size = 0;
+	memset(buffer, 0, buf_size);
+	return (0);
 }
 
 int

@@ -9,6 +9,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/param.h>
 
 #include <machine/atomic.h>
 #include <machine/segments.h>
@@ -93,6 +94,12 @@ extern int guest_ncpus;
 #define JSON_VMNAME_KEY 		"vmname"
 #define JSON_MEMSIZE_KEY		"memsize"
 #define JSON_MEMFLAGS_KEY		"memflags"
+
+char *pci_devs[] = {
+	"virtio-net",
+	"virtio-blk",
+	"lpc",
+};
 
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
  * provided string.
@@ -597,22 +604,28 @@ restore_pci_devs(struct vmctx *ctx, struct restore_state *rstate)
 	size_t dev_size;
 	int ret;
 	int i;
-	char *devs[] = {
-		"virtio-net",
-		"virtio-blk",
-		"lpc",
-	};
 
-	for (i = 0; i < sizeof(devs)/sizeof(devs[0]); i++) {
-		dev_ptr = lookup_pci_dev(devs[i], rstate, &dev_size);
+	for (i = 0; i < nitems(pci_devs); i++) {
+		dev_ptr = lookup_pci_dev(pci_devs[i], rstate, &dev_size);
 		if (dev_ptr == NULL) {
-			fprintf(stderr, "Failed to lookup dev: %s\n", devs[i]);
-			return (-1);
+			fprintf(stderr, "Failed to lookup dev: %s\r\n",
+				pci_devs[i]);
+			fprintf(stderr,
+				"Continuing the restore/migration process\r\n");
+			continue;
 		}
 
-		ret = pci_restore(ctx, devs[i], dev_ptr, dev_size);
+		if (dev_size == 0) {
+			fprintf(stderr, "%s: Device size is 0. "
+				"Assuming %s is not used\r\n",
+				__func__, pci_devs[i]);
+			continue;
+		}
+
+		ret = pci_restore(ctx, pci_devs[i], dev_ptr, dev_size);
 		if (ret != 0) {
-			fprintf(stderr, "Failed to restore dev: %s\n", devs[i]);
+			fprintf(stderr, "Failed to restore dev: %s\r\n",
+				pci_devs[i]);
 			return (-1);
 		}
 	}
@@ -717,11 +730,6 @@ vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 	size_t data_size;
 	off_t offset;
 	void *buffer = NULL;
-	char *devs[] = {
-		"virtio-net",
-		"virtio-blk",
-		"lpc",
-	};
 
 	offset = lseek(data_fd, 0, SEEK_CUR);
 	if (offset < 0) {
@@ -736,14 +744,14 @@ vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 	}
 
 	xo_open_list_h(xop, JSON_PCI_ARR_KEY);
-	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
+	for (i = 0; i < nitems(pci_devs); i++) {
 		memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
-		ret = pci_snapshot(ctx, devs[i], buffer, SNAPSHOT_BUFFER_SIZE,
-				   &data_size);
+		ret = pci_snapshot(ctx, pci_devs[i], buffer,
+				   SNAPSHOT_BUFFER_SIZE, &data_size);
 
 		if (ret != 0) {
-			fprintf(stderr, "Failed to snapshot pci dev %s; ret=%d\n",
-				devs[i], ret);
+			fprintf(stderr, "Failed to snapshot pci dev %s; ret=%d\r\n",
+				pci_devs[i], ret);
 			error = -1;
 			goto err_pci;
 		}
@@ -759,7 +767,8 @@ vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 
 		/* Write metadata. */
 		xo_open_instance_h(xop, JSON_PCI_ARR_KEY);
-		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n", devs[i]);
+		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n",
+			  pci_devs[i]);
 		xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
 		xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
 		xo_close_instance_h(xop, JSON_PCI_ARR_KEY);
@@ -1787,7 +1796,7 @@ migrate_send_pci_dev(struct vmctx *ctx, int socket, const char *dev,
 		     char *buffer, size_t len)
 {
 	int rc;
-	size_t data_size;
+	size_t data_size = 0;
 	struct migration_message_type msg;
 
 	memset(buffer, 0, len);
@@ -1816,6 +1825,11 @@ migrate_send_pci_dev(struct vmctx *ctx, int socket, const char *dev,
 	}
 
 	// send dev
+	if (data_size == 0) {
+		fprintf(stderr, "%s: Did not send %s dev. Assuming unused. Continuing...\r\n", __func__, dev);
+		return (0);
+	}
+
 	rc = migration_send_data_remote(socket, buffer, data_size);
 	if (rc < 0) {
 		fprintf(stderr,
@@ -1850,6 +1864,12 @@ migrate_recv_pci_dev(struct vmctx *ctx, int socket, const char *dev, char *buffe
 	data_size = msg.len;
 	// recv dev
 	memset(buffer, 0 , len);
+
+	if(data_size == 0) {
+		fprintf(stderr, "%s: Did not restore %s dev. Assuming unused. Continuing...\r\n", __func__, dev);
+		return (0);
+	}
+
 	rc = migration_recv_data_from_remote(socket, buffer, data_size);
 	if (rc < 0) {
 		fprintf(stderr,
@@ -1876,11 +1896,6 @@ migrate_pci_devs(struct vmctx *ctx, int socket, enum migration_transfer_req req)
 {
 	int rc, i, error = 0;
 	char *buffer;
-	char *devs[] = {
-		"virtio-net",
-		"virtio-blk",
-		"lpc",
-	};
 
 	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
 	if (buffer == NULL) {
@@ -1891,20 +1906,20 @@ migrate_pci_devs(struct vmctx *ctx, int socket, enum migration_transfer_req req)
 		goto end;
 	}
 
-	for (i = 0; i < sizeof(devs) / sizeof(devs[0]); i++) {
+	for (i = 0; i < nitems(pci_devs); i++) {
 		if (req == MIGRATION_SEND_REQ) {
-			rc = migrate_send_pci_dev(ctx, socket, devs[i],
+			rc = migrate_send_pci_dev(ctx, socket, pci_devs[i],
 						  buffer, KERN_DATA_BUFFER_SIZE);
 
 			if (rc < 0) {
 				fprintf(stderr,
 					"%s: Could not send %s\r\n",
-					__func__, devs[i]);
+					__func__, pci_devs[i]);
 				error = -1;
 				goto end;
 			}
 		} else if (req == MIGRATION_RECV_REQ) {
-			rc = migrate_recv_pci_dev(ctx, socket, devs[i],
+			rc = migrate_recv_pci_dev(ctx, socket, pci_devs[i],
 						  buffer, KERN_DATA_BUFFER_SIZE);
 
 			if (rc < 0) {

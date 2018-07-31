@@ -52,11 +52,12 @@ enum migration_transfer_req {
 };
 
 enum message_types {
-    MESSAGE_TYPE_SPECS	    = 1,
-    MESSAGE_TYPE_METADATA   = 2,
-    MESSAGE_TYPE_RAM	    = 3,
-    MESSAGE_TYPE_KERN	    = 4,
-    MESSAGE_TYPE_PCI	    = 5,
+    MESSAGE_TYPE_SPECS		    = 1,
+    MESSAGE_TYPE_METADATA	    = 2,
+    MESSAGE_TYPE_RAM		    = 3,
+    MESSAGE_TYPE_KERN		    = 4,
+    MESSAGE_TYPE_PCI		    = 5,
+    MESSAGE_TYPE_UNKNOWN	    = 8,
 };
 
 struct __attribute__((packed)) migration_message_type {
