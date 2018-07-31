@@ -72,6 +72,7 @@ options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset
+device		nvmem
 device		regulator
 device		syscon
 
