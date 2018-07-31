@@ -1747,7 +1747,7 @@ metaslab_set_fragmentation(metaslab_t *msp)
 		if (spa_writeable(spa) && txg < spa_final_dirty_txg(spa)) {
 			msp->ms_condense_wanted = B_TRUE;
 			vdev_dirty(vd, VDD_METASLAB, msp, txg + 1);
-			spa_dbgmsg(spa, "txg %llu, requesting force condense: "
+			zfs_dbgmsg("txg %llu, requesting force condense: "
 			    "ms_id %llu, vdev_id %llu", txg, msp->ms_id,
 			    vd->vdev_id);
 		}
