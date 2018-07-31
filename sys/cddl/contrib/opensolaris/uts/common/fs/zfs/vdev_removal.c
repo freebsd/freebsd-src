@@ -807,8 +807,15 @@ spa_vdev_copy_segment(vdev_t *vd, uint64_t start, uint64_t size, uint64_t txg,
 
 	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
 
+	/*
+	 * We use allocator 0 for this I/O because we don't expect device remap
+	 * to be the steady state of the system, so parallelizing is not as
+	 * critical as it is for other allocation types. We also want to ensure
+	 * that the IOs are allocated together as much as possible, to reduce
+	 * mapping sizes.
+	 */
 	int error = metaslab_alloc_dva(spa, mg->mg_class, size,
-	    &dst, 0, NULL, txg, 0, zal);
+	    &dst, 0, NULL, txg, 0, zal, 0);
 	if (error != 0)
 		return (error);
 
