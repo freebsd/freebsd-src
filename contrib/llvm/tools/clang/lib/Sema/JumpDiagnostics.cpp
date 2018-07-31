@@ -154,6 +154,10 @@ static ScopePair GetDiagForGotoScopeDecl(Sema &S, const Decl *D) {
         return ScopePair(diag::note_protected_by_objc_weak_init,
                          diag::note_exits_objc_weak);
 
+      case QualType::DK_nontrivial_c_struct:
+        return ScopePair(diag::note_protected_by_non_trivial_c_struct_init,
+                         diag::note_exits_dtor);
+
       case QualType::DK_cxx_destructor:
         OutDiag = diag::note_exits_dtor;
         break;
@@ -212,7 +216,7 @@ static ScopePair GetDiagForGotoScopeDecl(Sema &S, const Decl *D) {
   return ScopePair(0U, 0U);
 }
 
-/// \brief Build scope information for a declaration that is part of a DeclStmt.
+/// Build scope information for a declaration that is part of a DeclStmt.
 void JumpScopeChecker::BuildScopeInformation(Decl *D, unsigned &ParentScope) {
   // If this decl causes a new scope, push and switch to it.
   std::pair<unsigned,unsigned> Diags = GetDiagForGotoScopeDecl(S, D);
@@ -229,7 +233,7 @@ void JumpScopeChecker::BuildScopeInformation(Decl *D, unsigned &ParentScope) {
       BuildScopeInformation(Init, ParentScope);
 }
 
-/// \brief Build scope information for a captured block literal variables.
+/// Build scope information for a captured block literal variables.
 void JumpScopeChecker::BuildScopeInformation(VarDecl *D,
                                              const BlockDecl *BDecl,
                                              unsigned &ParentScope) {
@@ -253,6 +257,10 @@ void JumpScopeChecker::BuildScopeInformation(VarDecl *D,
       case QualType::DK_objc_weak_lifetime:
         Diags = ScopePair(diag::note_enters_block_captures_weak,
                           diag::note_exits_block_captures_weak);
+        break;
+      case QualType::DK_nontrivial_c_struct:
+        Diags = ScopePair(diag::note_enters_block_captures_non_trivial_c_struct,
+                          diag::note_exits_block_captures_non_trivial_c_struct);
         break;
       case QualType::DK_none:
         llvm_unreachable("non-lifetime captured variable");

@@ -44,7 +44,8 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
       IsSystem(false), IsExternC(false), IsInferred(false),
       InferSubmodules(false), InferExplicitSubmodules(false),
       InferExportWildcard(false), ConfigMacrosExhaustive(false),
-      NoUndeclaredIncludes(false), NameVisibility(Hidden) {
+      NoUndeclaredIncludes(false), ModuleMapIsPrivate(false),
+      NameVisibility(Hidden) {
   if (Parent) {
     if (!Parent->isAvailable())
       IsAvailable = false;
@@ -54,6 +55,8 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
       IsExternC = true;
     if (Parent->NoUndeclaredIncludes)
       NoUndeclaredIncludes = true;
+    if (Parent->ModuleMapIsPrivate)
+      ModuleMapIsPrivate = true;
     IsMissingRequirement = Parent->IsMissingRequirement;
     
     Parent->SubModuleIndex[Name] = Parent->SubModules.size();
@@ -68,7 +71,7 @@ Module::~Module() {
   }
 }
 
-/// \brief Determine whether a translation unit built using the current
+/// Determine whether a translation unit built using the current
 /// language options has the given feature.
 static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
                        const TargetInfo &Target) {
@@ -78,6 +81,11 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
                         .Case("coroutines", LangOpts.CoroutinesTS)
                         .Case("cplusplus", LangOpts.CPlusPlus)
                         .Case("cplusplus11", LangOpts.CPlusPlus11)
+                        .Case("cplusplus14", LangOpts.CPlusPlus14)
+                        .Case("cplusplus17", LangOpts.CPlusPlus17)
+                        .Case("c99", LangOpts.C99)
+                        .Case("c11", LangOpts.C11)
+                        .Case("c17", LangOpts.C17)
                         .Case("freestanding", LangOpts.Freestanding)
                         .Case("gnuinlineasm", LangOpts.GNUAsm)
                         .Case("objc", LangOpts.ObjC1)
@@ -95,11 +103,16 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
 
 bool Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
                          Requirement &Req,
-                         UnresolvedHeaderDirective &MissingHeader) const {
+                         UnresolvedHeaderDirective &MissingHeader,
+                         Module *&ShadowingModule) const {
   if (IsAvailable)
     return true;
 
   for (const Module *Current = this; Current; Current = Current->Parent) {
+    if (Current->ShadowingModule) {
+      ShadowingModule = Current->ShadowingModule;
+      return false;
+    }
     for (unsigned I = 0, N = Current->Requirements.size(); I != N; ++I) {
       if (hasFeature(Current->Requirements[I].first, LangOpts, Target) !=
               Current->Requirements[I].second) {

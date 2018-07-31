@@ -55,7 +55,7 @@ namespace clang {
 
     /// Client code should call this function as soon as the Preprocessor has
     /// either completed lexing the macro's definition tokens, or an error
-    /// occured and the context is being exited.  This function is idempotent
+    /// occurred and the context is being exited.  This function is idempotent
     /// (might be explicitly called, and then reinvoked via the destructor).
     void exitScope() {
       Ident__VA_ARGS__->setIsPoisoned(true);
@@ -66,7 +66,7 @@ namespace clang {
     ~VariadicMacroScopeGuard() { exitScope(); }
   };
 
-  /// \brief A class for tracking whether we're inside a VA_OPT during a
+  /// A class for tracking whether we're inside a VA_OPT during a
   /// traversal of the tokens of a variadic macro definition.
   class VAOptDefinitionContext {
     /// Contains all the locations of so far unmatched lparens.
@@ -116,7 +116,7 @@ namespace clang {
     
   };
 
-  /// \brief A class for tracking whether we're inside a VA_OPT during a
+  /// A class for tracking whether we're inside a VA_OPT during a
   /// traversal of the tokens of a macro during macro expansion.
   class VAOptExpansionContext : VAOptDefinitionContext {
 

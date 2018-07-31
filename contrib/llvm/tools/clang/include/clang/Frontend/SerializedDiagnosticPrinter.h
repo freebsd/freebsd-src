@@ -1,4 +1,4 @@
-//===--- SerializedDiagnosticPrinter.h - Serializer for diagnostics -------===//
+//===--- SerializedDiagnosticPrinter.h - Diagnostics serializer -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,11 +25,11 @@ class DiagnosticOptions;
 
 namespace serialized_diags {
 
-/// \brief Returns a DiagnosticConsumer that serializes diagnostics to
+/// Returns a DiagnosticConsumer that serializes diagnostics to
 ///  a bitcode file.
 ///
 /// The created DiagnosticConsumer is designed for quick and lightweight
-/// transfer of of diagnostics to the enclosing build system (e.g., an IDE).
+/// transfer of diagnostics to the enclosing build system (e.g., an IDE).
 /// This allows wrapper tools for Clang to get diagnostics from Clang
 /// (via libclang) without needing to parse Clang's command line output.
 ///
