@@ -1750,6 +1750,8 @@ dev/extres/phy/phydev_if.m	optional ext_resources phy fdt
 dev/extres/phy/phynode_if.m	optional ext_resources phy fdt
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset fdt
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset fdt
+dev/extres/nvmem/nvmem.c	optional ext_resources nvmem fdt
+dev/extres/nvmem/nvmem_if.m	optional ext_resources nvmem fdt
 dev/extres/regulator/regdev_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regnode_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regulator.c	optional ext_resources regulator fdt
