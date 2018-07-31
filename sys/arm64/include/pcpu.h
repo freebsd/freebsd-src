@@ -36,7 +36,7 @@
 #define	ALT_STACK_SIZE	128
 
 typedef int (*pcpu_bp_harden)(void);
-typedef int (*pcpu_ssbd)(bool);
+typedef int (*pcpu_ssbd)(int);
 
 #define	PCPU_MD_FIELDS							\
 	u_int	pc_acpi_id;	/* ACPI CPU id */		\
