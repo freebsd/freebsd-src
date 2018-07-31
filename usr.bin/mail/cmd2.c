@@ -130,9 +130,8 @@ hitit:
  * so we can discard when the user quits.
  */
 int
-save(void *v)
+save(char str[])
 {
-	char *str = v;
 
 	return (save1(str, 1, "save", saveignore));
 }
@@ -141,9 +140,8 @@ save(void *v)
  * Copy a message to a file without affected its saved-ness
  */
 int
-copycmd(void *v)
+copycmd(char str[])
 {
-	char *str = v;
 
 	return (save1(str, 0, "copy", saveignore));
 }
