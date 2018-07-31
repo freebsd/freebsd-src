@@ -108,6 +108,7 @@ uint64_t *zopt_object = NULL;
 static unsigned zopt_objects = 0;
 libzfs_handle_t *g_zfs;
 uint64_t max_inflight = 1000;
+static int leaked_objects = 0;
 
 static void snprintf_blkptr_compact(char *, size_t, const blkptr_t *);
 
@@ -1963,9 +1964,12 @@ dump_znode(objset_t *os, uint64_t object, void *data, size_t size)
 
 	if (dump_opt['d'] > 4) {
 		error = zfs_obj_to_path(os, object, path, sizeof (path));
-		if (error != 0) {
+		if (error == ESTALE) {
+			(void) snprintf(path, sizeof (path), "on delete queue");
+		} else if (error != 0) {
+			leaked_objects++;
 			(void) snprintf(path, sizeof (path),
-			    "\?\?\?<object#%llu>", (u_longlong_t)object);
+			    "path not found, possibly leaked");
 		}
 		(void) printf("\tpath	%s\n", path);
 	}
@@ -2294,6 +2298,11 @@ dump_dir(objset_t *os)
 	if (error != ESRCH) {
 		(void) fprintf(stderr, "dmu_object_next() = %d\n", error);
 		abort();
+	}
+	if (leaked_objects != 0) {
+		(void) printf("%d potentially leaked objects detected\n",
+		    leaked_objects);
+		leaked_objects = 0;
 	}
 }
 
@@ -5364,5 +5373,5 @@ main(int argc, char **argv)
 	libzfs_fini(g_zfs);
 	kernel_fini();
 
-	return (0);
+	return (error);
 }
