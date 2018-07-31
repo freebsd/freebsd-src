@@ -79,7 +79,7 @@ dosh(char *str __unused)
 
 	if ((sh = value("SHELL")) == NULL)
 		sh = _PATH_CSHELL;
-	(void)run_command(sh, 0, -1, -1, NULL);
+	(void)run_command(sh, 0, -1, -1, NULL, NULL, NULL);
 	(void)signal(SIGINT, sigint);
 	printf("\n");
 	return (0);
@@ -102,7 +102,7 @@ bangexp(char *str, size_t strsize)
 	n = sizeof(bangbuf);
 	while (*cp != '\0') {
 		if (*cp == '!') {
-			if (n < (int)strlen(lastbang)) {
+			if (n < strlen(lastbang)) {
 overf:
 				printf("Command buffer overflow\n");
 				return (-1);
