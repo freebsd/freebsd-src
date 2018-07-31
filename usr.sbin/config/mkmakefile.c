@@ -273,7 +273,7 @@ process_into_file(char *line, FILE *ofp)
 static void
 process_into_nvlist(char *line, nvlist_t *nvl)
 {
-	char result[BUFSIZ];
+	char result[BUFSIZ], *s;
 
 	if (preprocess(line, result)) {
 		s = strchr(result, '=');
