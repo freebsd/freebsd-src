@@ -1534,11 +1534,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* sched_rr_get_interval */
+	/* freebsd32_sched_rr_get_interval */
 	case 334: {
-		struct sched_rr_get_interval_args *p = params;
+		struct freebsd32_sched_rr_get_interval_args *p = params;
 		iarg[0] = p->pid; /* pid_t */
-		uarg[1] = (intptr_t) p->interval; /* struct timespec * */
+		uarg[1] = (intptr_t) p->interval; /* struct timespec32 * */
 		*n_args = 2;
 		break;
 	}
@@ -5669,14 +5669,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sched_rr_get_interval */
+	/* freebsd32_sched_rr_get_interval */
 	case 334:
 		switch(ndx) {
 		case 0:
 			p = "pid_t";
 			break;
 		case 1:
-			p = "userland struct timespec *";
+			p = "userland struct timespec32 *";
 			break;
 		default:
 			break;
@@ -9658,7 +9658,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sched_rr_get_interval */
+	/* freebsd32_sched_rr_get_interval */
 	case 334:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
