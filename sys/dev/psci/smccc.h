@@ -69,7 +69,7 @@
 
 int32_t smccc_arch_features(uint32_t);
 int smccc_arch_workaround_1(void);
-int smccc_arch_workaround_2(bool);
+int smccc_arch_workaround_2(int);
 
 
 #endif /* _PSCI_SMCCC_H_ */

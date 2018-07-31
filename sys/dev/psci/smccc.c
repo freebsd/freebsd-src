@@ -93,10 +93,10 @@ smccc_arch_workaround_1(void)
 }
 
 int
-smccc_arch_workaround_2(bool enable)
+smccc_arch_workaround_2(int enable)
 {
 
 	KASSERT(smccc_version != SMCCC_VERSION_1_0,
 	    ("SMCCC arch workaround 2 called with an invalid SMCCC interface"));
-	return (psci_call(SMCCC_ARCH_WORKAROUND_2, enable ? 1 : 0, 0, 0));
+	return (psci_call(SMCCC_ARCH_WORKAROUND_2, enable, 0, 0));
 }
