@@ -56,6 +56,7 @@ DSRCS=		errno.d			\
 		tcp.d			\
 		socket.d		\
 		udp.d			\
+		udplite.d		\
 		unistd.d
 
 FILES=		${DSRCS}

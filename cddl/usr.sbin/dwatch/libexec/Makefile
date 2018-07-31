@@ -14,6 +14,7 @@ FILES=		chmod \
 		sendrecv \
 		tcp \
 		udp \
+		udplite \
 		vop_create \
 		vop_readdir \
 		vop_rename \
@@ -78,6 +79,8 @@ LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-state-change
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-status
 LINKS+=	${LIBEXECDIR}/dwatch/udp ${LIBEXECDIR}/dwatch/udp-receive
 LINKS+=	${LIBEXECDIR}/dwatch/udp ${LIBEXECDIR}/dwatch/udp-send
+LINKS+=	${LIBEXECDIR}/dwatch/udplite ${LIBEXECDIR}/dwatch/udplite-receive
+LINKS+=	${LIBEXECDIR}/dwatch/udplite ${LIBEXECDIR}/dwatch/udplite-send
 LINKS+=	${LIBEXECDIR}/dwatch/vop_create ${LIBEXECDIR}/dwatch/vop_lookup
 LINKS+=	${LIBEXECDIR}/dwatch/vop_create ${LIBEXECDIR}/dwatch/vop_mkdir
 LINKS+=	${LIBEXECDIR}/dwatch/vop_create ${LIBEXECDIR}/dwatch/vop_mknod
