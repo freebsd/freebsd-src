@@ -447,6 +447,47 @@ ATF_TC_BODY(truncated_rights, tc)
 	closesocketpair(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(copyout_rights_error);
+ATF_TC_BODY(copyout_rights_error, tc)
+{
+	struct iovec iovec;
+	struct msghdr msghdr;
+	char buf[16];
+	ssize_t len;
+	int fd[2], error, nfds, putfd;
+
+	atf_tc_expect_fail("PR 131876: "
+	    "FD leak when copyout of rights returns an error");
+
+	memset(buf, 0, sizeof(buf));
+	domainsocketpair(fd);
+	devnull(&putfd);
+	nfds = getnfds();
+
+	sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+
+	bzero(&msghdr, sizeof(msghdr));
+
+	iovec.iov_base = buf;
+	iovec.iov_len = sizeof(buf);
+	msghdr.msg_control = (char *)-1; /* trigger EFAULT */
+	msghdr.msg_controllen = CMSG_SPACE(sizeof(int));
+	msghdr.msg_iov = &iovec;
+	msghdr.msg_iovlen = 1;
+
+	len = recvmsg(fd[1], &msghdr, 0);
+	error = errno;
+	ATF_REQUIRE_MSG(len == -1, "recvmsg succeeded: %zd", len);
+	ATF_REQUIRE_MSG(errno == EFAULT, "expected EFAULT, got %d (%s)",
+	    error, strerror(errno));
+
+	/* Verify that no FDs were leaked. */
+	ATF_REQUIRE(getnfds() == nfds);
+
+	close(putfd);
+	closesocketpair(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -459,6 +500,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, devfs_orphan);
 	ATF_TP_ADD_TC(tp, rights_creds_payload);
 	ATF_TP_ADD_TC(tp, truncated_rights);
+	ATF_TP_ADD_TC(tp, copyout_rights_error);
 
 	return (atf_no_error());
 }
