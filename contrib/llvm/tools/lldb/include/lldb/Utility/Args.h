@@ -7,54 +7,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Command_h_
-#define liblldb_Command_h_
+#ifndef LLDB_UTILITY_ARGS_H
+#define LLDB_UTILITY_ARGS_H
 
-// C Includes
-// C++ Includes
-#include <list>
+#include "lldb/Utility/Environment.h"
+#include "lldb/lldb-private-types.h"
+#include "lldb/lldb-types.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include <string>
 #include <utility>
 #include <vector>
 
-// Other libraries and framework includes
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-// Project includes
-#include "lldb/Utility/Status.h"
-#include "lldb/lldb-private-types.h"
-#include "lldb/lldb-types.h"
-
 namespace lldb_private {
 
-struct Option;
-
-typedef std::vector<std::tuple<std::string, int, std::string>> OptionArgVector;
-typedef std::shared_ptr<OptionArgVector> OptionArgVectorSP;
-
-struct OptionArgElement {
-  enum { eUnrecognizedArg = -1, eBareDash = -2, eBareDoubleDash = -3 };
-
-  OptionArgElement(int defs_index, int pos, int arg_pos)
-      : opt_defs_index(defs_index), opt_pos(pos), opt_arg_pos(arg_pos) {}
-
-  int opt_defs_index;
-  int opt_pos;
-  int opt_arg_pos;
-};
-
-typedef std::vector<OptionArgElement> OptionElementVector;
-
 //----------------------------------------------------------------------
-/// @class Args Args.h "lldb/Interpreter/Args.h"
-/// @brief A command line argument class.
+/// @class Args Args.h "lldb/Utility/Args.h"
+/// A command line argument class.
 ///
-/// The Args class is designed to be fed a command line. The
-/// command line is copied into an internal buffer and then split up
-/// into arguments. Arguments are space delimited if there are no quotes
-/// (single, double, or backtick quotes) surrounding the argument. Spaces
-/// can be escaped using a \ character to avoid having to surround an
-/// argument that contains a space with quotes.
+/// The Args class is designed to be fed a command line. The command line is
+/// copied into an internal buffer and then split up into arguments. Arguments
+/// are space delimited if there are no quotes (single, double, or backtick
+/// quotes) surrounding the argument. Spaces can be escaped using a \
+/// character to avoid having to surround an argument that contains a space
+/// with quotes.
 //----------------------------------------------------------------------
 class Args {
 public:
@@ -72,6 +48,11 @@ public:
     llvm::StringRef ref;
     char quote;
     const char *c_str() const { return ptr.get(); }
+
+    //------------------------------------------------------------------
+    /// Returns true if this argument was quoted in any way.
+    //------------------------------------------------------------------
+    bool IsQuoted() const { return quote != '\0'; }
   };
 
   //------------------------------------------------------------------
@@ -95,6 +76,12 @@ public:
   //------------------------------------------------------------------
   ~Args();
 
+  explicit Args(const Environment &env) : Args() {
+    SetArguments(const_cast<const char **>(env.getEnvp().get()));
+  }
+
+  explicit operator Environment() const { return GetConstArgumentVector(); }
+
   //------------------------------------------------------------------
   /// Dump all entries to the stream \a s using label \a label_name.
   ///
@@ -113,18 +100,17 @@ public:
   //------------------------------------------------------------------
   /// Sets the command string contained by this object.
   ///
-  /// The command string will be copied and split up into arguments
-  /// that can be accessed via the accessor functions.
+  /// The command string will be copied and split up into arguments that can
+  /// be accessed via the accessor functions.
   ///
   /// @param[in] command
   ///     A command StringRef that will be copied and split up
   ///     into arguments.
   ///
   /// @see Args::GetArgumentCount() const
-  /// @see Args::GetArgumentAtIndex (size_t) const
-  /// @see Args::GetArgumentVector ()
-  /// @see Args::Shift ()
-  /// @see Args::Unshift (const char *)
+  /// @see Args::GetArgumentAtIndex (size_t) const @see
+  /// Args::GetArgumentVector () @see Args::Shift () @see Args::Unshift (const
+  /// char *)
   //------------------------------------------------------------------
   void SetCommandString(llvm::StringRef command);
 
@@ -142,8 +128,8 @@ public:
   bool empty() const { return GetArgumentCount() == 0; }
 
   //------------------------------------------------------------------
-  /// Gets the NULL terminated C string argument pointer for the
-  /// argument at index \a idx.
+  /// Gets the NULL terminated C string argument pointer for the argument at
+  /// index \a idx.
   ///
   /// @return
   ///     The NULL terminated C string argument pointer if \a idx is a
@@ -154,10 +140,10 @@ public:
   llvm::ArrayRef<ArgEntry> entries() const { return m_entries; }
   char GetArgumentQuoteCharAtIndex(size_t idx) const;
 
-  std::vector<ArgEntry>::const_iterator begin() const {
-    return m_entries.begin();
-  }
-  std::vector<ArgEntry>::const_iterator end() const { return m_entries.end(); }
+  using const_iterator = std::vector<ArgEntry>::const_iterator;
+
+  const_iterator begin() const { return m_entries.begin(); }
+  const_iterator end() const { return m_entries.end(); }
 
   size_t size() const { return GetArgumentCount(); }
   const ArgEntry &operator[](size_t n) const { return m_entries[n]; }
@@ -165,9 +151,9 @@ public:
   //------------------------------------------------------------------
   /// Gets the argument vector.
   ///
-  /// The value returned by this function can be used by any function
-  /// that takes and vector. The return value is just like \a argv
-  /// in the standard C entry point function:
+  /// The value returned by this function can be used by any function that
+  /// takes and vector. The return value is just like \a argv in the standard
+  /// C entry point function:
   ///     \code
   ///         int main (int argc, const char **argv);
   ///     \endcode
@@ -181,9 +167,9 @@ public:
   //------------------------------------------------------------------
   /// Gets the argument vector.
   ///
-  /// The value returned by this function can be used by any function
-  /// that takes and vector. The return value is just like \a argv
-  /// in the standard C entry point function:
+  /// The value returned by this function can be used by any function that
+  /// takes and vector. The return value is just like \a argv in the standard
+  /// C entry point function:
   ///     \code
   ///         int main (int argc, const char **argv);
   ///     \endcode
@@ -237,8 +223,8 @@ public:
                              char quote_char = '\0');
 
   //------------------------------------------------------------------
-  /// Replaces the argument value at index \a idx to \a arg_cstr
-  /// if \a idx is a valid argument index.
+  /// Replaces the argument value at index \a idx to \a arg_cstr if \a idx is
+  /// a valid argument index.
   ///
   /// @param[in] idx
   ///     The index of the argument that will have its value replaced.
@@ -263,11 +249,11 @@ public:
   void DeleteArgumentAtIndex(size_t idx);
 
   //------------------------------------------------------------------
-  /// Sets the argument vector value, optionally copying all
-  /// arguments into an internal buffer.
+  /// Sets the argument vector value, optionally copying all arguments into an
+  /// internal buffer.
   ///
-  /// Sets the arguments to match those found in \a argv. All argument
-  /// strings will be copied into an internal buffers.
+  /// Sets the arguments to match those found in \a argv. All argument strings
+  /// will be copied into an internal buffers.
   //
   //  FIXME: Handle the quote character somehow.
   //------------------------------------------------------------------
@@ -276,21 +262,20 @@ public:
   void SetArguments(const char **argv);
 
   //------------------------------------------------------------------
-  /// Shifts the first argument C string value of the array off the
-  /// argument array.
+  /// Shifts the first argument C string value of the array off the argument
+  /// array.
   ///
-  /// The string value will be freed, so a copy of the string should
-  /// be made by calling Args::GetArgumentAtIndex (size_t) const
-  /// first and copying the returned value before calling
-  /// Args::Shift().
+  /// The string value will be freed, so a copy of the string should be made
+  /// by calling Args::GetArgumentAtIndex (size_t) const first and copying the
+  /// returned value before calling Args::Shift().
   ///
   /// @see Args::GetArgumentAtIndex (size_t) const
   //------------------------------------------------------------------
   void Shift();
 
   //------------------------------------------------------------------
-  /// Inserts a class owned copy of \a arg_cstr at the beginning of
-  /// the argument vector.
+  /// Inserts a class owned copy of \a arg_cstr at the beginning of the
+  /// argument vector.
   ///
   /// A copy \a arg_cstr will be made.
   ///
@@ -301,44 +286,6 @@ public:
   ///     If the argument was originally quoted, put in the quote char here.
   //------------------------------------------------------------------
   void Unshift(llvm::StringRef arg_str, char quote_char = '\0');
-
-  //------------------------------------------------------------------
-  /// Parse the arguments in the contained arguments.
-  ///
-  /// The arguments that are consumed by the argument parsing process
-  /// will be removed from the argument vector. The arguments that
-  /// get processed start at the second argument. The first argument
-  /// is assumed to be the command and will not be touched.
-  ///
-  /// param[in] platform_sp
-  ///   The platform used for option validation.  This is necessary
-  ///   because an empty execution_context is not enough to get us
-  ///   to a reasonable platform.  If the platform isn't given,
-  ///   we'll try to get it from the execution context.  If we can't
-  ///   get it from the execution context, we'll skip validation.
-  ///
-  /// param[in] require_validation
-  ///   When true, it will fail option parsing if validation could
-  ///   not occur due to not having a platform.
-  ///
-  /// @see class Options
-  //------------------------------------------------------------------
-  Status ParseOptions(Options &options, ExecutionContext *execution_context,
-                      lldb::PlatformSP platform_sp, bool require_validation);
-
-  bool IsPositionalArgument(const char *arg);
-
-  // The following works almost identically to ParseOptions, except that no
-  // option is required to have arguments, and it builds up the
-  // option_arg_vector as it parses the options.
-
-  std::string ParseAliasOptions(Options &options, CommandReturnObject &result,
-                                OptionArgVector *option_arg_vector,
-                                llvm::StringRef raw_input_line);
-
-  void ParseArgsForCompletion(Options &options,
-                              OptionElementVector &option_element_vector,
-                              uint32_t cursor_index);
 
   //------------------------------------------------------------------
   // Clear the arguments.
@@ -376,38 +323,11 @@ public:
     return min <= sval64 && sval64 <= max;
   }
 
-  static lldb::addr_t StringToAddress(const ExecutionContext *exe_ctx,
-                                      llvm::StringRef s,
-                                      lldb::addr_t fail_value, Status *error);
-
-  static bool StringToBoolean(llvm::StringRef s, bool fail_value,
-                              bool *success_ptr);
-
-  static char StringToChar(llvm::StringRef s, char fail_value,
-                           bool *success_ptr);
-
-  static int64_t StringToOptionEnum(llvm::StringRef s,
-                                    OptionEnumValueElement *enum_values,
-                                    int32_t fail_value, Status &error);
-
-  static lldb::ScriptLanguage
-  StringToScriptLanguage(llvm::StringRef s, lldb::ScriptLanguage fail_value,
-                         bool *success_ptr);
-
-  // TODO: Use StringRef
-  static Status StringToFormat(const char *s, lldb::Format &format,
-                               size_t *byte_size_ptr); // If non-NULL, then a
-                                                       // byte size can precede
-                                                       // the format character
-
   static lldb::Encoding
   StringToEncoding(llvm::StringRef s,
                    lldb::Encoding fail_value = lldb::eEncodingInvalid);
 
   static uint32_t StringToGenericRegister(llvm::StringRef s);
-
-  static bool StringToVersion(llvm::StringRef string, uint32_t &major,
-                              uint32_t &minor, uint32_t &update);
 
   static const char *GetShellSafeArgument(const FileSpec &shell,
                                           const char *unsafe_arg,
@@ -423,58 +343,121 @@ public:
   static void EncodeEscapeSequences(const char *src, std::string &dst);
 
   // ExpandEscapeSequences will change a string of possibly non-printable
-  // characters and expand them into text. So '\n' will turn into two characters
-  // like "\n" which is suitable for human reading. When a character is not
-  // printable and isn't one of the common in escape sequences listed in the
-  // help for EncodeEscapeSequences, then it will be encoded as octal. Printable
-  // characters are left alone.
+  // characters and expand them into text. So '\n' will turn into two
+  // characters like "\n" which is suitable for human reading. When a character
+  // is not printable and isn't one of the common in escape sequences listed in
+  // the help for EncodeEscapeSequences, then it will be encoded as octal.
+  // Printable characters are left alone.
   static void ExpandEscapedCharacters(const char *src, std::string &dst);
 
   static std::string EscapeLLDBCommandArgument(const std::string &arg,
                                                char quote_char);
 
-  //------------------------------------------------------------------
-  /// Add or replace an environment variable with the given value.
-  ///
-  /// This command adds the environment variable if it is not already
-  /// present using the given value.  If the environment variable is
-  /// already in the list, it replaces the first such occurrence
-  /// with the new value.
-  //------------------------------------------------------------------
-  void AddOrReplaceEnvironmentVariable(llvm::StringRef env_var_name,
-                                       llvm::StringRef new_value);
-
-  /// Return whether a given environment variable exists.
-  ///
-  /// This command treats Args like a list of environment variables,
-  /// as used in ProcessLaunchInfo.  It treats each argument as
-  /// an {env_var_name}={value} or an {env_var_name} entry.
-  ///
-  /// @param[in] env_var_name
-  ///     Specifies the name of the environment variable to check.
-  ///
-  /// @param[out] argument_index
-  ///     If non-null, then when the environment variable is found,
-  ///     the index of the argument position will be returned in
-  ///     the size_t pointed to by this argument.
-  ///
-  /// @return
-  ///     true if the specified env var name exists in the list in
-  ///     either of the above-mentioned formats; otherwise, false.
-  //------------------------------------------------------------------
-  bool ContainsEnvironmentVariable(llvm::StringRef env_var_name,
-                                   size_t *argument_index = nullptr) const;
-
 private:
-  size_t FindArgumentIndexForOption(Option *long_options,
-                                    int long_options_index) const;
-
   std::vector<ArgEntry> m_entries;
   std::vector<char *> m_argv;
+};
 
-  void UpdateArgsAfterOptionParsing();
+//----------------------------------------------------------------------
+/// @class OptionsWithRaw Args.h "lldb/Utility/Args.h"
+/// A pair of an option list with a 'raw' string as a suffix.
+///
+/// This class works similar to Args, but handles the case where we have a
+/// trailing string that shouldn't be interpreted as a list of arguments but
+/// preserved as is. It is also only useful for handling command line options
+/// (e.g. '-foo bar -i0') that start with a dash.
+///
+/// The leading option list is optional. If the first non-space character
+/// in the string starts with a dash, and the string contains an argument
+/// that is an unquoted double dash (' -- '), then everything up to the double
+/// dash is parsed as a list of arguments. Everything after the double dash
+/// is interpreted as the raw suffix string. Note that the space behind the
+/// double dash is not part of the raw suffix.
+///
+/// All strings not matching the above format as considered to be just a raw
+/// string without any options.
+///
+/// @see Args
+//----------------------------------------------------------------------
+class OptionsWithRaw {
+public:
+  //------------------------------------------------------------------
+  /// Parse the given string as a list of optional arguments with a raw suffix.
+  ///
+  /// See the class description for a description of the input format.
+  ///
+  /// @param[in] argument_string
+  ///     The string that should be parsed.
+  //------------------------------------------------------------------
+  explicit OptionsWithRaw(llvm::StringRef argument_string);
+
+  //------------------------------------------------------------------
+  /// Returns true if there are any arguments before the raw suffix.
+  //------------------------------------------------------------------
+  bool HasArgs() const { return m_has_args; }
+
+  //------------------------------------------------------------------
+  /// Returns the list of arguments.
+  ///
+  /// You can only call this method if HasArgs returns true.
+  //------------------------------------------------------------------
+  Args &GetArgs() {
+    assert(m_has_args);
+    return m_args;
+  }
+
+  //------------------------------------------------------------------
+  /// Returns the list of arguments.
+  ///
+  /// You can only call this method if HasArgs returns true.
+  //------------------------------------------------------------------
+  const Args &GetArgs() const {
+    assert(m_has_args);
+    return m_args;
+  }
+
+  //------------------------------------------------------------------
+  /// Returns the part of the input string that was used for parsing the
+  /// argument list. This string also includes the double dash that is used
+  /// for separating the argument list from the suffix.
+  ///
+  /// You can only call this method if HasArgs returns true.
+  //------------------------------------------------------------------
+  llvm::StringRef GetArgStringWithDelimiter() const {
+    assert(m_has_args);
+    return m_arg_string_with_delimiter;
+  }
+
+  //------------------------------------------------------------------
+  /// Returns the part of the input string that was used for parsing the
+  /// argument list.
+  ///
+  /// You can only call this method if HasArgs returns true.
+  //------------------------------------------------------------------
+  llvm::StringRef GetArgString() const {
+    assert(m_has_args);
+    return m_arg_string;
+  }
+
+  //------------------------------------------------------------------
+  /// Returns the raw suffix part of the parsed string.
+  //------------------------------------------------------------------
+  const std::string &GetRawPart() const { return m_suffix; }
+
+private:
+  void SetFromString(llvm::StringRef arg_string);
+
+  /// Keeps track if we have parsed and stored any arguments.
+  bool m_has_args = false;
+  Args m_args;
+  llvm::StringRef m_arg_string;
+  llvm::StringRef m_arg_string_with_delimiter;
+
+  // FIXME: This should be a StringRef, but some of the calling code expect a
+  // C string here so only a real std::string is possible.
+  std::string m_suffix;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_Command_h_
+#endif // LLDB_UTILITY_ARGS_H
