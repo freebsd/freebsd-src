@@ -1398,6 +1398,7 @@ ZFS_COMMON_OBJS +=		\
 	vdev.o			\
 	vdev_cache.o		\
 	vdev_file.o		\
+	vdev_initialize.o	\
 	vdev_label.o		\
 	vdev_mirror.o		\
 	vdev_missing.o		\
