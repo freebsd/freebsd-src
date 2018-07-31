@@ -902,7 +902,10 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct tcpcb *tp = NULL;
 	struct epoch_tracker net_et;
 #ifdef INET
-	struct sockaddr_in sin, *sinp;
+#ifdef INET6
+	struct sockaddr_in sin;
+#endif
+	struct sockaddr_in *sinp;
 #endif
 #ifdef INET6
 	int isipv6;
