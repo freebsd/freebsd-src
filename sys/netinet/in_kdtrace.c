@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(ip);
 SDT_PROVIDER_DEFINE(tcp);
 SDT_PROVIDER_DEFINE(udp);
+SDT_PROVIDER_DEFINE(udplite);
 
 SDT_PROBE_DEFINE6_XLATE(ip, , , receive,
     "void *", "pktinfo_t *",
@@ -155,3 +156,17 @@ SDT_PROBE_DEFINE5_XLATE(udp, , , send,
     "uint8_t *", "ipinfo_t *",
     "struct inpcb *", "udpsinfo_t *",
     "struct udphdr *", "udpinfo_t *");
+
+SDT_PROBE_DEFINE5_XLATE(udplite, , , receive,
+    "void *", "pktinfo_t *",
+    "struct inpcb *", "csinfo_t *",
+    "uint8_t *", "ipinfo_t *",
+    "struct inpcb *", "udplitesinfo_t *",
+    "struct udphdr *", "udpliteinfo_t *");
+
+SDT_PROBE_DEFINE5_XLATE(udplite, , , send,
+    "void *", "pktinfo_t *",
+    "struct inpcb *", "csinfo_t *",
+    "uint8_t *", "ipinfo_t *",
+    "struct inpcb *", "udplitesinfo_t *",
+    "struct udphdr *", "udpliteinfo_t *");
