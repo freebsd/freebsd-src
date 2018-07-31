@@ -56,6 +56,7 @@ SRCS_MIN+=	AST/CommentCommandTraits.cpp
 SRCS_MIN+=	AST/CommentLexer.cpp
 SRCS_MIN+=	AST/CommentParser.cpp
 SRCS_MIN+=	AST/CommentSema.cpp
+SRCS_MIN+=	AST/ComparisonCategories.cpp
 SRCS_FUL+=	AST/DataCollection.cpp
 SRCS_MIN+=	AST/Decl.cpp
 SRCS_MIN+=	AST/DeclBase.cpp
@@ -121,6 +122,7 @@ SRCS_MIN+=	Analysis/CloneDetection.cpp
 SRCS_MIN+=	Analysis/CocoaConventions.cpp
 SRCS_FUL+=	Analysis/CodeInjector.cpp
 SRCS_MIN+=	Analysis/Consumed.cpp
+SRCS_MIN+=	Analysis/ConstructionContext.cpp
 SRCS_FUL+=	Analysis/Dominators.cpp
 SRCS_MIN+=	Analysis/FormatString.cpp
 SRCS_MIN+=	Analysis/LiveVariables.cpp
@@ -175,6 +177,7 @@ SRCS_MIN+=	Basic/Targets/Nios2.cpp
 SRCS_MIN+=	Basic/Targets/OSTargets.cpp
 SRCS_MIN+=	Basic/Targets/PNaCl.cpp
 SRCS_MIN+=	Basic/Targets/PPC.cpp
+SRCS_MIN+=	Basic/Targets/RISCV.cpp
 SRCS_MIN+=	Basic/Targets/SPIR.cpp
 SRCS_MIN+=	Basic/Targets/Sparc.cpp
 SRCS_MIN+=	Basic/Targets/SystemZ.cpp
@@ -186,6 +189,7 @@ SRCS_MIN+=	Basic/TokenKinds.cpp
 SRCS_MIN+=	Basic/Version.cpp
 SRCS_MIN+=	Basic/VirtualFileSystem.cpp
 SRCS_MIN+=	Basic/Warnings.cpp
+SRCS_MIN+=	Basic/XRayInstr.cpp
 SRCS_MIN+=	Basic/XRayLists.cpp
 SRCS_MIN+=	CodeGen/BackendUtil.cpp
 SRCS_MIN+=	CodeGen/CGAtomic.cpp
@@ -211,6 +215,7 @@ SRCS_MIN+=	CodeGen/CGExprConstant.cpp
 SRCS_MIN+=	CodeGen/CGExprScalar.cpp
 SRCS_MIN+=	CodeGen/CGGPUBuiltin.cpp
 SRCS_MIN+=	CodeGen/CGLoopInfo.cpp
+SRCS_MIN+=	CodeGen/CGNonTrivialStruct.cpp
 SRCS_MIN+=	CodeGen/CGObjC.cpp
 SRCS_MIN+=	CodeGen/CGObjCGNU.cpp
 SRCS_MIN+=	CodeGen/CGObjCMac.cpp
@@ -259,6 +264,7 @@ SRCS_MIN+=	Driver/ToolChains/Arch/AArch64.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/ARM.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/Mips.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/PPC.cpp
+SRCS_MIN+=	Driver/ToolChains/Arch/RISCV.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/Sparc.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/SystemZ.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/X86.cpp
@@ -274,6 +280,7 @@ SRCS_MIN+=	Driver/ToolChains/DragonFly.cpp
 SRCS_MIN+=	Driver/ToolChains/FreeBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/Fuchsia.cpp
 SRCS_MIN+=	Driver/ToolChains/Gnu.cpp
+SRCS_MIN+=	Driver/ToolChains/HIP.cpp
 SRCS_MIN+=	Driver/ToolChains/Haiku.cpp
 SRCS_MIN+=	Driver/ToolChains/Hexagon.cpp
 SRCS_MIN+=	Driver/ToolChains/Linux.cpp
@@ -325,6 +332,7 @@ SRCS_MIN+=	Frontend/DiagnosticRenderer.cpp
 SRCS_MIN+=	Frontend/FrontendAction.cpp
 SRCS_MIN+=	Frontend/FrontendActions.cpp
 SRCS_MIN+=	Frontend/FrontendOptions.cpp
+SRCS_MIN+=	Frontend/FrontendTiming.cpp
 SRCS_MIN+=	Frontend/HeaderIncludeGen.cpp
 SRCS_MIN+=	Frontend/InitHeaderSearch.cpp
 SRCS_MIN+=	Frontend/InitPreprocessor.cpp
@@ -410,6 +418,7 @@ SRCS_MIN+=	Sema/DelayedDiagnostic.cpp
 SRCS_MIN+=	Sema/IdentifierResolver.cpp
 SRCS_MIN+=	Sema/JumpDiagnostics.cpp
 SRCS_MIN+=	Sema/MultiplexExternalSemaSource.cpp
+SRCS_MIN+=	Sema/ParsedAttr.cpp
 SRCS_MIN+=	Sema/Scope.cpp
 SRCS_MIN+=	Sema/ScopeInfo.cpp
 SRCS_MIN+=	Sema/Sema.cpp
@@ -749,10 +758,16 @@ clang/Basic/DiagnosticIndexName.inc: \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 TGHDRS+=	clang/Basic/DiagnosticIndexName.inc
 
+clang/Basic/arm_fp16.inc: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+	${CLANG_TBLGEN} -gen-arm-neon-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+TGHDRS+=	clang/Basic/arm_fp16.inc
+
 clang/Basic/arm_neon.inc: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 	${CLANG_TBLGEN} -gen-arm-neon-sema \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 TGHDRS+=	clang/Basic/arm_neon.inc
 
 clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
@@ -822,7 +837,8 @@ TGHDRS+=	clang/Serialization/AttrPCHWrite.inc
 clang/StaticAnalyzer/Checkers/Checkers.inc: \
 	${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
 	${CLANG_TBLGEN} -gen-clang-sa-checkers \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
 TGHDRS+=	clang/StaticAnalyzer/Checkers/Checkers.inc
 
