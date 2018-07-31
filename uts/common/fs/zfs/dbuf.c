@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
@@ -989,22 +989,26 @@ dbuf_read_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 	ASSERT(refcount_count(&db->db_holds) > 0);
 	ASSERT(db->db_buf == NULL);
 	ASSERT(db->db.db_data == NULL);
-	if (db->db_level == 0 && db->db_freed_in_flight) {
-		/* we were freed in flight; disregard any error */
+	if (buf == NULL) {
+		/* i/o error */
+		ASSERT(zio == NULL || zio->io_error != 0);
+		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+		ASSERT3P(db->db_buf, ==, NULL);
+		db->db_state = DB_UNCACHED;
+	} else if (db->db_level == 0 && db->db_freed_in_flight) {
+		/* freed in flight */
+		ASSERT(zio == NULL || zio->io_error == 0);
 		arc_release(buf, db);
 		bzero(buf->b_data, db->db.db_size);
 		arc_buf_freeze(buf);
 		db->db_freed_in_flight = FALSE;
 		dbuf_set_data(db, buf);
 		db->db_state = DB_CACHED;
-	} else if (zio == NULL || zio->io_error == 0) {
+	} else {
+		/* success */
+		ASSERT(zio == NULL || zio->io_error == 0);
 		dbuf_set_data(db, buf);
 		db->db_state = DB_CACHED;
-	} else {
-		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
-		ASSERT3P(db->db_buf, ==, NULL);
-		arc_buf_destroy(buf, db);
-		db->db_state = DB_UNCACHED;
 	}
 	cv_broadcast(&db->db_changed);
 	dbuf_rele_and_unlock(db, NULL);
@@ -2417,6 +2421,13 @@ dbuf_prefetch_indirect_done(zio_t *zio, arc_buf_t *abuf, void *private)
 	ASSERT3S(dpa->dpa_zb.zb_level, <, dpa->dpa_curlevel);
 	ASSERT3S(dpa->dpa_curlevel, >, 0);
 
+	if (abuf == NULL) {
+		ASSERT(zio == NULL || zio->io_error != 0);
+		kmem_free(dpa, sizeof (*dpa));
+		return;
+	}
+	ASSERT(zio == NULL || zio->io_error == 0);
+
 	/*
 	 * The dpa_dnode is only valid if we are called with a NULL
 	 * zio. This indicates that the arc_read() returned without
@@ -2455,7 +2466,7 @@ dbuf_prefetch_indirect_done(zio_t *zio, arc_buf_t *abuf, void *private)
 	    (dpa->dpa_epbs * (dpa->dpa_curlevel - dpa->dpa_zb.zb_level));
 	blkptr_t *bp = ((blkptr_t *)abuf->b_data) +
 	    P2PHASE(nextblkid, 1ULL << dpa->dpa_epbs);
-	if (BP_IS_HOLE(bp) || (zio != NULL && zio->io_error != 0)) {
+	if (BP_IS_HOLE(bp)) {
 		kmem_free(dpa, sizeof (*dpa));
 	} else if (dpa->dpa_curlevel == dpa->dpa_zb.zb_level) {
 		ASSERT3U(nextblkid, ==, dpa->dpa_zb.zb_blkid);
