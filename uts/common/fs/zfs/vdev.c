@@ -96,6 +96,8 @@ int vdev_dtl_sm_blksz = (1 << 12);
  */
 int vdev_standard_sm_blksz = (1 << 17);
 
+int zfs_ashift_min;
+
 /*PRINTFLIKE2*/
 void
 vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
@@ -1511,6 +1513,7 @@ vdev_open(vdev_t *vd)
 		vd->vdev_asize = asize;
 		vd->vdev_max_asize = max_asize;
 		vd->vdev_ashift = MAX(ashift, vd->vdev_ashift);
+		vd->vdev_ashift = MAX(zfs_ashift_min, vd->vdev_ashift);
 	} else {
 		/*
 		 * Detect if the alignment requirement has increased.
