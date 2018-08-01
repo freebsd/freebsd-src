@@ -837,7 +837,7 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 	fp->off = cookie = ((uint64_t)ntohl(rent->nameplus[pos]) << 32) |
 	    ntohl(rent->nameplus[pos + 1]);
 	pos += 2;
-	buf = (u_char *)&rent->nameplus[pos];
+	buf = (char *)&rent->nameplus[pos];
 	return (0);
 
 err:
