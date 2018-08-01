@@ -3645,3 +3645,19 @@ pmap_change_attr(vm_offset_t sva, vm_size_t size, vm_memattr_t ma)
 	mips_dcache_wbinv_range(ova, size);
 	return 0;
 }
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	switch (mode) {
+	case VM_MEMATTR_UNCACHEABLE:
+	case VM_MEMATTR_WRITE_BACK:
+#ifdef MIPS_CCA_WC
+	case VM_MEMATTR_WRITE_COMBINING:
+#endif
+		return (TRUE);
+	default:
+		return (FALSE);
+	}
+}
