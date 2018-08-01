@@ -2478,10 +2478,8 @@ device		smb
 # SMBus peripheral devices
 #
 # jedec_dimm	Asset and temperature reporting for DDR3 and DDR4 DIMMs
-# jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
 #
 device		jedec_dimm
-device		jedec_ts
 
 # I2C Bus
 #
