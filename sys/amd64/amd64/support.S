@@ -330,7 +330,7 @@ copyout_fault:
 	movq	$EFAULT,%rax
 	POP_FRAME_POINTER
 	ret
-END(copyout)
+END(copyout_smap)
 
 /*
  * copyin(from_user, to_kernel, len)
@@ -573,7 +573,7 @@ ENTRY(fueword_nosmap)
 	movq	%r11,(%rsi)
 	POP_FRAME_POINTER
 	ret
-END(fueword64_nosmap)
+END(fueword_nosmap)
 
 ENTRY(fueword_smap)
 	PUSH_FRAME_POINTER
@@ -592,7 +592,7 @@ ENTRY(fueword_smap)
 	movq	%r11,(%rsi)
 	POP_FRAME_POINTER
 	ret
-END(fueword64_smap)
+END(fueword_smap)
 
 ENTRY(fueword32_nosmap)
 	PUSH_FRAME_POINTER
