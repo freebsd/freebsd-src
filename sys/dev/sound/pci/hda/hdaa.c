@@ -1750,7 +1750,8 @@ hdaa_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 	hdaa_unlock(devinfo);
 
 	if (sndbuf_alloc(ch->b, bus_get_dma_tag(devinfo->dev),
-	    hda_get_dma_nocache(devinfo->dev) ? BUS_DMA_NOCACHE : 0,
+	    hda_get_dma_nocache(devinfo->dev) ? BUS_DMA_NOCACHE :
+	    BUS_DMA_COHERENT,
 	    pdevinfo->chan_size) != 0)
 		return (NULL);
 

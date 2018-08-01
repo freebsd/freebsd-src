@@ -580,7 +580,8 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	 */
 	result = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO |
-	    ((sc->flags & HDAC_F_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
+	    ((sc->flags & HDAC_F_DMA_NOCACHE) ? BUS_DMA_NOCACHE :
+	     BUS_DMA_COHERENT),
 	    &dma->dma_map);
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%d)\n",
@@ -627,11 +628,9 @@ static void
 hdac_dma_free(struct hdac_softc *sc, struct hdac_dma *dma)
 {
 	if (dma->dma_paddr != 0) {
-#if 0
 		/* Flush caches */
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-#endif
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 		dma->dma_paddr = 0;
 	}
@@ -854,7 +853,6 @@ hdac_rirb_init(struct hdac_softc *sc)
 	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, HDAC_RIRBCTL_RINTCTL);
 #endif
 
-#if 0
 	/*
 	 * Make sure that the Host CPU cache doesn't contain any dirty
 	 * cache lines that falls in the rirb. If I understood correctly, it
@@ -863,7 +861,6 @@ hdac_rirb_init(struct hdac_softc *sc)
 	 */
 	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
 	    BUS_DMASYNC_PREREAD);
-#endif
 }
 
 /****************************************************************************
@@ -907,10 +904,8 @@ hdac_rirb_flush(struct hdac_softc *sc)
 
 	rirb_base = (struct hdac_rirb *)sc->rirb_dma.dma_vaddr;
 	rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
-#if 0
 	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
-#endif
 
 	ret = 0;
 	while (sc->rirb_rp != rirbwp) {
@@ -934,6 +929,9 @@ hdac_rirb_flush(struct hdac_softc *sc)
 		}
 		ret++;
 	}
+
+	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
+	    BUS_DMASYNC_PREREAD);
 	return (ret);
 }
 
@@ -983,15 +981,11 @@ hdac_send_command(struct hdac_softc *sc, nid_t cad, uint32_t verb)
 	sc->corb_wp++;
 	sc->corb_wp %= sc->corb_size;
 	corb = (uint32_t *)sc->corb_dma.dma_vaddr;
-#if 0
 	bus_dmamap_sync(sc->corb_dma.dma_tag,
 	    sc->corb_dma.dma_map, BUS_DMASYNC_PREWRITE);
-#endif
 	corb[sc->corb_wp] = htole32(verb);
-#if 0
 	bus_dmamap_sync(sc->corb_dma.dma_tag,
 	    sc->corb_dma.dma_map, BUS_DMASYNC_POSTWRITE);
-#endif
 	HDAC_WRITE_2(&sc->mem, HDAC_CORBWP, sc->corb_wp);
 
 	timeout = 10000;
@@ -1937,6 +1931,9 @@ hdac_stream_start(device_t dev, device_t child,
 		addr += blksz;
 	}
 
+	bus_dmamap_sync(sc->streams[ss].bdl.dma_tag,
+	    sc->streams[ss].bdl.dma_map, BUS_DMASYNC_PREWRITE);
+
 	off = ss << 5;
 	HDAC_WRITE_4(&sc->mem, off + HDAC_SDCBL, blksz * blkcnt);
 	HDAC_WRITE_2(&sc->mem, off + HDAC_SDLVI, blkcnt - 1);
@@ -1984,6 +1981,9 @@ hdac_stream_stop(device_t dev, device_t child, int dir, int stream)
 	ss = hdac_find_stream(sc, dir, stream);
 	KASSERT(ss >= 0,
 	    ("Stop for not allocated stream (%d/%d)\n", dir, stream));
+
+	bus_dmamap_sync(sc->streams[ss].bdl.dma_tag,
+	    sc->streams[ss].bdl.dma_map, BUS_DMASYNC_POSTWRITE);
 
 	off = ss << 5;
 	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
