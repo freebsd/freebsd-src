@@ -164,7 +164,6 @@ static char *gz_args[] = { NULL, f_arg, NULL, NULL };
 #define xz_args gz_args
 static char *zstd_args[] = { NULL, q_arg, rm_arg, NULL, NULL };
 
-#define ARGS_NUM 5
 static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "", NULL, 0},
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP, gz_args, nitems(gz_args) },
