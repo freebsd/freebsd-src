@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2018
+.Dd July 31, 2018
 .Dt JEDEC_DIMM 4
 .Os
 .Sh NAME
@@ -164,7 +164,7 @@ dev.jedec_dimm.6.type: DDR4
 .Ed
 .Sh COMPATIBILITY
 .Nm
-implements a superset of the functionality of
+implements a superset of the functionality of the now-deleted
 .Xr jedec_ts 4 .
 Hints for
 .Xr jedec_ts 4
@@ -199,7 +199,6 @@ sed -i ".old" -e 's/jedec_ts/jedec_dimm/' \\
 .Sh SEE ALSO
 .Xr iicbus 4 ,
 .Xr iicsmb 4 ,
-.Xr jedec_ts 4 ,
 .Xr smbus 4 ,
 .Xr sysctl 8
 .Sh STANDARDS
@@ -237,7 +236,7 @@ The
 .Nm
 driver and this manual page were written by
 .An Ravi Pokala Aq Mt rpokala@freebsd.org .
-They are both based in part on the
+They are both based in part on the now-deleted
 .Xr jedec_ts 4
 driver and manual page, written by
 .An Andriy Gapon Aq Mt avg@FreeBSD.org .
