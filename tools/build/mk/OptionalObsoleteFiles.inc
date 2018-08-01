@@ -1490,6 +1490,7 @@ OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-lto
 OLD_FILES+=usr/bin/llvm-lto2
 OLD_FILES+=usr/bin/llvm-mc
+OLD_FILES+=usr/bin/llvm-mca
 OLD_FILES+=usr/bin/llvm-modextract
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objcopy

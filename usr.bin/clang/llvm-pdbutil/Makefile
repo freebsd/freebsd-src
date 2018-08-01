@@ -6,6 +6,7 @@ SRCDIR=		tools/llvm-pdbutil
 SRCS+=		Analyze.cpp
 SRCS+=		BytesOutputStyle.cpp
 SRCS+=		DumpOutputStyle.cpp
+SRCS+=		ExplainOutputStyle.cpp
 SRCS+=		FormatUtil.cpp
 SRCS+=		InputFile.cpp
 SRCS+=		LinePrinter.cpp
