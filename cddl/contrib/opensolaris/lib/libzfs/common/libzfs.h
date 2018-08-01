@@ -843,6 +843,17 @@ extern int zmount(const char *, const char *, int, char *, char *, int, char *,
 #endif
 extern int zfs_remap_indirects(libzfs_handle_t *hdl, const char *);
 
+/* Allow consumers to initialize libshare externally for optimal performance */
+extern int zfs_init_libshare_arg(libzfs_handle_t *, int, void *);
+/*
+ * For most consumers, zfs_init_libshare_arg is sufficient on its own, and
+ * zfs_uninit_libshare is unnecessary. zfs_uninit_libshare should only be called
+ * if the caller has already initialized libshare for one set of zfs handles,
+ * and wishes to share or unshare filesystems outside of that set. In that case,
+ * the caller should uninitialize libshare, and then re-initialize it with the
+ * new handles being shared or unshared.
+ */
+extern void zfs_uninit_libshare(libzfs_handle_t *);
 #ifdef	__cplusplus
 }
 #endif
