@@ -130,7 +130,8 @@ cp_slow0(vm_offset_t uva, size_t len, bool write,
 	}
 	for (i = 0, pte = vtopte(kaddr); i < plen; i++, pte++) {
 		*pte = PG_V | PG_RW | PG_A | PG_M | VM_PAGE_TO_PHYS(m[i]) |
-		    pmap_cache_bits(pmap_page_get_memattr(m[i]), FALSE);
+		    pmap_cache_bits(kernel_pmap, pmap_page_get_memattr(m[i]),
+		    FALSE);
 		invlpg(kaddr + ptoa(i));
 	}
 	kaddr += uva - trunc_page(uva);

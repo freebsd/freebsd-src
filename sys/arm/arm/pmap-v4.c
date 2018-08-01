@@ -4859,4 +4859,9 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 		panic("Can't change memattr on page with existing mappings");
 }
 
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
 
+	return (mode == VM_MEMATTR_DEFAULT || mode == VM_MEMATTR_UNCACHEABLE);
+}
