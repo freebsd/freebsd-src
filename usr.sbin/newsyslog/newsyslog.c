@@ -153,23 +153,24 @@ struct compress_types {
 	const char *suffix;	/* Compression suffix */
 	const char *path;	/* Path to compression program */
 	char **args;		/* Compression program arguments */
+	int nargs;		/* Program argument count */
 };
 
 static char f_arg[] = "-f";
 static char q_arg[] = "-q";
 static char rm_arg[] = "--rm";
-static char *gz_args[] ={ NULL, f_arg, NULL, NULL };
-#define bzip2_args gz_args
+static char *gz_args[] = { NULL, f_arg, NULL, NULL };
+#define bz2_args gz_args
 #define xz_args gz_args
 static char *zstd_args[] = { NULL, q_arg, rm_arg, NULL, NULL };
 
-#define ARGS_NUM 4
+#define ARGS_NUM 5
 static const struct compress_types compress_type[COMPRESS_TYPES] = {
-	{ "", "", "", NULL},					/* none */
-	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP, gz_args},	/* gzip */
-	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2, bzip2_args},	/* bzip2 */
-	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ, xz_args },		/* xz */
-	{ "Y", COMPRESS_SUFFIX_ZST, _PATH_ZSTD, zstd_args }	/* zst */
+	{ "", "", "", NULL, 0},
+	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP, gz_args, nitems(gz_args) },
+	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2, bz2_args, nitems(bz2_args) },
+	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ, xz_args, nitems(xz_args) },
+	{ "Y", COMPRESS_SUFFIX_ZST, _PATH_ZSTD, zstd_args, nitems(zstd_args) }
 };
 
 struct conf_entry {
@@ -2027,23 +2028,24 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	char command[BUFSIZ];
 	char **args;
-	int c, i;
+	int c, i, nargs;
 
 	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	args = calloc(ARGS_NUM, sizeof(*args));
-	if (args == NULL)
-		err(1, "calloc()");
 	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {
+				nargs = compress_type[c].nargs;
+				args = calloc(nargs, sizeof(*args));
+				if (args == NULL)
+					err(1, "calloc()");
 				pgm_path = compress_type[c].path;
 				(void) strlcat(zresult,
 				    compress_type[c].suffix, sizeof(zresult));
 				/* the first argument is always NULL, skip it */
-				for (i = 1; i < ARGS_NUM; i++) {
+				for (i = 1; i < nargs; i++) {
 					if (compress_type[c].args[i] == NULL)
 						break;
 					args[i] = compress_type[c].args[i];
