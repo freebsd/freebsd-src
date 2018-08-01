@@ -165,14 +165,15 @@ sendfd(int sockfd, int send_fd)
 {
 	char ch = 0;
 
-	return (sendfd_payload(sockfd, send_fd, &ch, sizeof(ch)));
+	sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
 }
 
 static void
 recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 {
 	struct cmsghdr *cmsghdr;
-	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + sizeof(int)];
+	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
+	    CMSG_SPACE(sizeof(int))];
 	struct msghdr msghdr;
 	struct iovec iovec;
 	ssize_t len;
@@ -214,7 +215,7 @@ recvfd(int sockfd, int *recv_fd)
 {
 	char ch = 0;
 
-	return (recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch)));
+	recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch));
 }
 
 /*
