@@ -100,10 +100,9 @@ MODULE_VERSION(linux, 1);
 #endif
 
 /*
- * Allow the sendsig functions to use the ldebug() facility
- * even though they are not syscalls themselves. Map them
- * to syscall 0. This is slightly less bogus than using
- * ldebug(sigreturn).
+ * Allow the sendsig functions to use the ldebug() facility even though they
+ * are not syscalls themselves.  Map them to syscall 0.  This is slightly less
+ * bogus than using ldebug(sigreturn).
  */
 #define	LINUX32_SYS_linux_rt_sendsig	0
 #define	LINUX32_SYS_linux_sendsig	0
@@ -310,9 +309,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		printf(ARGS(rt_sendsig, "%p, %d, %p, %u"),
 		    catcher, sig, (void*)mask, code);
 #endif
-	/*
-	 * Allocate space for the signal handler context.
-	 */
+	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct l_rt_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
@@ -321,9 +318,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		fp = (struct l_rt_sigframe *)regs->tf_rsp - 1;
 	mtx_unlock(&psp->ps_mtx);
 
-	/*
-	 * Build the argument list for the signal handler.
-	 */
+	/* Build the argument list for the signal handler. */
 	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
@@ -333,12 +328,11 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_siginfo = PTROUT(&fp->sf_si);
 	frame.sf_ucontext = PTROUT(&fp->sf_sc);
 
-	/* Fill in POSIX parts */
+	/* Fill in POSIX parts. */
 	ksiginfo_to_lsiginfo(ksi, &frame.sf_si, sig);
 
 	/*
-	 * Build the signal context to be used by sigreturn
-	 * and libgcc unwind.
+	 * Build the signal context to be used by sigreturn and libgcc unwind.
 	 */
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = 0;		/* XXX ??? */
@@ -394,9 +388,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	/*
-	 * Build context to run handler in.
-	 */
+	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = linux32_rt_sigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
@@ -455,9 +447,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    catcher, sig, (void*)mask, code);
 #endif
 
-	/*
-	 * Allocate space for the signal handler context.
-	 */
+	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct l_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
@@ -467,9 +457,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
-	/*
-	 * Build the argument list for the signal handler.
-	 */
+	/* Build the argument list for the signal handler. */
 	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
@@ -479,9 +467,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bsd_to_linux_sigset(mask, &lmask);
 
-	/*
-	 * Build the signal context to be used by sigreturn.
-	 */
+	/* Build the signal context to be used by sigreturn. */
 	frame.sf_sc.sc_mask   = lmask.__mask;
 	frame.sf_sc.sc_gs     = regs->tf_gs;
 	frame.sf_sc.sc_fs     = regs->tf_fs;
@@ -515,9 +501,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	/*
-	 * Build context to run handler in.
-	 */
+	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = linux32_sigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
@@ -567,9 +551,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	if (copyin(args->sfp, &frame, sizeof(frame)) != 0)
 		return (EFAULT);
 
-	/*
-	 * Check for security violations.
-	 */
+	/* Check for security violations. */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = frame.sf_sc.sc_eflags;
 	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
@@ -596,9 +578,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	linux_to_bsd_sigset(&lmask, &bmask);
 	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
-	/*
-	 * Restore signal context.
-	 */
+	/* Restore signal context. */
 	regs->tf_rdi    = frame.sf_sc.sc_edi;
 	regs->tf_rsi    = frame.sf_sc.sc_esi;
 	regs->tf_rbp    = frame.sf_sc.sc_ebp;
@@ -658,9 +638,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 
 	context = &uc.uc_mcontext;
 
-	/*
-	 * Check for security violations.
-	 */
+	/* Check for security violations. */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = context->sc_eflags;
 	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
@@ -852,9 +830,7 @@ linux_copyout_strings(struct image_params *imgp)
 	char canary[LINUX_AT_RANDOM_LEN];
 	size_t execpath_len;
 
-	/*
-	 * Calculate string base and vector table pointers.
-	 */
+	/* Calculate string base and vector table pointers. */
 	if (imgp->execpath != NULL && imgp->auxargs != NULL)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
@@ -871,19 +847,14 @@ linux_copyout_strings(struct image_params *imgp)
 		copyout(imgp->execpath, (void *)imgp->execpathp, execpath_len);
 	}
 
-	/*
-	 * Prepare the canary for SSP.
-	 */
+	/* Prepare the canary for SSP. */
 	arc4rand(canary, sizeof(canary), 0);
 	imgp->canary = (uintptr_t)arginfo -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(sizeof(canary), sizeof(char *));
 	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
-	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
-	 */
+	/* If we have a valid auxargs ptr, prepare some room on the stack. */
 	if (imgp->auxargs) {
 		/*
 		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
@@ -900,36 +871,29 @@ linux_copyout_strings(struct image_params *imgp)
 		    imgp->args->envc + 2 + imgp->auxarg_size) *
 		    sizeof(u_int32_t));
 
-	} else
+	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
 		vectp = (u_int32_t *)(destp - (imgp->args->argc +
 		    imgp->args->envc + 2) * sizeof(u_int32_t));
+	}
 
-	/*
-	 * vectp also becomes our initial stack base
-	 */
+	/* vectp also becomes our initial stack base. */
 	stack_base = vectp;
 
 	stringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
 	envc = imgp->args->envc;
-	/*
-	 * Copy out strings - arguments and environment.
-	 */
+	/* Copy out strings - arguments and environment. */
 	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
 
-	/*
-	 * Fill in "ps_strings" struct for ps, w, etc.
-	 */
+	/* Fill in "ps_strings" struct for ps, w, etc. */
 	suword32(&arginfo->ps_argvstr, (uint32_t)(intptr_t)vectp);
 	suword32(&arginfo->ps_nargvstr, argc);
 
-	/*
-	 * Fill in argument portion of vector table.
-	 */
+	/* Fill in argument portion of vector table. */
 	for (; argc > 0; --argc) {
 		suword32(vectp++, (uint32_t)(intptr_t)destp);
 		while (*stringp++ != 0)
@@ -937,15 +901,13 @@ linux_copyout_strings(struct image_params *imgp)
 		destp++;
 	}
 
-	/* a null vector table pointer separates the argp's from the envp's */
+	/* A null vector table pointer separates the argp's from the envp's. */
 	suword32(vectp++, 0);
 
 	suword32(&arginfo->ps_envstr, (uint32_t)(intptr_t)vectp);
 	suword32(&arginfo->ps_nenvstr, envc);
 
-	/*
-	 * Fill in environment portion of vector table.
-	 */
+	/* Fill in environment portion of vector table. */
 	for (; envc > 0; --envc) {
 		suword32(vectp++, (uint32_t)(intptr_t)destp);
 		while (*stringp++ != 0)
@@ -953,7 +915,7 @@ linux_copyout_strings(struct image_params *imgp)
 		destp++;
 	}
 
-	/* end of vector table is a null pointer */
+	/* The end of the vector table is a null pointer. */
 	suword32(vectp, 0);
 
 	return ((register_t *)stack_base);
