@@ -95,11 +95,23 @@ struct pci_conf_io32 {
 	u_int32_t		status;		/* request status */
 };
 
+struct pci_bar_mmap32 {
+	uint32_t	pbm_map_base;
+	uint32_t	pbm_map_length;
+	uint32_t	pbm_bar_length1, pbm_bar_length2;
+	int		pbm_bar_off;
+	struct pcisel	pbm_sel;
+	int		pbm_reg;
+	int		pbm_flags;
+	int		pbm_memattr;
+};
+
 #define	CDIOREADTOCENTRYS_32 _IOWR('c', 5, struct ioc_read_toc_entry32)
 #define	FIODGNAME_32	_IOW('f', 120, struct fiodgname_arg32)
 #define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
 #define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
 #define	PCIOCGETCONF_32	_IOWR('p', 5, struct pci_conf_io32)
 #define	SG_IO_32	_IOWR(SGIOC, 0x85, struct sg_io_hdr32)
+#define	PCIOCBARMMAP_32	_IOWR('p', 8, struct pci_bar_mmap32)
 
 #endif	/* _COMPAT_FREEBSD32_IOCTL_H_ */
