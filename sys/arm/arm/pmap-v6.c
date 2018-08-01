@@ -393,12 +393,21 @@ CTASSERT(VM_MEMATTR_NOCACHE == 1);
 CTASSERT(VM_MEMATTR_DEVICE == 2);
 CTASSERT(VM_MEMATTR_SO == 3);
 CTASSERT(VM_MEMATTR_WRITE_THROUGH == 4);
+#define	VM_MEMATTR_END	(VM_MEMATTR_WRITE_THROUGH + 1)
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	return (mode >= 0 && mode < VM_MEMATTR_END);
+}
 
 static inline uint32_t
 vm_memattr_to_pte2(vm_memattr_t ma)
 {
 
-	KASSERT((u_int)ma < 5, ("%s: bad vm_memattr_t %d", __func__, ma));
+	KASSERT((u_int)ma < VM_MEMATTR_END,
+	    ("%s: bad vm_memattr_t %d", __func__, ma));
 	return (pte2_attr_tab[(u_int)ma]);
 }
 

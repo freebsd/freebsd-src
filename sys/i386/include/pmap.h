@@ -374,7 +374,7 @@ extern vm_offset_t virtual_end;
  * vtopte().
  */
 void	pmap_bootstrap(vm_paddr_t);
-int	pmap_cache_bits(int mode, boolean_t is_pde);
+int	pmap_cache_bits(pmap_t, int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
