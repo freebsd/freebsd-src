@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "../../sys/mips/include/cca.h"
+#define	_KVM_MINIDUMP
 #include "../../sys/mips/include/cpuregs.h"
 #include "../../sys/mips/include/minidump.h"
 
