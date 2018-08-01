@@ -6724,15 +6724,15 @@ bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS)
 static int
 bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[])
 {
-
+#ifdef __sparc64__
 	if (sc->bge_flags & BGE_FLAG_EADDR)
 		return (1);
 
-#ifdef __sparc64__
 	OF_getetheraddr(sc->bge_dev, ether_addr);
 	return (0);
-#endif
+#else
 	return (1);
+#endif
 }
 
 static int
