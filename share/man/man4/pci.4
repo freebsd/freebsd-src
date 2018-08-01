@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2017
+.Dd June 14, 2018
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -333,6 +333,72 @@ The limitations on data width described for
 reading registers, above, also apply to writing
 .Tn PCI
 configuration registers.
+.It PCIOCBARMMAP
+This
+.Xr ioctl 2
+command allows userspace processes to
+.Xr mmap 2
+the memory-mapped PCI BAR into its address space.
+The input parameters and results are passed in the
+.Va pci_bar_mmap
+structure, which has the following fields:
+.Bl -tag -width Vt struct pcise pbm_sel
+.It Vt uint64_t	pbm_map_base
+Reports the established mapping base to the caller.
+If
+.Va PCIIO_BAR_MMAP_FIXED
+flag was specified, then this field must be filled before the call
+with the desired address for the mapping.
+.It Vt uint64_t pbm_map_length
+Reports the mapped length of the BAR, in bytes.
+Its .Vt uint64_t value is always multiple of machine pages.
+.It Vt int64_t pbm_bar_length
+Reports length of the bar as exposed by the device.
+.It Vt int pbm_bar_off
+Reports offset from the mapped base to the start of the
+first register in the bar.
+.It Vt struct pcisel pbm_sel
+Should be filled before the call.
+Describes the device to operate on.
+.It Vt int pbm_reg
+The BAR index to mmap.
+.It Vt int pbm_flags
+Flags which augments the operation.
+See below.
+.It Vt int pbm_memattr
+The caching attribute for the mapping.
+Typical values are
+.Dv VM_MEMATTR_UNCACHEABLE
+for control registers BARs, and
+.Dv VM_MEMATTR_WRITE_COMBINING
+for frame buffers.
+Regular memory-like BAR should be mapped with
+.Dv VM_MEMATTR_DEFAULT
+attribute.
+.El
+.Pp
+Currently defined flags are:
+.Bl -tag -width PCIIO_BAR_MMAP_ACTIVATE
+.It PCIIO_BAR_MMAP_FIXED
+The resulted mappings should be established at the address
+specified by the
+.Va pbm_map_base
+member, otherwise fail.
+.It PCIIO_BAR_MMAP_EXCL
+Must be used together with
+.Vd PCIIO_BAR_MMAP_FIXED
+If the specified base contains already established mappings, the
+operation fails instead of implicitly unmapping them.
+.It PCIIO_BAR_MMAP_RW
+The requested mapping allows both reading and writing.
+Without the flag, read-only mapping is established.
+Note that it is common for the device registers to have side-effects
+even on reads.
+.It PCIIO_BAR_MMAP_ACTIVATE
+(Unimplemented) If the BAR is not activated, activate it in the course
+of mapping.
+Currently attempt to mmap an inactive BAR results in error.
+.El
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
