@@ -1212,5 +1212,6 @@ elf_update(Elf *e, Elf_Cmd c)
 
 done:
 	_libelf_release_extents(&extents);
+	e->e_flags &= ~LIBELF_F_SHDRS_LOADED;
 	return (rc);
 }
