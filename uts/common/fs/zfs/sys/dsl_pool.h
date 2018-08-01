@@ -89,7 +89,7 @@ typedef struct dsl_pool {
 	struct dsl_dir *dp_leak_dir;
 	struct dsl_dataset *dp_origin_snap;
 	uint64_t dp_root_dir_obj;
-	struct taskq *dp_vnrele_taskq;
+	taskq_t *dp_vnrele_taskq;
 
 	/* No lock needed - sync context only */
 	blkptr_t dp_meta_rootbp;
