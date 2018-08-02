@@ -427,6 +427,30 @@ static inline void cma_set_ip_ver(struct cma_hdr *hdr, u8 ip_ver)
 	hdr->ip_version = (ip_ver << 4) | (hdr->ip_version & 0xF);
 }
 
+static int cma_igmp_send(struct net_device *ndev, const union ib_gid *mgid, bool join)
+{
+	int retval;
+
+	if (ndev) {
+		union {
+			struct sockaddr sock;
+			struct sockaddr_storage storage;
+		} addr;
+
+		rdma_gid2ip(&addr.sock, mgid);
+
+		CURVNET_SET_QUIET(ndev->if_vnet);
+		if (join)
+			retval = -if_addmulti(ndev, &addr.sock, NULL);
+		else
+			retval = -if_delmulti(ndev, &addr.sock);
+		CURVNET_RESTORE();
+	} else {
+		retval = -ENODEV;
+	}
+	return retval;
+}
+
 static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 			       struct cma_device *cma_dev)
 {
@@ -1621,6 +1645,9 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 					ndev = dev_get_by_index(dev_addr->net,
 								dev_addr->bound_dev_if);
 				if (ndev) {
+					cma_igmp_send(ndev,
+						      &mc->multicast.ib->rec.mgid,
+						      false);
 					dev_put(ndev);
 				}
 			}
@@ -4024,7 +4051,10 @@ static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
 			mc->multicast.ib->rec.hop_limit = IPV6_DEFAULT_HOPLIMIT;
 			if (!send_only) {
-				mc->igmp_joined = true;
+				err = cma_igmp_send(ndev, &mc->multicast.ib->rec.mgid,
+						    true);
+				if (!err)
+					mc->igmp_joined = true;
 			}
 		}
 	} else {
@@ -4129,6 +4159,9 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 						ndev = dev_get_by_index(dev_addr->net,
 									dev_addr->bound_dev_if);
 					if (ndev) {
+						cma_igmp_send(ndev,
+							      &mc->multicast.ib->rec.mgid,
+							      false);
 						dev_put(ndev);
 					}
 					mc->igmp_joined = false;
