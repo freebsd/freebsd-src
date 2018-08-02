@@ -897,8 +897,6 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (control == NULL)
-		panic("sbappendcontrol_locked");
 	space = m_length(control, &n) + m_length(m0, NULL);
 
 	if (space > sbspace(sb))
