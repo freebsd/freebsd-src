@@ -121,6 +121,30 @@ done:
 }
 
 static int
+mlx5e_get_dscp(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err;
+
+	if (MLX5_CAP_GEN(mdev, qcam_reg) == 0 ||
+	    MLX5_CAP_QCAM_REG(mdev, qpts) == 0 ||
+	    MLX5_CAP_QCAM_REG(mdev, qpdpm) == 0)
+		return (EOPNOTSUPP);
+
+	PRIV_LOCK(priv);
+	err = -mlx5_query_dscp2prio(mdev, priv->params_ethtool.dscp2prio);
+	if (err)
+		goto done;
+
+	err = -mlx5_query_trust_state(mdev, &priv->params_ethtool.trust_state);
+	if (err)
+		goto done;
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
 mlx5e_tc_maxrate_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
@@ -224,6 +248,84 @@ mlx5e_prio_to_tc_handler(SYSCTL_HANDLER_ARGS)
 
 	priv->params_ethtool.prio_tc[prio_index] = result;
 
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_trust_state_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err;
+	u8 result;
+
+	PRIV_LOCK(priv);
+	result = priv->params_ethtool.trust_state;
+	err = sysctl_handle_8(oidp, &result, 0, req);
+	if (err || !req->newptr ||
+	    result == priv->params_ethtool.trust_state)
+		goto done;
+
+	switch (result) {
+	case MLX5_QPTS_TRUST_PCP:
+	case MLX5_QPTS_TRUST_DSCP:
+		break;
+	case MLX5_QPTS_TRUST_BOTH:
+		if (!MLX5_CAP_QCAM_FEATURE(mdev, qpts_trust_both)) {
+			err = EOPNOTSUPP;
+			goto done;
+		}
+		break;
+	default:
+		err = ERANGE;
+		goto done;
+	}
+
+	err = -mlx5_set_trust_state(mdev, result);
+	if (err)
+		goto done;
+
+	priv->params_ethtool.trust_state = result;
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_dscp_prio_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int prio_index = arg2;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	uint8_t dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
+	uint8_t x;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.dscp2prio + prio_index,
+	    sizeof(priv->params_ethtool.dscp2prio) / 8);
+	if (err || !req->newptr)
+		goto done;
+
+	memcpy(dscp2prio, priv->params_ethtool.dscp2prio, sizeof(dscp2prio));
+	err = SYSCTL_IN(req, dscp2prio + prio_index, sizeof(dscp2prio) / 8);
+	if (err)
+		goto done;
+	for (x = 0; x != MLX5_MAX_SUPPORTED_DSCP; x++) {
+		if (dscp2prio[x] > 7) {
+			err = ERANGE;
+			goto done;
+		}
+	}
+	err = -mlx5_set_dscp2prio(mdev, dscp2prio);
+	if (err)
+		goto done;
+
+	/* update local array */
+	memcpy(priv->params_ethtool.dscp2prio, dscp2prio,
+	    sizeof(priv->params_ethtool.dscp2prio));
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
@@ -1009,5 +1111,21 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_MPSAFE,
 				priv, i, mlx5e_prio_to_tc_handler, "CU",
 				"Set priority to traffic class");
+	}
+
+	/* DSCP support */
+	if (mlx5e_get_dscp(priv) == 0) {
+		for (i = 0; i != MLX5_MAX_SUPPORTED_DSCP; i += 8) {
+			char name[32];
+			snprintf(name, sizeof(name), "dscp_%d_%d_prio", i, i + 7);
+			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+				priv, i, mlx5e_dscp_prio_handler, "CU",
+				"Set DSCP to priority mapping, 0..7");
+		}
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "trust_state", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_trust_state_handler, "CU",
+		    "Set trust state, 1:PCP 2:DSCP 3:BOTH");
 	}
 }
