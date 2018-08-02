@@ -257,7 +257,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	};
 	struct sockaddr_in dst_tmp = *dst_in;
 	in_port_t src_port;
-	struct sockaddr *saddr;
+	struct sockaddr *saddr = NULL;
 	struct rtentry *rte;
 	struct ifnet *ifp;
 	int error;
@@ -333,11 +333,6 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-
-		/* update source address */
-		src_port = src_in->sin_port;
-		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		src_in->sin_port = src_port;	/* preserve port number */
 		break;
 	default:
 		break;
@@ -367,6 +362,15 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			goto error_put_ifp;
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV4;
+	}
+
+	/*
+	 * Step 4 - update source address, if any
+	 */
+	if (saddr != NULL) {
+		src_port = src_in->sin_port;
+		memcpy(src_in, saddr, rdma_addr_size(saddr));
+		src_in->sin_port = src_port;	/* preserve port number */
 	}
 
 	if (rte != NULL)
@@ -412,7 +416,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	};
 	struct sockaddr_in6 dst_tmp = *dst_in;
 	in_port_t src_port;
-	struct sockaddr *saddr;
+	struct sockaddr *saddr = NULL;
 	struct rtentry *rte;
 	struct ifnet *ifp;
 	int error;
@@ -502,10 +506,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-
-		src_port = src_in->sin6_port;
-		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		src_in->sin6_port = src_port;	/* preserve port number */
 		break;
 	default:
 		break;
@@ -532,6 +532,15 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto error_put_ifp;
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV6;
+	}
+
+	/*
+	 * Step 4 - update source address, if any
+	 */
+	if (saddr != NULL) {
+		src_port = src_in->sin6_port;
+		memcpy(src_in, saddr, rdma_addr_size(saddr));
+		src_in->sin6_port = src_port;	/* preserve port number */
 	}
 
 	if (rte != NULL)
