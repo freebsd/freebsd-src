@@ -50,7 +50,9 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stddef.h>
+#ifdef illumos
 #include <idmap.h>
+#endif
 
 #include <sys/dnode.h>
 #include <sys/spa.h>
