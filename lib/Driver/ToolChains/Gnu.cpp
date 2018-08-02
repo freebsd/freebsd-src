@@ -1877,7 +1877,8 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
 
   static const char *const RISCV32LibDirs[] = {"/lib", "/lib32"};
   static const char *const RISCVTriples[] = {"riscv32-unknown-linux-gnu",
-                                             "riscv64-unknown-linux-gnu"};
+                                             "riscv64-unknown-linux-gnu",
+                                             "riscv32-unknown-elf"};
 
   static const char *const SPARCv8LibDirs[] = {"/lib32", "/lib"};
   static const char *const SPARCv8Triples[] = {"sparc-linux-gnu",
@@ -2188,7 +2189,8 @@ void Generic_GCC::GCCInstallationDetector::ScanLibDirForGCCTriple(
       // this on Freescale triples, though, since some systems put a *lot* of
       // files in that location, not just GCC installation data.
       {CandidateTriple.str(), "..",
-       TargetTriple.getVendor() == llvm::Triple::Freescale},
+       TargetTriple.getVendor() == llvm::Triple::Freescale ||
+       TargetTriple.getVendor() == llvm::Triple::OpenEmbedded},
 
       // Natively multiarch systems sometimes put the GCC triple-specific
       // directory within their multiarch lib directory, resulting in the
