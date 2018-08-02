@@ -180,7 +180,11 @@ struct ib_sa_path_rec {
 
 static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)
 {
-	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
+#ifdef VIMAGE
+	if (rec->net == NULL)
+		return NULL;
+#endif
+	return dev_get_by_index(rec->net, rec->ifindex);
 }
 
 #define IB_SA_MCMEMBER_REC_MGID				IB_SA_COMP_MASK( 0)
