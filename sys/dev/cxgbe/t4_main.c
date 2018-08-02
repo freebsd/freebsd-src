@@ -3841,10 +3841,11 @@ get_params__post_init(struct adapter *sc)
 
 	sc->sge.iq_start = val[0];
 	sc->sge.eq_start = val[1];
-	sc->tids.ftid_base = val[2];
-	sc->tids.nftids = val[3] - val[2] + 1;
-	sc->params.ftid_min = val[2];
-	sc->params.ftid_max = val[3];
+	if (val[3] > val[2]) {
+		sc->tids.ftid_base = val[2];
+		sc->tids.ftid_end = val[3];
+		sc->tids.nftids = val[3] - val[2] + 1;
+	}
 	sc->vres.l2t.start = val[4];
 	sc->vres.l2t.size = val[5] - val[4] + 1;
 	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
@@ -3928,12 +3929,13 @@ get_params__post_init(struct adapter *sc)
 			    "failed to query NIC parameters: %d.\n", rc);
 			return (rc);
 		}
-		sc->tids.etid_base = val[0];
-		sc->params.etid_min = val[0];
-		sc->params.etid_max = val[1];
-		sc->tids.netids = val[1] - val[0] + 1;
-		sc->params.eo_wr_cred = val[2];
-		sc->params.ethoffload = 1;
+		if (val[1] > val[0]) {
+			sc->tids.etid_base = val[0];
+			sc->tids.etid_end = val[1];
+			sc->tids.netids = val[1] - val[0] + 1;
+			sc->params.eo_wr_cred = val[2];
+			sc->params.ethoffload = 1;
+		}
 	}
 	if (sc->toecaps) {
 		/* query offload-related parameters */
@@ -3951,8 +3953,10 @@ get_params__post_init(struct adapter *sc)
 		}
 		sc->tids.ntids = val[0];
 		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
-		sc->tids.stid_base = val[1];
-		sc->tids.nstids = val[2] - val[1] + 1;
+		if (val[2] > val[1]) {
+			sc->tids.stid_base = val[1];
+			sc->tids.nstids = val[2] - val[1] + 1;
+		}
 		sc->vres.ddp.start = val[3];
 		sc->vres.ddp.size = val[4] - val[3] + 1;
 		sc->params.ofldq_wr_cred = val[5];
