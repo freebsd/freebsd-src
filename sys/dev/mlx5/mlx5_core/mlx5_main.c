@@ -61,6 +61,10 @@ static int prof_sel = MLX5_DEFAULT_PROF;
 module_param_named(prof_sel, prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
+static int mlx5_core_msix_eqvec;
+module_param_named(msix_eqvec, mlx5_core_msix_eqvec, int, 0644);
+MODULE_PARM_DESC(msix_eqvec, "Maximum number of MSIX event queue vectors");
+
 #define NUMA_NO_NODE       -1
 
 static LIST_HEAD(intf_list);
@@ -239,11 +243,15 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
 	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int nvec;
+	int limit = mlx5_core_msix_eqvec;
+	int nvec = MLX5_EQ_VEC_COMP_BASE;
 	int i;
 
-	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
-	       MLX5_EQ_VEC_COMP_BASE;
+	if (limit > 0)
+		nvec += limit;
+	else
+		nvec += MLX5_CAP_GEN(dev, num_ports) * num_online_cpus();
+
 	nvec = min_t(int, nvec, num_eqs);
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
