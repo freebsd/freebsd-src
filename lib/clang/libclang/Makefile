@@ -294,6 +294,7 @@ SRCS_MIN+=	Driver/ToolChains/NaCl.cpp
 SRCS_MIN+=	Driver/ToolChains/NetBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/OpenBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/PS4CPU.cpp
+SRCS_MIN+=	Driver/ToolChains/RISCV.cpp
 SRCS_MIN+=	Driver/ToolChains/Solaris.cpp
 SRCS_MIN+=	Driver/ToolChains/TCE.cpp
 SRCS_MIN+=	Driver/ToolChains/WebAssembly.cpp

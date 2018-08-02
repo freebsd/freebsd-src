@@ -402,6 +402,7 @@ SRCS_MIW+=	DebugInfo/DWARF/DWARFCompileUnit.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFContext.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDataExtractor.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAbbrev.cpp
+SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAddr.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugArangeSet.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAranges.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugFrame.cpp
