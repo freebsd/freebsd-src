@@ -4906,7 +4906,7 @@ zdb_embedded_block(char *thing)
 {
 	blkptr_t bp;
 	unsigned long long *words = (void *)&bp;
-	char buf[SPA_MAXBLOCKSIZE];
+	char *buf;
 	int err;
 
 	bzero(&bp, sizeof (bp));
@@ -4917,16 +4917,22 @@ zdb_embedded_block(char *thing)
 	    words + 8, words + 9, words + 10, words + 11,
 	    words + 12, words + 13, words + 14, words + 15);
 	if (err != 16) {
-		(void) printf("invalid input format\n");
+		(void) fprintf(stderr, "invalid input format\n");
 		exit(1);
 	}
 	ASSERT3U(BPE_GET_LSIZE(&bp), <=, SPA_MAXBLOCKSIZE);
+	buf = malloc(SPA_MAXBLOCKSIZE);
+	if (buf == NULL) {
+		(void) fprintf(stderr, "out of memory\n");
+		exit(1);
+	}
 	err = decode_embedded_bp(&bp, buf, BPE_GET_LSIZE(&bp));
 	if (err != 0) {
-		(void) printf("decode failed: %u\n", err);
+		(void) fprintf(stderr, "decode failed: %u\n", err);
 		exit(1);
 	}
 	zdb_dump_block_raw(buf, BPE_GET_LSIZE(&bp), 0);
+	free(buf);
 }
 
 static boolean_t
