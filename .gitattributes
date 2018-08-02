@@ -3,4 +3,3 @@
 *.cpp  diff=cpp
 *.hpp  diff=cpp
 *.py   diff=python
-. svn-properties=svn:executable=tools/tools/git/git-svn-init
