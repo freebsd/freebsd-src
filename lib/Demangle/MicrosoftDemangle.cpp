@@ -29,15 +29,27 @@
 // the demangler is 3x faster with this allocator compared to one with
 // STL containers.
 namespace {
+  constexpr size_t AllocUnit = 4096;
+
 class ArenaAllocator {
   struct AllocatorNode {
     uint8_t *Buf = nullptr;
     size_t Used = 0;
+    size_t Capacity = 0;
     AllocatorNode *Next = nullptr;
   };
 
+  void addNode(size_t Capacity) {
+    AllocatorNode *NewHead = new AllocatorNode;
+    NewHead->Buf = new uint8_t[Capacity];
+    NewHead->Next = Head;
+    NewHead->Capacity = Capacity;
+    Head = NewHead;
+    NewHead->Used = 0;
+  }
+
 public:
-  ArenaAllocator() : Head(new AllocatorNode) { Head->Buf = new uint8_t[Unit]; }
+  ArenaAllocator() { addNode(AllocUnit); }
 
   ~ArenaAllocator() {
     while (Head) {
@@ -49,10 +61,25 @@ public:
     }
   }
 
+  char *allocUnalignedBuffer(size_t Length) {
+    uint8_t *Buf = Head->Buf + Head->Used;
+
+    Head->Used += Length;
+    if (Head->Used > Head->Capacity) {
+      // It's possible we need a buffer which is larger than our default unit
+      // size, so we need to be careful to add a node with capacity that is at
+      // least as large as what we need.
+      addNode(std::max(AllocUnit, Length));
+      Head->Used = Length;
+      Buf = Head->Buf;
+    }
+
+    return reinterpret_cast<char *>(Buf);
+  }
+
   template <typename T, typename... Args> T *alloc(Args &&... ConstructorArgs) {
 
     size_t Size = sizeof(T);
-    assert(Size < Unit);
     assert(Head && Head->Buf);
 
     size_t P = (size_t)Head->Buf + Head->Used;
@@ -62,20 +89,15 @@ public:
     size_t Adjustment = AlignedP - P;
 
     Head->Used += Size + Adjustment;
-    if (Head->Used < Unit)
+    if (Head->Used < Head->Capacity)
       return new (PP) T(std::forward<Args>(ConstructorArgs)...);
 
-    AllocatorNode *NewHead = new AllocatorNode;
-    NewHead->Buf = new uint8_t[ArenaAllocator::Unit];
-    NewHead->Next = Head;
-    Head = NewHead;
-    NewHead->Used = Size;
-    return new (NewHead->Buf) T(std::forward<Args>(ConstructorArgs)...);
+    addNode(AllocUnit);
+    Head->Used = Size;
+    return new (Head->Buf) T(std::forward<Args>(ConstructorArgs)...);
   }
 
 private:
-  static constexpr size_t Unit = 4096;
-
   AllocatorNode *Head = nullptr;
 };
 } // namespace
@@ -117,7 +139,7 @@ enum class StorageClass : uint8_t {
 
 enum class QualifierMangleMode { Drop, Mangle, Result };
 
-enum class PointerAffinity { Pointer, Reference };
+enum class PointerAffinity { Pointer, Reference, RValueReference };
 
 // Calling conventions
 enum class CallingConv : uint8_t {
@@ -141,7 +163,6 @@ enum class PrimTy : uint8_t {
   None,
   Function,
   Ptr,
-  Ref,
   MemberPtr,
   Array,
 
@@ -155,6 +176,8 @@ enum class PrimTy : uint8_t {
   Char,
   Schar,
   Uchar,
+  Char16,
+  Char32,
   Short,
   Ushort,
   Int,
@@ -167,6 +190,7 @@ enum class PrimTy : uint8_t {
   Float,
   Double,
   Ldouble,
+  Nullptr
 };
 
 // Function classes
@@ -183,15 +207,30 @@ enum FuncClass : uint8_t {
 namespace {
 
 struct Type;
+struct Name;
 
-// Represents a list of parameters (template params or function arguments.
-// It's represented as a linked list.
-struct ParamList {
+struct FunctionParams {
   bool IsVariadic = false;
 
   Type *Current = nullptr;
 
-  ParamList *Next = nullptr;
+  FunctionParams *Next = nullptr;
+};
+
+struct TemplateParams {
+  bool IsTemplateTemplate = false;
+  bool IsAliasTemplate = false;
+
+  // Type can be null if this is a template template parameter.  In that case
+  // only Name will be valid.
+  Type *ParamType = nullptr;
+
+  // Name can be valid if this is a template template parameter (see above) or
+  // this is a function declaration (e.g. foo<&SomeFunc>).  In the latter case
+  // Name contains the name of the function and Type contains the signature.
+  Name *ParamName = nullptr;
+
+  TemplateParams *Next = nullptr;
 };
 
 // The type class. Mangled symbols are first parsed and converted to
@@ -232,7 +271,7 @@ struct Name {
   StringView Operator;
 
   // Template parameters. Null if not a template.
-  ParamList TemplateParams;
+  TemplateParams *TParams = nullptr;
 
   // Nested BackReferences (e.g. "A::B::C") are represented as a linked list.
   Name *Next = nullptr;
@@ -242,6 +281,8 @@ struct PointerType : public Type {
   Type *clone(ArenaAllocator &Arena) const override;
   void outputPre(OutputStream &OS) override;
   void outputPost(OutputStream &OS) override;
+
+  PointerAffinity Affinity;
 
   // Represents a type X in "a pointer to X", "a reference to X",
   // "an array of X", or "a function returning X".
@@ -276,7 +317,7 @@ struct FunctionType : public Type {
   CallingConv CallConvention;
   FuncClass FunctionClass;
 
-  ParamList Params;
+  FunctionParams Params;
 };
 
 struct UdtType : public Type {
@@ -302,9 +343,13 @@ struct ArrayType : public Type {
 
 static bool isMemberPointer(StringView MangledName) {
   switch (MangledName.popFront()) {
+  case '$':
+    // This is probably an rvalue reference (e.g. $$Q), and you cannot have an
+    // rvalue reference to a member.
+    return false;
   case 'A':
     // 'A' indicates a reference, and you cannot have a reference to a member
-    // function or member variable.
+    // function or member.
     return false;
   case 'P':
   case 'Q':
@@ -386,14 +431,58 @@ static void outputCallingConvention(OutputStream &OS, CallingConv CC) {
   }
 }
 
+static bool startsWithLocalScopePattern(StringView S) {
+  if (!S.consumeFront('?'))
+    return false;
+  if (S.size() < 2)
+    return false;
+
+  size_t End = S.find('?');
+  if (End == StringView::npos)
+    return false;
+  StringView Candidate = S.substr(0, End);
+  if (Candidate.empty())
+    return false;
+
+  // \?[0-9]\?
+  // ?@? is the discriminator 0.
+  if (Candidate.size() == 1)
+    return Candidate[0] == '@' || (Candidate[0] >= '0' && Candidate[0] <= '9');
+
+  // If it's not 0-9, then it's an encoded number terminated with an @
+  if (Candidate.back() != '@')
+    return false;
+  Candidate = Candidate.dropBack();
+
+  // An encoded number starts with B-P and all subsequent digits are in A-P.
+  // Note that the reason the first digit cannot be A is two fold.  First, it
+  // would create an ambiguity with ?A which delimits the beginning of an
+  // anonymous namespace.  Second, A represents 0, and you don't start a multi
+  // digit number with a leading 0.  Presumably the anonymous namespace
+  // ambiguity is also why single digit encoded numbers use 0-9 rather than A-J.
+  if (Candidate[0] < 'B' || Candidate[0] > 'P')
+    return false;
+  Candidate = Candidate.dropFront();
+  while (!Candidate.empty()) {
+    if (Candidate[0] < 'A' || Candidate[0] > 'P')
+      return false;
+    Candidate = Candidate.dropFront();
+  }
+
+  return true;
+}
+
+static void outputName(OutputStream &OS, const Name *TheName);
+
 // Write a function or template parameter list.
-static void outputParameterList(OutputStream &OS, const ParamList &Params) {
+static void outputParameterList(OutputStream &OS,
+                                const FunctionParams &Params) {
   if (!Params.Current) {
     OS << "void";
     return;
   }
 
-  const ParamList *Head = &Params;
+  const FunctionParams *Head = &Params;
   while (Head) {
     Type::outputPre(OS, *Head->Current);
     Type::outputPost(OS, *Head->Current);
@@ -405,12 +494,39 @@ static void outputParameterList(OutputStream &OS, const ParamList &Params) {
   }
 }
 
-static void outputTemplateParams(OutputStream &OS, const Name &TheName) {
-  if (!TheName.TemplateParams.Current)
+static void outputParameterList(OutputStream &OS,
+                                const TemplateParams &Params) {
+  if (!Params.ParamType && !Params.ParamName) {
+    OS << "<>";
     return;
+  }
 
   OS << "<";
-  outputParameterList(OS, TheName.TemplateParams);
+  const TemplateParams *Head = &Params;
+  while (Head) {
+    // Type can be null if this is a template template parameter,
+    // and Name can be null if this is a simple type.
+
+    if (Head->ParamType && Head->ParamName) {
+      // Function pointer.
+      OS << "&";
+      Type::outputPre(OS, *Head->ParamType);
+      outputName(OS, Head->ParamName);
+      Type::outputPost(OS, *Head->ParamType);
+    } else if (Head->ParamType) {
+      // simple type.
+      Type::outputPre(OS, *Head->ParamType);
+      Type::outputPost(OS, *Head->ParamType);
+    } else {
+      // Template alias.
+      outputName(OS, Head->ParamName);
+    }
+
+    Head = Head->Next;
+
+    if (Head)
+      OS << ", ";
+  }
   OS << ">";
 }
 
@@ -420,29 +536,32 @@ static void outputName(OutputStream &OS, const Name *TheName) {
 
   outputSpaceIfNecessary(OS);
 
+  const Name *Previous = nullptr;
   // Print out namespaces or outer class BackReferences.
   for (; TheName->Next; TheName = TheName->Next) {
+    Previous = TheName;
     OS << TheName->Str;
-    outputTemplateParams(OS, *TheName);
+    if (TheName->TParams)
+      outputParameterList(OS, *TheName->TParams);
     OS << "::";
   }
 
   // Print out a regular name.
   if (TheName->Operator.empty()) {
     OS << TheName->Str;
-    outputTemplateParams(OS, *TheName);
+    if (TheName->TParams)
+      outputParameterList(OS, *TheName->TParams);
     return;
   }
 
   // Print out ctor or dtor.
+  if (TheName->Operator == "dtor")
+    OS << "~";
+
   if (TheName->Operator == "ctor" || TheName->Operator == "dtor") {
-    OS << TheName->Str;
-    outputTemplateParams(OS, *TheName);
-    OS << "::";
-    if (TheName->Operator == "dtor")
-      OS << "~";
-    OS << TheName->Str;
-    outputTemplateParams(OS, *TheName);
+    OS << Previous->Str;
+    if (Previous->TParams)
+      outputParameterList(OS, *Previous->TParams);
     return;
   }
 
@@ -514,6 +633,12 @@ void Type::outputPre(OutputStream &OS) {
   case PrimTy::Uchar:
     OS << "unsigned char";
     break;
+  case PrimTy::Char16:
+    OS << "char16_t";
+    break;
+  case PrimTy::Char32:
+    OS << "char32_t";
+    break;
   case PrimTy::Short:
     OS << "short";
     break;
@@ -550,6 +675,9 @@ void Type::outputPre(OutputStream &OS) {
   case PrimTy::Ldouble:
     OS << "long double";
     break;
+  case PrimTy::Nullptr:
+    OS << "std::nullptr_t";
+    break;
   default:
     assert(false && "Invalid primitive type!");
   }
@@ -584,8 +712,10 @@ static void outputPointerIndicator(OutputStream &OS, PointerAffinity Affinity,
 
   if (Affinity == PointerAffinity::Pointer)
     OS << "*";
-  else
+  else if (Affinity == PointerAffinity::Reference)
     OS << "&";
+  else
+    OS << "&&";
 }
 
 void PointerType::outputPre(OutputStream &OS) {
@@ -595,9 +725,6 @@ void PointerType::outputPre(OutputStream &OS) {
 
   if (Quals & Q_Unaligned)
     OS << "__unaligned ";
-
-  PointerAffinity Affinity = (Prim == PrimTy::Ptr) ? PointerAffinity::Pointer
-                                                   : PointerAffinity::Reference;
 
   outputPointerIndicator(OS, Affinity, nullptr, Pointee);
 
@@ -668,6 +795,15 @@ void FunctionType::outputPost(OutputStream &OS) {
     OS << " const";
   if (Quals & Q_Volatile)
     OS << " volatile";
+  if (Quals & Q_Restrict)
+    OS << " __restrict";
+  if (Quals & Q_Unaligned)
+    OS << " __unaligned";
+
+  if (RefKind == ReferenceKind::LValueRef)
+    OS << " &";
+  else if (RefKind == ReferenceKind::RValueRef)
+    OS << " &&";
 
   if (ReturnType)
     Type::outputPost(OS, *ReturnType);
@@ -716,6 +852,11 @@ void ArrayType::outputPost(OutputStream &OS) {
     Type::outputPost(OS, *ElementType);
 }
 
+struct Symbol {
+  Name *SymbolName = nullptr;
+  Type *SymbolType = nullptr;
+};
+
 } // namespace
 
 namespace {
@@ -725,63 +866,68 @@ namespace {
 // It also has a set of functions to cnovert Type instances to strings.
 class Demangler {
 public:
-  Demangler(OutputStream &OS, StringView s) : OS(OS), MangledName(s) {}
+  Demangler() = default;
 
   // You are supposed to call parse() first and then check if error is true.  If
   // it is false, call output() to write the formatted name to the given stream.
-  void parse();
-  void output();
+  Symbol *parse(StringView &MangledName);
+  void output(const Symbol *S, OutputStream &OS);
 
   // True if an error occurred.
   bool Error = false;
 
 private:
-  Type *demangleVariableEncoding();
-  Type *demangleFunctionEncoding();
+  Type *demangleVariableEncoding(StringView &MangledName);
+  Type *demangleFunctionEncoding(StringView &MangledName);
 
-  Qualifiers demanglePointerExtQualifiers();
+  Qualifiers demanglePointerExtQualifiers(StringView &MangledName);
 
   // Parser functions. This is a recursive-descent parser.
-  Type *demangleType(QualifierMangleMode QMM);
-  Type *demangleBasicType();
-  UdtType *demangleClassType();
-  PointerType *demanglePointerType();
-  MemberPointerType *demangleMemberPointerType();
-  FunctionType *demangleFunctionType(bool HasThisQuals, bool IsFunctionPointer);
+  Type *demangleType(StringView &MangledName, QualifierMangleMode QMM);
+  Type *demangleBasicType(StringView &MangledName);
+  UdtType *demangleClassType(StringView &MangledName);
+  PointerType *demanglePointerType(StringView &MangledName);
+  MemberPointerType *demangleMemberPointerType(StringView &MangledName);
+  FunctionType *demangleFunctionType(StringView &MangledName, bool HasThisQuals,
+                                     bool IsFunctionPointer);
 
-  ArrayType *demangleArrayType();
+  ArrayType *demangleArrayType(StringView &MangledName);
 
-  ParamList demangleTemplateParameterList();
-  ParamList demangleFunctionParameterList();
+  TemplateParams *demangleTemplateParameterList(StringView &MangledName);
+  FunctionParams demangleFunctionParameterList(StringView &MangledName);
 
-  int demangleNumber();
-  void demangleNamePiece(Name &Node, bool IsHead);
+  int demangleNumber(StringView &MangledName);
 
-  StringView demangleString(bool memorize);
   void memorizeString(StringView s);
-  Name *demangleName();
-  void demangleOperator(Name *);
-  StringView demangleOperatorName();
-  FuncClass demangleFunctionClass();
-  CallingConv demangleCallingConvention();
-  StorageClass demangleVariableStorageClass();
-  ReferenceKind demangleReferenceKind();
-  void demangleThrowSpecification();
 
-  std::pair<Qualifiers, bool> demangleQualifiers();
+  /// Allocate a copy of \p Borrowed into memory that we own.
+  StringView copyString(StringView Borrowed);
 
-  // The result is written to this stream.
-  OutputStream OS;
+  Name *demangleFullyQualifiedTypeName(StringView &MangledName);
+  Name *demangleFullyQualifiedSymbolName(StringView &MangledName);
 
-  // Mangled symbol. demangle* functions shorten this string
-  // as they parse it.
-  StringView MangledName;
+  Name *demangleUnqualifiedTypeName(StringView &MangledName);
+  Name *demangleUnqualifiedSymbolName(StringView &MangledName);
 
-  // A parsed mangled symbol.
-  Type *SymbolType = nullptr;
+  Name *demangleNameScopeChain(StringView &MangledName, Name *UnqualifiedName);
+  Name *demangleNameScopePiece(StringView &MangledName);
 
-  // The main symbol name. (e.g. "ns::foo" in "int ns::foo()".)
-  Name *SymbolName = nullptr;
+  Name *demangleBackRefName(StringView &MangledName);
+  Name *demangleClassTemplateName(StringView &MangledName);
+  Name *demangleOperatorName(StringView &MangledName);
+  Name *demangleSimpleName(StringView &MangledName, bool Memorize);
+  Name *demangleAnonymousNamespaceName(StringView &MangledName);
+  Name *demangleLocallyScopedNamePiece(StringView &MangledName);
+
+  StringView demangleSimpleString(StringView &MangledName, bool Memorize);
+
+  FuncClass demangleFunctionClass(StringView &MangledName);
+  CallingConv demangleCallingConvention(StringView &MangledName);
+  StorageClass demangleVariableStorageClass(StringView &MangledName);
+  ReferenceKind demangleReferenceKind(StringView &MangledName);
+  void demangleThrowSpecification(StringView &MangledName);
+
+  std::pair<Qualifiers, bool> demangleQualifiers(StringView &MangledName);
 
   // Memory allocator.
   ArenaAllocator Arena;
@@ -809,28 +955,36 @@ private:
 };
 } // namespace
 
+StringView Demangler::copyString(StringView Borrowed) {
+  char *Stable = Arena.allocUnalignedBuffer(Borrowed.size() + 1);
+  std::strcpy(Stable, Borrowed.begin());
+
+  return {Stable, Borrowed.size()};
+}
+
 // Parser entry point.
-void Demangler::parse() {
+Symbol *Demangler::parse(StringView &MangledName) {
+  Symbol *S = Arena.alloc<Symbol>();
+
   // MSVC-style mangled symbols must start with '?'.
   if (!MangledName.consumeFront("?")) {
-    SymbolName = Arena.alloc<Name>();
-    SymbolName->Str = MangledName;
-    SymbolType = Arena.alloc<Type>();
-    SymbolType->Prim = PrimTy::Unknown;
+    S->SymbolName = Arena.alloc<Name>();
+    S->SymbolName->Str = MangledName;
+    S->SymbolType = Arena.alloc<Type>();
+    S->SymbolType->Prim = PrimTy::Unknown;
+    return S;
   }
 
   // What follows is a main symbol name. This may include
   // namespaces or class BackReferences.
-  SymbolName = demangleName();
+  S->SymbolName = demangleFullyQualifiedSymbolName(MangledName);
 
   // Read a variable.
-  if (startsWithDigit(MangledName)) {
-    SymbolType = demangleVariableEncoding();
-    return;
-  }
+  S->SymbolType = startsWithDigit(MangledName)
+                      ? demangleVariableEncoding(MangledName)
+                      : demangleFunctionEncoding(MangledName);
 
-  // Read a function.
-  SymbolType = demangleFunctionEncoding();
+  return S;
 }
 
 // <type-encoding> ::= <storage-class> <variable-type>
@@ -840,10 +994,10 @@ void Demangler::parse() {
 //                 ::= 3  # global
 //                 ::= 4  # static local
 
-Type *Demangler::demangleVariableEncoding() {
-  StorageClass SC = demangleVariableStorageClass();
+Type *Demangler::demangleVariableEncoding(StringView &MangledName) {
+  StorageClass SC = demangleVariableStorageClass(MangledName);
 
-  Type *Ty = demangleType(QualifierMangleMode::Drop);
+  Type *Ty = demangleType(MangledName, QualifierMangleMode::Drop);
 
   Ty->Storage = SC;
 
@@ -851,17 +1005,17 @@ Type *Demangler::demangleVariableEncoding() {
   //                 ::= <type> <pointee-cvr-qualifiers> # pointers, references
   switch (Ty->Prim) {
   case PrimTy::Ptr:
-  case PrimTy::Ref:
   case PrimTy::MemberPtr: {
     Qualifiers ExtraChildQuals = Q_None;
-    Ty->Quals = Qualifiers(Ty->Quals | demanglePointerExtQualifiers());
+    Ty->Quals =
+        Qualifiers(Ty->Quals | demanglePointerExtQualifiers(MangledName));
 
     bool IsMember = false;
-    std::tie(ExtraChildQuals, IsMember) = demangleQualifiers();
+    std::tie(ExtraChildQuals, IsMember) = demangleQualifiers(MangledName);
 
     if (Ty->Prim == PrimTy::MemberPtr) {
       assert(IsMember);
-      Name *BackRefName = demangleName();
+      Name *BackRefName = demangleFullyQualifiedTypeName(MangledName);
       (void)BackRefName;
       MemberPointerType *MPTy = static_cast<MemberPointerType *>(Ty);
       MPTy->Pointee->Quals = Qualifiers(MPTy->Pointee->Quals | ExtraChildQuals);
@@ -873,7 +1027,7 @@ Type *Demangler::demangleVariableEncoding() {
     break;
   }
   default:
-    Ty->Quals = demangleQualifiers().first;
+    Ty->Quals = demangleQualifiers(MangledName).first;
     break;
   }
 
@@ -891,7 +1045,7 @@ Type *Demangler::demangleVariableEncoding() {
 //                        ::= <hex digit>+ @  # when Numbrer == 0 or >= 10
 //
 // <hex-digit>            ::= [A-P]           # A = 0, B = 1, ...
-int Demangler::demangleNumber() {
+int Demangler::demangleNumber(StringView &MangledName) {
   bool neg = MangledName.consumeFront("?");
 
   if (startsWithDigit(MangledName)) {
@@ -918,23 +1072,6 @@ int Demangler::demangleNumber() {
   return 0;
 }
 
-// Read until the next '@'.
-StringView Demangler::demangleString(bool Memorize) {
-  for (size_t i = 0; i < MangledName.size(); ++i) {
-    if (MangledName[i] != '@')
-      continue;
-    StringView ret = MangledName.substr(0, i);
-    MangledName = MangledName.dropFront(i + 1);
-
-    if (Memorize)
-      memorizeString(ret);
-    return ret;
-  }
-
-  Error = true;
-  return "";
-}
-
 // First 10 strings can be referenced by special BackReferences ?0, ?1, ..., ?9.
 // Memorize it.
 void Demangler::memorizeString(StringView S) {
@@ -946,179 +1083,322 @@ void Demangler::memorizeString(StringView S) {
   BackReferences[BackRefCount++] = S;
 }
 
-void Demangler::demangleNamePiece(Name &Node, bool IsHead) {
-  if (startsWithDigit(MangledName)) {
-    size_t I = MangledName[0] - '0';
-    if (I >= BackRefCount) {
-      Error = true;
-      return;
-    }
-    MangledName = MangledName.dropFront();
-    Node.Str = BackReferences[I];
-  } else if (MangledName.consumeFront("?$")) {
-    // Class template.
-    Node.Str = demangleString(false);
-    Node.TemplateParams = demangleTemplateParameterList();
-  } else if (!IsHead && MangledName.consumeFront("?A")) {
-    // Anonymous namespace starts with ?A.  So does overloaded operator[],
-    // but the distinguishing factor is that namespace themselves are not
-    // mangled, only the variables and functions inside of them are.  So
-    // an anonymous namespace will never occur as the first item in the
-    // name.
-    Node.Str = "`anonymous namespace'";
-    if (!MangledName.consumeFront('@')) {
-      Error = true;
-      return;
-    }
-  } else if (MangledName.consumeFront("?")) {
-    // Overloaded operator.
-    demangleOperator(&Node);
-  } else {
-    // Non-template functions or classes.
-    Node.Str = demangleString(true);
+Name *Demangler::demangleBackRefName(StringView &MangledName) {
+  assert(startsWithDigit(MangledName));
+
+  size_t I = MangledName[0] - '0';
+  if (I >= BackRefCount) {
+    Error = true;
+    return nullptr;
   }
+
+  MangledName = MangledName.dropFront();
+  Name *Node = Arena.alloc<Name>();
+  Node->Str = BackReferences[I];
+  return Node;
 }
 
-// Parses a name in the form of A@B@C@@ which represents C::B::A.
-Name *Demangler::demangleName() {
-  Name *Head = nullptr;
+Name *Demangler::demangleClassTemplateName(StringView &MangledName) {
+  assert(MangledName.startsWith("?$"));
+  MangledName.consumeFront("?$");
+
+  Name *Node = demangleSimpleName(MangledName, false);
+  Node->TParams = demangleTemplateParameterList(MangledName);
+
+  // Render this class template name into a string buffer so that we can
+  // memorize it for the purpose of back-referencing.
+  OutputStream OS = OutputStream::create(nullptr, nullptr, 1024);
+  outputName(OS, Node);
+  OS << '\0';
+  char *Name = OS.getBuffer();
+
+  StringView Owned = copyString(Name);
+  memorizeString(Owned);
+  std::free(Name);
+
+  return Node;
+}
+
+Name *Demangler::demangleOperatorName(StringView &MangledName) {
+  assert(MangledName.startsWith('?'));
+  MangledName.consumeFront('?');
+
+  auto NameString = [this, &MangledName]() -> StringView {
+    switch (MangledName.popFront()) {
+    case '0':
+      return "ctor";
+    case '1':
+      return "dtor";
+    case '2':
+      return " new";
+    case '3':
+      return " delete";
+    case '4':
+      return "=";
+    case '5':
+      return ">>";
+    case '6':
+      return "<<";
+    case '7':
+      return "!";
+    case '8':
+      return "==";
+    case '9':
+      return "!=";
+    case 'A':
+      return "[]";
+    case 'C':
+      return "->";
+    case 'D':
+      return "*";
+    case 'E':
+      return "++";
+    case 'F':
+      return "--";
+    case 'G':
+      return "-";
+    case 'H':
+      return "+";
+    case 'I':
+      return "&";
+    case 'J':
+      return "->*";
+    case 'K':
+      return "/";
+    case 'L':
+      return "%";
+    case 'M':
+      return "<";
+    case 'N':
+      return "<=";
+    case 'O':
+      return ">";
+    case 'P':
+      return ">=";
+    case 'Q':
+      return ",";
+    case 'R':
+      return "()";
+    case 'S':
+      return "~";
+    case 'T':
+      return "^";
+    case 'U':
+      return "|";
+    case 'V':
+      return "&&";
+    case 'W':
+      return "||";
+    case 'X':
+      return "*=";
+    case 'Y':
+      return "+=";
+    case 'Z':
+      return "-=";
+    case '_': {
+      if (MangledName.empty())
+        break;
+
+      switch (MangledName.popFront()) {
+      case '0':
+        return "/=";
+      case '1':
+        return "%=";
+      case '2':
+        return ">>=";
+      case '3':
+        return "<<=";
+      case '4':
+        return "&=";
+      case '5':
+        return "|=";
+      case '6':
+        return "^=";
+      case 'U':
+        return " new[]";
+      case 'V':
+        return " delete[]";
+      case '_':
+        if (MangledName.consumeFront("L"))
+          return " co_await";
+        if (MangledName.consumeFront("K")) {
+          size_t EndPos = MangledName.find('@');
+          if (EndPos == StringView::npos)
+            break;
+          StringView OpName = demangleSimpleString(MangledName, false);
+          size_t FullSize = OpName.size() + 3; // <space>""OpName
+          char *Buffer = Arena.allocUnalignedBuffer(FullSize);
+          Buffer[0] = ' ';
+          Buffer[1] = '"';
+          Buffer[2] = '"';
+          std::memcpy(Buffer + 3, OpName.begin(), OpName.size());
+          return {Buffer, FullSize};
+        }
+      }
+    }
+    }
+    Error = true;
+    return "";
+  };
+
+  Name *Node = Arena.alloc<Name>();
+  Node->Operator = NameString();
+  return Node;
+}
+
+Name *Demangler::demangleSimpleName(StringView &MangledName, bool Memorize) {
+  StringView S = demangleSimpleString(MangledName, Memorize);
+  if (Error)
+    return nullptr;
+
+  Name *Node = Arena.alloc<Name>();
+  Node->Str = S;
+  return Node;
+}
+
+StringView Demangler::demangleSimpleString(StringView &MangledName,
+                                           bool Memorize) {
+  StringView S;
+  for (size_t i = 0; i < MangledName.size(); ++i) {
+    if (MangledName[i] != '@')
+      continue;
+    S = MangledName.substr(0, i);
+    MangledName = MangledName.dropFront(i + 1);
+
+    if (Memorize)
+      memorizeString(S);
+    return S;
+  }
+
+  Error = true;
+  return {};
+}
+
+Name *Demangler::demangleAnonymousNamespaceName(StringView &MangledName) {
+  assert(MangledName.startsWith("?A"));
+  MangledName.consumeFront("?A");
+
+  Name *Node = Arena.alloc<Name>();
+  Node->Str = "`anonymous namespace'";
+  if (MangledName.consumeFront('@'))
+    return Node;
+
+  Error = true;
+  return nullptr;
+}
+
+Name *Demangler::demangleLocallyScopedNamePiece(StringView &MangledName) {
+  assert(startsWithLocalScopePattern(MangledName));
+
+  Name *Node = Arena.alloc<Name>();
+  MangledName.consumeFront('?');
+  int ScopeIdentifier = demangleNumber(MangledName);
+
+  // One ? to terminate the number
+  MangledName.consumeFront('?');
+
+  assert(!Error);
+  Symbol *Scope = parse(MangledName);
+  if (Error)
+    return nullptr;
+
+  // Render the parent symbol's name into a buffer.
+  OutputStream OS = OutputStream::create(nullptr, nullptr, 1024);
+  OS << '`';
+  output(Scope, OS);
+  OS << '\'';
+  OS << "::`" << ScopeIdentifier << "'";
+  OS << '\0';
+  char *Result = OS.getBuffer();
+  Node->Str = copyString(Result);
+  std::free(Result);
+  return Node;
+}
+
+// Parses a type name in the form of A@B@C@@ which represents C::B::A.
+Name *Demangler::demangleFullyQualifiedTypeName(StringView &MangledName) {
+  Name *TypeName = demangleUnqualifiedTypeName(MangledName);
+  assert(TypeName);
+
+  Name *QualName = demangleNameScopeChain(MangledName, TypeName);
+  assert(QualName);
+  return QualName;
+}
+
+// Parses a symbol name in the form of A@B@C@@ which represents C::B::A.
+// Symbol names have slightly different rules regarding what can appear
+// so we separate out the implementations for flexibility.
+Name *Demangler::demangleFullyQualifiedSymbolName(StringView &MangledName) {
+  Name *SymbolName = demangleUnqualifiedSymbolName(MangledName);
+  assert(SymbolName);
+
+  Name *QualName = demangleNameScopeChain(MangledName, SymbolName);
+  assert(QualName);
+  return QualName;
+}
+
+Name *Demangler::demangleUnqualifiedTypeName(StringView &MangledName) {
+  // An inner-most name can be a back-reference, because a fully-qualified name
+  // (e.g. Scope + Inner) can contain other fully qualified names inside of
+  // them (for example template parameters), and these nested parameters can
+  // refer to previously mangled types.
+  if (startsWithDigit(MangledName))
+    return demangleBackRefName(MangledName);
+
+  if (MangledName.startsWith("?$"))
+    return demangleClassTemplateName(MangledName);
+
+  return demangleSimpleName(MangledName, true);
+}
+
+Name *Demangler::demangleUnqualifiedSymbolName(StringView &MangledName) {
+  if (startsWithDigit(MangledName))
+    return demangleBackRefName(MangledName);
+  if (MangledName.startsWith("?$"))
+    return demangleClassTemplateName(MangledName);
+  if (MangledName.startsWith('?'))
+    return demangleOperatorName(MangledName);
+  return demangleSimpleName(MangledName, true);
+}
+
+Name *Demangler::demangleNameScopePiece(StringView &MangledName) {
+  if (startsWithDigit(MangledName))
+    return demangleBackRefName(MangledName);
+
+  if (MangledName.startsWith("?$"))
+    return demangleClassTemplateName(MangledName);
+
+  if (MangledName.startsWith("?A"))
+    return demangleAnonymousNamespaceName(MangledName);
+
+  if (startsWithLocalScopePattern(MangledName))
+    return demangleLocallyScopedNamePiece(MangledName);
+
+  return demangleSimpleName(MangledName, true);
+}
+
+Name *Demangler::demangleNameScopeChain(StringView &MangledName,
+                                        Name *UnqualifiedName) {
+  Name *Head = UnqualifiedName;
 
   while (!MangledName.consumeFront("@")) {
-    Name *Elem = Arena.alloc<Name>();
+    if (MangledName.empty()) {
+      Error = true;
+      return nullptr;
+    }
 
     assert(!Error);
-    demangleNamePiece(*Elem, Head == nullptr);
+    Name *Elem = demangleNameScopePiece(MangledName);
     if (Error)
       return nullptr;
 
     Elem->Next = Head;
     Head = Elem;
-    if (MangledName.empty()) {
-      Error = true;
-      return nullptr;
-    }
   }
-
   return Head;
 }
 
-void Demangler::demangleOperator(Name *OpName) {
-  OpName->Operator = demangleOperatorName();
-  if (!Error && !MangledName.empty() && MangledName.front() != '@')
-    demangleNamePiece(*OpName, false);
-}
-
-StringView Demangler::demangleOperatorName() {
-  SwapAndRestore<StringView> RestoreOnError(MangledName, MangledName);
-  RestoreOnError.shouldRestore(false);
-
-  switch (MangledName.popFront()) {
-  case '0':
-    return "ctor";
-  case '1':
-    return "dtor";
-  case '2':
-    return " new";
-  case '3':
-    return " delete";
-  case '4':
-    return "=";
-  case '5':
-    return ">>";
-  case '6':
-    return "<<";
-  case '7':
-    return "!";
-  case '8':
-    return "==";
-  case '9':
-    return "!=";
-  case 'A':
-    return "[]";
-  case 'C':
-    return "->";
-  case 'D':
-    return "*";
-  case 'E':
-    return "++";
-  case 'F':
-    return "--";
-  case 'G':
-    return "-";
-  case 'H':
-    return "+";
-  case 'I':
-    return "&";
-  case 'J':
-    return "->*";
-  case 'K':
-    return "/";
-  case 'L':
-    return "%";
-  case 'M':
-    return "<";
-  case 'N':
-    return "<=";
-  case 'O':
-    return ">";
-  case 'P':
-    return ">=";
-  case 'Q':
-    return ",";
-  case 'R':
-    return "()";
-  case 'S':
-    return "~";
-  case 'T':
-    return "^";
-  case 'U':
-    return "|";
-  case 'V':
-    return "&&";
-  case 'W':
-    return "||";
-  case 'X':
-    return "*=";
-  case 'Y':
-    return "+=";
-  case 'Z':
-    return "-=";
-  case '_': {
-    if (MangledName.empty())
-      break;
-
-    switch (MangledName.popFront()) {
-    case '0':
-      return "/=";
-    case '1':
-      return "%=";
-    case '2':
-      return ">>=";
-    case '3':
-      return "<<=";
-    case '4':
-      return "&=";
-    case '5':
-      return "|=";
-    case '6':
-      return "^=";
-    case 'U':
-      return " new[]";
-    case 'V':
-      return " delete[]";
-    case '_':
-      if (MangledName.consumeFront("L"))
-        return " co_await";
-    }
-  }
-  }
-
-  Error = true;
-  RestoreOnError.shouldRestore(true);
-  return "";
-}
-
-FuncClass Demangler::demangleFunctionClass() {
+FuncClass Demangler::demangleFunctionClass(StringView &MangledName) {
   SwapAndRestore<StringView> RestoreOnError(MangledName, MangledName);
   RestoreOnError.shouldRestore(false);
 
@@ -1170,7 +1450,7 @@ FuncClass Demangler::demangleFunctionClass() {
   return Public;
 }
 
-CallingConv Demangler::demangleCallingConvention() {
+CallingConv Demangler::demangleCallingConvention(StringView &MangledName) {
   switch (MangledName.popFront()) {
   case 'A':
   case 'B':
@@ -1200,7 +1480,7 @@ CallingConv Demangler::demangleCallingConvention() {
   return CallingConv::None;
 }
 
-StorageClass Demangler::demangleVariableStorageClass() {
+StorageClass Demangler::demangleVariableStorageClass(StringView &MangledName) {
   assert(std::isdigit(MangledName.front()));
 
   switch (MangledName.popFront()) {
@@ -1219,7 +1499,8 @@ StorageClass Demangler::demangleVariableStorageClass() {
   return StorageClass::None;
 }
 
-std::pair<Qualifiers, bool> Demangler::demangleQualifiers() {
+std::pair<Qualifiers, bool>
+Demangler::demangleQualifiers(StringView &MangledName) {
 
   switch (MangledName.popFront()) {
   // Member qualifiers
@@ -1245,54 +1526,88 @@ std::pair<Qualifiers, bool> Demangler::demangleQualifiers() {
   return std::make_pair(Q_None, false);
 }
 
-// <variable-type> ::= <type> <cvr-qualifiers>
-//                 ::= <type> <pointee-cvr-qualifiers> # pointers, references
-Type *Demangler::demangleType(QualifierMangleMode QMM) {
-  Qualifiers Quals = Q_None;
-  bool IsMember = false;
-  bool IsMemberKnown = false;
-  if (QMM == QualifierMangleMode::Mangle) {
-    std::tie(Quals, IsMember) = demangleQualifiers();
-    IsMemberKnown = true;
-  } else if (QMM == QualifierMangleMode::Result) {
-    if (MangledName.consumeFront('?')) {
-      std::tie(Quals, IsMember) = demangleQualifiers();
-      IsMemberKnown = true;
-    }
-  }
-
-  Type *Ty = nullptr;
-  switch (MangledName.front()) {
+static bool isTagType(StringView S) {
+  switch (S.front()) {
   case 'T': // union
   case 'U': // struct
   case 'V': // class
   case 'W': // enum
-    Ty = demangleClassType();
-    break;
+    return true;
+  }
+  return false;
+}
+
+static bool isPointerType(StringView S) {
+  if (S.startsWith("$$Q")) // foo &&
+    return true;
+
+  switch (S.front()) {
   case 'A': // foo &
   case 'P': // foo *
   case 'Q': // foo *const
   case 'R': // foo *volatile
   case 'S': // foo *const volatile
+    return true;
+  }
+  return false;
+}
+
+static bool isArrayType(StringView S) { return S[0] == 'Y'; }
+
+static bool isFunctionType(StringView S) {
+  return S.startsWith("$$A8@@") || S.startsWith("$$A6");
+}
+
+// <variable-type> ::= <type> <cvr-qualifiers>
+//                 ::= <type> <pointee-cvr-qualifiers> # pointers, references
+Type *Demangler::demangleType(StringView &MangledName,
+                              QualifierMangleMode QMM) {
+  Qualifiers Quals = Q_None;
+  bool IsMember = false;
+  bool IsMemberKnown = false;
+  if (QMM == QualifierMangleMode::Mangle) {
+    std::tie(Quals, IsMember) = demangleQualifiers(MangledName);
+    IsMemberKnown = true;
+  } else if (QMM == QualifierMangleMode::Result) {
+    if (MangledName.consumeFront('?')) {
+      std::tie(Quals, IsMember) = demangleQualifiers(MangledName);
+      IsMemberKnown = true;
+    }
+  }
+
+  Type *Ty = nullptr;
+  if (isTagType(MangledName))
+    Ty = demangleClassType(MangledName);
+  else if (isPointerType(MangledName)) {
     if (!IsMemberKnown)
       IsMember = isMemberPointer(MangledName);
+
     if (IsMember)
-      Ty = demangleMemberPointerType();
+      Ty = demangleMemberPointerType(MangledName);
     else
-      Ty = demanglePointerType();
-    break;
-  case 'Y':
-    Ty = demangleArrayType();
-    break;
-  default:
-    Ty = demangleBasicType();
-    break;
+      Ty = demanglePointerType(MangledName);
+  } else if (isArrayType(MangledName))
+    Ty = demangleArrayType(MangledName);
+  else if (isFunctionType(MangledName)) {
+    if (MangledName.consumeFront("$$A8@@"))
+      Ty = demangleFunctionType(MangledName, true, false);
+    else {
+      assert(MangledName.startsWith("$$A6"));
+      MangledName.consumeFront("$$A6");
+      Ty = demangleFunctionType(MangledName, false, false);
+    }
+  } else {
+    Ty = demangleBasicType(MangledName);
+    assert(Ty && !Error);
+    if (!Ty || Error)
+      return Ty;
   }
+
   Ty->Quals = Qualifiers(Ty->Quals | Quals);
   return Ty;
 }
 
-ReferenceKind Demangler::demangleReferenceKind() {
+ReferenceKind Demangler::demangleReferenceKind(StringView &MangledName) {
   if (MangledName.consumeFront('G'))
     return ReferenceKind::LValueRef;
   else if (MangledName.consumeFront('H'))
@@ -1300,54 +1615,60 @@ ReferenceKind Demangler::demangleReferenceKind() {
   return ReferenceKind::None;
 }
 
-void Demangler::demangleThrowSpecification() {
+void Demangler::demangleThrowSpecification(StringView &MangledName) {
   if (MangledName.consumeFront('Z'))
     return;
 
   Error = true;
 }
 
-FunctionType *Demangler::demangleFunctionType(bool HasThisQuals,
+FunctionType *Demangler::demangleFunctionType(StringView &MangledName,
+                                              bool HasThisQuals,
                                               bool IsFunctionPointer) {
   FunctionType *FTy = Arena.alloc<FunctionType>();
   FTy->Prim = PrimTy::Function;
   FTy->IsFunctionPointer = IsFunctionPointer;
 
   if (HasThisQuals) {
-    FTy->Quals = demanglePointerExtQualifiers();
-    FTy->RefKind = demangleReferenceKind();
-    FTy->Quals = Qualifiers(FTy->Quals | demangleQualifiers().first);
+    FTy->Quals = demanglePointerExtQualifiers(MangledName);
+    FTy->RefKind = demangleReferenceKind(MangledName);
+    FTy->Quals = Qualifiers(FTy->Quals | demangleQualifiers(MangledName).first);
   }
 
   // Fields that appear on both member and non-member functions.
-  FTy->CallConvention = demangleCallingConvention();
+  FTy->CallConvention = demangleCallingConvention(MangledName);
 
   // <return-type> ::= <type>
   //               ::= @ # structors (they have no declared return type)
   bool IsStructor = MangledName.consumeFront('@');
   if (!IsStructor)
-    FTy->ReturnType = demangleType(QualifierMangleMode::Result);
+    FTy->ReturnType = demangleType(MangledName, QualifierMangleMode::Result);
 
-  FTy->Params = demangleFunctionParameterList();
+  FTy->Params = demangleFunctionParameterList(MangledName);
 
-  demangleThrowSpecification();
+  demangleThrowSpecification(MangledName);
 
   return FTy;
 }
 
-Type *Demangler::demangleFunctionEncoding() {
-  FuncClass FC = demangleFunctionClass();
+Type *Demangler::demangleFunctionEncoding(StringView &MangledName) {
+  FuncClass FC = demangleFunctionClass(MangledName);
 
   bool HasThisQuals = !(FC & (Global | Static));
-  FunctionType *FTy = demangleFunctionType(HasThisQuals, false);
+  FunctionType *FTy = demangleFunctionType(MangledName, HasThisQuals, false);
   FTy->FunctionClass = FC;
 
   return FTy;
 }
 
 // Reads a primitive type.
-Type *Demangler::demangleBasicType() {
+Type *Demangler::demangleBasicType(StringView &MangledName) {
   Type *Ty = Arena.alloc<Type>();
+
+  if (MangledName.consumeFront("$$T")) {
+    Ty->Prim = PrimTy::Nullptr;
+    return Ty;
+  }
 
   switch (MangledName.popFront()) {
   case 'X':
@@ -1407,16 +1728,26 @@ Type *Demangler::demangleBasicType() {
     case 'W':
       Ty->Prim = PrimTy::Wchar;
       break;
+    case 'S':
+      Ty->Prim = PrimTy::Char16;
+      break;
+    case 'U':
+      Ty->Prim = PrimTy::Char32;
+      break;
     default:
-      assert(false);
+      Error = true;
+      return nullptr;
     }
     break;
   }
+  default:
+    Error = true;
+    return nullptr;
   }
   return Ty;
 }
 
-UdtType *Demangler::demangleClassType() {
+UdtType *Demangler::demangleClassType(StringView &MangledName) {
   UdtType *UTy = Arena.alloc<UdtType>();
 
   switch (MangledName.popFront()) {
@@ -1440,12 +1771,15 @@ UdtType *Demangler::demangleClassType() {
     assert(false);
   }
 
-  UTy->UdtName = demangleName();
+  UTy->UdtName = demangleFullyQualifiedTypeName(MangledName);
   return UTy;
 }
 
 static std::pair<Qualifiers, PointerAffinity>
 demanglePointerCVQualifiers(StringView &MangledName) {
+  if (MangledName.consumeFront("$$Q"))
+    return std::make_pair(Q_None, PointerAffinity::RValueReference);
+
   switch (MangledName.popFront()) {
   case 'A':
     return std::make_pair(Q_None, PointerAffinity::Reference);
@@ -1466,27 +1800,27 @@ demanglePointerCVQualifiers(StringView &MangledName) {
 
 // <pointer-type> ::= E? <pointer-cvr-qualifiers> <ext-qualifiers> <type>
 //                       # the E is required for 64-bit non-static pointers
-PointerType *Demangler::demanglePointerType() {
+PointerType *Demangler::demanglePointerType(StringView &MangledName) {
   PointerType *Pointer = Arena.alloc<PointerType>();
 
-  PointerAffinity Affinity;
-  std::tie(Pointer->Quals, Affinity) = demanglePointerCVQualifiers(MangledName);
+  std::tie(Pointer->Quals, Pointer->Affinity) =
+      demanglePointerCVQualifiers(MangledName);
 
-  Pointer->Prim =
-      (Affinity == PointerAffinity::Pointer) ? PrimTy::Ptr : PrimTy::Ref;
+  Pointer->Prim = PrimTy::Ptr;
   if (MangledName.consumeFront("6")) {
-    Pointer->Pointee = demangleFunctionType(false, true);
+    Pointer->Pointee = demangleFunctionType(MangledName, false, true);
     return Pointer;
   }
 
-  Qualifiers ExtQuals = demanglePointerExtQualifiers();
+  Qualifiers ExtQuals = demanglePointerExtQualifiers(MangledName);
   Pointer->Quals = Qualifiers(Pointer->Quals | ExtQuals);
 
-  Pointer->Pointee = demangleType(QualifierMangleMode::Mangle);
+  Pointer->Pointee = demangleType(MangledName, QualifierMangleMode::Mangle);
   return Pointer;
 }
 
-MemberPointerType *Demangler::demangleMemberPointerType() {
+MemberPointerType *
+Demangler::demangleMemberPointerType(StringView &MangledName) {
   MemberPointerType *Pointer = Arena.alloc<MemberPointerType>();
   Pointer->Prim = PrimTy::MemberPtr;
 
@@ -1494,27 +1828,27 @@ MemberPointerType *Demangler::demangleMemberPointerType() {
   std::tie(Pointer->Quals, Affinity) = demanglePointerCVQualifiers(MangledName);
   assert(Affinity == PointerAffinity::Pointer);
 
-  Qualifiers ExtQuals = demanglePointerExtQualifiers();
+  Qualifiers ExtQuals = demanglePointerExtQualifiers(MangledName);
   Pointer->Quals = Qualifiers(Pointer->Quals | ExtQuals);
 
   if (MangledName.consumeFront("8")) {
-    Pointer->MemberName = demangleName();
-    Pointer->Pointee = demangleFunctionType(true, true);
+    Pointer->MemberName = demangleFullyQualifiedSymbolName(MangledName);
+    Pointer->Pointee = demangleFunctionType(MangledName, true, true);
   } else {
     Qualifiers PointeeQuals = Q_None;
     bool IsMember = false;
-    std::tie(PointeeQuals, IsMember) = demangleQualifiers();
+    std::tie(PointeeQuals, IsMember) = demangleQualifiers(MangledName);
     assert(IsMember);
-    Pointer->MemberName = demangleName();
+    Pointer->MemberName = demangleFullyQualifiedSymbolName(MangledName);
 
-    Pointer->Pointee = demangleType(QualifierMangleMode::Drop);
+    Pointer->Pointee = demangleType(MangledName, QualifierMangleMode::Drop);
     Pointer->Pointee->Quals = PointeeQuals;
   }
 
   return Pointer;
 }
 
-Qualifiers Demangler::demanglePointerExtQualifiers() {
+Qualifiers Demangler::demanglePointerExtQualifiers(StringView &MangledName) {
   Qualifiers Quals = Q_None;
   if (MangledName.consumeFront('E'))
     Quals = Qualifiers(Quals | Q_Pointer64);
@@ -1526,11 +1860,11 @@ Qualifiers Demangler::demanglePointerExtQualifiers() {
   return Quals;
 }
 
-ArrayType *Demangler::demangleArrayType() {
+ArrayType *Demangler::demangleArrayType(StringView &MangledName) {
   assert(MangledName.front() == 'Y');
   MangledName.popFront();
 
-  int Dimension = demangleNumber();
+  int Dimension = demangleNumber(MangledName);
   if (Dimension <= 0) {
     Error = true;
     return nullptr;
@@ -1540,7 +1874,7 @@ ArrayType *Demangler::demangleArrayType() {
   ArrayType *Dim = ATy;
   for (int I = 0; I < Dimension; ++I) {
     Dim->Prim = PrimTy::Array;
-    Dim->ArrayDimension = demangleNumber();
+    Dim->ArrayDimension = demangleNumber(MangledName);
     Dim->NextDimension = Arena.alloc<ArrayType>();
     Dim = Dim->NextDimension;
   }
@@ -1554,19 +1888,20 @@ ArrayType *Demangler::demangleArrayType() {
       Error = true;
   }
 
-  ATy->ElementType = demangleType(QualifierMangleMode::Drop);
+  ATy->ElementType = demangleType(MangledName, QualifierMangleMode::Drop);
   Dim->ElementType = ATy->ElementType;
   return ATy;
 }
 
 // Reads a function or a template parameters.
-ParamList Demangler::demangleFunctionParameterList() {
+FunctionParams
+Demangler::demangleFunctionParameterList(StringView &MangledName) {
   // Empty parameter list.
   if (MangledName.consumeFront('X'))
     return {};
 
-  ParamList *Head;
-  ParamList **Current = &Head;
+  FunctionParams *Head;
+  FunctionParams **Current = &Head;
   while (!Error && !MangledName.startsWith('@') &&
          !MangledName.startsWith('Z')) {
 
@@ -1578,7 +1913,7 @@ ParamList Demangler::demangleFunctionParameterList() {
       }
       MangledName = MangledName.dropFront();
 
-      *Current = Arena.alloc<ParamList>();
+      *Current = Arena.alloc<FunctionParams>();
       (*Current)->Current = FunctionParamBackRefs[N]->clone(Arena);
       Current = &(*Current)->Next;
       continue;
@@ -1586,8 +1921,8 @@ ParamList Demangler::demangleFunctionParameterList() {
 
     size_t OldSize = MangledName.size();
 
-    *Current = Arena.alloc<ParamList>();
-    (*Current)->Current = demangleType(QualifierMangleMode::Drop);
+    *Current = Arena.alloc<FunctionParams>();
+    (*Current)->Current = demangleType(MangledName, QualifierMangleMode::Drop);
 
     size_t CharsConsumed = OldSize - MangledName.size();
     assert(CharsConsumed != 0);
@@ -1618,14 +1953,33 @@ ParamList Demangler::demangleFunctionParameterList() {
   return {};
 }
 
-ParamList Demangler::demangleTemplateParameterList() {
-  ParamList *Head;
-  ParamList **Current = &Head;
+TemplateParams *
+Demangler::demangleTemplateParameterList(StringView &MangledName) {
+  TemplateParams *Head;
+  TemplateParams **Current = &Head;
   while (!Error && !MangledName.startsWith('@')) {
-
     // Template parameter lists don't participate in back-referencing.
-    *Current = Arena.alloc<ParamList>();
-    (*Current)->Current = demangleType(QualifierMangleMode::Drop);
+    *Current = Arena.alloc<TemplateParams>();
+
+    // Empty parameter pack.
+    if (MangledName.consumeFront("$S") || MangledName.consumeFront("$$V") ||
+        MangledName.consumeFront("$$$V")) {
+      if (!MangledName.startsWith('@'))
+        Error = true;
+      continue;
+    }
+
+    if (MangledName.consumeFront("$$Y")) {
+      (*Current)->IsTemplateTemplate = true;
+      (*Current)->IsAliasTemplate = true;
+      (*Current)->ParamName = demangleFullyQualifiedTypeName(MangledName);
+    } else if (MangledName.consumeFront("$1?")) {
+      (*Current)->ParamName = demangleFullyQualifiedSymbolName(MangledName);
+      (*Current)->ParamType = demangleFunctionEncoding(MangledName);
+    } else {
+      (*Current)->ParamType =
+          demangleType(MangledName, QualifierMangleMode::Drop);
+    }
 
     Current = &(*Current)->Next;
   }
@@ -1636,12 +1990,12 @@ ParamList Demangler::demangleTemplateParameterList() {
   // Template parameter lists cannot be variadic, so it can only be terminated
   // by @.
   if (MangledName.consumeFront('@'))
-    return *Head;
+    return Head;
   Error = true;
   return {};
 }
 
-void Demangler::output() {
+void Demangler::output(const Symbol *S, OutputStream &OS) {
   // Converts an AST to a string.
   //
   // Converting an AST representing a C++ type to a string is tricky due
@@ -1659,26 +2013,24 @@ void Demangler::output() {
   // the "first half" of type declaration, and outputPost() writes the
   // "second half". For example, outputPre() writes a return type for a
   // function and outputPost() writes an parameter list.
-  Type::outputPre(OS, *SymbolType);
-  outputName(OS, SymbolName);
-  Type::outputPost(OS, *SymbolType);
-
-  // Null terminate the buffer.
-  OS << '\0';
+  Type::outputPre(OS, *S->SymbolType);
+  outputName(OS, S->SymbolName);
+  Type::outputPost(OS, *S->SymbolType);
 }
 
 char *llvm::microsoftDemangle(const char *MangledName, char *Buf, size_t *N,
                               int *Status) {
-  OutputStream OS = OutputStream::create(Buf, N, 1024);
-
-  Demangler D(OS, StringView(MangledName));
-  D.parse();
+  Demangler D;
+  StringView Name{MangledName};
+  Symbol *S = D.parse(Name);
 
   if (D.Error)
     *Status = llvm::demangle_invalid_mangled_name;
   else
     *Status = llvm::demangle_success;
 
-  D.output();
+  OutputStream OS = OutputStream::create(Buf, N, 1024);
+  D.output(S, OS);
+  OS << '\0';
   return OS.getBuffer();
 }
