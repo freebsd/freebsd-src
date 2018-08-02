@@ -3407,6 +3407,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
 
+	sysctl_ctx_init(&priv->sysctl_ctx_channel_debug);
+
 	/* ifnet sysctl tree */
 	sysctl_ctx_init(&priv->sysctl_ctx);
 	priv->sysctl_ifnet = SYSCTL_ADD_NODE(&priv->sysctl_ctx, SYSCTL_STATIC_CHILDREN(_dev),
@@ -3565,6 +3567,7 @@ err_free_wq:
 
 err_free_sysctl:
 	sysctl_ctx_free(&priv->sysctl_ctx);
+	sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
 
 	if_free(ifp);
 
@@ -3612,8 +3615,10 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	if_free(ifp);
 
 	/* destroy all remaining sysctl nodes */
-	if (priv->sysctl_debug)
+	if (priv->sysctl_debug) {
+		sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
+	}
 	sysctl_ctx_free(&priv->stats.vport.ctx);
 	sysctl_ctx_free(&priv->stats.pport.ctx);
 	sysctl_ctx_free(&priv->sysctl_ctx);
