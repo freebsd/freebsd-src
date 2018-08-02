@@ -340,7 +340,7 @@ STAGE_TARGETS+= $t
 STAGE_TARGETS+= stage_as
 .endif
 
-.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
+.if !empty(STAGE_TARGETS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 
 .if !empty(LINKS)
 STAGE_TARGETS+= stage_links

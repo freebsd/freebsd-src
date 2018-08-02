@@ -13,6 +13,8 @@ GENDIRDEPS_FILTER+= \
 	Ngnu/lib/libgcc \
 	Nlib/libgcc_eh \
 	Nlib/libgcc_s \
+	Nstand/libsa/* \
+	Nstand/libsa32/* \
 	Ntargets/pseudo/stage* \
 	Ntools/*
 

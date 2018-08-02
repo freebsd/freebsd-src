@@ -120,8 +120,10 @@ realinstall: installfiles
 .if ${MK_STAGING} != "no"
 .if !empty(STAGE_SETS)
 buildfiles: stage_files
+STAGE_TARGETS+= stage_files
 .if !empty(STAGE_AS_SETS)
 buildfiles: stage_as
+STAGE_TARGETS+= stage_as
 .endif
 .endif
 .endif
