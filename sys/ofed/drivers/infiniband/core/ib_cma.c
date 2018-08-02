@@ -568,12 +568,12 @@ static int cma_translate_addr(struct sockaddr *addr, struct rdma_dev_addr *dev_a
 
 static inline int cma_validate_port(struct ib_device *device, u8 port,
 				    enum ib_gid_type gid_type,
-				      union ib_gid *gid, int dev_type,
-				      struct vnet *net,
-				      int bound_if_index)
+				    union ib_gid *gid,
+				    const struct rdma_dev_addr *dev_addr)
 {
+	const int dev_type = dev_addr->dev_type;
+	struct net_device *ndev;
 	int ret = -ENODEV;
-	struct net_device *ndev = NULL;
 
 	if ((dev_type == ARPHRD_INFINIBAND) && !rdma_protocol_ib(device, port))
 		return ret;
@@ -582,19 +582,9 @@ static inline int cma_validate_port(struct ib_device *device, u8 port,
 		return ret;
 
 	if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port)) {
-		ndev = dev_get_by_index(net, bound_if_index);
-		if (ndev && ndev->if_flags & IFF_LOOPBACK) {
-			pr_info("detected loopback device\n");
-			dev_put(ndev);
-
-			if (!device->get_netdev)
-				return -EOPNOTSUPP;
-
-			ndev = device->get_netdev(device, port);
-			if (!ndev)
-				return -ENODEV;
-		}
+		ndev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 	} else {
+		ndev = NULL;
 		gid_type = IB_GID_TYPE_IB;
 	}
 
@@ -636,10 +626,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 		ret = cma_validate_port(cma_dev->device, port,
 					rdma_protocol_ib(cma_dev->device, port) ?
 					IB_GID_TYPE_IB :
-					listen_id_priv->gid_type, gidp,
-					dev_addr->dev_type,
-					dev_addr->net,
-					dev_addr->bound_dev_if);
+					listen_id_priv->gid_type, gidp, dev_addr);
 		if (!ret) {
 			id_priv->id.port_num = port;
 			goto out;
@@ -660,9 +647,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 						rdma_protocol_ib(cma_dev->device, port) ?
 						IB_GID_TYPE_IB :
 						cma_dev->default_gid_type[port - 1],
-						gidp, dev_addr->dev_type,
-						dev_addr->net,
-						dev_addr->bound_dev_if);
+						gidp, dev_addr);
 			if (!ret) {
 				id_priv->id.port_num = port;
 				goto out;
@@ -2521,21 +2506,6 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		if (!ndev) {
 			ret = -ENODEV;
 			goto err2;
-		}
-
-		if (ndev->if_flags & IFF_LOOPBACK) {
-			dev_put(ndev);
-			if (!id_priv->id.device->get_netdev) {
-				ret = -EOPNOTSUPP;
-				goto err2;
-			}
-
-			ndev = id_priv->id.device->get_netdev(id_priv->id.device,
-							      id_priv->id.port_num);
-			if (!ndev) {
-				ret = -ENODEV;
-				goto err2;
-			}
 		}
 
 		route->path_rec->net = ndev->if_vnet;
