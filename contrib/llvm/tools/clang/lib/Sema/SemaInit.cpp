@@ -191,7 +191,7 @@ static void CheckStringInit(Expr *Str, QualType &DeclT, const ArrayType *AT,
       if (SL->isPascal())
         StrLength--;
     }
-  
+
     // [dcl.init.string]p2
     if (StrLength > CAT->getSize().getZExtValue())
       S.Diag(Str->getLocStart(),
@@ -450,7 +450,7 @@ ExprResult InitListChecker::PerformEmptyInit(Sema &SemaRef,
           IsInStd = true;
       }
 
-      if (IsInStd && llvm::StringSwitch<bool>(R->getName()) 
+      if (IsInStd && llvm::StringSwitch<bool>(R->getName())
               .Cases("basic_string", "deque", "forward_list", true)
               .Cases("list", "map", "multimap", "multiset", true)
               .Cases("priority_queue", "queue", "set", "stack", true)
@@ -1578,7 +1578,7 @@ void InitListChecker::CheckVectorType(const InitializedEntity &Entity,
                         T->getVectorKind() == VectorType::NeonPolyVector)) {
       // The ability to use vector initializer lists is a GNU vector extension
       // and is unrelated to the NEON intrinsics in arm_neon.h. On little
-      // endian machines it works fine, however on big endian machines it 
+      // endian machines it works fine, however on big endian machines it
       // exhibits surprising behaviour:
       //
       //   uint32x2_t x = {42, 64};
@@ -2225,7 +2225,7 @@ InitListChecker::CheckDesignatedInitializer(const InitializedEntity &Entity,
           SemaRef.Diag(D->getLocStart(),
                        diag::warn_subobject_initializer_overrides)
             << SourceRange(D->getLocStart(), DIE->getLocEnd());
-  
+
           SemaRef.Diag(ExistingInit->getLocStart(),
                        diag::note_previous_initializer)
             << /*FIXME:has side effects=*/0
@@ -3000,7 +3000,7 @@ DeclarationName InitializedEntity::getName() const {
 
   case EK_LambdaCapture:
     return DeclarationName(Capture.VarID);
-      
+
   case EK_Result:
   case EK_StmtExprResult:
   case EK_Exception:
@@ -3653,13 +3653,13 @@ ResolveConstructorOverload(Sema &S, SourceLocation DeclLoc,
                                      CandidateSet, SuppressUserConversions);
     else {
       // C++ [over.match.copy]p1:
-      //   - When initializing a temporary to be bound to the first parameter 
+      //   - When initializing a temporary to be bound to the first parameter
       //     of a constructor [for type T] that takes a reference to possibly
       //     cv-qualified T as its first argument, called with a single
       //     argument in the context of direct-initialization, explicit
       //     conversion functions are also considered.
       // FIXME: What if a constructor template instantiates to such a signature?
-      bool AllowExplicitConv = AllowExplicit && !CopyInitializing && 
+      bool AllowExplicitConv = AllowExplicit && !CopyInitializing &&
                                Args.size() == 1 &&
                                hasCopyOrMoveCtorParam(S.Context, Info);
       S.AddOverloadCandidate(Info.Constructor, Info.FoundDecl, Args,
@@ -4226,7 +4226,7 @@ static OverloadingResult TryRefInitWithConversionFunction(
   (void)DerivedToBase;
   (void)ObjCConversion;
   (void)ObjCLifetimeConversion;
-  
+
   // Build the candidate set directly in the initialization sequence
   // structure, so that it will persist if we fail.
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
@@ -4646,7 +4646,7 @@ static void TryReferenceInitializationCore(Sema &S,
                               /*FIXME:InOverloadResolution=*/false,
                               /*CStyle=*/Kind.isCStyleOrFunctionalCast(),
                               /*AllowObjCWritebackConversion=*/false);
-  
+
   if (ICS.isBad()) {
     // FIXME: Use the conversion function set stored in ICS to turn
     // this into an overloading ambiguity diagnostic. However, we need
@@ -4787,7 +4787,7 @@ static void TryDefaultInitialization(Sema &S,
   //   To default-initialize an object of type T means:
   //     - if T is an array type, each element is default-initialized;
   QualType DestType = S.Context.getBaseElementType(Entity.getType());
-         
+
   //     - if T is a (possibly cv-qualified) class type (Clause 9), the default
   //       constructor for T is called (and the initialization is ill-formed if
   //       T has no accessible default constructor);
@@ -5043,11 +5043,11 @@ static InvalidICRKind isInvalidICRSource(ASTContext &C, Expr *e,
 
   // If we have a declaration reference, it had better be a local variable.
   } else if (isa<DeclRefExpr>(e)) {
-    // set isWeakAccess to true, to mean that there will be an implicit 
+    // set isWeakAccess to true, to mean that there will be an implicit
     // load which requires a cleanup.
     if (e->getType().getObjCLifetime() == Qualifiers::OCL_Weak)
       isWeakAccess = true;
-    
+
     if (!isAddressOf) return IIK_nonlocal;
 
     VarDecl *var = dyn_cast<VarDecl>(cast<DeclRefExpr>(e)->getDecl());
@@ -5082,7 +5082,7 @@ static void checkIndirectCopyRestoreSource(Sema &S, Expr *src) {
   assert(src->isRValue());
   bool isWeakAccess = false;
   InvalidICRKind iik = isInvalidICRSource(S.Context, src, false, isWeakAccess);
-  // If isWeakAccess to true, there will be an implicit 
+  // If isWeakAccess to true, there will be an implicit
   // load which requires a cleanup.
   if (S.getLangOpts().ObjCAutoRefCount && isWeakAccess)
     S.Cleanup.setExprNeedsCleanups(true);
@@ -5124,7 +5124,7 @@ static bool tryObjCWritebackConversion(Sema &S,
     ArgPointee = ArgArrayType->getElementType();
     ArgType = S.Context.getPointerType(ArgPointee);
   }
-      
+
   // Handle write-back conversion.
   QualType ConvertedArgType;
   if (!S.isObjCWritebackConversion(ArgType, Entity.getType(),
@@ -5151,10 +5151,10 @@ static bool tryObjCWritebackConversion(Sema &S,
       ICS.Standard.First = ICK_Lvalue_To_Rvalue;
       ResultType = Initializer->getType().getNonLValueExprType(S.Context);
     }
-          
+
     Sequence.AddConversionSequenceStep(ICS, ResultType);
   }
-        
+
   Sequence.AddPassByIndirectCopyRestoreStep(Entity.getType(), ShouldCopy);
   return true;
 }
@@ -5567,13 +5567,13 @@ void InitializationSequence::InitializeFrom(Sema &S,
   if (ICS.isStandard() &&
       ICS.Standard.Second == ICK_Writeback_Conversion) {
     // Objective-C ARC writeback conversion.
-    
+
     // We should copy unless we're passing to an argument explicitly
     // marked 'out'.
     bool ShouldCopy = true;
     if (ParmVarDecl *Param = cast_or_null<ParmVarDecl>(Entity.getDecl()))
       ShouldCopy = (Param->getObjCDeclQualifier() != ParmVarDecl::OBJC_TQ_Out);
-    
+
     // If there was an lvalue adjustment, add it as a separate conversion.
     if (ICS.Standard.First == ICK_Array_To_Pointer ||
         ICS.Standard.First == ICK_Lvalue_To_Rvalue) {
@@ -5584,7 +5584,7 @@ void InitializationSequence::InitializeFrom(Sema &S,
       LvalueICS.Standard.First = ICS.Standard.First;
       AddConversionSequenceStep(LvalueICS, ICS.Standard.getToType(0));
     }
-    
+
     AddPassByIndirectCopyRestoreStep(DestType, ShouldCopy);
   } else if (ICS.isBad()) {
     DeclAccessPair dap;
@@ -5635,9 +5635,9 @@ getAssignmentAction(const InitializedEntity &Entity, bool Diagnose = false) {
     if (Entity.getDecl() &&
       isa<ObjCMethodDecl>(Entity.getDecl()->getDeclContext()))
       return Sema::AA_Sending;
-      
+
     return !Diagnose ? Sema::AA_Passing : Sema::AA_Passing_CFAudited;
-      
+
   case InitializedEntity::EK_Result:
   case InitializedEntity::EK_StmtExprResult: // FIXME: Not quite right.
     return Sema::AA_Returning;
@@ -5743,7 +5743,7 @@ static SourceLocation getInitializationLoc(const InitializedEntity &Entity,
 
   case InitializedEntity::EK_LambdaCapture:
     return Entity.getCaptureLoc();
-      
+
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_Member:
   case InitializedEntity::EK_Parameter:
@@ -6065,9 +6065,9 @@ PerformConstructorInitialization(Sema &S,
   ExprResult CurInit((Expr *)nullptr);
 
   // C++ [over.match.copy]p1:
-  //   - When initializing a temporary to be bound to the first parameter 
-  //     of a constructor that takes a reference to possibly cv-qualified 
-  //     T as its first argument, called with a single argument in the 
+  //   - When initializing a temporary to be bound to the first parameter
+  //     of a constructor that takes a reference to possibly cv-qualified
+  //     T as its first argument, called with a single argument in the
   //     context of direct-initialization, explicit conversion functions
   //     are also considered.
   bool AllowExplicitConv =
@@ -6322,12 +6322,14 @@ struct IndirectLocalPathEntry {
     AddressOf,
     VarInit,
     LValToRVal,
+    LifetimeBoundCall,
   } Kind;
   Expr *E;
-  Decl *D = nullptr;
+  const Decl *D = nullptr;
   IndirectLocalPathEntry() {}
   IndirectLocalPathEntry(EntryKind K, Expr *E) : Kind(K), E(E) {}
-  IndirectLocalPathEntry(EntryKind K, Expr *E, Decl *D) : Kind(K), E(E), D(D) {}
+  IndirectLocalPathEntry(EntryKind K, Expr *E, const Decl *D)
+      : Kind(K), E(E), D(D) {}
 };
 
 using IndirectLocalPath = llvm::SmallVectorImpl<IndirectLocalPathEntry>;
@@ -6360,6 +6362,68 @@ static bool pathContainsInit(IndirectLocalPath &Path) {
 static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
                                              Expr *Init, LocalVisitor Visit,
                                              bool RevisitSubinits);
+
+static void visitLocalsRetainedByReferenceBinding(IndirectLocalPath &Path,
+                                                  Expr *Init, ReferenceKind RK,
+                                                  LocalVisitor Visit);
+
+static bool implicitObjectParamIsLifetimeBound(const FunctionDecl *FD) {
+  const TypeSourceInfo *TSI = FD->getTypeSourceInfo();
+  if (!TSI)
+    return false;
+  for (TypeLoc TL = TSI->getTypeLoc();
+       auto ATL = TL.getAsAdjusted<AttributedTypeLoc>();
+       TL = ATL.getModifiedLoc()) {
+    if (ATL.getAttrKind() == AttributedType::attr_lifetimebound)
+      return true;
+  }
+  return false;
+}
+
+static void visitLifetimeBoundArguments(IndirectLocalPath &Path, Expr *Call,
+                                        LocalVisitor Visit) {
+  const FunctionDecl *Callee;
+  ArrayRef<Expr*> Args;
+
+  if (auto *CE = dyn_cast<CallExpr>(Call)) {
+    Callee = CE->getDirectCallee();
+    Args = llvm::makeArrayRef(CE->getArgs(), CE->getNumArgs());
+  } else {
+    auto *CCE = cast<CXXConstructExpr>(Call);
+    Callee = CCE->getConstructor();
+    Args = llvm::makeArrayRef(CCE->getArgs(), CCE->getNumArgs());
+  }
+  if (!Callee)
+    return;
+
+  Expr *ObjectArg = nullptr;
+  if (isa<CXXOperatorCallExpr>(Call) && Callee->isCXXInstanceMember()) {
+    ObjectArg = Args[0];
+    Args = Args.slice(1);
+  } else if (auto *MCE = dyn_cast<CXXMemberCallExpr>(Call)) {
+    ObjectArg = MCE->getImplicitObjectArgument();
+  }
+
+  auto VisitLifetimeBoundArg = [&](const Decl *D, Expr *Arg) {
+    Path.push_back({IndirectLocalPathEntry::LifetimeBoundCall, Arg, D});
+    if (Arg->isGLValue())
+      visitLocalsRetainedByReferenceBinding(Path, Arg, RK_ReferenceBinding,
+                                            Visit);
+    else
+      visitLocalsRetainedByInitializer(Path, Arg, Visit, true);
+    Path.pop_back();
+  };
+
+  if (ObjectArg && implicitObjectParamIsLifetimeBound(Callee))
+    VisitLifetimeBoundArg(Callee, ObjectArg);
+
+  for (unsigned I = 0,
+                N = std::min<unsigned>(Callee->getNumParams(), Args.size());
+       I != N; ++I) {
+    if (Callee->getParamDecl(I)->hasAttr<LifetimeBoundAttr>())
+      VisitLifetimeBoundArg(Callee->getParamDecl(I), Args[I]);
+  }
+}
 
 /// Visit the locals that would be reachable through a reference bound to the
 /// glvalue expression \c Init.
@@ -6419,6 +6483,9 @@ static void visitLocalsRetainedByReferenceBinding(IndirectLocalPath &Path,
       visitLocalsRetainedByInitializer(Path, MTE->GetTemporaryExpr(), Visit,
                                        true);
   }
+
+  if (isa<CallExpr>(Init))
+    return visitLifetimeBoundArguments(Path, Init, Visit);
 
   switch (Init->getStmtClass()) {
   case Stmt::DeclRefExprClass: {
@@ -6483,21 +6550,90 @@ static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
                                              bool RevisitSubinits) {
   RevertToOldSizeRAII RAII(Path);
 
-  // Step into CXXDefaultInitExprs so we can diagnose cases where a
-  // constructor inherits one as an implicit mem-initializer.
-  if (auto *DIE = dyn_cast<CXXDefaultInitExpr>(Init)) {
-    Path.push_back({IndirectLocalPathEntry::DefaultInit, DIE, DIE->getField()});
-    Init = DIE->getExpr();
-  }
+  Expr *Old;
+  do {
+    Old = Init;
 
-  if (auto *EWC = dyn_cast<ExprWithCleanups>(Init))
-    Init = EWC->getSubExpr();
+    // Step into CXXDefaultInitExprs so we can diagnose cases where a
+    // constructor inherits one as an implicit mem-initializer.
+    if (auto *DIE = dyn_cast<CXXDefaultInitExpr>(Init)) {
+      Path.push_back({IndirectLocalPathEntry::DefaultInit, DIE, DIE->getField()});
+      Init = DIE->getExpr();
+    }
 
-  // Dig out the expression which constructs the extended temporary.
-  Init = const_cast<Expr *>(Init->skipRValueSubobjectAdjustments());
+    if (auto *EWC = dyn_cast<ExprWithCleanups>(Init))
+      Init = EWC->getSubExpr();
 
-  if (CXXBindTemporaryExpr *BTE = dyn_cast<CXXBindTemporaryExpr>(Init))
-    Init = BTE->getSubExpr();
+    // Dig out the expression which constructs the extended temporary.
+    Init = const_cast<Expr *>(Init->skipRValueSubobjectAdjustments());
+
+    if (CXXBindTemporaryExpr *BTE = dyn_cast<CXXBindTemporaryExpr>(Init))
+      Init = BTE->getSubExpr();
+
+    Init = Init->IgnoreParens();
+
+    // Step over value-preserving rvalue casts.
+    if (auto *CE = dyn_cast<CastExpr>(Init)) {
+      switch (CE->getCastKind()) {
+      case CK_LValueToRValue:
+        // If we can match the lvalue to a const object, we can look at its
+        // initializer.
+        Path.push_back({IndirectLocalPathEntry::LValToRVal, CE});
+        return visitLocalsRetainedByReferenceBinding(
+            Path, Init, RK_ReferenceBinding,
+            [&](IndirectLocalPath &Path, Local L, ReferenceKind RK) -> bool {
+          if (auto *DRE = dyn_cast<DeclRefExpr>(L)) {
+            auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
+            if (VD && VD->getType().isConstQualified() && VD->getInit() &&
+                !isVarOnPath(Path, VD)) {
+              Path.push_back({IndirectLocalPathEntry::VarInit, DRE, VD});
+              visitLocalsRetainedByInitializer(Path, VD->getInit(), Visit, true);
+            }
+          } else if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(L)) {
+            if (MTE->getType().isConstQualified())
+              visitLocalsRetainedByInitializer(Path, MTE->GetTemporaryExpr(),
+                                               Visit, true);
+          }
+          return false;
+        });
+
+        // We assume that objects can be retained by pointers cast to integers,
+        // but not if the integer is cast to floating-point type or to _Complex.
+        // We assume that casts to 'bool' do not preserve enough information to
+        // retain a local object.
+      case CK_NoOp:
+      case CK_BitCast:
+      case CK_BaseToDerived:
+      case CK_DerivedToBase:
+      case CK_UncheckedDerivedToBase:
+      case CK_Dynamic:
+      case CK_ToUnion:
+      case CK_UserDefinedConversion:
+      case CK_ConstructorConversion:
+      case CK_IntegralToPointer:
+      case CK_PointerToIntegral:
+      case CK_VectorSplat:
+      case CK_IntegralCast:
+      case CK_CPointerToObjCPointerCast:
+      case CK_BlockPointerToObjCPointerCast:
+      case CK_AnyPointerToBlockPointerCast:
+      case CK_AddressSpaceConversion:
+        break;
+
+      case CK_ArrayToPointerDecay:
+        // Model array-to-pointer decay as taking the address of the array
+        // lvalue.
+        Path.push_back({IndirectLocalPathEntry::AddressOf, CE});
+        return visitLocalsRetainedByReferenceBinding(Path, CE->getSubExpr(),
+                                                     RK_ReferenceBinding, Visit);
+
+      default:
+        return;
+      }
+
+      Init = CE->getSubExpr();
+    }
+  } while (Old != Init);
 
   // C++17 [dcl.init.list]p6:
   //   initializing an initializer_list object from the array extends the
@@ -6558,66 +6694,9 @@ static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
     return;
   }
 
-  // Step over value-preserving rvalue casts.
-  while (auto *CE = dyn_cast<CastExpr>(Init)) {
-    switch (CE->getCastKind()) {
-    case CK_LValueToRValue:
-      // If we can match the lvalue to a const object, we can look at its
-      // initializer.
-      Path.push_back({IndirectLocalPathEntry::LValToRVal, CE});
-      return visitLocalsRetainedByReferenceBinding(
-          Path, Init, RK_ReferenceBinding,
-          [&](IndirectLocalPath &Path, Local L, ReferenceKind RK) -> bool {
-        if (auto *DRE = dyn_cast<DeclRefExpr>(L)) {
-          auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
-          if (VD && VD->getType().isConstQualified() && VD->getInit()) {
-            Path.push_back({IndirectLocalPathEntry::VarInit, DRE, VD});
-            visitLocalsRetainedByInitializer(Path, VD->getInit(), Visit, true);
-          }
-        } else if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(L)) {
-          if (MTE->getType().isConstQualified())
-            visitLocalsRetainedByInitializer(Path, MTE->GetTemporaryExpr(),
-                                             Visit, true);
-        }
-        return false;
-      });
+  if (isa<CallExpr>(Init) || isa<CXXConstructExpr>(Init))
+    return visitLifetimeBoundArguments(Path, Init, Visit);
 
-      // We assume that objects can be retained by pointers cast to integers,
-      // but not if the integer is cast to floating-point type or to _Complex.
-      // We assume that casts to 'bool' do not preserve enough information to
-      // retain a local object.
-    case CK_NoOp:
-    case CK_BitCast:
-    case CK_BaseToDerived:
-    case CK_DerivedToBase:
-    case CK_UncheckedDerivedToBase:
-    case CK_Dynamic:
-    case CK_ToUnion:
-    case CK_IntegralToPointer:
-    case CK_PointerToIntegral:
-    case CK_VectorSplat:
-    case CK_IntegralCast:
-    case CK_CPointerToObjCPointerCast:
-    case CK_BlockPointerToObjCPointerCast:
-    case CK_AnyPointerToBlockPointerCast:
-    case CK_AddressSpaceConversion:
-      break;
-
-    case CK_ArrayToPointerDecay:
-      // Model array-to-pointer decay as taking the address of the array
-      // lvalue.
-      Path.push_back({IndirectLocalPathEntry::AddressOf, CE});
-      return visitLocalsRetainedByReferenceBinding(Path, CE->getSubExpr(),
-                                                   RK_ReferenceBinding, Visit);
-
-    default:
-      return;
-    }
-
-    Init = CE->getSubExpr();
-  }
-
-  Init = Init->IgnoreParens();
   switch (Init->getStmtClass()) {
   case Stmt::UnaryOperatorClass: {
     auto *UO = cast<UnaryOperator>(Init);
@@ -6697,6 +6776,7 @@ static SourceRange nextPathEntryRange(const IndirectLocalPath &Path, unsigned I,
     switch (Path[I].Kind) {
     case IndirectLocalPathEntry::AddressOf:
     case IndirectLocalPathEntry::LValToRVal:
+    case IndirectLocalPathEntry::LifetimeBoundCall:
       // These exist primarily to mark the path as not permitting or
       // supporting lifetime extension.
       break;
@@ -6767,8 +6847,9 @@ void Sema::checkInitializerLifetime(const InitializedEntity &Entity,
           return false;
 
         Diag(DiagLoc, diag::warn_dangling_variable)
-            << RK << !Entity.getParent() << ExtendingEntity->getDecl()
-            << Init->isGLValue() << DiagRange;
+            << RK << !Entity.getParent()
+            << ExtendingEntity->getDecl()->isImplicit()
+            << ExtendingEntity->getDecl() << Init->isGLValue() << DiagRange;
       }
       break;
     }
@@ -6875,6 +6956,10 @@ void Sema::checkInitializerLifetime(const InitializedEntity &Entity,
         // supporting lifetime extension.
         break;
 
+      case IndirectLocalPathEntry::LifetimeBoundCall:
+        // FIXME: Consider adding a note for this.
+        break;
+
       case IndirectLocalPathEntry::DefaultInit: {
         auto *FD = cast<FieldDecl>(Elem.D);
         Diag(FD->getLocation(), diag::note_init_with_default_member_initalizer)
@@ -6885,7 +6970,8 @@ void Sema::checkInitializerLifetime(const InitializedEntity &Entity,
       case IndirectLocalPathEntry::VarInit:
         const VarDecl *VD = cast<VarDecl>(Elem.D);
         Diag(VD->getLocation(), diag::note_local_var_initializer)
-            << VD->getType()->isReferenceType() << VD->getDeclName()
+            << VD->getType()->isReferenceType()
+            << VD->isImplicit() << VD->getDeclName()
             << nextPathEntryRange(Path, I + 1, L);
         break;
       }
@@ -7129,7 +7215,7 @@ InitializationSequence::Perform(Sema &S,
                                   Args);
     }
     assert(Kind.getKind() == InitializationKind::IK_Copy ||
-           Kind.isExplicitCast() || 
+           Kind.isExplicitCast() ||
            Kind.getKind() == InitializationKind::IK_DirectList);
     return ExprResult(Args[0]);
   }
@@ -7831,7 +7917,7 @@ InitializationSequence::Perform(Sema &S,
         // this has already been done when parsing the variable declaration.
         if (!Init->isConstantInitializer(S.Context, false))
           break;
-        
+
         if (!SourceType->isIntegerType() ||
             32 != S.Context.getIntWidth(SourceType)) {
           S.Diag(Kind.getLocation(), diag::err_sampler_initializer_not_integer)
@@ -7867,7 +7953,7 @@ InitializationSequence::Perform(Sema &S,
       break;
     }
     case SK_OCLZeroEvent: {
-      assert(Step->Type->isEventT() && 
+      assert(Step->Type->isEventT() &&
              "Event initialization on non-event type.");
 
       CurInit = S.ImpCastExprToType(CurInit.get(), Step->Type,
@@ -8364,7 +8450,7 @@ bool InitializationSequence::Diagnose(Sema &S,
           llvm_unreachable("Inconsistent overload resolution?");
           break;
         }
-       
+
         // If this is a defaulted or implicitly-declared function, then
         // it was implicitly deleted. Make it clear that the deletion was
         // implicit.

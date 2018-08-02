@@ -72,6 +72,7 @@ def UnsupportedNan : DiagGroup<"unsupported-nan">;
 def UnsupportedAbs : DiagGroup<"unsupported-abs">;
 def UnsupportedCB : DiagGroup<"unsupported-cb">;
 def UnsupportedGPOpt : DiagGroup<"unsupported-gpopt">;
+def UnsupportedTargetOpt : DiagGroup<"unsupported-target-opt">;
 def NonLiteralNullConversion : DiagGroup<"non-literal-null-conversion">;
 def NullConversion : DiagGroup<"null-conversion">;
 def ImplicitConversionFloatingPointToBool :
@@ -287,7 +288,7 @@ def IgnoredQualifiers : DiagGroup<"ignored-qualifiers">;
 def : DiagGroup<"import">;
 def GNUIncludeNext : DiagGroup<"gnu-include-next">;
 def IncompatibleMSStruct : DiagGroup<"incompatible-ms-struct">;
-def IncompatiblePointerTypesDiscardsQualifiers 
+def IncompatiblePointerTypesDiscardsQualifiers
   : DiagGroup<"incompatible-pointer-types-discards-qualifiers">;
 def IncompatibleFunctionPointerTypes
   : DiagGroup<"incompatible-function-pointer-types">;
@@ -799,14 +800,14 @@ def Most : DiagGroup<"most", [
     UserDefinedWarnings
  ]>;
 
-// Thread Safety warnings 
+// Thread Safety warnings
 def ThreadSafetyAttributes : DiagGroup<"thread-safety-attributes">;
 def ThreadSafetyAnalysis   : DiagGroup<"thread-safety-analysis">;
 def ThreadSafetyPrecise    : DiagGroup<"thread-safety-precise">;
 def ThreadSafetyReference  : DiagGroup<"thread-safety-reference">;
 def ThreadSafetyNegative   : DiagGroup<"thread-safety-negative">;
 def ThreadSafety : DiagGroup<"thread-safety",
-                             [ThreadSafetyAttributes, 
+                             [ThreadSafetyAttributes,
                               ThreadSafetyAnalysis,
                               ThreadSafetyPrecise,
                               ThreadSafetyReference]>;
