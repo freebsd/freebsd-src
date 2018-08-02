@@ -409,7 +409,7 @@ _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(launch)
 
 #ifndef _LIBCPP_HAS_NO_STRONG_ENUMS
 
-#ifdef _LIBCXX_UNDERLYING_TYPE
+#ifdef _LIBCPP_UNDERLYING_TYPE
 typedef underlying_type<launch>::type __launch_underlying_type;
 #else
 typedef int __launch_underlying_type;
@@ -514,7 +514,7 @@ public:
     virtual ~future_error() _NOEXCEPT;
 };
 
-_LIBCPP_NORETURN inline _LIBCPP_ALWAYS_INLINE
+_LIBCPP_NORETURN inline _LIBCPP_INLINE_VISIBILITY
 #ifndef _LIBCPP_NO_EXCEPTIONS
 _LIBCPP_AVAILABILITY_FUTURE_ERROR
 #endif
@@ -2021,7 +2021,7 @@ public:
               class = typename enable_if
               <
                   !is_same<
-                      typename decay<_Fp>::type, 
+                      typename __uncvref<_Fp>::type, 
                       packaged_task
                       >::value
                   >::type
@@ -2032,7 +2032,7 @@ public:
               class = typename enable_if
               <
                   !is_same<
-                      typename decay<_Fp>::type, 
+                      typename __uncvref<_Fp>::type, 
                       packaged_task
                       >::value
                   >::type
@@ -2150,7 +2150,7 @@ public:
               class = typename enable_if
               <
                   !is_same<
-                      typename decay<_Fp>::type, 
+                      typename __uncvref<_Fp>::type, 
                       packaged_task
                       >::value
                   >::type
@@ -2161,7 +2161,7 @@ public:
               class = typename enable_if
               <
                   !is_same<
-                      typename decay<_Fp>::type, 
+                      typename __uncvref<_Fp>::type, 
                       packaged_task
                       >::value
                   >::type
