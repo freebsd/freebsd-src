@@ -241,7 +241,7 @@ cd9660_lookup(const char *path)
 			break;
 	}
 
-	rec = *(struct iso_directory_record *) vd->root_directory_record;
+	bcopy(vd->root_directory_record, &rec, sizeof(rec));
 	if (*path == '/') path++; /* eat leading '/' */
 
 	first = 1;
