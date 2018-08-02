@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-mca
-MAN=
 
 SRCDIR=		tools/llvm-mca
 SRCS+=		CodeRegion.cpp
