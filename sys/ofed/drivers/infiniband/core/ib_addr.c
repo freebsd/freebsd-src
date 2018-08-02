@@ -349,6 +349,10 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 				error = EHOSTUNREACH;
 				goto error_put_ifp;
 			}
+			/* get destination network interface from route */
+			dev_put(ifp);
+			ifp = rte->rt_ifp;
+			dev_hold(ifp);
 		} else if (ifp != rte->rt_ifp) {
 			/*
 			 * Source and destination interfaces are
@@ -544,6 +548,10 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 				error = EHOSTUNREACH;
 				goto error_put_ifp;
 			}
+			/* get destination network interface from route */
+			dev_put(ifp);
+			ifp = rte->rt_ifp;
+			dev_hold(ifp);
 		} else if (ifp != rte->rt_ifp) {
 			/*
 			 * Source and destination interfaces are
