@@ -5619,10 +5619,10 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	int eof, error, firstmirror, i, iolaymode, mirrorcnt, recalled, timo;
 	void *lckp;
 	uint8_t *dev;
-	void *iovbase;
-	size_t iovlen;
-	off_t offs;
-	ssize_t resid;
+	void *iovbase = NULL;
+	size_t iovlen = 0;
+	off_t offs = 0;
+	ssize_t resid = 0;
 
 	if (!NFSHASPNFS(nmp) || nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
 	    (np->n_flag & NNOLAYOUT) != 0)
@@ -5696,7 +5696,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			 * do all mirrors.
 			 */
 			m = NULL;
-			drpc = NULL;
+			tdrpc = drpc = NULL;
 			firstmirror = 0;
 			mirrorcnt = 1;
 			if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0 &&
