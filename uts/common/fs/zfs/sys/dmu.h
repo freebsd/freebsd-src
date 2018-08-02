@@ -517,6 +517,9 @@ uint64_t dmu_buf_refcount(dmu_buf_t *db);
 int dmu_buf_hold_array_by_bonus(dmu_buf_t *db, uint64_t offset,
     uint64_t length, boolean_t read, void *tag,
     int *numbufsp, dmu_buf_t ***dbpp);
+int dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
+    boolean_t read, void *tag, int *numbufsp, dmu_buf_t ***dbpp,
+    uint32_t flags);
 void dmu_buf_rele_array(dmu_buf_t **, int numbufs, void *tag);
 
 typedef void dmu_buf_evict_func_t(void *user_ptr);
@@ -755,14 +758,19 @@ void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_tx_t *tx);
 int dmu_read_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size);
 int dmu_read_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size);
+int dmu_read_uio_dnode(dnode_t *dn, struct uio *uio, uint64_t size);
 int dmu_write_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size,
+    dmu_tx_t *tx);
+int dmu_write_uio_dnode(dnode_t *dn, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 int dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t size, struct page *pp, dmu_tx_t *tx);
 struct arc_buf *dmu_request_arcbuf(dmu_buf_t *handle, int size);
 void dmu_return_arcbuf(struct arc_buf *buf);
+void dmu_assign_arcbuf_dnode(dnode_t *handle, uint64_t offset,
+    struct arc_buf *buf, dmu_tx_t *tx);
 void dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, struct arc_buf *buf,
     dmu_tx_t *tx);
 int dmu_xuio_init(struct xuio *uio, int niov);
