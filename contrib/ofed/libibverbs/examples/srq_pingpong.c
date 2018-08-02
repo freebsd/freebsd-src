@@ -147,7 +147,7 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 {
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
-		.ai_family   = AF_INET,
+		.ai_family   = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;

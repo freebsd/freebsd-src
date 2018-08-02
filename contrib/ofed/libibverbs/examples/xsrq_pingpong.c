@@ -544,7 +544,7 @@ static int pp_client_connect(const char *servername, int port)
 	int ret;
 	int sockfd = -1;
 	struct addrinfo hints = {
-		.ai_family   = AF_INET,
+		.ai_family   = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM
 	};
 
