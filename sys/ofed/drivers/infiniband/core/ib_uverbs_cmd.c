@@ -2366,6 +2366,25 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 		goto out;
 	}
 
+	if ((cmd.attr_mask & IB_QP_PORT) &&
+	    !rdma_is_port_valid(qp->device, cmd.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
+	if ((cmd.attr_mask & IB_QP_AV) &&
+	    !rdma_is_port_valid(qp->device, cmd.dest.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
+	if ((cmd.attr_mask & IB_QP_ALT_PATH) &&
+	    (!rdma_is_port_valid(qp->device, cmd.alt_port_num) ||
+	    !rdma_is_port_valid(qp->device, cmd.alt_dest.port_num))) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	attr->qp_state 		  = cmd.qp_state;
 	attr->cur_qp_state 	  = cmd.cur_qp_state;
 	attr->path_mtu 		  = cmd.path_mtu;
@@ -2895,6 +2914,9 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	if (!rdma_is_port_valid(ib_dev, cmd.attr.port_num))
+		return -EINVAL;
 
 	INIT_UDATA(&udata, buf + sizeof(cmd),
 		   (unsigned long)cmd.response + sizeof(resp),
