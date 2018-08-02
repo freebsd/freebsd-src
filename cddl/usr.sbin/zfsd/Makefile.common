@@ -28,7 +28,6 @@ INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
 INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
 INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
 INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
 
 CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
