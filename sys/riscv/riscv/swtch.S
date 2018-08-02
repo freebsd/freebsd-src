@@ -179,6 +179,7 @@ ENTRY(cpu_throw)
 	/* Load registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
+	ld	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
@@ -231,6 +232,7 @@ ENTRY(cpu_switch)
 	/* Store ra, sp and the callee-saved registers */
 	sd	ra, (PCB_RA)(x13)
 	sd	sp, (PCB_SP)(x13)
+	sd	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(x13)
@@ -303,6 +305,7 @@ ENTRY(cpu_switch)
 #endif
 
 	/* Restore the registers */
+	ld	tp, (PCB_TP)(x13)
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
 
@@ -392,7 +395,6 @@ ENTRY(fork_trampoline)
 	ld	a7, (TF_A + 7 * 8)(sp)
 
 	/* Load user ra and sp */
-	ld	tp, (TF_TP)(sp)
 	ld	ra, (TF_RA)(sp)
 
 	/*
@@ -416,6 +418,7 @@ ENTRY(savectx)
 	/* Store ra, sp and the callee-saved registers */
 	sd	ra, (PCB_RA)(a0)
 	sd	sp, (PCB_SP)(a0)
+	sd	tp, (PCB_TP)(a0)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(a0)
