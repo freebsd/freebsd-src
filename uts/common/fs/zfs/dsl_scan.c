@@ -1951,14 +1951,14 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	int zio_flags = ZIO_FLAG_SCAN_THREAD | ZIO_FLAG_RAW | ZIO_FLAG_CANFAIL;
 	int scan_delay = 0;
 
+	count_block(dp->dp_blkstats, bp);
+
 	if (phys_birth <= scn->scn_phys.scn_min_txg ||
 	    phys_birth >= scn->scn_phys.scn_max_txg)
 		return (0);
 
-	count_block(dp->dp_blkstats, bp);
-
-	if (BP_IS_EMBEDDED(bp))
-		return (0);
+	/* Embedded BP's have phys_birth==0, so we reject them above. */
+	ASSERT(!BP_IS_EMBEDDED(bp));
 
 	ASSERT(DSL_SCAN_IS_SCRUB_RESILVER(scn));
 	if (scn->scn_phys.scn_func == POOL_SCAN_SCRUB) {
