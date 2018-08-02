@@ -51,8 +51,10 @@
 #include "mlx5_ib.h"
 
 #define DRIVER_NAME "mlx5_ib"
-#define DRIVER_VERSION "3.4.1-BETA"
-#define DRIVER_RELDATE	"October 2017"
+#ifndef DRIVER_VERSION
+#define DRIVER_VERSION "3.4.2"
+#endif
+#define DRIVER_RELDATE	"July 2018"
 
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -65,8 +67,8 @@ static int deprecated_prof_sel = 2;
 module_param_named(prof_sel, deprecated_prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Deprecated here. Moved to module mlx5_core");
 
-static char mlx5_version[] =
-	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver v"
+static const char mlx5_version[] =
+	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver "
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 enum {
