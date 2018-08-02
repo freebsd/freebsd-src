@@ -59,19 +59,19 @@ enum  {
 	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
-static int lock_sem_sw_reset(struct mlx5_core_dev *dev, int state)
+static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 {
-	int ret, err;
+	int ret;
 
 	/* Lock GW access */
-	ret = mlx5_pciconf_cap9_sem(dev, LOCK);
+	ret = -mlx5_vsc_lock(dev);
 	if (ret) {
-		mlx5_core_warn(dev, "Timed out locking gateway %d, %d\n", state, ret);
+		mlx5_core_warn(dev, "Timed out locking gateway %d\n", ret);
 		return ret;
 	}
 
-	ret = mlx5_pciconf_set_sem_addr_space(dev, MLX5_SEMAPHORE_SW_RESET, state);
-	if (ret && state == LOCK) {
+	ret = -mlx5_vsc_lock_addr_space(dev, MLX5_SEMAPHORE_SW_RESET);
+	if (ret) {
 		if (ret == -EBUSY)
 			mlx5_core_dbg(dev, "SW reset FW semaphore already locked, another function will handle the reset\n");
 		else
@@ -79,9 +79,26 @@ static int lock_sem_sw_reset(struct mlx5_core_dev *dev, int state)
 	}
 
 	/* Unlock GW access */
-	err = mlx5_pciconf_cap9_sem(dev, UNLOCK);
-	if (err)
-		mlx5_core_warn(dev, "Timed out unlocking gateway: state %d, err %d\n", state, err);
+	mlx5_vsc_unlock(dev);
+
+	return ret;
+}
+
+static int unlock_sem_sw_reset(struct mlx5_core_dev *dev)
+{
+	int ret;
+
+	/* Lock GW access */
+	ret = -mlx5_vsc_lock(dev);
+	if (ret) {
+		mlx5_core_warn(dev, "Timed out locking gateway %d\n", ret);
+		return ret;
+	}
+
+	ret = -mlx5_vsc_unlock_addr_space(dev, MLX5_SEMAPHORE_SW_RESET);
+
+	/* Unlock GW access */
+	mlx5_vsc_unlock(dev);
 
 	return ret;
 }
@@ -223,7 +240,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR) {
 		/* Get cr-dump and reset FW semaphore */
 		if (mlx5_core_is_pf(dev))
-			lock = lock_sem_sw_reset(dev, LOCK);
+			lock = lock_sem_sw_reset(dev);
 
 		/* Execute cr-dump and SW reset */
 		if (lock != -EBUSY) {
@@ -249,7 +266,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 
 	/* Release FW semaphore if you are the lock owner */
 	if (!lock)
-		lock_sem_sw_reset(dev, UNLOCK);
+		unlock_sem_sw_reset(dev);
 
 	mlx5_core_err(dev, "system error event triggered\n");
 
