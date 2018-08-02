@@ -1085,7 +1085,12 @@ dmu_tx_wait(dmu_tx_t *tx)
 		mutex_exit(&dn->dn_mtx);
 		tx->tx_needassign_txh = NULL;
 	} else {
-		txg_wait_open(tx->tx_pool, tx->tx_lasttried_txg + 1);
+		/*
+		 * If we have a lot of dirty data just wait until we sync
+		 * out a TXG at which point we'll hopefully have synced
+		 * a portion of the changes.
+		 */
+		txg_wait_synced(dp, spa_last_synced_txg(spa) + 1);
 	}
 }
 
