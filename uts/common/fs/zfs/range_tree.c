@@ -298,7 +298,6 @@ range_tree_remove(void *arg, uint64_t start, uint64_t size)
 static range_seg_t *
 range_tree_find_impl(range_tree_t *rt, uint64_t start, uint64_t size)
 {
-	avl_index_t where;
 	range_seg_t rsearch;
 	uint64_t end = start + size;
 
@@ -306,7 +305,7 @@ range_tree_find_impl(range_tree_t *rt, uint64_t start, uint64_t size)
 
 	rsearch.rs_start = start;
 	rsearch.rs_end = end;
-	return (avl_find(&rt->rt_root, &rsearch, &where));
+	return (avl_find(&rt->rt_root, &rsearch, NULL));
 }
 
 static range_seg_t *
@@ -406,4 +405,24 @@ range_tree_is_empty(range_tree_t *rt)
 {
 	ASSERT(rt != NULL);
 	return (range_tree_space(rt) == 0);
+}
+
+uint64_t
+range_tree_min(range_tree_t *rt)
+{
+	range_seg_t *rs = avl_first(&rt->rt_root);
+	return (rs != NULL ? rs->rs_start : 0);
+}
+
+uint64_t
+range_tree_max(range_tree_t *rt)
+{
+	range_seg_t *rs = avl_last(&rt->rt_root);
+	return (rs != NULL ? rs->rs_end : 0);
+}
+
+uint64_t
+range_tree_span(range_tree_t *rt)
+{
+	return (range_tree_max(rt) - range_tree_min(rt));
 }
