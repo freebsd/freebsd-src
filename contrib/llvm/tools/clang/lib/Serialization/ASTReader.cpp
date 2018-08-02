@@ -2632,7 +2632,9 @@ ASTReader::ReadControlBlock(ModuleFile &F,
       if (M && M->Directory) {
         // If we're implicitly loading a module, the base directory can't
         // change between the build and use.
-        if (F.Kind != MK_ExplicitModule && F.Kind != MK_PrebuiltModule) {
+        // Don't emit module relocation error if we have -fno-validate-pch
+        if (!PP.getPreprocessorOpts().DisablePCHValidation &&
+            F.Kind != MK_ExplicitModule && F.Kind != MK_PrebuiltModule) {
           const DirectoryEntry *BuildDir =
               PP.getFileManager().getDirectory(Blob);
           if (!BuildDir || BuildDir != M->Directory) {
@@ -3602,7 +3604,8 @@ ASTReader::ReadModuleMapFileBlock(RecordData &Record, ModuleFile &F,
     Module *M = PP.getHeaderSearchInfo().lookupModule(F.ModuleName);
     auto &Map = PP.getHeaderSearchInfo().getModuleMap();
     const FileEntry *ModMap = M ? Map.getModuleMapFileForUniquing(M) : nullptr;
-    if (!ModMap) {
+    // Don't emit module relocation error if we have -fno-validate-pch
+    if (!PP.getPreprocessorOpts().DisablePCHValidation && !ModMap) {
       assert(ImportedBy && "top-level import should be verified");
       if ((ClientLoadCapabilities & ARR_OutOfDate) == 0) {
         if (auto *ASTFE = M ? M->getASTFile() : nullptr) {
@@ -5039,7 +5042,9 @@ ASTReader::ReadSubmoduleBlock(ModuleFile &F, unsigned ClientLoadCapabilities) {
 
       if (!ParentModule) {
         if (const FileEntry *CurFile = CurrentModule->getASTFile()) {
-          if (CurFile != F.File) {
+          // Don't emit module relocation error if we have -fno-validate-pch
+          if (!PP.getPreprocessorOpts().DisablePCHValidation &&
+              CurFile != F.File) {
             if (!Diags.isDiagnosticInFlight()) {
               Diag(diag::err_module_file_conflict)
                 << CurrentModule->getTopLevelModuleName()
@@ -6032,7 +6037,7 @@ QualType ASTReader::readTypeRecord(unsigned Index) {
     }
     QualType ResultType = readType(*Loc.F, Record, Idx);
     FunctionType::ExtInfo Info(Record[1], Record[2], Record[3],
-                               (CallingConv)Record[4], Record[5], Record[6], 
+                               (CallingConv)Record[4], Record[5], Record[6],
                                Record[7]);
     return Context.getFunctionNoProtoType(ResultType, Info);
   }

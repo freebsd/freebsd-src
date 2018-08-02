@@ -992,7 +992,7 @@ public:
   static std::string getAsString(const Type *ty, Qualifiers qs,
                                  const PrintingPolicy &Policy);
 
-  std::string getAsString() const; 
+  std::string getAsString() const;
   std::string getAsString(const PrintingPolicy &Policy) const;
 
   void print(raw_ostream &OS, const PrintingPolicy &Policy,
@@ -2017,6 +2017,9 @@ public:
   /// type of a class template or class template partial specialization.
   CXXRecordDecl *getAsCXXRecordDecl() const;
 
+  /// Retrieves the RecordDecl this type refers to.
+  RecordDecl *getAsRecordDecl() const;
+
   /// Retrieves the TagDecl that this type refers to, either
   /// because the type is a TagType or because it is the injected-class-name
   /// type of a class template or class template partial specialization.
@@ -2926,7 +2929,7 @@ public:
 };
 
 /// Represents an extended address space qualifier where the input address space
-/// value is dependent. Non-dependent address spaces are not represented with a 
+/// value is dependent. Non-dependent address spaces are not represented with a
 /// special Type subclass; they are stored on an ExtQuals node as part of a QualType.
 ///
 /// For example:
@@ -2945,7 +2948,7 @@ class DependentAddressSpaceType : public Type, public llvm::FoldingSetNode {
   SourceLocation loc;
 
   DependentAddressSpaceType(const ASTContext &Context, QualType PointeeType,
-                            QualType can, Expr *AddrSpaceExpr, 
+                            QualType can, Expr *AddrSpaceExpr,
                             SourceLocation loc);
 
 public:
@@ -3264,7 +3267,7 @@ public:
        Bits = ((unsigned)cc) | (noReturn ? NoReturnMask : 0) |
               (producesResult ? ProducesResultMask : 0) |
               (noCallerSavedRegs ? NoCallerSavedRegsMask : 0) |
-              (hasRegParm ? ((regParm + 1) << RegParmOffset) : 0) | 
+              (hasRegParm ? ((regParm + 1) << RegParmOffset) : 0) |
               (NoCfCheck ? NoCfCheckMask : 0);
     }
 
@@ -4234,6 +4237,7 @@ public:
     attr_null_unspecified,
     attr_objc_kindof,
     attr_objc_inert_unsafe_unretained,
+    attr_lifetimebound,
   };
 
 private:
@@ -5336,7 +5340,7 @@ public:
 /// with base C and no protocols.
 ///
 /// 'C<P>' is an unspecialized ObjCObjectType with base C and protocol list [P].
-/// 'C<C*>' is a specialized ObjCObjectType with type arguments 'C*' and no 
+/// 'C<C*>' is a specialized ObjCObjectType with type arguments 'C*' and no
 /// protocol list.
 /// 'C<C*><P>' is a specialized ObjCObjectType with base C, type arguments 'C*',
 /// and protocol list [P].
@@ -5968,7 +5972,7 @@ inline QualType QualType::getUnqualifiedType() const {
 
   return QualType(getSplitUnqualifiedTypeImpl(*this).Ty, 0);
 }
-  
+
 inline SplitQualType QualType::getSplitUnqualifiedType() const {
   if (!getTypePtr()->getCanonicalTypeInternal().hasLocalQualifiers())
     return split();
@@ -6443,7 +6447,7 @@ inline bool Type::isIntegralOrEnumerationType() const {
   if (const auto *ET = dyn_cast<EnumType>(CanonicalType))
     return IsEnumDeclComplete(ET->getDecl());
 
-  return false;  
+  return false;
 }
 
 inline bool Type::isBooleanType() const {
