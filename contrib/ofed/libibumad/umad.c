@@ -509,14 +509,14 @@ int umad_init(void)
 	TRACE("umad_init");
 	if (sys_read_uint(IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE, &abi_version) < 0) {
 		IBWARN
-		    ("can't read ABI version from %s/%s (%m): is ib_umad module loaded?",
-		     IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE);
+		    ("can't read ABI version from %s (%m): is ibcore module loaded?",
+		     PATH_TO_SYS(IB_UMAD_ABI_DIR "/" IB_UMAD_ABI_FILE));
 		return -1;
 	}
 	if (abi_version < IB_UMAD_ABI_VERSION) {
 		IBWARN
-		    ("wrong ABI version: %s/%s is %d but library minimal ABI is %d",
-		     IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE, abi_version,
+		    ("wrong ABI version: %s is %d but library minimal ABI is %d",
+		     PATH_TO_SYS(IB_UMAD_ABI_DIR "/" IB_UMAD_ABI_FILE), abi_version,
 		     IB_UMAD_ABI_VERSION);
 		return -1;
 	}
