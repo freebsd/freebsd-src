@@ -110,6 +110,13 @@ static int mlx5_core_query_special_contexts(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int mlx5_get_qcam_reg(struct mlx5_core_dev *dev)
+{
+	return mlx5_query_qcam_reg(dev, dev->caps.qcam,
+				   MLX5_QCAM_FEATURE_ENHANCED_FEATURES,
+				   MLX5_QCAM_REGS_FIRST_128);
+}
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -185,6 +192,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, qos)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_QOS);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, qcam_reg)) {
+		err = mlx5_get_qcam_reg(dev);
 		if (err)
 			return err;
 	}
