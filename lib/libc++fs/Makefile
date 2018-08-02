@@ -5,13 +5,15 @@
 PACKAGE=	clibs
 SRCDIR=		${SRCTOP}/contrib/libc++
 
-LIB=		c++experimental
+LIB=		c++fs
 NO_PIC=
 MK_PROFILE=	no
 
-.PATH:		${SRCDIR}/src/experimental
+.PATH:		${SRCDIR}/src/filesystem
 
-SRCS+=		memory_resource.cpp
+SRCS+=		directory_iterator.cpp
+SRCS+=		int128_builtins.cpp
+SRCS+=		operations.cpp
 
 WARNS?=		0
 CXXFLAGS+=	${PICFLAG}
