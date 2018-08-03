@@ -714,7 +714,11 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 		vmd = vm_pagequeue_domain(m);
 		vm_domain_free_lock(vmd);
 		vm_phys_free_pages(m, 0);
+		vmd->vmd_page_count++;
 		vm_domain_free_unlock(vmd);
+
+		vm_domain_freecnt_inc(vmd, 1);
+		vm_cnt.v_page_count++;
 	}
 	pmap_remove(kernel_pmap, start, end);
 	(void)vmem_add(kernel_arena, start, end - start, M_WAITOK);
