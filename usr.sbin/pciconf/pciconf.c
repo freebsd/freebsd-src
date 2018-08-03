@@ -1085,7 +1085,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	pbm.pbm_flags = 0;
 	pbm.pbm_memattr = VM_MEMATTR_UNCACHEABLE; /* XXX */
 
-	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
