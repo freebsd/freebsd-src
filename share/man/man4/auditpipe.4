@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2006
+.Dd May 30, 2018
 .Dt AUDITPIPE 4
 .Os
 .Sh NAME
@@ -154,7 +154,7 @@ These flags correspond to the
 field in
 .Xr audit_control 5 .
 The ioctl argument should be of type
-.Vt u_int .
+.Vt au_mask_t .
 .It Dv AUDITPIPE_SET_PRESELECT_FLAGS
 Set the current default preselection flags for attributable events on the
 pipe.
@@ -163,7 +163,7 @@ These flags correspond to the
 field in
 .Xr audit_control 5 .
 The ioctl argument should be of type
-.Vt u_int .
+.Vt au_mask_t .
 .It Dv AUDITPIPE_GET_PRESELECT_NAFLAGS
 Retrieve the current default preselection flags for non-attributable events
 on the pipe.
@@ -172,7 +172,7 @@ These flags correspond to the
 field in
 .Xr audit_control 5 .
 The ioctl argument should be of type
-.Vt u_int .
+.Vt au_mask_t .
 .It Dv AUDITPIPE_SET_PRESELECT_NAFLAGS
 Set the current default preselection flags for non-attributable events on the
 pipe.
@@ -181,7 +181,7 @@ These flags correspond to the
 field in
 .Xr audit_control 5 .
 The ioctl argument should be of type
-.Vt u_int .
+.Vt au_mask_t .
 .It Dv AUDITPIPE_GET_PRESELECT_AUID
 Query the current preselection masks for a specific auid on the pipe.
 The ioctl argument should be of type
@@ -245,7 +245,7 @@ manual page for information on audit-related bugs and limitations.
 .Pp
 The configurable preselection mechanism mirrors the selection model present
 for the global audit trail.
-It might be desirable to provided a more flexible selection model.
+It might be desirable to provide a more flexible selection model.
 .Pp
 The per-pipe audit event queue is fifo, with drops occurring if either the
 user thread provides in sufficient for the record on the queue head, or on
