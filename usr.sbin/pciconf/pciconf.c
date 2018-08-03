@@ -1137,7 +1137,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	case 4:
 		dd = (uint32_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
 		    pbm.pbm_bar_off + start * width);
-		for (a = 0; a < count; a += width) {
+		for (a = 0; a < count; a += width, dd++) {
 			res = fwrite(dd, width, 1, stdout);
 			if (res != 1) {
 				errx(1, "error writing to stdout");
