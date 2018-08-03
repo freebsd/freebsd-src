@@ -419,8 +419,7 @@ main(int argc, char *argv[])
 			    "%s read access denied", peername);
 			exit(1);
 		}
-	}
-	if (tp->th_opcode == WRQ) {
+	} else if (tp->th_opcode == WRQ) {
 		if (allow_wo)
 			tftp_wrq(peer, tp->th_stuff, n - 1);
 		else {
@@ -428,7 +427,8 @@ main(int argc, char *argv[])
 			    "%s write access denied", peername);
 			exit(1);
 		}
-	}
+	} else
+		send_error(peer, EBADOP);
 	exit(1);
 }
 
