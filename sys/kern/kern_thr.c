@@ -362,6 +362,11 @@ kern_thr_exit(struct thread *td)
 	racct_sub(p, RACCT_NTHR, 1);
 	tdsigcleanup(td);
 	umtx_thread_exit(td);
+
+#ifdef AUDIT
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
+
 	PROC_SLOCK(p);
 	thread_stopped(p);
 	thread_exit();
