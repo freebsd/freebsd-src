@@ -2,9 +2,9 @@
 
 .include <bsd.init.mk>
 
-LIB=		clang_rt.tsan_cxx-${CRTARCH}
+LIB=		clang_rt.msan_cxx-${CRTARCH}
 
-SRCS+=		tsan/rtl/tsan_new_delete.cc
+SRCS+=		msan/msan_new_delete.cc
 SRCS+=		ubsan/ubsan_handlers_cxx.cc
 SRCS+=		ubsan/ubsan_type_hash.cc
 SRCS+=		ubsan/ubsan_type_hash_itanium.cc
