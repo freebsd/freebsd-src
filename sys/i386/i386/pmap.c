@@ -787,6 +787,7 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
+	PMAP_LOCK(kernel_pmap);
 	for (i = 0; i < NKPT; i++) {
 		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
@@ -794,7 +795,14 @@ pmap_init(void)
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = i + KPTDI;
 		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
+		mpte->wire_count = 1;
+		if (pseflag != 0 &&
+		    KERNBASE <= i << PDRSHIFT && i << PDRSHIFT < KERNend &&
+		    pmap_insert_pt_page(kernel_pmap, mpte))
+			panic("pmap_init: pmap_insert_pt_page failed");
 	}
+	PMAP_UNLOCK(kernel_pmap);
+	vm_wire_add(NKPT);
 
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
