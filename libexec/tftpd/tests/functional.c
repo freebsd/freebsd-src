@@ -819,8 +819,6 @@ TFTPD_TC_DEFINE(wrq_eaccess,)
 	close(fd);
 
 	SEND_WRQ("empty.txt", "octet");
-	atf_tc_expect_fail("PR 225996 tftpd doesn't abort on a WRQ access "
-	    "violation");
 	RECV_ERROR(2, "Access violation");
 }
 
@@ -837,8 +835,6 @@ TFTPD_TC_DEFINE(wrq_eaccess_world_readable,)
 	close(fd);
 
 	SEND_WRQ("empty.txt", "octet");
-	atf_tc_expect_fail("PR 225996 tftpd doesn't abort on a WRQ access "
-	    "violation");
 	RECV_ERROR(2, "Access violation");
 }
 
@@ -915,8 +911,6 @@ TFTPD_TC_DEFINE(wrq_netascii,)
 TFTPD_TC_DEFINE(wrq_nonexistent,)
 {
 	SEND_WRQ("nonexistent.txt", "octet");
-	atf_tc_expect_fail("PR 225996 tftpd doesn't abort on a WRQ access "
-	    "violation");
 	RECV_ERROR(1, "File not found");
 }
 
