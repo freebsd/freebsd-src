@@ -545,8 +545,6 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 					return (0);
 			}
 		}
-	} else {
-		printf("Can't find device by handle\n");
 	}
 
 	/*
@@ -862,9 +860,9 @@ main(int argc, CHAR16 *argv[])
 	 * march through the device switch probing for things.
 	 */
 	i = efipart_inithandles();
-	if (i != 0) {
+	if (i != 0 && i != ENOENT) {
 		printf("efipart_inithandles failed with ERRNO %d, expect "
-		    "failures", i);
+		    "failures\n", i);
 	}
 
 	for (i = 0; devsw[i] != NULL; i++)
