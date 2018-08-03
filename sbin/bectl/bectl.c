@@ -425,15 +425,15 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	char buf[BUFSZ];
 	unsigned long long ctimenum, space;
 	nvlist_t *dsprops;
-	char *creation, *mnt, *name, *spacestr;
+	char *propstr;
 	int active_colsz;
 	boolean_t active_now, active_reboot;
 
-	name = nvpair_name(cur);
+	propstr = nvpair_name(cur);
 	/* XXX TODO: Some views show snapshots */
-	if (strchr(name, '@') != NULL)
+	if (strchr(propstr, '@') != NULL)
 		return;
-	printf("%*s ", pc->be_colsz, name);
+	printf("%*s ", pc->be_colsz, propstr);
 
 	active_colsz = pc->active_colsz_def;
 	nvpair_value_nvlist(cur, &dsprops);
@@ -452,13 +452,13 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 		active_colsz--;
 	}
 	printf("%*s ", -active_colsz, " ");
-	if (nvlist_lookup_string(dsprops, "mountpoint", &mnt) == 0)
-		printf("%*s ", pc->mount_colsz, mnt);
+	if (nvlist_lookup_string(dsprops, "mountpoint", &propstr) == 0)
+		printf("%*s ", pc->mount_colsz, propstr);
 	else
 		printf("%*s ", pc->mount_colsz, "-");
 
-	if (nvlist_lookup_string(dsprops, "used", &spacestr) == 0) {
-		space = strtoull(spacestr, NULL, 10);
+	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0) {
+		space = strtoull(propstr, NULL, 10);
 
 		/* Alas, there's more to it,. */
 		humanize_number(buf, 6, space, "", HN_AUTOSCALE,
@@ -467,8 +467,8 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	} else
 		printf("%*s ", pc->space_colsz, "-");
 
-	if (nvlist_lookup_string(dsprops, "creation", &creation) == 0) {
-		ctimenum = strtoull(creation, NULL, 10);
+	if (nvlist_lookup_string(dsprops, "creation", &propstr) == 0) {
+		ctimenum = strtoull(propstr, NULL, 10);
 		strftime(buf, BUFSZ, "%Y-%m-%d %H:%M",
 		    localtime((time_t *)&ctimenum));
 		printf("%s", buf);
