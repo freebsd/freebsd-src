@@ -169,5 +169,5 @@ main(int argc, char **argv)
 	if (oflags & AU_OFLAG_XML)
 		au_print_xml_footer(stdout);
 
-	return (1);
+	return (0);
 }
