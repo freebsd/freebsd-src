@@ -94,9 +94,28 @@ be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
 
 	data.lbh = lbh;
 	data.list = dsnvl;
+	data.single_object = false;
 	return (prop_list_builder(&data));
 }
 
+int
+be_get_snapshot_props(libbe_handle_t *lbh, const char *name, nvlist_t *props)
+{
+	zfs_handle_t *snap_hdl;
+	prop_data_t data;
+	int ret;
+
+	data.lbh = lbh;
+	data.list = props;
+	data.single_object = true;
+	if ((snap_hdl = zfs_open(lbh->lzh, name,
+	    ZFS_TYPE_SNAPSHOT)) == NULL)
+		return (BE_ERR_ZFSOPEN);
+
+	ret = prop_list_builder_cb(snap_hdl, &data);
+	zfs_close(snap_hdl);
+	return (ret);
+}
 
 /*
  * Internal callback function used by zfs_iter_filesystems. For each dataset in
@@ -121,7 +140,10 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	data = (prop_data_t *)data_p;
 	lbh = data->lbh;
 
-	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
+	if (data->single_object)
+		props = data->list;
+	else
+		nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 
 	dataset = zfs_get_name(zfs_hdl);
 	nvlist_add_string(props, "dataset", dataset);
@@ -169,7 +191,8 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	nvlist_add_boolean_value(props, "nextboot",
 	    (strcmp(be_nextboot_path(lbh), dataset) == 0));
 
-	nvlist_add_nvlist(data->list, name, props);
+	if (!data->single_object)
+		nvlist_add_nvlist(data->list, name, props);
 
 	return (0);
 }

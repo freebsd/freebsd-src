@@ -424,11 +424,12 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 #define	BUFSZ	64
 	char buf[BUFSZ];
 	unsigned long long ctimenum, space;
-	nvlist_t *dsprops;
+	nvlist_t *dsprops, *originprops;
 	char *propstr;
 	int active_colsz;
 	boolean_t active_now, active_reboot;
 
+	originprops = NULL;
 	propstr = nvpair_name(cur);
 	/* XXX TODO: Some views show snapshots */
 	if (strchr(propstr, '@') != NULL)
@@ -457,8 +458,26 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	else
 		printf("%*s ", pc->mount_colsz, "-");
 
+	if (nvlist_lookup_string(dsprops, "origin", &propstr) == 0) {
+		if (be_prop_list_alloc(&originprops) != 0) {
+			fprintf(stderr,
+			    "bectl list: failed to allocate origin prop nvlist\n");
+			return;
+		}
+		if (be_get_snapshot_props(be, propstr, originprops) != 0) {
+			/* XXX TODO: Real errors */
+			fprintf(stderr,
+			    "bectl list: failed to fetch origin properties\n");
+			return;
+		}
+	}
+
 	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0) {
 		space = strtoull(propstr, NULL, 10);
+
+		if (originprops != NULL && nvlist_lookup_string(originprops,
+		    "used", &propstr) == 0)
+			space += strtoull(propstr, NULL, 10);
 
 		/* Alas, there's more to it,. */
 		humanize_number(buf, 6, space, "", HN_AUTOSCALE,
@@ -475,6 +494,8 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	}
 
 	printf("\n");
+	if (originprops != NULL)
+		be_prop_list_free(originprops);
 #undef BUFSZ
 }
 
