@@ -802,7 +802,7 @@ pmap_init(void)
 			panic("pmap_init: pmap_insert_pt_page failed");
 	}
 	PMAP_UNLOCK(kernel_pmap);
-	vm_wire_add(NKPT);
+	atomic_add_int(&vm_cnt.v_wire_count, NKPT);
 
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
