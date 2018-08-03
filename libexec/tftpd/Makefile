@@ -15,4 +15,7 @@ DPADD+=		${LIBWRAP}
 LDADD+=		-lwrap
 .endif
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>

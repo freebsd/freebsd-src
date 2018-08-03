@@ -350,6 +350,8 @@
             atf-sh
             ..
         ..
+        tftpd
+        ..
     ..
     sbin
         dhclient
