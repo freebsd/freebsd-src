@@ -136,34 +136,34 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 		nvlist_add_string(props, "mountpoint", mountpoint);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_ORIGIN, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "origin", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_CREATION, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "creation", buf);
 
 	nvlist_add_boolean_value(props, "active",
 	    (strcmp(be_active_path(lbh), dataset) == 0));
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USED, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "used", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDDS, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "usedds", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDSNAP, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "usedsnap", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_USEDREFRESERV, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "usedrefreserv", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_REFERENCED, buf, 512,
-	    NULL, NULL, 0, 1))
+	    NULL, NULL, 0, 1) == 0)
 		nvlist_add_string(props, "referenced", buf);
 
 	nvlist_add_boolean_value(props, "nextboot",
