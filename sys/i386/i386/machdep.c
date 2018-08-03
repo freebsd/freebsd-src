@@ -3780,6 +3780,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	critical_enter();
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		set_fpregs_xmm((struct save87 *)fpregs,
@@ -3791,6 +3792,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef DEV_NPX
 	npxuserinited(td);
 #endif
+	critical_exit();
 	return (0);
 }
 
