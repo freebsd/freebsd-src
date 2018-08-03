@@ -692,7 +692,6 @@ TFTPD_TC_DEFINE(w_flag,, w_flag = 1;)
 	send_data(1, contents, contents_len);
 	recv_ack(1);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -730,7 +729,6 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	send_data(2, (const char*)&contents[128], 256);
 	recv_ack(2);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -764,7 +762,6 @@ TFTPD_TC_DEFINE(wrq_dropped_data,)
 	send_data(1, contents, contents_len);
 	recv_ack(1);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -799,7 +796,6 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 	send_data(2, (const char*)&contents[128], 256);
 	recv_ack(2);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -867,7 +863,6 @@ TFTPD_TC_DEFINE(wrq_medium,)
 	send_data(2, (const char*)&contents[128], 256);
 	recv_ack(2);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -894,14 +889,13 @@ TFTPD_TC_DEFINE(wrq_netascii,)
 	fd = open("unix.txt", O_RDWR | O_CREAT, 0666);
 	ATF_REQUIRE(fd >= 0);
 	close(fd);
-	contents_len = strlen(contents) + 1;
+	contents_len = sizeof(contents);
 
 	SEND_WRQ("unix.txt", "netascii");
 	recv_ack(0);
 	send_data(1, contents, contents_len);
 	recv_ack(1);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("unix.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
@@ -942,7 +936,6 @@ TFTPD_TC_DEFINE(wrq_small,)
 	send_data(1, contents, contents_len);
 	recv_ack(1);
 
-	atf_tc_expect_fail("PR 157700 tftpd expects more data after EOF");
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));

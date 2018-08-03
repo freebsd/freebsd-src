@@ -821,7 +821,6 @@ tftp_recvfile(int peer, const char *mode)
 	block = 0;
 	tftp_receive(peer, &block, &ts, NULL, 0);
 
-	write_close();
 	gettimeofday(&now2, NULL);
 
 	if (debug&DEBUG_SIMPLE) {
