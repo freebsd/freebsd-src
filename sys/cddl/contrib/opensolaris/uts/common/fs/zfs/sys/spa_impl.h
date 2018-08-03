@@ -388,6 +388,10 @@ struct spa {
 		int spa_queued;
 	} spa_queue_stats[ZIO_PRIORITY_NUM_QUEUEABLE];
 #endif
+	/* arc_memory_throttle() parameters during low memory condition */
+	uint64_t	spa_lowmem_page_load;	/* memory load during txg */
+	uint64_t	spa_lowmem_last_txg;	/* txg window start */
+
 	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
 
 	/*
