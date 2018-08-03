@@ -922,7 +922,7 @@ ENTRY(copyinstr_smap)
 
 2:
 	decq	%rdx
-	jz	copyinstr_succ
+	jz	copyinstr_toolong
 
 	stac
 	lodsb
