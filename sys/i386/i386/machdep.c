@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #ifndef KDB
@@ -2074,6 +2075,12 @@ getmemsize(int first)
 	bzero(&vmf, sizeof(vmf));
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
+
+	/*
+	 * Tell the physical memory allocator about pages used to store
+	 * the kernel and preloaded data.  See kmem_bootstrap_free().
+	 */
+	vm_phys_add_seg((vm_paddr_t)KERNLOAD, trunc_page(first));
 
 	/*
 	 * Check if the loader supplied an SMAP memory map.  If so,

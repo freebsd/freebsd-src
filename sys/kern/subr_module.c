@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/linker.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
 /*
  * Preloaded module support
  */
@@ -202,29 +205,42 @@ preload_search_info(caddr_t mod, int inf)
 void
 preload_delete_name(const char *name)
 {
-    caddr_t	curp;
-    uint32_t	*hdr;
+    caddr_t	addr, curp;
+    uint32_t	*hdr, sz;
     int		next;
     int		clearing;
+
+    addr = 0;
+    sz = 0;
     
     if (preload_metadata != NULL) {
-	
+
 	clearing = 0;
 	curp = preload_metadata;
 	for (;;) {
 	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == 0 && hdr[1] == 0)
-		break;
+	    if (hdr[0] == MODINFO_NAME || (hdr[0] == 0 && hdr[1] == 0)) {
+		/* Free memory used to store the file. */
+		if (addr != 0 && sz != 0)
+		    kmem_bootstrap_free((vm_offset_t)addr, sz);
+		addr = 0;
+		sz = 0;
 
-	    /* Search for a MODINFO_NAME field */
-	    if (hdr[0] == MODINFO_NAME) {
+		if (hdr[0] == 0)
+		    break;
 		if (!strcmp(name, curp + sizeof(uint32_t) * 2))
 		    clearing = 1;	/* got it, start clearing */
-		else if (clearing)
+		else if (clearing) {
 		    clearing = 0;	/* at next one now.. better stop */
+		}
 	    }
-	    if (clearing)
+	    if (clearing) {
+		if (hdr[0] == MODINFO_ADDR)
+		    addr = *(caddr_t *)(curp + sizeof(uint32_t) * 2);
+		else if (hdr[0] == MODINFO_SIZE)
+		    sz = *(uint32_t *)(curp + sizeof(uint32_t) * 2);
 		hdr[0] = MODINFO_EMPTY;
+	    }
 
 	    /* skip to next field */
 	    next = sizeof(uint32_t) * 2 + hdr[1];

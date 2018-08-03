@@ -65,6 +65,7 @@ int kmem_back(vm_object_t, vm_offset_t, vm_size_t, int);
 void kmem_unback(vm_object_t, vm_offset_t, vm_size_t);
 
 /* Bootstrapping. */
+void kmem_bootstrap_free(vm_offset_t, vm_size_t);
 vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
     boolean_t);
 void kmem_init(vm_offset_t, vm_offset_t);

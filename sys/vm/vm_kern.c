@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -535,6 +536,37 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
+}
+
+/*
+ *	kmem_bootstrap_free:
+ *
+ *	Free pages backing preloaded data (e.g., kernel modules) to the
+ *	system.  Currently only supported on platforms that create a
+ *	vm_phys segment for preloaded data.
+ */
+void
+kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
+{
+#if defined(__i386__) || defined(__amd64__)
+	vm_offset_t end, va;
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	end = trunc_page(start + size);
+	start = round_page(start);
+
+	for (va = start; va < end; va += PAGE_SIZE) {
+		pa = pmap_kextract(va);
+		m = PHYS_TO_VM_PAGE(pa);
+
+		mtx_lock(&vm_page_queue_free_mtx);
+		vm_phys_free_pages(m, 0);
+		mtx_unlock(&vm_page_queue_free_mtx);
+	}
+	pmap_remove(kernel_pmap, start, end);
+	(void)vmem_add(kernel_arena, start, end - start, M_WAITOK);
+#endif
 }
 
 #ifdef DIAGNOSTIC
