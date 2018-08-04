@@ -124,7 +124,10 @@ LDFLAGS+=	-Wl,--build-id=sha1
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
 .error amd64 kernel requires linker ifunc support
 .endif
-LDFLAGS+=	-Wl,-z max-page-size=2097152 -Wl,-z common-page-size=4096
+LDFLAGS+=	-Wl,-z max-page-size=2097152
+.if ${LINKER_TYPE} != "lld"
+LDFLAGS+=	-Wl,-z common-page-size=4096
+.endif
 .endif
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
