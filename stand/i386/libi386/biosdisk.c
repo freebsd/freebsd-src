@@ -50,10 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libi386.h"
 
-#ifdef LOADER_GELI_SUPPORT
-#include "geliboot.h"
-#endif /* LOADER_GELI_SUPPORT */
-
 #define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
