@@ -126,7 +126,7 @@ samefile(struct stat *sb1, struct stat *sb2)
 	ATF_REQUIRE_MSG(sb1->st_ino == sb2->st_ino, "different inode");
 }
 
-static void
+static size_t
 sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 {
 	struct iovec iovec;
@@ -153,19 +153,35 @@ sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 	cmsghdr->cmsg_type = SCM_RIGHTS;
 	memcpy(CMSG_DATA(cmsghdr), &send_fd, sizeof(int));
 
-	len = sendmsg(sockfd, &msghdr, 0);
+	len = sendmsg(sockfd, &msghdr, MSG_DONTWAIT);
 	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG((size_t)len == paylen,
-	    "sendmsg: %zd messages sent; expected: %zu; %s", len, paylen,
-	    strerror(errno));
+	return ((size_t)len);
 }
 
 static void
 sendfd(int sockfd, int send_fd)
 {
-	char ch = 0;
+	size_t len;
+	char ch;
 
-	sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
+	ch = 0;
+	len = sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
+	ATF_REQUIRE_MSG(len == sizeof(ch),
+	    "sendmsg: %zu bytes sent; expected %zu; %s", len, sizeof(ch),
+	    strerror(errno));
+}
+
+static bool
+localcreds(int sockfd)
+{
+	socklen_t sz;
+	int rc, val;
+
+	sz = sizeof(val);
+	rc = getsockopt(sockfd, 0, LOCAL_CREDS, &val, &sz);
+	ATF_REQUIRE_MSG(rc != -1, "getsockopt(LOCAL_CREDS) failed: %s",
+	    strerror(errno));
+	return (val != 0);
 }
 
 static void
@@ -177,6 +193,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 	struct msghdr msghdr;
 	struct iovec iovec;
 	ssize_t len;
+	bool foundcreds;
 
 	bzero(&msghdr, sizeof(msghdr));
 
@@ -197,6 +214,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
 	ATF_REQUIRE_MSG(cmsghdr != NULL,
 	    "recvmsg: did not receive control message");
+	foundcreds = false;
 	*recv_fd = -1;
 	for (; cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
 		if (cmsghdr->cmsg_level == SOL_SOCKET &&
@@ -204,10 +222,14 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 		    cmsghdr->cmsg_len == CMSG_LEN(sizeof(int))) {
 			memcpy(recv_fd, CMSG_DATA(cmsghdr), sizeof(int));
 			ATF_REQUIRE(*recv_fd != -1);
-		}
+		} else if (cmsghdr->cmsg_level == SOL_SOCKET &&
+		    cmsghdr->cmsg_type == SCM_CREDS)
+			foundcreds = true;
 	}
 	ATF_REQUIRE_MSG(*recv_fd != -1,
 	    "recvmsg: did not receive single-fd message");
+	ATF_REQUIRE_MSG(!localcreds(sockfd) || foundcreds,
+	    "recvmsg: expected credentials were not received");
 }
 
 static void
@@ -362,9 +384,9 @@ ATF_TC_BODY(devfs_orphan, tc)
 
 /*
  * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel prepends a
- * control message to the data. Sender sends large payload.
- * Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer limit, and receiver
- * receives truncated data.
+ * control message to the data. Sender sends large payload using a non-blocking
+ * socket. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer limit, and
+ * receiver receives truncated data.
  */
 ATF_TC_WITHOUT_HEAD(rights_creds_payload);
 ATF_TC_BODY(rights_creds_payload, tc)
@@ -374,9 +396,6 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	size_t len;
 	void *buf;
 	int fd[2], getfd, putfd, rc;
-
-	atf_tc_expect_fail("PR 181741: Packet loss when 'control' messages "
-	    "are present with large data");
 
 	len = sizeof(sendspace);
 	rc = sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
@@ -388,12 +407,19 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	ATF_REQUIRE(buf != NULL);
 
 	domainsocketpair(fd);
+	tempfile(&putfd);
+
+	rc = fcntl(fd[0], F_SETFL, O_NONBLOCK);
+	ATF_REQUIRE_MSG(rc != -1, "fcntl(O_NONBLOCK) failed: %s",
+	    strerror(errno));
 	rc = setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on));
 	ATF_REQUIRE_MSG(rc != -1, "setsockopt(LOCAL_CREDS) failed: %s",
 	    strerror(errno));
-	tempfile(&putfd);
-	sendfd_payload(fd[0], putfd, buf, sendspace);
-	recvfd_payload(fd[1], &getfd, buf, sendspace);
+
+	len = sendfd_payload(fd[0], putfd, buf, sendspace);
+	ATF_REQUIRE_MSG(len < sendspace, "sendmsg: %zu bytes sent", len);
+	recvfd_payload(fd[1], &getfd, buf, len);
+
 	close(putfd);
 	close(getfd);
 	closesocketpair(fd);
@@ -421,7 +447,10 @@ ATF_TC_BODY(truncated_rights, tc)
 	devnull(&putfd);
 	nfds = getnfds();
 
-	sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+	len = sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+	ATF_REQUIRE_MSG(len == sizeof(buf),
+	    "sendmsg: %zd bytes sent; expected %zu; %s", len, sizeof(buf),
+	    strerror(errno));
 
 	bzero(&msghdr, sizeof(msghdr));
 	bzero(message, sizeof(message));
