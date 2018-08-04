@@ -107,10 +107,6 @@ SSH=	${SRCTOP}/crypto/openssh/ssh_config \
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
 
-.if ${MK_PORTSNAP} != "no"
-BIN1+= portsnap.conf
-.endif
-
 .if ${MK_PF} != "no"
 BIN1+= pf.os
 .endif
