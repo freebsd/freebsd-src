@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2018
+.Dd July 11, 2018
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -114,12 +114,35 @@ are defined in the file
 .Pp
 .It Ic env Ar filename
 Specifies a filename containing a kernel environment definition.
-The kernel normally uses an environment prepared for it at boot time
-by
+.Pp
+The kernel will augment this compiled-in environment with the environment
+prepared for it at boot time by
 .Xr loader 8 .
-This directive makes the kernel ignore the boot environment and use
-the compiled-in environment instead, unless the boot environment contains
-.Va static_env.disabled=1 .
+Environment variables specified in the
+.Xr loader 8
+environment will take precedence over environment variables specified in
+.Ar filename ,
+and environment variables specified in the dynamic environment take precedence
+over both of these.
+.Pp
+.Va loader_env.disabled=1
+may be specified in the static environment to disable the
+.Xr loader 8
+environment.
+Disabling the
+.Xr loader 8
+should be done with caution and due consideration for whether or not it supplies
+environment variables needed for properly booting the system.
+.Pp
+.Va static_env.disabled=1
+may be specified in the
+.Xr loader 8
+environment to disable use of the static environment.
+This option has no effect if specified in any environment after the
+.Xr loader 8
+environment is processed.
+This option is not usable in conjunction with
+.Va loader_env.disabled .
 .Pp
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
@@ -172,9 +195,28 @@ time (see
 .Xr device.hints 5 ) .
 This directive configures the kernel to use the static device configuration
 listed in
-.Ar filename ,
-unless the boot environment contains
-.Va static_hints.disabled=1 .
+.Ar filename .
+.Pp
+Hints provided in this static device configuration will be overwritten in the
+order in which they're encountered.
+Hints in the compiled-in environment takes precedence over compiled-in hints,
+and hints in the environment prepared for the kernel by
+.Xr loader 8
+takes precedence over hints in the compiled-in environment.
+.Pp
+Once the dynamic environment becomes available, all compiled-in hints will be
+added to the dynamic environment if they do not already have an override in
+the dynamic environment.
+The dynamic environment will then be used for all searches of hints.
+.Pp
+.Va static_hints.disabled=1
+may be specified in either a compiled-in environment or the
+.Xr loader 8
+environment to disable use of these hints files.
+This option has no effect if specified in any environment after the
+.Xr loader 8
+environment is processed.
+.Pp
 The file
 .Ar filename
 must conform to the syntax specified by

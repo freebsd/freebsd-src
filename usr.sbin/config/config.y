@@ -80,8 +80,7 @@
 
 struct	device_head dtab;
 char	*ident;
-int	envmode;
-int	hintmode;
+char	*env;
 int	yyline;
 const	char *yyfile;
 struct  file_list_head ftab;
@@ -199,7 +198,6 @@ Config_spec:
 			err(EXIT_FAILURE, "calloc");	
 		hint->hint_name = $2;
 		STAILQ_INSERT_HEAD(&hints, hint, hint_next);
-		hintmode = 1;
 	        }
 
 System_spec:
@@ -359,7 +357,6 @@ newenvvar(char *name, bool is_file)
 	envvar->env_str = name;
 	envvar->env_is_file = is_file;
 	STAILQ_INSERT_HEAD(&envvars, envvar, envvar_next);
-	envmode = 1;
 }
 
 /*

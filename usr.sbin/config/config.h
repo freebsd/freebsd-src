@@ -177,8 +177,6 @@ SLIST_HEAD(, includepath) includepath;
 extern char	*ident;
 extern char	kernconfstr[];
 extern int	do_trace;
-extern int	envmode;
-extern int	hintmode;
 extern int	incignore;
 
 char	*get_word(FILE *);
@@ -212,6 +210,7 @@ extern int	debugging;
 extern int	found_defaults;
 
 extern int	maxusers;
+extern int	versreq;
 
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
