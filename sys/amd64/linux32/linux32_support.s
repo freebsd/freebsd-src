@@ -49,6 +49,7 @@ ENTRY(futex_xchgl)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
+END(futex_xchgl)
 
 ENTRY(futex_addl)
 	movq	PCPU(CURPCB),%r8
@@ -64,6 +65,7 @@ ENTRY(futex_addl)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
+END(futex_addl)
 
 ENTRY(futex_orl)
 	movq	PCPU(CURPCB),%r8
@@ -83,6 +85,7 @@ ENTRY(futex_orl)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
+END(futex_orl)
 
 ENTRY(futex_andl)
 	movq	PCPU(CURPCB),%r8
@@ -102,6 +105,7 @@ ENTRY(futex_andl)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
+END(futex_andl)
 
 ENTRY(futex_xorl)
 	movq	PCPU(CURPCB),%r8
@@ -121,3 +125,4 @@ ENTRY(futex_xorl)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
+END(futex_xorl)
