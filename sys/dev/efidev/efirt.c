@@ -131,9 +131,10 @@ efi_init(void)
 {
 	struct efi_map_header *efihdr;
 	struct efi_md *map;
+	struct efi_rt *rtdm;
 	caddr_t kmdp;
 	size_t efisz;
-	int rt_disabled;
+	int ndesc, rt_disabled;
 
 	rt_disabled = 0;
 	TUNABLE_INT_FETCH("efi.rt.disabled", &rt_disabled);
@@ -146,13 +147,9 @@ efi_init(void)
 			printf("EFI systbl not available\n");
 		return (0);
 	}
-	if (!PMAP_HAS_DMAP) {
-		if (bootverbose)
-			printf("EFI systbl requires direct map\n");
-		return (0);
-	}
-	efi_systbl = (struct efi_systbl *)PHYS_TO_DMAP(efi_systbl_phys);
-	if (efi_systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
+
+	efi_systbl = (struct efi_systbl *)efi_phys_to_kva(efi_systbl_phys);
+	if (efi_systbl == NULL || efi_systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
 		efi_systbl = NULL;
 		if (bootverbose)
 			printf("EFI systbl signature invalid\n");
@@ -180,8 +177,8 @@ efi_init(void)
 	if (efihdr->descriptor_size == 0)
 		return (ENOMEM);
 
-	if (!efi_create_1t1_map(map, efihdr->memory_size /
-	    efihdr->descriptor_size, efihdr->descriptor_size)) {
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+	if (!efi_create_1t1_map(map, ndesc, efihdr->descriptor_size)) {
 		if (bootverbose)
 			printf("EFI cannot create runtime map\n");
 		return (ENOMEM);
@@ -196,6 +193,7 @@ efi_init(void)
 		return (ENXIO);
 	}
 
+#if defined(__aarch64__) || defined(__amd64__)
 	/*
 	 * Some UEFI implementations have multiple implementations of the
 	 * RS->GetTime function. They switch from one we can only use early
@@ -203,14 +201,10 @@ efi_init(void)
 	 * call RS->SetVirtualAddressMap. As this is not always the case, e.g.
 	 * with an old loader.efi, check if the RS->GetTime function is within
 	 * the EFI map, and fail to attach if not.
-	 *
-	 * We need to enter into the EFI environment as efi_runtime may point
-	 * to an EFI address.
 	 */
-	efi_enter();
-	if (!efi_is_in_map(map, efihdr->memory_size / efihdr->descriptor_size,
-	    efihdr->descriptor_size, (vm_offset_t)efi_runtime->rt_gettime)) {
-		efi_leave();
+	rtdm = (struct efi_rt *)efi_phys_to_kva((uintptr_t)efi_runtime);
+	if (rtdm == NULL || !efi_is_in_map(map, ndesc, efihdr->descriptor_size,
+	    (vm_offset_t)rtdm->rt_gettime)) {
 		if (bootverbose)
 			printf(
 			 "EFI runtime services table has an invalid pointer\n");
@@ -218,7 +212,7 @@ efi_init(void)
 		efi_destroy_1t1_map();
 		return (ENXIO);
 	}
-	efi_leave();
+#endif
 
 	return (0);
 }
@@ -291,7 +285,7 @@ efi_get_table(struct uuid *uuid, void **ptr)
 	ct = efi_cfgtbl;
 	while (count--) {
 		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
-			*ptr = (void *)PHYS_TO_DMAP(ct->ct_data);
+			*ptr = (void *)efi_phys_to_kva(ct->ct_data);
 			return (0);
 		}
 		ct++;
