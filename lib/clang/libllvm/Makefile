@@ -754,6 +754,7 @@ SRCS_MIN+=	Support/Host.cpp
 SRCS_MIN+=	Support/InitLLVM.cpp
 SRCS_MIN+=	Support/IntEqClasses.cpp
 SRCS_MIN+=	Support/IntervalMap.cpp
+SRCS_MIN+=	Support/JSON.cpp
 SRCS_MIN+=	Support/JamCRC.cpp
 SRCS_MIN+=	Support/KnownBits.cpp
 SRCS_MIN+=	Support/LEB128.cpp
