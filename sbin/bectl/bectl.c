@@ -59,7 +59,6 @@ struct printc {
 	int	current_indent;
 	int	mount_colsz;
 	int	space_colsz;
-	bool	final_be;
 	bool	hide_headers;
 	bool	show_all_datasets;
 	bool	show_snaps;
@@ -489,8 +488,6 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 			nvlist_free(originprops);
 		}
 		pc->current_indent = 0;
-		if (!pc->final_be)
-			printf("\n");
 		return;
 	}
 
@@ -600,9 +597,11 @@ bectl_cmd_list(int argc, char *argv[])
 	struct printc pc;
 	nvpair_t *cur;
 	nvlist_t *dsprops, *props;
-	int opt;
+	int opt, printed;
+	boolean_t active_now, active_reboot;
 
 	props = NULL;
+	printed = 0;
 	bzero(&pc, sizeof(pc));
 	while ((opt = getopt(argc, argv, "aDHs")) != -1) {
 		switch (opt) {
@@ -643,11 +642,38 @@ bectl_cmd_list(int argc, char *argv[])
 	}
 
 	print_headers(props, &pc);
+	/* Do a first pass to print active and next active first */
 	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
 	    cur = nvlist_next_nvpair(props, cur)) {
 		nvpair_value_nvlist(cur, &dsprops);
-		pc.final_be = nvlist_next_nvpair(props, cur) == NULL;
+		active_now = active_reboot = false;
+
+		nvlist_lookup_boolean_value(dsprops, "active", &active_now);
+		nvlist_lookup_boolean_value(dsprops, "nextboot",
+		    &active_reboot);
+		if (!active_now && !active_reboot)
+			continue;
+		if (printed > 0 && (pc.show_all_datasets || pc.show_snaps))
+			printf("\n");
 		print_info(nvpair_name(cur), dsprops, &pc);
+		printed++;
+	}
+
+	/* Now pull everything else */
+	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
+	    cur = nvlist_next_nvpair(props, cur)) {
+		nvpair_value_nvlist(cur, &dsprops);
+		active_now = active_reboot = false;
+
+		nvlist_lookup_boolean_value(dsprops, "active", &active_now);
+		nvlist_lookup_boolean_value(dsprops, "nextboot",
+		    &active_reboot);
+		if (active_now || active_reboot)
+			continue;
+		if (printed > 0 && (pc.show_all_datasets || pc.show_snaps))
+			printf("\n");
+		print_info(nvpair_name(cur), dsprops, &pc);
+		printed++;
 	}
 	be_prop_list_free(props);
 
