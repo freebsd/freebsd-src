@@ -65,7 +65,7 @@ Non-comprehensive list of changes in this release
   results for code that is relying on the undefined behavior of overflowing 
   casts. The optimization can be disabled by specifying a function attribute:
   "strict-float-cast-overflow"="false". This attribute may be created by the
-  clang option :option:`-fno-strict-float-cast-overflow`.
+  clang option ``-fno-strict-float-cast-overflow``.
   Code sanitizers can be used to detect affected patterns. The option for
   detecting this problem alone is "-fsanitize=float-cast-overflow":
 
@@ -108,6 +108,12 @@ Non-comprehensive list of changes in this release
   implementations saddle std::vector with and is better at using ``realloc``,
   it's now a better choice even on the heap (although when TinyPtrVector works,
   it's even smaller).
+
+* Preliminary/experimental support for DWARF v5 debugging information,
+  including the new .debug_names accelerator table. DWARF emitted at ``-O0``
+  should be fully DWARF v5 compliant. Type units and split DWARF are known
+  not to be compliant, and higher optimization levels will still emit some
+  information in v4 format.
 
 * Note..
 
