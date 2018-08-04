@@ -206,6 +206,8 @@ struct wmt_softc
 	struct hid_location	cont_max_loc;
 	uint32_t		cont_max_rlen;
 	uint8_t			cont_max_rid;
+	uint32_t		thqa_cert_rlen;
+	uint8_t			thqa_cert_rid;
 
 	uint8_t			buf[WMT_BSIZE] __aligned(4);
 };
@@ -323,6 +325,13 @@ wmt_attach(device_t dev)
 	} else
 		DPRINTF("Feature report %hhu size invalid or too large: %u\n",
 		    sc->cont_max_rid, sc->cont_max_rlen);
+
+	/* Fetch THQA certificate to enable some devices like WaveShare */
+	if (sc->thqa_cert_rlen > 0 && sc->thqa_cert_rlen <= WMT_BSIZE &&
+	    sc->thqa_cert_rid != sc->cont_max_rid)
+		(void)usbd_req_get_report(uaa->device, NULL, sc->buf,
+		    sc->thqa_cert_rlen, uaa->info.bIfaceIndex,
+		    UHID_FEATURE_REPORT, sc->thqa_cert_rid);
 
 	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
 
@@ -586,6 +595,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	int32_t cont_count_max = 0;
 	uint8_t report_id = 0;
 	uint8_t cont_max_rid = 0;
+	uint8_t thqa_cert_rid = 0;
 	bool touch_coll = false;
 	bool finger_coll = false;
 	bool cont_count_found = false;
@@ -593,6 +603,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 #define WMT_HI_ABSOLUTE(hi)	\
 	(((hi).flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
+#define	HUMS_THQA_CERT	0xC5
 
 	/* Parse features for maximum contact count */
 	hd = hid_start_parse(d_ptr, d_len, 1 << hid_feature);
@@ -608,6 +619,11 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 				touch_coll = false;
 			break;
 		case hid_feature:
+			if (hi.collevel == 1 && touch_coll && hi.usage ==
+			      HID_USAGE2(HUP_MICROSOFT, HUMS_THQA_CERT)) {
+				thqa_cert_rid = hi.report_ID;
+				break;
+			}
 			if (hi.collevel == 1 && touch_coll &&
 			    WMT_HI_ABSOLUTE(hi) && hi.usage ==
 			      HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
@@ -763,11 +779,15 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
 	    cont_max_rid);
+	if (thqa_cert_rid > 0)
+		sc->thqa_cert_rlen = wmt_hid_report_size(d_ptr, d_len,
+		    hid_feature, thqa_cert_rid);
 
 	sc->report_id = report_id;
 	sc->caps = caps;
 	sc->nconts_max = cont;
 	sc->cont_max_rid = cont_max_rid;
+	sc->thqa_cert_rid = thqa_cert_rid;
 
 	/* Announce information about the touch device */
 	device_printf(sc->dev,
