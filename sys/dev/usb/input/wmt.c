@@ -286,6 +286,7 @@ wmt_attach(device_t dev)
 	uint16_t d_len;
 	size_t i;
 	int err;
+	bool hid_ok;
 
 	device_set_usb_desc(dev);
 	sc->dev = dev;
@@ -298,15 +299,14 @@ wmt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (!wmt_hid_parse(sc, d_ptr, d_len)) {
+	hid_ok = wmt_hid_parse(sc, d_ptr, d_len);
+	free(d_ptr, M_TEMP);
+	if (!hid_ok) {
 		DPRINTF("multi-touch HID descriptor not found\n");
-		free(d_ptr, M_TEMP);
 		return (ENXIO);
 	}
 
-	/* Get HID report length */
-	sc->isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
-	free(d_ptr, M_TEMP);
+	/* Check HID report length */
 	if (sc->isize <= 0 || sc->isize > WMT_BSIZE) {
 		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
 		return (ENXIO);
@@ -337,7 +337,7 @@ wmt_attach(device_t dev)
 
 	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
 	    sc->xfer, wmt_config, WMT_N_TRANSFER, sc, &sc->mtx);
-	if (err) {
+	if (err != USB_ERR_NORMAL_COMPLETION) {
 		DPRINTF("usbd_transfer_setup error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
@@ -777,6 +777,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
+	sc->isize = wmt_hid_report_size(d_ptr, d_len, hid_input, report_id);
 	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
 	    cont_max_rid);
 	if (thqa_cert_rid > 0)
