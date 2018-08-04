@@ -74,10 +74,6 @@ BIN1+= amd.map
 BIN1+=	auto_master
 .endif
 
-.if ${MK_FREEBSD_UPDATE} != "no"
-BIN1+= freebsd-update.conf
-.endif
-
 .if ${MK_FTP} != "no"
 BIN1+= ftpusers
 .endif
