@@ -357,33 +357,32 @@ unp_pcb_lock2(struct unpcb *unp, struct unpcb *unp2)
 }
 
 static __noinline void
-unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p, int *freed)
-
+unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p,
+    int *freed)
 {
 	struct unpcb *unp2;
 
 	unp2 = *unp2p;
-	unp_pcb_hold((unp2));
-	UNP_PCB_UNLOCK((unp));
-	UNP_PCB_LOCK((unp2));
-	UNP_PCB_LOCK((unp));
-	*freed = unp_pcb_rele((unp2));
+	unp_pcb_hold(unp2);
+	UNP_PCB_UNLOCK(unp);
+	UNP_PCB_LOCK(unp2);
+	UNP_PCB_LOCK(unp);
+	*freed = unp_pcb_rele(unp2);
 	if (*freed)
 		*unp2p = NULL;
 }
 
-#define unp_pcb_owned_lock2(unp, unp2, freed) do {					\
-		freed = 0;													\
-		UNP_PCB_LOCK_ASSERT((unp));									\
-		UNP_PCB_UNLOCK_ASSERT((unp2));								\
-		MPASS(unp != unp2);											\
-		if (__predict_true(UNP_PCB_TRYLOCK((unp2))))				\
-			break;													\
-		else if ((uintptr_t)(unp2) > (uintptr_t)(unp))				\
-			UNP_PCB_LOCK((unp2));									\
-		else {														\
-			unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
-		}															\
+#define unp_pcb_owned_lock2(unp, unp2, freed) do {			\
+	freed = 0;							\
+	UNP_PCB_LOCK_ASSERT(unp);					\
+	UNP_PCB_UNLOCK_ASSERT(unp2);					\
+	MPASS((unp) != (unp2));						\
+	if (__predict_true(UNP_PCB_TRYLOCK(unp2)))			\
+		break;							\
+	else if ((uintptr_t)(unp2) > (uintptr_t)(unp))			\
+		UNP_PCB_LOCK(unp2);					\
+	else								\
+		unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
 } while (0)
 
 
