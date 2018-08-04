@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+CONFS=	FreeBSD.conf
+CONFSDIR=	/etc/pkg
+CONFSMODE=	644
 PROG=	pkg
 SRCS=	pkg.c dns_utils.c config.c
 MAN=	pkg.7

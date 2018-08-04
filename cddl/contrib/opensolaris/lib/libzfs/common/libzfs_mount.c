@@ -579,6 +579,7 @@ zfs_is_shared_smb(zfs_handle_t *zhp, char **where)
 
 #ifdef illumos
 static sa_handle_t (*_sa_init)(int);
+static sa_handle_t (*_sa_init_arg)(int, void *);
 static void (*_sa_fini)(sa_handle_t);
 static sa_share_t (*_sa_find_share)(sa_handle_t, char *);
 static int (*_sa_enable_share)(sa_share_t, char *);
@@ -620,6 +621,8 @@ _zfs_init_libshare(void)
 
 	if ((libshare = dlopen(path, RTLD_LAZY | RTLD_GLOBAL)) != NULL) {
 		_sa_init = (sa_handle_t (*)(int))dlsym(libshare, "sa_init");
+		_sa_init_arg = (sa_handle_t (*)(int, void *))dlsym(libshare,
+		    "sa_init_arg");
 		_sa_fini = (void (*)(sa_handle_t))dlsym(libshare, "sa_fini");
 		_sa_find_share = (sa_share_t (*)(sa_handle_t, char *))
 		    dlsym(libshare, "sa_find_share");
@@ -639,14 +642,15 @@ _zfs_init_libshare(void)
 		    char *, char *))dlsym(libshare, "sa_zfs_process_share");
 		_sa_update_sharetab_ts = (void (*)(sa_handle_t))
 		    dlsym(libshare, "sa_update_sharetab_ts");
-		if (_sa_init == NULL || _sa_fini == NULL ||
-		    _sa_find_share == NULL || _sa_enable_share == NULL ||
-		    _sa_disable_share == NULL || _sa_errorstr == NULL ||
-		    _sa_parse_legacy_options == NULL ||
+		if (_sa_init == NULL || _sa_init_arg == NULL ||
+		    _sa_fini == NULL || _sa_find_share == NULL ||
+		    _sa_enable_share == NULL || _sa_disable_share == NULL ||
+		    _sa_errorstr == NULL || _sa_parse_legacy_options == NULL ||
 		    _sa_needs_refresh == NULL || _sa_get_zfs_handle == NULL ||
 		    _sa_zfs_process_share == NULL ||
 		    _sa_update_sharetab_ts == NULL) {
 			_sa_init = NULL;
+			_sa_init_arg = NULL;
 			_sa_fini = NULL;
 			_sa_disable_share = NULL;
 			_sa_enable_share = NULL;
@@ -670,8 +674,8 @@ _zfs_init_libshare(void)
  * service value is which part(s) of the API to initialize and is a
  * direct map to the libshare sa_init(service) interface.
  */
-int
-zfs_init_libshare(libzfs_handle_t *zhandle, int service)
+static int
+zfs_init_libshare_impl(libzfs_handle_t *zhandle, int service, void *arg)
 {
 #ifdef illumos
 	/*
@@ -694,11 +698,11 @@ zfs_init_libshare(libzfs_handle_t *zhandle, int service)
 	if (_sa_needs_refresh != NULL &&
 	    _sa_needs_refresh(zhandle->libzfs_sharehdl)) {
 		zfs_uninit_libshare(zhandle);
-		zhandle->libzfs_sharehdl = _sa_init(service);
+		zhandle->libzfs_sharehdl = _sa_init_arg(service, arg);
 	}
 
 	if (zhandle && zhandle->libzfs_sharehdl == NULL)
-		zhandle->libzfs_sharehdl = _sa_init(service);
+		zhandle->libzfs_sharehdl = _sa_init_arg(service, arg);
 
 	if (zhandle->libzfs_sharehdl == NULL)
 		return (SA_NO_MEMORY);
@@ -706,6 +710,18 @@ zfs_init_libshare(libzfs_handle_t *zhandle, int service)
 
 	return (SA_OK);
 }
+int
+zfs_init_libshare(libzfs_handle_t *zhandle, int service)
+{
+	return (zfs_init_libshare_impl(zhandle, service, NULL));
+}
+
+int
+zfs_init_libshare_arg(libzfs_handle_t *zhandle, int service, void *arg)
+{
+	return (zfs_init_libshare_impl(zhandle, service, arg));
+}
+
 
 /*
  * zfs_uninit_libshare(zhandle)
@@ -817,9 +833,9 @@ zfs_share_proto(zfs_handle_t *zhp, zfs_share_proto_t *proto)
 		    ZFS_MAXPROPLEN, B_FALSE) != 0 ||
 		    strcmp(shareopts, "off") == 0)
 			continue;
-
 #ifdef illumos
-		ret = zfs_init_libshare(hdl, SA_INIT_SHARE_API);
+		ret = zfs_init_libshare_arg(hdl, SA_INIT_ONE_SHARE_FROM_HANDLE,
+		    zhp);
 		if (ret != SA_OK) {
 			(void) zfs_error_fmt(hdl, EZFS_SHARENFSFAILED,
 			    dgettext(TEXT_DOMAIN, "cannot share '%s': %s"),
@@ -930,6 +946,7 @@ unshare_one(libzfs_handle_t *hdl, const char *name, const char *mountpoint,
 	sa_share_t share;
 	int err;
 	char *mntpt;
+
 	/*
 	 * Mountpoint could get trashed if libshare calls getmntany
 	 * which it does during API initialization, so strdup the
@@ -937,8 +954,14 @@ unshare_one(libzfs_handle_t *hdl, const char *name, const char *mountpoint,
 	 */
 	mntpt = zfs_strdup(hdl, mountpoint);
 
-	/* make sure libshare initialized */
-	if ((err = zfs_init_libshare(hdl, SA_INIT_SHARE_API)) != SA_OK) {
+	/*
+	 * make sure libshare initialized, initialize everything because we
+	 * don't know what other unsharing may happen later. Functions up the
+	 * stack are allowed to initialize instead a subset of shares at the
+	 * time the set is known.
+	 */
+	if ((err = zfs_init_libshare_arg(hdl, SA_INIT_ONE_SHARE_FROM_NAME,
+	    (void *)name)) != SA_OK) {
 		free(mntpt);	/* don't need the copy anymore */
 		return (zfs_error_fmt(hdl, proto_table[proto].p_unshare_err,
 		    dgettext(TEXT_DOMAIN, "cannot unshare '%s': %s"),
@@ -1289,6 +1312,9 @@ zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 	int i;
 	int ret = -1;
 	int flags = (force ? MS_FORCE : 0);
+#ifdef illumos
+	sa_init_selective_arg_t sharearg;
+#endif
 
 	namelen = strlen(zhp->zpool_name);
 
@@ -1363,6 +1389,14 @@ zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 	 * At this point, we have the entire list of filesystems, so sort it by
 	 * mountpoint.
 	 */
+#ifdef illumos
+	sharearg.zhandle_arr = datasets;
+	sharearg.zhandle_len = used;
+	ret = zfs_init_libshare_arg(hdl, SA_INIT_SHARE_API_SELECTIVE,
+	    &sharearg);
+	if (ret != 0)
+		goto out;
+#endif
 	qsort(mountpoints, used, sizeof (char *), mountpoint_compare);
 
 	/*

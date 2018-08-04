@@ -275,7 +275,7 @@ bd_int13probe(struct bdinfo *bd)
 
 		total = (uint64_t)params.cylinders *
 		    params.heads * params.sectors_per_track;
-		if (bd->bd_sectors < total)
+		if (bd->bd_sectors > total)
 			bd->bd_sectors = total;
 
 		ret = 1;

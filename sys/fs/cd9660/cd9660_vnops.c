@@ -446,10 +446,10 @@ iso_shipdir(idp)
 	idp->current.d_reclen = GENERIC_DIRSIZ(&idp->current);
 	if (assoc) {
 		idp->assocoff = idp->curroff;
-		bcopy(&idp->current,&idp->assocent,idp->current.d_reclen);
+		memcpy(&idp->assocent, &idp->current, idp->current.d_reclen);
 	} else {
 		idp->saveoff = idp->curroff;
-		bcopy(&idp->current,&idp->saveent,idp->current.d_reclen);
+		memcpy(&idp->saveent, &idp->current, idp->current.d_reclen);
 	}
 	return (0);
 }

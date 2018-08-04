@@ -55,6 +55,7 @@
 #include <sys/vdev_removal.h>
 #include <sys/vdev_indirect_mapping.h>
 #include <sys/vdev_indirect_births.h>
+#include <sys/vdev_initialize.h>
 #include <sys/metaslab.h>
 #include <sys/metaslab_impl.h>
 #include <sys/uberblock_impl.h>
@@ -443,8 +444,9 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 
 				dp = spa_get_dsl(spa);
 				dsl_pool_config_enter(dp, FTAG);
-				if (err = dsl_dataset_hold_obj(dp,
-				    za.za_first_integer, FTAG, &ds)) {
+				err = dsl_dataset_hold_obj(dp,
+				    za.za_first_integer, FTAG, &ds);
+				if (err != 0) {
 					dsl_pool_config_exit(dp, FTAG);
 					break;
 				}
@@ -599,7 +601,8 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 					break;
 				}
 
-				if (error = dmu_objset_hold(strval, FTAG, &os))
+				error = dmu_objset_hold(strval, FTAG, &os);
+				if (error != 0)
 					break;
 
 				/*
@@ -1215,8 +1218,10 @@ spa_activate(spa_t *spa, int mode)
 	 */
 	trim_thread_create(spa);
 
-	for (size_t i = 0; i < TXG_SIZE; i++)
-		spa->spa_txg_zio[i] = zio_root(spa, NULL, NULL, 0);
+	for (size_t i = 0; i < TXG_SIZE; i++) {
+		spa->spa_txg_zio[i] = zio_root(spa, NULL, NULL,
+		    ZIO_FLAG_CANFAIL);
+	}
 
 	list_create(&spa->spa_config_dirty_list, sizeof (vdev_t),
 	    offsetof(vdev_t, vdev_config_dirty_node));
@@ -1388,6 +1393,11 @@ spa_unload(spa_t *spa)
 	 */
 	spa_async_suspend(spa);
 
+	if (spa->spa_root_vdev) {
+		vdev_initialize_stop_all(spa->spa_root_vdev,
+		    VDEV_INITIALIZE_ACTIVE);
+	}
+
 	/*
 	 * Stop syncing.
 	 */
@@ -1403,10 +1413,10 @@ spa_unload(spa_t *spa)
 	 * calling taskq_wait(mg_taskq).
 	 */
 	if (spa->spa_root_vdev != NULL) {
-		spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+		spa_config_enter(spa, SCL_ALL, spa, RW_WRITER);
 		for (int c = 0; c < spa->spa_root_vdev->vdev_children; c++)
 			vdev_metaslab_fini(spa->spa_root_vdev->vdev_child[c]);
-		spa_config_exit(spa, SCL_ALL, FTAG);
+		spa_config_exit(spa, SCL_ALL, spa);
 	}
 
 	/*
@@ -1440,7 +1450,7 @@ spa_unload(spa_t *spa)
 
 	bpobj_close(&spa->spa_deferred_bpobj);
 
-	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+	spa_config_enter(spa, SCL_ALL, spa, RW_WRITER);
 
 	/*
 	 * Close all vdevs.
@@ -1502,7 +1512,7 @@ spa_unload(spa_t *spa)
 		spa->spa_comment = NULL;
 	}
 
-	spa_config_exit(spa, SCL_ALL, FTAG);
+	spa_config_exit(spa, SCL_ALL, spa);
 }
 
 /*
@@ -3954,6 +3964,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, char **ereport)
 		spa_restart_removal(spa);
 
 		spa_spawn_aux_threads(spa);
+
+		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+		vdev_initialize_restart(spa->spa_root_vdev);
+		spa_config_exit(spa, SCL_CONFIG, FTAG);
 	}
 
 	spa_load_note(spa, "LOADED");
@@ -5675,6 +5689,7 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 	 * in which case we can modify its state.
 	 */
 	if (spa->spa_state != POOL_STATE_UNINITIALIZED && spa->spa_sync_on) {
+
 		/*
 		 * Objsets may be open only because they're dirty, so we
 		 * have to force it to sync before checking spa_refcnt.
@@ -5706,6 +5721,18 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 			spa_async_resume(spa);
 			mutex_exit(&spa_namespace_lock);
 			return (SET_ERROR(EXDEV));
+		}
+
+		/*
+		 * We're about to export or destroy this pool. Make sure
+		 * we stop all initializtion activity here before we
+		 * set the spa_final_txg. This will ensure that all
+		 * dirty data resulting from the initialization is
+		 * committed to disk before we unload the pool.
+		 */
+		if (spa->spa_root_vdev != NULL) {
+			vdev_initialize_stop_all(spa->spa_root_vdev,
+			    VDEV_INITIALIZE_ACTIVE);
 		}
 
 		/*
@@ -5837,8 +5864,7 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 		for (int c = 0; c < vd->vdev_children; c++) {
 			tvd = vd->vdev_child[c];
 			if (spa->spa_vdev_removal != NULL &&
-			    tvd->vdev_ashift !=
-			    spa->spa_vdev_removal->svr_vdev->vdev_ashift) {
+			    tvd->vdev_ashift != spa->spa_max_ashift) {
 				return (spa_vdev_exit(spa, vd, txg, EINVAL));
 			}
 			/* Fail if top level vdev is raidz */
@@ -5954,10 +5980,8 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 		return (spa_vdev_exit(spa, NULL, txg, error));
 	}
 
-	if (spa->spa_vdev_removal != NULL ||
-	    spa->spa_removing_phys.sr_prev_indirect_vdev != -1) {
+	if (spa->spa_vdev_removal != NULL)
 		return (spa_vdev_exit(spa, NULL, txg, EBUSY));
-	}
 
 	if (oldvd == NULL)
 		return (spa_vdev_exit(spa, NULL, txg, ENODEV));
@@ -6401,6 +6425,86 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 	return (error);
 }
 
+int
+spa_vdev_initialize(spa_t *spa, uint64_t guid, uint64_t cmd_type)
+{
+	/*
+	 * We hold the namespace lock through the whole function
+	 * to prevent any changes to the pool while we're starting or
+	 * stopping initialization. The config and state locks are held so that
+	 * we can properly assess the vdev state before we commit to
+	 * the initializing operation.
+	 */
+	mutex_enter(&spa_namespace_lock);
+	spa_config_enter(spa, SCL_CONFIG | SCL_STATE, FTAG, RW_READER);
+
+	/* Look up vdev and ensure it's a leaf. */
+	vdev_t *vd = spa_lookup_by_guid(spa, guid, B_FALSE);
+	if (vd == NULL || vd->vdev_detached) {
+		spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(ENODEV));
+	} else if (!vd->vdev_ops->vdev_op_leaf || !vdev_is_concrete(vd)) {
+		spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(EINVAL));
+	} else if (!vdev_writeable(vd)) {
+		spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(EROFS));
+	}
+	mutex_enter(&vd->vdev_initialize_lock);
+	spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
+
+	/*
+	 * When we activate an initialize action we check to see
+	 * if the vdev_initialize_thread is NULL. We do this instead
+	 * of using the vdev_initialize_state since there might be
+	 * a previous initialization process which has completed but
+	 * the thread is not exited.
+	 */
+	if (cmd_type == POOL_INITIALIZE_DO &&
+	    (vd->vdev_initialize_thread != NULL ||
+	    vd->vdev_top->vdev_removing)) {
+		mutex_exit(&vd->vdev_initialize_lock);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(EBUSY));
+	} else if (cmd_type == POOL_INITIALIZE_CANCEL &&
+	    (vd->vdev_initialize_state != VDEV_INITIALIZE_ACTIVE &&
+	    vd->vdev_initialize_state != VDEV_INITIALIZE_SUSPENDED)) {
+		mutex_exit(&vd->vdev_initialize_lock);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(ESRCH));
+	} else if (cmd_type == POOL_INITIALIZE_SUSPEND &&
+	    vd->vdev_initialize_state != VDEV_INITIALIZE_ACTIVE) {
+		mutex_exit(&vd->vdev_initialize_lock);
+		mutex_exit(&spa_namespace_lock);
+		return (SET_ERROR(ESRCH));
+	}
+
+	switch (cmd_type) {
+	case POOL_INITIALIZE_DO:
+		vdev_initialize(vd);
+		break;
+	case POOL_INITIALIZE_CANCEL:
+		vdev_initialize_stop(vd, VDEV_INITIALIZE_CANCELED);
+		break;
+	case POOL_INITIALIZE_SUSPEND:
+		vdev_initialize_stop(vd, VDEV_INITIALIZE_SUSPENDED);
+		break;
+	default:
+		panic("invalid cmd_type %llu", (unsigned long long)cmd_type);
+	}
+	mutex_exit(&vd->vdev_initialize_lock);
+
+	/* Sync out the initializing state */
+	txg_wait_synced(spa->spa_dsl_pool, 0);
+	mutex_exit(&spa_namespace_lock);
+
+	return (0);
+}
+
+
 /*
  * Split a set of devices from their mirrors, and create a new pool from them.
  */
@@ -6608,6 +6712,19 @@ spa_vdev_split_mirror(spa_t *spa, char *newname, nvlist_t *config,
 	spa_activate(newspa, spa_mode_global);
 	spa_async_suspend(newspa);
 
+	for (c = 0; c < children; c++) {
+		if (vml[c] != NULL) {
+			/*
+			 * Temporarily stop the initializing activity. We set
+			 * the state to ACTIVE so that we know to resume
+			 * the initializing once the split has completed.
+			 */
+			mutex_enter(&vml[c]->vdev_initialize_lock);
+			vdev_initialize_stop(vml[c], VDEV_INITIALIZE_ACTIVE);
+			mutex_exit(&vml[c]->vdev_initialize_lock);
+		}
+	}
+
 #ifndef illumos
 	/* mark that we are creating new spa by splitting */
 	newspa->spa_splitting_newspa = B_TRUE;
@@ -6702,6 +6819,10 @@ out:
 		if (vml[c] != NULL)
 			vml[c]->vdev_offline = B_FALSE;
 	}
+
+	/* restart initializing disks as necessary */
+	spa_async_request(spa, SPA_ASYNC_INITIALIZE_RESTART);
+
 	vdev_reopen(spa->spa_root_vdev);
 
 	nvlist_free(spa->spa_config_splitting);
@@ -7065,6 +7186,14 @@ spa_async_thread(void *arg)
 	 */
 	if (tasks & SPA_ASYNC_RESILVER)
 		dsl_resilver_restart(spa->spa_dsl_pool, 0);
+
+	if (tasks & SPA_ASYNC_INITIALIZE_RESTART) {
+		mutex_enter(&spa_namespace_lock);
+		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+		vdev_initialize_restart(spa->spa_root_vdev);
+		spa_config_exit(spa, SCL_CONFIG, FTAG);
+		mutex_exit(&spa_namespace_lock);
+	}
 
 	/*
 	 * Let the world know that we're done.
@@ -7765,8 +7894,9 @@ spa_sync(spa_t *spa, uint64_t txg)
 	 * Wait for i/os issued in open context that need to complete
 	 * before this txg syncs.
 	 */
-	VERIFY0(zio_wait(spa->spa_txg_zio[txg & TXG_MASK]));
-	spa->spa_txg_zio[txg & TXG_MASK] = zio_root(spa, NULL, NULL, 0);
+	(void) zio_wait(spa->spa_txg_zio[txg & TXG_MASK]);
+	spa->spa_txg_zio[txg & TXG_MASK] = zio_root(spa, NULL, NULL,
+	    ZIO_FLAG_CANFAIL);
 
 	/*
 	 * Lock out configuration changes.
@@ -7776,9 +7906,11 @@ spa_sync(spa_t *spa, uint64_t txg)
 	spa->spa_syncing_txg = txg;
 	spa->spa_sync_pass = 0;
 
-	mutex_enter(&spa->spa_alloc_lock);
-	VERIFY0(avl_numnodes(&spa->spa_alloc_tree));
-	mutex_exit(&spa->spa_alloc_lock);
+	for (int i = 0; i < spa->spa_alloc_count; i++) {
+		mutex_enter(&spa->spa_alloc_locks[i]);
+		VERIFY0(avl_numnodes(&spa->spa_alloc_trees[i]));
+		mutex_exit(&spa->spa_alloc_locks[i]);
+	}
 
 	/*
 	 * If there are any pending vdev state changes, convert them
@@ -7844,7 +7976,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 	 * The max queue depth will not change in the middle of syncing
 	 * out this txg.
 	 */
-	uint64_t queue_depth_total = 0;
+	uint64_t slots_per_allocator = 0;
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
 		metaslab_group_t *mg = tvd->vdev_mg;
@@ -7858,17 +7990,22 @@ spa_sync(spa_t *spa, uint64_t txg)
 		 * allocations look at mg_max_alloc_queue_depth, and async
 		 * allocations all happen from spa_sync().
 		 */
-		ASSERT0(refcount_count(&mg->mg_alloc_queue_depth));
+		for (int i = 0; i < spa->spa_alloc_count; i++)
+			ASSERT0(refcount_count(&(mg->mg_alloc_queue_depth[i])));
 		mg->mg_max_alloc_queue_depth = max_queue_depth;
-		queue_depth_total += mg->mg_max_alloc_queue_depth;
+
+		for (int i = 0; i < spa->spa_alloc_count; i++) {
+			mg->mg_cur_max_alloc_queue_depth[i] =
+			    zfs_vdev_def_queue_depth;
+		}
+		slots_per_allocator += zfs_vdev_def_queue_depth;
 	}
 	metaslab_class_t *mc = spa_normal_class(spa);
-	ASSERT0(refcount_count(&mc->mc_alloc_slots));
-	mc->mc_alloc_max_slots = queue_depth_total;
+	for (int i = 0; i < spa->spa_alloc_count; i++) {
+		ASSERT0(refcount_count(&mc->mc_alloc_slots[i]));
+		mc->mc_alloc_max_slots[i] = slots_per_allocator;
+	}
 	mc->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
-
-	ASSERT3U(mc->mc_alloc_max_slots, <=,
-	    max_queue_depth * rvd->vdev_children);
 
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *vd = rvd->vdev_child[c];
@@ -8052,14 +8189,17 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 	dsl_pool_sync_done(dp, txg);
 
-	mutex_enter(&spa->spa_alloc_lock);
-	VERIFY0(avl_numnodes(&spa->spa_alloc_tree));
-	mutex_exit(&spa->spa_alloc_lock);
+	for (int i = 0; i < spa->spa_alloc_count; i++) {
+		mutex_enter(&spa->spa_alloc_locks[i]);
+		VERIFY0(avl_numnodes(&spa->spa_alloc_trees[i]));
+		mutex_exit(&spa->spa_alloc_locks[i]);
+	}
 
 	/*
 	 * Update usable space statistics.
 	 */
-	while (vd = txg_list_remove(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)))
+	while ((vd = txg_list_remove(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)))
+	    != NULL)
 		vdev_sync_done(vd, txg);
 
 	spa_update_dspace(spa);

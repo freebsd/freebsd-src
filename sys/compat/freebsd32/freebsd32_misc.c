@@ -883,9 +883,7 @@ freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 	int error;
 
 	error = kern_getrusage(td, uap->who, &s);
-	if (error)
-		return (error);
-	if (uap->rusage != NULL) {
+	if (error == 0) {
 		freebsd32_rusage_out(&s, &s32);
 		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
@@ -3486,4 +3484,21 @@ freebsd32_ppoll(struct thread *td, struct freebsd32_ppoll_args *uap)
 		ssp = NULL;
 
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
+}
+
+int
+freebsd32_sched_rr_get_interval(struct thread *td,
+    struct freebsd32_sched_rr_get_interval_args *uap)
+{
+	struct timespec ts;
+	struct timespec32 ts32;
+	int error;
+
+	error = kern_sched_rr_get_interval(td, uap->pid, &ts);
+	if (error == 0) {
+		CP(ts, ts32, tv_sec);
+		CP(ts, ts32, tv_nsec);
+		error = copyout(&ts32, uap->interval, sizeof(ts32));
+	}
+	return (error);
 }

@@ -74,10 +74,6 @@ BIN1+= amd.map
 BIN1+=	auto_master
 .endif
 
-.if ${MK_BLACKLIST} != "no"
-BIN1+= blacklistd.conf
-.endif
-
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
 .endif
@@ -218,9 +214,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/ntp; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
-.if ${MK_PKGBOOTSTRAP} != "no"
-	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
-.endif
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt

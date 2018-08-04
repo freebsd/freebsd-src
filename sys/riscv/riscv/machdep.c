@@ -342,7 +342,6 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tf->tf_ra = mcp->mc_gpregs.gp_ra;
 	tf->tf_sp = mcp->mc_gpregs.gp_sp;
 	tf->tf_gp = mcp->mc_gpregs.gp_gp;
-	tf->tf_tp = mcp->mc_gpregs.gp_tp;
 	tf->tf_sepc = mcp->mc_gpregs.gp_sepc;
 	tf->tf_sstatus = mcp->mc_gpregs.gp_sstatus;
 

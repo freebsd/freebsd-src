@@ -59,16 +59,6 @@ static struct timespec ts_start, ts_end;
 static int alarm_timeout;
 static volatile int alarm_fired;
 
-#define timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-
 #define	BENCHMARK_FOREACH(I, NUM) for (I = 0; I < NUM && alarm_fired == 0; I++)
 
 static void
@@ -1112,7 +1102,7 @@ main(int argc, char *argv[])
 		for (k = 0; k < loops; k++) {
 			calls = the_test->t_func(iterations, the_test->t_int,
 			    path);
-			timespecsub(&ts_end, &ts_start);
+			timespecsub(&ts_end, &ts_start, &ts_end);
 			printf("%s\t%ju\t", the_test->t_name, k);
 			printf("%ju.%09ju\t%ju\t", (uintmax_t)ts_end.tv_sec,
 			    (uintmax_t)ts_end.tv_nsec, calls);

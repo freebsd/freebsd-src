@@ -16,7 +16,6 @@ SUBDIR = \
 	isl \
 	isl12xx \
 	jedec_dimm \
-	jedec_ts \
 	nxprtc \
 	rtc8583 \
 	s35390a \

@@ -262,12 +262,12 @@ my_system(const char *command)
 		 */
 		cfg.close_pidfile();
 		::closefrom(3);
-		::execl(_PATH_BSHELL, "sh", "-c", command, nullptr);
+		::execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
 		::_exit(127);
 	default:			/* parent */
 		savedpid = pid;
 		do {
-			pid = ::wait4(savedpid, &pstat, 0, nullptr);
+			pid = ::wait4(savedpid, &pstat, 0, (struct rusage *)0);
 		} while (pid == -1 && errno == EINTR);
 		break;
 	}
@@ -374,7 +374,7 @@ media::do_match(config &c)
 		memset(&ifmr, 0, sizeof(ifmr));
 		strlcpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
 
-		if (ioctl(s, SIOCGIFMEDIA, &ifmr) >= 0 &&
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
 			devdlog(LOG_DEBUG, "%s has media type 0x%x\n",
 				    value.c_str(), IFM_TYPE(ifmr.ifm_active));
@@ -527,7 +527,7 @@ config::open_pidfile()
 	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
 	if (pfh == NULL) {
 		if (errno == EEXIST)
-			errx(1, "devd already running, pid: %d", static_cast<int>(otherpid));
+			errx(1, "devd already running, pid: %d", (int)otherpid);
 		warn("cannot open pid file");
 	}
 }
@@ -854,7 +854,7 @@ process_event(char *buffer)
 	// Save the time this happened (as approximated by when we got
 	// around to processing it).
 	gettimeofday(&tv, NULL);
-	asprintf(&timestr, "%jd.%06ld", static_cast<uintmax_t>(tv.tv_sec), tv.tv_usec);
+	asprintf(&timestr, "%jd.%06ld", (uintmax_t)tv.tv_sec, tv.tv_usec);
 	cfg.set_variable("timestamp", timestr);
 	free(timestr);
 
@@ -919,7 +919,7 @@ create_socket(const char *name, int socktype)
 	unlink(name);
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 	    	err(1, "fcntl");
-	if (::bind(fd, reinterpret_cast<struct sockaddr *>(&sun), slen) < 0)
+	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
 	if (chown(name, 0, 0))	/* XXX - root.wheel */

@@ -133,7 +133,12 @@ efi_init(void)
 	struct efi_md *map;
 	caddr_t kmdp;
 	size_t efisz;
+	int rt_disabled;
 
+	rt_disabled = 0;
+	TUNABLE_INT_FETCH("efi.rt.disabled", &rt_disabled);
+	if (rt_disabled == 1)
+		return (0);
 	mtx_init(&efi_lock, "efi", NULL, MTX_DEF);
 
 	if (efi_systbl_phys == 0) {
@@ -222,6 +227,9 @@ static void
 efi_uninit(void)
 {
 
+	/* Most likely disabled by tunable */
+	if (efi_runtime == NULL)
+		return;
 	efi_destroy_1t1_map();
 
 	efi_systbl = NULL;

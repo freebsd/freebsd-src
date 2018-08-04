@@ -344,7 +344,6 @@ static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
-	struct m_tag *mtag;
 	uint32_t af;
 	int error;
 
@@ -356,22 +355,11 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Protect from deadly infinite recursion. */
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
-			m_freem(m);
-			return (EDEADLK);
-		}
-	}
-	mtag = m_tag_alloc(MTAG_NGIF, MTAG_NGIF_CALLED, sizeof(struct ifnet *),
-	    M_NOWAIT);
-	if (mtag == NULL) {
+	error = if_tunnel_check_nesting(ifp, m, NGM_IFACE_COOKIE, 1);
+	if (error) {
 		m_freem(m);
-		return (ENOMEM);
+		return (error);
 	}
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)

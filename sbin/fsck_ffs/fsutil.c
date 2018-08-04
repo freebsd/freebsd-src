@@ -297,28 +297,6 @@ foundit:
 	return (bp);
 }
 
-/*
- * Timespec operations (from <sys/time.h>).
- */
-#define	timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-#define	timespecadd(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec += (uvp)->tv_sec;				\
-		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec >= 1000000000) {			\
-			(vvp)->tv_sec++;				\
-			(vvp)->tv_nsec -= 1000000000;			\
-		}							\
-	} while (0)
-
 void
 getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 {
@@ -337,8 +315,9 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 		bp->b_errs = blread(fsreadfd, bp->b_un.b_buf, dblk, size);
 		if (debug) {
 			clock_gettime(CLOCK_REALTIME_PRECISE, &finish);
-			timespecsub(&finish, &start);
-			timespecadd(&readtime[bp->b_type], &finish);
+			timespecsub(&finish, &start, &finish);
+			timespecadd(&readtime[bp->b_type], &finish,
+			    &readtime[bp->b_type]);
 		}
 		bp->b_bno = dblk;
 		bp->b_size = size;
@@ -509,7 +488,7 @@ IOstats(char *what)
 	totaldiskreads += diskreads;
 	diskreads = 0;
 	for (i = 0; i < BT_NUMBUFTYPES; i++) {
-		timespecadd(&totalreadtime[i], &readtime[i]);
+		timespecadd(&totalreadtime[i], &readtime[i], &totalreadtime[i]);
 		totalreadcnt[i] += readcnt[i];
 		readtime[i].tv_sec = readtime[i].tv_nsec = 0;
 		readcnt[i] = 0;
@@ -529,7 +508,7 @@ finalIOstats(void)
 	diskreads = totaldiskreads;
 	startpass = startprog;
 	for (i = 0; i < BT_NUMBUFTYPES; i++) {
-		timespecadd(&totalreadtime[i], &readtime[i]);
+		timespecadd(&totalreadtime[i], &readtime[i], &totalreadtime[i]);
 		totalreadcnt[i] += readcnt[i];
 		readtime[i] = totalreadtime[i];
 		readcnt[i] = totalreadcnt[i];
@@ -543,7 +522,7 @@ static void printIOstats(void)
 	int i;
 
 	clock_gettime(CLOCK_REALTIME_PRECISE, &finishpass);
-	timespecsub(&finishpass, &startpass);
+	timespecsub(&finishpass, &startpass, &finishpass);
 	printf("Running time: %jd.%03ld sec\n",
 		(intmax_t)finishpass.tv_sec, finishpass.tv_nsec / 1000000);
 	printf("buffer reads by type:\n");

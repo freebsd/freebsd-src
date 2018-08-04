@@ -1463,7 +1463,7 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 		if (error != 0)
 			return (error);
 		getnanotime(&tts);
-		timespecadd(&tts, &ts);
+		timespecadd(&tts, &ts, &tts);
 	}
 
 	msg = PTRIN(args->msg);
@@ -1492,7 +1492,7 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 		 */
 		if (args->timeout) {
 			getnanotime(&ts);
-			timespecsub(&ts, &tts);
+			timespecsub(&ts, &tts, &ts);
 			if (!timespecisset(&ts) || ts.tv_sec > 0)
 				break;
 		}

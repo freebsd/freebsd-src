@@ -1188,7 +1188,7 @@ crypto_tstat(struct cryptotstat *ts, struct bintime *bt)
 	if (u < delta.frac)
 		delta.sec--;
 	bintime2timespec(&delta, &t);
-	timespecadd(&ts->acc, &t);
+	timespecadd(&ts->acc, &t, &ts->acc);
 	if (timespeccmp(&t, &ts->min, <))
 		ts->min = t;
 	if (timespeccmp(&t, &ts->max, >))

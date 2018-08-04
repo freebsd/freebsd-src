@@ -124,7 +124,20 @@ arm_setup_usb_otg() {
 	echo 'hw.usb.template=3' \
 		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 	echo 'umodem_load="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm64_setup_multicons() {
+	if [ "${EMBEDDED_TARGET_ARCH}" != "aarch64" ]; then
+		return
+	fi
+
+	echo '# Multiple console (serial+efi gop) enabled.' \
 		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_multicons="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_serial="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 }
 
 arm_install_base() {
@@ -138,6 +151,7 @@ arm_install_base() {
 
 	arm_create_user
 	arm_setup_usb_otg
+	arm64_setup_multicons
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab

@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Joyent, Inc.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
@@ -376,6 +376,13 @@ u_int zfs_arc_free_target = 0;
 
 /* Absolute min for arc min / max is 16MB. */
 static uint64_t arc_abs_min = 16 << 20;
+
+/*
+ * ARC dirty data constraints for arc_tempreserve_space() throttle
+ */
+uint_t zfs_arc_dirty_limit_percent = 50;	/* total dirty data limit */
+uint_t zfs_arc_anon_limit_percent = 25;		/* anon block dirty limit */
+uint_t zfs_arc_pool_dirty_percent = 20;		/* each pool's anon allowance */
 
 boolean_t zfs_compressed_arc_enabled = B_TRUE;
 
@@ -5148,12 +5155,13 @@ arc_getbuf_func(zio_t *zio, const zbookmark_phys_t *zb, const blkptr_t *bp,
     arc_buf_t *buf, void *arg)
 {
 	arc_buf_t **bufp = arg;
-
 	if (buf == NULL) {
+		ASSERT(zio == NULL || zio->io_error != 0);
 		*bufp = NULL;
 	} else {
+		ASSERT(zio == NULL || zio->io_error == 0);
 		*bufp = buf;
-		ASSERT(buf->b_data);
+		ASSERT(buf->b_data != NULL);
 	}
 }
 
@@ -5181,6 +5189,7 @@ arc_read_done(zio_t *zio)
 	arc_callback_t	*callback_list;
 	arc_callback_t	*acb;
 	boolean_t	freeable = B_FALSE;
+	boolean_t	no_zio_error = (zio->io_error == 0);
 
 	/*
 	 * The hdr was inserted into hash-table and removed from lists
@@ -5206,7 +5215,7 @@ arc_read_done(zio_t *zio)
 		ASSERT3P(hash_lock, !=, NULL);
 	}
 
-	if (zio->io_error == 0) {
+	if (no_zio_error) {
 		/* byteswap if necessary */
 		if (BP_SHOULD_BYTESWAP(zio->io_bp)) {
 			if (BP_GET_LEVEL(zio->io_bp) > 0) {
@@ -5227,8 +5236,7 @@ arc_read_done(zio_t *zio)
 	callback_list = hdr->b_l1hdr.b_acb;
 	ASSERT3P(callback_list, !=, NULL);
 
-	if (hash_lock && zio->io_error == 0 &&
-	    hdr->b_l1hdr.b_state == arc_anon) {
+	if (hash_lock && no_zio_error && hdr->b_l1hdr.b_state == arc_anon) {
 		/*
 		 * Only call arc_access on anonymous buffers.  This is because
 		 * if we've issued an I/O for an evicted buffer, we've already
@@ -5251,20 +5259,38 @@ arc_read_done(zio_t *zio)
 
 		callback_cnt++;
 
-		if (zio->io_error != 0)
-			continue;
-		
-		int error = arc_buf_alloc_impl(hdr, acb->acb_private,
-		    acb->acb_compressed,
-		    B_TRUE, &acb->acb_buf);
-		if (error != 0) {
-			arc_buf_destroy(acb->acb_buf, acb->acb_private);
-			acb->acb_buf = NULL;
+		if (no_zio_error) {
+			int error = arc_buf_alloc_impl(hdr, acb->acb_private,
+			    acb->acb_compressed, zio->io_error == 0,
+			    &acb->acb_buf);
+			if (error != 0) {
+				/*
+				 * Decompression failed.  Set io_error
+				 * so that when we call acb_done (below),
+				 * we will indicate that the read failed.
+				 * Note that in the unusual case where one
+				 * callback is compressed and another
+				 * uncompressed, we will mark all of them
+				 * as failed, even though the uncompressed
+				 * one can't actually fail.  In this case,
+				 * the hdr will not be anonymous, because
+				 * if there are multiple callbacks, it's
+				 * because multiple threads found the same
+				 * arc buf in the hash table.
+				 */
+				zio->io_error = error;
+			}
 		}
-
-		if (zio->io_error == 0)
-			zio->io_error = error;
 	}
+	/*
+	 * If there are multiple callbacks, we must have the hash lock,
+	 * because the only way for multiple threads to find this hdr is
+	 * in the hash table.  This ensures that if there are multiple
+	 * callbacks, the hdr is not anonymous.  If it were anonymous,
+	 * we couldn't use arc_buf_destroy() in the error case below.
+	 */
+	ASSERT(callback_cnt < 2 || hash_lock != NULL);
+
 	hdr->b_l1hdr.b_acb = NULL;
 	arc_hdr_clear_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
 	if (callback_cnt == 0) {
@@ -5276,7 +5302,7 @@ arc_read_done(zio_t *zio)
 	ASSERT(refcount_is_zero(&hdr->b_l1hdr.b_refcnt) ||
 	    callback_list != NULL);
 
-	if (zio->io_error == 0) {
+	if (no_zio_error) {
 		arc_hdr_verify(hdr, zio->io_bp);
 	} else {
 		arc_hdr_set_flags(hdr, ARC_FLAG_IO_ERROR);
@@ -5309,7 +5335,16 @@ arc_read_done(zio_t *zio)
 
 	/* execute each callback and free its structure */
 	while ((acb = callback_list) != NULL) {
-		if (acb->acb_done) {
+		if (acb->acb_done != NULL) {
+			if (zio->io_error != 0 && acb->acb_buf != NULL) {
+				/*
+				 * If arc_buf_alloc_impl() fails during
+				 * decompression, the buf will still be
+				 * allocated, and needs to be freed here.
+				 */
+				arc_buf_destroy(acb->acb_buf, acb->acb_private);
+				acb->acb_buf = NULL;
+			}
 			acb->acb_done(zio, &zio->io_bookmark, zio->io_bp,
 			    acb->acb_buf, acb->acb_private);
 		}
@@ -6280,12 +6315,10 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
 }
 
 static int
-arc_memory_throttle(uint64_t reserve, uint64_t txg)
+arc_memory_throttle(spa_t *spa, uint64_t reserve, uint64_t txg)
 {
 #ifdef _KERNEL
 	uint64_t available_memory = ptob(freemem);
-	static uint64_t page_load = 0;
-	static uint64_t last_txg = 0;
 
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	available_memory = MIN(available_memory, uma_avail());
@@ -6294,9 +6327,9 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	if (freemem > (uint64_t)physmem * arc_lotsfree_percent / 100)
 		return (0);
 
-	if (txg > last_txg) {
-		last_txg = txg;
-		page_load = 0;
+	if (txg > spa->spa_lowmem_last_txg) {
+		spa->spa_lowmem_last_txg = txg;
+		spa->spa_lowmem_page_load = 0;
 	}
 	/*
 	 * If we are in pageout, we know that memory is already tight,
@@ -6304,18 +6337,19 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	 * continue to let page writes occur as quickly as possible.
 	 */
 	if (curproc == pageproc) {
-		if (page_load > MAX(ptob(minfree), available_memory) / 4)
+		if (spa->spa_lowmem_page_load >
+		    MAX(ptob(minfree), available_memory) / 4)
 			return (SET_ERROR(ERESTART));
 		/* Note: reserve is inflated, so we deflate */
-		page_load += reserve / 8;
+		atomic_add_64(&spa->spa_lowmem_page_load, reserve / 8);
 		return (0);
-	} else if (page_load > 0 && arc_reclaim_needed()) {
+	} else if (spa->spa_lowmem_page_load > 0 && arc_reclaim_needed()) {
 		/* memory is low, delay before restarting */
 		ARCSTAT_INCR(arcstat_memory_throttle_count, 1);
 		return (SET_ERROR(EAGAIN));
 	}
-	page_load = 0;
-#endif
+	spa->spa_lowmem_page_load = 0;
+#endif /* _KERNEL */
 	return (0);
 }
 
@@ -6327,7 +6361,7 @@ arc_tempreserve_clear(uint64_t reserve)
 }
 
 int
-arc_tempreserve_space(uint64_t reserve, uint64_t txg)
+arc_tempreserve_space(spa_t *spa, uint64_t reserve, uint64_t txg)
 {
 	int error;
 	uint64_t anon_size;
@@ -6356,7 +6390,7 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	 * in order to compress/encrypt/etc the data.  We therefore need to
 	 * make sure that there is sufficient available memory for this.
 	 */
-	error = arc_memory_throttle(reserve, txg);
+	error = arc_memory_throttle(spa, reserve, txg);
 	if (error != 0)
 		return (error);
 
@@ -6364,12 +6398,24 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	 * Throttle writes when the amount of dirty data in the cache
 	 * gets too large.  We try to keep the cache less than half full
 	 * of dirty blocks so that our sync times don't grow too large.
+	 *
+	 * In the case of one pool being built on another pool, we want
+	 * to make sure we don't end up throttling the lower (backing)
+	 * pool when the upper pool is the majority contributor to dirty
+	 * data. To insure we make forward progress during throttling, we
+	 * also check the current pool's net dirty data and only throttle
+	 * if it exceeds zfs_arc_pool_dirty_percent of the anonymous dirty
+	 * data in the cache.
+	 *
 	 * Note: if two requests come in concurrently, we might let them
 	 * both succeed, when one of them should fail.  Not a huge deal.
 	 */
+	uint64_t total_dirty = reserve + arc_tempreserve + anon_size;
+	uint64_t spa_dirty_anon = spa_dirty_data(spa);
 
-	if (reserve + arc_tempreserve + anon_size > arc_c / 2 &&
-	    anon_size > arc_c / 4) {
+	if (total_dirty > arc_c * zfs_arc_dirty_limit_percent / 100 &&
+	    anon_size > arc_c * zfs_arc_anon_limit_percent / 100 &&
+	    spa_dirty_anon > anon_size * zfs_arc_pool_dirty_percent / 100) {
 		uint64_t meta_esize =
 		    refcount_count(&arc_anon->arcs_esize[ARC_BUFC_METADATA]);
 		uint64_t data_esize =

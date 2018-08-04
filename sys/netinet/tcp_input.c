@@ -1145,6 +1145,7 @@ tfo_socket_result:
 			 * contains.  tcp_do_segment() consumes
 			 * the mbuf chain and unlocks the inpcb.
 			 */
+			TCP_PROBE5(receive, NULL, tp, m, tp, th);
 			tp->t_fb->tfb_tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen,
 			    iptos);
 			if (ti_locked == TI_RLOCKED)
@@ -2406,6 +2407,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 *      SYN-RECEIVED* -> FIN-WAIT-1
 		 */
 		tp->t_starttime = ticks;
+		if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
+			tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+			tp->t_tfo_pending = NULL;
+
+			/*
+			 * Account for the ACK of our SYN prior to
+			 * regular ACK processing below.
+			 */ 
+			tp->snd_una++;
+		}
 		if (tp->t_flags & TF_NEEDFIN) {
 			tcp_state_change(tp, TCPS_FIN_WAIT_1);
 			tp->t_flags &= ~TF_NEEDFIN;
@@ -2413,16 +2424,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tcp_state_change(tp, TCPS_ESTABLISHED);
 			TCP_PROBE5(accept__established, NULL, tp,
 			    m, tp, th);
-			if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
-				tcp_fastopen_decrement_counter(tp->t_tfo_pending);
-				tp->t_tfo_pending = NULL;
-
-				/*
-				 * Account for the ACK of our SYN prior to
-				 * regular ACK processing below.
-				 */ 
-				tp->snd_una++;
-			}
 			/*
 			 * TFO connections call cc_conn_init() during SYN
 			 * processing.  Calling it again here for such

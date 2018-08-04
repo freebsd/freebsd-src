@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ioctl.h>
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
@@ -249,6 +250,40 @@ cleanup:
 }
 
 static int
+freebsd32_ioctl_barmmap(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct pci_bar_mmap32 pbm32;
+	struct pci_bar_mmap pbm;
+	int error;
+
+	error = copyin(uap->data, &pbm32, sizeof(pbm32));
+	if (error != 0)
+		return (error);
+	PTRIN_CP(pbm32, pbm, pbm_map_base);
+	CP(pbm32, pbm, pbm_sel);
+	CP(pbm32, pbm, pbm_reg);
+	CP(pbm32, pbm, pbm_flags);
+	CP(pbm32, pbm, pbm_memattr);
+	pbm.pbm_bar_length = PAIR32TO64(uint64_t, pbm32.pbm_bar_length);
+	error = fo_ioctl(fp, PCIOCBARMMAP, (caddr_t)&pbm, td->td_ucred, td);
+	if (error == 0) {
+		PTROUT_CP(pbm, pbm32, pbm_map_base);
+		CP(pbm, pbm32, pbm_map_length);
+#if BYTE_ORDER == LITTLE_ENDIAN
+		pbm32.pbm_bar_length1 = pbm.pbm_bar_length;
+		pbm32.pbm_bar_length2 = pbm.pbm_bar_length >> 32;
+#else
+		pbm32.pbm_bar_length1 = pbm.pbm_bar_length >> 32;
+		pbm32.pbm_bar_length2 = pbm.pbm_bar_length;
+#endif
+		CP(pbm, pbm32, pbm_bar_off);
+		error = copyout(&pbm32, uap->data, sizeof(pbm32));
+	}
+	return (error);
+}
+
+static int
 freebsd32_ioctl_sg(struct thread *td,
     struct freebsd32_ioctl_args *uap, struct file *fp)
 {
@@ -355,6 +390,10 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 		error = freebsd32_ioctl_sg(td, uap, fp);
 		break;
 
+	case PCIOCBARMMAP_32:
+		error = freebsd32_ioctl_barmmap(td, uap, fp);
+		break;
+
 	default:
 		fdrop(fp, td);
 		ap.fd = uap->fd;
@@ -364,5 +403,5 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	}
 
 	fdrop(fp, td);
-	return error;
+	return (error);
 }

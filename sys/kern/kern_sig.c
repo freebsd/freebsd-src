@@ -1261,8 +1261,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
 			timevalid = 1;
 			getnanouptime(&rts);
-			ets = rts;
-			timespecadd(&ets, timeout);
+			timespecadd(&rts, timeout, &ets);
 		}
 	}
 	ksiginfo_init(ksi);
@@ -1302,8 +1301,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 				error = EAGAIN;
 				break;
 			}
-			ts = ets;
-			timespecsub(&ts, &rts);
+			timespecsub(&ets, &rts, &ts);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts);
 			timo = tvtohz(&tv);
 		} else {

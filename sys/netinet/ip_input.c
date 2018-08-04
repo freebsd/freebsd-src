@@ -1193,7 +1193,7 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 			mbuf_tstmp2timespec(m, &ts);
 			getboottimebin(&boottimebin);
 			bintime2timespec(&boottimebin, &ts1);
-			timespecadd(&ts, &ts1);
+			timespecadd(&ts, &ts1, &ts);
 		} else {
 			nanotime(&ts);
 		}
