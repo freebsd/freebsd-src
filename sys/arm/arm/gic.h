@@ -39,20 +39,16 @@
 #ifndef _ARM_GIC_H_
 #define _ARM_GIC_H_
 
-#ifdef INTRNG
 struct arm_gic_range {
 	uint64_t bus;
 	uint64_t host;
 	uint64_t size;
 };
-#endif
 
 struct arm_gic_softc {
 	device_t		gic_dev;
-#ifdef INTRNG
 	void *			gic_intrhand;
 	struct gic_irqsrc *	gic_irqs;
-#endif
 	struct resource *	gic_res[3];
 	bus_space_tag_t		gic_c_bst;
 	bus_space_tag_t		gic_d_bst;
@@ -64,18 +60,15 @@ struct arm_gic_softc {
 	uint32_t		typer;
 	uint32_t		last_irq[MAXCPU];
 
-#ifdef INTRNG
 	uint32_t		gic_iidr;
 	u_int			gic_bus;
 
 	int			nranges;
 	struct arm_gic_range *	ranges;
-#endif
 };
 
 DECLARE_CLASS(arm_gic_driver);
 
-#ifdef INTRNG
 struct arm_gicv2m_softc {
 	struct resource	*sc_mem;
 	struct mtx	sc_mutex;
@@ -86,7 +79,6 @@ struct arm_gicv2m_softc {
 };
 
 DECLARE_CLASS(arm_gicv2m_driver);
-#endif
 
 int arm_gic_attach(device_t);
 int arm_gic_detach(device_t);

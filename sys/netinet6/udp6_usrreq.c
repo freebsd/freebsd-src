@@ -388,8 +388,12 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				    NULL) {
 					INP_RLOCK(last);
 					if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
-						UDP_PROBE(receive, NULL, last, ip6,
-					        last, uh);
+						if (nxt == IPPROTO_UDPLITE)
+							UDPLITE_PROBE(receive, NULL, last,
+							    ip6, last, uh);
+						else
+							UDP_PROBE(receive, NULL, last,
+							    ip6, last, uh);
 						if (udp6_append(last, n, off, fromsa))
 							goto inp_lost;
 					}
@@ -422,7 +426,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
-			UDP_PROBE(receive, NULL, last, ip6, last, uh);
+			if (nxt == IPPROTO_UDPLITE)
+				UDPLITE_PROBE(receive, NULL, last, ip6, last, uh);
+			else
+				UDP_PROBE(receive, NULL, last, ip6, last, uh);
 			if (udp6_append(last, m, off, fromsa) == 0)
 				INP_RUNLOCK(last);
 		} else
@@ -483,7 +490,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ntohs(uh->uh_sport));
 		}
-		UDP_PROBE(receive, NULL, NULL, ip6, NULL, uh);
+		if (nxt == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(receive, NULL, NULL, ip6, NULL, uh);
+		else
+			UDP_PROBE(receive, NULL, NULL, ip6, NULL, uh);
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & M_MCAST) {
 			printf("UDP6: M_MCAST is set in a unicast packet.\n");
@@ -504,7 +514,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			return (IPPROTO_DONE);
 		}
 	}
-	UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
+	if (nxt == IPPROTO_UDPLITE)
+		UDPLITE_PROBE(receive, NULL, inp, ip6, inp, uh);
+	else
+		UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
 	if (udp6_append(inp, m, off, fromsa) == 0)
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
@@ -919,7 +932,10 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		flags |= IP_NODEFAULTFLOWID;
 #endif
 
-		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
+		if (nxt == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(send, NULL, inp, ip6, inp, udp6);
+		else
+			UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
 		error = ip6_output(m, optp, &inp->inp_route6, flags,
 		    inp->in6p_moptions, NULL, inp);

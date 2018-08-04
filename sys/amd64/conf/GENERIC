@@ -54,6 +54,7 @@ options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
+options 	EFIRT			# EFI Runtime Services support
 options 	COMPAT_FREEBSD32	# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5

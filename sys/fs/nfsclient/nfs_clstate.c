@@ -3237,7 +3237,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	u_int32_t *tl;
 	struct nfsclclient *clp;
 	struct nfscldeleg *dp = NULL;
-	int numops, taglen = -1, error = 0, trunc;
+	int numops, taglen = -1, error = 0, trunc __unused;
 	u_int32_t minorvers = 0, retops = 0, *retopsp = NULL, *repp, cbident;
 	u_char tag[NFSV4_SMALLSTR + 1], *tagstr;
 	vnode_t vp = NULL;
@@ -3247,7 +3247,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	mount_t mp;
 	nfsattrbit_t attrbits, rattrbits;
 	nfsv4stateid_t stateid;
-	uint32_t seqid, slotid = 0, highslot, cachethis;
+	uint32_t seqid, slotid = 0, highslot, cachethis __unused;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	struct mbuf *rep;
 	struct nfscllayout *lyp;

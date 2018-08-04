@@ -594,8 +594,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
 				    NULL) {
-					UDP_PROBE(receive, NULL, last, ip,
-					    last, uh);
+					if (proto == IPPROTO_UDPLITE)
+						UDPLITE_PROBE(receive, NULL, last, ip,
+						    last, uh);
+					else
+						UDP_PROBE(receive, NULL, last, ip, last,
+						    uh);
 					if (udp_append(last, ip, n, iphlen,
 						udp_in)) {
 						goto inp_lost;
@@ -629,7 +633,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			INP_INFO_RUNLOCK_ET(pcbinfo, et);
 			goto badunlocked;
 		}
-		UDP_PROBE(receive, NULL, last, ip, last, uh);
+		if (proto == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(receive, NULL, last, ip, last, uh);
+		else
+			UDP_PROBE(receive, NULL, last, ip, last, uh);
 		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
@@ -685,7 +692,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			    inet_ntoa_r(ip->ip_dst, dst), ntohs(uh->uh_dport),
 			    inet_ntoa_r(ip->ip_src, src), ntohs(uh->uh_sport));
 		}
-		UDP_PROBE(receive, NULL, NULL, ip, NULL, uh);
+		if (proto == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(receive, NULL, NULL, ip, NULL, uh);
+		else
+			UDP_PROBE(receive, NULL, NULL, ip, NULL, uh);
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			UDPSTAT_INC(udps_noportbcast);
@@ -705,7 +715,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	INP_RLOCK_ASSERT(inp);
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
-		UDP_PROBE(receive, NULL, inp, ip, inp, uh);
+		if (proto == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(receive, NULL, inp, ip, inp, uh);
+		else
+			UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 		INP_RUNLOCK(inp);
 		m_freem(m);
 		return (IPPROTO_DONE);
@@ -721,7 +734,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 
-	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
+	if (proto == IPPROTO_UDPLITE)
+		UDPLITE_PROBE(receive, NULL, inp, ip, inp, uh);
+	else
+		UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 	if (udp_append(inp, ip, m, iphlen, udp_in) == 0) 
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
@@ -1526,7 +1542,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		INP_HASH_WUNLOCK(pcbinfo);
 	else if (unlock_udbinfo == UH_RLOCKED)
 		INP_HASH_RUNLOCK_ET(pcbinfo, et);
-	UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
+	if (pr == IPPROTO_UDPLITE)
+		UDPLITE_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
+	else
+		UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
 	error = ip_output(m, inp->inp_options,
 	    (unlock_inp == UH_WLOCKED ? &inp->inp_route : NULL), ipflags,
 	    inp->inp_moptions, inp);

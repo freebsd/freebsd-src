@@ -164,7 +164,12 @@ MLINKS+=	stdarg.3 va_arg.3 \
 MLINKS+=	timeradd.3 timerclear.3 \
 		timeradd.3 timercmp.3 \
 		timeradd.3 timerisset.3 \
-		timeradd.3 timersub.3
+		timeradd.3 timersub.3 \
+		timeradd.3 timespecadd.3 \
+		timeradd.3 timespecsub.3 \
+		timeradd.3 timespecclear.3 \
+		timeradd.3 timespecisset.3 \
+		timeradd.3 timespeccmp.3
 MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 RB_ENTRY.3 \
 		tree.3 RB_FIND.3 \

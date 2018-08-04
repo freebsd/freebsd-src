@@ -772,8 +772,7 @@ abs_timeout_init(struct abs_timeout *timo, int clockid, int absolute,
 	if (!absolute) {
 		timo->is_abs_real = false;
 		abs_timeout_update(timo);
-		timo->end = timo->cur;
-		timespecadd(&timo->end, timeout);
+		timespecadd(&timo->cur, timeout, &timo->end);
 	} else {
 		timo->end = *timeout;
 		timo->is_abs_real = clockid == CLOCK_REALTIME ||
@@ -811,8 +810,7 @@ abs_timeout_gethz(struct abs_timeout *timo)
 
 	if (timespeccmp(&timo->end, &timo->cur, <=))
 		return (-1); 
-	tts = timo->end;
-	timespecsub(&tts, &timo->cur);
+	timespecsub(&timo->end, &timo->cur, &tts);
 	return (tstohz(&tts));
 }
 
@@ -3247,8 +3245,8 @@ do_sem2_wait(struct thread *td, struct _usem2 *sem, struct _umtx_time *timeout)
 				error = EINTR;
 			if (error == EINTR) {
 				abs_timeout_update(&timo);
-				timeout->_timeout = timo.end;
-				timespecsub(&timeout->_timeout, &timo.cur);
+				timespecsub(&timo.end, &timo.cur,
+				    &timeout->_timeout);
 			}
 		}
 	}

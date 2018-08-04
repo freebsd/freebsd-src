@@ -220,16 +220,17 @@ test_abstime(void)
 {
     const char *test_id = "kevent(EVFILT_TIMER, EV_ONESHOT, NOTE_ABSTIME)";
     struct kevent kev;
-    time_t when;
+    time_t start;
+    time_t stop;
     const int timeout = 3;
 
     test_begin(test_id);
 
     test_no_kevents();
 
-    when = time(NULL);
+    start = time(NULL);
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_ABSTIME | NOTE_SECONDS, when + timeout, NULL);
+      NOTE_ABSTIME | NOTE_SECONDS, start + timeout, NULL);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
@@ -238,8 +239,9 @@ test_abstime(void)
     kev.data = 1;
     kev.fflags = 0;
     kevent_cmp(&kev, kevent_get(kqfd));
-    if (time(NULL) < when + timeout)
-    	err(1, "too early %jd %jd", (intmax_t)time(NULL), (intmax_t)(when + timeout));
+    stop = time(NULL);
+    if (stop < start + timeout)
+    	err(1, "too early %jd %jd", (intmax_t)stop, (intmax_t)(start + timeout));
 
     /* Check if the event occurs again */
     sleep(3);

@@ -597,7 +597,7 @@ failed:
 	cst->port_id = pi->port_id;
 	cst->schedcl = schedcl;
 	cst->max_rate = params->rate_limit.max_rate;
-	cst->tx_credits = sc->params.ofldq_wr_cred;
+	cst->tx_credits = sc->params.eo_wr_cred;
 	cst->tx_total = cst->tx_credits;
 	cst->plen = 0;
 	cst->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |

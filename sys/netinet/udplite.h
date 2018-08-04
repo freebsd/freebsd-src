@@ -29,6 +29,17 @@
 #ifndef _NETINET_UDPLITE_H_
 #define	_NETINET_UDPLITE_H_
 
+/*
+ * UDP-Lite protocol header.
+ * Per RFC 3828, July, 2004.
+ */
+struct udplitehdr {
+	u_short	udplite_sport;		/* UDO-Lite source port */
+	u_short	udplite_dport;		/* UDP-Lite destination port */
+	u_short	udplite_coverage;	/* UDP-Lite checksum coverage */
+	u_short	udplite_checksum;	/* UDP-Lite checksum */
+};
+
 /* 
  * User-settable options (used with setsockopt).
  */

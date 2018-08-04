@@ -228,13 +228,15 @@ tcp_output(struct tcpcb *tp)
 #endif
 
 	/*
-	 * For TFO connections in SYN_RECEIVED, only allow the initial
-	 * SYN|ACK and those sent by the retransmit timer.
+	 * For TFO connections in SYN_SENT or SYN_RECEIVED,
+	 * only allow the initial SYN or SYN|ACK and those sent
+	 * by the retransmit timer.
 	 */
 	if (IS_FASTOPEN(tp->t_flags) &&
-	    (tp->t_state == TCPS_SYN_RECEIVED) &&
-	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
-	    (tp->snd_nxt != tp->snd_una))         /* not a retransmit */
+	    ((tp->t_state == TCPS_SYN_SENT) ||
+	     (tp->t_state == TCPS_SYN_RECEIVED)) &&
+	    SEQ_GT(tp->snd_max, tp->snd_una) && /* initial SYN or SYN|ACK sent */
+	    (tp->snd_nxt != tp->snd_una))       /* not a retransmit */
 		return (0);
 
 	/*

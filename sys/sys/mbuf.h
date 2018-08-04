@@ -569,7 +569,6 @@ struct mbuf {
 
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
-#define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */

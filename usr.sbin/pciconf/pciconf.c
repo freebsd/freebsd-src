@@ -34,6 +34,13 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/pciio.h>
+#include <sys/queue.h>
+
+#include <vm/vm.h>
+
+#include <dev/pci/pcireg.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -44,10 +51,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/pciio.h>
-#include <sys/queue.h>
-
-#include <dev/pci/pcireg.h>
 
 #include "pathnames.h"
 #include "pciconf.h"
@@ -82,32 +85,37 @@ static int load_vendors(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
 static void chkattached(const char *);
+static void dump_bar(const char *name, const char *reg, const char *bar_start,
+    const char *bar_count, int width, int verbose);
 
 static int exitstatus = 0;
 
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-BbcevV] [device]",
-		"       pciconf -a device",
-		"       pciconf -r [-b | -h] device addr[:addr2]",
-		"       pciconf -w [-b | -h] device addr value");
-	exit (1);
+
+	fprintf(stderr, "%s",
+		"usage: pciconf -l [-BbcevV] [device]\n"
+		"       pciconf -a device\n"
+		"       pciconf -r [-b | -h] device addr[:addr2]\n"
+		"       pciconf -w [-b | -h] device addr value\n"
+		"       pciconf -D [-b | -h | -x] device bar [start [count]]"
+		"\n");
+	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-	int c;
-	int listmode, readmode, writemode, attachedmode;
+	int c, width;
+	int listmode, readmode, writemode, attachedmode, dumpbarmode;
 	int bars, bridge, caps, errors, verbose, vpd;
-	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = 0;
-	bars = bridge = caps = errors = verbose = vpd = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = dumpbarmode = 0;
+	bars = bridge = caps = errors = verbose = vpd= 0;
+	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcehlrwVv")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrwVv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -119,11 +127,15 @@ main(int argc, char **argv)
 
 		case 'b':
 			bars = 1;
-			byte = 1;
+			width = 1;
 			break;
 
 		case 'c':
 			caps = 1;
+			break;
+
+		case 'D':
+			dumpbarmode = 1;
 			break;
 
 		case 'e':
@@ -131,7 +143,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'h':
-			isshort = 1;
+			width = 2;
 			break;
 
 		case 'l':
@@ -154,6 +166,10 @@ main(int argc, char **argv)
 			vpd = 1;
 			break;
 
+		case 'x':
+			width = 8;
+			break;
+
 		default:
 			usage();
 		}
@@ -162,7 +178,9 @@ main(int argc, char **argv)
 	if ((listmode && optind >= argc + 1)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
-	    || (attachedmode && optind + 1 != argc))
+	    || (attachedmode && optind + 1 != argc)
+	    || (dumpbarmode && (optind + 2 > argc || optind + 4 < argc))
+	    || (width == 8 && !dumpbarmode))
 		usage();
 
 	if (listmode) {
@@ -171,16 +189,20 @@ main(int argc, char **argv)
 	} else if (attachedmode) {
 		chkattached(argv[optind]);
 	} else if (readmode) {
-		readit(argv[optind], argv[optind + 1],
-		    byte ? 1 : isshort ? 2 : 4);
+		readit(argv[optind], argv[optind + 1], width);
 	} else if (writemode) {
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
-		    byte ? 1 : isshort ? 2 : 4);
+		    width);
+	} else if (dumpbarmode) {
+		dump_bar(argv[optind], argv[optind + 1],
+		    optind + 2 < argc ? argv[optind + 2] : NULL, 
+		    optind + 3 < argc ? argv[optind + 3] : NULL, 
+		    width, verbose);
 	} else {
 		usage();
 	}
 
-	return exitstatus;
+	return (exitstatus);
 }
 
 static void
@@ -1025,5 +1047,119 @@ chkattached(const char *name)
 
 	exitstatus = pi.pi_data ? 0 : 2; /* exit(2), if NOT attached */
 	printf("%s: %s%s\n", name, pi.pi_data == 0 ? "not " : "", "attached");
+	close(fd);
+}
+
+static void
+dump_bar(const char *name, const char *reg, const char *bar_start,
+    const char *bar_count, int width, int verbose)
+{
+	struct pci_bar_mmap pbm;
+	uint32_t *dd;
+	uint16_t *dh;
+	uint8_t *db;
+	uint64_t *dx, a, start, count;
+	char *el;
+	size_t res;
+	int fd;
+
+	start = 0;
+	if (bar_start != NULL) {
+		start = strtoul(bar_start, &el, 0);
+		if (*el != '\0')
+			errx(1, "Invalid bar start specification %s",
+			    bar_start);
+	}
+	count = 0;
+	if (bar_count != NULL) {
+		count = strtoul(bar_count, &el, 0);
+		if (*el != '\0')
+			errx(1, "Invalid count specification %s",
+			    bar_count);
+	}
+
+	pbm.pbm_sel = getsel(name);
+	pbm.pbm_reg = strtoul(reg, &el, 0);
+	if (*reg == '\0' || *el != '\0')
+		errx(1, "Invalid bar specification %s", reg);
+	pbm.pbm_flags = 0;
+	pbm.pbm_memattr = VM_MEMATTR_UNCACHEABLE; /* XXX */
+
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (ioctl(fd, PCIOCBARMMAP, &pbm) < 0)
+		err(1, "ioctl(PCIOCBARMMAP)");
+
+	if (count == 0)
+		count = pbm.pbm_bar_length / width;
+	if (start + count < start || (start + count) * width < (uint64_t)width)
+		errx(1, "(start + count) x width overflow");
+	if ((start + count) * width > pbm.pbm_bar_length) {
+		if (start * width > pbm.pbm_bar_length)
+			count = 0;
+		else
+			count = (pbm.pbm_bar_length - start * width) / width;
+	}
+	if (verbose) {
+		fprintf(stderr,
+		    "Dumping pci%d:%d:%d:%d BAR %x mapped base %p "
+		    "off %#x length %#jx from %#jx count %#jx in %d-bytes\n",
+		    pbm.pbm_sel.pc_domain, pbm.pbm_sel.pc_bus,
+		    pbm.pbm_sel.pc_dev, pbm.pbm_sel.pc_func,
+		    pbm.pbm_reg, pbm.pbm_map_base, pbm.pbm_bar_off,
+		    pbm.pbm_bar_length, start, count, width);
+	}
+	switch (width) {
+	case 1:
+		db = (uint8_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, db++) {
+			res = fwrite(db, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 2:
+		dh = (uint16_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dh++) {
+			res = fwrite(dh, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 4:
+		dd = (uint32_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dd++) {
+			res = fwrite(dd, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 8:
+		dx = (uint64_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dx++) {
+			res = fwrite(dx, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	default:
+		errx(1, "invalid access width");
+	}
+
+	munmap((void *)pbm.pbm_map_base, pbm.pbm_map_length);
 	close(fd);
 }

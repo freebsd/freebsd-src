@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -159,6 +159,21 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	return (ret);
 }
 
+#if defined(__i386__) || defined(__amd64__)
+#define	LINUXKPI_ATOMIC_8(...) __VA_ARGS__
+#define	LINUXKPI_ATOMIC_16(...) __VA_ARGS__
+#else
+#define	LINUXKPI_ATOMIC_8(...)
+#define	LINUXKPI_ATOMIC_16(...)
+#endif
+
+#if defined(__amd64__) || (defined(__ARM_ARCH) && (__ARM_ARCH >= 6)) ||	\
+    defined(__aarch64__) || defined(__powerpc64__) || defined(__riscv)
+#define	LINUXKPI_ATOMIC_64(...) __VA_ARGS__
+#else
+#define	LINUXKPI_ATOMIC_64(...)
+#endif
+
 #define	cmpxchg(ptr, old, new) ({					\
 	union {								\
 		__typeof(*(ptr)) val;					\
@@ -168,30 +183,39 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 		u64 u64[0];						\
 	} __ret = { .val = (old) }, __new = { .val = (new) };		\
 									\
-	CTASSERT(sizeof(__ret.val) == 1 || sizeof(__ret.val) == 2 ||	\
-	    sizeof(__ret.val) == 4 || sizeof(__ret.val) == 8);		\
+	CTASSERT(							\
+	    LINUXKPI_ATOMIC_8(sizeof(__ret.val) == 1 ||)		\
+	    LINUXKPI_ATOMIC_16(sizeof(__ret.val) == 2 ||)		\
+	    LINUXKPI_ATOMIC_64(sizeof(__ret.val) == 8 ||)		\
+	    sizeof(__ret.val) == 4);					\
 									\
 	switch (sizeof(__ret.val)) {					\
+	LINUXKPI_ATOMIC_8(						\
 	case 1:								\
 		while (!atomic_fcmpset_8((volatile u8 *)(ptr),		\
 		    __ret.u8, __new.u8[0]) && __ret.val == (old))	\
 			;						\
 		break;							\
+	)								\
+	LINUXKPI_ATOMIC_16(						\
 	case 2:								\
 		while (!atomic_fcmpset_16((volatile u16 *)(ptr),	\
 		    __ret.u16, __new.u16[0]) && __ret.val == (old))	\
 			;						\
 		break;							\
+	)								\
 	case 4:								\
 		while (!atomic_fcmpset_32((volatile u32 *)(ptr),	\
 		    __ret.u32, __new.u32[0]) && __ret.val == (old))	\
 			;						\
 		break;							\
+	LINUXKPI_ATOMIC_64(						\
 	case 8:								\
 		while (!atomic_fcmpset_64((volatile u64 *)(ptr),	\
 		    __ret.u64, __new.u64[0]) && __ret.val == (old))	\
 			;						\
 		break;							\
+	)								\
 	}								\
 	__ret.val;							\
 })
@@ -207,30 +231,39 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 		u64 u64[0];						\
 	} __ret, __new = { .val = (new) };				\
 									\
-	CTASSERT(sizeof(__ret.val) == 1 || sizeof(__ret.val) == 2 ||	\
-	    sizeof(__ret.val) == 4 || sizeof(__ret.val) == 8);		\
+	CTASSERT(							\
+	    LINUXKPI_ATOMIC_8(sizeof(__ret.val) == 1 ||)		\
+	    LINUXKPI_ATOMIC_16(sizeof(__ret.val) == 2 ||)		\
+	    LINUXKPI_ATOMIC_64(sizeof(__ret.val) == 8 ||)		\
+	    sizeof(__ret.val) == 4);					\
 									\
 	switch (sizeof(__ret.val)) {					\
+	LINUXKPI_ATOMIC_8(						\
 	case 1:								\
 		__ret.val = READ_ONCE(*ptr);				\
 		while (!atomic_fcmpset_8((volatile u8 *)(ptr),		\
 	            __ret.u8, __new.u8[0]))				\
 			;						\
 		break;							\
+	)								\
+	LINUXKPI_ATOMIC_16(						\
 	case 2:								\
 		__ret.val = READ_ONCE(*ptr);				\
 		while (!atomic_fcmpset_16((volatile u16 *)(ptr),	\
 	            __ret.u16, __new.u16[0]))				\
 			;						\
 		break;							\
+	)								\
 	case 4:								\
 		__ret.u32[0] = atomic_swap_32((volatile u32 *)(ptr),	\
 		    __new.u32[0]);					\
 		break;							\
+	LINUXKPI_ATOMIC_64(						\
 	case 8:								\
 		__ret.u64[0] = atomic_swap_64((volatile u64 *)(ptr),	\
 		    __new.u64[0]);					\
 		break;							\
+	)								\
 	}								\
 	__ret.val;							\
 })

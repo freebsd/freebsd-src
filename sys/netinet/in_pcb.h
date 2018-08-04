@@ -370,10 +370,7 @@ struct xinpcb {
 	struct xsocket	xi_socket;		/* (s,p) */
 	struct in_conninfo inp_inc;		/* (s,p) */
 	uint64_t	inp_gencnt;		/* (s,p) */
-	union {
-		kvaddr_t inp_ppcb;		/* (s) netstat(1) */
-		int64_t	ph_ppcb;
-	};
+	kvaddr_t	inp_ppcb;		/* (s) netstat(1) */
 	int64_t		inp_spare64[4];
 	uint32_t	inp_flow;		/* (s) */
 	uint32_t	inp_flowid;		/* (s) */

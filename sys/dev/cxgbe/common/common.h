@@ -355,11 +355,6 @@ struct adapter_params {
 	unsigned short a_wnd[NCCTRL_WIN];
 	unsigned short b_wnd[NCCTRL_WIN];
 
-	u_int ftid_min;
-	u_int ftid_max;
-	u_int etid_min;
-	u_int etid_max;
-
 	unsigned int cim_la_size;
 
 	uint8_t nports;		/* # of ethernet ports */
@@ -442,14 +437,15 @@ struct link_config {
 static inline int is_ftid(const struct adapter *sc, u_int tid)
 {
 
-	return (tid >= sc->params.ftid_min && tid <= sc->params.ftid_max);
+	return (sc->tids.nftids > 0 && tid >= sc->tids.ftid_base &&
+	    tid <= sc->tids.ftid_end);
 }
 
 static inline int is_etid(const struct adapter *sc, u_int tid)
 {
 
-	return (sc->params.etid_min > 0 && tid >= sc->params.etid_min &&
-	    tid <= sc->params.etid_max);
+	return (sc->tids.netids > 0 && tid >= sc->tids.etid_base &&
+	    tid <= sc->tids.etid_end);
 }
 
 static inline int is_offload(const struct adapter *adap)

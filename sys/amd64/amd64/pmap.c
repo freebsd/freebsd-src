@@ -1092,6 +1092,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
+	uint64_t cr4;
 	int i;
 
 	KERNend = *firstaddr;
@@ -1118,11 +1119,21 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 
-	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE);
+	/*
+	 * Enable PG_G global pages, then switch to the kernel page
+	 * table from the bootstrap page table.  After the switch, it
+	 * is possible to enable SMEP and SMAP since PG_U bits are
+	 * correct now.
+	 */
+	cr4 = rcr4();
+	cr4 |= CR4_PGE;
+	load_cr4(cr4);
 	load_cr3(KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
-		load_cr4(rcr4() | CR4_SMEP);
+		cr4 |= CR4_SMEP;
+	if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+		cr4 |= CR4_SMAP;
+	load_cr4(cr4);
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -1478,6 +1489,14 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
 	return (entry);
 }
 
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	return (mode >= 0 && mode < PAT_INDEX_SIZE &&
+	    pat_index[(int)mode] >= 0);
+}
+
 /*
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
@@ -1487,7 +1506,7 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 {
 	int cache_bits, pat_flag, pat_idx;
 
-	if (mode < 0 || mode >= PAT_INDEX_SIZE || pat_index[mode] < 0)
+	if (!pmap_is_valid_memattr(pmap, mode))
 		panic("Unknown caching mode %d\n", mode);
 
 	switch (pmap->pm_type) {

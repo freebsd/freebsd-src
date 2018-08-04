@@ -224,6 +224,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_file.c			optional zfs compile-wi
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect_births.c	optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect_mapping.c	optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_initialize.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_geom.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_label.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_mirror.c		optional zfs compile-with "${ZFS_C}"
@@ -1750,6 +1751,8 @@ dev/extres/phy/phydev_if.m	optional ext_resources phy fdt
 dev/extres/phy/phynode_if.m	optional ext_resources phy fdt
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset fdt
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset fdt
+dev/extres/nvmem/nvmem.c	optional ext_resources nvmem fdt
+dev/extres/nvmem/nvmem_if.m	optional ext_resources nvmem fdt
 dev/extres/regulator/regdev_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regnode_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regulator.c	optional ext_resources regulator fdt
@@ -2305,7 +2308,6 @@ dev/ixgbe/ixgbe_dcb_82598.c	optional ix inet | ixv inet \
 dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
-dev/jedec_ts/jedec_ts.c		optional jedec_ts smbus
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa

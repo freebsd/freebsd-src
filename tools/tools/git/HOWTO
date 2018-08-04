@@ -157,3 +157,10 @@ and it will do its thing and leave the tree on the master branch.
 
 Your tree must be clean to start this, and while it tries to catch
 some failures, not all of them have been allowed for.
+
+IV. git-svn-init
+git-svn-init is a script that initializes the right git-svn connection as
+outlined in https://wiki.freebsd.org/GitWorkflow/GitSvn. It would be a precursor
+to the script git-svn-rebase. The script contains help, but generally you can
+run the script with no arguments and it will attempt to set up both src and
+ports repositories.
