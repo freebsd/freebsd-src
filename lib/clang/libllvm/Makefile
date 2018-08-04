@@ -820,6 +820,7 @@ SRCS_MIN+=	Support/regfree.c
 SRCS_MIN+=	Support/regstrlcpy.c
 SRCS_LLD+=	Support/xxhash.cpp
 SRCS_MIN+=	TableGen/Error.cpp
+SRCS_MIN+=	TableGen/JSONBackend.cpp
 SRCS_MIN+=	TableGen/Main.cpp
 SRCS_MIN+=	TableGen/Record.cpp
 SRCS_MIN+=	TableGen/SetTheory.cpp
