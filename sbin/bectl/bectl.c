@@ -44,16 +44,26 @@
 #include <be.h>
 
 #define	HEADER_BE	"BE"
+#define	HEADER_BEPLUS	"BE/Dataset/Snapshot"
 #define	HEADER_ACTIVE	"Active"
 #define	HEADER_MOUNT	"Mountpoint"
 #define	HEADER_SPACE	"Space"
 #define	HEADER_CREATED	"Created"
 
+/* Spaces */
+#define	INDENT_INCREMENT	2
+
 struct printc {
-	int be_colsz;
-	int active_colsz_def;
-	int mount_colsz;
-	int space_colsz;
+	int	active_colsz_def;
+	int	be_colsz;
+	int	current_indent;
+	int	mount_colsz;
+	int	space_colsz;
+	bool	final_be;
+	bool	hide_headers;
+	bool	show_all_datasets;
+	bool	show_snaps;
+	bool	show_space;
 };
 
 static int bectl_cmd_activate(int argc, char *argv[]);
@@ -63,7 +73,9 @@ static int bectl_cmd_export(int argc, char *argv[]);
 static int bectl_cmd_import(int argc, char *argv[]);
 static int bectl_cmd_add(int argc, char *argv[]);
 static int bectl_cmd_jail(int argc, char *argv[]);
-static void print_dataset(nvpair_t *cur, struct printc *pc);
+static const char *get_origin_props(nvlist_t *dsprops, nvlist_t **originprops);
+static void print_info(const char *name, nvlist_t *dsprops, struct printc *pc);
+static void print_headers(nvlist_t *props, struct printc *pc);
 static int bectl_cmd_list(int argc, char *argv[]);
 static int bectl_cmd_mount(int argc, char *argv[]);
 static int bectl_cmd_rename(int argc, char *argv[]);
@@ -418,26 +430,71 @@ bectl_cmd_jail(int argc, char *argv[])
 	return (0);
 }
 
+/*
+ * Given a set of dataset properties (for a BE dataset), populate originprops
+ * with the origin's properties.
+ */
+static const char *
+get_origin_props(nvlist_t *dsprops, nvlist_t **originprops)
+{
+	char *propstr;
+
+	if (nvlist_lookup_string(dsprops, "origin", &propstr) == 0) {
+		if (be_prop_list_alloc(originprops) != 0) {
+			fprintf(stderr,
+			    "bectl list: failed to allocate origin prop nvlist\n");
+			return (NULL);
+		}
+		if (be_get_snapshot_props(be, propstr, *originprops) != 0) {
+			/* XXX TODO: Real errors */
+			fprintf(stderr,
+			    "bectl list: failed to fetch origin properties\n");
+			return (NULL);
+		}
+
+		return (propstr);
+	}
+	return (NULL);
+}
+
+
 static void
-print_dataset(nvpair_t *cur, struct printc *pc)
+print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 {
 #define	BUFSZ	64
 	char buf[BUFSZ];
 	unsigned long long ctimenum, space;
-	nvlist_t *dsprops, *originprops;
+	nvlist_t *originprops;
+	const char *oname;
 	char *propstr;
 	int active_colsz;
 	boolean_t active_now, active_reboot;
 
 	originprops = NULL;
-	propstr = nvpair_name(cur);
-	/* XXX TODO: Some views show snapshots */
-	if (strchr(propstr, '@') != NULL)
+	printf("%*s%*s ", pc->current_indent, "",
+	    pc->be_colsz + pc->current_indent, name);
+
+	/* Recurse at the base level if we're breaking info down */
+	if (pc->current_indent == 0 && (pc->show_all_datasets ||
+	    pc->show_snaps)) {
+		printf("\n");
+		if (nvlist_lookup_string(dsprops, "dataset", &propstr) != 0)
+			/* XXX TODO: Error? */
+			return;
+		pc->current_indent += INDENT_INCREMENT;
+		print_info(propstr, dsprops, pc);
+		pc->current_indent += INDENT_INCREMENT;
+		if ((oname = get_origin_props(dsprops, &originprops)) != NULL) {
+			print_info(oname, originprops, pc);
+			nvlist_free(originprops);
+		}
+		pc->current_indent = 0;
+		if (!pc->final_be)
+			printf("\n");
 		return;
-	printf("%*s ", pc->be_colsz, propstr);
+	}
 
 	active_colsz = pc->active_colsz_def;
-	nvpair_value_nvlist(cur, &dsprops);
 	if (nvlist_lookup_boolean_value(dsprops, "active",
 	    &active_now) == 0 && active_now) {
 		printf("N");
@@ -458,25 +515,13 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	else
 		printf("%*s ", pc->mount_colsz, "-");
 
-	if (nvlist_lookup_string(dsprops, "origin", &propstr) == 0) {
-		if (be_prop_list_alloc(&originprops) != 0) {
-			fprintf(stderr,
-			    "bectl list: failed to allocate origin prop nvlist\n");
-			return;
-		}
-		if (be_get_snapshot_props(be, propstr, originprops) != 0) {
-			/* XXX TODO: Real errors */
-			fprintf(stderr,
-			    "bectl list: failed to fetch origin properties\n");
-			return;
-		}
-	}
+	get_origin_props(dsprops, &originprops);
 
 	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0) {
 		space = strtoull(propstr, NULL, 10);
 
-		if (originprops != NULL && nvlist_lookup_string(originprops,
-		    "used", &propstr) == 0)
+		if (!pc->show_all_datasets && originprops != NULL &&
+		    nvlist_lookup_string(originprops, "used", &propstr) == 0)
 			space += strtoull(propstr, NULL, 10);
 
 		/* Alas, there's more to it,. */
@@ -494,9 +539,59 @@ print_dataset(nvpair_t *cur, struct printc *pc)
 	}
 
 	printf("\n");
-	if (originprops != NULL)
+	if (originprops != NULL) {
+		/*if (pc->show_all_datasets) {
+		}*/
 		be_prop_list_free(originprops);
+	}
 #undef BUFSZ
+}
+
+static void
+print_headers(nvlist_t *props, struct printc *pc)
+{
+	const char *chosen_be_header;
+	nvpair_t *cur;
+	nvlist_t *dsprops;
+	char *propstr;
+	size_t be_maxcol;
+
+	if (pc->show_all_datasets || pc->show_snaps)
+		chosen_be_header = HEADER_BEPLUS;
+	else
+		chosen_be_header = HEADER_BE;
+	be_maxcol = strlen(chosen_be_header);
+	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
+	    cur = nvlist_next_nvpair(props, cur)) {
+		be_maxcol = MAX(be_maxcol, strlen(nvpair_name(cur)));
+		if (!pc->show_all_datasets && !pc->show_snaps)
+			continue;
+		nvpair_value_nvlist(cur, &dsprops);
+		if (nvlist_lookup_string(dsprops, "dataset", &propstr) != 0)
+			continue;
+		be_maxcol = MAX(be_maxcol, strlen(propstr) + INDENT_INCREMENT);
+		if (nvlist_lookup_string(dsprops, "origin", &propstr) != 0)
+			continue;
+		be_maxcol = MAX(be_maxcol,
+		    strlen(propstr) + INDENT_INCREMENT * 2);
+	}
+
+	pc->be_colsz = -be_maxcol;
+	/* To be made negative after calculating final col sz */
+	pc->active_colsz_def = strlen(HEADER_ACTIVE);
+	pc->mount_colsz = -(int)strlen(HEADER_MOUNT);
+	pc->space_colsz = -(int)strlen(HEADER_SPACE);
+	/* XXX TODO: Take -H into account */
+	printf("%*s %s %s %s %s\n", pc->be_colsz, chosen_be_header,
+	    HEADER_ACTIVE, HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
+
+	/*
+	 * All other invocations in which we aren't using the default header
+	 * will produce quite a bit of input.  Throw an extra blank line after
+	 * the header to make it look nicer.
+	 */
+	if (chosen_be_header != HEADER_BE)
+		printf("\n");
 }
 
 static int
@@ -504,26 +599,24 @@ bectl_cmd_list(int argc, char *argv[])
 {
 	struct printc pc;
 	nvpair_t *cur;
-	nvlist_t *props;
-	size_t be_maxcol;
+	nvlist_t *dsprops, *props;
 	int opt;
-	bool show_all_datasets, show_space, hide_headers, show_snaps;
 
 	props = NULL;
-	show_all_datasets = show_space = hide_headers = show_snaps = false;
+	bzero(&pc, sizeof(pc));
 	while ((opt = getopt(argc, argv, "aDHs")) != -1) {
 		switch (opt) {
 		case 'a':
-			show_all_datasets = true;
+			pc.show_all_datasets = true;
 			break;
 		case 'D':
-			show_space = true;
+			pc.show_space = true;
 			break;
 		case 'H':
-			hide_headers = true;
+			pc.hide_headers = true;
 			break;
 		case 's':
-			show_space = true;
+			pc.show_snaps = true;
 			break;
 		default:
 			fprintf(stderr, "bectl list: unknown option '-%c'\n",
@@ -549,22 +642,12 @@ bectl_cmd_list(int argc, char *argv[])
 		return (1);
 	}
 
-	be_maxcol = strlen(HEADER_BE);
+	print_headers(props, &pc);
 	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
 	    cur = nvlist_next_nvpair(props, cur)) {
-		be_maxcol = MAX(be_maxcol, strlen(nvpair_name(cur)));
-	}
-
-	pc.be_colsz = -be_maxcol;
-	/* To be made negative after calculating final col sz */
-	pc.active_colsz_def = strlen(HEADER_ACTIVE);
-	pc.mount_colsz = -(int)strlen(HEADER_MOUNT);
-	pc.space_colsz = -(int)strlen(HEADER_SPACE);
-	printf("%*s %s %s %s %s\n", pc.be_colsz, HEADER_BE, HEADER_ACTIVE,
-	    HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
-	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
-	    cur = nvlist_next_nvpair(props, cur)) {
-		print_dataset(cur, &pc);
+		nvpair_value_nvlist(cur, &dsprops);
+		pc.final_be = nvlist_next_nvpair(props, cur) == NULL;
+		print_info(nvpair_name(cur), dsprops, &pc);
 	}
 	be_prop_list_free(props);
 
