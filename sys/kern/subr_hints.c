@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
  * has already been setup (dynamic_kenv) and that we have added any supplied
  * static_hints to the dynamic environment.
  */
-static int	hintenv_merged;
-
+static bool	hintenv_merged;
+/* Static environment and static hints cannot change, so we'll skip known bad */
+static bool	stenv_skip;
+static bool	sthints_skip;
 /*
  * Access functions for device resources.
  */
@@ -82,7 +84,7 @@ static_hints_to_env(void *data __unused)
 		free(line, M_TEMP);
 		cp += i + 1;
 	}
-	hintenv_merged = 1;
+	hintenv_merged = true;
 }
 
 /* Any time after dynamic env is setup */
@@ -122,13 +124,14 @@ res_find(char **hintp_cookie, int *line, int *startln,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int dyn_used = 0, fbacklvl = FBACK_MDENV, hit, i = 0, n = 0;
+	int fbacklvl = FBACK_MDENV, i = 0, n = 0;
 	char r_name[32];
 	int r_unit;
 	char r_resname[32];
 	char r_value[128];
 	const char *s, *cp;
 	char *hintp, *p;
+	bool dyn_used = false;
 
 
 	/*
@@ -155,7 +158,7 @@ res_find(char **hintp_cookie, int *line, int *startln,
 				}
 			}
 			mtx_unlock(&kenv_lock);
-			dyn_used = 1;
+			dyn_used = true;
 		} else {
 			/*
 			 * We'll have a chance to keep coming back here until
@@ -176,17 +179,21 @@ fallback:
 			}
 			fbacklvl++;
 
-			if (fbacklvl <= FBACK_STENV &&
+			if (!stenv_skip && fbacklvl <= FBACK_STENV &&
 			    _res_checkenv(kern_envp)) {
 				hintp = kern_envp;
 				goto found;
-			}
+			} else
+				stenv_skip = true;
+
 			fbacklvl++;
 
 			/* We'll fallback to static_hints if needed/can */
-			if (fbacklvl <= FBACK_STATIC &&
+			if (!sthints_skip && fbacklvl <= FBACK_STATIC &&
 			    _res_checkenv(static_hints))
 				hintp = static_hints;
+			else
+				sthints_skip = true;
 found:
 			fbacklvl++;
 		}
@@ -197,7 +204,7 @@ found:
 	} else {
 		hintp = *hintp_cookie;
 		if (hintenv_merged && hintp == kenvp[0])
-			dyn_used = 1;
+			dyn_used = true;
 		else
 			/*
 			 * If we aren't using the dynamic environment, we need
@@ -215,34 +222,30 @@ found:
 
 	cp = hintp;
 	while (cp) {
-		hit = 1;
 		(*line)++;
 		if (strncmp(cp, "hint.", 5) != 0)
-			hit = 0;
-		else
-			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s",
-			    r_name, &r_unit, r_resname, r_value);
-		/* We'll circumvent all of the checks if we already know */
-		if (hit) {
-			if (n != 4) {
-				printf("CONFIG: invalid hint '%s'\n", cp);
-				p = strchr(cp, 'h');
-				*p = 'H';
-				hit = 0;
-			}
-			if (hit && startln && *startln >= 0 && *line < *startln)
-				hit = 0;
-			if (hit && name && strcmp(name, r_name) != 0)
-				hit = 0;
-			if (hit && unit && *unit != r_unit)
-				hit = 0;
-			if (hit && resname && strcmp(resname, r_resname) != 0)
-				hit = 0;
-			if (hit && value && strcmp(value, r_value) != 0)
-				hit = 0;
-			if (hit)
-				break;
+			goto nexthint;
+		n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s", r_name, &r_unit,
+		    r_resname, r_value);
+		if (n != 4) {
+			printf("CONFIG: invalid hint '%s'\n", cp);
+			p = strchr(cp, 'h');
+			*p = 'H';
+			goto nexthint;
 		}
+		if (startln && *startln >= 0 && *line < *startln)
+			goto nexthint;
+		if (name && strcmp(name, r_name) != 0)
+			goto nexthint;
+		if (unit && *unit != r_unit)
+			goto nexthint;
+		if (resname && strcmp(resname, r_resname) != 0)
+			goto nexthint;
+		if (value && strcmp(value, r_value) != 0)
+			goto nexthint;
+		/* Successfully found a hint matching all criteria */
+		break;
+nexthint:
 		if (dyn_used) {
 			cp = kenvp[++i];
 			if (cp == NULL)
