@@ -49,4 +49,7 @@ SRCS=		dummy.c
 SUBDIR=		cross-build
 .endif
 
+# Needed to build config (since it uses libnv)
+SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h
+
 .include <bsd.lib.mk>
