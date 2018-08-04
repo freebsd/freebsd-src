@@ -1244,7 +1244,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb;
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
-	int    error_code, sense_key, asc, ascq;
+	int		error = 0, error_code, sense_key, asc, ascq;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
@@ -1276,8 +1276,9 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				goto out;
 			}
 		}
-		if (cam_periph_error(done_ccb,
-		    0, SF_RETRY_UA | SF_NO_PRINT, NULL) == ERESTART)
+		error = cam_periph_error(done_ccb, 0,
+		    SF_RETRY_UA | SF_NO_PRINT, NULL);
+		if (error == ERESTART)
 			goto out;
 		if (done_ccb->ccb_h.status & CAM_DEV_QFRZN) {
 			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
@@ -1296,14 +1297,21 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	/*
-	 * Perform the final retry with the original CCB so that final
-	 * error processing is performed by the owner of the CCB.
+	 * After recovery action(s) completed, return to the original CCB.
+	 * If the recovery CCB has failed, considering its own possible
+	 * retries and recovery, assume we are back in state where we have
+	 * been originally, but without recovery hopes left.  In such case,
+	 * after the final attempt below, we cancel any further retries,
+	 * blocking by that also any new recovery attempts for this CCB,
+	 * and the result will be the final one returned to the CCB owher.
 	 */
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 	bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
 	xpt_free_ccb(saved_ccb);
 	if (done_ccb->ccb_h.cbfcnp != camperiphdone)
 		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
+	if (error != 0)
+		done_ccb->ccb_h.retry_count = 0;
 	xpt_action(done_ccb);
 
 out:
