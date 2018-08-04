@@ -190,9 +190,6 @@ distribution:
 		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_AUTOFS} != "no"
-	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
-.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif

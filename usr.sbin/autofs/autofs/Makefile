@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=		include_ldap \
+CONFS=		include_ldap \
 		include_nis \
 		include_nis_nullfs \
 		special_hosts \
@@ -9,7 +9,7 @@ FILES=		include_ldap \
 		special_null
 
 NO_OBJ=
-FILESDIR=	/etc/autofs
-FILESMODE=	755
+CONFDIR=	/etc/autofs
+CONFMODE=	755
 
 .include <bsd.prog.mk>
