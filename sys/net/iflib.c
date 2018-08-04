@@ -5234,6 +5234,7 @@ iflib_register(if_ctx_t ctx)
 #ifdef ALTQ
 	if_setstartfn(ifp, iflib_altq_if_start);
 	if_settransmitfn(ifp, iflib_altq_if_transmit);
+	if_setsendqready(ifp);
 #else
 	if_settransmitfn(ifp, iflib_if_transmit);
 #endif
