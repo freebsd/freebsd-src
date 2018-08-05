@@ -702,9 +702,9 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 			}
 
 			if (BD(dev).bd_flags & BD_MODEEDD1)
-				result = bd_edd_io(dev, dblk, x, xp, write);
+				result = bd_edd_io(dev, dblk, x, xp, dowrite);
 			else
-				result = bd_chs_io(dev, dblk, x, xp, write);
+				result = bd_chs_io(dev, dblk, x, xp, dowrite);
 			if (result == 0)
 				break;
 		}
