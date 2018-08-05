@@ -337,11 +337,11 @@ bd_print(int verbose)
 static int
 bd_open(struct open_file *f, ...)
 {
-	struct disk_devdesc *dev, rdev;
+	struct disk_devdesc *dev;
 	struct disk_devdesc disk;
-	int err, g_err;
 	va_list ap;
 	uint64_t size;
+	int rc;
 
 	va_start(ap, f);
 	dev = va_arg(ap, struct disk_devdesc *);
@@ -365,6 +365,7 @@ bd_open(struct open_file *f, ...)
 	disk.d_slice = -1;
 	disk.d_partition = -1;
 	disk.d_offset = 0;
+
 	if (disk_open(&disk, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
 	    BD(dev).bd_sectorsize) == 0) {
 
@@ -376,10 +377,17 @@ bd_open(struct open_file *f, ...)
 		disk_close(&disk);
 	}
 
-	err = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
+	rc = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
 	    BD(dev).bd_sectorsize);
+	if (rc != 0) {
+		BD(dev).bd_open--;
+		if (BD(dev).bd_open == 0) {
+			bcache_free(BD(dev).bd_bcache);
+			BD(dev).bd_bcache = NULL;
+		}
+	}
 
-	return (err);
+	return (rc);
 }
 
 static int
