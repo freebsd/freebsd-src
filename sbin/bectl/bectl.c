@@ -445,7 +445,7 @@ get_origin_props(nvlist_t *dsprops, nvlist_t **originprops)
 			    "bectl list: failed to allocate origin prop nvlist\n");
 			return (NULL);
 		}
-		if (be_get_snapshot_props(be, propstr, *originprops) != 0) {
+		if (be_get_dataset_props(be, propstr, *originprops) != 0) {
 			/* XXX TODO: Real errors */
 			fprintf(stderr,
 			    "bectl list: failed to fetch origin properties\n");
@@ -469,6 +469,40 @@ print_padding(const char *fval, int colsz, struct printc *pc)
 	if (fval != NULL)
 		colsz -= strlen(fval);
 	printf("%*s ", colsz, "");
+}
+
+static unsigned long long
+dataset_space(const char *oname)
+{
+	unsigned long long space;
+	char *dsname, *propstr, *sep;
+	nvlist_t *dsprops;
+
+	space = 0;
+	dsname = strdup(oname);
+	if (dsname == NULL)
+		return (0);
+
+	if ((sep = strchr(dsname, '@')) != NULL)
+		*sep = '\0';
+
+	if (be_prop_list_alloc(&dsprops) != 0) {
+		free(dsname);
+		return (0);
+	}
+
+	if (be_get_dataset_props(be, dsname, dsprops) != 0) {
+		nvlist_free(dsprops);
+		free(dsname);
+		return (0);
+	}
+
+	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0)
+		space = strtoull(propstr, NULL, 10);
+
+	nvlist_free(dsprops);
+	free(dsname);
+	return (space);
 }
 
 static void
@@ -529,7 +563,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		print_padding("-", pc->mount_colsz, pc);
 	}
 
-	get_origin_props(dsprops, &originprops);
+	oname = get_origin_props(dsprops, &originprops);
 
 	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0) {
 		space = strtoull(propstr, NULL, 10);
@@ -538,9 +572,12 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		    nvlist_lookup_string(originprops, "used", &propstr) == 0)
 			space += strtoull(propstr, NULL, 10);
 
+		if (!pc->show_all_datasets && pc->show_space && oname != NULL)
+			/* Get the used space of the origin's dataset, too. */
+			space += dataset_space(oname);
+
 		/* Alas, there's more to it,. */
-		humanize_number(buf, 6, space, "", HN_AUTOSCALE,
-			HN_DECIMAL | HN_NOSPACE | HN_B);
+		be_nicenum(space, buf, 6);
 		printf("%s", buf);
 		print_padding(buf, pc->space_colsz, pc);
 	} else {

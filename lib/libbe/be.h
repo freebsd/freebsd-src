@@ -67,7 +67,7 @@ const char *be_nextboot_path(libbe_handle_t *);
 const char *be_root_path(libbe_handle_t *);
 
 int be_get_bootenv_props(libbe_handle_t *, nvlist_t *);
-int be_get_snapshot_props(libbe_handle_t *, const char *, nvlist_t *);
+int be_get_dataset_props(libbe_handle_t *, const char *, nvlist_t *);
 int be_prop_list_alloc(nvlist_t **be_list);
 void be_prop_list_free(nvlist_t *be_list);
 
@@ -116,5 +116,6 @@ int be_export(libbe_handle_t *, char *, int fd);
 int be_import(libbe_handle_t *, char *, int fd);
 
 int be_add_child(libbe_handle_t *, char *, bool);
+void be_nicenum(uint64_t num, char *buf, size_t buflen);
 
 #endif  /* _LIBBE_H */
