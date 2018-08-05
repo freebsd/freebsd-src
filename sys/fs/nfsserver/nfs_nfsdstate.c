@@ -6907,7 +6907,7 @@ nfsrv_recalloldlayout(NFSPROC_T *p)
 				lyp->lay_stateid.seqid = 1;
 			clientid = lyp->lay_clientid;
 			stateid = lyp->lay_stateid;
-			fh = lyp->lay_fh;
+			NFSBCOPY(&lyp->lay_fh, &fh, sizeof(fh));
 			laytype = lyp->lay_type;
 			break;
 		}
