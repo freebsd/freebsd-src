@@ -462,6 +462,7 @@ static void
 print_padding(const char *fval, int colsz, struct printc *pc)
 {
 
+	/* -H flag handling; all delimiters/padding are a single tab */
 	if (pc->script_fmt) {
 		printf("\t");
 		return;
@@ -484,6 +485,7 @@ dataset_space(const char *oname)
 	if (dsname == NULL)
 		return (0);
 
+	/* Truncate snapshot to dataset name, as needed */
 	if ((sep = strchr(dsname, '@')) != NULL)
 		*sep = '\0';
 
@@ -552,6 +554,12 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		if (dsname == NULL)
 			/* XXX TODO: Error? */
 			return;
+		/*
+		 * Whether we're dealing with -a or -s, we'll always print the
+		 * dataset name/information followed by its origin. For -s, we
+		 * additionally iterate through all snapshots of this boot
+		 * environment and also print their information.
+		 */
 		pc->current_indent += INDENT_INCREMENT;
 		print_info(dsname, dsprops, pc);
 		pc->current_indent += INDENT_INCREMENT;
@@ -594,16 +602,23 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	}
 
 	oname = get_origin_props(dsprops, &originprops);
-
 	if (nvlist_lookup_string(dsprops, "used", &propstr) == 0) {
+		/*
+		 * The space used column is some composition of:
+		 * - The "used" property of the dataset
+		 * - The "used" property of the origin snapshot (not -a or -s)
+		 * - The "used" property of the origin dataset (-D flag only)
+		 *
+		 * The -D flag is ignored if -a or -s are specified.
+		 */
 		space = strtoull(propstr, NULL, 10);
 
-		if (!pc->show_all_datasets && originprops != NULL &&
+		if (!pc->show_all_datasets && !pc->show_snaps &&
+		    originprops != NULL &&
 		    nvlist_lookup_string(originprops, "used", &propstr) == 0)
 			space += strtoull(propstr, NULL, 10);
 
-		if (!pc->show_all_datasets && pc->show_space && oname != NULL)
-			/* Get the used space of the origin's dataset, too. */
+		if (pc->show_space && oname != NULL)
 			space += dataset_space(oname);
 
 		/* Alas, there's more to it,. */
@@ -611,7 +626,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		printf("%s", buf);
 		print_padding(buf, pc->space_colsz, pc);
 	} else {
-		printf("%s", "-");
+		printf("-");
 		print_padding("-", pc->space_colsz, pc);
 	}
 
@@ -723,6 +738,9 @@ bectl_cmd_list(int argc, char *argv[])
 		return (1);
 	}
 
+	/* Force -D off if either -a or -s are specified */
+	if (pc.show_all_datasets || pc.show_snaps)
+		pc.show_space = false;
 	if (!pc.script_fmt)
 		print_headers(props, &pc);
 	/* Do a first pass to print active and next active first */
