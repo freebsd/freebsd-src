@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2018
+.Dd August 5, 2018
 .Dt PNFS 4
 .Os
 .Sh NAME
@@ -159,13 +159,11 @@ After a disabled mirrored DS is repaired, it is possible to recover the DS
 as a mirror while the pNFS service continues to function.
 .Pp
 See
-.Bd -literal -offset indent
-http://people.freebsd.org/~rmacklem/pnfs-planb-setup.txt
-.Ed
-.sp
+.Xr pnfsserver 4
 for information on how to set up a FreeBSD pNFS service.
 .Sh SEE ALSO
 .Xr nfsv4 4 ,
+.Xr pnfsserver 4 ,
 .Xr exports 5 ,
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
