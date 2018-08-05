@@ -2115,7 +2115,7 @@ void assertVersion(const char *prog, const char *base)
 	int r;
 	char *p, *q;
 	size_t s;
-	unsigned int prog_len = strlen(base);
+	size_t prog_len = strlen(base);
 
 	r = systemf("%s --version >version.stdout 2>version.stderr", prog);
 	if (r != 0)

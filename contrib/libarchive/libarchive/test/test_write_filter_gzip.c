@@ -39,6 +39,7 @@ DEFINE_TEST(test_write_filter_gzip)
 	struct archive* a;
 	char *buff, *data;
 	size_t buffsize, datasize;
+	unsigned char *rbuff;
 	char path[16];
 	size_t used1, used2;
 	int i, r, use_prog = 0;
@@ -58,6 +59,7 @@ DEFINE_TEST(test_write_filter_gzip)
 
 	/*
 	 * Write a 100 files and read them all back.
+	 * Use default compression level (6).
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
@@ -93,6 +95,14 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
+	/* Basic gzip header tests */
+	rbuff = (unsigned char *)buff;
+	assertEqualInt(rbuff[0], 0x1f);
+	assertEqualInt(rbuff[1], 0x8b);
+	assertEqualInt(rbuff[2], 0x08);
+	assertEqualInt(rbuff[3], 0x00);
+	assertEqualInt(rbuff[8], 0); /* RFC 1952 flag for compression level 6 */
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	r = archive_read_support_filter_gzip(a);
@@ -116,7 +126,7 @@ DEFINE_TEST(test_write_filter_gzip)
 
 	/*
 	 * Repeat the cycle again, this time setting some compression
-	 * options.
+	 * options. Compression level is 9.
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
@@ -150,6 +160,14 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
+	/* Basic gzip header tests */
+	rbuff = (unsigned char *)buff;
+	assertEqualInt(rbuff[0], 0x1f);
+	assertEqualInt(rbuff[1], 0x8b);
+	assertEqualInt(rbuff[2], 0x08);
+	assertEqualInt(rbuff[3], 0x00);
+	assertEqualInt(rbuff[8], 2); /* RFC 1952 flag for compression level 9 */
+
 	/* Curiously, this test fails; the test data above compresses
 	 * better at default compression than at level 9. */
 	/*
@@ -181,7 +199,7 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
-	 * Repeat again, with much lower compression.
+	 * Repeat again, with compression level 1
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
@@ -212,6 +230,14 @@ DEFINE_TEST(test_write_filter_gzip)
 	failure("Compression-level=1 wrote %d bytes; default wrote %d bytes",
 	    (int)used2, (int)used1);
 	assert(used2 > used1);
+
+	/* Basic gzip header tests */
+	rbuff = (unsigned char *)buff;
+	assertEqualInt(rbuff[0], 0x1f);
+	assertEqualInt(rbuff[1], 0x8b);
+	assertEqualInt(rbuff[2], 0x08);
+	assertEqualInt(rbuff[3], 0x00);
+	assertEqualInt(rbuff[8], 4); /* RFC 1952 flag for compression level 1 */
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
