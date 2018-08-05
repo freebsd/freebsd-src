@@ -59,7 +59,7 @@ struct printc {
 	int	current_indent;
 	int	mount_colsz;
 	int	space_colsz;
-	bool	hide_headers;
+	bool	script_fmt;
 	bool	show_all_datasets;
 	bool	show_snaps;
 	bool	show_space;
@@ -73,6 +73,7 @@ static int bectl_cmd_import(int argc, char *argv[]);
 static int bectl_cmd_add(int argc, char *argv[]);
 static int bectl_cmd_jail(int argc, char *argv[]);
 static const char *get_origin_props(nvlist_t *dsprops, nvlist_t **originprops);
+static void print_padding(const char *fval, int colsz, struct printc *pc);
 static void print_info(const char *name, nvlist_t *dsprops, struct printc *pc);
 static void print_headers(nvlist_t *props, struct printc *pc);
 static int bectl_cmd_list(int argc, char *argv[]);
@@ -456,6 +457,19 @@ get_origin_props(nvlist_t *dsprops, nvlist_t **originprops)
 	return (NULL);
 }
 
+static void
+print_padding(const char *fval, int colsz, struct printc *pc)
+{
+
+	if (pc->script_fmt) {
+		printf("\t");
+		return;
+	}
+
+	if (fval != NULL)
+		colsz -= strlen(fval);
+	printf("%*s ", colsz, "");
+}
 
 static void
 print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
@@ -470,8 +484,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	boolean_t active_now, active_reboot;
 
 	originprops = NULL;
-	printf("%*s%*s ", pc->current_indent, "",
-	    pc->be_colsz + pc->current_indent, name);
+	printf("%*s%s", pc->current_indent, "", name);
 
 	/* Recurse at the base level if we're breaking info down */
 	if (pc->current_indent == 0 && (pc->show_all_datasets ||
@@ -489,7 +502,8 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		}
 		pc->current_indent = 0;
 		return;
-	}
+	} else
+		print_padding(name, pc->be_colsz - pc->current_indent, pc);
 
 	active_colsz = pc->active_colsz_def;
 	if (nvlist_lookup_boolean_value(dsprops, "active",
@@ -506,11 +520,14 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		printf("-");
 		active_colsz--;
 	}
-	printf("%*s ", -active_colsz, " ");
-	if (nvlist_lookup_string(dsprops, "mountpoint", &propstr) == 0)
-		printf("%*s ", pc->mount_colsz, propstr);
-	else
-		printf("%*s ", pc->mount_colsz, "-");
+	print_padding(NULL, active_colsz, pc);
+	if (nvlist_lookup_string(dsprops, "mountpoint", &propstr) == 0){
+		printf("%s", propstr);
+		print_padding(propstr, pc->mount_colsz, pc);
+	} else {
+		printf("%s", "-");
+		print_padding("-", pc->mount_colsz, pc);
+	}
 
 	get_origin_props(dsprops, &originprops);
 
@@ -524,9 +541,12 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		/* Alas, there's more to it,. */
 		humanize_number(buf, 6, space, "", HN_AUTOSCALE,
 			HN_DECIMAL | HN_NOSPACE | HN_B);
-		printf("%*s ", pc->space_colsz, buf);
-	} else
-		printf("%*s ", pc->space_colsz, "-");
+		printf("%s", buf);
+		print_padding(buf, pc->space_colsz, pc);
+	} else {
+		printf("%s", "-");
+		print_padding("-", pc->space_colsz, pc);
+	}
 
 	if (nvlist_lookup_string(dsprops, "creation", &propstr) == 0) {
 		ctimenum = strtoull(propstr, NULL, 10);
@@ -573,13 +593,11 @@ print_headers(nvlist_t *props, struct printc *pc)
 		    strlen(propstr) + INDENT_INCREMENT * 2);
 	}
 
-	pc->be_colsz = -be_maxcol;
-	/* To be made negative after calculating final col sz */
+	pc->be_colsz = be_maxcol;
 	pc->active_colsz_def = strlen(HEADER_ACTIVE);
-	pc->mount_colsz = -(int)strlen(HEADER_MOUNT);
-	pc->space_colsz = -(int)strlen(HEADER_SPACE);
-	/* XXX TODO: Take -H into account */
-	printf("%*s %s %s %s %s\n", pc->be_colsz, chosen_be_header,
+	pc->mount_colsz = strlen(HEADER_MOUNT);
+	pc->space_colsz = strlen(HEADER_SPACE);
+	printf("%*s %s %s %s %s\n", -pc->be_colsz, chosen_be_header,
 	    HEADER_ACTIVE, HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
 
 	/*
@@ -612,7 +630,7 @@ bectl_cmd_list(int argc, char *argv[])
 			pc.show_space = true;
 			break;
 		case 'H':
-			pc.hide_headers = true;
+			pc.script_fmt = true;
 			break;
 		case 's':
 			pc.show_snaps = true;
@@ -641,7 +659,8 @@ bectl_cmd_list(int argc, char *argv[])
 		return (1);
 	}
 
-	print_headers(props, &pc);
+	if (!pc.script_fmt)
+		print_headers(props, &pc);
 	/* Do a first pass to print active and next active first */
 	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
 	    cur = nvlist_next_nvpair(props, cur)) {
