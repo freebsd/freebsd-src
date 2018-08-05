@@ -70,10 +70,6 @@ BSM_ETC_DIR=			${DESTDIR}/etc/security
 BIN1+= amd.map
 .endif
 
-.if ${MK_AUTOFS} != "no"
-BIN1+=	auto_master
-.endif
-
 .if ${MK_FTP} != "no"
 BIN1+= ftpusers
 .endif
