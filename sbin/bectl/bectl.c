@@ -74,6 +74,7 @@ static int bectl_cmd_add(int argc, char *argv[]);
 static int bectl_cmd_jail(int argc, char *argv[]);
 static const char *get_origin_props(nvlist_t *dsprops, nvlist_t **originprops);
 static void print_padding(const char *fval, int colsz, struct printc *pc);
+static int print_snapshots(const char *dsname, struct printc *pc);
 static void print_info(const char *name, nvlist_t *dsprops, struct printc *pc);
 static void print_headers(nvlist_t *props, struct printc *pc);
 static int bectl_cmd_list(int argc, char *argv[]);
@@ -505,6 +506,28 @@ dataset_space(const char *oname)
 	return (space);
 }
 
+static int
+print_snapshots(const char *dsname, struct printc *pc)
+{
+	nvpair_t *cur;
+	nvlist_t *props, *sprops;
+
+	if (be_prop_list_alloc(&props) != 0) {
+		fprintf(stderr, "bectl list: failed to allocate snapshot nvlist\n");
+		return (1);
+	}
+	if (be_get_dataset_snapshots(be, dsname, props) != 0) {
+		fprintf(stderr, "bectl list: failed to fetch boot ds snapshots\n");
+		return (1);
+	}
+	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
+	    cur = nvlist_next_nvpair(props, cur)) {
+		nvpair_value_nvlist(cur, &sprops);
+		print_info(nvpair_name(cur), sprops, pc);
+	}
+	return (0);
+}
+
 static void
 print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 {
@@ -513,27 +536,34 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	unsigned long long ctimenum, space;
 	nvlist_t *originprops;
 	const char *oname;
-	char *propstr;
+	char *dsname, *propstr;
 	int active_colsz;
 	boolean_t active_now, active_reboot;
 
+	dsname = NULL;
 	originprops = NULL;
 	printf("%*s%s", pc->current_indent, "", name);
+	nvlist_lookup_string(dsprops, "dataset", &dsname);
 
 	/* Recurse at the base level if we're breaking info down */
 	if (pc->current_indent == 0 && (pc->show_all_datasets ||
 	    pc->show_snaps)) {
 		printf("\n");
-		if (nvlist_lookup_string(dsprops, "dataset", &propstr) != 0)
+		if (dsname == NULL)
 			/* XXX TODO: Error? */
 			return;
 		pc->current_indent += INDENT_INCREMENT;
-		print_info(propstr, dsprops, pc);
+		print_info(dsname, dsprops, pc);
 		pc->current_indent += INDENT_INCREMENT;
 		if ((oname = get_origin_props(dsprops, &originprops)) != NULL) {
 			print_info(oname, originprops, pc);
 			nvlist_free(originprops);
 		}
+
+		/* Back up a level; snapshots at the same level as dataset */
+		pc->current_indent -= INDENT_INCREMENT;
+		if (pc->show_snaps)
+			print_snapshots(dsname, pc);
 		pc->current_indent = 0;
 		return;
 	} else
@@ -593,11 +623,8 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	}
 
 	printf("\n");
-	if (originprops != NULL) {
-		/*if (pc->show_all_datasets) {
-		}*/
+	if (originprops != NULL)
 		be_prop_list_free(originprops);
-	}
 #undef BUFSZ
 }
 

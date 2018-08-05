@@ -29,6 +29,8 @@
 #include "be.h"
 #include "be_impl.h"
 
+static int snapshot_prop_list_builder(zfs_handle_t *hdl, prop_data_t *data);
+
 /*
  * Returns the name of the active boot environment
  */
@@ -114,6 +116,25 @@ be_get_dataset_props(libbe_handle_t *lbh, const char *name, nvlist_t *props)
 
 	ret = prop_list_builder_cb(snap_hdl, &data);
 	zfs_close(snap_hdl);
+	return (ret);
+}
+
+int
+be_get_dataset_snapshots(libbe_handle_t *lbh, const char *name, nvlist_t *props)
+{
+	zfs_handle_t *ds_hdl;
+	prop_data_t data;
+	int ret;
+
+	data.lbh = lbh;
+	data.list = props;
+	data.single_object = false;
+	if ((ds_hdl = zfs_open(lbh->lzh, name,
+	    ZFS_TYPE_FILESYSTEM)) == NULL)
+		return (BE_ERR_ZFSOPEN);
+
+	ret = snapshot_prop_list_builder(ds_hdl, &data);
+	zfs_close(ds_hdl);
 	return (ret);
 }
 
@@ -219,6 +240,13 @@ prop_list_builder(prop_data_t *data)
 	zfs_close(root_hdl);
 
 	return (0);
+}
+
+static int
+snapshot_prop_list_builder(zfs_handle_t *hdl, prop_data_t *data)
+{
+
+	return (zfs_iter_snapshots_sorted(hdl, prop_list_builder_cb, data));
 }
 
 

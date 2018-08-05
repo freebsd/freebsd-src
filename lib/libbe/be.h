@@ -68,6 +68,7 @@ const char *be_root_path(libbe_handle_t *);
 
 int be_get_bootenv_props(libbe_handle_t *, nvlist_t *);
 int be_get_dataset_props(libbe_handle_t *, const char *, nvlist_t *);
+int be_get_dataset_snapshots(libbe_handle_t *, const char *, nvlist_t *);
 int be_prop_list_alloc(nvlist_t **be_list);
 void be_prop_list_free(nvlist_t *be_list);
 
