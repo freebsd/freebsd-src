@@ -88,6 +88,9 @@ of state to be retained, such as errors from previous operations.
 .Ft int
 .Fn be_destroy "libbe_handle_t *, char *, int" ;
 .Pp
+.Ft void
+.Fn be_nicenum "uint64_t, char *, size_t" ;
+.Pp
 .\" TODO: Write up of mount options
 .\" typedef enum {
 .\"	BE_MNT_FORCE		= 1 << 0,
@@ -139,7 +142,7 @@ of state to be retained, such as errors from previous operations.
 .Fn be_get_bootenv_props "libbe_handle_t *, nvlist_t *" ;
 .Pp
 .Ft int
-.Fn be_get_snapshot_props "libbe_handle_t *, const char *, nvlist_t *" ;
+.Fn be_get_dataset_props "libbe_handle_t *, const char *, nvlist_t *" ;
 .Pp
 .Ft void
 .Fn be_prop_list_free "nvlist_t *" ;

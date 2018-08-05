@@ -171,6 +171,15 @@ libbe_close(libbe_handle_t *lbh)
 	free(lbh);
 }
 
+/*
+ * Proxy through to libzfs for the moment.
+ */
+void
+be_nicenum(uint64_t num, char *buf, size_t buflen)
+{
+
+	zfs_nicenum(num, buf, buflen);
+}
 
 /*
  * Destroy the boot environment or snapshot specified by the name

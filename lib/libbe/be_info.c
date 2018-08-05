@@ -99,7 +99,7 @@ be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
 }
 
 int
-be_get_snapshot_props(libbe_handle_t *lbh, const char *name, nvlist_t *props)
+be_get_dataset_props(libbe_handle_t *lbh, const char *name, nvlist_t *props)
 {
 	zfs_handle_t *snap_hdl;
 	prop_data_t data;
@@ -109,7 +109,7 @@ be_get_snapshot_props(libbe_handle_t *lbh, const char *name, nvlist_t *props)
 	data.list = props;
 	data.single_object = true;
 	if ((snap_hdl = zfs_open(lbh->lzh, name,
-	    ZFS_TYPE_SNAPSHOT)) == NULL)
+	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT)) == NULL)
 		return (BE_ERR_ZFSOPEN);
 
 	ret = prop_list_builder_cb(snap_hdl, &data);
