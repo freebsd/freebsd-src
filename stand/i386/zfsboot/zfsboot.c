@@ -707,10 +707,7 @@ main(void)
     }
     setheap(heap_next, heap_end);
 
-    zdsk = malloc(sizeof(struct zfsdsk));
-#ifdef LOADER_GELI_SUPPORT
-    zdsk->gdev = NULL;
-#endif
+    zdsk = calloc(1, sizeof(struct zfsdsk));
     zdsk->dsk.drive = *(uint8_t *)PTOV(ARGS);
     zdsk->dsk.type = zdsk->dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
     zdsk->dsk.unit = zdsk->dsk.drive & DRV_MASK;
@@ -758,7 +755,7 @@ main(void)
 	if (!int13probe(i | DRV_HARD))
 	    break;
 
-	zdsk = malloc(sizeof(struct zfsdsk));
+	zdsk = calloc(1, sizeof(struct zfsdsk));
 	zdsk->dsk.drive = i | DRV_HARD;
 	zdsk->dsk.type = zdsk->dsk.drive & TYPE_AD;
 	zdsk->dsk.unit = i;
