@@ -296,7 +296,6 @@ static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
-static int sysctl_tc(SYSCTL_HANDLER_ARGS);
 #ifdef RATELIMIT
 static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
@@ -5365,91 +5364,6 @@ sysctl_bufsizes(SYSCTL_HANDLER_ARGS)
 	sbuf_finish(&sb);
 	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 	sbuf_delete(&sb);
-	return (rc);
-}
-
-static int
-sysctl_tc(SYSCTL_HANDLER_ARGS)
-{
-	struct vi_info *vi = arg1;
-	struct port_info *pi;
-	struct adapter *sc;
-	struct sge_txq *txq;
-	struct tx_cl_rl_params *tc;
-	int qidx = arg2, rc, tc_idx;
-	uint32_t fw_queue, fw_class;
-
-	MPASS(qidx >= 0 && qidx < vi->ntxq);
-	pi = vi->pi;
-	sc = pi->adapter;
-	txq = &sc->sge.txq[vi->first_txq + qidx];
-
-	tc_idx = txq->tc_idx;
-	rc = sysctl_handle_int(oidp, &tc_idx, 0, req);
-	if (rc != 0 || req->newptr == NULL)
-		return (rc);
-
-	if (sc->flags & IS_VF)
-		return (EPERM);
-
-	/* Note that -1 is legitimate input (it means unbind). */
-	if (tc_idx < -1 || tc_idx >= sc->chip_params->nsched_cls)
-		return (EINVAL);
-
-	mtx_lock(&sc->tc_lock);
-	if (tc_idx == txq->tc_idx) {
-		rc = 0;		/* No change, nothing to do. */
-		goto done;
-	}
-
-	fw_queue = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH) |
-	    V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id);
-
-	if (tc_idx == -1)
-		fw_class = 0xffffffff;	/* Unbind. */
-	else {
-		/*
-		 * Bind to a different class.
-		 */
-		tc = &pi->sched_params->cl_rl[tc_idx];
-		if (tc->flags & TX_CLRL_ERROR) {
-			/* Previous attempt to set the cl-rl params failed. */
-			rc = EIO;
-			goto done;
-		} else {
-			/*
-			 * Ok to proceed.  Place a reference on the new class
-			 * while still holding on to the reference on the
-			 * previous class, if any.
-			 */
-			fw_class = tc_idx;
-			tc->refcount++;
-		}
-	}
-	mtx_unlock(&sc->tc_lock);
-
-	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4stc");
-	if (rc)
-		return (rc);
-	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue, &fw_class);
-	end_synchronized_op(sc, 0);
-
-	mtx_lock(&sc->tc_lock);
-	if (rc == 0) {
-		if (txq->tc_idx != -1) {
-			tc = &pi->sched_params->cl_rl[txq->tc_idx];
-			MPASS(tc->refcount > 0);
-			tc->refcount--;
-		}
-		txq->tc_idx = tc_idx;
-	} else if (tc_idx != -1) {
-		tc = &pi->sched_params->cl_rl[tc_idx];
-		MPASS(tc->refcount > 0);
-		tc->refcount--;
-	}
-done:
-	mtx_unlock(&sc->tc_lock);
 	return (rc);
 }
 
