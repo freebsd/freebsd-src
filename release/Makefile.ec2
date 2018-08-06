@@ -35,6 +35,9 @@ AMINAMESUFFIX!=	date +-%Y-%m-%d
 .if defined(EC2PUBLIC) && !empty(EC2PUBLIC)
 PUBLISH=	--public
 .endif
+.if defined(EC2PUBLICSNAP) && !empty(EC2PUBLICSNAP)
+PUBLISH=	--publicsnap
+.endif
 .if defined(EC2SNSTOPIC) && !empty(EC2SNSTOPIC)
 EC2SNSREL=	${REVISION}-${BRANCH}
 EC2SNSVERS=	${EC2_SVNBRANCH}@${EC2_SVNREV}
@@ -79,7 +82,7 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	@echo "--------------------------------------------------------------"
 	@false
 .endif
-	/usr/local/bin/bsdec2-image-upload ${PUBLISH} --sriov --ena \
+	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} --sriov --ena \
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
 	    "${TYPE}/${TARGET} ${EC2_SVNBRANCH}@${EC2_SVNREV}" \
