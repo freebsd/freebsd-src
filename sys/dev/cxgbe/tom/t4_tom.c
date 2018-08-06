@@ -317,10 +317,9 @@ release_offload_resources(struct toepcb *toep)
 	if (toep->ce)
 		release_lip(td, toep->ce);
 
-#ifdef RATELIMIT
 	if (toep->tc_idx != -1)
-		t4_release_cl_rl_kbps(sc, toep->vi->pi->port_id, toep->tc_idx);
-#endif
+		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->tc_idx);
+
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
 	mtx_unlock(&td->toep_list_lock);
