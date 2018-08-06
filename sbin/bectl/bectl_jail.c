@@ -43,7 +43,9 @@
 
 static void jailparam_grow(void);
 static void jailparam_add(const char *name, const char *val);
+static void jailparam_del(const char *name);
 static bool jailparam_addarg(char *arg);
+static bool jailparam_delarg(char *arg);
 
 static int bectl_search_jail_paths(const char *mnt);
 static int bectl_locate_jail(const char *ident);
@@ -89,6 +91,34 @@ jailparam_add(const char *name, const char *val)
 	++jpused;
 }
 
+static void
+jailparam_del(const char *name)
+{
+	int i;
+	char *val;
+
+	for (i = 0; i < jpused; ++i) {
+		if (strcmp(name, jp[i].jp_name) == 0)
+			break;
+	}
+
+	/* Not found... technically successful */
+	if (i == jpused)
+		return;
+
+	for (; i < jpused - 1; ++i) {
+		val = jailparam_export(&jp[i + 1]);
+
+		jailparam_free(&jp[i], 1);
+		jailparam_init(&jp[i], jp[i + 1].jp_name);
+		jailparam_import(&jp[i], val);
+		free(val);
+	}
+
+	jailparam_free(&jp[i], 1);
+	--jpused;
+}
+
 static bool
 jailparam_addarg(char *arg)
 {
@@ -117,6 +147,23 @@ jailparam_addarg(char *arg)
 	return (true);
 }
 
+static bool
+jailparam_delarg(char *arg)
+{
+	char *name, *val;
+
+	if (arg == NULL)
+		return (false);
+	name = arg;
+	if ((val = strchr(name, '=')) != NULL)
+		*val++ = '\0';
+
+	if (strcmp(name, "path") == 0)
+		*mnt_loc = '\0';
+	jailparam_del(name);
+	return (true);
+}
+
 int
 bectl_cmd_jail(int argc, char *argv[])
 {
@@ -135,7 +182,7 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_add("allow.mount.devfs", "true");
 	jailparam_add("enforce_statfs", "1");
 
-	while ((opt = getopt(argc, argv, "o:")) != -1) {
+	while ((opt = getopt(argc, argv, "o:u:")) != -1) {
 		switch (opt) {
 		case 'o':
 			if (jailparam_addarg(optarg)) {
@@ -147,6 +194,14 @@ bectl_cmd_jail(int argc, char *argv[])
 					default_name = false;
 				if (strcmp(optarg, "host.hostname") == 0)
 					default_hostname = false;
+			}
+			break;
+		case 'u':
+			if (jailparam_delarg(optarg)) {
+				if (strcmp(optarg, "name") == 0)
+					default_name = true;
+				if (strcmp(optarg, "host.hostname") == 0)
+					default_hostname = true;
 			}
 			break;
 		default:
