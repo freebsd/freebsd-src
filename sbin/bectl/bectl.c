@@ -27,10 +27,8 @@
  */
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/mount.h>
 #include <errno.h>
-#include <jail.h>
 #include <libutil.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -42,6 +40,8 @@
 #include <unistd.h>
 
 #include <be.h>
+
+#include "bectl.h"
 
 #define	HEADER_BE	"BE"
 #define	HEADER_BEPLUS	"BE/Dataset/Snapshot"
@@ -71,7 +71,6 @@ static int bectl_cmd_destroy(int argc, char *argv[]);
 static int bectl_cmd_export(int argc, char *argv[]);
 static int bectl_cmd_import(int argc, char *argv[]);
 static int bectl_cmd_add(int argc, char *argv[]);
-static int bectl_cmd_jail(int argc, char *argv[]);
 static const char *get_origin_props(nvlist_t *dsprops, nvlist_t **originprops);
 static void print_padding(const char *fval, int colsz, struct printc *pc);
 static int print_snapshots(const char *dsname, struct printc *pc);
@@ -80,14 +79,11 @@ static void print_headers(nvlist_t *props, struct printc *pc);
 static int bectl_cmd_list(int argc, char *argv[]);
 static int bectl_cmd_mount(int argc, char *argv[]);
 static int bectl_cmd_rename(int argc, char *argv[]);
-static int bectl_search_jail_paths(const char *mnt);
-static int bectl_locate_jail(const char *ident);
-static int bectl_cmd_unjail(int argc, char *argv[]);
 static int bectl_cmd_unmount(int argc, char *argv[]);
 
-static libbe_handle_t *be;
+libbe_handle_t *be;
 
-static int
+int
 usage(bool explicit)
 {
 	FILE *fp;
@@ -102,7 +98,7 @@ usage(bool explicit)
 	    "\tbectl export sourceBe\n"
 	    "\tbectl import targetBe\n"
 	    "\tbectl add (path)*\n"
-	    "\tbectl jail bootenv\n"
+	    "\tbectl jail [ -o key=value ]... bootenv\n"
 	    "\tbectl list [-a] [-D] [-H] [-s]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
@@ -377,58 +373,6 @@ bectl_cmd_destroy(int argc, char *argv[])
 	err = be_destroy(be, target, force);
 
 	return (err);
-}
-
-
-static int
-bectl_cmd_jail(int argc, char *argv[])
-{
-	char *bootenv;
-	char mnt_loc[BE_MAXPATHLEN];
-	int err, jid;
-
-	/* struct jail be_jail = { 0 }; */
-
-	if (argc == 1) {
-		fprintf(stderr, "bectl jail: missing boot environment name\n");
-		return (usage(false));
-	}
-	if (argc > 2) {
-		fprintf(stderr, "bectl jail: too many arguments\n");
-		return (usage(false));
-	}
-
-	bootenv = argv[1];
-
-	/*
-	 * XXX TODO: if its already mounted, perhaps there should be a flag to
-	 * indicate its okay to proceed??
-	 */
-	if ((err = be_mount(be, bootenv, NULL, 0, mnt_loc)) != BE_ERR_SUCCESS) {
-		fprintf(stderr, "could not mount bootenv\n");
-		return (1);
-	}
-
-	/* XXX TODO: Make the IP/hostname configurable? */
-	jid = jail_setv(JAIL_CREATE | JAIL_ATTACH,
-	    "name", bootenv,
-	    "path", mnt_loc,
-	    "host.hostname", bootenv,
-	    "persist", "true",
-	    "ip4.addr", "10.20.30.40",
-	    "allow.mount", "true",
-	    "allow.mount.devfs", "true",
-	    "enforce_statfs", "1",
-	    NULL);
-	if (jid == -1) {
-		fprintf(stderr, "unable to create jail.  error: %d\n", errno);
-		return (1);
-	}
-
-	/* We're attached within the jail... good bye! */
-	chdir("/");
-	execl("/bin/sh", "/bin/sh", NULL);
-	return (0);
 }
 
 /*
@@ -850,105 +794,6 @@ bectl_cmd_rename(int argc, char *argv[])
 
 	return (0);
 }
-
-static int
-bectl_search_jail_paths(const char *mnt)
-{
-	char jailpath[MAXPATHLEN + 1];
-	int jid;
-
-	jid = 0;
-	(void)mnt;
-	while ((jid = jail_getv(0, "lastjid", &jid, "path", &jailpath,
-	    NULL)) != -1) {
-		if (strcmp(jailpath, mnt) == 0)
-			return (jid);
-	}
-
-	return (-1);
-}
-
-/*
- * Locate a jail based on an arbitrary identifier.  This may be either a name,
- * a jid, or a BE name.  Returns the jid or -1 on failure.
- */
-static int
-bectl_locate_jail(const char *ident)
-{
-	nvlist_t *belist, *props;
-	char *mnt;
-	int jid;
-
-	/* Try the easy-match first */
-	jid = jail_getid(ident);
-	if (jid != -1)
-		return (jid);
-
-	/* Attempt to try it as a BE name, first */
-	if (be_prop_list_alloc(&belist) != 0)
-		return (-1);
-
-	if (be_get_bootenv_props(be, belist) != 0)
-		return (-1);
-
-	if (nvlist_lookup_nvlist(belist, ident, &props) == 0) {
-		/* We'll attempt to resolve the jid by way of mountpoint */
-		if (nvlist_lookup_string(props, "mountpoint", &mnt) == 0) {
-			jid = bectl_search_jail_paths(mnt);
-			be_prop_list_free(belist);
-			return (jid);
-		}
-
-		be_prop_list_free(belist);
-	}
-
-	return (-1);
-}
-
-static int
-bectl_cmd_unjail(int argc, char *argv[])
-{
-	char path[MAXPATHLEN + 1];
-	char *cmd, *name, *target;
-	int jid;
-
-	/* Store alias used */
-	cmd = argv[0];
-
-	if (argc != 2) {
-		fprintf(stderr, "bectl %s: wrong number of arguments\n", cmd);
-		return (usage(false));
-	}
-
-	target = argv[1];
-
-	/* Locate the jail */
-	if ((jid = bectl_locate_jail(target)) == -1) {
-		fprintf(stderr, "bectl %s: failed to locate BE by '%s'\n", cmd, target);
-		return (1);
-	}
-
-	bzero(&path, MAXPATHLEN + 1);
-	name = jail_getname(jid);
-	if (jail_getv(0, "name", name, "path", path, NULL) != jid) {
-		free(name);
-		fprintf(stderr, "bectl %s: failed to get path for jail requested by '%s'\n", cmd, target);
-		return (1);
-	}
-
-	free(name);
-
-	if (be_mounted_at(be, path, NULL) != 0) {
-		fprintf(stderr, "bectl %s: jail requested by '%s' not a BE\n", cmd, target);
-		return (1);
-	}
-
-	jail_remove(jid);
-	unmount(path, 0);
-
-	return (0);
-}
-
 
 static int
 bectl_cmd_unmount(int argc, char *argv[])

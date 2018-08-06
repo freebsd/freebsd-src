@@ -3,6 +3,8 @@
 PROG=	bectl
 MAN=	bectl.8
 
+SRCS=	bectl.c bectl_jail.c
+
 LIBADD+= be
 LIBADD+= jail
 LIBADD+= nvpair
