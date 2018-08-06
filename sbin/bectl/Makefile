@@ -3,7 +3,7 @@
 PROG=	bectl
 MAN=	bectl.8
 
-SRCS=	bectl.c bectl_jail.c
+SRCS=	bectl.c bectl_jail.c bectl_list.c
 
 LIBADD+= be
 LIBADD+= jail
