@@ -14,7 +14,7 @@ ifn="$2"
 name="dhclient"
 desc="Dynamic Host Configuration Protocol (DHCP) client"
 rcvar=
-pidfile="/var/run/${name}.${ifn}.pid"
+pidfile="/var/run/dhclient/${name}.${ifn}.pid"
 start_precmd="dhclient_prestart"
 stop_precmd="dhclient_pre_check"
 
