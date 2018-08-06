@@ -198,7 +198,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 
 #ifdef RATELIMIT
 /*
- * Input is Bytes/second (so_max_pacing-rate), chip counts in Kilobits/second.
+ * Input is Bytes/second (so_max_pacing_rate), chip counts in Kilobits/second.
  */
 static int
 update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
