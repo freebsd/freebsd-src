@@ -47,6 +47,7 @@ struct ufs_args {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UFSMNT);
+MALLOC_DECLARE(M_TRIM);
 #endif
 
 struct buf;
@@ -63,6 +64,7 @@ struct inodedep;
 
 TAILQ_HEAD(inodedeplst, inodedep);
 LIST_HEAD(bmsafemaphd, bmsafemap);
+LIST_HEAD(trimlist_hashhead, ffs_blkfree_trim_params);
 
 /*
  * This structure describes the UFS specific mount structure data.
@@ -101,6 +103,8 @@ struct ufsmount {
 	u_int	um_flags;			/* (i) filesystem flags */
 	u_int	um_trim_inflight;		/* (a) outstanding trim count */
 	struct	taskqueue *um_trim_tq;		/* (c) trim request queue */
+	struct	trimlist_hashhead *um_trimhash;	/* (i) trimlist hash table */
+	u_long	um_trimlisthashsize;		/* (i) trim hash table size-1 */
 						/* (c) - below function ptrs */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
 		    int, struct buf **);
