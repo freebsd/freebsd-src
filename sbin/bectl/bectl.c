@@ -70,7 +70,7 @@ usage(bool explicit)
 	    "\tbectl export sourceBe\n"
 	    "\tbectl import targetBe\n"
 	    "\tbectl add (path)*\n"
-	    "\tbectl jail [ -o key=value ]... bootenv\n"
+	    "\tbectl jail [ -o key=value | -u key ]... bootenv\n"
 	    "\tbectl list [-a] [-D] [-H] [-s]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
