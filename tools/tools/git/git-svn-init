@@ -119,11 +119,9 @@ git_checkout()
 	# Arrange to have 'master' reference 'trunk'
 	${GIT} checkout trunk
 
-	# Delete master
-	${GIT} branch -D master
-
-	# Make master really be trunk
-	${GIT} checkout -b master trunk
+	# Make master reference trunk
+	${GIT} branch --force master trunk
+	${GIT} checkout master
 }
 
 rebase()
