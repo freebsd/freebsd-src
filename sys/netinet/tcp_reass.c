@@ -96,6 +96,11 @@ SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows,
 
 static uma_zone_t tcp_reass_zone;
 
+static u_int tcp_reass_maxqueuelen = 100;
+SYSCTL_UINT(_net_inet_tcp_reass, OID_AUTO, maxqueuelen, CTLFLAG_RWTUN,
+    &tcp_reass_maxqueuelen, 0,
+    "Maximum number of TCP Segments per Reassembly Queue");
+
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
@@ -184,6 +189,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * socket receive buffer determines our advertised window and grows
 	 * automatically when socket buffer autotuning is enabled. Use it as the
 	 * basis for our queue limit.
+	 *
+	 * However, allow the user to specify a ceiling for the number of
+	 * segments in each queue.
+	 *
 	 * Always let the missing segment through which caused this queue.
 	 * NB: Access to the socket buffer is left intentionally unlocked as we
 	 * can tolerate stale information here.
@@ -194,7 +203,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * is understood.
 	 */
 	if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
-	    tp->t_segqlen >= (so->so_rcv.sb_hiwat / tp->t_maxseg) + 1) {
+	    tp->t_segqlen >= min((so->so_rcv.sb_hiwat / tp->t_maxseg) + 1,
+	    tcp_reass_maxqueuelen)) {
 		tcp_reass_overflows++;
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
