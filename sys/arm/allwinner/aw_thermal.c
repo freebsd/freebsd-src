@@ -50,10 +50,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/nvmem/nvmem.h>
 
 #include <arm/allwinner/aw_sid.h>
 
 #include "cpufreq_if.h"
+#include "nvmem_if.h"
 
 #define	THS_CTRL0		0x00
 #define	THS_CTRL1		0x04
@@ -281,23 +283,31 @@ static struct resource_spec aw_thermal_spec[] = {
 static int
 aw_thermal_init(struct aw_thermal_softc *sc)
 {
-	uint32_t calib0, calib1;
+	phandle_t node;
+	uint32_t calib[2];
 	int error;
 
+	node = ofw_bus_get_node(sc->dev);
 	if (sc->conf->calib0_mask != 0 || sc->conf->calib1_mask != 0) {
-		/* Read calibration settings from SRAM */
-		error = aw_sid_read_tscalib(&calib0, &calib1);
-		if (error != 0)
+		error = nvmem_read_cell_by_name(node, "ths_calibration",
+		    (void *)calib, sizeof(calib));
+		/* Read calibration settings from EFUSE */
+		if (error != 0) {
+			device_printf(sc->dev, "Cannot read THS efuse\n");
 			return (error);
+		}
 
-		calib0 &= sc->conf->calib0_mask;
-		calib1 &= sc->conf->calib1_mask;
+		device_printf(sc->dev, "calib0: %x\n", calib[0]);
+		device_printf(sc->dev, "calib1: %x\n", calib[1]);
+
+		calib[0] &= sc->conf->calib0_mask;
+		calib[1] &= sc->conf->calib1_mask;
 
 		/* Write calibration settings to thermal controller */
-		if (calib0 != 0)
-			WR4(sc, THS_CALIB0, calib0);
-		if (calib1 != 0)
-			WR4(sc, THS_CALIB1, calib1);
+		if (calib[0] != 0)
+			WR4(sc, THS_CALIB0, calib[0]);
+		if (calib[1] != 0)
+			WR4(sc, THS_CALIB1, calib[1]);
 	}
 
 	/* Configure ADC acquire time (CLK_IN/(N+1)) and enable sensors */

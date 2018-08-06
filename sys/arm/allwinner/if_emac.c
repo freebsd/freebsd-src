@@ -170,6 +170,7 @@ emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 {
 	uint32_t val0, val1, rnd;
 	u_char rootkey[16];
+	size_t rootkey_size;
 
 	/*
 	 * Try to get MAC address from running hardware.
@@ -193,7 +194,9 @@ emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 		hwaddr[4] = (val0 >> 8) & 0xff;
 		hwaddr[5] = (val0 >> 0) & 0xff;
 	} else {
-		if (aw_sid_get_rootkey(rootkey) == 0) {
+		rootkey_size = sizeof(rootkey);
+		if (aw_sid_get_fuse(AW_SID_FUSE_ROOTKEY, rootkey,
+		    &rootkey_size) == 0) {
 			hwaddr[0] = 0x2;
 			hwaddr[1] = rootkey[3];
 			hwaddr[2] = rootkey[12];
