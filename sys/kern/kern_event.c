@@ -151,6 +151,10 @@ static int	filt_fileattach(struct knote *kn);
 static void	filt_timerexpire(void *knx);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
+static void	filt_timerstart(struct knote *kn, sbintime_t to);
+static void	filt_timertouch(struct knote *kn, struct kevent *kev,
+		    u_long type);
+static int	filt_timervalidate(struct knote *kn, sbintime_t *to);
 static int	filt_timer(struct knote *kn, long hint);
 static int	filt_userattach(struct knote *kn);
 static void	filt_userdetach(struct knote *kn);
@@ -179,6 +183,7 @@ static struct filterops timer_filtops = {
 	.f_attach = filt_timerattach,
 	.f_detach = filt_timerdetach,
 	.f_event = filt_timer,
+	.f_touch = filt_timertouch,
 };
 static struct filterops user_filtops = {
 	.f_attach = filt_userattach,
@@ -661,23 +666,37 @@ filt_timerexpire(void *knx)
  * data contains amount of time to sleep
  */
 static int
-filt_timerattach(struct knote *kn)
+filt_timervalidate(struct knote *kn, sbintime_t *to)
 {
-	struct kq_timer_cb_data *kc;
-	sbintime_t to;
-	unsigned int ncallouts;
 
 	if (kn->kn_sdata < 0)
 		return (EINVAL);
 	if (kn->kn_sdata == 0 && (kn->kn_flags & EV_ONESHOT) == 0)
 		kn->kn_sdata = 1;
-	/* Only precision unit are supported in flags so far */
+	/*
+	 * The only fflags values supported are the timer unit
+	 * (precision) and the absolute time indicator.
+	 */
 	if ((kn->kn_sfflags & ~NOTE_TIMER_PRECMASK) != 0)
 		return (EINVAL);
 
-	to = timer2sbintime(kn->kn_sdata, kn->kn_sfflags);
-	if (to < 0)
+	*to = timer2sbintime(kn->kn_sdata, kn->kn_sfflags);
+	if (*to < 0)
 		return (EINVAL);
+	return (0);
+}
+
+static int
+filt_timerattach(struct knote *kn)
+{
+	struct kq_timer_cb_data *kc;
+	sbintime_t to;
+	unsigned int ncallouts;
+	int error;
+
+	error = filt_timervalidate(kn, &to);
+	if (error != 0)
+		return (error);
 
 	do {
 		ncallouts = kq_ncallouts;
@@ -689,12 +708,21 @@ filt_timerattach(struct knote *kn)
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	callout_init(&kc->c, 1);
+	filt_timerstart(kn, to);
+
+	return (0);
+}
+
+static void
+filt_timerstart(struct knote *kn, sbintime_t to)
+{
+	struct kq_timer_cb_data *kc;
+
+	kc = kn->kn_ptr.p_v;
 	kc->next = to + sbinuptime();
 	kc->to = to;
 	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
 	    PCPU_GET(cpuid), C_ABSOLUTE);
-
-	return (0);
 }
 
 static void
@@ -709,6 +737,73 @@ filt_timerdetach(struct knote *kn)
 	old = atomic_fetchadd_int(&kq_ncallouts, -1);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */
+}
+
+static void
+filt_timertouch(struct knote *kn, struct kevent *kev, u_long type)
+{
+	struct kq_timer_cb_data *kc;	
+	struct kqueue *kq;
+	sbintime_t to;
+	int error;
+
+	switch (type) {
+	case EVENT_REGISTER:
+		/* Handle re-added timers that update data/fflags */
+		if (kev->flags & EV_ADD) {
+			kc = kn->kn_ptr.p_v;
+
+			/* Drain any existing callout. */
+			callout_drain(&kc->c);
+
+			/* Throw away any existing undelivered record
+			 * of the timer expiration. This is done under
+			 * the presumption that if a process is
+			 * re-adding this timer with new parameters,
+			 * it is no longer interested in what may have
+			 * happened under the old parameters. If it is
+			 * interested, it can wait for the expiration,
+			 * delete the old timer definition, and then
+			 * add the new one.
+			 *
+			 * This has to be done while the kq is locked:
+			 *   - if enqueued, dequeue
+			 *   - make it no longer active
+			 *   - clear the count of expiration events
+			 */
+			kq = kn->kn_kq;
+			KQ_LOCK(kq);
+			if (kn->kn_status & KN_QUEUED)
+				knote_dequeue(kn);
+
+			kn->kn_status &= ~KN_ACTIVE;
+			kn->kn_data = 0;
+			KQ_UNLOCK(kq);
+			
+			/* Reschedule timer based on new data/fflags */
+			kn->kn_sfflags = kev->fflags;
+			kn->kn_sdata = kev->data;
+			error = filt_timervalidate(kn, &to);
+			if (error != 0) {
+			  	kn->kn_flags |= EV_ERROR;
+				kn->kn_data = error;
+			} else
+			  	filt_timerstart(kn, to);
+		}
+		break;
+
+        case EVENT_PROCESS:
+		*kev = kn->kn_kevent;
+		if (kn->kn_flags & EV_CLEAR) {
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+	default:
+		panic("filt_timertouch() - invalid type (%ld)", type);
+		break;
+	}
 }
 
 static int
