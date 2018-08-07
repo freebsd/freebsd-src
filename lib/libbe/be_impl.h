@@ -62,7 +62,7 @@ typedef struct prop_data {
 } prop_data_t;
 
 int prop_list_builder_cb(zfs_handle_t *, void *);
-int prop_list_builder(prop_data_t *);
+int be_proplist_update(prop_data_t *);
 
 int set_error(libbe_handle_t *, be_error_t);
 
