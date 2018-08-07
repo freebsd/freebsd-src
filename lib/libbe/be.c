@@ -657,7 +657,7 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 	 * XXX TODO: this is a very likely name for someone to already have
 	 * used... we should avoid it.
 	 */
-	if ((err = be_root_concat(lbh, "be_import_temp", buf)) != 0)
+	if ((err = be_root_concat(lbh, "libbe_import_temp", buf)) != 0)
 		/* XXX TODO error handle */
 		return (-1);
 
@@ -798,6 +798,35 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 	return (BE_ERR_SUCCESS);
 }
 
+static int
+be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
+    const char *zfsdev)
+{
+	nvlist_t **child;
+	uint64_t vdev_guid;
+	int c, children;
+
+	if (nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_CHILDREN, &child,
+	    &children) == 0) {
+		for (c = 0; c < children; ++c)
+			if (be_set_nextboot(lbh, child[c], pool_guid, zfsdev) != 0)
+				return (1);
+		return (0);
+	}
+
+	if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_GUID,
+	    &vdev_guid) != 0) {
+		return (1);
+	}
+
+	if (zpool_nextboot(lbh->lzh, pool_guid, vdev_guid, zfsdev) != 0) {
+		perror("ZFS_IOC_NEXTBOOT failed");
+		return (1);
+	}
+
+	return (0);
+}
+
 
 int
 be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
@@ -805,7 +834,7 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
 	uint64_t pool_guid;
-	uint64_t vdev_guid;
+	nvlist_t *config, *vdevs;
 	int err;
 
 	be_root_concat(lbh, bootenv, be_path);
@@ -819,33 +848,25 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 		 * XXX TODO: give proper attribution to author(s) of zfsbootcfg
 		 * for this snippet.
 		 */
-
-		if (kenv(KENV_GET, "vfs.zfs.boot.primary_pool", buf,
-		    sizeof(buf)) <= 0)
-			return (1);
-		pool_guid = strtoumax(buf, NULL, 10);
-		if (pool_guid == 0)
-			return (1);
-
-		if (kenv(KENV_GET, "vfs.zfs.boot.primary_vdev", buf,
-		    sizeof(buf)) <= 0)
-			return (1);
-		vdev_guid = strtoumax(buf, NULL, 10);
-		if (vdev_guid == 0) {
+		config = zpool_get_config(lbh->active_phandle, NULL);
+		if (config == NULL) {
+			printf("no config\n");
 			return (1);
 		}
+
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
+		    &pool_guid) != 0)
+			return (1);
 
 		/* Expected format according to zfsbootcfg(8) man */
 		strcpy(buf, "zfs:");
 		strcat(buf, be_path);
 		strcat(buf, ":");
 
-		if (zpool_nextboot(lbh->lzh, pool_guid, vdev_guid, buf) != 0) {
-			perror("ZFS_IOC_NEXTBOOT failed");
+		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &vdevs) != 0)
 			return (1);
-		}
 
-		return (BE_ERR_SUCCESS);
+		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
 	} else {
 		/* Obtain bootenv zpool */
 		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
