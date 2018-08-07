@@ -529,23 +529,21 @@ main(int argc, char *argv[])
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 
-	if (setgroups(1, &pw->pw_gid) ||
-	    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
-	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
-		error("can't drop privileges: %m");
-
 	endpwent();
 
 	setproctitle("%s", ifi->name);
+
+	/* setgroups(2) is not permitted in capability mode. */
+	if (setgroups(1, &pw->pw_gid) != 0)
+		error("can't restrict groups: %m");
 
 	if (caph_enter_casper() < 0)
 		error("can't enter capability mode: %m");
 
 	/*
-	 * If we are not in capability mode (i.e., because Capsicum or
-	 * libcasper is disabled), try to restrict filesystem access.  This
-	 * will fail if kern.chroot_allow_open_directories is 0 or the process
-	 * is jailed.
+	 * If we are not in capability mode (i.e., Capsicum or libcasper is
+	 * disabled), try to restrict filesystem access.  This will fail if
+	 * kern.chroot_allow_open_directories is 0 or the process is jailed.
 	 */
 	if (cap_getmode(&capmode) < 0 || capmode == 0) {
 		if (chroot(_PATH_VAREMPTY) == -1)
@@ -553,6 +551,10 @@ main(int argc, char *argv[])
 		if (chdir("/") == -1)
 			error("chdir(\"/\")");
 	}
+
+	if (setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
+	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
+		error("can't drop privileges: %m");
 
 	if (immediate_daemon)
 		go_daemon();
