@@ -181,11 +181,22 @@ be_nicenum(uint64_t num, char *buf, size_t buflen)
 	zfs_nicenum(num, buf, buflen);
 }
 
+static int
+be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
+{
+	int err;
+
+	if ((err = zfs_iter_children(zfs_hdl, be_destroy_cb, data)) != 0)
+		return (err);
+	if ((err = zfs_destroy(zfs_hdl, false)) != 0)
+		return (err);
+	return (0);
+}
+
 /*
  * Destroy the boot environment or snapshot specified by the name
  * parameter. Options are or'd together with the possible values:
  * BE_DESTROY_FORCE : forces operation on mounted datasets
- * TODO: Test destroying a non active but mounted be
  */
 int
 be_destroy(libbe_handle_t *lbh, char *name, int options)
@@ -228,13 +239,14 @@ be_destroy(libbe_handle_t *lbh, char *name, int options)
 			return (set_error(lbh, BE_ERR_DESTROYMNT));
 	}
 
+	if ((err = be_destroy_cb(fs, NULL)) != 0) {
+		/* Children are still present or the mount is referenced */
+		if (err == EBUSY)
+			return (set_error(lbh, BE_ERR_DESTROYMNT));
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+	}
 
-	/* XXX TODO: convert this to use zfs_iter_children first for deep BEs */
-	/* XXX Note: errno 16 (device busy) occurs when chilren are present */
-	if ((err = zfs_destroy(fs, false)) != 0)
-		fprintf(stderr, "delete failed errno: %d\n", errno);
-
-	return (err);
+	return (0);
 }
 
 
