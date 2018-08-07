@@ -485,10 +485,12 @@ link_elf_link_preload_finish(linker_file_t lf)
 	if (error)
 		return (error);
 
+#if defined(__i386__) || defined(__amd64__)
 	/* Now ifuncs. */
 	error = link_elf_reloc_local(lf, true);
 	if (error != 0)
 		return (error);
+#endif
 
 	/* Invoke .ctors */
 	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
@@ -994,10 +996,12 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (error)
 		goto out;
 
+#if defined(__i386__) || defined(__amd64__)
 	/* Now ifuncs. */
 	error = link_elf_reloc_local(lf, true);
 	if (error != 0)
 		goto out;
+#endif
 
 	/* Invoke .ctors */
 	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
@@ -1521,9 +1525,11 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			    ifuncs)
 				elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
 				    elf_obj_lookup);
+#if defined(__i386__) || defined(__amd64__)
 			else if (ifuncs)
 				elf_reloc_ifunc(lf, base, rel, ELF_RELOC_REL,
 				    elf_obj_lookup);
+#endif
 		}
 	}
 
@@ -1552,9 +1558,11 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			    ifuncs)
 				elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
 				    elf_obj_lookup);
+#if defined(__i386__) || defined(__amd64__)
 			else if (ifuncs)
 				elf_reloc_ifunc(lf, base, rela, ELF_RELOC_RELA,
 				    elf_obj_lookup);
+#endif
 		}
 	}
 	return (0);
