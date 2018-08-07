@@ -44,6 +44,8 @@ typedef enum be_error {
 	BE_ERR_PERMS,           /* insufficient permissions */
 	BE_ERR_DESTROYACT,      /* cannot destroy active boot env */
 	BE_ERR_DESTROYMNT,      /* destroying a mounted be requires force */
+	BE_ERR_BADPATH,		/* path not suitable for operation */
+	BE_ERR_PATHBUSY,	/* requested path is busy */
 	BE_ERR_PATHLEN,         /* provided name exceeds maximum length limit */
 	BE_ERR_INVORIGIN,       /* snapshot origin's mountpoint is not '/' */
 	BE_ERR_NOORIGIN,        /* could not open snapshot's origin */
@@ -51,6 +53,7 @@ typedef enum be_error {
 	BE_ERR_NOMOUNT,         /* boot environment is not mounted */
 	BE_ERR_ZFSOPEN,         /* calling zfs_open() failed */
 	BE_ERR_ZFSCLONE,        /* error when calling zfs_clone to create be */
+	BE_ERR_IO,		/* error when doing some I/O operation */
 	BE_ERR_UNKNOWN,         /* unknown error */
 } be_error_t;
 

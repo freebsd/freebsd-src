@@ -121,18 +121,27 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	if (mountpoint == NULL) {
 		strcpy(mnt_temp, "/tmp/be_mount.XXXX");
 		if (mkdtemp(mnt_temp) == NULL)
-			/* XXX TODO: create error for this */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
+			return (set_error(lbh, BE_ERR_IO));
 	}
 
 	char opt = '\0';
 	if ((err = zmount(be, (mountpoint == NULL) ? mnt_temp : mountpoint,
-	    mntflags, __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0)
-		/*
-		 * XXX TODO: zmount returns the nmount error, look into what
-		 * kind of errors we can report from that
-		 */
-		return (set_error(lbh, BE_ERR_UNKNOWN));
+	    mntflags, __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
+		switch (errno) {
+		case ENAMETOOLONG:
+			return (set_error(lbh, BE_ERR_PATHLEN));
+		case ELOOP:
+		case ENOENT:
+		case ENOTDIR:
+			return (set_error(lbh, BE_ERR_BADPATH));
+		case EPERM:
+			return (set_error(lbh, BE_ERR_PERMS));
+		case EBUSY:
+			return (set_error(lbh, BE_ERR_PATHBUSY));
+		default:
+			return (set_error(lbh, BE_ERR_UNKNOWN));
+		}
+	}
 
 	if (result_loc != NULL)
 		strcpy(result_loc, mountpoint == NULL ? mnt_temp : mountpoint);
@@ -156,9 +165,11 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
 
-	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
-		/* XXX TODO correct error */
+	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0) {
+		if (errno == EIO)
+			return (set_error(lbh, BE_ERR_IO));
 		return (set_error(lbh, BE_ERR_NOMOUNT));
+	}
 
 	mntpath = NULL;
 	for (int i = 0; i < mntsize; ++i) {
@@ -177,9 +188,22 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
 
-	if ((err = unmount(mntpath, mntflags)) != 0)
-		/* XXX TODO correct error */
-		return (set_error(lbh, BE_ERR_NOMOUNT));
+	if ((err = unmount(mntpath, mntflags)) != 0) {
+		switch (errno) {
+		case ENAMETOOLONG:
+			return (set_error(lbh, BE_ERR_PATHLEN));
+		case ELOOP:
+		case ENOENT:
+		case ENOTDIR:
+			return (set_error(lbh, BE_ERR_BADPATH));
+		case EPERM:
+			return (set_error(lbh, BE_ERR_PERMS));
+		case EBUSY:
+			return (set_error(lbh, BE_ERR_PATHBUSY));
+		default:
+			return (set_error(lbh, BE_ERR_UNKNOWN));
+		}
+	}
 
 	return (set_error(lbh, BE_ERR_SUCCESS));
 }
