@@ -271,7 +271,7 @@
 #define	FREEBSD32_SYS_sched_yield	331
 #define	FREEBSD32_SYS_sched_get_priority_max	332
 #define	FREEBSD32_SYS_sched_get_priority_min	333
-#define	FREEBSD32_SYS_sched_rr_get_interval	334
+#define	FREEBSD32_SYS_freebsd32_sched_rr_get_interval	334
 #define	FREEBSD32_SYS_utrace	335
 				/* 336 is freebsd4 freebsd32_sendfile */
 #define	FREEBSD32_SYS_kldsym	337
