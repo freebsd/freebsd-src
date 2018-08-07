@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2017
+.Dd July 27, 2018
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -339,8 +339,8 @@ Events for this filter are not registered with
 .Fn kevent
 directly but are registered via the
 .Va aio_sigevent
-member of an asychronous I/O request when it is scheduled via an asychronous I/O
-system call such as
+member of an asynchronous I/O request when it is scheduled via an
+asynchronous I/O system call such as
 .Fn aio_read .
 The filter returns under the same conditions as
 .Fn aio_error .
@@ -485,7 +485,7 @@ been marked as
 .Dv SIG_IGN ,
 except for the
 .Dv SIGCHLD
-signal, which, if ignored, won't be recorded by the filter.
+signal, which, if ignored, will not be recorded by the filter.
 Event notification happens after normal
 signal delivery processing.
 .Va data
@@ -529,6 +529,13 @@ is not set, the default is milliseconds.
 On return,
 .Va fflags
 contains the events which triggered the filter.
+.Pp
+If an existing timer is re-added, the existing timer will be
+effectively canceled (throwing away any undelivered record of previous
+timer expiration) and re-started using the new parameters contained in
+.Va data
+and
+.Va fflags .
 .Pp
 There is a system wide limit on the number of timers
 which is controlled by the
@@ -576,9 +583,9 @@ contains the users defined flags in the lower 24 bits.
 .Sh CANCELLATION BEHAVIOUR
 If
 .Fa nevents
-is non-zero, i.e. the function is potentially blocking, the call
+is non-zero, i.e., the function is potentially blocking, the call
 is a cancellation point.
-Otherwise, i.e. if
+Otherwise, i.e., if
 .Fa nevents
 is zero, the call is not cancellable.
 Cancellation can only occur before any changes are made to the kqueue,
