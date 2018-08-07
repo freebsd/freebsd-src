@@ -107,9 +107,8 @@ atomic64_add_unless(atomic64_t *v, int64_t a, int64_t u)
 static inline int64_t
 atomic64_xchg(atomic64_t *v, int64_t i)
 {
-#if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__) || \
-    defined(__powerpc64__)
+#if !((defined(__mips__) && !(defined(__mips_n32) || defined(__mips_n64))) || \
+    (defined(__powerpc__) && !defined(__powerpc64__)))
 	return (atomic_swap_64(&v->counter, i));
 #else
 	int64_t ret;
