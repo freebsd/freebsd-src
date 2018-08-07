@@ -94,10 +94,10 @@ __FBSDID("$FreeBSD$");
 #include <casper/cap_pwd.h>
 #endif
 
-u_int abidump(struct ktr_header *);
 int fetchprocinfo(struct ktr_header *, u_int *);
+u_int findabi(struct ktr_header *);
 int fread_tail(void *, int, int);
-void dumpheader(struct ktr_header *);
+void dumpheader(struct ktr_header *, u_int);
 void ktrsyscall(struct ktr_syscall *, u_int);
 void ktrsysret(struct ktr_sysret *, u_int);
 void ktrnamei(char *, int);
@@ -466,10 +466,6 @@ main(int argc, char *argv[])
 				drop_logged = 1;
 			}
 		}
-		if (trpoints & (1<<ktr_header.ktr_type))
-			if (pid == 0 || ktr_header.ktr_pid == pid ||
-			    ktr_header.ktr_tid == pid)
-				dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
 			errx(1, "bogus length 0x%x", ktrlen);
 		if (ktrlen > size) {
@@ -482,12 +478,13 @@ main(int argc, char *argv[])
 			errx(1, "data too short");
 		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
 			continue;
-		sv_flags = abidump(&ktr_header);
 		if (pid && ktr_header.ktr_pid != pid &&
 		    ktr_header.ktr_tid != pid)
 			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
+		sv_flags = findabi(&ktr_header);
+		dumpheader(&ktr_header, sv_flags);
 		drop_logged = 0;
 		switch (ktr_header.ktr_type) {
 		case KTR_SYSCALL:
@@ -588,56 +585,26 @@ fetchprocinfo(struct ktr_header *kth, u_int *flags)
 }
 
 u_int
-abidump(struct ktr_header *kth)
+findabi(struct ktr_header *kth)
 {
 	struct proc_info *pi;
-	const char *abi;
-	const char *arch;
-	u_int flags = 0;
 
 	TAILQ_FOREACH(pi, &trace_procs, info) {
 		if (pi->pid == kth->ktr_pid) {
-			flags = pi->sv_flags;
-			break;
+			return (pi->sv_flags);
 		}
 	}
-
-	if (abiflag == 0)
-		return (flags);
-
-	switch (flags & SV_ABI_MASK) {
-	case SV_ABI_LINUX:
-		abi = "L";
-		break;
-	case SV_ABI_FREEBSD:
-		abi = "F";
-		break;
-	case SV_ABI_CLOUDABI:
-		abi = "C";
-		break;
-	default:
-		abi = "U";
-		break;
-	}
-
-	if (flags & SV_LP64)
-		arch = "64";
-	else if (flags & SV_ILP32)
-		arch = "32";
-	else
-		arch = "00";
-
-	printf("%s%s  ", abi, arch);
-
-	return (flags);
+	return (0);
 }
 
 void
-dumpheader(struct ktr_header *kth)
+dumpheader(struct ktr_header *kth, u_int sv_flags)
 {
 	static char unknown[64];
 	static struct timeval prevtime, prevtime_e;
 	struct timeval temp;
+	const char *abi;
+	const char *arch;
 	const char *type;
 	const char *sign;
 
@@ -670,10 +637,6 @@ dumpheader(struct ktr_header *kth)
 	case KTR_SYSCTL:
 		type = "SCTL";
 		break;
-	case KTR_PROCCTOR:
-		/* FALLTHROUGH */
-	case KTR_PROCDTOR:
-		return;
 	case KTR_CAPFAIL:
 		type = "CAP ";
 		break;
@@ -731,6 +694,31 @@ dumpheader(struct ktr_header *kth)
 		}
 	}
 	printf("%s  ", type);
+	if (abiflag != 0) {
+		switch (sv_flags & SV_ABI_MASK) {
+		case SV_ABI_LINUX:
+			abi = "L";
+			break;
+		case SV_ABI_FREEBSD:
+			abi = "F";
+			break;
+		case SV_ABI_CLOUDABI:
+			abi = "C";
+			break;
+		default:
+			abi = "U";
+			break;
+		}
+
+		if ((sv_flags & SV_LP64) != 0)
+			arch = "64";
+		else if ((sv_flags & SV_ILP32) != 0)
+			arch = "32";
+		else
+			arch = "00";
+
+		printf("%s%s  ", abi, arch);
+	}
 }
 
 #include <sys/syscall.h>
