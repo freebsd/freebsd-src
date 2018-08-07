@@ -172,10 +172,13 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	nvlist_add_string(props, "name", name);
 
 	mounted = zfs_is_mounted(zfs_hdl, &mountpoint);
-	nvlist_add_boolean_value(props, "mounted", mounted);
 
 	if (mounted)
-		nvlist_add_string(props, "mountpoint", mountpoint);
+		nvlist_add_string(props, "mounted", mountpoint);
+
+	if (zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, 512,
+	    NULL, NULL, 0, 1) == 0)
+		nvlist_add_string(props, "mountpoint", buf);
 
 	if (zfs_prop_get(zfs_hdl, ZFS_PROP_ORIGIN, buf, 512,
 	    NULL, NULL, 0, 1) == 0)
@@ -282,12 +285,32 @@ bool
 be_exists(libbe_handle_t *lbh, char *be)
 {
 	char buf[BE_MAXPATHLEN];
+	nvlist_t *dsprops;
+	char *mntpoint;
+	bool valid;
 
 	be_root_concat(lbh, be, buf);
 
-	/*
-	 * XXX TODO: check mountpoint prop and see if its /, AND that result
-	 * with below expression.
-	 */
-	return (zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_DATASET));
+	if (!zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_DATASET))
+		return (false);
+
+	/* Also check if it's mounted at / */
+	if (be_prop_list_alloc(&dsprops) != 0) {
+		set_error(lbh, BE_ERR_UNKNOWN);
+		return (false);
+	}
+
+	if (be_get_dataset_props(lbh, buf, dsprops) != 0) {
+		nvlist_free(dsprops);
+		return (false);
+	}
+
+	if (nvlist_lookup_string(dsprops, "mountpoint", &mntpoint) == 0) {
+		valid = (strcmp(mntpoint, "/") == 0);
+		nvlist_free(dsprops);
+		return (valid);
+	}
+
+	nvlist_free(dsprops);
+	return (false);
 }

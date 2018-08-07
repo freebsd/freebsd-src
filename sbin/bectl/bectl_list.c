@@ -175,7 +175,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	const char *oname;
 	char *dsname, *propstr;
 	int active_colsz;
-	boolean_t active_now, active_reboot, mounted;
+	boolean_t active_now, active_reboot;
 
 	dsname = NULL;
 	originprops = NULL;
@@ -228,10 +228,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 		active_colsz--;
 	}
 	print_padding(NULL, active_colsz, pc);
-	if (nvlist_lookup_boolean_value(dsprops, "mounted", &mounted) != 0)
-		mounted = false;
-	if (mounted && nvlist_lookup_string(dsprops, "mountpoint",
-	    &propstr) == 0) {
+	if (nvlist_lookup_string(dsprops, "mounted", &propstr) == 0) {
 		printf("%s", propstr);
 		print_padding(propstr, pc->mount_colsz, pc);
 	} else {
