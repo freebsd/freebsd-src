@@ -211,7 +211,7 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	}
 	rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level, fw_mode,
 	    fw_rateunit, fw_ratemode, p->channel, p->cl, p->minrate, p->maxrate,
-	    p->weight, p->pktsize, sleep_ok);
+	    p->weight, p->pktsize, 0, sleep_ok);
 	end_synchronized_op(sc, sleep_ok ? 0 : LOCK_HELD);
 
 	if (p->level == SCHED_CLASS_LEVEL_CL_RL) {
@@ -258,7 +258,7 @@ update_tx_sched(void *context, int pending)
 			rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED,
 			    FW_SCHED_PARAMS_LEVEL_CL_RL, tc->mode, tc->rateunit,
 			    tc->ratemode, pi->tx_chan, j, 0, tc->maxrate, 0,
-			    tc->pktsize, 1);
+			    tc->pktsize, tc->burstsize, 1);
 			end_synchronized_op(sc, 0);
 
 			mtx_lock(&sc->tc_lock);
@@ -481,7 +481,7 @@ int
 t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
     int *tc_idx)
 {
-	int rc = 0, fa = -1, i;
+	int rc = 0, fa = -1, i, pktsize, burstsize;
 	bool update;
 	struct tx_cl_rl_params *tc;
 	struct port_info *pi;
@@ -489,7 +489,16 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 	MPASS(port_id >= 0 && port_id < sc->params.nports);
 
 	pi = sc->port[port_id];
+	if (pi->sched_params->pktsize > 0)
+		pktsize = pi->sched_params->pktsize;
+	else
+		pktsize = pi->vi[0].ifp->if_mtu;
+	if (pi->sched_params->burstsize > 0)
+		burstsize = pi->sched_params->burstsize;
+	else
+		burstsize = pktsize * 4;
 	tc = &pi->sched_params->cl_rl[0];
+
 	update = false;
 	mtx_lock(&sc->tc_lock);
 	for (i = 0; i < sc->chip_params->nsched_cls; i++, tc++) {
@@ -499,8 +508,8 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 		if (tc->ratemode == FW_SCHED_PARAMS_RATE_ABS &&
 		    tc->rateunit == FW_SCHED_PARAMS_UNIT_BITRATE &&
 		    tc->mode == FW_SCHED_PARAMS_MODE_FLOW &&
-		    tc->maxrate == maxrate &&
-		    tc->pktsize == pi->vi[0].ifp->if_mtu) {
+		    tc->maxrate == maxrate && tc->pktsize == pktsize &&
+		    tc->burstsize == burstsize) {
 			tc->refcount++;
 			*tc_idx = i;
 			if ((tc->flags & (CLRL_ERR | CLRL_ASYNC | CLRL_SYNC)) ==
@@ -519,7 +528,8 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 		tc->rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
 		tc->mode = FW_SCHED_PARAMS_MODE_FLOW;
 		tc->maxrate = maxrate;
-		tc->pktsize = pi->vi[0].ifp->if_mtu;
+		tc->pktsize = pktsize;
+		tc->burstsize = burstsize;
 		*tc_idx = fa;
 		update = true;
 	} else {
