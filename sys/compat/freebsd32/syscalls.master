@@ -602,8 +602,9 @@
 331	AUE_NULL	NOPROTO	{ int sched_yield (void); }
 332	AUE_NULL	NOPROTO	{ int sched_get_priority_max (int policy); }
 333	AUE_NULL	NOPROTO	{ int sched_get_priority_min (int policy); }
-334	AUE_NULL	NOPROTO	{ int sched_rr_get_interval (pid_t pid, \
-				    struct timespec *interval); }
+334	AUE_NULL	STD	{ int freebsd32_sched_rr_get_interval ( \
+				    pid_t pid, \
+				    struct timespec32 *interval); }
 335	AUE_NULL	NOPROTO	{ int utrace(const void *addr, size_t len); }
 336	AUE_SENDFILE	COMPAT4	{ int freebsd32_sendfile(int fd, int s, \
 				    uint32_t offset1, uint32_t offset2, \
