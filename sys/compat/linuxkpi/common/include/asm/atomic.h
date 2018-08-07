@@ -129,9 +129,7 @@ atomic_clear_mask(unsigned int mask, atomic_t *v)
 static inline int
 atomic_xchg(atomic_t *v, int i)
 {
-#if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__) || \
-    defined(__powerpc__)
+#if !defined(__mips__)
 	return (atomic_swap_int(&v->counter, i));
 #else
 	int ret;
@@ -159,7 +157,7 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	return (ret);
 }
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__amd64__) || defined(__arm64__) || defined(__i386__)
 #define	LINUXKPI_ATOMIC_8(...) __VA_ARGS__
 #define	LINUXKPI_ATOMIC_16(...) __VA_ARGS__
 #else
@@ -167,8 +165,9 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 #define	LINUXKPI_ATOMIC_16(...)
 #endif
 
-#if defined(__amd64__) || (defined(__ARM_ARCH) && (__ARM_ARCH >= 6)) ||	\
-    defined(__aarch64__) || defined(__powerpc64__) || defined(__riscv)
+#if !(defined(i386) || (defined(__mips__) && !(defined(__mips_n32) ||	\
+    defined(__mips_n64))) || (defined(__powerpc__) &&			\
+    !defined(__powerpc64__)))
 #define	LINUXKPI_ATOMIC_64(...) __VA_ARGS__
 #else
 #define	LINUXKPI_ATOMIC_64(...)
