@@ -29,7 +29,7 @@
 #include "be.h"
 #include "be_impl.h"
 
-static int snapshot_prop_list_builder(zfs_handle_t *hdl, prop_data_t *data);
+static int snapshot_proplist_update(zfs_handle_t *hdl, prop_data_t *data);
 
 /*
  * Returns the name of the active boot environment
@@ -97,7 +97,7 @@ be_get_bootenv_props(libbe_handle_t *lbh, nvlist_t *dsnvl)
 	data.lbh = lbh;
 	data.list = dsnvl;
 	data.single_object = false;
-	return (prop_list_builder(&data));
+	return (be_proplist_update(&data));
 }
 
 int
@@ -133,7 +133,7 @@ be_get_dataset_snapshots(libbe_handle_t *lbh, const char *name, nvlist_t *props)
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (BE_ERR_ZFSOPEN);
 
-	ret = snapshot_prop_list_builder(ds_hdl, &data);
+	ret = snapshot_proplist_update(ds_hdl, &data);
 	zfs_close(ds_hdl);
 	return (ret);
 }
@@ -141,7 +141,6 @@ be_get_dataset_snapshots(libbe_handle_t *lbh, const char *name, nvlist_t *props)
 /*
  * Internal callback function used by zfs_iter_filesystems. For each dataset in
  * the bootenv root, populate an nvlist_t of its relevant properties.
- * TODO: should any other properties be included?
  */
 int
 prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
@@ -221,12 +220,11 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 
 /*
  * Updates the properties of each bootenv in the libbe handle
- * XXX TODO: rename to be_proplist_update
  * XXX TODO: ensure that this is always consistent (run after adds, deletes,
  *       renames,etc
  */
 int
-prop_list_builder(prop_data_t *data)
+be_proplist_update(prop_data_t *data)
 {
 	zfs_handle_t *root_hdl;
 
@@ -243,7 +241,7 @@ prop_list_builder(prop_data_t *data)
 }
 
 static int
-snapshot_prop_list_builder(zfs_handle_t *hdl, prop_data_t *data)
+snapshot_proplist_update(zfs_handle_t *hdl, prop_data_t *data)
 {
 
 	return (zfs_iter_snapshots_sorted(hdl, prop_list_builder_cb, data));
