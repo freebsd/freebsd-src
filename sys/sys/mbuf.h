@@ -568,7 +568,8 @@ struct mbuf {
 #define	MT_EXP4		12	/* for experimental use */
 
 #define	MT_CONTROL	14	/* extra-data protocol message */
-#define	MT_OOBDATA	15	/* expedited data  */
+#define	MT_EXTCONTROL	15	/* control message with externalized contents */
+#define	MT_OOBDATA	16	/* expedited data  */
 
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */
@@ -633,6 +634,7 @@ void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
+void		 m_dispose_extcontrolm(struct mbuf *m);
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
 void		 m_extadd(struct mbuf *, char *, u_int, m_ext_free_t,
