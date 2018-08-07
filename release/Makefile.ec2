@@ -36,7 +36,7 @@ AMINAMESUFFIX!=	date +-%Y-%m-%d
 PUBLISH=	--public
 .endif
 .if defined(EC2PUBLICSNAP) && !empty(EC2PUBLICSNAP)
-PUBLISH=	--publicsnap
+PUBLICSNAP=	--publicsnap
 .endif
 .if defined(EC2SNSTOPIC) && !empty(EC2SNSTOPIC)
 EC2SNSREL=	${REVISION}-${BRANCH}
