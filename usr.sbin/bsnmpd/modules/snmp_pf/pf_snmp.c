@@ -43,6 +43,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#define	SNMPTREE_TYPES
 #include "pf_oid.h"
 #include "pf_tree.h"
 

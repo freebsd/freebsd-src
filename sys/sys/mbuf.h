@@ -304,7 +304,7 @@ struct mbuf {
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
-#define	M_UNUSED_8	0x00000100 /* --available-- */
+#define	M_NOMAP		0x00000100 /* mbuf data is unmapped (soon from Drew) */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
@@ -568,8 +568,8 @@ struct mbuf {
 #define	MT_EXP4		12	/* for experimental use */
 
 #define	MT_CONTROL	14	/* extra-data protocol message */
-#define	MT_OOBDATA	15	/* expedited data  */
-#define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
+#define	MT_EXTCONTROL	15	/* control message with externalized contents */
+#define	MT_OOBDATA	16	/* expedited data  */
 
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */
@@ -634,6 +634,7 @@ void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
+void		 m_dispose_extcontrolm(struct mbuf *m);
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
 void		 m_extadd(struct mbuf *, char *, u_int, m_ext_free_t,
@@ -1375,6 +1376,13 @@ mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
 	ts->tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
 	ts->tv_nsec = m->m_pkthdr.rcv_tstmp % 1000000000;
 }
+#endif
+
+#ifdef NETDUMP
+/* Invoked from the netdump client code. */
+void	netdump_mbuf_drain(void);
+void	netdump_mbuf_dump(void);
+void	netdump_mbuf_reinit(int nmbuf, int nclust, int clsize);
 #endif
 
 #endif /* _KERNEL */

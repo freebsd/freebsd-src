@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2015
+.Dd August 1, 2018
 .Dt DTRACE_UDP 4
 .Os
 .Sh NAME
@@ -45,7 +45,11 @@ The
 .Fn udp:::send
 probe fires whenever the kernel prepares to transmit a UDP packet, and the
 .Fn udp:::receive
-probe fires whenever the kernel receives a UDP packet.
+probe fires whenever the kernel receives a UDP packet, unless
+the UDP header is incomplete,
+the destination port is 0,
+the length field is invalid,
+or the checksum is wrong.
 The arguments to these probes can be used to obtain detailed information about
 the IP and UDP headers of the corresponding packet.
 .Sh ARGUMENTS
@@ -185,7 +189,9 @@ provider in Solaris.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr dtrace_ip 4 ,
+.Xr dtrace_sctp 4 ,
 .Xr dtrace_tcp 4 ,
+.Xr dtrace_udplite 4 ,
 .Xr udp 4 ,
 .Xr SDT 9
 .Sh HISTORY

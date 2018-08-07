@@ -49,6 +49,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_amdsbwd.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -102,12 +104,16 @@ static void	amdsbwd_identify(driver_t *driver, device_t parent);
 static int	amdsbwd_probe(device_t dev);
 static int	amdsbwd_attach(device_t dev);
 static int	amdsbwd_detach(device_t dev);
+static int	amdsbwd_suspend(device_t dev);
+static int	amdsbwd_resume(device_t dev);
 
 static device_method_t amdsbwd_methods[] = {
 	DEVMETHOD(device_identify,	amdsbwd_identify),
 	DEVMETHOD(device_probe,		amdsbwd_probe),
 	DEVMETHOD(device_attach,	amdsbwd_attach),
 	DEVMETHOD(device_detach,	amdsbwd_detach),
+	DEVMETHOD(device_suspend,	amdsbwd_suspend),
+	DEVMETHOD(device_resume,	amdsbwd_resume),
 #if 0
 	DEVMETHOD(device_shutdown,	amdsbwd_detach),
 #endif
@@ -315,16 +321,23 @@ amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 static void
 amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint8_t	val;
-	int	i;
+	uint32_t	val;
+	int		i;
 
 	/* Report cause of previous reset for user's convenience. */
-	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS0);
+
+	val = pmio_read(pmres, AMDSB8_PM_RESET_CTRL);
+	if ((val & AMDSB8_RST_STS_DIS) != 0) {
+		val &= ~AMDSB8_RST_STS_DIS;
+		pmio_write(pmres, AMDSB8_PM_RESET_CTRL, val);
+	}
+	val = 0;
+	for (i = 3; i >= 0; i--) {
+		val <<= 8;
+		val |= pmio_read(pmres, AMDSB8_PM_RESET_STATUS + i);
+	}
 	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus0 = %#04x\n", val);
-	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS1);
-	if (val != 0)
-		amdsbwd_verbose_printf(dev, "ResetStatus1 = %#04x\n", val);
+		amdsbwd_verbose_printf(dev, "ResetStatus = 0x%08x\n", val);
 	if ((val & AMDSB8_WD_RST_STS) != 0)
 		device_printf(dev, "Previous Reset was caused by Watchdog\n");
 
@@ -551,3 +564,30 @@ amdsbwd_detach(device_t dev)
 	return (0);
 }
 
+static int
+amdsbwd_suspend(device_t dev)
+{
+	struct amdsbwd_softc *sc;
+	uint32_t val;
+
+	sc = device_get_softc(dev);
+	val = wdctrl_read(sc);
+	val &= ~AMDSB_WD_RUN;
+	wdctrl_write(sc, val);
+	return (0);
+}
+
+static int
+amdsbwd_resume(device_t dev)
+{
+	struct amdsbwd_softc *sc;
+
+	sc = device_get_softc(dev);
+	wdctrl_write(sc, AMDSB_WD_FIRED);
+	if (sc->active) {
+		amdsbwd_tmr_set(sc, sc->timeout);
+		amdsbwd_tmr_enable(sc);
+		amdsbwd_tmr_reload(sc);
+	}
+	return (0);
+}

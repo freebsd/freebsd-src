@@ -64,7 +64,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/endian.h>
 
+#include <capsicum_helpers.h>
+#include <libgen.h>
+
 #include <net80211/ieee80211_freebsd.h>
+
 
 #ifndef _PATH_VAREMPTY
 #define	_PATH_VAREMPTY	"/var/empty"
@@ -89,21 +93,21 @@ __FBSDID("$FreeBSD$");
 cap_channel_t *capsyslog;
 
 time_t cur_time;
-time_t default_lease_time = 43200; /* 12 hours... */
+static time_t default_lease_time = 43200; /* 12 hours... */
 
 const char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
 char *path_dhclient_db = NULL;
 
 int log_perror = 1;
-int privfd;
-int nullfd = -1;
+static int privfd;
+static int nullfd = -1;
 
-char hostname[_POSIX_HOST_NAME_MAX + 1];
+static char hostname[_POSIX_HOST_NAME_MAX + 1];
 
-struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
-struct in_addr inaddr_any, inaddr_broadcast;
+static struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
+static struct in_addr inaddr_any, inaddr_broadcast;
 
-char *path_dhclient_pidfile;
+static char *path_dhclient_pidfile;
 struct pidfh *pidfile;
 
 /*
@@ -119,9 +123,9 @@ struct pidfh *pidfile;
 #define TIME_MAX        ((((time_t) 1 << (sizeof(time_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
 
 int		log_priority;
-int		no_daemon;
-int		unknown_ok = 1;
-int		routefd;
+static int		no_daemon;
+static int		unknown_ok = 1;
+static int		routefd;
 
 struct interface_info	*ifi;
 
@@ -195,8 +199,8 @@ get_ifa(char *cp, int n)
 	return (NULL);
 }
 
-struct iaddr defaddr = { .len = 4 };
-uint8_t curbssid[6];
+static struct iaddr defaddr = { .len = 4 };
+static uint8_t curbssid[6];
 
 static void
 disassoc(void *arg)
@@ -367,7 +371,7 @@ init_casper(void)
 int
 main(int argc, char *argv[])
 {
-	extern char		*__progname;
+	u_int			 capmode;
 	int			 ch, fd, quiet = 0, i = 0;
 	int			 pipe_fd[2];
 	int			 immediate_daemon = 0;
@@ -378,7 +382,7 @@ main(int argc, char *argv[])
 	init_casper();
 
 	/* Initially, log errors to stderr as well as to syslogd. */
-	cap_openlog(capsyslog, __progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
+	cap_openlog(capsyslog, getprogname(), LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	cap_setlogmask(capsyslog, LOG_UPTO(LOG_DEBUG));
 
 	while ((ch = getopt(argc, argv, "bc:dl:p:qu")) != -1)
@@ -416,7 +420,7 @@ main(int argc, char *argv[])
 
 	if (path_dhclient_pidfile == NULL) {
 		asprintf(&path_dhclient_pidfile,
-		    "%sdhclient.%s.pid", _PATH_VARRUN, *argv);
+		    "%s/dhclient/dhclient.%s.pid", _PATH_VARRUN, *argv);
 		if (path_dhclient_pidfile == NULL)
 			error("asprintf");
 	}
@@ -525,22 +529,32 @@ main(int argc, char *argv[])
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 
-	if (chroot(_PATH_VAREMPTY) == -1)
-		error("chroot");
-	if (chdir("/") == -1)
-		error("chdir(\"/\")");
-
-	if (setgroups(1, &pw->pw_gid) ||
-	    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
-	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
-		error("can't drop privileges: %m");
-
 	endpwent();
 
 	setproctitle("%s", ifi->name);
 
-	if (CASPER_SUPPORT && cap_enter() < 0 && errno != ENOSYS)
+	/* setgroups(2) is not permitted in capability mode. */
+	if (setgroups(1, &pw->pw_gid) != 0)
+		error("can't restrict groups: %m");
+
+	if (caph_enter_casper() < 0)
 		error("can't enter capability mode: %m");
+
+	/*
+	 * If we are not in capability mode (i.e., Capsicum or libcasper is
+	 * disabled), try to restrict filesystem access.  This will fail if
+	 * kern.chroot_allow_open_directories is 0 or the process is jailed.
+	 */
+	if (cap_getmode(&capmode) < 0 || capmode == 0) {
+		if (chroot(_PATH_VAREMPTY) == -1)
+			error("chroot");
+		if (chdir("/") == -1)
+			error("chdir(\"/\")");
+	}
+
+	if (setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
+	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
+		error("can't drop privileges: %m");
 
 	if (immediate_daemon)
 		go_daemon();
@@ -559,9 +573,8 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdqu] ", getprogname());
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
@@ -849,11 +862,23 @@ bind_lease(struct interface_info *ip)
 
 	opt = &ip->client->new->options[DHO_INTERFACE_MTU];
 	if (opt->len == sizeof(u_int16_t)) {
-		u_int16_t mtu = be16dec(opt->data);
-		if (mtu < MIN_MTU)
-			warning("mtu size %u < %d: ignored", (unsigned)mtu, MIN_MTU);
+		u_int16_t mtu = 0;
+		bool supersede = (ip->client->config->default_actions[DHO_INTERFACE_MTU] ==
+			ACTION_SUPERSEDE);
+
+		if (supersede)
+			mtu = getUShort(ip->client->config->defaults[DHO_INTERFACE_MTU].data);
 		else
+			mtu = be16dec(opt->data);
+
+		if (mtu < MIN_MTU) {
+			/* Treat 0 like a user intentionally doesn't want to change MTU and,
+			 * therefore, warning is not needed */
+			if (!supersede || mtu != 0)
+				warning("mtu size %u < %d: ignored", (unsigned)mtu, MIN_MTU);
+		} else {
 			interface_set_mtu_unpriv(privfd, mtu);
+		}
 	}
 
 	/* Write out the new lease. */
@@ -1889,7 +1914,7 @@ free_client_lease(struct client_lease *lease)
 	free(lease);
 }
 
-FILE *leaseFile;
+static FILE *leaseFile;
 
 void
 rewrite_client_leases(void)
@@ -2435,13 +2460,8 @@ go_daemon(void)
 
 	cap_rights_init(&rights);
 
-	if (pidfile != NULL) {
+	if (pidfile != NULL)
 		pidfile_write(pidfile);
-		if (cap_rights_limit(pidfile_fileno(pidfile), &rights) < 0 &&
-		    errno != ENOSYS) {
-			error("can't limit pidfile descriptor: %m");
-		}
-	}
 
 	if (nullfd != -1) {
 		close(nullfd);

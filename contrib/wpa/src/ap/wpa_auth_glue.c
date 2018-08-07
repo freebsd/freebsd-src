@@ -12,6 +12,7 @@
 #include "common/ieee802_11_defs.h"
 #include "common/sae.h"
 #include "common/wpa_ctrl.h"
+#include "crypto/sha1.h"
 #include "eapol_auth/eapol_auth_sm.h"
 #include "eapol_auth/eapol_auth_sm_i.h"
 #include "eap_server/eap.h"
@@ -246,6 +247,13 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
 		struct hostapd_sta_wpa_psk_short *pos;
 		psk = sta->psk->psk;
 		for (pos = sta->psk; pos; pos = pos->next) {
+			if (pos->is_passphrase) {
+				pbkdf2_sha1(pos->passphrase,
+					    hapd->conf->ssid.ssid,
+					    hapd->conf->ssid.ssid_len, 4096,
+					    pos->psk, PMK_LEN);
+				pos->is_passphrase = 0;
+			}
 			if (pos->psk == prev_psk) {
 				psk = pos->next ? pos->next->psk : NULL;
 				break;
@@ -413,6 +421,8 @@ static int hostapd_wpa_auth_ft_iter(struct hostapd_iface *iface, void *ctx)
 		hapd = iface->bss[j];
 		if (hapd == idata->src_hapd)
 			continue;
+		if (!hapd->wpa_auth)
+			continue;
 		if (os_memcmp(hapd->own_addr, idata->dst, ETH_ALEN) == 0) {
 			wpa_printf(MSG_DEBUG, "FT: Send RRB data directly to "
 				   "locally managed BSS " MACSTR "@%s -> "
@@ -563,6 +573,9 @@ static void hostapd_rrb_receive(void *ctx, const u8 *src_addr, const u8 *buf,
 	ethhdr = (struct l2_ethhdr *) buf;
 	wpa_printf(MSG_DEBUG, "FT: RRB received packet " MACSTR " -> "
 		   MACSTR, MAC2STR(ethhdr->h_source), MAC2STR(ethhdr->h_dest));
+	if (!is_multicast_ether_addr(ethhdr->h_dest) &&
+	    os_memcmp(hapd->own_addr, ethhdr->h_dest, ETH_ALEN) != 0)
+		return;
 	wpa_ft_rrb_rx(hapd->wpa_auth, ethhdr->h_source, buf + sizeof(*ethhdr),
 		      len - sizeof(*ethhdr));
 }
@@ -637,7 +650,7 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
 	}
 
 #ifdef CONFIG_IEEE80211R
-	if (!hostapd_drv_none(hapd) && hapd->conf->ft_over_ds &&
+	if (!hostapd_drv_none(hapd) &&
 	    wpa_key_mgmt_ft(hapd->conf->wpa_key_mgmt)) {
 		hapd->l2 = l2_packet_init(hapd->conf->bridge[0] ?
 					  hapd->conf->bridge :
@@ -674,13 +687,14 @@ void hostapd_deinit_wpa(struct hostapd_data *hapd)
 		wpa_deinit(hapd->wpa_auth);
 		hapd->wpa_auth = NULL;
 
-		if (hostapd_set_privacy(hapd, 0)) {
+		if (hapd->drv_priv && hostapd_set_privacy(hapd, 0)) {
 			wpa_printf(MSG_DEBUG, "Could not disable "
 				   "PrivacyInvoked for interface %s",
 				   hapd->conf->iface);
 		}
 
-		if (hostapd_set_generic_elem(hapd, (u8 *) "", 0)) {
+		if (hapd->drv_priv &&
+		    hostapd_set_generic_elem(hapd, (u8 *) "", 0)) {
 			wpa_printf(MSG_DEBUG, "Could not remove generic "
 				   "information element from interface %s",
 				   hapd->conf->iface);

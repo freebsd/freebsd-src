@@ -106,9 +106,38 @@ enum random_entropy_source {
 #define	RANDOM_CACHED_SKIP_START	256
 
 #if defined(DEV_RANDOM)
-void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
-void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
-void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
+extern u_int hc_source_mask;
+void random_harvest_queue_(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_fast_(const void *, u_int, u_int);
+void random_harvest_direct_(const void *, u_int, u_int, enum random_entropy_source);
+
+static __inline void
+random_harvest_queue(const void *entropy, u_int size, u_int bits,
+	enum random_entropy_source origin)
+{
+
+	if (hc_source_mask & (1 << origin))
+		random_harvest_queue_(entropy, size, bits, origin);
+}
+
+static __inline void
+random_harvest_fast(const void *entropy, u_int size, u_int bits,
+	enum random_entropy_source origin)
+{
+
+	if (hc_source_mask & (1 << origin))
+		random_harvest_fast_(entropy, size, bits);
+}
+
+static __inline void
+random_harvest_direct(const void *entropy, u_int size, u_int bits,
+	enum random_entropy_source origin)
+{
+
+	if (hc_source_mask & (1 << origin))
+		random_harvest_direct_(entropy, size, bits, origin);
+}
+
 void random_harvest_register_source(enum random_entropy_source);
 void random_harvest_deregister_source(enum random_entropy_source);
 #else
@@ -124,6 +153,13 @@ void random_harvest_deregister_source(enum random_entropy_source);
 #else /* !defined(RANDOM_ENABLE_UMA) */
 #define random_harvest_fast_uma(a, b, c, d)	do {} while (0)
 #endif /* defined(RANDOM_ENABLE_UMA) */
+
+#if defined(RANDOM_ENABLE_ETHER)
+#define random_harvest_queue_ether(a, b, c)	random_harvest_queue(a, b, c, RANDOM_NET_ETHER)
+#else /* !defined(RANDOM_ENABLE_ETHER) */
+#define random_harvest_queue_ether(a, b, c)	do {} while (0)
+#endif /* defined(RANDOM_ENABLE_ETHER) */
+
 
 #endif /* _KERNEL */
 

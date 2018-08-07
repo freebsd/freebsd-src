@@ -142,7 +142,7 @@ static int	link_elf_each_function_name(linker_file_t,
 static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
-static int	link_elf_reloc_local(linker_file_t);
+static int	link_elf_reloc_local(linker_file_t, bool);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
@@ -194,7 +194,7 @@ link_elf_init(void *arg)
 	linker_add_class(&link_elf_class);
 }
 
-SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
+SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
 
 static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
@@ -441,10 +441,9 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	}
 
 	/* Local intra-module relocations */
-	error = link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf, false);
 	if (error != 0)
 		goto out;
-
 	*result = lf;
 	return (0);
 
@@ -479,11 +478,16 @@ link_elf_link_preload_finish(linker_file_t lf)
 	ef = (elf_file_t)lf;
 	error = relocate_file(ef);
 	if (error)
-		return error;
+		return (error);
 
 	/* Notify MD code that a module is being loaded. */
 	error = elf_cpu_load_file(lf);
 	if (error)
+		return (error);
+
+	/* Now ifuncs. */
+	error = link_elf_reloc_local(lf, true);
+	if (error != 0)
 		return (error);
 
 	/* Invoke .ctors */
@@ -656,7 +660,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 	if (nsym != 1) {
 		/* Only allow one symbol table for now */
-		link_elf_error(filename, "file has no valid symbol table");
+		link_elf_error(filename,
+		    "file must have exactly one symbol table");
 		error = ENOEXEC;
 		goto out;
 	}
@@ -968,7 +973,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 
 	/* Local intra-module relocations */
-	error = link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf, false);
 	if (error != 0)
 		goto out;
 
@@ -987,6 +992,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	/* Notify MD code that a module is being loaded. */
 	error = elf_cpu_load_file(lf);
 	if (error)
+		goto out;
+
+	/* Now ifuncs. */
+	error = link_elf_reloc_local(lf, true);
+	if (error != 0)
 		goto out;
 
 	/* Invoke .ctors */
@@ -1037,9 +1047,8 @@ link_elf_unload_file(linker_file_t file)
 		free(ef->ctftab, M_LINKER);
 		free(ef->ctfoff, M_LINKER);
 		free(ef->typoff, M_LINKER);
-		if (file->filename != NULL)
-			preload_delete_name(file->filename);
-		/* XXX reclaim module memory? */
+		if (file->pathname != NULL)
+			preload_delete_name(file->pathname);
 		return;
 	}
 
@@ -1201,12 +1210,19 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
-	elf_file_t ef = (elf_file_t) lf;
-	const Elf_Sym *es = (const Elf_Sym*) sym;
+	elf_file_t ef;
+	const Elf_Sym *es;
+	caddr_t val;
 
+	ef = (elf_file_t) lf;
+	es = (const Elf_Sym*) sym;
+	val = (caddr_t)es->st_value;
 	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
 		symval->name = ef->ddbstrtab + es->st_name;
-		symval->value = (caddr_t)es->st_value;
+		val = (caddr_t)es->st_value;
+		if (ELF_ST_TYPE(es->st_info) == STT_GNU_IFUNC)
+			val = ((caddr_t (*)(void))val)();
+		symval->value = val;
 		symval->size = es->st_size;
 		return 0;
 	}
@@ -1291,7 +1307,8 @@ link_elf_each_function_name(linker_file_t file,
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
-		    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
+		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
 			error = callback(ef->ddbstrtab + symp->st_name, opaque);
 			if (error)
 				return (error);
@@ -1312,8 +1329,10 @@ link_elf_each_function_nameval(linker_file_t file,
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
-		    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
-			error = link_elf_symbol_values(file, (c_linker_sym_t) symp, &symval);
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
+		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
+			error = link_elf_symbol_values(file,
+			    (c_linker_sym_t)symp, &symval);
 			if (error)
 				return (error);
 			error = callback(file, i, &symval, opaque);
@@ -1364,7 +1383,10 @@ elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 
 	/* Quick answer if there is a definition included. */
 	if (sym->st_shndx != SHN_UNDEF) {
-		*res = sym->st_value;
+		res1 = (Elf_Addr)sym->st_value;
+		if (ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)
+			res1 = ((Elf_Addr (*)(void))res1)();
+		*res = res1;
 		return (0);
 	}
 
@@ -1460,7 +1482,7 @@ link_elf_fix_link_set(elf_file_t ef)
 }
 
 static int
-link_elf_reloc_local(linker_file_t lf)
+link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 {
 	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Rel *rellim;
@@ -1495,8 +1517,13 @@ link_elf_reloc_local(linker_file_t lf)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
-			    elf_obj_lookup);
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
+			    ifuncs)
+				elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
+				    elf_obj_lookup);
+			else if (ifuncs)
+				elf_reloc_ifunc(lf, base, rel, ELF_RELOC_REL,
+				    elf_obj_lookup);
 		}
 	}
 
@@ -1521,8 +1548,13 @@ link_elf_reloc_local(linker_file_t lf)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
-			    elf_obj_lookup);
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
+			    ifuncs)
+				elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
+				    elf_obj_lookup);
+			else if (ifuncs)
+				elf_reloc_ifunc(lf, base, rela, ELF_RELOC_RELA,
+				    elf_obj_lookup);
 		}
 	}
 	return (0);

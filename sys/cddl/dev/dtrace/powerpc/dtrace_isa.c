@@ -98,6 +98,7 @@ static __inline uintptr_t
 dtrace_next_sp(uintptr_t sp)
 {
 	vm_offset_t callpc;
+	uintptr_t *r1;
 	struct trapframe *frame;
 
 #ifdef __powerpc64__
@@ -114,7 +115,10 @@ dtrace_next_sp(uintptr_t sp)
 	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
 		/* Access the trap frame */
 		frame = (struct trapframe *)(sp + FRAME_OFFSET);
-		return (*(uintptr_t *)(frame->fixreg[1]));
+		r1 = (uintptr_t *)frame->fixreg[1];
+		if (r1 == NULL)
+			return (0);
+		return (*r1);
 	}
 
 	return (*(uintptr_t*)sp);
@@ -557,19 +561,19 @@ dtrace_getreg(struct trapframe *rp, uint_t reg)
 		return (rp->fixreg[reg]);
 
 	switch (reg) {
-	case 33:
+	case 32:
 		return (rp->lr);
-	case 34:
+	case 33:
 		return (rp->cr);
-	case 35:
+	case 34:
 		return (rp->xer);
-	case 36:
+	case 35:
 		return (rp->ctr);
-	case 37:
+	case 36:
 		return (rp->srr0);
-	case 38:
+	case 37:
 		return (rp->srr1);
-	case 39:
+	case 38:
 		return (rp->exc);
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);

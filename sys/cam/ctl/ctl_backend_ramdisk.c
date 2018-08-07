@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
+#include <sys/dnv.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
@@ -956,7 +958,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	if (retval == 0) {
 		taskqueue_drain_all(be_lun->io_taskqueue);
 		taskqueue_free(be_lun->io_taskqueue);
-		ctl_free_opts(&be_lun->cbe_lun.options);
+		nvlist_destroy(be_lun->cbe_lun.options);
 		free(be_lun->zero_page, M_RAMDISK);
 		ctl_backend_ramdisk_freeallpages(be_lun->pages, be_lun->indir);
 		sx_destroy(&be_lun->page_lock);
@@ -979,7 +981,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_be_ramdisk_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_lun_create_params *params;
-	char *value;
+	const char *value;
 	char tmpstr[32];
 	uint64_t t;
 	int retval;
@@ -990,10 +992,10 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun = malloc(sizeof(*be_lun), M_RAMDISK, M_ZERO | M_WAITOK);
 	cbe_lun = &be_lun->cbe_lun;
 	cbe_lun->be_lun = be_lun;
+	cbe_lun->options = nvlist_clone(req->args_nvl);
 	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	sprintf(be_lun->lunname, "cram%d", softc->num_luns);
-	ctl_init_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
 
 	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		cbe_lun->lun_type = params->device_type;
@@ -1001,7 +1003,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		cbe_lun->lun_type = T_DIRECT;
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	cbe_lun->flags = 0;
-	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	value = dnvlist_get_string(cbe_lun->options, "ha_role", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "primary") == 0)
 			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
@@ -1009,7 +1011,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
 	be_lun->pblocksize = PAGE_SIZE;
-	value = ctl_get_opt(&cbe_lun->options, "pblocksize");
+	value = dnvlist_get_string(cbe_lun->options, "pblocksize", NULL);
 	if (value != NULL) {
 		ctl_expand_number(value, &t);
 		be_lun->pblocksize = t;
@@ -1058,7 +1060,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		cbe_lun->ublockoff = 0;
 		cbe_lun->atomicblock = be_lun->pblocksize;
 		cbe_lun->opttxferlen = SGPP * be_lun->pblocksize;
-		value = ctl_get_opt(&cbe_lun->options, "capacity");
+		value = dnvlist_get_string(cbe_lun->options, "capacity", NULL);
 		if (value != NULL)
 			ctl_expand_number(value, &be_lun->cap_bytes);
 	} else {
@@ -1070,17 +1072,17 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	params->blocksize_bytes = cbe_lun->blocksize;
 	params->lun_size_bytes = be_lun->size_bytes;
 
-	value = ctl_get_opt(&cbe_lun->options, "unmap");
-	if (value == NULL || strcmp(value, "off") != 0)
+	value = dnvlist_get_string(cbe_lun->options, "unmap", NULL);
+	if (value != NULL && strcmp(value, "off") != 0)
 		cbe_lun->flags |= CTL_LUN_FLAG_UNMAP;
-	value = ctl_get_opt(&cbe_lun->options, "readonly");
+	value = dnvlist_get_string(cbe_lun->options, "readonly", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "on") == 0)
 			cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
 	} else if (cbe_lun->lun_type != T_DIRECT)
 		cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
 	cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
-	value = ctl_get_opt(&cbe_lun->options, "serseq");
+	value = dnvlist_get_string(cbe_lun->options, "serseq", NULL);
 	if (value != NULL && strcmp(value, "on") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_ON;
 	else if (value != NULL && strcmp(value, "read") == 0)
@@ -1209,7 +1211,7 @@ bailout_error:
 	if (be_lun != NULL) {
 		if (be_lun->io_taskqueue != NULL)
 			taskqueue_free(be_lun->io_taskqueue);
-		ctl_free_opts(&cbe_lun->options);
+		nvlist_destroy(cbe_lun->options);
 		free(be_lun->zero_page, M_RAMDISK);
 		ctl_backend_ramdisk_freeallpages(be_lun->pages, be_lun->indir);
 		sx_destroy(&be_lun->page_lock);
@@ -1226,7 +1228,7 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_be_ramdisk_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_lun_modify_params *params;
-	char *value;
+	const char *value;
 	uint32_t blocksize;
 	int wasprim;
 
@@ -1248,10 +1250,12 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 
 	if (params->lun_size_bytes != 0)
 		be_lun->params.lun_size_bytes = params->lun_size_bytes;
-	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
+
+	nvlist_destroy(cbe_lun->options);
+	cbe_lun->options = nvlist_clone(req->args_nvl);
 
 	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
-	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	value = dnvlist_get_string(cbe_lun->options, "ha_role", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "primary") == 0)
 			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;

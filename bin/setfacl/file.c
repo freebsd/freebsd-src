@@ -50,10 +50,10 @@ get_acl_from_file(const char *filename)
 		err(1, "(null) filename in get_acl_from_file()");
 
 	if (strcmp(filename, "-") == 0) {
-		if (have_stdin != 0)
+		if (have_stdin)
 			err(1, "cannot specify more than one stdin");
 		file = stdin;
-		have_stdin = 1;
+		have_stdin = true;
 	} else {
 		file = fopen(filename, "r");
 		if (file == NULL)

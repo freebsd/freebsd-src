@@ -187,34 +187,44 @@ static int proto_reg[] = {-1, -1};
  */
 
 /* Accept incoming CARP packets. */
-static VNET_DEFINE(int, carp_allow) = 1;
+VNET_DEFINE_STATIC(int, carp_allow) = 1;
 #define	V_carp_allow	VNET(carp_allow)
 
+/* Set DSCP in outgoing CARP packets. */
+VNET_DEFINE_STATIC(int, carp_dscp) = 56;
+#define	V_carp_dscp	VNET(carp_dscp)
+
 /* Preempt slower nodes. */
-static VNET_DEFINE(int, carp_preempt) = 0;
+VNET_DEFINE_STATIC(int, carp_preempt) = 0;
 #define	V_carp_preempt	VNET(carp_preempt)
 
 /* Log level. */
-static VNET_DEFINE(int, carp_log) = 1;
+VNET_DEFINE_STATIC(int, carp_log) = 1;
 #define	V_carp_log	VNET(carp_log)
 
 /* Global advskew demotion. */
-static VNET_DEFINE(int, carp_demotion) = 0;
+VNET_DEFINE_STATIC(int, carp_demotion) = 0;
 #define	V_carp_demotion	VNET(carp_demotion)
 
 /* Send error demotion factor. */
-static VNET_DEFINE(int, carp_senderr_adj) = CARP_MAXSKEW;
+VNET_DEFINE_STATIC(int, carp_senderr_adj) = CARP_MAXSKEW;
 #define	V_carp_senderr_adj	VNET(carp_senderr_adj)
 
 /* Iface down demotion factor. */
-static VNET_DEFINE(int, carp_ifdown_adj) = CARP_MAXSKEW;
+VNET_DEFINE_STATIC(int, carp_ifdown_adj) = CARP_MAXSKEW;
 #define	V_carp_ifdown_adj	VNET(carp_ifdown_adj)
 
+static int carp_allow_sysctl(SYSCTL_HANDLER_ARGS);
+static int carp_dscp_sysctl(SYSCTL_HANDLER_ARGS);
 static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(carp_allow), 0, "Accept incoming CARP packets");
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, allow,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, 0, 0, carp_allow_sysctl, "I",
+    "Accept incoming CARP packets");
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, dscp,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, 0, 0, carp_dscp_sysctl, "I",
+    "DSCP value for carp packets");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_preempt), 0, "High-priority backup preemption mode");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_VNET | CTLFLAG_RW,
@@ -274,8 +284,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
 } while (0)
 
 #define	IFNET_FOREACH_IFA(ifp, ifa)					\
-	IF_ADDR_LOCK_ASSERT(ifp);					\
-	TAILQ_FOREACH((ifa), &(ifp)->if_addrhead, ifa_link)		\
+	CK_STAILQ_FOREACH((ifa), &(ifp)->if_addrhead, ifa_link)	\
 		if ((ifa)->ifa_carp != NULL)
 
 #define	CARP_FOREACH_IFA(sc, ifa)					\
@@ -876,7 +885,7 @@ carp_best_ifa(int af, struct ifnet *ifp)
 		return (NULL);
 	best = NULL;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == af &&
 		    (best == NULL || ifa_preferred(best, ifa)))
 			best = ifa;
@@ -932,7 +941,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(*ip) >> 2;
-		ip->ip_tos = IPTOS_LOWDELAY;
+		ip->ip_tos = V_carp_dscp << IPTOS_DSCP_OFFSET;
 		ip->ip_len = htons(len);
 		ip->ip_off = htons(IP_DF);
 		ip->ip_ttl = CARP_DFLTTL;
@@ -982,6 +991,10 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip6 = mtod(m, struct ip6_hdr *);
 		bzero(ip6, sizeof(*ip6));
 		ip6->ip6_vfc |= IPV6_VERSION;
+		/* Traffic class isn't defined in ip6 struct instead
+		 * it gets offset into flowid field */
+		ip6->ip6_flow |= htonl(V_carp_dscp << (IPV6_FLOWLABEL_LEN +
+		    IPTOS_DSCP_OFFSET));
 		ip6->ip6_hlim = CARP_DFLTTL;
 		ip6->ip6_nxt = IPPROTO_CARP;
 
@@ -1158,7 +1171,7 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 
 	ifa = NULL;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (!IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa)))
@@ -1291,7 +1304,8 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 
 	if ((sc->sc_carpdev->if_flags & IFF_UP) == 0 ||
 	    sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
-	    (sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0))
+	    (sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0) ||
+	    !V_carp_allow)
 		return;
 
 	switch (sc->sc_state) {
@@ -1405,7 +1419,7 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 			break;
 		}
 		in6m = NULL;
-		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
+		if ((error = in6_joingroup(ifp, &in6, NULL, &in6m, 0)) != 0) {
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
@@ -1420,13 +1434,13 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 		in6.s6_addr32[3] = 0;
 		in6.s6_addr8[12] = 0xff;
 		if ((error = in6_setscope(&in6, ifp, NULL)) != 0) {
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
 		in6m = NULL;
-		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
+		if ((error = in6_joingroup(ifp, &in6, NULL, &in6m, 0)) != 0) {
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
@@ -1469,8 +1483,8 @@ carp_multicast_cleanup(struct carp_if *cif, sa_family_t sa)
 		if (cif->cif_naddrs6 == 0) {
 			struct ip6_moptions *im6o = &cif->cif_im6o;
 
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
-			in6_mc_leave(im6o->im6o_membership[1], NULL);
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
+			in6_leavegroup(im6o->im6o_membership[1], NULL);
 			KASSERT(im6o->im6o_mfilters == NULL,
 			    ("%s: im6o_mfilters != NULL", __func__));
 			free(im6o->im6o_membership, M_CARP);
@@ -2041,7 +2055,8 @@ carp_sc_state(struct carp_softc *sc)
 	CARP_LOCK_ASSERT(sc);
 
 	if (sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
-	    !(sc->sc_carpdev->if_flags & IFF_UP)) {
+	    !(sc->sc_carpdev->if_flags & IFF_UP) ||
+	    !V_carp_allow) {
 		callout_stop(&sc->sc_ad_tmo);
 #ifdef INET
 		callout_stop(&sc->sc_md_tmo);
@@ -2069,6 +2084,51 @@ carp_demote_adj(int adj, char *reason)
 	atomic_add_int(&V_carp_demotion, adj);
 	CARP_LOG("demoted by %d to %d (%s)\n", adj, V_carp_demotion, reason);
 	taskqueue_enqueue(taskqueue_swi, &carp_sendall_task);
+}
+
+static int
+carp_allow_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int new, error;
+	struct carp_softc *sc;
+
+	new = V_carp_allow;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (V_carp_allow != new) {
+		V_carp_allow = new;
+
+		mtx_lock(&carp_mtx);
+		LIST_FOREACH(sc, &carp_list, sc_next) {
+			CARP_LOCK(sc);
+			if (curvnet == sc->sc_carpdev->if_vnet)
+				carp_sc_state(sc);
+			CARP_UNLOCK(sc);
+		}
+		mtx_unlock(&carp_mtx);
+	}
+
+	return (0);
+}
+
+static int
+carp_dscp_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int new, error;
+
+	new = V_carp_dscp;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (new < 0 || new > 63)
+		return (EINVAL);
+
+	V_carp_dscp = new;
+
+	return (0);
 }
 
 static int

@@ -52,10 +52,9 @@ static __inline void
 releasef(int fd)
 {
 	struct file *fp;
-	cap_rights_t rights;
 
 	/* No CAP_ rights required, as we're only releasing. */
-	if (fget(curthread, fd, cap_rights_init(&rights), &fp) == 0) {
+	if (fget(curthread, fd, &cap_no_rights, &fp) == 0) {
 		fdrop(fp, curthread);
 		fdrop(fp, curthread);
 	}

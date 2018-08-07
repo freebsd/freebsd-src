@@ -41,6 +41,10 @@
 #include <sys/fm/fs/zfs.h>
 #include <sys/bio.h>
 
+#ifdef ZFS_DEBUG
+#include <sys/vdev_initialize.h>	/* vdev_xlate testing */
+#endif
+
 /*
  * Virtual device vector for RAID-Z.
  *
@@ -1896,6 +1900,39 @@ vdev_raidz_child_done(zio_t *zio)
 	rc->rc_skipped = 0;
 }
 
+static void
+vdev_raidz_io_verify(zio_t *zio, raidz_map_t *rm, int col)
+{
+#ifdef ZFS_DEBUG
+	vdev_t *vd = zio->io_vd;
+	vdev_t *tvd = vd->vdev_top;
+
+	range_seg_t logical_rs, physical_rs;
+	logical_rs.rs_start = zio->io_offset;
+	logical_rs.rs_end = logical_rs.rs_start +
+	    vdev_raidz_asize(zio->io_vd, zio->io_size);
+
+	raidz_col_t *rc = &rm->rm_col[col];
+	vdev_t *cvd = vd->vdev_child[rc->rc_devidx];
+
+	vdev_xlate(cvd, &logical_rs, &physical_rs);
+	ASSERT3U(rc->rc_offset, ==, physical_rs.rs_start);
+	ASSERT3U(rc->rc_offset, <, physical_rs.rs_end);
+	/*
+	 * It would be nice to assert that rs_end is equal
+	 * to rc_offset + rc_size but there might be an
+	 * optional I/O at the end that is not accounted in
+	 * rc_size.
+	 */
+	if (physical_rs.rs_end > rc->rc_offset + rc->rc_size) {
+		ASSERT3U(physical_rs.rs_end, ==, rc->rc_offset +
+		    rc->rc_size + (1 << tvd->vdev_ashift));
+	} else {
+		ASSERT3U(physical_rs.rs_end, ==, rc->rc_offset + rc->rc_size);
+	}
+#endif
+}
+
 /*
  * Start an IO operation on a RAIDZ VDev
  *
@@ -1953,6 +1990,12 @@ vdev_raidz_io_start(zio_t *zio)
 		for (c = 0; c < rm->rm_cols; c++) {
 			rc = &rm->rm_col[c];
 			cvd = vd->vdev_child[rc->rc_devidx];
+
+			/*
+			 * Verify physical to logical translation.
+			 */
+			vdev_raidz_io_verify(zio, rm, c);
+
 			zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
 			    rc->rc_offset, rc->rc_abd, rc->rc_size,
 			    zio->io_type, zio->io_priority, 0,
@@ -2584,6 +2627,75 @@ vdev_raidz_state_change(vdev_t *vd, int faulted, int degraded)
 		vdev_set_state(vd, B_FALSE, VDEV_STATE_HEALTHY, VDEV_AUX_NONE);
 }
 
+/*
+ * Determine if any portion of the provided block resides on a child vdev
+ * with a dirty DTL and therefore needs to be resilvered.  The function
+ * assumes that at least one DTL is dirty which imples that full stripe
+ * width blocks must be resilvered.
+ */
+static boolean_t
+vdev_raidz_need_resilver(vdev_t *vd, uint64_t offset, size_t psize)
+{
+	uint64_t dcols = vd->vdev_children;
+	uint64_t nparity = vd->vdev_nparity;
+	uint64_t ashift = vd->vdev_top->vdev_ashift;
+	/* The starting RAIDZ (parent) vdev sector of the block. */
+	uint64_t b = offset >> ashift;
+	/* The zio's size in units of the vdev's minimum sector size. */
+	uint64_t s = ((psize - 1) >> ashift) + 1;
+	/* The first column for this stripe. */
+	uint64_t f = b % dcols;
+
+	if (s + nparity >= dcols)
+		return (B_TRUE);
+
+	for (uint64_t c = 0; c < s + nparity; c++) {
+		uint64_t devidx = (f + c) % dcols;
+		vdev_t *cvd = vd->vdev_child[devidx];
+
+		/*
+		 * dsl_scan_need_resilver() already checked vd with
+		 * vdev_dtl_contains(). So here just check cvd with
+		 * vdev_dtl_empty(), cheaper and a good approximation.
+		 */
+		if (!vdev_dtl_empty(cvd, DTL_PARTIAL))
+			return (B_TRUE);
+	}
+
+	return (B_FALSE);
+}
+
+static void
+vdev_raidz_xlate(vdev_t *cvd, const range_seg_t *in, range_seg_t *res)
+{
+	vdev_t *raidvd = cvd->vdev_parent;
+	ASSERT(raidvd->vdev_ops == &vdev_raidz_ops);
+
+	uint64_t width = raidvd->vdev_children;
+	uint64_t tgt_col = cvd->vdev_id;
+	uint64_t ashift = raidvd->vdev_top->vdev_ashift;
+
+	/* make sure the offsets are block-aligned */
+	ASSERT0(in->rs_start % (1 << ashift));
+	ASSERT0(in->rs_end % (1 << ashift));
+	uint64_t b_start = in->rs_start >> ashift;
+	uint64_t b_end = in->rs_end >> ashift;
+
+	uint64_t start_row = 0;
+	if (b_start > tgt_col) /* avoid underflow */
+		start_row = ((b_start - tgt_col - 1) / width) + 1;
+
+	uint64_t end_row = 0;
+	if (b_end > tgt_col)
+		end_row = ((b_end - tgt_col - 1) / width) + 1;
+
+	res->rs_start = start_row << ashift;
+	res->rs_end = end_row << ashift;
+
+	ASSERT3U(res->rs_start, <=, in->rs_start);
+	ASSERT3U(res->rs_end - res->rs_start, <=, in->rs_end - in->rs_start);
+}
+
 vdev_ops_t vdev_raidz_ops = {
 	vdev_raidz_open,
 	vdev_raidz_close,
@@ -2591,9 +2703,11 @@ vdev_ops_t vdev_raidz_ops = {
 	vdev_raidz_io_start,
 	vdev_raidz_io_done,
 	vdev_raidz_state_change,
+	vdev_raidz_need_resilver,
 	NULL,
 	NULL,
 	NULL,
+	vdev_raidz_xlate,
 	VDEV_TYPE_RAIDZ,	/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };

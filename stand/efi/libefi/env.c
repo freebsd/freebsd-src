@@ -114,12 +114,12 @@ command_efi_show(int argc, char *argv[])
 	/*
 	 * efi-show [-a]
 	 *	print all the env
-	 * efi-show -u UUID
+	 * efi-show -g UUID
 	 *	print all the env vars tagged with UUID
 	 * efi-show -v var
 	 *	search all the env vars and print the ones matching var
-	 * eif-show -u UUID -v var
-	 * eif-show UUID var
+	 * efi-show -g UUID -v var
+	 * efi-show UUID var
 	 *	print all the env vars that match UUID and var
 	 */
 	/* NB: We assume EFI_GUID is the same as uuid_t */

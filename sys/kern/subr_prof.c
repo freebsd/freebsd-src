@@ -139,8 +139,7 @@ kmupetext(uintfptr_t nhighpc)
 }
 
 static void
-kmstartup(dummy)
-	void *dummy;
+kmstartup(void *dummy)
 {
 	char *cp;
 	struct gmonparam *p = &_gmonparam;

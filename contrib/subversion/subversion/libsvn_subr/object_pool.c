@@ -1,5 +1,5 @@
 /*
- * config_pool.c :  pool of configuration objects
+ * object_pool.c :  generic pool of reference-counted objects
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -49,7 +49,7 @@ typedef struct object_ref_t
   svn_membuf_t key;
 
   /* User provided object. Usually a wrapper. */
-  void *wrapper;
+  void *object;
 
   /* private pool. This instance and its other members got allocated in it.
    * Will be destroyed when this instance is cleaned up. */
@@ -85,10 +85,6 @@ struct svn_object_pool__t
 
   /* the root pool owning this structure */
   apr_pool_t *pool;
-
-  /* extractor and updater for the user object wrappers */
-  svn_object_pool__getter_t getter;
-  svn_object_pool__setter_t setter;
 };
 
 
@@ -176,9 +172,11 @@ add_object_ref(object_ref_t *object_ref,
   if (svn_atomic_inc(&object_ref->ref_count) == 0)
     svn_atomic_dec(&object_ref->object_pool->unused_count);
 
-  /* make sure the reference gets released automatically */
-  apr_pool_cleanup_register(pool, object_ref, object_ref_cleanup,
-                            apr_pool_cleanup_null);
+  /* Make sure the reference gets released automatically.
+     Since POOL might be a parent pool of OBJECT_REF->OBJECT_POOL,
+     to the reference counting update before destroing any of the
+     pool hierarchy. */
+  apr_pool_pre_cleanup_register(pool, object_ref, object_ref_cleanup);
 }
 
 /* Actual implementation of svn_object_pool__lookup.
@@ -189,7 +187,6 @@ static svn_error_t *
 lookup(void **object,
        svn_object_pool__t *object_pool,
        svn_membuf_t *key,
-       void *baton,
        apr_pool_t *result_pool)
 {
   object_ref_t *object_ref
@@ -197,7 +194,7 @@ lookup(void **object,
 
   if (object_ref)
     {
-      *object = object_pool->getter(object_ref->wrapper, baton, result_pool);
+      *object = object_ref->object;
       add_object_ref(object_ref, result_pool);
     }
   else
@@ -216,57 +213,28 @@ static svn_error_t *
 insert(void **object,
        svn_object_pool__t *object_pool,
        const svn_membuf_t *key,
-       void *wrapper,
-       void *baton,
-       apr_pool_t *wrapper_pool,
+       void *item,
+       apr_pool_t *item_pool,
        apr_pool_t *result_pool)
 {
   object_ref_t *object_ref
     = apr_hash_get(object_pool->objects, key->data, key->size);
   if (object_ref)
     {
-      /* entry already exists (e.g. race condition) */
-      svn_error_t *err = object_pool->setter(&object_ref->wrapper,
-                                             wrapper, baton,
-                                             object_ref->pool);
-      if (err)
-        {
-          /* if we had an issue in the setter, then OBJECT_REF is in an
-           * unknown state now.  Keep it around for the current users
-           * (i.e. don't clean the pool) but remove it from the list of
-           * available ones.
-           */
-          apr_hash_set(object_pool->objects, key->data, key->size, NULL);
-          svn_atomic_dec(&object_pool->object_count);
-
-          /* for the unlikely case that the object got created _and_
-           * already released since we last checked: */
-          if (svn_atomic_read(&object_ref->ref_count) == 0)
-            svn_atomic_dec(&object_pool->unused_count);
-
-          /* cleanup the new data as well because it's not safe to use
-           * either.
-           */
-          svn_pool_destroy(wrapper_pool);
-
-          /* propagate error */
-          return svn_error_trace(err);
-        }
-
       /* Destroy the new one and return a reference to the existing one
        * because the existing one may already have references on it.
        */
-      svn_pool_destroy(wrapper_pool);
+      svn_pool_destroy(item_pool);
     }
   else
     {
       /* add new index entry */
-      object_ref = apr_pcalloc(wrapper_pool, sizeof(*object_ref));
+      object_ref = apr_pcalloc(item_pool, sizeof(*object_ref));
       object_ref->object_pool = object_pool;
-      object_ref->wrapper = wrapper;
-      object_ref->pool = wrapper_pool;
+      object_ref->object = item;
+      object_ref->pool = item_pool;
 
-      svn_membuf__create(&object_ref->key, key->size, wrapper_pool);
+      svn_membuf__create(&object_ref->key, key->size, item_pool);
       object_ref->key.size = key->size;
       memcpy(object_ref->key.data, key->data, key->size);
 
@@ -281,7 +249,7 @@ insert(void **object,
     }
 
   /* return a reference to the object we just added */
-  *object = object_pool->getter(object_ref->wrapper, baton, result_pool);
+  *object = object_ref->object;
   add_object_ref(object_ref, result_pool);
 
   /* limit memory usage */
@@ -292,34 +260,11 @@ insert(void **object,
   return SVN_NO_ERROR;
 }
 
-/* Implement svn_object_pool__getter_t as no-op.
- */
-static void *
-default_getter(void *object,
-               void *baton,
-               apr_pool_t *pool)
-{
-  return object;
-}
-
-/* Implement svn_object_pool__setter_t as no-op.
- */
-static svn_error_t *
-default_setter(void **target,
-               void *source,
-               void *baton,
-               apr_pool_t *pool)
-{
-  return SVN_NO_ERROR;
-}
-
 
 /* API implementation */
 
 svn_error_t *
 svn_object_pool__create(svn_object_pool__t **object_pool,
-                        svn_object_pool__getter_t getter,
-                        svn_object_pool__setter_t setter,
                         svn_boolean_t thread_safe,
                         apr_pool_t *pool)
 {
@@ -333,8 +278,6 @@ svn_object_pool__create(svn_object_pool__t **object_pool,
 
   result->pool = pool;
   result->objects = svn_hash__make(result->pool);
-  result->getter = getter ? getter : default_getter;
-  result->setter = setter ? setter : default_setter;
 
   /* make sure we clean up nicely.
    * We need two cleanup functions of which exactly one will be run
@@ -351,33 +294,20 @@ svn_object_pool__create(svn_object_pool__t **object_pool,
 }
 
 apr_pool_t *
-svn_object_pool__new_wrapper_pool(svn_object_pool__t *object_pool)
+svn_object_pool__new_item_pool(svn_object_pool__t *object_pool)
 {
   return svn_pool_create(object_pool->pool);
-}
-
-svn_mutex__t *
-svn_object_pool__mutex(svn_object_pool__t *object_pool)
-{
-  return object_pool->mutex;
-}
-
-unsigned
-svn_object_pool__count(svn_object_pool__t *object_pool)
-{
-  return svn_atomic_read(&object_pool->object_count);
 }
 
 svn_error_t *
 svn_object_pool__lookup(void **object,
                         svn_object_pool__t *object_pool,
                         svn_membuf_t *key,
-                        void *baton,
                         apr_pool_t *result_pool)
 {
   *object = NULL;
   SVN_MUTEX__WITH_LOCK(object_pool->mutex,
-                       lookup(object, object_pool, key, baton, result_pool));
+                       lookup(object, object_pool, key, result_pool));
   return SVN_NO_ERROR;
 }
 
@@ -385,14 +315,13 @@ svn_error_t *
 svn_object_pool__insert(void **object,
                         svn_object_pool__t *object_pool,
                         const svn_membuf_t *key,
-                        void *wrapper,
-                        void *baton,
-                        apr_pool_t *wrapper_pool,
+                        void *item,
+                        apr_pool_t *item_pool,
                         apr_pool_t *result_pool)
 {
   *object = NULL;
   SVN_MUTEX__WITH_LOCK(object_pool->mutex,
-                       insert(object, object_pool, key, wrapper, baton,
-                              wrapper_pool, result_pool));
+                       insert(object, object_pool, key, item, 
+                              item_pool, result_pool));
   return SVN_NO_ERROR;
 }

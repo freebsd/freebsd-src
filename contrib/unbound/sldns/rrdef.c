@@ -175,7 +175,7 @@ static const sldns_rdf_type type_tkey_wireformat[] = {
 	LDNS_RDF_TYPE_TIME,
 	LDNS_RDF_TYPE_TIME,
 	LDNS_RDF_TYPE_INT16,
-	LDNS_RDF_TYPE_INT16,
+	LDNS_RDF_TYPE_TSIGERROR,
 	LDNS_RDF_TYPE_INT16_DATA,
 	LDNS_RDF_TYPE_INT16_DATA,
 };
@@ -185,7 +185,7 @@ static const sldns_rdf_type type_tsig_wireformat[] = {
 	LDNS_RDF_TYPE_INT16,
 	LDNS_RDF_TYPE_INT16_DATA,
 	LDNS_RDF_TYPE_INT16,
-	LDNS_RDF_TYPE_INT16,
+	LDNS_RDF_TYPE_TSIGERROR,
 	LDNS_RDF_TYPE_INT16_DATA
 };
 static const sldns_rdf_type type_tlsa_wireformat[] = {
@@ -341,8 +341,12 @@ static sldns_rr_descriptor rdata_field_descriptors[] = {
 	{LDNS_RR_TYPE_NSEC3PARAM, "NSEC3PARAM", 4, 4, type_nsec3param_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 52 */
 	{LDNS_RR_TYPE_TLSA, "TLSA", 4, 4, type_tlsa_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-
+	/*53 */
+#ifdef DRAFT_RRTYPES
+	{LDNS_RR_TYPE_SMIMEA, "SMIMEA", 4, 4, type_tlsa_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+#else
 {LDNS_RR_TYPE_NULL, "TYPE53", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+#endif
 {LDNS_RR_TYPE_NULL, "TYPE54", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
         /* 55
 	 * Hip ends with 0 or more Rendezvous Servers represented as dname's.
@@ -600,6 +604,12 @@ static sldns_rr_descriptor rdata_field_descriptors[] = {
 	{LDNS_RR_TYPE_URI, "URI", 3, 3, type_uri_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 257 */
 	{LDNS_RR_TYPE_CAA, "CAA", 3, 3, type_caa_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+#ifdef DRAFT_RRTYPES
+	/* 258 */
+	{LDNS_RR_TYPE_AVC, "AVC", 1, 0, NULL, LDNS_RDF_TYPE_STR, LDNS_RR_NO_COMPRESS, 0 },
+#else
+{LDNS_RR_TYPE_NULL, "TYPE258", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+#endif
 
 /* split in array, no longer contiguous */
 

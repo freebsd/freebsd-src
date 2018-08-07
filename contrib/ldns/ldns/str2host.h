@@ -165,12 +165,36 @@ ldns_status ldns_str2rdf_class(ldns_rdf **rd, const char *str);
 ldns_status ldns_str2rdf_cert_alg(ldns_rdf **rd, const char *str);
 
 /**
- * convert and algorithm value into wireformat
+ * convert an algorithm value into wireformat
  * \param[in] rd the rdf where to put the data
  * \param[in] str the string to be converted
  * \return ldns_status
  */
 ldns_status ldns_str2rdf_alg(ldns_rdf **rd, const char *str);
+
+/**
+ * convert a tlsa certificate usage value into wireformat
+ * \param[in] rd the rdf where to put the data
+ * \param[in] str the string to be converted
+ * \return ldns_status
+ */
+ldns_status ldns_str2rdf_certificate_usage(ldns_rdf **rd, const char *str);
+
+/**
+ * convert a tlsa selector value into wireformat
+ * \param[in] rd the rdf where to put the data
+ * \param[in] str the string to be converted
+ * \return ldns_status
+ */
+ldns_status ldns_str2rdf_selector(ldns_rdf **rd, const char *str);
+
+/**
+ * convert a tlsa matching type value into wireformat
+ * \param[in] rd the rdf where to put the data
+ * \param[in] str the string to be converted
+ * \return ldns_status
+ */
+ldns_status ldns_str2rdf_matching_type(ldns_rdf **rd, const char *str);
 
 /**
  * convert a string with a unknown RR into wireformat

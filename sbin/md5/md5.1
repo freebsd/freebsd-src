@@ -1,65 +1,22 @@
 .\" $FreeBSD$
-.Dd March 2, 2017
+.Dd July 9, 2018
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
 .Nm skein256 , skein512 , skein1024
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
-.Nm md5
+.Nm
 .Op Fl pqrtx
 .Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
-.Nm sha1
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm sha256
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm sha384
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm sha512
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm sha512t256
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm rmd160
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm skein256
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm skein512
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
-.Nm skein1024
-.Op Fl pqrtx
-.Op Fl c Ar string
-.Op Fl s Ar string
-.Op Ar
+.Pp
+(All other hashes have the same options and usage.)
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256, rmd160,
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512, sha512t256, rmd160,
 .Nm skein256, skein512,
 and
 .Nm skein1024
@@ -73,7 +30,7 @@ It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
 The
-.Tn MD5 , SHA-1 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
+.Tn SHA-224 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
 and
 .Tn SKEIN
 algorithms are intended for digital signature applications, where a
@@ -89,8 +46,8 @@ The
 and
 .Tn SHA-1
 algorithms have been proven to be vulnerable to practical collision
-attacks and should not be relied upon to produce unique outputs, nor
-should they be used as part of a cryptographic signature scheme.
+attacks and should not be relied upon to produce unique outputs,
+.Em nor should they be used as part of a cryptographic signature scheme.
 As of 2017-03-02, there is no publicly known method to
 .Em reverse
 either algorithm, i.e. to find an input that produces a specific
@@ -143,8 +100,8 @@ Run a built-in test script.
 .El
 .Sh EXIT STATUS
 The
-.Nm md5 , sha1 , sha256 , sha512, sha512t256, rmd160,
-.Nm skein256, skein512,
+.Nm md5 , sha1 , sha224 , sha256 , sha512 , sha512t256 , rmd160 ,
+.Nm skein256 , skein512,
 and
 .Nm skein1024
 utilities exit 0 on success,
@@ -157,6 +114,7 @@ option.
 .Xr md5 3 ,
 .Xr ripemd 3 ,
 .Xr sha 3 ,
+.Xr sha224 3 ,
 .Xr sha256 3 ,
 .Xr sha384 3 ,
 .Xr sha512 3 ,

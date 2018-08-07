@@ -60,8 +60,8 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
 	int *nargs, *detach, *readonly, *dryrun;
-	int keysize, error;
-	u_int nkey;
+	int keysize, error, nkey;
+	intmax_t *valp;
 
 	g_topology_assert();
 
@@ -78,6 +78,17 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
 	if (detach == NULL) {
 		gctl_error(req, "No '%s' argument.", "detach");
+		return;
+	}
+
+	valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
+	if (valp == NULL) {
+		gctl_error(req, "No '%s' argument.", "keyno");
+		return;
+	}
+	nkey = *valp;
+	if (nkey < -1 || nkey >= G_ELI_MAXMKEYS) {
+		gctl_error(req, "Invalid '%s' argument.", "keyno");
 		return;
 	}
 
@@ -129,7 +140,10 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	if (nkey == -1)
+		error = g_eli_mkey_decrypt_any(&md, key, mkey, &nkey);
+	else
+		error = g_eli_mkey_decrypt(&md, key, mkey, nkey);
 	explicit_bzero(key, keysize);
 	if (error == -1) {
 		explicit_bzero(&md, sizeof(md));
@@ -981,7 +995,7 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	error = g_eli_mkey_decrypt_any(&md, key, mkey, &nkey);
 	explicit_bzero(key, keysize);
 	if (error == -1) {
 		explicit_bzero(&md, sizeof(md));

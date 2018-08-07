@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005
+ * Copyright (c) 2005,2018
  *	Hartmut Brandt.
  *	All rights reserved.
  *
@@ -53,6 +53,8 @@
 
 #include "support.h"
 #include "snmpmod.h"
+
+#define	SNMPTREE_TYPES
 #include "ntp_tree.h"
 #include "ntp_oid.h"
 

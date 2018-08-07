@@ -52,6 +52,7 @@ void set_variable(const char *, const char *);
 void yyerror(const char *s);
 int  yylex(void);
 int  yyparse(void);
+extern int lineno;
 __END_DECLS
 
 #define PATH_DEVCTL	"/dev/devctl"

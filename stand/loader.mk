@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "defs.mk"
-
 .PATH: ${LDRSRC} ${BOOTSRC}/libsa
 
 CFLAGS+=-I${LDRSRC}
@@ -126,18 +124,11 @@ CFLAGS+= -DLOADER_GPT_SUPPORT
 CFLAGS+= -DLOADER_MBR_SUPPORT
 .endif
 
-.if defined(HAVE_ZFS)
+.if ${HAVE_ZFS:Uno} == "yes"
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 SRCS+=		zfs_cmd.c
-.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
-# Have to override to use 32-bit version of zfs library...
-# kinda lame to select that there XXX
-LIBZFSBOOT=	${BOOTOBJ}/zfs32/libzfsboot.a
-.else
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
-.endif
 .endif
 
 LIBFICL=	${BOOTOBJ}/ficl/libficl.a

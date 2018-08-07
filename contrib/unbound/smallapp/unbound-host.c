@@ -209,6 +209,7 @@ massage_class(const char* c)
 static const char* 
 secure_str(struct ub_result* result)
 {
+	if(result->rcode != 0 && result->rcode != 3) return "(error)";
 	if(result->secure) return "(secure)";
 	if(result->bogus) return "(BOGUS (security failure))";
 	return "(insecure)";

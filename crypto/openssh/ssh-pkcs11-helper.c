@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.12 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.14 2018/01/08 15:18:46 markus Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -30,19 +30,20 @@
 #include <errno.h>
 
 #include "xmalloc.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "log.h"
 #include "misc.h"
-#include "key.h"
+#include "sshkey.h"
 #include "authfd.h"
 #include "ssh-pkcs11.h"
+#include "ssherr.h"
 
 #ifdef ENABLE_PKCS11
 
 /* borrows code from sftp-server and ssh-agent */
 
 struct pkcs11_keyinfo {
-	Key		*key;
+	struct sshkey	*key;
 	char		*providername;
 	TAILQ_ENTRY(pkcs11_keyinfo) next;
 };
@@ -51,16 +52,12 @@ TAILQ_HEAD(, pkcs11_keyinfo) pkcs11_keylist;
 
 #define MAX_MSG_LENGTH		10240 /*XXX*/
 
-/* helper */
-#define get_int()			buffer_get_int(&iqueue);
-#define get_string(lenp)		buffer_get_string(&iqueue, lenp);
-
 /* input and output queue */
-Buffer iqueue;
-Buffer oqueue;
+struct sshbuf *iqueue;
+struct sshbuf *oqueue;
 
 static void
-add_key(Key *k, char *name)
+add_key(struct sshkey *k, char *name)
 {
 	struct pkcs11_keyinfo *ki;
 
@@ -80,104 +77,119 @@ del_keys_by_name(char *name)
 		if (!strcmp(ki->providername, name)) {
 			TAILQ_REMOVE(&pkcs11_keylist, ki, next);
 			free(ki->providername);
-			key_free(ki->key);
+			sshkey_free(ki->key);
 			free(ki);
 		}
 	}
 }
 
 /* lookup matching 'private' key */
-static Key *
-lookup_key(Key *k)
+static struct sshkey *
+lookup_key(struct sshkey *k)
 {
 	struct pkcs11_keyinfo *ki;
 
 	TAILQ_FOREACH(ki, &pkcs11_keylist, next) {
 		debug("check %p %s", ki, ki->providername);
-		if (key_equal(k, ki->key))
+		if (sshkey_equal(k, ki->key))
 			return (ki->key);
 	}
 	return (NULL);
 }
 
 static void
-send_msg(Buffer *m)
+send_msg(struct sshbuf *m)
 {
-	int mlen = buffer_len(m);
+	int r;
 
-	buffer_put_int(&oqueue, mlen);
-	buffer_append(&oqueue, buffer_ptr(m), mlen);
-	buffer_consume(m, mlen);
+	if ((r = sshbuf_put_stringb(oqueue, m)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 }
 
 static void
 process_add(void)
 {
 	char *name, *pin;
-	Key **keys;
-	int i, nkeys;
+	struct sshkey **keys;
+	int r, i, nkeys;
 	u_char *blob;
-	u_int blen;
-	Buffer msg;
+	size_t blen;
+	struct sshbuf *msg;
 
-	buffer_init(&msg);
-	name = get_string(NULL);
-	pin = get_string(NULL);
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_get_cstring(iqueue, &name, NULL)) != 0 ||
+	    (r = sshbuf_get_cstring(iqueue, &pin, NULL)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	if ((nkeys = pkcs11_add_provider(name, pin, &keys)) > 0) {
-		buffer_put_char(&msg, SSH2_AGENT_IDENTITIES_ANSWER);
-		buffer_put_int(&msg, nkeys);
+		if ((r = sshbuf_put_u8(msg,
+		    SSH2_AGENT_IDENTITIES_ANSWER)) != 0 ||
+		    (r = sshbuf_put_u32(msg, nkeys)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 		for (i = 0; i < nkeys; i++) {
-			if (key_to_blob(keys[i], &blob, &blen) == 0)
+			if ((r = sshkey_to_blob(keys[i], &blob, &blen)) != 0) {
+				debug("%s: sshkey_to_blob: %s",
+				    __func__, ssh_err(r));
 				continue;
-			buffer_put_string(&msg, blob, blen);
-			buffer_put_cstring(&msg, name);
+			}
+			if ((r = sshbuf_put_string(msg, blob, blen)) != 0 ||
+			    (r = sshbuf_put_cstring(msg, name)) != 0)
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
 			free(blob);
 			add_key(keys[i], name);
 		}
 		free(keys);
 	} else {
-		buffer_put_char(&msg, SSH_AGENT_FAILURE);
+		if ((r = sshbuf_put_u8(msg, SSH_AGENT_FAILURE)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 	free(pin);
 	free(name);
-	send_msg(&msg);
-	buffer_free(&msg);
+	send_msg(msg);
+	sshbuf_free(msg);
 }
 
 static void
 process_del(void)
 {
 	char *name, *pin;
-	Buffer msg;
+	struct sshbuf *msg;
+	int r;
 
-	buffer_init(&msg);
-	name = get_string(NULL);
-	pin = get_string(NULL);
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_get_cstring(iqueue, &name, NULL)) != 0 ||
+	    (r = sshbuf_get_cstring(iqueue, &pin, NULL)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	del_keys_by_name(name);
-	if (pkcs11_del_provider(name) == 0)
-		 buffer_put_char(&msg, SSH_AGENT_SUCCESS);
-	else
-		 buffer_put_char(&msg, SSH_AGENT_FAILURE);
+	if ((r = sshbuf_put_u8(msg, pkcs11_del_provider(name) == 0 ?
+	    SSH_AGENT_SUCCESS : SSH_AGENT_FAILURE)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	free(pin);
 	free(name);
-	send_msg(&msg);
-	buffer_free(&msg);
+	send_msg(msg);
+	sshbuf_free(msg);
 }
 
 static void
 process_sign(void)
 {
 	u_char *blob, *data, *signature = NULL;
-	u_int blen, dlen, slen = 0;
-	int ok = -1;
-	Key *key, *found;
-	Buffer msg;
+	size_t blen, dlen, slen = 0;
+	int r, ok = -1;
+	struct sshkey *key, *found;
+	struct sshbuf *msg;
 
-	blob = get_string(&blen);
-	data = get_string(&dlen);
-	(void)get_int(); /* XXX ignore flags */
+	/* XXX support SHA2 signature flags */
+	if ((r = sshbuf_get_string(iqueue, &blob, &blen)) != 0 ||
+	    (r = sshbuf_get_string(iqueue, &data, &dlen)) != 0 ||
+	    (r = sshbuf_get_u32(iqueue, NULL)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
-	if ((key = key_from_blob(blob, blen)) != NULL) {
+	if ((r = sshkey_from_blob(blob, blen, &key)) != 0)
+		error("%s: sshkey_from_blob: %s", __func__, ssh_err(r));
+	else {
 		if ((found = lookup_key(key)) != NULL) {
 #ifdef WITH_OPENSSL
 			int ret;
@@ -191,20 +203,23 @@ process_sign(void)
 			}
 #endif /* WITH_OPENSSL */
 		}
-		key_free(key);
+		sshkey_free(key);
 	}
-	buffer_init(&msg);
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
 	if (ok == 0) {
-		buffer_put_char(&msg, SSH2_AGENT_SIGN_RESPONSE);
-		buffer_put_string(&msg, signature, slen);
+		if ((r = sshbuf_put_u8(msg, SSH2_AGENT_SIGN_RESPONSE)) != 0 ||
+		    (r = sshbuf_put_string(msg, signature, slen)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	} else {
-		buffer_put_char(&msg, SSH_AGENT_FAILURE);
+		if ((r = sshbuf_put_u8(msg, SSH2_AGENT_FAILURE)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 	free(data);
 	free(blob);
 	free(signature);
-	send_msg(&msg);
-	buffer_free(&msg);
+	send_msg(msg);
+	sshbuf_free(msg);
 }
 
 static void
@@ -213,13 +228,14 @@ process(void)
 	u_int msg_len;
 	u_int buf_len;
 	u_int consumed;
-	u_int type;
-	u_char *cp;
+	u_char type;
+	const u_char *cp;
+	int r;
 
-	buf_len = buffer_len(&iqueue);
+	buf_len = sshbuf_len(iqueue);
 	if (buf_len < 5)
 		return;		/* Incomplete message. */
-	cp = buffer_ptr(&iqueue);
+	cp = sshbuf_ptr(iqueue);
 	msg_len = get_u32(cp);
 	if (msg_len > MAX_MSG_LENGTH) {
 		error("bad message len %d", msg_len);
@@ -227,9 +243,10 @@ process(void)
 	}
 	if (buf_len < msg_len + 4)
 		return;
-	buffer_consume(&iqueue, 4);
+	if ((r = sshbuf_consume(iqueue, 4)) != 0 ||
+	    (r = sshbuf_get_u8(iqueue, &type)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	buf_len -= 4;
-	type = buffer_get_char(&iqueue);
 	switch (type) {
 	case SSH_AGENTC_ADD_SMARTCARD_KEY:
 		debug("process_add");
@@ -248,17 +265,19 @@ process(void)
 		break;
 	}
 	/* discard the remaining bytes from the current packet */
-	if (buf_len < buffer_len(&iqueue)) {
+	if (buf_len < sshbuf_len(iqueue)) {
 		error("iqueue grew unexpectedly");
 		cleanup_exit(255);
 	}
-	consumed = buf_len - buffer_len(&iqueue);
+	consumed = buf_len - sshbuf_len(iqueue);
 	if (msg_len < consumed) {
 		error("msg_len %d < consumed %d", msg_len, consumed);
 		cleanup_exit(255);
 	}
-	if (msg_len > consumed)
-		buffer_consume(&iqueue, msg_len - consumed);
+	if (msg_len > consumed) {
+		if ((r = sshbuf_consume(iqueue, msg_len - consumed)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	}
 }
 
 void
@@ -272,7 +291,7 @@ int
 main(int argc, char **argv)
 {
 	fd_set *rset, *wset;
-	int in, out, max, log_stderr = 0;
+	int r, in, out, max, log_stderr = 0;
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	LogLevel log_level = SYSLOG_LEVEL_ERROR;
@@ -298,8 +317,10 @@ main(int argc, char **argv)
 	if (out > max)
 		max = out;
 
-	buffer_init(&iqueue);
-	buffer_init(&oqueue);
+	if ((iqueue = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((oqueue = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
 
 	set_size = howmany(max + 1, NFDBITS) * sizeof(fd_mask);
 	rset = xmalloc(set_size);
@@ -314,11 +335,13 @@ main(int argc, char **argv)
 		 * the worst-case length packet it can generate,
 		 * otherwise apply backpressure by stopping reads.
 		 */
-		if (buffer_check_alloc(&iqueue, sizeof(buf)) &&
-		    buffer_check_alloc(&oqueue, MAX_MSG_LENGTH))
+		if ((r = sshbuf_check_reserve(iqueue, sizeof(buf))) == 0 &&
+		    (r = sshbuf_check_reserve(oqueue, MAX_MSG_LENGTH)) == 0)
 			FD_SET(in, rset);
+		else if (r != SSH_ERR_NO_BUFFER_SPACE)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
-		olen = buffer_len(&oqueue);
+		olen = sshbuf_len(oqueue);
 		if (olen > 0)
 			FD_SET(out, wset);
 
@@ -338,18 +361,20 @@ main(int argc, char **argv)
 			} else if (len < 0) {
 				error("read: %s", strerror(errno));
 				cleanup_exit(1);
-			} else {
-				buffer_append(&iqueue, buf, len);
+			} else if ((r = sshbuf_put(iqueue, buf, len)) != 0) {
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
 			}
 		}
 		/* send oqueue to stdout */
 		if (FD_ISSET(out, wset)) {
-			len = write(out, buffer_ptr(&oqueue), olen);
+			len = write(out, sshbuf_ptr(oqueue), olen);
 			if (len < 0) {
 				error("write: %s", strerror(errno));
 				cleanup_exit(1);
-			} else {
-				buffer_consume(&oqueue, len);
+			} else if ((r = sshbuf_consume(oqueue, len)) != 0) {
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
 			}
 		}
 
@@ -358,8 +383,10 @@ main(int argc, char **argv)
 		 * into the output buffer, otherwise stop processing input
 		 * and let the output queue drain.
 		 */
-		if (buffer_check_alloc(&oqueue, MAX_MSG_LENGTH))
+		if ((r = sshbuf_check_reserve(oqueue, MAX_MSG_LENGTH)) == 0)
 			process();
+		else if (r != SSH_ERR_NO_BUFFER_SPACE)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 }
 #else /* ENABLE_PKCS11 */

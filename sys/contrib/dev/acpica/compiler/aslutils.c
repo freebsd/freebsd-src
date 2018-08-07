@@ -238,6 +238,97 @@ UtQueryForOverwrite (
 
 /*******************************************************************************
  *
+ * FUNCTION:    UtNodeIsDescendantOf
+ *
+ * PARAMETERS:  Node1                   - Child node
+ *              Node2                   - Possible parent node
+ *
+ * RETURN:      Boolean
+ *
+ * DESCRIPTION: Returns TRUE if Node1 is a descendant of Node2. Otherwise,
+ *              return FALSE. Note, we assume a NULL Node2 element to be the
+ *              topmost (root) scope. All nodes are descendants of the root.
+ *              Note: Nodes at the same level (siblings) are not considered
+ *              descendants.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+UtNodeIsDescendantOf (
+    ACPI_NAMESPACE_NODE     *Node1,
+    ACPI_NAMESPACE_NODE     *Node2)
+{
+
+    if (Node1 == Node2)
+    {
+        return (FALSE);
+    }
+
+    if (!Node2)
+    {
+        return (TRUE); /* All nodes descend from the root */
+    }
+
+    /* Walk upward until the root is reached or parent is found */
+
+    while (Node1)
+    {
+        if (Node1 == Node2)
+        {
+            return (TRUE);
+        }
+
+        Node1 = Node1->Parent;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtGetParentMethod
+ *
+ * PARAMETERS:  Node                    - Namespace node for any object
+ *
+ * RETURN:      Namespace node for the parent method
+ *              NULL - object is not within a method
+ *
+ * DESCRIPTION: Find the parent (owning) method node for a namespace object
+ *
+ ******************************************************************************/
+
+void *
+UtGetParentMethod (
+    ACPI_NAMESPACE_NODE     *Node)
+{
+    ACPI_NAMESPACE_NODE     *ParentNode;
+
+
+    if (!Node)
+    {
+        return (NULL);
+    }
+
+    /* Walk upward until a method is found, or the root is reached */
+
+    ParentNode = Node->Parent;
+    while (ParentNode)
+    {
+        if (ParentNode->Type == ACPI_TYPE_METHOD)
+        {
+            return (ParentNode);
+        }
+
+        ParentNode = ParentNode->Parent;
+    }
+
+    return (NULL); /* Object is not within a control method */
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    UtDisplaySupportedTables
  *
  * PARAMETERS:  None

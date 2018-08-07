@@ -270,8 +270,8 @@ dname_pkt_compare(sldns_buffer* pkt, uint8_t* d1, uint8_t* d2)
 	return 0;
 }
 
-hashvalue_t 
-dname_query_hash(uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_query_hash(uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;
@@ -294,8 +294,8 @@ dname_query_hash(uint8_t* dname, hashvalue_t h)
 	return h;
 }
 
-hashvalue_t 
-dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;
@@ -521,6 +521,29 @@ dname_lab_cmp(uint8_t* d1, int labs1, uint8_t* d2, int labs2, int* mlabs)
 			return -1;
 	}
 	return lastdiff;
+}
+
+int
+dname_lab_startswith(uint8_t* label, char* prefix, char** endptr)
+{
+	size_t plen = strlen(prefix);
+	size_t orig_plen = plen;
+	size_t lablen = (size_t)*label;
+	if(plen > lablen)
+		return 0;
+	label++;
+	while(plen--) {
+		if(*prefix != tolower((unsigned char)*label)) {
+			return 0;
+		}
+		prefix++; label++;
+	}
+	if(orig_plen < lablen)
+		*endptr = (char *)label;
+	else
+		/* prefix length == label length */
+		*endptr = NULL;
+	return 1;
 }
 
 int 

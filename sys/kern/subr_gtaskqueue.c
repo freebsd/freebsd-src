@@ -53,6 +53,7 @@ static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
 
 TASKQGROUP_DEFINE(softirq, mp_ncpus, 1);
+TASKQGROUP_DEFINE(config, 1, 1);
 
 struct gtaskqueue_busy {
 	struct gtask	*tb_running;
@@ -560,7 +561,7 @@ struct taskqgroup_cpu {
 struct taskqgroup {
 	struct taskqgroup_cpu tqg_queue[MAXCPU];
 	struct mtx	tqg_lock;
-	char *		tqg_name;
+	const char *	tqg_name;
 	int		tqg_adjusting;
 	int		tqg_stride;
 	int		tqg_cnt;
@@ -662,7 +663,7 @@ SYSINIT(tqg_record_smp_started, SI_SUB_SMP, SI_ORDER_FOURTH,
 
 void
 taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
-    void *uniq, int irq, char *name)
+    void *uniq, int irq, const char *name)
 {
 	cpuset_t mask;
 	int qid, error;
@@ -719,7 +720,7 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 
 int
 taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
-	void *uniq, int cpu, int irq, char *name)
+	void *uniq, int cpu, int irq, const char *name)
 {
 	cpuset_t mask;
 	int i, qid, error;
@@ -960,7 +961,7 @@ taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 }
 
 struct taskqgroup *
-taskqgroup_create(char *name)
+taskqgroup_create(const char *name)
 {
 	struct taskqgroup *qgroup;
 
@@ -976,4 +977,19 @@ void
 taskqgroup_destroy(struct taskqgroup *qgroup)
 {
 
+}
+
+void
+taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
+	const char *name)
+{
+
+	GROUPTASK_INIT(gtask, 0, fn, ctx);
+	taskqgroup_attach(qgroup_config, gtask, gtask, -1, name);
+}
+
+void
+taskqgroup_config_gtask_deinit(struct grouptask *gtask)
+{
+	taskqgroup_detach(qgroup_config, gtask);
 }

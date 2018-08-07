@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd June 14, 2018
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm
 .Op Fl N
 .Op Fl @ Ar offset
+.Op Fl A
 .Op Fl B Ar boot
 .Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
@@ -91,6 +92,8 @@ Build the filesystem at the specified offset in bytes in the device or file.
 A suffix s, k, m, g (lower or upper case)
 appended to the offset specifies that the
 number is in sectors, kilobytes, megabytes or gigabytes, respectively.
+.It Fl A
+Attempt to cluster align root directory, useful for SD card.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl C Ar create-size

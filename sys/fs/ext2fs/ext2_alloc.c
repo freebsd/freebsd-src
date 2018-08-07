@@ -1381,8 +1381,8 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	ibp = (char *)bp->b_data;
 	ino = (ino - 1) % fs->e2fs->e2fs_ipg;
 	if (isclr(ibp, ino)) {
-		printf("ino = %llu, fs = %s\n",
-		    (unsigned long long)ino, fs->e2fs_fsmnt);
+		printf("ino = %ju, fs = %s\n",
+		    ino, fs->e2fs_fsmnt);
 		if (fs->e2fs_ronly == 0)
 			panic("ext2_vfree: freeing free inode");
 	}

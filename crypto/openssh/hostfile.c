@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.68 2017/03/10 04:26:06 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.71 2017/05/31 09:15:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -251,7 +251,7 @@ record_hostkey(struct hostkey_foreach_line *l, void *_ctx)
 	    l->marker == MRK_NONE ? "" :
 	    (l->marker == MRK_CA ? "ca " : "revoked "),
 	    sshkey_type(l->key), l->path, l->linenum);
-	if ((tmp = reallocarray(hostkeys->entries,
+	if ((tmp = recallocarray(hostkeys->entries, hostkeys->num_entries,
 	    hostkeys->num_entries + 1, sizeof(*hostkeys->entries))) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	hostkeys->entries = tmp;
@@ -346,16 +346,11 @@ check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
 	HostStatus end_return = HOST_NEW;
 	int want_cert = sshkey_is_cert(k);
 	HostkeyMarker want_marker = want_cert ? MRK_CA : MRK_NONE;
-	int proto = (k ? k->type : keytype) == KEY_RSA1 ? 1 : 2;
 
 	if (found != NULL)
 		*found = NULL;
 
 	for (i = 0; i < hostkeys->num_entries; i++) {
-		if (proto == 1 && hostkeys->entries[i].key->type != KEY_RSA1)
-			continue;
-		if (proto == 2 && hostkeys->entries[i].key->type == KEY_RSA1)
-			continue;
 		if (hostkeys->entries[i].marker != want_marker)
 			continue;
 		if (k == NULL) {
@@ -486,13 +481,6 @@ host_delete(struct hostkey_foreach_line *l, void *_ctx)
 	if (l->status == HKF_STATUS_MATCHED) {
 		if (l->marker != MRK_NONE) {
 			/* Don't remove CA and revocation lines */
-			fprintf(ctx->out, "%s\n", l->line);
-			return 0;
-		}
-
-		/* XXX might need a knob for this later */
-		/* Don't remove RSA1 keys */
-		if (l->key->type == KEY_RSA1) {
 			fprintf(ctx->out, "%s\n", l->line);
 			return 0;
 		}
@@ -789,20 +777,7 @@ hostkeys_foreach(const char *path, hostkeys_foreach_fn *callback, void *ctx,
 				break;
 			}
 			if (!hostfile_read_key(&cp, &kbits, lineinfo.key)) {
-#ifdef WITH_SSH1
-				sshkey_free(lineinfo.key);
-				lineinfo.key = sshkey_new(KEY_RSA1);
-				if (lineinfo.key  == NULL) {
-					error("%s: sshkey_new fail", __func__);
-					r = SSH_ERR_ALLOC_FAIL;
-					break;
-				}
-				if (!hostfile_read_key(&cp, &kbits,
-				    lineinfo.key))
-					goto bad;
-#else
 				goto bad;
-#endif
 			}
 			lineinfo.keytype = lineinfo.key->type;
 			lineinfo.comment = cp;
@@ -817,12 +792,12 @@ hostkeys_foreach(const char *path, hostkeys_foreach_fn *callback, void *ctx,
 			lineinfo.keytype = sshkey_type_from_name(ktype);
 
 			/*
-			 * Assume RSA1 if the first component is a short
+			 * Assume legacy RSA1 if the first component is a short
 			 * decimal number.
 			 */
 			if (lineinfo.keytype == KEY_UNSPEC && l < 8 &&
 			    strspn(ktype, "0123456789") == l)
-				lineinfo.keytype = KEY_RSA1;
+				goto bad;
 
 			/*
 			 * Check that something other than whitespace follows

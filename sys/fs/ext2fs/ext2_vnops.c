@@ -90,6 +90,7 @@
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2_extattr.h>
+#include <fs/ext2fs/ext2_extents.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
@@ -1090,9 +1091,8 @@ abortit:
 					    "rename: mangled dir");
 				} else {
 					dirbuf->dotdot_ino = newparent;
-					ext2_dir_blk_csum_set_mem(ip,
-					    (char *)dirbuf,
-					    ip->i_e2fs->e2fs_bsize);
+					ext2_dirent_csum_set(ip,
+					    (struct ext2fs_direct_2 *)dirbuf);
 					(void)vn_rdwr(UIO_WRITE, fvp,
 					    (caddr_t)dirbuf,
 					    ip->i_e2fs->e2fs_bsize,
@@ -1283,14 +1283,6 @@ out:
 
 #endif /* UFS_ACL */
 
-static void
-ext2_init_dirent_tail(struct ext2fs_direct_tail *tp)
-{
-	memset(tp, 0, sizeof(struct ext2fs_direct_tail));
-	tp->e2dt_rec_len = sizeof(struct ext2fs_direct_tail);
-	tp->e2dt_reserved_ft = EXT2_FT_DIR_CSUM;
-}
-
 /*
  * Mkdir system call
  */
@@ -1399,7 +1391,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, DIRBLKSIZ));
 	}
 	memcpy(buf, &dirtemplate, sizeof(dirtemplate));
-	ext2_dir_blk_csum_set_mem(ip, buf, DIRBLKSIZ);
+	ext2_dirent_csum_set(ip, (struct ext2fs_direct_2 *)buf);
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)buf,
 	    DIRBLKSIZ, (off_t)0, UIO_SYSSPACE,
 	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,

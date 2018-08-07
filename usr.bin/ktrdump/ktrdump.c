@@ -203,7 +203,7 @@ main(int ac, char **av)
 	 * kvm_nlist() above uses kldsym(2) for native kernels, and that isn't
 	 * allowed in the sandbox.
 	 */
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
 	if (iflag) {

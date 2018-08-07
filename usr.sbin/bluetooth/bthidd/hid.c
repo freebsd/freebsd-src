@@ -50,6 +50,7 @@
 #include <usbhid.h>
 #include "bthid_config.h"
 #include "bthidd.h"
+#include "btuinput.h"
 #include "kbd.h"
 
 /*
@@ -280,6 +281,19 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 			break;
 
 		case HUP_CONSUMER:
+			if (hid_device->keyboard && s->srv->uinput) {
+				if (h.flags & HIO_VARIABLE) {
+					uinput_rep_cons(s->ukbd, usage, !!val);
+				} else {
+					if (s->consk > 0)
+						uinput_rep_cons(s->ukbd,
+						    s->consk, 0);
+					if (uinput_rep_cons(s->ukbd, val, 1)
+					    == 0)
+						s->consk = val;
+				}
+			}
+
 			if (!val)
 				break;
 
@@ -551,6 +565,14 @@ check_middle_button:
 			syslog(LOG_ERR, "Could not process mouse events from " \
 				"%s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
 				strerror(errno), errno);
+
+		if (hid_device->mouse && s->srv->uinput &&
+		    uinput_rep_mouse(s->umouse, mouse_x, mouse_y, mouse_z,
+					mouse_t, mouse_butt, s->obutt) < 0)
+			syslog(LOG_ERR, "Could not process mouse events from " \
+				"%s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
+				strerror(errno), errno);
+		s->obutt = mouse_butt;
 	}
 
 	return (0);

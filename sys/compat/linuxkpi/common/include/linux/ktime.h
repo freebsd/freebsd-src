@@ -86,6 +86,13 @@ ktime_add_ns(ktime_t kt, int64_t ns)
 }
 
 static inline ktime_t
+ktime_add_ms(ktime_t kt, int64_t ms)
+{
+
+	return (ktime_add_ns(kt, ms * NSEC_PER_MSEC));
+}
+
+static inline ktime_t
 ktime_sub_ns(ktime_t kt, int64_t ns)
 {
 	return (kt - ns);
@@ -127,6 +134,32 @@ ktime_add(ktime_t lhs, ktime_t rhs)
 	return (lhs + rhs);
 }
 
+static inline int
+ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	if (cmp1 > cmp2)
+		return (1);
+	else if (cmp1 < cmp2)
+		return (-1);
+	else
+		return (0);
+}
+
+static inline bool
+ktime_after(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	return (ktime_compare(cmp1, cmp2) > 0);
+}
+
+static inline bool
+ktime_before(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	return (ktime_compare(cmp1, cmp2) < 0);
+}
+
 static inline ktime_t
 timespec_to_ktime(struct timespec ts)
 {
@@ -140,6 +173,7 @@ timeval_to_ktime(struct timeval tv)
 }
 
 #define	ktime_to_timespec(kt)		ns_to_timespec(kt)
+#define	ktime_to_timespec64(kt)		ns_to_timespec(kt)
 #define	ktime_to_timeval(kt)		ns_to_timeval(kt)
 #define	ktime_to_ns(kt)			(kt)
 

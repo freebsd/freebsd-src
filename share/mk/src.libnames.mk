@@ -31,6 +31,7 @@ _PRIVATELIBS=	\
 _INTERNALLIBS=	\
 		amu \
 		bsnmptools \
+		c_nossp_pic \
 		cron \
 		elftc \
 		fifolog \
@@ -240,6 +241,9 @@ _DP_cap_pwd=	nv
 _DP_cap_random=	nv
 _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
+.if ${MK_OFED} != "no"
+_DP_pcap=	ibverbs mlx5
+.endif
 _DP_pjdlog=	util
 _DP_opie=	md
 _DP_usb=	pthread
@@ -471,6 +475,9 @@ LIBAMU?=	${LIBAMUDIR}/libamu.a
 LIBPMCSTATDIR=	${OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat.a
 
+LIBC_NOSSP_PICDIR=	${OBJTOP}/lib/libc
+LIBC_NOSSP_PIC?=	${LIBC_NOSSP_PICDIR}/libc_nossp_pic.a
+
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
 # Makefile.depend.  These are sorted by directory.
@@ -485,18 +492,18 @@ LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
 LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
 
 # OFED support
-LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/libcxgb4
-LIBIBCMDIR=	${OBJTOP}/contrib/ofed/libibcm
-LIBIBMADDIR=	${OBJTOP}/contrib/ofed/libibmad
-LIBIBNETDISCDIR=${OBJTOP}/contrib/ofed/libibnetdisc
-LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/libibumad
-LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/libibverbs
-LIBMLX4DIR=	${OBJTOP}/contrib/ofed/libmlx4
-LIBMLX5DIR=	${OBJTOP}/contrib/ofed/libmlx5
-LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/librdmacm
-LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/opensm/complib
-LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/opensm/libopensm
-LIBOSMVENDORDIR=${OBJTOP}/contrib/ofed/opensm/libvendor
+LIBCXGB4DIR=	${OBJTOP}/lib/ofed/libcxgb4
+LIBIBCMDIR=	${OBJTOP}/lib/ofed/libibcm
+LIBIBMADDIR=	${OBJTOP}/lib/ofed/libibmad
+LIBIBNETDISCDIR=${OBJTOP}/lib/ofed/libibnetdisc
+LIBIBUMADDIR=	${OBJTOP}/lib/ofed/libibumad
+LIBIBVERBSDIR=	${OBJTOP}/lib/ofed/libibverbs
+LIBMLX4DIR=	${OBJTOP}/lib/ofed/libmlx4
+LIBMLX5DIR=	${OBJTOP}/lib/ofed/libmlx5
+LIBRDMACMDIR=	${OBJTOP}/lib/ofed/librdmacm
+LIBOSMCOMPDIR=	${OBJTOP}/lib/ofed/complib
+LIBOPENSMDIR=	${OBJTOP}/lib/ofed/libopensm
+LIBOSMVENDORDIR=${OBJTOP}/lib/ofed/libvendor
 
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
 LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov

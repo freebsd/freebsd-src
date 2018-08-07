@@ -143,6 +143,12 @@ nvpair_t *nvpair_move_descriptor_array(const char *name, int *value, size_t nite
 nvpair_t *nvpair_move_number_array(const char *name, uint64_t *value, size_t nitems);
 nvpair_t *nvpair_move_string_array(const char *name, char **value, size_t nitems);
 
+int nvpair_append_bool_array(nvpair_t *nvp, const bool value);
+int nvpair_append_number_array(nvpair_t *nvp, const uint64_t value);
+int nvpair_append_string_array(nvpair_t *nvp, const char *value);
+int nvpair_append_nvlist_array(nvpair_t *nvp, const nvlist_t *value);
+int nvpair_append_descriptor_array(nvpair_t *nvp, const int value);
+
 bool			 nvpair_get_bool(const nvpair_t *nvp);
 uint64_t		 nvpair_get_number(const nvpair_t *nvp);
 const char		*nvpair_get_string(const nvpair_t *nvp);

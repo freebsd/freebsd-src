@@ -87,6 +87,7 @@ static int zpool_do_detach(int, char **);
 static int zpool_do_replace(int, char **);
 static int zpool_do_split(int, char **);
 
+static int zpool_do_initialize(int, char **);
 static int zpool_do_scrub(int, char **);
 
 static int zpool_do_import(int, char **);
@@ -136,6 +137,7 @@ typedef enum {
 	HELP_ONLINE,
 	HELP_REPLACE,
 	HELP_REMOVE,
+	HELP_INITIALIZE,
 	HELP_SCRUB,
 	HELP_STATUS,
 	HELP_UPGRADE,
@@ -187,6 +189,7 @@ static zpool_command_t command_table[] = {
 	{ "replace",	zpool_do_replace,	HELP_REPLACE		},
 	{ "split",	zpool_do_split,		HELP_SPLIT		},
 	{ NULL },
+	{ "initialize",	zpool_do_initialize,	HELP_INITIALIZE		},
 	{ "scrub",	zpool_do_scrub,		HELP_SCRUB		},
 	{ NULL },
 	{ "import",	zpool_do_import,	HELP_IMPORT		},
@@ -261,6 +264,8 @@ get_usage(zpool_help_t idx)
 		return (gettext("\tremove [-nps] <pool> <device> ...\n"));
 	case HELP_REOPEN:
 		return (gettext("\treopen <pool>\n"));
+	case HELP_INITIALIZE:
+		return (gettext("\tinitialize [-cs] <pool> [<device> ...]\n"));
 	case HELP_SCRUB:
 		return (gettext("\tscrub [-s | -p] <pool> ...\n"));
 	case HELP_STATUS:
@@ -1643,11 +1648,48 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	(void) nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_SCAN_STATS,
 	    (uint64_t **)&ps, &c);
 
-	if (ps && ps->pss_state == DSS_SCANNING &&
+	if (ps != NULL && ps->pss_state == DSS_SCANNING &&
 	    vs->vs_scan_processed != 0 && children == 0) {
 		(void) printf(gettext("  (%s)"),
 		    (ps->pss_func == POOL_SCAN_RESILVER) ?
 		    "resilvering" : "repairing");
+	}
+
+	if ((vs->vs_initialize_state == VDEV_INITIALIZE_ACTIVE ||
+	    vs->vs_initialize_state == VDEV_INITIALIZE_SUSPENDED ||
+	    vs->vs_initialize_state == VDEV_INITIALIZE_COMPLETE) &&
+	    !vs->vs_scan_removing) {
+		char zbuf[1024];
+		char tbuf[256];
+		struct tm zaction_ts;
+
+		time_t t = vs->vs_initialize_action_time;
+		int initialize_pct = 100;
+		if (vs->vs_initialize_state != VDEV_INITIALIZE_COMPLETE) {
+			initialize_pct = (vs->vs_initialize_bytes_done * 100 /
+			    (vs->vs_initialize_bytes_est + 1));
+		}
+
+		(void) localtime_r(&t, &zaction_ts);
+		(void) strftime(tbuf, sizeof (tbuf), "%c", &zaction_ts);
+
+		switch (vs->vs_initialize_state) {
+		case VDEV_INITIALIZE_SUSPENDED:
+			(void) snprintf(zbuf, sizeof (zbuf),
+			    ", suspended, started at %s", tbuf);
+			break;
+		case VDEV_INITIALIZE_ACTIVE:
+			(void) snprintf(zbuf, sizeof (zbuf),
+			    ", started at %s", tbuf);
+			break;
+		case VDEV_INITIALIZE_COMPLETE:
+			(void) snprintf(zbuf, sizeof (zbuf),
+			    ", completed at %s", tbuf);
+			break;
+		}
+
+		(void) printf(gettext("  (%d%% initialized%s)"),
+		    initialize_pct, zbuf);
 	}
 
 	(void) printf("\n");
@@ -4238,6 +4280,119 @@ zpool_do_scrub(int argc, char **argv)
 	return (for_each_pool(argc, argv, B_TRUE, NULL, scrub_callback, &cb));
 }
 
+static void
+zpool_collect_leaves(zpool_handle_t *zhp, nvlist_t *nvroot, nvlist_t *res)
+{
+	uint_t children = 0;
+	nvlist_t **child;
+	uint_t i;
+
+	(void) nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children);
+
+	if (children == 0) {
+		char *path = zpool_vdev_name(g_zfs, zhp, nvroot, B_FALSE);
+		fnvlist_add_boolean(res, path);
+		free(path);
+		return;
+	}
+
+	for (i = 0; i < children; i++) {
+		zpool_collect_leaves(zhp, child[i], res);
+	}
+}
+
+/*
+ * zpool initialize [-cs] <pool> [<vdev> ...]
+ * Initialize all unused blocks in the specified vdevs, or all vdevs in the pool
+ * if none specified.
+ *
+ *	-c	Cancel. Ends active initializing.
+ *	-s	Suspend. Initializing can then be restarted with no flags.
+ */
+int
+zpool_do_initialize(int argc, char **argv)
+{
+	int c;
+	char *poolname;
+	zpool_handle_t *zhp;
+	nvlist_t *vdevs;
+	int err = 0;
+
+	struct option long_options[] = {
+		{"cancel",	no_argument,		NULL, 'c'},
+		{"suspend",	no_argument,		NULL, 's'},
+		{0, 0, 0, 0}
+	};
+
+	pool_initialize_func_t cmd_type = POOL_INITIALIZE_DO;
+	while ((c = getopt_long(argc, argv, "cs", long_options, NULL)) != -1) {
+		switch (c) {
+		case 'c':
+			if (cmd_type != POOL_INITIALIZE_DO) {
+				(void) fprintf(stderr, gettext("-c cannot be "
+				    "combined with other options\n"));
+				usage(B_FALSE);
+			}
+			cmd_type = POOL_INITIALIZE_CANCEL;
+			break;
+		case 's':
+			if (cmd_type != POOL_INITIALIZE_DO) {
+				(void) fprintf(stderr, gettext("-s cannot be "
+				    "combined with other options\n"));
+				usage(B_FALSE);
+			}
+			cmd_type = POOL_INITIALIZE_SUSPEND;
+			break;
+		case '?':
+			if (optopt != 0) {
+				(void) fprintf(stderr,
+				    gettext("invalid option '%c'\n"), optopt);
+			} else {
+				(void) fprintf(stderr,
+				    gettext("invalid option '%s'\n"),
+				    argv[optind - 1]);
+			}
+			usage(B_FALSE);
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc < 1) {
+		(void) fprintf(stderr, gettext("missing pool name argument\n"));
+		usage(B_FALSE);
+		return (-1);
+	}
+
+	poolname = argv[0];
+	zhp = zpool_open(g_zfs, poolname);
+	if (zhp == NULL)
+		return (-1);
+
+	vdevs = fnvlist_alloc();
+	if (argc == 1) {
+		/* no individual leaf vdevs specified, so add them all */
+		nvlist_t *config = zpool_get_config(zhp, NULL);
+		nvlist_t *nvroot = fnvlist_lookup_nvlist(config,
+		    ZPOOL_CONFIG_VDEV_TREE);
+		zpool_collect_leaves(zhp, nvroot, vdevs);
+	} else {
+		int i;
+		for (i = 1; i < argc; i++) {
+			fnvlist_add_boolean(vdevs, argv[i]);
+		}
+	}
+
+	err = zpool_initialize(zhp, cmd_type, vdevs);
+
+	fnvlist_free(vdevs);
+	zpool_close(zhp);
+
+	return (err);
+}
+
 typedef struct status_cbdata {
 	int		cb_count;
 	boolean_t	cb_allpools;
@@ -4254,11 +4409,13 @@ static void
 print_scan_status(pool_scan_stat_t *ps)
 {
 	time_t start, end, pause;
-	uint64_t elapsed, mins_left, hours_left;
-	uint64_t pass_exam, examined, total;
-	uint_t rate;
+	uint64_t total_secs_left;
+	uint64_t elapsed, secs_left, mins_left, hours_left, days_left;
+	uint64_t pass_scanned, scanned, pass_issued, issued, total;
+	uint_t scan_rate, issue_rate;
 	double fraction_done;
-	char processed_buf[7], examined_buf[7], total_buf[7], rate_buf[7];
+	char processed_buf[7], scanned_buf[7], issued_buf[7], total_buf[7];
+	char srate_buf[7], irate_buf[7];
 
 	(void) printf(gettext("  scan: "));
 
@@ -4272,30 +4429,37 @@ print_scan_status(pool_scan_stat_t *ps)
 	start = ps->pss_start_time;
 	end = ps->pss_end_time;
 	pause = ps->pss_pass_scrub_pause;
+
 	zfs_nicenum(ps->pss_processed, processed_buf, sizeof (processed_buf));
 
 	assert(ps->pss_func == POOL_SCAN_SCRUB ||
 	    ps->pss_func == POOL_SCAN_RESILVER);
-	/*
-	 * Scan is finished or canceled.
-	 */
-	if (ps->pss_state == DSS_FINISHED) {
-		uint64_t minutes_taken = (end - start) / 60;
-		char *fmt = NULL;
 
+	/* Scan is finished or canceled. */
+	if (ps->pss_state == DSS_FINISHED) {
+		total_secs_left = end - start;
+		days_left = total_secs_left / 60 / 60 / 24;
+		hours_left = (total_secs_left / 60 / 60) % 24;
+		mins_left = (total_secs_left / 60) % 60;
+		secs_left = (total_secs_left % 60);
+		
 		if (ps->pss_func == POOL_SCAN_SCRUB) {
-			fmt = gettext("scrub repaired %s in %lluh%um with "
-			    "%llu errors on %s");
+			(void) printf(gettext("scrub repaired %s "
+                            "in %llu days %02llu:%02llu:%02llu "
+			    "with %llu errors on %s"), processed_buf,
+                            (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                            (u_longlong_t)mins_left, (u_longlong_t)secs_left,
+                            (u_longlong_t)ps->pss_errors, ctime(&end));
 		} else if (ps->pss_func == POOL_SCAN_RESILVER) {
-			fmt = gettext("resilvered %s in %lluh%um with "
-			    "%llu errors on %s");
+                       (void) printf(gettext("resilvered %s "
+                           "in %llu days %02llu:%02llu:%02llu "
+                           "with %llu errors on %s"), processed_buf,
+                           (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                           (u_longlong_t)mins_left, (u_longlong_t)secs_left,
+                           (u_longlong_t)ps->pss_errors, ctime(&end));
+
 		}
-		/* LINTED */
-		(void) printf(fmt, processed_buf,
-		    (u_longlong_t)(minutes_taken / 60),
-		    (uint_t)(minutes_taken % 60),
-		    (u_longlong_t)ps->pss_errors,
-		    ctime((time_t *)&end));
+
 		return;
 	} else if (ps->pss_state == DSS_CANCELED) {
 		if (ps->pss_func == POOL_SCAN_SCRUB) {
@@ -4310,19 +4474,15 @@ print_scan_status(pool_scan_stat_t *ps)
 
 	assert(ps->pss_state == DSS_SCANNING);
 
-	/*
-	 * Scan is in progress.
-	 */
+	/* Scan is in progress. Resilvers can't be paused. */
 	if (ps->pss_func == POOL_SCAN_SCRUB) {
 		if (pause == 0) {
 			(void) printf(gettext("scrub in progress since %s"),
 			    ctime(&start));
 		} else {
-			char buf[32];
-			struct tm *p = localtime(&pause);
-			(void) strftime(buf, sizeof (buf), "%a %b %e %T %Y", p);
-			(void) printf(gettext("scrub paused since %s\n"), buf);
-			(void) printf(gettext("\tscrub started on   %s"),
+			(void) printf(gettext("scrub paused since %s"),
+			    ctime(&pause));
+			(void) printf(gettext("\tscrub started on %s"),
 			    ctime(&start));
 		}
 	} else if (ps->pss_func == POOL_SCAN_RESILVER) {
@@ -4330,49 +4490,67 @@ print_scan_status(pool_scan_stat_t *ps)
 		    ctime(&start));
 	}
 
-	examined = ps->pss_examined ? ps->pss_examined : 1;
+	scanned = ps->pss_examined;
+	pass_scanned = ps->pss_pass_exam;
+	issued = ps->pss_issued;
+	pass_issued = ps->pss_pass_issued;
 	total = ps->pss_to_examine;
-	fraction_done = (double)examined / total;
 
-	/* elapsed time for this pass */
+	/* we are only done with a block once we have issued the IO for it */
+	fraction_done = (double)issued / total;
+
+	/* elapsed time for this pass, rounding up to 1 if it's 0 */
 	elapsed = time(NULL) - ps->pss_pass_start;
 	elapsed -= ps->pss_pass_scrub_spent_paused;
-	elapsed = elapsed ? elapsed : 1;
-	pass_exam = ps->pss_pass_exam ? ps->pss_pass_exam : 1;
-	rate = pass_exam / elapsed;
-	rate = rate ? rate : 1;
-	mins_left = ((total - examined) / rate) / 60;
-	hours_left = mins_left / 60;
+	elapsed = (elapsed != 0) ? elapsed : 1;
 
-	zfs_nicenum(examined, examined_buf, sizeof (examined_buf));
+	scan_rate = pass_scanned / elapsed;
+	issue_rate = pass_issued / elapsed;
+	total_secs_left = (issue_rate != 0) ?
+	    ((total - issued) / issue_rate) : UINT64_MAX;
+
+	days_left = total_secs_left / 60 / 60 / 24;
+	hours_left = (total_secs_left / 60 / 60) % 24;
+	mins_left = (total_secs_left / 60) % 60;
+	secs_left = (total_secs_left % 60);
+
+	/* format all of the numbers we will be reporting */
+	zfs_nicenum(scanned, scanned_buf, sizeof (scanned_buf));
+	zfs_nicenum(issued, issued_buf, sizeof (issued_buf));
 	zfs_nicenum(total, total_buf, sizeof (total_buf));
+	zfs_nicenum(scan_rate, srate_buf, sizeof (srate_buf));
+	zfs_nicenum(issue_rate, irate_buf, sizeof (irate_buf));
 
-	/*
-	 * do not print estimated time if hours_left is more than 30 days
-	 * or we have a paused scrub
-	 */
+	/* doo not print estimated time if we have a paused scrub */
 	if (pause == 0) {
-		zfs_nicenum(rate, rate_buf, sizeof (rate_buf));
-		(void) printf(gettext("\t%s scanned out of %s at %s/s"),
-		    examined_buf, total_buf, rate_buf);
-		if (hours_left < (30 * 24)) {
-			(void) printf(gettext(", %lluh%um to go\n"),
-			    (u_longlong_t)hours_left, (uint_t)(mins_left % 60));
-		} else {
-			(void) printf(gettext(
-			    ", (scan is slow, no estimated time)\n"));
-		}
+		(void) printf(gettext("\t%s scanned at %s/s, "
+		    "%s issued at %s/s, %s total\n"),
+		    scanned_buf, srate_buf, issued_buf, irate_buf, total_buf);
 	} else {
-		(void) printf(gettext("\t%s scanned out of %s\n"),
-		    examined_buf, total_buf);
+		(void) printf(gettext("\t%s scanned, %s issued, %s total\n"),
+                    scanned_buf, issued_buf, total_buf);
 	}
 
 	if (ps->pss_func == POOL_SCAN_RESILVER) {
-		(void) printf(gettext("        %s resilvered, %.2f%% done\n"),
+		(void) printf(gettext("\t%s resilvered, %.2f%% done"),
 		    processed_buf, 100 * fraction_done);
 	} else if (ps->pss_func == POOL_SCAN_SCRUB) {
-		(void) printf(gettext("        %s repaired, %.2f%% done\n"),
+		(void) printf(gettext("\t%s repaired, %.2f%% done"),
 		    processed_buf, 100 * fraction_done);
+	}
+
+	if (pause == 0) {
+		if (issue_rate >= 10 * 1024 * 1024) {
+			(void) printf(gettext(", %llu days "
+                            "%02llu:%02llu:%02llu to go\n"),
+                            (u_longlong_t)days_left, (u_longlong_t)hours_left,
+                            (u_longlong_t)mins_left, (u_longlong_t)secs_left);
+		} else {
+			(void) printf(gettext(", no estimated "
+                            "completion time\n"));
+		}
+	} else {
+		(void) printf(gettext("\n"));
 	}
 }
 

@@ -108,7 +108,7 @@ txn_body_lock(void *baton, trail_t *trail)
   SVN_ERR(svn_fs_base__get_path_kind(&kind, args->path, trail, trail->pool));
 
   /* Until we implement directory locks someday, we only allow locks
-     on files or non-existent paths. */
+     on files. */
   if (kind == svn_node_dir)
     return SVN_FS__ERR_NOT_FILE(trail->fs, args->path);
 

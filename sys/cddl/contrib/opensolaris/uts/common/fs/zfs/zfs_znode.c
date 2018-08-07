@@ -1691,7 +1691,8 @@ zfs_trunc(znode_t *zp, uint64_t end)
 		return (0);
 	}
 
-	error = dmu_free_long_range(zfsvfs->z_os, zp->z_id, end,  -1);
+	error = dmu_free_long_range(zfsvfs->z_os, zp->z_id, end,
+	    DMU_OBJECT_END);
 	if (error) {
 		zfs_range_unlock(rl);
 		return (error);
@@ -2101,6 +2102,17 @@ zfs_obj_to_path_impl(objset_t *osp, uint64_t obj, sa_handle_t *hdl,
 
 	*path = '\0';
 	sa_hdl = hdl;
+
+	uint64_t deleteq_obj;
+	VERIFY0(zap_lookup(osp, MASTER_NODE_OBJ,
+	    ZFS_UNLINKED_SET, sizeof (uint64_t), 1, &deleteq_obj));
+	error = zap_lookup_int(osp, deleteq_obj, obj);
+	if (error == 0) {
+		return (ESTALE);
+	} else if (error != ENOENT) {
+		return (error);
+	}
+	error = 0;
 
 	for (;;) {
 		uint64_t pobj;

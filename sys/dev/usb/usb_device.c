@@ -118,7 +118,7 @@ static void	usb_cdev_free(struct usb_device *);
 #ifdef	USB_TEMPLATE
 int	usb_template = USB_TEMPLATE;
 #else
-int	usb_template;
+int	usb_template = -1;
 #endif
 
 SYSCTL_PROC(_hw_usb, OID_AUTO, template,

@@ -124,7 +124,9 @@ enum tokens {
 	TOK_JAIL,
 	TOK_IN,
 	TOK_LIMIT,
+	TOK_SETLIMIT,
 	TOK_KEEPSTATE,
+	TOK_RECORDSTATE,
 	TOK_LAYER2,
 	TOK_OUT,
 	TOK_DIVERTED,
@@ -294,6 +296,8 @@ enum tokens {
 	TOK_PREFIXLEN,
 
 	TOK_TCPSETMSS,
+
+	TOK_SKIPACTION,
 };
 
 /*
@@ -384,6 +388,7 @@ void ipfw_nat64lsn_handler(int ac, char *av[]);
 void ipfw_nat64stl_handler(int ac, char *av[]);
 void ipfw_nptv6_handler(int ac, char *av[]);
 int ipfw_check_object_name(const char *name);
+int ipfw_check_nat64prefix(const struct in6_addr *prefix, int length);
 
 #ifdef PF
 /* altq.c */

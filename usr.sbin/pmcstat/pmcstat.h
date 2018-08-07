@@ -37,7 +37,6 @@
 
 #include <libpmcstat.h>
 
-#define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0
 #define	DEFAULT_DISPLAY_HEIGHT		256		/* file virtual height */
 #define	DEFAULT_DISPLAY_WIDTH		1024		/* file virtual width */
@@ -88,5 +87,4 @@ void	pmcstat_topexit(void);
 
 void pmcstat_log_shutdown_logging(void);
 void pmcstat_log_initialize_logging(void);
-
 #endif	/* _PMCSTAT_H_ */

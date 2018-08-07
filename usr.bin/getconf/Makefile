@@ -4,11 +4,12 @@
 
 PROG=	getconf
 
-SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c
+SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c \
+	unsigned_limits.c
 CFLAGS+= -I${.CURDIR}
 CLEANFILES+=	confstr.c limits.c pathconf.c progenv.c sysconf.c \
 		confstr.names limits.names pathconf.names sysconf.names \
-		conflicting.names unique.names
+		conflicting.names unique.names unsigned_limits.names
 
 .SUFFIXES: .gperf .names
 .PHONY: conflicts

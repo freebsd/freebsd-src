@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015  Peter Grehan <grehan@freebsd.org>
  * All rights reserved.
  *
@@ -373,7 +375,7 @@ fwctl_request(uint32_t value)
 		/* Verify size */
 		if (value < 12) {
 			printf("msg size error");
-			exit(1);
+			exit(4);
 		}
 		rinfo.req_size = value;
 		rinfo.req_count = 1;

@@ -76,6 +76,7 @@ int	kern_adjtime(struct thread *td, struct timeval *delta,
 int	kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 	    enum uio_seg pathseg, char **pathbuf, int create, int dirfd);
 int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
+int	kern_break(struct thread *td, uintptr_t *addr);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
 	    size_t ncmds);
 int	kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights);

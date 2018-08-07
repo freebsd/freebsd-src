@@ -31,7 +31,7 @@ if [ `uname -m` == powerpc ]; then
 	if [ "$platform" == ps3 -o "$platform" == powernv ]; then
 		rootpart=$(awk '{ if($2 == "/") printf("%s:%s\n", $3, $1); }' $PATH_FSTAB)
 		mkdir -p $BSDINSTALL_CHROOT/boot/etc/
-		echo FreeBSD=\'/kernel/kernel vfs.root.mountfrom=${rootpart}\' > $BSDINSTALL_CHROOT/boot/etc/kboot.conf
+		echo FreeBSD=\'/kernel/kernel kernelname=/boot/kernel/kernel vfs.root.mountfrom=${rootpart}\' > $BSDINSTALL_CHROOT/boot/etc/kboot.conf
 	fi
 fi
 

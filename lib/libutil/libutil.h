@@ -155,6 +155,7 @@ int	pw_edit(int _notsetuid);
 int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
 int	pw_init(const char *_dir, const char *_master);
+void	pw_initpwd(struct passwd *_pw);
 char	*pw_make(const struct passwd *_pw);
 char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);

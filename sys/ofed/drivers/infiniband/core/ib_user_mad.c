@@ -33,9 +33,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define pr_fmt(fmt) "user_mad: " fmt
 
@@ -130,7 +131,7 @@ struct ib_umad_packet {
 
 static struct class *umad_class;
 
-static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
+#define	base_dev MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE)
 
 static DEFINE_SPINLOCK(port_lock);
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);

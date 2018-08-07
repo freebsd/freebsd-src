@@ -40,6 +40,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current ports committers go here. Try to keep things sorted.
 
+"0mp" [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2018/06/16"]
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
@@ -55,6 +56,7 @@ amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
+arrowd [label="Gleb Popov\narrowd@FreeBSD.org\n2018/05/18"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 ashish [label="Ashish SHUKLA\nashish@FreeBSD.org\n2010/06/10"]
 avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
@@ -122,6 +124,7 @@ gordon [label="Gordon Tetlow\ngordon@FreeBSD.org\n2014/10/14"]
 grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
+hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2004/04/10"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
@@ -130,6 +133,7 @@ jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
+jhixson [label="John Hixson\njhixson@FreeBSD.org\n2018/07/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmd [label="Johannes M. Dieterich\njmd@FreeBSD.org\n2017/01/09"]
@@ -141,6 +145,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jrm [label="Joseph R. Mingrone\njrm@FreeBSD.org\n2016/09/17"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
+jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
@@ -176,6 +181,7 @@ markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
+meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
@@ -204,6 +210,7 @@ pclin [label="Po-Chien Lin\npclin@FreeBSD.org\n2013/02/11"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
+pi [label="Kurt Jaeger\npi@FreeBSD.org\n2014/03/14"]
 pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
@@ -221,6 +228,7 @@ sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n2014/09/14"]
 sbz [label="Sofian Brabez\nsbz@FreeBSD.org\n2011/03/14"]
 scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
+seanc [label="Sean Chittenden\nseanc@FreeBSD.org\n2002/08/15"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
@@ -283,9 +291,11 @@ ahze -> shaun
 ahze -> tmclaugh
 
 amdmi3 -> jrm
+amdmi3 -> arrowd
 
 antoine -> dumbbell
 
+araujo -> jhixson
 araujo -> lippe
 araujo -> pclin
 araujo -> pgollucci
@@ -349,6 +359,7 @@ cs -> kami
 culot -> danilo
 culot -> jase
 culot -> marino
+culot -> pi
 culot -> wg
 
 db -> tj
@@ -435,6 +446,8 @@ glarkin -> rm
 glewis -> hq
 glewis -> jkim
 
+hrs -> meta
+
 ijliao -> leeym
 
 imp -> dteske
@@ -448,6 +461,7 @@ itetcu -> sylvio
 jadawin -> bapt
 jadawin -> flo
 jadawin -> olivier
+jadawin -> pi
 jadawin -> riggs
 jadawin -> sbz
 jadawin -> wen
@@ -459,6 +473,8 @@ jrm -> jwb
 
 junovitch -> tz
 
+kmoore -> jhixson
+
 knu -> daichi
 knu -> maho
 knu -> nobutaka
@@ -469,6 +485,7 @@ koobs -> kami
 koobs -> woodsb02
 koobs -> xmj
 
+krion -> "0mp"
 krion -> brooks
 krion -> miwi
 krion -> novel
@@ -488,6 +505,8 @@ leeym -> clsung
 ler -> leres
 
 lifanov -> ultima
+
+linimon -> hrs
 
 lioux -> pat
 
@@ -512,11 +531,13 @@ makc -> bf
 makc -> jhale
 makc -> rakuco
 
+mat -> "0mp"
 mat -> bmah
 mat -> dteske
 mat -> dvl
 mat -> gordon
 mat -> mmokhi
+mat -> seanc
 mat -> tcberner
 mat -> thierry
 mat -> tobik
@@ -539,7 +560,9 @@ miwi -> dhn
 miwi -> farrokhi
 miwi -> fluffy
 miwi -> gahr
+miwi -> jhixson
 miwi -> joneum
+miwi -> jsm
 miwi -> kmoore
 miwi -> lme
 miwi -> makc
@@ -594,6 +617,7 @@ pgollucci -> swills
 
 philip -> koitsu
 
+pi -> meta
 pi -> tz
 
 rafan -> chinsan
@@ -644,12 +668,14 @@ swills -> dch
 swills -> feld
 swills -> jmd
 swills -> jrm
+swills -> jsm
 swills -> mfechner
 swills -> milki
 swills -> pclin
 swills -> rezny
 swills -> robak
 swills -> rpaulo
+swills -> seanc
 swills -> tz
 swills -> xmj
 
@@ -673,6 +699,7 @@ tcberner -> adridg
 tcberner -> joneum
 tcberner -> yuri
 tcberner -> fernape
+tcberner -> arrowd
 
 thierry -> jadawin
 thierry -> riggs

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
@@ -41,6 +41,7 @@
 #include <sys/zil.h>
 #include <sys/vdev_impl.h>
 #include <sys/vdev_file.h>
+#include <sys/vdev_initialize.h>
 #include <sys/metaslab.h>
 #include <sys/uberblock_impl.h>
 #include <sys/txg.h>
@@ -252,7 +253,7 @@ int spa_mode_global;
  * Everything except dprintf, spa, and indirect_remap is on by default
  * in debug builds.
  */
-int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA | ZFS_DEBUG_INDIRECT_REMAP);
+int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_INDIRECT_REMAP);
 #else
 int zfs_flags = 0;
 #endif
@@ -433,6 +434,8 @@ uint64_t spa_min_slop = 128 * 1024 * 1024;
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, spa_min_slop, CTLFLAG_RWTUN,
     &spa_min_slop, 0,
     "Minimal value of reserved space");
+
+int spa_allocators = 4;
 
 /*PRINTFLIKE2*/
 void
@@ -705,7 +708,6 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_init(&spa->spa_scrub_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_suspend_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_vdev_top_lock, NULL, MUTEX_DEFAULT, NULL);
-	mutex_init(&spa->spa_alloc_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_evicting_os_cv, NULL, CV_DEFAULT, NULL);
@@ -779,8 +781,16 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		spa_active_count++;
 	}
 
-	avl_create(&spa->spa_alloc_tree, zio_bookmark_compare,
-	    sizeof (zio_t), offsetof(zio_t, io_alloc_node));
+	spa->spa_alloc_count = spa_allocators;
+	spa->spa_alloc_locks = kmem_zalloc(spa->spa_alloc_count *
+	    sizeof (kmutex_t), KM_SLEEP);
+	spa->spa_alloc_trees = kmem_zalloc(spa->spa_alloc_count *
+	    sizeof (avl_tree_t), KM_SLEEP);
+	for (int i = 0; i < spa->spa_alloc_count; i++) {
+		mutex_init(&spa->spa_alloc_locks[i], NULL, MUTEX_DEFAULT, NULL);
+		avl_create(&spa->spa_alloc_trees[i], zio_bookmark_compare,
+		    sizeof (zio_t), offsetof(zio_t, io_alloc_node));
+	}
 
 	/*
 	 * Every pool starts with the default cachefile
@@ -811,8 +821,6 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		VERIFY(nvlist_alloc(&spa->spa_label_features, NV_UNIQUE_NAME,
 		    KM_SLEEP) == 0);
 	}
-
-	spa->spa_debug = ((zfs_flags & ZFS_DEBUG_SPA) != 0);
 
 	spa->spa_min_ashift = INT_MAX;
 	spa->spa_max_ashift = 0;
@@ -860,7 +868,15 @@ spa_remove(spa_t *spa)
 		kmem_free(dp, sizeof (spa_config_dirent_t));
 	}
 
-	avl_destroy(&spa->spa_alloc_tree);
+	for (int i = 0; i < spa->spa_alloc_count; i++) {
+		avl_destroy(&spa->spa_alloc_trees[i]);
+		mutex_destroy(&spa->spa_alloc_locks[i]);
+	}
+	kmem_free(spa->spa_alloc_locks, spa->spa_alloc_count *
+	    sizeof (kmutex_t));
+	kmem_free(spa->spa_alloc_trees, spa->spa_alloc_count *
+	    sizeof (avl_tree_t));
+
 	list_destroy(&spa->spa_config_list);
 
 	nvlist_free(spa->spa_label_features);
@@ -895,7 +911,6 @@ spa_remove(spa_t *spa)
 	cv_destroy(&spa->spa_scrub_io_cv);
 	cv_destroy(&spa->spa_suspend_cv);
 
-	mutex_destroy(&spa->spa_alloc_lock);
 	mutex_destroy(&spa->spa_async_lock);
 	mutex_destroy(&spa->spa_errlist_lock);
 	mutex_destroy(&spa->spa_errlog_lock);
@@ -1299,6 +1314,12 @@ spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error, char *tag)
 
 	if (vd != NULL) {
 		ASSERT(!vd->vdev_detached || vd->vdev_dtl_sm == NULL);
+		if (vd->vdev_ops->vdev_op_leaf) {
+			mutex_enter(&vd->vdev_initialize_lock);
+			vdev_initialize_stop(vd, VDEV_INITIALIZE_CANCELED);
+			mutex_exit(&vd->vdev_initialize_lock);
+		}
+
 		spa_config_enter(spa, SCL_ALL, spa, RW_WRITER);
 		vdev_free(vd);
 		spa_config_exit(spa, SCL_ALL, spa);
@@ -1862,9 +1883,12 @@ spa_update_dspace(spa_t *spa)
 		 * allocated twice (on the old device and the new
 		 * device).
 		 */
-		vdev_t *vd = spa->spa_vdev_removal->svr_vdev;
+		spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
+		vdev_t *vd =
+		    vdev_lookup_top(spa, spa->spa_vdev_removal->svr_vdev_id);
 		spa->spa_dspace -= spa_deflate(spa) ?
 		    vd->vdev_stat.vs_dspace : vd->vdev_stat.vs_space;
+		spa_config_exit(spa, SCL_VDEV, FTAG);
 	}
 }
 
@@ -2009,6 +2033,12 @@ bp_get_dsize(spa_t *spa, const blkptr_t *bp)
 	return (dsize);
 }
 
+uint64_t
+spa_dirty_data(spa_t *spa)
+{
+	return (spa->spa_dsl_pool->dp_dirty_total);
+}
+
 /*
  * ==========================================================================
  * Initialization and Termination
@@ -2095,6 +2125,8 @@ spa_init(int mode)
 	zpool_feature_init();
 	spa_config_load();
 	l2arc_start();
+	scan_init();
+	dsl_scan_global_init();
 #ifndef illumos
 #ifdef _KERNEL
 	zfs_deadman_init();
@@ -2119,7 +2151,8 @@ spa_fini(void)
 	range_tree_fini();
 	unique_fini();
 	refcount_fini();
-
+	scan_fini();
+	
 	avl_destroy(&spa_namespace_avl);
 	avl_destroy(&spa_spare_avl);
 	avl_destroy(&spa_l2cache_avl);
@@ -2220,6 +2253,7 @@ spa_scan_stat_init(spa_t *spa)
 		spa->spa_scan_pass_scrub_pause = 0;
 	spa->spa_scan_pass_scrub_spent_paused = 0;
 	spa->spa_scan_pass_exam = 0;
+	spa->spa_scan_pass_issued = 0;
 	vdev_scan_stat_init(spa->spa_root_vdev);
 }
 
@@ -2237,28 +2271,24 @@ spa_scan_get_stats(spa_t *spa, pool_scan_stat_t *ps)
 
 	/* data stored on disk */
 	ps->pss_func = scn->scn_phys.scn_func;
+	ps->pss_state = scn->scn_phys.scn_state;
 	ps->pss_start_time = scn->scn_phys.scn_start_time;
 	ps->pss_end_time = scn->scn_phys.scn_end_time;
 	ps->pss_to_examine = scn->scn_phys.scn_to_examine;
-	ps->pss_examined = scn->scn_phys.scn_examined;
 	ps->pss_to_process = scn->scn_phys.scn_to_process;
 	ps->pss_processed = scn->scn_phys.scn_processed;
 	ps->pss_errors = scn->scn_phys.scn_errors;
-	ps->pss_state = scn->scn_phys.scn_state;
-
+	ps->pss_examined = scn->scn_phys.scn_examined;
+	ps->pss_issued =
+		scn->scn_issued_before_pass + spa->spa_scan_pass_issued;
 	/* data not stored on disk */
 	ps->pss_pass_start = spa->spa_scan_pass_start;
 	ps->pss_pass_exam = spa->spa_scan_pass_exam;
+	ps->pss_pass_issued = spa->spa_scan_pass_issued;
 	ps->pss_pass_scrub_pause = spa->spa_scan_pass_scrub_pause;
 	ps->pss_pass_scrub_spent_paused = spa->spa_scan_pass_scrub_spent_paused;
 
 	return (0);
-}
-
-boolean_t
-spa_debug_enabled(spa_t *spa)
-{
-	return (spa->spa_debug);
 }
 
 int

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
@@ -1036,13 +1037,18 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
-	char cis0[128], cis1[128];
+	struct sbuf sb;
 
-	devctl_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
-	devctl_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
-	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
-	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
-	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);
+	sbuf_new(&sb, buf, buflen, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	sbuf_printf(&sb, "manufacturer=0x%04x product=0x%04x "
+	    "cisvendor=\"", sc->card.manufacturer, sc->card.product);
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[0]);
+	sbuf_printf(&sb, "\" cisproduct=\"");
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[1]);
+	sbuf_printf(&sb, "\" function_type=%d", pf->function);
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
 	return (0);
 }
 

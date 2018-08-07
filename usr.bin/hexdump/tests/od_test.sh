@@ -1,3 +1,4 @@
+#
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
 # Copyright 2018 (C) Yuri Pankov

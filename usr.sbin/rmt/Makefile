@@ -7,6 +7,6 @@ MAN=	rmt.8
 # called from /usr/src/etc/Makefile
 etc-rmt:
 	rm -f ${DESTDIR}/etc/rmt
-	ln -s ..${BINDIR}/rmt ${DESTDIR}/etc/rmt
+	${INSTALL_RSYMLINK} ..${BINDIR}/rmt ${DESTDIR}/etc/rmt
 
 .include <bsd.prog.mk>

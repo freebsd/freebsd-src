@@ -365,6 +365,8 @@ pmcstat_show_usage(void)
 	    "\t -F file\t write a system-wide callgraph (Kcachegrind format)"
 		" to \"file\"\n"
 	    "\t -G file\t write a system-wide callgraph to \"file\"\n"
+	    "\t -I\t\t don't resolve leaf function name, show address instead\n"
+	    "\t -L\t\t list all counters available on this host\n"
 	    "\t -M file\t print executable/gmon file map to \"file\"\n"
 	    "\t -N\t\t (toggle) capture callchains\n"
 	    "\t -O file\t send log output to \"file\"\n"
@@ -372,6 +374,7 @@ pmcstat_show_usage(void)
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
+	    "\t -U \t\n merged user kernel stack capture\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
 	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
@@ -379,6 +382,7 @@ pmcstat_show_usage(void)
 	    "\t -e\t\t use wide history counter for gprof(1) output\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
+	    "\t -i lwp\t\t filter on thread id \"lwp\" in post-processing\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
 	    "\t -l secs\t set duration time\n"
 	    "\t -m file\t print sampled PCs to \"file\"\n"
@@ -390,6 +394,7 @@ pmcstat_show_usage(void)
 	    "\t -s spec\t allocate a system-wide counting PMC\n"
 	    "\t -t process-spec attach to running processes matching "
 		"\"process-spec\"\n"
+	    "\t -u spec \t provide short description of counters matching spec\n"
 	    "\t -v\t\t increase verbosity\n"
 	    "\t -w secs\t set printing time interval\n"
 	    "\t -z depth\t limit callchain display depth"
@@ -425,15 +430,17 @@ main(int argc, char **argv)
 	double interval;
 	double duration;
 	int option, npmc;
-	int c, check_driver_stats, current_sampling_count;
+	int c, check_driver_stats; 
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
-	int do_print, do_read;
+	int do_print, do_read, do_listcounters, do_descr;
+	int do_userspace;
 	size_t len;
 	int graphdepth;
 	int pipefd[2], rfd;
 	int use_cumulative_counts;
 	short cf, cb;
-	char *end, *tmp;
+	uint64_t current_sampling_count;
+	char *end, *tmp, *event;
 	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
 	struct pmc_driverstats ds_start, ds_end;
@@ -445,11 +452,14 @@ main(int argc, char **argv)
 	char buffer[PATH_MAX];
 
 	check_driver_stats      = 0;
-	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
+	current_sampling_count  = 0;
 	do_callchain		= 1;
+	do_descr                = 0;
 	do_descendants          = 0;
+	do_userspace            = 0;
 	do_logproccsw           = 0;
 	do_logprocexit          = 0;
+	do_listcounters         = 0;
 	use_cumulative_counts   = 0;
 	graphfilename		= "-";
 	args.pa_required	= 0;
@@ -478,6 +488,7 @@ main(int argc, char **argv)
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
+	event = NULL;
 	CPU_ZERO(&cpumask);
 
 	/* Default to using the running system kernel. */
@@ -500,7 +511,7 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:M:NO:P:R:S:TWa:c:def:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
 		switch (option) {
 		case 'a':	/* Annotate + callgraph */
 			args.pa_flags |= FLAG_DO_ANNOTATE;
@@ -541,6 +552,12 @@ main(int argc, char **argv)
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
 			break;
 
+		case 'E':	/* log process exit */
+			do_logprocexit = !do_logprocexit;
+			args.pa_required |= (FLAG_HAS_PROCESS_PMCS |
+			    FLAG_HAS_COUNTING_PMCS | FLAG_HAS_OUTPUT_LOGFILE);
+			break;
+
 		case 'e':	/* wide gprof metrics */
 			args.pa_flags |= FLAG_DO_WIDE_GPROF_HC;
 			break;
@@ -569,6 +586,14 @@ main(int argc, char **argv)
 			args.pa_plugin	= PMCSTAT_PL_GPROF;
 			break;
 
+		case 'I':
+			args.pa_flags |= FLAG_SKIP_TOP_FN_RES;
+			break;
+		case 'i':
+			args.pa_flags |= FLAG_FILTER_THREAD_ID;
+			args.pa_tid = strtol(optarg, &end, 0);
+			break;
+
 		case 'k':	/* pathname to the kernel */
 			free(args.pa_kernel);
 			args.pa_kernel = strdup(optarg);
@@ -576,6 +601,10 @@ main(int argc, char **argv)
 				errx(EX_SOFTWARE, "ERROR: Out of memory");
 			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
+			break;
+
+		case 'L':
+			do_listcounters = 1;
 			break;
 
 		case 'l':	/* time duration in seconds */
@@ -591,12 +620,6 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_DO_ANNOTATE;
 			args.pa_plugin = PMCSTAT_PL_ANNOTATE;
 			graphfilename  = optarg;
-			break;
-
-		case 'E':	/* log process exit */
-			do_logprocexit = !do_logprocexit;
-			args.pa_required |= (FLAG_HAS_PROCESS_PMCS |
-			    FLAG_HAS_COUNTING_PMCS | FLAG_HAS_OUTPUT_LOGFILE);
 			break;
 
 		case 'M':	/* mapfile */
@@ -645,7 +668,7 @@ main(int argc, char **argv)
 				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 
 			if (option == 'S' || option == 'P')
-				ev->ev_count = current_sampling_count;
+				ev->ev_count = current_sampling_count ? current_sampling_count : pmc_pmu_sample_rate_get(ev->ev_spec);
 			else
 				ev->ev_count = -1;
 
@@ -655,8 +678,11 @@ main(int argc, char **argv)
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
-			if (do_callchain)
+			if (do_callchain) {
 				ev->ev_flags |= PMC_F_CALLCHAIN;
+				if (do_userspace)
+					ev->ev_flags |= PMC_F_USERCALLCHAIN;
+			}
 			if (do_descendants)
 				ev->ev_flags |= PMC_F_DESCENDANTS;
 			if (do_logprocexit)
@@ -750,6 +776,14 @@ main(int argc, char **argv)
 				args.pa_printfile = stdout;
 			break;
 
+		case 'u':
+			do_descr = 1;
+			event = optarg;
+			break;
+		case 'U':	/* toggle user-space callchain capture */
+			do_userspace = !do_userspace;
+			args.pa_required |= FLAG_HAS_SAMPLING_PMCS;
+			break;
 		case 'v':	/* verbose */
 			args.pa_verbosity++;
 			break;
@@ -786,6 +820,16 @@ main(int argc, char **argv)
 			break;
 
 		}
+	if ((do_listcounters | do_descr) &&
+		pmc_pmu_enabled() == 0)
+			errx(EX_USAGE, "pmu features not supported on host or hwpmc not loaded");
+	if (do_listcounters) {
+		pmc_pmu_print_counters(NULL);
+	} else if (do_descr) {
+		pmc_pmu_print_counter_desc(event);
+	}
+	if (do_listcounters | do_descr)
+		exit(0);
 
 	args.pa_argc = (argc -= optind);
 	args.pa_argv = (argv += optind);
@@ -1085,7 +1129,8 @@ main(int argc, char **argv)
 
 	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 		if (pmc_allocate(ev->ev_spec, ev->ev_mode,
-		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid) < 0)
+			ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid,
+			ev->ev_count) < 0)
 			err(EX_OSERR,
 "ERROR: Cannot allocate %s-mode pmc with specification \"%s\"",
 			    PMC_IS_SYSTEM_MODE(ev->ev_mode) ?

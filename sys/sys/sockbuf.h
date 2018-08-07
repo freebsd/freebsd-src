@@ -139,9 +139,9 @@ int	sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
 int	sbappendaddr_nospacecheck_locked(struct sockbuf *sb,
 	    const struct sockaddr *asa, struct mbuf *m0, struct mbuf *control);
-int	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
+void	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
-int	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
+void	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
 void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
 void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
@@ -165,6 +165,10 @@ int	sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 struct mbuf *
 	sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff);
+struct mbuf *
+	sbsndptr_noadv(struct sockbuf *sb, u_int off, u_int *moff);
+void
+	sbsndptr_adv(struct sockbuf *sb, struct mbuf *mb, u_int len);
 struct mbuf *
 	sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff);
 int	sbwait(struct sockbuf *sb);

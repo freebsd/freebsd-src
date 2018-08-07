@@ -79,8 +79,6 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
-#define	DOS_FILESIZE_MAX	0xffffffff
-
 /*
  * Prototypes for MSDOSFS vnode operations
  */
@@ -178,7 +176,7 @@ msdosfs_create(struct vop_create_args *ap)
 	ndirent.de_FileSize = 0;
 	ndirent.de_pmp = pdep->de_pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	getnanotime(&ts);
+	vfs_timestamp(&ts);
 	DETIMES(&ndirent, &ts, &ts, &ts);
 	error = createde(&ndirent, pdep, &dep, cnp);
 	if (error)
@@ -216,7 +214,7 @@ msdosfs_close(struct vop_close_args *ap)
 
 	VI_LOCK(vp);
 	if (vp->v_usecount > 1) {
-		getnanotime(&ts);
+		vfs_timestamp(&ts);
 		DETIMES(dep, &ts, &ts, &ts);
 	}
 	VI_UNLOCK(vp);
@@ -266,7 +264,7 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 	u_long dirsperblk = pmp->pm_BytesPerSec / sizeof(struct direntry);
 	uint64_t fileid;
 
-	getnanotime(&ts);
+	vfs_timestamp(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
 	vap->va_fsid = dev2udev(pmp->pm_dev);
 	/*
@@ -291,7 +289,7 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	if (dep->de_Attributes & ATTR_READONLY)
 		mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
-	vap->va_mode = mode & 
+	vap->va_mode = mode &
 	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
 	vap->va_gid = pmp->pm_gid;
@@ -548,7 +546,7 @@ msdosfs_read(struct vop_read_args *ap)
 	 * The caller is supposed to ensure that
 	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
 	 * We don't need to check for large offsets as in ffs because
-	 * dep->de_FileSize <= DOS_FILESIZE_MAX < OFF_MAX, so large
+	 * dep->de_FileSize <= MSDOSFS_FILESIZE_MAX < OFF_MAX, so large
 	 * offsets cannot cause overflow even in theory.
 	 */
 
@@ -663,7 +661,7 @@ msdosfs_write(struct vop_write_args *ap)
 	 * The caller is supposed to ensure that
 	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
 	 */
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > MSDOSFS_FILESIZE_MAX)
 		return (EFBIG);
 
 	/*
@@ -1330,7 +1328,7 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	memset(&ndirent, 0, sizeof(ndirent));
 	ndirent.de_pmp = pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	getnanotime(&ts);
+	vfs_timestamp(&ts);
 	DETIMES(&ndirent, &ts, &ts, &ts);
 
 	/*

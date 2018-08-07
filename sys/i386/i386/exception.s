@@ -103,8 +103,6 @@ MCOUNT_LABEL(btrap)
 
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
-IDTVEC(dbg)
-	pushl $0; TRAP(T_TRCTRAP)
 IDTVEC(bpt)
 	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(dtrace_ret)
@@ -287,6 +285,41 @@ norm_ill:
 	jmp	alltraps
 #endif
 
+/*
+ * See comment in the handler for the kernel case T_TRCTRAP in trap.c.
+ * The exception handler must be ready to execute with wrong %cr3.
+ * We save original %cr3 in frame->tf_err, similarly to NMI and MCE
+ * handlers.
+ */
+IDTVEC(dbg)
+	pushl	$0
+	pushl	$T_TRCTRAP
+	PUSH_FRAME2
+	SET_KERNEL_SREGS
+	cld
+	movl	%cr3, %eax
+	movl	%eax, TF_ERR(%esp)
+	call	1f
+1:	popl	%eax
+	movl	(tramp_idleptd - 1b)(%eax), %eax
+	movl	%eax, %cr3
+	FAKE_MCOUNT(TF_EIP(%esp))
+	testl	$PSL_VM, TF_EFLAGS(%esp)
+	jnz	dbg_user
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
+	jz	calltrap
+dbg_user:
+	NMOVE_STACKS
+	movl	$handle_ibrs_entry,%eax
+	call	*%eax
+	pushl	%esp
+	movl	$trap,%eax
+	call	*%eax
+	add	$4, %esp
+	movl	$T_RESERVED, TF_TRAPNO(%esp)
+	MEXITCOUNT
+	jmp	doreti
+
 IDTVEC(mchk)
 	pushl	$0
 	pushl	$T_MCHK
@@ -306,6 +339,8 @@ nmi_mchk_common:
 	 * Do not switch to the thread kernel stack, otherwise we might
 	 * obliterate the previous context partially copied from the
 	 * trampoline stack.
+	 * Do not re-enable IBRS, there is no good place to store
+	 * previous state if we come from the kernel.
 	 */
 	movl	%cr3, %eax
 	movl	%eax, TF_ERR(%esp)
@@ -333,6 +368,8 @@ IDTVEC(int0x80_syscall)
 	SET_KERNEL_SREGS
 	cld
 	MOVE_STACKS
+	movl	$handle_ibrs_entry,%eax
+	call	*%eax
 	sti
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
@@ -469,11 +506,21 @@ doreti_exit:
 	je	doreti_iret_nmi
 	cmpl	$T_MCHK, TF_TRAPNO(%esp)
 	je	doreti_iret_nmi
-	testl	$SEL_RPL_MASK, TF_CS(%esp)
+	cmpl	$T_TRCTRAP, TF_TRAPNO(%esp)
+	je	doreti_iret_nmi
+	movl	$TF_SZ, %ecx
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	jz	1f			/* PCB_VM86CALL is not set */
+	addl	$VM86_STACK_SPACE, %ecx
+	jmp	2f
+1:	testl	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	doreti_popl_fs
+2:	movl	$handle_ibrs_exit,%eax
+	pushl	%ecx			/* preserve enough call-used regs */
+	call	*%eax
+	popl	%ecx
 	movl	%esp, %esi
 	movl	PCPU(TRAMPSTK), %edx
-	movl	$TF_SZ, %ecx
 	subl	%ecx, %edx
 	movl	%edx, %edi
 	rep; movsb

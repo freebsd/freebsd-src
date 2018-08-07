@@ -503,7 +503,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			}
 			set_chdir(bsdtar, arg);
 		} else {
-			if (*arg != '/' && (arg[0] != '@' || arg[1] != '/'))
+			if (*arg != '/')
 				do_chdir(bsdtar); /* Handle a deferred -C */
 			if (*arg == '@') {
 				if (append_archive_filename(bsdtar, a,

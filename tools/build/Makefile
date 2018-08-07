@@ -41,6 +41,13 @@ SYSINCS+=	stat.h
 SRCS+=		futimens.c utimensat.c
 .endif
 
+_WITH_EXPLICIT_BZERO!= grep -c explicit_bzero /usr/include/strings.h || true
+.if ${_WITH_EXPLICIT_BZERO} == 0
+.PATH: ${SRCTOP}/sys/libkern
+INCS+=		strings.h
+SRCS+=		explicit_bzero.c
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif
@@ -48,5 +55,8 @@ SRCS=		dummy.c
 .if defined(CROSS_BUILD_TESTING)
 SUBDIR=		cross-build
 .endif
+
+# Needed to build config (since it uses libnv)
+SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h
 
 .include <bsd.lib.mk>

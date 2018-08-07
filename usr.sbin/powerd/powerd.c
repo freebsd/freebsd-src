@@ -293,7 +293,7 @@ acline_init(void)
 		acline_mode = ac_sysctl;
 		if (vflag)
 			warnx("using sysctl for AC line status");
-#if __powerpc__
+#ifdef __powerpc__
 	} else if (sysctlnametomib(PMUAC, acline_mib, &acline_mib_len) == 0) {
 		acline_mode = ac_sysctl;
 		if (vflag)

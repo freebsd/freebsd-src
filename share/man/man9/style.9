@@ -404,8 +404,7 @@ When convention requires a
 make its name match the struct tag.
 Avoid typedefs ending in
 .Dq Li _t ,
-except as specified in Standard C or by
-.Tn POSIX .
+except as specified in Standard C or by POSIX.
 .Bd -literal
 /* Make the structure name match the typedef. */
 typedef	struct bar {
@@ -861,11 +860,25 @@ Whenever possible, code should be run through a code checker
 (e.g., various static analyzers or
 .Nm cc Fl Wall )
 and produce minimal warnings.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/src/tools/tools/editing/freebsd.el
+An Emacs plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.It Pa /usr/src/tools/tools/editing/freebsd.vim
+A Vim plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.El
 .Sh SEE ALSO
 .Xr indent 1 ,
 .Xr err 3 ,
 .Xr warn 3 ,
-.Xr style.Makefile 5
+.Xr style.Makefile 5 ,
+.Xr style.lua 9
 .Sh HISTORY
 This manual page is largely based on the
 .Pa src/admin/style/style

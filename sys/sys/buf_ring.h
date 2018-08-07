@@ -34,10 +34,6 @@
 
 #include <machine/cpu.h>
 
-#if defined(INVARIANTS) && !defined(DEBUG_BUFRING)
-#define DEBUG_BUFRING 1
-#endif
-
 #ifdef DEBUG_BUFRING
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -69,6 +65,12 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	uint32_t prod_head, prod_next, cons_tail;
 #ifdef DEBUG_BUFRING
 	int i;
+
+	/*
+	 * Note: It is possible to encounter an mbuf that was removed
+	 * via drbr_peek(), and then re-added via drbr_putback() and
+	 * trigger a spurious panic.
+	 */
 	for (i = br->br_cons_head; i != br->br_prod_head;
 	     i = ((i + 1) & br->br_cons_mask))
 		if(br->br_ring[i] == buf)

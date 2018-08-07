@@ -101,11 +101,13 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	if (filter->func != bpf_jit_accept_all)
-		bpf_jit_free(filter->func, filter->size);
 #ifdef _KERNEL
+	if (filter->func != bpf_jit_accept_all)
+		free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 #else
+	if (filter->func != bpf_jit_accept_all)
+		munmap(filter->func, filter->size);
 	free(filter);
 #endif
 }

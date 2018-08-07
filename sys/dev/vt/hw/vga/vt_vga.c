@@ -43,13 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 #include <dev/vt/hw/vga/vt_vga_reg.h>
 #include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
-
-#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
+#if defined(__amd64__) || defined(__i386__)
 #include <contrib/dev/acpica/include/acpi.h>
+#include <machine/md_var.h>
 #endif
 
 struct vga_softc {
@@ -67,6 +68,8 @@ struct vga_softc {
 	bus_space_read_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs)
 #define	MEM_WRITE1(sc, ofs, val) \
 	bus_space_write_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
+#define	MEM_WRITE2(sc, ofs, val) \
+	bus_space_write_2(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
 #define	REG_READ1(sc, reg) \
 	bus_space_read_1(sc->vga_reg_tag, sc->vga_reg_handle, reg)
 #define	REG_WRITE1(sc, reg, val) \
@@ -152,7 +155,7 @@ vga_setfg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 	sc->vga_curfg = color;
 }
 
@@ -167,7 +170,7 @@ vga_setbg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 
 	/*
 	 * Write 8 pixels using the background color to an off-screen
@@ -204,6 +207,7 @@ static const struct unicp437 cp437table[] = {
 	{ 0x0020, 0x20, 0x5e }, { 0x00a0, 0x20, 0x00 },
 	{ 0x00a1, 0xad, 0x00 }, { 0x00a2, 0x9b, 0x00 },
 	{ 0x00a3, 0x9c, 0x00 }, { 0x00a5, 0x9d, 0x00 },
+	{ 0x00a6, 0x7c, 0x00 },
 	{ 0x00a7, 0x15, 0x00 }, { 0x00aa, 0xa6, 0x00 },
 	{ 0x00ab, 0xae, 0x00 }, { 0x00ac, 0xaa, 0x00 },
 	{ 0x00b0, 0xf8, 0x00 }, { 0x00b1, 0xf1, 0x00 },
@@ -286,8 +290,8 @@ static const struct unicp437 cp437table[] = {
 	{ 0x2640, 0x0c, 0x00 }, { 0x2642, 0x0b, 0x00 },
 	{ 0x2660, 0x06, 0x00 }, { 0x2663, 0x05, 0x00 },
 	{ 0x2665, 0x03, 0x01 }, { 0x266a, 0x0d, 0x00 },
-	{ 0x266c, 0x0e, 0x00 }, { 0x27e8, 0x3c, 0x00 },
-	{ 0x27e9, 0x3e, 0x00 },
+	{ 0x266c, 0x0e, 0x00 }, { 0x2713, 0xfb, 0x00 },
+	{ 0x27e8, 0x3c, 0x00 }, { 0x27e9, 0x3e, 0x00 },
 };
 
 static uint8_t
@@ -888,12 +892,12 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			ch = vga_get_cp437(TCHAR_CHARACTER(c));
 
 			/* Convert colors to VGA attributes. */
-			attr = bg << 4 | fg;
+			attr =
+			    cons_to_vga_colors[bg] << 4 |
+			    cons_to_vga_colors[fg];
 
-			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
-			    ch);
-			MEM_WRITE1(sc, (row * 80 + col) * 2 + 1,
-			    attr);
+			MEM_WRITE2(sc, (row * 80 + col) * 2 + 0,
+			    ch + ((uint16_t)(attr) << 8));
 		}
 	}
 }
@@ -1114,43 +1118,45 @@ vga_initialize(struct vt_device *vd, int textmode)
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(0));
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(1));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(2));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(3));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(4));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(5));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(6));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(7));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(8));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(9));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(10));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(11));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(12));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(13));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(14));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(15));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_OVERSCAN_COLOR);
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_COLOR_PLANE_ENABLE);
@@ -1207,29 +1213,18 @@ vga_initialize(struct vt_device *vd, int textmode)
 static bool
 vga_acpi_disabled(void)
 {
-#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
-	ACPI_TABLE_FADT *fadt;
-	vm_paddr_t physaddr;
+#if defined(__amd64__) || defined(__i386__)
 	uint16_t flags;
+	int ignore;
 
-	physaddr = acpi_find_table(ACPI_SIG_FADT);
-	if (physaddr == 0)
-		return (false);
-
-	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
-	if (fadt == NULL) {
-		printf("vt_vga: unable to map FADT ACPI table\n");
-		return (false);
-	}
-
-	flags = fadt->BootFlags;
-	acpi_unmap_table(fadt);
-
-	if (flags & ACPI_FADT_NO_VGA)
-		return (true);
-#endif
-
+	ignore = 0;
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+	if (ignore || !acpi_get_fadt_bootflags(&flags))
+ 		return (false);
+	return ((flags & ACPI_FADT_NO_VGA) != 0);
+#else
 	return (false);
+#endif
 }
 
 static int

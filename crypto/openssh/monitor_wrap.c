@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.89 2016/08/13 17:47:41 markus Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.99 2018/03/03 03:15:51 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -76,7 +76,6 @@
 #include "atomicio.h"
 #include "monitor_fdpass.h"
 #include "misc.h"
-#include "uuencode.h"
 
 #include "channels.h"
 #include "session.h"
@@ -216,7 +215,7 @@ mm_choose_dh(int min, int nbits, int max)
 #endif
 
 int
-mm_key_sign(Key *key, u_char **sigp, u_int *lenp,
+mm_key_sign(struct sshkey *key, u_char **sigp, u_int *lenp,
     const u_char *data, u_int datalen, const char *hostkey_alg)
 {
 	struct kex *kex = *pmonitor->m_pkex;
@@ -242,6 +241,7 @@ mm_key_sign(Key *key, u_char **sigp, u_int *lenp,
 struct passwd *
 mm_getpwnamallow(const char *username)
 {
+	struct ssh *ssh = active_state;		/* XXX */
 	Buffer m;
 	struct passwd *pw;
 	u_int len, i;
@@ -286,6 +286,8 @@ out:
 			newopts->x = buffer_get_string(&m, NULL); \
 	} while (0)
 #define M_CP_STRARRAYOPT(x, nx) do { \
+		newopts->x = newopts->nx == 0 ? \
+		    NULL : xcalloc(newopts->nx, sizeof(*newopts->x)); \
 		for (i = 0; i < newopts->nx; i++) \
 			newopts->x[i] = buffer_get_string(&m, NULL); \
 	} while (0)
@@ -295,6 +297,8 @@ out:
 #undef M_CP_STRARRAYOPT
 
 	copy_set_server_options(&options, newopts, 1);
+	log_change_level(options.log_level);
+	process_permitopen(ssh, &options);
 	free(newopts);
 
 	buffer_free(&m);
@@ -347,7 +351,7 @@ mm_inform_authserv(char *service, char *style)
 
 /* Do the password authentication */
 int
-mm_auth_password(Authctxt *authctxt, char *password)
+mm_auth_password(struct ssh *ssh, char *password)
 {
 	Buffer m;
 	int authenticated = 0;
@@ -374,33 +378,38 @@ mm_auth_password(Authctxt *authctxt, char *password)
 }
 
 int
-mm_user_key_allowed(struct passwd *pw, Key *key, int pubkey_auth_attempt)
+mm_user_key_allowed(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
+    int pubkey_auth_attempt, struct sshauthopt **authoptp)
 {
 	return (mm_key_allowed(MM_USERKEY, NULL, NULL, key,
-	    pubkey_auth_attempt));
+	    pubkey_auth_attempt, authoptp));
 }
 
 int
 mm_hostbased_key_allowed(struct passwd *pw, const char *user, const char *host,
-    Key *key)
+    struct sshkey *key)
 {
-	return (mm_key_allowed(MM_HOSTKEY, user, host, key, 0));
+	return (mm_key_allowed(MM_HOSTKEY, user, host, key, 0, NULL));
 }
 
 int
 mm_key_allowed(enum mm_keytype type, const char *user, const char *host,
-    Key *key, int pubkey_auth_attempt)
+    struct sshkey *key, int pubkey_auth_attempt, struct sshauthopt **authoptp)
 {
 	Buffer m;
 	u_char *blob;
 	u_int len;
-	int allowed = 0, have_forced = 0;
+	int r, allowed = 0;
+	struct sshauthopt *opts = NULL;
 
 	debug3("%s entering", __func__);
 
+	if (authoptp != NULL)
+		*authoptp = NULL;
+
 	/* Convert the key to a blob and the pass it over */
 	if (!key_to_blob(key, &blob, &len))
-		return (0);
+		return 0;
 
 	buffer_init(&m);
 	buffer_put_int(&m, type);
@@ -413,18 +422,24 @@ mm_key_allowed(enum mm_keytype type, const char *user, const char *host,
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYALLOWED, &m);
 
 	debug3("%s: waiting for MONITOR_ANS_KEYALLOWED", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_KEYALLOWED, &m);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_KEYALLOWED, &m);
 
 	allowed = buffer_get_int(&m);
-
-	/* fake forced command */
-	auth_clear_options();
-	have_forced = buffer_get_int(&m);
-	forced_command = have_forced ? xstrdup("true") : NULL;
-
+	if (allowed && type == MM_USERKEY) {
+		if ((r = sshauthopt_deserialise(&m, &opts)) != 0)
+			fatal("%s: sshauthopt_deserialise: %s",
+			    __func__, ssh_err(r));
+	}
 	buffer_free(&m);
 
-	return (allowed);
+	if (authoptp != NULL) {
+		*authoptp = opts;
+		opts = NULL;
+	}
+	sshauthopt_free(opts);
+
+	return allowed;
 }
 
 /*
@@ -434,12 +449,13 @@ mm_key_allowed(enum mm_keytype type, const char *user, const char *host,
  */
 
 int
-mm_key_verify(Key *key, u_char *sig, u_int siglen, u_char *data, u_int datalen)
+mm_sshkey_verify(const struct sshkey *key, const u_char *sig, size_t siglen,
+    const u_char *data, size_t datalen, const char *sigalg, u_int compat)
 {
 	Buffer m;
 	u_char *blob;
 	u_int len;
-	int verified = 0;
+	u_int encoded_ret = 0;
 
 	debug3("%s entering", __func__);
 
@@ -451,6 +467,7 @@ mm_key_verify(Key *key, u_char *sig, u_int siglen, u_char *data, u_int datalen)
 	buffer_put_string(&m, blob, len);
 	buffer_put_string(&m, sig, siglen);
 	buffer_put_string(&m, data, datalen);
+	buffer_put_cstring(&m, sigalg == NULL ? "" : sigalg);
 	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYVERIFY, &m);
@@ -458,11 +475,13 @@ mm_key_verify(Key *key, u_char *sig, u_int siglen, u_char *data, u_int datalen)
 	debug3("%s: waiting for MONITOR_ANS_KEYVERIFY", __func__);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_KEYVERIFY, &m);
 
-	verified = buffer_get_int(&m);
+	encoded_ret = buffer_get_int(&m);
 
 	buffer_free(&m);
 
-	return (verified);
+	if (encoded_ret != 0)
+		return SSH_ERR_SIGNATURE_INVALID;
+	return 0;
 }
 
 void

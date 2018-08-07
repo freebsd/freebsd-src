@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-PROG=	pmcstat
+PROG_CXX=	pmcstat
 MAN=	pmcstat.8
 
 LIBADD=	kvm pmc m ncursesw pmcstat elf

@@ -50,7 +50,7 @@ create_two_events(void)
 	FILE *create_stdout;
 	FILE *destroy_stdout;
 	char mdname[80];
-	char destroy_cmd[80];
+	char destroy_cmd[95];
 	char *error;
 
 	create_stdout = popen("mdconfig -a -s 64 -t null", "r");

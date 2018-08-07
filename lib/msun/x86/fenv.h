@@ -33,6 +33,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <ieeefp.h>
 
 #ifndef	__fenv_static
 #define	__fenv_static	static
@@ -97,18 +98,10 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
-#define	__fldcw(__cw)		__asm __volatile("fldcw %0" : : "m" (__cw))
-#define	__fldenv(__env)		__asm __volatile("fldenv %0" : : "m" (__env))
 #define	__fldenvx(__env)	__asm __volatile("fldenv %0" : : "m" (__env)  \
 				: "st", "st(1)", "st(2)", "st(3)", "st(4)",   \
 				"st(5)", "st(6)", "st(7)")
-#define	__fnclex()		__asm __volatile("fnclex")
-#define	__fnstenv(__env)	__asm __volatile("fnstenv %0" : "=m" (*(__env)))
-#define	__fnstcw(__cw)		__asm __volatile("fnstcw %0" : "=m" (*(__cw)))
-#define	__fnstsw(__sw)		__asm __volatile("fnstsw %0" : "=am" (*(__sw)))
 #define	__fwait()		__asm __volatile("fwait")
-#define	__ldmxcsr(__csr)	__asm __volatile("ldmxcsr %0" : : "m" (__csr))
-#define	__stmxcsr(__csr)	__asm __volatile("stmxcsr %0" : "=m" (*(__csr)))
 
 int fegetenv(fenv_t *__envp);
 int feholdexcept(fenv_t *__envp);
@@ -183,12 +176,12 @@ feclearexcept(int __excepts)
 	} else {
 		__fnstenv(&__env);
 		__env.__status &= ~__excepts;
-		__fldenv(__env);
+		__fldenv(&__env);
 	}
 	if (__HAS_SSE()) {
 		__stmxcsr(&__mxcsr);
 		__mxcsr &= ~__excepts;
-		__ldmxcsr(__mxcsr);
+		__ldmxcsr(&__mxcsr);
 	}
 	return (0);
 }
@@ -234,13 +227,13 @@ fesetround(int __round)
 	__fnstcw(&__control);
 	__control &= ~_ROUND_MASK;
 	__control |= __round;
-	__fldcw(__control);
+	__fldcw(&__control);
 
 	if (__HAS_SSE()) {
 		__stmxcsr(&__mxcsr);
 		__mxcsr &= ~(_ROUND_MASK << _SSE_ROUND_SHIFT);
 		__mxcsr |= __round << _SSE_ROUND_SHIFT;
-		__ldmxcsr(__mxcsr);
+		__ldmxcsr(&__mxcsr);
 	}
 
 	return (0);
@@ -264,7 +257,7 @@ fesetenv(const fenv_t *__envp)
 	 */
 	__fldenvx(__env);
 	if (__HAS_SSE())
-		__ldmxcsr(__mxcsr);
+		__ldmxcsr(&__mxcsr);
 	return (0);
 }
 
@@ -280,11 +273,11 @@ feclearexcept(int __excepts)
 	} else {
 		__fnstenv(&__env.__x87);
 		__env.__x87.__status &= ~__excepts;
-		__fldenv(__env.__x87);
+		__fldenv(&__env.__x87);
 	}
 	__stmxcsr(&__env.__mxcsr);
 	__env.__mxcsr &= ~__excepts;
-	__ldmxcsr(__env.__mxcsr);
+	__ldmxcsr(&__env.__mxcsr);
 	return (0);
 }
 
@@ -323,12 +316,12 @@ fesetround(int __round)
 	__fnstcw(&__control);
 	__control &= ~_ROUND_MASK;
 	__control |= __round;
-	__fldcw(__control);
+	__fldcw(&__control);
 
 	__stmxcsr(&__mxcsr);
 	__mxcsr &= ~(_ROUND_MASK << _SSE_ROUND_SHIFT);
 	__mxcsr |= __round << _SSE_ROUND_SHIFT;
-	__ldmxcsr(__mxcsr);
+	__ldmxcsr(&__mxcsr);
 
 	return (0);
 }
@@ -346,7 +339,7 @@ fesetenv(const fenv_t *__envp)
 	 * inlined, so we need to be more careful.
 	 */
 	__fldenvx(__envp->__x87);
-	__ldmxcsr(__envp->__mxcsr);
+	__ldmxcsr(&__envp->__mxcsr);
 	return (0);
 }
 

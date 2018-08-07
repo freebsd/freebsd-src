@@ -186,7 +186,7 @@ struct vring_used {
 /*
  * PFN register shift amount
  */
-#define VRING_PFN               12
+#define	VRING_PFN		12
 
 /*
  * Virtio device types
@@ -213,6 +213,7 @@ struct vring_used {
 #define	VIRTIO_DEV_BLOCK	0x1001
 #define	VIRTIO_DEV_CONSOLE	0x1003
 #define	VIRTIO_DEV_RANDOM	0x1005
+#define	VIRTIO_DEV_SCSI		0x1008
 
 /*
  * PCI config space constants.
@@ -223,19 +224,19 @@ struct vring_used {
  * If MSI-X is not enabled, those two registers disappear and
  * the remaining configuration registers start at offset 20.
  */
-#define VTCFG_R_HOSTCAP		0
-#define VTCFG_R_GUESTCAP	4
-#define VTCFG_R_PFN		8
-#define VTCFG_R_QNUM		12
-#define VTCFG_R_QSEL		14
-#define VTCFG_R_QNOTIFY		16
-#define VTCFG_R_STATUS		18
-#define VTCFG_R_ISR		19
-#define VTCFG_R_CFGVEC		20
-#define VTCFG_R_QVEC		22
-#define VTCFG_R_CFG0		20	/* No MSI-X */
-#define VTCFG_R_CFG1		24	/* With MSI-X */
-#define VTCFG_R_MSIX		20
+#define	VTCFG_R_HOSTCAP		0
+#define	VTCFG_R_GUESTCAP	4
+#define	VTCFG_R_PFN		8
+#define	VTCFG_R_QNUM		12
+#define	VTCFG_R_QSEL		14
+#define	VTCFG_R_QNOTIFY		16
+#define	VTCFG_R_STATUS		18
+#define	VTCFG_R_ISR		19
+#define	VTCFG_R_CFGVEC		20
+#define	VTCFG_R_QVEC		22
+#define	VTCFG_R_CFG0		20	/* No MSI-X */
+#define	VTCFG_R_CFG1		24	/* With MSI-X */
+#define	VTCFG_R_MSIX		20
 
 /*
  * Bits in VTCFG_R_STATUS.  Guests need not actually set any of these,
@@ -254,7 +255,7 @@ struct vring_used {
 #define	VTCFG_ISR_QUEUES	0x01	/* re-scan queues */
 #define	VTCFG_ISR_CONF_CHANGED	0x80	/* configuration changed */
 
-#define VIRTIO_MSI_NO_VECTOR	0xFFFF
+#define	VIRTIO_MSI_NO_VECTOR	0xFFFF
 
 /*
  * Feature flags.

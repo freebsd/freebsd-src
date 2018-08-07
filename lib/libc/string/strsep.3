@@ -31,7 +31,7 @@
 .\"	@(#)strsep.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2008
+.Dd May 28, 2018
 .Dt STRSEP 3
 .Os
 .Sh NAME
@@ -86,8 +86,8 @@ to parse a string, and prints each token in separate line:
 char *token, *string, *tofree;
 
 tofree = string = strdup("abc,def,ghi");
-assert(string != NULL);
-
+if (string == NULL)
+	err(1, "strdup");
 while ((token = strsep(&string, ",")) != NULL)
 	printf("%s\en", token);
 

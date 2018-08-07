@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	char newline[] = "\n";
 	char *progname = argv[0];
 
-	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
 		err(1, "capsicum");
 
 	/* This utility may NOT do getopt(3) option parsing. */

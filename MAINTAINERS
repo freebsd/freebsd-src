@@ -58,6 +58,7 @@ kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
 libfetch	des	Pre-commit review requested, email only.
 libfigpar	dteske	Pre-commit review requested.
+libm		freebsd-numerics	Send email with patches to freebsd-numerics@
 libpam		des	Pre-commit review requested, email only.
 linprocfs	des	Pre-commit review requested, email only.
 lpr		gad	Pre-commit review requested, particularly for
@@ -99,11 +100,12 @@ sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 sys/x86/xen	royger		Pre-commit review recommended.
 sys/xen		royger		Pre-commit review recommended.
 tests			freebsd-testing,ngie	Pre-commit review requested.
+top(1)		eadler	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
-vmm(4)		grehan	Pre-commit review requested.
+vmm(4)		tychon, jhb	Pre-commit review requested.
 autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.

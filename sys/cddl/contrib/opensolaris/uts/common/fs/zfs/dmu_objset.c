@@ -54,6 +54,7 @@
 #include <sys/dsl_destroy.h>
 #include <sys/vdev.h>
 #include <sys/zfeature.h>
+#include "zfs_namecheck.h"
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed
@@ -349,6 +350,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 	ASSERT(ds == NULL || MUTEX_HELD(&ds->ds_opening_lock));
 
+#if 0
 	/*
 	 * The $ORIGIN dataset (if it exists) doesn't have an associated
 	 * objset, so there's no reason to open it. The $ORIGIN dataset
@@ -359,6 +361,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		ASSERT3P(ds->ds_dir, !=,
 		    spa_get_dsl(spa)->dp_origin_snap->ds_dir);
 	}
+#endif
 
 	os = kmem_zalloc(sizeof (objset_t), KM_SLEEP);
 	os->os_dsl_dataset = ds;
@@ -496,6 +499,14 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		os->os_primary_cache = ZFS_CACHE_ALL;
 		os->os_secondary_cache = ZFS_CACHE_ALL;
 	}
+	/*
+	 * These properties will be filled in by the logic in zfs_get_zplprop()
+	 * when they are queried for the first time.
+	 */
+	os->os_version = OBJSET_PROP_UNINITIALIZED;
+	os->os_normalization = OBJSET_PROP_UNINITIALIZED;
+	os->os_utf8only = OBJSET_PROP_UNINITIALIZED;
+	os->os_casesensitivity = OBJSET_PROP_UNINITIALIZED;
 
 	if (ds == NULL || !ds->ds_is_snapshot)
 		os->os_zil_header = os->os_phys->os_zil_header;
@@ -901,6 +912,9 @@ dmu_objset_create_check(void *arg, dmu_tx_t *tx)
 		return (SET_ERROR(EINVAL));
 
 	if (strlen(doca->doca_name) >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
+	if (dataset_nestcheck(doca->doca_name) != 0)
 		return (SET_ERROR(ENAMETOOLONG));
 
 	error = dsl_dir_hold(dp, doca->doca_name, FTAG, &pdd, &tail);

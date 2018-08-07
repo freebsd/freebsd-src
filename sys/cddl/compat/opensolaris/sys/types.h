@@ -72,7 +72,10 @@ typedef	u_int		minor_t;
 
 typedef	short		index_t;
 typedef	off_t		offset_t;
-typedef	long		ptrdiff_t;	/* pointer difference */
+#ifndef _PTRDIFF_T_DECLARED
+typedef	__ptrdiff_t		ptrdiff_t;	/* pointer difference */
+#define _PTRDIFF_T_DECLARED
+#endif
 typedef	int64_t		rlim64_t;
 typedef	int		major_t;
 

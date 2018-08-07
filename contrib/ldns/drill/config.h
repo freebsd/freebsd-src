@@ -16,8 +16,8 @@
 /* Define to 1 if you have the <getopt.h> header file. */
 #define HAVE_GETOPT_H 1
 
-/* If you have HMAC_CTX_init */
-#define HAVE_HMAC_CTX_INIT 1
+/* If you have HMAC_Update */
+#define HAVE_HMAC_UPDATE 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -122,7 +122,7 @@
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.6.17"
+#define PACKAGE_STRING "ldns 1.7.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -131,7 +131,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.17"
+#define PACKAGE_VERSION "1.7.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -279,9 +279,6 @@
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
-
-extern char *optarg;
-extern int optind, opterr;
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE  1

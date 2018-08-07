@@ -63,7 +63,6 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__siglongjmp;
 	_brk;
-	_end;
 	__sys_vfork;
 	_vfork;
 };

@@ -93,6 +93,8 @@ typedef void tf_putchar_t(void *, const teken_pos_t *, teken_char_t,
 typedef void tf_fill_t(void *, const teken_rect_t *, teken_char_t,
     const teken_attr_t *);
 typedef void tf_copy_t(void *, const teken_rect_t *, const teken_pos_t *);
+typedef void tf_pre_input_t(void *);
+typedef void tf_post_input_t(void *);
 typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SHOWCURSOR	0
 #define	TP_KEYPADAPP	1
@@ -114,6 +116,8 @@ typedef struct {
 	tf_putchar_t	*tf_putchar;
 	tf_fill_t	*tf_fill;
 	tf_copy_t	*tf_copy;
+	tf_pre_input_t	*tf_pre_input;
+	tf_post_input_t	*tf_post_input;
 	tf_param_t	*tf_param;
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;

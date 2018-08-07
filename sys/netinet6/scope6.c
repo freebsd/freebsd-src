@@ -76,7 +76,7 @@ static struct mtx scope6_lock;
 #define	SCOPE6_UNLOCK()		mtx_unlock(&scope6_lock)
 #define	SCOPE6_LOCK_ASSERT()	mtx_assert(&scope6_lock, MA_OWNED)
 
-static VNET_DEFINE(struct scope6_id, sid_default);
+VNET_DEFINE_STATIC(struct scope6_id, sid_default);
 #define	V_sid_default			VNET(sid_default)
 
 #define SID(ifp) \
@@ -453,7 +453,7 @@ in6_clearscope(struct in6_addr *in6)
  * Return the scope identifier or zero.
  */
 uint16_t
-in6_getscope(struct in6_addr *in6)
+in6_getscope(const struct in6_addr *in6)
 {
 
 	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6))

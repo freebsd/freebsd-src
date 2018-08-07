@@ -2895,13 +2895,13 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	
 	if (softc->flags & SA_FLAG_TAPE_MOUNTED) {
 		ccb = cam_periph_getccb(periph, 1);
-		scsi_test_unit_ready(&ccb->csio, 0, sadone,
+		scsi_test_unit_ready(&ccb->csio, 0, NULL,
 		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
 		if (error == ENXIO) {
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
-			scsi_test_unit_ready(&ccb->csio, 0, sadone,
+			scsi_test_unit_ready(&ccb->csio, 0, NULL,
 			    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
 			error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 			    softc->device_stats);
@@ -2922,7 +2922,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			return (error);
 		}
 		ccb = cam_periph_getccb(periph, 1);
-		scsi_test_unit_ready(&ccb->csio, 0, sadone,
+		scsi_test_unit_ready(&ccb->csio, 0, NULL,
 		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
@@ -2943,7 +2943,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		/*
 		 * *Very* first off, make sure we're loaded to BOT.
 		 */
-		scsi_load_unload(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+		scsi_load_unload(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 		    FALSE, FALSE, 1, SSD_FULL_SIZE, REWIND_TIMEOUT);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
@@ -2952,7 +2952,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 * In case this doesn't work, do a REWIND instead
 		 */
 		if (error) {
-			scsi_rewind(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG,
+			scsi_rewind(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG,
 			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
 			error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 				softc->device_stats);
@@ -2979,13 +2979,13 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		}
 
 		if ((softc->quirks & SA_QUIRK_NODREAD) == 0) {
-			scsi_sa_read_write(&ccb->csio, 0, sadone,
+			scsi_sa_read_write(&ccb->csio, 0, NULL,
 			    MSG_SIMPLE_Q_TAG, 1, FALSE, 0, 8192,
 			    (void *) rblim, 8192, SSD_FULL_SIZE,
 			    IO_TIMEOUT);
 			(void) cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 			    softc->device_stats);
-			scsi_rewind(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+			scsi_rewind(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG,
 			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
 			error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
 			    SF_NO_PRINT | SF_RETRY_UA,
@@ -3001,7 +3001,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		/*
 		 * Next off, determine block limits.
 		 */
-		scsi_read_block_limits(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+		scsi_read_block_limits(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 		    rblim, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
 
 		error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
@@ -3616,7 +3616,7 @@ retry:
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
 	/* it is safe to retry this */
-	scsi_mode_sense(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	scsi_mode_sense(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 	    SMS_PAGE_CTRL_CURRENT, (params_to_get & SA_PARAM_COMPRESSION) ?
 	    cpage : SMS_VENDOR_SPECIFIC_PAGE, mode_buffer, mode_buffer_len,
 	    SSD_FULL_SIZE, SCSIOP_TIMEOUT);
@@ -3679,7 +3679,7 @@ retry:
 		 * for the block descriptor, etc.
 		 */
 
-		scsi_mode_sense(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+		scsi_mode_sense(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 		    SMS_PAGE_CTRL_CURRENT, SMS_VENDOR_SPECIFIC_PAGE,
 		    mode_buffer, mode_buffer_len, SSD_FULL_SIZE,
 		    SCSIOP_TIMEOUT);
@@ -3741,7 +3741,7 @@ retry:
 		for (i = 0; i < SA_DENSITY_TYPES; i++) {
 			scsi_report_density_support(&ccb->csio,
 			    /*retries*/ 1,
-			    /*cbfcnp*/ sadone,
+			    /*cbfcnp*/ NULL,
 			    /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			    /*media*/ softc->density_type_bits[i] & SRDS_MEDIA,
 			    /*medium_type*/ softc->density_type_bits[i] &
@@ -3800,7 +3800,7 @@ retry:
 
 		scsi_mode_sense_len(&ccb->csio,
 				    /*retries*/ 5,
-				    /*cbfcnp*/ sadone,
+				    /*cbfcnp*/ NULL,
 				    /*tag_action*/ MSG_SIMPLE_Q_TAG,
 				    /*dbd*/ TRUE,
 				    /*page_code*/ (prot_changeable == 0) ?
@@ -4031,7 +4031,7 @@ retry_length:
 
 	scsi_mode_select_len(&ccb->csio,
 			     /*retries*/ 5,
-			     /*cbfcnp*/ sadone,
+			     /*cbfcnp*/ NULL,
 			     /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			     /*scsi_page_fmt*/ TRUE,
 			     /*save_pages*/ FALSE,
@@ -4307,7 +4307,7 @@ retry:
 	}
 
 	/* It is safe to retry this operation */
-	scsi_mode_select(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+	scsi_mode_select(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 	    (params_to_set & SA_PARAM_COMPRESSION)? TRUE : FALSE,
 	    FALSE, mode_buffer, mode_buffer_len, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
 
@@ -4625,7 +4625,7 @@ saprevent(struct cam_periph *periph, int action)
 	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
-	scsi_prevent(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, action,
+	scsi_prevent(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, action,
 	    SSD_FULL_SIZE, SCSIOP_TIMEOUT);
 
 	error = cam_periph_runccb(ccb, saerror, 0, sf, softc->device_stats);
@@ -4651,7 +4651,7 @@ sarewind(struct cam_periph *periph)
 	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
-	scsi_rewind(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	scsi_rewind(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 	    SSD_FULL_SIZE, REWIND_TIMEOUT);
 
 	softc->dsreg = MTIO_DSREG_REW;
@@ -4683,7 +4683,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 
 	/* This cannot be retried */
 
-	scsi_space(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG, code, count,
+	scsi_space(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG, code, count,
 	    SSD_FULL_SIZE, SPACE_TIMEOUT);
 
 	/*
@@ -4764,7 +4764,7 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks, int immed)
 
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
-	scsi_write_filemarks(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG,
+	scsi_write_filemarks(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG,
 	    immed, setmarks, nmarks, SSD_FULL_SIZE, IO_TIMEOUT);
 	softc->dsreg = MTIO_DSREG_REST;
 
@@ -4827,7 +4827,7 @@ sagetpos(struct cam_periph *periph)
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 	scsi_read_position_10(&ccb->csio,
 			      /*retries*/ 1,
-			      /*cbfcnp*/ sadone,
+			      /*cbfcnp*/ NULL,
 			      /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			      /*service_action*/ SA_RPOS_LONG_FORM,
 			      /*data_ptr*/ (uint8_t *)&long_pos,
@@ -4928,7 +4928,7 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 	}
 
 	ccb = cam_periph_getccb(periph, 1);
-	scsi_read_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+	scsi_read_position(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG,
 	    hard, &loc, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
 	softc->dsreg = MTIO_DSREG_RBSY;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -4988,7 +4988,7 @@ sasetpos(struct cam_periph *periph, int hard, struct mtlocate *locate_info)
 	if (locate16 != 0) {
 		scsi_locate_16(&ccb->csio,
 			       /*retries*/ 1,
-			       /*cbfcnp*/ sadone,
+			       /*cbfcnp*/ NULL,
 			       /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			       /*immed*/ immed,
 			       /*cp*/ cp,
@@ -5001,7 +5001,7 @@ sasetpos(struct cam_periph *periph, int hard, struct mtlocate *locate_info)
 	} else {
 		scsi_locate_10(&ccb->csio,
 			       /*retries*/ 1,
-			       /*cbfcnp*/ sadone,
+			       /*cbfcnp*/ NULL,
 			       /*tag_action*/ MSG_SIMPLE_Q_TAG,
 			       /*immed*/ immed,
 			       /*cp*/ cp,
@@ -5071,7 +5071,7 @@ saretension(struct cam_periph *periph)
 	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
-	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	scsi_load_unload(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 	    FALSE, TRUE,  TRUE, SSD_FULL_SIZE, ERASE_TIMEOUT);
 
 	softc->dsreg = MTIO_DSREG_TEN;
@@ -5098,7 +5098,7 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	ccb = cam_periph_getccb(periph,  1);
 
 	/* It is safe to retry this operation */
-	scsi_reserve_release_unit(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG,
+	scsi_reserve_release_unit(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG,
 	    FALSE,  0, SSD_FULL_SIZE,  SCSIOP_TIMEOUT, reserve);
 	softc->dsreg = MTIO_DSREG_RBSY;
 	error = cam_periph_runccb(ccb, saerror, 0,
@@ -5129,7 +5129,7 @@ saloadunload(struct cam_periph *periph, int load)
 	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
-	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	scsi_load_unload(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 	    FALSE, FALSE, load, SSD_FULL_SIZE, REWIND_TIMEOUT);
 
 	softc->dsreg = (load)? MTIO_DSREG_LD : MTIO_DSREG_UNL;
@@ -5161,7 +5161,7 @@ saerase(struct cam_periph *periph, int longerase)
 
 	ccb = cam_periph_getccb(periph, 1);
 
-	scsi_erase(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG, FALSE, longerase,
+	scsi_erase(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, FALSE, longerase,
 	    SSD_FULL_SIZE, ERASE_TIMEOUT);
 
 	softc->dsreg = MTIO_DSREG_ZER;

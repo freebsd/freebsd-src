@@ -65,6 +65,11 @@ is identical to that on which it was built.
 This declaration should be used by modules which depend on interfaces beyond
 the stable kernel KBI (such as ABI emulators or hypervisors that rely on
 internal kernel structures).
+.Fn DECLARE_MODULE
+will behave like 
+.Fn DECLARE_MODULE_TIED
+when compiled with modules built with the kernel. This allows locks and
+other synchronization primitives to be inlined safely.
 .Pp
 The arguments are:
 .Bl -tag -width indent

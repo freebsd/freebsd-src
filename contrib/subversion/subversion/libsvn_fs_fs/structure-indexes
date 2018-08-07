@@ -13,10 +13,10 @@ to read and cache any data without traversing DAGs.
 
 Rev and pack files are immutable, so the same is true for index data.
 During a transaction or while packing a file, a proto index file gets
-written (actually, one log-to-phys and one phys-to-log).  Its format is
-a simple concatenation of runtime structs and as such, an implementation
-detail subject to change.  A proto index basically aggregates all the
-information that must later be transformed into the final index.
+written (actually, one log-to-phys and one phys-to-log).  They use a
+simpler, less compact format with fixed record lengths.  A proto index
+basically aggregates all the information that must later be transformed
+into the final index.
 
 
 General design concerns
@@ -192,11 +192,11 @@ at the beginning of the file is optional and will be ignored.
 
   <bof>         /* begin of proto index file for revision r and following */
   (0, 0)        /* mark start of revision r, optional for first rev */
-  (off, item)*  /* zero to many mappings in random order */
+  (off, item)*  /* zero or more mappings in random order */
   (0, 0)        /* mark start of revision r + 1 */
-  (off, item)*  /* zero to many mappings in random order */
+  (off, item)*  /* zero or more mappings in random order */
   (0, 0)        /* mark start of revision r + 2 */
-  (off, item)*  /* zero to many mappings in random order */
+  (off, item)*  /* zero or more mappings in random order */
   ...
   <eof>         /* end of file. */
 
@@ -343,10 +343,12 @@ For performance reasons we use a modified version:
 
   h0 = fnv_1a([b0 b4 b8 ..]), ..., h3 = fnv_1a([b3 b7 b11 ..])
 
-* combine the big endian representation of these checksums plus the
-  remnant of the original stream into a 12 to 15 byte long intermediate
+* concatenate the big endian representation of these checksums (4 bytes
+  each) plus the remnant of the original stream into a 16 to 19 byte long
+  intermediate:
 
-  [i0 .. iK], 12 <= K+1 <= 15
+  [i0 .. iK] = [big-endian(h0) ... big-endian(h3) remnant ], 16 <= K+1 <= 19
 
-* FNV checksum = fnv_1a([i0 .. iK]) in big endian representation
+* fold the variable-length intermediate into a compact 32 bit checksum:
 
+  FNV checksum = fnv_1a([i0 .. iK])

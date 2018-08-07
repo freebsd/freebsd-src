@@ -53,11 +53,7 @@
 
 			/* where should the daemon stick its PID?
 			 */
-#ifdef _PATH_VARRUN
-# define PIDDIR	_PATH_VARRUN
-#else
-# define PIDDIR "/etc/"
-#endif
+#define PIDDIR	_PATH_VARRUN
 #define PIDFILE		"%scron.pid"
 
 			/* 4.3BSD-style crontab */
@@ -68,16 +64,4 @@
 			/* what editor to use if no EDITOR or VISUAL
 			 * environment variable specified.
 			 */
-#if defined(_PATH_VI)
-# define EDITOR _PATH_VI
-#else
-# define EDITOR "/usr/ucb/vi"
-#endif
-
-#ifndef _PATH_BSHELL
-# define _PATH_BSHELL "/bin/sh"
-#endif
-
-#ifndef _PATH_DEFPATH
-# define _PATH_DEFPATH "/usr/bin:/bin"
-#endif
+#define EDITOR _PATH_VI

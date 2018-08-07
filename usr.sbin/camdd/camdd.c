@@ -429,23 +429,6 @@ static sig_atomic_t need_status = 0;
 #define	min(a, b) (a < b) ? a : b
 #endif
 
-/*
- * XXX KDM private copy of timespecsub().  This is normally defined in
- * sys/time.h, but is only enabled in the kernel.  If that definition is
- * enabled in userland, it breaks the build of libnetbsd.
- */
-#ifndef timespecsub
-#define	timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-#endif
-
 
 /* Generically useful offsets into the peripheral private area */
 #define ppriv_ptr0 periph_priv.entries[0].ptr
@@ -596,13 +579,11 @@ camdd_alloc_dev(camdd_dev_type dev_type, struct kevent *new_ke, int num_ke,
 	size_t ke_size;
 	int retval = 0;
 
-	dev = malloc(sizeof(*dev));
+	dev = calloc(1, sizeof(*dev));
 	if (dev == NULL) {
 		warn("%s: unable to malloc %zu bytes", __func__, sizeof(*dev));
 		goto bailout;
 	}
-
-	bzero(dev, sizeof(*dev));
 
 	dev->dev_type = dev_type;
 	dev->io_timeout = timeout;
@@ -636,12 +617,11 @@ camdd_alloc_dev(camdd_dev_type dev_type, struct kevent *new_ke, int num_ke,
 	}
 
 	ke_size = sizeof(struct kevent) * (num_ke + 4);
-	ke = malloc(ke_size);
+	ke = calloc(1, ke_size);
 	if (ke == NULL) {
 		warn("%s: unable to malloc %zu bytes", __func__, ke_size);
 		goto bailout;
 	}
-	bzero(ke, ke_size);
 	if (num_ke > 0)
 		bcopy(new_ke, ke, num_ke * sizeof(struct kevent));
 
@@ -688,13 +668,12 @@ camdd_alloc_buf(struct camdd_dev *dev, camdd_buf_type buf_type)
 		break;
 	}
 	
-	buf = malloc(sizeof(*buf));
+	buf = calloc(1, sizeof(*buf));
 	if (buf == NULL) {
 		warn("unable to allocate %zu bytes", sizeof(*buf));
 		goto bailout_error;
 	}
 
-	bzero(buf, sizeof(*buf));
 	buf->buf_type = buf_type;
 	buf->dev = dev;
 	switch (buf_type) {
@@ -3073,7 +3052,7 @@ camdd_print_status(struct camdd_dev *camdd_dev, struct camdd_dev *other_dev,
 		return;
 	}
 
-	timespecsub(&done_time, start_time);
+	timespecsub(&done_time, start_time, &done_time);
 	
 	total_ns = done_time.tv_nsec + (done_time.tv_sec * 1000000000);
 	total_sec = total_ns;

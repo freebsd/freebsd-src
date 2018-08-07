@@ -716,6 +716,38 @@ fgrep_oflag_body()
 	atf_check -s exit:1 grep -Fo "ghix" test1
 	atf_check -s exit:1 grep -Fo "abcdefghiklmnopqrstuvwxyz" test1
 }
+
+atf_test_case cflag
+cflag_head()
+{
+	atf_set "descr" "Check proper handling of -c"
+}
+cflag_body()
+{
+	printf "a\nb\nc\n" > test1
+
+	atf_check -o inline:"1\n" grep -Ec "a" test1
+	atf_check -o inline:"2\n" grep -Ec "a|b" test1
+	atf_check -o inline:"3\n" grep -Ec "a|b|c" test1
+
+	atf_check -o inline:"test1:2\n" grep -EHc "a|b" test1
+}
+
+atf_test_case mflag
+mflag_head()
+{
+	atf_set "descr" "Check proper handling of -m"
+}
+mflag_body()
+{
+	printf "a\nb\nc\nd\ne\nf\n" > test1
+
+	atf_check -o inline:"1\n" grep -m 1 -Ec "a" test1
+	atf_check -o inline:"2\n" grep -m 2 -Ec "a|b" test1
+	atf_check -o inline:"3\n" grep -m 3 -Ec "a|b|c|f" test1
+
+	atf_check -o inline:"test1:2\n" grep -m 2 -EHc "a|b|e|f" test1
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -759,5 +791,7 @@ atf_init_test_cases()
 	atf_add_test_case fgrep_multipattern
 	atf_add_test_case fgrep_icase
 	atf_add_test_case fgrep_oflag
+	atf_add_test_case cflag
+	atf_add_test_case mflag
 # End FreeBSD
 }

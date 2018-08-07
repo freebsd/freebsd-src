@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
 #include <sys/libkern.h>
 #include <sys/reboot.h>
@@ -61,7 +62,9 @@ get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
 			type[sizeof(type) - 1] = '\0';
-			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
+			if (strcmp(type, "pci") == 0 ||
+			    strcmp(type, "pciex")== 0)
+				pci = 1;
 		}
 	}
 	if (addrp != NULL)
@@ -170,7 +173,7 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 	}
 
 	KASSERT(addr <= BUS_SPACE_MAXADDR,
-	    ("Bus sddress is too large: %jx", (uintmax_t)addr));
+	    ("Bus address is too large: %jx", (uintmax_t)addr));
 	KASSERT(size <= BUS_SPACE_MAXSIZE,
 	    ("Bus size is too large: %jx", (uintmax_t)size));
 
@@ -180,44 +183,6 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 		*ppci_hi = pci_hi;
 
 	return (0);
-}
-
-/* Parse cmd line args as env - copied from xlp_machdep. */
-/* XXX-BZ this should really be centrally provided for all (boot) code. */
-static void
-_parse_bootargs(char *cmdline)
-{
-	char *n, *v;
-
-	while ((v = strsep(&cmdline, " \n")) != NULL) {
-		if (*v == '\0')
-			continue;
-		if (*v == '-') {
-			while (*v != '\0') {
-				v++;
-				switch (*v) {
-				case 'a': boothowto |= RB_ASKNAME; break;
-				/* Someone should simulate that ;-) */
-				case 'C': boothowto |= RB_CDROM; break;
-				case 'd': boothowto |= RB_KDB; break;
-				case 'D': boothowto |= RB_MULTIPLE; break;
-				case 'm': boothowto |= RB_MUTE; break;
-				case 'g': boothowto |= RB_GDB; break;
-				case 'h': boothowto |= RB_SERIAL; break;
-				case 'p': boothowto |= RB_PAUSE; break;
-				case 'r': boothowto |= RB_DFLTROOT; break;
-				case 's': boothowto |= RB_SINGLE; break;
-				case 'v': boothowto |= RB_VERBOSE; break;
-				}
-			}
-		} else {
-			n = strsep(&v, "=");
-			if (v == NULL)
-				kern_setenv(n, "1");
-			else
-				kern_setenv(n, v);
-		}
-	}
 }
 
 /*
@@ -236,7 +201,7 @@ ofw_parse_bootargs(void)
 		return (chosen);
 
 	if ((err = OF_getprop(chosen, "bootargs", buf, sizeof(buf))) != -1) {
-		_parse_bootargs(buf);
+		boothowto |= boot_parse_cmdline(buf);
 		return (0);
 	}
 

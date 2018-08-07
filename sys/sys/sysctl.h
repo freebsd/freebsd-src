@@ -38,7 +38,9 @@
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
 
+#ifdef _KERNEL
 #include <sys/queue.h>
+#endif
 
 struct thread;
 /*
@@ -1009,9 +1011,6 @@ SYSCTL_DECL(_compat);
 SYSCTL_DECL(_regression);
 SYSCTL_DECL(_security);
 SYSCTL_DECL(_security_bsd);
-#ifdef EXT_RESOURCES
-SYSCTL_DECL(_clock);
-#endif
 
 extern char	machine[];
 extern char	osrelease[];

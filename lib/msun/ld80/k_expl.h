@@ -225,16 +225,9 @@ __k_expl(long double x, long double *hip, long double *lop, int *kp)
 	int n, n2;
 
 	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
-	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
+	fn = rnintl(x * INV_L);
 	r = x - fn * L1 - fn * L2;	/* r = r1 + r2 done independently. */
-#if defined(HAVE_EFFICIENT_IRINTL)
-	n = irintl(fn);
-#elif defined(HAVE_EFFICIENT_IRINT)
 	n = irint(fn);
-#else
-	n = (int)fn;
-#endif
 	n2 = (unsigned)n % INTERVALS;
 	/* Depend on the sign bit being propagated: */
 	*kp = n >> LOG2_INTERVALS;

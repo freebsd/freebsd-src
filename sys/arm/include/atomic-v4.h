@@ -115,7 +115,7 @@ atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
 static __inline int
 atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_int32_t newval)
 {
-	u_int32_t ret;
+	int ret;
 
 	__with_interrupts_disabled(
 	 {
@@ -134,7 +134,7 @@ atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_
 static __inline int
 atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_int64_t newval)
 {
-	u_int64_t ret;
+	int ret;
 
 	__with_interrupts_disabled(
 	 {
@@ -149,7 +149,7 @@ atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_
 	return (ret);
 }
 
-static __inline u_int32_t
+static __inline int
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int ret;
@@ -166,7 +166,7 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	return (ret);
 }
 
-static __inline u_int64_t
+static __inline int
 atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
@@ -296,7 +296,7 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 
 }
 
-static __inline u_int32_t
+static __inline int
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int done, ras_start = ARM_RAS_START;
@@ -318,6 +318,33 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	    "movne	%1, #0\n"
 	    : "+r" (ras_start), "=r" (done)
 	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc", "memory");
+	return (done);
+}
+
+static __inline int
+atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_int32_t newval)
+{
+	int done, oldval, ras_start = ARM_RAS_START;
+
+	__asm __volatile("1:\n"
+	    "adr	%1, 1b\n"
+	    "str	%1, [%0]\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0, #4]\n"
+	    "ldr	%1, [%2]\n"
+	    "ldr	%5, [%3]\n"
+	    "cmp	%1, %5\n"
+	    "streq	%4, [%2]\n"
+	    "2:\n"
+	    "mov	%5, #0\n"
+	    "str	%5, [%0]\n"
+	    "mov	%5, #0xffffffff\n"
+	    "str	%5, [%0, #4]\n"
+	    "strne	%1, [%3]\n"
+	    "moveq	%1, #1\n"
+	    "movne	%1, #0\n"
+	    : "+r" (ras_start), "=r" (done) ,"+r" (p)
+	    , "+r" (cmpval), "+r" (newval), "+r" (oldval) : : "cc", "memory");
 	return (done);
 }
 
@@ -409,14 +436,18 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 
 #define atomic_fcmpset_rel_32	atomic_fcmpset_32
 #define atomic_fcmpset_acq_32	atomic_fcmpset_32
+#ifdef _KERNEL
 #define atomic_fcmpset_rel_64	atomic_fcmpset_64
 #define atomic_fcmpset_acq_64	atomic_fcmpset_64
+#endif
 #define atomic_fcmpset_acq_long	atomic_fcmpset_long
 #define atomic_fcmpset_rel_long	atomic_fcmpset_long
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
+#ifdef _KERNEL
 #define atomic_cmpset_rel_64	atomic_cmpset_64
 #define atomic_cmpset_acq_64	atomic_cmpset_64
+#endif
 #define atomic_set_rel_32	atomic_set_32
 #define atomic_set_acq_32	atomic_set_32
 #define atomic_clear_rel_32	atomic_clear_32
@@ -463,8 +494,6 @@ atomic_cmpset_long(volatile u_long *dst, u_long old, u_long newe)
 	return (atomic_cmpset_32((volatile uint32_t *)dst, old, newe));
 }
 
-#ifdef _KERNEL
-/* atomic_fcmpset_32 is only defined for the kernel */
 static __inline u_long
 atomic_fcmpset_long(volatile u_long *dst, u_long *old, u_long newe)
 {
@@ -472,7 +501,6 @@ atomic_fcmpset_long(volatile u_long *dst, u_long *old, u_long newe)
 	return (atomic_fcmpset_32((volatile uint32_t *)dst,
 	    (uint32_t *)old, newe));
 }
-#endif
 
 static __inline u_long
 atomic_fetchadd_long(volatile u_long *p, u_long v)

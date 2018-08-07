@@ -196,12 +196,8 @@ svn_ra_serf__get_location_segments(svn_ra_session_t *ra_session,
 
   err = svn_ra_serf__context_run_one(handler, pool);
 
-  if (!err)
-    {
-      err = svn_ra_serf__error_on_status(handler->sline,
-                                         handler->path,
-                                         handler->location);
-    }
+  if (!err && handler->sline.code != 200)
+    err = svn_ra_serf__unexpected_status(handler);
 
   if (err && (err->apr_err == SVN_ERR_UNSUPPORTED_FEATURE))
     return svn_error_create(SVN_ERR_RA_NOT_IMPLEMENTED, err, NULL);

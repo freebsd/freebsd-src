@@ -58,6 +58,7 @@
 #include <bsnmp/snmpmod.h>
 #include <bsnmp/snmp_mibII.h>
 
+#define	SNMPTREE_TYPES
 #include "wlan_tree.h"
 #include "wlan_snmp.h"
 

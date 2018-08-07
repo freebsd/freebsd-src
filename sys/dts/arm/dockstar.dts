@@ -141,7 +141,7 @@
 		};
 
 		GPIO: gpio@10100 {
-			#gpio-cells = <3>;
+			#gpio-cells = <2>;
 			compatible = "mrvl,gpio";
 			reg = <0x10100 0x20>;
 			gpio-controller;

@@ -252,7 +252,7 @@ cuse_kern_init(void *arg)
 	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
 	    (CUSE_VERSION >> 0) & 0xFF);
 }
-SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, 0);
+SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, NULL);
 
 static void
 cuse_kern_uninit(void *arg)

@@ -214,7 +214,7 @@ nvme_ctrlr_cmd_set_num_queues(struct nvme_controller *ctrlr,
 
 void
 nvme_ctrlr_cmd_set_async_event_config(struct nvme_controller *ctrlr,
-    uint8_t state, nvme_cb_fn_t cb_fn, void *cb_arg)
+    uint32_t state, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	uint32_t cdw11;
 

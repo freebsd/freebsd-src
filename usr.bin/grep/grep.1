@@ -30,17 +30,16 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd April 17, 2017
+.Dd May 7, 2018
 .Dt GREP 1
 .Os
 .Sh NAME
 .Nm grep , egrep , fgrep , rgrep ,
-.Nm zgrep , zegrep , zfgrep
 .Nd file pattern searcher
 .Sh SYNOPSIS
 .Nm grep
 .Bk -words
-.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZz
+.Op Fl abcdDEFGHhIiLlmnOopqRSsUVvwxz
 .Op Fl A Ar num
 .Op Fl B Ar num
 .Op Fl C Ns Op Ar num
@@ -87,21 +86,6 @@ but can only handle fixed patterns
 (i.e. it does not interpret regular expressions).
 Patterns may consist of one or more lines,
 allowing any of the pattern lines to match a portion of the input.
-.Pp
-.Nm zgrep ,
-.Nm zegrep ,
-and
-.Nm zfgrep
-act like
-.Nm grep ,
-.Nm egrep ,
-and
-.Nm fgrep ,
-respectively, but accept input files compressed with the
-.Xr compress 1
-or
-.Xr gzip 1
-compression utilities.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -191,9 +175,11 @@ If specified, it excludes files matching the given
 filename pattern from the search.
 Note that
 .Fl Fl exclude
-patterns take priority over
+and
 .Fl Fl include
-patterns, and if no
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
 .Fl Fl include
 pattern is specified, all files are searched that are
 not excluded.
@@ -206,9 +192,11 @@ is specified, it excludes directories matching the
 given filename pattern from the search.
 Note that
 .Fl Fl exclude-dir
-patterns take priority over
+and
 .Fl Fl include-dir
-patterns, and if no
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
 .Fl Fl include-dir
 pattern is specified, all directories are searched that are
 not excluded.
@@ -258,10 +246,11 @@ is case sensitive.
 If specified, only files matching the
 given filename pattern are searched.
 Note that
-.Fl Fl exclude
-patterns take priority over
 .Fl Fl include
-patterns.
+and
+.Fl Fl exclude
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
 Patterns are matched to the full path specified,
 not only to the filename component.
 .It Fl Fl include-dir
@@ -270,21 +259,20 @@ If
 is specified, only directories matching the
 given filename pattern are searched.
 Note that
-.Fl Fl exclude-dir
-patterns take priority over
 .Fl Fl include-dir
-patterns.
-.It Fl J, Fl Fl bz2decompress
-Decompress the
-.Xr bzip2 1
-compressed file before looking for the text.
+and
+.Fl Fl exclude-dir
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
 .It Fl L , Fl Fl files-without-match
 Only the names of files not containing selected lines are written to
 standard output.
 Pathnames are listed once per file searched.
 If the standard input is searched, the string
 .Dq (standard input)
-is written.
+is written unless a
+.Fl Fl label
+is specified.
 .It Fl l , Fl Fl files-with-matches
 Only the names of files containing selected lines are written to
 standard output.
@@ -294,7 +282,18 @@ making searches potentially less expensive.
 Pathnames are listed once per file searched.
 If the standard input is searched, the string
 .Dq (standard input)
-is written.
+is written unless a
+.Fl Fl label
+is specified.
+.It Fl Fl label
+Label to use in place of
+.Dq (standard input)
+for a file name where a file name would normally be printed.
+This option applies to
+.Fl H ,
+.Fl L ,
+and
+.Fl l .
 .It Fl Fl mmap
 Use
 .Xr mmap 2
@@ -381,11 +380,6 @@ Obsoleted.
 .It Fl z , Fl Fl null-data
 Treat input and output data as sequences of lines terminated by a
 zero-byte instead of a newline.
-.It Fl Z , Fl Fl decompress
-Force
-.Nm grep
-to behave as
-.Nm zgrep .
 .It Fl Fl binary-files Ns = Ns Ar value
 Controls searching and printing of binary files.
 Options are
@@ -410,6 +404,13 @@ and block buffered otherwise.
 .El
 .Pp
 If no file arguments are specified, the standard input is used.
+Additionally,
+.Dq -
+may be used in place of a file name, anywhere that a file name is accepted, to
+read from standard input.
+This includes both
+.Fl f
+and file arguments.
 .Sh EXIT STATUS
 The
 .Nm grep
@@ -465,7 +466,6 @@ looking for either 19, 20, or 25.
 .Sh SEE ALSO
 .Xr ed 1 ,
 .Xr ex 1 ,
-.Xr gzip 1 ,
 .Xr sed 1 ,
 .Xr re_format 7
 .Sh STANDARDS
@@ -476,7 +476,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl AaBbCDdGHhIJLmoPRSUVwZ
+.Op Fl AaBbCDdGHhILmoPRSUVw
 are extensions to that specification, and the behaviour of the
 .Fl f
 flag when used with an empty pattern file is left undefined.

@@ -384,7 +384,7 @@ void
 sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
     int flags)
 {
-	struct sleepqueue_chain *sc;
+	struct sleepqueue_chain *sc __unused;
 	struct thread *td;
 	sbintime_t pr1;
 
@@ -780,7 +780,7 @@ sleepq_type(void *wchan)
 static int
 sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 {
-	struct sleepqueue_chain *sc;
+	struct sleepqueue_chain *sc __unused;
 
 	MPASS(td != NULL);
 	MPASS(sq->sq_wchan != NULL);
@@ -974,7 +974,7 @@ sleepq_remove_matching(struct sleepqueue *sq, int queue,
 static void
 sleepq_timeout(void *arg)
 {
-	struct sleepqueue_chain *sc;
+	struct sleepqueue_chain *sc __unused;
 	struct sleepqueue *sq;
 	struct thread *td;
 	void *wchan;

@@ -195,6 +195,8 @@
 #include <sys/zcp.h>
 #include <sys/zio_checksum.h>
 #include <sys/vdev_removal.h>
+#include <sys/vdev_impl.h>
+#include <sys/vdev_initialize.h>
 
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
@@ -1556,6 +1558,7 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	nvlist_t *config, *props = NULL;
 	nvlist_t *rootprops = NULL;
 	nvlist_t *zplprops = NULL;
+	char *spa_name = zc->zc_name;
 
 	if (error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
 	    zc->zc_iflags, &config))
@@ -1571,6 +1574,7 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	if (props) {
 		nvlist_t *nvl = NULL;
 		uint64_t version = SPA_VERSION;
+		char *tname;
 
 		(void) nvlist_lookup_uint64(props,
 		    zpool_prop_to_name(ZPOOL_PROP_VERSION), &version);
@@ -1593,6 +1597,10 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 		    zplprops, NULL);
 		if (error != 0)
 			goto pool_props_bad;
+
+		if (nvlist_lookup_string(props,
+		    zpool_prop_to_name(ZPOOL_PROP_TNAME), &tname) == 0)
+			spa_name = tname;
 	}
 
 	error = spa_create(zc->zc_name, config, props, zplprops);
@@ -1600,9 +1608,9 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 	/*
 	 * Set the remaining root properties
 	 */
-	if (!error && (error = zfs_set_prop_nvlist(zc->zc_name,
+	if (!error && (error = zfs_set_prop_nvlist(spa_name,
 	    ZPROP_SRC_LOCAL, rootprops, NULL)) != 0)
-		(void) spa_destroy(zc->zc_name);
+		(void) spa_destroy(spa_name);
 
 pool_props_bad:
 	nvlist_free(rootprops);
@@ -3859,6 +3867,80 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 }
 
 /*
+ * innvl: {
+ *     vdevs: {
+ *         guid 1, guid 2, ...
+ *     },
+ *     func: POOL_INITIALIZE_{CANCEL|DO|SUSPEND}
+ * }
+ *
+ * outnvl: {
+ *     [func: EINVAL (if provided command type didn't make sense)],
+ *     [vdevs: {
+ *         guid1: errno, (see function body for possible errnos)
+ *         ...
+ *     }]
+ * }
+ *
+ */
+static int
+zfs_ioc_pool_initialize(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	spa_t *spa;
+	int error;
+
+	error = spa_open(poolname, &spa, FTAG);
+	if (error != 0)
+		return (error);
+
+	uint64_t cmd_type;
+	if (nvlist_lookup_uint64(innvl, ZPOOL_INITIALIZE_COMMAND,
+	    &cmd_type) != 0) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+	if (!(cmd_type == POOL_INITIALIZE_CANCEL ||
+	    cmd_type == POOL_INITIALIZE_DO ||
+	    cmd_type == POOL_INITIALIZE_SUSPEND)) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	nvlist_t *vdev_guids;
+	if (nvlist_lookup_nvlist(innvl, ZPOOL_INITIALIZE_VDEVS,
+	    &vdev_guids) != 0) {
+		spa_close(spa, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	nvlist_t *vdev_errlist = fnvlist_alloc();
+	int total_errors = 0;
+
+	for (nvpair_t *pair = nvlist_next_nvpair(vdev_guids, NULL);
+	    pair != NULL; pair = nvlist_next_nvpair(vdev_guids, pair)) {
+		uint64_t vdev_guid = fnvpair_value_uint64(pair);
+
+		error = spa_vdev_initialize(spa, vdev_guid, cmd_type);
+		if (error != 0) {
+			char guid_as_str[MAXNAMELEN];
+
+			(void) snprintf(guid_as_str, sizeof (guid_as_str),
+			    "%llu", (unsigned long long)vdev_guid);
+			fnvlist_add_int64(vdev_errlist, guid_as_str, error);
+			total_errors++;
+		}
+	}
+	if (fnvlist_size(vdev_errlist) > 0) {
+		fnvlist_add_nvlist(outnvl, ZPOOL_INITIALIZE_VDEVS,
+		    vdev_errlist);
+	}
+	fnvlist_free(vdev_errlist);
+
+	spa_close(spa, FTAG);
+	return (total_errors > 0 ? EINVAL : 0);
+}
+
+/*
  * fsname is name of dataset to rollback (to most recent snapshot)
  *
  * innvl may contain name of expected target snapshot
@@ -4446,7 +4528,6 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	char *origin = NULL;
 	char *tosnap;
 	char tofs[ZFS_MAX_DATASET_NAME_LEN];
-	cap_rights_t rights;
 	boolean_t first_recvd_props = B_FALSE;
 
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -4467,7 +4548,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 #ifdef illumos
 	fp = getf(fd);
 #else
-	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+	fget_read(curthread, fd, &cap_pread_rights, &fp);
 #endif
 	if (fp == NULL) {
 		nvlist_free(props);
@@ -4744,13 +4825,11 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		dsl_pool_rele(dp, FTAG);
 	} else {
 		file_t *fp;
-		cap_rights_t rights;
 
 #ifdef illumos
 		fp = getf(zc->zc_cookie);
 #else
-		fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+		fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
@@ -5387,15 +5466,13 @@ static int
 zfs_ioc_diff(zfs_cmd_t *zc)
 {
 	file_t *fp;
-	cap_rights_t rights;
 	offset_t off;
 	int error;
 
 #ifdef illumos
 	fp = getf(zc->zc_cookie);
 #else
-	fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
@@ -5787,7 +5864,6 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
-	cap_rights_t rights;
 	file_t *fp;
 	int error;
 	offset_t off;
@@ -5815,7 +5891,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 #ifdef illumos
 	file_t *fp = getf(fd);
 #else
-	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, fd, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
@@ -6116,6 +6192,10 @@ zfs_ioctl_init(void)
 	zfs_ioctl_register("zpool_discard_checkpoint",
 	    ZFS_IOC_POOL_DISCARD_CHECKPOINT, zfs_ioc_pool_discard_checkpoint,
 	    zfs_secpolicy_config, POOL_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
+
+	zfs_ioctl_register("initialize", ZFS_IOC_POOL_INITIALIZE,
+	    zfs_ioc_pool_initialize, zfs_secpolicy_config, POOL_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE);
 
 	/* IOCTLS that use the legacy function signature */
@@ -6440,6 +6520,10 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 			cflag = ZFS_CMD_COMPAT_V28;
 			break;
 		case sizeof(zfs_cmd_v15_t):
+			if (cmd >= sizeof(zfs_ioctl_v15_to_v28) /
+			    sizeof(zfs_ioctl_v15_to_v28[0]))
+				return (EINVAL);
+
 			cflag = ZFS_CMD_COMPAT_V15;
 			vecnum = zfs_ioctl_v15_to_v28[cmd];
 

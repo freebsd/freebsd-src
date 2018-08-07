@@ -49,13 +49,13 @@ svn_cl__propdel(apr_getopt_t *os,
 {
   svn_cl__opt_state_t *opt_state = ((svn_cl__cmd_baton_t *) baton)->opt_state;
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
-  const char *pname, *pname_utf8;
+  const char *pname;
   apr_array_header_t *args, *targets;
 
   /* Get the property's name (and a UTF-8 version of that name). */
   SVN_ERR(svn_opt_parse_num_args(&args, os, 1, pool));
   pname = APR_ARRAY_IDX(args, 0, const char *);
-  SVN_ERR(svn_utf_cstring_to_utf8(&pname_utf8, pname, pool));
+  SVN_ERR(svn_utf_cstring_to_utf8(&pname, pname, pool));
   /* No need to check svn_prop_name_is_valid for *deleting*
      properties, and it may even be useful to allow, in case invalid
      properties sneaked through somehow. */
@@ -78,7 +78,7 @@ svn_cl__propdel(apr_getopt_t *os,
                                       &URL, ctx, pool));
 
       /* Let libsvn_client do the real work. */
-      SVN_ERR(svn_client_revprop_set2(pname_utf8, NULL, NULL,
+      SVN_ERR(svn_client_revprop_set2(pname, NULL, NULL,
                                       URL, &(opt_state->start_revision),
                                       &rev, FALSE, ctx, pool));
     }
@@ -94,7 +94,7 @@ svn_cl__propdel(apr_getopt_t *os,
         opt_state->depth = svn_depth_empty;
 
       /* For each target, remove the property PNAME. */
-      SVN_ERR(svn_client_propset_local(pname_utf8, NULL, targets,
+      SVN_ERR(svn_client_propset_local(pname, NULL, targets,
                                        opt_state->depth, FALSE,
                                        opt_state->changelists, ctx, pool));
     }

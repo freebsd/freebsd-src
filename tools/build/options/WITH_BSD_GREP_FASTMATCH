@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set this option to use the fastmatch implementation in
-.Xr bsdgrep 1 .

@@ -620,3 +620,21 @@ pmap_mmu_install(char *name, int prio)
 }
 
 int unmapped_buf_allowed;
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	switch (mode) {
+	case VM_MEMATTR_DEFAULT:
+	case VM_MEMATTR_UNCACHEABLE:
+	case VM_MEMATTR_CACHEABLE:
+	case VM_MEMATTR_WRITE_COMBINING:
+	case VM_MEMATTR_WRITE_BACK:
+	case VM_MEMATTR_WRITE_THROUGH:
+	case VM_MEMATTR_PREFETCHABLE:
+		return (TRUE);
+	default:
+		return (FALSE);
+	}
+}

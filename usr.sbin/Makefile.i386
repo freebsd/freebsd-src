@@ -7,7 +7,6 @@ SUBDIR+=	acpi
 SUBDIR+=	apm
 SUBDIR+=	apmd
 .endif
-SUBDIR+=	asf
 SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	btxld

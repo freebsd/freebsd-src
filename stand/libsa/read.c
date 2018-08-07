@@ -32,30 +32,30 @@
  * SUCH DAMAGE.
  *
  *	@(#)read.c	8.1 (Berkeley) 6/11/93
- *  
+ *
  *
  * Copyright (c) 1989, 1990, 1991 Carnegie Mellon University
  * All Rights Reserved.
  *
  * Author: Alessandro Forin
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
@@ -69,59 +69,65 @@ __FBSDID("$FreeBSD$");
 ssize_t
 read(int fd, void *dest, size_t bcount)
 {
-    struct open_file	*f = &files[fd];
-    size_t		resid;
+	struct open_file *f = &files[fd];
+	size_t resid;
 
-    if ((unsigned)fd >= SOPEN_MAX || !(f->f_flags & F_READ)) {
-	errno = EBADF;
-	return (-1);
-    }
-    if (f->f_flags & F_RAW) {
-	twiddle(4);
-	errno = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				btodb(f->f_offset), bcount, dest, &resid);
-	if (errno)
-	    return (-1);
-	f->f_offset += resid;
-	return (resid);
-    } 
-
-    /*
-     * Optimise reads from regular files using a readahead buffer.
-     * If the request can't be satisfied from the current buffer contents,
-     * check to see if it should be bypassed, or refill the buffer and complete
-     * the request.
-     */
-    resid = bcount;
-    for (;;) {
-	size_t	ccount, cresid;
-	/* how much can we supply? */
-	ccount = imin(f->f_ralen, resid);
-	if (ccount > 0) {
-	    bcopy(f->f_rabuf + f->f_raoffset, dest, ccount);
-	    f->f_raoffset += ccount;
-	    f->f_ralen -= ccount;
-	    resid -= ccount;
-	    if (resid == 0)
-		return(bcount);
-	    dest = (char *)dest + ccount;
+	if ((unsigned)fd >= SOPEN_MAX || !(f->f_flags & F_READ)) {
+		errno = EBADF;
+		return (-1);
+	}
+	if (f->f_flags & F_RAW) {
+		twiddle(4);
+		errno = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
+		    btodb(f->f_offset), bcount, dest, &resid);
+		if (errno)
+			return (-1);
+		f->f_offset += resid;
+		return (resid);
 	}
 
-	/* will filling the readahead buffer again not help? */
-	if (resid >= SOPEN_RASIZE) {
-	    /* bypass the rest of the request and leave the buffer empty */
-	    if ((errno = (f->f_ops->fo_read)(f, dest, resid, &cresid)))
-		    return (-1);
-	    return(bcount - cresid);
-	}
+	/*
+	 * Optimise reads from regular files using a readahead buffer.
+	 * If the request can't be satisfied from the current buffer contents,
+	 * check to see if it should be bypassed, or refill the buffer and
+	 * complete the request.
+	 */
+	resid = bcount;
+	for (;;) {
+		size_t	ccount, cresid;
+		/* how much can we supply? */
+		ccount = imin(f->f_ralen, resid);
+		if (ccount > 0) {
+			bcopy(f->f_rabuf + f->f_raoffset, dest, ccount);
+			f->f_raoffset += ccount;
+			f->f_ralen -= ccount;
+			resid -= ccount;
+			if (resid == 0)
+				return (bcount);
+			dest = (char *)dest + ccount;
+		}
 
-	/* fetch more data */
-	if ((errno = (f->f_ops->fo_read)(f, f->f_rabuf, SOPEN_RASIZE, &cresid)))
-	    return (-1);
-	f->f_raoffset = 0;
-	f->f_ralen = SOPEN_RASIZE - cresid;
-	/* no more data, return what we had */
-	if (f->f_ralen == 0)
-	    return(bcount - resid);
-    }	
+		/* will filling the readahead buffer again not help? */
+		if (f->f_rabuf == NULL || resid >= SOPEN_RASIZE) {
+			/*
+			 * bypass the rest of the request and leave the
+			 * buffer empty
+			 */
+			errno = (f->f_ops->fo_read)(f, dest, resid, &cresid);
+			if (errno != 0)
+				return (-1);
+			return (bcount - cresid);
+		}
+
+		/* fetch more data */
+		errno = (f->f_ops->fo_read)(f, f->f_rabuf, SOPEN_RASIZE,
+		    &cresid);
+		if (errno != 0)
+			return (-1);
+		f->f_raoffset = 0;
+		f->f_ralen = SOPEN_RASIZE - cresid;
+		/* no more data, return what we had */
+		if (f->f_ralen == 0)
+			return (bcount - resid);
+	}
 }

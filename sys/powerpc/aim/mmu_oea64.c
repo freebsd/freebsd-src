@@ -159,8 +159,8 @@ struct mtx	moea64_slb_mutex;
 /*
  * PTEG data.
  */
-u_int		moea64_pteg_count;
-u_int		moea64_pteg_mask;
+u_long		moea64_pteg_count;
+u_long		moea64_pteg_mask;
 
 /*
  * PVO data.
@@ -2446,7 +2446,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
  * calculated.
  */
 vm_offset_t
-moea64_bootstrap_alloc(vm_size_t size, u_int align)
+moea64_bootstrap_alloc(vm_size_t size, vm_size_t align)
 {
 	vm_offset_t	s, e;
 	int		i, j;

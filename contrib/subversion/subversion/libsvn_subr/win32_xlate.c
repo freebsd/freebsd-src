@@ -248,4 +248,11 @@ svn_subr__win32_xlate_to_stringbuf(svn_subr__win32_xlate_t *handle,
   return APR_SUCCESS;
 }
 
+#else  /* !WIN32 */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__win32_xlate;
+const apr_uint32_t svn__fake__win32_xlate = 0xdeadbeef;
+
 #endif /* WIN32 */

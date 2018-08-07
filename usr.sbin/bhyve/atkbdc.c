@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2015 Nahanni Systems Inc.
  * All rights reserved.
@@ -45,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 
 #include "acpi.h"
+#include "atkbdc.h"
 #include "inout.h"
 #include "pci_emul.h"
 #include "pci_irq.h"

@@ -38,7 +38,7 @@
 #ifdef _KERNEL
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/_rwlock.h>
+#include <sys/_rmlock.h>
 #endif
 
 #ifdef MALLOC_DECLARE
@@ -138,7 +138,7 @@ struct radix_node_head {
 	rn_close_t	*rnh_close;	/*do something when the last ref drops*/
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
 #ifdef _KERNEL
-	struct	rwlock rnh_lock;		/* locks entire radix tree */
+	struct	rmlock rnh_lock;		/* locks entire radix tree */
 #endif
 };
 
@@ -159,18 +159,18 @@ void rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes,
 #define R_Zalloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_NOWAIT | M_ZERO))
 #define R_Free(p) free((caddr_t)p, M_RTABLE);
 
+#define	RADIX_NODE_HEAD_RLOCK_TRACKER	struct rm_priotracker _rnh_tracker
 #define	RADIX_NODE_HEAD_LOCK_INIT(rnh)	\
-    rw_init_flags(&(rnh)->rnh_lock, "radix node head", 0)
-#define	RADIX_NODE_HEAD_LOCK(rnh)	rw_wlock(&(rnh)->rnh_lock)
-#define	RADIX_NODE_HEAD_UNLOCK(rnh)	rw_wunlock(&(rnh)->rnh_lock)
-#define	RADIX_NODE_HEAD_RLOCK(rnh)	rw_rlock(&(rnh)->rnh_lock)
-#define	RADIX_NODE_HEAD_RUNLOCK(rnh)	rw_runlock(&(rnh)->rnh_lock)
-#define	RADIX_NODE_HEAD_LOCK_TRY_UPGRADE(rnh)	rw_try_upgrade(&(rnh)->rnh_lock)
-
-
-#define	RADIX_NODE_HEAD_DESTROY(rnh)	rw_destroy(&(rnh)->rnh_lock)
-#define	RADIX_NODE_HEAD_LOCK_ASSERT(rnh) rw_assert(&(rnh)->rnh_lock, RA_LOCKED)
-#define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rw_assert(&(rnh)->rnh_lock, RA_WLOCKED)
+    rm_init(&(rnh)->rnh_lock, "radix node head")
+#define	RADIX_NODE_HEAD_LOCK(rnh)	rm_wlock(&(rnh)->rnh_lock)
+#define	RADIX_NODE_HEAD_UNLOCK(rnh)	rm_wunlock(&(rnh)->rnh_lock)
+#define	RADIX_NODE_HEAD_RLOCK(rnh)	rm_rlock(&(rnh)->rnh_lock,\
+    &_rnh_tracker)
+#define	RADIX_NODE_HEAD_RUNLOCK(rnh)	rm_runlock(&(rnh)->rnh_lock,\
+    &_rnh_tracker)
+#define	RADIX_NODE_HEAD_DESTROY(rnh)	rm_destroy(&(rnh)->rnh_lock)
+#define	RADIX_NODE_HEAD_LOCK_ASSERT(rnh) rm_assert(&(rnh)->rnh_lock, RA_LOCKED)
+#define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rm_assert(&(rnh)->rnh_lock, RA_WLOCKED)
 #endif /* _KERNEL */
 
 int	 rn_inithead(void **, int);

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.37 2017/07/23 08:23:33 christos Exp $
+# $File: sgml,v 1.38 2017/10/11 11:40:43 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version=
@@ -132,3 +132,14 @@
 0	search/1	#\ HTTP\ Cookie\ File	Web browser cookie text
 0	search/1	#\ Netscape\ HTTP\ Cookie\ File	Netscape cookie text
 0	search/1	#\ KDE\ Cookie\ File	Konqueror cookie text
+
+# XML-based format representing braille pages in a digital format.
+#
+# Specification:
+# http://files.pef-format.org/specifications/pef-2008-1/pef-specification.html
+#
+# Simon Aittamaa <simon.aittamaa@gmail.com>
+0   string      \<?xml\ version=
+>14 regex       ['"\ \t]*[0-9.]+['"\ \t]*
+>>19    search/4096 \<pef           Portable Embosser Format
+!:mime  application/x-pef+xml

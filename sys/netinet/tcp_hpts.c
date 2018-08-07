@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2016-8
- *	Netflix Inc.  All rights reserved.
+ * Copyright (c) 2016-2018 Netflix Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -149,7 +148,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
-#define	TCPOUTFLAGS
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -186,9 +184,6 @@ TUNABLE_INT("net.inet.tcp.hpts_logging_sz", &tcp_hpts_logging_size);
 
 static struct tcp_hptsi tcp_pace;
 
-static int
-tcp_hptsi_lock_inpinfo(struct inpcb *inp,
-    struct tcpcb **tp);
 static void tcp_wakehpts(struct tcp_hpts_entry *p);
 static void tcp_wakeinput(struct tcp_hpts_entry *p);
 static void tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv);
@@ -199,7 +194,6 @@ static void tcp_init_hptsi(void *st);
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
 static int32_t tcp_hpts_callout_skip_swi = 0;
 
-SYSCTL_DECL(_net_inet_tcp);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW, 0, "TCP Hpts controls");
 
 #define	timersub(tvp, uvp, vvp)						\
@@ -499,59 +493,6 @@ sysctl_tcp_hpts_log(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, log, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, sysctl_tcp_hpts_log, "A", "tcp hptsi log");
-
-
-/*
- * Try to get the INP_INFO lock.
- *
- * This function always succeeds in getting the lock. It will clear
- * *tpp and return (1) if something critical changed while the inpcb
- * was unlocked. Otherwise, it will leave *tpp unchanged and return (0).
- *
- * This function relies on the fact that the hpts always holds a
- * reference on the inpcb while the segment is on the hptsi wheel and
- * in the input queue.
- *
- */
-static int
-tcp_hptsi_lock_inpinfo(struct inpcb *inp, struct tcpcb **tpp)
-{
-	struct tcp_function_block *tfb;
-	struct tcpcb *tp;
-	void *ptr;
-
-	/* Try the easy way. */
-	if (INP_INFO_TRY_RLOCK(&V_tcbinfo))
-		return (0);
-
-	/*
-	 * OK, let's try the hard way. We'll save the function pointer block
-	 * to make sure that doesn't change while we aren't holding the
-	 * lock.
-	 */
-	tp = *tpp;
-	tfb = tp->t_fb;
-	ptr = tp->t_fb_ptr;
-	INP_WUNLOCK(inp);
-	INP_INFO_RLOCK(&V_tcbinfo);
-	INP_WLOCK(inp);
-	/* If the session went away, return an error. */
-	if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
-	    (inp->inp_flags2 & INP_FREED)) {
-		*tpp = NULL;
-		return (1);
-	}
-	/*
-	 * If the function block or stack-specific data block changed,
-	 * report an error.
-	 */
-	tp = intotcpcb(inp);
-	if ((tp->t_fb != tfb) && (tp->t_fb_ptr != ptr)) {
-		*tpp = NULL;
-		return (1);
-	}
-	return (0);
-}
 
 
 static void
@@ -1057,7 +998,7 @@ __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int3
 
 void
 tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked)
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos)
 {
 	/* Setup packet for input first */
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -1065,7 +1006,7 @@ tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	m->m_pkthdr.pace_tlen = (uint16_t) tlen;
 	m->m_pkthdr.pace_drphdrlen = drop_hdrlen;
 	m->m_pkthdr.pace_tos = iptos;
-	m->m_pkthdr.pace_lock = (uint8_t) ti_locked;
+	m->m_pkthdr.pace_lock = (curthread->td_epochnest != 0);
 	if (tp->t_in_pkt == NULL) {
 		tp->t_in_pkt = m;
 		tp->t_tail_pkt = m;
@@ -1078,11 +1019,11 @@ tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 
 int32_t
 __tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked, int32_t line){
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line){
 	struct tcp_hpts_entry *hpts;
 	int32_t ret;
 
-	tcp_queue_pkt_to_input(tp, m, th, tlen, drop_hdrlen, iptos, ti_locked);
+	tcp_queue_pkt_to_input(tp, m, th, tlen, drop_hdrlen, iptos);
 	hpts = tcp_input_lock(tp->t_inpcb);
 	ret = __tcp_queue_to_input_locked(tp->t_inpcb, hpts, line);
 	mtx_unlock(&hpts->p_mtx);
@@ -1204,6 +1145,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 	int16_t set_cpu;
 	uint32_t did_prefetch = 0;
 	int32_t ti_locked = TI_UNLOCKED;
+	struct epoch_tracker et;
 
 	HPTS_MTX_ASSERT(hpts);
 	while ((inp = TAILQ_FIRST(&hpts->p_input)) != NULL) {
@@ -1218,8 +1160,9 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		drop_reason = inp->inp_hpts_drop_reas;
 		inp->inp_in_input = 0;
 		mtx_unlock(&hpts->p_mtx);
+		CURVNET_SET(inp->inp_vnet);
 		if (drop_reason) {
-			INP_INFO_RLOCK(&V_tcbinfo);
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 			ti_locked = TI_RLOCKED;
 		} else {
 			ti_locked = TI_UNLOCKED;
@@ -1230,12 +1173,13 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 out:
 			hpts->p_inp = NULL;
 			if (ti_locked == TI_RLOCKED) {
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			}
 			if (in_pcbrele_wlocked(inp) == 0) {
 				INP_WUNLOCK(inp);
 			}
 			ti_locked = TI_UNLOCKED;
+			CURVNET_RESTORE();
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
@@ -1258,12 +1202,13 @@ out:
 					n = m->m_nextpkt;
 			}
 			tp = tcp_drop(tp, drop_reason);
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			if (tp == NULL) {
 				INP_WLOCK(inp);
 			}
 			if (in_pcbrele_wlocked(inp) == 0)
 				INP_WUNLOCK(inp);
+			CURVNET_RESTORE();
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
@@ -1284,17 +1229,13 @@ out:
 			 */
 			tcp_set_hpts(inp);
 		}
-		CURVNET_SET(tp->t_vnet);
 		m = tp->t_in_pkt;
 		n = NULL;
 		if (m != NULL &&
 		    (m->m_pkthdr.pace_lock == TI_RLOCKED ||
 		    tp->t_state != TCPS_ESTABLISHED)) {
 			ti_locked = TI_RLOCKED;
-			if (tcp_hptsi_lock_inpinfo(inp, &tp)) {
-				CURVNET_RESTORE();
-				goto out;
-			}
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 			m = tp->t_in_pkt;
 		}
 		if (in_newts_every_tcb) {
@@ -1330,13 +1271,15 @@ out:
 					/* Use the hpts specific do_segment */
 					(*tp->t_fb->tfb_tcp_hpts_do_segment) (m, th, inp->inp_socket,
 					    tp, drop_hdrlen,
-					    tlen, iptos, ti_locked, nxt_pkt, tv);
+					    tlen, iptos, nxt_pkt, tv);
 				} else {
 					/* Use the default do_segment */
 					(*tp->t_fb->tfb_tcp_do_segment) (m, th, inp->inp_socket,
 					    tp, drop_hdrlen,
-					    tlen, iptos, ti_locked);
+						tlen, iptos);
 				}
+				if (ti_locked == TI_RLOCKED)
+					INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				/*
 				 * Do segment returns unlocked we need the
 				 * lock again but we also need some kasserts
@@ -1349,7 +1292,7 @@ out:
 					n = m->m_nextpkt;
 				if (m != NULL &&
 				    m->m_pkthdr.pace_lock == TI_RLOCKED) {
-					INP_INFO_RLOCK(&V_tcbinfo);
+					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 					ti_locked = TI_RLOCKED;
 				} else
 					ti_locked = TI_UNLOCKED;
@@ -1361,14 +1304,12 @@ out:
 				 */
 				if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
 				    (inp->inp_flags2 & INP_FREED)) {
-			out_free:
 					while (m) {
 						m_freem(m);
 						m = n;
 						if (m)
 							n = m->m_nextpkt;
 					}
-					CURVNET_RESTORE();
 					goto out;
 				}
 				/*
@@ -1378,15 +1319,14 @@ out:
 				if (ti_locked == TI_UNLOCKED &&
 				    (tp->t_state != TCPS_ESTABLISHED)) {
 					ti_locked = TI_RLOCKED;
-					if (tcp_hptsi_lock_inpinfo(inp, &tp))
-						goto out_free;
+					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 				}
 			}	/** end while(m) */
 		}		/** end if ((m != NULL)  && (m == tp->t_in_pkt)) */
 		if (in_pcbrele_wlocked(inp) == 0)
 			INP_WUNLOCK(inp);
 		if (ti_locked == TI_RLOCKED)
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		INP_UNLOCK_ASSERT(inp);
 		ti_locked = TI_UNLOCKED;
@@ -1591,7 +1531,7 @@ out_now:
 					getmicrouptime(&sv);
 				cts = tcp_tv_to_usectick(&sv);
 			}
-			CURVNET_SET(tp->t_vnet);
+			CURVNET_SET(inp->inp_vnet);
 			/*
 			 * There is a hole here, we get the refcnt on the
 			 * inp so it will still be preserved but to make
@@ -1962,3 +1902,4 @@ tcp_init_hptsi(void *st)
 }
 
 SYSINIT(tcphptsi, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, tcp_init_hptsi, NULL);
+MODULE_VERSION(tcphpts, 1);

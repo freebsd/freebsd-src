@@ -163,7 +163,7 @@ static int bridge_batch = NM_BDG_BATCH; /* bridge batch size */
 SYSBEGIN(vars_vale);
 SYSCTL_DECL(_dev_netmap);
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge_batch, CTLFLAG_RW, &bridge_batch, 0,
-    "Max batch size to be used in the bridge");
+		"Max batch size to be used in the bridge");
 SYSEND;
 
 static int netmap_vp_create(struct nmreq_header *hdr, struct ifnet *,
@@ -231,7 +231,7 @@ struct nm_bridge {
 	 * The function is set by netmap_bdg_regops().
 	 */
 	struct netmap_bdg_ops *bdg_ops;
-	
+
 	/*
 	 * Contains the data structure used by the bdg_ops.lookup function.
 	 * By default points to *ht which is allocated on attach and used by the default lookup
@@ -285,22 +285,22 @@ static struct nm_bridge *nm_bridges;
 static inline void
 pkt_copy(void *_src, void *_dst, int l)
 {
-        uint64_t *src = _src;
-        uint64_t *dst = _dst;
-        if (unlikely(l >= 1024)) {
-                memcpy(dst, src, l);
-                return;
-        }
-        for (; likely(l > 0); l-=64) {
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-                *dst++ = *src++;
-        }
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+	if (unlikely(l >= 1024)) {
+		memcpy(dst, src, l);
+		return;
+	}
+	for (; likely(l > 0); l-=64) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
 }
 
 
@@ -542,7 +542,7 @@ netmap_bdg_detach_common(struct nm_bridge *b, int hw, int sw)
 	netmap_bdg_free(b);
 }
 
-static inline void * 
+static inline void *
 nm_bdg_get_auth_token(struct nm_bridge *b)
 {
 	return b->ht;
@@ -679,7 +679,7 @@ int
 nm_vi_create(struct nmreq_header *hdr)
 {
 	struct nmreq_vale_newif *req =
-		(struct nmreq_vale_newif *)hdr->nr_body;
+		(struct nmreq_vale_newif *)(uintptr_t)hdr->nr_body;
 	int error = 0;
 	/* Build a nmreq_register out of the nmreq_vale_newif,
 	 * so that we can call netmap_get_bdg_na(). */
@@ -691,11 +691,11 @@ nm_vi_create(struct nmreq_header *hdr)
 	regreq.nr_rx_rings = req->nr_rx_rings;
 	regreq.nr_mem_id = req->nr_mem_id;
 	hdr->nr_reqtype = NETMAP_REQ_REGISTER;
-	hdr->nr_body = (uint64_t)&regreq;
+	hdr->nr_body = (uintptr_t)&regreq;
 	error = netmap_vi_create(hdr, 0 /* no autodelete */);
 	hdr->nr_reqtype = NETMAP_REQ_VALE_NEWIF;
-	hdr->nr_body = (uint64_t)req;
-        /* Write back to the original struct. */
+	hdr->nr_body = (uintptr_t)req;
+	/* Write back to the original struct. */
 	req->nr_tx_slots = regreq.nr_tx_slots;
 	req->nr_rx_slots = regreq.nr_rx_slots;
 	req->nr_tx_rings = regreq.nr_tx_rings;
@@ -772,7 +772,7 @@ nm_update_info(struct nmreq_register *req, struct netmap_adapter *na)
 int
 netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 {
-	struct nmreq_register *req = (struct nmreq_register *)hdr->nr_body;
+	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
 	struct ifnet *ifp;
 	struct netmap_vp_adapter *vpna;
 	struct netmap_mem_d *nmd = NULL;
@@ -883,7 +883,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 
 	b = nm_find_bridge(nr_name, create);
 	if (b == NULL) {
-		D("no bridges available for '%s'", nr_name);
+		ND("no bridges available for '%s'", nr_name);
 		return (create ? ENOMEM : ENXIO);
 	}
 	if (strlen(nr_name) < b->bdg_namelen) /* impossible */
@@ -977,7 +977,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		if (hdr->nr_reqtype == NETMAP_REQ_VALE_ATTACH) {
 			/* Check if we need to skip the host rings. */
 			struct nmreq_vale_attach *areq =
-				(struct nmreq_vale_attach *)hdr->nr_body;
+				(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
 			if (areq->reg.nr_mode != NR_REG_NIC_SW) {
 				hostna = NULL;
 			}
@@ -1017,7 +1017,7 @@ int
 nm_bdg_ctl_attach(struct nmreq_header *hdr, void *auth_token)
 {
 	struct nmreq_vale_attach *req =
-		(struct nmreq_vale_attach *)hdr->nr_body;
+		(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
 	struct netmap_vp_adapter * vpna;
 	struct netmap_adapter *na;
 	struct netmap_mem_d *nmd = NULL;
@@ -1094,7 +1094,7 @@ nm_is_bwrap(struct netmap_adapter *na)
 int
 nm_bdg_ctl_detach(struct nmreq_header *hdr, void *auth_token)
 {
-	struct nmreq_vale_detach *nmreq_det = (void *)hdr->nr_body;
+	struct nmreq_vale_detach *nmreq_det = (void *)(uintptr_t)hdr->nr_body;
 	struct netmap_vp_adapter *vpna;
 	struct netmap_adapter *na;
 	struct nm_bridge *b = NULL;
@@ -1413,7 +1413,7 @@ int
 nm_bdg_polling(struct nmreq_header *hdr)
 {
 	struct nmreq_vale_polling *req =
-		(struct nmreq_vale_polling *)hdr->nr_body;
+		(struct nmreq_vale_polling *)(uintptr_t)hdr->nr_body;
 	struct netmap_adapter *na = NULL;
 	int error = 0;
 
@@ -1446,7 +1446,7 @@ int
 netmap_bdg_list(struct nmreq_header *hdr)
 {
 	struct nmreq_vale_list *req =
-		(struct nmreq_vale_list *)hdr->nr_body;
+		(struct nmreq_vale_list *)(uintptr_t)hdr->nr_body;
 	int namelen = strlen(hdr->nr_name);
 	struct nm_bridge *b, *bridges;
 	struct netmap_vp_adapter *vpna;
@@ -1528,7 +1528,7 @@ netmap_bdg_list(struct nmreq_header *hdr)
  *
  * Called without NMG_LOCK.
  */
- 
+
 int
 netmap_bdg_regops(const char *name, struct netmap_bdg_ops *bdg_ops, void *private_data, void *auth_token)
 {
@@ -1766,33 +1766,33 @@ nm_bdg_preflush(struct netmap_kring *kring, u_int end)
  */
 #define mix(a, b, c)                                                    \
 do {                                                                    \
-        a -= b; a -= c; a ^= (c >> 13);                                 \
-        b -= c; b -= a; b ^= (a << 8);                                  \
-        c -= a; c -= b; c ^= (b >> 13);                                 \
-        a -= b; a -= c; a ^= (c >> 12);                                 \
-        b -= c; b -= a; b ^= (a << 16);                                 \
-        c -= a; c -= b; c ^= (b >> 5);                                  \
-        a -= b; a -= c; a ^= (c >> 3);                                  \
-        b -= c; b -= a; b ^= (a << 10);                                 \
-        c -= a; c -= b; c ^= (b >> 15);                                 \
+	a -= b; a -= c; a ^= (c >> 13);                                 \
+	b -= c; b -= a; b ^= (a << 8);                                  \
+	c -= a; c -= b; c ^= (b >> 13);                                 \
+	a -= b; a -= c; a ^= (c >> 12);                                 \
+	b -= c; b -= a; b ^= (a << 16);                                 \
+	c -= a; c -= b; c ^= (b >> 5);                                  \
+	a -= b; a -= c; a ^= (c >> 3);                                  \
+	b -= c; b -= a; b ^= (a << 10);                                 \
+	c -= a; c -= b; c ^= (b >> 15);                                 \
 } while (/*CONSTCOND*/0)
 
 
 static __inline uint32_t
 nm_bridge_rthash(const uint8_t *addr)
 {
-        uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = 0; // hask key
+	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = 0; // hask key
 
-        b += addr[5] << 8;
-        b += addr[4];
-        a += addr[3] << 24;
-        a += addr[2] << 16;
-        a += addr[1] << 8;
-        a += addr[0];
+	b += addr[5] << 8;
+	b += addr[4];
+	a += addr[3] << 24;
+	a += addr[2] << 16;
+	a += addr[1] << 8;
+	a += addr[0];
 
-        mix(a, b, c);
+	mix(a, b, c);
 #define BRIDGE_RTHASH_MASK	(NM_BDG_HASH-1)
-        return (c & BRIDGE_RTHASH_MASK);
+	return (c & BRIDGE_RTHASH_MASK);
 }
 
 #undef mix
@@ -2115,10 +2115,10 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		needed = d->bq_len + brddst->bq_len;
 
 		if (unlikely(dst_na->up.virt_hdr_len != na->up.virt_hdr_len)) {
-                        if (netmap_verbose) {
-                            RD(3, "virt_hdr_mismatch, src %d dst %d", na->up.virt_hdr_len,
-                                  dst_na->up.virt_hdr_len);
-                        }
+			if (netmap_verbose) {
+				RD(3, "virt_hdr_mismatch, src %d dst %d", na->up.virt_hdr_len,
+						dst_na->up.virt_hdr_len);
+			}
 			/* There is a virtio-net header/offloadings mismatch between
 			 * source and destination. The slower mismatch datapath will
 			 * be used to cope with all the mismatches.
@@ -2448,7 +2448,7 @@ static int
 netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 		struct netmap_mem_d *nmd, struct netmap_vp_adapter **ret)
 {
-	struct nmreq_register *req = (struct nmreq_register *)hdr->nr_body;
+	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
 	struct netmap_vp_adapter *vpna;
 	struct netmap_adapter *na;
 	int error = 0;
@@ -2497,7 +2497,7 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 	vpna->last_smac = ~0llu;
 	/*if (vpna->mfs > netmap_buf_size)  TODO netmap_buf_size is zero??
 		vpna->mfs = netmap_buf_size; */
-        if (netmap_verbose)
+	if (netmap_verbose)
 		D("max frame size %u", vpna->mfs);
 
 	na->na_flags |= NAF_BDG_MAYSLEEP;
@@ -2784,8 +2784,14 @@ netmap_bwrap_config(struct netmap_adapter *na, struct nm_config_info *info)
 	struct netmap_bwrap_adapter *bna =
 		(struct netmap_bwrap_adapter *)na;
 	struct netmap_adapter *hwna = bna->hwna;
+	int error;
 
-	/* forward the request */
+	/* Forward the request to the hwna. It may happen that nobody
+	 * registered hwna yet, so netmap_mem_get_lut() may have not
+	 * been called yet. */
+	error = netmap_mem_get_lut(hwna->nm_mem, &hwna->na_lut);
+	if (error)
+		return error;
 	netmap_update_config(hwna);
 	/* swap the results and propagate */
 	info->num_tx_rings = hwna->num_rx_rings;
@@ -2823,11 +2829,11 @@ netmap_bwrap_krings_create(struct netmap_adapter *na)
 	}
 
 	/* increment the usage counter for all the hwna krings */
-        for_rx_tx(t) {
-                for (i = 0; i < nma_get_nrings(hwna, t) + 1; i++) {
+	for_rx_tx(t) {
+		for (i = 0; i < nma_get_nrings(hwna, t) + 1; i++) {
 			NMR(hwna, t)[i]->users++;
 		}
-        }
+	}
 
 	/* now create the actual rings */
 	error = netmap_mem_rings_create(hwna);
@@ -2839,13 +2845,13 @@ netmap_bwrap_krings_create(struct netmap_adapter *na)
 	 * The original number of rings comes from hwna,
 	 * rx rings on one side equals tx rings on the other.
 	 */
-        for_rx_tx(t) {
-                enum txrx r = nm_txrx_swap(t); /* swap NR_TX <-> NR_RX */
-                for (i = 0; i < nma_get_nrings(hwna, r) + 1; i++) {
-                        NMR(na, t)[i]->nkr_num_slots = NMR(hwna, r)[i]->nkr_num_slots;
-                        NMR(na, t)[i]->ring = NMR(hwna, r)[i]->ring;
-                }
-        }
+	for_rx_tx(t) {
+		enum txrx r = nm_txrx_swap(t); /* swap NR_TX <-> NR_RX */
+		for (i = 0; i < nma_get_nrings(hwna, r) + 1; i++) {
+			NMR(na, t)[i]->nkr_num_slots = NMR(hwna, r)[i]->nkr_num_slots;
+			NMR(na, t)[i]->ring = NMR(hwna, r)[i]->ring;
+		}
+	}
 
 	if (na->na_flags & NAF_HOST_RINGS) {
 		/* the hostna rings are the host rings of the bwrap.
@@ -2861,9 +2867,9 @@ netmap_bwrap_krings_create(struct netmap_adapter *na)
 	return 0;
 
 err_dec_users:
-        for_rx_tx(t) {
+	for_rx_tx(t) {
 		NMR(hwna, t)[i]->users--;
-        }
+	}
 	hwna->nm_krings_delete(hwna);
 err_del_vp_rings:
 	netmap_vp_krings_delete(na);
@@ -2884,11 +2890,11 @@ netmap_bwrap_krings_delete(struct netmap_adapter *na)
 	ND("%s", na->name);
 
 	/* decrement the usage counter for all the hwna krings */
-        for_rx_tx(t) {
-                for (i = 0; i < nma_get_nrings(hwna, t) + 1; i++) {
+	for_rx_tx(t) {
+		for (i = 0; i < nma_get_nrings(hwna, t) + 1; i++) {
 			NMR(hwna, t)[i]->users--;
 		}
-        }
+	}
 
 	/* delete any netmap rings that are no longer needed */
 	netmap_mem_rings_delete(hwna);
@@ -2969,7 +2975,7 @@ netmap_bwrap_bdg_ctl(struct nmreq_header *hdr, struct netmap_adapter *na)
 
 	if (hdr->nr_reqtype == NETMAP_REQ_VALE_ATTACH) {
 		struct nmreq_vale_attach *req =
-			(struct nmreq_vale_attach *)hdr->nr_body;
+			(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
 		if (req->reg.nr_ringid != 0 ||
 			(req->reg.nr_mode != NR_REG_ALL_NIC &&
 				req->reg.nr_mode != NR_REG_NIC_SW)) {
@@ -3055,6 +3061,7 @@ netmap_bwrap_attach(const char *nr_name, struct netmap_adapter *hwna)
 	na->pdev = hwna->pdev;
 	na->nm_mem = netmap_mem_get(hwna->nm_mem);
 	na->virt_hdr_len = hwna->virt_hdr_len;
+	na->rx_buf_maxsize = hwna->rx_buf_maxsize;
 	bna->up.retry = 1; /* XXX maybe this should depend on the hwna */
 	/* Set the mfs, needed on the VALE mismatch datapath. */
 	bna->up.mfs = NM_BDG_MFS_DEFAULT;
@@ -3087,6 +3094,7 @@ netmap_bwrap_attach(const char *nr_name, struct netmap_adapter *hwna)
 		na->na_hostvp = hwna->na_hostvp =
 			hostna->na_hostvp = &bna->host;
 		hostna->na_flags = NAF_BUSY; /* prevent NIOCREGIF */
+		hostna->rx_buf_maxsize = hwna->rx_buf_maxsize;
 		bna->host.mfs = NM_BDG_MFS_DEFAULT;
 	}
 

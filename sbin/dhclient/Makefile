@@ -50,7 +50,6 @@ LIBADD+=        cap_syslog
 CFLAGS+=-DWITH_CASPER
 .endif
 
-WARNS?=	4
 NO_WCAST_ALIGN=	yes
 
 HAS_TESTS=

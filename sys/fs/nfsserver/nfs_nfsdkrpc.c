@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 NFSDLOCKMUTEX;
 NFSV4ROOTLOCKMUTEX;
 struct nfsv4lock nfsd_suspend_lock;
+char *nfsrv_zeropnfsdat = NULL;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -105,6 +106,7 @@ static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
 extern struct proc *nfsd_master_proc;
+extern time_t nfsdev_time;
 
 /*
  * NFS server system calls
@@ -495,6 +497,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (newnfs_numnfsd == 0) {
+		nfsdev_time = time_second;
 		p = td->td_proc;
 		PROC_LOCK(p);
 		p->p_flag2 |= P2_AST_SU;
@@ -502,31 +505,36 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
-
-		/* An empty string implies AUTH_SYS only. */
-		if (principal[0] != '\0') {
-			ret2 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-			ret3 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-			ret4 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
-
-			if (!ret2 || !ret3 || !ret4)
-				printf("nfsd: can't register svc name\n");
+		error = nfsrv_createdevids(args, td);
+		if (error == 0) {
+			/* An empty string implies AUTH_SYS only. */
+			if (principal[0] != '\0') {
+				ret2 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER2);
+				ret3 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER3);
+				ret4 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER4);
+	
+				if (!ret2 || !ret3 || !ret4)
+					printf(
+					    "nfsd: can't register svc name\n");
+			}
+	
+			nfsrvd_pool->sp_minthreads = args->minthreads;
+			nfsrvd_pool->sp_maxthreads = args->maxthreads;
+				
+			svc_run(nfsrvd_pool);
+	
+			if (principal[0] != '\0') {
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
+			}
 		}
-
-		nfsrvd_pool->sp_minthreads = args->minthreads;
-		nfsrvd_pool->sp_maxthreads = args->maxthreads;
-			
-		svc_run(nfsrvd_pool);
-
-		if (principal[0] != '\0') {
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
-		}
-
 		NFSD_LOCK();
 		newnfs_numnfsd--;
 		nfsrvd_init(1);
@@ -555,8 +563,11 @@ nfsrvd_init(int terminating)
 	if (terminating) {
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
+		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
 		svcpool_close(nfsrvd_pool);
+		free(nfsrv_zeropnfsdat, M_TEMP);
+		nfsrv_zeropnfsdat = NULL;
 		NFSD_LOCK();
 	} else {
 		NFSD_UNLOCK();

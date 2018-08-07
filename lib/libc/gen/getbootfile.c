@@ -27,11 +27,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * From: @(#)gethostname.c	8.1 (Berkeley) 6/4/93
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "From: @(#)gethostname.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

@@ -73,11 +73,8 @@ struct vmtotal {
 /*
  * System wide statistics counters.
  * Locking:
- *      a - locked by atomic operations
  *      c - constant after initialization
- *      f - locked by vm_page_queue_free_mtx
  *      p - uses counter(9)
- *      q - changes are synchronized by the corresponding vm_pagequeue lock
  */
 struct vmmeter {
 	/*

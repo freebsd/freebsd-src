@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,2018 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,58 +59,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_soc.h"
 #endif
 
-#if defined(SOC_ALLWINNER_A13)
-#include <arm/allwinner/clkng/ccu_a13.h>
-#endif
-
-#if defined(SOC_ALLWINNER_A31)
-#include <arm/allwinner/clkng/ccu_a31.h>
-#endif
-
-#if defined(SOC_ALLWINNER_A64)
-#include <arm/allwinner/clkng/ccu_a64.h>
-#include <arm/allwinner/clkng/ccu_sun8i_r.h>
-#endif
-
-#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-#include <arm/allwinner/clkng/ccu_h3.h>
-#include <arm/allwinner/clkng/ccu_sun8i_r.h>
-#endif
-
-#if defined(SOC_ALLWINNER_A83T)
-#include <arm/allwinner/clkng/ccu_a83t.h>
-#include <arm/allwinner/clkng/ccu_sun8i_r.h>
-#endif
-
 #include "clkdev_if.h"
 #include "hwreset_if.h"
 
 static struct resource_spec aw_ccung_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
-};
-
-static struct ofw_compat_data compat_data[] = {
-#if defined(SOC_ALLWINNER_A31)
-	{ "allwinner,sun5i-a13-ccu", A13_CCU},
-#endif
-#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-	{ "allwinner,sun8i-h3-ccu", H3_CCU },
-	{ "allwinner,sun50i-h5-ccu", H3_CCU },
-	{ "allwinner,sun8i-h3-r-ccu", H3_R_CCU },
-#endif
-#if defined(SOC_ALLWINNER_A31)
-	{ "allwinner,sun6i-a31-ccu", A31_CCU },
-#endif
-#if defined(SOC_ALLWINNER_A64)
-	{ "allwinner,sun50i-a64-ccu", A64_CCU },
-	{ "allwinner,sun50i-a64-r-ccu", A64_R_CCU },
-#endif
-#if defined(SOC_ALLWINNER_A83T)
-	{ "allwinner,sun8i-a83t-ccu", A83T_CCU },
-	{ "allwinner,sun8i-a83t-r-ccu", A83T_R_CCU },
-#endif
-	{NULL, 0 }
 };
 
 #define	CCU_READ4(sc, reg)		bus_read_4((sc)->res, (reg))
@@ -213,20 +168,6 @@ aw_ccung_device_unlock(device_t dev)
 }
 
 static int
-aw_ccung_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "Allwinner Clock Control Unit NG");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
 aw_ccung_register_gates(struct aw_ccung_softc *sc)
 {
 	struct clk_gate_def def;
@@ -303,10 +244,11 @@ aw_ccung_init_clocks(struct aw_ccung_softc *sc)
 	}
 }
 
-static int
+int
 aw_ccung_attach(device_t dev)
 {
 	struct aw_ccung_softc *sc;
+	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -318,47 +260,35 @@ aw_ccung_attach(device_t dev)
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-
 	sc->clkdom = clkdom_create(dev);
 	if (sc->clkdom == NULL)
 		panic("Cannot create clkdom\n");
 
-	switch (sc->type) {
-#if defined(SOC_ALLWINNER_A13)
-	case A13_CCU:
-		ccu_a13_register_clocks(sc);
-		break;
-#endif
-#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-	case H3_CCU:
-		ccu_h3_register_clocks(sc);
-		break;
-	case H3_R_CCU:
-		ccu_sun8i_r_register_clocks(sc);
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A31)
-	case A31_CCU:
-		ccu_a31_register_clocks(sc);
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A64)
-	case A64_CCU:
-		ccu_a64_register_clocks(sc);
-		break;
-	case A64_R_CCU:
-		ccu_sun8i_r_register_clocks(sc);
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A83T)
-	case A83T_CCU:
-		ccu_a83t_register_clocks(sc);
-		break;
-	case A83T_R_CCU:
-		ccu_sun8i_r_register_clocks(sc);
-		break;
-#endif
+	for (i = 0; i < sc->nclks; i++) {
+		switch (sc->clks[i].type) {
+		case AW_CLK_UNDEFINED:
+			break;
+		case AW_CLK_MUX:
+			clknode_mux_register(sc->clkdom, sc->clks[i].clk.mux);
+			break;
+		case AW_CLK_DIV:
+			clknode_div_register(sc->clkdom, sc->clks[i].clk.div);
+			break;
+		case AW_CLK_FIXED:
+			clknode_fixed_register(sc->clkdom,
+			    sc->clks[i].clk.fixed);
+			break;
+		case AW_CLK_NKMP:
+			aw_clk_nkmp_register(sc->clkdom, sc->clks[i].clk.nkmp);
+			break;
+		case AW_CLK_NM:
+			aw_clk_nm_register(sc->clkdom, sc->clks[i].clk.nm);
+			break;
+		case AW_CLK_PREDIV_MUX:
+			aw_clk_prediv_mux_register(sc->clkdom,
+			    sc->clks[i].clk.prediv_mux);
+			break;
+		}
 	}
 
 	if (sc->gates)
@@ -381,10 +311,6 @@ aw_ccung_attach(device_t dev)
 }
 
 static device_method_t aw_ccung_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		aw_ccung_probe),
-	DEVMETHOD(device_attach,	aw_ccung_attach),
-
 	/* clkdev interface */
 	DEVMETHOD(clkdev_write_4,	aw_ccung_write_4),
 	DEVMETHOD(clkdev_read_4,	aw_ccung_read_4),
@@ -399,14 +325,5 @@ static device_method_t aw_ccung_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_ccung_driver = {
-	"aw_ccung",
-	aw_ccung_methods,
-	sizeof(struct aw_ccung_softc),
-};
-
-static devclass_t aw_ccung_devclass;
-
-EARLY_DRIVER_MODULE(aw_ccung, simplebus, aw_ccung_driver, aw_ccung_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-MODULE_VERSION(aw_ccung, 1);
+DEFINE_CLASS_0(aw_ccung, aw_ccung_driver, aw_ccung_methods,
+    sizeof(struct aw_ccung_softc));

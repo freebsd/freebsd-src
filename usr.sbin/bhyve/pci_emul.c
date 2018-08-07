@@ -863,7 +863,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 {
 	uint16_t msgctrl, rwmask;
 	int off;
-	
+
 	off = offset - capoff;
 	/* Message Control Register */
 	if (off == 2 && bytes == 2) {
@@ -876,8 +876,8 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
 		pci_lintr_update(pi);
-	} 
-	
+	}
+
 	CFGWRITE(pi, offset, val, bytes);
 }
 
@@ -1336,11 +1336,11 @@ pci_bus_write_dsdt(int bus)
 		dsdt_line("Name (PPRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_pirq_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Name (APRT, Package ()");
 		dsdt_line("{");
 		pci_walk_lintr(bus, pci_apic_prt_entry, NULL);
- 		dsdt_line("})");
+		dsdt_line("})");
 		dsdt_line("Method (_PRT, 0, NotSerialized)");
 		dsdt_line("{");
 		dsdt_line("  If (PICM)");
@@ -1726,7 +1726,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
-}	
+}
 
 static void
 pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,

@@ -139,14 +139,14 @@ ldns_output_format* ldns_output_format_init(ldns_output_format_storage* fmt) {
 }
 
 /**
- * Set an ouput format flag.
+ * Set an output format flag.
  */
 INLINE void ldns_output_format_set(ldns_output_format* fmt, int flag) {
         fmt->flags |= flag;
 }
 
 /**
- * Clear an ouput format flag.
+ * Clear an output format flag.
  */
 INLINE void ldns_output_format_clear(ldns_output_format* fmt, int flag) {
         fmt->flags &= !flag;

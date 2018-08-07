@@ -58,7 +58,7 @@ typedef	__off_t		off_t;
  * byte boundary with null bytes.  All names are guaranteed null terminated.
  * The maximum length of a name in a directory is MAXNAMLEN.
  *
- * Explicit padding between the last member of the header (d_namelen) and
+ * Explicit padding between the last member of the header (d_namlen) and
  * d_name avoids ABI padding at the end of dirent on LP64 architectures.
  * There is code depending on d_name being last.
  */

@@ -24,18 +24,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2015
+.Dd May 29, 2018
 .Dt MLX5EN 4
 .Os
 .Sh NAME
 .Nm mlx5en
-.Nd "Mellanox ConnectX-4 and ConnectX-4 LX based 100Gb, 50Gb, 40Gb, 25Gb and 10Gb Ethernet adapter driver"
+.Nd "Mellanox ConnectX-4, ConnectX-4 LX and ConnectX-5 based 100Gb, 50Gb, 40Gb, 25Gb and 10Gb Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_LINUXKPI"
+.Cd "options RATELIMIT"
 .Cd "device mlx5"
 .Cd "device mlx5en"
 .Ed
@@ -56,11 +57,12 @@ mlx5en_load="YES"
 The
 .Nm
 driver provides support for PCI Express Ethernet adapters based on
-ConnectX-4 and ConnectX-4 LX.
+ConnectX-4, ConnectX-4 LX and ConnectX-5.
 The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO),
 HW Large Receive Offload (HW LRO), VLAN tag insertion/extraction,
-VLAN checksum offload, VLAN TSO, and Receive Side Steering (RSS).
+VLAN checksum offload, VLAN TSO, hardware rate limiting (TXRTLMT)
+and Receive Side Steering (RSS).
 .br
 The network interface is named mce.
 .br
@@ -74,6 +76,7 @@ For more information on configuring this device, see
 The
 .Nm
 driver supports 100Gb, 50Gb, 40Gb, 25Gb and 10Gb Ethernet adapters.
+ConnectX-5 supports:10/20/25/40/50/56/100Gb/s speeds.
 ConnectX-4 supports:10/20/25/40/50/56/100Gb/s speeds.
 ConnectX-4 LX supports:10/25/40/50Gb/s speeds (and reduced power consumption) :
 .Pp

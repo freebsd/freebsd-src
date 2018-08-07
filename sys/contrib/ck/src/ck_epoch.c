@@ -349,7 +349,7 @@ ck_epoch_scan(struct ck_epoch *global,
 }
 
 static void
-ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e)
+ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e, ck_stack_t *deferred)
 {
 	unsigned int epoch = e & (CK_EPOCH_LENGTH - 1);
 	ck_stack_entry_t *head, *next, *cursor;
@@ -362,7 +362,10 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e)
 		    ck_epoch_entry_container(cursor);
 
 		next = CK_STACK_NEXT(cursor);
-		entry->function(entry);
+		if (deferred != NULL)
+			ck_stack_push_spnc(deferred, &entry->stack_entry);
+		else
+			entry->function(entry);
 		i++;
 	}
 
@@ -390,7 +393,7 @@ ck_epoch_reclaim(struct ck_epoch_record *record)
 	unsigned int epoch;
 
 	for (epoch = 0; epoch < CK_EPOCH_LENGTH; epoch++)
-		ck_epoch_dispatch(record, epoch);
+		ck_epoch_dispatch(record, epoch, NULL);
 
 	return;
 }
@@ -551,7 +554,7 @@ ck_epoch_barrier_wait(struct ck_epoch_record *record, ck_epoch_wait_cb_t *cb,
  * is far from ideal too.
  */
 bool
-ck_epoch_poll(struct ck_epoch_record *record)
+ck_epoch_poll_deferred(struct ck_epoch_record *record, ck_stack_t *deferred)
 {
 	bool active;
 	unsigned int epoch;
@@ -572,7 +575,7 @@ ck_epoch_poll(struct ck_epoch_record *record)
 	if (active == false) {
 		record->epoch = epoch;
 		for (epoch = 0; epoch < CK_EPOCH_LENGTH; epoch++)
-			ck_epoch_dispatch(record, epoch);
+			ck_epoch_dispatch(record, epoch, deferred);
 
 		return true;
 	}
@@ -580,6 +583,13 @@ ck_epoch_poll(struct ck_epoch_record *record)
 	/* If an active thread exists, rely on epoch observation. */
 	(void)ck_pr_cas_uint(&global->epoch, epoch, epoch + 1);
 
-	ck_epoch_dispatch(record, epoch + 1);
+	ck_epoch_dispatch(record, epoch + 1, deferred);
 	return true;
+}
+
+bool
+ck_epoch_poll(struct ck_epoch_record *record)
+{
+
+	return ck_epoch_poll_deferred(record, NULL);
 }

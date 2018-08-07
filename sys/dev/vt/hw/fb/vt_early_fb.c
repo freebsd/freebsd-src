@@ -224,7 +224,7 @@ vt_efb_init(struct vt_device *vd)
 	 * remapped for us when relocation turns on.
 	 */
 	if (OF_getproplen(node, "address") == sizeof(info->fb_pbase)) {
-	 	/* XXX We assume #address-cells is 1 at this point. */
+		/* XXX We assume #address-cells is 1 at this point. */
 		OF_getencprop(node, "address", &info->fb_pbase,
 		    sizeof(info->fb_pbase));
 

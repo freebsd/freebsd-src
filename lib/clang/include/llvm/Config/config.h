@@ -2,9 +2,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* Get __FreeBSD_version. */
-#include <osreldate.h>
-
 /* Exported configuration */
 #include "llvm/Config/llvm-config.h"
 
@@ -17,12 +14,10 @@
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
 
-#if __FreeBSD_version >= 1000052
 /* Define to 1 if you have the `backtrace' function. */
 #define HAVE_BACKTRACE TRUE
 
 #define BACKTRACE_HEADER <execinfo.h>
-#endif
 
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
@@ -81,7 +76,7 @@
 /* #undef HAVE_FFI_H */
 
 /* Define to 1 if you have the `futimens' function. */
-#if __FreeBSD_version >= 1100056
+#if __FreeBSD__ >= 11
 #define HAVE_FUTIMENS 1
 #endif
 
@@ -398,10 +393,10 @@
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 0
+#define LLVM_VERSION_PATCH 1
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "6.0.0"
+#define LLVM_VERSION_STRING "6.0.1"
 
 /* Define if libxml2 is supported on this platform. */
 /* #undef LLVM_LIBXML2_ENABLED */
@@ -416,13 +411,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 6.0.0"
+#define PACKAGE_STRING "LLVM 6.0.1"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "6.0.0"
+#define PACKAGE_VERSION "6.0.1"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */

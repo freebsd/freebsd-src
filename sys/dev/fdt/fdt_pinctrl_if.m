@@ -27,6 +27,7 @@
 #
 
 #include <sys/types.h>
+#include <sys/bus.h>
 #include <dev/ofw/openfirm.h>
 
 #
@@ -35,11 +36,22 @@
 
 INTERFACE fdt_pinctrl;
 
+# Needed for timestamping device probe/attach calls
+HEADER {
+	#include <sys/tslog.h>
+}
+
 #
 # Set pins to the specified configuration.  The cfgxref arg is an xref phandle
 # to a descendent node (child, grandchild, ...) of the pinctrl device node.
 # Returns 0 on success or a standard errno value.
 #
+PROLOG {
+	TSENTER2(device_get_name(pinctrl));
+}
+EPILOG {
+	TSEXIT2(device_get_name(pinctrl));
+}
 METHOD int configure {
 	device_t	pinctrl;
 	phandle_t	cfgxref;

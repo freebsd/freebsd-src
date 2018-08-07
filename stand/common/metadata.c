@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
 #include <sys/boot.h>
+#include <sys/reboot.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
 #endif
@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
+
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.h"
+#endif
 
 #if defined(__sparc64__)
 #include <openfirm.h>
@@ -94,69 +98,14 @@ md_bootserial(void)
 }
 #endif
 
-int
+static int
 md_getboothowto(char *kargs)
 {
-    char	*cp;
     int		howto;
-    int		active;
-    int		i;
 
     /* Parse kargs */
-    howto = 0;
-    if (kargs != NULL) {
-	cp = kargs;
-	active = 0;
-	while (*cp != 0) {
-	    if (!active && (*cp == '-')) {
-		active = 1;
-	    } else if (active)
-		switch (*cp) {
-		case 'a':
-		    howto |= RB_ASKNAME;
-		    break;
-		case 'C':
-		    howto |= RB_CDROM;
-		    break;
-		case 'd':
-		    howto |= RB_KDB;
-		    break;
-		case 'D':
-		    howto |= RB_MULTIPLE;
-		    break;
-		case 'm':
-		    howto |= RB_MUTE;
-		    break;
-		case 'g':
-		    howto |= RB_GDB;
-		    break;
-		case 'h':
-		    howto |= RB_SERIAL;
-		    break;
-		case 'p':
-		    howto |= RB_PAUSE;
-		    break;
-		case 'r':
-		    howto |= RB_DFLTROOT;
-		    break;
-		case 's':
-		    howto |= RB_SINGLE;
-		    break;
-		case 'v':
-		    howto |= RB_VERBOSE;
-		    break;
-		default:
-		    active = 0;
-		    break;
-		}
-	    cp++;
-	}
-    }
-
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
+    howto = boot_parse_cmdline(kargs);
+    howto |= boot_env_to_howto();
 #if defined(__sparc64__)
     if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
@@ -307,7 +256,7 @@ md_copymodules(vm_offset_t addr, int kern64)
  * - The kernel environment is copied into kernel space.
  * - Module metadata are formatted and placed in kernel space.
  */
-int
+static int
 md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 {
     struct preloaded_file	*kfp;
@@ -410,7 +359,9 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     }
-
+#ifdef LOADER_GELI_SUPPORT
+    geli_export_key_metadata(kfp);
+#endif
 #if defined(__sparc64__)
     file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS,
 	sizeof dtlb_slot, &dtlb_slot);
@@ -460,13 +411,15 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     return(0);
 }
 
+#if !defined(__sparc64__)
 int
 md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
     return (md_load_dual(args, modulep, dtb, 0));
 }
+#endif
 
-#if defined(__mips__) || defined(__powerpc__)
+#if defined(__mips__) || defined(__powerpc__) || defined(__sparc64__)
 int
 md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {

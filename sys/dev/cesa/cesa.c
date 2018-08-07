@@ -80,8 +80,7 @@ static int	cesa_attach(device_t);
 static int	cesa_attach_late(device_t);
 static int	cesa_detach(device_t);
 static void	cesa_intr(void *);
-static int	cesa_newsession(device_t, u_int32_t *, struct cryptoini *);
-static int	cesa_freesession(device_t, u_int64_t);
+static int	cesa_newsession(device_t, crypto_session_t, struct cryptoini *);
 static int	cesa_process(device_t, struct cryptop *, int);
 
 static struct resource_spec cesa_res_spec[] = {
@@ -99,7 +98,6 @@ static device_method_t cesa_methods[] = {
 
 	/* Crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	cesa_newsession),
-	DEVMETHOD(cryptodev_freesession,cesa_freesession),
 	DEVMETHOD(cryptodev_process,	cesa_process),
 
 	DEVMETHOD_END
@@ -231,33 +229,6 @@ cesa_sync_desc(struct cesa_softc *sc, bus_dmasync_op_t op)
 	cesa_sync_dma_mem(&sc->sc_tdesc_cdm, op);
 	cesa_sync_dma_mem(&sc->sc_sdesc_cdm, op);
 	cesa_sync_dma_mem(&sc->sc_requests_cdm, op);
-}
-
-static struct cesa_session *
-cesa_alloc_session(struct cesa_softc *sc)
-{
-	struct cesa_session *cs;
-
-	CESA_GENERIC_ALLOC_LOCKED(sc, cs, sessions);
-
-	return (cs);
-}
-
-static struct cesa_session *
-cesa_get_session(struct cesa_softc *sc, uint32_t sid)
-{
-
-	if (sid >= CESA_SESSIONS)
-		return (NULL);
-
-	return (&sc->sc_sessions[sid]);
-}
-
-static void
-cesa_free_session(struct cesa_softc *sc, struct cesa_session *cs)
-{
-
-	CESA_GENERIC_FREE_LOCKED(sc, cs, sessions);
 }
 
 static struct cesa_request *
@@ -471,26 +442,26 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 	switch (alg) {
 	case CRYPTO_MD5_HMAC:
 		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, ipad, MD5_HMAC_BLOCK_LEN);
+		MD5Update(&md5ctx, ipad, MD5_BLOCK_LEN);
 		memcpy(hin, md5ctx.state, sizeof(md5ctx.state));
 		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, opad, MD5_HMAC_BLOCK_LEN);
+		MD5Update(&md5ctx, opad, MD5_BLOCK_LEN);
 		memcpy(hout, md5ctx.state, sizeof(md5ctx.state));
 		break;
 	case CRYPTO_SHA1_HMAC:
 		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, ipad, SHA1_HMAC_BLOCK_LEN);
+		SHA1Update(&sha1ctx, ipad, SHA1_BLOCK_LEN);
 		memcpy(hin, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
 		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, opad, SHA1_HMAC_BLOCK_LEN);
+		SHA1Update(&sha1ctx, opad, SHA1_BLOCK_LEN);
 		memcpy(hout, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
 		break;
 	case CRYPTO_SHA2_256_HMAC:
 		SHA256_Init(&sha256ctx);
-		SHA256_Update(&sha256ctx, ipad, SHA2_256_HMAC_BLOCK_LEN);
+		SHA256_Update(&sha256ctx, ipad, SHA2_256_BLOCK_LEN);
 		memcpy(hin, sha256ctx.state, sizeof(sha256ctx.state));
 		SHA256_Init(&sha256ctx);
-		SHA256_Update(&sha256ctx, opad, SHA2_256_HMAC_BLOCK_LEN);
+		SHA256_Update(&sha256ctx, opad, SHA2_256_BLOCK_LEN);
 		memcpy(hout, sha256ctx.state, sizeof(sha256ctx.state));
 		break;
 	default:
@@ -1372,14 +1343,6 @@ cesa_attach_late(device_t dev)
 		    cr_stq);
 	}
 
-	/* Initialize data structures: Sessions Pool */
-	STAILQ_INIT(&sc->sc_free_sessions);
-	for (i = 0; i < CESA_SESSIONS; i++) {
-		sc->sc_sessions[i].cs_sid = i;
-		STAILQ_INSERT_TAIL(&sc->sc_free_sessions, &sc->sc_sessions[i],
-		    cs_stq);
-	}
-
 	/*
 	 * Initialize TDMA:
 	 * - Burst limit: 128 bytes,
@@ -1415,7 +1378,8 @@ cesa_attach_late(device_t dev)
 	    CESA_TDMA_EMR_DATA_ERROR);
 
 	/* Register in OCF */
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct cesa_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto err8;
@@ -1608,7 +1572,7 @@ cesa_intr(void *arg)
 }
 
 static int
-cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+cesa_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct cesa_session *cs;
 	struct cesa_softc *sc;
@@ -1645,9 +1609,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		return (E2BIG);
 
 	/* Allocate session */
-	cs = cesa_alloc_session(sc);
-	if (!cs)
-		return (ENOMEM);
+	cs = crypto_get_driver_session(cses);
 
 	/* Prepare CESA configuration */
 	cs->cs_config = 0;
@@ -1684,7 +1646,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			cs->cs_config |= CESA_CSHD_MD5;
 			break;
 		case CRYPTO_MD5_HMAC:
-			cs->cs_mblen = MD5_HMAC_BLOCK_LEN;
+			cs->cs_mblen = MD5_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_MD5_HMAC;
@@ -1698,7 +1660,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			cs->cs_config |= CESA_CSHD_SHA1;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			cs->cs_mblen = SHA1_HMAC_BLOCK_LEN;
+			cs->cs_mblen = SHA1_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
@@ -1706,7 +1668,7 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
 			break;
 		case CRYPTO_SHA2_256_HMAC:
-			cs->cs_mblen = SHA2_256_HMAC_BLOCK_LEN;
+			cs->cs_mblen = SHA2_256_BLOCK_LEN;
 			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA2_256_HASH_LEN :
 			    mac->cri_mlen;
 			cs->cs_config |= CESA_CSHD_SHA2_256_HMAC;
@@ -1730,29 +1692,8 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		error = cesa_set_mkey(cs, mac->cri_alg, mac->cri_key,
 		    mac->cri_klen / 8);
 
-	if (error) {
-		cesa_free_session(sc, cs);
-		return (EINVAL);
-	}
-
-	*sidp = cs->cs_sid;
-
-	return (0);
-}
-
-static int
-cesa_freesession(device_t dev, uint64_t tid)
-{
-	struct cesa_session *cs;
-	struct cesa_softc *sc;
- 
-	sc = device_get_softc(dev);
-	cs = cesa_get_session(sc, CRYPTO_SESID2LID(tid));
-	if (!cs)
-		return (EINVAL);
-
-	/* Free session */
-	cesa_free_session(sc, cs);
+	if (error)
+		return (error);
 
 	return (0);
 }
@@ -1774,13 +1715,7 @@ cesa_process(device_t dev, struct cryptop *crp, int hint)
 	mac = NULL;
 	error = 0;
 
-	/* Check session ID */
-	cs = cesa_get_session(sc, CRYPTO_SESID2LID(crp->crp_sid));
-	if (!cs) {
-		crp->crp_etype = EINVAL;
-		crypto_done(crp);
-		return (0);
-	}
+	cs = crypto_get_driver_session(crp->crp_session);
 
 	/* Check and parse input */
 	if (crp->crp_ilen > CESA_MAX_REQUEST_SIZE) {

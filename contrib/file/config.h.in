@@ -77,6 +77,9 @@
 /* Define to 1 if you have the `gnurx' library (-lgnurx). */
 #undef HAVE_LIBGNURX
 
+/* Define to 1 if you have the `seccomp' library (-lseccomp). */
+#undef HAVE_LIBSECCOMP
+
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
@@ -227,10 +230,6 @@
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
-/* Define to 1 or 0, depending whether the compiler supports simple visibility
-   declarations. */
-#undef HAVE_VISIBILITY
-
 /* Define to 1 if you have the <wchar.h> header file. */
 #undef HAVE_WCHAR_H
 
@@ -263,6 +262,9 @@
 /* Define to 1 if `major', `minor', and `makedev' are declared in
    <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
 
 /* Name of package */
 #undef PACKAGE

@@ -73,32 +73,59 @@ typedef struct import_ctx_t
   apr_hash_t *autoprops;
 } import_ctx_t;
 
+typedef struct open_txdelta_stream_baton_t
+{
+  svn_boolean_t need_reset;
+  svn_stream_t *stream;
+} open_txdelta_stream_baton_t;
+
+/* Implements svn_txdelta_stream_open_func_t */
+static svn_error_t *
+open_txdelta_stream(svn_txdelta_stream_t **txdelta_stream_p,
+                    void *baton,
+                    apr_pool_t *result_pool,
+                    apr_pool_t *scratch_pool)
+{
+  open_txdelta_stream_baton_t *b = baton;
+
+  if (b->need_reset)
+    {
+      /* Under rare circumstances, we can be restarted and would need to
+       * supply the delta stream again.  In this case, reset the base
+       * stream. */
+      SVN_ERR(svn_stream_reset(b->stream));
+    }
+
+  /* Get the delta stream (delta against the empty string). */
+  svn_txdelta2(txdelta_stream_p, svn_stream_empty(result_pool),
+               b->stream, FALSE, result_pool);
+  b->need_reset = TRUE;
+  return SVN_NO_ERROR;
+}
 
 /* Apply LOCAL_ABSPATH's contents (as a delta against the empty string) to
    FILE_BATON in EDITOR.  Use POOL for any temporary allocation.
    PROPERTIES is the set of node properties set on this file.
 
-   Fill DIGEST with the md5 checksum of the sent file; DIGEST must be
-   at least APR_MD5_DIGESTSIZE bytes long. */
+   Return the resulting checksum in *RESULT_MD5_CHECKSUM_P. */
 
 /* ### how does this compare against svn_wc_transmit_text_deltas2() ??? */
 
 static svn_error_t *
-send_file_contents(const char *local_abspath,
+send_file_contents(svn_checksum_t **result_md5_checksum_p,
+                   const char *local_abspath,
                    void *file_baton,
                    const svn_delta_editor_t *editor,
                    apr_hash_t *properties,
-                   unsigned char *digest,
                    apr_pool_t *pool)
 {
   svn_stream_t *contents;
-  svn_txdelta_window_handler_t handler;
-  void *handler_baton;
   const svn_string_t *eol_style_val = NULL, *keywords_val = NULL;
   svn_boolean_t special = FALSE;
   svn_subst_eol_style_t eol_style;
   const char *eol;
   apr_hash_t *keywords;
+  open_txdelta_stream_baton_t baton = { 0 };
 
   /* If there are properties, look for EOL-style and keywords ones. */
   if (properties)
@@ -110,10 +137,6 @@ send_file_contents(const char *local_abspath,
       if (svn_hash_gets(properties, SVN_PROP_SPECIAL))
         special = TRUE;
     }
-
-  /* Get an editor func that wants to consume the delta stream. */
-  SVN_ERR(editor->apply_textdelta(file_baton, NULL, pool,
-                                  &handler, &handler_baton));
 
   if (eol_style_val)
     svn_subst_eol_style_from_value(&eol_style, &eol, eol_style_val->data);
@@ -168,10 +191,17 @@ send_file_contents(const char *local_abspath,
         }
     }
 
-  /* Send the file's contents to the delta-window handler. */
-  return svn_error_trace(svn_txdelta_send_stream(contents, handler,
-                                                 handler_baton, digest,
-                                                 pool));
+  /* Arrange the stream to calculate the resulting MD5. */
+  contents = svn_stream_checksummed2(contents, result_md5_checksum_p, NULL,
+                                     svn_checksum_md5, TRUE, pool);
+  /* Send the contents. */
+  baton.need_reset = FALSE;
+  baton.stream = svn_stream_disown(contents, pool);
+  SVN_ERR(editor->apply_textdelta_stream(editor, file_baton, NULL,
+                                         open_txdelta_stream, &baton, pool));
+  SVN_ERR(svn_stream_close(contents));
+
+  return SVN_NO_ERROR;
 }
 
 
@@ -198,7 +228,7 @@ import_file(const svn_delta_editor_t *editor,
 {
   void *file_baton;
   const char *mimetype = NULL;
-  unsigned char digest[APR_MD5_DIGESTSIZE];
+  svn_checksum_t *result_md5_checksum;
   const char *text_checksum;
   apr_hash_t* properties;
   apr_hash_index_t *hi;
@@ -262,13 +292,11 @@ import_file(const svn_delta_editor_t *editor,
     }
 
   /* Now, transmit the file contents. */
-  SVN_ERR(send_file_contents(local_abspath, file_baton, editor,
-                             properties, digest, pool));
+  SVN_ERR(send_file_contents(&result_md5_checksum, local_abspath,
+                             file_baton, editor, properties, pool));
 
   /* Finally, close the file. */
-  text_checksum =
-    svn_checksum_to_cstring(svn_checksum__from_digest_md5(digest, pool), pool);
-
+  text_checksum = svn_checksum_to_cstring(result_md5_checksum, pool);
   return svn_error_trace(editor->close_file(file_baton, text_checksum, pool));
 }
 
@@ -577,26 +605,26 @@ import_dir(const svn_delta_editor_t *editor,
 }
 
 
-/* Recursively import PATH to a repository using EDITOR and
- * EDIT_BATON.  PATH can be a file or directory.
+/* Recursively import LOCAL_ABSPATH to a repository using EDITOR and
+ * EDIT_BATON.  LOCAL_ABSPATH can be a file or directory.
  *
  * Sets *UPDATED_REPOSITORY to TRUE when the repository was modified by
  * a successfull commit, otherwise to FALSE.
  *
- * DEPTH is the depth at which to import PATH; it behaves as for
- * svn_client_import4().
+ * DEPTH is the depth at which to import LOCAL_ABSPATH; it behaves as for
+ * svn_client_import5().
  *
  * BASE_REV is the revision to use for the root of the commit. We
  * checked the preconditions against this revision.
  *
  * NEW_ENTRIES is an ordered array of path components that must be
  * created in the repository (where the ordering direction is
- * parent-to-child).  If PATH is a directory, NEW_ENTRIES may be empty
+ * parent-to-child).  If LOCAL_ABSPATH is a directory, NEW_ENTRIES may be empty
  * -- the result is an import which creates as many new entries in the
  * top repository target directory as there are importable entries in
- * the top of PATH; but if NEW_ENTRIES is not empty, its last item is
+ * the top of LOCAL_ABSPATH; but if NEW_ENTRIES is not empty, its last item is
  * the name of a new subdirectory in the repository to hold the
- * import.  If PATH is a file, NEW_ENTRIES may not be empty, and its
+ * import.  If LOCAL_ABSPATH is a file, NEW_ENTRIES may not be empty, and its
  * last item is the name used for the file in the repository.  If
  * NEW_ENTRIES contains more than one item, all but the last item are
  * the names of intermediate directories that are created before the
@@ -623,6 +651,8 @@ import_dir(const svn_delta_editor_t *editor,
  *
  * If CTX->NOTIFY_FUNC is non-null, invoke it with CTX->NOTIFY_BATON for
  * each imported path, passing actions svn_wc_notify_commit_added.
+ *
+ * URL is used only in the 'commit_finalizing' notification.
  *
  * Use POOL for any temporary allocation.
  *

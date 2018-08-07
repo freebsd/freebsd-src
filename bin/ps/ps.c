@@ -689,7 +689,7 @@ main(int argc, char *argv[])
 			    (STAILQ_NEXT(vent, next_ve) == NULL &&
 			    (vent->var->flag & LJUST))) ? 0 : vent->var->width;
 			snprintf(fmtbuf, sizeof(fmtbuf), "{:%s/%%%s%d..%ds}",
-			    vent->var->field ?: vent->var->name,
+			    vent->var->field ? vent->var->field : vent->var->name,
 			    (vent->var->flag & LJUST) ? "-" : "",
 			    fwidthmin, fwidthmax);
 			xo_emit(fmtbuf, str);
@@ -1448,7 +1448,7 @@ pidmax_init(void)
 	}
 }
 
-static void
+static void __dead2
 usage(void)
 {
 #define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"

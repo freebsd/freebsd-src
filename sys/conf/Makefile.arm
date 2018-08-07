@@ -73,12 +73,8 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 		rm ${FULLKERNEL}.noheader
 
 FILES_CPU_FUNC = \
-	$S/$M/$M/cpufunc_asm_arm9.S \
-	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S \
-	$S/$M/$M/cpufunc_asm_xscale_c3.S $S/$M/$M/cpufunc_asm_armv5_ec.S \
-	$S/$M/$M/cpufunc_asm_fa526.S $S/$M/$M/cpufunc_asm_sheeva.S \
-	$S/$M/$M/cpufunc_asm_pj4b.S $S/$M/$M/cpufunc_asm_armv6.S \
-	$S/$M/$M/cpufunc_asm_armv7.S
+	$S/$M/$M/cpufunc_asm_armv5_ec.S \
+	$S/$M/$M/cpufunc_asm_sheeva.S
 
 .if ${MACHINE_ARCH:Marmv[67]*} == "" && defined(KERNPHYSADDR)
 KERNEL_EXTRA=trampoline
@@ -123,7 +119,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -I. -I$S -c \
 	    -DKZIP -DELF_TRAMPOLINE \
-	    $S/kern/inflate.c \
+	    $S/kern/subr_inflate.c \
 	    -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp \

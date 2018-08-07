@@ -432,7 +432,7 @@ export_node(void *baton,
                                                              scratch_pool));
 
   /* Now that dst_tmp contains the translated data, do the atomic rename. */
-  SVN_ERR(svn_io_file_rename(dst_tmp, to_abspath, scratch_pool));
+  SVN_ERR(svn_io_file_rename2(dst_tmp, to_abspath, FALSE, scratch_pool));
 
   if (eib->notify_func)
     {
@@ -816,7 +816,7 @@ close_file(void *file_baton,
 
   if ((! fb->eol_style_val) && (! fb->keywords_val) && (! fb->special))
     {
-      SVN_ERR(svn_io_file_rename(fb->tmppath, fb->path, pool));
+      SVN_ERR(svn_io_file_rename2(fb->tmppath, fb->path, FALSE, pool));
     }
   else
     {
@@ -1035,7 +1035,7 @@ add_file_ev2(void *baton,
                                eb->cancel_baton, scratch_pool));
 
       /* Move the file into place. */
-      SVN_ERR(svn_io_file_rename(tmppath, full_path, scratch_pool));
+      SVN_ERR(svn_io_file_rename2(tmppath, full_path, FALSE, scratch_pool));
     }
 
   if (executable_val)
@@ -1148,7 +1148,7 @@ get_editor_ev2(const svn_delta_editor_t **export_editor,
 }
 
 static svn_error_t *
-export_file_ev2(const char *from_path_or_url,
+export_file_ev2(const char *from_url,
                 const char *to_path,
                 struct edit_baton *eb,
                 svn_client__pathrev_t *loc,
@@ -1156,23 +1156,21 @@ export_file_ev2(const char *from_path_or_url,
                 svn_boolean_t overwrite,
                 apr_pool_t *scratch_pool)
 {
-  svn_boolean_t from_is_url = svn_path_is_url(from_path_or_url);
   apr_hash_t *props;
   svn_stream_t *tmp_stream;
   svn_node_kind_t to_kind;
 
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
+
   if (svn_path_is_empty(to_path))
     {
-      if (from_is_url)
-        to_path = svn_uri_basename(from_path_or_url, scratch_pool);
-      else
-        to_path = svn_dirent_basename(from_path_or_url, NULL);
+      to_path = svn_uri_basename(from_url, scratch_pool);
       eb->root_path = to_path;
     }
   else
     {
-      SVN_ERR(append_basename_if_dir(&to_path, from_path_or_url,
-                                     from_is_url, scratch_pool));
+      SVN_ERR(append_basename_if_dir(&to_path, from_url,
+                                     TRUE, scratch_pool));
       eb->root_path = to_path;
     }
 
@@ -1204,7 +1202,7 @@ export_file_ev2(const char *from_path_or_url,
 }
 
 static svn_error_t *
-export_file(const char *from_path_or_url,
+export_file(const char *from_url,
             const char *to_path,
             struct edit_baton *eb,
             svn_client__pathrev_t *loc,
@@ -1216,20 +1214,18 @@ export_file(const char *from_path_or_url,
   apr_hash_index_t *hi;
   struct file_baton *fb = apr_pcalloc(scratch_pool, sizeof(*fb));
   svn_node_kind_t to_kind;
-  svn_boolean_t from_is_url = svn_path_is_url(from_path_or_url);
+
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
 
   if (svn_path_is_empty(to_path))
     {
-      if (from_is_url)
-        to_path = svn_uri_basename(from_path_or_url, scratch_pool);
-      else
-        to_path = svn_dirent_basename(from_path_or_url, NULL);
+      to_path = svn_uri_basename(from_url, scratch_pool);
       eb->root_path = to_path;
     }
   else
     {
-      SVN_ERR(append_basename_if_dir(&to_path, from_path_or_url,
-                                     from_is_url, scratch_pool));
+      SVN_ERR(append_basename_if_dir(&to_path, from_url,
+                                     TRUE, scratch_pool));
       eb->root_path = to_path;
     }
 
@@ -1288,7 +1284,7 @@ export_file(const char *from_path_or_url,
 }
 
 static svn_error_t *
-export_directory(const char *from_path_or_url,
+export_directory(const char *from_url,
                  const char *to_path,
                  struct edit_baton *eb,
                  svn_client__pathrev_t *loc,
@@ -1306,6 +1302,8 @@ export_directory(const char *from_path_or_url,
   const svn_ra_reporter3_t *reporter;
   void *report_baton;
   svn_node_kind_t kind;
+
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
 
   if (!ENABLE_EV2_IMPL)
     SVN_ERR(get_editor_ev1(&export_editor, &edit_baton, eb, ctx,
@@ -1355,7 +1353,7 @@ export_directory(const char *from_path_or_url,
 
       SVN_ERR(svn_dirent_get_absolute(&to_abspath, to_path, scratch_pool));
       SVN_ERR(svn_client__export_externals(eb->externals,
-                                           from_path_or_url,
+                                           from_url,
                                            to_abspath, eb->repos_root_url,
                                            depth, native_eol,
                                            ignore_keywords,
@@ -1402,7 +1400,11 @@ svn_client_export5(svn_revnum_t *result_rev,
       svn_client__pathrev_t *loc;
       svn_ra_session_t *ra_session;
       svn_node_kind_t kind;
+      const char *from_url;
       struct edit_baton *eb = apr_pcalloc(pool, sizeof(*eb));
+
+      SVN_ERR(svn_client_url_from_path2(&from_url, from_path_or_url,
+                                        ctx, pool, pool));
 
       /* Get the RA connection. */
       SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &loc,
@@ -1428,15 +1430,15 @@ svn_client_export5(svn_revnum_t *result_rev,
       if (kind == svn_node_file)
         {
           if (!ENABLE_EV2_IMPL)
-            SVN_ERR(export_file(from_path_or_url, to_path, eb, loc, ra_session,
+            SVN_ERR(export_file(from_url, to_path, eb, loc, ra_session,
                                 overwrite, pool));
           else
-            SVN_ERR(export_file_ev2(from_path_or_url, to_path, eb, loc,
+            SVN_ERR(export_file_ev2(from_url, to_path, eb, loc,
                                     ra_session, overwrite, pool));
         }
       else if (kind == svn_node_dir)
         {
-          SVN_ERR(export_directory(from_path_or_url, to_path,
+          SVN_ERR(export_directory(from_url, to_path,
                                    eb, loc, ra_session, overwrite,
                                    ignore_externals, ignore_keywords, depth,
                                    native_eol, ctx, pool));
@@ -1508,7 +1510,7 @@ svn_client_export5(svn_revnum_t *result_rev,
       eib.ignore_keywords = ignore_keywords;
       eib.wc_ctx = ctx->wc_ctx;
       eib.native_eol = native_eol;
-      eib.notify_func = ctx->notify_func2;;
+      eib.notify_func = ctx->notify_func2;
       eib.notify_baton = ctx->notify_baton2;
       eib.origin_abspath = from_path_or_url;
       eib.exported = FALSE;

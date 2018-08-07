@@ -88,6 +88,5 @@ void		bpf_destroy_jit_filter(bpf_jit_filter *filter);
 struct bpf_insn;
 
 bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
-void		bpf_jit_free(void *, size_t);
 
 #endif	/* _NET_BPF_JITTER_H_ */

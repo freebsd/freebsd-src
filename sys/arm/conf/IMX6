@@ -118,11 +118,13 @@ device		hdmi
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA="dtb/imx6 imx"
+device  	fdt_pinctrl		# FDT pinmux driver
 
 # SoC-specific devices
 device		ffec			# Freescale Fast Ethernet Controller
 device		fsliic			# Freescale i2c/iic
 device		iic			# iic protocol
 device		iicbus			# iic bus
+device		imx6_snvs		# On-chip RTC
 device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 

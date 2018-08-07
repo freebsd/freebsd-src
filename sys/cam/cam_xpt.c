@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/interrupt.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -5011,6 +5010,8 @@ xpt_release_device(struct cam_ed *device)
 	free(device->physpath, M_CAMXPT);
 	free(device->rcap_buf, M_CAMXPT);
 	free(device->serial_num, M_CAMXPT);
+	free(device->nvme_data, M_CAMXPT);
+	free(device->nvme_cdata, M_CAMXPT);
 	taskqueue_enqueue(xsoftc.xpt_taskq, &device->device_destroy_task);
 }
 

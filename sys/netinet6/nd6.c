@@ -98,11 +98,11 @@ VNET_DEFINE(int, nd6_gctimer)	= (60 * 60 * 24); /* 1 day: garbage
 					 * collection timer */
 
 /* preventing too many loops in ND option parsing */
-static VNET_DEFINE(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
+VNET_DEFINE_STATIC(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
 
 VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
-static VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
+VNET_DEFINE_STATIC(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
 					 * ND entries */
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
@@ -142,7 +142,7 @@ static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
 static int nd6_need_cache(struct ifnet *);
  
 
-static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
+VNET_DEFINE_STATIC(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
@@ -301,7 +301,7 @@ nd6_ifdetach(struct ifnet *ifp, struct nd_ifinfo *nd)
 	struct ifaddr *ifa, *next;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
@@ -922,7 +922,7 @@ nd6_timer(void *arg)
 	 * XXXRW: in6_ifaddrhead locking.
 	 */
   addrloop:
-	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
+	CK_STAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
 		if (IFA6_IS_INVALID(ia6)) {
 			int regen = 0;
@@ -1068,7 +1068,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 
 	ifp = ia6->ia_ifa.ifa_ifp;
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -1344,7 +1344,7 @@ restart:
 	 */
 	if (ifp->if_flags & IFF_POINTOPOINT) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sin6_family)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
@@ -1687,7 +1687,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 * See RFC 4862, Section 5.4.5.
 			 */
 			IF_ADDR_RLOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
@@ -1717,7 +1717,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			if (V_ip6_dad_count > 0 &&
 			    (ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD) == 0) {
 				IF_ADDR_RLOCK(ifp);
-				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
 					    AF_INET6)
@@ -1745,7 +1745,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 * assign one.
 				 */
 				IF_ADDR_RLOCK(ifp);
-				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead,
 				    ifa_link) {
 					if (ifa->ifa_addr->sa_family !=
 					    AF_INET6)
@@ -1789,7 +1789,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		while ((pr = LIST_FIRST(&prl)) != NULL) {
 			LIST_REMOVE(pr, ndpr_entry);
 			/* XXXRW: in6_ifaddrhead locking. */
-			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
+			CK_STAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
 			    ia_next) {
 				if ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 					continue;
@@ -2133,7 +2133,7 @@ nd6_slowtimo(void *arg)
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
 		nd6if = ND_IFINFO(ifp);

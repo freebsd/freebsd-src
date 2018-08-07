@@ -220,7 +220,7 @@ MD5Final (unsigned char digest[16], MD5_CTX *context)
 	Encode (digest, context->state, 16);
 
 	/* Zeroize sensitive information. */
-	memset ((void *)context, 0, sizeof (*context));
+	explicit_bzero(context, sizeof(*context));
 }
 
 /* MD5 basic transformation. Transforms state based on block. */

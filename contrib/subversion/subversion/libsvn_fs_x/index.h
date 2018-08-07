@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__INDEX_H
-#define SVN_LIBSVN_FS__INDEX_H
+#ifndef SVN_LIBSVN_FS_X_INDEX_H
+#define SVN_LIBSVN_FS_X_INDEX_H
 
 #include "fs.h"
 #include "rev_file.h"
@@ -52,6 +52,28 @@
 #define SVN_FS_X__ITEM_TYPE_NODEREVS_CONT 9  /* item is a noderevs container */
 #define SVN_FS_X__ITEM_TYPE_REPS_CONT    10  /* item is a representations
                                                  container */
+
+/* We put this string in front of the L2P index header. */
+#define SVN_FS_X__L2P_STREAM_PREFIX "L2P-INDEX\n"
+
+/* We put this string in front of the P2L index header. */
+#define SVN_FS_X__P2L_STREAM_PREFIX "P2L-INDEX\n"
+
+
+/* Create and open a packed number stream reading from offsets START to
+ * END in FILE and return it in *STREAM.  Access the file in chunks of
+ * BLOCK_SIZE bytes.  Expect the stream to be prefixed by STREAM_PREFIX.
+ * Allocate *STREAM in RESULT_POOL and use SCRATCH_POOL for temporaries.
+ */
+svn_error_t *
+svn_fs_x__packed_stream_open(svn_fs_x__packed_number_stream_t **stream,
+                             apr_file_t *file,
+                             apr_off_t start,
+                             apr_off_t end,
+                             const char *stream_prefix,
+                             apr_size_t block_size,
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool);
 
 /* (user visible) entry in the phys-to-log index.  It describes a section
  * of some packed / non-packed rev file as containing a specific item.
@@ -184,7 +206,7 @@ svn_fs_x__p2l_index_append(svn_checksum_t **checksum,
 /* Use the phys-to-log mapping files in FS to build a list of entries
  * that (at least partly) overlap with the range given by BLOCK_START
  * offset and BLOCK_SIZE in the rep / pack file containing REVISION.
- * Return the array in *ENTRIES with svn_fs_fs__p2l_entry_t as elements,
+ * Return the array in *ENTRIES with svn_fs_x__p2l_entry_t as elements,
  * allocated in RESULT_POOL.  REV_FILE determines whether to access single
  * rev or pack file data.  If that is not available anymore (neither in
  * cache nor on disk), return an error.  Use SCRATCH_POOL for temporary
@@ -287,7 +309,7 @@ svn_fs_x__p2l_get_max_offset(apr_off_t *offset,
 
 /* For FS, create a new L2P auto-deleting proto index file in POOL and return
  * its name in *PROTONAME.  All entries to write are given in ENTRIES and
- * entries are of type svn_fs_fs__p2l_entry_t* (sic!).  The ENTRIES array
+ * entries are of type svn_fs_x__p2l_entry_t* (sic!).  The ENTRIES array
  * will be reordered.  Give the proto index file the lifetime of RESULT_POOL
  * and use SCRATCH_POOL for temporary allocations.
  */
@@ -300,7 +322,7 @@ svn_fs_x__l2p_index_from_p2l_entries(const char **protoname,
 
 /* For FS, create a new P2L auto-deleting proto index file in POOL and return
  * its name in *PROTONAME.  All entries to write are given in ENTRIES and
- * of type svn_fs_fs__p2l_entry_t*.  The FVN1 checksums are not taken from
+ * of type svn_fs_x__p2l_entry_t*.  The FVN1 checksums are not taken from
  * ENTRIES but are begin calculated from the current contents of REV_FILE
  * as we go.  Give the proto index file the lifetime of RESULT_POOL and use
  * SCRATCH_POOL for temporary allocations.
@@ -350,7 +372,7 @@ svn_error_t *
 svn_fs_x__deserialize_l2p_header(void **out,
                                  void *data,
                                  apr_size_t data_len,
-                                 apr_pool_t *pool);
+                                 apr_pool_t *result_pool);
 
 /*
  * Implements svn_cache__serialize_func_t for l2p_page_t objects.
@@ -368,7 +390,7 @@ svn_error_t *
 svn_fs_x__deserialize_l2p_page(void **out,
                                void *data,
                                apr_size_t data_len,
-                               apr_pool_t *pool);
+                               apr_pool_t *result_pool);
 
 /*
  * Implements svn_cache__serialize_func_t for p2l_header_t objects.
@@ -386,7 +408,7 @@ svn_error_t *
 svn_fs_x__deserialize_p2l_header(void **out,
                                  void *data,
                                  apr_size_t data_len,
-                                 apr_pool_t *pool);
+                                 apr_pool_t *result_pool);
 
 /*
  * Implements svn_cache__serialize_func_t for apr_array_header_t objects
@@ -406,6 +428,6 @@ svn_error_t *
 svn_fs_x__deserialize_p2l_page(void **out,
                                void *data,
                                apr_size_t data_len,
-                               apr_pool_t *pool);
+                               apr_pool_t *result_pool);
 
 #endif

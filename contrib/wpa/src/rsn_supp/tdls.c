@@ -645,9 +645,15 @@ static void wpa_tdls_tpk_timeout(void *eloop_ctx, void *timeout_ctx)
 	 */
 
 	if (peer->initiator) {
+		u8 addr[ETH_ALEN];
+
 		wpa_printf(MSG_DEBUG, "TDLS: TPK lifetime expired for " MACSTR
 			   " - try to renew", MAC2STR(peer->addr));
-		wpa_tdls_start(sm, peer->addr);
+		/* cache the peer address before do_teardown */
+		os_memcpy(addr, peer->addr, ETH_ALEN);
+		wpa_tdls_do_teardown(sm, peer,
+				     WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED);
+		wpa_tdls_start(sm, addr);
 	} else {
 		wpa_printf(MSG_DEBUG, "TDLS: TPK lifetime expired for " MACSTR
 			   " - tear down", MAC2STR(peer->addr));
@@ -2367,7 +2373,7 @@ static int wpa_tdls_process_tpk_m2(struct wpa_sm *sm, const u8 *src_addr,
 		    kde.ftie, sizeof(*ftie));
 	ftie = (struct wpa_tdls_ftie *) kde.ftie;
 
-	if (!os_memcmp(peer->inonce, ftie->Snonce, WPA_NONCE_LEN) == 0) {
+	if (os_memcmp(peer->inonce, ftie->Snonce, WPA_NONCE_LEN) != 0) {
 		wpa_printf(MSG_INFO, "TDLS: FTIE SNonce in TPK M2 does "
 			   "not match with FTIE SNonce used in TPK M1");
 		/* Silently discard the frame */
@@ -2428,7 +2434,7 @@ skip_rsn:
 	wpa_printf(MSG_DEBUG, "TDLS: Sending TDLS Setup Confirm / "
 		   "TPK Handshake Message 3");
 	if (wpa_tdls_send_tpk_m3(sm, src_addr, dtoken, lnkid, peer) < 0)
-		goto error;
+		goto error_no_msg;
 
 	if (!peer->tpk_success) {
 		/*
@@ -2449,6 +2455,7 @@ skip_rsn:
 error:
 	wpa_tdls_send_error(sm, src_addr, WLAN_TDLS_SETUP_CONFIRM, dtoken, 1,
 			    status);
+error_no_msg:
 	wpa_tdls_disable_peer_link(sm, peer);
 	return -1;
 }
@@ -2545,13 +2552,13 @@ static int wpa_tdls_process_tpk_m3(struct wpa_sm *sm, const u8 *src_addr,
 		goto error;
 	}
 
-	if (!os_memcmp(peer->rnonce, ftie->Anonce, WPA_NONCE_LEN) == 0) {
+	if (os_memcmp(peer->rnonce, ftie->Anonce, WPA_NONCE_LEN) != 0) {
 		wpa_printf(MSG_INFO, "TDLS: FTIE ANonce in TPK M3 does "
 			   "not match with FTIE ANonce used in TPK M2");
 		goto error;
 	}
 
-	if (!os_memcmp(peer->inonce, ftie->Snonce, WPA_NONCE_LEN) == 0) {
+	if (os_memcmp(peer->inonce, ftie->Snonce, WPA_NONCE_LEN) != 0) {
 		wpa_printf(MSG_INFO, "TDLS: FTIE SNonce in TPK M3 does not "
 			   "match with FTIE SNonce used in TPK M1");
 		goto error;

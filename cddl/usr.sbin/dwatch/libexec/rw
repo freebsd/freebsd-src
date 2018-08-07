@@ -55,6 +55,7 @@ ID=$(( $ID + 1 ))
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print read/write details
@@ -66,6 +67,7 @@ exec 9<<EOF
 		this->nbytes == 1 ? "" : "s");
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END

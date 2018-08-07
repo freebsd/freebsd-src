@@ -155,22 +155,50 @@ rk_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 	return (0);
 }
 
+static uint32_t
+rk_clk_composite_find_best(struct rk_clk_composite_sc *sc, uint64_t fparent,
+    uint64_t freq)
+{
+	uint64_t best, cur;
+	uint32_t best_div, div;
+
+	for (best = 0, best_div = 0, div = 0;
+	     div <= ((sc->div_mask >> sc->div_shift) + 1); div++) {
+		cur = fparent / div;
+		if ((freq - cur) < (freq - best)) {
+			best = cur;
+			best_div = div;
+			break;
+		}
+	}
+
+	return (best_div);
+}
+
 static int
 rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
     int flags, int *stop)
 {
 	struct rk_clk_composite_sc *sc;
+	struct clknode *p_clk;
+	const char **p_names;
 	uint64_t best, cur;
 	uint32_t div, best_div, val;
+	int p_idx, best_parent;
 
 	sc = clknode_get_softc(clk);
 
-	for (best = 0, best_div = 0, div = 0; div <= sc->div_mask; div++) {
+	p_names = clknode_get_parent_names(clk);
+	for (best_div = 0, best = 0, p_idx = 0;
+	     p_idx != clknode_get_parents_num(clk); p_idx++) {
+		p_clk = clknode_find_by_name(p_names[p_idx]);
+		clknode_get_freq(p_clk, &fparent);
+		div = rk_clk_composite_find_best(sc, fparent, *fout);
 		cur = fparent / div;
 		if ((*fout - cur) < (*fout - best)) {
 			best = cur;
 			best_div = div;
-			break;
+			best_parent = p_idx;
 		}
 	}
 
@@ -193,6 +221,9 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		*stop = 1;
 		return (0);
 	}
+
+	if (p_idx != best_parent)
+		clknode_set_parent_by_idx(clk, best_parent);
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->muxdiv_offset, &val);

@@ -1,7 +1,5 @@
-#ifndef __kern_prefetch_h__
 /*-
- * Copyright (c) 2016-8
- *	Netflix Inc.  All rights reserved.
+ * Copyright (c) 2016-2018 Netflix Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,17 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * __FBSDID("$FreeBSD$")
+ * $FreeBSD$
  */
+#ifndef __kern_prefetch_h__
 #define __kern_prefetch_h__
 #ifdef _KERNEL
-#if defined(__amd64__)
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/pmap.h>
-#endif 
 
 static __inline void
 kern_prefetch(const volatile void *addr, void* before)
@@ -42,9 +34,9 @@ kern_prefetch(const volatile void *addr, void* before)
 #if defined(__amd64__)
 	__asm __volatile("prefetcht1 (%1)":"=rm"(*((int32_t *)before)):"r"(addr):);
 #else
-	__builtin_prefetch(addr);
+/*	__builtin_prefetch(addr);*/
 #endif
 }
 
-#endif
-#endif
+#endif /* _KERNEL */
+#endif /* __kern_prefetch_h__ */

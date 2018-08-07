@@ -97,7 +97,7 @@ thunder_pcie_fdt_probe(device_t dev)
 
 	/* Check if we're running on Cavium ThunderX */
 	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0))
+	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
 		return (ENXIO);
 
 	if (!ofw_bus_status_okay(dev))

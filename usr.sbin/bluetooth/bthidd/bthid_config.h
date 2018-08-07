@@ -42,6 +42,7 @@
 struct hid_device
 {
 	bdaddr_t		bdaddr;		/* HID device BDADDR */
+	char *			name;		/* HID device name */
 	uint16_t		control_psm;	/* control PSM */
 	uint16_t		interrupt_psm;	/* interrupt PSM */
 	uint16_t		vendor_id;	/* primary vendor id */
@@ -52,7 +53,11 @@ struct hid_device
 	unsigned		battery_power        : 1;
 	unsigned		normally_connectable : 1;
 	unsigned		keyboard             : 1;
-	unsigned		reserved             : 11;
+	unsigned		mouse                : 1;
+	unsigned		has_wheel            : 1;
+	unsigned		has_hwheel           : 1;
+	unsigned		has_cons             : 1;
+	unsigned		reserved             : 7;
 	report_desc_t		desc;		/* HID report descriptor */
 	LIST_ENTRY(hid_device)	next;		/* link to the next */
 };

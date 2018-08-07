@@ -97,7 +97,7 @@ main(int argc, char **argv)
 		err(1, "unable to limit capabitilities for stdio");
 
 	caph_cache_catpages();
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "d:pt:")) != -1)

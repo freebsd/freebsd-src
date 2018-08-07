@@ -430,6 +430,10 @@
         ..
         aio
         ..
+        audit
+        ..
+        auditpipe
+        ..
         capsicum
         ..
         cddl
@@ -1025,6 +1029,8 @@
         newsyslog
         ..
         nmtree
+        ..
+        praudit
         ..
         pw
         ..

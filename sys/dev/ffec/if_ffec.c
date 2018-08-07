@@ -994,7 +994,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 	else {
 		ghash = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/* 6 bits from MSB in LE CRC32 are used for hash. */

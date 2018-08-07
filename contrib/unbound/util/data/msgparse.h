@@ -138,7 +138,7 @@ struct rrset_parse {
 	/** next in list of all rrsets */
 	struct rrset_parse* rrset_all_next;
 	/** hash value of rrset */
-	hashvalue_t hash;
+	hashvalue_type hash;
 	/** which section was it found in: one of
 	 * LDNS_SECTION_ANSWER, LDNS_SECTION_AUTHORITY, LDNS_SECTION_ADDITIONAL
 	 */
@@ -296,8 +296,8 @@ int parse_edns_from_pkt(struct sldns_buffer* pkt, struct edns_data* edns,
  * @param rrset_flags: rrset flags (same as packed_rrset flags).
  * @return hash value
  */
-hashvalue_t pkt_hash_rrset(struct sldns_buffer* pkt, uint8_t* dname, uint16_t type,
-        uint16_t dclass, uint32_t rrset_flags);
+hashvalue_type pkt_hash_rrset(struct sldns_buffer* pkt, uint8_t* dname,
+	uint16_t type, uint16_t dclass, uint32_t rrset_flags);
 
 /**
  * Lookup in msg hashtable to find a rrset.
@@ -312,7 +312,7 @@ hashvalue_t pkt_hash_rrset(struct sldns_buffer* pkt, uint8_t* dname, uint16_t ty
  * @return NULL or the rrset_parse if found.
  */
 struct rrset_parse* msgparse_hashtable_lookup(struct msg_parse* msg, 
-	struct sldns_buffer* pkt, hashvalue_t h, uint32_t rrset_flags, 
+	struct sldns_buffer* pkt, hashvalue_type h, uint32_t rrset_flags, 
 	uint8_t* dname, size_t dnamelen, uint16_t type, uint16_t dclass);
 
 /**
@@ -321,5 +321,14 @@ struct rrset_parse* msgparse_hashtable_lookup(struct msg_parse* msg,
  * @param rrset: with hash value and id info.
  */
 void msgparse_bucket_remove(struct msg_parse* msg, struct rrset_parse* rrset);
+
+/**
+ * Log the edns options in the edns option list.
+ * @param level: the verbosity level.
+ * @param info_str: the informational string to be printed before the options.
+ * @param list: the edns option list.
+ */
+void log_edns_opt_list(enum verbosity_value level, const char* info_str,
+	struct edns_option* list);
 
 #endif /* UTIL_DATA_MSGPARSE_H */

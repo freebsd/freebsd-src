@@ -118,7 +118,8 @@ NO_META_IGNORE_HOST_HEADERS=	1
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
 # is not expected.
-.if !make(showconfig) && !make(print-dir) && empty(.MAKEFLAGS:M-[nN])
+.if !make(showconfig) && !make(print-dir) && !make(test-system-*) && \
+    empty(.MAKEFLAGS:M-[nN])
 .sinclude <auto.obj.mk>
 .endif
 .endif	# ${MK_AUTO_OBJ} == "yes"

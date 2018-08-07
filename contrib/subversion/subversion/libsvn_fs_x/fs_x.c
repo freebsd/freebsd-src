@@ -33,6 +33,7 @@
 
 #include "cached_data.h"
 #include "id.h"
+#include "low_level.h"
 #include "rep-cache.h"
 #include "revprops.h"
 #include "transaction.h"
@@ -95,13 +96,27 @@ check_format(int format)
 {
   /* Put blacklisted versions here. */
 
-  /* We support all formats from 1-current simultaneously */
-  if (1 <= format && format <= SVN_FS_X__FORMAT_NUMBER)
+  /* We support any format if it matches the current format. */
+  if (format == SVN_FS_X__FORMAT_NUMBER)
+    return SVN_NO_ERROR;
+
+  /* Experimental formats are only supported if they match the current, but
+   * that case has already been handled. So, reject any experimental format.
+   */
+  if (SVN_FS_X__EXPERIMENTAL_FORMAT_NUMBER >= format)
+    return svn_error_createf(SVN_ERR_FS_UNSUPPORTED_FORMAT, NULL,
+      _("Unsupported experimental FSX format '%d' found; current format is '%d'"),
+      format, SVN_FS_X__FORMAT_NUMBER);
+
+  /* By default, we will support any non-experimental format released so far.
+   */
+  if (format <= SVN_FS_X__FORMAT_NUMBER)
     return SVN_NO_ERROR;
 
   return svn_error_createf(SVN_ERR_FS_UNSUPPORTED_FORMAT, NULL,
-     _("Expected FS format between '1' and '%d'; found format '%d'"),
-     SVN_FS_X__FORMAT_NUMBER, format);
+     _("Expected FSX format between '%d' and '%d'; found format '%d'"),
+     SVN_FS_X__EXPERIMENTAL_FORMAT_NUMBER + 1, SVN_FS_X__FORMAT_NUMBER,
+     format);
 }
 
 /* Read the format file at PATH and set *PFORMAT to the format version found
@@ -184,8 +199,9 @@ svn_fs_x__write_format(svn_fs_t *fs,
     }
   else
     {
-      SVN_ERR(svn_io_write_atomic(path, sb->data, sb->len,
-                                  NULL /* copy_perms_path */, scratch_pool));
+      SVN_ERR(svn_io_write_atomic2(path, sb->data, sb->len,
+                                   NULL /* copy_perms_path */,
+                                   ffd->flush_to_disk, scratch_pool));
     }
 
   /* And set the perms to make it read only */
@@ -519,6 +535,20 @@ write_config(svn_fs_t *fs,
                             fsx_conf_contents, scratch_pool);
 }
 
+/* Read / Evaluate the global configuration in FS->CONFIG to set up
+ * parameters in FS. */
+static svn_error_t *
+read_global_config(svn_fs_t *fs)
+{
+  svn_fs_x__data_t *ffd = fs->fsap_data;
+
+  ffd->flush_to_disk = !svn_hash__get_bool(fs->config,
+                                           SVN_FS_CONFIG_NO_FLUSH_TO_DISK,
+                                           FALSE);
+
+  return SVN_NO_ERROR;
+}
+
 /* Read FS's UUID file and store the data in the FS struct. */
 static svn_error_t *
 read_uuid(svn_fs_t *fs,
@@ -587,8 +617,12 @@ svn_fs_x__open(svn_fs_t *fs,
   /* Read the configuration file. */
   SVN_ERR(read_config(ffd, fs->path, fs->pool, scratch_pool));
 
-  return svn_error_trace(svn_fs_x__read_current(&ffd->youngest_rev_cache,
-                                                fs, scratch_pool));
+  /* Global configuration options. */
+  SVN_ERR(read_global_config(fs));
+
+  ffd->youngest_rev_cache = 0;
+
+  return SVN_NO_ERROR;
 }
 
 /* Baton type bridging svn_fs_x__upgrade and upgrade_body carrying
@@ -840,16 +874,14 @@ static svn_error_t *
 write_revision_zero(svn_fs_t *fs,
                     apr_pool_t *scratch_pool)
 {
-  /* Use an explicit sub-pool to have full control over temp file lifetimes.
-   * Since we have it, use it for everything else as well. */
-  apr_pool_t *subpool = svn_pool_create(scratch_pool);
-  const char *path_revision_zero = svn_fs_x__path_rev(fs, 0, subpool);
+  const char *path_revision_zero = svn_fs_x__path_rev(fs, 0, scratch_pool);
   apr_hash_t *proplist;
   svn_string_t date;
 
   apr_array_header_t *index_entries;
   svn_fs_x__p2l_entry_t *entry;
   svn_fs_x__revision_file_t *rev_file;
+  apr_file_t *apr_file;
   const char *l2p_proto_index, *p2l_proto_index;
 
   /* Construct a skeleton r0 with no indexes. */
@@ -860,62 +892,72 @@ write_revision_zero(svn_fs_t *fs,
                                                 "count: 0\n"
                                                 "cpath: /\n"
                                                 "\n",
-                                                subpool);
+                                                scratch_pool);
   svn_string_t *changes_str = svn_string_create("\n",
-                                                subpool);
-  svn_string_t *r0 = svn_string_createf(subpool, "%s%s",
+                                                scratch_pool);
+  svn_string_t *r0 = svn_string_createf(scratch_pool, "%s%s",
                                         noderev_str->data,
                                         changes_str->data);
 
   /* Write skeleton r0 to disk. */
-  SVN_ERR(svn_io_file_create(path_revision_zero, r0->data, subpool));
+  SVN_ERR(svn_io_file_create(path_revision_zero, r0->data, scratch_pool));
 
   /* Construct the index P2L contents: describe the 2 items we have.
      Be sure to create them in on-disk order. */
-  index_entries = apr_array_make(subpool, 2, sizeof(entry));
+  index_entries = apr_array_make(scratch_pool, 2, sizeof(entry));
 
-  entry = apr_pcalloc(subpool, sizeof(*entry));
+  entry = apr_pcalloc(scratch_pool, sizeof(*entry));
   entry->offset = 0;
   entry->size = (apr_off_t)noderev_str->len;
   entry->type = SVN_FS_X__ITEM_TYPE_NODEREV;
   entry->item_count = 1;
-  entry->items = apr_pcalloc(subpool, sizeof(*entry->items));
+  entry->items = apr_pcalloc(scratch_pool, sizeof(*entry->items));
   entry->items[0].change_set = 0;
   entry->items[0].number = SVN_FS_X__ITEM_INDEX_ROOT_NODE;
   APR_ARRAY_PUSH(index_entries, svn_fs_x__p2l_entry_t *) = entry;
 
-  entry = apr_pcalloc(subpool, sizeof(*entry));
+  entry = apr_pcalloc(scratch_pool, sizeof(*entry));
   entry->offset = (apr_off_t)noderev_str->len;
   entry->size = (apr_off_t)changes_str->len;
   entry->type = SVN_FS_X__ITEM_TYPE_CHANGES;
   entry->item_count = 1;
-  entry->items = apr_pcalloc(subpool, sizeof(*entry->items));
+  entry->items = apr_pcalloc(scratch_pool, sizeof(*entry->items));
   entry->items[0].change_set = 0;
   entry->items[0].number = SVN_FS_X__ITEM_INDEX_CHANGES;
   APR_ARRAY_PUSH(index_entries, svn_fs_x__p2l_entry_t *) = entry;
 
   /* Now re-open r0, create proto-index files from our entries and
-      rewrite the index section of r0. */
-  SVN_ERR(svn_fs_x__open_pack_or_rev_file_writable(&rev_file, fs, 0,
-                                                   subpool, subpool));
+     rewrite the index section of r0. */
+  SVN_ERR(svn_fs_x__rev_file_open_writable(&rev_file, fs, 0,
+                                           scratch_pool, scratch_pool));
   SVN_ERR(svn_fs_x__p2l_index_from_p2l_entries(&p2l_proto_index, fs,
                                                rev_file, index_entries,
-                                               subpool, subpool));
+                                               scratch_pool, scratch_pool));
   SVN_ERR(svn_fs_x__l2p_index_from_p2l_entries(&l2p_proto_index, fs,
                                                index_entries,
-                                               subpool, subpool));
-  SVN_ERR(svn_fs_x__add_index_data(fs, rev_file->file, l2p_proto_index,
-                                   p2l_proto_index, 0, subpool));
+                                               scratch_pool, scratch_pool));
+  SVN_ERR(svn_fs_x__rev_file_get(&apr_file, rev_file));
+  SVN_ERR(svn_fs_x__add_index_data(fs, apr_file, l2p_proto_index,
+                                   p2l_proto_index, 0, scratch_pool));
   SVN_ERR(svn_fs_x__close_revision_file(rev_file));
 
-  SVN_ERR(svn_io_set_file_read_only(path_revision_zero, FALSE, fs->pool));
+  SVN_ERR(svn_io_set_file_read_only(path_revision_zero, FALSE, scratch_pool));
 
   /* Set a date on revision 0. */
-  date.data = svn_time_to_cstring(apr_time_now(), fs->pool);
+  date.data = svn_time_to_cstring(apr_time_now(), scratch_pool);
   date.len = strlen(date.data);
-  proplist = apr_hash_make(fs->pool);
+  proplist = apr_hash_make(scratch_pool);
   svn_hash_sets(proplist, SVN_PROP_REVISION_DATE, &date);
-  return svn_fs_x__set_revision_proplist(fs, 0, proplist, fs->pool);
+
+  SVN_ERR(svn_io_file_open(&apr_file,
+                           svn_fs_x__path_revprops(fs, 0, scratch_pool),
+                           APR_WRITE | APR_CREATE, APR_OS_DEFAULT, 
+                           scratch_pool));
+  SVN_ERR(svn_fs_x__write_non_packed_revprops(apr_file, proplist,
+                                              scratch_pool));
+  SVN_ERR(svn_io_file_close(apr_file, scratch_pool));
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *
@@ -935,13 +977,8 @@ svn_fs_x__create_file_tree(svn_fs_t *fs,
 
   /* Create the revision data directories. */
   SVN_ERR(svn_io_make_dir_recursively(
-                              svn_fs_x__path_rev_shard(fs, 0, scratch_pool),
+                              svn_fs_x__path_shard(fs, 0, scratch_pool),
                               scratch_pool));
-
-  /* Create the revprops directory. */
-  SVN_ERR(svn_io_make_dir_recursively(
-                         svn_fs_x__path_revprops_shard(fs, 0, scratch_pool),
-                         scratch_pool));
 
   /* Create the transaction directory. */
   SVN_ERR(svn_io_make_dir_recursively(
@@ -954,18 +991,20 @@ svn_fs_x__create_file_tree(svn_fs_t *fs,
                             scratch_pool));
 
   /* Create the 'current' file. */
-  SVN_ERR(svn_io_file_create_empty(svn_fs_x__path_current(fs, scratch_pool),
-                                   scratch_pool));
-  SVN_ERR(svn_fs_x__write_current(fs, 0, scratch_pool));
+  SVN_ERR(svn_io_file_create(svn_fs_x__path_current(fs, scratch_pool),
+                             "0\n", scratch_pool));
 
   /* Create the 'uuid' file. */
   SVN_ERR(svn_io_file_create_empty(svn_fs_x__path_lock(fs, scratch_pool),
                                    scratch_pool));
-  SVN_ERR(svn_fs_x__set_uuid(fs, NULL, NULL, scratch_pool));
+  SVN_ERR(svn_fs_x__set_uuid(fs, NULL, NULL, FALSE, scratch_pool));
 
   /* Create the fsfs.conf file. */
   SVN_ERR(write_config(fs, scratch_pool));
   SVN_ERR(read_config(ffd, fs->path, fs->pool, scratch_pool));
+
+  /* Global configuration options. */
+  SVN_ERR(read_global_config(fs));
 
   /* Add revision 0. */
   SVN_ERR(write_revision_zero(fs, scratch_pool));
@@ -984,6 +1023,9 @@ svn_fs_x__create_file_tree(svn_fs_t *fs,
                           scratch_pool));
 
   /* Initialize the revprop caching info. */
+  SVN_ERR(svn_io_file_create_empty(
+                        svn_fs_x__path_revprop_generation(fs, scratch_pool),
+                        scratch_pool));
   SVN_ERR(svn_fs_x__reset_revprop_generation_file(fs, scratch_pool));
 
   ffd->youngest_rev_cache = 0;
@@ -1040,6 +1082,7 @@ svn_error_t *
 svn_fs_x__set_uuid(svn_fs_t *fs,
                    const char *uuid,
                    const char *instance_id,
+                   svn_boolean_t overwrite,
                    apr_pool_t *scratch_pool)
 {
   svn_fs_x__data_t *ffd = fs->fsap_data;
@@ -1058,11 +1101,23 @@ svn_fs_x__set_uuid(svn_fs_t *fs,
   svn_stringbuf_appendcstr(contents, "\n");
 
   /* We use the permissions of the 'current' file, because the 'uuid'
-     file does not exist during repository creation. */
-  SVN_ERR(svn_io_write_atomic(uuid_path, contents->data, contents->len,
-                              /* perms */
-                              svn_fs_x__path_current(fs, scratch_pool),
-                              scratch_pool));
+     file does not exist during repository creation.
+
+     svn_io_write_atomic2() does a load of magic to allow it to
+     replace version files that already exist.  We only need to do
+     that when we're allowed to overwrite an existing file. */
+  if (! overwrite)
+    {
+      /* Create the file */
+      SVN_ERR(svn_io_file_create(uuid_path, contents->data, scratch_pool));
+    }
+  else
+    {
+      SVN_ERR(svn_io_write_atomic2(uuid_path, contents->data, contents->len,
+                                   /* perms */
+                                   svn_fs_x__path_current(fs, scratch_pool),
+                                   ffd->flush_to_disk, scratch_pool));
+    }
 
   fs->uuid = apr_pstrdup(fs->pool, uuid);
   ffd->instance_id = apr_pstrdup(fs->pool, instance_id);
@@ -1100,13 +1155,14 @@ svn_fs_x__revision_prop(svn_string_t **value_p,
                         svn_fs_t *fs,
                         svn_revnum_t rev,
                         const char *propname,
+                        svn_boolean_t refresh,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool)
 {
   apr_hash_t *table;
 
   SVN_ERR(svn_fs__check_fs(fs, TRUE));
-  SVN_ERR(svn_fs_x__get_revision_proplist(&table, fs, rev, FALSE,
+  SVN_ERR(svn_fs_x__get_revision_proplist(&table, fs, rev, FALSE, refresh,
                                           scratch_pool, scratch_pool));
 
   *value_p = svn_string_dup(svn_hash_gets(table, propname), result_pool);
@@ -1133,17 +1189,18 @@ change_rev_prop_body(void *baton,
 {
   change_rev_prop_baton_t *cb = baton;
   apr_hash_t *table;
+  const svn_string_t *present_value;
 
   /* Read current revprop values from disk (never from cache).
      Even if somehow the cache got out of sync, we want to make sure that
      we read, update and write up-to-date data. */
   SVN_ERR(svn_fs_x__get_revision_proplist(&table, cb->fs, cb->rev, TRUE,
-                                          scratch_pool, scratch_pool));
+                                          TRUE, scratch_pool, scratch_pool));
+  present_value = svn_hash_gets(table, cb->name);
 
   if (cb->old_value_p)
     {
       const svn_string_t *wanted_value = *cb->old_value_p;
-      const svn_string_t *present_value = svn_hash_gets(table, cb->name);
       if ((!wanted_value != !present_value)
           || (wanted_value && present_value
               && !svn_string_compare(wanted_value, present_value)))
@@ -1156,6 +1213,13 @@ change_rev_prop_body(void *baton,
         }
       /* Fall through. */
     }
+
+  /* If the prop-set is a no-op, skip the actual write. */
+  if ((!present_value && !cb->value)
+      || (present_value && cb->value
+          && svn_string_compare(present_value, cb->value)))
+    return SVN_NO_ERROR;
+
   svn_hash_sets(table, cb->name, cb->value);
 
   return svn_fs_x__set_revision_proplist(cb->fs, cb->rev, table,
@@ -1205,8 +1269,11 @@ svn_fs_x__info_format(int *fs_format,
     {
     case 1:
       break;
+    case 2:
+      (*supports_version)->minor = 10;
+      break;
 #ifdef SVN_DEBUG
-# if SVN_FS_X__FORMAT_NUMBER != 1
+# if SVN_FS_X__FORMAT_NUMBER != 2
 #  error "Need to add a 'case' statement here"
 # endif
 #endif

@@ -377,10 +377,6 @@ next:
 			wait = !wait;
 			if (wait || ++passes < UFS_NIADDR + 2)
 				goto loop;
-#ifdef INVARIANTS
-			if (!vn_isdisk(vp, NULL))
-				vn_printf(vp, "ffs_fsync: dirty ");
-#endif
 		}
 	}
 	BO_UNLOCK(bo);
@@ -462,6 +458,26 @@ ffs_lock(ap)
 #endif
 }
 
+static int
+ffs_read_hole(struct uio *uio, long xfersize, long *size)
+{
+	ssize_t saved_resid, tlen;
+	int error;
+
+	while (xfersize > 0) {
+		tlen = min(xfersize, ZERO_REGION_SIZE);
+		saved_resid = uio->uio_resid;
+		error = vn_io_fault_uiomove(__DECONST(void *, zero_region),
+		    tlen, uio);
+		if (error != 0)
+			return (error);
+		tlen = saved_resid - uio->uio_resid;
+		xfersize -= tlen;
+		*size -= tlen;
+	}
+	return (0);
+}
+
 /*
  * Vnode op for reading.
  */
@@ -483,9 +499,7 @@ ffs_read(ap)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	ssize_t orig_resid;
-	int error;
-	int seqcount;
-	int ioflag;
+	int bflag, error, ioflag, seqcount;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -529,6 +543,7 @@ ffs_read(ap)
 	    uio->uio_offset >= fs->fs_maxfilesize)
 		return (EOVERFLOW);
 
+	bflag = GB_UNMAPPED | (uio->uio_segflg == UIO_NOCOPY ? 0 : GB_NOSPARSE);
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
@@ -565,8 +580,7 @@ ffs_read(ap)
 			/*
 			 * Don't do readahead if this is the end of the file.
 			 */
-			error = bread_gb(vp, lbn, size, NOCRED,
-			    GB_UNMAPPED, &bp);
+			error = bread_gb(vp, lbn, size, NOCRED, bflag, &bp);
 		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			/*
 			 * Otherwise if we are allowed to cluster,
@@ -577,7 +591,7 @@ ffs_read(ap)
 			 */
 			error = cluster_read(vp, ip->i_size, lbn,
 			    size, NOCRED, blkoffset + uio->uio_resid,
-			    seqcount, GB_UNMAPPED, &bp);
+			    seqcount, bflag, &bp);
 		} else if (seqcount > 1) {
 			/*
 			 * If we are NOT allowed to cluster, then
@@ -589,17 +603,21 @@ ffs_read(ap)
 			 */
 			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
-			    &nextsize, 1, NOCRED, GB_UNMAPPED, NULL, &bp);
+			    &nextsize, 1, NOCRED, bflag, NULL, &bp);
 		} else {
 			/*
 			 * Failing all of the above, just read what the
 			 * user asked for. Interestingly, the same as
 			 * the first option above.
 			 */
-			error = bread_gb(vp, lbn, size, NOCRED,
-			    GB_UNMAPPED, &bp);
+			error = bread_gb(vp, lbn, size, NOCRED, bflag, &bp);
 		}
-		if (error) {
+		if (error == EJUSTRETURN) {
+			error = ffs_read_hole(uio, xfersize, &size);
+			if (error == 0)
+				continue;
+		}
+		if (error != 0) {
 			brelse(bp);
 			bp = NULL;
 			break;

@@ -771,7 +771,6 @@ static u8 * eap_gpsk_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_gpsk_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_GPSK, "GPSK");
@@ -786,8 +785,5 @@ int eap_peer_gpsk_register(void)
 	eap->get_emsk = eap_gpsk_get_emsk;
 	eap->getSessionId = eap_gpsk_get_session_id;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

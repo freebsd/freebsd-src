@@ -527,9 +527,7 @@ svn_fs_fs__dag_has_props(svn_boolean_t *has_props,
     {
       /* Properties are stored as a standard hash stream,
          always ending with "END\n" (4 bytes) */
-      *has_props = (noderev->prop_rep->expanded_size > 4
-                    || (noderev->prop_rep->expanded_size == 0
-                        && noderev->prop_rep->size > 4));
+      *has_props = noderev->prop_rep->expanded_size > 4;
     }
 
   return SVN_NO_ERROR;
@@ -755,8 +753,7 @@ svn_fs_fs__dag_clone_child(dag_node_t **child_p,
       noderev->copyfrom_rev = SVN_INVALID_REVNUM;
 
       noderev->predecessor_id = svn_fs_fs__id_copy(cur_entry->id, pool);
-      if (noderev->predecessor_count != -1)
-        noderev->predecessor_count++;
+      noderev->predecessor_count++;
       noderev->created_path = svn_fspath__join(parent_path, name, pool);
 
       SVN_ERR(svn_fs_fs__create_successor(&new_node_id, fs, cur_entry->id,
@@ -1269,8 +1266,7 @@ svn_fs_fs__dag_copy(dag_node_t *to_node,
       /* Create a successor with its predecessor pointing at the copy
          source. */
       to_noderev->predecessor_id = svn_fs_fs__id_copy(src_id, pool);
-      if (to_noderev->predecessor_count != -1)
-        to_noderev->predecessor_count++;
+      to_noderev->predecessor_count++;
       to_noderev->created_path =
         svn_fspath__join(svn_fs_fs__dag_get_created_path(to_node), entry,
                      pool);
@@ -1425,8 +1421,7 @@ svn_fs_fs__dag_update_ancestry(dag_node_t *target,
 
   target_noderev->predecessor_id = source->id;
   target_noderev->predecessor_count = source_noderev->predecessor_count;
-  if (target_noderev->predecessor_count != -1)
-    target_noderev->predecessor_count++;
+  target_noderev->predecessor_count++;
 
   return svn_fs_fs__put_node_revision(target->fs, target->id, target_noderev,
                                       FALSE, pool);

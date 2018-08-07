@@ -763,6 +763,12 @@ typedef enum {
 	HAL_RESET_FORCE_COLD	= 2,		/* Force full reset */
 } HAL_RESET_TYPE;
 
+enum {
+	HAL_RESET_POWER_ON,
+	HAL_RESET_WARM,
+	HAL_RESET_COLD
+};
+
 typedef struct {
 	uint8_t		kv_type;		/* one of HAL_CIPHER */
 	uint8_t		kv_apsd;		/* Mask for APSD enabled ACs */

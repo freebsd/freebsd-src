@@ -2546,7 +2546,7 @@ cas_setladrf(struct cas_softc *sc)
 	memset(hash, 0, sizeof(hash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
@@ -2603,10 +2603,6 @@ static driver_t cas_pci_driver = {
 	sizeof(struct cas_softc)
 };
 
-DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
-DRIVER_MODULE(miibus, cas, miibus_driver, miibus_devclass, 0, 0);
-MODULE_DEPEND(cas, pci, 1, 1, 1);
-
 static const struct cas_pci_dev {
 	uint32_t	cpd_devid;
 	uint8_t		cpd_revid;
@@ -2618,6 +2614,12 @@ static const struct cas_pci_dev {
 	{ 0xabba108e, 0x0, CAS_CAS, "Sun Cassini Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
+
+DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device", pci, cas, cas_pci_devlist,
+    sizeof(cas_pci_devlist[0]), nitems(cas_pci_devlist) - 1);
+DRIVER_MODULE(miibus, cas, miibus_driver, miibus_devclass, 0, 0);
+MODULE_DEPEND(cas, pci, 1, 1, 1);
 
 static int
 cas_pci_probe(device_t dev)

@@ -131,6 +131,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 			t_ucwnd_sbw = 1;
 		}
 	}
+
 	/*-
 	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
@@ -1119,6 +1120,7 @@ sctp_cwnd_update_after_ecn_echo_common(struct sctp_tcb *stcb, struct sctp_nets *
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
 				sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
 			}
+
 		}
 		SCTP_STAT_INCR(sctps_ecnereducedcwnd);
 	} else {
@@ -1318,7 +1320,7 @@ sctp_cwnd_update_rtcc_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *ne
 
 
 static
-void 
+void
 sctp_cwnd_update_rtcc_tsn_acknowledged(struct sctp_nets *net,
     struct sctp_tmit_chunk *tp1)
 {
@@ -1935,6 +1937,7 @@ measure_achieved_throughput(struct sctp_nets *net)
 		net->cc_mod.htcp_ca.lasttime = now;
 		return;
 	}
+
 	net->cc_mod.htcp_ca.bytecount += net->net_ack;
 	if ((net->cc_mod.htcp_ca.bytecount >= net->cwnd - (((net->cc_mod.htcp_ca.alpha >> 7) ? (net->cc_mod.htcp_ca.alpha >> 7) : 1) * net->mtu)) &&
 	    (now - net->cc_mod.htcp_ca.lasttime >= net->cc_mod.htcp_ca.minRTT) &&
@@ -1971,6 +1974,7 @@ htcp_beta_update(struct htcp *ca, uint32_t minRTT, uint32_t maxRTT)
 			return;
 		}
 	}
+
 	if (ca->modeswitch && minRTT > (uint32_t)MSEC_TO_TICKS(10) && maxRTT) {
 		ca->beta = (minRTT << 7) / maxRTT;
 		if (ca->beta < BETA_MIN)
@@ -1994,6 +1998,7 @@ htcp_alpha_update(struct htcp *ca)
 		diff -= hz;
 		factor = 1 + (10 * diff + ((diff / 2) * (diff / 2) / hz)) / hz;
 	}
+
 	if (use_rtt_scaling && minRTT) {
 		uint32_t scale = (hz << 3) / (10 * minRTT);
 
@@ -2003,6 +2008,7 @@ htcp_alpha_update(struct htcp *ca)
 		if (!factor)
 			factor = 1;
 	}
+
 	ca->alpha = 2 * factor * ((1 << 7) - ca->beta);
 	if (!ca->alpha)
 		ca->alpha = ALPHA_BASE;
@@ -2057,12 +2063,14 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
 					sctp_log_cwnd(stcb, net, net->mtu,
 					    SCTP_CWND_LOG_FROM_SS);
 				}
+
 			} else {
 				net->cwnd += net->net_ack;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
 					sctp_log_cwnd(stcb, net, net->net_ack,
 					    SCTP_CWND_LOG_FROM_SS);
 				}
+
 			}
 			sctp_enforce_cwnd_limit(&stcb->asoc, net);
 		} else {

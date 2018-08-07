@@ -218,7 +218,8 @@ main(int argc, char *argv[])
 {
 	char *bp, *buf, *memf, *nlistf;
 	float f;
-	int bufsize, c, len, reps, todo;
+	int bufsize, c, reps, todo;
+	size_t len;
 	unsigned int interval;
 	char errbuf[_POSIX2_LINE_MAX];
 
@@ -318,7 +319,8 @@ main(int argc, char *argv[])
 retry_nlist:
 	if (kd != NULL && (c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
-			bufsize = 0, len = 0;
+			bufsize = 0;
+			len = 0;
 
 			/*
 			 * 'cnt' was renamed to 'vm_cnt'.  If 'vm_cnt' is not
@@ -436,8 +438,11 @@ getdrivedata(char **argv)
 		if (isdigit(**argv))
 			break;
 		num_devices_specified++;
-		specified_devices = realloc(specified_devices,
+		specified_devices = reallocf(specified_devices,
 		    sizeof(char *) * num_devices_specified);
+		if (specified_devices == NULL) {
+			xo_errx(1, "%s", "reallocf (specified_devices)");
+		}
 		specified_devices[num_devices_specified - 1] = *argv;
 	}
 	dev_select = NULL;
@@ -1206,7 +1211,7 @@ cpustats(void)
 	total = 0;
 	for (state = 0; state < CPUSTATES; ++state)
 		total += cur.cp_time[state];
-	if (total)
+	if (total > 0)
 		lpct = 100.0 / total;
 	else
 		lpct = 0.0;
@@ -1682,7 +1687,7 @@ kread(int nlx, void *addr, size_t size)
 	kreado(nlx, addr, size, 0);
 }
 
-static void
+static void __dead2
 usage(void)
 {
 	xo_error("%s%s",

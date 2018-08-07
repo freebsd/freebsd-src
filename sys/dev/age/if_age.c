@@ -183,6 +183,8 @@ static driver_t age_driver = {
 static devclass_t age_devclass;
 
 DRIVER_MODULE(age, pci, age_driver, age_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, age, age_devs,
+    sizeof(age_devs[0]), nitems(age_devs));
 DRIVER_MODULE(miibus, age, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec age_res_spec_mem[] = {
@@ -3170,7 +3172,7 @@ age_rxfilter(struct age_softc *sc)
 	bzero(mchash, sizeof(mchash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->age_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->age_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

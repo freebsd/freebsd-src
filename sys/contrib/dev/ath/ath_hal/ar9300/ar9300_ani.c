@@ -1188,6 +1188,15 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
         cck_phy_err_cnt - ani_state->cck_phy_err_count;
     ani_state->cck_phy_err_count = cck_phy_err_cnt;
 
+    /*
+     * Note - the ANI code is using the aggregate listen time.
+     * The AR_PHY_CNT1/AR_PHY_CNT2 registers here are also
+     * free running, not clear-on-read and are free-running.
+     *
+     * So, ofdm_phy_err_rate / cck_phy_err_rate are accumulating
+     * the same as listenTime is accumulating.
+     */
+
 #if HAL_ANI_DEBUG
     HALDEBUG(ah, HAL_DEBUG_ANI,
         "%s: Errors: OFDM=0x%08x-0x0=%d   CCK=0x%08x-0x0=%d\n",

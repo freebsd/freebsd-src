@@ -145,6 +145,9 @@ coretemp_probe(device_t dev)
 
 	device_set_desc(dev, "CPU On-Die Thermal Sensors");
 
+	if (!bootverbose && device_get_unit(dev) != 0)
+		device_quiet(dev);
+
 	return (BUS_PROBE_GENERIC);
 }
 

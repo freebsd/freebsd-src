@@ -80,11 +80,11 @@ printf(const char *fmt, ...)
 	return retval;
 }
 
-void
+int
 vprintf(const char *fmt, va_list ap)
 {
 
-	kvprintf(fmt, putchar_wrapper, NULL, 10, ap);
+	return (kvprintf(fmt, putchar_wrapper, NULL, 10, ap));
 }
 
 int
@@ -140,13 +140,32 @@ snprintf(char *buf, size_t size, const char *cfmt, ...)
 	return retval;
 }
 
-void
+int
+vsnprintf(char *buf, size_t size, const char *cfmt, va_list ap)
+{
+	struct print_buf arg;
+	int retval;
+
+	arg.buf = buf;
+	arg.size = size;
+
+	retval = kvprintf(cfmt, &snprint_func, &arg, 10, ap);
+
+	if (arg.size >= 1)
+		*(arg.buf)++ = 0;
+
+	return (retval);
+}
+
+int
 vsprintf(char *buf, const char *cfmt, va_list ap)
 {
 	int	retval;
 	
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
+
+	return (retval);
 }
 
 /*

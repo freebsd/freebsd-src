@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2017
+.Dd July 5, 2018
 .Dt DPCPU 9
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .In sys/pcpu.h
 .Ss Per-CPU Variable Definition and Declaration
 .Fn DPCPU_DEFINE "type" "name"
+.Fn DPCPU_DEFINE_STATIC "type" "name"
 .Fn DPCPU_DECLARE "type" "name"
 .Ss Current CPU Accessor Functions
 .Fn DPCPU_PTR "name"
@@ -66,11 +67,12 @@ per-CPU instance to be initialized with the value:
 DPCPU_DEFINE(int, foo_int) = 1;
 .Ed
 .Pp
-Syntactically, the definition may be treated as a variable.
-For example, a dynamic per-CPU variable may be declared as
-.Dv static :
+Values that can be defined as
+.Dv static
+must use
+.Fn DPCPU_DEFINE_STATIC :
 .Bd -literal -offset 1234
-static DPCPU_DEFINE(int, foo_int);
+DPCPU_DEFINE_STATIC(int, foo_int);
 .Ed
 .Pp
 .Fn DPCPU_DECLARE
@@ -111,8 +113,8 @@ Alternatively, it may be desirable to cache the CPU ID at the start of a
 sequence of accesses, using suitable synchronization to make non-atomic
 sequences safe in the presence of migration.
 .Bd -literal -offset 1234
-static DPCPU_DEFINE(int, foo_int);
-static DPCPU_DEFINE(struct mutex, foo_lock);
+DPCPU_DEFINE_STATIC(int, foo_int);
+DPCPU_DEFINE_STATIC(struct mutex, foo_lock);
 
 void
 foo_int_increment(void)

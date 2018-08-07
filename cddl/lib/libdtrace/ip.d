@@ -167,6 +167,8 @@ inline short IPPROTO_IPCOMP =	108;
 inline short IPPROTO_SCTP =	132;
 #pragma D binding "1.5" IPPROTO_RAW
 inline short IPPROTO_RAW =	255;
+#pragma D binding "1.13" IPPROTO_UDPLITE
+inline short IPPROTO_UDPLITE = 	136;
 
 inline uint8_t INP_IPV4	= 0x01;
 inline uint8_t INP_IPV6 = 0x02;
@@ -193,6 +195,7 @@ inline string protocols[int proto] =
 	proto == IPPROTO_PIM ? "PIM" :
 	proto == IPPROTO_IPCOMP ? "IPCOMP" :
 	proto == IPPROTO_SCTP ? "SCTP" :
+	proto == IPPROTO_UDPLITE ? "UDPLITE" :
 	proto == IPPROTO_RAW ? "RAW" :
 	"<unknown>";
 
@@ -228,11 +231,11 @@ translator ipinfo_t < uint8_t *p > {
 	    ((struct ip *)p)->ip_v == 4 ?
 	    ntohs(((struct ip *)p)->ip_len) - (((struct ip *)p)->ip_hl << 2):
 	    ntohs(((struct ip6_hdr *)p)->ip6_ctlun.ip6_un1.ip6_un1_plen);
-	ip_saddr =	p == NULL ? 0 :
+	ip_saddr =	p == NULL ? "<unknown>" :
 	    ((struct ip *)p)->ip_v == 4 ?
 	    inet_ntoa(&((struct ip *)p)->ip_src.s_addr) :
 	    inet_ntoa6(&((struct ip6_hdr *)p)->ip6_src);
-	ip_daddr =	p == NULL ? 0 :
+	ip_daddr =	p == NULL ? "<unknown>" :
 	    ((struct ip *)p)->ip_v == 4 ?
 	    inet_ntoa(&((struct ip *)p)->ip_dst.s_addr) :
 	    inet_ntoa6(&((struct ip6_hdr *)p)->ip6_dst);
@@ -246,11 +249,11 @@ translator ipinfo_t < struct mbuf *m > {
 	    ntohs(((struct ip *)m->m_data)->ip_len) - 
 			(((struct ip *)m->m_data)->ip_hl << 2):
 	    ntohs(((struct ip6_hdr *)m->m_data)->ip6_ctlun.ip6_un1.ip6_un1_plen);
-	ip_saddr =	m == NULL ? 0 :
+	ip_saddr =	m == NULL ? "<unknown>" :
 	    ((struct ip *)m->m_data)->ip_v == 4 ?
 	    inet_ntoa(&((struct ip *)m->m_data)->ip_src.s_addr) :
 	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_src);
-	ip_daddr =	m == NULL ? 0 :
+	ip_daddr =	m == NULL ? "<unknown>" :
 	    ((struct ip *)m->m_data)->ip_v == 4 ?
 	    inet_ntoa(&((struct ip *)m->m_data)->ip_dst.s_addr) :
 	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_dst);

@@ -101,10 +101,18 @@ float complex	cexpf(float complex);
 double		cimag(double complex) __pure2;
 float		cimagf(float complex) __pure2;
 long double	cimagl(long double complex) __pure2;
+double complex	clog(double complex);
+float complex	clogf(float complex);
+long double complex
+		clogl(long double complex);
 double complex	conj(double complex) __pure2;
 float complex	conjf(float complex) __pure2;
 long double complex
 		conjl(long double complex) __pure2;
+float complex	cpowf(float complex, float complex);
+double complex	cpow(double complex, double complex);
+long double complex
+		cpowl(long double complex, long double complex);
 float complex	cprojf(float complex) __pure2;
 double complex	cproj(double complex) __pure2;
 long double complex

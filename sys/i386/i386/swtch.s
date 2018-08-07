@@ -186,10 +186,6 @@ ENTRY(cpu_switch)
 	lock
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
-	jmp	sw1
-
-sw0:
-	SETOP	%esi,TD_LOCK(%edi)		/* Switchout td_lock */
 sw1:
 	BLOCK_SPIN(%ecx)
 	/*
@@ -286,6 +282,12 @@ sw1:
 	.globl	cpu_switch_load_gs
 cpu_switch_load_gs:
 	mov	PCB_GS(%edx),%gs
+
+	pushl	%edx
+	pushl	PCPU(CURTHREAD)
+	call	npxswitch
+	popl	%edx
+	popl	%edx
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)

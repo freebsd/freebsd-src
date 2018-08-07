@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.101 2017/03/14 07:19:07 djm Exp $
+#	$OpenBSD: sshd_config,v 1.102 2018/02/16 02:32:40 djm Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -20,7 +20,6 @@
 #ListenAddress ::
 
 #HostKey /etc/ssh/ssh_host_rsa_key
-#HostKey /etc/ssh/ssh_host_dsa_key
 #HostKey /etc/ssh/ssh_host_ecdsa_key
 #HostKey /etc/ssh/ssh_host_ed25519_key
 
@@ -106,7 +105,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #PermitTunnel no
 #ChrootDirectory none
 #UseBlacklist no
-#VersionAddendum FreeBSD-20170804
+#VersionAddendum FreeBSD-20180510
 
 # no default banner path
 #Banner none

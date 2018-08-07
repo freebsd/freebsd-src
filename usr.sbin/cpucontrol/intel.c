@@ -95,7 +95,8 @@ intel_update(const char *dev, const char *path)
 	void *fw_data;
 	size_t data_size, total_size;
 	cpuctl_msr_args_t msrargs = {
-		.msr = MSR_IA32_PLATFORM_ID,
+		.msr = MSR_BIOS_SIGN,
+		.data = 0,
 	};
 	cpuctl_cpuid_args_t idargs = {
 		.level  = 1,	/* Signature. */
@@ -115,12 +116,18 @@ intel_update(const char *dev, const char *path)
 		WARN(0, "could not open %s for writing", dev);
 		return;
 	}
+	error = ioctl(devfd, CPUCTL_WRMSR, &msrargs);
+	if (error < 0) {
+		WARN(0, "ioctl(%s)", dev);
+		goto fail;
+	}
 	error = ioctl(devfd, CPUCTL_CPUID, &idargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
 		goto fail;
 	}
 	signature = idargs.data[0];
+	msrargs.msr = MSR_IA32_PLATFORM_ID;
 	error = ioctl(devfd, CPUCTL_RDMSR, &msrargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);

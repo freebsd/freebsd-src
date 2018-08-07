@@ -27,12 +27,6 @@
 
 #define	AR5416_MAGIC	0x20065416
 
-enum {
-	HAL_RESET_POWER_ON,
-	HAL_RESET_WARM,
-	HAL_RESET_COLD,
-};
-
 typedef struct {
 	uint16_t	synth_center;
 	uint16_t	ctl_center;

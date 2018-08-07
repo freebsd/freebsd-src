@@ -1,4 +1,12 @@
 <div class="line">
+  <div class="text">static </div>
+  <div class="data" data-tag="type">ethernet</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type">bridge</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type">  18u</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type"> 24</div>
   <div class="text">anchor </div>
   <div class="padding">            </div>
   <div class="data" data-tag="address">0x0</div>

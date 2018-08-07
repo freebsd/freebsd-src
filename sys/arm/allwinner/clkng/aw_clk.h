@@ -72,6 +72,7 @@ struct aw_clk_init {
 #define	AW_CLK_FACTOR_ZERO_BASED	0x0002
 #define	AW_CLK_FACTOR_HAS_COND		0x0004
 #define	AW_CLK_FACTOR_FIXED		0x0008
+#define	AW_CLK_FACTOR_ZERO_IS_ONE	0x0010
 
 struct aw_clk_factor {
 	uint32_t	shift;		/* Shift bits for the factor */
@@ -110,10 +111,13 @@ aw_clk_get_factor(uint32_t val, struct aw_clk_factor *factor)
 		return (factor->value);
 
 	factor_val = (val & factor->mask) >> factor->shift;
-	if (!(factor->flags & AW_CLK_FACTOR_ZERO_BASED))
-		factor_val += 1;
-	else if (factor->flags & AW_CLK_FACTOR_POWER_OF_TWO)
+	if (factor_val == 0 && (factor->flags & AW_CLK_FACTOR_ZERO_IS_ONE))
+		factor_val = 1;
+
+	if (factor->flags & AW_CLK_FACTOR_POWER_OF_TWO)
 		factor_val = 1 << factor_val;
+	else if (!(factor->flags & AW_CLK_FACTOR_ZERO_BASED))
+		factor_val += 1;
 
 	return (factor_val);
 }
@@ -330,6 +334,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.m.value = _mvalue,			\
 		.m.flags = _mflags,			\
 		.mux_width = _mux_width,		\
+		.gate_shift = _gate_shift,		\
 		.flags = _flags,			\
 	}
 

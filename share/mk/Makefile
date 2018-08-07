@@ -23,6 +23,7 @@ FILES=	\
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
+	bsd.dirs.mk \
 	bsd.doc.mk \
 	bsd.dtb.mk \
 	bsd.endian.mk \
@@ -56,6 +57,7 @@ FILES=	\
 	bsd.sys.mk \
 	bsd.test.mk \
 	dirdeps.mk \
+	dirdeps-options.mk \
 	gendirdeps.mk \
 	install-new.mk \
 	meta.autodep.mk \

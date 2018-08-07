@@ -1905,7 +1905,7 @@ tsec_setup_multicast(struct tsec_softc *sc)
 	}
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;

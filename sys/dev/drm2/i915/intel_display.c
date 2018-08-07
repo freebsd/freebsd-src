@@ -8872,7 +8872,15 @@ static int intel_dmi_reverse_brightness(const struct dmi_system_id *id)
 
 static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 	{
-		.dmi_id_list = &(const struct dmi_system_id[]) {
+		.dmi_id_list =
+#if !defined(__clang__) && !__GNUC_PREREQ__(4, 3)
+		    /* gcc 4.2 needs an additional cast, to avoid a bogus
+		     * "initialization from incompatible pointer type" warning.
+		     * see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36432
+		     */
+		    (const struct dmi_system_id (*)[])
+#endif
+		    &(const struct dmi_system_id[]) {
 			{
 				.callback = intel_dmi_reverse_brightness,
 				.ident = "NCR Corporation",

@@ -30,6 +30,7 @@
 #define	_MACHINE_DB_MACHDEP_H_
 
 #include <machine/frame.h>
+#include <machine/reg.h>
 #include <machine/trap.h>
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
@@ -67,7 +68,8 @@ do {						\
  * unknown addresses and doesn't turn them off while it is running.
  */
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
-#define	IS_SSTEP_TRAP(type, code)	((type) == T_TRCTRAP && (code) & 0x4000)
+#define	IS_SSTEP_TRAP(type, code)					\
+	((type) == T_TRCTRAP && (code) & DBREG_DR6_BS)
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	I_CALL		0xe8

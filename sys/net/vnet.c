@@ -178,7 +178,7 @@ static MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
  * Space to store virtualized global variables from loadable kernel modules,
  * and the free list to manage it.
  */
-static VNET_DEFINE(char, modspace[VNET_MODMIN]);
+VNET_DEFINE_STATIC(char, modspace[VNET_MODMIN] __aligned(__alignof(void *)));
 
 /*
  * Global lists of subsystem constructor and destructors for vnets.  They are
@@ -349,7 +349,7 @@ vnet_data_startup(void *dummy __unused)
 	TAILQ_INSERT_HEAD(&vnet_data_free_head, df, vnd_link);
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
 }
-SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, 0);
+SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, NULL);
 
 /* Dummy VNET_SYSINIT to make sure we always reach the final end state. */
 static void

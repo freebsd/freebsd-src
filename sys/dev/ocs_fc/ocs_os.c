@@ -630,7 +630,7 @@ ocs_thread_create(ocs_os_handle_t os, ocs_thread_t *thread, ocs_thread_fctn fctn
 {
 	int32_t rc = 0;
 
-	ocs_memset(thread, 0, sizeof(thread));
+	ocs_memset(thread, 0, sizeof(*thread));
 
 	thread->fctn = fctn;
 	thread->name = ocs_strdup(name);

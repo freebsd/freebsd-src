@@ -132,6 +132,9 @@ load_entry(file, error_func, pw, envp)
 	}
 
 	if (ch == '@') {
+		long interval;
+		char *endptr;
+
 		/* all of these should be flagged and load-limited; i.e.,
 		 * instead of @hourly meaning "0 * * * *" it should mean
 		 * "close to the front of every hour but not 'til the
@@ -209,6 +212,13 @@ load_entry(file, error_func, pw, envp)
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
+		} else if (*cmd != '\0' &&
+		    (interval = strtol(cmd, &endptr, 10)) > 0 &&
+		    *endptr == '\0') {
+			Debug(DPARS, ("load_entry()... %ld seconds "
+			    "since last run\n", interval))
+			e->interval = interval;
+			e->flags = INTERVAL;
 		} else {
 			ecode = e_timespec;
 			goto eof;

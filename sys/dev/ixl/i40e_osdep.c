@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -59,6 +59,8 @@ i40e_status
 i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem)
 {
 	free(mem->va, M_DEVBUF);
+	mem->va = NULL;
+
 	return(0);
 }
 
@@ -130,7 +132,7 @@ i40e_free_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem)
 	bus_dmamap_unload(mem->tag, mem->map);
 	bus_dmamem_free(mem->tag, mem->va, mem->map);
 	bus_dma_tag_destroy(mem->tag);
-	return (0);
+	return (I40E_SUCCESS);
 }
 
 void
@@ -207,47 +209,47 @@ const char *
 ixl_vc_opcode_str(uint16_t op)
 {
 	switch (op) {
-	case I40E_VIRTCHNL_OP_VERSION:
+	case VIRTCHNL_OP_VERSION:
 		return ("VERSION");
-	case I40E_VIRTCHNL_OP_RESET_VF:
+	case VIRTCHNL_OP_RESET_VF:
 		return ("RESET_VF");
-	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
+	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		return ("GET_VF_RESOURCES");
-	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
+	case VIRTCHNL_OP_CONFIG_TX_QUEUE:
 		return ("CONFIG_TX_QUEUE");
-	case I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE:
+	case VIRTCHNL_OP_CONFIG_RX_QUEUE:
 		return ("CONFIG_RX_QUEUE");
-	case I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES:
+	case VIRTCHNL_OP_CONFIG_VSI_QUEUES:
 		return ("CONFIG_VSI_QUEUES");
-	case I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP:
+	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
 		return ("CONFIG_IRQ_MAP");
-	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
+	case VIRTCHNL_OP_ENABLE_QUEUES:
 		return ("ENABLE_QUEUES");
-	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
+	case VIRTCHNL_OP_DISABLE_QUEUES:
 		return ("DISABLE_QUEUES");
-	case I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS:
-		return ("ADD_ETHER_ADDRESS");
-	case I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS:
-		return ("DEL_ETHER_ADDRESS");
-	case I40E_VIRTCHNL_OP_ADD_VLAN:
+	case VIRTCHNL_OP_ADD_ETH_ADDR:
+		return ("ADD_ETH_ADDR");
+	case VIRTCHNL_OP_DEL_ETH_ADDR:
+		return ("DEL_ETH_ADDR");
+	case VIRTCHNL_OP_ADD_VLAN:
 		return ("ADD_VLAN");
-	case I40E_VIRTCHNL_OP_DEL_VLAN:
+	case VIRTCHNL_OP_DEL_VLAN:
 		return ("DEL_VLAN");
-	case I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
+	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
 		return ("CONFIG_PROMISCUOUS_MODE");
-	case I40E_VIRTCHNL_OP_GET_STATS:
+	case VIRTCHNL_OP_GET_STATS:
 		return ("GET_STATS");
-	case I40E_VIRTCHNL_OP_FCOE:
-		return ("FCOE");
-	case I40E_VIRTCHNL_OP_EVENT:
+	case VIRTCHNL_OP_RSVD:
+		return ("RSVD");
+	case VIRTCHNL_OP_EVENT:
 		return ("EVENT");
-	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
+	case VIRTCHNL_OP_CONFIG_RSS_KEY:
 		return ("CONFIG_RSS_KEY");
-	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
+	case VIRTCHNL_OP_CONFIG_RSS_LUT:
 		return ("CONFIG_RSS_LUT");
-	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+	case VIRTCHNL_OP_GET_RSS_HENA_CAPS:
 		return ("GET_RSS_HENA_CAPS");
-	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
+	case VIRTCHNL_OP_SET_RSS_HENA:
 		return ("SET_RSS_HENA");
 	default:
 		return ("UNKNOWN");

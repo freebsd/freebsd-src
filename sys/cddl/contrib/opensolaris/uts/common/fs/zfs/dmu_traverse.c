@@ -499,8 +499,9 @@ traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	prefetch_data_t *pfd = arg;
-	arc_flags_t aflags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
-
+	arc_flags_t aflags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH |
+	    ARC_FLAG_PRESCIENT_PREFETCH;
+	
 	ASSERT(pfd->pd_bytes_fetched >= 0);
 	if (bp == NULL)
 		return (0);

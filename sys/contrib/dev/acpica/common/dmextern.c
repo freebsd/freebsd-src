@@ -538,7 +538,7 @@ AcpiDmGetExternalsFromFile (
 
     /* Each line defines a method */
 
-    while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ExternalRefFile))
+    while (fgets (StringBuffer, ASL_STRING_BUFFER_SIZE, ExternalRefFile))
     {
         Token = strtok (StringBuffer, METHOD_SEPARATORS);   /* "External" */
         if (!Token)

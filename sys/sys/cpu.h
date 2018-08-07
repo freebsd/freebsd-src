@@ -87,7 +87,7 @@ struct cf_setting {
 };
 
 /* Maximum number of settings a given driver can have. */
-#define MAX_SETTINGS		24
+#define MAX_SETTINGS		256
 
 /* A combination of settings is a level. */
 struct cf_level {

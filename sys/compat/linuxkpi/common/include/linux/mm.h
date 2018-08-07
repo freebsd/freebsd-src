@@ -120,8 +120,8 @@ struct vm_fault {
 	pgoff_t	pgoff;
 	union {
 		/* user-space address */
-		void *virtual_address;
-		unsigned long address;
+		void *virtual_address;	/* < 4.11 */
+		unsigned long address;	/* >= 4.11 */
 	};
 	struct page *page;
 	struct vm_area_struct *vma;
@@ -131,6 +131,7 @@ struct vm_operations_struct {
 	void    (*open) (struct vm_area_struct *);
 	void    (*close) (struct vm_area_struct *);
 	int     (*fault) (struct vm_area_struct *, struct vm_fault *);
+	int	(*access) (struct vm_area_struct *, unsigned long, void *, int, int);
 };
 
 /*

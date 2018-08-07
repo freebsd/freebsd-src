@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 struct des1_state {
 	struct mtx	ds_lock;
-	uint64_t	ds_session;
+	crypto_session_t ds_session;
 };
 
 static void
@@ -145,7 +145,7 @@ des1_crypto_cb(struct cryptop *crp)
 	int error;
 	struct des1_state *ds = (struct des1_state *) crp->crp_opaque;
 	
-	if (CRYPTO_SESID2CAPS(ds->ds_session) & CRYPTOCAP_F_SYNC)
+	if (crypto_ses2caps(ds->ds_session) & CRYPTOCAP_F_SYNC)
 		return (0);
 
 	error = crp->crp_etype;
@@ -182,7 +182,7 @@ des1_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 	crd->crd_next = NULL;
 	crd->crd_alg = CRYPTO_DES_CBC;
 
-	crp->crp_sid = ds->ds_session;
+	crp->crp_session = ds->ds_session;
 	crp->crp_flags = buftype | CRYPTO_F_CBIFSYNC;
 	crp->crp_buf = buf;
 	crp->crp_opaque = (void *) ds;
@@ -190,7 +190,7 @@ des1_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 
 	error = crypto_dispatch(crp);
 
-	if ((CRYPTO_SESID2CAPS(ds->ds_session) & CRYPTOCAP_F_SYNC) == 0) {
+	if ((crypto_ses2caps(ds->ds_session) & CRYPTOCAP_F_SYNC) == 0) {
 		mtx_lock(&ds->ds_lock);
 		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
 			error = msleep(crp, &ds->ds_lock, 0, "gssdes", 0);

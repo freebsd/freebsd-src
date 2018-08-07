@@ -42,6 +42,9 @@
 
 #include <sys/types.h>
 
+#define	BSNMP_MAJOR	1
+#define	BSNMP_MINOR	13
+
 #define SNMP_COMMUNITY_MAXLEN		128
 #define SNMP_MAX_BINDINGS		100
 #define	SNMP_CONTEXT_NAME_SIZ		(32 + 1)

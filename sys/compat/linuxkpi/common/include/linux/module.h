@@ -42,6 +42,7 @@
 #include <linux/sysfs.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
@@ -51,8 +52,6 @@
 
 #define	THIS_MODULE	((struct module *)0)
 
-#define	EXPORT_SYMBOL(name)
-#define	EXPORT_SYMBOL_GPL(name)
 #define	__MODULE_STRING(x) __stringify(x)
 
 /* OFED pre-module initialization */

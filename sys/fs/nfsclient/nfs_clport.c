@@ -86,6 +86,7 @@ extern int nfs_numnfscbd;
 extern int nfscl_inited;
 struct mtx ncl_iod_mutex;
 NFSDLOCKMUTEX;
+extern struct mtx nfsrv_dslock_mtx;
 
 extern void (*ncl_call_invalcaches)(struct vnode *);
 
@@ -818,124 +819,6 @@ nfsmout:
 }
 
 /*
- * Fill in the setable attributes. The full argument indicates whether
- * to fill in them all or just mode and time.
- */
-void
-nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
-    struct vnode *vp, int flags, u_int32_t rdev)
-{
-	u_int32_t *tl;
-	struct nfsv2_sattr *sp;
-	nfsattrbit_t attrbits;
-
-	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
-	case ND_NFSV2:
-		NFSM_BUILD(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
-		if (vap->va_mode == (mode_t)VNOVAL)
-			sp->sa_mode = newnfs_xdrneg1;
-		else
-			sp->sa_mode = vtonfsv2_mode(vap->va_type, vap->va_mode);
-		if (vap->va_uid == (uid_t)VNOVAL)
-			sp->sa_uid = newnfs_xdrneg1;
-		else
-			sp->sa_uid = txdr_unsigned(vap->va_uid);
-		if (vap->va_gid == (gid_t)VNOVAL)
-			sp->sa_gid = newnfs_xdrneg1;
-		else
-			sp->sa_gid = txdr_unsigned(vap->va_gid);
-		if (flags & NFSSATTR_SIZE0)
-			sp->sa_size = 0;
-		else if (flags & NFSSATTR_SIZENEG1)
-			sp->sa_size = newnfs_xdrneg1;
-		else if (flags & NFSSATTR_SIZERDEV)
-			sp->sa_size = txdr_unsigned(rdev);
-		else
-			sp->sa_size = txdr_unsigned(vap->va_size);
-		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
-		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
-		break;
-	case ND_NFSV3:
-		if (vap->va_mode != (mode_t)VNOVAL) {
-			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = newnfs_true;
-			*tl = txdr_unsigned(vap->va_mode);
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
-		}
-		if ((flags & NFSSATTR_FULL) && vap->va_uid != (uid_t)VNOVAL) {
-			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = newnfs_true;
-			*tl = txdr_unsigned(vap->va_uid);
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
-		}
-		if ((flags & NFSSATTR_FULL) && vap->va_gid != (gid_t)VNOVAL) {
-			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = newnfs_true;
-			*tl = txdr_unsigned(vap->va_gid);
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
-		}
-		if ((flags & NFSSATTR_FULL) && vap->va_size != VNOVAL) {
-			NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-			*tl++ = newnfs_true;
-			txdr_hyper(vap->va_size, tl);
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
-		}
-		if (vap->va_atime.tv_sec != VNOVAL) {
-			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
-				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
-				txdr_nfsv3time(&vap->va_atime, tl);
-			} else {
-				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
-			}
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
-		}
-		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
-				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
-				txdr_nfsv3time(&vap->va_mtime, tl);
-			} else {
-				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
-			}
-		} else {
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
-		}
-		break;
-	case ND_NFSV4:
-		NFSZERO_ATTRBIT(&attrbits);
-		if (vap->va_mode != (mode_t)VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_MODE);
-		if ((flags & NFSSATTR_FULL) && vap->va_uid != (uid_t)VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_OWNER);
-		if ((flags & NFSSATTR_FULL) && vap->va_gid != (gid_t)VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_OWNERGROUP);
-		if ((flags & NFSSATTR_FULL) && vap->va_size != VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
-		if (vap->va_atime.tv_sec != VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
-		if (vap->va_mtime.tv_sec != VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
-		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
-		break;
-	}
-}
-
-/*
  * nfscl_request() - mostly a wrapper for newnfs_request().
  */
 int
@@ -1383,6 +1266,13 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 				    0 && strcmp(mp->mnt_stat.f_fstypename,
 				    "nfs") == 0 && mp->mnt_data != NULL) {
 					nmp = VFSTONFS(mp);
+					NFSDDSLOCK();
+					if (nfsv4_findmirror(nmp) != NULL) {
+						NFSDDSUNLOCK();
+						error = ENXIO;
+						nmp = NULL;
+						break;
+					}
 					mtx_lock(&nmp->nm_mtx);
 					if ((nmp->nm_privflag &
 					    NFSMNTP_FORCEDISM) == 0) {
@@ -1394,6 +1284,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 						mtx_unlock(&nmp->nm_mtx);
 						nmp = NULL;
 					}
+					NFSDDSUNLOCK();
 					break;
 				}
 			}
@@ -1418,7 +1309,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 				nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
 				wakeup(nmp);
 				mtx_unlock(&nmp->nm_mtx);
-			} else
+			} else if (error == 0)
 				error = EINVAL;
 		}
 		free(buf, M_TEMP);

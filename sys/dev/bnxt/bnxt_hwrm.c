@@ -633,9 +633,7 @@ int
 bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 {
 	struct hwrm_vnic_cfg_input req = {0};
-	struct hwrm_vnic_cfg_output *resp;
 
-	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_CFG);
 
 	if (vnic->flags & BNXT_VNIC_FLAG_DEFAULT)
@@ -953,9 +951,7 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type)
 {
 	struct hwrm_vnic_rss_cfg_input	req = {0};
-	struct hwrm_vnic_rss_cfg_output	*resp;
 
-	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_RSS_CFG);
 
 	req.hash_type = htole32(hash_type);
@@ -1016,6 +1012,10 @@ bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 {
 	struct hwrm_vnic_tpa_cfg_input req = {0};
 	uint32_t flags;
+
+	if (softc->vnic_info.id == (uint16_t) HWRM_NA_SIGNATURE) {
+		return 0;
+	}
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_TPA_CFG);
 

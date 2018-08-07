@@ -109,7 +109,7 @@ static	int ifconfig(int argc, char *const *argv, int iscreate,
 static	void status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
 static	void tunnel_status(int s);
-static	void usage(void) _Noreturn;
+static _Noreturn void usage(void);
 
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
@@ -1487,8 +1487,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-wol_magic",	-IFCAP_WOL_MAGIC,	setifcap),
 	DEF_CMD("txrtlmt",	IFCAP_TXRTLMT,	setifcap),
 	DEF_CMD("-txrtlmt",	-IFCAP_TXRTLMT,	setifcap),
-	DEF_CMD("hwrxtsmp",	IFCAP_HWRXTSTMP,	setifcap),
-	DEF_CMD("-hwrxtsmp",	-IFCAP_HWRXTSTMP,	setifcap),
+	DEF_CMD("hwrxtstmp",	IFCAP_HWRXTSTMP,	setifcap),
+	DEF_CMD("-hwrxtstmp",	-IFCAP_HWRXTSTMP,	setifcap),
 	DEF_CMD("normal",	-IFF_LINK0,	setifflags),
 	DEF_CMD("compress",	IFF_LINK0,	setifflags),
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),

@@ -274,10 +274,10 @@ FBSD_1.3 {
 	log1pl;
 	log2l;
 	logl;
+	powl;
 	sinhl;
 	tanhl;
 	/* Implemented as weak aliases for imprecise versions */
-	powl;
 	tgammal;
 };
 
@@ -294,6 +294,12 @@ FBSD_1.5 {
 	casinl;
 	catanl;
 	catanhl;
+	clog;
+	clogf;
+	clogl;
+	cpow;
+	cpowf;
+	cpowl;
 	sincos;
 	sincosf;
 	sincosl;

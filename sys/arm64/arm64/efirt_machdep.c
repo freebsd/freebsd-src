@@ -143,6 +143,19 @@ efi_1t1_l3(vm_offset_t va)
 }
 
 /*
+ * Map a physical address from EFI runtime space into KVA space.  Returns 0 to
+ * indicate a failed mapping so that the caller may handle error.
+ */
+vm_offset_t
+efi_phys_to_kva(vm_paddr_t paddr)
+{
+
+	if (!PHYS_IN_DMAP(paddr))
+		return (0);
+	return (PHYS_TO_DMAP(paddr));
+}
+
+/*
  * Create the 1:1 virtual to physical map for EFI
  */
 bool
@@ -196,7 +209,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		else if ((p->md_attr & EFI_MD_ATTR_WC) != 0)
 			mode = VM_MEMATTR_WRITE_COMBINING;
 		else if ((p->md_attr & EFI_MD_ATTR_UC) != 0)
-			mode = VM_MEMATTR_UNCACHEABLE;
+			mode = VM_MEMATTR_DEVICE;
 		else {
 			if (bootverbose)
 				printf("EFI Runtime entry %d mapping "

@@ -265,7 +265,7 @@ void do_packet(struct interface_info *, struct dhcp_packet *,
 
 /* errwarn.c */
 extern int warnings_occurred;
-void error(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void error(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2))) __dead2;
 int warning(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 int note(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 int debug(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
@@ -368,6 +368,8 @@ extern int log_perror;
 extern struct client_config top_level_config;
 
 extern struct pidfh *pidfile;
+
+extern struct interface_info *ifi;
 
 void dhcpoffer(struct packet *);
 void dhcpack(struct packet *);

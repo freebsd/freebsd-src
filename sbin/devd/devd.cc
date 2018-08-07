@@ -140,7 +140,6 @@ typedef struct client {
 } client_t;
 
 extern FILE *yyin;
-extern int lineno;
 
 static const char notify = '!';
 static const char nomatch = '?';
@@ -173,7 +172,7 @@ delete_and_clear(vector<T *> &v)
 	v.clear();
 }
 
-config cfg;
+static config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
@@ -637,6 +636,35 @@ config::is_id_char(char ch) const
 	    ch == '-'));
 }
 
+string
+config::shell_quote(const string &s)
+{
+	string buffer;
+	const char *cs, *ce;
+	char c;
+
+	/*
+	 * Enclose the string in $' ' with escapes for ' and / characters making
+	 * it one argument and ensuring the shell won't be affected by its
+	 * usual list of candidates.
+	 */
+	buffer.reserve(s.length() * 3 / 2);
+	buffer += '$';
+	buffer += '\'';
+	cs = s.c_str();
+	ce = cs + strlen(cs);
+	for (; cs < ce; cs++) {
+		c = *cs;
+		if (c == '\'' || c == '\\') {
+			buffer += '\\';
+		}
+		buffer += c;
+	}
+	buffer += '\'';
+
+	return buffer;
+}
+
 void
 config::expand_one(const char *&src, string &dst)
 {
@@ -651,8 +679,7 @@ config::expand_one(const char *&src, string &dst)
 	}
 
 	// $(foo) -> $(foo)
-	// Not sure if I want to support this or not, so for now we just pass
-	// it through.
+	// This is the escape hatch for passing down shell subcommands
 	if (*src == '(') {
 		dst += '$';
 		count = 1;
@@ -678,7 +705,7 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer += *src++;
 	} while (is_id_char(*src));
-	dst.append(get_variable(buffer));
+	dst.append(shell_quote(get_variable(buffer)));
 }
 
 const string
@@ -877,7 +904,7 @@ process_event(char *buffer)
 	cfg.pop_var_table();
 }
 
-int
+static int
 create_socket(const char *name, int socktype)
 {
 	int fd, slen;
@@ -902,12 +929,12 @@ create_socket(const char *name, int socktype)
 	return (fd);
 }
 
-unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
-unsigned int num_clients;
+static unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
+static unsigned int num_clients;
 
-list<client_t> clients;
+static list<client_t> clients;
 
-void
+static void
 notify_clients(const char *data, int len)
 {
 	list<client_t>::iterator i;
@@ -937,7 +964,7 @@ notify_clients(const char *data, int len)
 	}
 }
 
-void
+static void
 check_clients(void)
 {
 	int s;
@@ -967,7 +994,7 @@ check_clients(void)
 	}
 }
 
-void
+static void
 new_client(int fd, int socktype)
 {
 	client_t s;
@@ -1087,7 +1114,7 @@ event_loop(void)
 				try {
 					process_event(buffer);
 				}
-				catch (std::length_error e) {
+				catch (const std::length_error& e) {
 					devdlog(LOG_ERR, "Dropping event %s "
 					    "due to low memory", buffer);
 				}

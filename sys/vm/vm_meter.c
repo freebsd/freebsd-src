@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct vmmeter __exclusive_cache_line vm_cnt = {
+struct vmmeter __read_mostly vm_cnt = {
 	.v_swtch = EARLY_COUNTER,
 	.v_trap = EARLY_COUNTER,
 	.v_syscall = EARLY_COUNTER,

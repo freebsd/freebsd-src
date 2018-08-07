@@ -24,11 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2018
-.Dt LIBSTAND 3
+.Dd February 22, 2018
+.Dt LIBSA 3
 .Os
 .Sh NAME
-.Nm libstand
+.Nm libsa
 .Nd support library for standalone executables
 .Sh SYNOPSIS
 .In stand.h
@@ -402,8 +402,8 @@ except that file creation is not supported, so the mode parameter is not
 required.
 The
 .Fa flags
-argument may be one of O_RDONLY, O_WRONLY and O_RDWR (although no file systems
-currently support writing).
+argument may be one of O_RDONLY, O_WRONLY and O_RDWR.
+Only UFS currently supports writing.
 .It Xo
 .Ft int
 .Fn close "int fd"

@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
-#include <ck_queue.h>
 
 /*
  * Description of dynamic states.
@@ -180,11 +179,11 @@ struct dyn_ipv4_state {
 	SLIST_ENTRY(dyn_ipv4_state)	expired;
 };
 CK_SLIST_HEAD(dyn_ipv4ck_slist, dyn_ipv4_state);
-static VNET_DEFINE(struct dyn_ipv4ck_slist *, dyn_ipv4);
-static VNET_DEFINE(struct dyn_ipv4ck_slist *, dyn_ipv4_parent);
+VNET_DEFINE_STATIC(struct dyn_ipv4ck_slist *, dyn_ipv4);
+VNET_DEFINE_STATIC(struct dyn_ipv4ck_slist *, dyn_ipv4_parent);
 
 SLIST_HEAD(dyn_ipv4_slist, dyn_ipv4_state);
-static VNET_DEFINE(struct dyn_ipv4_slist, dyn_expired_ipv4);
+VNET_DEFINE_STATIC(struct dyn_ipv4_slist, dyn_expired_ipv4);
 #define	V_dyn_ipv4			VNET(dyn_ipv4)
 #define	V_dyn_ipv4_parent		VNET(dyn_ipv4_parent)
 #define	V_dyn_expired_ipv4		VNET(dyn_expired_ipv4)
@@ -205,11 +204,11 @@ struct dyn_ipv6_state {
 	SLIST_ENTRY(dyn_ipv6_state)	expired;
 };
 CK_SLIST_HEAD(dyn_ipv6ck_slist, dyn_ipv6_state);
-static VNET_DEFINE(struct dyn_ipv6ck_slist *, dyn_ipv6);
-static VNET_DEFINE(struct dyn_ipv6ck_slist *, dyn_ipv6_parent);
+VNET_DEFINE_STATIC(struct dyn_ipv6ck_slist *, dyn_ipv6);
+VNET_DEFINE_STATIC(struct dyn_ipv6ck_slist *, dyn_ipv6_parent);
 
 SLIST_HEAD(dyn_ipv6_slist, dyn_ipv6_state);
-static VNET_DEFINE(struct dyn_ipv6_slist, dyn_expired_ipv6);
+VNET_DEFINE_STATIC(struct dyn_ipv6_slist, dyn_expired_ipv6);
 #define	V_dyn_ipv6			VNET(dyn_ipv6)
 #define	V_dyn_ipv6_parent		VNET(dyn_ipv6_parent)
 #define	V_dyn_expired_ipv6		VNET(dyn_expired_ipv6)
@@ -220,7 +219,7 @@ static VNET_DEFINE(struct dyn_ipv6_slist, dyn_expired_ipv6);
  * and must not be reclaimed by expiration callout.
  */
 static void **dyn_hp_cache;
-static DPCPU_DEFINE(void *, dyn_hp);
+DPCPU_DEFINE_STATIC(void *, dyn_hp);
 #define	DYNSTATE_GET(cpu)	ck_pr_load_ptr(DPCPU_ID_PTR((cpu), dyn_hp))
 #define	DYNSTATE_PROTECT(v)	ck_pr_store_ptr(DPCPU_PTR(dyn_hp), (v))
 #define	DYNSTATE_RELEASE()	DYNSTATE_PROTECT(NULL)
@@ -256,28 +255,28 @@ static DPCPU_DEFINE(void *, dyn_hp);
  * Currently one dyn_bucket_lock is used for all ipv4, ipv4_parent, ipv6,
  * and ipv6_parent lists.
  */
-static VNET_DEFINE(struct mtx, dyn_expire_lock);
-static VNET_DEFINE(struct mtx *, dyn_bucket_lock);
+VNET_DEFINE_STATIC(struct mtx, dyn_expire_lock);
+VNET_DEFINE_STATIC(struct mtx *, dyn_bucket_lock);
 #define	V_dyn_expire_lock		VNET(dyn_expire_lock)
 #define	V_dyn_bucket_lock		VNET(dyn_bucket_lock)
 
 /*
  * Bucket's add/delete generation versions.
  */
-static VNET_DEFINE(uint32_t *, dyn_ipv4_add);
-static VNET_DEFINE(uint32_t *, dyn_ipv4_del);
-static VNET_DEFINE(uint32_t *, dyn_ipv4_parent_add);
-static VNET_DEFINE(uint32_t *, dyn_ipv4_parent_del);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv4_add);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv4_del);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv4_parent_add);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv4_parent_del);
 #define	V_dyn_ipv4_add			VNET(dyn_ipv4_add)
 #define	V_dyn_ipv4_del			VNET(dyn_ipv4_del)
 #define	V_dyn_ipv4_parent_add		VNET(dyn_ipv4_parent_add)
 #define	V_dyn_ipv4_parent_del		VNET(dyn_ipv4_parent_del)
 
 #ifdef INET6
-static VNET_DEFINE(uint32_t *, dyn_ipv6_add);
-static VNET_DEFINE(uint32_t *, dyn_ipv6_del);
-static VNET_DEFINE(uint32_t *, dyn_ipv6_parent_add);
-static VNET_DEFINE(uint32_t *, dyn_ipv6_parent_del);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv6_add);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv6_del);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv6_parent_add);
+VNET_DEFINE_STATIC(uint32_t *, dyn_ipv6_parent_del);
 #define	V_dyn_ipv6_add			VNET(dyn_ipv6_add)
 #define	V_dyn_ipv6_del			VNET(dyn_ipv6_del)
 #define	V_dyn_ipv6_parent_add		VNET(dyn_ipv6_parent_add)
@@ -301,22 +300,25 @@ static VNET_DEFINE(uint32_t *, dyn_ipv6_parent_del);
 #define	DYN_EXPIRED_LOCK()		mtx_lock(&V_dyn_expire_lock)
 #define	DYN_EXPIRED_UNLOCK()		mtx_unlock(&V_dyn_expire_lock)
 
-static VNET_DEFINE(uint32_t, dyn_buckets_max);
-static VNET_DEFINE(uint32_t, curr_dyn_buckets);
-static VNET_DEFINE(struct callout, dyn_timeout);
+VNET_DEFINE_STATIC(uint32_t, dyn_buckets_max);
+VNET_DEFINE_STATIC(uint32_t, curr_dyn_buckets);
+VNET_DEFINE_STATIC(struct callout, dyn_timeout);
 #define	V_dyn_buckets_max		VNET(dyn_buckets_max)
 #define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
 #define	V_dyn_timeout			VNET(dyn_timeout)
 
 /* Maximum length of states chain in a bucket */
-static VNET_DEFINE(uint32_t, curr_max_length);
+VNET_DEFINE_STATIC(uint32_t, curr_max_length);
 #define	V_curr_max_length		VNET(curr_max_length)
 
-static VNET_DEFINE(uma_zone_t, dyn_data_zone);
-static VNET_DEFINE(uma_zone_t, dyn_parent_zone);
-static VNET_DEFINE(uma_zone_t, dyn_ipv4_zone);
+VNET_DEFINE_STATIC(uint32_t, dyn_keep_states);
+#define	V_dyn_keep_states		VNET(dyn_keep_states)
+
+VNET_DEFINE_STATIC(uma_zone_t, dyn_data_zone);
+VNET_DEFINE_STATIC(uma_zone_t, dyn_parent_zone);
+VNET_DEFINE_STATIC(uma_zone_t, dyn_ipv4_zone);
 #ifdef INET6
-static VNET_DEFINE(uma_zone_t, dyn_ipv6_zone);
+VNET_DEFINE_STATIC(uma_zone_t, dyn_ipv6_zone);
 #define	V_dyn_ipv6_zone			VNET(dyn_ipv6_zone)
 #endif /* INET6 */
 #define	V_dyn_data_zone			VNET(dyn_data_zone)
@@ -326,12 +328,12 @@ static VNET_DEFINE(uma_zone_t, dyn_ipv6_zone);
 /*
  * Timeouts for various events in handing dynamic rules.
  */
-static VNET_DEFINE(uint32_t, dyn_ack_lifetime);
-static VNET_DEFINE(uint32_t, dyn_syn_lifetime);
-static VNET_DEFINE(uint32_t, dyn_fin_lifetime);
-static VNET_DEFINE(uint32_t, dyn_rst_lifetime);
-static VNET_DEFINE(uint32_t, dyn_udp_lifetime);
-static VNET_DEFINE(uint32_t, dyn_short_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_ack_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_syn_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_fin_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_rst_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_udp_lifetime);
+VNET_DEFINE_STATIC(uint32_t, dyn_short_lifetime);
 
 #define	V_dyn_ack_lifetime		VNET(dyn_ack_lifetime)
 #define	V_dyn_syn_lifetime		VNET(dyn_syn_lifetime)
@@ -348,20 +350,21 @@ static VNET_DEFINE(uint32_t, dyn_short_lifetime);
  * than dyn_keepalive_period.
  */
 #define	DYN_KEEPALIVE_MAXQ		512
-static VNET_DEFINE(uint32_t, dyn_keepalive_interval);
-static VNET_DEFINE(uint32_t, dyn_keepalive_period);
-static VNET_DEFINE(uint32_t, dyn_keepalive);
-static VNET_DEFINE(time_t, dyn_keepalive_last);
+VNET_DEFINE_STATIC(uint32_t, dyn_keepalive_interval);
+VNET_DEFINE_STATIC(uint32_t, dyn_keepalive_period);
+VNET_DEFINE_STATIC(uint32_t, dyn_keepalive);
+VNET_DEFINE_STATIC(time_t, dyn_keepalive_last);
 
 #define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
 #define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
 #define	V_dyn_keepalive			VNET(dyn_keepalive)
 #define	V_dyn_keepalive_last		VNET(dyn_keepalive_last)
 
-static VNET_DEFINE(uint32_t, dyn_max);		/* max # of dynamic states */
-static VNET_DEFINE(uint32_t, dyn_count);	/* number of states */
-static VNET_DEFINE(uint32_t, dyn_parent_max);	/* max # of parent states */
-static VNET_DEFINE(uint32_t, dyn_parent_count);	/* number of parent states */
+VNET_DEFINE_STATIC(uint32_t, dyn_max);		/* max # of dynamic states */
+VNET_DEFINE_STATIC(uint32_t, dyn_count);	/* number of states */
+VNET_DEFINE_STATIC(uint32_t, dyn_parent_max);	/* max # of parent states */
+VNET_DEFINE_STATIC(uint32_t, dyn_parent_count);	/* number of parent states */
+
 #define	V_dyn_max			VNET(dyn_max)
 #define	V_dyn_count			VNET(dyn_count)
 #define	V_dyn_parent_max		VNET(dyn_parent_max)
@@ -476,6 +479,10 @@ SYSCTL_U32(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
 SYSCTL_U32(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dynamic states.");
+SYSCTL_U32(_net_inet_ip_fw, OID_AUTO, dyn_keep_states,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_keep_states), 0,
+    "Do not flush dynamic states on rule deletion");
+
 
 #ifdef IPFIREWALL_DYNDEBUG
 #define	DYN_DEBUG(fmt, ...)	do {			\
@@ -491,8 +498,7 @@ static struct dyn_ipv6_state *dyn_lookup_ipv6_state(
     const struct ipfw_flow_id *, uint32_t, const void *,
     struct ipfw_dyn_info *, int);
 static int dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *,
-    uint32_t, const void *, int, const void *, uint32_t, uint16_t, uint32_t,
-    uint16_t);
+    uint32_t, const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv6_state *dyn_alloc_ipv6_state(
     const struct ipfw_flow_id *, uint32_t, uint16_t, uint8_t);
 static int dyn_add_ipv6_state(void *, uint32_t, uint16_t, uint8_t,
@@ -548,7 +554,7 @@ static void dyn_update_proto_state(struct dyn_data *,
 struct dyn_ipv4_state *dyn_lookup_ipv4_state(const struct ipfw_flow_id *,
     const void *, struct ipfw_dyn_info *, int);
 static int dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *,
-    const void *, int, const void *, uint32_t, uint16_t, uint32_t, uint16_t);
+    const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv4_state *dyn_alloc_ipv4_state(
     const struct ipfw_flow_id *, uint16_t, uint8_t);
 static int dyn_add_ipv4_state(void *, uint32_t, uint16_t, uint8_t,
@@ -775,7 +781,7 @@ hash_parent(const struct ipfw_flow_id *id, const void *rule)
 
 #else /* IPFIREWALL_JENKINSHASH */
 
-static VNET_DEFINE(uint32_t, dyn_hashseed);
+VNET_DEFINE_STATIC(uint32_t, dyn_hashseed);
 #define	V_dyn_hashseed		VNET(dyn_hashseed)
 
 static __inline int
@@ -1067,8 +1073,7 @@ restart:
  */
 static int
 dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *pkt,
-    const void *ulp, int pktlen, const void *parent, uint32_t ruleid,
-    uint16_t rulenum, uint32_t bucket, uint16_t kidx)
+    const void *ulp, int pktlen, uint32_t bucket, uint16_t kidx)
 {
 	struct dyn_ipv4_state *s;
 	int dir;
@@ -1078,15 +1083,6 @@ dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *pkt,
 	CK_SLIST_FOREACH(s, &V_dyn_ipv4[bucket], entry) {
 		if (s->proto != pkt->proto ||
 		    s->kidx != kidx)
-			continue;
-		/*
-		 * XXXAE: Install synchronized state only when there are
-		 *	  no matching states.
-		 */
-		if (pktlen != 0 && (
-		    s->data->parent != parent ||
-		    s->data->ruleid != ruleid ||
-		    s->data->rulenum != rulenum))
 			continue;
 		if (s->sport == pkt->src_port &&
 		    s->dport == pkt->dst_port &&
@@ -1229,8 +1225,7 @@ restart:
  */
 static int
 dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
-    const void *ulp, int pktlen, const void *parent, uint32_t ruleid,
-    uint16_t rulenum, uint32_t bucket, uint16_t kidx)
+    const void *ulp, int pktlen, uint32_t bucket, uint16_t kidx)
 {
 	struct dyn_ipv6_state *s;
 	int dir;
@@ -1240,15 +1235,6 @@ dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 	CK_SLIST_FOREACH(s, &V_dyn_ipv6[bucket], entry) {
 		if (s->proto != pkt->proto || s->kidx != kidx ||
 		    s->zoneid != zoneid)
-			continue;
-		/*
-		 * XXXAE: Install synchronized state only when there are
-		 *	  no matching states.
-		 */
-		if (pktlen != 0 && (
-		    s->data->parent != parent ||
-		    s->data->ruleid != ruleid ||
-		    s->data->rulenum != rulenum))
 			continue;
 		if (s->sport == pkt->src_port && s->dport == pkt->dst_port &&
 		    IN6_ARE_ADDR_EQUAL(&s->src, &pkt->src_ip6) &&
@@ -1409,18 +1395,32 @@ ipfw_dyn_lookup_state(const struct ip_fw_args *args, const void *ulp,
 			 * that will be added into head of this bucket.
 			 * And the state that we currently have matched
 			 * should be deleted by dyn_expire_states().
+			 *
+			 * In case when dyn_keep_states is enabled, return
+			 * pointer to default rule and corresponding f_pos
+			 * value.
+			 * XXX: In this case we lose the cache efficiency,
+			 *      since f_pos is not cached, because it seems
+			 *      there is no easy way to atomically switch
+			 *      all fields related to parent rule of given
+			 *      state.
 			 */
-			if (V_layer3_chain.map[data->f_pos] == rule)
+			if (V_layer3_chain.map[data->f_pos] == rule) {
 				data->chain_id = V_layer3_chain.id;
-			else {
+				info->f_pos = data->f_pos;
+			} else if (V_dyn_keep_states != 0) {
+				rule = V_layer3_chain.default_rule;
+				info->f_pos = V_layer3_chain.n_rules - 1;
+			} else {
 				rule = NULL;
 				info->direction = MATCH_NONE;
 				DYN_DEBUG("rule %p  [%u, %u] is considered "
 				    "invalid in data %p", rule, data->ruleid,
 				    data->rulenum, data);
+				/* info->f_pos doesn't matter here. */
 			}
-		}
-		info->f_pos = data->f_pos;
+		} else
+			info->f_pos = data->f_pos;
 	}
 	DYNSTATE_CRITICAL_EXIT();
 #if 0
@@ -1596,8 +1596,8 @@ dyn_add_ipv4_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		 * Bucket version has been changed since last lookup,
 		 * do lookup again to be sure that state does not exist.
 		 */
-		if (dyn_lookup_ipv4_state_locked(pkt, ulp, pktlen, parent,
-		    ruleid, rulenum, bucket, kidx) != 0) {
+		if (dyn_lookup_ipv4_state_locked(pkt, ulp, pktlen,
+		    bucket, kidx) != 0) {
 			DYN_BUCKET_UNLOCK(bucket);
 			return (EEXIST);
 		}
@@ -1728,7 +1728,7 @@ dyn_add_ipv6_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		 * do lookup again to be sure that state does not exist.
 		 */
 		if (dyn_lookup_ipv6_state_locked(pkt, zoneid, ulp, pktlen,
-		    parent, ruleid, rulenum, bucket, kidx) != 0) {
+		    bucket, kidx) != 0) {
 			DYN_BUCKET_UNLOCK(bucket);
 			return (EEXIST);
 		}
@@ -2121,7 +2121,8 @@ dyn_match_ipv4_state(struct dyn_ipv4_state *s, const ipfw_range_tlv *rt)
 	if (s->type == O_LIMIT)
 		return (dyn_match_range(s->data->rulenum, s->data->set, rt));
 
-	if (dyn_match_range(s->data->rulenum, s->data->set, rt))
+	if (V_dyn_keep_states == 0 &&
+	    dyn_match_range(s->data->rulenum, s->data->set, rt))
 		return (1);
 
 	return (0);
@@ -2139,7 +2140,8 @@ dyn_match_ipv6_state(struct dyn_ipv6_state *s, const ipfw_range_tlv *rt)
 	if (s->type == O_LIMIT)
 		return (dyn_match_range(s->data->rulenum, s->data->set, rt));
 
-	if (dyn_match_range(s->data->rulenum, s->data->set, rt))
+	if (V_dyn_keep_states == 0 &&
+	    dyn_match_range(s->data->rulenum, s->data->set, rt))
 		return (1);
 
 	return (0);

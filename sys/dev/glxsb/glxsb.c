@@ -185,10 +185,6 @@ struct glxsb_softc {
 	bus_dma_tag_t		sc_dmat;	/* DMA tag */
 	struct glxsb_dma_map	sc_dma;		/* DMA map */
 	int32_t			sc_cid;		/* crypto tag */
-	uint32_t		sc_sid;		/* session id */
-	TAILQ_HEAD(ses_head, glxsb_session)
-				sc_sessions;	/* crypto sessions */
-	struct rwlock		sc_sessions_lock;/* sessions lock */
 	struct mtx		sc_task_mtx;	/* task mutex */
 	struct taskqueue	*sc_tq;		/* task queue */
 	struct task		sc_cryptotask;	/* task */
@@ -208,8 +204,8 @@ static void glxsb_dma_free(struct glxsb_softc *, struct glxsb_dma_map *);
 
 static void glxsb_rnd(void *);
 static int  glxsb_crypto_setup(struct glxsb_softc *);
-static int  glxsb_crypto_newsession(device_t, uint32_t *, struct cryptoini *);
-static int  glxsb_crypto_freesession(device_t, uint64_t);
+static int  glxsb_crypto_newsession(device_t, crypto_session_t, struct cryptoini *);
+static void glxsb_crypto_freesession(device_t, crypto_session_t);
 static int  glxsb_aes(struct glxsb_softc *, uint32_t, uint32_t,
 	uint32_t, void *, int, void *);
 
@@ -347,31 +343,15 @@ static int
 glxsb_detach(device_t dev)
 {
 	struct glxsb_softc *sc = device_get_softc(dev);
-	struct glxsb_session *ses;
 
-	rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
-		if (ses->ses_used) {
-			rw_wunlock(&sc->sc_sessions_lock);
-			device_printf(dev,
-				"cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
-	while (!TAILQ_EMPTY(&sc->sc_sessions)) {
-		ses = TAILQ_FIRST(&sc->sc_sessions);
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-		free(ses, M_GLXSB);
-	}
-	rw_wunlock(&sc->sc_sessions_lock);
 	crypto_unregister_all(sc->sc_cid);
+
 	callout_drain(&sc->sc_rngco);
 	taskqueue_drain(sc->sc_tq, &sc->sc_cryptotask);
 	bus_generic_detach(dev);
 	glxsb_dma_free(sc, &sc->sc_dma);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_sr);
 	taskqueue_free(sc->sc_tq);
-	rw_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_task_mtx);
 	return (0);
 }
@@ -487,16 +467,14 @@ static int
 glxsb_crypto_setup(struct glxsb_softc *sc)
 {
 
-	sc->sc_cid = crypto_get_driverid(sc->sc_dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(sc->sc_dev,
+	    sizeof(struct glxsb_session), CRYPTOCAP_F_HARDWARE);
 
 	if (sc->sc_cid < 0) {
 		device_printf(sc->sc_dev, "cannot get crypto driver id\n");
 		return (ENOMEM);
 	}
 
-	TAILQ_INIT(&sc->sc_sessions);
-	sc->sc_sid = 1;
-	rw_init(&sc->sc_sessions_lock, "glxsb_sessions_lock");
 	mtx_init(&sc->sc_task_mtx, "glxsb_crypto_mtx", NULL, MTX_DEF);
 
 	if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0) != 0)
@@ -521,20 +499,20 @@ glxsb_crypto_setup(struct glxsb_softc *sc)
 crypto_fail:
 	device_printf(sc->sc_dev, "cannot register crypto\n");
 	crypto_unregister_all(sc->sc_cid);
-	rw_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_task_mtx);
 	return (ENOMEM);
 }
 
 static int
-glxsb_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+glxsb_crypto_newsession(device_t dev, crypto_session_t cses,
+    struct cryptoini *cri)
 {
 	struct glxsb_softc *sc = device_get_softc(dev);
-	struct glxsb_session *ses = NULL;
+	struct glxsb_session *ses;
 	struct cryptoini *encini, *macini;
 	int error;
 
-	if (sc == NULL || sidp == NULL || cri == NULL)
+	if (sc == NULL || cri == NULL)
 		return (EINVAL);
 
 	encini = macini = NULL;
@@ -569,32 +547,10 @@ glxsb_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (encini == NULL)
 		return (EINVAL);
 
-	/*
-	 * Look for a free session
-	 *
-	 * Free sessions goes first, so if first session is used, we need to
-	 * allocate one.
-	 */
-
-	rw_wlock(&sc->sc_sessions_lock);
-	ses = TAILQ_FIRST(&sc->sc_sessions);
-	if (ses == NULL || ses->ses_used) {
-		ses = malloc(sizeof(*ses), M_GLXSB, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->sc_sessions_lock);
-			return (ENOMEM);
-		}
-		ses->ses_id = sc->sc_sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-	}
-	ses->ses_used = 1;
-	TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-	rw_wunlock(&sc->sc_sessions_lock);
-
+	ses = crypto_get_driver_session(cses);
 	if (encini->cri_alg == CRYPTO_AES_CBC) {
 		if (encini->cri_klen != 128) {
-			glxsb_crypto_freesession(sc->sc_dev, ses->ses_id);
+			glxsb_crypto_freesession(sc->sc_dev, cses);
 			return (EINVAL);
 		}
 		arc4rand(ses->ses_iv, sizeof(ses->ses_iv), 0);
@@ -607,43 +563,25 @@ glxsb_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (macini != NULL) {
 		error = glxsb_hash_setup(ses, macini);
 		if (error != 0) {
-			glxsb_crypto_freesession(sc->sc_dev, ses->ses_id);
+			glxsb_crypto_freesession(sc->sc_dev, cses);
 			return (error);
 		}
 	}
 
-	*sidp = ses->ses_id;
 	return (0);
 }
 
-static int
-glxsb_crypto_freesession(device_t dev, uint64_t tid)
+static void
+glxsb_crypto_freesession(device_t dev, crypto_session_t cses)
 {
 	struct glxsb_softc *sc = device_get_softc(dev);
-	struct glxsb_session *ses = NULL;
-	uint32_t sid = ((uint32_t)tid) & 0xffffffff;
+	struct glxsb_session *ses;
 
 	if (sc == NULL)
-		return (EINVAL);
+		return;
 
-	rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, ses_head, ses_next) {
-		if (ses->ses_id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->sc_sessions_lock);
-		return (EINVAL);
-	}
-	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
+	ses = crypto_get_driver_session(cses);
 	glxsb_hash_free(ses);
-	bzero(ses, sizeof(*ses));
-	ses->ses_used = 0;
-	ses->ses_id = sid;
-	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
-	rw_wunlock(&sc->sc_sessions_lock);
-
-	return (0);
 }
 
 static int
@@ -864,7 +802,6 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 	struct glxsb_softc *sc = device_get_softc(dev);
 	struct glxsb_session *ses;
 	struct cryptodesc *crd, *enccrd, *maccrd;
-	uint32_t sid;
 	int error = 0;
 
 	enccrd = maccrd = NULL;
@@ -911,17 +848,7 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 		goto fail;
 	}
 
-	sid = crp->crp_sid & 0xffffffff;
-	rw_rlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, ses_head, ses_next) {
-		if (ses->ses_id == sid)
-			break;
-	}
-	rw_runlock(&sc->sc_sessions_lock);
-	if (ses == NULL || !ses->ses_used) {
-		error = EINVAL;
-		goto fail;
-	}
+	ses = crypto_get_driver_session(crp->crp_session);
 
 	mtx_lock(&sc->sc_task_mtx);
 	if (sc->sc_task_count != 0) {

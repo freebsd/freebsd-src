@@ -50,7 +50,7 @@ is_md5_salt(const char *salt)
 char *
 md5_crypt(const char *pw, const char *salt)
 {
-	static char passwd[120], salt_copy[9], *p;
+	static char passwd[120], salt_copy[9];
 	static const char *sp, *ep;
 	unsigned char final[16];
 	int sl, pl, i, j;
@@ -138,8 +138,6 @@ md5_crypt(const char *pw, const char *salt)
 
 		MD5_Final(final, &ctx1);
 	}
-
-	p = passwd + strlen(passwd);
 
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
 	strlcat(passwd, to64(l, 4), sizeof(passwd));

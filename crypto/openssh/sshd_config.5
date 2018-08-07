@@ -33,16 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.243 2017/03/14 07:19:07 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.263 2018/02/16 02:40:45 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: March 14 2017 $
+.Dd $Mdocdate: February 16 2018 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
 .Nm sshd_config
 .Nd OpenSSH SSH daemon configuration file
-.Sh SYNOPSIS
-.Nm /etc/ssh/sshd_config
 .Sh DESCRIPTION
 .Xr sshd 8
 reads configuration data from
@@ -51,6 +49,7 @@ reads configuration data from
 .Fl f
 on the command line).
 The file contains keyword-argument pairs, one per line.
+For each keyword, the first obtained value will be used.
 Lines starting with
 .Ql #
 and empty lines are interpreted as comments.
@@ -226,6 +225,18 @@ requires successful authentication using two different public keys.
 .Pp
 Note that each authentication method listed should also be explicitly enabled
 in the configuration.
+.Pp
+The available authentication methods are:
+.Qq gssapi-with-mic ,
+.Qq hostbased ,
+.Qq keyboard-interactive ,
+.Qq none
+(used for access to password-less accounts when
+.Cm PermitEmptyPassword
+is enabled),
+.Qq password
+and
+.Qq publickey .
 .It Cm AuthorizedKeysCommand
 Specifies a program to be used to look up the user's public keys.
 The program must be owned by root, not writable by group or others and
@@ -465,16 +476,6 @@ aes128-gcm@openssh.com
 .It
 aes256-gcm@openssh.com
 .It
-arcfour
-.It
-arcfour128
-.It
-arcfour256
-.It
-blowfish-cbc
-.It
-cast128-cbc
-.It
 chacha20-poly1305@openssh.com
 .El
 .Pp
@@ -576,6 +577,14 @@ Disables all forwarding features, including X11,
 TCP and StreamLocal.
 This option overrides all other forwarding-related options and may
 simplify restricted configurations.
+.It Cm ExposeAuthInfo
+Writes a temporary file containing a list of authentication methods and
+public credentials (e.g. keys) used to authenticate the user.
+The location of the file is exposed to the user session through the
+.Ev SSH_USER_AUTH
+environment variable.
+The default is
+.Cm no .
 .It Cm FingerprintHash
 Specifies the hash algorithm used when logging key fingerprints.
 Valid options are:
@@ -707,7 +716,6 @@ is not to load any certificates.
 Specifies a file containing a private host key
 used by SSH.
 The defaults are
-.Pa /etc/ssh/ssh_host_dsa_key ,
 .Pa /etc/ssh/ssh_host_ecdsa_key ,
 .Pa /etc/ssh/ssh_host_ed25519_key
 and
@@ -770,7 +778,9 @@ Specifies whether
 should ignore the user's
 .Pa ~/.ssh/known_hosts
 during
-.Cm HostbasedAuthentication .
+.Cm HostbasedAuthentication
+and use only the system-wide known hosts file
+.Pa /etc/ssh/known_hosts .
 The default is
 .Cm no .
 .It Cm IPQoS
@@ -800,7 +810,9 @@ Accepted values are
 .Cm lowdelay ,
 .Cm throughput ,
 .Cm reliability ,
-or a numeric value.
+a numeric value, or
+.Cm none
+to use the operating system default.
 This option may take one or two arguments, separated by whitespace.
 If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
@@ -869,6 +881,12 @@ diffie-hellman-group1-sha1
 .It
 diffie-hellman-group14-sha1
 .It
+diffie-hellman-group14-sha256
+.It
+diffie-hellman-group16-sha512
+.It
+diffie-hellman-group18-sha512
+.It
 diffie-hellman-group-exchange-sha1
 .It
 diffie-hellman-group-exchange-sha256
@@ -885,7 +903,8 @@ The default is:
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
-diffie-hellman-group14-sha1
+diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
+diffie-hellman-group14-sha256,diffie-hellman-group14-sha1
 .Ed
 .Pp
 The list of available key exchange algorithms may also be obtained using
@@ -900,31 +919,47 @@ The following forms may be used:
 .It
 .Cm ListenAddress
 .Sm off
-.Ar host | Ar IPv4_addr | Ar IPv6_addr
+.Ar hostname | address
 .Sm on
+.Op Cm rdomain Ar domain
 .It
 .Cm ListenAddress
 .Sm off
-.Ar host | Ar IPv4_addr : Ar port
+.Ar hostname : port
 .Sm on
+.Op Cm rdomain Ar domain
 .It
 .Cm ListenAddress
 .Sm off
-.Oo
-.Ar host | Ar IPv6_addr Oc : Ar port
+.Ar IPv4_address : port
 .Sm on
+.Op Cm rdomain Ar domain
+.It
+.Cm ListenAddress
+.Sm off
+.Oo Ar hostname | address Oc : Ar port
+.Sm on
+.Op Cm rdomain Ar domain
 .El
 .Pp
+The optional
+.Cm rdomain
+qualifier requests
+.Xr sshd 8
+listen in an explicit routing domain.
 If
 .Ar port
 is not specified,
 sshd will listen on the address and all
 .Cm Port
 options specified.
-The default is to listen on all local addresses.
+The default is to listen on all local addresses on the current default
+routing domain.
 Multiple
 .Cm ListenAddress
 options are permitted.
+For more information on routing domains, see
+.Xr rdomain 4 .
 .It Cm LoginGraceTime
 The server disconnects after this time if the user has not
 successfully logged in.
@@ -964,8 +999,6 @@ hmac-md5
 .It
 hmac-md5-96
 .It
-hmac-ripemd160
-.It
 hmac-sha1
 .It
 hmac-sha1-96
@@ -981,8 +1014,6 @@ umac-128@openssh.com
 hmac-md5-etm@openssh.com
 .It
 hmac-md5-96-etm@openssh.com
-.It
-hmac-ripemd160-etm@openssh.com
 .It
 hmac-sha1-etm@openssh.com
 .It
@@ -1032,8 +1063,15 @@ The available criteria are
 .Cm Host ,
 .Cm LocalAddress ,
 .Cm LocalPort ,
+.Cm RDomain ,
 and
-.Cm Address .
+.Cm Address
+(with
+.Cm RDomain
+representing the
+.Xr rdomain 4
+on which the connection was received.)
+.Pp
 The match patterns may consist of single entries or comma-separated
 lists and may use the wildcard and negation operators described in the
 .Sx PATTERNS
@@ -1082,6 +1120,7 @@ Available keywords are
 .Cm IPQoS ,
 .Cm KbdInteractiveAuthentication ,
 .Cm KerberosAuthentication ,
+.Cm LogLevel ,
 .Cm MaxAuthTries ,
 .Cm MaxSessions ,
 .Cm PasswordAuthentication ,
@@ -1095,6 +1134,7 @@ Available keywords are
 .Cm PubkeyAuthentication ,
 .Cm RekeyLimit ,
 .Cm RevokedKeys ,
+.Cm RDomain ,
 .Cm StreamLocalBindMask ,
 .Cm StreamLocalBindUnlink ,
 .Cm TrustedUserCAKeys ,
@@ -1185,7 +1225,6 @@ Specifies whether root can log in using
 The argument must be
 .Cm yes ,
 .Cm prohibit-password ,
-.Cm without-password ,
 .Cm forced-commands-only ,
 or
 .Cm no .
@@ -1201,8 +1240,8 @@ this setting may be overridden by the PAM policy.
 .Pp
 If this option is set to
 .Cm prohibit-password
-or
-.Cm without-password ,
+(or its deprecated alias,
+.Cm without-password ) ,
 password and keyboard-interactive authentication are disabled for root.
 .Pp
 If this option is set to
@@ -1365,6 +1404,15 @@ an OpenSSH Key Revocation List (KRL) as generated by
 .Xr ssh-keygen 1 .
 For more information on KRLs, see the KEY REVOCATION LISTS section in
 .Xr ssh-keygen 1 .
+.It Cm RDomain
+Specifies an explicit routing domain that is applied after authentication
+has completed.
+The user session, as well and any forwarded or listening IP sockets,
+will be bound to this
+.Xr rdomain 4 .
+If the routing domain is set to
+.Cm \&%D ,
+then the domain in which the incoming connection was received will be applied.
 .It Cm StreamLocalBindMask
 Sets the octal file creation mode mask
 .Pq umask
@@ -1520,7 +1568,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20170804 .
+.Qq FreeBSD-20180510 .
 The value
 .Cm none
 may be used to disable this.
@@ -1644,6 +1692,8 @@ which are expanded at runtime:
 .It %%
 A literal
 .Sq % .
+.It \&%D
+The routing domain in which the incoming connection was received.
 .It %F
 The fingerprint of the CA key.
 .It %f
@@ -1680,6 +1730,9 @@ accepts the tokens %%, %h, and %u.
 .Pp
 .Cm ChrootDirectory
 accepts the tokens %%, %h, and %u.
+.Pp
+.Cm RoutingDomain
+accepts the token %D.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa /etc/ssh/sshd_config

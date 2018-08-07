@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=tests
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mount/
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mount
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	mount_test

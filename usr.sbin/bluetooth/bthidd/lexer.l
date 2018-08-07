@@ -56,6 +56,7 @@ hexword				{hexdigit}{hexdigit}?{hexdigit}?{hexdigit}?
 
 device_word			device
 bdaddr_word			bdaddr
+name_word			name
 vendor_id_word			vendor_id
 product_id_word			product_id
 version_word			version
@@ -71,6 +72,7 @@ false_word			false
 bdaddrstring			{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}
 hexbytestring			0x{hexbyte}
 hexwordstring			0x{hexword}
+string				\".+\"
 
 %%
 
@@ -85,6 +87,7 @@ hexwordstring			0x{hexword}
 
 {device_word}			return (T_DEVICE);
 {bdaddr_word}			return (T_BDADDR);
+{name_word}			return (T_NAME);
 {vendor_id_word}		return (T_VENDOR_ID);
 {product_id_word}		return (T_PRODUCT_ID);
 {version_word}			return (T_VERSION);
@@ -116,6 +119,12 @@ hexwordstring			0x{hexword}
 				yylval.num = strtoul(yytext, &ep, 16);
 
 				return (*ep == '\0'? T_HEXWORD : T_ERROR);
+				}
+
+{string}			{
+				yytext[strlen(yytext) - 1] = 0;
+				yylval.string = &yytext[1];
+				return (T_STRING);
 				}
 
 .				return (T_ERROR);

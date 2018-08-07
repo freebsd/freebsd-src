@@ -382,8 +382,7 @@ static const struct iwn_base_params iwn_6235_base_params = {
 	    | IWN_FLG_NEED_PHY_CALIB_TEMP_OFFSET ),
 	.support_hostap = false,
 	.no_multi_vaps = true,
-	/* XXX 1x2? This NIC is 2x2, right? */
-	.additional_gp_drv_bit = IWN_GP_DRIVER_6050_1X2,
+	.additional_gp_drv_bit = 0,
 	.bt_mode = IWN_BT_ADVANCED,
 	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };

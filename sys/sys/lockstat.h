@@ -70,7 +70,7 @@ SDT_PROBE_DECLARE(lockstat, , , thread__spin);
 #define	LOCKSTAT_WRITER		0
 #define	LOCKSTAT_READER		1
 
-extern volatile int lockstat_enabled;
+extern volatile bool lockstat_enabled;
 
 #ifdef KDTRACE_HOOKS
 

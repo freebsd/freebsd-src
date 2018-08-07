@@ -128,12 +128,12 @@ aw_clk_nkmp_set_mux(struct clknode *clk, int index)
 
 	sc = clknode_get_softc(clk);
 
-	if ((sc->flags & AW_CLK_HAS_MUX) != 0)
+	if ((sc->flags & AW_CLK_HAS_MUX) == 0)
 		return (0);
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
-	val &= ~(sc->mux_mask >> sc->mux_shift);
+	val &= ~sc->mux_mask;
 	val |= index << sc->mux_shift;
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);

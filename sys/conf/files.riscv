@@ -9,19 +9,21 @@ dev/ofw/ofw_cpu.c		optional	fdt
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
 kern/kern_clocksource.c		standard
+kern/msi_if.m			standard
+kern/pic_if.m			standard
 kern/subr_devmap.c		standard
 kern/subr_dummy_vdso_tc.c	standard
+kern/subr_intr.c		standard
 libkern/bcmp.c			standard
+libkern/bcopy.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
-libkern/memmove.c		standard
 libkern/memset.c		standard
 riscv/riscv/autoconf.c		standard
-riscv/riscv/bcopy.c		standard
 riscv/riscv/bus_machdep.c	standard
 riscv/riscv/bus_space_asm.S	standard
 riscv/riscv/busdma_machdep.c	standard
@@ -45,8 +47,10 @@ riscv/riscv/mp_machdep.c	optional	smp
 riscv/riscv/mem.c		standard
 riscv/riscv/nexus.c		standard
 riscv/riscv/ofw_machdep.c	optional	fdt
+riscv/riscv/plic.c		standard
 riscv/riscv/pmap.c		standard
 riscv/riscv/riscv_console.c	optional	rcons
+riscv/riscv/soc.c		standard
 riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard
@@ -59,4 +63,4 @@ riscv/riscv/unwind.c		optional	ddb | kdtrace_hooks | stack
 riscv/riscv/vm_machdep.c	standard
 
 # Zstd
-contrib/zstd/lib/freebsd/zstd_kfreebsd.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

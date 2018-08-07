@@ -159,10 +159,13 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 	*off = len;
 }
 
+#define	ERI_LOCAL	0x0001
+#define	ERI_ONLYIFUNC	0x0002
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, int local, elf_lookup_fn lookup)
+    int type, elf_lookup_fn lookup, int flags)
 {
 	Elf_Addr *where;
 	Elf_Addr addr;
@@ -191,7 +194,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		panic("unknown reloc type %d\n", type);
 	}
 
-	if (local) {
+	if (((flags & ERI_ONLYIFUNC) == 0) ^ (rtype != R_386_IRELATIVE))
+		return (0);
+
+	if ((flags & ERI_LOCAL) != 0) {
 		if (rtype == R_386_RELATIVE) {	/* A + B */
 			addr = elf_relocaddr(lf, relocbase + addend);
 			if (*where != addr)
@@ -243,6 +249,12 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_386_RELATIVE:
 			break;
 
+		case R_386_IRELATIVE:
+			addr = relocbase + addend;
+			addr = ((Elf_Addr (*)(void))addr)();
+			if (*where != addr)
+				*where = addr;
+			break;
 		default:
 			printf("kldload: unexpected relocation type %d\n",
 			       rtype);
@@ -252,11 +264,20 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 }
 
 int
+elf_reloc_ifunc(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, elf_lookup_fn lookup)
+{
+
+	return (elf_reloc_internal(lf, relocbase, data, type, lookup,
+	    ERI_ONLYIFUNC));
+}
+
+int
 elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
+	return (elf_reloc_internal(lf, relocbase, data, type, lookup, 0));
 }
 
 int
@@ -264,7 +285,8 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
+	return (elf_reloc_internal(lf, relocbase, data, type, lookup,
+	    ERI_LOCAL));
 }
 
 int

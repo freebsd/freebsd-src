@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -257,7 +256,7 @@ main(int argc, char **argv)
 	}
 
 	/* Enter Capsicum sandbox. */
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(EXIT_FAILURE, "unable to enter capability mode");
 
 	for (i = 0; i < (int)nfds; i++) {

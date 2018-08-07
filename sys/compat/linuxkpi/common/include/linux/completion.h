@@ -49,7 +49,7 @@ struct completion {
 	linux_complete_common((c), 1)
 #define	wait_for_completion(c)			\
 	linux_wait_for_common((c), 0)
-#define	wait_for_completion_interuptible(c)	\
+#define	wait_for_completion_interruptible(c)	\
 	linux_wait_for_common((c), 1)
 #define	wait_for_completion_timeout(c, timeout)	\
 	linux_wait_for_timeout_common((c), (timeout), 0)

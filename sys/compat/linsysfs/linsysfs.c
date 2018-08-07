@@ -273,6 +273,7 @@ linsysfs_fill_vgapci(PFS_FILL_ARGS)
 	return (0);
 }
 
+#undef PCI_DEV
 #define PCI_DEV "pci"
 #define DRMN_DEV "drmn"
 static int
@@ -556,8 +557,8 @@ linsysfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linsysfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
-#if defined(__amd64__)
+PSEUDOFS(linsysfs, 1, VFCF_JAIL);
+#if defined(__aarch64__) || defined(__amd64__)
 MODULE_DEPEND(linsysfs, linux_common, 1, 1, 1);
 #else
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);

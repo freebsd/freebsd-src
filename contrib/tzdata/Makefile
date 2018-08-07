@@ -21,7 +21,7 @@ DATAFORM=		main
 
 # Change the line below for your time zone (after finding the zone you want in
 # the time zone files, or adding it to a time zone file).
-# Alternately, if you discover you've got the wrong time zone, you can just
+# Alternatively, if you discover you've got the wrong time zone, you can just
 #	zic -l rightzone
 # to correct things.
 # Use the command
@@ -38,7 +38,7 @@ LOCALTIME=	GMT
 # template file are used to determine "spring forward" and "fall back" days and
 # times; the environment variable itself specifies UT offsets of standard and
 # daylight saving time.
-# Alternately, if you discover you've got the wrong time zone, you can just
+# Alternatively, if you discover you've got the wrong time zone, you can just
 #	zic -p rightzone
 # to correct things.
 # Use the command
@@ -236,14 +236,16 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
   $(GCC_INSTRUMENT) \
   -Wall -Wextra \
   -Walloc-size-larger-than=100000 -Warray-bounds=2 \
-  -Wbad-function-cast -Wcast-align -Wdate-time \
+  -Wbad-function-cast -Wcast-align=strict -Wdate-time \
   -Wdeclaration-after-statement -Wdouble-promotion \
   -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
   -Winit-self -Wjump-misses-init -Wlogical-op \
   -Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
   -Wold-style-definition -Woverlength-strings -Wpointer-arith \
-  -Wshadow -Wshift-overflow=2 -Wstrict-prototypes -Wstringop-overflow=5 \
+  -Wshadow -Wshift-overflow=2 -Wstrict-prototypes -Wstringop-overflow=4 \
+  -Wstringop-truncation -Wsuggest-attribute=cold \
   -Wsuggest-attribute=const -Wsuggest-attribute=format \
+  -Wsuggest-attribute=malloc \
   -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure \
   -Wtrampolines -Wundef -Wuninitialized -Wunused \
   -Wvariadic-macros -Wvla -Wwrite-strings \
@@ -514,6 +516,7 @@ VERSION_DEPS= \
 		tzfile.5 tzfile.h tzselect.8 tzselect.ksh \
 		workman.sh yearistype.sh \
 		zdump.8 zdump.c zic.8 zic.c \
+		ziguard.awk zishrink.awk \
 		zone.tab zone1970.tab zoneinfo2tdf.pl
 
 # And for the benefit of csh users on systems that assume the user
@@ -559,8 +562,8 @@ version:	$(VERSION_DEPS)
 
 # These files can be tailored by setting BACKWARD, PACKRATDATA, etc.
 vanguard.zi main.zi rearguard.zi: $(DSTDATA_ZI_DEPS)
-		$(AWK) -v outfile='$@' -f ziguard.awk $(TDATA) $(PACKRATDATA) \
-		  >$@.out
+		$(AWK) -v DATAFORM=`expr $@ : '\(.*\).zi'` -f ziguard.awk \
+		  $(TDATA) $(PACKRATDATA) >$@.out
 		mv $@.out $@
 tzdata.zi:	$(DATAFORM).zi version
 		version=`sed 1q version` && \
@@ -900,6 +903,13 @@ check_time_t_alternatives:
 		done
 		rm -fr time_t.dir
 
+TRADITIONAL_ASC = \
+  tzcode$(VERSION).tar.gz.asc \
+  tzdata$(VERSION).tar.gz.asc
+ALL_ASC = $(TRADITIONAL_ASC) \
+  tzdata$(VERSION)-rearguard.tar.gz.asc \
+  tzdb-$(VERSION).tar.lz.asc
+
 tarballs traditional_tarballs signatures traditional_signatures: version
 		VERSION=`cat version` && \
 		$(MAKE) VERSION="$$VERSION" $@_version
@@ -907,12 +917,13 @@ tarballs traditional_tarballs signatures traditional_signatures: version
 # These *_version rules are intended for use if VERSION is set by some
 # other means.  Ordinarily these rules are used only by the above
 # non-_version rules, which set VERSION on the 'make' command line.
-tarballs_version: traditional_tarballs_version tzdb-$(VERSION).tar.lz
+tarballs_version: traditional_tarballs_version \
+  tzdata$(VERSION)-rearguard.tar.gz \
+  tzdb-$(VERSION).tar.lz
 traditional_tarballs_version: \
   tzcode$(VERSION).tar.gz tzdata$(VERSION).tar.gz
-signatures_version: traditional_signatures_version tzdb-$(VERSION).tar.lz.asc
-traditional_signatures_version: \
-  tzcode$(VERSION).tar.gz.asc tzdata$(VERSION).tar.gz.asc \
+signatures_version: $(ALL_ASC)
+traditional_signatures_version: $(TRADITIONAL_ASC)
 
 tzcode$(VERSION).tar.gz: set-timestamps.out
 		LC_ALL=C && export LC_ALL && \
@@ -927,6 +938,26 @@ tzdata$(VERSION).tar.gz: set-timestamps.out
 		  gzip $(GZIPFLAGS) >$@.out
 		mv $@.out $@
 
+tzdata$(VERSION)-rearguard.tar.gz: rearguard.zi set-timestamps.out
+		rm -fr tzdata$(VERSION)-rearguard.dir
+		mkdir tzdata$(VERSION)-rearguard.dir
+		ln $(COMMON) $(DATA) $(MISC) tzdata$(VERSION)-rearguard.dir
+		cd tzdata$(VERSION)-rearguard.dir && \
+		  rm -f $(TDATA) $(PACKRATDATA) version
+		for f in $(TDATA) $(PACKRATDATA); do \
+		  rearf=tzdata$(VERSION)-rearguard.dir/$$f; \
+		  $(AWK) -v DATAFORM=rearguard -f ziguard.awk $$f >$$rearf && \
+		  touch -cmr `ls -t ziguard.awk $$f` $$rearf || exit; \
+		done
+		sed '1s/$$/-rearguard/' \
+		  <version >tzdata$(VERSION)-rearguard.dir/version
+		touch -cmr version tzdata$(VERSION)-rearguard.dir/version
+		LC_ALL=C && export LC_ALL && \
+		  (cd tzdata$(VERSION)-rearguard.dir && \
+		   tar $(TARFLAGS) -cf - $(COMMON) $(DATA) $(MISC) | \
+		     gzip $(GZIPFLAGS)) >$@.out
+		mv $@.out $@
+
 tzdb-$(VERSION).tar.lz: set-timestamps.out
 		rm -fr tzdb-$(VERSION)
 		mkdir tzdb-$(VERSION)
@@ -937,12 +968,10 @@ tzdb-$(VERSION).tar.lz: set-timestamps.out
 		mv $@.out $@
 
 tzcode$(VERSION).tar.gz.asc: tzcode$(VERSION).tar.gz
-		gpg --armor --detach-sign $?
-
 tzdata$(VERSION).tar.gz.asc: tzdata$(VERSION).tar.gz
-		gpg --armor --detach-sign $?
-
+tzdata$(VERSION)-rearguard.tar.gz.asc: tzdata$(VERSION)-rearguard.tar.gz
 tzdb-$(VERSION).tar.lz.asc: tzdb-$(VERSION).tar.lz
+$(ALL_ASC):
 		gpg --armor --detach-sign $?
 
 typecheck:

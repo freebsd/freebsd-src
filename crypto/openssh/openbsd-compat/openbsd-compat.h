@@ -60,12 +60,20 @@ int bindresvport_sa(int sd, struct sockaddr *sa);
 void closefrom(int);
 #endif
 
+#ifndef HAVE_GETPAGESIZE
+int getpagesize(void);
+#endif
+
 #ifndef HAVE_GETCWD
 char *getcwd(char *pt, size_t size);
 #endif
 
 #ifndef HAVE_REALLOCARRAY
 void *reallocarray(void *, size_t, size_t);
+#endif
+
+#ifndef HAVE_RECALLOCARRAY
+void *recallocarray(void *, size_t, size_t, size_t);
 #endif
 
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
@@ -162,15 +170,24 @@ int BSDgetopt(int argc, char * const *argv, const char *opts);
 #include "openbsd-compat/getopt.h"
 #endif
 
-#if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
+#if ((defined(HAVE_DECL_READV) && HAVE_DECL_READV == 0) || \
+    (defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0))
 # include <sys/types.h>
 # include <sys/uio.h>
+
+# if defined(HAVE_DECL_READV) && HAVE_DECL_READV == 0
+int readv(int, struct iovec *, int);
+# endif
+
+# if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
 int writev(int, struct iovec *, int);
+# endif
 #endif
 
 /* Home grown routines */
 #include "bsd-misc.h"
 #include "bsd-setres_id.h"
+#include "bsd-signal.h"
 #include "bsd-statvfs.h"
 #include "bsd-waitpid.h"
 #include "bsd-poll.h"
@@ -296,6 +313,10 @@ int	bcrypt_pbkdf(const char *, size_t, const u_int8_t *, size_t,
 void explicit_bzero(void *p, size_t n);
 #endif
 
+#ifndef HAVE_FREEZERO
+void freezero(void *, size_t);
+#endif
+
 char *xcrypt(const char *password, const char *salt);
 char *shadow_pw(struct passwd *pw);
 
@@ -303,14 +324,13 @@ char *shadow_pw(struct passwd *pw);
 #include "fake-rfc2553.h"
 
 /* Routines for a single OS platform */
-#include "bsd-cray.h"
 #include "bsd-cygwin_util.h"
 
 #include "port-aix.h"
 #include "port-irix.h"
 #include "port-linux.h"
 #include "port-solaris.h"
-#include "port-tun.h"
+#include "port-net.h"
 #include "port-uw.h"
 
 /* _FORTIFY_SOURCE breaks FD_ISSET(n)/FD_SET(n) for n > FD_SETSIZE. Avoid. */

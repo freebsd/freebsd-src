@@ -183,8 +183,9 @@
 #define OP_IS_DUPLICATE             0x00040000
 #define OP_IS_RESOURCE_DATA         0x00080000
 #define OP_IS_NULL_RETURN           0x00100000
+#define OP_NOT_FOUND_DURING_LOAD    0x00200000
 
-#define ACPI_NUM_OP_FLAGS           0x21
+#define ACPI_NUM_OP_FLAGS           0x22
 
 /* Keeps information about individual control methods */
 

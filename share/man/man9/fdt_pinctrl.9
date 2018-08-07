@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2018
+.Dd June 23, 2018
 .Dt fdt_pinctrl 9
 .Os
 .Sh NAME
@@ -116,10 +116,10 @@ foo_configure_pins(device_t dev, phandle_t cfgxref)
 
 	cfgnode = OF_node_from_xref(cfgxref);
 	pins = NULL;
-	npins = OF_getencprop_alloc(cfgnode, "foo,pins", sizeof(*pins),
+	npins = OF_getencprop_alloc_multi(cfgnode, "foo,pins", sizeof(*pins),
 	    (void **)&pins);
 	functions = NULL;
-	nfunctions = OF_getencprop_alloc(cfgnode, "foo,functions",
+	nfunctions = OF_getencprop_alloc_multi(cfgnode, "foo,functions",
 	    sizeof(*functions), (void **)&functions);
 	...
 }

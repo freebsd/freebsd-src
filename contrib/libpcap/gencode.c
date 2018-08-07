@@ -18,38 +18,24 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
+#include <pcap-types.h>
 #ifdef _WIN32
-#include <pcap-stdinc.h>
-#else /* _WIN32 */
-#if HAVE_INTTYPES_H
-#include <inttypes.h>
-#elif HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_SYS_BITYPES_H
-#include <sys/bitypes.h>
-#endif
-#include <sys/types.h>
-#include <sys/socket.h>
-#endif /* _WIN32 */
+  #include <ws2tcpip.h>
+#else
+  #include <sys/socket.h>
 
-#ifndef _WIN32
+  #ifdef __NetBSD__
+    #include <sys/param.h>
+  #endif
 
-#ifdef __NetBSD__
-#include <sys/param.h>
-#endif
-
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
 #endif /* _WIN32 */
 
 #include <stdlib.h>
@@ -96,17 +82,17 @@
 #define offsetof(s, e) ((size_t)&((s *)0)->e)
 #endif
 
-#ifdef INET6
 #ifdef _WIN32
-#if defined(__MINGW32__) && defined(DEFINE_ADDITIONAL_IPV6_STUFF)
+  #ifdef INET6
+    #if defined(__MINGW32__) && defined(DEFINE_ADDITIONAL_IPV6_STUFF)
 /* IPv6 address */
 struct in6_addr
   {
     union
       {
-	u_int8_t		u6_addr8[16];
-	u_int16_t	u6_addr16[8];
-	u_int32_t	u6_addr32[4];
+	uint8_t		u6_addr8[16];
+	uint16_t	u6_addr16[8];
+	uint32_t	u6_addr32[4];
       } in6_u;
 #define s6_addr			in6_u.u6_addr8
 #define s6_addr16		in6_u.u6_addr16
@@ -123,12 +109,12 @@ typedef unsigned short	sa_family_t;
 struct sockaddr_in6
   {
     __SOCKADDR_COMMON (sin6_);
-    u_int16_t sin6_port;		/* Transport layer port # */
-    u_int32_t sin6_flowinfo;	/* IPv6 flow information */
+    uint16_t sin6_port;		/* Transport layer port # */
+    uint32_t sin6_flowinfo;	/* IPv6 flow information */
     struct in6_addr sin6_addr;	/* IPv6 address */
   };
 
-#ifndef EAI_ADDRFAMILY
+      #ifndef EAI_ADDRFAMILY
 struct addrinfo {
 	int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME */
 	int	ai_family;	/* PF_xxx */
@@ -139,12 +125,12 @@ struct addrinfo {
 	struct sockaddr *ai_addr;	/* binary address */
 	struct addrinfo *ai_next;	/* next structure in linked list */
 };
-#endif /* EAI_ADDRFAMILY */
-#endif /* defined(__MINGW32__) && defined(DEFINE_ADDITIONAL_IPV6_STUFF) */
+      #endif /* EAI_ADDRFAMILY */
+    #endif /* defined(__MINGW32__) && defined(DEFINE_ADDITIONAL_IPV6_STUFF) */
+  #endif /* INET6 */
 #else /* _WIN32 */
-#include <netdb.h>	/* for "struct addrinfo" */
+  #include <netdb.h>	/* for "struct addrinfo" */
 #endif /* _WIN32 */
-#endif /* INET6 */
 #include <pcap/namedb.h>
 
 #include "nametoaddr.h"
@@ -279,7 +265,6 @@ struct _compiler_state {
 	/* XXX */
 	u_int pcap_fddipad;
 
-#ifdef INET6
 	/*
 	 * As errors are handled by a longjmp, anything allocated must
 	 * be freed in the longjmp handler, so it must be reachable
@@ -290,7 +275,6 @@ struct _compiler_state {
 	 * any addrinfo structure that would need to be freed.
 	 */
 	struct addrinfo *ai;
-#endif
 
 	/*
 	 * Various code constructs need to know the layout of the packet.
@@ -358,6 +342,11 @@ struct _compiler_state {
 	 * that later filters apply to the encapsulated payload.
 	 */
 	int is_geneve;
+
+	/*
+	 * TRUE if we need variable length part of VLAN offset
+	 */
+	int is_vlan_vloffset;
 
 	/*
 	 * These are offsets for the ATM pseudo-header.
@@ -428,7 +417,7 @@ struct _compiler_state {
 	int cur_chunk;
 };
 
-void
+void PCAP_NORETURN
 bpf_syntax_error(compiler_state_t *cstate, const char *msg)
 {
 	bpf_error(cstate, "syntax error in filter expression: %s", msg);
@@ -436,7 +425,7 @@ bpf_syntax_error(compiler_state_t *cstate, const char *msg)
 }
 
 /* VARARGS */
-void
+void PCAP_NORETURN
 bpf_error(compiler_state_t *cstate, const char *fmt, ...)
 {
 	va_list ap;
@@ -526,7 +515,7 @@ static struct block *gen_host6(compiler_state_t *, struct in6_addr *,
 #endif
 #ifndef INET6
 static struct block *gen_gateway(compiler_state_t *, const u_char *,
-    bpf_u_int32 **, int, int);
+    struct addrinfo *, int, int);
 #endif
 static struct block *gen_ipfrag(compiler_state_t *);
 static struct block *gen_portatom(compiler_state_t *, int, bpf_int32);
@@ -585,7 +574,8 @@ newchunk(compiler_state_t *cstate, size_t n)
 
 	cp = &cstate->chunks[cstate->cur_chunk];
 	if (n > cp->n_left) {
-		++cp, k = ++cstate->cur_chunk;
+		++cp;
+		k = ++cstate->cur_chunk;
 		if (k >= NCHUNKS)
 			bpf_error(cstate, "out of memory");
 		size = CHUNK0SIZE << k;
@@ -656,7 +646,7 @@ gen_retblk(compiler_state_t *cstate, int v)
 	return b;
 }
 
-static inline void
+static inline PCAP_NORETURN_DEF void
 syntax(compiler_state_t *cstate)
 {
 	bpf_error(cstate, "syntax error in filter expression");
@@ -666,20 +656,15 @@ int
 pcap_compile(pcap_t *p, struct bpf_program *program,
 	     const char *buf, int optimize, bpf_u_int32 mask)
 {
+#ifdef _WIN32
+	static int done = 0;
+#endif
 	compiler_state_t cstate;
 	const char * volatile xbuf = buf;
 	yyscan_t scanner = NULL;
 	YY_BUFFER_STATE in_buffer = NULL;
 	u_int len;
 	int  rc;
-
-#ifdef _WIN32
-	static int done = 0;
-
-	if (!done)
-		pcap_wsockinit();
-	done = 1;
-#endif
 
 	/*
 	 * If this pcap_t hasn't been activated, it doesn't have a
@@ -688,9 +673,36 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 	if (!p->activated) {
 		pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 		    "not-yet-activated pcap_t passed to pcap_compile");
-		rc = -1;
-		goto quit;
+		return (-1);
 	}
+
+#ifdef _WIN32
+	if (!done)
+		pcap_wsockinit();
+	done = 1;
+#endif
+
+#ifdef ENABLE_REMOTE
+	/*
+	 * If the device on which we're capturing need to be notified
+	 * that a new filter is being compiled, do so.
+	 *
+	 * This allows them to save a copy of it, in case, for example,
+	 * they're implementing a form of remote packet capture, and
+	 * want the remote machine to filter out the packets in which
+	 * it's sending the packets it's captured.
+	 *
+	 * XXX - the fact that we happen to be compiling a filter
+	 * doesn't necessarily mean we'll be installing it as the
+	 * filter for this pcap_t; we might be running it from userland
+	 * on captured packets to do packet classification.  We really
+	 * need a better way of handling this, but this is all that
+	 * the WinPcap code did.
+	 */
+	if (p->save_current_filter_op != NULL)
+		(p->save_current_filter_op)(p, buf);
+#endif
+
 	initchunks(&cstate);
 	cstate.no_optimize = 0;
 #ifdef INET6
@@ -721,7 +733,8 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 	}
 
 	if (pcap_lex_init(&scanner) != 0)
-		bpf_error(&cstate, "can't initialize scanner: %s", pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "can't initialize scanner");
 	in_buffer = pcap__scan_string(xbuf ? xbuf : "", scanner);
 
 	/*
@@ -805,8 +818,7 @@ pcap_freecode(struct bpf_program *program)
  * in each block is already resolved.
  */
 static void
-backpatch(list, target)
-	struct block *list, *target;
+backpatch(struct block *list, struct block *target)
 {
 	struct block *next;
 
@@ -827,8 +839,7 @@ backpatch(list, target)
  * which of jt and jf is the link.
  */
 static void
-merge(b0, b1)
-	struct block *b0, *b1;
+merge(struct block *b0, struct block *b1)
 {
 	register struct block **p = &b0;
 
@@ -890,8 +901,7 @@ finish_parse(compiler_state_t *cstate, struct block *p)
 }
 
 void
-gen_and(b0, b1)
-	struct block *b0, *b1;
+gen_and(struct block *b0, struct block *b1)
 {
 	backpatch(b0, b1->head);
 	b0->sense = !b0->sense;
@@ -902,8 +912,7 @@ gen_and(b0, b1)
 }
 
 void
-gen_or(b0, b1)
-	struct block *b0, *b1;
+gen_or(struct block *b0, struct block *b1)
 {
 	b0->sense = !b0->sense;
 	backpatch(b0, b1->head);
@@ -913,8 +922,7 @@ gen_or(b0, b1)
 }
 
 void
-gen_not(b)
-	struct block *b;
+gen_not(struct block *b)
 {
 	b->sense = !b->sense;
 }
@@ -1066,10 +1074,10 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 	 * Assume it's not raw ATM with a pseudo-header, for now.
 	 */
 	cstate->is_atm = 0;
-	cstate->off_vpi = -1;
-	cstate->off_vci = -1;
-	cstate->off_proto = -1;
-	cstate->off_payload = -1;
+	cstate->off_vpi = OFFSET_NOT_SET;
+	cstate->off_vci = OFFSET_NOT_SET;
+	cstate->off_proto = OFFSET_NOT_SET;
+	cstate->off_payload = OFFSET_NOT_SET;
 
 	/*
 	 * And not Geneve.
@@ -1077,14 +1085,19 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 	cstate->is_geneve = 0;
 
 	/*
+	 * No variable length VLAN offset by default
+	 */
+	cstate->is_vlan_vloffset = 0;
+
+	/*
 	 * And assume we're not doing SS7.
 	 */
-	cstate->off_li = -1;
-	cstate->off_li_hsl = -1;
-	cstate->off_sio = -1;
-	cstate->off_opc = -1;
-	cstate->off_dpc = -1;
-	cstate->off_sls = -1;
+	cstate->off_li = OFFSET_NOT_SET;
+	cstate->off_li_hsl = OFFSET_NOT_SET;
+	cstate->off_sio = OFFSET_NOT_SET;
+	cstate->off_opc = OFFSET_NOT_SET;
+	cstate->off_dpc = OFFSET_NOT_SET;
+	cstate->off_sls = OFFSET_NOT_SET;
 
 	cstate->label_stack_depth = 0;
 	cstate->vlan_stack_depth = 0;
@@ -1094,7 +1107,7 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 	case DLT_ARCNET:
 		cstate->off_linktype.constant_part = 2;
 		cstate->off_linkpl.constant_part = 6;
-		cstate->off_nl = 0;	/* XXX in reality, variable! */
+		cstate->off_nl = 0;		/* XXX in reality, variable! */
 		cstate->off_nl_nosnap = 0;	/* no 802.2 LLC */
 		break;
 
@@ -1408,7 +1421,7 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		cstate->off_linktype.constant_part = 4;
 		cstate->off_linkpl.constant_part = 4;
 		cstate->off_nl = 0;
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
                 break;
 
 	case DLT_JUNIPER_ATM1:
@@ -1439,63 +1452,63 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		cstate->off_linktype.constant_part = 4;
 		cstate->off_linkpl.constant_part = 6;
 		cstate->off_nl = 0;
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_JUNIPER_GGSN:
 		cstate->off_linktype.constant_part = 6;
 		cstate->off_linkpl.constant_part = 12;
 		cstate->off_nl = 0;
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_JUNIPER_ES:
 		cstate->off_linktype.constant_part = 6;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;	/* not really a network layer but raw IP addresses */
-		cstate->off_nl = -1;		/* not really a network layer but raw IP addresses */
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl = OFFSET_NOT_SET;	/* not really a network layer but raw IP addresses */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_JUNIPER_MONITOR:
 		cstate->off_linktype.constant_part = 12;
 		cstate->off_linkpl.constant_part = 12;
-		cstate->off_nl = 0;		/* raw IP/IP6 header */
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl = 0;			/* raw IP/IP6 header */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_BACNET_MS_TP:
 		cstate->off_linktype.constant_part = OFFSET_NOT_SET;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_JUNIPER_SERVICES:
 		cstate->off_linktype.constant_part = 12;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;	/* L3 proto location dep. on cookie type */
-		cstate->off_nl = -1;		/* L3 proto location dep. on cookie type */
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl = OFFSET_NOT_SET;	/* L3 proto location dep. on cookie type */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_JUNIPER_VP:
 		cstate->off_linktype.constant_part = 18;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_JUNIPER_ST:
 		cstate->off_linktype.constant_part = 18;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_JUNIPER_ISM:
 		cstate->off_linktype.constant_part = 8;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_JUNIPER_VS:
@@ -1504,8 +1517,8 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 	case DLT_JUNIPER_ATM_CEMIC:
 		cstate->off_linktype.constant_part = 8;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_MTP2:
@@ -1517,8 +1530,8 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		cstate->off_sls = 7;
 		cstate->off_linktype.constant_part = OFFSET_NOT_SET;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_MTP2_WITH_PHDR:
@@ -1530,8 +1543,8 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		cstate->off_sls = 11;
 		cstate->off_linktype.constant_part = OFFSET_NOT_SET;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_ERF:
@@ -1543,8 +1556,8 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		cstate->off_sls = 27;
 		cstate->off_linktype.constant_part = OFFSET_NOT_SET;
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl = OFFSET_NOT_SET;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_PFSYNC:
@@ -1560,15 +1573,15 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		 */
 		cstate->off_linktype.constant_part = OFFSET_NOT_SET;	/* variable, min 15, max 71 steps of 7 */
 		cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-		cstate->off_nl = -1;		/* variable, min 16, max 71 steps of 7 */
-		cstate->off_nl_nosnap = -1;	/* no 802.2 LLC */
+		cstate->off_nl = OFFSET_NOT_SET;	/* variable, min 16, max 71 steps of 7 */
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;	/* no 802.2 LLC */
 		break;
 
 	case DLT_IPNET:
 		cstate->off_linktype.constant_part = 1;
 		cstate->off_linkpl.constant_part = 24;	/* ipnet header length */
 		cstate->off_nl = 0;
-		cstate->off_nl_nosnap = -1;
+		cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		break;
 
 	case DLT_NETANALYZER:
@@ -1596,8 +1609,8 @@ init_linktype(compiler_state_t *cstate, pcap_t *p)
 		    cstate->linktype <= DLT_MATCHING_MAX) {
 			cstate->off_linktype.constant_part = OFFSET_NOT_SET;
 			cstate->off_linkpl.constant_part = OFFSET_NOT_SET;
-			cstate->off_nl = -1;
-			cstate->off_nl_nosnap = -1;
+			cstate->off_nl = OFFSET_NOT_SET;
+			cstate->off_nl_nosnap = OFFSET_NOT_SET;
 		} else {
 			bpf_error(cstate, "unknown data link type %d", cstate->linktype);
 		}
@@ -1722,7 +1735,7 @@ gen_load_a(compiler_state_t *cstate, enum e_offrel offrel, u_int offset,
 
 	default:
 		abort();
-		return NULL;
+		/* NOTREACHED */
 	}
 	return s;
 }
@@ -1785,6 +1798,7 @@ gen_loadx_iphdrlen(compiler_state_t *cstate)
 	}
 	return s;
 }
+
 
 static struct block *
 gen_uncond(compiler_state_t *cstate, int rsense)
@@ -2803,6 +2817,28 @@ insert_compute_vloffsets(compiler_state_t *cstate, struct block *b)
 	}
 
 	/*
+	 * If there there is no initialization yet and we need variable
+	 * length offsets for VLAN, initialize them to zero
+	 */
+	if (s == NULL && cstate->is_vlan_vloffset) {
+		struct slist *s2;
+
+		if (cstate->off_linkpl.reg == -1)
+			cstate->off_linkpl.reg = alloc_reg(cstate);
+		if (cstate->off_linktype.reg == -1)
+			cstate->off_linktype.reg = alloc_reg(cstate);
+
+		s = new_stmt(cstate, BPF_LD|BPF_W|BPF_IMM);
+		s->s.k = 0;
+		s2 = new_stmt(cstate, BPF_ST);
+		s2->s.k = cstate->off_linkpl.reg;
+		sappend(s, s2);
+		s2 = new_stmt(cstate, BPF_ST);
+		s2->s.k = cstate->off_linktype.reg;
+		sappend(s, s2);
+	}
+
+	/*
 	 * If we have any offset-loading code, append all the
 	 * existing statements in the block to those statements,
 	 * and make the resulting list the list of statements
@@ -2888,8 +2924,7 @@ gen_abs_offset_varpart(compiler_state_t *cstate, bpf_abs_offset *off)
  * Map an Ethernet type to the equivalent PPP type.
  */
 static int
-ethertype_to_ppptype(proto)
-	int proto;
+ethertype_to_ppptype(int proto)
 {
 	switch (proto) {
 
@@ -2976,7 +3011,7 @@ gen_prevlinkhdr_check(compiler_state_t *cstate)
  */
 #define BSD_AFNUM_INET6_BSD	24	/* NetBSD, OpenBSD, BSD/OS, Npcap */
 #define BSD_AFNUM_INET6_FREEBSD	28	/* FreeBSD */
-#define BSD_AFNUM_INET6_DARWIN	30	/* OS X, iOS, other Darwin-based OSes */
+#define BSD_AFNUM_INET6_DARWIN	30	/* macOS, iOS, other Darwin-based OSes */
 
 /*
  * Generate code to match a particular packet type by matching the
@@ -3532,14 +3567,14 @@ gen_snap(compiler_state_t *cstate, bpf_u_int32 orgcode, bpf_u_int32 ptype)
 {
 	u_char snapblock[8];
 
-	snapblock[0] = LLCSAP_SNAP;	/* DSAP = SNAP */
-	snapblock[1] = LLCSAP_SNAP;	/* SSAP = SNAP */
-	snapblock[2] = 0x03;		/* control = UI */
-	snapblock[3] = (orgcode >> 16);	/* upper 8 bits of organization code */
-	snapblock[4] = (orgcode >> 8);	/* middle 8 bits of organization code */
-	snapblock[5] = (orgcode >> 0);	/* lower 8 bits of organization code */
-	snapblock[6] = (ptype >> 8);	/* upper 8 bits of protocol type */
-	snapblock[7] = (ptype >> 0);	/* lower 8 bits of protocol type */
+	snapblock[0] = LLCSAP_SNAP;		/* DSAP = SNAP */
+	snapblock[1] = LLCSAP_SNAP;		/* SSAP = SNAP */
+	snapblock[2] = 0x03;			/* control = UI */
+	snapblock[3] = (u_char)(orgcode >> 16);	/* upper 8 bits of organization code */
+	snapblock[4] = (u_char)(orgcode >> 8);	/* middle 8 bits of organization code */
+	snapblock[5] = (u_char)(orgcode >> 0);	/* lower 8 bits of organization code */
+	snapblock[6] = (u_char)(ptype >> 8);	/* upper 8 bits of protocol type */
+	snapblock[7] = (u_char)(ptype >> 0);	/* lower 8 bits of protocol type */
 	return gen_bcmp(cstate, OR_LLC, 0, 8, snapblock);
 }
 
@@ -3832,6 +3867,30 @@ gen_hostop(compiler_state_t *cstate, bpf_u_int32 addr, bpf_u_int32 mask,
 		gen_or(b0, b1);
 		return b1;
 
+	case Q_ADDR1:
+		bpf_error(cstate, "'addr1' and 'address1' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR2:
+		bpf_error(cstate, "'addr2' and 'address2' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR3:
+		bpf_error(cstate, "'addr3' and 'address3' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR4:
+		bpf_error(cstate, "'addr4' and 'address4' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_RA:
+		bpf_error(cstate, "'ra' is not a valid qualifier for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_TA:
+		bpf_error(cstate, "'ta' is not a valid qualifier for addresses other than 802.11 MAC addresses");
+		break;
+
 	default:
 		abort();
 	}
@@ -3848,7 +3907,7 @@ gen_hostop6(compiler_state_t *cstate, struct in6_addr *addr,
 {
 	struct block *b0, *b1;
 	u_int offset;
-	u_int32_t *a, *m;
+	uint32_t *a, *m;
 
 	switch (dir) {
 
@@ -3873,12 +3932,36 @@ gen_hostop6(compiler_state_t *cstate, struct in6_addr *addr,
 		gen_or(b0, b1);
 		return b1;
 
+	case Q_ADDR1:
+		bpf_error(cstate, "'addr1' and 'address1' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR2:
+		bpf_error(cstate, "'addr2' and 'address2' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR3:
+		bpf_error(cstate, "'addr3' and 'address3' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_ADDR4:
+		bpf_error(cstate, "'addr4' and 'address4' are not valid qualifiers for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_RA:
+		bpf_error(cstate, "'ra' is not a valid qualifier for addresses other than 802.11 MAC addresses");
+		break;
+
+	case Q_TA:
+		bpf_error(cstate, "'ta' is not a valid qualifier for addresses other than 802.11 MAC addresses");
+		break;
+
 	default:
 		abort();
 	}
 	/* this order is important */
-	a = (u_int32_t *)addr;
-	m = (u_int32_t *)mask;
+	a = (uint32_t *)addr;
+	m = (uint32_t *)mask;
 	b1 = gen_mcmp(cstate, OR_LINKPL, offset + 12, BPF_W, ntohl(a[3]), ntohl(m[3]));
 	b0 = gen_mcmp(cstate, OR_LINKPL, offset + 8, BPF_W, ntohl(a[2]), ntohl(m[2]));
 	gen_and(b0, b1);
@@ -3918,19 +4001,19 @@ gen_ehostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 		return b1;
 
 	case Q_ADDR1:
-		bpf_error(cstate, "'addr1' is only supported on 802.11 with 802.11 headers");
+		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11 with 802.11 headers");
 		break;
 
 	case Q_ADDR2:
-		bpf_error(cstate, "'addr2' is only supported on 802.11 with 802.11 headers");
+		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11 with 802.11 headers");
 		break;
 
 	case Q_ADDR3:
-		bpf_error(cstate, "'addr3' is only supported on 802.11 with 802.11 headers");
+		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11 with 802.11 headers");
 		break;
 
 	case Q_ADDR4:
-		bpf_error(cstate, "'addr4' is only supported on 802.11 with 802.11 headers");
+		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11 with 802.11 headers");
 		break;
 
 	case Q_RA:
@@ -3974,19 +4057,19 @@ gen_fhostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 		return b1;
 
 	case Q_ADDR1:
-		bpf_error(cstate, "'addr1' is only supported on 802.11");
+		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11");
 		break;
 
 	case Q_ADDR2:
-		bpf_error(cstate, "'addr2' is only supported on 802.11");
+		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11");
 		break;
 
 	case Q_ADDR3:
-		bpf_error(cstate, "'addr3' is only supported on 802.11");
+		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11");
 		break;
 
 	case Q_ADDR4:
-		bpf_error(cstate, "'addr4' is only supported on 802.11");
+		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11");
 		break;
 
 	case Q_RA:
@@ -4030,19 +4113,19 @@ gen_thostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 		return b1;
 
 	case Q_ADDR1:
-		bpf_error(cstate, "'addr1' is only supported on 802.11");
+		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11");
 		break;
 
 	case Q_ADDR2:
-		bpf_error(cstate, "'addr2' is only supported on 802.11");
+		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11");
 		break;
 
 	case Q_ADDR3:
-		bpf_error(cstate, "'addr3' is only supported on 802.11");
+		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11");
 		break;
 
 	case Q_ADDR4:
-		bpf_error(cstate, "'addr4' is only supported on 802.11");
+		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11");
 		break;
 
 	case Q_RA:
@@ -4511,19 +4594,19 @@ gen_ipfchostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 		return b1;
 
 	case Q_ADDR1:
-		bpf_error(cstate, "'addr1' is only supported on 802.11");
+		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11");
 		break;
 
 	case Q_ADDR2:
-		bpf_error(cstate, "'addr2' is only supported on 802.11");
+		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11");
 		break;
 
 	case Q_ADDR3:
-		bpf_error(cstate, "'addr3' is only supported on 802.11");
+		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11");
 		break;
 
 	case Q_ADDR4:
-		bpf_error(cstate, "'addr4' is only supported on 802.11");
+		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11");
 		break;
 
 	case Q_RA:
@@ -4639,7 +4722,7 @@ gen_mpls_linktype(compiler_state_t *cstate, int proto)
 
         case Q_IP:
                 /* match the bottom-of-stack bit */
-                b0 = gen_mcmp(cstate, OR_LINKPL, -2, BPF_B, 0x01, 0x01);
+                b0 = gen_mcmp(cstate, OR_LINKPL, (u_int)-2, BPF_B, 0x01, 0x01);
                 /* match the IPv4 version number */
                 b1 = gen_mcmp(cstate, OR_LINKPL, 0, BPF_B, 0x40, 0xf0);
                 gen_and(b0, b1);
@@ -4647,7 +4730,7 @@ gen_mpls_linktype(compiler_state_t *cstate, int proto)
 
        case Q_IPV6:
                 /* match the bottom-of-stack bit */
-                b0 = gen_mcmp(cstate, OR_LINKPL, -2, BPF_B, 0x01, 0x01);
+                b0 = gen_mcmp(cstate, OR_LINKPL, (u_int)-2, BPF_B, 0x01, 0x01);
                 /* match the IPv4 version number */
                 b1 = gen_mcmp(cstate, OR_LINKPL, 0, BPF_B, 0x60, 0xf0);
                 gen_and(b0, b1);
@@ -4907,10 +4990,12 @@ gen_host6(compiler_state_t *cstate, struct in6_addr *addr,
 
 #ifndef INET6
 static struct block *
-gen_gateway(compiler_state_t *cstate, const u_char *eaddr, bpf_u_int32 **alist,
-    int proto, int dir)
+gen_gateway(compiler_state_t *cstate, const u_char *eaddr,
+    struct addrinfo *alist, int proto, int dir)
 {
 	struct block *b0, *b1, *tmp;
+	struct addrinfo *ai;
+	struct sockaddr_in *sin;
 
 	if (dir != 0)
 		bpf_error(cstate, "direction applied to 'gateway'");
@@ -4958,12 +5043,48 @@ gen_gateway(compiler_state_t *cstate, const u_char *eaddr, bpf_u_int32 **alist,
 			bpf_error(cstate,
 			    "'gateway' supported only on ethernet/FDDI/token ring/802.11/ATM LANE/Fibre Channel");
 		}
-		b1 = gen_host(cstate, **alist++, 0xffffffff, proto, Q_OR, Q_HOST);
-		while (*alist) {
-			tmp = gen_host(cstate, **alist++, 0xffffffff, proto, Q_OR,
-			    Q_HOST);
-			gen_or(b1, tmp);
-			b1 = tmp;
+		b1 = NULL;
+		for (ai = alist; ai != NULL; ai = ai->ai_next) {
+			/*
+			 * Does it have an address?
+			 */
+			if (ai->ai_addr != NULL) {
+				/*
+				 * Yes.  Is it an IPv4 address?
+				 */
+				if (ai->ai_addr->sa_family == AF_INET) {
+					/*
+					 * Generate an entry for it.
+					 */
+					sin = (struct sockaddr_in *)ai->ai_addr;
+					tmp = gen_host(cstate,
+					    ntohl(sin->sin_addr.s_addr),
+					    0xffffffff, proto, Q_OR, Q_HOST);
+					/*
+					 * Is it the *first* IPv4 address?
+					 */
+					if (b1 == NULL) {
+						/*
+						 * Yes, so start with it.
+						 */
+						b1 = tmp;
+					} else {
+						/*
+						 * No, so OR it into the
+						 * existing set of
+						 * addresses.
+						 */
+						gen_or(b1, tmp);
+						b1 = tmp;
+					}
+				}
+			}
+		}
+		if (b1 == NULL) {
+			/*
+			 * No IPv4 addresses found.
+			 */
+			return (NULL);
 		}
 		gen_not(b1);
 		gen_and(b0, b1);
@@ -5645,9 +5766,7 @@ lookup_proto(compiler_state_t *cstate, const char *name, int proto)
 
 #if 0
 struct stmt *
-gen_joinsp(s, n)
-	struct stmt **s;
-	int n;
+gen_joinsp(struct stmt **s, int n)
 {
 	return NULL;
 }
@@ -5697,7 +5816,7 @@ gen_protochain(compiler_state_t *cstate, int v, int proto, int dir)
 	if (cstate->off_linkpl.is_variable)
 		bpf_error(cstate, "'protochain' not supported with variable length headers");
 
-	cstate->no_optimize = 1; /*this code is not compatible with optimzer yet */
+	cstate->no_optimize = 1; /* this code is not compatible with optimizer yet */
 
 	/*
 	 * s[0] is a dummy entry to protect other BPF insn from damage
@@ -6201,13 +6320,11 @@ gen_scode(compiler_state_t *cstate, const char *name, struct qual q)
 	int tproto;
 	u_char *eaddr;
 	bpf_u_int32 mask, addr;
-#ifndef INET6
-	bpf_u_int32 **alist;
-#else
-	int tproto6;
-	struct sockaddr_in *sin4;
-	struct sockaddr_in6 *sin6;
 	struct addrinfo *res, *res0;
+	struct sockaddr_in *sin4;
+#ifdef INET6
+	int tproto6;
+	struct sockaddr_in6 *sin6;
 	struct in6_addr mask128;
 #endif /*INET6*/
 	struct block *b, *tmp;
@@ -6306,46 +6423,39 @@ gen_scode(compiler_state_t *cstate, const char *name, struct qual q)
 			 */
 			return (gen_host(cstate, dn_addr, 0, proto, dir, q.addr));
 		} else {
-#ifndef INET6
-			alist = pcap_nametoaddr(name);
-			if (alist == NULL || *alist == NULL)
-				bpf_error(cstate, "unknown host '%s'", name);
-			tproto = proto;
-			if (cstate->off_linktype.constant_part == OFFSET_NOT_SET &&
-			    tproto == Q_DEFAULT)
-				tproto = Q_IP;
-			b = gen_host(cstate, **alist++, 0xffffffff, tproto, dir, q.addr);
-			while (*alist) {
-				tmp = gen_host(cstate, **alist++, 0xffffffff,
-					       tproto, dir, q.addr);
-				gen_or(b, tmp);
-				b = tmp;
-			}
-			return b;
-#else
+#ifdef INET6
 			memset(&mask128, 0xff, sizeof(mask128));
+#endif
 			res0 = res = pcap_nametoaddrinfo(name);
 			if (res == NULL)
 				bpf_error(cstate, "unknown host '%s'", name);
 			cstate->ai = res;
 			b = tmp = NULL;
-			tproto = tproto6 = proto;
+			tproto = proto;
+#ifdef INET6
+			tproto6 = proto;
+#endif
 			if (cstate->off_linktype.constant_part == OFFSET_NOT_SET &&
 			    tproto == Q_DEFAULT) {
 				tproto = Q_IP;
+#ifdef INET6
 				tproto6 = Q_IPV6;
+#endif
 			}
 			for (res = res0; res; res = res->ai_next) {
 				switch (res->ai_family) {
 				case AF_INET:
+#ifdef INET6
 					if (tproto == Q_IPV6)
 						continue;
+#endif
 
 					sin4 = (struct sockaddr_in *)
 						res->ai_addr;
 					tmp = gen_host(cstate, ntohl(sin4->sin_addr.s_addr),
 						0xffffffff, tproto, dir, q.addr);
 					break;
+#ifdef INET6
 				case AF_INET6:
 					if (tproto6 == Q_IP)
 						continue;
@@ -6355,6 +6465,7 @@ gen_scode(compiler_state_t *cstate, const char *name, struct qual q)
 					tmp = gen_host6(cstate, &sin6->sin6_addr,
 						&mask128, tproto6, dir, q.addr);
 					break;
+#endif
 				default:
 					continue;
 				}
@@ -6371,7 +6482,6 @@ gen_scode(compiler_state_t *cstate, const char *name, struct qual q)
 					: " for specified address family");
 			}
 			return b;
-#endif /*INET6*/
 		}
 
 	case Q_PORT:
@@ -6469,11 +6579,15 @@ gen_scode(compiler_state_t *cstate, const char *name, struct qual q)
 		if (eaddr == NULL)
 			bpf_error(cstate, "unknown ether host: %s", name);
 
-		alist = pcap_nametoaddr(name);
-		if (alist == NULL || *alist == NULL)
+		res = pcap_nametoaddrinfo(name);
+		cstate->ai = res;
+		if (res == NULL)
 			bpf_error(cstate, "unknown host '%s'", name);
-		b = gen_gateway(cstate, eaddr, alist, proto, dir);
-		free(eaddr);
+		b = gen_gateway(cstate, eaddr, res, proto, dir);
+		cstate->ai = NULL;
+		freeaddrinfo(res);
+		if (b == NULL)
+			bpf_error(cstate, "unknown host '%s'", name);
 		return b;
 #else
 		bpf_error(cstate, "'gateway' not supported in this configuration");
@@ -6546,7 +6660,6 @@ gen_mcode(compiler_state_t *cstate, const char *s1, const char *s2,
 		/* NOTREACHED */
 	}
 	/* NOTREACHED */
-	return NULL;
 }
 
 struct block *
@@ -6665,7 +6778,7 @@ gen_mcode6(compiler_state_t *cstate, const char *s1, const char *s2,
 	struct in6_addr *addr;
 	struct in6_addr mask;
 	struct block *b;
-	u_int32_t *a, *m;
+	uint32_t *a, *m;
 
 	if (s2)
 		bpf_error(cstate, "no mask %s supported", s2);
@@ -6687,8 +6800,8 @@ gen_mcode6(compiler_state_t *cstate, const char *s1, const char *s2,
 			(0xff << (8 - masklen % 8)) & 0xff;
 	}
 
-	a = (u_int32_t *)addr;
-	m = (u_int32_t *)&mask;
+	a = (uint32_t *)addr;
+	m = (uint32_t *)&mask;
 	if ((a[0] & ~m[0]) || (a[1] & ~m[1])
 	 || (a[2] & ~m[2]) || (a[3] & ~m[3])) {
 		bpf_error(cstate, "non-network bits set in \"%s/%d\"", s1, masklen);
@@ -6712,7 +6825,6 @@ gen_mcode6(compiler_state_t *cstate, const char *s1, const char *s2,
 		bpf_error(cstate, "invalid qualifier against IPv6 address");
 		/* NOTREACHED */
 	}
-	return NULL;
 }
 #endif /*INET6*/
 
@@ -6750,12 +6862,10 @@ gen_ecode(compiler_state_t *cstate, const u_char *eaddr, struct qual q)
 	}
 	bpf_error(cstate, "ethernet address used in non-ether expression");
 	/* NOTREACHED */
-	return NULL;
 }
 
 void
-sappend(s0, s1)
-	struct slist *s0, *s1;
+sappend(struct slist *s0, struct slist *s1)
 {
 	/*
 	 * This is definitely not the best way to do this, but the
@@ -7005,8 +7115,58 @@ gen_load(compiler_state_t *cstate, int proto, struct arth *inst, int size)
 		inst->b = b;
 		break;
 	case Q_ICMPV6:
-		bpf_error(cstate, "IPv6 upper-layer protocol is not supported by proto[x]");
-		/*NOTREACHED*/
+        /*
+        * Do the computation only if the packet contains
+        * the protocol in question.
+        */
+        b = gen_proto_abbrev(cstate, Q_IPV6);
+        if (inst->b) {
+            gen_and(inst->b, b);
+        }
+        inst->b = b;
+
+        /*
+        * Check if we have an icmp6 next header
+        */
+        b = gen_cmp(cstate, OR_LINKPL, 6, BPF_B, 58);
+        if (inst->b) {
+            gen_and(inst->b, b);
+        }
+        inst->b = b;
+
+
+        s = gen_abs_offset_varpart(cstate, &cstate->off_linkpl);
+        /*
+        * If "s" is non-null, it has code to arrange that the
+        * X register contains the variable part of the offset
+        * of the link-layer payload.  Add to it the offset
+        * computed into the register specified by "index",
+        * and move that into the X register.  Otherwise, just
+        * load into the X register the offset computed into
+        * the register specified by "index".
+        */
+        if (s != NULL) {
+            sappend(s, xfer_to_a(cstate, inst));
+            sappend(s, new_stmt(cstate, BPF_ALU|BPF_ADD|BPF_X));
+            sappend(s, new_stmt(cstate, BPF_MISC|BPF_TAX));
+        } else {
+            s = xfer_to_x(cstate, inst);
+        }
+
+        /*
+        * Load the item at the sum of the offset we've put in the
+        * X register, the offset of the start of the network
+        * layer header from the beginning of the link-layer
+        * payload, and the constant part of the offset of the
+        * start of the link-layer payload.
+        */
+        tmp = new_stmt(cstate, BPF_LD|BPF_IND|size);
+        tmp->s.k = cstate->off_linkpl.constant_part + cstate->off_nl + 40;
+
+        sappend(s, tmp);
+        sappend(inst->s, s);
+
+        break;
 	}
 	inst->regno = regno;
 	s = new_stmt(cstate, BPF_ST);
@@ -7178,7 +7338,6 @@ alloc_reg(compiler_state_t *cstate)
 	}
 	bpf_error(cstate, "too many registers needed to evaluate expression");
 	/* NOTREACHED */
-	return 0;
 }
 
 /*
@@ -7333,7 +7492,6 @@ gen_broadcast(compiler_state_t *cstate, int proto)
 	}
 	bpf_error(cstate, "only link-layer/IP broadcast filters supported");
 	/* NOTREACHED */
-	return NULL;
 }
 
 /*
@@ -7529,7 +7687,6 @@ gen_multicast(compiler_state_t *cstate, int proto)
 	}
 	bpf_error(cstate, "link-layer multicast filters supported only on ethernet/FDDI/token ring/ARCNET/802.11/ATM LANE/Fibre Channel");
 	/* NOTREACHED */
-	return NULL;
 }
 
 /*
@@ -7630,8 +7787,18 @@ gen_inbound(compiler_state_t *cstate, int dir)
 	default:
 		/*
 		 * If we have packet meta-data indicating a direction,
-		 * check it, otherwise give up as this link-layer type
-		 * has nothing in the packet data.
+		 * and that metadata can be checked by BPF code, check
+		 * it.  Otherwise, give up, as this link-layer type has
+		 * nothing in the packet data.
+		 *
+		 * Currently, the only platform where a BPF filter can
+		 * check that metadata is Linux with the in-kernel
+		 * BPF interpreter.  If other packet capture mechanisms
+		 * and BPF filters also supported this, it would be
+		 * nice.  It would be even better if they made that
+		 * metadata available so that we could provide it
+		 * with newer capture APIs, allowing it to be saved
+		 * in pcapng files.
 		 */
 #if defined(linux) && defined(PF_PACKET) && defined(SO_ATTACH_FILTER)
 		/*
@@ -7657,7 +7824,6 @@ gen_inbound(compiler_state_t *cstate, int dir)
 #else /* defined(linux) && defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 		bpf_error(cstate, "inbound/outbound not supported on linktype %d",
 		    cstate->linktype);
-		b0 = NULL;
 		/* NOTREACHED */
 #endif /* defined(linux) && defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 	}
@@ -7774,51 +7940,45 @@ gen_pf_action(compiler_state_t *cstate, int action)
 }
 #else /* !HAVE_NET_PFVAR_H */
 struct block *
-gen_pf_ifname(compiler_state_t *cstate, const char *ifname)
+gen_pf_ifname(compiler_state_t *cstate, const char *ifname _U_)
 {
 	bpf_error(cstate, "libpcap was compiled without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 
 struct block *
-gen_pf_ruleset(compiler_state_t *cstate, char *ruleset)
+gen_pf_ruleset(compiler_state_t *cstate, char *ruleset _U_)
 {
 	bpf_error(cstate, "libpcap was compiled on a machine without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 
 struct block *
-gen_pf_rnr(compiler_state_t *cstate, int rnr)
+gen_pf_rnr(compiler_state_t *cstate, int rnr _U_)
 {
 	bpf_error(cstate, "libpcap was compiled on a machine without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 
 struct block *
-gen_pf_srnr(compiler_state_t *cstate, int srnr)
+gen_pf_srnr(compiler_state_t *cstate, int srnr _U_)
 {
 	bpf_error(cstate, "libpcap was compiled on a machine without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 
 struct block *
-gen_pf_reason(compiler_state_t *cstate, int reason)
+gen_pf_reason(compiler_state_t *cstate, int reason _U_)
 {
 	bpf_error(cstate, "libpcap was compiled on a machine without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 
 struct block *
-gen_pf_action(compiler_state_t *cstate, int action)
+gen_pf_action(compiler_state_t *cstate, int action _U_)
 {
 	bpf_error(cstate, "libpcap was compiled on a machine without pf support");
 	/* NOTREACHED */
-	return (NULL);
 }
 #endif /* HAVE_NET_PFVAR_H */
 
@@ -7890,9 +8050,6 @@ gen_acode(compiler_state_t *cstate, const u_char *eaddr, struct qual q)
 		bpf_error(cstate, "aid supported only on ARCnet");
 		/* NOTREACHED */
 	}
-	bpf_error(cstate, "ARCnet address used in non-arc expression");
-	/* NOTREACHED */
-	return NULL;
 }
 
 static struct block *
@@ -7922,19 +8079,19 @@ gen_ahostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 		return b1;
 
 	case Q_ADDR1:
-		bpf_error(cstate, "'addr1' is only supported on 802.11");
+		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11");
 		break;
 
 	case Q_ADDR2:
-		bpf_error(cstate, "'addr2' is only supported on 802.11");
+		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11");
 		break;
 
 	case Q_ADDR3:
-		bpf_error(cstate, "'addr3' is only supported on 802.11");
+		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11");
 		break;
 
 	case Q_ADDR4:
-		bpf_error(cstate, "'addr4' is only supported on 802.11");
+		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11");
 		break;
 
 	case Q_RA:
@@ -7949,11 +8106,143 @@ gen_ahostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 	/* NOTREACHED */
 }
 
-#if defined(SKF_AD_VLAN_TAG) && defined(SKF_AD_VLAN_TAG_PRESENT)
+static struct block *
+gen_vlan_tpid_test(compiler_state_t *cstate)
+{
+	struct block *b0, *b1;
+
+	/* check for VLAN, including QinQ */
+	b0 = gen_linktype(cstate, ETHERTYPE_8021Q);
+	b1 = gen_linktype(cstate, ETHERTYPE_8021AD);
+	gen_or(b0,b1);
+	b0 = b1;
+	b1 = gen_linktype(cstate, ETHERTYPE_8021QINQ);
+	gen_or(b0,b1);
+
+	return b1;
+}
+
+static struct block *
+gen_vlan_vid_test(compiler_state_t *cstate, int vlan_num)
+{
+	return gen_mcmp(cstate, OR_LINKPL, 0, BPF_H, (bpf_int32)vlan_num, 0x0fff);
+}
+
+static struct block *
+gen_vlan_no_bpf_extensions(compiler_state_t *cstate, int vlan_num)
+{
+	struct block *b0, *b1;
+
+	b0 = gen_vlan_tpid_test(cstate);
+
+	if (vlan_num >= 0) {
+		b1 = gen_vlan_vid_test(cstate, vlan_num);
+		gen_and(b0, b1);
+		b0 = b1;
+	}
+
+	/*
+	 * Both payload and link header type follow the VLAN tags so that
+	 * both need to be updated.
+	 */
+	cstate->off_linkpl.constant_part += 4;
+	cstate->off_linktype.constant_part += 4;
+
+	return b0;
+}
+
+#if defined(SKF_AD_VLAN_TAG_PRESENT)
+/* add v to variable part of off */
+static void
+gen_vlan_vloffset_add(compiler_state_t *cstate, bpf_abs_offset *off, int v, struct slist *s)
+{
+	struct slist *s2;
+
+	if (!off->is_variable)
+		off->is_variable = 1;
+	if (off->reg == -1)
+		off->reg = alloc_reg(cstate);
+
+	s2 = new_stmt(cstate, BPF_LD|BPF_MEM);
+	s2->s.k = off->reg;
+	sappend(s, s2);
+	s2 = new_stmt(cstate, BPF_ALU|BPF_ADD|BPF_IMM);
+	s2->s.k = v;
+	sappend(s, s2);
+	s2 = new_stmt(cstate, BPF_ST);
+	s2->s.k = off->reg;
+	sappend(s, s2);
+}
+
+/*
+ * patch block b_tpid (VLAN TPID test) to update variable parts of link payload
+ * and link type offsets first
+ */
+static void
+gen_vlan_patch_tpid_test(compiler_state_t *cstate, struct block *b_tpid)
+{
+	struct slist s;
+
+	/* offset determined at run time, shift variable part */
+	s.next = NULL;
+	cstate->is_vlan_vloffset = 1;
+	gen_vlan_vloffset_add(cstate, &cstate->off_linkpl, 4, &s);
+	gen_vlan_vloffset_add(cstate, &cstate->off_linktype, 4, &s);
+
+	/* we get a pointer to a chain of or-ed blocks, patch first of them */
+	sappend(s.next, b_tpid->head->stmts);
+	b_tpid->head->stmts = s.next;
+}
+
+/*
+ * patch block b_vid (VLAN id test) to load VID value either from packet
+ * metadata (using BPF extensions) if SKF_AD_VLAN_TAG_PRESENT is true
+ */
+static void
+gen_vlan_patch_vid_test(compiler_state_t *cstate, struct block *b_vid)
+{
+	struct slist *s, *s2, *sjeq;
+	unsigned cnt;
+
+	s = new_stmt(cstate, BPF_LD|BPF_B|BPF_ABS);
+	s->s.k = SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT;
+
+	/* true -> next instructions, false -> beginning of b_vid */
+	sjeq = new_stmt(cstate, JMP(BPF_JEQ));
+	sjeq->s.k = 1;
+	sjeq->s.jf = b_vid->stmts;
+	sappend(s, sjeq);
+
+	s2 = new_stmt(cstate, BPF_LD|BPF_B|BPF_ABS);
+	s2->s.k = SKF_AD_OFF + SKF_AD_VLAN_TAG;
+	sappend(s, s2);
+	sjeq->s.jt = s2;
+
+	/* jump to the test in b_vid (bypass loading VID from packet data) */
+	cnt = 0;
+	for (s2 = b_vid->stmts; s2; s2 = s2->next)
+		cnt++;
+	s2 = new_stmt(cstate, JMP(BPF_JA));
+	s2->s.k = cnt;
+	sappend(s, s2);
+
+	/* insert our statements at the beginning of b_vid */
+	sappend(s, b_vid->stmts);
+	b_vid->stmts = s;
+}
+
+/*
+ * Generate check for "vlan" or "vlan <id>" on systems with support for BPF
+ * extensions.  Even if kernel supports VLAN BPF extensions, (outermost) VLAN
+ * tag can be either in metadata or in packet data; therefore if the
+ * SKF_AD_VLAN_TAG_PRESENT test is negative, we need to check link
+ * header for VLAN tag. As the decision is done at run time, we need
+ * update variable part of the offsets
+ */
 static struct block *
 gen_vlan_bpf_extensions(compiler_state_t *cstate, int vlan_num)
 {
-        struct block *b0, *b1;
+        struct block *b0, *b_tpid, *b_vid = NULL;
         struct slist *s;
 
         /* generate new filter code based on extracting packet
@@ -7965,58 +8254,33 @@ gen_vlan_bpf_extensions(compiler_state_t *cstate, int vlan_num)
         b0->stmts = s;
         b0->s.k = 1;
 
-        if (vlan_num >= 0) {
-                s = new_stmt(cstate, BPF_LD|BPF_B|BPF_ABS);
-                s->s.k = SKF_AD_OFF + SKF_AD_VLAN_TAG;
+	/*
+	 * This is tricky. We need to insert the statements updating variable
+	 * parts of offsets before the the traditional TPID and VID tests so
+	 * that they are called whenever SKF_AD_VLAN_TAG_PRESENT fails but
+	 * we do not want this update to affect those checks. That's why we
+	 * generate both test blocks first and insert the statements updating
+	 * variable parts of both offsets after that. This wouldn't work if
+	 * there already were variable length link header when entering this
+	 * function but gen_vlan_bpf_extensions() isn't called in that case.
+	 */
+	b_tpid = gen_vlan_tpid_test(cstate);
+	if (vlan_num >= 0)
+		b_vid = gen_vlan_vid_test(cstate, vlan_num);
 
-                b1 = new_block(cstate, JMP(BPF_JEQ));
-                b1->stmts = s;
-                b1->s.k = (bpf_int32) vlan_num;
+	gen_vlan_patch_tpid_test(cstate, b_tpid);
+	gen_or(b0, b_tpid);
+	b0 = b_tpid;
 
-                gen_and(b0,b1);
-                b0 = b1;
-        }
+	if (vlan_num >= 0) {
+		gen_vlan_patch_vid_test(cstate, b_vid);
+		gen_and(b0, b_vid);
+		b0 = b_vid;
+	}
 
         return b0;
 }
 #endif
-
-static struct block *
-gen_vlan_no_bpf_extensions(compiler_state_t *cstate, int vlan_num)
-{
-        struct block *b0, *b1;
-
-        /* check for VLAN, including QinQ */
-        b0 = gen_linktype(cstate, ETHERTYPE_8021Q);
-        b1 = gen_linktype(cstate, ETHERTYPE_8021AD);
-        gen_or(b0,b1);
-        b0 = b1;
-        b1 = gen_linktype(cstate, ETHERTYPE_8021QINQ);
-        gen_or(b0,b1);
-        b0 = b1;
-
-        /* If a specific VLAN is requested, check VLAN id */
-        if (vlan_num >= 0) {
-                b1 = gen_mcmp(cstate, OR_LINKPL, 0, BPF_H,
-                              (bpf_int32)vlan_num, 0x0fff);
-                gen_and(b0, b1);
-                b0 = b1;
-        }
-
-	/*
-	 * The payload follows the full header, including the
-	 * VLAN tags, so skip past this VLAN tag.
-	 */
-        cstate->off_linkpl.constant_part += 4;
-
-	/*
-	 * The link-layer type information follows the VLAN tags, so
-	 * skip past this VLAN tag.
-	 */
-        cstate->off_linktype.constant_part += 4;
-
-        return b0;
-}
 
 /*
  * support IEEE 802.1Q VLAN trunk over ethernet
@@ -8066,7 +8330,7 @@ gen_vlan(compiler_state_t *cstate, int vlan_num)
 	case DLT_EN10MB:
 	case DLT_NETANALYZER:
 	case DLT_NETANALYZER_TRANSPARENT:
-#if defined(SKF_AD_VLAN_TAG) && defined(SKF_AD_VLAN_TAG_PRESENT)
+#if defined(SKF_AD_VLAN_TAG_PRESENT)
 		/* Verify that this is the outer part of the packet and
 		 * not encapsulated somehow. */
 		if (cstate->vlan_stack_depth == 0 && !cstate->off_linkhdr.is_variable &&
@@ -8138,7 +8402,6 @@ gen_mpls(compiler_state_t *cstate, int label_num)
             default:
                     bpf_error(cstate, "no MPLS support for data link type %d",
                           cstate->linktype);
-                    b0 = NULL;
                     /*NOTREACHED*/
                     break;
             }
@@ -8559,7 +8822,7 @@ gen_atmfield_code(compiler_state_t *cstate, int atmfield, bpf_int32 jvalue,
 	case A_VPI:
 		if (!cstate->is_atm)
 			bpf_error(cstate, "'vpi' supported only on raw ATM");
-		if (cstate->off_vpi == (u_int)-1)
+		if (cstate->off_vpi == OFFSET_NOT_SET)
 			abort();
 		b0 = gen_ncmp(cstate, OR_LINKHDR, cstate->off_vpi, BPF_B, 0xffffffff, jtype,
 		    reverse, jvalue);
@@ -8568,21 +8831,21 @@ gen_atmfield_code(compiler_state_t *cstate, int atmfield, bpf_int32 jvalue,
 	case A_VCI:
 		if (!cstate->is_atm)
 			bpf_error(cstate, "'vci' supported only on raw ATM");
-		if (cstate->off_vci == (u_int)-1)
+		if (cstate->off_vci == OFFSET_NOT_SET)
 			abort();
 		b0 = gen_ncmp(cstate, OR_LINKHDR, cstate->off_vci, BPF_H, 0xffffffff, jtype,
 		    reverse, jvalue);
 		break;
 
 	case A_PROTOTYPE:
-		if (cstate->off_proto == (u_int)-1)
+		if (cstate->off_proto == OFFSET_NOT_SET)
 			abort();	/* XXX - this isn't on FreeBSD */
 		b0 = gen_ncmp(cstate, OR_LINKHDR, cstate->off_proto, BPF_B, 0x0f, jtype,
 		    reverse, jvalue);
 		break;
 
 	case A_MSGTYPE:
-		if (cstate->off_payload == (u_int)-1)
+		if (cstate->off_payload == OFFSET_NOT_SET)
 			abort();
 		b0 = gen_ncmp(cstate, OR_LINKHDR, cstate->off_payload + MSG_TYPE_POS, BPF_B,
 		    0xffffffff, jtype, reverse, jvalue);
@@ -8591,7 +8854,7 @@ gen_atmfield_code(compiler_state_t *cstate, int atmfield, bpf_int32 jvalue,
 	case A_CALLREFTYPE:
 		if (!cstate->is_atm)
 			bpf_error(cstate, "'callref' supported only on raw ATM");
-		if (cstate->off_proto == (u_int)-1)
+		if (cstate->off_proto == OFFSET_NOT_SET)
 			abort();
 		b0 = gen_ncmp(cstate, OR_LINKHDR, cstate->off_proto, BPF_B, 0xffffffff,
 		    jtype, reverse, jvalue);
@@ -8793,7 +9056,7 @@ gen_mtp3field_code(compiler_state_t *cstate, int mtp3field, bpf_u_int32 jvalue,
 		/* FALLTHROUGH */
 
 	case M_SIO:
-		if (cstate->off_sio == (u_int)-1)
+		if (cstate->off_sio == OFFSET_NOT_SET)
 			bpf_error(cstate, "'sio' supported only on SS7");
 		/* sio coded on 1 byte so max value 255 */
 		if(jvalue > 255)
@@ -8806,7 +9069,7 @@ gen_mtp3field_code(compiler_state_t *cstate, int mtp3field, bpf_u_int32 jvalue,
 	case MH_OPC:
 		newoff_opc+=3;
         case M_OPC:
-	        if (cstate->off_opc == (u_int)-1)
+	        if (cstate->off_opc == OFFSET_NOT_SET)
 			bpf_error(cstate, "'opc' supported only on SS7");
 		/* opc coded on 14 bits so max value 16383 */
 		if (jvalue > 16383)
@@ -8830,7 +9093,7 @@ gen_mtp3field_code(compiler_state_t *cstate, int mtp3field, bpf_u_int32 jvalue,
 		/* FALLTHROUGH */
 
 	case M_DPC:
-	        if (cstate->off_dpc == (u_int)-1)
+	        if (cstate->off_dpc == OFFSET_NOT_SET)
 			bpf_error(cstate, "'dpc' supported only on SS7");
 		/* dpc coded on 14 bits so max value 16383 */
 		if (jvalue > 16383)
@@ -8850,7 +9113,7 @@ gen_mtp3field_code(compiler_state_t *cstate, int mtp3field, bpf_u_int32 jvalue,
 	case MH_SLS:
 	  newoff_sls+=3;
 	case M_SLS:
-	        if (cstate->off_sls == (u_int)-1)
+	        if (cstate->off_sls == OFFSET_NOT_SET)
 			bpf_error(cstate, "'sls' supported only on SS7");
 		/* sls coded on 4 bits so max value 15 */
 		if (jvalue > 15)

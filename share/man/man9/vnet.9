@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2014
+.Dd July 24, 2018
 .Dt VNET 9
 .Os
 .Sh NAME
@@ -63,6 +63,10 @@
 .Fc
 .\"
 .Fo VNET_DEFINE
+.Fa "type" "name"
+.Fc
+.\"
+.Fo VNET_DEFINE_STATIC
 .Fa "type" "name"
 .Fc
 .\"
@@ -208,11 +212,15 @@ Variables are virtualized by using the
 .Fn VNET_DEFINE
 macro rather than writing them out as
 .Em type name .
-One can still use static initialization or storage class specifiers, e.g.,
+One can still use static initialization, e.g.,
 .Pp
-.Dl Li static VNET_DEFINE(int, foo) = 1;
-or
-.Dl Li static VNET_DEFINE(SLIST_HEAD(, bar), bars);
+.Dl Li VNET_DEFINE(int, foo) = 1;
+.Pp
+Variables declared with the static keyword can use the
+.Fn VNET_DEFINE_STATIC
+macro, e.g.,
+.Pp
+.Dl Li VNET_DEFINE_STATIC(SLIST_HEAD(, bar), bars);
 .Pp
 Static initialization is not possible when the virtualized variable
 would need to be referenced, e.g., with
@@ -488,10 +496,24 @@ context of the caller.
 .Xr KASSERT 9 ,
 .Xr sysctl 9
 .\" .Xr SYSINIT 9
+.Pp
+Marko Zec, Implementing a Clonable Network Stack in the FreeBSD Kernel,
+USENIX ATC'03, June 2003, Boston
 .Sh HISTORY
 The virtual network stack implementation first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework has been designed and implemented at the University of Zagreb by
+.An Marko Zec ,
+and later extended and refined by
+.An Bjoern A. Zeeb
+and
+.An Robert Watson ,
+under contract to the FreeBSD Foundation.
+.Pp
 This manual page was written by
 .An Bjoern A. Zeeb, CK Software GmbH,
 under sponsorship from the FreeBSD Foundation.

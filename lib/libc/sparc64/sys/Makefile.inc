@@ -12,4 +12,4 @@ SRCS+=	__sparc_sigtramp_setup.c \
 
 CFLAGS+= -I${LIBC_SRCTOP}/sparc64/fpu
 
-MDASM+=	brk.S cerror.S sbrk.S sigaction1.S
+MDASM+=	cerror.S sigaction1.S

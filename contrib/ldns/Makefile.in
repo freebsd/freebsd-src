@@ -12,6 +12,7 @@ datarootdir	= @datarootdir@
 datadir		= @datadir@
 libdir		= @libdir@
 includedir	= @includedir@
+sysconfdir      = @sysconfdir@
 doxygen		= @doxygen@
 pywrapdir       = $(srcdir)/contrib/python
 pyldnsxwrapdir  = $(srcdir)/contrib/ldnsx
@@ -27,13 +28,21 @@ pyldnsx_uninst	= @PYLDNSXUNINST@
 libtool		= @libtool@
 CONFIG_FILES	= @CONFIG_FILES@
 
+LDNS_TRUST_ANCHOR_FILE = @LDNS_TRUST_ANCHOR_FILE@
+DEFAULT_CAFILE = @DEFAULT_CAFILE@
+DEFAULT_CAPATH = @DEFAULT_CAPATH@
+
+edit = sed \
+	-e 's|@LDNS_TRUST_ANCHOR_FILE[@]|$(LDNS_TRUST_ANCHOR_FILE)|g' \
+	-e 's|@DEFAULT_CAFILE[@]|$(DEFAULT_CAFILE)|g' \
+	-e 's|@DEFAULT_CAPATH[@]|$(DEFAULT_CAPATH)|g'
+
 # override $U variable which is used by autotools for deansification (for
 # K&R C compilers), but causes problems if $U is defined in the env).
 U=
-
 CC 		= @CC@
 CFLAGS		= @CFLAGS@
-CPPFLAGS	= -I. -I$(srcdir) @CPPFLAGS@ @DEFS@
+CPPFLAGS	= -I. -I$(srcdir) @CPPFLAGS@ @DEFS@ -DLDNS_TRUST_ANCHOR_FILE="\"$(LDNS_TRUST_ANCHOR_FILE)\""
 LDFLAGS		= @LDFLAGS@
 LIBS 		= @LIBS@
 LIBOBJDIR	= compat/
@@ -92,11 +101,10 @@ LDNS_DANE_LOBJS	= examples/ldns-dane.lo
 EX_SSL_PROGS	= examples/ldns-nsec3-hash examples/ldns-revoke examples/ldns-signzone examples/ldns-verify-zone
 EX_SSL_LOBJS	= examples/ldns-nsec3-hash.lo examples/ldns-revoke.lo examples/ldns-signzone.lo examples/ldns-verify-zone.lo
 
-
 COMPILE		= $(CC) $(CPPFLAGS) $(CFLAGS)
 COMP_LIB	= $(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS)
 LINK		= $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS)
-LINK_LIB	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -version-number $(version_info) -no-undefined
+LINK_LIB	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -version-info $(version_info) -no-undefined
 LINK_EXE	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBSSL_LDFLAGS)
 
 .PHONY:	clean realclean docclean manpages doc lint all lib pyldns test
@@ -129,7 +137,7 @@ putdown-builddir:
 	if test -d drill    -a ! -f drill/README   ; then rmdir drill    || : ; fi
 	if test -d compat   -a ! -f compat/malloc.c; then rmdir compat   || : ; fi
 
-drill: no-drill-config-h drill/drill
+drill: no-drill-config-h drill/drill drill/drill.1
 no-drill-config-h:
 	@if test -e $(srcdir)/drill/config.h -o -e drill/config.h ; \
 	then echo "A config.h was detected in the drill subdirectory." ; \
@@ -138,10 +146,14 @@ no-drill-config-h:
 	     echo "or build drill there." ; \
 	     exit -1 ; \
 	fi
+
 drill/drill: $(DRILL_LOBJS) $(LIB)
 	$(LINK_EXE) $(DRILL_LOBJS) $(LIBS) $(LIBSSL_LIBS) -lldns -o drill/drill
 
-install-drill: drill/drill
+drill/drill.1: $(srcdir)/drill/drill.1.in
+	$(edit) $(srcdir)/drill/drill.1.in > drill/drill.1
+
+install-drill: drill/drill drill/drill.1
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
@@ -154,9 +166,9 @@ uninstall-drill:
 	test ! -d $(DESTDIR)$(bindir) || rmdir -p $(DESTDIR)$(bindir) || : ;
 
 clean-drill:
-	$(LIBTOOL) --mode clean rm -f $(DRILL_LOBJS) drill/drill
+	$(LIBTOOL) --mode clean rm -f $(DRILL_LOBJS) drill/drill drill/drill.1
 
-examples: no-examples-config-h $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS)
+examples: no-examples-config-h $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS) examples/ldns-dane.1 examples/ldns-verify-zone.1
 no-examples-config-h:
 	@if test -e $(srcdir)/examples/config.h -o -e examples/config.h ; \
 	then echo "A config.h was detected in the examples subdirectory." ; \
@@ -165,6 +177,7 @@ no-examples-config-h:
 	     echo "or build examples there." ; \
 	     exit -1 ; \
 	fi
+
 $(EXAMPLE_PROGS):
 	$(LINK_EXE) $@.lo $(LIBS) -lldns -o $@
 
@@ -182,7 +195,13 @@ $(LDNS_DANE):
 $(EX_SSL_PROGS):
 	$(LINK_EXE) $@.lo $(LIBS) $(LIBSSL_LIBS) -lldns -o $@
 
-install-examples: $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS)
+examples/ldns-dane.1: $(srcdir)/examples/ldns-dane.1.in
+	$(edit) $(srcdir)/examples/ldns-dane.1.in > examples/ldns-dane.1
+
+examples/ldns-verify-zone.1: $(srcdir)/examples/ldns-verify-zone.1.in
+	$(edit) $(srcdir)/examples/ldns-verify-zone.1.in > examples/ldns-verify-zone.1
+
+install-examples: $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS) examples/ldns-dane.1 examples/ldns-verify-zone.1
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
@@ -205,6 +224,7 @@ clean-examples:
 	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_PROGS) 
 	$(LIBTOOL) --mode clean rm -f $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS)
 	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_LOBJS)
+	$(LIBTOOL) --mode clean rm -f examples/ldns-dane.1 examples/ldns-verify-zone.1
 
 linktest: $(srcdir)/linktest.c libldns.la
 	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $(srcdir)/linktest.c -o linktest.lo
@@ -224,7 +244,7 @@ mancheck:
 	sh -c 'find . -name \*.\[13\] -exec troff -z {} \;' 2>&1 | sed "s/^\.\///" | sed "s/\(:[0\-9]\+:\)/\1 warning:/g"
 
 doxygen: manpages
-	if test ! -e doc/header.html ; then \
+	@if test ! -e doc/header.html ; then \
 		$(INSTALL) -c -m 644 $(srcdir)/doc/header.html doc/ ; \
 	fi ;
 	$(doxygen) $(srcdir)/libdns.doxygen
@@ -236,22 +256,40 @@ manpages: $(srcdir)/doc/function_manpages
 	@$(INSTALL) -d doc
 	@cat $(srcdir)/ldns/*.h \
 	| $(srcdir)/doc/doxyparse.pl \
-		-m $(srcdir)/doc/function_manpages 2>&1 \
+		-m $(srcdir)/doc/function_manpages \
 	| grep -v ^doxygen | grep -v ^cat  > doc/ldns_manpages
 
+manpage-create-errors: $(srcdir)/doc/function_manpages 
+	@$(INSTALL) -d doc
+	@cat $(srcdir)/ldns/*.h \
+	| $(srcdir)/doc/doxyparse.pl -e \
+		-m $(srcdir)/doc/function_manpages >/dev/null
+
+manpage-errors:
+	@man --version >/dev/null 2>&1 && \
+	for m in `cat $(srcdir)/ldns/*.h | $(srcdir)/doc/doxyparse.pl -m $(srcdir)/doc/function_manpages 2>&1 | grep -v ^doxygen | grep -v ^cat` ; do\
+		LC_ALL=en_US.UTF-8 MANROFFSEQ='' MANWIDTH=80 \
+			man --warnings -E UTF-8 -l -Tutf8 -Z doc/man/man3/$${m}.3 2>&1 >/dev/null \
+			| awk "-vpage=$${m}.3" '{printf("%s: ", page);print}'; \
+		if ! lexgrog doc/man/man3/$${m}.3 >/dev/null 2>&1 ; \
+		then \
+			echo doc/man/man3/$${m}.3: manpage-has-bad-whatis-entry; \
+		fi; \
+	done || echo "WARNING!: Cannot detect manpage errors on `uname`"
+	
 pyldns: _ldns.la
 
 $(pywrapdir)/ldns_wrapper.c: $(PYLDNS_I_FILES) ldns/config.h
-	$(swig) $(swigpy_flags) -o $@ $(CPPFLAGS) $(PYTHON_CPPFLAGS) $(pywrapdir)/ldns.i
+	$(swig) $(swigpy_flags) -o $@ $(PYTHON_CPPFLAGS) $(pywrapdir)/ldns.i
 
 ldns_wrapper.lo: $(pywrapdir)/ldns_wrapper.c ldns/config.h
-	$(COMP_LIB) -I./include/ldns $(PYTHON_CPPFLAGS) $(PYTHON_X_CFLAGS) -c $(pywrapdir)/ldns_wrapper.c -o $@
+	$(COMP_LIB) -I./include/ldns $(LIBSSL_CPPFLAGS) $(PYTHON_CPPFLAGS) $(PYTHON_X_CFLAGS) -c $(pywrapdir)/ldns_wrapper.c -o $@
 
 _ldns.la: ldns_wrapper.lo libldns.la 
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(PYTHON_CFLAGS) $(LDFLAGS) $(PYTHON_LDFLAGS) -module -version-number $(version_info) -no-undefined -o $@ ldns_wrapper.lo -rpath $(python_site) -L. -L.libs -lldns $(LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(PYTHON_CFLAGS) $(LDFLAGS) $(PYTHON_LDFLAGS) -module -version-info $(version_info) -no-undefined -o $@ ldns_wrapper.lo -rpath $(python_site) -L. -L.libs -lldns $(LIBS)
 
 $(p5_dns_ldns_dir)/Makefile: $(p5_dns_ldns_dir)/Makefile.PL
-	BUILDDIR=`pwd`; cd $(p5_dns_ldns_dir); $(PERL) Makefile.PL PREFIX="$(prefix)" LIBS="-L$$BUILDDIR/.libs -lldns" INC="-I$$BUILDDIR"
+	BUILDDIR=`pwd`; cd $(p5_dns_ldns_dir); LD_LIBRARY_PATH="$$BUILDDIR/.libs:$$LD_LIBRARY_PATH" DYLD_LIBRARY_PATH="$$BUILDDIR/.libs:$$DYLD_LIBRARY_PATH" $(PERL) Makefile.PL LIBS="-L$$BUILDDIR/.libs -lldns" INC="-I$$BUILDDIR"
 
 $(p5_dns_ldns_dir)/blib/arch/auto/DNS/LDNS/LDNS.so: $(p5_dns_ldns_dir)/Makefile
 	cd $(p5_dns_ldns_dir); $(MAKE)

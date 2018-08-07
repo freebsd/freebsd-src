@@ -76,10 +76,18 @@ enum {
 	MODEM_MAX_INDEX,
 };
 
-#define	MODEM_DEFAULT_INTERFACE		"Modem interface"
-#define	MODEM_DEFAULT_MANUFACTURER	"FreeBSD foundation"
-#define MODEM_DEFAULT_PRODUCT		"Modem Test Device"
-#define	MODEM_DEFAULT_SERIAL_NUMBER	"March 2008"
+#define	MODEM_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MODEM_DEFAULT_PRODUCT_ID	0x27dd
+#define	MODEM_DEFAULT_INTERFACE		"Virtual serial port"
+#define	MODEM_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	MODEM_DEFAULT_PRODUCT		"Virtual serial port"
+/*
+ * The reason for this being called like this is that OSX
+ * derives the device node name from it, resulting in a somewhat
+ * user-friendly "/dev/cu.usbmodemFreeBSD1".  And yes, the "1"
+ * needs to be there, otherwise OSX will mangle it.
+ */
+#define	MODEM_DEFAULT_SERIAL_NUMBER	"FreeBSD1"
 
 static struct usb_string_descriptor	modem_interface;
 static struct usb_string_descriptor	modem_manufacturer;
@@ -170,7 +178,7 @@ static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppEndpoints = modem_iface_0_ep,
 	.bInterfaceClass = UICLASS_CDC,
 	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
-	.bInterfaceProtocol = UIPROTO_CDC_AT,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
 	.iInterface = MODEM_INTERFACE_INDEX,
 };
 
@@ -190,8 +198,8 @@ static const struct usb_temp_interface_desc *modem_interfaces[] = {
 
 static const struct usb_temp_config_desc modem_config_desc = {
 	.ppIfaceDesc = modem_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MODEM_PRODUCT_INDEX,
 };
 
@@ -207,8 +215,8 @@ struct usb_temp_device_desc usb_template_modem = {
 	.getStringDesc = &modem_get_string_desc,
 	.getVendorDesc = &modem_get_vendor_desc,
 	.ppConfigDesc = modem_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x000E,
+	.idVendor = MODEM_DEFAULT_VENDOR_ID,
+	.idProduct = MODEM_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
@@ -282,7 +290,7 @@ modem_init(void *arg __unused)
 	parent = SYSCTL_ADD_NODE(&modem_ctx_list,
 	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
 	    parent_name, CTLFLAG_RW,
-	    0, "USB Modem device side template");
+	    0, "Virtual serial port device side template");
 	SYSCTL_ADD_U16(&modem_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "vendor_id", CTLFLAG_RWTUN,
 	    &usb_template_modem.idVendor, 1, "Vendor identifier");

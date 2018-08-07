@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2016
+.Dd July 20, 2018
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -110,7 +110,9 @@ initialize it with
 run over the data with
 .Fn SHA512_Update ,
 and finally extract the result using
-.Fn SHA512_Final .
+.Fn SHA512_Final ,
+which will also erase the
+.Vt SHA512_CTX .
 .Pp
 .Fn SHA512_End
 is a wrapper for

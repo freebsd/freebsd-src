@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2017
+.Dd May 20, 2018
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -198,9 +198,11 @@ If no data is available,
 .Va errno
 is set to
 .Er EAGAIN .
-This flag is not available in strict
-.Tn ANSI
-or C99 compilation mode.
+This flag is not available in
+.St -ansiC
+or
+.St -isoC-99
+compilation mode.
 The
 .Dv MSG_WAITFORONE
 flag sets MSG_DONTWAIT after the first message has been received.
@@ -298,7 +300,7 @@ system call uses the
 .Fa mmsghdr
 structure, defined as follows in the
 .In sys/socket.h
-header :
+header:
 .Bd -literal
 struct mmsghdr {
 	struct msghdr	 msg_hdr;	/* message header */

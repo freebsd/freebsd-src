@@ -115,7 +115,7 @@
 #define NVME_CMD_FUSE_SHIFT				(8)
 #define NVME_CMD_FUSE_MASK				(0x3)
 
-#define NVME_CMD_SET_OPC(opc)				(htole16(((opc) & NVME_CMD_OPC_MASK) << NVME_CMD_OPC_SHIFT))
+#define NVME_CMD_SET_OPC(opc)				(htole16(((uint16_t)(opc) & NVME_CMD_OPC_MASK) << NVME_CMD_OPC_SHIFT))
 
 #define NVME_STATUS_P_SHIFT				(0)
 #define NVME_STATUS_P_MASK				(0x1)
@@ -1091,6 +1091,12 @@ struct nvme_firmware_page {
 
 _Static_assert(sizeof(struct nvme_firmware_page) == 512, "bad size for nvme_firmware_page");
 
+struct nvme_ns_list {
+	uint32_t		ns[1024];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_ns_list) == 4096, "bad size for nvme_ns_list");
+
 struct intel_log_temp_stats
 {
 	uint64_t	current;
@@ -1467,6 +1473,15 @@ void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)
 
 	for (i = 0; i < 7; i++)
 		s->revision[i] = le64toh(s->revision[i]);
+}
+
+static inline
+void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
+{
+	int i;
+
+	for (i = 0; i < 1024; i++)
+		s->ns[i] = le32toh(s->ns[i]);
 }
 
 static inline

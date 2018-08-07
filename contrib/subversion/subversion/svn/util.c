@@ -739,6 +739,7 @@ svn_cl__try(svn_error_t *err,
               if (! quiet)
                 svn_handle_warning2(stderr, err, "svn: ");
               svn_error_clear(err);
+              va_end(ap);
               return SVN_NO_ERROR;
             }
         }
@@ -1032,14 +1033,17 @@ svn_cl__time_cstring_to_human_cstring(const char **human_cstring,
 }
 
 const char *
-svn_cl__node_description(const svn_wc_conflict_version_t *node,
+svn_cl__node_description(const char *repos_root_url,
+                         const char *repos_relpath,
+                         svn_revnum_t peg_rev,
+                         svn_node_kind_t node_kind,
                          const char *wc_repos_root_URL,
                          apr_pool_t *pool)
 {
   const char *root_str = "^";
   const char *path_str = "...";
 
-  if (!node)
+  if (!repos_root_url || !repos_relpath || !SVN_IS_VALID_REVNUM(peg_rev))
     /* Printing "(none)" the harder way to ensure conformity (mostly with
      * translations). */
     return apr_psprintf(pool, "(%s)",
@@ -1048,18 +1052,18 @@ svn_cl__node_description(const svn_wc_conflict_version_t *node,
   /* Construct a "caret notation" ^/URL if NODE matches WC_REPOS_ROOT_URL.
    * Otherwise show the complete URL, and if we can't, show dots. */
 
-  if (node->repos_url &&
+  if (repos_root_url &&
       (wc_repos_root_URL == NULL ||
-       strcmp(node->repos_url, wc_repos_root_URL) != 0))
-    root_str = node->repos_url;
+       strcmp(repos_root_url, wc_repos_root_URL) != 0))
+    root_str = repos_root_url;
 
-  if (node->path_in_repos)
-    path_str = node->path_in_repos;
+  if (repos_relpath)
+    path_str = repos_relpath;
 
   return apr_psprintf(pool, "(%s) %s@%ld",
-                      svn_cl__node_kind_str_human_readable(node->node_kind),
+                      svn_cl__node_kind_str_human_readable(node_kind),
                       svn_path_url_add_component2(root_str, path_str, pool),
-                      node->peg_rev);
+                      peg_rev);
 }
 
 svn_error_t *

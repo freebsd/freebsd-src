@@ -37,5 +37,3 @@ only forth definitions
 		s" efi-autoresizecons" evaluate
 	then
 ;
-
-.( EFI boot environment) cr

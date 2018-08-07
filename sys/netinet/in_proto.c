@@ -227,7 +227,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -237,7 +236,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -247,7 +245,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -257,7 +254,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 # ifdef INET6
@@ -268,7 +264,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 #endif

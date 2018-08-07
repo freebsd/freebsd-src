@@ -46,7 +46,15 @@
 The
 .Fn connectat
 system call initiates a connection on a socket.
-It works just like the
+When passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the behavior is identical to a call to
+.Xr connect 2 .
+Otherwise,
+.Fn connectat
+works like the
 .Xr connect 2
 system call with two exceptions:
 .Pp
@@ -60,15 +68,6 @@ If the file path stored in the
 field of the sockaddr_un structure is a relative path, it is located relative
 to the directory associated with the file descriptor
 .Fa fd .
-If
-.Fn connectat
-is passed the special value
-.Dv AT_FDCWD
-in the
-.Fa fd
-parameter, the current working directory is used and the behavior is identical
-to a call to
-.Xr connect 2 .
 .El
 .Sh RETURN VALUES
 .Rv -std connectat
@@ -77,7 +76,7 @@ The
 .Fn connectat
 system call may fail with the same errors as the
 .Xr connect 2
-system call for a UNIX domain socket or with the following errors:
+system call or with the following errors:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The

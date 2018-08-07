@@ -418,7 +418,7 @@ arm_gic_v3_intr(void *arg)
 	pic = sc->gic_pic;
 
 	while (1) {
-		if (CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1) {
+		if (CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1) {
 			/*
 			 * Hardware:		Cavium ThunderX
 			 * Chip revision:	Pass 1.0 (early version)

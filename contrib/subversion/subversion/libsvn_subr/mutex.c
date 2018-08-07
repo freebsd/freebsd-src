@@ -105,3 +105,13 @@ svn_mutex__unlock(svn_mutex__t *mutex,
 
   return err;
 }
+
+#if APR_HAS_THREADS
+
+apr_thread_mutex_t *
+svn_mutex__get(svn_mutex__t *mutex)
+{
+  return mutex->mutex;
+}
+
+#endif

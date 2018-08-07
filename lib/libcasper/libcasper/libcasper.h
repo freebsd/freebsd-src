@@ -71,6 +71,8 @@ typedef struct cap_channel cap_channel_t;
 #endif /* ! WITH_CASPER */
 #endif /* ! _CAP_CHANNEL_T_DECLARED */
 
+__BEGIN_DECLS
+
 #ifdef WITH_CASPER
 int cap_channel_flags(const cap_channel_t *chan);
 #else
@@ -105,7 +107,7 @@ cap_init(void)
 {
 	cap_channel_t *chan;
 
-	chan = malloc(sizeof(*chan));
+	chan = (cap_channel_t *)malloc(sizeof(*chan));
 	if (chan != NULL) {
 		chan->cch_fd = -1;
 	}
@@ -278,5 +280,7 @@ cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl)
 	return (nvlist_create(channel_nvlist_flags(chan)));
 }
 #endif
+
+__END_DECLS
 
 #endif	/* !_LIBCASPER_H_ */

@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #ifndef KDB
@@ -1834,6 +1835,12 @@ getmemsize(int first)
 	basemem = 0;
 
 	/*
+	 * Tell the physical memory allocator about pages used to store
+	 * the kernel and preloaded data.  See kmem_bootstrap_free().
+	 */
+	vm_phys_add_seg((vm_paddr_t)KERNLOAD, trunc_page(first));
+
+	/*
 	 * Check if the loader supplied an SMAP memory map.  If so,
 	 * use that and do not make any VM86 calls.
 	 */
@@ -2253,7 +2260,7 @@ i386_setidt1(void)
 	    GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IDT_PF, &IDTVEC(page), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_MF, &IDTVEC(fpu), SDT_SYS386TGT, SEL_KPL,
+	setidt(IDT_MF, &IDTVEC(fpu), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IDT_AC, &IDTVEC(align), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
@@ -2302,6 +2309,7 @@ init386(int first)
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 	struct xstate_hdr *xhdr;
+	caddr_t kmdp;
 	vm_offset_t addend;
 	int late_console;
 
@@ -2441,6 +2449,9 @@ init386(int first)
 		i386_kdb_init();
 	}
 
+	kmdp = preload_search_by_type("elf kernel");
+	link_elf_ireloc(kmdp);
+
 	vm86_initialize();
 	getmemsize(first);
 	init_param2(physmem);
@@ -2504,15 +2515,12 @@ init386(int first)
 	return ((register_t)thread0.td_pcb);
 }
 
-extern u_int tramp_idleptd;
-
 static void
 machdep_init_trampoline(void)
 {
 	struct region_descriptor r_gdt, r_idt;
 	struct i386tss *tss;
 	char *copyout_buf, *trampoline, *tramp_stack_base;
-	u_int *tramp_idleptd_reloced;
 	int x;
 
 	gdt = pmap_trm_alloc(sizeof(union descriptor) * NGDT * mp_ncpus,
@@ -2528,12 +2536,12 @@ machdep_init_trampoline(void)
 	gdt[GPROC0_SEL].sd.sd_lobase = (int)tss;
 	gdt[GPROC0_SEL].sd.sd_hibase = (u_int)tss >> 24;
 	gdt[GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
-	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 
 	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
 	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	PCPU_SET(common_tssp, tss);
+	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 
 	trampoline = pmap_trm_alloc(end_exceptions - start_exceptions,
 	    M_NOWAIT);
@@ -2549,14 +2557,6 @@ machdep_init_trampoline(void)
 	/* Re-initialize new IDT since the handlers were relocated */
 	setidt_disp = trampoline - start_exceptions;
 	fixup_idt();
-
-	tramp_idleptd_reloced = (u_int *)((uintptr_t)&tramp_idleptd +
-	    setidt_disp);
-#if defined(PAE) || defined(PAE_TABLES)
-	*tramp_idleptd_reloced = (u_int)IdlePDPT;
-#else
-	*tramp_idleptd_reloced = (u_int)IdlePTD;
-#endif
 
 	r_idt.rd_limit = sizeof(struct gate_descriptor) * NIDT - 1;
 	r_idt.rd_base = (int)idt;
@@ -2771,14 +2771,22 @@ ptrace_set_pc(struct thread *td, u_long addr)
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_eflags |= PSL_T;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if ((td->td_frame->tf_eflags & PSL_T) == 0) {
+		td->td_frame->tf_eflags |= PSL_T;
+		td->td_dbgflags |= TDB_STEP;
+	}
 	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	td->td_frame->tf_eflags &= ~PSL_T;
+	td->td_dbgflags &= ~TDB_STEP;
 	return (0);
 }
 
@@ -2866,6 +2874,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	critical_enter();
 	if (cpu_fxsr)
 		npx_set_fpregs_xmm((struct save87 *)fpregs,
 		    &get_pcb_user_save_td(td)->sv_xmm);
@@ -2873,6 +2882,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 		bcopy(fpregs, &get_pcb_user_save_td(td)->sv_87,
 		    sizeof(*fpregs));
 	npxuserinited(td);
+	critical_exit();
 	return (0);
 }
 
@@ -3158,14 +3168,23 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
  * breakpoint was in user space.  Return 0, otherwise.
  */
 int
-user_dbreg_trap(void)
+user_dbreg_trap(register_t dr6)
 {
-        u_int32_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int32_t dr7;
         u_int32_t bp;       /* breakpoint bits extracted from dr6 */
         int nbp;            /* number of breakpoints that triggered */
         caddr_t addr[4];    /* breakpoint addresses */
         int i;
-        
+
+        bp = dr6 & DBREG_DR6_BMASK;
+        if (bp == 0) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
         dr7 = rdr7();
         if ((dr7 & 0x000000ff) == 0) {
                 /*
@@ -3177,16 +3196,6 @@ user_dbreg_trap(void)
         }
 
         nbp = 0;
-        dr6 = rdr6();
-        bp = dr6 & 0x0000000f;
-
-        if (!bp) {
-                /*
-                 * None of the breakpoint bits are set meaning this
-                 * trap was not caused by any of the debug registers
-                 */
-                return 0;
-        }
 
         /*
          * at least one of the breakpoints were hit, check to see

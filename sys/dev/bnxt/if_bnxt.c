@@ -300,10 +300,12 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_nfl = 2,				// Number of Free Lists
 	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
 	.isc_q_align = PAGE_SIZE,
-	.isc_tx_maxsize = BNXT_TSO_SIZE,
-	.isc_tx_maxsegsize = BNXT_TSO_SIZE,
-	.isc_rx_maxsize = BNXT_TSO_SIZE,
-	.isc_rx_maxsegsize = BNXT_TSO_SIZE,
+	.isc_tx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_rx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_rx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
 
 	// Only use a single segment to avoid page size constraints
 	.isc_rx_nsegments = 1,
@@ -784,7 +786,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx->isc_txrx = &bnxt_txrx;
 	scctx->isc_tx_csum_flags = (CSUM_IP | CSUM_TCP | CSUM_UDP |
 	    CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO);
-	scctx->isc_capenable =
+	scctx->isc_capabilities = scctx->isc_capenable =
 	    /* These are translated to hwassit bits */
 	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_TSO4 | IFCAP_TSO6 |
 	    /* These are checked by iflib */

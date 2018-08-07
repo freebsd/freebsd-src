@@ -123,7 +123,7 @@ pmu_intr(void *arg)
 	/* Only call into the HWPMC framework if we know there is work. */
 	if (r != 0 && pmc_intr) {
 		tf = arg;
-		(*pmc_intr)(PCPU_GET(cpuid), tf);
+		(*pmc_intr)(tf);
 	}
 #endif
 

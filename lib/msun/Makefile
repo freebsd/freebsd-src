@@ -57,7 +57,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	k_cos.c k_cosf.c k_exp.c k_expf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
-	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \
+	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_clog.c s_clogf.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
 	s_csqrt.c s_csqrtf.c s_erf.c s_erff.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
@@ -98,10 +98,11 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 COMMON_SRCS+=	catrigl.c \
 	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_coshl.c e_fmodl.c e_hypotl.c \
-	e_lgammal.c e_lgammal_r.c \
+	e_lgammal.c e_lgammal_r.c e_powl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
+	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c \
+	s_clogl.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_fmaxl.c s_fminl.c s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
@@ -114,6 +115,7 @@ COMMON_SRCS+=	catrig.c catrigf.c \
 	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
 	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
+	s_cpow.c s_cpowf.c s_cpowl.c \
 	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c \
 	s_csinh.c s_csinhf.c s_ctanh.c s_ctanhf.c
 
@@ -133,7 +135,8 @@ INCS+=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
-	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
+	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cpow.3 csqrt.3 erf.3 \
+	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
@@ -166,9 +169,11 @@ MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
 	cimag.3 cproj.3 cimag.3 cprojf.3 cimag.3 cprojl.3 \
 	cimag.3 creal.3 cimag.3 crealf.3 cimag.3 creall.3
+MLINKS+=clog.3 clogf.3 clog.3 clogl.3
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3 cosh.3 coshl.3
+MLINKS+=cpow.3 cpowf.3 cpow.3 cpowl.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3 erf.3 erfl.3 erf.3 erfcl.3
 MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \

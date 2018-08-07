@@ -145,6 +145,11 @@ userret(struct thread *td, struct trapframe *frame)
 	 */
 	if (p->p_flag & P_PROFIL)
 		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
+
+#ifdef HWPMC_HOOKS
+	if (PMC_THREAD_HAS_SAMPLES(td))
+		PMC_CALL_HOOK(td, PMC_FN_THR_USERRET, NULL);
+#endif
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
@@ -161,11 +166,16 @@ userret(struct thread *td, struct trapframe *frame)
 	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
 	KASSERT(td->td_critnest == 0,
 	    ("userret: Returning in a critical section"));
+	KASSERT(td->td_epochnest == 0,
+	    ("userret: Returning in an epoch section"));
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held", td->td_locks));
 	KASSERT(td->td_rw_rlocks == 0,
 	    ("userret: Returning with %d rwlocks held in read mode",
 	    td->td_rw_rlocks));
+	KASSERT(td->td_sx_slocks == 0,
+	    ("userret: Returning with %d sx locks held in shared mode",
+	    td->td_sx_slocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
 	KASSERT(td->td_no_sleeping == 0,

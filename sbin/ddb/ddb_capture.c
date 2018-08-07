@@ -83,12 +83,12 @@ kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
 }
 
 static int
-kread_symbol(kvm_t *kvm, int index, void *address, size_t size,
+kread_symbol(kvm_t *kvm, int read_index, void *address, size_t size,
     size_t offset)
 {
 	ssize_t ret;
 
-	ret = kvm_read(kvm, namelist[index].n_value + offset, address, size);
+	ret = kvm_read(kvm, namelist[read_index].n_value + offset, address, size);
 	if (ret < 0 || (size_t)ret != size)
 		return (-1);
 	return (0);

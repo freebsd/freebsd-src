@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -240,8 +240,16 @@ struct mlx5_wqe_eth_seg {
 	u8		swp_flags;
 	__be16		mss;
 	__be32		rsvd2;
-	__be16		inline_hdr_sz;
-	u8		inline_hdr_start[2];
+	union {
+		struct {
+			__be16		inline_hdr_sz;
+			u8		inline_hdr_start[2];
+		};
+		struct {
+			__be16		vlan_cmd;
+			__be16		vlan_hdr;
+		};
+	};
 };
 
 struct mlx5_wqe_xrc_seg {

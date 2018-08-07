@@ -1029,7 +1029,7 @@ __mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v)
 	 * This turnstile is now no longer associated with the mutex.  We can
 	 * unlock the chain lock so a new turnstile may take it's place.
 	 */
-	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+	turnstile_unpend(ts);
 	turnstile_chain_unlock(&m->lock_object);
 }
 

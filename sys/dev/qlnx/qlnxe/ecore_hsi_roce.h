@@ -145,8 +145,8 @@ struct roce_create_qp_req_ramrod_data
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP_SHIFT       3
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_MASK                  0x7
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_SHIFT                 4
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK             0x1
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT            7
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG_MASK             0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG_SHIFT            7
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK        0xF
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT       8
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_MASK          0xF
@@ -172,11 +172,11 @@ struct roce_create_qp_req_ramrod_data
 	__le16 udp_src_port /* Only relevant in RRoCE */;
 	__le32 src_gid[4] /* BE order. In case of RRoCE on IPv4 the high register will hold the address. Low registers must be zero! */;
 	__le32 dst_gid[4] /* BE order. In case of RRoCE on IPv4 the high register will hold the address. Low registers must be zero! */;
+	__le32 cq_cid;
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	u8 stats_counter_id /* Statistics counter ID to use */;
 	u8 reserved3[7];
-	__le32 cq_cid;
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
 };
@@ -187,7 +187,7 @@ struct roce_create_qp_req_ramrod_data
  */
 struct roce_create_qp_resp_ramrod_data
 {
-	__le16 flags;
+	__le32 flags;
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_MASK          0x3 /* Use roce_flavor enum */
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_SHIFT         0
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN_MASK           0x1
@@ -206,6 +206,11 @@ struct roce_create_qp_resp_ramrod_data
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_PRI_SHIFT                 8
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_MASK    0x1F
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT   11
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG_MASK             0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG_SHIFT            16
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_MASK             0x7FFF
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_SHIFT            17
+	__le16 xrc_domain /* SRC domain. Only applicable when xrc_flag is set */;
 	u8 max_ird;
 	u8 traffic_class /* In case of RRoCE on IPv4 will be used as TOS */;
 	u8 hop_limit /* In case of RRoCE on IPv4 will be used as TTL */;
@@ -231,10 +236,29 @@ struct roce_create_qp_resp_ramrod_data
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	__le16 low_latency_phy_queue;
-	u8 reserved2[6];
+	u8 reserved2[2];
 	__le32 cq_cid;
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
+};
+
+
+/*
+ * roce DCQCN received statistics
+ */
+struct roce_dcqcn_received_stats
+{
+	struct regpair ecn_pkt_rcv /* The number of total packets with ECN indication received */;
+	struct regpair cnp_pkt_rcv /* The number of total RoCE packets with CNP opcode received */;
+};
+
+
+/*
+ * roce DCQCN sent statistics
+ */
+struct roce_dcqcn_sent_stats
+{
+	struct regpair cnp_pkt_sent /* The number of total RoCE packets with CNP opcode sent */;
 };
 
 
@@ -277,7 +301,7 @@ struct roce_destroy_qp_resp_ramrod_data
 
 
 /*
- * roce func init ramrod data
+ * roce special events statistics
  */
 struct roce_events_stats
 {
@@ -355,8 +379,10 @@ struct roce_modify_qp_req_ramrod_data
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_SHIFT             9
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_MASK                  0x7
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_SHIFT                 10
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_MASK            0x7
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_SHIFT           13
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUES_FLG_MASK  0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUES_FLG_SHIFT 13
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_MASK            0x3
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_SHIFT           14
 	u8 fields;
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK        0xF
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT       0
@@ -370,7 +396,9 @@ struct roce_modify_qp_req_ramrod_data
 	__le32 ack_timeout_val;
 	__le16 mtu;
 	__le16 reserved2;
-	__le32 reserved3[3];
+	__le32 reserved3[2];
+	__le16 low_latency_phy_queue;
+	__le16 regular_latency_phy_queue;
 	__le32 src_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 	__le32 dst_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 };
@@ -402,8 +430,10 @@ struct roce_modify_qp_resp_ramrod_data
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_SHIFT 8
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_MASK        0x1
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT       9
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_MASK              0x3F
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_SHIFT             10
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUES_FLG_MASK    0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUES_FLG_SHIFT   10
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_MASK              0x1F
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_SHIFT             11
 	u8 fields;
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_MASK                    0x7
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_SHIFT                   0
@@ -415,7 +445,9 @@ struct roce_modify_qp_resp_ramrod_data
 	__le16 p_key;
 	__le32 flow_label;
 	__le16 mtu;
-	__le16 reserved2;
+	__le16 low_latency_phy_queue;
+	__le16 regular_latency_phy_queue;
+	u8 reserved2[6];
 	__le32 src_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 	__le32 dst_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 };
@@ -665,7 +697,7 @@ struct e4_tstorm_roce_req_conn_ag_ctx
 	u8 byte4 /* byte4 */;
 	u8 byte5 /* byte5 */;
 	__le16 snd_sq_cons /* word1 */;
-	__le16 word2 /* conn_dpi */;
+	__le16 conn_dpi /* conn_dpi */;
 	__le16 word3 /* word3 */;
 	__le32 reg9 /* reg9 */;
 	__le32 reg10 /* reg10 */;
@@ -1314,10 +1346,10 @@ struct e4_xstorm_roce_resp_conn_ag_ctx
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_MASK           0x1 /* rule9en */
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_SHIFT          7
 	u8 flags12;
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE10EN_MASK          0x1 /* rule10en */
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE10EN_SHIFT         0
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_MASK  0x1 /* rule11en */
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_SHIFT 1
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_MASK  0x1 /* rule10en */
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_SHIFT 0
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE11EN_MASK          0x1 /* rule11en */
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_RULE11EN_SHIFT         1
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_MASK      0x1 /* rule12en */
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_SHIFT     2
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED3_MASK      0x1 /* rule13en */
@@ -1364,12 +1396,12 @@ struct e4_xstorm_roce_resp_conn_ag_ctx
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_CF23_SHIFT             6
 	u8 byte2 /* byte2 */;
 	__le16 physical_q0 /* physical_q0 */;
-	__le16 word1 /* physical_q1 */;
-	__le16 irq_prod /* physical_q2 */;
-	__le16 word3 /* word3 */;
-	__le16 word4 /* word4 */;
+	__le16 irq_prod_shadow /* physical_q1 */;
+	__le16 word2 /* physical_q2 */;
+	__le16 irq_cons /* word3 */;
+	__le16 irq_prod /* word4 */;
 	__le16 e5_reserved1 /* word5 */;
-	__le16 irq_cons /* conn_dpi */;
+	__le16 conn_dpi /* conn_dpi */;
 	u8 rxmit_opcode /* byte3 */;
 	u8 byte4 /* byte4 */;
 	u8 byte5 /* byte5 */;
@@ -1948,100 +1980,100 @@ struct e5_tstorm_roce_resp_conn_ag_ctx
 	u8 byte0 /* cdu_validation */;
 	u8 state_and_core_id /* state_and_core_id */;
 	u8 flags0;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK        0x1 /* exist_in_qm0 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT       0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK                0x1 /* exist_in_qm1 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT               1
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_MASK                0x1 /* bit2 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_SHIFT               2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_MASK                0x1 /* bit3 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_SHIFT               3
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_MASK        0x1 /* bit4 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_SHIFT       4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_MASK                0x1 /* bit5 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_SHIFT               5
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK                 0x3 /* timer0cf */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT                6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK               0x1 /* exist_in_qm0 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT              0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_MASK  0x1 /* exist_in_qm1 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_SHIFT 1
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_MASK                       0x1 /* bit2 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_SHIFT                      2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_MASK                       0x1 /* bit3 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_SHIFT                      3
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_MASK               0x1 /* bit4 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_SHIFT              4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_MASK                       0x1 /* bit5 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_SHIFT                      5
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK                        0x3 /* timer0cf */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT                       6
 	u8 flags1;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK         0x3 /* timer1cf */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT        0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_MASK         0x3 /* timer2cf */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_SHIFT        2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK                 0x3 /* timer_stop_all */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT                4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK         0x3 /* cf4 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT        6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK                0x3 /* timer1cf */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT               0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_MASK                0x3 /* timer2cf */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_SHIFT               2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK                        0x3 /* timer_stop_all */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT                       4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK                0x3 /* cf4 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT               6
 	u8 flags2;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK     0x3 /* cf5 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT    0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK                 0x3 /* cf6 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT                2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_MASK                 0x3 /* cf7 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_SHIFT                4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK                 0x3 /* cf8 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT                6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK            0x3 /* cf5 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT           0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK                        0x3 /* cf6 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT                       2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_MASK                        0x3 /* cf7 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_SHIFT                       4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK                        0x3 /* cf8 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT                       6
 	u8 flags3;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK                 0x3 /* cf9 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT                0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK                0x3 /* cf10 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT               2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK               0x1 /* cf0en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT              4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK      0x1 /* cf1en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT     5
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_MASK      0x1 /* cf2en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_SHIFT     6
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK               0x1 /* cf3en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT              7
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK                        0x3 /* cf9 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT                       0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK                       0x3 /* cf10 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT                      2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK                      0x1 /* cf0en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT                     4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK             0x1 /* cf1en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT            5
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_MASK             0x1 /* cf2en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_SHIFT            6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK                      0x1 /* cf3en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT                     7
 	u8 flags4;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK      0x1 /* cf4en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT     0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK  0x1 /* cf5en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT 1
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK               0x1 /* cf6en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT              2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_MASK               0x1 /* cf7en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_SHIFT              3
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK               0x1 /* cf8en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT              4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK               0x1 /* cf9en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT              5
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK              0x1 /* cf10en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT             6
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK             0x1 /* rule0en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT            7
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK             0x1 /* cf4en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT            0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK         0x1 /* cf5en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT        1
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK                      0x1 /* cf6en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT                     2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_MASK                      0x1 /* cf7en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_SHIFT                     3
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK                      0x1 /* cf8en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT                     4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK                      0x1 /* cf9en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT                     5
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK                     0x1 /* cf10en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT                    6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK                    0x1 /* rule0en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT                   7
 	u8 flags5;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK             0x1 /* rule1en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT            0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK             0x1 /* rule2en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT            1
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK             0x1 /* rule3en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT            2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK             0x1 /* rule4en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT            3
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK             0x1 /* rule5en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT            4
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_MASK          0x1 /* rule6en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_SHIFT         5
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK             0x1 /* rule7en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT            6
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK             0x1 /* rule8en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT            7
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK                    0x1 /* rule1en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT                   0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK                    0x1 /* rule2en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT                   1
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK                    0x1 /* rule3en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT                   2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK                    0x1 /* rule4en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT                   3
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK                    0x1 /* rule5en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT                   4
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_MASK                 0x1 /* rule6en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_SHIFT                5
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK                    0x1 /* rule7en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT                   6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK                    0x1 /* rule8en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT                   7
 	u8 flags6;
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED1_MASK        0x1 /* bit6 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED1_SHIFT       0
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED2_MASK        0x1 /* bit7 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED2_SHIFT       1
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED3_MASK        0x1 /* bit8 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED3_SHIFT       2
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED4_MASK        0x3 /* cf11 */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED4_SHIFT       3
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED5_MASK        0x1 /* cf11en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED5_SHIFT       5
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED6_MASK        0x1 /* rule9en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED6_SHIFT       6
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED7_MASK        0x1 /* rule10en */
-#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED7_SHIFT       7
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED1_MASK               0x1 /* bit6 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED1_SHIFT              0
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED2_MASK               0x1 /* bit7 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED2_SHIFT              1
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED3_MASK               0x1 /* bit8 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED3_SHIFT              2
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED4_MASK               0x3 /* cf11 */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED4_SHIFT              3
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED5_MASK               0x1 /* cf11en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED5_SHIFT              5
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED6_MASK               0x1 /* rule9en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED6_SHIFT              6
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED7_MASK               0x1 /* rule10en */
+#define E5_TSTORM_ROCE_RESP_CONN_AG_CTX_E4_RESERVED7_SHIFT              7
 	u8 tx_async_error_type /* byte2 */;
 	__le16 rq_cons /* word0 */;
 	__le32 psn_and_rxmit_id_echo /* reg0 */;

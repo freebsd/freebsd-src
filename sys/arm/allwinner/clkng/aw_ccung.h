@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,2018 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,15 +30,34 @@
 #ifndef __CCU_NG_H__
 #define __CCU_NG_H__
 
-enum aw_ccung_type {
-	H3_CCU = 1,
-	H3_R_CCU,
-	A31_CCU,
-	A64_CCU,
-	A64_R_CCU,
-	A13_CCU,
-	A83T_CCU,
-	A83T_R_CCU,
+#include <arm/allwinner/clkng/aw_clk.h>
+#include <arm/allwinner/clkng/aw_clk_nkmp.h>
+#include <arm/allwinner/clkng/aw_clk_nm.h>
+#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
+#include <dev/extres/clk/clk_mux.h>
+#include <dev/extres/clk/clk_div.h>
+#include <dev/extres/clk/clk_fixed.h>
+
+enum aw_ccung_clk_type {
+	AW_CLK_UNDEFINED = 0,
+	AW_CLK_MUX,
+	AW_CLK_DIV,
+	AW_CLK_FIXED,
+	AW_CLK_NKMP,
+	AW_CLK_NM,
+	AW_CLK_PREDIV_MUX,
+};
+
+struct aw_ccung_clk {
+	enum aw_ccung_clk_type	type;
+	union {
+		struct clk_mux_def		*mux;
+		struct clk_div_def		*div;
+		struct clk_fixed_def		*fixed;
+		struct aw_clk_nkmp_def		*nkmp;
+		struct aw_clk_nm_def		*nm;
+		struct aw_clk_prediv_mux_def	*prediv_mux;
+	} clk;
 };
 
 struct aw_ccung_softc {
@@ -45,11 +65,12 @@ struct aw_ccung_softc {
 	struct resource		*res;
 	struct clkdom		*clkdom;
 	struct mtx		mtx;
-	int			type;
 	struct aw_ccung_reset	*resets;
 	int			nresets;
 	struct aw_ccung_gate	*gates;
 	int			ngates;
+	struct aw_ccung_clk	*clks;
+	int			nclks;
 	struct aw_clk_init	*clk_init;
 	int			n_clk_init;
 };
@@ -66,5 +87,9 @@ struct aw_ccung_gate {
 	uint32_t	offset;
 	uint32_t	shift;
 };
+
+DECLARE_CLASS(aw_ccung_driver);
+
+int aw_ccung_attach(device_t dev);
 
 #endif /* __CCU_NG_H__ */

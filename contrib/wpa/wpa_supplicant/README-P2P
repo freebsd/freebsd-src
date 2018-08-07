@@ -151,6 +151,7 @@ join-a-group style PD instead of GO Negotiation style PD.
 p2p_connect <peer device address> <pbc|pin|PIN#|p2ps> [display|keypad|p2ps]
 	[persistent|persistent=<network id>] [join|auth]
 	[go_intent=<0..15>] [freq=<in MHz>] [ht40] [vht] [provdisc] [auto]
+	[ssid=<hexdump>]
 
 Start P2P group formation with a discovered P2P peer. This includes
 optional group owner negotiation, group interface setup, provisioning,
@@ -195,11 +196,17 @@ connection.
 out whether the peer device is operating as a GO and if so, use
 join-a-group operation rather than GO Negotiation.
 
+"ssid=<hexdump>" can be used to specify the Group SSID for join
+operations. This allows the P2P Client interface to filter scan results
+based on SSID to avoid selecting an incorrect BSS entry in case the same
+P2P Device or Interface address have been used in multiple groups
+recently.
+
 P2PS attribute changes to p2p_connect command:
 
 P2PS supports two WPS provisioning methods namely PIN method and P2PS default.
-The remaining paramters hold same role as in legacy P2P. In case of P2PS default
-config method "p2ps" keyword is added in p2p_connect command.
+The remaining parameters hold same role as in legacy P2P. In case of P2PS
+default config method "p2ps" keyword is added in p2p_connect command.
 
 For example:
 p2p_connect 02:0a:f5:85:11:00 12345670 p2ps persistent join
@@ -281,7 +288,7 @@ group interface is used as a parameter for this command.
 p2p_cancel
 
 Cancel an ongoing P2P group formation and joining-a-group related
-operation. This operations unauthorizes the specific peer device (if any
+operation. This operation unauthorizes the specific peer device (if any
 had been authorized to start group formation), stops P2P find (if in
 progress), stops pending operations for join-a-group, and removes the
 P2P group interface (if one was used) that is in the WPS provisioning
@@ -633,11 +640,16 @@ p2p_set managed <0/1>
 Disable/enable managed P2P Device operations. This is disabled by
 default.
 
-p2p_set listen_channel <1/6/11>
+p2p_set listen_channel <channel> [<op_class>]
 
 Set P2P Listen channel. This is mainly meant for testing purposes and
 changing the Listen channel during normal operations can result in
 protocol failures.
+
+When specifying a social channel on the 2.4 GHz band (1/6/11) there is
+no need to specify the operating class since it defaults to 81.  When
+specifying a social channel on the 60 GHz band (2), specify the 60 GHz
+operating class (180).
 
 p2p_set ssid_postfix <postfix>
 
@@ -650,7 +662,7 @@ p2p_set per_sta_psk <0/1>
 Disabled(default)/enables use of per-client PSK in the P2P groups. This
 can be used to request GO to assign a unique PSK for each client during
 WPS provisioning. When enabled, this allow clients to be removed from
-the group securily with p2p_remove_client command since that client's
+the group securely with p2p_remove_client command since that client's
 PSK is removed at the same time to prevent it from connecting back using
 the old PSK. When per-client PSK is not used, the client can still be
 disconnected, but it will be able to re-join the group since the PSK it

@@ -644,11 +644,16 @@ extern LZMA_API(uint64_t) lzma_memlimit_get(const lzma_stream *strm)
  * This function is supported only when *strm has been initialized with
  * a function that takes a memlimit argument.
  *
+ * liblzma 5.2.3 and earlier has a bug where memlimit value of 0 causes
+ * this function to do nothing (leaving the limit unchanged) and still
+ * return LZMA_OK. Later versions treat 0 as if 1 had been specified (so
+ * lzma_memlimit_get() will return 1 even if you specify 0 here).
+ *
  * \return      - LZMA_OK: New memory usage limit successfully set.
  *              - LZMA_MEMLIMIT_ERROR: The new limit is too small.
  *                The limit was not changed.
  *              - LZMA_PROG_ERROR: Invalid arguments, e.g. *strm doesn't
- *                support memory usage limit or memlimit was zero.
+ *                support memory usage limit.
  */
 extern LZMA_API(lzma_ret) lzma_memlimit_set(
 		lzma_stream *strm, uint64_t memlimit) lzma_nothrow;

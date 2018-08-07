@@ -242,6 +242,8 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     ssize_t n;
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
+    u_int extra_res, alignment, saved_x, attempts=0;
+    bool set_res, set_spf, set_spc;
     int fd, fd1, rv;
     struct msdos_options o = *op;
 
@@ -486,50 +488,83 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	if (bpb.bpbBackup != MAXU16 && x <= bpb.bpbBackup)
 	    x = bpb.bpbBackup + 1;
     }
-    if (!bpb.bpbResSectors)
-	bpb.bpbResSectors = fat == 32 ?
-	    MAX(x, MAX(16384 / bpb.bpbBytesPerSec, 4)) : x;
-    else if (bpb.bpbResSectors < x) {
-	warnx("too few reserved sectors (need %d have %d)", x,
-	     bpb.bpbResSectors);
-	goto done;
-    }
-    if (fat != 32 && !bpb.bpbRootDirEnts)
-	bpb.bpbRootDirEnts = DEFRDE;
-    rds = howmany(bpb.bpbRootDirEnts, bpb.bpbBytesPerSec / sizeof(struct de));
-    if (!bpb.bpbSecPerClust)
-	for (bpb.bpbSecPerClust = howmany(fat == 16 ? DEFBLK16 :
-					  DEFBLK, bpb.bpbBytesPerSec);
-	     bpb.bpbSecPerClust < MAXSPC &&
-	     bpb.bpbResSectors +
-	     howmany((RESFTE + maxcls(fat)) * (fat / BPN),
-		     bpb.bpbBytesPerSec * NPB) *
-	     bpb.bpbFATs +
-	     rds +
-	     (u_int64_t) (maxcls(fat) + 1) *
-	     bpb.bpbSecPerClust <= bpb.bpbHugeSectors;
-	     bpb.bpbSecPerClust <<= 1)
-	    continue;
-    if (fat != 32 && bpb.bpbBigFATsecs > MAXU16) {
-	warnx("too many sectors/FAT for FAT12/16");
-	goto done;
-    }
-    x1 = bpb.bpbResSectors + rds;
-    x = bpb.bpbBigFATsecs ? bpb.bpbBigFATsecs : 1;
-    if (x1 + (u_int64_t)x * bpb.bpbFATs > bpb.bpbHugeSectors) {
-	warnx("meta data exceeds file system size");
-	goto done;
-    }
-    x1 += x * bpb.bpbFATs;
-    x = (u_int64_t)(bpb.bpbHugeSectors - x1) * bpb.bpbBytesPerSec * NPB /
-	(bpb.bpbSecPerClust * bpb.bpbBytesPerSec * NPB + fat /
-	 BPN * bpb.bpbFATs);
-    x2 = howmany((RESFTE + MIN(x, maxcls(fat))) * (fat / BPN),
-		 bpb.bpbBytesPerSec * NPB);
-    if (!bpb.bpbBigFATsecs) {
-	bpb.bpbBigFATsecs = x2;
-	x1 += (bpb.bpbBigFATsecs - 1) * bpb.bpbFATs;
-    }
+
+    extra_res = 0;
+    alignment = 0;
+    set_res = (bpb.bpbResSectors == 0);
+    set_spf = (bpb.bpbBigFATsecs == 0);
+    set_spc = (bpb.bpbSecPerClust == 0);
+    saved_x = x;
+
+    /*
+     * Attempt to align the root directory to cluster if o.align is set.
+     * This is done by padding with reserved blocks. Note that this can
+     * cause other factors to change, which can in turn change the alignment.
+     * This should take at most 2 iterations, as increasing the reserved
+     * amount may cause the FAT size to decrease by 1, requiring another
+     * bpbFATs reserved blocks. If bpbSecPerClust changes, it will
+     * be half of its previous size, and thus will not throw off alignment.
+     */
+    do {
+	x = saved_x;
+	if (set_res)
+	    bpb.bpbResSectors = ((fat == 32) ?
+		MAX(x, MAX(16384 / bpb.bpbBytesPerSec, 4)) : x) + extra_res;
+	else if (bpb.bpbResSectors < x) {
+	    warnx("too few reserved sectors (need %d have %d)", x,
+		bpb.bpbResSectors);
+	    goto done;
+	}
+	if (fat != 32 && !bpb.bpbRootDirEnts)
+	    bpb.bpbRootDirEnts = DEFRDE;
+	rds = howmany(bpb.bpbRootDirEnts,
+	    bpb.bpbBytesPerSec / sizeof(struct de));
+	if (set_spc) {
+	    for (bpb.bpbSecPerClust = howmany(fat == 16 ? DEFBLK16 :
+		    DEFBLK, bpb.bpbBytesPerSec);
+		bpb.bpbSecPerClust < MAXSPC && (bpb.bpbResSectors +
+		    howmany((RESFTE + maxcls(fat)) * (fat / BPN),
+			bpb.bpbBytesPerSec * NPB) * bpb.bpbFATs +
+		    rds +
+		    (u_int64_t) (maxcls(fat) + 1) * bpb.bpbSecPerClust) <=
+		    bpb.bpbHugeSectors;
+		bpb.bpbSecPerClust <<= 1)
+		    continue;
+
+	}
+	if (fat != 32 && bpb.bpbBigFATsecs > MAXU16) {
+	    warnx("too many sectors/FAT for FAT12/16");
+	    goto done;
+	}
+	x1 = bpb.bpbResSectors + rds;
+	x = bpb.bpbBigFATsecs ? bpb.bpbBigFATsecs : 1;
+	if (x1 + (u_int64_t)x * bpb.bpbFATs > bpb.bpbHugeSectors) {
+	    warnx("meta data exceeds file system size");
+	    goto done;
+	}
+	x1 += x * bpb.bpbFATs;
+	x = (u_int64_t)(bpb.bpbHugeSectors - x1) * bpb.bpbBytesPerSec * NPB /
+	    (bpb.bpbSecPerClust * bpb.bpbBytesPerSec * NPB +
+	    fat / BPN * bpb.bpbFATs);
+	x2 = howmany((RESFTE + MIN(x, maxcls(fat))) * (fat / BPN),
+	    bpb.bpbBytesPerSec * NPB);
+	if (set_spf) {
+	    if (bpb.bpbBigFATsecs == 0)
+		bpb.bpbBigFATsecs = x2;
+	    x1 += (bpb.bpbBigFATsecs - 1) * bpb.bpbFATs;
+	}
+	if (set_res) {
+	    /* attempt to align root directory */
+	    alignment = (bpb.bpbResSectors + bpb.bpbBigFATsecs * bpb.bpbFATs) %
+		bpb.bpbSecPerClust;
+	    if (o.align)
+		extra_res += bpb.bpbSecPerClust - alignment;
+	}
+	attempts++;
+    } while (o.align && alignment != 0 && attempts < 2);
+    if (o.align && alignment != 0)
+	warnx("warning: Alignment failed.");
+
     cls = (bpb.bpbHugeSectors - x1) / bpb.bpbSecPerClust;
     x = (u_int64_t)bpb.bpbBigFATsecs * bpb.bpbBytesPerSec * NPB / (fat / BPN) -
 	RESFTE;

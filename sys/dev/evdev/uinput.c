@@ -604,6 +604,15 @@ uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 		evdev_set_phys(state->ucs_evdev, buf);
 		return (0);
 
+	case UI_SET_BSDUNIQ:
+		if (state->ucs_state == UINPUT_RUNNING)
+			return (EINVAL);
+		ret = copyinstr(*(void **)data, buf, sizeof(buf), NULL);
+		if (ret != 0)
+			return (ret);
+		evdev_set_serial(state->ucs_evdev, buf);
+		return (0);
+
 	case UI_SET_SWBIT:
 		if (state->ucs_state == UINPUT_RUNNING ||
 		    intdata > SW_MAX || intdata < 0)

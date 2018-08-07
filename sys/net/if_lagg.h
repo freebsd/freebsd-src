@@ -42,9 +42,8 @@
 #define	LAGG_PORT_ACTIVE	0x00000004	/* port is active */
 #define	LAGG_PORT_COLLECTING	0x00000008	/* port is receiving frames */
 #define	LAGG_PORT_DISTRIBUTING	0x00000010	/* port is sending frames */
-#define	LAGG_PORT_DISABLED	0x00000020	/* port is disabled */
 #define	LAGG_PORT_BITS		"\20\01MASTER\02STACK\03ACTIVE\04COLLECTING" \
-				  "\05DISTRIBUTING\06DISABLED"
+				  "\05DISTRIBUTING"
 
 /* Supported lagg PROTOs */
 typedef enum {
@@ -218,7 +217,7 @@ struct lagg_softc {
 	uint32_t			sc_flags;
 	int				sc_destroying;	/* destroying lagg */
 
-	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
+	CK_SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
 	eventhandler_tag vlan_attach;
@@ -252,28 +251,9 @@ struct lagg_port {
 		     const struct sockaddr *, struct route *);
 	struct lagg_counters		port_counters;	/* ifp counters copy */
 
-	SLIST_ENTRY(lagg_port)		lp_entries;
+	CK_SLIST_ENTRY(lagg_port)		lp_entries;
+	struct epoch_context	lp_epoch_ctx;
 };
-
-#define	LAGG_LOCK_INIT(_sc)	rm_init(&(_sc)->sc_mtx, "if_lagg rmlock")
-#define	LAGG_LOCK_DESTROY(_sc)	rm_destroy(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK(_sc, _p)	rm_rlock(&(_sc)->sc_mtx, (_p))
-#define	LAGG_WLOCK(_sc)		rm_wlock(&(_sc)->sc_mtx)
-#define	LAGG_RUNLOCK(_sc, _p)	rm_runlock(&(_sc)->sc_mtx, (_p))
-#define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
-#define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
-#define	LAGG_UNLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_UNLOCKED)
-
-#define	LAGG_SX_INIT(_sc)	sx_init(&(_sc)->sc_sx, "if_lagg sx")
-#define	LAGG_SX_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx)
-#define	LAGG_SLOCK(_sc)		sx_slock(&(_sc)->sc_sx)
-#define	LAGG_XLOCK(_sc)		sx_xlock(&(_sc)->sc_sx)
-#define	LAGG_SUNLOCK(_sc)	sx_sunlock(&(_sc)->sc_sx)
-#define	LAGG_XUNLOCK(_sc)	sx_xunlock(&(_sc)->sc_sx)
-#define	LAGG_SXLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED)
-#define	LAGG_SLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_SLOCKED)
-#define	LAGG_XLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_XLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2018
+.Dd June 18, 2018
 .Dt CNV 9
 .Os
 .Sh NAME
@@ -38,80 +38,80 @@
 .Sh SYNOPSIS
 .In sys/cnv.h
 .Ft const char *
-.Fn cnvlist_name "void *cookiep"
+.Fn cnvlist_name "const void *cookie"
 .Ft int
-.Fn cnvlist_type "void *cookiep"
+.Fn cnvlist_type "const void *cookie"
 .\"
 .Ft bool
-.Fn cnvlist_get_bool "void *cookiep"
+.Fn cnvlist_get_bool "const void *cookie"
 .Ft uint64_t
-.Fn cnvlist_get_number "void *cookiep"
+.Fn cnvlist_get_number "const void *cookie"
 .Ft "const char *"
-.Fn cnvlist_get_string "void *cookiep"
+.Fn cnvlist_get_string "const void *cookie"
 .Ft "const nvlist_t *"
-.Fn cnvlist_get_nvlist "void *cookiep"
+.Fn cnvlist_get_nvlist "const void *cookie"
 .Ft "const void *"
-.Fn cnvlist_get_binary "void *cookiep" "size_t *sizep"
+.Fn cnvlist_get_binary "const void *cookie" "size_t *sizep"
 .Ft "const bool *"
-.Fn cnvlist_get_bool_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_get_bool_array "const void *cookie" "size_t *nitemsp"
 .Ft "const uint64_t *"
-.Fn cnvlist_get_number_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_get_number_array "const void *cookie" "size_t *nitemsp"
 .Ft "const char * const *"
-.Fn cnvlist_get_string_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_get_string_array "const void *cookie" "size_t *nitemsp"
 .Ft "const nvlist_t * const *"
-.Fn cnvlist_get_nvlist_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_get_nvlist_array "const void *cookie" "size_t *nitemsp"
 .Ft int
-.Fn cnvlist_get_descriptor "void *cookiep"
+.Fn cnvlist_get_descriptor "const void *cookie"
 .Ft "const int *"
-.Fn cnvlist_get_descriptor_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_get_descriptor_array "const void *cookie" "size_t *nitemsp"
 .\"
 .Ft bool
-.Fn cnvlist_take_bool "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_take_bool "void *cookie"
 .Ft uint64_t
-.Fn cnvlist_take_number "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_take_number "void *cookie"
 .Ft "const char *"
-.Fn cnvlist_take_string "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_take_string "void *cookie"
 .Ft "const nvlist_t *"
-.Fn cnvlist_take_nvlist "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_take_nvlist "void *cookie"
 .Ft "const void *"
-.Fn cnvlist_take_binary "nvlist_t *nvl" "void *cookiep" "size_t *sizep"
+.Fn cnvlist_take_binary "void *cookie" "size_t *sizep"
 .Ft "const bool *"
-.Fn cnvlist_take_bool_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_bool_array "void *cookie" "size_t *nitemsp"
 .Ft "const uint64_t *"
-.Fn cnvlist_take_number_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_number_array "void *cookie" "size_t *nitemsp"
 .Ft "const char * const *"
-.Fn cnvlist_take_string_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_string_array "void *cookie" "size_t *nitemsp"
 .Ft "const nvlist_t * const *"
-.Fn cnvlist_take_nvlist_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_nvlist_array "void *cookie" "size_t *nitemsp"
 .Ft int
-.Fn cnvlist_take_descriptor "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_take_descriptor "void *cookie"
 .Ft "const int *"
-.Fn cnvlist_take_descriptor_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_descriptor_array "void *cookie" "size_t *nitemsp"
 .\"
 .Ft void
-.Fn cnvlist_free_null "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_null "void *cookie"
 .Ft void
-.Fn cnvlist_free_bool "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_bool "void *cookie"
 .Ft void
-.Fn cnvlist_free_number "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_number "void *cookie"
 .Ft void
-.Fn cnvlist_free_string "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_string "void *cookie"
 .Ft void
-.Fn cnvlist_free_nvlist "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_nvlist "void *cookie"
 .Ft void
-.Fn cnvlist_free_descriptor "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_descriptor "void *cookie"
 .Ft void
-.Fn cnvlist_free_binary "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_binary "void *cookie"
 .Ft void
-.Fn cnvlist_free_bool_array "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_bool_array "void *cookie"
 .Ft void
-.Fn cnvlist_free_number_array "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_number_array "void *cookie"
 .Ft void
-.Fn cnvlist_free_string_array "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_string_array "void *cookie"
 .Ft void
-.Fn cnvlist_free_nvlist_array "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_nvlist_array "void *cookie"
 .Ft void
-.Fn cnvlist_free_descriptor_array "nvlist_t *nvl" "void *cookiep"
+.Fn cnvlist_free_descriptor_array "void *cookie"
 .Sh DESCRIPTION
 The
 .Nm libnv
@@ -192,8 +192,8 @@ while (nvlist_next(nvl, &type, &cookie) != NULL) {
         }
 }
 
-name = cnvlist_take_string(nvl, scookie);
-cnvlist_free_bool(nvl, bcookie);
+name = cnvlist_take_string(scookie);
+cnvlist_free_bool(bcookie);
 
 printf("test2: %s\\n", name);
 free(name);

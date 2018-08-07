@@ -70,22 +70,6 @@ DIRDEPS+= \
 	sbin/fsdb \
 	sbin/fsirand \
 	sbin/gbde \
-	sbin/geom/class/cache \
-	sbin/geom/class/concat \
-	sbin/geom/class/eli \
-	sbin/geom/class/journal \
-	sbin/geom/class/label \
-	sbin/geom/class/mirror \
-	sbin/geom/class/mountver \
-	sbin/geom/class/multipath \
-	sbin/geom/class/nop \
-	sbin/geom/class/part \
-	sbin/geom/class/raid \
-	sbin/geom/class/raid3 \
-	sbin/geom/class/sched \
-	sbin/geom/class/shsec \
-	sbin/geom/class/stripe \
-	sbin/geom/class/virstor \
 	sbin/geom/core \
 	sbin/ggate/ggatec \
 	sbin/ggate/ggated \
@@ -810,7 +794,6 @@ DIRDEPS.amd64= \
 	usr.sbin/acpi/acpidump \
 	usr.sbin/acpi/iasl \
 	usr.sbin/apm \
-	usr.sbin/asf \
 	usr.sbin/bhyve \
 	usr.sbin/bhyvectl \
 	usr.sbin/bhyveload \
@@ -842,7 +825,6 @@ DIRDEPS.i386= \
 	sbin/sconfig \
 	usr.sbin/apm \
 	usr.sbin/apmd \
-	usr.sbin/asf \
 	usr.sbin/btxld \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \

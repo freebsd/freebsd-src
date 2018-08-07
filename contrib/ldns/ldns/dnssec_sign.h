@@ -13,6 +13,7 @@ extern "C" {
 
 /** Sign flag that makes DNSKEY type signed by all keys, not only by SEP keys*/
 #define LDNS_SIGN_DNSKEY_WITH_ZSK 1
+#define LDNS_SIGN_WITH_ALL_ALGORITHMS 2 
 
 /**
  * Create an empty RRSIG RR (i.e. without the actual signature data)
@@ -21,8 +22,8 @@ extern "C" {
  * \return signature rr
  */
 ldns_rr *
-ldns_create_empty_rrsig(ldns_rr_list *rrset,
-                        ldns_key *key);
+ldns_create_empty_rrsig(const ldns_rr_list *rrset,
+                        const ldns_key *key);
 
 /**
  * Sign the buffer which contains the wiredata of an rrset, and the

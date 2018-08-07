@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2014
+.Dd June 8, 2018
 .Dt SOCKET 9
 .Os
 .Sh NAME
@@ -54,6 +54,11 @@
 .Fc
 .Ft int
 .Fn sodisconnect "struct socket *so"
+.Ft void
+.Fo sodtor_set
+.Fa "struct socket *so" 
+.Fa "void (*func)(struct socket *)"
+.Fc
 .Ft struct  sockaddr *
 .Fn sodupsockaddr "const struct sockaddr *sa" "int mflags"
 .Ft void
@@ -369,6 +374,13 @@ be cleared, with
 .Dv SO_RCV
 or
 .Dv SO_SND .
+.Ss Socket Destructor Callback
+A kernel system can use the
+.Fn sodtor_set
+function to set a destructor for a socket.
+The destructor is called when the socket is closed.
+The destructor is called after the protocol close routine has completed.
+The destructor can serve as a callback to initiate additional cleanup actions.
 .Ss Socket I/O
 The
 .Fn soreceive

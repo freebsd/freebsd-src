@@ -490,7 +490,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct filedescent *fde;
 	struct proc *p;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int error, flg, tmp;
 	uint64_t bsize;
 	off_t foffset;
@@ -548,8 +547,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFL:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETFL, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_GETFL, &fp);
 		if (error != 0)
 			break;
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -557,8 +555,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETFL, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_SETFL, &fp);
 		if (error != 0)
 			break;
 		do {
@@ -585,8 +582,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETOWN, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_GETOWN, &fp);
 		if (error != 0)
 			break;
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
@@ -596,8 +592,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETOWN, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_SETOWN, &fp);
 		if (error != 0)
 			break;
 		tmp = arg;
@@ -618,8 +613,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK:
 	do_setlk:
-		cap_rights_init(&rights, CAP_FLOCK);
-		error = fget_unlocked(fdp, fd, &rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -648,9 +642,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -659,9 +655,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -707,7 +705,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, &rights, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp2, NULL);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -725,8 +723,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETLK:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FLOCK), &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -763,8 +760,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights), &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1152,8 +1148,7 @@ fail:
  * This is common code for FIOGETOWN ioctl called by fcntl(fd, F_GETOWN, arg).
  */
 pid_t
-fgetown(sigiop)
-	struct sigio **sigiop;
+fgetown(struct sigio **sigiop)
 {
 	pid_t pgid;
 
@@ -1359,12 +1354,11 @@ int
 kern_fstat(struct thread *td, int fd, struct stat *sbp)
 {
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_FSTAT), &fp);
+	error = fget(td, fd, &cap_fstat_rights, &fp);
 	if (error != 0)
 		return (error);
 
@@ -1441,10 +1435,9 @@ kern_fpathconf(struct thread *td, int fd, int name, long *valuep)
 {
 	struct file *fp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
+	error = fget(td, fd, &cap_fpathconf_rights, &fp);
 	if (error != 0)
 		return (error);
 
@@ -1499,7 +1492,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 
 	if (src->fc_ioctls != NULL && !locked)
 		return (false);
-	*dst = *src;
+	memcpy(dst, src, sizeof(*src));
 	if (src->fc_ioctls == NULL)
 		return (true);
 
@@ -1508,7 +1501,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 
 	size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
 	dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
-	bcopy(src->fc_ioctls, dst->fc_ioctls, size);
+	memcpy(dst->fc_ioctls, src->fc_ioctls, size);
 	return (true);
 }
 
@@ -1872,7 +1865,8 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 		}
 		return (ENFILE);
 	}
-	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
+	fp = uma_zalloc(file_zone, M_WAITOK);
+	bzero(fp, sizeof(*fp));
 	refcount_init(&fp->f_count, 1);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
@@ -2631,9 +2625,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seq_t *seqp)
 {
 #ifdef CAPABILITIES
-	struct filedescent *fde;
+	const struct filedescent *fde;
 #endif
-	struct fdescenttbl *fdt;
+	const struct fdescenttbl *fdt;
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
@@ -2679,7 +2673,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it possible that
 			 * there is a stale fp pointer in cached version.
 			 */
-			fdt = *(struct fdescenttbl * volatile *)&(fdp->fd_files);
+			fdt = *(const struct fdescenttbl * const volatile *)&(fdp->fd_files);
 			continue;
 		}
 		/*
@@ -2978,10 +2972,9 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
-	cap_rights_t rights;
 	int error;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FLOCK), &fp);
+	error = fget(td, uap->fd, &cap_flock_rights, &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
@@ -3370,10 +3363,10 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
-			xf.xf_file = fp;
-			xf.xf_data = fp->f_data;
-			xf.xf_vnode = fp->f_vnode;
-			xf.xf_type = fp->f_type;
+			xf.xf_file = (uintptr_t)fp;
+			xf.xf_data = (uintptr_t)fp->f_data;
+			xf.xf_vnode = (uintptr_t)fp->f_vnode;
+			xf.xf_type = (uintptr_t)fp->f_type;
 			xf.xf_count = fp->f_count;
 			xf.xf_msgcount = 0;
 			xf.xf_offset = foffset_get(fp);
@@ -3629,7 +3622,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 #ifdef CAPABILITIES
 		rights = *cap_rights(fdp, i);
 #else /* !CAPABILITIES */
-		cap_rights_init(&rights);
+		rights = cap_no_rights;
 #endif
 		/*
 		 * Create sysctl entry.  It is OK to drop the filedesc

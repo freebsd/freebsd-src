@@ -144,10 +144,25 @@ file_descriptor_body()
 	atf_check -o match:"$line_re" awk 'NR > 1' procstat.out
 }
 
+atf_test_case kernel_stacks
+kernel_stacks_head()
+{
+	atf_set "descr" "Captures kernel stacks for all visible threads"
+}
+kernel_stacks_body()
+{
+	atf_check -o save:procstat.out procstat -a kstack
+	atf_check -o not-empty awk '{if ($3 == "procstat") print}' procstat.out
+
+	atf_check -o save:procstat.out procstat -kka
+	atf_check -o not-empty awk '{if ($3 == "procstat") print}' procstat.out
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case binary_info
 	atf_add_test_case command_line_arguments
 	atf_add_test_case environment
 	atf_add_test_case file_descriptor
+	atf_add_test_case kernel_stacks
 }

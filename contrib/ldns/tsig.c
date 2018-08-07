@@ -18,32 +18,32 @@
 #include <openssl/md5.h>
 #endif /* HAVE_SSL */
 
-char *
-ldns_tsig_algorithm(ldns_tsig_credentials *tc)
+const char *
+ldns_tsig_algorithm(const ldns_tsig_credentials *tc)
 {
 	return tc->algorithm;
 }
 
-char *
-ldns_tsig_keyname(ldns_tsig_credentials *tc)
+const char *
+ldns_tsig_keyname(const ldns_tsig_credentials *tc)
 {
 	return tc->keyname;
 }
 
-char *
-ldns_tsig_keydata(ldns_tsig_credentials *tc)
+const char *
+ldns_tsig_keydata(const ldns_tsig_credentials *tc)
 {
 	return tc->keydata;
 }
 
 char *
-ldns_tsig_keyname_clone(ldns_tsig_credentials *tc)
+ldns_tsig_keyname_clone(const ldns_tsig_credentials *tc)
 {
 	return strdup(tc->keyname);
 }
 
 char *
-ldns_tsig_keydata_clone(ldns_tsig_credentials *tc)
+ldns_tsig_keydata_clone(const ldns_tsig_credentials *tc)
 {
 	return strdup(tc->keydata);
 }
@@ -52,7 +52,7 @@ ldns_tsig_keydata_clone(ldns_tsig_credentials *tc)
  *  Makes an exact copy of the wire, but with the tsig rr removed
  */
 static uint8_t *
-ldns_tsig_prepare_pkt_wire(uint8_t *wire, size_t wire_len, size_t *result_len)
+ldns_tsig_prepare_pkt_wire(const uint8_t *wire, size_t wire_len, size_t *result_len)
 {
 	uint8_t *wire2 = NULL;
 	uint16_t qd_count;
@@ -134,7 +134,19 @@ ldns_digest_function(char *name)
 {
 	/* these are the mandatory algorithms from RFC4635 */
 	/* The optional algorithms are not yet implemented */
-	if (strcasecmp(name, "hmac-sha256.") == 0) {
+	if (strcasecmp(name, "hmac-sha512.") == 0) {
+#ifdef HAVE_EVP_SHA512
+		return EVP_sha512();
+#else
+		return NULL;
+#endif
+	} else if (strcasecmp(name, "hmac-shac384.") == 0) {
+#ifdef HAVE_EVP_SHA384
+		return EVP_sha384();
+#else
+		return NULL;
+#endif
+	} else if (strcasecmp(name, "hmac-sha256.") == 0) {
 #ifdef HAVE_EVP_SHA256
 		return EVP_sha256();
 #else
@@ -152,10 +164,10 @@ ldns_digest_function(char *name)
 
 #ifdef HAVE_SSL
 static ldns_status
-ldns_tsig_mac_new(ldns_rdf **tsig_mac, uint8_t *pkt_wire, size_t pkt_wire_size,
-		const char *key_data, ldns_rdf *key_name_rdf, ldns_rdf *fudge_rdf,
-		ldns_rdf *algorithm_rdf, ldns_rdf *time_signed_rdf, ldns_rdf *error_rdf,
-		ldns_rdf *other_data_rdf, ldns_rdf *orig_mac_rdf, int tsig_timers_only)
+ldns_tsig_mac_new(ldns_rdf **tsig_mac, const uint8_t *pkt_wire, size_t pkt_wire_size,
+		const char *key_data, const ldns_rdf *key_name_rdf, const ldns_rdf *fudge_rdf,
+		const ldns_rdf *algorithm_rdf, const ldns_rdf *time_signed_rdf, const ldns_rdf *error_rdf,
+		const ldns_rdf *other_data_rdf, const ldns_rdf *orig_mac_rdf, int tsig_timers_only)
 {
 	ldns_status status;
 	char *wireformat;
@@ -273,15 +285,15 @@ ldns_tsig_mac_new(ldns_rdf **tsig_mac, uint8_t *pkt_wire, size_t pkt_wire_size,
 
 #ifdef HAVE_SSL
 bool
-ldns_pkt_tsig_verify(ldns_pkt *pkt, uint8_t *wire, size_t wirelen, const char *key_name,
-	const char *key_data, ldns_rdf *orig_mac_rdf)
+ldns_pkt_tsig_verify(ldns_pkt *pkt, const uint8_t *wire, size_t wirelen, const char *key_name,
+	const char *key_data, const ldns_rdf *orig_mac_rdf)
 {
 	return ldns_pkt_tsig_verify_next(pkt, wire, wirelen, key_name, key_data, orig_mac_rdf, 0);
 }
 
 bool
-ldns_pkt_tsig_verify_next(ldns_pkt *pkt, uint8_t *wire, size_t wirelen, const char* key_name,
-	const char *key_data, ldns_rdf *orig_mac_rdf, int tsig_timers_only)
+ldns_pkt_tsig_verify_next(ldns_pkt *pkt, const uint8_t *wire, size_t wirelen, const char* key_name,
+	const char *key_data, const ldns_rdf *orig_mac_rdf, int tsig_timers_only)
 {
 	ldns_rdf *fudge_rdf;
 	ldns_rdf *algorithm_rdf;
@@ -350,14 +362,14 @@ ldns_pkt_tsig_verify_next(ldns_pkt *pkt, uint8_t *wire, size_t wirelen, const ch
 #ifdef HAVE_SSL
 ldns_status
 ldns_pkt_tsig_sign(ldns_pkt *pkt, const char *key_name, const char *key_data,
-	uint16_t fudge, const char *algorithm_name, ldns_rdf *query_mac)
+	uint16_t fudge, const char *algorithm_name, const ldns_rdf *query_mac)
 {
 	return ldns_pkt_tsig_sign_next(pkt, key_name, key_data, fudge, algorithm_name, query_mac, 0);
 }
 
 ldns_status
 ldns_pkt_tsig_sign_next(ldns_pkt *pkt, const char *key_name, const char *key_data,
-	uint16_t fudge, const char *algorithm_name, ldns_rdf *query_mac, int tsig_timers_only)
+	uint16_t fudge, const char *algorithm_name, const ldns_rdf *query_mac, int tsig_timers_only)
 {
 	ldns_rr *tsig_rr;
 	ldns_rdf *key_name_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, key_name);

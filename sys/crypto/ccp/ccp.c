@@ -238,7 +238,8 @@ ccp_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->cid = crypto_get_driverid(dev, sizeof(struct ccp_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		return (ENXIO);
@@ -281,17 +282,10 @@ static int
 ccp_detach(device_t dev)
 {
 	struct ccp_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->lock);
-	for (i = 0; i < sc->nsessions; i++) {
-		if (sc->sessions[i].active || sc->sessions[i].pending != 0) {
-			mtx_unlock(&sc->lock);
-			return (EBUSY);
-		}
-	}
 	sc->detaching = true;
 	mtx_unlock(&sc->lock);
 
@@ -305,7 +299,6 @@ ccp_detach(device_t dev)
 	if (g_ccp_softc == sc)
 		g_ccp_softc = NULL;
 
-	free(sc->sessions, M_CCP);
 	mtx_destroy(&sc->lock);
 	return (0);
 }
@@ -393,7 +386,7 @@ ccp_aes_setkey(struct ccp_session *s, int alg, const void *key, int klen)
 }
 
 static int
-ccp_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+ccp_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct ccp_softc *sc;
 	struct ccp_session *s;
@@ -403,11 +396,13 @@ ccp_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	unsigned auth_mode, iv_len;
 	unsigned partial_digest_len;
 	unsigned q;
-	int error, i, sess;
+	int error;
 	bool gcm_hash;
 
-	if (sidp == NULL || cri == NULL)
+	if (cri == NULL)
 		return (EINVAL);
+
+	s = crypto_get_driver_session(cses);
 
 	gcm_hash = false;
 	cipher = NULL;
@@ -510,29 +505,6 @@ ccp_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		mtx_unlock(&sc->lock);
 		return (ENXIO);
 	}
-	sess = -1;
-	for (i = 0; i < sc->nsessions; i++) {
-		if (!sc->sessions[i].active && sc->sessions[i].pending == 0) {
-			sess = i;
-			break;
-		}
-	}
-	if (sess == -1) {
-		s = malloc(sizeof(*s) * (sc->nsessions + 1), M_CCP,
-		    M_NOWAIT | M_ZERO);
-		if (s == NULL) {
-			mtx_unlock(&sc->lock);
-			return (ENOMEM);
-		}
-		if (sc->sessions != NULL)
-			memcpy(s, sc->sessions, sizeof(*s) * sc->nsessions);
-		sess = sc->nsessions;
-		free(sc->sessions, M_CCP);
-		sc->sessions = s;
-		sc->nsessions++;
-	}
-
-	s = &sc->sessions[sess];
 
 	/* Just grab the first usable queue for now. */
 	for (q = 0; q < nitems(sc->queues); q++)
@@ -581,32 +553,21 @@ ccp_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	s->active = true;
 	mtx_unlock(&sc->lock);
 
-	*sidp = sess;
 	return (0);
 }
 
-static int
-ccp_freesession(device_t dev, uint64_t tid)
+static void
+ccp_freesession(device_t dev, crypto_session_t cses)
 {
-	struct ccp_softc *sc;
-	uint32_t sid;
-	int error;
+	struct ccp_session *s;
 
-	sc = device_get_softc(dev);
-	sid = CRYPTO_SESID2LID(tid);
-	mtx_lock(&sc->lock);
-	if (sid >= sc->nsessions || !sc->sessions[sid].active)
-		error = EINVAL;
-	else {
-		if (sc->sessions[sid].pending != 0)
-			device_printf(dev,
-			    "session %d freed with %d pending requests\n", sid,
-			    sc->sessions[sid].pending);
-		sc->sessions[sid].active = false;
-		error = 0;
-	}
-	mtx_unlock(&sc->lock);
-	return (error);
+	s = crypto_get_driver_session(cses);
+
+	if (s->pending != 0)
+		device_printf(dev,
+		    "session %p freed with %d pending requests\n", s,
+		    s->pending);
+	s->active = false;
 }
 
 static int
@@ -616,7 +577,6 @@ ccp_process(device_t dev, struct cryptop *crp, int hint)
 	struct ccp_queue *qp;
 	struct ccp_session *s;
 	struct cryptodesc *crd, *crda, *crde;
-	uint32_t sid;
 	int error;
 	bool qpheld;
 
@@ -626,16 +586,9 @@ ccp_process(device_t dev, struct cryptop *crp, int hint)
 		return (EINVAL);
 
 	crd = crp->crp_desc;
-	sid = CRYPTO_SESID2LID(crp->crp_sid);
+	s = crypto_get_driver_session(crp->crp_session);
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->lock);
-	if (sid >= sc->nsessions || !sc->sessions[sid].active) {
-		mtx_unlock(&sc->lock);
-		error = EINVAL;
-		goto out;
-	}
-
-	s = &sc->sessions[sid];
 	qp = &sc->queues[s->queue];
 	mtx_unlock(&sc->lock);
 	error = ccp_queue_acquire_reserve(qp, 1 /* placeholder */, M_NOWAIT);
@@ -856,7 +809,6 @@ db_show_ccp_sc(struct ccp_softc *sc)
 
 	db_printf("ccp softc at %p\n", sc);
 	db_printf(" cid: %d\n", (int)sc->cid);
-	db_printf(" nsessions: %d\n", sc->nsessions);
 
 	db_printf(" lock: ");
 	db_show_lock(&sc->lock);

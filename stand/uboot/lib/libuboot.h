@@ -27,9 +27,8 @@
  * $FreeBSD$
  */
 
-/* Note: Must match the 'struct devdesc' in stand.h */
 struct uboot_devdesc {
-	struct devdesc		dd;
+	struct devdesc		dd;	/* Must be first. */
 	union {
 		struct {
 			int	slice;

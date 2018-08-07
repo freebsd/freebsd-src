@@ -74,6 +74,7 @@ ${PACKAGE}FILES+=	line-cont8.0
 ${PACKAGE}FILES+=	line-cont9.0
 ${PACKAGE}FILES+=	line-cont10.0
 ${PACKAGE}FILES+=	line-cont11.0
+${PACKAGE}FILES+=	line-cont12.0
 ${PACKAGE}FILES+=	no-space1.0
 ${PACKAGE}FILES+=	no-space2.0
 ${PACKAGE}FILES+=	nul1.0

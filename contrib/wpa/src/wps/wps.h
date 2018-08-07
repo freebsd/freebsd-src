@@ -1,6 +1,6 @@
 /*
  * Wi-Fi Protected Setup
- * Copyright (c) 2007-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2007-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -664,6 +664,16 @@ struct wps_context {
 	u16 encr_types;
 
 	/**
+	 * encr_types_rsn - Enabled encryption types for RSN (WPS_ENCR_*)
+	 */
+	u16 encr_types_rsn;
+
+	/**
+	 * encr_types_wpa - Enabled encryption types for WPA (WPS_ENCR_*)
+	 */
+	u16 encr_types_wpa;
+
+	/**
 	 * auth_types - Authentication types (bit field of WPS_AUTH_*)
 	 */
 	u16 auth_types;
@@ -827,7 +837,7 @@ int wps_build_credential_wrap(struct wpabuf *msg,
 
 unsigned int wps_pin_checksum(unsigned int pin);
 unsigned int wps_pin_valid(unsigned int pin);
-unsigned int wps_generate_pin(void);
+int wps_generate_pin(unsigned int *pin);
 int wps_pin_str_valid(const char *pin);
 void wps_free_pending_msgs(struct upnp_pending_message *msgs);
 

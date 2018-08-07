@@ -85,6 +85,9 @@ struct zfsvfs {
 	sa_attr_type_t	*z_attr_table;	/* SA attr mapping->id */
 #define	ZFS_OBJ_MTX_SZ	64
 	kmutex_t	z_hold_mtx[ZFS_OBJ_MTX_SZ];	/* znode hold locks */
+#if defined(__FreeBSD__)
+	struct task	z_unlinked_drain_task;
+#endif
 };
 
 /*

@@ -65,7 +65,8 @@ struct vmspace;
 	int pc_dbreg_cmd;						\
 	int pc_bp_harden_kind;						\
 	uint32_t pc_original_actlr;					\
-	char __pad[147]
+	uint64_t pc_clock;						\
+	char __pad[139]
 #else
 #define PCPU_MD_FIELDS							\
 	char __pad[93]

@@ -16,6 +16,12 @@
 #include "lzma_decoder.h"
 #include "range_decoder.h"
 
+// The macros unroll loops with switch statements.
+// Silence warnings about missing fall-through comments.
+#if TUKLIB_GNUC_REQ(7, 0)
+#	pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif
+
 
 #ifdef HAVE_SMALL
 

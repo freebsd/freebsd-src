@@ -31,7 +31,9 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <dev/usb/usb.h>
@@ -114,13 +116,15 @@ hid_init_return_values() {
 static int32_t
 hid_sdp_query(bdaddr_t const *local, struct hid_device *hd, int32_t *error)
 {
-	void	*ss = NULL;
-	uint8_t	*hid_descriptor = NULL, *v;
-	int32_t	 i, control_psm = -1, interrupt_psm = -1,
-		 reconnect_initiate = -1,
-		 normally_connectable = 0, battery_power = 0,
-		 hid_descriptor_length = -1, type;
-	int16_t  vendor_id = 0, product_id = 0, version = 0;
+	void			*ss = NULL;
+	uint8_t			*hid_descriptor = NULL, *v;
+	int32_t			 i, control_psm = -1, interrupt_psm = -1,
+				 reconnect_initiate = -1,
+				 normally_connectable = 0, battery_power = 0,
+				 hid_descriptor_length = -1, type;
+	int16_t 		 vendor_id = 0, product_id = 0, version = 0;
+	bdaddr_t		 sdp_local;
+	char			 devname[HCI_DEVNAME_SIZE];
 
 	if (local == NULL)
 		local = NG_HCI_BDADDR_ANY;
@@ -175,6 +179,11 @@ hid_sdp_query(bdaddr_t const *local, struct hid_device *hd, int32_t *error)
 	if (sdp_search(ss, 1, &service_devid, 1, &attrs_devid, nvalues, values) != 0)
                 hid_sdp_query_exit(sdp_error(ss));
 
+	/* Try extract HCI bdaddr from opened SDP session */
+	if (sdp_get_lcaddr(ss, &sdp_local) != 0 ||
+	    bt_devname(devname, &sdp_local) == 0)
+		hid_sdp_query_exit(ENOATTR);
+
         sdp_close(ss);
         ss = NULL;
 
@@ -212,6 +221,7 @@ hid_sdp_query(bdaddr_t const *local, struct hid_device *hd, int32_t *error)
 	    reconnect_initiate == -1 ||
 	    hid_descriptor == NULL || hid_descriptor_length == -1)
 		hid_sdp_query_exit(ENOATTR);
+	hd->name = bt_devremote_name_gen(devname, &hd->bdaddr);
 	hd->vendor_id = vendor_id;
 	hd->product_id = product_id;
 	hd->version = version;

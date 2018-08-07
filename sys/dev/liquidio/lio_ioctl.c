@@ -519,7 +519,7 @@ lio_set_mcast_list(struct ifnet *ifp)
 	/* to protect access to if_multiaddrs */
 	if_maddr_rlock(ifp);
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		*mc = 0;

@@ -228,7 +228,8 @@ linux_set_syscall_retval(struct thread *td, int error)
 	 * the syscall.  So, do not clobber %rdx and %r10.
 	 */
 	td->td_retval[1] = frame->tf_rdx;
-	frame->tf_r10 = frame->tf_rcx;
+	if (error != EJUSTRETURN)
+		frame->tf_r10 = frame->tf_rcx;
 
 	cpu_set_syscall_retval(td, error);
 
@@ -240,11 +241,11 @@ static int
 linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args;
-	Elf_Addr *base;
-	Elf_Addr *pos;
+	Elf_Auxinfo *argarray, *pos;
+	Elf_Addr *auxbase, *base;
 	struct ps_strings *arginfo;
 	struct proc *p;
-	int issetugid;
+	int error, issetugid;
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
@@ -253,7 +254,9 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	    ("unsafe linux_fixup_elf(), should be curproc"));
 	base = (Elf64_Addr *)*stack_base;
 	args = (Elf64_Auxargs *)imgp->auxargs;
-	pos = base + (imgp->args->argc + imgp->args->envc + 2);
+	auxbase = base + imgp->args->argc + 1 + imgp->args->envc + 1;
+	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
 
 	issetugid = p->p_flag & P_SUGID ? 1 : 0;
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
@@ -281,9 +284,16 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(argarray, auxbase, sizeof(*argarray) * LINUX_AT_COUNT);
+	free(argarray, M_TEMP);
+	if (error != 0)
+		return (error);
 
 	base--;
-	suword(base, (uint64_t)imgp->args->argc);
+	if (suword(base, (uint64_t)imgp->args->argc) == -1)
+		return (EFAULT);
 
 	*stack_base = (register_t *)base;
 	return (0);
@@ -789,10 +799,11 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 		return (false);
 
 	/*
-	 * For Linux we encode osrel as follows (see linux_mib.c):
-	 * VVVMMMIII (version, major, minor), see linux_mib.c.
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
 	 */
-	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
 
 	return (true);
 }

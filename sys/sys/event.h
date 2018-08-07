@@ -49,6 +49,22 @@
 #define EVFILT_EMPTY		(-13)	/* empty send socket buf */
 #define EVFILT_SYSCOUNT		13
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#define	EV_SET(kevp_, a, b, c, d, e, f) do {	\
+	*(kevp_) = (struct kevent){		\
+	    .ident = (a),			\
+	    .filter = (b),			\
+	    .flags = (c),			\
+	    .fflags = (d),			\
+	    .data = (e),			\
+	    .udata = (f),			\
+	    .ext = {0},				\
+	};					\
+} while(0)
+#else /* Pre-C99 or not STDC (e.g., C++) */
+/* The definition of the local variable kevp could possibly conflict
+ * with a user-defined value passed in parameters a-f.
+ */
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
 	(kevp)->ident = (a);			\
@@ -62,15 +78,16 @@
 	(kevp)->ext[2] = 0;			\
 	(kevp)->ext[3] = 0;			\
 } while(0)
+#endif
 
 struct kevent {
 	__uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
-	unsigned short	flags;
-	unsigned int	fflags;
-	__int64_t	data;
+	unsigned short	flags;		/* action flags for kqueue */
+	unsigned int	fflags;		/* filter flag value */
+	__int64_t	data;		/* filter data value */
 	void		*udata;		/* opaque user data identifier */
-	__uint64_t	ext[4];
+	__uint64_t	ext[4];		/* extensions */
 };
 
 #if defined(_WANT_FREEBSD11_KEVENT)

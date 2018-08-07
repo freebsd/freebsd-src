@@ -46,14 +46,6 @@
 #  define _POSIX_VDISABLE       VDISABLE
 #endif
 
-#ifndef _NSIG
-# ifdef NSIG
-#  define _NSIG NSIG
-# else
-#  define _NSIG 128
-# endif
-#endif
-
 static volatile sig_atomic_t signo[_NSIG];
 
 static void handler(int);

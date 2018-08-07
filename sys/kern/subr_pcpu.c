@@ -72,7 +72,7 @@ struct dpcpu_free {
 	TAILQ_ENTRY(dpcpu_free) df_link;
 };
 
-static DPCPU_DEFINE(char, modspace[DPCPU_MODMIN]);
+DPCPU_DEFINE_STATIC(char, modspace[DPCPU_MODMIN] __aligned(__alignof(void *)));
 static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
@@ -127,7 +127,7 @@ dpcpu_startup(void *dummy __unused)
 	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
 	sx_init(&dpcpu_lock, "dpcpu alloc lock");
 }
-SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, 0);
+SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, NULL);
 
 /*
  * UMA_PCPU_ZONE zones, that are available for all kernel

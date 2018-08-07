@@ -419,6 +419,7 @@ FBSD_1.5 {
 	scandir;
 	scandir_b;
 	sem_clockwait_np;
+	setproctitle_fast;
 };
 
 FBSDprivate_1.0 {
@@ -509,7 +510,6 @@ FBSDprivate_1.0 {
 	__opendir2;
 	__pause;
 	_pause;
-	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;
 	__sleep;

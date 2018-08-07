@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <x86/vmware.h>
 #include <dev/acpica/acpi_hpet.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "cpufreq_if.h"
 
@@ -81,8 +82,9 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 
 static int	tsc_skip_calibration;
-SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
-    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN |
+    CTLFLAG_NOFETCH, &tsc_skip_calibration, 0,
+    "Disable TSC frequency calibration");
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
@@ -127,6 +129,26 @@ tsc_freq_vmware(void)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
 	tsc_is_invariant = 1;
+}
+
+/*
+ * Calculate TSC frequency using information from the CPUID leaf 0x15
+ * 'Time Stamp Counter and Nominal Core Crystal Clock'.  It should be
+ * an improvement over the parsing of the CPU model name in
+ * tsc_freq_intel(), when available.
+ */
+static bool
+tsc_freq_cpuid(void)
+{
+	u_int regs[4];
+
+	if (cpu_high < 0x15)
+		return (false);
+	do_cpuid(0x15, regs);
+	if (regs[0] == 0 || regs[1] == 0 || regs[2] == 0)
+		return (false);
+	tsc_freq = (uint64_t)regs[2] * regs[1] / regs[0];
+	return (true);
 }
 
 static void
@@ -193,6 +215,7 @@ probe_tsc_freq(void)
 {
 	u_int regs[4];
 	uint64_t tsc1, tsc2;
+	uint16_t bootflags;
 
 	if (cpu_high >= 6) {
 		do_cpuid(6, regs);
@@ -252,18 +275,38 @@ probe_tsc_freq(void)
 		break;
 	}
 
-	if (tsc_skip_calibration) {
-		if (cpu_vendor_id == CPU_VENDOR_INTEL)
-			tsc_freq_intel();
-		return;
+	if (!TUNABLE_INT_FETCH("machdep.disable_tsc_calibration",
+	    &tsc_skip_calibration)) {
+		/*
+		 * User did not give the order about calibration.
+		 * If he did, we do not try to guess.
+		 *
+		 * Otherwise, if ACPI FADT reports that the platform
+		 * is legacy-free and CPUID provides TSC frequency,
+		 * use it.  The calibration could fail anyway since
+		 * ISA timer can be absent or power gated.
+		 */
+		if (acpi_get_fadt_bootflags(&bootflags) &&
+		    (bootflags & ACPI_FADT_LEGACY_DEVICES) == 0 &&
+		    tsc_freq_cpuid()) {
+			printf("Skipping TSC calibration since no legacy "
+			    "devices reported by FADT and CPUID works\n");
+			tsc_skip_calibration = 1;
+		}
 	}
-
-	if (bootverbose)
-	        printf("Calibrating TSC clock ... ");
-	tsc1 = rdtsc();
-	DELAY(1000000);
-	tsc2 = rdtsc();
-	tsc_freq = tsc2 - tsc1;
+	if (tsc_skip_calibration) {
+		if (tsc_freq_cpuid())
+			;
+		else if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			tsc_freq_intel();
+	} else {
+		if (bootverbose)
+			printf("Calibrating TSC clock ... ");
+		tsc1 = rdtsc();
+		DELAY(1000000);
+		tsc2 = rdtsc();
+		tsc_freq = tsc2 - tsc1;
+	}
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 }
@@ -430,7 +473,7 @@ adj_smp_tsc(void *arg)
 }
 
 static int
-test_tsc(void)
+test_tsc(int adj_max_count)
 {
 	uint64_t *data, *tsc;
 	u_int i, size, adj;
@@ -446,7 +489,7 @@ retry:
 	smp_tsc = 1;	/* XXX */
 	smp_rendezvous(smp_no_rendezvous_barrier, comp_smp_tsc,
 	    smp_no_rendezvous_barrier, data);
-	if (!smp_tsc && adj < smp_tsc_adjust) {
+	if (!smp_tsc && adj < adj_max_count) {
 		adj++;
 		smp_rendezvous(smp_no_rendezvous_barrier, adj_smp_tsc,
 		    smp_no_rendezvous_barrier, data);
@@ -483,19 +526,6 @@ retry:
 }
 
 #undef N
-
-#else
-
-/*
- * The function is not called, it is provided to avoid linking failure
- * on uniprocessor kernel.
- */
-static int
-test_tsc(void)
-{
-
-	return (0);
-}
 
 #endif /* SMP */
 
@@ -557,9 +587,12 @@ init_TSC_tc(void)
 	 * non-zero value.  The TSC seems unreliable in virtualized SMP
 	 * environments, so it is set to a negative quality in those cases.
 	 */
+#ifdef SMP
 	if (mp_ncpus > 1)
-		tsc_timecounter.tc_quality = test_tsc();
-	else if (tsc_is_invariant)
+		tsc_timecounter.tc_quality = test_tsc(smp_tsc_adjust);
+	else
+#endif /* SMP */
+	if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
@@ -593,6 +626,32 @@ init:
 	}
 }
 SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
+
+void
+resume_TSC(void)
+{
+#ifdef SMP
+	int quality;
+
+	/* If TSC was not good on boot, it is unlikely to become good now. */
+	if (tsc_timecounter.tc_quality < 0)
+		return;
+	/* Nothing to do with UP. */
+	if (mp_ncpus < 2)
+		return;
+
+	/*
+	 * If TSC was good, a single synchronization should be enough,
+	 * but honour smp_tsc_adjust if it's set.
+	 */
+	quality = test_tsc(MAX(smp_tsc_adjust, 1));
+	if (quality != tsc_timecounter.tc_quality) {
+		printf("TSC timecounter quality changed: %d -> %d\n",
+		    tsc_timecounter.tc_quality, quality);
+		tsc_timecounter.tc_quality = quality;
+	}
+#endif /* SMP */
+}
 
 /*
  * When cpufreq levels change, find out about the (new) max frequency.  We

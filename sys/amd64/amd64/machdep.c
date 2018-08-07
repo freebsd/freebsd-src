@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
+#include "opt_pci.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 
@@ -100,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #ifndef KDB
@@ -184,7 +186,9 @@ struct init_ops init_ops = {
 	.mp_bootaddress =		mp_bootaddress,
 	.start_all_aps =		native_start_all_aps,
 #endif
+#ifdef DEV_PCI
 	.msi_init =			msi_init,
+#endif
 };
 
 /*
@@ -669,6 +673,7 @@ struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
 static char mce0_stack[PAGE_SIZE] __aligned(16);
 static char nmi0_stack[PAGE_SIZE] __aligned(16);
+static char dbg0_stack[PAGE_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
 struct amd64tss common_tss[MAXCPU];
@@ -821,7 +826,7 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
-	IDTVEC(div_pti), IDTVEC(dbg_pti), IDTVEC(bpt_pti),
+	IDTVEC(div_pti), IDTVEC(bpt_pti),
 	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
 	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
 	IDTVEC(stk_pti), IDTVEC(prot_pti), IDTVEC(page_pti),
@@ -1223,6 +1228,12 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	quad_t dcons_addr, dcons_size;
 	int page_counter;
 
+	/*
+	 * Tell the physical memory allocator about pages used to store
+	 * the kernel and preloaded data.  See kmem_bootstrap_free().
+	 */
+	vm_phys_add_seg((vm_paddr_t)kernphys, trunc_page(first));
+
 	bzero(physmap, sizeof(physmap));
 	physmap_idx = 0;
 
@@ -1245,15 +1256,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		"Memory map doesn't contain a basemem segment, faking it");
 		basemem = 640;
 	}
-
-	/*
-	 * Make hole for "AP -> long mode" bootstrap code.  The
-	 * mp_bootaddress vector is only available when the kernel
-	 * is configured to support APs and APs for the system start
-	 * in real mode mode (e.g. SMP bare metal).
-	 */
-	if (init_ops.mp_bootaddress)
-		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
@@ -1292,6 +1294,15 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
+
+	/*
+	 * Make hole for "AP -> long mode" bootstrap code.  The
+	 * mp_bootaddress vector is only available when the kernel
+	 * is configured to support APs and APs for the system start
+	 * in real mode mode (e.g. SMP bare metal).
+	 */
+	if (init_ops.mp_bootaddress)
+		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
@@ -1537,7 +1548,7 @@ amd64_conf_fast_syscall(void)
 	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
 	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
 	wrmsr(MSR_STAR, msr);
-	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D);
+	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D | PSL_AC);
 }
 
 u_int64_t
@@ -1555,16 +1566,23 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
-	/*
- 	 * This may be done better later if it gets more high level
- 	 * components in it. If so just link td->td_proc here.
-	 */
-	proc_linkup0(&proc0, &thread0);
-
 	kmdp = init_ops.parse_preload_data(modulep);
 
 	identify_cpu1();
 	identify_hypervisor();
+	/*
+	 * hw.cpu_stdext_disable is ignored by the call, it will be
+	 * re-evaluted by the below call to finishidentcpu().
+	 */
+	identify_cpu2();
+
+	link_elf_ireloc(kmdp);
+
+	/*
+	 * This may be done better later if it gets more high level
+	 * components in it. If so just link td->td_proc here.
+	 */
+	proc_linkup0(&proc0, &thread0);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1630,8 +1648,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		    SEL_KPL, 0);
 	setidt(IDT_DE, pti ? &IDTVEC(div_pti) : &IDTVEC(div), SDT_SYSIGT,
 	    SEL_KPL, 0);
-	setidt(IDT_DB, pti ? &IDTVEC(dbg_pti) : &IDTVEC(dbg), SDT_SYSIGT,
-	    SEL_KPL, 0);
+	setidt(IDT_DB, &IDTVEC(dbg), SDT_SYSIGT, SEL_KPL, 4);
 	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
 	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
 	    SEL_UPL, 0);
@@ -1713,6 +1730,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	np = ((struct nmi_pcpu *) &mce0_stack[sizeof(mce0_stack)]) - 1;
 	np->np_pcpu = (register_t) pc;
 	common_tss[0].tss_ist3 = (long) np;
+
+	/*
+	 * DB# stack, runs on ist4.
+	 */
+	np = ((struct nmi_pcpu *) &dbg0_stack[sizeof(dbg0_stack)]) - 1;
+	np->np_pcpu = (register_t) pc;
+	common_tss[0].tss_ist4 = (long) np;
 	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
@@ -1795,9 +1819,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = (vm_offset_t)thread0.td_pcb;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	common_tss[0].tss_rsp0 = pti ? ((vm_offset_t)PCPU_PTR(pti_stack) +
-	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : rsp0;
+	common_tss[0].tss_rsp0 = rsp0;
 	PCPU_SET(rsp0, rsp0);
+	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */
@@ -1828,6 +1853,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	thread0.td_critnest = 0;
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
+	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 
 	TSEXIT();
 
@@ -1962,14 +1988,22 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_rflags |= PSL_T;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if ((td->td_frame->tf_rflags & PSL_T) == 0) {
+		td->td_frame->tf_rflags |= PSL_T;
+		td->td_dbgflags |= TDB_STEP;
+	}
 	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	td->td_frame->tf_rflags &= ~PSL_T;
+	td->td_dbgflags &= ~TDB_STEP;
 	return (0);
 }
 
@@ -2137,8 +2171,10 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	critical_enter();
 	set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
 	fpuuserinited(td);
+	critical_exit();
 	return (0);
 }
 
@@ -2470,14 +2506,23 @@ reset_dbregs(void)
  * breakpoint was in user space.  Return 0, otherwise.
  */
 int
-user_dbreg_trap(void)
+user_dbreg_trap(register_t dr6)
 {
-        u_int64_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int64_t dr7;
         u_int64_t bp;       /* breakpoint bits extracted from dr6 */
         int nbp;            /* number of breakpoints that triggered */
         caddr_t addr[4];    /* breakpoint addresses */
         int i;
-        
+
+        bp = dr6 & DBREG_DR6_BMASK;
+        if (bp == 0) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
         dr7 = rdr7();
         if ((dr7 & 0x000000ff) == 0) {
                 /*
@@ -2489,16 +2534,6 @@ user_dbreg_trap(void)
         }
 
         nbp = 0;
-        dr6 = rdr6();
-        bp = dr6 & 0x0000000f;
-
-        if (!bp) {
-                /*
-                 * None of the breakpoint bits are set meaning this
-                 * trap was not caused by any of the debug registers
-                 */
-                return 0;
-        }
 
         /*
          * at least one of the breakpoints were hit, check to see

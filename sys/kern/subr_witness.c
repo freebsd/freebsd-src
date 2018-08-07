@@ -499,12 +499,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "pipe mutex", &lock_class_mtx_sleep },
 	{ "sigio lock", &lock_class_mtx_sleep },
 	{ "process group", &lock_class_mtx_sleep },
-	{ "process lock", &lock_class_mtx_sleep },
-	{ "session", &lock_class_mtx_sleep },
-	{ "uidinfo hash", &lock_class_rw },
 #ifdef	HWPMC_HOOKS
 	{ "pmc-sleep", &lock_class_mtx_sleep },
 #endif
+	{ "process lock", &lock_class_mtx_sleep },
+	{ "session", &lock_class_mtx_sleep },
+	{ "uidinfo hash", &lock_class_rw },
 	{ "time lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
@@ -524,7 +524,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 * Routing
 	 */
 	{ "so_rcv", &lock_class_mtx_sleep },
-	{ "radix node head", &lock_class_rw },
+	{ "radix node head", &lock_class_rm },
 	{ "rtentry", &lock_class_mtx_sleep },
 	{ "ifaddr", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -532,19 +532,23 @@ static struct witness_order_list_entry order_lists[] = {
 	 * IPv4 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in_multi_mtx", &lock_class_mtx_sleep },
+	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "ifnet_rw", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in6_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in6_multi_mtx", &lock_class_mtx_sleep },
+	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "ifnet_rw", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
@@ -557,14 +561,14 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * UDP/IP
 	 */
-	{ "udp", &lock_class_rw },
+	{ "udp", &lock_class_mtx_sleep },
 	{ "udpinp", &lock_class_rw },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * TCP/IP
 	 */
-	{ "tcp", &lock_class_rw },
+	{ "tcp", &lock_class_mtx_sleep },
 	{ "tcpinp", &lock_class_rw },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -603,7 +607,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 * CDEV
 	 */
 	{ "vm map (system)", &lock_class_mtx_sleep },
-	{ "vm pagequeue", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
 	{ "cdev", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -613,11 +616,11 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "vm map (user)", &lock_class_sx },
 	{ "vm object", &lock_class_rw },
 	{ "vm page", &lock_class_mtx_sleep },
-	{ "vm pagequeue", &lock_class_mtx_sleep },
 	{ "pmap pv global", &lock_class_rw },
 	{ "pmap", &lock_class_mtx_sleep },
 	{ "pmap pv list", &lock_class_rw },
 	{ "vm page free queue", &lock_class_mtx_sleep },
+	{ "vm pagequeue", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * kqueue/VFS interaction
@@ -668,9 +671,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "uart_hwmtx", &lock_class_mtx_spin },
 	{ "fast_taskqueue", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
-#ifdef	HWPMC_HOOKS
-	{ "pmc-per-proc", &lock_class_mtx_spin },
-#endif
 	{ "process slock", &lock_class_mtx_spin },
 	{ "syscons video lock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
@@ -687,6 +687,12 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef __powerpc__
 	{ "tlb0", &lock_class_mtx_spin },
 #endif
+	{ NULL, NULL },
+	{ "sched lock", &lock_class_mtx_spin },
+#ifdef	HWPMC_HOOKS
+	{ "pmc-per-proc", &lock_class_mtx_spin },
+#endif
+	{ NULL, NULL },
 	/*
 	 * leaf locks
 	 */

@@ -27,6 +27,7 @@
 #include <apr_hash.h>
 
 #include "svn_fs.h"
+#include "svn_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -362,44 +363,7 @@ svn_repos__hooks_post_unlock(svn_repos_t *repos,
                              apr_pool_t *pool);
 
 
-/*** Authz Functions ***/
-
-/* Read authz configuration data from PATH into *AUTHZ_P, allocated
-   in POOL.  If GROUPS_PATH is set, use the global groups parsed from it.
-
-   PATH and GROUPS_PATH may be a dirent or a registry path and iff ACCEPT_URLS
-   is set it may also be an absolute file url.
-
-   If PATH or GROUPS_PATH is not a valid authz rule file, then return
-   SVN_AUTHZ_INVALID_CONFIG.  The contents of *AUTHZ_P is then
-   undefined.  If MUST_EXIST is TRUE, a missing authz or global groups file
-   is also an error. */
-svn_error_t *
-svn_repos__authz_read(svn_authz_t **authz_p,
-                      const char *path,
-                      const char *groups_path,
-                      svn_boolean_t must_exist,
-                      svn_boolean_t accept_urls,
-                      apr_pool_t *pool);
-
-/* Walk the configuration in AUTHZ looking for any errors. */
-svn_error_t *
-svn_repos__authz_validate(svn_authz_t *authz,
-                          apr_pool_t *pool);
-
-
 /*** Utility Functions ***/
-
-/* Set *CHANGED_P to TRUE if ROOT1/PATH1 and ROOT2/PATH2 have
-   different contents, FALSE if they have the same contents.
-   Use POOL for temporary allocation. */
-svn_error_t *
-svn_repos__compare_files(svn_boolean_t *changed_p,
-                         svn_fs_root_t *root1,
-                         const char *path1,
-                         svn_fs_root_t *root2,
-                         const char *path2,
-                         apr_pool_t *pool);
 
 /* Set *PREV_PATH and *PREV_REV to the path and revision which
    represent the location at which PATH in FS was located immediately

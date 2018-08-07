@@ -118,3 +118,4 @@ CFLAGS+=			-I${SRCTOP}/sys/dev/drm2/radeon
 CWARNFLAGS.radeon_cp.c=		-Wno-unused-value
 CWARNFLAGS.r600_cp.c=		-Wno-unused-value
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

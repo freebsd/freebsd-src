@@ -110,7 +110,9 @@
 #define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
 #define	VM_FREELIST_DMA32	1
-#define	VM_FREELIST_ISADMA	2
+#define	VM_FREELIST_LOWMEM	2
+
+#define VM_LOWMEM_BOUNDARY	(16 << 20)	/* 16MB ISA DMA limit */
 
 /*
  * Create the DMA32 free list only if the number of physical pages above
@@ -226,5 +228,11 @@
 #endif
 
 #define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
+
+/*
+ * Use a fairly large batch size since we expect amd64 systems to have lots of
+ * memory.
+ */
+#define	VM_BATCHQUEUE_SIZE	31
 
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -208,7 +208,6 @@ main (
 
 
     signal (SIGINT, AslSignalHandler);
-    signal (SIGSEGV, AslSignalHandler);
 
     /*
      * Big-endian machines are not currently supported. ACPI tables must
@@ -306,8 +305,7 @@ CleanupAndExit:
  *
  * DESCRIPTION: Signal interrupt handler. Delete any intermediate files and
  *              any output files that may be left in an indeterminate state.
- *              Currently handles SIGINT (control-c) and SIGSEGV (segmentation
- *              fault).
+ *              Currently handles SIGINT (control-c).
  *
  *****************************************************************************/
 
@@ -329,17 +327,10 @@ AslSignalHandler (
         printf ("\n" ASL_PREFIX "<Control-C>\n");
         break;
 
-    case SIGSEGV:
-
-        /* Even on a seg fault, we will try to delete any partial files */
-
-        printf (ASL_PREFIX "Segmentation Fault\n");
-        break;
-
     default:
 
-        printf (ASL_PREFIX "Unknown interrupt signal (%u), ignoring\n", Sig);
-        return;
+        printf (ASL_PREFIX "Unknown interrupt signal (%u)\n", Sig);
+        break;
     }
 
     /*

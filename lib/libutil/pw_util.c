@@ -36,13 +36,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+__SCCSID("@(#)pw_util.c	8.3 (Berkeley) 4/2/94");
 
 /*
  * This file is used by all the "password" programs; vipw(8), chpass(1),
@@ -656,8 +652,16 @@ pw_dup(const struct passwd *pw)
 #include "pw_scan.h"
 
 /*
- * Wrapper around an internal libc function
+ * Wrapper around some internal libc functions.
  */
+
+void
+pw_initpwd(struct passwd *pw)
+{
+
+	__pw_initpwd(pw);
+}
+
 struct passwd *
 pw_scan(const char *line, int flags)
 {
@@ -666,6 +670,7 @@ pw_scan(const char *line, int flags)
 
 	if ((bp = strdup(line)) == NULL)
 		return (NULL);
+	__pw_initpwd(&pw);
 	if (!__pw_scan(bp, &pw, flags)) {
 		free(bp);
 		return (NULL);

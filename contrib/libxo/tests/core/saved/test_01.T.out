@@ -1,4 +1,4 @@
-anchor             0x0..1
+static ethernet bridge   18u  24anchor             0x0..1
 anchor             0x0..1
 anchor             0x0..1
 df    12%

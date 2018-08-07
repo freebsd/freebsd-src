@@ -54,6 +54,8 @@
 
 #include "snmpmod.h"
 #include "snmpd.h"
+
+#define	SNMPTREE_TYPES
 #include "tree.h"
 #include "oid.h"
 

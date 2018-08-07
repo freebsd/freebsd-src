@@ -69,9 +69,6 @@ typedef PVOID (WINAPI * SYMFUNCTIONTABLEACCESS64)(HANDLE hProcess, DWORD64 AddrB
 
 typedef DWORD64 (WINAPI * SYMGETMODULEBASE64)(HANDLE hProcess, DWORD64 dwAddr);
 
-/* public functions in kernel32.dll */
-typedef BOOL  (WINAPI * ISDEBUGGERPRESENT)(VOID);
-
 /* function pointers */
 MINIDUMPWRITEDUMP        MiniDumpWriteDump_;
 SYMINITIALIZE            SymInitialize_;

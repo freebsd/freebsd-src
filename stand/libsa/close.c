@@ -32,30 +32,30 @@
  * SUCH DAMAGE.
  *
  *	@(#)close.c	8.1 (Berkeley) 6/11/93
- *  
+ *
  *
  * Copyright (c) 1989, 1990, 1991 Carnegie Mellon University
  * All Rights Reserved.
  *
  * Author: Alessandro Forin
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
@@ -68,31 +68,30 @@ __FBSDID("$FreeBSD$");
 int
 close(int fd)
 {
-    struct open_file	*f = &files[fd];
-    int			err1 = 0, err2 = 0;
+	struct open_file *f = &files[fd];
+	int err1 = 0, err2 = 0;
 
-    if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
-	errno = EBADF;
-	return (-1);
-    }
-    if (f->f_rabuf != NULL) {
+	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
+		errno = EBADF;
+		return (-1);
+	}
 	free(f->f_rabuf);
 	f->f_rabuf = NULL;
-    }
-    if (!(f->f_flags & F_RAW) && f->f_ops)
-	err1 = (f->f_ops->fo_close)(f);
-    if (!(f->f_flags & F_NODEV) && f->f_dev)
-	err2 = (f->f_dev->dv_close)(f);
-    if (f->f_devdata != NULL)
-	devclose(f);
-    f->f_flags = 0;
-    if (err1) {
-	errno = err1;
-	return (-1);
-    }
-    if (err2) {
-	errno = err2;
-	return (-1);
-    }
-    return (0);
+
+	if (!(f->f_flags & F_RAW) && f->f_ops)
+		err1 = (f->f_ops->fo_close)(f);
+	if (!(f->f_flags & F_NODEV) && f->f_dev)
+		err2 = (f->f_dev->dv_close)(f);
+	if (f->f_devdata != NULL)
+		devclose(f);
+	f->f_flags = 0;
+	if (err1) {
+		errno = err1;
+		return (-1);
+	}
+	if (err2) {
+		errno = err2;
+		return (-1);
+	}
+	return (0);
 }

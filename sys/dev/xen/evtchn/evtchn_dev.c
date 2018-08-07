@@ -474,10 +474,10 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 			error = ENOTCONN;
 			break;
 		}
-
-		xen_intr_unbind(&evtchn->handle);
 		RB_REMOVE(evtchn_tree, &u->evtchns, evtchn);
 		mtx_unlock(&u->bind_mutex);
+
+		xen_intr_unbind(&evtchn->handle);
 		free(evtchn, M_EVTCHN);
 		error = 0;
 		break;

@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.93 2017/08/28 13:39:18 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.94 2017/11/02 20:25:39 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -178,14 +178,14 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
     const void *buf, size_t nb)
 {
 	int m = 0, rv = 0, looks_text = 0;
-	const unsigned char *ubuf = CAST(const unsigned char *, buf);
-	unichar *u8buf = NULL;
-	size_t ulen;
 	const char *code = NULL;
 	const char *code_mime = "binary";
 	const char *type = "application/octet-stream";
 	const char *def = "data";
 	const char *ftype = NULL;
+	struct buffer b;
+
+	buffer_init(&b, fd, buf, nb);
 
 	if (nb == 0) {
 		def = "empty";
@@ -197,13 +197,13 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 	}
 
 	if ((ms->flags & MAGIC_NO_CHECK_ENCODING) == 0) {
-		looks_text = file_encoding(ms, ubuf, nb, &u8buf, &ulen,
+		looks_text = file_encoding(ms, &b, NULL, 0,
 		    &code, &code_mime, &ftype);
 	}
 
 #ifdef __EMX__
 	if ((ms->flags & MAGIC_NO_CHECK_APPTYPE) == 0 && inname) {
-		m = file_os2_apptype(ms, inname, buf, nb);
+		m = file_os2_apptype(ms, inname, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try os2_apptype %d]\n", m);
 		switch (m) {
@@ -219,7 +219,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 #if HAVE_FORK
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0) {
-		m = file_zmagic(ms, fd, inname, ubuf, nb);
+		m = file_zmagic(ms, &b, inname);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try zmagic %d]\n", m);
 		if (m) {
@@ -229,7 +229,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 #endif
 	/* Check if we have a tar file */
 	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0) {
-		m = file_is_tar(ms, ubuf, nb);
+		m = file_is_tar(ms, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try tar %d]\n", m);
 		if (m) {
@@ -240,7 +240,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 
 	/* Check if we have a CDF file */
 	if ((ms->flags & MAGIC_NO_CHECK_CDF) == 0) {
-		m = file_trycdf(ms, fd, ubuf, nb);
+		m = file_trycdf(ms, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try cdf %d]\n", m);
 		if (m) {
@@ -251,8 +251,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0) {
-		m = file_softmagic(ms, ubuf, nb, NULL, NULL, BINTEST,
-		    looks_text);
+		m = file_softmagic(ms, &b, NULL, NULL, BINTEST, looks_text);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try softmagic %d]\n", m);
 		if (m) {
@@ -268,7 +267,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 				 * ELF headers that cannot easily * be
 				 * extracted with rules in the magic file.
 				 */
-				m = file_tryelf(ms, fd, ubuf, nb);
+				m = file_tryelf(ms, &b);
 				if ((ms->flags & MAGIC_DEBUG) != 0)
 					(void)fprintf(stderr, "[try elf %d]\n",
 					    m);
@@ -282,7 +281,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 	/* try text properties */
 	if ((ms->flags & MAGIC_NO_CHECK_TEXT) == 0) {
 
-		m = file_ascmagic(ms, ubuf, nb, looks_text);
+		m = file_ascmagic(ms, &b, looks_text);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try ascmagic %d]\n", m);
 		if (m) {
@@ -319,7 +318,7 @@ simple:
 #if HAVE_FORK
  done_encoding:
 #endif
-	free(u8buf);
+	buffer_fini(&b);
 	if (rv)
 		return rv;
 

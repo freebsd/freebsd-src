@@ -120,12 +120,8 @@ read_linker_hints(void)
 				continue;
 			break;
 		}
-		if (q == NULL) {
-			warnx("Can't read linker hints file.");
-			free(hints);
-			hints = NULL;
-			return;
-		}
+		if (q == NULL)
+			errx(1, "Can't read linker hints file.");
 	} else {
 		hints = read_hints(linker_hints, &len);
 		if (hints == NULL)

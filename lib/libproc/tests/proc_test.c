@@ -183,7 +183,7 @@ ATF_TC_BODY(map_alias_name2map, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(map_prefix_name2map);
@@ -212,7 +212,7 @@ ATF_TC_BODY(map_prefix_name2map, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(map_alias_name2sym);
@@ -251,7 +251,7 @@ ATF_TC_BODY(map_alias_name2sym, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_lookup);
@@ -291,7 +291,7 @@ ATF_TC_BODY(symbol_lookup, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_lookup_fail);
@@ -328,7 +328,7 @@ ATF_TC_BODY(symbol_lookup_fail, tc)
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(signal_forward);
@@ -369,7 +369,7 @@ ATF_TC_BODY(signal_forward, tc)
 	ATF_REQUIRE(WIFEXITED(status));
 	ATF_REQUIRE_EQ(WEXITSTATUS(status), 0);
 
-	proc_free(phdl);
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_sort_local);
@@ -400,6 +400,8 @@ ATF_TC_BODY(symbol_sort_local, tc)
 	ATF_REQUIRE_MSG(strcmp(symname, "baz") == 0,
 	    "unexpected symbol name '%s'", symname);
 	ATF_REQUIRE(GELF_ST_BIND(bar_sym.st_info) == STB_GLOBAL);
+
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_sort_prefix);
@@ -428,6 +430,8 @@ ATF_TC_BODY(symbol_sort_prefix, tc)
 
 	ATF_REQUIRE_MSG(strcmp(symname, "qux") == 0,
 	    "unexpected symbol name '%s'", symname);
+
+	proc_detach(phdl, 0);
 }
 
 ATF_TC(symbol_sort_underscore);
@@ -457,6 +461,8 @@ ATF_TC_BODY(symbol_sort_underscore, tc)
 
 	ATF_REQUIRE_MSG(strcmp(symname, "foo") == 0,
 	    "unexpected symbol name '%s'", symname);
+
+	proc_detach(phdl, 0);
 }
 
 ATF_TP_ADD_TCS(tp)

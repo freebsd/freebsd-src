@@ -137,13 +137,13 @@ Resources which limit bytes may use prefixes from
 defines what entity the
 .Em amount
 gets accounted for.
-For example, rule "loginclass:users:vmem:deny=100M/process" means
+For example, rule "loginclass:users:vmemoryuse:deny=100M/process" means
 that each process of any user belonging to login class "users" may allocate
 up to 100MB of virtual memory.
-Rule "loginclass:users:vmem:deny=100M/user" would mean that for each
+Rule "loginclass:users:vmemoryuse:deny=100M/user" would mean that for each
 user belonging to the login class "users", the sum of virtual memory allocated
 by all the processes of that user will not exceed 100MB.
-Rule "loginclass:users:vmem:deny=100M/loginclass" would mean that the sum of
+Rule "loginclass:users:vmemoryuse:deny=100M/loginclass" would mean that the sum of
 virtual memory allocated by all processes of all users belonging to that login
 class will not exceed 100MB.
 .El

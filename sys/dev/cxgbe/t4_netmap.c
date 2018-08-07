@@ -72,6 +72,10 @@ int rx_ndesc = 256;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_ndesc, CTLFLAG_RWTUN,
     &rx_ndesc, 0, "# of rx descriptors after which the hw cidx is updated.");
 
+int rx_nframes = 64;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_nframes, CTLFLAG_RWTUN,
+    &rx_nframes, 0, "max # of frames received before waking up netmap rx.");
+
 int holdoff_tmr_idx = 2;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
     &holdoff_tmr_idx, 0, "Holdoff timer index for netmap rx queues.");
@@ -84,6 +88,10 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
  */
 static int nm_cong_drop = 1;
 TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
+
+int starve_fl = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
+    &starve_fl, 0, "Don't ring fl db for netmap rx queues.");
 
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
@@ -802,6 +810,13 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
 
+	if (nm_rxq->fl_db_saved > 0 && starve_fl == 0) {
+		wmb();
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
+		    nm_rxq->fl_db_val | V_PIDX(nm_rxq->fl_db_saved));
+		nm_rxq->fl_db_saved = 0;
+	}
+
 	/* Userspace done with buffers from kring->nr_hwcur to head */
 	n = head >= kring->nr_hwcur ? head - kring->nr_hwcur :
 	    kring->nkr_num_slots - kring->nr_hwcur + head;
@@ -838,8 +853,12 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			}
 			if (++dbinc == 8 && n >= 32) {
 				wmb();
-				t4_write_reg(sc, sc->sge_kdoorbell_reg,
-				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				if (starve_fl)
+					nm_rxq->fl_db_saved += dbinc;
+				else {
+					t4_write_reg(sc, sc->sge_kdoorbell_reg,
+					    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				}
 				dbinc = 0;
 			}
 		}
@@ -847,8 +866,12 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 		if (dbinc > 0) {
 			wmb();
-			t4_write_reg(sc, sc->sge_kdoorbell_reg,
-			    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			if (starve_fl)
+				nm_rxq->fl_db_saved += dbinc;
+			else {
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
+				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			}
 		}
 	}
 
@@ -938,10 +961,12 @@ t4_nm_intr(void *arg)
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
 	const void *cpl;
 	uint32_t lq;
-	u_int n = 0, work = 0;
+	u_int work = 0;
 	uint8_t opcode;
 	uint32_t fl_cidx = atomic_load_acq_32(&nm_rxq->fl_cidx);
 	u_int fl_credits = fl_cidx & 7;
+	u_int ndesc = 0;	/* desc processed since last cidx update */
+	u_int nframes = 0;	/* frames processed since last netmap wakeup */
 
 	while ((d->rsp.u.type_gen & F_RSPD_GEN) == nm_rxq->iq_gen) {
 
@@ -953,10 +978,6 @@ t4_nm_intr(void *arg)
 
 		switch (G_RSPD_TYPE(d->rsp.u.type_gen)) {
 		case X_RSPD_TYPE_FLBUF:
-			if (black_hole != 2) {
-				/* No buffer packing so new buf every time */
-				MPASS(lq & F_RSPD_NEWBUF);
-			}
 
 			/* fall through */
 
@@ -975,9 +996,13 @@ t4_nm_intr(void *arg)
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
 				    sc->params.sge.fl_pktshift;
 				ring->slot[fl_cidx].flags = 0;
-				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
-				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;
-				if (__predict_false(fl_cidx == nm_rxq->fl_sidx))
+				nframes++;
+				if (!(lq & F_RSPD_NEWBUF)) {
+					MPASS(black_hole == 2);
+					break;
+				}
+				fl_credits++;
+				if (__predict_false(++fl_cidx == nm_rxq->fl_sidx))
 					fl_cidx = 0;
 				break;
 			default:
@@ -1003,8 +1028,13 @@ t4_nm_intr(void *arg)
 			nm_rxq->iq_gen ^= F_RSPD_GEN;
 		}
 
-		if (__predict_false(++n == rx_ndesc)) {
+		if (__predict_false(++nframes == rx_nframes) && !black_hole) {
 			atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+			netmap_rx_irq(ifp, nm_rxq->nid, &work);
+			nframes = 0;
+		}
+
+		if (__predict_false(++ndesc == rx_ndesc)) {
 			if (black_hole && fl_credits >= 8) {
 				fl_credits /= 8;
 				IDXINCR(nm_rxq->fl_pidx, fl_credits * 8,
@@ -1012,14 +1042,12 @@ t4_nm_intr(void *arg)
 				t4_write_reg(sc, sc->sge_kdoorbell_reg,
 				    nm_rxq->fl_db_val | V_PIDX(fl_credits));
 				fl_credits = fl_cidx & 7;
-			} else if (!black_hole) {
-				netmap_rx_irq(ifp, nm_rxq->nid, &work);
-				MPASS(work != 0);
 			}
 			t4_write_reg(sc, sc->sge_gts_reg,
-			    V_CIDXINC(n) | V_INGRESSQID(nm_rxq->iq_cntxt_id) |
+			    V_CIDXINC(ndesc) |
+			    V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
-			n = 0;
+			ndesc = 0;
 		}
 	}
 
@@ -1029,10 +1057,10 @@ t4_nm_intr(void *arg)
 		IDXINCR(nm_rxq->fl_pidx, fl_credits * 8, nm_rxq->fl_sidx);
 		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(fl_credits));
-	} else
+	} else if (nframes > 0)
 		netmap_rx_irq(ifp, nm_rxq->nid, &work);
 
-	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(n) |
+    	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndesc) |
 	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
 	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 }

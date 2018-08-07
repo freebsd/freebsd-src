@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_fuzz.c,v 1.6 2015/12/07 02:20:46 djm Exp $ */
+/* 	$OpenBSD: test_fuzz.c,v 1.8 2017/12/21 00:41:22 djm Exp $ */
 /*
  * Fuzz tests for key parsing
  *
@@ -83,7 +83,7 @@ sig_fuzz(struct sshkey *k, const char *sig_alg)
 	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | /* too slow FUZZ_2_BIT_FLIP | */
 	    FUZZ_1_BYTE_FLIP | FUZZ_2_BYTE_FLIP |
 	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END, sig, l);
-	ASSERT_INT_EQ(sshkey_verify(k, sig, l, c, sizeof(c), 0), 0);
+	ASSERT_INT_EQ(sshkey_verify(k, sig, l, c, sizeof(c), NULL, 0), 0);
 	free(sig);
 	TEST_ONERROR(onerror, fuzz);
 	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
@@ -91,7 +91,7 @@ sig_fuzz(struct sshkey *k, const char *sig_alg)
 		if (fuzz_matches_original(fuzz))
 			continue;
 		ASSERT_INT_NE(sshkey_verify(k, fuzz_ptr(fuzz), fuzz_len(fuzz),
-		    c, sizeof(c), 0), 0);
+		    c, sizeof(c), NULL, 0), 0);
 	}
 	fuzz_cleanup(fuzz);
 }
@@ -104,49 +104,6 @@ sshkey_fuzz_tests(void)
 	struct fuzz *fuzz;
 	int r;
 
-#ifdef WITH_SSH1
-	TEST_START("fuzz RSA1 private");
-	buf = load_file("rsa1_1");
-	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | FUZZ_1_BYTE_FLIP |
-	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END,
-	    sshbuf_mutable_ptr(buf), sshbuf_len(buf));
-	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
-	sshkey_free(k1);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
-	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
-		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
-		ASSERT_INT_EQ(r, 0);
-		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
-			sshkey_free(k1);
-		sshbuf_reset(fuzzed);
-	}
-	sshbuf_free(fuzzed);
-	fuzz_cleanup(fuzz);
-	TEST_DONE();
-
-	TEST_START("fuzz RSA1 public");
-	buf = load_file("rsa1_1_pw");
-	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | FUZZ_1_BYTE_FLIP |
-	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END,
-	    sshbuf_mutable_ptr(buf), sshbuf_len(buf));
-	ASSERT_INT_EQ(sshkey_parse_public_rsa1_fileblob(buf, &k1, NULL), 0);
-	sshkey_free(k1);
-	sshbuf_free(buf);
-	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
-	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
-		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
-		ASSERT_INT_EQ(r, 0);
-		if (sshkey_parse_public_rsa1_fileblob(fuzzed, &k1, NULL) == 0)
-			sshkey_free(k1);
-		sshbuf_reset(fuzzed);
-	}
-	sshbuf_free(fuzzed);
-	fuzz_cleanup(fuzz);
-	TEST_DONE();
-#endif
 
 	TEST_START("fuzz RSA private");
 	buf = load_file("rsa_1");

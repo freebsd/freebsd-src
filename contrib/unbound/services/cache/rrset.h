@@ -102,7 +102,7 @@ struct rrset_cache* rrset_cache_adjust(struct rrset_cache* r,
  * @param id: used to check that the item is unchanged and not deleted.
  */
 void rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
-	hashvalue_t hash, rrset_id_t id);
+	hashvalue_type hash, rrset_id_type id);
 
 /**
  * Update an rrset in the rrset cache. Stores the information for later use.
@@ -131,6 +131,24 @@ void rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
  *	   also the rdata is equal (but other parameters in cache are superior).
  */
 int rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref, 
+	struct alloc_cache* alloc, time_t timenow);
+
+/**
+ * Update or add an rrset in the rrset cache using a wildcard dname.
+ * Generates wildcard dname by prepending the wildcard label to the closest
+ * encloser. Will lookup if the rrset is in the cache and perform an update if
+ * necessary.
+ *
+ * @param rrset_cache: the rrset cache.
+ * @param rrset: which rrset to cache as wildcard. This rrset is left 
+ * 	untouched.
+ * @param ce: the closest encloser, will be uses to generate the wildcard dname.
+ * @param ce_len: the closest encloser lenght.
+ * @param alloc: how to allocate (and deallocate) the special rrset key.
+ * @param timenow: current time (to see if ttl in cache is expired).
+ */
+void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache, 
+	struct ub_packed_rrset_key* rrset, uint8_t* ce, size_t ce_len,
 	struct alloc_cache* alloc, time_t timenow);
 
 /**

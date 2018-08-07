@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #define XICP_IPI	2
 #define MAX_XICP_IRQS	(1<<24)	/* 24-bit XIRR field */
 
+#define	XIVE_XICS_MODE_EMU	0
+#define	XIVE_XICS_MODE_EXP	1
+
 static int	xicp_probe(device_t);
 static int	xicp_attach(device_t);
 static int	xics_probe(device_t);
@@ -73,6 +76,10 @@ static void	xicp_eoi(device_t, u_int);
 static void	xicp_ipi(device_t, u_int);
 static void	xicp_mask(device_t, u_int);
 static void	xicp_unmask(device_t, u_int);
+
+#ifdef POWERNV
+void	xicp_smp_cpu_startup(void);
+#endif
 
 static device_method_t  xicp_methods[] = {
 	/* Device interface */
@@ -117,6 +124,7 @@ struct xicp_softc {
 		int cpu;
 	} intvecs[256];
 	int nintvecs;
+	bool xics_emu;
 };
 
 static driver_t xicp_driver = {
@@ -130,6 +138,19 @@ static driver_t xics_driver = {
 	xics_methods,
 	0
 };
+
+#ifdef POWERNV
+/* We can only pass physical addresses into OPAL.  Kernel stacks are in the KVA,
+ * not in the direct map, so we need to somehow extract the physical address.
+ * However, pmap_kextract() takes locks, which is forbidden in a critical region
+ * (which PMAP_DISPATCH() operates in).  The kernel is mapped into the Direct
+ * Map (0xc000....), and the CPU implicitly drops the top two bits when doing
+ * real address by nature that the bus width is smaller than 64-bits.  Placing
+ * cpu_xirr into the DMAP lets us take advantage of this and avoids the
+ * pmap_kextract() that would otherwise be needed if using the stack variable.
+ */
+static uint32_t cpu_xirr[MAXCPU];
+#endif
 
 static devclass_t xicp_devclass;
 static devclass_t xics_devclass;
@@ -161,7 +182,8 @@ static int
 xicp_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "ibm,ppc-xicp"))
+	if (!ofw_bus_is_compatible(dev, "ibm,ppc-xicp") &&
+	    !ofw_bus_is_compatible(dev, "ibm,opal-intc"))
 		return (ENXIO);
 
 	device_set_desc(dev, "External Interrupt Presentation Controller");
@@ -172,7 +194,8 @@ static int
 xics_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "ibm,ppc-xics"))
+	if (!ofw_bus_is_compatible(dev, "ibm,ppc-xics") &&
+	    !ofw_bus_is_compatible(dev, "IBM,opal-xics"))
 		return (ENXIO);
 
 	device_set_desc(dev, "External Interrupt Source Controller");
@@ -205,6 +228,15 @@ xicp_attach(device_t dev)
 		sc->cpu_range[1] += sc->cpu_range[0];
 		device_printf(dev, "Handling CPUs %d-%d\n", sc->cpu_range[0],
 		    sc->cpu_range[1]-1);
+#ifdef POWERNV
+	} else if (ofw_bus_is_compatible(dev, "ibm,opal-intc")) {
+			/*
+			 * For now run POWER9 XIVE interrupt controller in XICS
+			 * compatibility mode.
+			 */
+			sc->xics_emu = true;
+			opal_call(OPAL_XIVE_RESET, XIVE_XICS_MODE_EMU);
+#endif
 	} else {
 		sc->cpu_range[0] = 0;
 		sc->cpu_range[1] = mp_ncpus;
@@ -214,18 +246,26 @@ xicp_attach(device_t dev)
 	if (mfmsr() & PSL_HV) {
 		int i;
 
-		for (i = 0; i < sc->cpu_range[1] - sc->cpu_range[0]; i++) {
-			sc->mem[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-			    &i, RF_ACTIVE);
-			if (sc->mem[i] == NULL) {
-				device_printf(dev, "Could not alloc mem "
-				    "resource %d\n", i);
-				return (ENXIO);
+		if (sc->xics_emu) {
+			opal_call(OPAL_INT_SET_CPPR, 0xff);
+			for (i = 0; i < mp_ncpus; i++) {
+				opal_call(OPAL_INT_SET_MFRR,
+				    pcpu_find(i)->pc_hwref, 0xff);
 			}
+		} else {
+			for (i = 0; i < sc->cpu_range[1] - sc->cpu_range[0]; i++) {
+				sc->mem[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+				    &i, RF_ACTIVE);
+				if (sc->mem[i] == NULL) {
+					device_printf(dev, "Could not alloc mem "
+					    "resource %d\n", i);
+					return (ENXIO);
+				}
 
-			/* Unmask interrupts on all cores */
-			bus_write_1(sc->mem[i], 4, 0xff);
-			bus_write_1(sc->mem[i], 12, 0xff);
+				/* Unmask interrupts on all cores */
+				bus_write_1(sc->mem[i], 4, 0xff);
+				bus_write_1(sc->mem[i], 12, 0xff);
+			}
 		}
 	}
 #endif
@@ -316,19 +356,25 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 	uint64_t xirr, junk;
 	int i;
 
+	sc = device_get_softc(dev);
 #ifdef POWERNV
-	if (mfmsr() & PSL_HV) {
+	if ((mfmsr() & PSL_HV) && !sc->xics_emu) {
 		regs = xicp_mem_for_cpu(PCPU_GET(hwref));
 		KASSERT(regs != NULL,
 		    ("Can't find regs for CPU %ld", (uintptr_t)PCPU_GET(hwref)));
 	}
 #endif
 
-	sc = device_get_softc(dev);
 	for (;;) {
 		/* Return value in R4, use the PFT call */
 		if (regs) {
 			xirr = bus_read_4(regs, 4);
+#ifdef POWERNV
+		} else if (sc->xics_emu) {
+			opal_call(OPAL_INT_GET_XIRR, &cpu_xirr[PCPU_GET(cpuid)],
+			    false);
+			xirr = cpu_xirr[PCPU_GET(cpuid)];
+#endif
 		} else {
 			/* Return value in R4, use the PFT call */
 			phyp_pft_hcall(H_XIRR, 0, 0, 0, 0, &xirr, &junk, &junk);
@@ -338,6 +384,10 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 		if (xirr == 0) { /* No more pending interrupts? */
 			if (regs)
 				bus_write_1(regs, 4, 0xff);
+#ifdef POWERNV
+			else if (sc->xics_emu)
+				opal_call(OPAL_INT_SET_CPPR, 0xff);
+#endif
 			else
 				phyp_hcall(H_CPPR, (uint64_t)0xff);
 			break;
@@ -348,6 +398,11 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			/* Clear IPI */
 			if (regs)
 				bus_write_1(regs, 12, 0xff);
+#ifdef POWERNV
+			else if (sc->xics_emu)
+				opal_call(OPAL_INT_SET_MFRR,
+				    PCPU_GET(hwref), 0xff);
+#endif
 			else
 				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(hwref)),
 				    0xff);
@@ -409,6 +464,9 @@ xicp_enable(device_t dev, u_int irq, u_int vector)
 static void
 xicp_eoi(device_t dev, u_int irq)
 {
+#ifdef POWERNV
+	struct xicp_softc *sc;
+#endif
 	uint64_t xirr;
 
 	if (irq == MAX_XICP_IRQS) /* Remap IPI interrupt to internal value */
@@ -416,9 +474,13 @@ xicp_eoi(device_t dev, u_int irq)
 	xirr = irq | (XICP_PRIORITY << 24);
 
 #ifdef POWERNV
-	if (mfmsr() & PSL_HV)
-		bus_write_4(xicp_mem_for_cpu(PCPU_GET(hwref)), 4, xirr);
-	else
+	if (mfmsr() & PSL_HV) {
+		sc = device_get_softc(dev);
+		if (sc->xics_emu)
+			opal_call(OPAL_INT_EOI, xirr);
+		else
+			bus_write_4(xicp_mem_for_cpu(PCPU_GET(hwref)), 4, xirr);
+	} else
 #endif
 		phyp_hcall(H_EOI, xirr);
 }
@@ -428,11 +490,19 @@ xicp_ipi(device_t dev, u_int cpu)
 {
 
 #ifdef POWERNV
+	struct xicp_softc *sc;
 	cpu = pcpu_find(cpu)->pc_hwref;
 
-	if (mfmsr() & PSL_HV)
-		bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
-	else
+	if (mfmsr() & PSL_HV) {
+		sc = device_get_softc(dev);
+		if (sc->xics_emu) {
+			int64_t rv;
+			rv = opal_call(OPAL_INT_SET_MFRR, cpu, XICP_PRIORITY);
+			if (rv != 0)
+			    device_printf(dev, "IPI SET_MFRR result: %ld\n", rv);
+		} else
+			bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
+	} else
 #endif
 		phyp_hcall(H_IPI, (uint64_t)cpu, XICP_PRIORITY);
 }
@@ -490,3 +560,18 @@ xicp_unmask(device_t dev, u_int irq)
 	}
 }
 
+#ifdef POWERNV
+/* This is only used on POWER9 systems with the XIVE's XICS emulation. */
+void
+xicp_smp_cpu_startup(void)
+{
+	struct xicp_softc *sc;
+
+	if (mfmsr() & PSL_HV) {
+		sc = device_get_softc(root_pic);
+
+		if (sc->xics_emu)
+			opal_call(OPAL_INT_SET_CPPR, 0xff);
+	}
+}
+#endif

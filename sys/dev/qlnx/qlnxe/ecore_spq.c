@@ -44,14 +44,20 @@ __FBSDID("$FreeBSD$");
 #include "ecore_int.h"
 #include "ecore_dev_api.h"
 #include "ecore_mcp.h"
-#ifdef CONFIG_ECORE_ROCE
-#include "ecore_roce.h"
+#ifdef CONFIG_ECORE_RDMA
+#include "ecore_rdma.h"
 #endif
 #include "ecore_hw.h"
 #include "ecore_sriov.h"
 #ifdef CONFIG_ECORE_ISCSI
 #include "ecore_iscsi.h"
 #include "ecore_ooo.h"
+#endif
+
+#ifdef _NTDDK_
+#pragma warning(push)
+#pragma warning(disable : 28167)
+#pragma warning(disable : 28123)
 #endif
 
 /***************************************************************************
@@ -62,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define SPQ_BLOCK_DELAY_MAX_ITER	(10)
 #define SPQ_BLOCK_DELAY_US		(10)
-#define SPQ_BLOCK_SLEEP_MAX_ITER	(1000)
+#define SPQ_BLOCK_SLEEP_MAX_ITER	(200)
 #define SPQ_BLOCK_SLEEP_MS		(5)
 
 #ifndef REMOVE_DBG
@@ -89,7 +95,7 @@ static void ecore_iscsi_eq_dump(struct ecore_hwfn *p_hwfn,
 			   p_hwfn->port_id, p_eqe->opcode,
 			   OSAL_LE16_TO_CPU(p_eqe->echo),
 			   p_eqe->fw_return_code,
-			   OSAL_LE32_TO_CPU(p_eqe->data.iscsi_info.cid),
+			   OSAL_LE16_TO_CPU(p_eqe->data.iscsi_info.icid),
 			   OSAL_LE16_TO_CPU(p_eqe->data.iscsi_info.conn_id),
 			   p_eqe->data.iscsi_info.error_code);
 		break;
@@ -142,6 +148,10 @@ static enum _ecore_status_t __ecore_spq_block(struct ecore_hwfn *p_hwfn,
 	comp_done = (struct ecore_spq_comp_done *)p_ent->comp_cb.cookie;
 	iter_cnt = sleep_between_iter ? SPQ_BLOCK_SLEEP_MAX_ITER
 				      : SPQ_BLOCK_DELAY_MAX_ITER;
+#ifndef ASIC_ONLY
+	if (CHIP_REV_IS_EMUL(p_hwfn->p_dev) && sleep_between_iter)
+		iter_cnt *= 5;
+#endif
 
 	while (iter_cnt--) {
 		OSAL_POLL_MODE_DPC(p_hwfn);
@@ -185,13 +195,12 @@ static enum _ecore_status_t ecore_spq_block(struct ecore_hwfn *p_hwfn,
 		return ECORE_SUCCESS;
 
 	p_ptt = ecore_ptt_acquire(p_hwfn);
-	if (!p_ptt) {
-		DP_NOTICE(p_hwfn, true, "ptt, failed to acquire\n");
+	if (!p_ptt)
 		return ECORE_AGAIN;
-	}
 
 	DP_INFO(p_hwfn, "Ramrod is stuck, requesting MCP drain\n");
 	rc = ecore_mcp_drain(p_hwfn, p_ptt);
+	ecore_ptt_release(p_hwfn, p_ptt);
 	if (rc != ECORE_SUCCESS) {
 		DP_NOTICE(p_hwfn, true, "MCP drain failed\n");
 		goto err;
@@ -200,20 +209,15 @@ static enum _ecore_status_t ecore_spq_block(struct ecore_hwfn *p_hwfn,
 	/* Retry after drain */
 	rc = __ecore_spq_block(p_hwfn, p_ent, p_fw_ret, true);
 	if (rc == ECORE_SUCCESS)
-		goto out;
+		return ECORE_SUCCESS;
 
 	comp_done = (struct ecore_spq_comp_done *)p_ent->comp_cb.cookie;
 	if (comp_done->done == 1) {
 		if (p_fw_ret)
 			*p_fw_ret = comp_done->fw_return_code;
+		return ECORE_SUCCESS;
 	}
-out:
-	ecore_ptt_release(p_hwfn, p_ptt);
-
-	return ECORE_SUCCESS;
-
 err:
-	ecore_ptt_release(p_hwfn, p_ptt);
 	DP_NOTICE(p_hwfn, true,
 		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
 		  OSAL_LE32_TO_CPU(p_ent->elem.hdr.cid),
@@ -317,9 +321,9 @@ static enum _ecore_status_t ecore_spq_hw_post(struct ecore_hwfn		*p_hwfn,
 					      struct ecore_spq_entry	*p_ent)
 {
 	struct ecore_chain *p_chain = &p_hwfn->p_spq->chain;
+	struct core_db_data *p_db_data = &p_spq->db_data;
 	u16 echo = ecore_chain_get_prod_idx(p_chain);
 	struct slow_path_element *elem;
-	struct core_db_data db;
 
 	p_ent->elem.hdr.echo = OSAL_CPU_TO_LE16(echo);
 	elem = ecore_chain_produce(p_chain);
@@ -328,28 +332,23 @@ static enum _ecore_status_t ecore_spq_hw_post(struct ecore_hwfn		*p_hwfn,
 		return ECORE_INVAL;
 	}
 
-	*elem = p_ent->elem; /* struct assignment */
+	*elem = p_ent->elem; /* Struct assignment */
 
-	/* send a doorbell on the slow hwfn session */
-	OSAL_MEMSET(&db, 0, sizeof(db));
-	SET_FIELD(db.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_VAL_SEL, DQ_XCM_CORE_SPQ_PROD_CMD);
-	db.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db.spq_prod = OSAL_CPU_TO_LE16(ecore_chain_get_prod_idx(p_chain));
+	p_db_data->spq_prod =
+		OSAL_CPU_TO_LE16(ecore_chain_get_prod_idx(p_chain));
 
-	/* make sure the SPQE is updated before the doorbell */
+	/* Make sure the SPQE is updated before the doorbell */
 	OSAL_WMB(p_hwfn->p_dev);
 
-	DOORBELL(p_hwfn, DB_ADDR(p_spq->cid, DQ_DEMS_LEGACY), *(u32 *)&db);
+	DOORBELL(p_hwfn, p_spq->db_addr_offset, *(u32 *)p_db_data);
 
-	/* make sure doorbell is rang */
+	/* Make sure doorbell was rung */
 	OSAL_WMB(p_hwfn->p_dev);
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_SPQ,
 		   "Doorbelled [0x%08x, CID 0x%08x] with Flags: %02x agg_params: %02x, prod: %04x\n",
-		   DB_ADDR(p_spq->cid, DQ_DEMS_LEGACY), p_spq->cid, db.params,
-		   db.agg_flags, ecore_chain_get_prod_idx(p_chain));
+		   p_spq->db_addr_offset, p_spq->cid, p_db_data->params,
+		   p_db_data->agg_flags, ecore_chain_get_prod_idx(p_chain));
 
 	return ECORE_SUCCESS;
 }
@@ -362,50 +361,46 @@ static enum _ecore_status_t
 ecore_async_event_completion(struct ecore_hwfn *p_hwfn,
 			     struct event_ring_entry *p_eqe)
 {
-	switch (p_eqe->protocol_id) {
-#ifdef CONFIG_ECORE_ROCE
-	case PROTOCOLID_ROCE:
-	{
-		ecore_roce_async_event(p_hwfn,
-				       p_eqe->opcode,
-				       &p_eqe->data.rdma_data);
-		return ECORE_SUCCESS;
-	}
-#ifdef CONFIG_ECORE_IWARP
-	case PROTOCOLID_IWARP:
-	{
-		ecore_iwarp_async_event(p_hwfn,
-					p_eqe->opcode,
-					&p_eqe->data.rdma_data.async_handle,
-					p_eqe->fw_return_code);
-		return ECORE_SUCCESS;
-	}
-#endif
-#endif
-	case PROTOCOLID_COMMON:
-		return ecore_sriov_eqe_event(p_hwfn,
-					     p_eqe->opcode,
-					     p_eqe->echo,
-					     &p_eqe->data);
-#ifdef CONFIG_ECORE_ISCSI
-	case PROTOCOLID_ISCSI:
-		if (p_hwfn->p_iscsi_info->event_cb != OSAL_NULL) {
-			struct ecore_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
+	ecore_spq_async_comp_cb cb;
 
-			return p_iscsi->event_cb(p_iscsi->event_context,
-						 p_eqe->opcode, &p_eqe->data);
-		} else {
-			DP_NOTICE(p_hwfn,
-				 false, "iSCSI async completion is not set\n");
-			return ECORE_NOTIMPL;
-		}
-#endif
-	default:
-		DP_NOTICE(p_hwfn,
-			 true, "Unknown Async completion for protocol: %d\n",
-			 p_eqe->protocol_id);
+	if (!p_hwfn->p_spq || (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE)) {
 		return ECORE_INVAL;
 	}
+
+	cb = p_hwfn->p_spq->async_comp_cb[p_eqe->protocol_id];
+	if (cb) {
+		return cb(p_hwfn, p_eqe->opcode, p_eqe->echo,
+			  &p_eqe->data, p_eqe->fw_return_code);
+	} else {
+		DP_NOTICE(p_hwfn,
+			  true, "Unknown Async completion for protocol: %d\n",
+			  p_eqe->protocol_id);
+		return ECORE_INVAL;
+	}
+}
+
+enum _ecore_status_t
+ecore_spq_register_async_cb(struct ecore_hwfn *p_hwfn,
+			    enum protocol_type protocol_id,
+			    ecore_spq_async_comp_cb cb)
+{
+	if (!p_hwfn->p_spq || (protocol_id >= MAX_PROTOCOL_TYPE)) {
+		return ECORE_INVAL;
+	}
+
+	p_hwfn->p_spq->async_comp_cb[protocol_id] = cb;
+	return ECORE_SUCCESS;
+}
+
+void
+ecore_spq_unregister_async_cb(struct ecore_hwfn *p_hwfn,
+			      enum protocol_type protocol_id)
+{
+	if (!p_hwfn->p_spq || (protocol_id >= MAX_PROTOCOL_TYPE)) {
+		return;
+	}
+
+	p_hwfn->p_spq->async_comp_cb[protocol_id] = OSAL_NULL;
 }
 
 /***************************************************************************
@@ -485,6 +480,11 @@ enum _ecore_status_t ecore_eq_completion(struct ecore_hwfn	*p_hwfn,
 
 	ecore_eq_prod_update(p_hwfn, ecore_chain_get_prod_idx(p_chain));
 
+	/* Attempt to post pending requests */
+	OSAL_SPIN_LOCK(&p_hwfn->p_spq->lock);
+	rc = ecore_spq_pend_post(p_hwfn);
+	OSAL_SPIN_UNLOCK(&p_hwfn->p_spq->lock);
+
 	return rc;
 }
 
@@ -495,7 +495,7 @@ enum _ecore_status_t ecore_eq_alloc(struct ecore_hwfn *p_hwfn, u16 num_elem)
 	/* Allocate EQ struct */
 	p_eq = OSAL_ZALLOC(p_hwfn->p_dev, GFP_KERNEL, sizeof(*p_eq));
 	if (!p_eq) {
-		DP_NOTICE(p_hwfn, true,
+		DP_NOTICE(p_hwfn, false,
 			  "Failed to allocate `struct ecore_eq'\n");
 		return ECORE_NOMEM;
 	}
@@ -508,7 +508,7 @@ enum _ecore_status_t ecore_eq_alloc(struct ecore_hwfn *p_hwfn, u16 num_elem)
 			      num_elem,
 			      sizeof(union event_ring_element),
 			      &p_eq->chain, OSAL_NULL) != ECORE_SUCCESS) {
-		DP_NOTICE(p_hwfn, true, "Failed to allocate eq chain\n");
+		DP_NOTICE(p_hwfn, false, "Failed to allocate eq chain\n");
 		goto eq_allocate_fail;
 	}
 
@@ -579,8 +579,11 @@ void ecore_spq_setup(struct ecore_hwfn *p_hwfn)
 {
 	struct ecore_spq *p_spq = p_hwfn->p_spq;
 	struct ecore_spq_entry *p_virt = OSAL_NULL;
+	struct core_db_data *p_db_data;
+	void OSAL_IOMEM *db_addr;
 	dma_addr_t p_phys = 0;
 	u32 i, capacity;
+	enum _ecore_status_t rc;
 
 	OSAL_LIST_INIT(&p_spq->pending);
 	OSAL_LIST_INIT(&p_spq->completion_pending);
@@ -618,6 +621,24 @@ void ecore_spq_setup(struct ecore_hwfn *p_hwfn)
 
 	/* reset the chain itself */
 	ecore_chain_reset(&p_spq->chain);
+
+	/* Initialize the address/data of the SPQ doorbell */
+	p_spq->db_addr_offset = DB_ADDR(p_spq->cid, DQ_DEMS_LEGACY);
+	p_db_data = &p_spq->db_data;
+	OSAL_MEM_ZERO(p_db_data, sizeof(*p_db_data));
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_MAX);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_SPQ_PROD_CMD);
+	p_db_data->agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
+
+	/* Register the SPQ doorbell with the doorbell recovery mechanism */
+	db_addr = (void *)((u8 *)p_hwfn->doorbells + p_spq->db_addr_offset);
+	rc = ecore_db_recovery_add(p_hwfn->p_dev, db_addr, &p_spq->db_data,
+				   DB_REC_WIDTH_32B, DB_REC_KERNEL);
+	if (rc != ECORE_SUCCESS)
+		DP_INFO(p_hwfn,
+			"Failed to register the SPQ doorbell with the doorbell recovery mechanism\n");
 }
 
 enum _ecore_status_t ecore_spq_alloc(struct ecore_hwfn *p_hwfn)
@@ -631,7 +652,7 @@ enum _ecore_status_t ecore_spq_alloc(struct ecore_hwfn *p_hwfn)
 	p_spq =
 	    OSAL_ZALLOC(p_hwfn->p_dev, GFP_KERNEL, sizeof(struct ecore_spq));
 	if (!p_spq) {
-		DP_NOTICE(p_hwfn, true, "Failed to allocate `struct ecore_spq'\n");
+		DP_NOTICE(p_hwfn, false, "Failed to allocate `struct ecore_spq'\n");
 		return ECORE_NOMEM;
 	}
 
@@ -643,7 +664,7 @@ enum _ecore_status_t ecore_spq_alloc(struct ecore_hwfn *p_hwfn)
 			      0, /* N/A when the mode is SINGLE */
 			      sizeof(struct slow_path_element),
 			      &p_spq->chain, OSAL_NULL)) {
-		DP_NOTICE(p_hwfn, true, "Failed to allocate spq chain\n");
+		DP_NOTICE(p_hwfn, false, "Failed to allocate spq chain\n");
 		goto spq_allocate_fail;
 	}
 
@@ -660,7 +681,8 @@ enum _ecore_status_t ecore_spq_alloc(struct ecore_hwfn *p_hwfn)
 	p_spq->p_phys = p_phys;
 
 #ifdef CONFIG_ECORE_LOCK_ALLOC
-	OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_spq->lock);
+	if (OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_spq->lock))
+		goto spq_allocate_fail;
 #endif
 
 	p_hwfn->p_spq = p_spq;
@@ -675,10 +697,15 @@ spq_allocate_fail:
 void ecore_spq_free(struct ecore_hwfn *p_hwfn)
 {
 	struct ecore_spq *p_spq = p_hwfn->p_spq;
+	void OSAL_IOMEM *db_addr;
 	u32 capacity;
 
 	if (!p_spq)
 		return;
+
+	/* Delete the SPQ doorbell from the doorbell recovery mechanism */
+	db_addr = (void *)((u8 *)p_hwfn->doorbells + p_spq->db_addr_offset);
+	ecore_db_recovery_del(p_hwfn->p_dev, db_addr, &p_spq->db_data);
 
 	if (p_spq->p_virt) {
 		capacity = ecore_chain_get_capacity(&p_spq->chain);
@@ -711,7 +738,7 @@ enum _ecore_status_t ecore_spq_get_entry(struct ecore_hwfn *p_hwfn,
 
 		p_ent = OSAL_ZALLOC(p_hwfn->p_dev, GFP_ATOMIC, sizeof(*p_ent));
 		if (!p_ent) {
-			DP_NOTICE(p_hwfn, true, "Failed to allocate an SPQ entry for a pending ramrod\n");
+			DP_NOTICE(p_hwfn, false, "Failed to allocate an SPQ entry for a pending ramrod\n");
 			rc = ECORE_NOMEM;
 			goto out_unlock;
 		}
@@ -868,7 +895,7 @@ static enum _ecore_status_t ecore_spq_post_list(struct ecore_hwfn *p_hwfn,
 	return ECORE_SUCCESS;
 }
 
-static enum _ecore_status_t ecore_spq_pend_post(struct ecore_hwfn *p_hwfn)
+enum _ecore_status_t ecore_spq_pend_post(struct ecore_hwfn *p_hwfn)
 {
 	struct ecore_spq *p_spq = p_hwfn->p_spq;
 	struct ecore_spq_entry *p_ent = OSAL_NULL;
@@ -1000,7 +1027,6 @@ enum _ecore_status_t ecore_spq_completion(struct ecore_hwfn *p_hwfn,
 	struct ecore_spq_entry	*p_ent = OSAL_NULL;
 	struct ecore_spq_entry	*tmp;
 	struct ecore_spq_entry	*found = OSAL_NULL;
-	enum _ecore_status_t	rc;
 
 	if (!p_hwfn) {
 		return ECORE_INVAL;
@@ -1080,12 +1106,7 @@ enum _ecore_status_t ecore_spq_completion(struct ecore_hwfn *p_hwfn,
 		 */
 		ecore_spq_return_entry(p_hwfn, found);
 
-	/* Attempt to post pending requests */
-	OSAL_SPIN_LOCK(&p_spq->lock);
-	rc = ecore_spq_pend_post(p_hwfn);
-	OSAL_SPIN_UNLOCK(&p_spq->lock);
-
-	return rc;
+	return ECORE_SUCCESS;
 }
 
 enum _ecore_status_t ecore_consq_alloc(struct ecore_hwfn *p_hwfn)
@@ -1095,7 +1116,7 @@ enum _ecore_status_t ecore_consq_alloc(struct ecore_hwfn *p_hwfn)
 	/* Allocate ConsQ struct */
 	p_consq = OSAL_ZALLOC(p_hwfn->p_dev, GFP_KERNEL, sizeof(*p_consq));
 	if (!p_consq) {
-		DP_NOTICE(p_hwfn, true,
+		DP_NOTICE(p_hwfn, false,
 			  "Failed to allocate `struct ecore_consq'\n");
 		return ECORE_NOMEM;
 	}
@@ -1108,7 +1129,7 @@ enum _ecore_status_t ecore_consq_alloc(struct ecore_hwfn *p_hwfn)
 			      ECORE_CHAIN_PAGE_SIZE/0x80,
 			      0x80,
 			      &p_consq->chain, OSAL_NULL) != ECORE_SUCCESS) {
-		DP_NOTICE(p_hwfn, true, "Failed to allocate consq chain");
+		DP_NOTICE(p_hwfn, false, "Failed to allocate consq chain");
 		goto consq_allocate_fail;
 	}
 
@@ -1135,3 +1156,7 @@ void ecore_consq_free(struct ecore_hwfn *p_hwfn)
 	OSAL_FREE(p_hwfn->p_dev, p_hwfn->p_consq);
 	p_hwfn->p_consq = OSAL_NULL;
 }
+
+#ifdef _NTDDK_
+#pragma warning(pop)
+#endif

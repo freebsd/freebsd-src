@@ -446,6 +446,15 @@ allocated with
 Also, due to resource sharing with other tags, this flag does not guarantee
 that resources will be allocated or reserved exclusively for this tag.
 It should be treated only as a minor optimization.
+.It Dv BUS_DMA_COHERENT
+Indicate that the DMA engine and CPU are cache-coherent.
+Cached memory may be used to back allocations created by
+.Fn bus_dmamem_alloc .
+For
+.Fn bus_dma_tag_create ,
+the
+.Dv BUS_DMA_COHERENT
+flag is currently implemented on arm64.
 .El
 .It Fa lockfunc
 Optional lock manipulation function (may be
@@ -834,7 +843,7 @@ For
 .Fn bus_dmamem_alloc ,
 the
 .Dv BUS_DMA_COHERENT
-flag is currently implemented on arm and sparc64.
+flag is currently implemented on arm, arm64 and sparc64.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
 .It Dv BUS_DMA_NOCACHE

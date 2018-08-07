@@ -392,7 +392,7 @@
 /* #undef HAVE_DOPRNT */
 
 /* Can we drop root privileges? */
-/* #undef HAVE_DROPROOT */
+#define HAVE_DROPROOT
 
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
@@ -1118,6 +1118,9 @@
 
 /* Do we have the TIO serial stuff? */
 /* #undef HAVE_TIO_SERIAL_STUFF */
+
+/* Are TrustedBSD MAC policy privileges available? */
+#define HAVE_TRUSTEDBSD_MAC 1
 
 /* Define to 1 if the system has the type `uint16_t'. */
 #define HAVE_UINT16_T 1

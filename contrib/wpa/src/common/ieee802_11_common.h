@@ -9,6 +9,8 @@
 #ifndef IEEE802_11_COMMON_H
 #define IEEE802_11_COMMON_H
 
+#include "defs.h"
+
 #define MAX_NOF_MB_IES_SUPPORTED 5
 
 struct mb_ies_info {
@@ -56,9 +58,12 @@ struct ieee802_11_elems {
 	const u8 *bss_max_idle_period;
 	const u8 *ssid_list;
 	const u8 *osen;
+	const u8 *mbo;
 	const u8 *ampe;
 	const u8 *mic;
 	const u8 *pref_freq_list;
+	const u8 *supp_op_classes;
+	const u8 *rrm_enabled;
 
 	u8 ssid_len;
 	u8 supp_rates_len;
@@ -85,9 +90,13 @@ struct ieee802_11_elems {
 	u8 ext_capab_len;
 	u8 ssid_list_len;
 	u8 osen_len;
+	u8 mbo_len;
 	u8 ampe_len;
 	u8 mic_len;
 	u8 pref_freq_list_len;
+	u8 supp_op_classes_len;
+	u8 rrm_enabled_len;
+
 	struct mb_ies_info mb_ies;
 };
 
@@ -118,6 +127,7 @@ enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 						   int sec_channel, int vht,
 						   u8 *op_class, u8 *channel);
 int ieee80211_is_dfs(int freq);
+enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht);
 
 int supp_rates_11b_only(struct ieee802_11_elems *elems);
 int mb_ies_info_by_ies(struct mb_ies_info *info, const u8 *ies_buf,
@@ -125,4 +135,22 @@ int mb_ies_info_by_ies(struct mb_ies_info *info, const u8 *ies_buf,
 struct wpabuf * mb_ies_by_info(struct mb_ies_info *info);
 
 const char * fc2str(u16 fc);
+
+struct oper_class_map {
+	enum hostapd_hw_mode mode;
+	u8 op_class;
+	u8 min_chan;
+	u8 max_chan;
+	u8 inc;
+	enum { BW20, BW40PLUS, BW40MINUS, BW80, BW2160, BW160, BW80P80 } bw;
+	enum { P2P_SUPP, NO_P2P_SUPP } p2p;
+};
+
+extern const struct oper_class_map global_op_class[];
+extern size_t global_op_class_size;
+
+const u8 * get_ie(const u8 *ies, size_t len, u8 eid);
+
+size_t mbo_add_ie(u8 *buf, size_t len, const u8 *attr, size_t attr_len);
+
 #endif /* IEEE802_11_COMMON_H */

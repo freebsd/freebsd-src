@@ -165,6 +165,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct inpcb *last = NULL;
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
+	struct epoch_tracker et;
 
 	RIP6STAT_INC(rip6s_ipackets);
 
@@ -172,8 +173,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	ifp = m->m_pkthdr.rcvif;
 
-	INP_INFO_RLOCK(&V_ripcbinfo);
-	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+	INP_INFO_RLOCK_ET(&V_ripcbinfo, et);
+	CK_LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
@@ -291,7 +292,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		last = in6p;
 	}
-	INP_INFO_RUNLOCK(&V_ripcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_ripcbinfo, et);
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Check AH/ESP integrity.
@@ -734,23 +735,25 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EINVAL);
 	if ((error = prison_check_ip6(td->td_ucred, &addr->sin6_addr)) != 0)
 		return (error);
-	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
+	if (CK_STAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
+	NET_EPOCH_ENTER();
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL)
+	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL) {
+		NET_EPOCH_EXIT();
 		return (EADDRNOTAVAIL);
+	}
 	if (ifa != NULL &&
 	    ((struct in6_ifaddr *)ifa)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
-		ifa_free(ifa);
+		NET_EPOCH_EXIT();
 		return (EADDRNOTAVAIL);
 	}
-	if (ifa != NULL)
-		ifa_free(ifa);
+	NET_EPOCH_EXIT();
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;
@@ -772,7 +775,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
-	if (TAILQ_EMPTY(&V_ifnet))
+	if (CK_STAILQ_EMPTY(&V_ifnet))
 		return (EADDRNOTAVAIL);
 	if (addr->sin6_family != AF_INET6)
 		return (EAFNOSUPPORT);

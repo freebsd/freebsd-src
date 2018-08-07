@@ -125,7 +125,7 @@ DEFINE_TEST(test_write_filter_zstd)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "compression-level", "15"));
+	    archive_write_set_filter_option(a, NULL, "compression-level", "6"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "file%03d", i);
@@ -140,7 +140,7 @@ DEFINE_TEST(test_write_filter_zstd)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	failure("compression-level=15 wrote %d bytes, default wrote %d bytes",
+	failure("compression-level=6 wrote %d bytes, default wrote %d bytes",
 	    (int)used2, (int)used1);
 	assert(used2 < used1);
 

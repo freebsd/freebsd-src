@@ -170,6 +170,7 @@
 #define	IWN_SDID_6035_2		0x4260
 #define	IWN_SDID_6035_3		0x4460
 #define	IWN_SDID_6035_4		0x4860
+#define	IWN_SDID_6035_5		0x5260
 /*
  * --------------------------------------------------------------------------
  * Device ID for 1030 and 6030 Series

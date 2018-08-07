@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/usr/bin/env ksh93
 #
 # CDDL HEADER START
 #
@@ -39,11 +39,12 @@
 # This test performs a TCP connection and checks that at least the
 # following packet counts were traced:
 #
-# 3 x ip:::send (2 during the TCP handshake, then a FIN)
-# 3 x tcp:::send (2 during the TCP handshake, then a FIN)
-# 2 x ip:::receive (1 during the TCP handshake, then the FIN ACK)
-# 2 x tcp:::receive (1 during the TCP handshake, then the FIN ACK)
-# 
+# 4 x ip:::send (2 during connection setup, 2 during connection teardown)
+# 4 x tcp:::send (2 during connection setup, 2 during connection teardown)
+# 5 x ip:::receive (1 during connection setup, the response, 1 window update,
+#                   1 banner line, 2 during connection teardown)
+# 5 x tcp:::receive (1 during connection setup, the response, 1 window update,
+#                    1 banner line, 2 during connection teardown)
 
 if (( $# != 1 )); then
 	print -u2 "expected one argument: <dtrace-path>"
@@ -75,6 +76,7 @@ cat > test.pl <<-EOPERL
 	    PeerPort => $tcpport,
 	    Timeout => 3);
 	die "Could not connect to host $dest port $tcpport" unless \$s;
+	readline \$s;
 	close \$s;
 	sleep(2);
 EOPERL
@@ -114,10 +116,10 @@ tcp:::receive
 END
 {
 	printf("Minimum TCP events seen\n\n");
-	printf("ip:::send - %s\n", ipsend >= 3 ? "yes" : "no");
-	printf("ip:::receive - %s\n", ipreceive >= 2 ? "yes" : "no");
-	printf("tcp:::send - %s\n", tcpsend >= 3 ? "yes" : "no");
-	printf("tcp:::receive - %s\n", tcpreceive >= 2 ? "yes" : "no");
+	printf("ip:::send - %s\n", ipsend >= 4 ? "yes" : "no");
+	printf("ip:::receive - %s\n", ipreceive >= 5 ? "yes" : "no");
+	printf("tcp:::send - %s\n", tcpsend >= 4 ? "yes" : "no");
+	printf("tcp:::receive - %s\n", tcpreceive >= 5 ? "yes" : "no");
 }
 EODTRACE
 
@@ -126,4 +128,4 @@ status=$?
 cd /
 /bin/rm -rf $DIR
 
-exit $?
+exit $status

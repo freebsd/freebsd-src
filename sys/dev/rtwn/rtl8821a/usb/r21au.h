@@ -37,7 +37,6 @@
  */
 /* r21au_init.c */
 void	r21au_init_tx_agg(struct rtwn_softc *);
-void	r21au_init_burstlen(struct rtwn_softc *);
 
 /* r21au_dfs.c */
 void	r21au_chan_check(void *, int);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 iXsystems Inc.
  * All rights reserved.
  *
@@ -306,7 +308,7 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 	sun.sun_family = AF_UNIX;
 	sun.sun_len = sizeof(struct sockaddr_un);
 	strcpy(pathcopy, path);
-	strncpy(sun.sun_path, basename(pathcopy), sizeof(sun.sun_path));
+	strlcpy(sun.sun_path, basename(pathcopy), sizeof(sun.sun_path));
 	free(pathcopy);
 
 	if (bindat(fd, s, (struct sockaddr *)&sun, sun.sun_len) < 0) {
@@ -579,6 +581,7 @@ pci_vtcon_notify_tx(void *vsc, struct vqueue_info *vq)
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, &idx, iov, 1, flags);
+		assert(n >= 1);
 		if (port != NULL)
 			port->vsp_cb(port, port->vsp_arg, iov, 1);
 
@@ -650,7 +653,7 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	while ((opt = strsep(&opts, ",")) != NULL) {
 		portname = strsep(&opt, "=");
-		portpath = strdup(opt);
+		portpath = opt;
 
 		/* create port */
 		if (pci_vtcon_sock_add(sc, portname, portpath) < 0) {

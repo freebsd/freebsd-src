@@ -166,7 +166,7 @@ svn_x509_certinfo_get_valid_from(const svn_x509_certinfo_t *certinfo);
  *
  * @since New in 1.9.
  */
-const apr_time_t
+apr_time_t
 svn_x509_certinfo_get_valid_to(const svn_x509_certinfo_t *certinfo);
 
 /**
@@ -188,7 +188,7 @@ svn_x509_certinfo_get_hostnames(const svn_x509_certinfo_t *certinfo);
  * Given an @a oid return a null-terminated C string representation.
  * For example an OID with the bytes "\x2A\x86\x48\x86\xF7\x0D\x01\x09\x01"
  * would be converted to the string "1.2.840.113549.1.9.1".  Returns
- * NULL if the @oid can't be represented as a string.
+ * NULL if the @a oid can't be represented as a string.
  *
  * @since New in 1.9. */
 const char *

@@ -74,7 +74,7 @@ nbns_resolvename(const char *name, struct nb_ctx *ctx, struct sockaddr **adpp)
 	if (error)
 		return error;
 	bzero(&nn, sizeof(nn));
-	strcpy(nn.nn_name, name);
+	strlcpy(nn.nn_name, name, sizeof(nn.nn_name));
 	nn.nn_scope = ctx->nb_scope;
 	nn.nn_type = NBT_SERVER;
 	rqp->nr_nmflags = NBNS_NMFLAG_RD;

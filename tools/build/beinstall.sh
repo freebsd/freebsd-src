@@ -69,7 +69,7 @@ cleanup() {
 
 errx() {
 	cleanup
-	echo "error: $*"
+	echo "error: $@"
 	exit 1
 }
 
@@ -78,18 +78,83 @@ rmdir_be() {
 	rm -rf ${BE_MNTPT}
 }
 
+unmount_be() {
+	mount | grep " on ${BE_MNTPT}" | awk '{print $3}' | sort -r | xargs -t umount -f
+}
+
 cleanup_be() {
+	# Before destroying, unmount any child filesystems that may have
+	# been mounted under the boot environment.  Sort them in reverse
+	# order so children are unmounted first.
+	unmount_be
+	# Finally, clean up any directories that were created by the
+	# operation, via cleanup_be_dirs().
+	if [ -n "${created_be_dirs}" ]; then
+		chroot ${BE_MNTPT} /bin/rm -rf ${created_be_dirs}
+	fi
 	beadm destroy -F ${BENAME}
 }
 
+create_be_dirs() {
+	echo "${BE_MNTPT}: Inspecting dirs $*"
+	for dir in $*; do
+		curdir="$dir"
+		topdir="$dir"
+		while :; do
+			[ -e "${BE_MNTPT}${curdir}" ] && break
+			topdir=$curdir
+			curdir=$(dirname ${curdir})
+		done
+		[ "$curdir" = "$dir" ] && continue
+
+		# Add the top-most nonexistent directory to the list, then
+		# mkdir -p the innermost directory specified by the argument.
+		# This way the least number of directories are rm'd directly.
+		created_be_dirs="${topdir} ${created_be_dirs}"
+		echo "${BE_MNTPT}: Created ${dir}"
+		mkdir -p ${BE_MNTPT}${dir} || return $?
+	done
+	return 0
+}
+
+update_mergemaster_pre() {
+	mergemaster -p -m ${srcdir} -D ${BE_MNTPT} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
+}
+
 update_mergemaster() {
-	mergemaster -m $(pwd) -D ${BE_MNTPT} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
+	chroot ${BE_MNTPT} \
+		mergemaster -m ${srcdir} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
+}
+
+update_etcupdate_pre() {
+	etcupdate -p -s ${srcdir} -D ${BE_MNTPT} ${ETCUPDATE_FLAGS} || return $?
+	etcupdate resolve -D ${BE_MNTPT} || return $?
 }
 
 update_etcupdate() {
-	etcupdate -s $(pwd) -D ${BE_MNTPT} ${ETCUPDATE_FLAGS} || return $?
-	etcupdate resolve -D ${BE_MNTPT}
+	chroot ${BE_MNTPT} \
+		etcupdate -s ${srcdir} ${ETCUPDATE_FLAGS} || return $?
+	chroot ${BE_MNTPT} etcupdate resolve
 }
+
+
+# Special command-line subcommand that can be used to do a full cleanup
+# after a manual post-mortem has been completed.
+postmortem() {
+	[ -n "${BENAME}" ] || errx "Must specify BENAME"
+	[ -n "${BE_MNTPT}" ] || errx "Must specify BE_MNTPT"
+	echo "Performing post-mortem on BE ${BENAME} at ${BE_MNTPT} ..."
+	unmount_be
+	rmdir_be
+	echo "Post-mortem cleanup complete."
+	echo "To destroy the BE (recommended), run: beadm destroy ${BENAME}"
+	echo "To instead continue with the BE, run: beadm activate ${BENAME}"
+}
+
+if [ -n "$BEINSTALL_CMD" ]; then
+	${BEINSTALL_CMD} $*
+	exit $?
+fi
 
 
 cleanup_commands=""
@@ -98,24 +163,27 @@ trap 'errx "Interrupt caught"' HUP INT TERM
 [ "$(whoami)" != "root" ] && errx "Must be run as root"
 
 [ ! -f "Makefile.inc1" ] && errx "Must be in FreeBSD source tree"
+srcdir=$(pwd)
 objdir=$(make -V .OBJDIR 2>/dev/null)
 [ ! -d "${objdir}" ] && errx "Must have built FreeBSD from source tree"
 
-if [ -d .git ] ; then
+# May be a worktree, in which case .git is a file, not a directory.
+if [ -e .git ] ; then
     commit_time=$(git show --format='%ct' 2>/dev/null | head -1)
     [ $? -ne 0 ] && errx "Can't lookup git commit timestamp"
     commit_ts=$(date -r ${commit_time} '+%Y%m%d.%H%M%S')
 elif [ -d .svn ] ; then
-    if [ -f /usr/bin/svnlite ]; then
-        commit_ts=$( svnlite info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )
-    elif [ -f /usr/local/bin/svn ]; then
-        commit_ts=$( svn info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )
-    else
-        errx "Can't lookup Subversion commit timestamp"
-    fi
+      if [ -e /usr/bin/svnlite ]; then
+        svn=/usr/bin/svnlite
+      elif [ -e /usr/local/bin/svn ]; then
+        svn=/usr/local/bin/svn
+      else
+        errx "Unable to find subversion"
+      fi
+      commit_ts="$( "$svn" info --show-item last-changed-date | sed -e 's/\..*//' -e 's/T/./' -e 's/-//g' -e s'/://g' )"
     [ $? -ne 0 ] && errx "Can't lookup Subversion commit timestamp"
 else
-    errx "Unable to determine sandbox type"
+    errx "Unable to determine source control type"
 fi
 
 commit_ver=$(${objdir}/bin/freebsd-version/freebsd-version -u 2>/dev/null)
@@ -136,12 +204,25 @@ beadm create ${BENAME} >/dev/null || errx "Unable to create BE ${BENAME}"
 beadm mount ${BENAME} ${BE_TMP}/mnt || errx "Unable to mount BE ${BENAME}."
 
 echo "Mounted ${BENAME} to ${BE_MNTPT}, performing install/update ..."
-make $* DESTDIR=${BE_MNTPT} installkernel || errx "Installkernel failed!"
-make $* DESTDIR=${BE_MNTPT} installworld || errx "Installworld failed!"
+make "$@" DESTDIR=${BE_MNTPT} installkernel || errx "Installkernel failed!"
+if [ -n "${CONFIG_UPDATER}" ]; then
+	"update_${CONFIG_UPDATER}_pre"
+	[ $? -ne 0 ] && errx "${CONFIG_UPDATER} (pre-world) failed!"
+fi
+
+# Mount the source and object tree within the BE in order to account for any
+# changes applied by the pre-installworld updater.  Cleanup any directories
+# created if they didn't exist previously.
+create_be_dirs "${srcdir}" "${objdir}" || errx "Unable to create BE dirs"
+mount -t nullfs "${srcdir}" "${BE_MNTPT}${srcdir}" || errx "Unable to mount src"
+mount -t nullfs "${objdir}" "${BE_MNTPT}${objdir}" || errx "Unable to mount obj"
+
+chroot ${BE_MNTPT} make "$@" -C ${srcdir} installworld || \
+	errx "Installworld failed!"
 
 if [ -n "${CONFIG_UPDATER}" ]; then
 	"update_${CONFIG_UPDATER}"
-	[ $? -ne 0 ] && errx "${CONFIG_UPDATER} failed!"
+	[ $? -ne 0 ] && errx "${CONFIG_UPDATER} (post-world) failed!"
 fi
 
 BE_PKG="chroot ${BE_MNTPT} env ASSUME_ALWAYS_YES=true pkg"
@@ -150,8 +231,15 @@ if [ -z "${NO_PKG_UPGRADE}" ]; then
 	${BE_PKG} upgrade || errx "Unable to upgrade pkgs"
 fi
 
-beadm unmount ${BENAME} || errx "Unable to unmount BE"
-rmdir_be
+if [ -n "$NO_CLEANUP_BE" ]; then
+	echo "Boot Environment ${BENAME} may be examined in ${BE_MNTPT}."
+	echo "Afterwards, run this to cleanup:"
+	echo "  env BENAME=${BENAME} BE_MNTPT=${BE_MNTPT} BEINSTALL_CMD=postmortem $0"
+	exit 0
+fi
+
+unmount_be || errx "Unable to unmount BE"
+rmdir_be || errx "Unable to cleanup BE"
 beadm activate ${BENAME} || errx "Unable to activate BE"
 echo
 beadm list

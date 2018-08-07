@@ -1770,8 +1770,8 @@ lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 			if (g == NULL)
 				break;
 
-			g->sg = (struct lio_sg_entry *)
-			    ((uint64_t)lio->glists_virt_base[i] +
+			g->sg = (struct lio_sg_entry *)(uintptr_t)
+			    ((uint64_t)(uintptr_t)lio->glists_virt_base[i] +
 			     (j * lio->glist_entry_size));
 			g->sg_dma_ptr = (uint64_t)lio->glists_dma_base[i] +
 				(j * lio->glist_entry_size);

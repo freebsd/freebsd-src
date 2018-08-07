@@ -78,7 +78,7 @@ ffs_susp_suspended(struct mount *mp)
 	sx_assert(&ffs_susp_lock, SA_LOCKED);
 
 	ump = VFSTOUFS(mp);
-	if (ump->um_writesuspended)
+	if ((ump->um_flags & UM_WRITESUSPENDED) != 0)
 		return (1);
 	return (0);
 }
@@ -210,9 +210,38 @@ ffs_susp_suspend(struct mount *mp)
 	if ((error = vfs_write_suspend(mp, VS_SKIP_UNMOUNT)) != 0)
 		return (error);
 
-	ump->um_writesuspended = 1;
+	UFS_LOCK(ump);
+	ump->um_flags |= UM_WRITESUSPENDED;
+	UFS_UNLOCK(ump);
 
 	return (0);
+}
+
+static void
+ffs_susp_unsuspend(struct mount *mp)
+{
+	struct ufsmount *ump;
+
+	sx_assert(&ffs_susp_lock, SA_XLOCKED);
+
+	/*
+	 * XXX: The status is kept per-process; the vfs_write_resume() routine
+	 * 	asserts that the resuming thread is the same one that called
+	 * 	vfs_write_suspend().  The cdevpriv data, however, is attached
+	 * 	to the file descriptor, e.g. is inherited during fork.  Thus,
+	 * 	it's possible that the resuming process will be different from
+	 * 	the one that started the suspension.
+	 *
+	 * 	Work around by fooling the check in vfs_write_resume().
+	 */
+	mp->mnt_susp_owner = curthread;
+
+	vfs_write_resume(mp, 0);
+	ump = VFSTOUFS(mp);
+	UFS_LOCK(ump);
+	ump->um_flags &= ~UM_WRITESUSPENDED;
+	UFS_UNLOCK(ump);
+	vfs_unbusy(mp);
 }
 
 static void
@@ -241,22 +270,7 @@ ffs_susp_dtor(void *data)
 	if (error != 0)
 		panic("failed to unsuspend writes on %s", fs->fs_fsmnt);
 
-	/*
-	 * XXX: The status is kept per-process; the vfs_write_resume() routine
-	 * 	asserts that the resuming thread is the same one that called
-	 * 	vfs_write_suspend().  The cdevpriv data, however, is attached
-	 * 	to the file descriptor, e.g. is inherited during fork.  Thus,
-	 * 	it's possible that the resuming process will be different from
-	 * 	the one that started the suspension.
-	 *
-	 * 	Work around by fooling the check in vfs_write_resume().
-	 */
-	mp->mnt_susp_owner = curthread;
-
-	vfs_write_resume(mp, 0);
-	vfs_unbusy(mp);
-	ump->um_writesuspended = 0;
-
+	ffs_susp_unsuspend(mp);
 	sx_xunlock(&ffs_susp_lock);
 }
 
@@ -296,7 +310,8 @@ ffs_susp_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			break;
 		}
 		error = devfs_set_cdevpriv(mp, ffs_susp_dtor);
-		KASSERT(error == 0, ("devfs_set_cdevpriv failed"));
+		if (error != 0)
+			ffs_susp_unsuspend(mp);
 		break;
 	case UFSRESUME:
 		error = devfs_get_cdevpriv((void **)&mp);

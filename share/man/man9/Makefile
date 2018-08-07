@@ -123,6 +123,7 @@ MAN=	accept_filter.9 \
 	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
+	epoch.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
 	extattr.9 \
@@ -163,6 +164,7 @@ MAN=	accept_filter.9 \
 	ieee80211_regdomain.9 \
 	ieee80211_scan.9 \
 	ieee80211_vap.9 \
+	iflib.9 \
 	iflibdd.9 \
 	iflibdi.9 \
 	iflibtxrx.9 \
@@ -451,6 +453,7 @@ MLINKS+=altq.9 ALTQ.9
 MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_clear.9 \
 	atomic.9 atomic_cmpset.9 \
+	atomic.9 atomic_fcmpset.9 \
 	atomic.9 atomic_fetchadd.9 \
 	atomic.9 atomic_load.9 \
 	atomic.9 atomic_readandclear.9 \
@@ -458,7 +461,9 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_store.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
-	atomic.9 atomic_testandset.9
+	atomic.9 atomic_testandclear.9 \
+	atomic.9 atomic_testandset.9 \
+	atomic.9 atomic_thread_fence.9
 MLINKS+=bhnd.9 BHND_MATCH_BOARD_TYPE.9 \
 	bhnd.9 BHND_MATCH_BOARD_VENDOR.9 \
 	bhnd.9 BHND_MATCH_CHIP_ID.9 \
@@ -1538,7 +1543,9 @@ MLINKS+=OF_device_from_xref.9 OF_device_register_xref.9 \
 	OF_device_from_xref.9 OF_xref_from_device.9
 MLINKS+=OF_getprop.9 OF_getencprop.9 \
 	OF_getprop.9 OF_getencprop_alloc.9 \
+	OF_getprop.9 OF_getencprop_alloc_multi.9 \
 	OF_getprop.9 OF_getprop_alloc.9 \
+	OF_getprop.9 OF_getprop_alloc_multi.9 \
 	OF_getprop.9 OF_getproplen.9 \
 	OF_getprop.9 OF_hasprop.9 \
 	OF_getprop.9 OF_nextprop.9 \
@@ -1893,6 +1900,7 @@ MLINKS+=socket.9 soabort.9 \
 	socket.9 soconnect.9 \
 	socket.9 socreate.9 \
 	socket.9 sodisconnect.9 \
+	socket.9 sodtor_set.9 \
 	socket.9 sodupsockaddr.9 \
 	socket.9 sofree.9 \
 	socket.9 sogetopt.9 \

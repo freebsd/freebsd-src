@@ -87,14 +87,11 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create one free page list: VM_FREELIST_DEFAULT is for all physical
+ * pages.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
 
 /*
  * An allocation size of 16MB is supported in order to optimize the

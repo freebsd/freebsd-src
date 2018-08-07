@@ -8,7 +8,7 @@ SRCS+=	\
 	amd64_set_fsbase.c \
 	amd64_set_gsbase.c
 
-MDASM=	vfork.S brk.S cerror.S getcontext.S sbrk.S
+MDASM=	vfork.S cerror.S getcontext.S
 
 # Don't generate default code for these syscalls:
-NOASM+=	vfork.o
+NOASM+=	sbrk.o vfork.o

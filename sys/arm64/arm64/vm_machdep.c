@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/signal.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
 
 #include <vm/vm.h>
@@ -54,9 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
-#ifdef DEV_PSCI
 #include <dev/psci/psci.h>
-#endif
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -119,9 +118,7 @@ void
 cpu_reset(void)
 {
 
-#ifdef DEV_PSCI
 	psci_reset();
-#endif
 
 	printf("cpu_reset failed");
 	while(1)
@@ -158,7 +155,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_spsr |= PSR_C;	/* carry bit */
-		frame->tf_x[0] = error;
+		frame->tf_x[0] = SV_ABI_ERRNO(td->td_proc, error);
 		break;
 	}
 }

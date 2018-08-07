@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/blist.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <vm/swap_pager.h>

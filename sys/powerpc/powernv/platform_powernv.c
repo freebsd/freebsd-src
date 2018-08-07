@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 extern void *ap_pcpu;
 #endif
 
+extern void xicp_smp_cpu_startup(void);
 static int powernv_probe(platform_t);
 static int powernv_attach(platform_t);
 void powernv_mem_regions(platform_t, struct mem_region *phys, int *physsz,
@@ -152,13 +153,13 @@ powernv_attach(platform_t plat)
 	mtspr(SPR_LPID, 0);
 	isync();
 
-	mtspr(SPR_LPCR, LPCR_LPES);
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00)
+		lpcr |= LPCR_HVICE;
+
+	mtspr(SPR_LPCR, lpcr);
 	isync();
 
 	mtmsr(msr);
-
-	/* Init CPU bits */
-	powernv_smp_ap_init(plat);
 
 	powernv_cpuref_init();
 
@@ -460,6 +461,8 @@ powernv_reset(platform_t platform)
 static void
 powernv_smp_ap_init(platform_t platform)
 {
+
+	xicp_smp_cpu_startup();
 }
 
 static void

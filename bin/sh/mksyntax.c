@@ -65,6 +65,7 @@ struct synclass {
 static const struct synclass synclass[] = {
 	{ "CWORD",	"character is nothing special" },
 	{ "CNL",	"newline character" },
+	{ "CQNL",	"newline character in quotes" },
 	{ "CBACK",	"a backslash character" },
 	{ "CSBACK",	"a backslash character in single quotes" },
 	{ "CSQUOTE",	"single quote" },
@@ -185,7 +186,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in double quotes */\n", cfile);
 	init("dqsyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CBACK");
 	add("\"", "CENDQUOTE");
 	add("`", "CBQUOTE");
@@ -198,7 +199,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in single quotes */\n", cfile);
 	init("sqsyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CSBACK");
 	add("'", "CENDQUOTE");
 	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
@@ -208,7 +209,7 @@ main(int argc __unused, char **argv __unused)
 	fputs("\n/* syntax table used when in arithmetic */\n", cfile);
 	init("arisyntax");
 	add_default();
-	add("\n", "CNL");
+	add("\n", "CQNL");
 	add("\\", "CBACK");
 	add("`", "CBQUOTE");
 	add("\"", "CIGN");

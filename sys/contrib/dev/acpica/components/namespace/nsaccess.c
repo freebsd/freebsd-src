@@ -781,13 +781,6 @@ AcpiNsLookup (
 
         else
         {
-#ifdef ACPI_ASL_COMPILER
-            if (!AcpiGbl_DisasmFlag && (ThisNode->Flags & ANOBJ_IS_EXTERNAL))
-            {
-                ThisNode->Flags &= ~IMPLICIT_EXTERNAL;
-            }
-#endif
-
             /*
              * Sanity typecheck of the target object:
              *

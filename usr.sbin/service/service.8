@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2018
+.Dd May 31, 2018
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -32,19 +32,24 @@
 .Nd "control (start/stop/etc.) or list system services"
 .Sh SYNOPSIS
 .Nm
-.Op Fl j Ao jail name or id Ac
+.Op Fl j Ar jail
 .Fl e
 .Nm
-.Op Fl j Ao jail name or id Ac
+.Op Fl j Ar jail
 .Fl R
 .Nm
-.Op Fl j Ao jail name or id Ac
+.Op Fl j Ar jail
 .Op Fl v
-.Fl l | r
+.Fl l
 .Nm
-.Op Fl j Ao jail name or id Ac
+.Op Fl j Ar jail
 .Op Fl v
-.Ar <rc.d script> start|stop|etc.
+.Fl r
+.Nm
+.Op Fl j Ar jail
+.Op Fl v
+.Ar script
+.Ar command
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,14 +57,16 @@ command is an easy interface to the rc.d system.
 Its primary purpose is to start and stop services provided
 by the rc.d scripts.
 When used for this purpose it will set the same restricted
-environment that is in use at boot time (see below).
+environment that is in use at boot time
+.Po
+see
+.Sx ENVIRONMENT
+.Pc .
 It can also be used to list
 the scripts using various criteria.
 .Pp
 The options are as follows:
 .Bl -tag -width F1
-.It Fl j Ao jail name or id Ac
-Perform the given actions under the named jail.
 .It Fl e
 List services that are enabled.
 The list of scripts to check is compiled using
@@ -70,8 +77,11 @@ then that list of scripts is checked for an
 .Qq rcvar
 assignment.
 If present the script is checked to see if it is enabled.
-.It Fl R
-Restart all enabled local services.
+.It Fl j Ar jail
+Perform the given actions under the named jail.
+The
+.Ar jail
+argument can be either a jail ID or a jail name.
 .It Fl l
 List all files in
 .Pa /etc/rc.d
@@ -88,8 +98,10 @@ Generate the
 as in
 .Fl e
 above, but list all of the files, not just what is enabled.
+.It Fl R
+Restart all enabled local services.
 .It Fl v
-Be slightly more verbose
+Be slightly more verbose.
 .El
 .Sh ENVIRONMENT
 When used to run rc.d scripts the
@@ -111,21 +123,24 @@ at boot time.
 The following are examples of typical usage of the
 .Nm
 command:
-.Pp
-.Dl "service named status"
-.Dl "service -j dns named status"
-.Dl "service -rv"
+.Bd -literal -offset -ident
+service named status
+service -j dns named status
+service -rv
+.Ed
 .Pp
 The following programmable completion entry can be use in
 .Xr bash 1
 for the names of the rc.d scripts:
-.Dl "_service () {"
-.Dl "	local cur"
-.Dl "	cur=${COMP_WORDS[COMP_CWORD]}"
-.Dl "	COMPREPLY=( $( compgen -W '$( service -l )' -- $cur ) )"
-.Dl "	return 0"
-.Dl "}"
-.Dl "complete -F _service service"
+.Bd -literal -offset -ident
+_service () {
+	local cur
+	cur=${COMP_WORDS[COMP_CWORD]}
+	COMPREPLY=( $( compgen -W '$( service -l )' -- $cur ) )
+	return 0
+}
+complete -F _service service
+.Ed
 .Sh SEE ALSO
 .Xr bash 1 Pq Pa ports/shells/bash ,
 .Xr rc.conf 5 ,

@@ -1,5 +1,9 @@
 {
   "top": {
+    "type": "ethernet",
+    "type": "bridge",
+    "type": "18u",
+    "type": 24,
     "address": "0x0",
     "port": 1,
     "address": "0x0",

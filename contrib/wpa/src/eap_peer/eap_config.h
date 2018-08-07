@@ -181,13 +181,13 @@ struct eap_peer_config {
 	 * subject_match - Constraint for server certificate subject
 	 *
 	 * This substring is matched against the subject of the authentication
-	 * server certificate. If this string is set, the server sertificate is
+	 * server certificate. If this string is set, the server certificate is
 	 * only accepted if it contains this string in the subject. The subject
 	 * string is in following format:
 	 *
 	 * /C=US/ST=CA/L=San Francisco/CN=Test AS/emailAddress=as@n.example.com
 	 *
-	 * Note: Since this is a substring match, this cannot be used securily
+	 * Note: Since this is a substring match, this cannot be used securely
 	 * to do a suffix match against a possible domain name in the CN entry.
 	 * For such a use case, domain_suffix_match should be used instead.
 	 */
@@ -198,7 +198,7 @@ struct eap_peer_config {
 	 *
 	 * Semicolon separated string of entries to be matched against the
 	 * alternative subject name of the authentication server certificate.
-	 * If this string is set, the server sertificate is only accepted if it
+	 * If this string is set, the server certificate is only accepted if it
 	 * contains one of the entries in an alternative subject name
 	 * extension.
 	 *
@@ -739,6 +739,20 @@ struct eap_peer_config {
 	 * erp - Whether EAP Re-authentication Protocol (ERP) is enabled
 	 */
 	int erp;
+
+	/**
+	 * pending_ext_cert_check - External server certificate check status
+	 *
+	 * This field should not be set in configuration step. It is only used
+	 * internally when control interface is used to request external
+	 * validation of server certificate chain.
+	 */
+	enum {
+		NO_CHECK = 0,
+		PENDING_CHECK,
+		EXT_CERT_CHECK_GOOD,
+		EXT_CERT_CHECK_BAD,
+	} pending_ext_cert_check;
 };
 
 

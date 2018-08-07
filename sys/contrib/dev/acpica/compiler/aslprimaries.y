@@ -235,12 +235,12 @@ BankFieldTerm
         NameString
         NameStringItem
         TermArgItem
-        ',' AccessTypeKeyword
-        ',' LockRuleKeyword
-        ',' UpdateRuleKeyword
+        OptionalAccessTypeKeyword
+        OptionalLockRuleKeyword
+        OptionalUpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
             FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,7,
-                                        $4,$5,$6,$8,$10,$12,$15);}
+                                        $4,$5,$6,$7,$8,$9,$12);}
     | PARSEOP_BANKFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN
@@ -579,11 +579,11 @@ FieldTerm
     : PARSEOP_FIELD
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FIELD);}
         NameString
-        ',' AccessTypeKeyword
-        ',' LockRuleKeyword
-        ',' UpdateRuleKeyword
+        OptionalAccessTypeKeyword
+        OptionalLockRuleKeyword
+        OptionalUpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
-            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,5,$4,$6,$8,$10,$13);}
+            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,5,$4,$5,$6,$7,$10);}
     | PARSEOP_FIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN
@@ -711,11 +711,11 @@ IndexFieldTerm
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_INDEXFIELD);}
         NameString
         NameStringItem
-        ',' AccessTypeKeyword
-        ',' LockRuleKeyword
-        ',' UpdateRuleKeyword
+        OptionalAccessTypeKeyword
+        OptionalLockRuleKeyword
+        OptionalUpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
-            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,6,$4,$5,$7,$9,$11,$14);}
+            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,6,$4,$5,$6,$7,$8,$11);}
     | PARSEOP_INDEXFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN
@@ -946,9 +946,9 @@ MutexTerm
     : PARSEOP_MUTEX
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MUTEX);}
         NameString
-        ',' ByteConstExpr
+        OptionalSyncLevel
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,
-                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$6);}
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$5);}
     | PARSEOP_MUTEX
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}

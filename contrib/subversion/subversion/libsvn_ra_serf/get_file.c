@@ -60,7 +60,7 @@ typedef struct stream_ctx_t {
   /* Have we read our response headers yet? */
   svn_boolean_t read_headers;
 
-  svn_boolean_t using_compression;
+  svn_ra_serf__session_t *session;
 
   /* This flag is set when our response is aborted before we reach the
    * end and we decide to requeue this request.
@@ -88,7 +88,7 @@ headers_fetch(serf_bucket_t *headers,
 {
   stream_ctx_t *fetch_ctx = baton;
 
-  if (fetch_ctx->using_compression)
+  if (fetch_ctx->session->using_compression != svn_tristate_false)
     {
       serf_bucket_headers_setn(headers, "Accept-Encoding", "gzip");
     }
@@ -321,17 +321,19 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
                       svn_stream_t *stream,
                       svn_revnum_t *fetched_rev,
                       apr_hash_t **props,
-                      apr_pool_t *pool)
+                      apr_pool_t *result_pool)
 {
   svn_ra_serf__session_t *session = ra_session->priv;
   const char *fetch_url;
   const svn_ra_serf__dav_props_t *which_props;
   svn_ra_serf__handler_t *propfind_handler;
+  apr_pool_t *scratch_pool = svn_pool_create(result_pool);
   struct file_prop_baton_t fb;
 
   /* Fetch properties. */
 
-  fetch_url = svn_path_url_add_component2(session->session_url.path, path, pool);
+  fetch_url = svn_path_url_add_component2(session->session_url.path, path,
+                                          scratch_pool);
 
   /* The simple case is if we want HEAD - then a GET on the fetch_url is fine.
    *
@@ -343,7 +345,7 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
       SVN_ERR(svn_ra_serf__get_stable_url(&fetch_url, fetched_rev,
                                           session,
                                           fetch_url, revision,
-                                          pool, pool));
+                                          scratch_pool, scratch_pool));
       revision = SVN_INVALID_REVNUM;
     }
   /* REVISION is always SVN_INVALID_REVNUM  */
@@ -356,8 +358,8 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
   else
       which_props = check_path_props;
 
-  fb.result_pool = pool;
-  fb.props = props ? apr_hash_make(pool) : NULL;
+  fb.result_pool = result_pool;
+  fb.props = props ? apr_hash_make(result_pool) : NULL;
   fb.kind = svn_node_unknown;
   fb.sha1_checksum = NULL;
 
@@ -365,9 +367,9 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
                                                fetch_url, SVN_INVALID_REVNUM,
                                                "0", which_props,
                                                get_file_prop_cb, &fb,
-                                               pool));
+                                               scratch_pool));
 
-  SVN_ERR(svn_ra_serf__context_run_one(propfind_handler, pool));
+  SVN_ERR(svn_ra_serf__context_run_one(propfind_handler, scratch_pool));
 
   /* Verify that resource type is not collection. */
   if (fb.kind != svn_node_file)
@@ -382,7 +384,8 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
   if (stream)
     {
       svn_boolean_t found;
-      SVN_ERR(try_get_wc_contents(&found, session, fb.sha1_checksum, stream, pool));
+      SVN_ERR(try_get_wc_contents(&found, session, fb.sha1_checksum, stream,
+                                  scratch_pool));
 
       /* No contents found in the WC, let's fetch from server. */
       if (!found)
@@ -391,11 +394,11 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
           svn_ra_serf__handler_t *handler;
 
           /* Create the fetch context. */
-          stream_ctx = apr_pcalloc(pool, sizeof(*stream_ctx));
+          stream_ctx = apr_pcalloc(scratch_pool, sizeof(*stream_ctx));
           stream_ctx->result_stream = stream;
-          stream_ctx->using_compression = session->using_compression;
+          stream_ctx->session = session;
 
-          handler = svn_ra_serf__create_handler(session, pool);
+          handler = svn_ra_serf__create_handler(session, scratch_pool);
 
           handler->method = "GET";
           handler->path = fetch_url;
@@ -414,12 +417,14 @@ svn_ra_serf__get_file(svn_ra_session_t *ra_session,
 
           stream_ctx->handler = handler;
 
-          SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
+          SVN_ERR(svn_ra_serf__context_run_one(handler, scratch_pool));
 
           if (handler->sline.code != 200)
             return svn_error_trace(svn_ra_serf__unexpected_status(handler));
         }
     }
+
+  svn_pool_destroy(scratch_pool);
 
   return SVN_NO_ERROR;
 }

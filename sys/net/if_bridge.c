@@ -229,7 +229,7 @@ struct bridge_softc {
 	u_char			sc_defaddr[6];	/* Default MAC address */
 };
 
-static VNET_DEFINE(struct mtx, bridge_list_mtx);
+VNET_DEFINE_STATIC(struct mtx, bridge_list_mtx);
 #define	V_bridge_list_mtx	VNET(bridge_list_mtx)
 static eventhandler_tag bridge_detach_cookie;
 
@@ -340,7 +340,6 @@ static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
 static void	bridge_linkstate(struct ifnet *ifp);
 static void	bridge_linkcheck(struct bridge_softc *sc);
 
-extern void (*bridge_linkstate_p)(struct ifnet *ifp);
 
 /* The default bridge vlan is 1 (IEEE 802.1Q-2003 Table 9-2) */
 #define	VLANTAGOF(_m)	\
@@ -355,59 +354,59 @@ SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
 /* only pass IP[46] packets when pfil is enabled */
-static VNET_DEFINE(int, pfil_onlyip) = 1;
+VNET_DEFINE_STATIC(int, pfil_onlyip) = 1;
 #define	V_pfil_onlyip	VNET(pfil_onlyip)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(pfil_onlyip), 0,
     "Only pass IP packets when pfil is enabled");
 
 /* run pfil hooks on the bridge interface */
-static VNET_DEFINE(int, pfil_bridge) = 1;
+VNET_DEFINE_STATIC(int, pfil_bridge) = 1;
 #define	V_pfil_bridge	VNET(pfil_bridge)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(pfil_bridge), 0,
     "Packet filter on the bridge interface");
 
 /* layer2 filter with ipfw */
-static VNET_DEFINE(int, pfil_ipfw);
+VNET_DEFINE_STATIC(int, pfil_ipfw);
 #define	V_pfil_ipfw	VNET(pfil_ipfw)
 
 /* layer2 ARP filter with ipfw */
-static VNET_DEFINE(int, pfil_ipfw_arp);
+VNET_DEFINE_STATIC(int, pfil_ipfw_arp);
 #define	V_pfil_ipfw_arp	VNET(pfil_ipfw_arp)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(pfil_ipfw_arp), 0,
     "Filter ARP packets through IPFW layer2");
 
 /* run pfil hooks on the member interface */
-static VNET_DEFINE(int, pfil_member) = 1;
+VNET_DEFINE_STATIC(int, pfil_member) = 1;
 #define	V_pfil_member	VNET(pfil_member)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(pfil_member), 0,
     "Packet filter on the member interface");
 
 /* run pfil hooks on the physical interface for locally destined packets */
-static VNET_DEFINE(int, pfil_local_phys);
+VNET_DEFINE_STATIC(int, pfil_local_phys);
 #define	V_pfil_local_phys	VNET(pfil_local_phys)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(pfil_local_phys), 0,
     "Packet filter on the physical interface for locally destined packets");
 
 /* log STP state changes */
-static VNET_DEFINE(int, log_stp);
+VNET_DEFINE_STATIC(int, log_stp);
 #define	V_log_stp	VNET(log_stp)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(log_stp), 0,
     "Log STP state changes");
 
 /* share MAC with first bridge member */
-static VNET_DEFINE(int, bridge_inherit_mac);
+VNET_DEFINE_STATIC(int, bridge_inherit_mac);
 #define	V_bridge_inherit_mac	VNET(bridge_inherit_mac)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(bridge_inherit_mac), 0,
     "Inherit MAC address from the first bridge member");
 
-static VNET_DEFINE(int, allow_llz_overlap) = 0;
+VNET_DEFINE_STATIC(int, allow_llz_overlap) = 0;
 #define	V_allow_llz_overlap	VNET(allow_llz_overlap)
 SYSCTL_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
@@ -511,7 +510,7 @@ const struct bridge_control bridge_control_table[] = {
 };
 const int bridge_control_table_size = nitems(bridge_control_table);
 
-static VNET_DEFINE(LIST_HEAD(, bridge_softc), bridge_list);
+VNET_DEFINE_STATIC(LIST_HEAD(, bridge_softc), bridge_list);
 #define	V_bridge_list	VNET(bridge_list)
 #define	BRIDGE_LIST_LOCK_INIT(x)	mtx_init(&V_bridge_list_mtx,	\
 					    "if_bridge list", NULL, MTX_DEF)
@@ -519,7 +518,7 @@ static VNET_DEFINE(LIST_HEAD(, bridge_softc), bridge_list);
 #define	BRIDGE_LIST_LOCK(x)		mtx_lock(&V_bridge_list_mtx)
 #define	BRIDGE_LIST_UNLOCK(x)		mtx_unlock(&V_bridge_list_mtx)
 
-static VNET_DEFINE(struct if_clone *, bridge_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, bridge_cloner);
 #define	V_bridge_cloner	VNET(bridge_cloner)
 
 static const char bridge_name[] = "bridge";
@@ -556,10 +555,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_rtnode_zone = uma_zcreate("bridge_rtnode",
 		    sizeof(struct bridge_rtnode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
-		bridge_input_p = bridge_input;
-		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
-		bridge_linkstate_p = bridge_linkstate;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -568,10 +564,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 		    bridge_detach_cookie);
 		uma_zdestroy(bridge_rtnode_zone);
-		bridge_input_p = NULL;
-		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
-		bridge_linkstate_p = NULL;
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -1041,6 +1034,9 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	KASSERT(bif->bif_addrcnt == 0,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
+	ifs->if_bridge_output = NULL;
+	ifs->if_bridge_input = NULL;
+	ifs->if_bridge_linkstate = NULL;
 	BRIDGE_UNLOCK(sc);
 	if (!gone) {
 		switch (ifs->if_type) {
@@ -1198,6 +1194,9 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	}
 
 	ifs->if_bridge = sc;
+	ifs->if_bridge_output = bridge_output;
+	ifs->if_bridge_input = bridge_input;
+	ifs->if_bridge_linkstate = bridge_linkstate;
 	bstp_create(&sc->sc_stp, &bif->bif_stp, bif->bif_ifp);
 	/*
 	 * XXX: XLOCK HERE!?!

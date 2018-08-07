@@ -138,6 +138,7 @@ static int get_port(const char *ca_name, const char *dir, int portnum, umad_port
 	strncpy(port->ca_name, ca_name, sizeof port->ca_name - 1);
 	port->portnum = portnum;
 	port->pkeys = NULL;
+	port->rate = 0;
 
 	len = snprintf(port_dir, sizeof(port_dir), "%s/%d", dir, portnum);
 	if (len < 0 || len > sizeof(port_dir))
@@ -155,8 +156,12 @@ static int get_port(const char *ca_name, const char *dir, int portnum, umad_port
 		goto clean;
 	if (sys_read_uint(port_dir, SYS_PORT_PHY_STATE, &port->phys_state) < 0)
 		goto clean;
-	if (sys_read_uint(port_dir, SYS_PORT_RATE, &port->rate) < 0)
-		goto clean;
+	/*
+	 * If width was not set properly this read may fail.
+	 * Instead of failing everything, we will just skip the check
+	 * and it will be set to 0.
+	 */
+	sys_read_uint(port_dir, SYS_PORT_RATE, &port->rate);
 	if (sys_read_uint(port_dir, SYS_PORT_CAPMASK, &capmask) < 0)
 		goto clean;
 
@@ -504,14 +509,14 @@ int umad_init(void)
 	TRACE("umad_init");
 	if (sys_read_uint(IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE, &abi_version) < 0) {
 		IBWARN
-		    ("can't read ABI version from %s/%s (%m): is ib_umad module loaded?",
-		     IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE);
+		    ("can't read ABI version from %s (%m): is ibcore module loaded?",
+		     PATH_TO_SYS(IB_UMAD_ABI_DIR "/" IB_UMAD_ABI_FILE));
 		return -1;
 	}
 	if (abi_version < IB_UMAD_ABI_VERSION) {
 		IBWARN
-		    ("wrong ABI version: %s/%s is %d but library minimal ABI is %d",
-		     IB_UMAD_ABI_DIR, IB_UMAD_ABI_FILE, abi_version,
+		    ("wrong ABI version: %s is %d but library minimal ABI is %d",
+		     PATH_TO_SYS(IB_UMAD_ABI_DIR "/" IB_UMAD_ABI_FILE), abi_version,
 		     IB_UMAD_ABI_VERSION);
 		return -1;
 	}

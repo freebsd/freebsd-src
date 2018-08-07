@@ -44,8 +44,3 @@ struct imsg_hdr {
 	enum imsg_code	code;
 	size_t		len;
 };
-
-struct buf	*buf_open(size_t);
-int		 buf_add(struct buf *, const void *, size_t);
-int		 buf_close(int, struct buf *);
-ssize_t		 buf_read(int sock, void *, size_t);

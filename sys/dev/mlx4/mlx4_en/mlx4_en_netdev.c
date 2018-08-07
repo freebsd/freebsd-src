@@ -623,7 +623,7 @@ static void mlx4_en_cache_uclist(struct net_device *dev)
 	mlx4_en_clear_uclist(dev);
 
 	if_addr_rlock(dev);
-	TAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		if (((struct sockaddr_dl *)ifa->ifa_addr)->sdl_alen !=
@@ -661,7 +661,7 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 	mlx4_en_clear_mclist(dev);
 
 	if_maddr_rlock(dev);
-	TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (((struct sockaddr_dl *)ifma->ifma_addr)->sdl_alen !=

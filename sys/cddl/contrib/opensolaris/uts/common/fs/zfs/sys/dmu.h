@@ -109,7 +109,8 @@ typedef enum dmu_object_byteswap {
 /*
  * Defines a uint8_t object type. Object types specify if the data
  * in the object is metadata (boolean) and how to byteswap the data
- * (dmu_object_byteswap_t).
+ * (dmu_object_byteswap_t). All of the types created by this method
+ * are cached in the dbuf metadata cache.
  */
 #define	DMU_OT(byteswap, metadata) \
 	(DMU_OT_NEWTYPE | \
@@ -123,6 +124,9 @@ typedef enum dmu_object_byteswap {
 #define	DMU_OT_IS_METADATA(ot) (((ot) & DMU_OT_NEWTYPE) ? \
 	((ot) & DMU_OT_METADATA) : \
 	dmu_ot[(ot)].ot_metadata)
+
+#define	DMU_OT_IS_METADATA_CACHED(ot) (((ot) & DMU_OT_NEWTYPE) ? \
+	B_TRUE : dmu_ot[(ot)].ot_dbuf_metadata_cache)
 
 /*
  * These object types use bp_fill != 1 for their L0 bp's. Therefore they can't
@@ -352,6 +356,9 @@ typedef struct dmu_buf {
  */
 uint64_t dmu_object_alloc(objset_t *os, dmu_object_type_t ot,
     int blocksize, dmu_object_type_t bonus_type, int bonus_len, dmu_tx_t *tx);
+uint64_t dmu_object_alloc_ibs(objset_t *os, dmu_object_type_t ot, int blocksize,
+    int indirect_blockshift,
+    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
 int dmu_object_claim(objset_t *os, uint64_t object, dmu_object_type_t ot,
     int blocksize, dmu_object_type_t bonus_type, int bonus_len, dmu_tx_t *tx);
 int dmu_object_reclaim(objset_t *os, uint64_t object, dmu_object_type_t ot,
@@ -512,6 +519,9 @@ uint64_t dmu_buf_refcount(dmu_buf_t *db);
 int dmu_buf_hold_array_by_bonus(dmu_buf_t *db, uint64_t offset,
     uint64_t length, boolean_t read, void *tag,
     int *numbufsp, dmu_buf_t ***dbpp);
+int dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
+    boolean_t read, void *tag, int *numbufsp, dmu_buf_t ***dbpp,
+    uint32_t flags);
 void dmu_buf_rele_array(dmu_buf_t **, int numbufs, void *tag);
 
 typedef void dmu_buf_evict_func_t(void *user_ptr);
@@ -750,9 +760,12 @@ void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_tx_t *tx);
 int dmu_read_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size);
 int dmu_read_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size);
+int dmu_read_uio_dnode(dnode_t *dn, struct uio *uio, uint64_t size);
 int dmu_write_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size,
+    dmu_tx_t *tx);
+int dmu_write_uio_dnode(dnode_t *dn, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 #ifdef _KERNEL
 #ifdef illumos
@@ -767,6 +780,8 @@ int dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
 #endif
 struct arc_buf *dmu_request_arcbuf(dmu_buf_t *handle, int size);
 void dmu_return_arcbuf(struct arc_buf *buf);
+void dmu_assign_arcbuf_dnode(dnode_t *handle, uint64_t offset,
+    struct arc_buf *buf, dmu_tx_t *tx);
 void dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, struct arc_buf *buf,
     dmu_tx_t *tx);
 int dmu_xuio_init(struct xuio *uio, int niov);
@@ -810,6 +825,7 @@ typedef void arc_byteswap_func_t(void *buf, size_t size);
 typedef struct dmu_object_type_info {
 	dmu_object_byteswap_t	ot_byteswap;
 	boolean_t		ot_metadata;
+	boolean_t		ot_dbuf_metadata_cache;
 	char			*ot_name;
 } dmu_object_type_info_t;
 

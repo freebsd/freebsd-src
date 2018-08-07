@@ -50,7 +50,9 @@
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/log2.h>
+
 #include <asm/byteorder.h>
+#include <asm/uaccess.h>
 
 #include <machine/stdarg.h>
 
@@ -370,6 +372,46 @@ kstrtou32(const char *cp, unsigned int base, u32 *res)
 	if (temp != (u32)temp)
 		return (-ERANGE);
 	return (0);
+}
+
+static inline int
+kstrtobool(const char *s, bool *res)
+{
+	int len;
+
+	if (s == NULL || (len = strlen(s)) == 0 || res == NULL)
+		return (-EINVAL);
+
+	/* skip newline character, if any */
+	if (s[len - 1] == '\n')
+		len--;
+
+	if (len == 1 && strchr("yY1", s[0]) != NULL)
+		*res = true;
+	else if (len == 1 && strchr("nN0", s[0]) != NULL)
+		*res = false;
+	else if (strncasecmp("on", s, len) == 0)
+		*res = true;
+	else if (strncasecmp("off", s, len) == 0)
+		*res = false;
+	else
+		return (-EINVAL);
+
+	return (0);
+}
+
+static inline int
+kstrtobool_from_user(const char __user *s, size_t count, bool *res)
+{
+	char buf[8] = {};
+
+	if (count > (sizeof(buf) - 1))
+		count = (sizeof(buf) - 1);
+
+	if (copy_from_user(buf, s, count))
+		return (-EFAULT);
+
+	return (kstrtobool(buf, res));
 }
 
 #define min(x, y)	((x) < (y) ? (x) : (y))

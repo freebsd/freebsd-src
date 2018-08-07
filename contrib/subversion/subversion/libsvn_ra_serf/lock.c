@@ -267,10 +267,9 @@ run_locks(svn_ra_serf__session_t *sess,
                     /* ### Authz can also lead to 403. */
                     err = svn_error_createf(SVN_ERR_FS_LOCK_OWNER_MISMATCH,
                                             NULL,
-                                            _("Unlock of '%s' failed (%d %s)"),
-                                            ctx->path,
-                                            ctx->handler->sline.code,
-                                            ctx->handler->sline.reason);
+                                            _("Not authorized to perform lock "
+                                              "operation on '%s'"),
+                                            ctx->path);
                     break;
                   case 405:
                     err = svn_error_createf(SVN_ERR_FS_OUT_OF_DATE,
@@ -282,13 +281,20 @@ run_locks(svn_ra_serf__session_t *sess,
                                             ctx->handler->sline.reason);
                     break;
                   case 423:
-                    err = svn_error_createf(SVN_ERR_FS_PATH_ALREADY_LOCKED,
-                                            NULL,
-                                            _("Path '%s' already locked "
-                                              "(%d %s)"),
-                                            ctx->path,
-                                            ctx->handler->sline.code,
-                                            ctx->handler->sline.reason);
+                    if (server_err
+                        && SVN_ERROR_IN_CATEGORY(server_err->apr_err,
+                                                 SVN_ERR_FS_CATEGORY_START))
+                      {
+                        err = NULL;
+                      }
+                    else
+                      err = svn_error_createf(SVN_ERR_FS_PATH_ALREADY_LOCKED,
+                                              NULL,
+                                              _("Path '%s' already locked "
+                                                "(%d %s)"),
+                                              ctx->path,
+                                              ctx->handler->sline.code,
+                                              ctx->handler->sline.reason);
                     break;
 
                   case 404:

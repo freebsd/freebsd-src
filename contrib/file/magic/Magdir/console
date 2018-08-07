@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.32 2017/08/13 00:21:47 christos Exp $
+# $File: console,v 1.35 2017/11/14 15:48:36 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -510,7 +510,7 @@
 # From: Serge van den Boom <svdb@stack.nl>
 0	string		\x01ZZZZZ\x01	3DO "Opera" file system
 
-# From: Gurkan Sengun <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# From: Alex Myczko <alex@aiei.ch>
 # From: David Pflug <david@pflug.email>
 # is the offset 12 or the offset 16 correct?
 # GBS (Game Boy Sound) magic

@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.3 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: forward-control.sh,v 1.5 2018/03/02 02:51:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"
@@ -32,13 +32,12 @@ wait_for_process_to_exit() {
 	return 0
 }
 
-# usage: check_lfwd protocol Y|N message
+# usage: check_lfwd Y|N message
 check_lfwd() {
-	_proto=$1
-	_expected=$2
-	_message=$3
+	_expected=$1
+	_message=$2
 	rm -f $READY
-	${SSH} -oProtocol=$_proto -F $OBJ/ssh_proxy \
+	${SSH} -F $OBJ/ssh_proxy \
 	    -L$LFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
 	    -n host exec sh -c \'"sleep 60 & echo \$! > $READY ; wait "\' \
@@ -62,13 +61,12 @@ check_lfwd() {
 	fi
 }
 
-# usage: check_rfwd protocol Y|N message
+# usage: check_rfwd Y|N message
 check_rfwd() {
-	_proto=$1
-	_expected=$2
-	_message=$3
+	_expected=$1
+	_message=$2
 	rm -f $READY
-	${SSH} -oProtocol=$_proto -F $OBJ/ssh_proxy \
+	${SSH} -F $OBJ/ssh_proxy \
 	    -R$RFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
 	    -n host exec sh -c \'"sleep 60 & echo \$! > $READY ; wait "\' \
@@ -99,10 +97,8 @@ cp ${OBJ}/sshd_proxy ${OBJ}/sshd_proxy.bak
 cp ${OBJ}/authorized_keys_${USER} ${OBJ}/authorized_keys_${USER}.bak
 
 # Sanity check: ensure the default config allows forwarding
-for p in ${SSH_PROTOCOLS} ; do
-	check_lfwd $p Y "proto $p, default configuration"
-	check_rfwd $p Y "proto $p, default configuration"
-done
+check_lfwd Y "default configuration"
+check_rfwd Y "default configuration"
 
 # Usage: all_tests yes|local|remote|no Y|N Y|N Y|N Y|N Y|N Y|N
 all_tests() {
@@ -115,49 +111,73 @@ all_tests() {
 	_permit_rfwd=$7
 	_badfwd=127.0.0.1:22
 	_goodfwd=127.0.0.1:${PORT}
-	for _proto in ${SSH_PROTOCOLS} ; do
-		cp ${OBJ}/authorized_keys_${USER}.bak \
-		    ${OBJ}/authorized_keys_${USER}
-		_prefix="proto $_proto, AllowTcpForwarding=$_tcpfwd"
-		# No PermitOpen
-		( cat ${OBJ}/sshd_proxy.bak ;
-		  echo "AllowTcpForwarding $_tcpfwd" ) \
-		    > ${OBJ}/sshd_proxy
-		check_lfwd $_proto $_plain_lfwd "$_prefix"
-		check_rfwd $_proto $_plain_rfwd "$_prefix"
-		# PermitOpen via sshd_config that doesn't match
-		( cat ${OBJ}/sshd_proxy.bak ;
-		  echo "AllowTcpForwarding $_tcpfwd" ;
-		  echo "PermitOpen $_badfwd" ) \
-		    > ${OBJ}/sshd_proxy
-		check_lfwd $_proto $_nopermit_lfwd "$_prefix, !PermitOpen"
-		check_rfwd $_proto $_nopermit_rfwd "$_prefix, !PermitOpen"
-		# PermitOpen via sshd_config that does match
-		( cat ${OBJ}/sshd_proxy.bak ;
-		  echo "AllowTcpForwarding $_tcpfwd" ;
-		  echo "PermitOpen $_badfwd $_goodfwd" ) \
-		    > ${OBJ}/sshd_proxy
-		# NB. permitopen via authorized_keys should have same
-		# success/fail as via sshd_config
-		# permitopen via authorized_keys that doesn't match
-		sed "s/^/permitopen=\"$_badfwd\" /" \
-		    < ${OBJ}/authorized_keys_${USER}.bak \
-		    > ${OBJ}/authorized_keys_${USER} || fatal "sed 1 fail"
-		( cat ${OBJ}/sshd_proxy.bak ;
-		  echo "AllowTcpForwarding $_tcpfwd" ) \
-		    > ${OBJ}/sshd_proxy
-		check_lfwd $_proto $_nopermit_lfwd "$_prefix, !permitopen"
-		check_rfwd $_proto $_nopermit_rfwd "$_prefix, !permitopen"
-		# permitopen via authorized_keys that does match
-		sed "s/^/permitopen=\"$_badfwd\",permitopen=\"$_goodfwd\" /" \
-		    < ${OBJ}/authorized_keys_${USER}.bak \
-		    > ${OBJ}/authorized_keys_${USER} || fatal "sed 2 fail"
-		( cat ${OBJ}/sshd_proxy.bak ;
-		  echo "AllowTcpForwarding $_tcpfwd" ) \
-		    > ${OBJ}/sshd_proxy
-		check_lfwd $_proto $_permit_lfwd "$_prefix, permitopen"
-		check_rfwd $_proto $_permit_rfwd "$_prefix, permitopen"
-	done
+	cp ${OBJ}/authorized_keys_${USER}.bak  ${OBJ}/authorized_keys_${USER}
+	_prefix="AllowTcpForwarding=$_tcpfwd"
+	# No PermitOpen
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_plain_lfwd "$_prefix"
+	check_rfwd $_plain_rfwd "$_prefix"
+	# PermitOpen via sshd_config that doesn't match
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ;
+	  echo "PermitOpen $_badfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_nopermit_lfwd "$_prefix, !PermitOpen"
+	check_rfwd $_nopermit_rfwd "$_prefix, !PermitOpen"
+	# PermitOpen via sshd_config that does match
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ;
+	  echo "PermitOpen $_badfwd $_goodfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	# NB. permitopen via authorized_keys should have same
+	# success/fail as via sshd_config
+	# permitopen via authorized_keys that doesn't match
+	sed "s/^/permitopen=\"$_badfwd\" /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 1 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_nopermit_lfwd "$_prefix, !permitopen"
+	check_rfwd $_nopermit_rfwd "$_prefix, !permitopen"
+	# permitopen via authorized_keys that does match
+	sed "s/^/permitopen=\"$_badfwd\",permitopen=\"$_goodfwd\" /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 2 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_permit_lfwd "$_prefix, permitopen"
+	check_rfwd $_permit_rfwd "$_prefix, permitopen"
+	# Check port-forwarding flags in authorized_keys.
+	# These two should refuse all.
+	sed "s/^/no-port-forwarding /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 3 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd N "$_prefix, no-port-forwarding"
+	check_rfwd N "$_prefix, no-port-forwarding"
+	sed "s/^/restrict /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 4 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd N "$_prefix, restrict"
+	check_rfwd N "$_prefix, restrict"
+	# This should pass the same cases as _nopermit*
+	sed "s/^/restrict,port-forwarding /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 5 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_plain_lfwd "$_prefix, restrict,port-forwarding"
+	check_rfwd $_plain_rfwd "$_prefix, restrict,port-forwarding"
 }
 
 #                      no-permitopen mismatch-permitopen match-permitopen

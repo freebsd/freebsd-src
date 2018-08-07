@@ -292,27 +292,6 @@ You may also put zero in
 and
 .Dv rate ,
 and the default value for the fields will be selected.
-.\" .Pp
-.\" .It Dv MOUSE_GETVARS Ar mousevar_t *vars
-.\" Get internal variables of the mouse driver.
-.\" The variables which can be manipulated through these commands
-.\" are specific to each driver.
-.\" This command may not be supported by all drivers.
-.\" .Bd -literal
-.\" typedef struct mousevar {
-.\"     int var[16];    /* internal variables */
-.\" } mousevar_t;
-.\" .Ed
-.\" .Pp
-.\" If the commands are supported, the first element of the array is
-.\" filled with a signature value.
-.\" Apart from the signature data, there is currently no standard concerning
-.\" the other elements of the buffer.
-.\" .Pp
-.\" .It Dv MOUSE_SETVARS Ar mousevar_t *vars
-.\" Get internal variables of the mouse driver.
-.\" The first element of the array must be a signature value.
-.\" This command may not be supported by all drivers.
 .Pp
 .It Dv MOUSE_READDATA Ar mousedata_t *data
 The command reads the raw data from the device.

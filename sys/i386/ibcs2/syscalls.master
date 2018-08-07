@@ -57,7 +57,7 @@
 15	AUE_CHMOD	STD	{ int ibcs2_chmod(char *path, int mode); }
 16	AUE_CHOWN	STD	{ int ibcs2_chown(char *path, int uid, \
 				    int gid); }
-17	AUE_NULL	NOPROTO	{ int obreak(caddr_t nsize); }
+17	AUE_NULL	NOPROTO	{ caddr_t break(caddr_t nsize); }
 18	AUE_STAT	STD	{ int ibcs2_stat(char* path, \
 				    struct ibcs2_stat *st); }
 19	AUE_LSEEK	STD	{ long ibcs2_lseek(int fd, long offset, \

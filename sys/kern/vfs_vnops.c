@@ -172,10 +172,7 @@ static int vn_io_fault1(struct vnode *vp, struct uio *uio,
     struct vn_io_fault_args *args, struct thread *td);
 
 int
-vn_open(ndp, flagp, cmode, fp)
-	struct nameidata *ndp;
-	int *flagp, cmode;
-	struct file *fp;
+vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp)
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
 
@@ -622,19 +619,9 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
  * core'ing the same binary, or unrelated processes scanning the directory).
  */
 int
-vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
-    file_cred, aresid, td)
-	enum uio_rw rw;
-	struct vnode *vp;
-	void *base;
-	size_t len;
-	off_t offset;
-	enum uio_seg segflg;
-	int ioflg;
-	struct ucred *active_cred;
-	struct ucred *file_cred;
-	size_t *aresid;
-	struct thread *td;
+vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base, size_t len,
+    off_t offset, enum uio_seg segflg, int ioflg, struct ucred *active_cred,
+    struct ucred *file_cred, size_t *aresid, struct thread *td)
 {
 	int error = 0;
 	ssize_t iaresid;
@@ -778,12 +765,8 @@ get_advice(struct file *fp, struct uio *uio)
  * File table vnode read routine.
  */
 static int
-vn_read(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	int flags;
-	struct thread *td;
+vn_read(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
+    struct thread *td)
 {
 	struct vnode *vp;
 	off_t orig_offset;
@@ -837,12 +820,8 @@ vn_read(fp, uio, active_cred, flags, td)
  * File table vnode write routine.
  */
 static int
-vn_write(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	int flags;
-	struct thread *td;
+vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
+    struct thread *td)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -1354,11 +1333,8 @@ out1:
  * File table vnode stat routine.
  */
 static int
-vn_statfile(fp, sb, active_cred, td)
-	struct file *fp;
-	struct stat *sb;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vnode *vp = fp->f_vnode;
 	int error;
@@ -2494,7 +2470,7 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 		if ((prot & VM_PROT_EXECUTE) != 0 && error == 0) {
 			pkm.pm_file = vp;
 			pkm.pm_address = (uintptr_t) *addr;
-			PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+			PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_MMAP, (void *) &pkm);
 		}
 	}
 #endif

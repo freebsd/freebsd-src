@@ -163,7 +163,7 @@ efirtc_settime(device_t dev, struct timespec *ts)
 	 */
 	ts->tv_sec -= utc_offset();
 	if (!efirtc_zeroes_subseconds)
-		timespecadd(ts, &efirtc_resadj);
+		timespecadd(ts, &efirtc_resadj, ts);
 	
 	clock_ts_to_ct(ts, &ct);
 	clock_dbgprint_ct(dev, CLOCK_DBG_WRITE, &ct);
@@ -202,3 +202,5 @@ static driver_t efirtc_driver = {
 };
 
 DRIVER_MODULE(efirtc, nexus, efirtc_driver, efirtc_devclass, 0, 0);
+MODULE_VERSION(efirtc, 1);
+MODULE_DEPEND(efirtc, efirt, 1, 1, 1);

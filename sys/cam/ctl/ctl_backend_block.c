@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
+#include <sys/dnv.h>
 
 #include <geom/geom.h>
 
@@ -1817,7 +1819,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
-	char			     *value;
+	const char		     *value;
 	struct vattr		      vattr;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 	int			      error;
@@ -1867,10 +1869,10 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	us = ps = vattr.va_blocksize;
 	uo = po = 0;
 
-	value = ctl_get_opt(&cbe_lun->options, "pblocksize");
+	value = dnvlist_get_string(cbe_lun->options, "pblocksize", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &ps);
-	value = ctl_get_opt(&cbe_lun->options, "pblockoffset");
+	value = dnvlist_get_string(cbe_lun->options, "pblockoffset", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &po);
 	pss = ps / cbe_lun->blocksize;
@@ -1881,10 +1883,10 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		cbe_lun->pblockoff = (pss - pos) % pss;
 	}
 
-	value = ctl_get_opt(&cbe_lun->options, "ublocksize");
+	value = dnvlist_get_string(cbe_lun->options, "ublocksize", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &us);
-	value = ctl_get_opt(&cbe_lun->options, "ublockoffset");
+	value = dnvlist_get_string(cbe_lun->options, "ublockoffset", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &uo);
 	uss = us / cbe_lun->blocksize;
@@ -1917,7 +1919,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_lun_create_params *params;
 	struct cdevsw		     *csw;
 	struct cdev		     *dev;
-	char			     *value;
+	const char		     *value;
 	int			      error, atomic, maxio, ref, unmap, tmp;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos, otmp;
 
@@ -2033,10 +2035,10 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	us = ps;
 	uo = po;
 
-	value = ctl_get_opt(&cbe_lun->options, "pblocksize");
+	value = dnvlist_get_string(cbe_lun->options, "pblocksize", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &ps);
-	value = ctl_get_opt(&cbe_lun->options, "pblockoffset");
+	value = dnvlist_get_string(cbe_lun->options, "pblockoffset", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &po);
 	pss = ps / cbe_lun->blocksize;
@@ -2047,10 +2049,10 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		cbe_lun->pblockoff = (pss - pos) % pss;
 	}
 
-	value = ctl_get_opt(&cbe_lun->options, "ublocksize");
+	value = dnvlist_get_string(cbe_lun->options, "ublocksize", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &us);
-	value = ctl_get_opt(&cbe_lun->options, "ublockoffset");
+	value = dnvlist_get_string(cbe_lun->options, "ublockoffset", NULL);
 	if (value != NULL)
 		ctl_expand_number(value, &uo);
 	uss = us / cbe_lun->blocksize;
@@ -2075,7 +2077,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		    curthread);
 		unmap = (error == 0) ? arg.value.i : 0;
 	}
-	value = ctl_get_opt(&cbe_lun->options, "unmap");
+	value = dnvlist_get_string(cbe_lun->options, "unmap", NULL);
 	if (value != NULL)
 		unmap = (strcmp(value, "on") == 0);
 	if (unmap)
@@ -2125,7 +2127,7 @@ ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct nameidata nd;
-	char		*value;
+	const char	*value;
 	int		 error, flags;
 
 	error = 0;
@@ -2136,7 +2138,7 @@ ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	}
 	pwd_ensure_dirs();
 
-	value = ctl_get_opt(&cbe_lun->options, "file");
+	value = dnvlist_get_string(cbe_lun->options, "file", NULL);
 	if (value == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "no file argument specified");
@@ -2146,7 +2148,7 @@ ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->dev_path = strdup(value, M_CTLBLK);
 
 	flags = FREAD;
-	value = ctl_get_opt(&cbe_lun->options, "readonly");
+	value = dnvlist_get_string(cbe_lun->options, "readonly", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "on") != 0)
 			flags |= FWRITE;
@@ -2205,7 +2207,7 @@ again:
 	cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
-	value = ctl_get_opt(&cbe_lun->options, "serseq");
+	value = dnvlist_get_string(cbe_lun->options, "serseq", NULL);
 	if (value != NULL && strcmp(value, "on") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_ON;
 	else if (value != NULL && strcmp(value, "read") == 0)
@@ -2223,7 +2225,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	struct ctl_lun_create_params *params;
 	char num_thread_str[16];
 	char tmpstr[32];
-	char *value;
+	const char *value;
 	int retval, num_threads;
 	int tmp_num_threads;
 
@@ -2243,8 +2245,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->io_lock, "cblk io lock", NULL, MTX_DEF);
 	mtx_init(&be_lun->queue_lock, "cblk queue lock", NULL, MTX_DEF);
-	ctl_init_opts(&cbe_lun->options,
-	    req->num_be_args, req->kern_be_args);
+	cbe_lun->options = nvlist_clone(req->args_nvl);
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
 	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
 	if (be_lun->lun_zone == NULL) {
@@ -2259,7 +2260,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		cbe_lun->lun_type = T_DIRECT;
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
 	cbe_lun->flags = 0;
-	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	value = dnvlist_get_string(cbe_lun->options, "ha_role", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "primary") == 0)
 			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
@@ -2292,7 +2293,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		num_threads = 1;
 	}
 
-	value = ctl_get_opt(&cbe_lun->options, "num_threads");
+	value = dnvlist_get_string(cbe_lun->options, "num_threads", NULL);
 	if (value != NULL) {
 		tmp_num_threads = strtol(value, NULL, 0);
 
@@ -2457,7 +2458,7 @@ bailout_error:
 		free(be_lun->dev_path, M_CTLBLK);
 	if (be_lun->lun_zone != NULL)
 		uma_zdestroy(be_lun->lun_zone);
-	ctl_free_opts(&cbe_lun->options);
+	nvlist_destroy(cbe_lun->options);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
@@ -2541,7 +2542,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	uma_zdestroy(be_lun->lun_zone);
 
-	ctl_free_opts(&cbe_lun->options);
+	nvlist_destroy(cbe_lun->options);
 	free(be_lun->dev_path, M_CTLBLK);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
@@ -2561,7 +2562,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
-	char *value;
+	const char *value;
 	uint64_t oldsize;
 	int error, wasprim;
 
@@ -2583,10 +2584,12 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (params->lun_size_bytes != 0)
 		be_lun->params.lun_size_bytes = params->lun_size_bytes;
-	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
+
+	nvlist_destroy(cbe_lun->options);
+	cbe_lun->options = nvlist_clone(req->args_nvl);
 
 	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
-	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	value = dnvlist_get_string(cbe_lun->options, "ha_role", NULL);
 	if (value != NULL) {
 		if (strcmp(value, "primary") == 0)
 			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;

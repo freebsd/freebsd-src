@@ -1255,6 +1255,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	int reject_reason, v, ntids;
 	uint16_t vid;
 	u_int wnd;
+	struct epoch_tracker et;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1369,15 +1370,15 @@ found:
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
 
-	INP_INFO_RLOCK(&V_tcbinfo);	/* for 4-tuple check */
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for 4-tuple check */
 
 	/* Don't offload if the 4-tuple is already in use */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1574,6 +1575,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	struct tcpopt to;
 	struct in_conninfo inc;
 	struct toepcb *toep;
+	struct epoch_tracker et;
 	u_int txqid, rxqid;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
@@ -1587,7 +1589,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
 	CURVNET_SET(lctx->vnet);
-	INP_INFO_RLOCK(&V_tcbinfo);	/* for syncache_expand */
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
 	CTR6(KTR_CXGBE,
@@ -1603,7 +1605,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 		}
 
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 		return (0);
 	}
@@ -1629,7 +1631,7 @@ reset:
 		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 		return (0);
 	}
@@ -1695,7 +1697,7 @@ reset:
 	inp = release_lctx(sc, lctx);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
 	release_synqe(synqe);
 

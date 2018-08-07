@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2016
+.Dd May 2, 2018
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -572,6 +572,14 @@ process are already in use,
 or no file descriptors greater than or equal to
 .Fa arg
 are available.
+.It Bq Er ENOTTY
+The
+.Fa fd
+argument is not a valid file descriptor for the requested operation.
+This may be the case if
+.Fa fd
+is a device node, or a descriptor returned by
+.Xr kqueue 2 .
 .It Bq Er ENOLCK
 The argument
 .Fa cmd

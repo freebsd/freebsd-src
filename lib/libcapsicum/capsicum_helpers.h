@@ -39,10 +39,14 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+
 #define	CAPH_IGNORE_EBADF	0x0001
 #define	CAPH_READ		0x0002
 #define	CAPH_WRITE		0x0004
 #define	CAPH_LOOKUP		0x0008
+
+__BEGIN_DECLS
 
 static __inline int
 caph_limit_stream(int fd, int flags)
@@ -121,5 +125,25 @@ caph_cache_catpages(void)
 
 	(void)catopen("libc", NL_CAT_LOCALE);
 }
+
+static __inline int
+caph_enter(void)
+{
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		return (-1);
+
+	return (0);
+}
+
+
+static __inline int
+caph_enter_casper(void)
+{
+
+	return (CASPER_SUPPORT == 0 ? 0 : caph_enter());
+}
+
+__END_DECLS
 
 #endif /* _CAPSICUM_HELPERS_H_ */

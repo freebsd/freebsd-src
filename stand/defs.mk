@@ -28,7 +28,7 @@ LUASRC=		${SRCTOP}/contrib/lua/src
 SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
-ZFSSRC=		${BOOTSRC}/zfs
+ZFSSRC=		${SASRC}/zfs
 
 BOOTOBJ=	${OBJTOP}/stand
 
@@ -56,7 +56,6 @@ CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 
 
 # GELI Support, with backward compat hooks (mostly)
-.if defined(HAVE_GELI)
 .if defined(LOADER_NO_GELI_SUPPORT)
 MK_LOADER_GELI=no
 .warning "Please move from LOADER_NO_GELI_SUPPORT to WITHOUT_LOADER_GELI"
@@ -67,10 +66,8 @@ MK_LOADER_GELI=yes
 .endif
 .if ${MK_LOADER_GELI} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/geli
-LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
+CFLAGS+=	-I${SASRC}/geli
 .endif # MK_LOADER_GELI
-.endif # HAVE_GELI
 
 # These should be confined to loader.mk, but can't because uboot/lib
 # also uses it. It's part of loader, but isn't a loader so we can't
@@ -91,7 +88,7 @@ CFLAGS+=	-m32 -mcpu=powerpc
 # build 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
 # and activate it when DO32 is explicitly defined to be 1.
 .if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
-CFLAGS+=	-m32 -mcpu=i386
+CFLAGS+=	-m32
 # LD_FLAGS is passed directly to ${LD}, not via ${CC}:
 LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
@@ -106,7 +103,7 @@ CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only -fPIC
 .elif ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-march=rv64imac -mabi=lp64
+CFLAGS+=	-march=rv64ima -mabi=lp64
 .else
 CFLAGS+=	-msoft-float
 .endif

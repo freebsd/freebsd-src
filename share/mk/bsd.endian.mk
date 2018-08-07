@@ -7,6 +7,7 @@
     ${MACHINE_CPUARCH} == "riscv" || \
     ${MACHINE_ARCH:Mmips*el*} != ""
 TARGET_ENDIANNESS= 1234
+CAP_MKDB_ENDIAN= -l
 .elif ${MACHINE_ARCH} == "powerpc" || \
     ${MACHINE_ARCH} == "powerpc64" || \
     ${MACHINE_ARCH} == "powerpcspe" || \
@@ -14,4 +15,5 @@ TARGET_ENDIANNESS= 1234
     (${MACHINE} == "arm" && ${MACHINE_ARCH:Marm*eb*} != "") || \
     ${MACHINE_ARCH:Mmips*} != ""
 TARGET_ENDIANNESS= 4321
+CAP_MKDB_ENDIAN= -b
 .endif

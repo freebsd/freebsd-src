@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 9, 2018
+.Dd April 21, 2018
 .Dt CFUMASS 4
 .Os
 .Sh NAME
@@ -88,6 +88,14 @@ See
 and
 .Xr ctld 8
 for details on configuring the LUN.
+See the
+.Cm cfumass_enable
+and
+.Cm cfumass_dir
+.Xr rc 8
+variables in
+.Xr rc.conf 5
+for an automated way to configure it at boot.
 .Sh SYSCTL VARIABLES
 These variables are available as both
 .Xr sysctl 8

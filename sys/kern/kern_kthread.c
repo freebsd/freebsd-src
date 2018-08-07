@@ -126,6 +126,12 @@ kproc_create(void (*func)(void *), void *arg,
 	sched_clear_tdname(td);
 #endif
 	TSTHREAD(td, td->td_name);
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE()) {
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_PROC_CREATE_LOG, p2);
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+	}
+#endif
 
 	/* call the processes' main()... */
 	cpu_fork_kthread_handler(td, func, arg);
@@ -310,7 +316,10 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	/* Avoid inheriting affinity from a random parent. */
 	cpuset_kernthread(newtd);
-
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		thread_lock(newtd);
@@ -331,6 +340,10 @@ kthread_exit(void)
 	td = curthread;
 	p = td->td_proc;
 
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_EXIT_LOG, NULL);
+#endif
 	/* A module may be waiting for us to exit. */
 	wakeup(td);
 

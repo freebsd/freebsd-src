@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,9 +34,9 @@
 
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.4.1"
+#define DRIVER_VERSION "3.4.2"
 #endif
-#define DRIVER_RELDATE "February 2018"
+#define DRIVER_RELDATE "July 2018"
 
 extern int mlx5_core_debug_mask;
 
@@ -70,16 +70,12 @@ enum mlx5_semaphore_space_address {
 	MLX5_SEMAPHORE_SW_RESET		= 0x20,
 };
 
-enum {
-	UNLOCK = 0,
-	LOCK = 1,
-	CAP_ID = 0x9,
-};
-
 struct mlx5_core_dev;
 
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
+int mlx5_query_qcam_reg(struct mlx5_core_dev *mdev, u32 *qcam,
+			u8 feature_group, u8 access_reg_group);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
@@ -107,8 +103,4 @@ struct mlx5_crspace_regmap {
 
 extern struct pci_driver mlx5_core_driver;
 
-void mlx5_vsec_init(struct mlx5_core_dev *dev);
-int mlx5_pciconf_cap9_sem(struct mlx5_core_dev *dev, int state);
-int mlx5_pciconf_set_sem_addr_space(struct mlx5_core_dev *dev,
-				    u32 sem_space_address, int state);
 #endif /* __MLX5_CORE_H__ */

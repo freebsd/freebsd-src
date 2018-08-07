@@ -434,12 +434,6 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case MOUSE_READDATA:
 		return (ENODEV);
 
-#if (defined(MOUSE_GETVARS))
-	case MOUSE_GETVARS:
-	case MOUSE_SETVARS:
-		return (ENODEV);
-#endif
-
 	default:
 		return (ENOTTY);
 	}

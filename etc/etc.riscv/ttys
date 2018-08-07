@@ -29,16 +29,16 @@
 # when going to single-user mode.
 console	none				unknown	off secure
 #
-ttyv0	"/usr/libexec/getty Pc"		xterm	onifconsole  secure
+ttyv0	"/usr/libexec/getty Pc"		xterm	onifexists secure
 # Virtual terminals
-ttyv1	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv2	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv3	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv4	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv5	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv6	"/usr/libexec/getty Pc"		xterm	off  secure
-ttyv7	"/usr/libexec/getty Pc"		xterm	off  secure
-#ttyv8	"/usr/local/bin/xdm -nodaemon"	xterm	off secure
+ttyv1	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv2	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv3	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv4	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv5	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv6	"/usr/libexec/getty Pc"		xterm	onifexists secure
+ttyv7	"/usr/libexec/getty Pc"		xterm	onifexists secure
+#ttyv8	"/usr/local/bin/xdm -nodaemon"	xterm	onifexists secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
 ttyu0	"/usr/libexec/getty 3wire"	vt100	onifconsole  secure

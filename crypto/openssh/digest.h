@@ -1,4 +1,4 @@
-/* $OpenBSD: digest.h,v 1.7 2014/12/21 22:27:56 djm Exp $ */
+/* $OpenBSD: digest.h,v 1.8 2017/05/08 22:57:38 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  *
@@ -23,12 +23,11 @@
 
 /* Digest algorithms */
 #define SSH_DIGEST_MD5		0
-#define SSH_DIGEST_RIPEMD160	1
-#define SSH_DIGEST_SHA1		2
-#define SSH_DIGEST_SHA256	3
-#define SSH_DIGEST_SHA384	4
-#define SSH_DIGEST_SHA512	5
-#define SSH_DIGEST_MAX		6
+#define SSH_DIGEST_SHA1		1
+#define SSH_DIGEST_SHA256	2
+#define SSH_DIGEST_SHA384	3
+#define SSH_DIGEST_SHA512	4
+#define SSH_DIGEST_MAX		5
 
 struct sshbuf;
 struct ssh_digest_ctx;

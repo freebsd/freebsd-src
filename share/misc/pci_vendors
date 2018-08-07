@@ -2,8 +2,8 @@
 
 #	List of PCI ID's
 #
-#	Version: 2018.03.21
-#	Date:    2018-03-21 03:15:01
+#	Version: 2018.04.06
+#	Date:    2018-04-06 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -421,6 +421,7 @@
 		17aa 1052  ThinkServer RAID 720i
 		17aa 1053  ThinkServer RAID 720ix
 		1d49 0600  ThinkSystem RAID 730-8i 1GB Cache PCIe 12Gb Adapter
+		1d49 0609  ThinkSystem RAID 730-8i 4GB Flash PCIe 12Gb Adapter
 		8086 351e  RMS3CC080 RAID Controller
 		8086 351f  RMS3CC040 RAID Controller
 		8086 9360  RS3DC080 RAID Controller
@@ -858,7 +859,7 @@
 	434d  IXP AC'97 Modem
 	4353  SMBus
 	4354  215CT [Mach64 CT PCI]
-	4358  210888CX [Mach64 CX]
+	4358  Mach64 CX [Graphics Xpression]
 	4361  IXP SB300 AC'97 Audio Controller
 	4363  SMBus
 	436e  436E Serial ATA Controller
@@ -1059,7 +1060,7 @@
 	4437  RS250 [Mobility Radeon 7000 IGP]
 	4554  210888ET [Mach64 ET]
 	4654  Mach64 VT
-	4742  3D Rage PRO AGP 2X
+	4742  Rage 3 [3D Rage PRO AGP 2X]
 		1002 0040  Rage Pro Turbo AGP 2X
 		1002 0044  Rage Pro Turbo AGP 2X
 		1002 0061  Rage Pro AIW AGP 2X
@@ -1075,7 +1076,7 @@
 		1028 c082  Rage Pro Turbo AGP 2X
 		8086 4152  Xpert 98D AGP 2X
 		8086 464a  Rage Pro Turbo AGP 2X
-	4744  3D Rage PRO AGP 1X
+	4744  Rage 3 [3D Rage PRO AGP 1X]
 		1002 4744  Rage Pro Turbo AGP
 		8086 4d55  Rage 3D Pro AGP 1X [Intel MU440EX]
 	4749  3D Rage PRO PCI
@@ -1099,7 +1100,7 @@
 		1002 0080  Rage Pro Turbo
 		1002 0084  Rage Pro Turbo
 		1002 4750  Rage Pro Turbo
-	4752  Rage XL PCI
+	4752  Rage 3 [Rage XL PCI]
 		0e11 001e  Proliant Rage XL
 		1002 0008  Rage XL
 		1002 4752  Proliant Rage XL
@@ -1121,19 +1122,19 @@
 		8086 5744  S845WD1-E mainboard
 	4753  Rage XC
 		1002 4753  Rage XC
-	4754  3D Rage II/II+ PCI [Mach64 GT]
-	4755  Mach64 GTB [3D Rage II+ DVD]
-	4756  3D Rage IIC PCI [Mach64 GT IIC]
+	4754  Mach64 GT/GT-B [3D Rage I/II]
+	4755  Mach64 GT-B [3D Rage II+ DVD]
+	4756  Rage 2 [3D Rage IIC PCI]
 		1002 4756  Rage IIC
-	4757  3D Rage IIC AGP
+	4757  Rage 2 [3D Rage IIC AGP]
 		1002 4757  Rage IIC AGP
 		1028 0089  Rage 3D IIC
 		1028 008e  PowerEdge 1300 onboard video
 		1028 4082  Rage 3D IIC
 		1028 8082  Rage 3D IIC
 		1028 c082  Rage 3D IIC
-	4758  210888GX [Mach64 GX PCI]
-	4759  3D Rage IIC PCI
+	4758  Mach64 GX [WinTurbo]
+	4759  Rage 3 [3D Rage IIC PCI]
 	475a  3D Rage IIC AGP
 		1002 0084  Rage 3D Pro AGP 2x XPERT 98
 		1002 0087  Rage 3D IIC
@@ -1169,7 +1170,7 @@
 	4b69  R481 [Radeon X850 XT AGP] (Secondary)
 	4b6b  R481 [Radeon X850 PRO AGP] (Secondary)
 	4b6c  R481 [Radeon X850 XT Platinum Edition AGP] (Secondary)
-	4c42  3D Rage LT PRO AGP 2X
+	4c42  Mach64 LT [3D Rage LT PRO AGP]
 		0e11 b0e7  Rage LT Pro (Compaq Presario 5240)
 		0e11 b0e8  Rage 3D LT Pro
 		0e11 b10e  3D Rage LT Pro (Compaq Armada 1750)
@@ -1197,7 +1198,7 @@
 		1028 00bb  Latitude CPx
 		1179 ff00  Satellite 1715XCDS laptop
 		13bd 1019  PC-AR10
-	4c50  3D Rage LT PRO PCI
+	4c50  Rage 3 LT [3D Rage LT PRO PCI]
 		1002 4c50  Rage LT Pro
 	4c52  Rage Mobility-M1 PCI
 		1033 8112  Versa Note VXi
@@ -1267,7 +1268,7 @@
 	5044  All-In-Wonder 128 PCI
 		1002 0028  Rage 128 AIW
 		1002 0029  Rage 128 AIW
-	5046  Rage 128 PRO AGP 4x TMDS
+	5046  Rage 4 [Rage 128 PRO AGP 4X TMDS]
 		1002 0004  Rage Fury Pro
 		1002 0008  Rage Fury Pro/Xpert 2000 Pro
 		1002 0014  Rage Fury Pro
@@ -1367,7 +1368,7 @@
 		1002 0028  Rage 128 AIW
 		1002 0029  Rage 128 AIW
 		1002 0068  Rage 128 AIW
-	5246  Rage Fury/Xpert 128/Xpert 2000 AGP 2x
+	5246  Rage 4 [Rage Fury/Xpert 128/Xpert 2000 AGP]
 		1002 0004  Magnum/Xpert 128/Xpert 99
 		1002 0008  Magnum/Xpert128/X99/Xpert2000
 		1002 0028  Rage 128 AIW AGP
@@ -1425,10 +1426,10 @@
 	5653  RV410/M26 [Mobility Radeon X700]
 		1025 0080  Aspire 5024WLMi
 		103c 0940  Compaq NW8240 Mobile Workstation
-	5654  264VT [Mach64 VT]
+	5654  Mach64 VT [Video Xpression]
 		1002 5654  Mach64VT Reference
 	5655  264VT3 [Mach64 VT3]
-	5656  264VT4 [Mach64 VT4]
+	5656  Mach64 VT4 [Video Xpression+]
 	5657  RV410 [Radeon X550 XTX / X700]
 	5830  RS300 Host Bridge
 	5831  RS300 Host Bridge
@@ -1707,6 +1708,12 @@
 		17aa 368f  Radeon R5 A230
 	6667  Jet ULT [Radeon R5 M230]
 	666f  Sun LE [Radeon HD 8550M / R5 M230]
+	66a0  Vega 20
+	66a1  Vega 20
+	66a2  Vega 20
+	66a3  Vega 20
+	66a7  Vega 20
+	66af  Vega 20
 	6704  Cayman PRO GL [FirePro V7900]
 	6707  Cayman LE GL [FirePro V5900]
 	6718  Cayman XT [Radeon HD 6970]
@@ -3534,6 +3541,7 @@
 		17aa 5113  Radeon R6 Graphics
 		17aa 5116  Radeon R6 Graphics
 		17aa 5118  Radeon R5 Graphics
+	98e4  Radeon R2 Graphics
 	9900  Trinity [Radeon HD 7660G]
 		103c 1985  Pavilion 17-e163sg Notebook PC
 # AMD A10-5800K CPU
@@ -4779,6 +4787,7 @@
 		102b 0f83  Millennium G550
 		102b 0f84  Millennium G550 Dual Head DDR 32Mb
 		102b 1e41  Millennium G550
+		102b 22c0  G550 PCIe
 		102b 2300  Millennium G550 LP PCIE
 	2537  Millennium P650/P750
 		102b 1820  Millennium P750 64MB
@@ -6390,7 +6399,7 @@
 		1077 0007  QLogic 2x1GE+2x10GE QL41264HMCU CNA
 		1077 0009  QLogic 2x1GE+2x10GE QL41162HMRJ CNA
 		1077 000b  25GE 2P QL41262HxCU-DE Adapter
-		1077 0011  FastLinQ QL41212H 25GbE Adapter
+		1077 0011  FastLinQ QL41212HLCU 25GbE Adapter
 		1077 0012  FastLinQ QL41112H 10GbE Adapter
 		1077 0039  QLogic QL41262 PCIe 25Gb 2-Port SFP28 Ethernet Adapter
 		1590 021d  10/25GbE 2P QL41222HLCU-HP Adapter
@@ -8608,7 +8617,7 @@
 	0098  G70M [GeForce Go 7800]
 	0099  G70M [GeForce Go 7800 GTX]
 	009d  G70GL [Quadro FX 4500]
-	00a0  NV5 [Aladdin TNT2]
+	00a0  NV0A [Aladdin TNT2 IGP]
 		14af 5810  Maxi Gamer Xentor
 	00c0  NV41 [GeForce 6800 GS]
 	00c1  NV41 [GeForce 6800]
@@ -8704,7 +8713,7 @@
 	00f5  G71 [GeForce 7800 GS]
 	00f6  NV43 [GeForce 6800 GS/XT]
 		1682 217e  XFX GeForce 6800 XTreme 256MB DDR3 AGP
-	00f8  NV40GL [Quadro FX 3400/4400]
+	00f8  NV45GL [Quadro FX 3400/4400]
 	00f9  NV40 [GeForce 6800 GT/GTO/Ultra]
 		10de 00f9  NV40 [GeForce 6800 GT]
 		1682 2120  GEFORCE 6800 GT PCI-E
@@ -11067,6 +11076,7 @@
 	1b01  GP102
 	1b02  GP102 [TITAN Xp]
 	1b06  GP102 [GeForce GTX 1080 Ti]
+	1b07  GP102 [P102-100]
 	1b30  GP102GL [Quadro P6000]
 	1b38  GP102GL [Tesla P40]
 	1b70  GP102GL
@@ -11137,8 +11147,12 @@
 		1d72 1701  Mi Notebook Pro [GeForce MX150]
 	1d33  GP108GL [Quadro P500]
 	1d81  GV100 [TITAN V]
-	1db1  GV100GL [Tesla V100 SXM2]
-	1db4  GV100GL [Tesla V100 PCIe]
+	1db1  GV100GL [Tesla V100 SXM2 16GB]
+	1db4  GV100GL [Tesla V100 PCIe 16GB]
+	1db5  GV100GL [Tesla V100 SXM2 32GB]
+	1db6  GV100GL [Tesla V100 PCIe 32GB]
+	1db7  GV100GL [Tesla V100 DGXS 32GB]
+	1dba  GV100GL [Quadro GV100]
 10df  Emulex Corporation
 	0720  OneConnect NIC (Skyhawk)
 		103c 1934  FlexFabric 20Gb 2-port 650M Adapter
@@ -14276,10 +14290,11 @@
 	7384  PM7384 [FREEDM - 84P672 Frm Engine & Datalink Mgr]
 	8000  PM8000  [SPC - SAS Protocol Controller]
 	8009  PM8009 SPCve 8x6G
-	8032  ATTO Celerity FC8xEN
+	8032  PM8032 Tachyon QE8
 		117c 003a  Celerity FC-81EN Fibre Channel Adapter
 		117c 003b  Celerity FC-82EN Fibre Channel Adapter
 		117c 003c  Celerity FC-84EN Fibre Channel Adapter
+		117c 403b  ThunderLink FC 1082 Fibre Channel Adapter
 	8053  PM8053 SXP 12G 24-port SAS/SATA expander
 	8054  PM8054 SXP 12G 36-port SAS/SATA expander
 	8055  PM8055 SXP 12G 48-port SAS/SATA expander
@@ -14572,7 +14587,8 @@
 	0d13  Desktop PCI L1/L3 Telephony
 1232  GPT Limited
 1233  Bus-Tech, Inc.
-1235  Risq Modular Systems, Inc.
+# nee Risq Modular Systems, Inc.
+1235  SMART Modular Technologies
 1236  Sigma Designs Corporation
 	0000  RealMagic64/GX
 	6401  REALmagic 64/GX (SD 6425)
@@ -18737,10 +18753,8 @@
 	020f  MT28908A0 Family [ConnectX-6 Flash Recovery]
 	0210  MT28908A0 Family [ConnectX-6 Secure Flash Recovery]
 	0211  MT416842 Family [BlueField SoC Flash Recovery]
-# reserved for RM#105916
 	024e  MT53100 [Spectrum-2, Flash recovery mode]
-# Actual value to be used
-	024f  MT53100 [Spectrum-2, Flash recovery mode]
+	024f  MT53100 [Spectrum-2, Secure Flash recovery mode]
 	0262  MT27710 [ConnectX-4 Lx Programmable] EN
 	0263  MT27710 [ConnectX-4 Lx Programmable Virtual Function] EN
 	0264  Innova-2 Flex Burn image
@@ -20798,6 +20812,7 @@
 1a4a  SLAC National Accelerator Lab TID-AIR
 	1000  MCOR Power Supply Controller
 	1010  AMC EVR - Stockholm Timing Board
+	1020  Cluster On Board (COB) Ethernet Switch
 	2000  PGPCard - 4 Lane
 	2001  PGPCard - 8 Lane Plus EVR
 	2010  PCI-Express EVR
@@ -24079,6 +24094,7 @@
 		1059 0150  RD-01068 10GbE interface
 	15ab  Ethernet Connection X552 10 GbE Backplane
 	15ac  Ethernet Connection X552 10 GbE SFP+
+		1059 0160  RD-01167 10GbE interface
 	15ad  Ethernet Connection X552/X557-AT 10GBASE-T
 	15ae  Ethernet Connection X552 1000BASE-T
 	15b0  Ethernet Connection X552 Backplane
@@ -28934,6 +28950,7 @@
 		17aa 382a  B51-80 Laptop
 	9d48  Sunrise Point-LP LPC Controller
 		1028 06f3  Latitude 3570
+	9d4e  Intel(R) 100 Series Chipset Family LPC Controller/eSPI Controller - 9D4E
 	9d56  Sunrise Point-LP LPC Controller
 	9d58  Sunrise Point-LP LPC Controller
 		17aa 2247  ThinkPad T570
@@ -30032,6 +30049,14 @@ C 00  Unclassified device
 C 01  Mass storage controller
 	00  SCSI storage controller
 	01  IDE interface
+		00  ISA Compatibility mode-only controller
+		05  PCI native mode-only controller
+		0a  ISA Compatibility mode controller, supports both channels switched to PCI native mode
+		0f  PCI native mode controller, supports both channels switched to ISA compatibility mode
+		80  ISA Compatibility mode-only controller, supports bus mastering
+		85  PCI native mode-only controller, supports bus mastering
+		8a  ISA Compatibility mode controller, supports both channels switched to PCI native mode, supports bus mastering
+		8f  PCI native mode controller, supports both channels switched to ISA compatibility mode, supports bus mastering
 	02  Floppy disk controller
 	03  IPI bus controller
 	04  RAID bus controller
@@ -30179,7 +30204,10 @@ C 0c  Serial bus controller
 	04  Fibre Channel
 	05  SMBus
 	06  InfiniBand
-	07  IPMI SMIC interface
+	07  IPMI Interface
+		00  SMIC
+		01  KCS
+		02  BT (Block Transfer)
 	08  SERCOS interface
 	09  CANBUS
 C 0d  Wireless controller

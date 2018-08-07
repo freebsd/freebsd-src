@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.80 2017/08/13 00:21:47 christos Exp $
+# $File: audio,v 1.86 2018/03/11 00:53:11 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -450,7 +450,7 @@
 # Free lossless audio codec <http://flac.sourceforge.net>
 # From: Przemyslaw Augustyniak <silvathraec@rpg.pl>
 0	string			fLaC		FLAC audio bitstream data
-!:mime	audio/x-flac
+!:mime	audio/flac
 >4	byte&0x7f		>0		\b, unknown version
 >4	byte&0x7f		0		\b
 # some common bits/sample values
@@ -468,20 +468,25 @@
 >>20	byte&0xe		0xa		\b, 6 channels
 >>20	byte&0xe		0xc		\b, 7 channels
 >>20	byte&0xe		0xe		\b, 8 channels
-# some common sample rates
->>17	belong&0xfffff0		0x2ee000	\b, 192 kHz
->>17	belong&0xfffff0		0x158880	\b, 88.2 kHz
->>17	belong&0xfffff0		0x0ac440	\b, 44.1 kHz
->>17	belong&0xfffff0		0x0bb800	\b, 48 kHz
->>17	belong&0xfffff0		0x07d000	\b, 32 kHz
->>17	belong&0xfffff0		0x056220	\b, 22.05 kHz
->>17	belong&0xfffff0		0x05dc00	\b, 24 kHz
->>17	belong&0xfffff0		0x03e800	\b, 16 kHz
->>17	belong&0xfffff0		0x02b110	\b, 11.025 kHz
->>17	belong&0xfffff0		0x02ee00	\b, 12 kHz
->>17	belong&0xfffff0		0x01f400	\b, 8 kHz
->>17	belong&0xfffff0		0x177000	\b, 96 kHz
->>17	belong&0xfffff0		0x0fa000	\b, 64 kHz
+# sample rates derived from known oscillator frequencies;
+# 24.576 MHz (video/fs=48kHz), 22.5792 (audio/fs=44.1kHz) and
+# 16.384 (other/fs=32kHz).
+>>17	belong&0xfffff0       	0x02b110	\b, 11.025 kHz
+>>17	belong&0xfffff0       	0x03e800	\b, 16 kHz
+>>17	belong&0xfffff0       	0x056220	\b, 22.05 kHz
+>>17	belong&0xfffff0       	0x05dc00	\b, 24 kHz
+>>17	belong&0xfffff0       	0x07d000	\b, 32 kHz
+>>17	belong&0xfffff0       	0x0ac440	\b, 44.1 kHz
+>>17	belong&0xfffff0       	0x0bb800	\b, 48 kHz
+>>17	belong&0xfffff0       	0x0fa000	\b, 64 kHz
+>>17	belong&0xfffff0       	0x158880	\b, 88.2 kHz
+>>17	belong&0xfffff0       	0x177000	\b, 96 kHz
+>>17	belong&0xfffff0       	0x1f4000	\b, 128 kHz
+>>17	belong&0xfffff0       	0x2b1100	\b, 176.4 kHz
+>>17	belong&0xfffff0       	0x2ee000	\b, 192 kHz
+>>17	belong&0xfffff0       	0x3e8000	\b, 256 kHz
+>>17	belong&0xfffff0       	0x562200	\b, 352.8 kHz
+>>17	belong&0xfffff0       	0x5dc000	\b, 384 kHz
 >>21	byte&0xf		>0		\b, >4G samples
 >>21	byte&0xf		0		\b
 >>>22	belong			>0		\b, %u samples
@@ -529,7 +534,7 @@
 >>12		ulelong		x		\b, sample rate %d
 
 # adlib sound files
-# From Gurkan Sengun <gurkan@linuks.mine.nu>, http://www.linuks.mine.nu
+# From: Alex Myczko <alex@aiei.ch>
 0    	string		RAWADATA	RdosPlay RAW
 
 1068	string		RoR		AMUSIC Adlib Tracker
@@ -810,3 +815,46 @@
 >>>0x31		byte/16		x	Version %d.
 >>>0x31		byte&0x0F	x	\b%02d
 >>>>0x4		string		>\0	\b, title: "%s"
+
+# magic for Klystrack, http://kometbomb.github.io/klystrack/
+# from Alex Myczko <alex@aiei.ch>
+0	string	cyd!song	Klystrack song
+>8	byte	>0		\b, version %u
+>8	byte	>26
+#>>9	byte	x		\b, channels %u
+#>>10	leshort	x		\b, time signature %u
+#>>12	leshort	x		\b, sequence step %u
+#>>14	byte	x		\b, instruments %u
+#>>15	leshort	x		\b, patterns %u
+#>>17	leshort	x		\b, sequences %u
+#>>19	leshort	x		\b, length %u
+#>>21	leshort	x		\b, loop point %u
+#>>23	byte	x		\b, master volume %u
+#>>24	byte	x		\b, song speed %u
+#>>25	byte	x		\b, song speed2 %u
+#>>26	byte	x		\b, song rate %u
+#>>27	belong	x		\b, flags %#x
+#>>31	byte	x		\b, multiplex period %u
+#>>32	byte	x		\b, pitch inaccuracy %u
+>>149	pstring	x		\b, title %s
+
+0	string	cyd!inst	Klystrack instrument
+
+# magic for WOPL instrument files, https://github.com/Wohlstand/OPL3BankEditor
+# see Specifications/WOPL-and-OPLI-Specification.txt
+
+0	string	WOPL3-INST\0	WOPL instrument
+>11	leshort	x	\b, version %u
+0	string	WOPL3-BANK\0	WOPL instrument bank
+>11	leshort	x	\b, version %u
+
+# AdLib/OPL instrument files. Format specifications on
+#  http://www.shikadi.net/moddingwiki
+0	string	Junglevision\ Patch\ File	Junglevision instrument data
+0	string	#OPL_II#	DMX OP2 instrument data
+0	string	IBK\x1a		IBK instrument data
+0	string	2OP\x1a		IBK instrument data, 2 operators
+0	string	4OP\x1a		IBK instrument data, 4 operators
+2	string	ADLIB-		AdLib instrument data
+>0	byte	x		\b, version %u
+>1	byte	x		\b.%u

@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/rwlock.h>
 #include <sys/bus.h>
 #include <sys/uio.h>
 #include <sys/mbuf.h>
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/aesni/aesni.h>
 #include <crypto/aesni/sha_sse.h>
 #include <crypto/sha1.h>
+#include <crypto/sha2/sha224.h>
 #include <crypto/sha2/sha256.h>
 
 #include <opencrypto/cryptodev.h>
@@ -69,13 +69,9 @@ static struct mtx_padalign *ctx_mtx;
 static struct fpu_kern_ctx **ctx_fpu;
 
 struct aesni_softc {
-	int	dieing;
 	int32_t cid;
-	uint32_t sid;
 	bool	has_aes;
 	bool	has_sha;
-	TAILQ_HEAD(aesni_sessions_head, aesni_session) sessions;
-	struct rwlock lock;
 };
 
 #define ACQUIRE_CTX(i, ctx)					\
@@ -91,10 +87,8 @@ struct aesni_softc {
 		(ctx) = NULL;					\
 	} while (0)
 
-static int aesni_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
-static int aesni_freesession(device_t, uint64_t tid);
-static void aesni_freesession_locked(struct aesni_softc *sc,
-    struct aesni_session *ses);
+static int aesni_newsession(device_t, crypto_session_t cses,
+    struct cryptoini *cri);
 static int aesni_cipher_setup(struct aesni_session *ses,
     struct cryptoini *encini, struct cryptoini *authini);
 static int aesni_cipher_process(struct aesni_session *ses,
@@ -172,12 +166,9 @@ aesni_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	sc->dieing = 0;
-	TAILQ_INIT(&sc->sessions);
-	sc->sid = 1;
 
-	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
-	    CRYPTOCAP_F_SYNC);
+	sc->cid = crypto_get_driverid(dev, sizeof(struct aesni_session),
+	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
@@ -193,8 +184,6 @@ aesni_attach(device_t dev)
 		mtx_init(&ctx_mtx[i], "anifpumtx", NULL, MTX_DEF|MTX_NEW);
 	}
 
-	rw_init(&sc->lock, "aesni_lock");
-
 	detect_cpu_features(&sc->has_aes, &sc->has_sha);
 	if (sc->has_aes) {
 		crypto_register(sc->cid, CRYPTO_AES_CBC, 0, 0);
@@ -208,6 +197,9 @@ aesni_attach(device_t dev)
 	if (sc->has_sha) {
 		crypto_register(sc->cid, CRYPTO_SHA1, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA1_HMAC, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_224, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_224_HMAC, 0, 0);
+		crypto_register(sc->cid, CRYPTO_SHA2_256, 0, 0);
 		crypto_register(sc->cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 	}
 	return (0);
@@ -217,28 +209,10 @@ static int
 aesni_detach(device_t dev)
 {
 	struct aesni_softc *sc;
-	struct aesni_session *ses;
 
 	sc = device_get_softc(dev);
 
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH(ses, &sc->sessions, next) {
-		if (ses->used) {
-			rw_wunlock(&sc->lock);
-			device_printf(dev,
-			    "Cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
-	sc->dieing = 1;
-	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-		free(ses, M_AESNI);
-	}
-	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
-
-	rw_destroy(&sc->lock);
 
 	aesni_cleanctx();
 
@@ -246,7 +220,7 @@ aesni_detach(device_t dev)
 }
 
 static int
-aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+aesni_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct aesni_softc *sc;
 	struct aesni_session *ses;
@@ -254,16 +228,16 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	bool gcm_hash, gcm;
 	int error;
 
-	if (sidp == NULL || cri == NULL) {
-		CRYPTDEB("no sidp or cri");
+	KASSERT(cses != NULL, ("EDOOFUS"));
+	if (cri == NULL) {
+		CRYPTDEB("no cri");
 		return (EINVAL);
 	}
 
 	sc = device_get_softc(dev);
-	if (sc->dieing)
-		return (EINVAL);
 
-	ses = NULL;
+	ses = crypto_get_driver_session(cses);
+
 	authini = NULL;
 	encini = NULL;
 	gcm = false;
@@ -295,6 +269,9 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			break;
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224:
+		case CRYPTO_SHA2_224_HMAC:
+		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (!sc->has_sha)
 				goto unhandled;
@@ -321,30 +298,6 @@ unhandled:
 	if (gcm_hash != gcm)
 		return (EINVAL);
 
-	rw_wlock(&sc->lock);
-	if (sc->dieing) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	/*
-	 * Free sessions are inserted at the head of the list.  So if the first
-	 * session is used, none are free and we must allocate a new one.
-	 */
-	ses = TAILQ_FIRST(&sc->sessions);
-	if (ses == NULL || ses->used) {
-		ses = malloc(sizeof(*ses), M_AESNI, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->id = sc->sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-	}
-	ses->used = 1;
-	TAILQ_INSERT_TAIL(&sc->sessions, ses, next);
-	rw_wunlock(&sc->lock);
-
 	if (encini != NULL)
 		ses->algo = encini->cri_alg;
 	if (authini != NULL)
@@ -353,62 +306,19 @@ unhandled:
 	error = aesni_cipher_setup(ses, encini, authini);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
-		rw_wlock(&sc->lock);
-		aesni_freesession_locked(sc, ses);
-		rw_wunlock(&sc->lock);
 		return (error);
 	}
 
-	*sidp = ses->id;
-	return (0);
-}
-
-static void
-aesni_freesession_locked(struct aesni_softc *sc, struct aesni_session *ses)
-{
-	uint32_t sid;
-
-	rw_assert(&sc->lock, RA_WLOCKED);
-
-	sid = ses->id;
-	TAILQ_REMOVE(&sc->sessions, ses, next);
-	explicit_bzero(ses, sizeof(*ses));
-	ses->id = sid;
-	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
-}
-
-static int
-aesni_freesession(device_t dev, uint64_t tid)
-{
-	struct aesni_softc *sc;
-	struct aesni_session *ses;
-	uint32_t sid;
-
-	sc = device_get_softc(dev);
-	sid = ((uint32_t)tid) & 0xffffffff;
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, aesni_sessions_head, next) {
-		if (ses->id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	aesni_freesession_locked(sc, ses);
-	rw_wunlock(&sc->lock);
 	return (0);
 }
 
 static int
 aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct aesni_softc *sc;
 	struct aesni_session *ses;
 	struct cryptodesc *crd, *enccrd, *authcrd;
 	int error, needauth;
 
-	sc = device_get_softc(dev);
 	ses = NULL;
 	error = 0;
 	enccrd = NULL;
@@ -419,7 +329,8 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 	if (crp == NULL)
 		return (EINVAL);
 
-	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
+	if (crp->crp_callback == NULL || crp->crp_desc == NULL ||
+	    crp->crp_session == NULL) {
 		error = EINVAL;
 		goto out;
 	}
@@ -444,6 +355,9 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		case CRYPTO_AES_256_NIST_GMAC:
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224:
+		case CRYPTO_SHA2_224_HMAC:
+		case CRYPTO_SHA2_256:
 		case CRYPTO_SHA2_256_HMAC:
 			if (authcrd != NULL) {
 				error = EINVAL;
@@ -472,16 +386,8 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	rw_rlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, aesni_sessions_head, next) {
-		if (ses->id == (crp->crp_sid & 0xffffffff))
-			break;
-	}
-	rw_runlock(&sc->lock);
-	if (ses == NULL) {
-		error = EINVAL;
-		goto out;
-	}
+	ses = crypto_get_driver_session(crp->crp_session);
+	KASSERT(ses != NULL, ("EDOOFUS"));
 
 	error = aesni_cipher_process(ses, enccrd, authcrd, crp);
 	if (error != 0)
@@ -537,7 +443,6 @@ static device_method_t aesni_methods[] = {
 	DEVMETHOD(device_detach, aesni_detach),
 
 	DEVMETHOD(cryptodev_newsession, aesni_newsession),
-	DEVMETHOD(cryptodev_freesession, aesni_freesession),
 	DEVMETHOD(cryptodev_process, aesni_process),
 
 	DEVMETHOD_END
@@ -555,24 +460,39 @@ MODULE_VERSION(aesni, 1);
 MODULE_DEPEND(aesni, crypto, 1, 1, 1);
 
 static int
+aesni_authprepare(struct aesni_session *ses, int klen, const void *cri_key)
+{
+	int keylen;
+
+	if (klen % 8 != 0)
+		return (EINVAL);
+	keylen = klen / 8;
+	if (keylen > sizeof(ses->hmac_key))
+		return (EINVAL);
+	if (ses->auth_algo == CRYPTO_SHA1 && keylen > 0)
+		return (EINVAL);
+	memcpy(ses->hmac_key, cri_key, keylen);
+	return (0);
+}
+
+static int
 aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
     struct cryptoini *authini)
 {
 	struct fpu_kern_ctx *ctx;
-	int kt, ctxidx, keylen, error;
+	int kt, ctxidx, error;
 
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_224:
+	case CRYPTO_SHA2_224_HMAC:
+	case CRYPTO_SHA2_256:
 	case CRYPTO_SHA2_256_HMAC:
-		if (authini->cri_klen % 8 != 0)
-			return (EINVAL);
-		keylen = authini->cri_klen / 8;
-		if (keylen > sizeof(ses->hmac_key))
-			return (EINVAL);
-		if (ses->auth_algo == CRYPTO_SHA1 && keylen > 0)
-			return (EINVAL);
-		memcpy(ses->hmac_key, authini->cri_key, keylen);
+		error = aesni_authprepare(ses, authini->cri_klen,
+		    authini->cri_key);
+		if (error != 0)
+			return (error);
 		ses->mlen = authini->cri_mlen;
 	}
 
@@ -632,6 +552,12 @@ intel_sha1_update(void *vctx, const void *vdata, u_int datalen)
 }
 
 static void
+SHA1_Init_fn(void *ctx)
+{
+	sha1_init(ctx);
+}
+
+static void
 SHA1_Finalize_fn(void *digest, void *ctx)
 {
 	sha1_result(ctx, digest);
@@ -678,6 +604,24 @@ intel_sha256_update(void *vctx, const void *vdata, u_int len)
 	/* Copy left over data into buffer */
 	memcpy(ctx->buf, src, len);
 	return (0);
+}
+
+static void
+SHA224_Init_fn(void *ctx)
+{
+	SHA224_Init(ctx);
+}
+
+static void
+SHA224_Finalize_fn(void *digest, void *ctx)
+{
+	SHA224_Final(digest, ctx);
+}
+
+static void
+SHA256_Init_fn(void *ctx)
+{
+	SHA256_Init(ctx);
 }
 
 static void
@@ -878,6 +822,10 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 		break;
 	}
 
+	if (allocated)
+		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, buf);
+
 out:
 	if (allocated) {
 		explicit_bzero(buf, enccrd->crd_len);
@@ -899,44 +847,58 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		struct sha1_ctxt sha1 __aligned(16);
 	} sctx;
 	uint32_t res[SHA2_256_HASH_LEN / sizeof(uint32_t)];
-	int hashlen;
+	int hashlen, error;
+	void *ctx;
+	void (*InitFn)(void *);
+	int (*UpdateFn)(void *, const void *, unsigned);
+	void (*FinalizeFn)(void *, void *);
 
-	if (crd->crd_flags != 0)
+	bool hmac;
+
+	if ((crd->crd_flags & ~CRD_F_KEY_EXPLICIT) != 0) {
+		CRYPTDEB("%s: Unsupported MAC flags: 0x%x", __func__,
+		    (crd->crd_flags & ~CRD_F_KEY_EXPLICIT));
 		return (EINVAL);
+	}
+	if ((crd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
+		error = aesni_authprepare(ses, crd->crd_klen, crd->crd_key);
+		if (error != 0)
+			return (error);
+	}
 
+	hmac = false;
 	switch (ses->auth_algo) {
 	case CRYPTO_SHA1_HMAC:
-		hashlen = SHA1_HASH_LEN;
-		/* Inner hash: (K ^ IPAD) || data */
-		sha1_init(&sctx.sha1);
-		hmac_internal(&sctx.sha1, res, intel_sha1_update,
-		    SHA1_Finalize_fn, ses->hmac_key, 0x36, crp->crp_buf,
-		    crd->crd_skip, crd->crd_len, crp->crp_flags);
-		/* Outer hash: (K ^ OPAD) || inner hash */
-		sha1_init(&sctx.sha1);
-		hmac_internal(&sctx.sha1, res, intel_sha1_update,
-		    SHA1_Finalize_fn, ses->hmac_key, 0x5C, res, 0, hashlen, 0);
-		break;
+		hmac = true;
+		/* FALLTHROUGH */
 	case CRYPTO_SHA1:
 		hashlen = SHA1_HASH_LEN;
-		sha1_init(&sctx.sha1);
-		crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
-		    crd->crd_len, __DECONST(int (*)(void *, void *, u_int),
-		    intel_sha1_update), &sctx.sha1);
-		sha1_result(&sctx.sha1, (void *)res);
+		InitFn = SHA1_Init_fn;
+		UpdateFn = intel_sha1_update;
+		FinalizeFn = SHA1_Finalize_fn;
+		ctx = &sctx.sha1;
 		break;
+
 	case CRYPTO_SHA2_256_HMAC:
+		hmac = true;
+		/* FALLTHROUGH */
+	case CRYPTO_SHA2_256:
 		hashlen = SHA2_256_HASH_LEN;
-		/* Inner hash: (K ^ IPAD) || data */
-		SHA256_Init(&sctx.sha2);
-		hmac_internal(&sctx.sha2, res, intel_sha256_update,
-		    SHA256_Finalize_fn, ses->hmac_key, 0x36, crp->crp_buf,
-		    crd->crd_skip, crd->crd_len, crp->crp_flags);
-		/* Outer hash: (K ^ OPAD) || inner hash */
-		SHA256_Init(&sctx.sha2);
-		hmac_internal(&sctx.sha2, res, intel_sha256_update,
-		    SHA256_Finalize_fn, ses->hmac_key, 0x5C, res, 0, hashlen,
-		    0);
+		InitFn = SHA256_Init_fn;
+		UpdateFn = intel_sha256_update;
+		FinalizeFn = SHA256_Finalize_fn;
+		ctx = &sctx.sha2;
+		break;
+
+	case CRYPTO_SHA2_224_HMAC:
+		hmac = true;
+		/* FALLTHROUGH */
+	case CRYPTO_SHA2_224:
+		hashlen = SHA2_224_HASH_LEN;
+		InitFn = SHA224_Init_fn;
+		UpdateFn = intel_sha256_update;
+		FinalizeFn = SHA224_Finalize_fn;
+		ctx = &sctx.sha2;
 		break;
 	default:
 		/*
@@ -944,6 +906,24 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		 * enccrd
 		 */
 		return (0);
+	}
+
+	if (hmac) {
+		/* Inner hash: (K ^ IPAD) || data */
+		InitFn(ctx);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
+		    0x36, crp->crp_buf, crd->crd_skip, crd->crd_len,
+		    crp->crp_flags);
+		/* Outer hash: (K ^ OPAD) || inner hash */
+		InitFn(ctx);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
+		    0x5C, res, 0, hashlen, 0);
+	} else {
+		InitFn(ctx);
+		crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
+		    crd->crd_len, __DECONST(int (*)(void *, void *, u_int),
+		    UpdateFn), ctx);
+		FinalizeFn(res, ctx);
 	}
 
 	if (ses->mlen != 0 && ses->mlen < hashlen)

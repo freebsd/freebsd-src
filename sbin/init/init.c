@@ -1057,7 +1057,7 @@ static state_func_t
 run_script(const char *script)
 {
 	pid_t pid, wpid;
-	int status;
+	int error, status;
 	char *argv[4];
 	const char *shell;
 	struct sigaction sa;
@@ -1086,6 +1086,21 @@ run_script(const char *script)
 #ifdef LOGIN_CAP
 		setprocresources(RESOURCE_RC);
 #endif
+
+		/*
+		 * Try to directly execute the script first.  If it
+		 * fails, try the old method of passing the script path
+		 * to sh(1).  Don't complain if it fails because of
+		 * the missing execute bit.
+		 */
+		error = access(script, X_OK);
+		if (error == 0) {
+			execv(script, argv + 1);
+			warning("can't exec %s: %m", script);
+		} else if (errno != EACCES) {
+			warning("can't access %s: %m", script);
+		}
+
 		execv(shell, argv);
 		stall("can't exec %s for %s: %m", shell, script);
 		_exit(1);	/* force single user mode */
@@ -1854,7 +1869,7 @@ static int
 runshutdown(void)
 {
 	pid_t pid, wpid;
-	int status;
+	int error, status;
 	int shutdowntimeout;
 	size_t len;
 	char *argv[4];
@@ -1897,6 +1912,21 @@ runshutdown(void)
 #ifdef LOGIN_CAP
 		setprocresources(RESOURCE_RC);
 #endif
+
+		/*
+		 * Try to directly execute the script first.  If it
+		 * fails, try the old method of passing the script path
+		 * to sh(1).  Don't complain if it fails because of
+		 * the missing execute bit.
+		 */
+		error = access(_path_rundown, X_OK);
+		if (error == 0) {
+			execv(_path_rundown, argv + 1);
+			warning("can't exec %s: %m", _path_rundown);
+		} else if (errno != EACCES) {
+			warning("can't access %s: %m", _path_rundown);
+		}
+
 		execv(shell, argv);
 		warning("can't exec %s for %s: %m", shell, _PATH_RUNDOWN);
 		_exit(1);	/* force single user mode */

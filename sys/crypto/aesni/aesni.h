@@ -57,7 +57,7 @@ struct aesni_session {
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
 	/* Same as the SHA256 Blocksize. */
-	uint8_t hmac_key[SHA1_HMAC_BLOCK_LEN] __aligned(16);
+	uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
 	int algo;
 	int rounds;
 	/* uint8_t *ses_ictx; */
@@ -66,8 +66,6 @@ struct aesni_session {
 	int used;
 	int auth_algo;
 	int mlen;
-	uint32_t id;
-	TAILQ_ENTRY(aesni_session) next;
 };
 
 /*

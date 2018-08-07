@@ -96,6 +96,12 @@ struct svn_ra_svn_conn_st {
   apr_size_t error_check_interval;
   svn_boolean_t may_check_for_error;
 
+  /* I/O limits and tracking */
+  apr_uint64_t max_in;
+  apr_uint64_t current_in;
+  apr_uint64_t max_out;
+  apr_uint64_t current_out;
+
   /* repository info */
   const char *uuid;
   const char *repos_root;
@@ -119,12 +125,30 @@ struct svn_ra_svn_conn_st {
   apr_pool_t *pool;
 };
 
+/* The session's URL state for client and server side.
+ *
+ * This keeps track of the respective client-side and server-side "parent"
+ * URLs.  It tells us whether we may have to send reparent commands to the
+ * server and how to tweak path parameters when we decided to handle
+ * reparent requests on the client side only. */
+typedef struct svn_ra_svn__parent_t {
+  /* Client-side session base URL, i.e. client's parent path. */
+  svn_stringbuf_t *client_url;
+
+  /* Server-side base URL, i.e. server's parent path. */
+  svn_stringbuf_t *server_url;
+
+  /* Relative path to add to a client-side parameter to translate it for the
+   * server-side.  I.e. the relative path from SERVER_URL to CLIENT_URL. */
+  svn_stringbuf_t *path;
+} svn_ra_svn__parent_t;
+
 struct svn_ra_svn__session_baton_t {
   apr_pool_t *pool;
   svn_ra_svn_conn_t *conn;
   svn_boolean_t is_tunneled;
   svn_auth_baton_t *auth_baton;
-  const char *url;
+  svn_ra_svn__parent_t *parent;
   const char *user;
   const char *hostname; /* The remote hostname. */
   const char *realm_prefix;
@@ -151,6 +175,12 @@ void svn_ra_svn__set_block_handler(svn_ra_svn_conn_t *conn,
 svn_error_t *svn_ra_svn__data_available(svn_ra_svn_conn_t *conn,
                                        svn_boolean_t *data_available);
 
+/* Signal a new request / response pair on CONN.  That resets the I/O
+ * counters we use to limit the size of individual requests / response pairs.
+ */
+void
+svn_ra_svn__reset_command_io_counters(svn_ra_svn_conn_t *conn);
+
 /* CRAM-MD5 client implementation. */
 svn_error_t *svn_ra_svn__cram_client(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
                                      const char *user, const char *password,
@@ -163,10 +193,9 @@ svn_error_t *svn_ra_svn__locate_real_error_child(svn_error_t *err);
 
 /* Return an error chain based on @a params (which contains a
  * command response indicating failure).  The error chain will be
- * in the same order as the errors indicated in @a params.  Use
- * @a pool for temporary allocations. */
-svn_error_t *svn_ra_svn__handle_failure_status(const apr_array_header_t *params,
-                                               apr_pool_t *pool);
+ * in the same order as the errors indicated in @a params. */
+svn_error_t *
+svn_ra_svn__handle_failure_status(const svn_ra_svn__list_t *params);
 
 /* Returns a stream that reads/writes from/to SOCK. */
 svn_ra_svn__stream_t *svn_ra_svn__stream_from_sock(apr_socket_t *sock,
@@ -220,7 +249,7 @@ svn_ra_svn__stream_data_available(svn_ra_svn__stream_t *stream,
  * tokens. */
 svn_error_t *
 svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
-                          const apr_array_header_t *mechlist,
+                          const svn_ra_svn__list_t *mechlist,
                           const char *realm, apr_pool_t *pool);
 
 /* Same as svn_ra_svn__do_cyrus_auth, but uses the built-in implementation of
@@ -229,7 +258,7 @@ svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
  * mechanism with the server. */
 svn_error_t *
 svn_ra_svn__do_internal_auth(svn_ra_svn__session_baton_t *sess,
-                             const apr_array_header_t *mechlist,
+                             const svn_ra_svn__list_t *mechlist,
                              const char *realm, apr_pool_t *pool);
 
 /* Having picked a mechanism, start authentication by writing out an
@@ -239,8 +268,8 @@ svn_error_t *svn_ra_svn__auth_response(svn_ra_svn_conn_t *conn,
                                        apr_pool_t *pool,
                                        const char *mech, const char *mech_arg);
 
-/* Looks for MECH as a word in MECHLIST (an array of svn_ra_svn_item_t). */
-svn_boolean_t svn_ra_svn__find_mech(const apr_array_header_t *mechlist,
+/* Looks for MECH as a word in MECHLIST. */
+svn_boolean_t svn_ra_svn__find_mech(const svn_ra_svn__list_t *mechlist,
                                     const char *mech);
 
 /* Initialize the SASL library. */

@@ -256,7 +256,7 @@ index_decoder_reset(lzma_index_coder *coder, const lzma_allocator *allocator,
 
 	// Initialize the rest.
 	coder->sequence = SEQ_INDICATOR;
-	coder->memlimit = memlimit;
+	coder->memlimit = my_max(1, memlimit);
 	coder->count = 0; // Needs to be initialized due to _memconfig().
 	coder->pos = 0;
 	coder->crc32 = 0;
@@ -271,7 +271,7 @@ index_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 {
 	lzma_next_coder_init(&index_decoder_init, next, allocator);
 
-	if (i == NULL || memlimit == 0)
+	if (i == NULL)
 		return LZMA_PROG_ERROR;
 
 	lzma_index_coder *coder = next->coder;

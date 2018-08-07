@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.31 2016/09/12 01:22:38 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.32 2017/12/08 03:45:52 deraadt Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -412,8 +412,8 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 
 	time(&time_stop);
 
-	logit("%.24s Sieved with %u small primes in %ld seconds",
-	    ctime(&time_stop), largetries, (long) (time_stop - time_start));
+	logit("%.24s Sieved with %u small primes in %lld seconds",
+	    ctime(&time_stop), largetries, (long long)(time_stop - time_start));
 
 	for (j = r = 0; j < largebits; j++) {
 		if (BIT_TEST(LargeSieve, j))

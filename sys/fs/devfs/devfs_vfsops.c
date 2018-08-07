@@ -83,9 +83,6 @@ devfs_mount(struct mount *mp)
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_DEVFS))
-		return (EPERM);
-
 	rsnum = 0;
 	injail = jailed(td->td_ucred);
 

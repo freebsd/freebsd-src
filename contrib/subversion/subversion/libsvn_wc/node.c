@@ -906,7 +906,8 @@ svn_wc__rename_wc(svn_wc_context_t *wc_ctx,
     {
       SVN_ERR(svn_wc__db_drop_root(wc_ctx->db, wcroot_abspath, scratch_pool));
 
-      SVN_ERR(svn_io_file_rename(from_abspath, dst_abspath, scratch_pool));
+      SVN_ERR(svn_io_file_rename2(from_abspath, dst_abspath, FALSE,
+                                  scratch_pool));
     }
   else
     return svn_error_createf(

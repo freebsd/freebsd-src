@@ -219,20 +219,13 @@ disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *data)
 int
 disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 {
+	struct disk_devdesc partdev;
 	struct open_disk *od;
 	struct ptable *table;
 	struct ptable_entry part;
 	int rc, slice, partition;
 
 	rc = 0;
-	/*
-	 * While we are reading disk metadata, make sure we do it relative
-	 * to the start of the disk
-	 */
-	dev->d_offset = 0;
-	table = NULL;
-	slice = dev->d_slice;
-	partition = dev->d_partition;
 	od = (struct open_disk *)malloc(sizeof(struct open_disk));
 	if (od == NULL) {
 		DEBUG("no memory");
@@ -242,11 +235,25 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	od->entrysize = 0;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
+	/*
+	 * While we are reading disk metadata, make sure we do it relative
+	 * to the start of the disk
+	 */
+	memcpy(&partdev, dev, sizeof(partdev));
+	partdev.d_offset = 0;
+	partdev.d_slice = -1;
+	partdev.d_partition = -1;
+
+	dev->d_offset = 0;
+	table = NULL;
+	slice = dev->d_slice;
+	partition = dev->d_partition;
+
 	DEBUG("%s unit %d, slice %d, partition %d => %p",
-	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition, od);
+	    disk_fmtdev(dev), dev->dd.d_unit, dev->d_slice, dev->d_partition, od);
 
 	/* Determine disk layout. */
-	od->table = ptable_open(dev, mediasize / sectorsize, sectorsize,
+	od->table = ptable_open(&partdev, mediasize / sectorsize, sectorsize,
 	    ptblread);
 	if (od->table == NULL) {
 		DEBUG("Can't read partition table");

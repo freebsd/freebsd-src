@@ -7,7 +7,8 @@
 INTERNALLIB=	yes
 LIB=		svn_fs_x
 
-SRCS=		cached_data.c caching.c changes.c dag.c fs.c fs_id.c fs_x.c \
+SRCS=		batch_fsync.c cached_data.c caching.c changes.c \
+		dag_cache.c dag.c fs.c fs_id.c fs_x.c \
 		hotcopy.c id.c index.c lock.c low_level.c noderevs.c pack.c \
 		recovery.c rep-cache.c reps.c rev_file.c revprops.c \
 		string_table.c temp_serializer.c transaction.c tree.c \

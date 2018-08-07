@@ -138,13 +138,13 @@ nm_os_put_module(void)
 static void
 netmap_ifnet_arrival_handler(void *arg __unused, struct ifnet *ifp)
 {
-        netmap_undo_zombie(ifp);
+	netmap_undo_zombie(ifp);
 }
 
 static void
 netmap_ifnet_departure_handler(void *arg __unused, struct ifnet *ifp)
 {
-        netmap_make_zombie(ifp);
+	netmap_make_zombie(ifp);
 }
 
 static eventhandler_tag nm_ifnet_ah_tag;
@@ -153,33 +153,33 @@ static eventhandler_tag nm_ifnet_dh_tag;
 int
 nm_os_ifnet_init(void)
 {
-        nm_ifnet_ah_tag =
-                EVENTHANDLER_REGISTER(ifnet_arrival_event,
-                        netmap_ifnet_arrival_handler,
-                        NULL, EVENTHANDLER_PRI_ANY);
-        nm_ifnet_dh_tag =
-                EVENTHANDLER_REGISTER(ifnet_departure_event,
-                        netmap_ifnet_departure_handler,
-                        NULL, EVENTHANDLER_PRI_ANY);
-        return 0;
+	nm_ifnet_ah_tag =
+		EVENTHANDLER_REGISTER(ifnet_arrival_event,
+				netmap_ifnet_arrival_handler,
+				NULL, EVENTHANDLER_PRI_ANY);
+	nm_ifnet_dh_tag =
+		EVENTHANDLER_REGISTER(ifnet_departure_event,
+				netmap_ifnet_departure_handler,
+				NULL, EVENTHANDLER_PRI_ANY);
+	return 0;
 }
 
 void
 nm_os_ifnet_fini(void)
 {
-        EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
-                nm_ifnet_ah_tag);
-        EVENTHANDLER_DEREGISTER(ifnet_departure_event,
-                nm_ifnet_dh_tag);
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
+			nm_ifnet_ah_tag);
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+			nm_ifnet_dh_tag);
 }
 
 unsigned
 nm_os_ifnet_mtu(struct ifnet *ifp)
 {
 #if __FreeBSD_version < 1100030
-       return ifp->if_data.ifi_mtu;
+	return ifp->if_data.ifi_mtu;
 #else /* __FreeBSD_version >= 1100030 */
-       return ifp->if_mtu;
+	return ifp->if_mtu;
 #endif
 }
 
@@ -625,14 +625,14 @@ nm_os_vi_detach(struct ifnet *ifp)
 struct nm_os_extmem {
 	vm_object_t obj;
 	vm_offset_t kva;
-        vm_offset_t size;
-	vm_pindex_t scan;
+	vm_offset_t size;
+	uintptr_t scan;
 };
 
 void
 nm_os_extmem_delete(struct nm_os_extmem *e)
 {
-	D("freeing %zx bytes", (size_t)e->size);
+	D("freeing %jx bytes", (uintmax_t)e->size);
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
 	nm_os_free(e);
 }
@@ -651,7 +651,7 @@ nm_os_extmem_nextpage(struct nm_os_extmem *e)
 int
 nm_os_extmem_isequal(struct nm_os_extmem *e1, struct nm_os_extmem *e2)
 {
-	return (e1->obj == e1->obj);
+	return (e1->obj == e2->obj);
 }
 
 int
@@ -701,7 +701,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 			VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 			VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv != KERN_SUCCESS) {
-		D("vm_map_find(%zx) failed", (size_t)e->size);
+		D("vm_map_find(%jx) failed", (uintmax_t)e->size);
 		goto out_rel;
 	}
 	rv = vm_map_wire(kernel_map, e->kva, e->kva + e->size,
@@ -942,7 +942,7 @@ struct netmap_vm_handle_t {
 
 static int
 netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
-    vm_ooffset_t foff, struct ucred *cred, u_short *color)
+		vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
 	struct netmap_vm_handle_t *vmh = handle;
 
@@ -1519,7 +1519,7 @@ freebsd_netmap_poll(struct cdev *cdevi __unused, int events, struct thread *td)
 
 static int
 freebsd_netmap_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
-        int ffla __unused, struct thread *td)
+		int ffla __unused, struct thread *td)
 {
 	int error;
 	struct netmap_priv_d *priv;

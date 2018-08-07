@@ -265,9 +265,17 @@ ENTRY(bcmp)
 END(bcmp)
 
 /*
+ * void *memmove(void *dst, const void *src, size_t len)
  * void bcopy(const void *src, void *dst, size_t len)
  */
-ENTRY(bcopy)
+ENTRY(memmove)
+	/*
+	 * Swap src/dst for memmove/bcopy differences
+	 */
+	mov	%o0, %o6
+	mov	%o1, %o0
+	mov	%o6, %o1
+ALTENTRY(bcopy)
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */
@@ -290,15 +298,15 @@ ENTRY(bcopy)
 	ba	%xcc, 1b
 	 stb	%g1, [%o1]
 2:	retl
-	 nop
+	 mov	%o6, %o0
 
 	/*
 	 * Do the fast version.
 	 */
 3:	_MEMCPY(%o1, %o0, %o2, EMPTY, EMPTY, EMPTY, EMPTY)
 	retl
-	 nop
-END(bcopy)
+	 mov	%o6, %o0
+END(memmove)
 
 /*
  * void bzero(void *b, size_t len)

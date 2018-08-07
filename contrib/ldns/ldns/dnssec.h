@@ -81,7 +81,7 @@ ldns_rr *ldns_dnssec_get_dnskey_for_rrsig(const ldns_rr *rrsig, const ldns_rr_li
  * \param[in] nsec The nsec to get the covered type bitmap of
  * \return An ldns_rdf containing the bitmap, or NULL on error
  */
-ldns_rdf *ldns_nsec_get_bitmap(ldns_rr *nsec);
+ldns_rdf *ldns_nsec_get_bitmap(const ldns_rr *nsec);
 
 
 #define LDNS_NSEC3_MAX_ITERATIONS 65535
@@ -90,9 +90,9 @@ ldns_rdf *ldns_nsec_get_bitmap(ldns_rr *nsec);
  * Returns the dname of the closest (provable) encloser
  */
 ldns_rdf *
-ldns_dnssec_nsec3_closest_encloser(ldns_rdf *qname,
+ldns_dnssec_nsec3_closest_encloser(const ldns_rdf *qname,
 							ldns_rr_type qtype,
-							ldns_rr_list *nsec3s);
+							const ldns_rr_list *nsec3s);
 
 /**
  * Checks whether the packet contains rrsigs
@@ -104,7 +104,7 @@ ldns_dnssec_pkt_has_rrsigs(const ldns_pkt *pkt);
  * Returns a ldns_rr_list containing the signatures covering the given name
  * and type
  */
-ldns_rr_list *ldns_dnssec_pkt_get_rrsigs_for_name_and_type(const ldns_pkt *pkt, ldns_rdf *name, ldns_rr_type type);
+ldns_rr_list *ldns_dnssec_pkt_get_rrsigs_for_name_and_type(const ldns_pkt *pkt, const ldns_rdf *name, ldns_rr_type type);
 
 /**
  * Returns a ldns_rr_list containing the signatures covering the given type
@@ -125,7 +125,7 @@ uint16_t ldns_calc_keytag(const ldns_rr *key);
  * \param[in] keysize length of key data.
  * \return the keytag
  */
-uint16_t ldns_calc_keytag_raw(uint8_t* key, size_t keysize);
+uint16_t ldns_calc_keytag_raw(const uint8_t* key, size_t keysize);
 
 #if LDNS_BUILD_CONFIG_HAVE_SSL
 /**
@@ -134,14 +134,14 @@ uint16_t ldns_calc_keytag_raw(uint8_t* key, size_t keysize);
  * \param[in] key the key to convert
  * \return a DSA * structure with the key material
  */
-DSA *ldns_key_buf2dsa(ldns_buffer *key);
+DSA *ldns_key_buf2dsa(const ldns_buffer *key);
 /**
  * Like ldns_key_buf2dsa, but uses raw buffer.
  * \param[in] key the uncompressed wireformat of the key.
  * \param[in] len length of key data
  * \return a DSA * structure with the key material
  */
-DSA *ldns_key_buf2dsa_raw(unsigned char* key, size_t len);
+DSA *ldns_key_buf2dsa_raw(const unsigned char* key, size_t len);
 
 /**
  * Utility function to calculate hash using generic EVP_MD pointer.
@@ -151,7 +151,7 @@ DSA *ldns_key_buf2dsa_raw(unsigned char* key, size_t len);
  * \param[in] md the message digest to use.
  * \return true if worked, false on failure.
  */
-int ldns_digest_evp(unsigned char* data, unsigned int len, 
+int ldns_digest_evp(const unsigned char* data, unsigned int len, 
 	unsigned char* dest, const EVP_MD* md);
 
 /**
@@ -161,7 +161,7 @@ int ldns_digest_evp(unsigned char* data, unsigned int len,
  * \param[in] keylen length of the key data
  * \return the key or NULL on error.
  */
-EVP_PKEY* ldns_gost2pkey_raw(unsigned char* key, size_t keylen);
+EVP_PKEY* ldns_gost2pkey_raw(const unsigned char* key, size_t keylen);
 
 /**
  * Converts a holding buffer with key material to EVP PKEY in openssl.
@@ -171,7 +171,25 @@ EVP_PKEY* ldns_gost2pkey_raw(unsigned char* key, size_t keylen);
  * \param[in] algo precise algorithm to initialize ECC group values.
  * \return the key or NULL on error.
  */
-EVP_PKEY* ldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo);
+EVP_PKEY* ldns_ecdsa2pkey_raw(const unsigned char* key, size_t keylen, uint8_t algo);
+
+/**
+ * Converts a holding buffer with key material to EVP PKEY in openssl.
+ * Only available if ldns was compiled with ED25519.
+ * \param[in] key data to convert
+ * \param[in] keylen length of the key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY* ldns_ed255192pkey_raw(const unsigned char* key, size_t keylen);
+
+/**
+ * Converts a holding buffer with key material to EVP PKEY in openssl.
+ * Only available if ldns was compiled with ED448.
+ * \param[in] key data to convert
+ * \param[in] keylen length of the key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY* ldns_ed4482pkey_raw(const unsigned char* key, size_t keylen);
 
 #endif /* LDNS_BUILD_CONFIG_HAVE_SSL */
 
@@ -182,7 +200,7 @@ EVP_PKEY* ldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo);
  * \param[in] key the key to convert
  * \return a RSA * structure with the key material
  */
-RSA *ldns_key_buf2rsa(ldns_buffer *key);
+RSA *ldns_key_buf2rsa(const ldns_buffer *key);
 
 /**
  * Like ldns_key_buf2rsa, but uses raw buffer.
@@ -190,7 +208,7 @@ RSA *ldns_key_buf2rsa(ldns_buffer *key);
  * \param[in] len length of key data
  * \return a RSA * structure with the key material
  */
-RSA *ldns_key_buf2rsa_raw(unsigned char* key, size_t len);
+RSA *ldns_key_buf2rsa_raw(const unsigned char* key, size_t len);
 #endif /* LDNS_BUILD_CONFIG_HAVE_SSL */
 
 /** 
@@ -219,14 +237,14 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
  * \return int 1 if the type was found, 0 otherwise.
  */
 int
-ldns_dnssec_rrsets_contains_type (ldns_dnssec_rrsets *rrsets, ldns_rr_type type);
+ldns_dnssec_rrsets_contains_type(const ldns_dnssec_rrsets *rrsets, ldns_rr_type type);
 
 /**
  * Creates NSEC
  */
 ldns_rr *
-ldns_dnssec_create_nsec(ldns_dnssec_name *from,
-				    ldns_dnssec_name *to,
+ldns_dnssec_create_nsec(const ldns_dnssec_name *from,
+				    const ldns_dnssec_name *to,
 				    ldns_rr_type nsec_type);
 
 
@@ -234,14 +252,14 @@ ldns_dnssec_create_nsec(ldns_dnssec_name *from,
  * Creates NSEC3
  */
 ldns_rr *
-ldns_dnssec_create_nsec3(ldns_dnssec_name *from,
-					ldns_dnssec_name *to,
-					ldns_rdf *zone_name,
+ldns_dnssec_create_nsec3(const ldns_dnssec_name *from,
+					const ldns_dnssec_name *to,
+					const ldns_rdf *zone_name,
 					uint8_t algorithm,
 					uint8_t flags,
 					uint16_t iterations,
 					uint8_t salt_length,
-					uint8_t *salt);
+					const uint8_t *salt);
 
 /**
  * Create a NSEC record
@@ -261,7 +279,7 @@ ldns_rr * ldns_create_nsec(ldns_rdf *cur_owner, ldns_rdf *next_owner, ldns_rr_li
  * \param[in] salt The salt to use
  * \return The hashed owner name rdf, without the domain name
  */
-ldns_rdf *ldns_nsec3_hash_name(ldns_rdf *name, uint8_t algorithm, uint16_t iterations, uint8_t salt_length, uint8_t *salt);
+ldns_rdf *ldns_nsec3_hash_name(const ldns_rdf *name, uint8_t algorithm, uint16_t iterations, uint8_t salt_length, const uint8_t *salt);
 
 /**
  * Sets all the NSEC3 options. The rr to set them in must be initialized with _new() and
@@ -278,19 +296,19 @@ void ldns_nsec3_add_param_rdfs(ldns_rr *rr,
 						 uint8_t flags,
 						 uint16_t iterations,
 						 uint8_t salt_length,
-						 uint8_t *salt);
+						 const uint8_t *salt);
 
 /* this will NOT return the NSEC3  completed, you will have to run the
    finalize function on the rrlist later! */
 ldns_rr *
-ldns_create_nsec3(ldns_rdf *cur_owner,
-                  ldns_rdf *cur_zone,
-                  ldns_rr_list *rrs,
+ldns_create_nsec3(const ldns_rdf *cur_owner,
+                  const ldns_rdf *cur_zone,
+                  const ldns_rr_list *rrs,
                   uint8_t algorithm,
                   uint8_t flags,
                   uint16_t iterations,
                   uint8_t salt_length,
-                  uint8_t *salt,
+                  const uint8_t *salt,
                   bool emptynonterminal);
 
 /**
@@ -361,7 +379,7 @@ ldns_rdf *ldns_nsec3_bitmap(const ldns_rr *nsec3_rr);
  * \param[in] *name The owner name to calculate the hash for 
  * \return The hashed owner name rdf, without the domain name
  */
-ldns_rdf *ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, ldns_rdf *name);
+ldns_rdf *ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, const ldns_rdf *name);
 
 /**
  * Check if RR type t is enumerated and set in the RR type bitmap rdf.
@@ -413,7 +431,7 @@ bool ldns_nsec_covers_name(const ldns_rr *nsec, const ldns_rdf *name);
  * \return status 
  * 
  */
-ldns_status ldns_pkt_verify(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o, ldns_rr_list *k, ldns_rr_list *s, ldns_rr_list *good_keys);
+ldns_status ldns_pkt_verify(const ldns_pkt *p, ldns_rr_type t, const ldns_rdf *o, const ldns_rr_list *k, const ldns_rr_list *s, ldns_rr_list *good_keys);
 
 /**
  * verify a packet 
@@ -427,7 +445,7 @@ ldns_status ldns_pkt_verify(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o, ldns_rr_li
  * \return status 
  * 
  */
-ldns_status ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o, ldns_rr_list *k, ldns_rr_list *s, time_t check_time, ldns_rr_list *good_keys);
+ldns_status ldns_pkt_verify_time(const ldns_pkt *p, ldns_rr_type t, const ldns_rdf *o, const ldns_rr_list *k, const ldns_rr_list *s, time_t check_time, ldns_rr_list *good_keys);
 
 #endif
 
@@ -511,13 +529,19 @@ ldns_convert_dsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
  * Converts the ECDSA signature from ASN1 representation (as 
  * used by OpenSSL) to raw signature data as used in DNS
  * This routine is only present if ldns is compiled with ecdsa support.
+ * The older ldns_convert_ecdsa_rrsig_asn12rdf routine could not (always)
+ * construct a valid rdf because it did not have the num_bytes parameter.
+ * The num_bytes parameter is 32 for p256 and 48 for p384 (bits/8).
  *
  * \param[in] sig The signature in ASN1 format
  * \param[in] sig_len The length of the signature
+ * \param[in] num_bytes number of bytes for values in the curve, the curve
+ * 		size divided by 8.
  * \return a new rdf with the signature
  */
 ldns_rdf *
-ldns_convert_ecdsa_rrsig_asn12rdf(const ldns_buffer *sig, const long sig_len);
+ldns_convert_ecdsa_rrsig_asn1len2rdf(const ldns_buffer *sig,
+	const long sig_len, int num_bytes);
 
 /**
  * Converts the RRSIG signature RDF (from DNS) to a buffer with the 
@@ -530,6 +554,56 @@ ldns_convert_ecdsa_rrsig_asn12rdf(const ldns_buffer *sig, const long sig_len);
  */
 ldns_status
 ldns_convert_ecdsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
+        const ldns_rdf *sig_rdf);
+
+/**
+ * Converts the ECDSA signature from ASN1 representation (as
+ * used by OpenSSL) to raw signature data as used in DNS
+ * This routine is only present if ldns is compiled with ED25519 support.
+ *
+ * \param[in] sig The signature in ASN1 format
+ * \param[in] sig_len The length of the signature
+ * \return a new rdf with the signature
+ */
+ldns_rdf *
+ldns_convert_ed25519_rrsig_asn12rdf(const ldns_buffer *sig, long sig_len);
+
+/**
+ * Converts the RRSIG signature RDF (from DNS) to a buffer with the
+ * signature in ASN1 format as openssl uses it.
+ * This routine is only present if ldns is compiled with ED25519 support.
+ *
+ * \param[out] target_buffer buffer to place the signature data in ASN1.
+ * \param[in] sig_rdf The signature rdf to convert
+ * \return LDNS_STATUS_OK on success, error code otherwise
+ */
+ldns_status
+ldns_convert_ed25519_rrsig_rdf2asn1(ldns_buffer *target_buffer,
+        const ldns_rdf *sig_rdf);
+
+/**
+ * Converts the ECDSA signature from ASN1 representation (as
+ * used by OpenSSL) to raw signature data as used in DNS
+ * This routine is only present if ldns is compiled with ED448 support.
+ *
+ * \param[in] sig The signature in ASN1 format
+ * \param[in] sig_len The length of the signature
+ * \return a new rdf with the signature
+ */
+ldns_rdf *
+ldns_convert_ed448_rrsig_asn12rdf(const ldns_buffer *sig, long sig_len);
+
+/**
+ * Converts the RRSIG signature RDF (from DNS) to a buffer with the
+ * signature in ASN1 format as openssl uses it.
+ * This routine is only present if ldns is compiled with ED448 support.
+ *
+ * \param[out] target_buffer buffer to place the signature data in ASN1.
+ * \param[in] sig_rdf The signature rdf to convert
+ * \return LDNS_STATUS_OK on success, error code otherwise
+ */
+ldns_status
+ldns_convert_ed448_rrsig_rdf2asn1(ldns_buffer *target_buffer,
         const ldns_rdf *sig_rdf);
 
 #endif /* LDNS_BUILD_CONFIG_HAVE_SSL */

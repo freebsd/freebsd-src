@@ -44,14 +44,7 @@
 /* Upper value is determined by LPI max priority */
 #define	GIC_PRIORITY_MIN	(0xFCUL)
 
-/* Numbers for software generated interrupts */
-#define	GIC_FIRST_SGI		(0)
-#define	GIC_LAST_SGI		(15)
-/* Numbers for private peripheral interrupts */
-#define	GIC_FIRST_PPI		(16)
-#define	GIC_LAST_PPI		(31)
-/* Numbers for spared peripheral interrupts */
-#define	GIC_FIRST_SPI		(32)
+/* Numbers for shared peripheral interrupts */
 #define	GIC_LAST_SPI		(1019)
 /* Numbers for local peripheral interrupts */
 #define	GIC_FIRST_LPI		(8192)

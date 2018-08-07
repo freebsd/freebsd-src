@@ -1,3 +1,30 @@
+Wednesday, Jan. 25, 2017 guy@alum.mit.edu
+  Summary for 1.9.0 libpcap release
+    Man page improvements
+    Fix Linux cooked mode userspace filtering (GitHub pull request #429)
+    Fix compilation if IPv6 support not enabled
+    Fix some Linux memory-mapped capture buffer size issues
+    Don't fail if kernel filter can't be set on Linux (GitHub issue
+      #549)
+    Improve sorting of interfaces for pcap_findalldevs()
+    Don't list Linux usbmon devices if usbmon module isn't loaded
+    Report PCAP_ERROR_PERM_DENIED if no permission to open Linux usbmon
+      devices
+    Fix DLT_ type for Solaris IPNET devices
+    Always return an error message for errors finding DAG or Myricom
+      devices
+    If possible, don't require that a device be openable when
+      enumerating them for pcap_findalldevs()
+    Don't put incompletely-initialized addresses in the address list for
+    When finding Myricom devices, update description for regular
+      interfaces that are Myricom devices and handle SNF_FLAGS=0x2(port
+      aggregation enabled)
+    Fix compilation error in DAG support
+    Fix issues with CMake configuration
+    Add support for stream buffers larger than 2GB on newer DAG cards
+    Remove support for building against DAG versions without STREAMS
+      support (before dag-3.0.0 2007)
+
 Tuesday, Oct. 25, 2016 mcr@sandelman.ca
   Summary for 1.8.1 libpcap release
     Add a target in Makefile.in for Exuberant Ctags use: 'extags'.

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fnv_hash.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/mount.h>
@@ -276,7 +277,10 @@ vfs_register(struct vfsconf *vfc)
 		vfsops->vfs_extattrctl = vfs_stdextattrctl;
 	if (vfsops->vfs_sysctl == NULL)
 		vfsops->vfs_sysctl = vfs_stdsysctl;
-	
+
+	if (vfc->vfc_flags & VFCF_JAIL)
+		prison_add_vfs(vfc);
+
 	/*
 	 * Call init function for this VFS...
 	 */

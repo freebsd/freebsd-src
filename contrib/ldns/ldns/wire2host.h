@@ -99,9 +99,6 @@ extern "C" {
 
 /* Counter of the question section */
 #define LDNS_QDCOUNT_OFF		4
-/*
-#define	QDCOUNT(wirebuf)		(ntohs(*(uint16_t *)(wirebuf+QDCOUNT_OFF)))
-*/
 #define	LDNS_QDCOUNT(wirebuf)		(ldns_read_uint16(wirebuf+LDNS_QDCOUNT_OFF))
 
 /* Counter of the answer section */
@@ -129,7 +126,7 @@ extern "C" {
 ldns_status ldns_wire2pkt(ldns_pkt **packet, const uint8_t *data, size_t len);
 
 /**
- * converts the data on the uint8_t bytearray (in wire format) to a DNS packet.
+ * converts the data in the ldns_buffer (in wire format) to a DNS packet.
  * This function will initialize and allocate memory space for the packet 
  * structure.
  * 
@@ -137,7 +134,7 @@ ldns_status ldns_wire2pkt(ldns_pkt **packet, const uint8_t *data, size_t len);
  * \param[in] buffer the buffer with the data
  * \return LDNS_STATUS_OK if everything succeeds, error otherwise
  */
-ldns_status ldns_buffer2pkt_wire(ldns_pkt **packet, ldns_buffer *buffer);
+ldns_status ldns_buffer2pkt_wire(ldns_pkt **packet, const ldns_buffer *buffer);
 
 /**
  * converts the data on the uint8_t bytearray (in wire format) to a DNS 

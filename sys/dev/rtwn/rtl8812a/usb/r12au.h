@@ -37,6 +37,7 @@
  */
 /* r12au_init.c */
 void	r12au_init_rx_agg(struct rtwn_softc *);
+void	r12au_init_burstlen_usb2(struct rtwn_softc *);
 void	r12au_init_burstlen(struct rtwn_softc *);
 void	r12au_init_ampdu_fwhw(struct rtwn_softc *);
 void	r12au_init_ampdu(struct rtwn_softc *);

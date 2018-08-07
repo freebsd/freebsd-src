@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <math.h>
 #include <locale.h>
 #include <stdio.h>
@@ -55,6 +56,15 @@ __FBSDID("$FreeBSD$");
 
 static const char *decimal_point = ".";	/* default */
 static char default_format[] = { "%g" };	/* default */
+
+static const struct option long_opts[] =
+{
+	{"format",	required_argument,	NULL, 'f'},
+	{"separator",	required_argument,	NULL, 's'},
+	{"terminator",	required_argument,	NULL, 't'},
+	{"equal-width",	no_argument,		NULL, 'w'},
+	{NULL,		no_argument,		NULL, 0}
+};
 
 /* Prototypes */
 
@@ -100,7 +110,7 @@ main(int argc, char *argv[])
          * least they trip up getopt(3).
          */
 	while ((optind < argc) && !numeric(argv[optind]) &&
-	    (c = getopt(argc, argv, "f:hs:t:w")) != -1) {
+	    (c = getopt_long(argc, argv, "+f:hs:t:w", long_opts, NULL)) != -1) {
 
 		switch (c) {
 		case 'f':	/* format (plan9) */

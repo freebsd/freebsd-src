@@ -94,4 +94,12 @@ struct mmc_params {
         uint8_t sdio_func_count;
 } __packed;
 
+/*
+ * Only one MMC card on bus is supported now.
+ * If we ever want to support multiple MMC cards on the same bus,
+ * mmc_xpt needs to be extended to issue new RCAs based on number
+ * of already probed cards. Furthermore, retuning and high-speed
+ * settings should also take all cards into account.
+ */
+#define MMC_PROPOSED_RCA    2
 #endif

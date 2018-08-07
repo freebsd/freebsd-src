@@ -230,110 +230,155 @@ adjust_paths_for_diff_labels(const char **index_path,
 /* Generate a label for the diff output for file PATH at revision REVNUM.
    If REVNUM is invalid then it is assumed to be the current working
    copy.  Assumes the paths are already in the desired style (local
-   vs internal).  Allocate the label in POOL. */
+   vs internal).  Allocate the label in RESULT-POOL. */
 static const char *
 diff_label(const char *path,
            svn_revnum_t revnum,
-           apr_pool_t *pool)
+           apr_pool_t *result_pool)
 {
   const char *label;
   if (revnum >= 0)
-    label = apr_psprintf(pool, _("%s\t(revision %ld)"), path, revnum);
+    label = apr_psprintf(result_pool, _("%s\t(revision %ld)"), path, revnum);
   else if (revnum == DIFF_REVNUM_NONEXISTENT)
-    label = apr_psprintf(pool, _("%s\t(nonexistent)"), path);
+    label = apr_psprintf(result_pool, _("%s\t(nonexistent)"), path);
   else /* SVN_INVALID_REVNUM */
-    label = apr_psprintf(pool, _("%s\t(working copy)"), path);
+    label = apr_psprintf(result_pool, _("%s\t(working copy)"), path);
 
   return label;
 }
 
+/* Standard modes produced in git style diffs */
+static const int exec_mode =                 0755;
+static const int noexec_mode =               0644;
+static const int kind_file_mode =         0100000;
+/*static const kind_dir_mode =            0040000;*/
+static const int kind_symlink_mode =      0120000;
+
 /* Print a git diff header for an addition within a diff between PATH1 and
- * PATH2 to the stream OS using HEADER_ENCODING.
- * All allocations are done in RESULT_POOL. */
+ * PATH2 to the stream OS using HEADER_ENCODING. */
 static svn_error_t *
 print_git_diff_header_added(svn_stream_t *os, const char *header_encoding,
                             const char *path1, const char *path2,
-                            apr_pool_t *result_pool)
+                            svn_boolean_t exec_bit,
+                            svn_boolean_t symlink_bit,
+                            apr_pool_t *scratch_pool)
 {
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  int new_mode = (exec_bit ? exec_mode : noexec_mode)
+                 | (symlink_bit ? kind_symlink_mode : kind_file_mode);
+
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "diff --git a/%s b/%s%s",
                                       path1, path2, APR_EOL_STR));
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
-                                      "new file mode 10644" APR_EOL_STR));
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
+                                      "new file mode %06o" APR_EOL_STR,
+                                      new_mode));
   return SVN_NO_ERROR;
 }
 
 /* Print a git diff header for a deletion within a diff between PATH1 and
- * PATH2 to the stream OS using HEADER_ENCODING.
- * All allocations are done in RESULT_POOL. */
+ * PATH2 to the stream OS using HEADER_ENCODING. */
 static svn_error_t *
 print_git_diff_header_deleted(svn_stream_t *os, const char *header_encoding,
                               const char *path1, const char *path2,
-                              apr_pool_t *result_pool)
+                              svn_boolean_t exec_bit,
+                              svn_boolean_t symlink_bit,
+                              apr_pool_t *scratch_pool)
 {
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  int old_mode = (exec_bit ? exec_mode : noexec_mode)
+                 | (symlink_bit ? kind_symlink_mode : kind_file_mode);
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "diff --git a/%s b/%s%s",
                                       path1, path2, APR_EOL_STR));
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
-                                      "deleted file mode 10644"
-                                      APR_EOL_STR));
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
+                                      "deleted file mode %06o" APR_EOL_STR,
+                                      old_mode));
   return SVN_NO_ERROR;
 }
 
 /* Print a git diff header for a copy from COPYFROM_PATH to PATH to the stream
- * OS using HEADER_ENCODING. All allocations are done in RESULT_POOL. */
+ * OS using HEADER_ENCODING. */
 static svn_error_t *
 print_git_diff_header_copied(svn_stream_t *os, const char *header_encoding,
                              const char *copyfrom_path,
                              svn_revnum_t copyfrom_rev,
                              const char *path,
-                             apr_pool_t *result_pool)
+                             apr_pool_t *scratch_pool)
 {
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "diff --git a/%s b/%s%s",
                                       copyfrom_path, path, APR_EOL_STR));
   if (copyfrom_rev != SVN_INVALID_REVNUM)
-    SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+    SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                         "copy from %s@%ld%s", copyfrom_path,
                                         copyfrom_rev, APR_EOL_STR));
   else
-    SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+    SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                         "copy from %s%s", copyfrom_path,
                                         APR_EOL_STR));
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "copy to %s%s", path, APR_EOL_STR));
   return SVN_NO_ERROR;
 }
 
 /* Print a git diff header for a rename from COPYFROM_PATH to PATH to the
- * stream OS using HEADER_ENCODING. All allocations are done in RESULT_POOL. */
+ * stream OS using HEADER_ENCODING. */
 static svn_error_t *
 print_git_diff_header_renamed(svn_stream_t *os, const char *header_encoding,
                               const char *copyfrom_path, const char *path,
-                              apr_pool_t *result_pool)
+                              apr_pool_t *scratch_pool)
 {
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "diff --git a/%s b/%s%s",
                                       copyfrom_path, path, APR_EOL_STR));
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "rename from %s%s", copyfrom_path,
                                       APR_EOL_STR));
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "rename to %s%s", path, APR_EOL_STR));
   return SVN_NO_ERROR;
 }
 
 /* Print a git diff header for a modification within a diff between PATH1 and
- * PATH2 to the stream OS using HEADER_ENCODING.
- * All allocations are done in RESULT_POOL. */
+ * PATH2 to the stream OS using HEADER_ENCODING. */
 static svn_error_t *
 print_git_diff_header_modified(svn_stream_t *os, const char *header_encoding,
                                const char *path1, const char *path2,
-                               apr_pool_t *result_pool)
+                               apr_pool_t *scratch_pool)
 {
-  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, result_pool,
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
                                       "diff --git a/%s b/%s%s",
                                       path1, path2, APR_EOL_STR));
+  return SVN_NO_ERROR;
+}
+
+/* Helper function for print_git_diff_header */
+static svn_error_t *
+maybe_print_mode_change(svn_stream_t *os,
+                        const char *header_encoding,
+                        svn_boolean_t exec_bit1,
+                        svn_boolean_t exec_bit2,
+                        svn_boolean_t symlink_bit1,
+                        svn_boolean_t symlink_bit2,
+                        const char *git_index_shas,
+                        apr_pool_t *scratch_pool)
+{
+  int old_mode = (exec_bit1 ? exec_mode : noexec_mode)
+                 | (symlink_bit1 ? kind_symlink_mode : kind_file_mode);
+  int new_mode = (exec_bit2 ? exec_mode : noexec_mode)
+                 | (symlink_bit2 ? kind_symlink_mode : kind_file_mode);
+  if (old_mode == new_mode)
+    {
+      if (git_index_shas)
+        SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
+                                            "index %s %06o" APR_EOL_STR,
+                                            git_index_shas, old_mode));
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
+                                      "old mode %06o" APR_EOL_STR, old_mode));
+  SVN_ERR(svn_stream_printf_from_utf8(os, header_encoding, scratch_pool,
+                                      "new mode %06o" APR_EOL_STR, new_mode));
   return SVN_NO_ERROR;
 }
 
@@ -354,17 +399,31 @@ print_git_diff_header(svn_stream_t *os,
                       svn_revnum_t rev2,
                       const char *copyfrom_path,
                       svn_revnum_t copyfrom_rev,
+                      apr_hash_t *left_props,
+                      apr_hash_t *right_props,
+                      const char *git_index_shas,
                       const char *header_encoding,
                       apr_pool_t *scratch_pool)
 {
+  svn_boolean_t exec_bit1 = (svn_prop_get_value(left_props,
+                                                SVN_PROP_EXECUTABLE) != NULL);
+  svn_boolean_t exec_bit2 = (svn_prop_get_value(right_props,
+                                                SVN_PROP_EXECUTABLE) != NULL);
+  svn_boolean_t symlink_bit1 = (svn_prop_get_value(left_props,
+                                                   SVN_PROP_SPECIAL) != NULL);
+  svn_boolean_t symlink_bit2 = (svn_prop_get_value(right_props,
+                                                   SVN_PROP_SPECIAL) != NULL);
+
   if (operation == svn_diff_op_deleted)
     {
       SVN_ERR(print_git_diff_header_deleted(os, header_encoding,
                                             repos_relpath1, repos_relpath2,
+                                            exec_bit1, symlink_bit1,
                                             scratch_pool));
       *label1 = diff_label(apr_psprintf(scratch_pool, "a/%s", repos_relpath1),
                            rev1, scratch_pool);
-      *label2 = diff_label("/dev/null", rev2, scratch_pool);
+      *label2 = diff_label(apr_psprintf(scratch_pool, "b/%s", repos_relpath2),
+                           rev2, scratch_pool);
 
     }
   else if (operation == svn_diff_op_copied)
@@ -377,13 +436,20 @@ print_git_diff_header(svn_stream_t *os,
                            rev1, scratch_pool);
       *label2 = diff_label(apr_psprintf(scratch_pool, "b/%s", repos_relpath2),
                            rev2, scratch_pool);
+      SVN_ERR(maybe_print_mode_change(os, header_encoding,
+                                      exec_bit1, exec_bit2,
+                                      symlink_bit1, symlink_bit2,
+                                      git_index_shas,
+                                      scratch_pool));
     }
   else if (operation == svn_diff_op_added)
     {
       SVN_ERR(print_git_diff_header_added(os, header_encoding,
                                           repos_relpath1, repos_relpath2,
+                                          exec_bit2, symlink_bit2,
                                           scratch_pool));
-      *label1 = diff_label("/dev/null", rev1, scratch_pool);
+      *label1 = diff_label(apr_psprintf(scratch_pool, "a/%s", repos_relpath1),
+                           rev1, scratch_pool);
       *label2 = diff_label(apr_psprintf(scratch_pool, "b/%s", repos_relpath2),
                            rev2, scratch_pool);
     }
@@ -396,6 +462,11 @@ print_git_diff_header(svn_stream_t *os,
                            rev1, scratch_pool);
       *label2 = diff_label(apr_psprintf(scratch_pool, "b/%s", repos_relpath2),
                            rev2, scratch_pool);
+      SVN_ERR(maybe_print_mode_change(os, header_encoding,
+                                      exec_bit1, exec_bit2,
+                                      symlink_bit1, symlink_bit2,
+                                      git_index_shas,
+                                      scratch_pool));
     }
   else if (operation == svn_diff_op_moved)
     {
@@ -406,6 +477,11 @@ print_git_diff_header(svn_stream_t *os,
                            rev1, scratch_pool);
       *label2 = diff_label(apr_psprintf(scratch_pool, "b/%s", repos_relpath2),
                            rev2, scratch_pool);
+      SVN_ERR(maybe_print_mode_change(os, header_encoding,
+                                      exec_bit1, exec_bit2,
+                                      symlink_bit1, symlink_bit2,
+                                      git_index_shas,
+                                      scratch_pool));
     }
 
   return SVN_NO_ERROR;
@@ -425,7 +501,8 @@ print_git_diff_header(svn_stream_t *os,
    ANCHOR is the local path where the diff editor is anchored. */
 static svn_error_t *
 display_prop_diffs(const apr_array_header_t *propchanges,
-                   apr_hash_t *original_props,
+                   apr_hash_t *left_props,
+                   apr_hash_t *right_props,
                    const char *diff_relpath,
                    const char *anchor,
                    const char *orig_path1,
@@ -487,6 +564,9 @@ display_prop_diffs(const apr_array_header_t *propchanges,
                                       repos_relpath1, repos_relpath2,
                                       rev1, rev2, NULL,
                                       SVN_INVALID_REVNUM,
+                                      left_props,
+                                      right_props,
+                                      NULL,
                                       encoding, scratch_pool));
 
       /* --- label1
@@ -496,18 +576,18 @@ display_prop_diffs(const apr_array_header_t *propchanges,
     }
 
   SVN_ERR(svn_stream_printf_from_utf8(outstream, encoding, scratch_pool,
-                                      _("%sProperty changes on: %s%s"),
+                                      APR_EOL_STR
+                                      "Property changes on: %s"
                                       APR_EOL_STR,
                                       use_git_diff_format
                                             ? repos_relpath1
-                                            : index_path,
-                                      APR_EOL_STR));
+                                            : index_path));
 
   SVN_ERR(svn_stream_printf_from_utf8(outstream, encoding, scratch_pool,
                                       SVN_DIFF__UNDER_STRING APR_EOL_STR));
 
   SVN_ERR(svn_diff__display_prop_diffs(
-            outstream, encoding, propchanges, original_props,
+            outstream, encoding, propchanges, left_props,
             TRUE /* pretty_print_mergeinfo */,
             -1 /* context_size */,
             cancel_func, cancel_baton, scratch_pool));
@@ -606,7 +686,8 @@ diff_props_changed(const char *diff_relpath,
                    svn_revnum_t rev1,
                    svn_revnum_t rev2,
                    const apr_array_header_t *propchanges,
-                   apr_hash_t *original_props,
+                   apr_hash_t *left_props,
+                   apr_hash_t *right_props,
                    svn_boolean_t show_diff_header,
                    diff_writer_info_t *dwi,
                    apr_pool_t *scratch_pool)
@@ -625,7 +706,7 @@ diff_props_changed(const char *diff_relpath,
       /* We're using the revnums from the dwi since there's
        * no revision argument to the svn_wc_diff_callback_t
        * dir_props_changed(). */
-      SVN_ERR(display_prop_diffs(props, original_props,
+      SVN_ERR(display_prop_diffs(props, left_props, right_props,
                                  diff_relpath,
                                  dwi->ddi.anchor,
                                  dwi->ddi.orig_path_1,
@@ -647,6 +728,62 @@ diff_props_changed(const char *diff_relpath,
   return SVN_NO_ERROR;
 }
 
+/* Given a file ORIG_TMPFILE, return a path to a temporary file that lives at
+ * least as long as RESULT_POOL, containing the git-like represention of
+ * ORIG_TMPFILE */
+static svn_error_t *
+transform_link_to_git(const char **new_tmpfile,
+                      const char **git_sha1,
+                      const char *orig_tmpfile,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool)
+{
+  apr_file_t *orig;
+  apr_file_t *gitlike;
+  svn_stringbuf_t *line;
+
+  *git_sha1 = NULL;
+
+  SVN_ERR(svn_io_file_open(&orig, orig_tmpfile, APR_READ, APR_OS_DEFAULT,
+                           scratch_pool));
+  SVN_ERR(svn_io_open_unique_file3(&gitlike, new_tmpfile, NULL,
+                                   svn_io_file_del_on_pool_cleanup,
+                                   result_pool, scratch_pool));
+
+  SVN_ERR(svn_io_file_readline(orig, &line, NULL, NULL, 2 * APR_PATH_MAX + 2,
+                               scratch_pool, scratch_pool));
+
+  if (line->len > 5 && !strncmp(line->data, "link ", 5))
+    {
+      const char *sz_str;
+      svn_checksum_t *checksum;
+
+      svn_stringbuf_remove(line, 0, 5);
+
+      SVN_ERR(svn_io_file_write_full(gitlike, line->data, line->len,
+                                     NULL, scratch_pool));
+
+      /* git calculates the sha over "blob X\0" + the actual data,
+         where X is the decimal size of the blob. */
+      sz_str = apr_psprintf(scratch_pool, "blob %u", (unsigned int)line->len);
+      svn_stringbuf_insert(line, 0, sz_str, strlen(sz_str) + 1);
+
+      SVN_ERR(svn_checksum(&checksum, svn_checksum_sha1,
+                           line->data, line->len, scratch_pool));
+
+      *git_sha1 = svn_checksum_to_cstring(checksum, result_pool);
+    }
+  else
+    {
+      /* Not a link... so can't convert */
+      *new_tmpfile = apr_pstrdup(result_pool, orig_tmpfile);
+    }
+
+  SVN_ERR(svn_io_file_close(orig, scratch_pool));
+  SVN_ERR(svn_io_file_close(gitlike, scratch_pool));
+  return SVN_NO_ERROR;
+}
+
 /* Show differences between TMPFILE1 and TMPFILE2. DIFF_RELPATH, REV1, and
    REV2 are used in the headers to indicate the file and revisions.  If either
    MIMETYPE1 or MIMETYPE2 indicate binary content, don't show a diff,
@@ -662,8 +799,8 @@ diff_content_changed(svn_boolean_t *wrote_header,
                      const char *tmpfile2,
                      svn_revnum_t rev1,
                      svn_revnum_t rev2,
-                     const char *mimetype1,
-                     const char *mimetype2,
+                     apr_hash_t *left_props,
+                     apr_hash_t *right_props,
                      svn_diff_operation_kind_t operation,
                      svn_boolean_t force_diff,
                      const char *copyfrom_path,
@@ -678,6 +815,9 @@ diff_content_changed(svn_boolean_t *wrote_header,
   const char *index_path = diff_relpath;
   const char *path1 = dwi->ddi.orig_path_1;
   const char *path2 = dwi->ddi.orig_path_2;
+  const char *mimetype1 = svn_prop_get_value(left_props, SVN_PROP_MIME_TYPE);
+  const char *mimetype2 = svn_prop_get_value(right_props, SVN_PROP_MIME_TYPE);
+  const char *index_shas = NULL;
 
   /* If only property differences are shown, there's nothing to do. */
   if (dwi->properties_only)
@@ -699,6 +839,33 @@ diff_content_changed(svn_boolean_t *wrote_header,
   if (mimetype2)
     mt2_binary = svn_mime_type_is_binary(mimetype2);
 
+  if (dwi->use_git_diff_format)
+    {
+      const char *l_hash = NULL;
+      const char *r_hash = NULL;
+
+      /* Change symlinks to their 'git like' plain format */
+      if (svn_prop_get_value(left_props, SVN_PROP_SPECIAL))
+        SVN_ERR(transform_link_to_git(&tmpfile1, &l_hash, tmpfile1,
+                                      scratch_pool, scratch_pool));
+      if (svn_prop_get_value(right_props, SVN_PROP_SPECIAL))
+        SVN_ERR(transform_link_to_git(&tmpfile2, &r_hash, tmpfile2,
+                                      scratch_pool, scratch_pool));
+
+      if (l_hash && r_hash)
+        {
+          /* The symlink has changed. But we can't tell the user of the
+             diff whether we are writing git diffs or svn diffs of the
+             symlink... except when we add a git-like index line */
+
+          l_hash = apr_pstrndup(scratch_pool, l_hash, 8);
+          r_hash = apr_pstrndup(scratch_pool, r_hash, 8);
+
+          index_shas = apr_psprintf(scratch_pool, "%8s..%8s",
+                                    l_hash, r_hash);
+        }
+    }
+
   if (! dwi->force_binary && (mt1_binary || mt2_binary))
     {
       /* Print out the diff header. */
@@ -708,6 +875,8 @@ diff_content_changed(svn_boolean_t *wrote_header,
                SVN_DIFF__EQUAL_STRING APR_EOL_STR,
                index_path));
 
+      *wrote_header = TRUE;
+
       /* ### Print git diff headers. */
 
       if (dwi->use_git_diff_format)
@@ -716,6 +885,7 @@ diff_content_changed(svn_boolean_t *wrote_header,
           svn_stream_t *right_stream;
           const char *repos_relpath1;
           const char *repos_relpath2;
+          const char *copyfrom_repos_relpath = NULL;
 
           SVN_ERR(make_repos_relpath(&repos_relpath1, diff_relpath,
                                       dwi->ddi.orig_path_1,
@@ -729,12 +899,22 @@ diff_content_changed(svn_boolean_t *wrote_header,
                                       dwi->wc_ctx,
                                       dwi->ddi.anchor,
                                       scratch_pool, scratch_pool));
+          if (copyfrom_path)
+            SVN_ERR(make_repos_relpath(&copyfrom_repos_relpath, copyfrom_path,
+                                        dwi->ddi.orig_path_2,
+                                        dwi->ddi.session_relpath,
+                                        dwi->wc_ctx,
+                                        dwi->ddi.anchor,
+                                        scratch_pool, scratch_pool));
           SVN_ERR(print_git_diff_header(outstream, &label1, &label2,
                                         operation,
                                         repos_relpath1, repos_relpath2,
                                         rev1, rev2,
-                                        copyfrom_path,
+                                        copyfrom_repos_relpath,
                                         copyfrom_rev,
+                                        left_props,
+                                        right_props,
+                                        index_shas,
                                         dwi->header_encoding,
                                         scratch_pool));
 
@@ -878,6 +1058,8 @@ diff_content_changed(svn_boolean_t *wrote_header,
             {
               const char *repos_relpath1;
               const char *repos_relpath2;
+              const char *copyfrom_repos_relpath = NULL;
+
               SVN_ERR(make_repos_relpath(&repos_relpath1, diff_relpath,
                                          dwi->ddi.orig_path_1,
                                          dwi->ddi.session_relpath,
@@ -890,12 +1072,23 @@ diff_content_changed(svn_boolean_t *wrote_header,
                                          dwi->wc_ctx,
                                          dwi->ddi.anchor,
                                          scratch_pool, scratch_pool));
+              if (copyfrom_path)
+                SVN_ERR(make_repos_relpath(&copyfrom_repos_relpath,
+                                           copyfrom_path,
+                                           dwi->ddi.orig_path_2,
+                                           dwi->ddi.session_relpath,
+                                           dwi->wc_ctx,
+                                           dwi->ddi.anchor,
+                                           scratch_pool, scratch_pool));
               SVN_ERR(print_git_diff_header(outstream, &label1, &label2,
                                             operation,
                                             repos_relpath1, repos_relpath2,
                                             rev1, rev2,
-                                            copyfrom_path,
+                                            copyfrom_repos_relpath,
                                             copyfrom_rev,
+                                            left_props,
+                                            right_props,
+                                            index_shas,
                                             dwi->header_encoding,
                                             scratch_pool));
             }
@@ -915,10 +1108,6 @@ diff_content_changed(svn_boolean_t *wrote_header,
             *wrote_header = TRUE;
         }
     }
-
-  /* ### todo: someday we'll need to worry about whether we're going
-     to need to write a diff plug-in mechanism that makes use of the
-     two paths, instead of just blindly running SVN_CLIENT_DIFF.  */
 
   return SVN_NO_ERROR;
 }
@@ -946,10 +1135,7 @@ diff_file_changed(const char *relpath,
                                  left_file, right_file,
                                  left_source->revision,
                                  right_source->revision,
-                                 svn_prop_get_value(left_props,
-                                                    SVN_PROP_MIME_TYPE),
-                                 svn_prop_get_value(right_props,
-                                                    SVN_PROP_MIME_TYPE),
+                                 left_props, right_props,
                                  svn_diff_op_modified, FALSE,
                                  NULL,
                                  SVN_INVALID_REVNUM, dwi,
@@ -958,7 +1144,7 @@ diff_file_changed(const char *relpath,
     SVN_ERR(diff_props_changed(relpath,
                                left_source->revision,
                                right_source->revision, prop_changes,
-                               left_props, !wrote_header,
+                               left_props, right_props, !wrote_header,
                                dwi, scratch_pool));
   return SVN_NO_ERROR;
 }
@@ -986,6 +1172,23 @@ diff_file_added(const char *relpath,
   apr_hash_t *left_props;
   apr_array_header_t *prop_changes;
 
+  if (dwi->no_diff_added)
+    {
+      const char *index_path = relpath;
+
+      if (dwi->ddi.anchor)
+        index_path = svn_dirent_join(dwi->ddi.anchor, relpath,
+                                     scratch_pool);
+
+      SVN_ERR(svn_stream_printf_from_utf8(dwi->outstream,
+                dwi->header_encoding, scratch_pool,
+                "Index: %s (added)" APR_EOL_STR
+                SVN_DIFF__EQUAL_STRING APR_EOL_STR,
+                index_path));
+      wrote_header = TRUE;
+      return SVN_NO_ERROR;
+    }
+
   /* During repos->wc diff of a copy revision numbers obtained
    * from the working copy are always SVN_INVALID_REVNUM. */
   if (copyfrom_source && !dwi->show_copies_as_adds)
@@ -1009,33 +1212,19 @@ diff_file_added(const char *relpath,
 
   SVN_ERR(svn_prop_diffs(&prop_changes, right_props, left_props, scratch_pool));
 
-  if (dwi->no_diff_added)
-    {
-      const char *index_path = relpath;
-
-      if (dwi->ddi.anchor)
-        index_path = svn_dirent_join(dwi->ddi.anchor, relpath,
-                                     scratch_pool);
-
-      SVN_ERR(svn_stream_printf_from_utf8(dwi->outstream,
-                dwi->header_encoding, scratch_pool,
-                "Index: %s (added)" APR_EOL_STR
-                SVN_DIFF__EQUAL_STRING APR_EOL_STR,
-                index_path));
-      wrote_header = TRUE;
-    }
-  else if (copyfrom_source && right_file)
+  if (copyfrom_source && right_file)
     SVN_ERR(diff_content_changed(&wrote_header, relpath,
                                  left_file, right_file,
                                  copyfrom_source->revision,
                                  right_source->revision,
-                                 svn_prop_get_value(left_props,
-                                                    SVN_PROP_MIME_TYPE),
-                                 svn_prop_get_value(right_props,
-                                                    SVN_PROP_MIME_TYPE),
-                                 svn_diff_op_copied,
+                                 left_props, right_props,
+                                 copyfrom_source->moved_from_relpath
+                                    ? svn_diff_op_moved
+                                    : svn_diff_op_copied,
                                  TRUE /* force diff output */,
-                                 copyfrom_source->repos_relpath,
+                                 copyfrom_source->moved_from_relpath
+                                    ? copyfrom_source->moved_from_relpath
+                                    : copyfrom_source->repos_relpath,
                                  copyfrom_source->revision,
                                  dwi, scratch_pool));
   else if (right_file)
@@ -1043,10 +1232,7 @@ diff_file_added(const char *relpath,
                                  left_file, right_file,
                                  DIFF_REVNUM_NONEXISTENT,
                                  right_source->revision,
-                                 svn_prop_get_value(left_props,
-                                                    SVN_PROP_MIME_TYPE),
-                                 svn_prop_get_value(right_props,
-                                                    SVN_PROP_MIME_TYPE),
+                                 left_props, right_props,
                                  svn_diff_op_added,
                                  TRUE /* force diff output */,
                                  NULL, SVN_INVALID_REVNUM,
@@ -1058,8 +1244,8 @@ diff_file_added(const char *relpath,
                                                : DIFF_REVNUM_NONEXISTENT,
                                right_source->revision,
                                prop_changes,
-                               left_props, ! wrote_header,
-                               dwi, scratch_pool));
+                               left_props, right_props,
+                               ! wrote_header, dwi, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -1104,8 +1290,7 @@ diff_file_deleted(const char *relpath,
                                      left_file, dwi->empty_file,
                                      left_source->revision,
                                      DIFF_REVNUM_NONEXISTENT,
-                                     svn_prop_get_value(left_props,
-                                                        SVN_PROP_MIME_TYPE),
+                                     left_props,
                                      NULL,
                                      svn_diff_op_deleted, FALSE,
                                      NULL, SVN_INVALID_REVNUM,
@@ -1123,8 +1308,8 @@ diff_file_deleted(const char *relpath,
                                      left_source->revision,
                                      DIFF_REVNUM_NONEXISTENT,
                                      prop_changes,
-                                     left_props, ! wrote_header,
-                                     dwi, scratch_pool));
+                                     left_props, NULL,
+                                     ! wrote_header, dwi, scratch_pool));
         }
     }
 
@@ -1149,7 +1334,7 @@ diff_dir_changed(const char *relpath,
                              left_source->revision,
                              right_source->revision,
                              prop_changes,
-                             left_props,
+                             left_props, right_props,
                              TRUE /* show_diff_header */,
                              dwi,
                              scratch_pool));
@@ -1194,7 +1379,7 @@ diff_dir_added(const char *relpath,
                                                             : DIFF_REVNUM_NONEXISTENT,
                                             right_source->revision,
                                             prop_changes,
-                                            left_props,
+                                            left_props, right_props,
                                             TRUE /* show_diff_header */,
                                             dwi,
                                             scratch_pool));
@@ -1211,19 +1396,20 @@ diff_dir_deleted(const char *relpath,
 {
   diff_writer_info_t *dwi = processor->baton;
   apr_array_header_t *prop_changes;
+  apr_hash_t *right_props;
 
   if (dwi->no_diff_deleted)
     return SVN_NO_ERROR;
 
-
-  SVN_ERR(svn_prop_diffs(&prop_changes, apr_hash_make(scratch_pool),
+  right_props = apr_hash_make(scratch_pool);
+  SVN_ERR(svn_prop_diffs(&prop_changes, right_props,
                          left_props, scratch_pool));
 
   SVN_ERR(diff_props_changed(relpath,
                              left_source->revision,
                              DIFF_REVNUM_NONEXISTENT,
                              prop_changes,
-                             left_props,
+                             left_props, right_props,
                              TRUE /* show_diff_header */,
                              dwi,
                              scratch_pool));
@@ -1852,11 +2038,15 @@ diff_repos_repos(const char **root_relpath,
 /* Perform a diff between a repository path and a working-copy path.
 
    PATH_OR_URL1 may be either a URL or a working copy path.  PATH2 is a
-   working copy path.  REVISION1 and REVISION2 are their respective
-   revisions.  If REVERSE is TRUE, the diff will be done in reverse.
-   If PEG_REVISION is specified, then PATH_OR_URL1 is the path in the peg
-   revision, and the actual repository path to be compared is
-   determined by following copy history.
+   working copy path.  REVISION1 is the revision of URL1. If PEG_REVISION1
+   is specified, then PATH_OR_URL1 is the path in the peg revision, and the
+   actual repository path to be compared is determined by following copy
+   history.
+
+   REVISION_KIND2 specifies which revision should be reported from the
+   working copy (BASE or WORKING)
+
+   If REVERSE is TRUE, the diff will be reported in reverse.
 
    All other options are the same as those passed to svn_client_diff6(). */
 static svn_error_t *
@@ -1865,9 +2055,9 @@ diff_repos_wc(const char **root_relpath,
               struct diff_driver_info_t *ddi,
               const char *path_or_url1,
               const svn_opt_revision_t *revision1,
-              const svn_opt_revision_t *peg_revision,
+              const svn_opt_revision_t *peg_revision1,
               const char *path2,
-              const svn_opt_revision_t *revision2,
+              enum svn_opt_revision_kind revision2_kind,
               svn_boolean_t reverse,
               svn_depth_t depth,
               svn_boolean_t ignore_ancestry,
@@ -1884,7 +2074,7 @@ diff_repos_wc(const char **root_relpath,
   void *reporter_baton;
   const svn_delta_editor_t *diff_editor;
   void *diff_edit_baton;
-  svn_boolean_t rev2_is_base = (revision2->kind == svn_opt_revision_base);
+  svn_boolean_t rev2_is_base = (revision2_kind == svn_opt_revision_base);
   svn_boolean_t server_supports_depth;
   const char *abspath_or_url1;
   const char *abspath2;
@@ -1924,10 +2114,10 @@ diff_repos_wc(const char **root_relpath,
 
   SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &loc1,
                                             path_or_url1, abspath2,
-                                            peg_revision, revision1,
+                                            peg_revision1, revision1,
                                             ctx, scratch_pool));
 
-  if (revision2->kind == svn_opt_revision_base || !is_copy)
+  if (revision2_kind == svn_opt_revision_base || !is_copy)
     {
       /* Convert path_or_url1 to a URL to feed to do_diff. */
       SVN_ERR(svn_wc_get_actual_target2(&anchor, &target, ctx->wc_ctx, path2,
@@ -2069,22 +2259,20 @@ diff_repos_wc(const char **root_relpath,
   else
     diff_depth = svn_depth_unknown;
 
+  /* Tell the RA layer we want a delta to change our txn to URL1 */
+  SVN_ERR(svn_ra_do_diff3(ra_session,
+                          &reporter, &reporter_baton,
+                          loc1->rev,
+                          target,
+                          diff_depth,
+                          ignore_ancestry,
+                          TRUE, /* text_deltas */
+                          loc1->url,
+                          diff_editor, diff_edit_baton,
+                          scratch_pool));
 
-
-  if (is_copy && revision2->kind != svn_opt_revision_base)
+  if (is_copy && revision2_kind != svn_opt_revision_base)
     {
-      /* Tell the RA layer we want a delta to change our txn to URL1 */
-      SVN_ERR(svn_ra_do_diff3(ra_session,
-                              &reporter, &reporter_baton,
-                              loc1->rev,
-                              target,
-                              diff_depth,
-                              ignore_ancestry,
-                              TRUE,  /* text_deltas */
-                              loc1->url,
-                              diff_editor, diff_edit_baton,
-                              scratch_pool));
-
       /* Report the copy source. */
       if (cf_depth == svn_depth_unknown)
         cf_depth = svn_depth_infinity;
@@ -2108,18 +2296,6 @@ diff_repos_wc(const char **root_relpath,
     }
   else
     {
-      /* Tell the RA layer we want a delta to change our txn to URL1 */
-      SVN_ERR(svn_ra_do_diff3(ra_session,
-                              &reporter, &reporter_baton,
-                              loc1->rev,
-                              target,
-                              diff_depth,
-                              ignore_ancestry,
-                              TRUE,  /* text_deltas */
-                              loc1->url,
-                              diff_editor, diff_edit_baton,
-                              scratch_pool));
-
       /* Create a txn mirror of path2;  the diff editor will print
          diffs in reverse.  :-)  */
       SVN_ERR(svn_wc_crawl_revisions5(ctx->wc_ctx, abspath2,
@@ -2146,6 +2322,7 @@ do_diff(const char **root_relpath,
         const svn_opt_revision_t *revision1,
         const svn_opt_revision_t *revision2,
         const svn_opt_revision_t *peg_revision,
+        svn_boolean_t no_peg_revision,
         svn_depth_t depth,
         svn_boolean_t ignore_ancestry,
         const apr_array_header_t *changelists,
@@ -2166,7 +2343,7 @@ do_diff(const char **root_relpath,
     {
       if (is_repos2)
         {
-          /* ### Ignores 'show_copies_as_adds'. */
+          /* Ignores changelists. */
           SVN_ERR(diff_repos_repos(root_relpath, root_is_dir,
                                    ddi,
                                    path_or_url1, path_or_url2,
@@ -2179,8 +2356,11 @@ do_diff(const char **root_relpath,
       else /* path_or_url2 is a working copy path */
         {
           SVN_ERR(diff_repos_wc(root_relpath, root_is_dir, ddi,
-                                path_or_url1, revision1, peg_revision,
-                                path_or_url2, revision2, FALSE, depth,
+                                path_or_url1, revision1,
+                                no_peg_revision ? revision1
+                                                : peg_revision,
+                                path_or_url2, revision2->kind,
+                                FALSE, depth,
                                 ignore_ancestry, changelists,
                                 diff_processor, ctx,
                                 result_pool, scratch_pool));
@@ -2191,8 +2371,12 @@ do_diff(const char **root_relpath,
       if (is_repos2)
         {
           SVN_ERR(diff_repos_wc(root_relpath, root_is_dir, ddi,
-                                path_or_url2, revision2, peg_revision,
-                                path_or_url1, revision1, TRUE, depth,
+                                path_or_url2, revision2,
+                                no_peg_revision ? revision2
+                                                : peg_revision,
+                                path_or_url1,
+                                revision1->kind,
+                                TRUE, depth,
                                 ignore_ancestry, changelists,
                                 diff_processor, ctx,
                                 result_pool, scratch_pool));
@@ -2211,7 +2395,7 @@ do_diff(const char **root_relpath,
                                               scratch_pool));
 
               /* ### What about ddi? */
-
+              /* Ignores changelists, ignore_ancestry */
               SVN_ERR(svn_client__arbitrary_nodes_diff(root_relpath, root_is_dir,
                                                        abspath1, abspath2,
                                                        depth,
@@ -2415,7 +2599,8 @@ svn_client_diff6(const apr_array_header_t *options,
 
   return svn_error_trace(do_diff(NULL, NULL, &dwi.ddi,
                                  path_or_url1, path_or_url2,
-                                 revision1, revision2, &peg_revision,
+                                 revision1, revision2,
+                                 &peg_revision, TRUE /* no_peg_revision */,
                                  depth, ignore_ancestry, changelists,
                                  TRUE /* text_deltas */,
                                  diff_processor, ctx, pool, pool));
@@ -2498,7 +2683,8 @@ svn_client_diff_peg6(const apr_array_header_t *options,
 
   return svn_error_trace(do_diff(NULL, NULL, &dwi.ddi,
                                  path_or_url, path_or_url,
-                                 start_revision, end_revision, peg_revision,
+                                 start_revision, end_revision,
+                                 peg_revision, FALSE /* no_peg_revision */,
                                  depth, ignore_ancestry, changelists,
                                  TRUE /* text_deltas */,
                                  diff_processor, ctx, pool, pool));
@@ -2531,7 +2717,8 @@ svn_client_diff_summarize2(const char *path_or_url1,
 
   return svn_error_trace(do_diff(p_root_relpath, NULL, NULL,
                                  path_or_url1, path_or_url2,
-                                 revision1, revision2, &peg_revision,
+                                 revision1, revision2,
+                                 &peg_revision, TRUE /* no_peg_revision */,
                                  depth, ignore_ancestry, changelists,
                                  FALSE /* text_deltas */,
                                  diff_processor, ctx, pool, pool));
@@ -2560,7 +2747,8 @@ svn_client_diff_summarize_peg2(const char *path_or_url,
 
   return svn_error_trace(do_diff(p_root_relpath, NULL, NULL,
                                  path_or_url, path_or_url,
-                                 start_revision, end_revision, peg_revision,
+                                 start_revision, end_revision,
+                                 peg_revision, FALSE /* no_peg_revision */,
                                  depth, ignore_ancestry, changelists,
                                  FALSE /* text_deltas */,
                                  diff_processor, ctx, pool, pool));

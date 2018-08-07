@@ -219,8 +219,9 @@ struct ipsecstat {
 	uint64_t ips_out_inval;		/* output: generic error */
 	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
 
-	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
-	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
+	uint64_t ips_spdcache_hits;	/* SPD cache hits */
+	uint64_t ips_spdcache_misses;	/* SPD cache misses */
+
 	uint64_t ips_clcopied;		/* clusters copied during clone */
 	uint64_t ips_mbinserted;	/* mbufs inserted during makespace */
 	/* 
@@ -331,7 +332,7 @@ int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 
 int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
-int ipsec_updateid(struct secasvar *, uint64_t *, uint64_t *);
+int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
 int ipsec_initialized(void);
 
 void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);

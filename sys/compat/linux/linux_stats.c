@@ -81,6 +81,7 @@ linux_kern_statat(struct thread *td, int flag, int fd, char *path,
 	    translate_vnhook_major_minor));
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 static int
 linux_kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
     struct stat *sbp)
@@ -97,20 +98,20 @@ linux_kern_lstat(struct thread *td, char *path, enum uio_seg pathseg,
 	return (linux_kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
 	    pathseg, sbp));
 }
+#endif
 
 static void
 translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
 	struct file *fp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int major, minor;
 
 	/*
 	 * No capability rights required here.
 	 */
 	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, cap_rights_init(&rights), &fp) != 0)
+	    fget(td, fd, &cap_no_rights, &fp) != 0)
 		return;
 	vp = fp->f_vnode;
 	if (vp != NULL && vp->v_rdev != NULL &&
@@ -129,13 +130,32 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	fdrop(fp, td);
 }
 
+/*
+ * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
+ * truncation of a dev_t to 16 bits gives the same result as unpacking
+ * using major() and minor() and repacking in the l_dev_t format.  This
+ * detail is hidden in dev_to_ldev().  Overflow in conversions of dev_t's
+ * are not checked for, as for other fields.
+ *
+ * dev_to_ldev() is only used for translating st_dev.  When we convert
+ * st_rdev for copying it out, it isn't really a dev_t, but has already
+ * been translated to an l_dev_t in a nontrivial way.  Translating it
+ * again would be illogical but would have no effect since the low 16
+ * bits have the same encoding.
+ *
+ * The nontrivial translation for st_rdev renumbers some devices, but not
+ * ones that can be mounted on, so it is consistent with the translation
+ * for st_dev except when the renumbering or truncation causes conflicts.
+ */
+#define	dev_to_ldev(d)	((uint16_t)(d))
+
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_newstat tbuf;
 
 	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
+	tbuf.st_dev = dev_to_ldev(buf->st_dev);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
 	tbuf.st_nlink = buf->st_nlink;
@@ -155,6 +175,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_newstat(struct thread *td, struct linux_newstat_args *args)
 {
@@ -196,6 +217,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 		return (error);
 	return (newstat_copyout(&sb, args->buf));
 }
+#endif
 
 int
 linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
@@ -223,17 +245,14 @@ stat_copyout(struct stat *buf, void *ubuf)
 	struct l_stat lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = buf->st_dev;
+	lbuf.st_dev = dev_to_ldev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
 	lbuf.st_rdev = buf->st_rdev;
-	if (buf->st_size < (quad_t)1 << 32)
-		lbuf.st_size = buf->st_size;
-	else
-		lbuf.st_size = -2;
+	lbuf.st_size = MIN(buf->st_size, INT32_MAX);
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
 	lbuf.st_mtim.tv_sec = buf->st_mtim.tv_sec;
@@ -509,6 +528,7 @@ struct l_ustat
 	char		f_fpack[6];
 };
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_ustat(struct thread *td, struct linux_ustat_args *args)
 {
@@ -519,6 +539,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 
 	return (EOPNOTSUPP);
 }
+#endif
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
@@ -528,7 +549,7 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	struct l_stat64 lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
+	lbuf.st_dev = dev_to_ldev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
@@ -680,12 +701,11 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 int
 linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
 {
-	cap_rights_t rights;
 	struct mount *mp;
 	struct vnode *vp;
 	int error, save;
 
-	error = fgetvp(td, args->fd, cap_rights_init(&rights, CAP_FSYNC), &vp);
+	error = fgetvp(td, args->fd, &cap_fsync_rights, &vp);
 	if (error != 0)
 		/*
 		 * Linux syncfs() returns only EBADF, however fgetvp()

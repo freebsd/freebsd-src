@@ -372,6 +372,25 @@ teken_subr_cursor_up(teken_t *t, unsigned int nrows)
 }
 
 static void
+teken_subr_set_cursor_style(teken_t *t, unsigned int style)
+{
+
+	/* TODO */
+
+	/*
+	 * CSI Ps SP q
+	 *   Set cursor style (DECSCUSR), VT520.
+	 *     Ps = 0  -> blinking block.
+	 *     Ps = 1  -> blinking block (default).
+	 *     Ps = 2  -> steady block.
+	 *     Ps = 3  -> blinking underline.
+	 *     Ps = 4  -> steady underline.
+	 *     Ps = 5  -> blinking bar (xterm).
+	 *     Ps = 6  -> steady bar (xterm).
+	 */
+}
+
+static void
 teken_subr_delete_character(const teken_t *t, unsigned int ncols)
 {
 	teken_rect_t tr;

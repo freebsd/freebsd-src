@@ -133,6 +133,22 @@ teken_funcs_copy(const teken_t *t, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static inline void
+teken_funcs_pre_input(const teken_t *t)
+{
+
+	if (t->t_funcs->tf_pre_input != NULL)
+		t->t_funcs->tf_pre_input(t->t_softc);
+}
+
+static inline void
+teken_funcs_post_input(const teken_t *t)
+{
+
+	if (t->t_funcs->tf_post_input != NULL)
+		t->t_funcs->tf_post_input(t->t_softc);
+}
+
+static inline void
 teken_funcs_param(const teken_t *t, int cmd, unsigned int value)
 {
 
@@ -292,8 +308,10 @@ teken_input(teken_t *t, const void *buf, size_t len)
 {
 	const char *c = buf;
 
+	teken_funcs_pre_input(t);
 	while (len-- > 0)
 		teken_input_byte(t, *c++);
+	teken_funcs_post_input(t);
 }
 
 const teken_pos_t *

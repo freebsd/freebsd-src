@@ -6,7 +6,7 @@ PROG=	mtest
 MAN=	mtest.8
 
 BINMODE= 555
-WARNS?=	2
+WARNS?=	3
 
 # XXX This assumes INET support in the base system.
 CFLAGS+=-DINET

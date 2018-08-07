@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -42,9 +42,6 @@
 #include <sys/iov_schema.h>
 #include <dev/pci/pci_iov.h>
 
-#define	IXL_GLOBAL_VF_NUM(hw, vf) \
-	(vf->vf_num + hw->func_caps.vf_base_id)
-
 /* Public functions */
 
 /*
@@ -61,5 +58,6 @@ int		ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params);
 void		ixl_initialize_sriov(struct ixl_pf *pf);
 void		ixl_handle_vf_msg(struct ixl_pf *pf, struct i40e_arq_event_info *event);
 void		ixl_handle_vflr(void *arg, int pending);
+void		ixl_broadcast_link_state(struct ixl_pf *pf);
 
 #endif /* _IXL_PF_IOV_H_ */

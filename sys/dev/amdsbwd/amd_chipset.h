@@ -95,9 +95,10 @@
 #define		AMDSB8_WDT_32KHZ	0x00
 #define		AMDSB8_WDT_1HZ		0x03
 #define		AMDSB8_WDT_RES_MASK	0x03
-#define	AMDSB8_PM_RESET_STATUS0		0xc0
-#define	AMDSB8_PM_RESET_STATUS1		0xc1
-#define		AMDSB8_WD_RST_STS	0x20
+#define	AMDSB8_PM_RESET_STATUS		0xc0	/* 32 bit wide */
+#define		AMDSB8_WD_RST_STS	0x2000000
+#define	AMDSB8_PM_RESET_CTRL		0xc4
+#define		AMDSB8_RST_STS_DIS	0x04
 
 /*
  * Newer FCH registers in the PMIO space.

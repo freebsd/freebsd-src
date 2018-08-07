@@ -65,8 +65,8 @@ extern int (*const svn_sqlite3__api_config)(int, ...);
 #  include <sqlite3.h>
 #endif
 
-#if !SQLITE_VERSION_AT_LEAST(3,7,12)
-#error SQLite is too old -- version 3.7.12 is the minimum required version
+#if !SQLITE_VERSION_AT_LEAST(3,8,2)
+#error SQLite is too old -- version 3.8.2 is the minimum required version
 #endif
 
 #ifndef SQLITE_DETERMINISTIC
@@ -211,13 +211,6 @@ struct svn_sqlite__value_t
     return svn_error_createf(SQLITE_ERROR_CODE(sqlite_err__temp), \
                              NULL, "sqlite[S%d]: %s",            \
                              sqlite_err__temp, msg);             \
-} while (0)
-
-#define SVN_ERR_CLOSE(x, db) do                                       \
-{                                                                     \
-  svn_error_t *svn__err = (x);                                        \
-  if (svn__err)                                                       \
-    return svn_error_compose_create(svn__err, svn_sqlite__close(db)); \
 } while (0)
 
 
@@ -1141,7 +1134,7 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
   sqlite3_profile((*db)->db3, sqlite_profiler, (*db)->db3);
 #endif
 
-  SVN_ERR_CLOSE(exec_sql(*db,
+  SVN_SQLITE__ERR_CLOSE(exec_sql(*db,
               /* The default behavior of the LIKE operator is to ignore case
                  for ASCII characters. Hence, by default 'a' LIKE 'A' is true.
                  The case_sensitive_like pragma installs a new application-
@@ -1180,8 +1173,8 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
   /* When running in debug mode, enable the checking of foreign key
      constraints.  This has possible performance implications, so we don't
      bother to do it for production...for now. */
-  SVN_ERR_CLOSE(exec_sql(*db, "PRAGMA foreign_keys=ON;"),
-                *db);
+  SVN_SQLITE__ERR_CLOSE(exec_sql(*db, "PRAGMA foreign_keys=ON;"),
+                        *db);
 #endif
 
 #ifdef SVN_SQLITE_REVERSE_UNORDERED_SELECTS
@@ -1189,8 +1182,8 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
      clause to emit their results in the reverse order of what they normally
      would.  This can help detecting invalid assumptions about the result
      order.*/
-  SVN_ERR_CLOSE(exec_sql(*db, "PRAGMA reverse_unordered_selects=ON;"),
-                *db);
+  SVN_SQLITE__ERR_CLOSE(exec_sql(*db, "PRAGMA reverse_unordered_selects=ON;"),
+                        *db);
 #endif
 
   /* Store temporary tables in RAM instead of in temporary files, but don't
@@ -1303,8 +1296,7 @@ rollback_transaction(svn_sqlite__db_t *db,
   if (err)
     {
       /* Rollback failed, use a specific error code. */
-      err = svn_error_create(SVN_SQLITE__ERR_ROLLBACK_FAILED, err,
-                             _("SQLite transaction rollback failed"));
+      err = svn_error_create(SVN_ERR_SQLITE_ROLLBACK_FAILED, err, NULL);
     }
 
   return svn_error_compose_create(error_to_wrap, err);
@@ -1407,7 +1399,7 @@ svn_sqlite__finish_savepoint(svn_sqlite__db_t *db,
               /* Ok, we have a major problem. Some statement is still open,
                  which makes it impossible to release this savepoint.
 
-                 ### See huge comment in svn_sqlite__finish_transaction for
+                 ### See huge comment in rollback_transaction() for
                      further details */
 
               err2 = svn_error_trace(reset_all_statements(db, err2));
@@ -1430,6 +1422,8 @@ svn_sqlite__finish_savepoint(svn_sqlite__db_t *db,
   SVN_ERR(get_internal_statement(&stmt, db,
                                  STMT_INTERNAL_RELEASE_SAVEPOINT_SVN));
 
+  /* ### Releasing a savepoint can fail and leave the db connection
+         unusable; see svn_sqlite__finish_transaction(). */
   return svn_error_trace(svn_sqlite__step_done(stmt));
 }
 

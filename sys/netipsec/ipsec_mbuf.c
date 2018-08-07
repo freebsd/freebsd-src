@@ -255,10 +255,11 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		/* The header was at the beginning of the mbuf */
 		IPSECSTAT_INC(ips_input_front);
 		m_adj(m1, hlen);
-		if ((m1->m_flags & M_PKTHDR) == 0)
+		if (m1 != m)
 			m->m_pkthdr.len -= hlen;
 	} else if (roff + hlen >= m1->m_len) {
 		struct mbuf *mo;
+		int adjlen;
 
 		/*
 		 * Part or all of the header is at the end of this mbuf,
@@ -267,11 +268,13 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 */
 		IPSECSTAT_INC(ips_input_end);
 		if (roff + hlen > m1->m_len) {
+			adjlen = roff + hlen - m1->m_len;
+
 			/* Adjust the next mbuf by the remainder */
-			m_adj(m1->m_next, roff + hlen - m1->m_len);
+			m_adj(m1->m_next, adjlen);
 
 			/* The second mbuf is guaranteed not to have a pkthdr... */
-			m->m_pkthdr.len -= (roff + hlen - m1->m_len);
+			m->m_pkthdr.len -= adjlen;
 		}
 
 		/* Now, let's unlink the mbuf chain for a second...*/
@@ -279,9 +282,10 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		m1->m_next = NULL;
 
 		/* ...and trim the end of the first part of the chain...sick */
-		m_adj(m1, -(m1->m_len - roff));
-		if ((m1->m_flags & M_PKTHDR) == 0)
-			m->m_pkthdr.len -= (m1->m_len - roff);
+		adjlen = m1->m_len - roff;
+		m_adj(m1, -adjlen);
+		if (m1 != m)
+			m->m_pkthdr.len -= adjlen;
 
 		/* Finally, let's relink */
 		m1->m_next = mo;

@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to not build or install binutils (as, ld, objcopy, and objdump ) as part
+Set to not build or install binutils (as, ld, and objdump) as part
 of the normal system build.
 The resulting system cannot build programs from source.

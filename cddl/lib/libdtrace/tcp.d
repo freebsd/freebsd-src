@@ -55,6 +55,32 @@ inline int TCPS_FIN_WAIT_2 =	9;
 #pragma D binding "1.6.3" TCPS_TIME_WAIT
 inline int TCPS_TIME_WAIT =	10;
 
+/*
+ * For compatibility also provide the names used by Solaris.
+ */
+#pragma D binding "1.13" TCP_STATE_CLOSED
+inline int TCP_STATE_CLOSED =		TCPS_CLOSED;
+#pragma D binding "1.13" TCP_STATE_LISTEN
+inline int TCP_STATE_LISTEN =		TCPS_LISTEN;
+#pragma D binding "1.13" TCP_STATE_SYN_SENT
+inline int TCP_STATE_SYN_SENT =		TCPS_SYN_SENT;
+#pragma D binding "1.13" TCP_STATE_SYN_RECEIVED
+inline int TCP_STATE_SYN_RECEIVED =	TCPS_SYN_RECEIVED;
+#pragma D binding "1.13" TCP_STATE_ESTABLISHED
+inline int TCP_STATE_ESTABLISHED =	TCPS_ESTABLISHED;
+#pragma D binding "1.13" TCP_STATE_CLOSE_WAIT
+inline int TCP_STATE_CLOSE_WAIT =	TCPS_CLOSE_WAIT;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_1
+inline int TCP_STATE_FIN_WAIT_1 =	TCPS_FIN_WAIT_1;
+#pragma D binding "1.13" TCP_STATE_CLOSING
+inline int TCP_STATE_CLOSING =		TCPS_CLOSING;
+#pragma D binding "1.13" TCP_STATE_LAST_ACK
+inline int TCP_STATE_LAST_ACK =		TCPS_LAST_ACK;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_2
+inline int TCP_STATE_FIN_WAIT_2 =	TCPS_FIN_WAIT_2;
+#pragma D binding "1.13" TCP_STATE_TIME_WAIT
+inline int TCP_STATE_TIME_WAIT =	TCPS_TIME_WAIT;
+
 /* TCP segment flags. */
 #pragma D binding "1.6.3" TH_FIN
 inline uint8_t TH_FIN =		0x01;
@@ -190,14 +216,14 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_active =		-1; /* XXX */
 	tcps_lport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_lport);
 	tcps_rport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_fport);
-	tcps_laddr =		p == NULL ? 0 :
+	tcps_laddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.ie46_local.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.ie6_local);
-	tcps_raddr =		p == NULL ? 0 :
+	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependladdr.id6_addr);
+	tcps_raddr =		p == NULL ? "<unknown>" :
 	    p->t_inpcb->inp_vflag == INP_IPV4 ?
-	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.ie46_foreign.ia46_addr4.s_addr) :
-	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.ie6_foreign);
+	    inet_ntoa(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.id6_addr);
 	tcps_state =		p == NULL ? -1 : p->t_state;
 	tcps_iss =		p == NULL ? 0  : p->iss;
 	tcps_irs =		p == NULL ? 0  : p->irs;

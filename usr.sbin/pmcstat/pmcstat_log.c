@@ -406,7 +406,7 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_i.pl_version,
 			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
-			    PMC_VERSION_MAJOR << 24 && args.pa_verbosity > 0)
+			    PMC_VERSION_MAJOR << 24)
 				warnx(
 "WARNING: Log version 0x%x != expected version 0x%x.",
 				    ev.pl_u.pl_i.pl_version, PMC_VERSION);
@@ -422,13 +422,6 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_mo.pl_pid,
 			    (void *) ev.pl_u.pl_mo.pl_start,
 			    (void *) ev.pl_u.pl_mo.pl_end);
-			break;
-		case PMCLOG_TYPE_PCSAMPLE:
-			PMCSTAT_PRINT_ENTRY("sample","0x%x %d %p %c",
-			    ev.pl_u.pl_s.pl_pmcid,
-			    ev.pl_u.pl_s.pl_pid,
-			    (void *) ev.pl_u.pl_s.pl_pc,
-			    ev.pl_u.pl_s.pl_usermode ? 'u' : 's');
 			break;
 		case PMCLOG_TYPE_PMCALLOCATE:
 			PMCSTAT_PRINT_ENTRY("allocate","0x%x \"%s\" 0x%x",

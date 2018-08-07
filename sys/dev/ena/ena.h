@@ -41,7 +41,7 @@
 
 #define DRV_MODULE_VER_MAJOR	0
 #define DRV_MODULE_VER_MINOR	8
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -151,8 +151,8 @@ struct msix_entry {
 };
 
 typedef struct _ena_vendor_info_t {
-	unsigned int vendor_id;
-	unsigned int device_id;
+	uint16_t vendor_id;
+	uint16_t device_id;
 	unsigned int index;
 } ena_vendor_info_t;
 

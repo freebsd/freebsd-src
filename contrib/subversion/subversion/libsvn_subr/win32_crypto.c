@@ -512,4 +512,11 @@ svn_auth__get_windows_ssl_server_authority_provider(
 }
 
 
+#else  /* !WIN32 */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__win32_crypto;
+const apr_uint32_t svn__fake__win32_crypto = 0xdeadbeef;
+
 #endif /* WIN32 */

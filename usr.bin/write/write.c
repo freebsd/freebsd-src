@@ -137,7 +137,7 @@ main(int argc, char **argv)
 			login = "???";
 	}
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "cap_enter");
 
 	while (getopt(argc, argv, "") != -1)

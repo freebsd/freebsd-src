@@ -453,7 +453,7 @@ static int
 aibs_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct aibs_softc	*sc = arg1;
-	struct aibs_sensor	*sensor = (void *)arg2;
+	struct aibs_sensor	*sensor = (void *)(intptr_t)arg2;
 	int			i = oidp->oid_number;
 	ACPI_STATUS		rs;
 	ACPI_OBJECT		p, *bp;
@@ -519,7 +519,7 @@ static int
 aibs_sysctl_ggrp(SYSCTL_HANDLER_ARGS)
 {
 	struct aibs_softc	*sc = arg1;
-	struct aibs_sensor	*sensor = (void *)arg2;
+	struct aibs_sensor	*sensor = (void *)(intptr_t)arg2;
 	ACPI_STATUS		rs;
 	ACPI_OBJECT		p, *bp;
 	ACPI_OBJECT_LIST	arg;

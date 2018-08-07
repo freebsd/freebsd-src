@@ -29,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)stat_flags.c	8.1 (Berkeley) 5/31/93");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>

@@ -283,7 +283,7 @@ static int trysteal_limit = 2;
 static struct tdq	tdq_cpu[MAXCPU];
 static struct tdq	*balance_tdq;
 static int balance_ticks;
-static DPCPU_DEFINE(uint32_t, randomval);
+DPCPU_DEFINE_STATIC(uint32_t, randomval);
 
 #define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
 #define	TDQ_CPU(x)	(&tdq_cpu[(x)])
@@ -884,9 +884,6 @@ sched_balance(void)
 {
 	struct tdq *tdq;
 
-	if (smp_started == 0 || rebalance == 0)
-		return;
-
 	balance_ticks = max(balance_interval / 2, 1) +
 	    (sched_random() % balance_interval);
 	tdq = TDQ_SELF();
@@ -1413,7 +1410,6 @@ sched_setup_smp(void)
 			panic("Can't find cpu group for %d\n", i);
 	}
 	balance_tdq = TDQ_SELF();
-	sched_balance();
 }
 #endif
 
@@ -1474,6 +1470,7 @@ sched_initticks(void *dummy)
 	 * what realstathz is.
 	 */
 	balance_interval = realstathz;
+	balance_ticks = balance_interval;
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
@@ -2356,26 +2353,14 @@ sched_preempt(struct thread *td)
  * to static priorities in msleep() or similar.
  */
 void
-sched_userret(struct thread *td)
+sched_userret_slowpath(struct thread *td)
 {
-	/*
-	 * XXX we cheat slightly on the locking here to avoid locking in  
-	 * the usual case.  Setting td_priority here is essentially an
-	 * incomplete workaround for not setting it properly elsewhere.
-	 * Now that some interrupt handlers are threads, not setting it
-	 * properly elsewhere can clobber it in the window between setting
-	 * it here and returning to user mode, so don't waste time setting
-	 * it perfectly here.
-	 */
-	KASSERT((td->td_flags & TDF_BORROWING) == 0,
-	    ("thread with borrowed priority returning to userland"));
-	if (td->td_priority != td->td_user_pri) {
-		thread_lock(td);
-		td->td_priority = td->td_user_pri;
-		td->td_base_pri = td->td_user_pri;
-		tdq_setlowpri(TDQ_SELF(), td);
-		thread_unlock(td);
-        }
+
+	thread_lock(td);
+	td->td_priority = td->td_user_pri;
+	td->td_base_pri = td->td_user_pri;
+	tdq_setlowpri(TDQ_SELF(), td);
+	thread_unlock(td);
 }
 
 /*
@@ -2394,7 +2379,7 @@ sched_clock(struct thread *td)
 	/*
 	 * We run the long term load balancer infrequently on the first cpu.
 	 */
-	if (balance_tdq == tdq) {
+	if (balance_tdq == tdq && smp_started != 0 && rebalance != 0) {
 		if (balance_ticks && --balance_ticks == 0)
 			sched_balance();
 	}

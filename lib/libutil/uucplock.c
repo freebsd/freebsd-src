@@ -31,10 +31,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#ifndef lint
-static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+__SCCSID("@(#)uucplock.c	8.1 (Berkeley) 6/6/93");
 
 #include <sys/types.h>
 #include <sys/file.h>

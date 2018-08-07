@@ -83,7 +83,7 @@ static int netmap_default_pipes = 0; /* ignored, kept for compatibility */
 SYSBEGIN(vars_pipes);
 SYSCTL_DECL(_dev_netmap);
 SYSCTL_INT(_dev_netmap, OID_AUTO, default_pipes, CTLFLAG_RW,
-    &netmap_default_pipes, 0, "For compatibility only");
+		&netmap_default_pipes, 0, "For compatibility only");
 SYSEND;
 
 /* allocate the pipe array in the parent adapter */
@@ -101,7 +101,7 @@ nm_pipe_alloc(struct netmap_adapter *na, u_int npipes)
 		return EINVAL;
 
 	old_len = sizeof(struct netmap_pipe_adapter *)*na->na_max_pipes;
-        len = sizeof(struct netmap_pipe_adapter *) * npipes;
+	len = sizeof(struct netmap_pipe_adapter *) * npipes;
 	npa = nm_os_realloc(na->na_pipes, len, old_len);
 	if (npa == NULL)
 		return ENOMEM;
@@ -184,28 +184,28 @@ netmap_pipe_remove(struct netmap_adapter *parent, struct netmap_pipe_adapter *na
 int
 netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 {
-        struct netmap_kring *rxkring = txkring->pipe;
-        u_int k, lim = txkring->nkr_num_slots - 1;
-        int m; /* slots to transfer */
+	struct netmap_kring *rxkring = txkring->pipe;
+	u_int k, lim = txkring->nkr_num_slots - 1;
+	int m; /* slots to transfer */
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
-        ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
-        ND(20, "TX before: hwcur %d hwtail %d cur %d head %d tail %d",
+	ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
+	ND(20, "TX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
-                txkring->rcur, txkring->rhead, txkring->rtail);
+		txkring->rcur, txkring->rhead, txkring->rtail);
 
-        m = txkring->rhead - txkring->nr_hwcur; /* new slots */
-        if (m < 0)
-                m += txkring->nkr_num_slots;
+	m = txkring->rhead - txkring->nr_hwcur; /* new slots */
+	if (m < 0)
+		m += txkring->nkr_num_slots;
 
 	if (m == 0) {
 		/* nothing to send */
 		return 0;
 	}
 
-        for (k = txkring->nr_hwcur; m; m--, k = nm_next(k, lim)) {
-                struct netmap_slot *rs = &rxring->slot[k];
-                struct netmap_slot *ts = &txring->slot[k];
+	for (k = txkring->nr_hwcur; m; m--, k = nm_next(k, lim)) {
+		struct netmap_slot *rs = &rxring->slot[k];
+		struct netmap_slot *ts = &txring->slot[k];
 
 		rs->len = ts->len;
 		rs->ptr = ts->ptr;
@@ -215,17 +215,17 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 			rs->flags |= NS_BUF_CHANGED;
 			ts->flags &= ~NS_BUF_CHANGED;
 		}
-        }
+	}
 
-        mb(); /* make sure the slots are updated before publishing them */
-        rxkring->nr_hwtail = k;
-        txkring->nr_hwcur = k;
+	mb(); /* make sure the slots are updated before publishing them */
+	rxkring->nr_hwtail = k;
+	txkring->nr_hwcur = k;
 
-        ND(20, "TX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
+	ND(20, "TX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
-                txkring->rcur, txkring->rhead, txkring->rtail, k);
+		txkring->rcur, txkring->rhead, txkring->rtail, k);
 
-        rxkring->nm_notify(rxkring, 0);
+	rxkring->nm_notify(rxkring, 0);
 
 	return 0;
 }
@@ -233,45 +233,45 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 int
 netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 {
-        struct netmap_kring *txkring = rxkring->pipe;
-        u_int k, lim = rxkring->nkr_num_slots - 1;
-        int m; /* slots to release */
+	struct netmap_kring *txkring = rxkring->pipe;
+	u_int k, lim = rxkring->nkr_num_slots - 1;
+	int m; /* slots to release */
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
-        ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
-        ND(20, "RX before: hwcur %d hwtail %d cur %d head %d tail %d",
+	ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
+	ND(20, "RX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		rxkring->nr_hwcur, rxkring->nr_hwtail,
-                rxkring->rcur, rxkring->rhead, rxkring->rtail);
+		rxkring->rcur, rxkring->rhead, rxkring->rtail);
 
-        m = rxkring->rhead - rxkring->nr_hwcur; /* released slots */
-        if (m < 0)
-                m += rxkring->nkr_num_slots;
+	m = rxkring->rhead - rxkring->nr_hwcur; /* released slots */
+	if (m < 0)
+		m += rxkring->nkr_num_slots;
 
 	if (m == 0) {
 		/* nothing to release */
 		return 0;
 	}
 
-        for (k = rxkring->nr_hwcur; m; m--, k = nm_next(k, lim)) {
-                struct netmap_slot *rs = &rxring->slot[k];
-                struct netmap_slot *ts = &txring->slot[k];
+	for (k = rxkring->nr_hwcur; m; m--, k = nm_next(k, lim)) {
+		struct netmap_slot *rs = &rxring->slot[k];
+		struct netmap_slot *ts = &txring->slot[k];
 
 		if (rs->flags & NS_BUF_CHANGED) {
 			/* copy the slot and report the buffer change */
 			*ts = *rs;
 			rs->flags &= ~NS_BUF_CHANGED;
 		}
-        }
+	}
 
-        mb(); /* make sure the slots are updated before publishing them */
-        txkring->nr_hwtail = nm_prev(k, lim);
-        rxkring->nr_hwcur = k;
+	mb(); /* make sure the slots are updated before publishing them */
+	txkring->nr_hwtail = nm_prev(k, lim);
+	rxkring->nr_hwcur = k;
 
-        ND(20, "RX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
+	ND(20, "RX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
 		rxkring->nr_hwcur, rxkring->nr_hwtail,
-                rxkring->rcur, rxkring->rhead, rxkring->rtail, k);
+		rxkring->rcur, rxkring->rhead, rxkring->rtail, k);
 
-        txkring->nm_notify(txkring, 0);
+	txkring->nm_notify(txkring, 0);
 
 	return 0;
 }
@@ -577,10 +577,10 @@ cleanup:
 
 	netmap_mem_rings_delete(na);
 	netmap_krings_delete(na); /* also zeroes tx_rings etc. */
-	
+
 	if (ona->tx_rings == NULL) {
 		/* already deleted, we must be on an
-                 * cleanup-after-error path */
+		 * cleanup-after-error path */
 		return;
 	}
 	netmap_mem_rings_delete(ona);
@@ -611,7 +611,7 @@ int
 netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		struct netmap_mem_d *nmd, int create)
 {
-	struct nmreq_register *req = (struct nmreq_register *)hdr->nr_body;
+	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
 	struct netmap_adapter *pna; /* parent adapter */
 	struct netmap_pipe_adapter *mna, *sna, *reqna;
 	struct ifnet *ifp = NULL;
@@ -696,8 +696,8 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 			reqna = mna->peer;
 		}
 		/* the pipe we have found already holds a ref to the parent,
-                 * so we need to drop the one we got from netmap_get_na()
-                 */
+		 * so we need to drop the one we got from netmap_get_na()
+		 */
 		netmap_unget_na(pna, ifp);
 		goto found;
 	}
@@ -707,9 +707,9 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		goto put_out;
 	}
 	/* we create both master and slave.
-         * The endpoint we were asked for holds a reference to
-         * the other one.
-         */
+	 * The endpoint we were asked for holds a reference to
+	 * the other one.
+	 */
 	mna = nm_os_malloc(sizeof(*mna));
 	if (mna == NULL) {
 		error = ENOMEM;
@@ -774,8 +774,8 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	sna->peer = mna;
 
 	/* we already have a reference to the parent, but we
-         * need another one for the other endpoint we created
-         */
+	 * need another one for the other endpoint we created
+	 */
 	netmap_adapter_get(pna);
 	/* likewise for the ifp, if any */
 	if (ifp)
@@ -799,8 +799,8 @@ found:
 	netmap_adapter_get(*na);
 
 	/* keep the reference to the parent.
-         * It will be released by the req destructor
-         */
+	 * It will be released by the req destructor
+	 */
 
 	return 0;
 

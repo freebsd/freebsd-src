@@ -105,6 +105,7 @@ int drm_setunique(struct drm_device *dev, void *data,
 	DRM_LOCK();
 	if (dev->unique_len || dev->unique) {
 		DRM_UNLOCK();
+		free(busid, DRM_MEM_DRIVER);
 		return EBUSY;
 	}
 

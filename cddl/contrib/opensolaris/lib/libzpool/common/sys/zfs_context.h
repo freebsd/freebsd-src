@@ -408,6 +408,7 @@ typedef struct taskq_ent {
 #define	TQ_NOQUEUE	0x02		/* Do not enqueue if can't dispatch */
 #define	TQ_FRONT	0x08		/* Queue in front */
 
+#define TASKQID_INVALID         ((taskqid_t)0)
 
 extern taskq_t *system_taskq;
 
@@ -421,6 +422,7 @@ extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
     taskq_ent_t *);
 extern void	taskq_destroy(taskq_t *);
 extern void	taskq_wait(taskq_t *);
+extern void	taskq_wait_id(taskq_t *, taskqid_t);
 extern int	taskq_member(taskq_t *, void *);
 extern void	system_taskq_init(void);
 extern void	system_taskq_fini(void);

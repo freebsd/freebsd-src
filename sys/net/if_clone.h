@@ -37,6 +37,8 @@
 
 #ifdef _KERNEL
 
+#define IFC_NOGROUP 0x1
+
 struct if_clone;
 
 /* Methods. */
@@ -59,6 +61,9 @@ void	if_clone_detach(struct if_clone *);
 int	ifc_name2unit(const char *name, int *unit);
 int	ifc_alloc_unit(struct if_clone *, int *);
 void	ifc_free_unit(struct if_clone *, int);
+const char *ifc_name(struct if_clone *);
+void ifc_flags_set(struct if_clone *, int flags);
+int ifc_flags_get(struct if_clone *);
 
 #ifdef _SYS_EVENTHANDLER_H_
 /* Interface clone event. */

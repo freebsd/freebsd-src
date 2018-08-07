@@ -374,7 +374,6 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
 	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *oldtextvp = NULL, *newtextvp;
-	cap_rights_t rights;
 	int credential_changing;
 	int textset;
 #ifdef MAC
@@ -455,8 +454,7 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd,
-		    cap_rights_init(&rights, CAP_FEXECVE), &newtextvp);
+		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights, &newtextvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(newtextvp, LK_EXCLUSIVE | LK_RETRY);
@@ -693,9 +691,12 @@ interpret:
 	 * Else stuff argument count as first item on stack
 	 */
 	if (p->p_sysent->sv_fixup != NULL)
-		(*p->p_sysent->sv_fixup)(&stack_base, imgp);
+		error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
 	else
-		suword(--stack_base, imgp->args->argc);
+		error = suword(--stack_base, imgp->args->argc) == 0 ?
+		    0 : EFAULT;
+	if (error != 0)
+		goto exec_fail_dealloc;
 
 	if (args->fdp != NULL) {
 		/* Install a brand new file descriptor table. */
@@ -977,8 +978,7 @@ exec_fail:
 }
 
 int
-exec_map_first_page(imgp)
-	struct image_params *imgp;
+exec_map_first_page(struct image_params *imgp)
 {
 	int rv, i, after, initial_pagein;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
@@ -1331,7 +1331,7 @@ struct exec_args_kva {
 	SLIST_ENTRY(exec_args_kva) next;
 };
 
-static DPCPU_DEFINE(struct exec_args_kva *, exec_args_kva);
+DPCPU_DEFINE_STATIC(struct exec_args_kva *, exec_args_kva);
 
 static SLIST_HEAD(, exec_args_kva) exec_args_kva_freelist;
 static struct mtx exec_args_kva_mtx;
@@ -1380,7 +1380,7 @@ exec_release_args_kva(struct exec_args_kva *argkva, u_int gen)
 
 	base = argkva->addr;
 	if (argkva->gen != gen) {
-		vm_map_madvise(exec_map, base, base + exec_map_entry_size,
+		(void)vm_map_madvise(exec_map, base, base + exec_map_entry_size,
 		    MADV_FREE);
 		argkva->gen = gen;
 	}
@@ -1512,6 +1512,7 @@ exec_copyout_strings(struct image_params *imgp)
 	 */
 	if (execpath_len != 0) {
 		destp -= execpath_len;
+		destp = rounddown2(destp, sizeof(void *));
 		imgp->execpathp = destp;
 		copyout(imgp->execpath, (void *)destp, execpath_len);
 	}

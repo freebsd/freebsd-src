@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=tests
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/link_count/
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/link_count
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	link_count_test

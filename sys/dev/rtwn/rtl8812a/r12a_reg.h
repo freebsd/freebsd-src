@@ -58,6 +58,16 @@
 /* Bits for R92C_LEDCFG2. */
 #define R12A_LEDCFG2_ENA		0x20
 
+/* Bits for R12A_RXDMA_PRO. */
+#define R12A_DMA_MODE			0x02
+#define R12A_BURST_CNT_M		0x0c
+#define R12A_BURST_CNT_S		2
+#define R12A_BURST_SZ_M			0x30
+#define R12A_BURST_SZ_S			4
+#define R12A_BURST_SZ_USB3		0
+#define R12A_BURST_SZ_USB2		1
+#define R12A_BURST_SZ_USB1		2
+
 /* Bits for R12A_CCK_CHECK. */
 #define R12A_CCK_CHECK_BCN1		0x20
 #define R12A_CCK_CHECK_5GHZ		0x80

@@ -1,3 +1,16 @@
+2018-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180512
+	  Merge with NetBSD make, pick up
+	  o job.c: skip polling job token pipe
+
+2018-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180405
+	  Merge with NetBSD make, pick up
+	  o parse.c: be more cautious about detecting depenency line
+	    rather than sysV style include.
+
 2018-02-22  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* VERSION: 20180222

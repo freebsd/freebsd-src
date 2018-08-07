@@ -13,7 +13,7 @@ SRCS+=  hwpmc_arm64.c hwpmc_arm64_md.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	hwpmc_amd.c hwpmc_core.c hwpmc_intel.c hwpmc_piv.c hwpmc_tsc.c
+SRCS+=	hwpmc_amd.c hwpmc_core.c hwpmc_intel.c hwpmc_tsc.c
 SRCS+=	hwpmc_x86.c hwpmc_uncore.c
 SRCS+=	device_if.h bus_if.h
 .endif
@@ -23,8 +23,8 @@ SRCS+=	hwpmc_arm.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	hwpmc_amd.c hwpmc_core.c hwpmc_intel.c hwpmc_piv.c hwpmc_ppro.c
-SRCS+=	hwpmc_pentium.c hwpmc_tsc.c hwpmc_x86.c hwpmc_uncore.c
+SRCS+=	hwpmc_amd.c hwpmc_core.c hwpmc_intel.c
+SRCS+=	hwpmc_tsc.c hwpmc_x86.c hwpmc_uncore.c
 SRCS+=	device_if.h bus_if.h
 .endif
 

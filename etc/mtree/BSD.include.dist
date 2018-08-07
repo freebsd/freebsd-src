@@ -128,8 +128,6 @@
         ..
         io
         ..
-        lmc
-        ..
         mfi
         ..
         mlx5
@@ -289,6 +287,8 @@
     ..
     netinet
         cc
+        ..
+        netdump
         ..
     ..
     netinet6

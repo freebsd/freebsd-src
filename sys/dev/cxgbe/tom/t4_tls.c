@@ -488,7 +488,7 @@ static int
 get_keyid(struct tls_ofld_info *tls_ofld, unsigned int ops)
 {
 	return (ops & KEY_WRITE_RX ? tls_ofld->rx_key_addr :
-		((ops & KEY_WRITE_TX) ? tls_ofld->rx_key_addr : -1));
+		((ops & KEY_WRITE_TX) ? tls_ofld->tx_key_addr : -1));
 }
 
 static int
@@ -1189,17 +1189,23 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 			/*
 			 * A full TLS header is not yet queued, stop
 			 * for now until more data is added to the
-			 * socket buffer.
+			 * socket buffer.  However, if the connection
+			 * has been closed, we will never get the rest
+			 * of the header so just discard the partial
+			 * header and close the connection.
 			 */
 #ifdef VERBOSE_TRACES
-			CTR4(KTR_CXGBE, "%s: tid %d sbavail %d sb_off %d",
-			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off);
+			CTR5(KTR_CXGBE, "%s: tid %d sbavail %d sb_off %d%s",
+			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off,
+			    toep->flags & TPF_SEND_FIN ? "" : " SEND_FIN");
 #endif
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
 				SOCKBUF_UNLOCK(sb);
 			SOCKBUF_UNLOCK_ASSERT(sb);
+			if (toep->flags & TPF_SEND_FIN)
+				t4_close_conn(sc, toep);
 			return;
 		}
 
@@ -1216,19 +1222,25 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 			/*
 			 * The full TLS record is not yet queued, stop
 			 * for now until more data is added to the
-			 * socket buffer.
+			 * socket buffer.  However, if the connection
+			 * has been closed, we will never get the rest
+			 * of the record so just discard the partial
+			 * record and close the connection.
 			 */
 #ifdef VERBOSE_TRACES
-			CTR5(KTR_CXGBE,
-			    "%s: tid %d sbavail %d sb_off %d plen %d",
+			CTR6(KTR_CXGBE,
+			    "%s: tid %d sbavail %d sb_off %d plen %d%s",
 			    __func__, toep->tid, sbavail(sb), tls_ofld->sb_off,
-			    plen);
+			    plen, toep->flags & TPF_SEND_FIN ? "" :
+			    " SEND_FIN");
 #endif
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
 				SOCKBUF_UNLOCK(sb);
 			SOCKBUF_UNLOCK_ASSERT(sb);
+			if (toep->flags & TPF_SEND_FIN)
+				t4_close_conn(sc, toep);
 			return;
 		}
 
@@ -1547,6 +1559,8 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	SOCKBUF_LOCK(sb);
 
 	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
+		struct epoch_tracker et;
+
 		CTR3(KTR_CXGBE, "%s: tid %u, excess rx (%d bytes)",
 		    __func__, tid, pdu_length);
 		m_freem(m);
@@ -1554,12 +1568,12 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		INP_WUNLOCK(inp);
 
 		CURVNET_SET(toep->vnet);
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 
 		return (0);

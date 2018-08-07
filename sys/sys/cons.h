@@ -66,6 +66,8 @@ struct consdev_ops {
 				/* grab console for exclusive kernel use */
 	cn_ungrab_t	*cn_ungrab;
 				/* ungrab console */
+	cn_init_t	*cn_resume;
+				/* set up console after sleep, optional */
 };
 
 struct consdev {
@@ -105,8 +107,9 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 	};								\
 	DATA_SET(cons_set, name)
 
-#define	CONSOLE_DRIVER(name)						\
+#define	CONSOLE_DRIVER(name, ...)					\
 	static const struct consdev_ops name##_consdev_ops = {		\
+		/* Mandatory methods. */				\
 		.cn_probe = name##_cnprobe,				\
 		.cn_init = name##_cninit,				\
 		.cn_term = name##_cnterm,				\
@@ -114,6 +117,8 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 		.cn_putc = name##_cnputc,				\
 		.cn_grab = name##_cngrab,				\
 		.cn_ungrab = name##_cnungrab,				\
+		/* Optional fields. */					\
+		__VA_ARGS__						\
 	};								\
 	CONSOLE_DEVICE(name##_consdev, name##_consdev_ops, NULL)
 
@@ -126,6 +131,7 @@ void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
 void	cngrab(void);
 void	cnungrab(void);
+void	cnresume(void);
 int	cncheckc(void);
 int	cngetc(void);
 void	cngets(char *, size_t, int);

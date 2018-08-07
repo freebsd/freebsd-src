@@ -4,7 +4,7 @@
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2017, 2018
- *	Cyril S. E. Schubert.  All rights reserved.
+ *	Cyril S. E. Schubert
  *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.

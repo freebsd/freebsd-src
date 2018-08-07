@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-basic.c,v 1.6 2016/06/16 11:00:17 dtucker Exp $	*/
+/*	$OpenBSD: sshbuf-getput-basic.c,v 1.7 2017/06/01 04:51:58 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -365,7 +365,7 @@ sshbuf_put_string(struct sshbuf *buf, const void *v, size_t len)
 int
 sshbuf_put_cstring(struct sshbuf *buf, const char *v)
 {
-	return sshbuf_put_string(buf, (u_char *)v, v == NULL ? 0 : strlen(v));
+	return sshbuf_put_string(buf, v, v == NULL ? 0 : strlen(v));
 }
 
 int

@@ -217,6 +217,7 @@ ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	}
 
 	olinfo_status |= IXGBE_ADVTXD_CC;
+	pidx_last = 0;
 	for (j = 0; j < nsegs; j++) {
 		bus_size_t seglen;
 

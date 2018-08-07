@@ -19,6 +19,7 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include "config.h" /* Needed for HAVE_* defines */
 
 #if HAVE_ERR_H
 # include <err.h>
@@ -38,8 +39,6 @@
 #include <unistd.h>
 
 #include <sys/event.h>
-
-#include "config.h"
 
 extern char *cur_test_id;
 int vnode_fd;
@@ -72,6 +71,7 @@ kevent_add(int kqfd, struct kevent *kev,
 
 /* Checks if any events are pending, which is an error. */
 extern void test_no_kevents(void);
+extern void test_no_kevents_quietly(void);
 
 extern void test_begin(const char *);
 extern void success(void);

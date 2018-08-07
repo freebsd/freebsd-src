@@ -74,6 +74,9 @@ struct nvme_function {
 #define WDC_USAGE							       \
 "       nvmecontrol wdc (cap-diag|drive-log|get-crash-dump|purge|purge-montior)\n"
 
+#define NS_USAGE								\
+"       nvmecontrol ns (create|delete|attach|detach)\n"
+
 void devlist(int argc, char *argv[]);
 void identify(int argc, char *argv[]);
 void perftest(int argc, char *argv[]);
@@ -83,6 +86,7 @@ void firmware(int argc, char *argv[]);
 void format(int argc, char *argv[]);
 void power(int argc, char *argv[]);
 void wdc(int argc, char *argv[]);
+void ns(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
 void parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid);

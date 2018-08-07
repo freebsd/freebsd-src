@@ -271,7 +271,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	struct newesp *esp;
 	uint8_t *ivp;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int alen, error, hlen, plen;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
@@ -389,7 +389,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_input_cb;
-	crp->crp_sid = cryptoid;
+	crp->crp_session = cryptoid;
 	crp->crp_opaque = (caddr_t) xd;
 
 	/* These are passed as-is to the callback */
@@ -448,7 +448,7 @@ esp_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
 	crd = crp->crp_desc;
@@ -468,9 +468,9 @@ esp_input_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
@@ -637,7 +637,8 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct secasindex *saidx;
 	unsigned char *pad;
 	uint8_t *ivp;
-	uint64_t cntr, cryptoid;
+	uint64_t cntr;
+	crypto_session_t cryptoid;
 	int hlen, rlen, padding, blks, alen, i, roff;
 	int error, maxpacketsize;
 	uint8_t prot;
@@ -852,7 +853,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_output_cb;
 	crp->crp_opaque = (caddr_t) xd;
-	crp->crp_sid = cryptoid;
+	crp->crp_session = cryptoid;
 
 	if (esph) {
 		/* Authentication descriptor. */
@@ -883,7 +884,7 @@ esp_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	u_int idx;
 	int error;
 
@@ -899,9 +900,9 @@ esp_output_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}

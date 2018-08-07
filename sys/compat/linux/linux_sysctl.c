@@ -86,6 +86,7 @@ LIN_SDT_PROBE_DEFINE2(sysctl, linux_sysctl, wrong_length, "int", "int");
 LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, unsupported_sysctl, "char *");
 LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, return, "int");
 
+#ifdef LINUX_LEGACY_SYSCALLS
 static int
 handle_string(struct l___sysctl_args *la, char *value)
 {
@@ -191,3 +192,4 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 	return (ENOTDIR);
 }
+#endif

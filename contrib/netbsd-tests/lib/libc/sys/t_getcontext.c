@@ -54,7 +54,7 @@ run(int n, ...)
 #ifdef __FreeBSD__
 #if defined(__amd64__) || defined(__sparc64__)
 	for (i = 0; i < 5; i++) {
-#elif defined(__aarch64__) || defined(__riscv__)
+#elif defined(__aarch64__) || defined(__riscv)
 	for (i = 0; i < 7; i++) {
 #else
 	for (i = 0; i < 9; i++) {
@@ -126,7 +126,7 @@ ATF_TC_BODY(setcontext_link, tc)
 		 */
 		makecontext(&uc[i], (void *)run, 6, i,
 			0, 1, 2, 3, 4);
-#elif defined(__aarch64__) || defined(__riscv__)
+#elif defined(__aarch64__) || defined(__riscv)
 		/*
 		 * FreeBSD/arm64 and FreeBSD/riscv64 only permit up to
 		 * 8 arguments.

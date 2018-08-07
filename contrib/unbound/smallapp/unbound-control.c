@@ -58,7 +58,17 @@
 #include "util/config_file.h"
 #include "util/locks.h"
 #include "util/net_help.h"
+#include "util/shm_side/shm_main.h"
+#include "daemon/stats.h"
+#include "sldns/wire2str.h"
+#include "sldns/pkthdr.h"
 
+#ifdef HAVE_SYS_IPC_H
+#include "sys/ipc.h"
+#endif
+#ifdef HAVE_SYS_SHM_H
+#include "sys/shm.h"
+#endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -67,7 +77,7 @@
 static void
 usage(void)
 {
-	printf("Usage:	unbound-control [options] command\n");
+	printf("Usage:	local-unbound-control [options] command\n");
 	printf("	Remote control utility for unbound server.\n");
 	printf("Options:\n");
 	printf("  -c file	config file, default is %s\n", CONFIGFILE);
@@ -81,6 +91,9 @@ usage(void)
 	printf("  				(this flushes data, stats, requestlist)\n");
 	printf("  stats				print statistics\n");
 	printf("  stats_noreset			peek at statistics\n");
+#ifdef HAVE_SHMGET
+	printf("  stats_shm			print statistics using shm\n");
+#endif
 	printf("  status			display status of server\n");
 	printf("  verbosity <number>		change logging detail\n");
 	printf("  log_reopen			close and open the logfile\n");
@@ -89,6 +102,9 @@ usage(void)
 	printf("  local_data <RR data...>	add local data, for example\n");
 	printf("				local_data www.example.com A 192.0.2.1\n");
 	printf("  local_data_remove <name>	remove local RR data from name\n");
+	printf("  local_zones, local_zones_remove, local_datas, local_datas_remove\n");
+	printf("  				same, but read list from stdin\n");
+	printf("  				(one entry per line).\n");
 	printf("  dump_cache			print cache to stdout\n");
 	printf("  load_cache			load cache from stdin\n");
 	printf("  lookup <name>			print nameservers for name\n");
@@ -124,11 +140,300 @@ usage(void)
 	printf("				or off to turn off root forwarding\n");
 	printf("				or give list of ip addresses\n");
 	printf("  ratelimit_list [+a]		list ratelimited domains\n");
+	printf("  ip_ratelimit_list [+a]	list ratelimited ip addresses\n");
 	printf("		+a		list all, also not ratelimited\n");
+	printf("  list_auth_zones		list auth zones\n");
+	printf("  view_list_local_zones	view	list local-zones in view\n");
+	printf("  view_list_local_data	view	list local-data RRs in view\n");
+	printf("  view_local_zone view name type  	add local-zone in view\n");
+	printf("  view_local_zone_remove view name  	remove local-zone in view\n");
+	printf("  view_local_data view RR...		add local-data in view\n");
+	printf("  view_local_data_remove view name  	remove local-data in view\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
 	exit(1);
+}
+
+#ifdef HAVE_SHMGET
+/** what to put on statistics lines between var and value, ": " or "=" */
+#define SQ "="
+/** if true, inhibits a lot of =0 lines from the stats output */
+static const int inhibit_zero = 1;
+/** divide sum of timers to get average */
+static void
+timeval_divide(struct timeval* avg, const struct timeval* sum, long long d)
+{
+#ifndef S_SPLINT_S
+	size_t leftover;
+	if(d == 0) {
+		avg->tv_sec = 0;
+		avg->tv_usec = 0;
+		return;
+	}
+	avg->tv_sec = sum->tv_sec / d;
+	avg->tv_usec = sum->tv_usec / d;
+	/* handle fraction from seconds divide */
+	leftover = sum->tv_sec - avg->tv_sec*d;
+	avg->tv_usec += (leftover*1000000)/d;
+#endif
+}
+
+/** print unsigned long stats value */
+#define PR_UL_NM(str, var) printf("%s."str SQ"%lu\n", nm, (unsigned long)(var));
+#define PR_UL(str, var) printf(str SQ"%lu\n", (unsigned long)(var));
+#define PR_UL_SUB(str, nm, var) printf(str".%s"SQ"%lu\n", nm, (unsigned long)(var));
+#define PR_TIMEVAL(str, var) printf(str SQ ARG_LL "d.%6.6d\n", \
+	(long long)var.tv_sec, (int)var.tv_usec);
+#define PR_STATSTIME(str, var) printf(str SQ ARG_LL "d.%6.6d\n", \
+	(long long)var ## _sec, (int)var ## _usec);
+#define PR_LL(str, var) printf(str SQ ARG_LL"d\n", (long long)(var));
+
+/** print stat block */
+static void pr_stats(const char* nm, struct ub_stats_info* s)
+{
+	struct timeval sumwait, avg;
+	PR_UL_NM("num.queries", s->svr.num_queries);
+	PR_UL_NM("num.queries_ip_ratelimited", 
+		s->svr.num_queries_ip_ratelimited);
+	PR_UL_NM("num.cachehits",
+		s->svr.num_queries - s->svr.num_queries_missed_cache);
+	PR_UL_NM("num.cachemiss", s->svr.num_queries_missed_cache);
+	PR_UL_NM("num.prefetch", s->svr.num_queries_prefetch);
+	PR_UL_NM("num.zero_ttl", s->svr.zero_ttl_responses);
+	PR_UL_NM("num.recursivereplies", s->mesh_replies_sent);
+#ifdef USE_DNSCRYPT
+    PR_UL_NM("num.dnscrypt.crypted", s->svr.num_query_dnscrypt_crypted);
+    PR_UL_NM("num.dnscrypt.cert", s->svr.num_query_dnscrypt_cert);
+    PR_UL_NM("num.dnscrypt.cleartext", s->svr.num_query_dnscrypt_cleartext);
+    PR_UL_NM("num.dnscrypt.malformed",
+             s->svr.num_query_dnscrypt_crypted_malformed);
+#endif /* USE_DNSCRYPT */
+	printf("%s.requestlist.avg"SQ"%g\n", nm,
+		(s->svr.num_queries_missed_cache+s->svr.num_queries_prefetch)?
+			(double)s->svr.sum_query_list_size/
+			(double)(s->svr.num_queries_missed_cache+
+			s->svr.num_queries_prefetch) : 0.0);
+	PR_UL_NM("requestlist.max", s->svr.max_query_list_size);
+	PR_UL_NM("requestlist.overwritten", s->mesh_jostled);
+	PR_UL_NM("requestlist.exceeded", s->mesh_dropped);
+	PR_UL_NM("requestlist.current.all", s->mesh_num_states);
+	PR_UL_NM("requestlist.current.user", s->mesh_num_reply_states);
+#ifndef S_SPLINT_S
+	sumwait.tv_sec = s->mesh_replies_sum_wait_sec;
+	sumwait.tv_usec = s->mesh_replies_sum_wait_usec;
+#endif
+	timeval_divide(&avg, &sumwait, s->mesh_replies_sent);
+	printf("%s.", nm);
+	PR_TIMEVAL("recursion.time.avg", avg);
+	printf("%s.recursion.time.median"SQ"%g\n", nm, s->mesh_time_median);
+	PR_UL_NM("tcpusage", s->svr.tcp_accept_usage);
+}
+
+/** print uptime */
+static void print_uptime(struct ub_shm_stat_info* shm_stat)
+{
+	PR_STATSTIME("time.now", shm_stat->time.now);
+	PR_STATSTIME("time.up", shm_stat->time.up);
+	PR_STATSTIME("time.elapsed", shm_stat->time.elapsed);
+}
+
+/** print memory usage */
+static void print_mem(struct ub_shm_stat_info* shm_stat)
+{
+	PR_LL("mem.cache.rrset", shm_stat->mem.rrset);
+	PR_LL("mem.cache.message", shm_stat->mem.msg);
+	PR_LL("mem.mod.iterator", shm_stat->mem.iter);
+	PR_LL("mem.mod.validator", shm_stat->mem.val);
+	PR_LL("mem.mod.respip", shm_stat->mem.respip);
+#ifdef CLIENT_SUBNET
+	PR_LL("mem.mod.subnet", shm_stat->mem.subnet);
+#endif
+#ifdef USE_IPSECMOD
+	PR_LL("mem.mod.ipsecmod", shm_stat->mem.ipsecmod);
+#endif
+#ifdef USE_DNSCRYPT
+	PR_LL("mem.cache.dnscrypt_shared_secret",
+		shm_stat->mem.dnscrypt_shared_secret);
+	PR_LL("mem.cache.dnscrypt_nonce",
+		shm_stat->mem.dnscrypt_nonce);
+#endif
+}
+
+/** print histogram */
+static void print_hist(struct ub_stats_info* s)
+{
+	struct timehist* hist;
+	size_t i;
+	hist = timehist_setup();
+	if(!hist)
+		fatal_exit("out of memory");
+	timehist_import(hist, s->svr.hist, NUM_BUCKETS_HIST);
+	for(i=0; i<hist->num; i++) {
+		printf("histogram.%6.6d.%6.6d.to.%6.6d.%6.6d=%lu\n",
+			(int)hist->buckets[i].lower.tv_sec,
+			(int)hist->buckets[i].lower.tv_usec,
+			(int)hist->buckets[i].upper.tv_sec,
+			(int)hist->buckets[i].upper.tv_usec,
+			(unsigned long)hist->buckets[i].count);
+	}
+	timehist_delete(hist);
+}
+
+/** print extended */
+static void print_extended(struct ub_stats_info* s)
+{
+	int i;
+	char nm[16];
+
+	/* TYPE */
+	for(i=0; i<UB_STATS_QTYPE_NUM; i++) {
+		if(inhibit_zero && s->svr.qtype[i] == 0)
+			continue;
+		sldns_wire2str_type_buf((uint16_t)i, nm, sizeof(nm));
+		PR_UL_SUB("num.query.type", nm, s->svr.qtype[i]);
+	}
+	if(!inhibit_zero || s->svr.qtype_big) {
+		PR_UL("num.query.type.other", s->svr.qtype_big);
+	}
+
+	/* CLASS */
+	for(i=0; i<UB_STATS_QCLASS_NUM; i++) {
+		if(inhibit_zero && s->svr.qclass[i] == 0)
+			continue;
+		sldns_wire2str_class_buf((uint16_t)i, nm, sizeof(nm));
+		PR_UL_SUB("num.query.class", nm, s->svr.qclass[i]);
+	}
+	if(!inhibit_zero || s->svr.qclass_big) {
+		PR_UL("num.query.class.other", s->svr.qclass_big);
+	}
+
+	/* OPCODE */
+	for(i=0; i<UB_STATS_OPCODE_NUM; i++) {
+		if(inhibit_zero && s->svr.qopcode[i] == 0)
+			continue;
+		sldns_wire2str_opcode_buf(i, nm, sizeof(nm));
+		PR_UL_SUB("num.query.opcode", nm, s->svr.qopcode[i]);
+	}
+
+	/* transport */
+	PR_UL("num.query.tcp", s->svr.qtcp);
+	PR_UL("num.query.tcpout", s->svr.qtcp_outgoing);
+	PR_UL("num.query.ipv6", s->svr.qipv6);
+
+	/* flags */
+	PR_UL("num.query.flags.QR", s->svr.qbit_QR);
+	PR_UL("num.query.flags.AA", s->svr.qbit_AA);
+	PR_UL("num.query.flags.TC", s->svr.qbit_TC);
+	PR_UL("num.query.flags.RD", s->svr.qbit_RD);
+	PR_UL("num.query.flags.RA", s->svr.qbit_RA);
+	PR_UL("num.query.flags.Z", s->svr.qbit_Z);
+	PR_UL("num.query.flags.AD", s->svr.qbit_AD);
+	PR_UL("num.query.flags.CD", s->svr.qbit_CD);
+	PR_UL("num.query.edns.present", s->svr.qEDNS);
+	PR_UL("num.query.edns.DO", s->svr.qEDNS_DO);
+
+	/* RCODE */
+	for(i=0; i<UB_STATS_RCODE_NUM; i++) {
+		/* Always include RCODEs 0-5 */
+		if(inhibit_zero && i > LDNS_RCODE_REFUSED && s->svr.ans_rcode[i] == 0)
+			continue;
+		sldns_wire2str_rcode_buf(i, nm, sizeof(nm));
+		PR_UL_SUB("num.answer.rcode", nm, s->svr.ans_rcode[i]);
+	}
+	if(!inhibit_zero || s->svr.ans_rcode_nodata) {
+		PR_UL("num.answer.rcode.nodata", s->svr.ans_rcode_nodata);
+	}
+	/* iteration */
+	PR_UL("num.query.ratelimited", s->svr.queries_ratelimited);
+	/* validation */
+	PR_UL("num.answer.secure", s->svr.ans_secure);
+	PR_UL("num.answer.bogus", s->svr.ans_bogus);
+	PR_UL("num.rrset.bogus", s->svr.rrset_bogus);
+	PR_UL("num.query.aggressive.NOERROR", s->svr.num_neg_cache_noerror);
+	PR_UL("num.query.aggressive.NXDOMAIN", s->svr.num_neg_cache_nxdomain);
+	/* threat detection */
+	PR_UL("unwanted.queries", s->svr.unwanted_queries);
+	PR_UL("unwanted.replies", s->svr.unwanted_replies);
+	/* cache counts */
+	PR_UL("msg.cache.count", s->svr.msg_cache_count);
+	PR_UL("rrset.cache.count", s->svr.rrset_cache_count);
+	PR_UL("infra.cache.count", s->svr.infra_cache_count);
+	PR_UL("key.cache.count", s->svr.key_cache_count);
+#ifdef USE_DNSCRYPT
+	PR_UL("dnscrypt_shared_secret.cache.count",
+			 s->svr.shared_secret_cache_count);
+	PR_UL("num.query.dnscrypt.shared_secret.cachemiss",
+			 s->svr.num_query_dnscrypt_secret_missed_cache);
+	PR_UL("dnscrypt_nonce.cache.count", s->svr.nonce_cache_count);
+	PR_UL("num.query.dnscrypt.replay",
+			 s->svr.num_query_dnscrypt_replay);
+#endif /* USE_DNSCRYPT */
+	PR_UL("num.query.authzone.up", s->svr.num_query_authzone_up);
+	PR_UL("num.query.authzone.down", s->svr.num_query_authzone_down);
+}
+
+/** print statistics out of memory structures */
+static void do_stats_shm(struct config_file* cfg, struct ub_stats_info* stats,
+	struct ub_shm_stat_info* shm_stat)
+{
+	int i;
+	char nm[32];
+	for(i=0; i<cfg->num_threads; i++) {
+		snprintf(nm, sizeof(nm), "thread%d", i);
+		pr_stats(nm, &stats[i+1]);
+	}
+	pr_stats("total", &stats[0]);
+	print_uptime(shm_stat);
+	if(cfg->stat_extended) {
+		print_mem(shm_stat);
+		print_hist(stats);
+		print_extended(stats);
+	}
+}
+#endif /* HAVE_SHMGET */
+
+/** print statistics from shm memory segment */
+static void print_stats_shm(const char* cfgfile)
+{
+#ifdef HAVE_SHMGET
+	struct config_file* cfg;
+	struct ub_stats_info* stats;
+	struct ub_shm_stat_info* shm_stat;
+	int id_ctl, id_arr;
+	/* read config */
+	if(!(cfg = config_create()))
+		fatal_exit("out of memory");
+	if(!config_read(cfg, cfgfile, NULL))
+		fatal_exit("could not read config file");
+	/* get shm segments */
+	id_ctl = shmget(cfg->shm_key, sizeof(int), SHM_R|SHM_W);
+	if(id_ctl == -1) {
+		fatal_exit("shmget(%d): %s", cfg->shm_key, strerror(errno));
+	}
+	id_arr = shmget(cfg->shm_key+1, sizeof(int), SHM_R|SHM_W);
+	if(id_arr == -1) {
+		fatal_exit("shmget(%d): %s", cfg->shm_key+1, strerror(errno));
+	}
+	shm_stat = (struct ub_shm_stat_info*)shmat(id_ctl, NULL, 0);
+	if(shm_stat == (void*)-1) {
+		fatal_exit("shmat(%d): %s", id_ctl, strerror(errno));
+	}
+	stats = (struct ub_stats_info*)shmat(id_arr, NULL, 0);
+	if(stats == (void*)-1) {
+		fatal_exit("shmat(%d): %s", id_arr, strerror(errno));
+	}
+
+	/* print the stats */
+	do_stats_shm(cfg, stats, shm_stat);
+
+	/* shutdown */
+	shmdt(shm_stat);
+	shmdt(stats);
+	config_delete(cfg);
+#else
+	(void)cfgfile;
+#endif /* HAVE_SHMGET */
 }
 
 /** exit with ssl error */
@@ -153,13 +458,13 @@ setup_ctx(struct config_file* cfg)
 		if(!s_cert || !c_key || !c_cert)
 			fatal_exit("out of memory");
 	}
-        ctx = SSL_CTX_new(SSLv23_client_method());
+	ctx = SSL_CTX_new(SSLv23_client_method());
 	if(!ctx)
 		ssl_err("could not allocate SSL_CTX pointer");
-        if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
 		!= SSL_OP_NO_SSLv2)
 		ssl_err("could not set SSL_OP_NO_SSLv2");
-        if(cfg->remote_control_use_cert) {
+	if(cfg->remote_control_use_cert) {
 		if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
 			!= SSL_OP_NO_SSLv3)
 			ssl_err("could not set SSL_OP_NO_SSLv3");
@@ -176,7 +481,15 @@ setup_ctx(struct config_file* cfg)
 		free(c_cert);
 	} else {
 		/* Use ciphers that don't require authentication  */
-		if(!SSL_CTX_set_cipher_list(ctx, "aNULL"))
+#if defined(SSL_OP_NO_TLSv1_3)
+		/* in openssl 1.1.1, negotiation code for tls 1.3 does
+		 * not allow the unauthenticated aNULL and eNULL ciphers */
+		SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_3);
+#endif
+#ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+		SSL_CTX_set_security_level(ctx, 0);
+#endif
+		if(!SSL_CTX_set_cipher_list(ctx, "aNULL:eNULL"))
 			ssl_err("Error setting NULL cipher!");
 	}
 	return ctx;
@@ -192,9 +505,13 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 	int fd;
 	/* use svr or the first config entry */
 	if(!svr) {
-		if(cfg->control_ifs)
+		if(cfg->control_ifs) {
 			svr = cfg->control_ifs->str;
-		else	svr = "127.0.0.1";
+		} else if(cfg->do_ip4) {
+			svr = "127.0.0.1";
+		} else {
+			svr = "::1";
+		}
 		/* config 0 addr (everything), means ask localhost */
 		if(strcmp(svr, "0.0.0.0") == 0)
 			svr = "127.0.0.1";
@@ -300,6 +617,15 @@ send_file(SSL* ssl, FILE* in, char* buf, size_t sz)
 	}
 }
 
+/** send end-of-file marker to server */
+static void
+send_eof(SSL* ssl)
+{
+	char e[] = {0x04, 0x0a};
+	if(SSL_write(ssl, e, (int)sizeof(e)) <= 0)
+		ssl_err("could not SSL_write end-of-file marker");
+}
+
 /** send command and display result */
 static int
 go_cmd(SSL* ssl, int quiet, int argc, char* argv[])
@@ -324,6 +650,13 @@ go_cmd(SSL* ssl, int quiet, int argc, char* argv[])
 
 	if(argc == 1 && strcmp(argv[0], "load_cache") == 0) {
 		send_file(ssl, stdin, buf, sizeof(buf));
+	}
+	else if(argc == 1 && (strcmp(argv[0], "local_zones") == 0 ||
+		strcmp(argv[0], "local_zones_remove") == 0 ||
+		strcmp(argv[0], "local_datas") == 0 ||
+		strcmp(argv[0], "local_datas_remove") == 0)) {
+		send_file(ssl, stdin, buf, sizeof(buf));
+		send_eof(ssl);
 	}
 
 	while(1) {
@@ -403,7 +736,7 @@ int main(int argc, char* argv[])
 	WSADATA wsa_data;
 #endif
 #ifdef USE_THREAD_DEBUG
-	/* stop the file output from unbound-control, overwites the servers */
+	/* stop the file output from unbound-control, overwrites the servers */
 	extern int check_locking_order;
 	check_locking_order = 0;
 #endif /* USE_THREAD_DEBUG */
@@ -411,44 +744,10 @@ int main(int argc, char* argv[])
 	log_init(NULL, 0, NULL);
 	checklock_start();
 #ifdef USE_WINSOCK
-	if((r = WSAStartup(MAKEWORD(2,2), &wsa_data)) != 0)
-		fatal_exit("WSAStartup failed: %s", wsa_strerror(r));
 	/* use registry config file in preference to compiletime location */
 	if(!(cfgfile=w_lookup_reg_str("Software\\Unbound", "ConfigFile")))
 		cfgfile = CONFIGFILE;
 #endif
-
-#ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
-	ERR_load_crypto_strings();
-#endif
-	ERR_load_SSL_strings();
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
-	OpenSSL_add_all_algorithms();
-#else
-	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
-		| OPENSSL_INIT_ADD_ALL_DIGESTS
-		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-#endif
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
-	(void)SSL_library_init();
-#else
-	(void)OPENSSL_init_ssl(0, NULL);
-#endif
-
-	if(!RAND_status()) {
-                /* try to seed it */
-                unsigned char buf[256];
-                unsigned int seed=(unsigned)time(NULL) ^ (unsigned)getpid();
-		unsigned int v = seed;
-                size_t i;
-                for(i=0; i<256/sizeof(v); i++) {
-                        memmove(buf+i*sizeof(v), &v, sizeof(v));
-                        v = v*seed + (unsigned int)i;
-                }
-                RAND_seed(buf, 256);
-		log_warn("no entropy, seeding openssl PRNG with time\n");
-	}
-
 	/* parse the options */
 	while( (c=getopt(argc, argv, "c:s:qh")) != -1) {
 		switch(c) {
@@ -478,11 +777,53 @@ int main(int argc, char* argv[])
 				strerror(errno));
 		}
 	}
+	if(argc >= 1 && strcmp(argv[0], "stats_shm")==0) {
+		print_stats_shm(cfgfile);
+		return 0;
+	}
+
+#ifdef USE_WINSOCK
+	if((r = WSAStartup(MAKEWORD(2,2), &wsa_data)) != 0)
+		fatal_exit("WSAStartup failed: %s", wsa_strerror(r));
+#endif
+
+#ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
+	ERR_load_crypto_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+	ERR_load_SSL_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+	OpenSSL_add_all_algorithms();
+#else
+	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+		| OPENSSL_INIT_ADD_ALL_DIGESTS
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+	(void)SSL_library_init();
+#else
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#endif
+
+	if(!RAND_status()) {
+		/* try to seed it */
+		unsigned char buf[256];
+		unsigned int seed=(unsigned)time(NULL) ^ (unsigned)getpid();
+		unsigned int v = seed;
+		size_t i;
+		for(i=0; i<256/sizeof(v); i++) {
+			memmove(buf+i*sizeof(v), &v, sizeof(v));
+			v = v*seed + (unsigned int)i;
+		}
+		RAND_seed(buf, 256);
+		log_warn("no entropy, seeding openssl PRNG with time\n");
+	}
 
 	ret = go(cfgfile, svr, quiet, argc, argv);
 
 #ifdef USE_WINSOCK
-        WSACleanup();
+	WSACleanup();
 #endif
 	checklock_stop();
 	return ret;

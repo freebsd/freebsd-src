@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.10 2016/05/02 09:52:00 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.13 2017/12/21 00:41:22 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -121,11 +121,11 @@ signature_test(struct sshkey *k, struct sshkey *bad, const char *sig_alg,
 	ASSERT_INT_EQ(sshkey_sign(k, &sig, &len, d, l, sig_alg, 0), 0);
 	ASSERT_SIZE_T_GT(len, 8);
 	ASSERT_PTR_NE(sig, NULL);
-	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, 0), 0);
-	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, 0), 0);
+	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
+	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, NULL, 0), 0);
 	/* Fuzz test is more comprehensive, this is just a smoke test */
 	sig[len - 5] ^= 0x10;
-	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, 0), 0);
+	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
 	free(sig);
 }
 
@@ -193,16 +193,6 @@ sshkey_tests(void)
 	sshkey_free(k1);
 	TEST_DONE();
 
-	TEST_START("new/free KEY_RSA1");
-	k1 = sshkey_new(KEY_RSA1);
-	ASSERT_PTR_NE(k1, NULL);
-	ASSERT_PTR_NE(k1->rsa, NULL);
-	ASSERT_PTR_NE(k1->rsa->n, NULL);
-	ASSERT_PTR_NE(k1->rsa->e, NULL);
-	ASSERT_PTR_EQ(k1->rsa->p, NULL);
-	sshkey_free(k1);
-	TEST_DONE();
-
 	TEST_START("new/free KEY_RSA");
 	k1 = sshkey_new(KEY_RSA);
 	ASSERT_PTR_NE(k1, NULL);
@@ -263,19 +253,19 @@ sshkey_tests(void)
 
 	TEST_START("generate KEY_RSA too small modulus");
 	ASSERT_INT_EQ(sshkey_generate(KEY_RSA, 128, &k1),
-	    SSH_ERR_INVALID_ARGUMENT);
+	    SSH_ERR_KEY_LENGTH);
 	ASSERT_PTR_EQ(k1, NULL);
 	TEST_DONE();
 
 	TEST_START("generate KEY_RSA too large modulus");
 	ASSERT_INT_EQ(sshkey_generate(KEY_RSA, 1 << 20, &k1),
-	    SSH_ERR_INVALID_ARGUMENT);
+	    SSH_ERR_KEY_LENGTH);
 	ASSERT_PTR_EQ(k1, NULL);
 	TEST_DONE();
 
 	TEST_START("generate KEY_DSA wrong bits");
 	ASSERT_INT_EQ(sshkey_generate(KEY_DSA, 2048, &k1),
-	    SSH_ERR_INVALID_ARGUMENT);
+	    SSH_ERR_KEY_LENGTH);
 	ASSERT_PTR_EQ(k1, NULL);
 	sshkey_free(k1);
 	TEST_DONE();
@@ -283,7 +273,7 @@ sshkey_tests(void)
 #ifdef OPENSSL_HAS_ECC
 	TEST_START("generate KEY_ECDSA wrong bits");
 	ASSERT_INT_EQ(sshkey_generate(KEY_ECDSA, 42, &k1),
-	    SSH_ERR_INVALID_ARGUMENT);
+	    SSH_ERR_KEY_LENGTH);
 	ASSERT_PTR_EQ(k1, NULL);
 	sshkey_free(k1);
 	TEST_DONE();
@@ -291,7 +281,7 @@ sshkey_tests(void)
 
 	TEST_START("generate KEY_RSA");
 	ASSERT_INT_EQ(sshkey_generate(KEY_RSA, 767, &kr),
-	    SSH_ERR_INVALID_ARGUMENT);
+	    SSH_ERR_KEY_LENGTH);
 	ASSERT_INT_EQ(sshkey_generate(KEY_RSA, 1024, &kr), 0);
 	ASSERT_PTR_NE(kr, NULL);
 	ASSERT_PTR_NE(kr->rsa, NULL);

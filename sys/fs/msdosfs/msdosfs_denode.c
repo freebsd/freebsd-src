@@ -297,7 +297,7 @@ deupdat(struct denode *dep, int waitfor)
 		    DE_MODIFIED);
 		return (0);
 	}
-	getnanotime(&ts);
+	vfs_timestamp(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
 	if ((dep->de_flag & DE_MODIFIED) == 0 && waitfor == 0)
 		return (0);
@@ -383,7 +383,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 		dep->de_StartCluster = 0;
 		eofentry = ~0;
 	} else {
-		error = pcbmap(dep, de_clcount(pmp, length) - 1, 0, 
+		error = pcbmap(dep, de_clcount(pmp, length) - 1, 0,
 			       &eofentry, 0);
 		if (error) {
 #ifdef MSDOSFS_DEBUG

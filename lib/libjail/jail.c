@@ -1048,7 +1048,13 @@ kldload_param(const char *name)
 	else if (strcmp(name, "sysvmsg") == 0 || strcmp(name, "sysvsem") == 0 ||
 	    strcmp(name, "sysvshm") == 0)
 		kl = kldload(name);
-	else {
+	else if (strncmp(name, "allow.mount.", 12) == 0) {
+		/* Load the matching filesystem */
+		kl = kldload(name + 12);
+		if (kl < 0 && errno == ENOENT &&
+		    strncmp(name + 12, "no", 2) == 0)
+			kl = kldload(name + 14);
+	} else {
 		errno = ENOENT;
 		return (-1);
 	}

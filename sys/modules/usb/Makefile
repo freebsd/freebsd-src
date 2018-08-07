@@ -44,14 +44,15 @@ MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
 # MK_SOURCELESS_UCODE option (see below).
 
 SUBDIR = usb
-SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
+SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} \
 	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
-SUBDIR += atp cfumass uhid ukbd ums udbp ufm uep wmt wsp ugold uled
+SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp ufm uep wmt wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
+SUBDIR += muge
 SUBDIR += ure urndis
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
@@ -83,7 +84,6 @@ _urtw=		urtw
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm"
-_at91dci=	at91dci
 _atmegadci=	atmegadci
 _dwc_otg=	dwc_otg
 _musb=		musb

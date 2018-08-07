@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -41,7 +41,7 @@
 #include <machine/frame.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_ra)
-#define	TRAPF_USERMODE(tfp)	(((tfp)->tf_sepc & (1ul << 63)) == 0)
+#define	TRAPF_USERMODE(tfp)	(((tfp)->tf_sstatus & SSTATUS_SPP) == 0)
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
 #define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))

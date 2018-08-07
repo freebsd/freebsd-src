@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.63 2017/05/26 14:33:07 christos Exp $
+# $File: animation,v 1.66 2017/10/06 15:36:38 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -56,20 +56,20 @@
 >>11	byte		6		\b, Release 6 MBMS Extended Presentations
 >>11	byte		7		\b, Release 7 MBMS Extended Presentations
 >8	string		3gg		\b, MPEG v4 system, 3GPP
->11	byte		6		\b, Release 6 General Profile
 !:mime	video/3gpp
+>>11	byte		6		\b, Release 6 General Profile
 >8	string		3gp		\b, MPEG v4 system, 3GPP
->11	byte		1		\b, Release %d (non existent)
->11	byte		2		\b, Release %d (non existent)
->11	byte		3		\b, Release %d (non existent)
->11	byte		4		\b, Release %d
->11	byte		5		\b, Release %d
->11	byte		6		\b, Release %d
->11	byte		7		\b, Release %d Streaming Servers
 !:mime	video/3gpp
+>>11	byte		1		\b, Release %d (non existent)
+>>11	byte		2		\b, Release %d (non existent)
+>>11	byte		3		\b, Release %d (non existent)
+>>11	byte		4		\b, Release %d
+>>11	byte		5		\b, Release %d
+>>11	byte		6		\b, Release %d
+>>11	byte		7		\b, Release %d Streaming Servers
 >8	string		3gs		\b, MPEG v4 system, 3GPP
->11	byte		7		\b, Release %d Streaming Servers
 !:mime	video/3gpp
+>>11	byte		7		\b, Release %d Streaming Servers
 >8	string		avc1		\b, MPEG v4 system, 3GPP JVT AVC [ISO 14496-12:2005]
 !:mime	video/mp4
 >8	string/W	qt		\b, Apple QuickTime movie
@@ -188,6 +188,36 @@
 >8	string		pana		\b, Panasonic Digital Camera
 >8	string		qt  		\b, Apple QuickTime (.MOV/QT)
 !:mime	video/quicktime
+# HEIF image format
+# see https://nokiatech.github.io/heif/technical.html
+>8	string		mif1		\b, HEIF Image
+!:mime image/heif
+>8	string		msf1		\b, HEIF Image Sequence
+!:mime image/heif-sequence
+>8	string		heic		\b, HEIF Image HEVC Main or Main Still Picture Profile
+!:mime image/heic
+>8	string		heix		\b, HEIF Image HEVC Main 10 Profile
+!:mime image/heic
+>8	string		hevc		\b, HEIF Image Sequenz HEVC Main or Main Still Picture Profile
+!:mime image/heic-sequence
+>8	string		hevx		\b, HEIF Image Sequence HEVC Main 10 Profile
+!:mime image/heic-sequence
+# following HEIF brands are not mentioned in the heif technical info currently (Oct 2017)
+# but used in the reference implementation:
+# https://github.com/nokiatech/heif/blob/d5e9a21c8ba8df712bdf643021dd9f6518134776/Srcs/reader/hevcimagefilereader.cpp
+>8	string		heim		\b, HEIF Image L-HEVC
+!:mime image/heif
+>8	string		heis		\b, HEIF Image L-HEVC
+!:mime image/heif
+>8	string		avic		\b, HEIF Image AVC
+!:mime image/heif
+>8	string		hevm		\b, HEIF Image Sequence L-HEVC
+!:mime image/heif-sequence
+>8	string		hevs		\b, HEIF Image Sequence L-HEVC
+!:mime image/heif-sequence
+>8	string		avcs		\b, HEIF Image Sequence AVC
+!:mime image/heif-sequence
+
 >8	string		ROSS		\b, Ross Video
 >8	string		sdv		\b, SD Memory Card Video
 >8	string		ssc1		\b, Samsung stereo, single stream (patent pending)

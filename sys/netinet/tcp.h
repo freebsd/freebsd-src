@@ -176,6 +176,7 @@ struct tcphdr {
 				   device */
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
+#define TCP_DELACK  	72	/* socket option for delayed ack */
 #define	TCP_KEEPINIT	128	/* N, time to establish connection */
 #define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
@@ -184,6 +185,61 @@ struct tcphdr {
 #define	TCP_PCAP_OUT	2048	/* number of output packets to keep */
 #define	TCP_PCAP_IN	4096	/* number of input packets to keep */
 #define TCP_FUNCTION_BLK 8192	/* Set the tcp function pointers to the specified stack */
+/* Options for Rack and BBR */
+#define TCP_RACK_PROP	      1051 /* RACK proportional rate reduction (bool) */
+#define TCP_RACK_TLP_REDUCE   1052 /* RACK TLP cwnd reduction (bool) */
+#define TCP_RACK_PACE_REDUCE  1053 /* RACK Pacing reduction factor (divisor) */
+#define TCP_RACK_PACE_MAX_SEG 1054 /* Max segments in a pace */
+#define TCP_RACK_PACE_ALWAYS  1055 /* Use the always pace method */
+#define TCP_RACK_PROP_RATE    1056 /* The proportional reduction rate */
+#define TCP_RACK_PRR_SENDALOT 1057 /* Allow PRR to send more than one seg */
+#define TCP_RACK_MIN_TO       1058 /* Minimum time between rack t-o's in ms */
+#define TCP_RACK_EARLY_RECOV  1059 /* Should recovery happen early (bool) */
+#define TCP_RACK_EARLY_SEG    1060 /* If early recovery max segments */
+#define TCP_RACK_REORD_THRESH 1061 /* RACK reorder threshold (shift amount) */
+#define TCP_RACK_REORD_FADE   1062 /* Does reordering fade after ms time */
+#define TCP_RACK_TLP_THRESH   1063 /* RACK TLP theshold i.e. srtt+(srtt/N) */
+#define TCP_RACK_PKT_DELAY    1064 /* RACK added ms i.e. rack-rtt + reord + N */
+#define TCP_RACK_TLP_INC_VAR  1065 /* Does TLP include rtt variance in t-o */
+#define TCP_RACK_SESS_CWV     1066 /* Enable RFC7611 cwnd validation on sess */
+#define TCP_BBR_IWINTSO	      1067 /* Initial TSO window for BBRs first sends */
+#define TCP_BBR_RECFORCE      1068 /* Enter recovery force out a segment disregard pacer */
+#define TCP_BBR_STARTUP_PG    1069 /* Startup pacing gain */
+#define TCP_BBR_DRAIN_PG      1070 /* Drain pacing gain */
+#define TCP_BBR_RWND_IS_APP   1071 /* Rwnd limited is considered app limited */
+#define TCP_BBR_PROBE_RTT_INT 1072 /* How long in useconds between probe-rtt */
+#define TCP_BBR_ONE_RETRAN    1073 /* Is only one segment allowed out during retran */
+#define TCP_BBR_STARTUP_LOSS_EXIT 1074	/* Do we exit a loss during startup if not 20% incr */
+#define TCP_BBR_USE_LOWGAIN   1075 /* lower the gain in PROBE_BW enable */
+#define TCP_BBR_LOWGAIN_THRESH 1076 /* How many cycles do we stay in lowgain */
+#define TCP_BBR_LOWGAIN_HALF  1077 /* Do we halfstep lowgain down */
+#define TCP_BBR_LOWGAIN_FD    1078 /* Do we force a drain when lowgain in place */
+#define TCP_BBR_USEDEL_RATE   1079 /* Enable use of delivery rate for loss recovery */
+#define TCP_BBR_MIN_RTO       1080 /* Min RTO in milliseconds */
+#define TCP_BBR_MAX_RTO	      1081 /* Max RTO in milliseconds */
+#define TCP_BBR_REC_OVER_HPTS 1082 /* Recovery override htps settings 0/1/3 */
+#define TCP_BBR_UNLIMITED     1083 /* Does BBR, in non-recovery not use cwnd */
+#define TCP_BBR_DRAIN_INC_EXTRA 1084 /* Does the 3/4 drain target include the extra gain */
+#define TCP_BBR_STARTUP_EXIT_EPOCH 1085 /* what epoch gets us out of startup */
+#define TCP_BBR_PACE_PER_SEC   1086
+#define TCP_BBR_PACE_DEL_TAR   1087
+#define TCP_BBR_PACE_SEG_MAX   1088
+#define TCP_BBR_PACE_SEG_MIN   1089
+#define TCP_BBR_PACE_CROSS     1090
+#define TCP_RACK_IDLE_REDUCE_HIGH 1092  /* Reduce the highest cwnd seen to IW on idle */
+#define TCP_RACK_IDLE_REDUCE_HIGH 1092  /* Reduce the highest cwnd seen to IW on idle */
+#define TCP_RACK_MIN_PACE      1093 	/* Do we enforce rack min pace time */
+#define TCP_RACK_MIN_PACE_SEG  1094	/* If so what is the seg threshould */
+#define TCP_RACK_TLP_USE       1095
+#define TCP_BBR_ACK_COMP_ALG   1096 	/* Not used */
+#define TCP_BBR_EXTRA_GAIN     1097
+#define TCP_BBR_RACK_RTT_USE   1098	/* what RTT should we use 0, 1, or 2? */
+#define TCP_BBR_RETRAN_WTSO    1099
+#define TCP_DATA_AFTER_CLOSE   1100
+#define TCP_BBR_PROBE_RTT_GAIN 1101
+#define TCP_BBR_PROBE_RTT_LEN  1102
+
+
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR
 

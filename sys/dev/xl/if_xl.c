@@ -636,7 +636,7 @@ xl_rxfilter_90x(struct xl_softc *sc)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else {
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			rxfilt |= XL_RXFILTER_ALLMULTI;
@@ -691,7 +691,7 @@ xl_rxfilter_90xB(struct xl_softc *sc)
 		/* Now program new ones. */
 		mcnt = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/*

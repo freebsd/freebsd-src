@@ -32,7 +32,7 @@
 .\"     @(#)strcpy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2009
+.Dd June 6, 2018
 .Dt STRCPY 3
 .Os
 .Sh NAME
@@ -55,9 +55,9 @@
 .Fn strncpy "char * restrict dst" "const char * restrict src" "size_t len"
 .Sh DESCRIPTION
 The
-.Fn stpcpy
-and
 .Fn strcpy
+and
+.Fn stpcpy
 functions
 copy the string
 .Fa src
@@ -66,22 +66,18 @@ to
 (including the terminating
 .Ql \e0
 character.)
-If
-.Fa src
-and
-.Fa dst
-overlap, the results are undefined.
 .Pp
 The
-.Fn stpncpy
-and
 .Fn strncpy
+and
+.Fn stpncpy
 functions copy at most
 .Fa len
 characters from
 .Fa src
 into
 .Fa dst .
+.Bf Sy
 If
 .Fa src
 is less than
@@ -92,16 +88,25 @@ the remainder of
 is filled with
 .Ql \e0
 characters.
+.Ef
 Otherwise,
 .Fa dst
 is
 .Em not
 terminated.
-If
+.Pp
+For all of
+.Fn strcpy ,
+.Fn strncpy ,
+.Fn stpcpy ,
+and
+.Fn stpncpy ,
+the result is undefined
+if
 .Fa src
 and
 .Fa dst
-overlap, the results are undefined.
+overlap.
 .Sh RETURN VALUES
 The
 .Fn strcpy
@@ -182,11 +187,6 @@ This could be better achieved using
 as shown in the following example:
 .Pp
 .Dl "(void)strlcpy(buf, input, sizeof(buf));"
-.Pp
-Note that because
-.Xr strlcpy 3
-is not defined in any standards, it should
-only be used when portability is not a concern.
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memccpy 3 ,
@@ -218,8 +218,16 @@ and
 was added in
 .Fx 8.0 .
 .Sh SECURITY CONSIDERATIONS
-The
-.Fn strcpy
-function is easily misused in a manner which enables malicious users
-to arbitrarily change a running program's functionality through a
-buffer overflow attack.
+All of the functions documented in this manual page are easily misused in a
+manner which enables malicious users to arbitrarily change a running program's
+functionality through a buffer overflow attack.
+.Pp
+It is strongly suggested that the
+.Fn strlcpy
+function be used in almost all cases.
+.Pp
+For some, but not all, fixed-length records, non-terminated strings may be both
+valid and desirable.
+In that specific case, the
+.Fn strncpy
+function may be most sensible.

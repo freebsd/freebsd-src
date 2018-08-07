@@ -94,7 +94,7 @@ static void copy_device(struct gv_drive *, const char *);
 int
 main(int argc, char **argv)
 {
-	int line, tokens;
+	int tokens;
 	char buffer[BUFSIZ], *inputline, *token[GV_MAXARGS];
 
 	/* Load the module if necessary. */
@@ -124,7 +124,6 @@ main(int argc, char **argv)
 				add_history(inputline);
 				strcpy(buffer, inputline);
 				free(inputline);
-				line++;		    /* count the lines */
 				tokens = gv_tokenize(buffer, token, GV_MAXARGS);
 				if (tokens)
 					parseline(tokens, token);
@@ -184,7 +183,8 @@ gvinum_create(int argc, char * const *argv)
 	int drives, errors, fd, flags, i, line, plexes, plex_in_volume;
 	int sd_in_plex, status, subdisks, tokens, undeffd, volumes;
 	const char *errstr;
-	char buf[BUFSIZ], buf1[BUFSIZ], commandline[BUFSIZ], *ed, *sdname;
+	char buf[BUFSIZ], buf1[BUFSIZ], commandline[BUFSIZ], *sdname;
+	const char *ed;
 	char original[BUFSIZ], tmpfile[20], *token[GV_MAXARGS];
 	char plex[GV_MAXPLEXNAME], volume[GV_MAXVOLNAME];
 
@@ -806,7 +806,8 @@ gvinum_list(int argc, char * const *argv)
 	struct gctl_req *req;
 	int flags, i, j;
 	const char *errstr;
-	char buf[20], *cmd, config[GV_CFG_LEN + 1];
+	char buf[20], config[GV_CFG_LEN + 1];
+	const char *cmd;
 
 	flags = 0;
 	cmd = "list";
@@ -931,7 +932,7 @@ gvinum_move(int argc, char * const *argv)
 }
 
 static void
-gvinum_printconfig(int argc, char * const *argv)
+gvinum_printconfig(int argc __unused, char * const *argv __unused)
 {
 
 	printconfig(stdout, "");
@@ -943,7 +944,7 @@ gvinum_parityop(int argc, char * const *argv, int rebuild)
 	struct gctl_req *req;
 	int flags, i;
 	const char *errstr;
-	char *op;
+	const char *op;
 
 	if (rebuild) {
 		op = "rebuildparity";
@@ -1214,7 +1215,7 @@ gvinum_start(int argc, char * const *argv)
 }
 
 static void
-gvinum_stop(int argc, char * const *argv)
+gvinum_stop(int argc __unused, char * const *argv __unused)
 {
 	int err, fileid;
 

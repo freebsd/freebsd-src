@@ -110,10 +110,10 @@ __FBSDID("$FreeBSD$");
  * All ipfw global variables are here.
  */
 
-static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+VNET_DEFINE_STATIC(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
-static VNET_DEFINE(int, fw_permit_single_frag6) = 1;
+VNET_DEFINE_STATIC(int, fw_permit_single_frag6) = 1;
 #define	V_fw_permit_single_frag6	VNET(fw_permit_single_frag6)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
@@ -402,7 +402,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
-		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
@@ -767,7 +767,7 @@ ipfw_localip6(struct in6_addr *in6)
 		return (in6_localip(in6));
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+	CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr))
 			continue;
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
@@ -2584,7 +2584,9 @@ do {								\
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
 			 *   not real 'actions', and are stored right
-			 *   before the 'action' part of the rule.
+			 *   before the 'action' part of the rule (one
+			 *   exception is O_SKIP_ACTION which could be
+			 *   between these opcodes and 'action' one).
 			 *   These opcodes try to install an entry in the
 			 *   state tables; if successful, we continue with
 			 *   the next opcode (match=1; break;), otherwise
@@ -2601,6 +2603,16 @@ do {								\
 			 *   further instances of these opcodes become NOPs.
 			 *   The jump to the next rule is done by setting
 			 *   l=0, cmdlen=0.
+			 *
+			 * O_SKIP_ACTION: this opcode is not a real 'action'
+			 *  either, and is stored right before the 'action'
+			 *  part of the rule, right after the O_KEEP_STATE
+			 *  opcode. It causes match failure so the real
+			 *  'action' could be executed only if the rule
+			 *  is checked via dynamic rule from the state
+			 *  table, as in such case execution starts
+			 *  from the true 'action' opcode directly.
+			 *   
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
@@ -2651,6 +2663,11 @@ do {								\
 				if (cmd->opcode == O_CHECK_STATE)
 					l = 0;	/* exit inner loop */
 				match = 1;
+				break;
+
+			case O_SKIP_ACTION:
+				match = 0;	/* skip to the next rule */
+				l = 0;		/* exit inner loop */
 				break;
 
 			case O_ACCEPT:

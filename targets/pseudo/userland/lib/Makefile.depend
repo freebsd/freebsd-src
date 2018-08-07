@@ -8,6 +8,22 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/atf/libatf-c \
 	lib/atf/libatf-c++ \
+	lib/geom/cache \
+	lib/geom/concat \
+	lib/geom/eli \
+	lib/geom/journal \
+	lib/geom/label \
+	lib/geom/mirror \
+	lib/geom/mountver \
+	lib/geom/multipath \
+	lib/geom/nop \
+	lib/geom/part \
+	lib/geom/raid \
+	lib/geom/raid3 \
+	lib/geom/sched \
+	lib/geom/shsec \
+	lib/geom/stripe \
+	lib/geom/virstor \
 	lib/lib80211 \
 	lib/libalias/libalias \
 	lib/libalias/modules/cuseeme \
@@ -177,8 +193,7 @@ DIRDEPS = \
 
 .if ${MK_CLANG} != "no" && \
     (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
-    (${MACHINE_CPUARCH} == "i386"))
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386")
 DIRDEPS+= \
 	lib/libclang_rt/asan-preinit \
 	lib/libclang_rt/asan \

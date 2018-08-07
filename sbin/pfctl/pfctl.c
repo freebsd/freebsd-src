@@ -67,6 +67,9 @@ void	 usage(void);
 int	 pfctl_enable(int, int);
 int	 pfctl_disable(int, int);
 int	 pfctl_clear_stats(int, int);
+int	 pfctl_get_skip_ifaces(void);
+int	 pfctl_check_skip_ifaces(char *);
+int	 pfctl_clear_skip_ifaces(struct pfctl *);
 int	 pfctl_clear_interface_flags(int, int);
 int	 pfctl_clear_rules(int, int, char *);
 int	 pfctl_clear_nat(int, int, char *);
@@ -93,6 +96,7 @@ int	 pfctl_show_nat(int, int, char *);
 int	 pfctl_show_src_nodes(int, int);
 int	 pfctl_show_states(int, const char *, int);
 int	 pfctl_show_status(int, int);
+int	 pfctl_show_running(int);
 int	 pfctl_show_timeouts(int, int);
 int	 pfctl_show_limits(int, int);
 void	 pfctl_debug(int, u_int32_t, int);
@@ -106,6 +110,7 @@ const char	*pfctl_lookup_option(char *, const char * const *);
 
 static struct pf_anchor_global	 pf_anchors;
 static struct pf_anchor	 pf_main_anchor;
+static struct pfr_buffer skip_b;
 
 static const char	*clearopt;
 static char		*rulesopt;
@@ -213,7 +218,7 @@ static const char * const clearopt_list[] = {
 static const char * const showopt_list[] = {
 	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
 	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
-	"all", NULL
+	"Running", "all", NULL
 };
 
 static const char * const tblcmdopt_list[] = {
@@ -291,6 +296,44 @@ pfctl_clear_stats(int dev, int opts)
 		err(1, "DIOCCLRSTATUS");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "pf: statistics cleared\n");
+	return (0);
+}
+
+int
+pfctl_get_skip_ifaces(void)
+{
+	bzero(&skip_b, sizeof(skip_b));
+	skip_b.pfrb_type = PFRB_IFACES;
+	for (;;) {
+		pfr_buf_grow(&skip_b, skip_b.pfrb_size);
+		skip_b.pfrb_size = skip_b.pfrb_msize;
+		if (pfi_get_ifaces(NULL, skip_b.pfrb_caddr, &skip_b.pfrb_size))
+			err(1, "pfi_get_ifaces");
+		if (skip_b.pfrb_size <= skip_b.pfrb_msize)
+			break;
+	}
+	return (0);
+}
+
+int
+pfctl_check_skip_ifaces(char *ifname)
+{
+	struct pfi_kif		*p;
+
+	PFRB_FOREACH(p, &skip_b)
+		if ((p->pfik_flags & PFI_IFLAG_SKIP) && !strcmp(ifname, p->pfik_name))
+			p->pfik_flags &= ~PFI_IFLAG_SKIP;
+	return (0);
+}
+
+int
+pfctl_clear_skip_ifaces(struct pfctl *pf)
+{
+	struct pfi_kif		*p;
+
+	PFRB_FOREACH(p, &skip_b)
+		if (p->pfik_flags & PFI_IFLAG_SKIP)
+			pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
 	return (0);
 }
 
@@ -1113,6 +1156,20 @@ pfctl_show_status(int dev, int opts)
 }
 
 int
+pfctl_show_running(int dev)
+{
+	struct pf_status status;
+
+	if (ioctl(dev, DIOCGETSTATUS, &status)) {
+		warn("DIOCGETSTATUS");
+		return (-1);
+	}
+
+	print_running(&status);
+	return (!status.running);
+}
+
+int
 pfctl_show_timeouts(int dev, int opts)
 {
 	struct pfioc_tm pt;
@@ -1479,6 +1536,8 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 		else
 			goto _error;
 	}
+	if (loadopt & PFCTL_FLAG_OPTION)
+		pfctl_clear_skip_ifaces(&pf);
 
 	if ((pf.loadopt & PFCTL_FLAG_FILTER &&
 	    (pfctl_load_ruleset(&pf, path, rs, PF_RULESET_SCRUB, 0))) ||
@@ -1889,6 +1948,7 @@ pfctl_set_interface_flags(struct pfctl *pf, char *ifname, int flags, int how)
 		} else {
 			if (ioctl(pf->dev, DIOCSETIFFLAG, &pi))
 				err(1, "DIOCSETIFFLAG");
+			pfctl_check_skip_ifaces(ifname);
 		}
 	}
 	return (0);
@@ -2229,6 +2289,9 @@ main(int argc, char *argv[])
 		case 'i':
 			pfctl_show_status(dev, opts);
 			break;
+		case 'R':
+			error = pfctl_show_running(dev);
+			break;
 		case 't':
 			pfctl_show_timeouts(dev, opts);
 			break;
@@ -2346,8 +2409,8 @@ main(int argc, char *argv[])
 	}
 
 	if ((rulesopt != NULL) && (loadopt & PFCTL_FLAG_OPTION) &&
-	    !anchorname[0])
-		if (pfctl_clear_interface_flags(dev, opts | PF_OPT_QUIET))
+	    !anchorname[0] && !(opts & PF_OPT_NOACTION))
+		if (pfctl_get_skip_ifaces())
 			error = 1;
 
 	if (rulesopt != NULL && !(opts & (PF_OPT_MERGE|PF_OPT_NOACTION)) &&

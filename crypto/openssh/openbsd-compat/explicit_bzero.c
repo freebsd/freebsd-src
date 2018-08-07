@@ -20,6 +20,8 @@
 void
 explicit_bzero(void *p, size_t n)
 {
+	if (n == 0)
+		return;
 	(void)memset_s(p, n, 0, n);
 }
 
@@ -34,6 +36,8 @@ static void (* volatile ssh_bzero)(void *, size_t) = bzero;
 void
 explicit_bzero(void *p, size_t n)
 {
+	if (n == 0)
+		return;
 	/*
 	 * clang -fsanitize=memory needs to intercept memset-like functions
 	 * to correctly detect memory initialisation. Make sure one is called

@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
@@ -357,6 +358,12 @@ int	ibcs2_isc(struct thread *, struct ibcs2_isc_args *);
 
 
 #endif /* COMPAT_FREEBSD10 */
+
+
+#ifdef COMPAT_FREEBSD11
+
+
+#endif /* COMPAT_FREEBSD11 */
 
 #define	IBCS2_SYS_AUE_ibcs2_read	AUE_NULL
 #define	IBCS2_SYS_AUE_ibcs2_open	AUE_OPEN_RWTC

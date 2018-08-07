@@ -117,6 +117,9 @@ do {									\
 #define	INIT_DELAYED_WORK(dwork, fn) \
 	linux_init_delayed_work(dwork, fn)
 
+#define	INIT_DELAYED_WORK_ONSTACK(dwork, fn) \
+	linux_init_delayed_work(dwork, fn)
+
 #define	INIT_DEFERRABLE_WORK(dwork, fn) \
 	INIT_DELAYED_WORK(dwork, fn)
 
@@ -206,11 +209,15 @@ do {									\
 #define	destroy_workqueue(wq) \
 	linux_destroy_workqueue(wq)
 
+#define	current_work() \
+	linux_current_work()
+
 /* prototypes */
 
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
+extern struct workqueue_struct *system_highpri_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 
 extern void linux_init_delayed_work(struct delayed_work *, work_func_t);
@@ -228,5 +235,6 @@ extern bool linux_flush_work(struct work_struct *);
 extern bool linux_flush_delayed_work(struct delayed_work *);
 extern bool linux_work_pending(struct work_struct *);
 extern bool linux_work_busy(struct work_struct *);
+extern struct work_struct *linux_current_work(void);
 
 #endif					/* _LINUX_WORKQUEUE_H_ */

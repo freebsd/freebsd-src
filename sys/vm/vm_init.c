@@ -135,6 +135,23 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 	return (0);
 }
 
+#if VM_NRESERVLEVEL > 0
+/*
+ * Import a superpage from the normal kernel arena into the special
+ * arena for allocations with different permissions.
+ */
+static int
+kernel_rwx_alloc(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
+{
+
+	KASSERT((size % KVA_QUANTUM) == 0,
+	    ("kernel_rwx_alloc: Size %jd is not a multiple of %d",
+	    (intmax_t)size, (int)KVA_QUANTUM));
+	return (vmem_xalloc(arena, size, KVA_QUANTUM, 0, 0, VMEM_ADDR_MIN,
+	    VMEM_ADDR_MAX, flags, addrp));
+}
+#endif
+
 /*
  *	vm_init initializes the virtual memory system.
  *	This is done only by the first cpu up.
@@ -173,12 +190,31 @@ vm_mem_init(dummy)
 	vmem_init(kernel_arena, "kernel arena", 0, 0, PAGE_SIZE, 0, 0);
 	vmem_set_import(kernel_arena, kva_import, NULL, NULL, KVA_QUANTUM);
 
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * In an architecture with superpages, maintain a separate arena
+	 * for allocations with permissions that differ from the "standard"
+	 * read/write permissions used for memory in the kernel_arena.
+	 */
+	kernel_rwx_arena = vmem_create("kernel rwx arena", 0, 0, PAGE_SIZE,
+	    0, M_WAITOK);
+	vmem_set_import(kernel_rwx_arena, kernel_rwx_alloc,
+	    (vmem_release_t *)vmem_xfree, kernel_arena, KVA_QUANTUM);
+#endif
+
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		vm_dom[domain].vmd_kernel_arena = vmem_create(
 		    "kernel arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
 		vmem_set_import(vm_dom[domain].vmd_kernel_arena,
 		    (vmem_import_t *)vmem_alloc, NULL, kernel_arena,
 		    KVA_QUANTUM);
+#if VM_NRESERVLEVEL > 0
+		vm_dom[domain].vmd_kernel_rwx_arena = vmem_create(
+		    "kernel rwx arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+		vmem_set_import(vm_dom[domain].vmd_kernel_rwx_arena,
+		    kernel_rwx_alloc, (vmem_release_t *)vmem_xfree,
+		    vm_dom[domain].vmd_kernel_arena, KVA_QUANTUM);
+#endif
 	}
 
 #ifndef	UMA_MD_SMALL_ALLOC

@@ -50,5 +50,4 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__signalcontext;
 	__syncicache;
-	_end;
 };

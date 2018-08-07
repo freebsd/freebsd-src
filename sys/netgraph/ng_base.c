@@ -179,12 +179,12 @@ static struct rwlock	ng_typelist_lock;
 
 /* Hash related definitions. */
 LIST_HEAD(nodehash, ng_node);
-static VNET_DEFINE(struct nodehash *, ng_ID_hash);
-static VNET_DEFINE(u_long, ng_ID_hmask);
-static VNET_DEFINE(u_long, ng_nodes);
-static VNET_DEFINE(struct nodehash *, ng_name_hash);
-static VNET_DEFINE(u_long, ng_name_hmask);
-static VNET_DEFINE(u_long, ng_named_nodes);
+VNET_DEFINE_STATIC(struct nodehash *, ng_ID_hash);
+VNET_DEFINE_STATIC(u_long, ng_ID_hmask);
+VNET_DEFINE_STATIC(u_long, ng_nodes);
+VNET_DEFINE_STATIC(struct nodehash *, ng_name_hash);
+VNET_DEFINE_STATIC(u_long, ng_name_hmask);
+VNET_DEFINE_STATIC(u_long, ng_named_nodes);
 #define	V_ng_ID_hash		VNET(ng_ID_hash)
 #define	V_ng_ID_hmask		VNET(ng_ID_hmask)
 #define	V_ng_nodes		VNET(ng_nodes)
@@ -377,7 +377,7 @@ ng_alloc_node(void)
 #define TRAP_ERROR()
 #endif
 
-static VNET_DEFINE(ng_ID_t, nextID) = 1;
+VNET_DEFINE_STATIC(ng_ID_t, nextID) = 1;
 #define	V_nextID			VNET(nextID)
 
 #ifdef INVARIANTS

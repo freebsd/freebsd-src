@@ -454,3 +454,59 @@ FlSplitInputPathname (
 
     return (AE_OK);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlGetFileBasename
+ *
+ * PARAMETERS:  FilePathname            - File path to be split
+ *
+ * RETURN:      The extracted base name of the file, in upper case
+ *
+ * DESCRIPTION: Extract the file base name (the file name with no extension)
+ *              from the input pathname.
+ *
+ *              Note: Any backslashes in the pathname should be previously
+ *              converted to forward slashes before calling this function.
+ *
+ ******************************************************************************/
+
+char *
+FlGetFileBasename (
+    char                    *FilePathname)
+{
+    char                    *FileBasename;
+    char                    *Substring;
+
+
+    /* Backup to last slash or colon */
+
+    Substring = strrchr (FilePathname, '/');
+    if (!Substring)
+    {
+        Substring = strrchr (FilePathname, ':');
+    }
+
+    /* Extract the full filename (base + extension) */
+
+    if (Substring)
+    {
+        FileBasename = FlStrdup (Substring + 1);
+    }
+    else
+    {
+        FileBasename = FlStrdup (FilePathname);
+    }
+
+    /* Remove the filename extension if present */
+
+    Substring = strchr (FileBasename, '.');
+    if (Substring)
+    {
+        *Substring = 0;
+    }
+
+    AcpiUtStrupr (FileBasename);
+    return (FileBasename);
+}

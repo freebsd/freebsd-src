@@ -6244,3 +6244,39 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 		pci_printf(&dinfo->cfg, "Transactions pending after FLR!\n");
 	return (true);
 }
+
+const struct pci_device_table *
+pci_match_device(device_t child, const struct pci_device_table *id, size_t nelt)
+{
+	bool match;
+	uint16_t vendor, device, subvendor, subdevice, class, subclass, revid;
+
+	vendor = pci_get_vendor(child);
+	device = pci_get_device(child);
+	subvendor = pci_get_subvendor(child);
+	subdevice = pci_get_subdevice(child);
+	class = pci_get_class(child);
+	subclass = pci_get_subclass(child);
+	revid = pci_get_revid(child);
+	while (nelt-- > 0) {
+		match = true;
+		if (id->match_flag_vendor)
+			match &= vendor == id->vendor;
+		if (id->match_flag_device)
+			match &= device == id->device;
+		if (id->match_flag_subvendor)
+			match &= subvendor == id->subvendor;
+		if (id->match_flag_subdevice)
+			match &= subdevice == id->subdevice;
+		if (id->match_flag_class)
+			match &= class == id->class_id;
+		if (id->match_flag_subclass)
+			match &= subclass == id->subclass;
+		if (id->match_flag_revid)
+			match &= revid == id->revid;
+		if (match)
+			return (id);
+		id++;
+	}
+	return (NULL);
+}

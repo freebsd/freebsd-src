@@ -123,7 +123,8 @@ static inline const u8 * fst_iface_get_peer_next(struct fst_iface *i,
 	return i->iface_obj.get_peer_next(i->iface_obj.ctx, ctx, mb_only);
 }
 
-Boolean fst_iface_is_connected(struct fst_iface *iface, const u8 *addr);
+Boolean fst_iface_is_connected(struct fst_iface *iface, const u8 *addr,
+			       Boolean mb_only);
 void fst_iface_attach_mbie(struct fst_iface *i, struct wpabuf *mbie);
 enum mb_band_id fst_iface_get_band_id(struct fst_iface *i);
 

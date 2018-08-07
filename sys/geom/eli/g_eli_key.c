@@ -103,52 +103,77 @@ g_eli_mkey_hmac(unsigned char *mkey, const unsigned char *key)
 }
 
 /*
- * Find and decrypt Master Key encrypted with 'key'.
- * Return decrypted Master Key number in 'nkeyp' if not NULL.
+ * Find and decrypt Master Key encrypted with 'key' at slot 'nkey'.
  * Return 0 on success, > 0 on failure, -1 on bad key.
  */
 int
 g_eli_mkey_decrypt(const struct g_eli_metadata *md, const unsigned char *key,
-    unsigned char *mkey, unsigned *nkeyp)
+    unsigned char *mkey, unsigned nkey)
 {
 	unsigned char tmpmkey[G_ELI_MKEYLEN];
 	unsigned char enckey[SHA512_MDLEN];	/* Key for encryption. */
 	const unsigned char *mmkey;
-	int bit, error, nkey;
+	int bit, error;
 
-	if (nkeyp != NULL)
-		*nkeyp = -1;
+	if (nkey > G_ELI_MKEYLEN)
+		return (-1);
 
 	/*
 	 * The key for encryption is: enckey = HMAC_SHA512(Derived-Key, 1)
 	 */
 	g_eli_crypto_hmac(key, G_ELI_USERKEYLEN, "\x01", 1, enckey, 0);
 
-	mmkey = md->md_mkeys;
-	for (nkey = 0; nkey < G_ELI_MAXMKEYS; nkey++, mmkey += G_ELI_MKEYLEN) {
-		bit = (1 << nkey);
-		if (!(md->md_keys & bit))
-			continue;
-		bcopy(mmkey, tmpmkey, G_ELI_MKEYLEN);
-		error = g_eli_crypto_decrypt(md->md_ealgo, tmpmkey,
-		    G_ELI_MKEYLEN, enckey, md->md_keylen);
-		if (error != 0) {
-			explicit_bzero(tmpmkey, sizeof(tmpmkey));
-			explicit_bzero(enckey, sizeof(enckey));
-			return (error);
-		}
-		if (g_eli_mkey_verify(tmpmkey, key)) {
-			bcopy(tmpmkey, mkey, G_ELI_DATAIVKEYLEN);
-			explicit_bzero(tmpmkey, sizeof(tmpmkey));
-			explicit_bzero(enckey, sizeof(enckey));
-			if (nkeyp != NULL)
-				*nkeyp = nkey;
-			return (0);
-		}
+	mmkey = md->md_mkeys + G_ELI_MKEYLEN * nkey;
+	bit = (1 << nkey);
+	if (!(md->md_keys & bit))
+		return (-1);
+	bcopy(mmkey, tmpmkey, G_ELI_MKEYLEN);
+	error = g_eli_crypto_decrypt(md->md_ealgo, tmpmkey,
+	    G_ELI_MKEYLEN, enckey, md->md_keylen);
+	if (error != 0) {
+		explicit_bzero(tmpmkey, sizeof(tmpmkey));
+		explicit_bzero(enckey, sizeof(enckey));
+		return (error);
+	}
+	if (g_eli_mkey_verify(tmpmkey, key)) {
+		bcopy(tmpmkey, mkey, G_ELI_DATAIVKEYLEN);
+		explicit_bzero(tmpmkey, sizeof(tmpmkey));
+		explicit_bzero(enckey, sizeof(enckey));
+		return (0);
 	}
 	explicit_bzero(enckey, sizeof(enckey));
 	explicit_bzero(tmpmkey, sizeof(tmpmkey));
+
 	return (-1);
+}
+
+/*
+ * Find and decrypt Master Key encrypted with 'key'.
+ * Return decrypted Master Key number in 'nkeyp' if not NULL.
+ * Return 0 on success, > 0 on failure, -1 on bad key.
+ */
+int
+g_eli_mkey_decrypt_any(const struct g_eli_metadata *md,
+    const unsigned char *key, unsigned char *mkey, unsigned *nkeyp)
+{
+	int error, nkey;
+
+	if (nkeyp != NULL)
+		*nkeyp = -1;
+
+	error = -1;
+	for (nkey = 0; nkey < G_ELI_MAXMKEYS; nkey++) {
+		error = g_eli_mkey_decrypt(md, key, mkey, nkey);
+		if (error == 0) {
+			if (nkeyp != NULL)
+				*nkeyp = nkey;
+			break;
+		} else if (error > 0) {
+			break;
+		}
+	}
+
+	return (error);
 }
 
 /*

@@ -217,32 +217,6 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_ETH_XSHIFT	6		/* shift XTYPE next to TMASK */
 
 /*
- * Token ring
- */
-#define	IFM_TOKEN	0x00000040
-#define	IFM_TOK_STP4	3		/* Shielded twisted pair 4m - DB9 */
-#define	IFM_TOK_STP16	4		/* Shielded twisted pair 16m - DB9 */
-#define	IFM_TOK_UTP4	5		/* Unshielded twisted pair 4m - RJ45 */
-#define	IFM_TOK_UTP16	6		/* Unshielded twisted pair 16m - RJ45 */
-#define	IFM_TOK_STP100  7		/* Shielded twisted pair 100m - DB9 */
-#define	IFM_TOK_UTP100  8		/* Unshielded twisted pair 100m - RJ45 */
-#define	IFM_TOK_ETR	0x00000200	/* Early token release */
-#define	IFM_TOK_SRCRT	0x00000400	/* Enable source routing features */
-#define	IFM_TOK_ALLR	0x00000800	/* All routes / Single route bcast */
-#define	IFM_TOK_DTR	0x00002000	/* Dedicated token ring */
-#define	IFM_TOK_CLASSIC	0x00004000	/* Classic token ring */
-#define	IFM_TOK_AUTO	0x00008000	/* Automatic Dedicate/Classic token ring */
-
-/*
- * FDDI
- */
-#define	IFM_FDDI	0x00000060
-#define	IFM_FDDI_SMF	3		/* Single-mode fiber */
-#define	IFM_FDDI_MMF	4		/* Multi-mode fiber */
-#define	IFM_FDDI_UTP	5		/* CDDI / UTP */
-#define	IFM_FDDI_DA	0x00000100	/* Dual attach / single attach */
-
-/*
  * IEEE 802.11 Wireless
  */
 #define	IFM_IEEE80211	0x00000080
@@ -393,8 +367,6 @@ struct ifmedia_description {
 
 #define	IFM_TYPE_DESCRIPTIONS {						\
 	{ IFM_ETHER,		"Ethernet" },				\
-	{ IFM_TOKEN,		"Token ring" },				\
-	{ IFM_FDDI,		"FDDI" },				\
 	{ IFM_IEEE80211,	"IEEE 802.11 Wireless Ethernet" },	\
 	{ IFM_ATM,		"ATM" },				\
 	{ 0, NULL },							\
@@ -508,55 +480,6 @@ struct ifmedia_description {
 	{ IFM_ETH_MASTER,	"master" },				\
 	{ IFM_ETH_RXPAUSE,	"rxpause" },				\
 	{ IFM_ETH_TXPAUSE,	"txpause" },				\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_TOKENRING_DESCRIPTIONS {				\
-	{ IFM_TOK_STP4,	"DB9/4Mbit" },					\
-	{ IFM_TOK_STP16, "DB9/16Mbit" },				\
-	{ IFM_TOK_UTP4,	"UTP/4Mbit" },					\
-	{ IFM_TOK_UTP16, "UTP/16Mbit" },				\
-	{ IFM_TOK_STP100, "STP/100Mbit" },				\
-	{ IFM_TOK_UTP100, "UTP/100Mbit" },				\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_TOKENRING_ALIASES {					\
-	{ IFM_TOK_STP4,	"4STP" },					\
-	{ IFM_TOK_STP16, "16STP" },					\
-	{ IFM_TOK_UTP4,	"4UTP" },					\
-	{ IFM_TOK_UTP16, "16UTP" },					\
-	{ IFM_TOK_STP100, "100STP" },					\
-	{ IFM_TOK_UTP100, "100UTP" },					\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_TOKENRING_OPTION_DESCRIPTIONS {			\
-	{ IFM_TOK_ETR,	"EarlyTokenRelease" },				\
-	{ IFM_TOK_SRCRT, "SourceRouting" },				\
-	{ IFM_TOK_ALLR,	"AllRoutes" },					\
-	{ IFM_TOK_DTR,	"Dedicated" },					\
-	{ IFM_TOK_CLASSIC,"Classic" },					\
-	{ IFM_TOK_AUTO,	" " },						\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_FDDI_DESCRIPTIONS {					\
-	{ IFM_FDDI_SMF, "Single-mode" },				\
-	{ IFM_FDDI_MMF, "Multi-mode" },					\
-	{ IFM_FDDI_UTP, "UTP" },					\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_FDDI_ALIASES {					\
-	{ IFM_FDDI_SMF,	"SMF" },					\
-	{ IFM_FDDI_MMF,	"MMF" },					\
-	{ IFM_FDDI_UTP,	"CDDI" },					\
-	{ 0, NULL },							\
-}
-
-#define	IFM_SUBTYPE_FDDI_OPTION_DESCRIPTIONS {				\
-	{ IFM_FDDI_DA, "Dual-attach" },					\
 	{ 0, NULL },							\
 }
 
@@ -797,15 +720,6 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_25G_ACC,	IF_Gbps(25ULL) },		\
 	{ IFM_ETHER | IFM_25G_AOC,	IF_Gbps(25ULL) },		\
 									\
-	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
-	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\
-	{ IFM_TOKEN | IFM_TOK_UTP4,	IF_Mbps(4) },			\
-	{ IFM_TOKEN | IFM_TOK_UTP16,	IF_Mbps(16) },			\
-									\
-	{ IFM_FDDI | IFM_FDDI_SMF,	IF_Mbps(100) },			\
-	{ IFM_FDDI | IFM_FDDI_MMF,	IF_Mbps(100) },			\
-	{ IFM_FDDI | IFM_FDDI_UTP,	IF_Mbps(100) },			\
-									\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH1,	IF_Mbps(1) },		\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH2,	IF_Mbps(2) },		\
 	{ IFM_IEEE80211 | IFM_IEEE80211_DS2,	IF_Mbps(2) },		\
@@ -842,10 +756,6 @@ struct ifmedia_status_description {
 #define	IFM_STATUS_DESCRIPTIONS {					\
 	{ IFM_ETHER,		IFM_AVALID,	IFM_ACTIVE,		\
 	    { "no carrier", "active" } },				\
-	{ IFM_FDDI,		IFM_AVALID,	IFM_ACTIVE,		\
-	    { "no ring", "inserted" } },				\
-	{ IFM_TOKEN,		IFM_AVALID,	IFM_ACTIVE,		\
-	    { "no ring", "inserted" } },				\
 	{ IFM_IEEE80211,	IFM_AVALID,	IFM_ACTIVE,		\
 	    { "no network", "active" } },				\
 	{ IFM_ATM,		IFM_AVALID,	IFM_ACTIVE,		\

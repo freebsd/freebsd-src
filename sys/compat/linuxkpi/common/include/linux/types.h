@@ -59,8 +59,11 @@ typedef uint64_t loff_t;
 typedef vm_paddr_t resource_size_t;
 typedef uint16_t __bitwise__ __sum16;
 typedef unsigned long pgoff_t;
+typedef unsigned __poll_t;
 
 typedef u64 phys_addr_t;
+
+typedef size_t __kernel_size_t;
 
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]

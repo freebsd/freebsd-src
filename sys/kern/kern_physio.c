@@ -51,6 +51,8 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	vm_prot_t prot;
 
 	csw = dev->si_devsw;
+	npages = 0;
+	sa = NULL;
 	/* check if character device is being destroyed */
 	if (csw == NULL)
 		return (ENXIO);
@@ -177,7 +179,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 					error = EFAULT;
 					goto doerror;
 				}
-				if (pbuf) {
+				if (pbuf && sa) {
 					pmap_qenter((vm_offset_t)sa,
 					    pages, npages);
 					bp->bio_data = sa + poff;

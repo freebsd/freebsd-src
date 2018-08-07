@@ -69,7 +69,7 @@ function color.resetfg()
 	if color.disabled then
 		return ''
 	end
-	return core.KEYSTR_CSI .. "39m"
+	return color.escapefg(color.WHITE)
 end
 
 function color.escapebg(color_value)
@@ -83,7 +83,7 @@ function color.resetbg()
 	if color.disabled then
 		return ''
 	end
-	return core.KEYSTR_CSI .. "49m"
+	return color.escapebg(color.BLACK)
 end
 
 function color.escape(fg_color, bg_color, attribute)

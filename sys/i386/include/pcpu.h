@@ -76,8 +76,11 @@
 	struct	mtx pc_copyout_mlock;					\
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
+	vm_offset_t pc_pmap_eh_va;					\
+	caddr_t pc_pmap_eh_ptep;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[550]
+	uint32_t pc_ibpb_set;						\
+	char	__pad[3610]
 
 #ifdef _KERNEL
 
@@ -239,6 +242,8 @@ __curpcb(void)
 	return (pcb);
 }
 #define	curpcb		(__curpcb())
+
+#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
 #else /* defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
 

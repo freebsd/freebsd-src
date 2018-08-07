@@ -15,8 +15,8 @@
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
-/* If you have HMAC_CTX_init */
-#undef HAVE_HMAC_CTX_INIT
+/* If you have HMAC_Update */
+#undef HAVE_HMAC_UPDATE
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -278,9 +278,6 @@
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
-
-extern char *optarg;
-extern int optind, opterr;
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE  1

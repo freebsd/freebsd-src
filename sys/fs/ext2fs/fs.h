@@ -161,4 +161,9 @@
  */
 #define	NINDIR(fs)	(EXT2_ADDR_PER_BLOCK(fs))
 
+/*
+ * Use if additional debug logging is required.
+ */
+/* #define EXT2FS_DEBUG */
+
 #endif	/* !_FS_EXT2FS_FS_H_ */

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -59,6 +59,7 @@ typedef struct vdev_cache_entry vdev_cache_entry_t;
 struct abd;
 
 extern int zfs_vdev_queue_depth_pct;
+extern int zfs_vdev_def_queue_depth;
 extern uint32_t zfs_vdev_async_write_max_active;
 
 /*
@@ -71,6 +72,7 @@ typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
 typedef void	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
+typedef boolean_t vdev_need_resilver_func_t(vdev_t *vd, uint64_t, size_t);
 typedef void	vdev_hold_func_t(vdev_t *vd);
 typedef void	vdev_rele_func_t(vdev_t *vd);
 
@@ -78,6 +80,12 @@ typedef void	vdev_remap_cb_t(uint64_t inner_offset, vdev_t *vd,
     uint64_t offset, uint64_t size, void *arg);
 typedef void	vdev_remap_func_t(vdev_t *vd, uint64_t offset, uint64_t size,
     vdev_remap_cb_t callback, void *arg);
+/*
+ * Given a target vdev, translates the logical range "in" to the physical
+ * range "res"
+ */
+typedef void vdev_xlation_func_t(vdev_t *cvd, const range_seg_t *in,
+    range_seg_t *res);
 
 typedef struct vdev_ops {
 	vdev_open_func_t		*vdev_op_open;
@@ -86,9 +94,15 @@ typedef struct vdev_ops {
 	vdev_io_start_func_t		*vdev_op_io_start;
 	vdev_io_done_func_t		*vdev_op_io_done;
 	vdev_state_change_func_t	*vdev_op_state_change;
+	vdev_need_resilver_func_t	*vdev_op_need_resilver;
 	vdev_hold_func_t		*vdev_op_hold;
 	vdev_rele_func_t		*vdev_op_rele;
 	vdev_remap_func_t		*vdev_op_remap;
+	/*
+	 * For translating ranges from non-leaf vdevs (e.g. raidz) to leaves.
+	 * Used when initializing vdevs. Isn't used by leaf ops.
+	 */
+	vdev_xlation_func_t		*vdev_op_xlate;
 	char				vdev_op_type[16];
 	boolean_t			vdev_op_leaf;
 } vdev_ops_t;
@@ -249,6 +263,24 @@ struct vdev {
 
 	/* pool checkpoint related */
 	space_map_t	*vdev_checkpoint_sm;	/* contains reserved blocks */
+	
+	boolean_t	vdev_initialize_exit_wanted;
+	vdev_initializing_state_t	vdev_initialize_state;
+	kthread_t	*vdev_initialize_thread;
+	/* Protects vdev_initialize_thread and vdev_initialize_state. */
+	kmutex_t	vdev_initialize_lock;
+	kcondvar_t	vdev_initialize_cv;
+	uint64_t	vdev_initialize_offset[TXG_SIZE];
+	uint64_t	vdev_initialize_last_offset;
+	range_tree_t	*vdev_initialize_tree;	/* valid while initializing */
+	uint64_t	vdev_initialize_bytes_est;
+	uint64_t	vdev_initialize_bytes_done;
+	time_t		vdev_initialize_action_time;	/* start and end time */
+
+	/* for limiting outstanding I/Os */
+	kmutex_t	vdev_initialize_io_lock;
+	kcondvar_t	vdev_initialize_io_cv;
+	uint64_t	vdev_initialize_inflight;
 
 	/*
 	 * Values stored in the config for an indirect or removing vdev.
@@ -293,6 +325,13 @@ struct vdev {
 	 */
 	uint64_t	vdev_async_write_queue_depth;
 	uint64_t	vdev_max_async_write_queue_depth;
+
+	/*
+	 * Protects the vdev_scan_io_queue field itself as well as the
+	 * structure's contents (when present).
+	 */
+	kmutex_t			vdev_scan_io_queue_lock;
+	struct dsl_scan_io_queue	*vdev_scan_io_queue;
 
 	/*
 	 * Leaf vdev state.
@@ -461,6 +500,8 @@ extern vdev_ops_t vdev_indirect_ops;
 /*
  * Common size functions
  */
+extern void vdev_default_xlate(vdev_t *vd, const range_seg_t *in,
+    range_seg_t *out);
 extern uint64_t vdev_default_asize(vdev_t *vd, uint64_t psize);
 extern uint64_t vdev_get_min_asize(vdev_t *vd);
 extern void vdev_set_min_asize(vdev_t *vd);

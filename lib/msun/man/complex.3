@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2011
+.Dd June 19, 2018
 .Dt COMPLEX 3
 .Os
 .Sh NAME
@@ -63,24 +63,28 @@ and
 .Fn cabsl "long double complex z" ,
 respectively.
 .de Cl
-.Bl -column "csqrt" "complex absolute value (i.e. norm, modulus, magnitude)"
+.Bl -column "csqrt" "complex absolute value (i.e., norm, modulus, magnitude)"
 .Em "Name	Description"
 ..
 .\" Section 7.3.5 - 7.3.7 of ISO C99 standard unimplemented, see BUGS
 .\" Section 7.3.8 of ISO C99 standard
 .Ss Absolute-value Functions
 .Cl
-cabs	complex absolute value (i.e. norm, modulus, magnitude)
+cabs	complex absolute value (i.e., norm, modulus, magnitude)
 csqrt	complex square root
 .El
 .Ss Exponential Function
 .Cl
 cexp	exponential base e
 .El
+.Ss Natural logarithm Function
+.Cl
+clog	natural logarithm
+.El
 .\" Section 7.3.9 of ISO C99 standard
 .Ss Manipulation Functions
 .Cl
-carg	compute the argument (i.e. phase angle)
+carg	compute the argument (i.e., phase angle)
 cimag	compute the imaginary part
 conj	compute the complex conjugate
 cproj	compute projection onto Riemann sphere
@@ -97,6 +101,7 @@ catan	arc tangent
 catanh	arc hyperbolic tangent
 ccos	cosine
 ccosh	hyperbolic cosine
+cpow	power function
 csin	sine
 csinh	hyperbolic sine
 ctan	tangent
@@ -116,9 +121,3 @@ The
 .In complex.h
 functions described here conform to
 .St -isoC-99 .
-.Sh BUGS
-The logarithmic functions
-.Fn clog
-and the power functions
-.Fn cpow
-are not implemented.

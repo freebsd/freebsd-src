@@ -16,7 +16,7 @@ CFLAGS+=	-I${SDIR}
 WARNS?= 3
 .endif
 
-LIBADD=		cam sbuf bsdxml util
+LIBADD=		cam sbuf bsdxml util nv
 MAN=		ctladm.8
 
 .if ${MK_ISCSI} != "no"

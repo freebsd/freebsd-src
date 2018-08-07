@@ -222,7 +222,7 @@ write_digest_file(apr_hash_t *children,
                                  svn_io_file_del_none, pool, pool));
   if ((err = svn_hash_write2(hash, stream, SVN_HASH_TERMINATOR, pool)))
     {
-      svn_error_clear(svn_stream_close(stream));
+      err = svn_error_compose_create(err, svn_stream_close(stream));
       return svn_error_createf(err->apr_err,
                                err,
                                _("Cannot write lock/entries hashfile '%s'"),
@@ -230,7 +230,7 @@ write_digest_file(apr_hash_t *children,
     }
 
   SVN_ERR(svn_stream_close(stream));
-  SVN_ERR(svn_io_file_rename(tmp_path, digest_path, pool));
+  SVN_ERR(svn_io_file_rename2(tmp_path, digest_path, FALSE, pool));
   SVN_ERR(svn_io_copy_perms(perms_reference, digest_path, pool));
   return SVN_NO_ERROR;
 }
@@ -273,7 +273,7 @@ read_digest_file(apr_hash_t **children_p,
   hash = apr_hash_make(pool);
   if ((err = svn_hash_read2(hash, stream, SVN_HASH_TERMINATOR, pool)))
     {
-      svn_error_clear(svn_stream_close(stream));
+      err = svn_error_compose_create(err, svn_stream_close(stream));
       return svn_error_createf(err->apr_err,
                                err,
                                _("Can't parse lock/entries hashfile '%s'"),
@@ -847,7 +847,7 @@ lock_body(void *baton, apr_pool_t *pool)
   apr_pool_t *iterpool = svn_pool_create(pool);
 
   /* Until we implement directory locks someday, we only allow locks
-     on files or non-existent paths. */
+     on files. */
   /* Use fs->vtable->foo instead of svn_fs_foo to avoid circular
      library dependencies, which are not portable. */
   SVN_ERR(lb->fs->vtable->youngest_rev(&youngest, lb->fs, pool));

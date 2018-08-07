@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2013
+.Dd August 5, 2018
 .Dt PF 4
 .Os
 .Sh NAME
@@ -84,11 +84,11 @@ tunables are available.
 .It Va net.pf.states_hashsize
 Size of hash tables that store states.
 Should be power of 2.
-Default value is 32768.
+Default value is 131072.
 .It Va net.pf.source_nodes_hashsize
 Size of hash table that store source nodes.
 Should be power of 2.
-Default value is 8192.
+Default value is 32768.
 .El
 .Pp
 Read only
@@ -1169,7 +1169,6 @@ main(int argc, char *argv[])
 .Xr altq 4 ,
 .Xr if_bridge 4 ,
 .Xr pflog 4 ,
-.Xr pflow 4 ,
 .Xr pfsync 4 ,
 .Xr pfctl 8 ,
 .Xr altq 9

@@ -1,6 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2017 Kyle Evans <kevans@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,26 +33,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <machine/bus.h>
+
+#include <dev/fdt/simplebus.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
 #include <arm/allwinner/clkng/aw_ccung.h>
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_nm.h>
-#include <arm/allwinner/clkng/aw_clk_nkmp.h>
-#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
 
 #include <gnu/dts/include/dt-bindings/clock/sun8i-a83t-ccu.h>
 #include <gnu/dts/include/dt-bindings/reset/sun8i-a83t-ccu.h>
-
-#include "ccu_a83t.h"
-
-/* Non-exported resets */
-/*
-#define	RST_BUS_SCR		53
-*/
 
 /* Non-exported clocks */
 
@@ -207,24 +206,29 @@ FIXED_CLK(osc12m_clk,
     2,						/* div */
     0);						/* flags */
 
+/* CPU PLL are 24Mhz * N / P */
 static const char *pll_c0cpux_parents[] = {"osc24M"};
 static const char *pll_c1cpux_parents[] = {"osc24M"};
-NM_CLK(pll_c0cpux_clk,
+NKMP_CLK(pll_c0cpux_clk,
     CLK_PLL_C0CPUX,				/* id */
     "pll_c0cpux", pll_c0cpux_parents,		/* name, parents */
     0x00,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_ZERO_BASED,		/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-    0, 0,					/* mux */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    0, 0,					/* lock */
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
-NM_CLK(pll_c1cpux_clk,
+NKMP_CLK(pll_c1cpux_clk,
     CLK_PLL_C1CPUX,				/* id */
     "pll_c1cpux", pll_c1cpux_parents,		/* name, parents */
     0x04,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_ZERO_BASED,		/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-    0, 0,					/* mux */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    0, 0,					/* lock */
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
 
@@ -680,100 +684,106 @@ NM_CLK(gpu_hyd_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE);
 
-
-static struct aw_clk_nkmp_def *nkmp_clks[] = {
-	&pll_audio_clk,
-	&pll_video0_clk,
-	&pll_ve_clk,
-	&pll_ddr_clk,
-	&pll_periph_clk,
-	&pll_gpu_clk,
-	&pll_hsic_clk,
-	&pll_de_clk,
-	&pll_video1_clk,
+static struct aw_ccung_clk a83t_clks[] = {
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_audio_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_video0_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ve_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_gpu_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_hsic_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_de_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_video1_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_c0cpux_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_c1cpux_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mmc2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ss_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &i2s0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &i2s1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &i2s2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &tdm_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spdif_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &dram_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &tcon1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &csi_mclk_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &csi_sclk_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ve_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &hdmi_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mbus_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mipi_dsi0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &mipi_dsi1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &gpu_core_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &gpu_memory_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &gpu_hyd_clk},
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ahb1_clk},
+	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ahb2_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &c0cpux_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &c1cpux_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &cci400_clk},
+	{ .type = AW_CLK_MUX, .clk.mux = &tcon0_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &axi0_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &axi1_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &apb1_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &osc12m_clk},
 };
 
-static struct aw_clk_nm_def *nm_clks[] = {
-	&pll_c0cpux_clk,
-	&pll_c1cpux_clk,
-	&apb2_clk,
-	&nand_clk,
-	&mmc0_clk,
-	&mmc1_clk,
-	&mmc2_clk,
-	&ss_clk,
-	&spi0_clk,
-	&spi1_clk,
-	&i2s0_clk,
-	&i2s1_clk,
-	&i2s2_clk,
-	&tdm_clk,
-	&spdif_clk,
-	&dram_clk,
-	&tcon1_clk,
-	&csi_mclk_clk,
-	&csi_sclk_clk,
-	&ve_clk,
-	&hdmi_clk,
-	&mbus_clk,
-	&mipi_dsi0_clk,
-	&mipi_dsi1_clk,
-	&gpu_core_clk,
-	&gpu_memory_clk,
-	&gpu_hyd_clk,
-};
-
-static struct aw_clk_prediv_mux_def *prediv_mux_clks[] = {
-	&ahb1_clk,
-	&ahb2_clk,
-};
-
-static struct clk_mux_def *mux_clks[] = {
-	&c0cpux_clk,
-	&c1cpux_clk,
-	&cci400_clk,
-	&tcon0_clk,
-};
-
-static struct clk_div_def *div_clks[] = {
-	&axi0_clk,
-	&axi1_clk,
-	&apb1_clk,
-};
-
-static struct clk_fixed_def *fixed_factor_clks[] = {
-	&osc12m_clk,
-};
-
-static struct aw_clk_init init_clks[] = {
+static struct aw_clk_init a83t_init_clks[] = {
 	{"ahb1", "pll_periph", 0, false},
 	{"ahb2", "ahb1", 0, false},
 	{"dram", "pll_ddr", 0, false},
 };
 
-void
-ccu_a83t_register_clocks(struct aw_ccung_softc *sc)
+static int
+ccu_a83t_probe(device_t dev)
 {
-	int i;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun8i-a83t-ccu"))
+		return (ENXIO);
+
+	device_set_desc(dev, "Allwinner A83T Clock Control Unit NG");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ccu_a83t_attach(device_t dev)
+{
+	struct aw_ccung_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	sc->resets = a83t_ccu_resets;
 	sc->nresets = nitems(a83t_ccu_resets);
 	sc->gates = a83t_ccu_gates;
 	sc->ngates = nitems(a83t_ccu_gates);
-	sc->clk_init = init_clks;
-	sc->n_clk_init = nitems(init_clks);
+	sc->clks = a83t_clks;
+	sc->nclks = nitems(a83t_clks);
+	sc->clk_init = a83t_init_clks;
+	sc->n_clk_init = nitems(a83t_init_clks);
 
-	for (i = 0; i < nitems(nkmp_clks); i++)
-		aw_clk_nkmp_register(sc->clkdom, nkmp_clks[i]);
-	for (i = 0; i < nitems(nm_clks); i++)
-		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
-	for (i = 0; i < nitems(prediv_mux_clks); i++)
-		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
-
-	for (i = 0; i < nitems(mux_clks); i++)
-		clknode_mux_register(sc->clkdom, mux_clks[i]);
-	for (i = 0; i < nitems(div_clks); i++)
-		clknode_div_register(sc->clkdom, div_clks[i]);
-	for (i = 0; i < nitems(fixed_factor_clks); i++)
-		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
+	return (aw_ccung_attach(dev));
 }
+
+static device_method_t ccu_a83tng_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ccu_a83t_probe),
+	DEVMETHOD(device_attach,	ccu_a83t_attach),
+
+	DEVMETHOD_END
+};
+
+static devclass_t ccu_a83tng_devclass;
+
+DEFINE_CLASS_1(ccu_a83tng, ccu_a83tng_driver, ccu_a83tng_methods,
+  sizeof(struct aw_ccung_softc), aw_ccung_driver);
+
+EARLY_DRIVER_MODULE(ccu_a83tng, simplebus, ccu_a83tng_driver,
+    ccu_a83tng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

@@ -42,6 +42,12 @@ local password = require("password")
 -- need it.
 local menu
 
+-- Our console may have been setup for a different color scheme before we get
+-- here, so make sure we set the default.
+if color.isEnabled() then
+	printc(color.default())
+end
+
 try_include("local")
 
 config.load()
@@ -50,11 +56,6 @@ if not core.isMenuSkipped() then
 end
 if core.isUEFIBoot() then
 	loader.perform("efi-autoresizecons")
-end
--- Our console may have been setup for a different color scheme before we get
--- here, so make sure we set the default.
-if color.isEnabled() then
-	printc(color.default())
 end
 password.check()
 -- menu might be disabled

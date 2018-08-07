@@ -6,8 +6,5 @@ makeoptions	CONF_CFLAGS="-march=armv7a"
 options 	KERNVIRTADDR		= 0xc1000000
 makeoptions	KERNVIRTADDR		= 0xc1000000
 
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15
-
 files "../qemu/files.qemu"
 

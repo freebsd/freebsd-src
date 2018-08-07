@@ -96,6 +96,7 @@ static const struct krping_option krping_opts[] = {
  	{"rlat", OPT_NOPARAM, 'L'},
  	{"bw", OPT_NOPARAM, 'B'},
  	{"duplex", OPT_NOPARAM, 'd'},
+	{"tos", OPT_INT, 't'},
  	{"txdepth", OPT_INT, 'T'},
  	{"poll", OPT_NOPARAM, 'P'},
  	{"local_dma_lkey", OPT_NOPARAM, 'Z'},
@@ -234,6 +235,7 @@ struct krping_cb {
 	int txdepth;			/* SQ depth */
 	int local_dma_lkey;		/* use 0 for lkey */
 	int frtest;			/* reg test */
+	int tos;			/* type of service */
 
 	/* CM stuff */
 	struct rdma_cm_id *cm_id;	/* connection on client side,*/
@@ -1918,6 +1920,10 @@ static void krping_run_client(struct krping_cb *cb)
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
+	/* set type of service, if any */
+	if (cb->tos != 0)
+		rdma_set_service_type(cb->cm_id, cb->tos);
+
 	ret = krping_bind_client(cb);
 	if (ret)
 		return;
@@ -2096,6 +2102,10 @@ int krping_doit(char *cmd)
 			break;
 		case 'I':
 			cb->server_invalidate = 1;
+			break;
+		case 't':
+			cb->tos = optint;
+			DEBUG_LOG("type of service, tos=%d\n", (int) cb->tos);
 			break;
 		case 'T':
 			cb->txdepth = optint;

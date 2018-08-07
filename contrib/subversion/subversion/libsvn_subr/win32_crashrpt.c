@@ -43,7 +43,7 @@ typedef int win32_crashrpt__dummy;
 #include "win32_crashrpt_dll.h"
 
 /*** Global variables ***/
-HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
+static HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 
 /* Email address where the crash reports should be sent too. */
 #define CRASHREPORT_EMAIL "users@subversion.apache.org"
@@ -84,32 +84,33 @@ convert_wbcs_to_ansi(const wchar_t *str)
 static const char *
 exception_string(int exception)
 {
-#define EXCEPTION(x) case EXCEPTION_##x: return (#x);
+#define EXCEPTION(x) case x: return (#x);
 
   switch (exception)
     {
-      EXCEPTION(ACCESS_VIOLATION)
-      EXCEPTION(DATATYPE_MISALIGNMENT)
-      EXCEPTION(BREAKPOINT)
-      EXCEPTION(SINGLE_STEP)
-      EXCEPTION(ARRAY_BOUNDS_EXCEEDED)
-      EXCEPTION(FLT_DENORMAL_OPERAND)
-      EXCEPTION(FLT_DIVIDE_BY_ZERO)
-      EXCEPTION(FLT_INEXACT_RESULT)
-      EXCEPTION(FLT_INVALID_OPERATION)
-      EXCEPTION(FLT_OVERFLOW)
-      EXCEPTION(FLT_STACK_CHECK)
-      EXCEPTION(FLT_UNDERFLOW)
-      EXCEPTION(INT_DIVIDE_BY_ZERO)
-      EXCEPTION(INT_OVERFLOW)
-      EXCEPTION(PRIV_INSTRUCTION)
-      EXCEPTION(IN_PAGE_ERROR)
-      EXCEPTION(ILLEGAL_INSTRUCTION)
-      EXCEPTION(NONCONTINUABLE_EXCEPTION)
-      EXCEPTION(STACK_OVERFLOW)
-      EXCEPTION(INVALID_DISPOSITION)
-      EXCEPTION(GUARD_PAGE)
-      EXCEPTION(INVALID_HANDLE)
+      EXCEPTION(EXCEPTION_ACCESS_VIOLATION)
+      EXCEPTION(EXCEPTION_DATATYPE_MISALIGNMENT)
+      EXCEPTION(EXCEPTION_BREAKPOINT)
+      EXCEPTION(EXCEPTION_SINGLE_STEP)
+      EXCEPTION(EXCEPTION_ARRAY_BOUNDS_EXCEEDED)
+      EXCEPTION(EXCEPTION_FLT_DENORMAL_OPERAND)
+      EXCEPTION(EXCEPTION_FLT_DIVIDE_BY_ZERO)
+      EXCEPTION(EXCEPTION_FLT_INEXACT_RESULT)
+      EXCEPTION(EXCEPTION_FLT_INVALID_OPERATION)
+      EXCEPTION(EXCEPTION_FLT_OVERFLOW)
+      EXCEPTION(EXCEPTION_FLT_STACK_CHECK)
+      EXCEPTION(EXCEPTION_FLT_UNDERFLOW)
+      EXCEPTION(EXCEPTION_INT_DIVIDE_BY_ZERO)
+      EXCEPTION(EXCEPTION_INT_OVERFLOW)
+      EXCEPTION(EXCEPTION_PRIV_INSTRUCTION)
+      EXCEPTION(EXCEPTION_IN_PAGE_ERROR)
+      EXCEPTION(EXCEPTION_ILLEGAL_INSTRUCTION)
+      EXCEPTION(EXCEPTION_NONCONTINUABLE_EXCEPTION)
+      EXCEPTION(EXCEPTION_STACK_OVERFLOW)
+      EXCEPTION(EXCEPTION_INVALID_DISPOSITION)
+      EXCEPTION(EXCEPTION_GUARD_PAGE)
+      EXCEPTION(EXCEPTION_INVALID_HANDLE)
+      EXCEPTION(STATUS_NO_MEMORY)
 
       default:
         return "UNKNOWN_ERROR";
@@ -379,7 +380,7 @@ write_value(FILE *log_file, DWORD64 mod_base, DWORD type, void *value_addr)
         }
         break;
       case 12: /* SymTagEnum */
-          fprintf(log_file, "%d", *(DWORD_PTR *)value_addr);
+          fprintf(log_file, "%Id", *(DWORD_PTR *)value_addr);
           break;
       case 13: /* SymTagFunctionType */
           fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)value_addr);
@@ -598,20 +599,7 @@ write_stacktrace(CONTEXT *context, FILE *log_file)
 static BOOL
 is_debugger_present()
 {
-  HANDLE kernel32_dll = LoadLibrary("kernel32.dll");
-  BOOL result;
-
-  ISDEBUGGERPRESENT IsDebuggerPresent_ =
-          (ISDEBUGGERPRESENT)GetProcAddress(kernel32_dll, "IsDebuggerPresent");
-
-  if (IsDebuggerPresent_ && IsDebuggerPresent_())
-    result = TRUE;
-  else
-    result = FALSE;
-
-  FreeLibrary(kernel32_dll);
-
-  return result;
+  return IsDebuggerPresent();
 }
 
 /* Load the dbghelp.dll file, try to find a version that matches our
@@ -620,7 +608,7 @@ static BOOL
 load_dbghelp_dll()
 {
   dbghelp_dll = LoadLibrary(DBGHELP_DLL);
-  if (dbghelp_dll != INVALID_HANDLE_VALUE)
+  if (dbghelp_dll != NULL)
     {
       DWORD opts;
 
@@ -807,4 +795,11 @@ svn__unhandled_exception_filter(PEXCEPTION_POINTERS ptrs)
   return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif /* SVN_USE_WIN32_CRASHHANDLER */
+#else  /* !WIN32 */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__win32_crashrpt;
+const apr_uint32_t svn__fake__win32_crashrpt = 0xdeadbeef;
+
 #endif /* WIN32 */

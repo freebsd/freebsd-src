@@ -29,11 +29,9 @@
 
 /*
  * i386 fully-qualified device descriptor.
- * Note, this must match struct zfs_devdesc for zfs support.
  */
-/* Note: Must match the 'struct devdesc' in stand.h */
 struct i386_devdesc {
-    struct devdesc	dd;
+    struct devdesc	dd;		/* Must be first. */
     union 
     {
 	struct 

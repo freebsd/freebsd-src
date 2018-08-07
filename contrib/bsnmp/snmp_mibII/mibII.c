@@ -1772,6 +1772,7 @@ mibII_loading(const struct lmodule *mod, int loaded)
 	mib_unregister_newif(mod);
 }
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	"This module implements the interface and ip groups.",
 	mibII_init,

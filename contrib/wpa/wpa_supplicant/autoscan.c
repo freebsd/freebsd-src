@@ -1,6 +1,7 @@
 /*
  * WPA Supplicant - auto scan
  * Copyright (c) 2012, Intel Corporation. All rights reserved.
+ * Copyright 2015	Intel Deutschland GmbH
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -15,13 +16,6 @@
 #include "scan.h"
 #include "autoscan.h"
 
-#ifdef CONFIG_AUTOSCAN_EXPONENTIAL
-extern const struct autoscan_ops autoscan_exponential_ops;
-#endif /* CONFIG_AUTOSCAN_EXPONENTIAL */
-
-#ifdef CONFIG_AUTOSCAN_PERIODIC
-extern const struct autoscan_ops autoscan_periodic_ops;
-#endif /* CONFIG_AUTOSCAN_PERIODIC */
 
 static const struct autoscan_ops * autoscan_modules[] = {
 #ifdef CONFIG_AUTOSCAN_EXPONENTIAL
@@ -50,6 +44,11 @@ int autoscan_init(struct wpa_supplicant *wpa_s, int req_scan)
 	size_t nlen;
 	int i;
 	const struct autoscan_ops *ops = NULL;
+	struct sched_scan_plan *scan_plans;
+
+	/* Give preference to scheduled scan plans if supported/configured */
+	if (wpa_s->sched_scan_plans)
+		return 0;
 
 	if (wpa_s->autoscan && wpa_s->autoscan_priv)
 		return 0;
@@ -79,11 +78,23 @@ int autoscan_init(struct wpa_supplicant *wpa_s, int req_scan)
 		return -1;
 	}
 
+	scan_plans = os_malloc(sizeof(*wpa_s->sched_scan_plans));
+	if (!scan_plans)
+		return -1;
+
 	wpa_s->autoscan_params = NULL;
 
 	wpa_s->autoscan_priv = ops->init(wpa_s, params);
-	if (wpa_s->autoscan_priv == NULL)
+	if (!wpa_s->autoscan_priv) {
+		os_free(scan_plans);
 		return -1;
+	}
+
+	scan_plans[0].interval = 5;
+	scan_plans[0].iterations = 0;
+	os_free(wpa_s->sched_scan_plans);
+	wpa_s->sched_scan_plans = scan_plans;
+	wpa_s->sched_scan_plans_num = 1;
 	wpa_s->autoscan = ops;
 
 	wpa_printf(MSG_DEBUG, "autoscan: Initialized module '%s' with "
@@ -116,7 +127,10 @@ void autoscan_deinit(struct wpa_supplicant *wpa_s)
 		wpa_s->autoscan_priv = NULL;
 
 		wpa_s->scan_interval = 5;
-		wpa_s->sched_scan_interval = 0;
+
+		os_free(wpa_s->sched_scan_plans);
+		wpa_s->sched_scan_plans = NULL;
+		wpa_s->sched_scan_plans_num = 0;
 	}
 }
 
@@ -134,7 +148,7 @@ int autoscan_notify_scan(struct wpa_supplicant *wpa_s,
 			return -1;
 
 		wpa_s->scan_interval = interval;
-		wpa_s->sched_scan_interval = interval;
+		wpa_s->sched_scan_plans[0].interval = interval;
 
 		request_scan(wpa_s);
 	}

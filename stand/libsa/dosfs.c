@@ -403,7 +403,7 @@ dos_stat(struct open_file *fd, struct stat *sb)
 }
 
 static int
-dos_checksum(char *name, char *ext)
+dos_checksum(unsigned char *name, unsigned char *ext)
 {
     int x, i;
     char buf[11];

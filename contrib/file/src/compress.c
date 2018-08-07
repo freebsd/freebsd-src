@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.105 2017/05/25 00:13:03 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.106 2017/11/02 20:25:39 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -184,8 +184,7 @@ static int makeerror(unsigned char **, size_t *, const char *, ...)
 private const char *methodname(size_t);
 
 protected int
-file_zmagic(struct magic_set *ms, int fd, const char *name,
-    const unsigned char *buf, size_t nbytes)
+file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 {
 	unsigned char *newbuf = NULL;
 	size_t i, nsz;
@@ -193,6 +192,9 @@ file_zmagic(struct magic_set *ms, int fd, const char *name,
 	file_pushbuf_t *pb;
 	int urv, prv, rv = 0;
 	int mime = ms->flags & MAGIC_MIME;
+	int fd = b->fd;
+	const unsigned char *buf = b->fbuf;
+	size_t nbytes = b->flen;
 #ifdef HAVE_SIGNAL_H
 	sig_t osigpipe;
 #endif

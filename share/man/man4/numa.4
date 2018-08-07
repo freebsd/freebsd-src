@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2015
+.Dd July 10, 2018
 .Dt NUMA 4
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@
 .Cd options SMP
 .Cd options MAXMEMDOM=16
 .Pp
-.In sys/numa.h
 .In sys/cpuset.h
 .In sys/bus.h
 .Sh DESCRIPTION
@@ -51,20 +50,21 @@ that is connected to one of the other processors.
 .Pp
 .Nm
 is enabled when the
-.Cd MAXMEMDOM
+.Cd NUMA
 option is used in a kernel configuration
-file and is set to a value greater than 1.
+file and the
+.Cd MAXMEMDOM
+option is set to a value greater than 1.
 .Pp
 Thread and process
 .Nm
 policies are controlled with the
-.Xr numa_setaffinity 2
+.Xr cpuset_getdomain 2
 and
-.Xr numa_getaffinity 2
+.Xr cpuset_setdomain 2
 syscalls.
-.Pp
 The
-.Xr numactl 1
+.Xr cpuset 1
 tool is available for starting processes with a non-default
 policy, or to change the policy of an existing thread or process.
 .Pp
@@ -82,15 +82,6 @@ MIB variables:
 .Bl -tag -width indent -compact
 .It Va vm.ndomains
 The number of VM domains which have been detected.
-.Pp
-.It Va vm.default_policy
-The default VM domain allocation policy.
-Defaults to "first-touch-rr".
-The valid values are "first-touch", "first-touch-rr",
-"rr", where "rr" is a short-hand for "round-robin."
-See
-.Xr numa_setaffinity 2
-for more information about the available policies.
 .Pp
 .It Va vm.phys_locality
 A table indicating the relative cost of each VM domain to each other.
@@ -111,36 +102,11 @@ domains are mapped into a contiguous, non-sparse
 VM domain space, starting from 0.
 Thus, VM domain information (for example, the domain identifier) is not
 necessarily the same as is found in the hardware specific information.
-.Pp
-The
-.Nm
-allocation policies are implemented as a policy and iterator in
-.Pa sys/vm/vm_domain.c
-and
-.Pa sys/vm/vm_domain.h .
 Policy information is available in both struct thread and struct proc.
-Processes inherit
-.Nm
-policy from parent processes and threads inherit
-.Nm
-policy from parent threads.
-Note that threads do not explicitly inherit their
-.Nm
-policy from processes.
-Instead, if no thread policy is set, the system
-will fall back to the process policy.
-.Pp
-For now,
-.Nm
-domain policies only influence physical page allocation in
-.Pa sys/vm/vm_phys.c .
-This is useful for userland memory allocation, but not for kernel
-and driver memory allocation.
-These features will be implemented in future work.
 .Sh SEE ALSO
-.Xr numactl 1 ,
-.Xr numa_getaffinity 2 ,
-.Xr numa_setaffinity 2 ,
+.Xr cpuset 1 ,
+.Xr cpuset_getaffinity 2 ,
+.Xr cpuset_setaffinity 2 ,
 .Xr bus_get_domain 9
 .Sh HISTORY
 .Nm
@@ -156,13 +122,15 @@ The
 .Xr numa_getaffinity 2
 and
 .Xr numa_setaffinity 2
-syscalls first appeared in
-.Fx 11.0 .
-.Pp
-The
+syscalls and the
 .Xr numactl 1
 tool first appeared in
-.Fx 11.0 .
+.Fx 11.0
+and were removed in
+.Fx 12.0 .
+Current implementation appeared in
+.Fx 12.0 .
+.Pp
 .Sh AUTHORS
 This manual page written by
 .An Adrian Chadd Aq Mt adrian@FreeBSD.org .

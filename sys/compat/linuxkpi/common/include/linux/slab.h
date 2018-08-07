@@ -85,6 +85,9 @@ struct linux_kmem_cache {
 #define	SLAB_DESTROY_BY_RCU \
 	SLAB_TYPESAFE_BY_RCU
 
+#define	ARCH_KMALLOC_MINALIGN \
+	__alignof(unsigned long long)
+
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
 {
@@ -127,6 +130,12 @@ vmalloc_32(size_t size)
 
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
+kvmalloc_array(size_t n, size_t size, gfp_t flags)
 {
 	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
 }

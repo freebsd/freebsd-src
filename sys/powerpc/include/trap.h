@@ -77,11 +77,18 @@
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
 /* Power ISA 2.06+: */
+#define	EXC_HDSI	0x0e00		/* Hypervisor Data Storage */
+#define	EXC_HISI	0x0e20		/* Hypervisor Instruction Storage */
 #define	EXC_HEA		0x0e40		/* Hypervisor Emulation Assistance */
+#define	EXC_HMI		0x0e60		/* Hypervisor Maintenance */
 #define	EXC_VSX		0x0f40		/* VSX Unavailable */
 
 /* Power ISA 2.07+: */
 #define	EXC_FAC		0x0f60		/* Facility Unavailable */
+#define	EXC_HFAC	0x0f80		/* Hypervisor Facility Unavailable */
+
+/* Power ISA 3.0+: */
+#define	EXC_HVI		0x0ea0		/* Hypervisor Virtualization */
 
 /* The following are available on 4xx and 85xx */
 #define	EXC_CRIT	0x0100		/* Critical Input Interrupt */

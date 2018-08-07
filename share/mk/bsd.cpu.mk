@@ -346,7 +346,7 @@ MACHINE_CPU += armv7
 . endif
 # armv6 and armv7 are a hybrid. It can use the softfp ABI, but doesn't emulate
 # floating point in the general case, so don't define softfp for it at this
-# time. arm and armeb are pure softfp, so define it for them.
+# time. arm is pure softfp, so define it for them.
 . if ${MACHINE_ARCH:Marmv[67]*} == ""
 MACHINE_CPU += softfp
 . endif
@@ -366,12 +366,10 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
-.if ${TARGET_ARCH:Mriscv*sf}
-CFLAGS += -march=rv64imac -mabi=lp64
-ACFLAGS += -march=rv64imac -mabi=lp64
+.if ${MACHINE_ARCH:Mriscv*sf}
+CFLAGS += -march=rv64ima -mabi=lp64
 .else
-CFLAGS += -march=rv64imafdc -mabi=lp64d
-ACFLAGS += -march=rv64imafdc -mabi=lp64d
+CFLAGS += -march=rv64imafd -mabi=lp64d
 .endif
 .endif
 

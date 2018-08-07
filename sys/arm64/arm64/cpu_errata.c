@@ -38,12 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/systm.h>
 
 #include <machine/cpu.h>
 
-#ifdef DEV_PSCI
-#include <dev/psci/psci.h>
-#endif
+#include <dev/psci/smccc.h>
 
 typedef void (cpu_quirk_install)(void);
 struct cpu_quirks {
@@ -52,7 +51,14 @@ struct cpu_quirks {
 	u_int		midr_value;
 };
 
+static enum {
+	SSBD_FORCE_ON,
+	SSBD_FORCE_OFF,
+	SSBD_KERNEL,
+} ssbd_method = SSBD_KERNEL;
+
 static cpu_quirk_install install_psci_bp_hardening;
+static cpu_quirk_install install_ssbd_workaround;
 
 static struct cpu_quirks cpu_quirks[] = {
 	{
@@ -75,15 +81,61 @@ static struct cpu_quirks cpu_quirks[] = {
 		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
 		.quirk_install = install_psci_bp_hardening,
 	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value =
+		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
+	{
+		.midr_mask = 0,
+		.midr_value = 0,
+		.quirk_install = install_ssbd_workaround,
+	},
 };
 
 static void
 install_psci_bp_hardening(void)
 {
 
-#ifdef DEV_PSCI
-	PCPU_SET(bp_harden, psci_get_version);
-#endif
+	if (smccc_arch_features(SMCCC_ARCH_WORKAROUND_1) != SMCCC_RET_SUCCESS)
+		return;
+
+	PCPU_SET(bp_harden, smccc_arch_workaround_1);
+}
+
+static void
+install_ssbd_workaround(void)
+{
+	char *env;
+
+	if (PCPU_GET(cpuid) == 0) {
+		env = kern_getenv("kern.cfg.ssbd");
+		if (env != NULL) {
+			if (strcmp(env, "force-on") == 0) {
+				ssbd_method = SSBD_FORCE_ON;
+			} else if (strcmp(env, "force-off") == 0) {
+				ssbd_method = SSBD_FORCE_OFF;
+			}
+		}
+	}
+
+	/* Enable the workaround on this CPU if it's enabled in the firmware */
+	if (smccc_arch_features(SMCCC_ARCH_WORKAROUND_2) != SMCCC_RET_SUCCESS)
+		return;
+
+	switch(ssbd_method) {
+	case SSBD_FORCE_ON:
+		smccc_arch_workaround_2(1);
+		break;
+	case SSBD_FORCE_OFF:
+		smccc_arch_workaround_2(0);
+		break;
+	case SSBD_KERNEL:
+	default:
+		PCPU_SET(ssbd, smccc_arch_workaround_2);
+		break;
+	}
 }
 
 void

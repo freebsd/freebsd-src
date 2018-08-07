@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/jail.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -82,14 +84,27 @@ struct vmmdev_softc {
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
+static unsigned pr_allow_flag;
 static struct mtx vmmdev_mtx;
 
 static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 
 SYSCTL_DECL(_hw_vmm);
 
+static int vmm_priv_check(struct ucred *ucred);
 static int devmem_create_cdev(const char *vmname, int id, char *devmem);
 static void devmem_destroy(void *arg);
+
+static int
+vmm_priv_check(struct ucred *ucred)
+{
+
+	if (jailed(ucred) &&
+	    !(ucred->cr_prison->pr_allow & pr_allow_flag))
+		return (EPERM);
+
+	return (0);
+}
 
 static int
 vcpu_lock_one(struct vmmdev_softc *sc, int vcpu)
@@ -173,9 +188,13 @@ static int
 vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 {
 	int error, off, c, prot;
-	vm_paddr_t gpa;
+	vm_paddr_t gpa, maxaddr;
 	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
+
+	error = vmm_priv_check(curthread->td_ucred);
+	if (error)
+		return (error);
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -189,6 +208,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		return (error);
 
 	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
+	maxaddr = vmm_sysmem_maxaddr(sc->vm);
 	while (uio->uio_resid > 0 && error == 0) {
 		gpa = uio->uio_offset;
 		off = gpa & PAGE_MASK;
@@ -204,7 +224,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 */
 		hpa = vm_gpa_hold(sc->vm, VM_MAXCPU - 1, gpa, c, prot, &cookie);
 		if (hpa == NULL) {
-			if (uio->uio_rw == UIO_READ)
+			if (uio->uio_rw == UIO_READ && gpa < maxaddr)
 				error = uiomove(__DECONST(void *, zero_region),
 				    c, uio);
 			else
@@ -350,11 +370,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	uint64_t *regvals;
 	int *regnums;
 
+	error = vmm_priv_check(curthread->td_ucred);
+	if (error)
+		return (error);
+
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
 
-	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -776,6 +799,10 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 	int error, found, segid;
 	bool sysmem;
 
+	error = vmm_priv_check(curthread->td_ucred);
+	if (error)
+		return (error);
+
 	first = *offset;
 	last = first + mapsize;
 	if ((nprot & PROT_EXEC) || first < 0 || first >= last)
@@ -864,6 +891,10 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	struct vmmdev_softc *sc;
 	struct cdev *cdev;
 
+	error = vmm_priv_check(req->td->td_ucred);
+	if (error)
+		return (error);
+
 	strlcpy(buf, "beavis", sizeof(buf));
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
@@ -905,7 +936,8 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	destroy_dev_sched_cb(cdev, vmmdev_destroy, sc);
 	return (0);
 }
-SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy, CTLTYPE_STRING | CTLFLAG_RW,
+SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
 	    NULL, 0, sysctl_vmm_destroy, "A", NULL);
 
 static struct cdevsw vmmdevsw = {
@@ -925,6 +957,10 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	struct cdev *cdev;
 	struct vmmdev_softc *sc, *sc2;
 	char buf[VM_MAX_NAMELEN];
+
+	error = vmm_priv_check(req->td->td_ucred);
+	if (error)
+		return (error);
 
 	strlcpy(buf, "beavis", sizeof(buf));
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
@@ -976,13 +1012,16 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_vmm, OID_AUTO, create, CTLTYPE_STRING | CTLFLAG_RW,
+SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
 	    NULL, 0, sysctl_vmm_create, "A", NULL);
 
 void
 vmmdev_init(void)
 {
 	mtx_init(&vmmdev_mtx, "vmm device mutex", NULL, MTX_DEF);
+	pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
+	    "Allow use of vmm in a jail.");
 }
 
 int

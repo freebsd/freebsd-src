@@ -202,6 +202,9 @@ ldns_wire2rdf(ldns_rr *rr, const uint8_t *wire, size_t max, size_t *pos)
 			break;
 		case LDNS_RDF_TYPE_CLASS:
 		case LDNS_RDF_TYPE_ALG:
+		case LDNS_RDF_TYPE_CERTIFICATE_USAGE:
+		case LDNS_RDF_TYPE_SELECTOR:
+		case LDNS_RDF_TYPE_MATCHING_TYPE:
 		case LDNS_RDF_TYPE_INT8:
 			cur_rdf_length = LDNS_RDF_SIZE_BYTE;
 			break;
@@ -389,7 +392,7 @@ ldns_wire2pkt_hdr(ldns_pkt *packet, const uint8_t *wire, size_t max, size_t *pos
 }
 
 ldns_status
-ldns_buffer2pkt_wire(ldns_pkt **packet, ldns_buffer *buffer)
+ldns_buffer2pkt_wire(ldns_pkt **packet, const ldns_buffer *buffer)
 {
 	/* lazy */
 	return ldns_wire2pkt(packet, ldns_buffer_begin(buffer),
@@ -405,7 +408,7 @@ ldns_wire2pkt(ldns_pkt **packet_p, const uint8_t *wire, size_t max)
 	ldns_rr *rr;
 	ldns_pkt *packet = ldns_pkt_new();
 	ldns_status status = LDNS_STATUS_OK;
-	int have_edns = 0;
+	uint8_t have_edns = 0;
 
 	uint8_t data[4];
 
@@ -477,6 +480,7 @@ ldns_wire2pkt(ldns_pkt **packet_p, const uint8_t *wire, size_t max)
 	if(have_edns)
 		ldns_pkt_set_arcount(packet, ldns_pkt_arcount(packet)
                         - have_edns);
+        packet->_edns_present = have_edns;
 
 	*packet_p = packet;
 	return status;

@@ -210,7 +210,7 @@ static int	ptnet_irqs_init(struct ptnet_softc *sc);
 static void	ptnet_irqs_fini(struct ptnet_softc *sc);
 
 static uint32_t ptnet_nm_ptctl(if_t ifp, uint32_t cmd);
-static int	ptnet_nm_config(struct netmap_adapter *na,
+static int      ptnet_nm_config(struct netmap_adapter *na,
 				struct nm_config_info *info);
 static void	ptnet_update_vnet_hdr(struct ptnet_softc *sc);
 static int	ptnet_nm_register(struct netmap_adapter *na, int onoff);
@@ -757,7 +757,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	struct ptnet_softc *sc = if_getsoftc(ifp);
 	device_t dev = sc->dev;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int mask, err = 0;
+	int mask __unused, err = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:

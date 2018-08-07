@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2018
+.Dd Jul 11, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl G Ar port
 .Op Fl U Ar uuid
 .Ar vmname
 .Sh DESCRIPTION
@@ -125,6 +126,19 @@ kernels compiled with
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
+.It Fl G Ar port
+Start a debug server that uses the GDB protocol to export guest state to a
+debugger.
+An IPv4 TCP socket will be bound to the supplied
+.Ar port
+to listen for debugger connections.
+Only a single debugger may be attached to the debug server at a time.
+If
+.Ar port
+begins with
+.Sq w ,
+.Nm
+will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl h
 Print help message and exit.
 .It Fl H
@@ -202,6 +216,8 @@ PCI pass-through device.
 Virtio network interface.
 .It Li virtio-blk
 Virtio block storage interface.
+.It Li virtio-scsi
+Virtio SCSI interface.
 .It Li virtio-rnd
 Virtio RNG interface.
 .It Li virtio-console
@@ -225,6 +241,8 @@ The LPC bridge emulation can only be configured on bus 0.
 Raw framebuffer device attached to VNC server.
 .It Li xhci
 eXtensible Host Controller Interface (xHCI) USB controller.
+.It Li nvme
+NVM Express (NVMe) controller.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -271,6 +289,11 @@ Force the file to be opened read-only.
 Specify the logical and physical sector sizes of the emulated disk.
 The physical sector size is optional and is equal to the logical sector size
 if not explicitly specified.
+.El
+.Pp
+SCSI devices:
+.Bl -tag -width 10n
+.It Pa /dev/cam/ Ns Oo , Ns Ar port and initiator_id Oc
 .El
 .Pp
 TTY devices:
@@ -412,6 +435,27 @@ xHCI USB devices:
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
 .El
+.Pp
+NVMe devices:
+.Bl -tag -width 10n
+.It Li devpath
+Accepted device paths are:
+.Ar /dev/blockdev
+or
+.Ar /path/to/image
+or
+.Ar ram=size_in_MiB .
+.It Li maxq
+Max number of queues.
+.It Li qsz
+Max elements in each queue.
+.It Li ioslots
+Max number of concurrent I/O requests.
+.It Li sectsz
+Sector size (defaults to blockif sector size).
+.It Li ser
+Serial number with maximum 20 characters.
+.El
 .El
 .It Fl S
 Wire guest memory.
@@ -438,6 +482,24 @@ Alphanumeric name of the guest.
 This should be the same as that created by
 .Xr bhyveload 8 .
 .El
+.Sh DEBUG SERVER
+The current debug server provides limited support for debuggers.
+.Ss Registers
+Each virtual CPU is exposed to the debugger as a thread.
+.Pp
+General purpose registers can be queried for each virtual CPU, but other
+registers such as floating-point and system registers cannot be queried.
+.Ss Memory
+Memory (including memory mapped I/O regions) can be read by the debugger,
+but not written.  Memory operations use virtual addresses that are resolved
+to physical addresses via the current virtual CPU's active address translation.
+.Ss Control
+The running guest can be interrupted by the debugger at any time
+.Pq for example, by pressing Ctrl-C in the debugger .
+.Pp
+Single stepping is only supported on Intel CPUs supporting the MTRAP VM exit.
+.Pp
+Breakpoints are not supported.
 .Sh SIGNAL HANDLING
 .Nm
 deals with the following signals:
@@ -458,6 +520,8 @@ powered off
 halted
 .It 3
 triple fault
+.It 4
+exited due to an error
 .El
 .Sh EXAMPLES
 If not using a boot ROM, the guest operating system must have been loaded with

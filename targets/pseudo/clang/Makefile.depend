@@ -28,7 +28,7 @@ DIRDEPS+= \
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
-    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb")
+    ${MACHINE_CPUARCH} == "arm"
 DIRDEPS+= \
 	lib/libclang_rt/profile \
 

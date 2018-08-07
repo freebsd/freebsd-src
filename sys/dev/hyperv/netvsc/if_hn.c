@@ -931,7 +931,7 @@ hn_rxfilter_config(struct hn_softc *sc)
 			filter |= NDIS_PACKET_TYPE_BROADCAST;
 		/* TODO: support multicast list */
 		if ((ifp->if_flags & IFF_ALLMULTI) ||
-		    !TAILQ_EMPTY(&ifp->if_multiaddrs))
+		    !CK_STAILQ_EMPTY(&ifp->if_multiaddrs))
 			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 	}
 	return (hn_set_rxfilter(sc, filter));
@@ -1161,6 +1161,13 @@ hn_ismyvf(const struct hn_softc *sc, const struct ifnet *ifp)
 	    strcmp(ifp->if_dname, "vlan") == 0)
 		return (false);
 
+	/*
+	 * During detach events ifp->if_addr might be NULL.
+	 * Make sure the bcmp() below doesn't panic on that:
+	 */
+	if (ifp->if_addr == NULL || hn_ifp->if_addr == NULL)
+		return (false);
+
 	if (bcmp(IF_LLADDR(ifp), IF_LLADDR(hn_ifp), ETHER_ADDR_LEN) != 0)
 		return (false);
 
@@ -1323,7 +1330,7 @@ hn_xpnt_vf_saveifflags(struct hn_softc *sc)
 	HN_LOCK_ASSERT(sc);
 
 	/* XXX vlan(4) style mcast addr maintenance */
-	if (!TAILQ_EMPTY(&ifp->if_multiaddrs))
+	if (!CK_STAILQ_EMPTY(&ifp->if_multiaddrs))
 		allmulti = IFF_ALLMULTI;
 
 	/* Always set the VF's if_flags */
@@ -5939,8 +5946,7 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 			int obytes, omcast;
 
 			obytes = m->m_pkthdr.len;
-			if (m->m_flags & M_MCAST)
-				omcast = 1;
+			omcast = (m->m_flags & M_MCAST) != 0;
 
 			if (sc->hn_xvf_flags & HN_XVFFLAG_ACCBPF) {
 				if (bpf_peers_present(ifp->if_bpf)) {

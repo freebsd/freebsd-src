@@ -448,6 +448,9 @@ ktrsyscall(int code, int narg, register_t args[])
 	size_t buflen;
 	char *buf = NULL;
 
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
+
 	buflen = sizeof(register_t) * narg;
 	if (buflen > 0) {
 		buf = malloc(buflen, M_KTRACE, M_WAITOK);
@@ -474,6 +477,9 @@ ktrsysret(int code, int error, register_t retval)
 {
 	struct ktr_request *req;
 	struct ktr_sysret *ktp;
+
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
 
 	req = ktr_getrequest(KTR_SYSRET);
 	if (req == NULL)
@@ -729,6 +735,9 @@ ktrcsw(int out, int user, const char *wmesg)
 	struct ktr_request *req;
 	struct ktr_csw *kc;
 
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
+
 	req = ktr_getrequest(KTR_CSW);
 	if (req == NULL)
 		return;
@@ -749,6 +758,9 @@ ktrstruct(const char *name, const void *data, size_t datalen)
 	struct ktr_request *req;
 	char *buf;
 	size_t buflen, namelen;
+
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
 
 	if (data == NULL)
 		datalen = 0;
@@ -775,6 +787,9 @@ ktrstructarray(const char *name, enum uio_seg seg, const void *data,
 	char *buf;
 	size_t buflen, datalen, namelen;
 	int max_items;
+
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
 
 	/* Trim array length to genio size. */
 	max_items = ktr_geniosize / struct_size;
@@ -820,6 +835,9 @@ ktrcapfail(enum ktr_cap_fail_type type, const cap_rights_t *needed,
 	struct ktr_request *req;
 	struct ktr_cap_fail *kcf;
 
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
+
 	req = ktr_getrequest(KTR_CAPFAIL);
 	if (req == NULL)
 		return;
@@ -844,6 +862,9 @@ ktrfault(vm_offset_t vaddr, int type)
 	struct ktr_request *req;
 	struct ktr_fault *kf;
 
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
+
 	req = ktr_getrequest(KTR_FAULT);
 	if (req == NULL)
 		return;
@@ -860,6 +881,9 @@ ktrfaultend(int result)
 	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_faultend *kf;
+
+	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+		return;
 
 	req = ktr_getrequest(KTR_FAULTEND);
 	if (req == NULL)

@@ -34,6 +34,8 @@
  * order to yield to another virtual CPU.
  */
 #define CPU_SPINWAIT __asm__ volatile("pause")
+/* 1 if CPU_SPINWAIT is defined, 0 otherwise. */
+#define HAVE_CPU_SPINWAIT 1
 
 /*
  * Number of significant bits in virtual addresses.  This may be less than the
@@ -239,6 +241,12 @@
 #define JEMALLOC_CACHE_OBLIVIOUS 
 
 /*
+ * If defined, enable logging facilities.  We make this a configure option to
+ * avoid taking extra branches everywhere.
+ */
+/* #undef JEMALLOC_LOG */
+
+/*
  * Darwin (OS X) uses zones to work around Mach-O symbol override shortcomings.
  */
 /* #undef JEMALLOC_ZONE */
@@ -256,6 +264,12 @@
 #define JEMALLOC_HAVE_MADVISE 
 
 /*
+ * Defined if transparent huge pages are supported via the MADV_[NO]HUGEPAGE
+ * arguments to madvise(2).
+ */
+/* #undef JEMALLOC_HAVE_MADVISE_HUGE */
+
+/*
  * Methods for purging unused pages differ between operating systems.
  *
  *   madvise(..., MADV_FREE) : This marks pages as being unused, such that they
@@ -271,6 +285,14 @@
 #define JEMALLOC_PURGE_MADVISE_FREE 
 #define JEMALLOC_PURGE_MADVISE_DONTNEED 
 /* #undef JEMALLOC_PURGE_MADVISE_DONTNEED_ZEROS */
+
+/* Defined if madvise(2) is available but MADV_FREE is not (x86 Linux only). */
+/* #undef JEMALLOC_DEFINE_MADVISE_FREE */
+
+/*
+ * Defined if MADV_DO[NT]DUMP is supported as an argument to madvise.
+ */
+/* #undef JEMALLOC_MADVISE_DONTDUMP */
 
 /*
  * Defined if transparent huge pages (THPs) are supported via the
@@ -336,5 +358,10 @@
 
 /* If defined, jemalloc takes the malloc/free/etc. symbol names. */
 #define JEMALLOC_IS_MALLOC 1
+
+/*
+ * Defined if strerror_r returns char * if _GNU_SOURCE is defined.
+ */
+/* #undef JEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE */
 
 #endif /* JEMALLOC_INTERNAL_DEFS_H_ */

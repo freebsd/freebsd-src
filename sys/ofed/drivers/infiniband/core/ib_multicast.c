@@ -30,9 +30,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	LINUXKPI_PARAM_PREFIX ibcore_
 
@@ -727,21 +728,19 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 {
 	int ret;
 	u16 gid_index;
-	u8 p;
 
-	if (rdma_protocol_roce(device, port_num)) {
-		ret = ib_find_cached_gid_by_port(device, &rec->port_gid,
-						 gid_type, port_num,
-						 ndev,
-						 &gid_index);
-	} else if (rdma_protocol_ib(device, port_num)) {
-		ret = ib_find_cached_gid(device, &rec->port_gid,
-					 IB_GID_TYPE_IB, NULL, &p,
+	/* GID table is not based on the netdevice for IB link layer,
+	 * so ignore ndev during search.
+	 */
+	if (rdma_protocol_ib(device, port_num))
+		ndev = NULL;
+	else if (!rdma_protocol_roce(device, port_num))
+		return -EINVAL;
+
+	ret = ib_find_cached_gid_by_port(device, &rec->port_gid,
+					 gid_type, port_num,
+					 ndev,
 					 &gid_index);
-	} else {
-		ret = -EINVAL;
-	}
-
 	if (ret)
 		return ret;
 

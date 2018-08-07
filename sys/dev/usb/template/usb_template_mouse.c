@@ -76,8 +76,10 @@ enum {
 	MOUSE_MAX_INDEX,
 };
 
+#define	MOUSE_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MOUSE_DEFAULT_PRODUCT_ID	0x27da
 #define	MOUSE_DEFAULT_INTERFACE		"Mouse interface"
-#define	MOUSE_DEFAULT_MANUFACTURER	"FreeBSD foundation"
+#define	MOUSE_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
 #define	MOUSE_DEFAULT_PRODUCT		"Mouse Test Interface"
 #define	MOUSE_DEFAULT_SERIAL_NUMBER	"March 2008"
 
@@ -153,8 +155,8 @@ static const struct usb_temp_interface_desc *mouse_interfaces[] = {
 
 static const struct usb_temp_config_desc mouse_config_desc = {
 	.ppIfaceDesc = mouse_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
+	.bmAttributes = 0,
+	.bMaxPower = 0,
 	.iConfiguration = MOUSE_INTERFACE_INDEX,
 };
 
@@ -170,8 +172,8 @@ struct usb_temp_device_desc usb_template_mouse = {
 	.getStringDesc = &mouse_get_string_desc,
 	.getVendorDesc = &mouse_get_vendor_desc,
 	.ppConfigDesc = mouse_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x00AE,
+	.idVendor = MOUSE_DEFAULT_VENDOR_ID,
+	.idProduct = MOUSE_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,

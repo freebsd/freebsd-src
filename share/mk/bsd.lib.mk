@@ -21,9 +21,11 @@ LIB_PRIVATE=	${PRIVATELIB:Dprivate}
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
 # INSTALL_PIC_ARCHIVE will be defined only if we are to create a PIC archive.
+# BUILD_NOSSP_PIC_ARCHIVE will be defined only if we are to create a PIC archive.
 .if defined(NO_PIC)
 .undef SHLIB_NAME
 .undef INSTALL_PIC_ARCHIVE
+.undef BUILD_NOSSP_PIC_ARCHIVE
 .else
 .if !defined(SHLIB) && defined(LIB)
 SHLIB=		${LIB}
@@ -78,7 +80,8 @@ CTFFLAGS+= -g
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES: .out .o .bc .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+# .nossppico used for NOSSP PIC object files
+.SUFFIXES: .out .o .bc .ll .po .pico .nossppico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -98,11 +101,18 @@ PO_FLAG=-pg
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.c.nossppico:
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS:C/^-fstack-protector.*$//} ${CFLAGS:C/^-fstack-protector.*$//} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.pico .C.pico .cpp.pico .cxx.pico:
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
+.cc.nossppico .C.nossppico .cpp.nossppico .cxx.nossppico:
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS:C/^-fstack-protector.*$//} ${CXXFLAGS:C/^-fstack-protector.*$//} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
@@ -112,7 +122,11 @@ PO_FLAG=-pg
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.pico:
+.f.nossppico:
+	${FC} ${PICFLAG} -DPIC ${FFLAGS:C/^-fstack-protector.*$//} -o ${.TARGET} -c ${.IMPSRC}
+	${CTFCONVERT_CMD}
+
+.s.po .s.pico .s.nossppico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
@@ -126,6 +140,11 @@ PO_FLAG=-pg
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.asm.nossppico:
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS:C/^-fstack-protector.*$//} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .S.po:
 	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
@@ -133,6 +152,11 @@ PO_FLAG=-pg
 
 .S.pico:
 	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
+.S.nossppico:
+	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS:C/^-fstack-protector.*$//} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
@@ -251,7 +275,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld) && ${MK_DEBUG_FILES} == "no"
-	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
@@ -267,7 +291,7 @@ ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
-	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 
 ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
@@ -282,6 +306,19 @@ lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
+.endif
+
+.if defined(BUILD_NOSSP_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+NOSSPSOBJS+=	${OBJS:.o=.nossppico}
+DEPENDOBJS+=	${NOSSPSOBJS}
+CLEANFILES+=	${NOSSPSOBJS}
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_nossp_pic.a
+
+lib${LIB_PRIVATE}${LIB}_nossp_pic.a: ${NOSSPSOBJS}
+	@${ECHO} building special nossp pic ${LIB} library
+	@rm -f ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} ${NOSSPSOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -361,7 +398,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
-	${INSTALL_SYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
 .endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
@@ -395,11 +432,16 @@ _libinstall:
 
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
+.include <bsd.confs.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
-.include <bsd.confs.mk>
 .endif
 
+LINKOWN?=	${LIBOWN}
+LINKGRP?=	${LIBGRP}
+LINKMODE?=	${LIBMODE}
+SYMLINKOWN?=	${LIBOWN}
+SYMLINKGRP?=	${LIBGRP}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
@@ -423,6 +465,11 @@ OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.po+=	${_S}
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
 OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.pico+=	${_S}
+.endfor
+.endif
+.if defined(BUILD_NOSSP_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.for _S in ${SRCS:N*.[hly]}
+OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.nossppico+=	${_S}
 .endfor
 .endif
 

@@ -1807,13 +1807,19 @@ sccnscrlock(sc_softc_t *sc, struct sc_cnstate *sp)
      * enough to ignore the protection even in the kdb_active case.
      */
     if (kdb_active) {
-	sp->kdb_locked = sc->video_mtx.mtx_lock == MTX_UNOWNED || panicstr;
+	sp->kdb_locked = sc->video_mtx.mtx_lock == MTX_UNOWNED ||
+			 SCHEDULER_STOPPED();
 	sp->mtx_locked = FALSE;
     } else {
 	sp->kdb_locked = FALSE;
 	for (retries = 0; retries < 1000; retries++) {
 	    sp->mtx_locked = mtx_trylock_spin_flags(&sc->video_mtx,
-		MTX_QUIET) != 0 || panicstr;
+						    MTX_QUIET) != 0;
+	    if (SCHEDULER_STOPPED()) {
+		sp->kdb_locked = TRUE;
+		sp->mtx_locked = FALSE;
+		break;
+	    }
 	    if (sp->mtx_locked)
 		break;
 	    DELAY(1);
@@ -2017,18 +2023,27 @@ sc_cnputc(struct consdev *cd, int c)
 	    sizeof(sc_cnputc_log))
 	    continue;
 	/* Console output has a per-CPU "input" state.  Switch for it. */
-	oldtsw = scp->tsw;
-	oldts = scp->ts;
-	ts = sc_kts[PCPU_GET(cpuid)];
+	ts = sc_kts[curcpu];
 	if (ts != NULL) {
+	    oldtsw = scp->tsw;
+	    oldts = scp->ts;
 	    scp->tsw = sc_ktsw;
 	    scp->ts = ts;
 	    (*scp->tsw->te_sync)(scp);
+	} else {
+	    /* Only 1 tsw early.  Switch only its attr. */
+	    (*scp->tsw->te_default_attr)(scp, sc_kattrtab[curcpu],
+					 SC_KERNEL_CONS_REV_ATTR);
 	}
 	sc_puts(scp, buf, 1);
-	scp->tsw = oldtsw;
-	scp->ts = oldts;
-	(*scp->tsw->te_sync)(scp);
+	if (ts != NULL) {
+	    scp->tsw = oldtsw;
+	    scp->ts = oldts;
+	    (*scp->tsw->te_sync)(scp);
+	} else {
+	    (*scp->tsw->te_default_attr)(scp, SC_KERNEL_CONS_ATTR,
+					 SC_KERNEL_CONS_REV_ATTR);
+	}
     }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
@@ -3138,6 +3153,17 @@ scinit(int unit, int flags)
     static u_char font_16[256*16];
 #endif
 
+#ifdef SC_KERNEL_CONS_ATTRS
+    static const u_char dflt_kattrtab[] = SC_KERNEL_CONS_ATTRS;
+#elif SC_KERNEL_CONS_ATTR == FG_WHITE
+    static const u_char dflt_kattrtab[] = {
+	FG_WHITE, FG_YELLOW, FG_LIGHTMAGENTA, FG_LIGHTRED,
+	FG_LIGHTCYAN, FG_LIGHTGREEN, FG_LIGHTBLUE, FG_GREEN,
+	0,
+    };
+#else
+    static const u_char dflt_kattrtab[] = { FG_WHITE, 0, };
+#endif
     sc_softc_t *sc;
     scr_stat *scp;
     video_adapter_t *adp;
@@ -3148,13 +3174,8 @@ scinit(int unit, int flags)
     /* one time initialization */
     if (init_done == COLD) {
 	sc_get_bios_values(&bios_value);
-	for (i = 0; i < nitems(sc_kattrtab); i++) {
-#if SC_KERNEL_CONS_ATTR == FG_WHITE
-	    sc_kattrtab[i] = 8 + (i + FG_WHITE) % 8U;
-#else
-	    sc_kattrtab[i] = SC_KERNEL_CONS_ATTR;
-#endif
-	}
+	for (i = 0; i < nitems(sc_kattrtab); i++)
+	    sc_kattrtab[i] = dflt_kattrtab[i % (nitems(dflt_kattrtab) - 1)];
     }
     init_done = WARM;
 
@@ -4171,7 +4192,7 @@ sc_kattr(void)
 {
     if (sc_console == NULL)
 	return (SC_KERNEL_CONS_ATTR);	/* for very early, before pcpu */
-    return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
+    return (sc_kattrtab[curcpu % nitems(sc_kattrtab)]);
 }
 
 static void

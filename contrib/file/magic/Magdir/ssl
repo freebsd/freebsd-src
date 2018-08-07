@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ssl,v 1.4 2017/01/22 21:14:25 christos Exp $
+# $File: ssl,v 1.5 2017/12/29 04:00:07 christos Exp $
 # ssl:  file(1) magic for SSL file formats
 
 # Type: OpenSSL certificates/key files
@@ -17,4 +17,4 @@
 # OpenSSL enc file (recognized by a magic string preceding the password's salt)
 0	string	Salted__	openssl enc'd data with salted password
 # Using the -a or -base64 option, OpenSSL will base64-encode the data.
-0	string U2FsdGVkX19	openssl enc'd data with salted password, base64 encoded
+0	string U2FsdGVkX1	openssl enc'd data with salted password, base64 encoded

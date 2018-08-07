@@ -1352,7 +1352,7 @@ tc_windup(struct bintime *new_boottimebin)
 	ogen = th->th_generation;
 	th->th_generation = 0;
 	atomic_thread_fence_rel();
-	bcopy(tho, th, offsetof(struct timehands, th_generation));
+	memcpy(th, tho, offsetof(struct timehands, th_generation));
 	if (new_boottimebin != NULL)
 		th->th_boottime = *new_boottimebin;
 
@@ -1847,7 +1847,7 @@ pps_event(struct pps_state *pps, int event)
 	*tsp = ts;
 
 	if (foff) {
-		timespecadd(tsp, osp);
+		timespecadd(tsp, osp, tsp);
 		if (tsp->tv_nsec < 0) {
 			tsp->tv_nsec += 1000000000;
 			tsp->tv_sec -= 1;
@@ -2001,8 +2001,8 @@ SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
 static int cpu_tick_variable;
 static uint64_t	cpu_tick_frequency;
 
-static DPCPU_DEFINE(uint64_t, tc_cpu_ticks_base);
-static DPCPU_DEFINE(unsigned, tc_cpu_ticks_last);
+DPCPU_DEFINE_STATIC(uint64_t, tc_cpu_ticks_base);
+DPCPU_DEFINE_STATIC(unsigned, tc_cpu_ticks_last);
 
 static uint64_t
 tc_cpu_ticks(void)

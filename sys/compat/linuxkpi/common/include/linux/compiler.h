@@ -52,6 +52,7 @@
 #define __devinitdata
 #define	__deprecated
 #define __init
+#define	__initconst
 #define	__devinit
 #define	__devexit
 #define __exit

@@ -51,6 +51,22 @@ local function menuEntryName(drawing_menu, entry)
 	return entry.name
 end
 
+local function getBranddef(brand)
+	if brand == nil then
+		return nil
+	end
+	-- Look it up
+	local branddef = drawer.branddefs[brand]
+
+	-- Try to pull it in
+	if branddef == nil then
+		try_include('brand-' .. brand)
+		branddef = drawer.branddefs[brand]
+	end
+
+	return branddef
+end
+
 local function getLogodef(logo)
 	if logo == nil then
 		return nil
@@ -79,6 +95,8 @@ fbsd_brand = {
 none = {""}
 
 -- Module exports
+drawer.default_brand = 'fbsd'
+
 drawer.menu_name_handlers = {
 	-- Menu name handlers should take the menu being drawn and entry being
 	-- drawn as parameters, and return the name of the item.
@@ -315,8 +333,13 @@ function drawer.drawbrand()
 	local y = tonumber(loader.getenv("loader_brand_y")) or
 	    drawer.brand_position.y
 
-	local graphic = drawer.branddefs[loader.getenv("loader_brand")] or
-	    fbsd_brand
+	local branddef = getBranddef(loader.getenv("loader_brand"))
+
+	if branddef == nil then
+		branddef = getBranddef(drawer.default_brand)
+	end
+
+	local graphic = branddef.graphic
 
 	x = x + drawer.shift.x
 	y = y + drawer.shift.y

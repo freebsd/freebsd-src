@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_ehdr.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelf_ehdr.c 3575 2017-09-14 02:13:36Z emaste $");
 
 /*
  * Retrieve counts for sections, phdrs and the section string table index

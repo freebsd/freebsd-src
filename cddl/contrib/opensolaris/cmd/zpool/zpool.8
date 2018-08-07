@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 08, 2017
+.Dd April 27, 2018
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -120,6 +120,11 @@
 .Op Fl F Op Fl n
 .Ar pool | id
 .Op Ar newpool
+.Nm
+.Cm initialize
+.Op Fl cs
+.Ar pool
+.Op Ar device Ns ...
 .Nm
 .Cm iostat
 .Op Fl T Cm d Ns | Ns Cm u
@@ -1437,6 +1442,32 @@ to fully rewind.
 .El
 .It Xo
 .Nm
+.Cm initialize
+.Op Fl cs
+.Ar pool
+.Op Ar device Ns ...
+.Xc
+Begins initializing by writing to all unallocated regions on the specified
+devices, or all eligible devices in the pool if no individual devices are
+specified.
+Only leaf data or log devices may be initialized.
+.Bl -tag -width Ds
+.It Fl c, -cancel
+Cancel initializing on the specified devices, or all eligible devices if none
+are specified.
+If one or more target devices are invalid or are not currently being
+initialized, the command will fail and no cancellation will occur on any device.
+.It Fl s -suspend
+Suspend initializing on the specified devices, or all eligible devices if none
+are specified.
+If one or more target devices are invalid or are not currently being
+initialized, the command will fail and no suspension will occur on any device.
+Initializing can then be resumed by running
+.Nm zpool Cm initialize
+with no flags on the relevant target devices.
+.El
+.It Xo
+.Nm
 .Cm iostat
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Fl v
@@ -1548,9 +1579,11 @@ section for a list of valid properties. The default list is
 .Sy size ,
 .Sy used ,
 .Sy available ,
-.Sy fragmentation ,
+.Sy checkpoint ,
 .Sy expandsize ,
+.Sy fragmentation ,
 .Sy capacity  ,
+.Sy dedupratio ,
 .Sy health ,
 .Sy altroot .
 .It Fl T Cm d Ns | Ns Cm u

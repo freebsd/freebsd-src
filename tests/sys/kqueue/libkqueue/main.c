@@ -52,6 +52,25 @@ test_no_kevents(void)
     }
 }
 
+/* Checks if any events are pending, which is an error. Do not print
+ * out anything unless events are found.
+*/
+void 
+test_no_kevents_quietly(void)
+{
+    int nfds;
+    struct timespec timeo;
+    struct kevent kev;
+
+    memset(&timeo, 0, sizeof(timeo));
+    nfds = kevent(kqfd, NULL, 0, &kev, 1, &timeo);
+    if (nfds != 0) {
+        puts("\nUnexpected event:");
+        puts(kevent_to_str(&kev));
+        errx(1, "%d event(s) pending, but none expected:", nfds);
+    }
+}
+
 /* Retrieve a single kevent */
 struct kevent *
 kevent_get(int kqfd)

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd June 13, 2018
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -375,6 +375,15 @@ if the zone ran out of unused items
 and
 .Dv M_NOWAIT
 was specified.
+.Sh IMPLEMENTATION NOTES
+The memory that these allocation calls return is not executable.
+The
+.Fn uma_zalloc
+function does not support the
+.Dv M_EXEC
+flag to allocate executable memory.
+Not all platforms enforce a distinction between executable and
+non-executable memory.
 .Sh SEE ALSO
 .Xr malloc 9
 .Sh HISTORY

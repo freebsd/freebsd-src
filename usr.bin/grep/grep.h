@@ -38,19 +38,6 @@
 #include <stdio.h>
 #include <zlib.h>
 
-#ifndef WITHOUT_FASTMATCH
-#include "fastmatch.h"
-#endif
-
-#ifdef WITHOUT_NLS
-#define	getstr(n)	 errstr[n]
-#else
-#include <nl_types.h>
-
-extern nl_catd		 catalog;
-#define	getstr(n)	 catgets(catalog, 1, n, errstr[n])
-#endif
-
 extern const char		*errstr[];
 
 #define	VERSION		"2.6.0-FreeBSD"
@@ -69,10 +56,6 @@ extern const char		*errstr[];
 
 #define	FILE_STDIO	0
 #define	FILE_MMAP	1
-#define	FILE_GZIP	2
-#define	FILE_BZIP	3
-#define	FILE_XZ		4
-#define	FILE_LZMA	5
 
 #define	DIR_READ	0
 #define	DIR_SKIP	1
@@ -114,6 +97,21 @@ struct epat {
 	int		 mode;
 };
 
+/*
+ * Parsing context; used to hold things like matches made and
+ * other useful bits
+ */
+struct parsec {
+	regmatch_t	matches[MAX_MATCHES];		/* Matches made */
+	/* XXX TODO: This should be a chunk, not a line */
+	struct str	ln;				/* Current line */
+	size_t		lnstart;			/* Position in line */
+	size_t		matchidx;			/* Latest match index */
+	int		printed;			/* Metadata printed? */
+	bool		binary;				/* Binary file? */
+	bool		cntlines;			/* Count lines? */
+};
+
 /* Flags passed to regcomp() and regexec() */
 extern int	 cflags, eflags;
 
@@ -135,9 +133,6 @@ extern unsigned int dpatterns, fpatterns, patterns;
 extern struct pat *pattern;
 extern struct epat *dpattern, *fpattern;
 extern regex_t	*er_pattern, *r_pattern;
-#ifndef WITHOUT_FASTMATCH
-extern fastmatch_t *fg_pattern;
-#endif
 
 /* For regex errors  */
 #define	RE_ERROR_BUF	512
@@ -145,8 +140,8 @@ extern char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
 
 /* util.c */
 bool	 file_matching(const char *fname);
-int	 procfile(const char *fn);
-int	 grep_tree(char **argv);
+bool	 procfile(const char *fn);
+bool	 grep_tree(char **argv);
 void	*grep_malloc(size_t size);
 void	*grep_calloc(size_t nmemb, size_t size);
 void	*grep_realloc(void *ptr, size_t size);
@@ -161,4 +156,4 @@ void	 clearqueue(void);
 /* file.c */
 void		 grep_close(struct file *f);
 struct file	*grep_open(const char *path);
-char		*grep_fgetln(struct file *f, size_t *len);
+char		*grep_fgetln(struct file *f, struct parsec *pc);

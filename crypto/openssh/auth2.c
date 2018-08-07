@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.137 2017/02/03 23:05:57 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.145 2018/03/03 03:15:51 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -31,6 +31,7 @@ __RCSID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <fcntl.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <string.h>
@@ -57,6 +58,7 @@ __RCSID("$FreeBSD$");
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
+#include "ssherr.h"
 
 /* import */
 extern ServerOptions options;
@@ -89,8 +91,8 @@ Authmethod *authmethods[] = {
 
 /* protocol */
 
-static int input_service_request(int, u_int32_t, void *);
-static int input_userauth_request(int, u_int32_t, void *);
+static int input_service_request(int, u_int32_t, struct ssh *);
+static int input_userauth_request(int, u_int32_t, struct ssh *);
 
 /* helper */
 static Authmethod *authmethod_lookup(Authctxt *, const char *);
@@ -138,9 +140,6 @@ auth2_read_banner(void)
 void
 userauth_send_banner(const char *msg)
 {
-	if (datafellows & SSH_BUG_BANNER)
-		return;
-
 	packet_start(SSH2_MSG_USERAUTH_BANNER);
 	packet_put_cstring(msg);
 	packet_put_cstring("");		/* language, unused */
@@ -153,7 +152,7 @@ userauth_banner(void)
 {
 	char *banner = NULL;
 
-	if (options.banner == NULL || (datafellows & SSH_BUG_BANNER) != 0)
+	if (options.banner == NULL)
 		return;
 
 	if ((banner = PRIVSEP(auth2_read_banner())) == NULL)
@@ -170,16 +169,19 @@ done:
 void
 do_authentication2(Authctxt *authctxt)
 {
-	dispatch_init(&dispatch_protocol_error);
-	dispatch_set(SSH2_MSG_SERVICE_REQUEST, &input_service_request);
-	dispatch_run(DISPATCH_BLOCK, &authctxt->success, authctxt);
+	struct ssh *ssh = active_state;		/* XXX */
+	ssh->authctxt = authctxt;		/* XXX move to caller */
+	ssh_dispatch_init(ssh, &dispatch_protocol_error);
+	ssh_dispatch_set(ssh, SSH2_MSG_SERVICE_REQUEST, &input_service_request);
+	ssh_dispatch_run_fatal(ssh, DISPATCH_BLOCK, &authctxt->success);
+	ssh->authctxt = NULL;
 }
 
 /*ARGSUSED*/
 static int
-input_service_request(int type, u_int32_t seq, void *ctxt)
+input_service_request(int type, u_int32_t seq, struct ssh *ssh)
 {
-	Authctxt *authctxt = ctxt;
+	Authctxt *authctxt = ssh->authctxt;
 	u_int len;
 	int acceptit = 0;
 	char *service = packet_get_cstring(&len);
@@ -192,7 +194,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 		if (!authctxt->success) {
 			acceptit = 1;
 			/* now we can handle user-auth requests */
-			dispatch_set(SSH2_MSG_USERAUTH_REQUEST, &input_userauth_request);
+			ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_REQUEST, &input_userauth_request);
 		}
 	}
 	/* XXX all other service requests are denied */
@@ -212,10 +214,9 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 
 /*ARGSUSED*/
 static int
-input_userauth_request(int type, u_int32_t seq, void *ctxt)
+input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = active_state;	/* XXX */
-	Authctxt *authctxt = ctxt;
+	Authctxt *authctxt = ssh->authctxt;
 	Authmethod *m = NULL;
 	char *user, *service, *method, *style = NULL;
 	int authenticated = 0;
@@ -295,14 +296,15 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 #endif  /* HAVE_LOGIN_CAP */
 
 	/* reset state */
-	auth2_challenge_stop(authctxt);
+	auth2_challenge_stop(ssh);
 
 #ifdef GSSAPI
 	/* XXX move to auth2_gssapi_stop() */
-	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
-	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
+	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
+	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
 #endif
 
+	auth2_authctxt_reset_info(authctxt);
 	authctxt->postponed = 0;
 	authctxt->server_caused_failure = 0;
 
@@ -310,9 +312,9 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	m = authmethod_lookup(authctxt, method);
 	if (m != NULL && authctxt->failures < options.max_authtries) {
 		debug2("input_userauth_request: try method %s", method);
-		authenticated =	m->userauth(authctxt);
+		authenticated =	m->userauth(ssh);
 	}
-	userauth_finish(authctxt, authenticated, method, NULL);
+	userauth_finish(ssh, authenticated, method, NULL);
 
 	free(service);
 	free(user);
@@ -321,10 +323,10 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 }
 
 void
-userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
+userauth_finish(struct ssh *ssh, int authenticated, const char *method,
     const char *submethod)
 {
-	struct ssh *ssh = active_state;	/* XXX */
+	Authctxt *authctxt = ssh->authctxt;
 	char *methods;
 	int partial = 0;
 
@@ -336,7 +338,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
-	    !auth_root_allowed(method)) {
+	    !auth_root_allowed(ssh, method)) {
 		authenticated = 0;
 #ifdef SSH_AUDIT_EVENTS
 		PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
@@ -352,6 +354,10 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 
 	/* Log before sending the reply */
 	auth_log(authctxt, authenticated, partial, method, submethod);
+
+	/* Update information exposed to session */
+	if (authenticated || partial)
+		auth2_update_session_info(authctxt, method, submethod);
 
 	if (authctxt->postponed)
 		return;
@@ -371,16 +377,9 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 	}
 #endif
 
-#ifdef _UNICOS
-	if (authenticated && cray_access_denied(authctxt->user)) {
-		authenticated = 0;
-		fatal("Access denied for user %s.", authctxt->user);
-	}
-#endif /* _UNICOS */
-
 	if (authenticated == 1) {
 		/* turn off userauth */
-		dispatch_set(SSH2_MSG_USERAUTH_REQUEST, &dispatch_protocol_ignore);
+		ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_REQUEST, &dispatch_protocol_ignore);
 		packet_start(SSH2_MSG_USERAUTH_SUCCESS);
 		packet_send();
 		packet_write_wait();
@@ -388,7 +387,6 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 		authctxt->success = 1;
 		ssh_packet_set_log_preamble(ssh, "user %s", authctxt->user);
 	} else {
-
 		/* Allow initial try of "none" auth without failure penalty */
 		if (!partial && !authctxt->server_caused_failure &&
 		    (authctxt->attempt > 1 || strcmp(method, "none") != 0)) {
@@ -652,4 +650,128 @@ auth2_update_methods_lists(Authctxt *authctxt, const char *method,
 	return 0;
 }
 
+/* Reset method-specific information */
+void auth2_authctxt_reset_info(Authctxt *authctxt)
+{
+	sshkey_free(authctxt->auth_method_key);
+	free(authctxt->auth_method_info);
+	authctxt->auth_method_key = NULL;
+	authctxt->auth_method_info = NULL;
+}
+
+/* Record auth method-specific information for logs */
+void
+auth2_record_info(Authctxt *authctxt, const char *fmt, ...)
+{
+	va_list ap;
+        int i;
+
+	free(authctxt->auth_method_info);
+	authctxt->auth_method_info = NULL;
+
+	va_start(ap, fmt);
+	i = vasprintf(&authctxt->auth_method_info, fmt, ap);
+	va_end(ap);
+
+	if (i < 0 || authctxt->auth_method_info == NULL)
+		fatal("%s: vasprintf failed", __func__);
+}
+
+/*
+ * Records a public key used in authentication. This is used for logging
+ * and to ensure that the same key is not subsequently accepted again for
+ * multiple authentication.
+ */
+void
+auth2_record_key(Authctxt *authctxt, int authenticated,
+    const struct sshkey *key)
+{
+	struct sshkey **tmp, *dup;
+	int r;
+
+	if ((r = sshkey_demote(key, &dup)) != 0)
+		fatal("%s: copy key: %s", __func__, ssh_err(r));
+	sshkey_free(authctxt->auth_method_key);
+	authctxt->auth_method_key = dup;
+
+	if (!authenticated)
+		return;
+
+	/* If authenticated, make sure we don't accept this key again */
+	if ((r = sshkey_demote(key, &dup)) != 0)
+		fatal("%s: copy key: %s", __func__, ssh_err(r));
+	if (authctxt->nprev_keys >= INT_MAX ||
+	    (tmp = recallocarray(authctxt->prev_keys, authctxt->nprev_keys,
+	    authctxt->nprev_keys + 1, sizeof(*authctxt->prev_keys))) == NULL)
+		fatal("%s: reallocarray failed", __func__);
+	authctxt->prev_keys = tmp;
+	authctxt->prev_keys[authctxt->nprev_keys] = dup;
+	authctxt->nprev_keys++;
+
+}
+
+/* Checks whether a key has already been previously used for authentication */
+int
+auth2_key_already_used(Authctxt *authctxt, const struct sshkey *key)
+{
+	u_int i;
+	char *fp;
+
+	for (i = 0; i < authctxt->nprev_keys; i++) {
+		if (sshkey_equal_public(key, authctxt->prev_keys[i])) {
+			fp = sshkey_fingerprint(authctxt->prev_keys[i],
+			    options.fingerprint_hash, SSH_FP_DEFAULT);
+			debug3("%s: key already used: %s %s", __func__,
+			    sshkey_type(authctxt->prev_keys[i]),
+			    fp == NULL ? "UNKNOWN" : fp);
+			free(fp);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Updates authctxt->session_info with details of authentication. Should be
+ * whenever an authentication method succeeds.
+ */
+void
+auth2_update_session_info(Authctxt *authctxt, const char *method,
+    const char *submethod)
+{
+	int r;
+
+	if (authctxt->session_info == NULL) {
+		if ((authctxt->session_info = sshbuf_new()) == NULL)
+			fatal("%s: sshbuf_new", __func__);
+	}
+
+	/* Append method[/submethod] */
+	if ((r = sshbuf_putf(authctxt->session_info, "%s%s%s",
+	    method, submethod == NULL ? "" : "/",
+	    submethod == NULL ? "" : submethod)) != 0)
+		fatal("%s: append method: %s", __func__, ssh_err(r));
+
+	/* Append key if present */
+	if (authctxt->auth_method_key != NULL) {
+		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
+		    (r = sshkey_format_text(authctxt->auth_method_key,
+		    authctxt->session_info)) != 0)
+			fatal("%s: append key: %s", __func__, ssh_err(r));
+	}
+
+	if (authctxt->auth_method_info != NULL) {
+		/* Ensure no ambiguity here */
+		if (strchr(authctxt->auth_method_info, '\n') != NULL)
+			fatal("%s: auth_method_info contains \\n", __func__);
+		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
+		    (r = sshbuf_putf(authctxt->session_info, "%s",
+		    authctxt->auth_method_info)) != 0) {
+			fatal("%s: append method info: %s",
+			    __func__, ssh_err(r));
+		}
+	}
+	if ((r = sshbuf_put_u8(authctxt->session_info, '\n')) != 0)
+		fatal("%s: append: %s", __func__, ssh_err(r));
+}
 

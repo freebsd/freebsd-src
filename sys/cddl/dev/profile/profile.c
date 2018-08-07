@@ -124,7 +124,7 @@
 /*
  * This value is bogus just to make module compilable on powerpc
  */
-#define	PROF_ARTIFICIAL_FRAMES	12
+#define	PROF_ARTIFICIAL_FRAMES	3
 #endif
 
 struct profile_probe_percpu;

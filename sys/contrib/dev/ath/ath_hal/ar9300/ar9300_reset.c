@@ -2493,15 +2493,23 @@ ar9300_calibration(struct ath_hal *ah, struct ieee80211_channel *chan, u_int8_t 
         chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
         if (nf_done) {
+            int ret;
             /*
              * Load the NF from history buffer of the current channel.
              * NF is slow time-variant, so it is OK to use a historical value.
              */
             ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
-            ar9300_load_nf(ah, nf_buf);
-    
+
+            ret = ar9300_load_nf(ah, nf_buf);
             /* start NF calibration, without updating BB NF register*/
-            ar9300_start_nf_cal(ah);	
+            ar9300_start_nf_cal(ah);
+
+            /*
+             * If we failed the NF cal then tell the upper layer that we
+             * failed so we can do a full reset
+             */
+            if (! ret)
+                return AH_FALSE;
         }
     }
     return AH_TRUE;
@@ -4479,6 +4487,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
         ar9300_reset_nf_hist_buff(ah, ichan);
         ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
         ar9300_load_nf(ah, nf_buf);
+        /* XXX TODO: handle failure from load_nf */
         stats = 0;
 	} else {
         stats = 1;	
@@ -5303,6 +5312,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     /* XXX FreeBSD is ichan appropariate? It was curchan.. */
     ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
     ar9300_load_nf(ah, nf_buf);
+    /* XXX TODO: handle NF load failure */
     if (nf_hist_buff_reset == 1)    
     {
         nf_hist_buff_reset = 0;

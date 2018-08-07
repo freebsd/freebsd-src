@@ -439,6 +439,24 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 	}
 }
 
+void
+nvme_notify_ns(struct nvme_controller *ctrlr, int nsid)
+{
+	struct nvme_consumer	*cons;
+	struct nvme_namespace	*ns = &ctrlr->ns[nsid - 1];
+	uint32_t		i;
+
+	if (!ctrlr->is_initialized)
+		return;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->ns_fn != NULL)
+			ns->cons_cookie[cons->id] =
+			    (*cons->ns_fn)(ns, ctrlr->cons_cookie[cons->id]);
+	}
+}
+
 struct nvme_consumer *
 nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 		       nvme_cons_async_fn_t async_fn,

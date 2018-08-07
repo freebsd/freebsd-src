@@ -1,4 +1,4 @@
-/* verify.h : verification interface of the native filesystem layer
+/* verify.h : verification interface of the FSX filesystem
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__VERIFY_H
-#define SVN_LIBSVN_FS__VERIFY_H
+#ifndef SVN_LIBSVN_FS_X_VERIFY_H
+#define SVN_LIBSVN_FS_X_VERIFY_H
 
 #include "fs.h"
 

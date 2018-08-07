@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.6 2015/12/11 00:20:04 mmcc Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.8 2018/02/05 05:37:46 tb Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -99,14 +99,15 @@ pkcs11_init(int interactive)
 void
 pkcs11_terminate(void)
 {
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 }
 
 static int
 pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
     int padding)
 {
-	Key key;
+	struct sshkey key;	/* XXX */
 	u_char *blob, *signature = NULL;
 	u_int blen, slen = 0;
 	int ret = -1;
@@ -186,7 +187,7 @@ pkcs11_start_helper(void)
 int
 pkcs11_add_provider(char *name, char *pin, Key ***keysp)
 {
-	Key *k;
+	struct sshkey *k;
 	int i, nkeys;
 	u_char *blob;
 	u_int blen;

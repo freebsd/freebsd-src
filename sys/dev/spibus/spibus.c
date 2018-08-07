@@ -122,8 +122,10 @@ spibus_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
 	struct spibus_ivar *devi = SPIBUS_IVAR(child);
+	int cs;
 
-	snprintf(buf, buflen, "cs=%d", devi->cs);
+	cs = devi->cs & ~SPIBUS_CS_HIGH; /* trim 'cs high' bit */
+	snprintf(buf, buflen, "bus=%d cs=%d", device_get_unit(bus), cs);
 	return (0);
 }
 

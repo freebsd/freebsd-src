@@ -742,6 +742,8 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ndn->dn_datablkszsec = odn->dn_datablkszsec;
 	ndn->dn_datablksz = odn->dn_datablksz;
 	ndn->dn_maxblkid = odn->dn_maxblkid;
+	bcopy(&odn->dn_next_type[0], &ndn->dn_next_type[0],
+	    sizeof (odn->dn_next_type));
 	bcopy(&odn->dn_next_nblkptr[0], &ndn->dn_next_nblkptr[0],
 	    sizeof (odn->dn_next_nblkptr));
 	bcopy(&odn->dn_next_nlevels[0], &ndn->dn_next_nlevels[0],
@@ -1238,11 +1240,11 @@ void
 dnode_rele(dnode_t *dn, void *tag)
 {
 	mutex_enter(&dn->dn_mtx);
-	dnode_rele_and_unlock(dn, tag);
+	dnode_rele_and_unlock(dn, tag, B_FALSE);
 }
 
 void
-dnode_rele_and_unlock(dnode_t *dn, void *tag)
+dnode_rele_and_unlock(dnode_t *dn, void *tag, boolean_t evicting)
 {
 	uint64_t refs;
 	/* Get while the hold prevents the dnode from moving. */
@@ -1273,7 +1275,8 @@ dnode_rele_and_unlock(dnode_t *dn, void *tag)
 		 * that the handle has zero references, but that will be
 		 * asserted anyway when the handle gets destroyed.
 		 */
-		dbuf_rele(db, dnh);
+		mutex_enter(&db->db_mtx);
+		dbuf_rele_and_unlock(db, dnh, evicting);
 	}
 }
 
@@ -1518,6 +1521,72 @@ dnode_dirty_l1(dnode_t *dn, uint64_t l1blkid, dmu_tx_t *tx)
 	}
 }
 
+/*
+ * Dirty all the in-core level-1 dbufs in the range specified by start_blkid
+ * and end_blkid.
+ */
+static void
+dnode_dirty_l1range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
+    dmu_tx_t *tx)
+{
+	dmu_buf_impl_t db_search;
+	dmu_buf_impl_t *db;
+	avl_index_t where;
+
+	mutex_enter(&dn->dn_dbufs_mtx);
+
+	db_search.db_level = 1;
+	db_search.db_blkid = start_blkid + 1;
+	db_search.db_state = DB_SEARCH;
+	for (;;) {
+
+		db = avl_find(&dn->dn_dbufs, &db_search, &where);
+		if (db == NULL)
+			db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+
+		if (db == NULL || db->db_level != 1 ||
+		    db->db_blkid >= end_blkid) {
+			break;
+		}
+
+		/*
+		 * Setup the next blkid we want to search for.
+		 */
+		db_search.db_blkid = db->db_blkid + 1;
+		ASSERT3U(db->db_blkid, >=, start_blkid);
+
+		/*
+		 * If the dbuf transitions to DB_EVICTING while we're trying
+		 * to dirty it, then we will be unable to discover it in
+		 * the dbuf hash table. This will result in a call to
+		 * dbuf_create() which needs to acquire the dn_dbufs_mtx
+		 * lock. To avoid a deadlock, we drop the lock before
+		 * dirtying the level-1 dbuf.
+		 */
+		mutex_exit(&dn->dn_dbufs_mtx);
+		dnode_dirty_l1(dn, db->db_blkid, tx);
+		mutex_enter(&dn->dn_dbufs_mtx);
+	}
+
+#ifdef ZFS_DEBUG
+	/*
+	 * Walk all the in-core level-1 dbufs and verify they have been dirtied.
+	 */
+	db_search.db_level = 1;
+	db_search.db_blkid = start_blkid + 1;
+	db_search.db_state = DB_SEARCH;
+	db = avl_find(&dn->dn_dbufs, &db_search, &where);
+	if (db == NULL)
+		db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+	for (; db != NULL; db = AVL_NEXT(&dn->dn_dbufs, db)) {
+		if (db->db_level != 1 || db->db_blkid >= end_blkid)
+			break;
+		ASSERT(db->db_dirtycnt > 0);
+	}
+#endif
+	mutex_exit(&dn->dn_dbufs_mtx);
+}
+
 void
 dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 {
@@ -1550,13 +1619,11 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		if (off == 0 && len >= blksz) {
 			/*
 			 * Freeing the whole block; fast-track this request.
-			 * Note that we won't dirty any indirect blocks,
-			 * which is fine because we will be freeing the entire
-			 * file and thus all indirect blocks will be freed
-			 * by free_children().
 			 */
 			blkid = 0;
 			nblks = 1;
+			if (dn->dn_nlevels > 1)
+				dnode_dirty_l1(dn, 0, tx);
 			goto done;
 		} else if (off >= blksz) {
 			/* Freeing past end-of-data */
@@ -1668,6 +1735,8 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 			last = (blkid + nblks - 1) >> epbs;
 		if (last != first)
 			dnode_dirty_l1(dn, last, tx);
+
+		dnode_dirty_l1range(dn, first, last, tx);
 
 		int shift = dn->dn_datablkshift + dn->dn_indblkshift -
 		    SPA_BLKPTRSHIFT;

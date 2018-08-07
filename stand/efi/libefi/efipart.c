@@ -137,6 +137,28 @@ efiblk_get_pdinfo(struct devdesc *dev)
 	return (pd);
 }
 
+pdinfo_t *
+efiblk_get_pdinfo_by_device_path(EFI_DEVICE_PATH *path)
+{
+	unsigned i;
+	EFI_DEVICE_PATH *media, *devpath;
+	EFI_HANDLE h;
+
+	media = efi_devpath_to_media_path(path);
+	if (media == NULL)
+		return (NULL);
+	for (i = 0; i < efipart_nhandles; i++) {
+		h = efipart_handles[i];
+		devpath = efi_lookup_devpath(h);
+		if (devpath == NULL)
+			continue;
+		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
+			continue;
+		return (efiblk_get_pdinfo_by_handle(h));
+	}
+	return (NULL);
+}
+
 static bool
 same_handle(pdinfo_t *pd, EFI_HANDLE h)
 {
@@ -210,7 +232,7 @@ efipart_inithandles(void)
 		return (efi_status_to_errno(status));
 
 	efipart_handles = hin;
-	efipart_nhandles = sz;
+	efipart_nhandles = sz / sizeof(*hin);
 #ifdef EFIPART_DEBUG
 	printf("%s: Got %d BLOCK IO MEDIA handle(s)\n", __func__,
 	    efipart_nhandles);
@@ -246,7 +268,7 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 static bool
 efipart_hdd(EFI_DEVICE_PATH *dp)
 {
-	unsigned i, nin;
+	unsigned i;
 	EFI_DEVICE_PATH *devpath, *node;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
@@ -264,8 +286,7 @@ efipart_hdd(EFI_DEVICE_PATH *dp)
 	 * Test every EFI BLOCK IO handle to make sure dp is not device path
 	 * for CD/DVD.
 	 */
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			return (false);
@@ -340,10 +361,9 @@ efipart_updatefd(void)
 {
 	EFI_DEVICE_PATH *devpath, *node;
 	ACPI_HID_DEVICE_PATH *acpi;
-	int i, nin;
+	int i;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;
@@ -410,14 +430,13 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 static void
 efipart_updatecd(void)
 {
-	int i, nin;
+	int i;
 	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
 	EFI_HANDLE handle;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;
@@ -666,14 +685,13 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 static void
 efipart_updatehd(void)
 {
-	int i, nin;
+	int i;
 	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
 	EFI_HANDLE handle;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
 
-	nin = efipart_nhandles / sizeof (*efipart_handles);
-	for (i = 0; i < nin; i++) {
+	for (i = 0; i < efipart_nhandles; i++) {
 		devpath = efi_lookup_devpath(efipart_handles[i]);
 		if (devpath == NULL)
 			continue;

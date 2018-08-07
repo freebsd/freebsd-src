@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__TEMP_SERIALIZER_H
-#define SVN_LIBSVN_FS__TEMP_SERIALIZER_H
+#ifndef SVN_LIBSVN_FS_X_TEMP_SERIALIZER_H
+#define SVN_LIBSVN_FS_X_TEMP_SERIALIZER_H
 
 #include "private/svn_temp_serializer.h"
 #include "fs.h"
@@ -29,28 +29,12 @@
 /**
  * Prepend the @a number to the @a string in a space efficient way such that
  * no other (number,string) combination can produce the same result.
- * Allocate temporaries as well as the result from @a pool.
+ * Allocate the result from @a result_pool.
  */
 const char*
 svn_fs_x__combine_number_and_string(apr_int64_t number,
                                     const char *string,
-                                    apr_pool_t *pool);
-
-/**
- * Serialize a @a noderev_p within the serialization @a context.
- */
-void
-svn_fs_x__noderev_serialize(struct svn_temp_serializer__context_t *context,
-                            svn_fs_x__noderev_t * const *noderev_p);
-
-/**
- * Deserialize a @a noderev_p within the @a buffer and associate it with
- * @a pool.
- */
-void
-svn_fs_x__noderev_deserialize(void *buffer,
-                              svn_fs_x__noderev_t **noderev_p,
-                              apr_pool_t *pool);
+                                    apr_pool_t *result_pool);
 
 /**
  * Serialize APR array @a *a within the serialization @a context.
@@ -62,12 +46,12 @@ svn_fs_x__serialize_apr_array(struct svn_temp_serializer__context_t *context,
 
 /**
  * Deserialize APR @a *array within the @a buffer.  Set its pool member to
- * @a pool.  The elements within the array must not contain pointers.
+ * @a result_pool.  The elements within the array must not contain pointers.
  */
 void
 svn_fs_x__deserialize_apr_array(void *buffer,
                                 apr_array_header_t **array,
-                                apr_pool_t *pool);
+                                apr_pool_t *result_pool);
 
 
 /**
@@ -104,27 +88,7 @@ svn_error_t *
 svn_fs_x__deserialize_txdelta_window(void **item,
                                      void *buffer,
                                      apr_size_t buffer_size,
-                                     apr_pool_t *pool);
-
-/**
- * Implements #svn_cache__serialize_func_t for a manifest
- * (@a in is an #apr_array_header_t of apr_off_t elements).
- */
-svn_error_t *
-svn_fs_x__serialize_manifest(void **data,
-                             apr_size_t *data_len,
-                             void *in,
-                             apr_pool_t *pool);
-
-/**
- * Implements #svn_cache__deserialize_func_t for a manifest
- * (@a *out is an #apr_array_header_t of apr_off_t elements).
- */
-svn_error_t *
-svn_fs_x__deserialize_manifest(void **out,
-                               void *data,
-                               apr_size_t data_len,
-                               apr_pool_t *pool);
+                                     apr_pool_t *result_pool);
 
 /**
  * Implements #svn_cache__serialize_func_t for a properties hash
@@ -144,7 +108,7 @@ svn_error_t *
 svn_fs_x__deserialize_properties(void **out,
                                  void *data,
                                  apr_size_t data_len,
-                                 apr_pool_t *pool);
+                                 apr_pool_t *result_pool);
 
 /**
  * Implements #svn_cache__serialize_func_t for #svn_fs_x__noderev_t
@@ -162,10 +126,10 @@ svn_error_t *
 svn_fs_x__deserialize_node_revision(void **item,
                                     void *buffer,
                                     apr_size_t buffer_size,
-                                    apr_pool_t *pool);
+                                    apr_pool_t *result_pool);
 
 /**
- * Implements #svn_cache__serialize_func_t for a directory contents array
+ * Implements #svn_cache__serialize_func_t for a #svn_fs_x__dir_data_t
  */
 svn_error_t *
 svn_fs_x__serialize_dir_entries(void **data,
@@ -174,13 +138,13 @@ svn_fs_x__serialize_dir_entries(void **data,
                                 apr_pool_t *pool);
 
 /**
- * Implements #svn_cache__deserialize_func_t for a directory contents array
+ * Implements #svn_cache__deserialize_func_t for a #svn_fs_x__dir_data_t
  */
 svn_error_t *
 svn_fs_x__deserialize_dir_entries(void **out,
                                   void *data,
                                   apr_size_t data_len,
-                                  apr_pool_t *pool);
+                                  apr_pool_t *result_pool);
 
 /**
  * Implements #svn_cache__partial_getter_func_t.  Set (apr_off_t) @a *out
@@ -194,6 +158,18 @@ svn_fs_x__get_sharded_offset(void **out,
                              apr_pool_t *pool);
 
 /**
+ * Implements #svn_cache__partial_getter_func_t.
+ * Set (svn_filesize_t) @a *out to the filesize info stored with the
+ * serialized directory in @a data of @a data_len.  @a baton is unused.
+ */
+svn_error_t *
+svn_fs_x__extract_dir_filesize(void **out,
+                               const void *data,
+                               apr_size_t data_len,
+                               void *baton,
+                               apr_pool_t *pool);
+
+/**
  * Baton type to be used with svn_fs_x__extract_dir_entry. */
 typedef struct svn_fs_x__ede_baton_t
 {
@@ -202,12 +178,24 @@ typedef struct svn_fs_x__ede_baton_t
 
   /* Lookup hint [in / out] */
   apr_size_t hint;
+
+  /** Current length of the in-txn in-disk representation of the directory.
+   * SVN_INVALID_FILESIZE if unknown. */
+  svn_filesize_t txn_filesize;
+
+  /** Will be set by the callback.  If FALSE, the cached data is out of date.
+   * We need this indicator because the svn_cache__t interface will always
+   * report the lookup as a success (FOUND==TRUE) if the generic lookup was
+   * successful -- regardless of what the entry extraction callback does. */
+  svn_boolean_t out_of_date;
 } svn_fs_x__ede_baton_t;
 
 /**
  * Implements #svn_cache__partial_getter_func_t for a single
  * #svn_fs_x__dirent_t within a serialized directory contents hash,
- * identified by its name (given in @a svn_fs_x__ede_baton_t @a *baton).
+ * identified by its name (in (svn_fs_x__ede_baton_t *) @a *baton).
+ * If the filesize specified in the baton does not match the cached
+ * value for this directory, @a *out will be NULL as well.
  */
 svn_error_t *
 svn_fs_x__extract_dir_entry(void **out,
@@ -220,7 +208,10 @@ svn_fs_x__extract_dir_entry(void **out,
  * Describes the change to be done to a directory: Set the entry
  * identify by @a name to the value @a new_entry. If the latter is
  * @c NULL, the entry shall be removed if it exists. Otherwise it
- * will be replaced or automatically added, respectively.
+ * will be replaced or automatically added, respectively.  The
+ * @a filesize allows readers to identify stale cache data (e.g.
+ * due to concurrent access to txns); writers use it to update the
+ * cached file size info.
  */
 typedef struct replace_baton_t
 {
@@ -229,6 +220,10 @@ typedef struct replace_baton_t
 
   /** directory entry to insert instead */
   svn_fs_x__dirent_t *new_entry;
+
+  /** Current length of the in-txn in-disk representation of the directory.
+   * SVN_INVALID_FILESIZE if unknown. */
+  svn_filesize_t txn_filesize;
 } replace_baton_t;
 
 /**
@@ -241,6 +236,17 @@ svn_fs_x__replace_dir_entry(void **data,
                             apr_size_t *data_len,
                             void *baton,
                             apr_pool_t *pool);
+
+/**
+ * Implements #svn_cache__partial_setter_func_t for a #svn_fs_x__dir_data_t
+ * at @a *data, resetting its txn_filesize field to SVN_INVALID_FILESIZE.
+ * &a baton should be NULL.
+ */
+svn_error_t *
+svn_fs_x__reset_txn_filesize(void **data,
+                             apr_size_t *data_len,
+                             void *baton,
+                             apr_pool_t *pool);
 
 /**
  * Implements #svn_cache__serialize_func_t for a #svn_fs_x__rep_header_t.
@@ -258,11 +264,36 @@ svn_error_t *
 svn_fs_x__deserialize_rep_header(void **out,
                                  void *data,
                                  apr_size_t data_len,
-                                 apr_pool_t *pool);
+                                 apr_pool_t *result_pool);
+
+/*** Block of changes in a changed paths list. */
+typedef struct svn_fs_x__changes_list_t
+{
+  /* Offset of the first element in CHANGES within the changed paths list
+     on disk. */
+  apr_off_t start_offset;
+
+  /* Offset of the first element behind CHANGES within the changed paths
+     list on disk. */
+  apr_off_t end_offset;
+
+  /* End of list reached? This may have false negatives in case the number
+     of elements in the list is a multiple of our block / range size. */
+  svn_boolean_t eol;
+
+  /* Array of #svn_fs_x__change_t * representing a consecutive sub-range of
+     elements in a changed paths list. */
+
+  /* number of entries in the array */
+  int count;
+
+  /* reference to the changes */
+  svn_fs_x__change_t **changes;
+
+} svn_fs_x__changes_list_t;
 
 /**
- * Implements #svn_cache__serialize_func_t for an #apr_array_header_t of
- * #svn_fs_x__change_t *.
+ * Implements #svn_cache__serialize_func_t for a #svn_fs_x__changes_list_t.
  */
 svn_error_t *
 svn_fs_x__serialize_changes(void **data,
@@ -271,31 +302,12 @@ svn_fs_x__serialize_changes(void **data,
                             apr_pool_t *pool);
 
 /**
- * Implements #svn_cache__deserialize_func_t for an #apr_array_header_t of
- * #svn_fs_x__change_t *.
+ * Implements #svn_cache__deserialize_func_t for a #svn_fs_x__changes_list_t.
  */
 svn_error_t *
 svn_fs_x__deserialize_changes(void **out,
                               void *data,
                               apr_size_t data_len,
-                              apr_pool_t *pool);
-
-/**
- * Implements #svn_cache__serialize_func_t for #svn_mergeinfo_t objects.
- */
-svn_error_t *
-svn_fs_x__serialize_mergeinfo(void **data,
-                              apr_size_t *data_len,
-                              void *in,
-                              apr_pool_t *pool);
-
-/**
- * Implements #svn_cache__deserialize_func_t for #svn_mergeinfo_t objects.
- */
-svn_error_t *
-svn_fs_x__deserialize_mergeinfo(void **out,
-                                void *data,
-                                apr_size_t data_len,
-                                apr_pool_t *pool);
+                              apr_pool_t *result_pool);
 
 #endif

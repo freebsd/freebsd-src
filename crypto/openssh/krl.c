@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.39 2017/03/10 07:18:32 dtucker Exp $ */
+/* $OpenBSD: krl.c,v 1.41 2017/12/18 02:25:15 djm Exp $ */
 
 #include "includes.h"
 
@@ -1014,7 +1014,7 @@ ssh_krl_from_blob(struct sshbuf *buf, struct ssh_krl **krlp,
 		}
 		/* Check signature over entire KRL up to this point */
 		if ((r = sshkey_verify(key, blob, blen,
-		    sshbuf_ptr(buf), sig_off, 0)) != 0)
+		    sshbuf_ptr(buf), sig_off, NULL, 0)) != 0)
 			goto out;
 		/* Check if this key has already signed this KRL */
 		for (i = 0; i < nca_used; i++) {
@@ -1026,7 +1026,7 @@ ssh_krl_from_blob(struct sshbuf *buf, struct ssh_krl **krlp,
 			}
 		}
 		/* Record keys used to sign the KRL */
-		tmp_ca_used = reallocarray(ca_used, nca_used + 1,
+		tmp_ca_used = recallocarray(ca_used, nca_used, nca_used + 1,
 		    sizeof(*ca_used));
 		if (tmp_ca_used == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;

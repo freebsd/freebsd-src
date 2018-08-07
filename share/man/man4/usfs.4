@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd May 17, 2018
 .Dt USFS 4
 .Os
 .Sh NAME
@@ -47,6 +47,13 @@ module at boot time, place the following line in
 usfs_load="YES"
 .Ed
 .Sh DESCRIPTION
+.Bf -symbolic
+This driver is obsolete.
+Users are advised to use
+.Xr cfumass 4
+instead.
+.Ef
+.Pp
 The
 .Nm
 driver provides support for emulating an USB mass storage device when

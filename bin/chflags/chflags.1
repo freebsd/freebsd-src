@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2018
+.Dd June 12, 2018
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -229,6 +229,11 @@ argument for
 then the current filename as well as the old and new flags are displayed.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Recursively clear all flags on files and directories contained within the
+.Fa foobar
+directory hierarchy:
+.Dl Nm Fl R Ar 0 Ar foobar
 .Sh SEE ALSO
 .Xr ls 1 ,
 .Xr chflags 2 ,

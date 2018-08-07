@@ -104,7 +104,7 @@ __mbu(void)
  * Kernel modules call real functions which are built into the kernel.
  * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
+#if !defined(__GNUCLIKE_ASM)
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
@@ -134,6 +134,8 @@ uint64_t	atomic_load_acq_64(volatile uint64_t *);
 void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
+void		atomic_add_64(volatile uint64_t *, uint64_t);
+void		atomic_subtract_64(volatile uint64_t *, uint64_t);
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
@@ -141,7 +143,7 @@ uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
  * For userland, always use lock prefixes so that the binaries will run
  * on both SMP and !SMP systems.
  */
-#if defined(SMP) || !defined(_KERNEL)
+#if defined(SMP) || !defined(_KERNEL) || defined(KLD_MODULE)
 #define	MPLOCKED	"lock ; "
 #else
 #define	MPLOCKED
@@ -300,7 +302,7 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
  */
 
 #if defined(_KERNEL)
-#if defined(SMP)
+#if defined(SMP) || defined(KLD_MODULE)
 #define	__storeload_barrier()	__mbk()
 #else /* _KERNEL && UP */
 #define	__storeload_barrier()	__compiler_membar()
@@ -581,6 +583,30 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
 	}
 }
 
+static __inline void
+atomic_add_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t + v))
+			break;
+	}
+}
+
+static __inline void
+atomic_subtract_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t t;
+
+	for (;;) {
+		t = *p;
+		if (atomic_cmpset_64(p, t, t - v))
+			break;
+	}
+}
+
 #endif /* _KERNEL */
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
@@ -804,6 +830,16 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 #define	atomic_testandset_32	atomic_testandset_int
 #define	atomic_testandclear_32	atomic_testandclear_int
+
+/* Operations on 64-bit quad words. */
+#define	atomic_cmpset_acq_64 atomic_cmpset_64
+#define	atomic_cmpset_rel_64 atomic_cmpset_64
+#define	atomic_fetchadd_acq_64	atomic_fetchadd_64
+#define	atomic_fetchadd_rel_64	atomic_fetchadd_64
+#define	atomic_add_acq_64 atomic_add_64
+#define	atomic_add_rel_64 atomic_add_64
+#define	atomic_subtract_acq_64 atomic_subtract_64
+#define	atomic_subtract_rel_64 atomic_subtract_64
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \

@@ -8117,7 +8117,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)

@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/smp.h>
-#include <sys/vmmeter.h>
 
+#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -50,44 +52,22 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/sbi.h>
 
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #ifdef SMP
 #include <machine/smp.h>
 #endif
 
-u_long intrcnt[NIRQS];
-size_t sintrcnt = sizeof(intrcnt);
+void intr_irq_handler(struct trapframe *tf);
 
-char intrnames[NIRQS * (MAXCOMLEN + 1) * 2];
-size_t sintrnames = sizeof(intrnames);
+struct intc_irqsrc {
+	struct intr_irqsrc	isrc;
+	u_int			irq;
+};
 
-static struct intr_event *intr_events[NIRQS];
-static riscv_intrcnt_t riscv_intr_counters[NIRQS];
-
-static int intrcnt_index;
-
-riscv_intrcnt_t
-riscv_intrcnt_create(const char* name)
-{
-	riscv_intrcnt_t counter;
-
-	counter = &intrcnt[intrcnt_index++];
-	riscv_intrcnt_setname(counter, name);
-
-	return (counter);
-}
-
-void
-riscv_intrcnt_setname(riscv_intrcnt_t counter, const char *name)
-{
-	int i;
-
-	i = (counter - intrcnt);
-
-	KASSERT(counter != NULL, ("riscv_intrcnt_setname: NULL counter"));
-
-	snprintf(intrnames + (MAXCOMLEN + 1) * i,
-	    MAXCOMLEN + 1, "%-*s", MAXCOMLEN, name);
-}
+struct intc_irqsrc isrcs[INTC_NIRQS];
 
 static void
 riscv_mask_irq(void *source)
@@ -102,15 +82,10 @@ riscv_mask_irq(void *source)
 		break;
 	case IRQ_SOFTWARE_USER:
 		csr_clear(sie, SIE_USIE);
+		break;
 	case IRQ_SOFTWARE_SUPERVISOR:
 		csr_clear(sie, SIE_SSIE);
 		break;
-#if 0
-	/* lowRISC TODO */
-	case IRQ_UART:
-		machine_command(ECALL_IO_IRQ_MASK, 0);
-		break;
-#endif
 	default:
 		panic("Unknown irq %d\n", irq);
 	}
@@ -133,26 +108,8 @@ riscv_unmask_irq(void *source)
 	case IRQ_SOFTWARE_SUPERVISOR:
 		csr_set(sie, SIE_SSIE);
 		break;
-#if 0
-	/* lowRISC TODO */
-	case IRQ_UART:
-		machine_command(ECALL_IO_IRQ_MASK, 1);
-		break;
-#endif
 	default:
 		panic("Unknown irq %d\n", irq);
-	}
-}
-
-void
-riscv_init_interrupts(void)
-{
-	char name[MAXCOMLEN + 1];
-	int i;
-
-	for (i = 0; i < NIRQS; i++) {
-		snprintf(name, MAXCOMLEN + 1, "int%d:", i);
-		riscv_intr_counters[i] = riscv_intrcnt_create(name);
 	}
 }
 
@@ -160,32 +117,27 @@ int
 riscv_setup_intr(const char *name, driver_filter_t *filt,
     void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
 {
-	struct intr_event *event;
+	struct intr_irqsrc *isrc;
 	int error;
 
-	if (irq < 0 || irq >= NIRQS)
+	if (irq < 0 || irq >= INTC_NIRQS)
 		panic("%s: unknown intr %d", __func__, irq);
 
-	event = intr_events[irq];
-	if (event == NULL) {
-		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
-		    irq, riscv_mask_irq, riscv_unmask_irq,
-		    NULL, NULL, "int%d", irq);
+	isrc = &isrcs[irq].isrc;
+	if (isrc->isrc_event == NULL) {
+		error = intr_event_create(&isrc->isrc_event, isrc, 0, irq,
+		    riscv_mask_irq, riscv_unmask_irq, NULL, NULL, "int%d", irq);
 		if (error)
 			return (error);
-		intr_events[irq] = event;
 		riscv_unmask_irq((void*)(uintptr_t)irq);
 	}
 
-	error = intr_event_add_handler(event, name, filt, handler, arg,
-	    intr_priority(flags), flags, cookiep);
+	error = intr_event_add_handler(isrc->isrc_event, name,
+	    filt, handler, arg, intr_priority(flags), flags, cookiep);
 	if (error) {
 		printf("Failed to setup intr: %d\n", irq);
 		return (error);
 	}
-
-	riscv_intrcnt_setname(riscv_intr_counters[irq],
-			     event->ie_fullname);
 
 	return (0);
 }
@@ -199,19 +151,10 @@ riscv_teardown_intr(void *ih)
 	return (0);
 }
 
-int
-riscv_config_intr(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
-{
-
-	/* There is no configuration for interrupts */
-
-	return (0);
-}
-
 void
 riscv_cpu_intr(struct trapframe *frame)
 {
-	struct intr_event *event;
+	struct intr_irqsrc *isrc;
 	int active_irq;
 
 	critical_enter();
@@ -222,25 +165,19 @@ riscv_cpu_intr(struct trapframe *frame)
 	active_irq = (frame->tf_scause & EXCP_MASK);
 
 	switch (active_irq) {
-#if 0
-	/* lowRISC TODO */
-	case IRQ_UART:
-#endif
 	case IRQ_SOFTWARE_USER:
 	case IRQ_SOFTWARE_SUPERVISOR:
 	case IRQ_TIMER_SUPERVISOR:
-		event = intr_events[active_irq];
-		/* Update counters */
-		atomic_add_long(riscv_intr_counters[active_irq], 1);
-		VM_CNT_INC(v_intr);
+		isrc = &isrcs[active_irq].isrc;
+		if (intr_isrc_dispatch(isrc, frame) != 0)
+			printf("stray interrupt %d\n", active_irq);
+		break;
+	case IRQ_EXTERNAL_SUPERVISOR:
+		intr_irq_handler(frame);
 		break;
 	default:
-		event = NULL;
+		break;
 	}
-
-	if (!event || TAILQ_EMPTY(&event->ie_handlers) ||
-	    (intr_event_handle(event, frame) != 0))
-		printf("stray interrupt %d\n", active_irq);
 
 	critical_exit();
 }
@@ -320,5 +257,22 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	}
 	sbi_send_ipi(&mask);
 }
-
 #endif
+
+/* Interrupt machdep initialization routine. */
+static void
+intc_init(void *dummy __unused)
+{
+	int error;
+	int i;
+
+	for (i = 0; i < INTC_NIRQS; i++) {
+		isrcs[i].irq = i;
+		error = intr_isrc_register(&isrcs[i].isrc, NULL,
+		    0, "intc,%u", i);
+		if (error != 0)
+			printf("Can't register interrupt %d\n", i);
+	}
+}
+
+SYSINIT(intc_init, SI_SUB_INTR, SI_ORDER_MIDDLE, intc_init, NULL);

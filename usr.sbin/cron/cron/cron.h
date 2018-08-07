@@ -168,19 +168,29 @@ typedef	struct _entry {
 #endif
 	char		**envp;
 	char		*cmd;
-	bitstr_t	bit_decl(second, SECOND_COUNT);
-	bitstr_t	bit_decl(minute, MINUTE_COUNT);
-	bitstr_t	bit_decl(hour,   HOUR_COUNT);
-	bitstr_t	bit_decl(dom,    DOM_COUNT);
-	bitstr_t	bit_decl(month,  MONTH_COUNT);
-	bitstr_t	bit_decl(dow,    DOW_COUNT);
+	union {
+		struct {
+			bitstr_t	bit_decl(second, SECOND_COUNT);
+			bitstr_t	bit_decl(minute, MINUTE_COUNT);
+			bitstr_t	bit_decl(hour,   HOUR_COUNT);
+			bitstr_t	bit_decl(dom,    DOM_COUNT);
+			bitstr_t	bit_decl(month,  MONTH_COUNT);
+			bitstr_t	bit_decl(dow,    DOW_COUNT);
+		};
+		struct {
+			time_t	lastexit;
+			time_t	interval;
+			pid_t	child;
+		};
+	};
 	int		flags;
 #define	DOM_STAR	0x01
 #define	DOW_STAR	0x02
 #define	WHEN_REBOOT	0x04
-#define	RUN_AT	0x08
+#define	RUN_AT		0x08
 #define	NOT_UNTIL	0x10
 #define	SEC_RES		0x20
+#define	INTERVAL	0x40
 	time_t	lastrun;
 } entry;
 

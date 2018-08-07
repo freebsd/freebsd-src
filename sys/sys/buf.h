@@ -479,6 +479,7 @@ buf_track(struct buf *bp, const char *location)
 #define	GB_UNMAPPED	0x0008		/* Do not mmap buffer pages. */
 #define	GB_KVAALLOC	0x0010		/* But allocate KVA. */
 #define	GB_CKHASH	0x0020		/* If reading, calc checksum hash */
+#define	GB_NOSPARSE	0x0040		/* Do not instantiate holes */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
@@ -540,6 +541,8 @@ struct buf *     getpbuf(int *);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
+int	getblkx(struct vnode *vp, daddr_t blkno, int size, int slpflag,
+	    int slptimeo, int flags, struct buf **bpp);
 struct buf *geteblk(int, int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);

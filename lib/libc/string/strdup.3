@@ -28,7 +28,7 @@
 .\"     @(#)strdup.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2008
+.Dd June 6, 2018
 .Dt STRDUP 3
 .Os
 .Sh NAME
@@ -73,6 +73,15 @@ terminating the copied string.
 .Xr free 3 ,
 .Xr malloc 3 ,
 .Xr wcsdup 3
+.Sh STANDARDS
+The
+.Fn strdup
+function is specified by
+.St -p1003.1-2001 .
+The
+.Fn strndup
+function is specified by
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn strdup

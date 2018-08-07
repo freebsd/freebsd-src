@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 SHELL=/bin/sh
-PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 #
 #minute	hour	mday	month	wday	who	command
 #

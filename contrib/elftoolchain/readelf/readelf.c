@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3519 2017-04-09 23:15:58Z kaiwang27 $");
+ELFTC_VCSID("$Id: readelf.c 3580 2017-09-15 23:29:59Z emaste $");
 
 /* Backwards compatability for older FreeBSD releases. */
 #ifndef	STB_GNU_UNIQUE
@@ -822,6 +822,7 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
 	case DT_SUNW_FILTER: return "SUNW_FILTER";
 	case DT_SUNW_CAP: return "SUNW_CAP";
+	case DT_SUNW_ASLR: return "SUNW_ASLR";
 	case DT_CHECKSUM: return "CHECKSUM";
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";
@@ -2377,11 +2378,22 @@ dump_phdr(struct readelf *re)
 		}
 		printf("   %2.2d     ", i);
 		/* skip NULL section. */
-		for (j = 1; (size_t)j < re->shnum; j++)
-			if (re->sl[j].addr >= phdr.p_vaddr &&
-			    re->sl[j].addr + re->sl[j].sz <=
+		for (j = 1; (size_t)j < re->shnum; j++) {
+			if (re->sl[j].off < phdr.p_offset)
+				continue;
+			if (re->sl[j].off + re->sl[j].sz >
+			    phdr.p_offset + phdr.p_filesz &&
+			    re->sl[j].type != SHT_NOBITS)
+				continue;
+			if (re->sl[j].addr < phdr.p_vaddr ||
+			    re->sl[j].addr + re->sl[j].sz >
 			    phdr.p_vaddr + phdr.p_memsz)
-				printf("%s ", re->sl[j].name);
+				continue;
+			if (phdr.p_type == PT_TLS &&
+			    (re->sl[j].flags & SHF_TLS) == 0)
+				continue;
+			printf("%s ", re->sl[j].name);
+		}
 		printf("\n");
 	}
 #undef	PH_HDR

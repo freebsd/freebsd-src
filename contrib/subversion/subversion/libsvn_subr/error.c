@@ -28,6 +28,10 @@
 #include <apr_pools.h>
 #include <apr_strings.h>
 
+#if defined(SVN_DEBUG) && APR_HAS_THREADS
+#include <apr_thread_proc.h>
+#endif
+
 #include <zlib.h>
 
 #ifndef SVN_ERR__TRACING
@@ -38,21 +42,63 @@
 #include "svn_pools.h"
 #include "svn_utf.h"
 
-#ifdef SVN_DEBUG
-/* XXX FIXME: These should be protected by a thread mutex.
-   svn_error__locate and make_error_internal should cooperate
-   in locking and unlocking it. */
+#include "private/svn_error_private.h"
+#include "svn_private_config.h"
 
-/* XXX TODO: Define mutex here #if APR_HAS_THREADS */
+#if defined(SVN_DEBUG) && APR_HAS_THREADS
+#include "private/svn_atomic.h"
+#include "pools.h"
+#endif
+
+
+#ifdef SVN_DEBUG
+#  if APR_HAS_THREADS
+static apr_threadkey_t *error_file_key = NULL;
+static apr_threadkey_t *error_line_key = NULL;
+
+/* No-op destructor for apr_threadkey_private_create(). */
+static void null_threadkey_dtor(void *stuff) {}
+
+/* Implements svn_atomic__str_init_func_t.
+   Callback used by svn_error__locate to initialize the thread-local
+   error location storage.  This function will never return an
+   error string. */
+static const char *
+locate_init_once(void *ignored_baton)
+{
+  /* Strictly speaking, this is a memory leak, since we're creating an
+     unmanaged, top-level pool and never destroying it.  We do this
+     because this pool controls the lifetime of the thread-local
+     storage for error locations, and that storage must always be
+     available. */
+  apr_pool_t *threadkey_pool = svn_pool__create_unmanaged(TRUE);
+  apr_status_t status;
+
+  status = apr_threadkey_private_create(&error_file_key,
+                                        null_threadkey_dtor,
+                                        threadkey_pool);
+  if (status == APR_SUCCESS)
+    status = apr_threadkey_private_create(&error_line_key,
+                                          null_threadkey_dtor,
+                                          threadkey_pool);
+
+  /* If anything went wrong with the creation of the thread-local
+     storage, we'll revert to the old, thread-agnostic behaviour */
+  if (status != APR_SUCCESS)
+    error_file_key = error_line_key = NULL;
+
+  return NULL;
+}
+#  endif  /* APR_HAS_THREADS */
+
+/* These location variables will be used in no-threads mode or if
+   thread-local storage is not available. */
 static const char * volatile error_file = NULL;
 static long volatile error_line = -1;
 
 /* file_line for the non-debug case. */
 static const char SVN_FILE_LINE_UNDEFINED[] = "svn:<undefined>";
 #endif /* SVN_DEBUG */
-
-#include "svn_private_config.h"
-#include "private/svn_error_private.h"
 
 
 /*
@@ -76,11 +122,25 @@ static const char SVN_FILE_LINE_UNDEFINED[] = "svn:<undefined>";
 void
 svn_error__locate(const char *file, long line)
 {
-#if defined(SVN_DEBUG)
-  /* XXX TODO: Lock mutex here */
+#ifdef SVN_DEBUG
+#  if APR_HAS_THREADS
+  static volatile svn_atomic_t init_status = 0;
+  svn_atomic__init_once_no_error(&init_status, locate_init_once, NULL);
+
+  if (error_file_key && error_line_key)
+    {
+      apr_status_t status;
+      status = apr_threadkey_private_set((char*)file, error_file_key);
+      if (status == APR_SUCCESS)
+        status = apr_threadkey_private_set((void*)line, error_line_key);
+      if (status == APR_SUCCESS)
+        return;
+    }
+#  endif  /* APR_HAS_THREADS */
+
   error_file = file;
   error_line = line;
-#endif
+#endif /* SVN_DEBUG */
 }
 
 
@@ -103,6 +163,9 @@ make_error_internal(apr_status_t apr_err,
 {
   apr_pool_t *pool;
   svn_error_t *new_error;
+#ifdef SVN_DEBUG
+  apr_status_t status = APR_ENOTIMPL;
+#endif
 
   /* Reuse the child's pool, or create our own. */
   if (child)
@@ -121,16 +184,34 @@ make_error_internal(apr_status_t apr_err,
   new_error->apr_err = apr_err;
   new_error->child   = child;
   new_error->pool    = pool;
-#if defined(SVN_DEBUG)
-  new_error->file    = error_file;
-  new_error->line    = error_line;
-  /* XXX TODO: Unlock mutex here */
+
+#ifdef SVN_DEBUG
+#if APR_HAS_THREADS
+  if (error_file_key && error_line_key)
+    {
+      void *item;
+      status = apr_threadkey_private_get(&item, error_file_key);
+      if (status == APR_SUCCESS)
+        {
+          new_error->file = item;
+          status = apr_threadkey_private_get(&item, error_line_key);
+          if (status == APR_SUCCESS)
+            new_error->line = (long)item;
+        }
+    }
+#  endif  /* APR_HAS_THREADS */
+
+  if (status != APR_SUCCESS)
+    {
+      new_error->file = error_file;
+      new_error->line = error_line;
+    }
 
   if (! child)
       apr_pool_cleanup_register(pool, new_error,
                                 err_abort,
                                 apr_pool_cleanup_null);
-#endif
+#endif /* SVN_DEBUG */
 
   return new_error;
 }

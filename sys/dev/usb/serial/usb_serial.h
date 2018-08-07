@@ -165,6 +165,7 @@ struct ucom_softc {
 	const struct ucom_callback *sc_callback;
 	struct ucom_super_softc *sc_super;
 	struct tty *sc_tty;
+	struct consdev *sc_consdev;
 	struct mtx *sc_mtx;
 	void   *sc_parent;
 	int sc_subunit;
@@ -183,6 +184,7 @@ struct ucom_softc {
 #define	UCOM_FLAG_FREE_UNIT   0x0200	/* set if we must free the unit */
 #define	UCOM_FLAG_INWAKEUP    0x0400	/* set if we are in the tsw_inwakeup callback */
 #define	UCOM_FLAG_LSRTXIDLE   0x0800	/* set if sc_lsr bits ULSR_TSRE+TXRDY work */
+#define	UCOM_FLAG_DEVICE_MODE 0x1000	/* set if we're an USB device, not a host */
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
@@ -211,6 +213,7 @@ int	ucom_attach(struct ucom_super_softc *,
 	    const struct ucom_callback *callback, struct mtx *);
 void	ucom_detach(struct ucom_super_softc *, struct ucom_softc *);
 void	ucom_set_pnpinfo_usb(struct ucom_super_softc *, device_t);
+void	ucom_set_usb_mode(struct ucom_super_softc *, enum usb_hc_mode);
 void	ucom_status_change(struct ucom_softc *);
 uint8_t	ucom_get_data(struct ucom_softc *, struct usb_page_cache *,
 	    uint32_t, uint32_t, uint32_t *);

@@ -35,7 +35,7 @@ The script treats all packages as USR packages (not ROOT+USR when
 appropriate).  It seems to work, though......
 
 If there are any patches to this that have not yet been integrated they
-may be found at http://www.zip.com.au/~dtucker/openssh/.
+may be found at http://www.dtucker.net/openssh/.
 
 
 Disclaimer:
@@ -47,4 +47,3 @@ you get to keep both pieces.
 	- Darren Tucker (dtucker at zip dot com dot au)
 	  2002/03/01
 
-$Id: README,v 1.4 2003/08/25 05:01:04 dtucker Exp $

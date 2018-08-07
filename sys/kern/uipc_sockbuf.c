@@ -460,6 +460,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 	u_int *hiwat, *lowat;
 	int error;
 
+	sb = NULL;
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
 		switch (cmd) {
@@ -954,23 +955,14 @@ sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,
 	return (retval);
 }
 
-int
+void
 sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
     struct mbuf *control)
 {
-	struct mbuf *m, *n, *mlast;
-	int space;
+	struct mbuf *m, *mlast;
 
-	SOCKBUF_LOCK_ASSERT(sb);
-
-	if (control == NULL)
-		panic("sbappendcontrol_locked");
-	space = m_length(control, &n) + m_length(m0, NULL);
-
-	if (space > sbspace(sb))
-		return (0);
 	m_clrprotoflags(m0);
-	n->m_next = m0;			/* concatenate data to control */
+	m_last(control)->m_next = m0;
 
 	SBLASTRECORDCHK(sb);
 
@@ -984,18 +976,15 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 	SBLASTMBUFCHK(sb);
 
 	SBLASTRECORDCHK(sb);
-	return (1);
 }
 
-int
+void
 sbappendcontrol(struct sockbuf *sb, struct mbuf *m0, struct mbuf *control)
 {
-	int retval;
 
 	SOCKBUF_LOCK(sb);
-	retval = sbappendcontrol_locked(sb, m0, control);
+	sbappendcontrol_locked(sb, m0, control);
 	SOCKBUF_UNLOCK(sb);
-	return (retval);
 }
 
 /*
@@ -1280,6 +1269,55 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 	sb->sb_sndptr = m;
 
 	return (ret);
+}
+
+struct mbuf *
+sbsndptr_noadv(struct sockbuf *sb, uint32_t off, uint32_t *moff)
+{
+	struct mbuf *m;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+	if (sb->sb_sndptr == NULL || sb->sb_sndptroff > off) {
+		*moff = off;
+		if (sb->sb_sndptr == NULL) {
+			sb->sb_sndptr = sb->sb_mb;
+			sb->sb_sndptroff = 0;
+		}
+		return (sb->sb_mb);
+	} else {
+		m = sb->sb_sndptr;
+		off -= sb->sb_sndptroff;
+	}
+	*moff = off;
+	return (m);
+}
+
+void
+sbsndptr_adv(struct sockbuf *sb, struct mbuf *mb, uint32_t len)
+{
+	/*
+	 * A small copy was done, advance forward the sb_sbsndptr to cover
+	 * it.
+	 */
+	struct mbuf *m;
+
+	if (mb != sb->sb_sndptr) {
+		/* Did not copyout at the same mbuf */
+		return;
+	}
+	m = mb;
+	while (m && (len > 0)) {
+		if (len >= m->m_len) {
+			len -= m->m_len;
+			if (m->m_next) {
+				sb->sb_sndptroff += m->m_len;
+				sb->sb_sndptr = m->m_next;
+			}
+			m = m->m_next;
+		} else {
+			len = 0;
+		}
+	}
 }
 
 /*

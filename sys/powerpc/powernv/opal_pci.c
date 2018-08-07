@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "opal.h"
 
 #define	OPAL_PCI_TCE_MAX_ENTRIES	(1024*1024UL)
-#define	OPAL_PCI_TCE_SEG_SIZE		(16*1024*1024UL)
+#define	OPAL_PCI_TCE_DEFAULT_SEG_SIZE	(16*1024*1024UL)
 #define	OPAL_PCI_TCE_R			(1UL << 0)
 #define	OPAL_PCI_TCE_W			(1UL << 1)
 #define	PHB3_TCE_KILL_INVAL_ALL		(1UL << 63)
@@ -195,30 +195,69 @@ pci_phb3_tce_invalidate_entire(struct opalpci_softc *sc)
 	mb();
 }
 
+/* Simple function to round to a power of 2 */
+static uint64_t
+round_pow2(uint64_t val)
+{
+
+	return (1 << (flsl(val + (val - 1)) - 1));
+}
+
+/*
+ * Starting with skiboot 5.10 PCIe nodes have a new property,
+ * "ibm,supported-tce-sizes", to denote the TCE sizes available.  This allows us
+ * to avoid hard-coding the maximum TCE size allowed, and instead provide a sane
+ * default (however, the "sane" default, which works for all targets, is 64k,
+ * limiting us to 64GB if we have 1M entries.
+ */
+static uint64_t
+max_tce_size(device_t dev)
+{
+	phandle_t node;
+	cell_t sizes[64]; /* Property is a list of bit-widths, up to 64-bits */
+	int count;
+
+	node = ofw_bus_get_node(dev);
+
+	count = OF_getencprop(node, "ibm,supported-tce-sizes",
+	    sizes, sizeof(sizes));
+	if (count < (int) sizeof(cell_t))
+		return OPAL_PCI_TCE_DEFAULT_SEG_SIZE;
+
+	count /= sizeof(cell_t);
+
+	return (1ULL << sizes[count - 1]);
+}
+
 static int
 opalpci_attach(device_t dev)
 {
 	struct opalpci_softc *sc;
-	cell_t id[2], m64window[6], npe;
+	cell_t id[2], m64ranges[2], m64window[6], npe;
+	phandle_t node;
 	int i, err;
 	uint64_t maxmem;
 	uint64_t entries;
+	uint64_t tce_size;
+	uint64_t tce_tbl_size;
+	int m64bar;
 	int rid;
 
 	sc = device_get_softc(dev);
+	node = ofw_bus_get_node(dev);
 
-	switch (OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid")) {
+	switch (OF_getproplen(node, "ibm,opal-phbid")) {
 	case 8:
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-phbid", id, 8);
+		OF_getencprop(node, "ibm,opal-phbid", id, 8);
 		sc->phb_id = ((uint64_t)id[0] << 32) | id[1];
 		break;
 	case 4:
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-phbid", id, 4);
+		OF_getencprop(node, "ibm,opal-phbid", id, 4);
 		sc->phb_id = id[0];
 		break;
 	default:
 		device_printf(dev, "PHB ID property had wrong length (%zd)\n",
-		    OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid"));
+		    OF_getproplen(node, "ibm,opal-phbid"));
 		return (ENXIO);
 	}
 
@@ -234,6 +273,7 @@ opalpci_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#if 0
 	/*
 	 * Reset PCI IODA table
 	 */
@@ -243,19 +283,40 @@ opalpci_attach(device_t dev)
 		device_printf(dev, "IODA table reset failed: %d\n", err);
 		return (ENXIO);
 	}
-	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
-		DELAY(1000*(err + 1)); /* Returns expected delay in ms */
+	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE,
+	    1);
+	if (err < 0) {
+		device_printf(dev, "PHB reset failed: %d\n", err);
+		return (ENXIO);
+	}
+	if (err > 0) {
+		while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0) {
+			DELAY(1000*(err + 1)); /* Returns expected delay in ms */
+		}
+	}
 	if (err < 0) {
 		device_printf(dev, "WARNING: PHB IODA reset poll failed: %d\n", err);
 	}
+	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE,
+	    0);
+	if (err < 0) {
+		device_printf(dev, "PHB reset failed: %d\n", err);
+		return (ENXIO);
+	}
+	if (err > 0) {
+		while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0) {
+			DELAY(1000*(err + 1)); /* Returns expected delay in ms */
+		}
+	}
+#endif
 
 	/*
 	 * Map all devices on the bus to partitionable endpoint one until
 	 * such time as we start wanting to do things like bhyve.
 	 */
 	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
-	    0, 0, 0, 0, /* All devices */
-	    OPAL_MAP_PE);
+	    0, OPAL_PCI_BUS_ANY, OPAL_IGNORE_RID_DEVICE_NUMBER,
+	    OPAL_IGNORE_RID_FUNC_NUMBER, OPAL_MAP_PE);
 	if (err != 0) {
 		device_printf(dev, "PE mapping failed: %d\n", err);
 		return (ENXIO);
@@ -264,8 +325,7 @@ opalpci_attach(device_t dev)
 	/*
 	 * Turn on MMIO, mapped to PE 1
 	 */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-num-pes", &npe, 4)
-	    != 4)
+	if (OF_getencprop(node, "ibm,opal-num-pes", &npe, 4) != 4)
 		npe = 1;
 	for (i = 0; i < npe; i++) {
 		err = opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
@@ -274,49 +334,57 @@ opalpci_attach(device_t dev)
 			device_printf(dev, "MMIO %d map failed: %d\n", i, err);
 	}
 
+	if (OF_getencprop(node, "ibm,opal-available-m64-ranges",
+	    m64ranges, sizeof(m64ranges)) == sizeof(m64ranges))
+		m64bar = m64ranges[0];
+	else
+	    m64bar = 0;
+
 	/* XXX: multiple M64 windows? */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	if (OF_getencprop(node, "ibm,opal-m64-window",
 	    m64window, sizeof(m64window)) == sizeof(m64window)) {
 		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
-		    OPAL_M64_WINDOW_TYPE, 0, 0);
+		    OPAL_M64_WINDOW_TYPE, m64bar, 0);
 		opal_call(OPAL_PCI_SET_PHB_MEM_WINDOW, sc->phb_id,
-		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 
+		    OPAL_M64_WINDOW_TYPE, m64bar /* index */, 
 		    ((uint64_t)m64window[2] << 32) | m64window[3], 0,
 		    ((uint64_t)m64window[4] << 32) | m64window[5]);
 		opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
 		    OPAL_PCI_DEFAULT_PE, OPAL_M64_WINDOW_TYPE,
-		    0 /* index */, 0);
+		    m64bar /* index */, 0);
 		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
-		    OPAL_M64_WINDOW_TYPE, 0, OPAL_ENABLE_M64_NON_SPLIT);
+		    OPAL_M64_WINDOW_TYPE, m64bar, OPAL_ENABLE_M64_NON_SPLIT);
 	}
 
 	/*
 	 * Enable IOMMU for PE1 - map everything 1:1 using
-	 * segments of OPAL_PCI_TCE_SEG_SIZE size
+	 * segments of max_tce_size size
 	 */
-	maxmem = roundup2(powerpc_ptob(Maxmem), OPAL_PCI_TCE_SEG_SIZE);
-	entries = maxmem / OPAL_PCI_TCE_SEG_SIZE;
+	tce_size = max_tce_size(dev);
+	maxmem = roundup2(powerpc_ptob(Maxmem), tce_size);
+	entries = round_pow2(maxmem / tce_size);
+	tce_tbl_size = max(entries * sizeof(uint64_t), 4096);
 	if (entries > OPAL_PCI_TCE_MAX_ENTRIES)
 		panic("POWERNV supports only %jdGB of memory space\n",
-		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * OPAL_PCI_TCE_SEG_SIZE) >> 30));
+		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * tce_size) >> 30));
 	if (bootverbose)
 		device_printf(dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
-	sc->tce = contigmalloc(OPAL_PCI_TCE_MAX_ENTRIES * sizeof(uint64_t),
+	sc->tce = contigmalloc(tce_tbl_size,
 	    M_DEVBUF, M_NOWAIT | M_ZERO, 0,
-	    BUS_SPACE_MAXADDR_32BIT, OPAL_PCI_TCE_SEG_SIZE, 0);
+	    BUS_SPACE_MAXADDR, tce_size, 0);
 	if (sc->tce == NULL)
 		panic("Failed to allocate TCE memory for PHB %jd\n",
 		    (uintmax_t)sc->phb_id);
 
 	for (i = 0; i < entries; i++)
-		sc->tce[i] = (i * OPAL_PCI_TCE_SEG_SIZE) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W;
+		sc->tce[i] = (i * tce_size) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W;
 
 	/* Map TCE for every PE. It seems necessary for Power8 */
 	for (i = 0; i < npe; i++) {
 		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW, sc->phb_id,
 		    i, (i << 1),
 		    1, pmap_kextract((uint64_t)&sc->tce[0]),
-		    OPAL_PCI_TCE_MAX_ENTRIES * sizeof(uint64_t), OPAL_PCI_TCE_SEG_SIZE);
+		    tce_tbl_size, tce_size);
 		if (err != 0) {
 			device_printf(dev, "DMA IOMMU mapping failed: %d\n", err);
 			return (ENXIO);
@@ -342,9 +410,9 @@ opalpci_attach(device_t dev)
 	 * Get MSI properties
 	 */
 	sc->msi_vmem = NULL;
-	if (OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-msi-ranges") > 0) {
+	if (OF_getproplen(node, "ibm,opal-msi-ranges") > 0) {
 		cell_t msi_ranges[2];
-		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-msi-ranges",
+		OF_getencprop(node, "ibm,opal-msi-ranges",
 		    msi_ranges, sizeof(msi_ranges));
 		sc->msi_base = msi_ranges[0];
 
@@ -352,7 +420,7 @@ opalpci_attach(device_t dev)
 		    msi_ranges[1], 1, 16, M_BESTFIT | M_WAITOK);
 
 		sc->base_msi_irq = powerpc_register_pic(dev,
-		    OF_xref_from_node(ofw_bus_get_node(dev)),
+		    OF_xref_from_node(node),
 		    msi_ranges[0] + msi_ranges[1], 0, FALSE);
 
 		if (bootverbose)
@@ -377,7 +445,7 @@ opalpci_attach(device_t dev)
 	/*
 	 * OPAL stores 64-bit BARs in a special property rather than "ranges"
 	 */
-	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	if (OF_getencprop(node, "ibm,opal-m64-window",
 	    m64window, sizeof(m64window)) == sizeof(m64window)) {
 		struct ofw_pci_range *rp;
 

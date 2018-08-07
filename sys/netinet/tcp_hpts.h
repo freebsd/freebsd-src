@@ -1,8 +1,5 @@
-#ifndef __tcp_hpts_h__
-#define __tcp_hpts_h__
 /*-
- * Copyright (c) 2016-8
- *	Netflix Inc.  All rights reserved.
+ * Copyright (c) 2016-2018 Netflix Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,8 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * __FBSDID("$FreeBSD$")
+ * $FreeBSD$
  */
+
+#ifndef __tcp_hpts_h__
+#define __tcp_hpts_h__
 
 /*
  * The hpts uses a 102400 wheel. The wheel
@@ -238,10 +238,10 @@ int
 #define tcp_queue_to_input_locked(a, b) __tcp_queue_to_input_locked(a, b, __LINE__);
 void
 tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked);
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos);
 int
 __tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked, int32_t line);
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line);
 #define tcp_queue_to_input(a, b, c, d, e, f, g) __tcp_queue_to_input(a, b, c, d, e, f, g, __LINE__)
 
 uint16_t tcp_hpts_delayedby(struct inpcb *inp);
@@ -300,5 +300,5 @@ tcp_get_usecs(struct timeval *tv)
 	return (tcp_tv_to_usectick(tv));
 }
 
-#endif
-#endif
+#endif /* _KERNEL */
+#endif /* __tcp_hpts_h__ */

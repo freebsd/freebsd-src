@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include <x86/apicreg.h>
@@ -439,6 +440,46 @@ xen_invltlb_pcid(void *arg)
 	invltlb_pcid_handler();
 	return (FILTER_HANDLED);
 }
+
+static int
+xen_invltlb_invpcid_pti(void *arg)
+{
+
+	invltlb_invpcid_pti_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
+xen_invlpg_invpcid_handler(void *arg)
+{
+
+	invlpg_invpcid_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
+xen_invlpg_pcid_handler(void *arg)
+{
+
+	invlpg_pcid_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
+xen_invlrng_invpcid_handler(void *arg)
+{
+
+	invlrng_invpcid_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
+xen_invlrng_pcid_handler(void *arg)
+{
+
+	invlrng_pcid_handler();
+	return (FILTER_HANDLED);
+}
 #endif
 
 static int
@@ -529,8 +570,18 @@ xen_setup_cpus(void)
 
 #ifdef __amd64__
 	if (pmap_pcid_enabled) {
-		xen_ipis[IPI_TO_IDX(IPI_INVLTLB)].filter = invpcid_works ?
-		    xen_invltlb_invpcid : xen_invltlb_pcid;
+		if (pti)
+			xen_ipis[IPI_TO_IDX(IPI_INVLTLB)].filter =
+			    invpcid_works ? xen_invltlb_invpcid_pti :
+			    xen_invltlb_pcid;
+		else
+			xen_ipis[IPI_TO_IDX(IPI_INVLTLB)].filter =
+			    invpcid_works ? xen_invltlb_invpcid :
+			    xen_invltlb_pcid;
+		xen_ipis[IPI_TO_IDX(IPI_INVLPG)].filter = invpcid_works ?
+		    xen_invlpg_invpcid_handler : xen_invlpg_pcid_handler;
+		xen_ipis[IPI_TO_IDX(IPI_INVLRNG)].filter = invpcid_works ?
+		    xen_invlrng_invpcid_handler : xen_invlrng_pcid_handler;
 	}
 #endif
 	CPU_FOREACH(i)

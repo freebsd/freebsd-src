@@ -31,16 +31,7 @@
 # System group and private Begemot SNMPd MIB.
 #
 
-#include "tc.def"
-
-typedef RowStatus ENUM (
-	1 active
-	2 notInService
-	3 notReady
-	4 createAndGo
-	5 createAndWait
-	6 destroy
-)
+include "tc.def"
 
 (1 internet
   (2 mgmt

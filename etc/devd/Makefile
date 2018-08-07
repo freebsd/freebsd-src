@@ -4,6 +4,8 @@
 
 FILEGROUPS=	FILES
 
+FILES+=	devmatch.conf
+
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf
 .endif
@@ -12,7 +14,6 @@ FILES+=	apple.conf
 .if ${MK_ACPI} != "no"
 FILES+=	asus.conf
 .endif
-FILES+=	devmatch.conf
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf
 .endif

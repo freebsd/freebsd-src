@@ -2,9 +2,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
- *	The Regents of the University of California.
- * Copyright (c) 2004-2009 Robert N. M. Watson
- * All rights reserved.
+ *	The Regents of the University of California. All Rights Reserved.
+ * Copyright (c) 2004-2009 Robert N. M. Watson All Rights Reserved.
+ * Copyright (c) 2018 Matthew Macy
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -191,12 +191,40 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
 /*
  * Locking and synchronization:
  *
- * Two types of locks exist in the local domain socket implementation: a
- * a global linkage rwlock and per-unpcb mutexes.  The linkage lock protects
- * the socket count, global generation number, stream/datagram global lists and
- * interconnection of unpcbs, the v_socket and unp_vnode pointers, and can be
- * held exclusively over the acquisition of multiple unpcb locks to prevent
- * deadlock.
+ * Three types of locks exist in the local domain socket implementation: a
+ * a global linkage rwlock, the mtxpool lock, and per-unpcb mutexes.
+ * The linkage lock protects the socket count, global generation number,
+ * and stream/datagram global lists.
+ *
+ * The mtxpool lock protects the vnode from being modified while referenced.
+ * Lock ordering requires that it be acquired before any unpcb locks.
+ *
+ * The unpcb lock (unp_mtx) protects all fields in the unpcb. Of particular
+ * note is that this includes the unp_conn field. So long as the unpcb lock
+ * is held the reference to the unpcb pointed to by unp_conn is valid. If we
+ * require that the unpcb pointed to by unp_conn remain live in cases where
+ * we need to drop the unp_mtx as when we need to acquire the lock for a
+ * second unpcb the caller must first acquire an additional reference on the
+ * second unpcb and then revalidate any state (typically check that unp_conn
+ * is non-NULL) upon requiring the initial unpcb lock. The lock ordering
+ * between unpcbs is the conventional ascending address order. Two helper
+ * routines exist for this:
+ *
+ *   - unp_pcb_lock2(unp, unp2) - which just acquires the two locks in the
+ *     safe ordering.
+ *
+ *   - unp_pcb_owned_lock2(unp, unp2, freed) - the lock for unp is held
+ *     when called. If unp is unlocked and unp2 is subsequently freed
+ *     freed will be set to 1.
+ *
+ * The helper routines for references are:
+ *
+ *   - unp_pcb_hold(unp): Can be called any time we currently hold a valid
+ *     reference to unp.
+ *
+ *    - unp_pcb_rele(unp): The caller must hold the unp lock. If we are
+ *      releasing the last reference, detach must have been called thus
+ *      unp->unp_socket be NULL.
  *
  * UNIX domain sockets each have an unpcb hung off of their so_pcb pointer,
  * allocated in pru_attach() and freed in pru_detach().  The validity of that
@@ -210,15 +238,8 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
  * to the unpcb is held.  Typically, this reference will be from the socket,
  * or from another unpcb when the referring unpcb's lock is held (in order
  * that the reference not be invalidated during use).  For example, to follow
- * unp->unp_conn->unp_socket, you need unlock the lock on unp, not unp_conn,
- * as unp_socket remains valid as long as the reference to unp_conn is valid.
- *
- * Fields of unpcbss are locked using a per-unpcb lock, unp_mtx.  Individual
- * atomic reads without the lock may be performed "lockless", but more
- * complex reads and read-modify-writes require the mutex to be held.  No
- * lock order is defined between unpcb locks -- multiple unpcb locks may be
- * acquired at the same time only when holding the linkage rwlock
- * exclusively, which prevents deadlocks.
+ * unp->unp_conn->unp_socket, you need to hold a lock on unp_conn to guarantee
+ * that detach is not run clearing unp_socket.
  *
  * Blocking with UNIX domain sockets is a tricky issue: unlike most network
  * protocols, bind() is a non-atomic operation, and connect() requires
@@ -257,13 +278,19 @@ static struct mtx	unp_defers_lock;
 #define	UNP_DEFERRED_LOCK()		mtx_lock(&unp_defers_lock)
 #define	UNP_DEFERRED_UNLOCK()		mtx_unlock(&unp_defers_lock)
 
+#define UNP_REF_LIST_LOCK()		UNP_DEFERRED_LOCK();
+#define UNP_REF_LIST_UNLOCK()		UNP_DEFERRED_UNLOCK();
+
 #define UNP_PCB_LOCK_INIT(unp)		mtx_init(&(unp)->unp_mtx,	\
-					    "unp_mtx", "unp_mtx",	\
-					    MTX_DUPOK|MTX_DEF|MTX_RECURSE)
+					    "unp", "unp",	\
+					    MTX_DUPOK|MTX_DEF)
 #define	UNP_PCB_LOCK_DESTROY(unp)	mtx_destroy(&(unp)->unp_mtx)
 #define	UNP_PCB_LOCK(unp)		mtx_lock(&(unp)->unp_mtx)
+#define	UNP_PCB_TRYLOCK(unp)		mtx_trylock(&(unp)->unp_mtx)
 #define	UNP_PCB_UNLOCK(unp)		mtx_unlock(&(unp)->unp_mtx)
+#define	UNP_PCB_OWNED(unp)		mtx_owned(&(unp)->unp_mtx)
 #define	UNP_PCB_LOCK_ASSERT(unp)	mtx_assert(&(unp)->unp_mtx, MA_OWNED)
+#define	UNP_PCB_UNLOCK_ASSERT(unp)	mtx_assert(&(unp)->unp_mtx, MA_NOTOWNED)
 
 static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
@@ -288,6 +315,76 @@ static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 static void	unp_process_defers(void * __unused, int);
+
+
+static void
+unp_pcb_hold(struct unpcb *unp)
+{
+	MPASS(unp->unp_refcount);
+	refcount_acquire(&unp->unp_refcount);
+}
+
+static int
+unp_pcb_rele(struct unpcb *unp)
+{
+	int freed;
+
+	UNP_PCB_LOCK_ASSERT(unp);
+	MPASS(unp->unp_refcount);
+	if ((freed = refcount_release(&unp->unp_refcount))) {
+		/* we got here with having detached? */
+		MPASS(unp->unp_socket == NULL);
+		UNP_PCB_UNLOCK(unp);
+		UNP_PCB_LOCK_DESTROY(unp);
+		uma_zfree(unp_zone, unp);
+	}
+	return (freed);
+}
+
+static void
+unp_pcb_lock2(struct unpcb *unp, struct unpcb *unp2)
+{
+	MPASS(unp != unp2);
+	UNP_PCB_UNLOCK_ASSERT(unp);
+	UNP_PCB_UNLOCK_ASSERT(unp2);
+	if ((uintptr_t)unp2 > (uintptr_t)unp) {
+		UNP_PCB_LOCK(unp);
+		UNP_PCB_LOCK(unp2);
+	} else {
+		UNP_PCB_LOCK(unp2);
+		UNP_PCB_LOCK(unp);
+	}
+}
+
+static __noinline void
+unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p,
+    int *freed)
+{
+	struct unpcb *unp2;
+
+	unp2 = *unp2p;
+	unp_pcb_hold(unp2);
+	UNP_PCB_UNLOCK(unp);
+	UNP_PCB_LOCK(unp2);
+	UNP_PCB_LOCK(unp);
+	*freed = unp_pcb_rele(unp2);
+	if (*freed)
+		*unp2p = NULL;
+}
+
+#define unp_pcb_owned_lock2(unp, unp2, freed) do {			\
+	freed = 0;							\
+	UNP_PCB_LOCK_ASSERT(unp);					\
+	UNP_PCB_UNLOCK_ASSERT(unp2);					\
+	MPASS((unp) != (unp2));						\
+	if (__predict_true(UNP_PCB_TRYLOCK(unp2)))			\
+		break;							\
+	else if ((uintptr_t)(unp2) > (uintptr_t)(unp))			\
+		UNP_PCB_LOCK(unp2);					\
+	else								\
+		unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
+} while (0)
+
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
@@ -344,17 +441,16 @@ uipc_abort(struct socket *so)
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_abort: unp == NULL"));
+	UNP_PCB_UNLOCK_ASSERT(unp);
 
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
 	unp2 = unp->unp_conn;
 	if (unp2 != NULL) {
-		UNP_PCB_LOCK(unp2);
+		unp_pcb_hold(unp2);
+		UNP_PCB_UNLOCK(unp);
 		unp_drop(unp2);
-		UNP_PCB_UNLOCK(unp2);
-	}
-	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
+	} else
+		UNP_PCB_UNLOCK(unp);
 }
 
 static int
@@ -551,14 +647,12 @@ restart:
 	ASSERT_VOP_ELOCKED(vp, "uipc_bind");
 	soun = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
 
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
 	VOP_UNP_BIND(vp, unp);
 	unp->unp_vnode = vp;
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	free(buf, M_TEMP);
@@ -585,9 +679,7 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
-	UNP_LINK_WLOCK();
 	error = unp_connect(so, nam, td);
-	UNP_LINK_WUNLOCK();
 	return (error);
 }
 
@@ -598,9 +690,7 @@ uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
-	UNP_LINK_WLOCK();
 	error = unp_connectat(fd, so, nam, td);
-	UNP_LINK_WUNLOCK();
 	return (error);
 }
 
@@ -609,26 +699,43 @@ uipc_close(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
 	struct vnode *vp = NULL;
-
+	struct mtx *vplock;
+	int freed;
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_close: unp == NULL"));
 
-	UNP_LINK_WLOCK();
-	UNP_PCB_LOCK(unp);
-	unp2 = unp->unp_conn;
-	if (unp2 != NULL) {
-		UNP_PCB_LOCK(unp2);
-		unp_disconnect(unp, unp2);
-		UNP_PCB_UNLOCK(unp2);
+
+	vplock = NULL;
+	if ((vp = unp->unp_vnode) != NULL) {
+		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		mtx_lock(vplock);
 	}
-	if (SOLISTENING(so) && ((vp = unp->unp_vnode) != NULL)) {
+	UNP_PCB_LOCK(unp);
+	if (vp && unp->unp_vnode == NULL) {
+		mtx_unlock(vplock);
+		vp = NULL;
+	}
+	if (vp != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
 	}
-	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
-	if (vp)
+	unp2 = unp->unp_conn;
+	unp_pcb_hold(unp);
+	if (__predict_false(unp == unp2)) {
+		unp_disconnect(unp, unp2);
+	} else if (unp2 != NULL) {
+		unp_pcb_hold(unp2);
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		unp_disconnect(unp, unp2);
+		if (unp_pcb_rele(unp2) == 0)
+			UNP_PCB_UNLOCK(unp2);
+	}
+	if (unp_pcb_rele(unp) == 0)
+		UNP_PCB_UNLOCK(unp);
+	if (vp) {
+		mtx_unlock(vplock);
 		vrele(vp);
+	}
 }
 
 static int
@@ -637,17 +744,18 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 	struct unpcb *unp, *unp2;
 	int error;
 
-	UNP_LINK_WLOCK();
 	unp = so1->so_pcb;
 	KASSERT(unp != NULL, ("uipc_connect2: unp == NULL"));
-	UNP_PCB_LOCK(unp);
 	unp2 = so2->so_pcb;
 	KASSERT(unp2 != NULL, ("uipc_connect2: unp2 == NULL"));
-	UNP_PCB_LOCK(unp2);
+	if (unp != unp2)
+		unp_pcb_lock2(unp, unp2);
+	else
+		UNP_PCB_LOCK(unp);
 	error = unp_connect2(so1, so2, PRU_CONNECT2);
-	UNP_PCB_UNLOCK(unp2);
+	if (unp != unp2)
+		UNP_PCB_UNLOCK(unp2);
 	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
 	return (error);
 }
 
@@ -655,6 +763,7 @@ static void
 uipc_detach(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
+	struct mtx *vplock;
 	struct sockaddr_un *saved_unp_addr;
 	struct vnode *vp;
 	int freeunp, local_unp_rights;
@@ -663,55 +772,87 @@ uipc_detach(struct socket *so)
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
 
 	vp = NULL;
+	vplock = NULL;
 	local_unp_rights = 0;
 
 	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
 	unp->unp_gencnt = ++unp_gencnt;
 	--unp_count;
-	UNP_PCB_LOCK(unp);
-	if ((unp->unp_flags & UNP_NASCENT) != 0)
-		goto teardown;
+	UNP_LINK_WUNLOCK();
 
+	UNP_PCB_UNLOCK_ASSERT(unp);
+ restart:
+	if ((vp = unp->unp_vnode) != NULL) {
+		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		mtx_lock(vplock);
+	}
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_vnode != vp &&
+		unp->unp_vnode != NULL) {
+		if (vplock)
+			mtx_unlock(vplock);
+		UNP_PCB_UNLOCK(unp);
+		goto restart;
+	}
+	if ((unp->unp_flags & UNP_NASCENT) != 0) {
+		goto teardown;
+	}
 	if ((vp = unp->unp_vnode) != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
 	}
-	unp2 = unp->unp_conn;
-	if (unp2 != NULL) {
-		UNP_PCB_LOCK(unp2);
-		unp_disconnect(unp, unp2);
-		UNP_PCB_UNLOCK(unp2);
+	if (__predict_false(unp == unp->unp_conn)) {
+		unp_disconnect(unp, unp);
+		unp2 = NULL;
+		goto connect_self;
 	}
-
-	/*
-	 * We hold the linkage lock exclusively, so it's OK to acquire
-	 * multiple pcb locks at a time.
-	 */
+	if ((unp2 = unp->unp_conn) != NULL) {
+		unp_pcb_owned_lock2(unp, unp2, freeunp);
+		if (freeunp)
+			unp2 = NULL;
+	}
+	unp_pcb_hold(unp);
+	if (unp2 != NULL) {
+		unp_pcb_hold(unp2);
+		unp_disconnect(unp, unp2);
+		if (unp_pcb_rele(unp2) == 0)
+			UNP_PCB_UNLOCK(unp2);
+	}
+ connect_self:
+	UNP_PCB_UNLOCK(unp);
+	UNP_REF_LIST_LOCK();
 	while (!LIST_EMPTY(&unp->unp_refs)) {
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
 
-		UNP_PCB_LOCK(ref);
+		unp_pcb_hold(ref);
+		UNP_REF_LIST_UNLOCK();
+
+		MPASS(ref != unp);
+		UNP_PCB_UNLOCK_ASSERT(ref);
 		unp_drop(ref);
-		UNP_PCB_UNLOCK(ref);
+		UNP_REF_LIST_LOCK();
 	}
+
+	UNP_REF_LIST_UNLOCK();
+	UNP_PCB_LOCK(unp);
+	freeunp = unp_pcb_rele(unp);
+	MPASS(freeunp == 0);
 	local_unp_rights = unp_rights;
 teardown:
-	UNP_LINK_WUNLOCK();
 	unp->unp_socket->so_pcb = NULL;
 	saved_unp_addr = unp->unp_addr;
 	unp->unp_addr = NULL;
-	unp->unp_refcount--;
-	freeunp = (unp->unp_refcount == 0);
+	unp->unp_socket = NULL;
+	freeunp = unp_pcb_rele(unp);
 	if (saved_unp_addr != NULL)
 		free(saved_unp_addr, M_SONAME);
-	if (freeunp) {
-		UNP_PCB_LOCK_DESTROY(unp);
-		uma_zfree(unp_zone, unp);
-	} else
+	if (!freeunp)
 		UNP_PCB_UNLOCK(unp);
-	if (vp)
+	if (vp) {
+		mtx_unlock(vplock);
 		vrele(vp);
+	}
 	if (local_unp_rights)
 		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
 }
@@ -720,20 +861,30 @@ static int
 uipc_disconnect(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
+	int freed;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_disconnect: unp == NULL"));
 
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
-	unp2 = unp->unp_conn;
-	if (unp2 != NULL) {
-		UNP_PCB_LOCK(unp2);
-		unp_disconnect(unp, unp2);
-		UNP_PCB_UNLOCK(unp2);
+	if ((unp2 = unp->unp_conn) == NULL) {
+		UNP_PCB_UNLOCK(unp);
+		return (0);
 	}
-	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
+	if (__predict_true(unp != unp2)) {
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		if (__predict_false(freed)) {
+			UNP_PCB_UNLOCK(unp);
+			return (0);
+		}
+		unp_pcb_hold(unp2);
+	}
+	unp_pcb_hold(unp);
+	unp_disconnect(unp, unp2);
+	if (unp_pcb_rele(unp) == 0)
+		UNP_PCB_UNLOCK(unp);
+	if ((unp != unp2) && unp_pcb_rele(unp2) == 0)
+		UNP_PCB_UNLOCK(unp2);
 	return (0);
 }
 
@@ -852,13 +1003,35 @@ uipc_rcvd(struct socket *so, int flags)
 }
 
 static int
+connect_internal(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+	int error;
+	struct unpcb *unp;
+
+	unp = so->so_pcb;
+	if (unp->unp_conn != NULL)
+		return (EISCONN);
+	error = unp_connect(so, nam, td);
+	if (error)
+		return (error);
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_conn == NULL) {
+		UNP_PCB_UNLOCK(unp);
+		if (error == 0)
+			error = ENOTCONN;
+	}
+	return (error);
+}
+
+
+static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
 	u_int mbcnt, sbcc;
-	int error = 0;
+	int freed, error;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
@@ -866,49 +1039,74 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	    so->so_type == SOCK_SEQPACKET,
 	    ("%s: socktype %d", __func__, so->so_type));
 
+	freed = error = 0;
 	if (flags & PRUS_OOB) {
 		error = EOPNOTSUPP;
 		goto release;
 	}
 	if (control != NULL && (error = unp_internalize(&control, td)))
 		goto release;
-	if ((nam != NULL) || (flags & PRUS_EOF))
-		UNP_LINK_WLOCK();
-	else
-		UNP_LINK_RLOCK();
+
+	unp2 = NULL;
 	switch (so->so_type) {
 	case SOCK_DGRAM:
 	{
 		const struct sockaddr *from;
 
-		unp2 = unp->unp_conn;
 		if (nam != NULL) {
-			UNP_LINK_WLOCK_ASSERT();
-			if (unp2 != NULL) {
-				error = EISCONN;
+			/*
+			 * We return with UNP_PCB_LOCK_HELD so we know that
+			 * the reference is live if the pointer is valid.
+			 */
+			if ((error = connect_internal(so, nam, td)))
+				break;
+			MPASS(unp->unp_conn != NULL);
+			unp2 = unp->unp_conn;
+		} else  {
+			UNP_PCB_LOCK(unp);
+
+			/*
+			 * Because connect() and send() are non-atomic in a sendto()
+			 * with a target address, it's possible that the socket will
+			 * have disconnected before the send() can run.  In that case
+			 * return the slightly counter-intuitive but otherwise
+			 * correct error that the socket is not connected.
+			 */
+			if ((unp2 = unp->unp_conn)  == NULL) {
+				UNP_PCB_UNLOCK(unp);
+				error = ENOTCONN;
 				break;
 			}
-			error = unp_connect(so, nam, td);
-			if (error)
-				break;
-			unp2 = unp->unp_conn;
 		}
-
-		/*
-		 * Because connect() and send() are non-atomic in a sendto()
-		 * with a target address, it's possible that the socket will
-		 * have disconnected before the send() can run.  In that case
-		 * return the slightly counter-intuitive but otherwise
-		 * correct error that the socket is not connected.
-		 */
-		if (unp2 == NULL) {
+		if (__predict_false(unp == unp2)) {
+			if (unp->unp_socket == NULL) {
+				error = ENOTCONN;
+				break;
+			}
+			goto connect_self;
+		}
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		if (__predict_false(freed)) {
+			UNP_PCB_UNLOCK(unp);
 			error = ENOTCONN;
 			break;
 		}
-		/* Lockless read. */
+		/*
+		 * The socket referencing unp2 may have been closed
+		 * or unp may have been disconnected if the unp lock
+		 * was dropped to acquire unp2.
+		 */
+		if (__predict_false(unp->unp_conn == NULL) ||
+			unp2->unp_socket == NULL) {
+			UNP_PCB_UNLOCK(unp);
+			if (unp_pcb_rele(unp2) == 0)
+				UNP_PCB_UNLOCK(unp2);
+			error = ENOTCONN;
+			break;
+		}
+	connect_self:
 		if (unp2->unp_flags & UNP_WANTCRED)
 			control = unp_addsockcred(td, control);
-		UNP_PCB_LOCK(unp);
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
 		else
@@ -924,12 +1122,10 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			SOCKBUF_UNLOCK(&so2->so_rcv);
 			error = ENOBUFS;
 		}
-		if (nam != NULL) {
-			UNP_LINK_WLOCK_ASSERT();
-			UNP_PCB_LOCK(unp2);
+		if (nam != NULL)
 			unp_disconnect(unp, unp2);
+		if (__predict_true(unp != unp2))
 			UNP_PCB_UNLOCK(unp2);
-		}
 		UNP_PCB_UNLOCK(unp);
 		break;
 	}
@@ -938,42 +1134,37 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	case SOCK_STREAM:
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
-				UNP_LINK_WLOCK_ASSERT();
-				error = unp_connect(so, nam, td);
-				if (error)
-					break;	/* XXX */
-			} else {
+				if ((error = connect_internal(so, nam, td)))
+					break;
+			} else  {
+				error = ENOTCONN;
+				break;
+			}
+		} else if ((unp2 = unp->unp_conn) == NULL) {
+			error = ENOTCONN;
+			break;
+		} else if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			error = EPIPE;
+			break;
+		} else {
+			UNP_PCB_LOCK(unp);
+			if ((unp2 = unp->unp_conn) == NULL) {
+				UNP_PCB_UNLOCK(unp);
 				error = ENOTCONN;
 				break;
 			}
 		}
-
-		/* Lockless read. */
-		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-			error = EPIPE;
-			break;
-		}
-
-		/*
-		 * Because connect() and send() are non-atomic in a sendto()
-		 * with a target address, it's possible that the socket will
-		 * have disconnected before the send() can run.  In that case
-		 * return the slightly counter-intuitive but otherwise
-		 * correct error that the socket is not connected.
-		 *
-		 * Locking here must be done carefully: the linkage lock
-		 * prevents interconnections between unpcbs from changing, so
-		 * we can traverse from unp to unp2 without acquiring unp's
-		 * lock.  Socket buffer locks follow unpcb locks, so we can
-		 * acquire both remote and lock socket buffer locks.
-		 */
-		unp2 = unp->unp_conn;
-		if (unp2 == NULL) {
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		UNP_PCB_UNLOCK(unp);
+		if (__predict_false(freed)) {
 			error = ENOTCONN;
 			break;
 		}
-		so2 = unp2->unp_socket;
-		UNP_PCB_LOCK(unp2);
+		if ((so2 = unp2->unp_socket) == NULL) {
+			UNP_PCB_UNLOCK(unp2);
+			error = ENOTCONN;
+			break;
+		}
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (unp2->unp_flags & UNP_WANTCRED) {
 			/*
@@ -983,16 +1174,22 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
 		}
+
 		/*
-		 * Send to paired receive port, and then reduce send buffer
-		 * hiwater marks to maintain backpressure.  Wake up readers.
+		 * Send to paired receive port and wake up readers.  Don't
+		 * check for space available in the receive buffer if we're
+		 * attaching ancillary data; Unix domain sockets only check
+		 * for space in the sending sockbuf, and that check is
+		 * performed one level up the stack.  At that level we cannot
+		 * precisely account for the amount of buffer space used
+		 * (e.g., because control messages are not yet internalized).
 		 */
 		switch (so->so_type) {
 		case SOCK_STREAM:
 			if (control != NULL) {
-				if (sbappendcontrol_locked(&so2->so_rcv, m,
-				    control))
-					control = NULL;
+				sbappendcontrol_locked(&so2->so_rcv, m,
+				    control);
+				control = NULL;
 			} else
 				sbappend_locked(&so2->so_rcv, m, flags);
 			break;
@@ -1001,14 +1198,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			const struct sockaddr *from;
 
 			from = &sun_noname;
-			/*
-			 * Don't check for space available in so2->so_rcv.
-			 * Unix domain sockets only check for space in the
-			 * sending sockbuf, and that check is performed one
-			 * level up the stack.
-			 */
 			if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
-				from, m, control))
+			    from, m, control))
 				control = NULL;
 			break;
 			}
@@ -1046,12 +1237,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		unp_shutdown(unp);
 		UNP_PCB_UNLOCK(unp);
 	}
-
-	if ((nam != NULL) || (flags & PRUS_EOF))
-		UNP_LINK_WUNLOCK();
-	else
-		UNP_LINK_RUNLOCK();
-
 	if (control != NULL && error != 0)
 		unp_dispose_mbuf(control);
 
@@ -1076,14 +1261,21 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 
 	unp = sotounpcb(so);
 
-	UNP_LINK_RLOCK();
+	UNP_PCB_LOCK(unp);
 	if ((unp2 = unp->unp_conn) == NULL) {
-		UNP_LINK_RUNLOCK();
-		for (int i = 0; i < count; i++)
-			m = m_free(m);
-		return (ECONNRESET);
+		UNP_PCB_UNLOCK(unp);
+		goto error;
 	}
-	UNP_PCB_LOCK(unp2);
+	if (unp != unp2) {
+		if (UNP_PCB_TRYLOCK(unp2) == 0) {
+			unp_pcb_hold(unp2);
+			UNP_PCB_UNLOCK(unp);
+			UNP_PCB_LOCK(unp2);
+			if (unp_pcb_rele(unp2))
+				goto error;
+		} else
+			UNP_PCB_UNLOCK(unp);
+	}
 	so2 = unp2->unp_socket;
 
 	SOCKBUF_LOCK(&so2->so_rcv);
@@ -1093,9 +1285,12 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 		SOCKBUF_UNLOCK(&so2->so_rcv);
 
 	UNP_PCB_UNLOCK(unp2);
-	UNP_LINK_RUNLOCK();
 
 	return (error);
+ error:
+	for (int i = 0; i < count; i++)
+		m = m_free(m);
+	return (ECONNRESET);
 }
 
 static int
@@ -1124,12 +1319,10 @@ uipc_shutdown(struct socket *so)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_shutdown: unp == NULL"));
 
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
 	socantsendmore(so);
 	unp_shutdown(unp);
 	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_WUNLOCK();
 	return (0);
 }
 
@@ -1333,16 +1526,11 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
 	cap_rights_t rights;
-	int error, len;
+	int error, len, freed;
+	struct mtx *vplock;
 
 	if (nam->sa_family != AF_UNIX)
 		return (EAFNOSUPPORT);
-
-	UNP_LINK_WLOCK_ASSERT();
-
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
-
 	if (nam->sa_len > sizeof(struct sockaddr_un))
 		return (EINVAL);
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
@@ -1351,12 +1539,12 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	bcopy(soun->sun_path, buf, len);
 	buf[len] = 0;
 
+	unp = sotounpcb(so);
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_flags & UNP_CONNECTING) {
 		UNP_PCB_UNLOCK(unp);
 		return (EALREADY);
 	}
-	UNP_LINK_WUNLOCK();
 	unp->unp_flags |= UNP_CONNECTING;
 	UNP_PCB_UNLOCK(unp);
 
@@ -1389,11 +1577,8 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
 
-	/*
-	 * Lock linkage lock for two reasons: make sure v_socket is stable,
-	 * and to protect simultaneous locking of multiple pcbs.
-	 */
-	UNP_LINK_WLOCK();
+	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp2);
 	if (unp2 == NULL) {
 		error = ECONNREFUSED;
@@ -1404,8 +1589,6 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		error = EPROTOTYPE;
 		goto bad2;
 	}
-	UNP_PCB_LOCK(unp);
-	UNP_PCB_LOCK(unp2);
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			CURVNET_SET(so2->so_vnet);
@@ -1415,60 +1598,75 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 			so2 = NULL;
 		if (so2 == NULL) {
 			error = ECONNREFUSED;
-			goto bad3;
+			goto bad2;
 		}
 		unp3 = sotounpcb(so2);
-		UNP_PCB_LOCK(unp3);
+		unp_pcb_lock2(unp2, unp3);
 		if (unp2->unp_addr != NULL) {
 			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
 			unp3->unp_addr = (struct sockaddr_un *) sa;
 			sa = NULL;
 		}
 
-		/*
-		 * The connector's (client's) credentials are copied from its
-		 * process structure at the time of connect() (which is now).
-		 */
-		cru2x(td->td_ucred, &unp3->unp_peercred);
-		unp3->unp_flags |= UNP_HAVEPC;
+		unp_copy_peercred(td, unp3, unp, unp2);
 
-		/*
-		 * The receiver's (server's) credentials are copied from the
-		 * unp_peercred member of socket on which the former called
-		 * listen(); uipc_listen() cached that process's credentials
-		 * at that time so we can use them now.
-		 */
-		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
-		    sizeof(unp->unp_peercred));
-		unp->unp_flags |= UNP_HAVEPC;
-		if (unp2->unp_flags & UNP_WANTCRED)
-			unp3->unp_flags |= UNP_WANTCRED;
 		UNP_PCB_UNLOCK(unp2);
 		unp2 = unp3;
+		unp_pcb_owned_lock2(unp2, unp, freed);
+		if (__predict_false(freed)) {
+			UNP_PCB_UNLOCK(unp2);
+			error = ECONNREFUSED;
+			goto bad2;
+		}
 #ifdef MAC
 		mac_socketpeer_set_from_socket(so, so2);
 		mac_socketpeer_set_from_socket(so2, so);
 #endif
+	} else {
+		if (unp == unp2)
+			UNP_PCB_LOCK(unp);
+		else
+			unp_pcb_lock2(unp, unp2);
 	}
-
 	KASSERT(unp2 != NULL && so2 != NULL && unp2->unp_socket == so2 &&
 	    sotounpcb(so2) == unp2,
 	    ("%s: unp2 %p so2 %p", __func__, unp2, so2));
 	error = unp_connect2(so, so2, PRU_CONNECT);
-bad3:
-	UNP_PCB_UNLOCK(unp2);
+	if (unp != unp2)
+		UNP_PCB_UNLOCK(unp2);
 	UNP_PCB_UNLOCK(unp);
 bad2:
-	UNP_LINK_WUNLOCK();
+	mtx_unlock(vplock);
 bad:
-	if (vp != NULL)
+	if (vp != NULL) {
 		vput(vp);
+	}
 	free(sa, M_SONAME);
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
 	unp->unp_flags &= ~UNP_CONNECTING;
 	UNP_PCB_UNLOCK(unp);
 	return (error);
+}
+
+/*
+ * Set socket peer credentials at connection time.
+ *
+ * The client's PCB credentials are copied from its process structure.  The
+ * server's PCB credentials are copied from the socket on which it called
+ * listen(2).  uipc_listen cached that process's credentials at the time.
+ */
+void
+unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
+    struct unpcb *server_unp, struct unpcb *listen_unp)
+{
+	cru2x(td->td_ucred, &client_unp->unp_peercred);
+	client_unp->unp_flags |= UNP_HAVEPC;
+
+	memcpy(&server_unp->unp_peercred, &listen_unp->unp_peercred,
+	    sizeof(server_unp->unp_peercred));
+	server_unp->unp_flags |= UNP_HAVEPC;
+	if (listen_unp->unp_flags & UNP_WANTCRED)
+		client_unp->unp_flags |= UNP_WANTCRED;
 }
 
 static int
@@ -1482,7 +1680,6 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 	unp2 = sotounpcb(so2);
 	KASSERT(unp2 != NULL, ("unp_connect2: unp2 == NULL"));
 
-	UNP_LINK_WLOCK_ASSERT();
 	UNP_PCB_LOCK_ASSERT(unp);
 	UNP_PCB_LOCK_ASSERT(unp2);
 
@@ -1490,10 +1687,13 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 		return (EPROTOTYPE);
 	unp2->unp_flags &= ~UNP_NASCENT;
 	unp->unp_conn = unp2;
-
+	unp_pcb_hold(unp2);
+	unp_pcb_hold(unp);
 	switch (so->so_type) {
 	case SOCK_DGRAM:
+		UNP_REF_LIST_LOCK();
 		LIST_INSERT_HEAD(&unp2->unp_refs, unp, unp_reflink);
+		UNP_REF_LIST_UNLOCK();
 		soisconnected(so);
 		break;
 
@@ -1517,31 +1717,47 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 static void
 unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 {
-	struct socket *so;
+	struct socket *so, *so2;
+	int freed __unused;
 
 	KASSERT(unp2 != NULL, ("unp_disconnect: unp2 == NULL"));
 
-	UNP_LINK_WLOCK_ASSERT();
 	UNP_PCB_LOCK_ASSERT(unp);
 	UNP_PCB_LOCK_ASSERT(unp2);
 
+	if (unp->unp_conn == NULL && unp2->unp_conn == NULL)
+		return;
+
+	MPASS(unp->unp_conn == unp2);
 	unp->unp_conn = NULL;
+	so = unp->unp_socket;
+	so2 = unp2->unp_socket;
 	switch (unp->unp_socket->so_type) {
 	case SOCK_DGRAM:
+		UNP_REF_LIST_LOCK();
 		LIST_REMOVE(unp, unp_reflink);
-		so = unp->unp_socket;
-		SOCK_LOCK(so);
-		so->so_state &= ~SS_ISCONNECTED;
-		SOCK_UNLOCK(so);
+		UNP_REF_LIST_UNLOCK();
+		if (so) {
+			SOCK_LOCK(so);
+			so->so_state &= ~SS_ISCONNECTED;
+			SOCK_UNLOCK(so);
+		}
 		break;
 
 	case SOCK_STREAM:
 	case SOCK_SEQPACKET:
-		soisdisconnected(unp->unp_socket);
+		if (so)
+			soisdisconnected(so);
+		MPASS(unp2->unp_conn == unp);
 		unp2->unp_conn = NULL;
-		soisdisconnected(unp2->unp_socket);
+		if (so2)
+			soisdisconnected(so2);
 		break;
 	}
+	freed = unp_pcb_rele(unp);
+	MPASS(freed == 0);
+	freed = unp_pcb_rele(unp2);
+	MPASS(freed == 0);
 }
 
 /*
@@ -1625,7 +1841,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 				continue;
 			}
 			unp_list[i++] = unp;
-			unp->unp_refcount++;
+			unp_pcb_hold(unp);
 		}
 		UNP_PCB_UNLOCK(unp);
 	}
@@ -1637,10 +1853,11 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
 		UNP_PCB_LOCK(unp);
-		unp->unp_refcount--;
-	        if (unp->unp_refcount != 0 && unp->unp_gencnt <= gencnt) {
+		freeunp = unp_pcb_rele(unp);
+
+		if (freeunp == 0 && unp->unp_gencnt <= gencnt) {
 			xu->xu_len = sizeof *xu;
-			xu->xu_unpp = unp;
+			xu->xu_unpp = (uintptr_t)unp;
 			/*
 			 * XXX - need more locking here to protect against
 			 * connect/disconnect races for SMP.
@@ -1657,22 +1874,16 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 				      unp->unp_conn->unp_addr->sun_len);
 			else
 				bzero(&xu->xu_caddr, sizeof(xu->xu_caddr));
-			xu->unp_vnode = unp->unp_vnode;
-			xu->unp_conn = unp->unp_conn;
-			xu->xu_firstref = LIST_FIRST(&unp->unp_refs);
-			xu->xu_nextref = LIST_NEXT(unp, unp_reflink);
+			xu->unp_vnode = (uintptr_t)unp->unp_vnode;
+			xu->unp_conn = (uintptr_t)unp->unp_conn;
+			xu->xu_firstref = (uintptr_t)LIST_FIRST(&unp->unp_refs);
+			xu->xu_nextref = (uintptr_t)LIST_NEXT(unp, unp_reflink);
 			xu->unp_gencnt = unp->unp_gencnt;
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
 			UNP_PCB_UNLOCK(unp);
 			error = SYSCTL_OUT(req, xu, sizeof *xu);
-		} else {
-			freeunp = (unp->unp_refcount == 0);
+		} else  if (freeunp == 0)
 			UNP_PCB_UNLOCK(unp);
-			if (freeunp) {
-				UNP_PCB_LOCK_DESTROY(unp);
-				uma_zfree(unp_zone, unp);
-			}
-		}
 	}
 	free(xu, M_TEMP);
 	if (!error) {
@@ -1709,7 +1920,6 @@ unp_shutdown(struct unpcb *unp)
 	struct unpcb *unp2;
 	struct socket *so;
 
-	UNP_LINK_WLOCK_ASSERT();
 	UNP_PCB_LOCK_ASSERT(unp);
 
 	unp2 = unp->unp_conn;
@@ -1726,22 +1936,30 @@ unp_drop(struct unpcb *unp)
 {
 	struct socket *so = unp->unp_socket;
 	struct unpcb *unp2;
-
-	UNP_LINK_WLOCK_ASSERT();
-	UNP_PCB_LOCK_ASSERT(unp);
+	int freed;
 
 	/*
 	 * Regardless of whether the socket's peer dropped the connection
 	 * with this socket by aborting or disconnecting, POSIX requires
 	 * that ECONNRESET is returned.
 	 */
-	so->so_error = ECONNRESET;
+	/* acquire a reference so that unp isn't freed from underneath us */
+
+	UNP_PCB_LOCK(unp);
+	if (so)
+		so->so_error = ECONNRESET;
 	unp2 = unp->unp_conn;
-	if (unp2 == NULL)
-		return;
-	UNP_PCB_LOCK(unp2);
-	unp_disconnect(unp, unp2);
-	UNP_PCB_UNLOCK(unp2);
+	if (unp2 == unp) {
+		unp_disconnect(unp, unp2);
+	} else if (unp2 != NULL) {
+		unp_pcb_hold(unp2);
+		unp_pcb_owned_lock2(unp, unp2, freed);
+		unp_disconnect(unp, unp2);
+		if (unp_pcb_rele(unp2) == 0)
+			UNP_PCB_UNLOCK(unp2);
+	}
+	if (unp_pcb_rele(unp) == 0)
+		UNP_PCB_UNLOCK(unp);
 }
 
 static void
@@ -1832,6 +2050,13 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fdep[i]->fde_file);
 			}
+
+			/*
+			 * The new type indicates that the mbuf data refers to
+			 * kernel resources that may need to be released before
+			 * the mbuf is freed.
+			 */
+			m_chtype(*controlp, MT_EXTCONTROL);
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);
 		} else {
@@ -1881,7 +2106,7 @@ unp_init(void)
 		return;
 #endif
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, UMA_ALIGN_CACHE, 0);
 	if (unp_zone == NULL)
 		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
@@ -2464,13 +2689,15 @@ vfs_unp_reclaim(struct vnode *vp)
 {
 	struct unpcb *unp;
 	int active;
+	struct mtx *vplock;
 
 	ASSERT_VOP_ELOCKED(vp, "vfs_unp_reclaim");
 	KASSERT(vp->v_type == VSOCK,
 	    ("vfs_unp_reclaim: vp->v_type != VSOCK"));
 
 	active = 0;
-	UNP_LINK_WLOCK();
+	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp);
 	if (unp == NULL)
 		goto done;
@@ -2481,8 +2708,8 @@ vfs_unp_reclaim(struct vnode *vp)
 		active = 1;
 	}
 	UNP_PCB_UNLOCK(unp);
-done:
-	UNP_LINK_WUNLOCK();
+ done:
+	mtx_unlock(vplock);
 	if (active)
 		vunref(vp);
 }

@@ -60,6 +60,7 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
+
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{
 	  NGM_EIFACE_COOKIE,
@@ -121,7 +122,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
+VNET_DEFINE_STATIC(struct unrhdr *, ng_eiface_unit);
 #define	V_ng_eiface_unit		VNET(ng_eiface_unit)
 
 /************************************************************************
@@ -512,7 +513,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Determine size of response and allocate it */
 			buflen = 0;
 			if_addr_rlock(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
@@ -523,7 +524,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Add addresses */
 			ptr = resp->data;
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				const int len = SA_SIZE(ifa->ifa_addr);
 
 				if (buflen < len) {

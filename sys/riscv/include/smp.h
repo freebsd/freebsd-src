@@ -46,6 +46,8 @@
 #define	IPI_STOP_HARD	(1 << 4)
 #define	IPI_HARDCLOCK	(1 << 5)
 
+#define	INTR_IPI_COUNT	1
+
 void ipi_all_but_self(u_int ipi);
 void ipi_cpu(int cpu, u_int ipi);
 void ipi_selected(cpuset_t cpus, u_int ipi);

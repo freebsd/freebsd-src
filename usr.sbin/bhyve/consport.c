@@ -74,14 +74,14 @@ ttyopen(void)
 static bool
 tty_char_available(void)
 {
-        fd_set rfds;
-        struct timeval tv;
+	fd_set rfds;
+	struct timeval tv;
 
-        FD_ZERO(&rfds);
-        FD_SET(STDIN_FILENO, &rfds);
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        if (select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv) > 0) {
+	FD_ZERO(&rfds);
+	FD_SET(STDIN_FILENO, &rfds);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	if (select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv) > 0) {
 		return (true);
 	} else {
 		return (false);

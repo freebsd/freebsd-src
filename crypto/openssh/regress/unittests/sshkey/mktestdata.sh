@@ -1,24 +1,7 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.5 2015/07/07 14:53:30 markus Exp $
+# $OpenBSD: mktestdata.sh,v 1.6 2017/04/30 23:33:48 djm Exp $
 
 PW=mekmitasdigoat
-
-rsa1_params() {
-	_in="$1"
-	_outbase="$2"
-	set -e
-	ssh-keygen -f $_in -e -m pkcs8 | \
-	    openssl rsa -noout -text -pubin | \
-	    awk '/^Modulus:$/,/^Exponent:/' | \
-	    grep -v '^[a-zA-Z]' | tr -d ' \n:' > ${_outbase}.n
-	# XXX need conversion support in ssh-keygen for the other params
-	for x in n ; do
-		echo "" >> ${_outbase}.$x
-		echo ============ ${_outbase}.$x
-		cat ${_outbase}.$x
-		echo ============
-	done
-}
 
 rsa_params() {
 	_in="$1"
@@ -87,20 +70,18 @@ set -ex
 
 cd testdata
 
-rm -f rsa1_1 rsa_1 dsa_1 ecdsa_1 ed25519_1
-rm -f rsa1_2 rsa_2 dsa_2 ecdsa_2 ed25519_2
+rm -f rsa_1 dsa_1 ecdsa_1 ed25519_1
+rm -f rsa_2 dsa_2 ecdsa_2 ed25519_2
 rm -f rsa_n dsa_n ecdsa_n # new-format keys
-rm -f rsa1_1_pw rsa_1_pw dsa_1_pw ecdsa_1_pw ed25519_1_pw
+rm -f rsa_1_pw dsa_1_pw ecdsa_1_pw ed25519_1_pw
 rm -f rsa_n_pw dsa_n_pw ecdsa_n_pw
 rm -f pw *.pub *.bn.* *.param.* *.fp *.fp.bb
 
-ssh-keygen -t rsa1 -b 1024 -C "RSA1 test key #1" -N "" -f rsa1_1
 ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1
 ssh-keygen -t dsa -b 1024 -C "DSA test key #1" -N "" -f dsa_1
 ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_1
 
-ssh-keygen -t rsa1 -b 2048 -C "RSA1 test key #2" -N "" -f rsa1_2
 ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2
 ssh-keygen -t dsa -b 1024 -C "DSA test key #2" -N "" -f dsa_2
 ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2
@@ -110,7 +91,6 @@ cp rsa_1 rsa_n
 cp dsa_1 dsa_n
 cp ecdsa_1 ecdsa_n
 
-cp rsa1_1 rsa1_1_pw
 cp rsa_1 rsa_1_pw
 cp dsa_1 dsa_1_pw
 cp ecdsa_1 ecdsa_1_pw
@@ -119,7 +99,6 @@ cp rsa_1 rsa_n_pw
 cp dsa_1 dsa_n_pw
 cp ecdsa_1 ecdsa_n_pw
 
-ssh-keygen -pf rsa1_1_pw -N "$PW"
 ssh-keygen -pf rsa_1_pw -N "$PW"
 ssh-keygen -pf dsa_1_pw -N "$PW"
 ssh-keygen -pf ecdsa_1_pw -N "$PW"
@@ -128,8 +107,6 @@ ssh-keygen -opf rsa_n_pw -N "$PW"
 ssh-keygen -opf dsa_n_pw -N "$PW"
 ssh-keygen -opf ecdsa_n_pw -N "$PW"
 
-rsa1_params rsa1_1 rsa1_1.param
-rsa1_params rsa1_2 rsa1_2.param
 rsa_params rsa_1 rsa_1.param
 rsa_params rsa_2 rsa_2.param
 dsa_params dsa_1 dsa_1.param
@@ -160,12 +137,10 @@ ssh-keygen -s ecdsa_1 -I julius -n host1,host2 -h \
 ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
     -V 19990101:20110101 -z 8 ed25519_1.pub
 
-ssh-keygen -lf rsa1_1 | awk '{print $2}' > rsa1_1.fp
 ssh-keygen -lf rsa_1 | awk '{print $2}' > rsa_1.fp
 ssh-keygen -lf dsa_1 | awk '{print $2}' > dsa_1.fp
 ssh-keygen -lf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp
 ssh-keygen -lf ed25519_1 | awk '{print $2}' > ed25519_1.fp
-ssh-keygen -lf rsa1_2 | awk '{print $2}' > rsa1_2.fp
 ssh-keygen -lf rsa_2 | awk '{print $2}' > rsa_2.fp
 ssh-keygen -lf dsa_2 | awk '{print $2}' > dsa_2.fp
 ssh-keygen -lf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp
@@ -176,12 +151,10 @@ ssh-keygen -lf ecdsa_1-cert.pub  | awk '{print $2}' > ecdsa_1-cert.fp
 ssh-keygen -lf ed25519_1-cert.pub  | awk '{print $2}' > ed25519_1-cert.fp
 ssh-keygen -lf rsa_1-cert.pub  | awk '{print $2}' > rsa_1-cert.fp
 
-ssh-keygen -Bf rsa1_1 | awk '{print $2}' > rsa1_1.fp.bb
 ssh-keygen -Bf rsa_1 | awk '{print $2}' > rsa_1.fp.bb
 ssh-keygen -Bf dsa_1 | awk '{print $2}' > dsa_1.fp.bb
 ssh-keygen -Bf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp.bb
 ssh-keygen -Bf ed25519_1 | awk '{print $2}' > ed25519_1.fp.bb
-ssh-keygen -Bf rsa1_2 | awk '{print $2}' > rsa1_2.fp.bb
 ssh-keygen -Bf rsa_2 | awk '{print $2}' > rsa_2.fp.bb
 ssh-keygen -Bf dsa_2 | awk '{print $2}' > dsa_2.fp.bb
 ssh-keygen -Bf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp.bb

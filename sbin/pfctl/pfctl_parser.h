@@ -257,6 +257,7 @@ void	print_src_node(struct pf_src_node *, int);
 void	print_rule(struct pf_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
+void	print_running(struct pf_status *);
 
 int	eval_pfaltq(struct pfctl *, struct pf_altq *, struct node_queue_bw *,
 	    struct node_queue_opt *);

@@ -81,6 +81,7 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
 {
   svn_node_kind_t kind;
   svn_client__pathrev_t *pathrev;
+  svn_opt_revision_t resolved_rev = { svn_opt_revision_number };
 
   /* Sanity check.  Without these, the checkout is meaningless. */
   SVN_ERR_ASSERT(local_abspath != NULL);
@@ -125,6 +126,7 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
     }
 
   SVN_ERR(svn_ra_check_path(ra_session, "", pathrev->rev, &kind, scratch_pool));
+  resolved_rev.value.number = pathrev->rev;
 
   if (kind == svn_node_none)
     return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
@@ -185,8 +187,8 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
 
   /* Have update fix the incompleteness. */
   SVN_ERR(svn_client__update_internal(result_rev, timestamp_sleep,
-                                      local_abspath, revision, depth, TRUE,
-                                      ignore_externals,
+                                      local_abspath, &resolved_rev, depth,
+                                      TRUE, ignore_externals,
                                       allow_unver_obstructions,
                                       TRUE /* adds_as_modification */,
                                       FALSE, FALSE, ra_session,

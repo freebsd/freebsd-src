@@ -1,4 +1,8 @@
 <top>
+  <type>ethernet</type>
+  <type>bridge</type>
+  <type>18u</type>
+  <type>24</type>
   <address>0x0</address>
   <port>1</port>
   <address>0x0</address>
