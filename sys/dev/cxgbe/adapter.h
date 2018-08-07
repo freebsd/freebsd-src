@@ -249,6 +249,7 @@ struct tx_cl_rl_params {
 	enum fw_sched_params_mode mode;		/* aggr or per-flow */
 	uint32_t maxrate;
 	uint16_t pktsize;
+	uint16_t burstsize;
 };
 
 /* Tx scheduler parameters for a channel/port */
@@ -259,7 +260,9 @@ struct tx_sched_params {
 	/* Class WRR */
 	/* XXX */
 
-	/* Class Rate Limiter */
+	/* Class Rate Limiter (including the default pktsize and burstsize). */
+	int pktsize;
+	int burstsize;
 	struct tx_cl_rl_params cl_rl[];
 };
 
