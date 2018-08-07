@@ -844,10 +844,6 @@ be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
 		return (BE_ERR_NOENT);
 
 	if (temporary) {
-		/*
-		 * XXX TODO: give proper attribution to author(s) of zfsbootcfg
-		 * for this snippet.
-		 */
 		config = zpool_get_config(lbh->active_phandle, NULL);
 		if (config == NULL) {
 			printf("no config\n");
