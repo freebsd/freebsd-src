@@ -107,7 +107,6 @@ int
 set_error(libbe_handle_t *lbh, be_error_t err)
 {
 
-	/* XXX TODO: should the old error be overwritten or no? */
 	lbh->error = err;
 	if (lbh->print_on_err && (err != BE_ERR_SUCCESS))
 		fprintf(stderr, "%s\n", libbe_error_description(lbh));
