@@ -1,7 +1,8 @@
-/*
- * be_info.c
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2017 Kyle J. Kneitinger <kyle@kneit.in>
+ * Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

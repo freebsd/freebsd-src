@@ -1,5 +1,5 @@
-/*
- * be.h
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2017 Kyle J. Kneitinger <kyle@kneit.in>
  * All rights reserved.
