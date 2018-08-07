@@ -42,5 +42,6 @@ ftok(const char *path, int id)
 	if (stat(path, &st) < 0)
 		return (key_t)-1;
 
-	return (key_t) (id << 24 | (st.st_dev & 0xff) << 16 | (st.st_ino & 0xffff));
+	return ((key_t)((unsigned int)id << 24 | (st.st_dev & 0xff) << 16 |
+	    (st.st_ino & 0xffff)));
 }
