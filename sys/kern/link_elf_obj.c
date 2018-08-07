@@ -142,7 +142,7 @@ static int	link_elf_each_function_name(linker_file_t,
 static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
-static int	link_elf_reloc_local(linker_file_t);
+static int	link_elf_reloc_local(linker_file_t, bool);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
@@ -441,10 +441,9 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	}
 
 	/* Local intra-module relocations */
-	error = link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf, false);
 	if (error != 0)
 		goto out;
-
 	*result = lf;
 	return (0);
 
@@ -479,11 +478,16 @@ link_elf_link_preload_finish(linker_file_t lf)
 	ef = (elf_file_t)lf;
 	error = relocate_file(ef);
 	if (error)
-		return error;
+		return (error);
 
 	/* Notify MD code that a module is being loaded. */
 	error = elf_cpu_load_file(lf);
 	if (error)
+		return (error);
+
+	/* Now ifuncs. */
+	error = link_elf_reloc_local(lf, true);
+	if (error != 0)
 		return (error);
 
 	/* Invoke .ctors */
@@ -969,7 +973,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 
 	/* Local intra-module relocations */
-	error = link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf, false);
 	if (error != 0)
 		goto out;
 
@@ -988,6 +992,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	/* Notify MD code that a module is being loaded. */
 	error = elf_cpu_load_file(lf);
 	if (error)
+		goto out;
+
+	/* Now ifuncs. */
+	error = link_elf_reloc_local(lf, true);
+	if (error != 0)
 		goto out;
 
 	/* Invoke .ctors */
@@ -1374,7 +1383,10 @@ elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 
 	/* Quick answer if there is a definition included. */
 	if (sym->st_shndx != SHN_UNDEF) {
-		*res = sym->st_value;
+		res1 = (Elf_Addr)sym->st_value;
+		if (ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)
+			res1 = ((Elf_Addr (*)(void))res1)();
+		*res = res1;
 		return (0);
 	}
 
@@ -1470,7 +1482,7 @@ link_elf_fix_link_set(elf_file_t ef)
 }
 
 static int
-link_elf_reloc_local(linker_file_t lf)
+link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 {
 	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Rel *rellim;
@@ -1505,8 +1517,13 @@ link_elf_reloc_local(linker_file_t lf)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
-			    elf_obj_lookup);
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
+			    ifuncs)
+				elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
+				    elf_obj_lookup);
+			else if (ifuncs)
+				elf_reloc_ifunc(lf, base, rel, ELF_RELOC_REL,
+				    elf_obj_lookup);
 		}
 	}
 
@@ -1531,8 +1548,13 @@ link_elf_reloc_local(linker_file_t lf)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
-			    elf_obj_lookup);
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
+			    ifuncs)
+				elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
+				    elf_obj_lookup);
+			else if (ifuncs)
+				elf_reloc_ifunc(lf, base, rela, ELF_RELOC_RELA,
+				    elf_obj_lookup);
 		}
 	}
 	return (0);
