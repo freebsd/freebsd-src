@@ -128,8 +128,7 @@ __FBSDID("$FreeBSD$");
 #define	CE_NODUMP	0x0200	/* Set 'nodump' on newly created log file. */
 #define	CE_PID2CMD	0x0400	/* Replace PID file with a shell command.*/
 #define	CE_PLAIN0	0x0800	/* Do not compress zero'th history file */
-
-#define	CE_RFC5424	0x0800	/* Use RFC5424 format rotation message */
+#define	CE_RFC5424	0x1000	/* Use RFC5424 format rotation message */
 
 #define	MIN_PID         5	/* Don't touch pids lower than this */
 #define	MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
