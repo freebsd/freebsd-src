@@ -28,9 +28,9 @@ ${dir}TAG_ARGS=	-T ${${dir}TAGS:[*]:S/ /,/g}
 
 installdirs: installdirs-${dir}
 
-installdirs-${dir}: ${DESTDIR}${${dir}}
+installdirs-${dir}: installdirs-${DESTDIR}${${dir}}
 
-${DESTDIR}${${dir}}:
+installdirs-${DESTDIR}${${dir}}:
 	@${ECHO} installing DIRS ${dir}
 	${INSTALL} ${${dir}TAG_ARGS} -d -m ${${dir}_MODE} -o ${${dir}_OWN} \
 		-g ${${dir}_GRP} ${${dir}_FLAG} ${DESTDIR}${${dir}}
