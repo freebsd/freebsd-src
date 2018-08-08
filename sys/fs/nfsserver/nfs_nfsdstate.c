@@ -220,8 +220,8 @@ static void nfsrv_freealldevids(void);
 static void nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp,
     int maxcnt, NFSPROC_T *p);
 static int nfsrv_recalllayout(nfsquad_t clid, nfsv4stateid_t *stateidp,
-    fhandle_t *fhp, struct nfslayout *lyp, struct nfslayouthead *lyheadp,
-    int laytype, NFSPROC_T *p);
+    fhandle_t *fhp, struct nfslayout *lyp, int changed, int laytype,
+    NFSPROC_T *p);
 static int nfsrv_findlayout(nfsquad_t *clientidp, fhandle_t *fhp, int laytype,
     NFSPROC_T *, struct nfslayout **lypp);
 static int nfsrv_fndclid(nfsquad_t *clidvec, nfsquad_t clid, int clidcnt);
@@ -4234,6 +4234,8 @@ out:
 
 /*
  * Do a server callback.
+ * The "trunc" argument is slightly overloaded and refers to different
+ * boolean arguments for CBRECALL and CBLAYOUTRECALL.
  */
 static int
 nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
@@ -4337,7 +4339,10 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		NFSM_BUILD(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 		*tl++ = txdr_unsigned(laytype);
 		*tl++ = txdr_unsigned(NFSLAYOUTIOMODE_ANY);
-		*tl++ = newnfs_true;
+		if (trunc)
+			*tl++ = newnfs_true;
+		else
+			*tl++ = newnfs_false;
 		*tl = txdr_unsigned(NFSV4LAYOUTRET_FILE);
 		nfsm_fhtom(nd, (uint8_t *)fhp, NFSX_MYFH, 0);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_HYPER + NFSX_STATEID);
@@ -6817,13 +6822,11 @@ nfsrv_flexmirrordel(char *devid, NFSPROC_T *p)
 		/*
 		 * The layout stateid.seqid needs to be incremented
 		 * before doing a LAYOUT_RECALL callback.
-		 * Set lay_trycnt to UINT16_MAX so it won't set up a retry.
 		 */
 		if (++lyp->lay_stateid.seqid == 0)
 			lyp->lay_stateid.seqid = 1;
-		lyp->lay_trycnt = UINT16_MAX;
 		nfsrv_recalllayout(lyp->lay_clientid, &lyp->lay_stateid,
-		    &lyp->lay_fh, lyp, &loclyp, lyp->lay_type, p);
+		    &lyp->lay_fh, lyp, 1, lyp->lay_type, p);
 		nfsrv_freelayout(&loclyp, lyp);
 	}
 }
@@ -6833,8 +6836,7 @@ nfsrv_flexmirrordel(char *devid, NFSPROC_T *p)
  */
 static int
 nfsrv_recalllayout(nfsquad_t clid, nfsv4stateid_t *stateidp, fhandle_t *fhp,
-    struct nfslayout *lyp, struct nfslayouthead *lyheadp, int laytype,
-    NFSPROC_T *p)
+    struct nfslayout *lyp, int changed, int laytype, NFSPROC_T *p)
 {
 	struct nfsclient *clp;
 	int error;
@@ -6843,38 +6845,29 @@ nfsrv_recalllayout(nfsquad_t clid, nfsv4stateid_t *stateidp, fhandle_t *fhp,
 	error = nfsrv_getclient(clid, 0, &clp, NULL, (nfsquad_t)((u_quad_t)0),
 	    0, NULL, p);
 	NFSD_DEBUG(4, "aft nfsrv_getclient=%d\n", error);
-	if (error != 0)
+	if (error != 0) {
+		printf("nfsrv_recalllayout: getclient err=%d\n", error);
 		return (error);
+	}
 	if ((clp->lc_flags & LCL_NFSV41) != 0) {
 		error = nfsrv_docallback(clp, NFSV4OP_CBLAYOUTRECALL,
-		    stateidp, 0, fhp, NULL, NULL, laytype, p);
+		    stateidp, changed, fhp, NULL, NULL, laytype, p);
 		/* If lyp != NULL, handle an error return here. */
 		if (error != 0 && lyp != NULL) {
 			NFSDRECALLLOCK();
-			if (error == NFSERR_NOMATCHLAYOUT) {
-				/*
-				 * Mark it returned, since there is no layout.
-				 */
-				if ((lyp->lay_flags & NFSLAY_RECALL) != 0) {
-					lyp->lay_flags |= NFSLAY_RETURNED;
-					wakeup(lyp);
-				}
-				NFSDRECALLUNLOCK();
-			} else if ((lyp->lay_flags & NFSLAY_RETURNED) == 0 &&
-			    lyp->lay_trycnt < 10) {
-				/*
-				 * Clear recall, so it can be tried again
-				 * and put it at the end of the list to
-				 * delay the retry a little longer.
-				 */
-				lyp->lay_flags &= ~NFSLAY_RECALL;
-				lyp->lay_trycnt++;
-				TAILQ_REMOVE(lyheadp, lyp, lay_list);
-				TAILQ_INSERT_TAIL(lyheadp, lyp, lay_list);
-				NFSDRECALLUNLOCK();
-				nfs_catnap(PVFS, 0, "nfsrclay");
-			} else
-				NFSDRECALLUNLOCK();
+			/*
+			 * Mark it returned, since no layout recall
+			 * has been done.
+			 * All errors seem to be non-recoverable, although
+			 * NFSERR_NOMATCHLAYOUT is a normal event.
+			 */
+			if ((lyp->lay_flags & NFSLAY_RECALL) != 0) {
+				lyp->lay_flags |= NFSLAY_RETURNED;
+				wakeup(lyp);
+			}
+			NFSDRECALLUNLOCK();
+			if (error != NFSERR_NOMATCHLAYOUT)
+				printf("nfsrv_recalllayout: err=%d\n", error);
 		}
 	} else
 		printf("nfsrv_recalllayout: clp not NFSv4.1\n");
@@ -6914,10 +6907,10 @@ nfsrv_recalloldlayout(NFSPROC_T *p)
 	}
 	NFSUNLOCKLAYOUT(lhyp);
 	if (lyp != NULL) {
-		error = nfsrv_recalllayout(clientid, &stateid, &fh, NULL, NULL,
+		error = nfsrv_recalllayout(clientid, &stateid, &fh, NULL, 0,
 		    laytype, p);
 		if (error != 0 && error != NFSERR_NOMATCHLAYOUT)
-			printf("recallold=%d\n", error);
+			NFSD_DEBUG(4, "recallold=%d\n", error);
 		if (error != 0) {
 			NFSLOCKLAYOUT(lhyp);
 			/*
@@ -8068,8 +8061,7 @@ tryagain:
 				lyp->lay_stateid.seqid = 1;
 			NFSDRECALLUNLOCK();
 			nfsrv_recalllayout(lyp->lay_clientid, &lyp->lay_stateid,
-			    &lyp->lay_fh, lyp, &nfsrv_recalllisthead,
-			    lyp->lay_type, p);
+			    &lyp->lay_fh, lyp, 0, lyp->lay_type, p);
 			NFSD_DEBUG(4, "nfsrv_copymr: recalled layout\n");
 			goto tryagain;
 		}
@@ -8086,17 +8078,33 @@ tryagain2:
 				NFSD_DEBUG(4,
 				    "nfsrv_copymr: layout returned\n");
 			} else {
+				lyp->lay_trycnt++;
 				ret = mtx_sleep(lyp, NFSDRECALLMUTEXPTR,
 				    PVFS | PCATCH, "nfsmrl", hz);
 				NFSD_DEBUG(4, "nfsrv_copymr: aft sleep=%d\n",
 				    ret);
 				if (ret == EINTR || ret == ERESTART)
 					break;
-				if ((lyp->lay_flags & NFSLAY_RETURNED) == 0 &&
-				    didprintf == 0) {
-					printf("nfsrv_copymr: layout not "
-					    "returned\n");
-					didprintf = 1;
+				if ((lyp->lay_flags & NFSLAY_RETURNED) == 0) {
+					/*
+					 * Give up after 60sec and return
+					 * ENXIO, failing the copymr.
+					 * This layout will remain on the
+					 * recalllist.  It can only be cleared
+					 * by restarting the nfsd.
+					 * This seems the safe way to handle
+					 * it, since it cannot be safely copied
+					 * with an outstanding RW layout.
+					 */
+					if (lyp->lay_trycnt >= 60) {
+						ret = ENXIO;
+						break;
+					}
+					if (didprintf == 0) {
+						printf("nfsrv_copymr: layout "
+						    "not returned\n");
+						didprintf = 1;
+					}
 				}
 			}
 			goto tryagain2;
