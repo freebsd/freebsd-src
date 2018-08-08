@@ -66,6 +66,12 @@ libbe_error_description(libbe_handle_t *lbh)
 	case BE_ERR_DESTROYMNT:
 		return ("cannot destroy mounted boot env unless forced");
 
+	case BE_ERR_BADPATH:
+		return ("path not suitable for operation");
+
+	case BE_ERR_PATHBUSY:
+		return ("specified path is busy");
+
 	case BE_ERR_PATHLEN:
 		return ("provided path name exceeds maximum length limit");
 
@@ -86,6 +92,9 @@ libbe_error_description(libbe_handle_t *lbh)
 
 	case BE_ERR_ZFSCLONE:
 		return ("error when calling zfs_clone() to create boot env");
+
+	case BE_ERR_IO:
+		return ("input/output error");
 
 	case BE_ERR_UNKNOWN:
 		return ("unknown error");
