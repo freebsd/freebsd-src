@@ -10,7 +10,9 @@ gedcom.testfile \
 hddrawcopytool.result \
 hddrawcopytool.testfile \
 issue311docx.result \
-issue311docx.testfile
+issue311docx.testfile \
+JW07022A.mp3.result \
+JW07022A.mp3.testfile
 
 T = $(top_srcdir)/tests
 check-local:
