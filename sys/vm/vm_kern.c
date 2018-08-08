@@ -549,6 +549,7 @@ void
 kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 {
 #if defined(__i386__) || defined(__amd64__)
+	struct vm_domain *vmd;
 	vm_offset_t end, va;
 	vm_paddr_t pa;
 	vm_page_t m;
@@ -560,9 +561,14 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 		pa = pmap_kextract(va);
 		m = PHYS_TO_VM_PAGE(pa);
 
+		vmd = vm_phys_domain(m);
 		mtx_lock(&vm_page_queue_free_mtx);
 		vm_phys_free_pages(m, 0);
+		vmd->vmd_page_count++;
+		vm_phys_freecnt_adj(m, 1);
 		mtx_unlock(&vm_page_queue_free_mtx);
+
+		vm_cnt.v_page_count++;
 	}
 	pmap_remove(kernel_pmap, start, end);
 	(void)vmem_add(kernel_arena, start, end - start, M_WAITOK);
