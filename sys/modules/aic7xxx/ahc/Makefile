@@ -40,7 +40,7 @@ ${GENSRCS}:								 \
 # to appear when building the tree from 8.x worlds where fmake is the
 # default. fmake doens't define .MAKE.LEVEL so key off that to omit it,
 # while still allowing more-modern makes to theoretically update things.
-${GENSRCS}:
+${GENSRCS}: .NOMETA
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahcfirmware'"
 .endif
 
