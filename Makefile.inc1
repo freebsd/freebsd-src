@@ -85,7 +85,8 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 
 # Pull in compiler metadata from buildworld/toolchain if possible to avoid
 # running CC from bsd.compiler.mk.
-.if make(installworld) || make(install)
+.if make(installworld) || make(install) || make(distributeworld) || \
+    make(stageworld)
 .-include "${OBJTREE}${.CURDIR}/compiler-metadata.mk"
 .if !defined(_LOADED_COMPILER_METADATA)
 .error A build is required first.  You may have the wrong MAKEOBJDIRPREFIX set.
