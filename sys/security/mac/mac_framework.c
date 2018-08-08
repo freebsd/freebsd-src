@@ -586,7 +586,9 @@ int
 mac_check_structmac_consistent(struct mac *mac)
 {
 
-	if (mac->m_buflen > MAC_MAX_LABEL_BUF_LEN)
+	/* Require that labels have a non-zero length. */
+	if (mac->m_buflen > MAC_MAX_LABEL_BUF_LEN ||
+	    mac->m_buflen <= sizeof(""))
 		return (EINVAL);
 
 	return (0);
