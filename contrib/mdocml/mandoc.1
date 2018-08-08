@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 20 2017 $
+.Dd $Mdocdate: August 8 2018 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -54,13 +54,13 @@ The options are as follows:
 If the standard output is a terminal device and
 .Fl c
 is not specified, use
-.Xr more 1
+.Xr less 1
 to paginate the output, just like
 .Xr man 1
 would.
 .It Fl c
 Copy the formatted manual pages to the standard output without using
-.Xr more 1
+.Xr less 1
 to paginate them.
 This is the default.
 It can be specified to override
@@ -578,7 +578,7 @@ Meta data is not available in this case.
 Any non-empty value of the environment variable
 .Ev MANPAGER
 is used instead of the standard pagination program,
-.Xr more 1 ;
+.Xr less 1 ;
 see
 .Xr man 1
 for details.
@@ -592,7 +592,7 @@ Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Xr more 1
+.Xr less 1
 .Fl s
 is used.
 Only used if

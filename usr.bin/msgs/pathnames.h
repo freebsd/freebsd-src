@@ -35,6 +35,6 @@
 
 #define	_PATH_MSGS	"/var/msgs"
 #define	_PATH_MAIL	"/usr/bin/Mail -f %s"
-#define	_PATH_PAGER	"/usr/bin/more -%d"
+#define	_PATH_PAGER	"/usr/bin/less -%d"
 #undef _PATH_TMP
 #define	_PATH_TMP	"/tmp/msgXXXXXX"
