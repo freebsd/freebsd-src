@@ -502,12 +502,8 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		}
 		bcopy(lladdr, desten, ll_len);
 
-		/* Check if we have feedback request from arptimer() */
-		if (la->r_skip_req != 0) {
-			LLE_REQ_LOCK(la);
-			la->r_skip_req = 0; /* Notify that entry was used */
-			LLE_REQ_UNLOCK(la);
-		}
+		/* Notify LLE code that the entry was used by datapath */
+		llentry_mark_used(la);
 		if (pflags != NULL)
 			*pflags = la->la_flags & (LLE_VALID|LLE_IFADDR);
 		if (plle) {
@@ -638,12 +634,8 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		bcopy(la->r_linkdata, desten, la->r_hdrlen);
 		if (pflags != NULL)
 			*pflags = LLE_VALID | (la->r_flags & RLLE_IFADDR);
-		/* Check if we have feedback request from arptimer() */
-		if (la->r_skip_req != 0) {
-			LLE_REQ_LOCK(la);
-			la->r_skip_req = 0; /* Notify that entry was used */
-			LLE_REQ_UNLOCK(la);
-		}
+		/* Notify the LLE handling code that the entry was used. */
+		llentry_mark_used(la);
 		if (plle) {
 			LLE_ADDREF(la);
 			*plle = la;
