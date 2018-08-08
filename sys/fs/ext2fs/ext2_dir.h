@@ -89,7 +89,6 @@ struct ext2fs_direct_tail {
 /*
  * Maximal count of links to a file
  */
-#define	EXT2_LINK_MAX	32000
 #define	EXT4_LINK_MAX	65000
 
 /*
