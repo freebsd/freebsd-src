@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -85,27 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 #include "extern.h"
-
-/*
- * Compression suffixes
- */
-#ifndef	COMPRESS_SUFFIX_GZ
-#define	COMPRESS_SUFFIX_GZ	".gz"
-#endif
-
-#ifndef	COMPRESS_SUFFIX_BZ2
-#define	COMPRESS_SUFFIX_BZ2	".bz2"
-#endif
-
-#ifndef	COMPRESS_SUFFIX_XZ
-#define	COMPRESS_SUFFIX_XZ	".xz"
-#endif
-
-#ifndef	COMPRESS_SUFFIX_ZST
-#define	COMPRESS_SUFFIX_ZST	".zst"
-#endif
-
-#define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ)),sizeof(COMPRESS_SUFFIX_ZST))
 
 /*
  * Compression types
@@ -151,24 +131,21 @@ struct compress_types {
 	const char *flag;	/* Flag in configuration file */
 	const char *suffix;	/* Compression suffix */
 	const char *path;	/* Path to compression program */
-	char **args;		/* Compression program arguments */
-	int nargs;		/* Program argument count */
+	const char **flags;	/* Compression program flags */
+	int nflags;		/* Program flags count */
 };
 
-static char f_arg[] = "-f";
-static char q_arg[] = "-q";
-static char rm_arg[] = "--rm";
-static char *gz_args[] = { NULL, f_arg, NULL, NULL };
-#define bz2_args gz_args
-#define xz_args gz_args
-static char *zstd_args[] = { NULL, q_arg, rm_arg, NULL, NULL };
+static const char *gzip_flags[] = { "-f" };
+#define bzip2_flags gzip_flags
+#define xz_flags gzip_flags
+static const char *zstd_flags[] = { "-q", "--rm" };
 
 static const struct compress_types compress_type[COMPRESS_TYPES] = {
-	{ "", "", "", NULL, 0},
-	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP, gz_args, nitems(gz_args) },
-	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2, bz2_args, nitems(bz2_args) },
-	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ, xz_args, nitems(xz_args) },
-	{ "Y", COMPRESS_SUFFIX_ZST, _PATH_ZSTD, zstd_args, nitems(zstd_args) }
+	{ "", "", "", NULL, 0 },
+	{ "Z", ".gz", _PATH_GZIP, gzip_flags, nitems(gzip_flags) },
+	{ "J", ".bz2", _PATH_BZIP2, bzip2_flags, nitems(bzip2_flags) },
+	{ "X", ".xz", _PATH_XZ, xz_flags, nitems(xz_flags) },
+	{ "Y", ".zst", _PATH_ZSTD, zstd_flags, nitems(zstd_flags) }
 };
 
 struct conf_entry {
@@ -2020,53 +1997,18 @@ do_sigwork(struct sigwork_entry *swork)
 static void
 do_zipwork(struct zipwork_entry *zwork)
 {
-	const char *pgm_name, *pgm_path;
-	int errsav, fcount, zstatus;
+	const struct compress_types *ct;
+	struct sbuf *command;
 	pid_t pidzip, wpid;
-	char zresult[MAXPATHLEN];
-	char command[BUFSIZ];
-	char **args;
-	int c, i, nargs;
+	int c, errsav, fcount, zstatus;
+	const char **args, *pgm_name, *pgm_path;
+	char *zresult;
 
+	command = NULL;
 	assert(zwork != NULL);
-	pgm_path = NULL;
-	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork->zw_conf != NULL &&
-	    zwork->zw_conf->compress > COMPRESS_NONE)
-		for (c = 1; c < COMPRESS_TYPES; c++) {
-			if (zwork->zw_conf->compress == c) {
-				nargs = compress_type[c].nargs;
-				args = calloc(nargs, sizeof(*args));
-				if (args == NULL)
-					err(1, "calloc()");
-				pgm_path = compress_type[c].path;
-				(void) strlcat(zresult,
-				    compress_type[c].suffix, sizeof(zresult));
-				/* the first argument is always NULL, skip it */
-				for (i = 1; i < nargs; i++) {
-					if (compress_type[c].args[i] == NULL)
-						break;
-					args[i] = compress_type[c].args[i];
-				}
-				break;
-			}
-		}
-	if (pgm_path == NULL) {
-		warnx("invalid entry for %s in do_zipwork", zwork->zw_fname);
-		return;
-	}
-	pgm_name = strrchr(pgm_path, '/');
-	if (pgm_name == NULL)
-		pgm_name = pgm_path;
-	else
-		pgm_name++;
-
-	args[0] = strdup(pgm_name);
-	if (args[0] == NULL)
-		err(1, "strdup()");
-	for (c = 0; args[c] != NULL; c++)
-		;
-	args[c] = zwork->zw_fname;
+	assert(zwork->zw_conf != NULL);
+	assert(zwork->zw_conf->compress > COMPRESS_NONE);
+	assert(zwork->zw_conf->compress < COMPRESS_TYPES);
 
 	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_runcmd == 0 &&
 	    zwork->zw_swork->sw_pidok <= 0) {
@@ -2077,20 +2019,54 @@ do_zipwork(struct zipwork_entry *zwork)
 		return;
 	}
 
-	strlcpy(command, pgm_path, sizeof(command));
+	ct = &compress_type[zwork->zw_conf->compress];
+
+	/*
+	 * execv will be called with the array [ program, flags ... ,
+	 * filename, NULL ] so allocate nflags+3 elements for the array.
+	 */
+	args = calloc(ct->nflags + 3, sizeof(*args));
+	if (args == NULL)
+		err(1, "calloc");
+
+	pgm_path = ct->path;
+	pgm_name = strrchr(pgm_path, '/');
+	if (pgm_name == NULL)
+		pgm_name = pgm_path;
+	else
+		pgm_name++;
+
+	/* Build the argument array. */
+	args[0] = pgm_name;
+	for (c = 0; c < ct->nflags; c++)
+		args[c + 1] = ct->flags[c];
+	args[c + 1] = zwork->zw_fname;
+
+	/* Also create a space-delimited version if we need to print it. */
+	if ((command = sbuf_new_auto()) == NULL)
+		errx(1, "sbuf_new");
+	sbuf_cpy(command, pgm_path);
 	for (c = 1; args[c] != NULL; c++) {
-		strlcat(command, " ", sizeof(command));
-		strlcat(command, args[c], sizeof(command));
+		sbuf_putc(command, ' ');
+		sbuf_cat(command, args[c]);
 	}
+	if (sbuf_finish(command) == -1)
+		err(1, "sbuf_finish");
+
+	/* Determine the filename of the compressed file. */
+	asprintf(&zresult, "%s%s", zwork->zw_fname, ct->suffix);
+	if (zresult == NULL)
+		errx(1, "asprintf");
+
+	if (verbose)
+		printf("Executing: %s\n", sbuf_data(command));
+
 	if (noaction) {
 		printf("\t%s %s\n", pgm_name, zwork->zw_fname);
 		change_attrs(zresult, zwork->zw_conf);
-		return;
+		goto out;
 	}
 
-	if (verbose) {
-		printf("Executing: %s\n", command);
-	}
 	fcount = 1;
 	pidzip = fork();
 	while (pidzip < 0) {
@@ -2108,34 +2084,34 @@ do_zipwork(struct zipwork_entry *zwork)
 	}
 	if (!pidzip) {
 		/* The child process executes the compression command */
-		execv(pgm_path, (char *const*) args);
-		err(1, "execv(`%s')", command);
+		execv(pgm_path, __DECONST(char *const*, args));
+		err(1, "execv(`%s')", sbuf_data(command));
 	}
 
 	wpid = waitpid(pidzip, &zstatus, 0);
 	if (wpid == -1) {
 		/* XXX - should this be a fatal error? */
 		warn("%s: waitpid(%d)", pgm_path, pidzip);
-		return;
+		goto out;
 	}
 	if (!WIFEXITED(zstatus)) {
-		warnx("`%s' did not terminate normally", command);
-		free(args[0]);
-		free(args);
-		return;
+		warnx("`%s' did not terminate normally", sbuf_data(command));
+		goto out;
 	}
 	if (WEXITSTATUS(zstatus)) {
-		warnx("`%s' terminated with a non-zero status (%d)", command,
-		    WEXITSTATUS(zstatus));
-		free(args[0]);
-		free(args);
-		return;
+		warnx("`%s' terminated with a non-zero status (%d)",
+		    sbuf_data(command), WEXITSTATUS(zstatus));
+		goto out;
 	}
 
-	free(args[0]);
-	free(args);
 	/* Compression was successful, set file attributes on the result. */
 	change_attrs(zresult, zwork->zw_conf);
+
+out:
+	if (command != NULL)
+		sbuf_delete(command);
+	free(args);
+	free(zresult);
 }
 
 /*
@@ -2442,8 +2418,18 @@ age_old_log(const char *file)
 {
 	struct stat sb;
 	const char *logfile_suffix;
-	char tmp[MAXPATHLEN + sizeof(".0") + COMPRESS_SUFFIX_MAXLEN + 1];
+	static unsigned int suffix_maxlen = 0;
+	char *tmp;
 	time_t mtime;
+	int c;
+
+	if (suffix_maxlen == 0) {
+		for (c = 0; c < COMPRESS_TYPES; c++)
+			suffix_maxlen = MAX(suffix_maxlen,
+			    strlen(compress_type[c].suffix));
+	}
+
+	tmp = alloca(MAXPATHLEN + sizeof(".0") + suffix_maxlen + 1);
 
 	if (archtodir) {
 		char *p;
