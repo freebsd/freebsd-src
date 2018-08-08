@@ -219,6 +219,7 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDFILES=	.depend .depend.*
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
+DEPENDOBJS+=	${CLEAN:M*.o}
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
