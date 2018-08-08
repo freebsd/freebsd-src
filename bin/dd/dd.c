@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/filio.h>
 #include <sys/mtio.h>
+#include <sys/time.h>
 
 #include <assert.h>
 #include <capsicum_helpers.h>
@@ -89,6 +90,7 @@ const	u_char *ctab;		/* conversion table */
 char	fill_char;		/* Character to fill with if defined */
 size_t	speed = 0;		/* maximum speed, in bytes per second */
 volatile sig_atomic_t need_summary;
+volatile sig_atomic_t need_progress;
 
 int
 main(int argc __unused, char *argv[])
@@ -102,6 +104,7 @@ main(int argc __unused, char *argv[])
 		err(1, "unable to enter capability mode");
 
 	(void)signal(SIGINFO, siginfo_handler);
+	(void)signal(SIGALRM, sigalrm_handler);
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -279,6 +282,14 @@ setup(void)
 		}
 
 		ctab = casetab;
+	}
+
+	if ((ddflags & C_PROGRESS)) {
+		struct itimerval timer = {
+			.it_interval = { .tv_sec = 1, .tv_usec = 0 },
+			.it_value = { .tv_sec = 1, .tv_usec = 0 },
+		};
+		setitimer(ITIMER_REAL, &timer, NULL);
 	}
 
 	if (clock_gettime(CLOCK_MONOTONIC, &st.start))
@@ -460,6 +471,9 @@ dd_in(void)
 		(*cfunc)();
 		if (need_summary) {
 			summary();
+		}
+		if (need_progress) {
+			progress();
 		}
 	}
 }
