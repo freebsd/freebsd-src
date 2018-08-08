@@ -1249,7 +1249,6 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct ucred *cred = ap->a_cred;
 
 	struct fuse_filehandle *fufh = NULL;
-	struct fuse_vnode_data *fvdat;
 	struct fuse_iov cookediov;
 
 	int err = 0;
@@ -1264,7 +1263,6 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	    (uio_resid(uio) < sizeof(struct dirent))) {
 		return EINVAL;
 	}
-	fvdat = VTOFUD(vp);
 
 	if (!fuse_filehandle_valid(vp, FUFH_RDONLY)) {
 		FS_DEBUG("calling readdir() before open()");
