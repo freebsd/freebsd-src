@@ -323,9 +323,17 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
     "Number of times pmap_pte2_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
+/*
+ * Internal flags for pmap_enter()'s helper functions.
+ */
+#define	PMAP_ENTER_NORECLAIM	0x1000000	/* Don't reclaim PV entries. */
+#define	PMAP_ENTER_NOREPLACE	0x2000000	/* Don't replace mappings. */
+
 static __inline void pt2_wirecount_init(vm_page_t m);
 static boolean_t pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p,
     vm_offset_t va);
+static int pmap_enter_pte1(pmap_t pmap, vm_offset_t va, pt1_entry_t pte1,
+    u_int flags, vm_page_t m);
 void cache_icache_sync_fresh(vm_offset_t va, vm_paddr_t pa, vm_size_t size);
 
 /*
@@ -1556,6 +1564,13 @@ SYSCTL_ULONG(_vm_pmap, OID_AUTO, nkpt2pg, CTLFLAG_RD,
 static int sp_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &sp_enabled, 0, "Are large page mappings enabled?");
+
+bool
+pmap_ps_enabled(pmap_t pmap __unused)
+{
+
+	return (sp_enabled != 0);
+}
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pte1, CTLFLAG_RD, 0,
     "1MB page mapping counters");
@@ -3227,21 +3242,22 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 /*
  *  Create the pv entries for each of the pages within a section.
  */
-static boolean_t
-pmap_pv_insert_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
+static bool
+pmap_pv_insert_pte1(pmap_t pmap, vm_offset_t va, pt1_entry_t pte1, u_int flags)
 {
 	struct md_page *pvh;
 	pv_entry_t pv;
+	bool noreclaim;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	if (pv_entry_count < pv_entry_high_water &&
-	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
-		pv->pv_va = va;
-		pvh = pa_to_pvh(pa);
-		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
-		return (TRUE);
-	} else
-		return (FALSE);
+	noreclaim = (flags & PMAP_ENTER_NORECLAIM) != 0;
+	if ((noreclaim && pv_entry_count >= pv_entry_high_water) ||
+	    (pv = get_pv_entry(pmap, noreclaim)) == NULL)
+		return (false);
+	pv->pv_va = va;
+	pvh = pa_to_pvh(pte1_pa(pte1));
+	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+	return (true);
 }
 
 static inline void
@@ -3879,7 +3895,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((prot & VM_PROT_WRITE) == 0)
 		npte2 |= PTE2_RO;
 	KASSERT((npte2 & (PTE2_NM | PTE2_RO)) != PTE2_RO,
-	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
+	    ("%s: flags includes VM_PROT_WRITE but prot doesn't", __func__));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		npte2 |= PTE2_NX;
 	if ((flags & PMAP_ENTER_WIRED) != 0)
@@ -3892,6 +3908,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	sched_pin();
+	if (psind == 1) {
+		/* Assert the required virtual and physical alignment. */
+		KASSERT((va & PTE1_OFFSET) == 0,
+		    ("%s: va unaligned", __func__));
+		KASSERT(m->psind > 0, ("%s: m->psind < psind", __func__));
+		rv = pmap_enter_pte1(pmap, va, PTE1_PA(pa) | ATTR_TO_L1(npte2) |
+		    PTE1_V, flags, m);
+		goto out;
+	}
 
 	/*
 	 * In the case that a page table page is not
@@ -3937,7 +3962,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 */
 		if (mpte2)
 			pt2_wirecount_dec(mpte2, pte1_index(va));
-		if (pte2_is_managed(opte2))
+		if ((m->oflags & VPO_UNMANAGED) == 0)
 			om = m;
 		goto validate;
 	}
@@ -3962,10 +3987,12 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (opa) {
 		if (pte2_is_wired(opte2))
 			pmap->pm_stats.wired_count--;
-		if (pte2_is_managed(opte2)) {
-			om = PHYS_TO_VM_PAGE(opa);
+		om = PHYS_TO_VM_PAGE(opa);
+		if (om != NULL && (om->oflags & VPO_UNMANAGED) != 0)
+			om = NULL;
+		if (om != NULL)
 			pv = pmap_pvh_remove(&om->md, pmap, va);
-		}
+
 		/*
 		 * Remove extra pte2 reference
 		 */
@@ -3997,7 +4024,7 @@ validate:
 	 * Now validate mapping with desired protection/wiring.
 	 */
 	if (prot & VM_PROT_WRITE) {
-		if (pte2_is_managed(npte2))
+		if ((m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 
@@ -4034,19 +4061,18 @@ validate:
 			opte2 = pte2_load_clear(pte2p);
 			pmap_tlb_flush(pmap, va);
 			pte2_store(pte2p, npte2);
-			if (opte2 & PTE2_A) {
-				if (pte2_is_managed(opte2))
+			if (om != NULL) {
+				KASSERT((om->oflags & VPO_UNMANAGED) == 0,
+				    ("%s: om %p unmanaged", __func__, om));
+				if ((opte2 & PTE2_A) != 0)
 					vm_page_aflag_set(om, PGA_REFERENCED);
-			}
-			if (pte2_is_dirty(opte2)) {
-				if (pte2_is_managed(opte2))
+				if (pte2_is_dirty(opte2))
 					vm_page_dirty(om);
+				if (TAILQ_EMPTY(&om->md.pv_list) &&
+				    ((om->flags & PG_FICTITIOUS) != 0 ||
+				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+					vm_page_aflag_clear(om, PGA_WRITEABLE);
 			}
-			if (pte2_is_managed(opte2) &&
-			    TAILQ_EMPTY(&om->md.pv_list) &&
-			    ((om->flags & PG_FICTITIOUS) != 0 ||
-			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		} else
 			pte2_store(pte2p, npte2);
 	}
@@ -4652,66 +4678,124 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *  Tries to create 1MB page mapping.  Returns TRUE if successful and
- *  FALSE otherwise.  Fails if (1) a page table page cannot be allocated without
- *  blocking, (2) a mapping already exists at the specified virtual address, or
- *  (3) a pv entry cannot be allocated without reclaiming another pv entry.
+ *  Tries to create a read- and/or execute-only 1 MB page mapping.  Returns
+ *  true if successful.  Returns false if (1) a mapping already exists at the
+ *  specified virtual address or (2) a PV entry cannot be allocated without
+ *  reclaiming another PV entry.
  */
-static boolean_t
-pmap_enter_pte1(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
+static bool
+pmap_enter_1mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	pt1_entry_t *pte1p;
+	pt1_entry_t pte1;
 	vm_paddr_t pa;
-	uint32_t l1prot;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	pa = VM_PAGE_TO_PHYS(m);
+	pte1 = PTE1(pa, PTE1_NM | PTE1_RO, ATTR_TO_L1(vm_page_pte2_attr(m)));
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		pte1 |= PTE1_NX;
+	if (va < VM_MAXUSER_ADDRESS)
+		pte1 |= PTE1_U;
+	if (pmap != kernel_pmap)
+		pte1 |= PTE1_NG;
+	return (pmap_enter_pte1(pmap, va, pte1, PMAP_ENTER_NOSLEEP |
+	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, m) == KERN_SUCCESS);
+}
+
+/*
+ *  Tries to create the specified 1 MB page mapping.  Returns KERN_SUCCESS if
+ *  the mapping was created, and either KERN_FAILURE or KERN_RESOURCE_SHORTAGE
+ *  otherwise.  Returns KERN_FAILURE if PMAP_ENTER_NOREPLACE was specified and
+ *  a mapping already exists at the specified virtual address.  Returns
+ *  KERN_RESOURCE_SHORTAGE if PMAP_ENTER_NORECLAIM was specified and PV entry
+ *  allocation failed.
+ */
+static int
+pmap_enter_pte1(pmap_t pmap, vm_offset_t va, pt1_entry_t pte1, u_int flags,
+    vm_page_t m)
+{
+	struct spglist free;
+	pt1_entry_t opte1, *pte1p;
+	pt2_entry_t pte2, *pte2p;
+	vm_offset_t cur, end;
+	vm_page_t mt;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	KASSERT((pte1 & (PTE1_NM | PTE1_RO)) == 0 ||
+	    (pte1 & (PTE1_NM | PTE1_RO)) == (PTE1_NM | PTE1_RO),
+	    ("%s: pte1 has inconsistent NM and RO attributes", __func__));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	pte1p = pmap_pte1(pmap, va);
-	if (pte1_is_valid(pte1_load(pte1p))) {
-		CTR3(KTR_PMAP, "%s: failure for va %#lx in pmap %p", __func__,
-		    va, pmap);
-		return (FALSE);
+	opte1 = pte1_load(pte1p);
+	if (pte1_is_valid(opte1)) {
+		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
+			CTR3(KTR_PMAP, "%s: failure for va %#lx in pmap %p",
+			    __func__, va, pmap);
+			return (KERN_FAILURE);
+		}
+		/* Break the existing mapping(s). */
+		SLIST_INIT(&free);
+		if (pte1_is_section(opte1)) {
+			/*
+			 * If the section resulted from a promotion, then a
+			 * reserved PT page could be freed.
+			 */
+			pmap_remove_pte1(pmap, pte1p, va, &free);
+		} else {
+			sched_pin();
+			end = va + PTE1_SIZE;
+			for (cur = va, pte2p = pmap_pte2_quick(pmap, va);
+			    cur != end; cur += PAGE_SIZE, pte2p++) {
+				pte2 = pte2_load(pte2p);
+				if (!pte2_is_valid(pte2))
+					continue;
+				if (pmap_remove_pte2(pmap, pte2p, cur, &free))
+					break;
+			}
+			sched_unpin();
+		}
+		vm_page_free_pages_toq(&free, false);
 	}
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		/*
 		 * Abort this mapping if its PV entry could not be created.
 		 */
-		if (!pmap_pv_insert_pte1(pmap, va, VM_PAGE_TO_PHYS(m))) {
+		if (!pmap_pv_insert_pte1(pmap, va, pte1, flags)) {
 			CTR3(KTR_PMAP, "%s: failure for va %#lx in pmap %p",
 			    __func__, va, pmap);
-			return (FALSE);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+		if ((pte1 & PTE1_RO) == 0) {
+			for (mt = m; mt < &m[PTE1_SIZE / PAGE_SIZE]; mt++)
+				vm_page_aflag_set(mt, PGA_WRITEABLE);
 		}
 	}
+
 	/*
 	 * Increment counters.
 	 */
+	if (pte1_is_wired(pte1))
+		pmap->pm_stats.wired_count += PTE1_SIZE / PAGE_SIZE;
 	pmap->pm_stats.resident_count += PTE1_SIZE / PAGE_SIZE;
 
 	/*
-	 * Map the section.
-	 *
-	 * QQQ: Why VM_PROT_WRITE is not evaluated and the mapping is
-	 *      made readonly?
+	 * Sync icache if exec permission and attribute VM_MEMATTR_WB_WA
+	 * is set.  QQQ: For more info, see comments in pmap_enter().
 	 */
-	pa = VM_PAGE_TO_PHYS(m);
-	l1prot = PTE1_RO | PTE1_NM;
-	if (va < VM_MAXUSER_ADDRESS)
-		l1prot |= PTE1_U | PTE1_NG;
-	if ((prot & VM_PROT_EXECUTE) == 0)
-		l1prot |= PTE1_NX;
-	else if (m->md.pat_mode == VM_MEMATTR_WB_WA && pmap != kernel_pmap) {
-		/*
-		 * Sync icache if exec permission and attribute VM_MEMATTR_WB_WA
-		 * is set. QQQ: For more info, see comments in pmap_enter().
-		 */
-		cache_icache_sync_fresh(va, pa, PTE1_SIZE);
-	}
-	pte1_store(pte1p, PTE1(pa, l1prot, ATTR_TO_L1(vm_page_pte2_attr(m))));
+	if ((pte1 & PTE1_NX) == 0 && m->md.pat_mode == VM_MEMATTR_WB_WA &&
+	    pmap != kernel_pmap && (!pte1_is_section(opte1) ||
+	    pte1_pa(opte1) != VM_PAGE_TO_PHYS(m) || (opte1 & PTE2_NX) != 0))
+		cache_icache_sync_fresh(va, VM_PAGE_TO_PHYS(m), PTE1_SIZE);
+
+	/*
+	 * Map the section.
+	 */
+	pte1_store(pte1p, pte1);
 
 	pmap_pte1_mappings++;
 	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va,
 	    pmap);
-	return (TRUE);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -4747,7 +4831,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PTE1_OFFSET) == 0 && va + PTE1_SIZE <= end &&
 		    m->psind == 1 && sp_enabled &&
-		    pmap_enter_pte1(pmap, va, m, prot))
+		    pmap_enter_1mpage(pmap, va, m, prot))
 			m = &m[PTE1_SIZE / PAGE_SIZE - 1];
 		else
 			mpt2pg = pmap_enter_quick_locked(pmap, va, m, prot,
@@ -6020,8 +6104,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				continue;
 			if (dst_pmap->pm_pt1[pte1_idx] == 0 &&
 			    (!pte1_is_managed(src_pte1) ||
-			    pmap_pv_insert_pte1(dst_pmap, addr,
-			    pte1_pa(src_pte1)))) {
+			    pmap_pv_insert_pte1(dst_pmap, addr, src_pte1,
+			    PMAP_ENTER_NORECLAIM))) {
 				dst_pmap->pm_pt1[pte1_idx] = src_pte1 &
 				    ~PTE1_W;
 				dst_pmap->pm_stats.resident_count +=
