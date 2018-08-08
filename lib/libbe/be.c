@@ -652,7 +652,7 @@ be_export(libbe_handle_t *lbh, char *bootenv, int fd)
 	be_root_concat(lbh, snap_name, buf);
 
 	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
-		return (BE_ERR_ZFSOPEN);
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	err = zfs_send_one(zfs, NULL, fd, 0);
 	return (err);
@@ -667,14 +667,22 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 	nvlist_t *props;
 	zfs_handle_t *zfs;
 	int err, len;
+	char nbuf[24];
 
 	/*
-	 * XXX TODO: this is a very likely name for someone to already have
-	 * used... we should avoid it.
+	 * We don't need this to be incredibly random, just unique enough that
+	 * it won't conflict with an existing dataset name.  Chopping time
+	 * down to 32 bits is probably good enough for this.
 	 */
-	if ((err = be_root_concat(lbh, "libbe_import_temp", buf)) != 0)
-		/* XXX TODO error handle */
-		return (-1);
+	snprintf(nbuf, 24, "tmp%u",
+	    (uint32_t)(time(NULL) & 0xFFFFFFFF));
+	if ((err = be_root_concat(lbh, nbuf, buf)) != 0)
+		/*
+		 * Technically this is our problem, but we try to use short
+		 * enough names that we won't run into problems except in
+		 * worst-case BE root approaching MAXPATHLEN.
+		 */
+		return (set_error(lbh, BE_ERR_PATHLEN));
 
 	time(&rawtime);
 	len = strlen(buf);
@@ -683,18 +691,20 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 
 	/* lzc_receive(SNAPNAME, PROPS, ORIGIN, FORCE, fd)) { */
 	if ((err = lzc_receive(buf, NULL, NULL, false, fd)) != 0) {
-		/* TODO: go through libzfs_core's recv_impl and find returned
-		 * errors and set appropriate BE_ERR
-		 * edit: errors are not in libzfs_core, my assumption is
-		 *  that they use libzfs errors
-		 * note: 17 is err for dataset already existing
-		 */
-		return (err);
+		switch (err) {
+		case EINVAL:
+			return (set_error(lbh, BE_ERR_NOORIGIN));
+		case ENOENT:
+			return (set_error(lbh, BE_ERR_NOENT));
+		case EIO:
+			return (set_error(lbh, BE_ERR_IO));
+		default:
+			return (set_error(lbh, BE_ERR_UNKNOWN));
+		}
 	}
 
 	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
-		/* XXX TODO correct error */
-		return (-1);
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
@@ -707,7 +717,7 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 
 	nvlist_free(props);
 
-	/* XXX TODO: recursively delete be_import_temp dataset */
+	/* XXX TODO: recursively delete nbuf dataset */
 	return (err);
 }
 
