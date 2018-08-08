@@ -87,6 +87,9 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 # running CC from bsd.compiler.mk.
 .if make(installworld) || make(install)
 .-include "${OBJTREE}${.CURDIR}/compiler-metadata.mk"
+.if !defined(_LOADED_COMPILER_METADATA)
+.error A build is required first.  You may have the wrong MAKEOBJDIRPREFIX set.
+.endif
 .endif
 
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
@@ -188,6 +191,7 @@ compiler-metadata.mk: .PHONY .META
 	@: > ${.TARGET}
 	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
 	    > ${.TARGET}
+	@echo "_LOADED_COMPILER_METADATA=t" >> ${.TARGET}
 .for v in ${_COMPILER_METADATA_VARS}
 	@echo "${v}=${${v}}" >> ${.TARGET}
 .endfor
