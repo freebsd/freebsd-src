@@ -87,7 +87,7 @@ FILESGROUPS+=		truncate_test_FILES
 truncate_test_FILES=	truncate_test.root_owned
 truncate_test_FILESDIR=	${TESTSDIR}
 truncate_test_FILESMODE= 0600
-truncate_test_FILESOWNER= root
+truncate_test_FILESOWN= root
 truncate_test_FILESGRP= wheel
 truncate_test_FILESPACKAGE=	${PACKAGE}
 
