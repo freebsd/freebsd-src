@@ -1196,7 +1196,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				goto tr_setup;
 			usbd_copy_out(pc, off, &rx_cmd_c, sizeof(rx_cmd_c));
 			off += (sizeof(rx_cmd_c));
-			rx_cmd_c = le32toh(rx_cmd_c);
+			rx_cmd_c = le16toh(rx_cmd_c);
 
 			if (off > actlen)
 				goto tr_setup;
@@ -1891,7 +1891,7 @@ muge_multicast_write(struct muge_softc *sc)
 static inline uint32_t
 muge_hash(uint8_t addr[ETHER_ADDR_LEN])
 {
-	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 26) & 0x3f;
+	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 23) & 0x1ff;
 }
 
 /**
