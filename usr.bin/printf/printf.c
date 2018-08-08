@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
+ * Copyright 2018 Staysail Systems, Inc. <info@staysail.tech>
  * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1989, 1993
@@ -375,16 +376,19 @@ printf_doformat(char *fmt, int *rval)
 		char *p;
 		int getout;
 
-		p = strdup(getstr());
-		if (p == NULL) {
+		/* Convert "b" to "s" for output. */
+		start[strlen(start) - 1] = 's';
+		if ((p = strdup(getstr())) == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
-		fputs(p, stdout);
+		PF(start, p);
+		/* Restore format for next loop. */
+
 		free(p);
 		if (getout)
-			return (end_fmt);
+			exit(*rval);
 		break;
 	}
 	case 'c': {
