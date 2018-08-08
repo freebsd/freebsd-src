@@ -306,6 +306,8 @@ f_status(char *arg)
 		ddflags |= C_NOINFO;
 	else if (strcmp(arg, "noxfer") == 0)
 		ddflags |= C_NOXFER;
+	else if (strcmp(arg, "progress") == 0)
+		ddflags |= C_PROGRESS;
 	else
 		errx(1, "unknown status %s", arg);
 }
