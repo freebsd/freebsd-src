@@ -388,7 +388,10 @@ format_header(const char *uname_field)
 		sbuf_printf(header, "%*s", ps.jail ? TOP_JID_LEN : 0,
 									ps.jail ? " JID" : "");
 		sbuf_printf(header, " %-*.*s  ", namelength, namelength, uname_field);
-		sbuf_cat(header, "THR PRI NICE   SIZE    RES ");
+		if (!ps.thread) {
+			sbuf_cat(header, "THR ");
+		}
+		sbuf_cat(header, "PRI NICE   SIZE    RES ");
 		if (ps.swap) {
 			sbuf_printf(header, "%*s ", TOP_SWAP_LEN - 1, "SWAP");
 		}
