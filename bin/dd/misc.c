@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include "dd.h"
 #include "extern.h"
 
+static int need_newline;
+
 double
 secs_elapsed(void)
 {
@@ -83,6 +85,9 @@ summary(void)
 	if (ddflags & C_NOINFO)
 		return;
 
+	if (need_newline && !need_summary)
+		fprintf(stderr, "\n");
+
 	secs = secs_elapsed();
 
 	(void)fprintf(stderr,
@@ -102,12 +107,42 @@ summary(void)
 	need_summary = 0;
 }
 
+void
+progress(void)
+{
+	double secs;
+	static int lastlen;
+	int len;
+
+	secs = secs_elapsed();
+	len = fprintf(stderr,
+	    "\r%ju bytes transferred in %.0f secs (%.0f bytes/sec)",
+	    st.bytes, secs, st.bytes / secs);
+
+	if (len > 0) {
+		if (len < lastlen)
+			(void)fprintf(stderr, "%*s", len - lastlen, "");
+		lastlen = len;
+	}
+
+	need_newline = 1;
+	need_progress = 0;
+}
+
 /* ARGSUSED */
 void
 siginfo_handler(int signo __unused)
 {
 
 	need_summary = 1;
+}
+
+/* ARGSUSED */
+void
+sigalrm_handler(int signo __unused)
+{
+
+	need_progress = 1;
 }
 
 /* ARGSUSED */
