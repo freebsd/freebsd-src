@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2018
+.Dd August 8, 2018
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -106,7 +106,7 @@ Use specified pager.
 Defaults to
 .Dq Li "less -sR"
 if color support is enabled, or
-.Dq Li "more -s" .
+.Dq Li "less -s" .
 Overrides the
 .Ev MANPAGER
 environment variable, which in turn overrides the
@@ -345,7 +345,7 @@ If unset, and color support is disabled, then
 .Ev PAGER
 is used.
 If that has no value either,
-.Dq Li "more -s"
+.Dq Li "less -s"
 is used.
 .El
 .Sh FILES
