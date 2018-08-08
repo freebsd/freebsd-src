@@ -20,7 +20,7 @@ LDADD=	${LIBBACKEND} ${LIBCPP} ${LIBDECNUMBER} ${LIBIBERTY}
 
 DOBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 ${PROG}-dummy:	${DOBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${DOBJS} ${LDADD}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${DOBJS} ${LDADD}
 CLEANFILES+=	${PROG}-dummy
 
 ${PROG}-checksum.c:	${PROG}-dummy
