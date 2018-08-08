@@ -830,6 +830,13 @@ IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 .endif
+
+# When generating install media, do not allow user and group information from
+# the build host to affect the contents of the distribution.
+.if make(distributeworld)
+DB_FROM_SRC=	yes
+.endif
+
 .if defined(DB_FROM_SRC)
 INSTALLFLAGS+=	-N ${.CURDIR}/etc
 MTREEFLAGS+=	-N ${.CURDIR}/etc
