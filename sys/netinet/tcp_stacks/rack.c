@@ -7603,13 +7603,10 @@ dontupdate:
 	 * If our state indicates that FIN should be sent and we have not
 	 * yet done so, then we need to send.
 	 */
-	if (flags & TH_FIN) {
-		if ((tp->t_flags & TF_SENTFIN) ||
-		    (((tp->t_flags & TF_SENTFIN) == 0) &&
-		     (tp->snd_nxt == tp->snd_una))) {
-			pass = 11;
-			goto send;
-		}
+	if ((flags & TH_FIN) &&
+	    (tp->snd_nxt == tp->snd_una)) {
+		pass = 11;
+		goto send;
 	}
 	/*
 	 * No reason to send a segment, just return.
