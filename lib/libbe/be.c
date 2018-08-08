@@ -287,7 +287,14 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 			return (set_error(lbh, BE_ERR_INVALIDNAME));
 
 		default:
-			/* XXX TODO: elaborate return codes */
+			/*
+			 * The other errors that zfs_ioc_snapshot might return
+			 * shouldn't happen if we've set things up properly, so
+			 * we'll gloss over them and call it UNKNOWN as it will
+			 * require further triage.
+			 */
+			if (errno == ENOTSUP)
+				return (set_error(lbh, BE_ERR_NOPOOL));
 			return (set_error(lbh, BE_ERR_UNKNOWN));
 		}
 	}
@@ -598,22 +605,18 @@ be_rename(libbe_handle_t *lbh, char *old, char *new)
 	if ((err = be_root_concat(lbh, new, full_new)) != 0)
 		return (set_error(lbh, err));
 
-	if (be_validate_name(lbh, new) != 0)
-		return (BE_ERR_UNKNOWN);
-		/* XXX TODO set and return correct error */
+	if ((err = be_validate_name(lbh, new)) != 0)
+		return (err);
 
 	/* Check if old is active BE */
-	if (strcmp(full_new, be_active_path(lbh)) == 0)
-		return (BE_ERR_UNKNOWN);
-		/* XXX TODO set and return correct error */
+	if (strcmp(full_old, be_active_path(lbh)) == 0)
+		return (set_error(lbh, BE_ERR_MOUNTED));
 
 	if (!zfs_dataset_exists(lbh->lzh, full_old, ZFS_TYPE_DATASET))
-		return (BE_ERR_UNKNOWN);
-		/* XXX TODO set and return correct error */
+		return (set_error(lbh, BE_ERR_NOENT));
 
 	if (zfs_dataset_exists(lbh->lzh, full_new, ZFS_TYPE_DATASET))
-		return (BE_ERR_UNKNOWN);
-		/* XXX TODO set and return correct error */
+		return (set_error(lbh, BE_ERR_EXISTS));
 
 	/* XXX TODO
 	 * - What about mounted BEs?
@@ -621,14 +624,11 @@ be_rename(libbe_handle_t *lbh, char *old, char *new)
 	 */
 	if ((zfs_hdl = zfs_open(lbh->lzh, full_old,
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
-		return (BE_ERR_UNKNOWN);
-		/* XXX TODO set and return correct error */
-
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	/* recurse, nounmount, forceunmount */
 	struct renameflags flags = { 0, 0, 0 };
 
-	/* XXX TODO: error log on this call */
 	err = zfs_rename(zfs_hdl, NULL, full_new, flags);
 
 	zfs_close(zfs_hdl);
