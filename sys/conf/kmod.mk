@@ -449,9 +449,6 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 CLEANFILES+=	assym.s genassym.o
 DEPENDOBJS+=	genassym.o
 assym.s: genassym.o
-.if defined(KERNBUILDDIR)
-genassym.o: opt_global.h
-.endif
 assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
@@ -463,16 +460,15 @@ genassym.o: ${SRCS:Mopt_*.h}
 lint: ${SRCS}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
 
-.if defined(KERNBUILDDIR)
-${OBJS}: opt_global.h
-.endif
-
 CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
 cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if defined(KERNBUILDDIR)
+OBJS_DEPEND_GUESS+= opt_global.h
+.endif
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
