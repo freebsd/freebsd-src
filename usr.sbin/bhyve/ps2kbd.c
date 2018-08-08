@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <pthread.h>
 #include <pthread_np.h>
@@ -381,3 +382,32 @@ ps2kbd_init(struct atkbdc_softc *atkbdc_sc)
 	return (sc);
 }
 
+int
+ps2kbd_snapshot(struct ps2kbd_softc *sc, void *buffer, size_t buf_size,
+		size_t *snapshot_size)
+{
+	if (buf_size < sizeof(*sc)) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	memcpy(buffer, sc, sizeof(*sc));
+	*snapshot_size = sizeof(*sc);
+
+	return (0);
+}
+
+int
+ps2kbd_restore(struct ps2kbd_softc *sc, void *buffer, size_t *restored_len)
+{
+	struct ps2kbd_softc *old_sc;
+
+	old_sc = buffer;
+
+	sc->enabled = old_sc->enabled;
+	sc->curcmd = old_sc->curcmd;
+
+	*restored_len = sizeof(*old_sc);
+
+	return (0);
+}

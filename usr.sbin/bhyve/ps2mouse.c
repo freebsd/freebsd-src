@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <pthread.h>
 #include <pthread_np.h>
@@ -415,4 +416,39 @@ ps2mouse_init(struct atkbdc_softc *atkbdc_sc)
 	return (sc);
 }
 
+int
+ps2mouse_snapshot(struct ps2mouse_softc *sc, void *buffer, size_t buf_size,
+		  size_t *snapshot_size)
+{
+	if (buf_size < sizeof(*sc)) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
 
+	memcpy(buffer, sc, sizeof(*sc));
+	*snapshot_size = sizeof(*sc);
+
+	return (0);
+}
+
+int
+ps2mouse_restore(struct ps2mouse_softc *sc, void *buffer, size_t *restored_len)
+{
+	struct ps2mouse_softc *old_sc;
+
+	old_sc = buffer;
+
+	sc->status = old_sc->status;
+	sc->resolution = old_sc->resolution;
+	sc->sampling_rate = old_sc->sampling_rate;
+	sc->ctrlenable = old_sc->ctrlenable;
+	sc->curcmd = old_sc->curcmd;
+	sc->cur_x = old_sc->cur_x;
+	sc->cur_y = old_sc->cur_y;
+	sc->delta_x = old_sc->delta_x;
+	sc->delta_y = old_sc->delta_y;
+
+	*restored_len = sizeof(*old_sc);
+
+	return (0);
+}

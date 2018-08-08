@@ -137,6 +137,8 @@ struct atkbdc_softc {
 	struct aux_dev aux;
 };
 
+static struct atkbdc_softc *atkbdc_sc = NULL;
+
 static void
 atkbdc_assert_kbd_intr(struct atkbdc_softc *sc)
 {
@@ -548,6 +550,102 @@ atkbdc_init(struct vmctx *ctx)
 
 	sc->ps2kbd_sc = ps2kbd_init(sc);
 	sc->ps2mouse_sc = ps2mouse_init(sc);
+
+	assert(atkbdc_sc == NULL);
+	atkbdc_sc = sc;
+}
+
+int
+atkbdc_snapshot(void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	size_t dev_snapshot_len;
+	int ret;
+	uint8_t *buf;
+
+	if (atkbdc_sc == NULL)
+		return (0);
+
+	dev_snapshot_len = sizeof(*atkbdc_sc);
+
+	if (buf_size < dev_snapshot_len) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	buf = buffer;
+	memcpy(buf, atkbdc_sc, dev_snapshot_len);
+
+	buf += dev_snapshot_len;
+	buf_size -= dev_snapshot_len;
+	*snapshot_size = dev_snapshot_len;
+
+	ret = ps2kbd_snapshot(atkbdc_sc->ps2kbd_sc, buf, buf_size,
+			      &dev_snapshot_len);
+	if (ret < 0) {
+		fprintf(stderr, "Unable to restore ps2kbd\r\n");
+		return (-1);
+	}
+
+	buf += dev_snapshot_len;
+	buf_size -= dev_snapshot_len;
+	*snapshot_size += dev_snapshot_len;
+
+	ret = ps2mouse_snapshot(atkbdc_sc->ps2mouse_sc, buf, buf_size,
+				&dev_snapshot_len);
+	if (ret < 0) {
+		fprintf(stderr, "Unable to restore ps2mouse\r\n");
+		return (-1);
+	}
+
+	*snapshot_size += dev_snapshot_len;
+
+	return (0);
+}
+
+int
+atkbdc_restore(void *buffer)
+{
+	struct atkbdc_softc *old_sc;
+	uint8_t *buf = buffer;
+	int ret;
+	size_t restored_len;
+
+	old_sc = buffer;
+
+	atkbdc_sc->status = old_sc->status;
+	atkbdc_sc->outport = old_sc->outport;
+	memcpy(atkbdc_sc->ram, old_sc->ram, sizeof(atkbdc_sc->ram));
+	atkbdc_sc->curcmd = old_sc->curcmd;
+	atkbdc_sc->ctrlbyte = old_sc->ctrlbyte;
+	atkbdc_sc->kbd = old_sc->kbd;
+
+	atkbdc_sc->kbd.irq_active = old_sc->kbd.irq_active;
+	atkbdc_sc->kbd.irq = old_sc->kbd.irq;
+	memcpy(atkbdc_sc->kbd.buffer, old_sc->kbd.buffer, sizeof(atkbdc_sc->kbd.buffer));
+	atkbdc_sc->kbd.brd = old_sc->kbd.brd;
+	atkbdc_sc->kbd.bwr = old_sc->kbd.bwr;
+	atkbdc_sc->kbd.bcnt = old_sc->kbd.bcnt;
+
+	atkbdc_sc->aux.irq_active = old_sc->aux.irq_active;
+	atkbdc_sc->aux.irq = old_sc->aux.irq;
+
+	buf += sizeof(*atkbdc_sc);
+
+	ret = ps2kbd_restore(atkbdc_sc->ps2kbd_sc, buf, &restored_len);
+	if (ret < 0) {
+		fprintf(stderr, "%s: Failed to restore ps2kbd\r\n", __func__);
+		return (-1);
+	}
+
+	buf += restored_len;
+
+	ret = ps2mouse_restore(atkbdc_sc->ps2mouse_sc, buf, &restored_len);
+	if (ret < 0) {
+		fprintf(stderr, "%s: Failed to restore ps2mouse\r\n", __func__);
+		return (-1);
+	}
+
+	return (0);
 }
 
 static void

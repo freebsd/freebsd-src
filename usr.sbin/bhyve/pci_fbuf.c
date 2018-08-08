@@ -440,10 +440,40 @@ done:
 	return (error);
 }
 
+static int
+pci_fbuf_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		  size_t buf_size, size_t *snapshot_size)
+{
+	size_t snap_len;
+
+	snap_len = FB_SIZE;
+
+	if (buf_size < snap_len) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	memcpy(buffer, fbuf_sc->fb_base, FB_SIZE);
+	*snapshot_size = snap_len;
+
+	return (0);
+}
+
+static int
+pci_fbuf_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		size_t buf_size)
+{
+	memcpy(fbuf_sc->fb_base, buffer, FB_SIZE);
+
+	return (0);
+}
+
 struct pci_devemu pci_fbuf = {
 	.pe_emu =	"fbuf",
 	.pe_init =	pci_fbuf_init,
 	.pe_barwrite =	pci_fbuf_write,
-	.pe_barread =	pci_fbuf_read
+	.pe_barread =	pci_fbuf_read,
+	.pe_snapshot =	pci_fbuf_snapshot,
+	.pe_restore =	pci_fbuf_restore
 };
 PCI_EMUL_SET(pci_fbuf);

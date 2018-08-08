@@ -81,7 +81,7 @@ extern int guest_ncpus;
 
 #define MAX_MSG_SIZE 1024
 
-#define SNAPSHOT_BUFFER_SIZE (4 * MB)
+#define SNAPSHOT_BUFFER_SIZE (20 * MB)
 
 #define JSON_STRUCT_ARR_KEY		"structs"
 #define JSON_PCI_ARR_KEY		"pci_devices"
@@ -99,6 +99,7 @@ char *pci_devs[] = {
 	"virtio-net",
 	"virtio-blk",
 	"lpc",
+	"fbuf",
 };
 
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
@@ -597,7 +598,7 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 	return (rc);
 }
 
-int
+static int
 restore_pci_devs(struct vmctx *ctx, struct restore_state *rstate)
 {
 	void *dev_ptr;
@@ -630,9 +631,42 @@ restore_pci_devs(struct vmctx *ctx, struct restore_state *rstate)
 		}
 	}
 
+	dev_ptr = lookup_pci_dev("atkbdc", rstate, &dev_size);
+	if (dev_ptr == NULL) {
+		fprintf(stderr, "Failed to lookup dev: %s\r\n", "atkbdc");
+		fprintf(stderr, "Continuing the restore/migration process\r\n");
+		return (0);
+	}
+
+	if (dev_size == 0) {
+		fprintf(stderr, "%s: Device size is 0. "
+			"Assuming %s is not used\r\n",
+			__func__, "atkbdc");
+		return (0);
+	}
+
+	ret = atkbdc_restore(dev_ptr);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to restore dev: %s\r\n", "atkbdc");
+		return (-1);
+	}
+
 	return (0);
 }
 
+int
+restore_devs(struct vmctx *ctx, struct restore_state *rstate)
+{
+	int error;
+
+	error = restore_pci_devs(ctx, rstate);
+	if (error != 0) {
+		fprintf(stderr, "Failed to restore pci devices\r\n");
+		return (-1);
+	}
+
+	return 0;
+}
 
 static int
 vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
@@ -775,6 +809,36 @@ vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 
 		offset += data_size;
 	}
+
+	memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
+	ret = atkbdc_snapshot(buffer, SNAPSHOT_BUFFER_SIZE, &data_size);
+
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot dev %s; ret=%d\r\n",
+			"atkbdc", ret);
+		error = -1;
+		goto err_pci;
+	}
+
+	assert(data_size < SNAPSHOT_BUFFER_SIZE);
+
+	ret = write(data_fd, buffer, data_size);
+	if (ret != data_size) {
+		perror("Failed to write all snapshotted data.");
+		error = -1;
+		goto err_pci;
+	}
+
+	/* Write metadata. */
+	xo_open_instance_h(xop, JSON_PCI_ARR_KEY);
+	xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n",
+		  "atkbdc");
+	xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
+	xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
+	xo_close_instance_h(xop, JSON_PCI_ARR_KEY);
+
+	offset += data_size;
+
 	xo_close_list_h(xop, JSON_PCI_ARR_KEY);
 
 err_pci:
