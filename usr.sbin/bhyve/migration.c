@@ -84,7 +84,7 @@ extern int guest_ncpus;
 #define SNAPSHOT_BUFFER_SIZE (20 * MB)
 
 #define JSON_STRUCT_ARR_KEY		"structs"
-#define JSON_PCI_ARR_KEY		"pci_devices"
+#define JSON_DEV_ARR_KEY		"devices"
 #define JSON_BASIC_METADATA_KEY 	"basic metadata"
 #define JSON_SNAPSHOT_REQ_KEY		"snapshot_req"
 #define JSON_SIZE_KEY			"size"
@@ -95,11 +95,32 @@ extern int guest_ncpus;
 #define JSON_MEMSIZE_KEY		"memsize"
 #define JSON_MEMFLAGS_KEY		"memflags"
 
-char *pci_devs[] = {
-	"virtio-net",
-	"virtio-blk",
-	"lpc",
-	"fbuf",
+const struct vm_snapshot_dev_info snapshot_devs[] = {
+	{
+		.dev_name = "atkbdc",
+		.snapshot_cb = atkbdc_snapshot,
+		.restore_cb = atkbdc_restore
+	},
+	{
+		.dev_name = "virtio-net",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
+	{
+		.dev_name = "virtio-blk",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
+	{
+		.dev_name = "lpc",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
+	{
+		.dev_name = "fbuf",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
 };
 
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
@@ -354,8 +375,7 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 	ucl_object_iter_t it = NULL;
 	int64_t snapshot_req, size, file_offset;
 
-	structs = ucl_object_lookup(rstate->meta_root_obj,
-				    JSON_STRUCT_ARR_KEY);
+	structs = ucl_object_lookup(rstate->meta_root_obj, JSON_STRUCT_ARR_KEY);
 	if (structs == NULL) {
 		fprintf(stderr, "Failed to find '%s' object.\n",
 			JSON_STRUCT_ARR_KEY);
@@ -391,47 +411,59 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 	return (NULL);
 }
 
+static void *
+lookup_check_dev(const char *dev_name, struct restore_state *rstate,
+		 const ucl_object_t *obj, size_t *data_size)
+{
+	const char *snapshot_req;
+	int64_t size, file_offset;
+
+	snapshot_req = NULL;
+	JSON_GET_STRING_OR_RETURN(JSON_SNAPSHOT_REQ_KEY, obj,
+				  &snapshot_req, NULL);
+	assert(snapshot_req != NULL);
+	if (!strcmp(snapshot_req, dev_name)) {
+		JSON_GET_INT_OR_RETURN(JSON_SIZE_KEY, obj,
+				       &size, NULL);
+		assert(size >= 0);
+
+		JSON_GET_INT_OR_RETURN(JSON_FILE_OFFSET_KEY, obj,
+				       &file_offset, NULL);
+		assert(file_offset >= 0);
+		assert(file_offset + size <= rstate->kdata_len);
+
+		*data_size = (size_t)size;
+		return (rstate->kdata_map + file_offset);
+	}
+
+	return (NULL);
+}
+
 static void*
-lookup_pci_dev(const char *dev_name, struct restore_state *rstate,
-	       size_t *data_size)
+lookup_dev(const char *dev_name, struct restore_state *rstate,
+	   size_t *data_size)
 {
 	const ucl_object_t *devs = NULL, *obj = NULL;
 	ucl_object_iter_t it = NULL;
-	int64_t size, file_offset;
-	const char *snapshot_req;
+	void *ret;
 
-	devs = ucl_object_lookup(rstate->meta_root_obj,
-				    JSON_PCI_ARR_KEY);
+	devs = ucl_object_lookup(rstate->meta_root_obj, JSON_DEV_ARR_KEY);
 	if (devs == NULL) {
 		fprintf(stderr, "Failed to find '%s' object.\n",
-			JSON_PCI_ARR_KEY);
+			JSON_DEV_ARR_KEY);
 		return (NULL);
 	}
 
 	if (ucl_object_type((ucl_object_t *)devs) != UCL_ARRAY) {
 		fprintf(stderr, "Object '%s' is not an array.\n",
-		JSON_PCI_ARR_KEY);
+			JSON_DEV_ARR_KEY);
 		return (NULL);
 	}
 
 	while ((obj = ucl_object_iterate(devs, &it, true)) != NULL) {
-		snapshot_req = NULL;
-		JSON_GET_STRING_OR_RETURN(JSON_SNAPSHOT_REQ_KEY, obj,
-				       &snapshot_req, NULL);
-		assert(snapshot_req != NULL);
-		if (!strcmp(snapshot_req, dev_name)) {
-			JSON_GET_INT_OR_RETURN(JSON_SIZE_KEY, obj,
-					       &size, NULL);
-			assert(size >= 0);
-
-			JSON_GET_INT_OR_RETURN(JSON_FILE_OFFSET_KEY, obj,
-					       &file_offset, NULL);
-			assert(file_offset >= 0);
-			assert(file_offset + size <= rstate->kdata_len);
-
-			*data_size = (size_t)size;
-			return (rstate->kdata_map + file_offset);
-		}
+		ret = lookup_check_dev(dev_name, rstate, obj, data_size);
+		if (ret != NULL)
+			return (ret);
 	}
 
 	return (NULL);
@@ -599,41 +631,16 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 }
 
 static int
-restore_pci_devs(struct vmctx *ctx, struct restore_state *rstate)
+restore_dev(struct vmctx *ctx, struct restore_state *rstate,
+	    const struct vm_snapshot_dev_info *info)
 {
 	void *dev_ptr;
 	size_t dev_size;
 	int ret;
-	int i;
 
-	for (i = 0; i < nitems(pci_devs); i++) {
-		dev_ptr = lookup_pci_dev(pci_devs[i], rstate, &dev_size);
-		if (dev_ptr == NULL) {
-			fprintf(stderr, "Failed to lookup dev: %s\r\n",
-				pci_devs[i]);
-			fprintf(stderr,
-				"Continuing the restore/migration process\r\n");
-			continue;
-		}
-
-		if (dev_size == 0) {
-			fprintf(stderr, "%s: Device size is 0. "
-				"Assuming %s is not used\r\n",
-				__func__, pci_devs[i]);
-			continue;
-		}
-
-		ret = pci_restore(ctx, pci_devs[i], dev_ptr, dev_size);
-		if (ret != 0) {
-			fprintf(stderr, "Failed to restore dev: %s\r\n",
-				pci_devs[i]);
-			return (-1);
-		}
-	}
-
-	dev_ptr = lookup_pci_dev("atkbdc", rstate, &dev_size);
+	dev_ptr = lookup_dev(info->dev_name, rstate, &dev_size);
 	if (dev_ptr == NULL) {
-		fprintf(stderr, "Failed to lookup dev: %s\r\n", "atkbdc");
+		fprintf(stderr, "Failed to lookup dev: %s\r\n", info->dev_name);
 		fprintf(stderr, "Continuing the restore/migration process\r\n");
 		return (0);
 	}
@@ -641,28 +648,32 @@ restore_pci_devs(struct vmctx *ctx, struct restore_state *rstate)
 	if (dev_size == 0) {
 		fprintf(stderr, "%s: Device size is 0. "
 			"Assuming %s is not used\r\n",
-			__func__, "atkbdc");
+			__func__, info->dev_name);
 		return (0);
 	}
 
-	ret = atkbdc_restore(dev_ptr);
+	ret = (*info->restore_cb)(ctx, info->dev_name, dev_ptr, dev_size);
 	if (ret != 0) {
-		fprintf(stderr, "Failed to restore dev: %s\r\n", "atkbdc");
+		fprintf(stderr, "Failed to restore dev: %s\r\n",
+			info->dev_name);
 		return (-1);
 	}
 
 	return (0);
+
 }
+
 
 int
 restore_devs(struct vmctx *ctx, struct restore_state *rstate)
 {
-	int error;
+	int ret;
+	int i;
 
-	error = restore_pci_devs(ctx, rstate);
-	if (error != 0) {
-		fprintf(stderr, "Failed to restore pci devices\r\n");
-		return (-1);
+	for (i = 0; i < nitems(snapshot_devs); i++) {
+		ret = restore_dev(ctx, rstate, &snapshot_devs[i]);
+		if (ret != 0)
+			return (ret);
 	}
 
 	return 0;
@@ -758,12 +769,67 @@ vm_snapshot_basic_metadata(struct vmctx *ctx, xo_handle_t *xop)
 }
 
 static int
-vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
+vm_snapshot_dev_write_data(int data_fd, void *buffer, size_t data_size,
+			   xo_handle_t *xop, const char *array_key,
+			   const char *dev_name, off_t offset)
 {
-	int ret, i, error = 0;
+	int ret;
+
+	assert(data_size < SNAPSHOT_BUFFER_SIZE);
+
+	ret = write(data_fd, buffer, data_size);
+	if (ret != data_size) {
+		perror("Failed to write all snapshotted data.");
+		return (-1);
+	}
+
+	/* Write metadata. */
+	xo_open_instance_h(xop, array_key);
+	xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n", dev_name);
+	xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
+	xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
+	xo_close_instance_h(xop, array_key);
+
+	return (0);
+}
+
+static int
+vm_snapshot_dev(const struct vm_snapshot_dev_info *info,
+		struct vmctx *ctx, int data_fd, xo_handle_t *xop,
+		void *buffer, size_t buf_size, off_t *offset)
+{
+	int ret;
 	size_t data_size;
+
+	memset(buffer, 0, buf_size);
+	ret = (*info->snapshot_cb)(ctx, info->dev_name, buffer, buf_size,
+				   &data_size);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot %s; ret=%d\r\n",
+			info->dev_name, ret);
+		return (ret);
+	}
+
+	ret = vm_snapshot_dev_write_data(data_fd, buffer, data_size,
+					 xop, JSON_DEV_ARR_KEY, info->dev_name,
+					 *offset);
+	if (ret != 0)
+		return (ret);
+
+	*offset += data_size;
+
+	return (0);
+}
+
+static int
+vm_snapshot_dev_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
+{
+	int ret, i;
 	off_t offset;
 	void *buffer = NULL;
+	size_t buf_size;
+
+	buf_size = SNAPSHOT_BUFFER_SIZE;
 
 	offset = lseek(data_fd, 0, SEEK_CUR);
 	if (offset < 0) {
@@ -771,80 +837,29 @@ vm_snapshot_pci_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 		return (-1);
 	}
 
-	buffer = malloc(SNAPSHOT_BUFFER_SIZE);
+	buffer = malloc(buf_size);
 	if (buffer == NULL) {
 		perror("Failed to allocate memory for snapshot buffer");
-		goto err_pci;
+		ret = ENOSPC;
+		goto snapshot_err;
 	}
 
-	xo_open_list_h(xop, JSON_PCI_ARR_KEY);
-	for (i = 0; i < nitems(pci_devs); i++) {
-		memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
-		ret = pci_snapshot(ctx, pci_devs[i], buffer,
-				   SNAPSHOT_BUFFER_SIZE, &data_size);
+	xo_open_list_h(xop, JSON_DEV_ARR_KEY);
 
-		if (ret != 0) {
-			fprintf(stderr, "Failed to snapshot pci dev %s; ret=%d\r\n",
-				pci_devs[i], ret);
-			error = -1;
-			goto err_pci;
-		}
-
-		assert(data_size < SNAPSHOT_BUFFER_SIZE);
-
-		ret = write(data_fd, buffer, data_size);
-		if (ret != data_size) {
-			perror("Failed to write all snapshotted data.");
-			error = -1;
-			goto err_pci;
-		}
-
-		/* Write metadata. */
-		xo_open_instance_h(xop, JSON_PCI_ARR_KEY);
-		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n",
-			  pci_devs[i]);
-		xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
-		xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
-		xo_close_instance_h(xop, JSON_PCI_ARR_KEY);
-
-		offset += data_size;
+	/* Restore other devices that support this feature */
+	for (i = 0; i < nitems(snapshot_devs); i++) {
+		ret = vm_snapshot_dev(&snapshot_devs[i], ctx, data_fd, xop,
+				      buffer, buf_size, &offset);
+		if (ret != 0)
+			goto snapshot_err;
 	}
 
-	memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
-	ret = atkbdc_snapshot(buffer, SNAPSHOT_BUFFER_SIZE, &data_size);
+	xo_close_list_h(xop, JSON_DEV_ARR_KEY);
 
-	if (ret != 0) {
-		fprintf(stderr, "Failed to snapshot dev %s; ret=%d\r\n",
-			"atkbdc", ret);
-		error = -1;
-		goto err_pci;
-	}
-
-	assert(data_size < SNAPSHOT_BUFFER_SIZE);
-
-	ret = write(data_fd, buffer, data_size);
-	if (ret != data_size) {
-		perror("Failed to write all snapshotted data.");
-		error = -1;
-		goto err_pci;
-	}
-
-	/* Write metadata. */
-	xo_open_instance_h(xop, JSON_PCI_ARR_KEY);
-	xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%s}\n",
-		  "atkbdc");
-	xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
-	xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
-	xo_close_instance_h(xop, JSON_PCI_ARR_KEY);
-
-	offset += data_size;
-
-	xo_close_list_h(xop, JSON_PCI_ARR_KEY);
-
-err_pci:
+snapshot_err:
 	if (buffer != NULL)
 		free(buffer);
-	return (error);
+	return (ret);
 }
 
 static int
@@ -993,9 +1008,9 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 		goto done_unlock;
 	}
 
-	ret = vm_snapshot_pci_data(ctx, kdata_fd, xop);
+	ret = vm_snapshot_dev_data(ctx, kdata_fd, xop);
 	if (ret != 0) {
-		fprintf(stderr, "Failed to snapshot PCI state.\n");
+		fprintf(stderr, "Failed to snapshot device state.\n");
 		error = -1;
 		goto done_unlock;
 	}
@@ -1065,6 +1080,12 @@ int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
 			break;
 		case START_MIGRATE:
+			fprintf(stderr, "Refactoring code... Not implemented yet!\r\n");
+			fprintf(stderr, "Refactoring code... Not implemented yet!\r\n");
+			fprintf(stderr, "Refactoring code... Not implemented yet!\r\n");
+			err = -1;
+			break;
+
 			memset(&req, 0, sizeof(struct migrate_req));
 			req.port = checkpoint_op->port;
 			memcpy(req.host, checkpoint_op->host, MAX_HOSTNAME_LEN);
@@ -1958,6 +1979,7 @@ migrate_recv_pci_dev(struct vmctx *ctx, int socket, const char *dev, char *buffe
 static int
 migrate_pci_devs(struct vmctx *ctx, int socket, enum migration_transfer_req req)
 {
+#if 0
 	int rc, i, error = 0;
 	char *buffer;
 
@@ -2003,6 +2025,8 @@ end:
 		free(buffer);
 
 	return (error);
+#endif
+	return (0);
 }
 
 int

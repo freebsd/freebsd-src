@@ -35,7 +35,9 @@ struct vmctx;
 void atkbdc_init(struct vmctx *ctx);
 void atkbdc_event(struct atkbdc_softc *sc, int iskbd);
 
-int atkbdc_snapshot(void *buffer, size_t buf_size, size_t *snapshot_size);
-int atkbdc_restore(void *buffer);
+int atkbdc_snapshot(struct vmctx *ctx, const char *dev_name, void *buffer,
+		    size_t buf_size, size_t *snapshot_size);
+int atkbdc_restore(struct vmctx *ctx, const char *dev_name,
+		   void *buffer, size_t buf_size);
 
 #endif /* _ATKBDC_H_ */

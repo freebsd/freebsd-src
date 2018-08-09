@@ -556,7 +556,8 @@ atkbdc_init(struct vmctx *ctx)
 }
 
 int
-atkbdc_snapshot(void *buffer, size_t buf_size, size_t *snapshot_size)
+atkbdc_snapshot(struct vmctx *ctx, const char *dev_name, void *buffer,
+		size_t buf_size, size_t *snapshot_size)
 {
 	size_t dev_snapshot_len;
 	int ret;
@@ -603,7 +604,8 @@ atkbdc_snapshot(void *buffer, size_t buf_size, size_t *snapshot_size)
 }
 
 int
-atkbdc_restore(void *buffer)
+atkbdc_restore(struct vmctx *ctx, const char *dev_name,
+	       void *buffer, size_t buf_size)
 {
 	struct atkbdc_softc *old_sc;
 	uint8_t *buf = buffer;
