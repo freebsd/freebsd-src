@@ -159,8 +159,10 @@ struct pstorm_fcoe_conn_st_ctx
 #define PSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT    2
 #define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_MASK     0x1 /* Outer Vlan flag */
 #define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_SHIFT    3
-#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK            0xF
-#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT           4
+#define PSTORM_FCOE_CONN_ST_CTX_SINGLE_VLAN_FLAG_MASK    0x1 /* Indicaiton that there should be a single vlan (for UFP mode) */
+#define PSTORM_FCOE_CONN_ST_CTX_SINGLE_VLAN_FLAG_SHIFT   4
+#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK            0x7
+#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT           5
 	u8 did_2 /* DID FC address - Third byte that is sent to NW via PBF */;
 	u8 did_1 /* DID FC address - Second byte that is sent to NW via PBF */;
 	u8 did_0 /* DID FC address - First byte that is sent to NW via PBF */;
@@ -239,7 +241,7 @@ struct xstorm_fcoe_conn_st_ctx
 struct e4_xstorm_fcoe_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
-	u8 fcoe_state /* state */;
+	u8 state /* state */;
 	u8 flags0;
 #define E4_XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK       0x1 /* exist_in_qm0 */
 #define E4_XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT      0
@@ -490,7 +492,7 @@ struct ustorm_fcoe_conn_st_ctx
 struct e4_tstorm_fcoe_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
-	u8 fcoe_state /* state */;
+	u8 state /* state */;
 	u8 flags0;
 #define E4_TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK          0x1 /* exist_in_qm0 */
 #define E4_TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT         0
@@ -670,9 +672,10 @@ struct tstorm_fcoe_conn_st_ctx
 #define TSTORM_FCOE_CONN_ST_CTX_MODE_SHIFT         0
 #define TSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK      0x3F
 #define TSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT     2
-	u8 q_relative_offset /* CQ, RQ and CMDQ relative offset for connection */;
+	u8 cq_relative_offset /* CQ relative offset for connection */;
+	u8 cmdq_relative_offset /* CmdQ relative offset for connection */;
 	u8 bdq_resource_id /* The BDQ resource ID to which this function is mapped */;
-	u8 reserved0[5] /* Alignment to 128b */;
+	u8 reserved0[4] /* Alignment to 128b */;
 };
 
 struct e4_mstorm_fcoe_conn_ag_ctx
@@ -719,7 +722,8 @@ struct e4_mstorm_fcoe_conn_ag_ctx
 struct fcoe_mstorm_fcoe_conn_st_ctx_fp
 {
 	__le16 xfer_prod /* XferQ producer */;
-	__le16 reserved1;
+	u8 num_cqs /* Number of CQs per function (internal to FW) */;
+	u8 reserved1;
 	u8 protection_info;
 #define FCOE_MSTORM_FCOE_CONN_ST_CTX_FP_SUPPORT_PROTECTION_MASK  0x1 /* Does this connection support protection (if couple of GOS share this connection it is enough that one of them support protection) */
 #define FCOE_MSTORM_FCOE_CONN_ST_CTX_FP_SUPPORT_PROTECTION_SHIFT 0
@@ -1270,7 +1274,6 @@ struct e5_fcoe_conn_context
 	struct regpair pstorm_st_padding[2] /* padding */;
 	struct xstorm_fcoe_conn_st_ctx xstorm_st_context /* xstorm storm context */;
 	struct e5_xstorm_fcoe_conn_ag_ctx xstorm_ag_context /* xstorm aggregative context */;
-	struct regpair xstorm_ag_padding[6] /* padding */;
 	struct ustorm_fcoe_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 	struct regpair ustorm_st_padding[2] /* padding */;
 	struct e5_tstorm_fcoe_conn_ag_ctx tstorm_ag_context /* tstorm aggregative context */;

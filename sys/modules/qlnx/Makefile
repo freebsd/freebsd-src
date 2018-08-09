@@ -34,5 +34,6 @@
 
 
 SUBDIR=qlnxe
+#SUBDIR+=qlnxev
 
 .include <bsd.subdir.mk>

@@ -46,7 +46,7 @@
  */
 struct ystorm_iscsi_conn_st_ctx
 {
-	__le32 reserved[4];
+	__le32 reserved[8];
 };
 
 /*
@@ -63,8 +63,8 @@ struct pstorm_iscsi_tcp_conn_st_ctx
  */
 struct xstorm_iscsi_tcp_conn_st_ctx
 {
-	__le32 reserved_iscsi[40];
 	__le32 reserved_tcp[4];
+	__le32 reserved_iscsi[44];
 };
 
 struct e4_xstorm_iscsi_conn_ag_ctx
@@ -411,7 +411,7 @@ struct e4_tstorm_iscsi_conn_ag_ctx
 #define E4_TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT           7
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
-	__le32 reg2 /* reg2 */;
+	__le32 rx_tcp_checksum_err_cnt /* reg2 */;
 	__le32 reg3 /* reg3 */;
 	__le32 reg4 /* reg4 */;
 	__le32 reg5 /* reg5 */;
@@ -498,7 +498,7 @@ struct e4_ustorm_iscsi_conn_ag_ctx
  */
 struct tstorm_iscsi_conn_st_ctx
 {
-	__le32 reserved[40];
+	__le32 reserved[44];
 };
 
 struct e4_mstorm_iscsi_conn_ag_ctx
@@ -545,7 +545,7 @@ struct e4_mstorm_iscsi_conn_ag_ctx
 struct mstorm_iscsi_tcp_conn_st_ctx
 {
 	__le32 reserved_tcp[20];
-	__le32 reserved_iscsi[8];
+	__le32 reserved_iscsi[12];
 };
 
 /*
@@ -562,7 +562,6 @@ struct ustorm_iscsi_conn_st_ctx
 struct e4_iscsi_conn_context
 {
 	struct ystorm_iscsi_conn_st_ctx ystorm_st_context /* ystorm storm context */;
-	struct regpair ystorm_st_padding[2] /* padding */;
 	struct pstorm_iscsi_tcp_conn_st_ctx pstorm_st_context /* pstorm storm context */;
 	struct regpair pstorm_st_padding[2] /* padding */;
 	struct pb_context xpb2_context /* xpb2 context */;
