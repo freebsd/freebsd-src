@@ -120,7 +120,7 @@ static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
 static void  snprintf_func(int ch, void *arg);
 
-static int msgbufmapped;		/* Set when safe to use msgbuf */
+static bool msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 struct msgbuf *msgbufp;
 
@@ -1030,7 +1030,7 @@ msgbufinit(void *ptr, int size)
 	msgbuf_addstr(msgbufp, -1, BOOT_TAG, 0);
 	if (msgbufmapped && oldp != msgbufp)
 		msgbuf_copy(oldp, msgbufp);
-	msgbufmapped = 1;
+	msgbufmapped = true;
 	oldp = msgbufp;
 }
 
