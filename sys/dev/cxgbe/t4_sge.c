@@ -367,7 +367,7 @@ set_tcb_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
 	MPASS(m == NULL);
 
 	tid = GET_TID(cpl);
-	if (is_ftid(iq->adapter, tid)) {
+	if (is_hpftid(iq->adapter, tid) || is_ftid(iq->adapter, tid)) {
 		/*
 		 * The return code for filter-write is put in the CPL cookie so
 		 * we have to rely on the hardware tid (is_ftid) to determine

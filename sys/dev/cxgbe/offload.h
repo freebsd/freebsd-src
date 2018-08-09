@@ -133,7 +133,12 @@ struct tid_info {
 	u_int ftid_base;
 	u_int ftid_end;
 
+	u_int nhpftids;
+	u_int hpftid_base;
+	u_int hpftid_end;
+
 	u_int ntids;
+	u_int tid_base;
 
 	u_int netids;
 	u_int etid_base;
@@ -150,10 +155,13 @@ struct tid_info {
 	union aopen_entry *afree;
 	u_int atids_in_use;
 
+	/* High priority filters and normal filters share the lock and cv. */
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
 	struct cv ftid_cv;
 	struct filter_entry *ftid_tab;
+	struct filter_entry *hpftid_tab;
 	u_int ftids_in_use;
+	u_int hpftids_in_use;
 
 	/*
 	 * hashfilter and TOE are mutually exclusive and both use ntids and

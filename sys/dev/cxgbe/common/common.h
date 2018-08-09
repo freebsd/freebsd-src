@@ -441,6 +441,13 @@ static inline int is_ftid(const struct adapter *sc, u_int tid)
 	    tid <= sc->tids.ftid_end);
 }
 
+static inline int is_hpftid(const struct adapter *sc, u_int tid)
+{
+
+	return (sc->tids.nhpftids > 0 && tid >= sc->tids.hpftid_base &&
+	    tid <= sc->tids.hpftid_end);
+}
+
 static inline int is_etid(const struct adapter *sc, u_int tid)
 {
 
