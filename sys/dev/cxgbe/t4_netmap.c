@@ -93,6 +93,14 @@ int starve_fl = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
     &starve_fl, 0, "Don't ring fl db for netmap rx queues.");
 
+/*
+ * Try to process tx credits in bulk.  This may cause a delay in the return of
+ * tx credits and is suitable for bursty or non-stop tx only.
+ */
+int lazy_tx_credit_flush = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, lazy_tx_credit_flush, CTLFLAG_RWTUN,
+    &lazy_tx_credit_flush, 0, "lazy credit flush for netmap tx queues.");
+
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
@@ -571,8 +579,6 @@ ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
 	}
 	nm_txq->dbidx = nm_txq->pidx;
 }
-
-int lazy_tx_credit_flush = 1;
 
 /*
  * Write work requests to send 'npkt' frames and ring the doorbell to send them
