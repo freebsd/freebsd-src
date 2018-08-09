@@ -650,6 +650,10 @@ sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 		break;
 	case SCHED_CLASS_MODE_FLOW:
 		sbuf_printf(sb, " per-flow");
+		if (tc.pktsize > 0)
+			sbuf_printf(sb, " pkt-size %u", tc.pktsize);
+		if (tc.burstsize > 0)
+			sbuf_printf(sb, " burst-size %u", tc.burstsize);
 		break;
 	default:
 		rc = ENXIO;
