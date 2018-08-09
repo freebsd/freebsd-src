@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2018
+.Dd August 8, 2018
 .Dt PNFSSERVER 4
 .Os
 .Sh NAME
@@ -366,8 +366,17 @@ have the
 .Xr pnfsdscopymr 8
 command done on them to complete the recovery.
 .Bd -literal -offset
-# pnfsdscopymr -r /data3 <file-path-reporetd>
+# pnfsdscopymr -r /data3 <file-path-reported>
 .Ed
+.sp
+If this commmand fails with the error
+.br
+.Dq pnfsdscopymr: Copymr failed for file <path>: Device not configured
+.br
+repeatedly, this may be caused by a Read/Write layout that has not
+been returned.
+The only way to get rid of such a layout is to restart the
+.Xr nfsd 8 .
 .sp
 All of these commands are designed to be
 done while the pNFS service is running and can be re-run safely.
