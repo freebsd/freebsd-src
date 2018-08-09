@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 
 /* arbitrary --- needs benchmarking */
-#define MAX_ADAPTIVE_SPIN 1000
+#define MAX_ADAPTIVE_SPIN 100
 #define MAX_EPOCHS 64
 
 CTASSERT(sizeof(ck_epoch_entry_t) == sizeof(struct epoch_context));
@@ -240,24 +240,38 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 	locksheld = td->td_locks;
 	spincount = 0;
 	counter_u64_add(block_count, 1);
+	/*
+	 * We lost a race and there's no longer any threads
+	 * on the CPU in an epoch section.
+	 */
+	if (TAILQ_EMPTY(&record->er_tdlist))
+		return;
+
 	if (record->er_cpuid != curcpu) {
 		/*
 		 * If the head of the list is running, we can wait for it
 		 * to remove itself from the list and thus save us the
 		 * overhead of a migration
 		 */
-		if ((tdwait = TAILQ_FIRST(&record->er_tdlist)) != NULL &&
-		    TD_IS_RUNNING(tdwait->et_td)) {
-			gen = record->er_gen;
-			thread_unlock(td);
-			do {
-				cpu_spinwait();
-			} while (tdwait == TAILQ_FIRST(&record->er_tdlist) &&
-			    gen == record->er_gen && TD_IS_RUNNING(tdwait->et_td) &&
-			    spincount++ < MAX_ADAPTIVE_SPIN);
-			thread_lock(td);
+		gen = record->er_gen;
+		thread_unlock(td);
+		/*
+		 * We can't actually check if the waiting thread is running
+		 * so we simply poll for it to exit before giving up and
+		 * migrating.
+		 */
+		do {
+			cpu_spinwait();
+		} while (!TAILQ_EMPTY(&record->er_tdlist) &&
+				 gen == record->er_gen &&
+				 spincount++ < MAX_ADAPTIVE_SPIN);
+		thread_lock(td);
+		/*
+		 * If the generation has changed we can poll again
+		 * otherwise we need to migrate.
+		 */
+		if (gen != record->er_gen)
 			return;
-		}
 		/*
 		 * Being on the same CPU as that of the record on which
 		 * we need to wait allows us access to the thread
