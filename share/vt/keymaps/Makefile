@@ -83,6 +83,7 @@ FILES=	INDEX.keymaps \
 	us.dvorakx.kbd \
 	us.emacs.kbd \
 	us.kbd \
+	us.macbook.kbd \
 	us.unix.kbd \
 
 FILESDIR= ${SHAREDIR}/vt/keymaps
