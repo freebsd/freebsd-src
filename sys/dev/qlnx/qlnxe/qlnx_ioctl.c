@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "nvm_cfg.h"
 #include "ecore_dev_api.h"
 #include "ecore_dbg_fw_funcs.h"
+#include "ecore_dcbx_api.h"
 
 #include "qlnx_ioctl.h"
 #include "qlnx_def.h"
@@ -574,7 +575,7 @@ qlnx_dev_settings(qlnx_host_t *ha, qlnx_dev_setting_t *dev_info)
 
 	p_hwfn = &ha->cdev.hwfns[0];
 
-	qlnx_fill_link(p_hwfn, &if_link);
+	qlnx_fill_link(ha, p_hwfn, &if_link);
 
 	dev_info->supported = if_link.supported_caps;
 	dev_info->advertising = if_link.advertised_caps;
@@ -771,6 +772,235 @@ qlnx_storm_stats(qlnx_host_t *ha, qlnx_storm_stats_dump_t *s_stats)
 	return;
 }
 
+#ifdef QLNX_USER_LLDP
+
+static int
+qlnx_lldp_configure(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn,
+	struct ecore_ptt *p_ptt, uint32_t enable)
+{
+	int ret = 0;
+	uint8_t lldp_mac[6] = {0};
+	struct ecore_lldp_config_params lldp_params;
+	struct ecore_lldp_sys_tlvs tlv_params;
+
+	ret = ecore_mcp_get_lldp_mac(p_hwfn, p_ptt, lldp_mac);
+
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: ecore_mcp_get_lldp_mac failed\n", __func__);
+                return (-1);
+	}
+
+	bzero(&lldp_params, sizeof(struct ecore_lldp_config_params));
+	bzero(&tlv_params, sizeof(struct ecore_lldp_sys_tlvs));
+
+	lldp_params.agent = ECORE_LLDP_NEAREST_BRIDGE;
+	lldp_params.tx_interval = 30; //Default value used as suggested by MFW
+	lldp_params.tx_hold = 4; //Default value used as suggested by MFW
+	lldp_params.tx_credit = 5; //Default value used as suggested by MFW
+	lldp_params.rx_enable = enable ? 1 : 0;
+	lldp_params.tx_enable = enable ? 1 : 0;
+
+	lldp_params.chassis_id_tlv[0] = 0;
+	lldp_params.chassis_id_tlv[0] |= (QLNX_LLDP_TYPE_CHASSIS_ID << 1);
+	lldp_params.chassis_id_tlv[0] |=
+		((QLNX_LLDP_CHASSIS_ID_SUBTYPE_OCTETS +
+			QLNX_LLDP_CHASSIS_ID_MAC_ADDR_LEN) << 8);
+	lldp_params.chassis_id_tlv[0] |= (QLNX_LLDP_CHASSIS_ID_SUBTYPE_MAC << 16);
+	lldp_params.chassis_id_tlv[0] |= lldp_mac[0] << 24;
+	lldp_params.chassis_id_tlv[1] = lldp_mac[1] | (lldp_mac[2] << 8) |
+		 (lldp_mac[3] << 16) | (lldp_mac[4] << 24);
+	lldp_params.chassis_id_tlv[2] = lldp_mac[5];
+
+
+	lldp_params.port_id_tlv[0] = 0;
+	lldp_params.port_id_tlv[0] |= (QLNX_LLDP_TYPE_PORT_ID << 1);
+	lldp_params.port_id_tlv[0] |=
+		((QLNX_LLDP_PORT_ID_SUBTYPE_OCTETS +
+			QLNX_LLDP_PORT_ID_MAC_ADDR_LEN) << 8);
+	lldp_params.port_id_tlv[0] |= (QLNX_LLDP_PORT_ID_SUBTYPE_MAC << 16);
+	lldp_params.port_id_tlv[0] |= lldp_mac[0] << 24;
+	lldp_params.port_id_tlv[1] = lldp_mac[1] | (lldp_mac[2] << 8) |
+		 (lldp_mac[3] << 16) | (lldp_mac[4] << 24);
+	lldp_params.port_id_tlv[2] = lldp_mac[5];
+
+	ret = ecore_lldp_set_params(p_hwfn, p_ptt, &lldp_params);
+
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: ecore_lldp_set_params failed\n", __func__);
+                return (-1);
+	}
+
+	//If LLDP is disable then disable discard_mandatory_tlv flag
+	if (!enable) {
+		tlv_params.discard_mandatory_tlv = false;
+		tlv_params.buf_size = 0;
+		ret = ecore_lldp_set_system_tlvs(p_hwfn, p_ptt, &tlv_params);
+    	}
+
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: ecore_lldp_set_system_tlvs failed\n", __func__);
+	}
+
+	return (ret);
+}
+
+static int
+qlnx_register_default_lldp_tlvs(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn,
+	struct ecore_ptt *p_ptt)
+{
+	int ret = 0;
+
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_CHASSIS_ID);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_CHASSIS_ID failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register Port ID TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_PORT_ID);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_PORT_ID failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register TTL TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_TTL);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_TTL failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register Port Description TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_PORT_DESC);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_PORT_DESC failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register System Name TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_SYS_NAME);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_SYS_NAME failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register System Description TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_SYS_DESC);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_SYS_DESC failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register System Capabilities TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_SYS_CAPS);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_SYS_CAPS failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register Management Address TLV
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_MGMT_ADDR);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_MGMT_ADDR failed\n", __func__);
+		goto qlnx_register_default_lldp_tlvs_exit;
+	}
+
+	//register Organizationally Specific TLVs
+	ret = ecore_lldp_register_tlv(p_hwfn, p_ptt,
+			ECORE_LLDP_NEAREST_BRIDGE, QLNX_LLDP_TYPE_ORG_SPECIFIC);
+	if (ret != ECORE_SUCCESS) {
+                device_printf(ha->pci_dev,
+			"%s: QLNX_LLDP_TYPE_ORG_SPECIFIC failed\n", __func__);
+	}
+
+qlnx_register_default_lldp_tlvs_exit:
+	return (ret);
+}
+
+int
+qlnx_set_lldp_tlvx(qlnx_host_t *ha, qlnx_lldp_sys_tlvs_t *lldp_tlvs)
+{
+	int ret = 0;
+	struct ecore_hwfn *p_hwfn;
+	struct ecore_ptt *p_ptt;
+	struct ecore_lldp_sys_tlvs tlv_params;
+
+	p_hwfn = &ha->cdev.hwfns[0];
+	p_ptt = ecore_ptt_acquire(p_hwfn);
+
+        if (!p_ptt) {
+                device_printf(ha->pci_dev,
+			"%s: ecore_ptt_acquire failed\n", __func__);
+                return (ENXIO);
+        }
+
+	ret = qlnx_lldp_configure(ha, p_hwfn, p_ptt, 0);
+
+	if (ret) {
+                device_printf(ha->pci_dev,
+			"%s: qlnx_lldp_configure disable failed\n", __func__);
+		goto qlnx_set_lldp_tlvx_exit;
+	}
+
+	ret = qlnx_register_default_lldp_tlvs(ha, p_hwfn, p_ptt);
+
+	if (ret) {
+                device_printf(ha->pci_dev,
+			"%s: qlnx_register_default_lldp_tlvs failed\n",
+			__func__);
+		goto qlnx_set_lldp_tlvx_exit;
+	}
+
+	ret = qlnx_lldp_configure(ha, p_hwfn, p_ptt, 1);
+
+	if (ret) {
+                device_printf(ha->pci_dev,
+			"%s: qlnx_lldp_configure enable failed\n", __func__);
+		goto qlnx_set_lldp_tlvx_exit;
+	}
+
+	if (lldp_tlvs != NULL) {
+		bzero(&tlv_params, sizeof(struct ecore_lldp_sys_tlvs));
+
+		tlv_params.discard_mandatory_tlv =
+			(lldp_tlvs->discard_mandatory_tlv ? true: false);
+		tlv_params.buf_size = lldp_tlvs->buf_size;
+		memcpy(tlv_params.buf, lldp_tlvs->buf, lldp_tlvs->buf_size);
+
+		ret = ecore_lldp_set_system_tlvs(p_hwfn, p_ptt, &tlv_params);
+	
+		if (ret) {
+			device_printf(ha->pci_dev,
+				"%s: ecore_lldp_set_system_tlvs failed\n",
+				__func__);
+		}
+	}
+qlnx_set_lldp_tlvx_exit:
+
+	ecore_ptt_release(p_hwfn, p_ptt);
+	return (ret);
+}
+
+#endif /* #ifdef QLNX_USER_LLDP */
 
 static int
 qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
@@ -853,6 +1083,12 @@ qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				break;
 		}
 		break;
+
+#ifdef QLNX_USER_LLDP
+	case QLNX_SET_LLDP_TLVS:
+		rval = qlnx_set_lldp_tlvx(ha, (qlnx_lldp_sys_tlvs_t *)data);
+		break;
+#endif /* #ifdef QLNX_USER_LLDP */
 
 	default:
 		rval = EINVAL;

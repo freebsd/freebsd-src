@@ -56,4 +56,8 @@
 #define HILO_DMA_REGPAIR(regpair)	(HILO_DMA(regpair.hi, regpair.lo))
 #define HILO_64_REGPAIR(regpair)	(HILO_64(regpair.hi, regpair.lo))
 
+#ifndef USHRT_MAX
+#define USHRT_MAX       ((u16)(~0U))
+#endif
+
 #endif

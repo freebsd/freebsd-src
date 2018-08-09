@@ -53,20 +53,21 @@ enum mem_groups {
 	MEM_GROUP_DMAE_MEM,
 	MEM_GROUP_CM_MEM,
 	MEM_GROUP_QM_MEM,
-	MEM_GROUP_TM_MEM,
+	MEM_GROUP_DORQ_MEM,
 	MEM_GROUP_BRB_RAM,
 	MEM_GROUP_BRB_MEM,
 	MEM_GROUP_PRS_MEM,
-	MEM_GROUP_SDM_MEM,
 	MEM_GROUP_IOR,
-	MEM_GROUP_RAM,
 	MEM_GROUP_BTB_RAM,
 	MEM_GROUP_CONN_CFC_MEM,
 	MEM_GROUP_TASK_CFC_MEM,
 	MEM_GROUP_CAU_PI,
 	MEM_GROUP_CAU_MEM,
 	MEM_GROUP_PXP_ILT,
+	MEM_GROUP_TM_MEM,
+	MEM_GROUP_SDM_MEM,
 	MEM_GROUP_PBUF,
+	MEM_GROUP_RAM,
 	MEM_GROUP_MULD_MEM,
 	MEM_GROUP_BTB_MEM,
 	MEM_GROUP_RDIF_CTX,
@@ -86,20 +87,21 @@ static const char* s_mem_group_names[] = {
 	"DMAE_MEM",
 	"CM_MEM",
 	"QM_MEM",
-	"TM_MEM",
+	"DORQ_MEM",
 	"BRB_RAM",
 	"BRB_MEM",
 	"PRS_MEM",
-	"SDM_MEM",
 	"IOR",
-	"RAM",
 	"BTB_RAM",
 	"CONN_CFC_MEM",
 	"TASK_CFC_MEM",
 	"CAU_PI",
 	"CAU_MEM",
 	"PXP_ILT",
+	"TM_MEM",
+	"SDM_MEM",
 	"PBUF",
+	"RAM",
 	"MULD_MEM",
 	"BTB_MEM",
 	"RDIF_CTX",
@@ -122,10 +124,6 @@ static u32 cond5(const u32 *r, const u32 *imm) {
 
 static u32 cond7(const u32 *r, const u32 *imm) {
 	return (((r[0] >> imm[0]) & imm[1]) != imm[2]);
-}
-
-static u32 cond14(const u32 *r, const u32 *imm) {
-	return ((r[0] != imm[0]) && (((r[1] >> imm[1]) & imm[2]) == imm[3]));
 }
 
 static u32 cond6(const u32 *r, const u32 *imm) {
@@ -192,7 +190,6 @@ static u32 (*cond_arr[])(const u32 *r, const u32 *imm) = {
 	cond11,
 	cond12,
 	cond13,
-	cond14,
 };
 
 #endif /* __PREVENT_COND_ARR__ */
@@ -224,6 +221,8 @@ struct chip_defs {
 struct platform_defs {
 	const char *name;
 	u32 delay_factor;
+	u32 dmae_thresh;
+	u32 log_thresh;
 };
 
 /* Storm constant definitions.
@@ -328,7 +327,9 @@ struct big_ram_defs {
 	enum dbg_grc_params grc_param;
 	u32 addr_reg_addr;
 	u32 data_reg_addr;
-	u32 num_of_blocks[MAX_CHIP_IDS];
+	u32 is_256b_reg_addr;
+	u32 is_256b_bit_offset[MAX_CHIP_IDS];
+	u32 ram_size[MAX_CHIP_IDS]; /* In dwords */
 };
 
 struct phy_defs {
@@ -393,6 +394,9 @@ struct phy_defs {
 #define NUM_DBG_LINES(block_desc)		(block_desc->num_of_lines + NUM_EXTRA_DBG_LINES(block_desc))
 #endif
 
+#define USE_DMAE				true
+#define PROTECT_WIDE_BUS		true
+
 #define RAM_LINES_TO_DWORDS(lines)	((lines) * 2)
 #define RAM_LINES_TO_BYTES(lines)		DWORDS_TO_BYTES(RAM_LINES_TO_DWORDS(lines))
 
@@ -439,14 +443,16 @@ struct phy_defs {
 #define NUM_RSS_MEM_TYPES		5
 
 #define NUM_BIG_RAM_TYPES		3
-#define BIG_RAM_BLOCK_SIZE_BYTES	128
-#define BIG_RAM_BLOCK_SIZE_DWORDS		BYTES_TO_DWORDS(BIG_RAM_BLOCK_SIZE_BYTES)
 
 #define NUM_PHY_TBUS_ADDRESSES		2048
 #define PHY_DUMP_SIZE_DWORDS		(NUM_PHY_TBUS_ADDRESSES / 2)
 
-#define SEM_FAST_MODE6_SRC_ENABLE	0x10
-#define SEM_FAST_MODE6_SRC_DISABLE	0x3f
+#define SEM_FAST_MODE23_SRC_ENABLE_VAL	0x0
+#define SEM_FAST_MODE23_SRC_DISABLE_VAL	0x7
+#define SEM_FAST_MODE4_SRC_ENABLE_VAL	0x0
+#define SEM_FAST_MODE4_SRC_DISABLE_VAL	0x3
+#define SEM_FAST_MODE6_SRC_ENABLE_VAL	0x10
+#define SEM_FAST_MODE6_SRC_DISABLE_VAL	0x3f
 
 #define SEM_SLOW_MODE1_DATA_ENABLE	0x1
 
@@ -463,9 +469,9 @@ struct phy_defs {
 #define TRIGGER_SETS_PER_STATE		2
 #define MAX_CONSTRAINTS			4
 
-#define SEM_FILTER_CID_EN_MASK		0x008
-#define SEM_FILTER_EID_MASK_EN_MASK	0x010
-#define SEM_FILTER_EID_RANGE_EN_MASK	0x110
+#define SEM_FILTER_CID_EN_MASK		0x00b
+#define SEM_FILTER_EID_MASK_EN_MASK	0x013
+#define SEM_FILTER_EID_RANGE_EN_MASK	0x113
 
 #define CHUNK_SIZE_IN_DWORDS		64
 #define CHUNK_SIZE_IN_BYTES		DWORDS_TO_BYTES(CHUNK_SIZE_IN_DWORDS)
@@ -549,7 +555,7 @@ static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { { OSAL_NULL } 
 static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = {
 
 	/* BIN_BUF_DBG_MODE_TREE */
-	{ (const u32*)dbg_modes_tree_buf, OSAL_ARRAY_SIZE(dbg_modes_tree_buf)},
+	{ (const u32 *)dbg_modes_tree_buf, OSAL_ARRAY_SIZE(dbg_modes_tree_buf)},
 
 	/* BIN_BUF_DBG_DUMP_REG */
 	{ dump_reg, OSAL_ARRAY_SIZE(dump_reg) },
@@ -1137,6 +1143,22 @@ static struct block_defs block_xyld_defs = {
 	XYLD_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 12 };
 
+static struct block_defs block_ptld_defs = {
+	"ptld", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCT },
+	PTLD_REG_DBG_SELECT_E5, PTLD_REG_DBG_DWORD_ENABLE_E5,
+	PTLD_REG_DBG_SHIFT_E5, PTLD_REG_DBG_FORCE_VALID_E5,
+	PTLD_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 28 };
+
+static struct block_defs block_ypld_defs = {
+	"ypld", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCS },
+	YPLD_REG_DBG_SELECT_E5, YPLD_REG_DBG_DWORD_ENABLE_E5,
+	YPLD_REG_DBG_SHIFT_E5, YPLD_REG_DBG_FORCE_VALID_E5,
+	YPLD_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 27 };
+
 static struct block_defs block_prm_defs = {
 	"prm", { true, true, true }, false, 0,
 	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
@@ -1241,6 +1263,36 @@ static struct block_defs block_cau_defs = {
 	CAU_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 19 };
 
+/* TODO: add debug bus parameters when E5 RGFS RF is added */
+static struct block_defs block_rgfs_defs = {
+	"rgfs", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	0, 0, 0, 0, 0,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 29 };
+
+static struct block_defs block_rgsrc_defs = {
+	"rgsrc", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
+	RGSRC_REG_DBG_SELECT_E5, RGSRC_REG_DBG_DWORD_ENABLE_E5,
+	RGSRC_REG_DBG_SHIFT_E5, RGSRC_REG_DBG_FORCE_VALID_E5,
+	RGSRC_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 30 };
+
+/* TODO: add debug bus parameters when E5 TGFS RF is added */
+static struct block_defs block_tgfs_defs = {
+	"tgfs", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	0, 0, 0, 0, 0,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 30 };
+
+static struct block_defs block_tgsrc_defs = {
+	"tgsrc", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCV },
+	TGSRC_REG_DBG_SELECT_E5, TGSRC_REG_DBG_DWORD_ENABLE_E5,
+	TGSRC_REG_DBG_SHIFT_E5, TGSRC_REG_DBG_FORCE_VALID_E5,
+	TGSRC_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 31 };
+
 static struct block_defs block_umac_defs = {
 	"umac", { true, true, true }, false, 0,
 	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
@@ -1335,51 +1387,11 @@ static struct block_defs block_avs_wrap_defs = {
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_UA, 11 };
 
-/* TODO: add debug bus parameters when E5 RGFS RF is added */
-static struct block_defs block_rgfs_defs = {
-	"rgfs", { false, false, true }, false, 0,
+static struct block_defs block_pxpreqbus_defs = {
+	"pxpreqbus", { false, false, false }, false, 0,
 	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 29 };
-
-static struct block_defs block_rgsrc_defs = {
-	"rgsrc", { false, false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
-	RGSRC_REG_DBG_SELECT_E5, RGSRC_REG_DBG_DWORD_ENABLE_E5,
-	RGSRC_REG_DBG_SHIFT_E5, RGSRC_REG_DBG_FORCE_VALID_E5,
-	RGSRC_REG_DBG_FORCE_FRAME_E5,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 30 };
-
-/* TODO: add debug bus parameters when E5 TGFS RF is added */
-static struct block_defs block_tgfs_defs = {
-	"tgfs", { false, false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
-	0, 0, 0, 0, 0,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 30 };
-
-static struct block_defs block_tgsrc_defs = {
-	"tgsrc", { false, false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCV },
-	TGSRC_REG_DBG_SELECT_E5, TGSRC_REG_DBG_DWORD_ENABLE_E5,
-	TGSRC_REG_DBG_SHIFT_E5, TGSRC_REG_DBG_FORCE_VALID_E5,
-	TGSRC_REG_DBG_FORCE_FRAME_E5,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 31 };
-
-static struct block_defs block_ptld_defs = {
-	"ptld", { false, false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCT },
-	PTLD_REG_DBG_SELECT_E5, PTLD_REG_DBG_DWORD_ENABLE_E5,
-	PTLD_REG_DBG_SHIFT_E5, PTLD_REG_DBG_FORCE_VALID_E5,
-	PTLD_REG_DBG_FORCE_FRAME_E5,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 28 };
-
-static struct block_defs block_ypld_defs = {
-	"ypld", { false, false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCS },
-	YPLD_REG_DBG_SELECT_E5, YPLD_REG_DBG_DWORD_ENABLE_E5,
-	YPLD_REG_DBG_SHIFT_E5, YPLD_REG_DBG_FORCE_VALID_E5,
-	YPLD_REG_DBG_FORCE_FRAME_E5,
-	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 27 };
+	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_misc_aeu_defs = {
 	"misc_aeu", { true, true, true }, false, 0,
@@ -1480,6 +1492,7 @@ static struct block_defs* s_block_defs[MAX_BLOCK_ID] = {
  	&block_phy_pcie_defs,
  	&block_led_defs,
  	&block_avs_wrap_defs,
+ 	&block_pxpreqbus_defs,
  	&block_misc_aeu_defs,
  	&block_bar0_map_defs,
 
@@ -1491,40 +1504,40 @@ static struct dbg_bus_constraint_op_defs s_constraint_op_defs[] = {
 
 	/* DBG_BUS_CONSTRAINT_OP_EQ */
 	{ 0, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_NE */
 	{ 5, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_LT */
 	{ 1, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_LTC */
 	{ 1, true },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_LE */
 	{ 2, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_LEC */
 	{ 2, true },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_GT */
 	{ 4, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_GTC */
 	{ 4, true },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_GE */
 	{ 3, false },
-	
+
 	/* DBG_BUS_CONSTRAINT_OP_GEC */
 	{ 3, true }
 };
 
 static const char* s_dbg_target_names[] = {
 
-	/* DBG_BUS_TARGET_ID_INT_BUF */	
+	/* DBG_BUS_TARGET_ID_INT_BUF */
 	"int-buf",
-	
+
 	/* DBG_BUS_TARGET_ID_NIG */
 	"nw",
 
@@ -1565,16 +1578,16 @@ static struct storm_mode_defs s_storm_mode_defs[] = {
 static struct platform_defs s_platform_defs[] = {
 
 	/* PLATFORM_ASIC */
-	{ "asic", 1 },
+	{ "asic", 1, 256, 32768 },
 
 	/* PLATFORM_EMUL_FULL */
-	{ "emul_full", 2000 },
+	{ "emul_full", 2000, 8, 4096 },
 
 	/* PLATFORM_EMUL_REDUCED */
-	{ "emul_reduced", 2000 },
+	{ "emul_reduced", 2000, 8, 4096 },
 
 	/* PLATFORM_FPGA */
-	{ "fpga", 200 }
+	{ "fpga", 200, 32, 8192 }
 };
 
 static struct grc_param_defs s_grc_param_defs[] = {
@@ -1728,14 +1741,17 @@ static struct vfc_ram_defs s_vfc_ram_defs[] = {
 };
 
 static struct big_ram_defs s_big_ram_defs[] = {
-	{ "BRB", MEM_GROUP_BRB_MEM, MEM_GROUP_BRB_RAM, DBG_GRC_PARAM_DUMP_BRB, BRB_REG_BIG_RAM_ADDRESS, BRB_REG_BIG_RAM_DATA,
-	  { 4800, 5632, 4416 } },
+	{ "BRB", MEM_GROUP_BRB_MEM, MEM_GROUP_BRB_RAM, DBG_GRC_PARAM_DUMP_BRB,
+	  BRB_REG_BIG_RAM_ADDRESS, BRB_REG_BIG_RAM_DATA, MISC_REG_BLOCK_256B_EN, { 0, 0, 0 },
+	  { 153600, 180224, 282624 } },
 
-	{ "BTB", MEM_GROUP_BTB_MEM, MEM_GROUP_BTB_RAM, DBG_GRC_PARAM_DUMP_BTB, BTB_REG_BIG_RAM_ADDRESS, BTB_REG_BIG_RAM_DATA,
-	  { 2880, 3680, 2640 } },
+	{ "BTB", MEM_GROUP_BTB_MEM, MEM_GROUP_BTB_RAM, DBG_GRC_PARAM_DUMP_BTB,
+	  BTB_REG_BIG_RAM_ADDRESS, BTB_REG_BIG_RAM_DATA, MISC_REG_BLOCK_256B_EN, { 0, 1, 1 },
+	  { 92160, 117760, 168960 } },
 
-	{ "BMB", MEM_GROUP_BMB_MEM, MEM_GROUP_BMB_RAM, DBG_GRC_PARAM_DUMP_BMB, BMB_REG_BIG_RAM_ADDRESS, BMB_REG_BIG_RAM_DATA,
-	  { 1152, 1152, 1152 } }
+	{ "BMB", MEM_GROUP_BMB_MEM, MEM_GROUP_BMB_RAM, DBG_GRC_PARAM_DUMP_BMB,
+	  BMB_REG_BIG_RAM_ADDRESS, BMB_REG_BIG_RAM_DATA, MISCS_REG_BLOCK_256B_EN, { 0, 0, 0 },
+	  { 36864, 36864, 36864 } }
 };
 
 static struct reset_reg_defs s_reset_regs_defs[] = {
@@ -1766,7 +1782,7 @@ static struct reset_reg_defs s_reset_regs_defs[] = {
 };
 
 static struct phy_defs s_phy_defs[] = {
-	{ "nw_phy", NWS_REG_NWS_CMU_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_ADDR_7_0_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_ADDR_15_8_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_DATA_7_0_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_DATA_11_8_K2_E5 },
+	{ "nw_phy", NWS_REG_NWS_CMU_K2, PHY_NW_IP_REG_PHY0_TOP_TBUS_ADDR_7_0_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_ADDR_15_8_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_DATA_7_0_K2_E5, PHY_NW_IP_REG_PHY0_TOP_TBUS_DATA_11_8_K2_E5 },
 	{ "sgmii_phy", MS_REG_MS_CMU_K2_E5, PHY_SGMII_IP_REG_AHB_CMU_CSR_0_X132_K2_E5, PHY_SGMII_IP_REG_AHB_CMU_CSR_0_X133_K2_E5, PHY_SGMII_IP_REG_AHB_CMU_CSR_0_X130_K2_E5, PHY_SGMII_IP_REG_AHB_CMU_CSR_0_X131_K2_E5 },
 	{ "pcie_phy0", PHY_PCIE_REG_PHY0_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X132_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X133_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X130_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X131_K2_E5 },
 	{ "pcie_phy1", PHY_PCIE_REG_PHY1_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X132_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X133_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X130_K2_E5, PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X131_K2_E5 },
@@ -1803,7 +1819,7 @@ static u32 ecore_read_unaligned_dword(u8 *buf)
 {
 	u32 dword;
 
-	OSAL_MEMCPY((u8*)&dword, buf, sizeof(dword));
+	OSAL_MEMCPY((u8 *)&dword, buf, sizeof(dword));
 	return dword;
 }
 
@@ -1905,7 +1921,9 @@ static enum dbg_status ecore_dbg_dev_init(struct ecore_hwfn *p_hwfn,
 	/* Initializes the GRC parameters */
 	ecore_dbg_grc_init_params(p_hwfn);
 
-	dev_data->initialized = true;
+	dev_data->use_dmae = USE_DMAE;
+	dev_data->num_regs_read = 0;
+	dev_data->initialized = 1;
 
 	return DBG_STATUS_OK;
 }
@@ -1915,7 +1933,7 @@ static struct dbg_bus_block* get_dbg_bus_block_desc(struct ecore_hwfn *p_hwfn,
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 
-	return (struct dbg_bus_block*)&dbg_bus_blocks[block_id * MAX_CHIP_IDS + dev_data->chip_id];
+	return (struct dbg_bus_block *)&dbg_bus_blocks[block_id * MAX_CHIP_IDS + dev_data->chip_id];
 }
 
 /* Returns OSAL_NULL for signature line, latency line and non-existing lines */
@@ -1934,7 +1952,7 @@ static struct dbg_bus_line* get_dbg_bus_line_desc(struct ecore_hwfn *p_hwfn,
 		block_bus->line_num >= NUM_DBG_LINES(block_desc))
 		return OSAL_NULL;
 
-	return (struct dbg_bus_line*)&dbg_bus_lines[block_desc->lines_offset + block_bus->line_num - NUM_EXTRA_DBG_LINES(block_desc)];
+	return (struct dbg_bus_line *)&dbg_bus_lines[block_desc->lines_offset + block_bus->line_num - NUM_EXTRA_DBG_LINES(block_desc)];
 }
 
 /* Reads the FW info structure for the specified Storm from the chip,
@@ -1955,8 +1973,13 @@ static void ecore_read_fw_info(struct ecore_hwfn *p_hwfn,
 	/* Read first the address that points to fw_info location.
 	 * The address is located in the last line of the Storm RAM.
 	 */
-	addr = storm->sem_fast_mem_addr + SEM_FAST_REG_INT_RAM + DWORDS_TO_BYTES(SEM_FAST_REG_INT_RAM_SIZE) - sizeof(fw_info_location);
-	dest = (u32*)&fw_info_location;
+	addr = storm->sem_fast_mem_addr + SEM_FAST_REG_INT_RAM +
+		(ECORE_IS_E5(p_hwfn->p_dev) ?
+			DWORDS_TO_BYTES(SEM_FAST_REG_INT_RAM_SIZE_E5) :
+			DWORDS_TO_BYTES(SEM_FAST_REG_INT_RAM_SIZE_BB_K2))
+		- sizeof(fw_info_location);
+
+	dest = (u32 *)&fw_info_location;
 
 	for (i = 0; i < BYTES_TO_DWORDS(sizeof(fw_info_location)); i++, addr += BYTES_IN_DWORD)
 		dest[i] = ecore_rd(p_hwfn, p_ptt, addr);
@@ -1964,7 +1987,7 @@ static void ecore_read_fw_info(struct ecore_hwfn *p_hwfn,
 	/* Read FW version info from Storm RAM */
 	if (fw_info_location.size > 0 && fw_info_location.size <= sizeof(*fw_info)) {
 		addr = fw_info_location.grc_addr;
-		dest = (u32*)fw_info;
+		dest = (u32 *)fw_info;
 		for (i = 0; i < BYTES_TO_DWORDS(fw_info_location.size); i++, addr += BYTES_IN_DWORD)
 			dest[i] = ecore_rd(p_hwfn, p_ptt, addr);
 	}
@@ -2009,7 +2032,7 @@ static u32 ecore_dump_str_param(u32 *dump_buf,
 								const char *param_name,
 								const char *param_val)
 {
-	char *char_buf = (char*)dump_buf;
+	char *char_buf = (char *)dump_buf;
 	u32 offset = 0;
 
 	/* Dump param name */
@@ -2037,7 +2060,7 @@ static u32 ecore_dump_num_param(u32 *dump_buf,
 								const char *param_name,
 								u32 param_val)
 {
-	char *char_buf = (char*)dump_buf;
+	char *char_buf = (char *)dump_buf;
 	u32 offset = 0;
 
 	/* Dump param name */
@@ -2121,7 +2144,7 @@ static u32 ecore_dump_mfw_ver_param(struct ecore_hwfn *p_hwfn,
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	char mfw_ver_str[16] = EMPTY_FW_VERSION_STR;
-	
+
 	if (dump && dev_data->platform_id == PLATFORM_ASIC && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_FW_VER)) {
 		u32 public_data_addr, global_section_offsize_addr, global_section_offsize, global_section_addr, mfw_ver;
 
@@ -2188,7 +2211,9 @@ static u32 ecore_dump_common_global_params(struct ecore_hwfn *p_hwfn,
 /* Writes the "last" section (including CRC) to the specified buffer at the
  * given offset. Returns the dumped size in dwords.
  */
-static u32 ecore_dump_last_section(u32 *dump_buf, u32 offset, bool dump)
+static u32 ecore_dump_last_section(u32 *dump_buf,
+								   u32 offset,
+								   bool dump)
 {
 	u32 start_offset = offset;
 
@@ -2197,7 +2222,7 @@ static u32 ecore_dump_last_section(u32 *dump_buf, u32 offset, bool dump)
 
 	/* Calculate CRC32 and add it to the dword after the "last" section */
 	if (dump)
-		*(dump_buf + offset) = ~OSAL_CRC32(0xffffffff, (u8*)dump_buf, DWORDS_TO_BYTES(offset));
+		*(dump_buf + offset) = ~OSAL_CRC32(0xffffffff, (u8 *)dump_buf, DWORDS_TO_BYTES(offset));
 
 	offset++;
 
@@ -2268,11 +2293,10 @@ static void ecore_bus_enable_clients(struct ecore_hwfn *p_hwfn,
 /* Enables the specified Storm for Debug Bus. Assumes a valid Storm ID. */
 static void ecore_bus_enable_storm(struct ecore_hwfn *p_hwfn,
 								   struct ecore_ptt *p_ptt,
-								   enum dbg_storms storm_id,
-								   enum dbg_bus_filter_types filter_type)
+								   enum dbg_storms storm_id)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
-	u32 base_addr, sem_filter_params = filter_type;
+	u32 base_addr, sem_filter_params = 0;
 	struct dbg_bus_storm_data *storm_bus;
 	struct storm_mode_defs *storm_mode;
 	struct storm_defs *storm;
@@ -2290,15 +2314,17 @@ static void ecore_bus_enable_storm(struct ecore_hwfn *p_hwfn,
 		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DEBUG_MODE, storm_mode->id_in_hw);
 		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DEBUG_ACTIVE, 1);
 
-		/* Enable all messages except STORE. Must be done after
-		 * enabling SEM_FAST_REG_DEBUG_ACTIVE, otherwise messages will
+		/* Enable messages. Must be done after enabling
+		 * SEM_FAST_REG_DEBUG_ACTIVE, otherwise messages will
 		 * be dropped after the SEMI sync fifo is filled.
 		 */
-		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DBG_MODE6_SRC_DISABLE, SEM_FAST_MODE6_SRC_ENABLE);
+		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DBG_MODE23_SRC_DISABLE, SEM_FAST_MODE23_SRC_ENABLE_VAL);
+		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DBG_MODE4_SRC_DISABLE, SEM_FAST_MODE4_SRC_ENABLE_VAL);
+		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DBG_MODE6_SRC_DISABLE, SEM_FAST_MODE6_SRC_ENABLE_VAL);
 	}
 	else {
 
-		/* Ensable slow debug */
+		/* Enable slow debug */
 		ecore_wr(p_hwfn, p_ptt, storm->sem_frame_mode_addr, DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST);
 		ecore_wr(p_hwfn, p_ptt, storm->sem_slow_enable_addr, 1);
 		ecore_wr(p_hwfn, p_ptt, storm->sem_slow_mode_addr, storm_mode->id_in_hw);
@@ -2346,13 +2372,16 @@ static enum dbg_status ecore_bus_disable_inputs(struct ecore_hwfn *p_hwfn,
 	for (storm_id = 0; storm_id < MAX_DBG_STORMS; storm_id++) {
 		struct storm_defs *storm = &s_storm_defs[storm_id];
 
-		if (!dev_data->block_in_reset[storm->block_id])
-			ecore_wr(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_DBG_MODE6_SRC_DISABLE, SEM_FAST_MODE6_SRC_DISABLE);
+		if (dev_data->block_in_reset[storm->block_id])
+			continue;
+
+		ecore_wr(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_DBG_MODE23_SRC_DISABLE, SEM_FAST_MODE23_SRC_DISABLE_VAL);
+		ecore_wr(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_DBG_MODE4_SRC_DISABLE, SEM_FAST_MODE4_SRC_DISABLE_VAL);
+		ecore_wr(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_DBG_MODE6_SRC_DISABLE, SEM_FAST_MODE6_SRC_DISABLE_VAL);
 	}
 
 	/* Try to empty the SEMI sync fifo. Must be done after messages output
-	 * were disabled in all Storms (i.e. SEM_FAST_REG_DBG_MODE6_SRC_DISABLE
-	 * was set to all 1's.
+	 * were disabled in all Storms.
 	 */
 	while (num_fifos_to_empty) {
 		for (storm_id = 0; storm_id < MAX_DBG_STORMS; storm_id++) {
@@ -2528,7 +2557,7 @@ static u32 ecore_bus_dump_pci_buf_range(struct ecore_hwfn *p_hwfn,
 
 	/* Extract PCI buffer pointer from virtual address */
 	void *virt_addr_lo = &dev_data->bus.pci_buf.virt_addr.lo;
-	u32 *pci_buf_start = (u32*)(osal_uintptr_t)*((u64*)virt_addr_lo);
+	u32 *pci_buf_start = (u32 *)(osal_uintptr_t)*((u64 *)virt_addr_lo);
 	u32 *pci_buf, line, i;
 
 	if (!dump)
@@ -2611,7 +2640,7 @@ static void ecore_bus_free_pci_buf(struct ecore_hwfn *p_hwfn)
 
 	/* Extract PCI buffer pointer from virtual address */
 	virt_addr_lo = &dev_data->bus.pci_buf.virt_addr.lo;
-	pci_buf = (u32*)(osal_uintptr_t)*((u64*)virt_addr_lo);
+	pci_buf = (u32 *)(osal_uintptr_t)*((u64 *)virt_addr_lo);
 
 	if (!dev_data->bus.pci_buf.size)
 		return;
@@ -2708,7 +2737,7 @@ static u32 ecore_bus_dump_hdr(struct ecore_hwfn *p_hwfn,
 	return offset;
 }
 
-static bool ecore_is_mode_match(struct ecore_hwfn *p_hwfn, 
+static bool ecore_is_mode_match(struct ecore_hwfn *p_hwfn,
 								u16 *modes_buf_offset)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
@@ -2716,7 +2745,7 @@ static bool ecore_is_mode_match(struct ecore_hwfn *p_hwfn,
 	u8 tree_val;
 
 	/* Get next element from modes tree buffer */
-	tree_val = ((u8*)s_dbg_arrays[BIN_BUF_DBG_MODE_TREE].ptr)[(*modes_buf_offset)++];
+	tree_val = ((u8 *)s_dbg_arrays[BIN_BUF_DBG_MODE_TREE].ptr)[(*modes_buf_offset)++];
 
 	switch (tree_val) {
 	case INIT_MODE_OP_NOT:
@@ -2864,7 +2893,7 @@ static void ecore_grc_unreset_blocks(struct ecore_hwfn *p_hwfn,
 static const struct dbg_attn_block_type_data* ecore_get_block_attn_data(enum block_id block_id,
 																		enum dbg_attn_type attn_type)
 {
-	const struct dbg_attn_block *base_attn_block_arr = (const struct dbg_attn_block*)s_dbg_arrays[BIN_BUF_DBG_ATTN_BLOCKS].ptr;
+	const struct dbg_attn_block *base_attn_block_arr = (const struct dbg_attn_block *)s_dbg_arrays[BIN_BUF_DBG_ATTN_BLOCKS].ptr;
 
 	return &base_attn_block_arr[block_id].per_type_data[attn_type];
 }
@@ -2878,7 +2907,7 @@ static const struct dbg_attn_reg* ecore_get_block_attn_regs(enum block_id block_
 
 	*num_attn_regs = block_type_data->num_regs;
 
-	return &((const struct dbg_attn_reg*)s_dbg_arrays[BIN_BUF_DBG_ATTN_REGS].ptr)[block_type_data->regs_offset];
+	return &((const struct dbg_attn_reg *)s_dbg_arrays[BIN_BUF_DBG_ATTN_REGS].ptr)[block_type_data->regs_offset];
 }
 
 /* For each block, clear the status of all parities */
@@ -2942,27 +2971,57 @@ static u32 ecore_grc_dump_regs_hdr(u32 *dump_buf,
 	return offset;
 }
 
+/* Reads the specified registers into the specified buffer.
+ * The addr and len arguments are specified in dwords.
+ */
+void ecore_read_regs(struct ecore_hwfn *p_hwfn,
+					 struct ecore_ptt *p_ptt,
+					 u32 *buf,
+					 u32 addr,
+					 u32 len)
+{
+	u32 i;
+
+	for (i = 0; i < len; i++)
+		buf[i] = ecore_rd(p_hwfn, p_ptt, DWORDS_TO_BYTES(addr + i));
+}
+
 /* Dumps the GRC registers in the specified address range.
  * Returns the dumped size in dwords.
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_addr_range(struct ecore_hwfn *p_hwfn,
-				     struct ecore_ptt *p_ptt,
-				     u32 *dump_buf,
-				     bool dump,
-				     u32 addr,
-				     u32 len,
-				     bool OSAL_UNUSED wide_bus)
+									 struct ecore_ptt *p_ptt,
+									 u32 *dump_buf,
+									 bool dump,
+									 u32 addr,
+									 u32 len,
+									 bool wide_bus)
 {
-	u32 byte_addr = DWORDS_TO_BYTES(addr), offset = 0, i;
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 
 	if (!dump)
 		return len;
 
-	for (i = 0; i < len; i++, byte_addr += BYTES_IN_DWORD, offset++)
-		*(dump_buf + offset) = ecore_rd(p_hwfn, p_ptt, byte_addr);
+	/* Print log if needed */
+	dev_data->num_regs_read += len;
+	if (dev_data->num_regs_read >= s_platform_defs[dev_data->platform_id].log_thresh) {
+		DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Dumping %d registers...\n", dev_data->num_regs_read);
+		dev_data->num_regs_read = 0;
+	}
 
-	return offset;
+	/* Try reading using DMAE */
+	if (dev_data->use_dmae && (len >= s_platform_defs[dev_data->platform_id].dmae_thresh || (PROTECT_WIDE_BUS && wide_bus))) {
+		if (!ecore_dmae_grc2host(p_hwfn, p_ptt, DWORDS_TO_BYTES(addr), (u64)(osal_uintptr_t)(dump_buf), len, OSAL_NULL))
+			return len;
+		dev_data->use_dmae = 0;
+		DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Failed reading from chip using DMAE, using GRC instead\n");
+	}
+
+	/* Read registers */
+	ecore_read_regs(p_hwfn, p_ptt, dump_buf, addr, len);
+
+	return len;
 }
 
 /* Dumps GRC registers sequence header. Returns the dumped size in dwords.
@@ -2983,12 +3042,12 @@ static u32 ecore_grc_dump_reg_entry_hdr(u32 *dump_buf,
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_reg_entry(struct ecore_hwfn *p_hwfn,
-				    struct ecore_ptt *p_ptt,
-				    u32 *dump_buf,
-				    bool dump,
-				    u32 addr,
-				    u32 len,
-				    bool OSAL_UNUSED wide_bus)
+									struct ecore_ptt *p_ptt,
+									u32 *dump_buf,
+									bool dump,
+									u32 addr,
+									u32 len,
+									bool wide_bus)
 {
 	u32 offset = 0;
 
@@ -3002,7 +3061,7 @@ static u32 ecore_grc_dump_reg_entry(struct ecore_hwfn *p_hwfn,
  * Returns the dumped size in dwords.
  * - addr:	start GRC address in dwords
  * - total_len:	total no. of dwords to dump
- * - read_len:	no. consecutive dwords to read 
+ * - read_len:	no. consecutive dwords to read
  * - skip_len:	no. of dwords to skip (and fill with zeros)
  */
 static u32 ecore_grc_dump_reg_entry_skip(struct ecore_hwfn *p_hwfn,
@@ -3051,11 +3110,11 @@ static u32 ecore_grc_dump_regs_entries(struct ecore_hwfn *p_hwfn,
 {
 	u32 i, offset = 0, input_offset = 0;
 	bool mode_match = true;
-	
+
 	*num_dumped_reg_entries = 0;
 
 	while (input_offset < input_regs_arr.size_in_dwords) {
-		const struct dbg_dump_cond_hdr* cond_hdr = (const struct dbg_dump_cond_hdr*)&input_regs_arr.ptr[input_offset++];
+		const struct dbg_dump_cond_hdr *cond_hdr = (const struct dbg_dump_cond_hdr *)&input_regs_arr.ptr[input_offset++];
 		u16 modes_buf_offset;
 		bool eval_mode;
 
@@ -3072,12 +3131,12 @@ static u32 ecore_grc_dump_regs_entries(struct ecore_hwfn *p_hwfn,
 		}
 
 		for (i = 0; i < cond_hdr->data_size; i++, input_offset++) {
-			const struct dbg_dump_reg *reg = (const struct dbg_dump_reg*)&input_regs_arr.ptr[input_offset];
+			const struct dbg_dump_reg *reg = (const struct dbg_dump_reg *)&input_regs_arr.ptr[input_offset];
 
 			offset += ecore_grc_dump_reg_entry(p_hwfn, p_ptt, dump_buf + offset, dump,
-							   GET_FIELD(reg->data, DBG_DUMP_REG_ADDRESS),
-							   GET_FIELD(reg->data, DBG_DUMP_REG_LENGTH),
-							   GET_FIELD(reg->data, DBG_DUMP_REG_WIDE_BUS));
+				GET_FIELD(reg->data, DBG_DUMP_REG_ADDRESS),
+				GET_FIELD(reg->data, DBG_DUMP_REG_LENGTH),
+				GET_FIELD(reg->data, DBG_DUMP_REG_WIDE_BUS));
 			(*num_dumped_reg_entries)++;
 		}
 	}
@@ -3130,16 +3189,13 @@ static u32 ecore_grc_dump_registers(struct ecore_hwfn *p_hwfn,
 
 	chip_platform = &s_chip_defs[dev_data->chip_id].per_platform[dev_data->platform_id];
 
-	if (dump)
-		DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Dumping registers...\n");
-
 	while (input_offset < s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].size_in_dwords) {
 		const struct dbg_dump_split_hdr *split_hdr;
 		struct dbg_array curr_input_regs_arr;
 		u32 split_data_size;
 		u8 split_type_id;
 
-		split_hdr = (const struct dbg_dump_split_hdr*)&s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].ptr[input_offset++];
+		split_hdr = (const struct dbg_dump_split_hdr *)&s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].ptr[input_offset++];
 		split_type_id = GET_FIELD(split_hdr->hdr, DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID);
 		split_data_size = GET_FIELD(split_hdr->hdr, DBG_DUMP_SPLIT_HDR_DATA_SIZE);
 		curr_input_regs_arr.ptr = &s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].ptr[input_offset];
@@ -3348,8 +3404,6 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
 		}
 
 		offset += ecore_dump_str_param(dump_buf + offset, dump, "name", buf);
-		if (dump)
-			DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Dumping %d registers from %s...\n", len, buf);
 	}
 	else {
 
@@ -3357,8 +3411,6 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
 		u32 addr_in_bytes = DWORDS_TO_BYTES(addr);
 
 		offset += ecore_dump_num_param(dump_buf + offset, dump, "addr", addr_in_bytes);
-		if (dump && len > 64)
-			DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Dumping %d registers from address 0x%x...\n", len, addr_in_bytes);
 	}
 
 	/* Dump len */
@@ -3392,18 +3444,18 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_mem(struct ecore_hwfn *p_hwfn,
-			      struct ecore_ptt *p_ptt,
-			      u32 *dump_buf,
-			      bool dump,
-			      const char *name,
-			      u32 addr,
-			      u32 len,
-			      bool wide_bus,
-			      u32 bit_width,
-			      bool packed,
-			      const char *mem_group,
-			      bool is_storm,
-			      char storm_letter)
+							  struct ecore_ptt *p_ptt,
+							  u32 *dump_buf,
+							  bool dump,
+							  const char *name,
+							  u32 addr,
+							  u32 len,
+							  bool wide_bus,
+							  u32 bit_width,
+							  bool packed,
+							  const char *mem_group,
+							  bool is_storm,
+							  char storm_letter)
 {
 	u32 offset = 0;
 
@@ -3424,12 +3476,12 @@ static u32 ecore_grc_dump_mem_entries(struct ecore_hwfn *p_hwfn,
 	bool mode_match = true;
 
 	while (input_offset < input_mems_arr.size_in_dwords) {
-		const struct dbg_dump_cond_hdr* cond_hdr;
+		const struct dbg_dump_cond_hdr *cond_hdr;
 		u16 modes_buf_offset;
 		u32 num_entries;
 		bool eval_mode;
 
-		cond_hdr = (const struct dbg_dump_cond_hdr*)&input_mems_arr.ptr[input_offset++];
+		cond_hdr = (const struct dbg_dump_cond_hdr *)&input_mems_arr.ptr[input_offset++];
 		num_entries = cond_hdr->data_size / MEM_DUMP_ENTRY_SIZE_DWORDS;
 
 		/* Check required mode */
@@ -3445,7 +3497,7 @@ static u32 ecore_grc_dump_mem_entries(struct ecore_hwfn *p_hwfn,
 		}
 
 		for (i = 0; i < num_entries; i++, input_offset += MEM_DUMP_ENTRY_SIZE_DWORDS) {
-			const struct dbg_dump_mem *mem = (const struct dbg_dump_mem*)&input_mems_arr.ptr[input_offset];
+			const struct dbg_dump_mem *mem = (const struct dbg_dump_mem *)&input_mems_arr.ptr[input_offset];
 			u8 mem_group_id = GET_FIELD(mem->dword0, DBG_DUMP_MEM_MEM_GROUP_ID);
 			bool is_storm = false, mem_wide_bus;
 			char storm_letter = 'a';
@@ -3493,7 +3545,7 @@ static u32 ecore_grc_dump_mem_entries(struct ecore_hwfn *p_hwfn,
 
 			/* Dump memory */
 			offset += ecore_grc_dump_mem(p_hwfn, p_ptt, dump_buf + offset, dump, OSAL_NULL, mem_addr, mem_len, mem_wide_bus,
-											0, false, s_mem_group_names[mem_group_id], is_storm, storm_letter);
+				0, false, s_mem_group_names[mem_group_id], is_storm, storm_letter);
 		}
 	}
 
@@ -3516,7 +3568,7 @@ static u32 ecore_grc_dump_memories(struct ecore_hwfn *p_hwfn,
 		u32 split_data_size;
 		u8 split_type_id;
 
-		split_hdr = (const struct dbg_dump_split_hdr*)&s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].ptr[input_offset++];
+		split_hdr = (const struct dbg_dump_split_hdr *)&s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].ptr[input_offset++];
 		split_type_id = GET_FIELD(split_hdr->hdr, DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID);
 		split_data_size = GET_FIELD(split_hdr->hdr, DBG_DUMP_SPLIT_HDR_DATA_SIZE);
 		curr_input_mems_arr.ptr = &s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].ptr[input_offset];
@@ -3722,7 +3774,7 @@ static u32 ecore_grc_dump_vfc(struct ecore_hwfn *p_hwfn,
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	u8 storm_id, i;
 	u32 offset = 0;
-	
+
 	for (storm_id = 0; storm_id < MAX_DBG_STORMS; storm_id++) {
 		if (!ecore_grc_is_storm_included(p_hwfn, (enum dbg_storms)storm_id) ||
 			!s_storm_defs[storm_id].has_vfc ||
@@ -3790,29 +3842,31 @@ static u32 ecore_grc_dump_big_ram(struct ecore_hwfn *p_hwfn,
 								  u8 big_ram_id)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
-	u32 total_blocks, ram_size, offset = 0, i;
+	u32 block_size, ram_size, offset = 0, reg_val, i;
 	char mem_name[12] = "???_BIG_RAM";
 	char type_name[8] = "???_RAM";
 	struct big_ram_defs *big_ram;
 
 	big_ram = &s_big_ram_defs[big_ram_id];
-	total_blocks = big_ram->num_of_blocks[dev_data->chip_id];
-	ram_size = total_blocks * BIG_RAM_BLOCK_SIZE_DWORDS;
+	ram_size = big_ram->ram_size[dev_data->chip_id];
+
+	reg_val = ecore_rd(p_hwfn, p_ptt, big_ram->is_256b_reg_addr);
+	block_size = reg_val & (1 << big_ram->is_256b_bit_offset[dev_data->chip_id]) ? 256 : 128;
 
 	OSAL_STRNCPY(type_name, big_ram->instance_name, OSAL_STRLEN(big_ram->instance_name));
 	OSAL_STRNCPY(mem_name, big_ram->instance_name, OSAL_STRLEN(big_ram->instance_name));
 
 	/* Dump memory header */
-	offset += ecore_grc_dump_mem_hdr(p_hwfn, dump_buf + offset, dump, mem_name, 0, ram_size, BIG_RAM_BLOCK_SIZE_BYTES * 8, false, type_name, false, 0);
+	offset += ecore_grc_dump_mem_hdr(p_hwfn, dump_buf + offset, dump, mem_name, 0, ram_size, block_size * 8, false, type_name, false, 0);
 
 	/* Read and dump Big RAM data */
 	if (!dump)
 		return offset + ram_size;
 
 	/* Dump Big RAM */
-	for (i = 0; i < total_blocks / 2; i++) {
+	for (i = 0; i < DIV_ROUND_UP(ram_size, BRB_REG_BIG_RAM_DATA_SIZE); i++) {
 		ecore_wr(p_hwfn, p_ptt, big_ram->addr_reg_addr, i);
-		offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, dump, BYTES_TO_DWORDS(big_ram->data_reg_addr), 2 * BIG_RAM_BLOCK_SIZE_DWORDS, false);
+		offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, dump, BYTES_TO_DWORDS(big_ram->data_reg_addr), BRB_REG_BIG_RAM_DATA_SIZE, false);
 	}
 
 	return offset;
@@ -3836,10 +3890,12 @@ static u32 ecore_grc_dump_mcp(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump MCP scratchpad */
-	offset += ecore_grc_dump_mem(p_hwfn, p_ptt, dump_buf + offset, dump, OSAL_NULL, BYTES_TO_DWORDS(MCP_REG_SCRATCH), MCP_REG_SCRATCH_SIZE, false, 0, false, "MCP", false, 0);
+	offset += ecore_grc_dump_mem(p_hwfn, p_ptt, dump_buf + offset, dump, OSAL_NULL, BYTES_TO_DWORDS(MCP_REG_SCRATCH),
+		ECORE_IS_E5(p_hwfn->p_dev) ? MCP_REG_SCRATCH_SIZE_E5 : MCP_REG_SCRATCH_SIZE_BB_K2, false, 0, false, "MCP", false, 0);
 
 	/* Dump MCP cpu_reg_file */
-	offset += ecore_grc_dump_mem(p_hwfn, p_ptt, dump_buf + offset, dump, OSAL_NULL, BYTES_TO_DWORDS(MCP_REG_CPU_REG_FILE), MCP_REG_CPU_REG_FILE_SIZE, false, 0, false, "MCP", false, 0);
+	offset += ecore_grc_dump_mem(p_hwfn, p_ptt, dump_buf + offset, dump, OSAL_NULL, BYTES_TO_DWORDS(MCP_REG_CPU_REG_FILE),
+		MCP_REG_CPU_REG_FILE_SIZE, false, 0, false, "MCP", false, 0);
 
 	/* Dump MCP registers */
 	block_enable[BLOCK_MCP] = true;
@@ -3876,7 +3932,6 @@ static u32 ecore_grc_dump_phy(struct ecore_hwfn *p_hwfn,
 		addr_hi_addr = phy_defs->base_addr + phy_defs->tbus_addr_hi_addr;
 		data_lo_addr = phy_defs->base_addr + phy_defs->tbus_data_lo_addr;
 		data_hi_addr = phy_defs->base_addr + phy_defs->tbus_data_hi_addr;
-		bytes_buf = (u8*)(dump_buf + offset);
 
 		if (OSAL_SNPRINTF(mem_name, sizeof(mem_name), "tbus_%s", phy_defs->phy_name) < 0)
 			DP_NOTICE(p_hwfn, true, "Unexpected debug error: invalid PHY memory name\n");
@@ -3888,6 +3943,7 @@ static u32 ecore_grc_dump_phy(struct ecore_hwfn *p_hwfn,
 			continue;
 		}
 
+		bytes_buf = (u8 *)(dump_buf + offset);
 		for (tbus_hi_offset = 0; tbus_hi_offset < (NUM_PHY_TBUS_ADDRESSES >> 8); tbus_hi_offset++) {
 			ecore_wr(p_hwfn, p_ptt, addr_hi_addr, tbus_hi_offset);
 			for (tbus_lo_offset = 0; tbus_lo_offset < 256; tbus_lo_offset++) {
@@ -3930,13 +3986,11 @@ static u32 ecore_grc_dump_static_debug(struct ecore_hwfn *p_hwfn,
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	u32 block_id, line_id, offset = 0;
 
-	/* Skip static debug if a debug bus recording is in progress */
-	if (ecore_rd(p_hwfn, p_ptt, DBG_REG_DBG_BLOCK_ON))
+	/* don't dump static debug if a debug bus recording is in progress */
+	if (dump && ecore_rd(p_hwfn, p_ptt, DBG_REG_DBG_BLOCK_ON))
 		return 0;
 
 	if (dump) {
-		DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "Dumping static debug data...\n");
-
 		/* Disable all blocks debug output */
 		for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 			struct block_defs *block = s_block_defs[block_id];
@@ -4053,13 +4107,13 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 
 	/* Disable all parities using MFW command */
 	if (dump && is_asic && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP)) {
-		parities_masked = !ecore_mcp_mask_parities(p_hwfn, p_ptt, 1);
-		if (!parities_masked) {
-			DP_NOTICE(p_hwfn, false, "Failed to mask parities using MFW\n");
-			if (ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_PARITY_SAFE))
-				return DBG_STATUS_MCP_COULD_NOT_MASK_PRTY;
+			parities_masked = !ecore_mcp_mask_parities(p_hwfn, p_ptt, 1);
+			if (!parities_masked) {
+				DP_NOTICE(p_hwfn, false, "Failed to mask parities using MFW\n");
+				if (ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_PARITY_SAFE))
+					return DBG_STATUS_MCP_COULD_NOT_MASK_PRTY;
+			}
 		}
-	}
 
 	/* Dump modified registers (dumped before modifying them) */
 	if (ecore_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_REGS))
@@ -4162,8 +4216,8 @@ static u32 ecore_idle_chk_dump_failure(struct ecore_hwfn *p_hwfn,
 	const union dbg_idle_chk_reg *regs;
 	u8 reg_id;
 
-	hdr = (struct dbg_idle_chk_result_hdr*)dump_buf;
-	regs = &((const union dbg_idle_chk_reg*)s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_REGS].ptr)[rule->reg_offset];
+	hdr = (struct dbg_idle_chk_result_hdr *)dump_buf;
+	regs = &((const union dbg_idle_chk_reg *)s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_REGS].ptr)[rule->reg_offset];
 	cond_regs = &regs[0].cond_reg;
 	info_regs = &regs[rule->num_cond_regs].info_reg;
 
@@ -4183,7 +4237,7 @@ static u32 ecore_idle_chk_dump_failure(struct ecore_hwfn *p_hwfn,
 		const struct dbg_idle_chk_cond_reg *reg = &cond_regs[reg_id];
 		struct dbg_idle_chk_result_reg_hdr *reg_hdr;
 
-		reg_hdr = (struct dbg_idle_chk_result_reg_hdr*)(dump_buf + offset);
+		reg_hdr = (struct dbg_idle_chk_result_reg_hdr *)(dump_buf + offset);
 
 		/* Write register header */
 		if (!dump) {
@@ -4226,7 +4280,7 @@ static u32 ecore_idle_chk_dump_failure(struct ecore_hwfn *p_hwfn,
 			u16 modes_buf_offset;
 			u32 addr;
 
-			reg_hdr = (struct dbg_idle_chk_result_reg_hdr*)(dump_buf + offset);
+			reg_hdr = (struct dbg_idle_chk_result_reg_hdr *)(dump_buf + offset);
 
 			/* Check mode */
 			eval_mode = GET_FIELD(reg->mode.data, DBG_MODE_HDR_EVAL_MODE) > 0;
@@ -4282,7 +4336,7 @@ static u32 ecore_idle_chk_dump_rule_entries(struct ecore_hwfn *p_hwfn,
 		const u32 *imm_values;
 
 		rule = &input_rules[i];
-		regs = &((const union dbg_idle_chk_reg*)s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_REGS].ptr)[rule->reg_offset];
+		regs = &((const union dbg_idle_chk_reg *)s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_REGS].ptr)[rule->reg_offset];
 		cond_regs = &regs[0].cond_reg;
 		imm_values = &s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_IMMS].ptr[rule->imm_offset];
 
@@ -4376,7 +4430,7 @@ static u32 ecore_idle_chk_dump(struct ecore_hwfn *p_hwfn,
 	offset += ecore_dump_num_param(dump_buf + offset, dump, "num_rules", 0);
 
 	while (input_offset < s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_RULES].size_in_dwords) {
-		const struct dbg_idle_chk_cond_hdr *cond_hdr = (const struct dbg_idle_chk_cond_hdr*)&s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_RULES].ptr[input_offset++];
+		const struct dbg_idle_chk_cond_hdr *cond_hdr = (const struct dbg_idle_chk_cond_hdr *)&s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_RULES].ptr[input_offset++];
 		bool eval_mode, mode_match = true;
 		u32 curr_failing_rules;
 		u16 modes_buf_offset;
@@ -4389,7 +4443,7 @@ static u32 ecore_idle_chk_dump(struct ecore_hwfn *p_hwfn,
 		}
 
 		if (mode_match) {
-			offset += ecore_idle_chk_dump_rule_entries(p_hwfn, p_ptt, dump_buf + offset, dump, (const struct dbg_idle_chk_rule*)&s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_RULES].ptr[input_offset], cond_hdr->data_size / IDLE_CHK_RULE_SIZE_DWORDS, &curr_failing_rules);
+			offset += ecore_idle_chk_dump_rule_entries(p_hwfn, p_ptt, dump_buf + offset, dump, (const struct dbg_idle_chk_rule *)&s_dbg_arrays[BIN_BUF_DBG_IDLE_CHK_RULES].ptr[input_offset], cond_hdr->data_size / IDLE_CHK_RULE_SIZE_DWORDS, &curr_failing_rules);
 			num_failing_rules += curr_failing_rules;
 		}
 
@@ -4418,7 +4472,7 @@ static enum dbg_status ecore_find_nvram_image(struct ecore_hwfn *p_hwfn,
 	int nvm_result;
 
 	/* Call NVRAM get file command */
-	nvm_result = ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_GET_FILE_ATT, image_type, &ret_mcp_resp, &ret_mcp_param, &ret_txn_size, (u32*)&file_att);
+	nvm_result = ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_GET_FILE_ATT, image_type, &ret_mcp_resp, &ret_mcp_param, &ret_txn_size, (u32 *)&file_att);
 
 	/* Check response */
 	if (nvm_result || (ret_mcp_resp & FW_MSG_CODE_MASK) != FW_MSG_CODE_NVM_OK)
@@ -4454,7 +4508,7 @@ static enum dbg_status ecore_nvram_read(struct ecore_hwfn *p_hwfn,
 		bytes_to_copy = (bytes_left > MCP_DRV_NVM_BUF_LEN) ? MCP_DRV_NVM_BUF_LEN : bytes_left;
 
 		/* Call NVRAM read command */
-		if (ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_READ_NVRAM, (nvram_offset_bytes + read_offset) | (bytes_to_copy << DRV_MB_PARAM_NVM_LEN_OFFSET), &ret_mcp_resp, &ret_mcp_param, &ret_read_size, (u32*)((u8*)ret_buf + read_offset)))
+		if (ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_READ_NVRAM, (nvram_offset_bytes + read_offset) | (bytes_to_copy << DRV_MB_PARAM_NVM_LEN_OFFSET), &ret_mcp_resp, &ret_mcp_param, &ret_read_size, (u32 *)((u8 *)ret_buf + read_offset)))
 			return DBG_STATUS_NVRAM_READ_FAILED;
 
 		/* Check response */
@@ -4534,7 +4588,7 @@ static enum dbg_status ecore_mcp_trace_read_meta(struct ecore_hwfn *p_hwfn,
 												 u32 size_in_bytes,
 												 u32 *buf)
 {
-	u8 modules_num, module_len, i, *byte_buf = (u8*)buf;
+	u8 modules_num, module_len, i, *byte_buf = (u8 *)buf;
 	enum dbg_status status;
 	u32 signature;
 
@@ -4683,9 +4737,8 @@ static enum dbg_status ecore_reg_fifo_dump(struct ecore_hwfn *p_hwfn,
 		 * be added to the buffer as we
 		 * are emptying it.
 		 */
-		for (dwords_read = 0; fifo_has_data && dwords_read < REG_FIFO_DEPTH_DWORDS; dwords_read += REG_FIFO_ELEMENT_DWORDS, offset += REG_FIFO_ELEMENT_DWORDS) {
-			if (ecore_dmae_grc2host(p_hwfn, p_ptt, GRC_REG_TRACE_FIFO, (u64)(osal_uintptr_t)(&dump_buf[offset]), REG_FIFO_ELEMENT_DWORDS, 0))
-				return DBG_STATUS_DMAE_FAILED;
+		for (dwords_read = 0; fifo_has_data && dwords_read < REG_FIFO_DEPTH_DWORDS; dwords_read += REG_FIFO_ELEMENT_DWORDS) {
+			offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, true, BYTES_TO_DWORDS(GRC_REG_TRACE_FIFO), REG_FIFO_ELEMENT_DWORDS, true);
 			fifo_has_data = ecore_rd(p_hwfn, p_ptt, GRC_REG_TRACE_FIFO_VALID_DATA) > 0;
 		}
 
@@ -4738,9 +4791,8 @@ static enum dbg_status ecore_igu_fifo_dump(struct ecore_hwfn *p_hwfn,
 		 * dwords_read not passing buffer size since more entries could
 		 * be added to the buffer as we are emptying it.
 		 */
-		for (dwords_read = 0; fifo_has_data && dwords_read < IGU_FIFO_DEPTH_DWORDS; dwords_read += IGU_FIFO_ELEMENT_DWORDS, offset += IGU_FIFO_ELEMENT_DWORDS) {
-			if (ecore_dmae_grc2host(p_hwfn, p_ptt, IGU_REG_ERROR_HANDLING_MEMORY, (u64)(osal_uintptr_t)(&dump_buf[offset]), IGU_FIFO_ELEMENT_DWORDS, 0))
-				return DBG_STATUS_DMAE_FAILED;
+		for (dwords_read = 0; fifo_has_data && dwords_read < IGU_FIFO_DEPTH_DWORDS; dwords_read += IGU_FIFO_ELEMENT_DWORDS) {
+			offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, true, BYTES_TO_DWORDS(IGU_REG_ERROR_HANDLING_MEMORY), IGU_FIFO_ELEMENT_DWORDS, true);
 			fifo_has_data = ecore_rd(p_hwfn, p_ptt, IGU_REG_ERROR_HANDLING_DATA_VALID) > 0;
 		}
 
@@ -4787,9 +4839,7 @@ static enum dbg_status ecore_protection_override_dump(struct ecore_hwfn *p_hwfn,
 	if (dump) {
 		/* Add override window info to buffer */
 		override_window_dwords = ecore_rd(p_hwfn, p_ptt, GRC_REG_NUMBER_VALID_OVERRIDE_WINDOW) * PROTECTION_OVERRIDE_ELEMENT_DWORDS;
-		if (ecore_dmae_grc2host(p_hwfn, p_ptt, GRC_REG_PROTECTION_OVERRIDE_WINDOW, (u64)(osal_uintptr_t)(dump_buf + offset), override_window_dwords, 0))
-			return DBG_STATUS_DMAE_FAILED;
-		offset += override_window_dwords;
+		offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, true, BYTES_TO_DWORDS(GRC_REG_PROTECTION_OVERRIDE_WINDOW), override_window_dwords, true);
 		ecore_dump_num_param(dump_buf + size_param_offset, dump, "size", override_window_dwords);
 	}
 	else {
@@ -4868,12 +4918,12 @@ static u32 ecore_fw_asserts_dump(struct ecore_hwfn *p_hwfn,
 
 enum dbg_status ecore_dbg_set_bin_ptr(const u8 * const bin_ptr)
 {
-	struct bin_buffer_hdr *buf_array = (struct bin_buffer_hdr*)bin_ptr;
+	struct bin_buffer_hdr *buf_array = (struct bin_buffer_hdr *)bin_ptr;
 	u8 buf_id;
 
 	/* convert binary data to debug arrays */
 	for (buf_id = 0; buf_id < MAX_BIN_DBG_BUFFER_TYPE; buf_id++) {
-		s_dbg_arrays[buf_id].ptr = (u32*)(bin_ptr + buf_array[buf_id].offset);
+		s_dbg_arrays[buf_id].ptr = (u32 *)(bin_ptr + buf_array[buf_id].offset);
 		s_dbg_arrays[buf_id].size_in_dwords = BYTES_TO_DWORDS(buf_array[buf_id].length);
 	}
 
@@ -4911,7 +4961,7 @@ enum dbg_status ecore_dbg_bus_reset(struct ecore_hwfn *p_hwfn,
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	enum dbg_status status;
-	
+
 	status = ecore_dbg_dev_init(p_hwfn, p_ptt);
 	if (status != DBG_STATUS_OK)
 		return status;
@@ -5079,12 +5129,12 @@ static bool ecore_is_overlapping_enable_mask(struct ecore_hwfn *p_hwfn,
 }
 
 enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
-					   enum block_id block_id,
-					   u8 line_num,
-					   u8 enable_mask,
-					   u8 right_shift,
-					   u8 force_valid_mask,
-					   u8 force_frame_mask)
+										   enum block_id block_id,
+										   u8 line_num,
+										   u8 enable_mask,
+										   u8 right_shift,
+										   u8 force_valid_mask,
+										   u8 force_frame_mask)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct block_defs *block = s_block_defs[block_id];
@@ -5127,32 +5177,40 @@ enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
 }
 
 enum dbg_status ecore_dbg_bus_enable_storm(struct ecore_hwfn *p_hwfn,
-										   enum dbg_storms storm,
+										   enum dbg_storms storm_id,
 										   enum dbg_bus_storm_modes storm_mode)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	struct dbg_bus_data *bus = &dev_data->bus;
+	struct dbg_bus_storm_data *storm_bus;
+	struct storm_defs *storm;
 
-	DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "dbg_bus_enable_storm: storm = %d, storm_mode = %d\n", storm, storm_mode);
+	DP_VERBOSE(p_hwfn, ECORE_MSG_DEBUG, "dbg_bus_enable_storm: storm = %d, storm_mode = %d\n", storm_id, storm_mode);
 
-	if (dev_data->bus.state != DBG_BUS_STATE_READY)
+	if (bus->state != DBG_BUS_STATE_READY)
 		return DBG_STATUS_DBG_BLOCK_NOT_RESET;
-	if (dev_data->bus.hw_dwords >= 4)
+	if (bus->hw_dwords >= 4)
 		return DBG_STATUS_HW_ONLY_RECORDING;
-	if (storm >= MAX_DBG_STORMS)
+	if (storm_id >= MAX_DBG_STORMS)
 		return DBG_STATUS_INVALID_ARGS;
 	if (storm_mode >= MAX_DBG_BUS_STORM_MODES)
 		return DBG_STATUS_INVALID_ARGS;
-	if (dev_data->bus.unify_inputs)
+	if (bus->unify_inputs)
 		return DBG_STATUS_INVALID_ARGS;
-
-	if (dev_data->bus.storms[storm].enabled)
+	if (bus->storms[storm_id].enabled)
 		return DBG_STATUS_STORM_ALREADY_ENABLED;
 
-	dev_data->bus.storms[storm].enabled = true;
-	dev_data->bus.storms[storm].mode = (u8)storm_mode;
-	dev_data->bus.storms[storm].hw_id = dev_data->bus.num_enabled_storms;
+	storm = &s_storm_defs[storm_id];
+	storm_bus = &bus->storms[storm_id];
 
-	dev_data->bus.num_enabled_storms++;
+	if (dev_data->block_in_reset[storm->block_id])
+		return DBG_STATUS_BLOCK_IN_RESET;
+
+	storm_bus->enabled = true;
+	storm_bus->mode = (u8)storm_mode;
+	storm_bus->hw_id = bus->num_enabled_storms;
+
+	bus->num_enabled_storms++;
 
 	return DBG_STATUS_OK;
 }
@@ -5285,7 +5343,7 @@ enum dbg_status ecore_dbg_bus_enable_filter(struct ecore_hwfn *p_hwfn,
 	dev_data->bus.adding_filter = true;
 
 	/* HW ID is set to 0 due to required unifyInputs */
-	ecore_wr(p_hwfn, p_ptt, DBG_REG_FILTER_ID_NUM, 0); 
+	ecore_wr(p_hwfn, p_ptt, DBG_REG_FILTER_ID_NUM, 0);
 	ecore_wr(p_hwfn, p_ptt, DBG_REG_FILTER_MSG_LENGTH_ENABLE, const_msg_len > 0 ? 1 : 0);
 	if (const_msg_len > 0)
 		ecore_wr(p_hwfn, p_ptt, DBG_REG_FILTER_MSG_LENGTH, const_msg_len - 1);
@@ -5402,15 +5460,15 @@ enum dbg_status ecore_dbg_bus_add_trigger_state(struct ecore_hwfn *p_hwfn,
 }
 
 enum dbg_status ecore_dbg_bus_add_constraint(struct ecore_hwfn *p_hwfn,
-			 struct ecore_ptt *p_ptt,
-			 enum dbg_bus_constraint_ops constraint_op,
-			 u32 data_val,
-			 u32 data_mask,
-			 bool compare_frame,
-			 u8 frame_bit,
-			 u8 cycle_offset,
-			 u8 dword_offset_in_cycle,
-			 bool is_mandatory)
+											 struct ecore_ptt *p_ptt,
+											 enum dbg_bus_constraint_ops constraint_op,
+											 u32 data_val,
+											 u32 data_mask,
+											 bool compare_frame,
+											 u8 frame_bit,
+											 u8 cycle_offset,
+											 u8 dword_offset_in_cycle,
+											 bool is_mandatory)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct dbg_bus_data *bus = &dev_data->bus;
@@ -5454,17 +5512,15 @@ enum dbg_status ecore_dbg_bus_add_constraint(struct ecore_hwfn *p_hwfn,
 	}
 	else {
 		u8 lsb, width;
-			
+
 		/* Extract lsb and width from mask */
 		if (!data_mask)
 			return DBG_STATUS_INVALID_ARGS;
 
 		for (lsb = 0; lsb < 32 && !(data_mask & 1); lsb++, data_mask >>= 1);
-		for (width = 0;
-		width < 32 - lsb && (data_mask & 1);
-			width++, data_mask >>= 1) {}
-			if (data_mask)
-				return DBG_STATUS_INVALID_ARGS;
+		for (width = 0; width < 32 - lsb && (data_mask & 1); width++, data_mask >>= 1);
+		if (data_mask)
+			return DBG_STATUS_INVALID_ARGS;
 		range = (lsb << 5) | (width - 1);
 	}
 
@@ -5770,7 +5826,7 @@ enum dbg_status ecore_dbg_bus_start(struct ecore_hwfn *p_hwfn,
 	/* Configure DBG block for block inputs */
 	if (bus->num_enabled_blocks)
 		ecore_config_block_inputs(p_hwfn, p_ptt);
-	
+
 	/* Configure filter type */
 	if (bus->filter_en) {
 		if (bus->trigger_en) {
@@ -5820,7 +5876,7 @@ enum dbg_status ecore_dbg_bus_start(struct ecore_hwfn *p_hwfn,
 	if (dev_data->bus.num_enabled_storms)
 		for (storm_id = 0; storm_id < MAX_DBG_STORMS; storm_id++)
 			if (dev_data->bus.storms[storm_id].enabled)
-				ecore_bus_enable_storm(p_hwfn, p_ptt, (enum dbg_storms)storm_id, filter_type);
+				ecore_bus_enable_storm(p_hwfn, p_ptt, (enum dbg_storms)storm_id);
 
 	dev_data->bus.state = DBG_BUS_STATE_RECORDING;
 
@@ -6090,7 +6146,7 @@ enum dbg_status ecore_dbg_idle_chk_get_dump_buf_size(struct ecore_hwfn *p_hwfn,
 	enum dbg_status status;
 
 	*buf_size = 0;
-		
+
 	status = ecore_dbg_dev_init(p_hwfn, p_ptt);
 	if (status != DBG_STATUS_OK)
 		return status;
@@ -6441,7 +6497,7 @@ bool ecore_is_block_in_reset(struct ecore_hwfn *p_hwfn,
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct block_defs *block = s_block_defs[block_id];
 	u32 reset_reg;
-	
+
 	if (!block->has_reset_bit)
 		return false;
 
