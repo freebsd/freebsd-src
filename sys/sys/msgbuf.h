@@ -60,9 +60,6 @@ struct msgbuf {
 /* Subtract sequence numbers.  Note that only positive values result. */
 #define	MSGBUF_SEQSUB(mbp, seq1, seq2)	(MSGBUF_SEQNORM((mbp), (seq1) - (seq2)))
 
-/* Tag used to mark the start of a boot in dmesg */
-#define	BOOT_TAG  "---<<BOOT>>---"
-
 #ifdef _KERNEL
 extern int	msgbufsize;
 extern int	msgbuftrigger;

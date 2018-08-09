@@ -124,6 +124,18 @@ static bool msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 struct msgbuf *msgbufp;
 
+#ifndef BOOT_TAG_SZ
+#define	BOOT_TAG_SZ	32
+#endif
+#ifndef BOOT_TAG
+/* Tag used to mark the start of a boot in dmesg */
+#define	BOOT_TAG	"---<<BOOT>>---"
+#endif
+
+static char current_boot_tag[BOOT_TAG_SZ + 1] = BOOT_TAG;
+SYSCTL_STRING(_kern, OID_AUTO, boot_tag, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    current_boot_tag, 0, "Tag added to dmesg at start of boot");
+
 static int log_console_output = 1;
 SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RWTUN,
     &log_console_output, 0, "Duplicate console output to the syslog");
@@ -1025,9 +1037,13 @@ msgbufinit(void *ptr, int size)
 
 	size -= sizeof(*msgbufp);
 	cp = (char *)ptr;
+	/* Attempt to fetch kern.boot_tag tunable on first mapping */
+	if (!msgbufmapped)
+		TUNABLE_STR_FETCH("kern.boot_tag", current_boot_tag,
+		    BOOT_TAG_SZ + 1);
 	msgbufp = (struct msgbuf *)(cp + size);
 	msgbuf_reinit(msgbufp, cp, size);
-	msgbuf_addstr(msgbufp, -1, BOOT_TAG, 0);
+	msgbuf_addstr(msgbufp, -1, current_boot_tag, 0);
 	if (msgbufmapped && oldp != msgbufp)
 		msgbuf_copy(oldp, msgbufp);
 	msgbufmapped = true;
