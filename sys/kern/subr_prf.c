@@ -1040,7 +1040,7 @@ msgbufinit(void *ptr, int size)
 	/* Attempt to fetch kern.boot_tag tunable on first mapping */
 	if (!msgbufmapped)
 		TUNABLE_STR_FETCH("kern.boot_tag", current_boot_tag,
-		    sizeof current_boot_tag);
+		    sizeof(current_boot_tag));
 	msgbufp = (struct msgbuf *)(cp + size);
 	msgbuf_reinit(msgbufp, cp, size);
 	msgbuf_addstr(msgbufp, -1, current_boot_tag, 0);
