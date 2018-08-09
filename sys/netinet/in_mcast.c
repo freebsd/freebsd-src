@@ -231,8 +231,13 @@ static void inm_init(void)
 	taskqgroup_config_gtask_init(NULL, &free_gtask, inm_release_task, "inm release task");
 }
 
+#ifdef EARLY_AP_STARTUP
 SYSINIT(inm_init, SI_SUB_SMP + 1, SI_ORDER_FIRST,
 	inm_init, NULL);
+#else
+SYSINIT(inm_init, SI_SUB_ROOT_CONF - 1, SI_ORDER_FIRST,
+	inm_init, NULL);
+#endif
 
 
 void
