@@ -316,12 +316,12 @@ invalid:
 	delset(&mask, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGSYS,
 	    SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGEMT, SIGTERM, SIGTSTP,
 	    SIGALRM, SIGUSR1, SIGUSR2, SIGWINCH, 0);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	sa.sa_handler = SIG_IGN;
-	sigaction(SIGTTIN, &sa, (struct sigaction *)0);
-	sigaction(SIGTTOU, &sa, (struct sigaction *)0);
+	sigaction(SIGTTIN, &sa, NULL);
+	sigaction(SIGTTOU, &sa, NULL);
 
 	/*
 	 * Paranoia.
@@ -435,7 +435,7 @@ handle(sig_t handler, ...)
 		sa.sa_mask = mask_everything;
 		/* XXX SA_RESTART? */
 		sa.sa_flags = sig == SIGCHLD ? SA_NOCLDSTOP : 0;
-		sigaction(sig, &sa, (struct sigaction *) 0);
+		sigaction(sig, &sa, NULL);
 	}
 	va_end(ap);
 }
@@ -958,7 +958,7 @@ single_user(void)
 		 * and those are reset to SIG_DFL on exec.
 		 */
 		sigemptyset(&mask);
-		sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+		sigprocmask(SIG_SETMASK, &mask, NULL);
 
 		/*
 		 * Fire off a shell.
@@ -1443,7 +1443,7 @@ start_window_system(session_t *sp)
 		_exit(0);
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	if (setsid() < 0)
 		emergency("setsid failed (window) %m");
@@ -1510,7 +1510,7 @@ start_getty(session_t *sp)
 	}
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 #ifdef LOGIN_CAP
 	setprocresources(RESOURCE_GETTY);
