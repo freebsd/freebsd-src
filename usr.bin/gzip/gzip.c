@@ -1424,6 +1424,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	unsigned char header1[4];
 	enum filetype method;
 	int fd, ofd, zfd = -1;
+	int error;
 	size_t in_size;
 #ifndef SMALL
 	ssize_t rv;
@@ -1597,14 +1598,21 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 
 		size = zuncompress(in, out, NULL, 0, NULL);
 		/* need to fclose() if ferror() is true... */
-		if (ferror(in) | fclose(in)) {
-			maybe_warn("failed infile fclose");
-			unlink(outfile);
+		error = ferror(in);
+		if (error | fclose(in)) {
+			if (error)
+				maybe_warn("failed infile");
+			else
+				maybe_warn("failed infile fclose");
+			if (cflag == 0)
+				unlink(outfile);
 			(void)fclose(out);
+			goto lose;
 		}
 		if (fclose(out) != 0) {
 			maybe_warn("failed outfile fclose");
-			unlink(outfile);
+			if (cflag == 0)
+				unlink(outfile);
 			goto lose;
 		}
 		break;
