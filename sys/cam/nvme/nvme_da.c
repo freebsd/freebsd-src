@@ -426,6 +426,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		nvmeio.ccb_state = NDA_CCB_DUMP;
 		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
+		nvmeio.ccb_h.xflags |= CAM_CCB_DUMP;
 		error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
@@ -439,6 +440,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 	nvmeio.ccb_state = NDA_CCB_DUMP;
 	nda_nvme_flush(softc, &nvmeio);
+	nvmeio.ccb_h.xflags |= CAM_CCB_DUMP;
 	error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 	if (error != 0)
