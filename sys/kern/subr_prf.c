@@ -1027,6 +1027,7 @@ msgbufinit(void *ptr, int size)
 	cp = (char *)ptr;
 	msgbufp = (struct msgbuf *)(cp + size);
 	msgbuf_reinit(msgbufp, cp, size);
+	msgbuf_addstr(msgbufp, -1, BOOT_TAG, 0);
 	if (msgbufmapped && oldp != msgbufp)
 		msgbuf_copy(oldp, msgbufp);
 	msgbufmapped = 1;
