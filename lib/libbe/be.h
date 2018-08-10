@@ -78,16 +78,16 @@ int be_get_dataset_snapshots(libbe_handle_t *, const char *, nvlist_t *);
 int be_prop_list_alloc(nvlist_t **be_list);
 void be_prop_list_free(nvlist_t *be_list);
 
-int be_activate(libbe_handle_t *, char *, bool);
+int be_activate(libbe_handle_t *, const char *, bool);
 
 /* Bootenv creation functions */
-int be_create(libbe_handle_t *, char *);
+int be_create(libbe_handle_t *, const char *);
 int be_create_from_existing(libbe_handle_t *, const char *, const char *);
 int be_create_from_existing_snap(libbe_handle_t *, const char *, const char *);
 int be_snapshot(libbe_handle_t *, const char *, const char *, bool, char *);
 
 /* Bootenv manipulation functions */
-int be_rename(libbe_handle_t *, char *, char *);
+int be_rename(libbe_handle_t *, const char *, const char *);
 
 /* Bootenv removal functions */
 
@@ -95,7 +95,7 @@ typedef enum {
 	BE_DESTROY_FORCE = 1 << 0,
 } be_destroy_opt_t;
 
-int be_destroy(libbe_handle_t *, char *, int);
+int be_destroy(libbe_handle_t *, const char *, int);
 
 /* Bootenv mounting functions: be_access.c */
 
@@ -119,10 +119,10 @@ int be_validate_name(libbe_handle_t * __unused, const char *);
 int be_validate_snap(libbe_handle_t *, const char *);
 bool be_exists(libbe_handle_t *, char *);
 
-int be_export(libbe_handle_t *, char *, int fd);
-int be_import(libbe_handle_t *, char *, int fd);
+int be_export(libbe_handle_t *, const char *, int fd);
+int be_import(libbe_handle_t *, const char *, int fd);
 
-int be_add_child(libbe_handle_t *, char *, bool);
+int be_add_child(libbe_handle_t *, const char *, bool);
 void be_nicenum(uint64_t num, char *buf, size_t buflen);
 
 #endif  /* _LIBBE_H */
