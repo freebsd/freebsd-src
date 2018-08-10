@@ -1081,7 +1081,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		    (u_int8_t *) virtual,
 		    length,
 		    ada_default_timeout*1000);
-		ataio.ccb_h.xflags |= CAM_CCB_DUMP;
 		if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
 		    (lba + count >= ATA_MAX_28BIT_LBA ||
 		    count >= 256)) {
@@ -1116,7 +1115,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 				    NULL,
 				    0,
 				    5*1000);
-		ataio.ccb_h.xflags |= CAM_CCB_DUMP;
 
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
 			ata_48bit_cmd(&ataio, ATA_FLUSHCACHE48, 0, 0, 0);
@@ -3501,7 +3499,6 @@ adaspindown(uint8_t cmd, int flags)
 				    NULL,
 				    0,
 				    ada_default_timeout*1000);
-		local_ccb.ccb_h.xflags |= CAM_CCB_DUMP;
 		ata_28bit_cmd(&local_ccb, cmd, 0, 0, 0);
 		error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
 		    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
