@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2016
+.Dd August 10, 2018
 .Dt TIMESPEC_GET 3
 .Os
 .Sh NAME
@@ -39,7 +39,6 @@
 .Lb libc
 .Sh SYNOPSIS
 .In time.h
-.Vt #define TIME_UTC 1
 .Ft int
 .Fn timespec_get "struct timespec *ts" "int base"
 .Sh DESCRIPTION
@@ -50,9 +49,14 @@ function sets the interval pointed to by
 to hold the current calendar time based on the specified time base in
 .Fa base .
 .Pp
-Currently the only supported valid base is
-.Dv TIME_UTC .
-It returns time elapsed since epoch.
+The base
+.Dv TIME_UTC
+returns the time since the epoch.
+This time is expressed in seconds and nanoseconds since midnight (0 hour), January 1, 1970.
+In
+.Fx ,
+this corresponds to
+.Dv CLOCK_REALTIME .
 .Sh RETURN VALUES
 The
 .Nm
@@ -61,16 +65,22 @@ function returns the passed value of
 if successful, otherwise
 .Dv 0
 on failure.
-.\" .Sh ERRORS
 .Sh SEE ALSO
-.Xr clock_gettime 2
+.Xr gettimeofday 2 ,
+.Xr clock_gettime 2 ,
+.Xr time 3
 .Sh STANDARDS
 The
 .Nm
-function conforms to
+function with a
+.Fa base
+of
+.Dv TIME_UTC
+conforms to
 .St -isoC-2011 .
 .Sh HISTORY
 This interface first appeared in
-.Nx 8 .
+.Fx 12 .
 .Sh AUTHORS
 .An Kamil Rytarowski Aq Mt kamil@NetBSD.org
+.An Warner Losh Aq Mt imp@FreeBSD.org
