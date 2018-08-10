@@ -57,6 +57,7 @@ typedef enum be_error {
 	BE_ERR_ZFSCLONE,        /* error when calling zfs_clone to create be */
 	BE_ERR_IO,		/* error when doing some I/O operation */
 	BE_ERR_NOPOOL,		/* operation not supported on this pool */
+	BE_ERR_NOMEM,		/* insufficient memory */
 	BE_ERR_UNKNOWN,         /* unknown error */
 } be_error_t;
 

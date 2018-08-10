@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include "be.h"
 #include "be_impl.h"
 
+static int be_create_child_noent(libbe_handle_t *lbh, const char *active,
+    const char *child_path);
+static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
+
 /*
  * Iterator function for locating the rootfs amongst the children of the
  * zfs_be_root set by loader(8).  data is expected to be a libbe_handle_t *.
@@ -721,17 +725,111 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 	return (be_destroy(lbh, nbuf, 0));
 }
 
+static int
+be_create_child_noent(libbe_handle_t *lbh, const char *active,
+    const char *child_path)
+{
+	nvlist_t *props;
+	zfs_handle_t *zfs;
+	int err;
+
+	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
+	nvlist_add_string(props, "canmount", "noauto");
+	nvlist_add_string(props, "mountpoint", child_path);
+
+	/* Create */
+	if ((err = zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET,
+	    props)) != 0) {
+		switch (err) {
+		case EZFS_EXISTS:
+			return (set_error(lbh, BE_ERR_EXISTS));
+		case EZFS_NOENT:
+			return (set_error(lbh, BE_ERR_NOENT));
+		case EZFS_BADTYPE:
+		case EZFS_BADVERSION:
+			return (set_error(lbh, BE_ERR_NOPOOL));
+		case EZFS_BADPROP:
+		default:
+			/* We set something up wrong, probably... */
+			return (set_error(lbh, BE_ERR_UNKNOWN));
+		}
+	}
+	nvlist_free(props);
+
+	if ((zfs = zfs_open(lbh->lzh, active, ZFS_TYPE_DATASET)) == NULL)
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
+
+	/* Set props */
+	if ((err = zfs_prop_set(zfs, "canmount", "noauto")) != 0) {
+		zfs_close(zfs);
+		/*
+		 * Similar to other cases, this shouldn't fail unless we've
+		 * done something wrong.  This is a new dataset that shouldn't
+		 * have been mounted anywhere between creation and now.
+		 */
+		if (err == EZFS_NOMEM)
+			return (set_error(lbh, BE_ERR_NOMEM));
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+	}
+	zfs_close(zfs);
+	return (BE_ERR_SUCCESS);
+}
+
+static int
+be_create_child_cloned(libbe_handle_t *lbh, const char *active)
+{
+	char buf[BE_MAXPATHLEN];
+	zfs_handle_t *zfs;
+	int err;
+
+	/* XXX TODO ? */
+
+	/*
+	 * Establish if the existing path is a zfs dataset or just
+	 * the subdirectory of one
+	 */
+	strlcpy(buf, "/tmp/be_snap.XXXXX", sizeof(buf));
+	if (mktemp(buf) == NULL)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
+	if ((err = zfs_snapshot(lbh->lzh, buf, false, NULL)) != 0) {
+		switch (err) {
+		case EZFS_INVALIDNAME:
+			return (set_error(lbh, BE_ERR_INVALIDNAME));
+
+		default:
+			/*
+			 * The other errors that zfs_ioc_snapshot might return
+			 * shouldn't happen if we've set things up properly, so
+			 * we'll gloss over them and call it UNKNOWN as it will
+			 * require further triage.
+			 */
+			if (errno == ENOTSUP)
+				return (set_error(lbh, BE_ERR_NOPOOL));
+			return (set_error(lbh, BE_ERR_UNKNOWN));
+		}
+	}
+
+	/* Clone */
+	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
+		return (BE_ERR_ZFSOPEN);
+
+	if ((err = zfs_clone(zfs, active, NULL)) != 0)
+		/* XXX TODO correct error */
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
+	/* set props */
+	zfs_close(zfs);
+	return (BE_ERR_SUCCESS);
+}
 
 int
 be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 {
 	struct stat sb;
-	char active[BE_MAXPATHLEN];
-	char buf[BE_MAXPATHLEN];
+	char active[BE_MAXPATHLEN], buf[BE_MAXPATHLEN];
 	nvlist_t *props;
 	const char *s;
-	zfs_handle_t *zfs;
-	int err;
 
 	/* Require absolute paths */
 	if (*child_path != '/')
@@ -760,60 +858,12 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 	if (stat(child_path, &sb) != 0) {
 		/* Verify that error is ENOENT */
 		if (errno != ENOENT)
-			return (set_error(lbh, BE_ERR_NOENT));
-
-		nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
-		nvlist_add_string(props, "canmount", "noauto");
-		nvlist_add_string(props, "mountpoint", child_path);
-
-		/* Create */
-		if ((err =
-		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props)) != 0)
-			/* XXX TODO handle error */
 			return (set_error(lbh, BE_ERR_UNKNOWN));
-		nvlist_free(props);
-
-		if ((zfs =
-		    zfs_open(lbh->lzh, active, ZFS_TYPE_DATASET)) == NULL)
-			return (set_error(lbh, BE_ERR_ZFSOPEN));
-
-		/* Set props */
-		if ((err = zfs_prop_set(zfs, "canmount", "noauto")) != 0)
-			/* TODO handle error */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-	} else if (cp_if_exists) {
+		return (be_create_child_noent(lbh, active, child_path));
+	} else if (cp_if_exists)
 		/* Path is already a descendent of / and should be copied */
-
-		/* XXX TODO ? */
-
-		/*
-		 * Establish if the existing path is a zfs dataset or just
-		 * the subdirectory of one
-		 */
-		strlcpy(buf, "/tmp/be_snap.XXXXX", sizeof(buf));
-		if (mktemp(buf) == NULL)
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-
-		if ((err = zfs_snapshot(lbh->lzh, buf, false, NULL)) != 0)
-			/* XXX TODO correct error */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-
-		/* Clone */
-		if ((zfs =
-		    zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
-			return (BE_ERR_ZFSOPEN);
-
-		if ((err = zfs_clone(zfs, active, NULL)) != 0)
-			/* XXX TODO correct error */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-
-		/* set props */
-		zfs_close(zfs);
-	} else
-		/* TODO: error code for exists, but not cp? */
-		return (set_error(lbh, BE_ERR_EXISTS));
-
-	return (BE_ERR_SUCCESS);
+		return (be_create_child_cloned(lbh, active));
+	return (set_error(lbh, BE_ERR_EXISTS));
 }
 
 static int
@@ -863,22 +913,24 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 
 	if (temporary) {
 		config = zpool_get_config(lbh->active_phandle, NULL);
-		if (config == NULL) {
-			printf("no config\n");
-			return (1);
-		}
+		if (config == NULL)
+			/* config should be fetchable... */
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
 		    &pool_guid) != 0)
-			return (1);
+			/* Similarly, it shouldn't be possible */
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		/* Expected format according to zfsbootcfg(8) man */
 		strcpy(buf, "zfs:");
 		strcat(buf, be_path);
 		strcat(buf, ":");
 
-		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &vdevs) != 0)
-			return (1);
+		/* We have no config tree */
+		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
+		    &vdevs) != 0)
+			return (set_error(lbh, BE_ERR_NOPOOL));
 
 		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
 	} else {
