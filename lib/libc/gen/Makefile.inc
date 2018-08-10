@@ -135,6 +135,7 @@ SRCS+=	__getosreldate.c \
 	termios.c \
 	time.c \
 	times.c \
+	timespec_get.c \
 	timezone.c \
 	tls.c \
 	ttyname.c \
@@ -299,6 +300,7 @@ MAN+=	alarm.3 \
 	tcsetsid.3 \
 	time.3 \
 	times.3 \
+	timespec_get.3 \
 	timezone.3 \
 	ttyname.3 \
 	tzset.3 \
