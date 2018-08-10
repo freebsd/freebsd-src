@@ -89,7 +89,7 @@ struct e3_statistics {
 #define ER_SCC_FRAMING	7		/* subchannel framing error */
 #define ER_SCC_OVERFLOW	8		/* subchannel receive buffer overflow */
 #define ER_SCC_OVERRUN	9		/* subchannel receiver overrun */
-#define ER_SCC_UNDERRUN	10		/* subchannel transmiter underrun */
+#define ER_SCC_UNDERRUN	10		/* subchannel transmitter underrun */
 #define ER_BUS		11		/* system bus is too busy (e.g PCI) */
 
 /*
