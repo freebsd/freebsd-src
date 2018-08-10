@@ -202,7 +202,7 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
  * BE_DESTROY_FORCE : forces operation on mounted datasets
  */
 int
-be_destroy(libbe_handle_t *lbh, char *name, int options)
+be_destroy(libbe_handle_t *lbh, const char *name, int options)
 {
 	zfs_handle_t *fs;
 	char path[BE_MAXPATHLEN];
@@ -307,7 +307,7 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
  * Create the boot environment specified by the name parameter
  */
 int
-be_create(libbe_handle_t *lbh, char *name)
+be_create(libbe_handle_t *lbh, const char *name)
 {
 	int err;
 
@@ -328,11 +328,8 @@ be_deep_clone_prop(int prop, void *cb)
 
 	dccb = cb;
 	/* Skip some properties we don't want to touch */
-	switch (prop) {
-		case ZFS_PROP_CANMOUNT:
-			return (ZPROP_CONT);
-			break;
-	}
+	if (prop == ZFS_PROP_CANMOUNT)
+		return (ZPROP_CONT);
 
 	/* Don't copy readonly properties */
 	if (zfs_prop_readonly(prop))
@@ -593,7 +590,7 @@ be_validate_name(libbe_handle_t *lbh __unused, const char *name)
  * usage
  */
 int
-be_rename(libbe_handle_t *lbh, char *old, char *new)
+be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 {
 	char full_old[BE_MAXPATHLEN];
 	char full_new[BE_MAXPATHLEN];
@@ -638,7 +635,7 @@ be_rename(libbe_handle_t *lbh, char *old, char *new)
 
 
 int
-be_export(libbe_handle_t *lbh, char *bootenv, int fd)
+be_export(libbe_handle_t *lbh, const char *bootenv, int fd)
 {
 	char snap_name[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
@@ -660,7 +657,7 @@ be_export(libbe_handle_t *lbh, char *bootenv, int fd)
 
 
 int
-be_import(libbe_handle_t *lbh, char *bootenv, int fd)
+be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 {
 	char buf[BE_MAXPATHLEN];
 	time_t rawtime;
@@ -723,14 +720,16 @@ be_import(libbe_handle_t *lbh, char *bootenv, int fd)
 
 
 int
-be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
+be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 {
+	struct stat sb;
 	char active[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
 	nvlist_t *props;
+	const char *s;
 	zfs_handle_t *zfs;
-	struct stat sb;
-	int err;
+	long snap_name;
+	int err, pos;
 
 	/* Require absolute paths */
 	if (*child_path != '/')
@@ -741,7 +740,7 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 	strcpy(buf, active);
 
 	/* Create non-mountable parent dataset(s) */
-	char *s = child_path;
+	s = child_path;
 	for (char *p; (p = strchr(s+1, '/')) != NULL; s = p) {
 		size_t len = p - s;
 		strncat(buf, s, len);
@@ -753,9 +752,8 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 		nvlist_free(props);
 	}
 
-
 	/* Path does not exist as a descendent of / yet */
-	int pos = strlen(active);
+	pos = strlen(active);
 
 	/* XXX TODO: Verify that resulting str is less than BE_MAXPATHLEN */
 	strncpy(&active[pos], child_path, BE_MAXPATHLEN-pos);
@@ -797,7 +795,7 @@ be_add_child(libbe_handle_t *lbh, char *child_path, bool cp_if_exists)
 		 */
 
 		/* XXX TODO: use mktemp */
-		long int snap_name = random();
+		snap_name = random();
 
 		snprintf(buf, BE_MAXPATHLEN, "%s@%ld", child_path, snap_name);
 
@@ -854,7 +852,7 @@ be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
 
 
 int
-be_activate(libbe_handle_t *lbh, char *bootenv, bool temporary)
+be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
