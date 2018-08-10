@@ -3314,7 +3314,7 @@ ipfw_delete(char *av[])
 			}
 		}
 	}
-	if (exitval != EX_OK && co.do_quiet == 0)
+	if (exitval != EX_OK && co.do_force == 0)
 		exit(exitval);
 }
 
