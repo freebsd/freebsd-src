@@ -99,6 +99,9 @@ libbe_error_description(libbe_handle_t *lbh)
 	case BE_ERR_NOPOOL:
 		return ("operation not supported on this pool");
 
+	case BE_ERR_NOMEM:
+		return ("insufficient memory");
+
 	case BE_ERR_UNKNOWN:
 		return ("unknown error");
 
