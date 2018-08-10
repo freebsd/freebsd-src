@@ -116,8 +116,7 @@ typedef enum {
 typedef enum {
 	CAM_USER_DATA_ADDR	= 0x00000002,/* Userspace data pointers */
 	CAM_SG_FORMAT_IOVEC	= 0x00000004,/* iovec instead of busdma S/G*/
-	CAM_UNMAPPED_BUF	= 0x00000008,/* use unmapped I/O */
-	CAM_CCB_DUMP		= 0x00000010,/* polled ccb during dump */
+	CAM_UNMAPPED_BUF	= 0x00000008 /* use unmapped I/O */
 } ccb_xflags;
 
 /* XPT Opcodes for xpt_action */

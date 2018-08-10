@@ -1847,7 +1847,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*dxfer_len*/length,
 				/*sense_len*/SSD_FULL_SIZE,
 				da_default_timeout * 1000);
-		csio.ccb_h.xflags |= CAM_CCB_DUMP;
 		error = cam_periph_runccb((union ccb *)&csio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
@@ -1870,7 +1869,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				       /*lb_count*/0,
 				       SSD_FULL_SIZE,
 				       5 * 1000);
-		csio.ccb_h.xflags |= CAM_CCB_DUMP;
 		error = cam_periph_runccb((union ccb *)&csio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
