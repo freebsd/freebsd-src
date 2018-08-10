@@ -2275,7 +2275,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts, int
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts);
 	if (tp->t_flags & TF_DELACK) {
-		delayed_ack = tcp_delacktime;
+		delayed_ack = TICKS_2_MSEC(tcp_delacktime);
 		rack->r_ctl.rc_hpts_flags |= PACE_TMR_DELACK;
 	}
 	if (delayed_ack && ((hpts_timeout == 0) ||
@@ -7603,13 +7603,10 @@ dontupdate:
 	 * If our state indicates that FIN should be sent and we have not
 	 * yet done so, then we need to send.
 	 */
-	if (flags & TH_FIN) {
-		if ((tp->t_flags & TF_SENTFIN) ||
-		    (((tp->t_flags & TF_SENTFIN) == 0) &&
-		     (tp->snd_nxt == tp->snd_una))) {
-			pass = 11;
-			goto send;
-		}
+	if ((flags & TH_FIN) &&
+	    (tp->snd_nxt == tp->snd_una)) {
+		pass = 11;
+		goto send;
 	}
 	/*
 	 * No reason to send a segment, just return.

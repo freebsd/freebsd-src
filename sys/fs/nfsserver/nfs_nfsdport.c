@@ -3954,7 +3954,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		tdsc->p = p;
 		tdsc->pf = tpf;
 		tdsc->createva = *vap;
-		tdsc->fh = fh;
+		NFSBCOPY(&fh, &tdsc->fh, sizeof(fh));
 		tdsc->va = va;
 		tdsc->dvp = dvp[i];
 		tdsc->done = 0;
@@ -5014,7 +5014,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	error = 0;
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
 		tdrpc->done = 0;
-		tdrpc->fh = *fhp;
+		NFSBCOPY(fhp, &tdrpc->fh, sizeof(*fhp));
 		tdrpc->off = off;
 		tdrpc->len = len;
 		tdrpc->nmp = *nmpp;
@@ -5200,7 +5200,7 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
 		tdrpc->done = 0;
 		tdrpc->inprog = 0;
-		tdrpc->fh = *fhp;
+		NFSBCOPY(fhp, &tdrpc->fh, sizeof(*fhp));
 		tdrpc->nmp = *nmpp;
 		tdrpc->vp = vp;
 		tdrpc->cred = cred;
@@ -5348,7 +5348,7 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
 		tdrpc->done = 0;
 		tdrpc->inprog = 0;
-		tdrpc->fh = *fhp;
+		NFSBCOPY(fhp, &tdrpc->fh, sizeof(*fhp));
 		tdrpc->nmp = *nmpp;
 		tdrpc->vp = vp;
 		tdrpc->cred = cred;

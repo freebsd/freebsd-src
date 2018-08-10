@@ -68,6 +68,8 @@ struct vga_softc {
 	bus_space_read_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs)
 #define	MEM_WRITE1(sc, ofs, val) \
 	bus_space_write_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
+#define	MEM_WRITE2(sc, ofs, val) \
+	bus_space_write_2(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
 #define	REG_READ1(sc, reg) \
 	bus_space_read_1(sc->vga_reg_tag, sc->vga_reg_handle, reg)
 #define	REG_WRITE1(sc, reg, val) \
@@ -894,10 +896,8 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			    cons_to_vga_colors[bg] << 4 |
 			    cons_to_vga_colors[fg];
 
-			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
-			    ch);
-			MEM_WRITE1(sc, (row * 80 + col) * 2 + 1,
-			    attr);
+			MEM_WRITE2(sc, (row * 80 + col) * 2 + 0,
+			    ch + ((uint16_t)(attr) << 8));
 		}
 	}
 }

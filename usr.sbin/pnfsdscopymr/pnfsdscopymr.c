@@ -295,7 +295,7 @@ main(int argc, char *argv[])
 	pnfsdarg.mdspath = *argv;
 	ret = nfssvc(NFSSVC_PNFSDS, &pnfsdarg);
 	if (ret < 0 && errno != EEXIST)
-		err(1, "Copymr failed args %s, %s", argv[1], argv[2]);
+		err(1, "Copymr failed for file %s", *argv);
 	exit(0);
 }
 

@@ -201,6 +201,8 @@ arm_install_boot() {
 	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader/loader.efi \
 		${FATMOUNT}/EFI/BOOT/$(efi_boot_name ${EMBEDDED_TARGET})
 
+	chroot ${CHROOTDIR} cp -R ${UFSMOUNT}/boot/dtb ${FATMOUNT}
+
 	chroot ${CHROOTDIR} touch ${UFSMOUNT}/firstboot
 	sync
 	umount_loop ${CHROOTDIR}/${FATMOUNT}

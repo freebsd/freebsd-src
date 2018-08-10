@@ -441,6 +441,13 @@ static inline int is_ftid(const struct adapter *sc, u_int tid)
 	    tid <= sc->tids.ftid_end);
 }
 
+static inline int is_hpftid(const struct adapter *sc, u_int tid)
+{
+
+	return (sc->tids.nhpftids > 0 && tid >= sc->tids.hpftid_base &&
+	    tid <= sc->tids.hpftid_end);
+}
+
 static inline int is_etid(const struct adapter *sc, u_int tid)
 {
 
@@ -814,7 +821,7 @@ int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int cl,
 		    int minrate, int maxrate, int weight, int pktsize,
-		    int sleep_ok);
+		    int burstsize, int sleep_ok);
 int t4_sched_params_ch_rl(struct adapter *adapter, int channel, int ratemode,
 			  unsigned int maxrate, int sleep_ok);
 int t4_sched_params_cl_wrr(struct adapter *adapter, int channel, int cl,

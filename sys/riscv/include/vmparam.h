@@ -223,10 +223,7 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
-/*
- * RISCVTODO
- * #define	UMA_MD_SMALL_ALLOC
- */
+#define	UMA_MD_SMALL_ALLOC
 
 #ifndef LOCORE
 extern vm_paddr_t dmap_phys_base;

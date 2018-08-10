@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.106 2017/11/02 20:25:39 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.107 2018/04/28 18:48:22 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -183,6 +183,23 @@ static int makeerror(unsigned char **, size_t *, const char *, ...)
     __attribute__((__format__(__printf__, 3, 4)));
 private const char *methodname(size_t);
 
+private int
+format_decompression_error(struct magic_set *ms, size_t i, unsigned char *buf)
+{
+	unsigned char *p;
+	int mime = ms->flags & MAGIC_MIME;
+
+	if (!mime)
+		return file_printf(ms, "ERROR:[%s: %s]", methodname(i), buf);
+
+	for (p = buf; *p; p++)
+		if (!isalnum(*p))
+			*p = '-';
+
+	return file_printf(ms, "application/x-decompression-error-%s-%s",
+	    methodname(i), buf);
+}
+
 protected int
 file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 {
@@ -226,11 +243,9 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 		switch (urv) {
 		case OKDATA:
 		case ERRDATA:
-			
 			ms->flags &= ~MAGIC_COMPRESS;
 			if (urv == ERRDATA)
-				prv = file_printf(ms, "%s ERROR: %s",
-				    methodname(i), newbuf);
+				prv = format_decompression_error(ms, i, newbuf);
 			else
 				prv = file_buffer(ms, -1, name, newbuf, nsz);
 			if (prv == -1)

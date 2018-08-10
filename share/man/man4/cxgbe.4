@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd Aug 9, 2018
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -262,7 +262,8 @@ The default is 1.
 .It Va hw.cxgbe.fl_pktshift
 Number of padding bytes inserted before the beginning of an Ethernet
 frame in the receive buffer.
-The default value of 2 ensures that the Ethernet payload (usually the IP header)
+The default value is 0.
+A value of of 2 would ensure that the Ethernet payload (usually the IP header)
 is at a 4 byte aligned address.
 0-7 are all valid values.
 .It Va hw.cxgbe.fl_pad

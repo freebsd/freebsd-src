@@ -108,13 +108,12 @@ atomic_dec(atomic_t *v)
 static inline int
 atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int c;
+	int c = atomic_read(v);
 
 	for (;;) {
-		c = atomic_read(v);
 		if (unlikely(c == u))
 			break;
-		if (likely(atomic_cmpset_int(&v->counter, c, c + a)))
+		if (likely(atomic_fcmpset_int(&v->counter, &c, c + a)))
 			break;
 	}
 	return (c != u);
@@ -129,17 +128,13 @@ atomic_clear_mask(unsigned int mask, atomic_t *v)
 static inline int
 atomic_xchg(atomic_t *v, int i)
 {
-#if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__) || \
-    defined(__powerpc__)
+#if !defined(__mips__)
 	return (atomic_swap_int(&v->counter, i));
 #else
-	int ret;
-	for (;;) {
-		ret = READ_ONCE(v->counter);
-		if (atomic_cmpset_int(&v->counter, ret, i))
-			break;
-	}
+	int ret = atomic_read(v);
+
+	while (!atomic_fcmpset_int(&v->counter, &ret, i))
+		;
 	return (ret);
 #endif
 }
@@ -150,16 +145,15 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	int ret = old;
 
 	for (;;) {
-		if (atomic_cmpset_int(&v->counter, old, new))
+		if (atomic_fcmpset_int(&v->counter, &ret, new))
 			break;
-		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}
 	return (ret);
 }
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__amd64__) || defined(__arm64__) || defined(__i386__)
 #define	LINUXKPI_ATOMIC_8(...) __VA_ARGS__
 #define	LINUXKPI_ATOMIC_16(...) __VA_ARGS__
 #else
@@ -167,8 +161,9 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 #define	LINUXKPI_ATOMIC_16(...)
 #endif
 
-#if defined(__amd64__) || (defined(__ARM_ARCH) && (__ARM_ARCH >= 6)) ||	\
-    defined(__aarch64__) || defined(__powerpc64__) || defined(__riscv)
+#if !(defined(i386) || (defined(__mips__) && !(defined(__mips_n32) ||	\
+    defined(__mips_n64))) || (defined(__powerpc__) &&			\
+    !defined(__powerpc64__)))
 #define	LINUXKPI_ATOMIC_64(...) __VA_ARGS__
 #else
 #define	LINUXKPI_ATOMIC_64(...)

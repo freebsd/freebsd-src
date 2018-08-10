@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2018
+.Dd August 6, 2018
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -445,6 +445,20 @@ no reseeding will occur.
 Reseeding should not be necessary, and will break
 .Dv TIME_WAIT
 recycling for a few minutes.
+.It Va reass.cursegments
+The current total number of segments present in all reassembly queues.
+.It Va reass.maxsegments
+The maximum limit on the total number of segments across all reassembly
+queues.
+The limit can be adjusted as a tunable.
+.It Va reass.maxqueuelen
+The maximum number of segments allowed in each reassembly queue.
+By default, the system chooses a limit based on each TCP connection's
+receive buffer size and maximum segment size (MSS).
+The actual limit applied to a session's reassembly queue will be the lower of
+the system-calculated automatic limit and the user-specified
+.Va reass.maxqueuelen
+limit.
 .It Va rexmit_min , rexmit_slop
 Adjust the retransmit timer calculation for
 .Tn TCP .

@@ -192,6 +192,8 @@ static struct aw_ccung_gate a64_ccu_gates[] = {
 
 	CCU_GATE(CLK_BUS_DBG, "bus-dbg", "ahb1", 0x70, 7)
 
+	CCU_GATE(CLK_THS, "ths", "thsdiv", 0x74, 31)
+
 	CCU_GATE(CLK_USB_PHY0, "usb-phy0", "osc24M", 0xcc, 8)
 	CCU_GATE(CLK_USB_PHY1, "usb-phy1", "osc24M", 0xcc, 9)
 	CCU_GATE(CLK_USB_HSIC, "usb-hsic", "pll_hsic", 0xcc, 10)
@@ -489,6 +491,22 @@ PREDIV_CLK(ahb2_clk, CLK_AHB2,					/* id */
     0, 0, 2, AW_CLK_FACTOR_HAS_COND | AW_CLK_FACTOR_FIXED,	/* prediv */
     0, 2, 1);							/* prediv condition */
 
+static const char *ths_parents[] = {"osc24M"};
+static struct clk_div_table ths_div_table[] = {
+	{ .value = 0, .divider = 1, },
+	{ .value = 1, .divider = 2, },
+	{ .value = 2, .divider = 4, },
+	{ .value = 3, .divider = 6, },
+	{ },
+};
+DIV_CLK(ths_clk,
+    0,				/* id */
+    "thsdiv", ths_parents,	/* name, parents */
+    0x74,			/* offset */
+    0, 2,			/* div shift, div width */
+    CLK_DIV_WITH_TABLE,		/* flags */
+    ths_div_table);		/* div table */
+
 static const char *mod_parents[] = {"osc24M", "pll_periph0_2x", "pll_periph1_2x"};
 NM_CLK(nand_clk,
     CLK_NAND, "nand", mod_parents,		/* id, name, parents */
@@ -725,6 +743,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_DIV, .clk.div = &axi_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &apb1_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &apb_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &ths_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &osc12m_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_periph0_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_periph1_clk},

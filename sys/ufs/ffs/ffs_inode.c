@@ -195,7 +195,7 @@ ffs_truncate(vp, length, flags, cred)
 	struct ufsmount *ump;
 	int softdeptrunc, journaltrunc;
 	int needextclean, extblocks;
-	int offset, size, level, nblocks;
+	int trimtype, firstfree, offset, size, level, nblocks;
 	int i, error, allerror, indiroff, waitforupdate;
 	off_t osize;
 
@@ -275,7 +275,7 @@ ffs_truncate(vp, length, flags, cred)
 					continue;
 				ffs_blkfree(ump, fs, ITODEVVP(ip), oldblks[i],
 				    sblksize(fs, osize, i), ip->i_number,
-				    vp->v_type, NULL);
+				    vp->v_type, NULL, SINGLETON);
 			}
 		}
 	}
@@ -523,7 +523,7 @@ ffs_truncate(vp, length, flags, cred)
 				DIP_SET(ip, i_ib[level], 0);
 				ffs_blkfree(ump, fs, ump->um_devvp, bn,
 				    fs->fs_bsize, ip->i_number,
-				    vp->v_type, NULL);
+				    vp->v_type, NULL, SINGLETON);
 				blocksreleased += nblocks;
 			}
 		}
@@ -534,6 +534,7 @@ ffs_truncate(vp, length, flags, cred)
 	/*
 	 * All whole direct blocks or frags.
 	 */
+	firstfree = 1;
 	for (i = UFS_NDADDR - 1; i > lastblock; i--) {
 		long bsize;
 
@@ -542,8 +543,23 @@ ffs_truncate(vp, length, flags, cred)
 			continue;
 		DIP_SET(ip, i_db[i], 0);
 		bsize = blksize(fs, ip, i);
+		if (firstfree) {
+			if (i - 1 == lastblock || DIP(ip, i_db[i - 1]) == 0) {
+				trimtype = SINGLETON;
+			} else {
+				trimtype = STARTFREE;
+				firstfree = 0;
+			}
+		} else {
+			if (i - 1 == lastblock || DIP(ip, i_db[i - 1]) == 0) {
+				trimtype = ENDFREE;
+				firstfree = 1;
+			} else {
+				trimtype = CONTINUEFREE;
+			}
+		}
 		ffs_blkfree(ump, fs, ump->um_devvp, bn, bsize, ip->i_number,
-		    vp->v_type, NULL);
+		    vp->v_type, NULL, trimtype);
 		blocksreleased += btodb(bsize);
 	}
 	if (lastblock < 0)
@@ -575,7 +591,8 @@ ffs_truncate(vp, length, flags, cred)
 			 */
 			bn += numfrags(fs, newspace);
 			ffs_blkfree(ump, fs, ump->um_devvp, bn,
-			   oldspace - newspace, ip->i_number, vp->v_type, NULL);
+			   oldspace - newspace, ip->i_number, vp->v_type,
+			   NULL, SINGLETON);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -636,7 +653,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	struct fs *fs;
 	struct vnode *vp;
 	caddr_t copy = NULL;
-	int i, nblocks, error = 0, allerror = 0;
+	int i, trimtype, nblocks, firstfree, error = 0, allerror = 0;
 	ufs2_daddr_t nb, nlbn, last;
 	ufs2_daddr_t blkcount, factor, blocksreleased = 0;
 	ufs1_daddr_t *bap1 = NULL;
@@ -719,6 +736,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	/*
 	 * Recursively free totally unused blocks.
 	 */
+	firstfree = 1;
 	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
 	    i--, nlbn += factor) {
 		nb = BAP(ip, i);
@@ -730,8 +748,23 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
+		if (firstfree) {
+			if (i - 1 == last || BAP(ip, i - 1) == 0) {
+				trimtype = SINGLETON;
+			} else {
+				trimtype = STARTFREE;
+				firstfree = 0;
+			}
+		} else {
+			if (i - 1 == last || BAP(ip, i - 1) == 0) {
+				trimtype = ENDFREE;
+				firstfree = 1;
+			} else {
+				trimtype = CONTINUEFREE;
+			}
+		}
 		ffs_blkfree(ITOUMP(ip), fs, ITODEVVP(ip), nb, fs->fs_bsize,
-		    ip->i_number, vp->v_type, NULL);
+		    ip->i_number, vp->v_type, NULL, trimtype);
 		blocksreleased += nblocks;
 	}
 

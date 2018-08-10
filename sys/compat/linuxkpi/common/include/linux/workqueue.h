@@ -209,6 +209,9 @@ do {									\
 #define	destroy_workqueue(wq) \
 	linux_destroy_workqueue(wq)
 
+#define	current_work() \
+	linux_current_work()
+
 /* prototypes */
 
 extern struct workqueue_struct *system_wq;
@@ -232,5 +235,6 @@ extern bool linux_flush_work(struct work_struct *);
 extern bool linux_flush_delayed_work(struct delayed_work *);
 extern bool linux_work_pending(struct work_struct *);
 extern bool linux_work_busy(struct work_struct *);
+extern struct work_struct *linux_current_work(void);
 
 #endif					/* _LINUX_WORKQUEUE_H_ */

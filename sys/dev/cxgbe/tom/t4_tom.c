@@ -317,10 +317,9 @@ release_offload_resources(struct toepcb *toep)
 	if (toep->ce)
 		release_lip(td, toep->ce);
 
-#ifdef RATELIMIT
 	if (toep->tc_idx != -1)
-		t4_release_cl_rl_kbps(sc, toep->vi->pi->port_id, toep->tc_idx);
-#endif
+		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->tc_idx);
+
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
 	mtx_unlock(&td->toep_list_lock);
@@ -511,7 +510,10 @@ insert_tid(struct adapter *sc, int tid, void *ctx, int ntids)
 {
 	struct tid_info *t = &sc->tids;
 
-	t->tid_tab[tid] = ctx;
+	MPASS(tid >= t->tid_base);
+	MPASS(tid - t->tid_base < t->ntids);
+
+	t->tid_tab[tid - t->tid_base] = ctx;
 	atomic_add_int(&t->tids_in_use, ntids);
 }
 
@@ -520,7 +522,7 @@ lookup_tid(struct adapter *sc, int tid)
 {
 	struct tid_info *t = &sc->tids;
 
-	return (t->tid_tab[tid]);
+	return (t->tid_tab[tid - t->tid_base]);
 }
 
 void
@@ -528,7 +530,7 @@ update_tid(struct adapter *sc, int tid, void *ctx)
 {
 	struct tid_info *t = &sc->tids;
 
-	t->tid_tab[tid] = ctx;
+	t->tid_tab[tid - t->tid_base] = ctx;
 }
 
 void
@@ -536,7 +538,7 @@ remove_tid(struct adapter *sc, int tid, int ntids)
 {
 	struct tid_info *t = &sc->tids;
 
-	t->tid_tab[tid] = NULL;
+	t->tid_tab[tid - t->tid_base] = NULL;
 	atomic_subtract_int(&t->tids_in_use, ntids);
 }
 

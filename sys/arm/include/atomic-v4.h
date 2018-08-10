@@ -249,6 +249,19 @@ atomic_subtract_64(volatile u_int64_t *p, u_int64_t val)
 	__with_interrupts_disabled(*p -= val);
 }
 
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t value;
+
+	__with_interrupts_disabled(
+	{
+		value = *p;
+		*p = v;
+	});
+	return (value);
+}
+
 #else /* !_KERNEL */
 
 static __inline void

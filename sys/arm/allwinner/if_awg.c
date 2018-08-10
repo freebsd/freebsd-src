@@ -1529,15 +1529,18 @@ awg_get_eaddr(device_t dev, uint8_t *eaddr)
 	struct awg_softc *sc;
 	uint32_t maclo, machi, rnd;
 	u_char rootkey[16];
+	uint32_t rootkey_size;
 
 	sc = device_get_softc(dev);
 
 	machi = RD4(sc, EMAC_ADDR_HIGH(0)) & 0xffff;
 	maclo = RD4(sc, EMAC_ADDR_LOW(0));
 
+	rootkey_size = sizeof(rootkey);
 	if (maclo == 0xffffffff && machi == 0xffff) {
 		/* MAC address in hardware is invalid, create one */
-		if (aw_sid_get_rootkey(rootkey) == 0 &&
+		if (aw_sid_get_fuse(AW_SID_FUSE_ROOTKEY, rootkey,
+		    &rootkey_size) == 0 &&
 		    (rootkey[3] | rootkey[12] | rootkey[13] | rootkey[14] |
 		     rootkey[15]) != 0) {
 			/* MAC address is derived from the root key in SID */

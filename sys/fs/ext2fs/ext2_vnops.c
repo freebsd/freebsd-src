@@ -675,19 +675,6 @@ out:
 	return (error);
 }
 
-static unsigned short
-ext2_max_nlink(struct inode *ip)
-{
-	struct m_ext2fs *fs;
-
-	fs = ip->i_e2fs;
-
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_DIR_NLINK))
-		return (EXT4_LINK_MAX);
-	else
-		return (EXT2_LINK_MAX);
-}
-
 /*
  * link vnode call
  */
@@ -705,7 +692,7 @@ ext2_link(struct vop_link_args *ap)
 		panic("ext2_link: no name");
 #endif
 	ip = VTOI(vp);
-	if ((nlink_t)ip->i_nlink >= ext2_max_nlink(ip)) {
+	if ((nlink_t)ip->i_nlink >= EXT4_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -732,10 +719,12 @@ ext2_inc_nlink(struct inode *ip)
 
 	ip->i_nlink++;
 
-	if (ext2_htree_has_idx(ip) && ip->i_nlink > 1) {
-		if (ip->i_nlink >= ext2_max_nlink(ip) || ip->i_nlink == 2)
+	if (S_ISDIR(ip->i_mode) &&
+	    EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_DIR_NLINK) &&
+	    ip->i_nlink > 1) {
+		if (ip->i_nlink >= EXT4_LINK_MAX || ip->i_nlink == 2)
 			ip->i_nlink = 1;
-	} else if (ip->i_nlink > ext2_max_nlink(ip)) {
+	} else if (ip->i_nlink > EXT4_LINK_MAX) {
 		ip->i_nlink--;
 		return (EMLINK);
 	}
@@ -833,7 +822,8 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
-	if (ip->i_nlink >= ext2_max_nlink(ip) && !ext2_htree_has_idx(ip)) {
+	if (ip->i_nlink >= EXT4_LINK_MAX &&
+	    !EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_DIR_NLINK)) {
 		VOP_UNLOCK(fvp, 0);
 		error = EMLINK;
 		goto abortit;
@@ -1304,8 +1294,8 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		panic("ext2_mkdir: no name");
 #endif
 	dp = VTOI(dvp);
-	if ((nlink_t)dp->i_nlink >= ext2_max_nlink(dp) &&
-	    !ext2_htree_has_idx(dp)) {
+	if ((nlink_t)dp->i_nlink >= EXT4_LINK_MAX &&
+	    !EXT2_HAS_RO_COMPAT_FEATURE(dp->i_e2fs, EXT2F_ROCOMPAT_DIR_NLINK)) {
 		error = EMLINK;
 		goto out;
 	}
@@ -1655,10 +1645,11 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		if (ext2_htree_has_idx(VTOI(ap->a_vp)))
+		if (EXT2_HAS_RO_COMPAT_FEATURE(VTOI(ap->a_vp)->i_e2fs,
+		    EXT2F_ROCOMPAT_DIR_NLINK))
 			*ap->a_retval = INT_MAX;
 		else
-			*ap->a_retval = ext2_max_nlink(VTOI(ap->a_vp));
+			*ap->a_retval = EXT4_LINK_MAX;
 		break;
 	case _PC_NAME_MAX:
 		*ap->a_retval = NAME_MAX;

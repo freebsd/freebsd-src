@@ -119,6 +119,20 @@ getnfds(void)
 }
 
 static void
+putfds(char *buf, int fd, int nfds)
+{
+	struct cmsghdr *cm;
+	int *fdp, i;
+
+	cm = (struct cmsghdr *)buf;
+	cm->cmsg_len = CMSG_LEN(nfds * sizeof(int));
+	cm->cmsg_level = SOL_SOCKET;
+	cm->cmsg_type = SCM_RIGHTS;
+	for (fdp = (int *)CMSG_DATA(cm), i = 0; i < nfds; i++)
+		*fdp++ = fd;
+}
+
+static void
 samefile(struct stat *sb1, struct stat *sb2)
 {
 
@@ -126,12 +140,11 @@ samefile(struct stat *sb1, struct stat *sb2)
 	ATF_REQUIRE_MSG(sb1->st_ino == sb2->st_ino, "different inode");
 }
 
-static void
+static size_t
 sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 {
 	struct iovec iovec;
 	char message[CMSG_SPACE(sizeof(int))];
-	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
 	ssize_t len;
 
@@ -147,41 +160,55 @@ sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
 
-	cmsghdr = (struct cmsghdr *)(void *)message;
-	cmsghdr->cmsg_len = CMSG_LEN(sizeof(int));
-	cmsghdr->cmsg_level = SOL_SOCKET;
-	cmsghdr->cmsg_type = SCM_RIGHTS;
-	memcpy(CMSG_DATA(cmsghdr), &send_fd, sizeof(int));
-
+	putfds(message, send_fd, 1);
 	len = sendmsg(sockfd, &msghdr, 0);
 	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG((size_t)len == paylen,
-	    "sendmsg: %zd messages sent; expected: %zu; %s", len, paylen,
-	    strerror(errno));
+	return ((size_t)len);
 }
 
 static void
 sendfd(int sockfd, int send_fd)
 {
-	char ch = 0;
+	size_t len;
+	char ch;
 
-	sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
+	ch = 0;
+	len = sendfd_payload(sockfd, send_fd, &ch, sizeof(ch));
+	ATF_REQUIRE_MSG(len == sizeof(ch),
+	    "sendmsg: %zu bytes sent; expected %zu; %s", len, sizeof(ch),
+	    strerror(errno));
+}
+
+static bool
+localcreds(int sockfd)
+{
+	socklen_t sz;
+	int rc, val;
+
+	sz = sizeof(val);
+	rc = getsockopt(sockfd, 0, LOCAL_CREDS, &val, &sz);
+	ATF_REQUIRE_MSG(rc != -1, "getsockopt(LOCAL_CREDS) failed: %s",
+	    strerror(errno));
+	return (val != 0);
 }
 
 static void
-recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
+recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
+    size_t cmsgsz)
 {
 	struct cmsghdr *cmsghdr;
-	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
-	    CMSG_SPACE(sizeof(int))];
 	struct msghdr msghdr;
 	struct iovec iovec;
+	char *message;
 	ssize_t len;
+	bool foundcreds;
 
 	bzero(&msghdr, sizeof(msghdr));
+	message = malloc(cmsgsz);
+	ATF_REQUIRE(message != NULL);
 
 	msghdr.msg_control = message;
-	msghdr.msg_controllen = sizeof(message);
+	msghdr.msg_controllen = cmsgsz;
 
 	iovec.iov_base = buf;
 	iovec.iov_len = buflen;
@@ -197,6 +224,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
 	ATF_REQUIRE_MSG(cmsghdr != NULL,
 	    "recvmsg: did not receive control message");
+	foundcreds = false;
 	*recv_fd = -1;
 	for (; cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
 		if (cmsghdr->cmsg_level == SOL_SOCKET &&
@@ -204,10 +232,14 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 		    cmsghdr->cmsg_len == CMSG_LEN(sizeof(int))) {
 			memcpy(recv_fd, CMSG_DATA(cmsghdr), sizeof(int));
 			ATF_REQUIRE(*recv_fd != -1);
-		}
+		} else if (cmsghdr->cmsg_level == SOL_SOCKET &&
+		    cmsghdr->cmsg_type == SCM_CREDS)
+			foundcreds = true;
 	}
 	ATF_REQUIRE_MSG(*recv_fd != -1,
 	    "recvmsg: did not receive single-fd message");
+	ATF_REQUIRE_MSG(!localcreds(sockfd) || foundcreds,
+	    "recvmsg: expected credentials were not received");
 }
 
 static void
@@ -215,7 +247,8 @@ recvfd(int sockfd, int *recv_fd)
 {
 	char ch = 0;
 
-	recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch));
+	recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch),
+	    CMSG_SPACE(sizeof(int)));
 }
 
 /*
@@ -362,9 +395,9 @@ ATF_TC_BODY(devfs_orphan, tc)
 
 /*
  * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel prepends a
- * control message to the data. Sender sends large payload.
- * Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer limit, and receiver
- * receives truncated data.
+ * control message to the data. Sender sends large payload using a non-blocking
+ * socket. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer limit, and
+ * receiver receives truncated data.
  */
 ATF_TC_WITHOUT_HEAD(rights_creds_payload);
 ATF_TC_BODY(rights_creds_payload, tc)
@@ -374,9 +407,6 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	size_t len;
 	void *buf;
 	int fd[2], getfd, putfd, rc;
-
-	atf_tc_expect_fail("PR 181741: Packet loss when 'control' messages "
-	    "are present with large data");
 
 	len = sizeof(sendspace);
 	rc = sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
@@ -388,66 +418,170 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	ATF_REQUIRE(buf != NULL);
 
 	domainsocketpair(fd);
+	tempfile(&putfd);
+
+	rc = fcntl(fd[0], F_SETFL, O_NONBLOCK);
+	ATF_REQUIRE_MSG(rc != -1, "fcntl(O_NONBLOCK) failed: %s",
+	    strerror(errno));
 	rc = setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on));
 	ATF_REQUIRE_MSG(rc != -1, "setsockopt(LOCAL_CREDS) failed: %s",
 	    strerror(errno));
-	tempfile(&putfd);
-	sendfd_payload(fd[0], putfd, buf, sendspace);
-	recvfd_payload(fd[1], &getfd, buf, sendspace);
+
+	len = sendfd_payload(fd[0], putfd, buf, sendspace);
+	ATF_REQUIRE_MSG(len < sendspace, "sendmsg: %zu bytes sent", len);
+	recvfd_payload(fd[1], &getfd, buf, len,
+	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)));
+
 	close(putfd);
 	close(getfd);
 	closesocketpair(fd);
 }
 
+static void
+send_cmsg(int sockfd, void *cmsg, size_t cmsgsz)
+{
+	struct iovec iov;
+	struct msghdr msghdr;
+	ssize_t len;
+	char ch;
+
+	ch = 0;
+	bzero(&msghdr, sizeof(msghdr));
+
+	iov.iov_base = &ch;
+	iov.iov_len = sizeof(ch);
+	msghdr.msg_control = cmsg;
+	msghdr.msg_controllen = cmsgsz;
+	msghdr.msg_iov = &iov;
+	msghdr.msg_iovlen = 1;
+
+	len = sendmsg(sockfd, &msghdr, 0);
+	ATF_REQUIRE_MSG(len != -1,
+	    "sendmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(len == sizeof(ch),
+	    "sendmsg: %zd bytes sent; expected %zu", len, sizeof(ch));
+}
+
+static void
+recv_cmsg(int sockfd, char *cmsg, size_t cmsgsz, int flags)
+{
+	struct iovec iov;
+	struct msghdr msghdr;
+	ssize_t len;
+	char ch;
+
+	ch = 0;
+	bzero(&msghdr, sizeof(msghdr));
+
+	iov.iov_base = &ch;
+	iov.iov_len = sizeof(ch);
+	msghdr.msg_control = cmsg;
+	msghdr.msg_controllen = cmsgsz;
+	msghdr.msg_iov = &iov;
+	msghdr.msg_iovlen = 1;
+
+	len = recvmsg(sockfd, &msghdr, 0);
+	ATF_REQUIRE_MSG(len != -1,
+	    "recvmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(len == sizeof(ch),
+	    "recvmsg: %zd bytes received; expected %zu", len, sizeof(ch));
+	ATF_REQUIRE_MSG((msghdr.msg_flags & flags) == flags,
+	    "recvmsg: got flags %#x; expected %#x", msghdr.msg_flags, flags);
+}
+
 /*
- * Test for PR 131876. Receiver uses a control message buffer that is too
+ * Test for PR 131876.  Receiver uses a control message buffer that is too
  * small for the incoming SCM_RIGHTS message, so the message is truncated.
  * The kernel must not leak the copied right into the receiver's namespace.
  */
 ATF_TC_WITHOUT_HEAD(truncated_rights);
 ATF_TC_BODY(truncated_rights, tc)
 {
-	struct iovec iovec;
-	struct msghdr msghdr;
-	char buf[16], message[CMSG_SPACE(0)];
-	ssize_t len;
-	int fd[2], nfds, putfd;
+	char *message;
+	int fd[2], nfds, putfd, rc;
 
-	atf_tc_expect_fail("PR 131876: "
-	    "FD leak when 'control' message is truncated");
-
-	memset(buf, 42, sizeof(buf));
 	domainsocketpair(fd);
 	devnull(&putfd);
 	nfds = getnfds();
 
-	sendfd_payload(fd[0], putfd, buf, sizeof(buf));
-
-	bzero(&msghdr, sizeof(msghdr));
-	bzero(message, sizeof(message));
-
-	iovec.iov_base = buf;
-	iovec.iov_len = sizeof(buf);
-	msghdr.msg_control = message;
-	msghdr.msg_controllen = sizeof(message);
-	msghdr.msg_iov = &iovec;
-	msghdr.msg_iovlen = 1;
-
-	len = recvmsg(fd[1], &msghdr, 0);
-	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG((size_t)len == sizeof(buf),
-	    "recvmsg: %zd bytes received; expected %zd", len, sizeof(buf));
-	for (size_t i = 0; i < sizeof(buf); i++)
-		ATF_REQUIRE_MSG(buf[i] == 42, "unexpected buffer contents");
-
-	ATF_REQUIRE_MSG((msghdr.msg_flags & MSG_CTRUNC) != 0,
-	    "MSG_CTRUNC not set after truncation");
+	/*
+	 * Case 1: Send a single descriptor and truncate the message.
+	 */
+	message = malloc(CMSG_SPACE(sizeof(int)));
+	ATF_REQUIRE(message != NULL);
+	putfds(message, putfd, 1);
+	send_cmsg(fd[0], message, CMSG_LEN(sizeof(int)));
+	recv_cmsg(fd[1], message, CMSG_LEN(0), MSG_CTRUNC);
 	ATF_REQUIRE(getnfds() == nfds);
+	free(message);
+
+	/*
+	 * Case 2a: Send two descriptors in separate messages, and truncate at
+	 *          the boundary between the two messages.  We should still
+	 *          receive the first message.
+	 */
+	message = malloc(CMSG_SPACE(sizeof(int)) * 2);
+	ATF_REQUIRE(message != NULL);
+	putfds(message, putfd, 1);
+	putfds(message + CMSG_SPACE(sizeof(int)), putfd, 1);
+	send_cmsg(fd[0], message, CMSG_SPACE(sizeof(int)) * 2);
+	recv_cmsg(fd[1], message, CMSG_SPACE(sizeof(int)), MSG_CTRUNC);
+	rc = close(*(int *)CMSG_DATA(message));
+	ATF_REQUIRE_MSG(rc == 0, "close failed: %s", strerror(errno));
+	ATF_REQUIRE(getnfds() == nfds);
+	free(message);
+
+	/*
+	 * Case 2b: Send two descriptors in separate messages, and truncate
+	 *          before the end of the first message.
+	 */
+	message = malloc(CMSG_SPACE(sizeof(int)) * 2);
+	ATF_REQUIRE(message != NULL);
+	putfds(message, putfd, 1);
+	putfds(message + CMSG_SPACE(sizeof(int)), putfd, 1);
+	send_cmsg(fd[0], message, CMSG_SPACE(sizeof(int)) * 2);
+	recv_cmsg(fd[1], message, CMSG_SPACE(0), MSG_CTRUNC);
+	ATF_REQUIRE(getnfds() == nfds);
+	free(message);
+
+	/*
+	 * Case 2c: Send two descriptors in separate messages, and truncate
+	 *          after the end of the first message.  We should still
+	 *          receive the first message.
+	 */
+	message = malloc(CMSG_SPACE(sizeof(int)) * 2);
+	ATF_REQUIRE(message != NULL);
+	putfds(message, putfd, 1);
+	putfds(message + CMSG_SPACE(sizeof(int)), putfd, 1);
+	send_cmsg(fd[0], message, CMSG_SPACE(sizeof(int)) * 2);
+	recv_cmsg(fd[1], message, CMSG_SPACE(sizeof(int)) + CMSG_SPACE(0),
+	    MSG_CTRUNC);
+	rc = close(*(int *)CMSG_DATA(message));
+	ATF_REQUIRE_MSG(rc == 0, "close failed: %s", strerror(errno));
+	ATF_REQUIRE(getnfds() == nfds);
+	free(message);
+
+	/*
+	 * Case 3: Send three descriptors in the same message, and leave space
+	 *         only for the first when receiving the message.
+	 */
+	message = malloc(CMSG_SPACE(sizeof(int) * 3));
+	ATF_REQUIRE(message != NULL);
+	putfds(message, putfd, 3);
+	send_cmsg(fd[0], message, CMSG_SPACE(sizeof(int) * 3));
+	recv_cmsg(fd[1], message, CMSG_SPACE(sizeof(int)), MSG_CTRUNC);
+	ATF_REQUIRE(getnfds() == nfds);
+	free(message);
 
 	close(putfd);
 	closesocketpair(fd);
 }
 
+/*
+ * Ensure that an attempt to copy a SCM_RIGHTS message to the recipient
+ * fails.  In this case the kernel must dispose of the externalized rights
+ * rather than leaking them into the recipient's file descriptor table.
+ */
 ATF_TC_WITHOUT_HEAD(copyout_rights_error);
 ATF_TC_BODY(copyout_rights_error, tc)
 {
@@ -456,9 +590,6 @@ ATF_TC_BODY(copyout_rights_error, tc)
 	char buf[16];
 	ssize_t len;
 	int fd[2], error, nfds, putfd;
-
-	atf_tc_expect_fail("PR 131876: "
-	    "FD leak when copyout of rights returns an error");
 
 	memset(buf, 0, sizeof(buf));
 	domainsocketpair(fd);
