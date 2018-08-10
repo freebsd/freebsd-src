@@ -137,6 +137,7 @@ ieee80211_node_detach(struct ieee80211com *ic)
 
 	callout_drain(&ic->ic_inact);
 	ieee80211_node_table_cleanup(&ic->ic_sta);
+	ieee80211_ageq_drain(&ic->ic_stageq);
 	ieee80211_ageq_cleanup(&ic->ic_stageq);
 }
 
