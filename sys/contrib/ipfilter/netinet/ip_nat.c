@@ -4951,7 +4951,7 @@ retry_roundrobin:
 				case 0 :
 					continue;
 				case -1 :
-					rval = -1;
+					rval = -3;
 					goto outmatchfail;
 				case 1 :
 				default :
@@ -4996,7 +4996,7 @@ retry_roundrobin:
 				natfailed = 0;
 				break;
 			}
-			natfailed = -1;
+			natfailed = -2;
 		}
 		if ((np == NULL) && (nmsk < softn->ipf_nat_map_max)) {
 			nmsk++;
@@ -5021,15 +5021,23 @@ outmatchfail:
 
 	switch (rval)
 	{
+	case -3 :
+		/* ipf_nat_match() failure */
+		/* FALLTHROUGH */
+	case -2 :
+		/* retry_roundrobin loop failure */
+		/* FALLTHROUGH */
 	case -1 :
+		/* proxy failure detected by ipf_nat_out() */
 		if (passp != NULL) {
-			DT1(frb_natv4out, fr_info_t *, fin);
+			DT2(frb_natv4out, fr_info_t *, fin, int, rval);
 			NBUMPSIDED(1, ns_drop);
 			*passp = FR_BLOCK;
 			fin->fin_reason = FRB_NATV4;
 		}
 		fin->fin_flx |= FI_BADNAT;
 		NBUMPSIDED(1, ns_badnat);
+		rval = -1;	/* We only return -1 on error. */
 		break;
 	case 0 :
 		NBUMPSIDE(1, ns_ignored);
@@ -5437,7 +5445,7 @@ retry_roundrobin:
 				case 0 :
 					continue;
 				case -1 :
-					rval = -1;
+					rval = -3;
 					goto inmatchfail;
 				case 1 :
 				default :
@@ -5484,7 +5492,7 @@ retry_roundrobin:
 				natfailed = 0;
 				break;
 			}
-			natfailed = -1;
+			natfailed = -2;
 		}
 		if ((np == NULL) && (rmsk < softn->ipf_nat_rdr_max)) {
 			rmsk++;
@@ -5509,15 +5517,23 @@ inmatchfail:
 
 	switch (rval)
 	{
+	case -3 :
+		/* ipf_nat_match() failure */
+		/* FALLTHROUGH */
+	case -2 :
+		/* retry_roundrobin loop failure */
+		/* FALLTHROUGH */
 	case -1 :
+		/* proxy failure detected by ipf_nat_out() */
 		if (passp != NULL) {
-			DT1(frb_natv4in, fr_info_t *, fin);
+			DT2(frb_natv4in, fr_info_t *, fin, int, rval);
 			NBUMPSIDED(0, ns_drop);
 			*passp = FR_BLOCK;
 			fin->fin_reason = FRB_NATV4;
 		}
 		fin->fin_flx |= FI_BADNAT;
 		NBUMPSIDED(0, ns_badnat);
+		rval = -1;	/* We only return -1 on error. */
 		break;
 	case 0 :
 		NBUMPSIDE(0, ns_ignored);
