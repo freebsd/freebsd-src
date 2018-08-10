@@ -146,4 +146,7 @@ extern struct mtx zfs_debug_mtx;
 
 #define	sys_shutdown	rebooting
 
+#define	noinline	__attribute__((noinline))
+#define	likely(x)	__builtin_expect((x), 1)
+
 #endif	/* _SYS_ZFS_CONTEXT_H */
