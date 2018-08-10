@@ -146,6 +146,7 @@ static void transition(state_t);
 static state_t requested_transition;
 static state_t current_state = death_single;
 
+static void execute_script(char *argv[]);
 static void open_console(void);
 static const char *get_shell(void);
 static void write_stderr(const char *message);
@@ -315,12 +316,12 @@ invalid:
 	delset(&mask, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGSYS,
 	    SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGEMT, SIGTERM, SIGTSTP,
 	    SIGALRM, SIGUSR1, SIGUSR2, SIGWINCH, 0);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	sa.sa_handler = SIG_IGN;
-	sigaction(SIGTTIN, &sa, (struct sigaction *)0);
-	sigaction(SIGTTOU, &sa, (struct sigaction *)0);
+	sigaction(SIGTTIN, &sa, NULL);
+	sigaction(SIGTTOU, &sa, NULL);
 
 	/*
 	 * Paranoia.
@@ -434,7 +435,7 @@ handle(sig_t handler, ...)
 		sa.sa_mask = mask_everything;
 		/* XXX SA_RESTART? */
 		sa.sa_flags = sig == SIGCHLD ? SA_NOCLDSTOP : 0;
-		sigaction(sig, &sa, (struct sigaction *) 0);
+		sigaction(sig, &sa, NULL);
 	}
 	va_end(ap);
 }
@@ -957,7 +958,7 @@ single_user(void)
 		 * and those are reset to SIG_DFL on exec.
 		 */
 		sigemptyset(&mask);
-		sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+		sigprocmask(SIG_SETMASK, &mask, NULL);
 
 		/*
 		 * Fire off a shell.
@@ -1046,6 +1047,46 @@ runcom(void)
 	return (state_func_t) read_ttys;
 }
 
+static void
+execute_script(char *argv[])
+{
+	struct sigaction sa;
+	const char *shell, *script;
+	int error;
+
+	bzero(&sa, sizeof(sa));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGTSTP, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+
+	open_console();
+
+	sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
+#ifdef LOGIN_CAP
+	setprocresources(RESOURCE_RC);
+#endif
+
+	/*
+	 * Try to directly execute the script first.  If it
+	 * fails, try the old method of passing the script path
+	 * to sh(1).  Don't complain if it fails because of
+	 * the missing execute bit.
+	 */
+	script = argv[1];
+	error = access(script, X_OK);
+	if (error == 0) {
+		execv(script, argv + 1);
+		warning("can't exec %s: %m", script);
+	} else if (errno != EACCES) {
+		warning("can't access %s: %m", script);
+	}
+
+	shell = get_shell();
+	execv(shell, argv);
+	stall("can't exec %s for %s: %m", shell, script);
+}
+
 /*
  * Run a shell script.
  * Returns 0 on success, otherwise the next transition to enter:
@@ -1060,18 +1101,10 @@ run_script(const char *script)
 	int status;
 	char *argv[4];
 	const char *shell;
-	struct sigaction sa;
 
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sa.sa_handler = SIG_IGN;
-		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
-		sigaction(SIGHUP, &sa, (struct sigaction *)0);
-
-		open_console();
 
 		char _sh[]		= "sh";
 		char _autoboot[]	= "autoboot";
@@ -1081,13 +1114,8 @@ run_script(const char *script)
 		argv[2] = runcom_mode == AUTOBOOT ? _autoboot : 0;
 		argv[3] = 0;
 
-		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
-
-#ifdef LOGIN_CAP
-		setprocresources(RESOURCE_RC);
-#endif
-		execv(shell, argv);
-		stall("can't exec %s for %s: %m", shell, script);
+		execute_script(argv);
+		sleep(STALL_TIMEOUT);
 		_exit(1);	/* force single user mode */
 	}
 
@@ -1415,7 +1443,7 @@ start_window_system(session_t *sp)
 		_exit(0);
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	if (setsid() < 0)
 		emergency("setsid failed (window) %m");
@@ -1482,7 +1510,7 @@ start_getty(session_t *sp)
 	}
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 #ifdef LOGIN_CAP
 	setprocresources(RESOURCE_GETTY);
@@ -1858,8 +1886,6 @@ runshutdown(void)
 	int shutdowntimeout;
 	size_t len;
 	char *argv[4];
-	const char *shell;
-	struct sigaction sa;
 	struct stat sb;
 
 	/*
@@ -1871,17 +1897,7 @@ runshutdown(void)
 	if (stat(_PATH_RUNDOWN, &sb) == -1 && errno == ENOENT)
 		return 0;
 
-	shell = get_shell();
-
 	if ((pid = fork()) == 0) {
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sa.sa_handler = SIG_IGN;
-		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
-		sigaction(SIGHUP, &sa, (struct sigaction *)0);
-
-		open_console();
-
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";
 		char _single[]	= "single";
@@ -1891,19 +1907,13 @@ runshutdown(void)
 		argv[1] = _path_rundown;
 		argv[2] = Reboot ? _reboot : _single;
 		argv[3] = 0;
-
-		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
-
-#ifdef LOGIN_CAP
-		setprocresources(RESOURCE_RC);
-#endif
-		execv(shell, argv);
-		warning("can't exec %s for %s: %m", shell, _PATH_RUNDOWN);
+		
+		execute_script(argv);
 		_exit(1);	/* force single user mode */
 	}
 
 	if (pid == -1) {
-		emergency("can't fork for %s on %s: %m", shell, _PATH_RUNDOWN);
+		emergency("can't fork for %s: %m", _PATH_RUNDOWN);
 		while (waitpid(-1, (int *) 0, WNOHANG) > 0)
 			continue;
 		sleep(STALL_TIMEOUT);
@@ -1926,20 +1936,20 @@ runshutdown(void)
 		if (clang == 1) {
 			/* we were waiting for the sub-shell */
 			kill(wpid, SIGTERM);
-			warning("timeout expired for %s on %s: %m; going to "
-			    "single user mode", shell, _PATH_RUNDOWN);
+			warning("timeout expired for %s: %m; going to "
+			    "single user mode", _PATH_RUNDOWN);
 			return -1;
 		}
 		if (wpid == -1) {
 			if (errno == EINTR)
 				continue;
-			warning("wait for %s on %s failed: %m; going to "
-			    "single user mode", shell, _PATH_RUNDOWN);
+			warning("wait for %s failed: %m; going to "
+			    "single user mode", _PATH_RUNDOWN);
 			return -1;
 		}
 		if (wpid == pid && WIFSTOPPED(status)) {
-			warning("init: %s on %s stopped, restarting\n",
-				shell, _PATH_RUNDOWN);
+			warning("init: %s stopped, restarting\n",
+			    _PATH_RUNDOWN);
 			kill(pid, SIGCONT);
 			wpid = -1;
 		}
@@ -1962,8 +1972,8 @@ runshutdown(void)
 	}
 
 	if (!WIFEXITED(status)) {
-		warning("%s on %s terminated abnormally, going to "
-		    "single user mode", shell, _PATH_RUNDOWN);
+		warning("%s terminated abnormally, going to "
+		    "single user mode", _PATH_RUNDOWN);
 		return -2;
 	}
 

@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180808:
+	The default pager for most commands has been changed to "less".  To
+	restore the old behavior, set PAGER="more" and MANPAGER="more -s" in
+	your environment.
+
 20180731:
 	The jedec_ts(4) driver has been removed. A superset of its functionality
 	is available in the jedec_dimm(4) driver, and the manpage for that

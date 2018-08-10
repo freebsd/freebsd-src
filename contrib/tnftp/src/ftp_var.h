@@ -189,7 +189,7 @@ enum {
 #define	GATE_SERVER	""	/* default server */
 #endif
 
-#define	DEFAULTPAGER	"more"	/* default pager if $PAGER isn't set */
+#define	DEFAULTPAGER	"less"	/* default pager if $PAGER isn't set */
 #define	DEFAULTPROMPT	"ftp> "	/* default prompt  if `set prompt' is empty */
 #define	DEFAULTRPROMPT	""	/* default rprompt if `set rprompt' is empty */
 

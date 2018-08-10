@@ -393,11 +393,11 @@ compile_delimited(char *p, char *d, int is_tr)
 			if ((d = compile_ccl(&p, d)) == NULL)
 				errx(1, "%lu: %s: unbalanced brackets ([])", linenum, fname);
 			continue;
+		} else if (*p == '\\' && p[1] == c) {
+			p++;
 		} else if (*p == '\\' && p[1] == '[') {
 			*d++ = *p++;
-		} else if (*p == '\\' && p[1] == c)
-			p++;
-		else if (*p == '\\' && p[1] == 'n') {
+		} else if (*p == '\\' && p[1] == 'n') {
 			*d++ = '\n';
 			p += 2;
 			continue;

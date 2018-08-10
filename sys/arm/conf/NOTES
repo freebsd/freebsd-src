@@ -12,6 +12,7 @@ files	"../mv/orion/files.ts7800"
 
 options 	PHYSADDR=0x00000000
 
+makeoptions	CONF_CFLAGS+="-march=armv5te"
 makeoptions	LDFLAGS="-zmuldefs"
 makeoptions	KERNPHYSADDR=0x00000000
 

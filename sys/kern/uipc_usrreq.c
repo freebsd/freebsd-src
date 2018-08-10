@@ -357,33 +357,32 @@ unp_pcb_lock2(struct unpcb *unp, struct unpcb *unp2)
 }
 
 static __noinline void
-unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p, int *freed)
-
+unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p,
+    int *freed)
 {
 	struct unpcb *unp2;
 
 	unp2 = *unp2p;
-	unp_pcb_hold((unp2));
-	UNP_PCB_UNLOCK((unp));
-	UNP_PCB_LOCK((unp2));
-	UNP_PCB_LOCK((unp));
-	*freed = unp_pcb_rele((unp2));
+	unp_pcb_hold(unp2);
+	UNP_PCB_UNLOCK(unp);
+	UNP_PCB_LOCK(unp2);
+	UNP_PCB_LOCK(unp);
+	*freed = unp_pcb_rele(unp2);
 	if (*freed)
 		*unp2p = NULL;
 }
 
-#define unp_pcb_owned_lock2(unp, unp2, freed) do {					\
-		freed = 0;													\
-		UNP_PCB_LOCK_ASSERT((unp));									\
-		UNP_PCB_UNLOCK_ASSERT((unp2));								\
-		MPASS(unp != unp2);											\
-		if (__predict_true(UNP_PCB_TRYLOCK((unp2))))				\
-			break;													\
-		else if ((uintptr_t)(unp2) > (uintptr_t)(unp))				\
-			UNP_PCB_LOCK((unp2));									\
-		else {														\
-			unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
-		}															\
+#define unp_pcb_owned_lock2(unp, unp2, freed) do {			\
+	freed = 0;							\
+	UNP_PCB_LOCK_ASSERT(unp);					\
+	UNP_PCB_UNLOCK_ASSERT(unp2);					\
+	MPASS((unp) != (unp2));						\
+	if (__predict_true(UNP_PCB_TRYLOCK(unp2)))			\
+		break;							\
+	else if ((uintptr_t)(unp2) > (uintptr_t)(unp))			\
+		UNP_PCB_LOCK(unp2);					\
+	else								\
+		unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
 } while (0)
 
 
@@ -1175,16 +1174,22 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
 		}
+
 		/*
-		 * Send to paired receive port, and then reduce send buffer
-		 * hiwater marks to maintain backpressure.  Wake up readers.
+		 * Send to paired receive port and wake up readers.  Don't
+		 * check for space available in the receive buffer if we're
+		 * attaching ancillary data; Unix domain sockets only check
+		 * for space in the sending sockbuf, and that check is
+		 * performed one level up the stack.  At that level we cannot
+		 * precisely account for the amount of buffer space used
+		 * (e.g., because control messages are not yet internalized).
 		 */
 		switch (so->so_type) {
 		case SOCK_STREAM:
 			if (control != NULL) {
-				if (sbappendcontrol_locked(&so2->so_rcv, m,
-				    control))
-					control = NULL;
+				sbappendcontrol_locked(&so2->so_rcv, m,
+				    control);
+				control = NULL;
 			} else
 				sbappend_locked(&so2->so_rcv, m, flags);
 			break;
@@ -1193,14 +1198,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			const struct sockaddr *from;
 
 			from = &sun_noname;
-			/*
-			 * Don't check for space available in so2->so_rcv.
-			 * Unix domain sockets only check for space in the
-			 * sending sockbuf, and that check is performed one
-			 * level up the stack.
-			 */
 			if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
-				from, m, control))
+			    from, m, control))
 				control = NULL;
 			break;
 			}
@@ -2051,6 +2050,13 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fdep[i]->fde_file);
 			}
+
+			/*
+			 * The new type indicates that the mbuf data refers to
+			 * kernel resources that may need to be released before
+			 * the mbuf is freed.
+			 */
+			m_chtype(*controlp, MT_EXTCONTROL);
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);
 		} else {

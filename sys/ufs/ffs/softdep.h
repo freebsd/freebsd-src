@@ -557,6 +557,7 @@ struct freefrag {
 	long	ff_fragsize;		/* size of fragment being deleted */
 	ino_t	ff_inum;		/* owning inode number */
 	enum	vtype ff_vtype;		/* owning inode's file type */
+	int	ff_trimtype;		/* trim status when deleted */
 };
 
 /*

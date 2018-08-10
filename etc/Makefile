@@ -70,14 +70,6 @@ BSM_ETC_DIR=			${DESTDIR}/etc/security
 BIN1+= amd.map
 .endif
 
-.if ${MK_AUTOFS} != "no"
-BIN1+=	auto_master
-.endif
-
-.if ${MK_FREEBSD_UPDATE} != "no"
-BIN1+= freebsd-update.conf
-.endif
-
 .if ${MK_FTP} != "no"
 BIN1+= ftpusers
 .endif
@@ -109,10 +101,6 @@ SSH=	${SRCTOP}/crypto/openssh/ssh_config \
 .endif
 .if ${MK_OPENSSL} != "no"
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
-.endif
-
-.if ${MK_PORTSNAP} != "no"
-BIN1+= portsnap.conf
 .endif
 
 .if ${MK_PF} != "no"
@@ -198,9 +186,6 @@ distribution:
 		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_AUTOFS} != "no"
-	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
-.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -271,8 +256,6 @@ distribution:
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
 .endif
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
-	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"

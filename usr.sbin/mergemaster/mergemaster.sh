@@ -426,19 +426,19 @@ check_pager () {
     echo ''
     echo "  or you may type an absolute path to PAGER for this run"
     echo ''
-    echo "  Default is to use plain old 'more' "
+    echo "  Default is to use 'less' "
     echo ''
-    echo -n "What should I do? [Use 'more'] "
+    echo -n "What should I do? [Use 'less'] "
     read FIXPAGER
 
     case "${FIXPAGER}" in
     [eE])
        exit 0
        ;;
-    [lL])
+    [lL]|'')
        PAGER=less
        ;;
-    [mM]|'')
+    [mM])
        PAGER=more
        ;;
     /*)
@@ -458,11 +458,11 @@ check_pager () {
 esac
 
 # If user has a pager defined, or got assigned one above, use it.
-# If not, use more.
+# If not, use less.
 #
-PAGER=${PAGER:-more}
+PAGER=${PAGER:-less}
 
-if [ -n "${VERBOSE}" -a ! "${PAGER}" = "more" ]; then
+if [ -n "${VERBOSE}" -a ! "${PAGER}" = "less" ]; then
   echo " *** You have ${PAGER} defined as your pager so we will use that"
   echo ''
   sleep 3
@@ -1127,7 +1127,7 @@ for COMPFILE in `find . -type f | sort`; do
     else
       # Ok, the files are different, so show the user where they differ.
       # Use user's choice of diff methods; and user's pager if they have one.
-      # Use more if not.
+      # Use less if not.
       # Use unified diffs by default.  Context diffs give me a headache. :)
       #
       # If the user chose the -F option, test for that before proceeding

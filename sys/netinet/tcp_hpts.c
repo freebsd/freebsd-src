@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 /**
  * Some notes about usage.
@@ -164,10 +163,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#ifdef ipsec
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif				/* ipsec */
 #include "opt_rss.h"
 
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2018
+.Dd August 7, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -478,20 +478,8 @@ directive from
 has been processed, allowing kernel panics that happen during the early stages
 of boot to be captured.
 .It Va init_chroot
-If set to a valid directory in the root file system, it causes
-.Xr init 8
-to perform a
-.Xr chroot 2
-operation on that directory, making it the new root directory.
-That happens before entering single-user mode or multi-user
-mode (but after executing the
-.Va init_script
-if enabled).
-This functionality has generally been eclipsed by rerooting.
 See
-.Xr reboot 8
-.Fl r
-for details.
+.Xr init 8 .
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as the initial
 process.
@@ -499,51 +487,11 @@ The first matching binary is used.
 The default list is
 .Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
 .It Va init_script
-If set to a valid file name in the root file system,
-instructs
-.Xr init 8
-to run that script as the very first action,
-before doing anything else.
-Signal handling and exit code interpretation is similar to
-running the
-.Pa /etc/rc
-script.
-In particular, single-user operation is enforced
-if the script terminates with a non-zero exit code,
-or if a SIGTERM is delivered to the
-.Xr init 8
-process (PID 1).
-This functionality has generally been eclipsed by rerooting.
 See
-.Xr reboot 8
-.Fl r
-for details.
+.Xr init 8 .
 .It Va init_shell
-Defines the shell binary to be used for executing the various shell scripts.
-The default is
-.Dq Li /bin/sh .
-It is used for running the
-.Va init_script
-if set, as well as for the
-.Pa /etc/rc
-and
-.Pa /etc/rc.shutdown
-scripts.
-The value of the corresponding
-.Xr kenv 2
-variable is evaluated every time
-.Xr init 8
-calls a shell script, so it can be changed later on using the
-.Xr kenv 1
-utility.
-In particular, if a non-default shell is used for running an
-.Va init_script ,
-it might be desirable to have that script reset the value of
-.Va init_shell
-back to the default, so that the
-.Pa /etc/rc
-script is executed with the standard shell
-.Pa /bin/sh .
+See
+.Xr init 8 .
 .It Va interpret
 Has the value
 .Dq Li OK

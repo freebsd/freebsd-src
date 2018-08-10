@@ -206,6 +206,11 @@ time_t posix2time(time_t t);
 #if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
 #include <xlocale/_time.h>
 #endif
+
+/* ISO/IEC 9899:201x 7.27.2.5 The timespec_get function */
+#define TIME_UTC	1	/* time elapsed since epoch */
+int timespec_get(struct timespec *ts, int base);
+
 __END_DECLS
 
 #endif /* !_TIME_H_ */

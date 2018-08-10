@@ -50,7 +50,12 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/aw_sid.h>
 
-/* efuse registers */
+#include "nvmem_if.h"
+
+/* 
+ * Starting at least from sun8iw6 (A83T) EFUSE starts at 0x200 
+ * There is 3 registers in the low area to read/write protected EFUSE.
+ */
 #define	SID_PRCTL		0x40
 #define	 SID_PRCTL_OFFSET_MASK	0xff
 #define	 SID_PRCTL_OFFSET(n)	(((n) & SID_PRCTL_OFFSET_MASK) << 16)
@@ -60,53 +65,148 @@ __FBSDID("$FreeBSD$");
 #define	SID_PRKEY		0x50
 #define	SID_RDKEY		0x60
 
-#define	SID_SRAM		0x200
-/* Offsets into efuse space, for convenience */
-#define	SID_THERMAL_CALIB0_OFF	(0x34)
-#define	SID_THERMAL_CALIB1_OFF	(0x38)
-#define	SID_THERMAL_CALIB0	(SID_SRAM + SID_THERMAL_CALIB0_OFF)
-#define	SID_THERMAL_CALIB1	(SID_SRAM + SID_THERMAL_CALIB1_OFF)
+#define	EFUSE_OFFSET		0x200
+#define	EFUSE_NAME_SIZE		32
+#define	EFUSE_DESC_SIZE		64
 
-#define	ROOT_KEY_SIZE		4
+struct aw_sid_efuse {
+	char			name[EFUSE_NAME_SIZE];
+	char			desc[EFUSE_DESC_SIZE];
+	bus_size_t		base;
+	bus_size_t		offset;
+	uint32_t		size;
+	enum aw_sid_fuse_id	id;
+	bool			public;
+};
+
+static struct aw_sid_efuse a10_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.offset = 0x0,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+};
+
+static struct aw_sid_efuse a64_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+	{
+		.name = "ths-calib",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x34,
+		.size = 6,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
+};
+
+static struct aw_sid_efuse a83t_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+	{
+		.name = "ths-calib",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x34,
+		.size = 8,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
+};
+
+static struct aw_sid_efuse h3_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+	{
+		.name = "ths-calib",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x34,
+		.size = 2,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = false,
+	},
+};
+
+static struct aw_sid_efuse h5_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+	{
+		.name = "ths-calib",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x34,
+		.size = 4,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
+};
 
 struct aw_sid_conf {
-	bus_size_t	efuse_size;
-	bus_size_t	rootkey_offset;
-	bool		has_prctl;
-	bool		has_thermal;
-	bool		requires_prctl_read;
+	struct aw_sid_efuse	*efuses;
+	size_t			nfuses;
 };
 
 static const struct aw_sid_conf a10_conf = {
-	.efuse_size = 0x10,
-	.rootkey_offset = 0,
+	.efuses = a10_efuses,
+	.nfuses = nitems(a10_efuses),
 };
 
 static const struct aw_sid_conf a20_conf = {
-	.efuse_size = 0x10,
-	.rootkey_offset = 0,
+	.efuses = a10_efuses,
+	.nfuses = nitems(a10_efuses),
 };
 
 static const struct aw_sid_conf a64_conf = {
-	.efuse_size = 0x100,
-	.rootkey_offset = SID_SRAM,
-	.has_prctl = true,
-	.has_thermal = true,
+	.efuses = a64_efuses,
+	.nfuses = nitems(a64_efuses),
 };
 
 static const struct aw_sid_conf a83t_conf = {
-	.efuse_size = 0x100,
-	.rootkey_offset = SID_SRAM,
-	.has_prctl = true,
-	.has_thermal = true,
+	.efuses = a83t_efuses,
+	.nfuses = nitems(a83t_efuses),
 };
 
 static const struct aw_sid_conf h3_conf = {
-	.efuse_size = 0x100,
-	.rootkey_offset = SID_SRAM,
-	.has_prctl = true,
-	.has_thermal = true,
-	.requires_prctl_read = true,
+	.efuses = h3_efuses,
+	.nfuses = nitems(h3_efuses),
+};
+
+static const struct aw_sid_conf h5_conf = {
+	.efuses = h5_efuses,
+	.nfuses = nitems(h5_efuses),
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -115,6 +215,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun50i-a64-sid",		(uintptr_t)&a64_conf},
 	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
 	{ "allwinner,sun8i-h3-sid",		(uintptr_t)&h3_conf},
+	{ "allwinner,sun50i-h5-sid",		(uintptr_t)&h5_conf},
 	{ NULL,					0 }
 };
 
@@ -132,45 +233,11 @@ static struct resource_spec aw_sid_spec[] = {
 	{ -1, 0 }
 };
 
-enum sid_keys {
-	AW_SID_ROOT_KEY,
-};
-
+#define	RD1(sc, reg)		bus_read_1((sc)->res, (reg))
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
 
-#define	PRCTL_RD4(sc, reg, val)	aw_sid_prctl_read((sc)->sid_dev, (reg), (val))
-
 static int aw_sid_sysctl(SYSCTL_HANDLER_ARGS);
-static int aw_sid_prctl_read(device_t dev, bus_size_t offset, uint32_t *val);
-
-
-/*
- * offset here is offset into efuse space, rather than offset into sid register
- * space. This form of read is only an option for newer SoC: A83t, H3, A64
- */
-static int
-aw_sid_prctl_read(device_t dev, bus_size_t offset, uint32_t *val)
-{
-	struct aw_sid_softc *sc;
-	uint32_t readval;
-
-	sc = device_get_softc(dev);
-	if (!sc->sid_conf->has_prctl)
-		return (1);
-
-	mtx_lock(&sc->prctl_mtx);
-	readval = SID_PRCTL_OFFSET(offset) | SID_PRCTL_LOCK | SID_PRCTL_READ;
-	WR4(sc, SID_PRCTL, readval);
-	/* Read bit will be cleared once read has concluded */
-	while (RD4(sc, SID_PRCTL) & SID_PRCTL_READ)
-		continue;
-	readval = RD4(sc, SID_RDKEY);
-	mtx_unlock(&sc->prctl_mtx);
-	*val = readval;
-
-	return (0);
-}
 
 static int
 aw_sid_probe(device_t dev)
@@ -189,7 +256,10 @@ static int
 aw_sid_attach(device_t dev)
 {
 	struct aw_sid_softc *sc;
+	phandle_t node;
+	int i;
 
+	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->sid_dev = dev;
 
@@ -202,74 +272,123 @@ aw_sid_attach(device_t dev)
 	sc->sid_conf = (struct aw_sid_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	aw_sid_sc = sc;
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rootkey",
-	    CTLTYPE_STRING | CTLFLAG_RD,
-	    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
+	/* Register ourself so device can resolve who we are */
+	OF_device_register_xref(OF_xref_from_node(node), dev);
 
+	for (i = 0; i < sc->sid_conf->nfuses ;i++) {\
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, sc->sid_conf->efuses[i].name,
+		    CTLTYPE_STRING | CTLFLAG_RD,
+		    dev, sc->sid_conf->efuses[i].id, aw_sid_sysctl,
+		    "A", sc->sid_conf->efuses[i].desc);
+	}
 	return (0);
 }
 
 int
-aw_sid_read_tscalib(uint32_t *calib0, uint32_t *calib1)
+aw_sid_get_fuse(enum aw_sid_fuse_id id, uint8_t *out, uint32_t *size)
 {
 	struct aw_sid_softc *sc;
+	uint32_t val;
+	int i, j;
 
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-	if (!sc->sid_conf->has_thermal)
-		return (ENXIO);
 
-	if (sc->sid_conf->requires_prctl_read) {
-		PRCTL_RD4(sc, SID_THERMAL_CALIB0_OFF, calib0);
-		PRCTL_RD4(sc, SID_THERMAL_CALIB1_OFF, calib1);
-	} else {
-		*calib0 = RD4(sc, SID_THERMAL_CALIB0);
-		*calib1 = RD4(sc, SID_THERMAL_CALIB1);
+	for (i = 0; i < sc->sid_conf->nfuses; i++)
+		if (id == sc->sid_conf->efuses[i].id)
+			break;
+
+	if (i == sc->sid_conf->nfuses)
+		return (ENOENT);
+
+	if (*size != sc->sid_conf->efuses[i].size) {
+		*size = sc->sid_conf->efuses[i].size;
+		return (ENOMEM);
 	}
 
-	return (0);
-}
+	if (out == NULL)
+		return (ENOMEM);
 
-int
-aw_sid_get_rootkey(u_char *out)
-{
-	struct aw_sid_softc *sc;
-	int i;
-	bus_size_t root_key_off;
-	u_int tmp;
-
-	sc = aw_sid_sc;
-	if (sc == NULL)
-		return (ENXIO);
-	root_key_off = aw_sid_sc->sid_conf->rootkey_offset;
-	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
-		if (sc->sid_conf->requires_prctl_read)
-			PRCTL_RD4(sc, (i * 4), &tmp);
-		else
-			tmp = RD4(aw_sid_sc, root_key_off + (i * 4));
-		be32enc(&out[i * 4], tmp);
+	if (sc->sid_conf->efuses[i].public == false)
+		mtx_lock(&sc->prctl_mtx);
+	for (j = 0; j < sc->sid_conf->efuses[i].size; j += 4) {
+		if (sc->sid_conf->efuses[i].public == false) {
+			val = SID_PRCTL_OFFSET(sc->sid_conf->efuses[i].offset + j) |
+				SID_PRCTL_LOCK |
+				SID_PRCTL_READ;
+			WR4(sc, SID_PRCTL, val);
+			/* Read bit will be cleared once read has concluded */
+			while (RD4(sc, SID_PRCTL) & SID_PRCTL_READ)
+				continue;
+			val = RD4(sc, SID_RDKEY);
+		} else
+			val = RD4(sc, sc->sid_conf->efuses[i].base +
+			    sc->sid_conf->efuses[i].offset + j);
+		out[j] = val & 0xFF;
+		if (j + 1 < *size)
+			out[j + 1] = (val & 0xFF00) >> 8;
+		if (j + 2 < *size)
+			out[j + 2] = (val & 0xFF0000) >> 16;
+		if (j + 3 < *size)
+			out[j + 3] = (val & 0xFF000000) >> 24;
 	}
+	if (sc->sid_conf->efuses[i].public == false)
+		mtx_unlock(&sc->prctl_mtx);
 
 	return (0);
 }
 
 static int
+aw_sid_read(device_t dev, uint32_t offset, uint32_t size, uint8_t *buffer)
+{
+	struct aw_sid_softc *sc;
+	enum aw_sid_fuse_id fuse_id = 0;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < sc->sid_conf->nfuses; i++)
+		if (offset == (sc->sid_conf->efuses[i].base +
+		    sc->sid_conf->efuses[i].offset)) {
+			fuse_id = sc->sid_conf->efuses[i].id;
+			break;
+		}
+
+	if (fuse_id == 0)
+		return (ENOENT);
+
+	return (aw_sid_get_fuse(fuse_id, buffer, &size));
+}
+
+static int
 aw_sid_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	enum sid_keys key = arg2;
-	u_char rootkey[16];
-	char out[33];
+	struct aw_sid_softc *sc;
+	device_t dev = arg1;
+	enum aw_sid_fuse_id fuse = arg2;
+	uint8_t data[32];
+	char out[128];
+	uint32_t size;
+	int ret, i;
 
-	if (key != AW_SID_ROOT_KEY)
-		return (ENOENT);
+	sc = device_get_softc(dev);
 
-	if (aw_sid_get_rootkey(rootkey) != 0)
+	/* Get the size of the efuse data */
+	size = 0;
+	aw_sid_get_fuse(fuse, NULL, &size);
+	/* We now have the real size */
+	ret = aw_sid_get_fuse(fuse, data, &size);
+	if (ret != 0) {
+		device_printf(dev, "Cannot get fuse id %d: %d\n", fuse, ret);
 		return (ENOENT);
-	snprintf(out, sizeof(out),
-	  "%16D", rootkey, "");
+	}
+
+	for (i = 0; i < size; i++)
+		snprintf(out + (i * 2), sizeof(out) - (i * 2),
+		  "%.2x", data[i]);
 
 	return sysctl_handle_string(oidp, out, sizeof(out), req);
 }
@@ -279,6 +398,8 @@ static device_method_t aw_sid_methods[] = {
 	DEVMETHOD(device_probe,		aw_sid_probe),
 	DEVMETHOD(device_attach,	aw_sid_attach),
 
+	/* NVMEM interface */
+	DEVMETHOD(nvmem_read,		aw_sid_read),
 	DEVMETHOD_END
 };
 

@@ -537,16 +537,15 @@ If the thread is not found, search the thread stack cache and prints the
 cached stack address.
 Otherwise, prints nothing.
 .Pp
-.It Ic show Cm all procs Ns Op Li / Ns Cm m
-.It Ic ps Ns Op Li / Ns Cm m
+.It Ic show Cm all procs Ns Op Li / Ns Cm a
+.It Ic ps Ns Op Li / Ns Cm a
 Display all process information.
 The process information may not be shown if it is not
 supported in the machine, or the bottom of the stack of the
 target process is not in the main memory at that time.
 The
-.Cm m
-modifier will alter the display to show VM map
-addresses for the process and not show other information.
+.Cm a
+modifier will print command line arguments for each process.
 .\"
 .Pp
 .It Ic show Cm all trace
