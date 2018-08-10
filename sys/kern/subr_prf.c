@@ -1033,10 +1033,9 @@ void
 msgbufinit(void *ptr, int size)
 {
 	char *cp;
-	static struct msgbuf *oldp;
+	static struct msgbuf *oldp = NULL;
 	bool print_boot_tag;
 
-	oldp = NULL;
 	size -= sizeof(*msgbufp);
 	cp = (char *)ptr;
 	print_boot_tag = !msgbufmapped;
