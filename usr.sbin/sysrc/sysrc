@@ -874,7 +874,8 @@ while [ $# -gt 0 ]; do
 	*)
 		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 			[ "$IGNORE_UNKNOWNS" -o "$QUIET" ] ||
-				echo "$pgm: unknown variable '$NAME'"
+				f_err "%s: unknown variable '%s'\n" \
+					"$pgm" "$NAME"
 			shift 1
 			status=$FAILURE
 			continue
