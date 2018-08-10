@@ -615,13 +615,15 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	if (zfs_dataset_exists(lbh->lzh, full_new, ZFS_TYPE_DATASET))
 		return (set_error(lbh, BE_ERR_EXISTS));
 
-	/* XXX TODO
-	 * - What about mounted BEs?
-	 * - if mounted error out unless a force flag is set?
-	 */
 	if ((zfs_hdl = zfs_open(lbh->lzh, full_old,
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
+
+	/* XXX TODO: Allow a force flag */
+	if (zfs_is_mounted(zfs_hdl, NULL)) {
+		zfs_close(zfs_hdl);
+		return (set_error(lbh, BE_ERR_MOUNTED));
+	}
 
 	/* recurse, nounmount, forceunmount */
 	struct renameflags flags = { 0, 0, 0 };
@@ -643,8 +645,8 @@ be_export(libbe_handle_t *lbh, const char *bootenv, int fd)
 	int err;
 
 	if ((err = be_snapshot(lbh, bootenv, NULL, true, snap_name)) != 0)
-		/* XXX TODO error handle */
-		return (-1);
+		/* Use the error set by be_snapshot */
+		return (err);
 
 	be_root_concat(lbh, snap_name, buf);
 
@@ -652,6 +654,8 @@ be_export(libbe_handle_t *lbh, const char *bootenv, int fd)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	err = zfs_send_one(zfs, NULL, fd, 0);
+	zfs_close(zfs);
+
 	return (err);
 }
 
@@ -714,8 +718,7 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 
 	nvlist_free(props);
 
-	/* XXX TODO: recursively delete nbuf dataset */
-	return (err);
+	return (be_destroy(lbh, nbuf, 0));
 }
 
 
@@ -728,15 +731,13 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 	nvlist_t *props;
 	const char *s;
 	zfs_handle_t *zfs;
-	long snap_name;
-	int err, pos;
+	int err;
 
 	/* Require absolute paths */
 	if (*child_path != '/')
-		/* XXX TODO: create appropriate error */
-		return (-1);
+		return (set_error(lbh, BE_ERR_BADPATH));
 
-	strncpy(active, be_active_path(lbh), BE_MAXPATHLEN);
+	strlcpy(active, be_active_path(lbh), BE_MAXPATHLEN);
 	strcpy(buf, active);
 
 	/* Create non-mountable parent dataset(s) */
@@ -753,16 +754,13 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 	}
 
 	/* Path does not exist as a descendent of / yet */
-	pos = strlen(active);
-
-	/* XXX TODO: Verify that resulting str is less than BE_MAXPATHLEN */
-	strncpy(&active[pos], child_path, BE_MAXPATHLEN-pos);
+	if (strlcat(active, child_path, BE_MAXPATHLEN) >= BE_MAXPATHLEN)
+		return (set_error(lbh, BE_ERR_PATHLEN));
 
 	if (stat(child_path, &sb) != 0) {
 		/* Verify that error is ENOENT */
-		if (errno != 2)
-			/* XXX TODO: create appropriate error */
-			return (-1);
+		if (errno != ENOENT)
+			return (set_error(lbh, BE_ERR_NOENT));
 
 		nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 		nvlist_add_string(props, "canmount", "noauto");
@@ -772,18 +770,17 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 		if ((err =
 		    zfs_create(lbh->lzh, active, ZFS_TYPE_DATASET, props)) != 0)
 			/* XXX TODO handle error */
-			return (-1);
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 		nvlist_free(props);
 
 		if ((zfs =
 		    zfs_open(lbh->lzh, active, ZFS_TYPE_DATASET)) == NULL)
-			/* XXX TODO handle error */
-			return (-1);
+			return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 		/* Set props */
 		if ((err = zfs_prop_set(zfs, "canmount", "noauto")) != 0)
 			/* TODO handle error */
-			return (-1);
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 	} else if (cp_if_exists) {
 		/* Path is already a descendent of / and should be copied */
 
@@ -793,30 +790,28 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 		 * Establish if the existing path is a zfs dataset or just
 		 * the subdirectory of one
 		 */
-
-		/* XXX TODO: use mktemp */
-		snap_name = random();
-
-		snprintf(buf, BE_MAXPATHLEN, "%s@%ld", child_path, snap_name);
+		strlcpy(buf, "/tmp/be_snap.XXXXX", sizeof(buf));
+		if (mktemp(buf) == NULL)
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		if ((err = zfs_snapshot(lbh->lzh, buf, false, NULL)) != 0)
 			/* XXX TODO correct error */
-			return (-1);
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		/* Clone */
 		if ((zfs =
 		    zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
-			/* XXX TODO correct error */
-			return (-1);
+			return (BE_ERR_ZFSOPEN);
 
 		if ((err = zfs_clone(zfs, active, NULL)) != 0)
 			/* XXX TODO correct error */
-			return (-1);
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		/* set props */
+		zfs_close(zfs);
 	} else
 		/* TODO: error code for exists, but not cp? */
-		return (-1);
+		return (set_error(lbh, BE_ERR_EXISTS));
 
 	return (BE_ERR_SUCCESS);
 }
