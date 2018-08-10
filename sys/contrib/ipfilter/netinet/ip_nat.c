@@ -5524,7 +5524,7 @@ inmatchfail:
 		/* retry_roundrobin loop failure */
 		/* FALLTHROUGH */
 	case -1 :
-		/* proxy failure detected by ipf_nat_out() */
+		/* proxy failure detected by ipf_nat_in() */
 		if (passp != NULL) {
 			DT2(frb_natv4in, fr_info_t *, fin, int, rval);
 			NBUMPSIDED(0, ns_drop);
