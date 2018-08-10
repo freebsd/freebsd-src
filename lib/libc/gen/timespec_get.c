@@ -33,7 +33,6 @@
 __RCSID("$NetBSD: timespec_get.c,v 1.2 2016/10/04 12:48:15 christos Exp $");
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <time.h>
 
 /* ISO/IEC 9899:201x 7.27.2.5 The timespec_get function */
@@ -41,8 +40,6 @@ __FBSDID("$FreeBSD$");
 int
 timespec_get(struct timespec *ts, int base)
 {
-
-/*	_DIAGASSERT(ts != NULL); */
 
 	switch (base) {
 	case TIME_UTC:
