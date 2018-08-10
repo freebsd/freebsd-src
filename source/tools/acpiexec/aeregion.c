@@ -234,9 +234,9 @@ AeRegionHandler (
     SpaceId = RegionObject->Region.SpaceId;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-        "Operation Region request on %s at 0x%X\n",
+        "Operation Region request on %s at 0x%X, BitWidth 0x%X, RegionLength 0x%X\n",
         AcpiUtGetRegionName (RegionObject->Region.SpaceId),
-        (UINT32) Address));
+        (UINT32) Address, BitWidth, (UINT32) Length));
 
     /*
      * Region support can be disabled with the -do option.
@@ -410,7 +410,7 @@ AeRegionHandler (
         if (AcpiGbl_DisplayRegionAccess)
         {
             AcpiOsPrintf ("AcpiExec: %s "
-                "%s: Attr %X Addr %.4X BaseAddr %.4X Len %.2X Width %X BufLen %X",
+                "%s: Attr %X Addr %.4X BaseAddr %.4X Length %.2X BitWidth %X BufLen %X",
                 AcpiUtGetRegionName (SpaceId),
                 (Function & ACPI_IO_MASK) ? "Write" : "Read ",
                 (UINT32) (Function >> 16),
@@ -424,7 +424,7 @@ AeRegionHandler (
                 Status = AcpiBufferToResource (MyContext->Connection,
                     MyContext->Length, &Resource);
 
-                AcpiOsPrintf (" [AccLen %.2X Conn %p]",
+                AcpiOsPrintf (" [AccessLength %.2X Connnection %p]",
                     MyContext->AccessLength, MyContext->Connection);
             }
             AcpiOsPrintf ("\n");

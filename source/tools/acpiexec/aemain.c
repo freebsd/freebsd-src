@@ -199,6 +199,8 @@ BOOLEAN                     AcpiGbl_LoadTestTables = FALSE;
 BOOLEAN                     AcpiGbl_AeLoadOnly = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
+INIT_FILE_ENTRY             *AcpiGbl_InitEntries = NULL;
+UINT32                      AcpiGbl_InitFileLineCount = 0;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
 #define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghlm^rt^v^:x:"
@@ -677,6 +679,8 @@ main (
         signal (SIGSEGV, AeSignalHandler);
     }
 
+    AeProcessInitFile();
+
     /* The remaining arguments are filenames for ACPI tables */
 
     if (!argv[AcpiGbl_Optind])
@@ -785,12 +789,6 @@ main (
      */
     AeInstallLateHandlers ();
 
-    /*
-     * This call implements the "initialization file" option for AcpiExec.
-     * This is the precise point that we want to perform the overrides.
-     */
-    AeDoObjectOverrides ();
-
     /* Finish the ACPICA initialization */
 
     Status = AcpiInitializeObjects (InitFlags);
@@ -848,5 +846,6 @@ NormalExit:
 ErrorExit:
     (void) AcpiTerminate ();
     AcDeleteTableList (ListHead);
+    AcpiOsFree (AcpiGbl_InitEntries);
     return (ExitCode);
 }
