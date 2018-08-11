@@ -2,9 +2,9 @@
 
 .include <src.opts.mk>
 
-FILESGROUPS=	FILES DATA
+CONFGROUPS=	CONFS DATA
 
-FILES=	100.chksetuid \
+CONFS=	100.chksetuid \
 	110.neggrpperm \
 	200.chkmounts \
 	300.chkuid0 \
@@ -13,25 +13,26 @@ FILES=	100.chksetuid \
 	700.kernelmsg \
 	800.loginfail
 DATA=	security.functions
+DATAMODE=	444
 
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_IPFILTER} != "no"
-FILES+=	510.ipfdenied
-FILES+=	610.ipf6denied
+CONFS+=	510.ipfdenied
+CONFS+=	610.ipf6denied
 .endif
 
 .if ${MK_IPFW} != "no"
-FILES+=	500.ipfwdenied \
+CONFS+=	500.ipfwdenied \
 	550.ipfwlimit
 .endif
 
 .if ${MK_PF} != "no"
-FILES+=	520.pfdenied
+CONFS+=	520.pfdenied
 .endif
 
 .if ${MK_INETD} != "no" && ${MK_TCP_WRAPPERS} != "no"
-FILES+=	900.tcpwrap
+CONFS+=	900.tcpwrap
 .endif
 
 .include <bsd.prog.mk>
