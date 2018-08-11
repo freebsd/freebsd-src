@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2017
+.Dd August 11, 2018
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -462,8 +462,11 @@ responsible for mounting and unmounting the file system.
 dataset can be attached to a jail by using the
 .Qq Nm Cm jail
 subcommand. You cannot attach a dataset to one jail and the children of the
-same dataset to another jails. To allow management of the dataset from within
-a jail, the
+same dataset to another jail. You can also not attach the root file system
+of the jail or any dataset which needs to be mounted before the zfs rc script
+is run inside the jail, as it would be attached unmounted until it is
+mounted from the rc script inside the jail. To allow management of the
+dataset from within a jail, the
 .Sy jailed
 property has to be set and the jail needs access to the
 .Pa /dev/zfs
