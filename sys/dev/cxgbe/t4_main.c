@@ -1052,7 +1052,7 @@ t4_attach(device_t dev)
 		s->ntxq += nports * (num_vis - 1) * iaq.ntxq_vi;
 	}
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += nports + 1;/* ctrl queues: 1 per port + 1 mgmt */
+	s->neq += nports;		/* ctrl queues: 1 per port */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	if (is_offload(sc) || is_ethoffload(sc)) {

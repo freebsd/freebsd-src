@@ -224,8 +224,8 @@ static void add_fl_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_fl *);
 static int alloc_fwq(struct adapter *);
 static int free_fwq(struct adapter *);
-static int alloc_mgmtq(struct adapter *);
-static int free_mgmtq(struct adapter *);
+static int alloc_ctrlq(struct adapter *, struct sge_wrq *, int,
+    struct sysctl_oid *);
 static int alloc_rxq(struct vi_info *, struct sge_rxq *, int, int,
     struct sysctl_oid *);
 static int free_rxq(struct vi_info *, struct sge_rxq *);
@@ -1009,7 +1009,8 @@ t4_destroy_dma_tag(struct adapter *sc)
 }
 
 /*
- * Allocate and initialize the firmware event queue and the management queue.
+ * Allocate and initialize the firmware event queue, control queues, and special
+ * purpose rx queues owned by the adapter.
  *
  * Returns errno on failure.  Resources allocated up to that point may still be
  * allocated.  Caller is responsible for cleanup in case this function fails.
@@ -1017,7 +1018,9 @@ t4_destroy_dma_tag(struct adapter *sc)
 int
 t4_setup_adapter_queues(struct adapter *sc)
 {
-	int rc;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children;
+	int rc, i;
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
@@ -1032,11 +1035,30 @@ t4_setup_adapter_queues(struct adapter *sc)
 		return (rc);
 
 	/*
-	 * Management queue.  This is just a control queue that uses the fwq as
-	 * its associated iq.
+	 * That's all for the VF driver.
 	 */
-	if (!(sc->flags & IS_VF))
-		rc = alloc_mgmtq(sc);
+	if (sc->flags & IS_VF)
+		return (rc);
+
+	oid = device_get_sysctl_tree(sc->dev);
+	children = SYSCTL_CHILDREN(oid);
+
+	/*
+	 * XXX: General purpose rx queues, one per port.
+	 */
+
+	/*
+	 * Control queues, one per port.
+	 */
+	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "ctrlq",
+	    CTLFLAG_RD, NULL, "control queues");
+	for_each_port(sc, i) {
+		struct sge_wrq *ctrlq = &sc->sge.ctrlq[i];
+
+		rc = alloc_ctrlq(sc, ctrlq, i, oid);
+		if (rc != 0)
+			return (rc);
+	}
 
 	return (rc);
 }
@@ -1047,6 +1069,7 @@ t4_setup_adapter_queues(struct adapter *sc)
 int
 t4_teardown_adapter_queues(struct adapter *sc)
 {
+	int i;
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
@@ -1056,7 +1079,8 @@ t4_teardown_adapter_queues(struct adapter *sc)
 		sc->flags &= ~ADAP_SYSCTL_CTX;
 	}
 
-	free_mgmtq(sc);
+	for_each_port(sc, i)
+		free_wrq(sc, &sc->sge.ctrlq[i]);
 	free_fwq(sc);
 
 	return (0);
@@ -1092,7 +1116,6 @@ t4_setup_vi_queues(struct vi_info *vi)
 	int rc = 0, i, intr_idx, iqidx;
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
-	struct sge_wrq *ctrlq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
@@ -1239,20 +1262,6 @@ t4_setup_vi_queues(struct vi_info *vi)
 			goto done;
 	}
 #endif
-
-	/*
-	 * Finally, the control queue.
-	 */
-	if (!IS_MAIN_VI(vi) || sc->flags & IS_VF)
-		goto done;
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ctrlq", CTLFLAG_RD,
-	    NULL, "ctrl queue");
-	ctrlq = &sc->sge.ctrlq[pi->port_id];
-	snprintf(name, sizeof(name), "%s ctrlq", device_get_nameunit(vi->dev));
-	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, pi->tx_chan,
-	    sc->sge.rxq[vi->first_rxq].iq.cntxt_id, name);
-	rc = alloc_wrq(sc, vi, ctrlq, oid);
-
 done:
 	if (rc)
 		t4_teardown_vi_queues(vi);
@@ -1267,15 +1276,15 @@ int
 t4_teardown_vi_queues(struct vi_info *vi)
 {
 	int i;
-	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+	struct sge_wrq *ofld_txq;
+#endif
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
-#endif
-#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-	struct sge_wrq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
 	struct sge_nm_rxq *nm_rxq;
@@ -1304,9 +1313,6 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	 * Take down all the tx queues first, as they reference the rx queues
 	 * (for egress updates, etc.).
 	 */
-
-	if (IS_MAIN_VI(vi) && !(sc->flags & IS_VF))
-		free_wrq(sc, &sc->sge.ctrlq[pi->port_id]);
 
 	for_each_txq(vi, i, txq) {
 		free_txq(vi, txq);
@@ -3257,35 +3263,25 @@ free_fwq(struct adapter *sc)
 }
 
 static int
-alloc_mgmtq(struct adapter *sc)
+alloc_ctrlq(struct adapter *sc, struct sge_wrq *ctrlq, int idx,
+    struct sysctl_oid *oid)
 {
 	int rc;
-	struct sge_wrq *mgmtq = &sc->sge.mgmtq;
 	char name[16];
-	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	struct sysctl_oid_list *children;
 
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "mgmtq", CTLFLAG_RD,
-	    NULL, "management queue");
-
-	snprintf(name, sizeof(name), "%s mgmtq", device_get_nameunit(sc->dev));
-	init_eq(sc, &mgmtq->eq, EQ_CTRL, CTRL_EQ_QSIZE, sc->port[0]->tx_chan,
+	snprintf(name, sizeof(name), "%s ctrlq%d", device_get_nameunit(sc->dev),
+	    idx);
+	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, sc->port[idx]->tx_chan,
 	    sc->sge.fwq.cntxt_id, name);
-	rc = alloc_wrq(sc, NULL, mgmtq, oid);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create management queue: %d\n", rc);
-		return (rc);
-	}
 
-	return (0);
-}
+	children = SYSCTL_CHILDREN(oid);
+	snprintf(name, sizeof(name), "%d", idx);
+	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, name, CTLFLAG_RD,
+	    NULL, "ctrl queue");
+	rc = alloc_wrq(sc, NULL, ctrlq, oid);
 
-static int
-free_mgmtq(struct adapter *sc)
-{
-
-	return free_wrq(sc, &sc->sge.mgmtq);
+	return (rc);
 }
 
 int

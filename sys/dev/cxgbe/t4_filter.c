@@ -400,7 +400,7 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te,
 			len16 = howmany(sizeof(struct fw_filter2_wr), 16);
 		else
 			len16 = howmany(sizeof(struct fw_filter_wr), 16);
-		fwr = start_wrq_wr(&sc->sge.mgmtq, len16, &cookie);
+		fwr = start_wrq_wr(&sc->sge.ctrlq[0], len16, &cookie);
 		if (__predict_false(fwr == NULL))
 			rc = ENOMEM;
 		else {
@@ -519,7 +519,7 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te,
 		fwr->newfport = htobe16(f->fs.nat_sport);
 		fwr->natseqcheck = htobe32(f->fs.nat_seq_chk);
 	}
-	commit_wrq_wr(&sc->sge.mgmtq, fwr, &cookie);
+	commit_wrq_wr(&sc->sge.ctrlq[0], fwr, &cookie);
 
 	/* Wait for response. */
 	mtx_lock(&sc->tids.ftid_lock);
@@ -824,7 +824,7 @@ del_tcamfilter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 	MPASS(f->tid == tid_base + t->idx);
-	fwr = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*fwr), 16), &cookie);
+	fwr = start_wrq_wr(&sc->sge.ctrlq[0], howmany(sizeof(*fwr), 16), &cookie);
 	if (fwr == NULL) {
 		rc = ENOMEM;
 		goto done;
@@ -833,7 +833,7 @@ del_tcamfilter(struct adapter *sc, struct t4_filter *t)
 	bzero(fwr, sizeof (*fwr));
 	t4_mk_filtdelwr(f->tid, fwr, sc->sge.fwq.abs_id);
 	f->pending = 1;
-	commit_wrq_wr(&sc->sge.mgmtq, fwr, &cookie);
+	commit_wrq_wr(&sc->sge.ctrlq[0], fwr, &cookie);
 	t->fs = f->fs;	/* extra info for the caller */
 
 	for (;;) {
@@ -901,7 +901,7 @@ set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
 	struct wrq_cookie cookie;
 	struct cpl_set_tcb_field *req;
 
-	req = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*req), 16), &cookie);
+	req = start_wrq_wr(&sc->sge.ctrlq[0], howmany(sizeof(*req), 16), &cookie);
 	if (req == NULL)
 		return (ENOMEM);
 	bzero(req, sizeof(*req));
@@ -914,7 +914,7 @@ set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(CPL_COOKIE_HASHFILTER));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
-	commit_wrq_wr(&sc->sge.mgmtq, req, &cookie);
+	commit_wrq_wr(&sc->sge.ctrlq[0], req, &cookie);
 
 	return (0);
 }
@@ -1044,7 +1044,7 @@ t4_hashfilter_ao_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		f->tid = act_open_rpl_status_to_errno(status);
 		f->valid = 0;
 		if (act_open_has_tid(status))
-			release_tid(sc, GET_TID(cpl), &sc->sge.mgmtq);
+			release_tid(sc, GET_TID(cpl), &sc->sge.ctrlq[0]);
 		free_filter_resources(f);
 		if (f->locked == 0)
 			free(f, M_CXGBE);
@@ -1081,7 +1081,7 @@ t4_hashfilter_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		f->valid = 0;
 		free_filter_resources(f);
 		remove_hftid(sc, tid, f->fs.type ? 2 : 1);
-		release_tid(sc, tid, &sc->sge.mgmtq);
+		release_tid(sc, tid, &sc->sge.ctrlq[0]);
 		if (f->locked == 0)
 			free(f, M_CXGBE);
 	}
@@ -1112,7 +1112,7 @@ t4_del_hashfilter_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		f->valid = 0;
 		free_filter_resources(f);
 		remove_hftid(sc, tid, f->fs.type ? 2 : 1);
-		release_tid(sc, tid, &sc->sge.mgmtq);
+		release_tid(sc, tid, &sc->sge.ctrlq[0]);
 		if (f->locked == 0)
 			free(f, M_CXGBE);
 	}
@@ -1374,7 +1374,7 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 	}
 	MPASS(atid >= 0);
 
-	wr = start_wrq_wr(&sc->sge.mgmtq, act_open_cpl_len16(sc, f->fs.type),
+	wr = start_wrq_wr(&sc->sge.ctrlq[0], act_open_cpl_len16(sc, f->fs.type),
 	    &cookie);
 	if (wr == NULL) {
 		free_atid(sc, atid);
@@ -1394,7 +1394,7 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 	f->locked = 1; /* ithread mustn't free f if ioctl is still around. */
 	f->pending = 1;
 	f->tid = -1;
-	commit_wrq_wr(&sc->sge.mgmtq, wr, &cookie);
+	commit_wrq_wr(&sc->sge.ctrlq[0], wr, &cookie);
 
 	for (;;) {
 		MPASS(f->locked);
@@ -1571,7 +1571,7 @@ del_hashfilter(struct adapter *sc, struct t4_filter *t)
 		rc = EBUSY;
 		goto done;
 	}
-	wr = start_wrq_wr(&sc->sge.mgmtq, howmany(wrlen, 16), &cookie);
+	wr = start_wrq_wr(&sc->sge.ctrlq[0], howmany(wrlen, 16), &cookie);
 	if (wr == NULL) {
 		rc = ENOMEM;
 		goto done;
@@ -1580,7 +1580,7 @@ del_hashfilter(struct adapter *sc, struct t4_filter *t)
 	mk_del_hashfilter_wr(t->idx, wr, wrlen, sc->sge.fwq.abs_id);
 	f->locked = 1;
 	f->pending = 1;
-	commit_wrq_wr(&sc->sge.mgmtq, wr, &cookie);
+	commit_wrq_wr(&sc->sge.ctrlq[0], wr, &cookie);
 	t->fs = f->fs;	/* extra info for the caller */
 
 	for (;;) {
