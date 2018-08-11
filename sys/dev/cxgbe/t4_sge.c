@@ -204,6 +204,7 @@ struct sgl {
 };
 
 static int service_iq(struct sge_iq *, int);
+static int service_iq_fl(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
@@ -1333,8 +1334,12 @@ t4_teardown_vi_queues(struct vi_info *vi)
 }
 
 /*
- * Deals with errors and the firmware event queue.  All data rx queues forward
- * their interrupt to the firmware event queue.
+ * Interrupt handler when the driver is using only 1 interrupt.  This is a very
+ * unusual scenario.
+ *
+ * a) Deals with errors, if any.
+ * b) Services firmware event queue, which is taking interrupts for all other
+ *    queues.
  */
 void
 t4_intr_all(void *arg)
@@ -1342,14 +1347,16 @@ t4_intr_all(void *arg)
 	struct adapter *sc = arg;
 	struct sge_iq *fwq = &sc->sge.fwq;
 
+	MPASS(sc->intr_count == 1);
+
 	t4_intr_err(arg);
-	if (atomic_cmpset_int(&fwq->state, IQS_IDLE, IQS_BUSY)) {
-		service_iq(fwq, 0);
-		atomic_cmpset_int(&fwq->state, IQS_BUSY, IQS_IDLE);
-	}
+	t4_intr_evt(fwq);
 }
 
-/* Deals with error interrupts */
+/*
+ * Interrupt handler for errors (installed directly when multiple interrupts are
+ * being used, or called by t4_intr_all).
+ */
 void
 t4_intr_err(void *arg)
 {
@@ -1359,6 +1366,10 @@ t4_intr_err(void *arg)
 	t4_slow_intr_handler(sc);
 }
 
+/*
+ * Interrupt handler for iq-only queues.  The firmware event queue is the only
+ * such queue right now.
+ */
 void
 t4_intr_evt(void *arg)
 {
@@ -1370,89 +1381,73 @@ t4_intr_evt(void *arg)
 	}
 }
 
+/*
+ * Interrupt handler for iq+fl queues.
+ */
 void
 t4_intr(void *arg)
 {
 	struct sge_iq *iq = arg;
 
 	if (atomic_cmpset_int(&iq->state, IQS_IDLE, IQS_BUSY)) {
-		service_iq(iq, 0);
+		service_iq_fl(iq, 0);
 		atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
 	}
 }
 
+#ifdef DEV_NETMAP
+/*
+ * Interrupt handler for netmap rx queues.
+ */
+void
+t4_nm_intr(void *arg)
+{
+	struct sge_nm_rxq *nm_rxq = arg;
+
+	if (atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_BUSY)) {
+		service_nm_rxq(nm_rxq);
+		atomic_cmpset_int(&nm_rxq->nm_state, NM_BUSY, NM_ON);
+	}
+}
+
+/*
+ * Interrupt handler for vectors shared between NIC and netmap rx queues.
+ */
 void
 t4_vi_intr(void *arg)
 {
 	struct irq *irq = arg;
 
-#ifdef DEV_NETMAP
-	if (atomic_cmpset_int(&irq->nm_state, NM_ON, NM_BUSY)) {
-		t4_nm_intr(irq->nm_rxq);
-		atomic_cmpset_int(&irq->nm_state, NM_BUSY, NM_ON);
-	}
+	MPASS(irq->nm_rxq != NULL);
+	t4_nm_intr(irq->nm_rxq);
+
+	MPASS(irq->rxq != NULL);
+	t4_intr(irq->rxq);
+}
 #endif
-	if (irq->rxq != NULL)
-		t4_intr(irq->rxq);
-}
-
-static inline int
-sort_before_lro(struct lro_ctrl *lro)
-{
-
-	return (lro->lro_mbuf_max != 0);
-}
 
 /*
- * Deals with anything and everything on the given ingress queue.
+ * Deals with interrupts on an iq-only (no freelist) queue.
  */
 static int
 service_iq(struct sge_iq *iq, int budget)
 {
 	struct sge_iq *q;
-	struct sge_rxq *rxq = iq_to_rxq(iq);	/* Use iff iq is part of rxq */
-	struct sge_fl *fl;			/* Use iff IQ_HAS_FL */
 	struct adapter *sc = iq->adapter;
 	struct iq_desc *d = &iq->desc[iq->cidx];
 	int ndescs = 0, limit;
-	int rsp_type, refill;
+	int rsp_type;
 	uint32_t lq;
-	uint16_t fl_hw_cidx;
-	struct mbuf *m0;
 	STAILQ_HEAD(, sge_iq) iql = STAILQ_HEAD_INITIALIZER(iql);
-#if defined(INET) || defined(INET6)
-	const struct timeval lro_timeout = {0, sc->lro_timeout};
-	struct lro_ctrl *lro = &rxq->lro;
-#endif
 
 	KASSERT(iq->state == IQS_BUSY, ("%s: iq %p not BUSY", __func__, iq));
+	KASSERT((iq->flags & IQ_HAS_FL) == 0,
+	    ("%s: called for iq %p with fl (iq->flags 0x%x)", __func__, iq,
+	    iq->flags));
+	MPASS((iq->flags & IQ_ADJ_CREDIT) == 0);
+	MPASS((iq->flags & IQ_LRO_ENABLED) == 0);
 
 	limit = budget ? budget : iq->qsize / 16;
-
-	if (iq->flags & IQ_HAS_FL) {
-		fl = &rxq->fl;
-		fl_hw_cidx = fl->hw_cidx;	/* stable snapshot */
-	} else {
-		fl = NULL;
-		fl_hw_cidx = 0;			/* to silence gcc warning */
-	}
-
-#if defined(INET) || defined(INET6)
-	if (iq->flags & IQ_ADJ_CREDIT) {
-		MPASS(sort_before_lro(lro));
-		iq->flags &= ~IQ_ADJ_CREDIT;
-		if ((d->rsp.u.type_gen & F_RSPD_GEN) != iq->gen) {
-			tcp_lro_flush_all(lro);
-			t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(1) |
-			    V_INGRESSQID((u32)iq->cntxt_id) |
-			    V_SEINTARM(iq->intr_params));
-			return (0);
-		}
-		ndescs = 1;
-	}
-#else
-	MPASS((iq->flags & IQ_ADJ_CREDIT) == 0);
-#endif
 
 	/*
 	 * We always come back and check the descriptor ring for new indirect
@@ -1463,74 +1458,40 @@ service_iq(struct sge_iq *iq, int budget)
 
 			rmb();
 
-			refill = 0;
-			m0 = NULL;
 			rsp_type = G_RSPD_TYPE(d->rsp.u.type_gen);
 			lq = be32toh(d->rsp.pldbuflen_qid);
 
 			switch (rsp_type) {
 			case X_RSPD_TYPE_FLBUF:
+				panic("%s: data for an iq (%p) with no freelist",
+				    __func__, iq);
 
-				KASSERT(iq->flags & IQ_HAS_FL,
-				    ("%s: data for an iq (%p) with no freelist",
-				    __func__, iq));
-
-				m0 = get_fl_payload(sc, fl, lq);
-				if (__predict_false(m0 == NULL))
-					goto process_iql;
-				refill = IDXDIFF(fl->hw_cidx, fl_hw_cidx, fl->sidx) > 2;
-#ifdef T4_PKT_TIMESTAMP
-				/*
-				 * 60 bit timestamp for the payload is
-				 * *(uint64_t *)m0->m_pktdat.  Note that it is
-				 * in the leading free-space in the mbuf.  The
-				 * kernel can clobber it during a pullup,
-				 * m_copymdata, etc.  You need to make sure that
-				 * the mbuf reaches you unmolested if you care
-				 * about the timestamp.
-				 */
-				*(uint64_t *)m0->m_pktdat =
-				    be64toh(ctrl->u.last_flit) &
-				    0xfffffffffffffff;
-#endif
-
-				/* fall through */
+				/* NOTREACHED */
 
 			case X_RSPD_TYPE_CPL:
 				KASSERT(d->rss.opcode < NUM_CPL_CMDS,
 				    ("%s: bad opcode %02x.", __func__,
 				    d->rss.opcode));
-				t4_cpl_handler[d->rss.opcode](iq, &d->rss, m0);
+				t4_cpl_handler[d->rss.opcode](iq, &d->rss, NULL);
 				break;
 
 			case X_RSPD_TYPE_INTR:
-
-				/*
-				 * Interrupts should be forwarded only to queues
-				 * that are not forwarding their interrupts.
-				 * This means service_iq can recurse but only 1
-				 * level deep.
-				 */
-				KASSERT(budget == 0,
-				    ("%s: budget %u, rsp_type %u", __func__,
-				    budget, rsp_type));
-
 				/*
 				 * There are 1K interrupt-capable queues (qids 0
 				 * through 1023).  A response type indicating a
 				 * forwarded interrupt with a qid >= 1K is an
 				 * iWARP async notification.
 				 */
-				if (lq >= 1024) {
-                                        t4_an_handler(iq, &d->rsp);
-                                        break;
-                                }
+				if (__predict_true(lq >= 1024)) {
+					t4_an_handler(iq, &d->rsp);
+					break;
+				}
 
 				q = sc->sge.iqmap[lq - sc->sge.iq_start -
 				    sc->sge.iq_base];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
-					if (service_iq(q, q->qsize / 16) == 0) {
+					if (service_iq_fl(q, q->qsize / 16) == 0) {
 						atomic_cmpset_int(&q->state,
 						    IQS_BUSY, IQS_IDLE);
 					} else {
@@ -1563,33 +1524,12 @@ service_iq(struct sge_iq *iq, int budget)
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 				ndescs = 0;
 
-#if defined(INET) || defined(INET6)
-				if (iq->flags & IQ_LRO_ENABLED &&
-				    !sort_before_lro(lro) &&
-				    sc->lro_timeout != 0) {
-					tcp_lro_flush_inactive(lro,
-					    &lro_timeout);
-				}
-#endif
-
 				if (budget) {
-					if (iq->flags & IQ_HAS_FL) {
-						FL_LOCK(fl);
-						refill_fl(sc, fl, 32);
-						FL_UNLOCK(fl);
-					}
 					return (EINPROGRESS);
 				}
 			}
-			if (refill) {
-				FL_LOCK(fl);
-				refill_fl(sc, fl, 32);
-				FL_UNLOCK(fl);
-				fl_hw_cidx = fl->hw_cidx;
-			}
 		}
 
-process_iql:
 		if (STAILQ_EMPTY(&iql))
 			break;
 
@@ -1599,12 +1539,167 @@ process_iql:
 		 */
 		q = STAILQ_FIRST(&iql);
 		STAILQ_REMOVE_HEAD(&iql, link);
-		if (service_iq(q, q->qsize / 8) == 0)
+		if (service_iq_fl(q, q->qsize / 8) == 0)
 			atomic_cmpset_int(&q->state, IQS_BUSY, IQS_IDLE);
 		else
 			STAILQ_INSERT_TAIL(&iql, q, link);
 	}
 
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
+	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
+
+	return (0);
+}
+
+static inline int
+sort_before_lro(struct lro_ctrl *lro)
+{
+
+	return (lro->lro_mbuf_max != 0);
+}
+
+/*
+ * Deals with interrupts on an iq+fl queue.
+ */
+static int
+service_iq_fl(struct sge_iq *iq, int budget)
+{
+	struct sge_rxq *rxq = iq_to_rxq(iq);
+	struct sge_fl *fl;
+	struct adapter *sc = iq->adapter;
+	struct iq_desc *d = &iq->desc[iq->cidx];
+	int ndescs = 0, limit;
+	int rsp_type, refill, starved;
+	uint32_t lq;
+	uint16_t fl_hw_cidx;
+	struct mbuf *m0;
+#if defined(INET) || defined(INET6)
+	const struct timeval lro_timeout = {0, sc->lro_timeout};
+	struct lro_ctrl *lro = &rxq->lro;
+#endif
+
+	KASSERT(iq->state == IQS_BUSY, ("%s: iq %p not BUSY", __func__, iq));
+	MPASS(iq->flags & IQ_HAS_FL);
+
+	limit = budget ? budget : iq->qsize / 16;
+	fl = &rxq->fl;
+	fl_hw_cidx = fl->hw_cidx;	/* stable snapshot */
+
+#if defined(INET) || defined(INET6)
+	if (iq->flags & IQ_ADJ_CREDIT) {
+		MPASS(sort_before_lro(lro));
+		iq->flags &= ~IQ_ADJ_CREDIT;
+		if ((d->rsp.u.type_gen & F_RSPD_GEN) != iq->gen) {
+			tcp_lro_flush_all(lro);
+			t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(1) |
+			    V_INGRESSQID((u32)iq->cntxt_id) |
+			    V_SEINTARM(iq->intr_params));
+			return (0);
+		}
+		ndescs = 1;
+	}
+#else
+	MPASS((iq->flags & IQ_ADJ_CREDIT) == 0);
+#endif
+
+	while ((d->rsp.u.type_gen & F_RSPD_GEN) == iq->gen) {
+
+		rmb();
+
+		refill = 0;
+		m0 = NULL;
+		rsp_type = G_RSPD_TYPE(d->rsp.u.type_gen);
+		lq = be32toh(d->rsp.pldbuflen_qid);
+
+		switch (rsp_type) {
+		case X_RSPD_TYPE_FLBUF:
+
+			m0 = get_fl_payload(sc, fl, lq);
+			if (__predict_false(m0 == NULL))
+				goto out;
+			refill = IDXDIFF(fl->hw_cidx, fl_hw_cidx, fl->sidx) > 2;
+#ifdef T4_PKT_TIMESTAMP
+			/*
+			 * 60 bit timestamp for the payload is
+			 * *(uint64_t *)m0->m_pktdat.  Note that it is
+			 * in the leading free-space in the mbuf.  The
+			 * kernel can clobber it during a pullup,
+			 * m_copymdata, etc.  You need to make sure that
+			 * the mbuf reaches you unmolested if you care
+			 * about the timestamp.
+			 */
+			*(uint64_t *)m0->m_pktdat =
+			    be64toh(ctrl->u.last_flit) & 0xfffffffffffffff;
+#endif
+
+			/* fall through */
+
+		case X_RSPD_TYPE_CPL:
+			KASSERT(d->rss.opcode < NUM_CPL_CMDS,
+			    ("%s: bad opcode %02x.", __func__, d->rss.opcode));
+			t4_cpl_handler[d->rss.opcode](iq, &d->rss, m0);
+			break;
+
+		case X_RSPD_TYPE_INTR:
+
+			/*
+			 * There are 1K interrupt-capable queues (qids 0
+			 * through 1023).  A response type indicating a
+			 * forwarded interrupt with a qid >= 1K is an
+			 * iWARP async notification.  That is the only
+			 * acceptable indirect interrupt on this queue.
+			 */
+			if (__predict_false(lq < 1024)) {
+				panic("%s: indirect interrupt on iq_fl %p "
+				    "with qid %u", __func__, iq, lq);
+			}
+
+			t4_an_handler(iq, &d->rsp);
+			break;
+
+		default:
+			KASSERT(0, ("%s: illegal response type %d on iq %p",
+			    __func__, rsp_type, iq));
+			log(LOG_ERR, "%s: illegal response type %d on iq %p",
+			    device_get_nameunit(sc->dev), rsp_type, iq);
+			break;
+		}
+
+		d++;
+		if (__predict_false(++iq->cidx == iq->sidx)) {
+			iq->cidx = 0;
+			iq->gen ^= F_RSPD_GEN;
+			d = &iq->desc[0];
+		}
+		if (__predict_false(++ndescs == limit)) {
+			t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
+			    V_INGRESSQID(iq->cntxt_id) |
+			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
+			ndescs = 0;
+
+#if defined(INET) || defined(INET6)
+			if (iq->flags & IQ_LRO_ENABLED &&
+			    !sort_before_lro(lro) &&
+			    sc->lro_timeout != 0) {
+				tcp_lro_flush_inactive(lro, &lro_timeout);
+			}
+#endif
+			if (budget) {
+				FL_LOCK(fl);
+				refill_fl(sc, fl, 32);
+				FL_UNLOCK(fl);
+
+				return (EINPROGRESS);
+			}
+		}
+		if (refill) {
+			FL_LOCK(fl);
+			refill_fl(sc, fl, 32);
+			FL_UNLOCK(fl);
+			fl_hw_cidx = fl->hw_cidx;
+		}
+	}
+out:
 #if defined(INET) || defined(INET6)
 	if (iq->flags & IQ_LRO_ENABLED) {
 		if (ndescs > 0 && lro->lro_mbuf_count > 8) {
@@ -1621,15 +1716,11 @@ process_iql:
 	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 
-	if (iq->flags & IQ_HAS_FL) {
-		int starved;
-
-		FL_LOCK(fl);
-		starved = refill_fl(sc, fl, 64);
-		FL_UNLOCK(fl);
-		if (__predict_false(starved != 0))
-			add_fl_to_sfl(sc, fl);
-	}
+	FL_LOCK(fl);
+	starved = refill_fl(sc, fl, 64);
+	FL_UNLOCK(fl);
+	if (__predict_false(starved != 0))
+		add_fl_to_sfl(sc, fl);
 
 	return (0);
 }
