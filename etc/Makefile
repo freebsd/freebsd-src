@@ -93,10 +93,6 @@ SSH=	${SRCTOP}/crypto/openssh/ssh_config \
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
 
-.if ${MK_PF} != "no"
-BIN1+= pf.os
-.endif
-
 .if ${MK_SENDMAIL} != "no"
 BIN1+=	rc.sendmail
 .endif
