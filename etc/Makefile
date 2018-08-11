@@ -15,7 +15,6 @@ SUBDIR+=sendmail
 BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
-	ddb.conf \
 	dhclient.conf \
 	disktab \
 	fbtab \
