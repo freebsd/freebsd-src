@@ -989,7 +989,6 @@ vmem_clip(vmem_t *vm, bt_t *bt, vmem_addr_t start, vmem_size_t size)
 		bt_insbusy(vm, bt);
 	}
 	MPASS(bt->bt_size >= size);
-	bt->bt_type = BT_TYPE_BUSY;
 }
 
 /* ---- vmem API */
