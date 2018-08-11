@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2017
+.Dd August 11, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@ and
 .Pa /usr/ports .
 These directories may be initially empty or non-existent until updated with
 .Xr svn 1
+or
+.Xr svnlite 1
 or
 .Xr portsnap 8 .
 Directory
@@ -789,6 +791,7 @@ make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr svn 1 ,
+.Xr svnlite 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
 .Xr arch 7 ,
