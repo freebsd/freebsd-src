@@ -15,7 +15,6 @@ SUBDIR+=sendmail
 BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
-	ddb.conf \
 	dhclient.conf \
 	disktab \
 	fbtab \
@@ -42,7 +41,6 @@ BIN1=	crontab \
 	remote \
 	rpc \
 	services \
-	sysctl.conf \
 	syslog.conf \
 	termcap.small
 
@@ -55,14 +53,6 @@ BIN1+=	etc.${MACHINE_CPUARCH}/ttys
 .else
 .error etc.MACHINE/ttys missing
 .endif
-
-OPENBSMDIR=			${SRCTOP}/contrib/openbsm
-BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
-				${OPENBSMDIR}/etc/audit_event
-BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
-				${OPENBSMDIR}/etc/audit_user
-BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
-BSM_ETC_DIR=			${DESTDIR}/etc/security
 
 # NB: keep these sorted by MK_* knobs
 
@@ -101,10 +91,6 @@ SSH=	${SRCTOP}/crypto/openssh/ssh_config \
 .endif
 .if ${MK_OPENSSL} != "no"
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
-.endif
-
-.if ${MK_PF} != "no"
-BIN1+= pf.os
 .endif
 
 .if ${MK_SENDMAIL} != "no"
@@ -168,11 +154,6 @@ distribution:
 		${DESTDIR}/etc/services;
 .endif
 
-.if ${MK_BSNMP} != "no"
-	cd ${.CURDIR}; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		snmpd.config ${DESTDIR}/etc;
-.endif
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
@@ -189,7 +170,6 @@ distribution:
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
-	${_+_}cd ${.CURDIR}/cron.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
@@ -203,12 +183,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
-	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
-	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
-	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \

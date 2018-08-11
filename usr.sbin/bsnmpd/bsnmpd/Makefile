@@ -7,6 +7,8 @@
 CONTRIB=${SRCTOP}/contrib/bsnmp
 .PATH: ${CONTRIB}/snmpd
 
+CONFS=	snmpd.config
+CONFSMODE=	600
 PROG=	bsnmpd
 SRCS=	main.c action.c config.c export.c trap.c trans_udp.c trans_lsock.c
 SRCS+=	oid.h tree.c tree.h

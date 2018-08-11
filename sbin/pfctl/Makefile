@@ -6,6 +6,7 @@
 .PATH: ${SRCTOP}/sys/netpfil/pf
 
 PACKAGE=pf
+CONFS=	pf.os
 PROG=	pfctl
 MAN=	pfctl.8
 

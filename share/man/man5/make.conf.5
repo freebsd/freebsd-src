@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2018
+.Dd August 11, 2018
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -234,12 +234,13 @@ Set this to not update the ports tree during
 .Pq Vt bool
 Set this to use
 .Xr svn 1
+or
+.Xr svnlite 1
 to update your
 .Pa src
 tree with
 .Dq Li "make update" .
-Note that since a subversion client is not included in the base system,
-you will need to set
+Note that you can set
 .Va SVN
 to the full path of a
 .Xr svn 1
