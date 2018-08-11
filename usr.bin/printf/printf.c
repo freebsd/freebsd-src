@@ -388,7 +388,7 @@ printf_doformat(char *fmt, int *rval)
 
 		free(p);
 		if (getout)
-			exit(*rval);
+			return (end_fmt);
 		break;
 	}
 	case 'c': {
