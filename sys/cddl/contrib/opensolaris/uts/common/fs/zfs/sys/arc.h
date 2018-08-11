@@ -69,9 +69,9 @@ typedef struct arc_prune arc_prune_t;
  * parameter will be NULL.
  */
 typedef void arc_read_done_func_t(zio_t *zio, const zbookmark_phys_t *zb,
-    const blkptr_t *bp, arc_buf_t *buf, void *private);
-typedef void arc_write_done_func_t(zio_t *zio, arc_buf_t *buf, void *private);
-typedef void arc_prune_func_t(int64_t bytes, void *private);
+    const blkptr_t *bp, arc_buf_t *buf, void *priv);
+typedef void arc_write_done_func_t(zio_t *zio, arc_buf_t *buf, void *priv);
+typedef void arc_prune_func_t(int64_t bytes, void *priv);
 
 /* Shared module parameters */
 extern uint64_t zfs_arc_average_blocksize;
@@ -221,7 +221,7 @@ zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     void *priv, zio_priority_t priority, int zio_flags,
     const zbookmark_phys_t *zb);
 
-arc_prune_t *arc_add_prune_callback(arc_prune_func_t *func, void *private);
+arc_prune_t *arc_add_prune_callback(arc_prune_func_t *func, void *priv);
 void arc_remove_prune_callback(arc_prune_t *p);
 void arc_freed(spa_t *spa, const blkptr_t *bp);
 
