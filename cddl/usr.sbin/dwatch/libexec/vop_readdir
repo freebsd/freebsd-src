@@ -163,6 +163,7 @@ $PROBE /this->fi_mount != 0/ /* probe ID $(( $ID + $MAX_DEPTH + 4 )) */
 	this->path = strjoin(this->path, strjoin(this->name =
 		(this->d_name != 0 ? this->d_name : ""),
 		this->name != "" ? "/" : ""));
+}
 EOF
 ACTIONS=$( cat <&9 )
 ID=$(( $ID + $MAX_DEPTH + 5 ))
