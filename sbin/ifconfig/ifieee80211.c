@@ -3529,8 +3529,8 @@ list_scan(int s)
 			idlen = sr->isr_ssid_len;
 		}
 		printf("%-*.*s  %s  %3d  %3dM %4d:%-4d %4d %-4.4s"
-			, IEE80211_NWID_LEN
-			  , copy_essid(ssid, IEE80211_NWID_LEN, idp, idlen)
+			, IEEE80211_NWID_LEN
+			  , copy_essid(ssid, IEEE80211_NWID_LEN, idp, idlen)
 			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq, sr->isr_flags)
