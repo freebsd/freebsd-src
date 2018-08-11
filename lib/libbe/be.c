@@ -44,9 +44,11 @@ __FBSDID("$FreeBSD$");
 #include "be.h"
 #include "be_impl.h"
 
+#if SOON
 static int be_create_child_noent(libbe_handle_t *lbh, const char *active,
     const char *child_path);
 static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
+#endif
 
 /*
  * Iterator function for locating the rootfs amongst the children of the
@@ -725,6 +727,7 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 	return (be_destroy(lbh, nbuf, 0));
 }
 
+#if SOON
 static int
 be_create_child_noent(libbe_handle_t *lbh, const char *active,
     const char *child_path)
@@ -778,7 +781,7 @@ be_create_child_noent(libbe_handle_t *lbh, const char *active,
 static int
 be_create_child_cloned(libbe_handle_t *lbh, const char *active)
 {
-	char buf[BE_MAXPATHLEN];
+	char buf[BE_MAXPATHLEN], tmp[BE_MAXPATHLEN];;
 	zfs_handle_t *zfs;
 	int err;
 
@@ -788,10 +791,12 @@ be_create_child_cloned(libbe_handle_t *lbh, const char *active)
 	 * Establish if the existing path is a zfs dataset or just
 	 * the subdirectory of one
 	 */
-	strlcpy(buf, "/tmp/be_snap.XXXXX", sizeof(buf));
-	if (mktemp(buf) == NULL)
+	strlcpy(tmp, "tmp/be_snap.XXXXX", sizeof(tmp));
+	if (mktemp(tmp) == NULL)
 		return (set_error(lbh, BE_ERR_UNKNOWN));
 
+	be_root_concat(lbh, tmp, buf);
+	printf("Here %s?\n", buf);
 	if ((err = zfs_snapshot(lbh->lzh, buf, false, NULL)) != 0) {
 		switch (err) {
 		case EZFS_INVALIDNAME:
@@ -865,6 +870,7 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 		return (be_create_child_cloned(lbh, active));
 	return (set_error(lbh, BE_ERR_EXISTS));
 }
+#endif	/* SOON */
 
 static int
 be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,

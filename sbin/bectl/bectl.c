@@ -51,7 +51,9 @@ static int bectl_cmd_create(int argc, char *argv[]);
 static int bectl_cmd_destroy(int argc, char *argv[]);
 static int bectl_cmd_export(int argc, char *argv[]);
 static int bectl_cmd_import(int argc, char *argv[]);
+#if SOON
 static int bectl_cmd_add(int argc, char *argv[]);
+#endif
 static int bectl_cmd_mount(int argc, char *argv[]);
 static int bectl_cmd_rename(int argc, char *argv[]);
 static int bectl_cmd_unmount(int argc, char *argv[]);
@@ -72,7 +74,9 @@ usage(bool explicit)
 	    "\tbectl destroy [-F] beName | beName@snapshot⟩\n"
 	    "\tbectl export sourceBe\n"
 	    "\tbectl import targetBe\n"
+#if SOON
 	    "\tbectl add (path)*\n"
+#endif
 	    "\tbectl jail [ -o key=value | -u key ]... bootenv\n"
 	    "\tbectl list [-a] [-D] [-H] [-s]\n"
 	    "\tbectl mount beName [mountpoint]\n"
@@ -100,7 +104,9 @@ static struct command_map_entry command_map[] =
 	{ "destroy",  bectl_cmd_destroy  },
 	{ "export",   bectl_cmd_export   },
 	{ "import",   bectl_cmd_import   },
+#if SOON
 	{ "add",      bectl_cmd_add      },
+#endif
 	{ "jail",     bectl_cmd_jail     },
 	{ "list",     bectl_cmd_list     },
 	{ "mount",    bectl_cmd_mount    },
@@ -295,7 +301,7 @@ bectl_cmd_import(int argc, char *argv[])
 	return (err);
 }
 
-
+#if SOON
 static int
 bectl_cmd_add(int argc, char *argv[])
 {
@@ -313,7 +319,7 @@ bectl_cmd_add(int argc, char *argv[])
 
 	return (0);
 }
-
+#endif
 
 static int
 bectl_cmd_destroy(int argc, char *argv[])
