@@ -225,6 +225,9 @@ Renames the given nonactive
 .Ar origBeName
 to the given
 .Ar newBeName
+.It Ic unjail Ao Ar jailID | jailName | beName Ac
+.Pp
+Destroys the jail created from the given boot environment.
 .It Ic unmount
 .Op Fl f
 .Ao Ar beName Ac
@@ -233,9 +236,6 @@ Unmount the given boot environment, if it is mounted.
 Specifying
 .Fl f
 will force the unmount if busy.
-.It Ic unjail Ao Ar jailID | jailName | beName Ac
-.Pp
-Destroys the jail created from the given boot environment.
 .El
 .Sh EXAMPLES
 .Bl -bullet
