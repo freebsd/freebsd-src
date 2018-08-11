@@ -236,7 +236,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + 2 * sizeof *res;
 
-	wr = alloc_wrqe(wr_len, &sc->sge.mgmtq);
+	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 	if (wr == NULL) {
 		ret = -ENOMEM;
 		goto free_rq_dma;

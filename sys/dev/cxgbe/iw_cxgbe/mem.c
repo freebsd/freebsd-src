@@ -82,7 +82,7 @@ write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 		wr_len = roundup(sizeof *ulpmc + sizeof *ulpsc +
 				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
 
-		wr = alloc_wrqe(wr_len, &sc->sge.mgmtq);
+		wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 		if (wr == NULL)
 			return (0);
 		ulpmc = wrtod(wr);
