@@ -224,6 +224,7 @@ model ICS 1889			0x0001 ICS1889 10/100 media interface
 model ICS 1890			0x0002 ICS1890 10/100 media interface
 model ICS 1892			0x0003 ICS1892 10/100 media interface
 model ICS 1893			0x0004 ICS1893 10/100 media interface
+model ICS 1893C			0x0005 ICS1893C 10/100 media interface
 
 /* Intel Corporation PHYs */
 model xxINTEL I82553		0x0000 i82553 10/100 media interface

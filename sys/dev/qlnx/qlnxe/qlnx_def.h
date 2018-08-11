@@ -51,6 +51,7 @@ struct qlnx_ivec {
 typedef struct qlnx_ivec qlnx_ivec_t;
 
 //#define QLNX_MAX_RSS		30
+#define QLNX_MAX_VF_RSS		4
 #define QLNX_MAX_RSS		36
 #define QLNX_DEFAULT_RSS	16
 #define QLNX_MAX_TC		1
@@ -335,6 +336,24 @@ typedef struct _qlnx_mcast {
         uint8_t         addr[6];
 } __packed qlnx_mcast_t;
 
+typedef struct _qlnx_vf_attr {
+	uint8_t		mac_addr[ETHER_ADDR_LEN];
+	uint32_t	num_rings;
+} qlnx_vf_attr_t;
+
+typedef struct _qlnx_sriov_task {
+
+	struct task		pf_task;
+	struct taskqueue	*pf_taskqueue;
+
+#define QLNX_SRIOV_TASK_FLAGS_VF_PF_MSG		0x01
+#define QLNX_SRIOV_TASK_FLAGS_VF_FLR_UPDATE	0x02
+#define QLNX_SRIOV_TASK_FLAGS_BULLETIN_UPDATE	0x04
+	volatile uint32_t	flags;
+
+} qlnx_sriov_task_t;
+
+
 /*
  * Adapter structure contains the hardware independent information of the
  * pci function.
@@ -350,6 +369,7 @@ struct qlnx_host {
 	/* some flags */
         volatile struct {
                 volatile uint32_t
+			hw_init			:1,
 			callout_init		:1,
                         slowpath_start		:1,
                         parent_tag		:1,
@@ -361,6 +381,7 @@ struct qlnx_host {
 	device_t		pci_dev;
 	uint8_t			pci_func;
 	uint8_t			dev_unit;
+	uint16_t		device_id;
 
 	struct ifnet		*ifp;
 	int			if_flags;
@@ -460,6 +481,11 @@ struct qlnx_host {
 	uint64_t		err_fp_null;
 	uint64_t		err_get_proto_invalid_type;
 	
+	/* error recovery related */
+	uint32_t		error_recovery;
+	struct task		err_task;
+	struct taskqueue	*err_taskqueue;
+
 	/* grcdump related */
 	uint32_t		err_inject;
 	uint32_t		grcdump_taken;
@@ -481,12 +507,22 @@ struct qlnx_host {
 	uint32_t		storm_stats_gather;
 
 	uint32_t		personality;
+
+	uint16_t		sriov_initialized;
+	uint16_t		num_vfs;
+	qlnx_vf_attr_t		*vf_attr;
+	qlnx_sriov_task_t	sriov_task[MAX_HWFNS_PER_DEVICE];
+	uint32_t		curr_vf;
+
+	void			*next;
+	void			*qlnx_rdma;
+	volatile int		qlnxr_debug;
 };
 
 typedef struct qlnx_host qlnx_host_t;
 
 /* note that align has to be a power of 2 */
-#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)))
+#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)));
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) \
@@ -667,8 +703,14 @@ extern int qlnx_grc_dump(qlnx_host_t *ha, uint32_t *num_dumped_dwords,
 extern int qlnx_idle_chk(qlnx_host_t *ha, uint32_t *num_dumped_dwords,
 		int hwfn_index);
 extern uint8_t *qlnx_get_mac_addr(qlnx_host_t *ha);
-extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
+extern void qlnx_fill_link(qlnx_host_t *ha, struct ecore_hwfn *hwfn,
                           struct qlnx_link_output *if_link);
+extern int qlnx_set_lldp_tlvx(qlnx_host_t *ha, qlnx_lldp_sys_tlvs_t *lldp_tlvs);
+extern int qlnx_vf_device(qlnx_host_t *ha);
+extern void qlnx_free_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info);
+extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
+		u16 sb_id);
+
 
 /*
  * Some OS specific stuff
@@ -681,7 +723,7 @@ extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
 #else
 #define QLNX_IFM_100G_SR4 IFM_UNKNOWN
 #define QLNX_IFM_100G_LR4 IFM_UNKNOWN
-#endif
+#endif /* #if (defined IFM_100G_SR4) */
 
 #if (defined IFM_25G_SR)
 #define QLNX_IFM_25G_SR IFM_25G_SR
@@ -689,7 +731,7 @@ extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
 #else
 #define QLNX_IFM_25G_SR IFM_UNKNOWN
 #define QLNX_IFM_25G_CR IFM_UNKNOWN
-#endif
+#endif /* #if (defined IFM_25G_SR) */
 
 
 #if __FreeBSD_version < 1100000
@@ -731,6 +773,7 @@ extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
         ((flags) & (PARSING_AND_ERR_FLAGS_TAG8021QEXIST_MASK \
                 << PARSING_AND_ERR_FLAGS_TAG8021QEXIST_SHIFT))
 
+#ifndef QLNX_RDMA
 #if defined(__i386__) || defined(__amd64__)
 
 static __inline
@@ -741,6 +784,7 @@ void prefetch(void *x)
 
 #else
 #define prefetch(x)
+#endif
 #endif
 
 

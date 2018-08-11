@@ -117,11 +117,11 @@ struct chd {
 
 static int ertt_id;
 
-static VNET_DEFINE(uint32_t, chd_qmin) = 5;
-static VNET_DEFINE(uint32_t, chd_pmax) = 50;
-static VNET_DEFINE(uint32_t, chd_loss_fair) = 1;
-static VNET_DEFINE(uint32_t, chd_use_max) = 1;
-static VNET_DEFINE(uint32_t, chd_qthresh) = 20;
+VNET_DEFINE_STATIC(uint32_t, chd_qmin) = 5;
+VNET_DEFINE_STATIC(uint32_t, chd_pmax) = 50;
+VNET_DEFINE_STATIC(uint32_t, chd_loss_fair) = 1;
+VNET_DEFINE_STATIC(uint32_t, chd_use_max) = 1;
+VNET_DEFINE_STATIC(uint32_t, chd_qthresh) = 20;
 #define	V_chd_qthresh	VNET(chd_qthresh)
 #define	V_chd_qmin	VNET(chd_qmin)
 #define	V_chd_pmax	VNET(chd_pmax)

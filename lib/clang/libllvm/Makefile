@@ -9,14 +9,15 @@ INTERNALLIB=
 CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_LLVM_TARGET_AARCH64} == "no" && ${MK_LLVM_TARGET_ARM} == "no" && \
-    ${MK_LLVM_TARGET_MIPS} == "no" && ${MK_LLVM_TARGET_POWERPC} == "no" && \
-    ${MK_LLVM_TARGET_SPARC} == "no" && ${MK_LLVM_TARGET_X86} == "no"
+    ${MK_LLVM_TARGET_BPF} == "no" && ${MK_LLVM_TARGET_MIPS} == "no" && \
+    ${MK_LLVM_TARGET_POWERPC} == "no" && ${MK_LLVM_TARGET_SPARC} == "no" && \
+    ${MK_LLVM_TARGET_X86} == "no"
 .error Please enable at least one of: MK_LLVM_TARGET_AARCH64,\
- MK_LLVM_TARGET_ARM, MK_LLVM_TARGET_MIPS, MK_LLVM_TARGET_POWERPC,\
- MK_LLVM_TARGET_SPARC, or MK_LLVM_TARGET_X86
+ MK_LLVM_TARGET_ARM, MK_LLVM_TARGET_BPF, MK_LLVM_TARGET_MIPS, \
+ MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_SPARC, or MK_LLVM_TARGET_X86
 .endif
 
-.for arch in AArch64 ARM Mips PowerPC Sparc X86
+.for arch in AArch64 ARM BPF Mips PowerPC Sparc X86
 . if ${MK_LLVM_TARGET_${arch:tu}} != "no"
 CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
@@ -905,6 +906,25 @@ SRCS_MIN+=	Target/ARM/Thumb2SizeReduction.cpp
 SRCS_MIN+=	Target/ARM/ThumbRegisterInfo.cpp
 SRCS_MIN+=	Target/ARM/Utils/ARMBaseInfo.cpp
 .endif # MK_LLVM_TARGET_ARM
+.if ${MK_LLVM_TARGET_BPF} != "no"
+SRCS_MIN+=	Target/BPF/AsmParser/BPFAsmParser.cpp
+SRCS_MIN+=	Target/BPF/BPFAsmPrinter.cpp
+SRCS_MIN+=	Target/BPF/BPFFrameLowering.cpp
+SRCS_MIN+=	Target/BPF/BPFISelDAGToDAG.cpp
+SRCS_MIN+=	Target/BPF/BPFISelLowering.cpp
+SRCS_MIN+=	Target/BPF/BPFInstrInfo.cpp
+SRCS_MIN+=	Target/BPF/BPFMCInstLower.cpp
+SRCS_MIN+=	Target/BPF/BPFRegisterInfo.cpp
+SRCS_MIN+=	Target/BPF/BPFSubtarget.cpp
+SRCS_MIN+=	Target/BPF/BPFTargetMachine.cpp
+SRCS_MIN+=	Target/BPF/Disassembler/BPFDisassembler.cpp
+SRCS_MIN+=	Target/BPF/InstPrinter/BPFInstPrinter.cpp
+SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFAsmBackend.cpp
+SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFELFObjectWriter.cpp
+SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCCodeEmitter.cpp
+SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCTargetDesc.cpp
+SRCS_MIN+=	Target/BPF/TargetInfo/BPFTargetInfo.cpp
+.endif # MK_LLVM_TARGET_BPF
 .if ${MK_LLVM_TARGET_MIPS} != "no"
 SRCS_MIN+=	Target/Mips/AsmParser/MipsAsmParser.cpp
 SRCS_XDW+=	Target/Mips/Disassembler/MipsDisassembler.cpp
@@ -1371,7 +1391,7 @@ beforebuild:
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
-	AArch64/AArch64 ARM/ARM Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
+	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
@@ -1431,6 +1451,17 @@ TGHDRS+=	ARMGenRegisterInfo.inc
 TGHDRS+=	ARMGenSubtargetInfo.inc
 TGHDRS+=	ARMGenSystemRegister.inc
 .endif # MK_LLVM_TARGET_ARM
+.if ${MK_LLVM_TARGET_BPF} != "no"
+TGHDRS+=	BPFGenAsmMatcher.inc
+TGHDRS+=	BPFGenAsmWriter.inc
+TGHDRS+=	BPFGenCallingConv.inc
+TGHDRS+=	BPFGenDAGISel.inc
+TGHDRS+=	BPFGenDisassemblerTables.inc
+TGHDRS+=	BPFGenInstrInfo.inc
+TGHDRS+=	BPFGenMCCodeEmitter.inc
+TGHDRS+=	BPFGenRegisterInfo.inc
+TGHDRS+=	BPFGenSubtargetInfo.inc
+.endif # MK_LLVM_TARGET_BPF
 .if ${MK_LLVM_TARGET_MIPS} != "no"
 TGHDRS+=	MipsGenAsmMatcher.inc
 TGHDRS+=	MipsGenAsmWriter.inc

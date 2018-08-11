@@ -1,4 +1,4 @@
-Updating Information for FreeBSD current users.
+ Updating Information for FreeBSD current users.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -31,6 +31,29 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180808:
+	The default pager for most commands has been changed to "less".  To
+	restore the old behavior, set PAGER="more" and MANPAGER="more -s" in
+	your environment.
+
+20180731:
+	The jedec_ts(4) driver has been removed. A superset of its functionality
+	is available in the jedec_dimm(4) driver, and the manpage for that
+	driver includes migration instructions. If you have "device jedec_ts"
+	in your kernel configuration file, it must be removed.
+
+20180730:
+	amd64/GENERIC now has EFI runtime services, EFIRT, enabled by default.
+	This should have no effect if the kernel is booted via BIOS/legacy boot.
+	EFIRT may be disabled via a loader tunable, efi.rt.disabled, if a system
+	has a buggy firmware that prevents a successful boot due to use of
+	runtime services.
+
+20180727:
+	Atmel AT91RM9200 and AT91SAM9, Cavium CNS 11xx and XScale
+	support has been removed from the tree. These ports were
+	obsolete and/or known to be broken for many years.
+
 20180723:
 	loader.efi has been augmented to participate more fully in the
 	UEFI boot manager protocol. loader.efi will now look at the
@@ -40,11 +63,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20180720:
 	zfsloader's functionality has now been folded into loader.
-	zfsloader is no longer necesasary once you've updated your
+	zfsloader is no longer necessary once you've updated your
 	boot blocks. For a transition period, we will install a
 	hardlink for zfsloader to loader to allow a smooth transition
 	until the boot blocks can be updated (hard link because old
 	zfs boot blocks don't understand symlinks).
+
+20180719:
+	ARM64 now have efifb support, if you want to have serial console
+	on your arm64 board when an screen is connected and the bootloader
+	setup a frambuffer for us to use, just add :
+	boot_serial=YES
+	boot_multicons=YES
+	in /boot/loader.conf
+	For Raspberry Pi 3 (RPI) users, this is needed even if you don't have
+	an screen connected as the firmware will setup a framebuffer are that
+	u-boot will expose as an EFI framebuffer.
 
 20180719:
 	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
@@ -164,7 +198,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Support for FDDI networks has been removed.  If you have device
 	fddi or device fpa in your kernel config file they must be
 	removed.
-	
+
 20180406:
 	In addition to supporting RFC 3164 formatted messages, the
 	syslogd(8) service is now capable of parsing RFC 5424 formatted

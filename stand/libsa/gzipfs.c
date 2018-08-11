@@ -40,7 +40,7 @@ struct z_file
     int			zf_rawfd;
     off_t		zf_dataoffset;
     z_stream		zf_zstream;
-    char		zf_buf[Z_BUFSIZE];
+    unsigned char	zf_buf[Z_BUFSIZE];
     int			zf_endseen;
 };
 

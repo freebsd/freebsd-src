@@ -139,6 +139,11 @@ struct ecore_vf_info {
 	struct ecore_bulletin	bulletin;
 	dma_addr_t		vf_bulletin;
 
+#ifdef CONFIG_ECORE_SW_CHANNEL
+	/* Determine whether PF communicate with VF using HW/SW channel */
+	bool	b_hw_channel;
+#endif
+
 	/* PF saves a copy of the last VF acquire message */
 	struct vfpf_acquire_tlv acquire;
 
@@ -276,19 +281,6 @@ void ecore_iov_free(struct ecore_hwfn *p_hwfn);
 void ecore_iov_free_hw_info(struct ecore_dev *p_dev);
 
 /**
- * @brief ecore_sriov_eqe_event - handle async sriov event arrived on eqe.
- *
- * @param p_hwfn
- * @param opcode
- * @param echo
- * @param data
- */
-enum _ecore_status_t ecore_sriov_eqe_event(struct ecore_hwfn	 *p_hwfn,
-					   u8			 opcode,
-					   __le16		 echo,
-					   union event_ring_data *data);
-
-/**
  * @brief Mark structs of vfs that have been FLR-ed.
  *
  * @param p_hwfn
@@ -327,13 +319,12 @@ struct ecore_vf_info *ecore_iov_get_vf_info(struct ecore_hwfn *p_hwfn,
 					    bool b_enabled_only);
 #else
 static OSAL_INLINE enum _ecore_status_t ecore_iov_hw_info(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_SUCCESS;}
-static OSAL_INLINE void *ecore_add_tlv(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED **offset, OSAL_UNUSED u16 type, OSAL_UNUSED u16 length) {return OSAL_NULL;}
+static OSAL_INLINE void *ecore_add_tlv(u8 OSAL_UNUSED **offset, OSAL_UNUSED u16 type, OSAL_UNUSED u16 length) {return OSAL_NULL;}
 static OSAL_INLINE void ecore_dp_tlv_list(struct ecore_hwfn OSAL_UNUSED *p_hwfn, void OSAL_UNUSED *tlvs_list) {}
 static OSAL_INLINE enum _ecore_status_t ecore_iov_alloc(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_SUCCESS;}
 static OSAL_INLINE void ecore_iov_setup(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
 static OSAL_INLINE void ecore_iov_free(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
 static OSAL_INLINE void ecore_iov_free_hw_info(struct ecore_dev OSAL_UNUSED *p_dev) {}
-static OSAL_INLINE enum _ecore_status_t ecore_sriov_eqe_event(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED opcode, __le16 OSAL_UNUSED echo, union event_ring_data OSAL_UNUSED *data) {return ECORE_INVAL;}
 static OSAL_INLINE u32 ecore_crc32(u32 OSAL_UNUSED crc, u8 OSAL_UNUSED *ptr, u32 OSAL_UNUSED length) {return 0;}
 static OSAL_INLINE bool ecore_iov_mark_vf_flr(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u32 OSAL_UNUSED *disabled_vfs) {return false;}
 static OSAL_INLINE void *ecore_iov_search_list_tlvs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, void OSAL_UNUSED *p_tlvs_list, u16 OSAL_UNUSED req_type) {return OSAL_NULL;}

@@ -1463,10 +1463,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 # define	DPRINT(x)
 #endif
 
-#ifndef	AF_INET6
-# define	AF_INET6	26
-#endif
-
 #ifdef DTRACE_PROBE
 # ifdef _KERNEL
 #  define	DT(_n)			DTRACE_PROBE(_n)

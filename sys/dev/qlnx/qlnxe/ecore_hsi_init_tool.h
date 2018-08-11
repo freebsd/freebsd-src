@@ -55,51 +55,6 @@ enum chip_ids
 };
 
 
-struct fw_asserts_ram_section
-{
-	__le16 section_ram_line_offset /* The offset of the section in the RAM in RAM lines (64-bit units) */;
-	__le16 section_ram_line_size /* The size of the section in RAM lines (64-bit units) */;
-	u8 list_dword_offset /* The offset of the asserts list within the section in dwords */;
-	u8 list_element_dword_size /* The size of an assert list element in dwords */;
-	u8 list_num_elements /* The number of elements in the asserts list */;
-	u8 list_next_index_dword_offset /* The offset of the next list index field within the section in dwords */;
-};
-
-
-struct fw_ver_num
-{
-	u8 major /* Firmware major version number */;
-	u8 minor /* Firmware minor version number */;
-	u8 rev /* Firmware revision version number */;
-	u8 eng /* Firmware engineering version number (for bootleg versions) */;
-};
-
-struct fw_ver_info
-{
-	__le16 tools_ver /* Tools version number */;
-	u8 image_id /* FW image ID (e.g. main, l2b, kuku) */;
-	u8 reserved1;
-	struct fw_ver_num num /* FW version number */;
-	__le32 timestamp /* FW Timestamp in unix time  (sec. since 1970) */;
-	__le32 reserved2;
-};
-
-struct fw_info
-{
-	struct fw_ver_info ver /* FW version information */;
-	struct fw_asserts_ram_section fw_asserts_section /* Info regarding the FW asserts section in the Storm RAM */;
-};
-
-
-struct fw_info_location
-{
-	__le32 grc_addr /* GRC address where the fw_info struct is located. */;
-	__le32 size /* Size of the fw_info structure (thats located at the grc_addr). */;
-};
-
-
-
-
 enum init_modes
 {
 	MODE_BB_A0_DEPRECATED,
@@ -149,8 +104,8 @@ enum init_split_types
  */
 struct bin_buffer_hdr
 {
-	__le32 offset /* buffer offset in bytes from the beginning of the binary file */;
-	__le32 length /* buffer length in bytes */;
+	u32 offset /* buffer offset in bytes from the beginning of the binary file */;
+	u32 length /* buffer length in bytes */;
 };
 
 
@@ -173,7 +128,7 @@ enum bin_init_buffer_type
  */
 struct init_array_raw_hdr
 {
-	__le32 data;
+	u32 data;
 #define INIT_ARRAY_RAW_HDR_TYPE_MASK    0xF /* Init array type, from init_array_types enum */
 #define INIT_ARRAY_RAW_HDR_TYPE_SHIFT   0
 #define INIT_ARRAY_RAW_HDR_PARAMS_MASK  0xFFFFFFF /* init array params */
@@ -185,7 +140,7 @@ struct init_array_raw_hdr
  */
 struct init_array_standard_hdr
 {
-	__le32 data;
+	u32 data;
 #define INIT_ARRAY_STANDARD_HDR_TYPE_MASK  0xF /* Init array type, from init_array_types enum */
 #define INIT_ARRAY_STANDARD_HDR_TYPE_SHIFT 0
 #define INIT_ARRAY_STANDARD_HDR_SIZE_MASK  0xFFFFFFF /* Init array size (in dwords) */
@@ -197,7 +152,7 @@ struct init_array_standard_hdr
  */
 struct init_array_zipped_hdr
 {
-	__le32 data;
+	u32 data;
 #define INIT_ARRAY_ZIPPED_HDR_TYPE_MASK         0xF /* Init array type, from init_array_types enum */
 #define INIT_ARRAY_ZIPPED_HDR_TYPE_SHIFT        0
 #define INIT_ARRAY_ZIPPED_HDR_ZIPPED_SIZE_MASK  0xFFFFFFF /* Init array zipped size (in bytes) */
@@ -209,7 +164,7 @@ struct init_array_zipped_hdr
  */
 struct init_array_pattern_hdr
 {
-	__le32 data;
+	u32 data;
 #define INIT_ARRAY_PATTERN_HDR_TYPE_MASK          0xF /* Init array type, from init_array_types enum */
 #define INIT_ARRAY_PATTERN_HDR_TYPE_SHIFT         0
 #define INIT_ARRAY_PATTERN_HDR_PATTERN_SIZE_MASK  0xF /* pattern size in dword */
@@ -251,13 +206,13 @@ enum init_array_types
  */
 struct init_callback_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_CALLBACK_OP_OP_MASK        0xF /* Init operation, from init_op_types enum */
 #define INIT_CALLBACK_OP_OP_SHIFT       0
 #define INIT_CALLBACK_OP_RESERVED_MASK  0xFFFFFFF
 #define INIT_CALLBACK_OP_RESERVED_SHIFT 4
-	__le16 callback_id /* Callback ID */;
-	__le16 block_id /* Blocks ID */;
+	u16 callback_id /* Callback ID */;
+	u16 block_id /* Blocks ID */;
 };
 
 
@@ -266,12 +221,12 @@ struct init_callback_op
  */
 struct init_delay_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_DELAY_OP_OP_MASK        0xF /* Init operation, from init_op_types enum */
 #define INIT_DELAY_OP_OP_SHIFT       0
 #define INIT_DELAY_OP_RESERVED_MASK  0xFFFFFFF
 #define INIT_DELAY_OP_RESERVED_SHIFT 4
-	__le32 delay /* delay in us */;
+	u32 delay /* delay in us */;
 };
 
 
@@ -280,15 +235,15 @@ struct init_delay_op
  */
 struct init_if_mode_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_IF_MODE_OP_OP_MASK          0xF /* Init operation, from init_op_types enum */
 #define INIT_IF_MODE_OP_OP_SHIFT         0
 #define INIT_IF_MODE_OP_RESERVED1_MASK   0xFFF
 #define INIT_IF_MODE_OP_RESERVED1_SHIFT  4
 #define INIT_IF_MODE_OP_CMD_OFFSET_MASK  0xFFFF /* Commands to skip if the modes dont match */
 #define INIT_IF_MODE_OP_CMD_OFFSET_SHIFT 16
-	__le16 reserved2;
-	__le16 modes_buf_offset /* offset (in bytes) in modes expression buffer */;
+	u16 reserved2;
+	u16 modes_buf_offset /* offset (in bytes) in modes expression buffer */;
 };
 
 
@@ -297,7 +252,7 @@ struct init_if_mode_op
  */
 struct init_if_phase_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_IF_PHASE_OP_OP_MASK           0xF /* Init operation, from init_op_types enum */
 #define INIT_IF_PHASE_OP_OP_SHIFT          0
 #define INIT_IF_PHASE_OP_DMAE_ENABLE_MASK  0x1 /* Indicates if DMAE is enabled in this phase */
@@ -306,7 +261,7 @@ struct init_if_phase_op
 #define INIT_IF_PHASE_OP_RESERVED1_SHIFT   5
 #define INIT_IF_PHASE_OP_CMD_OFFSET_MASK   0xFFFF /* Commands to skip if the phases dont match */
 #define INIT_IF_PHASE_OP_CMD_OFFSET_SHIFT  16
-	__le32 phase_data;
+	u32 phase_data;
 #define INIT_IF_PHASE_OP_PHASE_MASK        0xFF /* Init phase */
 #define INIT_IF_PHASE_OP_PHASE_SHIFT       0
 #define INIT_IF_PHASE_OP_RESERVED2_MASK    0xFF
@@ -333,12 +288,12 @@ enum init_mode_ops
  */
 struct init_raw_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_RAW_OP_OP_MASK      0xF /* Init operation, from init_op_types enum */
 #define INIT_RAW_OP_OP_SHIFT     0
 #define INIT_RAW_OP_PARAM1_MASK  0xFFFFFFF /* init param 1 */
 #define INIT_RAW_OP_PARAM1_SHIFT 4
-	__le32 param2 /* Init param 2 */;
+	u32 param2 /* Init param 2 */;
 };
 
 /*
@@ -346,8 +301,8 @@ struct init_raw_op
  */
 struct init_op_array_params
 {
-	__le16 size /* array size in dwords */;
-	__le16 offset /* array start offset in dwords */;
+	u16 size /* array size in dwords */;
+	u16 offset /* array start offset in dwords */;
 };
 
 /*
@@ -355,9 +310,9 @@ struct init_op_array_params
  */
 union init_write_args
 {
-	__le32 inline_val /* value to write, used when init source is INIT_SRC_INLINE */;
-	__le32 zeros_count /* number of zeros to write, used when init source is INIT_SRC_ZEROS */;
-	__le32 array_offset /* array offset to write, used when init source is INIT_SRC_ARRAY */;
+	u32 inline_val /* value to write, used when init source is INIT_SRC_INLINE */;
+	u32 zeros_count /* number of zeros to write, used when init source is INIT_SRC_ZEROS */;
+	u32 array_offset /* array offset to write, used when init source is INIT_SRC_ARRAY */;
 	struct init_op_array_params runtime /* runtime array params to write, used when init source is INIT_SRC_RUNTIME */;
 };
 
@@ -366,7 +321,7 @@ union init_write_args
  */
 struct init_write_op
 {
-	__le32 data;
+	u32 data;
 #define INIT_WRITE_OP_OP_MASK        0xF /* init operation, from init_op_types enum */
 #define INIT_WRITE_OP_OP_SHIFT       0
 #define INIT_WRITE_OP_SOURCE_MASK    0x7 /* init source type, taken from init_source_types enum */
@@ -385,7 +340,7 @@ struct init_write_op
  */
 struct init_read_op
 {
-	__le32 op_data;
+	u32 op_data;
 #define INIT_READ_OP_OP_MASK         0xF /* init operation, from init_op_types enum */
 #define INIT_READ_OP_OP_SHIFT        0
 #define INIT_READ_OP_POLL_TYPE_MASK  0xF /* polling type, from init_poll_types enum */
@@ -394,7 +349,7 @@ struct init_read_op
 #define INIT_READ_OP_RESERVED_SHIFT  8
 #define INIT_READ_OP_ADDRESS_MASK    0x7FFFFF /* internal (absolute) GRC address, in dwords */
 #define INIT_READ_OP_ADDRESS_SHIFT   9
-	__le32 expected_val /* expected polling value, used only when polling is done */;
+	u32 expected_val /* expected polling value, used only when polling is done */;
 };
 
 /*
@@ -463,11 +418,11 @@ enum init_source_types
  */
 struct iro
 {
-	__le32 base /* RAM field offset */;
-	__le16 m1 /* multiplier 1 */;
-	__le16 m2 /* multiplier 2 */;
-	__le16 m3 /* multiplier 3 */;
-	__le16 size /* RAM field size */;
+	u32 base /* RAM field offset */;
+	u16 m1 /* multiplier 1 */;
+	u16 m2 /* multiplier 2 */;
+	u16 m3 /* multiplier 3 */;
+	u16 size /* RAM field size */;
 };
 
 #endif /* __ECORE_HSI_INIT_TOOL__ */

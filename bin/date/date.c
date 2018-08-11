@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <locale.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,9 +69,24 @@ __FBSDID("$FreeBSD$");
 static time_t tval;
 int retval;
 
-static void setthetime(const char *, const char *, int, int);
 static void badformat(void);
+static void iso8601_usage(const char *);
+static void multipleformats(void);
+static void printdate(const char *);
+static void printisodate(struct tm *);
+static void setthetime(const char *, const char *, int, int);
 static void usage(void);
+
+static const struct iso8601_fmt {
+	const char *refname;
+	const char *format_string;
+} iso8601_fmts[] = {
+	{ "date", "%Y-%m-%d" },
+	{ "hours", "T%H" },
+	{ "minutes", ":%M" },
+	{ "seconds", ":%S" },
+};
+static const struct iso8601_fmt *iso8601_selected;
 
 static const char *rfc2822_format = "%a, %d %b %Y %T %z";
 
@@ -79,7 +95,7 @@ main(int argc, char *argv[])
 {
 	struct timezone tz;
 	int ch, rflag;
-	int jflag, nflag, Rflag;
+	bool Iflag, jflag, nflag, Rflag;
 	const char *format;
 	char buf[1024];
 	char *endptr, *fmt;
@@ -89,15 +105,16 @@ main(int argc, char *argv[])
 	const struct vary *badv;
 	struct tm *lt;
 	struct stat sb;
+	size_t i;
 
 	v = NULL;
 	fmt = NULL;
 	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
-	jflag = nflag = Rflag = 0;
+	Iflag = jflag = nflag = Rflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "d:f:jnRr:t:uv:")) != -1)
+	while ((ch = getopt(argc, argv, "d:f:I::jnRr:t:uv:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
@@ -108,6 +125,22 @@ main(int argc, char *argv[])
 		case 'f':
 			fmt = optarg;
 			break;
+		case 'I':
+			if (Rflag)
+				multipleformats();
+			Iflag = 1;
+			if (optarg == NULL) {
+				iso8601_selected = iso8601_fmts;
+				break;
+			}
+			for (i = 0; i < nitems(iso8601_fmts); i++)
+				if (strcmp(optarg, iso8601_fmts[i].refname) == 0)
+					break;
+			if (i == nitems(iso8601_fmts))
+				iso8601_usage(optarg);
+
+			iso8601_selected = &iso8601_fmts[i];
+			break;
 		case 'j':
 			jflag = 1;	/* don't set time */
 			break;
@@ -115,6 +148,8 @@ main(int argc, char *argv[])
 			nflag = 1;
 			break;
 		case 'R':		/* RFC 2822 datetime format */
+			if (Iflag)
+				multipleformats();
 			Rflag = 1;
 			break;
 		case 'r':		/* user specified seconds */
@@ -163,6 +198,8 @@ main(int argc, char *argv[])
 
 	/* allow the operands in any order */
 	if (*argv && **argv == '+') {
+		if (Iflag)
+			multipleformats();
 		format = *argv + 1;
 		++argv;
 	}
@@ -173,8 +210,11 @@ main(int argc, char *argv[])
 	} else if (fmt != NULL)
 		usage();
 
-	if (*argv && **argv == '+')
+	if (*argv && **argv == '+') {
+		if (Iflag)
+			multipleformats();
 		format = *argv + 1;
+	}
 
 	lt = localtime(&tval);
 	if (lt == NULL)
@@ -188,6 +228,9 @@ main(int argc, char *argv[])
 	}
 	vary_destroy(v);
 
+	if (Iflag)
+		printisodate(lt);
+
 	if (format == rfc2822_format)
 		/*
 		 * When using RFC 2822 datetime format, don't honor the
@@ -196,10 +239,38 @@ main(int argc, char *argv[])
 		setlocale(LC_TIME, "C");
 
 	(void)strftime(buf, sizeof(buf), format, lt);
+	printdate(buf);
+}
+
+static void
+printdate(const char *buf)
+{
 	(void)printf("%s\n", buf);
 	if (fflush(stdout))
 		err(1, "stdout");
 	exit(retval);
+}
+
+static void
+printisodate(struct tm *lt)
+{
+	const struct iso8601_fmt *it;
+	char fmtbuf[32], buf[32], tzbuf[8];
+
+	fmtbuf[0] = 0;
+	for (it = iso8601_fmts; it <= iso8601_selected; it++)
+		strlcat(fmtbuf, it->format_string, sizeof(fmtbuf));
+
+	(void)strftime(buf, sizeof(buf), fmtbuf, lt);
+
+	if (iso8601_selected > iso8601_fmts) {
+		(void)strftime(tzbuf, sizeof(tzbuf), "%z", lt);
+		memmove(&tzbuf[4], &tzbuf[3], 3);
+		tzbuf[3] = ':';
+		strlcat(buf, tzbuf, sizeof(buf));
+	}
+
+	printdate(buf);
 }
 
 #define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
@@ -327,12 +398,27 @@ badformat(void)
 }
 
 static void
+iso8601_usage(const char *badarg)
+{
+	errx(1, "invalid argument '%s' for -I", badarg);
+}
+
+static void
+multipleformats(void)
+{
+	errx(1, "multiple output formats specified");
+}
+
+static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: date [-jnRu] [-d dst] [-r seconds] [-t west] "
-	    "[-v[+|-]val[ymwdHMS]] ... ",
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: date [-jnRu] [-d dst] [-r seconds|file] [-t west] "
+	    "[-v[+|-]val[ymwdHMS]]",
 	    "            "
-	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]");
+	    "[-I[date | hours | minutes | seconds]]",
+	    "            "
+	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]"
+	    );
 	exit(1);
 }

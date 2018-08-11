@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,9 @@
 #define T_ETH_INDIRECTION_TABLE_SIZE 128 /* @@@ TBD MichalK this should be HSI? */
 #define T_ETH_RSS_KEY_SIZE 10 /* @@@ TBD this should be HSI? */
 #ifndef LINUX_REMOVE
+#ifndef ETH_ALEN
 #define ETH_ALEN 6 /* @@@ TBD MichalK - should this be defined here?*/
+#endif
 #endif
 
 /***********************************************
@@ -125,6 +127,12 @@ struct vfpf_acquire_tlv {
 	 * this, and use the legacy CID scheme.
 	 */
 #define VFPF_ACQUIRE_CAP_QUEUE_QIDS	(1 << 2)
+
+	/* The VF is using the physical bar. While this is mostly internal
+	 * to the VF, might affect the number of CIDs supported assuming
+	 * QUEUE_QIDS is set.
+	 */
+#define VFPF_ACQUIRE_CAP_PHYSICAL_BAR	(1 << 3)
 		u64 capabilities;
 		u8 fw_major;
 		u8 fw_minor;
@@ -214,7 +222,8 @@ struct pfvf_acquire_resp_tlv {
 		u16 chip_rev;
 		u8 dev_type;
 
-		u8 padding;
+		/* Doorbell bar size configured in HW: log(size) or 0 */
+		u8 bar_size;
 
 		struct pfvf_stats_info stats_info;
 
@@ -385,7 +394,8 @@ struct vfpf_vport_start_tlv {
 	u8			only_untagged;
 	u8			max_buffers_per_cqe;
 
-	u8			padding[4];
+	u8			zero_placement_offset;
+	u8			padding[3];
 };
 
 /* Extended tlvs - need to add rss, mcast, accept mode tlvs */
@@ -413,7 +423,13 @@ struct vfpf_vport_update_mcast_bin_tlv {
 	struct channel_tlv	tl;
 	u8			padding[4];
 
-	u64		bins[8];
+	/* This was a mistake; There are only 256 approx bins,
+	 * and in HSI they're divided into 32-bit values.
+	 * As old VFs used to set-bit to the values on its side,
+	 * the upper half of the array is never expected to contain any data.
+	 */
+	u64		bins[4];
+	u64		obsolete_bins[4];
 };
 
 struct vfpf_vport_update_accept_param_tlv {
@@ -527,6 +543,19 @@ struct vfpf_update_coalesce {
 	u8 padding[2];
 };
 
+struct vfpf_read_coal_req_tlv {
+	struct vfpf_first_tlv first_tlv;
+	u16 qid;
+	u8 is_rx;
+	u8 padding[5];
+};
+
+struct pfvf_read_coal_resp_tlv {
+	struct pfvf_tlv hdr;
+	u16 coal;
+	u8 padding[6];
+};
+
 union vfpf_tlvs {
 	struct vfpf_first_tlv			first_tlv;
 	struct vfpf_acquire_tlv			acquire;
@@ -540,6 +569,7 @@ union vfpf_tlvs {
 	struct vfpf_ucast_filter_tlv		ucast_filter;
 	struct vfpf_update_tunn_param_tlv	tunn_param_update;
 	struct vfpf_update_coalesce		update_coalesce;
+	struct vfpf_read_coal_req_tlv		read_coal_req;
 	struct tlv_buffer_size			tlv_buf_size;
 };
 
@@ -549,6 +579,7 @@ union pfvf_tlvs {
 	struct tlv_buffer_size			tlv_buf_size;
 	struct pfvf_start_queue_resp_tlv	queue_start;
 	struct pfvf_update_tunn_param_tlv	tunn_param_resp;
+	struct pfvf_read_coal_resp_tlv		read_coal_resp;
 };
 
 /* This is a structure which is allocated in the VF, which the PF may update
@@ -668,6 +699,7 @@ enum {
 	CHANNEL_TLV_UPDATE_TUNN_PARAM,
 	CHANNEL_TLV_COALESCE_UPDATE,
 	CHANNEL_TLV_QID,
+	CHANNEL_TLV_COALESCE_READ,
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.

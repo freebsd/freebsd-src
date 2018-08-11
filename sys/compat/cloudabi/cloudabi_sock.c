@@ -120,24 +120,27 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 				    sizeof(int);
 				if (nfds > fdslen) {
 					/* Unable to store file descriptors. */
-					nfds = fdslen;
 					*rflags |=
 					    CLOUDABI_SOCK_RECV_FDS_TRUNCATED;
+					m_dispose_extcontrolm(control);
+					break;
 				}
 				error = copyout(CMSG_DATA(chdr), fds,
 				    nfds * sizeof(int));
-				if (error != 0) {
-					m_free(control);
-					return (error);
-				}
+				if (error != 0)
+					break;
 				fds += nfds;
 				fdslen -= nfds;
 				*rfdslen += nfds;
 			}
 		}
-		m_free(control);
+		if (control != NULL) {
+			if (error != 0)
+				m_dispose_extcontrolm(control);
+			m_free(control);
+		}
 	}
-	return (0);
+	return (error);
 }
 
 int

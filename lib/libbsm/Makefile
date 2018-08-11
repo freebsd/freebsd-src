@@ -181,3 +181,10 @@ MLINKS=	libbsm.3 bsm.3							\
 	setaudit.2 setaudit_addr.2
 
 .include <bsd.lib.mk>
+
+# Disable -Wcast-align.  Casting sa_local in au_to_socket_ex triggers this
+# warning, but it's ok because sa_local must've originally pointed to a
+# sockaddr_in or sockaddr_in6 anyway.
+# Better would be to disable this warning in just that one function, but GCC
+# 4.2 can't do that :( .
+CWARNFLAGS.bsm_token.c+=	-Wno-cast-align

@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_var.h>
@@ -102,19 +103,19 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static VNET_DEFINE(int, tcp_syncookies) = 1;
+VNET_DEFINE_STATIC(int, tcp_syncookies) = 1;
 #define	V_tcp_syncookies		VNET(tcp_syncookies)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_syncookies), 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-static VNET_DEFINE(int, tcp_syncookiesonly) = 0;
+VNET_DEFINE_STATIC(int, tcp_syncookiesonly) = 0;
 #define	V_tcp_syncookiesonly		VNET(tcp_syncookiesonly)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_syncookiesonly), 0,
     "Use only TCP SYN cookies");
 
-static VNET_DEFINE(int, functions_inherit_listen_socket_stack) = 1;
+VNET_DEFINE_STATIC(int, functions_inherit_listen_socket_stack) = 1;
 #define V_functions_inherit_listen_socket_stack \
     VNET(functions_inherit_listen_socket_stack)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, functions_inherit_listen_socket_stack,
@@ -162,7 +163,7 @@ static int	 syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
 #define TCP_SYNCACHE_HASHSIZE		512
 #define TCP_SYNCACHE_BUCKETLIMIT	30
 
-static VNET_DEFINE(struct tcp_syncache, tcp_syncache);
+VNET_DEFINE_STATIC(struct tcp_syncache, tcp_syncache);
 #define	V_tcp_syncache			VNET(tcp_syncache)
 
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0,
@@ -1400,6 +1401,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		mac_syncache_destroy(&maclabel);
 #endif
+		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: Received duplicate SYN, "
@@ -1414,7 +1416,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			TCPSTAT_INC(tcps_sndtotal);
 		}
 		SCH_UNLOCK(sch);
-		goto done;
+		goto donenoprobe;
 	}
 
 	if (tfo_cookie_valid) {
@@ -1566,6 +1568,7 @@ skip_alloc:
 		goto tfo_expanded;
 	}
 
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 	/*
 	 * Do a standard 3-way handshake.
 	 */
@@ -1581,8 +1584,11 @@ skip_alloc:
 			syncache_free(sc);
 		TCPSTAT_INC(tcps_sc_dropped);
 	}
+	goto donenoprobe;
 
 done:
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
+donenoprobe:
 	if (m) {
 		*lsop = NULL;
 		m_freem(m);
@@ -1793,6 +1799,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 			return (error);
 		}
 #endif
+		TCP_PROBE5(send, NULL, NULL, ip6, NULL, th);
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
@@ -1813,6 +1820,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 			return (error);
 		}
 #endif
+		TCP_PROBE5(send, NULL, NULL, ip, NULL, th);
 		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, NULL);
 	}
 #endif

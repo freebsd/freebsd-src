@@ -208,58 +208,13 @@ int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
-u_int	cpu_ident		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpu_domains		(u_int domains);
-u_int	cpu_faultstatus		(void);
-u_int	cpu_faultaddress	(void);
-u_int	cpu_get_control		(void);
 u_int	cpu_pfr			(int);
 
-#if defined(CPU_FA526)
-void	fa526_setup		(void);
-void	fa526_setttb		(u_int ttb);
-void	fa526_context_switch	(void);
-void	fa526_cpu_sleep		(int);
-void	fa526_tlb_flushID_SE	(u_int);
-
-void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
-void	fa526_dcache_wbinv_all	(void);
-void	fa526_dcache_wbinv_range(vm_offset_t start, vm_size_t end);
-void	fa526_dcache_inv_range	(vm_offset_t start, vm_size_t end);
-void	fa526_dcache_wb_range	(vm_offset_t start, vm_size_t end);
-void	fa526_idcache_wbinv_all(void);
-void	fa526_idcache_wbinv_range(vm_offset_t start, vm_size_t end);
-#endif
-
-
-#if defined(CPU_ARM9) || defined(CPU_ARM9E)
-void	arm9_setttb		(u_int);
+#if defined(CPU_ARM9E)
 void	arm9_tlb_flushID_SE	(u_int va);
 void	arm9_context_switch	(void);
-#endif
-
-#if defined(CPU_ARM9)
-void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
-
-void	arm9_dcache_wbinv_all	(void);
-void	arm9_dcache_wbinv_range (vm_offset_t, vm_size_t);
-void	arm9_dcache_inv_range	(vm_offset_t, vm_size_t);
-void	arm9_dcache_wb_range	(vm_offset_t, vm_size_t);
-
-void	arm9_idcache_wbinv_all	(void);
-void	arm9_idcache_wbinv_range (vm_offset_t, vm_size_t);
-
-void	arm9_setup		(void);
-
-extern unsigned arm9_dcache_sets_max;
-extern unsigned arm9_dcache_sets_inc;
-extern unsigned arm9_dcache_index_max;
-extern unsigned arm9_dcache_index_inc;
-#endif
-
-#if defined(CPU_ARM9E)
-void	arm10_setup		(void);
 
 u_int	sheeva_control_ext 		(u_int, u_int);
 void	sheeva_cpu_sleep		(int);
@@ -277,17 +232,12 @@ void	sheeva_l2cache_wbinv_all	(void);
 
 #if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 void	armv7_cpu_sleep			(int);
-void	armv7_setup			(void);
-
-void 	cortexa_setup			(void);
 #endif
 #if defined(CPU_MV_PJ4B)
 void	pj4b_config			(void);
-void	pj4bv7_setup			(void);
 #endif
 
 #if defined(CPU_ARM1176)
-void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
 
@@ -303,11 +253,6 @@ void	armv5_ec_dcache_wb_range(vm_offset_t, vm_size_t);
 
 void	armv5_ec_idcache_wbinv_all(void);
 void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
-#endif
-
-#if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
-  defined(CPU_FA526) ||							\
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
 
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushD	(void);
@@ -316,71 +261,6 @@ void	armv4_tlb_flushD_SE	(u_int va);
 void	armv4_drain_writebuf	(void);
 void	armv4_idcache_inv_all	(void);
 #endif
-
-#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342)
-void	xscale_cpwait		(void);
-
-void	xscale_cpu_sleep	(int mode);
-
-u_int	xscale_control		(u_int clear, u_int bic);
-
-void	xscale_setttb		(u_int ttb);
-
-void	xscale_tlb_flushID_SE	(u_int va);
-
-void	xscale_cache_flushID	(void);
-void	xscale_cache_flushI	(void);
-void	xscale_cache_flushD	(void);
-void	xscale_cache_flushD_SE	(u_int entry);
-
-void	xscale_cache_cleanID	(void);
-void	xscale_cache_cleanD	(void);
-void	xscale_cache_cleanD_E	(u_int entry);
-
-void	xscale_cache_clean_minidata (void);
-
-void	xscale_cache_purgeID	(void);
-void	xscale_cache_purgeID_E	(u_int entry);
-void	xscale_cache_purgeD	(void);
-void	xscale_cache_purgeD_E	(u_int entry);
-
-void	xscale_cache_syncI	(void);
-void	xscale_cache_cleanID_rng (vm_offset_t start, vm_size_t end);
-void	xscale_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
-void	xscale_cache_purgeID_rng (vm_offset_t start, vm_size_t end);
-void	xscale_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
-void	xscale_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
-void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
-
-void	xscale_context_switch	(void);
-
-void	xscale_setup		(void);
-#endif	/* CPU_XSCALE_PXA2X0 */
-
-#ifdef	CPU_XSCALE_81342
-
-void	xscalec3_l2cache_purge	(void);
-void	xscalec3_cache_purgeID	(void);
-void	xscalec3_cache_purgeD	(void);
-void	xscalec3_cache_cleanID	(void);
-void	xscalec3_cache_cleanD	(void);
-void	xscalec3_cache_syncI	(void);
-
-void	xscalec3_cache_purgeID_rng 	(vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_cleanID_rng	(vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
-
-void	xscalec3_l2cache_flush_rng	(vm_offset_t, vm_size_t);
-void	xscalec3_l2cache_clean_rng	(vm_offset_t start, vm_size_t end);
-void	xscalec3_l2cache_purge_rng	(vm_offset_t start, vm_size_t end);
-
-
-void	xscalec3_setttb		(u_int ttb);
-void	xscalec3_context_switch	(void);
-
-#endif /* CPU_XSCALE_81342 */
 
 /*
  * Macros for manipulating CPU interrupts

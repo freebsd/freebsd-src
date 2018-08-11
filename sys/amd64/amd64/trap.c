@@ -673,6 +673,24 @@ trap_check(struct trapframe *frame)
 	trap(frame);
 }
 
+static bool
+trap_is_smap(struct trapframe *frame)
+{
+
+	/*
+	 * A page fault on a userspace address is classified as
+	 * SMAP-induced if:
+	 * - SMAP is supported;
+	 * - kernel mode accessed present data page;
+	 * - rflags.AC was cleared.
+	 * Kernel must never access user space with rflags.AC cleared
+	 * if SMAP is enabled.
+	 */
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 &&
+	    (frame->tf_err & (PGEX_P | PGEX_U | PGEX_I | PGEX_RSV)) ==
+	    PGEX_P && (frame->tf_rflags & PSL_AC) == 0);
+}
+
 static int
 trap_pfault(struct trapframe *frame, int usermode)
 {
@@ -750,9 +768,13 @@ trap_pfault(struct trapframe *frame, int usermode)
 		 * handling routine.  Since accessing the address
 		 * without the handler is a bug, do not try to handle
 		 * it normally, and panic immediately.
+		 *
+		 * If SMAP is enabled, filter SMAP faults also,
+		 * because illegal access might occur to the mapped
+		 * user address, causing infinite loop.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    curpcb->pcb_onfault == NULL)) {
+		    trap_is_smap(frame) || curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}

@@ -250,11 +250,11 @@ struct couple_mode_teaming {
 /**************************************
  *     LLDP and DCBX HSI structures
  **************************************/
-#define LLDP_CHASSIS_ID_STAT_LEN 4
-#define LLDP_PORT_ID_STAT_LEN 4
+#define LLDP_CHASSIS_ID_STAT_LEN 	4
+#define LLDP_PORT_ID_STAT_LEN 		4
 #define DCBX_MAX_APP_PROTOCOL		32
-#define MAX_SYSTEM_LLDP_TLV_DATA    32
-
+#define MAX_SYSTEM_LLDP_TLV_DATA    	32  /* In dwords. 128 in bytes*/
+#define MAX_TLV_BUFFER			128 /* In dwords. 512 in bytes*/
 typedef enum _lldp_agent_e {
 	LLDP_NEAREST_BRIDGE = 0,
 	LLDP_NEAREST_NON_TPMR_BRIDGE,
@@ -413,6 +413,7 @@ struct dcbx_local_params {
 #define DCBX_CONFIG_VERSION_DISABLED        0
 #define DCBX_CONFIG_VERSION_IEEE            1
 #define DCBX_CONFIG_VERSION_CEE             2
+#define DCBX_CONFIG_VERSION_DYNAMIC         (DCBX_CONFIG_VERSION_IEEE | DCBX_CONFIG_VERSION_CEE)
 #define DCBX_CONFIG_VERSION_STATIC          4
 
 	u32 flags;
@@ -435,9 +436,27 @@ struct dcbx_mib {
 };
 
 struct lldp_system_tlvs_buffer_s {
-	u16 valid;
-	u16 length;
+	u32 flags;
+#define LLDP_SYSTEM_TLV_VALID_MASK		0x1
+#define LLDP_SYSTEM_TLV_VALID_OFFSET		0
+/* This bit defines if system TLVs are instead of mandatory TLVS or in
+ * addition to them. Set 1 for replacing mandatory TLVs
+ */
+#define LLDP_SYSTEM_TLV_MANDATORY_MASK		0x2
+#define LLDP_SYSTEM_TLV_MANDATORY_OFFSET	1
+#define LLDP_SYSTEM_TLV_LENGTH_MASK		0xffff0000
+#define LLDP_SYSTEM_TLV_LENGTH_OFFSET		16	
 	u32 data[MAX_SYSTEM_LLDP_TLV_DATA];
+};
+
+/* Since this struct is written by MFW and read by driver need to add
+ * sequence guards (as in case of DCBX MIB)
+ */
+struct lldp_received_tlvs_s {
+	u32 prefix_seq_num;
+	u32 length;
+	u32 tlvs_buffer[MAX_TLV_BUFFER];
+	u32 suffix_seq_num;
 };
 
 struct dcb_dscp_map {
@@ -453,6 +472,32 @@ struct dcb_dscp_map {
 	   dscp_pri_map[0]: | dscp7 pri | dscp6 pri | dscp5 pri | dscp4 pri | dscp3 pri | dscp2 pri | dscp1 pri | dscp0 pri |
 	   dscp_pri_map[1]: | dscp15 pri| dscp14 pri| dscp13 pri| dscp12 pri| dscp11 pri| dscp10 pri| dscp9 pri | dscp8 pri |
 	   etc.*/
+};
+
+struct mcp_val64 {
+	u32 lo;
+	u32 hi;
+};
+
+/* generic_idc_msg_t to be used for inter driver communication.
+ * source_pf specifies the originating PF that sent messages to all target PFs
+ * msg contains 64 bit value of the message - opaque to the MFW 
+ */ 
+struct generic_idc_msg_s {
+	u32 source_pf;
+	struct mcp_val64 msg;
+};
+
+/**************************************
+ *     Attributes commands
+ **************************************/
+
+enum _attribute_commands_e {
+	ATTRIBUTE_CMD_READ = 0,
+	ATTRIBUTE_CMD_WRITE,
+	ATTRIBUTE_CMD_READ_CLEAR,
+	ATTRIBUTE_CMD_CLEAR,
+	ATTRIBUTE_NUM_OF_COMMANDS
 };
 
 /**************************************/
@@ -635,6 +680,13 @@ struct public_port {
 #define LINK_STATUS_EXT_PHY_LINK_UP			0x40000000
 
 	u32 link_status1;
+#define LP_PRESENCE_STATUS_OFFSET	0 
+#define LP_PRESENCE_STATUS_MASK		0x3
+#define LP_PRESENCE_UNKNOWN		0x0
+#define LP_PRESENCE_PROBING		0x1
+#define	LP_PRESENT			0x2
+#define	LP_NOT_PRESENT			0x3
+
 	u32 ext_phy_fw_version;
 	u32 drv_phy_cfg_addr;   /* Points to struct eth_phy_cfg (For READ-ONLY) */
 
@@ -733,6 +785,8 @@ struct public_port {
 #define ETH_TRANSCEIVER_TYPE_25G_AOC			0x1e
 #define ETH_TRANSCEIVER_TYPE_4x10G			0x1f
 #define ETH_TRANSCEIVER_TYPE_4x25G_CR			0x20
+#define ETH_TRANSCEIVER_TYPE_1000BASET			0x21
+#define ETH_TRANSCEIVER_TYPE_10G_BASET			0x22
 #define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR	0x30
 #define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR	0x31
 #define ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR	0x32
@@ -755,6 +809,11 @@ struct public_port {
 #define	EEE_LP_ADV_STATUS_MASK	0x00000f00      /* Same values as in EEE_LD_ADV, but for Link Parter */
 #define EEE_LP_ADV_STATUS_OFFSET	8
 
+#define EEE_SUPPORTED_SPEED_MASK	0x0000f000	/* Supported speeds for EEE */
+#define EEE_SUPPORTED_SPEED_OFFSET	12
+	#define EEE_1G_SUPPORTED	(1 << 1)
+	#define EEE_10G_SUPPORTED	(1 << 2)
+
 	u32 eee_remote;	/* Used for EEE in LLDP */
 #define EEE_REMOTE_TW_TX_MASK	0x0000ffff
 #define EEE_REMOTE_TW_TX_OFFSET	0
@@ -771,6 +830,20 @@ struct public_port {
 #define ETH_TRANSCEIVER_HAS_DIAGNOSTIC			(1 << 6)
 #define ETH_TRANSCEIVER_IDENT_MASK			0x0000ff00
 #define ETH_TRANSCEIVER_IDENT_OFFSET			8
+
+	u32 oem_cfg_port;
+#define OEM_CFG_CHANNEL_TYPE_MASK			0x00000003
+#define OEM_CFG_CHANNEL_TYPE_OFFSET			0
+#define OEM_CFG_CHANNEL_TYPE_VLAN_PARTITION		0x1
+#define OEM_CFG_CHANNEL_TYPE_STAGGED			0x2
+
+#define OEM_CFG_SCHED_TYPE_MASK				0x0000000C
+#define OEM_CFG_SCHED_TYPE_OFFSET			2
+#define OEM_CFG_SCHED_TYPE_ETS				0x1
+#define OEM_CFG_SCHED_TYPE_VNIC_BW			0x2
+
+	struct lldp_received_tlvs_s lldp_received_tlvs[LLDP_MAX_LLDP_AGENTS];
+	u32 system_lldp_tlvs_buf2[MAX_SYSTEM_LLDP_TLV_DATA];
 };
 
 /**************************************/
@@ -801,7 +874,10 @@ struct public_func {
 	/* For PCP default value get the MSB byte of the map default */
 	u32 c2s_pcp_map_default;
 
-	u32 reserved[4];
+	/* For generic inter driver communication channel messages between PFs via MFW*/
+	struct generic_idc_msg_s generic_idc_msg;
+
+	u32 num_of_msix;
 
 	// replace old mf_cfg
 	u32 config;
@@ -845,7 +921,9 @@ struct public_func {
 #define FUNC_MF_CFG_BOOT_MODE_ENABLED		0x08000000
 
 	u32 status;
-#define FUNC_STATUS_VLINK_DOWN  		0x00000001
+#define FUNC_STATUS_VIRTUAL_LINK_UP		0x00000001
+#define FUNC_STATUS_LOGICAL_LINK_UP		0x00000002
+#define FUNC_STATUS_FORCED_LINK	 		0x00000004
 
 	u32 mac_upper;      /* MAC */
 #define FUNC_MF_CFG_UPPERMAC_MASK               0x0000ffff
@@ -905,6 +983,23 @@ struct public_func {
 #define DRV_ID_DRV_INIT_HW_MASK		0x80000000
 #define DRV_ID_DRV_INIT_HW_OFFSET	31
 #define DRV_ID_DRV_INIT_HW_FLAG		(1 << DRV_ID_DRV_INIT_HW_OFFSET)
+
+	u32 oem_cfg_func;
+#define OEM_CFG_FUNC_TC_MASK			0x0000000F
+#define OEM_CFG_FUNC_TC_OFFSET			0
+#define OEM_CFG_FUNC_TC_0			0x0
+#define OEM_CFG_FUNC_TC_1			0x1
+#define OEM_CFG_FUNC_TC_2			0x2
+#define OEM_CFG_FUNC_TC_3			0x3
+#define OEM_CFG_FUNC_TC_4			0x4
+#define OEM_CFG_FUNC_TC_5			0x5
+#define OEM_CFG_FUNC_TC_6			0x6
+#define OEM_CFG_FUNC_TC_7			0x7
+
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_MASK		0x00000030
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET	4
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC		0x1
+#define OEM_CFG_FUNC_HOST_PRI_CTRL_OS		0x2
 };
 
 /**************************************/
@@ -922,11 +1017,6 @@ struct public_func {
 struct mcp_mac {
 	u32 mac_upper;      /* Upper 16 bits are always zeroes */
 	u32 mac_lower;
-};
-
-struct mcp_val64 {
-	u32 lo;
-	u32 hi;
 };
 
 struct mcp_file_att {
@@ -1012,24 +1102,24 @@ struct mdump_config_stc {
 };
 
 enum resource_id_enum {
-	RESOURCE_NUM_SB_E		=	0,
+	RESOURCE_NUM_SB_E			=	0,
 	RESOURCE_NUM_L2_QUEUE_E		=	1,
 	RESOURCE_NUM_VPORT_E		=	2,
-	RESOURCE_NUM_VMQ_E		=	3,
+	RESOURCE_NUM_VMQ_E			=	3,
 	RESOURCE_FACTOR_NUM_RSS_PF_E	=	4,  /* Not a real resource!! it's a factor used to calculate others */
 	RESOURCE_FACTOR_RSS_PER_VF_E	=	5,  /* Not a real resource!! it's a factor used to calculate others */
-	RESOURCE_NUM_RL_E		=	6,
-	RESOURCE_NUM_PQ_E		=	7,
-	RESOURCE_NUM_VF_E		=	8,
+	RESOURCE_NUM_RL_E			=	6,
+	RESOURCE_NUM_PQ_E			=	7,
+	RESOURCE_NUM_VF_E			=	8,
 	RESOURCE_VFC_FILTER_E		=	9,
-	RESOURCE_ILT_E			=	10,
-	RESOURCE_CQS_E			=	11,
+	RESOURCE_ILT_E				=	10,
+	RESOURCE_CQS_E				=	11,
 	RESOURCE_GFT_PROFILES_E		=	12,
-	RESOURCE_NUM_TC_E		=	13,
+	RESOURCE_NUM_TC_E			=	13,
 	RESOURCE_NUM_RSS_ENGINES_E	=	14,
 	RESOURCE_LL2_QUEUE_E		=	15,
 	RESOURCE_RDMA_STATS_QUEUE_E	=	16,
-	RESOURCE_BDQ_E			=	17,
+	RESOURCE_BDQ_E				=	17,
 	RESOURCE_MAX_NUM,
 	RESOURCE_NUM_INVALID		=	0xFFFFFFFF
 };
@@ -1099,6 +1189,19 @@ struct mdump_retain_data_stc {
 	u32 status;
 };
 
+struct attribute_cmd_write_stc {
+	u32 val;
+	u32 mask;
+	u32 offset;
+};
+
+struct lldp_stats_stc {
+	u32 tx_frames_total;
+	u32 rx_frames_total;
+	u32 rx_frames_discarded;
+	u32 rx_age_outs;
+};
+
 union drv_union_data {
 	struct mcp_mac wol_mac; /* UNLOAD_DONE */
 
@@ -1131,6 +1234,8 @@ union drv_union_data {
 	struct load_req_stc load_req;
 	struct load_rsp_stc load_rsp;
 	struct mdump_retain_data_stc mdump_retain;
+	struct attribute_cmd_write_stc attribute_cmd_write;
+	struct lldp_stats_stc lldp_stats;
 	/* ... */
 };
 
@@ -1149,8 +1254,8 @@ struct public_drv_mb {
 	/*        - DONT_CARE - Don't flap the link if up */
 #define DRV_MSG_CODE_LINK_RESET			0x23000000
 
-	// Vitaly: LLDP commands
 #define DRV_MSG_CODE_SET_LLDP                   0x24000000
+#define DRV_MSG_CODE_REGISTER_LLDP_TLVS_RX      0x24100000
 #define DRV_MSG_CODE_SET_DCBX                   0x25000000
 	/* OneView feature driver HSI*/
 #define DRV_MSG_CODE_OV_UPDATE_CURR_CFG		0x26000000
@@ -1171,6 +1276,9 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_OEM_UPDATE_BOOT_CFG	0x3e000000
 #define DRV_MSG_CODE_OEM_RESET_TO_DEFAULT	0x3f000000
 #define DRV_MSG_CODE_OV_GET_CURR_CFG		0x40000000
+#define DRV_MSG_CODE_GET_OEM_UPDATES		0x41000000
+#define DRV_MSG_CODE_GET_LLDP_STATS		0x42000000
+#define DRV_MSG_CODE_GET_PPFID_BITMAP		0x43000000 /* params [31:8] - reserved, [7:0] - bitmap */
 
 #define DRV_MSG_CODE_INITIATE_FLR_DEPRECATED    0x02000000 /*deprecated don't use*/
 #define DRV_MSG_CODE_INITIATE_PF_FLR            0x02010000
@@ -1288,6 +1396,23 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_READ_WOL_REG			0X00320000
 #define DRV_MSG_CODE_WRITE_WOL_REG			0X00330000
 #define DRV_MSG_CODE_GET_WOL_BUFFER			0X00340000
+#define DRV_MSG_CODE_ATTRIBUTE  		0x00350000 /* Param: [0:23] Attribute key, [24:31] Attribute sub command */
+
+#define DRV_MSG_CODE_ENCRYPT_PASSWORD		0x00360000 /* Param: Password len. Union: Plain Password */
+#define DRV_MSG_CODE_GET_ENGINE_CONFIG		0x00370000 /* Param: None */
+
+	/*    Pmbus commands	*/
+#define DRV_MSG_CODE_PMBUS_READ			0x00380000 /* Param: [0:7] - Cmd, [8:9] - len */
+#define DRV_MSG_CODE_PMBUS_WRITE		0x00390000 /* Param: [0:7] - Cmd, [8:9] - len, [16:31] -data*/
+
+#define DRV_MB_PARAM_PMBUS_CMD_OFFSET		0
+#define DRV_MB_PARAM_PMBUS_CMD_MASK		0xFF
+#define DRV_MB_PARAM_PMBUS_LEN_OFFSET		8
+#define DRV_MB_PARAM_PMBUS_LEN_MASK		0x300
+#define DRV_MB_PARAM_PMBUS_DATA_OFFSET		16
+#define DRV_MB_PARAM_PMBUS_DATA_MASK		0xFFFF0000
+
+#define DRV_MSG_CODE_GENERIC_IDC		0x003a0000
 
 #define DRV_MSG_SEQ_NUMBER_MASK				0x0000ffff
 
@@ -1306,10 +1431,18 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_INIT_PHY_DONT_CARE		0x00000002
 
 	/* LLDP / DCBX params*/
+	/* To be used with SET_LLDP command */
 #define DRV_MB_PARAM_LLDP_SEND_MASK		0x00000001
 #define DRV_MB_PARAM_LLDP_SEND_OFFSET		0
+	/* To be used with SET_LLDP and REGISTER_LLDP_TLVS_RX commands */
 #define DRV_MB_PARAM_LLDP_AGENT_MASK		0x00000006
 #define DRV_MB_PARAM_LLDP_AGENT_OFFSET       	1
+	/* To be used with REGISTER_LLDP_TLVS_RX command */
+#define DRV_MB_PARAM_LLDP_TLV_RX_VALID_MASK	0x00000001
+#define DRV_MB_PARAM_LLDP_TLV_RX_VALID_OFFSET	0
+#define DRV_MB_PARAM_LLDP_TLV_RX_TYPE_MASK	0x000007f0
+#define DRV_MB_PARAM_LLDP_TLV_RX_TYPE_OFFSET	4
+	/* To be used with SET_DCBX command */
 #define DRV_MB_PARAM_DCBX_NOTIFY_MASK		0x00000008
 #define DRV_MB_PARAM_DCBX_NOTIFY_OFFSET		3
 
@@ -1409,6 +1542,12 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_FCOE_CVID_MASK	0xFFF
 #define DRV_MB_PARAM_FCOE_CVID_OFFSET	0
 
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_MASK	0x1
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_OFFSET	0
+
+#define DRV_MB_PARAM_LLDP_STATS_AGENT_MASK	0xFF
+#define DRV_MB_PARAM_LLDP_STATS_AGENT_OFFSET	0
+
 #define DRV_MB_PARAM_SET_LED_MODE_OPER		0x0
 #define DRV_MB_PARAM_SET_LED_MODE_ON		0x1
 #define DRV_MB_PARAM_SET_LED_MODE_OFF		0x2
@@ -1454,11 +1593,17 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_BIST_TEST_IMAGE_INDEX_MASK       0x0000FF00
 
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_MASK      0x0000FFFF
-#define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET     0
+#define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET    0
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_SMARTLINQ 0x00000001 /* driver supports SmartLinQ parameter */
 #define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE       0x00000002 /* driver supports EEE parameter */
 #define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_MASK      0xFFFF0000
 #define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_OFFSET     16
+#define DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK     0x00010000 /* driver supports virtual link parameter */
+	/* Driver attributes params */
+#define DRV_MB_PARAM_ATTRIBUTE_KEY_OFFSET		 0
+#define DRV_MB_PARAM_ATTRIBUTE_KEY_MASK		0x00FFFFFF
+#define DRV_MB_PARAM_ATTRIBUTE_CMD_OFFSET		24
+#define DRV_MB_PARAM_ATTRIBUTE_CMD_MASK		0xFF000000
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK                        0xffff0000
@@ -1482,6 +1627,7 @@ struct public_drv_mb {
 #define FW_MSG_CODE_LINK_RESET_DONE		0x23000000
 #define FW_MSG_CODE_SET_LLDP_DONE               0x24000000
 #define FW_MSG_CODE_SET_LLDP_UNSUPPORTED_AGENT  0x24010000
+#define FW_MSG_CODE_REGISTER_LLDP_TLVS_RX_DONE  0x24100000
 #define FW_MSG_CODE_SET_DCBX_DONE               0x25000000
 #define FW_MSG_CODE_UPDATE_CURR_CFG_DONE        0x26000000
 #define FW_MSG_CODE_UPDATE_BUS_NUM_DONE         0x27000000
@@ -1505,6 +1651,9 @@ struct public_drv_mb {
 #define FW_MSG_CODE_UPDATE_BOOT_CFG_DONE	0x3e000000
 #define FW_MSG_CODE_RESET_TO_DEFAULT_ACK	0x3f000000
 #define FW_MSG_CODE_OV_GET_CURR_CFG_DONE	0x40000000
+#define FW_MSG_CODE_GET_OEM_UPDATES_DONE	0x41000000
+#define FW_MSG_CODE_GET_LLDP_STATS_DONE		0x42000000
+#define FW_MSG_CODE_GET_LLDP_STATS_ERROR	0x42010000
 
 #define FW_MSG_CODE_NIG_DRAIN_DONE              0x30000000
 #define FW_MSG_CODE_VF_DISABLED_DONE            0xb0000000
@@ -1545,6 +1694,7 @@ struct public_drv_mb {
 #define FW_MSG_CODE_SET_SECURE_MODE_OK		0x00140000
 #define FW_MSG_MODE_PHY_PRIVILEGE_ERROR		0x00150000
 #define FW_MSG_CODE_OK				0x00160000
+#define FW_MSG_CODE_ERROR			0x00170000
 #define FW_MSG_CODE_LED_MODE_INVALID		0x00170000
 #define FW_MSG_CODE_PHY_DIAG_OK			0x00160000
 #define FW_MSG_CODE_PHY_DIAG_ERROR		0x00170000
@@ -1591,6 +1741,10 @@ struct public_drv_mb {
 
 #define FW_MSG_SEQ_NUMBER_MASK                  0x0000ffff
 
+#define FW_MSG_CODE_ATTRIBUTE_INVALID_KEY	0x00020000
+#define FW_MSG_CODE_ATTRIBUTE_INVALID_CMD	0x00030000
+
+#define FW_MSG_CODE_IDC_BUSY			0x00010000
 
 	u32 fw_mb_param;
 /* Resource Allocation params - MFW version support */
@@ -1606,10 +1760,32 @@ struct public_drv_mb {
 #define FW_MB_PARAM_GET_PF_RDMA_BOTH		0x3
 
 /* get MFW feature support response */
-#define FW_MB_PARAM_FEATURE_SUPPORT_SMARTLINQ   0x00000001 /* MFW supports SmartLinQ */
-#define FW_MB_PARAM_FEATURE_SUPPORT_EEE         0x00000002 /* MFW supports EEE */
+#define FW_MB_PARAM_FEATURE_SUPPORT_SMARTLINQ    0x00000001 /* MFW supports SmartLinQ */
+#define FW_MB_PARAM_FEATURE_SUPPORT_EEE          0x00000002 /* MFW supports EEE */
+#define FW_MB_PARAM_FEATURE_SUPPORT_DRV_LOAD_TO  0x00000004 /* MFW supports DRV_LOAD Timeout */
+#define FW_MB_PARAM_FEATURE_SUPPORT_LP_PRES_DET	 0x00000008 /* MFW supports early detection of LP Presence */
+#define FW_MB_PARAM_FEATURE_SUPPORT_RELAXED_ORD	 0x00000010 /* MFW supports relaxed ordering setting */
+#define FW_MB_PARAM_FEATURE_SUPPORT_VLINK        0x00010000 /* MFW supports virtual link */
 
 #define FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR	(1<<0)
+
+#define FW_MB_PARAM_OEM_UPDATE_MASK		0xFF
+#define FW_MB_PARAM_OEM_UPDATE_OFFSET		0
+#define FW_MB_PARAM_OEM_UPDATE_BW		0x01
+#define FW_MB_PARAM_OEM_UPDATE_S_TAG		0x02
+#define FW_MB_PARAM_OEM_UPDATE_CFG		0x04
+
+#define FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALID_MASK   0x00000001
+#define FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALID_OFFSET 0
+#define FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALUE_MASK   0x00000002
+#define FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALUE_OFFSET 1
+#define FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALID_MASK    0x00000004
+#define FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALID_OFFSET  2
+#define FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALUE_MASK    0x00000008
+#define FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALUE_OFFSET  3
+
+#define FW_MB_PARAM_PPFID_BITMAP_MASK   0xFF
+#define FW_MB_PARAM_PPFID_BITMAP_OFFSET    0
 
 	u32 drv_pulse_mb;
 #define DRV_PULSE_SEQ_MASK                      0x00007fff
@@ -1673,6 +1849,9 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_CRITICAL_ERROR_OCCURRED,
 	MFW_DRV_MSG_EEE_NEGOTIATION_COMPLETE,
 	MFW_DRV_MSG_GET_TLV_REQ,
+	MFW_DRV_MSG_OEM_CFG_UPDATE,
+	MFW_DRV_MSG_LLDP_RECEIVED_TLVS_UPDATED,
+	MFW_DRV_MSG_GENERIC_IDC,	/* Generic Inter Driver Communication message */
 	MFW_DRV_MSG_MAX
 };
 
@@ -1966,5 +2145,98 @@ enum tlvs {
 	DRV_TLV_ISCSI_PDU_TX_FRAMES_SENT,
 	DRV_TLV_ISCSI_PDU_TX_BYTES_SENT
 };
+
+#define I2C_DEV_ADDR_A2                   0xa2
+#define SFP_EEPROM_A2_TEMPERATURE_ADDR            0x60
+#define SFP_EEPROM_A2_TEMPERATURE_SIZE            2
+#define SFP_EEPROM_A2_VCC_ADDR                    0x62
+#define SFP_EEPROM_A2_VCC_SIZE                    2
+#define SFP_EEPROM_A2_TX_BIAS_ADDR                0x64
+#define SFP_EEPROM_A2_TX_BIAS_SIZE                2
+#define SFP_EEPROM_A2_TX_POWER_ADDR               0x66
+#define SFP_EEPROM_A2_TX_POWER_SIZE               2
+#define SFP_EEPROM_A2_RX_POWER_ADDR               0x68
+#define SFP_EEPROM_A2_RX_POWER_SIZE               2
+
+#define I2C_DEV_ADDR_A0                   0xa0
+#define QSFP_EEPROM_A0_TEMPERATURE_ADDR            0x16
+#define QSFP_EEPROM_A0_TEMPERATURE_SIZE            2
+#define QSFP_EEPROM_A0_VCC_ADDR                    0x1a
+#define QSFP_EEPROM_A0_VCC_SIZE                    2
+#define QSFP_EEPROM_A0_TX1_BIAS_ADDR               0x2a
+#define QSFP_EEPROM_A0_TX1_BIAS_SIZE               2
+#define QSFP_EEPROM_A0_TX1_POWER_ADDR              0x32
+#define QSFP_EEPROM_A0_TX1_POWER_SIZE              2
+#define QSFP_EEPROM_A0_RX1_POWER_ADDR              0x22
+#define QSFP_EEPROM_A0_RX1_POWER_SIZE              2
+
+/**************************************
+ *     eDiag NETWORK Mode (DON)
+ **************************************/
+
+#define ETH_DON_TYPE           0x0911    /* NETWORK Mode for QeDiag */
+#define ETH_DON_TRACE_TYPE    0x0912    /* NETWORK Mode Continous Trace */
+
+#define	DON_RESP_UNKNOWN_CMD_ID	    0x10	/* Response Error */
+
+/* Op Codes, Response is Op Code+1 */
+
+#define	DON_REG_READ_REQ_CMD_ID			0x11
+#define	DON_REG_WRITE_REQ_CMD_ID		0x22
+#define	DON_CHALLENGE_REQ_CMD_ID		0x33
+#define	DON_NVM_READ_REQ_CMD_ID			0x44
+#define	DON_BLOCK_READ_REQ_CMD_ID		0x55
+
+#define	DON_MFW_MODE_TRACE_CONTINUOUS_ID	0x70
+
+#if defined(MFW) || defined(DIAG) || defined(WINEDIAG)
+
+#ifndef UEFI
+#if defined(_MSC_VER)
+#pragma pack(push,1)
+#else
+#pragma pack(1)
+#endif
+#endif
+
+typedef struct {
+	u8 dst_addr[6];
+	u8 src_addr[6];
+	u16 ether_type;
+
+	/* DON Message data starts here, after L2 header 		*/
+	/* Do not change alignment to keep backward compatability	*/
+	u16 cmd_id;			/* Op code and response code */
+
+	union {
+		struct {		/* DON Commands */
+			u32 address;
+			u32 val;
+			u32 resp_status;
+		};
+		struct {		/* DON Traces	*/
+			u16 mcp_clock;		/* MCP Clock in MHz		*/
+			u16 trace_size;		/* Trace size in bytes		*/
+
+			u32 seconds;		/* Seconds since last reset     */
+			u32 ticks;		/* Timestamp (NOW)		*/
+		};
+	};
+	union {
+		u8 digest[32]; /* SHA256 */
+		u8 data[32];
+		/* u32 dword[8]; */
+	};
+} don_packet_t;
+
+#ifndef UEFI
+#if defined(_MSC_VER)
+#pragma pack(pop)
+#else
+#pragma pack(0)
+#endif
+#endif		/* #ifndef UEFI */
+
+#endif		/* #if defined(MFW) || defined(DIAG) || defined(WINEDIAG) */
 
 #endif				/* MCP_PUBLIC_H */

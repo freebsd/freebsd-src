@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2018
+.Dd August 8, 2018
 .Dt LS 1
 .Os
 .Sh NAME
@@ -132,6 +132,8 @@ after each that is a
 Enable colorized output.
 This option is equivalent to defining
 .Ev CLICOLOR
+or
+.Ev COLORTERM
 in the environment.
 (See below.)
 This functionality can be compiled out by removing the definition of
@@ -628,6 +630,10 @@ The
 variable still needs to reference a color capable terminal however
 otherwise it is not possible to determine which color sequences to
 use.
+.It Ev COLORTERM
+See description for
+.Ev CLICOLOR
+above.
 .It Ev COLUMNS
 If this variable contains a string representing a
 decimal integer, it is used as the
@@ -652,7 +658,9 @@ for more information.
 .It Ev LSCOLORS
 The value of this variable describes what color to use for which
 attribute when colors are enabled with
-.Ev CLICOLOR .
+.Ev CLICOLOR
+or
+.Ev COLORTERM .
 This string is a concatenation of pairs of the format
 .Ar f Ns Ar b ,
 where
@@ -759,6 +767,8 @@ option for more details.
 .It Ev TERM
 The
 .Ev CLICOLOR
+and
+.Ev COLORTERM
 functionality depends on a terminal type with color capabilities.
 .It Ev TZ
 The timezone to use when displaying dates.

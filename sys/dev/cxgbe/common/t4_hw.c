@@ -9803,7 +9803,7 @@ int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int cl,
 		    int minrate, int maxrate, int weight, int pktsize,
-		    int sleep_ok)
+		    int burstsize, int sleep_ok)
 {
 	struct fw_sched_cmd cmd;
 
@@ -9825,6 +9825,7 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 	cmd.u.params.max = cpu_to_be32(maxrate);
 	cmd.u.params.weight = cpu_to_be16(weight);
 	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+	cmd.u.params.burstsize = cpu_to_be16(burstsize);
 
 	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
 			       NULL, sleep_ok);

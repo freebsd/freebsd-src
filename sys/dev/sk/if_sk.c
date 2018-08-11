@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
  * XMAC II datasheet online. I have put my copy at people.freebsd.org as a
  * convenience to others until Vitesse corrects this problem:
  *
- * http://people.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
+ * https://people.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
  *
  * Written by Bill Paul <wpaul@ee.columbia.edu>
  * Department of Electrical Engineering

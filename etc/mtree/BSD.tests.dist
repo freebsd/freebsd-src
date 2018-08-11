@@ -432,6 +432,8 @@
         ..
         audit
         ..
+        auditpipe
+        ..
         capsicum
         ..
         cddl

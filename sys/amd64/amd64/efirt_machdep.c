@@ -84,6 +84,19 @@ efi_destroy_1t1_map(void)
 	efi_pml4_page = NULL;
 }
 
+/*
+ * Map a physical address from EFI runtime space into KVA space.  Returns 0 to
+ * indicate a failed mapping so that the caller may handle error.
+ */
+vm_offset_t
+efi_phys_to_kva(vm_paddr_t paddr)
+{
+
+	if (paddr >= dmaplimit)
+		return (0);
+	return (PHYS_TO_DMAP(paddr));
+}
+
 static vm_page_t
 efi_1t1_page(void)
 {

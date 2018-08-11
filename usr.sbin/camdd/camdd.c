@@ -429,23 +429,6 @@ static sig_atomic_t need_status = 0;
 #define	min(a, b) (a < b) ? a : b
 #endif
 
-/*
- * XXX KDM private copy of timespecsub().  This is normally defined in
- * sys/time.h, but is only enabled in the kernel.  If that definition is
- * enabled in userland, it breaks the build of libnetbsd.
- */
-#ifndef timespecsub
-#define	timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-#endif
-
 
 /* Generically useful offsets into the peripheral private area */
 #define ppriv_ptr0 periph_priv.entries[0].ptr
@@ -3069,7 +3052,7 @@ camdd_print_status(struct camdd_dev *camdd_dev, struct camdd_dev *other_dev,
 		return;
 	}
 
-	timespecsub(&done_time, start_time);
+	timespecsub(&done_time, start_time, &done_time);
 	
 	total_ns = done_time.tv_nsec + (done_time.tv_sec * 1000000000);
 	total_sec = total_ns;

@@ -16,7 +16,7 @@
 # require the ATF libraries.
 #
 # Test programs registered in this manner are set to be installed into TESTSDIR
-# (which should be overriden by the Makefile) and are not required to provide a
+# (which should be overridden by the Makefile) and are not required to provide a
 # manpage.
 ATF_TESTS_C?=
 ATF_TESTS_CXX?=

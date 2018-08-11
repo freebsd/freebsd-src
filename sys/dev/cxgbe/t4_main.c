@@ -547,7 +547,8 @@ static void cxgbe_tick(void *);
 static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static void cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
-static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
+static int sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS);
+static int sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS);
 static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
 static int sysctl_noflowq(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
@@ -588,7 +589,6 @@ static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
-static int sysctl_tc_params(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpus(SYSCTL_HANDLER_ARGS);
 #ifdef TCP_OFFLOAD
 static int sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS);
@@ -1404,6 +1404,7 @@ t4_detach_common(device_t dev)
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
+	free(sc->tids.hpftid_tab, M_CXGBE);
 	if (sc->tids.hftid_tab)
 		free_hftid_tab(&sc->tids);
 	free(sc->tids.atid_tab, M_CXGBE);
@@ -3841,16 +3842,58 @@ get_params__post_init(struct adapter *sc)
 
 	sc->sge.iq_start = val[0];
 	sc->sge.eq_start = val[1];
-	sc->tids.ftid_base = val[2];
-	sc->tids.nftids = val[3] - val[2] + 1;
-	sc->params.ftid_min = val[2];
-	sc->params.ftid_max = val[3];
+	if (val[3] > val[2]) {
+		sc->tids.ftid_base = val[2];
+		sc->tids.ftid_end = val[3];
+		sc->tids.nftids = val[3] - val[2] + 1;
+	}
 	sc->vres.l2t.start = val[4];
 	sc->vres.l2t.size = val[5] - val[4] + 1;
 	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
 	    ("%s: L2 table size (%u) larger than expected (%u)",
 	    __func__, sc->vres.l2t.size, L2T_SIZE));
 	sc->params.core_vdd = val[6];
+
+	if (chip_id(sc) >= CHELSIO_T6) {
+
+#ifdef INVARIANTS
+		if (sc->params.fw_vers >=
+		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
+		    V_FW_HDR_FW_VER_MICRO(1) | V_FW_HDR_FW_VER_BUILD(0))) {
+			/*
+			 * Note that the code to enable the region should run
+			 * before t4_fw_initialize and not here.  This is just a
+			 * reminder to add said code.
+			 */
+			device_printf(sc->dev,
+			    "hpfilter region not enabled.\n");
+		}
+#endif
+
+		sc->tids.tid_base = t4_read_reg(sc,
+		    A_LE_DB_ACTIVE_TABLE_START_INDEX);
+
+		param[0] = FW_PARAM_PFVF(HPFILTER_START);
+		param[1] = FW_PARAM_PFVF(HPFILTER_END);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			   "failed to query hpfilter parameters: %d.\n", rc);
+			return (rc);
+		}
+		if ((int)val[1] > (int)val[0]) {
+			sc->tids.hpftid_base = val[0];
+			sc->tids.hpftid_end = val[1];
+			sc->tids.nhpftids = val[1] - val[0] + 1;
+
+			/*
+			 * These should go off if the layout changes and the
+			 * driver needs to catch up.
+			 */
+			MPASS(sc->tids.hpftid_base == 0);
+			MPASS(sc->tids.tid_base == sc->tids.nhpftids);
+		}
+	}
 
 	/*
 	 * MPSBGMAP is queried separately because only recent firmwares support
@@ -3915,6 +3958,12 @@ get_params__post_init(struct adapter *sc)
 			return (rc);
 		}
 		sc->tids.ntids = val[0];
+		if (sc->params.fw_vers <
+		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
+		    V_FW_HDR_FW_VER_MICRO(5) | V_FW_HDR_FW_VER_BUILD(0))) {
+			MPASS(sc->tids.ntids >= sc->tids.nhpftids);
+			sc->tids.ntids -= sc->tids.nhpftids;
+		}
 		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
 		sc->params.hash_filter = 1;
 	}
@@ -3928,12 +3977,13 @@ get_params__post_init(struct adapter *sc)
 			    "failed to query NIC parameters: %d.\n", rc);
 			return (rc);
 		}
-		sc->tids.etid_base = val[0];
-		sc->params.etid_min = val[0];
-		sc->params.etid_max = val[1];
-		sc->tids.netids = val[1] - val[0] + 1;
-		sc->params.eo_wr_cred = val[2];
-		sc->params.ethoffload = 1;
+		if (val[1] > val[0]) {
+			sc->tids.etid_base = val[0];
+			sc->tids.etid_end = val[1];
+			sc->tids.netids = val[1] - val[0] + 1;
+			sc->params.eo_wr_cred = val[2];
+			sc->params.ethoffload = 1;
+		}
 	}
 	if (sc->toecaps) {
 		/* query offload-related parameters */
@@ -3951,8 +4001,10 @@ get_params__post_init(struct adapter *sc)
 		}
 		sc->tids.ntids = val[0];
 		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
-		sc->tids.stid_base = val[1];
-		sc->tids.nstids = val[2] - val[1] + 1;
+		if (val[2] > val[1]) {
+			sc->tids.stid_base = val[1];
+			sc->tids.nstids = val[2] - val[1] + 1;
+		}
 		sc->vres.ddp.start = val[3];
 		sc->vres.ddp.size = val[4] - val[3] + 1;
 		sc->params.ofldq_wr_cred = val[5];
@@ -5450,8 +5502,8 @@ t4_sysctls(struct adapter *sc)
 	    sc->params.nports, "# of ports");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
-	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
-	    sysctl_bitfield, "A", "available doorbells");
+	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, (uintptr_t)&sc->doorbells,
+	    sysctl_bitfield_8b, "A", "available doorbells");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
@@ -5522,8 +5574,8 @@ t4_sysctls(struct adapter *sc)
 
 #define SYSCTL_CAP(name, n, text) \
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
-	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
-	    sysctl_bitfield, "A", "available " text " capabilities")
+	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], (uintptr_t)&sc->name, \
+	    sysctl_bitfield_16b, "A", "available " text " capabilities")
 
 	SYSCTL_CAP(nbmcaps, 0, "NBM");
 	SYSCTL_CAP(linkcaps, 1, "link");
@@ -5958,6 +6010,7 @@ cxgbe_sysctls(struct port_info *pi)
 	struct adapter *sc = pi->adapter;
 	int i;
 	char name[16];
+	static char *tc_flags = {"\20\1USER\2SYNC\3ASYNC\4ERR"};
 
 	ctx = device_get_sysctl_ctx(pi->dev);
 
@@ -6003,6 +6056,13 @@ cxgbe_sysctls(struct port_info *pi)
 	 */
 	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "tc", CTLFLAG_RD, NULL,
 	    "Tx scheduler traffic classes (cl_rl)");
+	children2 = SYSCTL_CHILDREN(oid);
+	SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "pktsize",
+	    CTLFLAG_RW, &pi->sched_params->pktsize, 0,
+	    "pktsize for per-flow cl-rl (0 means up to the driver )");
+	SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "burstsize",
+	    CTLFLAG_RW, &pi->sched_params->burstsize, 0,
+	    "burstsize for per-flow cl-rl (0 means up to the driver)");
 	for (i = 0; i < sc->chip_params->nsched_cls; i++) {
 		struct tx_cl_rl_params *tc = &pi->sched_params->cl_rl[i];
 
@@ -6010,8 +6070,9 @@ cxgbe_sysctls(struct port_info *pi)
 		children2 = SYSCTL_CHILDREN(SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(oid), OID_AUTO, name, CTLFLAG_RD, NULL,
 		    "traffic class"));
-		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "flags", CTLFLAG_RD,
-		    &tc->flags, 0, "flags");
+		SYSCTL_ADD_PROC(ctx, children2, OID_AUTO, "flags",
+		    CTLTYPE_STRING | CTLFLAG_RD, tc_flags, (uintptr_t)&tc->flags,
+		    sysctl_bitfield_8b, "A", "flags");
 		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "refcount",
 		    CTLFLAG_RD, &tc->refcount, 0, "references to this class");
 		SYSCTL_ADD_PROC(ctx, children2, OID_AUTO, "params",
@@ -6211,7 +6272,7 @@ sysctl_int_array(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_bitfield(SYSCTL_HANDLER_ARGS)
+sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS)
 {
 	int rc;
 	struct sbuf *sb;
@@ -6224,7 +6285,28 @@ sysctl_bitfield(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	sbuf_printf(sb, "%b", (int)arg2, (char *)arg1);
+	sbuf_printf(sb, "%b", *(uint8_t *)(uintptr_t)arg2, (char *)arg1);
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS)
+{
+	int rc;
+	struct sbuf *sb;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb, "%b", *(uint16_t *)(uintptr_t)arg2, (char *)arg1);
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
@@ -8093,6 +8175,11 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 		    t->atids_in_use);
 	}
 
+	if (t->nhpftids) {
+		sbuf_printf(sb, "HPFTID range: %u-%u, in use: %u\n",
+		    t->hpftid_base, t->hpftid_end, t->hpftids_in_use);
+	}
+
 	if (t->ntids) {
 		sbuf_printf(sb, "TID range: ");
 		if (t4_read_reg(sc, A_LE_DB_CONFIG) & F_HASHEN) {
@@ -8107,10 +8194,10 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 			}
 
 			if (b)
-				sbuf_printf(sb, "0-%u, ", b - 1);
+				sbuf_printf(sb, "%u-%u, ", t->tid_base, b - 1);
 			sbuf_printf(sb, "%u-%u", hb, t->ntids - 1);
 		} else
-			sbuf_printf(sb, "0-%u", t->ntids - 1);
+			sbuf_printf(sb, "%u-%u", t->tid_base, t->ntids - 1);
 		sbuf_printf(sb, ", in use: %u\n",
 		    atomic_load_acq_int(&t->tids_in_use));
 	}
@@ -8121,8 +8208,8 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (t->nftids) {
-		sbuf_printf(sb, "FTID range: %u-%u\n", t->ftid_base,
-		    t->ftid_base + t->nftids - 1);
+		sbuf_printf(sb, "FTID range: %u-%u, in use: %u\n", t->ftid_base,
+		    t->ftid_end, t->ftids_in_use);
 	}
 
 	if (t->netids) {
@@ -8581,82 +8668,6 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	rc = sbuf_finish(sb);
-	sbuf_delete(sb);
-
-	return (rc);
-}
-
-static int
-sysctl_tc_params(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *sc = arg1;
-	struct tx_cl_rl_params tc;
-	struct sbuf *sb;
-	int i, rc, port_id, mbps, gbps;
-
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
-	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
-	if (sb == NULL)
-		return (ENOMEM);
-
-	port_id = arg2 >> 16;
-	MPASS(port_id < sc->params.nports);
-	MPASS(sc->port[port_id] != NULL);
-	i = arg2 & 0xffff;
-	MPASS(i < sc->chip_params->nsched_cls);
-
-	mtx_lock(&sc->tc_lock);
-	tc = sc->port[port_id]->sched_params->cl_rl[i];
-	mtx_unlock(&sc->tc_lock);
-
-	if (tc.flags & TX_CLRL_ERROR) {
-		sbuf_printf(sb, "error");
-		goto done;
-	}
-
-	if (tc.ratemode == SCHED_CLASS_RATEMODE_REL) {
-		/* XXX: top speed or actual link speed? */
-		gbps = port_top_speed(sc->port[port_id]);
-		sbuf_printf(sb, " %u%% of %uGbps", tc.maxrate, gbps);
-	} else if (tc.ratemode == SCHED_CLASS_RATEMODE_ABS) {
-		switch (tc.rateunit) {
-		case SCHED_CLASS_RATEUNIT_BITS:
-			mbps = tc.maxrate / 1000;
-			gbps = tc.maxrate / 1000000;
-			if (tc.maxrate == gbps * 1000000)
-				sbuf_printf(sb, " %uGbps", gbps);
-			else if (tc.maxrate == mbps * 1000)
-				sbuf_printf(sb, " %uMbps", mbps);
-			else
-				sbuf_printf(sb, " %uKbps", tc.maxrate);
-			break;
-		case SCHED_CLASS_RATEUNIT_PKTS:
-			sbuf_printf(sb, " %upps", tc.maxrate);
-			break;
-		default:
-			rc = ENXIO;
-			goto done;
-		}
-	}
-
-	switch (tc.mode) {
-	case SCHED_CLASS_MODE_CLASS:
-		sbuf_printf(sb, " aggregate");
-		break;
-	case SCHED_CLASS_MODE_FLOW:
-		sbuf_printf(sb, " per-flow");
-		break;
-	default:
-		rc = ENXIO;
-		goto done;
-	}
-
-done:
-	if (rc == 0)
-		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
 	return (rc);

@@ -1119,7 +1119,7 @@ spawn_pager(struct tag_files *tag_files)
 	if (pager == NULL || *pager == '\0')
 		pager = getenv("PAGER");
 	if (pager == NULL || *pager == '\0')
-		pager = "more -s";
+		pager = "less -s";
 	cp = mandoc_strdup(pager);
 
 	/*

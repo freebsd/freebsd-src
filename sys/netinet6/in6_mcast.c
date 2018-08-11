@@ -562,8 +562,13 @@ static void in6m_init(void)
 	taskqgroup_config_gtask_init(NULL, &free_gtask, in6m_release_task, "in6m release task");
 }
 
+#ifdef EARLY_AP_STARTUP
 SYSINIT(in6m_init, SI_SUB_SMP + 1, SI_ORDER_FIRST,
 	in6m_init, NULL);
+#else
+SYSINIT(in6m_init, SI_SUB_ROOT_CONF - 1, SI_ORDER_SECOND,
+	in6m_init, NULL);
+#endif
 
 
 void

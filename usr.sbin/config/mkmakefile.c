@@ -65,6 +65,7 @@ static void do_before_depend(FILE *);
 static int opteq(const char *, const char *);
 static void read_files(void);
 static void sanitize_envline(char *result, const char *src);
+static bool preprocess(char *line, char *result);
 static void process_into_file(char *line, FILE *ofp);
 static void process_into_nvlist(char *line, nvlist_t *nvl);
 static void dump_nvlist(nvlist_t *nvl, FILE *ofp);
@@ -243,16 +244,29 @@ sanitize_envline(char *result, const char *src)
 	*dst = 0;
 }
 
+/*
+ * Returns true if the caller may use the string.
+ */
+static bool
+preprocess(char *line, char *result)
+{
+	char *s;
+
+	/* Strip any comments */
+	if ((s = strchr(line, '#')) != NULL)
+		*s = '\0';
+	sanitize_envline(result, line);
+	/* Return true if it's non-empty */
+	return (*result != '\0');
+}
+
 static void
 process_into_file(char *line, FILE *ofp)
 {
 	char result[BUFSIZ];
 
-	sanitize_envline(result, line);
-	/* anything left? */
-	if (*result == '\0')
-		return;
-	fprintf(ofp, "\"%s\\0\"\n", result);
+	if (preprocess(line, result))
+		fprintf(ofp, "\"%s\\0\"\n", result);
 }
 
 static void
@@ -260,15 +274,13 @@ process_into_nvlist(char *line, nvlist_t *nvl)
 {
 	char result[BUFSIZ], *s;
 
-	sanitize_envline(result, line);
-	/* anything left? */
-	if (*result == '\0')
-		return;
-	s = strchr(result, '=');
-	*s = 0;
-	if (nvlist_exists(nvl, result))
-		nvlist_free(nvl, result);
-	nvlist_add_string(nvl, result, s + 1);
+	if (preprocess(line, result)) {
+		s = strchr(result, '=');
+		*s = '\0';
+		if (nvlist_exists(nvl, result))
+			nvlist_free(nvl, result);
+		nvlist_add_string(nvl, result, s + 1);
+	}
 }
 
 static void

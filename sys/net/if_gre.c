@@ -94,7 +94,7 @@ SX_SYSINIT(gre_ioctl_sx, &gre_ioctl_sx, "gre_ioctl");
 
 static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, gre_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, gre_cloner);
 #define	V_gre_cloner	VNET(gre_cloner)
 
 static void	gre_qflush(struct ifnet *);
@@ -119,7 +119,7 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
 #define MAX_GRE_NEST 1
 #endif
 
-static VNET_DEFINE(int, max_gre_nesting) = MAX_GRE_NEST;
+VNET_DEFINE_STATIC(int, max_gre_nesting) = MAX_GRE_NEST;
 #define	V_max_gre_nesting	VNET(max_gre_nesting)
 SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_gre_nesting), 0, "Max nested tunnels");

@@ -217,11 +217,11 @@ static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
  * FUTURE: Stop using IFP_TO_IA/INADDR_ANY, and use source address selection
  * policy to control the address used by IGMP on the link.
  */
-static VNET_DEFINE(int, interface_timers_running);	/* IGMPv3 general
+VNET_DEFINE_STATIC(int, interface_timers_running);	/* IGMPv3 general
 							 * query response */
-static VNET_DEFINE(int, state_change_timers_running);	/* IGMPv3 state-change
+VNET_DEFINE_STATIC(int, state_change_timers_running);	/* IGMPv3 state-change
 							 * retransmit */
-static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
+VNET_DEFINE_STATIC(int, current_state_timers_running);	/* IGMPv1/v2 host
 							 * report; IGMPv3 g/sg
 							 * query response */
 
@@ -229,25 +229,25 @@ static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 #define	V_state_change_timers_running	VNET(state_change_timers_running)
 #define	V_current_state_timers_running	VNET(current_state_timers_running)
 
-static VNET_DEFINE(LIST_HEAD(, igmp_ifsoftc), igi_head) =
+VNET_DEFINE_STATIC(LIST_HEAD(, igmp_ifsoftc), igi_head) =
     LIST_HEAD_INITIALIZER(igi_head);
-static VNET_DEFINE(struct igmpstat, igmpstat) = {
+VNET_DEFINE_STATIC(struct igmpstat, igmpstat) = {
 	.igps_version = IGPS_VERSION_3,
 	.igps_len = sizeof(struct igmpstat),
 };
-static VNET_DEFINE(struct timeval, igmp_gsrdelay) = {10, 0};
+VNET_DEFINE_STATIC(struct timeval, igmp_gsrdelay) = {10, 0};
 
 #define	V_igi_head			VNET(igi_head)
 #define	V_igmpstat			VNET(igmpstat)
 #define	V_igmp_gsrdelay			VNET(igmp_gsrdelay)
 
-static VNET_DEFINE(int, igmp_recvifkludge) = 1;
-static VNET_DEFINE(int, igmp_sendra) = 1;
-static VNET_DEFINE(int, igmp_sendlocal) = 1;
-static VNET_DEFINE(int, igmp_v1enable) = 1;
-static VNET_DEFINE(int, igmp_v2enable) = 1;
-static VNET_DEFINE(int, igmp_legacysupp);
-static VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
+VNET_DEFINE_STATIC(int, igmp_recvifkludge) = 1;
+VNET_DEFINE_STATIC(int, igmp_sendra) = 1;
+VNET_DEFINE_STATIC(int, igmp_sendlocal) = 1;
+VNET_DEFINE_STATIC(int, igmp_v1enable) = 1;
+VNET_DEFINE_STATIC(int, igmp_v2enable) = 1;
+VNET_DEFINE_STATIC(int, igmp_legacysupp);
+VNET_DEFINE_STATIC(int, igmp_default_version) = IGMP_VERSION_3;
 
 #define	V_igmp_recvifkludge		VNET(igmp_recvifkludge)
 #define	V_igmp_sendra			VNET(igmp_sendra)

@@ -107,7 +107,7 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 	 * Initialization procedure depends on core revision,
 	 * in this step CHIP ID is checked to choose proper procedure
 	 */
-	cputype = cpu_ident();
+	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
 	/*

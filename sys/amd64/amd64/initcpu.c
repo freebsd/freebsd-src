@@ -130,6 +130,30 @@ init_amd(void)
 		}
 	}
 
+	/* Ryzen erratas. */
+	if (CPUID_TO_FAMILY(cpu_id) == 0x17 && CPUID_TO_MODEL(cpu_id) == 0x1 &&
+	    (cpu_feature2 & CPUID2_HV) == 0) {
+		/* 1021 */
+		msr = rdmsr(0xc0011029);
+		msr |= 0x2000;
+		wrmsr(0xc0011029, msr);
+
+		/* 1033 */
+		msr = rdmsr(0xc0011020);
+		msr |= 0x10;
+		wrmsr(0xc0011020, msr);
+
+		/* 1049 */
+		msr = rdmsr(0xc0011028);
+		msr |= 0x10;
+		wrmsr(0xc0011028, msr);
+
+		/* 1095 */
+		msr = rdmsr(0xc0011020);
+		msr |= 0x200000000000000;
+		wrmsr(0xc0011020, msr);
+	}
+
 	/*
 	 * Work around a problem on Ryzen that is triggered by executing
 	 * code near the top of user memory, in our case the signal
@@ -215,8 +239,12 @@ initializecpu(void)
 	 * to the kernel tables.  The boot loader enables the U bit in
 	 * its tables.
 	 */
-	if (!IS_BSP() && (cpu_stdext_feature & CPUID_STDEXT_SMEP))
-		cr4 |= CR4_SMEP;
+	if (!IS_BSP()) {
+		if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
+			cr4 |= CR4_SMEP;
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			cr4 |= CR4_SMAP;
+	}
 	load_cr4(cr4);
 	if (IS_BSP() && (amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;

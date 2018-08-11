@@ -220,8 +220,9 @@ linux_work_fn(void *context, int pending)
 	struct work_struct *work;
 	struct workqueue_struct *wq;
 	struct work_exec exec;
+	struct task_struct *task;
 
-	linux_set_current(curthread);
+	task = current;
 
 	/* setup local variables */
 	work = context;
@@ -240,8 +241,14 @@ linux_work_fn(void *context, int pending)
 		case WORK_ST_CANCEL:
 			WQ_EXEC_UNLOCK(wq);
 
+			/* set current work structure */
+			task->work = work;
+
 			/* call work function */
 			work->func(work);
+
+			/* set current work structure */
+			task->work = NULL;
 
 			WQ_EXEC_LOCK(wq);
 			/* check if unblocked */
@@ -577,6 +584,12 @@ linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 	mtx_init(&dwork->timer.mtx, spin_lock_name("lkpi-dwork"), NULL,
 	    MTX_DEF | MTX_NOWITNESS);
 	callout_init_mtx(&dwork->timer.callout, &dwork->timer.mtx, 0);
+}
+
+struct work_struct *
+linux_current_work(void)
+{
+	return (current->work);
 }
 
 static void

@@ -417,7 +417,7 @@ load(void)
 	bootinfo.bi_bios_dev = dsk.drive;
 	__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	    MAKEBOOTDEV(dev_maj[dsk.type], 0, dsk.unit, 0),
-	    KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo));
+	    0, 0, 0, VTOP(&bootinfo));
 }
 
 static int

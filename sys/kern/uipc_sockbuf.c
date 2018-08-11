@@ -955,23 +955,14 @@ sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,
 	return (retval);
 }
 
-int
+void
 sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
     struct mbuf *control)
 {
-	struct mbuf *m, *n, *mlast;
-	int space;
+	struct mbuf *m, *mlast;
 
-	SOCKBUF_LOCK_ASSERT(sb);
-
-	if (control == NULL)
-		panic("sbappendcontrol_locked");
-	space = m_length(control, &n) + m_length(m0, NULL);
-
-	if (space > sbspace(sb))
-		return (0);
 	m_clrprotoflags(m0);
-	n->m_next = m0;			/* concatenate data to control */
+	m_last(control)->m_next = m0;
 
 	SBLASTRECORDCHK(sb);
 
@@ -985,18 +976,15 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 	SBLASTMBUFCHK(sb);
 
 	SBLASTRECORDCHK(sb);
-	return (1);
 }
 
-int
+void
 sbappendcontrol(struct sockbuf *sb, struct mbuf *m0, struct mbuf *control)
 {
-	int retval;
 
 	SOCKBUF_LOCK(sb);
-	retval = sbappendcontrol_locked(sb, m0, control);
+	sbappendcontrol_locked(sb, m0, control);
 	SOCKBUF_UNLOCK(sb);
-	return (retval);
 }
 
 /*

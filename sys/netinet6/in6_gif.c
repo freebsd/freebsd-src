@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_gif.h>
 
 #define GIF_HLIM	30
-static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+VNET_DEFINE_STATIC(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
@@ -86,8 +86,8 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
  * We keep interfaces in a hash table using src+dst as key.
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
-static VNET_DEFINE(struct gif_list *, ipv6_hashtbl) = NULL;
-static VNET_DEFINE(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
+VNET_DEFINE_STATIC(struct gif_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
 #define	V_ipv6_list		VNET(ipv6_list)
 

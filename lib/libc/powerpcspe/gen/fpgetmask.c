@@ -44,6 +44,6 @@ fpgetmask()
 	uint32_t fpscr;
 
 	__asm__ __volatile("mfspr %0, %1" : "=r"(fpscr) : "K"(SPR_SPEFSCR));
-	return ((fp_except_t)((fpscr >> 3) & 0x1f));
+	return ((fp_except_t)((fpscr >> 2) & 0x1f));
 }
 #endif
