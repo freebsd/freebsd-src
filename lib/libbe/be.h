@@ -123,7 +123,9 @@ bool be_exists(libbe_handle_t *, char *);
 int be_export(libbe_handle_t *, const char *, int fd);
 int be_import(libbe_handle_t *, const char *, int fd);
 
+#if SOON
 int be_add_child(libbe_handle_t *, const char *, bool);
+#endif
 void be_nicenum(uint64_t num, char *buf, size_t buflen);
 
 #endif  /* _LIBBE_H */
