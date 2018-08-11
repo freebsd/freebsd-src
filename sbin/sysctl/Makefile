@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PACKAGE=runtime
+CONFS=	sysctl.conf
 PROG=	sysctl
 WARNS?=	3
 MAN=	sysctl.8
