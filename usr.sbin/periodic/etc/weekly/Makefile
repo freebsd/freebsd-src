@@ -2,18 +2,18 @@
 
 .include <src.opts.mk>
 
-FILES=	340.noid \
+CONFS=	340.noid \
 	450.status-security \
 	999.local
 
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_LOCATE} != "no"
-FILES+=	310.locate
+CONFS+=	310.locate
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
-FILES+=	320.whatis
+CONFS+=	320.whatis
 .endif
 
 .include <bsd.prog.mk>
