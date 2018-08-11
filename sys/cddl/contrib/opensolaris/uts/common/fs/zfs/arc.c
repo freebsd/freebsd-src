@@ -525,6 +525,14 @@ typedef struct arc_state {
 	refcount_t arcs_size;
 } arc_state_t;
 
+/*
+ * Percentage that can be consumed by dnodes of ARC meta buffers.
+ */
+int zfs_arc_meta_prune = 10000;
+unsigned long zfs_arc_dnode_limit_percent = 10;
+int zfs_arc_meta_strategy = ARC_STRATEGY_META_BALANCED;
+int zfs_arc_meta_adjust_restarts = 4096;
+
 /* The 6 states: */
 static arc_state_t ARC_anon;
 static arc_state_t ARC_mru;
@@ -4076,11 +4084,114 @@ arc_adjust_impl(arc_state_t *state, uint64_t spa, int64_t bytes,
 }
 
 /*
+ * The goal of this function is to evict enough meta data buffers from the
+ * ARC in order to enforce the arc_meta_limit.  Achieving this is slightly
+ * more complicated than it appears because it is common for data buffers
+ * to have holds on meta data buffers.  In addition, dnode meta data buffers
+ * will be held by the dnodes in the block preventing them from being freed.
+ * This means we can't simply traverse the ARC and expect to always find
+ * enough unheld meta data buffer to release.
+ *
+ * Therefore, this function has been updated to make alternating passes
+ * over the ARC releasing data buffers and then newly unheld meta data
+ * buffers.  This ensures forward progress is maintained and meta_used
+ * will decrease.  Normally this is sufficient, but if required the ARC
+ * will call the registered prune callbacks causing dentry and inodes to
+ * be dropped from the VFS cache.  This will make dnode meta data buffers
+ * available for reclaim.
+ */
+static uint64_t
+arc_adjust_meta_balanced(uint64_t meta_used)
+{
+	int64_t delta, prune = 0, adjustmnt;
+	uint64_t total_evicted = 0;
+	arc_buf_contents_t type = ARC_BUFC_DATA;
+	int restarts = MAX(zfs_arc_meta_adjust_restarts, 0);
+
+restart:
+	/*
+	 * This slightly differs than the way we evict from the mru in
+	 * arc_adjust because we don't have a "target" value (i.e. no
+	 * "meta" arc_p). As a result, I think we can completely
+	 * cannibalize the metadata in the MRU before we evict the
+	 * metadata from the MFU. I think we probably need to implement a
+	 * "metadata arc_p" value to do this properly.
+	 */
+	adjustmnt = meta_used - arc_meta_limit;
+
+	if (adjustmnt > 0 && refcount_count(&arc_mru->arcs_esize[type]) > 0) {
+		delta = MIN(refcount_count(&arc_mru->arcs_esize[type]),
+		    adjustmnt);
+		total_evicted += arc_adjust_impl(arc_mru, 0, delta, type);
+		adjustmnt -= delta;
+	}
+
+	/*
+	 * We can't afford to recalculate adjustmnt here. If we do,
+	 * new metadata buffers can sneak into the MRU or ANON lists,
+	 * thus penalize the MFU metadata. Although the fudge factor is
+	 * small, it has been empirically shown to be significant for
+	 * certain workloads (e.g. creating many empty directories). As
+	 * such, we use the original calculation for adjustmnt, and
+	 * simply decrement the amount of data evicted from the MRU.
+	 */
+
+	if (adjustmnt > 0 && refcount_count(&arc_mfu->arcs_esize[type]) > 0) {
+		delta = MIN(refcount_count(&arc_mfu->arcs_esize[type]),
+		    adjustmnt);
+		total_evicted += arc_adjust_impl(arc_mfu, 0, delta, type);
+	}
+
+	adjustmnt = meta_used - arc_meta_limit;
+
+	if (adjustmnt > 0 &&
+	    refcount_count(&arc_mru_ghost->arcs_esize[type]) > 0) {
+		delta = MIN(adjustmnt,
+		    refcount_count(&arc_mru_ghost->arcs_esize[type]));
+		total_evicted += arc_adjust_impl(arc_mru_ghost, 0, delta, type);
+		adjustmnt -= delta;
+	}
+
+	if (adjustmnt > 0 &&
+	    refcount_count(&arc_mfu_ghost->arcs_esize[type]) > 0) {
+		delta = MIN(adjustmnt,
+		    refcount_count(&arc_mfu_ghost->arcs_esize[type]));
+		total_evicted += arc_adjust_impl(arc_mfu_ghost, 0, delta, type);
+	}
+
+	/*
+	 * If after attempting to make the requested adjustment to the ARC
+	 * the meta limit is still being exceeded then request that the
+	 * higher layers drop some cached objects which have holds on ARC
+	 * meta buffers.  Requests to the upper layers will be made with
+	 * increasingly large scan sizes until the ARC is below the limit.
+	 */
+	if (meta_used > arc_meta_limit) {
+		if (type == ARC_BUFC_DATA) {
+			type = ARC_BUFC_METADATA;
+		} else {
+			type = ARC_BUFC_DATA;
+
+			if (zfs_arc_meta_prune) {
+				prune += zfs_arc_meta_prune;
+				arc_prune_async(prune);
+			}
+		}
+
+		if (restarts > 0) {
+			restarts--;
+			goto restart;
+		}
+	}
+	return (total_evicted);
+}
+
+/*
  * Evict metadata buffers from the cache, such that arc_meta_used is
  * capped by the arc_meta_limit tunable.
  */
 static uint64_t
-arc_adjust_meta(uint64_t meta_used)
+arc_adjust_meta_only(uint64_t meta_used)
 {
 	uint64_t total_evicted = 0;
 	int64_t target;
@@ -4110,6 +4221,15 @@ arc_adjust_meta(uint64_t meta_used)
 	total_evicted += arc_adjust_impl(arc_mfu, 0, target, ARC_BUFC_METADATA);
 
 	return (total_evicted);
+}
+
+static uint64_t
+arc_adjust_meta(uint64_t meta_used)
+{
+	if (zfs_arc_meta_strategy == ARC_STRATEGY_META_ONLY)
+		return (arc_adjust_meta_only(meta_used));
+	else
+		return (arc_adjust_meta_balanced(meta_used));
 }
 
 /*
