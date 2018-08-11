@@ -297,11 +297,16 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 	if (rule_kif == NULL || rule_kif == packet_kif)
 		return (1);
 
-	if (rule_kif->pfik_group != NULL)
-		/* XXXGL: locking? */
+	if (rule_kif->pfik_group != NULL) {
+		IF_ADDR_RLOCK(packet_kif->pfik_ifp);
 		CK_STAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
-			if (p->ifgl_group == rule_kif->pfik_group)
+			if (p->ifgl_group == rule_kif->pfik_group) {
+				IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
 				return (1);
+			}
+		IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
+	}
+
 
 	return (0);
 }
