@@ -170,11 +170,9 @@ An error may occur if:
 .It libzfs fails to initialize,
 .It The system has not been properly booted with a ZFS boot
 environment,
-.It
-.Nm
+.It Nm
 fails to open the zpool the active boot environment resides on, or
-.It
-.Nm
+.It Nm
 fails to locate the boot environment that is currently mounted.
 .El
 .Pp
@@ -422,7 +420,6 @@ exactly as specified by
 The
 .Fn be_prop_list_free
 function will free the property list.
-.Fp
 .Sh DIAGNOSTICS
 Upon error, one of the following values will be returned.
 .\" TODO: make each entry on its own line.
@@ -458,5 +455,9 @@ were written as a 2017 Google Summer of Code project with Allan Jude serving
 as a mentor.
 Later work was done by
 .An Kyle Evans Aq Mt kevans@FreeBSD.org .
-.\" TODO: update when implementation complete.
-.\" .Sh BUGS
+.Sh BUGS
+The
+.Fn be_import
+function does not destroy the temporary boot environment it creates for import,
+because the snapshot created to do the import may not be deleted since it is the
+origin of the new boot environment.

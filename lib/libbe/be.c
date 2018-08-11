@@ -696,7 +696,6 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 	strftime(buf + len, BE_MAXPATHLEN - len,
 	    "@%F-%T", localtime(&rawtime));
 
-	/* lzc_receive(SNAPNAME, PROPS, ORIGIN, FORCE, fd)) { */
 	if ((err = lzc_receive(buf, NULL, NULL, false, fd)) != 0) {
 		switch (err) {
 		case EINVAL:
@@ -724,7 +723,8 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 
 	nvlist_free(props);
 
-	return (be_destroy(lbh, nbuf, 0));
+	/* XXX TODO: Figure out how to destroy the ghost... */
+	return (BE_ERR_SUCCESS);
 }
 
 #if SOON
