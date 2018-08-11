@@ -56,14 +56,6 @@ BIN1+=	etc.${MACHINE_CPUARCH}/ttys
 .error etc.MACHINE/ttys missing
 .endif
 
-OPENBSMDIR=			${SRCTOP}/contrib/openbsm
-BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
-				${OPENBSMDIR}/etc/audit_event
-BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
-				${OPENBSMDIR}/etc/audit_user
-BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
-BSM_ETC_DIR=			${DESTDIR}/etc/security
-
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_AMD} != "no"
@@ -203,12 +195,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
-	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
-	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
-	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
