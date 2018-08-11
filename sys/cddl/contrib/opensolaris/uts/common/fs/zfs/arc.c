@@ -99,6 +99,14 @@
  * must use: mutex_tryenter() to avoid deadlock.  Also note that
  * the active state mutex must be held before the ghost state mutex.
  *
+ * It as also possible to register a callback which is run when the
+ * arc_meta_limit is reached and no buffers can be safely evicted.  In
+ * this case the arc user should drop a reference on some arc buffers so
+ * they can be reclaimed and the arc_meta_limit honored.  For example,
+ * when using the ZPL each dentry holds a references on a znode.  These
+ * dentries must be pruned before the arc buffer holding the znode can
+ * be safely evicted.
+ *
  * Note that the majority of the performance stats are manipulated
  * with atomic operations.
  *
@@ -367,6 +375,8 @@ uint64_t zfs_arc_max;
 uint64_t zfs_arc_min;
 uint64_t zfs_arc_meta_limit = 0;
 uint64_t zfs_arc_meta_min = 0;
+uint64_t zfs_arc_dnode_limit = 0;
+uint64_t zfs_arc_dnode_reduce_percent = 10;
 int zfs_arc_grow_retry = 0;
 int zfs_arc_shrink_shift = 0;
 int zfs_arc_no_grow_shift = 0;
@@ -624,14 +634,17 @@ typedef struct arc_stats {
 	 */
 	kstat_named_t arcstat_metadata_size;
 	/*
-	 * Number of bytes consumed by various buffers and structures
-	 * not actually backed with ARC buffers. This includes bonus
-	 * buffers (allocated directly via zio_buf_* functions),
-	 * dmu_buf_impl_t structures (allocated via dmu_buf_impl_t
-	 * cache), and dnode_t structures (allocated via dnode_t cache).
-	 * Not updated directly; only synced in arc_kstat_update.
+	 * Number of bytes consumed by dmu_buf_impl_t objects.
 	 */
-	kstat_named_t arcstat_other_size;
+	kstat_named_t arcstat_dbuf_size;
+	/*
+	 * Number of bytes consumed by dnode_t objects.
+	 */
+	kstat_named_t arcstat_dnode_size;
+	/*
+	 * Number of bytes consumed by bonus buffers.
+	 */
+	kstat_named_t arcstat_bonus_size;
 	/*
 	 * Total number of bytes consumed by ARC buffers residing in the
 	 * arc_anon state. This includes *all* buffers in the arc_anon
@@ -782,9 +795,19 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_write_buffer_list_iter;
 	kstat_named_t arcstat_l2_write_buffer_list_null_iter;
 	kstat_named_t arcstat_memory_throttle_count;
+	kstat_named_t arcstat_memory_direct_count;
+	kstat_named_t arcstat_memory_indirect_count;
+	kstat_named_t arcstat_memory_all_bytes;
+	kstat_named_t arcstat_memory_free_bytes;
+	kstat_named_t arcstat_memory_available_bytes;
+	kstat_named_t arcstat_no_grow;
+	kstat_named_t arcstat_tempreserve;
+	kstat_named_t arcstat_loaned_bytes;
+	kstat_named_t arcstat_prune;
 	/* Not updated directly; only synced in arc_kstat_update. */
 	kstat_named_t arcstat_meta_used;
 	kstat_named_t arcstat_meta_limit;
+	kstat_named_t arcstat_dnode_limit;
 	kstat_named_t arcstat_meta_max;
 	kstat_named_t arcstat_meta_min;
 	kstat_named_t arcstat_async_upgrade_sync;
@@ -833,7 +856,9 @@ static arc_stats_t arc_stats = {
 	{ "hdr_size",			KSTAT_DATA_UINT64 },
 	{ "data_size",			KSTAT_DATA_UINT64 },
 	{ "metadata_size",		KSTAT_DATA_UINT64 },
-	{ "other_size",			KSTAT_DATA_UINT64 },
+	{ "dbuf_size",			KSTAT_DATA_UINT64 },
+	{ "dnode_size",			KSTAT_DATA_UINT64 },
+	{ "bonus_size",			KSTAT_DATA_UINT64 },
 	{ "anon_size",			KSTAT_DATA_UINT64 },
 	{ "anon_evictable_data",	KSTAT_DATA_UINT64 },
 	{ "anon_evictable_metadata",	KSTAT_DATA_UINT64 },
@@ -882,8 +907,18 @@ static arc_stats_t arc_stats = {
 	{ "l2_write_buffer_list_iter",	KSTAT_DATA_UINT64 },
 	{ "l2_write_buffer_list_null_iter", KSTAT_DATA_UINT64 },
 	{ "memory_throttle_count",	KSTAT_DATA_UINT64 },
+	{ "memory_direct_count",	KSTAT_DATA_UINT64 },
+	{ "memory_indirect_count",	KSTAT_DATA_UINT64 },
+	{ "memory_all_bytes",		KSTAT_DATA_UINT64 },
+	{ "memory_free_bytes",		KSTAT_DATA_UINT64 },
+	{ "memory_available_bytes",	KSTAT_DATA_UINT64 },
+	{ "arc_no_grow",		KSTAT_DATA_UINT64 },
+	{ "arc_tempreserve",		KSTAT_DATA_UINT64 },
+	{ "arc_loaned_bytes",		KSTAT_DATA_UINT64 },
+	{ "arc_prune",			KSTAT_DATA_UINT64 },
 	{ "arc_meta_used",		KSTAT_DATA_UINT64 },
 	{ "arc_meta_limit",		KSTAT_DATA_UINT64 },
+	{ "arc_dnode_limit",		KSTAT_DATA_UINT64 },
 	{ "arc_meta_max",		KSTAT_DATA_UINT64 },
 	{ "arc_meta_min",		KSTAT_DATA_UINT64 },
 	{ "async_upgrade_sync",		KSTAT_DATA_UINT64 },
@@ -950,8 +985,12 @@ static arc_state_t	*arc_l2c_only;
 #define	arc_c_min	ARCSTAT(arcstat_c_min)	/* min target cache size */
 #define	arc_c_max	ARCSTAT(arcstat_c_max)	/* max target cache size */
 #define	arc_meta_limit	ARCSTAT(arcstat_meta_limit) /* max size for metadata */
+#define	arc_dnode_limit	ARCSTAT(arcstat_dnode_limit) /* max size for dnodes */
 #define	arc_meta_min	ARCSTAT(arcstat_meta_min) /* min size for metadata */
 #define	arc_meta_max	ARCSTAT(arcstat_meta_max) /* max size of metadata */
+#define	arc_dbuf_size	ARCSTAT(arcstat_dbuf_size) /* dbuf metadata */
+#define	arc_dnode_size	ARCSTAT(arcstat_dnode_size) /* dnode metadata */
+#define	arc_bonus_size	ARCSTAT(arcstat_bonus_size) /* bonus buffer metadata */
 
 /* compressed size of entire arc */
 #define	arc_compressed_size	ARCSTAT(arcstat_compressed_size)
@@ -973,8 +1012,14 @@ aggsum_t arc_meta_used;
 aggsum_t astat_data_size;
 aggsum_t astat_metadata_size;
 aggsum_t astat_hdr_size;
-aggsum_t astat_other_size;
+aggsum_t astat_bonus_size;
+aggsum_t astat_dnode_size;
+aggsum_t astat_dbuf_size;
 aggsum_t astat_l2_hdr_size;
+
+static list_t arc_prune_list;
+static kmutex_t arc_prune_mtx;
+static taskq_t *arc_prune_taskq;
 
 static int		arc_no_grow;	/* Don't try to grow cache size */
 static uint64_t		arc_tempreserve;
@@ -1472,6 +1517,7 @@ static void arc_hdr_alloc_pabd(arc_buf_hdr_t *);
 static void arc_access(arc_buf_hdr_t *, kmutex_t *);
 static boolean_t arc_is_overflowing();
 static void arc_buf_watch(arc_buf_t *);
+static void arc_prune_async(int64_t);
 
 static arc_buf_contents_t arc_buf_type(arc_buf_hdr_t *);
 static uint32_t arc_bufc_to_flags(arc_buf_contents_t);
@@ -2703,8 +2749,14 @@ arc_space_consume(uint64_t space, arc_space_type_t type)
 	case ARC_SPACE_META:
 		aggsum_add(&astat_metadata_size, space);
 		break;
-	case ARC_SPACE_OTHER:
-		aggsum_add(&astat_other_size, space);
+	case ARC_SPACE_BONUS:
+		aggsum_add(&astat_bonus_size, space);
+		break;
+	case ARC_SPACE_DNODE:
+		aggsum_add(&astat_dnode_size, space);
+		break;
+	case ARC_SPACE_DBUF:
+		aggsum_add(&astat_dbuf_size, space);
 		break;
 	case ARC_SPACE_HDRS:
 		aggsum_add(&astat_hdr_size, space);
@@ -2732,8 +2784,14 @@ arc_space_return(uint64_t space, arc_space_type_t type)
 	case ARC_SPACE_META:
 		aggsum_add(&astat_metadata_size, -space);
 		break;
-	case ARC_SPACE_OTHER:
-		aggsum_add(&astat_other_size, -space);
+	case ARC_SPACE_BONUS:
+		aggsum_add(&astat_bonus_size, -space);
+		break;
+	case ARC_SPACE_DNODE:
+		aggsum_add(&astat_dnode_size, -space);
+		break;
+	case ARC_SPACE_DBUF:
+		aggsum_add(&astat_dbuf_size, -space);
 		break;
 	case ARC_SPACE_HDRS:
 		aggsum_add(&astat_hdr_size, -space);
@@ -3833,6 +3891,21 @@ arc_evict_state(arc_state_t *state, uint64_t spa, int64_t bytes,
 	 * we're evicting all available buffers.
 	 */
 	while (total_evicted < bytes || bytes == ARC_EVICT_ALL) {
+		int sublist_idx = multilist_get_random_index(ml);
+		uint64_t scan_evicted = 0;
+
+		/*
+		 * Try to reduce pinned dnodes with a floor of arc_dnode_limit.
+		 * Request that 10% of the LRUs be scanned by the superblock
+		 * shrinker.
+		 */
+		if (type == ARC_BUFC_DATA && aggsum_compare(&astat_dnode_size,
+		    arc_dnode_limit) > 0) {
+			arc_prune_async((aggsum_upper_bound(&astat_dnode_size) -
+			    arc_dnode_limit) / sizeof (dnode_t) /
+			    zfs_arc_dnode_reduce_percent);
+		}
+
 		/*
 		 * Start eviction using a randomly selected sublist,
 		 * this is to try and evenly balance eviction across all
@@ -3840,9 +3913,6 @@ arc_evict_state(arc_state_t *state, uint64_t spa, int64_t bytes,
 		 * (e.g. index 0) would cause evictions to favor certain
 		 * sublists over others.
 		 */
-		int sublist_idx = multilist_get_random_index(ml);
-		uint64_t scan_evicted = 0;
-
 		for (int i = 0; i < num_sublists; i++) {
 			uint64_t bytes_remaining;
 			uint64_t bytes_evicted;
@@ -3930,6 +4000,57 @@ arc_flush_state(arc_state_t *state, uint64_t spa, arc_buf_contents_t type,
 	}
 
 	return (evicted);
+}
+
+/*
+ * Helper function for arc_prune_async() it is responsible for safely
+ * handling the execution of a registered arc_prune_func_t.
+ */
+static void
+arc_prune_task(void *ptr)
+{
+	arc_prune_t *ap = (arc_prune_t *)ptr;
+	arc_prune_func_t *func = ap->p_pfunc;
+
+	if (func != NULL)
+		func(ap->p_adjust, ap->p_private);
+
+	refcount_remove(&ap->p_refcnt, func);
+}
+
+/*
+ * Notify registered consumers they must drop holds on a portion of the ARC
+ * buffered they reference.  This provides a mechanism to ensure the ARC can
+ * honor the arc_meta_limit and reclaim otherwise pinned ARC buffers.  This
+ * is analogous to dnlc_reduce_cache() but more generic.
+ *
+ * This operation is performed asynchronously so it may be safely called
+ * in the context of the arc_reclaim_thread().  A reference is taken here
+ * for each registered arc_prune_t and the arc_prune_task() is responsible
+ * for releasing it once the registered arc_prune_func_t has completed.
+ */
+static void
+arc_prune_async(int64_t adjust)
+{
+	arc_prune_t *ap;
+
+	mutex_enter(&arc_prune_mtx);
+	for (ap = list_head(&arc_prune_list); ap != NULL;
+	    ap = list_next(&arc_prune_list, ap)) {
+
+		if (refcount_count(&ap->p_refcnt) >= 2)
+			continue;
+
+		refcount_add(&ap->p_refcnt, ap->p_pfunc);
+		ap->p_adjust = adjust;
+		if (taskq_dispatch(arc_prune_taskq, arc_prune_task,
+		    ap, TQ_SLEEP) == TASKQID_INVALID) {
+			refcount_remove(&ap->p_refcnt, ap->p_pfunc);
+			continue;
+		}
+		ARCSTAT_BUMP(arcstat_prune);
+	}
+	mutex_exit(&arc_prune_mtx);
 }
 
 /*
@@ -5764,6 +5885,43 @@ top:
 	return (0);
 }
 
+arc_prune_t *
+arc_add_prune_callback(arc_prune_func_t *func, void *private)
+{
+	arc_prune_t *p;
+
+	p = kmem_alloc(sizeof (*p), KM_SLEEP);
+	p->p_pfunc = func;
+	p->p_private = private;
+	list_link_init(&p->p_node);
+	refcount_create(&p->p_refcnt);
+
+	mutex_enter(&arc_prune_mtx);
+	refcount_add(&p->p_refcnt, &arc_prune_list);
+	list_insert_head(&arc_prune_list, p);
+	mutex_exit(&arc_prune_mtx);
+
+	return (p);
+}
+
+void
+arc_remove_prune_callback(arc_prune_t *p)
+{
+	boolean_t wait = B_FALSE;
+	mutex_enter(&arc_prune_mtx);
+	list_remove(&arc_prune_list, p);
+	if (refcount_remove(&p->p_refcnt, &arc_prune_list) > 0)
+		wait = B_TRUE;
+	mutex_exit(&arc_prune_mtx);
+
+	/* wait for arc_prune_task to finish */
+	if (wait)
+		taskq_wait(arc_prune_taskq);
+	ASSERT0(refcount_count(&p->p_refcnt));
+	refcount_destroy(&p->p_refcnt);
+	kmem_free(p, sizeof (*p));
+}
+
 /*
  * Notify the arc that a block was freed, and thus will never be used again.
  */
@@ -6476,7 +6634,9 @@ arc_kstat_update(kstat_t *ksp, int rw)
 		ARCSTAT(arcstat_metadata_size) =
 		    aggsum_value(&astat_metadata_size);
 		ARCSTAT(arcstat_hdr_size) = aggsum_value(&astat_hdr_size);
-		ARCSTAT(arcstat_other_size) = aggsum_value(&astat_other_size);
+		ARCSTAT(arcstat_bonus_size) = aggsum_value(&astat_bonus_size);
+		ARCSTAT(arcstat_dnode_size) = aggsum_value(&astat_dnode_size);
+		ARCSTAT(arcstat_dbuf_size) = aggsum_value(&astat_dbuf_size);
 		ARCSTAT(arcstat_l2_hdr_size) = aggsum_value(&astat_l2_hdr_size);
 	}
 
@@ -6616,7 +6776,9 @@ arc_state_init(void)
 	aggsum_init(&astat_data_size, 0);
 	aggsum_init(&astat_metadata_size, 0);
 	aggsum_init(&astat_hdr_size, 0);
-	aggsum_init(&astat_other_size, 0);
+	aggsum_init(&astat_bonus_size, 0);
+	aggsum_init(&astat_dnode_size, 0);
+	aggsum_init(&astat_dbuf_size, 0);
 	aggsum_init(&astat_l2_hdr_size, 0);
 }
 
@@ -6730,6 +6892,7 @@ arc_init(void)
 	 */
 #ifdef __FreeBSD__
 	arc_meta_limit = MIN(arc_meta_limit, uma_limit() / 2);
+	arc_dnode_limit = arc_meta_limit / 10;
 #else
 	arc_meta_limit = MIN(arc_meta_limit,
 	    vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 2);
@@ -6748,6 +6911,12 @@ arc_init(void)
 	} else {
 		arc_meta_min = arc_c_min / 2;
 	}
+
+	/* Valid range: <arc_meta_min> - <arc_c_max> */
+	if ((zfs_arc_dnode_limit) && (zfs_arc_dnode_limit != arc_dnode_limit) &&
+	    (zfs_arc_dnode_limit >= zfs_arc_meta_min) &&
+	    (zfs_arc_dnode_limit <= arc_c_max))
+		arc_dnode_limit = zfs_arc_dnode_limit;
 
 	if (zfs_arc_grow_retry > 0)
 		arc_grow_retry = zfs_arc_grow_retry;
@@ -6777,6 +6946,13 @@ arc_init(void)
 
 	arc_state_init();
 	buf_init();
+
+	list_create(&arc_prune_list, sizeof (arc_prune_t),
+	    offsetof(arc_prune_t, p_node));
+	mutex_init(&arc_prune_mtx, NULL, MUTEX_DEFAULT, NULL);
+
+	arc_prune_taskq = taskq_create("arc_prune", max_ncpus, minclsyspri,
+	    max_ncpus, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
 
 	arc_reclaim_thread_exit = B_FALSE;
 	arc_dnlc_evicts_thread_exit = FALSE;
@@ -6859,6 +7035,8 @@ arc_init(void)
 void
 arc_fini(void)
 {
+	arc_prune_t *p;
+
 #ifdef _KERNEL
 	if (arc_event_lowmem != NULL)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
@@ -6898,6 +7076,20 @@ arc_fini(void)
 		arc_ksp = NULL;
 	}
 
+	taskq_wait(arc_prune_taskq);
+	taskq_destroy(arc_prune_taskq);
+
+	mutex_enter(&arc_prune_mtx);
+	while ((p = list_head(&arc_prune_list)) != NULL) {
+		list_remove(&arc_prune_list, p);
+		refcount_remove(&p->p_refcnt, &arc_prune_list);
+		refcount_destroy(&p->p_refcnt);
+		kmem_free(p, sizeof (*p));
+	}
+	mutex_exit(&arc_prune_mtx);
+
+	list_destroy(&arc_prune_list);
+	mutex_destroy(&arc_prune_mtx);
 	mutex_destroy(&arc_reclaim_lock);
 	cv_destroy(&arc_reclaim_thread_cv);
 	cv_destroy(&arc_reclaim_waiters_cv);
