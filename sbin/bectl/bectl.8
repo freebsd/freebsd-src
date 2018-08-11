@@ -271,3 +271,9 @@ Wrote the original
 .Xr beadm 1
 manual page that this one is derived from.
 .El
+.Sh BUGS
+.Nm
+import
+does not destroy the temporary boot environment it creates for import, because
+the snapshot created to do the import may not be deleted since it is the
+origin of the new boot environment.
