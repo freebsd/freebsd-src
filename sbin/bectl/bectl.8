@@ -43,6 +43,12 @@ destroy
 .Op Fl F
 .Ao Ar beName | beName@snapshot Ac
 .Nm
+export
+.Ao Ar sourceBe Ac
+.Nm
+import
+.Ao Ar targetBe Ac
+.Nm
 jail
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
@@ -123,6 +129,22 @@ snapshot.
 Specifying
 .Fl F
 will automatically unmount without confirmation.
+.It Ic export
+.Ao Ar sourceBe Ac
+.Pp
+Export
+.Ar sourceBe
+to
+.Dv stdout .
+.Dv stdout
+must be piped or redirected to a file.
+.It Ic import
+.Ao Ar targetBe Ac
+.Pp
+Import
+.Ar targetBe
+from
+.Dv stdin .
 .It Ic jail
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
@@ -233,20 +255,17 @@ and was implemented as a project for the 2017 Summer of Code, along with
 .Sh AUTHORS
 .Bl -bullet
 .It
-.An Kyle Kneitinger (kneitinger)
-.Ar kyle@kneit.in
+.An Kyle Kneitinger (kneitinger) Aq Mt kyle@kneit.in
 .Pp
 Creator of
 .Nm .
 .It
-.An Slawomir Wojciech Wojtczak (vermaden)
-.Ar vermaden@interia.pl
+.An Slawomir Wojciech Wojtczak (vermaden) Aq Mt vermaden@interia.pl
 .Pp
 Creator and maintainer of
 .Xr beadm 1 .
 .It
-.An Bryan Drewery (bdrewery)
-.Ar bryan@shatow.net
+.An Bryan Drewery (bdrewery) Aq Mt bryan@shatow.net
 .Pp
 Wrote the original
 .Xr beadm 1
