@@ -158,11 +158,6 @@ distribution:
 		${DESTDIR}/etc/services;
 .endif
 
-.if ${MK_BSNMP} != "no"
-	cd ${.CURDIR}; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		snmpd.config ${DESTDIR}/etc;
-.endif
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
