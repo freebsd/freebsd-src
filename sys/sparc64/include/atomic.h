@@ -154,14 +154,15 @@
 	e;								\
 })
 
-#define	atomic_st(p, v, sz) do {					\
+#define	atomic_st(p, v, sz) ({						\
 	itype(sz) e, r;							\
 	for (e = *(volatile itype(sz) *)(p);; e = r) {			\
 		r = atomic_cas((p), e, (v), sz);			\
 		if (r == e)						\
 			break;						\
 	}								\
-} while (0)
+	e;								\
+})
 
 #define	atomic_st_acq(p, v, sz) do {					\
 	atomic_st((p), (v), sz);					\
@@ -310,6 +311,12 @@ static __inline void							\
 atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
 {									\
 	atomic_st_rel((p), (v), sz);					\
+}									\
+									\
+static __inline vtype							\
+atomic_swap_ ## name(volatile ptype p, vtype v)				\
+{									\
+	return ((vtype)atomic_st((p), (v), sz));			\
 }
 
 static __inline void

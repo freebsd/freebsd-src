@@ -34,7 +34,7 @@
 #include "ecore_status.h"
 #include <sys/bitstring.h>
 
-#if __FreeBSD_version >= 1200000
+#if __FreeBSD_version >= 1200032
 #include <linux/bitmap.h>
 #else
 #if __FreeBSD_version >= 1100090
@@ -62,6 +62,7 @@ extern void qlnx_pci_write_config_word(void *ecore_dev, uint32_t pci_reg,
 extern void qlnx_pci_write_config_dword(void *ecore_dev, uint32_t pci_reg,
                         uint32_t reg_value);
 extern int qlnx_pci_find_capability(void *ecore_dev, int cap);
+extern int qlnx_pci_find_ext_capability(void *ecore_dev, int ext_cap);
 
 extern uint32_t qlnx_direct_reg_rd32(void *p_hwfn, uint32_t *reg_addr);
 extern void qlnx_direct_reg_wr32(void *p_hwfn, void *reg_addr, uint32_t value);
@@ -72,6 +73,7 @@ extern void qlnx_reg_wr32(void *p_hwfn, uint32_t reg_addr, uint32_t value);
 extern void qlnx_reg_wr16(void *p_hwfn, uint32_t reg_addr, uint16_t value);
 
 extern void qlnx_dbell_wr32(void *p_hwfn, uint32_t reg_addr, uint32_t value);
+extern void qlnx_dbell_wr32_db(void *p_hwfn, void *reg_addr, uint32_t value);
 
 extern void *qlnx_dma_alloc_coherent(void *ecore_dev, bus_addr_t *phys,
                         uint32_t size);
@@ -89,6 +91,16 @@ extern void qlnx_get_protocol_stats(void *cdev, int proto_type,
 extern void qlnx_sp_isr(void *arg);
 
 
+extern void qlnx_osal_vf_fill_acquire_resc_req(void *p_hwfn, void *p_resc_req,
+			void *p_sw_info);
+extern void qlnx_osal_iov_vf_cleanup(void *p_hwfn, uint8_t relative_vf_id);
+extern int qlnx_iov_chk_ucast(void *p_hwfn, int vfid, void *params);
+extern int qlnx_iov_update_vport(void *p_hwfn, uint8_t vfid, void *params,
+		uint16_t *tlvs);
+extern int qlnx_pf_vf_msg(void *p_hwfn, uint16_t relative_vf_id);
+extern void qlnx_vf_flr_update(void *p_hwfn);
+
+#define nothing			do {} while(0)
 #ifdef ECORE_PACKAGE
 
 /* Memory Types */
@@ -130,7 +142,6 @@ rounddown_pow_of_two(unsigned long x)
 	((type)(val1) < (type)(val2) ? (type)(val1) : (val2))
 
 #define ARRAY_SIZE(arr)		(sizeof(arr) / sizeof(arr[0]))
-#define nothing			do {} while(0)
 #define BUILD_BUG_ON(cond)	nothing
 
 #endif /* #ifndef QLNX_RDMA */
@@ -209,6 +220,7 @@ typedef struct osal_list_t
 #define DIRECT_REG_WR(p_hwfn, addr, value) qlnx_direct_reg_wr32(p_hwfn, addr, value)
 #define DIRECT_REG_WR64(p_hwfn, addr, value) \
 		qlnx_direct_reg_wr64(p_hwfn, addr, value)
+#define DIRECT_REG_WR_DB(p_hwfn, addr, value) qlnx_dbell_wr32_db(p_hwfn, addr, value)
 #define DIRECT_REG_RD(p_hwfn, addr) qlnx_direct_reg_rd32(p_hwfn, addr)
 #define REG_RD(hwfn, addr) qlnx_reg_rd32(hwfn, addr)
 #define DOORBELL(hwfn, addr, value) \
@@ -238,7 +250,8 @@ typedef struct osal_list_t
 
 #define OSAL_DPC_ALLOC(hwfn) malloc(PAGE_SIZE, M_QLNXBUF, M_NOWAIT)
 #define OSAL_DPC_INIT(dpc, hwfn) nothing
-#define OSAL_SCHEDULE_RECOVERY_HANDLER(x) nothing
+extern void qlnx_schedule_recovery(void *p_hwfn);
+#define OSAL_SCHEDULE_RECOVERY_HANDLER(x) do {qlnx_schedule_recovery(x);} while(0)
 #define OSAL_HW_ERROR_OCCURRED(hwfn, err_type) nothing
 #define OSAL_DPC_SYNC(hwfn) nothing
 
@@ -371,7 +384,9 @@ do {							\
 #define OSAL_PCI_WRITE_CONFIG_DWORD(dev, reg, value) \
 		qlnx_pci_write_config_dword(dev, reg, value);
 
-#define OSAL_PCI_FIND_CAPABILITY(dev, cap) qlnx_pci_find_capability(dev, cap);
+#define OSAL_PCI_FIND_CAPABILITY(dev, cap) qlnx_pci_find_capability(dev, cap)
+#define OSAL_PCI_FIND_EXT_CAPABILITY(dev, ext_cap) \
+				qlnx_pci_find_ext_capability(dev, ext_cap)
 
 #define OSAL_MMIOWB(dev) qlnx_barrier(dev)
 #define OSAL_BARRIER(dev) qlnx_barrier(dev)
@@ -390,8 +405,7 @@ do {							\
 #define OSAL_FIND_FIRST_ZERO_BIT(bitmap, length) \
 		find_first_zero_bit(bitmap, length)
 
-#define OSAL_LINK_UPDATE(hwfn) qlnx_link_update(hwfn)
-#define OSAL_VF_FLR_UPDATE(hwfn)
+#define OSAL_LINK_UPDATE(hwfn, ptt) qlnx_link_update(hwfn)
 
 #define QLNX_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define QLNX_ROUNDUP(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
@@ -536,8 +550,36 @@ OSAL_CRC8(u8 * cdu_crc8_table, u8 * data_to_crc, int data_to_crc_len, u8 init_va
 
 #define OSAL_HW_INFO_CHANGE(p_hwfn, offset)
 #define OSAL_MFW_TLV_REQ(p_hwfn)
-#define OSAL_VF_FILL_ACQUIRE_RESC_REQ(p_hwfn, req, vf_sw_info) {};
+#define OSAL_LLDP_RX_TLVS(p_hwfn, buffer, len)
+#define OSAL_MFW_CMD_PREEMPT(p_hwfn)
+#define OSAL_TRANSCEIVER_UPDATE(p_hwfn)
+#define OSAL_MFW_FILL_TLV_DATA(p_hwfn, group, data) (0)
+
 #define OSAL_VF_UPDATE_ACQUIRE_RESC_RESP(p_hwfn, res) (0)
+
+#define OSAL_VF_FILL_ACQUIRE_RESC_REQ(p_hwfn, req, vf_sw_info) \
+		qlnx_osal_vf_fill_acquire_resc_req(p_hwfn, req, vf_sw_info)
+
+#define OSAL_IOV_PF_RESP_TYPE(p_hwfn, relative_vf_id, status)
+#define OSAL_IOV_VF_CLEANUP(p_hwfn, relative_vf_id) \
+		qlnx_osal_iov_vf_cleanup(p_hwfn, relative_vf_id)
+
+#define OSAL_IOV_VF_ACQUIRE(p_hwfn, relative_vf_id) ECORE_SUCCESS
+#define OSAL_IOV_GET_OS_TYPE()	VFPF_ACQUIRE_OS_FREEBSD
+#define OSAL_IOV_PRE_START_VPORT(p_hwfn, relative_vf_id, params) ECORE_SUCCESS
+#define OSAL_IOV_POST_START_VPORT(p_hwfn, relative_vf_id, vport_id, opaque_fid) 
+#define OSAL_PF_VALIDATE_MODIFY_TUNN_CONFIG(p_hwfn, x, y, z) ECORE_SUCCESS
+#define OSAL_IOV_CHK_UCAST(p_hwfn, vfid, params) \
+			qlnx_iov_chk_ucast(p_hwfn, vfid, params);
+#define OSAL_PF_VF_MALICIOUS(p_hwfn, relative_vf_id) 
+#define OSAL_IOV_VF_MSG_TYPE(p_hwfn, relative_vf_id, type)
+#define OSAL_IOV_VF_VPORT_UPDATE(p_hwfn, vfid, params, tlvs) \
+		qlnx_iov_update_vport(p_hwfn, vfid, params, tlvs)
+#define OSAL_PF_VF_MSG(p_hwfn, relative_vf_id) \
+		qlnx_pf_vf_msg(p_hwfn, relative_vf_id)
+
+#define OSAL_VF_FLR_UPDATE(p_hwfn) qlnx_vf_flr_update(p_hwfn)
+#define OSAL_IOV_VF_VPORT_STOP(p_hwfn, vf)
 
 #endif /* #ifdef ECORE_PACKAGE */
 

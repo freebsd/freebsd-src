@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-static VNET_DEFINE(uint16_t, tcpmod_setmss_eid) = 0;
+VNET_DEFINE_STATIC(uint16_t, tcpmod_setmss_eid) = 0;
 #define	V_tcpmod_setmss_eid	VNET(tcpmod_setmss_eid)
 
 static int
@@ -98,7 +98,7 @@ tcpmod_setmss(struct mbuf **mp, struct tcphdr *tcp, int tlen, uint16_t mss)
 			ret = 0; /* report success */
 			bcopy(cp + 2, &oldmss, sizeof(oldmss));
 			/* Do not update lower MSS value */
-			if (oldmss <= mss)
+			if (ntohs(oldmss) <= ntohs(mss))
 				break;
 			bcopy(&mss, cp + 2, sizeof(mss));
 			/* Update checksum if it is not delayed. */

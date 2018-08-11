@@ -119,18 +119,28 @@ static OSAL_INLINE void ecore_sb_ack(struct ecore_sb_info *sb_info,
 {
 	struct igu_prod_cons_update igu_ack = { 0 };
 
+#ifndef ECORE_CONFIG_DIRECT_HWFN
+	u32 val;
+#endif
+
+#ifndef LINUX_REMOVE
+	if (sb_info->p_dev->int_mode == ECORE_INT_MODE_POLL)
+		return;
+#endif
 	igu_ack.sb_id_and_flags =
-		((sb_info->sb_ack << IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
+		 OSAL_CPU_TO_LE32((sb_info->sb_ack <<
+		 IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
 		 (upd_flg << IGU_PROD_CONS_UPDATE_UPDATE_FLAG_SHIFT) |
 		 (int_cmd << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
 		 (IGU_SEG_ACCESS_REG <<
-		  IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
+		 IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
 
 #ifdef ECORE_CONFIG_DIRECT_HWFN
 	DIRECT_REG_WR(sb_info->p_hwfn, sb_info->igu_addr,
 		      igu_ack.sb_id_and_flags);
 #else
-	DIRECT_REG_WR(OSAL_NULL, sb_info->igu_addr, igu_ack.sb_id_and_flags);
+	val = OSAL_LE32_TO_CPU(igu_ack.sb_id_and_flags);
+	DIRECT_REG_WR(OSAL_NULL, sb_info->igu_addr, val);
 #endif
 	/* Both segments (interrupts & acks) are written to same place address;
 	 * Need to guarantee all commands will be received (in-order) by HW.

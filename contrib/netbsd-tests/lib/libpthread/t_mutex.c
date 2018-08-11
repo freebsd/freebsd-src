@@ -153,6 +153,12 @@ ATF_TC_HEAD(mutex2, tc)
 	atf_tc_set_md_var(tc, "timeout", "40");
 #endif
 #endif
+
+#ifdef __FreeBSD__
+#if defined(__riscv)
+	atf_tc_set_md_var(tc, "timeout", "600");
+#endif
+#endif
 }
 ATF_TC_BODY(mutex2, tc)
 {
@@ -228,6 +234,12 @@ ATF_TC_HEAD(mutex3, tc)
 #ifdef __NetBSD__
 #if defined(__powerpc__)
 	atf_tc_set_md_var(tc, "timeout", "40");
+#endif
+#endif
+
+#ifdef __FreeBSD__
+#if defined(__riscv)
+	atf_tc_set_md_var(tc, "timeout", "600");
 #endif
 #endif
 }

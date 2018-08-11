@@ -108,7 +108,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	if (!(flags & MSDOSFSMNT_GEMDOSFS)) {
 		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
 		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
-			DPRINTF(("bootsig0 %d bootsig1 %d\n", 
+			DPRINTF(("bootsig0 %d bootsig1 %d\n",
 			    bsp->bs50.bsBootSectSig0,
 			    bsp->bs50.bsBootSectSig1));
 			error = EINVAL;
@@ -142,10 +142,10 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	    pmp->pm_SecPerTrack, pmp->pm_Heads, pmp->pm_Media));
 	if (!(flags & MSDOSFSMNT_GEMDOSFS)) {
 		/* XXX - We should probably check more values here */
-    		if (!pmp->pm_BytesPerSec || !SecPerClust
-	    		|| pmp->pm_SecPerTrack > 63) {
+		if (!pmp->pm_BytesPerSec || !SecPerClust
+			|| pmp->pm_SecPerTrack > 63) {
 			DPRINTF(("bytespersec %d secperclust %d "
-			    "secpertrack %d\n", 
+			    "secpertrack %d\n",
 			    pmp->pm_BytesPerSec, SecPerClust,
 			    pmp->pm_SecPerTrack));
 			error = EINVAL;
@@ -317,7 +317,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	 * must be a power of 2
 	 */
 	if (pmp->pm_bpcluster ^ (1 << pmp->pm_cnshift)) {
-		DPRINTF(("bpcluster %lu cnshift %lu\n", 
+		DPRINTF(("bpcluster %lu cnshift %lu\n",
 		    pmp->pm_bpcluster, pmp->pm_cnshift));
 		error = EINVAL;
 		goto error_exit;
@@ -326,7 +326,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	/*
 	 * Release the bootsector buffer.
 	 */
-	brelse(bp, BC_AGE);
+	brelse(bp);
 	bp = NULL;
 
 	/*
@@ -353,7 +353,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
 		else
 			pmp->pm_fsinfo = 0;
-		brelse(bp, 0);
+		brelse(bp);
 		bp = NULL;
 	}
 

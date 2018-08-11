@@ -79,60 +79,60 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, per_txg_dirty_frees_percent, CTLFLAG_RWTUN,
 int zfs_object_remap_one_indirect_delay_ticks = 0;
 
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
-	{	DMU_BSWAP_UINT8,	TRUE,	"unallocated"		},
-	{	DMU_BSWAP_ZAP,		TRUE,	"object directory"	},
-	{	DMU_BSWAP_UINT64,	TRUE,	"object array"		},
-	{	DMU_BSWAP_UINT8,	TRUE,	"packed nvlist"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"packed nvlist size"	},
-	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj"			},
-	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj header"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"SPA space map header"	},
-	{	DMU_BSWAP_UINT64,	TRUE,	"SPA space map"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"ZIL intent log"	},
-	{	DMU_BSWAP_DNODE,	TRUE,	"DMU dnode"		},
-	{	DMU_BSWAP_OBJSET,	TRUE,	"DMU objset"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"DSL directory"		},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL directory child map"},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dataset snap map"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL props"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"DSL dataset"		},
-	{	DMU_BSWAP_ZNODE,	TRUE,	"ZFS znode"		},
-	{	DMU_BSWAP_OLDACL,	TRUE,	"ZFS V0 ACL"		},
-	{	DMU_BSWAP_UINT8,	FALSE,	"ZFS plain file"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS directory"		},
-	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS master node"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS delete queue"	},
-	{	DMU_BSWAP_UINT8,	FALSE,	"zvol object"		},
-	{	DMU_BSWAP_ZAP,		TRUE,	"zvol prop"		},
-	{	DMU_BSWAP_UINT8,	FALSE,	"other uint8[]"		},
-	{	DMU_BSWAP_UINT64,	FALSE,	"other uint64[]"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"other ZAP"		},
-	{	DMU_BSWAP_ZAP,		TRUE,	"persistent error log"	},
-	{	DMU_BSWAP_UINT8,	TRUE,	"SPA history"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"SPA history offsets"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"Pool properties"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL permissions"	},
-	{	DMU_BSWAP_ACL,		TRUE,	"ZFS ACL"		},
-	{	DMU_BSWAP_UINT8,	TRUE,	"ZFS SYSACL"		},
-	{	DMU_BSWAP_UINT8,	TRUE,	"FUID table"		},
-	{	DMU_BSWAP_UINT64,	TRUE,	"FUID table size"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dataset next clones"},
-	{	DMU_BSWAP_ZAP,		TRUE,	"scan work queue"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS user/group used"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS user/group quota"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"snapshot refcount tags"},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DDT ZAP algorithm"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DDT statistics"	},
-	{	DMU_BSWAP_UINT8,	TRUE,	"System attributes"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"SA master node"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"SA attr registration"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"SA attr layouts"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"scan translations"	},
-	{	DMU_BSWAP_UINT8,	FALSE,	"deduplicated block"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL deadlist map"	},
-	{	DMU_BSWAP_UINT64,	TRUE,	"DSL deadlist map hdr"	},
-	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dir clones"	},
-	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj subobj"		}
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "unallocated"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "object directory"		},
+	{ DMU_BSWAP_UINT64, TRUE,  TRUE,   "object array"		},
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "packed nvlist"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "packed nvlist size"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "bpobj"			},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "bpobj header"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "SPA space map header"	},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "SPA space map"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "ZIL intent log"		},
+	{ DMU_BSWAP_DNODE,  TRUE,  FALSE,  "DMU dnode"			},
+	{ DMU_BSWAP_OBJSET, TRUE,  TRUE,   "DMU objset"			},
+	{ DMU_BSWAP_UINT64, TRUE,  TRUE,   "DSL directory"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL directory child map"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL dataset snap map"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL props"			},
+	{ DMU_BSWAP_UINT64, TRUE,  TRUE,   "DSL dataset"		},
+	{ DMU_BSWAP_ZNODE,  TRUE,  FALSE,  "ZFS znode"			},
+	{ DMU_BSWAP_OLDACL, TRUE,  FALSE,  "ZFS V0 ACL"			},
+	{ DMU_BSWAP_UINT8,  FALSE, FALSE,  "ZFS plain file"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "ZFS directory"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "ZFS master node"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "ZFS delete queue"		},
+	{ DMU_BSWAP_UINT8,  FALSE, FALSE,  "zvol object"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "zvol prop"			},
+	{ DMU_BSWAP_UINT8,  FALSE, FALSE,  "other uint8[]"		},
+	{ DMU_BSWAP_UINT64, FALSE, FALSE,  "other uint64[]"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "other ZAP"			},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "persistent error log"	},
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "SPA history"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "SPA history offsets"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "Pool properties"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL permissions"		},
+	{ DMU_BSWAP_ACL,    TRUE,  FALSE,  "ZFS ACL"			},
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "ZFS SYSACL"			},
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "FUID table"			},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "FUID table size"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL dataset next clones"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "scan work queue"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "ZFS user/group used"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "ZFS user/group quota"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "snapshot refcount tags"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "DDT ZAP algorithm"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "DDT statistics"		},
+	{ DMU_BSWAP_UINT8,  TRUE,  FALSE,  "System attributes"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "SA master node"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "SA attr registration"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "SA attr layouts"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  FALSE,  "scan translations"		},
+	{ DMU_BSWAP_UINT8,  FALSE, FALSE,  "deduplicated block"		},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL deadlist map"		},
+	{ DMU_BSWAP_UINT64, TRUE,  TRUE,   "DSL deadlist map hdr"	},
+	{ DMU_BSWAP_ZAP,    TRUE,  TRUE,   "DSL dir clones"		},
+	{ DMU_BSWAP_UINT64, TRUE,  FALSE,  "bpobj subobj"		}
 };
 
 const dmu_object_byteswap_info_t dmu_ot_byteswap[DMU_BSWAP_NUMFUNCS] = {
@@ -449,7 +449,7 @@ dmu_spill_hold_by_bonus(dmu_buf_t *bonus, void *tag, dmu_buf_t **dbp)
  * and can induce severe lock contention when writing to several files
  * whose dnodes are in the same block.
  */
-static int
+int
 dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
     boolean_t read, void *tag, int *numbufsp, dmu_buf_t ***dbpp, uint32_t flags)
 {
@@ -1321,7 +1321,7 @@ xuio_stat_wbuf_nocopy(void)
 }
 
 #ifdef _KERNEL
-static int
+int
 dmu_read_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size)
 {
 	dmu_buf_t **dbp;
@@ -1437,7 +1437,7 @@ dmu_read_uio(objset_t *os, uint64_t object, uio_t *uio, uint64_t size)
 	return (err);
 }
 
-static int
+int
 dmu_write_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size, dmu_tx_t *tx)
 {
 	dmu_buf_t **dbp;
@@ -1881,22 +1881,17 @@ dmu_return_arcbuf(arc_buf_t *buf)
  * dmu_write().
  */
 void
-dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, arc_buf_t *buf,
+dmu_assign_arcbuf_dnode(dnode_t *dn, uint64_t offset, arc_buf_t *buf,
     dmu_tx_t *tx)
 {
-	dmu_buf_impl_t *dbuf = (dmu_buf_impl_t *)handle;
-	dnode_t *dn;
 	dmu_buf_impl_t *db;
 	uint32_t blksz = (uint32_t)arc_buf_lsize(buf);
 	uint64_t blkid;
 
-	DB_DNODE_ENTER(dbuf);
-	dn = DB_DNODE(dbuf);
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	blkid = dbuf_whichblock(dn, 0, offset);
 	VERIFY((db = dbuf_hold(dn, blkid, FTAG)) != NULL);
 	rw_exit(&dn->dn_struct_rwlock);
-	DB_DNODE_EXIT(dbuf);
 
 	/*
 	 * We can only assign if the offset is aligned, the arc buf is the
@@ -1924,17 +1919,25 @@ dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, arc_buf_t *buf,
 		ASSERT3U(arc_get_compression(buf), ==, ZIO_COMPRESS_OFF);
 		ASSERT(!(buf->b_flags & ARC_BUF_FLAG_COMPRESSED));
 
-		DB_DNODE_ENTER(dbuf);
-		dn = DB_DNODE(dbuf);
 		os = dn->dn_objset;
 		object = dn->dn_object;
-		DB_DNODE_EXIT(dbuf);
 
 		dbuf_rele(db, FTAG);
 		dmu_write(os, object, offset, blksz, buf->b_data, tx);
 		dmu_return_arcbuf(buf);
 		XUIOSTAT_BUMP(xuiostat_wbuf_copied);
 	}
+}
+
+void
+dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, arc_buf_t *buf,
+    dmu_tx_t *tx)
+{
+	dmu_buf_impl_t *dbuf = (dmu_buf_impl_t *)handle;
+
+	DB_DNODE_ENTER(dbuf);
+	dmu_assign_arcbuf_dnode(DB_DNODE(dbuf), offset, buf, tx);
+	DB_DNODE_EXIT(dbuf);
 }
 
 typedef struct {

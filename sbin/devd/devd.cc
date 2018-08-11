@@ -904,7 +904,7 @@ process_event(char *buffer)
 	cfg.pop_var_table();
 }
 
-int
+static int
 create_socket(const char *name, int socktype)
 {
 	int fd, slen;
@@ -934,7 +934,7 @@ static unsigned int num_clients;
 
 static list<client_t> clients;
 
-void
+static void
 notify_clients(const char *data, int len)
 {
 	list<client_t>::iterator i;
@@ -964,7 +964,7 @@ notify_clients(const char *data, int len)
 	}
 }
 
-void
+static void
 check_clients(void)
 {
 	int s;
@@ -994,7 +994,7 @@ check_clients(void)
 	}
 }
 
-void
+static void
 new_client(int fd, int socktype)
 {
 	client_t s;

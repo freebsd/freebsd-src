@@ -1135,8 +1135,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 #undef EXIT_COND
 
 	if (timeout) {
-		timespecsub(&now, &before);
-		timespecsub(timeout, &now);
+		timespecsub(&now, &before, &now);
+		timespecsub(timeout, &now, timeout);
 	}
 
 	switch (end) {

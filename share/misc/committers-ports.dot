@@ -133,6 +133,7 @@ jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
+jhixson [label="John Hixson\njhixson@FreeBSD.org\n2018/07/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmd [label="Johannes M. Dieterich\njmd@FreeBSD.org\n2017/01/09"]
@@ -294,6 +295,7 @@ amdmi3 -> arrowd
 
 antoine -> dumbbell
 
+araujo -> jhixson
 araujo -> lippe
 araujo -> pclin
 araujo -> pgollucci
@@ -471,6 +473,8 @@ jrm -> jwb
 
 junovitch -> tz
 
+kmoore -> jhixson
+
 knu -> daichi
 knu -> maho
 knu -> nobutaka
@@ -556,6 +560,7 @@ miwi -> dhn
 miwi -> farrokhi
 miwi -> fluffy
 miwi -> gahr
+miwi -> jhixson
 miwi -> joneum
 miwi -> jsm
 miwi -> kmoore

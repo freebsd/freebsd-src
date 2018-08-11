@@ -36,7 +36,7 @@
  * the source tree at src/share/doc/papers/hwpmc/hwpmc.ms
  * as well as on-line at:
  *
- * http://wiki.freebsd.org/PmcTools/PmcHardwareHowTo
+ * https://wiki.freebsd.org/PmcTools/PmcHardwareHowTo
  *
  * Please refer to those resources before you attempt to modify
  * this file or the hwpmc driver/subsystem.

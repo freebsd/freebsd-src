@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 
-static VNET_DEFINE(SLIST_HEAD(, lltable), lltables) =
+VNET_DEFINE_STATIC(SLIST_HEAD(, lltable), lltables) =
     SLIST_HEAD_INITIALIZER(lltables);
 #define	V_lltables	VNET(lltables)
 

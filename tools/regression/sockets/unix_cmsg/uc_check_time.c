@@ -35,20 +35,6 @@ __FBSDID("$FreeBSD$");
 static const struct timeval max_diff_tv = {.tv_sec = 1, .tv_usec = 0};
 static const struct timespec max_diff_ts = {.tv_sec = 1, .tv_nsec = 0};
 
-#define timespeccmp(tvp, uvp, cmp)                                      \
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?                             \
-	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :                       \
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#define timespecsub(vvp, uvp)                                           \
-	do {                                                            \
-		(vvp)->tv_sec -= (uvp)->tv_sec;                         \
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;                       \
-		if ((vvp)->tv_nsec < 0) {                               \
-			(vvp)->tv_sec--;                                \
-			(vvp)->tv_nsec += 1000000000;                   \
-		}                                                       \
-	} while (0)
-
 int
 uc_check_bintime(const struct bintime *mt)
 {
@@ -79,7 +65,7 @@ uc_check_timespec_real(const struct timespec *bt)
 
 	if (clock_gettime(CLOCK_REALTIME, &ct) < 0)
 		return (-1);
-	timespecsub(&ct, bt);
+	timespecsub(&ct, bt, &ct);
 	if (!timespeccmp(&ct, &max_diff_ts, <))
 		return (-1);
 
@@ -93,7 +79,7 @@ uc_check_timespec_mono(const struct timespec *bt)
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ct) < 0)
 		return (-1);
-	timespecsub(&ct, bt);
+	timespecsub(&ct, bt, &ct);
 	if (!timespeccmp(&ct, &max_diff_ts, <))
 		return (-1);
 

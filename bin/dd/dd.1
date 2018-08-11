@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2017
+.Dd August 8, 2018
 .Dt DD 1
 .Os
 .Sh NAME
@@ -164,12 +164,14 @@ bytes per second.
 Where
 .Cm value
 is one of the symbols from the following list.
-.Bl -tag -width "noxfer"
+.Bl -tag -width "progress"
 .It Cm noxfer
 Do not print the transfer statistics as the last line of status output.
 .It Cm none
 Do not print the status output.
 Error messages are shown; informational messages are not.
+.It Cm progress
+Print basic transfer statistics once per second.
 .El
 .It Cm conv Ns = Ns Ar value Ns Op , Ns Ar value ...
 Where

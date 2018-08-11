@@ -59,6 +59,8 @@
     SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_32BIT_CALL, 0, 1)
 #define	SMCCC_ARCH_WORKAROUND_1						\
     SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_32BIT_CALL, 0, 0x8000)
+#define	SMCCC_ARCH_WORKAROUND_2						\
+    SMCCC_FUNC_ID(SMCCC_FAST_CALL, SMCCC_32BIT_CALL, 0, 0x7fff)
 
 /* The return values from ARM DEN 0070A. */
 #define	SMCCC_RET_SUCCESS		0
@@ -67,6 +69,7 @@
 
 int32_t smccc_arch_features(uint32_t);
 int smccc_arch_workaround_1(void);
+int smccc_arch_workaround_2(int);
 
 
 #endif /* _PSCI_SMCCC_H_ */

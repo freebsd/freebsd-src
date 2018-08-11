@@ -34,7 +34,6 @@
 
 #if 0
 static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
-#else
 #endif
 
 #include <sys/cdefs.h>

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  * Copyright 2014 HybridCluster. All rights reserved.
  */
 
@@ -32,7 +32,8 @@
 #include <sys/zfeature.h>
 
 uint64_t
-dmu_object_alloc(objset_t *os, dmu_object_type_t ot, int blocksize,
+dmu_object_alloc_ibs(objset_t *os, dmu_object_type_t ot, int blocksize,
+    int indirect_blockshift,
     dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx)
 {
 	uint64_t object;
@@ -92,13 +93,22 @@ dmu_object_alloc(objset_t *os, dmu_object_type_t ot, int blocksize,
 			os->os_obj_next = object - 1;
 	}
 
-	dnode_allocate(dn, ot, blocksize, 0, bonustype, bonuslen, tx);
+	dnode_allocate(dn, ot, blocksize, indirect_blockshift,
+	    bonustype, bonuslen, tx);
 	mutex_exit(&os->os_obj_lock);
 
 	dmu_tx_add_new_object(tx, dn);
 	dnode_rele(dn, FTAG);
 
 	return (object);
+}
+
+uint64_t
+dmu_object_alloc(objset_t *os, dmu_object_type_t ot, int blocksize,
+    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx)
+{
+	return (dmu_object_alloc_ibs(os, ot, blocksize, 0,
+	    bonustype, bonuslen, tx));
 }
 
 int
@@ -157,6 +167,10 @@ dmu_object_free(objset_t *os, uint64_t object, dmu_tx_t *tx)
 		return (err);
 
 	ASSERT(dn->dn_type != DMU_OT_NONE);
+	/*
+	 * If we don't create this free range, we'll leak indirect blocks when
+	 * we get to freeing the dnode in syncing context.
+	 */
 	dnode_free_range(dn, 0, DMU_OBJECT_END, tx);
 	dnode_free(dn, tx);
 	dnode_rele(dn, FTAG);
@@ -204,12 +218,18 @@ dmu_object_zapify(objset_t *mos, uint64_t object, dmu_object_type_t old_type,
 	}
 	ASSERT3U(dn->dn_type, ==, old_type);
 	ASSERT0(dn->dn_maxblkid);
+
+	/*
+	 * We must initialize the ZAP data before changing the type,
+	 * so that concurrent calls to *_is_zapified() can determine if
+	 * the object has been completely zapified by checking the type.
+	 */
+	mzap_create_impl(mos, object, 0, 0, tx);
+
 	dn->dn_next_type[tx->tx_txg & TXG_MASK] = dn->dn_type =
 	    DMU_OTN_ZAP_METADATA;
 	dnode_setdirty(dn, tx);
 	dnode_rele(dn, FTAG);
-
-	mzap_create_impl(mos, object, 0, 0, tx);
 
 	spa_feature_incr(dmu_objset_spa(mos),
 	    SPA_FEATURE_EXTENSIBLE_DATASET, tx);

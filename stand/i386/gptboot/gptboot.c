@@ -490,9 +490,10 @@ load(void)
 #endif
 	__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	    MAKEBOOTDEV(dev_maj[gdsk.dsk.type], gdsk.dsk.part + 1, gdsk.dsk.unit, 0xff),
-	    KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo)
 #ifdef LOADER_GELI_SUPPORT
-	    , geliargs
+	    KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs
+#else
+	    0, 0, 0, VTOP(&bootinfo)
 #endif
 	    );
 }

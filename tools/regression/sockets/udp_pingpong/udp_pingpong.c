@@ -106,31 +106,6 @@ struct rtt {
 #define NSEC_MAX	1000000000L
 #define NSEC_IN_USEC	1000L
 
-#define timespecsub2(r, v, u)                                      \
-    do {                                                           \
-        SEC(r) = SEC(v) - SEC(u);                                  \
-        NSEC(r) = NSEC(v) - NSEC(u);                               \
-        if (NSEC(r) < 0 && (SEC(r) > 0 || NSEC(r) <= -NSEC_MAX)) { \
-            SEC(r)--;                                              \
-            NSEC(r) += NSEC_MAX;                                   \
-        }                                                          \
-    } while (0);
-
-#define timespecadd2(r, v, u)                                      \
-    do {                                                           \
-        SEC(r) = SEC(v) + SEC(u);                                  \
-        NSEC(r) = NSEC(v) + NSEC(u);                               \
-        if (NSEC(r) >= NSEC_MAX) {                                 \
-            SEC(r)++;                                              \
-            NSEC(r) -= NSEC_MAX;                                   \
-        }                                                          \
-    } while (0);
-
-#define timespeccmp(t, c, u)                                       \
-    ((SEC(t) == SEC(u)) ?                                          \
-      (NSEC(t) c NSEC(u)) :                                        \
-      (SEC(t) c SEC(u)))
-
 #define timeval2timespec(tv, ts)                                   \
     do {                                                           \
         SEC(ts) = (tv)->tv_sec;                                    \
@@ -536,10 +511,10 @@ static void
 calc_rtt(struct test_pkt *tpp, struct rtt *rttp)
 {
 
-    timespecsub2(&rttp->a2b, &tpp->tss[1].recvd, &tpp->tss[0].sent);
-    timespecsub2(&rttp->b2a, &tpp->tss[0].recvd, &tpp->tss[1].sent);
-    timespecadd2(&rttp->a2b_b2a, &rttp->a2b, &rttp->b2a);
-    timespecsub2(&rttp->e2e, &tpp->tss[0].recvd, &tpp->tss[0].sent);
+    timespecsub(&tpp->tss[1].recvd, &tpp->tss[0].sent, &rttp->a2b);
+    timespecsub(&tpp->tss[0].recvd, &tpp->tss[1].sent, &rttp->b2a);
+    timespecadd(&rttp->a2b, &rttp->b2a, &rttp->a2b_b2a);
+    timespecsub(&tpp->tss[0].recvd, &tpp->tss[0].sent, &rttp->e2e);
 }
 
 static void
@@ -604,13 +579,13 @@ test_run(int ts_type, int use_ipv6, int use_recvmsg, const char *name)
             continue;
         }
         calc_rtt(&test_ctx.test_pkts[i], &rtt);
-        if (!timespeccmp(&rtt.e2e, >, &rtt.a2b_b2a))
+        if (!timespeccmp(&rtt.e2e, &rtt.a2b_b2a, >))
             errx(1, "end-to-end trip time is too small");
-        if (!timespeccmp(&rtt.e2e, <, &max_ts))
+        if (!timespeccmp(&rtt.e2e, &max_ts, <))
             errx(1, "end-to-end trip time is too large");
-        if (!timespeccmp(&rtt.a2b, >, &zero_ts))
+        if (!timespeccmp(&rtt.a2b, &zero_ts, >))
             errx(1, "A2B trip time is not positive");
-        if (!timespeccmp(&rtt.b2a, >, &zero_ts))
+        if (!timespeccmp(&rtt.b2a, &zero_ts, >))
             errx(1, "B2A trip time is not positive");
     }
     teardown_udp(&test_ctx);

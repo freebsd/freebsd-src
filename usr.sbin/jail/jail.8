@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2018
+.Dd July 30, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -553,6 +553,16 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
+.It Va allow.mlock
+Locking or unlocking physical pages in memory are normally not available
+within a jail.
+When this parameter is set, users may
+.Xr mlock 2
+or
+.Xr munlock 2
+memory subject to
+.Va security.bsd.unprivileged_mlock
+and resource limits.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
 .El
@@ -640,6 +650,12 @@ See
 .Xr zfs 8
 for information on how to configure the ZFS filesystem to operate from
 within a jail.
+.It Va allow.vmm
+The jail may access
+.Xr vmm 4 .
+This flag is only available when the
+.Xr vmm 4
+kernel module is loaded.
 .It Va linux
 Determine how a jail's Linux emulation environment appears.
 A value of
@@ -1284,6 +1300,7 @@ environment of the first jail.
 .Xr ps 1 ,
 .Xr quota 1 ,
 .Xr jail_set 2 ,
+.Xr vmm 4 ,
 .Xr devfs 5 ,
 .Xr fdescfs 5 ,
 .Xr jail.conf 5 ,

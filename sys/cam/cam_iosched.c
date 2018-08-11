@@ -1307,7 +1307,23 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 
 	if (!cam_iosched_has_more_trim(isc))
 		return NULL;
-
+#ifdef CAM_IOSCHED_DYNAMIC
+	if (do_dynamic_iosched) {
+		/*
+		 * If pending read, prefer that based on current read bias
+		 * setting.
+		 */
+		if (bioq_first(&isc->bio_queue) && isc->current_read_bias) {
+			isc->current_read_bias--;
+			/* We're not limiting TRIMS, per se, just doing reads first */
+			return NULL;
+		}
+		/*
+		 * We're going to do a trim, so reset the bias.
+		 */
+		isc->current_read_bias = isc->read_bias;
+	}
+#endif
 	return cam_iosched_next_trim(isc);
 }
 

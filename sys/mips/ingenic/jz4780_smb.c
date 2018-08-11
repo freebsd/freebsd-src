@@ -248,7 +248,7 @@ jzsmb_transfer_read(device_t dev, struct iic_msg *msg)
 			SMB_WRITE(sc, SMBDC, SMBDC_CMD);
 		for (;;) {
 			getnanouptime(&diff);
-			timespecsub(&diff, &start);
+			timespecsub(&diff, &start, &diff);
 			if ((SMB_READ(sc, SMBST) & SMBST_RFNE) != 0) {
 				msg->buf[msg->len - resid] =
 				    SMB_READ(sc, SMBDC) & SMBDC_DAT;
@@ -293,7 +293,7 @@ jzsmb_transfer_write(device_t dev, struct iic_msg *msg, int stop_hold)
 	for (resid = msg->len; resid > 0; resid--) {
 		for (;;) {
 			getnanouptime(&diff);
-			timespecsub(&diff, &start);
+			timespecsub(&diff, &start, &diff);
 			if ((SMB_READ(sc, SMBST) & SMBST_TFNF) != 0) {
 				SMB_WRITE(sc, SMBDC,
 				    msg->buf[msg->len - resid]);

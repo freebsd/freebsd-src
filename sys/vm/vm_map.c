@@ -1277,10 +1277,9 @@ charged:
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		VM_OBJECT_WUNLOCK(object);
 	} else if (prev_entry != &map->header &&
-	    prev_entry->eflags == protoeflags &&
+	    (prev_entry->eflags & ~MAP_ENTRY_USER_WIRED) == protoeflags &&
 	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 &&
-	    prev_entry->end == start && prev_entry->wired_count == 0 &&
-	    (prev_entry->cred == cred ||
+	    prev_entry->end == start && (prev_entry->cred == cred ||
 	    (prev_entry->object.vm_object != NULL &&
 	    prev_entry->object.vm_object->cred == cred)) &&
 	    vm_object_coalesce(prev_entry->object.vm_object,
@@ -1295,7 +1294,11 @@ charged:
 		 */
 		if (prev_entry->inheritance == inheritance &&
 		    prev_entry->protection == prot &&
-		    prev_entry->max_protection == max) {
+		    prev_entry->max_protection == max &&
+		    prev_entry->wired_count == 0) {
+			KASSERT((prev_entry->eflags & MAP_ENTRY_USER_WIRED) ==
+			    0, ("prev_entry %p has incoherent wiring",
+			    prev_entry));
 			if ((prev_entry->eflags & MAP_ENTRY_GUARD) == 0)
 				map->size += end - prev_entry->end;
 			prev_entry->end = end;

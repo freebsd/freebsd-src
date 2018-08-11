@@ -13,12 +13,16 @@ ${PACKAGE}FILES= \
      tst.ipv4localtcp.ksh.out  \
      tst.ipv4localudp.ksh  \
      tst.ipv4localudp.ksh.out  \
+     tst.ipv4localudplite.ksh  \
+     tst.ipv4localudplite.ksh.out  \
      tst.ipv4remoteicmp.ksh  \
      tst.ipv4remoteicmp.ksh.out  \
      tst.ipv4remotetcp.ksh  \
      tst.ipv4remotetcp.ksh.out  \
      tst.ipv4remoteudp.ksh  \
      tst.ipv4remoteudp.ksh.out  \
+     tst.ipv4remoteudplite.ksh  \
+     tst.ipv4remoteudplite.ksh.out  \
      tst.ipv6localicmp.ksh  \
      tst.ipv6localicmp.ksh.out  \
      tst.ipv6remoteicmp.ksh  \

@@ -1151,6 +1151,7 @@ vdev_ops_t vdev_geom_ops = {
 	vdev_geom_hold,
 	vdev_geom_rele,
 	NULL,
+	vdev_default_xlate,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };

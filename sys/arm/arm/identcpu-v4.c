@@ -279,8 +279,8 @@ identify_arm_cpu(void)
 	u_int cpuid, ctrl;
 	int i;
 
-	ctrl = cpu_get_control();
-	cpuid = cpu_ident();
+	ctrl = cp15_sctlr_get();
+	cpuid = cp15_midr_get();
 
 	if (cpuid == 0) {
 		printf("Processor failed probe - no CPU ID\n");
@@ -317,9 +317,6 @@ identify_arm_cpu(void)
 	case CPU_CLASS_MARVELL:
 		print_enadis(ctrl & CPU_CONTROL_DC_ENABLE, "DC");
 		print_enadis(ctrl & CPU_CONTROL_IC_ENABLE, "IC");
-#ifdef CPU_XSCALE_81342
-		print_enadis(ctrl & CPU_CONTROL_L2_ENABLE, "L2");
-#endif
 #if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 		i = sheeva_control_ext(0, 0);
 		print_enadis(i & MV_WA_ENABLE, "WA");

@@ -119,6 +119,7 @@ exclude SKIP common/builtinvar/tst.ipl1.d
 # These tests rely on being able to find a host via broadcast pings.
 exclude EXFAIL common/ip/tst.ipv4remotetcp.ksh
 exclude EXFAIL common/ip/tst.ipv4remoteudp.ksh
+exclude EXFAIL common/ip/tst.ipv4remoteudplite.ksh
 exclude EXFAIL common/ip/tst.ipv6remoteicmp.ksh
 exclude EXFAIL common/ip/tst.ipv4remoteicmp.ksh
 exclude EXFAIL common/ip/tst.remotetcpstate.ksh

@@ -86,6 +86,13 @@ ktime_add_ns(ktime_t kt, int64_t ns)
 }
 
 static inline ktime_t
+ktime_add_ms(ktime_t kt, int64_t ms)
+{
+
+	return (ktime_add_ns(kt, ms * NSEC_PER_MSEC));
+}
+
+static inline ktime_t
 ktime_sub_ns(ktime_t kt, int64_t ns)
 {
 	return (kt - ns);
@@ -144,6 +151,13 @@ ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 {
 
 	return (ktime_compare(cmp1, cmp2) > 0);
+}
+
+static inline bool
+ktime_before(const ktime_t cmp1, const ktime_t cmp2)
+{
+
+	return (ktime_compare(cmp1, cmp2) < 0);
 }
 
 static inline ktime_t

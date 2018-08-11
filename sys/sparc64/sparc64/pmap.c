@@ -2318,3 +2318,10 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 {
 
 }
+
+boolean_t
+pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
+{
+
+	return (mode == VM_MEMATTR_DEFAULT);
+}

@@ -75,9 +75,9 @@ static struct mtx ip6qlock;
 /*
  * These fields all protected by ip6qlock.
  */
-static VNET_DEFINE(u_int, frag6_nfragpackets);
-static VNET_DEFINE(u_int, frag6_nfrags);
-static VNET_DEFINE(struct ip6q, ip6q);	/* ip6 reassemble queue */
+VNET_DEFINE_STATIC(u_int, frag6_nfragpackets);
+VNET_DEFINE_STATIC(u_int, frag6_nfrags);
+VNET_DEFINE_STATIC(struct ip6q, ip6q);	/* ip6 reassemble queue */
 
 #define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
 #define	V_frag6_nfrags			VNET(frag6_nfrags)

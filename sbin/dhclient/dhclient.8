@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2011
+.Dd August 4, 2018
 .Dt DHCLIENT 8
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@ for the leases file.
 .It Fl p Ar file
 Specify an alternate location for the PID file.
 The default is
-.Pa /var/run/dhclient. Ns Ar interface Ns Pa .pid .
+.Pa /var/run/dhclient/dhclient. Ns Ar interface Ns Pa .pid .
 .It Fl q
 Forces
 .Nm
@@ -194,3 +194,16 @@ and
 .Pp
 The current implementation was reworked by
 .An Henning Brauer Aq Mt henning@openbsd.org .
+.Sh BUGS
+The
+.Nm
+utility uses
+.Xr capsicum 4
+to sandbox the main process.
+If the requisite kernel support is not available, the main process will
+attempt to run in a
+.Xr chroot 2
+sandbox instead.
+This will fail if the process is jailed or the
+.Va kern.chroot_allow_open_directories
+sysctl is set to 0.

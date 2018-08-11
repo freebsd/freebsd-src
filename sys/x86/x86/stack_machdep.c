@@ -82,16 +82,16 @@ stack_capture(struct thread *td, struct stack *st, register_t fp)
 	stack_zero(st);
 	frame = (x86_frame_t)fp;
 	while (1) {
-		if (!INKERNEL((long)frame))
+		if ((vm_offset_t)frame < td->td_kstack ||
+		    (vm_offset_t)frame >= td->td_kstack +
+		    td->td_kstack_pages * PAGE_SIZE)
 			break;
 		callpc = frame->f_retaddr;
 		if (!INKERNEL(callpc))
 			break;
 		if (stack_put(st, callpc) == -1)
 			break;
-		if (frame->f_frame <= frame ||
-		    (vm_offset_t)frame->f_frame >= td->td_kstack +
-		    td->td_kstack_pages * PAGE_SIZE)
+		if (frame->f_frame <= frame)
 			break;
 		frame = frame->f_frame;
 	}
@@ -106,7 +106,7 @@ stack_nmi_handler(struct trapframe *tf)
 	if (nmi_stack == NULL || curthread != nmi_pending)
 		return (0);
 
-	if (INKERNEL(TF_PC(tf)) && (TF_FLAGS(tf) & PSL_I) != 0)
+	if (!TRAPF_USERMODE(tf) && (TF_FLAGS(tf) & PSL_I) != 0)
 		stack_capture(curthread, nmi_stack, TF_FP(tf));
 	else
 		/* We were running in usermode or had interrupts disabled. */

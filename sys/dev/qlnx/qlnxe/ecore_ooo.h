@@ -79,11 +79,26 @@ struct ecore_ooo_info {
 	u16		cid_base;
 };
 
+#if defined(CONFIG_ECORE_ISCSI) || defined(CONFIG_ECORE_IWARP)
 enum _ecore_status_t ecore_ooo_alloc(struct ecore_hwfn *p_hwfn);
 
 void ecore_ooo_setup(struct ecore_hwfn *p_hwfn);
 
 void ecore_ooo_free(struct ecore_hwfn *p_hwfn);
+#else
+static inline enum _ecore_status_t
+ecore_ooo_alloc(struct ecore_hwfn OSAL_UNUSED *p_hwfn)
+{
+	return ECORE_INVAL;
+}
+
+static inline void
+ecore_ooo_setup(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
+
+static inline void
+ecore_ooo_free(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
+#endif
+
 
 void ecore_ooo_save_history_entry(struct ecore_ooo_info *p_ooo_info,
 				  struct ooo_opaque *p_cqe);

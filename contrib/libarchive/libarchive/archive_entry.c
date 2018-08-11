@@ -1491,7 +1491,7 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
  * the style of the generated ACL.
  */
 wchar_t *
-archive_entry_acl_to_text_w(struct archive_entry *entry, ssize_t *len,
+archive_entry_acl_to_text_w(struct archive_entry *entry, la_ssize_t *len,
     int flags)
 {
 	return (archive_acl_to_text_w(&entry->acl, len, flags,
@@ -1499,7 +1499,7 @@ archive_entry_acl_to_text_w(struct archive_entry *entry, ssize_t *len,
 }
 
 char *
-archive_entry_acl_to_text(struct archive_entry *entry, ssize_t *len,
+archive_entry_acl_to_text(struct archive_entry *entry, la_ssize_t *len,
     int flags)
 {
 	return (archive_acl_to_text_l(&entry->acl, len, flags, NULL));

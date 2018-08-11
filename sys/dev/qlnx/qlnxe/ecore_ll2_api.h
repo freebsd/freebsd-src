@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 
 /* ECORE LL2 API: called by ECORE's upper level client  */
 /* must be the asme as core_rx_conn_type */
+#ifndef __EXTRACT__LINUX__
 
 enum ecore_ll2_conn_type {
 	ECORE_LL2_TYPE_FCOE /* FCoE L2 connection */,
@@ -112,7 +113,7 @@ struct ecore_ll2_comp_rx_data {
 	u32 opaque_data_1; /* src_mac_addr_lo */
 
 	/* GSI only */
-	u32 gid_dst[4];
+	u32 src_qp;
 	u16 qp_id;
 };
 
@@ -186,6 +187,7 @@ struct ecore_ll2_acquire_data {
 	/* Output container for LL2 connection's handle */
 	u8 *p_connection_handle;
 };
+#endif
 
 /**
  * @brief ecore_ll2_acquire_connection - allocate resources,
@@ -238,6 +240,7 @@ enum _ecore_status_t ecore_ll2_post_rx_buffer(void *cxt,
 					      void *cookie,
 					      u8 notify_fw);
 
+#ifndef __EXTRACT__LINUX__
 struct ecore_ll2_tx_pkt_info {
 	u8 num_of_bds;
 	u16 vlan;
@@ -251,7 +254,9 @@ struct ecore_ll2_tx_pkt_info {
 	bool enable_l4_cksum;
 	bool calc_ip_len;
 	void *cookie;
+	bool remove_stag;
 };
+#endif
 
 /**
  * @brief ecore_ll2_prepare_tx_packet - request for start Tx BD
@@ -317,6 +322,10 @@ ecore_ll2_set_fragment_of_tx_packet(void *cxt,
 enum _ecore_status_t ecore_ll2_terminate_connection(void *cxt,
 						    u8 connection_handle);
 
+enum _ecore_status_t __ecore_ll2_get_stats(void *cxt,
+					   u8 connection_handle,
+					   struct ecore_ll2_stats *p_stats);
+
 /**
  * @brief ecore_ll2_get_stats - get LL2 queue's statistics
  *
@@ -331,6 +340,6 @@ enum _ecore_status_t ecore_ll2_terminate_connection(void *cxt,
  */
 enum _ecore_status_t ecore_ll2_get_stats(void *cxt,
 					 u8 connection_handle,
-					 struct ecore_ll2_stats	*p_stats);
+					 struct ecore_ll2_stats *p_stats);
 
 #endif

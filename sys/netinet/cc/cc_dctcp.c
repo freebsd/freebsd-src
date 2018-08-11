@@ -59,11 +59,11 @@ __FBSDID("$FreeBSD$");
 #define	CAST_PTR_INT(X)	(*((int*)(X)))
 
 #define MAX_ALPHA_VALUE 1024
-static VNET_DEFINE(uint32_t, dctcp_alpha) = 0;
+VNET_DEFINE_STATIC(uint32_t, dctcp_alpha) = 0;
 #define V_dctcp_alpha	    VNET(dctcp_alpha)
-static VNET_DEFINE(uint32_t, dctcp_shift_g) = 4;
+VNET_DEFINE_STATIC(uint32_t, dctcp_shift_g) = 4;
 #define	V_dctcp_shift_g	    VNET(dctcp_shift_g)
-static VNET_DEFINE(uint32_t, dctcp_slowstart) = 0;
+VNET_DEFINE_STATIC(uint32_t, dctcp_slowstart) = 0;
 #define	V_dctcp_slowstart   VNET(dctcp_slowstart)
 
 struct dctcp {

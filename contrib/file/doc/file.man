@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.129 2018/03/02 16:17:54 christos Exp $
-.Dd March 2, 2018
+.\" $File: file.man,v 1.131 2018/07/24 21:33:56 christos Exp $
+.Dd July 25, 2018
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -353,7 +353,7 @@ This option also causes
 to disregard the file size as reported by
 .Xr stat 2
 since on some systems it reports a zero size for raw disk partitions.
-.If Fl S , Fl Fl no-sandbox
+.It Fl S , Fl Fl no-sandbox
 On systems where libseccomp
 .Pa ( https://github.com/seccomp/libseccomp )
 is available, the
@@ -629,11 +629,11 @@ were written by John Gilmore from his public-domain
 program, and are not covered by the above license.
 .Sh BUGS
 Please report bugs and send patches to the bug tracker at
-.Pa http://bugs.gw.com/
+.Pa http://bugs.astron.com/
 or the mailing list at
-.Aq file@mx.gw.com
+.Aq file@astron.com
 (visit
-.Pa http://mx.gw.com/mailman/listinfo/file
+.Pa http://mailman.astron.com/mailman/listinfo/file
 first to subscribe).
 .Sh TODO
 Fix output so that tests for MIME and APPLE flags are not needed all

@@ -86,6 +86,7 @@ struct ecore_mcp_link_capabilities;
 #define VFPF_ACQUIRE_OS_ESX (2)
 #define VFPF_ACQUIRE_OS_SOLARIS (3)
 #define VFPF_ACQUIRE_OS_LINUX_USERSPACE (4)
+#define VFPF_ACQUIRE_OS_FREEBSD (5)
 
 struct ecore_vf_acquire_sw_info {
 	u32 driver_version;
@@ -325,6 +326,7 @@ void ecore_iov_get_link(struct ecore_hwfn *p_hwfn,
  */
 bool ecore_iov_is_vf_pending_flr(struct ecore_hwfn *p_hwfn,
 				 u16 rel_vf_id);
+#endif
 
 /**
  * @brief Check if given VF ID @vfid is valid
@@ -343,6 +345,7 @@ bool ecore_iov_is_valid_vfid(struct ecore_hwfn *p_hwfn,
 			     int rel_vf_id,
 			     bool b_enabled_only, bool b_non_malicious);
 
+#ifndef LINUX_REMOVE
 /**
  * @brief Get VF's public info structure
  *
@@ -742,6 +745,20 @@ ecore_iov_pf_configure_vf_queue_coalesce(struct ecore_hwfn *p_hwfn,
 u16 ecore_iov_get_next_active_vf(struct ecore_hwfn *p_hwfn, u16 rel_vf_id);
 void ecore_iov_bulletin_set_udp_ports(struct ecore_hwfn *p_hwfn, int vfid,
 				      u16 vxlan_port, u16 geneve_port);
+
+#ifdef CONFIG_ECORE_SW_CHANNEL
+/**
+ * @brief Set whether PF should communicate with VF using SW/HW channel
+ *        Needs to be called for an enabled VF before acquire is over
+ *        [latest good point for doing that is OSAL_IOV_VF_ACQUIRE()]
+ *
+ * @param p_hwfn
+ * @param vfid - relative vf index
+ * @param b_is_hw - true iff PF is to use HW channel for communication
+ */
+void ecore_iov_set_vf_hw_channel(struct ecore_hwfn *p_hwfn, int vfid,
+				 bool b_is_hw);
+#endif
 #else
 #ifndef LINUX_REMOVE
 static OSAL_INLINE void ecore_iov_set_vfs_to_disable(struct ecore_dev OSAL_UNUSED *p_dev, u8 OSAL_UNUSED to_disable) {}
@@ -755,7 +772,15 @@ static OSAL_INLINE enum _ecore_status_t ecore_iov_single_vf_flr_cleanup(struct e
 static OSAL_INLINE void ecore_iov_set_link(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, struct ecore_mcp_link_params OSAL_UNUSED *params, struct ecore_mcp_link_state OSAL_UNUSED *link, struct ecore_mcp_link_capabilities OSAL_UNUSED *p_caps) {}
 static OSAL_INLINE void ecore_iov_get_link(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, struct ecore_mcp_link_params OSAL_UNUSED *params, struct ecore_mcp_link_state OSAL_UNUSED *link, struct ecore_mcp_link_capabilities OSAL_UNUSED *p_caps) {}
 static OSAL_INLINE bool ecore_iov_is_vf_pending_flr(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return false;}
-static OSAL_INLINE bool ecore_iov_is_valid_vfid(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED rel_vf_id, bool OSAL_UNUSED b_enabled_only) {return false;}
+#endif
+static OSAL_INLINE bool
+ecore_iov_is_valid_vfid(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED rel_vf_id,
+			bool OSAL_UNUSED b_enabled_only,
+			bool OSAL_UNUSED b_non_malicious)
+{
+	return false;
+}
+#ifndef LINUX_REMOVE
 static OSAL_INLINE struct ecore_public_vf_info* ecore_iov_get_public_vf_info(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, bool OSAL_UNUSED b_enabled_only) {return OSAL_NULL;}
 static OSAL_INLINE void ecore_iov_pf_add_pending_events(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED vfid) {}
 static OSAL_INLINE void ecore_iov_pf_get_and_clear_pending_events(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u64 OSAL_UNUSED *events) {}
@@ -794,6 +819,12 @@ static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_min_tx_rate(struct e
 #endif
 static OSAL_INLINE void ecore_iov_bulletin_set_udp_ports(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, u16 OSAL_UNUSED vxlan_port, u16 OSAL_UNUSED geneve_port) { return; }
 static OSAL_INLINE u16 ecore_iov_get_next_active_vf(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) { return MAX_NUM_VFS_E4; }
+
+#ifdef CONFIG_ECORE_SW_CHANNEL
+static OSAL_INLINE void
+ecore_iov_set_vf_hw_channel(struct ecore_hwfn OSAL_UNUSED *p_hwfn,
+			    int OSAL_UNUSED vfid, bool OSAL_UNUSED b_is_hw) {}
+#endif
 #endif
 
 #define ecore_for_each_vf(_p_hwfn, _i)					\

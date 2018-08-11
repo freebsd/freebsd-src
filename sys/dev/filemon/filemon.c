@@ -88,7 +88,7 @@ struct filemon {
 	struct ucred	*cred;		/* Credential of tracer. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
-	char		msgbufr[1024];	/* Output message buffer. */
+	char		msgbufr[2*MAXPATHLEN + 100];	/* Output message buffer. */
 	int		error;		/* Log write error, returned on close(2). */
 	u_int		refcnt;		/* Pointer reference count. */
 	u_int		proccnt;	/* Process count. */
@@ -200,8 +200,8 @@ filemon_write_header(struct filemon *filemon)
 	    "# filemon version %d\n# Target pid %d\n# Start %ju.%06ju\nV %d\n",
 	    FILEMON_VERSION, curproc->p_pid, (uintmax_t)now.tv_sec,
 	    (uintmax_t)now.tv_usec, FILEMON_VERSION);
-
-	filemon_output(filemon, filemon->msgbufr, len);
+	if (len < sizeof(filemon->msgbufr))
+		filemon_output(filemon, filemon->msgbufr, len);
 }
 
 /*
@@ -268,7 +268,8 @@ filemon_close_log(struct filemon *filemon)
 	    "# Stop %ju.%06ju\n# Bye bye\n",
 	    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
 
-	filemon_output(filemon, filemon->msgbufr, len);
+	if (len < sizeof(filemon->msgbufr))
+		filemon_output(filemon, filemon->msgbufr, len);
 	fp = filemon->fp;
 	filemon->fp = NULL;
 

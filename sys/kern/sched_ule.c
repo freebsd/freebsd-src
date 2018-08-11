@@ -884,9 +884,6 @@ sched_balance(void)
 {
 	struct tdq *tdq;
 
-	if (smp_started == 0 || rebalance == 0)
-		return;
-
 	balance_ticks = max(balance_interval / 2, 1) +
 	    (sched_random() % balance_interval);
 	tdq = TDQ_SELF();
@@ -1413,7 +1410,6 @@ sched_setup_smp(void)
 			panic("Can't find cpu group for %d\n", i);
 	}
 	balance_tdq = TDQ_SELF();
-	sched_balance();
 }
 #endif
 
@@ -1474,6 +1470,7 @@ sched_initticks(void *dummy)
 	 * what realstathz is.
 	 */
 	balance_interval = realstathz;
+	balance_ticks = balance_interval;
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
@@ -2382,7 +2379,7 @@ sched_clock(struct thread *td)
 	/*
 	 * We run the long term load balancer infrequently on the first cpu.
 	 */
-	if (balance_tdq == tdq) {
+	if (balance_tdq == tdq && smp_started != 0 && rebalance != 0) {
 		if (balance_ticks && --balance_ticks == 0)
 			sched_balance();
 	}

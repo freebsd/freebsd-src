@@ -31,23 +31,17 @@ BIN1=	crontab \
 	mac.conf \
 	motd \
 	netconfig \
-	network.subr \
 	networks \
 	newsyslog.conf \
 	nsswitch.conf \
 	phones \
 	profile \
 	protocols \
-	rc \
 	rc.bsdextended \
 	rc.firewall \
-	rc.initdiskless \
-	rc.shutdown \
-	rc.subr \
 	remote \
 	rpc \
 	services \
-	shells \
 	sysctl.conf \
 	syslog.conf \
 	termcap.small
@@ -74,24 +68,6 @@ BSM_ETC_DIR=			${DESTDIR}/etc/security
 
 .if ${MK_AMD} != "no"
 BIN1+= amd.map
-.endif
-
-.if ${MACHINE} == "i386"
-.if ${MK_APM} != "no"
-BIN1+= apmd.conf
-.endif
-.endif
-
-.if ${MK_AUTOFS} != "no"
-BIN1+=	auto_master
-.endif
-
-.if ${MK_BLACKLIST} != "no"
-BIN1+= blacklistd.conf
-.endif
-
-.if ${MK_FREEBSD_UPDATE} != "no"
-BIN1+= freebsd-update.conf
 .endif
 
 .if ${MK_FTP} != "no"
@@ -127,14 +103,6 @@ SSH=	${SRCTOP}/crypto/openssh/ssh_config \
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-BIN1+= nscd.conf
-.endif
-
-.if ${MK_PORTSNAP} != "no"
-BIN1+= portsnap.conf
-.endif
-
 .if ${MK_PF} != "no"
 BIN1+= pf.os
 .endif
@@ -150,9 +118,6 @@ BIN1+= csh.cshrc csh.login csh.logout
 .if ${MK_WIRELESS} != "no"
 BIN1+= regdomain.xml
 .endif
-
-# -rwxr-xr-x root:wheel, for the new cron root:wheel
-BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
@@ -194,8 +159,6 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
 	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
-		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
 
@@ -223,9 +186,6 @@ distribution:
 		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_AUTOFS} != "no"
-	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
-.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -239,10 +199,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/ntp; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
-.if ${MK_PKGBOOTSTRAP} != "no"
-	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
-.endif
-	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
@@ -296,14 +252,10 @@ distribution:
 		${INSTALL_SYMLINK} mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
-	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
-	    ${DESTDIR}/etc/dumpdates
 .if ${MK_LOCATE} != "no"
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
 .endif
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
-	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"

@@ -215,7 +215,7 @@ void cx_enable_receive (cx_chan_t *c, int on)
 }
 
 /*
- * Turn the transmiter on/off.
+ * Turn the transmitter on/off.
  */
 void cx_enable_transmit (cx_chan_t *c, int on)
 {

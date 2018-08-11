@@ -1179,14 +1179,16 @@ backup_stable(__unused int signo)
 static void
 parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 {
-	char *ad, *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
-	char *mdspath, *mdsp;
+	char *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
+	char *mdspath, *mdsp, ip6[INET6_ADDRSTRLEN];
+	const char *ad;
 	int ecode;
 	u_int adsiz, dsaddrcnt, dshostcnt, dspathcnt, hostsiz, pathsiz;
 	u_int mdspathcnt;
 	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz, mdspathsiz;
-	struct addrinfo hints, *ai_tcp;
+	struct addrinfo hints, *ai_tcp, *res;
 	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
 
 	cp = strdup(optionarg);
 	if (cp == NULL)
@@ -1275,22 +1277,55 @@ parse_dsserver(const char *optionarg, struct nfsd_nfsd_args *nfsdargp)
 
 		/* Get the fully qualified domain name and IP address. */
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_flags = AI_CANONNAME;
-		hints.ai_family = AF_INET;
+		hints.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+		hints.ai_family = PF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = IPPROTO_TCP;
 		ecode = getaddrinfo(cp, NULL, &hints, &ai_tcp);
 		if (ecode != 0)
 			err(1, "getaddrinfo pnfs: %s %s", cp,
 			    gai_strerror(ecode));
-		if (ai_tcp->ai_addr->sa_family != AF_INET ||
-		    ai_tcp->ai_addrlen < sizeof(sin))
-			err(1, "getaddrinfo() returned non-INET address");
-		/* Mips cares about sockaddr_in alignment, so copy the addr. */
-		memcpy(&sin, ai_tcp->ai_addr, sizeof(sin));
+		ad = NULL;
+		for (res = ai_tcp; res != NULL; res = res->ai_next) {
+			if (res->ai_addr->sa_family == AF_INET) {
+				if (res->ai_addrlen < sizeof(sin))
+					err(1, "getaddrinfo() returned "
+					    "undersized IPv4 address");
+				/*
+				 * Mips cares about sockaddr_in alignment,
+				 * so copy the address.
+				 */
+				memcpy(&sin, res->ai_addr, sizeof(sin));
+				ad = inet_ntoa(sin.sin_addr);
+				break;
+			} else if (res->ai_family == AF_INET6) {
+				if (res->ai_addrlen < sizeof(sin6))
+					err(1, "getaddrinfo() returned "
+					    "undersized IPv6 address");
+				/*
+				 * Mips cares about sockaddr_in6 alignment,
+				 * so copy the address.
+				 */
+				memcpy(&sin6, res->ai_addr, sizeof(sin6));
+				ad = inet_ntop(AF_INET6, &sin6.sin6_addr, ip6,
+				    sizeof(ip6));
+
+				/*
+				 * XXX
+				 * Since a link local address will only
+				 * work if the client and DS are in the
+				 * same scope zone, only use it if it is
+				 * the only address.
+				 */
+				if (ad != NULL &&
+				    !IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
+					break;
+			}
+		}
+		if (ad == NULL)
+			err(1, "No IP address for %s", cp);
 
 		/* Append this address to dsaddr. */
-		ad = inet_ntoa(sin.sin_addr);
 		adsiz = strlen(ad);
 		if (dsaddrcnt + adsiz + nfsprtsiz + 1 > dsaddrsiz) {
 			dsaddrsiz *= 2;

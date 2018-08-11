@@ -152,7 +152,6 @@ static int vm_pageout_oom_seq = 12;
 static int vm_pageout_update_period;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
-static time_t lowmem_uptime;
 static int swapdev_enabled;
 
 static int vm_panic_on_oom = 0;
@@ -1856,12 +1855,17 @@ vm_pageout_oom(int shortage)
 	}
 }
 
-static void
-vm_pageout_lowmem(struct vm_domain *vmd)
+static bool
+vm_pageout_lowmem(void)
 {
+	static int lowmem_ticks = 0;
+	int last;
 
-	if (vmd == VM_DOMAIN(0) &&
-	    time_uptime - lowmem_uptime >= lowmem_period) {
+	last = atomic_load_int(&lowmem_ticks);
+	while ((u_int)(ticks - last) / hz >= lowmem_period) {
+		if (atomic_fcmpset_int(&lowmem_ticks, &last, ticks) == 0)
+			continue;
+
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -1873,14 +1877,16 @@ vm_pageout_lowmem(struct vm_domain *vmd)
 		 * drained above.
 		 */
 		uma_reclaim();
-		lowmem_uptime = time_uptime;
+		return (true);
 	}
+	return (false);
 }
 
 static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *vmd;
+	u_int ofree;
 	int addl_shortage, domain, shortage;
 	bool target_met;
 
@@ -1939,11 +1945,16 @@ vm_pageout_worker(void *arg)
 
 		/*
 		 * Use the controller to calculate how many pages to free in
-		 * this interval, and scan the inactive queue.
+		 * this interval, and scan the inactive queue.  If the lowmem
+		 * handlers appear to have freed up some pages, subtract the
+		 * difference from the inactive queue scan target.
 		 */
 		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
 		if (shortage > 0) {
-			vm_pageout_lowmem(vmd);
+			ofree = vmd->vmd_free_count;
+			if (vm_pageout_lowmem() && vmd->vmd_free_count > ofree)
+				shortage -= min(vmd->vmd_free_count - ofree,
+				    (u_int)shortage);
 			target_met = vm_pageout_scan_inactive(vmd, shortage,
 			    &addl_shortage);
 		} else

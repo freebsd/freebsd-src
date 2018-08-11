@@ -1,18 +1,18 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.86 2017/03/01 20:26:51 sjg Exp $
+# $Id: dirdeps.mk,v 1.96 2018/06/20 22:26:39 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions 
-# are met: 
+# modification, are permitted provided that the following conditions
+# are met:
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.  
-# 
+#    documentation and/or other materials provided with the distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -23,7 +23,7 @@
 # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Much of the complexity here is for supporting cross-building.
 # If a tree does not support that, simply using plain Makefile.depend
@@ -57,7 +57,7 @@
 #	.MAKE.DEPENDFILE_PREFIX) to refer to these makefiles to
 #	distinguish them from others.
 #	
-#	Before each Makefile.depend file is read, we set 
+#	Before each Makefile.depend file is read, we set
 #	DEP_RELDIR to be the RELDIR (path relative to SRCTOP) for
 #	its directory, and DEP_MACHINE etc according to the .<target_spec>
 #	represented by the suffix of the corresponding target.
@@ -90,7 +90,7 @@
 #
 #	For example:
 #
-#		# Always list MACHINE first, 
+#		# Always list MACHINE first,
 #		# other variables might be optional.
 #		TARGET_SPEC_VARS = MACHINE TARGET_OS
 #		.if ${TARGET_SPEC:Uno:M*,*} != ""
@@ -102,7 +102,7 @@
 #		# and deal with MACHINE=${TARGET_SPEC} in the environment.
 #		TARGET_SPEC =
 #		# export but do not track
-#		.export-env TARGET_SPEC 
+#		.export-env TARGET_SPEC
 #		.export ${TARGET_SPEC_VARS}
 #		.for v in ${TARGET_SPEC_VARS:O:u}
 #		.if empty($v)
@@ -137,6 +137,14 @@
 #		A list of MACHINEs the current directory should not be
 #		built for.
 #
+
+.if !target(bootstrap) && (make(bootstrap) || \
+	make(bootstrap-this) || \
+	make(bootstrap-recurse) || \
+	make(bootstrap-empty))
+# disable most of below
+.MAKE.LEVEL = 1
+.endif
 
 # touch this at your peril
 _DIRDEP_USE_LEVEL?= 0
@@ -321,7 +329,7 @@ _DEP_RELDIR := ${DEP_RELDIR}
 .endif
 
 # DIRDEPS_CACHE can be very handy for debugging.
-# Also if repeatedly building the same target, 
+# Also if repeatedly building the same target,
 # we can avoid the overhead of re-computing the tree dependencies.
 MK_DIRDEPS_CACHE ?= no
 BUILD_DIRDEPS_CACHE ?= no
@@ -434,7 +442,7 @@ _only_machines := ${_only_machines:O:u}
 
 # make sure we have a starting place?
 DIRDEPS ?= ${RELDIR}
-.endif				# target 
+.endif				# target
 
 .if !defined(NO_DIRDEPS) && !defined(NO_DIRDEPS_BELOW)
 .if ${MK_DIRDEPS_CACHE} == "yes"
@@ -444,7 +452,7 @@ build-dirdeps:
 
 M_oneperline = @x@\\${.newline}	$$x@
 
-.if ${BUILD_DIRDEPS_CACHE} == "no" 
+.if ${BUILD_DIRDEPS_CACHE} == "no"
 .if !target(dirdeps-cached)
 # we do this via sub-make
 BUILD_DIRDEPS = no
@@ -462,7 +470,7 @@ dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 BUILD_DIRDEPS_MAKEFILE ?= ${MAKEFILE}
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
 
-# we need the .meta file to ensure we update if 
+# we need the .meta file to ensure we update if
 # any of the Makefile.depend* changed.
 # We do not want to compare the command line though.
 ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
@@ -521,6 +529,7 @@ _this_dir := ${SRCTOP}/${DEP_RELDIR}
 # on rare occasions, there can be a need for extra help
 _dep_hack := ${_this_dir}/${.MAKE.DEPENDFILE_PREFIX}.inc
 .-include <${_dep_hack}>
+.-include <${_dep_hack:R}.options>
 
 .if ${DEP_RELDIR} != ${_DEP_RELDIR} || ${DEP_TARGET_SPEC} != ${TARGET_SPEC}
 # this should be all
@@ -529,9 +538,13 @@ _machines := ${DEP_MACHINE}
 # this is the machine list we actually use below
 _machines := ${_only_machines}
 
-.if defined(HOSTPROG) || ${DEP_MACHINE} == "host"
+.if defined(HOSTPROG) || ${DEP_MACHINE:Nhost*} == ""
 # we need to build this guy's dependencies for host as well.
+.if ${DEP_MACHINE:Nhost*} == ""
+_machines += ${DEP_MACHINE}
+.else
 _machines += host
+.endif
 .endif
 
 _machines := ${_machines:O:u}
@@ -570,7 +583,7 @@ _build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: DIRDEPS='${DIRDEPS}'
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: _machines='${_machines}' 
+.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: _machines='${_machines}'
 .endif
 
 .if !empty(DIRDEPS)
@@ -578,7 +591,7 @@ _build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
 DEP_DIRDEPS_FILTER = \
 	${DIRDEPS_FILTER.${DEP_TARGET_SPEC}:U} \
 	${TARGET_SPEC_VARS:@v@${DIRDEPS_FILTER.${DEP_$v}:U}@} \
-	${DIRDEPS_FILTER:U} 
+	${DIRDEPS_FILTER:U}
 .if empty(DEP_DIRDEPS_FILTER)
 # something harmless
 DEP_DIRDEPS_FILTER = U
@@ -587,7 +600,7 @@ DEP_DIRDEPS_FILTER = U
 # this is what we start with
 __depdirs := ${DIRDEPS:${NSkipDir}:${DEP_DIRDEPS_FILTER:ts:}:C,//+,/,g:O:u:@d@${SRCTOP}/$d@}
 
-# some entries may be qualified with .<machine> 
+# some entries may be qualified with .<machine>
 # the :M*/*/*.* just tries to limit the dirs we check to likely ones.
 # the ${d:E:M*/*} ensures we don't consider junos/usr.sbin/mgd
 __qual_depdirs := ${__depdirs:M*/*/*.*:@d@${exists($d):?:${"${d:E:M*/*}":?:${exists(${d:R}):?$d:}}}@}
@@ -595,7 +608,8 @@ __unqual_depdirs := ${__depdirs:${__qual_depdirs:Uno:${M_ListToSkip}}}
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # if it was called out - we likely need it.
-__hostdpadd := ${DPADD:U.:M${HOST_OBJTOP}/*:S,${HOST_OBJTOP}/,,:H:${NSkipDir}:${DIRDEPS_FILTER:ts:}:S,$,.host,:N.*:@d@${SRCTOP}/$d@}
+__hostdpadd := ${DPADD:U.:M${HOST_OBJTOP}/*:S,${HOST_OBJTOP}/,,:H:${NSkipDir}:${DIRDEPS_FILTER:ts:}:S,$,.host,:N.*:@d@${SRCTOP}/$d@} \
+	${DPADD:U.:M${HOST_OBJTOP32:Uno}/*:S,${HOST_OBJTOP32:Uno}/,,:H:${NSkipDir}:${DIRDEPS_FILTER:ts:}:S,$,.host32,:N.*:@d@${SRCTOP}/$d@}
 __qual_depdirs += ${__hostdpadd}
 .endif
 
@@ -629,6 +643,11 @@ _build_all_dirs := ${_build_all_dirs:O:u}
 x!= { echo; echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; \
 	echo 'dirdeps: ${_build_all_dirs:${M_oneperline}}'; echo; } >&3; echo
 x!= { ${_build_all_dirs:@x@${target($x):?:echo '$x: _DIRDEP_USE';}@} echo; } >&3; echo
+.if !empty(DEP_EXPORT_VARS)
+# Discouraged, but there are always exceptions.
+# Handle it here rather than explain how.
+x!= { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3; echo
+.endif
 .else
 # this makes it all happen
 dirdeps: ${_build_all_dirs}
@@ -637,6 +656,11 @@ ${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs}
+.endif
+
+.if !empty(DEP_EXPORT_VARS)
+.export ${DEP_EXPORT_VARS}
+DEP_EXPORT_VARS=
 .endif
 
 # this builds the dependency graph
@@ -689,7 +713,7 @@ DEP_${TARGET_SPEC_VARS:[$i]} := ${_dtspec:[$i]}
 .else
 DEP_MACHINE := ${_DEP_MACHINE}
 .endif
-# Warning: there is an assumption here that MACHINE is always 
+# Warning: there is an assumption here that MACHINE is always
 # the first entry in TARGET_SPEC_VARS.
 # If TARGET_SPEC and MACHINE are insufficient, you have a problem.
 _m := ${.MAKE.DEPENDFILE_PREFERENCE:T:S;${TARGET_SPEC}$;${d:E};:S;${MACHINE};${d:E:C/,.*//};:@m@${exists(${d:R}/$m):?${d:R}/$m:}@:[1]}
@@ -699,7 +723,7 @@ _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes:ts:}}
 .if ${_debug_search}
 .info Looking for ${_qm}
 .endif
-# set this "just in case" 
+# set this "just in case"
 # we can skip :tA since we computed the path above
 DEP_RELDIR := ${_m:H:S,${SRCTOP}/,,}
 # and reset this
@@ -708,6 +732,8 @@ DIRDEPS =
 .info loading ${_m} for ${d:E}
 .endif
 .include <${_m}>
+.else
+.-include <local.dirdeps-missing.mk>
 .endif
 .endif
 .endif
@@ -722,6 +748,10 @@ DIRDEPS =
 # we are building something
 DEP_RELDIR := ${RELDIR}
 _DEP_RELDIR := ${RELDIR}
+# Since we are/should be included by .MAKE.DEPENDFILE
+# This is a final opportunity to add/hook global rules.
+.-include <local.dirdeps-build.mk>
+
 # pickup local dependencies
 .if ${MAKE_VERSION} < 20160220
 .-include <.depend>
@@ -758,7 +788,7 @@ bootstrap-this:	.NOTMAIN
 	@echo Bootstrapping ${RELDIR}/${_want:T} from ${_src:T}; \
 	echo You need to build ${RELDIR} to correctly populate it.
 .if ${_src:T} != ${.MAKE.DEPENDFILE_PREFIX:T}
-	(cd ${.CURDIR} && sed ${.MAKE.DEPENDFILE_BOOTSTRAP_SED} ${_src} > ${_want})
+	(cd ${.CURDIR} && sed ${.MAKE.DEPENDFILE_BOOTSTRAP_SED} ${_src} > ${_want:T})
 .else
 	cp ${.CURDIR}/${_src:T} ${_want}
 .endif

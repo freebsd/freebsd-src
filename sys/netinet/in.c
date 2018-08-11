@@ -78,7 +78,7 @@ static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static void	in_socktrim(struct sockaddr_in *);
 static void	in_purgemaddrs(struct ifnet *);
 
-static VNET_DEFINE(int, nosameprefix);
+VNET_DEFINE_STATIC(int, nosameprefix);
 #define	V_nosameprefix			VNET(nosameprefix)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(nosameprefix), 0,

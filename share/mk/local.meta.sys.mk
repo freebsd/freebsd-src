@@ -7,7 +7,7 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
-.if !defined(HOST_TARGET)
+.if !defined(HOST_TARGET) || !defined(HOST_MACHINE)
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
 .export HOST_TARGET
@@ -111,13 +111,13 @@ BUILD_AT_LEVEL0= no
 .error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
 .endif
 .endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
 .if empty(STAGE_ROOT)
 STAGE_ROOT?= ${OBJROOT}stage
 .export STAGE_ROOT
-.endif
 .endif
 .endif
 
@@ -149,7 +149,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
+#LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else
@@ -157,6 +157,8 @@ LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 .endif
 
 .endif				# MK_STAGING
+
+.-include "local.toolchain.mk"
 
 # this is sufficient for most of the tree.
 .MAKE.DEPENDFILE_DEFAULT = ${.MAKE.DEPENDFILE_PREFIX}

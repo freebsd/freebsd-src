@@ -312,6 +312,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	char *kernel = NULL;
 	FILEPATH_DEVICE_PATH  *fp;
 	struct stat st;
+	CHAR16 *text;
 
 	/*
 	 * FreeBSD encodes it's boot loading path into the boot loader
@@ -349,27 +350,45 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	if ((char *)edp > ep)
 		return NOT_SPECIFIC;
 	while (dp < edp) {
+		text = efi_devpath_name(dp);
+		if (text != NULL) {
+			printf("   BootInfo Path: %S\n", text);
+			efi_free_devpath_name(text);
+		}
 		last_dp = dp;
 		dp = (EFI_DEVICE_PATH *)((char *)dp + efi_devpath_length(dp));
 	}
 
 	/*
 	 * If there's only one item in the list, then nothing was
-	 * specified.
+	 * specified. Or if the last path doesn't have a media
+	 * path in it. Those show up as various VenHw() nodes
+	 * which are basically opaque to us. Don't count those
+	 * as something specifc.
 	 */
-	if (last_dp == first_dp)
+	if (last_dp == first_dp) {
+		printf("Ignoring Boot%04x: Only one DP found\n", boot_current);
 		return NOT_SPECIFIC;
+	}
+	if (efi_devpath_to_media_path(last_dp) == NULL) {
+		printf("Ignoring Boot%04x: No Media Path\n", boot_current);
+		return NOT_SPECIFIC;
+	}
 
 	/*
 	 * OK. At this point we either have a good path or a bad one.
 	 * Let's check.
 	 */
 	pp = efiblk_get_pdinfo_by_device_path(last_dp);
-	if (pp == NULL)
+	if (pp == NULL) {
+		printf("Ignoring Boot%04x: Device Path not found\n", boot_current);
 		return BAD_CHOICE;
+	}
 	set_currdev_pdinfo(pp);
-	if (!sanity_check_currdev())
+	if (!sanity_check_currdev()) {
+		printf("Ignoring Boot%04x: sanity check failed\n", boot_current);
 		return BAD_CHOICE;
+	}
 
 	/*
 	 * OK. We've found a device that matches, next we need to check the last
@@ -381,20 +400,32 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	 */
 	dp = efi_devpath_last_node(last_dp);
 	if (DevicePathType(dp) !=  MEDIA_DEVICE_PATH ||
-	    DevicePathSubType(dp) != MEDIA_FILEPATH_DP)
+	    DevicePathSubType(dp) != MEDIA_FILEPATH_DP) {
+		printf("Using Boot%04x for root partition\n", boot_current);
 		return (BOOT_INFO_OK);		/* use currdir, default kernel */
+	}
 	fp = (FILEPATH_DEVICE_PATH *)dp;
 	ucs2_to_utf8(fp->PathName, &kernel);
-	if (kernel == NULL)
+	if (kernel == NULL) {
+		printf("Not using Boot%04x: can't decode kernel\n", boot_current);
 		return (BAD_CHOICE);
+	}
 	if (*kernel == '\\' || isupper(*kernel))
 		fix_dosisms(kernel);
 	if (stat(kernel, &st) != 0) {
 		free(kernel);
+		printf("Not using Boot%04x: can't find %s\n", boot_current,
+		    kernel);
 		return (BAD_CHOICE);
 	}
 	setenv("kernel", kernel, 1);
 	free(kernel);
+	text = efi_devpath_name(last_dp);
+	if (text) {
+		printf("Using Boot%04x %S + %s\n", boot_current, text,
+		    kernel);
+		efi_free_devpath_name(text);
+	}
 
 	return (BOOT_INFO_OK);
 }
@@ -494,19 +525,26 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 		if (sanity_check_currdev())
 			return (0);
 		if (dp->pd_parent != NULL) {
+			pdinfo_t *espdp = dp;
 			dp = dp->pd_parent;
 			STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+				/* Already tried the ESP */
+				if (espdp == pp)
+					continue;
 				/*
 				 * Roll up the ZFS special case
 				 * for those partitions that have
 				 * zpools on them.
 				 */
+				text = efi_devpath_name(pp->pd_devpath);
+				if (text != NULL) {
+					printf("Trying: %S\n", text);
+					efi_free_devpath_name(text);
+				}
 				if (try_as_currdev(dp, pp))
 					return (0);
 			}
 		}
-	} else {
-		printf("Can't find device by handle\n");
 	}
 
 	/*
@@ -604,6 +642,15 @@ parse_args(int argc, CHAR16 *argv[])
 	return (howto);
 }
 
+static void
+setenv_int(const char *key, int val)
+{
+	char buf[20];
+
+	snprintf(buf, sizeof(buf), "%d", val);
+	setenv(key, buf, 1);
+}
+
 /*
  * Parse ConOut (the list of consoles active) and see if we can find a
  * serial port and/or a video port. It would be nice to also walk the
@@ -635,15 +682,15 @@ parse_uefi_con_out(void)
 		    DevicePathSubType(node) == ACPI_DP) {
 			/* Check for Serial node */
 			acpi = (void *)node;
-			if (EISA_ID_TO_NUM(acpi->HID) == 0x501)
+			if (EISA_ID_TO_NUM(acpi->HID) == 0x501) {
+				setenv_int("efi_8250_uid", acpi->UID);
 				com_seen = ++seen;
+			}
 		} else if (DevicePathType(node) == MESSAGING_DEVICE_PATH &&
 		    DevicePathSubType(node) == MSG_UART_DP) {
-			char bd[16];
 
 			uart = (void *)node;
-			snprintf(bd, sizeof(bd), "%d", uart->BaudRate);
-			setenv("efi_com_speed", bd, 1);
+			setenv_int("efi_com_speed", uart->BaudRate);
 		} else if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 		    DevicePathSubType(node) == ACPI_ADR_DP) {
 			/* Check for AcpiAdr() Node for video */
@@ -793,6 +840,7 @@ main(int argc, CHAR16 *argv[])
 			}
 		}
 	}
+
 	/*
 	 * howto is set now how we want to export the flags to the kernel, so
 	 * set the env based on it.
@@ -811,12 +859,15 @@ main(int argc, CHAR16 *argv[])
 	 * Scan the BLOCK IO MEDIA handles then
 	 * march through the device switch probing for things.
 	 */
-	if ((i = efipart_inithandles()) == 0) {
-		for (i = 0; devsw[i] != NULL; i++)
-			if (devsw[i]->dv_init != NULL)
-				(devsw[i]->dv_init)();
-	} else
-		printf("efipart_inithandles failed %d, expect failures", i);
+	i = efipart_inithandles();
+	if (i != 0 && i != ENOENT) {
+		printf("efipart_inithandles failed with ERRNO %d, expect "
+		    "failures\n", i);
+	}
+
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
 
 	printf("%s\n", bootprog_info);
 	printf("   Command line arguments:");
@@ -828,6 +879,8 @@ main(int argc, CHAR16 *argv[])
 	    ST->Hdr.Revision & 0xffff);
 	printf("   EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
+	printf("   Console: %s (%#x)\n", getenv("console"), howto);
+
 
 
 	/* Determine the devpath of our image so we can prefer it. */

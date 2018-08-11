@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_gif.h>
 
 #define GIF_TTL		30
-static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+VNET_DEFINE_STATIC(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gif_ttl), 0, "Default TTL value for encapsulated packets");
@@ -81,8 +81,8 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
  * We keep interfaces in a hash table using src+dst as key.
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
-static VNET_DEFINE(struct gif_list *, ipv4_hashtbl) = NULL;
-static VNET_DEFINE(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
+VNET_DEFINE_STATIC(struct gif_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
 #define	V_ipv4_list		VNET(ipv4_list)
 

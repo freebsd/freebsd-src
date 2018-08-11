@@ -239,6 +239,36 @@ struct qlnx_storm_stats_dump {
 
 typedef struct qlnx_storm_stats_dump qlnx_storm_stats_dump_t;
 
+#define QLNX_LLDP_TYPE_END_OF_LLDPDU		0
+#define QLNX_LLDP_TYPE_CHASSIS_ID		1	
+#define QLNX_LLDP_TYPE_PORT_ID			2	
+#define QLNX_LLDP_TYPE_TTL			3
+#define QLNX_LLDP_TYPE_PORT_DESC		4
+#define QLNX_LLDP_TYPE_SYS_NAME			5
+#define QLNX_LLDP_TYPE_SYS_DESC			6
+#define QLNX_LLDP_TYPE_SYS_CAPS			7
+#define QLNX_LLDP_TYPE_MGMT_ADDR		8
+#define QLNX_LLDP_TYPE_ORG_SPECIFIC		127
+
+#define QLNX_LLDP_CHASSIS_ID_SUBTYPE_OCTETS	1 //Subtype is 1 byte
+#define QLNX_LLDP_CHASSIS_ID_SUBTYPE_MAC	0x04 //Mac Address
+#define QLNX_LLDP_CHASSIS_ID_MAC_ADDR_LEN	6 // Mac address is 6 bytes
+#define QLNX_LLDP_CHASSIS_ID_SUBTYPE_IF_NAME	0x06 //Interface Name
+
+#define QLNX_LLDP_PORT_ID_SUBTYPE_OCTETS	1 //Subtype is 1 byte
+#define QLNX_LLDP_PORT_ID_SUBTYPE_MAC		0x03 //Mac Address
+#define QLNX_LLDP_PORT_ID_MAC_ADDR_LEN		6 // Mac address is 6 bytes
+#define QLNX_LLDP_PORT_ID_SUBTYPE_IF_NAME	0x05 //Interface Name
+
+#define QLNX_LLDP_SYS_TLV_SIZE 256
+struct qlnx_lldp_sys_tlvs {
+	int		discard_mandatory_tlv;
+	uint8_t		buf[QLNX_LLDP_SYS_TLV_SIZE];
+	uint16_t	buf_size;
+};
+typedef struct qlnx_lldp_sys_tlvs qlnx_lldp_sys_tlvs_t;
+
+
 /*
  * Read grcdump size
  */
@@ -309,8 +339,9 @@ typedef struct qlnx_storm_stats_dump qlnx_storm_stats_dump_t;
  */
 #define QLNX_TRACE		_IOWR('q', 14, qlnx_trace_t)
 
-
-
-
+/*
+ * Set LLDP TLVS
+ */
+#define QLNX_SET_LLDP_TLVS	_IOWR('q', 15, qlnx_lldp_sys_tlvs_t)
 
 #endif /* #ifndef _QLNX_IOCTL_H_ */

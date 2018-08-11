@@ -74,6 +74,8 @@
     preserve
     ..
     run
+        dhclient
+        ..
         ppp             gname=network mode=0770
         ..
         wpa_supplicant

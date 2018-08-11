@@ -564,7 +564,7 @@ new_pcichild_device(struct hv_pcibus *hbus, struct pci_func_desc *desc)
 
 	ret = vmbus_chan_send(hbus->sc->chan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    res_req, sizeof(*res_req), (uint64_t)&ctxt.pkt);
+	    res_req, sizeof(*res_req), (uint64_t)(uintptr_t)&ctxt.pkt);
 	if (ret)
 		goto err;
 
@@ -937,7 +937,8 @@ vmbus_pcib_on_channel_callback(struct vmbus_channel *chan, void *arg)
 
 		switch (pkt->cph_type) {
 		case VMBUS_CHANPKT_TYPE_COMP:
-			comp_packet = (struct pci_packet *)pkt->cph_xactid;
+			comp_packet =
+			    (struct pci_packet *)(uintptr_t)pkt->cph_xactid;
 			response = (struct pci_response *)pkt;
 			comp_packet->completion_func(comp_packet->compl_ctxt,
 			    response, bytes_rxed);
@@ -1009,7 +1010,7 @@ hv_pci_protocol_negotiation(struct hv_pcibus *hbus)
 
 	ret = vmbus_chan_send(hbus->sc->chan, VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC, version_req, sizeof(*version_req),
-	    (uint64_t)&ctxt.pkt);
+	    (uint64_t)(uintptr_t)&ctxt.pkt);
 	if (ret)
 		goto out;
 
@@ -1070,7 +1071,7 @@ hv_pci_enter_d0(struct hv_pcibus *hbus)
 
 	ret = vmbus_chan_send(hbus->sc->chan, VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC, d0_entry, sizeof(*d0_entry),
-	    (uint64_t)&ctxt.pkt);
+	    (uint64_t)(uintptr_t)&ctxt.pkt);
 	if (ret)
 		goto out;
 
@@ -1122,7 +1123,8 @@ hv_send_resources_allocated(struct hv_pcibus *hbus)
 
 		ret = vmbus_chan_send(hbus->sc->chan,
 		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-		    &pkt->message, sizeof(*res_assigned), (uint64_t)pkt);
+		    &pkt->message, sizeof(*res_assigned),
+		    (uint64_t)(uintptr_t)pkt);
 		if (ret) {
 			free_completion(&comp_pkt.host_event);
 			break;
@@ -1727,7 +1729,7 @@ vmbus_pcib_map_msi(device_t pcib, device_t child, int irq,
 
 	ret = vmbus_chan_send(sc->chan,	VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC, int_pkt, sizeof(*int_pkt),
-	    (uint64_t)&ctxt.pkt);
+	    (uint64_t)(uintptr_t)&ctxt.pkt);
 	if (ret) {
 		free_completion(&comp.comp_pkt.host_event);
 		return (ret);
