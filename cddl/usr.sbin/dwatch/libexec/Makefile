@@ -62,6 +62,7 @@ LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/recvmsg
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/send
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendmsg
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendto
+LINKS+=	${LIBEXECDIR}/dwatch/systop ${LIBEXECDIR}/dwatch/systop
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-established
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-refused
