@@ -31,7 +31,6 @@ BIN1=	crontab \
 	motd \
 	netconfig \
 	networks \
-	newsyslog.conf \
 	nsswitch.conf \
 	phones \
 	profile \
@@ -170,7 +169,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
-	${_+_}cd ${.CURDIR}/newsyslog.conf.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
