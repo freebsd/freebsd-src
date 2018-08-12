@@ -4396,7 +4396,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			} else {
 				ip6h->ip6_nxt = IPPROTO_SCTP;
 			}
-			ip6h->ip6_plen = htons(packet_length - sizeof(struct ip6_hdr));
+			ip6h->ip6_plen = htons((uint16_t)(packet_length - sizeof(struct ip6_hdr)));
 			ip6h->ip6_dst = sin6->sin6_addr;
 
 			/*
@@ -11258,7 +11258,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		ip6->ip6_plen = htons(len - sizeof(struct ip6_hdr));
+		ip6->ip6_plen = htons((uint16_t)(len - sizeof(struct ip6_hdr)));
 		if (port) {
 			shout->checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
 			SCTP_STAT_INCR(sctps_sendswcrc);
