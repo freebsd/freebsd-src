@@ -2002,7 +2002,7 @@ receive_read(struct receive_arg *ra, int len, void *buf)
 	return (0);
 }
 
-static void
+noinline static void
 byteswap_record(dmu_replay_record_t *drr)
 {
 #define	DO64(X) (drr->drr_u.X = BSWAP_64(drr->drr_u.X))
@@ -2137,7 +2137,7 @@ save_resume_state(struct receive_writer_arg *rwa,
 	rwa->os->os_dsl_dataset->ds_resume_bytes[txgoff] = rwa->bytes_read;
 }
 
-static int
+noinline static int
 receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
     void *data)
 {
@@ -2243,7 +2243,7 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 }
 
 /* ARGSUSED */
-static int
+noinline static int
 receive_freeobjects(struct receive_writer_arg *rwa,
     struct drr_freeobjects *drrfo)
 {
@@ -2279,7 +2279,7 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 	return (0);
 }
 
-static int
+noinline static int
 receive_write(struct receive_writer_arg *rwa, struct drr_write *drrw,
     arc_buf_t *abuf)
 {
@@ -2309,7 +2309,6 @@ receive_write(struct receive_writer_arg *rwa, struct drr_write *drrw,
 		return (SET_ERROR(EINVAL));
 
 	tx = dmu_tx_create(rwa->os);
-
 	dmu_tx_hold_write(tx, drrw->drr_object,
 	    drrw->drr_offset, drrw->drr_logical_size);
 	err = dmu_tx_assign(tx, TXG_WAIT);
@@ -2500,7 +2499,7 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 }
 
 /* ARGSUSED */
-static int
+noinline static int
 receive_free(struct receive_writer_arg *rwa, struct drr_free *drrf)
 {
 	int err;
