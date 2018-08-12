@@ -161,25 +161,54 @@ typedef struct dnode_phys {
 	uint64_t dn_maxblkid;		/* largest allocated block ID */
 	uint64_t dn_used;		/* bytes (or sectors) of disk space */
 
+	/*
+	 * Both dn_pad2 and dn_pad3 are protected by the block's MAC. This
+	 * allows us to protect any fields that might be added here in the
+	 * future. In either case, developers will want to check
+	 * zio_crypt_init_uios_dnode() to ensure the new field is being
+	 * protected properly.
+	 */
 	uint64_t dn_pad3[4];
- 	union {
+	/*
+	 * The tail region is 448 bytes for a 512 byte dnode, and
+	 * correspondingly larger for larger dnode sizes. The spill
+	 * block pointer, when present, is always at the end of the tail
+	 * region. There are three ways this space may be used, using
+	 * a 512 byte dnode for this diagram:
+	 *
+	 * 0       64      128     192     256     320     384     448 (offset)
+	 * +---------------+---------------+---------------+-------+
+	 * | dn_blkptr[0]  | dn_blkptr[1]  | dn_blkptr[2]  | /     |
+	 * +---------------+---------------+---------------+-------+
+	 * | dn_blkptr[0]  | dn_bonus[0..319]                      |
+	 * +---------------+-----------------------+---------------+
+	 * | dn_blkptr[0]  | dn_bonus[0..191]      | dn_spill      |
+	 * +---------------+-----------------------+---------------+
+	 */
+#if defined(__i386__) || defined(__amd64__)
+	union {
 		blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)];
- 		struct {
- 			blkptr_t __dn_ignore1;
+		struct {
+			blkptr_t __dn_ignore1;
 			uint8_t dn_bonus[DN_OLD_MAX_BONUSLEN];
- 		};
- 		struct {
- 			blkptr_t __dn_ignore2;
+		};
+		struct {
+			blkptr_t __dn_ignore2;
 			uint8_t __dn_ignore3[DN_OLD_MAX_BONUSLEN -
 			    sizeof (blkptr_t)];
- 			blkptr_t dn_spill;
+			blkptr_t dn_spill;
  		};
- 	};
+	};
+#else
+	blkptr_t dn_blkptr[1];
+	uint8_t dn_bonus[DN_MAX_BONUSLEN - sizeof (blkptr_t)];
+	blkptr_t dn_spill;
+#endif
 } dnode_phys_t;
 
 #define	DN_SPILL_BLKPTR(dnp)	(blkptr_t *)((char *)(dnp) + \
 	(((dnp)->dn_extra_slots + 1) << DNODE_SHIFT) - (1 << SPA_BLKPTRSHIFT))
-    
+
 struct dnode {
 	/*
 	 * Protects the structure of the dnode, including the number of levels
