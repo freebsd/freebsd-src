@@ -63,10 +63,6 @@ BIN1+= amd.map
 BIN1+= ftpusers
 .endif
 
-.if ${MK_INETD} != "no"
-BIN1+= inetd.conf
-.endif
-
 .if ${MK_LOCATE} != "no"
 BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
 .endif
