@@ -51,6 +51,103 @@
 #include <sys/cityhash.h>
 #include <sys/spa_impl.h>
 
+kstat_t *dbuf_ksp;
+
+typedef struct dbuf_stats {
+	/*
+	 * Various statistics about the size of the dbuf cache.
+	 */
+	kstat_named_t cache_count;
+	kstat_named_t cache_size_bytes;
+	kstat_named_t cache_size_bytes_max;
+	/*
+	 * Statistics regarding the bounds on the dbuf cache size.
+	 */
+	kstat_named_t cache_target_bytes;
+	kstat_named_t cache_lowater_bytes;
+	kstat_named_t cache_hiwater_bytes;
+	/*
+	 * Total number of dbuf cache evictions that have occurred.
+	 */
+	kstat_named_t cache_total_evicts;
+	/*
+	 * The distribution of dbuf levels in the dbuf cache and
+	 * the total size of all dbufs at each level.
+	 */
+	kstat_named_t cache_levels[DN_MAX_LEVELS];
+	kstat_named_t cache_levels_bytes[DN_MAX_LEVELS];
+	/*
+	 * Statistics about the dbuf hash table.
+	 */
+	kstat_named_t hash_hits;
+	kstat_named_t hash_misses;
+	kstat_named_t hash_collisions;
+	kstat_named_t hash_elements;
+	kstat_named_t hash_elements_max;
+	/*
+	 * Number of sublists containing more than one dbuf in the dbuf
+	 * hash table. Keep track of the longest hash chain.
+	 */
+	kstat_named_t hash_chains;
+	kstat_named_t hash_chain_max;
+	/*
+	 * Number of times a dbuf_create() discovers that a dbuf was
+	 * already created and in the dbuf hash table.
+	 */
+	kstat_named_t hash_insert_race;
+	/*
+	 * Statistics about the size of the metadata dbuf cache.
+	 */
+	kstat_named_t metadata_cache_count;
+	kstat_named_t metadata_cache_size_bytes;
+	kstat_named_t metadata_cache_size_bytes_max;
+	/*
+	 * For diagnostic purposes, this is incremented whenever we can't add
+	 * something to the metadata cache because it's full, and instead put
+	 * the data in the regular dbuf cache.
+	 */
+	kstat_named_t metadata_cache_overflow;
+} dbuf_stats_t;
+
+dbuf_stats_t dbuf_stats = {
+	{ "cache_count",			KSTAT_DATA_UINT64 },
+	{ "cache_size_bytes",			KSTAT_DATA_UINT64 },
+	{ "cache_size_bytes_max",		KSTAT_DATA_UINT64 },
+	{ "cache_target_bytes",			KSTAT_DATA_UINT64 },
+	{ "cache_lowater_bytes",		KSTAT_DATA_UINT64 },
+	{ "cache_hiwater_bytes",		KSTAT_DATA_UINT64 },
+	{ "cache_total_evicts",			KSTAT_DATA_UINT64 },
+	{ { "cache_levels_N",			KSTAT_DATA_UINT64 } },
+	{ { "cache_levels_bytes_N",		KSTAT_DATA_UINT64 } },
+	{ "hash_hits",				KSTAT_DATA_UINT64 },
+	{ "hash_misses",			KSTAT_DATA_UINT64 },
+	{ "hash_collisions",			KSTAT_DATA_UINT64 },
+	{ "hash_elements",			KSTAT_DATA_UINT64 },
+	{ "hash_elements_max",			KSTAT_DATA_UINT64 },
+	{ "hash_chains",			KSTAT_DATA_UINT64 },
+	{ "hash_chain_max",			KSTAT_DATA_UINT64 },
+	{ "hash_insert_race",			KSTAT_DATA_UINT64 },
+	{ "metadata_cache_count",		KSTAT_DATA_UINT64 },
+	{ "metadata_cache_size_bytes",		KSTAT_DATA_UINT64 },
+	{ "metadata_cache_size_bytes_max",	KSTAT_DATA_UINT64 },
+	{ "metadata_cache_overflow",		KSTAT_DATA_UINT64 }
+};
+
+#define	DBUF_STAT_INCR(stat, val)	\
+	atomic_add_64(&dbuf_stats.stat.value.ui64, (val));
+#define	DBUF_STAT_DECR(stat, val)	\
+	DBUF_STAT_INCR(stat, -(val));
+#define	DBUF_STAT_BUMP(stat)		\
+	DBUF_STAT_INCR(stat, 1);
+#define	DBUF_STAT_BUMPDOWN(stat)	\
+	DBUF_STAT_INCR(stat, -1);
+#define	DBUF_STAT_MAX(stat, v) {					\
+	uint64_t _m;							\
+	while ((v) > (_m = dbuf_stats.stat.value.ui64) &&		\
+	    (_m != atomic_cas_64(&dbuf_stats.stat.value.ui64, _m, (v))))\
+		continue;						\
+}
+
 struct dbuf_hold_impl_data {
 	/* Function arguments */
 	dnode_t *dh_dn;
@@ -112,7 +209,7 @@ static boolean_t dbuf_evict_thread_exit;
  *    number of filesystem objects), we stop taking new dbufs into the
  *    metadata cache, instead putting them in the normal dbuf cache.
  *
- * 2. LRU cache of dbufs. The "dbuf cache" maintains a list of dbufs that
+ * 2. LRU cache of dbufs. The dbuf cache maintains a list of dbufs that
  *    are not currently held but have been recently released. These dbufs
  *    are not eligible for arc eviction until they are aged out of the cache.
  *    Dbufs that are aged out of the cache will be immediately destroyed and
@@ -305,13 +402,17 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 	objset_t *os = db->db_objset;
 	uint64_t obj = db->db.db_object;
 	int level = db->db_level;
-	uint64_t blkid = db->db_blkid;
-	uint64_t hv = dbuf_hash(os, obj, level, blkid);
-	uint64_t idx = hv & h->hash_table_mask;
+	uint64_t blkid, hv, idx;
 	dmu_buf_impl_t *dbf;
+	uint32_t i;
+
+	blkid = db->db_blkid;
+	hv = dbuf_hash(os, obj, level, blkid);
+	idx = hv & h->hash_table_mask;
 
 	mutex_enter(DBUF_HASH_MUTEX(h, idx));
-	for (dbf = h->hash_table[idx]; dbf != NULL; dbf = dbf->db_hash_next) {
+	for (dbf = h->hash_table[idx], i = 0; dbf != NULL;
+	    dbf = dbf->db_hash_next, i++) {
 		if (DBUF_EQUAL(dbf, os, obj, level, blkid)) {
 			mutex_enter(&dbf->db_mtx);
 			if (dbf->db_state != DB_EVICTING) {
@@ -322,11 +423,20 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 		}
 	}
 
+	if (i > 0) {
+		DBUF_STAT_BUMP(hash_collisions);
+		if (i == 1)
+			DBUF_STAT_BUMP(hash_chains);
+
+		DBUF_STAT_MAX(hash_chain_max, i);
+	}
+
 	mutex_enter(&db->db_mtx);
 	db->db_hash_next = h->hash_table[idx];
 	h->hash_table[idx] = db;
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	atomic_inc_64(&dbuf_hash_count);
+	DBUF_STAT_MAX(hash_elements_max, dbuf_hash_count);
 
 	return (NULL);
 }
@@ -338,13 +448,15 @@ static void
 dbuf_hash_remove(dmu_buf_impl_t *db)
 {
 	dbuf_hash_table_t *h = &dbuf_hash_table;
-	uint64_t hv = dbuf_hash(db->db_objset, db->db.db_object,
-	    db->db_level, db->db_blkid);
-	uint64_t idx = hv & h->hash_table_mask;
+	uint64_t hv, idx;
 	dmu_buf_impl_t *dbf, **dbp;
 
+	hv = dbuf_hash(db->db_objset, db->db.db_object,
+	    db->db_level, db->db_blkid);
+	idx = hv & h->hash_table_mask;
+
 	/*
-	 * We musn't hold db_mtx to maintain lock ordering:
+	 * We mustn't hold db_mtx to maintain lock ordering:
 	 * DBUF_HASH_MUTEX > db_mtx.
 	 */
 	ASSERT(refcount_is_zero(&db->db_holds));
@@ -359,6 +471,9 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 	}
 	*dbp = db->db_hash_next;
 	db->db_hash_next = NULL;
+	if (h->hash_table[idx] &&
+	    h->hash_table[idx]->db_hash_next == NULL)
+		DBUF_STAT_BUMPDOWN(hash_chains);
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	atomic_dec_64(&dbuf_hash_count);
 }
@@ -524,24 +639,41 @@ dbuf_cache_multilist_index_func(multilist_t *ml, void *obj)
 	    multilist_get_num_sublists(ml));
 }
 
+static inline unsigned long
+dbuf_cache_target_bytes(void)
+{
+	return MIN(dbuf_cache_max_bytes,
+	    arc_max_bytes() >> dbuf_cache_shift);
+}
+
+static inline uint64_t
+dbuf_cache_hiwater_bytes(void)
+{
+	uint64_t dbuf_cache_target = dbuf_cache_target_bytes();
+	return (dbuf_cache_target +
+	    (dbuf_cache_target * dbuf_cache_hiwater_pct) / 100);
+}
+
+static inline uint64_t
+dbuf_cache_lowater_bytes(void)
+{
+	uint64_t dbuf_cache_target = dbuf_cache_target_bytes();
+	return (dbuf_cache_target -
+	    (dbuf_cache_target * dbuf_cache_lowater_pct) / 100);
+}
+
 static inline boolean_t
 dbuf_cache_above_hiwater(void)
 {
-	uint64_t dbuf_cache_hiwater_bytes =
-	    (dbuf_cache_max_bytes * dbuf_cache_hiwater_pct) / 100;
-
 	return (refcount_count(&dbuf_caches[DB_DBUF_CACHE].size) >
-	    dbuf_cache_max_bytes + dbuf_cache_hiwater_bytes);
+	    dbuf_cache_hiwater_bytes());
 }
 
 static inline boolean_t
 dbuf_cache_above_lowater(void)
 {
-	uint64_t dbuf_cache_lowater_bytes =
-	    (dbuf_cache_max_bytes * dbuf_cache_lowater_pct) / 100;
-
 	return (refcount_count(&dbuf_caches[DB_DBUF_CACHE].size) >
-	    dbuf_cache_max_bytes - dbuf_cache_lowater_bytes);
+	    dbuf_cache_lowater_bytes());
 }
 
 /*
@@ -569,9 +701,16 @@ dbuf_evict_one(void)
 		multilist_sublist_unlock(mls);
 		(void) refcount_remove_many(&dbuf_caches[DB_DBUF_CACHE].size,
 		    db->db.db_size, db);
+		DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
+		DBUF_STAT_BUMPDOWN(cache_count);
+		DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
+		    db->db.db_size);
 		ASSERT3U(db->db_caching_status, ==, DB_DBUF_CACHE);
 		db->db_caching_status = DB_NO_CACHE;
 		dbuf_destroy(db);
+		DBUF_STAT_MAX(cache_size_bytes_max,
+		    refcount_count(&dbuf_caches[DB_DBUF_CACHE].size));
+		DBUF_STAT_BUMP(cache_total_evicts);
 	} else {
 		multilist_sublist_unlock(mls);
 	}
@@ -639,6 +778,27 @@ dbuf_evict_notify(void)
 			dbuf_evict_one();
 		cv_signal(&dbuf_evict_cv);
 	}
+}
+
+static int
+dbuf_kstat_update(kstat_t *ksp, int rw)
+{
+	dbuf_stats_t *ds = ksp->ks_data;
+
+	if (rw == KSTAT_WRITE) {
+		return (SET_ERROR(EACCES));
+	} else {
+		ds->metadata_cache_size_bytes.value.ui64 =
+		    refcount_count(&dbuf_caches[DB_DBUF_METADATA_CACHE].size);
+		ds->cache_size_bytes.value.ui64 =
+		    refcount_count(&dbuf_caches[DB_DBUF_CACHE].size);
+		ds->cache_target_bytes.value.ui64 = dbuf_cache_target_bytes();
+		ds->cache_hiwater_bytes.value.ui64 = dbuf_cache_hiwater_bytes();
+		ds->cache_lowater_bytes.value.ui64 = dbuf_cache_lowater_bytes();
+		ds->hash_elements.value.ui64 = dbuf_hash_count;
+	}
+
+	return (0);
 }
 
 void
@@ -710,6 +870,31 @@ retry:
 	cv_init(&dbuf_evict_cv, NULL, CV_DEFAULT, NULL);
 	dbuf_cache_evict_thread = thread_create(NULL, 0, dbuf_evict_thread,
 	    NULL, 0, &p0, TS_RUN, minclsyspri);
+
+#ifdef __linux__
+	/*
+	 * XXX FreeBSD's SPL lacks KSTAT_TYPE_NAMED support - TODO 
+	 */
+	dbuf_ksp = kstat_create("zfs", 0, "dbufstats", "misc",
+	    KSTAT_TYPE_NAMED, sizeof (dbuf_stats) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL);
+	if (dbuf_ksp != NULL) {
+		dbuf_ksp->ks_data = &dbuf_stats;
+		dbuf_ksp->ks_update = dbuf_kstat_update;
+		kstat_install(dbuf_ksp);
+
+		for (i = 0; i < DN_MAX_LEVELS; i++) {
+			snprintf(dbuf_stats.cache_levels[i].name,
+			    KSTAT_STRLEN, "cache_level_%d", i);
+			dbuf_stats.cache_levels[i].data_type =
+			    KSTAT_DATA_UINT64;
+			snprintf(dbuf_stats.cache_levels_bytes[i].name,
+			    KSTAT_STRLEN, "cache_level_%d_bytes", i);
+			dbuf_stats.cache_levels_bytes[i].data_type =
+			    KSTAT_DATA_UINT64;
+		}
+	}
+#endif	
 }
 
 void
@@ -740,6 +925,11 @@ dbuf_fini(void)
 	for (dbuf_cached_state_t dcs = 0; dcs < DB_CACHE_MAX; dcs++) {
 		refcount_destroy(&dbuf_caches[dcs].size);
 		multilist_destroy(dbuf_caches[dcs].cache);
+	}
+
+	if (dbuf_ksp != NULL) {
+		kstat_delete(dbuf_ksp);
+		dbuf_ksp = NULL;
 	}
 }
 
@@ -1225,6 +1415,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
+		DBUF_STAT_BUMP(hash_hits);
 	} else if (db->db_state == DB_UNCACHED) {
 		spa_t *spa = dn->dn_objset->os_spa;
 		boolean_t need_wait = B_FALSE;
@@ -1244,6 +1435,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
+		DBUF_STAT_BUMP(hash_misses);
 
 		if (need_wait)
 			err = zio_wait(zio);
@@ -1262,6 +1454,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
+		DBUF_STAT_BUMP(hash_misses);
 
 		/* Skip the wait per the caller's request. */
 		mutex_enter(&db->db_mtx);
@@ -1673,6 +1866,7 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	 * transaction group won't leak out when we sync the older txg.
 	 */
 	dr = kmem_zalloc(sizeof (dbuf_dirty_record_t), KM_SLEEP);
+	list_link_init(&dr->dr_dirty_node);
 	if (db->db_level == 0) {
 		void *data_old = db->db_buf;
 
@@ -2149,6 +2343,14 @@ dbuf_destroy(dmu_buf_impl_t *db)
 		    &dbuf_caches[db->db_caching_status].size,
 		    db->db.db_size, db);
 
+		if (db->db_caching_status == DB_DBUF_METADATA_CACHE) {
+			DBUF_STAT_BUMPDOWN(metadata_cache_count);
+		} else {
+			DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
+			DBUF_STAT_BUMPDOWN(cache_count);
+			DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
+			    db->db.db_size);
+		}
 		db->db_caching_status = DB_NO_CACHE;
 	}
 
@@ -2382,6 +2584,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 		/* someone else inserted it first */
 		kmem_cache_free(dbuf_kmem_cache, db);
 		mutex_exit(&dn->dn_dbufs_mtx);
+		DBUF_STAT_BUMP(hash_insert_race);
 		return (odb);
 	}
 	avl_add(&dn->dn_dbufs, db);
@@ -2774,6 +2977,14 @@ __dbuf_hold_impl(struct dbuf_hold_impl_data *dh)
 		    &dbuf_caches[dh->dh_db->db_caching_status].size,
 		    dh->dh_db->db.db_size, dh->dh_db);
 
+		if (dh->dh_db->db_caching_status == DB_DBUF_METADATA_CACHE) {
+			DBUF_STAT_BUMPDOWN(metadata_cache_count);
+		} else {
+			DBUF_STAT_BUMPDOWN(cache_levels[dh->dh_db->db_level]);
+			DBUF_STAT_BUMPDOWN(cache_count);
+			DBUF_STAT_DECR(cache_levels_bytes[dh->dh_db->db_level],
+			    dh->dh_db->db.db_size);
+		}
 		dh->dh_db->db_caching_status = DB_NO_CACHE;
 	}
 	(void) refcount_add(&dh->dh_db->db_holds, dh->dh_tag);
@@ -3063,6 +3274,24 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag, boolean_t evicting)
 				multilist_insert(dbuf_caches[dcs].cache, db);
 				(void) refcount_add_many(&dbuf_caches[dcs].size,
 				    db->db.db_size, db);
+
+				if (dcs == DB_DBUF_METADATA_CACHE) {
+					DBUF_STAT_BUMP(metadata_cache_count);
+					DBUF_STAT_MAX(
+					    metadata_cache_size_bytes_max,
+					    refcount_count(
+					    &dbuf_caches[dcs].size));
+				} else {
+					DBUF_STAT_BUMP(
+					    cache_levels[db->db_level]);
+					DBUF_STAT_BUMP(cache_count);
+					DBUF_STAT_INCR(
+					    cache_levels_bytes[db->db_level],
+					    db->db.db_size);
+					DBUF_STAT_MAX(cache_size_bytes_max,
+					    refcount_count(
+					    &dbuf_caches[dcs].size));
+				}
 				mutex_exit(&db->db_mtx);
 
 				if (db->db_caching_status == DB_DBUF_CACHE &&
@@ -3888,7 +4117,8 @@ dbuf_remap(dnode_t *dn, dmu_buf_impl_t *db, dmu_tx_t *tx)
 		dnode_phys_t *dnp = db->db.db_data;
 		ASSERT3U(db->db_dnode_handle->dnh_dnode->dn_type, ==,
 		    DMU_OT_DNODE);
-		for (int i = 0; i < db->db.db_size >> DNODE_SHIFT; i++) {
+		for (int i = 0; i < db->db.db_size >> DNODE_SHIFT;
+		    i += dnp[i].dn_extra_slots + 1) {
 			for (int j = 0; j < dnp[i].dn_nblkptr; j++) {
 				dbuf_remap_impl(dn, &dnp[i].dn_blkptr[j], tx);
 			}
