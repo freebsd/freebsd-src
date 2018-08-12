@@ -320,7 +320,7 @@ print_headers(nvlist_t *props, struct printc *pc)
 	 * will produce quite a bit of input.  Throw an extra blank line after
 	 * the header to make it look nicer.
 	 */
-	if (chosen_be_header != HEADER_BE)
+	if (strcmp(chosen_be_header, HEADER_BE) != 0)
 		printf("\n");
 }
 
