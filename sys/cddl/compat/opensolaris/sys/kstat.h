@@ -31,7 +31,18 @@
 
 #include <sys/sysctl.h>
 
-#define	KSTAT_TYPE_NAMED	1
+#define	KSTAT_TYPE_RAW		0	/* can be anything */
+					/* ks_ndata >= 1 */
+#define	KSTAT_TYPE_NAMED	1	/* name/value pair */
+					/* ks_ndata >= 1 */
+#define	KSTAT_TYPE_INTR		2	/* interrupt statistics */
+					/* ks_ndata == 1 */
+#define	KSTAT_TYPE_IO		3	/* I/O statistics */
+					/* ks_ndata == 1 */
+#define	KSTAT_TYPE_TIMER	4	/* event timer */
+					/* ks_ndata >= 1 */
+
+#define	KSTAT_NUM_TYPES		5
 
 #define	KSTAT_FLAG_VIRTUAL	0x01
 

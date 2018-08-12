@@ -649,6 +649,7 @@ retry:
 	for (i = 0; i < DBUF_MUTEXES; i++)
 		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_DEFAULT, NULL);
 
+	dbuf_stats_init(h);
 	/*
 	 * Setup the parameters for the dbuf caches. We set the sizes of the
 	 * dbuf cache and the metadata cache to 1/32nd and 1/16th (default)
@@ -692,6 +693,8 @@ dbuf_fini(void)
 {
 	dbuf_hash_table_t *h = &dbuf_hash_table;
 	int i;
+
+	dbuf_stats_destroy();
 
 	for (i = 0; i < DBUF_MUTEXES; i++)
 		mutex_destroy(&h->hash_mutexes[i]);
