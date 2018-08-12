@@ -2509,14 +2509,9 @@ dmu_object_wait_synced(objset_t *os, uint64_t object)
 }
 
 void
-dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
+__dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
 {
-	dnode_phys_t *dnp;
-
-	rw_enter(&dn->dn_struct_rwlock, RW_READER);
-	mutex_enter(&dn->dn_mtx);
-
-	dnp = dn->dn_phys;
+	dnode_phys_t *dnp = dn->dn_phys;
 
 	doi->doi_data_block_size = dn->dn_datablksz;
 	doi->doi_metadata_block_size = dn->dn_indblkshift ?
@@ -2534,6 +2529,15 @@ dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
 	doi->doi_fill_count = 0;
 	for (int i = 0; i < dnp->dn_nblkptr; i++)
 		doi->doi_fill_count += BP_GET_FILL(&dnp->dn_blkptr[i]);
+}
+
+void
+dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
+{
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	mutex_enter(&dn->dn_mtx);
+
+	__dmu_object_info_from_dnode(dn, doi);
 
 	mutex_exit(&dn->dn_mtx);
 	rw_exit(&dn->dn_struct_rwlock);

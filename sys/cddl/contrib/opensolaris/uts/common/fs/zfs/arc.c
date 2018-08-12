@@ -523,6 +523,10 @@ typedef struct arc_state {
 	 * non-evictable, ARC_BUFC_DATA, and ARC_BUFC_METADATA.
 	 */
 	refcount_t arcs_size;
+	/*
+	 * supports the "dbufs" kstat
+	 */
+	arc_state_type_t arcs_state;
 } arc_state_t;
 
 /*
@@ -1111,6 +1115,11 @@ typedef struct l1arc_buf_hdr {
 
 	/* updated atomically */
 	clock_t			b_arc_access;
+	uint32_t		b_mru_hits;
+	uint32_t		b_mru_ghost_hits;
+	uint32_t		b_mfu_hits;
+	uint32_t		b_mfu_ghost_hits;
+	uint32_t		b_l2_hits;
 
 	/* self protecting */
 	refcount_t		b_refcnt;
@@ -1125,6 +1134,7 @@ typedef struct l2arc_buf_hdr {
 	/* protected by arc_buf_hdr mutex */
 	l2arc_dev_t		*b_dev;		/* L2ARC device */
 	uint64_t		b_daddr;	/* disk address, offset byte */
+	uint32_t		b_hits;
 
 	list_node_t		b_l2node;
 } l2arc_buf_hdr_t;
@@ -2549,6 +2559,55 @@ remove_reference(arc_buf_hdr_t *hdr, kmutex_t *hash_lock, void *tag)
 		arc_evictable_space_increment(hdr, state);
 	}
 	return (cnt);
+}
+
+/*
+ * Returns detailed information about a specific arc buffer.  When the
+ * state_index argument is set the function will calculate the arc header
+ * list position for its arc state.  Since this requires a linear traversal
+ * callers are strongly encourage not to do this.  However, it can be helpful
+ * for targeted analysis so the functionality is provided.
+ */
+void
+arc_buf_info(arc_buf_t *ab, arc_buf_info_t *abi, int state_index)
+{
+	arc_buf_hdr_t *hdr = ab->b_hdr;
+	l1arc_buf_hdr_t *l1hdr = NULL;
+	l2arc_buf_hdr_t *l2hdr = NULL;
+	arc_state_t *state = NULL;
+
+	memset(abi, 0, sizeof (arc_buf_info_t));
+
+	if (hdr == NULL)
+		return;
+
+	abi->abi_flags = hdr->b_flags;
+
+	if (HDR_HAS_L1HDR(hdr)) {
+		l1hdr = &hdr->b_l1hdr;
+		state = l1hdr->b_state;
+	}
+	if (HDR_HAS_L2HDR(hdr))
+		l2hdr = &hdr->b_l2hdr;
+
+	if (l1hdr) {
+		abi->abi_bufcnt = l1hdr->b_bufcnt;
+		abi->abi_access = l1hdr->b_arc_access;
+		abi->abi_mru_hits = l1hdr->b_mru_hits;
+		abi->abi_mru_ghost_hits = l1hdr->b_mru_ghost_hits;
+		abi->abi_mfu_hits = l1hdr->b_mfu_hits;
+		abi->abi_mfu_ghost_hits = l1hdr->b_mfu_ghost_hits;
+		abi->abi_holds = refcount_count(&l1hdr->b_refcnt);
+	}
+
+	if (l2hdr) {
+		abi->abi_l2arc_dattr = l2hdr->b_daddr;
+		abi->abi_l2arc_hits = l2hdr->b_hits;
+	}
+
+	abi->abi_state_type = state ? state->arcs_state : ARC_STATE_ANON;
+	abi->abi_state_contents = arc_buf_type(hdr);
+	abi->abi_size = arc_hdr_size(hdr);
 }
 
 /*
@@ -5258,6 +5317,7 @@ arc_access(arc_buf_hdr_t *hdr, kmutex_t *hash_lock)
 			DTRACE_PROBE1(new_state__mfu, arc_buf_hdr_t *, hdr);
 			arc_change_state(arc_mfu, hdr, hash_lock);
 		}
+		atomic_inc_32(&hdr->b_l1hdr.b_mru_hits);
 		ARCSTAT_BUMP(arcstat_mru_hits);
 	} else if (hdr->b_l1hdr.b_state == arc_mru_ghost) {
 		arc_state_t	*new_state;
@@ -5283,6 +5343,7 @@ arc_access(arc_buf_hdr_t *hdr, kmutex_t *hash_lock)
 		hdr->b_l1hdr.b_arc_access = ddi_get_lbolt();
 		arc_change_state(new_state, hdr, hash_lock);
 
+		atomic_inc_32(&hdr->b_l1hdr.b_mru_ghost_hits);
 		ARCSTAT_BUMP(arcstat_mru_ghost_hits);
 	} else if (hdr->b_l1hdr.b_state == arc_mfu) {
 		/*
@@ -5295,6 +5356,7 @@ arc_access(arc_buf_hdr_t *hdr, kmutex_t *hash_lock)
 		 * the head of the list now.
 		 */
 
+		atomic_inc_32(&hdr->b_l1hdr.b_mfu_hits);
 		ARCSTAT_BUMP(arcstat_mfu_hits);
 		hdr->b_l1hdr.b_arc_access = ddi_get_lbolt();
 	} else if (hdr->b_l1hdr.b_state == arc_mfu_ghost) {
@@ -5317,6 +5379,7 @@ arc_access(arc_buf_hdr_t *hdr, kmutex_t *hash_lock)
 		DTRACE_PROBE1(new_state__mfu, arc_buf_hdr_t *, hdr);
 		arc_change_state(new_state, hdr, hash_lock);
 
+		atomic_inc_32(&hdr->b_l1hdr.b_mfu_ghost_hits);
 		ARCSTAT_BUMP(arcstat_mfu_ghost_hits);
 	} else if (hdr->b_l1hdr.b_state == arc_l2c_only) {
 		/*
@@ -5913,6 +5976,7 @@ top:
 
 				DTRACE_PROBE1(l2arc__hit, arc_buf_hdr_t *, hdr);
 				ARCSTAT_BUMP(arcstat_l2_hits);
+				atomic_inc_32(&hdr->b_l2hdr.b_hits);
 
 				cb = kmem_zalloc(sizeof (l2arc_read_callback_t),
 				    KM_SLEEP);
