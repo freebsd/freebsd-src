@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180812: move of libmlx5.so.1 and libibverbs.so.1
+OLD_LIBS+=usr/lib/libmlx5.so.1
+OLD_LIBS+=usr/lib/libibverbs.so.1
 # 20180714: new clang import which bumps version from 6.0.0 to 6.0.1.
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/asan_interface.h
