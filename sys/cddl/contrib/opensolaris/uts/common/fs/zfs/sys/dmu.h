@@ -855,6 +855,7 @@ extern const dmu_object_byteswap_info_t dmu_ot_byteswap[DMU_BSWAP_NUMFUNCS];
  * If doi is NULL, just indicates whether the object exists.
  */
 int dmu_object_info(objset_t *os, uint64_t object, dmu_object_info_t *doi);
+void __dmu_object_info_from_dnode(struct dnode *dn, dmu_object_info_t *doi);
 /* Like dmu_object_info, but faster if you have a held dnode in hand. */
 void dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi);
 /* Like dmu_object_info, but faster if you have a held dbuf in hand. */
