@@ -201,7 +201,7 @@ typedef struct dnode_phys {
 	};
 #else
 	blkptr_t dn_blkptr[1];
-	uint8_t dn_bonus[DN_MAX_BONUSLEN - sizeof (blkptr_t)];
+	uint8_t dn_bonus[DN_OLD_MAX_BONUSLEN - sizeof (blkptr_t)];
 	blkptr_t dn_spill;
 #endif
 } dnode_phys_t;
