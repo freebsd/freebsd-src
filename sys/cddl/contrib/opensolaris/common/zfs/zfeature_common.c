@@ -243,6 +243,18 @@ zpool_feature_init(void)
 	    "org.open-zfs:large_blocks", "large_blocks",
 	    "Support for blocks larger than 128KB.",
 	    ZFEATURE_FLAG_PER_DATASET, large_blocks_deps);
+
+	{
+	static const spa_feature_t large_dnode_deps[] = {
+		SPA_FEATURE_EXTENSIBLE_DATASET,
+		SPA_FEATURE_NONE
+	};
+	zfeature_register(SPA_FEATURE_LARGE_DNODE,
+	    "org.zfsonlinux:large_dnode", "large_dnode",
+	    "Variable on-disk size of dnodes.",
+	    ZFEATURE_FLAG_PER_DATASET, large_dnode_deps);
+	}
+
 	zfeature_register(SPA_FEATURE_SHA512,
 	    "org.illumos:sha512", "sha512",
 	    "SHA-512/256 hash algorithm.",
