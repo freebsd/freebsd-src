@@ -2,36 +2,36 @@
 
 .include <src.opts.mk>
 
-BINDIR=		/etc/newsyslog.conf.d
+CONFSDIR=	/etc/newsyslog.conf.d
 
-FILES=
+CONFS=
 
 .if ${MK_AMD} != "no"
-FILES+=		amd.conf
+CONFS+=		amd.conf
 .endif
 
 .if ${MK_FTP} != "no"
-FILES+=		ftp.conf
+CONFS+=		ftp.conf
 .endif
 
 .if ${MK_LPR} != "no"
-FILES+=		lpr.conf
+CONFS+=		lpr.conf
 .endif
 
 .if ${MK_OFED} != "no"
-FILES+=		opensm.conf
+CONFS+=		opensm.conf
 .endif
 
 .if ${MK_PF} != "no"
-FILES+=		pf.conf
+CONFS+=		pf.conf
 .endif
 
 .if ${MK_PPP} != "no"
-FILES+=		ppp.conf
+CONFS+=		ppp.conf
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILES+=		sendmail.conf
+CONFS+=		sendmail.conf
 .endif
 
 .include <bsd.prog.mk>
