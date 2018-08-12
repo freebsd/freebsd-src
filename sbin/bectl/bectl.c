@@ -116,14 +116,14 @@ static struct command_map_entry command_map[] =
 };
 
 static int
-get_cmd_index(const char *cmd, int *index)
+get_cmd_index(const char *cmd, int *idx)
 {
 	int map_size;
 
 	map_size = nitems(command_map);
 	for (int i = 0; i < map_size; ++i) {
 		if (strcmp(cmd, command_map[i].command) == 0) {
-			*index = i;
+			*idx = i;
 			return (0);
 		}
 	}
