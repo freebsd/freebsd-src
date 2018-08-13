@@ -17,9 +17,7 @@ LIBADD+= zfs
 LIBADD+= nvpair
 
 CFLAGS+= -I${LIBBE_SRC}
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs_core/common
 CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
