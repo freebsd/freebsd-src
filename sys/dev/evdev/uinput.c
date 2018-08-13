@@ -159,10 +159,10 @@ uinput_knl_assert_unlocked(void *arg)
 }
 
 static void
-uinput_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
-    uint16_t code, int32_t value)
+uinput_ev_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
 {
-	struct uinput_cdev_state *state = softc;
+	struct uinput_cdev_state *state = evdev_get_softc(evdev);
 
 	if (type == EV_LED)
 		evdev_push_event(evdev, type, code, value);
