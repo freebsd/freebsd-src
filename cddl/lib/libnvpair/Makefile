@@ -5,6 +5,7 @@
 
 LIB=	nvpair
 
+INCS=	libnvpair.h
 SRCS=	libnvpair.c \
 	nvpair_alloc_system.c \
 	nvpair_json.c \
