@@ -267,8 +267,10 @@ static int		typematic_delay(int delay);
 static int		typematic_rate(int rate);
 
 #ifdef EVDEV_SUPPORT
+static evdev_event_t atkbd_ev_event;
+
 static const struct evdev_methods atkbd_evdev_methods = {
-	.ev_event = evdev_ev_kbd_event,
+	.ev_event = atkbd_ev_event,
 };
 #endif
 
@@ -1204,6 +1206,22 @@ atkbd_reset(KBDC kbdc, int flags, int c)
 	}
 	return (0);
 }
+
+#ifdef EVDEV_SUPPORT
+static void
+atkbd_ev_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
+{
+	keyboard_t *kbd = evdev_get_softc(evdev);
+
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD &&
+	    (type == EV_LED || type == EV_REP)) {
+		mtx_lock(&Giant);
+		kbd_ev_event(kbd, type, code, value);
+		mtx_unlock(&Giant);
+	}
+}
+#endif
 
 /* local functions */
 
