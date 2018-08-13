@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2018
+.Dd August 12, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -455,9 +455,3 @@ were written as a 2017 Google Summer of Code project with Allan Jude serving
 as a mentor.
 Later work was done by
 .An Kyle Evans Aq Mt kevans@FreeBSD.org .
-.Sh BUGS
-The
-.Fn be_import
-function does not destroy the temporary boot environment it creates for import,
-because the snapshot created to do the import may not be deleted since it is the
-origin of the new boot environment.
