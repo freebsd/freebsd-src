@@ -720,11 +720,27 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 
 	err = zfs_clone(zfs, buf, props);
 	zfs_close(zfs);
-
 	nvlist_free(props);
 
-	/* XXX TODO: Figure out how to destroy the ghost... */
-	return (BE_ERR_SUCCESS);
+	if (err != 0)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
+	/*
+	 * Finally, we open up the dataset we just cloned the snapshot to so that
+	 * we may promote it.  This is necessary in order to clean up the ghost
+	 * snapshot that doesn't need to be seen.
+	 */
+	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
+
+	err = zfs_promote(zfs);
+	zfs_close(zfs);
+
+	if (err != 0)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
+	/* Clean up the temporary snapshot */
+	return (be_destroy(lbh, nbuf, 0));
 }
 
 #if SOON
