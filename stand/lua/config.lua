@@ -198,7 +198,7 @@ local pattern_table = {
 	},
 	--  env_var=num
 	{
-		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
+		str = "^%s*([%w%p]+)%s*=%s*(-?%d+)%s*(.*)",
 		process = function(k, v)
 			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
