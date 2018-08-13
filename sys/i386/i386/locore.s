@@ -328,7 +328,9 @@ olddiskboot:
  * Identify the CPU and initialize anything special about it
  *
  */
-identify_cpu:
+ENTRY(identify_cpu)
+
+	pushl	%ebx
 
 	/* Try to toggle alignment check flag; does not exist on 386. */
 	pushfl
@@ -449,7 +451,9 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	/* Greater than Pentium...call it a Pentium Pro */
 	movl	$CPU_686,cpu
 3:
+	popl	%ebx
 	ret
+END(identify_cpu)
 
 #ifdef XENHVM
 /* Xen Hypercall page */
