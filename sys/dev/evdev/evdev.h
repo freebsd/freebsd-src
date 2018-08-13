@@ -141,7 +141,6 @@ uint16_t evdev_scancode2key(int *, int);
 void evdev_push_mouse_btn(struct evdev_dev *, int);
 void evdev_push_leds(struct evdev_dev *, int);
 void evdev_push_repeats(struct evdev_dev *, keyboard_t *);
-evdev_event_t evdev_ev_kbd_event;
 
 /* Event reporting shortcuts: */
 static __inline int
