@@ -56,6 +56,7 @@ struct gpio_entry {
 	struct gpiobus_pin	gpio_pin;
 	int 			use_cnt;
 	int 			enable_cnt;
+	bool			always_on;
 };
 static gpio_list_t gpio_list = TAILQ_HEAD_INITIALIZER(gpio_list);
 static struct mtx gpio_list_mtx;
@@ -71,12 +72,14 @@ static int regnode_fixed_init(struct regnode *regnode);
 static int regnode_fixed_enable(struct regnode *regnode, bool enable,
     int *udelay);
 static int regnode_fixed_status(struct regnode *regnode, int *status);
+static int regnode_fixed_stop(struct regnode *regnode, int *udelay);
 
 static regnode_method_t regnode_fixed_methods[] = {
 	/* Regulator interface */
 	REGNODEMETHOD(regnode_init,		regnode_fixed_init),
 	REGNODEMETHOD(regnode_enable,		regnode_fixed_enable),
 	REGNODEMETHOD(regnode_status,		regnode_fixed_status),
+	REGNODEMETHOD(regnode_stop,		regnode_fixed_stop),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(regnode_fixed, regnode_fixed_class, regnode_fixed_methods,
@@ -188,8 +191,6 @@ regnode_fixed_enable(struct regnode *regnode, bool enable, int *udelay)
 	dev = regnode_get_device(regnode);
 
 	*udelay = 0;
-	if (sc->param->always_on && !enable)
-		return (0);
 	if (sc->gpio_entry == NULL)
 		return (0);
 	pin = &sc->gpio_entry->gpio_pin;
@@ -204,9 +205,47 @@ regnode_fixed_enable(struct regnode *regnode, bool enable, int *udelay)
 		if (sc->gpio_entry->enable_cnt >= 1)
 			return (0);
 	}
+	if (sc->gpio_entry->always_on && !enable)
+		return (0);
 	if (!sc->param->enable_active_high)
 		enable = !enable;
 	rv = GPIO_PIN_SET(pin->dev, pin->pin, enable);
+	if (rv != 0) {
+		device_printf(dev, "Cannot set GPIO pin: %d\n", pin->pin);
+		return (rv);
+	}
+	*udelay = sc->param->enable_delay;
+	return (0);
+}
+
+/*
+ * Stop (physicaly shutdown) regulator.
+ * Take shared GPIO pins in account
+ */
+static int
+regnode_fixed_stop(struct regnode *regnode, int *udelay)
+{
+	device_t dev;
+	struct regnode_fixed_sc *sc;
+	struct gpiobus_pin *pin;
+	int rv;
+
+	sc = regnode_get_softc(regnode);
+	dev = regnode_get_device(regnode);
+
+	*udelay = 0;
+	if (sc->gpio_entry == NULL)
+		return (0);
+	if (sc->gpio_entry->always_on)
+		return (0);
+	pin = &sc->gpio_entry->gpio_pin;
+	if (sc->gpio_entry->enable_cnt > 0) {
+		/* Other regulator(s) are enabled. */
+		/* XXXX Any diagnostic message? Or error? */
+		return (0);
+	}
+	rv = GPIO_PIN_SET(pin->dev, pin->pin,
+	    sc->param->enable_active_high ? false: true);
 	if (rv != 0) {
 		device_printf(dev, "Cannot set GPIO pin: %d\n", pin->pin);
 		return (rv);
@@ -264,6 +303,10 @@ regnode_fixed_register(device_t dev, struct regnode_fixed_init_def *init_def)
 		device_printf(dev, "Cannot register regulator.\n");
 		return(ENXIO);
 	}
+
+	if (sc->gpio_entry != NULL)
+		sc->gpio_entry->always_on |= sc->param->always_on;
+
 	return (0);
 }
 

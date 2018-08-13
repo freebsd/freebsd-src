@@ -515,7 +515,7 @@ regnode_stop(struct regnode *regnode, int depth)
 	/* Disable regulator for each node in chain, starting from consumer */
 	if ((regnode->enable_cnt == 0) &&
 	    ((regnode->flags & REGULATOR_FLAGS_NOT_DISABLE) == 0)) {
-		rv = REGNODE_ENABLE(regnode, false, &udelay);
+		rv = REGNODE_STOP(regnode, &udelay);
 		if (rv != 0) {
 			REGNODE_UNLOCK(regnode);
 			return (rv);
@@ -527,7 +527,7 @@ regnode_stop(struct regnode *regnode, int depth)
 	rv = regnode_resolve_parent(regnode);
 	if (rv != 0)
 		return (rv);
-	if (regnode->parent != NULL)
+	if (regnode->parent != NULL && regnode->parent->enable_cnt == 0)
 		rv = regnode_stop(regnode->parent, depth + 1);
 	return (rv);
 }
