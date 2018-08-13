@@ -726,9 +726,10 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 		return (set_error(lbh, BE_ERR_UNKNOWN));
 
 	/*
-	 * Finally, we open up the dataset we just cloned the snapshot to so that
+	 * Finally, we open up the dataset we just cloned the snapshot so that
 	 * we may promote it.  This is necessary in order to clean up the ghost
-	 * snapshot that doesn't need to be seen.
+	 * snapshot that doesn't need to be seen after the operation is
+	 * complete.
 	 */
 	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
