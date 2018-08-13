@@ -13,7 +13,6 @@ LIBADD+= util
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
 CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
 CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
 
 CFLAGS+= -DNEED_SOLARIS_BOOLEAN
 
