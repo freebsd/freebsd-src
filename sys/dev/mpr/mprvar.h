@@ -807,7 +807,7 @@ int mpr_config_get_volume_wwid(struct mpr_softc *sc, u16 volume_handle,
 int mpr_config_get_raid_pd_pg0(struct mpr_softc *sc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2RaidPhysDiskPage0_t *config_page,
     u32 page_address);
-void mprsas_ir_shutdown(struct mpr_softc *sc);
+void mprsas_ir_shutdown(struct mpr_softc *sc, int howto);
 
 int mpr_reinit(struct mpr_softc *sc);
 void mprsas_handle_reinit(struct mpr_softc *sc);
