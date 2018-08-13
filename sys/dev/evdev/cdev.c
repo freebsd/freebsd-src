@@ -419,7 +419,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			return (ENOTSUP);
 
 		ke = (struct input_keymap_entry *)data;
-		evdev->ev_methods->ev_get_keycode(evdev, evdev->ev_softc, ke);
+		evdev->ev_methods->ev_get_keycode(evdev, ke);
 		return (0);
 
 	case EVIOCSKEYCODE:
@@ -432,7 +432,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			return (ENOTSUP);
 
 		ke = (struct input_keymap_entry *)data;
-		evdev->ev_methods->ev_set_keycode(evdev, evdev->ev_softc, ke);
+		evdev->ev_methods->ev_set_keycode(evdev, ke);
 		return (0);
 
 	case EVIOCGABS(0) ... EVIOCGABS(ABS_MAX):
