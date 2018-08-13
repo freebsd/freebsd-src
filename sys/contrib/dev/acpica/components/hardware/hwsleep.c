@@ -198,16 +198,27 @@ AcpiHwLegacySleep (
         return_ACPI_STATUS (Status);
     }
 
-    /*
-     * 1) Disable all GPEs
-     * 2) Enable all wakeup GPEs
-     */
+    /* Disable all GPEs */
+
     Status = AcpiHwDisableAllGpes ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
+    /*
+     * If the target sleep state is S5, clear all GPEs and fixed events too
+     */
+    if (SleepState == ACPI_STATE_S5)
+    {
+        Status = AcpiHwClearAcpiStatus();
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
     AcpiGbl_SystemAwakeAndRunning = FALSE;
+
+    /* Enable all wakeup GPEs */
 
     Status = AcpiHwEnableAllWakeupGpes ();
     if (ACPI_FAILURE (Status))
