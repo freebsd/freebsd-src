@@ -4329,9 +4329,9 @@ again:
 		/* clean up */
 		if ((asoc->stream_queue_cnt == 1) &&
 		    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
-		    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED)) &&
+		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) &&
 		    ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc))) {
-			asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_PARTIAL_MSG_LEFT);
 		}
 		if (((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) &&
@@ -5026,9 +5026,9 @@ hopeless_peer:
 		/* clean up */
 		if ((asoc->stream_queue_cnt == 1) &&
 		    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
-		    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED)) &&
+		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) &&
 		    ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc))) {
-			asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_PARTIAL_MSG_LEFT);
 		}
 		if (((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) &&
