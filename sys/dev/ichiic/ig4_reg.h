@@ -78,6 +78,7 @@
 
 #define IG4_REG_CTL		0x0000	/* RW	Control Register */
 #define IG4_REG_TAR_ADD		0x0004	/* RW	Target Address */
+#define IG4_REG_HS_MADDR	0x000C	/* RW	High Speed Master Mode Code Address*/
 #define IG4_REG_DATA_CMD	0x0010	/* RW	Data Buffer and Command */
 #define IG4_REG_SS_SCL_HCNT	0x0014	/* RW	Std Speed clock High Count */
 #define IG4_REG_SS_SCL_LCNT	0x0018	/* RW	Std Speed clock Low Count */
@@ -92,7 +93,9 @@
 #define IG4_REG_CLR_RX_UNDER	0x0044	/* RO	Clear RX_Under Interrupt */
 #define IG4_REG_CLR_RX_OVER	0x0048	/* RO	Clear RX_Over Interrupt */
 #define IG4_REG_CLR_TX_OVER	0x004C	/* RO	Clear TX_Over Interrupt */
+#define IG4_REG_CLR_RD_REQ	0x0050	/* RO	Clear RD_Req Interrupt */
 #define IG4_REG_CLR_TX_ABORT	0x0054	/* RO	Clear TX_Abort Interrupt */
+#define IG4_REG_CLR_RX_DONE	0x0058	/* RO	Clear RX_Done Interrupt */
 #define IG4_REG_CLR_ACTIVITY	0x005C	/* RO	Clear Activity Interrupt */
 #define IG4_REG_CLR_STOP_DET	0x0060	/* RO	Clear STOP Detection Int */
 #define IG4_REG_CLR_START_DET	0x0064	/* RO	Clear START Detection Int */
@@ -108,6 +111,7 @@
 #define IG4_REG_DMA_TDLR	0x008C	/* RW	DMA Transmit Data Level */
 #define IG4_REG_DMA_RDLR	0x0090	/* RW	DMA Receive Data Level */
 #define IG4_REG_SDA_SETUP	0x0094	/* RW	SDA Setup */
+#define IG4_REG_ACK_GENERAL_CALL 0x0098	/* RW	I2C ACK General Call */
 #define IG4_REG_ENABLE_STATUS	0x009C	/* RO	Enable Status */
 /* Available at least on Atom SoCs and Haswell mobile. */
 #define IG4_REG_COMP_PARAM1	0x00F4	/* RO	Component Parameter */
@@ -118,6 +122,9 @@
 #define IG4_REG_RESETS_SKL	0x0204	/* RW	Reset Register */
 #define IG4_REG_ACTIVE_LTR_VALUE 0x0210	/* RW	Active LTR Value */
 #define IG4_REG_IDLE_LTR_VALUE	0x0214	/* RW	Idle LTR Value */
+#define IG4_REG_TX_ACK_COUNT	0x0218	/* RO	TX ACK Count */
+#define IG4_REG_RX_BYTE_COUNT	0x021C	/* RO	RX ACK Count */
+#define IG4_REG_DEVIDLE_CTRL	0x024C	/* RW	Device Control */
 /* Available at least on Atom SoCs */
 #define IG4_REG_CLK_PARMS	0x0800	/* RW	Clock Parameters */
 /* Available at least on Atom SoCs and Haswell mobile */
@@ -581,6 +588,17 @@
 /* Skylake-U/Y and Kaby Lake-U/Y have the reset bits inverted */
 #define IG4_RESETS_DEASSERT_SKL	0x0003
 #define IG4_RESETS_ASSERT_SKL	0x0000
+
+/* Newer versions of the I2C controller allow to check whether
+ * the above ASSERT/DEASSERT is necessary by querying the DEVIDLE_CONTROL
+ * register.
+ * 
+ * the RESTORE_REQUIRED bit can be cleared by writing 1
+ * the DEVICE_IDLE status can be set to put the controller in an idle state
+ *
+ */
+#define IG4_RESTORE_REQUIRED	0x0008
+#define IG4_DEVICE_IDLE		0x0004
 
 /*
  * GENERAL - (RW) General Reigster				22.2.38
