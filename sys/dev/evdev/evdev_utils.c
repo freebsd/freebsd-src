@@ -301,10 +301,10 @@ evdev_push_repeats(struct evdev_dev *evdev, keyboard_t *kbd)
 }
 
 void
-evdev_ev_kbd_event(struct evdev_dev *evdev, void *softc, uint16_t type,
-    uint16_t code, int32_t value)
+evdev_ev_kbd_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
 {
-	keyboard_t *kbd = (keyboard_t *)softc;
+	keyboard_t *kbd = (keyboard_t *)evdev_get_softc(evdev);
 	int delay[2], leds, oleds;
 	size_t i;
 
