@@ -1115,6 +1115,7 @@ out:
 /**
  * mpssas_SSU_to_SATA_devices 
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Looks through the target list and issues a StartStopUnit SCSI command to each
  * SATA direct-access device.  This helps to ensure that data corruption is
@@ -1248,6 +1249,7 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
 /**
  * mpssas_ir_shutdown - IR shutdown notification
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Sending RAID Action to alert the Integrated RAID subsystem of the IOC that
  * the host system is shutting down.
