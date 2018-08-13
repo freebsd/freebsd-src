@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
@@ -1209,7 +1210,9 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto)
 	 */
 	while (sc->SSU_refcount > 0) {
 		pause("mpswait", hz/10);
-		
+		if (SCHEDULER_STOPPED())
+			xpt_sim_poll(sassc->sim);
+
 		if (--timeout == 0) {
 			mps_dprint(sc, MPS_FAULT, "Time has expired waiting "
 			    "for SSU commands to complete.\n");
