@@ -110,6 +110,15 @@ ipq_drop(struct ipqhead *head, struct ipq *fp)
 	ipq_free(head, fp);
 }
 
+static int		maxfrags;
+static volatile u_int	nfrags;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfrags, CTLFLAG_RW,
+    &maxfrags, 0,
+    "Maximum number of IPv4 fragments allowed across all reassembly queues");
+SYSCTL_UINT(_net_inet_ip, OID_AUTO, curfrags, CTLFLAG_RD,
+    __DEVOLATILE(u_int *, &nfrags), 0,
+    "Current number of IPv4 fragments across all reassembly queues");
+
 VNET_DEFINE_STATIC(uma_zone_t, ipq_zone);
 #define	V_ipq_zone	VNET(ipq_zone)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_VNET |
@@ -146,7 +155,7 @@ ip_reass(struct mbuf *m)
 	struct mbuf *p, *q, *nq, *t;
 	struct ipq *fp;
 	struct ipqhead *head;
-	int i, hlen, next;
+	int i, hlen, next, tmpmax;
 	u_int8_t ecn, ecn0;
 	uint32_t hash, hashkey[3];
 #ifdef	RSS
@@ -156,8 +165,12 @@ ip_reass(struct mbuf *m)
 	/*
 	 * If no reassembling or maxfragsperpacket are 0,
 	 * never accept fragments.
+	 * Also, drop packet if it would exceed the maximum
+	 * number of fragments.
 	 */
-	if (V_noreass == 1 || V_maxfragsperpacket == 0) {
+	tmpmax = maxfrags;
+	if (V_noreass == 1 || V_maxfragsperpacket == 0 ||
+	    (tmpmax >= 0 && atomic_load_int(&nfrags) >= (u_int)tmpmax)) {
 		IPSTAT_INC(ips_fragments);
 		IPSTAT_INC(ips_fragdropped);
 		m_freem(m);
@@ -241,6 +254,7 @@ ip_reass(struct mbuf *m)
 #endif
 		TAILQ_INSERT_HEAD(head, fp, ipq_list);
 		fp->ipq_nfrags = 1;
+		atomic_add_int(&nfrags, 1);
 		fp->ipq_ttl = IPFRAGTTL;
 		fp->ipq_p = ip->ip_p;
 		fp->ipq_id = ip->ip_id;
@@ -251,6 +265,7 @@ ip_reass(struct mbuf *m)
 		goto done;
 	} else {
 		fp->ipq_nfrags++;
+		atomic_add_int(&nfrags, 1);
 #ifdef MAC
 		mac_ipq_update(m, fp);
 #endif
@@ -327,6 +342,7 @@ ip_reass(struct mbuf *m)
 		m->m_nextpkt = nq;
 		IPSTAT_INC(ips_fragdropped);
 		fp->ipq_nfrags--;
+		atomic_subtract_int(&nfrags, 1);
 		m_freem(q);
 	}
 
@@ -392,6 +408,7 @@ ip_reass(struct mbuf *m)
 	while (m->m_pkthdr.csum_data & 0xffff0000)
 		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
 		    (m->m_pkthdr.csum_data >> 16);
+	atomic_subtract_int(&nfrags, fp->ipq_nfrags);
 #ifdef MAC
 	mac_ipq_reassemble(fp, m);
 	mac_ipq_destroy(fp);
@@ -451,8 +468,10 @@ ip_reass(struct mbuf *m)
 
 dropfrag:
 	IPSTAT_INC(ips_fragdropped);
-	if (fp != NULL)
+	if (fp != NULL) {
 		fp->ipq_nfrags--;
+		atomic_subtract_int(&nfrags, 1);
+	}
 	m_freem(m);
 done:
 	IPQ_UNLOCK(hash);
@@ -479,9 +498,11 @@ ipreass_init(void)
 	    NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_ipq_zone, nmbclusters / 32);
 
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
+		maxfrags = nmbclusters / 32;
 		EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
 		    NULL, EVENTHANDLER_PRI_ANY);
+	}
 }
 
 /*
@@ -564,9 +585,19 @@ ipreass_drain_tomax(void)
 static void
 ipreass_zone_change(void *tag)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
+	int max;
 
-	uma_zone_set_max(V_ipq_zone, nmbclusters / 32);
-	ipreass_drain_tomax();
+	maxfrags = nmbclusters / 32;
+	max = nmbclusters / 32;
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		uma_zone_set_max(V_ipq_zone, max);
+		ipreass_drain_tomax();
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -629,6 +660,7 @@ ipq_reuse(int start)
 			struct mbuf *m;
 
 			IPSTAT_ADD(ips_fragtimeout, fp->ipq_nfrags);
+			atomic_subtract_int(&nfrags, fp->ipq_nfrags);
 			while (fp->ipq_frags) {
 				m = fp->ipq_frags;
 				fp->ipq_frags = m->m_nextpkt;
@@ -653,6 +685,7 @@ ipq_free(struct ipqhead *fhp, struct ipq *fp)
 {
 	struct mbuf *q;
 
+	atomic_subtract_int(&nfrags, fp->ipq_nfrags);
 	while (fp->ipq_frags) {
 		q = fp->ipq_frags;
 		fp->ipq_frags = q->m_nextpkt;
