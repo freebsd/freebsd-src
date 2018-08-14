@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 
 static void jailparam_grow(void);
 static void jailparam_add(const char *name, const char *val);
-static void jailparam_del(const char *name);
+static int jailparam_del(const char *name);
 static bool jailparam_addarg(char *arg);
-static bool jailparam_delarg(char *arg);
+static int jailparam_delarg(char *arg);
 
 static int bectl_search_jail_paths(const char *mnt);
 static int bectl_locate_jail(const char *ident);
@@ -92,7 +92,7 @@ jailparam_add(const char *name, const char *val)
 	++jpused;
 }
 
-static void
+static int
 jailparam_del(const char *name)
 {
 	int i;
@@ -103,21 +103,32 @@ jailparam_del(const char *name)
 			break;
 	}
 
-	/* Not found... technically successful */
 	if (i == jpused)
-		return;
+		return (ENOENT);
 
 	for (; i < jpused - 1; ++i) {
 		val = jailparam_export(&jp[i + 1]);
 
 		jailparam_free(&jp[i], 1);
-		jailparam_init(&jp[i], jp[i + 1].jp_name);
-		jailparam_import(&jp[i], val);
+		/*
+		 * Given the context, the following will really only fail if
+		 * they can't allocate the copy of the name or value.
+		 */
+		if (jailparam_init(&jp[i], jp[i + 1].jp_name) != 0) {
+			free(val);
+			return (ENOMEM);
+		}
+		if (jailparam_import(&jp[i], val) != 0) {
+			jailparam_free(&jp[i], 1);
+			free(val);
+			return (ENOMEM);
+		}
 		free(val);
 	}
 
 	jailparam_free(&jp[i], 1);
 	--jpused;
+	return (0);
 }
 
 static bool
@@ -148,28 +159,27 @@ jailparam_addarg(char *arg)
 	return (true);
 }
 
-static bool
+static int
 jailparam_delarg(char *arg)
 {
 	char *name, *val;
 
 	if (arg == NULL)
-		return (false);
+		return (EINVAL);
 	name = arg;
 	if ((val = strchr(name, '=')) != NULL)
 		*val++ = '\0';
 
 	if (strcmp(name, "path") == 0)
 		*mnt_loc = '\0';
-	jailparam_del(name);
-	return (true);
+	return (jailparam_del(name));
 }
 
 int
 bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
-	int jid, opt;
+	int jid, opt, ret;
 	bool default_hostname, default_name;
 
 	default_hostname = default_name = true;
@@ -198,11 +208,16 @@ bectl_cmd_jail(int argc, char *argv[])
 			}
 			break;
 		case 'u':
-			if (jailparam_delarg(optarg)) {
+			if ((ret = jailparam_delarg(optarg)) == 0) {
 				if (strcmp(optarg, "name") == 0)
 					default_name = true;
 				if (strcmp(optarg, "host.hostname") == 0)
 					default_hostname = true;
+			} else if (ret != ENOENT) {
+				fprintf(stderr,
+				    "bectl jail: error unsetting \"%s\"\n",
+				    optarg);
+				return (ret);
 			}
 			break;
 		default:
