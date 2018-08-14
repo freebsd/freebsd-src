@@ -642,7 +642,8 @@ struct ip6_mtuinfo {
 #define	IPV6CTL_INTRQMAXLEN	51	/* max length of IPv6 netisr queue */
 #define	IPV6CTL_INTRDQMAXLEN	52	/* max length of direct IPv6 netisr
 					 * queue */
-#define	IPV6CTL_MAXID		53
+#define	IPV6CTL_MAXFRAGSPERPACKET	53 /* Max fragments per packet */
+#define	IPV6CTL_MAXID		54
 #endif /* __BSD_VISIBLE */
 
 /*
