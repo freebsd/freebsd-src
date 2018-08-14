@@ -56,10 +56,13 @@ static void health_care(struct work_struct *work)
 		priv = container_of(health, struct mlx5_priv, health);
 		dev = container_of(priv, struct mlx5_core_dev, priv);
 		mlx5_core_warn(dev, "handling bad device here\n");
-		/* nothing yet */
+
 		spin_lock_irq(&health_lock);
 		list_del_init(&health->list);
 		spin_unlock_irq(&health_lock);
+
+		/* enter error state */
+		mlx5_enter_error_state(dev);
 	}
 }
 
