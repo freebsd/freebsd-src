@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Reassembly headers are stored in hash buckets.
  */
-#define	IP6REASS_NHASH_LOG2	6
+#define	IP6REASS_NHASH_LOG2	10
 #define	IP6REASS_NHASH		(1 << IP6REASS_NHASH_LOG2)
 #define	IP6REASS_HMASK		(IP6REASS_NHASH - 1)
 
@@ -107,6 +107,22 @@ VNET_DEFINE_STATIC(uint32_t, ip6q_hashseed);
 static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 
 /*
+ * By default, limit the number of IP6 fragments across all reassembly
+ * queues to  1/32 of the total number of mbuf clusters.
+ *
+ * Limit the total number of reassembly queues per VNET to the
+ * IP6 fragment limit, but ensure the limit will not allow any bucket
+ * to grow above 100 items. (The bucket limit is
+ * IP_MAXFRAGPACKETS / (IPREASS_NHASH / 2), so the 50 is the correct
+ * multiplier to reach a 100-item limit.)
+ * The 100-item limit was chosen as brief testing seems to show that
+ * this produces "reasonable" performance on some subset of systems
+ * under DoS attack.
+ */
+#define	IP6_MAXFRAGS		(nmbclusters / 32)
+#define	IP6_MAXFRAGPACKETS	(imin(IP6_MAXFRAGS, IP6REASS_NHASH * 50))
+
+/*
  * Initialise reassembly queue and fragment identifier.
  */
 void
@@ -123,11 +139,11 @@ frag6_change(void *tag)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	ip6_maxfrags = nmbclusters / 4;
+	ip6_maxfrags = IP6_MAXFRAGS;
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		V_ip6_maxfragpackets = nmbclusters / 4;
+		V_ip6_maxfragpackets = IP6_MAXFRAGPACKETS;
 		frag6_set_bucketsize();
 		CURVNET_RESTORE();
 	}
@@ -140,7 +156,7 @@ frag6_init(void)
 	struct ip6q *q6;
 	int i;
 
-	V_ip6_maxfragpackets = nmbclusters / 4;
+	V_ip6_maxfragpackets = IP6_MAXFRAGPACKETS;
 	frag6_set_bucketsize();
 	for (i = 0; i < IP6REASS_NHASH; i++) {
 		q6 = IP6Q_HEAD(i);
@@ -153,7 +169,7 @@ frag6_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-	ip6_maxfrags = nmbclusters / 4;
+	ip6_maxfrags = IP6_MAXFRAGS;
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
 }
