@@ -78,6 +78,8 @@ Local changes:
 	  r1.5 mdoc(7)NG
 	  r1.3 describe all of the command line options
 	  r1.2 un-mandocafied, un4.4BSD'ed
+        hlfsd/hlfsd.8
+	  - Fix a broken SEE ALSO section and some mdoc issues
 	mk-amd-map/mk-amd-map.8
 	  r1.4 removed HISTORY info from the .Os call.
 	  r1.2 un-mandocafied, un4.4BSD'ed
