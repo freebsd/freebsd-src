@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2018
+.Dd August 14, 2018
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -316,6 +316,14 @@ See
 .Xr reboot 8
 .Fl r
 for details.
+.It Va init_exec
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to directly execute that file as the very first action,
+replacing
+.Nm
+as PID 1.
 .It Va init_script
 If set to a valid file name in the root file system,
 instructs
@@ -341,6 +349,8 @@ Defines the shell binary to be used for executing the various shell scripts.
 The default is
 .Dq Li /bin/sh .
 It is used for running the
+.Va init_exec
+or
 .Va init_script
 if set, as well as for the
 .Pa /etc/rc
