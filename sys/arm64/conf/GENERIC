@@ -159,6 +159,7 @@ device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
 device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
