@@ -428,7 +428,8 @@ struct mlx5e_params {
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled") \
   m(+1, u64 diag_pci_enable, "diag_pci_enable", "0: Disabled 1: Enabled") \
-  m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled")
+  m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled") \
+  m(+1, u64 hw_mtu, "hw_mtu", "Current hardware MTU value")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
