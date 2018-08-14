@@ -51,8 +51,10 @@ be_mountcheck_cb(zfs_handle_t *zfs_hdl, void *data)
 		return (0);
 	if (strcmp(mountpoint, info->path) == 0) {
 		info->name = strdup(zfs_get_name(zfs_hdl));
+		free(mountpoint);
 		return (1);
 	}
+	free(mountpoint);
 	return (0);
 }
 
@@ -106,7 +108,6 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 {
 	char be[BE_MAXPATHLEN];
 	char mnt_temp[BE_MAXPATHLEN];
-	char *path;
 	int mntflags;
 	int err;
 
@@ -116,7 +117,7 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	if (!be_exists(lbh, bootenv))
 		return (set_error(lbh, BE_ERR_NOENT));
 
-	if (is_mounted(lbh->lzh, be, &path))
+	if (is_mounted(lbh->lzh, be, NULL))
 		return (set_error(lbh, BE_ERR_MOUNTED));
 
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
