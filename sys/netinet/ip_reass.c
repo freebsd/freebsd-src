@@ -64,7 +64,7 @@ SYSCTL_DECL(_net_inet_ip);
 /*
  * Reassembly headers are stored in hash buckets.
  */
-#define	IPREASS_NHASH_LOG2	6
+#define	IPREASS_NHASH_LOG2	10
 #define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
 #define	IPREASS_HMASK		(IPREASS_NHASH - 1)
 
@@ -115,6 +115,22 @@ ipq_drop(struct ipqbucket *bucket, struct ipq *fp)
 	IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 	ipq_free(bucket, fp);
 }
+
+/*
+ * By default, limit the number of IP fragments across all reassembly
+ * queues to  1/32 of the total number of mbuf clusters.
+ *
+ * Limit the total number of reassembly queues per VNET to the
+ * IP fragment limit, but ensure the limit will not allow any bucket
+ * to grow above 100 items. (The bucket limit is
+ * IP_MAXFRAGPACKETS / (IPREASS_NHASH / 2), so the 50 is the correct
+ * multiplier to reach a 100-item limit.)
+ * The 100-item limit was chosen as brief testing seems to show that
+ * this produces "reasonable" performance on some subset of systems
+ * under DoS attack.
+ */
+#define	IP_MAXFRAGS		(nmbclusters / 32)
+#define	IP_MAXFRAGPACKETS	(imin(IP_MAXFRAGS, IPREASS_NHASH * 50))
 
 static int		maxfrags;
 static volatile u_int	nfrags;
@@ -513,12 +529,12 @@ ipreass_init(void)
 	V_maxfragsperpacket = 16;
 	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
 	    NULL, UMA_ALIGN_PTR, 0);
-	max = nmbclusters / 32;
+	max = IP_MAXFRAGPACKETS;
 	max = uma_zone_set_max(V_ipq_zone, max);
 	V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
 
 	if (IS_DEFAULT_VNET(curvnet)) {
-		maxfrags = nmbclusters / 32;
+		maxfrags = IP_MAXFRAGS;
 		EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
 		    NULL, EVENTHANDLER_PRI_ANY);
 	}
@@ -622,8 +638,8 @@ ipreass_zone_change(void *tag)
 	VNET_ITERATOR_DECL(vnet_iter);
 	int max;
 
-	maxfrags = nmbclusters / 32;
-	max = nmbclusters / 32;
+	maxfrags = IP_MAXFRAGS;
+	max = IP_MAXFRAGPACKETS;
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
