@@ -314,6 +314,16 @@ SM_STATE(SUPP_PAE, RESTART)
 {
 	SM_ENTRY(SUPP_PAE, RESTART);
 	sm->eapRestart = TRUE;
+	if (sm->altAccept) {
+		/*
+		 * Prevent EAP peer state machine from failing due to prior
+		 * external EAP success notification (altSuccess=TRUE in the
+		 * IDLE state could result in a transition to the FAILURE state.
+		 */
+		wpa_printf(MSG_DEBUG, "EAPOL: Clearing prior altAccept TRUE");
+		sm->eapSuccess = FALSE;
+		sm->altAccept = FALSE;
+	}
 }
 
 

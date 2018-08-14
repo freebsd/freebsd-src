@@ -1,6 +1,6 @@
 /*
  * HLR/AuC testing gateway for hostapd EAP-SIM/AKA database/authenticator
- * Copyright (c) 2005-2007, 2012-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2007, 2012-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -284,7 +284,7 @@ static int read_gsm_triplets(const char *fname)
 
 	f = fopen(fname, "r");
 	if (f == NULL) {
-		printf("Could not open GSM tripler data file '%s'\n", fname);
+		printf("Could not open GSM triplet data file '%s'\n", fname);
 		return -1;
 	}
 
@@ -312,66 +312,40 @@ static int read_gsm_triplets(const char *fname)
 		}
 
 		/* IMSI */
-		pos2 = strchr(pos, ':');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid IMSI (%s)\n",
-			       fname, line, pos);
-			ret = -1;
-			break;
-		}
-		*pos2 = '\0';
-		if (strlen(pos) >= sizeof(g->imsi)) {
-			printf("%s:%d - Too long IMSI (%s)\n",
-			       fname, line, pos);
+		pos2 = NULL;
+		pos = str_token(buf, ":", &pos2);
+		if (!pos || os_strlen(pos) >= sizeof(g->imsi)) {
+			printf("%s:%d - Invalid IMSI\n", fname, line);
 			ret = -1;
 			break;
 		}
 		os_strlcpy(g->imsi, pos, sizeof(g->imsi));
-		pos = pos2 + 1;
 
 		/* Kc */
-		pos2 = strchr(pos, ':');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid Kc (%s)\n", fname, line, pos);
+		pos = str_token(buf, ":", &pos2);
+		if (!pos || os_strlen(pos) != 16 || hexstr2bin(pos, g->kc, 8)) {
+			printf("%s:%d - Invalid Kc\n", fname, line);
 			ret = -1;
 			break;
 		}
-		*pos2 = '\0';
-		if (strlen(pos) != 16 || hexstr2bin(pos, g->kc, 8)) {
-			printf("%s:%d - Invalid Kc (%s)\n", fname, line, pos);
-			ret = -1;
-			break;
-		}
-		pos = pos2 + 1;
 
 		/* SRES */
-		pos2 = strchr(pos, ':');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid SRES (%s)\n", fname, line,
-			       pos);
+		pos = str_token(buf, ":", &pos2);
+		if (!pos || os_strlen(pos) != 8 ||
+		    hexstr2bin(pos, g->sres, 4)) {
+			printf("%s:%d - Invalid SRES\n", fname, line);
 			ret = -1;
 			break;
 		}
-		*pos2 = '\0';
-		if (strlen(pos) != 8 || hexstr2bin(pos, g->sres, 4)) {
-			printf("%s:%d - Invalid SRES (%s)\n", fname, line,
-			       pos);
-			ret = -1;
-			break;
-		}
-		pos = pos2 + 1;
 
 		/* RAND */
-		pos2 = strchr(pos, ':');
-		if (pos2)
-			*pos2 = '\0';
-		if (strlen(pos) != 32 || hexstr2bin(pos, g->_rand, 16)) {
-			printf("%s:%d - Invalid RAND (%s)\n", fname, line,
-			       pos);
+		pos = str_token(buf, ":", &pos2);
+		if (!pos || os_strlen(pos) != 32 ||
+		    hexstr2bin(pos, g->_rand, 16)) {
+			printf("%s:%d - Invalid RAND\n", fname, line);
 			ret = -1;
 			break;
 		}
-		pos = pos2 + 1;
 
 		g->next = gsm_db;
 		gsm_db = g;
@@ -450,86 +424,58 @@ static int read_milenage(const char *fname)
 		}
 
 		/* IMSI */
-		pos2 = strchr(pos, ' ');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid IMSI (%s)\n",
-			       fname, line, pos);
-			ret = -1;
-			break;
-		}
-		*pos2 = '\0';
-		if (strlen(pos) >= sizeof(m->imsi)) {
-			printf("%s:%d - Too long IMSI (%s)\n",
-			       fname, line, pos);
+		pos2 = NULL;
+		pos = str_token(buf, " ", &pos2);
+		if (!pos || os_strlen(pos) >= sizeof(m->imsi)) {
+			printf("%s:%d - Invalid IMSI\n", fname, line);
 			ret = -1;
 			break;
 		}
 		os_strlcpy(m->imsi, pos, sizeof(m->imsi));
-		pos = pos2 + 1;
 
 		/* Ki */
-		pos2 = strchr(pos, ' ');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid Ki (%s)\n", fname, line, pos);
+		pos = str_token(buf, " ", &pos2);
+		if (!pos || os_strlen(pos) != 32 ||
+		    hexstr2bin(pos, m->ki, 16)) {
+			printf("%s:%d - Invalid Ki\n", fname, line);
 			ret = -1;
 			break;
 		}
-		*pos2 = '\0';
-		if (strlen(pos) != 32 || hexstr2bin(pos, m->ki, 16)) {
-			printf("%s:%d - Invalid Ki (%s)\n", fname, line, pos);
-			ret = -1;
-			break;
-		}
-		pos = pos2 + 1;
 
 		/* OPc */
-		pos2 = strchr(pos, ' ');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid OPc (%s)\n", fname, line, pos);
+		pos = str_token(buf, " ", &pos2);
+		if (!pos || os_strlen(pos) != 32 ||
+		    hexstr2bin(pos, m->opc, 16)) {
+			printf("%s:%d - Invalid OPc\n", fname, line);
 			ret = -1;
 			break;
 		}
-		*pos2 = '\0';
-		if (strlen(pos) != 32 || hexstr2bin(pos, m->opc, 16)) {
-			printf("%s:%d - Invalid OPc (%s)\n", fname, line, pos);
-			ret = -1;
-			break;
-		}
-		pos = pos2 + 1;
 
 		/* AMF */
-		pos2 = strchr(pos, ' ');
-		if (pos2 == NULL) {
-			printf("%s:%d - Invalid AMF (%s)\n", fname, line, pos);
+		pos = str_token(buf, " ", &pos2);
+		if (!pos || os_strlen(pos) != 4 || hexstr2bin(pos, m->amf, 2)) {
+			printf("%s:%d - Invalid AMF\n", fname, line);
 			ret = -1;
 			break;
 		}
-		*pos2 = '\0';
-		if (strlen(pos) != 4 || hexstr2bin(pos, m->amf, 2)) {
-			printf("%s:%d - Invalid AMF (%s)\n", fname, line, pos);
-			ret = -1;
-			break;
-		}
-		pos = pos2 + 1;
 
 		/* SQN */
-		pos2 = strchr(pos, ' ');
-		if (pos2)
-			*pos2 = '\0';
-		if (strlen(pos) != 12 || hexstr2bin(pos, m->sqn, 6)) {
-			printf("%s:%d - Invalid SEQ (%s)\n", fname, line, pos);
+		pos = str_token(buf, " ", &pos2);
+		if (!pos || os_strlen(pos) != 12 ||
+		    hexstr2bin(pos, m->sqn, 6)) {
+			printf("%s:%d - Invalid SEQ\n", fname, line);
 			ret = -1;
 			break;
 		}
 
-		if (pos2) {
-			pos = pos2 + 1;
+		pos = str_token(buf, " ", &pos2);
+		if (pos) {
 			m->res_len = atoi(pos);
 			if (m->res_len &&
 			    (m->res_len < EAP_AKA_RES_MIN_LEN ||
 			     m->res_len > EAP_AKA_RES_MAX_LEN)) {
-				printf("%s:%d - Invalid RES_len (%s)\n",
-				       fname, line, pos);
+				printf("%s:%d - Invalid RES_len\n",
+				       fname, line);
 				ret = -1;
 				break;
 			}
@@ -1027,7 +973,7 @@ static void usage(void)
 {
 	printf("HLR/AuC testing gateway for hostapd EAP-SIM/AKA "
 	       "database/authenticator\n"
-	       "Copyright (c) 2005-2007, 2012-2013, Jouni Malinen <j@w1.fi>\n"
+	       "Copyright (c) 2005-2016, Jouni Malinen <j@w1.fi>\n"
 	       "\n"
 	       "usage:\n"
 	       "hlr_auc_gw [-hu] [-s<socket path>] [-g<triplet file>] "

@@ -648,9 +648,9 @@ static int list_groups(const char *cmd, char *buf, size_t buflen)
 static const char * band_freq(enum mb_band_id band)
 {
 	static const char *band_names[] = {
-		[MB_BAND_ID_WIFI_2_4GHZ] "2.4GHZ",
-		[MB_BAND_ID_WIFI_5GHZ] "5GHZ",
-		[MB_BAND_ID_WIFI_60GHZ] "60GHZ",
+		[MB_BAND_ID_WIFI_2_4GHZ] = "2.4GHZ",
+		[MB_BAND_ID_WIFI_5GHZ] = "5GHZ",
+		[MB_BAND_ID_WIFI_60GHZ] = "60GHZ",
 	};
 
 	return fst_get_str_name(band, band_names, ARRAY_SIZE(band_names));
@@ -749,7 +749,7 @@ int fst_ctrl_iface_mb_info(const u8 *addr, char *buf, size_t buflen)
 
 	foreach_fst_group(g) {
 		foreach_fst_group_iface(g, f) {
-			if (fst_iface_is_connected(f, addr)) {
+			if (fst_iface_is_connected(f, addr, TRUE)) {
 				ret += print_band(num++, f, addr,
 						  buf + ret, buflen - ret);
 			}

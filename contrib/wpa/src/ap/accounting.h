@@ -10,9 +10,10 @@
 #define ACCOUNTING_H
 
 #ifdef CONFIG_NO_ACCOUNTING
-static inline void accounting_sta_get_id(struct hostapd_data *hapd,
-					 struct sta_info *sta)
+static inline int accounting_sta_get_id(struct hostapd_data *hapd,
+					struct sta_info *sta)
 {
+	return 0;
 }
 
 static inline void accounting_sta_start(struct hostapd_data *hapd,
@@ -34,7 +35,7 @@ static inline void accounting_deinit(struct hostapd_data *hapd)
 {
 }
 #else /* CONFIG_NO_ACCOUNTING */
-void accounting_sta_get_id(struct hostapd_data *hapd, struct sta_info *sta);
+int accounting_sta_get_id(struct hostapd_data *hapd, struct sta_info *sta);
 void accounting_sta_start(struct hostapd_data *hapd, struct sta_info *sta);
 void accounting_sta_stop(struct hostapd_data *hapd, struct sta_info *sta);
 int accounting_init(struct hostapd_data *hapd);

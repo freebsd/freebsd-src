@@ -94,8 +94,13 @@
 #define WLAN_CAPABILITY_PBCC BIT(6)
 #define WLAN_CAPABILITY_CHANNEL_AGILITY BIT(7)
 #define WLAN_CAPABILITY_SPECTRUM_MGMT BIT(8)
+#define WLAN_CAPABILITY_QOS BIT(9)
 #define WLAN_CAPABILITY_SHORT_SLOT_TIME BIT(10)
+#define WLAN_CAPABILITY_APSD BIT(11)
+#define WLAN_CAPABILITY_RADIO_MEASUREMENT BIT(12)
 #define WLAN_CAPABILITY_DSSS_OFDM BIT(13)
+#define WLAN_CAPABILITY_DELAYED_BLOCK_ACK BIT(14)
+#define WLAN_CAPABILITY_IMM_BLOCK_ACK BIT(15)
 
 /* Status codes (IEEE 802.11-2007, 7.3.1.9, Table 7-23) */
 #define WLAN_STATUS_SUCCESS 0
@@ -247,6 +252,7 @@
 #define WLAN_EID_TIMEOUT_INTERVAL 56
 #define WLAN_EID_RIC_DATA 57
 #define WLAN_EID_SUPPORTED_OPERATING_CLASSES 59
+#define WLAN_EID_EXT_CHANSWITCH_ANN 60
 #define WLAN_EID_HT_OPERATION 61
 #define WLAN_EID_SECONDARY_CHANNEL_OFFSET 62
 #define WLAN_EID_WAPI 68
@@ -360,6 +366,16 @@
 /* byte 1 (out of 5) */
 #define WLAN_RRM_CAPS_LINK_MEASUREMENT BIT(0)
 #define WLAN_RRM_CAPS_NEIGHBOR_REPORT BIT(1)
+/* byte 2 (out of 5) */
+#define WLAN_RRM_CAPS_LCI_MEASUREMENT BIT(4)
+/* byte 5 (out of 5) */
+#define WLAN_RRM_CAPS_FTM_RANGE_REPORT BIT(2)
+
+/*
+ * IEEE P802.11-REVmc/D5.0, 9.4.2.21.19 (Fine Timing Measurement Range
+ * request) - Minimum AP count
+ */
+#define WLAN_RRM_RANGE_REQ_MAX_MIN_AP 15
 
 /* Timeout Interval Type */
 #define WLAN_TIMEOUT_REASSOC_DEADLINE 1
@@ -407,7 +423,12 @@ enum anqp_info_id {
 	ANQP_AP_LOCATION_PUBLIC_URI = 267,
 	ANQP_DOMAIN_NAME = 268,
 	ANQP_EMERGENCY_ALERT_URI = 269,
+	ANQP_TDLS_CAPABILITY = 270,
 	ANQP_EMERGENCY_NAI = 271,
+	ANQP_NEIGHBOR_REPORT = 272,
+	ANQP_VENUE_URL = 277,
+	ANQP_ADVICE_OF_CHARGE = 278,
+	ANQP_LOCAL_CONTENT = 279,
 	ANQP_VENDOR_SPECIFIC = 56797
 };
 
@@ -440,6 +461,48 @@ enum nai_realm_eap_cred_type {
 	NAI_REALM_CRED_TYPE_NONE = 8,
 	NAI_REALM_CRED_TYPE_ANONYMOUS = 9,
 	NAI_REALM_CRED_TYPE_VENDOR_SPECIFIC = 10
+};
+
+/*
+ * IEEE P802.11-REVmc/D5.0 Table 9-81 - Measurement type definitions for
+ * measurement requests
+ */
+enum measure_type {
+	MEASURE_TYPE_BASIC = 0,
+	MEASURE_TYPE_CCA = 1,
+	MEASURE_TYPE_RPI_HIST = 2,
+	MEASURE_TYPE_CHANNEL_LOAD = 3,
+	MEASURE_TYPE_NOISE_HIST = 4,
+	MEASURE_TYPE_BEACON = 5,
+	MEASURE_TYPE_FRAME = 6,
+	MEASURE_TYPE_STA_STATISTICS = 7,
+	MEASURE_TYPE_LCI = 8,
+	MEASURE_TYPE_TRANSMIT_STREAM = 9,
+	MEASURE_TYPE_MULTICAST_DIAG = 10,
+	MEASURE_TYPE_LOCATION_CIVIC = 11,
+	MEASURE_TYPE_LOCATION_ID = 12,
+	MEASURE_TYPE_DIRECTIONAL_CHAN_QUALITY = 13,
+	MEASURE_TYPE_DIRECTIONAL_MEASURE = 14,
+	MEASURE_TYPE_DIRECTIONAL_STATS = 15,
+	MEASURE_TYPE_FTM_RANGE = 16,
+	MEASURE_TYPE_MEASURE_PAUSE = 255,
+};
+
+/* IEEE Std 802.11-2012 Table 8-71 - Location subject definition */
+enum location_subject {
+	LOCATION_SUBJECT_LOCAL = 0,
+	LOCATION_SUBJECT_REMOTE = 1,
+	LOCATION_SUBJECT_3RD_PARTY = 2,
+};
+
+/*
+ * IEEE P802.11-REVmc/D5.0 Table 9-94 - Optional subelement IDs for LCI request
+ */
+enum lci_req_subelem {
+	LCI_REQ_SUBELEM_AZIMUTH_REQ = 1,
+	LCI_REQ_SUBELEM_ORIGINATOR_MAC_ADDR = 2,
+	LCI_REQ_SUBELEM_TARGET_MAC_ADDR = 3,
+	LCI_REQ_SUBELEM_MAX_AGE = 4,
 };
 
 #ifdef _MSC_VER
@@ -516,10 +579,7 @@ struct ieee80211_mgmt {
 			 * FH Params, DS Params, CF Params, IBSS Params, TIM */
 			u8 variable[];
 		} STRUCT_PACKED beacon;
-		struct {
-			/* only variable items: SSID, Supported rates */
-			u8 variable[0];
-		} STRUCT_PACKED probe_req;
+		/* probe_req: only variable items: SSID, Supported rates */
 		struct {
 			u8 timestamp[8];
 			le16 beacon_int;
@@ -625,11 +685,18 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 variable[];
 				} STRUCT_PACKED fst_action;
+				struct {
+					u8 action;
+					u8 dialog_token;
+					u8 variable[];
+				} STRUCT_PACKED rrm;
 			} u;
 		} STRUCT_PACKED action;
 	} u;
 } STRUCT_PACKED;
 
+
+#define IEEE80211_MAX_MMPDU_SIZE 2304
 
 /* Rx MCS bitmask is in the first 77 bits of supported_mcs_set */
 #define IEEE80211_HT_MCS_MASK_LEN 10
@@ -690,9 +757,14 @@ struct ieee80211_ampe_ie {
 	u8 selected_pairwise_suite[4];
 	u8 local_nonce[32];
 	u8 peer_nonce[32];
-	u8 mgtk[16];
-	u8 key_rsc[8];
-	u8 key_expiration[4];
+	/* Followed by
+	 * Key Replay Counter[8] (optional)
+	 *	(only in Mesh Group Key Inform/Acknowledge frames)
+	 * GTKdata[variable] (optional)
+	 *	(MGTK[variable] || Key RSC[8] || GTKExpirationTime[4])
+	 * IGTKdata[variable] (optional)
+	 *	(Key ID[2], IPN[6], IGTK[variable] in IGTK KDE format)
+	 */
 } STRUCT_PACKED;
 
 #ifdef _MSC_VER
@@ -879,6 +951,8 @@ struct ieee80211_ampe_ie {
 #define WFD_OUI_TYPE 10
 #define HS20_IE_VENDOR_TYPE 0x506f9a10
 #define OSEN_IE_VENDOR_TYPE 0x506f9a12
+#define MBO_IE_VENDOR_TYPE 0x506f9a16
+#define MBO_OUI_TYPE 22
 
 #define WMM_OUI_TYPE 2
 #define WMM_OUI_SUBTYPE_INFORMATION_ELEMENT 0
@@ -1020,6 +1094,95 @@ enum wmm_ac {
 
 #define HS20_DEAUTH_REASON_CODE_BSS 0
 #define HS20_DEAUTH_REASON_CODE_ESS 1
+
+/* MBO v0.0_r19, 4.2: MBO Attributes */
+/* Table 4-5: MBO Attributes */
+enum mbo_attr_id {
+	MBO_ATTR_ID_AP_CAPA_IND = 1,
+	MBO_ATTR_ID_NON_PREF_CHAN_REPORT = 2,
+	MBO_ATTR_ID_CELL_DATA_CAPA = 3,
+	MBO_ATTR_ID_ASSOC_DISALLOW = 4,
+	MBO_ATTR_ID_CELL_DATA_PREF = 5,
+	MBO_ATTR_ID_TRANSITION_REASON = 6,
+	MBO_ATTR_ID_TRANSITION_REJECT_REASON = 7,
+	MBO_ATTR_ID_ASSOC_RETRY_DELAY = 8,
+};
+
+/* MBO v0.0_r19, 4.2.1: MBO AP Capability Indication Attribute */
+/* Table 4-7: MBO AP Capability Indication Field Values */
+#define MBO_AP_CAPA_CELL_AWARE BIT(6)
+
+/* MBO v0.0_r19, 4.2.2: Non-preferred Channel Report Attribute */
+/* Table 4-10: Reason Code Field Values */
+enum mbo_non_pref_chan_reason {
+	MBO_NON_PREF_CHAN_REASON_UNSPECIFIED = 0,
+	MBO_NON_PREF_CHAN_REASON_RSSI = 1,
+	MBO_NON_PREF_CHAN_REASON_EXT_INTERFERENCE = 2,
+	MBO_NON_PREF_CHAN_REASON_INT_INTERFERENCE = 3,
+};
+
+/* MBO v0.0_r19, 4.2.3: Cellular Data Capabilities Attribute */
+/* Table 4-13: Cellular Data Connectivity Field */
+enum mbo_cellular_capa {
+	MBO_CELL_CAPA_AVAILABLE = 1,
+	MBO_CELL_CAPA_NOT_AVAILABLE = 2,
+	MBO_CELL_CAPA_NOT_SUPPORTED = 3,
+};
+
+/* MBO v0.0_r19, 4.2.4: Association Disallowed Attribute */
+/* Table 4-15: Reason Code Field Values */
+enum mbo_assoc_disallow_reason {
+	MBO_ASSOC_DISALLOW_REASON_UNSPECIFIED = 1,
+	MBO_ASSOC_DISALLOW_REASON_MAX_STA = 2,
+	MBO_ASSOC_DISALLOW_REASON_AIR_INTERFERENCE = 3,
+	MBO_ASSOC_DISALLOW_REASON_AUTH_SERVER_OVERLOAD = 4,
+	MBO_ASSOC_DISALLOW_REASON_LOW_RSSI = 5,
+};
+
+/* MBO v0.0_r19, 4.2.5: Cellular Data Connection Preference Attribute */
+/* Table 4-17: Cellular Preference Field Values */
+enum mbo_cell_pref {
+	MBO_CELL_PREF_EXCLUDED = 0,
+	MBO_CELL_PREF_NO_USE = 1,
+	MBO_CELL_PREF_USE = 255
+};
+
+/* MBO v0.0_r19, 4.2.6: Transition Reason Code Attribute */
+/* Table 4-19: Transition Reason Code Field Values */
+enum mbo_transition_reason {
+	MBO_TRANSITION_REASON_UNSPECIFIED = 0,
+	MBO_TRANSITION_REASON_FRAME_LOSS = 1,
+	MBO_TRANSITION_REASON_DELAY = 2,
+	MBO_TRANSITION_REASON_BANDWIDTH = 3,
+	MBO_TRANSITION_REASON_LOAD_BALANCE = 4,
+	MBO_TRANSITION_REASON_RSSI = 5,
+	MBO_TRANSITION_REASON_RETRANSMISSIONS = 6,
+	MBO_TRANSITION_REASON_INTERFERENCE = 7,
+	MBO_TRANSITION_REASON_GRAY_ZONE = 8,
+	MBO_TRANSITION_REASON_PREMIUM_AP = 9,
+};
+
+/* MBO v0.0_r19, 4.2.7: Transition Rejection Reason Code Attribute */
+/* Table 4-21: Transition Rejection Reason Code Field Values */
+enum mbo_transition_reject_reason {
+	MBO_TRANSITION_REJECT_REASON_UNSPECIFIED = 0,
+	MBO_TRANSITION_REJECT_REASON_FRAME_LOSS = 1,
+	MBO_TRANSITION_REJECT_REASON_DELAY = 2,
+	MBO_TRANSITION_REJECT_REASON_QOS_CAPACITY = 3,
+	MBO_TRANSITION_REJECT_REASON_RSSI = 4,
+	MBO_TRANSITION_REJECT_REASON_INTERFERENCE = 5,
+	MBO_TRANSITION_REJECT_REASON_SERVICES = 6,
+};
+
+/* MBO v0.0_r19, 4.4: WNM-Notification vendor subelements */
+enum wfa_wnm_notif_subelem_id {
+	WFA_WNM_NOTIF_SUBELEM_NON_PREF_CHAN_REPORT = 2,
+	WFA_WNM_NOTIF_SUBELEM_CELL_DATA_CAPA = 3,
+};
+
+/* MBO v0.0_r25, 4.3: MBO ANQP-elements */
+#define MBO_ANQP_OUI_TYPE 0x12
+#define MBO_ANQP_SUBTYPE_CELL_CONN_PREF 1
 
 /* Wi-Fi Direct (P2P) */
 
@@ -1178,6 +1341,14 @@ enum wifi_display_subelem {
 #define MESH_PATH_PROTOCOL_VENDOR	255
 #define MESH_PATH_METRIC_AIRTIME	1
 #define MESH_PATH_METRIC_VENDOR		255
+/* IEEE 802.11s - Mesh Capability */
+#define MESH_CAP_ACCEPT_ADDITIONAL_PEER	BIT(0)
+#define MESH_CAP_MCCA_SUPPORTED		BIT(1)
+#define MESH_CAP_MCCA_ENABLED		BIT(2)
+#define MESH_CAP_FORWARDING		BIT(3)
+#define MESH_CAP_MBCA_ENABLED		BIT(4)
+#define MESH_CAP_TBTT_ADJUSTING		BIT(5)
+#define MESH_CAP_MESH_PS_LEVEL		BIT(6)
 
 enum plink_action_field {
 	PLINK_OPEN = 1,
@@ -1280,14 +1451,25 @@ enum bss_trans_mgmt_status_code {
 	WNM_BSS_TM_REJECT_LEAVING_ESS = 8
 };
 
+/*
+ * IEEE P802.11-REVmc/D5.0 Table 9-150 - Optional subelement IDs for
+ * neighbor report
+ */
 #define WNM_NEIGHBOR_TSF                         1
 #define WNM_NEIGHBOR_CONDENSED_COUNTRY_STRING    2
 #define WNM_NEIGHBOR_BSS_TRANSITION_CANDIDATE    3
 #define WNM_NEIGHBOR_BSS_TERMINATION_DURATION    4
 #define WNM_NEIGHBOR_BEARING                     5
+#define WNM_NEIGHBOR_WIDE_BW_CHAN                6
+#define WNM_NEIGHBOR_MEASUREMENT_REPORT         39
+#define WNM_NEIGHBOR_HT_CAPAB                   45
+#define WNM_NEIGHBOR_HT_OPER                    61
+#define WNM_NEIGHBOR_SEC_CHAN_OFFSET            62
 #define WNM_NEIGHBOR_MEASUREMENT_PILOT          66
 #define WNM_NEIGHBOR_RRM_ENABLED_CAPABILITIES   70
 #define WNM_NEIGHBOR_MULTIPLE_BSSID             71
+#define WNM_NEIGHBOR_VHT_CAPAB                 191
+#define WNM_NEIGHBOR_VHT_OPER                  192
 
 /* QoS action */
 enum qos_action {
@@ -1356,6 +1538,8 @@ struct tpc_report {
 	u8 link_margin;
 } STRUCT_PACKED;
 
+#define RRM_CAPABILITIES_IE_LEN 5
+
 /* IEEE Std 802.11-2012, 8.5.7.4 - Link Measurement Request frame format */
 struct rrm_link_measurement_request {
 	u8 dialog_token;
@@ -1374,8 +1558,6 @@ struct rrm_link_measurement_report {
 	u8 rsni;
 	u8 variable[0];
 } STRUCT_PACKED;
-
-#define SSID_MAX_LEN 32
 
 /* IEEE Std 802.11ad-2012 - Multi-band element */
 struct multi_band_ie {
@@ -1431,6 +1613,51 @@ enum fst_action {
 	FST_ACTION_ACK_REQUEST = 3,
 	FST_ACTION_ACK_RESPONSE = 4,
 	FST_ACTION_ON_CHANNEL_TUNNEL = 5,
+};
+
+/* IEEE Std 802.11ac-2013, Annex C - dot11PHYType */
+enum phy_type {
+	PHY_TYPE_UNSPECIFIED = 0,
+	PHY_TYPE_FHSS = 1,
+	PHY_TYPE_DSSS = 2,
+	PHY_TYPE_IRBASEBAND = 3,
+	PHY_TYPE_OFDM = 4,
+	PHY_TYPE_HRDSSS = 5,
+	PHY_TYPE_ERP = 6,
+	PHY_TYPE_HT = 7,
+	PHY_TYPE_DMG = 8,
+	PHY_TYPE_VHT = 9,
+};
+
+/* IEEE P802.11-REVmc/D5.0, 9.4.2.37 - Neighbor Report element */
+/* BSSID Information Field */
+#define NEI_REP_BSSID_INFO_AP_NOT_REACH BIT(0)
+#define NEI_REP_BSSID_INFO_AP_UNKNOWN_REACH BIT(1)
+#define NEI_REP_BSSID_INFO_AP_REACHABLE (BIT(0) | BIT(1))
+#define NEI_REP_BSSID_INFO_SECURITY BIT(2)
+#define NEI_REP_BSSID_INFO_KEY_SCOPE BIT(3)
+#define NEI_REP_BSSID_INFO_SPECTRUM_MGMT BIT(4)
+#define NEI_REP_BSSID_INFO_QOS BIT(5)
+#define NEI_REP_BSSID_INFO_APSD BIT(6)
+#define NEI_REP_BSSID_INFO_RM BIT(7)
+#define NEI_REP_BSSID_INFO_DELAYED_BA BIT(8)
+#define NEI_REP_BSSID_INFO_IMM_BA BIT(9)
+#define NEI_REP_BSSID_INFO_MOBILITY_DOMAIN BIT(10)
+#define NEI_REP_BSSID_INFO_HT BIT(11)
+#define NEI_REP_BSSID_INFO_VHT BIT(12)
+#define NEI_REP_BSSID_INFO_FTM BIT(13)
+
+/*
+ * IEEE P802.11-REVmc/D5.0 Table 9-152 - HT/VHT Operation Information
+ * subfields.
+ * Note: These definitions are not the same as other VHT_CHANWIDTH_*.
+ */
+enum nr_chan_width {
+	NR_CHAN_WIDTH_20 = 0,
+	NR_CHAN_WIDTH_40 = 1,
+	NR_CHAN_WIDTH_80 = 2,
+	NR_CHAN_WIDTH_160 = 3,
+	NR_CHAN_WIDTH_80P80 = 4,
 };
 
 #endif /* IEEE802_11_DEFS_H */
