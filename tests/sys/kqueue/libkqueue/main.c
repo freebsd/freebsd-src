@@ -41,13 +41,16 @@ test_no_kevents(void)
     int nfds;
     struct timespec timeo;
     struct kevent kev;
+    char *kev_str;
 
     puts("confirming that there are no events pending");
     memset(&timeo, 0, sizeof(timeo));
     nfds = kevent(kqfd, NULL, 0, &kev, 1, &timeo);
     if (nfds != 0) {
         puts("\nUnexpected event:");
-        puts(kevent_to_str(&kev));
+        kev_str = kevent_to_str(&kev);
+        puts(kev_str);
+        free(kev_str);
         errx(1, "%d event(s) pending, but none expected:", nfds);
     }
 }
@@ -61,12 +64,15 @@ test_no_kevents_quietly(void)
     int nfds;
     struct timespec timeo;
     struct kevent kev;
+    char *kev_str;
 
     memset(&timeo, 0, sizeof(timeo));
     nfds = kevent(kqfd, NULL, 0, &kev, 1, &timeo);
     if (nfds != 0) {
         puts("\nUnexpected event:");
-        puts(kevent_to_str(&kev));
+        kev_str = kevent_to_str(&kev);
+        puts(kev_str);
+        free(kev_str);
         errx(1, "%d event(s) pending, but none expected:", nfds);
     }
 }
@@ -193,18 +199,20 @@ kevent_flags_dump(struct kevent *kev)
 }
 
 /* Copied from ../kevent.c kevent_dump() and improved */
-const char *
+char *
 kevent_to_str(struct kevent *kev)
 {
     char buf[512];
+    char *flags_str = kevent_flags_dump(kev);
+    char *fflags_str = kevent_fflags_dump(kev);
 
     snprintf(&buf[0], sizeof(buf), 
             "[ident=%ju, filter=%d, %s, %s, data=%jd, udata=%p, "
 	    "ext=[%jx %jx %jx %jx]",
             (uintmax_t) kev->ident,
             kev->filter,
-            kevent_flags_dump(kev),
-            kevent_fflags_dump(kev),
+            flags_str,
+            fflags_str,
             (uintmax_t)kev->data,
             kev->udata,
 	    (uintmax_t)kev->ext[0],
@@ -212,6 +220,9 @@ kevent_to_str(struct kevent *kev)
 	    (uintmax_t)kev->ext[2],
 	    (uintmax_t)kev->ext[3]);
 
+    free(flags_str);
+    free(fflags_str);
+    
     return (strdup(buf));
 }
 

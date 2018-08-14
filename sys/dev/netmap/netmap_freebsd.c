@@ -1498,7 +1498,7 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 	kn->kn_fop = (ev == EVFILT_WRITE) ?
 		&netmap_wfiltops : &netmap_rfiltops;
 	kn->kn_hook = priv;
-	knlist_add(&si->si.si_note, kn, 1);
+	knlist_add(&si->si.si_note, kn, 0);
 	// XXX unlock(priv)
 	ND("register %p %s td %p priv %p kn %p np_nifp %p kn_fp/fpop %s",
 		na, na->ifp->if_xname, curthread, priv, kn,
