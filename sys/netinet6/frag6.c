@@ -271,6 +271,16 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		return (ip6f->ip6f_nxt);
 	}
 
+	/* Get fragment length and discard 0-byte fragments. */
+	frgpartlen = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen) - offset;
+	if (frgpartlen == 0) {
+		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
+		    offsetof(struct ip6_hdr, ip6_plen));
+		in6_ifstat_inc(dstifp, ifs6_reass_fail);
+		IP6STAT_INC(ip6s_fragdropped);
+		return IPPROTO_DONE;
+	}
+
 	hashkeyp = hashkey;
 	memcpy(hashkeyp, &ip6->ip6_src, sizeof(struct in6_addr));
 	hashkeyp += sizeof(struct in6_addr) / sizeof(*hashkeyp);
@@ -368,7 +378,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * in size.
 	 * If it would exceed, discard the fragment and return an ICMP error.
 	 */
-	frgpartlen = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen) - offset;
 	if (q6->ip6q_unfrglen >= 0) {
 		/* The 1st fragment has already arrived. */
 		if (q6->ip6q_unfrglen + fragoff + frgpartlen > IPV6_MAXPACKET) {
