@@ -149,6 +149,7 @@ static state_t current_state = death_single;
 static void execute_script(char *argv[]);
 static void open_console(void);
 static const char *get_shell(void);
+static void replace_init(char *path);
 static void write_stderr(const char *message);
 
 typedef struct init_session {
@@ -329,6 +330,11 @@ invalid:
 	close(0);
 	close(1);
 	close(2);
+
+	if (kenv(KENV_GET, "init_exec", kenv_value, sizeof(kenv_value)) > 0) {
+		replace_init(kenv_value);
+		_exit(0); /* reboot */
+	}
 
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
 		state_func_t next_transition;
@@ -1085,6 +1091,22 @@ execute_script(char *argv[])
 	shell = get_shell();
 	execv(shell, argv);
 	stall("can't exec %s for %s: %m", shell, script);
+}
+
+/*
+ * Execute binary, replacing init(8) as PID 1.
+ */
+static void
+replace_init(char *path)
+{
+	char *argv[3];
+	char sh[] = "sh";
+
+	argv[0] = sh;
+	argv[1] = path;
+	argv[2] = NULL;
+
+	execute_script(argv);
 }
 
 /*

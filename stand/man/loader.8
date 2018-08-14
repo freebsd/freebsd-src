@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2018
+.Dd August 14, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -490,6 +490,9 @@ directive from
 has been processed, allowing kernel panics that happen during the early stages
 of boot to be captured.
 .It Va init_chroot
+See
+.Xr init 8 .
+.It Va init_exec
 See
 .Xr init 8 .
 .It Va init_path
