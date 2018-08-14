@@ -239,9 +239,9 @@ kevent_add(int kqfd, struct kevent *kev,
     
     EV_SET(kev, ident, filter, flags, fflags, data, NULL);    
     if (kevent(kqfd, kev, 1, NULL, 0, NULL) < 0) {
-        kev_str = kevent_to_str(kev);
+	kev_str = kevent_to_str(kev);
 	printf("Unable to add the following kevent:\n%s\n",
-                kev_str);
+		kev_str);
 	free(kev_str);
         err(1, "kevent(): %s", strerror(errno));
     }
@@ -265,9 +265,9 @@ kevent_cmp(struct kevent *k1, struct kevent *k2)
       k1->data != k2->data || k1->udata != k2->udata ||
       k1->ext[0] != k2->ext[0] || k1->ext[1] != k2->ext[1] ||
       k1->ext[0] != k2->ext[2] || k1->ext[0] != k2->ext[3]) {
-        kev1_str = kevent_to_str(k1);
+	kev1_str = kevent_to_str(k1);
 	kev2_str = kevent_to_str(k2);
-        printf("kevent_cmp: mismatch:\n  %s !=\n  %s\n", 
+	printf("kevent_cmp: mismatch:\n	 %s !=\n  %s\n", 
 	       kev1_str, kev2_str);
 	free(kev1_str);
 	free(kev2_str);
