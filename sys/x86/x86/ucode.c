@@ -312,8 +312,7 @@ ucode_load_bsp(uintptr_t free)
 	uint8_t *addr, *fileaddr, *match;
 	char *type;
 	caddr_t file;
-	size_t len, ucode_len;
-	int i;
+	size_t i, len, ucode_len;
 
 	KASSERT(free % PAGE_SIZE == 0, ("unaligned boundary %p", (void *)free));
 
@@ -345,7 +344,8 @@ ucode_load_bsp(uintptr_t free)
 		match = loader->match(fileaddr, &len);
 		if (match != NULL) {
 			addr = map_ucode(free, len);
-			memcpy(addr, match, len);
+			for (i = 0; i < len; i++)
+				addr[i] = match[i];
 			match = addr;
 
 			if (loader->load(match, false) == 0) {
