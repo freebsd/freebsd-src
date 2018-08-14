@@ -2655,9 +2655,7 @@ pmap_pinit0(pmap_t pmap)
 			__pcpu[i].pc_ucr3 = PMAP_NO_CR3;
 		}
 	}
-	PCPU_SET(curpmap, kernel_pmap);
-	pmap_activate(curthread);
-	CPU_FILL(&kernel_pmap->pm_active);
+	pmap_activate_boot(pmap);
 }
 
 void
@@ -7529,7 +7527,7 @@ pmap_activate_sw(struct thread *td)
 			intr_restore(rflags);
 		if (cached)
 			PCPU_INC(pm_save_cnt);
-	} else if (cr3 != pmap->pm_cr3) {
+	} else {
 		load_cr3(pmap->pm_cr3);
 		PCPU_SET(curpmap, pmap);
 		if (pti) {
@@ -7557,6 +7555,26 @@ pmap_activate(struct thread *td)
 	critical_enter();
 	pmap_activate_sw(td);
 	critical_exit();
+}
+
+void
+pmap_activate_boot(pmap_t pmap)
+{
+	u_int cpuid;
+
+	/*
+	 * kernel_pmap must be never deactivated, and we ensure that
+	 * by never activating it at all.
+	 */
+	MPASS(pmap != kernel_pmap);
+
+	cpuid = PCPU_GET(cpuid);
+#ifdef SMP
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
+#else
+	CPU_SET(cpuid, &pmap->pm_active);
+#endif
+	PCPU_SET(curpmap, pmap);
 }
 
 void
