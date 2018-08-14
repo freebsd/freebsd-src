@@ -148,7 +148,7 @@ ip_reass(struct mbuf *m)
 	struct ipqhead *head;
 	int i, hlen, next;
 	u_int8_t ecn, ecn0;
-	uint32_t hash;
+	uint32_t hash, hashkey[3];
 #ifdef	RSS
 	uint32_t rss_hash, rss_type;
 #endif
@@ -202,8 +202,12 @@ ip_reass(struct mbuf *m)
 	m->m_data += hlen;
 	m->m_len -= hlen;
 
-	hash = ip->ip_src.s_addr ^ ip->ip_id;
-	hash = jenkins_hash32(&hash, 1, V_ipq_hashseed) & IPREASS_HMASK;
+	hashkey[0] = ip->ip_src.s_addr;
+	hashkey[1] = ip->ip_dst.s_addr;
+	hashkey[2] = (uint32_t)ip->ip_p << 16;
+	hashkey[2] += ip->ip_id;
+	hash = jenkins_hash32(hashkey, nitems(hashkey), V_ipq_hashseed);
+	hash &= IPREASS_HMASK;
 	head = &V_ipq[hash].head;
 	IPQ_LOCK(hash);
 
