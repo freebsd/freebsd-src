@@ -928,6 +928,7 @@ static void addquoted (luaL_Buffer *b, const char *s, size_t len) {
 }
 
 
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
 /*
 ** Ensures the 'buff' string uses a dot as the radix character.
 */
@@ -938,7 +939,7 @@ static void checkdp (char *buff, int nb) {
     if (ppoint) *ppoint = '.';  /* change it to a dot */
   }
 }
-
+#endif
 
 static void addliteral (lua_State *L, luaL_Buffer *b, int arg) {
   switch (lua_type(L, arg)) {
