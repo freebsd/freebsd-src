@@ -48,9 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-#define	MALTA_MAXCPU	2
 #define	VPECONF0_VPA	(1 << 0)
 #define	MVPCONTROL_VPC	(1 << 1)
+#define	MVPCONF0_PVPE_SHIFT	10
+#define	MVPCONF0_PVPE_MASK	(0xf << MVPCONF0_PVPE_SHIFT)
 #define	TCSTATUS_A	(1 << 13)
 
 unsigned malta_ap_boot = ~0;
@@ -208,10 +209,13 @@ platform_init_ap(int cpuid)
 void
 platform_cpu_mask(cpuset_t *mask)
 {
-	uint32_t i, m;
+	uint32_t i, ncpus, reg;
+
+	reg = mftc0(0, 2);
+	ncpus = ((reg & MVPCONF0_PVPE_MASK) >> MVPCONF0_PVPE_SHIFT) + 1;
 
 	CPU_ZERO(mask);
-	for (i = 0, m = 1 ; i < MALTA_MAXCPU; i++, m <<= 1)
+	for (i = 0; i < ncpus; i++)
 		CPU_SET(i, mask);
 }
 
