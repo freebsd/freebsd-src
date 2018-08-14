@@ -89,12 +89,11 @@ struct ip6qbucket {
 };
 
 VNET_DEFINE_STATIC(volatile u_int, frag6_nfragpackets);
-VNET_DEFINE_STATIC(volatile u_int, frag6_nfrags);
+volatile u_int frag6_nfrags = 0;
 VNET_DEFINE_STATIC(struct ip6qbucket, ip6q[IP6REASS_NHASH]);
 VNET_DEFINE_STATIC(uint32_t, ip6q_hashseed);
 
 #define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
-#define	V_frag6_nfrags			VNET(frag6_nfrags)
 #define	V_ip6q				VNET(ip6q)
 #define	V_ip6q_hashseed			VNET(ip6q_hashseed)
 
@@ -112,9 +111,16 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 static void
 frag6_change(void *tag)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
-	V_ip6_maxfragpackets = nmbclusters / 4;
-	V_ip6_maxfrags = nmbclusters / 4;
+	ip6_maxfrags = nmbclusters / 4;
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_ip6_maxfragpackets = nmbclusters / 4;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 void
@@ -124,7 +130,6 @@ frag6_init(void)
 	int i;
 
 	V_ip6_maxfragpackets = nmbclusters / 4;
-	V_ip6_maxfrags = nmbclusters / 4;
 	for (i = 0; i < IP6REASS_NHASH; i++) {
 		q6 = IP6Q_HEAD(i);
 		q6->ip6q_next = q6->ip6q_prev = q6;
@@ -134,6 +139,7 @@ frag6_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
+	ip6_maxfrags = nmbclusters / 4;
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
 }
@@ -267,9 +273,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * If maxfrag is 0, never accept fragments.
 	 * If maxfrag is -1, accept all fragments without limitation.
 	 */
-	if (V_ip6_maxfrags < 0)
+	if (ip6_maxfrags < 0)
 		;
-	else if (atomic_load_int(&V_frag6_nfrags) >= (u_int)V_ip6_maxfrags)
+	else if (atomic_load_int(&frag6_nfrags) >= (u_int)ip6_maxfrags)
 		goto dropfrag;
 
 	for (q6 = head->ip6q_next; q6 != head; q6 = q6->ip6q_next)
@@ -531,7 +537,7 @@ insert:
 	 * the most recently active fragmented packet.
 	 */
 	frag6_enq(ip6af, af6->ip6af_up, hash);
-	atomic_add_int(&V_frag6_nfrags, 1);
+	atomic_add_int(&frag6_nfrags, 1);
 	q6->ip6q_nfrag++;
 #if 0 /* xxx */
 	if (q6 != head->ip6q_next) {
@@ -595,7 +601,7 @@ insert:
 
 	if (ip6_deletefraghdr(m, offset, M_NOWAIT) != 0) {
 		frag6_remque(q6, hash);
-		atomic_subtract_int(&V_frag6_nfrags, q6->ip6q_nfrag);
+		atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
 #ifdef MAC
 		mac_ip6q_destroy(q6);
 #endif
@@ -612,7 +618,7 @@ insert:
 	    (caddr_t)&nxt);
 
 	frag6_remque(q6, hash);
-	atomic_subtract_int(&V_frag6_nfrags, q6->ip6q_nfrag);
+	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
 #ifdef MAC
 	mac_ip6q_reassemble(q6, m);
 	mac_ip6q_destroy(q6);
@@ -708,7 +714,7 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 		free(af6, M_FTABLE);
 	}
 	frag6_remque(q6, bucket);
-	atomic_subtract_int(&V_frag6_nfrags, q6->ip6q_nfrag);
+	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
 #ifdef MAC
 	mac_ip6q_destroy(q6);
 #endif
