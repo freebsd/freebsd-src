@@ -64,10 +64,13 @@ be_locate_rootfs(zfs_handle_t *chkds, void *data)
 	if (lbh == NULL)
 		return (1);
 
+	mntpoint = NULL;
 	if (zfs_is_mounted(chkds, &mntpoint) && strcmp(mntpoint, "/") == 0) {
-		strncpy(lbh->rootfs, zfs_get_name(chkds), BE_MAXPATHLEN);
+		strlcpy(lbh->rootfs, zfs_get_name(chkds), BE_MAXPATHLEN + 1);
+		free(mntpoint);
 		return (1);
-	}
+	} else if(mntpoint != NULL)
+		free(mntpoint);
 
 	return (0);
 }
@@ -120,8 +123,8 @@ libbe_init(void)
 
 	/* Remove leading 'zfs:' if present, otherwise use value as-is */
 	if (strcmp(lbh->root, "zfs:") == 0)
-		strncpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
-		    BE_MAXPATHLEN);
+		strlcpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
+		    BE_MAXPATHLEN + 1);
 
 	if ((pos = strchr(lbh->root, '/')) == NULL)
 		goto err;
@@ -160,8 +163,6 @@ err:
 			libzfs_fini(lbh->lzh);
 		free(lbh);
 	}
-	if (rootds != NULL)
-		zfs_close(rootds);
 	free(poolname);
 	return (NULL);
 }
@@ -397,19 +398,15 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
 
-	if ((err = zfs_clone(snap_hdl, be_path, props)) != 0) {
-		switch (err) {
-		case EZFS_SUCCESS:
-			err = BE_ERR_SUCCESS;
-			break;
-		default:
-			err = BE_ERR_ZFSCLONE;
-			break;
-		}
-	}
+	if ((err = zfs_clone(snap_hdl, be_path, props)) != 0)
+		err = BE_ERR_ZFSCLONE;
 
 	nvlist_free(props);
 	zfs_close(snap_hdl);
+
+	/* Failed to clone */
+	if (err != BE_ERR_SUCCESS)
+		return (set_error(isdc->lbh, err));
 
 	sdc.lbh = isdc->lbh;
 	sdc.bename = NULL;
@@ -451,14 +448,13 @@ be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
 	else
 		bename++;
 
-	if ((parentname = strdup(snap_path)) == NULL) {
-		err = BE_ERR_UNKNOWN;
-		return (set_error(lbh, err));
-	}
+	if ((parentname = strdup(snap_path)) == NULL)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+
 	snapname = strchr(parentname, '@');
 	if (snapname == NULL) {
-		err = BE_ERR_UNKNOWN;
-		return (set_error(lbh, err));
+		free(parentname);
+		return (set_error(lbh, BE_ERR_UNKNOWN));
 	}
 	*snapname = '\0';
 	snapname++;
@@ -471,6 +467,7 @@ be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
 	parent_hdl = zfs_open(lbh->lzh, parentname, ZFS_TYPE_DATASET);
 	err = be_deep_clone(parent_hdl, &sdc);
 
+	free(parentname);
 	return (set_error(lbh, err));
 }
 
@@ -502,7 +499,7 @@ int
 be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 {
 	zfs_handle_t *zfs_hdl;
-	char buf[BE_MAXPATHLEN];
+	char buf[BE_MAXPATHLEN + 1];
 	char *delim_pos;
 	int err = BE_ERR_SUCCESS;
 
@@ -513,7 +510,7 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
 
-	strncpy(buf, snap_name, BE_MAXPATHLEN);
+	strlcpy(buf, snap_name, BE_MAXPATHLEN + 1);
 
 	/* Find the base filesystem of the snapshot */
 	if ((delim_pos = strchr(buf, '@')) == NULL)
