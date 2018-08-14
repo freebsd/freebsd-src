@@ -4813,7 +4813,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		return (EINVAL);
 
 	for (tmpva = base; tmpva < base + size; ) {
-		pte = pmap_pte(kernel_pmap, va, &lvl);
+		pte = pmap_pte(kernel_pmap, tmpva, &lvl);
 		if (pte == NULL)
 			return (EINVAL);
 
