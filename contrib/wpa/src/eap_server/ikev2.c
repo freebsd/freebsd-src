@@ -133,7 +133,7 @@ static int ikev2_parse_transform(struct ikev2_initiator_data *data,
 
 	t = (const struct ikev2_transform *) pos;
 	transform_len = WPA_GET_BE16(t->transform_length);
-	if (transform_len < (int) sizeof(*t) || pos + transform_len > end) {
+	if (transform_len < (int) sizeof(*t) || transform_len > end - pos) {
 		wpa_printf(MSG_INFO, "IKEV2: Invalid transform length %d",
 			   transform_len);
 		return -1;
@@ -221,7 +221,7 @@ static int ikev2_parse_proposal(struct ikev2_initiator_data *data,
 
 	p = (const struct ikev2_proposal *) pos;
 	proposal_len = WPA_GET_BE16(p->proposal_length);
-	if (proposal_len < (int) sizeof(*p) || pos + proposal_len > end) {
+	if (proposal_len < (int) sizeof(*p) || proposal_len > end - pos) {
 		wpa_printf(MSG_INFO, "IKEV2: Invalid proposal length %d",
 			   proposal_len);
 		return -1;
@@ -256,7 +256,7 @@ static int ikev2_parse_proposal(struct ikev2_initiator_data *data,
 
 	ppos = (const u8 *) (p + 1);
 	pend = pos + proposal_len;
-	if (ppos + p->spi_size > pend) {
+	if (p->spi_size > pend - ppos) {
 		wpa_printf(MSG_INFO, "IKEV2: Not enough room for SPI "
 			   "in proposal");
 		return -1;

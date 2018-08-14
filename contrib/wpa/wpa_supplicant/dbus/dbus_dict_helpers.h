@@ -26,9 +26,6 @@ const char * wpa_dbus_type_as_string(const int type);
 dbus_bool_t wpa_dbus_dict_append_string(DBusMessageIter *iter_dict,
 					const char *key, const char *value);
 
-dbus_bool_t wpa_dbus_dict_append_byte(DBusMessageIter *iter_dict,
-				      const char *key, const char value);
-
 dbus_bool_t wpa_dbus_dict_append_bool(DBusMessageIter *iter_dict,
 				      const char *key,
 				      const dbus_bool_t value);
@@ -48,18 +45,6 @@ dbus_bool_t wpa_dbus_dict_append_int32(DBusMessageIter *iter_dict,
 dbus_bool_t wpa_dbus_dict_append_uint32(DBusMessageIter *iter_dict,
 					const char *key,
 					const dbus_uint32_t value);
-
-dbus_bool_t wpa_dbus_dict_append_int64(DBusMessageIter *iter_dict,
-				       const char *key,
-				       const dbus_int64_t value);
-
-dbus_bool_t wpa_dbus_dict_append_uint64(DBusMessageIter *iter_dict,
-					const char *key,
-					const dbus_uint64_t value);
-
-dbus_bool_t wpa_dbus_dict_append_double(DBusMessageIter *iter_dict,
-					const char *key,
-					const double value);
 
 dbus_bool_t wpa_dbus_dict_append_object_path(DBusMessageIter *iter_dict,
 					     const char *key,

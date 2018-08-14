@@ -88,7 +88,7 @@ enum ts_dir_idx {
  */
 struct wmm_ac_addts_request {
 	/*
-	 * dialog token - Used to link the recived ADDTS response with this
+	 * dialog token - Used to link the received ADDTS response with this
 	 * saved ADDTS request when ADDTS response is being handled
 	 */
 	u8 dialog_token;

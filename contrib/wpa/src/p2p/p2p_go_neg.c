@@ -38,7 +38,7 @@ int p2p_peer_channels_check(struct p2p_data *p2p, struct p2p_channels *own,
 {
 	const u8 *pos, *end;
 	struct p2p_channels *ch;
-	size_t channels;
+	u8 channels;
 	struct p2p_channels intersection;
 
 	ch = &dev->channels;
@@ -58,14 +58,14 @@ int p2p_peer_channels_check(struct p2p_data *p2p, struct p2p_channels *own,
 	}
 	pos += 3;
 
-	while (pos + 2 < end) {
+	while (end - pos > 2) {
 		struct p2p_reg_class *cl = &ch->reg_class[ch->reg_classes];
 		cl->reg_class = *pos++;
-		if (pos + 1 + pos[0] > end) {
+		channels = *pos++;
+		if (channels > end - pos) {
 			p2p_info(p2p, "Invalid peer Channel List");
 			return -1;
 		}
-		channels = *pos++;
 		cl->channels = channels > P2P_MAX_REG_CLASS_CHANNELS ?
 			P2P_MAX_REG_CLASS_CHANNELS : channels;
 		os_memcpy(cl->channel, pos, cl->channels);
@@ -384,7 +384,7 @@ void p2p_reselect_channel(struct p2p_data *p2p,
 	unsigned int i;
 	const int op_classes_5ghz[] = { 124, 125, 115, 0 };
 	const int op_classes_ht40[] = { 126, 127, 116, 117, 0 };
-	const int op_classes_vht[] = { 128, 0 };
+	const int op_classes_vht[] = { 128, 129, 130, 0 };
 
 	if (p2p->own_freq_preference > 0 &&
 	    p2p_freq_to_channel(p2p->own_freq_preference,
@@ -901,6 +901,14 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 			return;
 		}
 
+		if (dev->go_neg_req_sent &&
+		    (dev->flags & P2P_DEV_PEER_WAITING_RESPONSE)) {
+			p2p_dbg(p2p,
+				"Do not reply since peer is waiting for us to start a new GO Negotiation and GO Neg Request already sent");
+			p2p_parse_free(&msg);
+			return;
+		}
+
 		go = p2p_go_det(p2p->go_intent, *msg.go_intent);
 		if (go < 0) {
 			p2p_dbg(p2p, "Incompatible GO Intent");
@@ -1052,7 +1060,7 @@ fail:
 			P2P_PENDING_GO_NEG_RESPONSE_FAILURE;
 	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
-			    wpabuf_head(resp), wpabuf_len(resp), 500) < 0) {
+			    wpabuf_head(resp), wpabuf_len(resp), 100) < 0) {
 		p2p_dbg(p2p, "Failed to send Action frame");
 	}
 
@@ -1260,6 +1268,11 @@ void p2p_process_go_neg_resp(struct p2p_data *p2p, const u8 *sa,
 		dev->client_timeout = msg.config_timeout[1];
 	}
 
+	if (msg.wfd_subelems) {
+		wpabuf_free(dev->info.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
+	}
+
 	if (!msg.operating_channel && !go) {
 		/*
 		 * Note: P2P Client may omit Operating Channel attribute to
@@ -1386,7 +1399,7 @@ fail:
 
 	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr, sa,
 			    wpabuf_head(dev->go_neg_conf),
-			    wpabuf_len(dev->go_neg_conf), 200) < 0) {
+			    wpabuf_len(dev->go_neg_conf), 50) < 0) {
 		p2p_dbg(p2p, "Failed to send Action frame");
 		p2p_go_neg_failed(p2p, -1);
 		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);

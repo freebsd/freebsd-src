@@ -15,6 +15,7 @@
 #include "fst/fst_defs.h"
 #include "fst/fst_ctrl_iface.h"
 
+static int fst_global_initialized = 0;
 struct dl_list fst_global_ctrls_list;
 
 
@@ -106,6 +107,7 @@ int fst_global_init(void)
 	dl_list_init(&fst_global_groups_list);
 	dl_list_init(&fst_global_ctrls_list);
 	fst_session_global_init();
+	fst_global_initialized = 1;
 	return 0;
 }
 
@@ -115,6 +117,9 @@ void fst_global_deinit(void)
 	struct fst_group *group;
 	struct fst_ctrl_handle *h;
 
+	if (!fst_global_initialized)
+		return;
+
 	fst_session_global_deinit();
 	while ((group = fst_first_group()) != NULL)
 		fst_group_delete(group);
@@ -122,6 +127,7 @@ void fst_global_deinit(void)
 				  struct fst_ctrl_handle,
 				  global_ctrls_lentry)))
 		fst_global_del_ctrl(h);
+	fst_global_initialized = 0;
 }
 
 
@@ -160,7 +166,7 @@ void fst_global_del_ctrl(struct fst_ctrl_handle *h)
 void fst_rx_action(struct fst_iface *iface, const struct ieee80211_mgmt *mgmt,
 		   size_t len)
 {
-	if (fst_iface_is_connected(iface, mgmt->sa))
+	if (fst_iface_is_connected(iface, mgmt->sa, FALSE))
 		fst_session_on_action_rx(iface, mgmt, len);
 	else
 		wpa_printf(MSG_DEBUG,

@@ -44,6 +44,7 @@ struct radius_das_conf {
 	const struct hostapd_ip_addr *client_addr;
 	unsigned int time_window;
 	int require_event_timestamp;
+	int require_message_authenticator;
 	void *ctx;
 	enum radius_das_res (*disconnect)(void *ctx,
 					  struct radius_das_attrs *attr);

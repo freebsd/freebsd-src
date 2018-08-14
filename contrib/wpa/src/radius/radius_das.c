@@ -23,6 +23,7 @@ struct radius_das_data {
 	struct hostapd_ip_addr client_addr;
 	unsigned int time_window;
 	int require_event_timestamp;
+	int require_message_authenticator;
 	void *ctx;
 	enum radius_das_res (*disconnect)(void *ctx,
 					  struct radius_das_attrs *attr);
@@ -234,9 +235,11 @@ static void radius_das_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		radius_msg_dump(msg);
 
 	if (radius_msg_verify_das_req(msg, das->shared_secret,
-				       das->shared_secret_len)) {
-		wpa_printf(MSG_DEBUG, "DAS: Invalid authenticator in packet "
-			   "from %s:%d - drop", abuf, from_port);
+				       das->shared_secret_len,
+				       das->require_message_authenticator)) {
+		wpa_printf(MSG_DEBUG,
+			   "DAS: Invalid authenticator or Message-Authenticator in packet from %s:%d - drop",
+			   abuf, from_port);
 		goto fail;
 	}
 
@@ -362,6 +365,8 @@ radius_das_init(struct radius_das_conf *conf)
 
 	das->time_window = conf->time_window;
 	das->require_event_timestamp = conf->require_event_timestamp;
+	das->require_message_authenticator =
+		conf->require_message_authenticator;
 	das->ctx = conf->ctx;
 	das->disconnect = conf->disconnect;
 
