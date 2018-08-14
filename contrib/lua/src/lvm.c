@@ -41,7 +41,7 @@
 ** float without rounding. Used in comparisons. Left undefined if
 ** all integers fit in a float precisely.
 */
-#if !defined(l_intfitsf)
+#if !defined(l_intfitsf) && LUA_FLOAT_TYPE != LUA_FLOAT_INT64
 
 /* number of bits in the mantissa of a float */
 #define NBM		(l_mathlim(MANT_DIG))
