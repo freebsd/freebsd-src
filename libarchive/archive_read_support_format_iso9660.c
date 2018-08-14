@@ -409,7 +409,8 @@ static int	next_entry_seek(struct archive_read *, struct iso9660 *,
 		    struct file_info **);
 static struct file_info *
 		parse_file_info(struct archive_read *a,
-		    struct file_info *parent, const unsigned char *isodirrec);
+		    struct file_info *parent, const unsigned char *isodirrec,
+		    size_t reclen);
 static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
@@ -1022,7 +1023,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 			if (*(p + DR_name_len_offset) == 1
 			    && *(p + DR_name_offset) == '\001')
 				continue;
-			child = parse_file_info(a, parent, p);
+			child = parse_file_info(a, parent, p, b - p);
 			if (child == NULL) {
 				__archive_read_consume(a, skip_size);
 				return (ARCHIVE_FATAL);
@@ -1112,7 +1113,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 	 */
 	seenJoliet = iso9660->seenJoliet;/* Save flag. */
 	iso9660->seenJoliet = 0;
-	file = parse_file_info(a, NULL, block);
+	file = parse_file_info(a, NULL, block, vd->size);
 	if (file == NULL)
 		return (ARCHIVE_FATAL);
 	iso9660->seenJoliet = seenJoliet;
@@ -1144,7 +1145,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 			return (ARCHIVE_FATAL);
 		}
 		iso9660->seenJoliet = 0;
-		file = parse_file_info(a, NULL, block);
+		file = parse_file_info(a, NULL, block, vd->size);
 		if (file == NULL)
 			return (ARCHIVE_FATAL);
 		iso9660->seenJoliet = seenJoliet;
@@ -1749,7 +1750,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
  */
 static struct file_info *
 parse_file_info(struct archive_read *a, struct file_info *parent,
-    const unsigned char *isodirrec)
+    const unsigned char *isodirrec, size_t reclen)
 {
 	struct iso9660 *iso9660;
 	struct file_info *file, *filep;
@@ -1763,16 +1764,20 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
-	dr_len = (size_t)isodirrec[DR_length_offset];
+	if (reclen != 0)
+		dr_len = (size_t)isodirrec[DR_length_offset];
+	/*
+	 * Sanity check that reclen is not zero and dr_len is greater than
+	 * reclen but at least 34
+	 */
+	if (reclen == 0 || reclen < dr_len || dr_len < 34) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Invalid length of directory record");
+		return (NULL);
+	}
 	name_len = (size_t)isodirrec[DR_name_len_offset];
 	location = archive_le32dec(isodirrec + DR_extent_offset);
 	fsize = toi(isodirrec + DR_size_offset, DR_size_size);
-	/* Sanity check that dr_len needs at least 34. */
-	if (dr_len < 34) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid length of directory record");
-		return (NULL);
-	}
 	/* Sanity check that name_len doesn't exceed dr_len. */
 	if (dr_len - 33 < name_len || name_len == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
