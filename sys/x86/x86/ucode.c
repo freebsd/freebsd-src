@@ -255,11 +255,15 @@ SYSINIT(ucode_release, SI_SUB_KMEM + 1, SI_ORDER_ANY, ucode_release, NULL);
 void
 ucode_load_ap(int cpu)
 {
-
+#ifdef SMP
 	KASSERT(cpu_info[cpu_apic_ids[cpu]].cpu_present,
 	    ("cpu %d not present", cpu));
 
-	if (ucode_data != NULL && !cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
+	if (!cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
+		return;
+#endif
+
+	if (ucode_data != NULL)
 		(void)ucode_intel_load(ucode_data, false);
 }
 
