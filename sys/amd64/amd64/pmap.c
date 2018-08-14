@@ -1307,6 +1307,9 @@ pmap_init(void)
 	vm_size_t s;
 	int error, i, pv_npg, ret, skz63;
 
+	/* L1TF, reserve page @0 unconditionally */
+	vm_page_blacklist_add(0, bootverbose);
+
 	/* Detect bare-metal Skylake Server and Skylake-X. */
 	if (vm_guest == VM_GUEST_NO && cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 && CPUID_TO_MODEL(cpu_id) == 0x55) {
