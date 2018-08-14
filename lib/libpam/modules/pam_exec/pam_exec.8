@@ -1,5 +1,6 @@
 .\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
 .\" Copyright (c) 2017 Dag-Erling Smørgrav
+.\" Copyright (c) 2018 Thomas Munro
 .\" All rights reserved.
 .\"
 .\" Portions of this software were developed for the FreeBSD Project by
@@ -33,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd August 14, 2018
 .Dt PAM_EXEC 8
 .Os
 .Sh NAME
@@ -72,6 +73,8 @@ Ignored for compatibility reasons.
 .It Cm return_prog_exit_status
 Use the program exit status as the return code of the pam_sm_* function.
 It must be a valid return value for this function.
+.It Cm expose_authtok
+Write the authentication token to the program's standard input stream.
 .It Cm --
 Stop options parsing;
 program and its arguments follow.
