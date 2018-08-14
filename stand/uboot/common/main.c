@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef HEAP_SIZE
-#define	HEAP_SIZE	(1 * 1024 * 1024)
+#define	HEAP_SIZE	(2 * 1024 * 1024)
 #endif
 
 struct uboot_devdesc currdev;
