@@ -344,6 +344,7 @@ ucode_load_bsp(uintptr_t free)
 		match = loader->match(fileaddr, &len);
 		if (match != NULL) {
 			addr = map_ucode(free, len);
+			/* We can't use memcpy() before ifunc resolution. */
 			for (i = 0; i < len; i++)
 				addr[i] = match[i];
 			match = addr;
