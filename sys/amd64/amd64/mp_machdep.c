@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
 #include <x86/apicreg.h>
@@ -297,7 +298,6 @@ init_secondary(void)
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
-	pc->pc_curpmap = kernel_pmap;
 	pc->pc_pcid_gen = 1;
 	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
 	common_tss[cpu].tss_rsp0 = 0;
@@ -342,6 +342,7 @@ init_secondary(void)
 	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
+	pmap_activate_boot(vmspace_pmap(proc0.p_vmspace));
 	init_secondary_tail();
 }
 
