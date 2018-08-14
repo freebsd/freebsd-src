@@ -450,9 +450,7 @@
 ** and therefore its conversion to float may have an ill-defined value.)
 */
 #define lua_numbertointeger(n,p) \
-  ((n) >= (LUA_NUMBER)(LUA_MININTEGER) && \
-   (n) < -(LUA_NUMBER)(LUA_MININTEGER) && \
-      (*(p) = (LUA_INTEGER)(n), 1))
+      (*(p) = (LUA_INTEGER)(n), 1)
 
 
 /* now the variable definitions */
