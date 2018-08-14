@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2009
+.Dd August 14, 2018
 .Dt INET6 4
 .Os
 .Sh NAME
@@ -219,12 +219,41 @@ packets.
 This value applies to all the transport protocols on top of
 .Tn IPv6 .
 There are APIs to override the value.
+.It Dv IPV6CTL_MAXFRAGS
+.Pq ip6.maxfrags
+Integer: maximum number of fragments the host will accept and simultaneously
+hold across all reassembly queues in all VNETs.
+If set to 0, fragment reassembly is disabled.
+If set to -1, this limit is not applied.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a global limit.
 .It Dv IPV6CTL_MAXFRAGPACKETS
 .Pq ip6.maxfragpackets
-Integer: default maximum number of fragmented packets the node will accept.
-0 means that the node will not accept any fragmented packets.
--1 means that the node will accept as many fragmented packets as it receives.
-The flag is provided basically for avoiding possible DoS attacks.
+Integer: maximum number of fragmented packets the node will accept and
+simultaneously hold in the reassembly queue for a particular VNET.
+0 means that the node will not accept any fragmented packets for that VNET.
+-1 means that the node will not apply this limit for that VNET.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a per-VNET limit.
+.It Dv IPV6CTL_MAXFRAGBUCKETSIZE
+.Pq ip6.maxfragbucketsize
+Integer: maximum number of reassembly queues per bucket.
+Fragmented packets are hashed to buckets.
+Each bucket has a list of reassembly queues.
+The system must compare the incoming packets to the existing reassembly queues
+in the bucket to find a matching reassembly queue.
+To preserve system resources, the system limits the number of reassembly
+queues allowed in each bucket.
+This limit is recalculated when the number of mbuf clusters is changed or
+when the value of
+.Va ip6.maxfragpackets
+changes.
+This is a per-VNET limit.
+.It Dv IPV6CTL_MAXFRAGSPERPACKET
+.Pq ip6.maxfragsperpacket
+Integer: maximum number of fragments the host will accept and hold in the
+ressembly queue for a packet.
+This is a per-VNET limit.
 .It Dv IPV6CTL_ACCEPT_RTADV
 .Pq ip6.accept_rtadv
 Boolean: the default value of a per-interface flag to
