@@ -137,7 +137,43 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 static inline u16
 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq, struct mbuf *mb)
 {
-	return (MIN(MLX5E_MAX_TX_INLINE, mb->m_len));
+
+	switch(sq->min_inline_mode) {
+	case MLX5_INLINE_MODE_NONE:
+		/*
+		 * When inline mode is NONE, we do not need to copy
+		 * headers into WQEs, except when vlan tag framing is
+		 * requested. Hardware might offload vlan tagging on
+		 * transmit. This is a separate capability, which is
+		 * known to be disabled on ConnectX-5 due to a hardware
+		 * bug RM 931383. If vlan_inline_cap is not present and
+		 * the packet has vlan tag, fall back to inlining.
+		 */
+		if ((mb->m_flags & M_VLANTAG) != 0 &&
+		    sq->vlan_inline_cap == 0)
+			break;
+		return (0);
+	case MLX5_INLINE_MODE_L2:
+		/*
+		 * Due to hardware limitations, when trust mode is
+		 * DSCP, the hardware may request MLX5_INLINE_MODE_L2
+		 * while it really needs all L2 headers and the 4 first
+		 * bytes of the IP header (which include the
+		 * TOS/traffic-class).
+		 *
+		 * To avoid doing a firmware command for querying the
+		 * trust state and parsing the mbuf for doing
+		 * unnecessary checks (VLAN/eth_type) in the fast path,
+		 * we are going for the worth case (22 Bytes) if
+		 * the mb->m_pkthdr.len allows it.
+		 */
+		if (mb->m_pkthdr.len > ETHER_HDR_LEN +
+		    ETHER_VLAN_ENCAP_LEN + 4)
+			return (MIN(sq->max_inline, ETHER_HDR_LEN +
+			    ETHER_VLAN_ENCAP_LEN + 4));
+		break;
+	}
+	return (MIN(sq->max_inline, mb->m_pkthdr.len));
 }
 
 static int
@@ -275,37 +311,47 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		sq->mbuf[pi].num_bytes = max_t (unsigned int,
 		    mb->m_pkthdr.len, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	}
-	if (mb->m_flags & M_VLANTAG) {
-		struct ether_vlan_header *eh =
-		    (struct ether_vlan_header *)wqe->eth.inline_hdr_start;
-
-		/* Range checks */
-		if (ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN))
-			ihs = (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN);
-		else if (ihs < ETHER_HDR_LEN) {
-			err = EINVAL;
-			goto tx_drop;
+	if (ihs == 0) {
+		if ((mb->m_flags & M_VLANTAG) != 0) {
+			wqe->eth.vlan_cmd = htons(0x8000); /* bit 0 CVLAN */
+			wqe->eth.vlan_hdr = htons(mb->m_pkthdr.ether_vtag);
+		} else {
+			wqe->eth.inline_hdr_sz = 0;
 		}
-		m_copydata(mb, 0, ETHER_HDR_LEN, (caddr_t)eh);
-		m_adj(mb, ETHER_HDR_LEN);
-		/* Insert 4 bytes VLAN tag into data stream */
-		eh->evl_proto = eh->evl_encap_proto;
-		eh->evl_encap_proto = htons(ETHERTYPE_VLAN);
-		eh->evl_tag = htons(mb->m_pkthdr.ether_vtag);
-		/* Copy rest of header data, if any */
-		m_copydata(mb, 0, ihs - ETHER_HDR_LEN, (caddr_t)(eh + 1));
-		m_adj(mb, ihs - ETHER_HDR_LEN);
-		/* Extend header by 4 bytes */
-		ihs += ETHER_VLAN_ENCAP_LEN;
 	} else {
-		m_copydata(mb, 0, ihs, wqe->eth.inline_hdr_start);
-		m_adj(mb, ihs);
+		if ((mb->m_flags & M_VLANTAG) != 0) {
+			struct ether_vlan_header *eh = (struct ether_vlan_header
+			    *)wqe->eth.inline_hdr_start;
+
+			/* Range checks */
+			if (ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN))
+				ihs = (MLX5E_MAX_TX_INLINE -
+				    ETHER_VLAN_ENCAP_LEN);
+			else if (ihs < ETHER_HDR_LEN) {
+				err = EINVAL;
+				goto tx_drop;
+			}
+			m_copydata(mb, 0, ETHER_HDR_LEN, (caddr_t)eh);
+			m_adj(mb, ETHER_HDR_LEN);
+			/* Insert 4 bytes VLAN tag into data stream */
+			eh->evl_proto = eh->evl_encap_proto;
+			eh->evl_encap_proto = htons(ETHERTYPE_VLAN);
+			eh->evl_tag = htons(mb->m_pkthdr.ether_vtag);
+			/* Copy rest of header data, if any */
+			m_copydata(mb, 0, ihs - ETHER_HDR_LEN, (caddr_t)(eh +
+			    1));
+			m_adj(mb, ihs - ETHER_HDR_LEN);
+			/* Extend header by 4 bytes */
+			ihs += ETHER_VLAN_ENCAP_LEN;
+		} else {
+			m_copydata(mb, 0, ihs, wqe->eth.inline_hdr_start);
+			m_adj(mb, ihs);
+		}
+		wqe->eth.inline_hdr_sz = cpu_to_be16(ihs);
 	}
 
-	wqe->eth.inline_hdr_sz = cpu_to_be16(ihs);
-
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
-	if (likely(ihs > sizeof(wqe->eth.inline_hdr_start))) {
+	if (ihs > sizeof(wqe->eth.inline_hdr_start)) {
 		ds_cnt += DIV_ROUND_UP(ihs - sizeof(wqe->eth.inline_hdr_start),
 		    MLX5_SEND_WQE_DS);
 	}
