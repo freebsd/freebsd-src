@@ -30,7 +30,7 @@
 #include <sys/sockio.h>
 #include <machine/atomic.h>
 
-#define	ETH_DRIVER_VERSION	"3.1.0-dev"
+#define	ETH_DRIVER_VERSION	"3.2.1"
 char mlx5e_version[] = "Mellanox Ethernet driver"
     " (" ETH_DRIVER_VERSION ")";
 

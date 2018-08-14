@@ -33,8 +33,8 @@
 #include <linux/sched.h>
 
 #define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "1.23.0 (03 Mar 2015)"
-#define DRIVER_RELDATE "03 Mar 2015"
+#define DRIVER_VERSION "3.2.1"
+#define DRIVER_RELDATE "August 2018"
 
 extern int mlx5_core_debug_mask;
 

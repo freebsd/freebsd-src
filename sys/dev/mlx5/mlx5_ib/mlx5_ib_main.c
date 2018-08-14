@@ -50,8 +50,8 @@
 #include <sys/unistd.h>
 
 #define DRIVER_NAME "mlx5_ib"
-#define DRIVER_VERSION "3.2-rc1"
-#define DRIVER_RELDATE	"May 2016"
+#define DRIVER_VERSION "3.2.1"
+#define DRIVER_RELDATE	"August 2018"
 
 #undef MODULE_VERSION
 #include <sys/module.h>
