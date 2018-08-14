@@ -136,6 +136,7 @@ frag6_init(void)
 		mtx_init(&V_ip6q[i].lock, "ip6qlock", NULL, MTX_DEF);
 	}
 	V_ip6q_hashseed = arc4random();
+	V_ip6_maxfragsperpacket = 64;
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
@@ -533,6 +534,7 @@ insert:
 	/*
 	 * Stick new segment in its place;
 	 * check for complete reassembly.
+	 * If not complete, check fragment limit.
 	 * Move to front of packet queue, as we are
 	 * the most recently active fragmented packet.
 	 */
@@ -549,12 +551,20 @@ insert:
 	for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 	     af6 = af6->ip6af_down) {
 		if (af6->ip6af_off != next) {
+			if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
+				IP6STAT_INC(ip6s_fragdropped);
+				frag6_freef(q6, hash);
+			}
 			IP6Q_UNLOCK(hash);
 			return IPPROTO_DONE;
 		}
 		next += af6->ip6af_frglen;
 	}
 	if (af6->ip6af_up->ip6af_mff) {
+		if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
+			IP6STAT_INC(ip6s_fragdropped);
+			frag6_freef(q6, hash);
+		}
 		IP6Q_UNLOCK(hash);
 		return IPPROTO_DONE;
 	}

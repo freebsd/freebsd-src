@@ -386,6 +386,7 @@ VNET_DEFINE(int, ip6_norbit_raif) = 0;
 VNET_DEFINE(int, ip6_rfc6204w3) = 0;
 VNET_DEFINE(int, ip6_maxfragpackets);	/* initialized in frag6.c:frag6_init() */
 int ip6_maxfrags;		/* initialized in frag6.c:frag6_init() */
+VNET_DEFINE(int, ip6_maxfragsperpacket); /* initialized in frag6.c:frag6_init() */
 VNET_DEFINE(int, ip6_log_interval) = 5;
 VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
 					 * process? */
@@ -563,6 +564,9 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
 	"Maximum allowed number of outstanding IPv6 packet fragments. "
 	"A value of 0 means no fragmented packets will be accepted, while a "
 	"a value of -1 means no limit");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGSPERPACKET, maxfragsperpacket,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragsperpacket), 0,
+	"Maximum allowed number of fragments per packet");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_mcast_pmtu), 0,
 	"Enable path MTU discovery for multicast packets");
