@@ -385,7 +385,7 @@ VNET_DEFINE(int, ip6_no_radr) = 0;
 VNET_DEFINE(int, ip6_norbit_raif) = 0;
 VNET_DEFINE(int, ip6_rfc6204w3) = 0;
 VNET_DEFINE(int, ip6_maxfragpackets);	/* initialized in frag6.c:frag6_init() */
-VNET_DEFINE(int, ip6_maxfrags);		/* initialized in frag6.c:frag6_init() */
+int ip6_maxfrags;		/* initialized in frag6.c:frag6_init() */
 VNET_DEFINE(int, ip6_log_interval) = 5;
 VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
 					 * process? */
@@ -559,8 +559,10 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE, use_defaultzone,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_defzone), 0,
 	"Use the default scope zone when none is specified");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfrags), 0,
-	"Maximum allowed number of outstanding IPv6 packet fragments");
+	CTLFLAG_RW, &ip6_maxfrags, 0,
+	"Maximum allowed number of outstanding IPv6 packet fragments. "
+	"A value of 0 means no fragmented packets will be accepted, while a "
+	"a value of -1 means no limit");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_mcast_pmtu), 0,
 	"Enable path MTU discovery for multicast packets");
