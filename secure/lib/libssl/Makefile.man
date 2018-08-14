@@ -301,6 +301,7 @@ MLINKS+= SSL_alert_type_string.3 SSL_alert_desc_string.3
 MLINKS+= SSL_alert_type_string.3 SSL_alert_desc_string_long.3
 MLINKS+= SSL_alert_type_string.3 SSL_alert_type_string_long.3
 MLINKS+= SSL_get_ciphers.3 SSL_get_cipher_list.3
+MLINKS+= SSL_get_ciphers.3 SSL_get_shared_ciphers.3
 MLINKS+= SSL_get_client_CA_list.3 SSL_CTX_get_client_CA_list.3
 MLINKS+= SSL_get_current_cipher.3 SSL_get_cipher.3
 MLINKS+= SSL_get_current_cipher.3 SSL_get_cipher_bits.3
