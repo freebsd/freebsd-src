@@ -210,7 +210,6 @@ int	set_cpufuncs		(void);
 void	cpufunc_nullop		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpu_domains		(u_int domains);
-u_int	cpu_pfr			(int);
 
 #if defined(CPU_ARM9E)
 void	arm9_tlb_flushID_SE	(u_int va);
