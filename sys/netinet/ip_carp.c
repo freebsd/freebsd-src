@@ -1423,6 +1423,7 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
+		in6m_acquire(in6m);
 		im6o->im6o_membership[0] = in6m;
 		im6o->im6o_num_memberships++;
 
@@ -1444,6 +1445,7 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
+		in6m_acquire(in6m);
 		im6o->im6o_membership[1] = in6m;
 		im6o->im6o_num_memberships++;
 		break;
