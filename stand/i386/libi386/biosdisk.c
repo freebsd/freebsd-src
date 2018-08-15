@@ -451,17 +451,11 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
 	uint64_t		disk_blocks;
 	int			blks, rc;
-#ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
-	char		fragbuf[BIOSDISK_SECSIZE];
-	size_t		fragsize;
 
-	fragsize = size % BIOSDISK_SECSIZE;
-#else
 	if (size % BD(dev).bd_sectorsize) {
 		panic("bd_strategy: %d bytes I/O not multiple of block size",
 		    size);
 	}
-#endif
 
 	DEBUG("open_disk %p", dev);
 
@@ -520,15 +514,6 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			}
 			return (EIO);
 		}
-#ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
-		DEBUG("bd_strategy: frag read %d from %d+%d to %p",
-		    fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
-		if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
-			DEBUG("frag read error");
-			return (EIO);
-		}
-		bcopy(fragbuf, buf + (blks * BIOSDISK_SECSIZE), fragsize);
-#endif
 		break;
 	case F_WRITE :
 		DEBUG("write %d from %lld to %p", blks, dblk, buf);
@@ -537,12 +522,6 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			DEBUG("write error");
 			return (EIO);
 		}
-#ifdef BD_SUPPORT_FRAGS
-		if (fragsize) {
-			DEBUG("Attempted to write a frag");
-			return (EIO);
-		}
-#endif
 		break;
 	default:
 		/* DO NOTHING */
