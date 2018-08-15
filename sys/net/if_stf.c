@@ -139,7 +139,6 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RWTUN,
 
 struct stf_softc {
 	struct ifnet	*sc_ifp;
-	struct mtx	sc_ro_mtx;
 	u_int	sc_fibnum;
 	const struct encaptab *encap_cookie;
 };
@@ -147,10 +146,6 @@ struct stf_softc {
 
 static const char stfname[] = "stf";
 
-/*
- * Note that mutable fields in the softc are not currently locked.
- * We do lock sc_ro in stf_output though.
- */
 static MALLOC_DEFINE(M_STF, stfname, "6to4 Tunnel Interface");
 static const int ip_stf_ttl = 40;
 
@@ -253,7 +248,6 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_dname = stfname;
 	ifp->if_dunit = IF_DUNIT_NONE;
 
-	mtx_init(&(sc)->sc_ro_mtx, "stf ro", NULL, MTX_DEF);
 	sc->encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV6,
 	    stf_encapcheck, &in_stf_protosw, sc);
 	if (sc->encap_cookie == NULL) {
@@ -280,7 +274,6 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 
 	err = encap_detach(sc->encap_cookie);
 	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
-	mtx_destroy(&(sc)->sc_ro_mtx);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
