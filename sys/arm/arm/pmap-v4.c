@@ -252,14 +252,6 @@ pt_entry_t	pte_l2_s_cache_mode;
 pt_entry_t	pte_l2_s_cache_mode_pt;
 pt_entry_t	pte_l2_s_cache_mask;
 
-pt_entry_t	pte_l2_s_prot_u;
-pt_entry_t	pte_l2_s_prot_w;
-pt_entry_t	pte_l2_s_prot_mask;
-
-pt_entry_t	pte_l1_s_proto;
-pt_entry_t	pte_l1_c_proto;
-pt_entry_t	pte_l2_s_proto;
-
 /*
  * Crashdump maps.
  */
@@ -474,14 +466,6 @@ pmap_pte_init_generic(void)
 		pte_l2_l_cache_mode_pt = L2_C;
 		pte_l2_s_cache_mode_pt = L2_C;
 	}
-
-	pte_l2_s_prot_u = L2_S_PROT_U_generic;
-	pte_l2_s_prot_w = L2_S_PROT_W_generic;
-	pte_l2_s_prot_mask = L2_S_PROT_MASK_generic;
-
-	pte_l1_s_proto = L1_S_PROTO_generic;
-	pte_l1_c_proto = L1_C_PROTO_generic;
-	pte_l2_s_proto = L2_S_PROTO_generic;
 }
 
 /*

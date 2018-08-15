@@ -392,14 +392,6 @@ extern pt_entry_t		pte_l1_s_cache_mode_pt;
 extern pt_entry_t		pte_l2_l_cache_mode_pt;
 extern pt_entry_t		pte_l2_s_cache_mode_pt;
 
-extern pt_entry_t		pte_l2_s_prot_u;
-extern pt_entry_t		pte_l2_s_prot_w;
-extern pt_entry_t		pte_l2_s_prot_mask;
-
-extern pt_entry_t		pte_l1_s_proto;
-extern pt_entry_t		pte_l1_c_proto;
-extern pt_entry_t		pte_l2_s_proto;
-
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
     vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
