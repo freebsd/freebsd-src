@@ -258,15 +258,9 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	struct i386_devdesc *dev;
 	int unit;
 	int blks;
-#ifdef BD_SUPPORT_FRAGS
-	char fragbuf[BIOSCD_SECSIZE];
-	size_t fragsize;
 
-	fragsize = size % BIOSCD_SECSIZE;
-#else
 	if (size % BIOSCD_SECSIZE)
 		return (EINVAL);
-#endif
 
 	if ((rw & F_MASK) != F_READ)
 		return(EROFS);
@@ -290,20 +284,6 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			return (0);
 		}
 	}
-#ifdef BD_SUPPORT_FRAGS
-	DEBUG("frag read %d from %lld+%d to %p", 
-	    fragsize, dblk, blks, buf + (blks * BIOSCD_SECSIZE));
-	if (fragsize && bc_read(unit, dblk + blks, 1, fragbuf) != 1) {
-		if (blks) {
-			if (rsize)
-				*rsize = blks * BIOSCD_SECSIZE;
-			return (0);
-		}
-		DEBUG("frag read error");
-		return(EIO);
-	}
-	bcopy(fragbuf, buf + (blks * BIOSCD_SECSIZE), fragsize);
-#endif	
 	if (rsize)
 		*rsize = size;
 	return (0);
