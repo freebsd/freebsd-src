@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2018
+.Dd August 15, 2018
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -104,6 +104,13 @@ option of
 .Xr make 1
 or in
 .Xr environ 7 .
+In the case of world and kernel builds it is possible to put these variables
+into
+.Xr src.conf 5
+instead of
+.Nm .
+This way the environment for documentation and ports builds is not polluted
+by unrelated variables.
 .Pp
 The following lists provide a name and short description for each
 variable you can use during the indicated builds.
