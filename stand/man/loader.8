@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2018
+.Dd August 15, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -945,6 +945,42 @@ version at compile time.
 .Nm
 version.
 .El
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet -compact
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
 .Sh FILES
 .Bl -tag -width /usr/share/examples/bootforth/ -compact
 .It Pa /boot/loader
