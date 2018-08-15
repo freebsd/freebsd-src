@@ -91,6 +91,8 @@ static struct bdinfo
 static int nbdinfo = 0;
 
 #define	BD(dev)		(bdinfo[(dev)->dd.d_unit])
+#define	BD_RD		0
+#define	BD_WR		1
 
 static void bd_io_workaround(struct disk_devdesc *dev);
 
@@ -503,7 +505,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	case F_READ:
 		DEBUG("read %d from %lld to %p", blks, dblk, buf);
 
-		if (blks && (rc = bd_io(dev, dblk, blks, buf, 0))) {
+		if (blks && (rc = bd_io(dev, dblk, blks, buf, BD_RD))) {
 			/* Filter out floppy controller errors */
 			if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
 				printf("read %d from %lld to %p, error: 0x%x\n",
@@ -515,7 +517,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	case F_WRITE :
 		DEBUG("write %d from %lld to %p", blks, dblk, buf);
 
-		if (blks && bd_io(dev, dblk, blks, buf, 1)) {
+		if (blks && bd_io(dev, dblk, blks, buf, BD_WR)) {
 			DEBUG("write error");
 			return (EIO);
 		}
@@ -544,7 +546,7 @@ bd_edd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
 	/* Should we Write with verify ?? 0x4302 ? */
-	if (dowrite)
+	if (dowrite == BD_WR)
 		v86.eax = 0x4300;
 	else
 		v86.eax = 0x4200;
@@ -580,7 +582,7 @@ bd_chs_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
-	if (dowrite)
+	if (dowrite == BD_WR)
 		v86.eax = 0x300 | blks;
 	else
 		v86.eax = 0x200 | blks;
@@ -668,7 +670,7 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 		 * Put your Data In, Put your Data out,
 		 * Put your Data In, and shake it all about 
 		 */
-		if (dowrite && bbuf != NULL)
+		if (dowrite == BD_WR && bbuf != NULL)
 			bcopy(p, bbuf, x * BD(dev).bd_sectorsize);
 
 		/*
@@ -693,7 +695,7 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 				break;
 		}
 
-		if (dowrite)
+		if (dowrite == BD_WR)
 			DEBUG("Write %d sector(s) from %p (0x%x) to %lld %s", x,
 			    p, VTOP(p), dblk, result ? "failed" : "ok");
 		else
@@ -702,7 +704,7 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 		if (result) {
 			return (result);
 		}
-		if (!dowrite && bbuf != NULL)
+		if (dowrite == BD_RD && bbuf != NULL)
 			bcopy(bbuf, p, x * BD(dev).bd_sectorsize);
 		p += (x * BD(dev).bd_sectorsize);
 		dblk += x;
