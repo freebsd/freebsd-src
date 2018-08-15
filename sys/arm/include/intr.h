@@ -68,14 +68,9 @@ int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 #else /* INTRNG */
 
 /* XXX move to std.* files? */
-#ifdef CPU_XSCALE_81342
-#define NIRQ		128
-#elif defined(CPU_XSCALE_PXA2X0)
-#include <arm/xscale/pxa/pxareg.h>
-#define	NIRQ		IRQ_GPIO_MAX
-#elif defined(SOC_MV_DISCOVERY)
+#if defined(SOC_MV_DISCOVERY)
 #define NIRQ		96
-#elif defined(CPU_ARM9) || defined(SOC_MV_KIRKWOOD)
+#elif defined(SOC_MV_KIRKWOOD)
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		1020
