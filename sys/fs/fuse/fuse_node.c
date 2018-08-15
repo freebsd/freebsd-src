@@ -97,37 +97,48 @@ MALLOC_DEFINE(M_FUSEVN, "fuse_vnode", "fuse vnode private data");
 static int fuse_node_count = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, node_count, CTLFLAG_RD,
-    &fuse_node_count, 0, "");
+    &fuse_node_count, 0, "Count of FUSE vnodes");
 
 int	fuse_data_cache_enable = 1;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, data_cache_enable, CTLFLAG_RW,
-    &fuse_data_cache_enable, 0, "");
+    &fuse_data_cache_enable, 0,
+    "enable caching of FUSE file data (including dirty data)");
 
 int	fuse_data_cache_invalidate = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, data_cache_invalidate, CTLFLAG_RW,
-    &fuse_data_cache_invalidate, 0, "");
+    &fuse_data_cache_invalidate, 0,
+    "If non-zero, discard cached clean file data when there are no active file"
+    " users");
 
 int	fuse_mmap_enable = 1;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, mmap_enable, CTLFLAG_RW,
-    &fuse_mmap_enable, 0, "");
+    &fuse_mmap_enable, 0,
+    "If non-zero, and data_cache_enable is also non-zero, enable mmap(2) of "
+    "FUSE files");
 
 int	fuse_refresh_size = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, refresh_size, CTLFLAG_RW,
-    &fuse_refresh_size, 0, "");
+    &fuse_refresh_size, 0,
+    "If non-zero, and no dirty file extension data is buffered, fetch file "
+    "size before write operations");
 
 int	fuse_sync_resize = 1;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, sync_resize, CTLFLAG_RW,
-    &fuse_sync_resize, 0, "");
+    &fuse_sync_resize, 0,
+    "If a cached write extended a file, inform FUSE filesystem of the changed"
+    "size immediately subsequent to the issued writes");
 
 int	fuse_fix_broken_io = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, fix_broken_io, CTLFLAG_RW,
-    &fuse_fix_broken_io, 0, "");
+    &fuse_fix_broken_io, 0,
+    "If non-zero, print a diagnostic warning if a userspace filesystem returns"
+    " EIO on reads of recently extended portions of files");
 
 static void
 fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
@@ -336,7 +347,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	fsai->valid = 0;
 
 	/* Truncate to a new value. */
-	    fsai->size = fvdat->filesize;
+	fsai->size = fvdat->filesize;
 	fsai->valid |= FATTR_SIZE;
 
 	fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh);
