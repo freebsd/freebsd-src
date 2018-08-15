@@ -379,27 +379,6 @@ do {									\
 		cpu_drain_writebuf();					\
 } while (/*CONSTCOND*/0)
 
-extern pt_entry_t		pte_l1_s_cache_mode;
-extern pt_entry_t		pte_l1_s_cache_mask;
-
-extern pt_entry_t		pte_l2_l_cache_mode;
-extern pt_entry_t		pte_l2_l_cache_mask;
-
-extern pt_entry_t		pte_l2_s_cache_mode;
-extern pt_entry_t		pte_l2_s_cache_mask;
-
-extern pt_entry_t		pte_l1_s_cache_mode_pt;
-extern pt_entry_t		pte_l2_l_cache_mode_pt;
-extern pt_entry_t		pte_l2_s_cache_mode_pt;
-
-extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
-extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
-    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
-extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
-
-void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
-void	pmap_zero_page_generic(vm_paddr_t, int, int);
-
 void	pmap_pte_init_generic(void);
 
 #if defined(CPU_XSCALE_81342)
