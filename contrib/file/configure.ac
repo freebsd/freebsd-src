@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([file],[5.32],[christos@astron.com])
+AC_INIT([file],[5.34],[christos@astron.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -38,6 +38,11 @@ AC_MSG_CHECKING(for zlib support)
 AC_ARG_ENABLE(zlib,
 [AS_HELP_STRING([--disable-zlib], [disable zlib compression support @<:@default=auto@:>@])])
 AC_MSG_RESULT($enable_zlib)
+
+AC_MSG_CHECKING(for libseccomp support)
+AC_ARG_ENABLE(libseccomp,
+[AS_HELP_STRING([--disable-libseccomp], [disable libseccomp sandboxing @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_libseccomp)
 
 AC_MSG_CHECKING(for file formats in man section 5)
 AC_ARG_ENABLE(fsect-man5,
@@ -157,6 +162,9 @@ AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat getline ctime_r 
 dnl Checks for libraries
 if test "$enable_zlib" != "no"; then
   AC_CHECK_LIB(z, gzopen)
+fi
+if test "$enable_libseccomp" != "no"; then
+    AC_CHECK_LIB(seccomp, seccomp_init)
 fi
 if test "$MINGW" = 1; then
   AC_CHECK_LIB(gnurx,regexec,,AC_MSG_ERROR([libgnurx is required to build file(1) with MinGW]))

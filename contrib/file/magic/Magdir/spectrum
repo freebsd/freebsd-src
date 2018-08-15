@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: spectrum,v 1.7 2010/09/20 18:55:20 rrt Exp $
+# $File: spectrum,v 1.8 2017/09/11 23:51:12 christos Exp $
 # spectrum:  file(1) magic for Spectrum emulator files.
 #
 # John Elliott <jce@seasip.demon.co.uk>
@@ -52,3 +52,29 @@
 # Hard disk images
 0      string          RS-IDE\x1a      Spectrum .HDF hard disk image
 >7     byte            x               \b, version 0x%02x
+
+# SZX snapshots (fuse and spectaculator)
+# Martin M. S. Pedersen <martin@linux.com>
+# http://www.spectaculator.com/docs/zx-state/header.shtml
+#
+0      string		ZXST	       zx-state snapshot
+>4     byte		x	       version %d
+>5     byte		x	       \b.%d
+>>6    byte		0	       16k ZX Spectrum
+>>6    byte		1	       48k ZX Spectrum/ZX Spectrum+
+>>6    byte		2	       ZX Spectrum 128
+>>6    byte		3	       ZX Spectrum +2
+>>6    byte		4	       ZX Spectrum +2A/+2B
+>>6    byte		5	       ZX Spectrum +3
+>>6    byte		6	       ZX Spectrum +3e
+>>6    byte		7	       Pentagon 128
+>>6    byte		8	       Timex Sinclair TC2048
+>>6    byte		9	       Timex Sinclair TC2068
+>>6    byte	       10	       Scorpion ZS-256
+>>6    byte	       11	       ZX Spectrum SE
+>>6    byte	       12	       Timex Sinclair TS2068
+>>6    byte	       13	       Pentagon 512
+>>6    byte	       14	       Pentagon 1024
+>>6    byte	       15	       48k ZX Spectrum (NTSC)
+>>6    byte	       16	       ZX Spectrum 12Ke
+>>>7   byte		1	       (alternate timings)

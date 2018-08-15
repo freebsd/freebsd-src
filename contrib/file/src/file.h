@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.183 2017/08/28 13:39:18 christos Exp $
+ * @(#)$File: file.h,v 1.193 2018/05/24 18:09:17 christos Exp $
  */
 
 #ifndef __file_h__
@@ -144,6 +144,16 @@
 #define FILE_CHECK	1
 #define FILE_COMPILE	2
 #define FILE_LIST	3
+
+struct buffer {
+	int fd;
+	struct stat st;
+	const void *fbuf;
+	size_t flen;
+	off_t eoff;
+	void *ebuf;
+	size_t elen;
+};
 
 union VALUETYPE {
 	uint8_t b;
@@ -287,7 +297,7 @@ struct magic {
 #endif /* ENABLE_CONDITIONALS */
 
 	/* Word 4 */
-	uint32_t offset;	/* offset to magic number */
+	int32_t offset;		/* offset to magic number */
 	/* Word 5 */
 	int32_t in_offset;	/* offset from indirection */
 	/* Word 6 */
@@ -394,13 +404,16 @@ struct magic_set {
 		char *buf;		/* Accumulation buffer */
 		char *pbuf;		/* Printable buffer */
 	} o;
-	uint32_t offset;
+	uint32_t offset;		/* a copy of m->offset while we */
+					/* are working on the magic entry */
+	uint32_t eoffset;		/* offset from end of file */
 	int error;
 	int flags;			/* Control magic tests. */
 	int event_flags;		/* Note things that happened. */
 #define 		EVENT_HAD_ERR		0x01
 	const char *file;
 	size_t line;			/* current magic line number */
+	mode_t mode;			/* copy of current stat mode */
 
 	/* data for searches */
 	struct {
@@ -448,23 +461,20 @@ protected int file_replace(struct magic_set *, const char *, const char *);
 protected int file_printf(struct magic_set *, const char *, ...)
     __attribute__((__format__(__printf__, 2, 3)));
 protected int file_reset(struct magic_set *, int);
-protected int file_tryelf(struct magic_set *, int, const unsigned char *,
-    size_t);
-protected int file_trycdf(struct magic_set *, int, const unsigned char *,
-    size_t);
+protected int file_tryelf(struct magic_set *, const struct buffer *);
+protected int file_trycdf(struct magic_set *, const struct buffer *);
 #if HAVE_FORK
-protected int file_zmagic(struct magic_set *, int, const char *,
-    const unsigned char *, size_t);
+protected int file_zmagic(struct magic_set *, const struct buffer *,
+    const char *);
 #endif
-protected int file_ascmagic(struct magic_set *, const unsigned char *, size_t,
+protected int file_ascmagic(struct magic_set *, const struct buffer *,
     int);
 protected int file_ascmagic_with_encoding(struct magic_set *,
-    const unsigned char *, size_t, unichar *, size_t, const char *,
-    const char *, int);
-protected int file_encoding(struct magic_set *, const unsigned char *, size_t,
+    const struct buffer *, unichar *, size_t, const char *, const char *, int);
+protected int file_encoding(struct magic_set *, const struct buffer *,
     unichar **, size_t *, const char **, const char **, const char **);
-protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
-protected int file_softmagic(struct magic_set *, const unsigned char *, size_t,
+protected int file_is_tar(struct magic_set *, const struct buffer *);
+protected int file_softmagic(struct magic_set *, const struct buffer *,
     uint16_t *, uint16_t *, int, int);
 protected int file_apprentice(struct magic_set *, const char *, int);
 protected int buffer_apprentice(struct magic_set *, struct magic **,
@@ -496,6 +506,10 @@ protected char * file_printable(char *, size_t, const char *);
 protected int file_os2_apptype(struct magic_set *, const char *, const void *,
     size_t);
 #endif /* __EMX__ */
+
+protected void buffer_init(struct buffer *, int, const void *, size_t);
+protected void buffer_fini(struct buffer *);
+protected int buffer_fill(const struct buffer *);
 
 #if defined(HAVE_LOCALE_H)
 #include <locale.h>
@@ -589,6 +603,29 @@ struct tm *localtime_r(const time_t *, struct tm *);
 const char *fmtcheck(const char *, const char *) 
      __attribute__((__format_arg__(2)));
 #endif
+
+#ifdef HAVE_LIBSECCOMP
+// basic filter 
+// this mode should not interfere with normal operations
+// only some dangerous syscalls are blacklisted
+int enable_sandbox_basic(void);
+
+// enhanced filter 
+// this mode allows only the necessary syscalls used during normal operation
+// extensive testing required !!!
+int enable_sandbox_full(void);
+#endif
+
+protected const char *file_getprogname(void);
+protected void file_setprogname(const char *);
+protected void file_err(int, const char *, ...)
+    __attribute__((__format__(__printf__, 2, 3), __noreturn__));
+protected void file_errx(int, const char *, ...)
+    __attribute__((__format__(__printf__, 2, 3), __noreturn__));
+protected void file_warn(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+protected void file_warnx(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
 
 #if defined(HAVE_MMAP) && defined(HAVE_SYS_MMAN_H) && !defined(QUICK)
 #define QUICK

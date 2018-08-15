@@ -1,13 +1,12 @@
 ## README for file(1) Command ##
 
-    @(#) $File: README,v 1.50 2016/04/16 22:40:54 christos Exp $
+    @(#) $File: README,v 1.54 2018/05/30 03:06:56 christos Exp $
 
-Mailing List: file@mx.gw.com  
-Mailing List archives: http://mx.gw.com/pipermail/file/  
-Bug tracker: http://bugs.gw.com/  
+Mailing List: file@astron.com
+Mailing List archives: http://mailman.astron.com/pipermail/file/
+Bug tracker: http://bugs.astron.com/
 E-mail: christos@astron.com
-
-[![Build Status](https://travis-ci.org/file/file.png?branch=master)](https://travis-ci.org/file/file)
+Build Status: https://travis-ci.org/file/file
 
 Phone: Do not even think of telephoning me about this program. Send cash first!
 
@@ -67,28 +66,6 @@ in magic(5) format please, to the maintainer, Christos Zoulas.
 COPYING - read this first.  
 README - read this second (you are currently reading this file).  
 INSTALL - read on how to install
-src/localtime_r.c
-src/magic.c
-src/magic.h
-src/mygetopt.h
-src/newtest2.c
-src/newtest3.c
-src/pread.c
-src/print.c
-src/readcdf.c
-src/readelf.c
-src/readelf.h
-src/regex.c
-src/regex2.c
-src/softmagic.c
-src/strcasestr.c
-src/strlcat.c
-src/strlcpy.c
-src/strndup.c
-src/tar.h
-src/teststrchr.c
-src/vasprintf.c
-src/x.c
 src/apprentice.c - parses /etc/magic to learn magic  
 src/apptype.c - used for OS/2 specific application type magic  
 src/ascmagic.c - third & last set of tests, based on hardwired assumptions.  
@@ -96,6 +73,7 @@ src/asctime_r.c - replacement for OS's that don't have it.
 src/asprintf.c - replacement for OS's that don't have it.  
 src/asctime_r.c - replacement for OS's that don't have it.  
 src/asprintf.c - replacement for OS's that don't have it.  
+src/buffer.c - buffer handling functions.
 src/cdf.[ch] - parser for Microsoft Compound Document Files  
 src/cdf_time.c - time converter for CDF.  
 src/compress.c - handles decompressing files to look inside.  
@@ -128,6 +106,7 @@ src/mygetopt.h - replacement for OS's that don't have it.
 src/strcasestr.c - replacement for OS's that don't have it.  
 src/strlcat.c - replacement for OS's that don't have it.  
 src/strlcpy.c - replacement for OS's that don't have it.  
+src/strndup.c - replacement for OS's that don't have it.  
 src/tar.h - tar file definitions
 src/vasprintf.c - for systems that don't have it.  
 doc/file.man - man page for the command  
@@ -155,6 +134,19 @@ guidelines:
   * Further reference, such as documentation of format
 
 ------------------------------------------------------------------------------
+
+gpg for dummies:
+
+$ gpg --verify file-X.YY.tar.gz.asc file-X.YY.tar.gz
+gpg: assuming signed data in `file-X.YY.tar.gz'
+gpg: Signature made WWW MMM DD HH:MM:SS YYYY ZZZ using DSA key ID KKKKKKKK
+
+To download the key:
+
+$ gpg --keyserver hkp://keys.gnupg.net --recv-keys KKKKKKKK
+
+------------------------------------------------------------------------------
+
 
 Parts of this software were developed at SoftQuad Inc., developers
 of SGML/HTML/XML publishing software, in Toronto, Canada.
