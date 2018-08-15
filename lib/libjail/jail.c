@@ -513,7 +513,18 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 				}
 				jiov[i - 1].iov_base = nname;
 				jiov[i - 1].iov_len = strlen(nname) + 1;
-				
+			}
+			/*
+			 * Load filesystem modules associated with allow.mount
+			 * permissions.  Ignore failure, since the module may
+			 * be static, and even a failure to load is not a jail
+			 * error.
+			 */
+			if (strncmp(jp[j].jp_name, "allow.mount.", 12) == 0) {
+				if (kldload(jp[j].jp_name + 12) < 0 &&
+				    errno == ENOENT &&
+				    strncmp(jp[j].jp_name + 12, "no", 2) == 0)
+					(void)kldload(jp[j].jp_name + 14);
 			}
 		} else {
 			/*
