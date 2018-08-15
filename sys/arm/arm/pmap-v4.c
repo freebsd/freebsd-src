@@ -447,7 +447,6 @@ kernel_pt_lookup(vm_paddr_t pa)
 	return (0);
 }
 
-#if ARM_MMU_GENERIC != 0
 void
 pmap_pte_init_generic(void)
 {
@@ -484,8 +483,6 @@ pmap_pte_init_generic(void)
 	pte_l1_c_proto = L1_C_PROTO_generic;
 	pte_l2_s_proto = L2_S_PROTO_generic;
 }
-
-#endif /* ARM_MMU_GENERIC != 0 */
 
 /*
  * Allocate an L1 translation table for the specified pmap.
@@ -3771,7 +3768,6 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_CORE3)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
@@ -3798,7 +3794,6 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 
 	mtx_unlock(&cmtx);
 }
-#endif /* ARM_MMU_GENERIC != 0 */
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping
@@ -3930,7 +3925,6 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if ARM_MMU_GENERIC != 0 || defined (CPU_XSCALE_CORE3)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
@@ -3995,7 +3989,6 @@ pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
 	cpu_l2cache_inv_range(csrcp + a_offs, cnt);
 	cpu_l2cache_wbinv_range(cdstp + b_offs, cnt);
 }
-#endif /* ARM_MMU_GENERIC != 0 */
 
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)

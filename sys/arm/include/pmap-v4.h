@@ -53,22 +53,6 @@
 #include <machine/pte-v4.h>
 
 /*
- * Define the MMU types we support based on the cpu types.  While the code has
- * some theoretical support for multiple MMU types in a single kernel, there are
- * no actual working configurations that use that feature.
- */
-#if defined(CPU_ARM9E)
-#define	ARM_MMU_GENERIC		1
-#else
-#define	ARM_MMU_GENERIC		0
-#endif
-
-#define	ARM_NMMUS		(ARM_MMU_GENERIC)
-#if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
-#error ARM_NMMUS is 0
-#endif
-
-/*
  * Pte related macros
  */
 #define PTE_NOCACHE	1
@@ -306,21 +290,6 @@ extern int pmap_needs_pte_sync;
  */
 #define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
 
-#if ARM_NMMUS > 1
-/* More than one MMU class configured; use variables. */
-#define	L2_S_PROT_U		pte_l2_s_prot_u
-#define	L2_S_PROT_W		pte_l2_s_prot_w
-#define	L2_S_PROT_MASK		pte_l2_s_prot_mask
-
-#define	L1_S_CACHE_MASK		pte_l1_s_cache_mask
-#define	L2_L_CACHE_MASK		pte_l2_l_cache_mask
-#define	L2_S_CACHE_MASK		pte_l2_s_cache_mask
-
-#define	L1_S_PROTO		pte_l1_s_proto
-#define	L1_C_PROTO		pte_l1_c_proto
-#define	L2_S_PROTO		pte_l2_s_proto
-
-#elif ARM_MMU_GENERIC != 0
 #define	L2_S_PROT_U		L2_S_PROT_U_generic
 #define	L2_S_PROT_W		L2_S_PROT_W_generic
 #define	L2_S_PROT_MASK		L2_S_PROT_MASK_generic
@@ -332,8 +301,6 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROTO		L1_S_PROTO_generic
 #define	L1_C_PROTO		L1_C_PROTO_generic
 #define	L2_S_PROTO		L2_S_PROTO_generic
-
-#endif /* ARM_NMMUS > 1 */
 
 #if defined(CPU_XSCALE_81342)
 #define CPU_XSCALE_CORE3
@@ -438,12 +405,10 @@ extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
     vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
 void	pmap_pte_init_generic(void);
-#endif /* ARM_MMU_GENERIC != 0 */
 
 #if defined(CPU_XSCALE_81342)
 #define ARM_HAVE_SUPERSECTIONS
