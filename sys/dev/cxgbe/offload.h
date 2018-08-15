@@ -169,11 +169,13 @@ struct tid_info {
 	 */
 	struct mtx hftid_lock __aligned(CACHE_LINE_SIZE);
 	struct cv hftid_cv;
-	union {
-		void **hftid_tab;
-		void **tid_tab;
-	};
+	void **tid_tab;
 	u_int tids_in_use;
+
+	void *hftid_hash_4t;	/* LIST_HEAD(, filter_entry) *hftid_hash_4t; */
+	u_long hftid_4t_mask;
+	void *hftid_hash_tid;	/* LIST_HEAD(, filter_entry) *hftid_hash_tid; */
+	u_long hftid_tid_mask;
 
 	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
 	union etid_entry *etid_tab;
