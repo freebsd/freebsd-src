@@ -428,7 +428,6 @@ void vector_page_setprot(int);
 
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
-void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
 void	pmap_postinit(void);
 
 #endif	/* _KERNEL */
