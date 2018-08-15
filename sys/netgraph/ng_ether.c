@@ -314,7 +314,8 @@ ng_ether_attach(struct ifnet *ifp)
 	 * eiface nodes, which may be problematic due to naming
 	 * clashes.
 	 */
-	if ((node = ng_name2noderef(NULL, ifp->if_xname)) != NULL) {
+	ng_ether_sanitize_ifname(ifp->if_xname, name);
+	if ((node = ng_name2noderef(NULL, name)) != NULL) {
 		NG_NODE_UNREF(node);
 		return;
 	}
@@ -341,7 +342,6 @@ ng_ether_attach(struct ifnet *ifp)
 	priv->hwassist = ifp->if_hwassist;
 
 	/* Try to give the node the same name as the interface */
-	ng_ether_sanitize_ifname(ifp->if_xname, name);
 	if (ng_name_node(node, name) != 0)
 		log(LOG_WARNING, "%s: can't name node %s\n", __func__, name);
 }
