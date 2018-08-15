@@ -2371,25 +2371,6 @@ pmap_remove_pages(pmap_t pmap)
 
 /* Map a section into the KVA. */
 
-void
-pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
-{
-	pd_entry_t pd = L1_S_PROTO | pa | L1_S_PROT(PTE_KERNEL,
-	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
-	struct l1_ttable *l1;
-
-	KASSERT(((va | pa) & L1_S_OFFSET) == 0,
-	    ("Not a valid section mapping"));
-	if (flags & SECTION_CACHE)
-		pd |= pte_l1_s_cache_mode;
-	else if (flags & SECTION_PT)
-		pd |= pte_l1_s_cache_mode_pt;
-	SLIST_FOREACH(l1, &l1_list, l1_link) {
-		l1->l1_kva[L1_IDX(va)] = pd;
-		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
-	}
-}
-
 /*
  * Make a temporary mapping for a physical address.  This is only intended
  * to be used for panic dumps.
