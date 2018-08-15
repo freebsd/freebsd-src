@@ -190,7 +190,6 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_SUBVENDOR(ASUS_X556UR_SUBVENDOR),
 					PIN_SUBVENDOR(ASUS_X540LA_SUBVENDOR),
 					PIN_SUBVENDOR(ASUS_Z550MA_SUBVENDOR),
-					PIN_SUBVENDOR(ACER_F5_573G_SUBVENDOR),
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
