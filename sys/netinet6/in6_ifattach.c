@@ -863,6 +863,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
+		in6m_disconnect(inm);
 		in6m_rele_locked(&purgeinms, inm);
 		if (__predict_false(ifma6_restart)) {
 			ifma6_restart = false;
