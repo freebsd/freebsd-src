@@ -94,10 +94,7 @@ static int nbdinfo = 0;
 
 static void bd_io_workaround(struct disk_devdesc *dev);
 
-static int bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks,
-    caddr_t dest);
-static int bd_write(struct disk_devdesc *dev, daddr_t dblk, int blks,
-    caddr_t dest);
+static int bd_io(struct disk_devdesc *, daddr_t, int, caddr_t, int);
 static int bd_int13probe(struct bdinfo *bd);
 
 static int bd_init(void);
@@ -506,7 +503,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	case F_READ:
 		DEBUG("read %d from %lld to %p", blks, dblk, buf);
 
-		if (blks && (rc = bd_read(dev, dblk, blks, buf))) {
+		if (blks && (rc = bd_io(dev, dblk, blks, buf, 0))) {
 			/* Filter out floppy controller errors */
 			if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
 				printf("read %d from %lld to %p, error: 0x%x\n",
@@ -518,7 +515,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	case F_WRITE :
 		DEBUG("write %d from %lld to %p", blks, dblk, buf);
 
-		if (blks && bd_write(dev, dblk, blks, buf)) {
+		if (blks && bd_io(dev, dblk, blks, buf, 1)) {
 			DEBUG("write error");
 			return (EIO);
 		}
@@ -713,20 +710,6 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 	}
 
 	return (0);
-}
-
-static int
-bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
-{
-
-	return (bd_io(dev, dblk, blks, dest, 0));
-}
-
-static int
-bd_write(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
-{
-
-	return (bd_io(dev, dblk, blks, dest, 1));
 }
 
 /*
