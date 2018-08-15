@@ -37,7 +37,6 @@ WFORMAT=0
 
 CLEANFILES+= mknodes mksyntax
 CLEANFILES+= ${GENSRCS} ${GENHDRS}
-LINKS=	/root/.profile /.profile
 
 build-tools: mknodes mksyntax
 
@@ -66,5 +65,8 @@ SUBDIR.${MK_TESTS}+= tests
 
 beforeinstall:
 	rm -f ${DESTDIR}/.profile
+
+afterinstallconfig:
+	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 
 .include <bsd.prog.mk>
