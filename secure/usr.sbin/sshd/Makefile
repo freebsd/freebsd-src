@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+CONFS=	moduli sshd_config
+CONFSDIR=	/etc/ssh
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c \
 	audit.c audit-bsm.c audit-linux.c platform.c \
