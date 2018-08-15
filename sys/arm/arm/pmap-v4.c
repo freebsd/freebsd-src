@@ -260,12 +260,6 @@ pt_entry_t	pte_l1_s_proto;
 pt_entry_t	pte_l1_c_proto;
 pt_entry_t	pte_l2_s_proto;
 
-void		(*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
-void		(*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
-		    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs,
-		    int cnt);
-void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
-
 /*
  * Crashdump maps.
  */
@@ -489,10 +483,6 @@ pmap_pte_init_generic(void)
 	pte_l1_s_proto = L1_S_PROTO_generic;
 	pte_l1_c_proto = L1_C_PROTO_generic;
 	pte_l2_s_proto = L2_S_PROTO_generic;
-
-	pmap_copy_page_func = pmap_copy_page_generic;
-	pmap_copy_page_offs_func = pmap_copy_page_offs_generic;
-	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
 #endif /* ARM_MMU_GENERIC != 0 */
@@ -3817,7 +3807,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page(vm_page_t m)
 {
-	pmap_zero_page_func(VM_PAGE_TO_PHYS(m), 0, PAGE_SIZE);
+	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), 0, PAGE_SIZE);
 }
 
 
@@ -3831,7 +3821,7 @@ void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 
-	pmap_zero_page_func(VM_PAGE_TO_PHYS(m), off, size);
+	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), off, size);
 }
 
 
@@ -4017,7 +4007,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst),
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
-	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
+	pmap_copy_page_generic(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
 /*
@@ -4045,7 +4035,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg = mb[b_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		pmap_copy_page_offs_func(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
+		pmap_copy_page_offs_generic(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
 		    VM_PAGE_TO_PHYS(b_pg), b_pg_offset, cnt);
 		xfersize -= cnt;
 		a_offset += cnt;
