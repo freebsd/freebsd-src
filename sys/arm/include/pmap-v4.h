@@ -464,16 +464,6 @@ void	pmap_zero_page_generic(vm_paddr_t, int, int);
 void	pmap_pte_init_generic(void);
 #endif /* ARM_MMU_GENERIC != 0 */
 
-#if ARM_MMU_XSCALE == 1
-void	pmap_copy_page_xscale(vm_paddr_t, vm_paddr_t);
-void	pmap_zero_page_xscale(vm_paddr_t, int, int);
-
-void	pmap_pte_init_xscale(void);
-
-void	xscale_setup_minidata(vm_offset_t, vm_offset_t, vm_offset_t);
-
-void	pmap_use_minicache(vm_offset_t, vm_size_t);
-#endif /* ARM_MMU_XSCALE == 1 */
 #if defined(CPU_XSCALE_81342)
 #define ARM_HAVE_SUPERSECTIONS
 #endif
