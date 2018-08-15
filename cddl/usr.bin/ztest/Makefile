@@ -25,4 +25,7 @@ CSTD=	c99
 # it without debugging.
 CFLAGS+= -g -DDEBUG=1 -Wno-format
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>

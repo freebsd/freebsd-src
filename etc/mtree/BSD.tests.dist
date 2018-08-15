@@ -67,6 +67,8 @@
         usr.bin
             ctfconvert
             ..
+            ztest
+            ..
         ..
         usr.sbin
             dtrace
