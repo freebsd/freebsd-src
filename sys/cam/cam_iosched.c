@@ -1311,7 +1311,9 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 	if (do_dynamic_iosched) {
 		/*
 		 * If pending read, prefer that based on current read bias
-		 * setting.
+		 * setting. The read bias is shared for both writes and
+		 * TRIMs, but on TRIMs the bias is for a combined TRIM
+		 * not a single TRIM request that's come in.
 		 */
 		if (bioq_first(&isc->bio_queue) && isc->current_read_bias) {
 			isc->current_read_bias--;
