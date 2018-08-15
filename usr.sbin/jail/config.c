@@ -73,6 +73,7 @@ static const struct ipspec intparams[] = {
     [IP_EXEC_POSTSTOP] =	{"exec.poststop",	PF_INTERNAL},
     [IP_EXEC_PRESTART] =	{"exec.prestart",	PF_INTERNAL},
     [IP_EXEC_PRESTOP] =		{"exec.prestop",	PF_INTERNAL},
+    [IP_EXEC_CREATED] =		{"exec.created",	PF_INTERNAL},
     [IP_EXEC_START] =		{"exec.start",		PF_INTERNAL},
     [IP_EXEC_STOP] =		{"exec.stop",		PF_INTERNAL},
     [IP_EXEC_SYSTEM_JAIL_USER]=	{"exec.system_jail_user",

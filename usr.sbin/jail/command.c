@@ -147,8 +147,8 @@ next_command(struct cfjail *j)
 		}
 		if (j->comstring == NULL || j->comstring->len == 0 ||
 		    (create_failed && (comparam == IP_EXEC_PRESTART ||
-		    comparam == IP_EXEC_START || comparam == IP_COMMAND ||
-		    comparam == IP_EXEC_POSTSTART)))
+		    comparam == IP_EXEC_CREATED || comparam == IP_EXEC_START ||
+		    comparam == IP_COMMAND || comparam == IP_EXEC_POSTSTART)))
 			continue;
 		switch (run_command(j)) {
 		case -1:
