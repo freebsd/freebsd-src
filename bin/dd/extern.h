@@ -47,7 +47,6 @@ void pos_out(void);
 double secs_elapsed(void);
 void progress(void);
 void summary(void);
-void progress(void);
 void sigalarm_handler(int);
 void siginfo_handler(int);
 void terminate(int);
