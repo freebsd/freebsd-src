@@ -193,6 +193,7 @@ lexi(struct parser_state *state)
 
     /* Scan an alphanumeric token */
     if (isalnum((unsigned char)*buf_ptr) ||
+	*buf_ptr == '_' || *buf_ptr == '$' ||
 	(buf_ptr[0] == '.' && isdigit((unsigned char)buf_ptr[1]))) {
 	/*
 	 * we have a character or number
@@ -222,7 +223,7 @@ lexi(struct parser_state *state)
 	else
 	    while (isalnum((unsigned char)*buf_ptr) ||
 	        *buf_ptr == BACKSLASH ||
-		*buf_ptr == '_') {
+		*buf_ptr == '_' || *buf_ptr == '$') {
 		/* fill_buffer() terminates buffer with newline */
 		if (*buf_ptr == BACKSLASH) {
 		    if (*(buf_ptr + 1) == '\n') {
