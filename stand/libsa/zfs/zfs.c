@@ -467,6 +467,7 @@ zfs_probe(int fd, uint64_t *pool_guid)
 	spa_t *spa;
 	int ret;
 
+	spa = NULL;
 	ret = vdev_probe(vdev_read, (void *)(uintptr_t)fd, &spa);
 	if (ret == 0 && pool_guid != NULL)
 		*pool_guid = spa->spa_guid;
