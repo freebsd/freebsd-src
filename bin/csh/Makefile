@@ -8,11 +8,8 @@
 
 .include <src.opts.mk>
 
-CONFGROUPS=	ETC ROOT
+CONFGROUPS=	ETC
 ETC=	csh.cshrc csh.login csh.logout
-ROOT=	dot.cshrc
-ROOTDIR=	/root
-ROOTNAME=	.cshrc
 PACKAGE=runtime
 TCSHDIR= ${SRCTOP}/contrib/tcsh
 .PATH: ${TCSHDIR}
@@ -152,12 +149,5 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h ${BUILD
 	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
 	    sort >> ${.TARGET}
 	@echo '#endif /* _h_tc_const */' >> ${.TARGET}
-
-beforeinstall:
-	rm -f ${DESTDIR}/.cshrc
-
-afterinstallconfig:
-	sed -i "" -e 's;/bin/sh;/bin/csh;' ${DESTDIR}/etc/master.passwd
-	pwd_mkdb -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 
 .include <bsd.prog.mk>
