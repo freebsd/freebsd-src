@@ -2369,36 +2369,6 @@ pmap_remove_pages(pmap_t pmap)
  * Low level mapping routines.....
  ***************************************************/
 
-#ifdef ARM_HAVE_SUPERSECTIONS
-/* Map a super section into the KVA. */
-
-void
-pmap_kenter_supersection(vm_offset_t va, uint64_t pa, int flags)
-{
-	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_FRAME) |
-	    (((pa >> 32) & 0xf) << 20) | L1_S_PROT(PTE_KERNEL,
-	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
-	struct l1_ttable *l1;
-	vm_offset_t va0, va_end;
-
-	KASSERT(((va | pa) & L1_SUP_OFFSET) == 0,
-	    ("Not a valid super section mapping"));
-	if (flags & SECTION_CACHE)
-		pd |= pte_l1_s_cache_mode;
-	else if (flags & SECTION_PT)
-		pd |= pte_l1_s_cache_mode_pt;
-	va0 = va & L1_SUP_FRAME;
-	va_end = va + L1_SUP_SIZE;
-	SLIST_FOREACH(l1, &l1_list, l1_link) {
-		va = va0;
-		for (; va < va_end; va += L1_S_SIZE) {
-			l1->l1_kva[L1_IDX(va)] = pd;
-			PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
-		}
-	}
-}
-#endif
-
 /* Map a section into the KVA. */
 
 void

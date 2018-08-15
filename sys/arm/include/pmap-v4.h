@@ -381,10 +381,6 @@ do {									\
 
 void	pmap_pte_init_generic(void);
 
-#if defined(CPU_XSCALE_81342)
-#define ARM_HAVE_SUPERSECTIONS
-#endif
-
 #define PTE_KERNEL	0
 #define PTE_USER	1
 #define	l1pte_valid(pde)	((pde) != 0)
@@ -433,10 +429,6 @@ void vector_page_setprot(int);
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
 void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
-#ifdef ARM_HAVE_SUPERSECTIONS
-void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
-#endif
-
 void	pmap_postinit(void);
 
 #endif	/* _KERNEL */
