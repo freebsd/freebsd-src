@@ -16,6 +16,21 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180814	p13	FreeBSD-SA-18:08.tcp [revised]
+			FreeBSD-SA-18:09.l1tf
+			FreeBSD-SA-18:10.ip
+			FreeBSD-SA-18:11.hostapd
+
+	Revise manual pages. [SA-18:08.tcp]
+
+	Fix L1 Terminal Fault (L1TF) kernel information disclosure.
+	[SA-18:09.l1tf]
+
+	Fix resource exhaustion in IP fragment reassembly. [SA-18:10.ip]
+
+	Fix unauthenticated EAPOL-Key decryption vulnerability.
+	[SA-18:11.hostapd]
+
 20180806	p12	FreeBSD-SA-18:08.tcp
 
 	Fix resource exhaustion in TCP reassembly.

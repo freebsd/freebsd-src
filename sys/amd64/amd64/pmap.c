@@ -1206,6 +1206,9 @@ pmap_init(void)
 	vm_size_t s;
 	int error, i, pv_npg;
 
+	/* L1TF, reserve page @0 unconditionally */
+	vm_page_blacklist_add(0, bootverbose);
+
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
