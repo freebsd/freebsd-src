@@ -240,17 +240,17 @@ static void		pmap_init_l1(struct l1_ttable *, pd_entry_t *);
  * them (though, they shouldn't).
  */
 
-pt_entry_t	pte_l1_s_cache_mode;
-pt_entry_t	pte_l1_s_cache_mode_pt;
-pt_entry_t	pte_l1_s_cache_mask;
+static pt_entry_t	pte_l1_s_cache_mode;
+static pt_entry_t	pte_l1_s_cache_mode_pt;
+static pt_entry_t	pte_l1_s_cache_mask;
 
-pt_entry_t	pte_l2_l_cache_mode;
-pt_entry_t	pte_l2_l_cache_mode_pt;
-pt_entry_t	pte_l2_l_cache_mask;
+static pt_entry_t	pte_l2_l_cache_mode;
+static pt_entry_t	pte_l2_l_cache_mode_pt;
+static pt_entry_t	pte_l2_l_cache_mask;
 
-pt_entry_t	pte_l2_s_cache_mode;
-pt_entry_t	pte_l2_s_cache_mode_pt;
-pt_entry_t	pte_l2_s_cache_mask;
+static pt_entry_t	pte_l2_s_cache_mode;
+static pt_entry_t	pte_l2_s_cache_mode_pt;
+static pt_entry_t	pte_l2_s_cache_mask;
 
 /*
  * Crashdump maps.
@@ -3752,7 +3752,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-void
+static void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
 
@@ -3909,7 +3909,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-void
+static void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
 #if 0
