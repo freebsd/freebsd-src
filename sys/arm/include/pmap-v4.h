@@ -57,19 +57,13 @@
  * some theoretical support for multiple MMU types in a single kernel, there are
  * no actual working configurations that use that feature.
  */
-#if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	defined(CPU_FA526))
+#if defined(CPU_ARM9E)
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if (defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_81342))
-#define	ARM_MMU_XSCALE		1
-#else
-#define	ARM_MMU_XSCALE		0
-#endif
-
-#define	ARM_NMMUS		(ARM_MMU_GENERIC + ARM_MMU_XSCALE)
+#define	ARM_NMMUS		(ARM_MMU_GENERIC)
 #if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NMMUS is 0
 #endif
@@ -338,19 +332,6 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROTO		L1_S_PROTO_generic
 #define	L1_C_PROTO		L1_C_PROTO_generic
 #define	L2_S_PROTO		L2_S_PROTO_generic
-
-#elif ARM_MMU_XSCALE == 1
-#define	L2_S_PROT_U		L2_S_PROT_U_xscale
-#define	L2_S_PROT_W		L2_S_PROT_W_xscale
-#define	L2_S_PROT_MASK		L2_S_PROT_MASK_xscale
-
-#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_xscale
-#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_xscale
-#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_xscale
-
-#define	L1_S_PROTO		L1_S_PROTO_xscale
-#define	L1_C_PROTO		L1_C_PROTO_xscale
-#define	L2_S_PROTO		L2_S_PROTO_xscale
 
 #endif /* ARM_NMMUS > 1 */
 
