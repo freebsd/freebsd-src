@@ -335,7 +335,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (rt_ifp->if_type == IFT_ETHER)
 		vi = rt_ifp->if_softc;
 	else if (rt_ifp->if_type == IFT_L2VLAN) {
-		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
+		struct ifnet *ifp = VLAN_TRUNKDEV(rt_ifp);
 
 		vi = ifp->if_softc;
 		VLAN_TAG(rt_ifp, &vid);

@@ -194,8 +194,6 @@ struct vi_info {
 	uint16_t rss_size;	/* size of VI's RSS table slice */
 	uint16_t rss_base;	/* start of VI's RSS table slice */
 
-	eventhandler_tag vlan_c;
-
 	int nintr;
 	int first_intr;
 
