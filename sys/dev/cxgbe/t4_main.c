@@ -1405,8 +1405,7 @@ t4_detach_common(device_t dev)
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
 	free(sc->tids.hpftid_tab, M_CXGBE);
-	if (sc->tids.hftid_tab)
-		free_hftid_tab(&sc->tids);
+	free_hftid_hash(&sc->tids);
 	free(sc->tids.atid_tab, M_CXGBE);
 	free(sc->tids.tid_tab, M_CXGBE);
 	free(sc->tt.tls_rx_ports, M_CXGBE);
