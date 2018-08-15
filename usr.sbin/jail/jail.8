@@ -706,6 +706,9 @@ The pseudo-parameters are:
 .Bl -tag -width indent
 .It Va exec.prestart
 Command(s) to run in the system environment before a jail is created.
+.It Va exec.created
+Command(s) to run in the system environment right after a jail has been
+created, but before commands (or services) get executed in the jail.
 .It Va exec.start
 Command(s) to run in the jail environment when a jail is created.
 A typical command to run is
