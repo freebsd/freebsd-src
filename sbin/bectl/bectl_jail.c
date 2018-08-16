@@ -57,7 +57,7 @@ static int bectl_locate_jail(const char *ident);
 static struct jailparam *jp;
 static int jpcnt;
 static int jpused;
-static char mnt_loc[BE_MAXPATHLEN + 1];
+static char mnt_loc[BE_MAXPATHLEN];
 
 static void
 jailparam_grow(void)
@@ -147,7 +147,7 @@ jailparam_addarg(char *arg)
 
 	*val++ = '\0';
 	if (strcmp(name, "path") == 0) {
-		if (strlen(val) > BE_MAXPATHLEN) {
+		if (strlen(val) >= BE_MAXPATHLEN) {
 			fprintf(stderr,
 			    "bectl jail: skipping too long path assignment '%s' (max length = %d)\n",
 			    val, BE_MAXPATHLEN);
@@ -283,7 +283,7 @@ bectl_cmd_jail(int argc, char *argv[])
 static int
 bectl_search_jail_paths(const char *mnt)
 {
-	char jailpath[MAXPATHLEN + 1];
+	char jailpath[MAXPATHLEN];
 	int jid;
 
 	jid = 0;
@@ -337,7 +337,7 @@ bectl_locate_jail(const char *ident)
 int
 bectl_cmd_unjail(int argc, char *argv[])
 {
-	char path[MAXPATHLEN + 1];
+	char path[MAXPATHLEN];
 	char *cmd, *name, *target;
 	int jid;
 
@@ -358,7 +358,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 		return (1);
 	}
 
-	bzero(&path, MAXPATHLEN + 1);
+	bzero(&path, MAXPATHLEN);
 	name = jail_getname(jid);
 	if (jail_getv(0, "name", name, "path", path, NULL) != jid) {
 		free(name);
