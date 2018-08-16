@@ -38,9 +38,9 @@
 struct libbe_handle {
 	libzfs_handle_t *lzh;
 	zpool_handle_t *active_phandle;
-	char root[BE_MAXPATHLEN + 1];
-	char rootfs[BE_MAXPATHLEN + 1];
-	char bootfs[BE_MAXPATHLEN + 1];
+	char root[BE_MAXPATHLEN];
+	char rootfs[BE_MAXPATHLEN];
+	char bootfs[BE_MAXPATHLEN];
 	be_error_t error;
 	bool print_on_err;
 };

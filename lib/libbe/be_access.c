@@ -64,12 +64,12 @@ be_mountcheck_cb(zfs_handle_t *zfs_hdl, void *data)
 int
 be_mounted_at(libbe_handle_t *lbh, const char *path, nvlist_t *details)
 {
-	char be[BE_MAXPATHLEN + 1];
+	char be[BE_MAXPATHLEN];
 	zfs_handle_t *root_hdl;
 	struct be_mountcheck_info info;
 	prop_data_t propinfo;
 
-	bzero(&be, BE_MAXPATHLEN + 1);
+	bzero(&be, BE_MAXPATHLEN);
 	if ((root_hdl = zfs_open(lbh->lzh, lbh->root,
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (BE_ERR_ZFSOPEN);
