@@ -374,7 +374,7 @@ main(int argc, char *argv[])
 		f_listdot = 1;
 
 	/* Enabling of colours is conditional on the environment. */
-	if ((getenv("CLICOLOR") || getenv("COLORTERM")) &&
+	if (getenv("CLICOLOR") &&
 	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
 #ifdef COLORLS
 		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
