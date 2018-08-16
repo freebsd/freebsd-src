@@ -849,9 +849,6 @@ struct kldsym_args {
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 };
-struct jail_args {
-	char jail_l_[PADL_(struct jail *)]; struct jail * jail; char jail_r_[PADR_(struct jail *)];
-};
 struct nnpfs_syscall_args {
 	char operation_l_[PADL_(int)]; int operation; char operation_r_[PADR_(int)];
 	char a_pathP_l_[PADL_(char *)]; char * a_pathP; char a_pathP_r_[PADR_(char *)];
@@ -1961,7 +1958,6 @@ int	sys_sched_get_priority_min(struct thread *, struct sched_get_priority_min_ar
 int	sys_sched_rr_get_interval(struct thread *, struct sched_rr_get_interval_args *);
 int	sys_utrace(struct thread *, struct utrace_args *);
 int	sys_kldsym(struct thread *, struct kldsym_args *);
-int	sys_jail(struct thread *, struct jail_args *);
 int	sys_nnpfs_syscall(struct thread *, struct nnpfs_syscall_args *);
 int	sys_sigprocmask(struct thread *, struct sigprocmask_args *);
 int	sys_sigsuspend(struct thread *, struct sigsuspend_args *);
@@ -2531,6 +2527,9 @@ struct freebsd11_fhstat_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
 	char sb_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * sb; char sb_r_[PADR_(struct freebsd11_stat *)];
 };
+struct freebsd11_jail_args {
+	char jail_l_[PADL_(struct jail *)]; struct jail * jail; char jail_r_[PADR_(struct jail *)];
+};
 struct freebsd11_kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char changelist_l_[PADL_(struct kevent_freebsd11 *)]; struct kevent_freebsd11 * changelist; char changelist_r_[PADR_(struct kevent_freebsd11 *)];
@@ -2579,6 +2578,7 @@ int	freebsd11_nstat(struct thread *, struct freebsd11_nstat_args *);
 int	freebsd11_nfstat(struct thread *, struct freebsd11_nfstat_args *);
 int	freebsd11_nlstat(struct thread *, struct freebsd11_nlstat_args *);
 int	freebsd11_fhstat(struct thread *, struct freebsd11_fhstat_args *);
+int	freebsd11_jail(struct thread *, struct freebsd11_jail_args *);
 int	freebsd11_kevent(struct thread *, struct freebsd11_kevent_args *);
 int	freebsd11_getfsstat(struct thread *, struct freebsd11_getfsstat_args *);
 int	freebsd11_statfs(struct thread *, struct freebsd11_statfs_args *);
@@ -2849,7 +2849,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_utrace	AUE_NULL
 #define	SYS_AUE_freebsd4_sendfile	AUE_SENDFILE
 #define	SYS_AUE_kldsym	AUE_NULL
-#define	SYS_AUE_jail	AUE_JAIL
+#define	SYS_AUE_freebsd11_jail	AUE_JAIL
 #define	SYS_AUE_nnpfs_syscall	AUE_NULL
 #define	SYS_AUE_sigprocmask	AUE_SIGPROCMASK
 #define	SYS_AUE_sigsuspend	AUE_SIGSUSPEND

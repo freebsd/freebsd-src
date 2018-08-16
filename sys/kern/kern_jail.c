@@ -74,6 +74,14 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+/*
+ * The old jail(2) interface will exist under COMPAT_FREEBSD11, but the global
+ * permission sysctls are slated to go away sometime (even with COMPAT).
+ */
+#if defined(COMPAT_FREEBSD11) && !defined(BURN_BRIDGES)
+#define PR_GLOBAL_ALLOW
+#endif
+
 #define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
@@ -199,9 +207,11 @@ const size_t pr_flag_allow_size = sizeof(pr_flag_allow);
 #define	JAIL_DEFAULT_ALLOW		(PR_ALLOW_SET_HOSTNAME | PR_ALLOW_RESERVED_PORTS)
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
 #define	JAIL_DEFAULT_DEVFS_RSNUM	0
+#ifdef PR_GLOBAL_ALLOW
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
 static int jail_default_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
 static int jail_default_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
+#endif
 #if defined(INET) || defined(INET6)
 static unsigned jail_max_af_ips = 255;
 #endif
@@ -219,13 +229,14 @@ prison0_init(void)
 	strlcpy(prison0.pr_osrelease, osrelease, sizeof(prison0.pr_osrelease));
 }
 
+#ifdef COMPAT_FREEBSD11
 /*
  * struct jail_args {
  *	struct jail *jail;
  * };
  */
 int
-sys_jail(struct thread *td, struct jail_args *uap)
+freebsd11_jail(struct thread *td, struct freebsd11_jail_args *uap)
 {
 	uint32_t version;
 	int error;
@@ -270,13 +281,16 @@ sys_jail(struct thread *td, struct jail_args *uap)
 		/* Sci-Fi jails are not supported, sorry. */
 		return (EINVAL);
 	}
-	return (kern_jail(td, &j));
+	return (freebsd11_kern_jail(td, &j));
 }
 
 int
-kern_jail(struct thread *td, struct jail *j)
+freebsd11_kern_jail(struct thread *td, struct jail *j)
 {
-	struct iovec optiov[2 * (4 + nitems(pr_flag_allow)
+	struct iovec optiov[2 * (3
+#ifdef PR_GLOBAL_ALLOW
+			    + 1 + nitems(pr_flag_allow)
+#endif
 #ifdef INET
 			    + 1
 #endif
@@ -286,7 +300,10 @@ kern_jail(struct thread *td, struct jail *j)
 			    )];
 	struct uio opt;
 	char *u_path, *u_hostname, *u_name;
+#ifdef PR_GLOBAL_ALLOW
 	struct bool_flags *bf;
+	int enforce_statfs;
+#endif
 #ifdef INET
 	uint32_t ip4s;
 	struct in_addr *u_ip4;
@@ -295,7 +312,7 @@ kern_jail(struct thread *td, struct jail *j)
 	struct in6_addr *u_ip6;
 #endif
 	size_t tmplen;
-	int error, enforce_statfs;
+	int error;
 
 	bzero(&optiov, sizeof(optiov));
 	opt.uio_iov = optiov;
@@ -306,6 +323,7 @@ kern_jail(struct thread *td, struct jail *j)
 	opt.uio_rw = UIO_READ;
 	opt.uio_td = td;
 
+#ifdef PR_GLOBAL_ALLOW
 	/* Set permissions for top-level jails from sysctls. */
 	if (!jailed(td->td_ucred)) {
 		for (bf = pr_flag_allow;
@@ -327,6 +345,7 @@ kern_jail(struct thread *td, struct jail *j)
 		optiov[opt.uio_iovcnt].iov_len = sizeof(enforce_statfs);
 		opt.uio_iovcnt++;
 	}
+#endif
 
 	tmplen = MAXPATHLEN + MAXHOSTNAMELEN + MAXHOSTNAMELEN;
 #ifdef INET
@@ -430,6 +449,7 @@ kern_jail(struct thread *td, struct jail *j)
 	free(u_path, M_TEMP);
 	return (error);
 }
+#endif /* COMPAT_FREEBSD11 */
 
 
 /*
@@ -1247,7 +1267,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
+#ifdef PR_GLOBAL_ALLOW
 		pr->pr_enforce_statfs = jail_default_enforce_statfs;
+#else
+		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
+#endif
 		pr->pr_devfs_rsnum = ppr->pr_devfs_rsnum;
 
 		pr->pr_osreldate = osreldt ? osreldt : ppr->pr_osreldate;
@@ -3415,6 +3439,7 @@ prison_path(struct prison *pr1, struct prison *pr2)
 static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jails");
 
+#ifdef COMPAT_FREEBSD11
 static int
 sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 {
@@ -3518,6 +3543,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 SYSCTL_OID(_security_jail, OID_AUTO, list,
     CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_jail_list, "S", "List of active jails");
+#endif /* COMPAT_FREEBSD11 */
 
 static int
 sysctl_jail_jailed(SYSCTL_HANDLER_ARGS)
@@ -3557,13 +3583,14 @@ SYSCTL_PROC(_security_jail, OID_AUTO, vnet,
 #if defined(INET) || defined(INET6)
 SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
     &jail_max_af_ips, 0,
-    "Number of IP addresses a jail may have at most per address family (deprecated)");
+    "Number of IP addresses a jail may have at most per address family");
 #endif
 
 /*
- * Default parameters for jail(2) compatibility.  For historical reasons,
- * the sysctl names have varying similarity to the parameter names.  Prisons
- * just see their own parameters, and can't change them.
+ * Jail permissions - jailed processes can read these to find out what they are
+ * allowed to do.  A deprecated use is to set default permissions for prisons
+ * created via jail(2).  For historical reasons, the sysctl names have varying
+ * similarity to the parameter names.
  */
 static int
 sysctl_jail_default_allow(SYSCTL_HANDLER_ARGS)
@@ -3572,52 +3599,68 @@ sysctl_jail_default_allow(SYSCTL_HANDLER_ARGS)
 	int allow, error, i;
 
 	pr = req->td->td_ucred->cr_prison;
+#ifdef PR_GLOBAL_ALLOW
 	allow = (pr == &prison0) ? jail_default_allow : pr->pr_allow;
+#else
+	allow = pr->pr_allow;
+#endif
 
 	/* Get the current flag value, and convert it to a boolean. */
 	i = (allow & arg2) ? 1 : 0;
 	if (arg1 != NULL)
 		i = !i;
 	error = sysctl_handle_int(oidp, &i, 0, req);
-	if (error || !req->newptr)
+	if (error)
 		return (error);
-	i = i ? arg2 : 0;
-	if (arg1 != NULL)
-		i ^= arg2;
-	/*
-	 * The sysctls don't have CTLFLAGS_PRISON, so assume prison0
-	 * for writing.
-	 */
-	mtx_lock(&prison0.pr_mtx);
-	jail_default_allow = (jail_default_allow & ~arg2) | i;
-	mtx_unlock(&prison0.pr_mtx);
+#ifdef PR_GLOBAL_ALLOW
+	if (req->newptr) {
+		i = i ? arg2 : 0;
+		if (arg1 != NULL)
+			i ^= arg2;
+		/*
+		 * The sysctls don't have CTLFLAGS_PRISON, so assume prison0
+		 * for writing.
+		 */
+		mtx_lock(&prison0.pr_mtx);
+		jail_default_allow = (jail_default_allow & ~arg2) | i;
+		mtx_unlock(&prison0.pr_mtx);
+	}
+#endif
 	return (0);
 }
 
+#ifdef PR_GLOBAL_ALLOW
+#define CTLFLAG_GLOBAL_ALLOW	(CTLFLAG_RW | CTLFLAG_MPSAFE)
+#define ADDR_GLOBAL_ALLOW(i)	&i
+#else
+#define CTLFLAG_GLOBAL_ALLOW	(CTLFLAG_RD | CTLFLAG_MPSAFE)
+#define ADDR_GLOBAL_ALLOW(i)	NULL
+#endif
+
 SYSCTL_PROC(_security_jail, OID_AUTO, set_hostname_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     NULL, PR_ALLOW_SET_HOSTNAME, sysctl_jail_default_allow, "I",
-    "Processes in jail can set their hostnames (deprecated)");
+    "Processes in jail can set their hostnames");
 SYSCTL_PROC(_security_jail, OID_AUTO, socket_unixiproute_only,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     (void *)1, PR_ALLOW_SOCKET_AF, sysctl_jail_default_allow, "I",
-    "Processes in jail are limited to creating UNIX/IP/route sockets only (deprecated)");
+    "Processes in jail are limited to creating UNIX/IP/route sockets only");
 SYSCTL_PROC(_security_jail, OID_AUTO, sysvipc_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     NULL, PR_ALLOW_SYSVIPC, sysctl_jail_default_allow, "I",
-    "Processes in jail can use System V IPC primitives (deprecated)");
+    "Processes in jail can use System V IPC primitives");
 SYSCTL_PROC(_security_jail, OID_AUTO, allow_raw_sockets,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     NULL, PR_ALLOW_RAW_SOCKETS, sysctl_jail_default_allow, "I",
-    "Prison root can create raw sockets (deprecated)");
+    "Prison root can create raw sockets");
 SYSCTL_PROC(_security_jail, OID_AUTO, chflags_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     NULL, PR_ALLOW_CHFLAGS, sysctl_jail_default_allow, "I",
-    "Processes in jail can alter system file flags (deprecated)");
+    "Processes in jail can alter system file flags");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
     NULL, PR_ALLOW_MOUNT, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount jail-friendly file systems (deprecated)");
+    "Processes in jail can mount/unmount jail-friendly file systems");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -3626,25 +3669,33 @@ sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
 	int level, error;
 
 	pr = req->td->td_ucred->cr_prison;
+#ifdef PR_GLOBAL_ALLOW
 	level = (pr == &prison0) ? *(int *)arg1 : *(int *)((char *)pr + arg2);
+#else
+	level = *(int *)((char *)pr + arg2);
+#endif
 	error = sysctl_handle_int(oidp, &level, 0, req);
-	if (error || !req->newptr)
+	if (error)
 		return (error);
-	*(int *)arg1 = level;
+#ifdef PR_GLOBAL_ALLOW
+	if (req->newptr)
+		*(int *)arg1 = level;
+#endif
 	return (0);
 }
 
 SYSCTL_PROC(_security_jail, OID_AUTO, enforce_statfs,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &jail_default_enforce_statfs, offsetof(struct prison, pr_enforce_statfs),
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
+    ADDR_GLOBAL_ALLOW(jail_default_enforce_statfs),
+    offsetof(struct prison, pr_enforce_statfs),
     sysctl_jail_default_level, "I",
-    "Processes in jail cannot see all mounted file systems (deprecated)");
-
+    "Processes in jail cannot see all mounted file systems");
 SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
-    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    &jail_default_devfs_rsnum, offsetof(struct prison, pr_devfs_rsnum),
+    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW,
+    ADDR_GLOBAL_ALLOW(jail_default_devfs_rsnum),
+    offsetof(struct prison, pr_devfs_rsnum),
     sysctl_jail_default_level, "I",
-    "Ruleset for the devfs filesystem in jail (deprecated)");
+    "Ruleset for the devfs filesystem in jail");
 
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters
@@ -3785,9 +3836,6 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	struct bool_flags *bf;
 	struct sysctl_oid *parent;
 	char *allow_name, *allow_noname, *allowed;
-#ifndef NO_SYSCTL_DESCR
-	char *descr_deprecated;
-#endif
 	unsigned allow_flag;
 
 	if (prefix
@@ -3844,10 +3892,7 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	bf->flag = allow_flag;
 	mtx_unlock(&prison0.pr_mtx);
 
-	/*
-	 * Create sysctls for the paramter, and the back-compat global
-	 * permission.
-	 */
+	/* Create sysctls for the paramter, and the current permission. */
 	parent = prefix
 	    ? SYSCTL_ADD_NODE(NULL,
 		  SYSCTL_CHILDREN(&sysctl___security_jail_param_allow),
@@ -3859,17 +3904,10 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	if ((prefix
 	     ? asprintf(&allowed, M_TEMP, "%s_%s_allowed", prefix, name)
 	     : asprintf(&allowed, M_TEMP, "%s_allowed", name)) >= 0) {
-#ifndef NO_SYSCTL_DESCR
-		(void)asprintf(&descr_deprecated, M_TEMP, "%s (deprecated)",
-		    descr);
-#endif
 		(void)SYSCTL_ADD_PROC(NULL,
 		    SYSCTL_CHILDREN(&sysctl___security_jail), OID_AUTO, allowed,
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, allow_flag,
-		    sysctl_jail_default_allow, "I", descr_deprecated);
-#ifndef NO_SYSCTL_DESCR
-		free(descr_deprecated, M_TEMP);
-#endif
+		    CTLTYPE_INT | CTLFLAG_GLOBAL_ALLOW, NULL, allow_flag,
+		    sysctl_jail_default_allow, "I", descr);
 		free(allowed, M_TEMP);
 	}
 	return allow_flag;

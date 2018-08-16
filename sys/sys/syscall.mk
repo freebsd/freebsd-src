@@ -209,7 +209,7 @@ MIASM =  \
 	sched_rr_get_interval.o \
 	utrace.o \
 	kldsym.o \
-	jail.o \
+	freebsd11_jail.o \
 	nnpfs_syscall.o \
 	sigprocmask.o \
 	sigsuspend.o \

@@ -738,7 +738,7 @@
 				    _Out_opt_ off_t *sbytes, int flags); }
 337	AUE_NULL	STD	{ int kldsym(int fileid, int cmd, \
 				    _In_ void *data); }
-338	AUE_JAIL	STD	{ int jail( \
+338	AUE_JAIL	COMPAT11 { int jail( \
 				    _In_ struct jail *jail); }
 
 339	AUE_NULL	NOSTD|NOTSTATIC	{ int nnpfs_syscall(int operation, \
