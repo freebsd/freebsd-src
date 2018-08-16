@@ -1159,11 +1159,6 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	DPRINTF(("%s error %d %s\r\n", __func__, err, strerror(err)));
 	
 	/* TODO return correct error */
-	if (err)
-		code = NVME_SC_DATA_TRANSFER_ERROR;
-	else
-		code = NVME_SC_SUCCESS;
-
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
 
