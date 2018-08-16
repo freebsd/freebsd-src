@@ -758,6 +758,18 @@ vlan_tag(struct ifnet *ifp, uint16_t *vidp)
 	return (0);
 }
 
+static int
+vlan_pcp(struct ifnet *ifp, uint16_t *pcpp)
+{
+	struct ifvlan *ifv;
+
+	if (ifp->if_type != IFT_L2VLAN)
+		return (EINVAL);
+	ifv = ifp->if_softc;
+	*pcpp = ifv->ifv_pcp;
+	return (0);
+}
+
 /*
  * Return a driver specific cookie for this interface.  Synchronization
  * with setcookie must be provided by the driver. 
@@ -861,6 +873,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_cookie_p = vlan_cookie;
 		vlan_setcookie_p = vlan_setcookie;
 		vlan_tag_p = vlan_tag;
+		vlan_pcp_p = vlan_pcp;
 		vlan_devat_p = vlan_devat;
 #ifndef VIMAGE
 		vlan_cloner = if_clone_advanced(vlanname, 0, vlan_clone_match,

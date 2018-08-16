@@ -2298,6 +2298,7 @@ void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
 struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
 int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
+int	(*vlan_pcp_p)(struct ifnet *, uint16_t *);
 int	(*vlan_setcookie_p)(struct ifnet *, void *);
 void	*(*vlan_cookie_p)(struct ifnet *);
 
