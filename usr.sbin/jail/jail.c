@@ -138,7 +138,6 @@ main(int argc, char **argv)
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
 	int dflag, Rflag;
-	char enforce_statfs[4];
 #if defined(INET) || defined(INET6)
 	char *cs, *ncs;
 #endif
@@ -275,14 +274,6 @@ main(int argc, char **argv)
 					    (sysval ? 1 : 0) ^
 					    perm_sysctl[pi].rev
 					    ? NULL : "false");
-			}
-			sysvallen = sizeof(sysval);
-			if (sysctlbyname("security.jail.enforce_statfs",
-			    &sysval, &sysvallen, NULL, 0) == 0) {
-				snprintf(enforce_statfs,
-				    sizeof(enforce_statfs), "%d", sysval);
-				add_param(NULL, NULL, KP_ENFORCE_STATFS,
-				    enforce_statfs);
 			}
 		}
 	} else if (op == JF_STOP) {
