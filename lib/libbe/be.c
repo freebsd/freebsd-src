@@ -66,7 +66,7 @@ be_locate_rootfs(zfs_handle_t *chkds, void *data)
 
 	mntpoint = NULL;
 	if (zfs_is_mounted(chkds, &mntpoint) && strcmp(mntpoint, "/") == 0) {
-		strlcpy(lbh->rootfs, zfs_get_name(chkds), BE_MAXPATHLEN + 1);
+		strlcpy(lbh->rootfs, zfs_get_name(chkds), sizeof(lbh->rootfs));
 		free(mntpoint);
 		return (1);
 	} else if(mntpoint != NULL)
@@ -118,13 +118,14 @@ libbe_init(void)
 		goto err;
 
 	/* Obtain path to boot environment root */
-	if ((kenv(KENV_GET, "zfs_be_root", lbh->root, BE_MAXPATHLEN)) == -1)
+	if ((kenv(KENV_GET, "zfs_be_root", lbh->root,
+	    sizeof(lbh->root))) == -1)
 		goto err;
 
 	/* Remove leading 'zfs:' if present, otherwise use value as-is */
 	if (strcmp(lbh->root, "zfs:") == 0)
 		strlcpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
-		    BE_MAXPATHLEN + 1);
+		    sizeof(lbh->root));
 
 	if ((pos = strchr(lbh->root, '/')) == NULL)
 		goto err;
@@ -134,13 +135,12 @@ libbe_init(void)
 	if (poolname == NULL)
 		goto err;
 
-	strncpy(poolname, lbh->root, pnamelen);
-	poolname[pnamelen] = '\0';
+	strlcpy(poolname, lbh->root, pnamelen + 1);
 	if ((lbh->active_phandle = zpool_open(lbh->lzh, poolname)) == NULL)
 		goto err;
 
 	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
-	    BE_MAXPATHLEN, NULL, true) != 0)
+	    sizeof(lbh->bootfs), NULL, true) != 0)
 		goto err;
 
 	/* Obtain path to boot environment rootfs (currently booted) */
@@ -282,7 +282,7 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 	} else {
 		time(&rawtime);
 		len = strlen(buf);
-		strftime(buf + len, BE_MAXPATHLEN - len,
+		strftime(buf + len, sizeof(buf) - len,
 		    "@%F-%T", localtime(&rawtime));
 		if (result != NULL)
 			strcpy(result, strrchr(buf, '/') + 1);
@@ -499,7 +499,7 @@ int
 be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 {
 	zfs_handle_t *zfs_hdl;
-	char buf[BE_MAXPATHLEN + 1];
+	char buf[BE_MAXPATHLEN];
 	char *delim_pos;
 	int err = BE_ERR_SUCCESS;
 
@@ -510,7 +510,7 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
 
-	strlcpy(buf, snap_name, BE_MAXPATHLEN + 1);
+	strlcpy(buf, snap_name, sizeof(buf));
 
 	/* Find the base filesystem of the snapshot */
 	if ((delim_pos = strchr(buf, '@')) == NULL)
@@ -521,11 +521,11 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
 		return (BE_ERR_NOORIGIN);
 
-	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf, BE_MAXPATHLEN,
-	    NULL, NULL, 0, 1)) != 0)
+	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf,
+	    sizeof(buf), NULL, NULL, 0, 1)) != 0)
 		err = BE_ERR_INVORIGIN;
 
-	if ((err != 0) && (strncmp(buf, "/", BE_MAXPATHLEN) != 0))
+	if ((err != 0) && (strncmp(buf, "/", sizeof(buf)) != 0))
 		err = BE_ERR_INVORIGIN;
 
 	zfs_close(zfs_hdl);
@@ -558,7 +558,7 @@ be_root_concat(libbe_handle_t *lbh, const char *name, char *result)
 		if (name_len >= BE_MAXPATHLEN)
 			return (BE_ERR_PATHLEN);
 
-		strncpy(result, name, BE_MAXPATHLEN);
+		strlcpy(result, name, BE_MAXPATHLEN);
 		return (BE_ERR_SUCCESS);
 	} else if (name_len + root_len + 1 < BE_MAXPATHLEN) {
 		snprintf(result, BE_MAXPATHLEN, "%s/%s", lbh->root,
@@ -690,8 +690,7 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 
 	time(&rawtime);
 	len = strlen(buf);
-	strftime(buf + len, BE_MAXPATHLEN - len,
-	    "@%F-%T", localtime(&rawtime));
+	strftime(buf + len, sizeof(buf) - len, "@%F-%T", localtime(&rawtime));
 
 	if ((err = lzc_receive(buf, NULL, NULL, false, fd)) != 0) {
 		switch (err) {
