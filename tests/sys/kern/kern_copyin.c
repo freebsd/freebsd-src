@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -69,6 +70,7 @@ ATF_TC_BODY(kern_copyin, tc)
 	atf_tc_skip("Platform is not supported.");
 #endif
 
+	umask(0077);
 	scratch_file = mkstemp(template);
 	ATF_REQUIRE(scratch_file != -1);
 	unlink(template);
