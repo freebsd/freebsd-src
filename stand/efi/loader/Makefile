@@ -90,6 +90,10 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 FILES+=	${LOADER}.efi
 FILESMODE_${LOADER}.efi=	${BINMODE}
 
+.if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
+.endif
+
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
 
