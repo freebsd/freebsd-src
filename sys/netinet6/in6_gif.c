@@ -201,6 +201,7 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		ip6 = malloc(sizeof(*ip6), M_GIF, M_WAITOK | M_ZERO);
 		ip6->ip6_src = src->sin6_addr;
 		ip6->ip6_dst = dst->sin6_addr;
+		ip6->ip6_vfc = IPV6_VERSION;
 		if (sc->gif_family != 0) {
 			/* Detach existing tunnel first */
 			CK_LIST_REMOVE(sc, chain);
