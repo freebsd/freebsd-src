@@ -32,7 +32,6 @@
 #ifndef _SYS_JAIL_H_
 #define _SYS_JAIL_H_
 
-#ifdef COMPAT_FREEBSD11
 #ifdef _KERNEL
 struct jail_v0 {
 	u_int32_t	version;
@@ -58,6 +57,16 @@ struct jail {
  * For all xprison structs, always keep the pr_version an int and
  * the first variable so userspace can easily distinguish them.
  */
+#ifndef _KERNEL
+struct xprison_v1 {
+	int		 pr_version;
+	int		 pr_id;
+	char		 pr_path[MAXPATHLEN];
+	char		 pr_host[MAXHOSTNAMELEN];
+	u_int32_t	 pr_ip;
+};
+#endif
+
 struct xprison {
 	int		 pr_version;
 	int		 pr_id;
@@ -82,7 +91,6 @@ struct xprison {
 #define	PRISON_STATE_INVALID	0
 #define	PRISON_STATE_ALIVE	1
 #define	PRISON_STATE_DYING	2
-#endif /* COMPAT_FREEBSD11 */
 
 /*
  * Flags for jail_set and jail_get.
@@ -102,6 +110,7 @@ struct xprison {
 
 struct iovec;
 
+int jail(struct jail *);
 int jail_set(struct iovec *, unsigned int, int);
 int jail_get(struct iovec *, unsigned int, int);
 int jail_attach(int);

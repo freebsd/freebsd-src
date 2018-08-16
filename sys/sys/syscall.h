@@ -280,7 +280,7 @@
 #define	SYS_utrace	335
 				/* 336 is freebsd4 sendfile */
 #define	SYS_kldsym	337
-#define	SYS_freebsd11_jail	338
+#define	SYS_jail	338
 #define	SYS_nnpfs_syscall	339
 #define	SYS_sigprocmask	340
 #define	SYS_sigsuspend	341

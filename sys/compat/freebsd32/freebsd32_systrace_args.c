@@ -1559,6 +1559,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* freebsd32_jail */
+	case 338: {
+		struct freebsd32_jail_args *p = params;
+		uarg[0] = (intptr_t) p->jail; /* struct jail32 * */
+		*n_args = 1;
+		break;
+	}
 	/* sigprocmask */
 	case 340: {
 		struct sigprocmask_args *p = params;
@@ -5704,6 +5711,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_jail */
+	case 338:
+		switch(ndx) {
+		case 0:
+			p = "userland struct jail32 *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* sigprocmask */
 	case 340:
 		switch(ndx) {
@@ -9653,6 +9670,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldsym */
 	case 337:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_jail */
+	case 338:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
