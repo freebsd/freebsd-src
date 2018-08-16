@@ -601,7 +601,7 @@ bd_io_workaround(struct disk_devdesc *dev)
 {
 	uint8_t buf[8 * 1024];
 
-	bd_edd_io(dev, 0xffffffff, 1, (caddr_t)buf, 0);
+	bd_edd_io(dev, 0xffffffff, 1, (caddr_t)buf, BD_RD);
 }
 
 
@@ -628,7 +628,7 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 	 * the buggy read. It is not immediately known whether other models
 	 * are similarly affected.
 	 */
-	if (dblk >= 0x100000000)
+	if (dowrite == BD_RD && dblk >= 0x100000000)
 		bd_io_workaround(dev);
 
 	/* Decide whether we have to bounce */
