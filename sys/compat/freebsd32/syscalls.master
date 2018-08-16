@@ -601,7 +601,7 @@
 				    off_t *sbytes, int flags); }
 337	AUE_NULL	NOPROTO	{ int kldsym(int fileid, int cmd, \
 				    void *data); }
-338	AUE_JAIL	STD	{ int freebsd32_jail(struct jail32 *jail); }
+338	AUE_JAIL	COMPAT11 { int freebsd32_jail(struct jail32 *jail); }
 339	AUE_NULL	UNIMPL	pioctl
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
 				    const sigset_t *set, sigset_t *oset); }

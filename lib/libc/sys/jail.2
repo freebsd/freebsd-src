@@ -25,11 +25,10 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd August 16, 2018
 .Dt JAIL 2
 .Os
 .Sh NAME
-.Nm jail ,
 .Nm jail_get ,
 .Nm jail_set ,
 .Nm jail_remove ,
@@ -41,8 +40,6 @@
 .In sys/param.h
 .In sys/jail.h
 .Ft int
-.Fn jail "struct jail *jail"
-.Ft int
 .Fn jail_attach "int jid"
 .Ft int
 .Fn jail_remove "int jid"
@@ -52,73 +49,6 @@
 .Ft int
 .Fn jail_set "struct iovec *iov" "u_int niov" "int flags"
 .Sh DESCRIPTION
-The
-.Fn jail
-system call sets up a jail and locks the current process in it.
-.Pp
-The argument is a pointer to a structure describing the prison:
-.Bd -literal -offset indent
-struct jail {
-	uint32_t	version;
-	char		*path;
-	char		*hostname;
-	char		*jailname;
-	unsigned int	ip4s;
-	unsigned int	ip6s;
-	struct in_addr	*ip4;
-	struct in6_addr	*ip6;
-};
-.Ed
-.Pp
-.Dq Li version
-defines the version of the API in use.
-.Dv JAIL_API_VERSION
-is defined for the current version.
-.Pp
-The
-.Dq Li path
-pointer should be set to the directory which is to be the root of the
-prison.
-.Pp
-The
-.Dq Li hostname
-pointer can be set to the hostname of the prison.
-This can be changed
-from the inside of the prison.
-.Pp
-The
-.Dq Li jailname
-pointer is an optional name that can be assigned to the jail
-for example for management purposes.
-.Pp
-The
-.Dq Li ip4s
-and
-.Dq Li ip6s
-give the numbers of IPv4 and IPv6 addresses that will be passed
-via their respective pointers.
-.Pp
-The
-.Dq Li ip4
-and
-.Dq Li ip6
-pointers can be set to an arrays of IPv4 and IPv6 addresses to be assigned to
-the prison, or NULL if none.
-IPv4 addresses must be in network byte order.
-.Pp
-This is equivalent to, and deprecated in favor of, the
-.Fn jail_set
-system call (see below), with the parameters
-.Va path ,
-.Va host.hostname ,
-.Va name ,
-.Va ip4.addr ,
-and
-.Va ip6.addr ,
-and with the
-.Dv JAIL_ATTACH
-flag.
-.Pp
 The
 .Fn jail_set
 system call creates a new jail, or modifies an existing one, and optionally
@@ -146,13 +76,19 @@ The current set of available parameters, and their formats, can be
 retrieved via the
 .Va security.jail.param
 sysctl MIB entry.
-Notable parameters include those mentioned in the
-.Fn jail
-description above, as well as
+Notable parameters include
 .Va jid
 and
-.Va name ,
-which identify the jail being created or modified.
+.Va name
+which identify the jail being created or modified,
+.Va path
+(the root directory of the jail),
+.Va host.hostname
+(the hostname of the jail), and
+.Va ip4.addr
+and
+.Va ip6.addr
+(IP addresses to assign to the jail).
 See
 .Xr jail 8
 for more information on the core jail parameters.
@@ -237,8 +173,7 @@ It will kill all processes belonging to the jail, and remove any children
 of that jail.
 .Sh RETURN VALUES
 If successful,
-.Fn jail ,
-.Fn jail_set ,
+.Fn jail_set
 and
 .Fn jail_get
 return a non-negative integer, termed the jail identifier (JID).
@@ -248,25 +183,6 @@ to indicate the error.
 .Pp
 .Rv -std jail_attach jail_remove
 .Sh ERRORS
-The
-.Fn jail
-system call
-will fail if:
-.Bl -tag -width Er
-.It Bq Er EPERM
-This process is not allowed to create a jail, either because it is not
-the super-user, or because it would exceed the jail's
-.Va children.max
-limit.
-.It Bq Er EFAULT
-.Fa jail
-points to an address outside the allocated address space of the process.
-.It Bq Er EINVAL
-The version number of the argument is not correct.
-.It Bq Er EAGAIN
-No free JID could be found.
-.El
-.Pp
 The
 .Fn jail_set
 system call
@@ -371,8 +287,7 @@ does not exist.
 .El
 .Pp
 Further
-.Fn jail ,
-.Fn jail_set ,
+.Fn jail_set
 and
 .Fn jail_attach
 call
@@ -386,7 +301,7 @@ manual page for details.
 .Xr chroot 2 ,
 .Xr jail 8
 .Sh HISTORY
-The
+The now-deprecated
 .Fn jail
 system call appeared in
 .Fx 4.0 .

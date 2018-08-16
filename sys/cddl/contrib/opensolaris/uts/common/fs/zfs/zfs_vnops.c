@@ -5195,9 +5195,8 @@ zfs_freebsd_setattr(ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 * Privileged jail processes behave like privileged non-jail
-		 * processes if the security.jail.chflags_allowed sysctl is
-		 * is non-zero; otherwise, they behave like unprivileged
-		 * processes.
+		 * processes if the PR_ALLOW_CHFLAGS permission bit is set;
+		 * otherwise, they behave like unprivileged processes.
 		 */
 		if (secpolicy_fs_owner(vp->v_mount, cred) == 0 ||
 		    priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
