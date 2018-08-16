@@ -54,7 +54,6 @@ gen_test_path(void)
 	snprintf(test_path, sizeof(test_path), "%s/tmp.XXXXXX",
 	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"));
 	test_path[sizeof(test_path) - 1] = '\0';
-	umask(0077);
 	ATF_REQUIRE_MSG(mkstemp(test_path) != -1,
 	    "mkstemp failed; errno=%d", errno);
 	ATF_REQUIRE_MSG(unlink(test_path) == 0,

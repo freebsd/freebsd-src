@@ -92,7 +92,6 @@ make_file(const char *pathname, off_t sz)
 	filename = malloc(len);
 	strcpy(filename, pathname);
 	strcat(filename, template);
-	umask(0077);
 	fd = mkstemp(filename);
 	if (fd < 0)
 		err(1, "mkstemp");
