@@ -60,6 +60,7 @@
 
 #define	TASK_COMM_LEN		(MAXCOMLEN + 1)
 
+struct work_struct;
 struct task_struct {
 	struct thread *task_thread;
 	struct mm_struct *mm;
@@ -78,6 +79,7 @@ struct task_struct {
 	TAILQ_ENTRY(task_struct) rcu_entry;
 	int rcu_recurse;
 	int bsd_interrupt_value;
+	struct work_struct *work;	/* current work struct, if set */
 };
 
 #define	current	({ \
