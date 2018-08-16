@@ -108,13 +108,12 @@ atomic_dec(atomic_t *v)
 static inline int
 atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int c;
+	int c = atomic_read(v);
 
 	for (;;) {
-		c = atomic_read(v);
 		if (unlikely(c == u))
 			break;
-		if (likely(atomic_cmpset_int(&v->counter, c, c + a)))
+		if (likely(atomic_fcmpset_int(&v->counter, &c, c + a)))
 			break;
 	}
 	return (c != u);
@@ -134,12 +133,10 @@ atomic_xchg(atomic_t *v, int i)
     defined(__powerpc__)
 	return (atomic_swap_int(&v->counter, i));
 #else
-	int ret;
-	for (;;) {
-		ret = READ_ONCE(v->counter);
-		if (atomic_cmpset_int(&v->counter, ret, i))
-			break;
-	}
+	int ret = atomic_read(v);
+
+	while (!atomic_fcmpset_int(&v->counter, &ret, i))
+		;
 	return (ret);
 #endif
 }
@@ -150,9 +147,8 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	int ret = old;
 
 	for (;;) {
-		if (atomic_cmpset_int(&v->counter, old, new))
+		if (atomic_fcmpset_int(&v->counter, &ret, new))
 			break;
-		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}

@@ -92,13 +92,12 @@ atomic64_dec(atomic64_t *v)
 static inline int64_t
 atomic64_add_unless(atomic64_t *v, int64_t a, int64_t u)
 {
-	int64_t c;
+	int64_t c = atomic64_read(v);
 
 	for (;;) {
-		c = atomic64_read(v);
 		if (unlikely(c == u))
 			break;
-		if (likely(atomic_cmpset_64(&v->counter, c, c + a)))
+		if (likely(atomic_fcmpset_64(&v->counter, &c, c + a)))
 			break;
 	}
 	return (c != u);
@@ -112,12 +111,10 @@ atomic64_xchg(atomic64_t *v, int64_t i)
     defined(__powerpc64__)
 	return (atomic_swap_64(&v->counter, i));
 #else
-	int64_t ret;
-	for (;;) {
-		ret = READ_ONCE(v->counter);
-		if (atomic_cmpset_64(&v->counter, ret, i))
-			break;
-	}
+	int64_t ret = atomic64_read(v);
+
+	while (!atomic_fcmpset_64(&v->counter, &ret, i))
+		;
 	return (ret);
 #endif
 }
@@ -128,9 +125,8 @@ atomic64_cmpxchg(atomic64_t *v, int64_t old, int64_t new)
 	int64_t ret = old;
 
 	for (;;) {
-		if (atomic_cmpset_64(&v->counter, old, new))
+		if (atomic_fcmpset_64(&v->counter, &ret, new))
 			break;
-		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}

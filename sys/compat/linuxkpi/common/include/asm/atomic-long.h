@@ -87,9 +87,8 @@ atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
 	long ret = old;
 
 	for (;;) {
-		if (atomic_cmpset_long(&v->counter, old, new))
+		if (atomic_fcmpset_long(&v->counter, &ret, new))
 			break;
-		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}
@@ -99,13 +98,12 @@ atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
 static inline int
 atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {
-	long c;
+	long c = atomic_long_read(v);
 
 	for (;;) {
-		c = atomic_long_read(v);
 		if (unlikely(c == u))
 			break;
-		if (likely(atomic_cmpset_long(&v->counter, c, c + a)))
+		if (likely(atomic_fcmpset_long(&v->counter, &c, c + a)))
 			break;
 	}
 	return (c != u);
