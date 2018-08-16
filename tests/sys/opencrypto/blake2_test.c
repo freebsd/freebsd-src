@@ -172,12 +172,14 @@ test_blake2s_vectors(int crid, const char *modname)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors);
 ATF_TC_BODY(blake2b_vectors, tc)
 {
+	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
 	test_blake2b_vectors(CRYPTO_FLAG_SOFTWARE, "nexus/cryptosoft");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors);
 ATF_TC_BODY(blake2s_vectors, tc)
 {
+	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
 	test_blake2s_vectors(CRYPTO_FLAG_SOFTWARE, "nexus/cryptosoft");
 }
 
