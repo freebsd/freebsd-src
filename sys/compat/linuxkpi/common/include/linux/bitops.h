@@ -282,10 +282,10 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 	var += BIT_WORD(bit);
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
-	do {
-		val = *var;
-	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
 
+	val = *var;
+	while (!atomic_fcmpset_long(var, &val, val & ~bit))
+		;
 	return !!(val & bit);
 }
 
@@ -312,10 +312,10 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	var += BIT_WORD(bit);
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
-	do {
-		val = *var;
-	} while (atomic_cmpset_long(var, val, val | bit) == 0);
 
+	val = *var;
+	while (!atomic_fcmpset_long(var, &val, val | bit))
+		;
 	return !!(val & bit);
 }
 
