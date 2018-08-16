@@ -27,7 +27,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -51,7 +50,6 @@ main(void)
 
 	lastfd = -1;
 
-	umask(0077);
 	if (mkstemp(template) == -1)
 		err(1, "mkstemp failed");
 
