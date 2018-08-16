@@ -114,6 +114,30 @@
 	<entry><para>Resource exhaustion in TCP
 	    reassembly</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:09.l1tf.asc">FreeBSD-SA-18:09.l1tf</link></entry>
+	<entry>14&nbsp;August&nbsp;2018</entry>
+	<entry><para>L1 Terminal Fault (L1TF) Kernel Information
+	    Disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:10.ip.asc">FreeBSD-SA-18:10.ip</link></entry>
+	<entry>14&nbsp;August&nbsp;2018</entry>
+	<entry><para>Resource exhaustion in IP fragment
+	    reassembly</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:11.hostapd.asc">FreeBSD-SA-18:11.hostapd</link></entry>
+	<entry>14&nbsp;August&nbsp;2018</entry>
+	<entry><para>Unauthenticated EAPOL-Key Decryption
+	    Vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
