@@ -83,8 +83,8 @@ const char *zio_type_name[ZIO_TYPES] = {
 };
 
 boolean_t zio_dva_throttle_enabled = B_TRUE;
-SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, dva_throttle_enabled, CTLFLAG_RDTUN,
-    &zio_dva_throttle_enabled, 0, "");
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, dva_throttle_enabled, CTLFLAG_RWTUN,
+    &zio_dva_throttle_enabled, 0, "Enable allocation throttling");
 
 /*
  * ==========================================================================
