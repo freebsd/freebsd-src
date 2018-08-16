@@ -106,7 +106,6 @@ static const struct ipspec intparams[] = {
     [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
     [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
     [KP_DEVFS_RULESET] =	{"devfs_ruleset",	0},
-    [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
     [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
 #ifdef INET
     [KP_IP4_ADDR] =		{"ip4.addr",		0},
