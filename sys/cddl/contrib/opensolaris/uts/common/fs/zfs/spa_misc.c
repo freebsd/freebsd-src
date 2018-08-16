@@ -437,6 +437,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, spa_min_slop, CTLFLAG_RWTUN,
 
 int spa_allocators = 4;
 
+SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_allocators, CTLFLAG_RWTUN,
+    &spa_allocators, 0,
+    "Number of allocators per metaslab group");
+
 /*PRINTFLIKE2*/
 void
 spa_load_failed(spa_t *spa, const char *fmt, ...)
