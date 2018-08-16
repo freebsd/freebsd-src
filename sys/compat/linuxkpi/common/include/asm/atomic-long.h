@@ -81,6 +81,21 @@ atomic_long_xchg(atomic_long_t *v, long val)
 	return atomic_swap_long(&v->counter, val);
 }
 
+static inline long
+atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
+{
+	long ret = old;
+
+	for (;;) {
+		if (atomic_cmpset_long(&v->counter, old, new))
+			break;
+		ret = READ_ONCE(v->counter);
+		if (ret != old)
+			break;
+	}
+	return (ret);
+}
+
 static inline int
 atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {
