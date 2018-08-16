@@ -1746,6 +1746,8 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 
 		optidx++;
 	}
+	free(uopt);
+
 	if (sc->nvstore.ctx == NULL || sc->nvstore.size == 0) {
 		fprintf(stderr, "backing store not specified\n");
 		return (-1);
@@ -1756,9 +1758,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		sc->nvstore.sectsz = blockif_sectsz(sc->nvstore.ctx);
 	for (sc->nvstore.sectsz_bits = 9;
 	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
-	     sc->nvstore.sectsz_bits++)
-		;
-
+	     sc->nvstore.sectsz_bits++);
 
 	if (sc->max_queues == 0) {
 		fprintf(stderr, "Invalid maxq option\n");
