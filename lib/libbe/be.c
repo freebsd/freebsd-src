@@ -91,7 +91,6 @@ libbe_init(void)
 
 	lbh = NULL;
 	poolname = pos = NULL;
-	pnamelen = 0;
 	rootds = NULL;
 
 	/* Verify that /boot and / are mounted on the same filesystem */
@@ -138,6 +137,8 @@ libbe_init(void)
 	strlcpy(poolname, lbh->root, pnamelen + 1);
 	if ((lbh->active_phandle = zpool_open(lbh->lzh, poolname)) == NULL)
 		goto err;
+	free(poolname);
+	poolname = NULL;
 
 	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
 	    sizeof(lbh->bootfs), NULL, true) != 0)
@@ -218,7 +219,6 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 
 	p = path;
 	force = options & BE_DESTROY_FORCE;
-	err = BE_ERR_SUCCESS;
 
 	be_root_concat(lbh, name, path);
 
@@ -274,8 +274,12 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 		return (BE_ERR_NOENT);
 
 	if (snap_name != NULL) {
-		strcat(buf, "@");
-		strcat(buf, snap_name);
+		if (strlcat(buf, "@", sizeof(buf)) >= sizeof(buf))
+			return (set_error(lbh, BE_ERR_INVALIDNAME));
+
+		if (strlcat(buf, snap_name, sizeof(buf)) >= sizeof(buf))
+			return (set_error(lbh, BE_ERR_INVALIDNAME));
+
 		if (result != NULL)
 			snprintf(result, BE_MAXPATHLEN, "%s@%s", source,
 			    snap_name);
@@ -284,8 +288,9 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 		len = strlen(buf);
 		strftime(buf + len, sizeof(buf) - len,
 		    "@%F-%T", localtime(&rawtime));
-		if (result != NULL)
-			strcpy(result, strrchr(buf, '/') + 1);
+		if (result != NULL && strlcpy(result, strrchr(buf, '/') + 1,
+		    sizeof(buf)) >= sizeof(buf))
+			return (set_error(lbh, BE_ERR_INVALIDNAME));
 	}
 
 	if ((err = zfs_snapshot(lbh->lzh, buf, recursive, NULL)) != 0) {
@@ -942,9 +947,7 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 			return (set_error(lbh, BE_ERR_UNKNOWN));
 
 		/* Expected format according to zfsbootcfg(8) man */
-		strcpy(buf, "zfs:");
-		strcat(buf, be_path);
-		strcat(buf, ":");
+		snprintf(buf, sizeof(buf), "zfs:%s:", be_path);
 
 		/* We have no config tree */
 		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,

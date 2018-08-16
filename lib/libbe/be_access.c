@@ -124,7 +124,7 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 
 	/* Create mountpoint if it is not specified */
 	if (mountpoint == NULL) {
-		strcpy(mnt_temp, "/tmp/be_mount.XXXX");
+		strlcpy(mnt_temp, "/tmp/be_mount.XXXX", sizeof(mnt_temp));
 		if (mkdtemp(mnt_temp) == NULL)
 			return (set_error(lbh, BE_ERR_IO));
 	}
@@ -149,7 +149,8 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	}
 
 	if (result_loc != NULL)
-		strcpy(result_loc, mountpoint == NULL ? mnt_temp : mountpoint);
+		strlcpy(result_loc, mountpoint == NULL ? mnt_temp : mountpoint,
+		    BE_MAXPATHLEN);
 
 	return (BE_ERR_SUCCESS);
 }

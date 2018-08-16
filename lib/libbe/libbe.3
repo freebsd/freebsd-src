@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2018
+.Dd August 16, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -267,6 +267,9 @@ If
 .Fa result
 is not
 .Dv NULL ,
+it should be large enough to accommodate
+.Dv BE_MAXPATHLEN
+including the null terminator.
 the final mount point will be copied into it.
 Setting the
 .Dv BE_MNT_FORCE
