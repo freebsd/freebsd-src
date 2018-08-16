@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -151,6 +152,29 @@ char *enter_bold;		/* ANSI sequence to set color to bold mode */
 #endif
 
 static int rval;
+
+static bool
+do_color_from_env(void)
+{
+	const char *p;
+	bool doit;
+
+	doit = false;
+	p = getenv("CLICOLOR");
+	if (p == NULL) {
+		/*
+		 * COLORTERM is the more standard name for this variable.  We'll
+		 * honor it as long as it's both set and not empty.
+		 */
+		p = getenv("COLORTERM");
+		if (p != NULL && *p != '\0')
+			doit = true;
+	} else
+		doit = true;
+
+	return (doit &&
+	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")));
+}
 
 int
 main(int argc, char *argv[])
@@ -368,8 +392,7 @@ main(int argc, char *argv[])
 		f_listdot = 1;
 
 	/* Enabling of colours is conditional on the environment. */
-	if ((getenv("CLICOLOR") || getenv("COLORTERM")) &&
-	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
+	if (do_color_from_env())
 #ifdef COLORLS
 		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
 			ansi_fgcol = tgetstr("AF", &bp);
