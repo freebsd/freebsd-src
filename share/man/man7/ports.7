@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2018
+.Dd August 16, 2018
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -48,9 +48,8 @@ individual ports.
 Each port is a directory with metadata and patches necessary to make
 the original application source code compile and run on
 .Fx .
-Compiling an
-application is as simple as typing
-.Nm make Cm build
+Compiling an application is as simple as typing
+.Dq Li "make build"
 in the port directory.
 The
 .Pa Makefile
@@ -60,18 +59,24 @@ applies the patches, and compiles it.
 It also recursively handles dependencies \(em other pieces of software
 the port depends on in order to build and work.
 Afterwards,
-.Nm make Cm install
+.Dq Li "make install"
 installs the application.
 .Pp
 For more information about using ports, see the
 .Dq "Packages and Ports" section
 in
-.%B "The FreeBSD Handbook":
+.Sm off
+.%B "The FreeBSD Handbook"
+.No \&:
+.Sm on
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/books/handbook/ports.html
 .Pp
 For information about creating new ports, see
-.%B "The Porter's Handbook":
+.Sm off
+.%B "The Porter's Handbook"
+.No \&:
+.Sm on
 .Pp
 .Lk https://www.FreeBSD.org/doc/en/books/porters-handbook/
 .Sh TARGETS
@@ -80,7 +85,7 @@ Some of the
 targets work recursively through subdirectories.
 This lets you, for example, install all of the
 .Dq Li biology
-ports.
+ports with one command.
 The targets that do this are
 .Cm build , checksum , clean , configure ,
 .Cm depends , extract , fetch , install ,
@@ -91,9 +96,7 @@ The following targets will be run automatically by each proceeding
 target in order.
 That is,
 .Cm build
-will be run
-(if necessary)
-by
+will be run (if necessary) by
 .Cm install ,
 and so on all the way to
 .Cm fetch .
@@ -446,7 +449,7 @@ Command to get
 .Cm fetchindex
 target).
 Defaults to
-.Dq Nm fetch Fl am .
+.Dq Li "fetch -am" .
 .It Va NOCLEANDEPENDS
 If defined, do not let
 .Cm clean
@@ -459,7 +462,7 @@ Normally
 If set, overwrite any existing package registration on the system.
 .It Va MOTIFLIB
 Location of
-.Pa libXm. Ns Brq Pa a , Ns Pa so .
+.Pa "libXm\&." Ns Brq Pa a , Ns Pa so .
 .It Va INTERACTIVE
 If defined, only operate on a port if it requires interaction.
 .It Va BATCH
@@ -528,12 +531,14 @@ If set, enables the use of
 .Xr ccache 1
 for building ports.
 .It Va CCACHE_DIR
-Which directory to use for the ccache data.
+Which directory to use for the
+.Xr ccache 1
+data.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
 .It Pa /usr/ports
-The default ports directory
+The default ports directory.
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
 .El
@@ -546,19 +551,24 @@ make install
 .Sh SEE ALSO
 .Xr make 1 ,
 .Xr make.conf 5 ,
-.Xr pkg 8 ,
+.Xr pkg 7 ,
 .Xr portsnap 8
 .Pp
-The following are part of the ports collection:
-.Pp
-.Xr pkg 7 ,
+Additional developer documentation:
+.Bl -dash -width "" -offset indent
+.It
 .Xr portlint 1
-.Rs
-.%B "The FreeBSD Handbook"
-.Re
+.It
+.Pa /usr/ports/Mk/bsd.port.mk
+.El
 .Pp
-.Pa https://www.FreeBSD.org/ports
-(searchable index of all ports)
+Additional user documentation:
+.Bl -dash -width "" -offset indent
+.It
+.Xr pkg 8
+.It
+.Lk "https://www.FreeBSD.org/ports" "Searchable index of all ports"
+.El
 .Sh HISTORY
 The Ports Collection
 appeared in
