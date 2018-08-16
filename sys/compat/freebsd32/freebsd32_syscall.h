@@ -275,7 +275,7 @@
 #define	FREEBSD32_SYS_utrace	335
 				/* 336 is freebsd4 freebsd32_sendfile */
 #define	FREEBSD32_SYS_kldsym	337
-#define	FREEBSD32_SYS_freebsd11_freebsd32_jail	338
+#define	FREEBSD32_SYS_freebsd32_jail	338
 #define	FREEBSD32_SYS_sigprocmask	340
 #define	FREEBSD32_SYS_sigsuspend	341
 				/* 342 is freebsd4 freebsd32_sigaction */
