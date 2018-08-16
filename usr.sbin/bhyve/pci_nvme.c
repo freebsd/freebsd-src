@@ -653,7 +653,7 @@ static int
 nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 	uint32_t iv;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
@@ -748,7 +748,7 @@ static int
 nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
 
