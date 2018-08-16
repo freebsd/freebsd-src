@@ -2356,3 +2356,44 @@ vm_recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	return (0);
 }
 
+int
+snapshot_part(volatile void *data, size_t data_size,
+	      uint8_t **buffer, size_t *buf_size,
+	      size_t *snapshot_len)
+{
+	size_t idx;
+
+	if (*buf_size < data_size) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	for (idx = 0; idx < data_size; idx++)
+		(*buffer)[idx] = ((uint8_t *) data)[idx];
+
+	*buffer += data_size;
+	*buf_size -= data_size;
+	*snapshot_len += data_size;
+
+	return (0);
+}
+
+int
+restore_part(volatile void *data, size_t data_size, uint8_t **buffer,
+	     size_t *buf_size)
+{
+	size_t idx;
+
+	if (*buf_size < data_size) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	for (idx = 0; idx < data_size; idx++)
+		((uint8_t *) data)[idx] = (*buffer)[idx];
+
+	*buffer += data_size;
+	*buf_size -= data_size;
+
+	return (0);
+}
