@@ -486,7 +486,7 @@ be_create_from_existing(libbe_handle_t *lbh, const char *name, const char *old)
 	int err;
 	char buf[BE_MAXPATHLEN];
 
-	if ((err = be_snapshot(lbh, old, NULL, true, (char *)&buf)))
+	if ((err = be_snapshot(lbh, old, NULL, true, (char *)&buf)) != 0)
 		return (set_error(lbh, err));
 
 	err = be_create_from_existing_snap(lbh, name, (char *)buf);
@@ -577,11 +577,12 @@ be_root_concat(libbe_handle_t *lbh, const char *name, char *result)
 
 /*
  * Verifies the validity of a boot environment name (A-Za-z0-9-_.). Returns
- * BE_ERR_SUCCESS (0) if name is valid, otherwise returns BE_ERR_INVALIDNAME.
+ * BE_ERR_SUCCESS (0) if name is valid, otherwise returns BE_ERR_INVALIDNAME
+ * or BE_ERR_PATHLEN.
  * Does not set internal library error state.
  */
 int
-be_validate_name(libbe_handle_t *lbh __unused, const char *name)
+be_validate_name(libbe_handle_t *lbh, const char *name)
 {
 	for (int i = 0; *name; i++) {
 		char c = *(name++);
@@ -590,6 +591,12 @@ be_validate_name(libbe_handle_t *lbh __unused, const char *name)
 		return (BE_ERR_INVALIDNAME);
 	}
 
+	/*
+	 * Impose the additional restriction that the entire dataset name must
+	 * not exceed the maximum length of a dataset, i.e. MAXNAMELEN.
+	 */
+	if (strlen(lbh->root) + 1 + strlen(name) > MAXNAMELEN)
+		return (BE_ERR_PATHLEN);
 	return (BE_ERR_SUCCESS);
 }
 
@@ -605,13 +612,16 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	zfs_handle_t *zfs_hdl;
 	int err;
 
+	/*
+	 * be_validate_name is documented not to set error state, so we should
+	 * do so here.
+	 */
+	if ((err = be_validate_name(lbh, new)) != 0)
+		return (set_error(lbh, err));
 	if ((err = be_root_concat(lbh, old, full_old)) != 0)
 		return (set_error(lbh, err));
 	if ((err = be_root_concat(lbh, new, full_new)) != 0)
 		return (set_error(lbh, err));
-
-	if ((err = be_validate_name(lbh, new)) != 0)
-		return (err);
 
 	/* Check if old is active BE */
 	if (strcmp(full_old, be_active_path(lbh)) == 0)
@@ -639,8 +649,9 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	err = zfs_rename(zfs_hdl, NULL, full_new, flags);
 
 	zfs_close(zfs_hdl);
-
-	return (set_error(lbh, err));
+	if (err != 0)
+		return (set_error(lbh, BE_ERR_UNKNOWN));
+	return (0);
 }
 
 
