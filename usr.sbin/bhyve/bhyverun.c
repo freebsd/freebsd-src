@@ -398,6 +398,12 @@ paddr_guest2host(struct vmctx *ctx, uintptr_t gaddr, size_t len)
 	return (vm_map_gpa(ctx, gaddr, len));
 }
 
+uintptr_t
+paddr_host2guest(struct vmctx *ctx, void *addr)
+{
+	return(vm_rev_map_gpa(ctx, addr));
+}
+
 int
 fbsdrun_vmexit_on_pause(void)
 {

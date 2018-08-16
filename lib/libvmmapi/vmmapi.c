@@ -543,6 +543,24 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	return (NULL);
 }
 
+vm_paddr_t
+vm_rev_map_gpa(struct vmctx *ctx, void *addr)
+{
+	off_t offaddr;
+
+	offaddr = addr - (void *) ctx->baseaddr;
+
+	if (ctx->lowmem > 0)
+		if (offaddr >= 0 && offaddr <= ctx->lowmem)
+			return (offaddr);
+
+	if (ctx->highmem > 0)
+		if (offaddr >= 4*GB && offaddr < 4*GB + ctx->highmem)
+				return (offaddr);
+
+	return ((vm_paddr_t) -1);
+}
+
 /* TODO: maximum size for vmname */
 void vm_get_name(struct vmctx *ctx, char *buf, int max_len)
 {
