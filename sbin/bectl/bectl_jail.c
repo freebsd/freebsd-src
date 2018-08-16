@@ -153,7 +153,7 @@ jailparam_addarg(char *arg)
 			    val, BE_MAXPATHLEN);
 			return (false);
 		}
-		strcpy(mnt_loc, val);
+		strlcpy(mnt_loc, val, sizeof(mnt_loc));
 	}
 	jailparam_add(name, val);
 	return (true);
