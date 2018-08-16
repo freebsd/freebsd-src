@@ -50,7 +50,6 @@
  *           open files limit work.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -69,7 +68,6 @@ getafile(void)
 	int fd;
 
 	char temp[] = "/tmp/dup2XXXXXXXXX";
-	umask(0077);
 	if ((fd = mkstemp(temp)) < 0)
 		err(1, "mkstemp");
 	remove(temp);
