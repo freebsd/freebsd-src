@@ -77,6 +77,11 @@ SRCS+=	ashldi3.c ashrdi3.c
 SRCS+=	syncicache.c
 .endif
 
+.if ${MACHINE_CPUARCH} == "mips"
+.PATH: ${LIBC_SRC}/quad
+SRCS+=	ashldi3.c ashrdi3.c
+.endif
+
 # uuid functions from libc
 .PATH: ${LIBC_SRC}/uuid
 SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
