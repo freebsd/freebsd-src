@@ -710,6 +710,7 @@ vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 	xo_open_list_h(xop, JSON_STRUCT_ARR_KEY);
 	for (i = 0; i < sizeof(structs) / sizeof(structs[0]); i++) {
 		memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
+		data_size = 0;
 		ret = vm_snapshot_req(ctx, structs[i], buffer, SNAPSHOT_BUFFER_SIZE,
 				&data_size);
 
@@ -802,6 +803,7 @@ vm_snapshot_dev(const struct vm_snapshot_dev_info *info,
 	size_t data_size;
 
 	memset(buffer, 0, buf_size);
+	data_size = 0;
 	ret = (*info->snapshot_cb)(ctx, info->dev_name, buffer, buf_size,
 				   &data_size);
 	if (ret != 0) {
