@@ -194,6 +194,11 @@ extern struct pv_addr systempage;
 
 extern int last_fault_code;
 
+#define	l1pte_section_p(pde)	(((pde) & L1_TYPE_MASK) == L1_TYPE_S)
+#define	l2pte_index(v)		(((v) & L1_S_OFFSET) >> L2_S_SHIFT)
+#define	l2pte_valid(pte)	((pte) != 0)
+#define	l2pte_pa(pte)		((pte) & L2_S_FRAME)
+
 /*
  * Internal function prototypes
  */
@@ -444,13 +449,13 @@ pmap_pte_init_generic(void)
 {
 
 	pte_l1_s_cache_mode = L1_S_B|L1_S_C;
-	pte_l1_s_cache_mask = L1_S_CACHE_MASK_generic;
+	pte_l1_s_cache_mask = L1_S_CACHE_MASK;
 
 	pte_l2_l_cache_mode = L2_B|L2_C;
-	pte_l2_l_cache_mask = L2_L_CACHE_MASK_generic;
+	pte_l2_l_cache_mask = L2_L_CACHE_MASK;
 
 	pte_l2_s_cache_mode = L2_B|L2_C;
-	pte_l2_s_cache_mask = L2_S_CACHE_MASK_generic;
+	pte_l2_s_cache_mask = L2_S_CACHE_MASK;
 
 	/*
 	 * If we have a write-through cache, set B and C.  If
