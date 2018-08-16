@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/queue.h>
 #include <sys/runq.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -3347,6 +3348,7 @@ ATF_TC_BODY(ptrace__PT_ATTACH_with_SBDRY_thread, tc)
 	ATF_REQUIRE(pthread_barrier_init(&barrier, &battr, 2) == 0);
 
 	(void)snprintf(tmpfile, sizeof(tmpfile), "./ptrace.XXXXXX");
+	umask(0077);
 	fd = mkstemp(tmpfile);
 	ATF_REQUIRE(fd >= 0);
 

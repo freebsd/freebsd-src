@@ -87,6 +87,7 @@ tempfile(int *fdp)
 
 	snprintf(path, PATH_MAX, "%s/unix_passfd.XXXXXXXXXXXXXXX",
 	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"));
+	umask(0077);
 	fd = mkstemp(path);
 	ATF_REQUIRE_MSG(fd != -1, "mkstemp(%s) failed", path);
 	(void)unlink(path);

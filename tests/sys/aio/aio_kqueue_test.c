@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <aio.h>
 #include <err.h>
@@ -90,6 +91,7 @@ main (int argc, char *argv[])
 
 	if (argc == 1) { 
 		strcpy(pathname, PATH_TEMPLATE);
+		umask(0077);
 		fd = mkstemp(pathname);
 		file = pathname;
 		tmp_file = 1;
