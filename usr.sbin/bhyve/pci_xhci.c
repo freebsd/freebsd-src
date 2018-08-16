@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <xhcireg.h>
 
 #include "bhyverun.h"
+#include "migration.h"
 #include "pci_emul.h"
 #include "pci_xhci.h"
 #include "usb_emul.h"
@@ -149,6 +150,8 @@ static int xhci_debug = 0;
 					(((b) & (m)) << (s)))
 #define	FIELD_COPY(a,b,m,s)		(((a) & ~((m) << (s))) | \
 					(((b) & ((m) << (s)))))
+
+#define	SNAP_DEV_NAME_LEN 128
 
 struct pci_xhci_trb_ring {
 	uint64_t ringaddr;		/* current dequeue guest address */
@@ -2828,12 +2831,436 @@ done:
 	return (error);
 }
 
+static void
+pci_xhci_map_devs_slots(struct pci_xhci_softc *sc, int maps[])
+{
+	int i, j;
+	struct pci_xhci_dev_emu *dev, *slot;
 
+	memset(maps, 0, sizeof(maps[0]) * XHCI_MAX_SLOTS);
+
+	for (i = 1; i <= XHCI_MAX_SLOTS; i++) {
+		for (j = 1; j <= XHCI_MAX_DEVS; j++) {
+			slot = XHCI_SLOTDEV_PTR(sc, i);
+			dev = XHCI_DEVINST_PTR(sc, j);
+
+			if (slot == dev)
+				maps[i] = j;
+		}
+	}
+}
+
+static int
+pci_xhci_snapshot_ep(struct pci_xhci_softc *sc, struct pci_xhci_dev_emu *dev,
+		     int idx, uint8_t **buffer, size_t *buf_size,
+		     size_t *snapshot_len)
+{
+	int k, ret;
+	struct usb_data_xfer *xfer;
+	struct usb_data_xfer_block *xfer_block;
+	vm_paddr_t addr;
+
+	xfer = dev->eps[idx].ep_xfer;
+
+	SNAPSHOT_PART_OR_RET(xfer, buffer, buf_size, snapshot_len);
+	if (xfer == NULL)
+		return (0);
+
+	for (k = 0; k < USB_MAX_XFER_BLOCKS; k++) {
+		xfer_block = &xfer->data[k];
+
+		addr = paddr_host2guest(dev->xsc->xsc_pi->pi_vmctx, xfer_block->buf);
+		SNAPSHOT_PART_OR_RET(addr, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->blen, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->bdone, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->processed, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->hci_data, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->ccs, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->streamid, buffer, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(xfer_block->trbnext, buffer, buf_size, snapshot_len);
+	}
+
+	SNAPSHOT_PART_OR_RET(xfer->ureq, buffer, buf_size, snapshot_len);
+	if (xfer->ureq) {
+		ret = snapshot_part(xfer->ureq,
+				    sizeof(struct usb_device_request),
+				    buffer, buf_size, snapshot_len);
+		if (ret != 0) {
+			fprintf(stderr, "%s: buffer too small\r\n", __func__);
+			return (ret);
+		}
+	}
+
+	SNAPSHOT_PART_OR_RET(xfer->ndata, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(xfer->head, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(xfer->tail, buffer, buf_size, snapshot_len);
+
+	return (0);
+}
+
+static int
+pci_xhci_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		  size_t buf_size, size_t *snapshot_len)
+{
+	int i, j;
+	int ret;
+	struct pci_xhci_softc *sc;
+	struct pci_xhci_portregs *port;
+	struct pci_xhci_dev_emu *dev;
+	char dev_name[SNAP_DEV_NAME_LEN];
+	uint8_t *buf;
+	int maps[XHCI_MAX_SLOTS + 1];
+	vm_paddr_t addr;
+
+	sc = pi->pi_arg;
+	buf = buffer;
+	*snapshot_len = 0;
+
+	SNAPSHOT_PART_OR_RET(sc->caplength, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hcsparams1, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hcsparams2, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hcsparams3, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hccparams1, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->dboff, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsoff, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hccparams2, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->regsend, buf, buf_size, snapshot_len);
+
+	/* opregs */
+	SNAPSHOT_PART_OR_RET(sc->opregs.usbcmd, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.usbsts, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.pgsz, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.dnctrl, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.crcr, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.dcbaap, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->opregs.config, buf, buf_size, snapshot_len);
+
+	/* opregs.cr_p */
+	addr = paddr_host2guest(sc->xsc_pi->pi_vmctx, sc->opregs.cr_p);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+	/* opregs.dcbaa_p */
+	addr = paddr_host2guest(sc->xsc_pi->pi_vmctx, sc->opregs.dcbaa_p);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+	/* rtsregs */
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.mfindex, buf, buf_size, snapshot_len);
+
+	/* rtsregs.intrreg */
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.iman, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.imod, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.erstsz, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.rsvd, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.erstba, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.intrreg.erdp, buf, buf_size, snapshot_len);
+
+	/* rtsregs.erstba_p */
+	addr = paddr_host2guest(sc->xsc_pi->pi_vmctx, sc->rtsregs.erstba_p);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+	/* rtsregs.erst_p */
+	addr = paddr_host2guest(sc->xsc_pi->pi_vmctx, sc->rtsregs.erst_p);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.er_deq_seg, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.er_enq_idx, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.er_enq_seg, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.er_events_cnt, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->rtsregs.event_pcs, buf, buf_size, snapshot_len);
+
+	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		dev = XHCI_DEVINST_PTR(sc, i);
+		if (dev == NULL)
+			continue;
+
+		SNAPSHOT_PART_OR_RET(i, buf, buf_size, snapshot_len);
+
+		memset(dev_name, 0, SNAP_DEV_NAME_LEN);
+		strncpy(dev_name, dev->dev_ue->ue_emu, SNAP_DEV_NAME_LEN-1);
+
+		snapshot_part(dev_name, SNAP_DEV_NAME_LEN, &buf, &buf_size,
+			      snapshot_len);
+	}
+
+	/* portregs */
+	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		port = XHCI_PORTREG_PTR(sc, i);
+		dev = XHCI_DEVINST_PTR(sc, i);
+
+		if (dev == NULL)
+			continue;
+
+		SNAPSHOT_PART_OR_RET(port->portsc, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->portpmsc, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->portli, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->porthlpmc, buf, buf_size, snapshot_len);
+	}
+
+	/* slots */
+	pci_xhci_map_devs_slots(sc, maps);
+
+	for (i = 1; i <= XHCI_MAX_SLOTS; i++) {
+		SNAPSHOT_PART_OR_RET(maps[i], buf, buf_size, snapshot_len);
+
+		dev = XHCI_SLOTDEV_PTR(sc, i);
+		if (dev == NULL)
+			continue;
+
+		addr = paddr_host2guest(sc->xsc_pi->pi_vmctx, dev->dev_ctx);
+		SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+		for (j = 1; j < XHCI_MAX_ENDPOINTS; j++) {
+			ret = pci_xhci_snapshot_ep(sc, dev, j, &buf, &buf_size,
+						   snapshot_len);
+			if (ret != 0) {
+				fprintf(stderr, "Snapshot error!\r\n");
+				return (ret);
+			}
+		}
+
+		SNAPSHOT_PART_OR_RET(dev->dev_slotstate, buf, buf_size,
+				     snapshot_len);
+
+		/* devices[i]->dev_sc */
+		dev->dev_ue->ue_snapshot(dev->dev_sc, &buf, &buf_size,
+					 snapshot_len);
+
+		/* devices[i]->hci */
+		SNAPSHOT_PART_OR_RET(dev->hci.hci_address, buf, buf_size,
+				     snapshot_len);
+		SNAPSHOT_PART_OR_RET(dev->hci.hci_port, buf, buf_size,
+				     snapshot_len);
+	}
+
+	SNAPSHOT_PART_OR_RET(sc->ndevices, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->usb2_port_start, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->usb3_port_start, buf, buf_size, snapshot_len);
+
+	return (0);
+}
+
+static int
+pci_xhci_restore_ep(struct pci_xhci_dev_emu *dev, int idx,
+		    uint8_t **buffer, size_t *buf_size)
+{
+	int k, ret;
+	struct usb_data_xfer *xfer;
+	struct usb_data_xfer_block *xfer_block;
+	vm_paddr_t addr;
+
+	RESTORE_PART_OR_RET(xfer, buffer, buf_size);
+	/* restore the pointer from the old VM to check if the
+	 *  xfer existed (the eps was used)
+	 */
+	if (xfer == NULL)
+		return (0);
+
+	pci_xhci_init_ep(dev, idx);
+
+	xfer = dev->eps[idx].ep_xfer;
+
+	for (k = 0; k < USB_MAX_XFER_BLOCKS; k++) {
+		xfer_block = &xfer->data[k];
+
+		RESTORE_PART_OR_RET(addr, buffer, buf_size);
+		if (addr == (vm_paddr_t)-1)
+			xfer_block->buf = NULL;
+		else
+			xfer_block->buf = XHCI_GADDR(dev->xsc, addr);
+		RESTORE_PART_OR_RET(xfer_block->blen, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->bdone, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->processed, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->hci_data, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->ccs, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->streamid, buffer, buf_size);
+		RESTORE_PART_OR_RET(xfer_block->trbnext, buffer, buf_size);
+	}
+
+	RESTORE_PART_OR_RET(xfer->ureq, buffer, buf_size);
+	if (xfer->ureq) {
+		xfer->ureq = malloc(sizeof(struct usb_device_request));
+		if (xfer->ureq == NULL) {
+			fprintf(stderr, "%s: buffer alloc failed\r\n", __func__);
+			return (-1);
+		}
+
+		ret = restore_part(xfer->ureq,
+				   sizeof(struct usb_device_request),
+				   buffer, buf_size);
+		if (ret != 0) {
+			fprintf(stderr, "%s: buffer too small\r\n", __func__);
+			return (ret);
+		}
+	}
+
+	RESTORE_PART_OR_RET(xfer->ndata, buffer, buf_size);
+	RESTORE_PART_OR_RET(xfer->head, buffer, buf_size);
+	RESTORE_PART_OR_RET(xfer->tail, buffer, buf_size);
+
+	return (0);
+}
+
+static int
+pci_xhci_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		 size_t buf_size)
+{
+	int i, j;
+	int restore_idx;
+	int ret;
+	struct pci_xhci_softc *sc;
+	struct pci_xhci_portregs *port;
+	struct pci_xhci_dev_emu *dev;
+	char dev_name[SNAP_DEV_NAME_LEN];
+	uint8_t *buf;
+	vm_paddr_t addr;
+
+	sc = pi->pi_arg;
+	buf = buffer;
+
+	RESTORE_PART_OR_RET(sc->caplength, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->hcsparams1, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->hcsparams2, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->hcsparams3, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->hccparams1, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->dboff, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsoff, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->hccparams2, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->regsend, buf, buf_size);
+
+	/* opregs */
+	RESTORE_PART_OR_RET(sc->opregs.usbcmd, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.usbsts, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.pgsz, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.dnctrl, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.crcr, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.dcbaap, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->opregs.config, buf, buf_size);
+
+	/* opregs.cr_p */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	assert(addr != (vm_paddr_t)-1);
+	sc->opregs.cr_p = XHCI_GADDR(sc, addr);
+
+	/* opregs.dcbaa_p */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	assert(addr != (vm_paddr_t)-1);
+	sc->opregs.dcbaa_p = XHCI_GADDR(sc, addr);
+
+	/* rtsregs */
+	RESTORE_PART_OR_RET(sc->rtsregs.mfindex, buf, buf_size);
+
+	/* rtsregs.intrreg */
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.iman, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.imod, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.erstsz, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.rsvd, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.erstba, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.intrreg.erdp, buf, buf_size);
+
+	/* rtsregs.erstba_p */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	assert(addr != (vm_paddr_t)-1);
+	sc->rtsregs.erstba_p = XHCI_GADDR(sc, addr);
+
+	/* rtsregs.erst_p */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	assert(addr != (vm_paddr_t)-1);
+	sc->rtsregs.erst_p = XHCI_GADDR(sc, addr);
+
+	RESTORE_PART_OR_RET(sc->rtsregs.er_deq_seg, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.er_enq_idx, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.er_enq_seg, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.er_events_cnt, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->rtsregs.event_pcs, buf, buf_size);
+
+	/* Check if devices maintain their indices when creating another VM */
+	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		dev = XHCI_DEVINST_PTR(sc, i);
+		if (dev == NULL)
+			continue;
+
+		RESTORE_PART_OR_RET(restore_idx, buf, buf_size);
+		ret = restore_part(dev_name, SNAP_DEV_NAME_LEN, &buf, &buf_size);
+		if (ret != 0) {
+			fprintf(stderr, "%s: buffer too small\r\n", __func__);
+			return (ret);
+		}
+
+		if (i != restore_idx) {
+			fprintf(stderr, "%s: device instances from old machine "
+				"are not matching the current one: %d vs %d\r\n",
+				__func__, i, restore_idx);
+			return (-1);
+		}
+
+		if (strncmp(dev->dev_ue->ue_emu, dev_name,
+			    SNAP_DEV_NAME_LEN - 1)) {
+			dev_name[SNAP_DEV_NAME_LEN - 1] = '\0';
+			fprintf(stderr,
+				"%s: device type mismatch: %s, expected %s\r\n",
+				__func__, dev_name, dev->dev_ue->ue_emu);
+			return (-1);
+		}
+	}
+
+	/* portregs */
+	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		port = XHCI_PORTREG_PTR(sc, i);
+		dev = XHCI_DEVINST_PTR(sc, i);
+
+		if (dev == NULL)
+			continue;
+
+		RESTORE_PART_OR_RET(port->portsc, buf, buf_size);
+		RESTORE_PART_OR_RET(port->portpmsc, buf, buf_size);
+		RESTORE_PART_OR_RET(port->portli, buf, buf_size);
+		RESTORE_PART_OR_RET(port->porthlpmc, buf, buf_size);
+	}
+
+	/* slots */
+	for (i = 1; i <= XHCI_MAX_SLOTS; i++) {
+		RESTORE_PART_OR_RET(restore_idx, buf, buf_size);
+		if (restore_idx != 0)
+			dev = XHCI_DEVINST_PTR(sc, restore_idx);
+		else
+			dev = NULL;
+		XHCI_SLOTDEV_PTR(sc, i) = dev;
+
+		if (dev == NULL)
+			continue;
+
+		RESTORE_PART_OR_RET(addr, buf, buf_size);
+		dev->dev_ctx = XHCI_GADDR(sc, addr);
+
+		for (j = 1; j < XHCI_MAX_ENDPOINTS; j++) {
+			ret = pci_xhci_restore_ep(dev, j, &buf, &buf_size);
+			if (ret != 0)
+				return (ret);
+		}
+
+		RESTORE_PART_OR_RET(dev->dev_slotstate, buf, buf_size);
+
+		/* devices[i]->dev_sc */
+		dev->dev_ue->ue_restore(dev->dev_sc, &buf, &buf_size);
+
+		/* devices[i]->hci */
+		RESTORE_PART_OR_RET(dev->hci.hci_address, buf, buf_size);
+		RESTORE_PART_OR_RET(dev->hci.hci_port, buf, buf_size);
+	}
+
+	RESTORE_PART_OR_RET(sc->ndevices, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->usb2_port_start, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->usb3_port_start, buf, buf_size);
+
+	return (0);
+}
 
 struct pci_devemu pci_de_xhci = {
 	.pe_emu =	"xhci",
 	.pe_init =	pci_xhci_init,
 	.pe_barwrite =	pci_xhci_write,
-	.pe_barread =	pci_xhci_read
+	.pe_barread =	pci_xhci_read,
+	.pe_snapshot =	pci_xhci_snapshot,
+	.pe_restore =	pci_xhci_restore
 };
 PCI_EMUL_SET(pci_de_xhci);

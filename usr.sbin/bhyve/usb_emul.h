@@ -62,6 +62,9 @@ struct usb_devemu {
 	int	(*ue_reset)(void *sc);
 	int	(*ue_remove)(void *sc);
 	int	(*ue_stop)(void *sc);
+	int	(*ue_snapshot)(void *scarg, uint8_t **buffer,
+			       size_t *buf_size, size_t *snapshot_len);
+	int	(*ue_restore)(void *scarg, uint8_t **buffer, size_t *buf_size);
 };
 #define	USB_EMUL_SET(x)		DATA_SET(usb_emu_set, x);
 
@@ -147,7 +150,6 @@ enum USB_ERRCODE {
 #define	USB_DATA_XFER_UNLOCK(x)	do {					\
 			pthread_mutex_unlock(&((x)->mtx));		\
 		} while (0)
-
 
 struct usb_devemu *usb_emu_finddev(char *name);
 

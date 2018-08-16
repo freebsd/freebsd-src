@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "usb_emul.h"
 #include "console.h"
 #include "bhyvegc.h"
+#include "migration.h"
 
 static int umouse_debug = 0;
 #define	DPRINTF(params) if (umouse_debug) printf params
@@ -787,6 +788,48 @@ umouse_stop(void *scarg)
 	return (0);
 }
 
+static int
+umouse_snapshot(void *scarg, uint8_t **buffer,
+		size_t *buf_size, size_t *snapshot_len)
+{
+	struct umouse_softc *sc;
+
+	sc = scarg;
+
+	SNAPSHOT_PART_OR_RET(sc->um_report, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->newdata, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hid.idle, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hid.protocol, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->hid.feature, buffer, buf_size, snapshot_len);
+
+	SNAPSHOT_PART_OR_RET(sc->polling, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->prev_evt.tv_sec, buffer, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->prev_evt.tv_usec, buffer, buf_size, snapshot_len);
+
+	return (0);
+}
+
+static int
+umouse_restore(void *scarg, uint8_t **buffer, size_t *buf_size)
+{
+	struct umouse_softc *sc;
+
+	sc = scarg;
+
+	RESTORE_PART_OR_RET(sc->um_report, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->newdata, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->hid.idle, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->hid.protocol, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->hid.feature, buffer, buf_size);
+
+	RESTORE_PART_OR_RET(sc->polling, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->prev_evt.tv_sec, buffer, buf_size);
+	RESTORE_PART_OR_RET(sc->prev_evt.tv_usec, buffer, buf_size);
+
+	/* sc->hci is restored in pci_xhci */
+
+	return (0);
+}
 
 struct usb_devemu ue_mouse = {
 	.ue_emu =	"tablet",
@@ -797,6 +840,8 @@ struct usb_devemu ue_mouse = {
 	.ue_data =	umouse_data_handler,
 	.ue_reset =	umouse_reset,
 	.ue_remove =	umouse_remove,
-	.ue_stop =	umouse_stop
+	.ue_stop =	umouse_stop,
+	.ue_snapshot =	umouse_snapshot,
+	.ue_restore =	umouse_restore,
 };
 USB_EMUL_SET(ue_mouse);

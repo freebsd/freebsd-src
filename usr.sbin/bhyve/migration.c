@@ -121,6 +121,11 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 		.snapshot_cb = pci_snapshot,
 		.restore_cb = pci_restore
 	},
+	{
+		.dev_name = "xhci",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
 };
 
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
