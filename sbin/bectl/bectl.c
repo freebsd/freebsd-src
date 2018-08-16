@@ -182,15 +182,19 @@ bectl_cmd_activate(int argc, char *argv[])
 static int
 bectl_cmd_create(int argc, char *argv[])
 {
-	char *bootenv, *snapname, *source;
+	char *atpos, *bootenv, *snapname, *source;
 	int err, opt;
+	bool recursive;
 
 	snapname = NULL;
-	while ((opt = getopt(argc, argv, "e:")) != -1) {
+	recursive = false;
+	while ((opt = getopt(argc, argv, "re:")) != -1) {
 		switch (opt) {
 		case 'e':
 			snapname = optarg;
 			break;
+		case 'r':
+			recursive = true;
 		default:
 			fprintf(stderr, "bectl create: unknown option '-%c'\n",
 			    optopt);
@@ -207,8 +211,14 @@ bectl_cmd_create(int argc, char *argv[])
 	}
 
 	bootenv = *argv;
-
-	if (snapname != NULL) {
+	if ((atpos = strchr(bootenv, '@')) != NULL) {
+		/*
+		 * This is the "create a snapshot variant". No new boot
+		 * environment is to be created here.
+		 */
+		*atpos++ = '\0';
+		err = be_snapshot(be, bootenv, atpos, recursive, NULL);
+	} else if (snapname != NULL) {
 		if (strchr(snapname, '@') != NULL)
 			err = be_create_from_existing_snap(be, bootenv,
 			    snapname);
@@ -232,7 +242,11 @@ bectl_cmd_create(int argc, char *argv[])
 	case BE_ERR_SUCCESS:
 		break;
 	default:
-		if (snapname == NULL)
+		if (atpos != NULL)
+			fprintf(stderr,
+			    "failed to create a snapshot '%s' of '%s'\n",
+			    atpos, bootenv);
+		else if (snapname == NULL)
 			fprintf(stderr,
 			    "failed to create bootenv %s\n", bootenv);
 		else
