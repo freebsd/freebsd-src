@@ -306,6 +306,7 @@ bd_print(int verbose)
 		    bdinfo[i].bd_sectorsize);
 		if ((ret = pager_output(line)) != 0)
 			break;
+
 		dev.dd.d_dev = &biosdisk;
 		dev.dd.d_unit = i;
 		dev.d_slice = -1;
@@ -317,7 +318,7 @@ bd_print(int verbose)
 			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
 			if (ret != 0)
-				return (ret);
+				break;
 		}
 	}
 	return (ret);
@@ -385,7 +386,6 @@ bd_open(struct open_file *f, ...)
 			BD(dev).bd_bcache = NULL;
 		}
 	}
-
 	return (rc);
 }
 
