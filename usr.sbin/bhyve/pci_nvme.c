@@ -1714,6 +1714,11 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		} else if (!strcmp("sectsz", xopts)) {
 			sectsz = atoi(config);
 		} else if (!strcmp("ser", xopts)) {
+			/*
+			 * This field indicates the Product Serial Number in
+			 * 8-bit ASCII, unused bytes should be NULL characters.
+			 * Ref: NVM Express Management Interface 1.0a.
+			 */
 			memset(sc->ctrldata.sn, 0, sizeof(sc->ctrldata.sn));
 			strncpy(sc->ctrldata.sn, config,
 			        sizeof(sc->ctrldata.sn));
