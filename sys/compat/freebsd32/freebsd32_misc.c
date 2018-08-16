@@ -2289,10 +2289,8 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 	return (0);
 }
 
-#ifdef COMPAT_FREEBSD11
 int
-freebsd11_freebsd32_jail(struct thread *td,
-    struct freebsd11_freebsd32_jail_args *uap)
+freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 {
 	uint32_t version;
 	int error;
@@ -2349,9 +2347,8 @@ freebsd11_freebsd32_jail(struct thread *td,
 		/* Sci-Fi jails are not supported, sorry. */
 		return (EINVAL);
 	}
-	return (freebsd11_kern_jail(td, &j));
+	return (kern_jail(td, &j));
 }
-#endif /* COMPAT_FREEBSD11 */
 
 int
 freebsd32_jail_set(struct thread *td, struct freebsd32_jail_set_args *uap)
