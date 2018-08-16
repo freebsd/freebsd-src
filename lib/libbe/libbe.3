@@ -331,7 +331,9 @@ environment name into
 .Pp
 The
 .Fn be_validate_name
-function will validate the given boot environment name.
+function will validate the given boot environment name for both length
+restrictions as well as valid character restrictions.
+This function does not set the internal library error state.
 .Pp
 The
 .Fn be_validate_snap
