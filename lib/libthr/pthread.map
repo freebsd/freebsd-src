@@ -321,3 +321,7 @@ FBSD_1.4 {
 	 pthread_mutexattr_getrobust;
 	 pthread_mutexattr_setrobust;
 };
+
+FBSD_1.5 {
+	 pthread_get_name_np;
+};

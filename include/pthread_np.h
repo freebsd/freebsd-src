@@ -49,6 +49,7 @@ int pthread_attr_setcreatesuspend_np(pthread_attr_t *);
 int pthread_attr_get_np(pthread_t, pthread_attr_t *);
 int pthread_attr_getaffinity_np(const pthread_attr_t *, size_t, cpuset_t *);
 int pthread_attr_setaffinity_np(pthread_attr_t *, size_t, const cpuset_t *);
+void pthread_get_name_np(pthread_t, char *, size_t);
 int pthread_getaffinity_np(pthread_t, size_t, cpuset_t *);
 int pthread_getthreadid_np(void);
 int pthread_main_np(void);
