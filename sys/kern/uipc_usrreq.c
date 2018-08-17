@@ -981,16 +981,22 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
 		}
+
 		/*
-		 * Send to paired receive port, and then reduce send buffer
-		 * hiwater marks to maintain backpressure.  Wake up readers.
+		 * Send to paired receive port and wake up readers.  Don't
+		 * check for space available in the receive buffer if we're
+		 * attaching ancillary data; Unix domain sockets only check
+		 * for space in the sending sockbuf, and that check is
+		 * performed one level up the stack.  At that level we cannot
+		 * precisely account for the amount of buffer space used
+		 * (e.g., because control messages are not yet internalized).
 		 */
 		switch (so->so_type) {
 		case SOCK_STREAM:
 			if (control != NULL) {
-				if (sbappendcontrol_locked(&so2->so_rcv, m,
-				    control))
-					control = NULL;
+				sbappendcontrol_locked(&so2->so_rcv, m,
+				    control);
+				control = NULL;
 			} else
 				sbappend_locked(&so2->so_rcv, m, flags);
 			break;
@@ -999,14 +1005,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			const struct sockaddr *from;
 
 			from = &sun_noname;
-			/*
-			 * Don't check for space available in so2->so_rcv.
-			 * Unix domain sockets only check for space in the
-			 * sending sockbuf, and that check is performed one
-			 * level up the stack.
-			 */
 			if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
-				from, m, control))
+			    from, m, control))
 				control = NULL;
 			break;
 			}
