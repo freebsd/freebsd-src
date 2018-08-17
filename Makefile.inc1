@@ -1765,7 +1765,7 @@ create-packages: .PHONY create-packages-world create-packages-kernel
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
 	@cd ${WSTAGEDIR} ; \
-		env -i LC_COLLATE=C sort ${WSTAGEDIR}/METALOG | \
+		env -i LC_COLLATE=C sort ${WSTAGEDIR}/${DISTDIR}/METALOG | \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk
 	@for plist in ${WSTAGEDIR}/*.plist; do \
 	  plist=$${plist##*/} ; \
