@@ -72,7 +72,7 @@ setproctitle_internal(const char *fmt, va_list ap)
 
 	if (buf == NULL) {
 		buf = malloc(SPT_BUFSIZE);
-		if (buf == NULL) 
+		if (buf == NULL)
 			return (NULL);
 		nargv[0] = buf;
 	}
@@ -98,13 +98,13 @@ setproctitle_internal(const char *fmt, va_list ap)
 		}
 
 		/* print the argument string */
-		(void) vsnprintf(buf + len, SPT_BUFSIZE - len, fmt, ap);
+		(void)vsnprintf(buf + len, SPT_BUFSIZE - len, fmt, ap);
 
 		nargvp = nargv;
 		nargc = 1;
 		kbuf = buf;
 	} else if (*obuf != '\0') {
-  		/* Idea from NetBSD - reset the title on fmt == NULL */
+		/* Idea from NetBSD - reset the title on fmt == NULL */
 		nargvp = oargv;
 		nargc = oargc;
 		kbuf = obuf;
