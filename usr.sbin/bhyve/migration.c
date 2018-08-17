@@ -128,6 +128,53 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	},
 };
 
+const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
+	{
+		.struct_name = "vm",
+		.req = STRUCT_VM
+	},
+	{
+		.struct_name = "vmx",
+		.req = STRUCT_VMX
+	},
+	{
+		.struct_name = "vioapic",
+		.req = STRUCT_VIOAPIC
+	},
+	{
+		.struct_name = "vlapic",
+		.req = STRUCT_VLAPIC
+	},
+	{
+		.struct_name = "lapic",
+		.req = STRUCT_LAPIC
+	},
+	{
+		.struct_name = "vhpet",
+		.req = STRUCT_VHPET
+	},
+	{
+		.struct_name = "vmcx",
+		.req = STRUCT_VMCX
+	},
+	{
+		.struct_name = "vatpit",
+		.req = STRUCT_VATPIT
+	},
+	{
+		.struct_name = "vatpic",
+		.req = STRUCT_VATPIC
+	},
+	{
+		.struct_name = "vpmtmr",
+		.req = STRUCT_VPMTMR
+	},
+	{
+		.struct_name = "vrtc",
+		.req = STRUCT_VRTC
+	},
+};
+
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
  * provided string.
  */
@@ -570,30 +617,20 @@ restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
 	size_t struct_size;
 	int ret;
 	int i;
-	enum snapshot_req structs[] = {
-		STRUCT_VMX,
-		STRUCT_VM,
-		STRUCT_VLAPIC,
-		STRUCT_LAPIC,
-		STRUCT_VIOAPIC,
-		STRUCT_VHPET,
-		STRUCT_VMCX,
-		STRUCT_VATPIC,
-		STRUCT_VATPIT,
-		STRUCT_VPMTMR,
-		STRUCT_VRTC,
-	};
 
-	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
-		struct_ptr = lookup_struct(structs[i], rstate, &struct_size);
+	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
+		struct_ptr = lookup_struct(snapshot_kern_structs[i].req, rstate, &struct_size);
 		if (struct_ptr == NULL) {
-			fprintf(stderr, "Failed to lookup struct vmx\n");
+			fprintf(stderr, "%s: Failed to lookup struct %s\r\n",
+				__func__, snapshot_kern_structs[i].struct_name);
 			return (-1);
 		}
 
-		ret = vm_restore_req(ctx, structs[i], struct_ptr, struct_size);
+		ret = vm_restore_req(ctx, snapshot_kern_structs[i].req, struct_ptr, struct_size);
 		if (ret != 0) {
-			fprintf(stderr, "Failed to restore struct: %d\n", structs[i]);
+			fprintf(stderr, "%s: Failed to restore struct: %s\r\n",
+				__func__, snapshot_kern_structs[i].struct_name);
+			return (ret);
 		}
 	}
 
@@ -690,21 +727,6 @@ vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 	int ret, i, error = 0;
 	size_t data_size, offset = 0;
 	char *buffer = NULL;
-	enum snapshot_req structs[] = {
-		STRUCT_VM,
-		STRUCT_VMX,
-		STRUCT_VIOAPIC,
-		STRUCT_VLAPIC,
-		STRUCT_LAPIC,
-		STRUCT_VHPET,
-		STRUCT_VMCX,
-		STRUCT_VATPIC,
-		STRUCT_VATPIT,
-		STRUCT_VPMTMR,
-		STRUCT_VRTC,
-	};
-
-	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic", "vhpet", "vmcs", "vatpic", "vatpit", "vpmtmr", "vrtc"};
 
 	buffer = malloc(SNAPSHOT_BUFFER_SIZE * sizeof(char));
 	if (buffer == NULL) {
@@ -713,15 +735,15 @@ vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 	}
 
 	xo_open_list_h(xop, JSON_STRUCT_ARR_KEY);
-	for (i = 0; i < sizeof(structs) / sizeof(structs[0]); i++) {
+	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
 		memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
 		data_size = 0;
-		ret = vm_snapshot_req(ctx, structs[i], buffer, SNAPSHOT_BUFFER_SIZE,
-				&data_size);
+		ret = vm_snapshot_req(ctx, snapshot_kern_structs[i].req, buffer,
+				      SNAPSHOT_BUFFER_SIZE, &data_size);
 
 		if (ret != 0) {
-			fprintf(stderr, "Failed to snapshot struct %s; ret=%d\n",
-				snapshot_struct_names[i], ret);
+			fprintf(stderr, "%s: Failed to snapshot struct %s; ret=%d\r\n",
+				__func__, snapshot_kern_structs[i].struct_name, ret);
 			error = -1;
 			goto err_vm_snapshot_kern_data;
 		}
@@ -735,8 +757,9 @@ vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 
 		/* Write metadata. */
 		xo_open_instance_h(xop, JSON_STRUCT_ARR_KEY);
-		xo_emit_h(xop, "{:debug_name/%s}\n", snapshot_struct_names[i]);
-		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%d}\n", structs[i]);
+		xo_emit_h(xop, "{:debug_name/%s}\n", snapshot_kern_structs[i].struct_name);
+		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%d}\n",
+			snapshot_kern_structs[i].req);
 		xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
 		xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
 		xo_close_instance_h(xop, JSON_STRUCT_ARR_KEY);
@@ -1818,19 +1841,6 @@ migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req
 {
 	int i, rc, error = 0;
 	char *buffer;
-	enum snapshot_req structs[] = {
-		STRUCT_VM,
-		STRUCT_VMX,
-		STRUCT_VIOAPIC,
-		STRUCT_VLAPIC,
-		STRUCT_LAPIC,
-		STRUCT_VHPET,
-		STRUCT_VMCX,
-		STRUCT_VATPIC,
-		STRUCT_VATPIT,
-		STRUCT_VPMTMR,
-		STRUCT_VRTC,
-	};
 
 	buffer = malloc(KERN_DATA_BUFFER_SIZE * sizeof(char));
 	if (buffer == NULL) {
@@ -1840,26 +1850,26 @@ migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req
 		return (-1);
 	}
 
-	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
+	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
 		if (req == MIGRATION_RECV_REQ) {
 			// wait for msg message
 			rc = migrate_recv_kern_struct(ctx, socket, buffer);
 			if (rc < 0) {
 				fprintf(stderr,
-					"%s: Could not restore struct %d\n",
+					"%s: Could not restore struct %s\r\n",
 					__func__,
-					structs[i]);
+					snapshot_kern_structs[i].struct_name);
 				error = -1;
 				break;
 			}
 		} else if (req == MIGRATION_SEND_REQ) {
-			rc = migrate_send_kern_struct(ctx, socket,
-						      buffer, structs[i]);
+			rc = migrate_send_kern_struct(ctx, socket, buffer,
+					snapshot_kern_structs[i].req);
 			if (rc < 0 ) {
 				fprintf(stderr,
-					"%s: Could not send %d\r\n",
+					"%s: Could not send %s\r\n",
 					__func__,
-					structs[i]);
+					snapshot_kern_structs[i].struct_name);
 				error = -1;
 				break;
 			}

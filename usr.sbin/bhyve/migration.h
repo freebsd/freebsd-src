@@ -36,6 +36,11 @@ struct vm_snapshot_dev_info {
 	vm_restore_dev_cb restore_cb;    /* callback for device restore */
 };
 
+struct vm_snapshot_kern_info {
+	const char *struct_name;	/* kernel structure name*/
+	enum snapshot_req req;		/* request type */
+};
+
 void destroy_restore_state(struct restore_state *rstate);
 
 const char * lookup_vmname(struct restore_state *rstate);
