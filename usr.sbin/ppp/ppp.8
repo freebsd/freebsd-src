@@ -5823,6 +5823,13 @@ If
 is specified, all priority port lists are disabled and even
 .Dv IPTOS_LOWDELAY
 packets are not prioritised.
+.It set urgent length Ar length
+This command tells ppp to prioritize small packets up to
+.Ar length
+bytes.
+If
+.Ar length
+is not specified, or 0, this feature is disabled.
 .It set vj slotcomp on|off
 This command tells
 .Nm

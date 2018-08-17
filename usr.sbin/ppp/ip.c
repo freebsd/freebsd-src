@@ -820,6 +820,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
     if (!frag && ncp_IsUrgentTcpPort(&bundle->ncp, ntohs(th->th_sport),
                                      ntohs(th->th_dport)))
       pri++;
+    else if (!frag && ncp_IsUrgentTcpLen(&bundle->ncp, datalen))
+      pri++;
 
     if (logit && loglen < sizeof logbuf) {
       len = datalen - (th->th_off << 2);
@@ -851,6 +853,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
           loglen += strlen(logbuf + loglen);
         }
       }
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, " pri:%d", pri);
+      loglen += strlen(logbuf + loglen);
     }
     break;
 
