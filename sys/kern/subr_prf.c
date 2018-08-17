@@ -1048,7 +1048,7 @@ msgbufinit(void *ptr, int size)
 	if (msgbufmapped && oldp != msgbufp)
 		msgbuf_copy(oldp, msgbufp);
 	msgbufmapped = true;
-	if (print_boot_tag)
+	if (print_boot_tag && *current_boot_tag != '\0')
 		printf("%s\n", current_boot_tag);
 	oldp = msgbufp;
 }
