@@ -123,6 +123,7 @@ MAN=	accept_filter.9 \
 	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
+	efirt.9 \
 	epoch.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
