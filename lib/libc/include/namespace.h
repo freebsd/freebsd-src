@@ -134,6 +134,7 @@
 #define		pthread_detach			_pthread_detach
 #define		pthread_equal			_pthread_equal
 #define		pthread_exit			_pthread_exit
+#define		pthread_get_name_np		_pthread_get_name_np
 #define		pthread_getaffinity_np		_pthread_getaffinity_np
 #define		pthread_getconcurrency		_pthread_getconcurrency
 #define		pthread_getcpuclockid		_pthread_getcpuclockid
