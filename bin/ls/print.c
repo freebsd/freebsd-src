@@ -73,6 +73,8 @@ static void	printtime(time_t);
 static int	printtype(u_int);
 static void	printsize(size_t, off_t);
 #ifdef COLORLS
+static void	endcolor_termcap(int);
+static void	endcolor_ansi(void);
 static void	endcolor(int);
 static int	colortype(mode_t);
 #endif
@@ -540,7 +542,7 @@ writech(int c)
 }
 
 static void
-printcolor(Colors c)
+printcolor_termcap(Colors c)
 {
 	char *ansiseq;
 
@@ -560,10 +562,53 @@ printcolor(Colors c)
 }
 
 static void
-endcolor(int sig)
+printcolor_ansi(Colors c)
 {
+
+	printf("\033[");
+
+	if (colors[c].bold)
+		printf("1");
+	if (colors[c].num[0] != -1)
+		printf(";3%d", colors[c].num[0]);
+	if (colors[c].num[1] != -1)
+		printf(";4%d", colors[c].num[1]);
+	printf("m");
+}
+
+static void
+printcolor(Colors c)
+{
+
+	if (explicitansi)
+		printcolor_ansi(c);
+	else
+		printcolor_termcap(c);
+}
+
+static void
+endcolor_termcap(int sig)
+{
+
 	tputs(ansi_coloff, 1, sig ? writech : putch);
 	tputs(attrs_off, 1, sig ? writech : putch);
+}
+
+static void
+endcolor_ansi(void)
+{
+
+	printf("\33[m");
+}
+
+static void
+endcolor(int sig)
+{
+
+	if (explicitansi)
+		endcolor_ansi();
+	else
+		endcolor_termcap(sig);
 }
 
 static int
