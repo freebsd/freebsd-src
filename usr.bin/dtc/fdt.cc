@@ -1337,7 +1337,7 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 		phandle_set.insert({&i.val, i});
 	}
 	std::vector<std::reference_wrapper<fixup>> sorted_phandles;
-	root->visit([&](node &n, node *parent) {
+	root->visit([&](node &n, node *) {
 		for (auto &p : n.properties())
 		{
 			for (auto &v : *p)
@@ -1917,116 +1917,121 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 			symbols.push_back(prop);
 		}
 		root->add_child(node::create_special_node("__symbols__", symbols));
-		// If this is a plugin, then we also need to create two extra nodes.
-		// Internal phandles will need to be renumbered to avoid conflicts with
-		// already-loaded nodes and external references will need to be
-		// resolved.
-		if (is_plugin)
+	}
+	// If this is a plugin, then we also need to create two extra nodes.
+	// Internal phandles will need to be renumbered to avoid conflicts with
+	// already-loaded nodes and external references will need to be
+	// resolved.
+	if (is_plugin)
+	{
+		std::vector<property_ptr> symbols;
+		// Create the fixups entry.  This is of the form:
+		// {target} = {path}:{property name}:{offset}
+		auto create_fixup_entry = [&](fixup &i, string target)
+			{
+				string value = i.path.to_string();
+				value += ':';
+				value += i.prop->get_key();
+				value += ':';
+				value += std::to_string(i.prop->offset_of_value(i.val));
+				property_value v;
+				v.string_data = value;
+				v.type = property_value::STRING;
+				auto prop = std::make_shared<property>(std::move(target));
+				prop->add_value(v);
+				return prop;
+			};
+		// If we have any unresolved phandle references in this plugin,
+		// then we must update them to 0xdeadbeef and leave a property in
+		// the /__fixups__ node whose key is the label and whose value is
+		// as described above.
+		if (!unresolved_fixups.empty())
 		{
-			// Create the fixups entry.  This is of the form:
-			// {target} = {path}:{property name}:{offset}
-			auto create_fixup_entry = [&](fixup &i, string target)
-				{
-					string value = i.path.to_string();
-					value += ':';
-					value += i.prop->get_key();
-					value += ':';
-					value += std::to_string(i.prop->offset_of_value(i.val));
-					property_value v;
-					v.string_data = value;
-					v.type = property_value::STRING;
-					auto prop = std::make_shared<property>(std::move(target));
-					prop->add_value(v);
-					return prop;
-				};
-			// If we have any unresolved phandle references in this plugin,
-			// then we must update them to 0xdeadbeef and leave a property in
-			// the /__fixups__ node whose key is the label and whose value is
-			// as described above.
-			if (!unresolved_fixups.empty())
+			for (auto &i : unresolved_fixups)
 			{
-				symbols.clear();
-				for (auto &i : unresolved_fixups)
-				{
-					auto &val = i.get().val;
-					symbols.push_back(create_fixup_entry(i, val.string_data));
-					val.byte_data.push_back(0xde);
-					val.byte_data.push_back(0xad);
-					val.byte_data.push_back(0xbe);
-					val.byte_data.push_back(0xef);
-					val.type = property_value::BINARY;
-				}
-				root->add_child(node::create_special_node("__fixups__", symbols));
+				auto &val = i.get().val;
+				symbols.push_back(create_fixup_entry(i, val.string_data));
+				val.byte_data.push_back(0xde);
+				val.byte_data.push_back(0xad);
+				val.byte_data.push_back(0xbe);
+				val.byte_data.push_back(0xef);
+				val.type = property_value::BINARY;
 			}
-			symbols.clear();
-			// If we have any resolved phandle references in this plugin, then
-			// we must create a child in the __local_fixups__ node whose path
-			// matches the node path from the root and whose value contains the
-			// location of the reference within a property.
-			
-			// Create a local_fixups node that is initially empty.
-			node_ptr local_fixups = node::create_special_node("__local_fixups__", symbols);
-			for (auto &i : fixups)
+			root->add_child(node::create_special_node("__fixups__", symbols));
+		}
+		symbols.clear();
+		// If we have any resolved phandle references in this plugin, then
+		// we must create a child in the __local_fixups__ node whose path
+		// matches the node path from the root and whose value contains the
+		// location of the reference within a property.
+		
+		// Create a local_fixups node that is initially empty.
+		node_ptr local_fixups = node::create_special_node("__local_fixups__", symbols);
+		for (auto &i : fixups)
+		{
+			if (!i.val.is_phandle())
 			{
-				if (!i.val.is_phandle())
+				continue;
+			}
+			node *n = local_fixups.get();
+			for (auto &p : i.path)
+			{
+				// Skip the implicit root
+				if (p.first.empty())
 				{
 					continue;
 				}
-				node *n = local_fixups.get();
-				for (auto &p : i.path)
+				bool found = false;
+				for (auto &c : n->child_nodes())
 				{
-					// Skip the implicit root
-					if (p.first.empty())
+					if (c->name == p.first)
 					{
-						continue;
-					}
-					bool found = false;
-					for (auto &c : n->child_nodes())
-					{
-						if (c->name == p.first)
+						string path = p.first;
+						if (!(p.second.empty()))
 						{
-							n = c.get();
-							found = true;
-							break;
+							path += '@';
+							path += p.second;
 						}
-					}
-					if (!found)
-					{
-						n->add_child(node::create_special_node(p.first, symbols));
+						n->add_child(node::create_special_node(path, symbols));
 						n = (--n->child_end())->get();
 					}
 				}
-				assert(n);
-				property_value pv;
-				push_big_endian(pv.byte_data, static_cast<uint32_t>(i.prop->offset_of_value(i.val)));
-				pv.type = property_value::BINARY;
-				auto key = i.prop->get_key();
-				property_ptr prop = n->get_property(key);
-				// If we don't have an existing property then create one and
-				// use this property value
-				if (!prop)
+				if (!found)
 				{
-					prop = std::make_shared<property>(std::move(key));
-					n->add_property(prop);
+					n->add_child(node::create_special_node(p.first, symbols));
+					n = (--n->child_end())->get();
+				}
+			}
+			assert(n);
+			property_value pv;
+			push_big_endian(pv.byte_data, static_cast<uint32_t>(i.prop->offset_of_value(i.val)));
+			pv.type = property_value::BINARY;
+			auto key = i.prop->get_key();
+			property_ptr prop = n->get_property(key);
+			// If we don't have an existing property then create one and
+			// use this property value
+			if (!prop)
+			{
+				prop = std::make_shared<property>(std::move(key));
+				n->add_property(prop);
+				prop->add_value(pv);
+			}
+			else
+			{
+				// If we do have an existing property value, try to append
+				// this value.
+				property_value &old_val = *(--prop->end());
+				if (!old_val.try_to_merge(pv))
+				{
 					prop->add_value(pv);
 				}
-				else
-				{
-					// If we do have an existing property value, try to append
-					// this value.
-					property_value &old_val = *(--prop->end());
-					if (!old_val.try_to_merge(pv))
-					{
-						prop->add_value(pv);
-					}
-				}
 			}
-			// We've iterated over all fixups, but only emit the
-			// __local_fixups__ if we found some that were resolved internally.
-			if (local_fixups->child_begin() != local_fixups->child_end())
-			{
-				root->add_child(std::move(local_fixups));
-			}
+		}
+		// We've iterated over all fixups, but only emit the
+		// __local_fixups__ if we found some that were resolved internally.
+		if (local_fixups->child_begin() != local_fixups->child_end())
+		{
+			root->add_child(std::move(local_fixups));
 		}
 	}
 }
