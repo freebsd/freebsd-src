@@ -3992,6 +3992,12 @@ get_params__post_init(struct adapter *sc)
 			return (rc);
 		}
 		sc->tids.ntids = val[0];
+		if (sc->params.fw_vers <
+		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
+		    V_FW_HDR_FW_VER_MICRO(5) | V_FW_HDR_FW_VER_BUILD(0))) {
+			MPASS(sc->tids.ntids >= sc->tids.nhpftids);
+			sc->tids.ntids -= sc->tids.nhpftids;
+		}
 		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
 		if (val[2] > val[1]) {
 			sc->tids.stid_base = val[1];
