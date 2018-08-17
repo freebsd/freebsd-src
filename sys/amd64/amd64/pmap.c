@@ -7431,7 +7431,7 @@ pmap_activate_sw(struct thread *td)
 		 * pmap_activate_sw(), from the context switch, is
 		 * immune to this race, because interrupts are
 		 * disabled (while the thread lock is owned), and IPI
-		 * happends after curpmap is updated.  Protect other
+		 * happens after curpmap is updated.  Protect other
 		 * callers in a similar way, by disabling interrupts
 		 * around the %cr3 register reload and curpmap
 		 * assignment.
