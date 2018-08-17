@@ -122,7 +122,7 @@ static void	destroy_vpollinfo(struct vpollinfo *vi);
  * needed between access of v_iflags and lockless vnode refcount (v_holdcnt
  * and v_usecount) updates.  Access to v_iflags is generally synchronized
  * by the interlock, but we have some internal assertions that check vnode
- * flags * without acquiring the lock.  Thus, these fences are INVARIANTS-only
+ * flags without acquiring the lock.  Thus, these fences are INVARIANTS-only
  * for now.
  */
 #ifdef INVARIANTS
