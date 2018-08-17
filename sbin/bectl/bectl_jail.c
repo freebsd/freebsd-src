@@ -179,10 +179,10 @@ int
 bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
-	int jid, opt, ret;
-	bool default_hostname, default_name;
+	int jflags, jid, opt, ret;
+	bool default_hostname, default_name, interactive;
 
-	default_hostname = default_name = true;
+	default_hostname = default_name = interactive = true;
 	jpcnt = INIT_PARAMCOUNT;
 	jp = malloc(jpcnt * sizeof(*jp));
 	if (jp == NULL)
@@ -193,8 +193,11 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_add("allow.mount.devfs", "true");
 	jailparam_add("enforce_statfs", "1");
 
-	while ((opt = getopt(argc, argv, "o:u:")) != -1) {
+	while ((opt = getopt(argc, argv, "bo:u:")) != -1) {
 		switch (opt) {
+		case 'b':
+			interactive = false;
+			break;
 		case 'o':
 			if (jailparam_addarg(optarg)) {
 				/*
@@ -259,13 +262,17 @@ bectl_cmd_jail(int argc, char *argv[])
 		jailparam_add("name", bootenv);
 	if (default_hostname)
 		jailparam_add("host.hostname", bootenv);
+
+	jflags = JAIL_CREATE;
+	if (interactive)
+		jflags |= JAIL_ATTACH;
 	/*
 	 * This is our indicator that path was not set by the user, so we'll use
 	 * the path that libbe generated for us.
 	 */
 	if (mountpoint == NULL)
 		jailparam_add("path", mnt_loc);
-	jid = jailparam_set(jp, jpused, JAIL_CREATE | JAIL_ATTACH);
+	jid = jailparam_set(jp, jpused, jflags);
 	if (jid == -1) {
 		fprintf(stderr, "unable to create jail.  error: %d\n", errno);
 		return (1);
@@ -274,9 +281,13 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_free(jp, jpused);
 	free(jp);
 
-	/* We're attached within the jail... good bye! */
-	chdir("/");
-	execl("/bin/sh", "/bin/sh", NULL);
+	if (interactive) {
+		/* We're attached within the jail... good bye! */
+		chdir("/");
+		execl("/bin/sh", "/bin/sh", NULL);
+		return (1);
+	}
+
 	return (0);
 }
 
