@@ -3204,6 +3204,14 @@ bge_can_use_msi(struct bge_softc *sc)
 		    sc->bge_chiprev != BGE_CHIPREV_5750_BX)
 			can_use_msi = 1;
 		break;
+	case BGE_ASICREV_BCM5784:
+		/*
+		 * Prevent infinite "watchdog timeout" errors
+		 * in some MacBook Pro and make it work out-of-the-box.
+		 */
+		if (sc->bge_chiprev == BGE_CHIPREV_5784_AX)
+			break;
+		/* FALLTHROUGH */
 	default:
 		if (BGE_IS_575X_PLUS(sc))
 			can_use_msi = 1;
