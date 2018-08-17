@@ -2,6 +2,49 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+atf_test_case "too_many_fragments" "cleanup"
+
+too_many_fragments_head()
+{
+	atf_set descr 'IPv4 fragment limitation test'
+	atf_set require.user root
+}
+
+too_many_fragments_body()
+{
+	pft_init
+
+	epair=$(pft_mkepair)
+	pft_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b inet 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.2/24 up
+
+	ifconfig ${epair}b mtu 200
+	jexec alcatraz ifconfig ${epair}a mtu 200
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"scrub all fragment reassemble"
+
+	# So we know pf is limiting things
+	jexec alcatraz sysctl net.inet.ip.maxfragsperpacket=1024
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# We can ping with < 64 fragments
+	atf_check -s exit:0 -o ignore ping -c 1 -s 800 192.0.2.2
+
+	# Too many fragments should fail
+	atf_check -s exit:2 -o ignore ping -c 1 -s 20000 192.0.2.2
+}
+
+too_many_fragments_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "v6" "cleanup"
 v6_head()
 {
@@ -70,5 +113,6 @@ v6_cleanup()
 
 atf_init_test_cases()
 {
+	atf_add_test_case "too_many_fragments"
 	atf_add_test_case "v6"
 }
