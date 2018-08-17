@@ -85,6 +85,7 @@
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
 #define	AES_GMAC_HASH_LEN	16
+#define	POLY1305_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
@@ -106,6 +107,8 @@
 #define	AES_128_GMAC_KEY_LEN		16
 #define	AES_192_GMAC_KEY_LEN		24
 #define	AES_256_GMAC_KEY_LEN		32
+
+#define	POLY1305_KEY_LEN		32
 
 /* Encryption algorithm block sizes */
 #define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
@@ -195,7 +198,8 @@
 #define	CRYPTO_SHA2_256		35
 #define	CRYPTO_SHA2_384		36
 #define	CRYPTO_SHA2_512		37
-#define	CRYPTO_ALGORITHM_MAX	37 /* Keep updated - see below */
+#define	CRYPTO_POLY1305		38
+#define	CRYPTO_ALGORITHM_MAX	38 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
