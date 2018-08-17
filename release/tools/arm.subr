@@ -198,7 +198,7 @@ arm_install_boot() {
 	BOOTFILES="$(chroot ${CHROOTDIR} realpath ${BOOTFILES})"
 
 	chroot ${CHROOTDIR} mkdir -p ${FATMOUNT}/EFI/BOOT
-	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader/loader.efi \
+	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader_lua/loader_lua.efi \
 		${FATMOUNT}/EFI/BOOT/$(efi_boot_name ${EMBEDDED_TARGET})
 
 	chroot ${CHROOTDIR} cp -R ${UFSMOUNT}/boot/dtb ${FATMOUNT}
