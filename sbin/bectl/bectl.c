@@ -77,7 +77,7 @@ usage(bool explicit)
 #if SOON
 	    "\tbectl add (path)*\n"
 #endif
-	    "\tbectl jail [ -o key=value | -u key ]... bootenv\n"
+	    "\tbectl jail [-b] [ -o key=value | -u key ]... bootenv\n"
 	    "\tbectl list [-a] [-D] [-H] [-s]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"

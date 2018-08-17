@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2018
+.Dd August 16, 2018
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@ import
 .Ao Ar targetBe Ac
 .Nm
 jail
+.Op Fl b
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
 .Ao Ar bootenv Ac
@@ -160,6 +161,11 @@ arguments may be specified.
 will set a jail parameter, and
 .Fl u
 will unset a jail parameter.
+By default, jails are created in interactive mode, with a shell being
+executed within the jail.
+The
+.Fl b
+argument enables batch mode, thereby disabling interactive mode.
 .Pp
 The
 .Va name ,
