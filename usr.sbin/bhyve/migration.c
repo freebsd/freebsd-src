@@ -1848,7 +1848,7 @@ migrate_kern_data(struct vmctx *ctx, int socket, enum migration_transfer_req req
 				fprintf(stderr,
 					"%s: Could not restore struct %d\n",
 					__func__,
-					i);
+					structs[i]);
 				error = -1;
 				break;
 			}
