@@ -321,7 +321,7 @@ out:
 	return (error);
 }
 
-static void
+static int __result_use_check
 swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
     int klen)
 {
@@ -377,6 +377,12 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
 		axf->Final(buf, sw->sw_ictx);
 		break;
 	}
+	case CRYPTO_POLY1305:
+		if (klen != POLY1305_KEY_LEN) {
+			CRYPTDEB("bad poly1305 key size %d", klen);
+			return EINVAL;
+		}
+		/* FALLTHROUGH */
 	case CRYPTO_BLAKE2B:
 	case CRYPTO_BLAKE2S:
 		axf->Setkey(sw->sw_ictx, key, klen);
@@ -385,7 +391,9 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
 	default:
 		printf("%s: CRD_F_KEY_EXPLICIT flag given, but algorithm %d "
 		    "doesn't use keys.\n", __func__, axf->type);
+		return EINVAL;
 	}
+	return 0;
 }
 
 /*
@@ -405,8 +413,11 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 
 	axf = sw->sw_axf;
 
-	if (crd->crd_flags & CRD_F_KEY_EXPLICIT)
-		swcr_authprepare(axf, sw, crd->crd_key, crd->crd_klen);
+	if (crd->crd_flags & CRD_F_KEY_EXPLICIT) {
+		err = swcr_authprepare(axf, sw, crd->crd_key, crd->crd_klen);
+		if (err != 0)
+			return err;
+	}
 
 	bcopy(sw->sw_ictx, &ctx, axf->ctxsize);
 
@@ -460,6 +471,7 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 	case CRYPTO_BLAKE2B:
 	case CRYPTO_BLAKE2S:
 	case CRYPTO_NULL_HMAC:
+	case CRYPTO_POLY1305:
 		axf->Final(aalg, &ctx);
 		break;
 	}
@@ -851,8 +863,12 @@ swcr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			}
 
 			if (cri->cri_key != NULL) {
-				swcr_authprepare(axf, *swd, cri->cri_key,
-				    cri->cri_klen);
+				error = swcr_authprepare(axf, *swd,
+				    cri->cri_key, cri->cri_klen);
+				if (error != 0) {
+					swcr_freesession(dev, cses);
+					return error;
+				}
 			}
 
 			(*swd)->sw_mlen = cri->cri_mlen;
@@ -882,8 +898,12 @@ swcr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 
 			/* Store the key so we can "append" it to the payload */
 			if (cri->cri_key != NULL) {
-				swcr_authprepare(axf, *swd, cri->cri_key,
-				    cri->cri_klen);
+				error = swcr_authprepare(axf, *swd,
+				    cri->cri_key, cri->cri_klen);
+				if (error != 0) {
+					swcr_freesession(dev, cses);
+					return error;
+				}
 			}
 
 			(*swd)->sw_mlen = cri->cri_mlen;
@@ -956,6 +976,9 @@ swcr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			goto auth5common;
 		case CRYPTO_BLAKE2S:
 			axf = &auth_hash_blake2s;
+			goto auth5common;
+		case CRYPTO_POLY1305:
+			axf = &auth_hash_poly1305;
 		auth5common:
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
@@ -1054,6 +1077,7 @@ swcr_freesession(device_t dev, crypto_session_t cses)
 		case CRYPTO_BLAKE2B:
 		case CRYPTO_BLAKE2S:
 		case CRYPTO_MD5:
+		case CRYPTO_POLY1305:
 		case CRYPTO_SHA1:
 		case CRYPTO_SHA2_224:
 		case CRYPTO_SHA2_256:
@@ -1155,6 +1179,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_SHA2_512:
 		case CRYPTO_BLAKE2B:
 		case CRYPTO_BLAKE2S:
+		case CRYPTO_POLY1305:
 			if ((crp->crp_etype = swcr_authcompute(crd, sw,
 			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
@@ -1253,6 +1278,7 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_BLAKE2B);
 	REGISTER(CRYPTO_BLAKE2S);
 	REGISTER(CRYPTO_CHACHA20);
+	REGISTER(CRYPTO_POLY1305);
 #undef REGISTER
 
 	return 0;

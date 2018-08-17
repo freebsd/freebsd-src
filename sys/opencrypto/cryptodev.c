@@ -457,6 +457,9 @@ cryptof_ioctl(
 		case CRYPTO_MD5_HMAC:
 			thash = &auth_hash_hmac_md5;
 			break;
+		case CRYPTO_POLY1305:
+			thash = &auth_hash_poly1305;
+			break;
 		case CRYPTO_SHA1_HMAC:
 			thash = &auth_hash_hmac_sha1;
 			break;
