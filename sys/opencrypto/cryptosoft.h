@@ -55,8 +55,11 @@ struct swcr_data {
 #define sw_exf		SWCR_UN.SWCR_ENC.SW_exf
 #define sw_size		SWCR_UN.SWCR_COMP.SW_size
 #define sw_cxf		SWCR_UN.SWCR_COMP.SW_cxf
+};
 
-	struct swcr_data *sw_next;
+struct swcr_session {
+	struct swcr_data swcr_algorithms[2];
+	unsigned swcr_nalgs;
 };
 
 #ifdef _KERNEL
