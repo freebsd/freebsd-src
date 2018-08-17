@@ -132,7 +132,7 @@ Clear the counter
 and set it to zero.
 .It Fn counter_ratecheck cr limit
 The function is a multiprocessor-friendly version of
-.Fn ppsratecheck ,
+.Fn ppsratecheck
 which uses
 .Nm
 internally.
@@ -243,6 +243,7 @@ SYSCTL_COUNTER_U64_ARRAY(_debug, OID_AUTO, counter_array, CTLFLAG_RW,
 .Xr critical 9 ,
 .Xr locking 9 ,
 .Xr malloc 9 ,
+.Xr ratecheck 9 ,
 .Xr sysctl 9 ,
 .Xr uma 9
 .Sh HISTORY
