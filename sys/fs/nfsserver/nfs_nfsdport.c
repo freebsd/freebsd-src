@@ -442,9 +442,33 @@ int
 nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
     struct thread *p, struct nfsexstuff *exp)
 {
-	int error;
+	u_quad_t savsize = 0;
+	int error, savedit;
 
-	error = VOP_SETATTR(vp, &nvap->na_vattr, cred);
+	/*
+	 * If this is an exported file system and a pNFS service is running,
+	 * don't VOP_SETATTR() of size for the MDS file system.
+	 */
+	savedit = 0;
+	error = 0;
+	if (vp->v_type == VREG && (vp->v_mount->mnt_flag & MNT_EXPORTED) != 0 &&
+	    nfsrv_devidcnt != 0 && nvap->na_vattr.va_size != VNOVAL &&
+	    nvap->na_vattr.va_size > 0) {
+		savsize = nvap->na_vattr.va_size;
+		nvap->na_vattr.va_size = VNOVAL;
+		if (nvap->na_vattr.va_uid != (uid_t)VNOVAL ||
+		    nvap->na_vattr.va_gid != (gid_t)VNOVAL ||
+		    nvap->na_vattr.va_mode != (mode_t)VNOVAL ||
+		    nvap->na_vattr.va_atime.tv_sec != VNOVAL ||
+		    nvap->na_vattr.va_mtime.tv_sec != VNOVAL)
+			savedit = 1;
+		else
+			savedit = 2;
+	}
+	if (savedit != 2)
+		error = VOP_SETATTR(vp, &nvap->na_vattr, cred);
+	if (savedit != 0)
+		nvap->na_vattr.va_size = savsize;
 	if (error == 0 && (nvap->na_vattr.va_uid != (uid_t)VNOVAL ||
 	    nvap->na_vattr.va_gid != (gid_t)VNOVAL ||
 	    nvap->na_vattr.va_size != VNOVAL ||
