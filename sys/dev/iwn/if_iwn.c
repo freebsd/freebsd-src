@@ -860,6 +860,7 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 			case IWN_SDID_6035_2:
 			case IWN_SDID_6035_3:
 			case IWN_SDID_6035_4:
+			case IWN_SDID_6035_5:
 				sc->fwname = "iwn6000g2bfw";
 				sc->limits = &iwn6235_sensitivity_limits;
 				sc->base_params = &iwn_6235_base_params;
