@@ -1659,12 +1659,16 @@ update: .PHONY
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
+# libnv and libl are both requirements for config(8), which is an unconditional
+# bootstrap-tool.
+_config_deps= lib/libnv usr.bin/lex/lib
+
 legacy: .PHONY
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
 .endif
-.for _tool in tools/build ${_elftoolchain_libs} lib/libnv
+.for _tool in tools/build ${_elftoolchain_libs} ${_config_deps}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
