@@ -900,6 +900,12 @@ _dtrace_provs=	dtrace_io.4 \
 		dtrace_udplite.4
 .endif
 
+.if ${MK_EFI} != "no"
+MAN+=		efidev.4
+
+MLINKS+=	efidev.4 efirtc.4
+.endif
+
 .if ${MK_ISCSI} != "no"
 MAN+=		cfiscsi.4
 MAN+=		iscsi.4
