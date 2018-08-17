@@ -1435,6 +1435,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	ifp->if_resolvemulti = p->if_resolvemulti;
 	ifp->if_addrlen = p->if_addrlen;
 	ifp->if_broadcastaddr = p->if_broadcastaddr;
+	ifp->if_pcp = ifv->ifv_pcp;
 
 	/*
 	 * Copy only a selected subset of flags from the parent.
@@ -1959,6 +1960,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		ifv->ifv_pcp = ifr->ifr_vlan_pcp;
+		ifp->if_pcp = ifv->ifv_pcp;
 		vlan_tag_recalculate(ifv);
 		/* broadcast event about PCP change */
 		EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);
