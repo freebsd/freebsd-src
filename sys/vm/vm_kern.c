@@ -220,15 +220,12 @@ retry:
 }
 
 vm_offset_t
-kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, vm_memattr_t memattr)
+kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
+    vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
-
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_alloc_attr: Only kernel_arena is supported."));
 
 	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
 	do {
