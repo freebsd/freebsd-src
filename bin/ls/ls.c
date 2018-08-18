@@ -200,6 +200,7 @@ do_color(void)
 	return (do_color_from_env());
 }
 
+#ifdef COLORLS
 static bool
 do_color_always(const char *term)
 {
@@ -223,6 +224,7 @@ do_color_auto(const char *term)
 	return (strcmp(term, "auto") == 0 || strcmp(term, "tty") == 0 ||
 	    strcmp(term, "if-tty") == 0);
 }
+#endif	/* COLORLS */
 
 int
 main(int argc, char *argv[])
