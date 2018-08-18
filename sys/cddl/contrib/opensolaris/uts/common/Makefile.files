@@ -72,6 +72,7 @@ ZFS_COMMON_OBJS +=		\
 	bqueue.o		\
 	cityhash.o		\
 	dbuf.o			\
+	dbuf_stats.o		\
 	ddt.o			\
 	ddt_zap.o		\
 	dmu.o			\

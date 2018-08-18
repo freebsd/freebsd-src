@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <libutil.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,8 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include "dd.h"
 #include "extern.h"
-
-static int need_newline;
 
 double
 secs_elapsed(void)
@@ -85,7 +84,7 @@ summary(void)
 	if (ddflags & C_NOINFO)
 		return;
 
-	if (need_newline && !need_summary)
+	if (ddflags & C_PROGRESS)
 		fprintf(stderr, "\n");
 
 	secs = secs_elapsed();
@@ -110,22 +109,25 @@ summary(void)
 void
 progress(void)
 {
+	static int outlen;
+	char si[4 + 1 + 2 + 1];		/* 123 <space> <suffix> NUL */
+	char iec[4 + 1 + 2 + 1];	/* 123 <space> <suffix> NUL */
+	char persec[4 + 1 + 2 + 1];	/* 123 <space> <suffix> NUL */
+	char *buf;
 	double secs;
-	static int lastlen;
-	int len;
 
 	secs = secs_elapsed();
-	len = fprintf(stderr,
-	    "\r%ju bytes transferred in %.0f secs (%.0f bytes/sec)",
-	    st.bytes, secs, st.bytes / secs);
-
-	if (len > 0) {
-		if (len < lastlen)
-			(void)fprintf(stderr, "%*s", len - lastlen, "");
-		lastlen = len;
-	}
-
-	need_newline = 1;
+	humanize_number(si, sizeof(si), (int64_t)st.bytes, "B", HN_AUTOSCALE,
+	    HN_DECIMAL | HN_DIVISOR_1000);
+	humanize_number(iec, sizeof(iec), (int64_t)st.bytes, "B", HN_AUTOSCALE,
+	    HN_DECIMAL | HN_IEC_PREFIXES);
+	humanize_number(persec, sizeof(iec), (int64_t)(st.bytes / secs), "B",
+	    HN_AUTOSCALE, HN_DECIMAL | HN_DIVISOR_1000);
+	asprintf(&buf, "  %'ju bytes (%s, %s) transferred %.3fs, %s/s",
+	    (uintmax_t)st.bytes, si, iec, secs, persec);
+	outlen = fprintf(stderr, "%-*s\r", outlen, buf);
+	fflush(stderr);
+	free(buf);
 	need_progress = 0;
 }
 
@@ -139,7 +141,7 @@ siginfo_handler(int signo __unused)
 
 /* ARGSUSED */
 void
-sigalrm_handler(int signo __unused)
+sigalarm_handler(int signo __unused)
 {
 
 	need_progress = 1;

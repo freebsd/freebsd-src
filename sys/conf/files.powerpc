@@ -63,6 +63,7 @@ dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		standard
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
+dev/random/darn.c		optional	powerpc64 random
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/sdhci/fsl_sdhci.c		optional	mpc85xx sdhci
 dev/sec/sec.c			optional	sec mpc85xx

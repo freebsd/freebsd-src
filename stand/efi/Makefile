@@ -9,7 +9,10 @@ NO_OBJ=t
 .if ${COMPILER_TYPE} != "gcc" || ${COMPILER_VERSION} >= 40500
 
 SUBDIR.${MK_FDT}+=	fdt
-SUBDIR.yes+=	libefi loader boot1
+SUBDIR.yes+=	libefi boot1
+SUBDIR.${MK_FORTH}+= loader_4th
+SUBDIR.${MK_LOADER_LUA}+= loader_lua
+SUBDIR.yes+=	loader_simp
 
 .endif # ${COMPILER_TYPE} != "gcc" || ${COMPILER_VERSION} >= 40500
 

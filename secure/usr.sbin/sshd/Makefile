@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+CONFS=	moduli sshd_config
+CONFSDIR=	/etc/ssh
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c \
 	audit.c audit-bsm.c audit-linux.c platform.c \
@@ -25,6 +27,9 @@ SRCS+=	gss-genr.c
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
+
+# Don't rebuild based on moduli.c
+moduli: .MADE
 
 # pam should always happen before ssh here for static linking
 LIBADD=	pam ssh util

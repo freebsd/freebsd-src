@@ -1,5 +1,5 @@
 /*
-** $Id: lvm.c,v 2.268 2016/02/05 19:59:14 roberto Exp $
+** $Id: lvm.c,v 2.268.1.1 2017/04/19 17:39:34 roberto Exp $
 ** Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -41,7 +41,7 @@
 ** float without rounding. Used in comparisons. Left undefined if
 ** all integers fit in a float precisely.
 */
-#if !defined(l_intfitsf)
+#if !defined(l_intfitsf) && LUA_FLOAT_TYPE != LUA_FLOAT_INT64
 
 /* number of bits in the mantissa of a float */
 #define NBM		(l_mathlim(MANT_DIG))

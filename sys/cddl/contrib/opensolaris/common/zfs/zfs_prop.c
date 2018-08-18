@@ -222,6 +222,17 @@ zfs_prop_init(void)
 		{ NULL }
 	};
 
+	static zprop_index_t dnsize_table[] = {
+		{ "legacy",	ZFS_DNSIZE_LEGACY },
+		{ "auto",	ZFS_DNSIZE_AUTO },
+		{ "1k",		ZFS_DNSIZE_1K },
+		{ "2k",		ZFS_DNSIZE_2K },
+		{ "4k",		ZFS_DNSIZE_4K },
+		{ "8k",		ZFS_DNSIZE_8K },
+		{ "16k",	ZFS_DNSIZE_16K },
+		{ NULL }
+	};
+
 	static zprop_index_t redundant_metadata_table[] = {
 		{ "all",	ZFS_REDUNDANT_METADATA_ALL },
 		{ "most",	ZFS_REDUNDANT_METADATA_MOST },
@@ -281,7 +292,10 @@ zfs_prop_init(void)
 	    ZFS_VOLMODE_DEFAULT, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT | ZFS_TYPE_VOLUME,
 	    "default | geom | dev | none", "VOLMODE", volmode_table);
-
+	zprop_register_index(ZFS_PROP_DNODESIZE, "dnodesize",
+	    ZFS_DNSIZE_LEGACY, PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
+	    "legacy | auto | 1k | 2k | 4k | 8k | 16k", "DNSIZE", dnsize_table);
+ 
 	/* inherit index (boolean) properties */
 	zprop_register_index(ZFS_PROP_ATIME, "atime", 1, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "ATIME", boolean_table);

@@ -662,7 +662,7 @@ t4vf_attach(device_t dev)
 	s->nrxq = sc->params.nports * iaq.nrxq;
 	s->ntxq = sc->params.nports * iaq.ntxq;
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += sc->params.nports + 1;/* ctrl queues: 1 per port + 1 mgmt */
+	s->neq += sc->params.nports;	/* ctrl queues: 1 per port */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
 
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,

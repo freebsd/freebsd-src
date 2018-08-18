@@ -362,6 +362,10 @@ BOOLEAN
 AcpiUtDetectHexPrefix (
     char                    **String);
 
+void
+AcpiUtRemoveHexPrefix (
+    char                    **String);
+
 BOOLEAN
 AcpiUtDetectOctalPrefix (
     char                    **String);

@@ -210,6 +210,8 @@ opal_ipmi_attach(device_t dev)
 	}
 	sc->ipmi.ipmi_startup = opal_ipmi_startup;
 	sc->ipmi.ipmi_driver_request = opal_ipmi_driver_request;
+	sc->ipmi.ipmi_enqueue_request = ipmi_polled_enqueue_request;
+	sc->ipmi.ipmi_driver_requests_polled = 1;
 	sc->ipmi.ipmi_dev = dev;
 
 	sc->sc_msg = malloc(sizeof(struct opal_ipmi_msg) + IPMI_MAX_RX, M_IPMI,

@@ -262,9 +262,14 @@ header::write(output_writer &out)
 bool
 header::read_dtb(input_buffer &input)
 {
-	if (!(input.consume_binary(magic) && magic == 0xd00dfeed))
+	if (!input.consume_binary(magic))
 	{
-		fprintf(stderr, "Missing magic token in header.  Got %" PRIx32
+		fprintf(stderr, "Missing magic token in header.");
+		return false;
+	}
+	if (magic != 0xd00dfeed)
+	{
+		fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
 		                " expected 0xd00dfeed\n", magic);
 		return false;
 	}

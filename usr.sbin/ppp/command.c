@@ -139,7 +139,7 @@
 #define	VAR_CD		30
 #define	VAR_PARITY	31
 #define VAR_CRTSCTS	32
-#define VAR_URGENTPORTS	33
+#define VAR_URGENT	33
 #define	VAR_LOGOUT	34
 #define	VAR_IFQUEUE	35
 #define	VAR_MPPE	36
@@ -2267,7 +2267,7 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
 
-  case VAR_URGENTPORTS:
+  case VAR_URGENT:
     if (arg->argn == arg->argc) {
       ncp_SetUrgentTOS(&arg->bundle->ncp);
       ncp_ClearUrgentTcpPorts(&arg->bundle->ncp);
@@ -2291,6 +2291,11 @@ SetVariable(struct cmdargs const *arg)
       ncp_ClearUrgentTcpPorts(&arg->bundle->ncp);
       ncp_ClearUrgentUdpPorts(&arg->bundle->ncp);
       ncp_ClearUrgentTOS(&arg->bundle->ncp);
+    } else if (!strcasecmp(arg->argv[arg->argn], "length")) {
+      if (arg->argn == arg->argc - 1)
+	ncp_SetUrgentTcpLen(&arg->bundle->ncp, 0);
+      else
+	ncp_SetUrgentTcpLen(&arg->bundle->ncp, atoi(arg->argv[arg->argn + 1]));
     } else {
       ncp_SetUrgentTOS(&arg->bundle->ncp);
       first = arg->argn;
@@ -2469,8 +2474,8 @@ static struct cmdtab const SetCommands[] = {
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]", NULL},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
-  {"urgent", NULL, SetVariable, LOCAL_AUTH, "urgent ports",
-  "set urgent [tcp|udp] [+|-]port...", (const void *)VAR_URGENTPORTS},
+  {"urgent", NULL, SetVariable, LOCAL_AUTH, "urgent traffic",
+  "set urgent [[tcp|udp] [+|-]port...]|[length len]", (const void *)VAR_URGENT},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,

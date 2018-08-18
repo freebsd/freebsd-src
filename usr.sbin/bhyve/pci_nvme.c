@@ -653,7 +653,7 @@ static int
 nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 	uint32_t iv;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
@@ -748,7 +748,7 @@ static int
 nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
 
@@ -1159,11 +1159,6 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	DPRINTF(("%s error %d %s\r\n", __func__, err, strerror(err)));
 	
 	/* TODO return correct error */
-	if (err)
-		code = NVME_SC_DATA_TRANSFER_ERROR;
-	else
-		code = NVME_SC_SUCCESS;
-
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
 
@@ -1714,6 +1709,11 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		} else if (!strcmp("sectsz", xopts)) {
 			sectsz = atoi(config);
 		} else if (!strcmp("ser", xopts)) {
+			/*
+			 * This field indicates the Product Serial Number in
+			 * 8-bit ASCII, unused bytes should be NULL characters.
+			 * Ref: NVM Express Management Interface 1.0a.
+			 */
 			memset(sc->ctrldata.sn, 0, sizeof(sc->ctrldata.sn));
 			strncpy(sc->ctrldata.sn, config,
 			        sizeof(sc->ctrldata.sn));
@@ -1746,6 +1746,8 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 
 		optidx++;
 	}
+	free(uopt);
+
 	if (sc->nvstore.ctx == NULL || sc->nvstore.size == 0) {
 		fprintf(stderr, "backing store not specified\n");
 		return (-1);
@@ -1756,9 +1758,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		sc->nvstore.sectsz = blockif_sectsz(sc->nvstore.ctx);
 	for (sc->nvstore.sectsz_bits = 9;
 	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
-	     sc->nvstore.sectsz_bits++)
-		;
-
+	     sc->nvstore.sectsz_bits++);
 
 	if (sc->max_queues == 0) {
 		fprintf(stderr, "Invalid maxq option\n");

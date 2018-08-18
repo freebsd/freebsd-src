@@ -745,6 +745,7 @@ x86/x86/nexus.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
+x86/x86/ucode.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xenhvm

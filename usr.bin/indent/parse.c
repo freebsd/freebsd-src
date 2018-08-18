@@ -42,12 +42,10 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>
-
 #include "indent_globs.h"
 #include "indent_codes.h"
 #include "indent.h"
@@ -211,7 +209,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 
     }				/* end of switch */
 
-    if (ps.tos >= (int)nitems(ps.p_stack) - 1)
+    if (ps.tos >= STACKSIZE - 1)
 	errx(1, "Parser stack overflow");
 
     reduce();			/* see if any reduction can be done */

@@ -1578,7 +1578,7 @@ in_pcbfree_deferred(epoch_context_t ctx)
 
 	INP_WLOCK(inp);
 #ifdef INET
-	inp_freemoptions(inp->inp_moptions);
+	struct ip_moptions *imo = inp->inp_moptions;
 	inp->inp_moptions = NULL;
 #endif
 	/* XXXRW: Do as much as possible here. */
@@ -1587,9 +1587,10 @@ in_pcbfree_deferred(epoch_context_t ctx)
 		ipsec_delete_pcbpolicy(inp);
 #endif
 #ifdef INET6
+	struct ip6_moptions *im6o = NULL;
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
-		ip6_freemoptions(inp->in6p_moptions);
+		im6o = inp->in6p_moptions;
 		inp->in6p_moptions = NULL;
 	}
 #endif
@@ -1602,6 +1603,12 @@ in_pcbfree_deferred(epoch_context_t ctx)
 #endif
 	released = in_pcbrele_wlocked(inp);
 	MPASS(released);
+#ifdef INET6
+	ip6_freemoptions(im6o);
+#endif
+#ifdef INET
+	inp_freemoptions(imo);
+#endif	
 }
 
 /*

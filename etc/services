@@ -873,8 +873,8 @@ isakmp		500/tcp
 isakmp		500/udp
 stmf		501/tcp
 stmf		501/udp
-asa-appl-proto	502/tcp
-asa-appl-proto	502/udp
+mbap		502/tcp    # Modbus Application Protocol
+mbap		502/udp    # Modbus Application Protocol
 intrinsa	503/tcp
 intrinsa	503/udp
 citadel		504/tcp
@@ -1414,6 +1414,8 @@ mdbs_daemon	800/tcp
 mdbs_daemon	800/udp
 device		801/tcp
 device		801/udp
+mbap-s		802/tcp    # Modbus Application Protocol Secure
+mbap-s		802/udp    # Modbus Application Protocol Secure
 fcp-udp		810/tcp    #FCP
 fcp-udp		810/udp    #FCP Datagram
 itm-mcell-s	828/tcp

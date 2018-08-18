@@ -46,7 +46,14 @@ struct pmu_alias {
 	const char *pa_alias;
 	const char *pa_name;
 };
-static struct pmu_alias pmu_alias_table[] = {
+
+typedef enum {
+	PMU_INVALID,
+	PMU_INTEL,
+	PMU_AMD,
+} pmu_mfr_t;
+
+static struct pmu_alias pmu_intel_alias_table[] = {
 	{"UNHALTED_CORE_CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
 	{"UNHALTED-CORE-CYCLES", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
 	{"LLC_MISSES", "LONGEST_LAT_CACHE.MISS"},
@@ -70,6 +77,40 @@ static struct pmu_alias pmu_alias_table[] = {
 	{NULL, NULL},
 };
 
+static struct pmu_alias pmu_amd_alias_table[] = {
+	{"UNHALTED_CORE_CYCLES", "ls_not_halted_cyc"},
+	{"UNHALTED-CORE-CYCLES", "ls_not_halted_cyc"},
+	{NULL, NULL},
+};
+
+
+static pmu_mfr_t
+pmu_events_mfr(void)
+{
+	char *buf;
+	size_t s;
+	pmu_mfr_t mfr;
+
+	if (sysctlbyname("kern.hwpmc.cpuid", (void *)NULL, &s,
+	    (void *)NULL, 0) == -1)
+		return (PMU_INVALID);
+	if ((buf = malloc(s + 1)) == NULL)
+		return (PMU_INVALID);
+	if (sysctlbyname("kern.hwpmc.cpuid", buf, &s,
+		(void *)NULL, 0) == -1) {
+		free(buf);
+		return (PMU_INVALID);
+	}
+	if (strcasestr(buf, "AuthenticAMD") != NULL)
+		mfr = PMU_AMD;
+	else if (strcasestr(buf, "GenuineIntel") != NULL)
+		mfr = PMU_INTEL;
+	else
+		mfr = PMU_INVALID;
+	free(buf);
+	return (mfr);
+}
+
 /*
  *  The Intel fixed mode counters are:
  *	"inst_retired.any",
@@ -82,11 +123,23 @@ static struct pmu_alias pmu_alias_table[] = {
 static const char *
 pmu_alias_get(const char *name)
 {
+	pmu_mfr_t mfr;
 	struct pmu_alias *pa;
+	struct pmu_alias *pmu_alias_table;
+
+	if ((mfr = pmu_events_mfr()) == PMU_INVALID)
+		return (name);
+	if (mfr == PMU_AMD)
+		pmu_alias_table = pmu_amd_alias_table;
+	else if (mfr == PMU_INTEL)
+		pmu_alias_table = pmu_intel_alias_table;
+	else
+		return (name);
 
 	for (pa = pmu_alias_table; pa->pa_alias != NULL; pa++)
 		if (strcasecmp(name, pa->pa_alias) == 0)
 			return (pa->pa_name);
+
 	return (name);
 }
 
@@ -352,57 +405,112 @@ pmc_pmu_print_counter_full(const char *ev)
 	}
 }
 
-int
-pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+static int
+pmc_pmu_amd_pmcallocate(const char *event_name __unused, struct pmc_op_pmcallocate *pm,
+	struct pmu_event_desc *ped)
 {
-	const struct pmu_event *pe;
-	struct pmu_event_desc ped;
+	struct pmc_md_amd_op_pmcallocate *amd;
+
+	amd = &pm->pm_md.pm_amd;
+	amd->pm_amd_config = AMD_PMC_TO_EVENTMASK(ped->ped_event);
+	if (ped->ped_umask > 0) {
+		pm->pm_caps |= PMC_CAP_QUALIFIER;
+		amd->pm_amd_config |= AMD_PMC_TO_UNITMASK(ped->ped_umask);
+	}
+	pm->pm_class = PMC_CLASS_K8;
+
+	if ((pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) == 0 ||
+		(pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) ==
+		(PMC_CAP_USER|PMC_CAP_SYSTEM))
+		amd->pm_amd_config |= (AMD_PMC_USR | AMD_PMC_OS);
+	else if (pm->pm_caps & PMC_CAP_USER)
+		amd->pm_amd_config |= AMD_PMC_USR;
+	else if (pm->pm_caps & PMC_CAP_SYSTEM)
+		amd->pm_amd_config |= AMD_PMC_OS;
+	if (ped->ped_edge)
+		amd->pm_amd_config |= AMD_PMC_EDGE;
+	if (ped->ped_inv)
+		amd->pm_amd_config |= AMD_PMC_EDGE;
+	if (pm->pm_caps & PMC_CAP_INTERRUPT)
+		amd->pm_amd_config |= AMD_PMC_INT;
+	return (0);
+}
+
+static int
+pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
+	struct pmu_event_desc *ped)
+{
 	struct pmc_md_iap_op_pmcallocate *iap;
-	int idx, isfixed;
+	int isfixed;
 
-	iap = &pm->pm_md.pm_iap;
 	isfixed = 0;
-	bzero(iap, sizeof(*iap));
-	event_name = pmu_alias_get(event_name);
-	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
-	if ((pe = pmu_event_get(NULL, event_name, &idx)) == NULL)
-		return (ENOENT);
-	if (pe->alias && (pe = pmu_event_get(NULL, pe->alias, &idx)) == NULL)
-		return (ENOENT);
-	if (pe->event == NULL)
-		return (ENOENT);
-	if (pmu_parse_event(&ped, pe->event))
-		return (ENOENT);
-
-
+	iap = &pm->pm_md.pm_iap;
 	if (strcasestr(event_name, "UNC_") == event_name ||
 	    strcasestr(event_name, "uncore") != NULL) {
 		pm->pm_class = PMC_CLASS_UCP;
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
-	} else if ((ped.ped_umask == -1) ||
-	    (ped.ped_event == 0x0 && ped.ped_umask == 0x3)) {
+	} else if ((ped->ped_umask == -1) ||
+	    (ped->ped_event == 0x0 && ped->ped_umask == 0x3)) {
 		pm->pm_class = PMC_CLASS_IAF;
 	} else {
 		pm->pm_class = PMC_CLASS_IAP;
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
 	}
-	pm->pm_ev = idx;
-	iap->pm_iap_config |= IAP_EVSEL(ped.ped_event);
-	if (ped.ped_umask > 0)
-		iap->pm_iap_config |= IAP_UMASK(ped.ped_umask);
-	iap->pm_iap_config |= IAP_CMASK(ped.ped_cmask);
-	iap->pm_iap_rsp = ped.ped_offcore_rsp;
+	iap->pm_iap_config |= IAP_EVSEL(ped->ped_event);
+	if (ped->ped_umask > 0)
+		iap->pm_iap_config |= IAP_UMASK(ped->ped_umask);
+	iap->pm_iap_config |= IAP_CMASK(ped->ped_cmask);
+	iap->pm_iap_rsp = ped->ped_offcore_rsp;
 
-	iap->pm_iap_config |= (IAP_USR | IAP_OS);
-	if (ped.ped_edge)
+	if ((pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) == 0 ||
+		(pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) ==
+		(PMC_CAP_USER|PMC_CAP_SYSTEM))
+		iap->pm_iap_config |= (IAP_USR | IAP_OS);
+	else if (pm->pm_caps & PMC_CAP_USER)
+		iap->pm_iap_config |= IAP_USR;
+	else if (pm->pm_caps & PMC_CAP_SYSTEM)
+		iap->pm_iap_config |= IAP_OS;
+	if (ped->ped_edge)
 		iap->pm_iap_config |= IAP_EDGE;
-	if (ped.ped_any)
+	if (ped->ped_any)
 		iap->pm_iap_config |= IAP_ANY;
-	if (ped.ped_inv)
+	if (ped->ped_inv)
 		iap->pm_iap_config |= IAP_EDGE;
 	if (pm->pm_caps & PMC_CAP_INTERRUPT)
 		iap->pm_iap_config |= IAP_INT;
 	return (0);
+}
+
+int
+pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+{
+	const struct pmu_event *pe;
+	struct pmu_event_desc ped;
+	pmu_mfr_t mfr;
+	int idx = -1;
+
+	if ((mfr = pmu_events_mfr()) == PMU_INVALID)
+		return (ENOENT);
+
+	bzero(&pm->pm_md, sizeof(pm->pm_md));
+	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	event_name = pmu_alias_get(event_name);
+	if ((pe = pmu_event_get(NULL, event_name, &idx)) == NULL)
+		return (ENOENT);
+	if (pe->alias && (pe = pmu_event_get(NULL, pe->alias, &idx)) == NULL)
+		return (ENOENT);
+	assert(idx >= 0);
+	pm->pm_ev = idx;
+
+	if (pe->event == NULL)
+		return (ENOENT);
+	if (pmu_parse_event(&ped, pe->event))
+		return (ENOENT);
+
+	if (mfr == PMU_INTEL)
+		return (pmc_pmu_intel_pmcallocate(event_name, pm, &ped));
+	else
+		return (pmc_pmu_amd_pmcallocate(event_name, pm, &ped));
 }
 
 /*

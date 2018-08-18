@@ -53,19 +53,8 @@ ENTRY(cpufunc_nullop)
 END(cpufunc_nullop)
 
 /*
- * Generic functions to read the internal coprocessor registers
- *
- * Currently these registers are :
- *  c0 - CPU ID
- *  c5 - Fault status
- *  c6 - Fault address
- *
- */
-
-/*
  * Generic functions to write the internal coprocessor registers
  *
-
  * Currently these registers are
  *  c1 - CPU Control
  *  c3 - Domain Access Control

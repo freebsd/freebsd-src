@@ -40,8 +40,6 @@
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/input.h>
 
-#include <dev/kbd/kbdreg.h>
-
 #define	NONE	KEY_RESERVED
 
 static uint16_t evdev_usb_scancodes[256] = {
@@ -298,44 +296,4 @@ evdev_push_repeats(struct evdev_dev *evdev, keyboard_t *kbd)
 
 	evdev_push_event(evdev, EV_REP, REP_DELAY, kbd->kb_delay1);
 	evdev_push_event(evdev, EV_REP, REP_PERIOD, kbd->kb_delay2);
-}
-
-void
-evdev_ev_kbd_event(struct evdev_dev *evdev, void *softc, uint16_t type,
-    uint16_t code, int32_t value)
-{
-	keyboard_t *kbd = (keyboard_t *)softc;
-	int delay[2], leds, oleds;
-	size_t i;
-
-	if (type == EV_LED) {
-		leds = oleds = KBD_LED_VAL(kbd);
-		for (i = 0; i < nitems(evdev_led_codes); i++) {
-			if (evdev_led_codes[i] == code) {
-				if (value)
-					leds |= 1 << i;
-				else
-					leds &= ~(1 << i);
-				if (leds != oleds) {
-					mtx_lock(&Giant);
-					kbdd_ioctl(kbd, KDSETLED,
-					    (caddr_t)&leds);
-					mtx_unlock(&Giant);
-				}
-				break;
-			}
-		}
-	} else if (type == EV_REP && code == REP_DELAY) {
-		delay[0] = value;
-		delay[1] = kbd->kb_delay2;
-		mtx_lock(&Giant);
-		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
-		mtx_unlock(&Giant);
-	} else if (type == EV_REP && code == REP_PERIOD) {
-		delay[0] = kbd->kb_delay1;
-		delay[1] = value;
-		mtx_lock(&Giant);
-		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
-		mtx_unlock(&Giant);
-	}
 }

@@ -5,6 +5,7 @@ PACKAGE=	tests
 TAP_TESTS_SH=	legacy_test
 
 ${PACKAGE}FILES+=		regress.b.out
+${PACKAGE}FILES+=		regress.bwidth.out
 ${PACKAGE}FILES+=		regress.d.out
 ${PACKAGE}FILES+=		regress.f.out
 ${PACKAGE}FILES+=		regress.l1.out

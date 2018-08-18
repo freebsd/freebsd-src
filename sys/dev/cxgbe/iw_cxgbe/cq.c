@@ -63,7 +63,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	struct wrqe *wr;
 
 	wr_len = sizeof *res_wr + sizeof *res;
-	wr = alloc_wrqe(wr_len, &sc->sge.mgmtq);
+	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
                 if (wr == NULL)
                         return (0);
         res_wr = wrtod(wr);
@@ -133,7 +133,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;
 
-	wr = alloc_wrqe(wr_len, &sc->sge.mgmtq);
+	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 	if (wr == NULL)
         	return (0);
         res_wr = wrtod(wr);

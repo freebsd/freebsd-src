@@ -458,6 +458,12 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	if ((pd->pd_caps & caps) != caps)
 		return EPERM;
+	if (strlen(pmc_cpuid) != 0) {
+		pm->pm_md.pm_amd.pm_amd_evsel =
+			a->pm_md.pm_amd.pm_amd_config;
+		PMCDBG2(MDP,ALL,2,"amd-allocate ri=%d -> config=0x%x", ri, a->pm_md.pm_amd.pm_amd_config);
+		return (0);
+	}
 
 	pe = a->pm_ev;
 
@@ -884,6 +890,7 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_class class;
+	int model;
 	char *name;
 
 	/*
@@ -895,6 +902,11 @@ pmc_amd_initialize(void)
 	 */
 
 	name = NULL;
+	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+	if (CPUID_TO_FAMILY(cpu_id) == 0x17)
+		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "AuthenticAMD-%d-%02X",
+				 CPUID_TO_FAMILY(cpu_id), model);
+
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
 	case 0x600:		/* Athlon(tm) processor */
@@ -912,7 +924,7 @@ pmc_amd_initialize(void)
 		break;
 
 	default:
-		(void) printf("pmc: Unknown AMD CPU.\n");
+		(void) printf("pmc: Unknown AMD CPU %x %d-%d.\n", cpu_id, (cpu_id & 0xF00) >> 8, model);
 		return NULL;
 	}
 

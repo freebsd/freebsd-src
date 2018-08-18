@@ -1737,6 +1737,10 @@ lagg_linkstate(struct lagg_softc *sc)
 
 	LAGG_XLOCK_ASSERT(sc);
 
+	/* LACP handles link state itself */
+	if (sc->sc_proto == LAGG_PROTO_LACP)
+		return;
+
 	/* Our link is considered up if at least one of our ports is active */
 	LAGG_RLOCK();
 	CK_SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {

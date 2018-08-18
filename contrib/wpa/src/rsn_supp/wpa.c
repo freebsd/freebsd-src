@@ -2072,6 +2072,17 @@ int wpa_sm_rx_eapol(struct wpa_sm *sm, const u8 *src_addr,
 
 	if ((sm->proto == WPA_PROTO_RSN || sm->proto == WPA_PROTO_OSEN) &&
 	    (key_info & WPA_KEY_INFO_ENCR_KEY_DATA)) {
+		/*
+		 * Only decrypt the Key Data field if the frame's authenticity
+		 * was verified. When using AES-SIV (FILS), the MIC flag is not
+		 * set, so this check should only be performed if mic_len != 0
+		 * which is the case in this code branch.
+		 */
+		if (!(key_info & WPA_KEY_INFO_MIC)) {
+			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
+				"WPA: Ignore EAPOL-Key with encrypted but unauthenticated data");
+			goto out;
+		}
 		if (wpa_supplicant_decrypt_key_data(sm, key, ver, key_data,
 						    &key_data_len))
 			goto out;

@@ -508,7 +508,7 @@ parse_dir_ask(char **conf)
 	printf("      and with the specified (optional) option list.\n");
 	printf("\n");
 	printf("    eg. ufs:/dev/da0s1a\n");
-	printf("        zfs:tank\n");
+	printf("        zfs:zroot/ROOT/default\n");
 	printf("        cd9660:/dev/cd0 ro\n");
 	printf("          (which is equivalent to: ");
 	printf("mount -t cd9660 -o ro /dev/cd0 /)\n");

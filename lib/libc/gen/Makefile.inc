@@ -16,6 +16,7 @@ SRCS+=	__getosreldate.c \
 	_thread_init.c \
 	alarm.c \
 	arc4random.c \
+	arc4random_uniform.c \
 	assert.c \
 	auxv.c \
 	basename.c \

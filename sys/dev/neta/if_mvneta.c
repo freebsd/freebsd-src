@@ -757,6 +757,7 @@ mvneta_attach(device_t self)
 
 	} else {
 		/* Fixed-link, use predefined values */
+		mvneta_update_autoneg(sc, FALSE);
 		ifmedia_init(&sc->mvneta_ifmedia, 0, mvneta_mediachange,
 		    mvneta_mediastatus);
 

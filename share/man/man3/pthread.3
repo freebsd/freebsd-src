@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2014
+.Dd August 17, 2018
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -236,17 +236,17 @@ Set the detach state in a thread attributes object.
 Destroy a mutex attributes object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_getprioceiling "pthread_mutexattr_t *attr" "int *ceiling"
+.Fn pthread_mutexattr_getprioceiling "const pthread_mutexattr_t *restrict attr" "int *restrict ceiling"
 .Xc
 Obtain priority ceiling attribute of mutex attribute object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_getprotocol "pthread_mutexattr_t *attr" "int *protocol"
+.Fn pthread_mutexattr_getprotocol "const pthread_mutexattr_t *restrict attr" "int *restrict protocol"
 .Xc
 Obtain protocol attribute of mutex attribute object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_gettype "pthread_mutexattr_t *attr" "int *type"
+.Fn pthread_mutexattr_gettype "const pthread_mutexattr_t *restrict attr" "int *restrict type"
 .Xc
 Obtain the mutex type attribute in the specified mutex attributes object.
 .It Xo

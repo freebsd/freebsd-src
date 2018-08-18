@@ -252,27 +252,6 @@ print_enadis(int enadis, char *s)
 
 enum cpu_class cpu_class = CPU_CLASS_NONE;
 
-u_int cpu_pfr(int num)
-{
-	u_int feat;
-
-	switch (num) {
-	case 0:
-		__asm __volatile("mrc p15, 0, %0, c0, c1, 0"
-		    : "=r" (feat));
-		break;
-	case 1:
-		__asm __volatile("mrc p15, 0, %0, c0, c1, 1"
-		    : "=r" (feat));
-		break;
-	default:
-		panic("Processor Feature Register %d not implemented", num);
-		break;
-	}
-
-	return (feat);
-}
-
 void
 identify_arm_cpu(void)
 {

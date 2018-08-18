@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2018
+.Dd August 15, 2018
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -86,6 +86,15 @@ The password check is skipped if the
 .Em console
 is marked as
 .Dq secure .
+Note that the password check does not protect from variables
+such as
+.Va init_script
+being set from the
+.Xr loader 8
+command line; see the
+.Sx SECURITY
+section of
+.Xr loader 8 .
 .Pp
 If the system security level (see
 .Xr security 7 )
@@ -316,6 +325,14 @@ See
 .Xr reboot 8
 .Fl r
 for details.
+.It Va init_exec
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to directly execute that file as the very first action,
+replacing
+.Nm
+as PID 1.
 .It Va init_script
 If set to a valid file name in the root file system,
 instructs
@@ -341,6 +358,8 @@ Defines the shell binary to be used for executing the various shell scripts.
 The default is
 .Dq Li /bin/sh .
 It is used for running the
+.Va init_exec
+or
 .Va init_script
 if set, as well as for the
 .Pa /etc/rc

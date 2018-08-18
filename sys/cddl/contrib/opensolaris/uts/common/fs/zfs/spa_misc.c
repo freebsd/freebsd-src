@@ -437,6 +437,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, spa_min_slop, CTLFLAG_RWTUN,
 
 int spa_allocators = 4;
 
+SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_allocators, CTLFLAG_RWTUN,
+    &spa_allocators, 0,
+    "Number of allocators per metaslab group");
+
 /*PRINTFLIKE2*/
 void
 spa_load_failed(spa_t *spa, const char *fmt, ...)
@@ -2294,6 +2298,16 @@ spa_maxblocksize(spa_t *spa)
 	else
 		return (SPA_OLD_MAXBLOCKSIZE);
 }
+
+int
+spa_maxdnodesize(spa_t *spa)
+{
+	if (spa_feature_is_enabled(spa, SPA_FEATURE_LARGE_DNODE))
+		return (DNODE_MAX_SIZE);
+	else
+		return (DNODE_MIN_SIZE);
+}
+
 
 /*
  * Returns the txg that the last device removal completed. No indirect mappings

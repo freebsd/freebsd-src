@@ -46,4 +46,4 @@ END(psci_hvc_despatch)
 ENTRY(psci_smc_despatch)
 	smc	#0
 	ret
-END(psci_hvc_despatch)
+END(psci_smc_despatch)

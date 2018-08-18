@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180815:
+	ls(1) now respects the COLORTERM environment variable used in other
+	systems and software to indicate that a colored terminal is both
+	supported and desired.  If ls(1) is suddenly emitting colors, they may
+	be disabled again by either removing the unwanted COLORTERM from your
+	environment, or using `ls --color=never`.  The ls(1) specific CLICOLOR
+	may not be observed in a future release.
+
 20180808:
 	The default pager for most commands has been changed to "less".  To
 	restore the old behavior, set PAGER="more" and MANPAGER="more -s" in

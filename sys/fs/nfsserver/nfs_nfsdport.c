@@ -128,7 +128,7 @@ static int nfsrv_getattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
 static int nfsrv_putfhname(fhandle_t *, char *);
 static int nfsrv_pnfslookupds(struct vnode *, struct vnode *,
     struct pnfsdsfile *, struct vnode **, NFSPROC_T *);
-static void nfsrv_pnfssetfh(struct vnode *, struct pnfsdsfile *,
+static void nfsrv_pnfssetfh(struct vnode *, struct pnfsdsfile *, char *, char *,
     struct vnode *, NFSPROC_T *);
 static int nfsrv_dsremove(struct vnode *, char *, struct ucred *, NFSPROC_T *);
 static int nfsrv_dssetacl(struct vnode *, struct acl *, struct ucred *,
@@ -442,9 +442,33 @@ int
 nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
     struct thread *p, struct nfsexstuff *exp)
 {
-	int error;
+	u_quad_t savsize = 0;
+	int error, savedit;
 
-	error = VOP_SETATTR(vp, &nvap->na_vattr, cred);
+	/*
+	 * If this is an exported file system and a pNFS service is running,
+	 * don't VOP_SETATTR() of size for the MDS file system.
+	 */
+	savedit = 0;
+	error = 0;
+	if (vp->v_type == VREG && (vp->v_mount->mnt_flag & MNT_EXPORTED) != 0 &&
+	    nfsrv_devidcnt != 0 && nvap->na_vattr.va_size != VNOVAL &&
+	    nvap->na_vattr.va_size > 0) {
+		savsize = nvap->na_vattr.va_size;
+		nvap->na_vattr.va_size = VNOVAL;
+		if (nvap->na_vattr.va_uid != (uid_t)VNOVAL ||
+		    nvap->na_vattr.va_gid != (gid_t)VNOVAL ||
+		    nvap->na_vattr.va_mode != (mode_t)VNOVAL ||
+		    nvap->na_vattr.va_atime.tv_sec != VNOVAL ||
+		    nvap->na_vattr.va_mtime.tv_sec != VNOVAL)
+			savedit = 1;
+		else
+			savedit = 2;
+	}
+	if (savedit != 2)
+		error = VOP_SETATTR(vp, &nvap->na_vattr, cred);
+	if (savedit != 0)
+		nvap->na_vattr.va_size = savsize;
 	if (error == 0 && (nvap->na_vattr.va_uid != (uid_t)VNOVAL ||
 	    nvap->na_vattr.va_gid != (gid_t)VNOVAL ||
 	    nvap->na_vattr.va_size != VNOVAL ||
@@ -4044,21 +4068,16 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 			tpf->dsf_sin.sin_port = 0;
 		}
 
-		error = vn_start_write(vp, &mp, V_WAIT);
-		if (error == 0) {
+		error = vn_extattr_set(vp, IO_NODELOCKED,
+		    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
+		    sizeof(*pf) * nfsrv_maxpnfsmirror, (char *)pf, p);
+		if (error == 0)
 			error = vn_extattr_set(vp, IO_NODELOCKED,
-			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
-			    sizeof(*pf) * nfsrv_maxpnfsmirror, (char *)pf, p);
-			if (error == 0)
-				error = vn_extattr_set(vp, IO_NODELOCKED,
-				    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
-				    sizeof(dsattr), (char *)&dsattr, p);
-			vn_finished_write(mp);
-			if (error != 0)
-				printf("pNFS: pnfscreate setextattr=%d\n",
-				    error);
-		} else
-			printf("pNFS: pnfscreate startwrite=%d\n", error);
+			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
+			    sizeof(dsattr), (char *)&dsattr, p);
+		if (error != 0)
+			printf("pNFS: pnfscreate setextattr=%d\n",
+			    error);
 	} else
 		printf("pNFS: pnfscreate=%d\n", error);
 	free(pf, M_TEMP);
@@ -4391,6 +4410,9 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 tryagain:
 	if (error == 0) {
 		buflen = 1024;
+		if (ioproc == NFSPROC_READDS && NFSVOPISLOCKED(vp) ==
+		    LK_EXCLUSIVE)
+			printf("nfsrv_proxyds: Readds vp exclusively locked\n");
 		error = nfsrv_dsgetsockmnt(vp, LK_SHARED, buf, &buflen,
 		    &mirrorcnt, p, dvp, fh, NULL, NULL, NULL, NULL, NULL,
 		    NULL, NULL);
@@ -4649,6 +4671,8 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 							if (fhiszero != 0)
 								nfsrv_pnfssetfh(
 								    vp, pf,
+								    devid,
+								    fnamep,
 								    nvp, p);
 							if (nvpp != NULL &&
 							    *nvpp == NULL) {
@@ -4722,21 +4746,15 @@ static int
 nfsrv_setextattr(struct vnode *vp, struct nfsvattr *nap, NFSPROC_T *p)
 {
 	struct pnfsdsattr dsattr;
-	struct mount *mp;
 	int error;
 
 	ASSERT_VOP_ELOCKED(vp, "nfsrv_setextattr vp");
-	error = vn_start_write(vp, &mp, V_WAIT);
-	if (error == 0) {
-		dsattr.dsa_filerev = nap->na_filerev;
-		dsattr.dsa_size = nap->na_size;
-		dsattr.dsa_atime = nap->na_atime;
-		dsattr.dsa_mtime = nap->na_mtime;
-		error = vn_extattr_set(vp, IO_NODELOCKED,
-		    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
-		    sizeof(dsattr), (char *)&dsattr, p);
-		vn_finished_write(mp);
-	}
+	dsattr.dsa_filerev = nap->na_filerev;
+	dsattr.dsa_size = nap->na_size;
+	dsattr.dsa_atime = nap->na_atime;
+	dsattr.dsa_mtime = nap->na_mtime;
+	error = vn_extattr_set(vp, IO_NODELOCKED, EXTATTR_NAMESPACE_SYSTEM,
+	    "pnfsd.dsattr", sizeof(dsattr), (char *)&dsattr, p);
 	if (error != 0)
 		printf("pNFS: setextattr=%d\n", error);
 	return (error);
@@ -5508,35 +5526,26 @@ nfsrv_pnfslookupds(struct vnode *vp, struct vnode *dvp, struct pnfsdsfile *pf,
  * Set the file handle to the correct one.
  */
 static void
-nfsrv_pnfssetfh(struct vnode *vp, struct pnfsdsfile *pf, struct vnode *nvp,
-    NFSPROC_T *p)
+nfsrv_pnfssetfh(struct vnode *vp, struct pnfsdsfile *pf, char *devid,
+    char *fnamep, struct vnode *nvp, NFSPROC_T *p)
 {
-	struct mount *mp;
 	struct nfsnode *np;
 	int ret;
 
 	np = VTONFS(nvp);
 	NFSBCOPY(np->n_fhp->nfh_fh, &pf->dsf_fh, NFSX_MYFH);
 	/*
-	 * We can only do a setextattr for an exclusively
-	 * locked vp.  Instead of trying to upgrade a shared
-	 * lock, just leave dsf_fh zeroed out and it will
-	 * keep doing this lookup until it is done with an
-	 * exclusively locked vp.
+	 * We can only do a vn_set_extattr() if the vnode is exclusively
+	 * locked and vn_start_write() has been done.  If devid != NULL or
+	 * fnamep != NULL or the vnode is shared locked, vn_start_write()
+	 * may not have been done.
+	 * If not done now, it will be done on a future call.
 	 */
-	if (NFSVOPISLOCKED(vp) == LK_EXCLUSIVE) {
-		ret = vn_start_write(vp, &mp, V_WAIT);
-		NFSD_DEBUG(4, "nfsrv_pnfssetfh: vn_start_write=%d\n",
-		    ret);
-		if (ret == 0) {
-			ret = vn_extattr_set(vp, IO_NODELOCKED,
-			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
-			    sizeof(*pf), (char *)pf, p);
-			vn_finished_write(mp);
-			NFSD_DEBUG(4, "nfsrv_pnfslookupds: aft "
-			    "vn_extattr_set=%d\n", ret);
-		}
-	}
+	if (devid == NULL && fnamep == NULL && NFSVOPISLOCKED(vp) ==
+	    LK_EXCLUSIVE)
+		ret = vn_extattr_set(vp, IO_NODELOCKED,
+		    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile", sizeof(*pf),
+		    (char *)pf, p);
 	NFSD_DEBUG(4, "eo nfsrv_pnfssetfh=%d\n", ret);
 }
 

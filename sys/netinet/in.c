@@ -620,8 +620,7 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	in_ifadown(&ia->ia_ifa, 1);
 
 	if (ia->ia_ifa.ifa_carp)
-		(*carp_detach_p)(&ia->ia_ifa,
-		    (cmd == SIOCDIFADDR) ? false : true);
+		(*carp_detach_p)(&ia->ia_ifa, cmd == SIOCAIFADDR);
 
 	/*
 	 * If this is the last IPv4 address configured on this

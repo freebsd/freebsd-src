@@ -8,6 +8,8 @@
 
 .include <src.opts.mk>
 
+CONFGROUPS=	ETC
+ETC=	csh.cshrc csh.login csh.logout
 PACKAGE=runtime
 TCSHDIR= ${SRCTOP}/contrib/tcsh
 .PATH: ${TCSHDIR}

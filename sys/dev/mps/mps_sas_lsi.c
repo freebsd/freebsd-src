@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
@@ -1114,6 +1115,7 @@ out:
 /**
  * mpssas_SSU_to_SATA_devices 
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Looks through the target list and issues a StartStopUnit SCSI command to each
  * SATA direct-access device.  This helps to ensure that data corruption is
@@ -1209,7 +1211,9 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto)
 	 */
 	while (sc->SSU_refcount > 0) {
 		pause("mpswait", hz/10);
-		
+		if (SCHEDULER_STOPPED())
+			xpt_sim_poll(sassc->sim);
+
 		if (--timeout == 0) {
 			mps_dprint(sc, MPS_FAULT, "Time has expired waiting "
 			    "for SSU commands to complete.\n");
@@ -1245,6 +1249,7 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
 /**
  * mpssas_ir_shutdown - IR shutdown notification
  * @sc: per adapter object
+ * @howto: mast of RB_* bits for how we're rebooting
  *
  * Sending RAID Action to alert the Integrated RAID subsystem of the IOC that
  * the host system is shutting down.

@@ -441,6 +441,21 @@ ncp_ClearUrgentPorts(struct port_range *range)
 }
 
 int
+ncp_IsUrgentTcpLen(struct ncp *ncp, int len)
+{
+  if (len < ncp->cfg.urgent.len)
+    return 1;
+  else
+    return 0;
+}
+
+void
+ncp_SetUrgentTcpLen(struct ncp *ncp, int len)
+{
+    ncp->cfg.urgent.len = len;
+}
+
+int
 ncp_Show(struct cmdargs const *arg)
 {
   struct ncp *ncp = &arg->bundle->ncp;

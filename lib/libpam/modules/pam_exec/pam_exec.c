@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2001,2003 Networks Associates Technology, Inc.
  * Copyright (c) 2017 Dag-Erling Smørgrav
+ * Copyright (c) 2018 Thomas Munro
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -108,6 +109,7 @@ struct pe_opts {
 	int	return_prog_exit_status;
 	int	capture_stdout;
 	int	capture_stderr;
+	int	expose_authtok;
 };
 
 static int
@@ -135,6 +137,8 @@ parse_options(const char *func, int *argc, const char **argv[],
 			options->capture_stderr = 1;
 		} else if (strcmp((*argv)[i], "return_prog_exit_status") == 0) {
 			options->return_prog_exit_status = 1;
+		} else if (strcmp((*argv)[i], "expose_authtok") == 0) {
+			options->expose_authtok = 1;
 		} else {
 			if (strcmp((*argv)[i], "--") == 0) {
 				(*argc)--;
@@ -158,19 +162,22 @@ _pam_exec(pam_handle_t *pamh,
     struct pe_opts *options)
 {
 	char buf[PAM_MAX_MSG_SIZE];
-	struct pollfd pfd[3];
+	struct pollfd pfd[4];
 	const void *item;
 	char **envlist, *envstr, *resp, **tmp;
-	ssize_t rlen;
+	ssize_t rlen, wlen;
 	int envlen, extralen, i;
 	int pam_err, serrno, status;
-	int chout[2], cherr[2], pd;
-	nfds_t nfds;
+	int chin[2], chout[2], cherr[2], pd;
+	nfds_t nfds, nreadfds;
 	pid_t pid;
+	const char *authtok;
+	size_t authtok_size;
+	int rc;
 
 	pd = -1;
 	pid = 0;
-	chout[0] = chout[1] = cherr[0] = cherr[1] = -1;
+	chin[0] = chin[1] = chout[0] = chout[1] = cherr[0] = cherr[1] = -1;
 	envlist = NULL;
 
 #define OUT(ret) do { pam_err = (ret); goto out; } while (0)
@@ -235,6 +242,25 @@ _pam_exec(pam_handle_t *pamh,
 	openpam_log(PAM_LOG_DEBUG, "envlen = %d extralen = %d envlist = %p",
 	    envlen, extralen, envlist);
 
+	/* set up pipe and get authtok if requested */
+	if (options->expose_authtok) {
+		if (pipe(chin) != 0) {
+			openpam_log(PAM_LOG_ERROR, "%s: pipe(): %m", func);
+			OUT(PAM_SYSTEM_ERR);
+		}
+		if (fcntl(chin[1], F_SETFL, O_NONBLOCK)) {
+			openpam_log(PAM_LOG_ERROR, "%s: fcntl(): %m", func);
+			OUT(PAM_SYSTEM_ERR);
+		}
+		rc = pam_get_authtok(pamh, PAM_AUTHTOK, &authtok, NULL);
+		if (rc == PAM_SUCCESS) {
+			authtok_size = strlen(authtok);
+		} else {
+			openpam_log(PAM_LOG_ERROR, "%s: pam_get_authtok(): %s", func,
+						pam_strerror(pamh, rc));
+			OUT(PAM_SYSTEM_ERR);
+		}
+	}
 	/* set up pipes if capture was requested */
 	if (options->capture_stdout) {
 		if (pipe(chout) != 0) {
@@ -269,9 +295,13 @@ _pam_exec(pam_handle_t *pamh,
 
 	if ((pid = pdfork(&pd, 0)) == 0) {
 		/* child */
-		if ((chout[0] >= 0 && close(chout[0]) != 0) ||
+		if ((chin[1] >= 0 && close(chin[1]) != 0) ||
+			(chout[0] >= 0 && close(chout[0]) != 0) ||
 		    (cherr[0] >= 0 && close(cherr[0]) != 0)) {
 			openpam_log(PAM_LOG_ERROR, "%s: close(): %m", func);
+		} else if (chin[0] >= 0 &&
+			dup2(chin[0], STDIN_FILENO) != STDIN_FILENO) {
+			openpam_log(PAM_LOG_ERROR, "%s: dup2(): %m", func);
 		} else if (dup2(chout[1], STDOUT_FILENO) != STDOUT_FILENO ||
 		    dup2(cherr[1], STDERR_FILENO) != STDERR_FILENO) {
 			openpam_log(PAM_LOG_ERROR, "%s: dup2(): %m", func);
@@ -288,7 +318,9 @@ _pam_exec(pam_handle_t *pamh,
 		openpam_log(PAM_LOG_ERROR, "%s: pdfork(): %m", func);
 		OUT(PAM_SYSTEM_ERR);
 	}
-	/* use poll() to watch the process and stdout / stderr */
+	/* use poll() to watch the process and stdin / stdout / stderr */
+	if (chin[0] >= 0)
+		close(chin[0]);
 	if (chout[1] >= 0)
 		close(chout[1]);
 	if (cherr[1] >= 0)
@@ -297,14 +329,22 @@ _pam_exec(pam_handle_t *pamh,
 	pfd[0].fd = pd;
 	pfd[0].events = POLLHUP;
 	nfds = 1;
+	nreadfds = 0;
 	if (options->capture_stdout) {
 		pfd[nfds].fd = chout[0];
 		pfd[nfds].events = POLLIN|POLLERR|POLLHUP;
 		nfds++;
+		nreadfds++;
 	}
 	if (options->capture_stderr) {
 		pfd[nfds].fd = cherr[0];
 		pfd[nfds].events = POLLIN|POLLERR|POLLHUP;
+		nfds++;
+		nreadfds++;
+	}
+	if (options->expose_authtok) {
+		pfd[nfds].fd = chin[1];
+		pfd[nfds].events = POLLOUT|POLLERR|POLLHUP;
 		nfds++;
 	}
 
@@ -314,7 +354,8 @@ _pam_exec(pam_handle_t *pamh,
 			openpam_log(PAM_LOG_ERROR, "%s: poll(): %m", func);
 			OUT(PAM_SYSTEM_ERR);
 		}
-		for (i = 1; i < nfds; ++i) {
+		/* are the stderr / stdout pipes ready for reading? */
+		for (i = 1; i < 1 + nreadfds; ++i) {
 			if ((pfd[i].revents & POLLIN) == 0)
 				continue;
 			if ((rlen = read(pfd[i].fd, buf, sizeof(buf) - 1)) < 0) {
@@ -327,6 +368,26 @@ _pam_exec(pam_handle_t *pamh,
 			buf[rlen] = '\0';
 			(void)pam_prompt(pamh, pfd[i].fd == chout[0] ?
 			    PAM_TEXT_INFO : PAM_ERROR_MSG, &resp, "%s", buf);
+		}
+		/* is the stdin pipe ready for writing? */
+		if (options->expose_authtok && authtok_size > 0 &&
+			(pfd[nfds - 1].revents & POLLOUT) != 0) {
+			if ((wlen = write(chin[1], authtok, authtok_size)) < 0) {
+				if (errno == EAGAIN)
+					continue;
+				openpam_log(PAM_LOG_ERROR, "%s: write(): %m",
+				    func);
+				OUT(PAM_SYSTEM_ERR);
+			} else {
+				authtok += wlen;
+				authtok_size -= wlen;
+				if (authtok_size == 0) {
+					/* finished writing; close and forget the pipe */
+					close(chin[1]);
+					chin[1] = -1;
+					nfds--;
+				}
+			}
 		}
 	} while (pfd[0].revents == 0);
 
@@ -364,6 +425,10 @@ out:
 	serrno = errno;
 	if (pd >= 0)
 		close(pd);
+	if (chin[0] >= 0)
+		close(chin[0]);
+	if (chin[1] >= 0)
+		close(chin[1]);
 	if (chout[0] >= 0)
 		close(chout[0]);
 	if (chout[1] >= 0)

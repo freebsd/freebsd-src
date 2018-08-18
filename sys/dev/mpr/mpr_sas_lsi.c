@@ -46,10 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/sbuf.h>
+#include <sys/reboot.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -127,7 +129,7 @@ int mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
 static int mprsas_volume_add(struct mpr_softc *sc,
     u16 handle);
-static void mprsas_SSU_to_SATA_devices(struct mpr_softc *sc);
+static void mprsas_SSU_to_SATA_devices(struct mpr_softc *sc, int howto);
 static void mprsas_stop_unit_done(struct cam_periph *periph,
     union ccb *done_ccb);
 
@@ -1469,7 +1471,7 @@ out:
  * Return nothing.
  */
 static void
-mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
+mprsas_SSU_to_SATA_devices(struct mpr_softc *sc, int howto)
 {
 	struct mprsas_softc *sassc = sc->sassc;
 	union ccb *ccb;
@@ -1477,7 +1479,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	target_id_t targetid;
 	struct mprsas_target *target;
 	char path_str[64];
-	struct timeval cur_time, start_time;
+	int timeout;
 
 	mpr_lock(sc);
 
@@ -1544,17 +1546,25 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	mpr_unlock(sc);
 
 	/*
-	 * Wait until all of the SSU commands have completed or time has
-	 * expired (60 seconds).  Pause for 100ms each time through.  If any
-	 * command times out, the target will be reset in the SCSI command
-	 * timeout routine.
+	 * Timeout after 60 seconds by default or 10 seconds if howto has
+	 * RB_NOSYNC set which indicates we're likely handling a panic.
 	 */
-	getmicrotime(&start_time);
-	while (sc->SSU_refcount) {
+	timeout = 600;
+	if (howto & RB_NOSYNC)
+		timeout = 100;
+
+	/*
+	 * Wait until all of the SSU commands have completed or time
+	 * has expired. Pause for 100ms each time through.  If any
+	 * command times out, the target will be reset in the SCSI
+	 * command timeout routine.
+	 */
+	while (sc->SSU_refcount > 0) {
 		pause("mprwait", hz/10);
+		if (SCHEDULER_STOPPED())
+			xpt_sim_poll(sassc->sim);
 		
-		getmicrotime(&cur_time);
-		if ((cur_time.tv_sec - start_time.tv_sec) > 60) {
+		if (--timeout == 0) {
 			mpr_dprint(sc, MPR_ERROR, "Time has expired waiting "
 			    "for SSU commands to complete.\n");
 			break;
@@ -1596,7 +1606,7 @@ mprsas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
  * Return nothing.
  */
 void
-mprsas_ir_shutdown(struct mpr_softc *sc)
+mprsas_ir_shutdown(struct mpr_softc *sc, int howto)
 {
 	u16 volume_mapping_flags;
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
@@ -1701,5 +1711,5 @@ out:
 			}
 		}
 	}
-	mprsas_SSU_to_SATA_devices(sc);
+	mprsas_SSU_to_SATA_devices(sc, howto);
 }

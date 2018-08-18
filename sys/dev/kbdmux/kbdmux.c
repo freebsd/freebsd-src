@@ -384,8 +384,10 @@ static keyboard_switch_t kbdmuxsw = {
 };
 
 #ifdef EVDEV_SUPPORT
+static evdev_event_t kbdmux_ev_event;
+
 static const struct evdev_methods kbdmux_evdev_methods = {
-	.ev_event = evdev_ev_kbd_event,
+	.ev_event = kbdmux_ev_event,
 };
 #endif
 
@@ -1389,6 +1391,22 @@ kbdmux_poll(keyboard_t *kbd, int on)
 
 	return (0);
 }
+
+#ifdef EVDEV_SUPPORT
+static void
+kbdmux_ev_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
+{
+	keyboard_t *kbd = evdev_get_softc(evdev);
+
+	if (evdev_rcpt_mask & EVDEV_RCPT_KBDMUX &&
+	    (type == EV_LED || type == EV_REP)) {
+		mtx_lock(&Giant);
+		kbd_ev_event(kbd, type, code, value);
+		mtx_unlock(&Giant);
+	}
+}
+#endif
 
 /*****************************************************************************
  *****************************************************************************

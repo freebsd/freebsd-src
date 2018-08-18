@@ -24,7 +24,8 @@ CFLAGS+=-DALWAYS_SERIAL
 
 CFLAGS+=-I${BOOTSRC}/i386/common
 
-LOADERBIN= ${BOOTOBJ}/i386/loader/loader.bin
+L=${LOADER_DEFAULT_INTERP}
+LOADERBIN= ${BOOTOBJ}/i386/loader_${L}/loader_${L}.bin
 
 CLEANFILES+= ${BOOT}.tmp
 

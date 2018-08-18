@@ -1153,7 +1153,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		SBNI_LOCK(sc);
 		bcopy(&sc->in_stats, in_stats, sizeof(struct sbni_in_stats));
 		SBNI_UNLOCK(sc);
-		error = copyout(ifr_data_get_ptr(ifr), in_stats,
+		error = copyout(in_stats, ifr_data_get_ptr(ifr),
 		    sizeof(struct sbni_in_stats));
 		free(in_stats, M_DEVBUF);
 		break;

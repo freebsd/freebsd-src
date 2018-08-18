@@ -87,6 +87,13 @@ struct dsl_pool;
 #define	DS_FIELD_BOOKMARK_NAMES "com.delphix:bookmarks"
 
 /*
+ * This field is present (with value=0) if this dataset may contain large
+ * dnodes (>512B).  If it is present, then this dataset is counted in the
+ * refcount of the SPA_FEATURE_LARGE_DNODE feature.
+ */
+#define	DS_FIELD_LARGE_DNODE "org.zfsonlinux:large_dnode"
+
+/*
  * These fields are set on datasets that are in the middle of a resumable
  * receive, and allow the sender to resume the send if it is interrupted.
  */

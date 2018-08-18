@@ -557,6 +557,7 @@ mld_ifdetach(struct ifnet *ifp)
 				continue;
 			inm = (struct in6_multi *)ifma->ifma_protospec;
 			if (inm->in6m_state == MLD_LEAVING_MEMBER) {
+				in6m_disconnect(inm);
 				in6m_rele_locked(&inmh, inm);
 				ifma->ifma_protospec = NULL;
 			}
@@ -1483,6 +1484,7 @@ mld_v1_process_group_timer(struct in6_multi_head *inmh, struct in6_multi *inm)
 	case MLD_REPORTING_MEMBER:
 		if (report_timer_expired) {
 			inm->in6m_state = MLD_IDLE_MEMBER;
+			in6m_disconnect(inm);
 			in6m_rele_locked(inmh, inm);
 		}
 		break;
@@ -1607,6 +1609,7 @@ mld_v2_process_group_timers(struct in6_multi_head *inmh,
 			if (inm->in6m_state == MLD_LEAVING_MEMBER &&
 			    inm->in6m_scrv == 0) {
 				inm->in6m_state = MLD_NOT_MEMBER;
+				in6m_disconnect(inm);
 				in6m_rele_locked(inmh, inm);
 			}
 		}
@@ -1697,6 +1700,7 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 			 * version, we need to release the final
 			 * reference held for issuing the INCLUDE {}.
 			 */
+			in6m_disconnect(inm);
 			in6m_rele_locked(&inmh, inm);
 			ifma->ifma_protospec = NULL;
 			/* FALLTHROUGH */
@@ -1893,16 +1897,15 @@ mld_change_state(struct in6_multi *inm, const int delay)
 	 */
 	KASSERT(inm->in6m_ifma != NULL, ("%s: no ifma", __func__));
 	ifp = inm->in6m_ifma->ifma_ifp;
-	if (ifp != NULL) {
-		/*
-		 * Sanity check that netinet6's notion of ifp is the
-		 * same as net's.
-		 */
-		KASSERT(inm->in6m_ifp == ifp, ("%s: bad ifp", __func__));
-	}
+	if (ifp == NULL)
+		return (0);
+	/*
+	 * Sanity check that netinet6's notion of ifp is the
+	 * same as net's.
+	 */
+	KASSERT(inm->in6m_ifp == ifp, ("%s: bad ifp", __func__));
 
 	MLD_LOCK();
-
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifsoftc for ifp %p", __func__, ifp));
 
@@ -1996,9 +1999,9 @@ mld_initial_join(struct in6_multi *inm, struct mld_ifsoftc *mli,
 		 * group around for the final INCLUDE {} enqueue.
 		 */
 		if (mli->mli_version == MLD_VERSION_2 &&
-		    inm->in6m_state == MLD_LEAVING_MEMBER)
-			in6m_release_deferred(inm);
-
+		    inm->in6m_state == MLD_LEAVING_MEMBER) {
+			inm->in6m_refcount--;
+		}
 		inm->in6m_state = MLD_REPORTING_MEMBER;
 
 		switch (mli->mli_version) {

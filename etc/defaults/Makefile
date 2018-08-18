@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-FILES=	devfs.rules periodic.conf
+FILES=	devfs.rules
 FILESDIR= /etc/defaults
 
 .if ${MK_BLUETOOTH} != "no"

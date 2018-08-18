@@ -1721,7 +1721,8 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 		list_insert_tail(&itxs->i_sync_list, itx);
 	} else {
 		avl_tree_t *t = &itxs->i_async_tree;
-		uint64_t foid = ((lr_ooo_t *)&itx->itx_lr)->lr_foid;
+		uint64_t foid =
+		    LR_FOID_GET_OBJ(((lr_ooo_t *)&itx->itx_lr)->lr_foid);
 		itx_async_node_t *ian;
 		avl_index_t where;
 
@@ -2970,12 +2971,11 @@ zil_close(zilog_t *zilog)
 	 * ZIL to be clean, and to wait for all pending lwbs to be
 	 * written out.
 	 */
-	if (txg != 0)
+	if (txg)
 		txg_wait_synced(zilog->zl_dmu_pool, txg);
 
-	if (zilog_is_dirty(zilog))
-		zfs_dbgmsg("zil (%p) is dirty, txg %llu", zilog, txg);
-	VERIFY(!zilog_is_dirty(zilog));
+	if (txg < spa_freeze_txg(zilog->zl_spa))
+		ASSERT(!zilog_is_dirty(zilog));
 
 	zilog->zl_get_data = NULL;
 
@@ -3190,7 +3190,7 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 	 */
 	if (TX_OOO(txtype)) {
 		error = dmu_object_info(zilog->zl_os,
-		    ((lr_ooo_t *)lr)->lr_foid, NULL);
+		    LR_FOID_GET_OBJ(((lr_ooo_t *)lr)->lr_foid), NULL);
 		if (error == ENOENT || error == EEXIST)
 			return (0);
 	}
