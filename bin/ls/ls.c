@@ -200,6 +200,30 @@ do_color(void)
 	return (do_color_from_env());
 }
 
+static bool
+do_color_always(const char *term)
+{
+
+	return (strcmp(term, "always") == 0 || strcmp(term, "yes") == 0 ||
+	    strcmp(term, "force") == 0);
+}
+
+static bool
+do_color_never(const char *term)
+{
+
+	return (strcmp(term, "never") == 0 || strcmp(term, "no") == 0 ||
+	    strcmp(term, "none") == 0);
+}
+
+static bool
+do_color_auto(const char *term)
+{
+
+	return (strcmp(term, "auto") == 0 || strcmp(term, "tty") == 0 ||
+	    strcmp(term, "if-tty") == 0);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -406,11 +430,11 @@ main(int argc, char *argv[])
 			break;
 #ifdef COLORLS
 		case COLOR_OPT:
-			if (optarg == NULL || strcmp(optarg, "always") == 0)
+			if (optarg == NULL || do_color_always(optarg))
 				colorflag = COLORFLAG_ALWAYS;
-			else if (strcmp(optarg, "auto") == 0)
+			else if (do_color_auto(optarg))
 				colorflag = COLORFLAG_AUTO;
-			else if (strcmp(optarg, "never") == 0)
+			else if (do_color_never(optarg))
 				colorflag = COLORFLAG_NEVER;
 			else
 				errx(2, "unsupported --color value '%s' (must be always, auto, or never)",

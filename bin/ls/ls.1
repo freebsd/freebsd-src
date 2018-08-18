@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2018
+.Dd August 18, 2018
 .Dt LS 1
 .Os
 .Sh NAME
@@ -252,6 +252,26 @@ environment variable is set and not empty.
 .Pp
 .Cm never
 will disable color regardless of environment variables.
+.Pp
+For compatibility with GNU coreutils,
+.Nm
+supports
+.Cm yes
+or
+.Cm force
+as equivalent to
+.Cm always ,
+.Cm no
+or
+.Cm none
+as equivalent to
+.Cm never ,
+and
+.Cm tty
+or
+.Cm if-tty
+as equivalent to
+.Cm auto .
 .It Fl d
 Directories are listed as plain files (not searched recursively).
 .It Fl f
