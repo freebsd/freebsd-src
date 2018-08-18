@@ -278,9 +278,9 @@ efi_copy_finish(void)
 {
 	uint64_t	*src, *dst, *last;
 
-	src = (uint64_t *)staging;
-	dst = (uint64_t *)(staging - stage_offset);
-	last = (uint64_t *)staging_end;
+	src = (uint64_t *)(uintptr_t)staging;
+	dst = (uint64_t *)(uintptr_t)(staging - stage_offset);
+	last = (uint64_t *)(uintptr_t)staging_end;
 
 	while (src < last)
 		*dst++ = *src++;
