@@ -491,9 +491,8 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	    dmat->common.alignment <= PAGE_SIZE &&
 	    (dmat->common.boundary % PAGE_SIZE) == 0) {
 		/* Page-based multi-segment allocations allowed */
-		*vaddr = (void *)kmem_alloc_attr(kernel_arena,
-		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
-		    attr);
+		*vaddr = (void *)kmem_alloc_attr(dmat->common.maxsize, mflags,
+		    0ul, dmat->common.lowaddr, attr);
 		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	} else {
 		*vaddr = (void *)kmem_alloc_contig(kernel_arena,
