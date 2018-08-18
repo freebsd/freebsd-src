@@ -70,14 +70,14 @@ ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 	UINTN mmsz, pages, sz;
 	UINT32 mmver;
 
-	bi->bi_systab = (uint64_t)ST;
-	bi->bi_hcdp = (uint64_t)efi_get_table(&hcdp_guid);
+	bi->bi_systab = (uintptr_t)ST;
+	bi->bi_hcdp = (uintptr_t)efi_get_table(&hcdp_guid);
 
 	sz = sizeof(EFI_HANDLE);
 	status = BS->LocateHandle(ByProtocol, &fpswa_guid, 0, &sz, &handle);
 	if (status == 0)
 		status = BS->HandleProtocol(handle, &fpswa_guid, &fpswa);
-	bi->bi_fpswa = (status == 0) ? (uint64_t)fpswa : 0;
+	bi->bi_fpswa = (status == 0) ? (uintptr_t)fpswa : 0;
 
 	bisz = (sizeof(struct bootinfo) + 0x0f) & ~0x0f;
 
@@ -109,7 +109,7 @@ ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 	 * aligned).
 	 */
 	*bi_addr = addr;
-	mm = (void *)(addr + bisz);
+	mm = (void *)(uintptr_t)(addr + bisz);
 	sz = (EFI_PAGE_SIZE * pages) - bisz;
 	status = BS->GetMemoryMap(&sz, mm, &mapkey, &mmsz, &mmver);
 	if (EFI_ERROR(status)) {
@@ -117,12 +117,12 @@ ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 		    (long)status);
 		return (EINVAL);
 	}
-	bi->bi_memmap = (uint64_t)mm;
+	bi->bi_memmap = (uintptr_t)mm;
 	bi->bi_memmap_size = sz;
 	bi->bi_memdesc_size = mmsz;
 	bi->bi_memdesc_version = mmver;
 
-	bcopy(bi, (void *)(*bi_addr), sizeof(*bi));
+	bcopy(bi, (void *)(uintptr_t)(*bi_addr), sizeof(*bi));
 	return (0);
 }
 
