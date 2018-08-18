@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180818:
+	WITH_OFED option now only enables the build for the OFED libraries
+	and some fundamental client utilities.  OpenSM and rest of the
+	debugging tools are enabled by WITH_OFED_EXTRA build switch.
+	WITH_OFED is turned on by default on amd64.
+
 20180714:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	6.0.1.  Please see the 20141231 entry below for information about
