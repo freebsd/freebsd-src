@@ -80,6 +80,9 @@ struct mibif {
 	/* to be set by ifType specific modules. This is ifSpecific. */
 	struct asn_oid	spec_oid;
 
+	char		*alias;
+	size_t		alias_size;
+
 	/* private data - don't touch */
 	void		*private;
 };
