@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2018
+.Dd August 17, 2018
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -54,6 +54,7 @@ jail
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
 .Ao Ar bootenv Ac
+.Op Ar utility Op Ar argument ...
 .Nm
 list
 .Op Fl a
@@ -150,6 +151,7 @@ from
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
 .Ao Ar bootenv Ac
+.Op Ar utility Op Ar argument ...
 .Pp
 Creates a jail of the given boot environment.
 Multiple
@@ -161,8 +163,16 @@ arguments may be specified.
 will set a jail parameter, and
 .Fl u
 will unset a jail parameter.
-By default, jails are created in interactive mode, with a shell being
+.Pp
+By default, jails are created in interactive mode and
+.Pa /bin/sh
+is
 executed within the jail.
+If
+.Ar utility
+is specified, it will be executed instead of
+.Pa /bin/sh .
+.Pp
 The
 .Fl b
 argument enables batch mode, thereby disabling interactive mode.
