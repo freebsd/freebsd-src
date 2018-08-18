@@ -1169,7 +1169,7 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KERNEL;
-	p = (void *) kmem_malloc_domain(kernel_arena, domain, bytes, wait);
+	p = (void *) kmem_malloc_domain(domain, bytes, wait);
 
 	return (p);
 }
@@ -3680,32 +3680,22 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 void *
 uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 {
-	struct vmem *arena;
 	vm_offset_t addr;
 	uma_slab_t slab;
-
-#if VM_NRESERVLEVEL > 0
-	if (__predict_true((wait & M_EXEC) == 0))
-		arena = kernel_arena;
-	else
-		arena = kernel_rwx_arena;
-#else
-	arena = kernel_arena;
-#endif
 
 	slab = zone_alloc_item(slabzone, NULL, domain, wait);
 	if (slab == NULL)
 		return (NULL);
 	if (domain == UMA_ANYDOMAIN)
-		addr = kmem_malloc(arena, size, wait);
+		addr = kmem_malloc(NULL, size, wait);
 	else
-		addr = kmem_malloc_domain(arena, domain, size, wait);
+		addr = kmem_malloc_domain(domain, size, wait);
 	if (addr != 0) {
 		vsetslab(addr, slab);
 		slab->us_data = (void *)addr;
 		slab->us_flags = UMA_SLAB_KERNEL | UMA_SLAB_MALLOC;
 #if VM_NRESERVLEVEL > 0
-		if (__predict_false(arena == kernel_rwx_arena))
+		if (__predict_false((wait & M_EXEC) != 0))
 			slab->us_flags |= UMA_SLAB_KRWX;
 #endif
 		slab->us_size = size;

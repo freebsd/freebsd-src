@@ -36,7 +36,6 @@ options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	IPSEC			# IP (v4/v6) security
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
-device		crypto			# core crypto support (required for IPSEC)
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
@@ -121,6 +120,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options		ZSTDIO			# zstd-compressed kernel and user dumps
 
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
