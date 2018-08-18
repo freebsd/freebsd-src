@@ -1564,6 +1564,17 @@ sort_before_lro(struct lro_ctrl *lro)
 	return (lro->lro_mbuf_max != 0);
 }
 
+static inline uint64_t
+last_flit_to_ns(struct adapter *sc, uint64_t lf)
+{
+	uint64_t n = be64toh(lf) & 0xfffffffffffffff;	/* 60b, not 64b. */
+
+	if (n > UINT64_MAX / 1000000)
+		return (n / sc->params.vpd.cclk * 1000000);
+	else
+		return (n * 1000000 / sc->params.vpd.cclk);
+}
+
 /*
  * Deals with interrupts on an iq+fl queue.
  */
@@ -1624,19 +1635,21 @@ service_iq_fl(struct sge_iq *iq, int budget)
 			if (__predict_false(m0 == NULL))
 				goto out;
 			refill = IDXDIFF(fl->hw_cidx, fl_hw_cidx, fl->sidx) > 2;
-#ifdef T4_PKT_TIMESTAMP
-			/*
-			 * 60 bit timestamp for the payload is
-			 * *(uint64_t *)m0->m_pktdat.  Note that it is
-			 * in the leading free-space in the mbuf.  The
-			 * kernel can clobber it during a pullup,
-			 * m_copymdata, etc.  You need to make sure that
-			 * the mbuf reaches you unmolested if you care
-			 * about the timestamp.
-			 */
-			*(uint64_t *)m0->m_pktdat =
-			    be64toh(ctrl->u.last_flit) & 0xfffffffffffffff;
+
+			if (iq->flags & IQ_RX_TIMESTAMP) {
+				/*
+				 * Fill up rcv_tstmp but do not set M_TSTMP.
+				 * rcv_tstmp is not in the format that the
+				 * kernel expects and we don't want to mislead
+				 * it.  For now this is only for custom code
+				 * that knows how to interpret cxgbe's stamp.
+				 */
+				m0->m_pkthdr.rcv_tstmp =
+				    last_flit_to_ns(sc, d->rsp.u.last_flit);
+#ifdef notyet
+				m0->m_flags |= M_TSTMP;
 #endif
+			}
 
 			/* fall through */
 
@@ -1814,10 +1827,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 		if (m == NULL)
 			return (NULL);
 		fl->mbuf_allocated++;
-#ifdef T4_PKT_TIMESTAMP
-		/* Leave room for a timestamp */
-		m->m_data += 8;
-#endif
+
 		/* copy data to mbuf */
 		bcopy(payload, mtod(m, caddr_t), len);
 
