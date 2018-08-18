@@ -54,7 +54,7 @@ vm_offset_t kmap_alloc_wait(vm_map_t, vm_size_t);
 void kmap_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 
 /* These operate on virtual addresses backed by memory. */
-vm_offset_t kmem_alloc_attr(struct vmem *, vm_size_t size, int flags,
+vm_offset_t kmem_alloc_attr(vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_attr_domain(int domain, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
