@@ -2605,7 +2605,7 @@ cddl/lib/libzfs__L: cddl/lib/libzfs_core__L lib/msun__L lib/libutil__L
 cddl/lib/libzfs__L: lib/libthr__L lib/libmd__L lib/libz__L cddl/lib/libumem__L
 cddl/lib/libzfs__L: cddl/lib/libuutil__L cddl/lib/libavl__L lib/libgeom__L
 
-cddl/lib/libbe__L: cddl/lib/libzfs__L
+lib/libbe__L: cddl/lib/libzfs__L
 .endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
