@@ -553,7 +553,7 @@ fail:
 		lbns_remfree++;
 #endif
 		ffs_blkfree(ump, fs, ump->um_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, vp->v_type, NULL, SINGLETON);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }
@@ -1147,7 +1147,7 @@ fail:
 		lbns_remfree++;
 #endif
 		ffs_blkfree(ump, fs, ump->um_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, vp->v_type, NULL, SINGLETON);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }
