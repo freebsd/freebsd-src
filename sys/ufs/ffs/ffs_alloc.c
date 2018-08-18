@@ -110,8 +110,6 @@ static ufs2_daddr_t
 static void	ffs_blkfree_cg(struct ufsmount *, struct fs *,
 		    struct vnode *, ufs2_daddr_t, long, ino_t,
 		    struct workhead *);
-static void	ffs_blkfree_trim_completed(struct buf *);
-static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
 #ifdef INVARIANTS
 static int	ffs_checkblk(struct inode *, ufs2_daddr_t, long);
 #endif
@@ -395,8 +393,24 @@ retry:
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
+			/*
+			 * The usual case is that a smaller fragment that
+			 * was just allocated has been replaced with a bigger
+			 * fragment or a full-size block. If it is marked as
+			 * B_DELWRI, the current contents have not been written
+			 * to disk. It is possible that the block was written
+			 * earlier, but very uncommon. If the block has never
+			 * been written, there is no need to send a BIO_DELETE
+			 * for it when it is freed. The gain from avoiding the
+			 * TRIMs for the common case of unwritten blocks far
+			 * exceeds the cost of the write amplification for the
+			 * uncommon case of failing to send a TRIM for a block
+			 * that had been written.
+			 */
 			ffs_blkfree(ump, fs, ump->um_devvp, bprev, (long)osize,
-			    ip->i_number, vp->v_type, NULL);
+			    ip->i_number, vp->v_type, NULL,
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
@@ -521,7 +535,7 @@ ffs_reallocblks_ufs1(ap)
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
-	struct buf *sbp, *ebp;
+	struct buf *sbp, *ebp, *bp;
 	ufs1_daddr_t *bap, *sbap, *ebap;
 	struct cluster_save *buflist;
 	struct ufsmount *ump;
@@ -730,14 +744,30 @@ ffs_reallocblks_ufs1(ap)
 		printf("\n\tnew:");
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
+		bp = buflist->bs_children[i];
 		if (!DOINGSOFTDEP(vp))
+			/*
+			 * The usual case is that a set of N-contiguous blocks
+			 * that was just allocated has been replaced with a
+			 * set of N+1-contiguous blocks. If they are marked as
+			 * B_DELWRI, the current contents have not been written
+			 * to disk. It is possible that the blocks were written
+			 * earlier, but very uncommon. If the blocks have never
+			 * been written, there is no need to send a BIO_DELETE
+			 * for them when they are freed. The gain from avoiding
+			 * the TRIMs for the common case of unwritten blocks
+			 * far exceeds the cost of the write amplification for
+			 * the uncommon case of failing to send a TRIM for the
+			 * blocks that had been written.
+			 */
 			ffs_blkfree(ump, fs, ump->um_devvp,
-			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
-		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+			    dbtofsb(fs, bp->b_blkno),
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL,
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
+		bp->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
-		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		if (!ffs_checkblk(ip, dbtofsb(fs, bp->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
 #endif
 #ifdef DEBUG
@@ -771,7 +801,7 @@ ffs_reallocblks_ufs2(ap)
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
-	struct buf *sbp, *ebp;
+	struct buf *sbp, *ebp, *bp;
 	ufs2_daddr_t *bap, *sbap, *ebap;
 	struct cluster_save *buflist;
 	struct ufsmount *ump;
@@ -978,14 +1008,30 @@ ffs_reallocblks_ufs2(ap)
 		printf("\n\tnew:");
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
+		bp = buflist->bs_children[i];
 		if (!DOINGSOFTDEP(vp))
+			/*
+			 * The usual case is that a set of N-contiguous blocks
+			 * that was just allocated has been replaced with a
+			 * set of N+1-contiguous blocks. If they are marked as
+			 * B_DELWRI, the current contents have not been written
+			 * to disk. It is possible that the blocks were written
+			 * earlier, but very uncommon. If the blocks have never
+			 * been written, there is no need to send a BIO_DELETE
+			 * for them when they are freed. The gain from avoiding
+			 * the TRIMs for the common case of unwritten blocks
+			 * far exceeds the cost of the write amplification for
+			 * the uncommon case of failing to send a TRIM for the
+			 * blocks that had been written.
+			 */
 			ffs_blkfree(ump, fs, ump->um_devvp,
-			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
-		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+			    dbtofsb(fs, bp->b_blkno),
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL,
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
+		bp->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
-		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		if (!ffs_checkblk(ip, dbtofsb(fs, bp->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
 #endif
 #ifdef DEBUG
@@ -1823,8 +1869,7 @@ gotit:
 	/* XXX Fixme. */
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), blkno,
-		    size, 0);
+		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), blkno, size, 0);
 	UFS_LOCK(ump);
 	return (blkno);
 }
@@ -2254,6 +2299,17 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	bdwrite(bp);
 }
 
+/*
+ * Structures and routines associated with trim management.
+ */
+MALLOC_DEFINE(M_TRIM, "ufs_trim", "UFS trim structures");
+
+#define	TRIMLIST_HASH(ump, key) \
+	(&(ump)->um_trimhash[(key) & (ump)->um_trimlisthashsize])
+
+static void	ffs_blkfree_trim_completed(struct buf *);
+static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
+
 struct ffs_blkfree_trim_params {
 	struct task task;
 	struct ufsmount *ump;
@@ -2277,7 +2333,7 @@ ffs_blkfree_trim_task(ctx, pending)
 	    tp->inum, tp->pdephd);
 	vn_finished_secondary_write(UFSTOVFS(tp->ump));
 	atomic_add_int(&tp->ump->um_trim_inflight, -1);
-	free(tp, M_TEMP);
+	free(tp, M_TRIM);
 }
 
 static void
@@ -2287,13 +2343,45 @@ ffs_blkfree_trim_completed(bp)
 	struct ffs_blkfree_trim_params *tp;
 
 	tp = bp->b_fsprivate1;
-	free(bp, M_TEMP);
+	free(bp, M_TRIM);
 	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
 	taskqueue_enqueue(tp->ump->um_trim_tq, &tp->task);
 }
 
+/*
+ * Allocate a new key to use to identify a range of blocks.
+ */
+u_long
+ffs_blkrelease_start(ump, devvp, inum)
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ino_t inum;
+{
+	static u_long masterkey;
+	u_long key;
+
+	if ((ump->um_flags & UM_CANDELETE) == 0)
+		return (SINGLETON_KEY);
+	do {
+		key = atomic_fetchadd_long(&masterkey, 1);
+	} while (key < FIRST_VALID_KEY);
+	return (key);
+}
+
+/*
+ * Deallocate a key that has been used to identify a range of blocks.
+ */
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
+ffs_blkrelease_finish(ump, key)
+	struct ufsmount *ump;
+	u_long key;
+{
+
+	return;
+}
+
+void
+ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, key)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
@@ -2302,6 +2390,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	ino_t inum;
 	enum vtype vtype;
 	struct workhead *dephd;
+	u_long key;
 {
 	struct mount *mp;
 	struct buf *bp;
@@ -2319,10 +2408,11 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 		return;
 	}
 	/*
-	 * Nothing to delay if TRIM is disabled, or the operation is
-	 * performed on the snapshot.
+	 * Nothing to delay if TRIM is not required for this block or TRIM
+	 * is disabled or the operation is performed on a snapshot.
 	 */
-	if (((ump->um_flags) & UM_CANDELETE) == 0 || devvp->v_type == VREG) {
+	if (key == NOTRIM_KEY || ((ump->um_flags & UM_CANDELETE) == 0) ||
+	    devvp->v_type == VREG) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
 		return;
 	}
@@ -2334,7 +2424,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	 * and write some new data into it.
 	 */
 	atomic_add_int(&ump->um_trim_inflight, 1);
-	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TEMP, M_WAITOK);
+	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TRIM, M_WAITOK);
 	tp->ump = ump;
 	tp->devvp = devvp;
 	tp->bno = bno;
@@ -2347,7 +2437,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	} else
 		tp->pdephd = NULL;
 
-	bp = malloc(sizeof(*bp), M_TEMP, M_WAITOK | M_ZERO);
+	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
 	bp->b_iocmd = BIO_DELETE;
 	bp->b_iooffset = dbtob(fsbtodb(fs, bno));
 	bp->b_iodone = ffs_blkfree_trim_completed;
@@ -2822,6 +2912,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	struct fs *fs;
 	ufs2_daddr_t blkno;
 	long blkcnt, blksize;
+	u_long key;
 	struct file *fp, *vfp;
 	cap_rights_t rights;
 	int filetype, error;
@@ -2956,15 +3047,18 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		blkno = cmd.value;
 		blkcnt = cmd.size;
 		blksize = fs->fs_frag - (blkno % fs->fs_frag);
+		key = ffs_blkrelease_start(ump, ump->um_devvp, UFS_ROOTINO);
 		while (blkcnt > 0) {
-			if (blksize > blkcnt)
+			if (blkcnt < blksize)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, UFS_ROOTINO, VDIR, NULL);
+			    blksize * fs->fs_fsize, UFS_ROOTINO, 
+			    VDIR, NULL, key);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;
 		}
+		ffs_blkrelease_finish(ump, key);
 		break;
 
 	/*

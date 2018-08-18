@@ -47,6 +47,7 @@ struct ufs_args {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UFSMNT);
+MALLOC_DECLARE(M_TRIM);
 #endif
 
 struct buf;
@@ -63,6 +64,7 @@ struct inodedep;
 
 TAILQ_HEAD(inodedeplst, inodedep);
 LIST_HEAD(bmsafemaphd, bmsafemap);
+LIST_HEAD(trimlist_hashhead, ffs_blkfree_trim_params);
 
 /*
  * This structure describes the UFS specific mount structure data.
@@ -70,7 +72,6 @@ LIST_HEAD(bmsafemaphd, bmsafemap);
  * UFS (UFS1, UFS2, etc).
  *
  * Lock reference:
- *	a - atomic operations
  *	c - set at allocation then constant until freed
  *	i - ufsmount interlock (UFS_LOCK / UFS_UNLOCK)
  *	q - associated quota file is locked
@@ -99,8 +100,13 @@ struct ufsmount {
 	char	um_qflags[MAXQUOTAS];		/* (i) quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* (c) track maxfilesize */
 	u_int	um_flags;			/* (i) filesystem flags */
-	u_int	um_trim_inflight;		/* (a) outstanding trim count */
+	u_int	um_trim_inflight;		/* (i) outstanding trim count */
+	u_int	um_trim_inflight_blks;		/* (i) outstanding trim blks */
+	u_long	um_trim_total;			/* (i) total trim count */
+	u_long	um_trim_total_blks;		/* (i) total trim block count */
 	struct	taskqueue *um_trim_tq;		/* (c) trim request queue */
+	struct	trimlist_hashhead *um_trimhash;	/* (i) trimlist hash table */
+	u_long	um_trimlisthashsize;		/* (i) trim hash table size-1 */
 						/* (c) - below function ptrs */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
 		    int, struct buf **);

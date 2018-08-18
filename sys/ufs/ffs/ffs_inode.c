@@ -197,6 +197,7 @@ ffs_truncate(vp, length, flags, cred)
 	int needextclean, extblocks;
 	int offset, size, level, nblocks;
 	int i, error, allerror, indiroff, waitforupdate;
+	u_long key;
 	off_t osize;
 
 	ip = VTOI(vp);
@@ -275,7 +276,7 @@ ffs_truncate(vp, length, flags, cred)
 					continue;
 				ffs_blkfree(ump, fs, ITODEVVP(ip), oldblks[i],
 				    sblksize(fs, osize, i), ip->i_number,
-				    vp->v_type, NULL);
+				    vp->v_type, NULL, SINGLETON_KEY);
 			}
 		}
 	}
@@ -523,7 +524,7 @@ ffs_truncate(vp, length, flags, cred)
 				DIP_SET(ip, i_ib[level], 0);
 				ffs_blkfree(ump, fs, ump->um_devvp, bn,
 				    fs->fs_bsize, ip->i_number,
-				    vp->v_type, NULL);
+				    vp->v_type, NULL, SINGLETON_KEY);
 				blocksreleased += nblocks;
 			}
 		}
@@ -534,6 +535,7 @@ ffs_truncate(vp, length, flags, cred)
 	/*
 	 * All whole direct blocks or frags.
 	 */
+	key = ffs_blkrelease_start(ump, ump->um_devvp, ip->i_number);
 	for (i = UFS_NDADDR - 1; i > lastblock; i--) {
 		long bsize;
 
@@ -543,9 +545,10 @@ ffs_truncate(vp, length, flags, cred)
 		DIP_SET(ip, i_db[i], 0);
 		bsize = blksize(fs, ip, i);
 		ffs_blkfree(ump, fs, ump->um_devvp, bn, bsize, ip->i_number,
-		    vp->v_type, NULL);
+		    vp->v_type, NULL, key);
 		blocksreleased += btodb(bsize);
 	}
+	ffs_blkrelease_finish(ump, key);
 	if (lastblock < 0)
 		goto done;
 
@@ -575,7 +578,8 @@ ffs_truncate(vp, length, flags, cred)
 			 */
 			bn += numfrags(fs, newspace);
 			ffs_blkfree(ump, fs, ump->um_devvp, bn,
-			   oldspace - newspace, ip->i_number, vp->v_type, NULL);
+			   oldspace - newspace, ip->i_number, vp->v_type,
+			   NULL, SINGLETON_KEY);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -634,8 +638,10 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 {
 	struct buf *bp;
 	struct fs *fs;
+	struct ufsmount *ump;
 	struct vnode *vp;
 	caddr_t copy = NULL;
+	u_long key;
 	int i, nblocks, error = 0, allerror = 0;
 	ufs2_daddr_t nb, nlbn, last;
 	ufs2_daddr_t blkcount, factor, blocksreleased = 0;
@@ -644,6 +650,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 #define BAP(ip, i) (I_IS_UFS1(ip) ? bap1[i] : bap2[i])
 
 	fs = ITOFS(ip);
+	ump = ITOUMP(ip);
 
 	/*
 	 * Calculate index in current block of last
@@ -719,6 +726,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	/*
 	 * Recursively free totally unused blocks.
 	 */
+	key = ffs_blkrelease_start(ump, ITODEVVP(ip), ip->i_number);
 	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
 	    i--, nlbn += factor) {
 		nb = BAP(ip, i);
@@ -730,10 +738,11 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
-		ffs_blkfree(ITOUMP(ip), fs, ITODEVVP(ip), nb, fs->fs_bsize,
-		    ip->i_number, vp->v_type, NULL);
+		ffs_blkfree(ump, fs, ITODEVVP(ip), nb, fs->fs_bsize,
+		    ip->i_number, vp->v_type, NULL, key);
 		blocksreleased += nblocks;
 	}
+	ffs_blkrelease_finish(ump, key);
 
 	/*
 	 * Recursively free last partial block.
