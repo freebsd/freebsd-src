@@ -160,6 +160,7 @@ device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
@@ -225,6 +226,3 @@ device		sound		# Generic sound driver (required)
 device		snd_ai2s	# Apple I2S audio
 device		snd_davbus	# Apple DAVBUS audio
 device		snd_uaudio	# USB Audio
-
-# The crypto framework is required by IPSEC
-device		crypto			# Required by IPSEC

@@ -229,6 +229,7 @@ options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
@@ -257,6 +258,3 @@ device		sound		# Generic sound driver (required)
 device		snd_audiocs	# Crystal Semiconductor CS4231
 device		snd_es137x	# Ensoniq AudioPCI ES137x
 device		snd_t4dwave	# Acer Labs M5451
-
-# The crypto framework is required by IPSEC
-device		crypto			# Required by IPSEC
