@@ -149,6 +149,7 @@ static state_t current_state = death_single;
 static void execute_script(char *argv[]);
 static void open_console(void);
 static const char *get_shell(void);
+static void replace_init(char *path);
 static void write_stderr(const char *message);
 
 typedef struct init_session {
@@ -329,6 +330,11 @@ invalid:
 	close(0);
 	close(1);
 	close(2);
+
+	if (kenv(KENV_GET, "init_exec", kenv_value, sizeof(kenv_value)) > 0) {
+		replace_init(kenv_value);
+		_exit(0); /* reboot */
+	}
 
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
 		state_func_t next_transition;
@@ -968,7 +974,7 @@ single_user(void)
 		char name[] = "-sh";
 
 		argv[0] = name;
-		argv[1] = 0;
+		argv[1] = NULL;
 		execv(shell, argv);
 		emergency("can't exec %s for single user: %m", shell);
 		execv(_PATH_BSHELL, argv);
@@ -1088,6 +1094,22 @@ execute_script(char *argv[])
 }
 
 /*
+ * Execute binary, replacing init(8) as PID 1.
+ */
+static void
+replace_init(char *path)
+{
+	char *argv[3];
+	char sh[] = "sh";
+
+	argv[0] = sh;
+	argv[1] = path;
+	argv[2] = NULL;
+
+	execute_script(argv);
+}
+
+/*
  * Run a shell script.
  * Returns 0 on success, otherwise the next transition to enter:
  *  - single_user if fork/execv/waitpid failed, or if the script
@@ -1112,7 +1134,7 @@ run_script(const char *script)
 		argv[0] = _sh;
 		argv[1] = __DECONST(char *, script);
 		argv[2] = runcom_mode == AUTOBOOT ? _autoboot : 0;
-		argv[3] = 0;
+		argv[3] = NULL;
 
 		execute_script(argv);
 		sleep(STALL_TIMEOUT);
@@ -1456,10 +1478,10 @@ start_window_system(session_t *sp)
 		strcpy(term, "TERM=");
 		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
-		env[1] = 0;
+		env[1] = NULL;
 	}
 	else
-		env[0] = 0;
+		env[0] = NULL;
 	execve(sp->se_window_argv[0], sp->se_window_argv, env);
 	stall("can't exec window system '%s' for port %s: %m",
 		sp->se_window_argv[0], sp->se_device);
@@ -1520,9 +1542,9 @@ start_getty(session_t *sp)
 		strcpy(term, "TERM=");
 		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
-		env[1] = 0;
+		env[1] = NULL;
 	} else
-		env[0] = 0;
+		env[0] = NULL;
 	execve(sp->se_getty_argv[0], sp->se_getty_argv, env);
 	stall("can't exec getty '%s' for port %s: %m",
 		sp->se_getty_argv[0], sp->se_device);
@@ -1906,7 +1928,7 @@ runshutdown(void)
 		argv[0] = _sh;
 		argv[1] = _path_rundown;
 		argv[2] = Reboot ? _reboot : _single;
-		argv[3] = 0;
+		argv[3] = NULL;
 		
 		execute_script(argv);
 		_exit(1);	/* force single user mode */

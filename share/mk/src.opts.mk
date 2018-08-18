@@ -130,6 +130,7 @@ __DEFAULT_YES_OPTIONS = \
     LIBTHR \
     LLVM_COV \
     LOADER_GELI \
+    LOADER_LUA \
     LOADER_OFW \
     LOADER_UBOOT \
     LOCALES \
@@ -197,7 +198,6 @@ __DEFAULT_NO_OPTIONS = \
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
-    LOADER_LUA \
     NAND \
     OFED_EXTRA \
     OPENLDAP \
@@ -311,9 +311,9 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64"
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "armv7"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
-.elif ${__T} == "armv7" || ${__T} == "i386"
+.elif ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP
 __DEFAULT_NO_OPTIONS+=LLD_IS_LD
 .else

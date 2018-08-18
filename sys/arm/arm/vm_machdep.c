@@ -105,11 +105,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Point the pcb to the top of the stack */
 	pcb2 = (struct pcb *)
 	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
-#ifdef __XSCALE__
-#ifndef CPU_XSCALE_CORE3
-	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
-#endif
-#endif
 #ifdef VFP
 	/* Store actual state of VFP */
 	if (curthread == td1) {
@@ -311,12 +306,6 @@ cpu_thread_alloc(struct thread *td)
 	 * the ARM EABI.
 	 */
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
-
-#ifdef __XSCALE__
-#ifndef CPU_XSCALE_CORE3
-	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
-#endif
-#endif
 }
 
 void

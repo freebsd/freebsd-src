@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
 #include <x86/apicreg.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
+#include <x86/ucode.h>
 #include <machine/cpu.h>
 #include <x86/init.h>
 
@@ -242,6 +244,9 @@ init_secondary(void)
 	/* Set by the startup code for us to use */
 	cpu = bootAP;
 
+	/* Update microcode before doing anything else. */
+	ucode_load_ap(cpu);
+
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
@@ -293,7 +298,6 @@ init_secondary(void)
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
-	pc->pc_curpmap = kernel_pmap;
 	pc->pc_pcid_gen = 1;
 	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
 	common_tss[cpu].tss_rsp0 = 0;
@@ -338,6 +342,7 @@ init_secondary(void)
 	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
+	pmap_activate_boot(vmspace_pmap(proc0.p_vmspace));
 	init_secondary_tail();
 }
 

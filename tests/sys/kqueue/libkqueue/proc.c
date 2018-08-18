@@ -172,6 +172,7 @@ proc_track(int sleep_time)
         int gchild_note = 0;
         pid_t gchild_pid = -1;
         int done = 0;
+        char *kev_str;
         
         while (!done)
         {
@@ -182,7 +183,9 @@ proc_track(int sleep_time)
             if (kevp == NULL) {
                 done = 1;
             } else {
-                printf(" -- Received kevent: %s\n", kevent_to_str(kevp));
+                kev_str = kevent_to_str(kevp);
+                printf(" -- Received kevent: %s\n", kev_str);
+                free(kev_str);
             
                 if ((kevp->fflags & NOTE_CHILD) && (kevp->fflags & NOTE_EXIT)) {
                     errx(1, "NOTE_CHILD and NOTE_EXIT in same kevent: %s", kevent_to_str(kevp));

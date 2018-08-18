@@ -61,7 +61,7 @@ struct iso_volume_descriptor {
 #define ISO_SIERRA_ID	"CDROM"
 
 struct iso_primary_descriptor {
-	char type			[ISODCL (  1,	1)]; /* 711 */
+	u_char type			[ISODCL (  1,	1)]; /* 711 */
 	char id				[ISODCL (  2,	6)];
 	char version			[ISODCL (  7,	7)]; /* 711 */
 	char unused1			[ISODCL (  8,	8)];
@@ -72,7 +72,7 @@ struct iso_primary_descriptor {
 	char unused3			[ISODCL ( 89, 120)];
 	char volume_set_size		[ISODCL (121, 124)]; /* 723 */
 	char volume_sequence_number	[ISODCL (125, 128)]; /* 723 */
-	char logical_block_size		[ISODCL (129, 132)]; /* 723 */
+	u_char logical_block_size	[ISODCL (129, 132)]; /* 723 */
 	char path_table_size		[ISODCL (133, 140)]; /* 733 */
 	char type_l_path_table		[ISODCL (141, 144)]; /* 731 */
 	char opt_type_l_path_table	[ISODCL (145, 148)]; /* 731 */
@@ -94,7 +94,7 @@ struct iso_primary_descriptor {
 	char unused4			[ISODCL (883, 883)];
 	char application_data		[ISODCL (884, 1395)];
 	char unused5			[ISODCL (1396, 2048)];
-};
+} __packed;
 #define ISO_DEFAULT_BLOCK_SHIFT		11
 #define ISO_DEFAULT_BLOCK_SIZE		(1 << ISO_DEFAULT_BLOCK_SHIFT)
 
@@ -115,7 +115,7 @@ struct iso_supplementary_descriptor {
       char escape                     [ISODCL ( 89, 120)];
       char volume_set_size            [ISODCL (121, 124)]; /* 723 */
       char volume_sequence_number     [ISODCL (125, 128)]; /* 723 */
-      char logical_block_size         [ISODCL (129, 132)]; /* 723 */
+      u_char logical_block_size         [ISODCL (129, 132)]; /* 723 */
       char path_table_size            [ISODCL (133, 140)]; /* 733 */
       char type_l_path_table          [ISODCL (141, 144)]; /* 731 */
       char opt_type_l_path_table      [ISODCL (145, 148)]; /* 731 */
@@ -152,7 +152,7 @@ struct iso_sierra_primary_descriptor {
 	char unused3			[ISODCL ( 97, 128)];
 	char volume_set_size		[ISODCL (129, 132)]; /* 723 */
 	char volume_sequence_number	[ISODCL (133, 136)]; /* 723 */
-	char logical_block_size		[ISODCL (137, 140)]; /* 723 */
+	u_char logical_block_size	[ISODCL (137, 140)]; /* 723 */
 	char path_table_size		[ISODCL (141, 148)]; /* 733 */
 	char type_l_path_table		[ISODCL (149, 152)]; /* 731 */
 	char opt_type_l_path_table	[ISODCL (153, 156)]; /* 731 */
@@ -177,18 +177,18 @@ struct iso_sierra_primary_descriptor {
 };
 
 struct iso_directory_record {
-	char length			[ISODCL (1, 1)]; /* 711 */
-	char ext_attr_length		[ISODCL (2, 2)]; /* 711 */
+	u_char length			[ISODCL (1, 1)]; /* 711 */
+	u_char ext_attr_length		[ISODCL (2, 2)]; /* 711 */
 	u_char extent			[ISODCL (3, 10)]; /* 733 */
 	u_char size			[ISODCL (11, 18)]; /* 733 */
-	char date			[ISODCL (19, 25)]; /* 7 by 711 */
-	char flags			[ISODCL (26, 26)];
-	char file_unit_size		[ISODCL (27, 27)]; /* 711 */
-	char interleave			[ISODCL (28, 28)]; /* 711 */
-	char volume_sequence_number	[ISODCL (29, 32)]; /* 723 */
-	char name_len			[ISODCL (33, 33)]; /* 711 */
+	u_char date			[ISODCL (19, 25)]; /* 7 by 711 */
+	u_char flags			[ISODCL (26, 26)];
+	u_char file_unit_size		[ISODCL (27, 27)]; /* 711 */
+	u_char interleave		[ISODCL (28, 28)]; /* 711 */
+	u_char volume_sequence_number	[ISODCL (29, 32)]; /* 723 */
+	u_char name_len			[ISODCL (33, 33)]; /* 711 */
 	char name			[1];			/* XXX */
-};
+} __packed;
 /* can't take sizeof(iso_directory_record), because of possible alignment
    of the last entry (34 instead of 33) */
 #define ISO_DIRECTORY_RECORD_SIZE	33

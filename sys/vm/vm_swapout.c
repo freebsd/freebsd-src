@@ -159,6 +159,8 @@ static struct mtx vm_daemon_mtx;
 MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 
 static int swapped_cnt;
+static int swap_inprogress;	/* Pending swap-ins done outside swapper. */
+static int last_swapin;
 
 static void swapclear(struct proc *);
 static int swapout(struct proc *);
@@ -634,6 +636,8 @@ faultin(struct proc *p)
 		sx_xlock(&allproc_lock);
 		MPASS(swapped_cnt > 0);
 		swapped_cnt--;
+		if (curthread != &thread0)
+			swap_inprogress++;
 		sx_xunlock(&allproc_lock);
 
 		/*
@@ -644,6 +648,13 @@ faultin(struct proc *p)
 		FOREACH_THREAD_IN_PROC(p, td)
 			vm_thread_swapin(td, oom_alloc);
 
+		if (curthread != &thread0) {
+			sx_xlock(&allproc_lock);
+			MPASS(swap_inprogress > 0);
+			swap_inprogress--;
+			last_swapin = ticks;
+			sx_xunlock(&allproc_lock);
+		}
 		PROC_LOCK(p);
 		swapclear(p);
 		p->p_swtick = ticks;
@@ -661,18 +672,17 @@ faultin(struct proc *p)
  */
 
 static struct proc *
-swapper_selector(void)
+swapper_selector(bool wkilled_only)
 {
 	struct proc *p, *res;
 	struct thread *td;
-	int min_flag, ppri, pri, slptime, swtime;
+	int ppri, pri, slptime, swtime;
 
 	sx_assert(&allproc_lock, SA_SLOCKED);
 	if (swapped_cnt == 0)
 		return (NULL);
 	res = NULL;
 	ppri = INT_MIN;
-	min_flag = vm_page_count_min();
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW || (p->p_flag & (P_SWAPPINGOUT |
@@ -690,7 +700,7 @@ swapper_selector(void)
 			 */
 			return (p);
 		}
-		if (min_flag) {
+		if (wkilled_only) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -721,9 +731,27 @@ swapper_selector(void)
 		}
 		PROC_UNLOCK(p);
 	}
+
 	if (res != NULL)
 		PROC_LOCK(res);
 	return (res);
+}
+
+#define	SWAPIN_INTERVAL	(MAXSLP * hz / 2)
+
+/*
+ * Limit swapper to swap in one non-WKILLED process in MAXSLP/2
+ * interval, assuming that there is:
+ * - no memory shortage;
+ * - no parallel swap-ins;
+ * - no other swap-ins in the current SWAPIN_INTERVAL.
+ */
+static bool
+swapper_wkilled_only(void)
+{
+
+	return (vm_page_count_min() || swap_inprogress > 0 ||
+	    (u_int)(ticks - last_swapin) < SWAPIN_INTERVAL);
 }
 
 void
@@ -733,11 +761,11 @@ swapper(void)
 
 	for (;;) {
 		sx_slock(&allproc_lock);
-		p = swapper_selector();
+		p = swapper_selector(swapper_wkilled_only());
 		sx_sunlock(&allproc_lock);
 
 		if (p == NULL) {
-			tsleep(&proc0, PVM, "swapin", MAXSLP * hz / 2);
+			tsleep(&proc0, PVM, "swapin", SWAPIN_INTERVAL);
 		} else {
 			PROC_LOCK_ASSERT(p, MA_OWNED);
 

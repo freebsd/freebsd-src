@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2018
+.Dd August 16, 2018
 .Dt LS 1
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,
+.Op Fl -color Ns = Ns Ar when
 .Op Fl D Ar format
 .Op Ar
 .Sh DESCRIPTION
@@ -210,6 +211,47 @@ This option is not defined in
 .St -p1003.1-2001 .
 .It Fl c
 Use time when file status was last changed for sorting or printing.
+.It Fl -color Ns = Ns Ar when
+Output colored escape sequences based on
+.Ar when ,
+which may be set to either
+.Cm always ,
+.Cm auto
+(default), or
+.Cm never .
+.Pp
+.Cm always
+will make
+.Nm
+always output color.
+If
+.Ev TERM
+is unset or set to an invalid terminal, then
+.Nm
+will fall back to explicit
+.Tn ANSI
+escape sequences without the help of
+.Xr termcap 5 .
+.Cm always
+is the default if
+.Fl -color
+is specified without an argument.
+.Pp
+.Cm auto
+will make
+.Nm
+output escape sequences based on
+.Xr termcap 5 ,
+but only if
+.Dv stdout
+is a tty and either the
+.Fl G
+flag is specified or the
+.Ev COLORTERM
+environment variable is set and not empty.
+.Pp
+.Cm never
+will disable color regardless of environment variables.
 .It Fl d
 Directories are listed as plain files (not searched recursively).
 .It Fl f
@@ -620,7 +662,10 @@ Colorization
 is silently disabled if the output is not directed to a terminal
 unless the
 .Ev CLICOLOR_FORCE
-variable is defined.
+variable is defined or
+.Fl -color
+is set to
+.Dq always .
 .It Ev CLICOLOR_FORCE
 Color sequences are normally disabled if the output is not directed to
 a terminal.

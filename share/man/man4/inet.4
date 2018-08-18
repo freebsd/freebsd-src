@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd Feb 4, 2016
+.Dd August 14, 2018
 .Dt INET 4
 .Os
 .Sh NAME
@@ -229,15 +229,38 @@ At the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
 IPv6 flow IDs and fragment IDs are always random.
+.It Va ip.maxfrags
+Integer: maximum number of fragments the host will accept and simultaneously
+hold across all reassembly queues in all VNETs.
+If set to 0, reassembly is disabled.
+If set to -1, this limit is not applied.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a global limit.
 .It Va ip.maxfragpackets
-Integer: maximum number of fragmented packets the host will accept and hold
-in the reassembling queue simultaneously.
-0 means that the host will not accept any fragmented packets.
-\-1 means that the host will accept as many fragmented packets as it receives.
+Integer: maximum number of fragmented packets the host will accept and
+simultaneously hold in the reassembly queue for a particular VNET.
+0 means that the host will not accept any fragmented packets for that VNET.
+\-1 means that the host will not apply this limit for that VNET.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a per-VNET limit.
+.It Va ip.maxfragbucketsize
+Integer: maximum number of reassembly queues per bucket.
+Fragmented packets are hashed to buckets.
+Each bucket has a list of reassembly queues.
+The system must compare the incoming packets to the existing reassembly queues
+in the bucket to find a matching reassembly queue.
+To preserve system resources, the system limits the number of reassembly
+queues allowed in each bucket.
+This limit is recalculated when the number of mbuf clusters is changed or
+when the value of
+.Va ip.maxfragpackets
+changes.
+This is a per-VNET limit.
 .It Va ip.maxfragsperpacket
 Integer: maximum number of fragments the host will accept and hold
-in the reassembling queue for a packet.
-0 means that the host will not accept any fragmented packets.
+in the reassembly queue for a packet.
+0 means that the host will not accept any fragmented packets for the VNET.
+This is a per-VNET limit.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,

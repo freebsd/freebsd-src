@@ -711,6 +711,8 @@ lacp_disable_distributing(struct lacp_port *lp)
 	}
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -745,6 +747,9 @@ lacp_enable_distributing(struct lacp_port *lp)
 	} else
 		/* try to become the active aggregator */
 		lacp_select_active_aggregator(lsc);
+
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void

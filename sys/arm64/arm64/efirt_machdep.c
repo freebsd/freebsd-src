@@ -162,7 +162,7 @@ bool
 efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 {
 	struct efi_md *p;
-	pt_entry_t *l3;
+	pt_entry_t *l3, l3_attr;
 	vm_offset_t va;
 	uint64_t idx;
 	int i, mode;
@@ -218,12 +218,17 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		}
 
 		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
+
+		l3_attr = ATTR_DEFAULT | ATTR_IDX(mode) | ATTR_AP(ATTR_AP_RW) |
+		    L3_PAGE;
+		if (mode == VM_MEMATTR_DEVICE)
+			l3_attr |= ATTR_UXN | ATTR_PXN;
+
 		VM_OBJECT_WLOCK(obj_1t1_pt);
 		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
 		    va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
-			*l3 = va | ATTR_DEFAULT | ATTR_IDX(mode) |
-			    ATTR_AP(ATTR_AP_RW) | L3_PAGE;
+			*l3 = va | l3_attr;
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}

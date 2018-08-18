@@ -76,7 +76,7 @@ SRCS+=	osgendbg.c osunixxf.c
 MAN=	acpidb.8
 WARNS?=	3
 
-CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
+CFLAGS+= -DACPI_DB_APP -DACPI_EXEC_APP -fno-strict-aliasing
 LIBADD=	pthread
 
 .include <bsd.prog.mk>

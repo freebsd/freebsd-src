@@ -337,6 +337,13 @@ evdev_set_methods(struct evdev_dev *evdev, void *softc,
 	evdev->ev_softc = softc;
 }
 
+inline void *
+evdev_get_softc(struct evdev_dev *evdev)
+{
+
+	return (evdev->ev_softc);
+}
+
 inline void
 evdev_support_prop(struct evdev_dev *evdev, uint16_t prop)
 {
@@ -798,8 +805,7 @@ evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	case EV_FF:
 		if (evdev->ev_methods != NULL &&
 		    evdev->ev_methods->ev_event != NULL)
-			evdev->ev_methods->ev_event(evdev, evdev->ev_softc,
-			    type, code, value);
+			evdev->ev_methods->ev_event(evdev, type, code, value);
 		/*
 		 * Leds and driver repeats should be reported in ev_event
 		 * method body to interoperate with kbdmux states and rates
@@ -842,7 +848,7 @@ evdev_register_client(struct evdev_dev *evdev, struct evdev_client *client)
 	    evdev->ev_methods->ev_open != NULL) {
 		debugf(evdev, "calling ev_open() on device %s",
 		    evdev->ev_shortname);
-		ret = evdev->ev_methods->ev_open(evdev, evdev->ev_softc);
+		ret = evdev->ev_methods->ev_open(evdev);
 	}
 	if (ret == 0)
 		LIST_INSERT_HEAD(&evdev->ev_clients, client, ec_link);
@@ -860,7 +866,7 @@ evdev_dispose_client(struct evdev_dev *evdev, struct evdev_client *client)
 	if (LIST_EMPTY(&evdev->ev_clients)) {
 		if (evdev->ev_methods != NULL &&
 		    evdev->ev_methods->ev_close != NULL)
-			evdev->ev_methods->ev_close(evdev, evdev->ev_softc);
+			(void)evdev->ev_methods->ev_close(evdev);
 		if (evdev_event_supported(evdev, EV_REP) &&
 		    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT))
 			evdev_stop_repeat(evdev);

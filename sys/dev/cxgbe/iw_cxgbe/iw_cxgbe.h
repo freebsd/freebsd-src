@@ -978,20 +978,4 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
-void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
-		enum t4_bar2_qtype qtype,
-		unsigned int *pbar2_qid, u64 *pbar2_pa);
-extern struct cxgb4_client t4c_client;
-extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
-
-#if defined(__i386__) || defined(__amd64__)
-#define L1_CACHE_BYTES 128
-#else
-#define L1_CACHE_BYTES 32
-#endif
-
-void your_reg_device(struct c4iw_dev *dev);
-
-#define SGE_CTRLQ_NUM	0
-
 #endif

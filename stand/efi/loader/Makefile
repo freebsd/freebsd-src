@@ -8,7 +8,8 @@ LOADER_EXT2FS_SUPPORT?=	no
 
 .include <bsd.init.mk>
 
-PROG=		loader.sym
+LOADER?=	loader_${LOADER_INTERP}
+PROG=		${LOADER}.sym
 INTERNALPROG=
 WARNS?=		3
 
@@ -24,6 +25,7 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
@@ -41,10 +43,11 @@ CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 # warnings for now.
 CWARNFLAGS.main.c+=	-Wno-format
 
-.PATH: ${.CURDIR}/arch/${MACHINE}
-# For smbios.c
+.PATH: ${.CURDIR}/../loader
+.PATH: ${.CURDIR}/../loader/arch/${MACHINE}
+# For smbios.c XXX need to abstract properly
 .PATH: ${BOOTSRC}/i386/libi386
-.include "${.CURDIR}/arch/${MACHINE}/Makefile.inc"
+.include "${.CURDIR}/../loader/arch/${MACHINE}/Makefile.inc"
 
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${MACHINE}
@@ -78,20 +81,25 @@ HAVE_BCACHE=    yes
 CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
+NEWVERSWHAT=	"EFI loader" ${MACHINE}
+VERSION_FILE=	${.CURDIR}/../loader/version
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 
-FILES+=	loader.efi
-FILESMODE_loader.efi=	${BINMODE}
+FILES+=	${LOADER}.efi
+FILESMODE_${LOADER}.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
+.if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
+.endif
+
+LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
 
 CLEANFILES+=	loader.efi
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE}
-
-loader.efi: ${PROG}
+${LOADER}.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \

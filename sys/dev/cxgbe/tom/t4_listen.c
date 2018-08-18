@@ -521,8 +521,8 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	rw_rlock(&sc->policy_lock);
-	settings = *lookup_offload_policy(sc, OPEN_TYPE_LISTEN, NULL, 0xffff,
-	    inp);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_LISTEN, NULL,
+	    EVL_MAKETAG(0xfff, 0, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload)
 		return (0);
@@ -1305,7 +1305,7 @@ found:
 	 * XXX: lagg support, lagg + vlan support.
 	 */
 	vid = EVL_VLANOFTAG(be16toh(cpl->vlan));
-	if (vid != 0xfff) {
+	if (vid != 0xfff && vid != 0) {
 		ifp = VLAN_DEVAT(hw_ifp, vid);
 		if (ifp == NULL)
 			REJECT_PASS_ACCEPT();
@@ -1396,7 +1396,8 @@ found:
 	}
 	so = inp->inp_socket;
 	rw_rlock(&sc->policy_lock);
-	settings = *lookup_offload_policy(sc, OPEN_TYPE_PASSIVE, m, 0xffff, inp);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_PASSIVE, m,
+	    EVL_MAKETAG(0xfff, 0, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload) {
 		INP_WUNLOCK(inp);

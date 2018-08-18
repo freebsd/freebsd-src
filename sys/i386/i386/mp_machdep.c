@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/apicreg.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
@@ -80,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
-#include <machine/cpu.h>
+#include <x86/ucode.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(PMAP_MAP_LOW + 0x0467)
@@ -216,6 +217,9 @@ init_secondary(void)
 
 	/* bootAP is set in start_ap() to our ID. */
 	myid = bootAP;
+
+	/* Update microcode before doing anything else. */
+	ucode_load_ap(myid);
 
 	/* Get per-cpu data */
 	pc = &__pcpu[myid];

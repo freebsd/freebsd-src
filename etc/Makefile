@@ -31,10 +31,8 @@ BIN1=	crontab \
 	motd \
 	netconfig \
 	networks \
-	newsyslog.conf \
 	nsswitch.conf \
 	phones \
-	profile \
 	protocols \
 	rc.bsdextended \
 	rc.firewall \
@@ -64,10 +62,6 @@ BIN1+= amd.map
 BIN1+= ftpusers
 .endif
 
-.if ${MK_INETD} != "no"
-BIN1+= inetd.conf
-.endif
-
 .if ${MK_LOCATE} != "no"
 BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
 .endif
@@ -80,25 +74,12 @@ BIN1+=	hosts.lpd printcap
 BIN1+=	${SRCTOP}/usr.bin/mail/misc/mail.rc
 .endif
 
-.if ${MK_NTP} != "no"
-BIN1+=	ntp.conf
-.endif
-
-.if ${MK_OPENSSH} != "no"
-SSH=	${SRCTOP}/crypto/openssh/ssh_config \
-	${SRCTOP}/crypto/openssh/sshd_config \
-	${SRCTOP}/crypto/openssh/moduli
-.endif
 .if ${MK_OPENSSL} != "no"
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
 
 .if ${MK_SENDMAIL} != "no"
 BIN1+=	rc.sendmail
-.endif
-
-.if ${MK_TCSH} != "no"
-BIN1+= csh.cshrc csh.login csh.logout
 .endif
 
 .if ${MK_WIRELESS} != "no"
@@ -174,11 +155,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
-	${_+_}cd ${.CURDIR}/newsyslog.conf.d; ${MAKE} install
-.if ${MK_NTP} != "no"
-	${_+_}cd ${.CURDIR}/ntp; ${MAKE} install
-.endif
-	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
@@ -190,10 +166,6 @@ distribution:
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
-.endif
-.if ${MK_OPENSSH} != "no"
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
 .if ${MK_OPENSSL} != "no"
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -213,11 +185,10 @@ distribution:
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.login ${DESTDIR}/root/.login; \
 	    rm -f ${DESTDIR}/.cshrc; \
 	    ${INSTALL_LINK} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
 .endif
+
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail

@@ -95,6 +95,8 @@ volatile sig_atomic_t need_progress;
 int
 main(int argc __unused, char *argv[])
 {
+	struct itimerval itv = { { 1, 0 }, { 1, 0 } }; /* SIGALARM every second, if needed */
+
 	(void)setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
@@ -104,7 +106,10 @@ main(int argc __unused, char *argv[])
 		err(1, "unable to enter capability mode");
 
 	(void)signal(SIGINFO, siginfo_handler);
-	(void)signal(SIGALRM, sigalrm_handler);
+	if (ddflags & C_PROGRESS) {
+		(void)signal(SIGALRM, sigalarm_handler);
+		setitimer(ITIMER_REAL, &itv, NULL);
+	}
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -284,14 +289,6 @@ setup(void)
 		ctab = casetab;
 	}
 
-	if ((ddflags & C_PROGRESS)) {
-		struct itimerval timer = {
-			.it_interval = { .tv_sec = 1, .tv_usec = 0 },
-			.it_value = { .tv_sec = 1, .tv_usec = 0 },
-		};
-		setitimer(ITIMER_REAL, &timer, NULL);
-	}
-
 	if (clock_gettime(CLOCK_MONOTONIC, &st.start))
 		err(1, "clock_gettime");
 }
@@ -469,12 +466,10 @@ dd_in(void)
 
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
-		if (need_summary) {
+		if (need_summary)
 			summary();
-		}
-		if (need_progress) {
+		if (need_progress)
 			progress();
-		}
 	}
 }
 

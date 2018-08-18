@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2018
+.Dd August 15, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -244,16 +244,28 @@ If
 is specified, file sizes will be shown too.
 .Pp
 .It Ic lsdev Op Fl v
-Lists all of the devices from which it may be possible to load modules.
+Lists all of the devices from which it may be possible to load modules,
+as well as ZFS pools.
 If
 .Fl v
-is specified, more details are printed.
+is specified, more details are printed, including ZFS pool information
+in a format that resembles
+.Nm zpool Cm status
+output.
 .Pp
 .It Ic lsmod Op Fl v
 Displays loaded modules.
 If
 .Fl v
 is specified, more details are shown.
+.Pp
+.It Ic lszfs Ar filesystem
+A ZFS extended command that can be used to explore the ZFS filesystem
+hierarchy in a pool.
+Lists the immediate children of the
+.Ar filesystem .
+The filesystem hierarchy is rooted at a filesystem with the same name
+as the pool.
 .Pp
 .It Ic more Ar file Op Ar
 Display the files specified, with a pause at each
@@ -480,6 +492,9 @@ of boot to be captured.
 .It Va init_chroot
 See
 .Xr init 8 .
+.It Va init_exec
+See
+.Xr init 8 .
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as the initial
 process.
@@ -666,6 +681,29 @@ Modifies
 and
 .Dv VM_KMEM_SIZE_MAX .
 .El
+.Ss ZFS FEATURES
+.Nm
+supports the following format for specifying ZFS filesystems which
+can be used wherever
+.Xr loader 8
+refers to a device specification:
+.Pp
+.Ar zfs:pool/filesystem:
+.Pp
+where
+.Pa pool/filesystem
+is a ZFS filesystem name as described in
+.Xr zfs 8 .
+.Pp
+If
+.Pa /etc/fstab
+does not have an entry for the root filesystem and
+.Va vfs.root.mountfrom
+is not set, but
+.Va currdev
+refers to a ZFS filesystem, then
+.Nm
+will instruct kernel to use that filesystem as the root filesystem.
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
 by it as arguments, and it is processed by a special parser which
@@ -907,9 +945,44 @@ version at compile time.
 .Nm
 version.
 .El
-.Ss SYSTEM DOCUMENTATION
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
 .Sh FILES
-.Bl -tag -width /boot/defaults/loader.conf -compact
+.Bl -tag -width /usr/share/examples/bootforth/ -compact
 .It Pa /boot/loader
 .Nm
 itself.
@@ -918,6 +991,8 @@ Additional
 .Tn FICL
 initialization.
 .It Pa /boot/defaults/loader.conf
+.It Pa /boot/loader.4th
+Extra builtin-like words.
 .It Pa /boot/loader.conf
 .It Pa /boot/loader.conf.local
 .Nm
@@ -930,6 +1005,11 @@ bootstrapping script.
 Loaded by
 .Ic help .
 Contains the help messages.
+.It Pa /boot/support.4th
+.Pa loader.conf
+processing words.
+.It Pa /usr/share/examples/bootforth/
+Assorted examples.
 .El
 .Sh EXAMPLES
 Boot in single user mode:
@@ -955,16 +1035,11 @@ set root_disk_unit=2
 boot /boot/kernel/kernel
 .Ed
 .Pp
-See also:
-.Bl -tag -width /usr/share/examples/bootforth/X
-.It Pa /boot/loader.4th
-Extra builtin-like words.
-.It Pa /boot/support.4th
-.Pa loader.conf
-processing words.
-.It Pa /usr/share/examples/bootforth/
-Assorted examples.
-.El
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Pp
 .Sh ERRORS
 The following values are thrown by
 .Nm :
@@ -990,52 +1065,6 @@ executed.
 .It -259
 Unspecified error.
 .El
-.Sh ZFS FEATURES
-.Nm
-supports the following format for specifying ZFS filesystems which
-can be used wherever
-.Xr loader 8
-refers to a device specification:
-.Pp
-.Ar zfs:pool/filesystem:
-.Pp
-where
-.Pa pool/filesystem
-is a ZFS filesystem name as described in
-.Xr zfs 8 .
-.Pp
-If
-.Pa /etc/fstab
-does not have an entry for the root filesystem and
-.Va vfs.root.mountfrom
-is not set, but
-.Va currdev
-refers to a ZFS filesystem, then
-.Nm
-will instruct kernel to use that filesystem as the root filesystem.
-.Sh ZFS COMMAND EXTENSIONS
-.Bl -tag -width Ds -compact
-.It Ic lsdev Op Fl v
-Lists ZFS pools in addition to disks and partitions.
-Adding
-.Fl v
-shows more ZFS pool details in a format that resembles
-.Nm zpool Cm status
-output.
-.Pp
-.It Ic lszfs Ar filesystem
-A ZFS extended command that can be used to explore the ZFS filesystem
-hierarchy in a pool.
-Lists the immediate children of the
-.Ar filesystem .
-The filesystem hierarchy is rooted at a filesystem with the same name
-as the pool.
-.El
-.Sh EXAMPLES
-Set the default device used for loading a kernel from a ZFS filesystem:
-.Bd -literal -offset indent
-set currdev=zfs:tank/ROOT/knowngood:
-.Ed
 .Sh SEE ALSO
 .Xr libstand 3 ,
 .Xr loader.conf 5 ,

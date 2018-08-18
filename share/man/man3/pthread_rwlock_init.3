@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_RWLOCK_INIT 3
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_rwlock_init "pthread_rwlock_t *lock" "const pthread_rwlockattr_t *attr"
+.Fn pthread_rwlock_init "pthread_rwlock_t *restrict lock" "const pthread_rwlockattr_t *restrict attr"
 .Sh DESCRIPTION
 The
 .Fn pthread_rwlock_init

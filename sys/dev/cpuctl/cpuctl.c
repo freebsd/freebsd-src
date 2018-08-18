@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <x86/ucode.h>
 
 static d_open_t cpuctl_open;
 static d_ioctl_t cpuctl_ioctl;
@@ -333,11 +334,7 @@ static int
 update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
 	void *ptr;
-	uint64_t rev0, rev1;
-	uint32_t tmp[4];
-	int is_bound;
-	int oldcpu;
-	int ret;
+	int is_bound, oldcpu, ret;
 
 	if (args->size == 0 || args->data == NULL) {
 		DPRINTF("[cpuctl,%d]: zero-sized firmware image", __LINE__);
@@ -358,34 +355,26 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
 		ret = EFAULT;
-		goto fail;
+		goto out;
 	}
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
-	/*
-	 * Perform update.  Flush caches first to work around seemingly
-	 * undocumented errata applying to some Broadwell CPUs.
-	 */
-	wbinvd();
-	wrmsr_safe(MSR_BIOS_UPDT_TRIG, (uintptr_t)(ptr));
-	wrmsr_safe(MSR_BIOS_SIGN, 0);
+	ret = ucode_intel_load(ptr, true);
 
-	/*
-	 * Serialize instruction flow.
-	 */
-	do_cpuid(0, tmp);
 	critical_exit();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
 	restore_cpu(oldcpu, is_bound, td);
-	if (rev1 > rev0)
-		ret = 0;
-	else
-		ret = EEXIST;
-fail:
+
+	/*
+	 * Replace any existing update.  This ensures that the new update
+	 * will be reloaded automatically during ACPI resume.
+	 */
+	if (ret == 0)
+		ptr = ucode_update(ptr);
+
+out:
 	free(ptr, M_CPUCTL);
 	return (ret);
 }

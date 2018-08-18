@@ -133,6 +133,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/trap.h>
+#include <x86/ucode.h>
 #include <machine/vm86.h>
 #include <x86/init.h>
 #ifdef PERFMON
@@ -158,6 +159,7 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
 register_t init386(int first);
 void dblfault_handler(void);
+void identify_cpu(void);
 
 static void cpu_startup(void *);
 static void fpstate_drop(struct thread *td);
@@ -2311,6 +2313,7 @@ init386(int first)
 	struct xstate_hdr *xhdr;
 	caddr_t kmdp;
 	vm_offset_t addend;
+	size_t ucode_len;
 	int late_console;
 
 	thread0.td_kstack = proc0kstack;
@@ -2338,6 +2341,15 @@ init386(int first)
 		init_static_kenv((char *)bootinfo.bi_envp + addend, 0);
 	} else {
 		init_static_kenv(NULL, 0);
+	}
+
+	/*
+	 * Re-evaluate CPU features if we loaded a microcode update.
+	 */
+	ucode_len = ucode_load_bsp(first);
+	if (ucode_len != 0) {
+		identify_cpu();
+		first = roundup2(first + ucode_len, PAGE_SIZE);
 	}
 
 	identify_hypervisor();

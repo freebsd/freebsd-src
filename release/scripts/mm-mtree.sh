@@ -81,7 +81,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
 fi
 
 # Setup make to use system files from SOURCEDIR
-MM_MAKE="make ${ARCHSTRING} ${MM_MAKE_ARGS} -m ${SOURCEDIR}/share/mk"
+MM_MAKE="make ${ARCHSTRING} ${MM_MAKE_ARGS} -m ${SOURCEDIR}/share/mk -DDB_FROM_SRC"
 
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null

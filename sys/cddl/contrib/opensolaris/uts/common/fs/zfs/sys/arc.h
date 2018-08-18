@@ -58,13 +58,41 @@ _NOTE(CONSTCOND) } while (0)
 
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
+typedef struct arc_prune arc_prune_t;
+
+/*
+ * Because the ARC can store encrypted data, errors (not due to bugs) may arise
+ * while transforming data into its desired format - specifically, when
+ * decrypting, the key may not be present, or the HMAC may not be correct
+ * which signifies deliberate tampering with the on-disk state
+ * (assuming that the checksum was correct). If any error occurs, the "buf"
+ * parameter will be NULL.
+ */
 typedef void arc_read_done_func_t(zio_t *zio, const zbookmark_phys_t *zb,
     const blkptr_t *bp, arc_buf_t *buf, void *priv);
 typedef void arc_write_done_func_t(zio_t *zio, arc_buf_t *buf, void *priv);
+typedef void arc_prune_func_t(int64_t bytes, void *priv);
+
+/* Shared module parameters */
+extern uint64_t zfs_arc_average_blocksize;
 
 /* generic arc_done_func_t's which you can use */
 arc_read_done_func_t arc_bcopy_func;
 arc_read_done_func_t arc_getbuf_func;
+
+/* generic arc_prune_func_t wrapper for callbacks */
+struct arc_prune {
+	arc_prune_func_t	*p_pfunc;
+	void			*p_private;
+	uint64_t		p_adjust;
+	list_node_t		p_node;
+	refcount_t		p_refcnt;
+};
+
+typedef enum arc_strategy {
+	ARC_STRATEGY_META_ONLY		= 0, /* Evict only meta data buffers */
+	ARC_STRATEGY_META_BALANCED	= 1, /* Evict data buffers if needed */
+} arc_strategy_t;
 
 typedef enum arc_flags
 {
@@ -151,9 +179,41 @@ typedef enum arc_space_type {
 	ARC_SPACE_META,
 	ARC_SPACE_HDRS,
 	ARC_SPACE_L2HDRS,
-	ARC_SPACE_OTHER,
+	ARC_SPACE_DBUF,
+	ARC_SPACE_DNODE,
+	ARC_SPACE_BONUS,
 	ARC_SPACE_NUMTYPES
 } arc_space_type_t;
+
+typedef enum arc_state_type {
+	ARC_STATE_ANON,
+	ARC_STATE_MRU,
+	ARC_STATE_MRU_GHOST,
+	ARC_STATE_MFU,
+	ARC_STATE_MFU_GHOST,
+	ARC_STATE_L2C_ONLY,
+	ARC_STATE_NUMTYPES
+} arc_state_type_t;
+
+typedef struct arc_buf_info {
+	arc_state_type_t	abi_state_type;
+	arc_buf_contents_t	abi_state_contents;
+	uint64_t		abi_state_index;
+	uint32_t		abi_flags;
+	uint32_t		abi_bufcnt;
+	uint64_t		abi_size;
+	uint64_t		abi_spa;
+	uint64_t		abi_access;
+	uint32_t		abi_mru_hits;
+	uint32_t		abi_mru_ghost_hits;
+	uint32_t		abi_mfu_hits;
+	uint32_t		abi_mfu_ghost_hits;
+	uint32_t		abi_l2arc_hits;
+	uint32_t		abi_holds;
+	uint64_t		abi_l2arc_dattr;
+	uint64_t		abi_l2arc_asize;
+	enum zio_compress	abi_l2arc_compress;
+} arc_buf_info_t;
 
 void arc_space_consume(uint64_t space, arc_space_type_t type);
 void arc_space_return(uint64_t space, arc_space_type_t type);
@@ -170,6 +230,7 @@ arc_buf_t *arc_loan_compressed_buf(spa_t *spa, uint64_t psize, uint64_t lsize,
 void arc_return_buf(arc_buf_t *buf, void *tag);
 void arc_loan_inuse_buf(arc_buf_t *buf, void *tag);
 void arc_buf_destroy(arc_buf_t *buf, void *tag);
+void arc_buf_info(arc_buf_t *buf, arc_buf_info_t *abi, int state_index);
 int arc_buf_size(arc_buf_t *buf);
 int arc_buf_lsize(arc_buf_t *buf);
 void arc_buf_access(arc_buf_t *buf);
@@ -190,6 +251,9 @@ zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     arc_write_done_func_t *physdone, arc_write_done_func_t *done,
     void *priv, zio_priority_t priority, int zio_flags,
     const zbookmark_phys_t *zb);
+
+arc_prune_t *arc_add_prune_callback(arc_prune_func_t *func, void *priv);
+void arc_remove_prune_callback(arc_prune_t *p);
 void arc_freed(spa_t *spa, const blkptr_t *bp);
 
 void arc_flush(spa_t *spa, boolean_t retry);

@@ -7,7 +7,7 @@
 KMOD=	ipmi
 SRCS=	ipmi.c
 SRCS+=	bus_if.h device_if.h
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	ipmi_kcs.c ipmi_smic.c ipmi_smbios.c ipmi_ssif.c
 SRCS+=	ipmi_acpi.c ipmi_isa.c ipmi_pci.c ipmi_smbus.c
 SRCS+=	opt_acpi.h

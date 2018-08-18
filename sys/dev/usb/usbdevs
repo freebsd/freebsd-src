@@ -467,6 +467,7 @@ vendor PLEXTOR		0x093b	Plextor
 vendor INTREPIDCS	0x093c	Intrepid
 vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
+vendor NVIDIA		0x0955	NVIDIA Corporation
 vendor BLUEWATER	0x0956	BlueWater Systems
 vendor AGILENT		0x0957	Agilent Technologies
 vendor GUDE		0x0959	Gude ADS
@@ -3455,6 +3456,9 @@ product NOVATEL MC760		0x6002	Novatel MC760
 product NOVATEL MC547		0x7042	Novatel MC547
 product NOVATEL MC679		0x7031	Novatel MC679
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
+
+/* NVIDIA products */
+product NVIDIA RTL8153		0x09ff	USB 3.0 Ethernet
 
 /* Merlin products */
 product	MERLIN V620		0x1110	Merlin V620

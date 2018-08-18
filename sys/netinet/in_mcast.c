@@ -263,7 +263,10 @@ inm_disconnect(struct in_multi *inm)
 	ifma = inm->inm_ifma;
 
 	if_ref(ifp);
-	CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+	if (ifma->ifma_flags & IFMA_F_ENQUEUED) {
+		CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+		ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+	}
 	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
 	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
 		MPASS(ifma != ll_ifma);
@@ -271,7 +274,10 @@ inm_disconnect(struct in_multi *inm)
 		MPASS(ll_ifma->ifma_llifma == NULL);
 		MPASS(ll_ifma->ifma_ifp == ifp);
 		if (--ll_ifma->ifma_refcount == 0) {
-			CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+			if (ll_ifma->ifma_flags & IFMA_F_ENQUEUED) {
+				CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+				ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+			}
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);
 			ifma_restart = true;
@@ -1668,15 +1674,12 @@ inp_findmoptions(struct inpcb *inp)
 }
 
 static void
-inp_gcmoptions(epoch_context_t ctx)
+inp_gcmoptions(struct ip_moptions *imo)
 {
-	struct ip_moptions *imo;
 	struct in_mfilter	*imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
 	size_t			 idx, nmships;
-
-	imo =  __containerof(ctx, struct ip_moptions, imo_epoch_ctx);
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1713,7 +1716,7 @@ inp_freemoptions(struct ip_moptions *imo)
 {
 	if (imo == NULL)
 		return;
-	epoch_call(net_epoch_preempt, &imo->imo_epoch_ctx, inp_gcmoptions);
+	inp_gcmoptions(imo);
 }
 
 /*
@@ -2265,7 +2268,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
                             __func__);
                         IN_MULTI_LIST_UNLOCK();
 			goto out_imo_free;
-                }
+		}
+		inm_acquire(inm);
 		imo->imo_membership[idx] = inm;
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
@@ -2305,6 +2309,12 @@ out_in_multi_locked:
 
 out_imo_free:
 	if (error && is_new) {
+		inm = imo->imo_membership[idx];
+		if (inm != NULL) {
+			IN_MULTI_LIST_LOCK();
+			inm_release_deferred(inm);
+			IN_MULTI_LIST_UNLOCK();
+		}
 		imo->imo_membership[idx] = NULL;
 		--imo->imo_num_memberships;
 	}

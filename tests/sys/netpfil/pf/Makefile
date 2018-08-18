@@ -10,7 +10,8 @@ ATF_TESTS_SH+=	pass_block \
 		fragmentation \
 		set_tos \
 		route_to \
-		synproxy
+		synproxy \
+		set_skip
 
 ${PACKAGE}FILES+=	utils.subr \
 			echo_inetd.conf \

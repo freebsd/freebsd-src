@@ -188,6 +188,12 @@ static u_int vpid_alloc_failed;
 SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
 	    &vpid_alloc_failed, 0, NULL);
 
+static int guest_l1d_flush;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, l1d_flush, CTLFLAG_RD,
+    &guest_l1d_flush, 0, NULL);
+
+uint64_t vmx_msr_flush_cmd;
+
 /*
  * The definitions of SDT probes for VMX.
  */
@@ -798,6 +804,12 @@ vmx_init(int ipinum)
 		printf("vmx_init: ept initialization failed (%d)\n", error);
 		return (error);
 	}
+
+	guest_l1d_flush = (cpu_ia32_arch_caps & IA32_ARCH_CAP_RDCL_NO) == 0;
+	TUNABLE_INT_FETCH("hw.vmm.l1d_flush", &guest_l1d_flush);
+	if (guest_l1d_flush &&
+	    (cpu_stdext_feature3 & CPUID_STDEXT3_L1D_FLUSH) != 0)
+		vmx_msr_flush_cmd = IA32_FLUSH_CMD_L1D;
 
 	/*
 	 * Stash the cr0 and cr4 bits that must be fixed to 0 or 1

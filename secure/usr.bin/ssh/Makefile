@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+CONFS=	ssh_config
+CONFSDIR=	/etc/ssh
 PROG=	ssh
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MAN=	ssh.1 ssh_config.5

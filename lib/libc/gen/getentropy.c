@@ -85,7 +85,7 @@ getentropy(void *buf, size_t buflen)
 		if (rd == -1) {
 			if (errno == EINTR)
 				continue;
-			else if (errno == ENOSYS)
+			else if (errno == ENOSYS || errno == ECAPMODE)
 				return (getentropy_fallback(buf, buflen));
 			else
 				return (-1);

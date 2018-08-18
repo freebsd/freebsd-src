@@ -784,7 +784,7 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 	IN6_MULTI_LIST_LOCK_ASSERT();
 
 	if (--inm->in6m_refcount == 0) {
-		in6m_disconnect(inm);
+		MPASS(inm->in6m_ifp == NULL);
 		inm->in6m_ifma->ifma_protospec = NULL;
 		MPASS(inm->in6m_ifma->ifma_llifma == NULL);
 		SLIST_INSERT_HEAD(inmh, inm, in6m_nrele);

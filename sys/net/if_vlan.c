@@ -758,6 +758,18 @@ vlan_tag(struct ifnet *ifp, uint16_t *vidp)
 	return (0);
 }
 
+static int
+vlan_pcp(struct ifnet *ifp, uint16_t *pcpp)
+{
+	struct ifvlan *ifv;
+
+	if (ifp->if_type != IFT_L2VLAN)
+		return (EINVAL);
+	ifv = ifp->if_softc;
+	*pcpp = ifv->ifv_pcp;
+	return (0);
+}
+
 /*
  * Return a driver specific cookie for this interface.  Synchronization
  * with setcookie must be provided by the driver. 
@@ -861,6 +873,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_cookie_p = vlan_cookie;
 		vlan_setcookie_p = vlan_setcookie;
 		vlan_tag_p = vlan_tag;
+		vlan_pcp_p = vlan_pcp;
 		vlan_devat_p = vlan_devat;
 #ifndef VIMAGE
 		vlan_cloner = if_clone_advanced(vlanname, 0, vlan_clone_match,
@@ -1422,6 +1435,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	ifp->if_resolvemulti = p->if_resolvemulti;
 	ifp->if_addrlen = p->if_addrlen;
 	ifp->if_broadcastaddr = p->if_broadcastaddr;
+	ifp->if_pcp = ifv->ifv_pcp;
 
 	/*
 	 * Copy only a selected subset of flags from the parent.
@@ -1946,6 +1960,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		ifv->ifv_pcp = ifr->ifr_vlan_pcp;
+		ifp->if_pcp = ifv->ifv_pcp;
 		vlan_tag_recalculate(ifv);
 		/* broadcast event about PCP change */
 		EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);

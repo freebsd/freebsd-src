@@ -19,7 +19,7 @@ by Roberto Ierusalimschy, Luiz Henrique de Figueiredo, Waldemar Celes
 
 <P>
 <SMALL>
-Copyright &copy; 2015&ndash;2017 Lua.org, PUC-Rio.
+Copyright &copy; 2015&ndash;2018 Lua.org, PUC-Rio.
 Freely available under the terms of the
 <a href="http://www.lua.org/license.html">Lua license</a>.
 </SMALL>
@@ -35,7 +35,7 @@ Freely available under the terms of the
 <!-- ====================================================================== -->
 <p>
 
-<!-- $Id: manual.of,v 1.167 2017/01/09 15:18:11 roberto Exp $ -->
+<!-- $Id: manual.of,v 1.167.1.2 2018/06/26 15:49:07 roberto Exp $ -->
 
 
 
@@ -203,8 +203,8 @@ even those that do not support threads natively.
 
 <p>
 The type <em>table</em> implements associative arrays,
-that is, arrays that can be indexed not only with numbers,
-but with any Lua value except <b>nil</b> and NaN.
+that is, arrays that can have as indices not only numbers,
+but any Lua value except <b>nil</b> and NaN.
 (<em>Not a Number</em> is a special value used to represent
 undefined or unrepresentable numerical results, such as <code>0/0</code>.)
 Tables can be <em>heterogeneous</em>;
@@ -400,6 +400,8 @@ with the event name prefixed by two underscores;
 the corresponding values are called <em>metamethods</em>.
 In the previous example, the key is "<code>__add</code>"
 and the metamethod is the function that performs the addition.
+Unless stated otherwise,
+metamethods should be function values.
 
 
 <p>
@@ -597,7 +599,7 @@ it is also slower than a real <code>__le</code> metamethod.)
 </li>
 
 <li><b><code>__index</code>: </b>
-The indexing access <code>table[key]</code>.
+The indexing access operation <code>table[key]</code>.
 This event happens when <code>table</code> is not a table or
 when <code>key</code> is not present in <code>table</code>.
 The metamethod is looked up in <code>table</code>.
@@ -1276,13 +1278,8 @@ Square brackets are used to index a table:
 <pre>
 	var ::= prefixexp &lsquo;<b>[</b>&rsquo; exp &lsquo;<b>]</b>&rsquo;
 </pre><p>
-The meaning of accesses to table fields can be changed via metatables.
-An access to an indexed variable <code>t[i]</code> is equivalent to
-a call <code>gettable_event(t,i)</code>.
-(See <a href="#2.4">&sect;2.4</a> for a complete description of the
-<code>gettable_event</code> function.
-This function is not defined or callable in Lua.
-We use it here only for explanatory purposes.)
+The meaning of accesses to table fields can be changed via metatables
+(see <a href="#2.4">&sect;2.4</a>).
 
 
 <p>
@@ -1477,20 +1474,15 @@ cyclically permutes the values of <code>x</code>, <code>y</code>, and <code>z</c
 
 
 <p>
-The meaning of assignments to global variables
-and table fields can be changed via metatables.
-An assignment to an indexed variable <code>t[i] = val</code> is equivalent to
-<code>settable_event(t,i,val)</code>.
-(See <a href="#2.4">&sect;2.4</a> for a complete description of the
-<code>settable_event</code> function.
-This function is not defined or callable in Lua.
-We use it here only for explanatory purposes.)
-
-
-<p>
 An assignment to a global name <code>x = val</code>
 is equivalent to the assignment
 <code>_ENV.x = val</code> (see <a href="#2.2">&sect;2.2</a>).
+
+
+<p>
+The meaning of assignments to table fields and
+global variables (which are actually table fields, too)
+can be changed via metatables (see <a href="#2.4">&sect;2.4</a>).
 
 
 
@@ -1831,17 +1823,17 @@ Here are some examples:
      g(f(), x)          -- f() is adjusted to 1 result
      g(x, f())          -- g gets x plus all results from f()
      a,b,c = f(), x     -- f() is adjusted to 1 result (c gets nil)
-     a,b = ...          -- a gets the first vararg parameter, b gets
+     a,b = ...          -- a gets the first vararg argument, b gets
                         -- the second (both a and b can get nil if there
-                        -- is no corresponding vararg parameter)
+                        -- is no corresponding vararg argument)
      
      a,b,c = x, f()     -- f() is adjusted to 2 results
      a,b,c = f()        -- f() is adjusted to 3 results
      return f()         -- returns all results from f()
-     return ...         -- returns all received vararg parameters
+     return ...         -- returns all received vararg arguments
      return x,y,f()     -- returns x, y, and all results from f()
      {f()}              -- creates a list with all results from f()
-     {...}              -- creates a list with all vararg parameters
+     {...}              -- creates a list with all vararg arguments
      {f(), nil}         -- f() is adjusted to 1 result
 </pre>
 
@@ -2039,9 +2031,12 @@ two objects are considered equal only if they are the same object.
 Every time you create a new object
 (a table, userdata, or thread),
 this new object is different from any previously existing object.
-Closures with the same reference are always equal.
+A closure is always equal to itself.
 Closures with any detectable difference
 (different behavior, different definition) are always different.
+Closures created at different times but with no detectable differences
+may be classified as equal or not
+(depending on internal caching details).
 
 
 <p>
@@ -2303,7 +2298,7 @@ If the value of prefixexp has type <em>function</em>,
 then this function is called
 with the given arguments.
 Otherwise, the prefixexp "call" metamethod is called,
-having as first parameter the value of prefixexp,
+having as first argument the value of prefixexp,
 followed by the original call arguments
 (see <a href="#2.4">&sect;2.4</a>).
 
@@ -2881,7 +2876,7 @@ it can do whatever it wants on that Lua state,
 as it should be already protected.
 However,
 when C code operates on other Lua states
-(e.g., a Lua parameter to the function,
+(e.g., a Lua argument to the function,
 a Lua state stored in the registry, or
 the result of <a href="#lua_newthread"><code>lua_newthread</code></a>),
 it should use them only in API calls that cannot raise errors.
@@ -3370,7 +3365,7 @@ it is left unchanged.
 Destroys all objects in the given Lua state
 (calling the corresponding garbage-collection metamethods, if any)
 and frees all dynamic memory used by this state.
-On several platforms, you may not need to call this function,
+In several platforms, you may not need to call this function,
 because all resources are naturally released when the host program ends.
 On the other hand, long-running programs that create multiple states,
 such as daemons or web servers,
@@ -5584,7 +5579,7 @@ given as argument to a hook (see <a href="#lua_Hook"><code>lua_Hook</code></a>).
 
 
 <p>
-To get information about a function you push it onto the stack
+To get information about a function, you push it onto the stack
 and start the <code>what</code> string with the character '<code>&gt;</code>'.
 (In that case,
 <code>lua_getinfo</code> pops the function from the top of the stack.)
@@ -6462,7 +6457,7 @@ file-related functions in the standard library
 
 <p>
 Pushes onto the stack the field <code>e</code> from the metatable
-of the object at index <code>obj</code> and returns the type of pushed value.
+of the object at index <code>obj</code> and returns the type of the pushed value.
 If the object does not have a metatable,
 or if the metatable does not have this field,
 pushes nothing and returns <code>LUA_TNIL</code>.
@@ -6749,7 +6744,7 @@ In words, if the argument <code>arg</code> is nil or absent,
 the macro results in the default <code>dflt</code>.
 Otherwise, it results in the result of calling <code>func</code>
 with the state <code>L</code> and the argument index <code>arg</code> as
-parameters.
+arguments.
 Note that it evaluates the expression <code>dflt</code> only if needed.
 
 
@@ -8680,7 +8675,7 @@ the lowercase letters plus the '<code>-</code>' character.
 <p>
 You can put a closing square bracket in a set
 by positioning it as the first character in the set.
-You can put an hyphen in a set
+You can put a hyphen in a set
 by positioning it as the first or the last character in the set.
 (You can also use an escape for both cases.)
 
@@ -9082,8 +9077,8 @@ Returns the destination table <code>a2</code>.
 
 
 <p>
-Returns a new table with all parameters stored into keys 1, 2, etc.
-and with a field "<code>n</code>" with the total number of parameters.
+Returns a new table with all arguments stored into keys 1, 2, etc.
+and with a field "<code>n</code>" with the total number of arguments.
 Note that the resulting table may not be a sequence.
 
 
@@ -9215,7 +9210,7 @@ Returns the arc sine of <code>x</code> (in radians).
 <p>
 
 Returns the arc tangent of <code>y/x</code> (in radians),
-but uses the signs of both parameters to find the
+but uses the signs of both arguments to find the
 quadrant of the result.
 (It also handles correctly the case of <code>x</code> being zero.)
 
@@ -9516,7 +9511,7 @@ all I/O functions return <b>nil</b> on failure
 (plus an error message as a second result and
 a system-dependent error code as a third result)
 and some value different from <b>nil</b> on success.
-On non-POSIX systems,
+In non-POSIX systems,
 the computation of the error message and error code
 in case of errors
 may be not thread safe,
@@ -9553,7 +9548,7 @@ When called with a file name, it opens the named file (in text mode),
 and sets its handle as the default input file.
 When called with a file handle,
 it simply sets this file handle as the default input file.
-When called without parameters,
+When called without arguments,
 it returns the current default input file.
 
 
@@ -9580,7 +9575,7 @@ it returns no values (to finish the loop) and automatically closes the file.
 The call <code>io.lines()</code> (with no file name) is equivalent
 to <code>io.input():lines("*l")</code>;
 that is, it iterates over the lines of the default input file.
-In this case it does not close the file when the loop ends.
+In this case, the iterator does not close the file when the loop ends.
 
 
 <p>
@@ -9963,7 +9958,7 @@ the host system and on the current locale.
 
 
 <p>
-On non-POSIX systems,
+In non-POSIX systems,
 this function may be not thread safe
 because of its reliance on C&nbsp;function <code>gmtime</code> and C&nbsp;function <code>localtime</code>.
 
@@ -10163,7 +10158,7 @@ and explicitly removed when no longer needed.
 
 
 <p>
-On POSIX systems,
+In POSIX systems,
 this function also creates a file with that name,
 to avoid security risks.
 (Someone else might create the file with wrong permissions
@@ -10301,8 +10296,8 @@ The first parameter or local variable has index&nbsp;1, and so on,
 following the order that they are declared in the code,
 counting only the variables that are active
 in the current scope of the function.
-Negative indices refer to vararg parameters;
--1 is the first vararg parameter.
+Negative indices refer to vararg arguments;
+-1 is the first vararg argument.
 The function returns <b>nil</b> if there is no variable with the given index,
 and raises an error when called with a level out of range.
 (You can call <a href="#pdf-debug.getinfo"><code>debug.getinfo</code></a> to check whether the level is valid.)
@@ -10400,7 +10395,7 @@ When called without arguments,
 
 
 <p>
-When the hook is called, its first parameter is a string
+When the hook is called, its first argument is a string
 describing the event that has triggered its call:
 <code>"call"</code> (or <code>"tail call"</code>),
 <code>"return"</code>,
@@ -10551,7 +10546,8 @@ The options are:
 
 <ul>
 <li><b><code>-e <em>stat</em></code>: </b> executes string <em>stat</em>;</li>
-<li><b><code>-l <em>mod</em></code>: </b> "requires" <em>mod</em>;</li>
+<li><b><code>-l <em>mod</em></code>: </b> "requires" <em>mod</em> and assigns the
+  result to global @<em>mod</em>;</li>
 <li><b><code>-i</code>: </b> enters interactive mode after running <em>script</em>;</li>
 <li><b><code>-v</code>: </b> prints version information;</li>
 <li><b><code>-E</code>: </b> ignores environment variables;</li>
@@ -10629,7 +10625,7 @@ For instance, the call
 </pre><p>
 will print "<code>-e</code>".
 If there is a script,
-the script is called with parameters
+the script is called with arguments
 <code>arg[1]</code>, &middot;&middot;&middot;, <code>arg[#arg]</code>.
 (Like all chunks in Lua,
 the script is compiled as a vararg function.)
@@ -10815,7 +10811,7 @@ The following functions were deprecated in the mathematical library:
 <code>frexp</code>, and <code>ldexp</code>.
 You can replace <code>math.pow(x,y)</code> with <code>x^y</code>;
 you can replace <code>math.atan2</code> with <code>math.atan</code>,
-which now accepts one or two parameters;
+which now accepts one or two arguments;
 you can replace <code>math.ldexp(x,exp)</code> with <code>x * 2.0^exp</code>.
 For the other operations,
 you can either use an external library or
@@ -10850,7 +10846,7 @@ of the first result.)
 <ul>
 
 <li>
-Continuation functions now receive as parameters what they needed
+Continuation functions now receive as arguments what they needed
 to get through <code>lua_getctx</code>,
 so <code>lua_getctx</code> has been removed.
 Adapt your code accordingly.
@@ -10973,12 +10969,13 @@ and LiteralString, see <a href="#3.1">&sect;3.1</a>.)
 
 
 
+
 <P CLASS="footer">
 Last update:
-Mon Jan  9 13:30:53 BRST 2017
+Tue Jun 26 13:16:37 -03 2018
 </P>
 <!--
-Last change: revised for Lua 5.3.4
+Last change: revised for Lua 5.3.5
 -->
 
 </body></html>

@@ -430,19 +430,21 @@ uep_detach(device_t dev)
 
 #ifdef EVDEV_SUPPORT
 
-static void
-uep_ev_close(struct evdev_dev *evdev, void *ev_softc)
+static int
+uep_ev_close(struct evdev_dev *evdev)
 {
-	struct uep_softc *sc = (struct uep_softc *)ev_softc;
+	struct uep_softc *sc = evdev_get_softc(evdev);
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 	usbd_transfer_stop(sc->xfer[UEP_INTR_DT]);
+
+	return (0);
 }
 
 static int
-uep_ev_open(struct evdev_dev *evdev, void *ev_softc)
+uep_ev_open(struct evdev_dev *evdev)
 {
-	struct uep_softc *sc = (struct uep_softc *)ev_softc;
+	struct uep_softc *sc = evdev_get_softc(evdev);
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 	usbd_transfer_start(sc->xfer[UEP_INTR_DT]);
