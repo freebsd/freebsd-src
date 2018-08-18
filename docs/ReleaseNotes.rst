@@ -121,6 +121,16 @@ Non-comprehensive list of changes in this release
   not to be compliant, and higher optimization levels will still emit some
   information in v4 format.
 
+* Added support for the ``.rva`` assembler directive for COFF targets.
+
+* The :program:`llvm-rc` tool (Windows Resource Compiler) has been improved
+  a bit. There are still known missing features, but it is generally usable
+  in many cases. (The tool still doesn't preprocess input files automatically,
+  but it can now handle leftover C declarations in preprocessor output, if
+  given output from a preprocessor run externally.)
+
+* CodeView debug info can now be emitted MinGW configurations, if requested.
+
 * Note..
 
 .. NOTE
@@ -144,11 +154,35 @@ Changes to the LLVM IR
 
 * invariant.group metadata can now refer only empty metadata nodes.
 
-Changes to the ARM Backend
---------------------------
+Changes to the AArch64 Target
+-----------------------------
 
- During this release ...
+* The ``.inst`` assembler directive is now usable on both COFF and Mach-O
+  targets, in addition to ELF.
 
+* Support for most remaining COFF relocations have been added.
+
+* Support for TLS on Windows has been added.
+
+Changes to the ARM Target
+-------------------------
+
+* The ``.inst`` assembler directive is now usable on both COFF and Mach-O
+  targets, in addition to ELF. For Thumb, it can now also automatically
+  deduce the instruction size, without having to specify it with
+  e.g. ``.inst.w`` as before.
+
+Changes to the Hexagon Target
+-----------------------------
+
+* Hexagon now supports auto-vectorization for HVX. It is disabled by default
+  and can be turned on with ``-fvectorize``. For auto-vectorization to take
+  effect, code generation for HVX needs to be enabled with ``-mhvx``.
+  The complete set of options should include ``-fvectorize``, ``-mhvx``,
+  and ``-mhvx-length={64b|128b}``.
+
+* The support for Hexagon ISA V4 is deprecated and will be removed in the
+  next release.
 
 Changes to the MIPS Target
 --------------------------
@@ -184,7 +218,13 @@ During this release the SystemZ target has:
 Changes to the X86 Target
 -------------------------
 
- During this release ...
+* The calling convention for the ``f80`` data type on MinGW targets has been
+  fixed. Normally, the calling convention for this type is handled within clang,
+  but if an intrinsic is used, which LLVM expands into a libcall, the
+  proper calling convention needs to be supported in LLVM as well. (Note,
+  on Windows, this data type is only used for long doubles in MinGW
+  environments - in MSVC environments, long doubles are the same size as
+  normal doubles.)
 
 Changes to the AMDGPU Target
 -----------------------------
