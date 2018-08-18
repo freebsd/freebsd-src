@@ -82,7 +82,8 @@ _pthread_condattr_destroy(pthread_condattr_t *attr)
 }
 
 int
-_pthread_condattr_getclock(const pthread_condattr_t *attr, clockid_t *clock_id)
+_pthread_condattr_getclock(const pthread_condattr_t * __restrict attr,
+    clockid_t * __restrict clock_id)
 {
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
@@ -106,7 +107,8 @@ _pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id)
 }
 
 int
-_pthread_condattr_getpshared(const pthread_condattr_t *attr, int *pshared)
+_pthread_condattr_getpshared(const pthread_condattr_t * __restrict attr,
+    int * __restrict pshared)
 {
 
 	if (attr == NULL || *attr == NULL)

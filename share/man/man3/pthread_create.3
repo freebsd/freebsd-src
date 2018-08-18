@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_CREATE 3
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_create "pthread_t *thread" "const pthread_attr_t *attr" "void *(*start_routine)(void *)" "void *arg"
+.Fn pthread_create "pthread_t *restrict thread" "const pthread_attr_t *restrict attr" "void *(*start_routine)(void *)" "void *restrict arg"
 .Sh DESCRIPTION
 The
 .Fn pthread_create
