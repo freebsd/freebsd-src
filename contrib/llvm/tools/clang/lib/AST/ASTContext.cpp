@@ -9798,20 +9798,16 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
           return true;
 
   // If the decl is marked as `declare target`, it should be emitted.
-  for (const auto *Decl : D->redecls()) {
-    if (!Decl->hasAttrs())
-      continue;
-    if (const auto *Attr = Decl->getAttr<OMPDeclareTargetDeclAttr>())
-      if (Attr->getMapType() != OMPDeclareTargetDeclAttr::MT_Link)
-        return true;
-  }
+  if (const llvm::Optional<OMPDeclareTargetDeclAttr::MapTypeTy> Res =
+          OMPDeclareTargetDeclAttr::isDeclareTargetDeclaration(VD))
+    return *Res != OMPDeclareTargetDeclAttr::MT_Link;
 
   return false;
 }
 
 void ASTContext::forEachMultiversionedFunctionVersion(
     const FunctionDecl *FD,
-    llvm::function_ref<void(const FunctionDecl *)> Pred) const {
+    llvm::function_ref<void(FunctionDecl *)> Pred) const {
   assert(FD->isMultiVersion() && "Only valid for multiversioned functions");
   llvm::SmallDenseSet<const FunctionDecl*, 4> SeenDecls;
   FD = FD->getCanonicalDecl();
