@@ -101,9 +101,8 @@ agp_amd_alloc_gatt(device_t dev)
 	 * directory.
 	 */
 	gatt->ag_entries = entries;
-	gatt->ag_virtual = (void *)kmem_alloc_attr(kernel_arena,
-	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0,
-	    VM_MEMATTR_WRITE_COMBINING);
+	gatt->ag_virtual = (void *)kmem_alloc_attr(entries * sizeof(u_int32_t),
+	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_virtual) {
 		if (bootverbose)
 			device_printf(dev, "allocation failed\n");
@@ -114,8 +113,8 @@ agp_amd_alloc_gatt(device_t dev)
 	/*
 	 * Allocate the page directory.
 	 */
-	gatt->ag_vdir = (void *)kmem_alloc_attr(kernel_arena, AGP_PAGE_SIZE,
-	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
+	gatt->ag_vdir = (void *)kmem_alloc_attr(AGP_PAGE_SIZE, M_NOWAIT |
+	    M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_vdir) {
 		if (bootverbose)
 			device_printf(dev,
