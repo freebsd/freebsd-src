@@ -238,10 +238,6 @@ bectl_cmd_jail(int argc, char *argv[])
 		fprintf(stderr, "bectl jail: missing boot environment name\n");
 		return (usage(false));
 	}
-	if (argc > 2) {
-		fprintf(stderr, "bectl jail: too many arguments\n");
-		return (usage(false));
-	}
 
 	bootenv = argv[0];
 
@@ -284,7 +280,10 @@ bectl_cmd_jail(int argc, char *argv[])
 	if (interactive) {
 		/* We're attached within the jail... good bye! */
 		chdir("/");
-		execl("/bin/sh", "/bin/sh", NULL);
+		if (argc > 1)
+			execve(argv[1], &argv[1], NULL);
+		else
+			execl("/bin/sh", "/bin/sh", NULL);
 		return (1);
 	}
 
