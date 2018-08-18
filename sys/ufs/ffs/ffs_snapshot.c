@@ -583,7 +583,7 @@ loop:
 			if (len != 0 && len < fs->fs_bsize) {
 				ffs_blkfree(ump, copy_fs, vp,
 				    DIP(xp, i_db[loc]), len, xp->i_number,
-				    xvp->v_type, NULL, SINGLETON);
+				    xvp->v_type, NULL);
 				blkno = DIP(xp, i_db[loc]);
 				DIP_SET(xp, i_db[loc], 0);
 			}
@@ -1265,7 +1265,7 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(ITOUMP(ip), fs, vp, blkno, fs->fs_bsize, inum,
-		    vp->v_type, NULL, SINGLETON);
+		    vp->v_type, NULL);
 	}
 	return (0);
 }
@@ -1549,7 +1549,7 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(ITOUMP(ip), fs, vp, blkno, fs->fs_bsize, inum,
-		    vp->v_type, NULL, SINGLETON);
+		    vp->v_type, NULL);
 	}
 	return (0);
 }
