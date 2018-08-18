@@ -978,6 +978,8 @@ ffs_mountfs(devvp, mp, td)
 			    taskqueue_thread_enqueue, &ump->um_trim_tq);
 			taskqueue_start_threads(&ump->um_trim_tq, 1, PVFS,
 			    "%s trim", mp->mnt_stat.f_mntonname);
+			ump->um_trimhash = hashinit(MAXTRIMIO, M_TRIM,
+			    &ump->um_trimlisthashsize);
 		}
 	}
 
@@ -1256,6 +1258,7 @@ ffs_unmount(mp, mntflags)
 			pause("ufsutr", hz);
 		taskqueue_drain_all(ump->um_trim_tq);
 		taskqueue_free(ump->um_trim_tq);
+		free (ump->um_trimhash, M_TRIM);
 	}
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
