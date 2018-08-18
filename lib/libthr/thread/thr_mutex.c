@@ -66,12 +66,12 @@ _Static_assert(sizeof(struct pthread_mutex) <= PAGE_SIZE,
  * Prototypes
  */
 int	__pthread_mutex_consistent(pthread_mutex_t *mutex);
-int	__pthread_mutex_init(pthread_mutex_t *mutex,
-		const pthread_mutexattr_t *mutex_attr);
+int	__pthread_mutex_init(pthread_mutex_t * __restrict mutex,
+		const pthread_mutexattr_t * __restrict mutex_attr);
 int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
 int	__pthread_mutex_lock(pthread_mutex_t *mutex);
-int	__pthread_mutex_timedlock(pthread_mutex_t *mutex,
-		const struct timespec *abstime);
+int	__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+		const struct timespec * __restrict abstime);
 int	_pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
 int	_pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
@@ -376,8 +376,8 @@ shared_mutex_init(struct pthread_mutex *pmtx, const struct
 }
 
 int
-__pthread_mutex_init(pthread_mutex_t *mutex,
-    const pthread_mutexattr_t *mutex_attr)
+__pthread_mutex_init(pthread_mutex_t * __restrict mutex,
+    const pthread_mutexattr_t * __restrict mutex_attr)
 {
 	struct pthread_mutex *pmtx;
 	int ret;
@@ -392,7 +392,7 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 		return (mutex_init(mutex, mutex_attr ? *mutex_attr : NULL,
 		    calloc));
 	}
-	pmtx = __thr_pshared_offpage(mutex, 1);
+	pmtx = __thr_pshared_offpage(__DECONST(void *, mutex), 1);
 	if (pmtx == NULL)
 		return (EFAULT);
 	*mutex = THR_PSHARED_PTR;
@@ -748,8 +748,8 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 }
 
 int
-__pthread_mutex_timedlock(pthread_mutex_t *mutex,
-    const struct timespec *abstime)
+__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+    const struct timespec * __restrict abstime)
 {
 	struct pthread_mutex *m;
 	int ret;
@@ -995,13 +995,13 @@ mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 }
 
 int
-_pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
-    int *prioceiling)
+_pthread_mutex_getprioceiling(const pthread_mutex_t * __restrict mutex,
+    int * __restrict prioceiling)
 {
 	struct pthread_mutex *m;
 
 	if (*mutex == THR_PSHARED_PTR) {
-		m = __thr_pshared_offpage(mutex, 0);
+		m = __thr_pshared_offpage(__DECONST(void *, mutex), 0);
 		if (m == NULL)
 			return (EINVAL);
 		shared_mutex_init(m, NULL);
@@ -1017,8 +1017,8 @@ _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 }
 
 int
-_pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
-    int ceiling, int *old_ceiling)
+_pthread_mutex_setprioceiling(pthread_mutex_t * __restrict mutex,
+    int ceiling, int * __restrict old_ceiling)
 {
 	struct pthread *curthread;
 	struct pthread_mutex *m, *m1, *m2;
