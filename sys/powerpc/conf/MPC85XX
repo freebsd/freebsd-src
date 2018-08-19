@@ -47,6 +47,7 @@ options 	MSDOSFS
 options 	NFS_ROOT
 options 	NFSCL
 options 	NFSLOCKD
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	PROCFS
 options 	PSEUDOFS
 options 	SCHED_ULE
