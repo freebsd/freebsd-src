@@ -39,8 +39,18 @@ local drawer = {}
 local fbsd_brand
 local none
 
+local menu_name_handlers
+local branddefs
+local logodefs
+local brand_position
+local logo_position
+local menu_position
+local frame_size
+local default_shift
+local shift
+
 local function menuEntryName(drawing_menu, entry)
-	local name_handler = drawer.menu_name_handlers[entry.entry_type]
+	local name_handler = menu_name_handlers[entry.entry_type]
 
 	if name_handler ~= nil then
 		return name_handler(drawing_menu, entry)
@@ -56,12 +66,12 @@ local function getBranddef(brand)
 		return nil
 	end
 	-- Look it up
-	local branddef = drawer.branddefs[brand]
+	local branddef = branddefs[brand]
 
 	-- Try to pull it in
 	if branddef == nil then
 		try_include('brand-' .. brand)
-		branddef = drawer.branddefs[brand]
+		branddef = branddefs[brand]
 	end
 
 	return branddef
@@ -72,12 +82,12 @@ local function getLogodef(logo)
 		return nil
 	end
 	-- Look it up
-	local logodef = drawer.logodefs[logo]
+	local logodef = logodefs[logo]
 
 	-- Try to pull it in
 	if logodef == nil then
 		try_include('logo-' .. logo)
-		logodef = drawer.logodefs[logo]
+		logodef = logodefs[logo]
 	end
 
 	return logodef
@@ -91,11 +101,11 @@ local function draw(x, y, logo)
 end
 
 local function drawmenu(menudef)
-	local x = drawer.menu_position.x
-	local y = drawer.menu_position.y
+	local x = menu_position.x
+	local y = menu_position.y
 
-	x = x + drawer.shift.x
-	y = y + drawer.shift.y
+	x = x + shift.x
+	y = y + shift.y
 
 	-- print the menu and build the alias table
 	local alias_table = {}
@@ -135,10 +145,10 @@ local function drawmenu(menudef)
 end
 
 local function drawbox()
-	local x = drawer.menu_position.x - 3
-	local y = drawer.menu_position.y - 1
-	local w = drawer.frame_size.w
-	local h = drawer.frame_size.h
+	local x = menu_position.x - 3
+	local y = menu_position.y - 1
+	local w = frame_size.w
+	local h = frame_size.h
 
 	local framestyle = loader.getenv("loader_menu_frame") or "double"
 	local framespec = drawer.frame_styles[framestyle]
@@ -156,8 +166,8 @@ local function drawbox()
 	local tr = framespec.top_right
 	local br = framespec.bottom_right
 
-	x = x + drawer.shift.x
-	y = y + drawer.shift.y
+	x = x + shift.x
+	y = y + shift.y
 
 	screen.setcursor(x, y); printc(tl)
 	screen.setcursor(x, y + h); printc(bl)
@@ -205,9 +215,9 @@ end
 
 local function drawbrand()
 	local x = tonumber(loader.getenv("loader_brand_x")) or
-	    drawer.brand_position.x
+	    brand_position.x
 	local y = tonumber(loader.getenv("loader_brand_y")) or
-	    drawer.brand_position.y
+	    brand_position.y
 
 	local branddef = getBranddef(loader.getenv("loader_brand"))
 
@@ -217,16 +227,16 @@ local function drawbrand()
 
 	local graphic = branddef.graphic
 
-	x = x + drawer.shift.x
-	y = y + drawer.shift.y
+	x = x + shift.x
+	y = y + shift.y
 	draw(x, y, graphic)
 end
 
 local function drawlogo()
 	local x = tonumber(loader.getenv("loader_logo_x")) or
-	    drawer.logo_position.x
+	    logo_position.x
 	local y = tonumber(loader.getenv("loader_logo_y")) or
-	    drawer.logo_position.y
+	    logo_position.y
 
 	local logo = loader.getenv("loader_logo")
 	local colored = color.isEnabled()
@@ -244,13 +254,13 @@ local function drawlogo()
 	end
 
 	if logodef ~= nil and logodef.graphic == none then
-		drawer.shift = logodef.shift
+		shift = logodef.shift
 	else
-		drawer.shift = drawer.default_shift
+		shift = default_shift
 	end
 
-	x = x + drawer.shift.x
-	y = y + drawer.shift.y
+	x = x + shift.x
+	y = y + shift.y
 
 	if logodef ~= nil and logodef.shift ~= nil then
 		x = x + logodef.shift.x
@@ -271,10 +281,7 @@ fbsd_brand = {
 }
 none = {""}
 
--- Module exports
-drawer.default_brand = 'fbsd'
-
-drawer.menu_name_handlers = {
+menu_name_handlers = {
 	-- Menu name handlers should take the menu being drawn and entry being
 	-- drawn as parameters, and return the name of the item.
 	-- This is designed so that everything, including menu separators, may
@@ -303,14 +310,7 @@ drawer.menu_name_handlers = {
 	end,
 }
 
-drawer.brand_position = {x = 2, y = 1}
-drawer.logo_position = {x = 46, y = 4}
-drawer.menu_position = {x = 5, y = 10}
-drawer.frame_size = {w = 42, h = 13}
-drawer.default_shift = {x = 0, y = 0}
-drawer.shift = drawer.default_shift
-
-drawer.branddefs = {
+branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
 	-- keys are: graphic (table depicting graphic)
 	["fbsd"] = {
@@ -321,15 +321,7 @@ drawer.branddefs = {
 	},
 }
 
-function drawer.addBrand(name, def)
-	drawer.branddefs[name] = def
-end
-
-function drawer.addLogo(name, def)
-	drawer.logodefs[name] = def
-end
-
-drawer.logodefs = {
+logodefs = {
 	-- Indexed by valid values for loader_logo in loader.conf(5). Valid keys
 	-- are: requires_color (boolean), graphic (table depicting graphic), and
 	-- shift (table containing x and y).
@@ -344,6 +336,24 @@ drawer.logodefs = {
 		shift = {x = 17, y = 0},
 	},
 }
+
+brand_position = {x = 2, y = 1}
+logo_position = {x = 46, y = 4}
+menu_position = {x = 5, y = 10}
+frame_size = {w = 42, h = 13}
+default_shift = {x = 0, y = 0}
+shift = default_shift
+
+-- Module exports
+drawer.default_brand = 'fbsd'
+
+function drawer.addBrand(name, def)
+	branddefs[name] = def
+end
+
+function drawer.addLogo(name, def)
+	logodefs[name] = def
+end
 
 drawer.frame_styles = {
 	-- Indexed by valid values for loader_menu_frame in loader.conf(5).
