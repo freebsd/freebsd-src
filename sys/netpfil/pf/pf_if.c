@@ -734,6 +734,7 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 static int
 pfi_skip_if(const char *filter, struct pfi_kif *p)
 {
+	struct ifg_list *i;
 	int	n;
 
 	if (filter == NULL || !*filter)
@@ -744,10 +745,19 @@ pfi_skip_if(const char *filter, struct pfi_kif *p)
 	if (n < 1 || n >= IFNAMSIZ)
 		return (1);	/* sanity check */
 	if (filter[n-1] >= '0' && filter[n-1] <= '9')
-		return (1);	/* only do exact match in that case */
-	if (strncmp(p->pfik_name, filter, n))
-		return (1);	/* prefix doesn't match */
-	return (p->pfik_name[n] < '0' || p->pfik_name[n] > '9');
+		return (1);	/* group names may not end in a digit */
+	if (p->pfik_ifp != NULL) {
+		IF_ADDR_RLOCK(p->pfik_ifp);
+		TAILQ_FOREACH(i, &p->pfik_ifp->if_groups, ifgl_next) {
+			if (!strncmp(i->ifgl_group->ifg_group, filter,
+			      IFNAMSIZ)) {
+				IF_ADDR_RUNLOCK(p->pfik_ifp);
+				return (0); /* iface is in group "filter" */
+			}
+		}
+		IF_ADDR_RUNLOCK(p->pfik_ifp);
+	}
+	return (1);
 }
 
 int
