@@ -34,6 +34,7 @@ arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
 arm/allwinner/aw_rtc.c		optional	aw_rtc fdt
 arm/allwinner/aw_sid.c		optional	aw_sid fdt
 arm/allwinner/aw_spi.c		optional	aw_spi fdt
+arm/allwinner/aw_syscon.c	optional	aw_syscon ext_resources syscon fdt
 arm/allwinner/aw_thermal.c	optional	aw_thermal fdt
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy fdt
 arm/allwinner/aw_wdog.c		optional	aw_wdog fdt

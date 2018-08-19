@@ -256,6 +256,7 @@ device		hwreset
 device		nvmem
 device		regulator
 device		syscon
+device		aw_syscon
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
