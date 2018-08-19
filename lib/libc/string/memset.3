@@ -32,7 +32,7 @@
 .\"     @(#)memset.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2018
+.Dd August 19, 2018
 .Dt MEMSET 3
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .In string.h
 .Ft void *
 .Fn memset "void *dest" "int c" "size_t len"
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
 .Ft errno_t
 .Fn memset_s "void *dest" "rsize_t destsz" "int c" "rsize_t len"
 .Sh DESCRIPTION
@@ -82,7 +83,6 @@ or
 is greater than
 .Dv RSIZE_MAX ,
 or
-.Sp
 .Fa len
 is greater than
 .Fa destsz
@@ -93,10 +93,10 @@ Like
 .Xr explicit_bzero 3 ,
 .Fn memset_s
 is not removed through Dead Store Elimination (DSE), making it useful for
-clearing sensitve data.
+clearing sensitive data.
 In contrast
 .Fn memset
-function 
+function
 may be optimized away if the object modified by the function is not accessed
 again.
 To clear memory that will not subsequently be accessed it is advised to use
@@ -126,6 +126,6 @@ function
 conforms to
 .St -isoC .
 .Fn memset_s
-conforms to:
+conforms to
 .St -isoC-2011
 K.3.7.4.1.
