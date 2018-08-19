@@ -83,7 +83,7 @@ uart_iobus_probe(device_t dev)
 	sc->sc_class = &uart_ns8250_class;
 
 	device_set_desc(dev, "PSIM serial port");
-	return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, iobus, uart_iobus_driver, uart_devclass, 0, 0);
