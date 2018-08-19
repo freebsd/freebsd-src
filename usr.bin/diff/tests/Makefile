@@ -5,6 +5,9 @@ PACKAGE=	tests
 ATF_TESTS_SH=	diff_test
 
 ${PACKAGE}FILES+=	\
+	Bflag_C.out \
+	Bflag_D.out \
+	Bflag_F.out \
 	input1.in \
 	input2.in \
 	input_c1.in \
