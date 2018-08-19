@@ -31,11 +31,36 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/random.h>
+#include <sys/sysctl.h>
 
 #include <errno.h>
 #include <stdlib.h>
 
 #include "libc_private.h"
+
+extern int __sysctl(int *, u_int, void *, size_t *, void *, size_t);
+
+static size_t
+arnd_sysctl(u_char *buf, size_t size)
+{
+	int mib[2];
+	size_t len, done;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	done = 0;
+
+	do {
+		len = size;
+		if (__sysctl(mib, 2, buf, &len, NULL, 0) == -1)
+			return (done);
+		done += len;
+		buf += len;
+		size -= len;
+	} while (size > 0);
+
+	return (done);
+}
 
 /*
  * If a newer libc is accidentally installed on an older kernel, provide high
@@ -54,7 +79,7 @@ getentropy_fallback(void *buf, size_t buflen)
 		errno = EFAULT;
 		return (-1);
 	}
-	if (__arc4_sysctl(buf, buflen) != buflen) {
+	if (arnd_sysctl(buf, buflen) != buflen) {
 		if (errno == EFAULT)
 			return (-1);
 		/*
