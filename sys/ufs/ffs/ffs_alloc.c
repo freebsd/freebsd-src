@@ -506,14 +506,23 @@ ffs_reallocblks(ap)
 	struct ufsmount *ump;
 
 	/*
-	 * If the underlying device can do deletes, then skip reallocating
-	 * the blocks of this file into contiguous sequences. Devices that
-	 * benefit from BIO_DELETE also benefit from not moving the data.
-	 * These devices are flash and therefore work less well with this
-	 * optimization. Also skip if reallocblks has been disabled globally.
+	 * We used to skip reallocating the blocks of a file into a
+	 * contiguous sequence if the underlying flash device requested
+	 * BIO_DELETE notifications, because devices that benefit from
+	 * BIO_DELETE also benefit from not moving the data. However,
+	 * the destination for the data is usually moved before the data
+	 * is written to the initially allocated location, so we rarely
+	 * suffer the penalty of extra writes. With the addition of the
+	 * consolodation of contiguous blocks into single BIO_DELETE
+	 * operations, having fewer but larger contiguous blocks reduces
+	 * the number of (slow and expensive) BIO_DELETE operations. So
+	 * when doing BIO_DELETE consolodation, we do block reallocation.
+	 *
+	 * Skip if reallocblks has been disabled globally.
 	 */
 	ump = ap->a_vp->v_mount->mnt_data;
-	if (((ump->um_flags) & UM_CANDELETE) != 0 || doreallocblks == 0)
+	if ((((ump->um_flags) & UM_CANDELETE) != 0 && dotrimcons == 0) ||
+	    doreallocblks == 0)
 		return (ENOSPC);
 
 	/*
