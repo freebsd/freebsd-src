@@ -66,6 +66,7 @@ static struct option longopts[] = {
 	{ "ed",				no_argument,		0,	'e' },
 	{ "forward-ed",			no_argument,		0,	'f' },
 	{ "speed-large-files",		no_argument,		NULL,	'H' },
+	{ "ignore-blank-lines",		no_argument,		0,	'B' },
 	{ "ignore-matching-lines",	required_argument,	0,	'I' },
 	{ "ignore-case",		no_argument,		0,	'i' },
 	{ "paginate",			no_argument,		NULL,	'l' },
@@ -163,6 +164,9 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			/* silently ignore for backwards compatibility */
+			break;
+		case 'B':
+			dflags |= D_SKIPBLANKLINES;
 			break;
 		case 'I':
 			push_ignore_pats(optarg);
@@ -447,18 +451,18 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: diff [-abdilpTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
+	    "usage: diff [-aBbdilpTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--strip-trailing-cr] [--tabsize]\n"
 	    "            [-I pattern] [-L label] file1 file2\n"
-	    "       diff [-abdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
+	    "       diff [-aBbdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--strip-trailing-cr] [--tabsize]\n"
 	    "            -C number file1 file2\n"
-	    "       diff [-abdiltw] [-I pattern] [--ignore-case] [--no-ignore-case]\n"
+	    "       diff [-aBbdiltw] [-I pattern] [--ignore-case] [--no-ignore-case]\n"
 	    "            [--normal] [--strip-trailing-cr] [--tabsize] -D string file1 file2\n"
-	    "       diff [-abdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
+	    "       diff [-aBbdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [--strip-trailing-cr]\n"
 	    "            -U number file1 file2\n"
-	    "       diff [-abdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
+	    "       diff [-aBbdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [-I pattern] [-L label]\n"
 	    "            [-S name] [-X file] [-x pattern] dir1 dir2\n");
 
