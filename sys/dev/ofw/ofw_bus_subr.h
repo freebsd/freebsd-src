@@ -67,7 +67,7 @@ struct intr_map_data_fdt {
 
 #define SIMPLEBUS_PNP_DESCR "Z:compat;P:#;"
 #define SIMPLEBUS_PNP_INFO(t) \
-	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t) / sizeof(t[0]));
+	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
 
 /* Generic implementation of ofw_bus_if.m methods and helper routines */
 int	ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *, phandle_t);

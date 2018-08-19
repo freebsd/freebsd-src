@@ -402,4 +402,4 @@ MODULE_DEPEND(radeonkms, iic, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbb, 1, 1, 1);
 MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);
 MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:#", vgapci, radeonkms,
-    pciidlist, nitems(pciidlist) - 1);
+    pciidlist, sizeof(pciidlist[0]), nitems(pciidlist) - 1);

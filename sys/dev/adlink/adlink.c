@@ -438,6 +438,6 @@ static driver_t adlink_driver = {
 };
 
 DRIVER_MODULE(adlink, pci, adlink_driver, adlink_devclass, 0, 0);
-MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, adlink, adlink_id,
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, adlink, adlink_id, sizeof(adlink_id[0]),
     nitems(adlink_id));
 #endif /* _KERNEL */

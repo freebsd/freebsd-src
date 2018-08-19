@@ -274,6 +274,6 @@ static devclass_t an_devclass;
 
 DRIVER_MODULE(an, pci, an_pci_driver, an_devclass, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, an,
-    an_devs, nitems(an_devs) - 1);
+    an_devs, sizeof(an_devs[0]), nitems(an_devs) - 1);
 MODULE_DEPEND(an, pci, 1, 1, 1);
 MODULE_DEPEND(an, wlan, 1, 1, 1);
