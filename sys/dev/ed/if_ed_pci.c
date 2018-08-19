@@ -145,5 +145,5 @@ static driver_t ed_pci_driver = {
 DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, pci, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
-MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ed, pci_ids,
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ed, pci_ids, sizeof(pci_ids[0]),
     nitems(pci_ids) - 1);

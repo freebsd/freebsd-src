@@ -179,7 +179,7 @@ static devclass_t ale_devclass;
 
 DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ale, ale_devs,
-    nitems(ale_devs));
+    sizeof(ale_devs[0]), nitems(ale_devs));
 DRIVER_MODULE(miibus, ale, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec ale_res_spec_mem[] = {

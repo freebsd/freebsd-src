@@ -2617,7 +2617,7 @@ static const struct cas_pci_dev {
 
 DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device", pci, cas, cas_pci_devlist,
-    nitems(cas_pci_devlist) - 1);
+    sizeof(cas_pci_devlist[0]), nitems(cas_pci_devlist) - 1);
 DRIVER_MODULE(miibus, cas, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(cas, pci, 1, 1, 1);
 

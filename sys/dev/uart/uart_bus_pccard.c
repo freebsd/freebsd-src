@@ -103,4 +103,4 @@ uart_pccard_attach(device_t dev)
 
 DRIVER_MODULE(uart, pccard, uart_pccard_driver, uart_devclass, 0, 0);
 MODULE_PNP_INFO("U32:function_type;", pccard, uart, &uart_pccard_function,
-    1);
+    sizeof(uart_pccard_function), 1);

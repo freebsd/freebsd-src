@@ -7109,7 +7109,7 @@ static devclass_t ncr_devclass;
 
 DRIVER_MODULE(ncr, pci, ncr_driver, ncr_devclass, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device;U16:#;D:#", pci, ncr, ncr_chip_table,
-    nitems(ncr_chip_table));
+    sizeof(ncr_chip_table[0]), nitems(ncr_chip_table));
 MODULE_DEPEND(ncr, cam, 1, 1, 1);
 MODULE_DEPEND(ncr, pci, 1, 1, 1);
 
