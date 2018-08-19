@@ -26,6 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 #include "opt_uart.h"
 
@@ -54,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
 #include <dev/uart/uart_ppstypes.h>
+#ifdef DEV_ACPI
+#include <dev/uart/uart_cpu_acpi.h>
+#endif
 
 #include <dev/ic/ns16550.h>
 
@@ -403,6 +407,26 @@ struct uart_class uart_ns8250_class = {
 	.uc_rclk = DEFAULT_RCLK,
 	.uc_rshift = 0
 };
+
+/*
+ * XXX -- refactor out ACPI and FDT ifdefs
+ */
+#ifdef DEV_ACPI
+static struct acpi_uart_compat_data acpi_compat_data[] = {
+	{"AMD0020",	&uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
+	{"AMDI0020", &uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
+	{"PNP0500", &uart_ns8250_class, 0, 0, 0, 0, 0, "Standard PC COM port"},
+	{"PNP0501", &uart_ns8250_class, 0, 0, 0, 0, 0, "16550A-compatible COM port"},
+	{"PNP0502", &uart_ns8250_class, 0, 0, 0, 0, 0, "Multiport serial device (non-intelligent 16550)"},
+	{"PNP0510", &uart_ns8250_class, 0, 0, 0, 0, 0, "Generic IRDA-compatible device"},
+	{"PNP0511", &uart_ns8250_class, 0, 0, 0, 0, 0, "Generic IRDA-compatible device"},
+	{"WACF004", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet PC Screen"},
+	{"WACF00E", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet PC Screen 00e"},
+	{"FUJ02E5", &uart_ns8250_class, 0, 0, 0, 0, 0, "Wacom Tablet at FuS Lifebook T"},
+	{NULL, 			NULL, 0, 0 , 0, 0, 0, NULL},
+};
+UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
+#endif
 
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {

@@ -83,7 +83,7 @@ uart_puc_probe(device_t dev)
 
 	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_CLOCK, &rclk))
 		rclk = 0;
-	return (uart_bus_probe(dev, 0, 0, rclk, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, rclk, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, puc, uart_puc_driver, uart_devclass, 0, 0);

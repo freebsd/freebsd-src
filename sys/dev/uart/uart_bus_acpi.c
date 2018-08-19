@@ -37,17 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <isa/isavar.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu_acpi.h>
-
-#ifdef __aarch64__
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
-#endif
+
 
 static int uart_acpi_probe(device_t dev);
 
@@ -66,59 +62,40 @@ static driver_t uart_acpi_driver = {
 	sizeof(struct uart_softc),
 };
 
-#if defined(__i386__) || defined(__amd64__)
-static struct isa_pnp_id acpi_ns8250_ids[] = {
-	{0x0005d041, "Standard PC COM port"},		/* PNP0500 */
-	{0x0105d041, "16550A-compatible COM port"},	/* PNP0501 */
-	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
-	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
-	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
-	{0x04f0235c, "Wacom Tablet PC Screen"},		/* WACF004 */
-	{0x0ef0235c, "Wacom Tablet PC Screen 00e"},	/* WACF00e */
-	{0xe502aa1a, "Wacom Tablet at FuS Lifebook T"},	/* FUJ02E5 */
-	{0}
-};
-#endif
-
-#ifdef __aarch64__
-static struct uart_class *
+static struct acpi_uart_compat_data *
 uart_acpi_find_device(device_t dev)
 {
-	struct acpi_uart_compat_data **cd;
+	struct acpi_uart_compat_data **cd, *cd_it;
 	ACPI_HANDLE h;
 
 	if ((h = acpi_get_handle(dev)) == NULL)
 		return (NULL);
 
 	SET_FOREACH(cd, uart_acpi_class_and_device_set) {
-		if (acpi_MatchHid(h, (*cd)->hid)) {
-			return ((*cd)->clas);
+		for (cd_it = *cd; cd_it->cd_hid != NULL; cd_it++) {
+			if (acpi_MatchHid(h, cd_it->cd_hid))
+				return (cd_it);
 		}
 	}
 
 	return (NULL);
 }
-#endif
 
 static int
 uart_acpi_probe(device_t dev)
 {
 	struct uart_softc *sc;
+	struct acpi_uart_compat_data *cd;
 
 	sc = device_get_softc(dev);
 
-#if defined(__i386__) || defined(__amd64__)
-	if (!ISA_PNP_PROBE(device_get_parent(dev), dev, acpi_ns8250_ids)) {
-		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
+	if ((cd = uart_acpi_find_device(dev)) != NULL) {
+		sc->sc_class = cd->cd_class;
+		if (cd->cd_desc != NULL)
+			device_set_desc(dev, cd->cd_desc);
+		return (uart_bus_probe(dev, cd->cd_regshft, cd->cd_regiowidth,
+		    cd->cd_rclk, 0, 0, cd->cd_quirks));
 	}
-
-	/* Add checks for non-ns8250 IDs here. */
-#elif defined(__aarch64__)
-	if ((sc->sc_class = uart_acpi_find_device(dev)) != NULL)
-		return (uart_bus_probe(dev, 2, 0, 0, 0, 0));
-#endif
-
 	return (ENXIO);
 }
 

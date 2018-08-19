@@ -99,7 +99,7 @@ uart_ebus_probe(device_t dev)
 				return (ENXIO);
 		}
 		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
+		return (uart_bus_probe(dev, 0, 0, 0, 0, 0, 0));
 	}
 
 	return (ENXIO);
