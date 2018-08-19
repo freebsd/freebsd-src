@@ -23,9 +23,15 @@ struct chacha_ctx {
 #define CHACHA_STATELEN		(CHACHA_NONCELEN+CHACHA_CTRLEN)
 #define CHACHA_BLOCKLEN		64
 
-void chacha_keysetup(struct chacha_ctx *x, const u_char *k, u_int kbits);
-void chacha_ivsetup(struct chacha_ctx *x, const u_char *iv, const u_char *ctr);
-void chacha_encrypt_bytes(struct chacha_ctx *x, const u_char *m,
+#ifdef _KERNEL
+#define LOCAL
+#else
+#define LOCAL static
+#endif
+
+LOCAL void chacha_keysetup(struct chacha_ctx *x, const u_char *k, u_int kbits);
+LOCAL void chacha_ivsetup(struct chacha_ctx *x, const u_char *iv, const u_char *ctr);
+LOCAL void chacha_encrypt_bytes(struct chacha_ctx *x, const u_char *m,
     u_char *c, u_int bytes);
 
 #endif	/* CHACHA_H */

@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces
+OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
+OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
 # 20180819: send-pr(1) placeholder removal
 OLD_FILES+=usr/bin/send-pr
 # 20180725: Cleanup old libcasper.so.0
