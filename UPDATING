@@ -40,6 +40,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	loader and loader_4th instead of loader and loader_lua, the new default.
 	If you are using UEFI it will create the proper hard link to loader.efi.
 
+	bhyve uses userboot.so. It remains 4th-only until some issues are solved
+	regarding coexisting with multiple versions of FreeBSD are resolved.
+
 20180815:
 	ls(1) now respects the COLORTERM environment variable used in other
 	systems and software to indicate that a colored terminal is both
