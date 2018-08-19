@@ -191,7 +191,7 @@
 #define HAVE_ARC4RANDOM_BUF 1
 
 /* Define to 1 if you have the `arc4random_stir' function. */
-#define HAVE_ARC4RANDOM_STIR 1
+/* #undef HAVE_ARC4RANDOM_STIR */
 
 /* Define to 1 if you have the `arc4random_uniform' function. */
 #define HAVE_ARC4RANDOM_UNIFORM 1
