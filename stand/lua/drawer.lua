@@ -83,6 +83,13 @@ local function getLogodef(logo)
 	return logodef
 end
 
+local function draw(x, y, logo)
+	for i = 1, #logo do
+		screen.setcursor(x, y + i - 1)
+		printc(logo[i])
+	end
+end
+
 fbsd_brand = {
 "  ______               ____   _____ _____  ",
 " |  ____|             |  _ \\ / ____|  __ \\ ",
@@ -320,13 +327,6 @@ function drawer.drawbox()
 	printc(menu_header)
 end
 
-function drawer.draw(x, y, logo)
-	for i = 1, #logo do
-		screen.setcursor(x, y + i - 1)
-		printc(logo[i])
-	end
-end
-
 function drawer.drawbrand()
 	local x = tonumber(loader.getenv("loader_brand_x")) or
 	    drawer.brand_position.x
@@ -343,7 +343,7 @@ function drawer.drawbrand()
 
 	x = x + drawer.shift.x
 	y = y + drawer.shift.y
-	drawer.draw(x, y, graphic)
+	draw(x, y, graphic)
 end
 
 function drawer.drawlogo()
@@ -381,7 +381,7 @@ function drawer.drawlogo()
 		y = y + logodef.shift.y
 	end
 
-	drawer.draw(x, y, logodef.graphic)
+	draw(x, y, logodef.graphic)
 end
 
 return drawer
