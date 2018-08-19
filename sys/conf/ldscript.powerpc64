@@ -69,6 +69,20 @@ SECTIONS
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */
   . = ALIGN(4096);
+  .data.read_frequently :
+  {
+    *(SORT_BY_ALIGNMENT(.data.read_frequently))
+  }
+  .data.read_mostly :
+  {
+    *(.data.read_mostly)
+  }
+  . = ALIGN(128);
+  .data.exclusive_cache_line :
+  {
+    *(.data.exclusive_cache_line)
+  }
+  . = ALIGN(128);
   .data    :
   {
     *(.data)
