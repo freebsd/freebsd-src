@@ -38,9 +38,15 @@
 struct uart_class;
 
 struct acpi_uart_compat_data {
-	const char *hid;
-	struct uart_class *clas;
-	uint16_t port_subtype;
+	const char *cd_hid;
+	struct uart_class *cd_class;
+
+	uint16_t cd_port_subtype;
+	int cd_regshft;
+	int cd_regiowidth;
+	int cd_rclk;
+	int cd_quirks;
+	const char *cd_desc;
 };
 
 /*
