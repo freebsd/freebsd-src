@@ -9,6 +9,7 @@ atf_test_case group_format
 atf_test_case side_by_side
 atf_test_case brief_format
 atf_test_case b230049
+atf_test_case Bflag
 
 simple_body()
 {
@@ -150,6 +151,21 @@ brief_format_body()
 	    diff -Nrq A D
 }
 
+Bflag_body()
+{
+	atf_check -x 'printf "A\nB\n" > A'
+	atf_check -x 'printf "A\n\nB\n" > B'
+	atf_check -x 'printf "A\n \nB\n" > C'
+	atf_check -x 'printf "A\nC\nB\n" > D'
+	atf_check -x 'printf "A\nB\nC\nD\nE\nF\nG\nH" > E'
+	atf_check -x 'printf "A\n\nB\nC\nD\nE\nF\nX\nH" > F'
+
+	atf_check -s exit:0 -o inline:"" diff -B A B
+	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_C.out" diff -B A C
+	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_D.out" diff -B A D
+	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_F.out" diff -B E F
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -161,4 +177,5 @@ atf_init_test_cases()
 	atf_add_test_case side_by_side
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
+	atf_add_test_case Bflag
 }
