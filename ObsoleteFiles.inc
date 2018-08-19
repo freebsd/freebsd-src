@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180819: send-pr(1) placeholder removal
+OLD_FILES+=usr/bin/send-pr
 # 20180725: Cleanup old libcasper.so.0
 OLD_LIBS+=lib/libcasper.so.0
 # 20180722: indent(1) option renamed, test files follow

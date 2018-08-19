@@ -320,7 +320,6 @@ DIRDEPS+= \
 	usr.bin/script \
 	usr.bin/sdiff \
 	usr.bin/sed \
-	usr.bin/send-pr \
 	usr.bin/seq \
 	usr.bin/shar \
 	usr.bin/showmount \
