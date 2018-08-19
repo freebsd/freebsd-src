@@ -2304,14 +2304,16 @@ ipf_nat_delete(softc, nat, logtype)
 
 		bkt = nat->nat_hv[0] % softn->ipf_nat_table_sz;
 		nss = &softn->ipf_nat_stats.ns_side[0];
-		nss->ns_bucketlen[bkt]--;
+		if (nss->ns_bucketlen[bkt] > 0)
+			nss->ns_bucketlen[bkt]--;
 		if (nss->ns_bucketlen[bkt] == 0) {
 			nss->ns_inuse--;
 		}
 
 		bkt = nat->nat_hv[1] % softn->ipf_nat_table_sz;
 		nss = &softn->ipf_nat_stats.ns_side[1];
-		nss->ns_bucketlen[bkt]--;
+		if (nss->ns_bucketlen[bkt] > 0)
+			nss->ns_bucketlen[bkt]--;
 		if (nss->ns_bucketlen[bkt] == 0) {
 			nss->ns_inuse--;
 		}
