@@ -247,9 +247,9 @@ local function drawlogo()
 	    (not colored and logodef.requires_color) then
 		-- Choose a sensible default
 		if colored then
-			logodef = getLogodef("orb")
+			logodef = getLogodef(drawer.default_color_logodef)
 		else
-			logodef = getLogodef("orbbw")
+			logodef = getLogodef(drawer.default_bw_logodef)
 		end
 	end
 
@@ -346,6 +346,8 @@ shift = default_shift
 
 -- Module exports
 drawer.default_brand = 'fbsd'
+drawer.default_color_logodef = 'orb'
+drawer.default_bw_logodef = 'orbbw'
 
 function drawer.addBrand(name, def)
 	branddefs[name] = def
