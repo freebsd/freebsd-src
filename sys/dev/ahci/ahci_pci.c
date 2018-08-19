@@ -667,7 +667,7 @@ static driver_t ahci_driver = {
 DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, NULL, NULL);
 /* Also matches class / subclass / progid XXX need to add when we have masking support */
 MODULE_PNP_INFO("W32:vendor/device", pci, ahci, ahci_ids,
-    nitems(ahci_ids) - 1);
+    sizeof(ahci_ids[0]), nitems(ahci_ids) - 1);
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_ata_probe),
 	DEVMETHOD(device_attach,    ahci_pci_attach),

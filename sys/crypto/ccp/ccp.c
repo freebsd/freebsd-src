@@ -734,7 +734,7 @@ DRIVER_MODULE(ccp, pci, ccp_driver, ccp_devclass, NULL, NULL);
 MODULE_VERSION(ccp, 1);
 MODULE_DEPEND(ccp, crypto, 1, 1, 1);
 MODULE_DEPEND(ccp, random_device, 1, 1, 1);
-MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids,
+MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids, sizeof(ccp_ids[0]),
     nitems(ccp_ids));
 
 static int
