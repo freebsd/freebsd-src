@@ -484,7 +484,7 @@ static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0,
 "enable block reallocation");
 
-static int dotrimcons = 1;
+static int dotrimcons = 0;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, dotrimcons, CTLFLAG_RW, &dotrimcons, 0,
 "enable BIO_DELETE / TRIM consolodation");
 
