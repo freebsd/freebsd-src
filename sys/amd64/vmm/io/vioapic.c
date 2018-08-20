@@ -543,10 +543,12 @@ vioapic_restore(struct vioapic *vioapic, void *buffer, size_t buf_size)
 
 	old_vioapic = (struct vioapic *)buffer;
 
+	/* XXX
 	if (vioapic->id != old_vioapic->id) {
 		printf("%s: vioapic id mismatch\n", __func__);
 		return (EINVAL);
 	}
+	*/
 
 	vioapic->ioregsel = old_vioapic->ioregsel;
 	for (i = 0; i < REDIR_ENTRIES; i++) {
