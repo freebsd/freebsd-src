@@ -73,7 +73,6 @@ device		dwmmc
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 # ARM Generic Timer
 device		generic_timer

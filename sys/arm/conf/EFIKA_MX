@@ -131,5 +131,3 @@ options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp437
 device		ukbd			# Allow keyboard like HIDs to control console
 device		ums
-
-options 	INTRNG
