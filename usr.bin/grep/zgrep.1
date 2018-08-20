@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2018
+.Dd August 21, 2018
 .Dt ZGREP 1
 .Os
 .Sh NAME
@@ -43,9 +43,7 @@
 .Nm zstdgrep ,
 .Nm zstdegrep ,
 .Nm zstdfgrep
-.Nd
-.Xr grep 1
-compressed files
+.Nd grep compressed files
 .Sh SYNOPSIS
 .Nm
 .Oo Ar flags Oc Ar files
@@ -53,24 +51,28 @@ compressed files
 .Oo Ar flags Oc Ar files
 .Nm zfgrep
 .Oo Ar flags Oc Ar files
+.Pp
 .Nm bzgrep
 .Oo Ar flags Oc Ar files
 .Nm bzegrep
 .Oo Ar flags Oc Ar files
 .Nm bzfgrep
 .Oo Ar flags Oc Ar files
+.Pp
 .Nm lzgrep
 .Oo Ar flags Oc Ar files
 .Nm lzegrep
 .Oo Ar flags Oc Ar files
 .Nm lzfgrep
 .Oo Ar flags Oc Ar files
+.Pp
 .Nm xzgrep
 .Oo Ar flags Oc Ar files
 .Nm xzegrep
 .Oo Ar flags Oc Ar files
 .Nm xzfgrep
 .Oo Ar flags Oc Ar files
+.Pp
 .Nm zstdgrep
 .Oo Ar flags Oc Ar files
 .Nm zstdegrep
@@ -80,9 +82,11 @@ compressed files
 .Sh DESCRIPTION
 Allow
 .Xr grep 1
-to read compressed files
+to read compressed files.
 .Sh SEE ALSO
-.Xr grep 1
+.Xr bzip2 1 ,
+.Xr grep 1 ,
+.Xr xz 1
 .Sh AUTHORS
 This version of the
 .Nm
