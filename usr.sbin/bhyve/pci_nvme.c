@@ -358,7 +358,7 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc)
 }
 
 static void
-pci_nvme_reset(struct pci_nvme_softc *sc)
+pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	DPRINTF(("%s\r\n", __func__));
 
@@ -374,7 +374,6 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 	sc->regs.csts = 0;
 
 	if (sc->submit_queues != NULL) {
-		pthread_mutex_lock(&sc->mtx);
 		sc->num_cqueues = sc->num_squeues = sc->max_queues;
 
 		for (int i = 0; i <= sc->max_queues; i++) {
@@ -398,8 +397,6 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 			sc->compl_queues[i].tail = 0;
 			sc->compl_queues[i].head = 0;
 		}
-
-		pthread_mutex_unlock(&sc->mtx);
 	} else
 		sc->submit_queues = calloc(sc->max_queues + 1,
 		                        sizeof(struct nvme_submission_queue));
@@ -411,6 +408,14 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 		for (int i = 0; i <= sc->num_cqueues; i++)
 			pthread_mutex_init(&sc->compl_queues[i].mtx, NULL);
 	}
+}
+
+static void
+pci_nvme_reset(struct pci_nvme_softc *sc)
+{
+	pthread_mutex_lock(&sc->mtx);
+	pci_nvme_reset_locked(sc);
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 static void
@@ -1537,7 +1542,7 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 		if (NVME_CC_GET_EN(ccreg) != NVME_CC_GET_EN(sc->regs.cc)) {
 			if (NVME_CC_GET_EN(ccreg) == 0)
 				/* transition 1-> causes controller reset */
-				pci_nvme_reset(sc);
+				pci_nvme_reset_locked(sc);
 			else
 				pci_nvme_init_controller(ctx, sc);
 		}
