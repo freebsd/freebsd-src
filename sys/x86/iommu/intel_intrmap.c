@@ -338,7 +338,7 @@ dmar_init_irt(struct dmar_unit *unit)
 		return (0);
 	}
 	unit->irte_cnt = clp2(NUM_IO_INTS);
-	unit->irt = (dmar_irte_t *)(uintptr_t)kmem_alloc_contig(kernel_arena,
+	unit->irt = (dmar_irte_t *)(uintptr_t)kmem_alloc_contig(
 	    unit->irte_cnt * sizeof(dmar_irte_t), M_ZERO | M_WAITOK, 0,
 	    dmar_high, PAGE_SIZE, 0, DMAR_IS_COHERENT(unit) ?
 	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);

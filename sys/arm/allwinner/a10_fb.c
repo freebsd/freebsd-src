@@ -178,8 +178,8 @@ static struct resource_spec a10fb_spec[] = {
 static int
 a10fb_allocfb(struct a10fb_softc *sc)
 {
-	sc->vaddr = kmem_alloc_contig(kernel_arena, sc->fbsize,
-	    M_NOWAIT | M_ZERO, 0, ~0, FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
+	sc->vaddr = kmem_alloc_contig(sc->fbsize, M_NOWAIT | M_ZERO, 0, ~0,
+	    FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->vaddr == 0) {
 		device_printf(sc->dev, "failed to allocate FB memory\n");
 		return (ENOMEM);

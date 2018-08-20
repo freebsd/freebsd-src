@@ -1189,9 +1189,8 @@ agp_i810_install_gatt(device_t dev)
 		sc->dcache_size = 0;
 
 	/* According to the specs the gatt on the i810 must be 64k. */
-	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
-	    64 * 1024, M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
-	    0, VM_MEMATTR_WRITE_COMBINING);
+	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(64 * 1024, M_NOWAIT |
+	    M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->gatt->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
