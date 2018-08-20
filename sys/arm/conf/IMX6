@@ -22,8 +22,6 @@ ident		IMX6
 include 	"std.armv7"
 include 	"../freescale/imx/std.imx6"
 
-options 	INTRNG
-
 options 	SOC_IMX6
 
 options 	SCHED_ULE		# ULE scheduler

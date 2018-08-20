@@ -41,7 +41,6 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 # Cache controller
 device		pl310			# PL310 L2 cache controller
