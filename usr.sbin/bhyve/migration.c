@@ -126,6 +126,11 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 		.snapshot_cb = pci_snapshot,
 		.restore_cb = pci_restore
 	},
+	{
+		.dev_name = "e1000",
+		.snapshot_cb = pci_snapshot,
+		.restore_cb = pci_restore
+	},
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "mevent.h"
+#include "migration.h"
 
 /* Hardware/register definitions XXX: move some to common code. */
 #define E82545_VENDOR_ID_INTEL			0x8086
@@ -2378,11 +2379,294 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	return (0);
 }
 
+static int
+e82545_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		size_t buf_size, size_t *snapshot_len)
+{
+	int i;
+	struct e82545_softc *sc;
+	uint8_t *buf;
+	vm_paddr_t addr;
+	uint64_t bitmap_value;
+
+	sc = pi->pi_arg;
+
+	buf = buffer;
+
+	/* esc_mevp and esc_mevpitr should be reinitiated at init */
+
+	SNAPSHOT_PART_OR_RET(sc->esc_mac, buf, buf_size, snapshot_len);
+
+	/* General */
+	SNAPSHOT_PART_OR_RET(sc->esc_CTRL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCAL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCAH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCT, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_VET, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCTTV, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_LEDCTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_PBA, buf, buf_size, snapshot_len);
+
+	/* Interrupt control */
+	SNAPSHOT_PART_OR_RET(sc->esc_irq_asserted, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_ICR, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_ITR, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_ICS, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_IMS, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_IMC, buf, buf_size, snapshot_len);
+
+	/* Transmit */
+	/* The fields in the unions are in superposition to access certain
+	 * bytes in the larger uint variables
+	 * e.g., ip_config = [ipcss|ipcso|ipcse0|ipcse1]
+	 */
+	SNAPSHOT_PART_OR_RET(sc->esc_txctx.lower_setup.ip_config, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_txctx.upper_setup.tcp_config, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_txctx.cmd_and_length, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_txctx.tcp_seg_setup.data, buf, buf_size, snapshot_len);
+
+	SNAPSHOT_PART_OR_RET(sc->esc_tx_enabled, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_tx_active, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TXCW, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TCTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TIPG, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_AIT, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_tdba, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDBAL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDBAH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDLEN, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDHr, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TDT, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TIDV, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TXDCTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_TADV, buf, buf_size, snapshot_len);
+
+	/* Has dependency on esc_TDLEN; reoreder of fields from struct */
+	addr = paddr_host2guest(sc->esc_ctx, sc->esc_txdesc);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+
+	/* L2 frame acceptance */
+	for (i = 0; i < nitems(sc->esc_uni); i++) {
+		SNAPSHOT_PART_OR_RET(sc->esc_uni[i].eu_valid, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(sc->esc_uni[i].eu_addrsel, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(sc->esc_uni[i].eu_eth, buf, buf_size, snapshot_len);
+	}
+
+	SNAPSHOT_PART_OR_RET(sc->esc_fmcast, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_fvlan, buf, buf_size, snapshot_len);
+
+	/* Receive */
+	SNAPSHOT_PART_OR_RET(sc->esc_rx_enabled, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_rx_active, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_rx_loopback, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RCTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCRTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_FCRTH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_rdba, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDBAL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDBAH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDLEN, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDH, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDT, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RDTR, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RXDCTL, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RADV, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RSRPD, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->esc_RXCSUM, buf, buf_size, snapshot_len);
+
+	/* Has dependency on esc_RDLEN; reoreder of fields from struct */
+	addr = paddr_host2guest(sc->esc_ctx, sc->esc_rxdesc);
+	SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+	/* IO Port register access */
+	SNAPSHOT_PART_OR_RET(sc->io_addr, buf, buf_size, snapshot_len);
+
+	/* Shadow copy of MDIC */
+	SNAPSHOT_PART_OR_RET(sc->mdi_control, buf, buf_size, snapshot_len);
+	/* Shadow copy of EECD */
+	SNAPSHOT_PART_OR_RET(sc->eeprom_control, buf, buf_size, snapshot_len);
+	/* Latest NVM in/out */
+	SNAPSHOT_PART_OR_RET(sc->nvm_data, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->nvm_opaddr, buf, buf_size, snapshot_len);
+	/* stats */
+	SNAPSHOT_PART_OR_RET(sc->missed_pkt_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->pkt_rx_by_size[6], buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->pkt_tx_by_size[6], buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->good_pkt_rx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->bcast_pkt_rx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->mcast_pkt_rx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->good_pkt_tx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->bcast_pkt_tx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->mcast_pkt_tx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->oversize_rx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->tso_tx_count, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->good_octets_rx, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->good_octets_tx, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->missed_octets, buf, buf_size, snapshot_len);
+
+	bitmap_value = sc->nvm_bits;
+	SNAPSHOT_PART_OR_RET(bitmap_value, buf, buf_size, snapshot_len);
+	bitmap_value = sc->nvm_mode;
+	SNAPSHOT_PART_OR_RET(bitmap_value, buf, buf_size, snapshot_len);
+
+	/* EEPROM data */
+	SNAPSHOT_PART_OR_RET(sc->eeprom_data, buf, buf_size, snapshot_len);
+
+	return (0);
+}
+
+static int
+e82545_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+	       size_t buf_size)
+{
+	int i;
+	struct e82545_softc *sc;
+	uint8_t *buf;
+	vm_paddr_t addr;
+	uint64_t bitmap_value;
+
+	sc = pi->pi_arg;
+
+	buf = buffer;
+
+	/* esc_mevp and esc_mevpitr should be reinitiated at init */
+
+	RESTORE_PART_OR_RET(sc->esc_mac, buf, buf_size);
+
+	/* General */
+	RESTORE_PART_OR_RET(sc->esc_CTRL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCAL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCAH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCT, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_VET, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCTTV, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_LEDCTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_PBA, buf, buf_size);
+
+	/* Interrupt control */
+	RESTORE_PART_OR_RET(sc->esc_irq_asserted, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_ICR, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_ITR, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_ICS, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_IMS, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_IMC, buf, buf_size);
+
+	/* Transmit */
+	/* The fields in the unions are in superposition to access certain
+	 * bytes in the larger uint variables
+	 * e.g., ip_config = [ipcss|ipcso|ipcse0|ipcse1]
+	 */
+	RESTORE_PART_OR_RET(sc->esc_txctx.lower_setup.ip_config, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_txctx.upper_setup.tcp_config, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_txctx.cmd_and_length, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_txctx.tcp_seg_setup.data, buf, buf_size);
+
+	RESTORE_PART_OR_RET(sc->esc_tx_enabled, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_tx_active, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TXCW, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TCTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TIPG, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_AIT, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_tdba, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDBAL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDBAH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDLEN, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDHr, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TDT, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TIDV, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TXDCTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_TADV, buf, buf_size);
+
+	/* Has dependency on esc_TDLEN; reoreder of fields from struct */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	if (addr == (vm_paddr_t)-1)
+		sc->esc_txdesc = NULL;
+	else
+		sc->esc_txdesc = paddr_guest2host(sc->esc_ctx, addr, sc->esc_TDLEN);
+
+	/* L2 frame acceptance */
+	for (i = 0; i < nitems(sc->esc_uni); i++) {
+		RESTORE_PART_OR_RET(sc->esc_uni[i].eu_valid, buf, buf_size);
+		RESTORE_PART_OR_RET(sc->esc_uni[i].eu_addrsel, buf, buf_size);
+		RESTORE_PART_OR_RET(sc->esc_uni[i].eu_eth, buf, buf_size);
+	}
+
+	RESTORE_PART_OR_RET(sc->esc_fmcast, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_fvlan, buf, buf_size);
+
+	/* Receive */
+	RESTORE_PART_OR_RET(sc->esc_rx_enabled, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_rx_active, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_rx_loopback, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RCTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCRTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_FCRTH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_rdba, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDBAL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDBAH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDLEN, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDH, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDT, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RDTR, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RXDCTL, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RADV, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RSRPD, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->esc_RXCSUM, buf, buf_size);
+
+	/* Has dependency on esc_RDLEN; reoreder of fields from struct */
+	RESTORE_PART_OR_RET(addr, buf, buf_size);
+	if (addr == (vm_paddr_t)-1)
+		sc->esc_rxdesc = NULL;
+	else
+		sc->esc_rxdesc = paddr_guest2host(sc->esc_ctx, addr, sc->esc_TDLEN);
+
+	/* IO Port register access */
+	RESTORE_PART_OR_RET(sc->io_addr, buf, buf_size);
+
+	/* Shadow copy of MDIC */
+	RESTORE_PART_OR_RET(sc->mdi_control, buf, buf_size);
+	/* Shadow copy of EECD */
+	RESTORE_PART_OR_RET(sc->eeprom_control, buf, buf_size);
+	/* Latest NVM in/out */
+	RESTORE_PART_OR_RET(sc->nvm_data, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->nvm_opaddr, buf, buf_size);
+	/* stats */
+	RESTORE_PART_OR_RET(sc->missed_pkt_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->pkt_rx_by_size[6], buf, buf_size);
+	RESTORE_PART_OR_RET(sc->pkt_tx_by_size[6], buf, buf_size);
+	RESTORE_PART_OR_RET(sc->good_pkt_rx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->bcast_pkt_rx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->mcast_pkt_rx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->good_pkt_tx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->bcast_pkt_tx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->mcast_pkt_tx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->oversize_rx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->tso_tx_count, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->good_octets_rx, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->good_octets_tx, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->missed_octets, buf, buf_size);
+
+	RESTORE_PART_OR_RET(bitmap_value, buf, buf_size);
+	sc->nvm_bits = bitmap_value;
+	RESTORE_PART_OR_RET(bitmap_value, buf, buf_size);
+	sc->nvm_mode = bitmap_value;
+
+	/* EEPROM data */
+	RESTORE_PART_OR_RET(sc->eeprom_data, buf, buf_size);
+
+	return (0);
+}
+
 struct pci_devemu pci_de_e82545 = {
 	.pe_emu = 	"e1000",
 	.pe_init =	e82545_init,
 	.pe_barwrite =	e82545_write,
-	.pe_barread =	e82545_read
+	.pe_barread =	e82545_read,
+	.pe_snapshot =	e82545_snapshot,
+	.pe_restore =	e82545_restore
 };
 PCI_EMUL_SET(pci_de_e82545);
 
