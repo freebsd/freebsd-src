@@ -4780,7 +4780,7 @@ dodata:				/* XXX */
 		 * segments are out of order (so fast retransmit can work).
 		 */
 		if (th->th_seq == tp->rcv_nxt &&
-		    LIST_EMPTY(&tp->t_segq) &&
+		    SEGQ_EMPTY(tp) &&
 		    (TCPS_HAVEESTABLISHED(tp->t_state) ||
 		    tfo_syn)) {
 			if (DELAY_ACK(tp, tlen) || tfo_syn) {
@@ -4808,7 +4808,7 @@ dodata:				/* XXX */
 			 * m_adj() doesn't actually frees any mbufs when
 			 * trimming from the head.
 			 */
-			thflags = tcp_reass(tp, th, &tlen, m);
+			thflags = tcp_reass(tp, th, &save_start, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
 		if (tlen > 0)
@@ -5509,7 +5509,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * not, do so now to pass queued data to user.
 	 */
 	if (tlen == 0 && (thflags & TH_FIN) == 0)
-		(void)tcp_reass(tp, (struct tcphdr *)0, 0,
+		(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 		    (struct mbuf *)0);
 	tp->snd_wl1 = th->th_seq - 1;
 	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
@@ -5574,7 +5574,7 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if (__predict_true(((to->to_flags & TOF_SACK) == 0)) &&
 	    __predict_true((thflags & (TH_SYN | TH_FIN | TH_RST | TH_URG | TH_ACK)) == TH_ACK) &&
-	    __predict_true(LIST_EMPTY(&tp->t_segq)) &&
+	    __predict_true(SEGQ_EMPTY(tp)) &&
 	    __predict_true(th->th_seq == tp->rcv_nxt)) {
 		struct tcp_rack *rack;
 

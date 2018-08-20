@@ -46,12 +46,15 @@
 #if defined(_KERNEL) || defined(_WANT_TCPCB)
 /* TCP segment queue entry */
 struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
+	TAILQ_ENTRY(tseg_qent) tqe_q;
+	struct	mbuf   *tqe_m;		/* mbuf contains packet */
+	struct  mbuf   *tqe_last;	/* last mbuf in chain */
+	tcp_seq tqe_start;		/* TCP Sequence number start */
 	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+	uint32_t tqe_flags;		/* The flags from the th->th_flags */
+	uint32_t tqe_mbuf_cnt;		/* Count of mbuf overhead */
 };
-LIST_HEAD(tsegqe_head, tseg_qent);
+TAILQ_HEAD(tsegqe_head, tseg_qent);
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -78,6 +81,8 @@ struct sackhint {
 	uint32_t	_pad1[1];	/* TBD */
 	uint64_t	_pad[1];	/* TBD */
 };
+
+#define SEGQ_EMPTY(tp) TAILQ_EMPTY(&(tp)->t_segq)
 
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
@@ -131,6 +136,7 @@ struct tcpcb {
 	/* Cache line 3 */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
 	int	t_segqlen;		/* segment reassembly queue length */
+	uint32_t t_segqmbuflen;		/* Count of bytes mbufs on all entries */
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	struct mbuf      *t_in_pkt;
 	struct mbuf	 *t_tail_pkt;
@@ -837,7 +843,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
-int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
+int	 tcp_reass(struct tcpcb *, struct tcphdr *, tcp_seq *, int *, struct mbuf *);
 void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);

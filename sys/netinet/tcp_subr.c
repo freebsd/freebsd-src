@@ -1626,7 +1626,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_vnet = inp->inp_vnet;
 #endif
 	tp->t_timers = &tm->tt;
-	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
+	TAILQ_INIT(&tp->t_segq);
 	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
