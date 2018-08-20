@@ -1658,7 +1658,7 @@ ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
 }
 
 /*
- * Lookup an arbtrary key @paddr of legth @plen in table @tbl.
+ * Lookup an arbitrary key @paddr of length @plen in table @tbl.
  * Stores found value in @val.
  *
  * Returns 1 if key was found.
