@@ -121,7 +121,7 @@ prtblknos(disk, dp)
 		if (i < lastlbn - 1)
 			frags = fs->fs_frag;
 		else
-			frags = howmany(size % fs->fs_bsize,
+			frags = howmany(size - (lastlbn - 1) * fs->fs_bsize,
 					  fs->fs_fsize);
 		if (fs->fs_magic == FS_UFS1_MAGIC)
 			blkno = dp->dp1.di_db[i];
