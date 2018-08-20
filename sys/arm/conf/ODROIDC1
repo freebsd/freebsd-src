@@ -26,7 +26,6 @@ options 	SMP			# Enable multiple cores
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=odroidc1.dts

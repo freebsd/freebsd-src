@@ -4,6 +4,7 @@
 
 options 	HZ=1000
 options 	ARM_L2_PIPT		# Only L2 PIPT is supported
+options 	INTRNG			# All arm systems use INTRNG these days
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
@@ -79,4 +80,3 @@ options 	USB_DEBUG		# Enable usb debug support code
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-
