@@ -59,4 +59,17 @@ SUBDIR=		cross-build
 # Needed to build config (since it uses libnv)
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h
 
+
+# Create all the directories that are needed during the legacy, bootstrap-tools
+# and cross-tools stages. We do this here using mkdir since mtree may not exist
+# yet (this happens if we are crossbuilding from Linux/Mac).
+installdirs:
+.for _dir in bin sbin usr/bin usr/sbin usr/lib usr/include lib/geom lib/casper
+	mkdir -p "${DESTDIR}/${_dir}"
+.endfor
+
+.for _group in ${INCSGROUPS:NINCS}
+	mkdir -p "${DESTDIR}/${${_group}DIR}"
+.endfor
+
 .include <bsd.lib.mk>
