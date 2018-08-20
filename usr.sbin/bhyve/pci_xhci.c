@@ -2914,7 +2914,6 @@ pci_xhci_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
 
 	sc = pi->pi_arg;
 	buf = buffer;
-	*snapshot_len = 0;
 
 	SNAPSHOT_PART_OR_RET(sc->caplength, buf, buf_size, snapshot_len);
 	SNAPSHOT_PART_OR_RET(sc->hcsparams1, buf, buf_size, snapshot_len);
