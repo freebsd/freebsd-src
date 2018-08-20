@@ -98,6 +98,13 @@ CFLAGS+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 
+USE_ASM_SOURCES?=1
+.if defined(BOOTSTRAPPING)
+# Don't build ASM sources when bootstrapping to avoid toolchain dependencies
+USE_ASM_SOURCES:=0
+.endif
+
+.if ${USE_ASM_SOURCES} != 0
 .if exists(${MACHINE_ARCH}/sha.S)
 SRCS+=	sha.S
 CFLAGS+= -DSHA1_ASM
@@ -116,6 +123,7 @@ CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace w
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.s)
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
+.endif # ${USE_ASM_SOURCES} != 0
 
 md4hl.c: mdXhl.c
 	(echo '#define LENGTH 16'; \
