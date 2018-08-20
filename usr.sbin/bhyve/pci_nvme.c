@@ -254,6 +254,14 @@ static void pci_nvme_io_partial(struct blockif_req *br, int err);
 	 (NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT))
 
 static __inline void
+cpywithpad(char *dst, int dst_size, const char *src, char pad)
+{
+	int len = strnlen(src, dst_size);
+	memcpy(dst, src, len);
+	memset(dst + len, pad, dst_size - len);
+}
+
+static __inline void
 pci_nvme_status_tc(uint16_t *status, uint16_t type, uint16_t code)
 {
 
@@ -287,20 +295,8 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->vid = 0xFB5D;
 	cd->ssvid = 0x0000;
 
-	cd->mn[0] = 'b';
-	cd->mn[1] = 'h';
-	cd->mn[2] = 'y';
-	cd->mn[3] = 'v';
-	cd->mn[4] = 'e';
-	cd->mn[5] = '-';
-	cd->mn[6] = 'N';
-	cd->mn[7] = 'V';
-	cd->mn[8] = 'M';
-	cd->mn[9] = 'e';
-
-	cd->fr[0] = '1';
-	cd->fr[1] = '.';
-	cd->fr[2] = '0';
+	cpywithpad((char *)cd->mn, sizeof(cd->mn), "bhyve-NVMe", ' ');
+	cpywithpad((char *)cd->fr, sizeof(cd->fr), "1.0", ' ');
 
 	/* Num of submission commands that we can handle at a time (2^rab) */
 	cd->rab   = 4;
@@ -1715,12 +1711,11 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		} else if (!strcmp("ser", xopts)) {
 			/*
 			 * This field indicates the Product Serial Number in
-			 * 8-bit ASCII, unused bytes should be NULL characters.
-			 * Ref: NVM Express Management Interface 1.0a.
+			 * 7-bit ASCII, unused bytes should be space characters.
+			 * Ref: NVMe v1.3c.
 			 */
-			memset(sc->ctrldata.sn, 0, sizeof(sc->ctrldata.sn));
-			strncpy(sc->ctrldata.sn, config,
-			        sizeof(sc->ctrldata.sn));
+			cpywithpad((char *)sc->ctrldata.sn,
+			           sizeof(sc->ctrldata.sn), config, ' ');
 		} else if (!strcmp("ram", xopts)) {
 			uint64_t sz = strtoull(&xopts[4], NULL, 10);
 
