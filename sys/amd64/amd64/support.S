@@ -1230,9 +1230,9 @@ END(handle_ibrs_exit_rs)
  * Flush L1D cache.  Load enough of the data from the kernel text
  * to flush existing L1D content.
  *
- * N.B. The function follows ABI calling conventions, but the vmm.ko
- * caller expects that only %rax, %rcx, %r9, and %rflags registers
- * are clobbered.
+ * N.B. The function does not follow ABI calling conventions, it corrupts %rbx.
+ * The vmm.ko caller expects that only %rax, %rdx, %rbx, %rcx, %r9, and %rflags
+ * registers are clobbered.  The NMI handler caller only needs %r13 preserved.
  */
 ENTRY(flush_l1d_sw)
 #define	L1D_FLUSH_SIZE	(64 * 1024)
