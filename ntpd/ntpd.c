@@ -104,6 +104,10 @@
 #endif
 #endif
 
+#ifdef SYS_WINNT
+# include "ntservice.h"
+#endif
+
 #ifdef _AIX
 # include <ulimit.h>
 #endif /* _AIX */
@@ -123,6 +127,9 @@
 #if defined(HAVE_PRIV_H) && defined(HAVE_SOLARIS_PRIVS)
 # include <priv.h>
 #endif /* HAVE_PRIV_H */
+#if defined(HAVE_TRUSTEDBSD_MAC)
+# include <sys/mac.h>
+#endif /* HAVE_TRUSTEDBSD_MAC */
 #endif /* HAVE_DROPROOT */
 
 #if defined (LIBSECCOMP) && (KERN_SECCOMP)
@@ -182,7 +189,6 @@ char *group;		/* group to switch to */
 const char *chrootdir;	/* directory to chroot to */
 uid_t sw_uid;
 gid_t sw_gid;
-char *endp;
 struct group *gr;
 struct passwd *pw;
 #endif /* HAVE_DROPROOT */
@@ -523,6 +529,219 @@ set_process_priority(void)
 }
 #endif	/* !SIM */
 
+#if !defined(SIM) && !defined(SYS_WINNT)
+/*
+ * Detach from terminal (much like daemon())
+ * Nothe that this function calls exit()
+ */
+static void
+detach_from_terminal(
+	int pipe_fds[2],
+	long wait_sync,
+	const char *logfilename
+	)
+{
+	int rc;
+	int exit_code;
+#  if !defined(HAVE_SETSID) && !defined (HAVE_SETPGID) && defined(TIOCNOTTY)
+	int		fid;
+#  endif
+#  ifdef _AIX
+	struct sigaction sa;
+#  endif
+
+	rc = fork();
+	if (-1 == rc) {
+		exit_code = (errno) ? errno : -1;
+		msyslog(LOG_ERR, "fork: %m");
+		exit(exit_code);
+	}
+	if (rc > 0) {
+		/* parent */
+		exit_code = wait_child_sync_if(pipe_fds[0],
+					       wait_sync);
+		exit(exit_code);
+	}
+
+	/*
+	 * child/daemon
+	 * close all open files excepting waitsync_fd_to_close.
+	 * msyslog() unreliable until after init_logging().
+	 */
+	closelog();
+	if (syslog_file != NULL) {
+		fclose(syslog_file);
+		syslog_file = NULL;
+		syslogit = TRUE;
+	}
+	close_all_except(waitsync_fd_to_close);
+	INSIST(0 == open("/dev/null", 0) && 1 == dup2(0, 1) \
+		&& 2 == dup2(0, 2));
+
+	init_logging(progname, 0, TRUE);
+	/* we lost our logfile (if any) daemonizing */
+	setup_logfile(logfilename);
+
+#  ifdef SYS_DOMAINOS
+	{
+		uid_$t puid;
+		status_$t st;
+
+		proc2_$who_am_i(&puid);
+		proc2_$make_server(&puid, &st);
+	}
+#  endif	/* SYS_DOMAINOS */
+#  ifdef HAVE_SETSID
+	if (setsid() == (pid_t)-1)
+		msyslog(LOG_ERR, "setsid(): %m");
+#  elif defined(HAVE_SETPGID)
+	if (setpgid(0, 0) == -1)
+		msyslog(LOG_ERR, "setpgid(): %m");
+#  else		/* !HAVE_SETSID && !HAVE_SETPGID follows */
+#   ifdef TIOCNOTTY
+	fid = open("/dev/tty", 2);
+	if (fid >= 0) {
+		ioctl(fid, (u_long)TIOCNOTTY, NULL);
+		close(fid);
+	}
+#   endif	/* TIOCNOTTY */
+	ntp_setpgrp(0, getpid());
+#  endif	/* !HAVE_SETSID && !HAVE_SETPGID */
+#  ifdef _AIX
+	/* Don't get killed by low-on-memory signal. */
+	sa.sa_handler = catch_danger;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGDANGER, &sa, NULL);
+#  endif	/* _AIX */
+
+	return;
+}
+
+#ifdef HAVE_DROPROOT
+/*
+ * Map user name/number to user ID
+*/
+static int
+map_user(
+	)
+{
+	char *endp;
+
+	if (isdigit((unsigned char)*user)) {
+		sw_uid = (uid_t)strtoul(user, &endp, 0);
+		if (*endp != '\0')
+			goto getuser;
+
+		if ((pw = getpwuid(sw_uid)) != NULL) {
+			free(user);
+			user = estrdup(pw->pw_name);
+			sw_gid = pw->pw_gid;
+		} else {
+			errno = 0;
+			msyslog(LOG_ERR, "Cannot find user ID %s", user);
+			return 0;
+		}
+
+	} else {
+getuser:
+		errno = 0;
+		if ((pw = getpwnam(user)) != NULL) {
+			sw_uid = pw->pw_uid;
+			sw_gid = pw->pw_gid;
+		} else {
+			if (errno)
+				msyslog(LOG_ERR, "getpwnam(%s) failed: %m", user);
+			else
+				msyslog(LOG_ERR, "Cannot find user `%s'", user);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+/*
+ * Map group name/number to group ID
+*/
+static int
+map_group(
+	)
+{
+	char *endp;
+
+	if (isdigit((unsigned char)*group)) {
+		sw_gid = (gid_t)strtoul(group, &endp, 0);
+		if (*endp != '\0')
+			goto getgroup;
+	} else {
+getgroup:
+		if ((gr = getgrnam(group)) != NULL) {
+			sw_gid = gr->gr_gid;
+		} else {
+			errno = 0;
+			msyslog(LOG_ERR, "Cannot find group `%s'", group);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+/*
+ * Change (effective) user and group IDs, also initialize the supplementary group access list
+ */
+int
+set_user_group_ids(
+	)
+{
+	/* If the the user was already mapped, no need to map it again */
+	if ((NULL != user) && (0 == sw_uid)) {
+		if (0 == map_user())
+			exit (-1);
+	}
+	/* same applies for the group */
+	if ((NULL != group) && (0 == sw_gid)) {
+		if (0 == map_group())
+			exit (-1);
+	}
+
+	if (user && initgroups(user, sw_gid)) {
+		msyslog(LOG_ERR, "Cannot initgroups() to user `%s': %m", user);
+		return 0;
+	}
+	if (group && setgid(sw_gid)) {
+		msyslog(LOG_ERR, "Cannot setgid() to group `%s': %m", group);
+		return 0;
+	}
+	if (group && setegid(sw_gid)) {
+		msyslog(LOG_ERR, "Cannot setegid() to group `%s': %m", group);
+		return 0;
+	}
+	if (group) {
+		if (0 != setgroups(1, &sw_gid)) {
+			msyslog(LOG_ERR, "setgroups(1, %d) failed: %m", sw_gid);
+			return 0;
+		}
+	}
+	else if (pw)
+		if (0 != initgroups(pw->pw_name, pw->pw_gid)) {
+			msyslog(LOG_ERR, "initgroups(<%s>, %d) filed: %m", pw->pw_name, pw->pw_gid);
+			return 0;
+		}
+	if (user && setuid(sw_uid)) {
+		msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
+		return 0;
+	}
+	if (user && seteuid(sw_uid)) {
+		msyslog(LOG_ERR, "Cannot seteuid() to user `%s': %m", user);
+		return 0;
+	}
+
+	return 1;
+}
+#endif /* HAVE_DROPROOT */
+#endif /* !SIM */
 
 /*
  * Main program.  Initialize us, disconnect us from the tty if necessary,
@@ -549,12 +768,6 @@ ntpdmain(
 	int		pipe_fds[2];
 	int		rc;
 	int		exit_code;
-#  ifdef _AIX
-	struct sigaction sa;
-#  endif
-#  if !defined(HAVE_SETSID) && !defined (HAVE_SETPGID) && defined(TIOCNOTTY)
-	int		fid;
-#  endif
 # endif	/* HAVE_WORKING_FORK*/
 # ifdef SCO5_CLOCK
 	int		fd;
@@ -634,7 +847,12 @@ ntpdmain(
 	/* MPE lacks the concept of root */
 # if defined(HAVE_GETUID) && !defined(MPE)
 	uid = getuid();
-	if (uid && !HAVE_OPT( SAVECONFIGQUIT )) {
+	if (uid && !HAVE_OPT( SAVECONFIGQUIT )
+#  if defined(HAVE_TRUSTEDBSD_MAC)
+	    /* We can run as non-root if the mac_ntpd policy is enabled. */
+	    && mac_is_present("ntpd") != 1
+#  endif
+	    ) {
 		msyslog_term = TRUE;
 		msyslog(LOG_ERR,
 			"must be run as root, not uid %ld", (long)uid);
@@ -718,6 +936,11 @@ ntpdmain(
 	init_lib();
 # ifdef SYS_WINNT
 	/*
+	 * Make sure the service is initialized before we do anything else
+	 */
+	ntservice_init();
+
+	/*
 	 * Start interpolation thread, must occur before first
 	 * get_systime()
 	 */
@@ -736,70 +959,7 @@ ntpdmain(
 	if (!nofork) {
 
 # ifdef HAVE_WORKING_FORK
-		rc = fork();
-		if (-1 == rc) {
-			exit_code = (errno) ? errno : -1;
-			msyslog(LOG_ERR, "fork: %m");
-			exit(exit_code);
-		}
-		if (rc > 0) {	
-			/* parent */
-			exit_code = wait_child_sync_if(pipe_fds[0],
-						       wait_sync);
-			exit(exit_code);
-		}
-		
-		/*
-		 * child/daemon 
-		 * close all open files excepting waitsync_fd_to_close.
-		 * msyslog() unreliable until after init_logging().
-		 */
-		closelog();
-		if (syslog_file != NULL) {
-			fclose(syslog_file);
-			syslog_file = NULL;
-			syslogit = TRUE;
-		}
-		close_all_except(waitsync_fd_to_close);
-		INSIST(0 == open("/dev/null", 0) && 1 == dup2(0, 1) \
-			&& 2 == dup2(0, 2));
-
-		init_logging(progname, 0, TRUE);
-		/* we lost our logfile (if any) daemonizing */
-		setup_logfile(logfilename);
-
-#  ifdef SYS_DOMAINOS
-		{
-			uid_$t puid;
-			status_$t st;
-
-			proc2_$who_am_i(&puid);
-			proc2_$make_server(&puid, &st);
-		}
-#  endif	/* SYS_DOMAINOS */
-#  ifdef HAVE_SETSID
-		if (setsid() == (pid_t)-1)
-			msyslog(LOG_ERR, "setsid(): %m");
-#  elif defined(HAVE_SETPGID)
-		if (setpgid(0, 0) == -1)
-			msyslog(LOG_ERR, "setpgid(): %m");
-#  else		/* !HAVE_SETSID && !HAVE_SETPGID follows */
-#   ifdef TIOCNOTTY
-		fid = open("/dev/tty", 2);
-		if (fid >= 0) {
-			ioctl(fid, (u_long)TIOCNOTTY, NULL);
-			close(fid);
-		}
-#   endif	/* TIOCNOTTY */
-		ntp_setpgrp(0, getpid());
-#  endif	/* !HAVE_SETSID && !HAVE_SETPGID */
-#  ifdef _AIX
-		/* Don't get killed by low-on-memory signal. */
-		sa.sa_handler = catch_danger;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = SA_RESTART;
-		sigaction(SIGDANGER, &sa, NULL);
-#  endif	/* _AIX */
+		detach_from_terminal(pipe_fds, wait_sync, logfilename);
 # endif		/* HAVE_WORKING_FORK */
 	}
 
@@ -972,51 +1132,12 @@ ntpdmain(
 #  endif	/* HAVE_LINUX_CAPABILITIES || HAVE_SOLARIS_PRIVS */
 
 		if (user != NULL) {
-			if (isdigit((unsigned char)*user)) {
-				sw_uid = (uid_t)strtoul(user, &endp, 0);
-				if (*endp != '\0')
-					goto getuser;
-
-				if ((pw = getpwuid(sw_uid)) != NULL) {
-					free(user);
-					user = estrdup(pw->pw_name);
-					sw_gid = pw->pw_gid;
-				} else {
-					errno = 0;
-					msyslog(LOG_ERR, "Cannot find user ID %s", user);
-					exit (-1);
-				}
-
-			} else {
-getuser:
-				errno = 0;
-				if ((pw = getpwnam(user)) != NULL) {
-					sw_uid = pw->pw_uid;
-					sw_gid = pw->pw_gid;
-				} else {
-					if (errno)
-						msyslog(LOG_ERR, "getpwnam(%s) failed: %m", user);
-					else
-						msyslog(LOG_ERR, "Cannot find user `%s'", user);
-					exit (-1);
-				}
-			}
+			if (0 == map_user())
+				exit (-1);
 		}
 		if (group != NULL) {
-			if (isdigit((unsigned char)*group)) {
-				sw_gid = (gid_t)strtoul(group, &endp, 0);
-				if (*endp != '\0')
-					goto getgroup;
-			} else {
-getgroup:
-				if ((gr = getgrnam(group)) != NULL) {
-					sw_gid = gr->gr_gid;
-				} else {
-					errno = 0;
-					msyslog(LOG_ERR, "Cannot find group `%s'", group);
-					exit (-1);
-				}
-			}
+			if (0 == map_group())
+				exit (-1);
 		}
 
 		if (chrootdir ) {
@@ -1050,39 +1171,20 @@ getgroup:
 			exit(-1);
 		}
 #  endif /* HAVE_SOLARIS_PRIVS */
-		if (user && initgroups(user, sw_gid)) {
-			msyslog(LOG_ERR, "Cannot initgroups() to user `%s': %m", user);
-			exit (-1);
-		}
-		if (group && setgid(sw_gid)) {
-			msyslog(LOG_ERR, "Cannot setgid() to group `%s': %m", group);
-			exit (-1);
-		}
-		if (group && setegid(sw_gid)) {
-			msyslog(LOG_ERR, "Cannot setegid() to group `%s': %m", group);
-			exit (-1);
-		}
-		if (group) {
-			if (0 != setgroups(1, &sw_gid)) {
-				msyslog(LOG_ERR, "setgroups(1, %d) failed: %m", sw_gid);
-				exit (-1);
-			}
-		}
-		else if (pw)
-			if (0 != initgroups(pw->pw_name, pw->pw_gid)) {
-				msyslog(LOG_ERR, "initgroups(<%s>, %d) filed: %m", pw->pw_name, pw->pw_gid);
-				exit (-1);
-			}
-		if (user && setuid(sw_uid)) {
-			msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
-			exit (-1);
-		}
-		if (user && seteuid(sw_uid)) {
-			msyslog(LOG_ERR, "Cannot seteuid() to user `%s': %m", user);
-			exit (-1);
-		}
+		if (0 == set_user_group_ids())
+			exit(-1);
 
-#  if !defined(HAVE_LINUX_CAPABILITIES) && !defined(HAVE_SOLARIS_PRIVS)
+#  if defined(HAVE_TRUSTEDBSD_MAC)
+		/*
+		 * To manipulate system time and (re-)bind to NTP_PORT as needed
+		 * following interface changes, we must either run as uid 0 or
+		 * the mac_ntpd policy module must be enabled.
+		 */
+		if (sw_uid != 0 && mac_is_present("ntpd") != 1) {
+			msyslog(LOG_ERR, "Need MAC 'ntpd' policy enabled to drop root privileges");
+			exit (-1);
+		}
+#  elif !defined(HAVE_LINUX_CAPABILITIES) && !defined(HAVE_SOLARIS_PRIVS)
 		/*
 		 * for now assume that the privilege to bind to privileged ports
 		 * is associated with running with uid 0 - should be refined on
@@ -1244,6 +1346,10 @@ int scmp_sc[] = {
 		msyslog(LOG_DEBUG, "%s: seccomp_load() succeeded", __func__);
 	}
 #endif /* LIBSECCOMP and KERN_SECCOMP */
+
+#ifdef SYS_WINNT
+	ntservice_isup();
+#endif
 
 # ifdef HAVE_IO_COMPLETION_PORT
 

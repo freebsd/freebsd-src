@@ -21,6 +21,7 @@
   #include "ntp_scanner.h"
   #include "ntp_config.h"
   #include "ntp_crypto.h"
+  #include "ntp_calendar.h"
 
   #include "ntpsim.h"		/* HMS: Do we really want this all the time? */
 				/* SK: It might be a good idea to always

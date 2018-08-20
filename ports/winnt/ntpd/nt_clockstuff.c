@@ -659,12 +659,6 @@ init_winnt_time(void)
 	if (winnt_time_initialized)
 		return;
 
-	/*
-	 * Make sure the service is initialized
-	 * before we do anything else
-	 */
-	ntservice_init();
-
 	/* Set up the Console Handler */
 	if (!SetConsoleCtrlHandler(OnConsoleEvent, TRUE)) {
 		msyslog(LOG_ERR, "Can't set console control handler: %m");

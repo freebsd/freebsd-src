@@ -485,7 +485,8 @@ datum_pts_receive(
 	struct recvbuf *rbufp
 	)
 {
-	int i, nb;
+	int i;
+	size_t nb;
 	l_fp tstmp;
 	struct peer *p;
 	struct datum_pts_unit *datum_pts;

@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p11 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p12 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -329,7 +329,7 @@ option.
 <br><dt><code>key</code> <kbd>key</kbd><dd>All packets sent to and received from the server or peer are to
 include authentication fields encrypted using the specified
 <kbd>key</kbd>
-identifier with values from 1 to 65534, inclusive. 
+identifier with values from 1 to 65535, inclusive. 
 The
 default is to include no encryption field. 
 <br><dt><code>minpoll</code> <kbd>minpoll</kbd><br><dt><code>maxpoll</code> <kbd>maxpoll</kbd><dd>These options specify the minimum and maximum poll intervals
@@ -584,7 +584,7 @@ and reports at the NTP project page linked from
 <h5 class="subsubsection">Symmetric-Key Cryptography</h5>
 
 <p>The original RFC-1305 specification allows any one of possibly
-65,534 keys, each distinguished by a 32-bit key identifier, to
+65,535 keys, each distinguished by a 32-bit key identifier, to
 authenticate an association. 
 The servers and clients involved must
 agree on the key and key identifier to
@@ -876,7 +876,7 @@ The
 <kbd>key</kbd>
 argument is
 the key identifier for a trusted key, where the value can be in the
-range 1 to 65,534, inclusive. 
+range 1 to 65,535, inclusive. 
 <br><dt><code>crypto</code> <code>[cert </code><kbd>file</kbd><code>]</code> <code>[leap </code><kbd>file</kbd><code>]</code> <code>[randfile </code><kbd>file</kbd><code>]</code> <code>[host </code><kbd>file</kbd><code>]</code> <code>[sign </code><kbd>file</kbd><code>]</code> <code>[gq </code><kbd>file</kbd><code>]</code> <code>[gqpar </code><kbd>file</kbd><code>]</code> <code>[iffpar </code><kbd>file</kbd><code>]</code> <code>[mvpar </code><kbd>file</kbd><code>]</code> <code>[pw </code><kbd>password</kbd><code>]</code><dd>This command requires the OpenSSL library. 
 It activates public key
 cryptography, selects the message digest and signature
@@ -956,7 +956,7 @@ The
 <kbd>key</kbd>
 argument is a key identifier
 for the trusted key, where the value can be in the range 1 to
-65,534, inclusive. 
+65,535, inclusive. 
 <br><dt><code>revoke</code> <kbd>logsec</kbd><dd>Specifies the interval between re-randomization of certain
 cryptographic values used by the Autokey scheme, as a power of 2 in
 seconds. 
@@ -981,7 +981,7 @@ servers.
 The
 <kbd>key</kbd>
 arguments are 32-bit unsigned
-integers with values from 1 to 65,534. 
+integers with values from 1 to 65,535. 
 </dl>
 
 <h5 class="subsubsection">Error Codes</h5>
