@@ -243,12 +243,6 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 .if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libzfs_core/common; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libzfs_core.h \
-	    ${DESTDIR}${INCLUDEDIR}
-	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libnvpair; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libnvpair.h \
-	    ${DESTDIR}${INCLUDEDIR}
 	cd ${.CURDIR}/../sys/cddl/contrib/opensolaris/uts/common/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
 	    ${DESTDIR}${INCLUDEDIR}/sys

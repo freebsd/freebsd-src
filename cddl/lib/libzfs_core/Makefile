@@ -9,6 +9,7 @@
 LIB=	zfs_core
 LIBADD=	nvpair
 
+INCS=	libzfs_core.h
 SRCS=	libzfs_core.c \
 	libzfs_core_compat.c \
 	zfs_ioctl_compat.c
