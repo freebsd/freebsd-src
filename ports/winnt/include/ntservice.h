@@ -22,6 +22,7 @@
 #define NTP_SERVICE_NAME "ntpd"
 
 void ntservice_init(void);
+void ntservice_isup(void);
 void UpdateSCM(DWORD);
 void WINAPI ServiceControl(DWORD dwCtrlCode);
 void ntservice_shutdown(void);

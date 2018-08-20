@@ -36,7 +36,7 @@ display the time offset of the system clock relative to the server
 clock.  Run as root, it can correct the system clock to this offset as
 well.  It can be run as an interactive command or from a cron job.
 
-  <p>This document applies to version 4.2.8p11 of <code>sntp</code>.
+  <p>This document applies to version 4.2.8p12 of <code>sntp</code>.
 
   <p>The program implements the SNTP protocol as defined by RFC 5905, the NTPv4
 IETF specification.
@@ -176,54 +176,50 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">sntp - standard Simple Network Time Protocol client program - Ver. 4.2.7p245
-USAGE:  sntp [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... \
+<pre class="example">sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p12
+Usage:  sntp [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... \
                 [ hostname-or-IP ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
-                                - prohibits these options:
-                                ipv6
+                                - prohibits the option 'ipv6'
    -6 no  ipv6           Force IPv6 DNS name resolution
-                                - prohibits these options:
-                                ipv4
-   -a Num authentication Enable authentication with the key @var{auth-keynumber}
-   -B Num bctimeout      The number of seconds to wait for broadcasts
+                                - prohibits the option 'ipv4'
+   -a Num authentication Enable authentication with the key auth-keynumber
    -b Str broadcast      Listen to the address specified for broadcast time sync
                                 - may appear multiple times
    -c Str concurrent     Concurrently query all IPs returned for host-name
                                 - may appear multiple times
    -d no  debug-level    Increase debug verbosity level
                                 - may appear multiple times
-   -D Str set-debug-level Set the debug verbosity level
+   -D Num set-debug-level Set the debug verbosity level
                                 - may appear multiple times
    -g Num gap            The gap (in milliseconds) between time requests
    -K Fil kod            KoD history filename
-   -k Fil keyfile        Look in this file for the key specified with @option{-a}
+   -k Fil keyfile        Look in this file for the key specified with -a
    -l Fil logfile        Log to specified logfile
-   -M Num steplimit      Adjustments less than @var{steplimit} msec will be slewed
-                                - It must be in the range:
+   -M Num steplimit      Adjustments less than steplimit msec will be slewed
+                                - it must be in the range:
                                   greater than or equal to 0
-   -o Num ntpversion     Send @var{int} as our NTP version
-                                - It must be in the range:
+   -o Num ntpversion     Send int as our NTP protocol version
+                                - it must be in the range:
                                   0 to 7
    -r no  usereservedport Use the NTP Reserved Port (port 123)
-   -S no  step           OK to 'step' the time with @command{settimeofday(2)}
-   -s no  slew           OK to 'slew' the time with @command{adjtime(2)}
-   -u Num uctimeout      The number of seconds to wait for unicast responses
+   -S no  step           OK to 'step' the time with settimeofday(2)
+   -s no  slew           OK to 'slew' the time with adjtime(2)
+   -t Num timeout        The number of seconds to wait for responses
       no  wait           Wait for pending replies (if not setting the time)
-                                - disabled as --no-wait
+                                - disabled as '--no-wait'
                                 - enabled by default
-      opt version        Output version information and exit
-   -? no  help           Display extended usage information and exit
-   -! no  more-help      Extended usage information passed thru pager
-   -&gt; opt save-opts      Save the option state to a config file
-   -&lt; Str load-opts      Load options from a config file
-                                - disabled as --no-load-opts
+      opt version        output version information and exit
+   -? no  help           display extended usage information and exit
+   -! no  more-help      extended usage information passed thru pager
+   -&gt; opt save-opts      save the option state to a config file
+   -&lt; Str load-opts      load options from a config file
+                                - disabled as '--no-load-opts'
                                 - may appear multiple times
 
 Options are specified by doubled hyphens and their name or by a single
 hyphen and the flag character.
-
 
 
 The following option preset mechanisms are supported:
@@ -231,7 +227,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named SNTP_*
 
-please send bug reports to:  http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
 </pre>
   <div class="node">
 <p><hr>

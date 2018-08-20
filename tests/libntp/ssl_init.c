@@ -59,7 +59,7 @@ test_SHA1KeyTypeWithDigestLength(void) {
 
 void
 test_CMACKeyTypeWithDigestLength(void) {
-#ifdef OPENSSL
+#if defined(OPENSSL) && defined(ENABLE_CMAC)
 	size_t digestLength;
 	size_t expected = TEST_CMAC_DIGEST_LENGTH;
 
@@ -67,7 +67,7 @@ test_CMACKeyTypeWithDigestLength(void) {
 	TEST_ASSERT_EQUAL(expected, digestLength);
 	/* OPENSSL */
 #else 
-	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
+	TEST_IGNORE_MESSAGE("Skipping because OPENSSL/CMAC isn't defined");
 #endif
 }
 
@@ -91,10 +91,10 @@ test_SHA1KeyName(void) {
 
 void
 test_CMACKeyName(void) {
-#ifdef OPENSSL
+#if defined(OPENSSL)  && defined(ENABLE_CMAC)
 	TEST_ASSERT_EQUAL_STRING(CMAC, keytype_name(NID_cmac));
 #else
-	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
+	TEST_IGNORE_MESSAGE("Skipping because OPENSSL/CMAC isn't defined");
 #endif	/* OPENSSL */
 }
 
