@@ -106,8 +106,8 @@ int restore_part(volatile void *data, size_t data_size, uint8_t **buffer,
 				(size_t *) &(BUF_SIZE), SNAP_LEN),             \
 	uint8_t**: snapshot_part(&(DATA), sizeof(DATA), (uint8_t **) (BUFFER), \
 				(size_t *) (BUF_SIZE), SNAP_LEN),              \
-	default: fprintf(stderr, "Incompatible pointer. Must be uint8_t * or " \
-			 "uint8_t **\r\n")                                     \
+	default: ({ fprintf(stderr, "Incompatible pointer. Must be uint8_t * " \
+			    "or uint8_t **\r\n"); -2; })                       \
 )
 
 #define	RESTORE_PART(DATA, BUFFER, BUF_SIZE) _Generic((BUFFER),                \
@@ -115,8 +115,8 @@ int restore_part(volatile void *data, size_t data_size, uint8_t **buffer,
 				(size_t *) &(BUF_SIZE)),                       \
 	uint8_t**: restore_part(&(DATA), sizeof(DATA), (uint8_t **) (BUFFER),  \
 				(size_t *) (BUF_SIZE)),                        \
-	default: fprintf(stderr, "Incompatible pointer. Must be uint8_t * or " \
-			 "uint8_t **\r\n")                                     \
+	default: ({ fprintf(stderr, "Incompatible pointer. Must be uint8_t * " \
+			    "or uint8_t **\r\n"); -2; })                       \
 )
 
 #define	SNAPSHOT_PART_OR_RET(DATA, BUFFER, BUF_SIZE, SNAP_LEN)                 \
