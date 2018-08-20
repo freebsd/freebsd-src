@@ -310,14 +310,6 @@ function core.isZFSBoot()
 end
 
 function core.isSerialBoot()
-	local c = loader.getenv("console")
-
-	if c ~= nil then
-		if c:find("comconsole") ~= nil then
-			return true
-		end
-	end
-
 	local s = loader.getenv("boot_serial")
 	if s ~= nil then
 		return true
@@ -336,14 +328,6 @@ end
 
 -- Is the menu skipped in the environment in which we've booted?
 function core.isMenuSkipped()
-	if core.isSerialBoot() then
-		return true
-	end
-	local c = string.lower(loader.getenv("console") or "")
-	if c:match("^efi[ ;]") ~= nil or c:match("[ ;]efi[ ;]") ~= nil then
-		return true
-	end
-
 	c = string.lower(loader.getenv("beastie_disable") or "")
 	return c == "yes"
 end
