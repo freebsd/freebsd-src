@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 static char da[] = "da";
 
 enum x_stats { X_SUM, X_HZ, X_STATHZ, X_NCHSTATS, X_INTRNAMES, X_SINTRNAMES,
-    X_INTRCNT, X_SINTRCNT, X_DEFICIT, X_REC, X_PGIN, X_XSTATS };
+    X_INTRCNT, X_SINTRCNT };
 
 static struct nlist namelist[] = {
 	[X_SUM] = { .n_name = "_vm_cnt", },
@@ -97,12 +97,6 @@ static struct nlist namelist[] = {
 	[X_SINTRNAMES] = { .n_name = "_sintrnames", },
 	[X_INTRCNT] = { .n_name = "_intrcnt", },
 	[X_SINTRCNT] = { .n_name = "_sintrcnt", },
-#ifdef notyet
-	[X_DEFICIT] = { .n_name = "_deficit", },
-	[X_REC] = { .n_name = "_rectime", },
-	[X_PGIN] = { .n_name = "_pgintime", },
-	[X_XSTATS] = { .n_name = "_xstats", },
-#endif
 	{ .n_name = NULL, },
 };
 
@@ -232,7 +226,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		return (argc);
 
-	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:stw:z")) != -1) {
+	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:sw:z")) != -1) {
 		switch (c) {
 		case 'a':
 			aflag++;
@@ -281,14 +275,6 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			todo |= SUMSTAT;
-			break;
-		case 't':
-#ifdef notyet
-			todo |= TIMESTAT;
-#else
-			xo_errx(EX_USAGE,
-			    "sorry, -t is not (re)implemented yet");
-#endif
 			break;
 		case 'w':
 			/* Convert to milliseconds. */
@@ -394,10 +380,6 @@ retry_nlist:
 		dosum();
 	if (todo & OBJSTAT)
 		doobjstat();
-#ifdef notyet
-	if (todo & TIMESTAT)
-		dotimes();
-#endif
 	if (todo & INTRSTAT)
 		dointr(interval, reps);
 	if (todo & VMSTAT)
@@ -966,29 +948,6 @@ doresize(void)
 	 */
 	wresized = 0;
 }
-
-#ifdef notyet
-static void
-dotimes(void)
-{
-	unsigned int pgintime, rectime;
-
-	kread(X_REC, &rectime, sizeof(rectime));
-	kread(X_PGIN, &pgintime, sizeof(pgintime));
-	kread(X_SUM, &sum, sizeof(sum));
-	xo_emit("{:page-reclaims/%u} {N:reclaims}, "
-	    "{:reclaim-time/%u} {N:total time (usec)}\n",
-	    sum.v_pgrec, rectime);
-	xo_emit("{L:average}: {:reclaim-average/%u} {N:usec \\/ reclaim}\n",
-	    rectime / sum.v_pgrec);
-	xo_emit("\n");
-	xo_emit("{:page-ins/%u} {N:page ins}, "
-	    "{:page-in-time/%u} {N:total time (msec)}\n",
-	    sum.v_pgin, pgintime / 10);
-	xo_emit("{L:average}: {:average/%8.1f} {N:msec \\/ page in}\n",
-	    pgintime / (sum.v_pgin * 10.0));
-}
-#endif
 
 static long
 pct(long top, long bot)
