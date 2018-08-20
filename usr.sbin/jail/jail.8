@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2018
+.Dd August 20, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -1033,7 +1033,7 @@ jail -c path=/data/jail/testjail mount.devfs \\
 .Pp
 Assuming no errors, you will end up with a shell prompt within the jail.
 You can now run
-.Pa /usr/sbin/bsdinstall
+.Xr bsdconfig 8
 and do the post-install configuration to set various configuration options,
 or perform these actions manually by editing
 .Pa /etc/rc.conf ,
@@ -1312,6 +1312,7 @@ environment of the first jail.
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
+.Xr bsdconfig 8 ,
 .Xr chroot 8 ,
 .Xr devfs 8 ,
 .Xr halt 8 ,
