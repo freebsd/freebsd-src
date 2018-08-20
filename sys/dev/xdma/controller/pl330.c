@@ -392,8 +392,8 @@ pl330_channel_alloc(device_t dev, struct xdma_channel *xchan)
 			chan->sc = sc;
 			chan->used = 1;
 
-			chan->ibuf = (void *)kmem_alloc_contig(kernel_arena,
-			    PAGE_SIZE*8, M_ZERO, 0, ~0, PAGE_SIZE, 0,
+			chan->ibuf = (void *)kmem_alloc_contig(PAGE_SIZE * 8,
+			    M_ZERO, 0, ~0, PAGE_SIZE, 0,
 			    VM_MEMATTR_UNCACHEABLE);
 			chan->ibuf_phys = vtophys(chan->ibuf);
 

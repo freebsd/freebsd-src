@@ -1234,9 +1234,9 @@ dc_init_client(device_t dev, device_t host1x, struct tegra_drm *drm)
 	}
 
 	/* allocate memory for cursor cache */
-	sc->tegra_crtc.cursor_vbase = kmem_alloc_contig(kernel_arena,
-	    256 * 256 * 4, M_WAITOK | M_ZERO,
-	    0, -1UL, PAGE_SIZE, 0, VM_MEMATTR_WRITE_COMBINING);
+	sc->tegra_crtc.cursor_vbase = kmem_alloc_contig(256 * 256 * 4,
+	    M_WAITOK | M_ZERO, 0, -1UL, PAGE_SIZE, 0,
+	    VM_MEMATTR_WRITE_COMBINING);
 	sc->tegra_crtc.cursor_pbase = vtophys(sc->tegra_crtc.cursor_vbase);
 	return (0);
 }

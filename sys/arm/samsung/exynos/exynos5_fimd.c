@@ -356,8 +356,8 @@ fimd_attach(device_t dev)
 	sc->sc_info.fb_stride = sc->sc_info.fb_width * 2;
 	sc->sc_info.fb_bpp = sc->sc_info.fb_depth = 16;
 	sc->sc_info.fb_size = sc->sc_info.fb_height * sc->sc_info.fb_stride;
-	sc->sc_info.fb_vbase = (intptr_t)kmem_alloc_contig(kernel_arena,
-	    sc->sc_info.fb_size, M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	sc->sc_info.fb_vbase = (intptr_t)kmem_alloc_contig(sc->sc_info.fb_size,
+	    M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	sc->sc_info.fb_pbase = (intptr_t)vtophys(sc->sc_info.fb_vbase);
 
 #if 0
