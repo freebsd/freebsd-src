@@ -483,6 +483,27 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
   sleep 3
   SOURCEDIR=${SOURCEDIR}/..
 fi
+if [ ! -f ${SOURCEDIR}/Makefile.inc1 ]; then
+    echo     "*** ${SOURCEDIR} was not found."
+    if [ -f ./Makefile.inc1 ]; then
+	echo "    Found Makefile.inc1 in the current directory."
+	echo -n "    Would you like to set SOURCEDIR to $(pwd)? [no and exit] "
+	read SRCDOT
+	case "${SRCDOT}" in
+	    [yY]*)
+		echo "    *** Setting SOURCEDIR to $(pwd)"
+		SOURCEDIR=$(pwd)
+		;;
+	    *)
+		echo "    **** No suitable ${SOURCEDIR} found, exiting"
+		exit 1
+		;;
+	esac
+    else
+	echo "    **** No suitable ${SOURCEDIR} found, exiting"
+	exit 1
+    fi
+fi
 SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
