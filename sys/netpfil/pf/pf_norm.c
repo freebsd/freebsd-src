@@ -95,8 +95,10 @@ struct pf_fragment {
 	uint16_t	fr_max;		/* fragment data max */
 	uint32_t	fr_timeout;
 	uint16_t	fr_maxlen;	/* maximum length of single fragment */
+	uint16_t	fr_entries;	/* Total number of pf_fragment entries */
 	TAILQ_HEAD(pf_fragq, pf_frent) fr_queue;
 };
+#define PF_MAX_FRENT_PER_FRAGMENT	64
 
 struct pf_fragment_tag {
 	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
@@ -436,6 +438,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		frag->fr_flags = 0;
 		frag->fr_timeout = time_uptime;
 		frag->fr_maxlen = frent->fe_len;
+		frag->fr_entries = 0;
 		TAILQ_INIT(&frag->fr_queue);
 
 		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, frag);
@@ -446,6 +449,9 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 		return (frag);
 	}
+
+	if (frag->fr_entries >= PF_MAX_FRENT_PER_FRAGMENT)
+		goto bad_fragment;
 
 	KASSERT(!TAILQ_EMPTY(&frag->fr_queue), ("!TAILQ_EMPTY()->fr_queue"));
 
@@ -518,6 +524,8 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		TAILQ_INSERT_HEAD(&frag->fr_queue, frent, fr_next);
 	else
 		TAILQ_INSERT_AFTER(&frag->fr_queue, prev, frent, fr_next);
+
+	frag->fr_entries++;
 
 	return (frag);
 
