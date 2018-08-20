@@ -1872,7 +1872,7 @@ carp_attach(struct ifaddr *ifa, int vhid)
 }
 
 void
-carp_detach(struct ifaddr *ifa)
+carp_detach(struct ifaddr *ifa, bool keep_cif)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct carp_if *cif = ifp->if_carp;
@@ -1918,12 +1918,13 @@ carp_detach(struct ifaddr *ifa)
 	carp_hmac_prepare(sc);
 	carp_sc_state(sc);
 
-	if (sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0)
+	if (!keep_cif && sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0)
 		carp_destroy(sc);
 	else
 		CARP_UNLOCK(sc);
 
-	CIF_FREE(cif);
+	if (!keep_cif)
+		CIF_FREE(cif);
 
 	sx_xunlock(&carp_sx);
 }

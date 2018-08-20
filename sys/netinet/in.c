@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp_var.h>
 
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
-static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
+static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 
 static void	in_socktrim(struct sockaddr_in *);
 static void	in_purgemaddrs(struct ifnet *);
@@ -245,7 +245,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 	case SIOCDIFADDR:
 		sx_xlock(&in_control_sx);
-		error = in_difaddr_ioctl(data, ifp, td);
+		error = in_difaddr_ioctl(cmd, data, ifp, td);
 		sx_xunlock(&in_control_sx);
 		return (error);
 	case OSIOCAIFADDR:	/* 9.x compat */
@@ -390,7 +390,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	IF_ADDR_RUNLOCK(ifp);
 
 	if (ia != NULL)
-		(void )in_difaddr_ioctl(data, ifp, td);
+		(void )in_difaddr_ioctl(cmd, data, ifp, td);
 
 	ifa = ifa_alloc(sizeof(struct in_ifaddr), M_WAITOK);
 	ia = (struct in_ifaddr *)ifa;
@@ -528,7 +528,7 @@ fail2:
 
 fail1:
 	if (ia->ia_ifa.ifa_carp)
-		(*carp_detach_p)(&ia->ia_ifa);
+		(*carp_detach_p)(&ia->ia_ifa, false);
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -545,7 +545,7 @@ fail1:
 }
 
 static int
-in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
+in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 {
 	const struct ifreq *ifr = (struct ifreq *)data;
 	const struct sockaddr_in *addr = (const struct sockaddr_in *)
@@ -618,7 +618,7 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	in_ifadown(&ia->ia_ifa, 1);
 
 	if (ia->ia_ifa.ifa_carp)
-		(*carp_detach_p)(&ia->ia_ifa);
+		(*carp_detach_p)(&ia->ia_ifa, cmd == SIOCAIFADDR);
 
 	/*
 	 * If this is the last IPv4 address configured on this

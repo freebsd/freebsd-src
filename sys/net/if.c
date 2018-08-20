@@ -224,7 +224,7 @@ int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *sa);
 int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
 int	(*carp_attach_p)(struct ifaddr *, int);
-void	(*carp_detach_p)(struct ifaddr *);
+void	(*carp_detach_p)(struct ifaddr *, bool);
 #endif
 #ifdef INET
 int	(*carp_iamatch_p)(struct ifaddr *, uint8_t **);
