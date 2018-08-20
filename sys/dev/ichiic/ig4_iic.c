@@ -563,7 +563,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
 		v = reg_read(sc, IG4_REG_COMP_VER);
-		if (v != IG4_COMP_VER) {
+		if (v < IG4_COMP_MIN_VER) {
 			error = ENXIO;
 			goto done;
 		}
