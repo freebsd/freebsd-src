@@ -373,9 +373,8 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 	sc->regs.cc = 0;
 	sc->regs.csts = 0;
 
+	sc->num_cqueues = sc->num_squeues = sc->max_queues;
 	if (sc->submit_queues != NULL) {
-		sc->num_cqueues = sc->num_squeues = sc->max_queues;
-
 		for (int i = 0; i <= sc->max_queues; i++) {
 			/*
 			 * The Admin Submission Queue is at index 0.
@@ -1765,10 +1764,9 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
 	     sc->nvstore.sectsz_bits++);
 
-	if (sc->max_queues == 0) {
-		fprintf(stderr, "Invalid maxq option\n");
-		return (-1);
-	}
+	if (sc->max_queues <= 0 || sc->max_queues > NVME_QUEUES)
+		sc->max_queues = NVME_QUEUES;
+
 	if (sc->max_qentries <= 0) {
 		fprintf(stderr, "Invalid qsz option\n");
 		return (-1);
