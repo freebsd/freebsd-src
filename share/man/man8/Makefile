@@ -5,7 +5,9 @@
 
 PACKAGE=runtime-manuals
 
-MAN=	crash.8 \
+MAN=	\
+	beinstall.8 \
+	crash.8 \
 	diskless.8 \
 	intro.8 \
 	nanobsd.8 \
@@ -17,6 +19,7 @@ MAN=	crash.8 \
 	${_uefi.8} \
 
 MLINKS= \
+	beinstall.8 beinstall.sh.8 \
 	nanobsd.8 nanobsd.sh.8 \
 	rc.8 rc.d.8 \
 	rc.8 rc.firewall.8 \
