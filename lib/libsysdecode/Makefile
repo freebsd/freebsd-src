@@ -129,11 +129,16 @@ tables.h: mktables
 # mkioctls runs find(1) for headers so needs to rebuild every time.  This used
 # to be a hack only done in buildworld.
 .if !defined(_SKIP_BUILD)
-ioctl.c: .PHONY
+ioctl.c.tmp: .PHONY
 .endif
-ioctl.c: mkioctls .META
+ioctl.c.tmp: mkioctls .META
 	env CPP="${CPP}" MK_PF="${MK_PF}" \
 	    /bin/sh ${.CURDIR}/mkioctls ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} > ${.TARGET}
+
+ioctl.c: ioctl.c.tmp
+	if [ ! -e ${.TARGET} ] || ! cmp -s ${.TARGET} ${.TARGET}.tmp; then \
+		mv -f ${.TARGET}.tmp ${.TARGET}; \
+	fi
 
 beforedepend: ioctl.c tables.h
 
