@@ -443,8 +443,8 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 {
 	void *ret;
 
-	ret = (void *)kmem_alloc_contig(kernel_arena, size, flags, low, high,
-	    alignment, boundary, VM_MEMATTR_DEFAULT);
+	ret = (void *)kmem_alloc_contig(size, flags, low, high, alignment,
+	    boundary, VM_MEMATTR_DEFAULT);
 	if (ret != NULL)
 		malloc_type_allocated(type, round_page(size));
 	return (ret);

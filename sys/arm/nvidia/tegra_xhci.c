@@ -808,8 +808,8 @@ load_fw(struct tegra_xhci_softc *sc)
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw->data;
 	fw_size = fw_hdr->fwimg_len;
 
-	fw_vaddr = kmem_alloc_contig(kernel_arena, fw_size,
-	    M_WAITOK, 0, -1UL, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	fw_vaddr = kmem_alloc_contig(fw_size, M_WAITOK, 0, -1UL, PAGE_SIZE, 0,
+	    VM_MEMATTR_UNCACHEABLE);
 	fw_paddr = vtophys(fw_vaddr);
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw_vaddr;
 	memcpy((void *)fw_vaddr, fw->data, fw_size);

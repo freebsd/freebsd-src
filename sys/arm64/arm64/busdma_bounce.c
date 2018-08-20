@@ -495,10 +495,9 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    0ul, dmat->common.lowaddr, attr);
 		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(kernel_arena,
-		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
-		    dmat->common.alignment != 0 ? dmat->common.alignment : 1ul,
-		    dmat->common.boundary, attr);
+		*vaddr = (void *)kmem_alloc_contig(dmat->common.maxsize, mflags,
+		    0ul, dmat->common.lowaddr, dmat->common.alignment != 0 ?
+		    dmat->common.alignment : 1ul, dmat->common.boundary, attr);
 		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {
