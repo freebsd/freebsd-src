@@ -801,6 +801,8 @@ TERMINAL_NORM_ATTR	opt_teken.h
 
 # options for printf
 PRINTF_BUFR_SIZE	opt_printf.h
+BOOT_TAG		opt_printf.h
+BOOT_TAG_SZ		opt_printf.h
 
 # kbd options
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h

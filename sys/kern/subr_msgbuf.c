@@ -179,7 +179,7 @@ msgbuf_addchar(struct msgbuf *mbp, int c)
  * carriage returns down this path.  So do we still need it?
  */
 void
-msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
+msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 {
 	u_int seq;
 	size_t len, prefix_len;
