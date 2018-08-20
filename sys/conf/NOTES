@@ -145,6 +145,16 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	BOOTVERBOSE=1
 options 	BOOTHOWTO=RB_MULTIPLE
 
+#
+# Compile-time defaults for dmesg boot tagging
+#
+# Default boot tag; may use 'kern.boot_tag' loader tunable to override.  The
+# current boot's tag is also exposed via the 'kern.boot_tag' sysctl.
+options 	BOOT_TAG=\"\"
+# Maximum boot tag size the kernel's static buffer should accomodate.  Maximum
+# size for both BOOT_TAG and the assocated tunable.
+options 	BOOT_TAG_SZ=32
+
 options 	GEOM_AES		# Don't use, use GEOM_BDE (obsolete, gone in 12)
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
