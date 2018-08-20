@@ -73,7 +73,6 @@
  *	SDA_HOLD	0x00000001
  *	SDA_SETUP	0x00000064
  *	COMP_PARAM1	0x00FFFF6E
- *	COMP_VER	0x3131352A
  */
 
 #define IG4_REG_CTL		0x0000	/* RW	Control Register */
@@ -552,11 +551,10 @@
 
 /*
  * COMP_VER - (RO) Component Version Register			22.2.36
- *		   Default Value 0x3131352A
  *
  *	Contains the chip version number.  All 32 bits.
  */
-#define IG4_COMP_VER		0x3131352A
+#define IG4_COMP_MIN_VER		0x3131352A
 
 /*
  * COMP_TYPE - (RO) (linux) Endian and bus width probe
