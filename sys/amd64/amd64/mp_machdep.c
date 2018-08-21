@@ -402,18 +402,14 @@ native_start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
-		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(kernel_arena,
-		    PAGE_SIZE, M_WAITOK | M_ZERO);
-		mce_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
-		    M_WAITOK | M_ZERO);
-		dbg_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
-		    M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-		    M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
+		    M_ZERO);
+		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		nmi_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dbg_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;

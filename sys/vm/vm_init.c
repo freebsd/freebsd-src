@@ -278,8 +278,7 @@ again:
 		    (vm_paddr_t)1 << 32, ~(vm_paddr_t)0, VM_MEMATTR_DEFAULT);
 		if (firstaddr == 0)
 #endif
-			firstaddr = kmem_malloc(kernel_arena, size,
-			    M_ZERO | M_WAITOK);
+			firstaddr = kmem_malloc(size, M_ZERO | M_WAITOK);
 		if (firstaddr == 0)
 			panic("startup: no room for tables");
 		goto again;

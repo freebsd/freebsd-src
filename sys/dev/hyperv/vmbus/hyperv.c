@@ -283,8 +283,8 @@ hypercall_create(void *arg __unused)
 	 *   the NX bit.
 	 * - Assume kmem_malloc() returns properly aligned memory.
 	 */
-	hypercall_context.hc_addr = (void *)kmem_malloc(kernel_arena, PAGE_SIZE,
-	    M_EXEC | M_WAITOK);
+	hypercall_context.hc_addr = (void *)kmem_malloc(PAGE_SIZE, M_EXEC |
+	    M_WAITOK);
 	hypercall_context.hc_paddr = vtophys(hypercall_context.hc_addr);
 
 	/* Get the 'reserved' bits, which requires preservation. */
