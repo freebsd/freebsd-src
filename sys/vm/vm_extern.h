@@ -64,7 +64,7 @@ vm_offset_t kmem_alloc_contig(vm_size_t size, int flags,
 vm_offset_t kmem_alloc_contig_domain(int domain, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
-vm_offset_t kmem_malloc(struct vmem *, vm_size_t size, int flags);
+vm_offset_t kmem_malloc(vm_size_t size, int flags);
 vm_offset_t kmem_malloc_domain(int domain, vm_size_t size, int flags);
 void kmem_free(struct vmem *, vm_offset_t, vm_size_t);
 

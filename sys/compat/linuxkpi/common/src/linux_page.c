@@ -165,7 +165,7 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 	vm_offset_t addr;
 
 	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
+		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
 	} else {
 		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
 		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);

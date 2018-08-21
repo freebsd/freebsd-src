@@ -168,8 +168,8 @@ cpu_mp_start(void)
 			void *dpcpu;
 
 			pc = &__pcpu[cpu.cr_cpuid];
-			dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-			    M_WAITOK | M_ZERO);
+			dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK |
+			    M_ZERO);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
 			dpcpu_init(dpcpu, cpu.cr_cpuid);
 		} else {

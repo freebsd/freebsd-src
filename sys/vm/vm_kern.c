@@ -392,7 +392,7 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 }
 
 vm_offset_t
-kmem_malloc(struct vmem *vmem __unused, vm_size_t size, int flags)
+kmem_malloc(vm_size_t size, int flags)
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;

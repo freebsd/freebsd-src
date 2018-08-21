@@ -185,7 +185,7 @@ start_ap(int cpuid)
 	int cpus, ms;
 
 	cpus = mp_naps;
-	dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
+	dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 	mips_sync();
 

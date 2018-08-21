@@ -3687,7 +3687,7 @@ uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 	if (slab == NULL)
 		return (NULL);
 	if (domain == UMA_ANYDOMAIN)
-		addr = kmem_malloc(NULL, size, wait);
+		addr = kmem_malloc(size, wait);
 	else
 		addr = kmem_malloc_domain(domain, size, wait);
 	if (addr != 0) {
