@@ -320,7 +320,7 @@ int zfs_arc_evict_batch_limit = 10;
 static int		arc_grow_retry = 60;
 
 /* number of milliseconds before attempting a kmem-cache-reap */
-static int		arc_kmem_cache_reap_retry_ms = 1000;
+static int		arc_kmem_cache_reap_retry_ms = 0;
 
 /* shift of arc_c for calculating overflow limit in arc_get_data_impl */
 int		zfs_arc_overflow_shift = 8;
@@ -435,7 +435,11 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_grow_retry, CTLFLAG_RW,
     &arc_grow_retry, 0,
     "Wait in seconds before considering growing ARC");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, compressed_arc_enabled, CTLFLAG_RDTUN,
-    &zfs_compressed_arc_enabled, 0, "Enable compressed ARC");
+    &zfs_compressed_arc_enabled, 0,
+    "Enable compressed ARC");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_kmem_cache_reap_retry_ms, CTLFLAG_RWTUN,
+    &arc_kmem_cache_reap_retry_ms, 0,
+    "Interval between ARC kmem_cache reapings");
 
 /*
  * We don't have a tunable for arc_free_target due to the dependency on
