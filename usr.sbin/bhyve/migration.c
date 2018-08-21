@@ -2101,7 +2101,7 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	int addr_type;
 	struct sockaddr_in sa;
 	int s;
-	int rc;
+	int rc, error;
 	size_t migration_completed;
 
 	rc = get_migration_host_and_type(req.host, ipv4_addr,
@@ -2161,8 +2161,8 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 
 	if (rc < 0) {
 		perror("Could not connect to the remote host");
-		close(s);
-		return -1;
+		error = rc;
+		goto done;
 	}
 
 	// send system requirements
@@ -2171,15 +2171,15 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	if (rc < 0) {
 		fprintf(stderr, "%s: Error while checking system requirements\r\n",
 			__func__);
-		close(s);
-		return (rc);
+		error = rc;
+		goto done;
 	}
 
 	rc = vm_vcpu_lock_all(ctx);
 	if (rc != 0) {
 		fprintf(stderr, "%s: Could not suspend vm\r\n", __func__);
-		close(s);
-		return (rc);
+		error = rc;
+		goto done;
 	}
 
 	rc = migrate_send_memory(ctx, s);
@@ -2187,9 +2187,8 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		fprintf(stderr,
 			"%s: Could not send memory to destination\r\n",
 			__func__);
-		vm_vcpu_unlock_all(ctx);
-		close(s);
-		return (rc);
+		error = rc;
+		goto unlock_vm_and_exit;
 	}
 
 	// Send kern data
@@ -2198,9 +2197,8 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		fprintf(stderr,
 			"%s: Could not send kern data to destination\r\n",
 			__func__);
-		vm_vcpu_unlock_all(ctx);
-		close(s);
-		return (rc);
+		error = rc;
+		goto unlock_vm_and_exit;
 	}
 
 	// Send PCI data
@@ -2209,40 +2207,44 @@ vm_send_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		fprintf(stderr,
 			"%s: Could not send pci devs to destination\r\n",
 			__func__);
-		vm_vcpu_unlock_all(ctx);
-		close(s);
-		return (rc);
+		error = rc;
+		goto unlock_vm_and_exit;
 	}
 
-	// Wait for migration completed	
+	// Wait for migration completed
 	rc = migration_recv_data_from_remote(s, &migration_completed,
 					sizeof(migration_completed));
-	if (rc < 0 || (migration_completed != MIGRATION_SPECS_OK)) {
+	if ((rc < 0) || (migration_completed != MIGRATION_SPECS_OK)) {
 		fprintf(stderr,
 			"%s: Could not recv migration completed remote"
 			" or received error\r\n",
 			__func__);
-		close(s);
-		return (-1);
+		error = -1;
+		goto unlock_vm_and_exit;
 	}
 
 	// Poweroff the vm
+	vm_vcpu_unlock_all(ctx);
 
 	rc = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to suspend vm\n");
 	}
 
-	vm_vcpu_unlock_all(ctx);
-
 	/* Wait for CPUs to suspend. TODO: write this properly. */
 	sleep(5);
 	vm_destroy(ctx);
+	/* XXX */
 	exit(0);
-	// TODO: implement properly return with labels
-	// TODO: free properly all the resources
+
+	error = 0;
+	goto done;
+
+unlock_vm_and_exit:
+	vm_vcpu_unlock_all(ctx);
+done:
 	close(s);
-	return (0);
+	return (error);
 }
 
 int
