@@ -2233,12 +2233,6 @@ cfiscsi_ioctl_port_remove(struct ctl_req *req)
 		    "can't find target \"%s\"", target);
 		return;
 	}
-	if (ct->ct_state != CFISCSI_TARGET_STATE_ACTIVE) {
-		req->status = CTL_LUN_ERROR;
-		snprintf(req->error_str, sizeof(req->error_str),
-		    "target \"%s\" is already dying", target);
-		return;
-	}
 
 	ct->ct_state = CFISCSI_TARGET_STATE_DYING;
 	ctl_port_offline(&ct->ct_port);
