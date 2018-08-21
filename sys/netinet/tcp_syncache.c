@@ -770,10 +770,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto abort;
 	}
 #ifdef INET6
-	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		struct inpcb *oinp = sotoinpcb(lso);
-		struct in6_addr laddr6;
-		struct sockaddr_in6 sin6;
+
 		/*
 		 * Inherit socket options from the listening socket.
 		 * Note that in6p_inputopts are not (and should not be)
@@ -787,6 +786,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (oinp->in6p_outputopts)
 			inp->in6p_outputopts =
 			    ip6_copypktopts(oinp->in6p_outputopts, M_NOWAIT);
+	}
+
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+		struct in6_addr laddr6;
+		struct sockaddr_in6 sin6;
 
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(sin6);
