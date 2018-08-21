@@ -328,8 +328,7 @@ end
 
 -- Is the menu skipped in the environment in which we've booted?
 function core.isMenuSkipped()
-	c = string.lower(loader.getenv("beastie_disable") or "")
-	return c == "yes"
+	return string.lower(loader.getenv("beastie_disable") or "") == "yes"
 end
 
 -- This may be a better candidate for a 'utility' module.
