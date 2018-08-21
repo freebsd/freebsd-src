@@ -185,7 +185,6 @@ typedef struct dnode_phys {
 	 * | dn_blkptr[0]  | dn_bonus[0..191]      | dn_spill      |
 	 * +---------------+-----------------------+---------------+
 	 */
-#if defined(__i386__) || defined(__amd64__)
 	union {
 		blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)];
 		struct {
@@ -199,11 +198,6 @@ typedef struct dnode_phys {
 			blkptr_t dn_spill;
  		};
 	};
-#else
-	blkptr_t dn_blkptr[1];
-	uint8_t dn_bonus[DN_OLD_MAX_BONUSLEN - sizeof (blkptr_t)];
-	blkptr_t dn_spill;
-#endif
 } dnode_phys_t;
 
 #define	DN_SPILL_BLKPTR(dnp)	(blkptr_t *)((char *)(dnp) + \

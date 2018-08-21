@@ -95,6 +95,7 @@ CFLAGS+=-I${SYSDIR}
 CFLAGS+=-I${SUNW}/common/zfs
 CFLAGS+=-I${SUNW}/common
 CFLAGS+=-DBUILDING_ZFS
+CFLAGS.gcc+=-fms-extensions
 
 .if ${MACHINE_ARCH} == "powerpc64"
 CFLAGS.gcc+=-mminimal-toc
