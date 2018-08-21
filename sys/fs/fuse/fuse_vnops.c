@@ -2012,21 +2012,21 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct fuse_getxattr_in *get_xattr_in;
 	struct fuse_getxattr_out *get_xattr_out;
 	struct mount *mp = vnode_mount(vp);
-	char *prefix;
-	size_t len;
-	char *attr_str;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
-	int err = 0;
+	char *prefix;
+	char *attr_str;
+	size_t len;
+	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
@@ -2057,7 +2057,6 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	    ap->a_name);
 
 	err = fdisp_wait_answ(&fdi);
-
 	if (err != 0) {
 		if (err == ENOSYS)
 			fsess_set_notimpl(mp, FUSE_GETXATTR);
@@ -2094,20 +2093,20 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct fuse_setxattr_in *set_xattr_in;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	char *prefix;
 	size_t len;
 	char *attr_str;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
-	int err = 0;
-
+	int err;
+	
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
@@ -2220,10 +2219,12 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct fuse_listxattr_in *list_xattr_in;
 	struct fuse_listxattr_out *list_xattr_out;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	size_t len;
 	char *prefix;
 	char *attr_str;
@@ -2231,14 +2232,12 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	char *linux_list;
 	int bsd_list_len;
 	int linux_list_len;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
-	int err = 0;
+	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/*
 	 * Add space for a NUL and the period separator if enabled.
@@ -2332,19 +2331,19 @@ static int
 fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	char *prefix;
 	size_t len;
 	char *attr_str;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
 	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
