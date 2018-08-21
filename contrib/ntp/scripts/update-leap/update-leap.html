@@ -30,7 +30,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 
   <p>This document describes the use of the NTP Project's <code>update-leap</code> program.
 
-  <p>This document applies to version 4.2.8p11 of <code>update-leap</code>.
+  <p>This document applies to version 4.2.8p12 of <code>update-leap</code>.
 
 <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -115,6 +115,80 @@ used to select the program, defaulting to <span class="file">more</span>.  Both 
 with a status code of 0.
 
 <pre class="example">
+Usage: update-leap [options]
+
+Verifies and if necessary, updates leap-second definition file
+
+All arguments are optional:  Default (or current value) shown:
+    -C    Absolute path to CA Cert (see SSL/TLS Considerations)
+    -D    Path to a CAdir (see SSL/TLS Considerations)
+    -e    Specify how long (in days) before expiration the file is to be
+              refreshed.  Note that larger values imply more frequent refreshes.
+          60
+    -F    Force update even if current file is OK and not close to expiring.
+    -f    Absolute path ntp.conf file (default /etc/ntp.conf)
+          /etc/ntp.conf
+    -h    show help
+    -i    Specify number of minutes between retries
+          10
+    -L    Absolute path to leapfile on the local system
+          (overrides value in ntp.conf)
+    -l    Specify the syslog(3) facility for logging
+          LOG_USER
+    -q    Only report errors (cannot be used with -v)
+    -r    Specify number of attempts to retrieve file
+          6
+    -s    Send output to syslog(3) - implied if STDOUT has no tty or redirected
+    -t    Send output to terminal - implied if STDOUT attached to terminal
+    -u    Specify the URL of the master copy to download
+          https://www.ietf.org/timezones/data/leap-seconds.list
+    -v    Verbose - show debug messages (cannot be used with -q)
+
+The following options are not (yet) implemented in the perl version:
+    -4    Use only IPv4
+    -6    Use only IPv6
+    -c    Command to restart NTP after installing a new file
+          &lt;none&gt; - ntpd checks file daily
+    -p 4|6
+          Prefer IPv4 or IPv6 (as specified) addresses, but use either
+
+update-leap will validate the file currently on the local system.
+
+Ordinarily, the leapfile is found using the 'leapfile' directive in
+/etc/ntp.conf.  However, an alternate location can be specified on the
+command line with the -L flag.
+
+If the leapfile does not exist, is not valid, has expired, or is
+expiring soon, a new copy will be downloaded.  If the new copy is
+valid, it is installed.
+
+If the current file is acceptable, no download or restart occurs.
+
+This can be run as a cron job.  As the file is rarely updated, and
+leap seconds are announced at least one month in advance (usually
+longer), it need not be run more frequently than about once every
+three weeks.
+
+SSL/TLS Considerations
+-----------------------
+The perl modules can usually locate the CA certificate used to verify
+the peer's identity.
+
+On BSDs, the default is typically the file /etc/ssl/certs.pem.  On
+Linux, the location is typically a path to a CAdir - a directory of
+symlinks named according to a hash of the certificates' subject names.
+
+The -C or -D options are available to pass in a location if no CA cert
+is found in the default location.
+
+External Dependencies
+---------------------
+The following perl modules are required:
+HTTP::Tiny         - version &gt;= 0.056
+IO::Socket::SSL - version &gt;= 1.56
+NET::SSLeay         - version &gt;= 1.49
+
+Version: 1.004
 </pre>
   <div class="node">
 <p><hr>

@@ -1,4 +1,68 @@
 ---
+(4.2.8p12) 2018/08/14 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3505] CVE-2018-12327 - Arbitrary Code Execution Vulnerability
+  - fixed stack buffer overflow in the openhost() command-line call
+    of NTPQ/NTPDC <perlinger@ntp.org>
+* [Sec 3012] noepeer tweaks.  <stenn@ntp.org>
+* [Bug 3521] Fix a logic bug in the INVALIDNAK checks.  <stenn@ntp.org>
+* [Bug 3509] Add support for running as non-root on FreeBSD, Darwin,
+             other TrustedBSD platforms
+  - applied patch by Ian Lepore <perlinger@ntp.org>
+* [Bug 3506] Service Control Manager interacts poorly with NTPD <perlinger@ntp.org>
+  - changed interaction with SCM to signal pending startup
+* [Bug 3486] Buffer overflow in ntpq/ntpq.c:tstflags() <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3485] Undefined sockaddr used in error messages in ntp_config.c <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3484] ntpq response from ntpd is incorrect when REFID is null <perlinger@ntp.org>
+  - rework of ntpq 'nextvar()' key/value parsing
+* [Bug 3482] Fixes for compilation warnings (ntp_io.c & ntpq-subs.c) <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods)
+* [Bug 3480] Refclock sample filter not cleared on clock STEP <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3479] ctl_putrefid() allows unsafe characters through to ntpq <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods)
+* [Bug 3476]ctl_putstr() sends empty unquoted string [...] <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with mods); not sure if that's bug or feature, though
+* [Bug 3475] modify prettydate() to suppress output of zero time <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3474] Missing pmode in mode7 peer info response <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3471] Check for openssl/[ch]mac.h.  HStenn.
+  - add #define ENABLE_CMAC support in configure.  HStenn.
+* [Bug 3470] ntpd4.2.8p11 fails to compile without OpenSSL <perlinger@ntp.org>
+* [Bug 3469] Incomplete string compare [...] in is_refclk_addr <perlinger@ntp.org>
+  - patch by Stephen Friedl
+* [Bug 3467] Potential memory fault in ntpq [...] <perlinger@ntp.org>
+  - fixed IO redirection and CTRL-C handling in ntq and ntpdc
+* [Bug 3465] Default TTL values cannot be used <perlinger@ntp.org>
+* [Bug 3461] refclock_shm.c: clear error status on clock recovery <perlinger@ntp.org>
+  - initial patch by Hal Murray; also fixed refclock_report() trouble
+* [Bug 3460] Fix typo in ntpq.texi, reported by Kenyon Ralph.  <stenn@ntp.org>
+* [Bug 3456] Use uintptr_t rather than size_t to store an integer in a pointer
+  - According to Brooks Davis, there was only one location <perlinger@ntp.org>
+* [Bug 3449] ntpq - display "loop" instead of refid [...] <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3445] Symmetric peer won't sync on startup <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3442] Fixes for ntpdate as suggested by Gerry Garvey,
+  with modifications
+  New macro REFID_ISTEXT() which is also used in ntpd/ntp_control.c.
+* [Bug 3434] ntpd clears STA_UNSYNC on start <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar
+* [Bug 3426] ntpdate.html -t default is 2 seconds.  Leonid Evdokimov.
+* [Bug 3121] Drop root privileges for the forked DNS worker <perlinger@ntp.org>
+  - integrated patch by  Reinhard Max
+* [Bug 2821] minor build issues <perlinger@ntp.org>
+  - applied patches by Christos Zoulas, including real bug fixes
+* html/authopt.html: cleanup, from <stenn@ntp.org>
+* ntpd/ntpd.c: DROPROOT cleanup.  <stenn@ntp.org>
+* Symmetric key range is 1-65535.  Update docs.  <stenn@ntp.org>
+* html/authentic.html: cleanup, from <stenn@ntp.org>
+
+---
+(4.2.8p11) 2018/02/27 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3454] Unauthenticated packet can reset authenticated interleave
   associations.  HStenn.
@@ -14,16 +78,16 @@
  - applied patch by Sean Haugh 
 * [Bug 3452] PARSE driver prints uninitialized memory. <perlinger@ntp.org>
 * [Bug 3450] Dubious error messages from plausibility checks in get_systime()
- - removed error log caused by rounding/slew, ensured postcondition <perlinger@ntp.org>
+  - removed error log caused by rounding/slew, ensured postcondition <perlinger@ntp.org>
 * [Bug 3447] AES-128-CMAC (fixes) <perlinger@ntp.org>
   - refactoring the MAC code, too
 * [Bug 3441] Validate the assumption that AF_UNSPEC is 0.  stenn@ntp.org
 * [Bug 3439] When running multiple commands / hosts in ntpq... <perlinger@ntp.org>
- - applied patch by ggarvey
+  - applied patch by ggarvey
 * [Bug 3438] Negative values and values > 999 days in... <perlinger@ntp.org>
- - applied patch by ggarvey (with minor mods)
+  - applied patch by ggarvey (with minor mods)
 * [Bug 3437] ntpd tries to open socket with AF_UNSPEC domain
- - applied patch (with mods) by Miroslav Lichvar <perlinger@ntp.org>
+  - applied patch (with mods) by Miroslav Lichvar <perlinger@ntp.org>
 * [Bug 3435] anchor NTP era alignment <perlinger@ntp.org>
 * [Bug 3433] sntp crashes when run with -a.  <stenn@ntp.org>
 * [Bug 3430] ntpq dumps core (SIGSEGV) for "keytype md2"
