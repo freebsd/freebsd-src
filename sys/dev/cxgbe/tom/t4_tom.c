@@ -1269,6 +1269,7 @@ lookup_offload_policy(struct adapter *sc, int open_type, struct mbuf *m,
 	if (pkt == NULL || pktlen == 0 || buflen == 0)
 		return (&disallow_offloading_settings);
 
+	matched = 0;
 	r = &op->rule[0];
 	for (i = 0; i < op->nrules; i++, r++) {
 		if (r->open_type != open_type &&
