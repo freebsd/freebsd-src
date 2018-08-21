@@ -388,5 +388,7 @@ void sctp_audit_log(uint8_t, uint8_t);
 uint32_t sctp_min_mtu(uint32_t, uint32_t, uint32_t);
 void sctp_hc_set_mtu(union sctp_sockstore *, uint16_t, uint32_t);
 uint32_t sctp_hc_get_mtu(union sctp_sockstore *, uint16_t);
+void sctp_set_state(struct sctp_tcb *, int);
+void sctp_add_substate(struct sctp_tcb *, int);
 #endif				/* _KERNEL */
 #endif

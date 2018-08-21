@@ -1567,7 +1567,6 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-					SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_stop_timers_for_shutdown(stcb);
 					if (stcb->asoc.alternate) {
 						netp = stcb->asoc.alternate;

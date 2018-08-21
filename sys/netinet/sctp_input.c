@@ -962,7 +962,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_SENT)) {
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_RECEIVED);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			/*
 			 * notify upper layer that peer has initiated a
 			 * shutdown
@@ -997,7 +996,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 		if (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) {
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			sctp_stop_timers_for_shutdown(stcb);

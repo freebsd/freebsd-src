@@ -7381,3 +7381,25 @@ sctp_hc_get_mtu(union sctp_sockstore *addr, uint16_t fibnum)
 	}
 	return ((uint32_t)tcp_hc_getmtu(&inc));
 }
+void
+sctp_set_state(struct sctp_tcb *stcb, int new_state)
+{
+	KASSERT((new_state & ~SCTP_STATE_MASK) == 0,
+	        ("sctp_set_state: Can't set substate (new_state = %x)",
+	        new_state));
+	stcb->asoc.state = (stcb->asoc.state & ~SCTP_STATE_MASK) | new_state;
+	if ((new_state == SCTP_STATE_SHUTDOWN_RECEIVED) ||
+	    (new_state == SCTP_STATE_SHUTDOWN_SENT) ||
+	    (new_state == SCTP_STATE_SHUTDOWN_ACK_SENT)) {
+		SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
+	}
+}
+
+void
+sctp_add_substate(struct sctp_tcb *stcb, int substate)
+{
+	KASSERT((substate & SCTP_STATE_MASK) == 0,
+	        ("sctp_add_substate: Can't set state (substate = %x)",
+	        substate));
+	stcb->asoc.state |= substate;
+}
