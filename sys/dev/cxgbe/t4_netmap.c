@@ -385,7 +385,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(j));
 
-		atomic_cmpset_int(&nm_rxq->nm_state, NM_OFF, NM_ON);
+		(void) atomic_cmpset_int(&nm_rxq->nm_state, NM_OFF, NM_ON);
 	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
