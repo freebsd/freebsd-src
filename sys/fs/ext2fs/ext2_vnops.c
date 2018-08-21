@@ -1081,7 +1081,13 @@ abortit:
 					    "rename: mangled dir");
 				} else {
 					dirbuf->dotdot_ino = newparent;
+					/*
+					 * dirblock 0 could be htree root,
+					 * try both csum update functions.
+					 */
 					ext2_dirent_csum_set(ip,
+					    (struct ext2fs_direct_2 *)dirbuf);
+					ext2_dx_csum_set(ip,
 					    (struct ext2fs_direct_2 *)dirbuf);
 					(void)vn_rdwr(UIO_WRITE, fvp,
 					    (caddr_t)dirbuf,
