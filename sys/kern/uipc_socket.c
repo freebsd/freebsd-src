@@ -3008,6 +3008,10 @@ integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		case SO_DOMAIN:
+			optval = so->so_proto->pr_domain->dom_family;
+			goto integer;
+
 		case SO_TYPE:
 			optval = so->so_type;
 			goto integer;
