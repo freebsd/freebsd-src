@@ -188,6 +188,7 @@ device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 
 # USB ethernet support
+device		muge
 device		smcphy
 device		smsc
 
