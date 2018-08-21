@@ -1099,10 +1099,14 @@ start_kern_loop(void)
 	pll_control = TRUE;
 	ZERO(ntv);
 	ntv.modes = MOD_BITS;
-	ntv.status = STA_PLL;
-	ntv.maxerror = MAXDISPERSE;
-	ntv.esterror = MAXDISPERSE;
-	ntv.constant = sys_poll; /* why is it that here constant is unconditionally set to sys_poll, whereas elsewhere is is modified depending on nanosecond vs. microsecond kernel? */
+	ntv.status = STA_PLL | STA_UNSYNC;
+	ntv.maxerror = MAXDISPERSE * 1.0e6;
+	ntv.esterror = MAXDISPERSE * 1.0e6;
+	ntv.constant = sys_poll;
+	/*             ^^^^^^^^ why is it that here constant is
+	 * unconditionally set to sys_poll, whereas elsewhere is is
+	 * modified depending on nanosecond vs. microsecond kernel?
+	 */
 #ifdef SIGSYS
 	/*
 	 * Use sigsetjmp() to save state and then call ntp_adjtime(); if

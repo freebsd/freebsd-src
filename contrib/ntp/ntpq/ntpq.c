@@ -32,18 +32,20 @@
 #include "ntp_lineedit.h"
 #include "ntp_debug.h"
 #ifdef OPENSSL
-#include "openssl/evp.h"
-#include "openssl/objects.h"
-#include "openssl/err.h"
-#ifdef SYS_WINNT
-# include "openssl/opensslv.h"
-# if !defined(HAVE_EVP_MD_DO_ALL_SORTED) && OPENSSL_VERSION_NUMBER > 0x10000000L
-#    define HAVE_EVP_MD_DO_ALL_SORTED	1
+# include "openssl/evp.h"
+# include "openssl/objects.h"
+# include "openssl/err.h"
+# ifdef SYS_WINNT
+#  include "openssl/opensslv.h"
+#  if !defined(HAVE_EVP_MD_DO_ALL_SORTED) && OPENSSL_VERSION_NUMBER > 0x10000000L
+#     define HAVE_EVP_MD_DO_ALL_SORTED	1
+#  endif
 # endif
-#endif
-#include "libssl_compat.h"
-
-#define CMAC "AES128CMAC"
+# include "libssl_compat.h"
+# ifdef HAVE_OPENSSL_CMAC_H
+#  include <openssl/cmac.h>
+#  define CMAC "AES128CMAC"
+# endif
 #endif
 #include <ssl_applink.c>
 
@@ -111,10 +113,6 @@ int rawmode = 0;
  */
 u_char pktversion = NTP_OLDVERSION + 1;
 
-/*
- * Don't jump if no set jmp.
- */
-volatile int jump = 0;
 
 /*
  * Format values
@@ -218,10 +216,8 @@ static	void	raw		(struct parse *, FILE *);
 static	void	cooked		(struct parse *, FILE *);
 static	void	authenticate	(struct parse *, FILE *);
 static	void	ntpversion	(struct parse *, FILE *);
-static	void	warning		(const char *, ...)
-    __attribute__((__format__(__printf__, 1, 2)));
-static	void	error		(const char *, ...)
-    __attribute__((__format__(__printf__, 1, 2)));
+static	void	warning		(const char *, ...) NTP_PRINTF(1, 2);
+static	void	error		(const char *, ...) NTP_PRINTF(1, 2);
 static	u_long	getkeyid	(const char *);
 static	void	atoascii	(const char *, size_t, char *, size_t);
 static	void	cookedprint	(int, size_t, const char *, int, int, FILE *);
@@ -231,10 +227,20 @@ static	void	output		(FILE *, const char *, const char *);
 static	void	endoutput	(FILE *);
 static	void	outputarr	(FILE *, char *, int, l_fp *);
 static	int	assoccmp	(const void *, const void *);
-static	void	on_ctrlc	(void);
 	u_short	varfmt		(const char *);
+	void	ntpq_custom_opt_handler(tOptions *, tOptDesc *);
+
+#ifndef BUILD_AS_LIB
+static	char   *list_digest_names(void);
+static	char   *insert_cmac	(char *list);
+static	void	on_ctrlc	(void);
 static	int	my_easprintf	(char**, const char *, ...) NTP_PRINTF(2, 3);
-void	ntpq_custom_opt_handler	(tOptions *, tOptDesc *);
+# if defined(OPENSSL) && defined(HAVE_EVP_MD_DO_ALL_SORTED)
+static	void	list_md_fn	(const EVP_MD *m, const char *from,
+				 const char *to, void *arg);
+# endif /* defined(OPENSSL) && defined(HAVE_EVP_MD_DO_ALL_SORTED) */
+#endif /* !defined(BUILD_AS_LIB) */
+
 
 /* read a character from memory and expand to integer */
 static inline int
@@ -246,14 +252,6 @@ pgetc(
 }
 
 
-#ifdef OPENSSL
-# ifdef HAVE_EVP_MD_DO_ALL_SORTED
-static void list_md_fn(const EVP_MD *m, const char *from,
-		       const char *to, void *arg );
-# endif
-#endif
-static char *insert_cmac(char *list);
-static char *list_digest_names(void);
 
 /*
  * Built-in commands we understand
@@ -422,14 +420,34 @@ chost chosts[MAXHOSTS];
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
 /*
- * Jump buffer for longjumping back to the command level
+ * Jump buffer for longjumping back to the command level.
+ *
+ * Since we do this from a signal handler, we use 'sig{set,long}jmp()'
+ * if available. The signal is blocked by default during the excution of
+ * a signal handler, and it is unspecified if '{set,long}jmp()' save and
+ * restore the signal mask. They do on BSD, it depends on the GLIBC
+ * version on Linux, and the gods know what happens on other OSes...
+ *
+ * So we use the 'sig{set,long}jmp()' functions where available, because
+ * for them the semantics are well-defined. If we have to fall back to
+ * '{set,long}jmp()', the CTRL-C handling might be a bit erratic.
  */
-jmp_buf interrupt_buf;
+#if HAVE_DECL_SIGSETJMP && HAVE_DECL_SIGLONGJMP
+# define JMP_BUF	sigjmp_buf
+# define SETJMP(x)	sigsetjmp((x), 1)
+# define LONGJMP(x, v)	siglongjmp((x),(v))
+#else
+# define JMP_BUF	jmp_buf
+# define SETJMP(x)	setjmp((x))
+# define LONGJMP(x, v)	longjmp((x),(v))
+#endif
+static	JMP_BUF		interrupt_buf;
+static	volatile int	jump = 0;
 
 /*
  * Points at file being currently printed into
  */
-FILE *current_output;
+FILE *current_output = NULL;
 
 /*
  * Command table imported from ntpdc_ops.c
@@ -608,10 +626,10 @@ ntpqmain(
 	} else {
 		for (ihost = 0; ihost < numhosts; ihost++) {
 			if (openhost(chosts[ihost].name, chosts[ihost].fam)) {
-				if (ihost)
+				if (ihost && current_output)
 					fputc('\n', current_output);
 				for (icmd = 0; icmd < numcmds; icmd++) {
-					if (icmd)
+					if (icmd && current_output)
 						fputc('\n', current_output);
 					docmd(ccmds[icmd]);
 				}
@@ -636,29 +654,26 @@ openhost(
 {
 	const char svc[] = "ntp";
 	char temphost[LENHOSTNAME];
-	int a_info, i;
+	int a_info;
 	struct addrinfo hints, *ai;
 	sockaddr_u addr;
 	size_t octets;
-	register const char *cp;
+	const char *cp;
 	char name[LENHOSTNAME];
 
 	/*
 	 * We need to get by the [] if they were entered
 	 */
-
-	cp = hname;
-
-	if (*cp == '[') {
-		cp++;
-		for (i = 0; *cp && *cp != ']'; cp++, i++)
-			name[i] = *cp;
-		if (*cp == ']') {
-			name[i] = '\0';
-			hname = name;
-		} else {
+	if (*hname == '[') {
+		cp = strchr(hname + 1, ']');
+		if (!cp || (octets = (size_t)(cp - hname) - 1) >= sizeof(name)) {
+			errno = EINVAL;
+			warning("%s", "bad hostname/address");
 			return 0;
 		}
+		memcpy(name, hname + 1, octets);
+		name[octets] = '\0';
+		hname = name;
 	}
 
 	/*
@@ -1568,7 +1583,7 @@ abortcmd(void)
 	(void) fflush(stderr);
 	if (jump) {
 		jump = 0;
-		longjmp(interrupt_buf, 1);
+		LONGJMP(interrupt_buf, 1);
 	}
 	return TRUE;
 }
@@ -1656,23 +1671,29 @@ docmd(
 			perror("");
 			return;
 		}
-		i = 1;		/* flag we need a close */
 	} else {
 		current_output = stdout;
-		i = 0;		/* flag no close */
 	}
 
-	if (interactive && setjmp(interrupt_buf)) {
-		jump = 0;
-		return;
+	if (interactive) {
+		if ( ! SETJMP(interrupt_buf)) {
+			jump = 1;
+			(xcmd->handler)(&pcmd, current_output);
+			jump = 0;
+		} else {
+			fflush(current_output);
+			fputs("\n >>> command aborted <<<\n", stderr);
+			fflush(stderr);
+		}
+
 	} else {
-		jump++;
+		jump = 0;
 		(xcmd->handler)(&pcmd, current_output);
-		jump = 0;	/* HMS: 961106: was after fclose() */
-		if (i) (void) fclose(current_output);
 	}
-
-	return;
+	if ((NULL != current_output) && (stdout != current_output)) {
+		(void)fclose(current_output);
+		current_output = NULL;
+	}
 }
 
 
@@ -2504,7 +2525,7 @@ ntp_poll(
 /*
  * showdrefid2str - return a string explanation of the value of drefid
  */
-static char *
+static const char *
 showdrefid2str(void)
 {
 	switch (drefid) {
@@ -3055,10 +3076,146 @@ trunc_left(
 char circ_buf[NUMCB][CBLEN];
 int nextcb = 0;
 
+/* --------------------------------------------------------------------
+ * Parsing a response value list
+ *
+ * This sounds simple (and it actually is not really hard) but it has
+ * some pitfalls.
+ *
+ * Rule1: CR/LF is never embedded in an item
+ * Rule2: An item is a name, optionally followed by a value
+ * Rule3: The value is separated from the name by a '='
+ * Rule4: Items are separated by a ','
+ * Rule5: values can be quoted by '"', in which case they can contain
+ *        arbitrary characters but *not* '"', CR and LF
+ *
+ * There are a few implementations out there that require a somewhat
+ * relaxed attitude when parsing a value list, especially since we want
+ * to copy names and values into local buffers. If these would overflow,
+ * the item should be skipped without terminating the parsing sequence.
+ *
+ * Also, for empty values, there might be a '=' after the name or not;
+ * we treat that equivalent.
+ *
+ * Parsing an item definitely breaks on a CR/LF. If an item is not
+ * followed by a comma (','), parsing stops. In the middle of a quoted
+ * character sequence CR/LF terminates the parsing finally without
+ * returning a value.
+ *
+ * White space and other noise is ignored when parsing the data buffer;
+ * only CR, LF, ',', '=' and '"' are characters with a special meaning.
+ * White space is stripped from the names and values *after* working
+ * through the buffer, before making the local copies. If whitespace
+ * stripping results in an empty name, parsing resumes.
+ */
+
+/*
+ * nextvar parsing helpers
+ */
+
+/* predicate: allowed chars inside a quoted string */
+static int/*BOOL*/ cp_qschar(int ch)
+{
+	return ch && (ch != '"' && ch != '\r' && ch != '\n');
+}
+
+/* predicate: allowed chars inside an unquoted string */
+static int/*BOOL*/ cp_uqchar(int ch)
+{
+	return ch && (ch != ',' && ch != '"' && ch != '\r' && ch != '\n');
+}
+
+/* predicate: allowed chars inside a value name */
+static int/*BOOL*/ cp_namechar(int ch)
+{
+	return ch && (ch != ',' && ch != '=' && ch != '\r' && ch != '\n'); 
+}
+
+/* predicate: characters *between* list items. We're relaxed here. */
+static int/*BOOL*/ cp_ivspace(int ch)
+{
+	return (ch == ',' || (ch > 0 && ch <= ' ')); 
+}
+
+/* get current character (or NUL when on end) */
+static inline int
+pf_getch(
+	const char **	datap,
+	const char *	endp
+	)
+{
+	return (*datap != endp)
+	    ? *(const unsigned char*)*datap
+	    : '\0';
+}
+
+/* get next character (or NUL when on end) */
+static inline int
+pf_nextch(
+	const char **	datap,
+	const char *	endp
+	)
+{
+	return (*datap != endp && ++(*datap) != endp)
+	    ? *(const unsigned char*)*datap
+	    : '\0';
+}
+
+static size_t
+str_strip(
+	const char ** 	datap,
+	size_t		len
+	)
+{
+	static const char empty[] = "";
+	
+	if (*datap && len) {
+		const char * cpl = *datap;
+		const char * cpr = cpl + len;
+		
+		while (cpl != cpr && *(const unsigned char*)cpl <= ' ')
+			++cpl;
+		while (cpl != cpr && *(const unsigned char*)(cpr - 1) <= ' ')
+			--cpr;
+		*datap = cpl;		
+		len = (size_t)(cpr - cpl);
+	} else {
+		*datap = empty;
+		len = 0;
+	}
+	return len;
+}
+
+static void
+pf_error(
+	const char *	what,
+	const char *	where,
+	const char *	whend
+	)
+{
+#   ifndef BUILD_AS_LIB
+	
+	FILE *	ofp = (debug > 0) ? stdout : stderr;
+	size_t	len = (size_t)(whend - where);
+	
+	if (len > 50) /* *must* fit into an 'int'! */
+		len = 50;
+	fprintf(ofp, "nextvar: %s: '%.*s'\n",
+		what, (int)len, where);
+	
+#   else  /*defined(BUILD_AS_LIB)*/
+
+	UNUSED_ARG(what);
+	UNUSED_ARG(where);
+	UNUSED_ARG(whend);
+	
+#   endif /*defined(BUILD_AS_LIB)*/
+}
+
 /*
  * nextvar - find the next variable in the buffer
  */
-int
+int/*BOOL*/
 nextvar(
 	size_t *datalen,
 	const char **datap,
@@ -3066,92 +3223,124 @@ nextvar(
 	char **vvalue
 	)
 {
-	const char *cp;
-	const char *np;
-	const char *cpend;
-	size_t srclen;
-	size_t len;
-	static char name[MAXVARLEN];
-	static char value[MAXVALLEN];
+	enum PState 	{ sDone, sInit, sName, sValU, sValQ };
+	
+	static char	name[MAXVARLEN], value[MAXVALLEN];
 
-	cp = *datap;
-	cpend = cp + *datalen;
+	const char	*cp, *cpend;
+	const char	*np, *vp;
+	size_t		nlen, vlen;
+	int		ch;
+	enum PState	st;
+	
+	cpend = *datap + *datalen;
 
-	/*
-	 * Space past commas and white space
+  again:
+	np   = vp   = NULL;
+	nlen = vlen = 0;
+	
+	st = sInit;
+	ch = pf_getch(datap, cpend);
+
+	while (st != sDone) {
+		switch (st)
+		{
+		case sInit:	/* handle inter-item chars */
+			while (cp_ivspace(ch))
+				ch = pf_nextch(datap, cpend);
+			if (cp_namechar(ch)) {
+				np = *datap;
+				cp = np;
+				st = sName;
+				ch = pf_nextch(datap, cpend);
+			} else {
+				goto final_done;
+			}
+			break;
+			    
+		case sName:	/* collect name */
+			while (cp_namechar(ch))
+				ch = pf_nextch(datap, cpend);
+			nlen = (size_t)(*datap - np);
+			if (ch == '=') {
+				ch = pf_nextch(datap, cpend);
+				vp = *datap;
+				st = sValU;
+			} else {
+				if (ch != ',')
+					*datap = cpend;
+				st = sDone;
+			}
+			break;
+			
+		case sValU:	/* collect unquoted part(s) of value */
+			while (cp_uqchar(ch))
+				ch = pf_nextch(datap, cpend);
+			if (ch == '"') {
+				ch = pf_nextch(datap, cpend);
+				st = sValQ;
+			} else {
+				vlen = (size_t)(*datap - vp);
+				if (ch != ',')
+					*datap = cpend;
+				st = sDone;
+			}
+			break;
+			
+		case sValQ:	/* collect quoted part(s) of value */
+			while (cp_qschar(ch))
+				ch = pf_nextch(datap, cpend);
+			if (ch == '"') {
+				ch = pf_nextch(datap, cpend);
+				st = sValU;
+			} else {
+				pf_error("no closing quote, stop", cp, cpend);
+				goto final_done;
+			}
+			break;
+			
+		default:
+			pf_error("state machine error, stop", *datap, cpend);
+			goto final_done;
+		}
+	}
+
+	/* If name or value do not fit their buffer, croak and start
+	 * over. If there's no name at all after whitespace stripping,
+	 * redo silently.
 	 */
-	while (cp < cpend && (*cp == ',' || isspace(pgetc(cp))))
-		cp++;
-	if (cp >= cpend)
-		return 0;
+	nlen = str_strip(&np, nlen);
+	vlen = str_strip(&vp, vlen);
+	
+	if (nlen == 0) {
+		goto again;
+	}
+	if (nlen >= sizeof(name)) {
+		pf_error("runaway name", np, cpend);
+		goto again;
+	}
+	if (vlen >= sizeof(value)) {
+		pf_error("runaway value", vp, cpend);
+		goto again;
+	}
 
-	/*
-	 * Copy name until we hit a ',', an '=', a '\r' or a '\n'.  Backspace
-	 * over any white space and terminate it.
-	 */
-	srclen = strcspn(cp, ",=\r\n");
-	srclen = min(srclen, (size_t)(cpend - cp));
-	len = srclen;
-	while (len > 0 && isspace(pgetc(&cp[len - 1])))
-		len--;
-	if (len >= sizeof(name))
-	    return 0;
-	if (len > 0)
-		memcpy(name, cp, len);
-	name[len] = '\0';
+	/* copy name and value into NUL-terminated buffers */
+	memcpy(name, np, nlen);
+	name[nlen] = '\0';
 	*vname = name;
-	cp += srclen;
-
-	/*
-	 * Check if we hit the end of the buffer or a ','.  If so we are done.
-	 */
-	if (cp >= cpend || *cp == ',' || *cp == '\r' || *cp == '\n') {
-		if (cp < cpend)
-			cp++;
-		*datap = cp;
-		*datalen = size2int_sat(cpend - cp);
-		*vvalue = NULL;
-		return 1;
-	}
-
-	/*
-	 * So far, so good.  Copy out the value
-	 */
-	cp++;	/* past '=' */
-	while (cp < cpend && (isspace(pgetc(cp)) && *cp != '\r' && *cp != '\n'))
-		cp++;
-	np = cp;
-	if ('"' == *np) {
-		do {
-			np++;
-		} while (np < cpend && '"' != *np);
-		if (np < cpend && '"' == *np)
-			np++;
-	} else {
-		while (np < cpend && ',' != *np && '\r' != *np)
-			np++;
-	}
-	len = np - cp;
-	if (np > cpend || len >= sizeof(value) ||
-	    (np < cpend && ',' != *np && '\r' != *np))
-		return 0;
-	memcpy(value, cp, len);
-	/*
-	 * Trim off any trailing whitespace
-	 */
-	while (len > 0 && isspace(pgetc(&value[len - 1])))
-		len--;
-	value[len] = '\0';
-
-	/*
-	 * Return this.  All done.
-	 */
-	if (np < cpend && ',' == *np)
-		np++;
-	*datap = np;
-	*datalen = size2int_sat(cpend - np);
+	
+	memcpy(value, vp, vlen);
+	value[vlen] = '\0';
 	*vvalue = value;
-	return 1;
+
+	/* check if there's more to do or if we are finshed */
+	*datalen = (size_t)(cpend - *datap);
+	return TRUE;
+
+  final_done:
+	*datap = cpend;
+	*datalen = 0;
+	return FALSE;
 }
 
 
@@ -3318,11 +3507,11 @@ outputarr(
 	 * Hack to align delay and offset values
 	 */
 	for (i = (int)strlen(name); i < 11; i++)
-	    *bp++ = ' ';
+		*bp++ = ' ';
 
 	for (i = narr; i > 0; i--) {
-		if (i != narr)
-		    *bp++ = ' ';
+		if (i != (size_t)narr)
+			*bp++ = ' ';
 		cp = lfptoms(lfp, 2);
 		len = strlen(cp);
 		if (len > 7) {
@@ -3346,43 +3535,60 @@ tstflags(
 	u_long val
 	)
 {
-	register char *cp, *s;
-	size_t cb;
-	register int i;
-	register const char *sep;
+#	if CBLEN < 10
+#	 error BLEN is too small -- increase!
+#	endif
 
-	sep = "";
+	char *cp, *s;
+	size_t cb, i;
+	int l;
+
 	s = cp = circ_buf[nextcb];
 	if (++nextcb >= NUMCB)
 		nextcb = 0;
 	cb = sizeof(circ_buf[0]);
 
-	snprintf(cp, cb, "%02lx", val);
-	cp += strlen(cp);
-	cb -= strlen(cp);
+	l = snprintf(cp, cb, "%02lx", val);
+	if (l < 0 || (size_t)l >= cb)
+		goto fail;
+	cp += l;
+	cb -= l;
 	if (!val) {
-		strlcat(cp, " ok", cb);
-		cp += strlen(cp);
-		cb -= strlen(cp);
+		l = strlcat(cp, " ok", cb);
+		if ((size_t)l >= cb)
+			goto fail;
+		cp += l;
+		cb -= l;
 	} else {
-		if (cb) {
-			*cp++ = ' ';
-			cb--;
-		}
-		for (i = 0; i < (int)COUNTOF(tstflagnames); i++) {
+		const char *sep;
+		
+		sep = " ";
+		for (i = 0; i < COUNTOF(tstflagnames); i++) {
 			if (val & 0x1) {
-				snprintf(cp, cb, "%s%s", sep,
-					 tstflagnames[i]);
+				l = snprintf(cp, cb, "%s%s", sep,
+					     tstflagnames[i]);
+				if (l < 0)
+					goto fail;
+				if ((size_t)l >= cb) {
+					cp += cb - 4;
+					cb = 4;
+					l = strlcpy (cp, "...", cb);
+					cp += l;
+					cb -= l;
+					break;
+				}
 				sep = ", ";
-				cp += strlen(cp);
-				cb -= strlen(cp);
+				cp += l;
+				cb -= l;
 			}
 			val >>= 1;
 		}
 	}
-	if (cb)
-		*cp = '\0';
 
+	return s;
+
+  fail:
+	*cp = '\0';
 	return s;
 }
 
@@ -3630,220 +3836,218 @@ ntpq_custom_opt_handler(
 #  define K_DELIM_STR	", "
 
 struct hstate {
-   char *list;
-   const char **seen;
-   int idx;
+	char *list;
+	const char **seen;
+	int idx;
 };
 
 
+#  ifndef BUILD_AS_LIB
 static void
 list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg)
 {
-    size_t 	  len, n, digest_len;
-    const char	  *name, **seen;
-    struct hstate *hstate = arg;
-    char	  *cp;
+	size_t 	       len, n;
+	const char    *name, **seen;
+	struct hstate *hstate = arg;
+	const char    *cp;
+	
+	/* m is MD obj, from is name or alias, to is base name for alias */
+	if (!m || !from || to)
+		return; /* Ignore aliases */
 
-    /* m is MD obj, from is name or alias, to is base name for alias */
-    if (!m || !from || to) {
-        return; /* Ignore aliases */
-    }
+	/* Discard MACs that NTP won't accept. */
+	/* Keep this consistent with keytype_from_text() in ssl_init.c. */
+	if (EVP_MD_size(m) > (MAX_MAC_LEN - sizeof(keyid_t)))
+		return;
+	
+	name = EVP_MD_name(m);
+	
+	/* Lowercase names aren't accepted by keytype_from_text in ssl_init.c */
+	
+	for (cp = name; *cp; cp++)
+		if (islower((unsigned char)*cp))
+			return;
 
-    /* Discard MACs that NTP won't accept. */
-    /* Keep this consistent with keytype_from_text() in ssl_init.c. */
-    if (EVP_MD_size(m) > (MAX_MAC_LEN - sizeof(keyid_t))) {
-        return;
-    }
+	len = (cp - name) + 1;
+	
+	/* There are duplicates.  Discard if name has been seen. */
+	
+	for (seen = hstate->seen; *seen; seen++)
+		if (!strcmp(*seen, name))
+			return;
 
-    name = EVP_MD_name(m);
+	n = (seen - hstate->seen) + 2;
+	hstate->seen = erealloc(hstate->seen, n * sizeof(*seen));
+	hstate->seen[n-2] = name;
+	hstate->seen[n-1] = NULL;
+	
+	if (hstate->list != NULL)
+		len += strlen(hstate->list);
 
-    /* Lowercase names aren't accepted by keytype_from_text in ssl_init.c */
+	len += (hstate->idx >= K_PER_LINE)
+	    ? strlen(K_NL_PFX_STR)
+	    : strlen(K_DELIM_STR);
 
-    for (cp = name; *cp; cp++) {
-	if (islower((unsigned char)*cp)) {
-	    return;
+	if (hstate->list == NULL) {
+		hstate->list = (char *)emalloc(len);
+		hstate->list[0] = '\0';
+	} else {
+		hstate->list = (char *)erealloc(hstate->list, len);
 	}
-    }
-
-    len = (cp - name) + 1;
-
-    /* There are duplicates.  Discard if name has been seen. */
-
-    for (seen = hstate->seen; *seen; seen++) {
-        if (!strcmp(*seen, name)) {
-	    return;
-	}
-    }
-
-    n = (seen - hstate->seen) + 2;
-    hstate->seen = erealloc(hstate->seen, n * sizeof(*seen));
-    hstate->seen[n-2] = name;
-    hstate->seen[n-1] = NULL;
-
-    if (hstate->list != NULL) {
-	len += strlen(hstate->list);
-    }
-
-    len += (hstate->idx >= K_PER_LINE)
-		? strlen(K_NL_PFX_STR)
-		: strlen(K_DELIM_STR);
-
-    if (hstate->list == NULL) {
-        hstate->list = (char *)emalloc(len);
-	hstate->list[0] = '\0';
-    } else {
-	hstate->list = (char *)erealloc(hstate->list, len);
-    }
-
-    sprintf(hstate->list + strlen(hstate->list), "%s%s",
-	    ((hstate->idx >= K_PER_LINE) ? K_NL_PFX_STR : K_DELIM_STR),
-	    name);
-
-    if (hstate->idx >= K_PER_LINE) {
-	hstate->idx = 1;
-    } else {
-	hstate->idx++;
-    }
+	
+	sprintf(hstate->list + strlen(hstate->list), "%s%s",
+		((hstate->idx >= K_PER_LINE) ? K_NL_PFX_STR : K_DELIM_STR),
+		name);
+	
+	if (hstate->idx >= K_PER_LINE)
+		hstate->idx = 1;
+	else
+		hstate->idx++;
 }
+#  endif /* !defined(BUILD_AS_LIB) */
 
-
+#  ifndef BUILD_AS_LIB
 /* Insert CMAC into SSL digests list */
 static char *
 insert_cmac(char *list)
 {
-    int insert;
-    size_t len;
+#ifdef ENABLE_CMAC
+	int insert;
+	size_t len;
 
 
-    /* If list empty, we need to insert CMAC on new line */
-    insert = (!list || !*list);
-
-    if (insert) {
-	len = strlen(K_NL_PFX_STR) + strlen(CMAC);
-	list = (char *)erealloc(list, len + 1);
-	sprintf(list, "%s%s", K_NL_PFX_STR, CMAC);
-    } else {	/* List not empty */
-	/* Check if CMAC already in list - future proofing */
-	const char *cmac_sn;
-	char *cmac_p;
-
-	cmac_sn = OBJ_nid2sn(NID_cmac);
-	cmac_p = list;
-	insert = cmac_sn != NULL && *cmac_sn != '\0';
-
-	/* CMAC in list if found, followed by nul char or ',' */
-	while (insert && NULL != (cmac_p = strstr(cmac_p, cmac_sn))) {
-	    cmac_p += strlen(cmac_sn);
-	    /* Still need to insert if not nul and not ',' */
-	    insert = *cmac_p && ',' != *cmac_p;
-	}
-
-	/* Find proper insertion point */
+	/* If list empty, we need to insert CMAC on new line */
+	insert = (!list || !*list);
+	
 	if (insert) {
-	    char *last_nl;
-	    char *point;
-	    char *delim;
-	    int found;
-
-	    /* Default to start if list empty */
-	    found = 0;
-	    delim = list;
-	    len = strlen(list);
-
-	    /* While new lines */
-	    while (delim < list + len && *delim &&
-			!strncmp(K_NL_PFX_STR, delim, strlen(K_NL_PFX_STR))) {
-		point = delim + strlen(K_NL_PFX_STR);
-
-		/* While digest names on line */
-		while (point < list + len && *point) {
-		    /* Another digest after on same or next line? */
-		    delim = strstr( point, K_DELIM_STR);
-		    last_nl = strstr( point, K_NL_PFX_STR);
-
-		    /* No - end of list */
-		    if (!delim && !last_nl) {
-			delim = list + len;
-		    } else
-		    /* New line and no delim or before delim? */
-		    if (last_nl && (!delim || last_nl < delim)) {
-			delim = last_nl;
-		    }
-
-		    /* Found insertion point where CMAC before entry? */
-		    if (strncmp(CMAC, point, delim - point) < 0) {
-			found = 1;
-			break;
-		    }
-
-		    if (delim < list + len && *delim &&
-			    !strncmp(K_DELIM_STR, delim, strlen(K_DELIM_STR))) {
-			point += strlen(K_DELIM_STR);
-		    } else {
-			break;
-		    }
-		} /* While digest names on line */
-	    } /* While new lines */
-
-	    /* If found in list */
-	    if (found) {
-		/* insert cmac and delim */
-		/* Space for list could move - save offset */
-		ptrdiff_t p_offset = point - list;
-		len += strlen(CMAC) + strlen(K_DELIM_STR);
+		len = strlen(K_NL_PFX_STR) + strlen(CMAC);
 		list = (char *)erealloc(list, len + 1);
-		point = list + p_offset;
-		/* move to handle src/dest overlap */
-		memmove(point + strlen(CMAC) + strlen(K_DELIM_STR),
+		sprintf(list, "%s%s", K_NL_PFX_STR, CMAC);
+	} else {	/* List not empty */
+		/* Check if CMAC already in list - future proofing */
+		const char *cmac_sn;
+		char *cmac_p;
+		
+		cmac_sn = OBJ_nid2sn(NID_cmac);
+		cmac_p = list;
+		insert = cmac_sn != NULL && *cmac_sn != '\0';
+		
+		/* CMAC in list if found, followed by nul char or ',' */
+		while (insert && NULL != (cmac_p = strstr(cmac_p, cmac_sn))) {
+			cmac_p += strlen(cmac_sn);
+			/* Still need to insert if not nul and not ',' */
+			insert = *cmac_p && ',' != *cmac_p;
+		}
+		
+		/* Find proper insertion point */
+		if (insert) {
+			char *last_nl;
+			char *point;
+			char *delim;
+			int found;
+			
+			/* Default to start if list empty */
+			found = 0;
+			delim = list;
+			len = strlen(list);
+			
+			/* While new lines */
+			while (delim < list + len && *delim &&
+			       !strncmp(K_NL_PFX_STR, delim, strlen(K_NL_PFX_STR))) {
+				point = delim + strlen(K_NL_PFX_STR);
+				
+				/* While digest names on line */
+				while (point < list + len && *point) {
+					/* Another digest after on same or next line? */
+					delim = strstr( point, K_DELIM_STR);
+					last_nl = strstr( point, K_NL_PFX_STR);
+					
+					/* No - end of list */
+					if (!delim && !last_nl) {
+						delim = list + len;
+					} else
+						/* New line and no delim or before delim? */
+						if (last_nl && (!delim || last_nl < delim)) {
+							delim = last_nl;
+						}
+					
+					/* Found insertion point where CMAC before entry? */
+					if (strncmp(CMAC, point, delim - point) < 0) {
+						found = 1;
+						break;
+					}
+					
+					if (delim < list + len && *delim &&
+					    !strncmp(K_DELIM_STR, delim, strlen(K_DELIM_STR))) {
+						point += strlen(K_DELIM_STR);
+					} else {
+						break;
+					}
+				} /* While digest names on line */
+			} /* While new lines */
+			
+			/* If found in list */
+			if (found) {
+				/* insert cmac and delim */
+				/* Space for list could move - save offset */
+				ptrdiff_t p_offset = point - list;
+				len += strlen(CMAC) + strlen(K_DELIM_STR);
+				list = (char *)erealloc(list, len + 1);
+				point = list + p_offset;
+				/* move to handle src/dest overlap */
+				memmove(point + strlen(CMAC) + strlen(K_DELIM_STR),
 					point, strlen(point) + 1);
-		strncpy(point, CMAC, strlen(CMAC));
-		strncpy(point + strlen(CMAC), K_DELIM_STR, strlen(K_DELIM_STR));
-	    } else {	/* End of list */
-		/* append delim and cmac */
-		len += strlen(K_DELIM_STR) + strlen(CMAC);
-		list = (char *)erealloc(list, len + 1);
-		strcpy(list + strlen(list), K_DELIM_STR);
-		strcpy(list + strlen(list), CMAC);
-	    }
-	} /* insert */
-    } /* List not empty */
-
-    return list;
+				strncpy(point, CMAC, strlen(CMAC));
+				strncpy(point + strlen(CMAC), K_DELIM_STR, strlen(K_DELIM_STR));
+			} else {	/* End of list */
+				/* append delim and cmac */
+				len += strlen(K_DELIM_STR) + strlen(CMAC);
+				list = (char *)erealloc(list, len + 1);
+				strcpy(list + strlen(list), K_DELIM_STR);
+				strcpy(list + strlen(list), CMAC);
+			}
+		} /* insert */
+	} /* List not empty */
+#endif /*ENABLE_CMAC*/
+	return list;
 }
+#  endif /* !defined(BUILD_AS_LIB) */
 # endif
 #endif
 
 
+#ifndef BUILD_AS_LIB
 static char *
 list_digest_names(void)
 {
-    char *list = NULL;
-
+	char *list = NULL;
+	
 #ifdef OPENSSL
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
-    struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
-
-    /* replace calloc(1, sizeof(const char *)) */
-    hstate.seen = (const char **)emalloc_zero(sizeof(const char *));
-
-    INIT_SSL();
-    EVP_MD_do_all_sorted(list_md_fn, &hstate);
-    list = hstate.list;
-    free(hstate.seen);
-
-    list = insert_cmac(list);	/* Insert CMAC into SSL digests list */
-
+	struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
+	
+	/* replace calloc(1, sizeof(const char *)) */
+	hstate.seen = (const char **)emalloc_zero(sizeof(const char *));
+	
+	INIT_SSL();
+	EVP_MD_do_all_sorted(list_md_fn, &hstate);
+	list = hstate.list;
+	free(hstate.seen);
+	
+	list = insert_cmac(list);	/* Insert CMAC into SSL digests list */
+	
 # else
-    list = (char *)emalloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
-    strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");
+	list = (char *)emalloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
+	strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");
 # endif
 #else
-    list = (char *)emalloc(sizeof("md5"));
-    strcpy(list, "md5");
+	list = (char *)emalloc(sizeof("md5"));
+	strcpy(list, "md5");
 #endif
-
-    return list;
+	
+	return list;
 }
+#endif /* !defined(BUILD_AS_LIB) */
 
 #define CTRLC_STACK_MAX 4
 static volatile size_t		ctrlc_stack_len = 0;
@@ -3881,6 +4085,7 @@ pop_ctrl_c_handler(
 	return FALSE;
 }
 
+#ifndef BUILD_AS_LIB
 static void
 on_ctrlc(void)
 {
@@ -3889,7 +4094,9 @@ on_ctrlc(void)
 		if ((*ctrlc_stack[--size])())
 			break;
 }
+#endif /* !defined(BUILD_AS_LIB) */
 
+#ifndef BUILD_AS_LIB
 static int
 my_easprintf(
 	char ** 	ppinto,
@@ -3927,3 +4134,4 @@ my_easprintf(
 	*ppinto = buf;
 	return prc;
 }
+#endif /* !defined(BUILD_AS_LIB) */

@@ -154,7 +154,7 @@ char const *progname;
 /*
  * Systemwide parameters and flags
  */
-int sys_samples = DEFSAMPLES;	/* number of samples/server */
+int sys_samples = 0;		/* number of samples/server, will be modified later */
 u_long sys_timeout = DEFTIMEOUT; /* timeout time, in TIMER_HZ units */
 struct server *sys_servers;	/* the server list */
 int sys_numservers = 0; 	/* number of servers to poll */
@@ -220,7 +220,7 @@ void	input_handler	(void);
 static	int l_adj_systime	(l_fp *);
 static	int l_step_systime	(l_fp *);
 
-static	void	printserver (struct server *, FILE *);
+static	void	print_server (struct server *, FILE *);
 
 #ifdef SYS_WINNT
 int 	on = 1;
@@ -429,13 +429,21 @@ ntpdatemain (
 		default:
 			break;
 	    }
-	
+
 	if (errflg) {
 		(void) fprintf(stderr,
 		    "usage: %s [-46bBdqsuv] [-a key#] [-e delay] [-k file] [-p samples] [-o version#] [-t timeo] server ...\n",
 		    progname);
 		exit(2);
 	}
+
+	/*
+	 * If number of Samples (-p) not specified by user:
+	 * - if a simple_query (-q) just ONE will do
+	 * - otherwise the normal is DEFSAMPLES
+	 */
+	if (sys_samples == 0)
+		 sys_samples = (simple_query ? 1 : DEFSAMPLES);
 
 	if (debug || simple_query) {
 #ifdef HAVE_SETVBUF
@@ -651,9 +659,6 @@ transmit(
 {
 	struct pkt xpkt;
 
-	if (debug)
-		printf("transmit(%s)\n", stoa(&server->srcadr));
-
 	if (server->filter_nextpt < server->xmtcnt) {
 		l_fp ts;
 		/*
@@ -673,6 +678,9 @@ transmit(
 		complete_servers++;
 		return;
 	}
+
+	if (debug)
+		printf("transmit(%s)\n", stoa(&server->srcadr));
 
 	/*
 	 * If we're here, send another message to the server.  Fill in
@@ -849,7 +857,7 @@ receive(
 	NTOHL_FP(&rpkt->xmt, &server->org);
 
 	/*
-	 * Make sure the server is at least somewhat sane.	If not, try
+	 * Make sure the server is at least somewhat sane. If not, try
 	 * again.
 	 */
 	if (L_ISZERO(&rec) || !L_ISHIS(&server->org, &rec)) {
@@ -956,7 +964,7 @@ clock_filter(
 	int ord[NTP_SHIFT];
 
 	INSIST((0 < sys_samples) && (sys_samples <= NTP_SHIFT));
-	
+
 	/*
 	 * Sort indices into increasing delay order
 	 */
@@ -1042,15 +1050,15 @@ clock_select(void)
 	/*
 	 * This first chunk of code is supposed to go through all
 	 * servers we know about to find the NTP_MAXLIST servers which
-	 * are most likely to succeed.	We run through the list
+	 * are most likely to succeed. We run through the list
 	 * doing the sanity checks and trying to insert anyone who
-	 * looks okay.	We are at all times aware that we should
+	 * looks okay. We are at all times aware that we should
 	 * only keep samples from the top two strata and we only need
 	 * NTP_MAXLIST of them.
 	 */
 	nlist = 0;	/* none yet */
 	for (server = sys_servers; server != NULL; server = server->next_server) {
-		if (server->delay == 0) {
+		if (server->stratum == 0) {
 			if (debug)
 				printf("%s: Server dropped: no data\n", ntoa(&server->srcadr));
 			continue;	/* no data */
@@ -1062,25 +1070,25 @@ clock_select(void)
 		}
 		if (server->delay > NTP_MAXWGT) {
 			if (debug)
-				printf("%s: Server dropped: server too far away\n", 
+				printf("%s: Server dropped: server too far away\n",
 					ntoa(&server->srcadr));
 			continue;	/* too far away */
 		}
 		if (server->leap == LEAP_NOTINSYNC) {
 			if (debug)
-				printf("%s: Server dropped: Leap not in sync\n", ntoa(&server->srcadr));
+				printf("%s: Server dropped: leap not in sync\n", ntoa(&server->srcadr));
 			continue;	/* he's in trouble */
 		}
 		if (!L_ISHIS(&server->org, &server->reftime)) {
 			if (debug)
-				printf("%s: Server dropped: server is very broken\n", 
+				printf("%s: Server dropped: server is very broken\n",
 				       ntoa(&server->srcadr));
 			continue;	/* very broken host */
 		}
 		if ((server->org.l_ui - server->reftime.l_ui)
 		    >= NTP_MAXAGE) {
 			if (debug)
-				printf("%s: Server dropped: Server has gone too long without sync\n", 
+				printf("%s: Server dropped: server has gone too long without sync\n",
 				       ntoa(&server->srcadr));
 			continue;	/* too long without sync */
 		}
@@ -1256,8 +1264,10 @@ clock_adjust(void)
 	server = clock_select();
 
 	if (debug || simple_query) {
+		if (debug)
+			printf ("\n");
 		for (sp = sys_servers; sp != NULL; sp = sp->next_server)
-			printserver(sp, stdout);
+			print_server(sp, stdout);
 	}
 
 	if (server == 0) {
@@ -1283,31 +1293,17 @@ clock_adjust(void)
 	}
 
 	if (dostep) {
-		if (simple_query || debug || l_step_systime(&server->offset)){
+		if (simple_query || l_step_systime(&server->offset)){
 			msyslog(LOG_NOTICE, "step time server %s offset %s sec",
 				stoa(&server->srcadr),
 				lfptoa(&server->offset, 6));
 		}
 	} else {
-#ifndef SYS_WINNT
 		if (simple_query || l_adj_systime(&server->offset)) {
 			msyslog(LOG_NOTICE, "adjust time server %s offset %s sec",
 				stoa(&server->srcadr),
 				lfptoa(&server->offset, 6));
 		}
-#else
-		/* The NT SetSystemTimeAdjustment() call achieves slewing by
-		 * changing the clock frequency. This means that we cannot specify
-		 * it to slew the clock by a definite amount and then stop like
-		 * the Unix adjtime() routine. We can technically adjust the clock
-		 * frequency, have ntpdate sleep for a while, and then wake
-		 * up and reset the clock frequency, but this might cause some
-		 * grief if the user attempts to run ntpd immediately after
-		 * ntpdate and the socket is in use.
-		 */
-		printf("\nThe -b option is required by ntpdate on Windows NT platforms\n");
-		exit(1);
-#endif /* SYS_WINNT */
 	}
 	return(0);
 }
@@ -1440,7 +1436,7 @@ findserver(
 	if (SRCPORT(addr) != NTP_PORT)
 		return 0;
 
-	for (server = sys_servers; server != NULL; 
+	for (server = sys_servers; server != NULL;
 	     server = server->next_server) {
 		if (SOCK_EQ(addr, &server->srcadr))
 			return server;
@@ -1451,7 +1447,7 @@ findserver(
 		}
 	}
 
-	if (mc_server != NULL) {	
+	if (mc_server != NULL) {
 
 		struct server *sp;
 
@@ -1494,7 +1490,7 @@ timer(void)
 	 * who's event timers have expired.  Give these to
 	 * the transmit routine.
 	 */
-	for (server = sys_servers; server != NULL; 
+	for (server = sys_servers; server != NULL;
 	     server = server->next_server) {
 		if (server->event_time != 0
 		    && server->event_time <= current_time)
@@ -1520,7 +1516,7 @@ alarming(
 	alarm_flag++;
 }
 #else	/* SYS_WINNT follows */
-void CALLBACK 
+void CALLBACK
 alarming(UINT uTimerID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
 {
 	UNUSED_ARG(uTimerID); UNUSED_ARG(uMsg); UNUSED_ARG(dwUser);
@@ -1605,24 +1601,26 @@ init_alarm(void)
 #else	/* SYS_WINNT follows */
 	_tzset();
 
-	/*
-	 * Get privileges needed for fiddling with the clock
-	 */
+	if (!simple_query && !debug) {
+		/*
+		 * Get privileges needed for fiddling with the clock
+		 */
 
-	/* get the current process token handle */
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
-		msyslog(LOG_ERR, "OpenProcessToken failed: %m");
-		exit(1);
+		/* get the current process token handle */
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
+			msyslog(LOG_ERR, "OpenProcessToken failed: %m");
+			exit(1);
+		}
+		/* get the LUID for system-time privilege. */
+		LookupPrivilegeValue(NULL, SE_SYSTEMTIME_NAME, &tkp.Privileges[0].Luid);
+		tkp.PrivilegeCount = 1;		/* one privilege to set */
+		tkp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+		/* get set-time privilege for this process. */
+		AdjustTokenPrivileges(hToken, FALSE, &tkp, 0,(PTOKEN_PRIVILEGES) NULL, 0);
+		/* cannot test return value of AdjustTokenPrivileges. */
+		if (GetLastError() != ERROR_SUCCESS)
+			msyslog(LOG_ERR, "AdjustTokenPrivileges failed: %m");
 	}
-	/* get the LUID for system-time privilege. */
-	LookupPrivilegeValue(NULL, SE_SYSTEMTIME_NAME, &tkp.Privileges[0].Luid);
-	tkp.PrivilegeCount = 1;		/* one privilege to set */
-	tkp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-	/* get set-time privilege for this process. */
-	AdjustTokenPrivileges(hToken, FALSE, &tkp, 0,(PTOKEN_PRIVILEGES) NULL, 0);
-	/* cannot test return value of AdjustTokenPrivileges. */
-	if (GetLastError() != ERROR_SUCCESS)
-		msyslog(LOG_ERR, "AdjustTokenPrivileges failed: %m");
 
 	/*
 	 * Set up timer interrupts for every 2**EVENT_TIMEOUT seconds
@@ -1996,7 +1994,6 @@ input_handler(void)
 }
 
 
-#if !defined SYS_WINNT && !defined SYS_CYGWIN32
 /*
  * adj_systime - do a big long slew of the system time
  */
@@ -2041,15 +2038,30 @@ l_adj_systime(
 		adjtv.tv_usec = -adjtv.tv_usec;
 	}
 
-	if (adjtv.tv_usec != 0 && !debug) {
+	if (!debug && (adjtv.tv_usec != 0)) {
+		/* A time correction needs to be applied. */
+#if !defined SYS_WINNT && !defined SYS_CYGWIN32
+		/* Slew the time on systems that support this. */
 		if (adjtime(&adjtv, &oadjtv) < 0) {
 			msyslog(LOG_ERR, "Can't adjust the time of day: %m");
 			exit(1);
 		}
+#else	/* SYS_WINNT or SYS_CYGWIN32 is defined */
+		/*
+		 * The NT SetSystemTimeAdjustment() call achieves slewing by
+		 * changing the clock frequency. This means that we cannot specify
+		 * it to slew the clock by a definite amount and then stop like
+		 * the Unix adjtime() routine. We can technically adjust the clock
+		 * frequency, have ntpdate sleep for a while, and then wake
+		 * up and reset the clock frequency, but this might cause some
+		 * grief if the user attempts to run ntpd immediately after
+		 * ntpdate and the socket is in use.
+		 */
+		printf("\nSlewing the system time is not supported on Windows. Use the -b option to step the time.\n");
+#endif	/* defined SYS_WINNT || defined SYS_CYGWIN32 */
 	}
 	return 1;
 }
-#endif /* SYS_WINNT */
 
 
 /*
@@ -2068,11 +2080,14 @@ l_step_systime(
 	int isneg;
 	int n;
 
-	if (debug) return 1;
+	if (debug)
+		return 1;
+
 	/*
 	 * Take the absolute value of the offset
 	 */
 	ftmp = *ts;
+
 	if (L_ISNEG(&ftmp)) {
 		L_NEG(&ftmp);
 		isneg = 1;
@@ -2082,9 +2097,9 @@ l_step_systime(
 	if (ftmp.l_ui >= 3) {		/* Step it and slew - we might win */
 		LFPTOD(ts, dtemp);
 		n = step_systime(dtemp);
-		if (!n)
-			return n;
-		if (isneg)
+		if (n == 0)
+			return 0;
+		if (isneg)		/* WTF! */
 			ts->l_ui = ~0;
 		else
 			ts->l_ui = ~0;
@@ -2113,12 +2128,12 @@ l_step_systime(
 }
 
 
-/* XXX ELIMINATE printserver similar in ntptrace.c, ntpdate.c */
+/* XXX ELIMINATE print_server similar in ntptrace.c, ntpdate.c */
 /*
- * printserver - print detail information for a server
+ * print_server - print detail information for a server
  */
 static void
-printserver(
+print_server(
 	register struct server *pp,
 	FILE *fp
 	)
@@ -2126,6 +2141,9 @@ printserver(
 	register int i;
 	char junk[5];
 	const char *str;
+
+	if (pp->stratum == 0)		/* Nothing received => nothing to print */
+		return;
 
 	if (!debug) {
 		(void) fprintf(fp, "server %s, stratum %d, offset %s, delay %s\n",
@@ -2143,17 +2161,20 @@ printserver(
 			   pp->leap & 0x1 ? '1' : '0',
 			   pp->trust);
 
-	if (pp->stratum == 1) {
-		junk[4] = 0;
-		memmove(junk, (char *)&pp->refid, 4);
+	if (REFID_ISTEXT(pp->stratum)) {
+		str = (char *) &pp->refid;
+		for (i=0; i<4 && str[i]; i++) {
+			junk[i] = (isprint(str[i]) ? str[i] : '.');
+		}
+		junk[i] = 0; // force terminating 0
 		str = junk;
 	} else {
-		str = stoa(&pp->srcadr);
+		str = numtoa(pp->refid);
 	}
 	(void) fprintf(fp,
-			   "refid [%s], delay %s, dispersion %s\n",
-			   str, fptoa((s_fp)pp->delay, 5),
-			   ufptoa(pp->dispersion, 5));
+			"refid [%s], root delay %s, root dispersion %s\n",
+			str, fptoa((s_fp)pp->rootdelay, 6),
+			ufptoa(pp->rootdisp, 6));
 
 	(void) fprintf(fp, "transmitted %d, in filter %d\n",
 			   pp->xmtcnt, pp->filter_nextpt);
@@ -2165,21 +2186,23 @@ printserver(
 	(void) fprintf(fp, "transmit timestamp:  %s\n",
 			   prettydate(&pp->xmt));
 
-	(void) fprintf(fp, "filter delay: ");
-	for (i = 0; i < NTP_SHIFT; i++) {
-		(void) fprintf(fp, " %-8.8s", fptoa(pp->filter_delay[i], 5));
-		if (i == (NTP_SHIFT>>1)-1)
-			(void) fprintf(fp, "\n        ");
-	}
-	(void) fprintf(fp, "\n");
+	if (sys_samples > 1) {
+		(void) fprintf(fp, "filter delay: ");
+		for (i = 0; i < NTP_SHIFT; i++) {
+			(void) fprintf(fp, " %-8.8s", fptoa(pp->filter_delay[i], 5));
+			if (i == (NTP_SHIFT>>1)-1)
+				(void) fprintf(fp, "\n        ");
+		}
+		(void) fprintf(fp, "\n");
 
-	(void) fprintf(fp, "filter offset:");
-	for (i = 0; i < PEER_SHIFT; i++) {
-		(void) fprintf(fp, " %-8.8s", lfptoa(&pp->filter_offset[i], 6));
-		if (i == (PEER_SHIFT>>1)-1)
-			(void) fprintf(fp, "\n        ");
+		(void) fprintf(fp, "filter offset:");
+		for (i = 0; i < PEER_SHIFT; i++) {
+			(void) fprintf(fp, " %-8.8s", lfptoa(&pp->filter_offset[i], 6));
+			if (i == (PEER_SHIFT>>1)-1)
+				(void) fprintf(fp, "\n        ");
+		}
+		(void) fprintf(fp, "\n");
 	}
-	(void) fprintf(fp, "\n");
 
 	(void) fprintf(fp, "delay %s, dispersion %s\n",
 			   fptoa((s_fp)pp->delay, 5), ufptoa(pp->dispersion, 5));
@@ -2227,7 +2250,7 @@ isc_boolean_t ntp_port_inuse(int af, u_short port)
 	 * Check if NTP socket is already in use on this system
 	 * This is only for Windows Systems, as they tend not to fail on the real bind() below
 	 */
-	
+
 	SOCKET checksocket;
 	struct sockaddr_in checkservice;
 	checksocket = socket(af, SOCK_DGRAM, 0);

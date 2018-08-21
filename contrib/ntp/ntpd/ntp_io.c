@@ -1612,6 +1612,34 @@ set_wildcard_reuse(
 }
 #endif /* OS_NEEDS_REUSEADDR_FOR_IFADDRBIND */
 
+static isc_boolean_t
+check_flags(
+	sockaddr_u *psau,
+	const char *name,
+	u_int32 flags
+	)
+{
+#if defined(SIOCGIFAFLAG_IN)
+	struct ifreq ifr;
+	int fd;
+
+	if (psau->sa.sa_family != AF_INET)
+		return ISC_FALSE;
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		return ISC_FALSE;
+	ZERO(ifr);
+	memcpy(&ifr.ifr_addr, &psau->sa, sizeof(ifr.ifr_addr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(fd, SIOCGIFAFLAG_IN, &ifr) < 0) {
+		close(fd);
+		return ISC_FALSE;
+	}
+	close(fd);
+	if ((ifr.ifr_addrflags & flags) != 0)
+		return ISC_TRUE;
+#endif	/* SIOCGIFAFLAG_IN */
+	return ISC_FALSE;
+}
 
 static isc_boolean_t
 check_flags6(
@@ -1661,19 +1689,32 @@ is_valid(
 	const char *name
 	)
 {
-	u_int32 flags6;
+	u_int32 flags;
 
-	flags6 = 0;
+	flags = 0;
+	switch (psau->sa.sa_family) {
+	case AF_INET:
+#ifdef IN_IFF_DETACHED
+		flags |= IN_IFF_DETACHED;
+#endif
+#ifdef IN_IFF_TENTATIVE
+		flags |= IN_IFF_TENTATIVE;
+#endif
+		return check_flags(psau, name, flags) ? ISC_FALSE : ISC_TRUE;
+	case AF_INET6:
 #ifdef IN6_IFF_DEPARTED
-	flags6 |= IN6_IFF_DEPARTED;
+		flags |= IN6_IFF_DEPARTED;
 #endif
 #ifdef IN6_IFF_DETACHED
-	flags6 |= IN6_IFF_DETACHED;
+		flags |= IN6_IFF_DETACHED;
 #endif
 #ifdef IN6_IFF_TENTATIVE
-	flags6 |= IN6_IFF_TENTATIVE;
+		flags |= IN6_IFF_TENTATIVE;
 #endif
-	return check_flags6(psau, name, flags6) ? ISC_FALSE : ISC_TRUE;
+		return check_flags6(psau, name, flags) ? ISC_FALSE : ISC_TRUE;
+	default:
+		return ISC_FALSE;
+	}
 }
 
 /*
@@ -3092,7 +3133,7 @@ sendpkt(
 	int	cc;
 	int	rc;
 	u_char	cttl;
-	l_fp	fp_zero = { 0, 0 };
+	l_fp	fp_zero = { { 0 }, 0 };
 
 	ismcast = IS_MCAST(dest);
 	if (!ismcast)

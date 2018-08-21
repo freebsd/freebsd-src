@@ -21,7 +21,7 @@ crypto digest md5 host myhostname ident wedent pw cryptopass randfile /.rnd
 revoke 10
 keysdir "/etc/ntp/keys"
 keys "/etc/ntp.keys"
-trustedkey 1 2 3 4 5 6 7 8 9 10 11 12 (14 ... 16) 18 (32768 ... 65534)
+trustedkey 1 2 3 4 5 6 7 8 9 10 11 12 (14 ... 16) 18 (32768 ... 65535)
 controlkey 12
 requestkey 12
 enable auth ntp monitor stats
