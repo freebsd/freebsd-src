@@ -52,7 +52,7 @@ typedef struct epoch_context *epoch_context_t;
 
 struct epoch_tracker {
 	void *datap[3];
-#ifdef INVARIANTS
+#ifdef EPOCH_TRACKER_DEBUG
 	int datai[5];
 #else
 	int datai[1];
