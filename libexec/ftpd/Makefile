@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+CONFS=	ftpusers
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5
 SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c

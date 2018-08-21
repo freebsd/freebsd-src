@@ -56,10 +56,6 @@ BIN1+=	etc.${MACHINE_CPUARCH}/ttys
 BIN1+= amd.map
 .endif
 
-.if ${MK_FTP} != "no"
-BIN1+= ftpusers
-.endif
-
 .if ${MK_LOCATE} != "no"
 BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
 .endif
