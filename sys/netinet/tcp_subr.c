@@ -2865,6 +2865,9 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
+	if (inc->inc_flags & INC_IPV6MINMTU)
+		return (IPV6_MMTU);
+
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
 		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);
 		if (fib6_lookup_nh_ext(inc->inc_fibnum, &dst6, scopeid, 0,

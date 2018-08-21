@@ -1584,6 +1584,42 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
+			/*
+			 * In case of the IPV6_USE_MIN_MTU socket option,
+			 * the INC_IPV6MINMTU flag to announce a corresponding
+			 * MSS during the initial handshake.
+			 * If the TCP connection is not in the front states,
+			 * just reduce the MSS being used.
+			 * This avoids the sending of TCP segments which will
+			 * be fragmented at the IPv6 layer.
+			 */
+			if ((error == 0) &&
+			    (sopt->sopt_dir == SOPT_SET) &&
+			    (sopt->sopt_level == IPPROTO_IPV6) &&
+			    (sopt->sopt_name == IPV6_USE_MIN_MTU)) {
+				INP_WLOCK(inp);
+				if ((inp->inp_flags &
+				    (INP_TIMEWAIT | INP_DROPPED))) {
+					INP_WUNLOCK(inp);
+					return (ECONNRESET);
+				}
+				inp->inp_inc.inc_flags |= INC_IPV6MINMTU;
+				tp = intotcpcb(inp);
+				if ((tp->t_state >= TCPS_SYN_SENT) &&
+				    (inp->inp_inc.inc_flags & INC_ISIPV6)) {
+					struct ip6_pktopts *opt;
+
+					opt = inp->in6p_outputopts;
+					if ((opt != NULL) &&
+					    (opt->ip6po_minmtu ==
+					    IP6PO_MINMTU_ALL)) {
+						if (tp->t_maxseg > TCP6_MSS) {
+							tp->t_maxseg = TCP6_MSS;
+						}
+					}
+				}
+				INP_WUNLOCK(inp);
+			}
 		}
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
