@@ -1193,6 +1193,12 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		if (!sscanf(q, "%o", &working->permissions))
 			errx(1, "error in config file; bad permissions:\n%s",
 			    errline);
+		if ((working->permissions & ~DEFFILEMODE) != 0) {
+			warnx("File mode bits 0%o changed to 0%o in line:\n%s",
+			    working->permissions,
+			    working->permissions & DEFFILEMODE, errline);
+			working->permissions &= DEFFILEMODE;
+		}
 
 		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
