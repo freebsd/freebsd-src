@@ -7381,6 +7381,7 @@ sctp_hc_get_mtu(union sctp_sockstore *addr, uint16_t fibnum)
 	}
 	return ((uint32_t)tcp_hc_getmtu(&inc));
 }
+
 void
 sctp_set_state(struct sctp_tcb *stcb, int new_state)
 {
