@@ -142,9 +142,6 @@ distribution:
 		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_BLUETOOTH} != "no"
-	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
-.endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
