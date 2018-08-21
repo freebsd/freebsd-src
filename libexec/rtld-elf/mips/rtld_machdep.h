@@ -64,11 +64,10 @@ typedef struct {
 #define round(size, align) \
     (((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
-    TLS_TCB_SIZE
+    round(TLS_TCB_SIZE, align)
 #define calculate_tls_offset(prev_offset, prev_size, size, align) \
     round(prev_offset + prev_size, align)
 #define calculate_tls_end(off, size)    ((off) + (size))
-#define calculate_tls_post_size(align)  0
 
 extern void *__tls_get_addr(tls_index *ti);
 
