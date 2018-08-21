@@ -6709,7 +6709,6 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-					SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_stop_timers_for_shutdown(stcb);
 					sctp_send_shutdown(stcb, net);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb,
@@ -13507,7 +13506,6 @@ dataless_eof:
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
 				SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-				SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
 				if (stcb->asoc.alternate) {
 					netp = stcb->asoc.alternate;

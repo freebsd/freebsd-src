@@ -3437,7 +3437,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
-					SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_stop_timers_for_shutdown(asoc);
 					if (asoc->asoc.alternate) {
 						netp = asoc->asoc.alternate;
