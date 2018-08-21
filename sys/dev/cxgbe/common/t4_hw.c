@@ -5770,7 +5770,7 @@ int t4_set_sched_ipg(struct adapter *adap, int sched, unsigned int ipg)
  */
 static u64 chan_rate(struct adapter *adap, unsigned int bytes256)
 {
-	u64 v = bytes256 * adap->params.vpd.cclk;
+	u64 v = (u64)bytes256 * adap->params.vpd.cclk;
 
 	return v * 62 + v / 2;
 }
