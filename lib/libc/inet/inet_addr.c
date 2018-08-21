@@ -182,19 +182,20 @@ inet_aton(const char *cp, struct in_addr *addr) {
 	case 2:				/*%< a.b -- 8.24 bits */
 		if (val > 0xffffffU)
 			return (0);
-		val |= parts[0] << 24;
+		val |= (uint32_t)parts[0] << 24;
 		break;
 
 	case 3:				/*%< a.b.c -- 8.8.16 bits */
 		if (val > 0xffffU)
 			return (0);
-		val |= (parts[0] << 24) | (parts[1] << 16);
+		val |= ((uint32_t)parts[0] << 24) | (parts[1] << 16);
 		break;
 
 	case 4:				/*%< a.b.c.d -- 8.8.8.8 bits */
 		if (val > 0xffU)
 			return (0);
-		val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
+		val |= ((uint32_t)parts[0] << 24) | (parts[1] << 16) |
+		    (parts[2] << 8);
 		break;
 	}
 	if (addr != NULL)
