@@ -1726,6 +1726,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 			sc->nvstore.sectsz_bits = 12;
 			if (sc->nvstore.ctx == NULL) {
 				perror("Unable to allocate RAM");
+				free(uopt);
 				return (-1);
 			}
 		} else if (optidx == 0) {
@@ -1734,12 +1735,14 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 			sc->nvstore.ctx = blockif_open(xopts, bident);
 			if (sc->nvstore.ctx == NULL) {
 				perror("Could not open backing file");
+				free(uopt);
 				return (-1);
 			}
 			sc->nvstore.type = NVME_STOR_BLOCKIF;
 			sc->nvstore.size = blockif_size(sc->nvstore.ctx);
 		} else {
 			fprintf(stderr, "Invalid option %s\n", xopts);
+			free(uopt);
 			return (-1);
 		}
 
