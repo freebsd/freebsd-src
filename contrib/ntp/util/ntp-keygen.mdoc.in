@@ -1,9 +1,9 @@
-.Dd February 27 2018
+.Dd August 14 2018
 .Dt NTP_KEYGEN @NTP_KEYGEN_MS@ User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntp-keygen-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  February 27, 2018 at 05:16:00 PM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  August 14, 2018 at 08:30:38 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp-keygen-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -943,7 +943,7 @@ Following the header the keys are entered one per line in the format
 .D1 Ar keyno Ar type Ar key
 where
 .Ar keyno
-is a positive integer in the range 1\-65534;
+is a positive integer in the range 1\-65535;
 .Ar type
 is the key type for the message digest algorithm, which in the absence of the
 OpenSSL library must be

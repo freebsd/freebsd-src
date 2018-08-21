@@ -5,6 +5,8 @@
 # include <unistd.h>
 #endif
 
+// XXX: Move to header.
+size_t remoteconfig_cmdlength( const char *, const char *);
 
 /* Bug 2853 */
 /* evaluate the length of the command sequence. This breaks at the first
