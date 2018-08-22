@@ -315,6 +315,7 @@ int			 unmask(struct pf_addr *, sa_family_t);
 void			 ifa_load(void);
 int			 get_socket_domain(void);
 struct node_host	*ifa_exists(const char *);
+struct node_host	*ifa_grouplookup(const char *ifa_name, int flags);
 struct node_host	*ifa_lookup(const char *, int);
 struct node_host	*host(const char *);
 
