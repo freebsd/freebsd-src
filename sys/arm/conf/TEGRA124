@@ -124,7 +124,6 @@ device		re			# RealTek 8139C+/8169/8169S/8110S
 device		fbd
 device		vt
 device		kbdmux
-device		drm2
 
 # Sound
 #device		sound
