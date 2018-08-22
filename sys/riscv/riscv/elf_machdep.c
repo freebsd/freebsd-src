@@ -259,6 +259,13 @@ reloctype_to_str(int type)
 	return "*unknown*";
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /*
  * Currently kernel loadable module for RISCV is compiled with -fPIC option.
  * (see also additional CFLAGS definition for RISCV in sys/conf/kmod.mk)
