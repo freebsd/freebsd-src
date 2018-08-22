@@ -36,7 +36,6 @@ BIN1=	crontab \
 	rc.firewall \
 	remote \
 	rpc \
-	services \
 	termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
@@ -122,12 +121,6 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
 
-.if ${MK_SERVICESDB} != "no"
-	cd ${.CURDIR}; \
-	    services_mkdb ${CAP_MKDB_ENDIAN} -q -o ${DESTDIR}/var/db/services.db \
-		${DESTDIR}/etc/services;
-.endif
-
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
@@ -138,7 +131,6 @@ distribution:
 		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
 		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
-		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
