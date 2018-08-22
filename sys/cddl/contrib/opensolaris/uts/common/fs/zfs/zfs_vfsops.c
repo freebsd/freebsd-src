@@ -1130,6 +1130,8 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 }
 
 #if defined(__FreeBSD__)
+taskq_t *zfsvfs_taskq;
+
 static void
 zfsvfs_task_unlinked_drain(void *context, int pending __unused)
 {
@@ -2185,9 +2187,9 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	}
 #endif
 
-	while (taskqueue_cancel(system_taskq->tq_queue,
+	while (taskqueue_cancel(zfsvfs_taskq->tq_queue,
 	    &zfsvfs->z_unlinked_drain_task, NULL) != 0)
-		taskqueue_drain(system_taskq->tq_queue,
+		taskqueue_drain(zfsvfs_taskq->tq_queue,
 		    &zfsvfs->z_unlinked_drain_task);
 
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
@@ -2554,11 +2556,17 @@ zfs_init(void)
 	zfs_vnodes_adjust();
 
 	dmu_objset_register_type(DMU_OST_ZFS, zfs_space_delta_cb);
+#if defined(__FreeBSD__)
+	zfsvfs_taskq = taskq_create("zfsvfs", 1, minclsyspri, 0, 0, 0);
+#endif
 }
 
 void
 zfs_fini(void)
 {
+#if defined(__FreeBSD__)
+	taskq_destroy(zfsvfs_taskq);
+#endif
 	zfsctl_fini();
 	zfs_znode_fini();
 	zfs_vnodes_adjust_back();

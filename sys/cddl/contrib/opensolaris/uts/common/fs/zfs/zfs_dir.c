@@ -402,6 +402,10 @@ zfs_purgedir(znode_t *dzp)
 	return (skipped);
 }
 
+#if defined(__FreeBSD__)
+extern taskq_t *zfsvfs_taskq;
+#endif
+
 void
 zfs_rmnode(znode_t *zp)
 {
@@ -520,15 +524,17 @@ zfs_rmnode(znode_t *zp)
 
 	dmu_tx_commit(tx);
 
+#if defined(__FreeBSD__)
 	if (xattr_obj) {
 		/*
 		 * We're using the FreeBSD taskqueue API here instead of
 		 * the Solaris taskq API since the FreeBSD API allows for a
 		 * task to be enqueued multiple times but executed once.
 		 */
-		taskqueue_enqueue(system_taskq->tq_queue,
+		taskqueue_enqueue(zfsvfs_taskq->tq_queue,
 		    &zfsvfs->z_unlinked_drain_task);
 	}
+#endif
 }
 
 static uint64_t
