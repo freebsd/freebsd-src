@@ -128,10 +128,20 @@ end
 -- pattern should have no more than two captures patterns, which correspond to
 -- the two parameters (usually 'key' and 'value') that are passed to the
 -- process function.  All trailing characters will be validated.
+--
+-- We have two special entries in this table: the first is the first entry,
+-- a full-line comment.  The second is for 'exec' handling.  Both have a single
+-- capture group, but the difference is that the full-line comment pattern will
+-- match the entire line.  This does not run afoul of the later end of line
+-- validation that we'll do after a match.  However, the 'exec' pattern will.
+-- We document the exceptions with a special 'groups' index that indicates
+-- the number of capture groups, if not two.  We'll use this later to do
+-- validation on the proper entry.
 local pattern_table = {
 	{
 		str = "(#.*)",
 		process = function(_, _)  end,
+		groups = 1,
 	},
 	--  module_load="value"
 	{
@@ -193,6 +203,7 @@ local pattern_table = {
 				print(MSG_FAILEXEC:format(k))
 			end
 		end,
+		groups = 1,
 	},
 	--  env_var="value"
 	{
@@ -394,31 +405,30 @@ function config.parse(text)
 
 	for line in text:gmatch("([^\n]+)") do
 		if line:match("^%s*$") == nil then
-			local found = false
-
 			for _, val in ipairs(pattern_table) do
 				local pattern = '^%s*' .. val.str .. '%s*(.*)';
+				local cgroups = val.groups or 2
 				local k, v, c = line:match(pattern)
 				if k ~= nil then
-					found = true
+					-- Offset by one, drats
+					if cgroups == 1 then
+						c = v
+						v = nil
+					end
 
 					if isValidComment(c) then
 						val.process(k, v)
-					else
-						print(MSG_MALFORMED:format(n,
-						    line))
-						status = false
+						goto nextline
 					end
 
 					break
 				end
 			end
 
-			if not found then
-				print(MSG_MALFORMED:format(n, line))
-				status = false
-			end
+			print(MSG_MALFORMED:format(n, line))
+			status = false
 		end
+		::nextline::
 		n = n + 1
 	end
 
