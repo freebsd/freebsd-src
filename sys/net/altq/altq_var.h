@@ -196,7 +196,6 @@ u_int8_t read_dsfield(struct mbuf *, struct altq_pktattr *);
 void	write_dsfield(struct mbuf *, struct altq_pktattr *, u_int8_t);
 void	altq_assert(const char *, int, const char *);
 int	tbr_set(struct ifaltq *, struct tb_profile *);
-int	tbr_get(struct ifaltq *, struct tb_profile *);
 
 int	altq_pfattach(struct pf_altq *);
 int	altq_pfdetach(struct pf_altq *);
@@ -204,40 +203,40 @@ int	altq_add(struct pf_altq *);
 int	altq_remove(struct pf_altq *);
 int	altq_add_queue(struct pf_altq *);
 int	altq_remove_queue(struct pf_altq *);
-int	altq_getqstats(struct pf_altq *, void *, int *);
+int	altq_getqstats(struct pf_altq *, void *, int *, int);
 
 int	cbq_pfattach(struct pf_altq *);
 int	cbq_add_altq(struct pf_altq *);
 int	cbq_remove_altq(struct pf_altq *);
 int	cbq_add_queue(struct pf_altq *);
 int	cbq_remove_queue(struct pf_altq *);
-int	cbq_getqstats(struct pf_altq *, void *, int *);
+int	cbq_getqstats(struct pf_altq *, void *, int *, int);
 
 int	codel_pfattach(struct pf_altq *);
 int	codel_add_altq(struct pf_altq *);
 int	codel_remove_altq(struct pf_altq *);
-int	codel_getqstats(struct pf_altq *, void *, int *);
+int	codel_getqstats(struct pf_altq *, void *, int *, int);
 
 int	priq_pfattach(struct pf_altq *);
 int	priq_add_altq(struct pf_altq *);
 int	priq_remove_altq(struct pf_altq *);
 int	priq_add_queue(struct pf_altq *);
 int	priq_remove_queue(struct pf_altq *);
-int	priq_getqstats(struct pf_altq *, void *, int *);
+int	priq_getqstats(struct pf_altq *, void *, int *, int);
 
 int	hfsc_pfattach(struct pf_altq *);
 int	hfsc_add_altq(struct pf_altq *);
 int	hfsc_remove_altq(struct pf_altq *);
 int	hfsc_add_queue(struct pf_altq *);
 int	hfsc_remove_queue(struct pf_altq *);
-int	hfsc_getqstats(struct pf_altq *, void *, int *);
+int	hfsc_getqstats(struct pf_altq *, void *, int *, int);
 
 int	fairq_pfattach(struct pf_altq *);
 int	fairq_add_altq(struct pf_altq *);
 int	fairq_remove_altq(struct pf_altq *);
 int	fairq_add_queue(struct pf_altq *);
 int	fairq_remove_queue(struct pf_altq *);
-int	fairq_getqstats(struct pf_altq *, void *, int *);
+int	fairq_getqstats(struct pf_altq *, void *, int *, int);
 
 #endif /* _KERNEL */
 #endif /* _ALTQ_ALTQ_VAR_H_ */

@@ -22,6 +22,8 @@
  * altq interface
  */
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -85,6 +87,7 @@ altq_fetch(void)
 		return;
 	}
 	bzero(&pfioc, sizeof(pfioc));
+	pfioc.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(pffd, DIOCGETALTQS, &pfioc) != 0) {
 		warn("altq support getting queue list");
 		close(pffd);

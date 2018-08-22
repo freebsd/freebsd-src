@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -1524,6 +1526,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	}
 
 	memset(&pa, 0, sizeof(pa));
+	pa.version = PFIOC_ALTQ_VERSION;
 	memset(&pf, 0, sizeof(pf));
 	memset(&trs, 0, sizeof(trs));
 	if ((path = calloc(1, MAXPATHLEN)) == NULL)
@@ -2032,6 +2035,7 @@ pfctl_test_altqsupport(int dev, int opts)
 {
 	struct pfioc_altq pa;
 
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		if (errno == ENODEV) {
 			if (opts & PF_OPT_VERBOSE)
