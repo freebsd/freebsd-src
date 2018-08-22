@@ -114,6 +114,16 @@ done:
 	return (error);
 }
 
+void
+lpc_print_supported_devices()
+{
+	size_t i;
+
+	printf("bootrom\n");
+	for (i = 0; i < LPC_UART_NUM; i++)
+		printf("%s\n", lpc_uart_names[i]);
+}
+
 const char *
 lpc_bootrom(void)
 {
