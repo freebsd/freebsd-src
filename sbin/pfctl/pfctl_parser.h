@@ -134,7 +134,7 @@ struct node_os {
 };
 
 struct node_queue_bw {
-	u_int32_t	bw_absolute;
+	u_int64_t	bw_absolute;
 	u_int16_t	bw_percent;
 };
 
