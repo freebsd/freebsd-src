@@ -80,8 +80,21 @@ extern int vm_guest;		/* Running as virtual machine guest? */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
 		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_LAST };
 
+/*
+ * These functions need to be declared before the KASSERT macro is invoked in
+ * !KASSERT_PANIC_OPTIONAL builds, so their declarations are sort of out of
+ * place compared to other function definitions in this header.  On the other
+ * hand, this header is a bit disorganized anyway.
+ */
+void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
+
 #if defined(WITNESS) || defined(INVARIANT_SUPPORT)
+#ifdef KASSERT_PANIC_OPTIONAL
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
+#else
+#define kassert_panic	panic
+#endif
 #endif
 
 #ifdef	INVARIANTS		/* The option is always available */
@@ -212,9 +225,6 @@ void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	*phashinit_flags(int count, struct malloc_type *type, u_long *nentries,
     int flags);
 void	g_waitidle(void);
-
-void	panic(const char *, ...) __dead2 __printflike(1, 2);
-void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);

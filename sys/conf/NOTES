@@ -554,6 +554,14 @@ options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 
 #
+# The KASSERT_PANIC_OPTIONAL option allows kasserts to fire without
+# necessarily inducing a panic.  Panic is the default behavior, but
+# runtime options can configure it either entirely off, or off with a
+# limit.
+#
+options 	KASSERT_PANIC_OPTIONAL
+
+#
 # The DIAGNOSTIC option is used to enable extra debugging information
 # from some parts of the kernel.  As this makes everything more noisy,
 # it is disabled by default.
