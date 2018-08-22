@@ -724,6 +724,19 @@ ig4iic_intr(void *cookie)
 		++sc->rnext;
 		status = reg_read(sc, IG4_REG_I2C_STA);
 	}
+
+	/* 
+	 * Workaround to trigger pending interrupt if IG4_REG_INTR_STAT
+	 * is changed after clearing it
+	 */
+	if(sc->access_intr_mask) {
+		status = reg_read(sc, IG4_REG_INTR_MASK);
+		if(status) {
+			reg_write(sc, IG4_REG_INTR_MASK, 0);
+			reg_write(sc, IG4_REG_INTR_MASK, status);
+		}
+	}
+
 	wakeup(sc);
 	mtx_unlock(&sc->io_lock);
 }
