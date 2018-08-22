@@ -489,17 +489,6 @@ device		aibs
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
 
-# Direct Rendering modules for 3D acceleration.
-device		drm		# DRM core module required by DRM drivers
-device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
-device		mgadrm		# AGP Matrox G200, G400, G450, G550
-device		r128drm		# ATI Rage 128
-device		savagedrm	# S3 Savage3D, Savage4
-device		sisdrm		# SiS 300/305, 540, 630
-device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
-device		viadrm		# VIA
-options 	DRM_DEBUG	# Include debug printfs (slow)
-
 #
 # mse: Logitech and ATI InPort bus mouse ports
 
