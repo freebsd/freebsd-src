@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2018
+.Dd August 22, 2018
 .Dt DTRACE_SCTP 4
 .Os
 .Sh NAME
@@ -44,6 +44,12 @@ protocol
 .Fn sctp:rwnd:assoc:val uint32_t uint32_t int int
 .Fn sctp:flightsize:net:val uint32_t uint32_t uintptr_t int int
 .Fn sctp:flightsize:assoc:val uint32_t uint32_t int int
+.Fn sctp:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "sctpsinfo_t *" \
+    "sctpinfo_t *"
+.Fn sctp:::send "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "sctpsinfo_t *" \
+    "sctpinfo_t *"
+.Fn sctp:::state-change "void *" "csinfo_t *" "void *" "sctpsinfo_t *" \
+    "void *" "sctplsinfo_t *"
 .Sh DESCRIPTION
 The DTrace
 .Nm sctp
@@ -105,14 +111,105 @@ probe fires when a remotely-initiated active SCTP open succeeds.
 At this point the new connection is in the ESTABLISHED state, and the probe
 arguments expose the headers associated with the final ACK of the four-way
 handshake.
+.Pp
+The
+.Fn sctp:::send
+and
+.Fn sctp:::receive
+probes fire when the host sends or receives an SCTP packet, respectively.
+As with the
+.Xr dtrace_udp 4
+provider,
+.Nm sctp
+probes fire only for packets sent by or to the local host; forwarded packets are
+handled in the IP layer and are only visible to the
+.Xr dtrace_ip 4
+provider.
+.Pp
+The
+.Fn sctp:::state-change
+probe fires upon local SCTP association state transitions.
+Its first, third and fifth arguments are currently always
+.Dv NULL .
+Its last argument describes the from-state in the transition, and the to-state
+can be obtained from
+.Dv args[3]->sctps_state .
 .\" .Sh ARGUMENTS
-.\" .Sh FILES
-.\" .Sh EXAMPLES
-.\" .Sh COMPATIBILITY
-.\" This provider has not been tested for compatiblity with the
-.\" .Nm sctp
-.\" provider in Solaris
-.\" .Pq if one exists .
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/sctp.d" -compact
+.It Pa /usr/lib/dtrace/sctp.d
+DTrace type and translator definitions for the
+.Nm sctp
+provider.
+.El
+.Sh EXAMPLES
+A script that logs SCTP packets in real time:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10hz
+
+dtrace:::BEGIN
+{
+        printf(" %3s %15s:%-5s      %15s:%-5s\n", "CPU",
+            "LADDR", "LPORT", "RADDR", "RPORT");
+}
+
+sctp:::send
+{
+        printf(" %3d %16s:%-5d -> %16s:%-5d\n", cpu,
+            args[2]->ip_saddr, args[4]->sctp_sport,
+            args[2]->ip_daddr, args[4]->sctp_dport);
+}
+
+sctp:::receive
+{
+        printf(" %3d %16s:%-5d <- %16s:%-5d\n", cpu,
+            args[2]->ip_daddr, args[4]->sctp_dport,
+            args[2]->ip_saddr, args[4]->sctp_sport);
+}
+.Ed
+A script that logs SCTP association state changes as they occur:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10
+
+int last[int];
+
+dtrace:::BEGIN
+{
+        printf(" %3s %12s  %-25s    %-25s\n",
+            "CPU", "DELTA(us)", "OLD", "NEW");
+}
+
+sctp:::state-change
+/ last[args[1]->cs_cid] /
+{
+        this->elapsed = (timestamp - last[args[1]->cs_cid]) / 1000;
+        printf(" %3d %12d  %-25s -> %-25s\n", cpu, this->elapsed,
+            sctp_state_string[args[5]->sctps_state],
+            sctp_state_string[args[3]->sctps_state]);
+        last[args[1]->cs_cid] = timestamp;
+}
+
+sctp:::state-change
+/ last[args[1]->cs_cid] == 0 /
+{
+        printf(" %3d %12s  %-25s -> %-25s\n", cpu, "-",
+            sctp_state_string[args[5]->sctps_state],
+            sctp_state_string[args[3]->sctps_state]);
+        last[args[1]->cs_cid] = timestamp;
+}
+.Ed
+.Sh COMPATIBILITY
+The
+.Fn sctp:::send ,
+.Fn sctp:::receive ,
+and
+.Fn sctp:::state-change
+probes are compatible with the
+.Nm sctp
+provider in Solaris.
+All other probes are only available in FreeBSD.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr dtrace_ip 4 ,

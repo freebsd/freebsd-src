@@ -48,14 +48,31 @@
 	SDT_PROBE5(tcp, , , probe, arg0, arg1, arg2, arg3, arg4)
 #define	TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
 	SDT_PROBE6(tcp, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
+#define	SCTP_PROBE1(probe, arg0)					\
+	SDT_PROBE1(sctp, , , probe, arg0)
+#define	SCTP_PROBE2(probe, arg0, arg1)					\
+	SDT_PROBE2(sctp, , , probe, arg0, arg1)
+#define	SCTP_PROBE3(probe, arg0, arg1, arg2)				\
+	SDT_PROBE3(sctp, , , probe, arg0, arg1, arg2)
+#define	SCTP_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+	SDT_PROBE4(sctp, , , probe, arg0, arg1, arg2, arg3)
+#define	SCTP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)		\
+	SDT_PROBE5(sctp, , , probe, arg0, arg1, arg2, arg3, arg4)
+#define	SCTP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+	SDT_PROBE6(sctp, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
 
 SDT_PROVIDER_DECLARE(ip);
+SDT_PROVIDER_DECLARE(sctp);
 SDT_PROVIDER_DECLARE(tcp);
 SDT_PROVIDER_DECLARE(udp);
 SDT_PROVIDER_DECLARE(udplite);
 
 SDT_PROBE_DECLARE(ip, , , receive);
 SDT_PROBE_DECLARE(ip, , , send);
+
+SDT_PROBE_DECLARE(sctp, , , receive);
+SDT_PROBE_DECLARE(sctp, , , send);
+SDT_PROBE_DECLARE(sctp, , , state__change);
 
 SDT_PROBE_DECLARE(tcp, , , accept__established);
 SDT_PROBE_DECLARE(tcp, , , accept__refused);
