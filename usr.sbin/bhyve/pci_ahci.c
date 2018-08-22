@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "ahci.h"
 #include "block_if.h"
+#include "migration.h"
 
 #define	DEF_PORTS	6	/* Intel ICH8 AHCI supports 6 ports */
 #define	MAX_PORTS	32	/* AHCI supports 32 ports */
@@ -2446,6 +2447,253 @@ pci_ahci_atapi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	return (pci_ahci_init(ctx, pi, opts, 1));
 }
 
+static int
+pci_ahci_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		  size_t buf_size, size_t *snapshot_len)
+{
+	struct pci_ahci_softc *sc;
+	uint8_t *buf;
+	int i, j;
+	struct ahci_port *port;
+	vm_paddr_t addr;
+	struct ahci_ioreq *ioreq, *aior;
+
+	sc = pi->pi_arg;
+	buf = buffer;
+
+	SNAPSHOT_PART_OR_RET(sc->ports, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->cap, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->ghc, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->is, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->pi, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->vs, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->ccc_ctl, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->ccc_pts, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->em_loc, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->em_ctl, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->cap2, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->bohc, buf, buf_size, snapshot_len);
+	SNAPSHOT_PART_OR_RET(sc->lintr, buf, buf_size, snapshot_len);
+
+	for (i = 0; i < MAX_PORTS; i++) {
+
+		port = &sc->port[i];
+
+		SNAPSHOT_PART_OR_RET(port->bctx, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->port, buf, buf_size, snapshot_len);
+
+		if (port->bctx == NULL)
+			continue;
+
+		addr = paddr_host2guest(ctx, port->cmd_lst);
+		SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+		addr = paddr_host2guest(ctx, port->rfis);
+		SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+		SNAPSHOT_PART_OR_RET(port->ident, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->atapi, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->reset, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->waitforclear, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->mult_sectors, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->xfermode, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->err_cfis, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->sense_key, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->asc, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->ccs, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->pending, buf, buf_size, snapshot_len);
+
+		SNAPSHOT_PART_OR_RET(port->clb, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->clbu, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->fb, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->fbu, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->is, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->ie, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->cmd, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->unused0, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->tfd, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->sig, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->ssts, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->sctl, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->serr, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->sact, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->ci, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->sntf, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->fbs, buf, buf_size, snapshot_len);
+		SNAPSHOT_PART_OR_RET(port->ioqsz, buf, buf_size, snapshot_len);
+
+		for (j = 0; j < port->ioqsz; j++) {
+
+			ioreq = &port->ioreq[j];
+
+			/* TODO Haven't implemented blockif_req save/restore */
+			addr = paddr_host2guest(ctx, ioreq->cfis);
+			SNAPSHOT_PART_OR_RET(addr, buf, buf_size, snapshot_len);
+
+			SNAPSHOT_PART_OR_RET(ioreq->len, buf, buf_size, snapshot_len);
+			SNAPSHOT_PART_OR_RET(ioreq->done, buf, buf_size, snapshot_len);
+			SNAPSHOT_PART_OR_RET(ioreq->slot, buf, buf_size, snapshot_len);
+			SNAPSHOT_PART_OR_RET(ioreq->more, buf, buf_size, snapshot_len);
+		}
+
+		STAILQ_FOREACH(aior, &port->iofhd, io_flist) {
+			j = ((void *) aior - (void *) port->ioreq) / sizeof(*aior);
+			SNAPSHOT_PART_OR_RET(j, buf, buf_size, snapshot_len);
+		}
+
+		j = -1;
+		SNAPSHOT_PART_OR_RET(j, buf, buf_size, snapshot_len);
+
+		TAILQ_FOREACH(aior, &port->iobhd, io_blist) {
+			j = ((void *) aior - (void *) port->ioreq) / sizeof(*aior);
+			SNAPSHOT_PART_OR_RET(j, buf, buf_size, snapshot_len);
+		}
+
+		j = -1;
+		SNAPSHOT_PART_OR_RET(j, buf, buf_size, snapshot_len);
+	}
+
+	return (0);
+}
+
+static int
+pci_ahci_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		 size_t buf_size)
+{
+	struct pci_ahci_softc *sc;
+	uint8_t *buf;
+	int i, j;
+	struct ahci_port *port;
+	vm_paddr_t addr;
+	struct ahci_ioreq *ioreq;
+	struct ahci_cmd_hdr *hdr;
+	void *bctx;
+
+	sc = pi->pi_arg;
+	buf = buffer;
+
+	RESTORE_PART_OR_RET(sc->ports, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->cap, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->ghc, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->is, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->pi, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->vs, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->ccc_ctl, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->ccc_pts, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->em_loc, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->em_ctl, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->cap2, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->bohc, buf, buf_size);
+	RESTORE_PART_OR_RET(sc->lintr, buf, buf_size);
+
+	for (i = 0; i < MAX_PORTS; i++) {
+
+		port = &sc->port[i];
+
+		RESTORE_PART_OR_RET(bctx, buf, buf_size);
+		RESTORE_PART_OR_RET(port->port, buf, buf_size);
+
+		if ((bctx == NULL) && (port->bctx != NULL)) {
+			fprintf(stderr, "%s: restored port not matching actual "
+					"port\r\n", __func__);
+			return (-1);
+		} else if ((bctx != NULL) && (port->bctx == NULL)) {
+			fprintf(stderr, "%s: restored port not matching actual "
+					"port\r\n", __func__);
+			return (-1);
+		}
+		if (bctx == NULL)
+			continue;
+
+		if (port->port != i) {
+			fprintf(stderr, "%s: restored port not matching actual "
+					"port: %d expected %d \r\n", __func__,
+					port->port, i);
+
+			return (-1);
+		}
+
+		RESTORE_PART_OR_RET(addr, buf, buf_size);
+		port->cmd_lst = paddr_guest2host(ctx, addr,
+				AHCI_CL_SIZE * AHCI_MAX_SLOTS);
+
+		RESTORE_PART_OR_RET(addr, buf, buf_size);
+		port->rfis = paddr_guest2host(ctx, addr, 256);
+
+		RESTORE_PART_OR_RET(port->ident, buf, buf_size);
+		RESTORE_PART_OR_RET(port->atapi, buf, buf_size);
+		RESTORE_PART_OR_RET(port->reset, buf, buf_size);
+		RESTORE_PART_OR_RET(port->waitforclear, buf, buf_size);
+		RESTORE_PART_OR_RET(port->mult_sectors, buf, buf_size);
+		RESTORE_PART_OR_RET(port->xfermode, buf, buf_size);
+		RESTORE_PART_OR_RET(port->err_cfis, buf, buf_size);
+		RESTORE_PART_OR_RET(port->sense_key, buf, buf_size);
+		RESTORE_PART_OR_RET(port->asc, buf, buf_size);
+		RESTORE_PART_OR_RET(port->ccs, buf, buf_size);
+		RESTORE_PART_OR_RET(port->pending, buf, buf_size);
+
+		RESTORE_PART_OR_RET(port->clb, buf, buf_size);
+		RESTORE_PART_OR_RET(port->clbu, buf, buf_size);
+		RESTORE_PART_OR_RET(port->fb, buf, buf_size);
+		RESTORE_PART_OR_RET(port->fbu, buf, buf_size);
+		RESTORE_PART_OR_RET(port->is, buf, buf_size);
+		RESTORE_PART_OR_RET(port->ie, buf, buf_size);
+		RESTORE_PART_OR_RET(port->cmd, buf, buf_size);
+		RESTORE_PART_OR_RET(port->unused0, buf, buf_size);
+		RESTORE_PART_OR_RET(port->tfd, buf, buf_size);
+		RESTORE_PART_OR_RET(port->sig, buf, buf_size);
+		RESTORE_PART_OR_RET(port->ssts, buf, buf_size);
+		RESTORE_PART_OR_RET(port->sctl, buf, buf_size);
+		RESTORE_PART_OR_RET(port->serr, buf, buf_size);
+		RESTORE_PART_OR_RET(port->sact, buf, buf_size);
+		RESTORE_PART_OR_RET(port->ci, buf, buf_size);
+		RESTORE_PART_OR_RET(port->sntf, buf, buf_size);
+		RESTORE_PART_OR_RET(port->fbs, buf, buf_size);
+		RESTORE_PART_OR_RET(port->ioqsz, buf, buf_size);
+
+		for (j = 0; j < port->ioqsz; j++) {
+
+			ioreq = &port->ioreq[j];
+
+			/* TODO Haven't implemented blockif_req save/restore */
+
+			/* XXX: j may not be correct */
+			hdr = (struct ahci_cmd_hdr *)(port->cmd_lst + j * AHCI_CL_SIZE);
+			RESTORE_PART_OR_RET(addr, buf, buf_size);
+			ioreq->cfis = paddr_guest2host(ctx, addr,
+					0x80 + hdr->prdtl * sizeof(struct ahci_prdt_entry));
+
+			RESTORE_PART_OR_RET(ioreq->len, buf, buf_size);
+			RESTORE_PART_OR_RET(ioreq->done, buf, buf_size);
+			RESTORE_PART_OR_RET(ioreq->slot, buf, buf_size);
+			RESTORE_PART_OR_RET(ioreq->more, buf, buf_size);
+		}
+
+		STAILQ_INIT(&port->iofhd);
+
+		while (1) {
+			RESTORE_PART_OR_RET(j, buf, buf_size);
+
+			if (j == -1)
+				break;
+
+			STAILQ_INSERT_TAIL(&port->iofhd, &port->ioreq[j], io_flist);
+		}
+
+		while (1) {
+			RESTORE_PART_OR_RET(j, buf, buf_size);
+
+			if (j == -1)
+				break;
+
+			TAILQ_INSERT_TAIL(&port->iobhd, &port->ioreq[j], io_blist);
+		}
+
+	}
+
+	return (0);
+}
+
 /*
  * Use separate emulation names to distinguish drive and atapi devices
  */
@@ -2453,7 +2701,9 @@ struct pci_devemu pci_de_ahci = {
 	.pe_emu =	"ahci",
 	.pe_init =	pci_ahci_hd_init,
 	.pe_barwrite =	pci_ahci_write,
-	.pe_barread =	pci_ahci_read
+	.pe_barread =	pci_ahci_read,
+	.pe_snapshot =	pci_ahci_snapshot,
+	.pe_restore =	pci_ahci_restore
 };
 PCI_EMUL_SET(pci_de_ahci);
 
@@ -2461,7 +2711,9 @@ struct pci_devemu pci_de_ahci_hd = {
 	.pe_emu =	"ahci-hd",
 	.pe_init =	pci_ahci_hd_init,
 	.pe_barwrite =	pci_ahci_write,
-	.pe_barread =	pci_ahci_read
+	.pe_barread =	pci_ahci_read,
+	.pe_snapshot =	pci_ahci_snapshot,
+	.pe_restore =	pci_ahci_restore
 };
 PCI_EMUL_SET(pci_de_ahci_hd);
 
@@ -2469,6 +2721,8 @@ struct pci_devemu pci_de_ahci_cd = {
 	.pe_emu =	"ahci-cd",
 	.pe_init =	pci_ahci_atapi_init,
 	.pe_barwrite =	pci_ahci_write,
-	.pe_barread =	pci_ahci_read
+	.pe_barread =	pci_ahci_read,
+	.pe_snapshot =	pci_ahci_snapshot,
+	.pe_restore =	pci_ahci_restore
 };
 PCI_EMUL_SET(pci_de_ahci_cd);

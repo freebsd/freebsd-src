@@ -103,6 +103,9 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "fbuf",		pci_snapshot,		pci_restore	},
 	{ "xhci",		pci_snapshot,		pci_restore	},
 	{ "e1000",		pci_snapshot,		pci_restore	},
+	{ "ahci",		pci_snapshot,		pci_restore	},
+	{ "ahci-hd",		pci_snapshot,		pci_restore	},
+	{ "ahci-cd",		pci_snapshot,		pci_restore	},
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
