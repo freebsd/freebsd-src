@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -1351,9 +1352,7 @@ setup_buffer(char *buffer, int addlen)
 	}
 
 	if (NULL == b) {
-		fprintf(stderr, "%s: can't allocate sufficient memory\n",
-				myname);
-		exit(4);
+		errx(4, "can't allocate sufficient memory");
 	}
 
 	return b;
