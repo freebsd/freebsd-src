@@ -69,7 +69,7 @@ nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
     uint32_t cdw14, uint32_t cdw15)
 {
 	bzero(&nvmeio->cmd, sizeof(struct nvme_command));
-	nvmeio->cmd.opc_fuse = NVME_CMD_SET_OPC(cmd);
+	nvmeio->cmd.opc = cmd;
 	nvmeio->cmd.nsid = htole32(nsid);
 	nvmeio->cmd.cdw10 = htole32(cdw10);
 	nvmeio->cmd.cdw11 = htole32(cdw11);
@@ -117,29 +117,24 @@ nvme_opc2str[] = {
 const char *
 nvme_op_string(const struct nvme_command *cmd)
 {
-	uint8_t opc;
 
-	opc = (cmd->opc_fuse >> NVME_CMD_OPC_SHIFT) & NVME_CMD_OPC_MASK;
-	if (opc >= nitems(nvme_opc2str))
+	if (cmd->opc >= nitems(nvme_opc2str))
 		return "UNKNOWN";
 
-	return nvme_opc2str[opc];
+	return nvme_opc2str[cmd->opc];
 }
 
 const char *
 nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 {
-	uint8_t opc, fuse;
 
-	opc = (cmd->opc_fuse >> NVME_CMD_OPC_SHIFT) & NVME_CMD_OPC_MASK;
-	fuse = (cmd->opc_fuse >> NVME_CMD_FUSE_SHIFT) & NVME_CMD_FUSE_MASK;
 	/*
 	 * cid, rsvd areas and mptr not printed, since they are used
 	 * only internally by the SIM.
 	 */
 	snprintf(cmd_string, len,
 	    "opc=%x fuse=%x nsid=%x prp1=%llx prp2=%llx cdw=%x %x %x %x %x %x",
-	    opc, fuse, cmd->nsid,
+	    cmd->opc, cmd->fuse, cmd->nsid,
 	    (unsigned long long)cmd->prp1, (unsigned long long)cmd->prp2,
 	    cmd->cdw10, cmd->cdw11, cmd->cdw12,
 	    cmd->cdw13, cmd->cdw14, cmd->cdw15);

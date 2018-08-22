@@ -172,7 +172,7 @@ format(int argc, char *argv[])
 	}
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_FORMAT_NVM);
+	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
 	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32((ses << 9) + (pil << 8) + (pi << 5) +
 	    (mset << 4) + lbaf);
