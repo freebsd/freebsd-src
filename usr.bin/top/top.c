@@ -21,6 +21,7 @@
 #include <sys/signal.h>
 
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <getopt.h>
 #include <jail.h>
@@ -253,6 +254,7 @@ main(int argc, char *argv[])
     char *order_name = NULL;
     int order_index = 0;
     fd_set readfds;
+	char *nptr;
 
     /* set the buffer for stdout */
 #ifdef DEBUG
@@ -386,7 +388,12 @@ main(int argc, char *argv[])
 	      }
 
 		  case 's':
-			delay = strtod(optarg, NULL);
+			delay = strtod(optarg, &nptr);
+			if (nptr == optarg) {
+				warnx("warning: invalid delay");
+				delay = 2;
+				warnings++;
+			}
 			if (delay < 0) {
 				fprintf(stderr,
 						"%s: warning: seconds delay should be positive -- using default\n",
