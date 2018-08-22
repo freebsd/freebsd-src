@@ -19,6 +19,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -148,6 +150,7 @@ pfctl_update_qstats(int dev, struct pf_altq_node **root)
 	memset(&pa, 0, sizeof(pa));
 	memset(&pq, 0, sizeof(pq));
 	memset(&qstats, 0, sizeof(qstats));
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		warn("DIOCGETALTQS");
 		return (-1);
@@ -177,6 +180,7 @@ pfctl_update_qstats(int dev, struct pf_altq_node **root)
 			pq.ticket = pa.ticket;
 			pq.buf = &qstats.data;
 			pq.nbytes = sizeof(qstats.data);
+			pq.version = altq_stats_version(pa.altq.scheduler);
 			if (ioctl(dev, DIOCGETQSTATS, &pq)) {
 				warn("DIOCGETQSTATS");
 				return (-1);

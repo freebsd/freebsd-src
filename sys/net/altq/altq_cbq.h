@@ -99,6 +99,12 @@ typedef struct _cbq_class_stats_ {
 	struct codel_stats codel;
 } class_stats_t;
 
+/*
+ * CBQ_STATS_VERSION is defined in altq.h to work around issues stemming
+ * from mixing of public-API and internal bits in each scheduler-specific
+ * header.
+ */
+
 #ifdef ALTQ3_COMPAT
 /*
  * Define structures associated with IOCTLS for cbq.

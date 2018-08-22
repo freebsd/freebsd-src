@@ -116,10 +116,10 @@ static struct hfsc_class	*actlist_firstfit(struct hfsc_class *,
 
 static __inline u_int64_t	seg_x2y(u_int64_t, u_int64_t);
 static __inline u_int64_t	seg_y2x(u_int64_t, u_int64_t);
-static __inline u_int64_t	m2sm(u_int);
-static __inline u_int64_t	m2ism(u_int);
+static __inline u_int64_t	m2sm(u_int64_t);
+static __inline u_int64_t	m2ism(u_int64_t);
 static __inline u_int64_t	d2dx(u_int);
-static u_int			sm2m(u_int64_t);
+static u_int64_t		sm2m(u_int64_t);
 static u_int			dx2d(u_int64_t);
 
 static void		sc2isc(struct service_curve *, struct internal_sc *);
@@ -130,7 +130,9 @@ static u_int64_t	rtsc_x2y(struct runtime_sc *, u_int64_t);
 static void		rtsc_min(struct runtime_sc *, struct internal_sc *,
 			    u_int64_t, u_int64_t);
 
-static void			 get_class_stats(struct hfsc_classstats *,
+static void			 get_class_stats_v0(struct hfsc_classstats_v0 *,
+				    struct hfsc_class *);
+static void			 get_class_stats_v1(struct hfsc_classstats_v1 *,
 				    struct hfsc_class *);
 static struct hfsc_class	*clh_to_clp(struct hfsc_if *, u_int32_t);
 
@@ -158,7 +160,7 @@ altqdev_decl(hfsc);
  */
 #define	is_a_parent_class(cl)	((cl)->cl_children != NULL)
 
-#define	HT_INFINITY	0xffffffffffffffffLL	/* infinite time value */
+#define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
 
 #ifdef ALTQ3_COMPAT
 /* hif_list keeps all hfsc_if's allocated. */
@@ -226,7 +228,7 @@ hfsc_add_queue(struct pf_altq *a)
 {
 	struct hfsc_if *hif;
 	struct hfsc_class *cl, *parent;
-	struct hfsc_opts *opts;
+	struct hfsc_opts_v1 *opts;
 	struct service_curve rtsc, lssc, ulsc;
 
 	if ((hif = a->altq_disc) == NULL)
@@ -280,11 +282,15 @@ hfsc_remove_queue(struct pf_altq *a)
 }
 
 int
-hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
+hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
 	struct hfsc_if *hif;
 	struct hfsc_class *cl;
-	struct hfsc_classstats stats;
+	union {
+		struct hfsc_classstats_v0 v0;
+		struct hfsc_classstats_v1 v1;
+	} stats;
+	size_t stats_size;
 	int error = 0;
 
 	if ((hif = altq_lookup(a->ifname, ALTQT_HFSC)) == NULL)
@@ -293,14 +299,27 @@ hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
 	if ((cl = clh_to_clp(hif, a->qid)) == NULL)
 		return (EINVAL);
 
-	if (*nbytes < sizeof(stats))
+	if (version > HFSC_STATS_VERSION)
 		return (EINVAL);
 
-	get_class_stats(&stats, cl);
+	memset(&stats, 0, sizeof(stats));
+	switch (version) {
+	case 0:
+		get_class_stats_v0(&stats.v0, cl);
+		stats_size = sizeof(struct hfsc_classstats_v0);
+		break;
+	case 1:
+		get_class_stats_v1(&stats.v1, cl);
+		stats_size = sizeof(struct hfsc_classstats_v1);
+		break;
+	}		
 
-	if ((error = copyout((caddr_t)&stats, ubuf, sizeof(stats))) != 0)
+	if (*nbytes < stats_size)
+		return (EINVAL);
+
+	if ((error = copyout((caddr_t)&stats, ubuf, stats_size)) != 0)
 		return (error);
-	*nbytes = sizeof(stats);
+	*nbytes = stats_size;
 	return (0);
 }
 
@@ -1357,27 +1376,17 @@ actlist_firstfit(struct hfsc_class *cl, u_int64_t cur_time)
  *	m: bits/sec
  *	d: msec
  *  internal service curve parameters
- *	sm: (bytes/tsc_interval) << SM_SHIFT
- *	ism: (tsc_count/byte) << ISM_SHIFT
- *	dx: tsc_count
+ *	sm: (bytes/machclk tick) << SM_SHIFT
+ *	ism: (machclk ticks/byte) << ISM_SHIFT
+ *	dx: machclk ticks
  *
- * SM_SHIFT and ISM_SHIFT are scaled in order to keep effective digits.
- * we should be able to handle 100K-1Gbps linkspeed with 200Hz-1GHz CPU
- * speed.  SM_SHIFT and ISM_SHIFT are selected to have at least 3 effective
- * digits in decimal using the following table.
+ * SM_SHIFT and ISM_SHIFT are scaled in order to keep effective digits.  we
+ * should be able to handle 100K-100Gbps linkspeed with 256 MHz machclk
+ * frequency and at least 3 effective digits in decimal.
  *
- *  bits/sec    100Kbps     1Mbps     10Mbps     100Mbps    1Gbps
- *  ----------+-------------------------------------------------------
- *  bytes/nsec  12.5e-6    125e-6     1250e-6    12500e-6   125000e-6
- *  sm(500MHz)  25.0e-6    250e-6     2500e-6    25000e-6   250000e-6
- *  sm(200MHz)  62.5e-6    625e-6     6250e-6    62500e-6   625000e-6
- *
- *  nsec/byte   80000      8000       800        80         8
- *  ism(500MHz) 40000      4000       400        40         4
- *  ism(200MHz) 16000      1600       160        16         1.6
  */
 #define	SM_SHIFT	24
-#define	ISM_SHIFT	10
+#define	ISM_SHIFT	14
 
 #define	SM_MASK		((1LL << SM_SHIFT) - 1)
 #define	ISM_MASK	((1LL << ISM_SHIFT) - 1)
@@ -1413,16 +1422,16 @@ seg_y2x(u_int64_t y, u_int64_t ism)
 }
 
 static __inline u_int64_t
-m2sm(u_int m)
+m2sm(u_int64_t m)
 {
 	u_int64_t sm;
 
-	sm = ((u_int64_t)m << SM_SHIFT) / 8 / machclk_freq;
+	sm = (m << SM_SHIFT) / 8 / machclk_freq;
 	return (sm);
 }
 
 static __inline u_int64_t
-m2ism(u_int m)
+m2ism(u_int64_t m)
 {
 	u_int64_t ism;
 
@@ -1442,13 +1451,13 @@ d2dx(u_int d)
 	return (dx);
 }
 
-static u_int
+static u_int64_t
 sm2m(u_int64_t sm)
 {
 	u_int64_t m;
 
 	m = (sm * 8 * machclk_freq) >> SM_SHIFT;
-	return ((u_int)m);
+	return (m);
 }
 
 static u_int
@@ -1597,7 +1606,89 @@ rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u_int64_t x,
 }
 
 static void
-get_class_stats(struct hfsc_classstats *sp, struct hfsc_class *cl)
+get_class_stats_v0(struct hfsc_classstats_v0 *sp, struct hfsc_class *cl)
+{
+	sp->class_id = cl->cl_id;
+	sp->class_handle = cl->cl_handle;
+
+#define SATU32(x)	(u_int32_t)uqmin((x), UINT_MAX)
+
+	if (cl->cl_rsc != NULL) {
+		sp->rsc.m1 = SATU32(sm2m(cl->cl_rsc->sm1));
+		sp->rsc.d = dx2d(cl->cl_rsc->dx);
+		sp->rsc.m2 = SATU32(sm2m(cl->cl_rsc->sm2));
+	} else {
+		sp->rsc.m1 = 0;
+		sp->rsc.d = 0;
+		sp->rsc.m2 = 0;
+	}
+	if (cl->cl_fsc != NULL) {
+		sp->fsc.m1 = SATU32(sm2m(cl->cl_fsc->sm1));
+		sp->fsc.d = dx2d(cl->cl_fsc->dx);
+		sp->fsc.m2 = SATU32(sm2m(cl->cl_fsc->sm2));
+	} else {
+		sp->fsc.m1 = 0;
+		sp->fsc.d = 0;
+		sp->fsc.m2 = 0;
+	}
+	if (cl->cl_usc != NULL) {
+		sp->usc.m1 = SATU32(sm2m(cl->cl_usc->sm1));
+		sp->usc.d = dx2d(cl->cl_usc->dx);
+		sp->usc.m2 = SATU32(sm2m(cl->cl_usc->sm2));
+	} else {
+		sp->usc.m1 = 0;
+		sp->usc.d = 0;
+		sp->usc.m2 = 0;
+	}
+
+#undef SATU32
+	
+	sp->total = cl->cl_total;
+	sp->cumul = cl->cl_cumul;
+
+	sp->d = cl->cl_d;
+	sp->e = cl->cl_e;
+	sp->vt = cl->cl_vt;
+	sp->f = cl->cl_f;
+
+	sp->initvt = cl->cl_initvt;
+	sp->vtperiod = cl->cl_vtperiod;
+	sp->parentperiod = cl->cl_parentperiod;
+	sp->nactive = cl->cl_nactive;
+	sp->vtoff = cl->cl_vtoff;
+	sp->cvtmax = cl->cl_cvtmax;
+	sp->myf = cl->cl_myf;
+	sp->cfmin = cl->cl_cfmin;
+	sp->cvtmin = cl->cl_cvtmin;
+	sp->myfadj = cl->cl_myfadj;
+	sp->vtadj = cl->cl_vtadj;
+
+	sp->cur_time = read_machclk();
+	sp->machclk_freq = machclk_freq;
+
+	sp->qlength = qlen(cl->cl_q);
+	sp->qlimit = qlimit(cl->cl_q);
+	sp->xmit_cnt = cl->cl_stats.xmit_cnt;
+	sp->drop_cnt = cl->cl_stats.drop_cnt;
+	sp->period = cl->cl_stats.period;
+
+	sp->qtype = qtype(cl->cl_q);
+#ifdef ALTQ_RED
+	if (q_is_red(cl->cl_q))
+		red_getstats(cl->cl_red, &sp->red[0]);
+#endif
+#ifdef ALTQ_RIO
+	if (q_is_rio(cl->cl_q))
+		rio_getstats((rio_t *)cl->cl_red, &sp->red[0]);
+#endif
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->cl_q))
+		codel_getstats(cl->cl_codel, &sp->codel);
+#endif
+}
+
+static void
+get_class_stats_v1(struct hfsc_classstats_v1 *sp, struct hfsc_class *cl)
 {
 	sp->class_id = cl->cl_id;
 	sp->class_handle = cl->cl_handle;

@@ -1300,20 +1300,55 @@ struct pfioc_limit {
 	unsigned	 limit;
 };
 
-struct pfioc_altq {
+struct pfioc_altq_v0 {
 	u_int32_t	 action;
 	u_int32_t	 ticket;
 	u_int32_t	 nr;
-	struct pf_altq	 altq;
+	struct pf_altq_v0 altq;
 };
 
-struct pfioc_qstats {
+struct pfioc_altq_v1 {
+	u_int32_t	 action;
+	u_int32_t	 ticket;
+	u_int32_t	 nr;
+	/*
+	 * Placed here so code that only uses the above parameters can be
+	 * written entirely in terms of the v0 or v1 type.
+	 */
+	u_int32_t	 version;
+	struct pf_altq_v1 altq;
+};
+
+/*
+ * Latest version of struct pfioc_altq_vX.  This must move in lock-step with
+ * the latest version of struct pf_altq_vX as it has that struct as a
+ * member.
+ */
+#define PFIOC_ALTQ_VERSION	PF_ALTQ_VERSION
+
+struct pfioc_qstats_v0 {
 	u_int32_t	 ticket;
 	u_int32_t	 nr;
 	void		*buf;
 	int		 nbytes;
 	u_int8_t	 scheduler;
 };
+
+struct pfioc_qstats_v1 {
+	u_int32_t	 ticket;
+	u_int32_t	 nr;
+	void		*buf;
+	int		 nbytes;
+	u_int8_t	 scheduler;
+	/*
+	 * Placed here so code that only uses the above parameters can be
+	 * written entirely in terms of the v0 or v1 type.
+	 */
+	u_int32_t	 version;  /* Requested version of stats struct */
+};
+
+/* Latest version of struct pfioc_qstats_vX */
+#define PFIOC_QSTATS_VERSION	1
 
 struct pfioc_ruleset {
 	u_int32_t	 nr;
@@ -1403,11 +1438,16 @@ struct pfioc_iface {
 #define DIOCKILLSTATES	_IOWR('D', 41, struct pfioc_state_kill)
 #define DIOCSTARTALTQ	_IO  ('D', 42)
 #define DIOCSTOPALTQ	_IO  ('D', 43)
-#define DIOCADDALTQ	_IOWR('D', 45, struct pfioc_altq)
-#define DIOCGETALTQS	_IOWR('D', 47, struct pfioc_altq)
-#define DIOCGETALTQ	_IOWR('D', 48, struct pfioc_altq)
-#define DIOCCHANGEALTQ	_IOWR('D', 49, struct pfioc_altq)
-#define DIOCGETQSTATS	_IOWR('D', 50, struct pfioc_qstats)
+#define DIOCADDALTQV0	_IOWR('D', 45, struct pfioc_altq_v0)
+#define DIOCADDALTQV1	_IOWR('D', 45, struct pfioc_altq_v1)
+#define DIOCGETALTQSV0	_IOWR('D', 47, struct pfioc_altq_v0)
+#define DIOCGETALTQSV1	_IOWR('D', 47, struct pfioc_altq_v1)
+#define DIOCGETALTQV0	_IOWR('D', 48, struct pfioc_altq_v0)
+#define DIOCGETALTQV1	_IOWR('D', 48, struct pfioc_altq_v1)
+#define DIOCCHANGEALTQV0 _IOWR('D', 49, struct pfioc_altq_v0)
+#define DIOCCHANGEALTQV1 _IOWR('D', 49, struct pfioc_altq_v1)
+#define DIOCGETQSTATSV0	_IOWR('D', 50, struct pfioc_qstats_v0)
+#define DIOCGETQSTATSV1	_IOWR('D', 50, struct pfioc_qstats_v1)
 #define DIOCBEGINADDRS	_IOWR('D', 51, struct pfioc_pooladdr)
 #define DIOCADDADDR	_IOWR('D', 52, struct pfioc_pooladdr)
 #define DIOCGETADDRS	_IOWR('D', 53, struct pfioc_pooladdr)
@@ -1445,11 +1485,63 @@ struct pfioc_iface {
 #define	DIOCSETIFFLAG	_IOWR('D', 89, struct pfioc_iface)
 #define	DIOCCLRIFFLAG	_IOWR('D', 90, struct pfioc_iface)
 #define	DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
-struct pf_ifspeed {
+struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
 	u_int32_t		baudrate;
 };
-#define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
+
+struct pf_ifspeed_v1 {
+	char			ifname[IFNAMSIZ];
+	u_int32_t		baudrate32;
+	/* layout identical to struct pf_ifspeed_v0 up to this point */
+	u_int64_t		baudrate;
+};
+
+/* Latest version of struct pf_ifspeed_vX */
+#define PF_IFSPEED_VERSION	1
+
+#define	DIOCGIFSPEEDV0	_IOWR('D', 92, struct pf_ifspeed_v0)
+#define	DIOCGIFSPEEDV1	_IOWR('D', 92, struct pf_ifspeed_v1)
+
+/*
+ * Compatibility and convenience macros
+ */
+#ifndef _KERNEL
+#ifdef PFIOC_USE_LATEST
+/*
+ * Maintaining in-tree consumers of the ioctl interface is easier when that
+ * code can be written in terms old names that refer to the latest interface
+ * version as that reduces the required changes in the consumers to those
+ * that are functionally necessary to accommodate a new interface version.
+ */
+#define	pfioc_altq	__CONCAT(pfioc_altq_v, PFIOC_ALTQ_VERSION)
+#define	pfioc_qstats	__CONCAT(pfioc_qstats_v, PFIOC_QSTATS_VERSION)
+#define	pf_ifspeed	__CONCAT(pf_ifspeed_v, PF_IFSPEED_VERSION)
+
+#define	DIOCADDALTQ	__CONCAT(DIOCADDALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETALTQS	__CONCAT(DIOCGETALTQSV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETALTQ	__CONCAT(DIOCGETALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCCHANGEALTQ	__CONCAT(DIOCCHANGEALTQV, PFIOC_ALTQ_VERSION)
+#define	DIOCGETQSTATS	__CONCAT(DIOCGETQSTATSV, PFIOC_QSTATS_VERSION)
+#define	DIOCGIFSPEED	__CONCAT(DIOCGIFSPEEDV, PF_IFSPEED_VERSION)
+#else
+/*
+ * When building out-of-tree code that is written for the old interface,
+ * such as may exist in ports for example, resolve the old struct tags and
+ * ioctl command names to the v0 versions.
+ */
+#define	pfioc_altq	__CONCAT(pfioc_altq_v, 0)
+#define	pfioc_qstats	__CONCAT(pfioc_qstats_v, 0)
+#define	pf_ifspeed	__CONCAT(pf_ifspeed_v, 0)
+
+#define	DIOCADDALTQ	__CONCAT(DIOCADDALTQV, 0)
+#define	DIOCGETALTQS	__CONCAT(DIOCGETALTQSV, 0)
+#define	DIOCGETALTQ	__CONCAT(DIOCGETALTQV, 0)
+#define	DIOCCHANGEALTQ	__CONCAT(DIOCCHANGEALTQV, 0)
+#define	DIOCGETQSTATS	__CONCAT(DIOCGETQSTATSV, 0)
+#define	DIOCGIFSPEED	__CONCAT(DIOCGIFSPEEDV, 0)
+#endif /* PFIOC_USE_LATEST */
+#endif /* _KERNEL */
 
 #ifdef _KERNEL
 LIST_HEAD(pf_src_node_list, pf_src_node);
