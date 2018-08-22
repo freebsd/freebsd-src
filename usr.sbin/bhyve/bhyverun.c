@@ -960,13 +960,19 @@ main(int argc, char *argv[])
 			gdb_port = atoi(optarg);
 			break;
 		case 'l':
-			if (lpc_device_parse(optarg) != 0) {
+			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
+				lpc_print_supported_devices();
+				exit(0);
+			} else if (lpc_device_parse(optarg) != 0) {
 				errx(EX_USAGE, "invalid lpc device "
 				    "configuration '%s'", optarg);
 			}
 			break;
 		case 's':
-			if (pci_parse_slot(optarg) != 0)
+			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
+				pci_print_supported_devices();
+				exit(0);
+			} else if (pci_parse_slot(optarg) != 0)
 				exit(4);
 			else
 				break;
