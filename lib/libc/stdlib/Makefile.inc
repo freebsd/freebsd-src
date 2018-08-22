@@ -36,8 +36,9 @@ MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 \
 	hcreate.3 imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
 	lsearch.3 memory.3 ptsname.3 qsort.3 \
 	quick_exit.3 \
-	radixsort.3 rand.3 random.3 reallocarray.3 reallocf.3 \
-	realpath.3 strfmon.3 strtod.3 strtol.3 strtonum.3 strtoul.3 system.3 \
+	radixsort.3 rand.3 random.3 reallocarray.3 reallocf.3 realpath.3 \
+	set_constraint_handler_s.3 \
+	strfmon.3 strtod.3 strtol.3 strtonum.3 strtoul.3 system.3 \
 	tsearch.3
 
 MLINKS+=a64l.3 l64a.3 a64l.3 l64a_r.3
@@ -55,6 +56,8 @@ MLINKS+=rand.3 rand_r.3 rand.3 srand.3 rand.3 sranddev.3
 MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=radixsort.3 sradixsort.3
+MLINKS+=set_constraint_handler_s.3 abort_handler_s.3
+MLINKS+=set_constraint_handler_s.3 ignore_handler_s.3
 MLINKS+=strfmon.3 strfmon_l.3
 MLINKS+=strtod.3 strtof.3 strtod.3 strtold.3
 MLINKS+=strtol.3 strtoll.3 strtol.3 strtoq.3 strtol.3 strtoimax.3
