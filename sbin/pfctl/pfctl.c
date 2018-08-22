@@ -342,26 +342,6 @@ pfctl_check_skip_ifaces(char *ifname)
 	return (0);
 }
 
-static void
-pfctl_adjust_skip_ifaces_group_member(struct pfctl *pf, char *ifname)
-{
-	struct pfi_kif *p;
-
-	PFRB_FOREACH(p, &skip_b) {
-		if (p->pfik_ifp == NULL)
-			continue;
-
-		if (strncmp(p->pfik_name, ifname, IFNAMSIZ))
-			continue;
-
-		if (!(p->pfik_flags & PFI_IFLAG_SKIP))
-			pfctl_set_interface_flags(pf, p->pfik_name,
-			  PFI_IFLAG_SKIP, 1);
-		if (p->pfik_flags & PFI_IFLAG_SKIP)
-			p->pfik_flags &= ~PFI_IFLAG_SKIP;
-	}
-}
-
 int
 pfctl_adjust_skip_ifaces(struct pfctl *pf)
 {
