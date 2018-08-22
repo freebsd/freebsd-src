@@ -222,14 +222,10 @@ nvme_modevent(module_t mod, int type, void *arg)
 void
 nvme_dump_command(struct nvme_command *cmd)
 {
-	uint8_t opc, fuse;
-
-	opc = (cmd->opc_fuse >> NVME_CMD_OPC_SHIFT) & NVME_CMD_OPC_MASK;
-	fuse = (cmd->opc_fuse >> NVME_CMD_FUSE_SHIFT) & NVME_CMD_FUSE_MASK;
 
 	printf(
 "opc:%x f:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
-	    opc, fuse, cmd->cid, le32toh(cmd->nsid),
+	    cmd->opc, cmd->fuse, cmd->cid, le32toh(cmd->nsid),
 	    cmd->rsvd2, cmd->rsvd3,
 	    (uintmax_t)le64toh(cmd->mptr), (uintmax_t)le64toh(cmd->prp1), (uintmax_t)le64toh(cmd->prp2),
 	    le32toh(cmd->cdw10), le32toh(cmd->cdw11), le32toh(cmd->cdw12),

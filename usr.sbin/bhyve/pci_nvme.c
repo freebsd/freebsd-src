@@ -117,9 +117,6 @@ enum nvme_cmd_cdw11 {
 	NVME_CMD_CDW11_IV  = 0xFFFF0000,
 };
 
-#define	NVME_CMD_GET_OPC(opc) \
-	((opc) >> NVME_CMD_OPC_SHIFT & NVME_CMD_OPC_MASK)
-
 #define	NVME_CQ_INTEN	0x01
 #define	NVME_CQ_INTCOAL	0x02
 
@@ -892,7 +889,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 		cmd = &(sq->qbase)[sqhead];
 		compl.status = 0;
 
-		switch (NVME_CMD_GET_OPC(cmd->opc_fuse)) {
+		switch (cmd->opc) {
 		case NVME_OPC_DELETE_IO_SQ:
 			DPRINTF(("%s command DELETE_IO_SQ\r\n", __func__));
 			do_intr |= nvme_opc_delete_io_sq(sc, cmd, &compl);
@@ -937,12 +934,11 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			break;
 		default:
 			WPRINTF(("0x%x command is not implemented\r\n",
-			    NVME_CMD_GET_OPC(cmd->opc_fuse)));
+			    cmd->opc));
 		}
 	
 		/* for now skip async event generation */
-		if (NVME_CMD_GET_OPC(cmd->opc_fuse) !=
-		    NVME_OPC_ASYNC_EVENT_REQUEST) {
+		if (cmd->opc != NVME_OPC_ASYNC_EVENT_REQUEST) {
 			struct nvme_completion *cp;
 			int phase;
 
@@ -1211,13 +1207,13 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 
 		lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
 
-		if (NVME_CMD_GET_OPC(cmd->opc_fuse) == NVME_OPC_FLUSH) {
+		if (cmd->opc == NVME_OPC_FLUSH) {
 			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
 			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
 			                        status, 1);
 
 			continue;
-		} else if (NVME_CMD_GET_OPC(cmd->opc_fuse) == 0x08) {
+		} else if (cmd->opc == 0x08) {
 			/* TODO: write zeroes */
 			WPRINTF(("%s write zeroes lba 0x%lx blocks %u\r\n",
 			        __func__, lba, cmd->cdw12 & 0xFFFF));
@@ -1246,7 +1242,7 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 		DPRINTF(("[h%u:t%u:n%u] %s starting LBA 0x%lx blocks %lu "
 		         "(%lu-bytes)\r\n",
 		         sqhead==0 ? sq->size-1 : sqhead-1, sq->tail, sq->size,
-		         NVME_CMD_GET_OPC(cmd->opc_fuse) == NVME_OPC_WRITE ?
+		         cmd->opc == NVME_OPC_WRITE ?
 			     "WRITE" : "READ",
 		         lba, nblocks, bytes));
 
@@ -1266,13 +1262,13 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 		if (req != NULL) {
 			req->io_req.br_offset = ((uint64_t)cmd->cdw11 << 32) |
 			                        cmd->cdw10;
-			req->opc = NVME_CMD_GET_OPC(cmd->opc_fuse);
+			req->opc = cmd->opc;
 			req->cid = cmd->cid;
 			req->nsid = cmd->nsid;
 		}
 
 		err = pci_nvme_append_iov_req(sc, req, cmd->prp1, cpsz,
-		    NVME_CMD_GET_OPC(cmd->opc_fuse) == NVME_OPC_WRITE, lba);
+		    cmd->opc == NVME_OPC_WRITE, lba);
 		lba += cpsz;
 		size -= cpsz;
 
@@ -1284,7 +1280,7 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 
 			err = pci_nvme_append_iov_req(sc, req, cmd->prp2,
 			    size,
-			    NVME_CMD_GET_OPC(cmd->opc_fuse) == NVME_OPC_WRITE,
+			    cmd->opc == NVME_OPC_WRITE,
 			    lba);
 		} else {
 			uint64_t *prp_list;
@@ -1318,8 +1314,7 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 
 				err = pci_nvme_append_iov_req(sc, req,
 				    prp_list[i], cpsz,
-				    NVME_CMD_GET_OPC(cmd->opc_fuse) ==
-				        NVME_OPC_WRITE, lba);
+				    cmd->opc == NVME_OPC_WRITE, lba);
 				if (err)
 					break;
 
@@ -1350,7 +1345,7 @@ iodone:
 		req->io_req.br_callback = pci_nvme_io_done;
 
 		err = 0;
-		switch (NVME_CMD_GET_OPC(cmd->opc_fuse)) {
+		switch (cmd->opc) {
 		case NVME_OPC_READ:
 			err = blockif_read(sc->nvstore.ctx, &req->io_req);
 			break;
@@ -1359,7 +1354,7 @@ iodone:
 			break;
 		default:
 			WPRINTF(("%s unhandled io command 0x%x\r\n",
-				 __func__, NVME_CMD_GET_OPC(cmd->opc_fuse)));
+				 __func__, cmd->opc));
 			err = 1;
 		}
 
