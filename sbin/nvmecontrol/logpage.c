@@ -107,7 +107,7 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
 	int i, err_pages;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_GET_LOG_PAGE);
+	pt.cmd.opc = NVME_OPC_GET_LOG_PAGE;
 	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = ((payload_size/sizeof(uint32_t)) - 1) << 16;
 	pt.cmd.cdw10 |= log_page;

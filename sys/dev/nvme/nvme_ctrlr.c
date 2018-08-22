@@ -769,7 +769,7 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 	 *  nature never be timed out.
 	 */
 	req->timeout = FALSE;
-	req->cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_ASYNC_EVENT_REQUEST);
+	req->cmd.opc = NVME_OPC_ASYNC_EVENT_REQUEST;
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
 
@@ -1073,7 +1073,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		req = nvme_allocate_request_null(nvme_pt_done, pt);
 
 	/* Assume userspace already converted to little-endian */
-	req->cmd.opc_fuse = pt->cmd.opc_fuse;
+	req->cmd.opc = pt->cmd.opc;
+	req->cmd.fuse = pt->cmd.fuse;
 	req->cmd.cdw10 = pt->cmd.cdw10;
 	req->cmd.cdw11 = pt->cmd.cdw11;
 	req->cmd.cdw12 = pt->cmd.cdw12;

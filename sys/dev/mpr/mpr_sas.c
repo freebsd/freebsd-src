@@ -1840,7 +1840,7 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 
 	/* Build NVMe DSM command */
 	c = (struct nvme_command *) req->NVMe_Command;
-	c->opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_DATASET_MANAGEMENT);
+	c->opc = NVME_OPC_DATASET_MANAGEMENT;
 	c->nsid = htole32(csio->ccb_h.target_lun + 1);
 	c->cdw10 = htole32(ndesc - 1);
 	c->cdw11 = htole32(NVME_DSM_ATTR_DEALLOCATE);

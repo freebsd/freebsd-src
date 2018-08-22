@@ -125,7 +125,7 @@ update_firmware(int fd, uint8_t *payload, int32_t payload_size)
 		memcpy(chunk, payload + off, size);
 
 		memset(&pt, 0, sizeof(pt));
-		pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD);
+		pt.cmd.opc = NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD;
 		pt.cmd.cdw10 = htole32((size / sizeof(uint32_t)) - 1);
 		pt.cmd.cdw11 = htole32(off / sizeof(uint32_t));
 		pt.buf = chunk;
@@ -150,7 +150,7 @@ activate_firmware(int fd, int slot, int activate_action)
 	uint16_t sct, sc;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_FIRMWARE_ACTIVATE);
+	pt.cmd.opc = NVME_OPC_FIRMWARE_ACTIVATE;
 	pt.cmd.cdw10 = htole32((activate_action << 3) | slot);
 	pt.is_read = 0;
 

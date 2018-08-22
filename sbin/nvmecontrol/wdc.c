@@ -81,7 +81,7 @@ wdc_get_data(int fd, uint32_t opcode, uint32_t len, uint32_t off, uint32_t cmd,
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(opcode);
+	pt.cmd.opc = opcode;
 	pt.cmd.cdw10 = htole32(len / sizeof(uint32_t));	/* - 1 like all the others ??? */
 	pt.cmd.cdw11 = htole32(off / sizeof(uint32_t));
 	pt.cmd.cdw12 = htole32(cmd);
