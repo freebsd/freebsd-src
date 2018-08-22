@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2018
+.Dd August 22, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2562,6 +2562,14 @@ This command is intended to
 synchronize the system clock only
 .Em once
 from some standard reference.
+.Pp
+Note that the use of the
+.Va ntpd_sync_on_start
+variable is a preferred alternative to the
+.Xr ntpdate 8
+utility as
+.Xr ntpdate 8
+is to be retired from the NTP distribution.
 .It Va ntpdate_config
 .Pq Vt str
 Configuration file for
