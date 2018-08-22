@@ -3264,7 +3264,7 @@ ipf_nat_add(fin, np, natsave, flags, direction)
 
 	goto done;
 badnat:
-	DT2(ns_badnatnew, fr_info_t *, fin, nat_t *, nat);
+	DT3(ns_badnatnew, fr_info_t *, fin, nat_t *, nat, ipnat_t *, np);
 	NBUMPSIDE(fin->fin_out, ns_badnatnew);
 	if ((hm = nat->nat_hm) != NULL)
 		ipf_nat_hostmapdel(softc, &hm);
