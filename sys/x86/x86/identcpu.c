@@ -988,6 +988,7 @@ printcpuinfo(void)
 				       "\020"
 				       "\033IBPB"
 				       "\034STIBP"
+				       "\035L1DFL"
 				       "\036ARCH_CAP"
 				       "\040SSBD"
 				       );
