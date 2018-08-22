@@ -96,88 +96,27 @@ extern int guest_ncpus;
 #define JSON_MEMFLAGS_KEY		"memflags"
 
 const struct vm_snapshot_dev_info snapshot_devs[] = {
-	{
-		.dev_name = "atkbdc",
-		.snapshot_cb = atkbdc_snapshot,
-		.restore_cb = atkbdc_restore
-	},
-	{
-		.dev_name = "virtio-net",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
-	{
-		.dev_name = "virtio-blk",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
-	{
-		.dev_name = "lpc",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
-	{
-		.dev_name = "fbuf",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
-	{
-		.dev_name = "xhci",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
-	{
-		.dev_name = "e1000",
-		.snapshot_cb = pci_snapshot,
-		.restore_cb = pci_restore
-	},
+	{ "atkbdc",		atkbdc_snapshot,	atkbdc_restore	},
+	{ "virtio-net",		pci_snapshot,		pci_restore	},
+	{ "virtio-blk",		pci_snapshot,		pci_restore	},
+	{ "lpc",		pci_snapshot,		pci_restore	},
+	{ "fbuf",		pci_snapshot,		pci_restore	},
+	{ "xhci",		pci_snapshot,		pci_restore	},
+	{ "e1000",		pci_snapshot,		pci_restore	},
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
-	{
-		.struct_name = "vm",
-		.req = STRUCT_VM
-	},
-	{
-		.struct_name = "vmx",
-		.req = STRUCT_VMX
-	},
-	{
-		.struct_name = "vioapic",
-		.req = STRUCT_VIOAPIC
-	},
-	{
-		.struct_name = "vlapic",
-		.req = STRUCT_VLAPIC
-	},
-	{
-		.struct_name = "lapic",
-		.req = STRUCT_LAPIC
-	},
-	{
-		.struct_name = "vhpet",
-		.req = STRUCT_VHPET
-	},
-	{
-		.struct_name = "vmcx",
-		.req = STRUCT_VMCX
-	},
-	{
-		.struct_name = "vatpit",
-		.req = STRUCT_VATPIT
-	},
-	{
-		.struct_name = "vatpic",
-		.req = STRUCT_VATPIC
-	},
-	{
-		.struct_name = "vpmtmr",
-		.req = STRUCT_VPMTMR
-	},
-	{
-		.struct_name = "vrtc",
-		.req = STRUCT_VRTC
-	},
+	{ "vm",		STRUCT_VM	},
+	{ "vmx",	STRUCT_VMX	},
+	{ "vioapic",	STRUCT_VIOAPIC	},
+	{ "vlapic",	STRUCT_VLAPIC	},
+	{ "lapic",	STRUCT_LAPIC	},
+	{ "vhpet",	STRUCT_VHPET	},
+	{ "vmcx",	STRUCT_VMCX	},
+	{ "vatpit",	STRUCT_VATPIT	},
+	{ "vatpic",	STRUCT_VATPIC	},
+	{ "vpmtmr",	STRUCT_VPMTMR	},
+	{ "vrtc",	STRUCT_VRTC	},
 };
 
 /* TODO: Harden this function and all of its callers since 'base_str' is a user
