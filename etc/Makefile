@@ -13,7 +13,6 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	crontab \
-	devfs.conf \
 	dhclient.conf \
 	disktab \
 	fbtab \
@@ -142,7 +141,6 @@ distribution:
 		echo "./var/db/services.db type=file mode=0644 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
@@ -281,15 +279,10 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	done
 .endif
 
-etc-examples-install: ${META_DEPS}
+etc-examples: ${META_DEPS}
 	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
-
-etc-examples: etc-examples-install
-	${_+_}cd ${.CURDIR}/defaults; \
-	    ${MAKE} ${${MK_STAGING} == "yes":?all:install} \
-	    DESTDIR=${DESTDIR}${SHAREDIR}/examples
 
 .include <bsd.prog.mk>
 
