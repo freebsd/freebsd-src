@@ -652,40 +652,47 @@ static int kassert_warnings = 0;
 
 SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW, NULL, "kassert options");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, CTLFLAG_RWTUN,
+#ifdef KASSERT_PANIC_OPTIONAL
+#define KASSERT_RWTUN	CTLFLAG_RWTUN
+#else
+#define KASSERT_RWTUN	CTLFLAG_RDTUN
+#endif
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, KASSERT_RWTUN,
     &kassert_warn_only, 0,
-    "KASSERT triggers a panic (1) or just a warning (0)");
+    "KASSERT triggers a panic (0) or just a warning (1)");
 
 #ifdef KDB
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, KASSERT_RWTUN,
     &kassert_do_kdb, 0, "KASSERT will enter the debugger");
 #endif
 
 #ifdef KTR
-SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RWTUN,
+SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, KASSERT_RWTUN,
     &kassert_do_ktr, 0,
     "KASSERT does a KTR, set this to the KTRMASK you want");
 #endif
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, KASSERT_RWTUN,
     &kassert_do_log, 0,
     "If warn_only is enabled, log (1) or do not log (0) assertion violations");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, KASSERT_RWTUN,
     &kassert_warnings, 0, "number of KASSERTs that have been triggered");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_panic_at, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_panic_at, KASSERT_RWTUN,
     &kassert_log_panic_at, 0, "max number of KASSERTS before we will panic");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, KASSERT_RWTUN,
     &kassert_log_pps_limit, 0, "limit number of log messages per second");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, KASSERT_RWTUN,
     &kassert_log_mute_at, 0, "max number of KASSERTS to log");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, suppress_in_panic, CTLFLAG_RWTUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, suppress_in_panic, KASSERT_RWTUN,
     &kassert_suppress_in_panic, 0,
     "KASSERTs will be suppressed while handling a panic");
+#undef KASSERT_RWTUN
 
 static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
 
@@ -709,6 +716,7 @@ kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+#ifdef KASSERT_PANIC_OPTIONAL
 /*
  * Called by KASSERT, this decides if we will panic
  * or if we will log via printf and/or ktr.
@@ -774,6 +782,7 @@ kassert_panic(const char *fmt, ...)
 #endif
 	atomic_add_int(&kassert_warnings, 1);
 }
+#endif /* KASSERT_PANIC_OPTIONAL */
 #endif
 
 /*
