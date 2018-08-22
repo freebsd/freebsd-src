@@ -21,6 +21,8 @@
  */
 
 #include <sys/ioctl.h>
+
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -94,12 +96,11 @@ init_termcap(bool interactive)
     {
 	if (status == -1)
 	{
-	    fprintf(stderr, "%s: can't open termcap file\n", myname);
+	    warnx("can't open termcap file");
 	}
 	else
 	{
-	    fprintf(stderr, "%s: no termcap entry for a `%s' terminal\n",
-		    myname, term_name);
+	    warnx("no termcap entry for a `%s' terminal", term_name);
 	}
 
 	/* pretend it's dumb and proceed */

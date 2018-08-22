@@ -35,8 +35,6 @@ extern int pcpu_stats;
 extern int overstrike;
 extern pid_t mypid;
 
-extern const char * myname;
-
 extern int (*compares[])(const void*, const void*);
 
 const char* kill_procs(char *);
