@@ -298,8 +298,9 @@ init_secondary(void)
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
+	/* See comment in pmap_bootstrap(). */
+	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
-	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
 	common_tss[cpu].tss_rsp0 = 0;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
