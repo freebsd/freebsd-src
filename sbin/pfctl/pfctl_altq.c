@@ -299,8 +299,10 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 			size = 4;
 		else if (rate <= 200 * 1000 * 1000)
 			size = 8;
-		else
+		else if (rate <= 2500 * 1000 * 1000)
 			size = 24;
+		else
+			size = 128;
 		size = size * getifmtu(pa->ifname);
 		pa->tbrsize = size;
 	}
