@@ -247,7 +247,7 @@ mmcsd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->mmcbus = mmcbus = device_get_parent(dev);
-	sc->mode = mmcbr_get_mode(mmcbus);
+	sc->mode = mmc_get_card_type(dev);
 	/*
 	 * Note that in principle with an SDHCI-like re-tuning implementation,
 	 * the maximum data size can change at runtime due to a device removal/
@@ -1315,7 +1315,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.mrq = &req;
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_START;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_START;
@@ -1334,7 +1334,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_END;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_END;
