@@ -115,7 +115,7 @@ PATH	[./][-/.%^A-Za-z_0-9]+
 			}
 			return i;
 		}
-\\\"[^"]+\\\"	{
+\\\"[^"]*\\\"	{
 			BEGIN 0;
 			yytext[yyleng-2] = '"';
 			yytext[yyleng-1] = '\0';
