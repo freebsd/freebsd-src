@@ -28,4 +28,12 @@ MLINKS=	md5.1 rmd160.1 \
 
 LIBADD=	md
 
+.ifndef(BOOTSTRAPPING)
+# Avoid depending on capsicum during bootstrap. caph_limit_stdout() is not
+# available when building for Linux/MacOS or older FreeBSD hosts.
+# We need to bootstrap md5 when building on Linux since the md5sum command there
+# produces different output.
+CFLAGS+=-DHAVE_CAPSICUM
+.endif
+
 .include <bsd.prog.mk>
