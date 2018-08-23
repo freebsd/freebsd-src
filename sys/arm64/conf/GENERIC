@@ -108,6 +108,9 @@ options 	SOC_BRCM_BCM2837
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_XILINX_ZYNQ
 
+# Timer drivers
+device		a10_timer
+
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
 device		al_nb_service		# Alpine North Bridge Service
