@@ -44,9 +44,9 @@ devmatch_start()
 	local x
 
 	if [ -n "$one_nomatch" ]; then
-		x=$(devmatch -p "${one_nomatch}")
+		x=$(devmatch -p "${one_nomatch}" | sort -u)
 	else
-		x=$(devmatch)
+		x=$(devmatch | sort -u)
 	fi
 
 	[ -n "$x" ] || return
@@ -57,10 +57,12 @@ devmatch_start()
 	# We also optimize against the false positives
 	# or drivers that have symbolic links that
 	# confuse devmatch by running it -n.
+	devctl freeze
 	for m in ${x}; do
 		echo "Autoloading module: ${m}"
 		kldload -n ${m}
 	done
+	devctl thaw
 }
 
 load_rc_config $name
