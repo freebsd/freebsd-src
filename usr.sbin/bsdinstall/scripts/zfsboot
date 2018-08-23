@@ -185,9 +185,11 @@ FSTAB_FMT="%s\t\t%s\t%s\t%s\t\t%s\t%s\n"
 #
 # Command strings for various tasks
 #
+COPY='cp "%s" "%s"'
 CHMOD_MODE='chmod %s "%s"'
 DD_WITH_OPTIONS='dd if="%s" of="%s" %s'
 ECHO_APPEND='echo "%s" >> "%s"'
+ECHO_OVERWRITE='echo "%s" > "%s"'
 GELI_ATTACH='geli attach -j - -k "%s" "%s"'
 GELI_ATTACH_NOKEY='geli attach -j - "%s"'
 GELI_DETACH_F='geli detach -f "%s"'
@@ -211,6 +213,7 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
+NEWFS_ESP='newfs_msdos -F %s -L "%s" "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
@@ -841,18 +844,34 @@ zfs_create_diskpart()
 		# 2. Add small freebsd-boot and/or efi partition
 		#
 		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
-			#
-			# Enable boot pool if encryption is desired
-			#
-			[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
-
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-			             "$align_small" efiboot$index efi 200M $disk ||
+			             "$align_small" efiboot$index efi 200M \
+				     $disk ||
 			             return $FAILURE
-			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PARTONLY" \
-			             /boot/boot1.efifat 1 $disk ||
-			             return $FAILURE
+
+			f_eval_catch $funcname mkdir "$MKDIR_P" \
+				     "$BSDINSTALL_TMPETC/esp" || return $FAILURE
+			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP" "16" \
+				     "EFISYS" "/dev/${disk}p1" ||
+				     return $FAILURE
+			f_eval_catch $funcname mount "$MOUNT_TYPE" "msdosfs" \
+				     "/dev/${disk}p1" \
+				     "$BSDINSTALL_TMPETC/esp" ||
+				     return $FAILURE
+			f_eval_catch $funcname mkdir "$MKDIR_P" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot" ||
+				     return $FAILURE
+			f_eval_catch $funcname cp "$COPY" "/boot/loader.efi" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot/$ZFSBOOT_ESP_NAME" ||
+				     return $FAILURE
+			f_eval_catch $funcname echo "$ECHO_OVERWRITE" \
+				     "$ZFSBOOT_ESP_NAME" \
+				     "$BSDINSTALL_TMPETC/esp/efi/boot/startup.nsh" ||
+				     return $FAILURE
+			f_eval_catch $funcname umount "$UMOUNT" \
+				     "$BSDINSTALL_TMPETC/esp" ||
+				     return $FAILURE
 		fi
 
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
@@ -1574,6 +1593,20 @@ arm64)
 		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
 	fi
 	;;
+esac
+
+#
+# The EFI loader installed in the ESP (EFI System Partition) must
+# have the expected name in order to load correctly.
+#
+[ "$ZFSBOOT_ESP_NAME" ] || case "${UNAME_m:-$( uname -m )}" in
+	arm64) ZFSBOOT_ESP_NAME=BOOTaa64.efi ;;
+	arm) ZFSBOOT_ESP_NAME=BOOTarm.efi ;;
+	i386) ZFSBOOT_ESP_NAME=BOOTia32.efi ;;
+	amd64) ZFSBOOT_ESP_NAME=BOOTx64.efi ;;
+	*)
+		f_dprintf "Unsupported architecture: %s" $UNAME_m
+		f_die
 esac
 
 #
