@@ -2031,6 +2031,10 @@ ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
+.if ${MK_LOCALES} != "no"
+_localedef=	usr.bin/localedef
+.endif
+
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
@@ -2092,7 +2096,7 @@ bootstrap-tools: .PHONY
     ${_crunchgen} \
     ${_nmtree} \
     ${_vtfontcvt} \
-    usr.bin/localedef
+    ${_localedef}
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
