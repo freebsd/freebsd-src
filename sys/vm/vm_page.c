@@ -481,6 +481,7 @@ vm_page_domain_init(int domain)
 		TAILQ_INIT(&pq->pq_pl);
 		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
 		    MTX_DEF | MTX_DUPOK);
+		pq->pq_pdpages = 0;
 		vm_page_init_marker(&vmd->vmd_markers[i], i, 0);
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);

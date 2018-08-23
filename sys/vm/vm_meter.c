@@ -364,7 +364,6 @@ VM_STATS_VM(v_vnodepgsout, "Vnode pages paged out");
 VM_STATS_VM(v_intrans, "In transit page faults");
 VM_STATS_VM(v_reactivated, "Pages reactivated by pagedaemon");
 VM_STATS_VM(v_pdwakeups, "Pagedaemon wakeups");
-VM_STATS_VM(v_pdpages, "Pages analyzed by pagedaemon");
 VM_STATS_VM(v_pdshortfalls, "Page reclamation shortfalls");
 VM_STATS_VM(v_dfree, "Pages freed by pagedaemon");
 VM_STATS_VM(v_pfree, "Pages freed by exiting processes");
@@ -436,8 +435,7 @@ vm_free_count(void)
 	return (v);
 }
 
-static
-u_int
+static u_int
 vm_pagequeue_count(int pq)
 {
 	u_int v;
@@ -454,22 +452,41 @@ u_int
 vm_active_count(void)
 {
 
-	return vm_pagequeue_count(PQ_ACTIVE);
+	return (vm_pagequeue_count(PQ_ACTIVE));
 }
 
 u_int
 vm_inactive_count(void)
 {
 
-	return vm_pagequeue_count(PQ_INACTIVE);
+	return (vm_pagequeue_count(PQ_INACTIVE));
 }
 
 u_int
 vm_laundry_count(void)
 {
 
-	return vm_pagequeue_count(PQ_LAUNDRY);
+	return (vm_pagequeue_count(PQ_LAUNDRY));
 }
+
+static int
+sysctl_vm_pdpages(SYSCTL_HANDLER_ARGS)
+{
+	struct vm_pagequeue *pq;
+	uint64_t ret;
+	int dom, i;
+
+	ret = counter_u64_fetch(vm_cnt.v_pdpages);
+	for (dom = 0; dom < vm_ndomains; dom++)
+		for (i = 0; i < PQ_COUNT; i++) {
+			pq = &VM_DOMAIN(dom)->vmd_pagequeues[i];
+			ret += pq->pq_pdpages;
+		}
+	return (SYSCTL_OUT(req, &ret, sizeof(ret)));
+}
+SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdpages,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_vm_pdpages, "QU",
+    "Pages analyzed by pagedaemon");
 
 static void
 vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
@@ -486,15 +503,31 @@ vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "active", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_cnt, 0,
 	    "Active pages");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "actpdpgs", CTLFLAG_RD,
+	    &vmd->vmd_pagequeues[PQ_ACTIVE].pq_pdpages, 0,
+	    "Active pages scanned by the page daemon");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "inactive", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt, 0,
 	    "Inactive pages");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactpdpgs", CTLFLAG_RD,
+	    &vmd->vmd_pagequeues[PQ_INACTIVE].pq_pdpages, 0,
+	    "Inactive pages scanned by the page daemon");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "laundry", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt, 0,
 	    "laundry pages");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "laundpdpgs", CTLFLAG_RD,
+	    &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_pdpages, 0,
+	    "Laundry pages scanned by the page daemon");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "unswappable",
 	    CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt, 0,
 	    "Unswappable pages");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "unswppdpgs", CTLFLAG_RD,
+	    &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_pdpages, 0,
+	    "Unswappable pages scanned by the page daemon");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "inactive_target", CTLFLAG_RD, &vmd->vmd_inactive_target, 0,
 	    "Target inactive pages");
