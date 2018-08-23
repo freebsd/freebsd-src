@@ -21,11 +21,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capsicum.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <capsicum_helpers.h>
 #include <err.h>
+#include <fcntl.h>
 #include <md5.h>
 #include <ripemd.h>
 #include <sha.h>
@@ -40,6 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef HAVE_CAPSICUM
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+#endif
 
 /*
  * Length of test block, number of test blocks.
@@ -162,7 +166,9 @@ Arguments (may be any combination):
 int
 main(int argc, char *argv[])
 {
+#ifdef HAVE_CAPSICUM
 	cap_rights_t	rights;
+#endif
 	int	ch, fd;
 	char   *p;
 	char	buf[HEX_DIGEST_LENGTH];
@@ -215,8 +221,10 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+#ifdef HAVE_CAPSICUM
 	if (caph_limit_stdout() < 0 || caph_limit_stderr() < 0)
 		err(1, "unable to limit rights for stdio");
+#endif
 
 	if (*argv) {
 		do {
@@ -232,10 +240,12 @@ main(int argc, char *argv[])
 			 * earlier.
 			 */
 			if (*(argv + 1) == NULL) {
+#ifdef HAVE_CAPSICUM
 				cap_rights_init(&rights, CAP_READ);
 				if ((cap_rights_limit(fd, &rights) < 0 &&
 				    errno != ENOSYS) || caph_enter() < 0)
 					err(1, "capsicum");
+#endif
 			}
 			if ((p = Algorithm[digest].Fd(fd, buf)) == NULL) {
 				warn("%s", *argv);
@@ -258,8 +268,10 @@ main(int argc, char *argv[])
 			}
 		} while (*++argv);
 	} else if (!sflag && (optind == 1 || qflag || rflag)) {
+#ifdef HAVE_CAPSICUM
 		if (caph_limit_stdin() < 0 || caph_enter() < 0)
 			err(1, "capsicum");
+#endif
 		MDFilter(&Algorithm[digest], 0);
 	}
 
