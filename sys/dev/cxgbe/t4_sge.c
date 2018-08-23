@@ -1079,8 +1079,10 @@ t4_teardown_adapter_queues(struct adapter *sc)
 		sc->flags &= ~ADAP_SYSCTL_CTX;
 	}
 
-	for_each_port(sc, i)
-		free_wrq(sc, &sc->sge.ctrlq[i]);
+	if (!(sc->flags & IS_VF)) {
+		for_each_port(sc, i)
+			free_wrq(sc, &sc->sge.ctrlq[i]);
+	}
 	free_fwq(sc);
 
 	return (0);
