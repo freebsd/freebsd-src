@@ -521,7 +521,7 @@ vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 	m->wire_count = 0;
 	m->busy_lock = VPB_UNBUSIED;
 	m->hold_count = 0;
-	m->flags = 0;
+	m->flags = m->aflags = 0;
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->psind = 0;
@@ -2148,8 +2148,9 @@ vm_page_alloc_check(vm_page_t m)
 {
 
 	KASSERT(m->object == NULL, ("page %p has object", m));
-	KASSERT(m->queue == PQ_NONE,
-	    ("page %p has unexpected queue %d", m, m->queue));
+	KASSERT(m->queue == PQ_NONE && (m->aflags & PGA_QUEUE_STATE_MASK) == 0,
+	    ("page %p has unexpected queue %d, flags %#x",
+	    m, m->queue, (m->aflags & PGA_QUEUE_STATE_MASK)));
 	KASSERT(!vm_page_held(m), ("page %p is held", m));
 	KASSERT(!vm_page_busied(m), ("page %p is busy", m));
 	KASSERT(m->dirty == 0, ("page %p is dirty", m));
@@ -3090,7 +3091,7 @@ vm_page_pagequeue_lockptr(vm_page_t m)
 {
 	uint8_t queue;
 
-	if ((queue = m->queue) == PQ_NONE)
+	if ((queue = atomic_load_8(&m->queue)) == PQ_NONE)
 		return (NULL);
 	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue].pq_mutex);
 }
@@ -3101,6 +3102,7 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 	struct vm_domain *vmd;
 	uint8_t aflags;
 
+	CRITICAL_ASSERT(curthread);
 	vm_pagequeue_assert_locked(pq);
 	KASSERT(pq == vm_page_pagequeue(m),
 	    ("page %p doesn't belong to %p", m, pq));
@@ -3267,7 +3269,7 @@ vm_page_dequeue_deferred(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	queue = m->queue;
+	queue = atomic_load_8(&m->queue);
 	if (queue == PQ_NONE) {
 		KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
 		    ("page %p has queue state", m));
@@ -3279,56 +3281,46 @@ vm_page_dequeue_deferred(vm_page_t m)
 }
 
 /*
- *	vm_page_dequeue_locked:
- *
- *	Remove the page from its page queue, which must be locked.
- *	If the page lock is not held, there is no guarantee that the
- *	page will not be enqueued by another thread before this function
- *	returns.  In this case, it is up to the caller to ensure that
- *	no other threads hold a reference to the page.
- *
- *	The page queue lock must be held.  If the page is not already
- *	logically dequeued, the page lock must be held as well.
- */
-void
-vm_page_dequeue_locked(vm_page_t m)
-{
-	struct vm_pagequeue *pq;
-
-	pq = vm_page_pagequeue(m);
-
-	KASSERT(m->queue != PQ_NONE,
-	    ("%s: page %p queue field is PQ_NONE", __func__, m));
-	vm_pagequeue_assert_locked(pq);
-	KASSERT((m->aflags & PGA_DEQUEUE) != 0 ||
-	    mtx_owned(vm_page_lockptr(m)),
-	    ("%s: queued unlocked page %p", __func__, m));
-
-	if ((m->aflags & PGA_ENQUEUED) != 0) {
-		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-		vm_pagequeue_cnt_dec(pq);
-	}
-	vm_page_dequeue_complete(m);
-}
-
-/*
  *	vm_page_dequeue:
  *
  *	Remove the page from whichever page queue it's in, if any.
- *	If the page lock is not held, there is no guarantee that the
- *	page will not be enqueued by another thread before this function
- *	returns.  In this case, it is up to the caller to ensure that
- *	no other threads hold a reference to the page.
+ *	The page must either be locked or unallocated.  This constraint
+ *	ensures that the queue state of the page will remain consistent
+ *	after this function returns.
  */
 void
 vm_page_dequeue(vm_page_t m)
 {
 	struct mtx *lock, *lock1;
+	struct vm_pagequeue *pq;
+	uint8_t aflags;
 
-	lock = vm_page_pagequeue_lockptr(m);
+	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->order == VM_NFREEORDER,
+	    ("page %p is allocated and unlocked", m));
+
 	for (;;) {
-		if (lock == NULL)
-			return;
+		lock = vm_page_pagequeue_lockptr(m);
+		if (lock == NULL) {
+			/*
+			 * A thread may be concurrently executing
+			 * vm_page_dequeue_complete().  Ensure that all queue
+			 * state is cleared before we return.
+			 */
+			aflags = atomic_load_8(&m->aflags);
+			if ((aflags & PGA_QUEUE_STATE_MASK) == 0)
+				return;
+			KASSERT((aflags & PGA_DEQUEUE) != 0,
+			    ("page %p has unexpected queue state flags %#x",
+			    m, aflags));
+
+			/*
+			 * Busy wait until the thread updating queue state is
+			 * finished.  Such a thread must be executing in a
+			 * critical section.
+			 */
+			cpu_spinwait();
+			continue;
+		}
 		mtx_lock(lock);
 		if ((lock1 = vm_page_pagequeue_lockptr(m)) == lock)
 			break;
@@ -3337,7 +3329,16 @@ vm_page_dequeue(vm_page_t m)
 	}
 	KASSERT(lock == vm_page_pagequeue_lockptr(m),
 	    ("%s: page %p migrated directly between queues", __func__, m));
-	vm_page_dequeue_locked(m);
+	KASSERT((m->aflags & PGA_DEQUEUE) != 0 ||
+	    mtx_owned(vm_page_lockptr(m)),
+	    ("%s: queued unlocked page %p", __func__, m));
+
+	if ((m->aflags & PGA_ENQUEUED) != 0) {
+		pq = vm_page_pagequeue(m);
+		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+		vm_pagequeue_cnt_dec(pq);
+	}
+	vm_page_dequeue_complete(m);
 	mtx_unlock(lock);
 }
 
@@ -3376,7 +3377,7 @@ vm_page_requeue(vm_page_t m)
 
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_pqbatch_submit_page(m, m->queue);
+	vm_pqbatch_submit_page(m, atomic_load_8(&m->queue));
 }
 
 /*
