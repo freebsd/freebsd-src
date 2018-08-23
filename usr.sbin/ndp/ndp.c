@@ -151,7 +151,7 @@ static void setdefif(char *);
 static char *sec2str(time_t);
 static void ts_print(const struct timeval *);
 
-static char *rtpref_str[] = {
+static const char *rtpref_str[] = {
 	"medium",		/* 00 */
 	"high",			/* 01 */
 	"rsv",			/* 10 */
@@ -565,9 +565,8 @@ dump(struct sockaddr_in6 *addr, int cflag)
 	struct rt_msghdr *rtm;
 	struct sockaddr_in6 *sin;
 	struct sockaddr_dl *sdl;
-	extern int h_errno;
 	struct timeval now;
-	u_long expire;
+	time_t expire;
 	int addrwidth;
 	int llwidth;
 	int ifwidth;
@@ -670,8 +669,10 @@ again:;
 		if (W_ADDR + W_LL - addrwidth > llwidth)
 			llwidth = W_ADDR + W_LL - addrwidth;
 		ifname = if_indextoname(sdl->sdl_index, ifix_buf);
-		if (!ifname)
-			ifname = "?";
+		if (ifname == NULL) {
+			strlcpy(ifix_buf, "?", sizeof(ifix_buf));
+			ifname = ifix_buf;
+		}
 		ifwidth = strlen(ifname);
 		if (W_ADDR + W_LL + W_IF - addrwidth - llwidth > ifwidth)
 			ifwidth = W_ADDR + W_LL + W_IF - addrwidth - llwidth;
@@ -764,22 +765,22 @@ static struct in6_nbrinfo *
 getnbrinfo(struct in6_addr *addr, int ifindex, int warning)
 {
 	static struct in6_nbrinfo nbi;
-	int s;
+	int sock;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 
 	bzero(&nbi, sizeof(nbi));
 	if_indextoname(ifindex, nbi.ifname);
 	nbi.addr = *addr;
-	if (ioctl(s, SIOCGNBRINFO_IN6, (caddr_t)&nbi) < 0) {
+	if (ioctl(sock, SIOCGNBRINFO_IN6, (caddr_t)&nbi) < 0) {
 		if (warning)
 			warn("ioctl(SIOCGNBRINFO_IN6)");
-		close(s);
+		close(sock);
 		return(NULL);
 	}
 
-	close(s);
+	close(sock);
 	return(&nbi);
 }
 
@@ -902,19 +903,19 @@ static void
 ifinfo(char *ifname, int argc, char **argv)
 {
 	struct in6_ndireq nd;
-	int i, s;
+	int i, sock;
 	u_int32_t newflags;
 #ifdef IPV6CTL_USETEMPADDR
 	u_int8_t nullbuf[8];
 #endif
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		err(1, "socket");
 		/* NOTREACHED */
 	}
 	bzero(&nd, sizeof(nd));
 	strlcpy(nd.ifname, ifname, sizeof(nd.ifname));
-	if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+	if (ioctl(sock, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
 		err(1, "ioctl(SIOCGIFINFO_IN6)");
 		/* NOTREACHED */
 	}
@@ -973,7 +974,7 @@ ifinfo(char *ifname, int argc, char **argv)
 		SETVALUE("curhlim", ND.chlim);
 
 		ND.flags = newflags;
-		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
+		if (ioctl(sock, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
 			err(1, "ioctl(SIOCSIFINFO_IN6)");
 			/* NOTREACHED */
 		}
@@ -986,7 +987,7 @@ ifinfo(char *ifname, int argc, char **argv)
 		/* NOTREACHED */
 	}
 
-	if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+	if (ioctl(sock, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
 		err(1, "ioctl(SIOCGIFINFO_IN6)");
 		/* NOTREACHED */
 	}
@@ -1049,7 +1050,7 @@ ifinfo(char *ifname, int argc, char **argv)
 	putc('\n', stdout);
 #undef ND
 
-	close(s);
+	close(sock);
 }
 
 #ifndef ND_RA_FLAG_RTPREF_MASK	/* XXX: just for compilation on *BSD release */
@@ -1226,43 +1227,45 @@ static void
 pfx_flush()
 {
 	char dummyif[IFNAMSIZ+8];
-	int s;
+	int sock;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 	strlcpy(dummyif, "lo0", sizeof(dummyif)); /* dummy */
-	if (ioctl(s, SIOCSPFXFLUSH_IN6, (caddr_t)&dummyif) < 0)
+	if (ioctl(sock, SIOCSPFXFLUSH_IN6, (caddr_t)&dummyif) < 0)
 		err(1, "ioctl(SIOCSPFXFLUSH_IN6)");
+
+	close(sock);
 }
 
 static void
 rtr_flush()
 {
 	char dummyif[IFNAMSIZ+8];
-	int s;
+	int sock;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 	strlcpy(dummyif, "lo0", sizeof(dummyif)); /* dummy */
-	if (ioctl(s, SIOCSRTRFLUSH_IN6, (caddr_t)&dummyif) < 0)
+	if (ioctl(sock, SIOCSRTRFLUSH_IN6, (caddr_t)&dummyif) < 0)
 		err(1, "ioctl(SIOCSRTRFLUSH_IN6)");
 
-	close(s);
+	close(sock);
 }
 
 static void
 harmonize_rtr()
 {
 	char dummyif[IFNAMSIZ+8];
-	int s;
+	int sock;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 	strlcpy(dummyif, "lo0", sizeof(dummyif)); /* dummy */
-	if (ioctl(s, SIOCSNDFLUSH_IN6, (caddr_t)&dummyif) < 0)
+	if (ioctl(sock, SIOCSNDFLUSH_IN6, (caddr_t)&dummyif) < 0)
 		err(1, "ioctl(SIOCSNDFLUSH_IN6)");
 
-	close(s);
+	close(sock);
 }
 
 #ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
@@ -1271,6 +1274,7 @@ setdefif(char *ifname)
 {
 	struct in6_ndifreq ndifreq;
 	unsigned int ifindex;
+	int sock;
 
 	if (strcasecmp(ifname, "delete") == 0)
 		ifindex = 0;
@@ -1279,16 +1283,16 @@ setdefif(char *ifname)
 			err(1, "failed to resolve i/f index for %s", ifname);
 	}
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 
 	strlcpy(ndifreq.ifname, "lo0", sizeof(ndifreq.ifname)); /* dummy */
 	ndifreq.ifindex = ifindex;
 
-	if (ioctl(s, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
+	if (ioctl(sock, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
 		err(1, "ioctl(SIOCSDEFIFACE_IN6)");
 
-	close(s);
+	close(sock);
 }
 
 static void
@@ -1296,14 +1300,15 @@ getdefif()
 {
 	struct in6_ndifreq ndifreq;
 	char ifname[IFNAMSIZ+8];
+	int sock;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 
 	memset(&ndifreq, 0, sizeof(ndifreq));
 	strlcpy(ndifreq.ifname, "lo0", sizeof(ndifreq.ifname)); /* dummy */
 
-	if (ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
+	if (ioctl(sock, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq) < 0)
 		err(1, "ioctl(SIOCGDEFIFACE_IN6)");
 
 	if (ndifreq.ifindex == 0)
@@ -1315,7 +1320,7 @@ getdefif()
 		printf("ND default interface = %s\n", ifname);
 	}
 
-	close(s);
+	close(sock);
 }
 #endif /* SIOCSDEFIFACE_IN6 */
 
@@ -1367,12 +1372,12 @@ sec2str(time_t total)
 static void
 ts_print(const struct timeval *tvp)
 {
-	int s;
+	int sec;
 
 	/* Default */
-	s = (tvp->tv_sec + thiszone) % 86400;
+	sec = (tvp->tv_sec + thiszone) % 86400;
 	(void)printf("%02d:%02d:%02d.%06u ",
-	    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tvp->tv_usec);
+	    sec / 3600, (sec % 3600) / 60, sec % 60, (u_int32_t)tvp->tv_usec);
 }
 
 #undef NEXTADDR
