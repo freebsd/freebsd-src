@@ -56,12 +56,6 @@ static struct option longopts[] = {
 
 #define	DEVMATCH_MAX_HITS 256
 
-static struct match_data {
-	char *descr;
-	int priority;
-} match_data[DEVMATCH_MAX_HITS];
-
-static int hit_index;
 static int all_flag;
 static int dump_flag;
 static char *linker_hints;
@@ -240,35 +234,6 @@ pnpval_as_str(const char *val, const char *pnpinfo)
 	return retval;
 }
 
-static int
-match_data_compare(const void *_pa, const void *_pb)
-{
-	const struct match_data *pa = _pa;
-	const struct match_data *pb = _pb;
-
-	/* biggest value first */
-	if (pa->priority > pb->priority)
-		return (-1);
-	else if (pa->priority < pb->priority)
-		return (1);
-
-	/* then sort by string */
-	return (strcmp(pa->descr, pb->descr));
-}
-
-static int
-bitrev16(int input)
-{
-	int retval = 0;
-	int x;
-
-	for (x = 0; x != 16; x++) {
-		if ((input >> x) & 1)
-			retval |= (0x8000 >> x);
-	}
-	return (retval);
-}
-
 static void
 search_hints(const char *bus, const char *dev, const char *pnpinfo)
 {
@@ -417,22 +382,12 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 					printf("\n");
 				else if (!notme) {
 					if (!unbound_flag) {
-						char *descr = NULL;
-
 						if (all_flag)
-							asprintf(&descr, "%s: %s", *dev ? dev : "unattached", lastmod);
+							printf("%s: %s", *dev ? dev : "unattached", lastmod);
 						else
-							asprintf(&descr, "%s", lastmod);
+							printf("%s", lastmod);
 						if (verbose_flag)
 							printf("Matches --- %s ---\n", lastmod);
-
-						if (descr != NULL && hit_index < DEVMATCH_MAX_HITS) {
-							match_data[hit_index].descr = descr;
-							match_data[hit_index].priority = bitrev16(mask);
-							hit_index++;
-						} else {
-							free(descr);
-						}
 					}
 					found++;
 				}
@@ -445,19 +400,6 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 		}
 		walker = (void *)(len - sizeof(int) + (intptr_t)walker);
 	}
-	if (hit_index != 0) {
-		/* sort hits by priority */
-		mergesort(match_data, hit_index, sizeof(match_data[0]), &match_data_compare);
-
-		/* printout */
-		for (i = 0; i != hit_index; i++) {
-			puts(match_data[i].descr);
-			free(match_data[i].descr);
-		}
-
-		/* reset hit_index */
-		hit_index = 0;
-	}       
 	if (unbound_flag && found == 0 && *pnpinfo) {
 		if (verbose_flag)
 			printf("------------------------- ");
