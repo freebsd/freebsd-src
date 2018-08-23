@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2018
+.Dd August 22, 2018
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ import
 .Ao Ar targetBe Ac
 .Nm
 jail
-.Op Fl b
+.Op Fl b | Fl U
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
 .Ao Ar bootenv Ac
@@ -148,6 +148,7 @@ Import
 from
 .Dv stdin .
 .It Ic jail
+.Op Fl b | Fl U
 .Oo Fl o Ar key Ns = Ns Ar value | Fl u Ar key Oc Ns ...
 .Ao Ar jailID | jailName Ac
 .Ao Ar bootenv Ac
@@ -172,10 +173,17 @@ If
 .Ar utility
 is specified, it will be executed instead of
 .Pa /bin/sh .
+The jail will be destroyed and the boot environment unmounted when the command
+finishes executing, unless the
+.Fl U
+argument is specified.
 .Pp
 The
 .Fl b
 argument enables batch mode, thereby disabling interactive mode.
+The
+.Fl U
+argument will be ignored in batch mode.
 .Pp
 The
 .Va name ,
