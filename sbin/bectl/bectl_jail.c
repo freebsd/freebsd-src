@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/mount.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <jail.h>
 #include <stdbool.h>
@@ -179,10 +180,11 @@ int
 bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
-	int jflags, jid, opt, ret;
-	bool default_hostname, default_name, interactive;
+	int jid, opt, ret;
+	bool default_hostname, default_name, interactive, unjail;
+	pid_t pid;
 
-	default_hostname = default_name = interactive = true;
+	default_hostname = default_name = interactive = unjail = true;
 	jpcnt = INIT_PARAMCOUNT;
 	jp = malloc(jpcnt * sizeof(*jp));
 	if (jp == NULL)
@@ -193,7 +195,7 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_add("allow.mount.devfs", "true");
 	jailparam_add("enforce_statfs", "1");
 
-	while ((opt = getopt(argc, argv, "bo:u:")) != -1) {
+	while ((opt = getopt(argc, argv, "bo:Uu:")) != -1) {
 		switch (opt) {
 		case 'b':
 			interactive = false;
@@ -209,6 +211,9 @@ bectl_cmd_jail(int argc, char *argv[])
 				if (strcmp(optarg, "host.hostname") == 0)
 					default_hostname = false;
 			}
+			break;
+		case 'U':
+			unjail = false;
 			break;
 		case 'u':
 			if ((ret = jailparam_delarg(optarg)) == 0) {
@@ -259,16 +264,14 @@ bectl_cmd_jail(int argc, char *argv[])
 	if (default_hostname)
 		jailparam_add("host.hostname", bootenv);
 
-	jflags = JAIL_CREATE;
-	if (interactive)
-		jflags |= JAIL_ATTACH;
 	/*
 	 * This is our indicator that path was not set by the user, so we'll use
 	 * the path that libbe generated for us.
 	 */
 	if (mountpoint == NULL)
 		jailparam_add("path", mnt_loc);
-	jid = jailparam_set(jp, jpused, jflags);
+	/* Create the jail for now, attach later as-needed */
+	jid = jailparam_set(jp, jpused, JAIL_CREATE);
 	if (jid == -1) {
 		fprintf(stderr, "unable to create jail.  error: %d\n", errno);
 		return (1);
@@ -277,14 +280,34 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_free(jp, jpused);
 	free(jp);
 
-	if (interactive) {
+	/* We're not interactive, nothing more to do here. */
+	if (!interactive)
+		return (0);
+
+	pid = fork();
+	switch(pid) {
+	case -1:
+		perror("fork");
+		return (1);
+	case 0:
+		jail_attach(jid);
 		/* We're attached within the jail... good bye! */
 		chdir("/");
 		if (argc > 1)
 			execve(argv[1], &argv[1], NULL);
 		else
 			execl("/bin/sh", "/bin/sh", NULL);
-		return (1);
+		fprintf(stderr, "bectl jail: failed to execute %s\n",
+		    (argc > 1 ? argv[1] : "/bin/sh"));
+		_exit(1);
+	default:
+		/* Wait for the child to get back, see if we need to unjail */
+		waitpid(pid, NULL, 0);
+	}
+
+	if (unjail) {
+		jail_remove(jid);
+		unmount(mnt_loc, 0);
 	}
 
 	return (0);
