@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 
 	acting_as_client = 1;
 	peer = -1;
-	strcpy(mode, "netascii");
+	strcpy(mode, "octet");
 	signal(SIGINT, intr);
 
 	interactive = isatty(STDIN_FILENO);
