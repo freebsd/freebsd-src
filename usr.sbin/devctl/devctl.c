@@ -71,17 +71,19 @@ DEVCTL_TABLE(top, set);
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-	    "usage: devctl attach device",
-	    "       devctl detach [-f] device",
-	    "       devctl disable [-f] device",
-	    "       devctl enable device",
-	    "       devctl suspend device",
-	    "       devctl resume device",
-	    "       devctl set driver [-f] device driver",
-	    "       devctl clear driver [-f] device",
-	    "       devctl rescan device",
-	    "       devctl delete [-f] device");
+	fprintf(stderr,
+	    "usage: devctl attach device\n"
+	    "       devctl detach [-f] device\n"
+	    "       devctl disable [-f] device\n"
+	    "       devctl enable device\n"
+	    "       devctl suspend device\n"
+	    "       devctl resume device\n"
+	    "       devctl set driver [-f] device driver\n"
+	    "       devctl clear driver [-f] device\n"
+	    "       devctl rescan device\n"
+	    "       devctl delete [-f] device\n"
+	    "       devctl freeze\n"
+	    "       devctl thaw\n");
 	exit(1);
 }
 
@@ -342,6 +344,46 @@ delete(int ac, char **av)
 	return (0);
 }
 DEVCTL_COMMAND(top, delete, delete);
+
+static void
+freeze_usage(void)
+{
+
+	fprintf(stderr, "usage: devctl freeze\n");
+	exit(1);
+}
+
+static int
+freeze(int ac, char **av __unused)
+{
+
+	if (ac != 1)
+		freeze_usage();
+	if (devctl_freeze() < 0)
+		err(1, "Failed to freeze probe/attach");
+	return (0);
+}
+DEVCTL_COMMAND(top, freeze, freeze);
+
+static void
+thaw_usage(void)
+{
+
+	fprintf(stderr, "usage: devctl thaw\n");
+	exit(1);
+}
+
+static int
+thaw(int ac, char **av __unused)
+{
+
+	if (ac != 1)
+		thaw_usage();
+	if (devctl_thaw() < 0)
+		err(1, "Failed to thaw probe/attach");
+	return (0);
+}
+DEVCTL_COMMAND(top, thaw, thaw);
 
 int
 main(int ac, char *av[])
