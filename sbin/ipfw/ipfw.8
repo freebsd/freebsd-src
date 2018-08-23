@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2018
+.Dd August 10, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -315,10 +315,15 @@ When listing and
 .Fl d
 is specified, also show expired dynamic rules.
 .It Fl f
-Do not ask for confirmation for commands that can cause problems
-if misused, i.e.,
+Run without prompting for confirmation for commands that can cause problems if misused,
+i.e.,
 .Cm flush .
 If there is no tty associated with the process, this is implied.
+The
+.Cm delete
+command with this flag ignores possible errors,
+i.e., nonexistent rule number.
+And for batched commands execution continues with the next command.
 .It Fl i
 When listing a table (see the
 .Sx LOOKUP TABLES
