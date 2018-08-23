@@ -374,6 +374,9 @@ static bool isStaticLinkTimeConstant(RelExpr E, RelType Type, const Symbol &Sym,
                      R_PPC_PLT_OPD, R_TLSDESC_CALL, R_TLSDESC_PAGE, R_HINT>(E))
     return true;
 
+  if (Sym.isGnuIFunc() && Config->ZIfuncnoplt)
+    return false;
+
   // These never do, except if the entire file is position dependent or if
   // only the low bits are used.
   if (E == R_GOT || E == R_PLT || E == R_TLSDESC)
@@ -921,7 +924,9 @@ static void scanRelocs(InputSectionBase &Sec, ArrayRef<RelTy> Rels) {
     // Strenghten or relax a PLT access.
     //
     // GNU ifunc symbols must be accessed via PLT because their addresses
-    // are determined by runtime.
+    // are determined by runtime. If the -z ifunc-noplt option is specified,
+    // we permit the optimization of ifunc calls by omitting the PLT entry
+    // and preserving relocations at ifunc call sites.
     //
     // On the other hand, if we know that a PLT entry will be resolved within
     // the same ELF module, we can skip PLT access and directly jump to the
@@ -929,7 +934,7 @@ static void scanRelocs(InputSectionBase &Sec, ArrayRef<RelTy> Rels) {
     // all dynamic symbols that can be resolved within the executable will
     // actually be resolved that way at runtime, because the main exectuable
     // is always at the beginning of a search list. We can leverage that fact.
-    if (Sym.isGnuIFunc())
+    if (Sym.isGnuIFunc() && !Config->ZIfuncnoplt)
       Expr = toPlt(Expr);
     else if (!Preemptible && Expr == R_GOT_PC && !isAbsoluteValue(Sym))
       Expr =
@@ -1031,6 +1036,16 @@ static void scanRelocs(InputSectionBase &Sec, ArrayRef<RelTy> Rels) {
     // uses Elf_Rel, since in that case the written value is the addend.
     if (IsConstant) {
       Sec.Relocations.push_back({Expr, Type, Offset, Addend, &Sym});
+      continue;
+    }
+
+    // Preserve relocations against ifuncs if we were asked to do so.
+    if (Sym.isGnuIFunc() && Config->ZIfuncnoplt) {
+      if (Config->IsRela)
+        InX::RelaDyn->addReloc({Type, &Sec, Offset, false, &Sym, Addend});
+      else
+        // Preserve the existing addend.
+        InX::RelaDyn->addReloc({Type, &Sec, Offset, false, &Sym, 0});
       continue;
     }
 
