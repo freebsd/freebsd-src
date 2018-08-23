@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20170822:
+	devctl freeze/that have gone into the tree, the rc scripts have been
+	updated to use them and devmatch has been changed.  You should update
+	kernel, userland and rc scripts all at the same time.
+
 20180821:
 	drm and drm2 have been removed. Users on powerpc, 32-bit hardware,
 	or with GPUs predating Radeon and i915 will need to install the
