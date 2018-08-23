@@ -155,6 +155,7 @@ struct Configuration {
   bool ZCombreloc;
   bool ZExecstack;
   bool ZHazardplt;
+  bool ZIfuncnoplt;
   bool ZNocopyreloc;
   bool ZNodelete;
   bool ZNodlopen;
