@@ -3271,9 +3271,11 @@ ipfw_delete(char *av[])
 			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
 			if (exitval) {
 				exitval = EX_UNAVAILABLE;
-				warn("rule %u not available", i);
+				if (co.do_quiet)
+					continue;
+				warn("nat %u not available", i);
 			}
- 		} else if (co.do_pipe) {
+		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
 			memset(&rt, 0, sizeof(rt));
@@ -3295,10 +3297,14 @@ ipfw_delete(char *av[])
 			i = do_range_cmd(IP_FW_XDEL, &rt);
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
+				if (co.do_quiet)
+					continue;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rt.start_rule);
 			} else if (rt.new_set == 0 && do_set == 0) {
 				exitval = EX_UNAVAILABLE;
+				if (co.do_quiet)
+					continue;
 				if (rt.start_rule != rt.end_rule)
 					warnx("no rules rules in %u-%u range",
 					    rt.start_rule, rt.end_rule);
@@ -3308,7 +3314,7 @@ ipfw_delete(char *av[])
 			}
 		}
 	}
-	if (exitval != EX_OK)
+	if (exitval != EX_OK && co.do_force == 0)
 		exit(exitval);
 }
 
