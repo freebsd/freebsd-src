@@ -84,8 +84,14 @@ _dtbinstall:
 # entries in the NO_ROOT case.
 	test -d ${DESTDIR}${DTBDIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBDIR}
 .for _dtb in ${DTB}
+.if ${MACHINE_CPUARCH} == "aarch64"
+	test -d ${DESTDIR}${DTBDIR}/${_dtb:H} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBDIR}/${_dtb:H}
+	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
+	    ${_INSTALLFLAGS} ${_dtb:T} ${DESTDIR}${DTBDIR}/${_dtb:H}
+.else
 	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
 	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}/
+.endif
 .endfor
 	test -d ${DESTDIR}${DTBODIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBODIR}
 .for _dtbo in ${DTBO}
