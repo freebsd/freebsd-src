@@ -57,6 +57,10 @@ local MSG_MODLOADING = "Loading configured modules..."
 local MSG_MODLOADFAIL = "Could not load one or more modules!"
 
 local MODULEEXPR = '([%w-_]+)'
+local QVALEXPR = "\"([%w%s%p]-)\""
+local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
+local WORDEXPR = "([%w]+)"
+local WORDREPL = WORDEXPR:gsub('%%', '%%%%')
 
 local function restoreEnv()
 	-- Examine changed environment variables
@@ -125,11 +129,31 @@ local function processEnvVar(value)
 	return value
 end
 
+local function checkPattern(line, pattern)
+	local function _realCheck(_line, _pattern)
+		return _line:match(_pattern)
+	end
+
+	if pattern:find('$VALUE') then
+		local k, v, c
+		k, v, c = _realCheck(line, pattern:gsub('$VALUE', QVALREPL))
+		if k ~= nil then
+			return k,v, c
+		end
+		return _realCheck(line, pattern:gsub('$VALUE', WORDREPL))
+	else
+		return _realCheck(line, pattern)
+	end
+end
+
 -- str in this table is a regex pattern.  It will automatically be anchored to
 -- the beginning of a line and any preceding whitespace will be skipped.  The
 -- pattern should have no more than two captures patterns, which correspond to
 -- the two parameters (usually 'key' and 'value') that are passed to the
--- process function.  All trailing characters will be validated.
+-- process function.  All trailing characters will be validated.  Any $VALUE
+-- token included in a pattern will be tried first with a quoted value capture
+-- group, then a single-word value capture group.  This is our kludge for Lua
+-- regex not supporting branching.
 --
 -- We have two special entries in this table: the first is the first entry,
 -- a full-line comment.  The second is for 'exec' handling.  Both have a single
@@ -139,6 +163,7 @@ end
 -- We document the exceptions with a special 'groups' index that indicates
 -- the number of capture groups, if not two.  We'll use this later to do
 -- validation on the proper entry.
+--
 local pattern_table = {
 	{
 		str = "(#.*)",
@@ -147,7 +172,7 @@ local pattern_table = {
 	},
 	--  module_load="value"
 	{
-		str = MODULEEXPR .. "_load%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_load%s*=%s*$VALUE",
 		process = function(k, v)
 			if modules[k] == nil then
 				modules[k] = {}
@@ -157,49 +182,49 @@ local pattern_table = {
 	},
 	--  module_name="value"
 	{
-		str = MODULEEXPR .. "_name%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_name%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "name", v)
 		end,
 	},
 	--  module_type="value"
 	{
-		str = MODULEEXPR .. "_type%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_type%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "type", v)
 		end,
 	},
 	--  module_flags="value"
 	{
-		str = MODULEEXPR .. "_flags%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_flags%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "flags", v)
 		end,
 	},
 	--  module_before="value"
 	{
-		str = MODULEEXPR .. "_before%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_before%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "before", v)
 		end,
 	},
 	--  module_after="value"
 	{
-		str = MODULEEXPR .. "_after%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_after%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "after", v)
 		end,
 	},
 	--  module_error="value"
 	{
-		str = MODULEEXPR .. "_error%s*=%s*\"([%w%s%p]-)\"",
+		str = MODULEEXPR .. "_error%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "error", v)
 		end,
 	},
 	--  exec="command"
 	{
-		str = "exec%s*=%s*\"([%w%s%p]-)\"",
+		str = "exec%s*=%s*" .. QVALEXPR,
 		process = function(k, _)
 			if cli_execute_unparsed(k) ~= 0 then
 				print(MSG_FAILEXEC:format(k))
@@ -209,7 +234,7 @@ local pattern_table = {
 	},
 	--  env_var="value"
 	{
-		str = "([%w%p]+)%s*=%s*\"([%w%s%p]-)\"",
+		str = "([%w%p]+)%s*=%s*$VALUE",
 		process = function(k, v)
 			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, v))
@@ -410,7 +435,7 @@ function config.parse(text)
 			for _, val in ipairs(pattern_table) do
 				local pattern = '^%s*' .. val.str .. '%s*(.*)';
 				local cgroups = val.groups or 2
-				local k, v, c = line:match(pattern)
+				local k, v, c = checkPattern(line, pattern)
 				if k ~= nil then
 					-- Offset by one, drats
 					if cgroups == 1 then
