@@ -65,6 +65,7 @@ static int verbose_flag;
 
 static void *hints;
 static void *hints_end;
+static struct devinfo_dev *root;
 
 static void *
 read_hints(const char *fn, size_t *len)
@@ -440,10 +441,50 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 	return (devinfo_foreach_device_child(dev, find_unmatched, arg));
 }
 
+struct exact_info
+{
+	const char *bus;
+	const char *loc;
+	struct devinfo_dev *dev;
+};
+
+/*
+ * Look for the exact location specified by the nomatch event.  The
+ * loc and pnpinfo run together to get the string we're looking for,
+ * so we have to synthesize the same thing that subr_bus.c is
+ * generating in devnomatch/devaddq to do the string comparison.
+ */
+static int
+find_exact_dev(struct devinfo_dev *dev, void *arg)
+{
+	struct devinfo_dev *parent;
+	char *loc;
+	struct exact_info *info;
+
+	info = arg;
+	do {
+		if (info->dev != NULL)
+			break;
+		if (!(dev->dd_flags & DF_ENABLED))
+			break;
+		parent = devinfo_handle_to_device(dev->dd_parent);
+		if (strcmp(info->bus, parent->dd_name) != 0)
+			break;
+		asprintf(&loc, "%s %s", parent->dd_pnpinfo,
+		    parent->dd_location);
+		if (strcmp(loc, info->loc) == 0)
+			info->dev = dev;
+		free(loc);
+	} while (0);
+
+	return (devinfo_foreach_device_child(dev, find_exact_dev, arg));
+}
+
 static void
 find_nomatch(char *nomatch)
 {
-	char *bus, *pnpinfo, *tmp;
+	char *bus, *pnpinfo, *tmp, *busnameunit;
+	struct exact_info info;
 
 	/*
 	 * Find our bus name. It will include the unit number. We have to search
@@ -459,6 +500,9 @@ find_nomatch(char *nomatch)
 		errx(1, "No bus found in nomatch string: '%s'", nomatch);
 	bus = tmp + 4;
 	*tmp = '\0';
+	busnameunit = strdup(bus);
+	if (busnameunit == NULL)
+		errx(1, "Can't allocate memory for strings");
 	tmp = bus + strlen(bus) - 1;
 	while (tmp > bus && isdigit(*tmp))
 		tmp--;
@@ -475,6 +519,17 @@ find_nomatch(char *nomatch)
 		errx(1, "Malformed NOMATCH string: '%s'", nomatch);
 	pnpinfo = nomatch + 4;
 
+	/*
+	 * See if we can find the devinfo_dev for this device. If we
+	 * can, and it's been attached before, we should filter it out
+	 * so that a kldunload foo doesn't cause an immediate reload.
+	 */
+	info.loc = pnpinfo;
+	info.bus = busnameunit;
+	info.dev = NULL;
+	devinfo_foreach_device_child(root, find_exact_dev, (void *)&info);
+	if (info.dev != NULL && info.dev->dd_flags & DF_ATTACHED_ONCE)
+		exit(0);
 	search_hints(bus, "", pnpinfo);
 
 	exit(0);
@@ -490,7 +545,6 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct devinfo_dev *root;
 	int ch;
 
 	while ((ch = getopt_long(argc, argv, "adh:p:uv",
@@ -530,12 +584,13 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
-	if (nomatch_str != NULL)
-		find_nomatch(nomatch_str);
 	if (devinfo_init())
 		err(1, "devinfo_init");
 	if ((root = devinfo_handle_to_device(DEVINFO_ROOT_DEVICE)) == NULL)
 		errx(1, "can't find root device");
-	devinfo_foreach_device_child(root, find_unmatched, (void *)0);
+	if (nomatch_str != NULL)
+		find_nomatch(nomatch_str);
+	else
+		devinfo_foreach_device_child(root, find_unmatched, (void *)0);
 	devinfo_free();
 }
