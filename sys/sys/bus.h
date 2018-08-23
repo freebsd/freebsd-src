@@ -92,7 +92,8 @@ struct u_device {
 #define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
 #define	DF_REBID	0x80		/* Can rebid after attach */
 #define	DF_SUSPENDED	0x100		/* Device is suspended. */
-#define DF_QUIET_CHILDREN 0x200		/* Default to quiet for all my children */
+#define	DF_QUIET_CHILDREN 0x200		/* Default to quiet for all my children */
+#define	DF_NEEDNOMATCH	0x800		/* Has a pending NOMATCH event */
 
 /**
  * @brief Device request structure used for ioctl's.
@@ -126,6 +127,8 @@ struct devreq {
 #define	DEV_CLEAR_DRIVER _IOW('D', 8, struct devreq)
 #define	DEV_RESCAN	_IOW('D', 9, struct devreq)
 #define	DEV_DELETE	_IOW('D', 10, struct devreq)
+#define	DEV_FREEZE	_IOW('D', 11, struct devreq)
+#define	DEV_THAW	_IOW('D', 12, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
