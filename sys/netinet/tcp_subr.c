@@ -1096,7 +1096,7 @@ tcp_init(void)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
-	read_random(&V_ts_offset_secret, sizeof(V_ts_offset_secret));
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -2716,7 +2716,7 @@ tcp_new_isn(struct in_conninfo *inc)
 	if ((V_isn_last_reseed == 0) || ((V_tcp_isn_reseed_interval > 0) &&
 	     (((u_int)V_isn_last_reseed + (u_int)V_tcp_isn_reseed_interval*hz)
 		< (u_int)ticks))) {
-		read_random(&V_isn_secret, sizeof(V_isn_secret));
+		arc4rand(&V_isn_secret, sizeof(V_isn_secret), 0);
 		V_isn_last_reseed = ticks;
 	}
 
