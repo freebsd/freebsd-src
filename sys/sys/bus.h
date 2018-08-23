@@ -93,6 +93,7 @@ struct u_device {
 #define	DF_REBID	0x80		/* Can rebid after attach */
 #define	DF_SUSPENDED	0x100		/* Device is suspended. */
 #define	DF_QUIET_CHILDREN 0x200		/* Default to quiet for all my children */
+#define	DF_ATTACHED_ONCE 0x400		/* Has been attached at least once */
 #define	DF_NEEDNOMATCH	0x800		/* Has a pending NOMATCH event */
 
 /**

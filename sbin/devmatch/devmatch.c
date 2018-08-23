@@ -422,6 +422,8 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 			break;
 		if (!(dev->dd_flags & DF_ENABLED))
 			break;
+		if (dev->dd_flags & DF_ATTACHED_ONCE)
+			break;
 		parent = devinfo_handle_to_device(dev->dd_parent);
 		bus = strdup(parent->dd_name);
 		p = bus + strlen(bus) - 1;

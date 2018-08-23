@@ -2950,6 +2950,7 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	dev->flags |= DF_ATTACHED_ONCE;
 	attachtime = get_cyclecount() - attachtime;
 	/*
 	 * 4 bits per device is a reasonable value for desktop and server
