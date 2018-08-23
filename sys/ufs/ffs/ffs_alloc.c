@@ -486,7 +486,7 @@ SYSCTL_INT(_vfs_ffs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0,
 
 static int dotrimcons = 0;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, dotrimcons, CTLFLAG_RW, &dotrimcons, 0,
-"enable BIO_DELETE / TRIM consolodation");
+"enable BIO_DELETE / TRIM consolidation");
 
 static int maxclustersearch = 10;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, maxclustersearch, CTLFLAG_RW, &maxclustersearch,
@@ -513,10 +513,10 @@ ffs_reallocblks(ap)
 	 * the destination for the data is usually moved before the data
 	 * is written to the initially allocated location, so we rarely
 	 * suffer the penalty of extra writes. With the addition of the
-	 * consolodation of contiguous blocks into single BIO_DELETE
+	 * consolidation of contiguous blocks into single BIO_DELETE
 	 * operations, having fewer but larger contiguous blocks reduces
 	 * the number of (slow and expensive) BIO_DELETE operations. So
-	 * when doing BIO_DELETE consolodation, we do block reallocation.
+	 * when doing BIO_DELETE consolidation, we do block reallocation.
 	 *
 	 * Skip if reallocblks has been disabled globally.
 	 */
