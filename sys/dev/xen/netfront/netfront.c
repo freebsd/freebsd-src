@@ -962,6 +962,8 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 
 	DPRINTK("newstate=%d\n", newstate);
 
+	CURVNET_SET(sc->xn_ifp->if_vnet);
+
 	switch (newstate) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
@@ -994,6 +996,8 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 #endif
 		break;
 	}
+
+	CURVNET_RESTORE();
 }
 
 /**
