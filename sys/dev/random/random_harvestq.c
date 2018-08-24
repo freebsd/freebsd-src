@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
+#include <crypto/rijndael/rijndael-api-fst.h>
+#include <crypto/sha2/sha256.h>
+
+#include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
 
@@ -213,8 +217,12 @@ random_sources_feed(void)
 	/* It's an indenting error. Yeah, Yeah. */
 #endif
 	local_read_rate = atomic_readandclear_32(&read_rate);
+	/* Perform at least one read per round */
+	local_read_rate = MAX(local_read_rate, 1);
+	/* But not exceeding RANDOM_KEYSIZE_WORDS */
+	local_read_rate = MIN(local_read_rate, RANDOM_KEYSIZE_WORDS);
 	LIST_FOREACH(rrs, &source_list, rrs_entries) {
-		for (i = 0; i < p_random_alg_context->ra_poolcount*(local_read_rate + 1); i++) {
+		for (i = 0; i < p_random_alg_context->ra_poolcount*local_read_rate; i++) {
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
 			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
 			/* It would appear that in some circumstances (e.g. virtualisation),
