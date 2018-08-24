@@ -97,7 +97,6 @@ MMCBR_ACCESSOR(host_ocr, HOST_OCR, int)
 MMCBR_ACCESSOR(mode, MODE, int)
 MMCBR_ACCESSOR(ocr, OCR, int)
 MMCBR_ACCESSOR(power_mode, POWER_MODE, int)
-MMCBR_ACCESSOR(retune_req, RETUNE_REQ, int)
 MMCBR_ACCESSOR(vdd, VDD, int)
 MMCBR_ACCESSOR(vccq, VCCQ, int)
 MMCBR_ACCESSOR(caps, CAPS, int)
@@ -105,6 +104,20 @@ MMCBR_ACCESSOR(timing, TIMING, int)
 MMCBR_ACCESSOR(max_data, MAX_DATA, int)
 MMCBR_ACCESSOR(max_busy_timeout, MAX_BUSY_TIMEOUT, u_int)
 
+static int __inline
+mmcbr_get_retune_req(device_t dev)
+{
+	uintptr_t v;
+
+	if (__predict_false(BUS_READ_IVAR(device_get_parent(dev), dev,
+	    MMCBR_IVAR_RETUNE_REQ, &v) != 0))
+		return (retune_req_none);
+	return ((int)v);
+}
+
+/*
+ * Convenience wrappers for the mmcbr interface
+ */
 static int __inline
 mmcbr_update_ios(device_t dev)
 {
