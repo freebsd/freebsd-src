@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "27 Feb 2018" "4.2.8p11" "File Formats"
+.TH ntp.conf 5man "14 Aug 2018" "4.2.8p12" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-LkaqTP/ag-XkaiSP)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-2caiQA/ag-bdaaPA)
 .\"
-.\" It has been AutoGen-ed February 27, 2018 at 05:14:22 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed August 14, 2018 at 08:28:54 AM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -326,7 +326,7 @@ option.
 All packets sent to and received from the server or peer are to
 include authentication fields encrypted using the specified
 \f\*[I-Font]key\f[]
-identifier with values from 1 to 65534, inclusive.
+identifier with values from 1 to 65535, inclusive.
 The
 default is to include no encryption field.
 .TP 7
@@ -611,7 +611,7 @@ and reports at the NTP project page linked from
 \f[C]http://www.ntp.org/\f[].
 .SS Symmetric-Key Cryptography
 The original RFC-1305 specification allows any one of possibly
-65,534 keys, each distinguished by a 32-bit key identifier, to
+65,535 keys, each distinguished by a 32-bit key identifier, to
 authenticate an association.
 The servers and clients involved must
 agree on the key and key identifier to
@@ -932,7 +932,7 @@ The
 \f\*[I-Font]key\f[]
 argument is
 the key identifier for a trusted key, where the value can be in the
-range 1 to 65,534, inclusive.
+range 1 to 65,535, inclusive.
 .TP 7
 .NOP \f\*[B-Font]crypto\f[] [\f\*[B-Font]cert\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]leap\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]randfile\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]host\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]sign\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]gq\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]gqpar\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]iffpar\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]mvpar\f[] \f\*[I-Font]file\f[]] [\f\*[B-Font]pw\f[] \f\*[I-Font]password\f[]]
 This command requires the OpenSSL library.
@@ -1038,7 +1038,7 @@ The
 \f\*[I-Font]key\f[]
 argument is a key identifier
 for the trusted key, where the value can be in the range 1 to
-65,534, inclusive.
+65,535, inclusive.
 .TP 7
 .NOP \f\*[B-Font]revoke\f[] \f\*[I-Font]logsec\f[]
 Specifies the interval between re-randomization of certain
@@ -1067,7 +1067,7 @@ servers.
 The
 \f\*[I-Font]key\f[]
 arguments are 32-bit unsigned
-integers with values from 1 to 65,534.
+integers with values from 1 to 65,535.
 .PP
 .SS Error Codes
 The following error codes are reported via the NTP control

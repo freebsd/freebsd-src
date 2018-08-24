@@ -27,11 +27,12 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #
-# get.ipv4remote.pl [tcpport]
+# get.ipv4remote.pl [port] [proto]
 #
 # Find an IPv4 reachable remote host using both ifconfig(1M) and ping(1M).
-# If a tcpport is specified, return a host that is also listening on this
-# TCP port.  Print the local address and the remote address, or an
+# If a port is specified, return a host that is also listening on this
+# port. If the port is specified, the protocol can also be specified and
+# defaults to tcp.  Print the local address and the remote address, or an
 # error message if no suitable remote host was found.  Exit status is 0 if
 # a host was found.
 #
@@ -41,7 +42,8 @@ use IO::Socket;
 
 my $MAXHOSTS = 32;			# max hosts to port scan
 my $TIMEOUT = 3;			# connection timeout
-my $tcpport = @ARGV == 1 ? $ARGV[0] : 0;
+my $port = @ARGV >= 1 ? $ARGV[0] : 0;
+my $proto = @ARGV == 2 ? $ARGV[1] : "tcp";
 
 #
 # Determine local IP address
@@ -79,14 +81,15 @@ while (<PING>) {
 	if (/bytes from (.*): / and not defined $Broadcast{$1}) {
 		my $addr = $1;
 
-		if ($tcpport != 0) {
+		if ($port != 0) {
 			#
 			# Test TCP
 			#
 			my $socket = IO::Socket::INET->new(
-				Proto    => "tcp",
+				Type     => SOCK_STREAM,
+				Proto    => $proto,
 				PeerAddr => $addr,
-				PeerPort => $tcpport,
+				PeerPort => $port,
 				Timeout  => $TIMEOUT,
 			);
 			next unless $socket;

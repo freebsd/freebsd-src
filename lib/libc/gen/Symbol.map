@@ -65,8 +65,6 @@ FBSD_1.0 {
 	pthread_testcancel;
 	alarm;
 	arc4random;
-	arc4random_addrandom;
-	arc4random_stir;
 	__assert;
 	check_utility_compat;
 	clock;

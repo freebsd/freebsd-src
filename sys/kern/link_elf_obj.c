@@ -1521,15 +1521,10 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
-			    ifuncs)
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
+			    elf_is_ifunc_reloc(rel->r_info)) == ifuncs)
 				elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
 				    elf_obj_lookup);
-#if defined(__i386__) || defined(__amd64__)
-			else if (ifuncs)
-				elf_reloc_ifunc(lf, base, rel, ELF_RELOC_REL,
-				    elf_obj_lookup);
-#endif
 		}
 	}
 
@@ -1554,15 +1549,10 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			/* Only do local relocs */
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
-			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC) ==
-			    ifuncs)
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
+			    elf_is_ifunc_reloc(rela->r_info)) == ifuncs)
 				elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
 				    elf_obj_lookup);
-#if defined(__i386__) || defined(__amd64__)
-			else if (ifuncs)
-				elf_reloc_ifunc(lf, base, rela, ELF_RELOC_RELA,
-				    elf_obj_lookup);
-#endif
 		}
 	}
 	return (0);

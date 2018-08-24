@@ -364,7 +364,7 @@ static u_int32 get_match(const char *, struct masks *);
 static u_int32 get_logmask(const char *);
 static int/*BOOL*/ is_refclk_addr(const address_node * addr);
 
-static void	appendstr(char *, size_t, char *);
+static void	appendstr(char *, size_t, const char *);
 
 
 #ifndef SIM
@@ -382,14 +382,14 @@ static void fatal_error(const char *fmt, ...)
 #endif
 {
 	va_list va;
-	
+
 	va_start(va, fmt);
 	mvsyslog(LOG_EMERG, fmt, va);
 	va_end(va);
 	_exit(1);
 }
 
-    
+
 /* FUNCTIONS FOR INITIALIZATION
  * ----------------------------
  */
@@ -742,7 +742,7 @@ dump_config_tree(
 					atrv->value.i);
 				}
 				break;
-				
+
 			case T_Double:
 				fprintf(df, " %s %s",
 					keyword(atrv->attr),
@@ -938,7 +938,7 @@ dump_config_tree(
 				if (T_Source == flag_tok_fifo->i) {
 					s = "source";
 					break;
-				} 
+				}
 			}
 		} else {
 			const char *ap = rest_node->addr->address;
@@ -1446,7 +1446,7 @@ create_unpeer_node(
 		/* accumulate with overflow retention */
 		u = (10 * u + *pch - '0') | (u & 0xFF000000u);
 	}
-	
+
 	if (!*pch && u <= ASSOCID_MAX) {
 		my_node->assocID = (associd_t)u;
 		my_node->addr = NULL;
@@ -2132,7 +2132,7 @@ config_tos(
 	 * since three variables with interdependecies are involved. We
 	 * just log an error but do not stop: This might be caused by
 	 * remote config, and it might be fixed by remote config, too.
-	 */ 
+	 */
 	int l_maxclock = sys_maxclock;
 	int l_minclock = sys_minclock;
 	int l_minsane  = sys_minsane;
@@ -2162,7 +2162,7 @@ config_tos(
 				tos->value.d = 0;
 			}
 			break;
-			
+
 		case T_Ceiling:
 			val = tos->value.d;
 			if (val > STRATUM_UNSPEC - 1) {
@@ -2207,7 +2207,7 @@ config_tos(
 			" - daemon will not operate properly!",
 			l_minsane, l_minclock, l_maxclock);
 	}
-	
+
 	/* -*- phase two: forward the values to the protocol machinery */
 	tos = HEAD_PFIFO(ptree->orphan_cmds);
 	for (; tos != NULL; tos = tos->link) {
@@ -3383,6 +3383,10 @@ config_ttl(
 	size_t i = 0;
 	int_node *curr_ttl;
 
+	/* [Bug 3465] There is a built-in default for the TTLs. We must
+	 * overwrite 'sys_ttlmax' if we change that preset, and leave it
+	 * alone otherwise!
+	 */
 	curr_ttl = HEAD_PFIFO(ptree->ttl);
 	for (; curr_ttl != NULL; curr_ttl = curr_ttl->link) {
 		if (i < COUNTOF(sys_ttl))
@@ -3392,7 +3396,8 @@ config_ttl(
 				"ttl: Number of TTL entries exceeds %zu. Ignoring TTL %d...",
 				COUNTOF(sys_ttl), curr_ttl->i);
 	}
-	sys_ttlmax = (i) ? (i - 1) : 0;
+	if (0 != i) /* anything written back at all? */
+		sys_ttlmax = i - 1;
 }
 #endif	/* !SIM */
 
@@ -3621,10 +3626,8 @@ config_fudge(
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"unrecognized fudge reference clock address %s, line ignored",
-				stoa(&addr_sock));
-		}
-
-		if (!ISREFCLOCKADR(&addr_sock)) {
+				addr_node->address);
+		} else if (!ISREFCLOCKADR(&addr_sock)) {
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"inappropriate address %s for the fudge command, line ignored",
@@ -3696,7 +3699,7 @@ config_fudge(
 				msyslog(LOG_ERR,
 					"Unexpected fudge flag %s (%d) for %s",
 					token_name(curr_opt->attr),
-					curr_opt->attr, stoa(&addr_sock));
+					curr_opt->attr, addr_node->address);
 				exit(curr_opt->attr ? curr_opt->attr : 1);
 			}
 		}
@@ -4565,7 +4568,7 @@ config_ntpd(
 		if (config_tos_clock(ptree))
 			clamp_systime();
 	}
-	
+
 	config_nic_rules(ptree, input_from_files);
 	config_monitor(ptree);
 	config_auth(ptree);
@@ -4845,7 +4848,7 @@ is_refclk_addr(
 	const address_node * addr
 	)
 {
-	return addr && addr->address && !strncmp(addr->address, "127.127.", 6);
+	return addr && addr->address && !strncmp(addr->address, "127.127.", 8);
 }
 
 static void
@@ -5463,7 +5466,7 @@ static void
 appendstr(
 	char *string,
 	size_t s,
-	char *new
+	const char *new
 	)
 {
 	if (*string != '\0') {

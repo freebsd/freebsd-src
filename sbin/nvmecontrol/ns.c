@@ -216,7 +216,7 @@ nscreate(int argc, char *argv[])
 	nvme_namespace_data_swapbytes(&nsdata);
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_NAMESPACE_MANAGEMENT);
+	pt.cmd.opc = NVME_OPC_NAMESPACE_MANAGEMENT;
 
 	pt.cmd.cdw10 = 0; /* create */
 	pt.buf = &nsdata;
@@ -267,7 +267,7 @@ nsdelete(int argc, char *argv[])
 		errx(1, "controller does not support namespace management");
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_NAMESPACE_MANAGEMENT);
+	pt.cmd.opc = NVME_OPC_NAMESPACE_MANAGEMENT;
 	pt.cmd.cdw10 = 1; /* delete */
 	pt.buf = buf;
 	pt.len = sizeof(buf);
@@ -343,7 +343,7 @@ nsattach(int argc, char *argv[])
 	if (ctrlrid == -1) {
 		/* Get full list of controllers to attach to. */
 		memset(&pt, 0, sizeof(pt));
-		pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+		pt.cmd.opc = NVME_OPC_IDENTIFY;
 		pt.cmd.cdw10 = htole32(0x13);
 		pt.buf = clist;
 		pt.len = sizeof(clist);
@@ -362,7 +362,7 @@ nsattach(int argc, char *argv[])
 	}
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_NAMESPACE_ATTACHMENT);
+	pt.cmd.opc = NVME_OPC_NAMESPACE_ATTACHMENT;
 	pt.cmd.cdw10 = 0; /* attach */
 	pt.cmd.nsid = (uint32_t)nsid;
 	pt.buf = &clist;
@@ -422,7 +422,7 @@ nsdetach(int argc, char *argv[])
 	if (ctrlrid == -1) {
 		/* Get list of controllers this namespace attached to. */
 		memset(&pt, 0, sizeof(pt));
-		pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+		pt.cmd.opc = NVME_OPC_IDENTIFY;
 		pt.cmd.nsid = htole32(nsid);
 		pt.cmd.cdw10 = htole32(0x12);
 		pt.buf = clist;
@@ -448,7 +448,7 @@ nsdetach(int argc, char *argv[])
 	}
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_NAMESPACE_ATTACHMENT);
+	pt.cmd.opc = NVME_OPC_NAMESPACE_ATTACHMENT;
 	pt.cmd.cdw10 = 1; /* detach */
 	pt.cmd.nsid = (uint32_t)nsid;
 	pt.buf = &clist;

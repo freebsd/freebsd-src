@@ -1798,8 +1798,11 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 
 	IN6_MULTI_LIST_LOCK_ASSERT();
 	MLD_LOCK_ASSERT();
-
+	
 	ifp = in6m->in6m_ifp;
+	/* in process of being freed */
+	if (ifp == NULL)
+		return (0);
 	ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
 	/* ia may be NULL if link-local address is tentative. */
 

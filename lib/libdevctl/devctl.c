@@ -145,3 +145,17 @@ devctl_delete(const char *device, bool force)
 	return (devctl_simple_request(DEV_DELETE, device, force ?
 	    DEVF_FORCE_DELETE : 0));
 }
+
+int
+devctl_freeze(void)
+{
+
+	return (devctl_simple_request(DEV_FREEZE, "", 0));
+}
+
+int
+devctl_thaw(void)
+{
+
+	return (devctl_simple_request(DEV_THAW, "", 0));
+}

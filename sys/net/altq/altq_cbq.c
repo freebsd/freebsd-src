@@ -452,7 +452,7 @@ cbq_remove_queue(struct pf_altq *a)
 }
 
 int
-cbq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
+cbq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
 	cbq_state_t	*cbqp;
 	struct rm_class	*cl;

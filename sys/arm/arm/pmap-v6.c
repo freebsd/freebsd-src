@@ -1782,8 +1782,7 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(kernel_arena, s,
-	    M_WAITOK | M_ZERO);
+	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
@@ -2219,9 +2218,8 @@ pmap_pinit(pmap_t pmap)
 	 */
 
 	if (pmap->pm_pt1 == NULL) {
-		pmap->pm_pt1 = (pt1_entry_t *)kmem_alloc_contig(kernel_arena,
-		    NB_IN_PT1, M_NOWAIT | M_ZERO, 0, -1UL, NB_IN_PT1, 0,
-		    pt_memattr);
+		pmap->pm_pt1 = (pt1_entry_t *)kmem_alloc_contig(NB_IN_PT1,
+		    M_NOWAIT | M_ZERO, 0, -1UL, NB_IN_PT1, 0, pt_memattr);
 		if (pmap->pm_pt1 == NULL)
 			return (0);
 	}
@@ -2236,8 +2234,8 @@ pmap_pinit(pmap_t pmap)
 		 *      be used no matter which process is current. Its mapping
 		 *      in PT2MAP can be used only for current process.
 		 */
-		pmap->pm_pt2tab = (pt2_entry_t *)kmem_alloc_attr(kernel_arena,
-		    NB_IN_PT2TAB, M_NOWAIT | M_ZERO, 0, -1UL, pt_memattr);
+		pmap->pm_pt2tab = (pt2_entry_t *)kmem_alloc_attr(NB_IN_PT2TAB,
+		    M_NOWAIT | M_ZERO, 0, -1UL, pt_memattr);
 		if (pmap->pm_pt2tab == NULL) {
 			/*
 			 * QQQ: As struct pmap is allocated from UMA with

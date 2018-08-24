@@ -812,12 +812,11 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	    howmany(dmat->maxsize, MIN(dmat->maxsegsz, PAGE_SIZE)) &&
 	    dmat->alignment <= PAGE_SIZE &&
 	    (dmat->boundary % PAGE_SIZE) == 0) {
-		*vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
-		    mflags, 0, dmat->lowaddr, memattr);
+		*vaddr = (void *)kmem_alloc_attr(dmat->maxsize, mflags, 0,
+		    dmat->lowaddr, memattr);
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(kernel_arena, dmat->maxsize,
-		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
-		    memattr);
+		*vaddr = (void *)kmem_alloc_contig(dmat->maxsize, mflags, 0,
+		    dmat->lowaddr, dmat->alignment, dmat->boundary, memattr);
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp_var.h>
 #include <machine/in_cksum.h>
+#include <netinet/in_kdtrace.h>
 
 
 
@@ -4251,6 +4252,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				SCTP_SOCKET_UNLOCK(so, 0);
 			}
 #endif
+			SCTP_PROBE5(send, NULL, stcb, ip, stcb, sctphdr);
 			SCTP_IP_OUTPUT(ret, o_pak, ro, stcb, vrf_id);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			if ((SCTP_BASE_SYSCTL(sctp_output_unlocked)) && (so_locked)) {
@@ -4584,6 +4586,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
 				sctp_packet_log(o_pak);
 #endif
+			SCTP_PROBE5(send, NULL, stcb, ip6h, stcb, sctphdr);
 			SCTP_IP6_OUTPUT(ret, o_pak, (struct route_in6 *)ro, &ifp, stcb, vrf_id);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			if ((SCTP_BASE_SYSCTL(sctp_output_unlocked)) && (so_locked)) {
@@ -6709,7 +6712,6 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-					SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_stop_timers_for_shutdown(stcb);
 					sctp_send_shutdown(stcb, net);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb,
@@ -11253,6 +11255,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 			sctp_packet_log(o_pak);
 		}
 #endif
+		SCTP_PROBE5(send, NULL, NULL, ip, NULL, shout);
 		SCTP_IP_OUTPUT(ret, o_pak, NULL, NULL, vrf_id);
 		break;
 #endif
@@ -11275,6 +11278,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 			sctp_packet_log(o_pak);
 		}
 #endif
+		SCTP_PROBE5(send, NULL, NULL, ip6, NULL, shout);
 		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
 		break;
 #endif
@@ -13507,7 +13511,6 @@ dataless_eof:
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
 				SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-				SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
 				if (stcb->asoc.alternate) {
 					netp = stcb->asoc.alternate;

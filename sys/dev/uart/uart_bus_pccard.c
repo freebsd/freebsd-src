@@ -95,7 +95,7 @@ uart_pccard_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 
-	error = uart_bus_probe(dev, 0, 0, 0, 0, 0);
+	error = uart_bus_probe(dev, 0, 0, 0, 0, 0, 0);
 	if (error > 0)
 		return (error);
 	return (uart_bus_attach(dev));

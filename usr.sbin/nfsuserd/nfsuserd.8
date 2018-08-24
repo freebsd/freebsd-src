@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2017
+.Dd August 22, 2018
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
@@ -40,33 +40,25 @@ services plus support manage-gids for all NFS versions
 .Op Fl verbose
 .Op Fl force
 .Op Fl manage-gids
-.Op Fl use-udpsock
 .Op Ar num_servers
 .Sh DESCRIPTION
 .Nm
 loads user and group information into the kernel for NFSv4.
+For Kerberized NFSv4 mounts, it must be running on both client(s) and
+server for correct operation.
+For non-Kerberized NFSv4 mounts, this daemon must be running unless all
+client(s) plus the server are configured to put uid/gid numbers in the
+owner and owner_group strings.
+.Pp
 It also provides support for manage-gids and must be running on the server if
 this is being used for any version of NFS.
 .Pp
 Upon startup, it loads the machines DNS domain name, plus timeout and
 cache size limit into the kernel. It then preloads the cache with group
 and user information, up to the cache size limit and forks off N children
-(only 1 child for AF_LOCAL sockets), that service requests from the kernel for cache misses.
-The master server is there for the sole purpose of killing off the slave(s).
+(default 4), that service requests from the kernel for cache misses. The
+master server is there for the sole purpose of killing off the slaves.
 To stop the nfsuserd, send a SIGUSR1 to the master server.
-.Pp
-By default, upcalls from the kernel use an AF_LOCAL socket.
-For this case, only one server daemon will be running.
-The
-.Fl use-udpsock
-option may be used to make the
-.Nm
-daemon use a UDP socket, with upcalls done via 127.0.0.1, which was the
-old behaviour for
-.Nm .
-Use of the UDP socket can only be done if
-.Xr jail 8
-are not being used.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
@@ -104,12 +96,14 @@ and uses the group list for that uid provided by
 .Xr getgrouplist 3
 on the server instead of the list of groups provided in the RPC authenticator.
 This can be used to avoid the 16 group limit for AUTH_SYS.
-.It Fl use-udpsock
-This flag forces use of the old behaviour of a UDP socket with upcalls done via 127.0.0.1.
 .It Ar num_servers
 Specifies how many servers to create (max 20).
-This option has been deprecated and is ignored for AF_LOCAL upcall sockets,
-which always use a single server.
+The default of 4 may be sufficient. You should run enough servers, so that
+.Xr ps 1
+shows almost no running time for one or two of the slaves after the system
+has been running for a long period. Running too few will have a major
+performance impact, whereas running too many will only tie up some resources,
+such as a process table entry and swap space.
 .El
 .Sh SEE ALSO
 .Xr getgrent 3 ,
@@ -138,11 +132,8 @@ and
 .Xr passwd 5
 for more information on how the databases are accessed.
 .Pp
-For the
-.Fl use-udpsock
-option, since the kernel communicates with the
+Since the kernel communicates with the
 .Nm
 daemon via an upcall that uses the IP address 127.0.0.1, it does not work correctly when
 .Xr jail 8
 are used and can crash the system.
-This is not a problem when a AF_LOCAL socket is used.

@@ -50,7 +50,6 @@ device		pci
 
 # Interrupt controllers
 device		gic
-options 	INTRNG
 
 # Timers
 device		mpcore_timer

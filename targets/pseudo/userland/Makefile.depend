@@ -286,9 +286,6 @@ DIRDEPS+= \
 	usr.bin/nice \
 	usr.bin/nl \
 	usr.bin/nohup \
-	usr.bin/nslookup \
-	usr.bin/nsupdate \
-	usr.bin/numactl \
 	usr.bin/opieinfo \
 	usr.bin/opiekey \
 	usr.bin/opiepasswd \
@@ -323,7 +320,6 @@ DIRDEPS+= \
 	usr.bin/script \
 	usr.bin/sdiff \
 	usr.bin/sed \
-	usr.bin/send-pr \
 	usr.bin/seq \
 	usr.bin/shar \
 	usr.bin/showmount \
@@ -761,7 +757,6 @@ DIRDEPS+= \
 	usr.sbin/zic/zic \
 	usr.sbin/zonectl \
 	${DEP_RELDIR}/cddl \
-	${DEP_RELDIR}/games \
 	${DEP_RELDIR}/gnu \
 	${DEP_RELDIR}/include \
 	${DEP_RELDIR}/kerberos5 \

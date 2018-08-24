@@ -1198,6 +1198,9 @@ aw_mmc_read_ivar(device_t bus, device_t child, int which,
 		*(int *)result = (sc->aw_mmc_conf->dma_xferlen *
 		    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
 		break;
+	case MMCBR_IVAR_RETUNE_REQ:
+		*(int *)result = retune_req_none;
+		break;
 	}
 
 	return (0);

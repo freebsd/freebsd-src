@@ -33,6 +33,6 @@ nfs_prot_x.c: ${NFS_PROT_X}
 XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${SRCTOP}/contrib/amd/libamu/xdr_func.c | awk '{print "-D"$$2}'
 
 xdr_func_%undef.c: xdr_func.c
-	-unifdef ${XDRDEFS} < ${.ALLSRC} > ${.TARGET}
+	unifdef -x1 ${XDRDEFS} -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.lib.mk>

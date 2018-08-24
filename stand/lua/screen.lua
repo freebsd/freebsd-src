@@ -38,17 +38,10 @@ screen.default_x = 0
 screen.default_y = 25
 
 function screen.clear()
-	if core.isSerialBoot() then
-		return
-	end
 	printc(core.KEYSTR_CSI .. "H" .. core.KEYSTR_CSI .. "J")
 end
 
 function screen.setcursor(x, y)
-	if core.isSerialBoot() then
-		return
-	end
-
 	printc(core.KEYSTR_CSI .. y .. ";" .. x .. "H")
 end
 
@@ -71,9 +64,6 @@ function screen.defcolor()
 end
 
 function screen.defcursor()
-	if core.isSerialBoot() then
-		return
-	end
 	screen.setcursor(screen.default_x, screen.default_y)
 end
 

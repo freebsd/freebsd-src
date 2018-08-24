@@ -52,7 +52,7 @@ void    VARARGS(tcpd_warn, char *, format)
     va_list ap;
 
     VASTART(ap, char *, format);
-    tcpd_diag(LOG_ERR, "warning", format, ap);
+    tcpd_diag(LOG_WARNING, "warning", format, ap);
     VAEND(ap);
 }
 

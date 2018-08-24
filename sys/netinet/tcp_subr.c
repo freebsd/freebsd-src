@@ -233,6 +233,10 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 #endif
 
+#define TS_OFFSET_SECRET_LENGTH 32
+VNET_DEFINE_STATIC(u_char, ts_offset_secret[TS_OFFSET_SECRET_LENGTH]);
+#define	V_ts_offset_secret	VNET(ts_offset_secret)
+
 static int	tcp_default_fb_init(struct tcpcb *tp);
 static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
 static int	tcp_default_handoff_ok(struct tcpcb *tp);
@@ -1092,6 +1096,7 @@ tcp_init(void)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -1622,7 +1627,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_vnet = inp->inp_vnet;
 #endif
 	tp->t_timers = &tm->tt;
-	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
+	TAILQ_INIT(&tp->t_segq);
 	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
@@ -2603,6 +2608,41 @@ out:
 }
 #endif /* INET6 */
 
+static uint32_t
+tcp_keyed_hash(struct in_conninfo *inc, u_char *key, u_int len)
+{
+	MD5_CTX ctx;
+	uint32_t hash[4];
+
+	MD5Init(&ctx);
+	MD5Update(&ctx, &inc->inc_fport, sizeof(uint16_t));
+	MD5Update(&ctx, &inc->inc_lport, sizeof(uint16_t));
+	switch (inc->inc_flags & INC_ISIPV6) {
+#ifdef INET
+	case 0:
+		MD5Update(&ctx, &inc->inc_faddr, sizeof(struct in_addr));
+		MD5Update(&ctx, &inc->inc_laddr, sizeof(struct in_addr));
+		break;
+#endif
+#ifdef INET6
+	case INC_ISIPV6:
+		MD5Update(&ctx, &inc->inc6_faddr, sizeof(struct in6_addr));
+		MD5Update(&ctx, &inc->inc6_laddr, sizeof(struct in6_addr));
+		break;
+#endif
+	}
+	MD5Update(&ctx, key, len);
+	MD5Final((unsigned char *)hash, &ctx);
+
+	return (hash[0]);
+}
+
+uint32_t
+tcp_new_ts_offset(struct in_conninfo *inc)
+{
+	return (tcp_keyed_hash(inc, V_ts_offset_secret,
+	    sizeof(V_ts_offset_secret)));
+}
 
 /*
  * Following is where TCP initial sequence number generation occurs.
@@ -2644,15 +2684,16 @@ out:
  * as reseeding should not be necessary.
  *
  * Locking of the global variables isn_secret, isn_last_reseed, isn_offset,
- * isn_offset_old, and isn_ctx is performed using the TCP pcbinfo lock.  In
+ * isn_offset_old, and isn_ctx is performed using the ISN lock.  In
  * general, this means holding an exclusive (write) lock.
  */
 
 #define ISN_BYTES_PER_SECOND 1048576
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
+#define ISN_SECRET_LENGTH    32
 
-VNET_DEFINE_STATIC(u_char, isn_secret[32]);
+VNET_DEFINE_STATIC(u_char, isn_secret[ISN_SECRET_LENGTH]);
 VNET_DEFINE_STATIC(int, isn_last);
 VNET_DEFINE_STATIC(int, isn_last_reseed);
 VNET_DEFINE_STATIC(u_int32_t, isn_offset);
@@ -2665,45 +2706,23 @@ VNET_DEFINE_STATIC(u_int32_t, isn_offset_old);
 #define	V_isn_offset_old		VNET(isn_offset_old)
 
 tcp_seq
-tcp_new_isn(struct tcpcb *tp)
+tcp_new_isn(struct in_conninfo *inc)
 {
-	MD5_CTX isn_ctx;
-	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 	u_int32_t projected_offset;
-
-	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	ISN_LOCK();
 	/* Seed if this is the first use, reseed if requested. */
 	if ((V_isn_last_reseed == 0) || ((V_tcp_isn_reseed_interval > 0) &&
 	     (((u_int)V_isn_last_reseed + (u_int)V_tcp_isn_reseed_interval*hz)
 		< (u_int)ticks))) {
-		read_random(&V_isn_secret, sizeof(V_isn_secret));
+		arc4rand(&V_isn_secret, sizeof(V_isn_secret), 0);
 		V_isn_last_reseed = ticks;
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&isn_ctx);
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
-#ifdef INET6
-	if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0) {
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
-			  sizeof(struct in6_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
-			  sizeof(struct in6_addr));
-	} else
-#endif
-	{
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
-			  sizeof(struct in_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
-			  sizeof(struct in_addr));
-	}
-	MD5Update(&isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &isn_ctx);
-	new_isn = (tcp_seq) md5_buffer[0];
+	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret,
+	    sizeof(V_isn_secret));
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	if (ticks != V_isn_last) {
@@ -2849,6 +2868,9 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	uint32_t maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
+
+	if (inc->inc_flags & INC_IPV6MINMTU)
+		return (IPV6_MMTU);
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
 		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);

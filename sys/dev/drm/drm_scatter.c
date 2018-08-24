@@ -52,8 +52,8 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
 	    DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
 
-	entry->vaddr = kmem_alloc_attr(kernel_arena, size, M_WAITOK | M_ZERO,
-	    0, BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
+	entry->vaddr = kmem_alloc_attr(size, M_WAITOK | M_ZERO, 0,
+	    BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
 	if (entry->vaddr == 0) {
 		drm_sg_cleanup(entry);
 		return (ENOMEM);

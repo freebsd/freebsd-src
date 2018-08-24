@@ -31,6 +31,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20170822:
+	devctl freeze/that have gone into the tree, the rc scripts have been
+	updated to use them and devmatch has been changed.  You should update
+	kernel, userland and rc scripts all at the same time.
+
+20180818:
+	The default interpreter has been switched from 4th to Lua.
+	LOADER_DEFAULT_INTERP, documented in build(7), will override the default
+	interpreter.  If you have custom FORTH code you will need to set
+	LOADER_DEFAULT_INTERP=4th (valid values are 4th, lua or simp) in
+	src.conf for the build.  This will create default hard links between
+	loader and loader_4th instead of loader and loader_lua, the new default.
+	If you are using UEFI it will create the proper hard link to loader.efi.
+
+	bhyve uses userboot.so. It remains 4th-only until some issues are solved
+	regarding coexisting with multiple versions of FreeBSD are resolved.
+
 20180815:
 	ls(1) now respects the COLORTERM environment variable used in other
 	systems and software to indicate that a colored terminal is both

@@ -276,7 +276,7 @@ inm_disconnect(struct in_multi *inm)
 		if (--ll_ifma->ifma_refcount == 0) {
 			if (ll_ifma->ifma_flags & IFMA_F_ENQUEUED) {
 				CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
-				ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+				ll_ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
 			}
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);

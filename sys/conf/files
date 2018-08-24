@@ -3299,6 +3299,7 @@ dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_ipheth.c		optional ipheth
 dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_mos.c		optional mos
+dev/usb/net/if_muge.c		optional muge
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav

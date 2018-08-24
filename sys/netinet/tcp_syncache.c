@@ -770,10 +770,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto abort;
 	}
 #ifdef INET6
-	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		struct inpcb *oinp = sotoinpcb(lso);
-		struct in6_addr laddr6;
-		struct sockaddr_in6 sin6;
+
 		/*
 		 * Inherit socket options from the listening socket.
 		 * Note that in6p_inputopts are not (and should not be)
@@ -787,6 +786,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (oinp->in6p_outputopts)
 			inp->in6p_outputopts =
 			    ip6_copypktopts(oinp->in6p_outputopts, M_NOWAIT);
+	}
+
+	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+		struct in6_addr laddr6;
+		struct sockaddr_in6 sin6;
 
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(sin6);
@@ -1497,6 +1501,7 @@ skip_alloc:
 		if (to->to_flags & TOF_TS) {
 			sc->sc_tsreflect = to->to_tsval;
 			sc->sc_flags |= SCF_TIMESTAMP;
+			sc->sc_tsoff = tcp_new_ts_offset(inc);
 		}
 		if (to->to_flags & TOF_SCALE) {
 			int wscale = 0;
@@ -2035,11 +2040,6 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	iss = hash & ~0xff;
 	iss |= cookie.cookie ^ (hash >> 24);
 
-	/* Randomize the timestamp. */
-	if (sc->sc_flags & SCF_TIMESTAMP) {
-		sc->sc_tsoff = arc4random() - tcp_ts_getticks();
-	}
-
 	TCPSTAT_INC(tcps_sc_sendcookie);
 	return (iss);
 }
@@ -2126,7 +2126,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	if (to->to_flags & TOF_TS) {
 		sc->sc_flags |= SCF_TIMESTAMP;
 		sc->sc_tsreflect = to->to_tsval;
-		sc->sc_tsoff = to->to_tsecr - tcp_ts_getticks();
+		sc->sc_tsoff = tcp_new_ts_offset(inc);
 	}
 
 	if (to->to_flags & TOF_SIGNATURE)

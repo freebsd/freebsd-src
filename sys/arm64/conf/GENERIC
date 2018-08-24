@@ -108,6 +108,9 @@ options 	SOC_BRCM_BCM2837
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_XILINX_ZYNQ
 
+# Timer drivers
+device		a10_timer
+
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
 device		al_nb_service		# Alpine North Bridge Service
@@ -188,6 +191,7 @@ device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 
 # USB ethernet support
+device		muge
 device		smcphy
 device		smsc
 
@@ -256,6 +260,7 @@ device		hwreset
 device		nvmem
 device		regulator
 device		syscon
+device		aw_syscon
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -267,3 +272,6 @@ options 	THUNDERX_PASS_1_1_ERRATA
 
 options 	FDT
 device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA="dtb/allwinner"

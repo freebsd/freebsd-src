@@ -44,7 +44,7 @@ monitor the operational status
 and determine the performance of
 <code>ntpd</code>, the NTP daemon.
 
-  <p>This document applies to version 4.2.8p11 of <code>ntpq</code>.
+  <p>This document applies to version 4.2.8p12 of <code>ntpq</code>.
 
 <ul class="menu">
 <li><a accesskey="1" href="#ntpq-Description">ntpq Description</a>
@@ -855,7 +855,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p10
+<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p11
 Usage:  ntpq [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 name resolution
@@ -1284,7 +1284,7 @@ The password must correspond to the key ID configured in <code>ntp.conf</code> f
 
      <br><dt><code><a name="raw"></a> raw</code><dd>Display server messages as received and without reformatting.
 
-     <br><dt><code><a name="timeout"></a> timeout </code><kbd>millseconds</kbd><dd>Specify a timeout period for responses to server queries. 
+     <br><dt><code><a name="timeout"></a> timeout </code><kbd>milliseconds</kbd><dd>Specify a timeout period for responses to server queries. 
 The default is about 5000 milliseconds. 
 Note that since <code>ntpq</code> retries each query once after a timeout
 the total waiting time for a timeout will be twice the timeout value set.

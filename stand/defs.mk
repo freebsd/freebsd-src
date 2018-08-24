@@ -154,10 +154,10 @@ CFLAGS+=	-mlittle-endian
 #
 # Have a sensible default
 #
-.if ${MK_FORTH} == "yes"
-LOADER_DEFAULT_INTERP?=4th
-.elif ${MK_LOADER_LUA} == "yes"
+.if ${MK_LOADER_LUA} == "yes"
 LOADER_DEFAULT_INTERP?=lua
+.elif ${MK_FORTH} == "yes"
+LOADER_DEFAULT_INTERP?=4th
 .else
 LOADER_DEFAULT_INTERP?=simp
 .endif

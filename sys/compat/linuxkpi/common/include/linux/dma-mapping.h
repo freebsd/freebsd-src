@@ -134,8 +134,8 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else
 		high = BUS_SPACE_MAXADDR;
 	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(kmem_arena, size, flag, 0, high, align,
-	    0, VM_MEMATTR_DEFAULT);
+	mem = (void *)kmem_alloc_contig(size, flag, 0, high, align, 0,
+	    VM_MEMATTR_DEFAULT);
 	if (mem)
 		*dma_handle = vtophys(mem);
 	else

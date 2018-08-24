@@ -122,8 +122,8 @@ struct in_conninfo {
  * Flags for inc_flags.
  */
 #define	INC_ISIPV6	0x01
+#define	INC_IPV6MINMTU	0x02
 
-#define	inc_isipv6	inc_flags	/* temp compatibility */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport
 #define	inc_faddr	inc_ie.ie_faddr

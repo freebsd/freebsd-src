@@ -83,7 +83,7 @@ uart_ar5315_probe(device_t dev)
 	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = ar531x_uart_addr() + 3;
 
-	return (uart_bus_probe(dev, 2, 0, freq, 0, 0));
+	return (uart_bus_probe(dev, 2, 0, freq, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, apb, uart_ar5315_driver, uart_devclass, 0, 0);

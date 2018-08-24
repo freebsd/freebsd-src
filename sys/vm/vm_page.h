@@ -208,7 +208,7 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
-	volatile uint8_t queue;		/* page queue index (Q) */
+	uint8_t queue;			/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
 	uint8_t	order;			/* index of the buddy queue (F) */
@@ -539,7 +539,6 @@ void vm_page_deactivate(vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
-void vm_page_dequeue_locked(vm_page_t m);
 void vm_page_drain_pqbatch(void);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 bool vm_page_free_prep(vm_page_t m);
@@ -565,7 +564,6 @@ int vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex);
 void vm_page_requeue(vm_page_t m);
-void vm_page_requeue_locked(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
 vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
     vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);

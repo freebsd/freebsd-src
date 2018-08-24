@@ -298,8 +298,9 @@ init_secondary(void)
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
+	/* See comment in pmap_bootstrap(). */
+	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
-	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
 	common_tss[cpu].tss_rsp0 = 0;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
@@ -402,18 +403,14 @@ native_start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
-		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(kernel_arena,
-		    PAGE_SIZE, M_WAITOK | M_ZERO);
-		mce_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
-		    M_WAITOK | M_ZERO);
-		dbg_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
-		    M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-		    M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
+		    M_ZERO);
+		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		nmi_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dbg_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;

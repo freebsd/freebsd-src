@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2016
+.Dd August 22, 2018
 .Dt DEVCTL 3
 .Os
 .Sh NAME
@@ -36,10 +36,12 @@
 .Nm devctl_detach ,
 .Nm devctl_disable ,
 .Nm devctl_enable ,
+.Nm devctl_freeze ,
 .Nm devctl_rescan ,
 .Nm devctl_resume ,
 .Nm devctl_set_driver ,
-.Nm devctl_suspend
+.Nm devctl_suspend ,
+.Nm devctl_thaw
 .Nd device control library
 .Sh LIBRARY
 .Lb libdevctl
@@ -58,6 +60,8 @@
 .Ft int
 .Fn devctl_enable "const char *device"
 .Ft int
+.Fn devctl_freeze "void"
+.Ft int
 .Fn devctl_rescan "const char *device"
 .Ft int
 .Fn devctl_resume "const char *device"
@@ -65,6 +69,8 @@
 .Fn devctl_set_driver "const char *device" "const char *driver" "bool force"
 .Ft int
 .Fn devctl_suspend "const char *device"
+.Ft int
+.Fn devctl_thaw "void"
 .Sh DESCRIPTION
 The
 .Nm
@@ -189,6 +195,16 @@ The
 .Fn devctl_rescan
 function rescans a bus device checking for devices that have been added or
 removed.
+.Pp
+The
+.Fn devctl_freeze
+function freezes probe and attach processing initiated in response to
+drivers being loaded.
+.Pp
+The
+.Fn devctl_thaw
+function resumes (thaws the freeze) probe and attach processing
+initiated in response to drivers being loaded.
 .Sh RETURN VALUES
 .Rv -std devctl_attach devctl_clear_driver devctl_delete devctl_detach \
 devctl_disable devctl_enable devctl_suspend devctl_rescan devctl_resume \

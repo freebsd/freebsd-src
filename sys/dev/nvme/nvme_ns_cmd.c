@@ -126,7 +126,7 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 		return (ENOMEM);
 
 	cmd = &req->cmd;
-	cmd->opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_DATASET_MANAGEMENT);
+	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
 	cmd->nsid = htole32(ns->id);
 
 	/* TODO: create a delete command data structure */

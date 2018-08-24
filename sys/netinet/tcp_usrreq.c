@@ -1439,7 +1439,9 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(tp);
+	tp->iss = tcp_new_isn(&inp->inp_inc);
+	if (tp->t_flags & TF_REQ_TSTMP)
+		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1478,7 +1480,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(inp->inp_socket);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(tp);
+	tp->iss = tcp_new_isn(&inp->inp_inc);
+	if (tp->t_flags & TF_REQ_TSTMP)
+		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1580,6 +1584,42 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
+			/*
+			 * In case of the IPV6_USE_MIN_MTU socket option,
+			 * the INC_IPV6MINMTU flag to announce a corresponding
+			 * MSS during the initial handshake.
+			 * If the TCP connection is not in the front states,
+			 * just reduce the MSS being used.
+			 * This avoids the sending of TCP segments which will
+			 * be fragmented at the IPv6 layer.
+			 */
+			if ((error == 0) &&
+			    (sopt->sopt_dir == SOPT_SET) &&
+			    (sopt->sopt_level == IPPROTO_IPV6) &&
+			    (sopt->sopt_name == IPV6_USE_MIN_MTU)) {
+				INP_WLOCK(inp);
+				if ((inp->inp_flags &
+				    (INP_TIMEWAIT | INP_DROPPED))) {
+					INP_WUNLOCK(inp);
+					return (ECONNRESET);
+				}
+				inp->inp_inc.inc_flags |= INC_IPV6MINMTU;
+				tp = intotcpcb(inp);
+				if ((tp->t_state >= TCPS_SYN_SENT) &&
+				    (inp->inp_inc.inc_flags & INC_ISIPV6)) {
+					struct ip6_pktopts *opt;
+
+					opt = inp->in6p_outputopts;
+					if ((opt != NULL) &&
+					    (opt->ip6po_minmtu ==
+					    IP6PO_MINMTU_ALL)) {
+						if (tp->t_maxseg > TCP6_MSS) {
+							tp->t_maxseg = TCP6_MSS;
+						}
+					}
+				}
+				INP_WUNLOCK(inp);
+			}
 		}
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
@@ -1622,7 +1662,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (0);
 		}
 		if (tp->t_state != TCPS_CLOSED) {
-			int error=EINVAL;
 			/* 
 			 * The user has advanced the state
 			 * past the initial point, we may not
@@ -1635,7 +1674,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				 * still be possible?
 				 */
 				error = (*blk->tfb_tcp_handoff_ok)(tp);
-			}
+			} else
+				error = EINVAL;
 			if (error) {
 				refcount_release(&blk->tfb_refcnt);
 				INP_WUNLOCK(inp);
@@ -2521,7 +2561,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("t_segq first: %p   t_segqlen: %d   t_dupacks: %d\n",
-	   LIST_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
+	   TAILQ_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
 
 	db_print_indent(indent);
 	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",

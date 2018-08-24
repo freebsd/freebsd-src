@@ -3,7 +3,7 @@
 .\"
 .\" This man page documents only lld's ELF linking support, obtained originally
 .\" from FreeBSD.
-.Dd July 30, 2018
+.Dd August 22, 2018
 .Dt LD.LLD 1
 .Os
 .Sh NAME
@@ -451,6 +451,13 @@ Make the main stack executable.
 Stack permissions are recorded in the
 .Dv PT_GNU_STACK
 segment.
+.It Cm ifunc-noplt
+Do not emit PLT entries for GNU ifuncs.
+Instead, preserve relocations for ifunc call sites so that they may
+be applied by a run-time loader.
+Note that this feature requires special loader support and will
+generally result in application crashes when used outside of freestanding
+environments.
 .It Cm initfirst
 Sets the
 .Dv DF_1_INITFIRST

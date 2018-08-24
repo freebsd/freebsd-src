@@ -179,7 +179,7 @@ jz4780_uart_probe(device_t dev)
 		device_printf(dev, "got UART clock: %lld\n", freq);
 	sc->ns8250_base.base.sc_class = (struct uart_class *)cd->ocd_data;
 	shift = jz4780_uart_get_shift(dev);
-	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0));
+	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0, 0));
 }
 
 static int

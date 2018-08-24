@@ -229,7 +229,6 @@
 #define	  EPCR_DGTMI		  0x00800000
 #define	  EPCR_DMIUH		  0x00400000
 #define	  EPCR_PMGS		  0x00200000
-#define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 
 #define	SPR_HSRR0		0x13a
 #define	SPR_HSRR1		0x13b
@@ -245,7 +244,7 @@
 #define	SPR_LPID		0x13f	/* Logical Partitioning Control */
 
 #define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
-#define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
+#define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
 #define	SPR_IBAT1U		0x212	/* .6. Instruction BAT Reg 1 Upper */

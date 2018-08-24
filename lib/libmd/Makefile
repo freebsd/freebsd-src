@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=lib${LIB}
 LIB=	md
 SHLIB_MAJOR= 6
@@ -98,6 +100,13 @@ CFLAGS+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 
+USE_ASM_SOURCES?=1
+.if defined(BOOTSTRAPPING)
+# Don't build ASM sources when bootstrapping to avoid toolchain dependencies
+USE_ASM_SOURCES:=0
+.endif
+
+.if ${USE_ASM_SOURCES} != 0
 .if exists(${MACHINE_ARCH}/sha.S)
 SRCS+=	sha.S
 CFLAGS+= -DSHA1_ASM
@@ -107,15 +116,20 @@ SRCS+=	rmd160.S
 CFLAGS+= -DRMD160_ASM
 .endif
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
+.if defined(XAS) || ${MK_BINUTILS_BOOTSTRAP} != "no"
 AFLAGS += --strip-local-absolute
 # Fully unroll all loops in the assembly optimized version
 AFLAGS+= --defsym SKEIN_LOOP=0
 SRCS+= skein_block_asm.s
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
+.else
+.warning as not available: not using optimized Skein asm
+.endif
 .endif
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.s)
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
+.endif # ${USE_ASM_SOURCES} != 0
 
 md4hl.c: mdXhl.c
 	(echo '#define LENGTH 16'; \

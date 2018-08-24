@@ -80,7 +80,6 @@ device		syscon
 device		cpufreq
 
 # Interrupt controller
-options 	INTRNG
 device		gic
 
 # PMU support (for CCNT).

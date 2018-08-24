@@ -31,11 +31,40 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/random.h>
+#include <sys/sysctl.h>
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "libc_private.h"
+
+/* First __FreeBSD_version bump after introduction of getrandom(2) (r331279) */
+#define GETRANDOM_FIRST 1200061
+
+extern int __sysctl(int *, u_int, void *, size_t *, void *, size_t);
+
+static size_t
+arnd_sysctl(u_char *buf, size_t size)
+{
+	int mib[2];
+	size_t len, done;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	done = 0;
+
+	do {
+		len = size;
+		if (__sysctl(mib, 2, buf, &len, NULL, 0) == -1)
+			return (done);
+		done += len;
+		buf += len;
+		size -= len;
+	} while (size > 0);
+
+	return (done);
+}
 
 /*
  * If a newer libc is accidentally installed on an older kernel, provide high
@@ -54,7 +83,7 @@ getentropy_fallback(void *buf, size_t buflen)
 		errno = EFAULT;
 		return (-1);
 	}
-	if (__arc4_sysctl(buf, buflen) != buflen) {
+	if (arnd_sysctl(buf, buflen) != buflen) {
 		if (errno == EFAULT)
 			return (-1);
 		/*
@@ -74,21 +103,38 @@ int
 getentropy(void *buf, size_t buflen)
 {
 	ssize_t rd;
+	bool have_getrandom;
 
 	if (buflen > 256) {
 		errno = EIO;
 		return (-1);
 	}
 
+	have_getrandom = (__getosreldate() >= GETRANDOM_FIRST);
+
 	while (buflen > 0) {
-		rd = getrandom(buf, buflen, 0);
-		if (rd == -1) {
-			if (errno == EINTR)
-				continue;
-			else if (errno == ENOSYS || errno == ECAPMODE)
-				return (getentropy_fallback(buf, buflen));
-			else
-				return (-1);
+		if (have_getrandom) {
+			rd = getrandom(buf, buflen, 0);
+			if (rd == -1) {
+				switch (errno) {
+				case ECAPMODE:
+					/*
+					 * Kernel >= r331280 and < r337999
+					 * will return ECAPMODE when the
+					 * caller is already in capability
+					 * mode, fallback to traditional
+					 * method in this case.
+					 */
+					have_getrandom = false;
+					continue;
+				case EINTR:
+					continue;
+				default:
+					return (-1);
+				}
+			}
+		} else {
+			return (getentropy_fallback(buf, buflen));
 		}
 
 		/* This cannot happen. */

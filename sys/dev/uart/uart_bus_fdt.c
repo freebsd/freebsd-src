@@ -278,7 +278,7 @@ uart_fdt_probe(device_t dev)
 	if (uart_fdt_get_io_width(node, &iowidth) != 0)
 		iowidth = uart_getregiowidth(sc->sc_class);
 
-	return (uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0));
+	return (uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, simplebus, uart_fdt_driver, uart_devclass, 0, 0);
