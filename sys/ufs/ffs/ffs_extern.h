@@ -63,9 +63,11 @@ int	ffs_balloc_ufs2(struct vnode *a_vp, off_t a_startoffset, int a_size,
             struct ucred *a_cred, int a_flags, struct buf **a_bpp);
 int	ffs_blkatoff(struct vnode *, off_t, char **, struct buf **);
 void	ffs_blkfree(struct ufsmount *, struct fs *, struct vnode *,
-	    ufs2_daddr_t, long, ino_t, enum vtype, struct workhead *, int);
+	    ufs2_daddr_t, long, ino_t, enum vtype, struct workhead *, u_long);
 ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
+void	ffs_blkrelease_finish(struct ufsmount *, u_long);
+u_long	ffs_blkrelease_start(struct ufsmount *, struct vnode *, ino_t);
 int	ffs_checkfreefile(struct fs *, struct vnode *, ino_t);
 void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
@@ -123,14 +125,13 @@ void	process_deferred_inactive(struct mount *mp);
 #define	FFSR_UNSUSPEND	0x0002
 
 /*
- * Trim type to ffs_blkfree - used to help with BIO_DELETE (trim) requests
+ * Definitions for TRIM interface
+ *
+ * Special keys and recommended hash table size
  */
-#define	NOTRIM		1	/* never written, so don't call trim for it */
-#define	SINGLETON	2	/* only block being freed, so trim it now */
-#define	STARTFREE	3	/* beginning to free for this inum */
-#define	CONTINUEFREE	4	/* additional block free for this inum */
-#define	ENDFREE		5	/* last block to free for this inum */
-
+#define	NOTRIM_KEY	1	/* never written, so don't call trim for it */
+#define	SINGLETON_KEY	2	/* only block being freed, so trim it now */
+#define	FIRST_VALID_KEY	3	/* first valid key describing a block range */
 #define	MAXTRIMIO	1024	/* maximum expected outstanding trim requests */
 
 extern struct vop_vector ffs_vnodeops1;

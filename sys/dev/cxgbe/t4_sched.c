@@ -394,6 +394,7 @@ t4_set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
 	/* Checking VI_INIT_DONE outside a synch-op is a harmless race here. */
 	if (!(vi->flags & VI_INIT_DONE))
 		return (EAGAIN);
+	MPASS(vi->ntxq > 0);
 
 	if (!in_range(p->queue, 0, vi->ntxq - 1) ||
 	    !in_range(p->cl, 0, sc->chip_params->nsched_cls - 1))

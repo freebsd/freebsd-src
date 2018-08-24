@@ -176,44 +176,10 @@ ENTRY(vmx_enter_guest)
 	jbe	invept_error		/* Check invept instruction error */
 
 guest_restore:
-
-	/*
-	 * Flush L1D cache if requested.  Use IA32_FLUSH_CMD MSR if available,
-	 * otherwise load enough of the data from the zero_region to flush
-	 * existing L1D content.
-	 */
-#define	L1D_FLUSH_SIZE	(64 * 1024)
 	movl	%edx, %r8d
-	cmpb	$0, guest_l1d_flush(%rip)
+	cmpb	$0, guest_l1d_flush_sw(%rip)
 	je	after_l1d
-	movq	vmx_msr_flush_cmd(%rip), %rax
-	testq	%rax, %rax
-	jz	1f
-	movq	%rax, %rdx
-	shrq	$32, %rdx
-	movl	$MSR_IA32_FLUSH_CMD, %ecx
-	wrmsr
-	jmp	after_l1d
-1:	movq	$KERNBASE, %r9
-	movq	$-L1D_FLUSH_SIZE, %rcx
-	/*
-	 * pass 1: Preload TLB.
-	 * Kernel text is mapped using superpages.  TLB preload is
-	 * done for the benefit of older CPUs which split 2M page
-	 * into 4k TLB entries.
-	 */
-2:	movb	L1D_FLUSH_SIZE(%r9, %rcx), %al
-	addq	$PAGE_SIZE, %rcx
-	jne	2b
-	xorl	%eax, %eax
-	cpuid
-	movq	$-L1D_FLUSH_SIZE, %rcx
-	/* pass 2: Read each cache line */
-3:	movb	L1D_FLUSH_SIZE(%r9, %rcx), %al
-	addq	$64, %rcx
-	jne	3b
-	lfence
-#undef	L1D_FLUSH_SIZE
+	call	flush_l1d_sw
 after_l1d:
 	cmpl	$0, %r8d
 	je	do_launch

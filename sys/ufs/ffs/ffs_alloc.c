@@ -409,7 +409,8 @@ retry:
 			 */
 			ffs_blkfree(ump, fs, ump->um_devvp, bprev, (long)osize,
 			    ip->i_number, vp->v_type, NULL,
-			    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM : SINGLETON);
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
@@ -483,6 +484,10 @@ static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0,
 "enable block reallocation");
 
+static int dotrimcons = 0;
+SYSCTL_INT(_vfs_ffs, OID_AUTO, dotrimcons, CTLFLAG_RW, &dotrimcons, 0,
+"enable BIO_DELETE / TRIM consolidation");
+
 static int maxclustersearch = 10;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, maxclustersearch, CTLFLAG_RW, &maxclustersearch,
 0, "max number of cylinder group to search for contigous blocks");
@@ -501,14 +506,23 @@ ffs_reallocblks(ap)
 	struct ufsmount *ump;
 
 	/*
-	 * If the underlying device can do deletes, then skip reallocating
-	 * the blocks of this file into contiguous sequences. Devices that
-	 * benefit from BIO_DELETE also benefit from not moving the data.
-	 * These devices are flash and therefore work less well with this
-	 * optimization. Also skip if reallocblks has been disabled globally.
+	 * We used to skip reallocating the blocks of a file into a
+	 * contiguous sequence if the underlying flash device requested
+	 * BIO_DELETE notifications, because devices that benefit from
+	 * BIO_DELETE also benefit from not moving the data. However,
+	 * the destination for the data is usually moved before the data
+	 * is written to the initially allocated location, so we rarely
+	 * suffer the penalty of extra writes. With the addition of the
+	 * consolidation of contiguous blocks into single BIO_DELETE
+	 * operations, having fewer but larger contiguous blocks reduces
+	 * the number of (slow and expensive) BIO_DELETE operations. So
+	 * when doing BIO_DELETE consolidation, we do block reallocation.
+	 *
+	 * Skip if reallocblks has been disabled globally.
 	 */
 	ump = ap->a_vp->v_mount->mnt_data;
-	if (((ump->um_flags) & UM_CANDELETE) != 0 || doreallocblks == 0)
+	if ((((ump->um_flags) & UM_CANDELETE) != 0 && dotrimcons == 0) ||
+	    doreallocblks == 0)
 		return (ENOSPC);
 
 	/*
@@ -762,7 +776,8 @@ ffs_reallocblks_ufs1(ap)
 			ffs_blkfree(ump, fs, ump->um_devvp,
 			    dbtofsb(fs, bp->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL,
-			    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM : SINGLETON);
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
 		bp->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip, dbtofsb(fs, bp->b_blkno), fs->fs_bsize))
@@ -1025,7 +1040,8 @@ ffs_reallocblks_ufs2(ap)
 			ffs_blkfree(ump, fs, ump->um_devvp,
 			    dbtofsb(fs, bp->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL,
-			    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM : SINGLETON);
+			    (bp->b_flags & B_DELWRI) != 0 ?
+			    NOTRIM_KEY : SINGLETON_KEY);
 		bp->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip, dbtofsb(fs, bp->b_blkno), fs->fs_bsize))
@@ -2298,41 +2314,57 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 
 /*
  * Structures and routines associated with trim management.
+ *
+ * The following requests are passed to trim_lookup to indicate
+ * the actions that should be taken.
  */
+#define	NEW	1	/* if found, error else allocate and hash it */
+#define	OLD	2	/* if not found, error, else return it */
+#define	REPLACE	3	/* if not found, error else unhash and reallocate it */
+#define	DONE	4	/* if not found, error else unhash and return it */
+#define	SINGLE	5	/* don't look up, just allocate it and don't hash it */
+
 MALLOC_DEFINE(M_TRIM, "ufs_trim", "UFS trim structures");
 
-#define	TRIMLIST_HASH(ump, inum) \
-	(&(ump)->um_trimhash[(inum) & (ump)->um_trimlisthashsize])
+#define	TRIMLIST_HASH(ump, key) \
+	(&(ump)->um_trimhash[(key) & (ump)->um_trimlisthashsize])
 
-static void	ffs_blkfree_trim_completed(struct buf *);
-static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
-
-struct ffs_blkfree_trim_params {
-	struct task task;
-	struct ufsmount *ump;
-	struct vnode *devvp;
+/*
+ * These structures describe each of the block free requests aggregated
+ * together to make up a trim request.
+ */
+struct trim_blkreq {
+	TAILQ_ENTRY(trim_blkreq) blkreqlist;
 	ufs2_daddr_t bno;
 	long size;
-	ino_t inum;
 	struct workhead *pdephd;
 	struct workhead dephd;
 };
 
-static void
-ffs_blkfree_trim_task(ctx, pending)
-	void *ctx;
-	int pending;
-{
-	struct ffs_blkfree_trim_params *tp;
+/*
+ * Description of a trim request.
+ */
+struct ffs_blkfree_trim_params {
+	TAILQ_HEAD(, trim_blkreq) blklist;
+	LIST_ENTRY(ffs_blkfree_trim_params) hashlist;
+	struct task task;
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ino_t inum;
+	ufs2_daddr_t bno;
+	long size;
+	long key;
+};
 
-	tp = ctx;
-	ffs_blkfree_cg(tp->ump, tp->ump->um_fs, tp->devvp, tp->bno, tp->size,
-	    tp->inum, tp->pdephd);
-	vn_finished_secondary_write(UFSTOVFS(tp->ump));
-	atomic_add_int(&tp->ump->um_trim_inflight, -1);
-	free(tp, M_TRIM);
-}
+static void	ffs_blkfree_trim_completed(struct buf *);
+static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
+static struct	ffs_blkfree_trim_params *trim_lookup(struct ufsmount *,
+		    struct vnode *, ufs2_daddr_t, long, ino_t, u_long, int);
+static void	ffs_blkfree_sendtrim(struct ffs_blkfree_trim_params *);
 
+/*
+ * Called on trim completion to start a task to free the associated block(s).
+ */
 static void
 ffs_blkfree_trim_completed(bp)
 	struct buf *bp;
@@ -2345,8 +2377,189 @@ ffs_blkfree_trim_completed(bp)
 	taskqueue_enqueue(tp->ump->um_trim_tq, &tp->task);
 }
 
+/*
+ * Trim completion task that free associated block(s).
+ */
+static void
+ffs_blkfree_trim_task(ctx, pending)
+	void *ctx;
+	int pending;
+{
+	struct ffs_blkfree_trim_params *tp;
+	struct trim_blkreq *blkelm;
+	struct ufsmount *ump;
+
+	tp = ctx;
+	ump = tp->ump;
+	while ((blkelm = TAILQ_FIRST(&tp->blklist)) != NULL) {
+		ffs_blkfree_cg(ump, ump->um_fs, tp->devvp, blkelm->bno,
+		    blkelm->size, tp->inum, blkelm->pdephd);
+		TAILQ_REMOVE(&tp->blklist, blkelm, blkreqlist);
+		free(blkelm, M_TRIM);
+	}
+	vn_finished_secondary_write(UFSTOVFS(ump));
+	UFS_LOCK(ump);
+	ump->um_trim_inflight -= 1;
+	ump->um_trim_inflight_blks -= numfrags(ump->um_fs, tp->size);
+	UFS_UNLOCK(ump);
+	free(tp, M_TRIM);
+}
+
+/*
+ * Lookup a trim request by inode number.
+ * Allocate if requested (NEW, REPLACE, SINGLE).
+ */
+static struct ffs_blkfree_trim_params *
+trim_lookup(ump, devvp, bno, size, inum, key, alloctype)
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+	u_long key;
+	int alloctype;
+{
+	struct trimlist_hashhead *tphashhead;
+	struct ffs_blkfree_trim_params *tp, *ntp;
+
+	ntp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TRIM, M_WAITOK);
+	if (alloctype != SINGLE) {
+		KASSERT(key >= FIRST_VALID_KEY, ("trim_lookup: invalid key"));
+		UFS_LOCK(ump);
+		tphashhead = TRIMLIST_HASH(ump, key);
+		LIST_FOREACH(tp, tphashhead, hashlist)
+			if (key == tp->key)
+				break;
+	}
+	switch (alloctype) {
+	case NEW:
+		KASSERT(tp == NULL, ("trim_lookup: found trim"));
+		break;
+	case OLD:
+		KASSERT(tp != NULL,
+		    ("trim_lookup: missing call to ffs_blkrelease_start()"));
+		UFS_UNLOCK(ump);
+		free(ntp, M_TRIM);
+		return (tp);
+	case REPLACE:
+		KASSERT(tp != NULL, ("trim_lookup: missing REPLACE trim"));
+		LIST_REMOVE(tp, hashlist);
+		/* tp will be freed by caller */
+		break;
+	case DONE:
+		KASSERT(tp != NULL, ("trim_lookup: missing DONE trim"));
+		LIST_REMOVE(tp, hashlist);
+		UFS_UNLOCK(ump);
+		free(ntp, M_TRIM);
+		return (tp);
+	}
+	TAILQ_INIT(&ntp->blklist);
+	ntp->ump = ump;
+	ntp->devvp = devvp;
+	ntp->bno = bno;
+	ntp->size = size;
+	ntp->inum = inum;
+	ntp->key = key;
+	if (alloctype != SINGLE) {
+		LIST_INSERT_HEAD(tphashhead, ntp, hashlist);
+		UFS_UNLOCK(ump);
+	}
+	return (ntp);
+}
+
+/*
+ * Dispatch a trim request.
+ */
+static void
+ffs_blkfree_sendtrim(tp)
+	struct ffs_blkfree_trim_params *tp;
+{
+	struct ufsmount *ump;
+	struct mount *mp;
+	struct buf *bp;
+
+	/*
+	 * Postpone the set of the free bit in the cg bitmap until the
+	 * BIO_DELETE is completed.  Otherwise, due to disk queue
+	 * reordering, TRIM might be issued after we reuse the block
+	 * and write some new data into it.
+	 */
+	ump = tp->ump;
+	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
+	bp->b_iocmd = BIO_DELETE;
+	bp->b_iooffset = dbtob(fsbtodb(ump->um_fs, tp->bno));
+	bp->b_iodone = ffs_blkfree_trim_completed;
+	bp->b_bcount = tp->size;
+	bp->b_fsprivate1 = tp;
+	UFS_LOCK(ump);
+	ump->um_trim_total += 1;
+	ump->um_trim_inflight += 1;
+	ump->um_trim_inflight_blks += numfrags(ump->um_fs, tp->size);
+	ump->um_trim_total_blks += numfrags(ump->um_fs, tp->size);
+	UFS_UNLOCK(ump);
+
+	mp = UFSTOVFS(ump);
+	vn_start_secondary_write(NULL, &mp, 0);
+	g_vfs_strategy(ump->um_bo, bp);
+}
+
+/*
+ * Allocate a new key to use to identify a range of blocks.
+ */
+u_long
+ffs_blkrelease_start(ump, devvp, inum)
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ino_t inum;
+{
+	static u_long masterkey;
+	u_long key;
+
+	if (((ump->um_flags & UM_CANDELETE) == 0) || dotrimcons == 0)
+		return (SINGLETON_KEY);
+	do {
+		key = atomic_fetchadd_long(&masterkey, 1);
+	} while (key < FIRST_VALID_KEY);
+	(void) trim_lookup(ump, devvp, 0, 0, inum, key, NEW);
+	return (key);
+}
+
+/*
+ * Deallocate a key that has been used to identify a range of blocks.
+ */
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, trimtype)
+ffs_blkrelease_finish(ump, key)
+	struct ufsmount *ump;
+	u_long key;
+{
+	struct ffs_blkfree_trim_params *tp;
+
+	if (((ump->um_flags & UM_CANDELETE) == 0) || dotrimcons == 0)
+		return;
+	/*
+	 * We are done with sending blocks using this key. Look up the key
+	 * using the DONE alloctype (in tp) to request that it be unhashed
+	 * as we will not be adding to it. If the key has never been used,
+	 * tp->size will be zero, so we can just free tp. Otherwise the call
+	 * to ffs_blkfree_sendtrim(tp) causes the block range described by
+	 * tp to be issued (and then tp to be freed).
+	 */
+	tp = trim_lookup(ump, NULL, 0, 0, 0, key, DONE);
+	if (tp->size == 0)
+		free(tp, M_TRIM);
+	else
+		ffs_blkfree_sendtrim(tp);
+}
+
+/*
+ * Setup to free a block or fragment.
+ *
+ * Check for snapshots that might want to claim the block.
+ * If trims are requested, prepare a trim request. Attempt to
+ * aggregate consecutive blocks into a single trim request.
+ */
+void
+ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, key)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
@@ -2355,11 +2568,10 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, trimtype)
 	ino_t inum;
 	enum vtype vtype;
 	struct workhead *dephd;
-	int trimtype;
+	u_long key;
 {
-	struct mount *mp;
-	struct buf *bp;
-	struct ffs_blkfree_trim_params *tp;
+	struct ffs_blkfree_trim_params *tp, *ntp;
+	struct trim_blkreq *blkelm;
 
 	/*
 	 * Check to see if a snapshot wants to claim the block.
@@ -2376,42 +2588,77 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, trimtype)
 	 * Nothing to delay if TRIM is not required for this block or TRIM
 	 * is disabled or the operation is performed on a snapshot.
 	 */
-	if (trimtype == NOTRIM || ((ump->um_flags & UM_CANDELETE) == 0) ||
+	if (key == NOTRIM_KEY || ((ump->um_flags & UM_CANDELETE) == 0) ||
 	    devvp->v_type == VREG) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
 		return;
 	}
-
+	blkelm = malloc(sizeof(struct trim_blkreq), M_TRIM, M_WAITOK);
+	blkelm->bno = bno;
+	blkelm->size = size;
+	if (dephd == NULL) {
+		blkelm->pdephd = NULL;
+	} else {
+		LIST_INIT(&blkelm->dephd);
+		LIST_SWAP(dephd, &blkelm->dephd, worklist, wk_list);
+		blkelm->pdephd = &blkelm->dephd;
+	}
+	if (key == SINGLETON_KEY) {
+		/*
+		 * Just a single non-contiguous piece. Use the SINGLE
+		 * alloctype to return a trim request that will not be
+		 * hashed for future lookup.
+		 */
+		tp = trim_lookup(ump, devvp, bno, size, inum, key, SINGLE);
+		TAILQ_INSERT_HEAD(&tp->blklist, blkelm, blkreqlist);
+		ffs_blkfree_sendtrim(tp);
+		return;
+	}
 	/*
-	 * Postpone the set of the free bit in the cg bitmap until the
-	 * BIO_DELETE is completed.  Otherwise, due to disk queue
-	 * reordering, TRIM might be issued after we reuse the block
-	 * and write some new data into it.
+	 * The callers of this function are not tracking whether or not
+	 * the blocks are contiguous. They are just saying that they
+	 * are freeing a set of blocks. It is this code that determines
+	 * the pieces of that range that are actually contiguous.
+	 *
+	 * Calling ffs_blkrelease_start() will have created an entry
+	 * that we will use.
 	 */
-	atomic_add_int(&ump->um_trim_inflight, 1);
-	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TRIM, M_WAITOK);
-	tp->ump = ump;
-	tp->devvp = devvp;
-	tp->bno = bno;
-	tp->size = size;
-	tp->inum = inum;
-	if (dephd != NULL) {
-		LIST_INIT(&tp->dephd);
-		LIST_SWAP(dephd, &tp->dephd, worklist, wk_list);
-		tp->pdephd = &tp->dephd;
-	} else
-		tp->pdephd = NULL;
-
-	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
-	bp->b_iocmd = BIO_DELETE;
-	bp->b_iooffset = dbtob(fsbtodb(fs, bno));
-	bp->b_iodone = ffs_blkfree_trim_completed;
-	bp->b_bcount = size;
-	bp->b_fsprivate1 = tp;
-
-	mp = UFSTOVFS(ump);
-	vn_start_secondary_write(NULL, &mp, 0);
-	g_vfs_strategy(ump->um_bo, bp);
+	tp = trim_lookup(ump, devvp, bno, size, inum, key, OLD);
+	if (tp->size == 0) {
+		/*
+		 * First block of a potential range, set block and size
+		 * for the trim block.
+		 */
+		tp->bno = bno;
+		tp->size = size;
+		TAILQ_INSERT_HEAD(&tp->blklist, blkelm, blkreqlist);
+		return;
+	}
+	/*
+	 * If this block is a continuation of the range (either
+	 * follows at the end or preceeds in the front) then we
+	 * add it to the front or back of the list and return.
+	 *
+	 * If it is not a continuation of the trim that we were
+	 * building, using the REPLACE alloctype, we request that
+	 * the old trim request (still in tp) be unhashed and a
+	 * new range started (in ntp). The ffs_blkfree_sendtrim(tp)
+	 * call causes the block range described by tp to be issued
+	 * (and then tp to be freed).
+	 */
+	if (bno + numfrags(fs, size) == tp->bno) {
+		TAILQ_INSERT_HEAD(&tp->blklist, blkelm, blkreqlist);
+		tp->bno = bno;
+		tp->size += size;
+		return;
+	} else if (bno == tp->bno + numfrags(fs, tp->size)) {
+		TAILQ_INSERT_TAIL(&tp->blklist, blkelm, blkreqlist);
+		tp->size += size;
+		return;
+	}
+	ntp = trim_lookup(ump, devvp, bno, size, inum, key, REPLACE);
+	TAILQ_INSERT_HEAD(&ntp->blklist, blkelm, blkreqlist);
+	ffs_blkfree_sendtrim(tp);
 }
 
 #ifdef INVARIANTS
@@ -2877,9 +3124,10 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	struct fs *fs;
 	ufs2_daddr_t blkno;
 	long blkcnt, blksize;
+	u_long key;
 	struct file *fp, *vfp;
 	cap_rights_t rights;
-	int filetype, trimtype, error;
+	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
 	if (req->newlen > sizeof cmd)
@@ -3011,18 +3259,18 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		blkno = cmd.value;
 		blkcnt = cmd.size;
 		blksize = fs->fs_frag - (blkno % fs->fs_frag);
-		trimtype = (blksize < blkcnt) ? STARTFREE : SINGLETON;
+		key = ffs_blkrelease_start(ump, ump->um_devvp, UFS_ROOTINO);
 		while (blkcnt > 0) {
-			if (blksize > blkcnt)
+			if (blkcnt < blksize)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, UFS_ROOTINO,
-			    VDIR, NULL, trimtype);
+			    blksize * fs->fs_fsize, UFS_ROOTINO, 
+			    VDIR, NULL, key);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;
-			trimtype = (blksize < blkcnt) ? CONTINUEFREE : ENDFREE;
 		}
+		ffs_blkrelease_finish(ump, key);
 		break;
 
 	/*

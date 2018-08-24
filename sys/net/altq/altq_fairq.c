@@ -229,7 +229,7 @@ fairq_remove_queue(struct pf_altq *a)
 }
 
 int
-fairq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
+fairq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
 	struct fairq_if *pif;
 	struct fairq_class *cl;

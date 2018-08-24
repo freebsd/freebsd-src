@@ -14,6 +14,11 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
+.else
+LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd12.0
+.endif
 LIB32CPUFLAGS+=	-m32
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"

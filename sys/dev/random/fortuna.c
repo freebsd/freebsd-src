@@ -371,7 +371,7 @@ random_fortuna_pre_read(void)
 	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
 	    /* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
-	    && (now - fortuna_state.fs_lasttime > hz/10)
+	    && (now - fortuna_state.fs_lasttime > SBT_1S/10)
 #endif
 	) {
 #ifdef _KERNEL

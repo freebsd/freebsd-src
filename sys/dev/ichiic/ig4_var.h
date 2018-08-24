@@ -72,6 +72,7 @@ struct ig4iic_softc {
 	int		slave_valid : 1;
 	int		read_started : 1;
 	int		write_started : 1;
+	int		access_intr_mask : 1;
 
 	/*
 	 * Locking semantics:

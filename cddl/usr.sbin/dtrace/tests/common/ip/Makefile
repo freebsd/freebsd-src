@@ -9,6 +9,8 @@ PACKAGE=	tests
 ${PACKAGE}FILES= \
      tst.ipv4localicmp.ksh  \
      tst.ipv4localicmp.ksh.out  \
+     tst.ipv4localsctp.ksh  \
+     tst.ipv4localsctp.ksh.out  \
      tst.ipv4localtcp.ksh  \
      tst.ipv4localtcp.ksh.out  \
      tst.ipv4localudp.ksh  \
@@ -17,6 +19,8 @@ ${PACKAGE}FILES= \
      tst.ipv4localudplite.ksh.out  \
      tst.ipv4remoteicmp.ksh  \
      tst.ipv4remoteicmp.ksh.out  \
+     tst.ipv4remotesctp.ksh  \
+     tst.ipv4remotesctp.ksh.out  \
      tst.ipv4remotetcp.ksh  \
      tst.ipv4remotetcp.ksh.out  \
      tst.ipv4remoteudp.ksh  \
@@ -27,8 +31,12 @@ ${PACKAGE}FILES= \
      tst.ipv6localicmp.ksh.out  \
      tst.ipv6remoteicmp.ksh  \
      tst.ipv6remoteicmp.ksh.out  \
+     tst.localsctpstate.ksh  \
+     tst.localsctpstate.ksh.out  \
      tst.localtcpstate.ksh  \
      tst.localtcpstate.ksh.out  \
+     tst.remotesctpstate.ksh  \
+     tst.remotesctpstate.ksh.out  \
      tst.remotetcpstate.ksh  \
      tst.remotetcpstate.ksh.out  \
 

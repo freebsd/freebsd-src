@@ -2012,21 +2012,21 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct fuse_getxattr_in *get_xattr_in;
 	struct fuse_getxattr_out *get_xattr_out;
 	struct mount *mp = vnode_mount(vp);
-	char *prefix;
-	size_t len;
-	char *attr_str;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
-	int err = 0;
+	char *prefix;
+	char *attr_str;
+	size_t len;
+	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
@@ -2047,7 +2047,7 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	 * fuse_getxattr_out.  If we pass in a non-zero size, we get back
 	 * that much data, without the struct fuse_getxattr_out header.
 	 */
-	if (ap->a_size != NULL)
+	if (uio == NULL)
 		get_xattr_in->size = 0;
 	else
 		get_xattr_in->size = uio->uio_resid;
@@ -2057,7 +2057,6 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	    ap->a_name);
 
 	err = fdisp_wait_answ(&fdi);
-
 	if (err != 0) {
 		if (err == ENOSYS)
 			fsess_set_notimpl(mp, FUSE_GETXATTR);
@@ -2065,25 +2064,13 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 		goto out;
 	}
 
-	/*
-	 * If we get to this point (i.e. no error), we should have a valid
-	 * answer of some sort.  i.e. non-zero iosize and a valid pointer.
-	 */
-	if ((fdi.answ == NULL) || (fdi.iosize == 0)) {
-		debug_printf("getxattr: err = 0, but answ = %p, iosize = %zu\n",
-		    fdi.answ, fdi.iosize);
-		err = EINVAL;
-		goto out;
-	}
 	get_xattr_out = fdi.answ;
 
-	if (ap->a_size != NULL) {
+	if (ap->a_size != NULL)
 		*ap->a_size = get_xattr_out->size;
-	} else if (fdi.iosize > 0) {
+
+	if (uio != NULL)
 		err = uiomove(fdi.answ, fdi.iosize, uio);
-	} else {
-		err = EINVAL;
-	}
 
 out:
 	fdisp_destroy(&fdi);
@@ -2106,20 +2093,20 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct fuse_setxattr_in *set_xattr_in;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	char *prefix;
 	size_t len;
 	char *attr_str;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
-	int err = 0;
-
+	int err;
+	
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
@@ -2232,23 +2219,25 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct fuse_dispatcher fdi = {0};
-	struct fuse_getxattr_in *get_xattr_in;
-	struct fuse_getxattr_out *get_xattr_out;
+	struct fuse_dispatcher fdi;
+	struct fuse_listxattr_in *list_xattr_in;
+	struct fuse_listxattr_out *list_xattr_out;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	size_t len;
 	char *prefix;
 	char *attr_str;
 	char *bsd_list = NULL;
+	char *linux_list;
 	int bsd_list_len;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
-	int err = 0;
+	int linux_list_len;
+	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/*
 	 * Add space for a NUL and the period separator if enabled.
@@ -2261,17 +2250,15 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 
 	len = strlen(prefix) + sizeof(extattr_namespace_separator) + 1;
 
-	fdisp_init(&fdi, sizeof(*get_xattr_in) + len);
+	fdisp_init(&fdi, sizeof(*list_xattr_in) + len);
 	fdisp_make_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
 
-	get_xattr_in = fdi.indata;
-	if (ap->a_size != NULL)
-		get_xattr_in->size = 0;
-	else
-		get_xattr_in->size = uio->uio_resid + sizeof(*get_xattr_out);
-
-
-	attr_str = (char *)fdi.indata + sizeof(*get_xattr_in);
+	/*
+	 * Retrieve Linux / FUSE compatible list size.
+	 */
+	list_xattr_in = fdi.indata;
+	list_xattr_in->size = 0;
+	attr_str = (char *)fdi.indata + sizeof(*list_xattr_in);
 	snprintf(attr_str, len, "%s%c", prefix, extattr_namespace_separator);
 
 	err = fdisp_wait_answ(&fdi);
@@ -2282,32 +2269,47 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 		goto out;
 	}
 
-	if ((fdi.answ == NULL) || (fdi.iosize == 0)) {
-		err = EINVAL;
+	list_xattr_out = fdi.answ;
+	linux_list_len = list_xattr_out->size;
+	if (linux_list_len == 0) {
+		if (ap->a_size != NULL)
+			*ap->a_size = linux_list_len;
 		goto out;
 	}
-	get_xattr_out = fdi.answ;
 
-	if (ap->a_size != NULL) {
-		*ap->a_size = get_xattr_out->size;
-	} else if (fdi.iosize > 0) {
-		/*
-		 * The Linux / FUSE attribute list format isn't the same
-		 * as FreeBSD's format.  So we need to transform it into
-		 * FreeBSD's format before giving it to the user.
-		 */
-		bsd_list = malloc(fdi.iosize, M_TEMP, M_WAITOK);
-		err = fuse_xattrlist_convert(prefix, fdi.answ, fdi.iosize,
-		    bsd_list, &bsd_list_len);
-		if (err != 0)
-			goto out;
+	/*
+	 * Retrieve Linux / FUSE compatible list values.
+	 */
+	fdisp_make_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
+	list_xattr_in = fdi.indata;
+	list_xattr_in->size = linux_list_len + sizeof(*list_xattr_out);
+	attr_str = (char *)fdi.indata + sizeof(*list_xattr_in);
+	snprintf(attr_str, len, "%s%c", prefix, extattr_namespace_separator);
 
+	err = fdisp_wait_answ(&fdi);
+	if (err != 0)
+		goto out;
+
+	linux_list = fdi.answ;
+	linux_list_len = fdi.iosize;
+
+	/*
+	 * Retrieve the BSD compatible list values.
+	 * The Linux / FUSE attribute list format isn't the same
+	 * as FreeBSD's format. So we need to transform it into
+	 * FreeBSD's format before giving it to the user.
+	 */
+	bsd_list = malloc(linux_list_len, M_TEMP, M_WAITOK);
+	err = fuse_xattrlist_convert(prefix, linux_list, linux_list_len,
+	    bsd_list, &bsd_list_len);
+	if (err != 0)
+		goto out;
+
+	if (ap->a_size != NULL)
+		*ap->a_size = bsd_list_len;
+
+	if (uio != NULL)
 		err = uiomove(bsd_list, bsd_list_len, uio);
-	} else {
-		debug_printf("listextattr: returned iosize %zu for %s attribute list is "
-		    "too small\n", fdi.iosize, prefix);
-		err = EINVAL;
-	}
 
 out:
 	free(bsd_list, M_TEMP);
@@ -2329,19 +2331,19 @@ static int
 fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct fuse_dispatcher fdi = {0};
+	struct fuse_dispatcher fdi;
 	struct mount *mp = vnode_mount(vp);
+	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	char *prefix;
 	size_t len;
 	char *attr_str;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
 	int err;
 
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (ENXIO);
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)

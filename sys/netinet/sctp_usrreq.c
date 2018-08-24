@@ -739,7 +739,6 @@ sctp_disconnect(struct socket *so)
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-					SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 					sctp_stop_timers_for_shutdown(stcb);
 					if (stcb->asoc.alternate) {
 						netp = stcb->asoc.alternate;
@@ -946,7 +945,6 @@ sctp_shutdown(struct socket *so)
 			/* there is nothing queued to send, so I'm done... */
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
 			sctp_send_shutdown(stcb, netp);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,

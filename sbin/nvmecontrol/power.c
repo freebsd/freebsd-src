@@ -104,7 +104,7 @@ power_set(int fd, int power_val, int workload, int perm)
 
 	p = perm ? (1u << 31) : 0;
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_SET_FEATURES);
+	pt.cmd.opc = NVME_OPC_SET_FEATURES;
 	pt.cmd.cdw10 = htole32(NVME_FEAT_POWER_MANAGEMENT | p);
 	pt.cmd.cdw11 = htole32(power_val | (workload << 5));
 
@@ -121,7 +121,7 @@ power_show(int fd)
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_GET_FEATURES);
+	pt.cmd.opc = NVME_OPC_GET_FEATURES;
 	pt.cmd.cdw10 = htole32(NVME_FEAT_POWER_MANAGEMENT);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)

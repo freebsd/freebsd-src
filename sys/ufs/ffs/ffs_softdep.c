@@ -869,7 +869,7 @@ static	void cancel_allocdirect(struct allocdirectlst *,
 	    struct allocdirect *, struct freeblks *);
 static	int check_inode_unwritten(struct inodedep *);
 static	int free_inodedep(struct inodedep *);
-static	void freework_freeblock(struct freework *, int);
+static	void freework_freeblock(struct freework *, u_long);
 static	void freework_enqueue(struct freework *);
 static	int handle_workitem_freeblocks(struct freeblks *, int);
 static	int handle_complete_freeblocks(struct freeblks *, int);
@@ -884,7 +884,7 @@ static	struct allocindir *newallocindir(struct inode *, int, ufs2_daddr_t,
 	    ufs2_daddr_t, ufs_lbn_t);
 static	void handle_workitem_freefrag(struct freefrag *);
 static	struct freefrag *newfreefrag(struct inode *, ufs2_daddr_t, long,
-	    ufs_lbn_t, int);
+	    ufs_lbn_t, u_long);
 static	void allocdirect_merge(struct allocdirectlst *,
 	    struct allocdirect *, struct allocdirect *);
 static	struct freefrag *allocindir_merge(struct allocindir *,
@@ -5304,7 +5304,7 @@ softdep_setup_allocdirect(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 		 * that had been written.
 		 */
 		freefrag = newfreefrag(ip, oldblkno, oldsize, lbn,
-		    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM : SINGLETON);
+		    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM_KEY : SINGLETON_KEY);
 	else
 		freefrag = NULL;
 
@@ -5581,12 +5581,12 @@ newjfreefrag(freefrag, ip, blkno, size, lbn)
  * Allocate a new freefrag structure.
  */
 static struct freefrag *
-newfreefrag(ip, blkno, size, lbn, trimtype)
+newfreefrag(ip, blkno, size, lbn, key)
 	struct inode *ip;
 	ufs2_daddr_t blkno;
 	long size;
 	ufs_lbn_t lbn;
-	int trimtype;
+	u_long key;
 {
 	struct freefrag *freefrag;
 	struct ufsmount *ump;
@@ -5607,7 +5607,7 @@ newfreefrag(ip, blkno, size, lbn, trimtype)
 	freefrag->ff_vtype = ITOV(ip)->v_type;
 	freefrag->ff_blkno = blkno;
 	freefrag->ff_fragsize = size;
-	freefrag->ff_trimtype = trimtype;
+	freefrag->ff_key = key;
 
 	if (MOUNTEDSUJ(UFSTOVFS(ump))) {
 		freefrag->ff_jdep = (struct worklist *)
@@ -5653,8 +5653,8 @@ handle_workitem_freefrag(freefrag)
 	}
 	FREE_LOCK(ump);
 	ffs_blkfree(ump, ump->um_fs, ump->um_devvp, freefrag->ff_blkno,
-	   freefrag->ff_fragsize, freefrag->ff_inum, freefrag->ff_vtype, &wkhd,
-	   freefrag->ff_trimtype);
+	   freefrag->ff_fragsize, freefrag->ff_inum, freefrag->ff_vtype,
+	   &wkhd, freefrag->ff_key);
 	ACQUIRE_LOCK(ump);
 	WORKITEM_FREE(freefrag, D_FREEFRAG);
 	FREE_LOCK(ump);
@@ -5709,7 +5709,7 @@ softdep_setup_allocext(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 		 * that had been written.
 		 */
 		freefrag = newfreefrag(ip, oldblkno, oldsize, lbn,
-		    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM : SINGLETON);
+		    (bp->b_flags & B_DELWRI) != 0 ? NOTRIM_KEY : SINGLETON_KEY);
 	else
 		freefrag = NULL;
 
@@ -5823,7 +5823,7 @@ newallocindir(ip, ptrno, newblkno, oldblkno, lbn)
 
 	if (oldblkno)
 		freefrag = newfreefrag(ip, oldblkno, ITOFS(ip)->fs_bsize, lbn,
-		    SINGLETON);
+		    SINGLETON_KEY);
 	else
 		freefrag = NULL;
 	ACQUIRE_LOCK(ITOUMP(ip));
@@ -7758,9 +7758,9 @@ free_inodedep(inodedep)
  * in memory immediately.
  */
 static void
-freework_freeblock(freework, trimtype)
+freework_freeblock(freework, key)
 	struct freework *freework;
-	int trimtype;
+	u_long key;
 {
 	struct freeblks *freeblks;
 	struct jnewblk *jnewblk;
@@ -7817,7 +7817,7 @@ freework_freeblock(freework, trimtype)
 	    "freework_freeblock: ino %jd blkno %jd lbn %jd size %d",
 	    freeblks->fb_inum, freework->fw_blkno, freework->fw_lbn, bsize);
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, freework->fw_blkno, bsize,
-	    freeblks->fb_inum, freeblks->fb_vtype, &wkhd, trimtype);
+	    freeblks->fb_inum, freeblks->fb_vtype, &wkhd, key);
 	ACQUIRE_LOCK(ump);
 	/*
 	 * The jnewblk will be discarded and the bits in the map never
@@ -7870,7 +7870,7 @@ handle_workitem_indirblk(freework)
 		return;
 	}
 	if (freework->fw_off == NINDIR(fs)) {
-		freework_freeblock(freework, SINGLETON);
+		freework_freeblock(freework, SINGLETON_KEY);
 		return;
 	}
 	freework->fw_state |= INPROGRESS;
@@ -7924,19 +7924,18 @@ handle_workitem_freeblocks(freeblks, flags)
 	struct freeblks *freeblks;
 	int flags;
 {
-	struct freework *freework, *prevfreework;
+	struct freework *freework;
 	struct newblk *newblk;
 	struct allocindir *aip;
 	struct ufsmount *ump;
 	struct worklist *wk;
-	int trimtype;
+	u_long key;
 
 	KASSERT(LIST_EMPTY(&freeblks->fb_jblkdephd),
 	    ("handle_workitem_freeblocks: Journal entries not written."));
 	ump = VFSTOUFS(freeblks->fb_list.wk_mp);
+	key = ffs_blkrelease_start(ump, freeblks->fb_devvp, freeblks->fb_inum);
 	ACQUIRE_LOCK(ump);
-	prevfreework = NULL;
-	trimtype = 0;
 	while ((wk = LIST_FIRST(&freeblks->fb_freeworkhd)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		switch (wk->wk_type) {
@@ -7970,32 +7969,23 @@ handle_workitem_freeblocks(freeblks, flags)
 
 		case D_FREEWORK:
 			freework = WK_FREEWORK(wk);
-			if (freework->fw_lbn <= -UFS_NDADDR) {
+			if (freework->fw_lbn <= -UFS_NDADDR)
 				handle_workitem_indirblk(freework);
-				continue;
-			} else if (prevfreework == NULL) {
-				trimtype = SINGLETON;
-			} else if (trimtype == SINGLETON) {
-				freework_freeblock(prevfreework, STARTFREE);
-				trimtype = ENDFREE;
-			} else {
-				freework_freeblock(prevfreework, CONTINUEFREE);
-			}
-			prevfreework = freework;
+			else
+				freework_freeblock(freework, key);
 			continue;
 		default:
 			panic("handle_workitem_freeblocks: Unknown type %s",
 			    TYPENAME(wk->wk_type));
 		}
 	}
-	if (prevfreework != NULL)
-		freework_freeblock(prevfreework, trimtype);
 	if (freeblks->fb_ref != 0) {
 		freeblks->fb_state &= ~INPROGRESS;
 		wake_worklist(&freeblks->fb_list);
 		freeblks = NULL;
 	}
 	FREE_LOCK(ump);
+	ffs_blkrelease_finish(ump, key);
 	if (freeblks)
 		return handle_complete_freeblocks(freeblks, flags);
 	return (0);
@@ -8128,7 +8118,8 @@ indir_trunc(freework, dbn, lbn)
 	ufs1_daddr_t *bap1;
 	ufs2_daddr_t nb, nnb, *bap2;
 	ufs_lbn_t lbnadd, nlbn;
-	int nblocks, ufs1fmt, firstfree, trimtype, freedblocks;
+	u_long key;
+	int nblocks, ufs1fmt, freedblocks;
 	int goingaway, freedeps, needj, level, cnt, i;
 
 	freeblks = freework->fw_freeblks;
@@ -8223,7 +8214,7 @@ indir_trunc(freework, dbn, lbn)
 	 * arranges for the current level to be freed when subordinates
 	 * are free when journaling.
 	 */
-	firstfree = 1;
+	key = ffs_blkrelease_start(ump, freeblks->fb_devvp, freeblks->fb_inum);
 	for (i = freework->fw_off; i < NINDIR(fs); i++, nb = nnb) {
 		if (i != NINDIR(fs) - 1) {
 			if (ufs1fmt)
@@ -8261,26 +8252,12 @@ indir_trunc(freework, dbn, lbn)
 			CTR3(KTR_SUJ,
 			    "indir_trunc: ino %jd blkno %jd size %d",
 			    freeblks->fb_inum, nb, fs->fs_bsize);
-			if (firstfree) {
-				if (i == NINDIR(fs) - 1 || nnb == 0) {
-					trimtype = SINGLETON;
-				} else {
-					trimtype = STARTFREE;
-					firstfree = 0;
-				}
-			} else {
-				if (i == NINDIR(fs) - 1 || nnb == 0) {
-					trimtype = ENDFREE;
-					firstfree = 1;
-				} else {
-					trimtype = CONTINUEFREE;
-				}
-			}
 			ffs_blkfree(ump, fs, freeblks->fb_devvp, nb,
 			    fs->fs_bsize, freeblks->fb_inum,
-			    freeblks->fb_vtype, &wkhd, trimtype);
+			    freeblks->fb_vtype, &wkhd, key);
 		}
 	}
+	ffs_blkrelease_finish(ump, key);
 	if (goingaway) {
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
@@ -8303,7 +8280,7 @@ indir_trunc(freework, dbn, lbn)
 		if (level == 0)
 			freeblks->fb_cgwait += freedeps;
 		if (freework->fw_ref == 0)
-			freework_freeblock(freework, SINGLETON);
+			freework_freeblock(freework, SINGLETON_KEY);
 		FREE_LOCK(ump);
 		return;
 	}
@@ -8315,7 +8292,7 @@ indir_trunc(freework, dbn, lbn)
 	    "indir_trunc 2: ino %jd blkno %jd size %d",
 	    freeblks->fb_inum, dbn, fs->fs_bsize);
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, dbn, fs->fs_bsize,
-	    freeblks->fb_inum, freeblks->fb_vtype, NULL, SINGLETON);
+	    freeblks->fb_inum, freeblks->fb_vtype, NULL, SINGLETON_KEY);
 	/* Non SUJ softdep does single-threaded truncations. */
 	if (freework->fw_blkno == dbn) {
 		freework->fw_state |= ALLCOMPLETE;

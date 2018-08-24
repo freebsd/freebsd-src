@@ -2665,7 +2665,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		IDHASH_RLOCK();
 		/* Get response struct. */
 		NG_MKRESPONSE(resp, msg, sizeof(*nl) +
-		    (V_ng_nodes * sizeof(struct nodeinfo)), M_NOWAIT | M_ZERO);
+		    (V_ng_nodes * sizeof(struct nodeinfo)), M_NOWAIT);
 		if (resp == NULL) {
 			IDHASH_RUNLOCK();
 			error = ENOMEM;

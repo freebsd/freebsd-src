@@ -89,11 +89,10 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define round(size, align) \
     (((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
-    TLS_TCB_SIZE
+    round(16, align)
 #define calculate_tls_offset(prev_offset, prev_size, size, align) \
     round(prev_offset + prev_size, align)
 #define calculate_tls_end(off, size)    ((off) + (size))
-#define calculate_tls_post_size(align)  0
 
 typedef struct {
 	unsigned long ti_module;

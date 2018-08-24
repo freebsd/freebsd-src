@@ -149,6 +149,13 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 #endif
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /*
  * It is possible for the compiler to emit relocations for unaligned data.
  * We handle this situation with these inlines.

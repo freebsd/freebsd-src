@@ -542,9 +542,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 * XXX Certain AGP hardware does.
 		 */
-		*vaddr = (void *)kmem_alloc_contig(kmem_arena, dmat->maxsize,
-		    mflags, 0ul, dmat->lowaddr, dmat->alignment ?
-		    dmat->alignment : 1ul, dmat->boundary, attr);
+		*vaddr = (void *)kmem_alloc_contig(dmat->maxsize, mflags, 0ul,
+		    dmat->lowaddr, dmat->alignment ? dmat->alignment : 1ul,
+		    dmat->boundary, attr);
 		(*mapp)->contigalloc = 1;
 	}
 	if (*vaddr == NULL) {

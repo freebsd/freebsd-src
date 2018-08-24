@@ -4177,8 +4177,9 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	}
 
 	mapped = (va - base);
-	printf("mapped size 0x%"PRI0ptrX" (wasted space 0x%"PRIxPTR")\n",
-	    mapped, mapped - size);
+	if (bootverbose)
+		printf("mapped size 0x%"PRIxPTR" (wasted space 0x%"PRIxPTR")\n",
+		    mapped, mapped - size);
 	return (mapped);
 }
 

@@ -133,9 +133,8 @@ agp_ati_alloc_gatt(device_t dev)
 
 	/* Alloc the GATT -- pointers to pages of AGP memory */
 	sc->ag_entries = entries;
-	sc->ag_virtual = (void *)kmem_alloc_attr(kernel_arena,
-	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0,
-	    VM_MEMATTR_WRITE_COMBINING);
+	sc->ag_virtual = (void *)kmem_alloc_attr(entries * sizeof(u_int32_t),
+	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "GATT allocation failed\n");
@@ -143,8 +142,8 @@ agp_ati_alloc_gatt(device_t dev)
 	}
 
 	/* Alloc the page directory -- pointers to each page of the GATT */
-	sc->ag_vdir = (void *)kmem_alloc_attr(kernel_arena, AGP_PAGE_SIZE,
-	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
+	sc->ag_vdir = (void *)kmem_alloc_attr(AGP_PAGE_SIZE, M_NOWAIT | M_ZERO,
+	    0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->ag_vdir == NULL) {
 		if (bootverbose)
 			device_printf(dev, "pagedir allocation failed\n");

@@ -4355,7 +4355,6 @@ again:
 				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			}
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
 			if (asoc->alternate) {
 				netp = asoc->alternate;
@@ -4373,7 +4372,6 @@ again:
 
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_ACK_SENT);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
 			if (asoc->alternate) {
 				netp = asoc->alternate;
@@ -5052,7 +5050,6 @@ hopeless_peer:
 				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			}
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
 			if (asoc->alternate) {
 				netp = asoc->alternate;
@@ -5071,7 +5068,6 @@ hopeless_peer:
 
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_ACK_SENT);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
 			if (asoc->alternate) {
 				netp = asoc->alternate;

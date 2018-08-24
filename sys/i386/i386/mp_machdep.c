@@ -328,11 +328,9 @@ start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up a boot stack data page */
-		bootstacks[cpu] =
-		    (char *)kmem_malloc(kernel_arena, kstack_pages * PAGE_SIZE,
+		bootstacks[cpu] = (char *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
-		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);

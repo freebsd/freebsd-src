@@ -354,6 +354,11 @@ BROKEN_OPTIONS+=LOADER_OFW
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
+# GELI and Lua in loader currently cause boot failures on sparc64.
+# Further debugging is required.
+.if ${__T} == "sparc64"
+BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
+.endif
 
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32

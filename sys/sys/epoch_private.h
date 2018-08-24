@@ -76,13 +76,13 @@ critical_exit_sa(void *tdarg)
 }
 
 typedef struct epoch_thread {
-#ifdef INVARIANTS
+#ifdef EPOCH_TRACKER_DEBUG
 	uint64_t et_magic_pre;
 #endif
 	TAILQ_ENTRY(epoch_thread) et_link;	/* Epoch queue. */
 	struct thread *et_td;		/* pointer to thread in section */
 	ck_epoch_section_t et_section; /* epoch section object */
-#ifdef INVARIANTS
+#ifdef EPOCH_TRACKER_DEBUG
 	uint64_t et_magic_post;
 #endif
 } *epoch_thread_t;
@@ -124,8 +124,8 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
 	etd = (void *)et;
-#ifdef INVARIANTS
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+#ifdef EPOCH_TRACKER_DEBUG
 	etd->et_magic_pre = EPOCH_MAGIC0;
 	etd->et_magic_post = EPOCH_MAGIC1;
 #endif
@@ -174,15 +174,15 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	er = epoch_currecord(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	etd = (void *)et;
-#ifdef INVARIANTS
 	MPASS(etd != NULL);
 	MPASS(etd->et_td == (struct thread *)td);
+#ifdef EPOCH_TRACKER_DEBUG
 	MPASS(etd->et_magic_pre == EPOCH_MAGIC0);
 	MPASS(etd->et_magic_post == EPOCH_MAGIC1);
 	etd->et_magic_pre = 0;
 	etd->et_magic_post = 0;
-	etd->et_td = (void*)0xDEADBEEF;
 #endif
+	etd->et_td = (void*)0xDEADBEEF;
 	ck_epoch_end(&er->er_record,
 		(ck_epoch_section_t *)&etd->et_section);
 	TAILQ_REMOVE(&er->er_tdlist, etd, et_link);

@@ -161,6 +161,20 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
     "Print debugging information on trap signal to ctty");
 
 /*
+ * Control L1D flush on return from NMI.
+ *
+ * Tunable  can be set to the following values:
+ * 0 - only enable flush on return from NMI if required by vmm.ko (default)
+ * >1 - always flush on return from NMI.
+ *
+ * Post-boot, the sysctl indicates if flushing is currently enabled.
+ */
+int nmi_flush_l1d_sw;
+SYSCTL_INT(_machdep, OID_AUTO, nmi_flush_l1d_sw, CTLFLAG_RWTUN,
+    &nmi_flush_l1d_sw, 0,
+    "Flush L1 Data Cache on NMI exit, software bhyve L1TF mitigation assist");
+
+/*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
  * routines that prepare a suitable stack frame, and restore this

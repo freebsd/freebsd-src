@@ -17,11 +17,11 @@ SVN_CMD=   ${_P}/${_S}
 .endif
 .if exists(${SRCTOP}/.svn)
 .  if empty(EC2_SVNBRANCH)
-   EC2_SVNBRANCH!=	${SVN_CMD} info --show-item relative-url ${WORLDDIR} | sed -e 's/\^\///'
+   EC2_SVNBRANCH!=	${SVN_CMD} info --show-item relative-url ${WORLDDIR} 2>/dev/null | sed -e 's/\^\///'
 .  export EC2_SVNBRANCH
 .  endif
 .  if empty(EC2_SVNREV)
-   EC2_SVNREV!=	${SVN_CMD} info --show-item last-changed-revision ${WORLDDIR}
+   EC2_SVNREV!=	${SVN_CMD} info --show-item last-changed-revision ${WORLDDIR} 2>/dev/null || true
 .  export EC2_SVNREV
 .  endif
 .else

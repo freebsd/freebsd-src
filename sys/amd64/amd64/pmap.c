@@ -1412,8 +1412,7 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(kernel_arena, s,
-	    M_WAITOK | M_ZERO);
+	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 	TAILQ_INIT(&pv_dummy.pv_list);
@@ -2661,10 +2660,6 @@ pmap_pinit0(pmap_t pmap)
 	CPU_FOREACH(i) {
 		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_KERN + 1;
 		pmap->pm_pcids[i].pm_gen = 1;
-		if (!pti) {
-			__pcpu[i].pc_kcr3 = PMAP_NO_CR3;
-			__pcpu[i].pc_ucr3 = PMAP_NO_CR3;
-		}
 	}
 	pmap_activate_boot(pmap);
 }
@@ -7571,6 +7566,7 @@ pmap_activate(struct thread *td)
 void
 pmap_activate_boot(pmap_t pmap)
 {
+	uint64_t kcr3;
 	u_int cpuid;
 
 	/*
@@ -7586,6 +7582,11 @@ pmap_activate_boot(pmap_t pmap)
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
 	PCPU_SET(curpmap, pmap);
+	kcr3 = pmap->pm_cr3;
+	if (pmap_pcid_enabled)
+		kcr3 |= pmap->pm_pcids[cpuid].pm_pcid | CR3_PCID_SAVE;
+	PCPU_SET(kcr3, kcr3);
+	PCPU_SET(ucr3, PMAP_NO_CR3);
 }
 
 void

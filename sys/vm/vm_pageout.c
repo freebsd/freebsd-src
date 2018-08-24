@@ -246,7 +246,7 @@ vm_pageout_end_scan(struct scan_state *ss)
 
 	TAILQ_REMOVE(&pq->pq_pl, ss->marker, plinks.q);
 	vm_page_aflag_clear(ss->marker, PGA_ENQUEUED);
-	VM_CNT_ADD(v_pdpages, ss->scanned);
+	pq->pq_pdpages += ss->scanned;
 }
 
 /*

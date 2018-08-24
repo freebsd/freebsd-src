@@ -220,15 +220,12 @@ retry:
 }
 
 vm_offset_t
-kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, vm_memattr_t memattr)
+kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
+    vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
-
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_alloc_attr: Only kernel_arena is supported."));
 
 	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
 	do {
@@ -307,16 +304,12 @@ retry:
 }
 
 vm_offset_t
-kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
-    vm_memattr_t memattr)
+kmem_alloc_contig(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary, vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
-
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_alloc_contig: Only kernel_arena is supported."));
 
 	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
 	do {
@@ -399,7 +392,7 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 }
 
 vm_offset_t
-kmem_malloc(struct vmem *vmem __unused, vm_size_t size, int flags)
+kmem_malloc(vm_size_t size, int flags)
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;

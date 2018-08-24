@@ -174,6 +174,11 @@ OLD_FILES+=usr/lib/clang/6.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/6.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/6.0.1/lib
 OLD_DIRS+=usr/lib/clang/6.0.1
+# 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces
+OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
+OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
+# 20180819: send-pr(1) placeholder removal
+OLD_FILES+=usr/bin/send-pr
 # 20180725: Cleanup old libcasper.so.0
 OLD_LIBS+=lib/libcasper.so.0
 # 20180722: indent(1) option renamed, test files follow

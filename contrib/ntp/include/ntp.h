@@ -610,6 +610,18 @@ struct pkt {
 #define	STRATUM_TO_PKT(s)	((u_char)(((s) == (STRATUM_UNSPEC)) ?\
 				(STRATUM_PKT_UNSPEC) : (s)))
 
+
+/*
+ * A test to determine if the refid should be interpreted as text string.
+ * This is usually the case for a refclock, which has stratum 0 internally,
+ * which results in sys_stratum 1 if the refclock becomes system peer, or
+ * in case of a kiss-of-death (KoD) packet that has STRATUM_PKT_UNSPEC (==0)
+ * in the packet which is converted to STRATUM_UNSPEC when the packet
+ * is evaluated.
+ */
+#define REFID_ISTEXT(s) (((s) <= 1) || ((s) >= STRATUM_UNSPEC))
+
+
 /*
  * Event codes. Used for reporting errors/events to the control module
  */

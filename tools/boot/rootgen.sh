@@ -792,8 +792,6 @@ DESTDIR=${OBJDIR}/boot-tree
 rm -rf ${DESTDIR}
 mkdir -p ${DESTDIR}/boot/defaults
 mkdir -p ${DESTDIR}/boot/kernel
-# XXX boot1 exists only on sparc64
-cp /boot/boot1 ${DESTDIR}/boot
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
 echo -h -D -S115200 > ${DESTDIR}/boot.config
 cat > ${DESTDIR}/boot/loader.conf <<EOF

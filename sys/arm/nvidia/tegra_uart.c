@@ -216,7 +216,7 @@ tegra_uart_probe(device_t dev)
 		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
 		return (ENXIO);
 	}
-	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0));
+	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0, 0));
 }
 
 static int

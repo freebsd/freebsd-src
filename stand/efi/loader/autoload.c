@@ -27,11 +27,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(LOADER_FDT_SUPPORT)
+#include <sys/param.h>
+#include <fdt_platform.h>
+#endif
+
 #include "loader_efi.h"
 
 int
 efi_autoload(void)
 {
 
+#if defined(LOADER_FDT_SUPPORT)
+	/*
+	 * Setup the FDT early so that we're not loading files during bi_load.
+	 * Any such loading is inherently broken since bi_load uses the space
+	 * just after all currently loaded files for the data that will be
+	 * passed to the kernel and newly loaded files will be positioned in
+	 * that same space.
+	 *
+	 * We're glossing over errors here because LOADER_FDT_SUPPORT does not
+	 * imply that we're on a platform where FDT is a requirement.  If we
+	 * fix this, then the error handling here should be fixed accordingly.
+	 */
+	fdt_setup_fdtp();
+#endif
 	return (0);
 }

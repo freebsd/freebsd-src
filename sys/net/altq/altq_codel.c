@@ -156,7 +156,7 @@ codel_remove_altq(struct pf_altq *a)
 }
 
 int
-codel_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
+codel_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
 	struct codel_if *cif;
 	struct codel_ifstats stats;

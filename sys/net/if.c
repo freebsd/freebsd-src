@@ -3779,7 +3779,7 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 				if (ll_ifma->ifma_flags & IFMA_F_ENQUEUED) {
 					CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr,
 						ifma_link);
-					ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+					ll_ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
 				}
 			}
 			if_freemulti(ll_ifma);

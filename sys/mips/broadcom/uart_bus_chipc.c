@@ -61,7 +61,7 @@ uart_chipc_probe(device_t dev)
 	sc->sc_class = &uart_ns8250_class;
 
 	rclk = bcm_get_uart_rclk(bcm_get_platform());
-	return (uart_bus_probe(dev, 0, 0, rclk, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, rclk, 0, 0, 0));
 }
 
 static device_method_t uart_chipc_methods[] = {

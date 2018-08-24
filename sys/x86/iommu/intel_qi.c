@@ -398,8 +398,8 @@ dmar_init_qi(struct dmar_unit *unit)
 	unit->inv_queue_avail = unit->inv_queue_size - DMAR_IQ_DESCR_SZ;
 
 	/* The invalidation queue reads by DMARs are always coherent. */
-	unit->inv_queue = kmem_alloc_contig(kernel_arena, unit->inv_queue_size,
-	    M_WAITOK | M_ZERO, 0, dmar_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	unit->inv_queue = kmem_alloc_contig(unit->inv_queue_size, M_WAITOK |
+	    M_ZERO, 0, dmar_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	unit->inv_waitd_seq_hw_phys = pmap_kextract(
 	    (vm_offset_t)&unit->inv_waitd_seq_hw);
 

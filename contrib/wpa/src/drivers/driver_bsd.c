@@ -1234,6 +1234,11 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 	struct ieee80211_join_event *join;
 	int n;
 
+	/*
+	 * CID 1394785: Memory - illegal access (STRING_NULL):
+	 * Though global->event_buf is a char *, it actually contains
+	 * a struct rt_msghdr *. See below.
+	 */
 	n = read(sock, global->event_buf, global->event_buf_len);
 	if (n < 0) {
 		if (errno != EINTR && errno != EAGAIN)
@@ -1242,6 +1247,10 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 		return;
 	}
 
+	/*
+	 * CID 1394785: global->event_buf is assigned here to a
+	 * struct rt_msghdr *.
+	 */
 	rtm = (struct rt_msghdr *) global->event_buf;
 	if (rtm->rtm_version != RTM_VERSION) {
 		wpa_printf(MSG_DEBUG, "Invalid routing message version=%d",

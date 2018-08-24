@@ -162,12 +162,32 @@ ext2_init_dirent_tail(struct ext2fs_direct_tail *tp)
 	tp->e2dt_reserved_ft = EXT2_FT_DIR_CSUM;
 }
 
+int
+ext2_is_dirent_tail(struct inode *ip, struct ext2fs_direct_2 *ep)
+{
+	struct m_ext2fs *fs;
+	struct ext2fs_direct_tail *tp;
+
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
+		return (0);
+
+	tp = (struct ext2fs_direct_tail *)ep;
+	if (tp->e2dt_reserved_zero1 == 0 &&
+	    tp->e2dt_rec_len == sizeof(struct ext2fs_direct_tail) &&
+	    tp->e2dt_reserved_zero2 == 0 &&
+	    tp->e2dt_reserved_ft == EXT2_FT_DIR_CSUM)
+		return (1);
+
+	return (0);
+}
+
 struct ext2fs_direct_tail *
 ext2_dirent_get_tail(struct inode *ip, struct ext2fs_direct_2 *ep)
 {
 	struct ext2fs_direct_2 *dep;
 	void *top;
-	struct ext2fs_direct_tail *tp;
 	unsigned int rec_len;
 
 	dep = ep;
@@ -184,14 +204,10 @@ ext2_dirent_get_tail(struct inode *ip, struct ext2fs_direct_2 *ep)
 	if (dep != top)
 		return (NULL);
 
-	tp = (struct ext2fs_direct_tail *)dep;
-	if (tp->e2dt_reserved_zero1 ||
-	    tp->e2dt_rec_len != sizeof(struct ext2fs_direct_tail) ||
-	    tp->e2dt_reserved_zero2 ||
-	    tp->e2dt_reserved_ft != EXT2_FT_DIR_CSUM)
-		return (NULL);
+	if (ext2_is_dirent_tail(ip, dep))
+		return ((struct ext2fs_direct_tail *)dep);
 
-	return (tp);
+	return (NULL);
 }
 
 static uint32_t

@@ -16,6 +16,7 @@ SRCS+=	__getosreldate.c \
 	_thread_init.c \
 	alarm.c \
 	arc4random.c \
+	arc4random-compat.c \
 	arc4random_uniform.c \
 	assert.c \
 	auxv.c \
@@ -165,6 +166,8 @@ SRCS+=	devname-compat11.c \
 	scandir-compat11.c \
 	unvis-compat.c
 .endif
+
+CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
 
 .PATH: ${SRCTOP}/contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
@@ -316,9 +319,7 @@ MAN+=	alarm.3 \
 	vis.3 \
 	wordexp.3
 
-MLINKS+=arc4random.3 arc4random_addrandom.3 \
-	arc4random.3 arc4random_stir.3 \
-	arc4random.3 arc4random_buf.3 \
+MLINKS+=arc4random.3 arc4random_buf.3 \
 	arc4random.3 arc4random_uniform.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=devname.3 devname_r.3

@@ -890,6 +890,7 @@ peer_info (
 			ip->flags |= INFO_FLAG_SHORTLIST;
 		ip->leap = pp->leap;
 		ip->hmode = pp->hmode;
+		ip->pmode = pp->pmode;
 		ip->keyid = pp->keyid;
 		ip->stratum = pp->stratum;
 		ip->ppoll = pp->ppoll;

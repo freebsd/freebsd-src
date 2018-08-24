@@ -295,6 +295,13 @@ mips_tmp_reloc_free(struct mips_tmp_reloc *r)
 	free(r, M_TEMP);
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,

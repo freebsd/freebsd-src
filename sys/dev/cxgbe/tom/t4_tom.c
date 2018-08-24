@@ -438,6 +438,8 @@ t4_tcp_info(struct toedev *tod, struct tcpcb *tp, struct tcp_info *ti)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	MPASS(ti != NULL);
 
+	ti->tcpi_toe_tid = toep->tid;
+
 	addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + toep->tid * TCB_SIZE;
 	rc = read_via_memwin(sc, 2, addr, &buf[0], TCB_SIZE);
 	if (rc != 0)
@@ -1267,6 +1269,7 @@ lookup_offload_policy(struct adapter *sc, int open_type, struct mbuf *m,
 	if (pkt == NULL || pktlen == 0 || buflen == 0)
 		return (&disallow_offloading_settings);
 
+	matched = 0;
 	r = &op->rule[0];
 	for (i = 0; i < op->nrules; i++, r++) {
 		if (r->open_type != open_type &&

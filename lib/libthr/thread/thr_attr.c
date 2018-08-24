@@ -199,8 +199,8 @@ _pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 __weak_reference(_pthread_attr_getguardsize, pthread_attr_getguardsize);
 
 int
-_pthread_attr_getguardsize(const pthread_attr_t *__restrict attr,
-    size_t *__restrict guardsize)
+_pthread_attr_getguardsize(const pthread_attr_t * __restrict attr,
+    size_t * __restrict guardsize)
 {
 	int	ret;
 

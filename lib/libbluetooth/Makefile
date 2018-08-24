@@ -2,6 +2,9 @@
 # $FreeBSD$
 
 PACKAGE=	lib${LIB}
+CONFS=		hosts protocols
+CONFSDIR=	/etc/bluetooth
+CONFSMODE_protocols=	444
 LIB=		bluetooth
 MAN=		bluetooth.3
 

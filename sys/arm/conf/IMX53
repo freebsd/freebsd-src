@@ -119,5 +119,3 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA="dtb/imx5 imx"
 device  	fdt_pinctrl		# FDT pinmux driver
-
-options 	INTRNG

@@ -215,13 +215,11 @@ static driver_t vcc_driver = {
 	sizeof(struct vi_info)
 };
 
-/* ifnet + media interface */
+/* ifnet interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
-static int cxgbe_media_change(struct ifnet *);
-static void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 
 MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
 
@@ -861,7 +859,7 @@ t4_attach(device_t dev)
 		v = pci_read_config(dev, i + PCIER_DEVICE_CTL, 2);
 		sc->params.pci.mps = 128 << ((v & PCIEM_CTL_MAX_PAYLOAD) >> 5);
 		if (pcie_relaxed_ordering == 0 &&
-		    (v | PCIEM_CTL_RELAXED_ORD_ENABLE) != 0) {
+		    (v & PCIEM_CTL_RELAXED_ORD_ENABLE) != 0) {
 			v &= ~PCIEM_CTL_RELAXED_ORD_ENABLE;
 			pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
 		} else if (pcie_relaxed_ordering == 1 &&
@@ -2066,7 +2064,7 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
  * The kernel picks a media from the list we had provided so we do not have to
  * validate the request.
  */
-static int
+int
 cxgbe_media_change(struct ifnet *ifp)
 {
 	struct vi_info *vi = ifp->if_softc;
@@ -2263,7 +2261,7 @@ port_mword(struct port_info *pi, uint16_t speed)
 	return (IFM_UNKNOWN);
 }
 
-static void
+void
 cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct vi_info *vi = ifp->if_softc;
@@ -4378,7 +4376,9 @@ apply_l1cfg(struct port_info *pi)
 #endif
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0) {
-		device_printf(pi->dev, "l1cfg failed: %d\n", rc);
+		/* Don't complain if the VF driver gets back an EPERM. */
+		if (!(sc->flags & IS_VF) || rc != FW_EPERM)
+			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
 	} else {
 		lc->fc = lc->requested_fc;
 		lc->fec = lc->requested_fec;
@@ -5099,6 +5099,7 @@ vi_full_init(struct vi_info *vi)
 	rc = -t4_config_rss_range(sc, sc->mbox, vi->viid, 0, vi->rss_size, rss,
 	    vi->rss_size);
 	if (rc != 0) {
+		free(rss, M_CXGBE);
 		if_printf(ifp, "rss_config failed: %d\n", rc);
 		goto done;
 	}
@@ -5147,6 +5148,7 @@ vi_full_init(struct vi_info *vi)
 #endif
 	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, hashen, rss[0], 0, 0);
 	if (rc != 0) {
+		free(rss, M_CXGBE);
 		if_printf(ifp, "rss hash/defaultq config failed: %d\n", rc);
 		goto done;
 	}

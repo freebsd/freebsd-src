@@ -70,7 +70,7 @@ All other files are in PEM-encoded
 printable ASCII format so they can be embedded as MIME attachments in
 mail to other sites.
 
-  <p>This document applies to version 4.2.8p11 of <code>ntp-keygen</code>.
+  <p>This document applies to version 4.2.8p12 of <code>ntp-keygen</code>.
 
 <div class="node">
 <p><hr>
@@ -1133,7 +1133,7 @@ Following the header the keys are entered one per line in the format
 </pre>
   <p>where
 <kbd>keyno</kbd>
-is a positive integer in the range 1-65534;
+is a positive integer in the range 1-65535;
 <kbd>type</kbd>
 is the key type for the message digest algorithm, which in the absence of the
 OpenSSL library must be
@@ -1245,7 +1245,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p10
+<pre class="example">ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p11
 Usage:  ntp-keygen [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]...
   Flg Arg Option-Name    Description
    -b Num imbits         identity modulus bits
@@ -1929,7 +1929,7 @@ it can be constructed and edited using an ordinary text editor.
   <p>Figure 1 shows a typical symmetric keys file used by the reference
 implementation. 
 Each line of the file contains three fields, first an
-integer between 1 and 65534, inclusive, representing the key identifier
+integer between 1 and 65535, inclusive, representing the key identifier
 used in the server and peer configuration commands. 
 Next is the key type for the message digest algorithm,
 which in the absence of the

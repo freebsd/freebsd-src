@@ -968,29 +968,10 @@ _worldtmp: .PHONY
 .endif	# !defined(NO_CLEAN)
 	@mkdir -p ${WORLDTMP}
 	@touch ${WORLDTMP}/${.TARGET}
-
-.for _dir in \
-    lib lib/casper lib/geom usr legacy/bin legacy/usr
-	mkdir -p ${WORLDTMP}/${_dir}
-.endfor
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${WORLDTMP}/legacy/usr >/dev/null
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${WORLDTMP}/legacy/usr/include >/dev/null
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${WORLDTMP}/usr >/dev/null
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${WORLDTMP}/usr/include >/dev/null
-	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if ${MK_DEBUG_FILES} != "no"
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
-	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
-	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
-	    -p ${WORLDTMP}/usr/lib >/dev/null
-.endif
-.for _mtree in ${LOCAL_MTREE}
-	${WORLDTMP_MTREE} -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
-.endfor
+# We can't use mtree to create the worldtmp directories since it may not be
+# available on the target system (this happens e.g. when building on non-FreeBSD)
+	cd ${.CURDIR}/tools/build; \
+	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy installdirs
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1003,6 +984,19 @@ _bootstrap-tools:
 	@echo ">>> stage 1.2: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${BMAKE} bootstrap-tools
+	mkdir -p ${WORLDTMP}/usr ${WORLDTMP}/lib/casper ${WORLDTMP}/lib/geom
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${WORLDTMP}/usr/include >/dev/null
+	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.if ${MK_DEBUG_FILES} != "no"
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
+.for _mtree in ${LOCAL_MTREE}
+	${WORLDTMP_MTREE} -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
+.endfor
 _cleanobj:
 .if !defined(NO_CLEAN)
 	@echo
@@ -2037,6 +2031,10 @@ ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
+.if ${MK_LOCALES} != "no"
+_localedef=	usr.bin/localedef
+.endif
+
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
@@ -2098,7 +2096,7 @@ bootstrap-tools: .PHONY
     ${_crunchgen} \
     ${_nmtree} \
     ${_vtfontcvt} \
-    usr.bin/localedef
+    ${_localedef}
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \

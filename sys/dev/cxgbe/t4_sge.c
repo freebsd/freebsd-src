@@ -1079,8 +1079,10 @@ t4_teardown_adapter_queues(struct adapter *sc)
 		sc->flags &= ~ADAP_SYSCTL_CTX;
 	}
 
-	for_each_port(sc, i)
-		free_wrq(sc, &sc->sge.ctrlq[i]);
+	if (!(sc->flags & IS_VF)) {
+		for_each_port(sc, i)
+			free_wrq(sc, &sc->sge.ctrlq[i]);
+	}
 	free_fwq(sc);
 
 	return (0);
@@ -1383,7 +1385,7 @@ t4_intr_evt(void *arg)
 
 	if (atomic_cmpset_int(&iq->state, IQS_IDLE, IQS_BUSY)) {
 		service_iq(iq, 0);
-		atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
+		(void) atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
 	}
 }
 
@@ -1397,7 +1399,7 @@ t4_intr(void *arg)
 
 	if (atomic_cmpset_int(&iq->state, IQS_IDLE, IQS_BUSY)) {
 		service_iq_fl(iq, 0);
-		atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
+		(void) atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
 	}
 }
 
@@ -1412,7 +1414,7 @@ t4_nm_intr(void *arg)
 
 	if (atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_BUSY)) {
 		service_nm_rxq(nm_rxq);
-		atomic_cmpset_int(&nm_rxq->nm_state, NM_BUSY, NM_ON);
+		(void) atomic_cmpset_int(&nm_rxq->nm_state, NM_BUSY, NM_ON);
 	}
 }
 
@@ -1498,7 +1500,7 @@ service_iq(struct sge_iq *iq, int budget)
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
 					if (service_iq_fl(q, q->qsize / 16) == 0) {
-						atomic_cmpset_int(&q->state,
+						(void) atomic_cmpset_int(&q->state,
 						    IQS_BUSY, IQS_IDLE);
 					} else {
 						STAILQ_INSERT_TAIL(&iql, q,
@@ -1546,7 +1548,7 @@ service_iq(struct sge_iq *iq, int budget)
 		q = STAILQ_FIRST(&iql);
 		STAILQ_REMOVE_HEAD(&iql, link);
 		if (service_iq_fl(q, q->qsize / 8) == 0)
-			atomic_cmpset_int(&q->state, IQS_BUSY, IQS_IDLE);
+			(void) atomic_cmpset_int(&q->state, IQS_BUSY, IQS_IDLE);
 		else
 			STAILQ_INSERT_TAIL(&iql, q, link);
 	}

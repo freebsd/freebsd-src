@@ -605,6 +605,7 @@ DFLTPHYS		opt_global.h
 DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
+KASSERT_PANIC_OPTIONAL	opt_global.h
 MAXCPU			opt_global.h
 MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h

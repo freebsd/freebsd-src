@@ -1210,7 +1210,7 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	struct ext2mount *ump;
-	int error, start, len;
+	int error, start, len, ifree;
 	char *ibp, *loc;
 
 	ipref--;	/* to avoid a lot of (ipref -1) */
@@ -1285,9 +1285,12 @@ gotit:
 	e2fs_gd_set_nifree(&fs->e2fs_gd[cg],
 	    e2fs_gd_get_nifree(&fs->e2fs_gd[cg]) - 1);
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
-	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
-		e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
-		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) - 1);
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
+		ifree = fs->e2fs->e2fs_ipg - e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]);
+		if (ipref + 1 > ifree)
+			e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
+			    fs->e2fs->e2fs_ipg - (ipref + 1));
+	}
 	fs->e2fs->e2fs_ficount--;
 	fs->e2fs_fmod = 1;
 	if ((mode & IFMT) == IFDIR) {
@@ -1391,10 +1394,6 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	fs->e2fs->e2fs_ficount++;
 	e2fs_gd_set_nifree(&fs->e2fs_gd[cg],
 	    e2fs_gd_get_nifree(&fs->e2fs_gd[cg]) + 1);
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
-	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
-		e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
-		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) + 1);
 	if ((mode & IFMT) == IFDIR) {
 		e2fs_gd_set_ndirs(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_ndirs(&fs->e2fs_gd[cg]) - 1);

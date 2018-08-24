@@ -89,6 +89,8 @@ netwrite(
 }
 
 
+int set_user_group_ids(void);
+
 /* === functions === */
 /*
  * exit_worker()
@@ -591,6 +593,8 @@ fork_blocking_child(
 	signal_no_reset(SIGHUP, worker_sighup);
 	init_logging("ntp_intres", 0, FALSE);
 	setup_logfile(NULL);
+
+	(void) set_user_group_ids();
 
 	/*
 	 * And now back to the portable code

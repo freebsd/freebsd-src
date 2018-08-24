@@ -2221,6 +2221,15 @@ acpi_DeviceIsPresent(device_t dev)
 		return (FALSE);
 	status = acpi_GetInteger(h, "_STA", &s);
 
+	/*
+	 * Onboard serial ports on certain AMD motherboards have an invalid _STA
+	 * method that always returns 0.  Force them to always be treated as present.
+	 *
+	 * This may solely be a quirk of a preproduction BIOS.
+	 */
+	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
+		return (TRUE);
+
 	/* If no _STA method, must be present */
 	if (ACPI_FAILURE(status))
 		return (status == AE_NOT_FOUND ? TRUE : FALSE);

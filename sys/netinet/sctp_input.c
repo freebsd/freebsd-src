@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
 #endif
+#include <netinet/in_kdtrace.h>
 #include <sys/smp.h>
 
 
@@ -962,7 +963,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_SENT)) {
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_RECEIVED);
-			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 			/*
 			 * notify upper layer that peer has initiated a
 			 * shutdown
@@ -997,7 +997,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
 		if (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT) {
 			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			sctp_stop_timers_for_shutdown(stcb);
@@ -5571,6 +5570,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 				net->flowtype = mflowtype;
 				net->flowid = mflowid;
 			}
+			SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 			if ((inp != NULL) && (stcb != NULL)) {
 				sctp_send_packet_dropped(stcb, net, m, length, iphlen, 1);
 				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
@@ -5611,6 +5611,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		net->flowid = mflowid;
 	}
 	if (inp == NULL) {
+		SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 		SCTP_STAT_INCR(sctps_noport);
 		if (badport_bandlim(BANDLIM_SCTP_OOTB) < 0) {
 			goto out;
@@ -5659,6 +5660,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			 */
 			SCTP_TCB_UNLOCK(stcb);
 			stcb = NULL;
+			SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
@@ -5715,11 +5717,13 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		if ((stcb != NULL) &&
 		    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks)) {
 			/* "silently" ignore */
+			SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 			SCTP_STAT_INCR(sctps_recvauthmissing);
 			goto out;
 		}
 		if (stcb == NULL) {
 			/* out of the blue DATA chunk */
+			SCTP_PROBE5(receive, NULL, NULL, m, NULL, sh);
 			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
@@ -5730,11 +5734,13 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		}
 		if (stcb->asoc.my_vtag != ntohl(sh->v_tag)) {
 			/* v_tag mismatch! */
+			SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 			SCTP_STAT_INCR(sctps_badvtag);
 			goto out;
 		}
 	}
 
+	SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 	if (stcb == NULL) {
 		/*
 		 * no valid TCB for this packet, or we found it's a bad

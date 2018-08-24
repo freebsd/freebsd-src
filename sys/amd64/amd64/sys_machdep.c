@@ -361,8 +361,8 @@ amd64_set_ioperm(td, uap)
 	 */
 	pcb = td->td_pcb;
 	if (pcb->pcb_tssp == NULL) {
-		tssp = (struct amd64tss *)kmem_malloc(kernel_arena,
-		    ctob(IOPAGES + 1), M_WAITOK);
+		tssp = (struct amd64tss *)kmem_malloc(ctob(IOPAGES + 1),
+		    M_WAITOK);
 		pmap_pti_add_kva((vm_offset_t)tssp, (vm_offset_t)tssp +
 		    ctob(IOPAGES + 1), false);
 		iomap = (char *)&tssp[1];
@@ -463,7 +463,7 @@ user_ldt_alloc(struct proc *p, int force)
 	mtx_unlock(&dt_lock);
 	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
 	sz = max_ldt_segment * sizeof(struct user_segment_descriptor);
-	sva = kmem_malloc(kernel_arena, sz, M_WAITOK | M_ZERO);
+	sva = kmem_malloc(sz, M_WAITOK | M_ZERO);
 	new_ldt->ldt_base = (caddr_t)sva;
 	pmap_pti_add_kva(sva, sva + sz, false);
 	new_ldt->ldt_refcnt = 1;

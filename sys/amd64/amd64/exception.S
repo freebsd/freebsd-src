@@ -864,7 +864,10 @@ nocallchain:
 	movl	%edx,%eax
 	shrq	$32,%rdx
 	wrmsr
-	movq	%r13,%cr3
+	cmpb	$0, nmi_flush_l1d_sw(%rip)
+	je	2f
+	call	flush_l1d_sw		/* bhyve L1TF assist */
+2:	movq	%r13,%cr3
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret

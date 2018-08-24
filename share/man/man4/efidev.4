@@ -47,15 +47,12 @@ line in
 efirt_load="YES"
 .Ed
 .Pp
-.Nm
-may be disabled by setting the
+The driver may be disabled by setting the
 .Xr loader 8
 tunable
 .Va efi.rt.disabled
-to 1.
-.Pp
-.Nm
-is currently only available on amd64 and arm64.
+to
+.Dq Li 1 .
 .Sh DESCRIPTION
 The
 .Nm
@@ -72,10 +69,10 @@ provides the following ioctls defined in
 .In sys/efiio.h
 with supplemental structures and constants defined in
 .In sys/efi.h :
-.Bl -tag -width ".Dv EFIIOC_GET_TABLE"
+.Bl -tag -width indent
 .It Dv EFIIOC_GET_TABLE Pq Vt "struct efi_get_table_ioc"
 Get a table by uuid from the UEFI system table.
-.Bd -literal
+.Bd -literal -offset indent
 struct efi_get_table_ioc {
 	struct uuid uuid;
 	void *ptr;
@@ -86,7 +83,7 @@ Get the time from the RTC, if the RTC is available.
 The
 .Vt struct efi_tm
 passed is populated with the current time, unless an error occurs.
-.Bd -literal
+.Bd -literal -offset indent
 struct efi_tm {
 	uint16_t	tm_year;
 	uint8_t		tm_mon
@@ -106,9 +103,13 @@ Sets the time stored by the RTC, if the RTC is available.
 .It Dv EFIIOC_VAR_GET Pq Vt "struct efi_var_ioc"
 Gets data from the variable described by the vendor and name fields of the
 .Vt struct efi_var_ioc
-into the aata field.
+into the
+.Fa data
+field.
 .Dv EFIIOC_VAR_GET Pq Vt "struct efi_var_ioc"
-will also populate the attrib field.
+will also populate the
+.Fa attrib
+field.
 .Bd -literal
 struct efi_var_ioc {
 	efi_char	*name;
@@ -134,10 +135,13 @@ the
 .It Pa /dev/efi
 .El
 .Sh SEE ALSO
-.Xr efivar 3
+.Xr efivar 3 ,
 .Xr efirt 9
 .Sh HISTORY
 A
 .Nm
 device first appeared in
 .Fx 11.1 .
+.Sh BUGS
+.Nm
+is currently only available on amd64 and arm64.

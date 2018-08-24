@@ -31,7 +31,6 @@ options 	PLATFORM
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
