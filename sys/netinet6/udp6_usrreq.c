@@ -960,6 +960,7 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 		 * be incorrect.
 		 */
 		flags |= IP_NODEFAULTFLOWID;
+	}
 #endif
 
 	UDPSTAT_INC(udps_opackets);
