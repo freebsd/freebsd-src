@@ -963,10 +963,14 @@ tryagain:
 					NFSCL_DEBUG(1, "Got err=%d\n", reterr);
 				}
 			}
+			/*
+			 * When clp != NULL, it is a callback and all
+			 * callback operations can be retried for NFSERR_DELAY.
+			 */
 			if (((nd->nd_repstat == NFSERR_DELAY ||
 			      nd->nd_repstat == NFSERR_GRACE) &&
-			     (nd->nd_flag & ND_NFSV4) &&
-			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
+			     (nd->nd_flag & ND_NFSV4) && (clp != NULL ||
+			     (nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
 			     nd->nd_procnum != NFSPROC_READDS &&
@@ -978,7 +982,7 @@ tryagain:
 			     nd->nd_procnum != NFSPROC_OPENDOWNGRADE &&
 			     nd->nd_procnum != NFSPROC_CLOSE &&
 			     nd->nd_procnum != NFSPROC_LOCK &&
-			     nd->nd_procnum != NFSPROC_LOCKU) ||
+			     nd->nd_procnum != NFSPROC_LOCKU))) ||
 			    (nd->nd_repstat == NFSERR_DELAY &&
 			     (nd->nd_flag & ND_NFSV4) == 0) ||
 			    nd->nd_repstat == NFSERR_RESOURCE) {
