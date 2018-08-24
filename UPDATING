@@ -36,13 +36,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	updated to use them and devmatch has been changed.  You should update
 	kernel, userland and rc scripts all at the same time.
 
-20180821:
-	drm and drm2 have been removed. Users on powerpc, 32-bit hardware,
-	or with GPUs predating Radeon and i915 will need to install the
-	graphics/drm-legacy-kmod. All other users should be able to use
-	one of the LinuxKPI-based ports: graphics/drm-stable-kmod,
-	graphics/drm-next-kmod, graphics/drm-devel-kmod.
-
 20180818:
 	The default interpreter has been switched from 4th to Lua.
 	LOADER_DEFAULT_INTERP, documented in build(7), will override the default
