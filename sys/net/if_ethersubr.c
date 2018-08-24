@@ -461,7 +461,8 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	uint8_t pcp;
 
 	pcp = ifp->if_pcp;
-	if (pcp != IFNET_PCP_NONE && !ether_set_pcp(&m, ifp, pcp))
+	if (pcp != IFNET_PCP_NONE && ifp->if_type != IFT_L2VLAN &&
+	    !ether_set_pcp(&m, ifp, pcp))
 		return (0);
 
 	if (PFIL_HOOKED(&V_link_pfil_hook)) {
