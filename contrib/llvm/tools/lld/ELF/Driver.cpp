@@ -338,7 +338,8 @@ static bool getZFlag(opt::InputArgList &Args, StringRef K1, StringRef K2,
 
 static bool isKnown(StringRef S) {
   return S == "combreloc" || S == "copyreloc" || S == "defs" ||
-         S == "execstack" || S == "hazardplt" || S == "initfirst" ||
+         S == "execstack" || S == "hazardplt" || S == "ifunc-noplt" ||
+         S == "initfirst" ||
          S == "keep-text-section-prefix" || S == "lazy" || S == "muldefs" ||
          S == "nocombreloc" || S == "nocopyreloc" || S == "nodelete" ||
          S == "nodlopen" || S == "noexecstack" ||
@@ -843,6 +844,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->ZCopyreloc = getZFlag(Args, "copyreloc", "nocopyreloc", true);
   Config->ZExecstack = getZFlag(Args, "execstack", "noexecstack", false);
   Config->ZHazardplt = hasZOption(Args, "hazardplt");
+  Config->ZIfuncnoplt = hasZOption(Args, "ifunc-noplt");
   Config->ZInitfirst = hasZOption(Args, "initfirst");
   Config->ZKeepTextSectionPrefix = getZFlag(
       Args, "keep-text-section-prefix", "nokeep-text-section-prefix", false);

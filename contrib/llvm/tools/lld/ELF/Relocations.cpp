@@ -366,6 +366,10 @@ static bool isStaticLinkTimeConstant(RelExpr E, RelType Type, const Symbol &Sym,
           R_TLSLD_HINT>(E))
     return true;
 
+  // The computation involves output from the ifunc resolver.
+  if (Sym.isGnuIFunc() && Config->ZIfuncnoplt)
+    return false;
+
   // These never do, except if the entire file is position dependent or if
   // only the low bits are used.
   if (E == R_GOT || E == R_PLT || E == R_TLSDESC)
@@ -816,6 +820,10 @@ static void processRelocAux(InputSectionBase &Sec, RelExpr Expr, RelType Type,
     Sec.Relocations.push_back({Expr, Type, Offset, Addend, &Sym});
     return;
   }
+  if (Sym.isGnuIFunc() && Config->ZIfuncnoplt) {
+    InX::RelaDyn->addReloc(Type, &Sec, Offset, &Sym, Addend, R_ADDEND, Type);
+    return;
+  }
   bool CanWrite = (Sec.Flags & SHF_WRITE) || !Config->ZText;
   if (CanWrite) {
     // R_GOT refers to a position in the got, even if the symbol is preemptible.
@@ -985,7 +993,7 @@ static void scanReloc(InputSectionBase &Sec, OffsetGetter &GetOffset, RelTy *&I,
   // all dynamic symbols that can be resolved within the executable will
   // actually be resolved that way at runtime, because the main exectuable
   // is always at the beginning of a search list. We can leverage that fact.
-  if (Sym.isGnuIFunc())
+  if (Sym.isGnuIFunc() && !Config->ZIfuncnoplt)
     Expr = toPlt(Expr);
   else if (!Sym.IsPreemptible && Expr == R_GOT_PC && !isAbsoluteValue(Sym))
     Expr = Target->adjustRelaxExpr(Type, RelocatedAddr, Expr);
