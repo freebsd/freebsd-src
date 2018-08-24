@@ -491,10 +491,8 @@ main(int argc, char *argv[])
 	const char *command;
 	int command_index, rc;
 
-	if (argc < 2) {
-		fprintf(stderr, "missing command\n");
+	if (argc < 2)
 		return (usage(false));
-	}
 
 	command = argv[1];
 

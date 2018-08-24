@@ -623,10 +623,6 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	if ((err = be_root_concat(lbh, new, full_new)) != 0)
 		return (set_error(lbh, err));
 
-	/* Check if old is active BE */
-	if (strcmp(full_old, be_active_path(lbh)) == 0)
-		return (set_error(lbh, BE_ERR_MOUNTED));
-
 	if (!zfs_dataset_exists(lbh->lzh, full_old, ZFS_TYPE_DATASET))
 		return (set_error(lbh, BE_ERR_NOENT));
 
@@ -637,14 +633,10 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-	/* XXX TODO: Allow a force flag */
-	if (zfs_is_mounted(zfs_hdl, NULL)) {
-		zfs_close(zfs_hdl);
-		return (set_error(lbh, BE_ERR_MOUNTED));
-	}
-
 	/* recurse, nounmount, forceunmount */
-	struct renameflags flags = { 0, 0, 0 };
+	struct renameflags flags = {
+		.nounmount = 1,
+	};
 
 	err = zfs_rename(zfs_hdl, NULL, full_new, flags);
 

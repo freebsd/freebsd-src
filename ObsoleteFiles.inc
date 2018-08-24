@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180824: libbe(3) SHLIBDIR fixed to reflect correct location
+OLD_LIBS+=usr/lib/libbe.so.1
 # 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces
 OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
 OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz

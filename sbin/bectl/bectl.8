@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd August 24, 2018
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -132,7 +132,8 @@ Destroys the given
 .Ar beName
 boot environment or
 .Ar beName@snapshot
-snapshot.
+snapshot without confirmation, unlike in
+.Nm beadm .
 Specifying
 .Fl F
 will automatically unmount without confirmation.
@@ -239,10 +240,11 @@ Mount at the specified
 .Ar mountpoint
 if provided.
 .It Cm rename Ar origBeName newBeName
-Renames the given nonactive
+Renames the given
 .Ar origBeName
 to the given
 .Ar newBeName .
+The boot environment will not be unmounted in order for this rename to occur.
 .It Cm unjail Brq Ar jailID | jailName | beName
 Destroys the jail created from the given boot environment.
 .It Xo
