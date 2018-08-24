@@ -140,6 +140,17 @@ arm64_setup_multicons() {
 	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 }
 
+arm_setup_fdt_overlays() {
+	if [ -z "${FDT_OVERLAYS}" ]; then
+		return
+	fi
+
+	echo '# DTB OVERLAYS' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo "fdt_overlays=\"${FDT_OVERLAYS}\"" \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
 arm_install_base() {
 	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
 	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
@@ -152,6 +163,7 @@ arm_install_base() {
 	arm_create_user
 	arm_setup_usb_otg
 	arm64_setup_multicons
+	arm_setup_fdt_overlays
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
