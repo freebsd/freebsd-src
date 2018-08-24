@@ -1662,7 +1662,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (0);
 		}
 		if (tp->t_state != TCPS_CLOSED) {
-			int error=EINVAL;
 			/* 
 			 * The user has advanced the state
 			 * past the initial point, we may not
@@ -1675,7 +1674,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				 * still be possible?
 				 */
 				error = (*blk->tfb_tcp_handoff_ok)(tp);
-			}
+			} else
+				error = EINVAL;
 			if (error) {
 				refcount_release(&blk->tfb_refcnt);
 				INP_WUNLOCK(inp);
