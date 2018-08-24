@@ -172,30 +172,37 @@ fallback:
 			if (dyn_used || fbacklvl >= FBACK_STATIC)
 				return (ENOENT);
 
-			if (fbacklvl <= FBACK_MDENV &&
-			    _res_checkenv(md_envp)) {
-				hintp = md_envp;
-				goto found;
+			switch (fbacklvl) {
+			case FBACK_MDENV:
+				fbacklvl++;
+				if (_res_checkenv(md_envp)) {
+					hintp = md_envp;
+					break;
+				}
+
+				/* FALLTHROUGH */
+			case FBACK_STENV:
+				fbacklvl++;
+				if (!stenv_skip && _res_checkenv(kern_envp)) {
+					hintp = kern_envp;
+					break;
+				} else
+					stenv_skip = true;
+
+				/* FALLTHROUGH */
+			case FBACK_STATIC:
+				fbacklvl++;
+				/* We'll fallback to static_hints if needed/can */
+				if (!sthints_skip &&
+				    _res_checkenv(static_hints))
+					hintp = static_hints;
+				else
+					sthints_skip = true;
+
+				break;
+			default:
+				return (ENOENT);
 			}
-			fbacklvl++;
-
-			if (!stenv_skip && fbacklvl <= FBACK_STENV &&
-			    _res_checkenv(kern_envp)) {
-				hintp = kern_envp;
-				goto found;
-			} else
-				stenv_skip = true;
-
-			fbacklvl++;
-
-			/* We'll fallback to static_hints if needed/can */
-			if (!sthints_skip && fbacklvl <= FBACK_STATIC &&
-			    _res_checkenv(static_hints))
-				hintp = static_hints;
-			else
-				sthints_skip = true;
-found:
-			fbacklvl++;
 		}
 
 		if (hintp == NULL)
