@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2017
+.Dd August 16, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -422,6 +422,14 @@ Overrides which kernel to build and install for the various kernel
 make targets.
 It defaults to
 .Cm GENERIC .
+.It Va KERNCONFDIR
+Overrides the directory in which
+.Va KERNCONF
+and any files included by
+.Va KERNCONF
+should be found.
+Defaults to
+.Pa sys/${ARCH}/conf .
 .It Va KERNFAST
 If set, the build target
 .Cm buildkernel
