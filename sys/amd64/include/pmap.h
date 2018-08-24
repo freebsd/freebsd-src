@@ -405,6 +405,7 @@ extern int invpcid_works;
 
 struct thread;
 
+void	pmap_activate_boot(pmap_t pmap);
 void	pmap_activate_sw(struct thread *);
 void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde);
