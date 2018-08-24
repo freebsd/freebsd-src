@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2018
+.Dd August 24, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -222,7 +222,12 @@ snapshot.
 .Pp
 The
 .Fn be_rename
-function renames a boot environment.
+function renames a boot environment without unmounting it, as if renamed with
+the
+.Fl u
+argument were passed to
+.Nm zfs
+.Cm rename
 .Pp
 The
 .Fn be_activate
