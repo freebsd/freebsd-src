@@ -984,7 +984,7 @@ tegra_xhci_detach(device_t dev)
 	if (sc->irq_hdl_mbox != NULL)
 		bus_teardown_intr(dev, sc->irq_res_mbox, sc->irq_hdl_mbox);
 	if (sc->fw_vaddr != 0)
-		kmem_free(kernel_arena, sc->fw_vaddr, sc->fw_size);
+		kmem_free(sc->fw_vaddr, sc->fw_size);
 	LOCK_DESTROY(sc);
 	return (0);
 }

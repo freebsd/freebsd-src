@@ -264,8 +264,7 @@ SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
 static void
 hypercall_memfree(void)
 {
-	kmem_free(kernel_arena, (vm_offset_t)hypercall_context.hc_addr,
-	    PAGE_SIZE);
+	kmem_free((vm_offset_t)hypercall_context.hc_addr, PAGE_SIZE);
 	hypercall_context.hc_addr = NULL;
 }
 

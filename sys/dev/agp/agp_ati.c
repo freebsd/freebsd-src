@@ -147,8 +147,8 @@ agp_ati_alloc_gatt(device_t dev)
 	if (sc->ag_vdir == NULL) {
 		if (bootverbose)
 			device_printf(dev, "pagedir allocation failed\n");
-		kmem_free(kernel_arena, (vm_offset_t)sc->ag_virtual,
-		    entries * sizeof(u_int32_t));
+		kmem_free((vm_offset_t)sc->ag_virtual, entries *
+		    sizeof(u_int32_t));
 		return ENOMEM;
 	}
 	sc->ag_pdir = vtophys((vm_offset_t)sc->ag_vdir);
@@ -265,9 +265,9 @@ agp_ati_detach(device_t dev)
 	temp = pci_read_config(dev, apsize_reg, 4);
 	pci_write_config(dev, apsize_reg, temp & ~1, 4);
 
-	kmem_free(kernel_arena, (vm_offset_t)sc->ag_vdir, AGP_PAGE_SIZE);
-	kmem_free(kernel_arena, (vm_offset_t)sc->ag_virtual,
-	    sc->ag_entries * sizeof(u_int32_t));
+	kmem_free((vm_offset_t)sc->ag_vdir, AGP_PAGE_SIZE);
+	kmem_free((vm_offset_t)sc->ag_virtual, sc->ag_entries *
+	    sizeof(u_int32_t));
 
 	bus_release_resource(dev, SYS_RES_MEMORY, ATI_GART_MMADDR, sc->regs);
 	agp_free_res(dev);

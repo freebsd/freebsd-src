@@ -171,8 +171,8 @@ agp_alloc_gatt(device_t dev)
 void
 agp_free_gatt(struct agp_gatt *gatt)
 {
-	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
-	    gatt->ag_entries * sizeof(u_int32_t));
+	kmem_free((vm_offset_t)gatt->ag_virtual, gatt->ag_entries *
+	    sizeof(u_int32_t));
 	free(gatt, M_AGP);
 }
 

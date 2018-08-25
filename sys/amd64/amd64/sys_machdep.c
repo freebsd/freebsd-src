@@ -479,7 +479,7 @@ user_ldt_alloc(struct proc *p, int force)
 	pldt = mdp->md_ldt;
 	if (pldt != NULL && !force) {
 		pmap_pti_remove_kva(sva, sva + sz);
-		kmem_free(kernel_arena, sva, sz);
+		kmem_free(sva, sz);
 		free(new_ldt, M_SUBPROC);
 		return (pldt);
 	}
@@ -533,7 +533,7 @@ user_ldt_derefl(struct proc_ldt *pldt)
 		sva = (vm_offset_t)pldt->ldt_base;
 		sz = max_ldt_segment * sizeof(struct user_segment_descriptor);
 		pmap_pti_remove_kva(sva, sva + sz);
-		kmem_free(kernel_arena, sva, sz);
+		kmem_free(sva, sz);
 		free(pldt, M_SUBPROC);
 	}
 }
