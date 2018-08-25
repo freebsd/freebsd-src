@@ -97,6 +97,7 @@ static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitblt_text_t	vga_bitblt_text;
+static vd_invalidate_text_t	vga_invalidate_text;
 static vd_bitblt_bmp_t	vga_bitblt_bitmap;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
@@ -108,6 +109,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitblt_text	= vga_bitblt_text,
+	.vd_invalidate_text = vga_invalidate_text,
 	.vd_bitblt_bmp	= vga_bitblt_bitmap,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
@@ -868,6 +870,7 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 	term_char_t c;
 	term_color_t fg, bg;
 	uint8_t ch, attr;
+	size_t z;
 
 	sc = vd->vd_softc;
 	vb = &vw->vw_buf;
@@ -884,6 +887,12 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col),
 			    &fg, &bg);
 
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn && (vd->vd_drawn[z] == c) &&
+			    vd->vd_drawnfg && (vd->vd_drawnfg[z] == fg) &&
+			    vd->vd_drawnbg && (vd->vd_drawnbg[z] == bg))
+				continue;
+
 			/*
 			 * Convert character to CP437, which is the
 			 * character set used by the VGA hardware by
@@ -898,6 +907,13 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 
 			MEM_WRITE2(sc, (row * 80 + col) * 2 + 0,
 			    ch + ((uint16_t)(attr) << 8));
+
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = c;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = fg;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = bg;
 		}
 	}
 }
@@ -911,6 +927,27 @@ vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 		vga_bitblt_text_gfxmode(vd, vw, area);
 	} else {
 		vga_bitblt_text_txtmode(vd, vw, area);
+	}
+}
+
+void
+vga_invalidate_text(struct vt_device *vd, const term_rect_t *area)
+{
+	unsigned int col, row;
+	size_t z;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col;
+		    col < area->tr_end.tp_col;
+		    ++col) {
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = 0;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = 0;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = 0;
+		}
 	}
 }
 
