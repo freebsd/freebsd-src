@@ -324,9 +324,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 			if (!defobj->tls_done && allocate_tls_offset(obj))
 				return -1;
 
-			/* XXX: FIXME */
-			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset +
-			    TLS_TCB_SIZE;
+			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset;
 			if (__predict_true(RELOC_ALIGNED_P(where)))
 				*where = tmp;
 			else
