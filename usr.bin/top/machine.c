@@ -1067,6 +1067,8 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 
 		if (!ps.thread) {
 			sbuf_printf(procbuf, "%4d ", pp->ki_numthreads);
+		} else {
+			sbuf_printf(procbuf, " ");
 		}
 
 		sbuf_printf(procbuf, "%3d ", pp->ki_pri.pri_level - PZERO);
