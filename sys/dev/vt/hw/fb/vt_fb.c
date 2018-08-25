@@ -50,6 +50,7 @@ static struct vt_driver vt_fb_driver = {
 	.vd_fini = vt_fb_fini,
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_invalidate_text = vt_fb_invalidate_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
@@ -335,6 +336,7 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 	term_char_t c;
 	term_color_t fg, bg;
 	const uint8_t *pattern;
+	size_t z;
 
 	vf = vw->vw_font;
 
@@ -351,9 +353,22 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 			vt_determine_colors(c,
 			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
 
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn && (vd->vd_drawn[z] == c) &&
+			    vd->vd_drawnfg && (vd->vd_drawnfg[z] == fg) &&
+			    vd->vd_drawnbg && (vd->vd_drawnbg[z] == bg))
+				continue;
+
 			vt_fb_bitblt_bitmap(vd, vw,
 			    pattern, NULL, vf->vf_width, vf->vf_height,
 			    x, y, fg, bg);
+
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = c;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = fg;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = bg;
 		}
 	}
 
@@ -377,6 +392,26 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
 	}
 #endif
+}
+
+void
+vt_fb_invalidate_text(struct vt_device *vd, const term_rect_t *area)
+{
+	unsigned int col, row;
+	size_t z;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
+		    ++col) {
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = 0;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = 0;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = 0;
+		}
+	}
 }
 
 void
