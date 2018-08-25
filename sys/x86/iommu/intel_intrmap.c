@@ -374,7 +374,7 @@ dmar_fini_irt(struct dmar_unit *unit)
 		dmar_disable_ir(unit);
 		dmar_qi_invalidate_iec_glob(unit);
 		vmem_destroy(unit->irtids);
-		kmem_free(kernel_arena, (vm_offset_t)unit->irt,
-		    unit->irte_cnt * sizeof(dmar_irte_t));
+		kmem_free((vm_offset_t)unit->irt, unit->irte_cnt *
+		    sizeof(dmar_irte_t));
 	}
 }

@@ -475,7 +475,7 @@ void
 contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
 
-	kmem_free(kernel_arena, (vm_offset_t)addr, size);
+	kmem_free((vm_offset_t)addr, size);
 	malloc_type_freed(type, round_page(size));
 }
 

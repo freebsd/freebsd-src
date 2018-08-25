@@ -195,7 +195,7 @@ ecc_ei_inject(int count)
 			pause_sbt("ecc_ei_inject", delay_ms * SBT_1MS, 0, 0);
 	}
 
-	kmem_free(kernel_arena, memory, PAGE_SIZE);
+	kmem_free(memory, PAGE_SIZE);
 }
 
 static int

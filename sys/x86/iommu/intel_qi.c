@@ -444,7 +444,7 @@ dmar_fini_qi(struct dmar_unit *unit)
 	    ("dmar%d: waiters on disabled queue", unit->unit));
 	DMAR_UNLOCK(unit);
 
-	kmem_free(kernel_arena, unit->inv_queue, unit->inv_queue_size);
+	kmem_free(unit->inv_queue, unit->inv_queue_size);
 	unit->inv_queue = 0;
 	unit->inv_queue_size = 0;
 	unit->qi_enabled = 0;

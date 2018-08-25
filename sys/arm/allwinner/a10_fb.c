@@ -192,7 +192,7 @@ a10fb_allocfb(struct a10fb_softc *sc)
 static void
 a10fb_freefb(struct a10fb_softc *sc)
 {
-	kmem_free(kernel_arena, sc->vaddr, sc->fbsize);
+	kmem_free(sc->vaddr, sc->fbsize);
 }
 
 static int

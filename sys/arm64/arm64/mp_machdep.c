@@ -502,8 +502,7 @@ start_cpu(u_int id, uint64_t target_cpu)
 		    ("Failed to start CPU %u (%lx)\n", id, target_cpu));
 
 		pcpu_destroy(pcpup);
-		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],
-		    DPCPU_SIZE);
+		kmem_free((vm_offset_t)dpcpu[cpuid - 1], DPCPU_SIZE);
 		dpcpu[cpuid - 1] = NULL;
 		mp_ncpus--;
 
