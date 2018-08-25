@@ -212,7 +212,7 @@ static inline void
 lio_dma_free(size_t size, void *cpu_addr)
 {
 
-	kmem_free(kmem_arena, (vm_offset_t)cpu_addr, size);
+	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
 static inline uint64_t

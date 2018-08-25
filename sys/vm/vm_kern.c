@@ -462,6 +462,10 @@ retry:
 		m->valid = VM_PAGE_BITS_ALL;
 		pmap_enter(kernel_pmap, addr + i, m, prot,
 		    prot | PMAP_ENTER_WIRED, 0);
+#if VM_NRESERVLEVEL > 0
+		if (__predict_false((prot & VM_PROT_EXECUTE) != 0))
+			m->oflags |= VPO_KMEM_EXEC;
+#endif
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -497,9 +501,10 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
  *	A physical page must exist within the specified object at each index
  *	that is being unmapped.
  */
-static int
+static struct vmem *
 _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
+	struct vmem *arena;
 	vm_page_t m, next;
 	vm_offset_t end, offset;
 	int domain;
@@ -508,13 +513,21 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	    ("kmem_unback: only supports kernel object."));
 
 	if (size == 0)
-		return (0);
+		return (NULL);
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
 	VM_OBJECT_WLOCK(object);
 	m = vm_page_lookup(object, atop(offset)); 
 	domain = vm_phys_domain(m);
+#if VM_NRESERVLEVEL > 0
+	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
+		arena = vm_dom[domain].vmd_kernel_arena;
+	else
+		arena = vm_dom[domain].vmd_kernel_rwx_arena;
+#else
+	arena = vm_dom[domain].vmd_kernel_arena;
+#endif
 	for (; offset < end; offset += PAGE_SIZE, m = next) {
 		next = vm_page_next(m);
 		vm_page_unwire(m, PQ_NONE);
@@ -522,14 +535,14 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	}
 	VM_OBJECT_WUNLOCK(object);
 
-	return (domain);
+	return (arena);
 }
 
 void
 kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
 
-	_kmem_unback(object, addr, size);
+	(void)_kmem_unback(object, addr, size);
 }
 
 /*
@@ -539,30 +552,14 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
  *	original allocation.
  */
 void
-kmem_free(struct vmem *vmem, vm_offset_t addr, vm_size_t size)
+kmem_free(vm_offset_t addr, vm_size_t size)
 {
 	struct vmem *arena;
-	int domain;
-
-#if VM_NRESERVLEVEL > 0
-	KASSERT(vmem == kernel_arena || vmem == kernel_rwx_arena,
-	    ("kmem_free: Only kernel_arena or kernel_rwx_arena are supported."));
-#else
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_free: Only kernel_arena is supported."));
-#endif
 
 	size = round_page(size);
-	domain = _kmem_unback(kernel_object, addr, size);
-#if VM_NRESERVLEVEL > 0
-	if (__predict_true(vmem == kernel_arena))
-		arena = vm_dom[domain].vmd_kernel_arena;
-	else
-		arena = vm_dom[domain].vmd_kernel_rwx_arena;
-#else
-	arena = vm_dom[domain].vmd_kernel_arena;
-#endif
-	vmem_free(arena, addr, size);
+	arena = _kmem_unback(kernel_object, addr, size);
+	if (arena != NULL)
+		vmem_free(arena, addr, size);
 }
 
 /*

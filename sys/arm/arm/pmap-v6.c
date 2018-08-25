@@ -2242,8 +2242,7 @@ pmap_pinit(pmap_t pmap)
 			 *      UMA_ZONE_NOFREE flag, it's important to leave
 			 *      no allocation in pmap if initialization failed.
 			 */
-			kmem_free(kernel_arena, (vm_offset_t)pmap->pm_pt1,
-			    NB_IN_PT1);
+			kmem_free((vm_offset_t)pmap->pm_pt1, NB_IN_PT1);
 			pmap->pm_pt1 = NULL;
 			return (0);
 		}

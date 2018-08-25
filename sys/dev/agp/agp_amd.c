@@ -119,8 +119,8 @@ agp_amd_alloc_gatt(device_t dev)
 		if (bootverbose)
 			device_printf(dev,
 				      "failed to allocate page directory\n");
-		kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
-		    entries * sizeof(u_int32_t));
+		kmem_free((vm_offset_t)gatt->ag_virtual, entries *
+		    sizeof(u_int32_t));
 		free(gatt, M_AGP);
 		return 0;
 	}
@@ -168,9 +168,9 @@ agp_amd_alloc_gatt(device_t dev)
 static void
 agp_amd_free_gatt(struct agp_amd_gatt *gatt)
 {
-	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_vdir, AGP_PAGE_SIZE);
-	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
-	    gatt->ag_entries * sizeof(u_int32_t));
+	kmem_free((vm_offset_t)gatt->ag_vdir, AGP_PAGE_SIZE);
+	kmem_free((vm_offset_t)gatt->ag_virtual, gatt->ag_entries *
+	    sizeof(u_int32_t));
 	free(gatt, M_AGP);
 }
 
