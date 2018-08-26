@@ -149,7 +149,7 @@ rndtest_harvest(struct rndtest_state *rsp, void *buf, u_int len)
 		rndstats.rst_discard += len;
 	else
 	/* MarkM: FIX!! Check that this does not swamp the harvester! */
-	random_harvest_queue(buf, len, len*NBBY/2, RANDOM_PURE_RNDTEST);
+	random_harvest_queue(buf, len, RANDOM_PURE_RNDTEST);
 }
 
 static void

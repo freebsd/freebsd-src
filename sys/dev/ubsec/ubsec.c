@@ -260,7 +260,7 @@ static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
 	/* MarkM: FIX!! Check that this does not swamp the harvester! */
-	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_UBSEC);
+	random_harvest_queue(buf, count, RANDOM_PURE_UBSEC);
 }
 
 static int

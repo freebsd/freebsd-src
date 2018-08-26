@@ -2821,12 +2821,9 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	clean		"rt2860.fw"
 dev/random/random_infra.c	optional random
 dev/random/random_harvestq.c	optional random
-dev/random/randomdev.c		optional random random_yarrow | \
-					 random !random_yarrow !random_loadable
-dev/random/yarrow.c		optional random random_yarrow
-dev/random/fortuna.c		optional random !random_yarrow !random_loadable
-dev/random/hash.c		optional random random_yarrow | \
-					 random !random_yarrow !random_loadable
+dev/random/randomdev.c		optional random
+dev/random/fortuna.c		optional random !random_loadable
+dev/random/hash.c		optional random
 dev/rc/rc.c			optional rc
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re

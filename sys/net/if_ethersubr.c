@@ -514,7 +514,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	random_harvest_queue_ether(m, sizeof(*m), 2);
+	random_harvest_queue_ether(m, sizeof(*m));
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 

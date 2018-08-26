@@ -2363,7 +2363,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 #endif
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
-	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	/* This is the fast path allocation */
 	CTR4(KTR_UMA, "uma_zalloc_arg thread %x zone %s(%p) flags %d",
@@ -2572,7 +2572,7 @@ uma_zalloc_domain(uma_zone_t zone, void *udata, int domain, int flags)
 {
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
-	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	/* This is the fast path allocation */
 	CTR5(KTR_UMA,
@@ -3032,7 +3032,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 #endif
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
-	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
@@ -3208,7 +3208,7 @@ uma_zfree_domain(uma_zone_t zone, void *item, void *udata)
 {
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
-	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
 
 	CTR2(KTR_UMA, "uma_zfree_domain thread %x zone %s", curthread,
 	    zone->uz_name);
