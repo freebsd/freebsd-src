@@ -457,7 +457,7 @@ glxsb_rnd(void *v)
 		value = bus_read_4(sc->sc_sr, SB_RANDOM_NUM);
 		/* feed with one uint32 */
 		/* MarkM: FIX!! Check that this does not swamp the harvester! */
-		random_harvest_queue(&value, sizeof(value), 32/2, RANDOM_PURE_GLXSB);
+		random_harvest_queue(&value, sizeof(value), RANDOM_PURE_GLXSB);
 	}
 
 	callout_reset(&sc->sc_rngco, sc->sc_rnghz, glxsb_rnd, sc);

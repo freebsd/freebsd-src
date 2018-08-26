@@ -38,10 +38,9 @@ struct harvest_event {
 	uint32_t	he_somecounter;		/* fast counter for clock jitter */
 	uint32_t	he_entropy[HARVESTSIZE];/* some harvested entropy */
 	uint8_t		he_size;		/* harvested entropy byte count */
-	uint8_t		he_bits;		/* stats about the entropy */
 	uint8_t		he_destination;		/* destination pool of this entropy */
 	uint8_t		he_source;		/* origin of the entropy */
-} __packed;
+};
 
 void read_rate_increment(u_int);
 
