@@ -1823,7 +1823,7 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	TMPFS_NODE_UNLOCK(node);
 
 	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-	random_harvest_queue(node, sizeof(*node), 1, RANDOM_FS_ATIME);
+	random_harvest_queue(node, sizeof(*node), RANDOM_FS_ATIME);
 }
 
 void

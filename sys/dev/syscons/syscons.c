@@ -3734,7 +3734,7 @@ next_code:
 	sc_touch_scrn_saver();
 
     if (!(flags & SCGETC_CN))
-	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
+	random_harvest_queue(&c, sizeof(c), RANDOM_KEYBOARD);
 
     if (sc->kbd_open_level == 0 && scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);

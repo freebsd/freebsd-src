@@ -149,12 +149,12 @@ loop:
 		*((struct ufs1_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din1;
 		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-		random_harvest_queue(&(ip->i_din1), sizeof(ip->i_din1), 1, RANDOM_FS_ATIME);
+		random_harvest_queue(&(ip->i_din1), sizeof(ip->i_din1), RANDOM_FS_ATIME);
 	} else {
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
 		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), 1, RANDOM_FS_ATIME);
+		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), RANDOM_FS_ATIME);
 	}
 	if (waitfor)
 		error = bwrite(bp);

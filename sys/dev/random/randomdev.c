@@ -166,7 +166,7 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 			 * Belt-and-braces.
 			 * Round up the read length to a crypto block size multiple,
 			 * which is what the underlying generator is expecting.
-			 * See the random_buf size requirements in the Yarrow/Fortuna code.
+			 * See the random_buf size requirements in the Fortuna code.
 			 */
 			read_len = roundup(read_len, RANDOM_BLOCKSIZE);
 			/* Work in chunks page-sized or less */
@@ -250,7 +250,6 @@ randomdev_accumulate(uint8_t *buf, u_int count)
 	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
 		event.he_somecounter = (uint32_t)get_cyclecount();
 		event.he_size = sizeof(event.he_entropy);
-		event.he_bits = event.he_size/8;
 		event.he_source = RANDOM_CACHED;
 		event.he_destination = destination++; /* Harmless cheating */
 		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));

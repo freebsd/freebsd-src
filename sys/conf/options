@@ -983,9 +983,6 @@ RACCT_DEFAULT_TO_DISABLED	opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
-# Which CSPRNG hash we get.
-# If Yarrow is not chosen, Fortuna is selected.
-RANDOM_YARROW	opt_global.h
 # With this, no entropy processor is loaded, but the entropy
 # harvesting infrastructure is present. This means an entropy
 # processor may be loaded as a module.
