@@ -719,7 +719,7 @@ csa_initialize(sc_p scp)
 	 * the codec is pumping ADC data across the AC-link.
 	 */
 	acisv = 0;
-	for (i = 0 ; i < 1000 ; i++) {
+	for (i = 0 ; i < 2000 ; i++) {
 		/*
 		 * First, lets wait a short while to let things settle out a bit,
 		 * and to prevent retrying the read too quickly.
