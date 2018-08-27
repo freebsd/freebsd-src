@@ -1265,6 +1265,12 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			err(EX_OSERR, "%s", from_name);
 		}
 	}
+	if (safecopy && fsync(to_fd) == -1) {
+		serrno = errno;
+		(void)unlink(to_name);
+		errno = serrno;
+		err(EX_OSERR, "fsync failed for %s", to_name);
+	}
 	return (digest_end(&ctx, NULL));
 }
 
