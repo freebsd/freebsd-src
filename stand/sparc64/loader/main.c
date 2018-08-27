@@ -79,7 +79,7 @@ extern char bootprog_info[];
 
 enum {
 	HEAPVA		= 0x800000,
-	HEAPSZ		= 0x1000000,
+	HEAPSZ		= 0x3000000,
 	LOADSZ		= 0x1000000	/* for kernel and modules */
 };
 
