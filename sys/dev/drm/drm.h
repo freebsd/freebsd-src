@@ -1145,4 +1145,15 @@ typedef struct drm_mm_init_arg drm_mm_init_arg_t;
 typedef enum drm_bo_type drm_bo_type_t;
 #endif
 
+#define DRM_PORT "graphics/drm-legacy-kmod"
+
+#define DRM_OBSOLETE(dev)							\
+    do {									\
+	device_printf(dev, "=======================================================\n"); \
+	device_printf(dev, "This code is obsolete abandonware. Install the " DRM_PORT " pkg\n"); \
+	device_printf(dev, "=======================================================\n"); \
+	gone_in_dev(dev, 13, "drm drivers");					\
+    } while (0)
+
+
 #endif
