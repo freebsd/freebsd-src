@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.379 2018/02/05 05:36:49 tb Exp $ */
+/* $OpenBSD: channels.c,v 1.384 2018/07/27 12:03:17 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -79,9 +79,10 @@
 #include "channels.h"
 #include "compat.h"
 #include "canohost.h"
-#include "key.h"
+#include "sshkey.h"
 #include "authfd.h"
 #include "pathnames.h"
+#include "match.h"
 
 /* -- agent forwarding */
 #define	NUM_SOCKS	10
@@ -97,6 +98,10 @@
 /* Maximum number of fake X11 displays to try. */
 #define MAX_DISPLAYS  1000
 
+/* Per-channel callback for pre/post select() actions */
+typedef void chan_fn(struct ssh *, Channel *c,
+    fd_set *readset, fd_set *writeset);
+
 /*
  * Data structure for storing which hosts are permitted for forward requests.
  * The local sides of any remote forwards are stored in this array to prevent
@@ -106,17 +111,40 @@
 /* XXX: streamlocal wants a path instead of host:port */
 /*      Overload host_to_connect; we could just make this match Forward */
 /*	XXX - can we use listen_host instead of listen_path? */
-typedef struct {
+struct permission {
 	char *host_to_connect;		/* Connect to 'host'. */
 	int port_to_connect;		/* Connect to 'port'. */
 	char *listen_host;		/* Remote side should listen address. */
 	char *listen_path;		/* Remote side should listen path. */
 	int listen_port;		/* Remote side should listen port. */
 	Channel *downstream;		/* Downstream mux*/
-} ForwardPermission;
+};
 
-typedef void chan_fn(struct ssh *, Channel *c,
-    fd_set *readset, fd_set *writeset);
+/*
+ * Stores the forwarding permission state for a single direction (local or
+ * remote).
+ */
+struct permission_set {
+	/*
+	 * List of all local permitted host/port pairs to allow for the
+	 * user.
+	 */
+	u_int num_permitted_user;
+	struct permission *permitted_user;
+
+	/*
+	 * List of all permitted host/port pairs to allow for the admin.
+	 */
+	u_int num_permitted_admin;
+	struct permission *permitted_admin;
+
+	/*
+	 * If this is true, all opens/listens are permitted.  This is the
+	 * case on the server on which we have to trust the client anyway,
+	 * and the user could do anything after logging in.
+	 */
+	int all_permitted;
+};
 
 /* Master structure for channels state */
 struct ssh_channels {
@@ -149,31 +177,8 @@ struct ssh_channels {
 	chan_fn **channel_post;
 
 	/* -- tcp forwarding */
-
-	/* List of all permitted host/port pairs to connect by the user. */
-	ForwardPermission *permitted_opens;
-
-	/* List of all permitted host/port pairs to connect by the admin. */
-	ForwardPermission *permitted_adm_opens;
-
-	/*
-	 * Number of permitted host/port pairs in the array permitted by
-	 * the user.
-	 */
-	u_int num_permitted_opens;
-
-	/*
-	 * Number of permitted host/port pair in the array permitted by
-	 * the admin.
-	 */
-	u_int num_adm_permitted_opens;
-
-	/*
-	 * If this is true, all opens are permitted.  This is the case on
-	 * the server on which we have to trust the client anyway, and the
-	 * user could do anything after logging in anyway.
-	 */
-	int all_opens_permitted;
+	struct permission_set local_perms;
+	struct permission_set remote_perms;
 
 	/* -- X11 forwarding */
 
@@ -448,50 +453,95 @@ channel_close_fds(struct ssh *ssh, Channel *c)
 }
 
 static void
-fwd_perm_clear(ForwardPermission *fp)
+fwd_perm_clear(struct permission *perm)
 {
-	free(fp->host_to_connect);
-	free(fp->listen_host);
-	free(fp->listen_path);
-	bzero(fp, sizeof(*fp));
+	free(perm->host_to_connect);
+	free(perm->listen_host);
+	free(perm->listen_path);
+	bzero(perm, sizeof(*perm));
 }
 
-enum { FWDPERM_USER, FWDPERM_ADMIN };
+/* Returns an printable name for the specified forwarding permission list */
+static const char *
+fwd_ident(int who, int where)
+{
+	if (who == FORWARD_ADM) {
+		if (where == FORWARD_LOCAL)
+			return "admin local";
+		else if (where == FORWARD_REMOTE)
+			return "admin remote";
+	} else if (who == FORWARD_USER) {
+		if (where == FORWARD_LOCAL)
+			return "user local";
+		else if (where == FORWARD_REMOTE)
+			return "user remote";
+	}
+	fatal("Unknown forward permission list %d/%d", who, where);
+}
 
+/* Returns the forwarding permission list for the specified direction */
+static struct permission_set *
+permission_set_get(struct ssh *ssh, int where)
+{
+	struct ssh_channels *sc = ssh->chanctxt;
+
+	switch (where) {
+	case FORWARD_LOCAL:
+		return &sc->local_perms;
+		break;
+	case FORWARD_REMOTE:
+		return &sc->remote_perms;
+		break;
+	default:
+		fatal("%s: invalid forwarding direction %d", __func__, where);
+	}
+}
+
+/* Reutrns pointers to the specified forwarding list and its element count */
+static void
+permission_set_get_array(struct ssh *ssh, int who, int where,
+    struct permission ***permpp, u_int **npermpp)
+{
+	struct permission_set *pset = permission_set_get(ssh, where);
+
+	switch (who) {
+	case FORWARD_USER:
+		*permpp = &pset->permitted_user;
+		*npermpp = &pset->num_permitted_user;
+		break;
+	case FORWARD_ADM:
+		*permpp = &pset->permitted_admin;
+		*npermpp = &pset->num_permitted_admin;
+		break;
+	default:
+		fatal("%s: invalid forwarding client %d", __func__, who);
+	}
+}
+
+/* Adds an entry to the spcified forwarding list */
 static int
-fwd_perm_list_add(struct ssh *ssh, int which,
+permission_set_add(struct ssh *ssh, int who, int where,
     const char *host_to_connect, int port_to_connect,
     const char *listen_host, const char *listen_path, int listen_port,
     Channel *downstream)
 {
-	ForwardPermission **fpl;
-	u_int n, *nfpl;
+	struct permission **permp;
+	u_int n, *npermp;
 
-	switch (which) {
-	case FWDPERM_USER:
-		fpl = &ssh->chanctxt->permitted_opens;
-		nfpl = &ssh->chanctxt->num_permitted_opens;
-		break;
-	case FWDPERM_ADMIN:
-		fpl = &ssh->chanctxt->permitted_adm_opens;
-		nfpl = &ssh->chanctxt->num_adm_permitted_opens;
-		break;
-	default:
-		fatal("%s: invalid list %d", __func__, which);
-	}
+	permission_set_get_array(ssh, who, where, &permp, &npermp);
 
-	if (*nfpl >= INT_MAX)
-		fatal("%s: overflow", __func__);
+	if (*npermp >= INT_MAX)
+		fatal("%s: %s overflow", __func__, fwd_ident(who, where));
 
-	*fpl = xrecallocarray(*fpl, *nfpl, *nfpl + 1, sizeof(**fpl));
-	n = (*nfpl)++;
+	*permp = xrecallocarray(*permp, *npermp, *npermp + 1, sizeof(**permp));
+	n = (*npermp)++;
 #define MAYBE_DUP(s) ((s == NULL) ? NULL : xstrdup(s))
-	(*fpl)[n].host_to_connect = MAYBE_DUP(host_to_connect);
-	(*fpl)[n].port_to_connect = port_to_connect;
-	(*fpl)[n].listen_host = MAYBE_DUP(listen_host);
-	(*fpl)[n].listen_path = MAYBE_DUP(listen_path);
-	(*fpl)[n].listen_port = listen_port;
-	(*fpl)[n].downstream = downstream;
+	(*permp)[n].host_to_connect = MAYBE_DUP(host_to_connect);
+	(*permp)[n].port_to_connect = port_to_connect;
+	(*permp)[n].listen_host = MAYBE_DUP(listen_host);
+	(*permp)[n].listen_path = MAYBE_DUP(listen_path);
+	(*permp)[n].listen_port = listen_port;
+	(*permp)[n].downstream = downstream;
 #undef MAYBE_DUP
 	return (int)n;
 }
@@ -500,30 +550,31 @@ static void
 mux_remove_remote_forwardings(struct ssh *ssh, Channel *c)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
-	ForwardPermission *fp;
+	struct permission_set *pset = &sc->local_perms;
+	struct permission *perm;
 	int r;
 	u_int i;
 
-	for (i = 0; i < sc->num_permitted_opens; i++) {
-		fp = &sc->permitted_opens[i];
-		if (fp->downstream != c)
+	for (i = 0; i < pset->num_permitted_user; i++) {
+		perm = &pset->permitted_user[i];
+		if (perm->downstream != c)
 			continue;
 
 		/* cancel on the server, since mux client is gone */
 		debug("channel %d: cleanup remote forward for %s:%u",
-		    c->self, fp->listen_host, fp->listen_port);
+		    c->self, perm->listen_host, perm->listen_port);
 		if ((r = sshpkt_start(ssh, SSH2_MSG_GLOBAL_REQUEST)) != 0 ||
 		    (r = sshpkt_put_cstring(ssh,
 		    "cancel-tcpip-forward")) != 0 ||
 		    (r = sshpkt_put_u8(ssh, 0)) != 0 ||
 		    (r = sshpkt_put_cstring(ssh,
-		    channel_rfwd_bind_host(fp->listen_host))) != 0 ||
-		    (r = sshpkt_put_u32(ssh, fp->listen_port)) != 0 ||
+		    channel_rfwd_bind_host(perm->listen_host))) != 0 ||
+		    (r = sshpkt_put_u32(ssh, perm->listen_port)) != 0 ||
 		    (r = sshpkt_send(ssh)) != 0) {
 			fatal("%s: channel %i: %s", __func__,
 			    c->self, ssh_err(r));
 		}
-		fwd_perm_clear(fp); /* unregister */
+		fwd_perm_clear(perm); /* unregister */
 	}
 }
 
@@ -557,9 +608,11 @@ channel_free(struct ssh *ssh, Channel *c)
 	if (c->type == SSH_CHANNEL_MUX_CLIENT)
 		mux_remove_remote_forwardings(ssh, c);
 
-	s = channel_open_message(ssh);
-	debug3("channel %d: status: %s", c->self, s);
-	free(s);
+	if (log_level_get() >= SYSLOG_LEVEL_DEBUG3) {
+		s = channel_open_message(ssh);
+		debug3("channel %d: status: %s", c->self, s);
+		free(s);
+	}
 
 	channel_close_fds(ssh, c);
 	sshbuf_free(c->input);
@@ -2599,7 +2652,7 @@ channel_output_poll(struct ssh *ssh)
  *      SSH_CHANNEL_MUX_PROXY channel and replace the mux clients ID
  *      with the newly allocated channel ID.
  * 2) Upstream messages are received by matching SSH_CHANNEL_MUX_PROXY
- *    channels and procesed by channel_proxy_upstream(). The local channel ID
+ *    channels and processed by channel_proxy_upstream(). The local channel ID
  *    is then translated back to the original mux client ID.
  * 3) In both cases we need to keep track of matching SSH2_MSG_CHANNEL_CLOSE
  *    messages so we can clean up SSH_CHANNEL_MUX_PROXY channels.
@@ -2610,7 +2663,7 @@ channel_output_poll(struct ssh *ssh)
  *    channel. E.g. client_request_forwarded_tcpip() needs to figure
  *    out whether the request is addressed to the local client or a
  *    specific downstream client based on the listen-address/port.
- * 6) Agent and X11-Forwarding have a similar problem and are currenly
+ * 6) Agent and X11-Forwarding have a similar problem and are currently
  *    not supported as the matching session/channel cannot be identified
  *    easily.
  */
@@ -2729,7 +2782,7 @@ channel_proxy_downstream(struct ssh *ssh, Channel *downstream)
 			goto out;
 		}
 		/* Record that connection to this host/port is permitted. */
-		fwd_perm_list_add(ssh, FWDPERM_USER, "<mux>", -1,
+		permission_set_add(ssh, FORWARD_USER, FORWARD_LOCAL, "<mux>", -1,
 		    listen_host, NULL, (int)listen_port, downstream);
 		listen_host = NULL;
 		break;
@@ -2787,7 +2840,7 @@ channel_proxy_upstream(Channel *c, int type, u_int32_t seq, struct ssh *ssh)
 	/*
 	 * When receiving packets from the peer we need to check whether we
 	 * need to forward the packets to the mux client. In this case we
-	 * restore the orignal channel id and keep track of CLOSE messages,
+	 * restore the original channel id and keep track of CLOSE messages,
 	 * so we can cleanup the channel.
 	 */
 	if (c == NULL || c->type != SSH_CHANNEL_MUX_PROXY)
@@ -3637,11 +3690,78 @@ channel_setup_local_fwd_listener(struct ssh *ssh,
 	}
 }
 
+/* Matches a remote forwarding permission against a requested forwarding */
+static int
+remote_open_match(struct permission *allowed_open, struct Forward *fwd)
+{
+	int ret;
+	char *lhost;
+
+	/* XXX add ACLs for streamlocal */
+	if (fwd->listen_path != NULL)
+		return 1;
+
+	if (fwd->listen_host == NULL || allowed_open->listen_host == NULL)
+		return 0;
+
+	if (allowed_open->listen_port != FWD_PERMIT_ANY_PORT &&
+	    allowed_open->listen_port != fwd->listen_port)
+		return 0;
+
+	/* Match hostnames case-insensitively */
+	lhost = xstrdup(fwd->listen_host);
+	lowercase(lhost);
+	ret = match_pattern(lhost, allowed_open->listen_host);
+	free(lhost);
+
+	return ret;
+}
+
+/* Checks whether a requested remote forwarding is permitted */
+static int
+check_rfwd_permission(struct ssh *ssh, struct Forward *fwd)
+{
+	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->remote_perms;
+	u_int i, permit, permit_adm = 1;
+	struct permission *perm;
+
+	/* XXX apply GatewayPorts override before checking? */
+
+	permit = pset->all_permitted;
+	if (!permit) {
+		for (i = 0; i < pset->num_permitted_user; i++) {
+			perm = &pset->permitted_user[i];
+			if (remote_open_match(perm, fwd)) {
+				permit = 1;
+				break;
+			}
+		}
+	}
+
+	if (pset->num_permitted_admin > 0) {
+		permit_adm = 0;
+		for (i = 0; i < pset->num_permitted_admin; i++) {
+			perm = &pset->permitted_admin[i];
+			if (remote_open_match(perm, fwd)) {
+				permit_adm = 1;
+				break;
+			}
+		}
+	}
+
+	return permit && permit_adm;
+}
+
 /* protocol v2 remote port fwd, used by sshd */
 int
 channel_setup_remote_fwd_listener(struct ssh *ssh, struct Forward *fwd,
     int *allocated_listen_port, struct ForwardOptions *fwd_opts)
 {
+	if (!check_rfwd_permission(ssh, fwd)) {
+		packet_send_debug("port forwarding refused");
+		return 0;
+	}
 	if (fwd->listen_path != NULL) {
 		return channel_setup_fwd_listener_streamlocal(ssh,
 		    SSH_CHANNEL_RUNIX_LISTENER, fwd, fwd_opts);
@@ -3671,7 +3791,7 @@ channel_rfwd_bind_host(const char *listen_host)
  * Initiate forwarding of connections to port "port" on remote host through
  * the secure channel to host:port from local side.
  * Returns handle (index) for updating the dynamic listen port with
- * channel_update_permitted_opens().
+ * channel_update_permission().
  */
 int
 channel_request_remote_forwarding(struct ssh *ssh, struct Forward *fwd)
@@ -3724,7 +3844,7 @@ channel_request_remote_forwarding(struct ssh *ssh, struct Forward *fwd)
 				listen_host = xstrdup(fwd->listen_host);
 			listen_port = fwd->listen_port;
 		}
-		idx = fwd_perm_list_add(ssh, FWDPERM_USER,
+		idx = permission_set_add(ssh, FORWARD_USER, FORWARD_LOCAL,
 		    host_to_connect, port_to_connect,
 		    listen_host, listen_path, listen_port, NULL);
 	}
@@ -3732,7 +3852,7 @@ channel_request_remote_forwarding(struct ssh *ssh, struct Forward *fwd)
 }
 
 static int
-open_match(ForwardPermission *allowed_open, const char *requestedhost,
+open_match(struct permission *allowed_open, const char *requestedhost,
     int requestedport)
 {
 	if (allowed_open->host_to_connect == NULL)
@@ -3753,7 +3873,7 @@ open_match(ForwardPermission *allowed_open, const char *requestedhost,
  * and what we've sent to the remote server (channel_rfwd_bind_host)
  */
 static int
-open_listen_match_tcpip(ForwardPermission *allowed_open,
+open_listen_match_tcpip(struct permission *allowed_open,
     const char *requestedhost, u_short requestedport, int translate)
 {
 	const char *allowed_host;
@@ -3768,14 +3888,14 @@ open_listen_match_tcpip(ForwardPermission *allowed_open,
 	allowed_host = translate ?
 	    channel_rfwd_bind_host(allowed_open->listen_host) :
 	    allowed_open->listen_host;
-	if (allowed_host == NULL ||
+	if (allowed_host == NULL || requestedhost == NULL ||
 	    strcmp(allowed_host, requestedhost) != 0)
 		return 0;
 	return 1;
 }
 
 static int
-open_listen_match_streamlocal(ForwardPermission *allowed_open,
+open_listen_match_streamlocal(struct permission *allowed_open,
     const char *requestedpath)
 {
 	if (allowed_open->host_to_connect == NULL)
@@ -3797,17 +3917,18 @@ channel_request_rforward_cancel_tcpip(struct ssh *ssh,
     const char *host, u_short port)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	int r;
 	u_int i;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	for (i = 0; i < sc->num_permitted_opens; i++) {
-		fp = &sc->permitted_opens[i];
-		if (open_listen_match_tcpip(fp, host, port, 0))
+	for (i = 0; i < pset->num_permitted_user; i++) {
+		perm = &pset->permitted_user[i];
+		if (open_listen_match_tcpip(perm, host, port, 0))
 			break;
-		fp = NULL;
+		perm = NULL;
 	}
-	if (fp == NULL) {
+	if (perm == NULL) {
 		debug("%s: requested forward not found", __func__);
 		return -1;
 	}
@@ -3819,7 +3940,7 @@ channel_request_rforward_cancel_tcpip(struct ssh *ssh,
 	    (r = sshpkt_send(ssh)) != 0)
 		fatal("%s: send cancel: %s", __func__, ssh_err(r));
 
-	fwd_perm_clear(fp); /* unregister */
+	fwd_perm_clear(perm); /* unregister */
 
 	return 0;
 }
@@ -3832,17 +3953,18 @@ static int
 channel_request_rforward_cancel_streamlocal(struct ssh *ssh, const char *path)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	int r;
 	u_int i;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	for (i = 0; i < sc->num_permitted_opens; i++) {
-		fp = &sc->permitted_opens[i];
-		if (open_listen_match_streamlocal(fp, path))
+	for (i = 0; i < pset->num_permitted_user; i++) {
+		perm = &pset->permitted_user[i];
+		if (open_listen_match_streamlocal(perm, path))
 			break;
-		fp = NULL;
+		perm = NULL;
 	}
-	if (fp == NULL) {
+	if (perm == NULL) {
 		debug("%s: requested forward not found", __func__);
 		return -1;
 	}
@@ -3854,7 +3976,7 @@ channel_request_rforward_cancel_streamlocal(struct ssh *ssh, const char *path)
 	    (r = sshpkt_send(ssh)) != 0)
 		fatal("%s: send cancel: %s", __func__, ssh_err(r));
 
-	fwd_perm_clear(fp); /* unregister */
+	fwd_perm_clear(perm); /* unregister */
 
 	return 0;
 }
@@ -3876,25 +3998,64 @@ channel_request_rforward_cancel(struct ssh *ssh, struct Forward *fwd)
 }
 
 /*
- * Permits opening to any host/port if permitted_opens[] is empty.  This is
+ * Permits opening to any host/port if permitted_user[] is empty.  This is
  * usually called by the server, because the user could connect to any port
  * anyway, and the server has no way to know but to trust the client anyway.
  */
 void
-channel_permit_all_opens(struct ssh *ssh)
+channel_permit_all(struct ssh *ssh, int where)
 {
-	if (ssh->chanctxt->num_permitted_opens == 0)
-		ssh->chanctxt->all_opens_permitted = 1;
+	struct permission_set *pset = permission_set_get(ssh, where);
+
+	if (pset->num_permitted_user == 0)
+		pset->all_permitted = 1;
 }
 
+/*
+ * Permit the specified host/port for forwarding.
+ */
 void
-channel_add_permitted_opens(struct ssh *ssh, char *host, int port)
+channel_add_permission(struct ssh *ssh, int who, int where,
+    char *host, int port)
 {
-	struct ssh_channels *sc = ssh->chanctxt;
+	int local = where == FORWARD_LOCAL;
+	struct permission_set *pset = permission_set_get(ssh, where);
 
-	debug("allow port forwarding to host %s port %d", host, port);
-	fwd_perm_list_add(ssh, FWDPERM_USER, host, port, NULL, NULL, 0, NULL);
-	sc->all_opens_permitted = 0;
+	debug("allow %s forwarding to host %s port %d",
+	    fwd_ident(who, where), host, port);
+	/*
+	 * Remote forwards set listen_host/port, local forwards set
+	 * host/port_to_connect.
+	 */
+	permission_set_add(ssh, who, where,
+	    local ? host : 0, local ? port : 0,
+	    local ? NULL : host, NULL, local ? 0 : port, NULL);
+	pset->all_permitted = 0;
+}
+
+/*
+ * Administratively disable forwarding.
+ */
+void
+channel_disable_admin(struct ssh *ssh, int where)
+{
+	channel_clear_permission(ssh, FORWARD_ADM, where);
+	permission_set_add(ssh, FORWARD_ADM, where,
+	    NULL, 0, NULL, NULL, 0, NULL);
+}
+
+/*
+ * Clear a list of permitted opens.
+ */
+void
+channel_clear_permission(struct ssh *ssh, int who, int where)
+{
+	struct permission **permp;
+	u_int *npermp;
+
+	permission_set_get_array(ssh, who, where, &permp, &npermp);
+	*permp = xrecallocarray(*permp, *npermp, 0, sizeof(**permp));
+	*npermp = 0;
 }
 
 /*
@@ -3903,61 +4064,26 @@ channel_add_permitted_opens(struct ssh *ssh, char *host, int port)
  * passed then they entry will be invalidated.
  */
 void
-channel_update_permitted_opens(struct ssh *ssh, int idx, int newport)
+channel_update_permission(struct ssh *ssh, int idx, int newport)
 {
-	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &ssh->chanctxt->local_perms;
 
-	if (idx < 0 || (u_int)idx >= sc->num_permitted_opens) {
-		debug("%s: index out of range: %d num_permitted_opens %d",
-		    __func__, idx, sc->num_permitted_opens);
+	if (idx < 0 || (u_int)idx >= pset->num_permitted_user) {
+		debug("%s: index out of range: %d num_permitted_user %d",
+		    __func__, idx, pset->num_permitted_user);
 		return;
 	}
 	debug("%s allowed port %d for forwarding to host %s port %d",
 	    newport > 0 ? "Updating" : "Removing",
 	    newport,
-	    sc->permitted_opens[idx].host_to_connect,
-	    sc->permitted_opens[idx].port_to_connect);
+	    pset->permitted_user[idx].host_to_connect,
+	    pset->permitted_user[idx].port_to_connect);
 	if (newport <= 0)
-		fwd_perm_clear(&sc->permitted_opens[idx]);
+		fwd_perm_clear(&pset->permitted_user[idx]);
 	else {
-		sc->permitted_opens[idx].listen_port =
+		pset->permitted_user[idx].listen_port =
 		    (datafellows & SSH_BUG_DYNAMIC_RPORT) ? 0 : newport;
 	}
-}
-
-int
-channel_add_adm_permitted_opens(struct ssh *ssh, char *host, int port)
-{
-	debug("config allows port forwarding to host %s port %d", host, port);
-	return fwd_perm_list_add(ssh, FWDPERM_ADMIN, host, port,
-	    NULL, NULL, 0, NULL);
-}
-
-void
-channel_disable_adm_local_opens(struct ssh *ssh)
-{
-	channel_clear_adm_permitted_opens(ssh);
-	fwd_perm_list_add(ssh, FWDPERM_ADMIN, NULL, 0, NULL, NULL, 0, NULL);
-}
-
-void
-channel_clear_permitted_opens(struct ssh *ssh)
-{
-	struct ssh_channels *sc = ssh->chanctxt;
-
-	sc->permitted_opens = xrecallocarray(sc->permitted_opens,
-	    sc->num_permitted_opens, 0, sizeof(*sc->permitted_opens));
-	sc->num_permitted_opens = 0;
-}
-
-void
-channel_clear_adm_permitted_opens(struct ssh *ssh)
-{
-	struct ssh_channels *sc = ssh->chanctxt;
-
-	sc->permitted_adm_opens = xrecallocarray(sc->permitted_adm_opens,
-	    sc->num_adm_permitted_opens, 0, sizeof(*sc->permitted_adm_opens));
-	sc->num_adm_permitted_opens = 0;
 }
 
 /* returns port number, FWD_PERMIT_ANY_PORT or -1 on error */
@@ -4148,19 +4274,21 @@ channel_connect_by_listen_address(struct ssh *ssh, const char *listen_host,
     u_short listen_port, char *ctype, char *rname)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	u_int i;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	for (i = 0; i < sc->num_permitted_opens; i++) {
-		fp = &sc->permitted_opens[i];
-		if (open_listen_match_tcpip(fp, listen_host, listen_port, 1)) {
-			if (fp->downstream)
-				return fp->downstream;
-			if (fp->port_to_connect == 0)
+	for (i = 0; i < pset->num_permitted_user; i++) {
+		perm = &pset->permitted_user[i];
+		if (open_listen_match_tcpip(perm,
+		    listen_host, listen_port, 1)) {
+			if (perm->downstream)
+				return perm->downstream;
+			if (perm->port_to_connect == 0)
 				return rdynamic_connect_prepare(ssh,
 				    ctype, rname);
 			return connect_to(ssh,
-			    fp->host_to_connect, fp->port_to_connect,
+			    perm->host_to_connect, perm->port_to_connect,
 			    ctype, rname);
 		}
 	}
@@ -4174,14 +4302,15 @@ channel_connect_by_listen_path(struct ssh *ssh, const char *path,
     char *ctype, char *rname)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	u_int i;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	for (i = 0; i < sc->num_permitted_opens; i++) {
-		fp = &sc->permitted_opens[i];
-		if (open_listen_match_streamlocal(fp, path)) {
+	for (i = 0; i < pset->num_permitted_user; i++) {
+		perm = &pset->permitted_user[i];
+		if (open_listen_match_streamlocal(perm, path)) {
 			return connect_to(ssh,
-			    fp->host_to_connect, fp->port_to_connect,
+			    perm->host_to_connect, perm->port_to_connect,
 			    ctype, rname);
 		}
 	}
@@ -4196,28 +4325,29 @@ channel_connect_to_port(struct ssh *ssh, const char *host, u_short port,
     char *ctype, char *rname, int *reason, const char **errmsg)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	struct channel_connect cctx;
 	Channel *c;
 	u_int i, permit, permit_adm = 1;
 	int sock;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	permit = sc->all_opens_permitted;
+	permit = pset->all_permitted;
 	if (!permit) {
-		for (i = 0; i < sc->num_permitted_opens; i++) {
-			fp = &sc->permitted_opens[i];
-			if (open_match(fp, host, port)) {
+		for (i = 0; i < pset->num_permitted_user; i++) {
+			perm = &pset->permitted_user[i];
+			if (open_match(perm, host, port)) {
 				permit = 1;
 				break;
 			}
 		}
 	}
 
-	if (sc->num_adm_permitted_opens > 0) {
+	if (pset->num_permitted_admin > 0) {
 		permit_adm = 0;
-		for (i = 0; i < sc->num_adm_permitted_opens; i++) {
-			fp = &sc->permitted_adm_opens[i];
-			if (open_match(fp, host, port)) {
+		for (i = 0; i < pset->num_permitted_admin; i++) {
+			perm = &pset->permitted_admin[i];
+			if (open_match(perm, host, port)) {
 				permit_adm = 1;
 				break;
 			}
@@ -4255,25 +4385,26 @@ channel_connect_to_path(struct ssh *ssh, const char *path,
     char *ctype, char *rname)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
+	struct permission_set *pset = &sc->local_perms;
 	u_int i, permit, permit_adm = 1;
-	ForwardPermission *fp;
+	struct permission *perm;
 
-	permit = sc->all_opens_permitted;
+	permit = pset->all_permitted;
 	if (!permit) {
-		for (i = 0; i < sc->num_permitted_opens; i++) {
-			fp = &sc->permitted_opens[i];
-			if (open_match(fp, path, PORT_STREAMLOCAL)) {
+		for (i = 0; i < pset->num_permitted_user; i++) {
+			perm = &pset->permitted_user[i];
+			if (open_match(perm, path, PORT_STREAMLOCAL)) {
 				permit = 1;
 				break;
 			}
 		}
 	}
 
-	if (sc->num_adm_permitted_opens > 0) {
+	if (pset->num_permitted_admin > 0) {
 		permit_adm = 0;
-		for (i = 0; i < sc->num_adm_permitted_opens; i++) {
-			fp = &sc->permitted_adm_opens[i];
-			if (open_match(fp, path, PORT_STREAMLOCAL)) {
+		for (i = 0; i < pset->num_permitted_admin; i++) {
+			perm = &pset->permitted_admin[i];
+			if (open_match(perm, path, PORT_STREAMLOCAL)) {
 				permit_adm = 1;
 				break;
 			}

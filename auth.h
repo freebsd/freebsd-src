@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.95 2018/03/03 03:15:51 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.96 2018/04/10 00:10:49 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -89,7 +89,7 @@ struct Authctxt {
 	struct sshkey	**prev_keys;
 	u_int		 nprev_keys;
 
-	/* Last used key and ancilliary information from active auth method */
+	/* Last used key and ancillary information from active auth method */
 	struct sshkey	*auth_method_key;
 	char		*auth_method_info;
 
@@ -187,8 +187,6 @@ int	auth2_challenge(struct ssh *, char *);
 void	auth2_challenge_stop(struct ssh *);
 int	bsdauth_query(void *, char **, char **, u_int *, char ***, u_int **);
 int	bsdauth_respond(void *, u_int, char **);
-int	skey_query(void *, char **, char **, u_int *, char ***, u_int **);
-int	skey_respond(void *, u_int, char **);
 
 int	allowed_user(struct passwd *);
 struct passwd * getpwnamallow(const char *user);
@@ -238,8 +236,6 @@ pid_t	subprocess(const char *, struct passwd *,
     const char *, int, char **, FILE **, u_int flags);
 
 int	 sys_auth_passwd(struct ssh *, const char *);
-
-#define SKEY_PROMPT "\nS/Key Password: "
 
 #if defined(KRB5) && !defined(HEIMDAL)
 #include <krb5.h>

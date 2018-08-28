@@ -751,7 +751,6 @@ with_solaris_privs
 with_osfsia
 with_zlib
 with_zlib_version_check
-with_skey
 with_ldns
 with_libedit
 with_audit
@@ -1447,7 +1446,6 @@ Optional Packages:
   --with-osfsia           Enable Digital Unix SIA
   --with-zlib=PATH        Use zlib in PATH
   --without-zlib-version-check Disable zlib version check
-  --with-skey[=PATH]      Enable S/Key support (optionally in PATH)
   --with-ldns[=PATH]      Use ldns for DNSSEC support (optionally in PATH)
   --with-libedit[=PATH]   Enable libedit support for sftp
   --with-audit=module     Enable audit support (modules=debug,bsm,linux)
@@ -5546,9 +5544,7 @@ _ACEOF
 
 fi
 
-if test -z "$LD" ; then
-	LD=$CC
-fi
+LD="$CC"
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for inline" >&5
@@ -5727,7 +5723,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5770,7 +5766,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5813,7 +5809,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5856,7 +5852,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5899,7 +5895,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5942,7 +5938,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5985,7 +5981,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6028,7 +6024,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6071,7 +6067,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6114,7 +6110,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6157,7 +6153,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6200,7 +6196,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6219,7 +6215,12 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
     if test "x$use_toolchain_hardening" = "x1"; then
-	{
+	# Cygwin GCC 7.x allows thunking on the CLI, but produces non-working
+	# code.  Unfortunately you only notice this at link time.
+	case "$host" in
+	*-*-cygwin*) ;;
+	*)
+	    {
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -mfunction-return=thunk" >&5
 $as_echo_n "checking if $CC supports compile flag -mfunction-return=thunk... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -6244,7 +6245,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6262,7 +6263,7 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 } # gcc
-	{
+	    {
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -mindirect-branch=thunk" >&5
 $as_echo_n "checking if $CC supports compile flag -mindirect-branch=thunk... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -6287,7 +6288,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6305,6 +6306,8 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 } # gcc
+	    ;;
+	esac
 	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -mretpoline" >&5
 $as_echo_n "checking if $CC supports compile flag -mretpoline... " >&6; }
@@ -6330,7 +6333,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6373,9 +6376,17 @@ int main(int argc, char **argv) {
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6410,7 +6421,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6453,9 +6464,17 @@ int main(int argc, char **argv) {
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6490,9 +6509,17 @@ int main(int argc, char **argv) {
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6527,9 +6554,17 @@ int main(int argc, char **argv) {
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6570,7 +6605,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -6944,6 +6979,7 @@ for ac_header in  \
 	sys/prctl.h \
 	sys/pstat.h \
 	sys/ptrace.h \
+	sys/random.h \
 	sys/select.h \
 	sys/stat.h \
 	sys/stream.h \
@@ -7154,7 +7190,7 @@ case "$host" in
 	# Some versions of VAC won't allow macro redefinitions at
 	# -qlanglevel=ansi, and autoconf 2.60 sometimes insists on using that
 	# particularly with older versions of vac or xlc.
-	# It also throws errors about null macro argments, but these are
+	# It also throws errors about null macro arguments, but these are
 	# not fatal.
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if compiler allows macro redefinitions" >&5
 $as_echo_n "checking if compiler allows macro redefinitions... " >&6; }
@@ -7178,7 +7214,6 @@ else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	      CC="`echo $CC | sed 's/-qlanglvl\=ansi//g'`"
-	      LD="`echo $LD | sed 's/-qlanglvl\=ansi//g'`"
 	      CFLAGS="`echo $CFLAGS | sed 's/-qlanglvl\=ansi//g'`"
 	      CPPFLAGS="`echo $CPPFLAGS | sed 's/-qlanglvl\=ansi//g'`"
 
@@ -7497,7 +7532,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -10195,7 +10230,7 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $func_calloc_0_nonnull" >&5
 $as_echo "$func_calloc_0_nonnull" >&6; }
 
-if test "x$func_calloc_0_nonnull" == "xyes"; then
+if test "x$func_calloc_0_nonnull" = "xyes"; then
 
 $as_echo "#define HAVE_CALLOC 1" >>confdefs.h
 
@@ -10386,94 +10421,6 @@ else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
-
-# Check whether user wants S/Key support
-SKEY_MSG="no"
-
-# Check whether --with-skey was given.
-if test "${with_skey+set}" = set; then :
-  withval=$with_skey;
-		if test "x$withval" != "xno" ; then
-
-			if test "x$withval" != "xyes" ; then
-				CPPFLAGS="$CPPFLAGS -I${withval}/include"
-				LDFLAGS="$LDFLAGS -L${withval}/lib"
-			fi
-
-
-$as_echo "#define SKEY 1" >>confdefs.h
-
-			LIBS="-lskey $LIBS"
-			SKEY_MSG="yes"
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for s/key support" >&5
-$as_echo_n "checking for s/key support... " >&6; }
-			cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdio.h>
-#include <skey.h>
-
-int
-main ()
-{
-
-	char *ff = skey_keyinfo(""); ff="";
-	exit(0);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-
-					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-					as_fn_error $? "** Incomplete or missing s/key libraries." "$LINENO" 5
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if skeychallenge takes 4 arguments" >&5
-$as_echo_n "checking if skeychallenge takes 4 arguments... " >&6; }
-			cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdio.h>
-#include <skey.h>
-
-int
-main ()
-{
-
-	(void)skeychallenge(NULL,"name","",0);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define SKEYCHALLENGE_4ARG 1" >>confdefs.h
-
-else
-
-				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-		fi
-
-
-fi
-
 
 # Check whether user wants to use ldns
 LDNS_MSG="no"
@@ -11074,7 +11021,7 @@ int main(int argc, char **argv) {
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -11117,9 +11064,17 @@ int main(int argc, char **argv) {
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -11178,6 +11133,7 @@ for ac_func in  \
 	getaddrinfo \
 	getcwd \
 	getgrouplist \
+	getline \
 	getnameinfo \
 	getopt \
 	getpagesize \
@@ -11186,6 +11142,7 @@ for ac_func in  \
 	getpgid \
 	_getpty \
 	getrlimit \
+	getrandom \
 	getsid \
 	getttyent \
 	glob \
@@ -13962,7 +13919,7 @@ LIBS="$saved_LIBS"
 
 ### Configure cryptographic random number support
 
-# Check wheter OpenSSL seeds itself
+# Check whether OpenSSL seeds itself
 if test "x$openssl" = "xyes" ; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether OpenSSL's PRNG is internally seeded" >&5
 $as_echo_n "checking whether OpenSSL's PRNG is internally seeded... " >&6; }
@@ -16072,7 +16029,7 @@ _ACEOF
 fi
 
 
-# We need int64_t or else certian parts of the compile will fail.
+# We need int64_t or else certain parts of the compile will fail.
 if test "x$ac_cv_have_int64_t" = "xno" && \
 	test "x$ac_cv_sizeof_long_int" != "x8" && \
 	test "x$ac_cv_sizeof_long_long_int" = "x0" ; then
@@ -21030,7 +20987,6 @@ echo "                       PAM support: $PAM_MSG"
 echo "                   OSF SIA support: $SIA_MSG"
 echo "                 KerberosV support: $KRB5_MSG"
 echo "                   SELinux support: $SELINUX_MSG"
-echo "                     S/KEY support: $SKEY_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "                   libldns support: $LDNS_MSG"

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.13 2017/12/21 00:41:22 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.14 2018/07/13 02:13:19 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -434,10 +434,13 @@ sshkey_tests(void)
 	ASSERT_PTR_NE(k1->cert->principals[1], NULL);
 	ASSERT_PTR_NE(k1->cert->principals[2], NULL);
 	ASSERT_PTR_NE(k1->cert->principals[3], NULL);
+	k1->cert->nprincipals = 4;
 	k1->cert->valid_after = 0;
 	k1->cert->valid_before = (u_int64_t)-1;
+	sshbuf_free(k1->cert->critical);
 	k1->cert->critical = sshbuf_new();
 	ASSERT_PTR_NE(k1->cert->critical, NULL);
+	sshbuf_free(k1->cert->extensions);
 	k1->cert->extensions = sshbuf_new();
 	ASSERT_PTR_NE(k1->cert->extensions, NULL);
 	put_opt(k1->cert->critical, "force-command", "/usr/bin/true");

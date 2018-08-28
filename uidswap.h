@@ -1,4 +1,4 @@
-/* $OpenBSD: uidswap.h,v 1.13 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: uidswap.h,v 1.14 2018/07/18 11:34:05 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -15,4 +15,3 @@
 void	 temporarily_use_uid(struct passwd *);
 void	 restore_uid(void);
 void	 permanently_set_uid(struct passwd *);
-void	 permanently_drop_suid(uid_t);

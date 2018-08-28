@@ -1,4 +1,4 @@
-/*	$OpenBSD: fmt_scaled.c,v 1.16 2017/03/16 02:40:46 dtucker Exp $	*/
+/*	$OpenBSD: fmt_scaled.c,v 1.17 2018/05/14 04:39:04 djm Exp $	*/
 
 /*
  * Copyright (c) 2001, 2002, 2003 Ian F. Darwin.  All rights reserved.
@@ -188,7 +188,7 @@ scan_scaled(char *scaled, long long *result)
 			/* scale whole part */
 			whole *= scale_fact;
 
-			/* truncate fpart so it does't overflow.
+			/* truncate fpart so it doesn't overflow.
 			 * then scale fractional part.
 			 */
 			while (fpart >= LLONG_MAX / scale_fact) {
@@ -246,11 +246,14 @@ fmt_scaled(long long number, char *result)
 
 	fract = (10 * fract + 512) / 1024;
 	/* if the result would be >= 10, round main number */
-	if (fract == 10) {
+	if (fract >= 10) {
 		if (number >= 0)
 			number++;
 		else
 			number--;
+		fract = 0;
+	} else if (fract < 0) {
+		/* shouldn't happen */
 		fract = 0;
 	}
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.h,v 1.20 2016/09/28 16:33:07 djm Exp $ */
+/* $OpenBSD: monitor.h,v 1.21 2018/07/09 21:53:45 markus Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -39,8 +39,6 @@ enum monitor_reqtype {
 	MONITOR_REQ_AUTHPASSWORD = 12, MONITOR_ANS_AUTHPASSWORD = 13,
 	MONITOR_REQ_BSDAUTHQUERY = 14, MONITOR_ANS_BSDAUTHQUERY = 15,
 	MONITOR_REQ_BSDAUTHRESPOND = 16, MONITOR_ANS_BSDAUTHRESPOND = 17,
-	MONITOR_REQ_SKEYQUERY = 18, MONITOR_ANS_SKEYQUERY = 19,
-	MONITOR_REQ_SKEYRESPOND = 20, MONITOR_ANS_SKEYRESPOND = 21,
 	MONITOR_REQ_KEYALLOWED = 22, MONITOR_ANS_KEYALLOWED = 23,
 	MONITOR_REQ_KEYVERIFY = 24, MONITOR_ANS_KEYVERIFY = 25,
 	MONITOR_REQ_KEYEXPORT = 26,
@@ -87,8 +85,8 @@ struct mon_table;
 int monitor_read(struct monitor*, struct mon_table *, struct mon_table **);
 
 /* Prototypes for request sending and receiving */
-void mm_request_send(int, enum monitor_reqtype, Buffer *);
-void mm_request_receive(int, Buffer *);
-void mm_request_receive_expect(int, enum monitor_reqtype, Buffer *);
+void mm_request_send(int, enum monitor_reqtype, struct sshbuf *);
+void mm_request_receive(int, struct sshbuf *);
+void mm_request_receive_expect(int, enum monitor_reqtype, struct sshbuf *);
 
 #endif /* _MONITOR_H_ */

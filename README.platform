@@ -80,7 +80,7 @@ added to /etc/security/audit_event:
 	32800:AUE_openssh:OpenSSH login:lo
 
 The BSM audit event range available for third party TCB applications is
-32768 - 65535.  Event number 32800 has been choosen for AUE_openssh.
+32768 - 65535.  Event number 32800 has been chosen for AUE_openssh.
 There is no official registry of 3rd party event numbers, so if this
 number is already in use on your system, you may change it at build time
 by configure'ing --with-cflags=-DAUE_openssh=32801 then rebuilding.
