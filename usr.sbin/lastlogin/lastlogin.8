@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 6, 2011
+.Dd August 28, 2018
 .Dt LASTLOGIN 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd indicate last login time of users
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl f Ar file
 .Op Fl rt
 .Op Ar user ...
@@ -68,6 +69,13 @@ The last login database is never turned over or deleted in standard usage.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl f Ar file
 Open last login database
 .Ar file
@@ -86,9 +94,15 @@ last login database
 .Xr last 1 ,
 .Xr getutxent 3 ,
 .Xr ac 8
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh AUTHORS
+.An -nosplit
 .An John M. Vinopal
 wrote this program in January 1996 and contributed it
 to the
 .Nx
 project.
+.An Philip Paeps added
+.Xr libxo 3
+support in August 2018.
