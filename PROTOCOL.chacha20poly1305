@@ -16,7 +16,7 @@ that computes a 128 bit integrity tag given a message and a single-use
 The chacha20-poly1305@openssh.com combines these two primitives into an
 authenticated encryption mode. The construction used is based on that
 proposed for TLS by Adam Langley in [3], but differs in the layout of
-data passed to the MAC and in the addition of encyption of the packet
+data passed to the MAC and in the addition of encryption of the packet
 lengths.
 
 Negotiation
@@ -103,5 +103,5 @@ References
 [3] "ChaCha20 and Poly1305 based Cipher Suites for TLS", Adam Langley
     http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-03
 
-$OpenBSD: PROTOCOL.chacha20poly1305,v 1.3 2016/05/03 13:10:24 djm Exp $
+$OpenBSD: PROTOCOL.chacha20poly1305,v 1.4 2018/04/10 00:10:49 djm Exp $
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.127 2018/03/12 00:52:01 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.131 2018/07/27 05:13:02 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -69,7 +69,6 @@
 #include "ssh.h"
 #include "sshbuf.h"
 #include "ssherr.h"
-#include "uidswap.h"
 #include "platform.h"
 
 /* remove newline at end of string */
@@ -239,8 +238,8 @@ set_rdomain(int fd, const char *name)
 #define QUOTE	"\""
 
 /* return next token in configuration line */
-char *
-strdelim(char **s)
+static char *
+strdelim_internal(char **s, int split_equals)
 {
 	char *old;
 	int wspace = 0;
@@ -250,7 +249,8 @@ strdelim(char **s)
 
 	old = *s;
 
-	*s = strpbrk(*s, WHITESPACE QUOTE "=");
+	*s = strpbrk(*s,
+	    split_equals ? WHITESPACE QUOTE "=" : WHITESPACE QUOTE);
 	if (*s == NULL)
 		return (old);
 
@@ -267,16 +267,35 @@ strdelim(char **s)
 	}
 
 	/* Allow only one '=' to be skipped */
-	if (*s[0] == '=')
+	if (split_equals && *s[0] == '=')
 		wspace = 1;
 	*s[0] = '\0';
 
 	/* Skip any extra whitespace after first token */
 	*s += strspn(*s + 1, WHITESPACE) + 1;
-	if (*s[0] == '=' && !wspace)
+	if (split_equals && *s[0] == '=' && !wspace)
 		*s += strspn(*s + 1, WHITESPACE) + 1;
 
 	return (old);
+}
+
+/*
+ * Return next token in configuration line; splts on whitespace or a
+ * single '=' character.
+ */
+char *
+strdelim(char **s)
+{
+	return strdelim_internal(s, 1);
+}
+
+/*
+ * Return next token in configuration line; splts on whitespace only.
+ */
+char *
+strdelimw(char **s)
+{
+	return strdelim_internal(s, 0);
 }
 
 struct passwd *
@@ -1005,31 +1024,6 @@ percent_expand(const char *string, ...)
 #undef EXPAND_MAX_KEYS
 }
 
-/*
- * Read an entire line from a public key file into a static buffer, discarding
- * lines that exceed the buffer size.  Returns 0 on success, -1 on failure.
- */
-int
-read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
-   u_long *lineno)
-{
-	while (fgets(buf, bufsz, f) != NULL) {
-		if (buf[0] == '\0')
-			continue;
-		(*lineno)++;
-		if (buf[strlen(buf) - 1] == '\n' || feof(f)) {
-			return 0;
-		} else {
-			debug("%s: %s line %lu exceeds size limit", __func__,
-			    filename, *lineno);
-			/* discard remainder of line */
-			while (fgetc(f) != '\n' && !feof(f))
-				;	/* nothing */
-		}
-	}
-	return -1;
-}
-
 int
 tun_open(int tun, int mode, char **ifname)
 {
@@ -1579,15 +1573,6 @@ forward_equals(const struct Forward *a, const struct Forward *b)
 	if (strcmp_maybe_null(a->connect_path, b->connect_path) == 0)
 		return 0;
 	/* allocated_port and handle are not checked */
-	return 1;
-}
-
-/* returns 1 if bind to specified port by specified user is permitted */
-int
-bind_permitted(int port, uid_t uid)
-{
-	if (port < IPPORT_RESERVED && uid != 0)
-		return 0;
 	return 1;
 }
 

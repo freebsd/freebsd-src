@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.269 2017/12/18 23:13:42 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.277 2018/07/16 03:09:13 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -61,10 +61,19 @@
 #include <signal.h>
 #include <time.h>
 
-#include <zlib.h>
+/*
+ * Explicitly include OpenSSL before zlib as some versions of OpenSSL have
+ * "free_func" in their headers, which zlib typedefs.
+ */
+#ifdef WITH_OPENSSL
+# include <openssl/bn.h>
+# include <openssl/evp.h>
+# ifdef OPENSSL_HAS_ECC
+#  include <openssl/ec.h>
+# endif
+#endif
 
-#include "buffer.h"	/* typedefs XXX */
-#include "key.h"	/* typedefs XXX */
+#include <zlib.h>
 
 #include "xmalloc.h"
 #include "crc32.h"
@@ -146,12 +155,6 @@ struct session_state {
 	int compression_out_started;
 	int compression_in_failures;
 	int compression_out_failures;
-
-	/*
-	 * Flag indicating whether packet compression/decompression is
-	 * enabled.
-	 */
-	int packet_compression;
 
 	/* default maximum packet size */
 	u_int max_packet_size;
@@ -418,13 +421,16 @@ ssh_packet_start_discard(struct ssh *ssh, struct sshenc *enc,
 int
 ssh_packet_connection_is_on_socket(struct ssh *ssh)
 {
-	struct session_state *state = ssh->state;
+	struct session_state *state;
 	struct sockaddr_storage from, to;
 	socklen_t fromlen, tolen;
 
-	if (state->connection_in == -1 || state->connection_out == -1)
+	if (ssh == NULL || ssh->state == NULL)
 		return 0;
 
+	state = ssh->state;
+	if (state->connection_in == -1 || state->connection_out == -1)
+		return 0;
 	/* filedescriptors in and out are the same, so it's a socket */
 	if (state->connection_in == state->connection_out)
 		return 1;
@@ -508,11 +514,12 @@ ssh_packet_get_connection_out(struct ssh *ssh)
 const char *
 ssh_remote_ipaddr(struct ssh *ssh)
 {
-	const int sock = ssh->state->connection_in;
+	int sock;
 
 	/* Check whether we have cached the ipaddr. */
 	if (ssh->remote_ipaddr == NULL) {
 		if (ssh_packet_connection_is_on_socket(ssh)) {
+			sock = ssh->state->connection_in;
 			ssh->remote_ipaddr = get_peer_ipaddr(sock);
 			ssh->remote_port = get_peer_port(sock);
 			ssh->local_ipaddr = get_local_ipaddr(sock);
@@ -597,7 +604,7 @@ ssh_packet_close_internal(struct ssh *ssh, int do_close)
 		state->newkeys[mode] = NULL;
 		ssh_clear_newkeys(ssh, mode);		/* next keys */
 	}
-	/* comression state is in shared mem, so we can only release it once */
+	/* compression state is in shared mem, so we can only release it once */
 	if (do_close && state->compression_buffer) {
 		sshbuf_free(state->compression_buffer);
 		if (state->compression_out_started) {
@@ -627,6 +634,8 @@ ssh_packet_close_internal(struct ssh *ssh, int do_close)
 	cipher_free(state->receive_context);
 	state->send_context = state->receive_context = NULL;
 	if (do_close) {
+		free(ssh->local_ipaddr);
+		ssh->local_ipaddr = NULL;
 		free(ssh->remote_ipaddr);
 		ssh->remote_ipaddr = NULL;
 		free(ssh->state);
@@ -710,21 +719,6 @@ start_compression_in(struct ssh *ssh)
 	default:
 		return SSH_ERR_INTERNAL_ERROR;
 	}
-	return 0;
-}
-
-int
-ssh_packet_start_compression(struct ssh *ssh, int level)
-{
-	int r;
-
-	if (ssh->state->packet_compression)
-		return SSH_ERR_INTERNAL_ERROR;
-	ssh->state->packet_compression = 1;
-	if ((r = ssh_packet_init_compression(ssh)) != 0 ||
-	    (r = start_compression_in(ssh)) != 0 ||
-	    (r = start_compression_out(ssh, level)) != 0)
-		return r;
 	return 0;
 }
 
@@ -965,7 +959,7 @@ ssh_packet_need_rekeying(struct ssh *ssh, u_int outbound_packet_len)
 	    state->p_read.packets > MAX_PACKETS)
 		return 1;
 
-	/* Rekey after (cipher-specific) maxiumum blocks */
+	/* Rekey after (cipher-specific) maximum blocks */
 	out_blocks = ROUNDUP(outbound_packet_len,
 	    state->newkeys[MODE_OUT]->enc.block_size);
 	return (state->max_blocks_out &&
@@ -1338,8 +1332,10 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			    NULL, NULL, timeoutp)) >= 0)
 				break;
 			if (errno != EAGAIN && errno != EINTR &&
-			    errno != EWOULDBLOCK)
-				break;
+			    errno != EWOULDBLOCK) {
+				r = SSH_ERR_SYSTEM_ERROR;
+				goto out;
+			}
 			if (state->packet_timeout_ms == -1)
 				continue;
 			ms_subtract_diff(&start, &ms_remain);

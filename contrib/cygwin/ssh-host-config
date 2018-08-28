@@ -22,7 +22,7 @@
 
 CSIH_SCRIPT=/usr/share/csih/cygwin-service-installation-helper.sh
 
-# List of apps used.  This is checkad for existance in csih_sanity_check
+# List of apps used.  This is checkad for existence in csih_sanity_check
 # Don't use *any* transient commands before sourcing the csih helper script,
 # otherwise the sanity checks are short-circuited.
 declare -a csih_required_commands=(

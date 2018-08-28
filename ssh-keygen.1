@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.147 2018/03/12 00:52:01 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.148 2018/08/08 01:16:01 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 12 2018 $
+.Dd $Mdocdate: August 8 2018 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -233,10 +233,8 @@ This is used by
 .Pa /etc/rc
 to generate new host keys.
 .It Fl a Ar rounds
-When saving a new-format private key (i.e. an ed25519 key or when the
-.Fl o
-flag is set), this option specifies the number of KDF (key derivation function)
-rounds used.
+When saving a private key this option specifies the number of KDF
+(key derivation function) rounds used.
 Higher numbers result in slower passphrase verification and increased
 resistance to brute-force password cracking (should the keys be stolen).
 .Pp
@@ -264,8 +262,6 @@ flag will be ignored.
 Provides a new comment.
 .It Fl c
 Requests changing the comment in the private and public key files.
-This operation is only supported for keys stored in the
-newer OpenSSH format.
 The program will prompt for the file containing the private keys, for
 the passphrase if the key has one, and for the new comment.
 .It Fl D Ar pkcs11
@@ -410,6 +406,10 @@ or
 (PEM public key).
 The default conversion format is
 .Dq RFC4716 .
+Setting a format of
+.Dq PEM
+when generating or updating a supported private key type will cause the
+key to be stored in the legacy PEM private key format.
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
 .It Fl n Ar principals
@@ -504,14 +504,6 @@ The
 is a comma-separated list of one or more address/netmask pairs in CIDR
 format.
 .El
-.It Fl o
-Causes
-.Nm
-to save private keys using the new OpenSSH format rather than
-the more compatible PEM format.
-The new format has increased resistance to brute-force password cracking
-but is not supported by versions of OpenSSH prior to 6.5.
-Ed25519 keys always use the new private key format.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
 .It Fl p

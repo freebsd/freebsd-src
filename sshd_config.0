@@ -16,17 +16,17 @@ DESCRIPTION
 
      AcceptEnv
              Specifies what environment variables sent by the client will be
-             copied into the session's environ(7).  See SendEnv in
+             copied into the session's environ(7).  See SendEnv and SetEnv in
              ssh_config(5) for how to configure the client.  The TERM
-             environment variable is always sent whenever the client requests
-             a pseudo-terminal as it is required by the protocol.  Variables
-             are specified by name, which may contain the wildcard characters
-             M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be separated by
-             whitespace or spread across multiple AcceptEnv directives.  Be
-             warned that some environment variables could be used to bypass
-             restricted user environments.  For this reason, care should be
-             taken in the use of this directive.  The default is not to accept
-             any environment variables.
+             environment variable is always accepted whenever the client
+             requests a pseudo-terminal as it is required by the protocol.
+             Variables are specified by name, which may contain the wildcard
+             characters M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be
+             separated by whitespace or spread across multiple AcceptEnv
+             directives.  Be warned that some environment variables could be
+             used to bypass restricted user environments.  For this reason,
+             care should be taken in the use of this directive.  The default
+             is not to accept any environment variables.
 
      AddressFamily
              Specifies which address family should be used by sshd(8).  Valid
@@ -88,7 +88,7 @@ DESCRIPTION
      AuthenticationMethods
              Specifies the authentication methods that must be successfully
              completed for a user to be granted access.  This option must be
-             followed by one or more comma-separated lists of authentication
+             followed by one or more lists of comma-separated authentication
              method names, or by the single string any to indicate the default
              behaviour of accepting any single authentication method.  If the
              default is overridden, then successful authentication requires
@@ -104,8 +104,8 @@ DESCRIPTION
 
              For keyboard interactive authentication it is also possible to
              restrict authentication to a specific device by appending a colon
-             followed by the device identifier bsdauth, pam, or skey,
-             depending on the server configuration.  For example,
+             followed by the device identifier bsdauth or pam.  depending on
+             the server configuration.  For example,
              "keyboard-interactive:bsdauth" would restrict keyboard
              interactive authentication to the bsdauth device.
 
@@ -120,7 +120,7 @@ DESCRIPTION
 
              The available authentication methods are: "gssapi-with-mic",
              "hostbased", "keyboard-interactive", "none" (used for access to
-             password-less accounts when PermitEmptyPassword is enabled),
+             password-less accounts when PermitEmptyPasswords is enabled),
              "password" and "publickey".
 
      AuthorizedKeysCommand
@@ -382,11 +382,11 @@ DESCRIPTION
 
      HostbasedAcceptedKeyTypes
              Specifies the key types that will be accepted for hostbased
-             authentication as a comma-separated pattern list.  Alternately if
-             the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
-             specified key types will be appended to the default set instead
-             of replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
-             character, then the specified key types (including wildcards)
+             authentication as a list of comma-separated patterns.
+             Alternately if the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified key types will be appended to the default set
+             instead of replacing them.  If the specified value begins with a
+             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
              will be removed from the default set instead of replacing them.
              The default for this option is:
 
@@ -394,9 +394,10 @@ DESCRIPTION
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,ssh-rsa
+                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
              -Q key".
@@ -449,9 +450,10 @@ DESCRIPTION
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,ssh-rsa
+                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
              -Q key".
@@ -478,8 +480,9 @@ DESCRIPTION
              If one argument is specified, it is used as the packet class
              unconditionally.  If two values are specified, the first is
              automatically selected for interactive sessions and the second
-             for non-interactive sessions.  The default is lowdelay for
-             interactive sessions and throughput for non-interactive sessions.
+             for non-interactive sessions.  The default is af21 (Low-Latency
+             Data) for interactive sessions and cs1 (Lower Effort) for non-
+             interactive sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to allow keyboard-interactive authentication.
@@ -651,9 +654,9 @@ DESCRIPTION
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly, IPQoS,
              KbdInteractiveAuthentication, KerberosAuthentication, LogLevel,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
-             PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTTY,
-             PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
-             PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain,
+             PermitEmptyPasswords, PermitListen, PermitOpen, PermitRootLogin,
+             PermitTTY, PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
+             PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain, SetEnv,
              StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
              X11DisplayOffset, X11Forwarding and X11UseLocalHost.
 
@@ -693,6 +696,28 @@ DESCRIPTION
              When password authentication is allowed, it specifies whether the
              server allows login to accounts with empty password strings.  The
              default is no.
+
+     PermitListen
+             Specifies the addresses/ports on which a remote TCP port
+             forwarding may listen.  The listen specification must be one of
+             the following forms:
+
+                   PermitListen port
+                   PermitListen host:port
+
+             Multiple permissions may be specified by separating them with
+             whitespace.  An argument of any can be used to remove all
+             restrictions and permit any listen requests.  An argument of none
+             can be used to prohibit all listen requests.  The host name may
+             contain wildcards as described in the PATTERNS section in
+             ssh_config(5).  The wildcard M-bM-^@M-^X*M-bM-^@M-^Y can also be used in place of a
+             port number to allow all ports.  By default all port forwarding
+             listen requests are permitted.  Note that the GatewayPorts option
+             may further restrict which addresses may be listened on.  Note
+             also that ssh(1) will request a listen host of M-bM-^@M-^\localhostM-bM-^@M-^] if no
+             listen host was specifically requested, and this this name is
+             treated differently to explicit localhost addresses of
+             M-bM-^@M-^\127.0.0.1M-bM-^@M-^] and M-bM-^@M-^\::1M-bM-^@M-^].
 
      PermitOpen
              Specifies the destinations to which TCP port forwarding is
@@ -743,10 +768,12 @@ DESCRIPTION
 
      PermitUserEnvironment
              Specifies whether ~/.ssh/environment and environment= options in
-             ~/.ssh/authorized_keys are processed by sshd(8).  The default is
-             no.  Enabling environment processing may enable users to bypass
-             access restrictions in some configurations using mechanisms such
-             as LD_PRELOAD.
+             ~/.ssh/authorized_keys are processed by sshd(8).  Valid options
+             are yes, no or a pattern-list specifying which environment
+             variable names to accept (for example "LANG,LC_*").  The default
+             is no.  Enabling environment processing may enable users to
+             bypass access restrictions in some configurations using
+             mechanisms such as LD_PRELOAD.
 
      PermitUserRC
              Specifies whether any ~/.ssh/rc file is executed.  The default is
@@ -773,11 +800,11 @@ DESCRIPTION
 
      PubkeyAcceptedKeyTypes
              Specifies the key types that will be accepted for public key
-             authentication as a comma-separated pattern list.  Alternately if
-             the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
-             specified key types will be appended to the default set instead
-             of replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
-             character, then the specified key types (including wildcards)
+             authentication as a list of comma-separated patterns.
+             Alternately if the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified key types will be appended to the default set
+             instead of replacing them.  If the specified value begins with a
+             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
              will be removed from the default set instead of replacing them.
              The default for this option is:
 
@@ -785,9 +812,10 @@ DESCRIPTION
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,ssh-rsa
+                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
              -Q key".
@@ -826,6 +854,13 @@ DESCRIPTION
              forwarded or listening IP sockets, will be bound to this
              rdomain(4).  If the routing domain is set to %D, then the domain
              in which the incoming connection was received will be applied.
+
+     SetEnv  Specifies one or more environment variables to set in child
+             sessions started by sshd(8) as M-bM-^@M-^\NAME=VALUEM-bM-^@M-^].  The environment
+             value may be quoted (e.g. if it contains whitespace characters).
+             Environment variables set by SetEnv override the default
+             environment and any variables specified by the user via AcceptEnv
+             or PermitUserEnvironment.
 
      StreamLocalBindMask
              Sets the octal file creation mode mask (umask) used when creating
@@ -1011,18 +1046,19 @@ TOKENS
            %s    The serial number of the certificate.
            %T    The type of the CA key.
            %t    The key or certificate type.
+           %U    The numeric user ID of the target user.
            %u    The username.
 
-     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %k, %t, and %u.
+     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %k, %t, %U, and %u.
 
-     AuthorizedKeysFile accepts the tokens %%, %h, and %u.
+     AuthorizedKeysFile accepts the tokens %%, %h, %U, and %u.
 
      AuthorizedPrincipalsCommand accepts the tokens %%, %F, %f, %h, %i, %K,
-     %k, %s, %T, %t, and %u.
+     %k, %s, %T, %t, %U, and %u.
 
-     AuthorizedPrincipalsFile accepts the tokens %%, %h, and %u.
+     AuthorizedPrincipalsFile accepts the tokens %%, %h, %U, and %u.
 
-     ChrootDirectory accepts the tokens %%, %h, and %u.
+     ChrootDirectory accepts the tokens %%, %h, %U, and %u.
 
      RoutingDomain accepts the token %D.
 
@@ -1043,4 +1079,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.2                    February 16, 2018                   OpenBSD 6.2
+OpenBSD 6.4                      July 20, 2018                     OpenBSD 6.4

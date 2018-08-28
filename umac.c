@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.c,v 1.16 2017/12/12 15:06:12 naddy Exp $ */
+/* $OpenBSD: umac.c,v 1.17 2018/04/10 00:10:49 djm Exp $ */
 /* -----------------------------------------------------------------------
  *
  * umac.c -- C Implementation UMAC Message Authentication
@@ -65,7 +65,7 @@
 /* #define AES_IMPLEMENTAION   1  1 = OpenSSL, 2 = Barreto, 3 = Gladman   */
 /* #define SSE2                0  Is SSE2 is available?                   */
 /* #define RUN_TESTS           0  Run basic correctness/speed tests       */
-/* #define UMAC_AE_SUPPORT     0  Enable auhthenticated encrytion         */
+/* #define UMAC_AE_SUPPORT     0  Enable authenticated encryption         */
 
 /* ---------------------------------------------------------------------- */
 /* -- Global Includes --------------------------------------------------- */
@@ -295,9 +295,9 @@ static void pdf_gen_xor(pdf_ctx *pc, const UINT8 nonce[8], UINT8 buf[8])
  * Before beginning another hash calculation the nh_reset() routine
  * must be called. The single-buffer routine, nh(), is equivalent to
  * the sequence of calls nh_update() and nh_final(); however it is
- * optimized and should be prefered whenever the multiple-buffer interface
+ * optimized and should be preferred whenever the multiple-buffer interface
  * is not necessary. When using either interface, it is the client's
- * responsability to pass no more than L1_KEY_LEN bytes per hash result.
+ * responsibility to pass no more than L1_KEY_LEN bytes per hash result.
  *
  * The routine nh_init() initializes the nh_ctx data structure and
  * must be called once, before any other PDF routine.
@@ -319,8 +319,8 @@ static void pdf_gen_xor(pdf_ctx *pc, const UINT8 nonce[8], UINT8 buf[8])
 typedef struct {
     UINT8  nh_key [L1_KEY_LEN + L1_KEY_SHIFT * (STREAMS - 1)]; /* NH Key */
     UINT8  data   [HASH_BUF_BYTES];    /* Incoming data buffer           */
-    int next_data_empty;    /* Bookeeping variable for data buffer.       */
-    int bytes_hashed;        /* Bytes (out of L1_KEY_LEN) incorperated.   */
+    int next_data_empty;    /* Bookkeeping variable for data buffer.     */
+    int bytes_hashed;       /* Bytes (out of L1_KEY_LEN) incorporated.   */
     UINT64 state[STREAMS];               /* on-line state     */
 } nh_ctx;
 
@@ -851,7 +851,7 @@ static void poly_hash(uhash_ctx_t hc, UINT32 data_in[])
 
 
 /* The final step in UHASH is an inner-product hash. The poly hash
- * produces a result not neccesarily WORD_LEN bytes long. The inner-
+ * produces a result not necessarily WORD_LEN bytes long. The inner-
  * product hash breaks the polyhash output into 16-bit chunks and
  * multiplies each with a 36 bit key.
  */

@@ -145,7 +145,7 @@ AUTHENTICATION
      Regardless of the authentication type, the account is checked to ensure
      that it is accessible.  An account is not accessible if it is locked,
      listed in DenyUsers or its group is listed in DenyGroups .  The
-     definition of a locked account is system dependant. Some platforms have
+     definition of a locked account is system dependent. Some platforms have
      their own account database (eg AIX) and some modify the passwd field (
      M-bM-^@M-^X*LK*M-bM-^@M-^Y on Solaris and UnixWare, M-bM-^@M-^X*M-bM-^@M-^Y on HP-UX, containing M-bM-^@M-^XNologinM-bM-^@M-^Y on
      Tru64, a leading M-bM-^@M-^X*LOCKED*M-bM-^@M-^Y on FreeBSD and a leading M-bM-^@M-^X!M-bM-^@M-^Y on most
@@ -341,14 +341,28 @@ AUTHORIZED_KEYS FILE FORMAT
              Forbids X11 forwarding when this key is used for authentication.
              Any X11 forward requests by the client will return an error.
 
+     permitlisten="[host:]port"
+             Limit remote port forwarding with the ssh(1) -R option such that
+             it may only listen on the specified host (optional) and port.
+             IPv6 addresses can be specified by enclosing the address in
+             square brackets.  Multiple permitlisten options may be applied
+             separated by commas.  Hostnames may include wildcards as
+             described in the PATTERNS section in ssh_config(5).  A port
+             specification of * matches any port.  Note that the setting of
+             GatewayPorts may further restrict listen addresses.  Note that
+             ssh(1) will send a hostname of M-bM-^@M-^\localhostM-bM-^@M-^] if a listen host was
+             not specified when the forwarding was requested, and that this
+             name is treated differently to the explicit localhost addresses
+             M-bM-^@M-^\127.0.0.1M-bM-^@M-^] and M-bM-^@M-^\::1M-bM-^@M-^].
+
      permitopen="host:port"
-             Limit local port forwarding with ssh(1) -L such that it may only
-             connect to the specified host and port.  IPv6 addresses can be
-             specified by enclosing the address in square brackets.  Multiple
-             permitopen options may be applied separated by commas.  No
-             pattern matching is performed on the specified hostnames, they
-             must be literal domains or addresses.  A port specification of *
-             matches any port.
+             Limit local port forwarding with the ssh(1) -L option such that
+             it may only connect to the specified host and port.  IPv6
+             addresses can be specified by enclosing the address in square
+             brackets.  Multiple permitopen options may be applied separated
+             by commas.  No pattern matching is performed on the specified
+             hostnames, they must be literal domains or addresses.  A port
+             specification of * matches any port.
 
      port-forwarding
              Enable port forwarding previously disabled by the restrict
@@ -390,9 +404,11 @@ AUTHORIZED_KEYS FILE FORMAT
         ssh-rsa AAAAB3Nza...LiPk== user@example.net
         from="*.sales.example.net,!pc.sales.example.net" ssh-rsa
         AAAAB2...19Q== john@example.net
-        command="dump /home",no-pty,no-port-forwarding ssh-dss
+        command="dump /home",no-pty,no-port-forwarding ssh-rsa
         AAAAC3...51R== example.net
-        permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-dss
+        permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa
+        AAAAB5...21S==
+        permitlisten="localhost:8080",permitopen="localhost:22000" ssh-rsa
         AAAAB5...21S==
         tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
         jane@example.net
@@ -634,4 +650,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.2                     March 14, 2018                     OpenBSD 6.2
+OpenBSD 6.4                      July 22, 2018                     OpenBSD 6.4

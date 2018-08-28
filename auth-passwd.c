@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-passwd.c,v 1.46 2018/03/03 03:15:51 djm Exp $ */
+/* $OpenBSD: auth-passwd.c,v 1.47 2018/07/09 21:26:02 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -46,16 +46,17 @@
 #include <stdarg.h>
 
 #include "packet.h"
-#include "buffer.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "auth-options.h"
 
-extern Buffer loginmsg;
+extern struct sshbuf *loginmsg;
 extern ServerOptions options;
 
 #ifdef HAVE_LOGIN_CAP
@@ -131,7 +132,7 @@ auth_password(struct ssh *ssh, const char *password)
 static void
 warn_expiry(Authctxt *authctxt, auth_session_t *as)
 {
-	char buf[256];
+	int r;
 	quad_t pwtimeleft, actimeleft, daysleft, pwwarntime, acwarntime;
 
 	pwwarntime = acwarntime = TWO_WEEKS;
@@ -148,17 +149,17 @@ warn_expiry(Authctxt *authctxt, auth_session_t *as)
 #endif
 	if (pwtimeleft != 0 && pwtimeleft < pwwarntime) {
 		daysleft = pwtimeleft / DAY + 1;
-		snprintf(buf, sizeof(buf),
+		if ((r = sshbuf_putf(loginmsg,
 		    "Your password will expire in %lld day%s.\n",
-		    daysleft, daysleft == 1 ? "" : "s");
-		buffer_append(&loginmsg, buf, strlen(buf));
+		    daysleft, daysleft == 1 ? "" : "s")) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 	if (actimeleft != 0 && actimeleft < acwarntime) {
 		daysleft = actimeleft / DAY + 1;
-		snprintf(buf, sizeof(buf),
+		if ((r = sshbuf_putf(loginmsg,
 		    "Your account will expire in %lld day%s.\n",
-		    daysleft, daysleft == 1 ? "" : "s");
-		buffer_append(&loginmsg, buf, strlen(buf));
+		    daysleft, daysleft == 1 ? "" : "s")) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 }
 

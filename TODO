@@ -35,7 +35,7 @@ Programming:
  - Use different PAM service name for kbdint vs regular auth (suggest from
    Solar Designer)
  - Ability to select which ChallengeResponseAuthentications may be used
-   and order to try them in e.g. "ChallengeResponseAuthentication skey, pam"
+   and order to try them in e.g. "ChallengeResponseAuthentication pam"
 
 - Complete Tru64 SIA support
  - It looks like we could merge it into the password auth code to cut down
@@ -57,10 +57,10 @@ Clean up configure/makefiles:
 - Replace the whole u_intXX_t evilness in acconfig.h with something better???
  - Do it in configure.ac
 
-- Consider splitting the u_intXX_t test for sys/bitype.h  into seperate test
+- Consider splitting the u_intXX_t test for sys/bitype.h  into separate test
   to allow people to (right/wrongfully) link against Bind directly.
 
-- Consider splitting configure.ac into seperate files which do logically
+- Consider splitting configure.ac into separate files which do logically
   similar tests. E.g move all the type detection stuff into one file,
   entropy related stuff into another.
 

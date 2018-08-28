@@ -269,7 +269,6 @@ DESCRIPTION
                    IdentitiesOnly
                    IdentityAgent
                    IdentityFile
-                   Include
                    IPQoS
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
@@ -298,6 +297,7 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
+                   SetEnv
                    StreamLocalBindMask
                    StreamLocalBindUnlink
                    StrictHostKeyChecking
@@ -305,7 +305,6 @@ DESCRIPTION
                    Tunnel
                    TunnelDevice
                    UpdateHostKeys
-                   UsePrivilegedPort
                    User
                    UserKnownHostsFile
                    VerifyHostKeyDNS
@@ -405,9 +404,12 @@ DESCRIPTION
              The devices may be specified by numerical ID or the keyword
              M-bM-^@M-^\anyM-bM-^@M-^], which uses the next available tunnel device.  If
              remote_tun is not specified, it defaults to M-bM-^@M-^\anyM-bM-^@M-^].  See also the
-             Tunnel and TunnelDevice directives in ssh_config(5).  If the
-             Tunnel directive is unset, it is set to the default tunnel mode,
-             which is M-bM-^@M-^\point-to-pointM-bM-^@M-^].
+             Tunnel and TunnelDevice directives in ssh_config(5).
+
+             If the Tunnel directive is unset, it will be set to the default
+             tunnel mode, which is M-bM-^@M-^\point-to-pointM-bM-^@M-^].  If a different Tunnel
+             forwarding mode it desired, then it should be specified before
+             -w.
 
      -X      Enables X11 forwarding.  This can also be specified on a per-host
              basis in a configuration file.
@@ -973,4 +975,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.2                    February 23, 2018                   OpenBSD 6.2
+OpenBSD 6.4                      July 19, 2018                     OpenBSD 6.4

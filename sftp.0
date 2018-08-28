@@ -146,10 +146,10 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
+                   SetEnv
                    StrictHostKeyChecking
                    TCPKeepAlive
                    UpdateHostKeys
-                   UsePrivilegedPort
                    User
                    UserKnownHostsFile
                    VerifyHostKeyDNS
@@ -197,16 +197,16 @@ INTERACTIVE COMMANDS
              change directory to the one the session started in.
 
      chgrp grp path
-             Change group of file path to grp.  path may contain glob(3)
+             Change group of file path to grp.  path may contain glob(7)
              characters and may match multiple files.  grp must be a numeric
              GID.
 
      chmod mode path
              Change permissions of file path to mode.  path may contain
-             glob(3) characters and may match multiple files.
+             glob(7) characters and may match multiple files.
 
      chown own path
-             Change owner of file path to own.  path may contain glob(3)
+             Change owner of file path to own.  path may contain glob(7)
              characters and may match multiple files.  own must be a numeric
              UID.
 
@@ -223,7 +223,7 @@ INTERACTIVE COMMANDS
      get [-afPpr] remote-path [local-path]
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
-             it has on the remote machine.  remote-path may contain glob(3)
+             it has on the remote machine.  remote-path may contain glob(7)
              characters and may match multiple files.  If it does and
              local-path is specified, then local-path must specify a
              directory.
@@ -254,7 +254,7 @@ INTERACTIVE COMMANDS
              Display local directory listing of either path or current
              directory if path is not specified.  ls-options may contain any
              flags supported by the local system's ls(1) command.  path may
-             contain glob(3) characters and may match multiple files.
+             contain glob(7) characters and may match multiple files.
 
      lmkdir path
              Create local directory specified by path.
@@ -268,7 +268,7 @@ INTERACTIVE COMMANDS
 
      ls [-1afhlnrSt] [path]
              Display a remote directory listing of either path or the current
-             directory if path is not specified.  path may contain glob(3)
+             directory if path is not specified.  path may contain glob(7)
              characters and may match multiple files.
 
              The following flags are recognized and alter the behaviour of ls
@@ -311,7 +311,7 @@ INTERACTIVE COMMANDS
      put [-afPpr] local-path [remote-path]
              Upload local-path and store it on the remote machine.  If the
              remote path name is not specified, it is given the same name it
-             has on the local machine.  local-path may contain glob(3)
+             has on the local machine.  local-path may contain glob(7)
              characters and may match multiple files.  If it does and
              remote-path is specified, then remote-path must specify a
              directory.
@@ -369,10 +369,10 @@ INTERACTIVE COMMANDS
      ?       Synonym for help.
 
 SEE ALSO
-     ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), glob(3),
-     ssh_config(5), sftp-server(8), sshd(8)
+     ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), ssh_config(5),
+     glob(7), sftp-server(8), sshd(8)
 
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.2                    February 23, 2018                   OpenBSD 6.2
+OpenBSD 6.4                      July 23, 2018                     OpenBSD 6.4

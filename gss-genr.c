@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-genr.c,v 1.24 2016/09/12 01:22:38 deraadt Exp $ */
+/* $OpenBSD: gss-genr.c,v 1.26 2018/07/10 09:13:30 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2007 Simon Wilkinson. All rights reserved.
@@ -37,7 +37,8 @@
 #include <unistd.h>
 
 #include "xmalloc.h"
-#include "buffer.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 #include "log.h"
 #include "ssh2.h"
 
@@ -45,6 +46,21 @@
 
 extern u_char *session_id2;
 extern u_int session_id2_len;
+
+/* sshbuf_get for gss_buffer_desc */
+int
+ssh_gssapi_get_buffer_desc(struct sshbuf *b, gss_buffer_desc *g)
+{
+	int r;
+	u_char *p;
+	size_t len;
+
+	if ((r = sshbuf_get_string(b, &p, &len)) != 0)
+		return r;
+	g->value = p;
+	g->length = len;
+	return 0;
+}
 
 /* Check that the OID in a data stream matches that in the context */
 int
@@ -94,10 +110,12 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	OM_uint32 lmin;
 	gss_buffer_desc msg = GSS_C_EMPTY_BUFFER;
 	OM_uint32 ctx;
-	Buffer b;
+	struct sshbuf *b;
 	char *ret;
+	int r;
 
-	buffer_init(&b);
+	if ((b = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
 
 	if (major_status != NULL)
 		*major_status = ctxt->major;
@@ -110,8 +128,9 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 		gss_display_status(&lmin, ctxt->major,
 		    GSS_C_GSS_CODE, ctxt->oid, &ctx, &msg);
 
-		buffer_append(&b, msg.value, msg.length);
-		buffer_put_char(&b, '\n');
+		if ((r = sshbuf_put(b, msg.value, msg.length)) != 0 ||
+		    (r = sshbuf_put_u8(b, '\n')) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
 		gss_release_buffer(&lmin, &msg);
 	} while (ctx != 0);
@@ -121,16 +140,17 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 		gss_display_status(&lmin, ctxt->minor,
 		    GSS_C_MECH_CODE, ctxt->oid, &ctx, &msg);
 
-		buffer_append(&b, msg.value, msg.length);
-		buffer_put_char(&b, '\n');
+		if ((r = sshbuf_put(b, msg.value, msg.length)) != 0 ||
+		    (r = sshbuf_put_u8(b, '\n')) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
 		gss_release_buffer(&lmin, &msg);
 	} while (ctx != 0);
 
-	buffer_put_char(&b, '\0');
-	ret = xmalloc(buffer_len(&b));
-	buffer_get(&b, ret, buffer_len(&b));
-	buffer_free(&b);
+	if ((r = sshbuf_put_u8(b, '\n')) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	ret = xstrdup((const char *)sshbuf_ptr(b));
+	sshbuf_free(b);
 	return (ret);
 }
 
@@ -238,15 +258,18 @@ ssh_gssapi_sign(Gssctxt *ctx, gss_buffer_t buffer, gss_buffer_t hash)
 }
 
 void
-ssh_gssapi_buildmic(Buffer *b, const char *user, const char *service,
+ssh_gssapi_buildmic(struct sshbuf *b, const char *user, const char *service,
     const char *context)
 {
-	buffer_init(b);
-	buffer_put_string(b, session_id2, session_id2_len);
-	buffer_put_char(b, SSH2_MSG_USERAUTH_REQUEST);
-	buffer_put_cstring(b, user);
-	buffer_put_cstring(b, service);
-	buffer_put_cstring(b, context);
+	int r;
+
+	sshbuf_reset(b);
+	if ((r = sshbuf_put_string(b, session_id2, session_id2_len)) != 0 ||
+	    (r = sshbuf_put_u8(b, SSH2_MSG_USERAUTH_REQUEST)) != 0 ||
+	    (r = sshbuf_put_cstring(b, user)) != 0 ||
+	    (r = sshbuf_put_cstring(b, service)) != 0 ||
+	    (r = sshbuf_put_cstring(b, context)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 }
 
 int
