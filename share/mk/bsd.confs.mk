@@ -29,8 +29,11 @@ all: buildconfig
 .      if !target(afterinstallconfig)
 afterinstallconfig:
 .      endif
-installconfig:	realinstallconfig afterinstallconfig
-.ORDER:		realinstallconfig afterinstallconfig
+.      if !target(beforeinstallconfig)
+beforeinstallconfig:
+.      endif
+installconfig:	beforeinstallconfig realinstallconfig afterinstallconfig
+.ORDER:		beforeinstallconfig realinstallconfig afterinstallconfig
 
 ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
