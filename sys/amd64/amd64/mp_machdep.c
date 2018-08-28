@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 
 #define GiB(v)			(v ## ULL << 30)
 
+#define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
+
 extern	struct pcpu __pcpu[];
 
 /* Temporary variables for init_secondary()  */
@@ -100,45 +102,79 @@ char *dbg_stack;
 
 static int	start_ap(int apic_id);
 
+static bool
+is_kernel_paddr(vm_paddr_t pa)
+{
+
+	return (pa >= trunc_2mpage(btext - KERNBASE) &&
+	   pa < round_page(_end - KERNBASE));
+}
+
+static bool
+is_mpboot_good(vm_paddr_t start, vm_paddr_t end)
+{
+
+	return (start + AP_BOOTPT_SZ <= GiB(4) && atop(end) < Maxmem);
+}
+
 /*
  * Calculate usable address in base memory for AP trampoline code.
  */
 void
 mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 {
+	vm_paddr_t start, end;
 	unsigned int i;
 	bool allocated;
 
 	alloc_ap_trampoline(physmap, physmap_idx);
 
+	/*
+	 * Find a memory region big enough below the 4GB boundary to
+	 * store the initial page tables.  Region must be mapped by
+	 * the direct map.
+	 *
+	 * Note that it needs to be aligned to a page boundary.
+	 */
 	allocated = false;
 	for (i = *physmap_idx; i <= *physmap_idx; i -= 2) {
 		/*
-		 * Find a memory region big enough below the 4GB
-		 * boundary to store the initial page tables.  Region
-		 * must be mapped by the direct map.
-		 *
-		 * Note that it needs to be aligned to a page
-		 * boundary.
+		 * First, try to chomp at the start of the physmap region.
+		 * Kernel binary might claim it already.
 		 */
-		if (physmap[i] >= GiB(4) || physmap[i + 1] -
-		    round_page(physmap[i]) < PAGE_SIZE * 3 ||
-		    atop(physmap[i + 1]) > Maxmem)
-			continue;
+		start = round_page(physmap[i]);
+		end = start + AP_BOOTPT_SZ;
+		if (start < end && end <= physmap[i + 1] &&
+		    is_mpboot_good(start, end) &&
+		    !is_kernel_paddr(start) && !is_kernel_paddr(end - 1)) {
+			allocated = true;
+			physmap[i] = end;
+			break;
+		}
 
-		allocated = true;
-		mptramp_pagetables = round_page(physmap[i]);
-		physmap[i] = round_page(physmap[i]) + (PAGE_SIZE * 3);
+		/*
+		 * Second, try to chomp at the end.  Again, check
+		 * against kernel.
+		 */
+		end = trunc_page(physmap[i + 1]);
+		start = end - AP_BOOTPT_SZ;
+		if (start < end && start >= physmap[i] &&
+		    is_mpboot_good(start, end) &&
+		    !is_kernel_paddr(start) && !is_kernel_paddr(end - 1)) {
+			allocated = true;
+			physmap[i + 1] = start;
+			break;
+		}
+	}
+	if (allocated) {
+		mptramp_pagetables = start;
 		if (physmap[i] == physmap[i + 1] && *physmap_idx != 0) {
 			memmove(&physmap[i], &physmap[i + 2],
 			    sizeof(*physmap) * (*physmap_idx - i + 2));
 			*physmap_idx -= 2;
 		}
-		break;
-	}
-
-	if (!allocated) {
-		mptramp_pagetables = trunc_page(boot_address) - (PAGE_SIZE * 3);
+	} else {
+		mptramp_pagetables = trunc_page(boot_address) - AP_BOOTPT_SZ;
 		if (bootverbose)
 			printf(
 "Cannot find enough space for the initial AP page tables, placing them at %#x",
