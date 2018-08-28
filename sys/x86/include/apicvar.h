@@ -158,10 +158,10 @@
 #define	APIC_BUS_PCI		2
 #define	APIC_BUS_MAX		APIC_BUS_PCI
 
-#define	IRQ_EXTINT		(NUM_IO_INTS + 1)
-#define	IRQ_NMI			(NUM_IO_INTS + 2)
-#define	IRQ_SMI			(NUM_IO_INTS + 3)
-#define	IRQ_DISABLED		(NUM_IO_INTS + 4)
+#define	IRQ_EXTINT		-1
+#define	IRQ_NMI			-2
+#define	IRQ_SMI			-3
+#define	IRQ_DISABLED		-4
 
 /*
  * An APIC enumerator is a pseudo bus driver that enumerates APIC's including

@@ -337,7 +337,7 @@ dmar_init_irt(struct dmar_unit *unit)
 	     "QI disabled, disabling interrupt remapping\n");
 		return (0);
 	}
-	unit->irte_cnt = clp2(NUM_IO_INTS);
+	unit->irte_cnt = clp2(num_io_irqs);
 	unit->irt = (dmar_irte_t *)(uintptr_t)kmem_alloc_contig(
 	    unit->irte_cnt * sizeof(dmar_irte_t), M_ZERO | M_WAITOK, 0,
 	    dmar_high, PAGE_SIZE, 0, DMAR_IS_COHERENT(unit) ?
