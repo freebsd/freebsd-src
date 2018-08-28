@@ -34,9 +34,18 @@
 
 #include "fbt_isa.h"
 
+/*
+ * fbt_probe is a bit of a misnomer.  One of these structures is created for
+ * each trace point of an FBT probe.  A probe might have multiple trace points
+ * (e.g., a function with multiple return instructions), and different probes
+ * might have a trace point at the same address (e.g., GNU ifuncs).
+ */
 typedef struct fbt_probe {
-	struct fbt_probe *fbtp_hashnext;
-	fbt_patchval_t	*fbtp_patchpoint;
+	struct fbt_probe *fbtp_hashnext;	/* global hash table linkage */
+	struct fbt_probe *fbtp_tracenext;	/* next probe for tracepoint */
+	struct fbt_probe *fbtp_probenext;	/* next tracepoint for probe */
+	int		fbtp_enabled;
+	fbt_patchval_t  *fbtp_patchpoint;
 	int8_t		fbtp_rval;
 	fbt_patchval_t	fbtp_patchval;
 	fbt_patchval_t	fbtp_savedval;
@@ -46,7 +55,6 @@ typedef struct fbt_probe {
 	modctl_t	*fbtp_ctl;
 	int		fbtp_loadcnt;
 	int		fbtp_symindx;
-	struct fbt_probe *fbtp_next;
 } fbt_probe_t;
 
 struct linker_file;
