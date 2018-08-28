@@ -28,7 +28,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2018
+.Dd August 28, 2018
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd indicate last logins of users and ttys
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl swy
 .Oo
 .Fl d
@@ -72,6 +73,13 @@ will so indicate.
 .Pp
 The following options are available:
 .Bl -tag -width indent-two
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl d Ar date
 Specify the snapshot date and time.
 All users logged in at the snapshot date and time will
@@ -201,6 +209,8 @@ login data base
 .Xr getutxent 3 ,
 .Xr ac 8 ,
 .Xr lastlogin 8
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh HISTORY
 .Nm
 utility first appeared in
@@ -211,6 +221,10 @@ The original version was written by
 .An Howard P. Katseff ;
 .An Keith Bostic
 rewrote it in 1986/87 to add functionality and to improve code quality.
+.An Philip Paeps
+added
+.Xr libxo 3
+support in August 2018.
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
 that a logout record will not be written to the
