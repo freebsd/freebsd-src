@@ -1970,6 +1970,8 @@ t4_ddp_mod_unload(void)
 	taskqueue_drain(taskqueue_thread, &ddp_orphan_task);
 	MPASS(TAILQ_EMPTY(&ddp_orphan_pagesets));
 	mtx_destroy(&ddp_orphan_pagesets_lock);
+	t4_register_shared_cpl_handler(CPL_SET_TCB_RPL, NULL, CPL_COOKIE_DDP0);
+	t4_register_shared_cpl_handler(CPL_SET_TCB_RPL, NULL, CPL_COOKIE_DDP1);
 	t4_register_cpl_handler(CPL_RX_DATA_DDP, NULL);
 	t4_register_cpl_handler(CPL_RX_DDP_COMPLETE, NULL);
 }
