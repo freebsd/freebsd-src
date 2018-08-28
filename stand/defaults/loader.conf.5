@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 23, 2018
+.Dd August 28, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -289,6 +289,29 @@ See the entropy entries in
 .Pq Dq /boot/entropy
 The name of the very early
 boot-time entropy cache file.
+.It Va cpu_microcode_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+the microcode update file specified by
+.Va cpu_microcode_name
+will be loaded and applied very early during boot.
+This provides functionality similar to
+.Xr cpucontrol 8
+but ensures that CPU features enabled by microcode updates can be
+used by the kernel.
+The update will be re-applied automatically when resuming from an
+ACPI sleep state.
+If the update file contains updates for multiple processor models,
+the kernel will search for and extract a matching update.
+Currently this setting is supported only on Intel
+.Dv i386
+and
+.Dv amd64
+processors.
+It has no effect on other processor types.
+.It Va cpu_microcode_name
+A path to a microcode update file.
 .El
 .Sh OTHER SETTINGS
 Other settings that may be used in
@@ -319,6 +342,7 @@ machine-specific settings for sites with a common loader.conf.
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
 .Xr boot 8 ,
+.Xr cpucontrol 8 ,
 .Xr loader 8 ,
 .Xr loader.4th 8
 .Sh HISTORY
