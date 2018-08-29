@@ -36,8 +36,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	supported by its designers since at least 2003. Fortuna has been the
 	default since FreeBSD-11.
 
-20170822:
-	devctl freeze/that have gone into the tree, the rc scripts have been
+20180822:
+	devctl freeze/thaw have gone into the tree, the rc scripts have been
 	updated to use them and devmatch has been changed.  You should update
 	kernel, userland and rc scripts all at the same time.
 
