@@ -570,7 +570,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if (!map->contigalloc)
 		free(vaddr, M_DEVBUF);
 	else
-		kmem_free(kmem_arena, (vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free((vm_offset_t)vaddr, dmat->maxsize);
 	bus_dmamap_destroy(dmat, map);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }

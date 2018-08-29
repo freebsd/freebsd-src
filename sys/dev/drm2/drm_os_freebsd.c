@@ -126,7 +126,8 @@ drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 			    device_get_nameunit(kdev), id_entry->name);
 			device_set_desc(kdev, id_entry->name);
 		}
-		return (0);
+		DRM_OBSOLETE(kdev);
+		return (-BUS_PROBE_GENERIC);
 	}
 
 	return (-ENXIO);

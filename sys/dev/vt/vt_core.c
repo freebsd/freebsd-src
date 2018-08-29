@@ -190,6 +190,11 @@ SET_DECLARE(vt_drv_set, struct vt_driver);
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
+#ifndef SC_NO_CONSDRAWN
+static term_char_t vt_consdrawn[PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) * PIXEL_WIDTH(VT_FB_MAX_WIDTH)];
+static term_color_t vt_consdrawnfg[PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) * PIXEL_WIDTH(VT_FB_MAX_WIDTH)];
+static term_color_t vt_consdrawnbg[PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) * PIXEL_WIDTH(VT_FB_MAX_WIDTH)];
+#endif
 struct vt_device	vt_consdev = {
 	.vd_driver = NULL,
 	.vd_softc = NULL,
@@ -209,6 +214,12 @@ struct vt_device	vt_consdev = {
 	.vd_mcursor = &vt_default_mouse_pointer,
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
+#endif
+
+#ifndef SC_NO_CONSDRAWN
+	.vd_drawn = vt_consdrawn,
+	.vd_drawnfg = vt_consdrawnfg,
+	.vd_drawnbg = vt_consdrawnbg,
 #endif
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
@@ -804,7 +815,7 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
 	struct vt_window *vw = vd->vd_curwindow;
 
-	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
+	random_harvest_queue(&c, sizeof(c), RANDOM_KEYBOARD);
 #if VT_ALT_TO_ESC_HACK
 	if (c & RELKEY) {
 		switch (c & ~RELKEY) {
@@ -1181,6 +1192,8 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd, int locked)
 
 	if (!locked)
 		vtbuf_lock(&vw->vw_buf);
+	if (vd->vd_driver->vd_invalidate_text)
+		vd->vd_driver->vd_invalidate_text(vd, &area);
 	vtbuf_dirty(&vw->vw_buf, &area);
 	if (!locked)
 		vtbuf_unlock(&vw->vw_buf);
@@ -1280,12 +1293,14 @@ vt_flush(struct vt_device *vd)
 
 	vtbuf_undirty(&vw->vw_buf, &tarea);
 
-	/* Force a full redraw when the screen contents are invalid. */
-	if (vd->vd_flags & VDF_INVALID) {
+	/* Force a full redraw when the screen contents might be invalid. */
+	if (vd->vd_flags & (VDF_INVALID | VDF_SUSPENDED)) {
 		vd->vd_flags &= ~VDF_INVALID;
 
 		vt_set_border(vd, &vw->vw_draw_area, TC_BLACK);
 		vt_termrect(vd, vf, &tarea);
+		if (vd->vd_driver->vd_invalidate_text)
+			vd->vd_driver->vd_invalidate_text(vd, &tarea);
 		if (vt_draw_logo_cpus)
 			vtterm_draw_cpu_logos(vd);
 	}
@@ -2824,6 +2839,7 @@ vt_suspend_handler(void *priv)
 	struct vt_device *vd;
 
 	vd = priv;
+	vd->vd_flags |= VDF_SUSPENDED;
 	if (vd->vd_driver != NULL && vd->vd_driver->vd_suspend != NULL)
 		vd->vd_driver->vd_suspend(vd);
 }
@@ -2836,6 +2852,7 @@ vt_resume_handler(void *priv)
 	vd = priv;
 	if (vd->vd_driver != NULL && vd->vd_driver->vd_resume != NULL)
 		vd->vd_driver->vd_resume(vd);
+	vd->vd_flags &= ~VDF_SUSPENDED;
 }
 
 void

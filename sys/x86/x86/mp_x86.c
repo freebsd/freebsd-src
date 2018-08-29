@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
 #include <x86/apicreg.h>
 #include <machine/clock.h>
@@ -966,6 +967,8 @@ void
 init_secondary_tail(void)
 {
 	u_int cpuid;
+
+	pmap_activate_boot(vmspace_pmap(proc0.p_vmspace));
 
 	/*
 	 * On real hardware, switch to x2apic mode if possible.  Do it

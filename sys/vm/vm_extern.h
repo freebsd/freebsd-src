@@ -66,7 +66,7 @@ vm_offset_t kmem_alloc_contig_domain(int domain, vm_size_t size, int flags,
     vm_memattr_t memattr);
 vm_offset_t kmem_malloc(vm_size_t size, int flags);
 vm_offset_t kmem_malloc_domain(int domain, vm_size_t size, int flags);
-void kmem_free(struct vmem *, vm_offset_t, vm_size_t);
+void kmem_free(vm_offset_t addr, vm_size_t size);
 
 /* This provides memory for previously allocated address space. */
 int kmem_back(vm_object_t, vm_offset_t, vm_size_t, int);

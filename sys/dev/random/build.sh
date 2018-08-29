@@ -28,23 +28,23 @@
 #
 # Basic script to build crude unit tests.
 #
-# Diff-reduction checking between Yarrow and fortuna is done like so:
+# Diff-reduction checking between fortuna and the other algorithm is done like so:
 #
-# $ diff -u -B <(sed -e 's/yarrow/wombat/g' \
-#                    -e 's/YARROW/WOMBAT/g' yarrow.c) \
-#              <(sed -e 's/fortuna/wombat/g' \
-#                    -e 's/FORTUNA/WOMBAT/g' fortuna.c) | less
+# $ diff -u -B <(sed -e 's/random_other/random_wombat/g' \
+#                    -e 's/RANDOM_OTHER/RANDOM_WOMBAT/g' other_algorithm.c) \
+#              <(sed -e 's/random_fortuna/random_wombat/g' \
+#                    -e 's/RANDOM_FORTUNA/RANDOM_WOMBAT/g' fortuna.c) | less
 #
 cc -g -O0 -pthread \
 	-I../.. -lstdthreads -Wall \
 	unit_test.c \
-	yarrow.c \
+	other_algorithm.c \
 	hash.c \
 	../../crypto/rijndael/rijndael-api-fst.c \
 	../../crypto/rijndael/rijndael-alg-fst.c \
 	../../crypto/sha2/sha256c.c \
 	-lz \
-	-o yunit_test
+	-o other_unit_test
 cc -g -O0 -pthread \
 	-I../.. -lstdthreads -Wall \
 	unit_test.c \
@@ -54,4 +54,4 @@ cc -g -O0 -pthread \
 	../../crypto/rijndael/rijndael-alg-fst.c \
 	../../crypto/sha2/sha256c.c \
 	-lz \
-	-o funit_test
+	-o fortuna_unit_test

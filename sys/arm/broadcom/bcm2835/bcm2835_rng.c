@@ -289,8 +289,7 @@ bcm2835_rng_harvest(void *arg)
 
 	cnt = nread * sizeof(uint32_t);
 	if (cnt > 0)
-		random_harvest_queue(sc->sc_buf, cnt, cnt * NBBY / 2,
-		    RANDOM_PURE_BROADCOM);
+		random_harvest_queue(sc->sc_buf, cnt, RANDOM_PURE_BROADCOM);
 
 	callout_reset(&sc->sc_rngto, RNG_CALLOUT_TICKS, bcm2835_rng_harvest, sc);
 }

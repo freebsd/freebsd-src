@@ -38,6 +38,7 @@ inplace_hardlink_src_body()
 	atf_check ln a b
 	atf_check sed -i '' -e 's,foo,bar,g' b
 	atf_check -o 'inline:bar\n' -s exit:0 cat b
+	atf_check -s not-exit:0 stat -q '.!'*
 }
 
 atf_test_case inplace_symlink_src
@@ -50,10 +51,27 @@ inplace_symlink_src_body()
 	echo foo > a
 	atf_check ln -s a b
 	atf_check -e not-empty -s not-exit:0 sed -i '' -e 's,foo,bar,g' b
+	atf_check -s not-exit:0 stat -q '.!'*
+}
+
+atf_test_case inplace_command_q
+inplace_command_q_head()
+{
+	atf_set "descr" "Verify -i works correctly with the 'q' command"
+}
+inplace_command_q_body()
+{
+	printf '1\n2\n3\n' > a
+	atf_check -o 'inline:1\n2\n' sed '2q' a
+	atf_check sed -i.bak '2q' a
+	atf_check -o 'inline:1\n2\n' cat a
+	atf_check -o 'inline:1\n2\n3\n' cat a.bak
+	atf_check -s not-exit:0 stat -q '.!'*
 }
 
 atf_init_test_cases()
 {
+	atf_add_test_case inplace_command_q
 	atf_add_test_case inplace_hardlink_src
 	atf_add_test_case inplace_symlink_src
 }

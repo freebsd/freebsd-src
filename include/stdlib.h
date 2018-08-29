@@ -254,12 +254,6 @@ void	 arc4random_buf(void *, size_t);
 __uint32_t 
 	 arc4random_uniform(__uint32_t);
 
-#if !defined(BURN_BRIDGES)
-/* Deprecated arc4random() functions */
-#define arc4random_stir()
-#define arc4random_addrandom(a,b)
-#endif
-
 #ifdef __BLOCKS__
 int	 atexit_b(void (^ _Nonnull)(void));
 void	*bsearch_b(const void *, const void *, size_t,

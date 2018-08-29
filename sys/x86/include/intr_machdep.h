@@ -34,54 +34,40 @@
 #ifdef _KERNEL
 
 /*
- * The maximum number of I/O interrupts we allow.  This number is rather
- * arbitrary as it is just the maximum IRQ resource value.  The interrupt
- * source for a given IRQ maps that I/O interrupt to device interrupt
- * source whether it be a pin on an interrupt controller or an MSI interrupt.
- * The 16 ISA IRQs are assigned fixed IDT vectors, but all other device
- * interrupts allocate IDT vectors on demand.  Currently we have 191 IDT
- * vectors available for device interrupts.  On many systems with I/O APICs,
- * a lot of the IRQs are not used, so this number can be much larger than
- * 191 and still be safe since only interrupt sources in actual use will
- * allocate IDT vectors.
+ * Values used in determining the allocation of IRQ values among
+ * different types of I/O interrupts.  These values are used as
+ * indices into a interrupt source array to map I/O interrupts to a
+ * device interrupt source whether it be a pin on an interrupt
+ * controller or an MSI interrupt.  The 16 ISA IRQs are assigned fixed
+ * IDT vectors, but all other device interrupts allocate IDT vectors
+ * on demand.  Currently we have 191 IDT vectors available for device
+ * interrupts on each CPU.  On many systems with I/O APICs, a lot of
+ * the IRQs are not used, so the total number of IRQ values reserved
+ * can exceed the number of available IDT slots.
  *
- * The first 255 IRQs (0 - 254) are reserved for ISA IRQs and PCI intline IRQs.
- * IRQ values from 256 to 767 are used by MSI.  When running under the Xen
- * Hypervisor, IRQ values from 768 to 4863 are available for binding to
- * event channel events.  We leave 255 unused to avoid confusion since 255 is
- * used in PCI to indicate an invalid IRQ.
+ * The first 16 IRQs (0 - 15) are reserved for ISA IRQs.  Interrupt
+ * pins on I/O APICs for non-ISA interrupts use IRQ values starting at
+ * IRQ 17.  This layout matches the GSI numbering used by ACPI so that
+ * IRQ values returned by ACPI methods such as _CRS can be used
+ * directly by the ACPI bus driver.
+ *
+ * MSI interrupts allocate a block of interrupts starting at either
+ * the end of the I/O APIC range or 256, whichever is higher.  When
+ * running under the Xen Hypervisor, an additional range of IRQ values
+ * are available for binding to event channel events.  We use 256 as
+ * the minimum IRQ value for MSI interrupts to attempt to leave 255
+ * unused since 255 is used in PCI to indicate an invalid INTx IRQ.
  */
 #define	NUM_MSI_INTS	512
-#define	FIRST_MSI_INT	256
-#ifdef XENHVM
-#include <xen/xen-os.h>
-#include <xen/interface/event_channel.h>
-#define	NUM_EVTCHN_INTS	NR_EVENT_CHANNELS
-#define	FIRST_EVTCHN_INT \
-    (FIRST_MSI_INT + NUM_MSI_INTS)
-#define	LAST_EVTCHN_INT \
-    (FIRST_EVTCHN_INT + NUM_EVTCHN_INTS - 1)
-#else
-#define	NUM_EVTCHN_INTS	0
-#endif
-#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS + NUM_EVTCHN_INTS)
+#define	MINIMUM_MSI_INT	256
+
+extern u_int first_msi_irq;
+extern u_int num_io_irqs;
 
 /*
  * Default base address for MSI messages on x86 platforms.
  */
 #define	MSI_INTEL_ADDR_BASE		0xfee00000
-
-/*
- * - 1 ??? dummy counter.
- * - 2 counters for each I/O interrupt.
- * - 1 counter for each CPU for lapic timer.
- * - 8 counters for each CPU for IPI counters for SMP.
- */
-#ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 8) * MAXCPU)
-#else
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
-#endif
 
 #ifndef LOCORE
 
@@ -97,6 +83,7 @@ struct intsrc;
  * return the vector associated with this source.
  */
 struct pic {
+	void (*pic_register_sources)(struct pic *);
 	void (*pic_enable_source)(struct intsrc *);
 	void (*pic_disable_source)(struct intsrc *, int);
 	void (*pic_eoi_source)(struct intsrc *);
@@ -184,6 +171,9 @@ int	msi_map(int irq, uint64_t *addr, uint32_t *data);
 int	msi_release(int *irqs, int count);
 int	msix_alloc(device_t dev, int *irq);
 int	msix_release(int irq);
+#ifdef XENHVM
+void	xen_intr_alloc_irqs(void);
+#endif
 
 #endif	/* !LOCORE */
 #endif	/* _KERNEL */

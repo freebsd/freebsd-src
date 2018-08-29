@@ -720,7 +720,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_NG);
+	random_harvest_queue(m, sizeof(*m), RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);

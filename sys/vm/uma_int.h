@@ -188,7 +188,7 @@ struct uma_hash {
 
 struct uma_bucket {
 	LIST_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
-	int16_t	ub_cnt;				/* Count of allocated items. */
+	int16_t	ub_cnt;				/* Count of items in bucket. */
 	int16_t	ub_entries;			/* Max items. */
 	void	*ub_bucket[];			/* actual allocation storage */
 };

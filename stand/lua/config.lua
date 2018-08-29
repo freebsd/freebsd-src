@@ -479,6 +479,21 @@ function config.loadKernel(other_kernel)
 		return nil
 	end
 
+	local function getModulePath()
+		local module_path = loader.getenv("module_path")
+		local kernel_path = loader.getenv("kernel_path")
+
+		if kernel_path == nil then
+			return module_path
+		end
+
+		-- Strip the loaded kernel path from module_path. This currently assumes
+		-- that the kernel path will be prepended to the module_path when it's
+		-- found.
+		kernel_path = escapeName(kernel_path .. ';')
+		return module_path:gsub(kernel_path, '')
+	end
+
 	local function loadBootfile()
 		local bootfile = loader.getenv("bootfile")
 
@@ -507,7 +522,7 @@ function config.loadKernel(other_kernel)
 	else
 		-- Use our cached module_path, so we don't end up with multiple
 		-- automatically added kernel paths to our final module_path
-		local module_path = config.module_path
+		local module_path = getModulePath()
 		local res
 
 		if other_kernel ~= nil then
@@ -527,6 +542,7 @@ function config.loadKernel(other_kernel)
 				if module_path ~= nil then
 					loader.setenv("module_path", v .. ";" ..
 					    module_path)
+					loader.setenv("kernel_path", v)
 				end
 				return true
 			end
@@ -563,8 +579,6 @@ function config.load(file, reloading)
 
 	checkNextboot()
 
-	-- Cache the provided module_path at load time for later use
-	config.module_path = loader.getenv("module_path")
 	local verbose = loader.getenv("verbose_loading") or "no"
 	config.verbose = verbose:lower() == "yes"
 	if not reloading then

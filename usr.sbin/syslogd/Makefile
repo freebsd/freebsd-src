@@ -21,7 +21,7 @@ CFLAGS+= -DINET6
 .endif
 
 SYSLOGD_D=
-SYSLOGD_DDIR=	/etc/syslog.d/
+SYSLOGD_DDIR=	/etc/syslog.d
 .if ${MK_FTP} != "no"
 SYSLOGD_D+=	ftp.conf
 .endif

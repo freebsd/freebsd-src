@@ -334,6 +334,7 @@ main(int argc, char *argv[])
 #endif
 		i++;
 	}
+	endgrent();
 
 	/*
 	 * Loop around adding all users.
@@ -382,6 +383,7 @@ main(int argc, char *argv[])
 #endif
 		i++;
 	}
+	endpwent();
 
 	/*
 	 * I should feel guilty for not calling this for all the above exit()
