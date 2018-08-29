@@ -99,7 +99,7 @@ drm_sg_cleanup(struct drm_sg_mem *entry)
 		return;
 
 	if (entry->vaddr != 0)
-		kmem_free(kernel_arena, entry->vaddr, IDX_TO_OFF(entry->pages));
+		kmem_free(entry->vaddr, IDX_TO_OFF(entry->pages));
 
 	free(entry->busaddr, DRM_MEM_SGLISTS);
 	free(entry, DRM_MEM_DRIVER);

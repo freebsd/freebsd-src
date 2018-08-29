@@ -339,8 +339,8 @@ vmspace_dofree(struct vmspace *vm)
 	 * Delete all of the mappings and pages they hold, then call
 	 * the pmap module to reclaim anything left.
 	 */
-	(void)vm_map_remove(&vm->vm_map, vm->vm_map.min_offset,
-	    vm->vm_map.max_offset);
+	(void)vm_map_remove(&vm->vm_map, vm_map_min(&vm->vm_map),
+	    vm_map_max(&vm->vm_map));
 
 	pmap_release(vmspace_pmap(vm));
 	vm->vm_map.pmap = NULL;
@@ -799,8 +799,8 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 	map->needs_wakeup = FALSE;
 	map->system_map = 0;
 	map->pmap = pmap;
-	map->min_offset = min;
-	map->max_offset = max;
+	map->header.end = min;
+	map->header.start = max;
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
@@ -1198,7 +1198,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
-	if (start < map->min_offset || end > map->max_offset || start >= end)
+	if (start < vm_map_min(map) || end > vm_map_max(map) ||
+	    start >= end)
 		return (KERN_INVALID_ADDRESS);
 
 	/*
@@ -1401,9 +1402,8 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	 * Request must fit within min/max VM address and must avoid
 	 * address wrap.
 	 */
-	if (start < map->min_offset)
-		start = map->min_offset;
-	if (start + length > map->max_offset || start + length < start)
+	start = MAX(start, vm_map_min(map));
+	if (start + length > vm_map_max(map) || start + length < start)
 		return (1);
 
 	/* Empty tree means wide open address space. */
@@ -3429,7 +3429,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset, NULL);
+	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), NULL);
 	if (vm2 == NULL)
 		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
@@ -4329,14 +4329,14 @@ vm_offset_t
 vm_map_max_KBI(const struct vm_map *map)
 {
 
-	return (map->max_offset);
+	return (vm_map_max(map));
 }
 
 vm_offset_t
 vm_map_min_KBI(const struct vm_map *map)
 {
 
-	return (map->min_offset);
+	return (vm_map_min(map));
 }
 
 pmap_t

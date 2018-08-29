@@ -140,7 +140,7 @@ static struct kproc_desc random_proc_kp = {
 	&harvest_context.hc_kthread_proc,
 };
 
-/* Pass the given event straight through to Fortuna/Yarrow/Whatever. */
+/* Pass the given event straight through to Fortuna/Whatever. */
 static __inline void
 random_harvestq_fast_process_event(struct harvest_event *event)
 {
@@ -178,7 +178,7 @@ random_kthread(void)
 		/* XXX: FIX!! Increase the high-performance data rate? Need some measurements first. */
 		for (i = 0; i < RANDOM_ACCUM_MAX; i++) {
 			if (harvest_context.hc_entropy_fast_accumulator.buf[i]) {
-				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_UMA);
+				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), RANDOM_UMA);
 				harvest_context.hc_entropy_fast_accumulator.buf[i] = 0;
 			}
 		}
@@ -197,8 +197,7 @@ SYSINIT(random_device_h_proc, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, kproc_start,
 /*
  * Run through all fast sources reading entropy for the given
  * number of rounds, which should be a multiple of the number
- * of entropy accumulation pools in use; 2 for Yarrow and 32
- * for Fortuna.
+ * of entropy accumulation pools in use; it is 32 for Fortuna.
  */
 static void
 random_sources_feed(void)
@@ -234,7 +233,7 @@ random_sources_feed(void)
 				printf("%s: rs_read for hardware device '%s' returned no entropy.\n", __func__, rrs->rrs_source->rs_ident);
 				continue;
 			}
-			random_harvest_direct(entropy, n, (n*8)/2, rrs->rrs_source->rs_source);
+			random_harvest_direct(entropy, n, rrs->rrs_source->rs_source);
 		}
 	}
 	explicit_bzero(entropy, sizeof(entropy));
@@ -380,7 +379,7 @@ SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_in
 /*
  * This is used to prime the RNG by grabbing any early random stuff
  * known to the kernel, and inserting it directly into the hashing
- * module, e.g. Fortuna or Yarrow.
+ * module, currently Fortuna.
  */
 /* ARGSUSED */
 static void
@@ -414,7 +413,6 @@ random_harvestq_prime(void *unused __unused)
 				count = sizeof(event.he_entropy);
 				event.he_somecounter = (uint32_t)get_cyclecount();
 				event.he_size = count;
-				event.he_bits = count/4; /* Underestimate the size for Yarrow */
 				event.he_source = RANDOM_CACHED;
 				event.he_destination = harvest_context.hc_destination[0]++;
 				memcpy(event.he_entropy, data + i, sizeof(event.he_entropy));
@@ -459,8 +457,7 @@ SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_
  * read which can be quite expensive.
  */
 void
-random_harvest_queue_(const void *entropy, u_int size, u_int bits,
-	enum random_entropy_source origin)
+random_harvest_queue_(const void *entropy, u_int size, enum random_entropy_source origin)
 {
 	struct harvest_event *event;
 	u_int ring_in;
@@ -474,7 +471,6 @@ random_harvest_queue_(const void *entropy, u_int size, u_int bits,
 		event->he_somecounter = (uint32_t)get_cyclecount();
 		event->he_source = origin;
 		event->he_destination = harvest_context.hc_destination[origin]++;
-		event->he_bits = bits;
 		if (size <= sizeof(event->he_entropy)) {
 			event->he_size = size;
 			memcpy(event->he_entropy, entropy, size);
@@ -496,7 +492,7 @@ random_harvest_queue_(const void *entropy, u_int size, u_int bits,
  * This is the right place for high-rate harvested data.
  */
 void
-random_harvest_fast_(const void *entropy, u_int size, u_int bits)
+random_harvest_fast_(const void *entropy, u_int size)
 {
 	u_int pos;
 
@@ -512,7 +508,7 @@ random_harvest_fast_(const void *entropy, u_int size, u_int bits)
  * (e.g.) booting when initial entropy is being gathered.
  */
 void
-random_harvest_direct_(const void *entropy, u_int size, u_int bits, enum random_entropy_source origin)
+random_harvest_direct_(const void *entropy, u_int size, enum random_entropy_source origin)
 {
 	struct harvest_event event;
 
@@ -520,7 +516,6 @@ random_harvest_direct_(const void *entropy, u_int size, u_int bits, enum random_
 	size = MIN(size, sizeof(event.he_entropy));
 	event.he_somecounter = (uint32_t)get_cyclecount();
 	event.he_size = size;
-	event.he_bits = bits;
 	event.he_source = origin;
 	event.he_destination = harvest_context.hc_destination[origin]++;
 	memcpy(event.he_entropy, entropy, size);

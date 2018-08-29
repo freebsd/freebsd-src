@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 static char da[] = "da";
 
 enum x_stats { X_SUM, X_HZ, X_STATHZ, X_NCHSTATS, X_INTRNAMES, X_SINTRNAMES,
-    X_INTRCNT, X_SINTRCNT };
+    X_INTRCNT, X_SINTRCNT, X_NINTRCNT };
 
 static struct nlist namelist[] = {
 	[X_SUM] = { .n_name = "_vm_cnt", },
@@ -97,6 +97,7 @@ static struct nlist namelist[] = {
 	[X_SINTRNAMES] = { .n_name = "_sintrnames", },
 	[X_INTRCNT] = { .n_name = "_intrcnt", },
 	[X_SINTRCNT] = { .n_name = "_sintrcnt", },
+	[X_NINTRCNT] = { .n_name = "_nintrcnt", },
 	{ .n_name = NULL, },
 };
 
@@ -196,6 +197,7 @@ static void	domemstat_malloc(void);
 static void	domemstat_zone(void);
 static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
+static void	kreadptr(uintptr_t, void *, size_t);
 static void	needhdr(int);
 static void	needresize(int);
 static void	doresize(void);
@@ -318,6 +320,13 @@ retry_nlist:
 				goto retry_nlist;
 			}
 
+			/*
+			 * 'nintrcnt' doesn't exist in older kernels, but
+			 * that isn't fatal.
+			 */
+			if (namelist[X_NINTRCNT].n_type == 0 && c == 1)
+				goto nlist_ok;
+
 			for (c = 0; c < (int)(nitems(namelist)); c++)
 				if (namelist[c].n_type == 0)
 					bufsize += strlen(namelist[c].n_name)
@@ -341,6 +350,7 @@ retry_nlist:
 		xo_finish();
 		exit(1);
 	}
+nlist_ok:
 	if (kd && Pflag)
 		xo_errx(1, "Cannot use -P with crash dumps");
 
@@ -1232,12 +1242,18 @@ static unsigned int
 read_intrcnts(unsigned long **intrcnts)
 {
 	size_t intrcntlen;
+	uintptr_t kaddr;
 
 	if (kd != NULL) {
 		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
 		if ((*intrcnts = malloc(intrcntlen)) == NULL)
 			err(1, "malloc()");
-		kread(X_INTRCNT, *intrcnts, intrcntlen);
+		if (namelist[X_NINTRCNT].n_type == 0)
+			kread(X_INTRCNT, *intrcnts, intrcntlen);
+		else {
+			kread(X_INTRCNT, &kaddr, sizeof(kaddr));
+			kreadptr(kaddr, *intrcnts, intrcntlen);
+		}
 	} else {
 		for (*intrcnts = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
 			*intrcnts = reallocf(*intrcnts, intrcntlen);
@@ -1294,6 +1310,7 @@ dointr(unsigned int interval, int reps)
 	char *intrname, *intrnames;
 	long long period_ms, old_uptime, uptime;
 	size_t clen, inamlen, istrnamlen;
+	uintptr_t kaddr;
 	unsigned int nintr;
 
 	old_intrcnts = NULL;
@@ -1304,7 +1321,12 @@ dointr(unsigned int interval, int reps)
 		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
 		if ((intrnames = malloc(inamlen)) == NULL)
 			xo_err(1, "malloc()");
-		kread(X_INTRNAMES, intrnames, inamlen);
+		if (namelist[X_NINTRCNT].n_type == 0)
+			kread(X_INTRNAMES, intrnames, inamlen);
+		else {
+			kread(X_INTRNAMES, &kaddr, sizeof(kaddr));
+			kreadptr(kaddr, intrnames, inamlen);
+		}
 	} else {
 		for (intrnames = NULL, inamlen = 1024; ; inamlen *= 2) {
 			if ((intrnames = reallocf(intrnames, inamlen)) == NULL)
@@ -1644,6 +1666,14 @@ kread(int nlx, void *addr, size_t size)
 {
 
 	kreado(nlx, addr, size, 0);
+}
+
+static void
+kreadptr(uintptr_t addr, void *buf, size_t size)
+{
+
+	if ((size_t)kvm_read(kd, addr, buf, size) != size)
+		xo_errx(1, "%s", kvm_geterr(kd));
 }
 
 static void __dead2

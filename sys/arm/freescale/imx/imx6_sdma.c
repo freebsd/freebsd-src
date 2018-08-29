@@ -196,8 +196,7 @@ sdma_free(int chn)
 	channel = &sc->channel[chn];
 	channel->in_use = 0;
 
-	kmem_free(kernel_arena, (vm_offset_t)channel->bd,
-			PAGE_SIZE);
+	kmem_free((vm_offset_t)channel->bd, PAGE_SIZE);
 
 	return (0);
 }

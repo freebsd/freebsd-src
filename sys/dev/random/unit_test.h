@@ -74,9 +74,8 @@ enum random_entropy_source {
 struct harvest_event {
 	uintmax_t			he_somecounter;		/* fast counter for clock jitter */
 	uint32_t			he_entropy[HARVESTSIZE];/* some harvested entropy */
-	u_int				he_size;		/* harvested entropy byte count */
-	u_int				he_bits;		/* stats about the entropy */
-	u_int				he_destination;		/* destination pool of this entropy */
+	uint8_t				he_size;		/* harvested entropy byte count */
+	uint8_t				he_destination;		/* destination pool of this entropy */
 	enum random_entropy_source	he_source;		/* origin of the entropy */
 	void *				he_next;		/* next item on the list */
 };

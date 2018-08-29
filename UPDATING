@@ -31,8 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20170822:
-	devctl freeze/that have gone into the tree, the rc scripts have been
+20180826:
+	The Yarrow CSPRNG has been removed from the kernel as it has not been
+	supported by its designers since at least 2003. Fortuna has been the
+	default since FreeBSD-11.
+
+20180822:
+	devctl freeze/thaw have gone into the tree, the rc scripts have been
 	updated to use them and devmatch has been changed.  You should update
 	kernel, userland and rc scripts all at the same time.
 

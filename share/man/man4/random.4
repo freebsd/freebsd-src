@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2015
+.Dd August 26, 2018
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -153,26 +153,15 @@ the
 device is not created
 until an "algorithm module"
 is loaded.
-Two of these modules
-are built by default,
-.Em random_fortuna
-and
-.Em random_yarrow .
+The only module built by default is
+.Em random_fortuna .
 The
 .Em random_yarrow
-module is deprecated,
-and will be removed in
-.Fx 12.
-Use of the Yarrow algorithm
-is not encouraged,
-but while still present
-in the kernel source,
-it can be selected with the
-.Cd "options RANDOM_YARROW"
-kernel option.
-Note that these loadable modules
-are slightly less efficient
-than their compiled-in equivalents.
+module was removed in
+.Fx 12 .
+Note that this loadable module
+is slightly less efficient
+than its compiled-in equivalent.
 This is because some functions
 must be locked against
 load and unload events,
@@ -351,4 +340,4 @@ introduced in
 The Yarrow algorithm
 is no longer supported
 by its authors,
-and is therefore deprecated.
+and is therefore no longer available.

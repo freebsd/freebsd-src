@@ -155,18 +155,6 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.k5login ${DESTDIR}/root/.k5login;
 .endif
-	cd ${.CURDIR}/root; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.profile ${DESTDIR}/root/.profile; \
-	    rm -f ${DESTDIR}/.profile; \
-	    ${INSTALL_LINK} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
-.if ${MK_TCSH} != "no"
-	cd ${.CURDIR}/root; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    rm -f ${DESTDIR}/.cshrc; \
-	    ${INSTALL_LINK} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
-.endif
 
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \

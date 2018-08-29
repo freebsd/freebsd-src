@@ -1334,7 +1334,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+	${INSTALL_SYMLINK} ${INSTALLFLAGS} usr/src/sys ${INSTALL_DDIR}/base/sys
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}

@@ -154,6 +154,20 @@ typedef void			irqreturn_t;
 	*(volatile u_int64_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset)) = htole64(val)
 
+#ifdef __LP64__
+#define DRM_PORT "graphics/drm-stable-kmod"
+#else
+#define DRM_PORT "graphics/drm-legacy-kmod"
+#endif
+
+#define DRM_OBSOLETE(dev)							\
+    do {									\
+	device_printf(dev, "=======================================================\n"); \
+	device_printf(dev, "This code is obsolete abandonware. Install the " DRM_PORT " pkg\n"); \
+	device_printf(dev, "=======================================================\n"); \
+	gone_in_dev(dev, 13, "drm2 drivers");					\
+    } while (0)
+
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
  * DRM_MEMORYBARRIER() prevents reordering of reads and writes.

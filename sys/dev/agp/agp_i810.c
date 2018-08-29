@@ -1329,7 +1329,7 @@ agp_i810_deinstall_gatt(device_t dev)
 
 	sc = device_get_softc(dev);
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, 0);
-	kmem_free(kernel_arena, (vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
+	kmem_free((vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
 }
 
 static void

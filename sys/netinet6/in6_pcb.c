@@ -901,6 +901,10 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	 * - Load balanced does not contain IPv4 mapped INET6 wild sockets.
 	 */
 	LIST_FOREACH(grp, hdr, il_list) {
+#ifdef INET
+		if (!(grp->il_vflag & INP_IPV6))
+			continue;
+#endif
 		if (grp->il_lport == lport) {
 			idx = 0;
 			int pkt_hash = INP_PCBLBGROUP_PKTHASH(

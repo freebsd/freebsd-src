@@ -95,6 +95,7 @@ inthand_t
 
 #define	ATPIC(io, base, eoi) {						\
 		.at_pic = {						\
+			.pic_register_sources = atpic_register_sources,	\
 			.pic_enable_source = atpic_enable_source,	\
 			.pic_disable_source = atpic_disable_source,	\
 			.pic_eoi_source = (eoi),			\
@@ -133,6 +134,7 @@ struct atpic_intsrc {
 	u_long	at_straycount;
 };
 
+static void atpic_register_sources(struct pic *pic);
 static void atpic_enable_source(struct intsrc *isrc);
 static void atpic_disable_source(struct intsrc *isrc, int eoi);
 static void atpic_eoi_master(struct intsrc *isrc);
@@ -200,6 +202,36 @@ _atpic_eoi_slave(struct intsrc *isrc)
 	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
 #endif
 #endif
+}
+
+static void
+atpic_register_sources(struct pic *pic)
+{
+	struct atpic *ap = (struct atpic *)pic;
+	struct atpic_intsrc *ai;
+	int i;
+
+	/*
+	 * If any of the ISA IRQs have an interrupt source already, then
+	 * assume that the I/O APICs are being used and don't register any
+	 * of our interrupt sources.  This makes sure we don't accidentally
+	 * use mixed mode.  The "accidental" use could otherwise occur on
+	 * machines that route the ACPI SCI interrupt to a different ISA
+	 * IRQ (at least one machine routes it to IRQ 13) thus disabling
+	 * that APIC ISA routing and allowing the ATPIC source for that IRQ
+	 * to leak through.  We used to depend on this feature for routing
+	 * IRQ0 via mixed mode, but now we don't use mixed mode at all.
+	 */
+	for (i = 0; i < NUM_ISA_IRQS; i++)
+		if (intr_lookup_source(i) != NULL)
+			return;
+
+	/* Loop through all interrupt sources and add them. */
+	for (i = 0, ai = atintrs + ap->at_irqbase; i < 8; i++, ai++) {
+		if (ap->at_irqbase + i == ICU_SLAVEID)
+			continue;
+		intr_register_source(&ai->at_intsrc);
+	}
 }
 
 static void
@@ -467,8 +499,6 @@ atpic_startup(void)
 static void
 atpic_init(void *dummy __unused)
 {
-	struct atpic_intsrc *ai;
-	int i;
 
 	/*
 	 * Register our PICs, even if we aren't going to use any of their
@@ -478,27 +508,8 @@ atpic_init(void *dummy __unused)
 	    intr_register_pic(&atpics[1].at_pic) != 0)
 		panic("Unable to register ATPICs");
 
-	/*
-	 * If any of the ISA IRQs have an interrupt source already, then
-	 * assume that the APICs are being used and don't register any
-	 * of our interrupt sources.  This makes sure we don't accidentally
-	 * use mixed mode.  The "accidental" use could otherwise occur on
-	 * machines that route the ACPI SCI interrupt to a different ISA
-	 * IRQ (at least one machines routes it to IRQ 13) thus disabling
-	 * that APIC ISA routing and allowing the ATPIC source for that IRQ
-	 * to leak through.  We used to depend on this feature for routing
-	 * IRQ0 via mixed mode, but now we don't use mixed mode at all.
-	 */
-	for (i = 0; i < NUM_ISA_IRQS; i++)
-		if (intr_lookup_source(i) != NULL)
-			return;
-
-	/* Loop through all interrupt sources and add them. */
-	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
-		if (i == ICU_SLAVEID)
-			continue;
-		intr_register_source(&ai->at_intsrc);
-	}
+	if (num_io_irqs == 0)
+		num_io_irqs = NUM_ISA_IRQS;
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_FOURTH, atpic_init, NULL);
 

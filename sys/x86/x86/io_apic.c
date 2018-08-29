@@ -80,7 +80,7 @@ static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
 
 struct ioapic_intsrc {
 	struct intsrc io_intsrc;
-	u_int io_irq;
+	int io_irq;
 	u_int io_intpin:8;
 	u_int io_vector:8;
 	u_int io_cpu;
@@ -112,6 +112,7 @@ static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
+static void	ioapic_register_sources(struct pic *pic);
 static void	ioapic_enable_source(struct intsrc *isrc);
 static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
@@ -128,6 +129,7 @@ static void	ioapic_reprogram_intpin(struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = {
+	.pic_register_sources = ioapic_register_sources,
 	.pic_enable_source = ioapic_enable_source,
 	.pic_disable_source = ioapic_disable_source,
 	.pic_eoi_source = ioapic_eoi_source,
@@ -142,7 +144,7 @@ struct pic ioapic_template = {
 	.pic_reprogram_pin = ioapic_reprogram_intpin,
 };
 
-static int next_ioapic_base;
+static u_int next_ioapic_base;
 static u_int next_id;
 
 static int enable_extint;
@@ -250,7 +252,7 @@ ioapic_print_irq(struct ioapic_intsrc *intpin)
 		printf("SMI");
 		break;
 	default:
-		printf("%s IRQ %u", ioapic_bus_string(intpin->io_bus),
+		printf("%s IRQ %d", ioapic_bus_string(intpin->io_bus),
 		    intpin->io_irq);
 	}
 }
@@ -318,7 +320,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	 * been enabled yet, just ensure that the pin is masked.
 	 */
 	mtx_assert(&icu_lock, MA_OWNED);
-	if (intpin->io_irq == IRQ_DISABLED || (intpin->io_irq < NUM_IO_INTS &&
+	if (intpin->io_irq == IRQ_DISABLED || (intpin->io_irq >= 0 &&
 	    intpin->io_vector == 0)) {
 		low = ioapic_read(io->io_addr,
 		    IOAPIC_REDTBL_LO(intpin->io_intpin));
@@ -651,6 +653,8 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 		    io->io_id, intbase, next_ioapic_base);
 	io->io_intbase = intbase;
 	next_ioapic_base = intbase + numintr;
+	if (next_ioapic_base > num_io_irqs)
+		num_io_irqs = next_ioapic_base;
 	io->io_numintr = numintr;
 	io->io_addr = apic;
 	io->io_paddr = addr;
@@ -759,7 +763,7 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || vector < 0)
 		return (EINVAL);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	io->io_pins[pin].io_irq = vector;
 	if (bootverbose)
@@ -778,7 +782,7 @@ ioapic_set_bus(void *cookie, u_int pin, int bus_type)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	if (io->io_pins[pin].io_bus == bus_type)
 		return (0);
@@ -799,7 +803,7 @@ ioapic_set_nmi(void *cookie, u_int pin)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_NMI)
 		return (0);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_irq = IRQ_NMI;
@@ -822,7 +826,7 @@ ioapic_set_smi(void *cookie, u_int pin)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_SMI)
 		return (0);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_irq = IRQ_SMI;
@@ -845,7 +849,7 @@ ioapic_set_extint(void *cookie, u_int pin)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_EXTINT)
 		return (0);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_irq = IRQ_EXTINT;
@@ -870,7 +874,7 @@ ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	activehi = (pol == INTR_POLARITY_HIGH);
 	if (io->io_pins[pin].io_activehi == activehi)
@@ -891,7 +895,7 @@ ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
-	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
+	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
 	edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 	if (io->io_pins[pin].io_edgetrigger == edgetrigger)
@@ -927,12 +931,26 @@ ioapic_register(void *cookie)
 
 	/*
 	 * Reprogram pins to handle special case pins (such as NMI and
-	 * SMI) and register valid pins as interrupt sources.
+	 * SMI) and disable normal pins until a handler is registered.
 	 */
 	intr_register_pic(&io->io_pic);
-	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
+	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
 		ioapic_reprogram_intpin(&pin->io_intsrc);
-		if (pin->io_irq < NUM_IO_INTS)
+}
+
+/*
+ * Add interrupt sources for I/O APIC interrupt pins.
+ */
+static void
+ioapic_register_sources(struct pic *pic)
+{
+	struct ioapic_intsrc *pin;
+	struct ioapic *io;
+	int i;
+
+	io = (struct ioapic *)pic;
+	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
+		if (pin->io_irq >= 0)
 			intr_register_source(&pin->io_intsrc);
 	}
 }

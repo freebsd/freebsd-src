@@ -532,8 +532,7 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if ((dmat->bounce_flags & BF_KMEM_ALLOC) == 0)
 		free(vaddr, M_DEVBUF);
 	else
-		kmem_free(kernel_arena, (vm_offset_t)vaddr,
-		    dmat->common.maxsize);
+		kmem_free((vm_offset_t)vaddr, dmat->common.maxsize);
 	free(map, M_DEVBUF);
 	dmat->map_count--;
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat,

@@ -373,6 +373,7 @@ extern vm_offset_t virtual_end;
  * is called: pmap_kenter(), pmap_kextract(), pmap_kremove(), vtophys(), and
  * vtopte().
  */
+void	pmap_activate_boot(pmap_t pmap);
 void	pmap_bootstrap(vm_paddr_t);
 int	pmap_cache_bits(pmap_t, int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);

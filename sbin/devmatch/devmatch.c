@@ -386,7 +386,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 						if (all_flag)
 							printf("%s: %s", *dev ? dev : "unattached", lastmod);
 						else
-							printf("%s", lastmod);
+							printf("%s\n", lastmod);
 						if (verbose_flag)
 							printf("Matches --- %s ---\n", lastmod);
 					}

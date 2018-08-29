@@ -178,7 +178,7 @@ linux_free_kmem(vm_offset_t addr, unsigned int order)
 {
 	size_t size = ((size_t)PAGE_SIZE) << order;
 
-	kmem_free(kmem_arena, addr, size);
+	kmem_free(addr, size);
 }
 
 static int

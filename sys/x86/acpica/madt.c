@@ -428,10 +428,6 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    apic->Id);
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
-		if (apic->GlobalIrqBase >= FIRST_MSI_INT) {
-			printf("MADT: Ignoring bogus I/O APIC ID %u", apic->Id);
-			break;
-		}
 		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
 		    apic->Id, apic->GlobalIrqBase);
 		ioapics[apic->Id].io_vector = apic->GlobalIrqBase;
