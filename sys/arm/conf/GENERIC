@@ -72,6 +72,7 @@ options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset
+device		nvmem
 device		regulator
 device		syscon
 
@@ -79,7 +80,6 @@ device		syscon
 device		cpufreq
 
 # Interrupt controller
-options 	INTRNG
 device		gic
 
 # PMU support (for CCNT).
@@ -260,6 +260,9 @@ options 	EFI
 device		cesa
 device		crypto
 device		cryptodev
+
+# imx6 on-chip RTC
+device		imx6_snvs		# On-chip RTC
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

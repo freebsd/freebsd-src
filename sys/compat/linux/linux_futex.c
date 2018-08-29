@@ -290,10 +290,10 @@ futex_copyin_timeout(int op, struct l_timespec *luts, int clockrt,
 		return (error);
 	if (clockrt) {
 		nanotime(&kts);
-		timespecsub(ts, &kts);
+		timespecsub(ts, &kts, ts);
 	} else if (op == LINUX_FUTEX_WAIT_BITSET) {
 		nanouptime(&kts);
-		timespecsub(ts, &kts);
+		timespecsub(ts, &kts, ts);
 	}
 	return (error);
 }

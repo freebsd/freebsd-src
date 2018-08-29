@@ -584,7 +584,7 @@ sf_buf_map(struct sf_buf *sf, int flags)
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
 	*ptep = VM_PAGE_TO_PHYS(sf->m) | PG_RW | PG_V |
-	    pmap_cache_bits(sf->m->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, sf->m->md.pat_mode, 0);
 
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old

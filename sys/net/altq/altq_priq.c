@@ -199,7 +199,7 @@ priq_remove_queue(struct pf_altq *a)
 }
 
 int
-priq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
+priq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
 	struct priq_if *pif;
 	struct priq_class *cl;

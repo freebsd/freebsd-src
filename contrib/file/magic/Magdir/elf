@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.72 2018/02/24 19:50:04 christos Exp $
+# $File: elf,v 1.74 2018/06/23 16:39:53 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -50,8 +50,12 @@
 !:mime	application/x-executable
 >16	leshort		3		shared object,
 !:mime	application/x-sharedlib
->16	leshort		4		core file
+>16	leshort		4		core file,
 !:mime	application/x-coredump
+# OS-specific
+>7	byte		202
+>>16	leshort		0xFE01		executable,
+!:mime	application/x-executable
 # Core file detection is not reliable.
 #>>>(0x38+0xcc) string	>\0		of '%s'
 #>>>(0x38+0x10) lelong	>0		(signal %d),
@@ -320,4 +324,5 @@
 >7	byte		16		(FenixOS)
 >7	byte		17		(Nuxi CloudABI)
 >7	byte		97		(ARM)
+>7	byte		202		(Cafe OS)
 >7	byte		255		(embedded)

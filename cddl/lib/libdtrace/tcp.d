@@ -55,6 +55,32 @@ inline int TCPS_FIN_WAIT_2 =	9;
 #pragma D binding "1.6.3" TCPS_TIME_WAIT
 inline int TCPS_TIME_WAIT =	10;
 
+/*
+ * For compatibility also provide the names used by Solaris.
+ */
+#pragma D binding "1.13" TCP_STATE_CLOSED
+inline int TCP_STATE_CLOSED =		TCPS_CLOSED;
+#pragma D binding "1.13" TCP_STATE_LISTEN
+inline int TCP_STATE_LISTEN =		TCPS_LISTEN;
+#pragma D binding "1.13" TCP_STATE_SYN_SENT
+inline int TCP_STATE_SYN_SENT =		TCPS_SYN_SENT;
+#pragma D binding "1.13" TCP_STATE_SYN_RECEIVED
+inline int TCP_STATE_SYN_RECEIVED =	TCPS_SYN_RECEIVED;
+#pragma D binding "1.13" TCP_STATE_ESTABLISHED
+inline int TCP_STATE_ESTABLISHED =	TCPS_ESTABLISHED;
+#pragma D binding "1.13" TCP_STATE_CLOSE_WAIT
+inline int TCP_STATE_CLOSE_WAIT =	TCPS_CLOSE_WAIT;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_1
+inline int TCP_STATE_FIN_WAIT_1 =	TCPS_FIN_WAIT_1;
+#pragma D binding "1.13" TCP_STATE_CLOSING
+inline int TCP_STATE_CLOSING =		TCPS_CLOSING;
+#pragma D binding "1.13" TCP_STATE_LAST_ACK
+inline int TCP_STATE_LAST_ACK =		TCPS_LAST_ACK;
+#pragma D binding "1.13" TCP_STATE_FIN_WAIT_2
+inline int TCP_STATE_FIN_WAIT_2 =	TCPS_FIN_WAIT_2;
+#pragma D binding "1.13" TCP_STATE_TIME_WAIT
+inline int TCP_STATE_TIME_WAIT =	TCPS_TIME_WAIT;
+
 /* TCP segment flags. */
 #pragma D binding "1.6.3" TH_FIN
 inline uint8_t TH_FIN =		0x01;

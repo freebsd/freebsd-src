@@ -125,12 +125,10 @@ static void
 nvme_admin_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
-	uint16_t opc;
 
-	opc = le16toh(cmd->opc_fuse) & NVME_CMD_OPC_MASK;
 	nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%x "
 	    "cdw10:%08x cdw11:%08x\n",
-	    get_admin_opcode_string(opc), opc, qpair->id, cmd->cid,
+	    get_admin_opcode_string(cmd->opc), cmd->opc, qpair->id, cmd->cid,
 	    le32toh(cmd->nsid), le32toh(cmd->cdw10), le32toh(cmd->cdw11));
 }
 
@@ -138,10 +136,8 @@ static void
 nvme_io_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
-	uint16_t opc;
 
-	opc = le16toh(cmd->opc_fuse) & NVME_CMD_OPC_MASK;
-	switch (opc) {
+	switch (cmd->opc) {
 	case NVME_OPC_WRITE:
 	case NVME_OPC_READ:
 	case NVME_OPC_WRITE_UNCORRECTABLE:
@@ -149,7 +145,7 @@ nvme_io_qpair_print_command(struct nvme_qpair *qpair,
 	case NVME_OPC_WRITE_ZEROES:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d "
 		    "lba:%llu len:%d\n",
-		    get_io_opcode_string(opc), qpair->id, cmd->cid, le32toh(cmd->nsid),
+		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid, le32toh(cmd->nsid),
 		    ((unsigned long long)le32toh(cmd->cdw11) << 32) + le32toh(cmd->cdw10),
 		    (le32toh(cmd->cdw12) & 0xFFFF) + 1);
 		break;
@@ -160,11 +156,11 @@ nvme_io_qpair_print_command(struct nvme_qpair *qpair,
 	case NVME_OPC_RESERVATION_ACQUIRE:
 	case NVME_OPC_RESERVATION_RELEASE:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(opc), qpair->id, cmd->cid, le32toh(cmd->nsid));
+		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid, le32toh(cmd->nsid));
 		break;
 	default:
 		nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(opc), opc, qpair->id,
+		    get_io_opcode_string(cmd->opc), cmd->opc, qpair->id,
 		    cmd->cid, le32toh(cmd->nsid));
 		break;
 	}
@@ -401,9 +397,13 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 		req->retries++;
 		nvme_qpair_submit_tracker(qpair, tr);
 	} else {
-		if (req->type != NVME_REQUEST_NULL)
+		if (req->type != NVME_REQUEST_NULL) {
+			bus_dmamap_sync(qpair->dma_tag_payload,
+			    tr->payload_dma_map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(qpair->dma_tag_payload,
 			    tr->payload_dma_map);
+		}
 
 		nvme_free_request(req);
 		tr->req = NULL;
@@ -487,6 +487,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		 */
 		return (false);
 
+	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	while (1) {
 		cpl = qpair->cpl[qpair->cq_head];
 
@@ -715,7 +717,7 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 
 	tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	while (tr != NULL) {
-		if ((le16toh(tr->req->cmd.opc_fuse) & NVME_CMD_OPC_MASK) == NVME_OPC_ASYNC_EVENT_REQUEST) {
+		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
 			nvme_qpair_manual_complete_tracker(qpair, tr,
 			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
 			    FALSE);
@@ -828,7 +830,16 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	if (++qpair->sq_tail == qpair->num_entries)
 		qpair->sq_tail = 0;
 
+	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+#ifndef __powerpc__
+	/*
+	 * powerpc's bus_dmamap_sync() already includes a heavyweight sync, but
+	 * no other archs do.
+	 */
 	wmb();
+#endif
+
 	nvme_mmio_write_4(qpair->ctrlr, doorbell[qpair->id].sq_tdbl,
 	    qpair->sq_tail);
 
@@ -879,6 +890,8 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 		tr->req->cmd.prp2 = 0;
 	}
 
+	bus_dmamap_sync(tr->qpair->dma_tag_payload, tr->payload_dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	nvme_qpair_submit_tracker(tr->qpair, tr);
 }
 

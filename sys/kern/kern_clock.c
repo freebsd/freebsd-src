@@ -185,12 +185,70 @@ static int blktime_threshold = 900;
 static int sleepfreq = 3;
 
 static void
+deadlres_td_on_lock(struct proc *p, struct thread *td, int blkticks)
+{
+	int tticks;
+
+	sx_assert(&allproc_lock, SX_LOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*
+	 * The thread should be blocked on a turnstile, simply check
+	 * if the turnstile channel is in good state.
+	 */
+	MPASS(td->td_blocked != NULL);
+
+	tticks = ticks - td->td_blktick;
+	if (tticks > blkticks)
+		/*
+		 * Accordingly with provided thresholds, this thread is stuck
+		 * for too long on a turnstile.
+		 */
+		panic("%s: possible deadlock detected for %p, "
+		    "blocked for %d ticks\n", __func__, td, tticks);
+}
+
+static void
+deadlres_td_sleep_q(struct proc *p, struct thread *td, int slpticks)
+{
+	void *wchan;
+	int i, slptype, tticks;
+
+	sx_assert(&allproc_lock, SX_LOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*
+	 * Check if the thread is sleeping on a lock, otherwise skip the check.
+	 * Drop the thread lock in order to avoid a LOR with the sleepqueue
+	 * spinlock.
+	 */
+	wchan = td->td_wchan;
+	tticks = ticks - td->td_slptick;
+	slptype = sleepq_type(wchan);
+	if ((slptype == SLEEPQ_SX || slptype == SLEEPQ_LK) &&
+	    tticks > slpticks) {
+
+		/*
+		 * Accordingly with provided thresholds, this thread is stuck
+		 * for too long on a sleepqueue.
+		 * However, being on a sleepqueue, we might still check for the
+		 * blessed list.
+		 */
+		for (i = 0; blessed[i] != NULL; i++)
+			if (!strcmp(blessed[i], td->td_wmesg))
+				return;
+
+		panic("%s: possible deadlock detected for %p, "
+		    "blocked for %d ticks\n", __func__, td, tticks);
+	}
+}
+
+static void
 deadlkres(void)
 {
 	struct proc *p;
 	struct thread *td;
-	void *wchan;
-	int blkticks, i, slpticks, slptype, tryl, tticks;
+	int blkticks, slpticks, tryl;
 
 	tryl = 0;
 	for (;;) {
@@ -198,14 +256,15 @@ deadlkres(void)
 		slpticks = slptime_threshold * hz;
 
 		/*
-		 * Avoid to sleep on the sx_lock in order to avoid a possible
-		 * priority inversion problem leading to starvation.
+		 * Avoid to sleep on the sx_lock in order to avoid a
+		 * possible priority inversion problem leading to
+		 * starvation.
 		 * If the lock can't be held after 100 tries, panic.
 		 */
 		if (!sx_try_slock(&allproc_lock)) {
 			if (tryl > 100)
-		panic("%s: possible deadlock detected on allproc_lock\n",
-				    __func__);
+				panic("%s: possible deadlock detected "
+				    "on allproc_lock\n", __func__);
 			tryl++;
 			pause("allproc", sleepfreq * hz);
 			continue;
@@ -218,80 +277,15 @@ deadlkres(void)
 				continue;
 			}
 			FOREACH_THREAD_IN_PROC(p, td) {
-
 				thread_lock(td);
-				if (TD_ON_LOCK(td)) {
-
-					/*
-					 * The thread should be blocked on a
-					 * turnstile, simply check if the
-					 * turnstile channel is in good state.
-					 */
-					MPASS(td->td_blocked != NULL);
-
-					tticks = ticks - td->td_blktick;
-					thread_unlock(td);
-					if (tticks > blkticks) {
-
-						/*
-						 * Accordingly with provided
-						 * thresholds, this thread is
-						 * stuck for too long on a
-						 * turnstile.
-						 */
-						PROC_UNLOCK(p);
-						sx_sunlock(&allproc_lock);
-	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
-						    __func__, td, tticks);
-					}
-				} else if (TD_IS_SLEEPING(td) &&
-				    TD_ON_SLEEPQ(td)) {
-
-					/*
-					 * Check if the thread is sleeping on a
-					 * lock, otherwise skip the check.
-					 * Drop the thread lock in order to
-					 * avoid a LOR with the sleepqueue
-					 * spinlock.
-					 */
-					wchan = td->td_wchan;
-					tticks = ticks - td->td_slptick;
-					thread_unlock(td);
-					slptype = sleepq_type(wchan);
-					if ((slptype == SLEEPQ_SX ||
-					    slptype == SLEEPQ_LK) &&
-					    tticks > slpticks) {
-
-						/*
-						 * Accordingly with provided
-						 * thresholds, this thread is
-						 * stuck for too long on a
-						 * sleepqueue.
-						 * However, being on a
-						 * sleepqueue, we might still
-						 * check for the blessed
-						 * list.
-						 */
-						tryl = 0;
-						for (i = 0; blessed[i] != NULL;
-						    i++) {
-							if (!strcmp(blessed[i],
-							    td->td_wmesg)) {
-								tryl = 1;
-								break;
-							}
-						}
-						if (tryl != 0) {
-							tryl = 0;
-							continue;
-						}
-						PROC_UNLOCK(p);
-						sx_sunlock(&allproc_lock);
-	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
-						    __func__, td, tticks);
-					}
-				} else
-					thread_unlock(td);
+				if (TD_ON_LOCK(td))
+					deadlres_td_on_lock(p, td,
+					    blkticks);
+				else if (TD_IS_SLEEPING(td) &&
+				    TD_ON_SLEEPQ(td))
+					deadlres_td_sleep_q(p, td,
+					    slpticks);
+				thread_unlock(td);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -388,7 +382,7 @@ int	profprocs;
 volatile int	ticks;
 int	psratio;
 
-static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
+DPCPU_DEFINE_STATIC(int, pcputicks);	/* Per-CPU version of ticks. */
 #ifdef DEVICE_POLLING
 static int devpoll_run = 0;
 #endif

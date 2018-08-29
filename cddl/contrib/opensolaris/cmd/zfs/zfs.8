@@ -28,10 +28,11 @@
 .\" Copyright (c) 2016 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
+.\" Copyright 2018 Joyent, Inc.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2017
+.Dd August 11, 2018
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -319,7 +320,8 @@ namespace. For example:
 .Pp
 where the maximum length of a dataset name is
 .Dv MAXNAMELEN
-(256 bytes).
+(256 bytes)
+and the maximum amount of nesting allowed in a path is 50 levels deep.
 .Pp
 A dataset can be one of the following:
 .Bl -hang -width 12n
@@ -460,8 +462,11 @@ responsible for mounting and unmounting the file system.
 dataset can be attached to a jail by using the
 .Qq Nm Cm jail
 subcommand. You cannot attach a dataset to one jail and the children of the
-same dataset to another jails. To allow management of the dataset from within
-a jail, the
+same dataset to another jail. You can also not attach the root file system
+of the jail or any dataset which needs to be mounted before the zfs rc script
+is run inside the jail, as it would be attached unmounted until it is
+mounted from the rc script inside the jail. To allow management of the
+dataset from within a jail, the
 .Sy jailed
 property has to be set and the jail needs access to the
 .Pa /dev/zfs
@@ -546,6 +551,13 @@ property. Compression can be turned on by running:
 .Qq Nm Cm set compression=on Ar dataset
 The default value is
 .Cm off .
+.It Sy createtxg
+The transaction group (txg) in which the dataset was created.
+Bookmarks have the same
+.Sy createtxg
+as the snapshot they are initially tied to.
+This property is suitable for ordering a list of snapshots,
+e.g. for incremental send and receive.
 .It Sy creation
 The time this dataset was created.
 .It Sy clones
@@ -573,6 +585,14 @@ This value is only available when a
 .Sy filesystem_limit
 has
 been set somewhere in the tree under which the dataset resides.
+.It Sy guid
+The 64 bit GUID of this dataset or bookmark which does not change over its
+entire lifetime.
+When a snapshot is sent to another pool, the received snapshot has the same
+GUID.
+Thus, the
+.Sy guid
+is suitable to identify a snapshot across pools.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
@@ -1311,7 +1331,7 @@ The default value is
 Limits the amount of space a dataset can consume. This property enforces a hard
 limit on the amount of space used. This hard limit does not include space used
 by descendents, including file systems and snapshots.
-.It Sy refreservation Ns = Ns Ar size | Cm none
+.It Sy refreservation Ns = Ns Ar size | Cm none | Cm auto
 The minimum amount of space guaranteed to a dataset, not including its
 descendents. When the amount of space used is below this value, the dataset is
 treated as if it were taking up the amount of space specified by
@@ -1326,6 +1346,18 @@ If
 is set, a snapshot is only allowed if there is enough free pool space outside
 of this reservation to accommodate the current number of "referenced" bytes in
 the dataset.
+.Pp
+If
+.Sy refreservation
+is set to
+.Sy auto ,
+a volume is thick provisioned or not sparse.
+.Sy refreservation Ns = Cm auto
+is only supported on volumes.
+See
+.Sy volsize
+in the Native Properties
+section for more information about sparse volumes.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
@@ -1459,18 +1491,33 @@ on how the volume is used. These effects can also occur when the volume size is
 changed while it is in use (particularly when shrinking the size). Extreme care
 should be used when adjusting the volume size.
 .Pp
-Though not recommended, a "sparse volume" (also known as "thin provisioning")
+Though not recommended, a "sparse volume" (also known as "thin provisioned")
 can be created by specifying the
 .Fl s
 option to the
 .Qq Nm Cm create Fl V
-command, or by changing the reservation after the volume has been created. A
-"sparse volume" is a volume where the reservation is less then the volume size.
+command, or by changing the value of the
+.Sy refreservation
+property, or
+.Sy reservation
+property on pool version 8 or earlier
+.Pc
+after the volume has been created.
+A "sparse volume" is a volume where the value of
+.Sy refreservation
+is less then the size of the volume plus the space required to store its
+metadata.
 Consequently, writes to a sparse volume can fail with
 .Sy ENOSPC
 when the pool is low on space. For a sparse volume, changes to
 .Sy volsize
-are not reflected in the reservation.
+are not reflected in the
+.Sy refreservation .
+A volume that is not sparse is said to be "thick provisioned".
+A sparse volume can become thick provisioned by setting
+.Sy refreservation
+to
+.Sy auto .
 .It Sy volmode Ns = Ns Cm default | geom | dev | none
 This property specifies how volumes should be exposed to the OS.
 Setting it to

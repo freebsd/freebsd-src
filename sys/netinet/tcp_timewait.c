@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -96,7 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static VNET_DEFINE(uma_zone_t, tcptw_zone);
+VNET_DEFINE_STATIC(uma_zone_t, tcptw_zone);
 #define	V_tcptw_zone		VNET(tcptw_zone)
 static int	maxtcptw;
 
@@ -111,11 +112,11 @@ static int	maxtcptw;
  *  - a tcptw relies on its inpcb reference counting for memory stability
  *  - a tcptw is dereferenceable only while its inpcb is locked
  */
-static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
+VNET_DEFINE_STATIC(TAILQ_HEAD(, tcptw), twq_2msl);
 #define	V_twq_2msl		VNET(twq_2msl)
 
 /* Global timewait lock */
-static VNET_DEFINE(struct rwlock, tw_lock);
+VNET_DEFINE_STATIC(struct rwlock, tw_lock);
 #define	V_tw_lock		VNET(tw_lock)
 
 #define	TW_LOCK_INIT(tw, d)	rw_init_flags(&(tw), (d), 0)
@@ -172,7 +173,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-static VNET_DEFINE(int, nolocaltimewait) = 0;
+VNET_DEFINE_STATIC(int, nolocaltimewait) = 0;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,
@@ -206,11 +207,12 @@ void
 tcp_tw_destroy(void)
 {
 	struct tcptw *tw;
+	struct epoch_tracker et;
 
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	while ((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
 	TW_LOCK_DESTROY(V_tw_lock);
 	uma_zdestroy(V_tcptw_zone);
@@ -228,6 +230,7 @@ tcp_twstart(struct tcpcb *tp)
 	struct tcptw twlocal, *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
+	uint32_t recwin;
 	bool acknow, local;
 #ifdef INET6
 	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
@@ -290,10 +293,16 @@ tcp_twstart(struct tcpcb *tp)
 	/*
 	 * Recover last window size sent.
 	 */
-	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt))
-		tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
-	else
-		tw->last_win = 0;
+	so = inp->inp_socket;
+	recwin = lmin(lmax(sbspace(&so->so_rcv), 0),
+	    (long)TCP_MAXWIN << tp->rcv_scale);
+	if (recwin < (so->so_rcv.sb_hiwat / 4) &&
+	    recwin < tp->t_maxseg)
+		recwin = 0;
+	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
+	    recwin < (tp->rcv_adv - tp->rcv_nxt))
+		recwin = (tp->rcv_adv - tp->rcv_nxt);
+	tw->last_win = htons((u_short)(recwin >> tp->rcv_scale));
 
 	/*
 	 * Set t_recent if timestamps are used on the connection.
@@ -330,7 +339,6 @@ tcp_twstart(struct tcpcb *tp)
 	 * and might not be needed here any longer.
 	 */
 	tcp_discardcb(tp);
-	so = inp->inp_socket;
 	soisdisconnected(so);
 	tw->tw_so_options = so->so_options;
 	inp->inp_flags |= INP_TIMEWAIT;
@@ -449,9 +457,14 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
 	 * Acknowledge the segment if it has data or is not a duplicate ACK.
 	 */
 	if (thflags != TH_ACK || tlen != 0 ||
-	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
+	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt) {
+		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		tcp_twrespond(tw, TH_ACK);
+		goto dropnoprobe;
+	}
 drop:
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
+dropnoprobe:
 	INP_WUNLOCK(inp);
 	m_freem(m);
 	return (0);
@@ -597,6 +610,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		th->th_sum = in6_cksum_pseudo(ip6,
 		    sizeof(struct tcphdr) + optlen, IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
+		TCP_PROBE5(send, NULL, NULL, ip6, NULL, th);
 		error = ip6_output(m, inp->in6p_outputopts, NULL,
 		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
 	}
@@ -612,6 +626,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		ip->ip_len = htons(m->m_pkthdr.len);
 		if (V_path_mtu_discovery)
 			ip->ip_off |= htons(IP_DF);
+		TCP_PROBE5(send, NULL, NULL, ip, NULL, th);
 		error = ip_output(m, inp->inp_options, NULL,
 		    ((tw->tw_so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0),
 		    NULL, inp);
@@ -674,6 +689,7 @@ tcp_tw_2msl_scan(int reuse)
 {
 	struct tcptw *tw;
 	struct inpcb *inp;
+	struct epoch_tracker et;
 
 #ifdef INVARIANTS
 	if (reuse) {
@@ -707,12 +723,12 @@ tcp_tw_2msl_scan(int reuse)
 		in_pcbref(inp);
 		TW_RUNLOCK(V_tw_lock);
 
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		INP_WLOCK(inp);
 		tw = intotw(inp);
 		if (in_pcbrele_wlocked(inp)) {
 			if (__predict_true(tw == NULL)) {
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				continue;
 			} else {
 				/* This should not happen as in TIMEWAIT
@@ -731,7 +747,7 @@ tcp_tw_2msl_scan(int reuse)
 					"|| inp last reference) && tw != "
 					"NULL", __func__);
 #endif
-				INP_INFO_RUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 				break;
 			}
 		}
@@ -739,12 +755,12 @@ tcp_tw_2msl_scan(int reuse)
 		if (tw == NULL) {
 			/* tcp_twclose() has already been called */
 			INP_WUNLOCK(inp);
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			continue;
 		}
 
 		tcp_twclose(tw, reuse);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		if (reuse)
 			return tw;
 	}

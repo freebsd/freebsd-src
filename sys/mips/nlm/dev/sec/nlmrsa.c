@@ -76,8 +76,7 @@ static	void print_krp_params(struct cryptkop *krp);
 #endif
 
 static	int xlp_rsa_init(struct xlp_rsa_softc *sc, int node);
-static	int xlp_rsa_newsession(device_t , uint32_t *, struct cryptoini *);
-static	int xlp_rsa_freesession(device_t , uint64_t);
+static	int xlp_rsa_newsession(device_t , crypto_session_t, struct cryptoini *);
 static	int xlp_rsa_kprocess(device_t , struct cryptkop *, int);
 static	int xlp_get_rsa_opsize(struct xlp_rsa_command *cmd, unsigned int bits);
 static	void xlp_free_cmd_params(struct xlp_rsa_command *cmd);
@@ -100,7 +99,6 @@ static device_method_t xlp_rsa_methods[] = {
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession, xlp_rsa_newsession),
-	DEVMETHOD(cryptodev_freesession, xlp_rsa_freesession),
 	DEVMETHOD(cryptodev_kprocess,   xlp_rsa_kprocess),
 
 	DEVMETHOD_END
@@ -282,8 +280,9 @@ xlp_rsa_attach(device_t dev)
 		device_printf(dev, "RSA Freq: %dMHz\n", freq);
 	if (pci_get_device(dev) == PCI_DEVICE_ID_NLM_RSA) {
 		device_set_desc(dev, "XLP RSA/ECC Accelerator");
-		if ((sc->sc_cid = crypto_get_driverid(dev,
-		    CRYPTOCAP_F_HARDWARE)) < 0) {
+		sc->sc_cid = crypto_get_driverid(dev,
+		    sizeof(struct xlp_rsa_session), CRYPTOCAP_F_HARDWARE);
+		if (sc->sc_cid < 0) {
 			printf("xlp_rsaecc-err:couldn't get the driver id\n");
 			goto error_exit;
 		}
@@ -315,79 +314,23 @@ xlp_rsa_detach(device_t dev)
 }
 
 /*
- * Allocate a new 'session' and return an encoded session id.  'sidp'
- * contains our registration id, and should contain an encoded session
- * id on successful allocation.
+ * Allocate a new 'session' (unused).
  */
 static int
-xlp_rsa_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+xlp_rsa_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct xlp_rsa_softc *sc = device_get_softc(dev);
-	struct xlp_rsa_session *ses = NULL;
-	int sesn;
 
-	if (sidp == NULL || cri == NULL || sc == NULL)
+	if (cri == NULL || sc == NULL)
 		return (EINVAL);
 
-	if (sc->sc_sessions == NULL) {
-		ses = sc->sc_sessions = malloc(sizeof(struct xlp_rsa_session),
-		    M_DEVBUF, M_NOWAIT);
-		if (ses == NULL)
-			return (ENOMEM);
-		sesn = 0;
-		sc->sc_nsessions = 1;
-	} else {
-		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
-			if (!sc->sc_sessions[sesn].hs_used) {
-				ses = &sc->sc_sessions[sesn];
-				break;
-			}
-		}
-
-		if (ses == NULL) {
-			sesn = sc->sc_nsessions;
-			ses = malloc((sesn + 1) * sizeof(*ses),
-			    M_DEVBUF, M_NOWAIT);
-			if (ses == NULL)
-				return (ENOMEM);
-			bcopy(sc->sc_sessions, ses, sesn * sizeof(*ses));
-			bzero(sc->sc_sessions, sesn * sizeof(*ses));
-			free(sc->sc_sessions, M_DEVBUF);
-			sc->sc_sessions = ses;
-			ses = &sc->sc_sessions[sesn];
-			sc->sc_nsessions++;
-		}
-	}
-	bzero(ses, sizeof(*ses));
-	ses->sessionid = sesn;
-	ses->hs_used = 1;
-
-	*sidp = XLP_RSA_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
 }
 
 /*
- * Deallocate a session.
- * XXX this routine should run a zero'd mac/encrypt key into context ram.
+ * XXX freesession should run a zero'd mac/encrypt key into context ram.
  * XXX to blow away any keys already stored there.
  */
-static int
-xlp_rsa_freesession(device_t dev, u_int64_t tid)
-{
-	struct xlp_rsa_softc *sc = device_get_softc(dev);
-	int session;
-	u_int32_t sid = CRYPTO_SESID2LID(tid);
-
-	if (sc == NULL)
-		return (EINVAL);
-
-	session = XLP_RSA_SESSION(sid);
-	if (session >= sc->sc_nsessions)
-		return (EINVAL);
-
-	sc->sc_sessions[session].hs_used = 0;
-	return (0);
-}
 
 static void
 xlp_free_cmd_params(struct xlp_rsa_command *cmd)

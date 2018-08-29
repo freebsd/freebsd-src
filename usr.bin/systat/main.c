@@ -260,6 +260,7 @@ labels(void)
 void
 display(void)
 {
+	uint64_t arc_stat;
 	int i, j;
 
 	/* Get the load average over the last minute. */
@@ -293,7 +294,11 @@ display(void)
 		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
-		    GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc[6]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.bonus_size", arc[6]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dnode_size", arc_stat);
+		    arc[6] += arc_stat;
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dbuf_size", arc_stat);
+		    arc[6] += arc_stat;
 		    wmove(wload, 0, 0); wclrtoeol(wload);
 		    for (i = 0 ; i < nitems(arc); i++) {
 			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {

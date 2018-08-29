@@ -821,7 +821,7 @@ archive_read_format_capabilities(struct archive *_a)
  * DO NOT intermingle calls to this function and archive_read_data_block
  * to read a single entry body.
  */
-ssize_t
+la_ssize_t
 archive_read_data(struct archive *_a, void *buff, size_t s)
 {
 	struct archive *a = (struct archive *)_a;

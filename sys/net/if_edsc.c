@@ -72,7 +72,7 @@ struct edsc_softc {
 /*
  * Attach to the interface cloning framework.
  */
-static VNET_DEFINE(struct if_clone *, edsc_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, edsc_cloner);
 #define	V_edsc_cloner	VNET(edsc_cloner)
 static int	edsc_clone_create(struct if_clone *, int, caddr_t);
 static void	edsc_clone_destroy(struct ifnet *);

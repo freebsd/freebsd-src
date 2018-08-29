@@ -313,6 +313,14 @@ int eloop_register_signal_reconfig(eloop_signal_handler handler,
 				   void *user_data);
 
 /**
+ * eloop_sock_requeue - Requeue sockets
+ *
+ * Requeue sockets after forking because some implementations require this,
+ * such as epoll and kqueue.
+ */
+int eloop_sock_requeue(void);
+
+/**
  * eloop_run - Start the event loop
  *
  * Start the event loop and continue running as long as there are any

@@ -6,9 +6,6 @@
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 
-# DEP_MACHINE is set before we get here, this may not be.
-DEP_RELDIR ?= ${RELDIR}
-
 # making universe is special
 .if defined(UNIVERSE_GUARD)
 # these should be done by now
@@ -39,6 +36,7 @@ DIRDEPS_FILTER.host = \
 	${N_host_libs} \
 	Ninclude* \
 	Nlib/csu* \
+	Nlib/libc \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
@@ -93,7 +91,7 @@ DIRDEPS += \
 # Add in proper libgcc (gnu or LLVM) if not building libcc and libc is needed.
 # Add both gcc_s and gcc_eh as dependencies as the decision to build
 # -static or not is not known here.
-.if ${DEP_RELDIR:M*libgcc*} == "" && ${DIRDEPS:Mlib/libc}
+.if ${DEP_RELDIR:M*libgcc*} == "" && ${DIRDEPS:U:Mlib/libc} != ""
 .if ${MK_LLVM_LIBUNWIND} == "yes"
 DIRDEPS+= \
 	lib/libgcc_eh \

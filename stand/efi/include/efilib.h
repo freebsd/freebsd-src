@@ -66,6 +66,7 @@ typedef struct pdinfo
 pdinfo_list_t *efiblk_get_pdinfo_list(struct devsw *dev);
 pdinfo_t *efiblk_get_pdinfo(struct devdesc *dev);
 pdinfo_t *efiblk_get_pdinfo_by_handle(EFI_HANDLE h);
+pdinfo_t *efiblk_get_pdinfo_by_device_path(EFI_DEVICE_PATH *path);
 
 void *efi_get_table(EFI_GUID *tbl);
 
@@ -85,9 +86,12 @@ EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
 bool efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
+bool efi_devpath_match_node(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 bool efi_devpath_is_prefix(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
 void efi_free_devpath_name(CHAR16 *);
+EFI_DEVICE_PATH *efi_devpath_to_media_path(EFI_DEVICE_PATH *);
+UINTN efi_devpath_length(EFI_DEVICE_PATH *);
 
 int efi_status_to_errno(EFI_STATUS);
 EFI_STATUS errno_to_efi_status(int errno);

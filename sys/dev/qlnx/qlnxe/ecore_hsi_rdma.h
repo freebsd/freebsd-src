@@ -57,8 +57,8 @@ struct e4_ystorm_rdma_task_ag_ctx
 #define E4_YSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT            5
 #define E4_YSTORM_RDMA_TASK_AG_CTX_VALID_MASK            0x1 /* bit2 */
 #define E4_YSTORM_RDMA_TASK_AG_CTX_VALID_SHIFT           6
-#define E4_YSTORM_RDMA_TASK_AG_CTX_BIT3_MASK             0x1 /* bit3 */
-#define E4_YSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT            7
+#define E4_YSTORM_RDMA_TASK_AG_CTX_DIF_FIRST_IO_MASK     0x1 /* bit3 */
+#define E4_YSTORM_RDMA_TASK_AG_CTX_DIF_FIRST_IO_SHIFT    7
 	u8 flags1;
 #define E4_YSTORM_RDMA_TASK_AG_CTX_CF0_MASK              0x3 /* cf0 */
 #define E4_YSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT             0
@@ -114,8 +114,8 @@ struct e4_mstorm_rdma_task_ag_ctx
 #define E4_MSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT            5
 #define E4_MSTORM_RDMA_TASK_AG_CTX_BIT2_MASK             0x1 /* bit2 */
 #define E4_MSTORM_RDMA_TASK_AG_CTX_BIT2_SHIFT            6
-#define E4_MSTORM_RDMA_TASK_AG_CTX_BIT3_MASK             0x1 /* bit3 */
-#define E4_MSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT            7
+#define E4_MSTORM_RDMA_TASK_AG_CTX_DIF_FIRST_IO_MASK     0x1 /* bit3 */
+#define E4_MSTORM_RDMA_TASK_AG_CTX_DIF_FIRST_IO_SHIFT    7
 	u8 flags1;
 #define E4_MSTORM_RDMA_TASK_AG_CTX_CF0_MASK              0x3 /* cf0 */
 #define E4_MSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT             0
@@ -606,7 +606,10 @@ struct rdma_init_func_hdr
 	u8 cq_ring_mode /* 0 for 32 bit cq producer and consumer counters and 1 for 16 bit */;
 	u8 vf_id /* This field should be assigned to Virtual Function ID if vf_valid == 1. Otherwise its dont care */;
 	u8 vf_valid;
-	u8 reserved[3];
+	u8 relaxed_ordering /* 1 for using relaxed ordering PCI writes */;
+	__le16 first_reg_srq_id /* The SRQ ID of thr first regular (non XRC) SRQ */;
+	__le32 reg_srq_base_addr /* Logical base address of first regular (non XRC) SRQ */;
+	__le32 reserved;
 };
 
 
@@ -645,29 +648,29 @@ enum rdma_ramrod_cmd_id
  */
 struct rdma_register_tid_ramrod_data
 {
-	__le32 flags;
-#define RDMA_REGISTER_TID_RAMROD_DATA_MAX_ID_MASK             0x3FFFF
-#define RDMA_REGISTER_TID_RAMROD_DATA_MAX_ID_SHIFT            0
+	__le16 flags;
 #define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_MASK      0x1F
-#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_SHIFT     18
+#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_SHIFT     0
 #define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_MASK      0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_SHIFT     23
+#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_SHIFT     5
 #define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_MASK         0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_SHIFT        24
+#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_SHIFT        6
 #define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_MASK             0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_SHIFT            25
+#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_SHIFT            7
 #define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_MASK        0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_SHIFT       26
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_SHIFT       8
 #define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_MASK       0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_SHIFT      27
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_SHIFT      9
 #define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_MASK      0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_SHIFT     28
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_SHIFT     10
 #define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_MASK        0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_SHIFT       29
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_SHIFT       11
 #define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_MASK         0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_SHIFT        30
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_SHIFT        12
 #define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_MASK     0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_SHIFT    31
+#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_SHIFT    13
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_MASK           0x3
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_SHIFT          14
 	u8 flags1;
 #define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_MASK  0x1F
 #define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_SHIFT 0
@@ -685,14 +688,15 @@ struct rdma_register_tid_ramrod_data
 	u8 vf_id /* This field should be assigned to Virtual Function ID if vf_valid == 1. Otherwise its dont care */;
 	u8 vf_valid;
 	__le16 pd;
+	__le16 reserved2;
 	__le32 length_lo /* lower 32 bits of the registered MR length. */;
 	__le32 itid;
-	__le32 reserved2;
+	__le32 reserved3;
 	struct regpair va;
 	struct regpair pbl_base;
 	struct regpair dif_error_addr /* DIF TX IO writes error information to this location when memory region is invalidated. */;
 	struct regpair dif_runt_addr /* DIF RX IO writes runt value to this location when last RDMA Read of the IO has completed. */;
-	__le32 reserved3[2];
+	__le32 reserved4[2];
 };
 
 
@@ -727,7 +731,7 @@ struct rdma_resize_cq_ramrod_data
 
 
 /*
- * The rdma storm context of Mstorm
+ * The rdma SRQ context
  */
 struct rdma_srq_context
 {
@@ -740,13 +744,23 @@ struct rdma_srq_context
  */
 struct rdma_srq_create_ramrod_data
 {
+	u8 flags;
+#define RDMA_SRQ_CREATE_RAMROD_DATA_XRC_FLAG_MASK         0x1
+#define RDMA_SRQ_CREATE_RAMROD_DATA_XRC_FLAG_SHIFT        0
+#define RDMA_SRQ_CREATE_RAMROD_DATA_RESERVED_KEY_EN_MASK  0x1 /* Only applicable when xrc_flag is set */
+#define RDMA_SRQ_CREATE_RAMROD_DATA_RESERVED_KEY_EN_SHIFT 1
+#define RDMA_SRQ_CREATE_RAMROD_DATA_RESERVED1_MASK        0x3F
+#define RDMA_SRQ_CREATE_RAMROD_DATA_RESERVED1_SHIFT       2
+	u8 reserved2;
+	__le16 xrc_domain /* Only applicable when xrc_flag is set */;
+	__le32 xrc_srq_cq_cid /* Only applicable when xrc_flag is set */;
 	struct regpair pbl_base_addr /* SRQ PBL base address */;
 	__le16 pages_in_srq_pbl /* Number of pages in PBL */;
 	__le16 pd_id;
 	struct rdma_srq_id srq_id /* SRQ Index */;
 	__le16 page_size /* Page size in SGEs(16 bytes) elements. Supports up to 2M bytes page size */;
-	__le16 reserved1;
-	__le32 reserved2;
+	__le16 reserved3;
+	__le32 reserved4;
 	struct regpair producers_addr /* SRQ PBL base address */;
 };
 
@@ -781,6 +795,15 @@ enum rdma_tid_type
 	RDMA_TID_MW_TYPE1,
 	RDMA_TID_MW_TYPE2A,
 	MAX_RDMA_TID_TYPE
+};
+
+
+/*
+ * The rdma XRC SRQ context
+ */
+struct rdma_xrc_srq_context
+{
+	struct regpair temp[9];
 };
 
 
@@ -1951,8 +1974,8 @@ struct e5_xstorm_rdma_conn_ag_ctx
 #define E5_XSTORM_RDMA_CONN_AG_CTX_BIT11_SHIFT            3
 #define E5_XSTORM_RDMA_CONN_AG_CTX_BIT12_MASK             0x1 /* bit12 */
 #define E5_XSTORM_RDMA_CONN_AG_CTX_BIT12_SHIFT            4
-#define E5_XSTORM_RDMA_CONN_AG_CTX_BIT13_MASK             0x1 /* bit13 */
-#define E5_XSTORM_RDMA_CONN_AG_CTX_BIT13_SHIFT            5
+#define E5_XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_MASK      0x1 /* bit13 */
+#define E5_XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_SHIFT     5
 #define E5_XSTORM_RDMA_CONN_AG_CTX_BIT14_MASK             0x1 /* bit14 */
 #define E5_XSTORM_RDMA_CONN_AG_CTX_BIT14_SHIFT            6
 #define E5_XSTORM_RDMA_CONN_AG_CTX_YSTORM_FLUSH_MASK      0x1 /* bit15 */

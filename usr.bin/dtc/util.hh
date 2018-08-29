@@ -35,6 +35,9 @@
 #ifndef _UTIL_HH_
 #define _UTIL_HH_
 
+#include <memory>
+#include <stdint.h>
+#include <string>
 #include <vector>
 
 // If we aren't using C++11, then just ignore static asserts.

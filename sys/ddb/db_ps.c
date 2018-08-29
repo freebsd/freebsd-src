@@ -50,8 +50,13 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#define PRINT_NONE	0
+#define PRINT_ARGS	1
+
 static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 		    int all);
+static int	ps_mode;
+
 /*
  * At least one non-optional show-command must be implemented using
  * DB_SHOW_ALL_COMMAND() so that db_show_all_cmd_set gets created.
@@ -60,6 +65,24 @@ static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
 {
 	db_ps(addr, have_addr, count, modif);
+}
+
+static void
+dump_args(volatile struct proc *p)
+{
+	char *args;
+	int i, len;
+
+	if (p->p_args == NULL)
+		return;
+	args = p->p_args->ar_args;
+	len = (int)p->p_args->ar_length;
+	for (i = 0; i < len; i++) {
+		if (args[i] == '\0')
+			db_printf(" ");
+		else
+			db_printf("%c", args[i]);
+	}
 }
 
 /*
@@ -90,6 +113,7 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 	char state[9];
 	int np, rflag, sflag, dflag, lflag, wflag;
 
+	ps_mode = modif[0] == 'a' ? PRINT_ARGS : PRINT_NONE;
 	np = nprocs;
 
 	if (!LIST_EMPTY(&allproc))
@@ -207,6 +231,10 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 			db_printf("%s", p->p_comm);
 			if (p->p_flag & P_SYSTEM)
 				db_printf("]");
+			if (ps_mode == PRINT_ARGS) {
+				db_printf(" ");
+				dump_args(p);
+			}
 			db_printf("\n");
 		}
 		FOREACH_THREAD_IN_PROC(p, td) {
@@ -299,6 +327,10 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 		db_printf("%s", td->td_proc->p_comm);
 	if (p->p_flag & P_SYSTEM)
 		db_printf("]");
+	if (ps_mode == PRINT_ARGS && all == 0) {
+		db_printf(" ");
+		dump_args(p);
+	}
 	db_printf("\n");
 }
 
@@ -445,12 +477,7 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		db_printf(" ABI: %s\n", p->p_sysent->sv_name);
 	if (p->p_args != NULL) {
 		db_printf(" arguments: ");
-		for (i = 0; i < (int)p->p_args->ar_length; i++) {
-			if (p->p_args->ar_args[i] == '\0')
-				db_printf(" ");
-			else
-				db_printf("%c", p->p_args->ar_args[i]);
-		}
+		dump_args(p);
 		db_printf("\n");
 	}
 	db_printf(" repear: %p reapsubtree: %d\n",

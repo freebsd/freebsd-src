@@ -687,7 +687,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxr->packets++;
 	rxr->rx_packets++;
 
-	if ((vsi->ifp->if_capenable & IFCAP_RXCSUM) != 0)
+	if ((if_getcapenable(vsi->ifp) & IFCAP_RXCSUM) != 0)
 		ixl_rx_checksum(ri, status, error, ptype);
 	ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
 	ri->iri_rsstype = ixl_ptype_to_hash(ptype);

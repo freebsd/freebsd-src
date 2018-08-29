@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -73,7 +74,7 @@ VNET_DEFINE(int, ip_gre_ttl) = GRE_TTL;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
-static VNET_DEFINE(struct gre_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv4_hashtbl) = NULL;
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv4_hashtbl[\
     in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
@@ -118,7 +119,7 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
 	    ip->ip_src.s_addr), chain) {

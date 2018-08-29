@@ -34,9 +34,6 @@ SRCS+=  cudbg_wtp.c
 SRCS+=  fastlz_api.c
 SRCS+=  fastlz.c
 
-# Provide the timestamp of a packet in its header mbuf.
-#CFLAGS+= -DT4_PKT_TIMESTAMP
-
 CFLAGS+= -I${CXGBE}
 
 .include <bsd.kmod.mk>

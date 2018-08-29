@@ -111,6 +111,9 @@ WERROR?=	-Werror
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
+.if defined(MODULE_TIED)
+CFLAGS+=	-DKLD_TIED
+.endif
 
 # Don't use any standard or source-relative include directories.
 NOSTDINC=	-nostdinc
@@ -460,23 +463,31 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 .endif
 
 .if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
-CLEANFILES+=	assym.inc genassym.o
+CLEANFILES+=	assym.inc
 DEPENDOBJS+=	genassym.o
-assym.inc: genassym.o
-.if defined(KERNBUILDDIR)
-genassym.o: opt_global.h
+DPSRCS+=	offset.inc
 .endif
+.if defined(MODULE_TIED)
+DPSRCS+=	offset.inc
+.endif
+.if !empty(SRCS:Moffset.inc) || !empty(DPSRCS:Moffset.inc)
+CLEANFILES+=	offset.inc genoffset.o
+DEPENDOBJS+=	genoffset.o
+.endif
+assym.inc: genassym.o
+offset.inc: genoffset.o
 assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
+genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c offset.inc
 genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
-.endif
-
-.if defined(KERNBUILDDIR)
-${OBJS}: opt_global.h
-.endif
+offset.inc: ${SYSDIR}/kern/genoffset.sh genoffset.o
+	sh ${SYSDIR}/kern/genoffset.sh genoffset.o > ${.TARGET}
+genoffset.o: ${SYSDIR}/kern/genoffset.c
+genoffset.o: ${SRCS:Mopt_*.h}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
+	    ${SYSDIR}/kern/genoffset.c
 
 CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
@@ -484,6 +495,9 @@ cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if defined(KERNBUILDDIR)
+OBJS_DEPEND_GUESS+= opt_global.h
+.endif
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>

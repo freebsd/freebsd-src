@@ -32,6 +32,7 @@
 #define	_MACHINE_VM_H_
 
 #include <machine/pte.h>
+#include <machine/cca.h>
 
 /* Memory attributes. */
 #define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)MIPS_CCA_UNCACHED)

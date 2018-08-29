@@ -8,6 +8,7 @@ SRCS=	${AUTOSRCS} unix_cmsg.c uc_common.h uc_common.c \
 	uc_check_time.h uc_check_time.c
 CLEANFILES+=	${AUTOSRCS}
 MAN=
+CFLAGS+=	-I${.CURDIR} -I${.OBJDIR}
 WARNS?=	3
 
 REXP_bintime= 's|%%TTYPE%%|bintime|g ; s|%%DTYPE%%|bintime|g ; \

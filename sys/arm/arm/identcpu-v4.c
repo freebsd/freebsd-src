@@ -119,13 +119,6 @@ static const char * const pxa27x_steppings[16] = {
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
 };
 
-static const char * const ixp425_steppings[16] = {
-	"step 0 (A0)",	"rev 1 (ARMv5TE)", "rev 2",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
 struct cpuidtab {
 	u_int32_t	cpuid;
 	enum		cpu_class cpu_class;
@@ -200,17 +193,6 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_PXA210C, 	CPU_CLASS_XSCALE,	"PXA210",
 	  pxa2x0_steppings },
 
-	{ CPU_ID_IXP425_533,	CPU_CLASS_XSCALE,	"IXP425 533MHz",
-	  ixp425_steppings },
-	{ CPU_ID_IXP425_400,	CPU_CLASS_XSCALE,	"IXP425 400MHz",
-	  ixp425_steppings },
-	{ CPU_ID_IXP425_266,	CPU_CLASS_XSCALE,	"IXP425 266MHz",
-	  ixp425_steppings },
-
-	/* XXX ixp435 steppings? */
-	{ CPU_ID_IXP435,	CPU_CLASS_XSCALE,	"IXP435",
-	  ixp425_steppings },
-
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },
 
@@ -270,35 +252,14 @@ print_enadis(int enadis, char *s)
 
 enum cpu_class cpu_class = CPU_CLASS_NONE;
 
-u_int cpu_pfr(int num)
-{
-	u_int feat;
-
-	switch (num) {
-	case 0:
-		__asm __volatile("mrc p15, 0, %0, c0, c1, 0"
-		    : "=r" (feat));
-		break;
-	case 1:
-		__asm __volatile("mrc p15, 0, %0, c0, c1, 1"
-		    : "=r" (feat));
-		break;
-	default:
-		panic("Processor Feature Register %d not implemented", num);
-		break;
-	}
-
-	return (feat);
-}
-
 void
 identify_arm_cpu(void)
 {
 	u_int cpuid, ctrl;
 	int i;
 
-	ctrl = cpu_get_control();
-	cpuid = cpu_ident();
+	ctrl = cp15_sctlr_get();
+	cpuid = cp15_midr_get();
 
 	if (cpuid == 0) {
 		printf("Processor failed probe - no CPU ID\n");
@@ -335,9 +296,6 @@ identify_arm_cpu(void)
 	case CPU_CLASS_MARVELL:
 		print_enadis(ctrl & CPU_CONTROL_DC_ENABLE, "DC");
 		print_enadis(ctrl & CPU_CONTROL_IC_ENABLE, "IC");
-#ifdef CPU_XSCALE_81342
-		print_enadis(ctrl & CPU_CONTROL_L2_ENABLE, "L2");
-#endif
 #if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 		i = sheeva_control_ext(0, 0);
 		print_enadis(i & MV_WA_ENABLE, "WA");

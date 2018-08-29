@@ -61,7 +61,7 @@ usage(FILE *stream, int eval)
 static void
 version(void)
 {
-	printf("bsdcat %s - %s\n",
+	printf("bsdcat %s - %s \n",
 	    BSDCAT_VERSION_STRING,
 	    archive_version_details());
 	exit(0);

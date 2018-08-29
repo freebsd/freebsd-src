@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #define IN_SUBR_COUNTER_C
 #include <sys/counter.h>
- 
+
 void
 counter_u64_zero(counter_u64_t c)
 {
@@ -60,13 +60,8 @@ counter_u64_fetch(counter_u64_t c)
 counter_u64_t
 counter_u64_alloc(int flags)
 {
-	counter_u64_t r;
 
-	r = uma_zalloc_pcpu(pcpu_zone_64, flags);
-	if (r != NULL)
-		counter_u64_zero(r);
-
-	return (r);
+	return (uma_zalloc_pcpu(pcpu_zone_64, flags | M_ZERO));
 }
 
 void

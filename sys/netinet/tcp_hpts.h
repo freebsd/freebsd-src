@@ -238,10 +238,10 @@ int
 #define tcp_queue_to_input_locked(a, b) __tcp_queue_to_input_locked(a, b, __LINE__);
 void
 tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked);
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos);
 int
 __tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, uint8_t ti_locked, int32_t line);
+    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line);
 #define tcp_queue_to_input(a, b, c, d, e, f, g) __tcp_queue_to_input(a, b, c, d, e, f, g, __LINE__)
 
 uint16_t tcp_hpts_delayedby(struct inpcb *inp);

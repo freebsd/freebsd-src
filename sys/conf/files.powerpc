@@ -43,6 +43,7 @@ dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
+dev/ipmi/ipmi_opal.c		optional	powernv ipmi
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/nand/nfc_rb.c		optional	nand mpc85xx
 # Most ofw stuff below is brought in by conf/files for options FDT, but
@@ -62,6 +63,7 @@ dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		standard
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
+dev/random/darn.c		optional	powerpc64 random
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/sdhci/fsl_sdhci.c		optional	mpc85xx sdhci
 dev/sec/sec.c			optional	sec mpc85xx
@@ -163,6 +165,7 @@ powerpc/ofw/ofwcall32.S		optional	aim powerpc
 powerpc/ofw/ofwcall64.S		optional	aim powerpc64
 powerpc/ofw/openpic_ofw.c	standard
 powerpc/ofw/rtas.c		optional	aim
+powerpc/ofw/ofw_initrd.c	optional	md_root_mem powerpc64
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
@@ -191,7 +194,6 @@ powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
-powerpc/powernv/opal_ipmi.c	optional	powernv ipmi
 powerpc/powernv/opal_pci.c	optional	powernv pci
 powerpc/powernv/opal_sensor.c	optional	powernv
 powerpc/powernv/opalcall.S	optional	powernv

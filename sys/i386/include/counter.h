@@ -104,13 +104,13 @@ counter_u64_fetch_inline(uint64_t *p)
 		critical_enter();
 		CPU_FOREACH(i) {
 			res += *(uint64_t *)((char *)p +
-			    sizeof(struct pcpu) * i);
+			    UMA_PCPU_ALLOC_SIZE * i);
 		}
 		critical_exit();
 	} else {
 		CPU_FOREACH(i)
 			res += counter_u64_read_one_8b((uint64_t *)((char *)p +
-			    sizeof(struct pcpu) * i));
+			    UMA_PCPU_ALLOC_SIZE * i));
 	}
 	return (res);
 }
@@ -137,7 +137,7 @@ counter_u64_zero_one_cpu(void *arg)
 {
 	uint64_t *p;
 
-	p = (uint64_t *)((char *)arg + sizeof(struct pcpu) * PCPU_GET(cpuid));
+	p = (uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE * PCPU_GET(cpuid));
 	counter_u64_zero_one_8b(p);
 }
 
@@ -149,7 +149,7 @@ counter_u64_zero_inline(counter_u64_t c)
 	if ((cpu_feature & CPUID_CX8) == 0) {
 		critical_enter();
 		CPU_FOREACH(i)
-			*(uint64_t *)((char *)c + sizeof(struct pcpu) * i) = 0;
+			*(uint64_t *)((char *)c + UMA_PCPU_ALLOC_SIZE * i) = 0;
 		critical_exit();
 	} else {
 		smp_rendezvous(smp_no_rendezvous_barrier,

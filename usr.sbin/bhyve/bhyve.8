@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 11, 2018
+.Dd Aug 23, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -44,10 +44,10 @@
 .Op Ar ,threads=n
 .Oc
 .Op Fl g Ar gdbport
-.Op Fl l Ar lpcdev Ns Op , Ns Ar conf
+.Op Fl l Ar help|lpcdev Ns Op , Ns Ar conf
 .Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
-.Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl s Ar help|slot,emulation Ns Op , Ns Ar conf
 .Op Fl G Ar port
 .Op Fl U Ar uuid
 .Ar vmname
@@ -144,7 +144,7 @@ Print help message and exit.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
-.It Fl l Ar lpcdev Ns Op , Ns Ar conf
+.It Fl l Op Ar help|lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices
 .Ar com1
@@ -152,6 +152,9 @@ and
 .Ar com2
 and the boot ROM device
 .Ar bootrom .
+.Pp
+.Ar help
+print a list of supported LPC devices.
 .It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 Guest physical memory size in bytes.
 This must be the same size that was given to
@@ -171,7 +174,7 @@ to
 .Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
-.It Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.It Fl s Op Ar help|slot,emulation Ns Op , Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp
 .Nm
@@ -180,6 +183,8 @@ slots on the bus.
 There are 32 available slots, with the option of providing up to 8 functions
 per slot.
 .Bl -tag -width 10n
+.It Ar help
+print a list of supported PCI devices.
 .It Ar slot
 .Ar pcislot[:function]
 .Ar bus:pcislot:function
@@ -241,6 +246,8 @@ The LPC bridge emulation can only be configured on bus 0.
 Raw framebuffer device attached to VNC server.
 .It Li xhci
 eXtensible Host Controller Interface (xHCI) USB controller.
+.It Li nvme
+NVM Express (NVMe) controller.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -433,6 +440,27 @@ xHCI USB devices:
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
 .El
+.Pp
+NVMe devices:
+.Bl -tag -width 10n
+.It Li devpath
+Accepted device paths are:
+.Ar /dev/blockdev
+or
+.Ar /path/to/image
+or
+.Ar ram=size_in_MiB .
+.It Li maxq
+Max number of queues.
+.It Li qsz
+Max elements in each queue.
+.It Li ioslots
+Max number of concurrent I/O requests.
+.It Li sectsz
+Sector size (defaults to blockif sector size).
+.It Li ser
+Serial number with maximum 20 characters.
+.El
 .El
 .It Fl S
 Wire guest memory.
@@ -497,6 +525,8 @@ powered off
 halted
 .It 3
 triple fault
+.It 4
+exited due to an error
 .El
 .Sh EXAMPLES
 If not using a boot ROM, the guest operating system must have been loaded with

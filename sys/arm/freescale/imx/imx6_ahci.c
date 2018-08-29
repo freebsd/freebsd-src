@@ -64,6 +64,11 @@ __FBSDID("$FreeBSD$");
 #define	SATA_PHY_LANE0_OUT_STAT			0x2003
 #define	  SATA_PHY_LANE0_OUT_STAT_RX_PLL_STATE	  (1 << 1)
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-ahci", true},
+	{NULL,             false}
+};
+
 static int
 imx6_ahci_phy_ctrl(struct ahci_controller* sc, uint32_t bitmask, bool on)
 {
@@ -215,7 +220,7 @@ imx6_ahci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx6q-ahci")) {
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 		return (ENXIO);
 	}
 	device_set_desc(dev, "i.MX6 Integrated AHCI controller");
@@ -354,3 +359,5 @@ static driver_t ahci_ata_driver = {
 };
 
 DRIVER_MODULE(imx6_ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);
+MODULE_DEPEND(imx6_ahci, ahci, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data)

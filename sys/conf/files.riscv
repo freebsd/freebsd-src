@@ -63,4 +63,4 @@ riscv/riscv/unwind.c		optional	ddb | kdtrace_hooks | stack
 riscv/riscv/vm_machdep.c	standard
 
 # Zstd
-contrib/zstd/lib/freebsd/zstd_kfreebsd.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

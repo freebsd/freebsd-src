@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/nptv6/nptv6.h>
 
-static VNET_DEFINE(uint16_t, nptv6_eid) = 0;
+VNET_DEFINE_STATIC(uint16_t, nptv6_eid) = 0;
 #define	V_nptv6_eid	VNET(nptv6_eid)
 #define	IPFW_TLV_NPTV6_NAME	IPFW_TLV_EACTION_NAME(V_nptv6_eid)
 

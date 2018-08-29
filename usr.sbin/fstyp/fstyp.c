@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -191,8 +192,7 @@ main(int argc, char **argv)
 	if (fp == NULL)
 		err(1, "%s", path);
 
-	error = cap_enter();
-	if (error != 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		err(1, "cap_enter");
 
 	if (ignore_type == false)

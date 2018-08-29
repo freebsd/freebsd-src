@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 4 2017 $
+.Dd $Mdocdate: August 8 2018 $
 .Dt APROPOS 1
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ would.
 If the standard output is a terminal device and
 .Fl c
 is not specified, use
-.Xr more 1
+.Xr less 1
 to paginate them.
 In
 .Fl a
@@ -334,7 +334,7 @@ Text production:
 Any non-empty value of the environment variable
 .Ev MANPAGER
 is used instead of the standard pagination program,
-.Xr more 1 ;
+.Xr less 1 ;
 see
 .Xr man 1
 for details.
@@ -357,7 +357,7 @@ Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Xr more 1
+.Xr less 1
 .Fl s
 is used.
 Only used if

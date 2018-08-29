@@ -40,20 +40,6 @@ os_dma_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	*paddr = segs[0].ds_addr;
 }
 
-int os_dma_setup(pqisrc_softstate_t *softs)
-{
-	DBG_FUNC("IN\n");
-	DBG_FUNC("OUT\n");
-	return PQI_STATUS_SUCCESS; 
-}
-
-int os_dma_destroy(pqisrc_softstate_t *softs)
-{
-	DBG_FUNC("IN\n");
-	DBG_FUNC("OUT\n");
-	return PQI_STATUS_SUCCESS;
-}
-
 /*
  * DMA mem resource allocation wrapper function
  */

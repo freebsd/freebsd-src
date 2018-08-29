@@ -46,12 +46,15 @@
 #if defined(_KERNEL) || defined(_WANT_TCPCB)
 /* TCP segment queue entry */
 struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
+	TAILQ_ENTRY(tseg_qent) tqe_q;
+	struct	mbuf   *tqe_m;		/* mbuf contains packet */
+	struct  mbuf   *tqe_last;	/* last mbuf in chain */
+	tcp_seq tqe_start;		/* TCP Sequence number start */
 	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+	uint32_t tqe_flags;		/* The flags from the th->th_flags */
+	uint32_t tqe_mbuf_cnt;		/* Count of mbuf overhead */
 };
-LIST_HEAD(tsegqe_head, tseg_qent);
+TAILQ_HEAD(tsegqe_head, tseg_qent);
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -78,6 +81,8 @@ struct sackhint {
 	uint32_t	_pad1[1];	/* TBD */
 	uint64_t	_pad[1];	/* TBD */
 };
+
+#define SEGQ_EMPTY(tp) TAILQ_EMPTY(&(tp)->t_segq)
 
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
@@ -131,6 +136,7 @@ struct tcpcb {
 	/* Cache line 3 */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
 	int	t_segqlen;		/* segment reassembly queue length */
+	uint32_t t_segqmbuflen;		/* Count of bytes mbufs on all entries */
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	struct mbuf      *t_in_pkt;
 	struct mbuf	 *t_tail_pkt;
@@ -264,12 +270,11 @@ struct tcp_function_block {
 	int	(*tfb_tcp_output_wtime)(struct tcpcb *, const struct timeval *);
 	void	(*tfb_tcp_do_segment)(struct mbuf *, struct tcphdr *,
 			    struct socket *, struct tcpcb *,
-			    int, int, uint8_t,
-			    int);
+		        int, int, uint8_t);
 	void	(*tfb_tcp_hpts_do_segment)(struct mbuf *, struct tcphdr *,
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,
-			    int, int, struct timeval *);
+			    int, struct timeval *);
 	int     (*tfb_tcp_ctloutput)(struct socket *so, struct sockopt *sopt,
 			    struct inpcb *inp, struct tcpcb *tp);
 	/* Optional memory allocation/free routine */
@@ -678,7 +683,7 @@ void hhook_run_tcp_est_out(struct tcpcb *tp,
  */
 #if defined(_NETINET_IN_PCB_H_) && defined(_SYS_SOCKETVAR_H_)
 struct xtcpcb {
-	size_t		xt_len;		/* length of this structure */
+	ksize_t	xt_len;		/* length of this structure */
 	struct xinpcb	xt_inp;
 	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (s) */
 	char		xt_logid[TCP_LOG_ID_LEN];	/* (s) */
@@ -838,7 +843,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
-int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
+int	 tcp_reass(struct tcpcb *, struct tcphdr *, tcp_seq *, int *, struct mbuf *);
 void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
@@ -862,8 +867,7 @@ int	 tcp_input(struct mbuf **, int *, int);
 int	 tcp_autorcvbuf(struct mbuf *, struct tcphdr *, struct socket *,
 	    struct tcpcb *, int);
 void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
-			struct socket *, struct tcpcb *, int, int, uint8_t,
-			int);
+			struct socket *, struct tcpcb *, int, int, uint8_t);
 
 int register_tcp_functions(struct tcp_function_block *blk, int wait);
 int register_tcp_functions_as_names(struct tcp_function_block *blk,
@@ -925,7 +929,9 @@ void	 tcp_hc_updatemtu(struct in_conninfo *, uint32_t);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
-tcp_seq tcp_new_isn(struct tcpcb *);
+
+uint32_t tcp_new_ts_offset(struct in_conninfo *);
+tcp_seq	 tcp_new_isn(struct in_conninfo *);
 
 int	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);

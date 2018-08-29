@@ -97,19 +97,21 @@ clknode_div_table_get_divider(struct clknode_div_sc *sc, uint32_t divider)
 	return (0);
 }
 
-static uint32_t
-clknode_div_table_get_value(struct clknode_div_sc *sc, uint32_t divider)
+static int
+clknode_div_table_get_value(struct clknode_div_sc *sc, uint32_t *divider)
 {
 	struct clk_div_table *table;
 
 	if (!(sc->div_flags & CLK_DIV_WITH_TABLE))
-		return (divider);
+		return (0);
 
 	for (table = sc->div_table; table->divider != 0; table++)
-		if (table->divider == sc->divider)
-			return (table->value);
+		if (table->divider == *divider) {
+			*divider = table->value;
+			return (0);
+		}
 
-	return (0);
+	return (ENOENT);
 }
 
 static int
@@ -164,7 +166,7 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 {
 	struct clknode_div_sc *sc;
 	uint64_t divider, _fin, _fout;
-	uint32_t reg, i_div, f_div, hw_i_div;
+	uint32_t div_value, reg, i_div, f_div, hw_i_div;
 	int rv;
 
 	sc = clknode_get_softc(clk);
@@ -215,9 +217,11 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		    (*fout != (_fin / divider)))
 			return (ERANGE);
 
-		divider = clknode_div_table_get_value(sc, divider);
-		if (divider == 0)
+		div_value = divider;
+		if (clknode_div_table_get_value(sc, &div_value) != 0)
 			return (ERANGE);
+		if (div_value != divider)
+			i_div = div_value;
 
 		DEVICE_LOCK(clk);
 		rv = MD4(clk, sc->offset,

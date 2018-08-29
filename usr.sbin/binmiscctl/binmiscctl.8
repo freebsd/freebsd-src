@@ -27,7 +27,7 @@
 .\"
 .\" Support for miscellaneous binary image activators
 .\"
-.Dd December 30, 2014
+.Dd July 21, 2018
 .Dt BINMISCCTL 8
 .Os
 .Sh NAME
@@ -37,18 +37,15 @@
 .Nm
 .Cm add
 .Ar name
-.Cm --interpreter
+.Fl -interpreter
 .Ar path
-.Cm --magic
+.Fl -magic
 .Ar magic
-.Cm --size
+.Fl -size
 .Ar size
-.Op Cm --mask Ar mask
-.Op Cm --offset Ar offset
-.Op Cm --set-enabled
-.Nm
-.Cm remove
-.Ar name
+.Op Fl -mask Ar mask
+.Op Fl -offset Ar offset
+.Op Fl -set-enabled
 .Nm
 .Cm disable
 .Ar name
@@ -56,10 +53,13 @@
 .Cm enable
 .Ar name
 .Nm
+.Cm list
+.Nm
 .Cm lookup
 .Ar name
 .Nm
-.Cm list
+.Cm remove
+.Ar name
 .Sh DESCRIPTION
 The
 .Nm
@@ -78,22 +78,23 @@ Operation must be one of the following:
 .It Xo
 .Cm add
 .Ar name
-.Cm --interpreter
+.Fl -interpreter
 .Ar path
-.Cm --magic
+.Fl -magic
 .Ar magic
-.Cm --size
+.Fl -size
 .Ar size
-.Op Cm --mask Ar mask
-.Op Cm --offset Ar offset
-.Op Cm --set-enabled
+.Op Fl -mask Ar mask
+.Op Fl -offset Ar offset
+.Op Fl -set-enabled
 .Xc
 Add a new activator entry in the kernel.
 You must specify a
 unique
-.Ar name,
-interpreter path and its arguments
-.Ar path,
+.Ar name ,
+a
+.Ar path
+to the interpreter,
 header
 .Ar magic
 bytes that uniquely identify a suitable binary for the activator,
@@ -103,7 +104,7 @@ of the
 .Ar magic
 in bytes.
 .Pp
-Optionally you may specify a
+Optionally, you may specify a
 .Ar mask
 to do a bitwise AND with the header bytes.
 This effectively allows you to ignore fields in the binary header that
@@ -112,14 +113,14 @@ do not uniquely indentify the binary file's type.
 An
 .Ar offset
 may be specified for the magic bytes using the
-.Cm --offset
+.Fl -offset
 option.
 By default the
 .Ar offset
 is zero.
 .Pp
 To enable the activator entry the
-.Cm --set-enabled
+.Fl -set-enabled
 option is used.
 The activator default state is disabled.
 .Pp
@@ -130,55 +131,69 @@ may also contain arguments for the interpreter including
 which gets replaced by the old
 .Dv argv0
 value in the interpreter string.
-.It Cm remove Ar name
-Remove the activator entry identified with
-.Ar name .
 .It Cm disable Ar name
 Disable the activator entry identified with
 .Ar name .
 .It Cm enable Ar name
 Enable the activator entry identified with
 .Ar name .
+.It Cm list
+Take a snapshot and print all the activator entries currently configured.
 .It Cm lookup Ar name
 Look up and print out the activator entry identified with
 .Ar name .
-.It Cm list
-Take a snapshot and print all the activator entries currently configured.
+.It Cm remove Ar name
+Remove the activator entry identified with
+.Ar name .
 .El
 .Sh EXAMPLES
-Add an image activator to run the LLVM interpreter (lli) on bitcode
-compiled files:
-.Bd -ragged -offset indent
-# binmiscctl add llvmbc --interpreter ''/usr/bin/lli --fake-argv0=#a''
---magic ''BC\\xc0\\xde'' --size 4 --set-enabled
-.Ed
-.Pp
+Add an image activator to run the LLVM interpreter
+.Po
+.Xr lli 1
+.Pc
+on bitcode
+compiled files and set its state to enabled.
+In this example
 .Ar #a
 is replaced with the old
 .Dv argv0
-value so that 'lli' can fake its
-.Dv argv0 .
-Set its state to enabled.
+value so that
+.Xr lli 1
+can fake its
+.Dv argv0 :
+.Bd -literal -offset indent
+# binmiscctl add llvmbc --interpreter ''/usr/bin/lli \e
+  --fake-argv0=#a'' --magic ''BC\\xc0\\xde'' --size 4 \e
+  --set-enabled
+.Ed
 .Pp
 Set the state of the
 .Ar llvmbc
 image activator to disabled:
-.Dl # binmiscctl disable llvmbc
+.Bd -literal -offset indent
+# binmiscctl disable llvmbc
+.Ed
 .Pp
 Set the state of the
 .Ar llvmbc
 image activator to enabled:
-.Dl # binmiscctl enable llvmbc
+.Bd -literal -offset indent
+# binmiscctl enable llvmbc
+.Ed
 .Pp
 Delete the
 .Ar llvmbc
 image activator:
-.Dl # binmiscctl remove llvmbc
+.Bd -literal -offset indent
+# binmiscctl remove llvmbc
+.Ed
 .Pp
 Look up and list the record for the
 .Ar llvmbc
 image activator:
-.Dl # binmiscctl lookup llvmbc
+.Bd -literal -offset indent
+# binmiscctl lookup llvmbc
+.Ed
 .Pp
 Add QEMU bsd-user program as an image activator for ARM AARCH64 binaries:
 .Bd -literal -offset indent
@@ -267,11 +282,10 @@ Add QEMU bsd-user program as an image activator for SPARC64 binaries:
            \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
   --size 20 --set-enabled
 .Ed
-.Pp
 .Ss "Create and use an ARMv6 chroot on an AMD64 host"
 Use an existing source tree to build a chroot host with architecture
 overrides:
-.Bd -literal
+.Bd -literal -offset ident
 D=/path/to/chroot
 cd /usr/src
 mkdir -p $D
@@ -284,15 +298,17 @@ With
 from the
 .Fx
 Ports Collection, the emulator must be copied into the jail path
-specified in the binmiscctl command.
+specified in the
+.Nm
+command.
 Using the example above:
-.Bd -literal
+.Bd -literal -offset -ident
 mkdir $D/usr/local/bin
 cp /usr/local/bin/qemu-arm-static $D/usr/local/bin
 .Ed
 .Pp
 Now the user can chroot into the environment normally, as root:
-.Bd -literal
+.Bd -literal -offset -ident
 chroot $D
 .Ed
 .Sh SEE ALSO
@@ -301,9 +317,9 @@ chroot $D
 .Xr jail 8
 .Sh HISTORY
 The
-.Cm binmiscctl
+.Nm
 command was added in
 .Fx 10.1 .
 It was developed to support the imgact_binmisc kernel module.
 .Sh AUTHORS
-Stacey D Son
+.An Stacey D Son Aq Mt sson@FreeBSD.org

@@ -171,14 +171,14 @@ joyread(struct cdev *dev, struct uio *uio, int flag)
 	nanotime(&t);
 	end.tv_sec = 0;
 	end.tv_nsec = joy->timeout[joypart(dev)] * 1000;
-	timespecadd(&end, &t);
+	timespecadd(&end, &t, &end);
 	for (; timespeccmp(&t, &end, <) && (bus_space_read_1(bt, port, 0) & 0x0f); nanotime(&t))
 		;	/* nothing */
 	bus_space_write_1 (bt, port, 0, 0xff);
 	nanotime(&start);
 	end.tv_sec = 0;
 	end.tv_nsec = joy->timeout[joypart(dev)] * 1000;
-	timespecadd(&end, &start);
+	timespecadd(&end, &start, &end);
 	t = start;
 	timespecclear(&x);
 	timespecclear(&y);
@@ -200,12 +200,12 @@ joyread(struct cdev *dev, struct uio *uio, int flag)
 	enable_intr ();
 #endif
 	if (timespecisset(&x)) {
-		timespecsub(&x, &start);
+		timespecsub(&x, &start, &x);
 		c.x = joy->x_off[joypart(dev)] + x.tv_nsec / 1000;
 	} else
 		c.x = 0x80000000;
 	if (timespecisset(&y)) {
-		timespecsub(&y, &start);
+		timespecsub(&y, &start, &y);
 		c.y = joy->y_off[joypart(dev)] + y.tv_nsec / 1000;
 	} else
 		c.y = 0x80000000;

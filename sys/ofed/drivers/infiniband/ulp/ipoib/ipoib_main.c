@@ -34,6 +34,9 @@
  * SOFTWARE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "ipoib.h"
 
 static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
@@ -320,8 +323,8 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGIFADDR:
-		bcopy(IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0],
-		    INFINIBAND_ALEN);
+			bcopy(IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0],
+                            INFINIBAND_ALEN);
 		break;
 
 	case SIOCSIFMTU:

@@ -92,7 +92,8 @@ ccoshf(float complex z)
 		return (CMPLXF(INFINITY * cosf(y), x * sinf(y)));
 	}
 
-	return (CMPLXF((x * x) * (y - y), (x + x) * (y - y)));
+	return (CMPLXF(((long double)x * x) * (y - y),
+	    ((long double)x + x) * (y - y)));
 }
 
 float complex

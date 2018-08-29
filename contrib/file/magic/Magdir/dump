@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dump,v 1.16 2017/07/22 19:21:02 christos Exp $
+# $File: dump,v 1.17 2018/06/26 01:07:17 christos Exp $
 # dump:  file(1) magic for dump file format--for new and old dump filesystems
 #
 # We specify both byte orders in order to recognize byte-swapped dumps.

@@ -1658,8 +1658,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->flags; /* l_int */
 		uarg[1] = (intptr_t) p->stack; /* void * */
 		uarg[2] = (intptr_t) p->parent_tidptr; /* void * */
-		uarg[3] = (intptr_t) p->child_tidptr; /* void * */
-		uarg[4] = (intptr_t) p->tls; /* void * */
+		uarg[3] = (intptr_t) p->tls; /* void * */
+		uarg[4] = (intptr_t) p->child_tidptr; /* void * */
 		*n_args = 5;
 		break;
 	}

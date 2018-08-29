@@ -1865,7 +1865,8 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 		}
 		return (ENFILE);
 	}
-	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
+	fp = uma_zalloc(file_zone, M_WAITOK);
+	bzero(fp, sizeof(*fp));
 	refcount_init(&fp->f_count, 1);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
@@ -3362,10 +3363,10 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
-			xf.xf_file = fp;
-			xf.xf_data = fp->f_data;
-			xf.xf_vnode = fp->f_vnode;
-			xf.xf_type = fp->f_type;
+			xf.xf_file = (uintptr_t)fp;
+			xf.xf_data = (uintptr_t)fp->f_data;
+			xf.xf_vnode = (uintptr_t)fp->f_vnode;
+			xf.xf_type = (uintptr_t)fp->f_type;
 			xf.xf_count = fp->f_count;
 			xf.xf_msgcount = 0;
 			xf.xf_offset = foffset_get(fp);

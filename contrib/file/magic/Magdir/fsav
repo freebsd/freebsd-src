@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fsav,v 1.14 2017/03/17 21:35:28 christos Exp $
+# $File: fsav,v 1.15 2018/07/16 12:30:41 christos Exp $
 # fsav:  file(1) magic for datafellows fsav virus definition files
 # Anthon van der Neut (anthon@mnt.org)
 
@@ -48,13 +48,15 @@
 >11	string		>\0		Clam AntiVirus database %-.23s
 >>34	string		:
 >>>35		string		!:	\b, version
->>>>35		string		x 	\b%-.1s
->>>>>36		string 		!:
+>>>>35		string		x 	\b %-.1s
+>>>>>36		string		!:
 >>>>>>36	string		x 	\b%-.1s
 >>>>>>>37	string		!:
 >>>>>>>>37	string		x 	\b%-.1s
 >>>>>>>>>38	string		!:
 >>>>>>>>>>38	string		x 	\b%-.1s
+>>>>>>>>>>>39	string		!:
+>>>>>>>>>>>>39	string		x 	\b%-.1s
 >512	string		\037\213	\b, gzipped
 >769	string		ustar\0		\b, tarred
 

@@ -63,6 +63,5 @@ device		scbus
 device		umass
 device		da
 
-device		ar71xx_wdog
 device		uart_ar71xx
 device		ar71xx_apb

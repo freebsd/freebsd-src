@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 
-SDT_PROVIDER_DEFINE(sctp);
+SDT_PROVIDER_DECLARE(sctp);
 
 /********************************************************/
 /* Cwnd probe - tracks changes in the congestion window on a netp */

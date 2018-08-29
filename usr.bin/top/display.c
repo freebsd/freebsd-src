@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -57,9 +58,8 @@ FILE *debug;
 static int lmpid = 0;
 static int last_hi = 0;		/* used in u_process and u_endscreen */
 static int lastline = 0;
-static int display_width = MAX_COLS;
 
-#define lineindex(l) ((l)*display_width)
+#define lineindex(l) ((l)*screen_width)
 
 
 /* things initialized by display_init and used thruout */
@@ -93,6 +93,9 @@ static enum { OFF, ON, ERASE } header_status = ON;
 
 static void summary_format(char *, int *, const char * const *);
 static void line_update(char *, char *, int, int);
+
+static int setup_buffer_bufsiz = 0;
+static char * setup_buffer(char *, int);
 
 int  x_lastpid =	10;
 int  y_lastpid =	0;
@@ -138,17 +141,9 @@ display_resize(void)
 
     if (lines < 0)
 	lines = 0;
-    /* we don't want more than MAX_COLS columns, since the machine-dependent
-       modules make static allocations based on MAX_COLS and we don't want
-       to run off the end of their buffers */
-    display_width = screen_width;
-    if (display_width >= MAX_COLS)
-    {
-	display_width = MAX_COLS - 1;
-    }
 
     /* now, allocate space for the screen buffer */
-    screenbuf = calloc(lines, display_width);
+    screenbuf = calloc(lines, screen_width);
     if (screenbuf == NULL)
     {
 	/* oops! */
@@ -336,7 +331,7 @@ i_timeofday(time_t *tod)
 }
 
 static int ltotal = 0;
-static char procstates_buffer[MAX_COLS];
+static char *procstates_buffer = NULL;
 
 /*
  *  *_procstates(total, brkdn, names) - print the process summary line
@@ -350,13 +345,15 @@ i_procstates(int total, int *brkdn)
 {
     int i;
 
+    procstates_buffer = setup_buffer(procstates_buffer, 0);
+
     /* write current number of processes and remember the value */
-    printf("%d %s:", total, (ps.thread) ? "threads" :"processes");
+    printf("%d %s:", total, ps.thread ? "threads" : "processes");
     ltotal = total;
 
     /* put out enough spaces to get to column 15 */
     i = digits(total);
-    while (i++ < 4)
+    while (i++ < (ps.thread ? 6 : 4))
     {
 	putchar(' ');
     }
@@ -372,8 +369,10 @@ i_procstates(int total, int *brkdn)
 void
 u_procstates(int total, int *brkdn)
 {
-    static char new[MAX_COLS];
+    static char *new = NULL;
     int i;
+
+    new = setup_buffer(new, 0);
 
     /* update number of processes only if it has changed */
     if (ltotal != total)
@@ -391,10 +390,10 @@ else {
 	/* if number of digits differs, rewrite the label */
 	if (digits(total) != digits(ltotal))
 	{
-	    fputs(" processes:", stdout);
+	    printf(" %s:", ps.thread ? "threads" : "processes");
 	    /* put out enough spaces to get to column 15 */
 	    i = digits(total);
-	    while (i++ < 4)
+	    while (i++ < (ps.thread ? 6 : 4))
 	    {
 		putchar(' ');
 	    }
@@ -422,6 +421,7 @@ i_cpustates(int *states)
     int value;
     const char * const *names;
     const char *thisname;
+    int *hstates = states;
     int cpu;
 
 for (cpu = 0; cpu < num_cpus; cpu++) {
@@ -455,6 +455,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 
     /* copy over values into "last" array */
+    states = hstates;
     memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
 }
 
@@ -464,6 +465,7 @@ u_cpustates(int *states)
     int value;
     const char * const *names;
     const char *thisname;
+    int *hstates = states;
     int *lp;
     int *colp;
     int cpu;
@@ -506,6 +508,8 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 	colp++;
     }
 }
+
+    states = hstates;
 }
 
 void
@@ -551,11 +555,13 @@ z_cpustates(void)
  *                for i_memory ONLY: cursor is on the previous line
  */
 
-static char memory_buffer[MAX_COLS];
+static char *memory_buffer = NULL;
 
 void
 i_memory(int *stats)
 {
+    memory_buffer = setup_buffer(memory_buffer, 0);
+
     fputs("\nMem: ", stdout);
     lastline++;
 
@@ -567,7 +573,9 @@ i_memory(int *stats)
 void
 u_memory(int *stats)
 {
-    static char new[MAX_COLS];
+    static char *new = NULL;
+
+    new = setup_buffer(new, 0);
 
     /* format the new line */
     summary_format(new, stats, memory_names);
@@ -580,11 +588,13 @@ u_memory(int *stats)
  *  Assumptions:  cursor is on "lastline"
  *                for i_arc ONLY: cursor is on the previous line
  */
-static char arc_buffer[MAX_COLS];
+static char *arc_buffer = NULL;
 
 void
 i_arc(int *stats)
 {
+    arc_buffer = setup_buffer(arc_buffer, 0);
+
     if (arc_names == NULL)
 	return;
 
@@ -599,7 +609,9 @@ i_arc(int *stats)
 void
 u_arc(int *stats)
 {
-    static char new[MAX_COLS];
+    static char *new = NULL;
+
+    new = setup_buffer(new, 0);
 
     if (arc_names == NULL)
 	return;
@@ -616,11 +628,13 @@ u_arc(int *stats)
  *  Assumptions:  cursor is on "lastline"
  *                for i_carc ONLY: cursor is on the previous line
  */
-static char carc_buffer[MAX_COLS];
+static char *carc_buffer = NULL;
 
 void
 i_carc(int *stats)
 {
+    carc_buffer = setup_buffer(carc_buffer, 0);
+
     if (carc_names == NULL)
 	return;
 
@@ -635,7 +649,9 @@ i_carc(int *stats)
 void
 u_carc(int *stats)
 {
-    static char new[MAX_COLS];
+    static char *new = NULL;
+
+    new = setup_buffer(new, 0);
 
     if (carc_names == NULL)
 	return;
@@ -652,11 +668,13 @@ u_carc(int *stats)
  *                for i_swap ONLY: cursor is on the previous line
  */
 
-static char swap_buffer[MAX_COLS];
+static char *swap_buffer = NULL;
 
 void
 i_swap(int *stats)
 {
+    swap_buffer = setup_buffer(swap_buffer, 0);
+
     fputs("\nSwap: ", stdout);
     lastline++;
 
@@ -668,7 +686,9 @@ i_swap(int *stats)
 void
 u_swap(int *stats)
 {
-    static char new[MAX_COLS];
+    static char *new = NULL;
+
+    new = setup_buffer(new, 0);
 
     /* format the new line */
     summary_format(new, stats, swap_names);
@@ -689,7 +709,8 @@ u_swap(int *stats)
  *	respect to screen updates).
  */
 
-static char next_msg[MAX_COLS + 5];
+#define NEXT_MSG_ADDLEN 5
+static char *next_msg = NULL;
 static int msglen = 0;
 /* Invariant: msglen is always the length of the message currently displayed
    on the screen (even when next_msg doesn't contain that message). */
@@ -697,6 +718,7 @@ static int msglen = 0;
 void
 i_message(void)
 {
+    next_msg = setup_buffer(next_msg, NEXT_MSG_ADDLEN);
 
     while (lastline < y_message)
     {
@@ -736,7 +758,7 @@ trim_header(const char *text)
 	int width;
 
 	s = NULL;
-	width = display_width;
+	width = screen_width;
 	header_length = strlen(text);
 	if (header_length >= width) {
 		s = strndup(text, width);
@@ -807,7 +829,7 @@ i_process(int line, char *thisline)
     }
 
     /* truncate the line to conform to our current screen width */
-    thisline[display_width] = '\0';
+    thisline[screen_width] = '\0';
 
     /* write the line out */
     fputs(thisline, stdout);
@@ -817,7 +839,7 @@ i_process(int line, char *thisline)
     p = stpcpy(base, thisline);
 
     /* zero fill the rest of it */
-    memset(p, 0, display_width - (p - base));
+    memset(p, 0, screen_width - (p - base));
 }
 
 void
@@ -831,7 +853,7 @@ u_process(int line, char *newline)
     bufferline = &screenbuf[lineindex(line)];
 
     /* truncate the line to conform to our current screen width */
-    newline[display_width] = '\0';
+    newline[screen_width] = '\0';
 
     /* is line higher than we went on the last display? */
     if (line >= last_hi)
@@ -856,7 +878,7 @@ u_process(int line, char *newline)
 	optr = stpcpy(bufferline, newline);
 
 	/* zero fill the rest of it */
-	memset(optr, 0, display_width - (optr - bufferline));
+	memset(optr, 0, screen_width - (optr - bufferline));
     }
     else
     {
@@ -945,7 +967,8 @@ new_message(int type, const char *msgfmt, ...)
     va_start(args, msgfmt);
 
     /* first, format the message */
-    vsnprintf(next_msg, sizeof(next_msg), msgfmt, args);
+    vsnprintf(next_msg, setup_buffer_bufsiz + NEXT_MSG_ADDLEN,
+		    msgfmt, args);
 
     va_end(args);
 
@@ -1235,7 +1258,7 @@ line_update(char *old, char *new, int start, int line)
     } while (ch != '\0');
 
     /* zero out the rest of the line buffer -- MUST BE DONE! */
-    diff = display_width - newcol;
+    diff = screen_width - newcol;
     if (diff > 0)
     {
 	memset(old, 0, diff);
@@ -1258,43 +1281,19 @@ line_update(char *old, char *new, int start, int line)
 char *
 printable(char str[])
 {
-	char *ptr;
-	char ch;
+    char *ptr;
+    char ch;
 
-	ptr = str;
-	if (utf8flag) {
-		while ((ch = *ptr) != '\0') {
-			if (0x00 == (0x80 & ch)) {
-				if (!isprint(ch)) {
-					*ptr = '?';
-				}
-				++ptr;
-			} else if (0xC0 == (0xE0 & ch)) {
-				++ptr;
-				if ('\0' != *ptr) ++ptr;
-			} else if (0xE0 == (0xF0 & ch)) {
-				++ptr;
-				if ('\0' != *ptr) ++ptr;
-				if ('\0' != *ptr) ++ptr;
-			} else if (0xF0 == (0xF8 & ch)) {
-				++ptr;
-				if ('\0' != *ptr) ++ptr;
-				if ('\0' != *ptr) ++ptr;
-				if ('\0' != *ptr) ++ptr;
-			} else {
-				*ptr = '?';
-				++ptr;
-			}
-		}
-	} else {
-		while ((ch = *ptr) != '\0') {
-			if (!isprint(ch)) {
-				*ptr = '?';
-			}
-			ptr++;
-		}
+    ptr = str;
+    while ((ch = *ptr) != '\0')
+    {
+	if (!isprint(ch))
+	{
+	    *ptr = '?';
 	}
-	return(str);
+	ptr++;
+    }
+    return(str);
 }
 
 void
@@ -1326,4 +1325,35 @@ i_uptime(struct timeval *bt, time_t *tod)
 	}
 	printf(" up %d+%02d:%02d:%02d", days, hrs, mins, secs);
     }
+}
+
+#define SETUPBUFFER_REQUIRED_ADDBUFSIZ 2
+
+static char *
+setup_buffer(char *buffer, int addlen)
+{
+	char *b = NULL;
+
+	if (NULL == buffer) {
+		setup_buffer_bufsiz = screen_width;
+		b = calloc(setup_buffer_bufsiz + addlen +
+				SETUPBUFFER_REQUIRED_ADDBUFSIZ,
+				sizeof(char));
+	} else {
+		if (screen_width > setup_buffer_bufsiz) {
+			setup_buffer_bufsiz = screen_width;
+			free(buffer);
+			b = calloc(setup_buffer_bufsiz + addlen +
+					SETUPBUFFER_REQUIRED_ADDBUFSIZ,
+					sizeof(char));
+		} else {
+			b = buffer;
+		}	
+	}
+
+	if (NULL == b) {
+		errx(4, "can't allocate sufficient memory");
+	}
+
+	return b;
 }

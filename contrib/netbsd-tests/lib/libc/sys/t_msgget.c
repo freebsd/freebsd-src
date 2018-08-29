@@ -223,7 +223,6 @@ ATF_TC_BODY(msgget_limit, tc)
 			goto out;
 	}
 
-	i++;
 	errno = 0;
 
 	buf[i] = msgget(MSG_KEY + i, IPC_CREAT | IPC_EXCL | 0600);

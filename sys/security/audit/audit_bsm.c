@@ -770,6 +770,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_PROFILE:
 	case AUE_RTPRIO:
 	case AUE_SEMSYS:
+	case AUE_SETFIB:
 	case AUE_SHMSYS:
 	case AUE_SETPGRP:
 	case AUE_SETRLIMIT:
@@ -810,6 +811,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_JAIL:
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
+	case AUE_LGETFH:
 	case AUE_LSTAT:
 	case AUE_LPATHCONF:
 	case AUE_PATHCONF:
@@ -851,6 +853,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 
 	case AUE_CHFLAGS:
 	case AUE_LCHFLAGS:
+	case AUE_CHFLAGSAT:
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);

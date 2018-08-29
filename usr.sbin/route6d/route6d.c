@@ -2223,8 +2223,10 @@ ifrt(struct ifc *ifcp, int again)
 					goto next;
 				}
 
-				TAILQ_REMOVE(&riprt_head, rrt, rrt_next);
-				delroute(&rrt->rrt_info, &rrt->rrt_gw);
+				TAILQ_REMOVE(&riprt_head, search_rrt, rrt_next);
+				delroute(&search_rrt->rrt_info,
+				    &search_rrt->rrt_gw);
+				free(search_rrt);
 			}
 			/* Attach the route to the list */
 			trace(1, "route: %s/%d: register route (%s)\n",

@@ -110,7 +110,7 @@ printtime(time_t ftime)
 static void
 printlink(char *name)
 {
-	int lnklen;
+	ssize_t lnklen;
 	char path[MAXPATHLEN];
 
 	if ((lnklen = readlink(name, path, MAXPATHLEN - 1)) == -1) {

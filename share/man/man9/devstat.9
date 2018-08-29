@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 1998
+.Dd August 22, 2018
 .Dt DEVSTAT 9
 .Os
 .Sh NAME
@@ -35,8 +35,10 @@
 .Nm devstat_add_entry ,
 .Nm devstat_end_transaction ,
 .Nm devstat_end_transaction_bio ,
+.Nm devstat_end_transaction_bio_bt ,
 .Nm devstat_remove_entry ,
-.Nm devstat_start_transaction
+.Nm devstat_start_transaction ,
+.Nm devstat_start_transaction_bio
 .Nd kernel interface for keeping device statistics
 .Sh SYNOPSIS
 .In sys/devicestat.h
@@ -53,18 +55,35 @@
 .Ft void
 .Fn devstat_remove_entry "struct devstat *ds"
 .Ft void
-.Fn devstat_start_transaction "struct devstat *ds"
+.Fo devstat_start_transaction
+.Fa "struct devstat *ds"
+.Fa "const struct bintime *now"
+.Fc
+.Ft void
+.Fo devstat_start_transaction_bio
+.Fa "struct devstat *ds"
+.Fa "struct bio *bp"
+.Fc
 .Ft void
 .Fo devstat_end_transaction
 .Fa "struct devstat *ds"
 .Fa "uint32_t bytes"
 .Fa "devstat_tag_type tag_type"
 .Fa "devstat_trans_flags flags"
+.Fa "const struct bintime *now"
+.Fa "const struct bintime *then"
 .Fc
 .Ft void
 .Fo devstat_end_transaction_bio
 .Fa "struct devstat *ds"
-.Fa "struct bio *bp"
+.Fa "const struct bio *bp"
+.Fc
+.Fc
+.Ft void
+.Fo devstat_end_transaction_bio_bt
+.Fa "struct devstat *ds"
+.Fa "const struct bio *bp"
+.Fa "const struct bintime *now"
 .Fc
 .Sh DESCRIPTION
 The devstat subsystem is an interface for recording device
@@ -76,6 +95,13 @@ portion of the
 .Nm
 code.
 Instead, that is left for user programs to handle.
+.Pp
+The historical and antiquated
+.Nm
+model assumed a single active IO operation per device, which is not accurate
+for most disk-like drivers in the 2000s and beyond.
+New consumers of the interface should almost certainly use only the "bio"
+variants of the start and end transacation routines.
 .Pp
 .Fn devstat_add_entry
 registers a device with the
@@ -91,7 +117,7 @@ The
 .Va devstat
 structure, allocated and zeroed by the client.
 .It dev_name
-The device name, e.g.\& da, cd, sa.
+The device name, e.g., da, cd, sa.
 .It unit_number
 Device unit number.
 .It block_size
@@ -107,7 +133,7 @@ See below for details.
 .It device_type
 The device type.
 This is broken into three sections: base device type
-(e.g.\& direct access, CDROM, sequential access), interface type (IDE, SCSI
+(e.g., direct access, CDROM, sequential access), interface type (IDE, SCSI
 or other) and a pass-through flag to indicate pas-through devices.
 See below for a complete list of types.
 .It priority
@@ -136,18 +162,37 @@ generation number is incremented and the number of devices is decremented.
 registers the start of a transaction with the
 .Nm
 subsystem.
+Optionally, if the caller already has a
+.Fn binuptime
+value available, it may be passed in
+.Fa *now .
+Usually the caller can just pass
+.Dv NULL
+for
+.Fa now ,
+and the routine will gather the current
+.Fn binuptime
+itself.
 The busy count is incremented with each transaction start.
 When a device goes from idle to busy, the system uptime is recorded in the
-.Va start_time
+.Va busy_from
 field of the
 .Va devstat
 structure.
+.Pp
+.Fn devstat_start_transaction_bio
+records the
+.Fn binuptime
+in the provided bio's
+.Fa bio_t0
+and then invokes
+.Fn devstat_start_transaction .
 .Pp
 .Fn devstat_end_transaction
 registers the end of a transaction with the
 .Nm
 subsystem.
-It takes four arguments:
+It takes six arguments:
 .Bl -tag -width tag_type
 .It ds
 The
@@ -161,19 +206,84 @@ See below for tag types.
 .It flags
 Transaction flags indicating whether the transaction was a read, write, or
 whether no data was transferred.
+.It now
+The
+.Fn binuptime
+at the end of the transaction, or
+.Dv NULL .
+.It then
+The
+.Fn binuptime
+at the beginning of the transaction, or
+.Dv NULL .
 .El
 .Pp
+If
+.Fa now
+is
+.Dv NULL ,
+it collects the current time from
+.Fn binuptime .
+If
+.Fa then
+is
+.Dv NULL ,
+the operation is not tracked in the
+.Va devstat
+.Fa duration
+table.
+.Pp
 .Fn devstat_end_transaction_bio
+is a thin wrapper for
+.Fn devstat_end_transaction_bio_bt
+with a
+.Dv NULL
+.Fa now
+parameter.
+.Pp
+.Fn devstat_end_transaction_bio_bt
 is a wrapper for
 .Fn devstat_end_transaction
-which pulls all the information from a
+which pulls all needed information from a
 .Va "struct bio"
-which is ready for biodone().
+prepared by
+.Fn devstat_start_transaction_bio .
+The bio must be ready for
+.Fn biodone
+(i.e.,
+.Fa bio_bcount
+and
+.Fa bio_resid
+must be correctly initialized).
 .Pp
 The
 .Va devstat
 structure is composed of the following fields:
 .Bl -tag -width dev_creation_time
+.It sequence0 ,
+.It sequence1
+An implementation detail used to gather consistent snapshots of device
+statistics.
+.It start_count
+Number of operations started.
+.It end_count
+Number of operations completed.
+The
+.Dq busy_count
+can be calculated by subtracting
+.Fa end_count
+from
+.Fa start_count .
+.Fa ( sequence0
+and
+.Fa sequence1
+are used to get a consistent snapshot.)
+This is the current number of outstanding transactions for the device.
+This should never go below zero, and on an idle device it should be zero.
+If either one of these conditions is not true, it indicates a problem.
+.Pp
+There should be one and only one
+transaction start event and one transaction end event for each transaction.
 .It dev_links
 Each
 .Va devstat
@@ -193,7 +303,7 @@ someone has a system with more than four billion device arrival events.
 .It device_name
 The device name is a text string given by the registering driver to
 identify itself.
-(e.g.\&
+(e.g.,
 .Dq da ,
 .Dq cd ,
 .Dq sa ,
@@ -201,25 +311,25 @@ etc.)
 .It unit_number
 The unit number identifies the particular instance of the peripheral driver
 in question.
-.It bytes_written
-This is the number of bytes that have been written to the device.
-This number is currently an unsigned 64 bit integer.
-This will hopefully
-eliminate the counter wrap that would come very quickly on some systems if
-32 bit integers were used.
-.It bytes_read
-This is the number of bytes that have been read from the device.
-.It bytes_freed
-This is the number of bytes that have been freed/erased on the device.
-.It num_reads
-This is the number of reads from the device.
-.It num_writes
-This is the number of writes to the device.
-.It num_frees
-This is the number of free/erase operations on the device.
-.It num_other
-This is the number of transactions to the device which are neither reads or
-writes.
+.It bytes[4]
+This array contains the number of bytes that have been read (index
+.Dv DEVSTAT_READ ) ,
+written (index
+.Dv DEVSTAT_WRITE ) ,
+freed or erased (index
+.Dv DEVSTAT_FREE ) ,
+or other (index
+.Dv DEVSTAT_NO_DATA ) .
+All values are unsigned 64-bit integers.
+.It operations[4]
+This array contains the number of operations of a given type that have been
+performed.
+The indices are identical to those for
+.Fa bytes
+above.
+.Dv DEVSTAT_NO_DATA
+or "other" represents the number of transactions to the device which are
+neither reads, writes, nor frees.
 For instance,
 .Tn SCSI
 drivers often send a test unit ready command to
@@ -227,42 +337,35 @@ drivers often send a test unit ready command to
 devices.
 The test unit ready command does not read or write any data.
 It merely causes the device to return its status.
-.It busy_count
-This is the current number of outstanding transactions for the device.
-This should never go below zero, and on an idle device it should be zero.
-If either one of these conditions is not true, it indicates a problem in
-the way
-.Fn devstat_start_transaction
-and
+.It duration[4]
+This array contains the total bintime corresponding to completed operations of
+a given type.
+The indices are identical to those for
+.Fa bytes
+above.
+(Operations that complete using the historical
 .Fn devstat_end_transaction
-are being called in client code.
-There should be one and only one
-transaction start event and one transaction end event for each transaction.
+API and do not provide a non-NULL
+.Fa then
+are not accounted for.)
+.It busy_time
+This is the amount of time that the device busy count has been greater than
+zero.
+This is only updated when the busy count returns to zero.
+.It creation_time
+This is the time, as reported by
+.Fn getmicrotime
+that the device was registered.
 .It block_size
 This is the block size of the device, if the device has a block size.
 .It tag_types
 This is an array of counters to record the number of various tag types that
 are sent to a device.
 See below for a list of tag types.
-.It dev_creation_time
-This is the time, as reported by
-.Fn getmicrotime
-that the device was registered.
-.It busy_time
-This is the amount of time that the device busy count has been greater than
-zero.
-This is only updated when the busy count returns to zero.
-.It start_time
-This is the time, as reported by
-.Fn getmicrouptime
-that the device busy count went from zero to one.
-.It last_comp_time
-This is the time as reported by
-.Fn getmicrouptime
-that a transaction last completed.
-It is used along with
-.Va start_time
-to calculate the device busy time.
+.It busy_from
+If the device is not busy, this was the time that a transaction last completed.
+If the device is busy, this the most recent of either the time that the device
+became busy, or the time that the last transaction completed.
 .It flags
 These flags indicate which statistics measurements are supported by a
 particular device.
@@ -271,7 +374,7 @@ to userland programs that decipher the statistics.
 .It device_type
 This is the device type.
 It consists of three parts: the device type
-(e.g.\& direct access, CDROM, sequential access, etc.), the interface (IDE,
+(e.g., direct access, CDROM, sequential access, etc.), the interface (IDE,
 SCSI or other) and whether or not the device in question is a pass-through
 driver.
 See below for a complete list of device types.
@@ -282,21 +385,18 @@ to insert a device in the
 .Nm
 list.
 The second parameter is attach order.
-See below for a list of
-available priorities.
+See below for a list of available priorities.
 .El
 .Pp
 Each device is given a device type.
-Pass-through devices have the same
-underlying device type and interface as the device they provide an
-interface for, but they also have the pass-through flag set.
-The base
-device types are identical to the
+Pass-through devices have the same underlying device type and interface as the
+device they provide an interface for, but they also have the pass-through flag
+set.
+The base device types are identical to the
 .Tn SCSI
 device type numbers, so with
 .Tn SCSI
-peripherals, the device type returned from an inquiry is usually ORed with
-the
+peripherals, the device type returned from an inquiry is usually ORed with the
 .Tn SCSI
 interface type and the pass-through flag if appropriate.
 The device type
@@ -442,14 +542,3 @@ is not changed while someone is fetching the
 .Va kern.devstat.all
 .Nm sysctl
 variable.
-.Pp
-It is impossible with the current
-.Nm
-architecture to accurately measure time per transaction.
-The only feasible
-way to accurately measure time per transaction would be to record a
-timestamp for every transaction.
-This measurement is probably not
-worthwhile for most people as it would adversely affect the performance of
-the system and cost space to store the timestamps for individual
-transactions.

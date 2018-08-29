@@ -32,29 +32,9 @@ arm/allwinner/aw_thermal.c		standard
 dev/iicbus/sy8106a.c			optional	sy8106a
 arm/allwinner/aw_cir.c			optional	aw_cir evdev
 
-arm/allwinner/a10_fb.c			optional	vt
-arm/allwinner/a10_hdmi.c		optional	hdmi
-arm/allwinner/a10_hdmiaudio.c		optional	hdmi sound
-
 arm/allwinner/aw_reset.c		standard
 arm/allwinner/aw_ccu.c			standard
-arm/allwinner/clk/aw_ahbclk.c		standard
-arm/allwinner/clk/aw_apbclk.c		standard
-arm/allwinner/clk/aw_axiclk.c		standard
-arm/allwinner/clk/aw_codecclk.c		standard
-arm/allwinner/clk/aw_cpuclk.c		standard
-arm/allwinner/clk/aw_cpusclk.c		standard
-arm/allwinner/clk/aw_debeclk.c		standard
-arm/allwinner/clk/aw_gate.c		standard
 arm/allwinner/clk/aw_gmacclk.c		standard
-arm/allwinner/clk/aw_hdmiclk.c		standard
-arm/allwinner/clk/aw_lcdclk.c		standard
-arm/allwinner/clk/aw_modclk.c		standard
-arm/allwinner/clk/aw_mmcclk.c		standard
-arm/allwinner/clk/aw_oscclk.c		standard
-arm/allwinner/clk/aw_pll.c		standard
-arm/allwinner/clk/aw_thsclk.c		standard
-arm/allwinner/clk/aw_usbclk.c		standard
 
 arm/allwinner/clkng/aw_ccung.c		standard
 arm/allwinner/clkng/aw_clk_nkmp.c	standard

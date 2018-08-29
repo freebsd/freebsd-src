@@ -137,6 +137,9 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	sq->mkey_be = cpu_to_be32(priv->mr.key);
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
+	sq->max_inline = priv->params.tx_max_inline;
+	sq->min_inline_mode = priv->params.tx_min_inline_mode;
+	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
 
 	return (0);
 

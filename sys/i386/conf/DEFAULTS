@@ -21,6 +21,7 @@ options 	GEOM_PART_BSD
 options 	GEOM_PART_EBR
 options 	GEOM_PART_EBR_COMPAT
 options 	GEOM_PART_MBR
+options 	GEOM_PART_GPT
 
 # enable support for native hardware
 device		atpic

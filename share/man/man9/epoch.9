@@ -49,11 +49,11 @@
 .Ft void
 .Fn epoch_enter "epoch_t epoch"
 .Ft void
-.Fn epoch_enter_preempt "epoch_t epoch"
+.Fn epoch_enter_preempt "epoch_t epoch" "epoch_tracker_t et"
 .Ft void
 .Fn epoch_exit "epoch_t epoch"
 .Ft void
-.Fn epoch_exit_preempt "epoch_t epoch"
+.Fn epoch_exit_preempt "epoch_t epoch" "epoch_tracker_t et"
 .Ft void
 .Fn epoch_wait "epoch_t epoch"
 .Ft void
@@ -61,7 +61,7 @@
 .Ft void
 .Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback) (epoch_context_t)"
 .Ft int
-.Fn in_epoch "void"
+.Fn in_epoch "epoch_t epoch"
 .Sh DESCRIPTION
 Epochs are used to guarantee liveness and immutability of data by
 deferring reclamation and mutation until a grace period has elapsed.
@@ -104,12 +104,16 @@ INVARIANTS can assert that a thread is in an epoch by using
 .Fn in_epoch .
 .Pp
 The epoch API currently does not support sleeping in epoch_preempt sections.
-A caller cannot do epoch_enter recursively on different preemptible epochs.
 A caller should never call
 .Fn epoch_wait
-in the middle of an epoch section as this will lead to a deadlock.
+in the middle of an epoch section for the same epoch as this will lead to a deadlock.
 .Pp
-Note that epochs are not a straight replacement for read locks.
+By default mutexes cannot be held across
+.Fn epoch_wait_preempt .
+To permit this the epoch must be allocated with
+EPOCH_LOCKED.
+When doing this one must be cautious of creating a situation where a deadlock is
+possible. Note that epochs are not a straight replacement for read locks.
 Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
 When modifying a list referenced from an epoch section safe removal
 routines must be used and the caller can no longer modify a list entry
@@ -117,8 +121,8 @@ in place.
 An item to be modified must be handled with copy on write
 and frees must be deferred until after a grace period has elapsed.
 .Sh RETURN VALUES
-.Fn in_epoch
-will return 1 if curthread is in an epoch, 0 otherwise.
+.Fn in_epoch curepoch
+will return 1 if curthread is in curepoch, 0 otherwise.
 .Sh CAVEATS
 One must be cautious when using
 .Fn epoch_wait_preempt

@@ -210,13 +210,13 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcbinfo.ipi_count), 0, "Number of active PCBs");
 
-static VNET_DEFINE(int, icmp_may_rst) = 1;
+VNET_DEFINE_STATIC(int, icmp_may_rst) = 1;
 #define	V_icmp_may_rst			VNET(icmp_may_rst)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(icmp_may_rst), 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
-static VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
+VNET_DEFINE_STATIC(int, tcp_isn_reseed_interval) = 0;
 #define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
@@ -232,6 +232,10 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #ifdef TCP_HHOOK
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 #endif
+
+#define TS_OFFSET_SECRET_LENGTH 32
+VNET_DEFINE_STATIC(u_char, ts_offset_secret[TS_OFFSET_SECRET_LENGTH]);
+#define	V_ts_offset_secret	VNET(ts_offset_secret)
 
 static int	tcp_default_fb_init(struct tcpcb *tp);
 static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
@@ -695,7 +699,7 @@ struct tcpcb_mem {
 #endif
 };
 
-static VNET_DEFINE(uma_zone_t, tcpcb_zone);
+VNET_DEFINE_STATIC(uma_zone_t, tcpcb_zone);
 #define	V_tcpcb_zone			VNET(tcpcb_zone)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
@@ -943,7 +947,6 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		rw_wunlock(&tcp_function_lock);
 
 		VNET_LIST_RLOCK();
-		/* XXX handle */
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 			INP_INFO_WLOCK(&V_tcbinfo);
@@ -1093,6 +1096,7 @@ tcp_init(void)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -1623,7 +1627,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_vnet = inp->inp_vnet;
 #endif
 	tp->t_timers = &tm->tt;
-	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
+	TAILQ_INIT(&tp->t_segq);
 	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
@@ -1731,11 +1735,18 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 				 */
 				if (CC_ALGO(tp) == unload_algo) {
 					tmpalgo = CC_ALGO(tp);
-					/* NewReno does not require any init. */
-					CC_ALGO(tp) = &newreno_cc_algo;
-					/* XXX defer to epoch_call */
 					if (tmpalgo->cb_destroy != NULL)
 						tmpalgo->cb_destroy(tp->ccv);
+					CC_DATA(tp) = NULL;
+					/*
+					 * NewReno may allocate memory on
+					 * demand for certain stateful
+					 * configuration as needed, but is
+					 * coded to never fail on memory
+					 * allocation failure so it is a safe
+					 * fallback.
+					 */
+					CC_ALGO(tp) = &newreno_cc_algo;
 				}
 			}
 			INP_WUNLOCK(inp);
@@ -1887,6 +1898,7 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
+	CC_DATA(tp) = NULL;
 
 #ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);
@@ -1916,10 +1928,11 @@ tcp_timer_discard(void *ptp)
 {
 	struct inpcb *inp;
 	struct tcpcb *tp;
+	struct epoch_tracker et;
 	
 	tp = (struct tcpcb *)ptp;
 	CURVNET_SET(tp->t_vnet);
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	inp = tp->t_inpcb;
 	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
 		__func__, tp));
@@ -1939,13 +1952,13 @@ tcp_timer_discard(void *ptp)
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
 		if (in_pcbrele_wlocked(inp)) {
-			INP_INFO_RUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
 			return;
 		}
 	}
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
 }
 
@@ -2106,10 +2119,10 @@ static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, m, n, pcb_count;
-	struct in_pcblist *il;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
+	struct epoch_tracker et;
 
 	/*
 	 * The process of preparing the TCB list is too time-consuming and
@@ -2153,8 +2166,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO_INVARIANTS);
-	inp_list = il->il_inp_list;
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
@@ -2197,10 +2209,14 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-
-	il->il_count = n;
-	il->il_pcbinfo = &V_tcbinfo;
-	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
+	}
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
 	if (!error) {
 		/*
@@ -2217,6 +2233,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_LIST_RUNLOCK(&V_tcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
+	free(inp_list, M_TEMP);
 	return (error);
 }
 
@@ -2338,6 +2355,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct icmp *icp;
 	struct in_conninfo inc;
+	struct epoch_tracker et;
 	tcp_seq icmp_tcp_seq;
 	int mtu;
 
@@ -2369,7 +2387,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
 	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
@@ -2434,7 +2452,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 }
 #endif /* INET */
 
@@ -2452,6 +2470,7 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
+	struct epoch_tracker et;
 	struct tcp_ports {
 		uint16_t th_sport;
 		uint16_t th_dport;
@@ -2513,7 +2532,7 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	}
 	bzero(&t_ports, sizeof(struct tcp_ports));
 	m_copydata(m, off, sizeof(struct tcp_ports), (caddr_t)&t_ports);
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, t_ports.th_dport,
 	    &ip6->ip6_src, t_ports.th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
@@ -2585,10 +2604,45 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 }
 #endif /* INET6 */
 
+static uint32_t
+tcp_keyed_hash(struct in_conninfo *inc, u_char *key, u_int len)
+{
+	MD5_CTX ctx;
+	uint32_t hash[4];
+
+	MD5Init(&ctx);
+	MD5Update(&ctx, &inc->inc_fport, sizeof(uint16_t));
+	MD5Update(&ctx, &inc->inc_lport, sizeof(uint16_t));
+	switch (inc->inc_flags & INC_ISIPV6) {
+#ifdef INET
+	case 0:
+		MD5Update(&ctx, &inc->inc_faddr, sizeof(struct in_addr));
+		MD5Update(&ctx, &inc->inc_laddr, sizeof(struct in_addr));
+		break;
+#endif
+#ifdef INET6
+	case INC_ISIPV6:
+		MD5Update(&ctx, &inc->inc6_faddr, sizeof(struct in6_addr));
+		MD5Update(&ctx, &inc->inc6_laddr, sizeof(struct in6_addr));
+		break;
+#endif
+	}
+	MD5Update(&ctx, key, len);
+	MD5Final((unsigned char *)hash, &ctx);
+
+	return (hash[0]);
+}
+
+uint32_t
+tcp_new_ts_offset(struct in_conninfo *inc)
+{
+	return (tcp_keyed_hash(inc, V_ts_offset_secret,
+	    sizeof(V_ts_offset_secret)));
+}
 
 /*
  * Following is where TCP initial sequence number generation occurs.
@@ -2630,19 +2684,20 @@ out:
  * as reseeding should not be necessary.
  *
  * Locking of the global variables isn_secret, isn_last_reseed, isn_offset,
- * isn_offset_old, and isn_ctx is performed using the TCP pcbinfo lock.  In
+ * isn_offset_old, and isn_ctx is performed using the ISN lock.  In
  * general, this means holding an exclusive (write) lock.
  */
 
 #define ISN_BYTES_PER_SECOND 1048576
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
+#define ISN_SECRET_LENGTH    32
 
-static VNET_DEFINE(u_char, isn_secret[32]);
-static VNET_DEFINE(int, isn_last);
-static VNET_DEFINE(int, isn_last_reseed);
-static VNET_DEFINE(u_int32_t, isn_offset);
-static VNET_DEFINE(u_int32_t, isn_offset_old);
+VNET_DEFINE_STATIC(u_char, isn_secret[ISN_SECRET_LENGTH]);
+VNET_DEFINE_STATIC(int, isn_last);
+VNET_DEFINE_STATIC(int, isn_last_reseed);
+VNET_DEFINE_STATIC(u_int32_t, isn_offset);
+VNET_DEFINE_STATIC(u_int32_t, isn_offset_old);
 
 #define	V_isn_secret			VNET(isn_secret)
 #define	V_isn_last			VNET(isn_last)
@@ -2651,45 +2706,23 @@ static VNET_DEFINE(u_int32_t, isn_offset_old);
 #define	V_isn_offset_old		VNET(isn_offset_old)
 
 tcp_seq
-tcp_new_isn(struct tcpcb *tp)
+tcp_new_isn(struct in_conninfo *inc)
 {
-	MD5_CTX isn_ctx;
-	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 	u_int32_t projected_offset;
-
-	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	ISN_LOCK();
 	/* Seed if this is the first use, reseed if requested. */
 	if ((V_isn_last_reseed == 0) || ((V_tcp_isn_reseed_interval > 0) &&
 	     (((u_int)V_isn_last_reseed + (u_int)V_tcp_isn_reseed_interval*hz)
 		< (u_int)ticks))) {
-		read_random(&V_isn_secret, sizeof(V_isn_secret));
+		arc4rand(&V_isn_secret, sizeof(V_isn_secret), 0);
 		V_isn_last_reseed = ticks;
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&isn_ctx);
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
-#ifdef INET6
-	if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0) {
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
-			  sizeof(struct in6_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
-			  sizeof(struct in6_addr));
-	} else
-#endif
-	{
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
-			  sizeof(struct in_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
-			  sizeof(struct in_addr));
-	}
-	MD5Update(&isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &isn_ctx);
-	new_isn = (tcp_seq) md5_buffer[0];
+	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret,
+	    sizeof(V_isn_secret));
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	if (ticks != V_isn_last) {
@@ -2836,6 +2869,9 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
+	if (inc->inc_flags & INC_IPV6MINMTU)
+		return (IPV6_MMTU);
+
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
 		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);
 		if (fib6_lookup_nh_ext(inc->inc_fibnum, &dst6, scopeid, 0,
@@ -2924,6 +2960,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct tcpcb *tp;
 	struct tcptw *tw;
 	struct sockaddr_in *fin, *lin;
+	struct epoch_tracker et;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
 #endif
@@ -2983,7 +3020,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
@@ -3022,7 +3059,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			INP_WUNLOCK(inp);
 	} else
 		error = ESRCH;
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	return (error);
 }
 

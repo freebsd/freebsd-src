@@ -397,7 +397,7 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 
 	if (!CPU_ISSET(vcpu, &cpumask)) {
 		fprintf(stderr, "Attempting to delete unknown cpu %d\n", vcpu);
-		exit(1);
+		exit(4);
 	}
 
 	CPU_CLR_ATOMIC(vcpu, &cpumask);
@@ -742,7 +742,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
 			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
 			    exitcode);
-			exit(1);
+			exit(4);
 		}
 
 		rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
@@ -753,7 +753,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 		case VMEXIT_ABORT:
 			abort();
 		default:
-			exit(1);
+			exit(4);
 		}
 	}
 	fprintf(stderr, "vm_run error %d, errno %d\n", error, errno);
@@ -785,7 +785,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
 			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(1);
+			exit(4);
 		}
 		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
 		if (cpu == BSP)
@@ -800,7 +800,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 		if (err < 0) {
 			fprintf(stderr,
 			    "SMP mux requested, no pause support\n");
-			exit(1);
+			exit(4);
 		}
 		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
 		if (cpu == BSP)
@@ -814,7 +814,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 
 	if (err) {
 		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(1);
+		exit(4);
 	}
 
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
@@ -850,7 +850,7 @@ do_open(const char *vmname)
 			}
 		} else {
 			perror("vm_create");
-			exit(1);
+			exit(4);
 		}
 	} else {
 		if (!romboot) {
@@ -859,14 +859,14 @@ do_open(const char *vmname)
 			 * bootrom must be configured to boot it.
 			 */
 			fprintf(stderr, "virtual machine cannot be booted\n");
-			exit(1);
+			exit(4);
 		}
 	}
 
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
 		perror("vm_open");
-		exit(1);
+		exit(4);
 	}
 
 #ifndef WITHOUT_CAPSICUM
@@ -888,7 +888,7 @@ do_open(const char *vmname)
 		error = vm_reinit(ctx);
 		if (error) {
 			perror("vm_reinit");
-			exit(1);
+			exit(4);
 		}
 	}
 	error = vm_set_topology(ctx, sockets, cores, threads, maxcpus);
@@ -960,14 +960,20 @@ main(int argc, char *argv[])
 			gdb_port = atoi(optarg);
 			break;
 		case 'l':
-			if (lpc_device_parse(optarg) != 0) {
+			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
+				lpc_print_supported_devices();
+				exit(0);
+			} else if (lpc_device_parse(optarg) != 0) {
 				errx(EX_USAGE, "invalid lpc device "
 				    "configuration '%s'", optarg);
 			}
 			break;
 		case 's':
-			if (pci_parse_slot(optarg) != 0)
-				exit(1);
+			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
+				pci_print_supported_devices();
+				exit(0);
+			} else if (pci_parse_slot(optarg) != 0)
+				exit(4);
 			else
 				break;
 		case 'S':
@@ -1033,7 +1039,7 @@ main(int argc, char *argv[])
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
 			guest_ncpus, max_vcpus);
-		exit(1);
+		exit(4);
 	}
 
 	fbsdrun_set_capabilities(ctx, BSP);
@@ -1042,13 +1048,13 @@ main(int argc, char *argv[])
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
 		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
-		exit(1);
+		exit(4);
 	}
 
 	error = init_msr();
 	if (error) {
 		fprintf(stderr, "init_msr error %d", error);
-		exit(1);
+		exit(4);
 	}
 
 	init_mem();
@@ -1063,8 +1069,10 @@ main(int argc, char *argv[])
 	/*
 	 * Exit if a device emulation finds an error in its initilization
 	 */
-	if (init_pci(ctx) != 0)
-		exit(1);
+	if (init_pci(ctx) != 0) {
+		perror("device emulation initialization error");
+		exit(4);
+	}
 
 	if (dbg_port != 0)
 		init_dbgport(dbg_port);
@@ -1079,7 +1087,7 @@ main(int argc, char *argv[])
 		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {
 			fprintf(stderr, "ROM boot failed: unrestricted guest "
 			    "capability not available\n");
-			exit(1);
+			exit(4);
 		}
 		error = vcpu_reset(ctx, BSP);
 		assert(error == 0);
@@ -1093,8 +1101,10 @@ main(int argc, char *argv[])
 	 */
 	if (mptgen) {
 		error = mptable_build(ctx, guest_ncpus);
-		if (error)
-			exit(1);
+		if (error) {
+			perror("error to build the guest tables");
+			exit(4);
+		}
 	}
 
 	error = smbios_build(ctx);
@@ -1108,6 +1118,11 @@ main(int argc, char *argv[])
 	if (lpc_bootrom())
 		fwctl_init();
 
+	/*
+	 * Change the proc title to include the VM name.
+	 */
+	setproctitle("%s", vmname);
+
 #ifndef WITHOUT_CAPSICUM
 	caph_cache_catpages();
 
@@ -1119,11 +1134,6 @@ main(int argc, char *argv[])
 #endif
 
 	/*
-	 * Change the proc title to include the VM name.
-	 */
-	setproctitle("%s", vmname); 
-	
-	/*
 	 * Add CPU 0
 	 */
 	fbsdrun_addcpu(ctx, BSP, BSP, rip);
@@ -1133,5 +1143,5 @@ main(int argc, char *argv[])
 	 */
 	mevent_dispatch();
 
-	exit(1);
+	exit(4);
 }

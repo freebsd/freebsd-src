@@ -295,9 +295,10 @@ extern struct if_txrx ixl_txrx_dwb;
 static struct if_shared_ctx ixl_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_q_align = PAGE_SIZE,
-	.isc_tx_maxsize = IXL_TSO_SIZE,
+	.isc_tx_maxsize = IXL_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_tx_maxsegsize = IXL_MAX_DMA_SEG_SIZE,
-
+	.isc_tso_maxsize = IXL_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = IXL_MAX_DMA_SEG_SIZE,
 	.isc_rx_maxsize = 16384,
 	.isc_rx_nsegments = IXL_MAX_RX_SEGS,
 	.isc_rx_maxsegsize = IXL_MAX_DMA_SEG_SIZE,
@@ -552,7 +553,7 @@ ixl_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_tso_segsize_max = IXL_MAX_DMA_SEG_SIZE;
 	scctx->isc_rss_table_size = pf->hw.func_caps.rss_table_size;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
-	scctx->isc_capenable = IXL_CAPS;
+	scctx->isc_capabilities = scctx->isc_capenable = IXL_CAPS;
 
 	INIT_DEBUGOUT("ixl_if_attach_pre: end");
 	return (0);
@@ -1181,12 +1182,13 @@ void
 ixl_update_link_status(struct ixl_pf *pf)
 {
 	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = &pf->hw;
 	u64 baudrate;
 
 	if (pf->link_up) { 
 		if (vsi->link_active == FALSE) {
 			vsi->link_active = TRUE;
-			baudrate = ixl_max_aq_speed_to_value(pf->link_speed);
+			baudrate = ixl_max_aq_speed_to_value(hw->phy.link_info.link_speed);
 			iflib_link_state_change(vsi->ctx, LINK_STATE_UP, baudrate);
 			ixl_link_up_msg(pf);
 #ifdef PCI_IOV

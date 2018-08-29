@@ -1183,7 +1183,7 @@ linux_timerfd_curval(struct timerfd *tfd, struct itimerspec *ots)
 	linux_timerfd_clocktime(tfd, &cts);
 	*ots = tfd->tfd_time;
 	if (ots->it_value.tv_sec != 0 || ots->it_value.tv_nsec != 0) {
-		timespecsub(&ots->it_value, &cts);
+		timespecsub(&ots->it_value, &cts, &ots->it_value);
 		if (ots->it_value.tv_sec < 0 ||
 		    (ots->it_value.tv_sec == 0 &&
 		     ots->it_value.tv_nsec == 0)) {
@@ -1265,9 +1265,10 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 		linux_timerfd_clocktime(tfd, &cts);
 		ts = nts.it_value;
 		if ((args->flags & LINUX_TFD_TIMER_ABSTIME) == 0) {
-			timespecadd(&tfd->tfd_time.it_value, &cts);
+			timespecadd(&tfd->tfd_time.it_value, &cts,
+				&tfd->tfd_time.it_value);
 		} else {
-			timespecsub(&ts, &cts);
+			timespecsub(&ts, &cts, &ts);
 		}
 		TIMESPEC_TO_TIMEVAL(&tv, &ts);
 		callout_reset(&tfd->tfd_callout, tvtohz(&tv),
@@ -1303,13 +1304,13 @@ linux_timerfd_expire(void *arg)
 	if (timespeccmp(&cts, &tfd->tfd_time.it_value, >=)) {
 		if (timespecisset(&tfd->tfd_time.it_interval))
 			timespecadd(&tfd->tfd_time.it_value,
-				    &tfd->tfd_time.it_interval);
+				    &tfd->tfd_time.it_interval,
+				    &tfd->tfd_time.it_value);
 		else
 			/* single shot timer */
 			timespecclear(&tfd->tfd_time.it_value);
 		if (timespecisset(&tfd->tfd_time.it_value)) {
-			ts = tfd->tfd_time.it_value;
-			timespecsub(&ts, &cts);
+			timespecsub(&tfd->tfd_time.it_value, &cts, &ts);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts);
 			callout_reset(&tfd->tfd_callout, tvtohz(&tv),
 				linux_timerfd_expire, tfd);
@@ -1319,8 +1320,7 @@ linux_timerfd_expire(void *arg)
 		selwakeup(&tfd->tfd_sel);
 		wakeup(&tfd->tfd_count);
 	} else if (timespecisset(&tfd->tfd_time.it_value)) {
-		ts = tfd->tfd_time.it_value;
-		timespecsub(&ts, &cts);
+		timespecsub(&tfd->tfd_time.it_value, &cts, &ts);
 		TIMESPEC_TO_TIMEVAL(&tv, &ts);
 		callout_reset(&tfd->tfd_callout, tvtohz(&tv),
 		    linux_timerfd_expire, tfd);

@@ -308,6 +308,18 @@ struct p2p_data {
 	 */
 	int num_p2p_sd_queries;
 
+	/**
+	 * sd_query_no_ack - The first peer (Dev Addr) that did not ACK SD Query
+	 *
+	 * This is used to track the first peer that did not ACK an SD Query
+	 * within a single P2P Search iteration. All zeros address means no such
+	 * peer was yet seen. This information is used to allow a new Listen and
+	 * Search phases to be once every pending SD Query has been sent once to
+	 * each peer instead of looping all pending attempts continuously until
+	 * running out of retry maximums.
+	 */
+	u8 sd_query_no_ack[ETH_ALEN];
+
 	/* GO Negotiation data */
 
 	/**
@@ -691,6 +703,8 @@ int p2p_channel_random_social(struct p2p_channels *chans, u8 *op_class,
 			      u8 *op_channel);
 
 /* p2p_parse.c */
+void p2p_copy_filter_devname(char *dst, size_t dst_len,
+			     const void *src, size_t src_len);
 int p2p_parse_p2p_ie(const struct wpabuf *buf, struct p2p_message *msg);
 int p2p_parse_ies(const u8 *data, size_t len, struct p2p_message *msg);
 int p2p_parse(const u8 *data, size_t len, struct p2p_message *msg);

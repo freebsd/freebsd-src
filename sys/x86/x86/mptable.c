@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
+#include <machine/pc/bios.h>
 #ifdef NEW_PCIB
 #include <machine/resource.h>
 #endif
@@ -206,11 +207,11 @@ static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
 static int	search_for_sig(u_int32_t target, int count);
 
 static struct apic_enumerator mptable_enumerator = {
-	"MPTable",
-	mptable_probe,
-	mptable_probe_cpus,
-	mptable_setup_local,
-	mptable_setup_io
+	.apic_name = "MPTable",
+	.apic_probe = mptable_probe,
+	.apic_probe_cpus = mptable_probe_cpus,
+	.apic_setup_local = mptable_setup_local,
+	.apic_setup_io = mptable_setup_io
 };
 
 /*
@@ -223,11 +224,7 @@ search_for_sig(u_int32_t target, int count)
 	int     x;
 	u_int32_t *addr;
 
-#ifdef __amd64__
-	addr = (u_int32_t *) (KERNBASE + target);
-#else /* __i386__ */
-	addr = (u_int32_t *) (PMAP_MAP_LOW + target);
-#endif
+	addr = (u_int32_t *)BIOS_PADDRTOVADDR(target);
 	for (x = 0; x < count; x += 4)
 		if (addr[x] == MP_SIG)
 			/* make array index a byte index */
@@ -258,13 +255,7 @@ mptable_probe(void)
 	u_int32_t target;
 
 	/* see if EBDA exists */
-	if ((segment = (u_long) * (u_short *) (
-#ifdef __amd64__
-	    KERNBASE
-#else /* __i386__ */
-	    PMAP_MAP_LOW
-#endif
-	    + 0x40e)) != 0) {
+	if ((segment = *(u_short *)BIOS_PADDRTOVADDR(0x40e)) != 0) {
 		/* search first 1K of EBDA */
 		target = (u_int32_t) (segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
@@ -285,7 +276,7 @@ mptable_probe(void)
 	return (ENXIO);
 
 found:
-	mpfps = (mpfps_t)(KERNBASE + x);
+	mpfps = (mpfps_t)BIOS_PADDRTOVADDR(x);
 
 	/* Map in the configuration table if it exists. */
 	if (mpfps->config_type != 0) {
@@ -306,7 +297,7 @@ found:
 			    __func__);
 			return (ENXIO);
 		}
-		mpct = (mpcth_t)(KERNBASE + (uintptr_t)mpfps->pap);
+		mpct = (mpcth_t)BIOS_PADDRTOVADDR((uintptr_t)mpfps->pap);
 		if (mpct->base_table_length + (uintptr_t)mpfps->pap >=
 		    1024 * 1024) {
 			printf("%s: Unable to map end of MP Config Table\n",

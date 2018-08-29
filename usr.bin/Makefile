@@ -104,7 +104,6 @@ SUBDIR=	alias \
 	nfsstat \
 	nice \
 	nl \
-	numactl \
 	nohup \
 	opieinfo \
 	opiekey \
@@ -136,7 +135,6 @@ SUBDIR=	alias \
 	script \
 	sdiff \
 	sed \
-	send-pr \
 	seq \
 	shar \
 	showmount \

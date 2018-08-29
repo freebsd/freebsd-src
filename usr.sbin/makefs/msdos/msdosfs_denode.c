@@ -160,7 +160,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 			return (error);
 		}
 		DE_INTERNALIZE(ldep, direntptr);
-		brelse(bp, 0);
+		brelse(bp);
 	}
 
 	/*

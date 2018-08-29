@@ -69,7 +69,7 @@ struct tcp_init_params
 {
 	__le32 two_msl_timer /* 2MSL (used for TIME_WAIT state) timeout value */;
 	__le16 tx_sws_timer /* Transmission silly window syndrom timeout value */;
-	u8 maxFinRT /* Minimum Fin RT */;
+	u8 max_fin_rt /* Minimum Fin RT */;
 	u8 reserved[9];
 };
 
@@ -97,24 +97,29 @@ struct tcp_offload_params
 	__le16 remote_mac_addr_mid;
 	__le16 remote_mac_addr_hi;
 	__le16 vlan_id;
-	u8 flags;
-#define TCP_OFFLOAD_PARAMS_TS_EN_MASK         0x1 /* timestamp enable */
-#define TCP_OFFLOAD_PARAMS_TS_EN_SHIFT        0
-#define TCP_OFFLOAD_PARAMS_DA_EN_MASK         0x1 /* delayed ack enabled */
-#define TCP_OFFLOAD_PARAMS_DA_EN_SHIFT        1
-#define TCP_OFFLOAD_PARAMS_KA_EN_MASK         0x1 /* keep alive enabled */
-#define TCP_OFFLOAD_PARAMS_KA_EN_SHIFT        2
-#define TCP_OFFLOAD_PARAMS_NAGLE_EN_MASK      0x1 /* nagle algorithm enabled */
-#define TCP_OFFLOAD_PARAMS_NAGLE_EN_SHIFT     3
-#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_MASK     0x1 /* delayed ack counter enabled */
-#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_SHIFT    4
-#define TCP_OFFLOAD_PARAMS_FIN_SENT_MASK      0x1 /* fin already sent to far end */
-#define TCP_OFFLOAD_PARAMS_FIN_SENT_SHIFT     5
-#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_MASK  0x1 /* fin received */
-#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_SHIFT 6
-#define TCP_OFFLOAD_PARAMS_RESERVED0_MASK     0x1
-#define TCP_OFFLOAD_PARAMS_RESERVED0_SHIFT    7
-	u8 ip_version;
+	__le16 flags;
+#define TCP_OFFLOAD_PARAMS_TS_EN_MASK            0x1 /* timestamp enable */
+#define TCP_OFFLOAD_PARAMS_TS_EN_SHIFT           0
+#define TCP_OFFLOAD_PARAMS_DA_EN_MASK            0x1 /* delayed ack enabled */
+#define TCP_OFFLOAD_PARAMS_DA_EN_SHIFT           1
+#define TCP_OFFLOAD_PARAMS_KA_EN_MASK            0x1 /* keep alive enabled */
+#define TCP_OFFLOAD_PARAMS_KA_EN_SHIFT           2
+#define TCP_OFFLOAD_PARAMS_ECN_SENDER_EN_MASK    0x1 /* ECN sender enabled */
+#define TCP_OFFLOAD_PARAMS_ECN_SENDER_EN_SHIFT   3
+#define TCP_OFFLOAD_PARAMS_ECN_RECEIVER_EN_MASK  0x1 /* ECN receiver enabled */
+#define TCP_OFFLOAD_PARAMS_ECN_RECEIVER_EN_SHIFT 4
+#define TCP_OFFLOAD_PARAMS_NAGLE_EN_MASK         0x1 /* nagle algorithm enabled */
+#define TCP_OFFLOAD_PARAMS_NAGLE_EN_SHIFT        5
+#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_MASK        0x1 /* delayed ack counter enabled */
+#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_SHIFT       6
+#define TCP_OFFLOAD_PARAMS_FIN_SENT_MASK         0x1 /* fin already sent to far end */
+#define TCP_OFFLOAD_PARAMS_FIN_SENT_SHIFT        7
+#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_MASK     0x1 /* fin received */
+#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_SHIFT    8
+#define TCP_OFFLOAD_PARAMS_RESERVED_MASK         0x7F
+#define TCP_OFFLOAD_PARAMS_RESERVED_SHIFT        9
+	u8 ip_version /*  (use enum tcp_ip_version) */;
+	u8 reserved0[3];
 	__le32 remote_ip[4];
 	__le32 local_ip[4];
 	__le32 flow_label;
@@ -124,19 +129,23 @@ struct tcp_offload_params
 	__le16 local_port;
 	__le16 mss /* the mss derived from remote mss and local mtu, ipVersion options and tags */;
 	u8 rcv_wnd_scale;
-	u8 connect_mode /* TCP connect mode: use enum tcp_connect_mode */;
+	u8 connect_mode /* TCP connect mode: use enum tcp_connect_mode (use enum tcp_connect_mode) */;
 	__le16 srtt /* in ms */;
-	__le32 cwnd /* absolute congestion window */;
 	__le32 ss_thresh;
-	__le16 reserved1;
+	__le32 rcv_wnd /* absolute receive window (not scaled) */;
+	__le32 cwnd /* absolute congestion window */;
 	u8 ka_max_probe_cnt;
 	u8 dup_ack_theshold;
+	__le16 reserved1;
+	__le32 ka_timeout /* This member specifies, in ms, the timeout interval for inactivity before sending a keepalive probe */;
+	__le32 ka_interval /* This member specifies, in ms, the timeout after which to retransmit a keepalive frame if no response is received to a keepalive probe  */;
+	__le32 max_rt_time /* This member specifies, in ms, the maximum time that the offload target should spend retransmitting a segment */;
+	__le32 initial_rcv_wnd /* Initial receive window */;
 	__le32 rcv_next;
 	__le32 snd_una;
 	__le32 snd_next;
 	__le32 snd_max;
 	__le32 snd_wnd /* absolute send window (not scaled) */;
-	__le32 rcv_wnd /* absolute receive window (not scaled) */;
 	__le32 snd_wl1 /* the segment sequence number used for the last window update */;
 	__le32 ts_recent /* The timestamp value to send in the next ACK */;
 	__le32 ts_recent_age /* The length of time, in ms, since the most recent timestamp was received */;
@@ -149,14 +158,10 @@ struct tcp_offload_params
 	u8 rt_cnt /* The number of retransmits that have been sent */;
 	__le16 rtt_var /* in ms */;
 	__le16 fw_internal /* fw internal use - initialize value = 0 */;
-	__le32 ka_timeout /* This member specifies, in ms, the timeout interval for inactivity before sending a keepalive probe */;
-	__le32 ka_interval /* This member specifies, in ms, the timeout after which to retransmit a keepalive frame if no response is received to a keepalive probe  */;
-	__le32 max_rt_time /* This member specifies, in ms, the maximum time that the offload target should spend retransmitting a segment */;
-	__le32 initial_rcv_wnd /* Initial receive window */;
 	u8 snd_wnd_scale;
 	u8 ack_frequency /* delayed ack counter threshold */;
 	__le16 da_timeout_value /* delayed ack timeout value in ms */;
-	__le32 reserved3[2];
+	__le32 reserved3;
 };
 
 
@@ -172,16 +177,19 @@ struct tcp_offload_params_opt2
 	__le16 remote_mac_addr_mid;
 	__le16 remote_mac_addr_hi;
 	__le16 vlan_id;
-	u8 flags;
+	__le16 flags;
 #define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_MASK      0x1 /* timestamp enable */
 #define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_SHIFT     0
 #define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_MASK      0x1 /* delayed ack enabled */
 #define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_SHIFT     1
 #define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_MASK      0x1 /* keep alive enabled */
 #define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_SHIFT     2
-#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_MASK  0x1F
-#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_SHIFT 3
-	u8 ip_version;
+#define TCP_OFFLOAD_PARAMS_OPT2_ECN_EN_MASK     0x1 /* ECN enabled */
+#define TCP_OFFLOAD_PARAMS_OPT2_ECN_EN_SHIFT    3
+#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_MASK  0xFFF
+#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_SHIFT 4
+	u8 ip_version /*  (use enum tcp_ip_version) */;
+	u8 reserved1[3];
 	__le32 remote_ip[4];
 	__le32 local_ip[4];
 	__le32 flow_label;
@@ -191,11 +199,17 @@ struct tcp_offload_params_opt2
 	__le16 local_port;
 	__le16 mss /* the mss derived from remote mss and local mtu, ipVersion options and tags */;
 	u8 rcv_wnd_scale;
-	u8 connect_mode /* TCP connect mode: use enum tcp_connect_mode */;
+	u8 connect_mode /* TCP connect mode: use enum tcp_connect_mode (use enum tcp_connect_mode) */;
 	__le16 syn_ip_payload_length /* length of Tcp header in SYN packet - relevent for passive mode */;
 	__le32 syn_phy_addr_lo /* physical address (low) of SYN buffer - relevent for passive mode */;
 	__le32 syn_phy_addr_hi /* physical address (high) of SYN buffer - relevent for passive mode */;
-	__le32 reserved1[22];
+	__le32 cwnd /* absolute congestion window */;
+	u8 ka_max_probe_cnt;
+	u8 reserved2[3];
+	__le32 ka_timeout /* This member specifies, in ms, the timeout interval for inactivity before sending a keepalive probe */;
+	__le32 ka_interval /* This member specifies, in ms, the timeout after which to retransmit a keepalive frame if no response is received to a keepalive probe  */;
+	__le32 max_rt_time /* This member specifies, in ms, the maximum time that the offload target should spend retransmitting a segment */;
+	__le32 reserved3[16];
 };
 
 

@@ -493,7 +493,7 @@ uart_bus_sysdev(device_t dev)
 }
 
 int
-uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int chan)
+uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int chan, int quirks)
 {
 	struct uart_softc *sc;
 	struct uart_devinfo *sysdev;
@@ -553,6 +553,7 @@ uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int
 	sc->sc_bas.regshft = regshft;
 	sc->sc_bas.regiowidth = regiowidth;
 	sc->sc_bas.rclk = (rclk == 0) ? sc->sc_class->uc_rclk : rclk;
+	sc->sc_bas.busy_detect = !!(quirks & UART_F_BUSY_DETECT);
 
 	SLIST_FOREACH(sysdev, &uart_sysdevs, next) {
 		if (chan == sysdev->bas.chan &&

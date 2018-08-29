@@ -65,7 +65,7 @@ done
 # Default build for a goodly selection of architectures
 for i in \
 	amd64/amd64 \
-	arm/arm arm/armeb arm/armv7 \
+	arm/arm arm/armv7 \
 	arm64/aarch64 \
 	i386/i386 \
 	mips/mips mips/mips64 \
@@ -79,7 +79,7 @@ done
 # Default build for a goodly selection of architectures with Lua
 for i in \
 	amd64/amd64 \
-	arm/arm arm/armeb arm/armv7 \
+	arm/arm arm/armv7 \
 	arm64/aarch64 \
 	i386/i386 \
 	mips/mips mips/mips64 \

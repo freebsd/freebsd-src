@@ -7,6 +7,10 @@ MAN=
 .PATH:	${SRCTOP}/contrib/ntp/ntpd \
 	${.OBJDIR}
 
+CONFS=	ntp.conf
+FILES=	leap-seconds
+FILESDIR=	/etc/ntp
+FILESMODE=	644
 PROG=	ntpd
 
 SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \

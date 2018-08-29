@@ -539,7 +539,7 @@ qca955x_pci_intr(void *arg)
 	if (reg & QCA955X_PCI_INTR_DEV0) {
 		irq = AR71XX_PCI_IRQ_START;
 		event = sc->sc_eventstab[irq];
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 			printf("Stray IRQ %d\n", irq);
 			return (FILTER_STRAY);
 		}

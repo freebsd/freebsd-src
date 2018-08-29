@@ -1,3 +1,15 @@
+2018-07-25   8:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.34
+
+2018-06-22  16:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add Quad indirect offsets
+
+2018-05-24  14:10  Christos Zoulas <christos@zoulas.com>
+
+	* Enable parsing of ELF dynamic sections to handle PIE better
+
 2018-04-15  14:52  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.33

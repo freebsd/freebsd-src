@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2017
+.Dd August 18, 2018
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd differential file and directory comparator
 .Sh SYNOPSIS
 .Nm diff
-.Op Fl abdipTtw
+.Op Fl aBbdipTtw
 .Oo
 .Fl c | e | f |
 .Fl n | q | u
@@ -67,7 +67,7 @@
 .Op Fl L Ar label | Fl -label Ar label
 .Ar file1 file2
 .Nm diff
-.Op Fl abdilpTtw
+.Op Fl aBbdilpTtw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
@@ -93,7 +93,7 @@
 .Fl C Ar number | -context Ar number
 .Ar file1 file2
 .Nm diff
-.Op Fl abdiltw
+.Op Fl aBbdiltw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl -brief
 .Op Fl -changed-group-format Ar GFMT
@@ -118,7 +118,7 @@
 .Fl D Ar string | Fl -ifdef Ar string
 .Ar file1 file2
 .Nm diff
-.Op Fl abdilpTtw
+.Op Fl aBbdilpTtw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
@@ -144,7 +144,7 @@
 .Fl U Ar number | Fl -unified Ar number
 .Ar file1 file2
 .Nm diff
-.Op Fl abdilNPprsTtw
+.Op Fl aBbdilNPprsTtw
 .Oo
 .Fl c | e | f |
 .Fl n | q | u
@@ -300,6 +300,8 @@ if files contain binary characters.
 Use of this option forces
 .Nm
 to produce a diff.
+.It Fl B Fl -ignore-blank-lines
+Causes chunks that include only blank lines to be ignored.
 .It Fl b
 Causes trailing blanks (spaces and tabs) to be ignored, and other
 strings of blanks to compare equal.

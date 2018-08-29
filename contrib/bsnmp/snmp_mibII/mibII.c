@@ -439,11 +439,15 @@ mibif_restart_mibII_poll_timer(void)
 int
 mib_fetch_ifmib(struct mibif *ifp)
 {
+	static int kmib[2] = { -1, 0 }; /* for sysctl net.ifdescr_maxlen */
+
 	int name[6];
+	size_t kmiblen = nitems(kmib);
 	size_t len;
 	void *newmib;
 	struct ifmibdata oldmib = ifp->mib;
 	struct ifreq irr;
+	unsigned int alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
 
 	if (fetch_generic_mib(ifp, &oldmib) == -1)
 		return (-1);
@@ -515,18 +519,69 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
+
+	/*
+	 * Find sysctl mib for net.ifdescr_maxlen (one time).
+	 * kmib[0] == -1 at first call to mib_fetch_ifmib().
+	 * Then kmib[0] > 0 if we found sysctl mib for net.ifdescr_maxlen.
+	 * Else, kmib[0] == 0 (unexpected error from a kernel).
+	 */
+	if (kmib[0] < 0 &&
+	    sysctlnametomib("net.ifdescr_maxlen", kmib, &kmiblen) < 0) {
+		kmib[0] = 0;
+		syslog(LOG_WARNING, "sysctlnametomib net.ifdescr_maxlen: %m");
+	}
+
+	/*
+	 * Fetch net.ifdescr_maxlen value every time to catch up with changes.
+	 */
+	len = sizeof(alias_maxlen);
+	if (kmib[0] > 0 && sysctl(kmib, 2, &alias_maxlen, &len, NULL, 0) < 0) {
+		/* unexpected error from the kernel, use default value */
+		alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
+		syslog(LOG_WARNING, "sysctl net.ifdescr_maxlen: %m");
+	}
+
+	/*
+	 * Kernel limit might be decreased after interfaces got
+	 * their descriptions assigned. Try to obtain them anyway.
+	 */
+	if (alias_maxlen == 0)
+		alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
+
+	/*
+	 * Allocate maximum memory for a buffer and later reallocate
+	 * to free extra memory.
+	 */
+	if ((ifp->alias = malloc(alias_maxlen)) == NULL) {
+		syslog(LOG_WARNING, "malloc(%d) failed: %m", (int)alias_maxlen);
+		goto fin;
+	}
+
 	strlcpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
-	irr.ifr_buffer.buffer = MIBIF_PRIV(ifp)->alias;
-	irr.ifr_buffer.length = sizeof(MIBIF_PRIV(ifp)->alias);
+	irr.ifr_buffer.buffer = ifp->alias;
+	irr.ifr_buffer.length = alias_maxlen;
 	if (ioctl(mib_netsock, SIOCGIFDESCR, &irr) == -1) {
-		MIBIF_PRIV(ifp)->alias[0] = 0;
+		free(ifp->alias);
+		ifp->alias = NULL;
 		if (errno != ENOMSG)
 			syslog(LOG_WARNING, "SIOCGIFDESCR (%s): %m", ifp->name);
 	} else if (irr.ifr_buffer.buffer == NULL) {
-		MIBIF_PRIV(ifp)->alias[0] = 0;
+		free(ifp->alias);
+		ifp->alias = NULL;
 		syslog(LOG_WARNING, "SIOCGIFDESCR (%s): too long (%zu)",
 		    ifp->name, irr.ifr_buffer.length);
+	} else {
+		ifp->alias_size = strnlen(ifp->alias, alias_maxlen) + 1;
+
+		if (ifp->alias_size > MIBIF_ALIAS_SIZE)
+		    ifp->alias_size = MIBIF_ALIAS_SIZE; 
+
+		if (ifp->alias_size < alias_maxlen)
+			ifp->alias = realloc(ifp->alias, ifp->alias_size);
 	}
+
+fin:
 	ifp->mibtick = get_ticks();
 	return (0);
 }
@@ -706,6 +761,10 @@ mibif_free(struct mibif *ifp)
 		mibif_reset_hc_timer();
 	}
 
+	if (ifp->alias != NULL) {
+		free(ifp->alias);
+		ifp->alias = NULL;
+	}
 	free(ifp->private);
 	ifp->private = NULL;
 	free(ifp->physaddr);
@@ -1772,6 +1831,7 @@ mibII_loading(const struct lmodule *mod, int loaded)
 	mib_unregister_newif(mod);
 }
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	"This module implements the interface and ip groups.",
 	mibII_init,

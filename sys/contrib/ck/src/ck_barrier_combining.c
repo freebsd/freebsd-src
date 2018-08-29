@@ -35,7 +35,7 @@ struct ck_barrier_combining_queue {
 	struct ck_barrier_combining_group *tail;
 };
 
-CK_CC_INLINE static struct ck_barrier_combining_group *
+static struct ck_barrier_combining_group *
 ck_barrier_combining_queue_dequeue(struct ck_barrier_combining_queue *queue)
 {
 	struct ck_barrier_combining_group *front = NULL;
@@ -48,7 +48,7 @@ ck_barrier_combining_queue_dequeue(struct ck_barrier_combining_queue *queue)
 	return front;
 }
 
-CK_CC_INLINE static void
+static void
 ck_barrier_combining_insert(struct ck_barrier_combining_group *parent,
     struct ck_barrier_combining_group *tnode,
     struct ck_barrier_combining_group **child)
@@ -72,7 +72,7 @@ ck_barrier_combining_insert(struct ck_barrier_combining_group *parent,
  * into the barrier's tree. We use a queue to implement this
  * traversal.
  */
-CK_CC_INLINE static void
+static void
 ck_barrier_combining_queue_enqueue(struct ck_barrier_combining_queue *queue,
     struct ck_barrier_combining_group *node_value)
 {
@@ -185,10 +185,10 @@ ck_barrier_combining_aux(struct ck_barrier_combining *barrier,
 		ck_pr_fence_store();
 		ck_pr_store_uint(&tnode->sense, ~tnode->sense);
 	} else {
-		ck_pr_fence_memory();
 		while (sense != ck_pr_load_uint(&tnode->sense))
 			ck_pr_stall();
 	}
+	ck_pr_fence_memory();
 
 	return;
 }

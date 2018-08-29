@@ -47,7 +47,7 @@ struct sroute {
 	uint8_t		type;
 	uint8_t		proto;
 };
-RB_HEAD(sroutes, sroute) sroutes = RB_INITIALIZER(&sroutes);
+static RB_HEAD(sroutes, sroute) sroutes = RB_INITIALIZER(&sroutes);
 
 RB_PROTOTYPE(sroutes, sroute, link, sroute_compare);
 

@@ -84,7 +84,6 @@ enum _ecore_status_t ecore_sp_init_request(struct ecore_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_ptt
  * @param p_tunn - pf start tunneling configuration
- * @param mode
  * @param allow_npar_tx_switch - npar tx switching to be used
  *	  for vports configured for tx-switching.
  *
@@ -94,7 +93,6 @@ enum _ecore_status_t ecore_sp_init_request(struct ecore_hwfn *p_hwfn,
 enum _ecore_status_t ecore_sp_pf_start(struct ecore_hwfn *p_hwfn,
 				       struct ecore_ptt *p_ptt,
 				       struct ecore_tunnel_info *p_tunn,
-				       enum ecore_mf_mode mode,
 				       bool allow_npar_tx_switch);
 
 /**
@@ -148,10 +146,10 @@ struct ecore_rl_update_params {
 	u8 rl_id_last;
 	u8 rl_dc_qcn_flg; /* If set, RL will used for DCQCN */
 	u32 rl_bc_rate; /* Byte Counter Limit */
-	u16 rl_max_rate; /* Maximum rate in 1.6 Mbps resolution */
-	u16 rl_r_ai; /* Active increase rate */
-	u16 rl_r_hai; /* Hyper active increase rate */
-	u16 dcqcn_g; /* DCQCN Alpha update gain in 1/64K resolution */
+	u32 rl_max_rate; /* Maximum rate in Mbps resolution */
+	u32 rl_r_ai; /* Active increase rate */
+	u32 rl_r_hai; /* Hyper active increase rate */
+	u32 dcqcn_gd; /* DCQCN Alpha update gain */
 	u32 dcqcn_k_us; /* DCQCN Alpha update interval */
 	u32 dcqcn_timeuot_us;
 	u32 qcn_timeuot_us;
@@ -177,5 +175,14 @@ enum _ecore_status_t ecore_sp_rl_update(struct ecore_hwfn *p_hwfn,
  */
 
 enum _ecore_status_t ecore_sp_pf_update_stag(struct ecore_hwfn *p_hwfn);
+
+/**
+ * @brief ecore_sp_pf_update_ufp - PF ufp update Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return enum _ecore_status_t
+ */
+enum _ecore_status_t ecore_sp_pf_update_ufp(struct ecore_hwfn *p_hwfn);
 
 #endif /*__ECORE_SP_COMMANDS_H__*/

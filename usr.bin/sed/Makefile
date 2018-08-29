@@ -6,8 +6,6 @@
 PROG=	sed
 SRCS=	compile.c main.c misc.c process.c
 
-WARNS?=	2
-
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 

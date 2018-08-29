@@ -67,6 +67,7 @@ epoch_testcase1(struct epoch_test_instance *eti)
 {
 	int i, startticks;
 	struct mtx *mtxp;
+	struct epoch_tracker et;
 
 	startticks = ticks;
 	i = 0;
@@ -76,11 +77,11 @@ epoch_testcase1(struct epoch_test_instance *eti)
 		mtxp = &mutexB;
 
 	while (i < iterations) {
-		epoch_enter_preempt(test_epoch);
+		epoch_enter_preempt(test_epoch, &et);
 		mtx_lock(mtxp);
 		i++;
 		mtx_unlock(mtxp);
-		epoch_exit_preempt(test_epoch);
+		epoch_exit_preempt(test_epoch, &et);
 		epoch_wait_preempt(test_epoch);
 	}
 	printf("test1: thread: %d took %d ticks to complete %d iterations\n",
@@ -92,18 +93,19 @@ epoch_testcase2(struct epoch_test_instance *eti)
 {
 	int i, startticks;
 	struct mtx *mtxp;
+	struct epoch_tracker et;
 
 	startticks = ticks;
 	i = 0;
 	mtxp = &mutexA;
 
 	while (i < iterations) {
-		epoch_enter_preempt(test_epoch);
+		epoch_enter_preempt(test_epoch, &et);
 		mtx_lock(mtxp);
 		DELAY(1);
 		i++;
 		mtx_unlock(mtxp);
-		epoch_exit_preempt(test_epoch);
+		epoch_exit_preempt(test_epoch, &et);
 		epoch_wait_preempt(test_epoch);
 	}
 	printf("test2: thread: %d took %d ticks to complete %d iterations\n",

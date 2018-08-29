@@ -28,6 +28,7 @@
 
 #include "assym.inc"
 
+#include <machine/psl.h>
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
 

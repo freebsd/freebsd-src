@@ -648,7 +648,14 @@ command_autoresize(int argc, char *argv[])
 	snprintf(command_errbuf, sizeof(command_errbuf),
 	    "%s: Neither Graphics Output Protocol nor Universal Graphics Adapter present",
 	    argv[0]);
-	return (CMD_ERROR);
+
+	/*
+	 * Default to text_autoresize if we have neither GOP or UGA.  This won't
+	 * give us the most ideal resolution, but it will at least leave us
+	 * functional rather than failing the boot for an objectively bad
+	 * reason.
+	 */
+	return (text_autoresize());
 }
 
 COMMAND_SET(gop, "gop", "graphics output protocol", command_gop);

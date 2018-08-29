@@ -427,6 +427,7 @@
  */
 #define	CPUID_STDEXT3_IBPB	0x04000000
 #define	CPUID_STDEXT3_STIBP	0x08000000
+#define	CPUID_STDEXT3_L1D_FLUSH	0x10000000
 #define	CPUID_STDEXT3_ARCH_CAP	0x20000000
 #define	CPUID_STDEXT3_SSBD	0x80000000
 
@@ -478,6 +479,7 @@
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define	MSR_MTRRcap		0x0fe
 #define	MSR_IA32_ARCH_CAP	0x10a
+#define	MSR_IA32_FLUSH_CMD	0x10b
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
 #define	MSR_BBL_CR_CTL		0x119
@@ -710,6 +712,9 @@
 
 /* MSR IA32_PRED_CMD */
 #define	IA32_PRED_CMD_IBPB_BARRIER	0x0000000000000001ULL
+
+/* MSR IA32_FLUSH_CMD */
+#define	IA32_FLUSH_CMD_L1D	0x00000001
 
 /*
  * PAT modes.
@@ -998,18 +1003,19 @@
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
 #define	MSR_NB_CFG1	0xc001001f	/* NB configuration 1 */
+#define	MSR_K8_UCODE_UPDATE 0xc0010020	/* update microcode */
+#define	MSR_MC0_CTL_MASK 0xc0010044
 #define	MSR_P_STATE_LIMIT 0xc0010061	/* P-state Current Limit Register */
 #define	MSR_P_STATE_CONTROL 0xc0010062	/* P-state Control Register */
 #define	MSR_P_STATE_STATUS 0xc0010063	/* P-state Status Register */
 #define	MSR_P_STATE_CONFIG(n) (0xc0010064 + (n)) /* P-state Config */
 #define	MSR_SMM_ADDR	0xc0010112	/* SMM TSEG base address */
 #define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
+#define	MSR_VM_CR	0xc0010114	/* SVM: feature control */
+#define	MSR_VM_HSAVE_PA 0xc0010117	/* SVM: host save area address */
+#define	MSR_AMD_CPUID07	0xc0011002	/* CPUID 07 %ebx override */
 #define	MSR_EXTFEATURES	0xc0011005	/* Extended CPUID Features override */
 #define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
-#define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
-#define	MSR_MC0_CTL_MASK	0xc0010044
-#define	MSR_VM_CR		0xc0010114 /* SVM: feature control */
-#define	MSR_VM_HSAVE_PA		0xc0010117 /* SVM: host save area address */
 
 /* MSR_VM_CR related */
 #define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */

@@ -692,6 +692,50 @@ ATF_TC_CLEANUP(lchflags_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(chflagsat_success);
+ATF_TC_HEAD(chflagsat_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"chflagsat(2) call");
+}
+
+ATF_TC_BODY(chflagsat_success, tc)
+{
+	/* File needs to exist to call chflagsat(2) */
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, chflagsat(AT_FDCWD, path, SF_IMMUTABLE, 0));
+	check_audit(fds, successreg, pipefd);
+	close(filedesc);
+}
+
+ATF_TC_CLEANUP(chflagsat_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(chflagsat_failure);
+ATF_TC_HEAD(chflagsat_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"chflagsat(2) call");
+}
+
+ATF_TC_BODY(chflagsat_failure, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	/* Failure reason: file does not exist */
+	ATF_REQUIRE_EQ(-1, chflagsat(AT_FDCWD, errpath, SF_IMMUTABLE, 0));
+	check_audit(fds, failurereg, pipefd);
+}
+
+ATF_TC_CLEANUP(chflagsat_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TC_WITH_CLEANUP(utimes_success);
 ATF_TC_HEAD(utimes_success, tc)
 {
@@ -1303,6 +1347,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fchflags_failure);
 	ATF_TP_ADD_TC(tp, lchflags_success);
 	ATF_TP_ADD_TC(tp, lchflags_failure);
+	ATF_TP_ADD_TC(tp, chflagsat_success);
+	ATF_TP_ADD_TC(tp, chflagsat_failure);
 
 	ATF_TP_ADD_TC(tp, utimes_success);
 	ATF_TP_ADD_TC(tp, utimes_failure);

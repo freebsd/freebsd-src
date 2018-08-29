@@ -33,38 +33,11 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-/* Clocking and power control */
-uint32_t lpc_pwr_read(device_t, int);
-void lpc_pwr_write(device_t, int, uint32_t);
-
 /* GPIO */
 void rt1310_gpio_init(void);
 int rt1310_gpio_set_flags(device_t, int, int);
 int rt1310_gpio_set_state(device_t, int, int);
 int rt1310_gpio_get_state(device_t, int, int *);
-
-/* DMA */
-struct lpc_dmac_channel_config
-{
-	int		ldc_fcntl;
-	int		ldc_src_periph;
-	int		ldc_src_width;
-	int		ldc_src_incr;
-	int		ldc_src_burst;
-	int		ldc_dst_periph;
-	int		ldc_dst_width;
-	int		ldc_dst_incr;
-	int		ldc_dst_burst;
-	void		(*ldc_success_handler)(void *);
-	void		(*ldc_error_handler)(void *);
-	void *		ldc_handler_arg;
-};
-
-int lpc_dmac_config_channel(device_t, int, struct lpc_dmac_channel_config *);
-int lpc_dmac_setup_transfer(device_t, int, bus_addr_t, bus_addr_t, bus_size_t, int);
-int lpc_dmac_enable_channel(device_t, int);
-int lpc_dmac_disable_channel(device_t, int);
-int lpc_dmac_start_burst(device_t, int);
 
 extern uint32_t rt1310_master_clock; 
 

@@ -112,6 +112,12 @@ struct priq_classstats {
 	struct codel_stats	codel;
 };
 
+/*
+ * PRIQ_STATS_VERSION is defined in altq.h to work around issues stemming
+ * from mixing of public-API and internal bits in each scheduler-specific
+ * header.
+ */
+
 #ifdef ALTQ3_COMPAT
 struct priq_class_stats {
 	struct priq_interface	iface;

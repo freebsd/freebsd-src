@@ -47,6 +47,7 @@ struct ufs_args {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UFSMNT);
+MALLOC_DECLARE(M_TRIM);
 #endif
 
 struct buf;
@@ -63,32 +64,50 @@ struct inodedep;
 
 TAILQ_HEAD(inodedeplst, inodedep);
 LIST_HEAD(bmsafemaphd, bmsafemap);
+LIST_HEAD(trimlist_hashhead, ffs_blkfree_trim_params);
 
-/* This structure describes the UFS specific mount structure data. */
+/*
+ * This structure describes the UFS specific mount structure data.
+ * The function operators are used to support different versions of
+ * UFS (UFS1, UFS2, etc).
+ *
+ * Lock reference:
+ *	c - set at allocation then constant until freed
+ *	i - ufsmount interlock (UFS_LOCK / UFS_UNLOCK)
+ *	q - associated quota file is locked
+ *	r - ref to parent mount structure is held (vfs_busy / vfs_unbusy)
+ *	u - managed by user process fsck_ufs
+ */
 struct ufsmount {
-	struct	mount *um_mountp;		/* filesystem vfs structure */
-	struct	cdev *um_dev;			/* device mounted */
-	struct	g_consumer *um_cp;
-	struct	bufobj *um_bo;			/* Buffer cache object */
-	struct	vnode *um_devvp;		/* block device mounted vnode */
-	u_long	um_fstype;			/* type of filesystem */
-	struct	fs *um_fs;			/* pointer to superblock */
-	struct	ufs_extattr_per_mount um_extattr;	/* extended attrs */
-	u_long	um_nindir;			/* indirect ptrs per block */
-	u_long	um_bptrtodb;			/* indir ptr to disk block */
-	u_long	um_seqinc;			/* inc between seq blocks */
-	struct	mtx um_lock;			/* Protects ufsmount & fs */
-	pid_t	um_fsckpid;			/* PID permitted fsck sysctls */
-	struct	mount_softdeps *um_softdep;	/* softdep mgmt structure */
-	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
-	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
-	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
-	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
-	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
-	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
-	u_int	um_flags;			/* filesystem flags */
-	u_int	um_trim_inflight;		/* outstanding trim count */
-	struct	taskqueue *um_trim_tq;		/* trim request queue */
+	struct	mount *um_mountp;		/* (r) filesystem vfs struct */
+	struct	cdev *um_dev;			/* (r) device mounted */
+	struct	g_consumer *um_cp;		/* (r) GEOM access point */
+	struct	bufobj *um_bo;			/* (r) Buffer cache object */
+	struct	vnode *um_devvp;		/* (r) blk dev mounted vnode */
+	u_long	um_fstype;			/* (c) type of filesystem */
+	struct	fs *um_fs;			/* (r) pointer to superblock */
+	struct	ufs_extattr_per_mount um_extattr; /* (c) extended attrs */
+	u_long	um_nindir;			/* (c) indirect ptrs per blk */
+	u_long	um_bptrtodb;			/* (c) indir disk block ptr */
+	u_long	um_seqinc;			/* (c) inc between seq blocks */
+	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
+	pid_t	um_fsckpid;			/* (u) PID can do fsck sysctl */
+	struct	mount_softdeps *um_softdep;	/* (c) softdep mgmt structure */
+	struct	vnode *um_quotas[MAXQUOTAS];	/* (q) pointer to quota files */
+	struct	ucred *um_cred[MAXQUOTAS];	/* (q) quota file access cred */
+	time_t	um_btime[MAXQUOTAS];		/* (q) block quota time limit */
+	time_t	um_itime[MAXQUOTAS];		/* (q) inode quota time limit */
+	char	um_qflags[MAXQUOTAS];		/* (i) quota specific flags */
+	int64_t	um_savedmaxfilesize;		/* (c) track maxfilesize */
+	u_int	um_flags;			/* (i) filesystem flags */
+	u_int	um_trim_inflight;		/* (i) outstanding trim count */
+	u_int	um_trim_inflight_blks;		/* (i) outstanding trim blks */
+	u_long	um_trim_total;			/* (i) total trim count */
+	u_long	um_trim_total_blks;		/* (i) total trim block count */
+	struct	taskqueue *um_trim_tq;		/* (c) trim request queue */
+	struct	trimlist_hashhead *um_trimhash;	/* (i) trimlist hash table */
+	u_long	um_trimlisthashsize;		/* (i) trim hash table size-1 */
+						/* (c) - below function ptrs */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
 		    int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);

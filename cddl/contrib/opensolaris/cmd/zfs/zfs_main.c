@@ -72,6 +72,7 @@
 #include <aclutils.h>
 #include <directory.h>
 #include <idmap.h>
+#include <libshare.h>
 #endif
 
 #include "zfs_iter.h"
@@ -6221,6 +6222,17 @@ share_mount(int op, int argc, char **argv)
 			return (0);
 
 		qsort(dslist, count, sizeof (void *), libzfs_dataset_cmp);
+#ifdef illumos
+		sa_init_selective_arg_t sharearg;
+		sharearg.zhandle_arr = dslist;
+		sharearg.zhandle_len = count;
+		if ((ret = zfs_init_libshare_arg(zfs_get_handle(dslist[0]),
+		    SA_INIT_SHARE_API_SELECTIVE, &sharearg)) != SA_OK) {
+			(void) fprintf(stderr,
+			    gettext("Could not initialize libshare, %d"), ret);
+			return (ret);
+		}
+#endif
 
 		for (i = 0; i < count; i++) {
 			if (verbose)
@@ -7026,11 +7038,28 @@ zfs_do_diff(int argc, char **argv)
 	return (err != 0);
 }
 
+/*
+ * zfs remap <filesystem | volume>
+ *
+ * Remap the indirect blocks in the given fileystem or volume.
+ */
 static int
 zfs_do_remap(int argc, char **argv)
 {
 	const char *fsname;
 	int err = 0;
+	int c;
+
+	/* check options */
+	while ((c = getopt(argc, argv, "")) != -1) {
+		switch (c) {
+		case '?':
+			(void) fprintf(stderr,
+			    gettext("invalid option '%c'\n"), optopt);
+			usage(B_FALSE);
+		}
+	}
+
 	if (argc != 2) {
 		(void) fprintf(stderr, gettext("wrong number of arguments\n"));
 		usage(B_FALSE);

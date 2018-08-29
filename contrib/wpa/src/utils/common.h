@@ -313,6 +313,9 @@ static inline void WPA_PUT_LE64(u8 *a, u64 val)
 #ifndef ETH_P_ALL
 #define ETH_P_ALL 0x0003
 #endif
+#ifndef ETH_P_IP
+#define ETH_P_IP 0x0800
+#endif
 #ifndef ETH_P_80211_ENCAP
 #define ETH_P_80211_ENCAP 0x890d /* TDLS comes under this category */
 #endif
@@ -416,6 +419,7 @@ void perror(const char *s);
  */
 #ifdef __CHECKER__
 #define __force __attribute__((force))
+#undef __bitwise
 #define __bitwise __attribute__((bitwise))
 #else
 #define __force
@@ -445,6 +449,13 @@ typedef u64 __bitwise le64;
 #endif /* __GNUC__ */
 #endif /* __must_check */
 
+#define SSID_MAX_LEN 32
+
+struct wpa_ssid_value {
+	u8 ssid[SSID_MAX_LEN];
+	size_t ssid_len;
+};
+
 int hwaddr_aton(const char *txt, u8 *addr);
 int hwaddr_masked_aton(const char *txt, u8 *addr, u8 *mask, u8 maskable);
 int hwaddr_compact_aton(const char *txt, u8 *addr);
@@ -461,6 +472,7 @@ int wpa_snprintf_hex_uppercase(char *buf, size_t buf_size, const u8 *data,
 			       size_t len);
 
 int hwaddr_mask_txt(char *buf, size_t len, const u8 *addr, const u8 *mask);
+int ssid_parse(const char *buf, struct wpa_ssid_value *ssid);
 
 #ifdef CONFIG_NATIVE_WINDOWS
 void wpa_unicode2ascii_inplace(TCHAR *str);
@@ -477,6 +489,8 @@ const char * wpa_ssid_txt(const u8 *ssid, size_t ssid_len);
 
 char * wpa_config_parse_string(const char *value, size_t *len);
 int is_hex(const u8 *data, size_t len);
+int has_ctrl_char(const u8 *data, size_t len);
+int has_newline(const char *str);
 size_t merge_byte_arrays(u8 *res, size_t res_len,
 			 const u8 *src1, size_t src1_len,
 			 const u8 *src2, size_t src2_len);
@@ -535,6 +549,8 @@ size_t utf8_escape(const char *inp, size_t in_size,
 size_t utf8_unescape(const char *inp, size_t in_size,
 		     char *outp, size_t out_size);
 int is_ctrl_char(char c);
+
+int str_starts(const char *str, const char *start);
 
 
 /*

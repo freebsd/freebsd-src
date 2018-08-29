@@ -412,6 +412,8 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 	return (old);
 }
 
+#define	atomic_swap_int			atomic_swap_32
+
 #define	atomic_add_long			atomic_add_64
 #define	atomic_clear_long		atomic_clear_64
 #define	atomic_cmpset_long		atomic_cmpset_64
@@ -420,6 +422,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_readandclear_long	atomic_readandclear_64
 #define	atomic_set_long			atomic_set_64
 #define	atomic_subtract_long		atomic_subtract_64
+#define	atomic_swap_long		atomic_swap_64
 
 #define	atomic_add_ptr			atomic_add_64
 #define	atomic_clear_ptr		atomic_clear_64
@@ -429,6 +432,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_readandclear_ptr		atomic_readandclear_64
 #define	atomic_set_ptr			atomic_set_64
 #define	atomic_subtract_ptr		atomic_subtract_64
+#define	atomic_swap_ptr			atomic_swap_64
 
 ATOMIC_ACQ_REL(set, 64)
 ATOMIC_ACQ_REL(clear, 64)

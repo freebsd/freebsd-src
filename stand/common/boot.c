@@ -160,30 +160,6 @@ autoboot_maybe()
 		autoboot(-1, NULL);		/* try to boot automatically */
 }
 
-int
-bootenv_flags()
-{
-	int i, howto;
-	char *val;
-
-	for (howto = 0, i = 0; howto_names[i].ev != NULL; i++) {
-		val = getenv(howto_names[i].ev);
-		if (val != NULL && strcasecmp(val, "no") != 0)
-			howto |= howto_names[i].mask;
-	}
-	return (howto);
-}
-
-void
-bootenv_set(int howto)
-{
-	int i;
-
-	for (i = 0; howto_names[i].ev != NULL; i++)
-		if (howto & howto_names[i].mask)
-			setenv(howto_names[i].ev, "YES", 1);
-}
-
 static int
 autoboot(int timeout, char *prompt)
 {

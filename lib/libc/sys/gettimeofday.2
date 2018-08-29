@@ -28,7 +28,7 @@
 .\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2015
+.Dd August 4, 2018
 .Dt GETTIMEOFDAY 2
 .Os
 .Sh NAME
@@ -44,11 +44,6 @@
 .Ft int
 .Fn settimeofday "const struct timeval *tp" "const struct timezone *tzp"
 .Sh DESCRIPTION
-.Bf -symbolic
-Note: timezone is no longer used; this information is kept outside
-the kernel.
-.Ef
-.Pp
 The system's notion of the current Greenwich time and the current time
 zone is obtained with the
 .Fn gettimeofday

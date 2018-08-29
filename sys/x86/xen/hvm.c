@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <dev/pci/pcivar.h>
 
@@ -63,13 +64,6 @@ __FBSDID("$FreeBSD$");
 /*--------------------------- Forward Declarations ---------------------------*/
 static void xen_hvm_cpu_init(void);
 
-/*-------------------------------- Local Types -------------------------------*/
-enum xen_hvm_init_type {
-	XEN_HVM_INIT_COLD,
-	XEN_HVM_INIT_CANCELLED_SUSPEND,
-	XEN_HVM_INIT_RESUME
-};
-
 /*-------------------------------- Global Data -------------------------------*/
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
@@ -88,14 +82,18 @@ static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
  */
 int xen_vector_callback_enabled;
 
+/**
+ * Start info flags. ATM this only used to store the initial domain flag for
+ * PVHv2, and it's always empty for HVM guests.
+ */
+uint32_t hvm_start_flags;
+
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 shared_info_t *HYPERVISOR_shared_info;
-start_info_t *HYPERVISOR_start_info;
-
 
 /*------------------------------ Sysctl tunables -----------------------------*/
 int xen_disable_pv_disks = 0;
@@ -121,50 +119,66 @@ xen_hvm_cpuid_base(void)
 	return (0);
 }
 
+static void
+hypervisor_quirks(unsigned int major, unsigned int minor)
+{
+#ifdef SMP
+	if (((major < 4) || (major == 4 && minor <= 5)) &&
+	    msix_disable_migration == -1) {
+		/*
+		 * Xen hypervisors prior to 4.6.0 do not properly
+		 * handle updates to enabled MSI-X table entries,
+		 * so disable MSI-X interrupt migration in that
+		 * case.
+		 */
+		if (bootverbose)
+			printf(
+"Disabling MSI-X interrupt migration due to Xen hypervisor bug.\n"
+"Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
+		msix_disable_migration = 1;
+	}
+#endif
+}
+
+static void
+hypervisor_version(void)
+{
+	uint32_t regs[4];
+	int major, minor;
+
+	do_cpuid(cpuid_base + 1, regs);
+
+	major = regs[0] >> 16;
+	minor = regs[0] & 0xffff;
+	printf("XEN: Hypervisor version %d.%d detected.\n", major, minor);
+
+	hypervisor_quirks(major, minor);
+}
+
 /*
  * Allocate and fill in the hypcall page.
  */
-static int
+int
 xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t regs[4];
 
-	if (xen_pv_domain()) {
-		/* hypercall page is already set in the PV case */
-		return (0);
+	if (xen_domain() && init_type == XEN_HVM_INIT_LATE) {
+		/*
+		 * If the domain type is already set we can assume that the
+		 * hypercall page has been populated too, so just print the
+		 * version (and apply any quirks) and exit.
+		 */
+		hypervisor_version();
+		return 0;
 	}
 
 	cpuid_base = xen_hvm_cpuid_base();
 	if (cpuid_base == 0)
 		return (ENXIO);
 
-	if (init_type == XEN_HVM_INIT_COLD) {
-		int major, minor;
-
-		do_cpuid(cpuid_base + 1, regs);
-
-		major = regs[0] >> 16;
-		minor = regs[0] & 0xffff;
-		printf("XEN: Hypervisor version %d.%d detected.\n", major,
-			minor);
-
-#ifdef SMP
-		if (((major < 4) || (major == 4 && minor <= 5)) &&
-		    msix_disable_migration == -1) {
-			/*
-			 * Xen hypervisors prior to 4.6.0 do not properly
-			 * handle updates to enabled MSI-X table entries,
-			 * so disable MSI-X interrupt migration in that
-			 * case.
-			 */
-			if (bootverbose)
-				printf(
-"Disabling MSI-X interrupt migration due to Xen hypervisor bug.\n"
-"Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
-			msix_disable_migration = 1;
-		}
-#endif
-	}
+	if (init_type == XEN_HVM_INIT_LATE)
+		hypervisor_version();
 
 	/*
 	 * Find the hypercall pages.
@@ -173,7 +187,9 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	if (regs[0] != 1)
 		return (EINVAL);
 
-	wrmsr(regs[1], vtophys(&hypercall_page));
+	wrmsr(regs[1], (init_type == XEN_HVM_INIT_EARLY)
+	    ? ((vm_paddr_t)&hypercall_page - KERNBASE)
+	    : vtophys(&hypercall_page));
 
 	return (0);
 }
@@ -309,7 +325,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	error = xen_hvm_init_hypercall_stubs(init_type);
 
 	switch (init_type) {
-	case XEN_HVM_INIT_COLD:
+	case XEN_HVM_INIT_LATE:
 		if (error != 0)
 			return;
 
@@ -373,7 +389,7 @@ xen_hvm_resume(bool suspend_cancelled)
 static void
 xen_hvm_sysinit(void *arg __unused)
 {
-	xen_hvm_init(XEN_HVM_INIT_COLD);
+	xen_hvm_init(XEN_HVM_INIT_LATE);
 }
 SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 
@@ -425,3 +441,47 @@ xen_hvm_cpu_init(void)
 		DPCPU_SET(vcpu_info, vcpu_info);
 }
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
+
+/* HVM/PVH start_info accessors */
+static vm_paddr_t
+hvm_get_xenstore_mfn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_STORE_PFN));
+}
+
+static evtchn_port_t
+hvm_get_xenstore_evtchn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_STORE_EVTCHN));
+}
+
+static vm_paddr_t
+hvm_get_console_mfn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_PFN));
+}
+
+static evtchn_port_t
+hvm_get_console_evtchn(void)
+{
+
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN));
+}
+
+static uint32_t
+hvm_get_start_flags(void)
+{
+
+	return (hvm_start_flags);
+}
+
+struct hypervisor_info hypervisor_info = {
+	.get_xenstore_mfn		= hvm_get_xenstore_mfn,
+	.get_xenstore_evtchn		= hvm_get_xenstore_evtchn,
+	.get_console_mfn		= hvm_get_console_mfn,
+	.get_console_evtchn		= hvm_get_console_evtchn,
+	.get_start_flags		= hvm_get_start_flags,
+};

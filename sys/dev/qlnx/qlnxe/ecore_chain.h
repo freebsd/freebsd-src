@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -196,11 +196,13 @@ static OSAL_INLINE u16 ecore_chain_get_prod_idx(struct ecore_chain *p_chain)
 	return p_chain->u.chain16.prod_idx;
 }
 
+#ifndef LINUX_REMOVE
 static OSAL_INLINE u32 ecore_chain_get_prod_idx_u32(struct ecore_chain *p_chain)
 {
 	OSAL_ASSERT(is_chain_u32(p_chain));
 	return p_chain->u.chain32.prod_idx;
 }
+#endif
 
 static OSAL_INLINE u16 ecore_chain_get_cons_idx(struct ecore_chain *p_chain)
 {
@@ -232,8 +234,10 @@ static OSAL_INLINE u16 ecore_chain_get_elem_left(struct ecore_chain *p_chain)
 		      (u32)(p_chain->u.chain16.prod_idx)) -
 		     (u32)p_chain->u.chain16.cons_idx);
 	if (p_chain->mode == ECORE_CHAIN_MODE_NEXT_PTR)
-		used -= p_chain->u.chain16.prod_idx / p_chain->elem_per_page -
-			p_chain->u.chain16.cons_idx / p_chain->elem_per_page;
+		used -= (((u32)ECORE_U16_MAX + 1) / p_chain->elem_per_page +
+			 p_chain->u.chain16.prod_idx / p_chain->elem_per_page -
+			 p_chain->u.chain16.cons_idx / p_chain->elem_per_page) %
+			p_chain->page_cnt;
 
 	return (u16)(p_chain->capacity - used);
 }
@@ -249,12 +253,15 @@ ecore_chain_get_elem_left_u32(struct ecore_chain *p_chain)
 		      (u64)(p_chain->u.chain32.prod_idx)) -
 		     (u64)p_chain->u.chain32.cons_idx);
 	if (p_chain->mode == ECORE_CHAIN_MODE_NEXT_PTR)
-		used -= p_chain->u.chain32.prod_idx / p_chain->elem_per_page -
-			p_chain->u.chain32.cons_idx / p_chain->elem_per_page;
+		used -= (((u64)ECORE_U32_MAX + 1) / p_chain->elem_per_page +
+			 p_chain->u.chain32.prod_idx / p_chain->elem_per_page -
+			 p_chain->u.chain32.cons_idx / p_chain->elem_per_page) %
+			p_chain->page_cnt;
 
 	return p_chain->capacity - used;
 }
 
+#ifndef LINUX_REMOVE
 static OSAL_INLINE u8 ecore_chain_is_full(struct ecore_chain *p_chain)
 {
 	if (is_chain_u16(p_chain))
@@ -278,6 +285,7 @@ u16 ecore_chain_get_elem_per_page(struct ecore_chain *p_chain)
 {
 	return p_chain->elem_per_page;
 }
+#endif
 
 static OSAL_INLINE
 u16 ecore_chain_get_usable_per_page(struct ecore_chain *p_chain)
@@ -291,10 +299,12 @@ u8 ecore_chain_get_unusable_per_page(struct ecore_chain *p_chain)
 	return p_chain->elem_unusable;
 }
 
+#ifndef LINUX_REMOVE
 static OSAL_INLINE u32 ecore_chain_get_size(struct ecore_chain *p_chain)
 {
 	return p_chain->size;
 }
+#endif
 
 static OSAL_INLINE u32 ecore_chain_get_page_cnt(struct ecore_chain *p_chain)
 {
@@ -373,6 +383,7 @@ ecore_chain_advance_page(struct ecore_chain *p_chain, void **p_next_elem,
 		}								\
 	} while (0)
 
+#ifndef LINUX_REMOVE
 /**
  * @brief ecore_chain_return_multi_produced -
  *
@@ -391,6 +402,7 @@ void ecore_chain_return_multi_produced(struct ecore_chain *p_chain, u32 num)
 		p_chain->u.chain32.cons_idx += num;
 	test_and_skip(p_chain, cons_idx);
 }
+#endif
 
 /**
  * @brief ecore_chain_return_produced -
@@ -551,7 +563,7 @@ static OSAL_INLINE void ecore_chain_reset(struct ecore_chain *p_chain)
 	p_chain->p_prod_elem = p_chain->p_virt_addr;
 
 	if (p_chain->mode == ECORE_CHAIN_MODE_PBL) {
-		/* Use (page_cnt - 1) as a reset value for the prod/cons page's
+		/* Use "page_cnt-1" as a reset value for the prod/cons page's
 		 * indices, to avoid unnecessary page advancing on the first
 		 * call to ecore_chain_produce/consume. Instead, the indices
 		 * will be advanced to page_cnt and then will be wrapped to 0.
@@ -750,11 +762,58 @@ out:
 static OSAL_INLINE void ecore_chain_set_prod(struct ecore_chain *p_chain,
 					     u32 prod_idx, void *p_prod_elem)
 {
+	if (p_chain->mode == ECORE_CHAIN_MODE_PBL) {
+		/* Use "prod_idx-1" since ecore_chain_produce() advances the
+		 * page index before the producer index when getting to
+		 * "next_page_mask".
+		 */
+		u32 elem_idx =
+			(prod_idx - 1 + p_chain->capacity) % p_chain->capacity;
+		u32 page_idx = elem_idx / p_chain->elem_per_page;
+
+		if (is_chain_u16(p_chain))
+			p_chain->pbl.c.pbl_u16.prod_page_idx = (u16)page_idx;
+		else
+			p_chain->pbl.c.pbl_u32.prod_page_idx = page_idx;
+	}
+
 	if (is_chain_u16(p_chain))
 		p_chain->u.chain16.prod_idx = (u16)prod_idx;
 	else
 		p_chain->u.chain32.prod_idx = prod_idx;
 	p_chain->p_prod_elem = p_prod_elem;
+}
+
+/**
+ * @brief ecore_chain_set_cons - sets the cons to the given value
+ *
+ * @param cons_idx
+ * @param p_cons_elem
+ */
+static OSAL_INLINE void ecore_chain_set_cons(struct ecore_chain *p_chain,
+					     u32 cons_idx, void *p_cons_elem)
+{
+	if (p_chain->mode == ECORE_CHAIN_MODE_PBL) {
+		/* Use "cons_idx-1" since ecore_chain_consume() advances the
+		 * page index before the consumer index when getting to
+		 * "next_page_mask".
+		 */
+		u32 elem_idx =
+			(cons_idx - 1 + p_chain->capacity) % p_chain->capacity;
+		u32 page_idx = elem_idx / p_chain->elem_per_page;
+
+		if (is_chain_u16(p_chain))
+			p_chain->pbl.c.pbl_u16.cons_page_idx = (u16)page_idx;
+		else
+			p_chain->pbl.c.pbl_u32.cons_page_idx = page_idx;
+	}
+
+	if (is_chain_u16(p_chain))
+		p_chain->u.chain16.cons_idx = (u16)cons_idx;
+	else
+		p_chain->u.chain32.cons_idx = cons_idx;
+
+	p_chain->p_cons_elem = p_cons_elem;
 }
 
 /**

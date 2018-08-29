@@ -99,22 +99,9 @@ early_putc_t *early_putc = uart_snps_early_putc;
 #endif /* EARLY_PRINTF */
 #endif
 
-static int
-snps_uart_attach(struct uart_softc *uart_sc)
-{
-	struct snps_softc *sc;
-
-	sc = (struct snps_softc *)uart_sc;
-
-	/* UART requires to read USR reg when IIR_BUSY */
-	sc->ns8250.busy_detect = 1;
-
-	return (ns8250_bus_attach(uart_sc));
-}
-
 static kobj_method_t snps_methods[] = {
 	KOBJMETHOD(uart_probe,		ns8250_bus_probe),
-	KOBJMETHOD(uart_attach,		snps_uart_attach),
+	KOBJMETHOD(uart_attach,		ns8250_bus_attach),
 	KOBJMETHOD(uart_detach,		ns8250_bus_detach),
 	KOBJMETHOD(uart_flush,		ns8250_bus_flush),
 	KOBJMETHOD(uart_getsig,		ns8250_bus_getsig),
@@ -238,7 +225,7 @@ snps_probe(device_t dev)
 	if (bootverbose && clock == 0)
 		device_printf(dev, "could not determine frequency\n");
 
-	error = uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0);
+	error = uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0, UART_F_BUSY_DETECT);
 	if (error != 0)
 		return (error);
 

@@ -160,6 +160,23 @@ _start:
 
 	ldp	x0, x1, [sp], #16
 
+#ifndef EFI_BOOT1
+	/*
+	 * Load the stack to use. The default stack may be too small for
+	 * the lua loader.
+	 */
+	adr	x2, initstack_end
+	mov	sp, x2
+#endif
+
 	bl	efi_main
 
 1:	b	1b
+
+#ifndef EFI_BOOT1
+.bss
+	.align	4
+initstack:
+	.space	(64 * 1024)
+initstack_end:
+#endif

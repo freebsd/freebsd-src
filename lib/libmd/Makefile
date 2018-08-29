@@ -1,19 +1,22 @@
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
+.include <src.opts.mk>
+
 PACKAGE=lib${LIB}
 LIB=	md
 SHLIB_MAJOR= 6
-SHLIBDIR?= /lib
 SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c \
-	sha256c.c sha256hl.c \
+	sha224hl.c sha256c.c sha256hl.c \
 	sha384hl.c \
 	sha512c.c sha512hl.c sha512thl.c \
 	skein.c skein_block.c \
 	skein256hl.c skein512hl.c skein1024hl.c
-INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha384.h sha512.h sha512t.h \
-	skein.h skein_port.h skein_freebsd.h skein_iv.h
+INCS=	md4.h md5.h ripemd.h sha.h sha224.h sha256.h sha384.h sha512.h \
+	sha512t.h skein.h skein_port.h skein_freebsd.h skein_iv.h
 
 WARNS?=	0
 
@@ -34,6 +37,10 @@ MLINKS+=sha.3 SHA_Data.3
 MLINKS+=sha.3 SHA1_Init.3 sha.3 SHA1_Update.3 sha.3 SHA1_Final.3
 MLINKS+=sha.3 SHA1_End.3  sha.3 SHA1_File.3   sha.3 SHA1_FileChunk.3
 MLINKS+=sha.3 SHA1_Data.3
+MLINKS+=sha256.3 SHA224_Init.3  sha256.3 SHA224_Update.3
+MLINKS+=sha256.3 SHA224_Final.3 sha256.3 SHA224_End.3
+MLINKS+=sha256.3 SHA224_File.3  sha256.3 SHA224_FileChunk.3
+MLINKS+=sha256.3 SHA224_Data.3
 MLINKS+=sha256.3 SHA256_Init.3  sha256.3 SHA256_Update.3
 MLINKS+=sha256.3 SHA256_Final.3 sha256.3 SHA256_End.3
 MLINKS+=sha256.3 SHA256_File.3  sha256.3 SHA256_FileChunk.3
@@ -66,7 +73,8 @@ MLINKS+=skein.3 SKEIN1024_Data.3  skein.3 skein1024.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		rmd160.ref rmd160hl.c rmddriver \
 		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver \
-		sha256.ref sha256hl.c sha384hl.c sha384.ref \
+		sha224.ref sha256.ref sha224hl.c sha256hl.c \
+		sha384hl.c sha384.ref \
 		sha512.ref sha512hl.c sha512t256.ref sha512thl.c \
 		skein256hl.c skein512hl.c skein1024hl.c \
 		skein256.ref skein512.ref skein1024.ref \
@@ -93,6 +101,13 @@ CFLAGS+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 
+USE_ASM_SOURCES?=1
+.if defined(BOOTSTRAPPING)
+# Don't build ASM sources when bootstrapping to avoid toolchain dependencies
+USE_ASM_SOURCES:=0
+.endif
+
+.if ${USE_ASM_SOURCES} != 0
 .if exists(${MACHINE_ARCH}/sha.S)
 SRCS+=	sha.S
 CFLAGS+= -DSHA1_ASM
@@ -102,15 +117,20 @@ SRCS+=	rmd160.S
 CFLAGS+= -DRMD160_ASM
 .endif
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
+.if defined(XAS) || ${MK_BINUTILS_BOOTSTRAP} != "no"
 AFLAGS += --strip-local-absolute
 # Fully unroll all loops in the assembly optimized version
 AFLAGS+= --defsym SKEIN_LOOP=0
 SRCS+= skein_block_asm.s
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
+.else
+.warning as not available: not using optimized Skein asm
+.endif
 .endif
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.s)
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
+.endif # ${USE_ASM_SOURCES} != 0
 
 md4hl.c: mdXhl.c
 	(echo '#define LENGTH 16'; \
@@ -128,6 +148,12 @@ sha0hl.c: mdXhl.c
 sha1hl.c: mdXhl.c
 	(echo '#define LENGTH 20'; \
 		sed -e 's/mdX/sha/g' -e 's/MDX/SHA1_/g' -e 's/SHA1__/SHA1_/g' \
+		${.ALLSRC}) > ${.TARGET}
+
+sha224hl.c: mdXhl.c
+	(echo '#define LENGTH 28'; \
+		sed -e 's/mdX/sha224/g' -e 's/MDX/SHA224_/g'	\
+			-e  's/SHA224__/SHA224_/g' \
 		${.ALLSRC}) > ${.TARGET}
 
 sha256hl.c: mdXhl.c
@@ -233,6 +259,20 @@ sha1.ref:
 		'761c457bf73b14d27e9e9265c46f4b4dda11f940' >> ${.TARGET}
 	@echo 'SHA-1 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'50abf5706a150990a08b2c5ea40fa0e585554732' >> ${.TARGET}
+
+sha224.ref:
+	echo 'SHA-224 test suite:' > ${.TARGET}
+	@echo 'SHA-224 ("") = d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f' >> ${.TARGET}
+	@echo 'SHA-224 ("abc") =' \
+		'23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7' >> ${.TARGET}
+	@echo 'SHA-224 ("message digest") =' \
+		'2cb21c83ae2f004de7e81c3c7019cbcb65b71ab656b22d6d0c39b8eb' >> ${.TARGET}
+	@echo 'SHA-224 ("abcdefghijklmnopqrstuvwxyz") =' \
+		'45a5f72c39c5cff2522eb3429799e49e5f44b356ef926bcf390dccc2' >> ${.TARGET}
+	@echo 'SHA-224 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") =' \
+		'bff72b4fcb7d75e5632900ac5f90d219e05e97a7bde72e740db393d9' >> ${.TARGET}
+	@echo 'SHA-224 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
+		'b50aecbe4e9bb0b57bc5f3ae760a8e01db24f203fb3cdcd13148046e' >> ${.TARGET}
 
 sha256.ref:
 	echo 'SHA-256 test suite:' > ${.TARGET}
@@ -349,7 +389,7 @@ skein1024.ref:
 	@echo 'SKEIN1024 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'cf21a613620e6c119eca31fdfaad449a8e02f95ca256c21d2a105f8e4157048f9fe1e897893ea18b64e0e37cb07d5ac947f27ba544caf7cbc1ad094e675aed77a366270f7eb7f46543bccfa61c526fd628408058ed00ed566ac35a9761d002e629c4fb0d430b2f4ad016fcc49c44d2981c4002da0eecc42144160e2eaea4855a' >> ${.TARGET}
 
-test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha384.ref \
+test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha224.ref sha256.ref sha384.ref \
 		sha512.ref sha512t256.ref skein256.ref skein512.ref skein1024.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
@@ -370,6 +410,9 @@ test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha384.ref \
 	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=1 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha1.ref -
 	@${ECHO} SHA-1 passed test
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=224 -o shadriver ${.CURDIR}/shadriver.c libmd.a
+	./shadriver | cmp sha224.ref -
+	@${ECHO} SHA-224 passed test
 	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=256 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha256.ref -
 	@${ECHO} SHA-256 passed test

@@ -3496,7 +3496,7 @@ list_scan(int s)
 	uint8_t buf[24*1024];
 	char ssid[IEEE80211_NWID_LEN+1];
 	const uint8_t *cp;
-	int len, ssidmax, idlen;
+	int len, idlen;
 
 	if (get80211len(s, IEEE80211_IOC_SCAN_RESULTS, buf, sizeof(buf), &len) < 0)
 		errx(1, "unable to get scan results");
@@ -3505,9 +3505,8 @@ list_scan(int s)
 
 	getchaninfo(s);
 
-	ssidmax = verbose ? IEEE80211_NWID_LEN : 32;
 	printf("%-*.*s  %-17.17s  %4s %4s   %-7s  %3s %4s\n"
-		, ssidmax, ssidmax, "SSID/MESH ID"
+		, IEEE80211_NWID_LEN, IEEE80211_NWID_LEN, "SSID/MESH ID"
 		, "BSSID"
 		, "CHAN"
 		, "RATE"
@@ -3530,8 +3529,8 @@ list_scan(int s)
 			idlen = sr->isr_ssid_len;
 		}
 		printf("%-*.*s  %s  %3d  %3dM %4d:%-4d %4d %-4.4s"
-			, ssidmax
-			  , copy_essid(ssid, ssidmax, idp, idlen)
+			, IEEE80211_NWID_LEN
+			  , copy_essid(ssid, IEEE80211_NWID_LEN, idp, idlen)
 			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq, sr->isr_flags)

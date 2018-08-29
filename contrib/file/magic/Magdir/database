@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.52 2017/08/13 00:21:47 christos Exp $
+# $File: database,v 1.54 2018/06/23 16:37:21 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -632,3 +632,15 @@
 >28	lelong	x		\b, entries %d
 >32	lelong	x		\b, index %d
 >36	lelong	x		\b, seed %#x
+
+#
+# Redis RDB - https://redis.io/topics/persistence
+0	string	REDIS			Redis RDB file,
+>5	regex	[0-9][0-9][0-9][0-9]	version %s
+
+# Mork database.
+# Used by older versions of Mozilla Suite and Firefox,
+# and current versions of Thunderbird.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+0	string	//\ <!--\ <mdb:mork:z\ v="	Mozilla Mork database
+>23	string	x		\b, version %.3s

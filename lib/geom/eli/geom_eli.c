@@ -91,7 +91,7 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bdgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov
+ * init [-bdgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov ...
  * label - alias for 'init'
  * attach [-Cdprv] [-n keyno] [-j passfile] [-k keyfile] prov ...
  * detach [-fl] prov ...
@@ -129,7 +129,7 @@ struct g_command class_commands[] = {
 		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bdgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov"
+	    "[-bdgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -695,6 +695,7 @@ static void
 eli_init(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
+	struct gctl_req *r;
 	unsigned char sector[sizeof(struct g_eli_metadata)] __aligned(4);
 	unsigned char key[G_ELI_USERKEYLEN];
 	char backfile[MAXPATHLEN];
@@ -702,22 +703,16 @@ eli_init(struct gctl_req *req)
 	unsigned int secsize, version;
 	off_t mediasize;
 	intmax_t val;
-	int error, nargs;
+	int error, i, nargs, nparams, param;
+	const int one = 1;
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs != 1) {
-		gctl_error(req, "Invalid number of arguments.");
-		return;
-	}
-	prov = gctl_get_ascii(req, "arg0");
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
-		gctl_error(req, "Cannot get informations about %s: %s.", prov,
-		    strerror(errno));
+	if (nargs <= 0) {
+		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
+	/* Start generating metadata for provider(s) being initialized. */
 	explicit_bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	val = gctl_get_intmax(req, "mdversion");
@@ -809,7 +804,6 @@ eli_init(struct gctl_req *req)
 		gctl_error(req, "Invalid key length.");
 		return;
 	}
-	md.md_provsize = mediasize;
 
 	val = gctl_get_intmax(req, "iterations");
 	if (val != -1) {
@@ -829,78 +823,191 @@ eli_init(struct gctl_req *req)
 	md.md_iterations = val;
 
 	val = gctl_get_intmax(req, "sectorsize");
-	if (val == 0)
-		md.md_sectorsize = secsize;
-	else {
-		if (val < 0 || (val % secsize) != 0 || !powerof2(val)) {
-			gctl_error(req, "Invalid sector size.");
-			return;
-		}
-		if (val > sysconf(_SC_PAGE_SIZE)) {
-			fprintf(stderr,
-			    "warning: Using sectorsize bigger than the page size!\n");
-		}
-		md.md_sectorsize = val;
+	if (val > sysconf(_SC_PAGE_SIZE)) {
+		fprintf(stderr,
+		    "warning: Using sectorsize bigger than the page size!\n");
 	}
 
 	md.md_keys = 0x01;
-	arc4random_buf(md.md_salt, sizeof(md.md_salt));
-	arc4random_buf(md.md_mkeys, sizeof(md.md_mkeys));
 
-	/* Generate user key. */
-	if (eli_genkey(req, &md, key, true) == NULL) {
+	/*
+	 * Determine number of parameters in the parent geom request before the
+	 * nargs parameter and list of providers.
+	 */
+	nparams = req->narg - nargs - 1;
+
+	/* Create new child request for each provider and issue to kernel */
+	for (i = 0; i < nargs; i++) {
+		r = gctl_get_handle();
+
+		/* Copy each parameter from the parent request to the child */
+		for (param = 0; param < nparams; param++) {
+			gctl_ro_param(r, req->arg[param].name,
+			    req->arg[param].len, req->arg[param].value);
+		}
+
+		/* Add a single provider to the parameter list of the child */
+		gctl_ro_param(r, "nargs", sizeof(one), &one);
+		prov = gctl_get_ascii(req, "arg%d", i);
+		gctl_ro_param(r, "arg0", -1, prov);
+
+		mediasize = g_get_mediasize(prov);
+		secsize = g_get_sectorsize(prov);
+		if (mediasize == 0 || secsize == 0) {
+			gctl_error(r, "Cannot get information about %s: %s.",
+			    prov, strerror(errno));
+			goto out;
+		}
+
+		md.md_provsize = mediasize;
+
+		val = gctl_get_intmax(r, "sectorsize");
+		if (val == 0) {
+			md.md_sectorsize = secsize;
+		} else {
+			if (val < 0 || (val % secsize) != 0 || !powerof2(val)) {
+				gctl_error(r, "Invalid sector size.");
+				goto out;
+			}
+			md.md_sectorsize = val;
+		}
+
+		/* Use different salt and Master Key for each provider. */
+		arc4random_buf(md.md_salt, sizeof(md.md_salt));
+		arc4random_buf(md.md_mkeys, sizeof(md.md_mkeys));
+
+		/* Generate user key. */
+		if (eli_genkey(r, &md, key, true) == NULL) {
+			/*
+			 * Error generating key - details added to geom request
+			 * by eli_genkey().
+			 */
+			goto out;
+		}
+
+		/* Encrypt the first and the only Master Key. */
+		error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen,
+		    md.md_mkeys);
+		explicit_bzero(key, sizeof(key));
+		if (error != 0) {
+			gctl_error(r, "Cannot encrypt Master Key: %s.",
+			    strerror(error));
+			goto out;
+		}
+
+		/*
+		 * Convert metadata to on-disk format and then immediately erase
+		 * sensitive data from the metadata struct.
+		 */
+		eli_metadata_encode(&md, sector);
+		explicit_bzero(&md.md_provsize, sizeof(md.md_provsize));
+		explicit_bzero(&md.md_sectorsize, sizeof(md.md_sectorsize));
+		explicit_bzero(&md.md_salt, sizeof(md.md_salt));
+		explicit_bzero(&md.md_mkeys, sizeof(md.md_mkeys));
+
+		/*
+		 * Store metadata to disk and then immediately erase sensitive
+		 * data from memory.
+		 */
+		error = g_metadata_store(prov, sector, sizeof(sector));
+		explicit_bzero(sector, sizeof(sector));
+		if (error != 0) {
+			gctl_error(r, "Cannot store metadata on %s: %s.", prov,
+			    strerror(error));
+			goto out;
+		}
+		if (verbose)
+			printf("Metadata value stored on %s.\n", prov);
+
+		/* Backup metadata to a file. */
+		const char *p = prov;
+		unsigned int j;
+
+		/*
+		 * Check if provider string includes the devfs mountpoint
+		 * (typically /dev/).
+		 */
+		if (strncmp(p, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
+			/* Skip forward to the device filename only. */
+			p += sizeof(_PATH_DEV) - 1;
+		}
+
+		str = gctl_get_ascii(r, "backupfile");
+		if (str[0] != '\0') {
+			/* Backupfile given by the user, just copy it. */
+			strlcpy(backfile, str, sizeof(backfile));
+
+			/* Make the backup filename unique if multiple providers
+			 * initialized in one command. */
+			if (nargs > 1) {
+				/*
+				 * Replace first occurrence of "PROV" with
+				 * provider name.
+				 */
+				str = strnstr(backfile, "PROV",
+				    sizeof(backfile));
+				if (str != NULL) {
+					char suffix[MAXPATHLEN];
+					j = str - backfile;
+					strlcpy(suffix, &backfile[j+4],
+					    sizeof(suffix));
+					backfile[j] = '\0';
+					strlcat(backfile, p, sizeof(backfile));
+					strlcat(backfile, suffix,
+					    sizeof(backfile));
+				} else {
+					/*
+					 * "PROV" not found in backfile, append
+					 * provider name.
+					 */
+					strlcat(backfile, "-",
+					    sizeof(backfile));
+					strlcat(backfile, p, sizeof(backfile));
+				}
+			}
+		} else {
+			/* Generate filename automatically. */
+			snprintf(backfile, sizeof(backfile), "%s%s.eli",
+			    GELI_BACKUP_DIR, p);
+			/* Replace all / with _. */
+			for (j = strlen(GELI_BACKUP_DIR); backfile[j] != '\0';
+			    j++) {
+				if (backfile[j] == '/')
+					backfile[j] = '_';
+			}
+		}
+		if (strcmp(backfile, "none") != 0 &&
+		    eli_backup_create(r, prov, backfile) == 0) {
+			printf("\nMetadata backup for provider %s can be found "
+			    "in %s\n", prov, backfile);
+			printf("and can be restored with the following "
+			    "command:\n");
+			printf("\n\t# geli restore %s %s\n\n", backfile, prov);
+		}
+
+out:
+		/*
+		 * Print error for this request, and set parent request error
+		 * message.
+		 */
+		if (r->error != NULL && r->error[0] != '\0') {
+			warnx("%s", r->error);
+			gctl_error(req, "There was an error with at least one "
+			    "provider.");
+		}
+
+		gctl_free(r);
+
+		/*
+		 * Erase sensitive data from memory, and ensure subsequent
+		 * providers are initialized with unique metadata.
+		 */
 		explicit_bzero(key, sizeof(key));
 		explicit_bzero(&md, sizeof(md));
-		return;
 	}
 
-	/* Encrypt the first and the only Master Key. */
-	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, md.md_mkeys);
-	explicit_bzero(key, sizeof(key));
-	if (error != 0) {
-		explicit_bzero(&md, sizeof(md));
-		gctl_error(req, "Cannot encrypt Master Key: %s.",
-		    strerror(error));
-		return;
-	}
-
-	eli_metadata_encode(&md, sector);
+	/* Clear the cached metadata, including keys. */
 	explicit_bzero(&md, sizeof(md));
-	error = g_metadata_store(prov, sector, sizeof(sector));
-	explicit_bzero(sector, sizeof(sector));
-	if (error != 0) {
-		gctl_error(req, "Cannot store metadata on %s: %s.", prov,
-		    strerror(error));
-		return;
-	}
-	if (verbose)
-		printf("Metadata value stored on %s.\n", prov);
-	/* Backup metadata to a file. */
-	str = gctl_get_ascii(req, "backupfile");
-	if (str[0] != '\0') {
-		/* Backupfile given be the user, just copy it. */
-		strlcpy(backfile, str, sizeof(backfile));
-	} else {
-		/* Generate file name automatically. */
-		const char *p = prov;
-		unsigned int i;
-
-		if (strncmp(p, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-			p += sizeof(_PATH_DEV) - 1;
-		snprintf(backfile, sizeof(backfile), "%s%s.eli",
-		    GELI_BACKUP_DIR, p);
-		/* Replace all / with _. */
-		for (i = strlen(GELI_BACKUP_DIR); backfile[i] != '\0'; i++) {
-			if (backfile[i] == '/')
-				backfile[i] = '_';
-		}
-	}
-	if (strcmp(backfile, "none") != 0 &&
-	    eli_backup_create(req, prov, backfile) == 0) {
-		printf("\nMetadata backup can be found in %s and\n", backfile);
-		printf("can be restored with the following command:\n");
-		printf("\n\t# geli restore %s %s\n\n", backfile, prov);
-	}
 }
 
 static void
@@ -914,7 +1021,7 @@ eli_attach(struct gctl_req *req)
 	const int one = 1;
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs == 0) {
+	if (nargs <= 0) {
 		gctl_error(req, "Too few arguments.");
 		return;
 	}
@@ -927,13 +1034,14 @@ eli_attach(struct gctl_req *req)
 	 */
 	nparams = req->narg - nargs - 1;
 
-	/* Create new child geom request for each provider and issue to kernel */
+	/* Create new child request for each provider and issue to kernel */
 	for (i = 0; i < nargs; i++) {
 		r = gctl_get_handle();
 
-		/* Copy each parameter from the parent request to the child request */
+		/* Copy each parameter from the parent request to the child */
 		for (param = 0; param < nparams; param++) {
-			gctl_ro_param(r, req->arg[param].name, req->arg[param].len, req->arg[param].value);
+			gctl_ro_param(r, req->arg[param].name,
+			    req->arg[param].len, req->arg[param].value);
 		}
 
 		/* Add a single provider to the parameter list of the child */
@@ -941,18 +1049,26 @@ eli_attach(struct gctl_req *req)
 		prov = gctl_get_ascii(req, "arg%d", i);
 		gctl_ro_param(r, "arg0", -1, prov);
 
-		if (eli_metadata_read(r, prov, &md) == -1)
-			return;
+		if (eli_metadata_read(r, prov, &md) == -1) {
+			/*
+			 * Error reading metadata - details added to geom
+			 * request by eli_metadata_read().
+			 */
+			goto out;
+		}
 
 		mediasize = g_get_mediasize(prov);
 		if (md.md_provsize != (uint64_t)mediasize) {
 			gctl_error(r, "Provider size mismatch.");
-			return;
+			goto out;
 		}
 
 		if (eli_genkey(r, &md, key, false) == NULL) {
-			explicit_bzero(key, sizeof(key));
-			return;
+			/*
+			 * Error generating key - details added to geom request
+			 * by eli_genkey().
+			 */
+			goto out;
 		}
 
 		gctl_ro_param(r, "key", sizeof(key), key);
@@ -962,19 +1078,24 @@ eli_attach(struct gctl_req *req)
 				printf("Attached to %s.\n", prov);
 		}
 
-		/* Print error for this request, and set parent request error message */
-	        if (r->error != NULL && r->error[0] != '\0') {
-	                warnx("%s", r->error);
-			gctl_error(req, "At least one provider failed to attach.");
-	        }
+out:
+		/*
+		 * Print error for this request, and set parent request error
+		 * message.
+		 */
+		if (r->error != NULL && r->error[0] != '\0') {
+			warnx("%s", r->error);
+			gctl_error(req, "There was an error with at least one "
+			    "provider.");
+		}
 
 		gctl_free(r);
 
-		/* Clear the derived key */
+		/* Clear sensitive data from memory. */
 		explicit_bzero(key, sizeof(key));
 	}
 
-	/* Clear the cached passphrase */
+	/* Clear sensitive data from memory. */
 	explicit_bzero(cached_passphrase, sizeof(cached_passphrase));
 }
 

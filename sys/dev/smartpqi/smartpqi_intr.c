@@ -181,7 +181,7 @@ int register_legacy_intr(pqisrc_softstate_t *softs)
 		return PQI_STATUS_FAILURE;
 	}
 	softs->os_specific.msi_ctx[0].pqi_dev = dev;
-	softs->os_specific.msi_ctx[0].oq_id = 0;
+	softs->os_specific.msi_ctx[0].oq_id = 1;
 
 	error = bus_setup_intr(dev, softs->os_specific.pqi_irq[0],
 				INTR_TYPE_CAM | INTR_MPSAFE, \
@@ -227,7 +227,7 @@ int register_msix_intr(pqisrc_softstate_t *softs)
 		}
 				
 		softs->os_specific.msi_ctx[i].pqi_dev = dev;
-		softs->os_specific.msi_ctx[i].oq_id = i;
+		softs->os_specific.msi_ctx[i].oq_id = i+1;
 		
 		error = bus_setup_intr(dev,softs->os_specific.pqi_irq[i],
 					INTR_TYPE_CAM | INTR_MPSAFE,\

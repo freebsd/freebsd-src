@@ -206,7 +206,7 @@ struct vm_map {
 #define	MAP_BUSY_WAKEUP		0x02
 
 #ifdef	_KERNEL
-#ifdef KLD_MODULE
+#if defined(KLD_MODULE) && !defined(KLD_TIED)
 #define	vm_map_max(map)		vm_map_max_KBI((map))
 #define	vm_map_min(map)		vm_map_min_KBI((map))
 #define	vm_map_pmap(map)	vm_map_pmap_KBI((map))

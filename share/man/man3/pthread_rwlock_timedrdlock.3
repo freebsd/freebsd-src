@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd August 17, 2018
 .Dt PTHREAD_RWLOCK_TIMEDRDLOCK 3
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_rwlock_timedrdlock "pthread_rwlock_t *rwlock" "const struct timespec *abs_timeout"
+.Fn pthread_rwlock_timedrdlock "pthread_rwlock_t *restrict rwlock" "const struct timespec *restrict abs_timeout"
 .Sh DESCRIPTION
 This function acquires a read lock on the read-write lock
 .Fa rwlock .

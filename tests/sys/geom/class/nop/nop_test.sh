@@ -201,7 +201,7 @@ stripesize_head()
 {
 	atf_set "descr" "Test gnop's -p and -P options"
 	atf_set "require.user" "root"
-	atf_set "timeout" 15
+	atf_set "timeout" 120
 }
 stripesize_body()
 {

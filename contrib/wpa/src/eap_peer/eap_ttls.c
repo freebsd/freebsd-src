@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-TTLS (RFC 5281)
- * Copyright (c) 2004-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -35,6 +35,7 @@ struct eap_ttls_data {
 	void *phase2_priv;
 	int phase2_success;
 	int phase2_start;
+	EapDecision decision_succ;
 
 	enum phase2_types {
 		EAP_TTLS_PHASE2_EAP,
@@ -58,6 +59,7 @@ struct eap_ttls_data {
 	size_t id_len;
 
 	struct wpabuf *pending_phase2_req;
+	struct wpabuf *pending_resp;
 
 #ifdef EAP_TNC
 	int ready_for_tnc;
@@ -70,6 +72,7 @@ static void * eap_ttls_init(struct eap_sm *sm)
 {
 	struct eap_ttls_data *data;
 	struct eap_peer_config *config = eap_get_config(sm);
+	int selected_non_eap;
 	char *selected;
 
 	data = os_zalloc(sizeof(*data));
@@ -77,26 +80,67 @@ static void * eap_ttls_init(struct eap_sm *sm)
 		return NULL;
 	data->ttls_version = EAP_TTLS_VERSION;
 	selected = "EAP";
+	selected_non_eap = 0;
 	data->phase2_type = EAP_TTLS_PHASE2_EAP;
 
+	/*
+	 * Either one auth= type or one or more autheap= methods can be
+	 * specified.
+	 */
 	if (config && config->phase2) {
+		const char *token, *last = NULL;
+
+		while ((token = cstr_token(config->phase2, " \t", &last))) {
+			if (os_strncmp(token, "auth=", 5) != 0)
+				continue;
+			token += 5;
+
+			if (last - token == 8 &&
+			    os_strncmp(token, "MSCHAPV2", 8) == 0) {
+				selected = "MSCHAPV2";
+				data->phase2_type = EAP_TTLS_PHASE2_MSCHAPV2;
+			} else if (last - token == 6 &&
+				   os_strncmp(token, "MSCHAP", 6) == 0) {
+				selected = "MSCHAP";
+				data->phase2_type = EAP_TTLS_PHASE2_MSCHAP;
+			} else if (last - token == 3 &&
+				   os_strncmp(token, "PAP", 3) == 0) {
+				selected = "PAP";
+				data->phase2_type = EAP_TTLS_PHASE2_PAP;
+			} else if (last - token == 4 &&
+				   os_strncmp(token, "CHAP", 4) == 0) {
+				selected = "CHAP";
+				data->phase2_type = EAP_TTLS_PHASE2_CHAP;
+			} else {
+				wpa_printf(MSG_ERROR,
+					   "EAP-TTLS: Unsupported Phase2 type '%s'",
+					   token);
+				eap_ttls_deinit(sm, data);
+				return NULL;
+			}
+
+			if (selected_non_eap) {
+				wpa_printf(MSG_ERROR,
+					   "EAP-TTLS: Only one Phase2 type can be specified");
+				eap_ttls_deinit(sm, data);
+				return NULL;
+			}
+
+			selected_non_eap = 1;
+		}
+
 		if (os_strstr(config->phase2, "autheap=")) {
+			if (selected_non_eap) {
+				wpa_printf(MSG_ERROR,
+					   "EAP-TTLS: Both auth= and autheap= params cannot be specified");
+				eap_ttls_deinit(sm, data);
+				return NULL;
+			}
 			selected = "EAP";
 			data->phase2_type = EAP_TTLS_PHASE2_EAP;
-		} else if (os_strstr(config->phase2, "auth=MSCHAPV2")) {
-			selected = "MSCHAPV2";
-			data->phase2_type = EAP_TTLS_PHASE2_MSCHAPV2;
-		} else if (os_strstr(config->phase2, "auth=MSCHAP")) {
-			selected = "MSCHAP";
-			data->phase2_type = EAP_TTLS_PHASE2_MSCHAP;
-		} else if (os_strstr(config->phase2, "auth=PAP")) {
-			selected = "PAP";
-			data->phase2_type = EAP_TTLS_PHASE2_PAP;
-		} else if (os_strstr(config->phase2, "auth=CHAP")) {
-			selected = "CHAP";
-			data->phase2_type = EAP_TTLS_PHASE2_CHAP;
 		}
 	}
+
 	wpa_printf(MSG_DEBUG, "EAP-TTLS: Phase2 type: %s", selected);
 
 	if (data->phase2_type == EAP_TTLS_PHASE2_EAP) {
@@ -153,6 +197,7 @@ static void eap_ttls_deinit(struct eap_sm *sm, void *priv)
 	eap_ttls_free_key(data);
 	os_free(data->session_id);
 	wpabuf_free(data->pending_phase2_req);
+	wpabuf_free(data->pending_resp);
 	os_free(data);
 }
 
@@ -1408,6 +1453,32 @@ static int eap_ttls_process_handshake(struct eap_sm *sm,
 {
 	int res;
 
+	if (sm->waiting_ext_cert_check && data->pending_resp) {
+		struct eap_peer_config *config = eap_get_config(sm);
+
+		if (config->pending_ext_cert_check == EXT_CERT_CHECK_GOOD) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-TTLS: External certificate check succeeded - continue handshake");
+			*out_data = data->pending_resp;
+			data->pending_resp = NULL;
+			sm->waiting_ext_cert_check = 0;
+			return 0;
+		}
+
+		if (config->pending_ext_cert_check == EXT_CERT_CHECK_BAD) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-TTLS: External certificate check failed - force authentication failure");
+			ret->methodState = METHOD_DONE;
+			ret->decision = DECISION_FAIL;
+			sm->waiting_ext_cert_check = 0;
+			return 0;
+		}
+
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Continuing to wait external server certificate validation");
+		return 0;
+	}
+
 	res = eap_peer_tls_process_helper(sm, &data->ssl, EAP_TYPE_TTLS,
 					  data->ttls_version, identifier,
 					  in_data, out_data);
@@ -1416,6 +1487,15 @@ static int eap_ttls_process_handshake(struct eap_sm *sm,
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return -1;
+	}
+
+	if (sm->waiting_ext_cert_check) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Waiting external server certificate validation");
+		wpabuf_free(data->pending_resp);
+		data->pending_resp = *out_data;
+		*out_data = NULL;
+		return 0;
 	}
 
 	if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
@@ -1468,6 +1548,7 @@ static void eap_ttls_check_auth_status(struct eap_sm *sm,
 			wpa_printf(MSG_DEBUG, "EAP-TTLS: Authentication "
 				   "completed successfully");
 			data->phase2_success = 1;
+			data->decision_succ = ret->decision;
 #ifdef EAP_TNC
 			if (!data->ready_for_tnc && !data->tnc_started) {
 				/*
@@ -1485,6 +1566,18 @@ static void eap_ttls_check_auth_status(struct eap_sm *sm,
 			wpa_printf(MSG_DEBUG, "EAP-TTLS: Authentication "
 				   "completed successfully (MAY_CONT)");
 			data->phase2_success = 1;
+			data->decision_succ = ret->decision;
+	} else if (data->decision_succ != DECISION_FAIL &&
+		   data->phase2_success &&
+		   !data->ssl.tls_out) {
+		/*
+		 * This is needed to cover the case where the final Phase 2
+		 * message gets fragmented since fragmentation clears
+		 * decision back to FAIL.
+		 */
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Restore success decision after fragmented frame sent completely");
+		ret->decision = data->decision_succ;
 	}
 }
 
@@ -1557,6 +1650,9 @@ static void eap_ttls_deinit_for_reauth(struct eap_sm *sm, void *priv)
 	struct eap_ttls_data *data = priv;
 	wpabuf_free(data->pending_phase2_req);
 	data->pending_phase2_req = NULL;
+	wpabuf_free(data->pending_resp);
+	data->pending_resp = NULL;
+	data->decision_succ = DECISION_FAIL;
 #ifdef EAP_TNC
 	data->ready_for_tnc = 0;
 	data->tnc_started = 0;
@@ -1695,7 +1791,6 @@ static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_ttls_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_TTLS, "TTLS");
@@ -1714,8 +1809,5 @@ int eap_peer_ttls_register(void)
 	eap->init_for_reauth = eap_ttls_init_for_reauth;
 	eap->get_emsk = eap_ttls_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

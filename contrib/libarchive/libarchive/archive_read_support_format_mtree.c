@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_rb.h"
 #include "archive_read_private.h"
 #include "archive_string.h"
 #include "archive_pack_dev.h"
@@ -75,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #define	MTREE_HAS_OPTIONAL	0x0800
 #define	MTREE_HAS_NOCHANGE	0x1000 /* FreeBSD specific */
 
-#define	MTREE_HASHTABLE_SIZE 1024
-
 #define	MAX_LINE_LEN		(1024 * 1024)
 
 struct mtree_option {
@@ -85,13 +84,13 @@ struct mtree_option {
 };
 
 struct mtree_entry {
+	struct archive_rb_node rbnode;
+	struct mtree_entry *next_dup;
 	struct mtree_entry *next;
 	struct mtree_option *options;
 	char *name;
 	char full;
 	char used;
-	unsigned int name_hash;
-	struct mtree_entry *hashtable_next;
 };
 
 struct mtree {
@@ -104,11 +103,12 @@ struct mtree {
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
 	struct mtree_entry	*this_entry;
-	struct mtree_entry	*entry_hashtable[MTREE_HASHTABLE_SIZE];
+	struct archive_rb_tree	 entry_rbtree;
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
 
 	struct archive_entry_linkresolver *resolver;
+	struct archive_rb_tree rbtree;
 
 	int64_t			 cur_size;
 	char checkfs;
@@ -117,7 +117,6 @@ struct mtree {
 static int	bid_keycmp(const char *, const char *, ssize_t);
 static int	cleanup(struct archive_read *);
 static int	detect_form(struct archive_read *, int *);
-static unsigned int	hash(const char *);
 static int	mtree_bid(struct archive_read *, int);
 static int	parse_file(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
@@ -219,9 +218,30 @@ free_options(struct mtree_option *head)
 	}
 }
 
+static int
+mtree_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+	const struct mtree_entry *e1 = (const struct mtree_entry *)n1;
+	const struct mtree_entry *e2 = (const struct mtree_entry *)n2;
+
+	return (strcmp(e1->name, e2->name));
+}
+
+static int
+mtree_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	const struct mtree_entry *e = (const struct mtree_entry *)n;
+
+	return (strcmp(e->name, key));
+}
+
 int
 archive_read_support_format_mtree(struct archive *_a)
 {
+	static const struct archive_rb_tree_ops rb_ops = {
+		mtree_cmp_node, mtree_cmp_key,
+	};
 	struct archive_read *a = (struct archive_read *)_a;
 	struct mtree *mtree;
 	int r;
@@ -236,6 +256,8 @@ archive_read_support_format_mtree(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	mtree->fd = -1;
+
+	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
 
 	r = __archive_read_register_format(a, mtree, "mtree",
            mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
@@ -875,12 +897,11 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
     struct mtree_option **global, const char *line, ssize_t line_len,
     struct mtree_entry **last_entry, int is_form_d)
 {
-	struct mtree_entry *entry, *ht_iter;
+	struct mtree_entry *entry;
 	struct mtree_option *iter;
 	const char *next, *eq, *name, *end;
 	size_t name_len, len;
 	int r, i;
-	unsigned int ht_idx;
 
 	if ((entry = malloc(sizeof(*entry))) == NULL) {
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
@@ -891,8 +912,6 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	entry->name = NULL;
 	entry->used = 0;
 	entry->full = 0;
-	entry->name_hash = 0;
-	entry->hashtable_next = NULL;
 
 	/* Add this entry to list. */
 	if (*last_entry == NULL)
@@ -945,15 +964,17 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	memcpy(entry->name, name, name_len);
 	entry->name[name_len] = '\0';
 	parse_escapes(entry->name, entry);
-	entry->name_hash = hash(entry->name);
 
-	ht_idx = entry->name_hash % MTREE_HASHTABLE_SIZE;
-	if ((ht_iter = mtree->entry_hashtable[ht_idx]) != NULL) {
-		while (ht_iter->hashtable_next)
-			ht_iter = ht_iter->hashtable_next;
-		ht_iter->hashtable_next = entry;
-	} else {
-		mtree->entry_hashtable[ht_idx] = entry;
+	entry->next_dup = NULL;
+	if (entry->full) {
+		if (!__archive_rb_tree_insert_node(&mtree->rbtree, &entry->rbnode)) {
+			struct mtree_entry *alt;
+			alt = (struct mtree_entry *)__archive_rb_tree_find_node(
+			    &mtree->rbtree, entry->name);
+			while (alt->next_dup)
+				alt = alt->next_dup;
+			alt->next_dup = entry;
+		}
 	}
 
 	for (iter = *global; iter != NULL; iter = iter->next) {
@@ -1148,14 +1169,13 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		 * with pathname canonicalization, which is a very
 		 * tricky subject.)
 		 */
-		for (mp = mentry->hashtable_next; mp != NULL; mp = mp->hashtable_next) {
-			if (mp->full && !mp->used
-					&& mentry->name_hash == mp->name_hash
-					&& strcmp(mentry->name, mp->name) == 0) {
+		mp = (struct mtree_entry *)__archive_rb_tree_find_node(
+		    &mtree->rbtree, mentry->name);
+		for (; mp; mp = mp->next_dup) {
+			if (mp->full && !mp->used) {
 				/* Later lines override earlier ones. */
 				mp->used = 1;
-				r1 = parse_line(a, entry, mtree, mp,
-				    &parsed_kws);
+				r1 = parse_line(a, entry, mtree, mp, &parsed_kws);
 				if (r1 < r)
 					r = r1;
 			}
@@ -1988,20 +2008,4 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 		}
 		find_off = u - mtree->line.s;
 	}
-}
-
-static unsigned int
-hash(const char *p)
-{
-	/* A 32-bit version of Peter Weinberger's (PJW) hash algorithm,
-	   as used by ELF for hashing function names. */
-	unsigned g, h = 0;
-	while (*p != '\0') {
-		h = (h << 4) + *p++;
-		if ((g = h & 0xF0000000) != 0) {
-			h ^= g >> 24;
-			h &= 0x0FFFFFFF;
-		}
-	}
-	return h;
 }

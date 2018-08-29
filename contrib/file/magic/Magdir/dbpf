@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dbpf,v 1.1 2017/10/13 20:47:14 christos Exp $
+# $File: dbpf,v 1.2 2018/05/24 18:54:40 christos Exp $
 # dppf:	Maxis Database Packed Files, the stored data file format used by all
 #	Maxis games after the Sims: http://wiki.niotso.org/DBPF
 # 	http://www.wiki.sc4devotion.com/index.php?title=DBPF
@@ -9,9 +9,7 @@
 >4	ulelong	x	\b, version: %u.
 >>8	ulelong	x	\b%u
 >>>36	ulelong	x       \b, files: %u
+>>24	ledate	!0	\b, created: %s
+>>28	ledate	!0	\b, modified: %s
 !:ext	dbpf/package/dat/sc4
 !:mime	application/x-maxis-dbpf
-4	ulelong	1
->8	ulelong	!1
->>24	ledate	!0	\b, created: %s
->>>28	ledate	!0	\b, modified: %s

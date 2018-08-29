@@ -34,7 +34,6 @@ v6_body()
 	# load AESNI module if not already
 	kldstat -q -n aesni || kldload aesni
 
-	atf_expect_fail "PR 201447"
 	ist_test 6 aes-gcm-16 "123456789012345678901234567890123456"
 }
 

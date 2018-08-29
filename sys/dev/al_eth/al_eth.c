@@ -1202,8 +1202,12 @@ al_eth_tx_csum(struct al_eth_ring *tx_ring, struct al_eth_tx_buffer *tx_info,
 	uint32_t mss = m->m_pkthdr.tso_segsz;
 	struct ether_vlan_header *eh;
 	uint16_t etype;
+#ifdef INET
 	struct ip *ip;
+#endif
+#ifdef INET6
 	struct ip6_hdr *ip6;
+#endif
 	struct tcphdr *th = NULL;
 	int	ehdrlen, ip_hlen = 0;
 	uint8_t	ipproto = 0;
@@ -1243,6 +1247,7 @@ al_eth_tx_csum(struct al_eth_ring *tx_ring, struct al_eth_tx_buffer *tx_info,
 		}
 
 		switch (etype) {
+#ifdef INET
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(m->m_data + ehdrlen);
 			ip_hlen = ip->ip_hl << 2;
@@ -1256,6 +1261,8 @@ al_eth_tx_csum(struct al_eth_ring *tx_ring, struct al_eth_tx_buffer *tx_info,
 			else
 				hal_pkt->l4_proto_idx = AL_ETH_PROTO_ID_UDP;
 			break;
+#endif /* INET */
+#ifdef INET6
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(m->m_data + ehdrlen);
 			hal_pkt->l3_proto_idx = AL_ETH_PROTO_ID_IPv6;
@@ -1267,6 +1274,7 @@ al_eth_tx_csum(struct al_eth_ring *tx_ring, struct al_eth_tx_buffer *tx_info,
 			else
 				hal_pkt->l4_proto_idx = AL_ETH_PROTO_ID_UDP;
 			break;
+#endif /* INET6 */
 		default:
 			break;
 		}

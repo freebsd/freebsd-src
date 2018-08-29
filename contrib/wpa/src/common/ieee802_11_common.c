@@ -115,6 +115,11 @@ static int ieee802_11_parse_vendor_specific(const u8 *pos, size_t elen,
 			elems->osen = pos;
 			elems->osen_len = elen;
 			break;
+		case MBO_OUI_TYPE:
+			/* MBO-OCE */
+			elems->mbo = pos;
+			elems->mbo_len = elen;
+			break;
 		default:
 			wpa_printf(MSG_MSGDUMP, "Unknown WFA "
 				   "information element ignored "
@@ -366,6 +371,14 @@ ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 			elems->mb_ies.ies[elems->mb_ies.nof_ies].ie_len = elen;
 			elems->mb_ies.nof_ies++;
 			break;
+		case WLAN_EID_SUPPORTED_OPERATING_CLASSES:
+			elems->supp_op_classes = pos;
+			elems->supp_op_classes_len = elen;
+			break;
+		case WLAN_EID_RRM_ENABLED_CAPABILITIES:
+			elems->rrm_enabled = pos;
+			elems->rrm_enabled_len = elen;
+			break;
 		default:
 			unknown++;
 			if (!show_errors)
@@ -398,8 +411,8 @@ int ieee802_11_ie_count(const u8 *ies, size_t ies_len)
 	pos = ies;
 	end = ies + ies_len;
 
-	while (pos + 2 <= end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos >= 2) {
+		if (2 + pos[1] > end - pos)
 			break;
 		count++;
 		pos += 2 + pos[1];
@@ -419,8 +432,8 @@ struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
 	end = ies + ies_len;
 	ie = NULL;
 
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			return NULL;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    WPA_GET_BE32(&pos[2]) == oui_type) {
@@ -441,8 +454,8 @@ struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
 	 * There may be multiple vendor IEs in the message, so need to
 	 * concatenate their data fields.
 	 */
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    WPA_GET_BE32(&pos[2]) == oui_type)
@@ -570,7 +583,8 @@ enum hostapd_hw_mode ieee80211_freq_to_chan(int freq, u8 *channel)
 {
 	u8 op_class;
 
-	return ieee80211_freq_to_channel_ext(freq, 0, 0, &op_class, channel);
+	return ieee80211_freq_to_channel_ext(freq, 0, VHT_CHANWIDTH_USE_HT,
+					     &op_class, channel);
 }
 
 
@@ -579,7 +593,7 @@ enum hostapd_hw_mode ieee80211_freq_to_chan(int freq, u8 *channel)
  * for HT40 and VHT. DFS channels are not covered.
  * @freq: Frequency (MHz) to convert
  * @sec_channel: 0 = non-HT40, 1 = sec. channel above, -1 = sec. channel below
- * @vht: 0 - non-VHT, 1 - 80 MHz
+ * @vht: VHT channel width (VHT_CHANWIDTH_*)
  * @op_class: Buffer for returning operating class
  * @channel: Buffer for returning channel number
  * Returns: hw_mode on success, NUM_HOSTAPD_MODES on failure
@@ -588,6 +602,8 @@ enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 						   int sec_channel, int vht,
 						   u8 *op_class, u8 *channel)
 {
+	u8 vht_opclass;
+
 	/* TODO: more operating classes */
 
 	if (sec_channel > 1 || sec_channel < -1)
@@ -631,38 +647,34 @@ enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 		return HOSTAPD_MODE_IEEE80211A;
 	}
 
+	switch (vht) {
+	case VHT_CHANWIDTH_80MHZ:
+		vht_opclass = 128;
+		break;
+	case VHT_CHANWIDTH_160MHZ:
+		vht_opclass = 129;
+		break;
+	case VHT_CHANWIDTH_80P80MHZ:
+		vht_opclass = 130;
+		break;
+	default:
+		vht_opclass = 0;
+		break;
+	}
+
 	/* 5 GHz, channels 36..48 */
 	if (freq >= 5180 && freq <= 5240) {
 		if ((freq - 5000) % 5)
 			return NUM_HOSTAPD_MODES;
 
-		if (sec_channel == 1)
+		if (vht_opclass)
+			*op_class = vht_opclass;
+		else if (sec_channel == 1)
 			*op_class = 116;
 		else if (sec_channel == -1)
 			*op_class = 117;
-		else if (vht)
-			*op_class = 128;
 		else
 			*op_class = 115;
-
-		*channel = (freq - 5000) / 5;
-
-		return HOSTAPD_MODE_IEEE80211A;
-	}
-
-	/* 5 GHz, channels 149..161 */
-	if (freq >= 5745 && freq <= 5805) {
-		if ((freq - 5000) % 5)
-			return NUM_HOSTAPD_MODES;
-
-		if (sec_channel == 1)
-			*op_class = 126;
-		else if (sec_channel == -1)
-			*op_class = 127;
-		else if (vht)
-			*op_class = 128;
-		else
-			*op_class = 124;
 
 		*channel = (freq - 5000) / 5;
 
@@ -674,7 +686,35 @@ enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 		if ((freq - 5000) % 5)
 			return NUM_HOSTAPD_MODES;
 
-		*op_class = 125;
+		if (vht_opclass)
+			*op_class = vht_opclass;
+		else if (sec_channel == 1)
+			*op_class = 126;
+		else if (sec_channel == -1)
+			*op_class = 127;
+		else if (freq <= 5805)
+			*op_class = 124;
+		else
+			*op_class = 125;
+
+		*channel = (freq - 5000) / 5;
+
+		return HOSTAPD_MODE_IEEE80211A;
+	}
+
+	/* 5 GHz, channels 100..140 */
+	if (freq >= 5000 && freq <= 5700) {
+		if ((freq - 5000) % 5)
+			return NUM_HOSTAPD_MODES;
+
+		if (vht_opclass)
+			*op_class = vht_opclass;
+		else if (sec_channel == 1)
+			*op_class = 122;
+		else if (sec_channel == -1)
+			*op_class = 123;
+		else
+			*op_class = 121;
 
 		*channel = (freq - 5000) / 5;
 
@@ -1144,4 +1184,136 @@ struct wpabuf * mb_ies_by_info(struct mb_ies_info *info)
 	}
 
 	return mb_ies;
+}
+
+
+const struct oper_class_map global_op_class[] = {
+	{ HOSTAPD_MODE_IEEE80211G, 81, 1, 13, 1, BW20, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211G, 82, 14, 14, 1, BW20, NO_P2P_SUPP },
+
+	/* Do not enable HT40 on 2.4 GHz for P2P use for now */
+	{ HOSTAPD_MODE_IEEE80211G, 83, 1, 9, 1, BW40PLUS, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211G, 84, 5, 13, 1, BW40MINUS, NO_P2P_SUPP },
+
+	{ HOSTAPD_MODE_IEEE80211A, 115, 36, 48, 4, BW20, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 116, 36, 44, 8, BW40PLUS, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 117, 40, 48, 8, BW40MINUS, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 118, 52, 64, 4, BW20, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 119, 52, 60, 8, BW40PLUS, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 120, 56, 64, 8, BW40MINUS, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 121, 100, 140, 4, BW20, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 122, 100, 132, 8, BW40PLUS, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 123, 104, 136, 8, BW40MINUS, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 124, 149, 161, 4, BW20, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 125, 149, 169, 4, BW20, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 126, 149, 157, 8, BW40PLUS, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 127, 153, 161, 8, BW40MINUS, P2P_SUPP },
+
+	/*
+	 * IEEE P802.11ac/D7.0 Table E-4 actually talks about channel center
+	 * frequency index 42, 58, 106, 122, 138, 155 with channel spacing of
+	 * 80 MHz, but currently use the following definition for simplicity
+	 * (these center frequencies are not actual channels, which makes
+	 * wpas_p2p_allow_channel() fail). wpas_p2p_verify_80mhz() should take
+	 * care of removing invalid channels.
+	 */
+	{ HOSTAPD_MODE_IEEE80211A, 128, 36, 161, 4, BW80, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 129, 50, 114, 16, BW160, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 130, 36, 161, 4, BW80P80, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211AD, 180, 1, 4, 1, BW2160, P2P_SUPP },
+	{ -1, 0, 0, 0, 0, BW20, NO_P2P_SUPP }
+};
+
+
+static enum phy_type ieee80211_phy_type_by_freq(int freq)
+{
+	enum hostapd_hw_mode hw_mode;
+	u8 channel;
+
+	hw_mode = ieee80211_freq_to_chan(freq, &channel);
+
+	switch (hw_mode) {
+	case HOSTAPD_MODE_IEEE80211A:
+		return PHY_TYPE_OFDM;
+	case HOSTAPD_MODE_IEEE80211B:
+		return PHY_TYPE_HRDSSS;
+	case HOSTAPD_MODE_IEEE80211G:
+		return PHY_TYPE_ERP;
+	case HOSTAPD_MODE_IEEE80211AD:
+		return PHY_TYPE_DMG;
+	default:
+		return PHY_TYPE_UNSPECIFIED;
+	};
+}
+
+
+/* ieee80211_get_phy_type - Derive the phy type by freq and bandwidth */
+enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht)
+{
+	if (vht)
+		return PHY_TYPE_VHT;
+	if (ht)
+		return PHY_TYPE_HT;
+
+	return ieee80211_phy_type_by_freq(freq);
+}
+
+
+size_t global_op_class_size = ARRAY_SIZE(global_op_class);
+
+
+/**
+ * get_ie - Fetch a specified information element from IEs buffer
+ * @ies: Information elements buffer
+ * @len: Information elements buffer length
+ * @eid: Information element identifier (WLAN_EID_*)
+ * Returns: Pointer to the information element (id field) or %NULL if not found
+ *
+ * This function returns the first matching information element in the IEs
+ * buffer or %NULL in case the element is not found.
+ */
+const u8 * get_ie(const u8 *ies, size_t len, u8 eid)
+{
+	const u8 *end;
+
+	if (!ies)
+		return NULL;
+
+	end = ies + len;
+
+	while (end - ies > 1) {
+		if (2 + ies[1] > end - ies)
+			break;
+
+		if (ies[0] == eid)
+			return ies;
+
+		ies += 2 + ies[1];
+	}
+
+	return NULL;
+}
+
+
+size_t mbo_add_ie(u8 *buf, size_t len, const u8 *attr, size_t attr_len)
+{
+	/*
+	 * MBO IE requires 6 bytes without the attributes: EID (1), length (1),
+	 * OUI (3), OUI type (1).
+	 */
+	if (len < 6 + attr_len) {
+		wpa_printf(MSG_DEBUG,
+			   "MBO: Not enough room in buffer for MBO IE: buf len = %zu, attr_len = %zu",
+			   len, attr_len);
+		return 0;
+	}
+
+	*buf++ = WLAN_EID_VENDOR_SPECIFIC;
+	*buf++ = attr_len + 4;
+	WPA_PUT_BE24(buf, OUI_WFA);
+	buf += 3;
+	*buf++ = MBO_OUI_TYPE;
+	os_memcpy(buf, attr, attr_len);
+
+	return 6 + attr_len;
 }

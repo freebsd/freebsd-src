@@ -576,6 +576,12 @@ us.unix.kbd:fr:États Unis d'Amérique unix
 us.unix.kbd:pt:Estados Unidos da América unix
 us.unix.kbd:es:Estadounidense Unix tradicional
 
+us.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:fr:États Unis d'Amérique Macbook / Macbook Pro ISO-8859-1
+us.macbook.kbd:pt:Estados Unidos da América Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
+
 ua.kbd.from-iso5:en:Ukrainian
 ua.kbd.from-iso5:de:Ukrainisch
 ua.kbd.from-iso5:fr:Ukrainien

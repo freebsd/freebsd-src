@@ -39,6 +39,30 @@ __FBSDID("$FreeBSD$");
 #define STR(number) #number
 #define STRINGIFY(number) STR(number)
 
+static int
+fdt_platform_load_from_ubenv(const char *var)
+{
+	struct fdt_header *hdr;
+	const char *s;
+	char *p;
+
+	s = ub_env_get(var);
+	if (s == NULL || *s == '\0')
+		return (1);
+
+	hdr = (struct fdt_header *)strtoul(s, &p, 16);
+	if (*p != '\0')
+		return (1);
+
+	if (fdt_load_dtb_addr(hdr) == 0) {
+		printf("Using DTB provided by U-Boot at "
+		    "address %p.\n", hdr);
+		return (0);
+	}
+
+	return (1);
+}
+
 int
 fdt_platform_load_dtb(void)
 {
@@ -53,22 +77,12 @@ fdt_platform_load_dtb(void)
 	 * variable for fdt data loaded into ram is fdt_addr_r, so try that
 	 * first.  Board vendors also use both fdtaddr and fdt_addr names.
 	 */
-	s = ub_env_get("fdt_addr_r");
-	if (s == NULL)
-		s = ub_env_get("fdtaddr");
-	if (s == NULL)
-		s = ub_env_get("fdt_addr");
-	if (s != NULL && *s != '\0') {
-		hdr = (struct fdt_header *)strtoul(s, &p, 16);
-		if (*p == '\0') {
-			if (fdt_load_dtb_addr(hdr) == 0) {
-				printf("Using DTB provided by U-Boot at "
-				    "address %p.\n", hdr);
-				rv = 0;
-				goto exit;
-			}
-		}
-	}
+	if ((rv = fdt_platform_load_from_ubenv("fdt_addr_r")) == 0)
+		goto exit;
+	if ((rv = fdt_platform_load_from_ubenv("fdt_addr")) == 0)
+		goto exit;
+	if ((rv = fdt_platform_load_from_ubenv("fdtaddr")) == 0)
+		goto exit;
 
 	rv = 1;
 

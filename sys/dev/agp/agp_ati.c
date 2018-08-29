@@ -133,9 +133,8 @@ agp_ati_alloc_gatt(device_t dev)
 
 	/* Alloc the GATT -- pointers to pages of AGP memory */
 	sc->ag_entries = entries;
-	sc->ag_virtual = (void *)kmem_alloc_attr(kernel_arena,
-	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0,
-	    VM_MEMATTR_WRITE_COMBINING);
+	sc->ag_virtual = (void *)kmem_alloc_attr(entries * sizeof(u_int32_t),
+	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "GATT allocation failed\n");
@@ -143,13 +142,13 @@ agp_ati_alloc_gatt(device_t dev)
 	}
 
 	/* Alloc the page directory -- pointers to each page of the GATT */
-	sc->ag_vdir = (void *)kmem_alloc_attr(kernel_arena, AGP_PAGE_SIZE,
-	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
+	sc->ag_vdir = (void *)kmem_alloc_attr(AGP_PAGE_SIZE, M_NOWAIT | M_ZERO,
+	    0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->ag_vdir == NULL) {
 		if (bootverbose)
 			device_printf(dev, "pagedir allocation failed\n");
-		kmem_free(kernel_arena, (vm_offset_t)sc->ag_virtual,
-		    entries * sizeof(u_int32_t));
+		kmem_free((vm_offset_t)sc->ag_virtual, entries *
+		    sizeof(u_int32_t));
 		return ENOMEM;
 	}
 	sc->ag_pdir = vtophys((vm_offset_t)sc->ag_vdir);
@@ -266,9 +265,9 @@ agp_ati_detach(device_t dev)
 	temp = pci_read_config(dev, apsize_reg, 4);
 	pci_write_config(dev, apsize_reg, temp & ~1, 4);
 
-	kmem_free(kernel_arena, (vm_offset_t)sc->ag_vdir, AGP_PAGE_SIZE);
-	kmem_free(kernel_arena, (vm_offset_t)sc->ag_virtual,
-	    sc->ag_entries * sizeof(u_int32_t));
+	kmem_free((vm_offset_t)sc->ag_vdir, AGP_PAGE_SIZE);
+	kmem_free((vm_offset_t)sc->ag_virtual, sc->ag_entries *
+	    sizeof(u_int32_t));
 
 	bus_release_resource(dev, SYS_RES_MEMORY, ATI_GART_MMADDR, sc->regs);
 	agp_free_res(dev);

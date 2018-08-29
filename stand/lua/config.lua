@@ -50,9 +50,17 @@ local MSG_FAILEXAF = "Failed to execute '%s' after loading '%s'"
 local MSG_MALFORMED = "Malformed line (%d):\n\t'%s'"
 local MSG_DEFAULTKERNFAIL = "No kernel set, failed to load from module_path"
 local MSG_KERNFAIL = "Failed to load kernel '%s'"
+local MSG_XENKERNFAIL = "Failed to load Xen kernel '%s'"
+local MSG_XENKERNLOADING = "Loading Xen kernel..."
 local MSG_KERNLOADING = "Loading kernel..."
 local MSG_MODLOADING = "Loading configured modules..."
 local MSG_MODLOADFAIL = "Could not load one or more modules!"
+
+local MODULEEXPR = '([%w-_]+)'
+local QVALEXPR = "\"([%w%s%p]-)\""
+local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
+local WORDEXPR = "([%w]+)"
+local WORDREPL = WORDEXPR:gsub('%%', '%%%%')
 
 local function restoreEnv()
 	-- Examine changed environment variables
@@ -121,14 +129,50 @@ local function processEnvVar(value)
 	return value
 end
 
+local function checkPattern(line, pattern)
+	local function _realCheck(_line, _pattern)
+		return _line:match(_pattern)
+	end
+
+	if pattern:find('$VALUE') then
+		local k, v, c
+		k, v, c = _realCheck(line, pattern:gsub('$VALUE', QVALREPL))
+		if k ~= nil then
+			return k,v, c
+		end
+		return _realCheck(line, pattern:gsub('$VALUE', WORDREPL))
+	else
+		return _realCheck(line, pattern)
+	end
+end
+
+-- str in this table is a regex pattern.  It will automatically be anchored to
+-- the beginning of a line and any preceding whitespace will be skipped.  The
+-- pattern should have no more than two captures patterns, which correspond to
+-- the two parameters (usually 'key' and 'value') that are passed to the
+-- process function.  All trailing characters will be validated.  Any $VALUE
+-- token included in a pattern will be tried first with a quoted value capture
+-- group, then a single-word value capture group.  This is our kludge for Lua
+-- regex not supporting branching.
+--
+-- We have two special entries in this table: the first is the first entry,
+-- a full-line comment.  The second is for 'exec' handling.  Both have a single
+-- capture group, but the difference is that the full-line comment pattern will
+-- match the entire line.  This does not run afoul of the later end of line
+-- validation that we'll do after a match.  However, the 'exec' pattern will.
+-- We document the exceptions with a special 'groups' index that indicates
+-- the number of capture groups, if not two.  We'll use this later to do
+-- validation on the proper entry.
+--
 local pattern_table = {
 	{
-		str = "^%s*(#.*)",
+		str = "(#.*)",
 		process = function(_, _)  end,
+		groups = 1,
 	},
 	--  module_load="value"
 	{
-		str = "^%s*([%w_]+)_load%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_load%s*=%s*$VALUE",
 		process = function(k, v)
 			if modules[k] == nil then
 				modules[k] = {}
@@ -138,58 +182,59 @@ local pattern_table = {
 	},
 	--  module_name="value"
 	{
-		str = "^%s*([%w_]+)_name%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_name%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "name", v)
 		end,
 	},
 	--  module_type="value"
 	{
-		str = "^%s*([%w_]+)_type%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_type%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "type", v)
 		end,
 	},
 	--  module_flags="value"
 	{
-		str = "^%s*([%w_]+)_flags%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_flags%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "flags", v)
 		end,
 	},
 	--  module_before="value"
 	{
-		str = "^%s*([%w_]+)_before%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_before%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "before", v)
 		end,
 	},
 	--  module_after="value"
 	{
-		str = "^%s*([%w_]+)_after%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_after%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "after", v)
 		end,
 	},
 	--  module_error="value"
 	{
-		str = "^%s*([%w_]+)_error%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = MODULEEXPR .. "_error%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "error", v)
 		end,
 	},
 	--  exec="command"
 	{
-		str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = "exec%s*=%s*" .. QVALEXPR,
 		process = function(k, _)
 			if cli_execute_unparsed(k) ~= 0 then
 				print(MSG_FAILEXEC:format(k))
 			end
 		end,
+		groups = 1,
 	},
 	--  env_var="value"
 	{
-		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
+		str = "([%w%p]+)%s*=%s*$VALUE",
 		process = function(k, v)
 			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, v))
@@ -198,7 +243,7 @@ local pattern_table = {
 	},
 	--  env_var=num
 	{
-		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
+		str = "([%w%p]+)%s*=%s*(-?%d+)",
 		process = function(k, v)
 			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
@@ -317,7 +362,7 @@ local function readFile(name, silent)
 end
 
 local function checkNextboot()
-	local nextboot_file = loader.getenv("nextboot_file")
+	local nextboot_file = loader.getenv("nextboot_conf")
 	if nextboot_file == nil then
 		return
 	end
@@ -387,30 +432,30 @@ function config.parse(text)
 
 	for line in text:gmatch("([^\n]+)") do
 		if line:match("^%s*$") == nil then
-			local found = false
-
 			for _, val in ipairs(pattern_table) do
-				local k, v, c = line:match(val.str)
+				local pattern = '^%s*' .. val.str .. '%s*(.*)';
+				local cgroups = val.groups or 2
+				local k, v, c = checkPattern(line, pattern)
 				if k ~= nil then
-					found = true
+					-- Offset by one, drats
+					if cgroups == 1 then
+						c = v
+						v = nil
+					end
 
 					if isValidComment(c) then
 						val.process(k, v)
-					else
-						print(MSG_MALFORMED:format(n,
-						    line))
-						status = false
+						goto nextline
 					end
 
 					break
 				end
 			end
 
-			if not found then
-				print(MSG_MALFORMED:format(n, line))
-				status = false
-			end
+			print(MSG_MALFORMED:format(n, line))
+			status = false
 		end
+		::nextline::
 		n = n + 1
 	end
 
@@ -432,6 +477,21 @@ function config.loadKernel(other_kernel)
 			end
 		end
 		return nil
+	end
+
+	local function getModulePath()
+		local module_path = loader.getenv("module_path")
+		local kernel_path = loader.getenv("kernel_path")
+
+		if kernel_path == nil then
+			return module_path
+		end
+
+		-- Strip the loaded kernel path from module_path. This currently assumes
+		-- that the kernel path will be prepended to the module_path when it's
+		-- found.
+		kernel_path = escapeName(kernel_path .. ';')
+		return module_path:gsub(kernel_path, '')
 	end
 
 	local function loadBootfile()
@@ -462,7 +522,7 @@ function config.loadKernel(other_kernel)
 	else
 		-- Use our cached module_path, so we don't end up with multiple
 		-- automatically added kernel paths to our final module_path
-		local module_path = config.module_path
+		local module_path = getModulePath()
 		local res
 
 		if other_kernel ~= nil then
@@ -482,6 +542,7 @@ function config.loadKernel(other_kernel)
 				if module_path ~= nil then
 					loader.setenv("module_path", v .. ";" ..
 					    module_path)
+					loader.setenv("kernel_path", v)
 				end
 				return true
 			end
@@ -518,8 +579,6 @@ function config.load(file, reloading)
 
 	checkNextboot()
 
-	-- Cache the provided module_path at load time for later use
-	config.module_path = loader.getenv("module_path")
 	local verbose = loader.getenv("verbose_loading") or "no"
 	config.verbose = verbose:lower() == "yes"
 	if not reloading then
@@ -536,9 +595,17 @@ function config.reload(file)
 end
 
 function config.loadelf()
+	local xen_kernel = loader.getenv('xen_kernel')
 	local kernel = config.kernel_selected or config.kernel_loaded
 	local loaded
 
+	if xen_kernel ~= nil then
+		print(MSG_XENKERNLOADING)
+		if cli_execute_unparsed('load ' .. xen_kernel) ~= 0 then
+			print(MSG_XENKERNFAIL:format(xen_kernel))
+			return
+		end
+	end
 	print(MSG_KERNLOADING)
 	loaded = config.loadKernel(kernel)
 

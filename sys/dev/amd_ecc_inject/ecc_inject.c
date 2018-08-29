@@ -186,7 +186,7 @@ ecc_ei_inject(int count)
 	KASSERT(bit_mask != 0 && (bit_mask & ~INJ_VECTOR_MASK) == 0,
 	    ("bit mask value is outside of range: 0x%x", bit_mask));
 
-	memory = kmem_alloc_attr(kernel_arena, PAGE_SIZE, M_WAITOK, 0, ~0,
+	memory = kmem_alloc_attr(PAGE_SIZE, M_WAITOK, 0, ~0,
 	    VM_MEMATTR_UNCACHEABLE);
 
 	for (injected = 0; injected < count; injected++) {
@@ -195,7 +195,7 @@ ecc_ei_inject(int count)
 			pause_sbt("ecc_ei_inject", delay_ms * SBT_1MS, 0, 0);
 	}
 
-	kmem_free(kernel_arena, memory, PAGE_SIZE);
+	kmem_free(memory, PAGE_SIZE);
 }
 
 static int

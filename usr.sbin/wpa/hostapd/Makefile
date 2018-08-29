@@ -7,19 +7,25 @@
 	${WPA_DISTDIR}/src/drivers
 
 PROG=	hostapd
-SRCS=	accounting.c aes-omac1.c ap_config.c ap_drv_ops.c ap_mlme.c authsrv.c \
+SRCS=	accounting.c aes-omac1.c ap_config.c ap_drv_ops.c ap_list.c \
+	ap_mlme.c authsrv.c \
 	base64.c beacon.c bss_load.c chap.c common.c config_file.c \
 	ctrl_iface.c \
-	ctrl_iface_ap.c driver_common.c l2_packet_freebsd.c driver_bsd.c \
+	ctrl_iface_ap.c ctrl_iface_common.c dfs.c \
+	driver_common.c l2_packet_freebsd.c driver_bsd.c \
 	drivers.c drv_callbacks.c eap_common.c eap_peap_common.c \
 	eap_register.c eap_server.c eap_server_methods.c eap_user_db.c \
 	eapol_auth_dump.c eapol_auth_sm.c eloop.c gas.c gas_serv.c hostapd.c \
 	hs20.c http_client.c http_server.c httpread.c \
-	hw_features_common.c ieee802_11_auth.c \
-	ieee802_11_common.c ieee802_11_shared.c ieee802_1x.c ip_addr.c \
-	main.c ms_funcs.c os_unix.c peerkey_auth.c pmksa_cache_auth.c \
-	preauth_auth.c radius.c radius_client.c radius_das.c sta_info.c \
-	tkip_countermeasures.c upnp_xml.c utils.c uuid.c vlan_init.c \
+	hw_features.c hw_features_common.c \
+	ieee802_11.c ieee802_11_auth.c ieee802_11_common.c \
+	ieee802_11_shared.c ieee802_1x.c \
+	ip_addr.c \
+	main.c ms_funcs.c neighbor_db.c \
+	os_unix.c peerkey_auth.c pmksa_cache_auth.c \
+	preauth_auth.c radius.c radius_client.c radius_das.c rrm.c sta_info.c \
+	tkip_countermeasures.c upnp_xml.c utils.c uuid.c \
+	vlan.c vlan_ifconfig.c vlan_init.c wmm.c \
 	wpa_auth.c wpa_auth_glue.c wpa_auth_ie.c wpa_common.c wpa_debug.c \
 	wpabuf.c wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
 	wps_common.c wps_dev_attr.c wps_enrollee.c wps_hostapd.c \

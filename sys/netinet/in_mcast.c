@@ -231,8 +231,13 @@ static void inm_init(void)
 	taskqgroup_config_gtask_init(NULL, &free_gtask, inm_release_task, "inm release task");
 }
 
+#ifdef EARLY_AP_STARTUP
 SYSINIT(inm_init, SI_SUB_SMP + 1, SI_ORDER_FIRST,
 	inm_init, NULL);
+#else
+SYSINIT(inm_init, SI_SUB_ROOT_CONF - 1, SI_ORDER_FIRST,
+	inm_init, NULL);
+#endif
 
 
 void
@@ -258,7 +263,10 @@ inm_disconnect(struct in_multi *inm)
 	ifma = inm->inm_ifma;
 
 	if_ref(ifp);
-	CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+	if (ifma->ifma_flags & IFMA_F_ENQUEUED) {
+		CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+		ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+	}
 	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
 	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
 		MPASS(ifma != ll_ifma);
@@ -266,7 +274,10 @@ inm_disconnect(struct in_multi *inm)
 		MPASS(ll_ifma->ifma_llifma == NULL);
 		MPASS(ll_ifma->ifma_ifp == ifp);
 		if (--ll_ifma->ifma_refcount == 0) {
-			CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+			if (ll_ifma->ifma_flags & IFMA_F_ENQUEUED) {
+				CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+				ll_ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+			}
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);
 			ifma_restart = true;
@@ -1579,22 +1590,23 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	 * Begin state merge transaction at IGMP layer.
 	 */
 	IN_MULTI_LOCK();
-	IN_MULTI_LIST_LOCK();
 	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	IN_MULTI_LIST_LOCK();
 	error = inm_merge(inm, imf);
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
+		IN_MULTI_LIST_UNLOCK();
 		goto out_in_multi_locked;
 	}
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
 	error = igmp_change_state(inm);
+	IN_MULTI_LIST_UNLOCK();
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
 
 out_in_multi_locked:
 
-	IN_MULTI_UNLOCK();
 	IN_MULTI_UNLOCK();
 out_imf_rollback:
 	if (error)
@@ -1662,15 +1674,12 @@ inp_findmoptions(struct inpcb *inp)
 }
 
 static void
-inp_gcmoptions(epoch_context_t ctx)
+inp_gcmoptions(struct ip_moptions *imo)
 {
-	struct ip_moptions *imo;
 	struct in_mfilter	*imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
 	size_t			 idx, nmships;
-
-	imo =  __containerof(ctx, struct ip_moptions, imo_epoch_ctx);
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1707,7 +1716,7 @@ inp_freemoptions(struct ip_moptions *imo)
 {
 	if (imo == NULL)
 		return;
-	epoch_call(net_epoch_preempt, &imo->imo_epoch_ctx, inp_gcmoptions);
+	inp_gcmoptions(imo);
 }
 
 /*
@@ -2259,7 +2268,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
                             __func__);
                         IN_MULTI_LIST_UNLOCK();
 			goto out_imo_free;
-                }
+		}
+		inm_acquire(inm);
 		imo->imo_membership[idx] = inm;
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
@@ -2299,6 +2309,12 @@ out_in_multi_locked:
 
 out_imo_free:
 	if (error && is_new) {
+		inm = imo->imo_membership[idx];
+		if (inm != NULL) {
+			IN_MULTI_LIST_LOCK();
+			inm_release_deferred(inm);
+			IN_MULTI_LIST_UNLOCK();
+		}
 		imo->imo_membership[idx] = NULL;
 		--imo->imo_num_memberships;
 	}
@@ -2492,6 +2508,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error) {
 			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
 			    __func__);
+			IN_MULTI_LIST_UNLOCK();
 			goto out_in_multi_locked;
 		}
 
@@ -2736,12 +2753,12 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 
 	INP_WLOCK_ASSERT(inp);
 	IN_MULTI_LOCK();
-	IN_MULTI_LIST_LOCK();
 
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
 	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
+	IN_MULTI_LIST_LOCK();
 	error = inm_merge(inm, imf);
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);

@@ -30,7 +30,7 @@ makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+# options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
@@ -116,7 +116,11 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # options 	EARLY_PRINTF
 # options 	VERBOSE_SYSINIT
 
+# Kernel dump features.
+options		ZSTDIO			# zstd-compressed kernel and user dumps
+
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support

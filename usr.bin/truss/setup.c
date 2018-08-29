@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ptrace.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <assert.h>
@@ -522,12 +523,12 @@ print_line_prefix(struct trussinfo *info)
 		len += fprintf(info->outfile, ": ");
 	}
 	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&t->after, &info->start_time, &timediff);
+		timespecsub(&t->after, &info->start_time, &timediff);
 		len += fprintf(info->outfile, "%jd.%09ld ",
 		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
 	}
 	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&t->after, &t->before, &timediff);
+		timespecsub(&t->after, &t->before, &timediff);
 		len += fprintf(info->outfile, "%jd.%09ld ",
 		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
 	}

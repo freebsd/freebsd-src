@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
@@ -247,7 +248,7 @@ mmcsd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->mmcbus = mmcbus = device_get_parent(dev);
-	sc->mode = mmcbr_get_mode(mmcbus);
+	sc->mode = mmc_get_card_type(dev);
 	/*
 	 * Note that in principle with an SDHCI-like re-tuning implementation,
 	 * the maximum data size can change at runtime due to a device removal/
@@ -312,10 +313,7 @@ mmcsd_attach(device_t dev)
 	 * disabled.
 	 */
 	if (rev >= 6 && mmcsd_cache != 0) {
-		size = ext_csd[EXT_CSD_CACHE_SIZE] |
-		    ext_csd[EXT_CSD_CACHE_SIZE + 1] << 8 |
-		    ext_csd[EXT_CSD_CACHE_SIZE + 2] << 16 |
-		    ext_csd[EXT_CSD_CACHE_SIZE + 3] << 24;
+		size = le32dec(&ext_csd[EXT_CSD_CACHE_SIZE]);
 		if (bootverbose)
 			device_printf(dev, "cache size %juKB\n", size);
 		if (size > 0) {
@@ -361,10 +359,8 @@ mmcsd_attach(device_t dev)
 		size *= erase_size * wp_size;
 		if (size != mmc_get_media_size(dev) * sector_size) {
 			sc->enh_size = size;
-			sc->enh_base = (ext_csd[EXT_CSD_ENH_START_ADDR] +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 1] << 8) +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 2] << 16) +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 3] << 24)) *
+			sc->enh_base =
+			    le32dec(&ext_csd[EXT_CSD_ENH_START_ADDR]) *
 			    (sc->high_cap == 0 ? MMC_SECTOR_SIZE : 1);
 		} else if (bootverbose)
 			device_printf(dev,
@@ -1315,7 +1311,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.mrq = &req;
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_START;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_START;
@@ -1334,7 +1330,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_END;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_END;

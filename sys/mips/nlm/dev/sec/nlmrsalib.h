@@ -32,18 +32,12 @@
 #ifndef _NLMRSALIB_H_
 #define _NLMRSALIB_H_
 
-#define	XLP_RSA_SESSION(sid)	((sid) & 0x000007ff)
-#define	XLP_RSA_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
-
 #define	RSA_ERROR(msg0)		(((msg0) >> 53) & 0x1f)
 
 struct xlp_rsa_session {
-	uint32_t sessionid;
-	int hs_used;
 };
 
 struct xlp_rsa_command {
-	uint16_t session_num;
 	struct xlp_rsa_session *ses;
 	struct cryptkop *krp;
 	uint8_t *rsasrc;
@@ -59,8 +53,6 @@ struct xlp_rsa_softc {
 	device_t sc_dev;	/* device backpointer */
 	uint64_t rsa_base;
 	int sc_cid;
-	struct xlp_rsa_session *sc_sessions;
-	int sc_nsessions;
 	int rsaecc_vc_start;
 	int rsaecc_vc_end;
 };

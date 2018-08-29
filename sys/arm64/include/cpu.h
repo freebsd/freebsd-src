@@ -97,6 +97,8 @@
 #define	CPU_REV_THUNDERX_1_0	0x00
 #define	CPU_REV_THUNDERX_1_1	0x01
 
+#define	CPU_REV_THUNDERX2_0	0x00
+
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
 #define	CPU_VAR(midr)	(((midr) >> 20) & 0xf)

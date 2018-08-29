@@ -286,5 +286,8 @@ enum _ecore_status_t ecore_int_set_timer_res(struct ecore_hwfn *p_hwfn,
 #define ECORE_MAPPING_MEMORY_SIZE(dev) NUM_OF_SBS(dev)
 #endif
 
+enum _ecore_status_t ecore_pglueb_rbc_attn_handler(struct ecore_hwfn *p_hwfn,
+						   struct ecore_ptt *p_ptt);
+
 #endif /* __ECORE_INT_H__ */
 

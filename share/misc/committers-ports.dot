@@ -40,6 +40,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current ports committers go here. Try to keep things sorted.
 
+"0mp" [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2018/06/16"]
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
@@ -132,6 +133,7 @@ jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
+jhixson [label="John Hixson\njhixson@FreeBSD.org\n2018/07/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmd [label="Johannes M. Dieterich\njmd@FreeBSD.org\n2017/01/09"]
@@ -143,6 +145,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jrm [label="Joseph R. Mingrone\njrm@FreeBSD.org\n2016/09/17"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
+jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
@@ -225,6 +228,7 @@ sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n2014/09/14"]
 sbz [label="Sofian Brabez\nsbz@FreeBSD.org\n2011/03/14"]
 scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
+seanc [label="Sean Chittenden\nseanc@FreeBSD.org\n2002/08/15"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
@@ -291,6 +295,7 @@ amdmi3 -> arrowd
 
 antoine -> dumbbell
 
+araujo -> jhixson
 araujo -> lippe
 araujo -> pclin
 araujo -> pgollucci
@@ -468,6 +473,8 @@ jrm -> jwb
 
 junovitch -> tz
 
+kmoore -> jhixson
+
 knu -> daichi
 knu -> maho
 knu -> nobutaka
@@ -478,6 +485,7 @@ koobs -> kami
 koobs -> woodsb02
 koobs -> xmj
 
+krion -> "0mp"
 krion -> brooks
 krion -> miwi
 krion -> novel
@@ -523,6 +531,7 @@ makc -> bf
 makc -> jhale
 makc -> rakuco
 
+mat -> "0mp"
 mat -> bmah
 mat -> dteske
 mat -> dvl
@@ -551,7 +560,9 @@ miwi -> dhn
 miwi -> farrokhi
 miwi -> fluffy
 miwi -> gahr
+miwi -> jhixson
 miwi -> joneum
+miwi -> jsm
 miwi -> kmoore
 miwi -> lme
 miwi -> makc
@@ -657,6 +668,7 @@ swills -> dch
 swills -> feld
 swills -> jmd
 swills -> jrm
+swills -> jsm
 swills -> mfechner
 swills -> milki
 swills -> pclin

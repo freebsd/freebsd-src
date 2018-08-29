@@ -6,7 +6,7 @@ HOME=/root
 export HOME
 TERM=${TERM:-xterm}
 export TERM
-PAGER=more
+PAGER=less
 export PAGER
 
 # Query terminal size; useful for serial lines.

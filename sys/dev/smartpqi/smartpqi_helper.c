@@ -40,6 +40,28 @@ boolean_t pqisrc_ctrl_offline(pqisrc_softstate_t *softs)
 	return !softs->ctrl_online;
 }
 
+/* Function used set/clear legacy INTx bit in Legacy Interrupt INTx
+ * mask clear pqi register
+ */
+void pqisrc_configure_legacy_intx(pqisrc_softstate_t *softs, boolean_t enable_intx)
+{
+	uint32_t intx_mask;
+	uint32_t *reg_addr = NULL;
+	
+	DBG_FUNC("IN\n");
+	
+	if (enable_intx)
+		reg_addr = &softs->pqi_reg->legacy_intr_mask_clr;
+	else
+		reg_addr = &softs->pqi_reg->legacy_intr_mask_set;
+	
+	intx_mask = PCI_MEM_GET32(softs, reg_addr, PQI_LEGACY_INTR_MASK_CLR);
+	intx_mask |= PQISRC_LEGACY_INTX_MASK;
+	PCI_MEM_PUT32(softs, reg_addr, PQI_LEGACY_INTR_MASK_CLR ,intx_mask);
+	
+	DBG_FUNC("OUT\n");
+}
+
 /*
  * Function used to take exposed devices to OS as offline.
  */
@@ -213,7 +235,6 @@ static char *raid_levels[] = {
 	"RAID 5+1",
 	"RAID ADG",
 	"RAID 1(ADM)",
-	"RAID 6",
 };
 
 /* Get the RAID level from the index */

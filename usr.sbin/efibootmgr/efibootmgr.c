@@ -82,6 +82,7 @@ typedef struct _bmgr_opts {
 	bool    delete_bootnext;
 	bool    del_timeout;
 	bool    dry_run;
+	bool	has_bootnum;
 	bool    once;
 	int	cp_src;
 	bool    set_active;
@@ -170,7 +171,7 @@ set_bootvar(const char *name, uint8_t *data, size_t size)
 
 #define USAGE \
 	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n\
-  [-c -l loader [-k kernel ] [-L label] [--dry-run]]"
+  [-c -l loader [-k kernel ] [-L label] [--dry-run] [-b Bootvar]]"
 
 #define CREATE_USAGE \
 	"       efibootmgr -c -l loader [-k kernel] [-L label] [--dry-run]"
@@ -199,6 +200,10 @@ parse_args(int argc, char *argv[])
 			break;
 		case 'a':
 			opts.set_active = true;
+			opts.bootnum = strtoul(optarg, NULL, 16);
+			break;
+		case 'b':
+			opts.has_bootnum = true;
 			opts.bootnum = strtoul(optarg, NULL, 16);
 			break;
 		case 'B':
@@ -266,11 +271,6 @@ parse_args(int argc, char *argv[])
 			errx(1, "%s",CREATE_USAGE);
 		return;
 	}
-	if (opts.set_bootnext && !(opts.bootnum))
-		errx(1, "%s", BOOTNEXT_USAGE);
-
-	if ((opts.set_active ||  opts.set_inactive) && !(opts.bootnum))
-		errx(1, "%s", ACTIVE_USAGE);
 
 	if (opts.order && !(opts.order))
 		errx(1, "%s", ORDER_USAGE);
@@ -557,6 +557,22 @@ make_next_boot_var_name(void)
 	return name;
 }
 
+static char *
+make_boot_var_name(uint16_t bootnum)
+{
+	struct entry *v;
+	char *name;
+
+	LIST_FOREACH(v, &efivars, entries) {
+		if (v->idx == bootnum)
+			return NULL;
+	}
+
+	asprintf(&name, "%s%04X", "Boot", bootnum);
+	if (name == NULL)
+		err(1, "asprintf");
+	return name;
+}
 
 static size_t
 create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_t dp_size,
@@ -605,7 +621,8 @@ create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_
 
 
 static int
-make_boot_var(const char *label, const char *loader, const char *kernel, const char *env, bool dry_run)
+make_boot_var(const char *label, const char *loader, const char *kernel, const char *env, bool dry_run,
+	int bootnum)
 {
 	struct entry *new_ent;
 	uint32_t load_attrs = 0;
@@ -617,7 +634,10 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 
 	assert(label != NULL);
 
-	bootvar = make_next_boot_var_name();
+	if (bootnum == -1)
+		bootvar = make_next_boot_var_name();
+	else
+		bootvar = make_boot_var_name((uint16_t)bootnum);
 	if (bootvar == NULL)
 		err(1, "bootvar creation");
 	if (loader == NULL)
@@ -894,7 +914,8 @@ main(int argc, char *argv[])
 		 * side effect, adds to boot order, but not yet active.
 		 */
 		make_boot_var(opts.label ? opts.label : "",
-		    opts.loader, opts.kernel, opts.env, opts.dry_run);
+		    opts.loader, opts.kernel, opts.env, opts.dry_run,
+		    opts.has_bootnum ? opts.bootnum : -1);
 	else if (opts.set_active || opts.set_inactive )
 		handle_activity(opts.bootnum, opts.set_active);
 	else if (opts.order != NULL)

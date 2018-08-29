@@ -61,7 +61,7 @@ struct tasklet_worker {
 #define	TASKLET_WORKER_LOCK(tw) mtx_lock(&(tw)->mtx)
 #define	TASKLET_WORKER_UNLOCK(tw) mtx_unlock(&(tw)->mtx)
 
-static DPCPU_DEFINE(struct tasklet_worker, tasklet_worker);
+DPCPU_DEFINE_STATIC(struct tasklet_worker, tasklet_worker);
 
 static void
 tasklet_handler(void *arg)

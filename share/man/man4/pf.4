@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2013
+.Dd August 5, 2018
 .Dt PF 4
 .Os
 .Sh NAME
@@ -84,11 +84,11 @@ tunables are available.
 .It Va net.pf.states_hashsize
 Size of hash tables that store states.
 Should be power of 2.
-Default value is 32768.
+Default value is 131072.
 .It Va net.pf.source_nodes_hashsize
 Size of hash table that store source nodes.
 Should be power of 2.
-Default value is 8192.
+Default value is 32768.
 .El
 .Pp
 Read only
@@ -139,8 +139,9 @@ Clear the buffer address pool and get a
 .Va ticket
 for subsequent
 .Dv DIOCADDADDR ,
+.Dv DIOCADDRULE ,
 and
-.Dv DIOCADDRULE
+.Dv DIOCCHANGERULE
 calls.
 .It Dv DIOCADDADDR Fa "struct pfioc_pooladdr *pp"
 .Pp
@@ -148,6 +149,8 @@ Add the pool address
 .Va addr
 to the buffer address pool to be used in the following
 .Dv DIOCADDRULE
+or
+.Dv DIOCCHANGERULE
 call.
 All other members of the structure are ignored.
 .It Dv DIOCADDRULE Fa "struct pfioc_rule *pr"
@@ -316,6 +319,21 @@ This ioctl returns
 if the given anchor does not exist or
 .Er EBUSY
 if another process is concurrently updating a ruleset.
+.It Dv DIOCADDSTATE Fa "struct pfioc_state *ps"
+Add a state entry.
+.Bd -literal
+struct pfioc_state {
+	struct pfsync_state	state;
+};
+.Ed
+.It Dv DIOCGETSTATE Fa "struct pfioc_state *ps"
+Extract the entry identified by the
+.Va id
+and
+.Va creatorid
+fields of the
+.Va state
+structure from the state table.
 .It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in
@@ -421,6 +439,11 @@ On exit,
 is always set to the total size required to hold all state table entries
 (i.e., it is set to
 .Li sizeof(struct pf_state) * nr ) .
+.It Dv DIOCCHANGERULE Fa "struct pfioc_rule *pcr"
+Add or remove the
+.Va rule
+in the ruleset specified by
+.Va rule.action .
 .Pp
 The type of operation to be performed is indicated by
 .Va action ,
@@ -452,6 +475,15 @@ indicates the rule number against which
 or
 .Dv PF_CHANGE_REMOVE
 actions are applied.
+.\" It Dv DIOCCHANGEALTQ Fa "struct pfioc_altq *pcr"
+.It Dv DIOCCHANGEADDR Fa "struct pfioc_pooladdr *pca"
+Add or remove the pool address
+.Va addr
+from the rule specified by
+.Va r_action ,
+.Va r_num ,
+and
+.Va anchor .
 .It Dv DIOCSETTIMEOUT Fa "struct pfioc_tm *pt"
 .Bd -literal
 struct pfioc_tm {
@@ -478,6 +510,8 @@ Get the state timeout of
 The value will be placed into the
 .Va seconds
 field.
+.It Dv DIOCCLRRULECTRS
+Clear per-rule statistics.
 .It Dv DIOCSETLIMIT Fa "struct pfioc_limit *pl"
 Set the hard limits on the memory pools used by the packet filter.
 .Bd -literal

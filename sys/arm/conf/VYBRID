@@ -47,7 +47,6 @@ options 	NO_SWAPPING
 
 # Interrupt controller
 device		gic
-options 	INTRNG
 
 # ARM MPCore timer
 device		mpcore_timer

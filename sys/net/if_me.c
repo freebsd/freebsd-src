@@ -87,14 +87,14 @@ struct me_softc {
 CK_LIST_HEAD(me_list, me_softc);
 #define	ME2IFP(sc)		((sc)->me_ifp)
 #define	ME_READY(sc)		((sc)->me_src.s_addr != 0)
-#define	ME_RLOCK()		epoch_enter_preempt(net_epoch_preempt)
-#define	ME_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt)
+#define	ME_RLOCK()		struct epoch_tracker me_et; epoch_enter_preempt(net_epoch_preempt, &me_et)
+#define	ME_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &me_et)
 #define	ME_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
 #ifndef ME_HASH_SIZE
 #define	ME_HASH_SIZE	(1 << 4)
 #endif
-static VNET_DEFINE(struct me_list *, me_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct me_list *, me_hashtbl) = NULL;
 #define	V_me_hashtbl		VNET(me_hashtbl)
 #define	ME_HASH(src, dst)	(V_me_hashtbl[\
     me_hashval((src), (dst)) & (ME_HASH_SIZE - 1)])
@@ -104,7 +104,7 @@ SX_SYSINIT(me_ioctl_sx, &me_ioctl_sx, "me_ioctl");
 
 static int	me_clone_create(struct if_clone *, int, caddr_t);
 static void	me_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, me_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, me_cloner);
 #define	V_me_cloner	VNET(me_cloner)
 
 static void	me_qflush(struct ifnet *);
@@ -124,7 +124,7 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW, 0,
 #define MAX_ME_NEST 1
 #endif
 
-static VNET_DEFINE(int, max_me_nesting) = MAX_ME_NEST;
+VNET_DEFINE_STATIC(int, max_me_nesting) = MAX_ME_NEST;
 #define	V_max_me_nesting	VNET(max_me_nesting)
 SYSCTL_INT(_net_link_me, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_me_nesting), 0, "Max nested tunnels");
@@ -315,7 +315,7 @@ me_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_me_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip = mtod(m, const struct ip *);
 	CK_LIST_FOREACH(sc, &ME_HASH(ip->ip_dst.s_addr,
 	    ip->ip_src.s_addr), chain) {
@@ -455,36 +455,6 @@ drop:
 	return (IPPROTO_DONE);
 }
 
-#define	MTAG_ME	1414491977
-static int
-me_check_nesting(struct ifnet *ifp, struct mbuf *m)
-{
-	struct m_tag *mtag;
-	int count;
-
-	count = 1;
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_ME, 0, mtag)) != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
-			return (EIO);
-		}
-		count++;
-	}
-	if (count > V_max_me_nesting) {
-		log(LOG_NOTICE,
-		    "%s: if_output recursively called too many times(%d)\n",
-		    ifp->if_xname, count);
-		return (EIO);
-	}
-	mtag = m_tag_alloc(MTAG_ME, 0, sizeof(struct ifnet *), M_NOWAIT);
-	if (mtag == NULL)
-		return (ENOMEM);
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-	return (0);
-}
-
 static int
 me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
    struct route *ro __unused)
@@ -499,6 +469,7 @@ me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	return (ifp->if_transmit(ifp, m));
 }
 
+#define	MTAG_ME	1414491977
 static int
 me_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -519,7 +490,8 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (sc == NULL || !ME_READY(sc) ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
-	    (error = me_check_nesting(ifp, m) != 0)) {
+	    (error = if_tunnel_check_nesting(ifp, m, MTAG_ME,
+		V_max_me_nesting)) != 0) {
 		m_freem(m);
 		goto drop;
 	}

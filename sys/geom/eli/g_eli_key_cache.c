@@ -61,8 +61,6 @@ static uint64_t g_eli_key_cache_misses;
 SYSCTL_UQUAD(_kern_geom_eli, OID_AUTO, key_cache_misses, CTLFLAG_RW,
     &g_eli_key_cache_misses, 0, "Key cache misses");
 
-#endif /* _KERNEL */
-
 static int
 g_eli_key_cmp(const struct g_eli_key *a, const struct g_eli_key *b)
 {
@@ -73,6 +71,7 @@ g_eli_key_cmp(const struct g_eli_key *a, const struct g_eli_key *b)
 		return (-1);
 	return (0);
 }
+#endif /* _KERNEL */
 
 void
 g_eli_key_fill(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)

@@ -1,5 +1,7 @@
 # $FreeBSD$
 # All the dts files for allwinner systems we support.
+
+.if ${MACHINE_ARCH} == "armv7"
 DTS=	\
 	sun4i-a10-cubieboard.dts \
 	sun4i-a10-olinuxino-lime.dts \
@@ -12,6 +14,7 @@ DTS=	\
 	sun7i-a20-olimex-som-evb.dts \
 	sun7i-a20-pcduino3.dts \
 	sun8i-a83t-bananapi-m3.dts \
+	sun8i-h2-plus-orangepi-r1.dts \
 	sun8i-h2-plus-orangepi-zero.dts \
 	sun8i-h3-nanopi-m1.dts \
 	sun8i-h3-nanopi-m1-plus.dts \
@@ -32,5 +35,19 @@ LINKS= \
 	${DTBDIR}/sun7i-a20-pcduino3.dtb ${DTBDIR}/pcduino3.dtb \
 	${DTBDIR}/sun8i-a83t-bananapi-m3.dtb ${DTBDIR}/sinovoip-bpi-m3.dtb \
 	${DTBDIR}/sun8i-a83t-bananapi-m3.dtb ${DTBDIR}/sun8i-a83t-sinovoip-bpi-m3.dtb
+.elif ${MACHINE_ARCH} == "aarch64"
+DTS=	\
+	allwinner/sun50i-a64-nanopi-a64.dts \
+	allwinner/sun50i-a64-olinuxino.dts \
+	allwinner/sun50i-a64-pine64-plus.dts \
+	allwinner/sun50i-a64-pine64.dts \
+	allwinner/sun50i-a64-sopine-baseboard.dts \
+	allwinner/sun50i-h5-orangepi-pc2.dts
+
+DTSO=	sun50i-a64-sid.dtso \
+	sun50i-a64-ths.dtso \
+	sun50i-a64-timer.dtso
+
+.endif
 
 .include <bsd.dtb.mk>

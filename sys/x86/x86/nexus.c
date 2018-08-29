@@ -223,7 +223,7 @@ nexus_init_resources(void)
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
-	irq_rman.rm_end = NUM_IO_INTS - 1;
+	irq_rman.rm_end = num_io_irqs - 1;
 	if (rman_init(&irq_rman))
 		panic("nexus_init_resources irq_rman");
 
@@ -231,7 +231,7 @@ nexus_init_resources(void)
 	 * We search for regions of existing IRQs and add those to the IRQ
 	 * resource manager.
 	 */
-	for (irq = 0; irq < NUM_IO_INTS; irq++)
+	for (irq = 0; irq < num_io_irqs; irq++)
 		if (intr_lookup_source(irq) != NULL)
 			if (rman_manage_region(&irq_rman, irq, irq) != 0)
 				panic("nexus_init_resources irq_rman add");

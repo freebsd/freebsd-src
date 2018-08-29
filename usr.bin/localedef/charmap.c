@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <unistd.h>
 #include <stddef.h>
 #include <unistd.h>
 #include "localedef.h"

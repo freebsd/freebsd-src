@@ -86,6 +86,8 @@ struct ecore_queue_cid {
 	u32 cid;
 	u16 opaque_fid;
 
+	bool b_is_rx;
+
 	/* VFs queues are mapped differently, so we need to know the
 	 * relative queue associated with them [0-based].
 	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
@@ -118,6 +120,7 @@ void ecore_eth_queue_cid_release(struct ecore_hwfn *p_hwfn,
 struct ecore_queue_cid *
 ecore_eth_queue_to_cid(struct ecore_hwfn *p_hwfn, u16 opaque_fid,
 		       struct ecore_queue_start_common_params *p_params,
+		       bool b_is_rx,
 		       struct ecore_queue_cid_vf_params *p_vf_params);
 
 enum _ecore_status_t
@@ -162,4 +165,25 @@ ecore_eth_txq_start_ramrod(struct ecore_hwfn *p_hwfn,
 			   u16 pq_id);
 
 u8 ecore_mcast_bin_from_mac(u8 *mac);
+
+enum _ecore_status_t ecore_set_rxq_coalesce(struct ecore_hwfn *p_hwfn,
+					    struct ecore_ptt *p_ptt,
+					    u16 coalesce,
+					    struct ecore_queue_cid *p_cid);
+
+enum _ecore_status_t ecore_set_txq_coalesce(struct ecore_hwfn *p_hwfn,
+					    struct ecore_ptt *p_ptt,
+					    u16 coalesce,
+					    struct ecore_queue_cid *p_cid);
+
+enum _ecore_status_t ecore_get_rxq_coalesce(struct ecore_hwfn *p_hwfn,
+					    struct ecore_ptt *p_ptt,
+					    struct ecore_queue_cid *p_cid,
+					    u16 *p_hw_coal);
+
+enum _ecore_status_t ecore_get_txq_coalesce(struct ecore_hwfn *p_hwfn,
+					    struct ecore_ptt *p_ptt,
+					    struct ecore_queue_cid *p_cid,
+					    u16 *p_hw_coal);
+
 #endif

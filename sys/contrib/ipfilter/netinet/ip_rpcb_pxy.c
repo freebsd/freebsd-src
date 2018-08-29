@@ -80,7 +80,7 @@ static void     ipf_p_rpcb_fixlen __P((fr_info_t *, int));
  */
 static	frentry_t	rpcbfr;	/* Skeleton rule for reference by entities
 				   this proxy creates. */
-static	VNET_DEFINE(int,	rpcbcnt);
+VNET_DEFINE_STATIC(int,	rpcbcnt);
 #define	V_rpcbcnt		VNET(rpcbcnt)
 				/* Upper bound of allocated RPCB sessions. */
 				/* XXX rpcbcnt still requires locking. */

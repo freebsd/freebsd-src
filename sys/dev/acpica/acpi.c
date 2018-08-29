@@ -667,7 +667,7 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_disabled = TRUE;
 
     /* Create the control device */
-    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
+    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0664,
 			      "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
@@ -2220,6 +2220,15 @@ acpi_DeviceIsPresent(device_t dev)
 	if (h == NULL)
 		return (FALSE);
 	status = acpi_GetInteger(h, "_STA", &s);
+
+	/*
+	 * Onboard serial ports on certain AMD motherboards have an invalid _STA
+	 * method that always returns 0.  Force them to always be treated as present.
+	 *
+	 * This may solely be a quirk of a preproduction BIOS.
+	 */
+	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
+		return (TRUE);
 
 	/* If no _STA method, must be present */
 	if (ACPI_FAILURE(status))

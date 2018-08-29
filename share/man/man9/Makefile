@@ -123,6 +123,7 @@ MAN=	accept_filter.9 \
 	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
+	efirt.9 \
 	epoch.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
@@ -269,6 +270,7 @@ MAN=	accept_filter.9 \
 	psignal.9 \
 	random.9 \
 	random_harvest.9 \
+	ratecheck.9 \
 	redzone.9 \
 	refcount.9 \
 	resettodr.9 \
@@ -1673,6 +1675,7 @@ MLINKS+=random.9 arc4rand.9 \
 MLINKS+=random_harvest.9 random_harvest_direct.9 \
 	random_harvest.9 random_harvest_fast.9 \
 	random_harvest.9 random_harvest_queue.9
+MLINKS+=ratecheck.9 ppsratecheck.9
 MLINKS+=refcount.9 refcount_acquire.9 \
 	refcount.9 refcount_init.9 \
 	refcount.9 refcount_release.9

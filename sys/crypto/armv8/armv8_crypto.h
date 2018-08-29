@@ -42,9 +42,6 @@ struct armv8_crypto_session {
 	uint32_t dec_schedule[AES_SCHED_LEN/4];
 	int algo;
 	int rounds;
-	int used;
-	uint32_t id;
-	TAILQ_ENTRY(armv8_crypto_session) next;
 };
 
 void armv8_aes_encrypt_cbc(int, const void *, size_t, const uint8_t *,

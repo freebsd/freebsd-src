@@ -1873,7 +1873,7 @@ basedate_eval_string(
 		goto buildstamp;
 	}
 
-	rc = scanf(str, "%lu%n", &ned, &nc);
+	rc = sscanf(str, "%lu%n", &ned, &nc);
 	if (rc == 1 && (size_t)nc == sl) {
 		if (ned <= INT32_MAX)
 			return (int32_t)ned;

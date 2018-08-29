@@ -113,7 +113,7 @@ sysctl_mac_veriexec_db(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
-	mac_veriexec_print_db(&sb);
+	mac_veriexec_metadata_print_db(&sb);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 
@@ -550,6 +550,38 @@ mac_veriexec_vnode_check_open(struct ucred *cred, struct vnode *vp,
 }
 
 /**
+ * @brief Check mode changes on file to ensure they should be allowed.
+ *
+ * We cannot allow chmod of SUID or SGID on verified files.
+ *
+ * @param cred		credentials to use
+ * @param vp		vnode of the file to open
+ * @param label		vnode label assigned to the vnode
+ * @param mode		mode flags to set
+ *
+ * @return 0 if the mode change should be allowed, EAUTH otherwise.
+ */
+static int
+mac_veriexec_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
+    struct label *label __unused, mode_t mode)
+{
+	int error;
+
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	/*
+	 * Do not allow chmod (set-[gu]id) of verified file
+	 */
+	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
+	if (error == EAUTH)             /* it isn't verified */
+		return (0);
+	if (error == 0 && (mode & (S_ISUID|S_ISGID)) != 0)
+		return (EAUTH);
+	return (0);
+}
+
+/**
  * @internal
  * @brief Initialize the mac_veriexec MAC policy
  *
@@ -673,6 +705,7 @@ static struct mac_policy_ops mac_veriexec_ops =
 	.mpo_proc_check_debug = mac_veriexec_proc_check_debug,
 	.mpo_vnode_check_exec = mac_veriexec_vnode_check_exec,
 	.mpo_vnode_check_open = mac_veriexec_vnode_check_open,
+	.mpo_vnode_check_setmode = mac_veriexec_vnode_check_setmode,
 	.mpo_vnode_copy_label = mac_veriexec_copy_label,
 	.mpo_vnode_destroy_label = mac_veriexec_vnode_destroy_label,
 	.mpo_vnode_init_label = mac_veriexec_vnode_init_label,

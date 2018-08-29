@@ -364,13 +364,14 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 			goto inv_args;
 
 		if (wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq, 0, 0, 0,
-						  NULL, 0, 0)) {
+						  0, 0, NULL, 0, 0)) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
 			goto out;
 		}
-	} else if (wpas_p2p_group_add(wpa_s, persistent_group, freq, 0, 0))
+	} else if (wpas_p2p_group_add(wpa_s, persistent_group, freq, 0, 0, 0,
+				      0))
 		goto inv_args;
 
 out:
@@ -582,7 +583,7 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
 				   persistent_group, 0, join, authorize_only,
-				   go_intent, freq, -1, 0, 0, 0);
+				   go_intent, freq, 0, -1, 0, 0, 0, 0, NULL, 0);
 
 	if (new_pin >= 0) {
 		char npin[9];
@@ -733,8 +734,8 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 		if (ssid == NULL || ssid->disabled != 2)
 			goto err;
 
-		if (wpas_p2p_invite(wpa_s, peer_addr, ssid, NULL, 0, 0, 0, 0) <
-		    0) {
+		if (wpas_p2p_invite(wpa_s, peer_addr, ssid, NULL, 0, 0, 0, 0, 0,
+				    0) < 0) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
@@ -807,9 +808,9 @@ DBusMessage * wpas_dbus_handler_p2p_prov_disc_req(DBusMessage *message,
  * P2P Device property accessor methods.
  */
 
-dbus_bool_t wpas_dbus_getter_p2p_device_config(DBusMessageIter *iter,
-					       DBusError *error,
-					       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_device_config(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	DBusMessageIter variant_iter, dict_iter;
@@ -916,9 +917,9 @@ err_no_mem:
 }
 
 
-dbus_bool_t wpas_dbus_setter_p2p_device_config(DBusMessageIter *iter,
-					       DBusError *error,
-					       void *user_data)
+dbus_bool_t wpas_dbus_setter_p2p_device_config(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	DBusMessageIter variant_iter, iter_dict;
@@ -944,7 +945,8 @@ dbus_bool_t wpas_dbus_setter_p2p_device_config(DBusMessageIter *iter,
 		if (os_strcmp(entry.key, "DeviceName") == 0) {
 			char *devname;
 
-			if (entry.type != DBUS_TYPE_STRING)
+			if (entry.type != DBUS_TYPE_STRING ||
+			    os_strlen(entry.str_value) > WPS_DEV_NAME_MAX_LEN)
 				goto error;
 
 			devname = os_strdup(entry.str_value);
@@ -1087,8 +1089,9 @@ dbus_bool_t wpas_dbus_setter_p2p_device_config(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peers(DBusMessageIter *iter, DBusError *error,
-				       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peers(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	struct p2p_data *p2p = wpa_s->global->p2p;
@@ -1201,8 +1204,9 @@ static enum wpas_p2p_role wpas_get_p2p_role(struct wpa_supplicant *wpa_s)
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_role(DBusMessageIter *iter, DBusError *error,
-				      void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_role(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char *str;
@@ -1224,8 +1228,9 @@ dbus_bool_t wpas_dbus_getter_p2p_role(DBusMessageIter *iter, DBusError *error,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group(DBusMessageIter *iter, DBusError *error,
-				       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX];
@@ -1243,8 +1248,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group(DBusMessageIter *iter, DBusError *error,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peergo(DBusMessageIter *iter,
-					DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peergo(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char go_peer_obj_path[WPAS_DBUS_OBJECT_PATH_MAX], *path;
@@ -1271,9 +1277,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peergo(DBusMessageIter *iter,
  * Peer object properties accessor methods
  */
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_device_name(DBusMessageIter *iter,
-						  DBusError *error,
-						  void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_device_name(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1309,9 +1315,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_device_name(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_manufacturer(DBusMessageIter *iter,
-						   DBusError *error,
-						   void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_manufacturer(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1346,9 +1352,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_manufacturer(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_modelname(DBusMessageIter *iter,
-						DBusError *error,
-						void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelname(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1383,9 +1389,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_modelname(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_modelnumber(DBusMessageIter *iter,
-						  DBusError *error,
-						  void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelnumber(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1420,9 +1426,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_modelnumber(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_serialnumber(DBusMessageIter *iter,
-						   DBusError *error,
-						   void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_serialnumber(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1458,6 +1464,7 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_serialnumber(DBusMessageIter *iter,
 
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_primary_device_type(
+	const struct wpa_dbus_property_desc *property_desc,
 	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
@@ -1483,9 +1490,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_primary_device_type(
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_config_method(DBusMessageIter *iter,
-						    DBusError *error,
-						    void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_config_method(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1508,9 +1515,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_config_method(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_level(DBusMessageIter *iter,
-					    DBusError *error,
-					    void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_level(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1533,9 +1540,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_level(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_device_capability(DBusMessageIter *iter,
-							DBusError *error,
-							void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_device_capability(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1558,9 +1565,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_device_capability(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_group_capability(DBusMessageIter *iter,
-						       DBusError *error,
-						       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_group_capability(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1584,6 +1591,7 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_group_capability(DBusMessageIter *iter,
 
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_secondary_device_types(
+	const struct wpa_dbus_property_desc *property_desc,
 	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
@@ -1649,9 +1657,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_secondary_device_types(
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_vendor_extension(DBusMessageIter *iter,
-						       DBusError *error,
-						       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_vendor_extension(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpabuf *vendor_extension[P2P_MAX_WPS_VENDOR_EXT];
 	unsigned int i, num = 0;
@@ -1684,8 +1692,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_vendor_extension(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_ies(DBusMessageIter *iter,
-					  DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_ies(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1709,9 +1718,9 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_ies(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_device_address(DBusMessageIter *iter,
-						     DBusError *error,
-						     void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_device_address(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1774,9 +1783,9 @@ out_of_memory:
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_peer_groups(DBusMessageIter *iter,
-					     DBusError *error,
-					     void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_peer_groups(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct peer_handler_args *peer_args = user_data;
 	const struct p2p_peer_info *info;
@@ -1842,9 +1851,9 @@ out:
  *
  * Getter for "PersistentGroups" property.
  */
-dbus_bool_t wpas_dbus_getter_persistent_groups(DBusMessageIter *iter,
-					       DBusError *error,
-					       void *user_data)
+dbus_bool_t wpas_dbus_getter_persistent_groups(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	struct wpa_ssid *ssid;
@@ -1904,16 +1913,16 @@ out:
  *
  * Getter for "Properties" property of a persistent group.
  */
-dbus_bool_t wpas_dbus_getter_persistent_group_properties(DBusMessageIter *iter,
-							 DBusError *error,
-							 void *user_data)
+dbus_bool_t wpas_dbus_getter_persistent_group_properties(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct network_handler_args *net = user_data;
 
 	/* Leveraging the fact that persistent group object is still
 	 * represented in same manner as network within.
 	 */
-	return wpas_dbus_getter_network_properties(iter, error, net);
+	return wpas_dbus_getter_network_properties(property_desc, iter, error, net);
 }
 
 
@@ -1927,9 +1936,9 @@ dbus_bool_t wpas_dbus_getter_persistent_group_properties(DBusMessageIter *iter,
  *
  * Setter for "Properties" property of a persistent group.
  */
-dbus_bool_t wpas_dbus_setter_persistent_group_properties(DBusMessageIter *iter,
-							 DBusError *error,
-							 void *user_data)
+dbus_bool_t wpas_dbus_setter_persistent_group_properties(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct network_handler_args *net = user_data;
 	struct wpa_ssid *ssid = net->ssid;
@@ -2142,9 +2151,9 @@ DBusMessage * wpas_dbus_handler_remove_all_persistent_groups(
  * Group object properties accessor methods
  */
 
-dbus_bool_t wpas_dbus_getter_p2p_group_members(DBusMessageIter *iter,
-					       DBusError *error,
-					       void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_members(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	struct wpa_ssid *ssid;
@@ -2211,8 +2220,9 @@ out_of_memory:
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_ssid(DBusMessageIter *iter,
-					    DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_ssid(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 
@@ -2224,9 +2234,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_ssid(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_bssid(DBusMessageIter *iter,
-					     DBusError *error,
-					     void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_bssid(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	u8 role = wpas_get_p2p_role(wpa_s);
@@ -2248,9 +2258,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_bssid(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_frequency(DBusMessageIter *iter,
-						 DBusError *error,
-						 void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_frequency(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	u16 op_freq;
@@ -2271,9 +2281,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_frequency(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_passphrase(DBusMessageIter *iter,
-						  DBusError *error,
-						  void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_passphrase(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char *p_pass;
@@ -2292,8 +2302,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_passphrase(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_psk(DBusMessageIter *iter,
-					   DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_psk(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	u8 *p_psk = NULL;
@@ -2313,9 +2324,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_psk(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_getter_p2p_group_vendor_ext(DBusMessageIter *iter,
-						  DBusError *error,
-						  void *user_data)
+dbus_bool_t wpas_dbus_getter_p2p_group_vendor_ext(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	struct hostapd_data *hapd;
@@ -2348,9 +2359,9 @@ dbus_bool_t wpas_dbus_getter_p2p_group_vendor_ext(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_setter_p2p_group_vendor_ext(DBusMessageIter *iter,
-						  DBusError *error,
-						  void *user_data)
+dbus_bool_t wpas_dbus_setter_p2p_group_vendor_ext(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	DBusMessageIter variant_iter, iter_dict, array_iter, sub;
@@ -2876,8 +2887,9 @@ DBusMessage * wpas_dbus_handler_p2p_serv_disc_external(
 
 #ifdef CONFIG_WIFI_DISPLAY
 
-dbus_bool_t wpas_dbus_getter_global_wfd_ies(DBusMessageIter *iter,
-					    DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_getter_global_wfd_ies(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_global *global = user_data;
 	struct wpabuf *ie;
@@ -2898,8 +2910,9 @@ dbus_bool_t wpas_dbus_getter_global_wfd_ies(DBusMessageIter *iter,
 }
 
 
-dbus_bool_t wpas_dbus_setter_global_wfd_ies(DBusMessageIter *iter,
-					    DBusError *error, void *user_data)
+dbus_bool_t wpas_dbus_setter_global_wfd_ies(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_global *global = user_data;
 	DBusMessageIter variant, array;

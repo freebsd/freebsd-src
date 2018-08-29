@@ -33,7 +33,7 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 	clean		"cloudabi64_vdso_blob.o"
 #
 linux32_genassym.o		optional	compat_linux32		\
-	dependency 	"$S/amd64/linux32/linux32_genassym.c"		\
+	dependency 	"$S/amd64/linux32/linux32_genassym.c offset.inc"		\
 	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux32_genassym.o"
@@ -57,7 +57,7 @@ linux32_vdso.so		optional	compat_linux32			\
 	clean		"linux32_vdso.so"
 #
 ia32_genassym.o			standard				\
-	dependency 	"$S/compat/ia32/ia32_genassym.c"		\
+	dependency 	"$S/compat/ia32/ia32_genassym.c offset.inc"		\
 	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"ia32_genassym.o"
@@ -126,9 +126,9 @@ acpi_wakedata.h			optional	acpi			\
 	clean		"acpi_wakedata.h"
 #
 #amd64/amd64/apic_vector.S	standard
-amd64/amd64/atomic.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
+amd64/amd64/copyout.c		standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
@@ -745,6 +745,7 @@ x86/x86/nexus.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
+x86/x86/ucode.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xenhvm

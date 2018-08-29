@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.191 2018/02/21 21:26:00 christos Exp $
+ * @(#)$File: file.h,v 1.193 2018/05/24 18:09:17 christos Exp $
  */
 
 #ifndef __file_h__
@@ -413,6 +413,7 @@ struct magic_set {
 #define 		EVENT_HAD_ERR		0x01
 	const char *file;
 	size_t line;			/* current magic line number */
+	mode_t mode;			/* copy of current stat mode */
 
 	/* data for searches */
 	struct {
@@ -618,9 +619,9 @@ int enable_sandbox_full(void);
 protected const char *file_getprogname(void);
 protected void file_setprogname(const char *);
 protected void file_err(int, const char *, ...)
-    __attribute__((__format__(__printf__, 2, 3)));
+    __attribute__((__format__(__printf__, 2, 3), __noreturn__));
 protected void file_errx(int, const char *, ...)
-    __attribute__((__format__(__printf__, 2, 3)));
+    __attribute__((__format__(__printf__, 2, 3), __noreturn__));
 protected void file_warn(const char *, ...)
     __attribute__((__format__(__printf__, 1, 2)));
 protected void file_warnx(const char *, ...)

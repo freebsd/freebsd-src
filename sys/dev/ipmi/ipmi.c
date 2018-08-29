@@ -1053,6 +1053,8 @@ ipmi_unload(void *arg)
 	int		count;
 	int		i;
 
+	if (ipmi_devclass == NULL)
+		return;
 	if (devclass_get_devices(ipmi_devclass, &devs, &count) != 0)
 		return;
 	for (i = 0; i < count; i++)

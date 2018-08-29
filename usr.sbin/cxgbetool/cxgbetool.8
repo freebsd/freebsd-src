@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2018
+.Dd Aug 8, 2018
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@
 .It
 .Nm Ar nexus Cm filter Ar idx Ar filter-specification
 .It
-.Nm Ar nexus Cm filter Ar idx Cm delete
+.Nm Ar nexus Cm filter Ar idx Cm delete Op Cm prio Bro Cm 0 | 1 Brc
 .It
 .Nm Ar nexus Cm filter list
 .It
@@ -381,7 +381,7 @@ TCAM filters: The number of available filters is in
 dev.<nexus>.<instance>.nfilters.
 .Ar idx
 must be an unused index between 0 and nfilters - 1.
-IPv6 filters consume 4 consecutive entries on T4/T5 and and 2 on T6 and
+IPv6 filters consume 4 consecutive entries on T4/T5 and 2 on T6 and
 .Ar idx
 must be aligned to 4 or 2 in this case.
 .Pp

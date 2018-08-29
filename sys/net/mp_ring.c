@@ -327,7 +327,7 @@ ifmp_ring_free(struct ifmp_ring *r)
  */
 #ifdef NO_64BIT_ATOMICS
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
+ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -380,16 +380,24 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	 */
 	os.state = ns.state = r->state;
 	ns.pidx_tail = pidx_stop;
-	ns.flags = BUSY;
+	if (abdicate) {
+		if (os.flags == IDLE)
+			ns.flags = ABDICATED;
+	}
+	else {
+		ns.flags = BUSY;
+	}
 	r->state = ns.state;
 	counter_u64_add(r->enqueues, n);
 
-	/*
-	 * Turn into a consumer if some other thread isn't active as a consumer
-	 * already.
-	 */
-	if (os.flags != BUSY)
-		drain_ring_locked(r, ns, os.flags, budget);
+	if (!abdicate) {
+		/*
+		 * Turn into a consumer if some other thread isn't active as a consumer
+		 * already.
+		 */
+		if (os.flags != BUSY)
+			drain_ring_locked(r, ns, os.flags, budget);
+	}
 
 	mtx_unlock(&r->lock);
 	return (0);
@@ -397,7 +405,7 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 
 #else
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
+ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -455,11 +463,25 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget)
 	do {
 		os.state = ns.state = r->state;
 		ns.pidx_tail = pidx_stop;
-		if (os.flags == IDLE)
-			ns.flags = ABDICATED;
+		if (abdicate) {
+			if (os.flags == IDLE)
+				ns.flags = ABDICATED;
+		}
+		else {
+			ns.flags = BUSY;
+		}
 	} while (atomic_cmpset_rel_64(&r->state, os.state, ns.state) == 0);
 	critical_exit();
 	counter_u64_add(r->enqueues, n);
+
+	if (!abdicate) {
+		/*
+		 * Turn into a consumer if some other thread isn't active as a consumer
+		 * already.
+		 */
+		if (os.flags != BUSY)
+			drain_ring_lockless(r, ns, os.flags, budget);
+	}
 
 	return (0);
 }

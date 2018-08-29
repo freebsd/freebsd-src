@@ -451,7 +451,7 @@ tests_rfc5424() {
 	tmpdir_clean
 }
 
-echo 1..128
+echo 1..180
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
@@ -498,6 +498,12 @@ tests_normal_rotate ".gz"
 echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_normal_rotate ".bz2"
 
+echo "$LOGFPATH	640  3	   *	@T00  NCX" > newsyslog.conf
+tests_normal_rotate ".xz"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCY" > newsyslog.conf
+tests_normal_rotate ".zst"
+
 # Normal, archive dir
 echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
 tests_normal_rotate "" "${TMPDIR}/alog/"
@@ -507,6 +513,12 @@ tests_normal_rotate ".gz" "${TMPDIR}/alog/"
 
 echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_normal_rotate ".bz2" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCX" > newsyslog.conf
+tests_normal_rotate ".xz" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCY" > newsyslog.conf
+tests_normal_rotate ".zst" "${TMPDIR}/alog/"
 
 # Time based, no archive dir
 echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
@@ -518,6 +530,12 @@ tests_time_rotate "gz" ""
 echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_time_rotate "bz2" ""
 
+echo "$LOGFPATH	640  3	   *	@T00  NCX" > newsyslog.conf
+tests_time_rotate "xz" ""
+
+echo "$LOGFPATH	640  3	   *	@T00  NCY" > newsyslog.conf
+tests_time_rotate "zst" ""
+
 # Time based, archive dir
 echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
 tests_time_rotate "" "${TMPDIR}/alog/"
@@ -527,6 +545,12 @@ tests_time_rotate "gz" "${TMPDIR}/alog/"
 
 echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_time_rotate "bz2" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCX" > newsyslog.conf
+tests_time_rotate "xz" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCY" > newsyslog.conf
+tests_time_rotate "zst" "${TMPDIR}/alog/"
 
 # RFC-5424; Normal, no archive dir
 echo "$LOGFPATH5424	640  3	   *	@T00  NCT" > newsyslog.conf

@@ -620,7 +620,7 @@ sbbc_uart_sbbc_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_sbbc_class;
 	device_set_desc(dev, "Serengeti console");
-	return (uart_bus_probe(dev, 0, 0, 0, SBBC_PCI_BAR, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, SBBC_PCI_BAR, 0, 0));
 }
 
 /*

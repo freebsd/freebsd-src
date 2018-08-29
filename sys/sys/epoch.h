@@ -31,10 +31,9 @@
 #define _SYS_EPOCH_H_
 #ifdef _KERNEL
 #include <sys/lock.h>
-#include <sys/proc.h>
+#include <sys/pcpu.h>
 #endif
 
-struct thread;
 struct epoch;
 typedef struct epoch *epoch_t;
 
@@ -46,48 +45,49 @@ extern epoch_t global_epoch_preempt;
 
 struct epoch_context {
 	void   *data[2];
-}	__aligned(sizeof(void *));
+} __aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
 
+
+struct epoch_tracker {
+	void *datap[3];
+#ifdef EPOCH_TRACKER_DEBUG
+	int datai[5];
+#else
+	int datai[1];
+#endif
+}  __aligned(sizeof(void *));
+
+typedef struct epoch_tracker *epoch_tracker_t;
+
 epoch_t	epoch_alloc(int flags);
 void	epoch_free(epoch_t epoch);
-void	epoch_enter(epoch_t epoch);
-void	epoch_enter_preempt_internal(epoch_t epoch, struct thread *td);
-void	epoch_exit(epoch_t epoch);
-void	epoch_exit_preempt_internal(epoch_t epoch, struct thread *td);
 void	epoch_wait(epoch_t epoch);
 void	epoch_wait_preempt(epoch_t epoch);
 void	epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
-int	in_epoch(void);
-
+int	in_epoch(epoch_t epoch);
+int in_epoch_verbose(epoch_t epoch, int dump_onfail);
 #ifdef _KERNEL
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
+#define EPOCH_MAGIC0 0xFADECAFEF00DD00D
+#define EPOCH_MAGIC1 0xBADDBABEDEEDFEED
 
-static __inline void
-epoch_enter_preempt(epoch_t epoch)
-{
-	struct thread *td;
-	int nesting __unused;
+void epoch_enter_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
+void epoch_exit_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
+void epoch_enter_KBI(epoch_t epoch);
+void epoch_exit_KBI(epoch_t epoch);
 
-	td = curthread;
-	nesting = td->td_epochnest++;
-#ifndef INVARIANTS
-	if (nesting == 0)
-#endif
-		epoch_enter_preempt_internal(epoch, td);
-}
 
-static __inline void
-epoch_exit_preempt(epoch_t epoch)
-{
-	struct thread *td;
+#if defined(KLD_MODULE) && !defined(KLD_TIED)
+#define epoch_enter_preempt(e, t)	epoch_enter_preempt_KBI((e), (t))
+#define epoch_exit_preempt(e, t)	epoch_exit_preempt_KBI((e), (t))
+#define epoch_enter(e)	epoch_enter_KBI((e))
+#define epoch_exit(e)	epoch_exit_KBI((e))
+#else
+#include <sys/epoch_private.h>
+#endif /* KLD_MODULE */
 
-	td = curthread;
-	MPASS(td->td_epochnest);
-	if (td->td_epochnest-- == 1)
-		epoch_exit_preempt_internal(epoch, td);
-}
-#endif					/* _KERNEL */
+#endif /* _KERNEL */
 #endif

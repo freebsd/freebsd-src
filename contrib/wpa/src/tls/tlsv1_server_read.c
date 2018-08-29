@@ -46,6 +46,78 @@ static int testing_cipher_suite_filter(struct tlsv1_server *conn, u16 suite)
 }
 
 
+static void tls_process_status_request_item(struct tlsv1_server *conn,
+					    const u8 *req, size_t req_len)
+{
+	const u8 *pos, *end;
+	u8 status_type;
+
+	pos = req;
+	end = req + req_len;
+
+	/*
+	 * RFC 6961, 2.2:
+	 * struct {
+	 *   CertificateStatusType status_type;
+	 *   uint16 request_length;
+	 *   select (status_type) {
+	 *     case ocsp: OCSPStatusRequest;
+	 *     case ocsp_multi: OCSPStatusRequest;
+	 *   } request;
+	 * } CertificateStatusRequestItemV2;
+	 *
+	 * enum { ocsp(1), ocsp_multi(2), (255) } CertificateStatusType;
+	 */
+
+	if (end - pos < 1)
+		return; /* Truncated data */
+
+	status_type = *pos++;
+	wpa_printf(MSG_DEBUG, "TLSv1: CertificateStatusType %u", status_type);
+	if (status_type != 1 && status_type != 2)
+		return; /* Unsupported status type */
+	/*
+	 * For now, only OCSP stapling is supported, so ignore the specific
+	 * request, if any.
+	 */
+	wpa_hexdump(MSG_DEBUG, "TLSv1: OCSPStatusRequest", pos, end - pos);
+
+	if (status_type == 2)
+		conn->status_request_multi = 1;
+}
+
+
+static void tls_process_status_request_v2(struct tlsv1_server *conn,
+					  const u8 *ext, size_t ext_len)
+{
+	const u8 *pos, *end;
+
+	conn->status_request_v2 = 1;
+
+	pos = ext;
+	end = ext + ext_len;
+
+	/*
+	 * RFC 6961, 2.2:
+	 * struct {
+	 *   CertificateStatusRequestItemV2
+	 *                    certificate_status_req_list<1..2^16-1>;
+	 * } CertificateStatusRequestListV2;
+	 */
+
+	while (end - pos >= 2) {
+		u16 len;
+
+		len = WPA_GET_BE16(pos);
+		pos += 2;
+		if (len > end - pos)
+			break; /* Truncated data */
+		tls_process_status_request_item(conn, pos, len);
+		pos += len;
+	}
+}
+
+
 static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 				    const u8 *in_data, size_t *in_len)
 {
@@ -267,6 +339,11 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 						  ext_len);
 					conn->session_ticket_len = ext_len;
 				}
+			} else if (ext_type == TLS_EXT_STATUS_REQUEST) {
+				conn->status_request = 1;
+			} else if (ext_type == TLS_EXT_STATUS_REQUEST_V2) {
+				tls_process_status_request_v2(conn, pos,
+							      ext_len);
 			}
 
 			pos += ext_len;
@@ -467,6 +544,15 @@ static int tls_process_certificate(struct tlsv1_server *conn, u8 ct,
 			break;
 		}
 		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL, tls_reason);
+		x509_certificate_chain_free(chain);
+		return -1;
+	}
+
+	if (chain && (chain->extensions_present & X509_EXT_EXT_KEY_USAGE) &&
+	    !(chain->ext_key_usage &
+	      (X509_EXT_KEY_USAGE_ANY | X509_EXT_KEY_USAGE_CLIENT_AUTH))) {
+		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+				   TLS_ALERT_BAD_CERTIFICATE);
 		x509_certificate_chain_free(chain);
 		return -1;
 	}

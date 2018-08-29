@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -664,30 +665,6 @@ octeon_boot_params_init(register_t ptr)
 }
 /* impEND: This stuff should move back into the Cavium SDK */
 
-static void
-boothowto_parse(const char *v)
-{
-	if ((v == NULL) || (*v != '-'))
-		return;
-
-	while (*v != '\0') {
-		v++;
-		switch (*v) {
-		case 'a': boothowto |= RB_ASKNAME; break;
-		case 'C': boothowto |= RB_CDROM; break;
-		case 'd': boothowto |= RB_KDB; break;
-		case 'D': boothowto |= RB_MULTIPLE; break;
-		case 'm': boothowto |= RB_MUTE; break;
-		case 'g': boothowto |= RB_GDB; break;
-		case 'h': boothowto |= RB_SERIAL; break;
-		case 'p': boothowto |= RB_PAUSE; break;
-		case 'r': boothowto |= RB_DFLTROOT; break;
-		case 's': boothowto |= RB_SINGLE; break;
-		case 'v': boothowto |= RB_VERBOSE; break;
-		}
-	}
-}
-
 /*
  * The boot loader command line may specify kernel environment variables or
  * applicable boot flags of boot(8).
@@ -709,7 +686,7 @@ octeon_init_kenv(register_t ptr)
 		if (v == NULL)
 			continue;
 		if (*v == '-') {
-			boothowto_parse(v);
+			boothowto |= boot_parse_arg(v);
 			continue;
 		}
 		n = strsep(&v, "=");

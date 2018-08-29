@@ -30,6 +30,7 @@ for i in ${pftests} ; do
     atf_test_case "pf${i}"
     eval "pf${i}_head () { atf_set descr \"$(pf${i}_descr)\" ; }"
     eval "pf${i}_body () { \
+              kldstat -m pf || atf_skip \"pf(4) is not loaded\" && \
               cd $(atf_get_srcdir)/files && \
               atf_check -o file:pf${i}.ok \
                   pfctl -o none -nvf - < pf${i}.in ; }"

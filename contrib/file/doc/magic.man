@@ -1,5 +1,6 @@
-.\" $File: magic.man,v 1.92 2017/11/04 01:11:32 christos Exp $
-.Dd Noveber 3, 2017
+.It S2
+.\" $File: magic.man,v 1.93 2018/06/22 20:39:49 christos Exp $
+.Dd June 22, 2018
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -553,12 +554,12 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (( x [[.,][bislBISL]][+\-][ y ]) .
+.Em (( x [[.,][bBcCeEfFgGhHiIlmsSqQ]][+\-][ y ]) .
 The value of
 .Em x
 is used as an offset in the file.
 A byte, id3 length, short or long is read at that offset depending on the
-.Em [bislBISLm]
+.Em [bBcCeEfFgGhHiIlmsSqQ]
 type specifier.
 The value is treated as signed if
 .Dq ,
@@ -575,6 +576,20 @@ To that number the value of
 .Em y
 is added and the result is used as an offset in the file.
 The default type if one is not specified is long.
+The following types are recognized:
+.Bl -column -offset indent "Type" "Half/Short" "Little" "Size"
+.It Sy Type	Sy Mnemonic	Sy Endian	Sy Size
+.It bcBc	Byte/Char	N/A	1
+.It efg	Double	Little	8
+.It EFG	Double	Big	8
+.It hs	Half/Short	Little	2
+.It HS	Half/Short	Big	2
+.It i	ID3	Little	4
+.It I	ID3	Big	4
+.It m	Middle	Middle	4
+.It q	Quad	Little	8
+.It Q	Quad	Big	8
+.El
 .Pp
 That way variable length structures can be examined:
 .Bd -literal -offset indent

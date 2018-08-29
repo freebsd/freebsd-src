@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "ecore_gtt_reg_addr.h"
 #include "ecore_iro.h"
 #ifdef CONFIG_ECORE_ROCE
-#include "ecore_roce.h"
+#include "ecore_rdma.h"
 #endif
 #include "ecore_iov_api.h"
 
@@ -194,46 +194,61 @@ ecore_dcbx_dp_protocol(struct ecore_hwfn *p_hwfn,
 	}
 }
 
+u8 ecore_dcbx_get_dscp_value(struct ecore_hwfn *p_hwfn, u8 pri)
+{
+	struct ecore_dcbx_dscp_params *dscp = &p_hwfn->p_dcbx_info->get.dscp;
+	u8 i;
+
+	if (!dscp->enabled)
+		return ECORE_DCBX_DSCP_DISABLED;
+
+	for (i = 0; i < ECORE_DCBX_DSCP_SIZE; i++)
+		if (pri == dscp->dscp_pri_map[i])
+			return i;
+
+	return ECORE_DCBX_DSCP_DISABLED;
+}
+
 static void
 ecore_dcbx_set_params(struct ecore_dcbx_results *p_data,
-		      struct ecore_hwfn *p_hwfn,
+		      struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		      bool enable, u8 prio, u8 tc,
 		      enum dcbx_protocol_type type,
 		      enum ecore_pci_personality personality)
 {
-	struct ecore_dcbx_dscp_params *dscp = &p_hwfn->p_dcbx_info->get.dscp;
-
 	/* PF update ramrod data */
 	p_data->arr[type].enable = enable;
 	p_data->arr[type].priority = prio;
 	p_data->arr[type].tc = tc;
-	p_data->arr[type].dscp_enable = dscp->enabled;
-	if (p_data->arr[type].dscp_enable) {
-		u8 i;
+	p_data->arr[type].dscp_val = ecore_dcbx_get_dscp_value(p_hwfn, prio);
+	if (p_data->arr[type].dscp_val == ECORE_DCBX_DSCP_DISABLED) {
+		p_data->arr[type].dscp_enable = false;
+		p_data->arr[type].dscp_val = 0;
+	} else
+		p_data->arr[type].dscp_enable = enable;
 
-		for (i = 0; i < ECORE_DCBX_DSCP_SIZE; i++)
-			if (prio == dscp->dscp_pri_map[i]) {
-				p_data->arr[type].dscp_val = i;
-				break;
-			}
-	}
+	p_data->arr[type].update = UPDATE_DCB_DSCP;
 
-	if (enable && p_data->arr[type].dscp_enable)
-		p_data->arr[type].update = UPDATE_DCB_DSCP;
-	else if (enable)
-		p_data->arr[type].update = UPDATE_DCB;
-	else
-		p_data->arr[type].update = DONT_UPDATE_DCB_DSCP;
+	/* Do not add valn tag 0 when DCB is enabled and port is in UFP mode */
+	if (OSAL_TEST_BIT(ECORE_MF_UFP_SPECIFIC, &p_hwfn->p_dev->mf_bits))
+		p_data->arr[type].dont_add_vlan0 = true;
 
 	/* QM reconf data */
 	if (p_hwfn->hw_info.personality == personality)
 		p_hwfn->hw_info.offload_tc = tc;
+
+	/* Configure dcbx vlan priority in doorbell block for roce EDPM */
+	if (OSAL_TEST_BIT(ECORE_MF_UFP_SPECIFIC, &p_hwfn->p_dev->mf_bits) &&
+	    (type == DCBX_PROTOCOL_ROCE)) {
+		ecore_wr(p_hwfn, p_ptt, DORQ_REG_TAG1_OVRD_MODE, 1);
+		ecore_wr(p_hwfn, p_ptt, DORQ_REG_PF_PCP_BB_K2, prio << 1);
+	}
 }
 
 /* Update app protocol data and hw_info fields with the TLV info */
 static void
 ecore_dcbx_update_app_info(struct ecore_dcbx_results *p_data,
-			   struct ecore_hwfn *p_hwfn,
+			   struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 			   bool enable, u8 prio, u8 tc,
 			   enum dcbx_protocol_type type)
 {
@@ -249,7 +264,7 @@ ecore_dcbx_update_app_info(struct ecore_dcbx_results *p_data,
 
 		personality = ecore_dcbx_app_update[i].personality;
 
-		ecore_dcbx_set_params(p_data, p_hwfn, enable,
+		ecore_dcbx_set_params(p_data, p_hwfn, p_ptt, enable,
 				      prio, tc, type, personality);
 	}
 }
@@ -302,27 +317,27 @@ ecore_dcbx_get_app_protocol_type(struct ecore_hwfn *p_hwfn,
 		*type = DCBX_PROTOCOL_IWARP;
 	} else {
 		*type = DCBX_MAX_PROTOCOL_TYPE;
-		DP_ERR(p_hwfn,
-		       "No action required, App TLV id = 0x%x app_prio_bitmap = 0x%x\n",
-		       id, app_prio_bitmap);
+		DP_VERBOSE(p_hwfn, ECORE_MSG_DCB,
+			   "No action required, App TLV entry = 0x%x\n",
+			   app_prio_bitmap);
 		return false;
 	}
 
 	return true;
 }
 
-/*  Parse app TLV's to update TC information in hw_info structure for
+/* Parse app TLV's to update TC information in hw_info structure for
  * reconfiguring QM. Get protocol specific data for PF update ramrod command.
  */
 static enum _ecore_status_t
-ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
+ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		       struct ecore_dcbx_results *p_data,
 		       struct dcbx_app_priority_entry *p_tbl, u32 pri_tc_tbl,
 		       int count, u8 dcbx_version)
 {
 	enum dcbx_protocol_type type;
+	bool enable, ieee, eth_tlv;
 	u8 tc, priority_map;
-	bool enable, ieee;
 	u16 protocol_id;
 	u8 priority;
 	enum _ecore_status_t rc = ECORE_SUCCESS;
@@ -333,6 +348,7 @@ ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
 		   count, pri_tc_tbl, dcbx_version);
 
 	ieee = (dcbx_version == DCBX_CONFIG_VERSION_IEEE);
+	eth_tlv = false;
 	/* Parse APP TLV */
 	for (i = 0; i < count; i++) {
 		protocol_id = GET_MFW_FIELD(p_tbl[i].entry,
@@ -356,12 +372,21 @@ ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
 			 * indication, but we only got here if there was an
 			 * app tlv for the protocol, so dcbx must be enabled.
 			 */
-			enable = !(type == DCBX_PROTOCOL_ETH);
+			if (type == DCBX_PROTOCOL_ETH) {
+				enable = false;
+				eth_tlv = true;
+			} else
+				enable = true;
 
-			ecore_dcbx_update_app_info(p_data, p_hwfn, enable,
-						   priority, tc, type);
+			ecore_dcbx_update_app_info(p_data, p_hwfn, p_ptt,
+						   enable, priority, tc, type);
 		}
 	}
+
+	/* If Eth TLV is not detected, use UFP TC as default TC */
+	if (OSAL_TEST_BIT(ECORE_MF_UFP_SPECIFIC,
+			  &p_hwfn->p_dev->mf_bits) && !eth_tlv)
+		p_data->arr[DCBX_PROTOCOL_ETH].tc = p_hwfn->ufp_info.tc;
 
 	/* Update ramrod protocol data and hw_info fields
 	 * with default info when corresponding APP TLV's are not detected.
@@ -375,8 +400,8 @@ ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
 		if (p_data->arr[type].update)
 			continue;
 
-		enable = (type == DCBX_PROTOCOL_ETH) ? false : !!dcbx_version;
-		ecore_dcbx_update_app_info(p_data, p_hwfn, enable,
+		/* if no app tlv was present, don't override in FW */
+		ecore_dcbx_update_app_info(p_data, p_hwfn, p_ptt, false,
 					   priority, tc, type);
 	}
 
@@ -387,7 +412,7 @@ ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
  * reconfiguring QM. Get protocol specific data for PF update ramrod command.
  */
 static enum _ecore_status_t
-ecore_dcbx_process_mib_info(struct ecore_hwfn *p_hwfn)
+ecore_dcbx_process_mib_info(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
 {
 	struct dcbx_app_priority_feature *p_app;
 	struct dcbx_app_priority_entry *p_tbl;
@@ -411,7 +436,7 @@ ecore_dcbx_process_mib_info(struct ecore_hwfn *p_hwfn)
 	p_info = &p_hwfn->hw_info;
 	num_entries = GET_MFW_FIELD(p_app->flags, DCBX_APP_NUM_ENTRIES);
 
-	rc = ecore_dcbx_process_tlv(p_hwfn, &data, p_tbl, pri_tc_tbl,
+	rc = ecore_dcbx_process_tlv(p_hwfn, p_ptt, &data, p_tbl, pri_tc_tbl,
 				    num_entries, dcbx_version);
 	if (rc != ECORE_SUCCESS)
 		return rc;
@@ -448,6 +473,12 @@ ecore_dcbx_copy_mib(struct ecore_hwfn *p_hwfn,
 					  p_data->addr, p_data->size);
 			prefix_seq_num = p_data->lldp_remote->prefix_seq_num;
 			suffix_seq_num = p_data->lldp_remote->suffix_seq_num;
+		} else if (type == ECORE_DCBX_LLDP_TLVS) {
+			ecore_memcpy_from(p_hwfn, p_ptt, p_data->lldp_tlvs,
+					  p_data->addr, p_data->size);
+			prefix_seq_num = p_data->lldp_tlvs->prefix_seq_num;
+			suffix_seq_num = p_data->lldp_tlvs->suffix_seq_num;
+
 		} else {
 			ecore_memcpy_from(p_hwfn, p_ptt, p_data->mib,
 					  p_data->addr, p_data->size);
@@ -527,7 +558,7 @@ ecore_dcbx_get_app_data(struct ecore_hwfn *p_hwfn,
 	p_params->app_error = GET_MFW_FIELD(p_app->flags, DCBX_APP_ERROR);
 	p_params->num_app_entries = GET_MFW_FIELD(p_app->flags,
 						  DCBX_APP_NUM_ENTRIES);
-	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
+	for (i = 0; i < p_params->num_app_entries; i++) {
 		entry = &p_params->app_entry[i];
 		if (ieee) {
 			u8 sf_ieee;
@@ -685,7 +716,32 @@ ecore_dcbx_get_remote_params(struct ecore_hwfn *p_hwfn,
 	params->remote.valid = true;
 }
 
-static enum _ecore_status_t
+static void  ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
+					struct ecore_dcbx_get *params)
+{
+	struct ecore_dcbx_dscp_params *p_dscp;
+	struct dcb_dscp_map *p_dscp_map;
+	int i, j, entry;
+	u32 pri_map;
+
+	p_dscp = &params->dscp;
+	p_dscp_map = &p_hwfn->p_dcbx_info->dscp_map;
+	p_dscp->enabled = GET_MFW_FIELD(p_dscp_map->flags, DCB_DSCP_ENABLE);
+
+	/* MFW encodes 64 dscp entries into 8 element array of u32 entries,
+	 * where each entry holds the 4bit priority map for 8 dscp entries.
+	 */
+	for (i = 0, entry = 0; i < ECORE_DCBX_DSCP_SIZE / 8; i++) {
+		pri_map = p_dscp_map->dscp_pri_map[i];
+		DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "elem %d pri_map 0x%x\n",
+			   entry, pri_map);
+		for (j = 0; j < ECORE_DCBX_DSCP_SIZE / 8; j++, entry++)
+			p_dscp->dscp_pri_map[entry] = (u32)(pri_map >>
+							   (j * 4)) & 0xf;
+	}
+}
+
+static void
 ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 				  struct ecore_dcbx_get *params)
 {
@@ -708,7 +764,7 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 		p_operational->enabled = enabled;
 		p_operational->valid = false;
 		DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "Dcbx is disabled\n");
-		return ECORE_INVAL;
+		return;
 	}
 
 	p_feat = &p_hwfn->p_dcbx_info->operational.features;
@@ -741,33 +797,6 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 	p_operational->err = err;
 	p_operational->enabled = enabled;
 	p_operational->valid = true;
-
-	return ECORE_SUCCESS;
-}
-
-static void  ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
-					struct ecore_dcbx_get *params)
-{
-	struct ecore_dcbx_dscp_params *p_dscp;
-	struct dcb_dscp_map *p_dscp_map;
-	int i, j, entry;
-	u32 pri_map;
-
-	p_dscp = &params->dscp;
-	p_dscp_map = &p_hwfn->p_dcbx_info->dscp_map;
-	p_dscp->enabled = GET_MFW_FIELD(p_dscp_map->flags, DCB_DSCP_ENABLE);
-
-	/* MFW encodes 64 dscp entries into 8 element array of u32 entries,
-	 * where each entry holds the 4bit priority map for 8 dscp entries.
-	 */
-	for (i = 0, entry = 0; i < ECORE_DCBX_DSCP_SIZE / 8; i++) {
-		pri_map = OSAL_BE32_TO_CPU(p_dscp_map->dscp_pri_map[i]);
-		DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "elem %d pri_map 0x%x\n",
-			   entry, pri_map);
-		for (j = 0; j < ECORE_DCBX_DSCP_SIZE / 8; j++, entry++)
-			p_dscp->dscp_pri_map[entry] = (u32)(pri_map >>
-							   (j * 4)) & 0xf;
-	}
 }
 
 static void ecore_dcbx_get_local_lldp_params(struct ecore_hwfn *p_hwfn,
@@ -779,9 +808,9 @@ static void ecore_dcbx_get_local_lldp_params(struct ecore_hwfn *p_hwfn,
 
 	OSAL_MEMCPY(params->lldp_local.local_chassis_id,
 		    p_local->local_chassis_id,
-		    OSAL_ARRAY_SIZE(p_local->local_chassis_id));
+		    sizeof(params->lldp_local.local_chassis_id));
 	OSAL_MEMCPY(params->lldp_local.local_port_id, p_local->local_port_id,
-		    OSAL_ARRAY_SIZE(p_local->local_port_id));
+		    sizeof(params->lldp_local.local_port_id));
 }
 
 static void ecore_dcbx_get_remote_lldp_params(struct ecore_hwfn *p_hwfn,
@@ -793,9 +822,9 @@ static void ecore_dcbx_get_remote_lldp_params(struct ecore_hwfn *p_hwfn,
 
 	OSAL_MEMCPY(params->lldp_remote.peer_chassis_id,
 		    p_remote->peer_chassis_id,
-		    OSAL_ARRAY_SIZE(p_remote->peer_chassis_id));
+		    sizeof(params->lldp_remote.peer_chassis_id));
 	OSAL_MEMCPY(params->lldp_remote.peer_port_id, p_remote->peer_port_id,
-		    OSAL_ARRAY_SIZE(p_remote->peer_port_id));
+		    sizeof(params->lldp_remote.peer_port_id));
 }
 
 static enum _ecore_status_t
@@ -975,7 +1004,7 @@ ecore_dcbx_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 	if (type == ECORE_DCBX_OPERATIONAL_MIB) {
 		ecore_dcbx_get_dscp_params(p_hwfn, &p_hwfn->p_dcbx_info->get);
 
-		rc = ecore_dcbx_process_mib_info(p_hwfn);
+		rc = ecore_dcbx_process_mib_info(p_hwfn, p_ptt);
 		if (!rc) {
 			/* reconfigure tcs of QM queues according
 			 * to negotiation results
@@ -1001,10 +1030,18 @@ ecore_dcbx_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		struct ecore_dcbx_results *p_data;
 		u16 val;
 
-		/* Update the DSCP to TC mapping bit if required */
+		/* Update the DSCP to TC mapping enable bit if required */
 		if (p_hwfn->p_dcbx_info->dscp_nig_update) {
-			ecore_wr(p_hwfn, p_ptt, NIG_REG_DSCP_TO_TC_MAP_ENABLE,
-				 0x1);
+			u8 val = !!p_hwfn->p_dcbx_info->get.dscp.enabled;
+			u32 addr = NIG_REG_DSCP_TO_TC_MAP_ENABLE;
+
+			rc = ecore_all_ppfids_wr(p_hwfn, p_ptt, addr, val);
+			if (rc != ECORE_SUCCESS) {
+				DP_NOTICE(p_hwfn, false,
+					  "Failed to update the DSCP to TC mapping enable bit\n");
+				return rc;
+			}
+
 			p_hwfn->p_dcbx_info->dscp_nig_update = false;
 		}
 
@@ -1026,17 +1063,19 @@ ecore_dcbx_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 
 enum _ecore_status_t ecore_dcbx_info_alloc(struct ecore_hwfn *p_hwfn)
 {
+#ifndef __EXTRACT__LINUX__
 	OSAL_BUILD_BUG_ON(ECORE_LLDP_CHASSIS_ID_STAT_LEN !=
 			  LLDP_CHASSIS_ID_STAT_LEN);
 	OSAL_BUILD_BUG_ON(ECORE_LLDP_PORT_ID_STAT_LEN !=
 			  LLDP_PORT_ID_STAT_LEN);
 	OSAL_BUILD_BUG_ON(ECORE_DCBX_MAX_APP_PROTOCOL !=
 			  DCBX_MAX_APP_PROTOCOL);
+#endif
 
 	p_hwfn->p_dcbx_info = OSAL_ZALLOC(p_hwfn->p_dev, GFP_KERNEL,
 					  sizeof(*p_hwfn->p_dcbx_info));
 	if (!p_hwfn->p_dcbx_info) {
-		DP_NOTICE(p_hwfn, true,
+		DP_NOTICE(p_hwfn, false,
 			  "Failed to allocate `struct ecore_dcbx_info'");
 		return ECORE_NOMEM;
 	}
@@ -1062,6 +1101,7 @@ static void ecore_dcbx_update_protocol_data(struct protocol_dcb_data *p_data,
 	p_data->dcb_tc = p_src->arr[type].tc;
 	p_data->dscp_enable_flag = p_src->arr[type].dscp_enable;
 	p_data->dscp_val = p_src->arr[type].dscp_val;
+	p_data->dcb_dont_add_vlan0 = p_src->arr[type].dont_add_vlan0;
 }
 
 /* Set pf update ramrod command params */
@@ -1070,8 +1110,6 @@ void ecore_dcbx_set_pf_update_params(struct ecore_dcbx_results *p_src,
 {
 	struct protocol_dcb_data *p_dcb_data;
 	u8 update_flag;
-
-	p_dest->pf_id = p_src->pf_id;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_FCOE].update;
 	p_dest->update_fcoe_dcb_data_mode = update_flag;
@@ -1115,15 +1153,14 @@ enum _ecore_status_t ecore_dcbx_query_params(struct ecore_hwfn *p_hwfn,
 		return ECORE_INVAL;
 
 	p_ptt = ecore_ptt_acquire(p_hwfn);
-	if (!p_ptt) {
-		rc = ECORE_TIMEOUT;
-		DP_ERR(p_hwfn, "rc = %d\n", rc);
-		return rc;
-	}
+	if (!p_ptt)
+		return ECORE_TIMEOUT;
 
 	rc = ecore_dcbx_read_mib(p_hwfn, p_ptt, type);
 	if (rc != ECORE_SUCCESS)
 		goto out;
+
+	ecore_dcbx_get_dscp_params(p_hwfn, p_get);
 
 	rc = ecore_dcbx_get_params(p_hwfn, p_get, type);
 
@@ -1236,7 +1273,7 @@ ecore_dcbx_set_app_data(struct ecore_hwfn *p_hwfn,
 	p_app->flags |= (u32)p_params->num_app_entries <<
 			DCBX_APP_NUM_ENTRIES_OFFSET;
 
-	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
+	for (i = 0; i < p_params->num_app_entries; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
 		*entry = 0;
 		if (ieee) {
@@ -1280,14 +1317,14 @@ ecore_dcbx_set_app_data(struct ecore_hwfn *p_hwfn,
 		*entry |= ((u32)p_params->app_entry[i].proto_id <<
 			   DCBX_APP_PROTOCOL_ID_OFFSET);
 		*entry &= ~DCBX_APP_PRI_MAP_MASK;
-		*entry |= ((u32)(p_params->app_entry[i].prio) <<
+		*entry |= ((u32)(1 << p_params->app_entry[i].prio) <<
 			   DCBX_APP_PRI_MAP_OFFSET);
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "flags = 0x%x\n", p_app->flags);
 }
 
-static enum _ecore_status_t
+static void
 ecore_dcbx_set_local_params(struct ecore_hwfn *p_hwfn,
 			    struct dcbx_local_params *local_admin,
 			    struct ecore_dcbx_set *params)
@@ -1305,6 +1342,9 @@ ecore_dcbx_set_local_params(struct ecore_hwfn *p_hwfn,
 	} else
 		local_admin->config = DCBX_CONFIG_VERSION_DISABLED;
 
+	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "Dcbx version = %d\n",
+		   local_admin->config);
+
 	if (params->override_flags & ECORE_DCBX_OVERRIDE_PFC_CFG)
 		ecore_dcbx_set_pfc_data(p_hwfn, &local_admin->features.pfc,
 					&params->config.params);
@@ -1316,8 +1356,6 @@ ecore_dcbx_set_local_params(struct ecore_hwfn *p_hwfn,
 	if (params->override_flags & ECORE_DCBX_OVERRIDE_APP_CFG)
 		ecore_dcbx_set_app_data(p_hwfn, &local_admin->features.app,
 					&params->config.params, ieee);
-
-	return ECORE_SUCCESS;
 }
 
 static enum _ecore_status_t
@@ -1341,12 +1379,18 @@ ecore_dcbx_set_dscp_params(struct ecore_hwfn *p_hwfn,
 			val |= (((u32)p_params->dscp.dscp_pri_map[entry]) <<
 				(j * 4));
 
-		p_dscp_map->dscp_pri_map[i] = OSAL_CPU_TO_BE32(val);
+		p_dscp_map->dscp_pri_map[i] = val;
 	}
 
 	p_hwfn->p_dcbx_info->dscp_nig_update = true;
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "flags = 0x%x\n", p_dscp_map->flags);
+	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB,
+		   "pri_map[] = 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		   p_dscp_map->dscp_pri_map[0], p_dscp_map->dscp_pri_map[1],
+		   p_dscp_map->dscp_pri_map[2], p_dscp_map->dscp_pri_map[3],
+		   p_dscp_map->dscp_pri_map[4], p_dscp_map->dscp_pri_map[5],
+		   p_dscp_map->dscp_pri_map[6], p_dscp_map->dscp_pri_map[7]);
 
 	return ECORE_SUCCESS;
 }
@@ -1362,15 +1406,10 @@ enum _ecore_status_t ecore_dcbx_config_params(struct ecore_hwfn *p_hwfn,
 	u32 resp = 0, param = 0;
 	enum _ecore_status_t rc = ECORE_SUCCESS;
 
-	if (!hw_commit) {
-		OSAL_MEMCPY(&p_hwfn->p_dcbx_info->set, params,
-			    sizeof(p_hwfn->p_dcbx_info->set));
+	OSAL_MEMCPY(&p_hwfn->p_dcbx_info->set, params,
+		    sizeof(p_hwfn->p_dcbx_info->set));
+	if (!hw_commit)
 		return ECORE_SUCCESS;
-	}
-
-	/* clear set-parmas cache */
-	OSAL_MEMSET(&p_hwfn->p_dcbx_info->set, 0,
-		    sizeof(struct ecore_dcbx_set));
 
 	OSAL_MEMSET(&local_admin, 0, sizeof(local_admin));
 	ecore_dcbx_set_local_params(p_hwfn, &local_admin, params);
@@ -1406,7 +1445,7 @@ enum _ecore_status_t ecore_dcbx_get_config_params(struct ecore_hwfn *p_hwfn,
 						  struct ecore_dcbx_set *params)
 {
 	struct ecore_dcbx_get *dcbx_info;
-	int rc;
+	enum _ecore_status_t rc;
 
 	if (p_hwfn->p_dcbx_info->set.config.valid) {
 		OSAL_MEMCPY(params, &p_hwfn->p_dcbx_info->set,
@@ -1416,10 +1455,8 @@ enum _ecore_status_t ecore_dcbx_get_config_params(struct ecore_hwfn *p_hwfn,
 
 	dcbx_info = OSAL_ALLOC(p_hwfn->p_dev, GFP_KERNEL,
 			       sizeof(*dcbx_info));
-	if (!dcbx_info) {
-		DP_ERR(p_hwfn, "Failed to allocate struct ecore_dcbx_info\n");
+	if (!dcbx_info)
 		return ECORE_NOMEM;
-	}
 
 	OSAL_MEMSET(dcbx_info, 0, sizeof(*dcbx_info));
 	rc = ecore_dcbx_query_params(p_hwfn, dcbx_info,
@@ -1439,15 +1476,345 @@ enum _ecore_status_t ecore_dcbx_get_config_params(struct ecore_hwfn *p_hwfn,
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
 
 	p_hwfn->p_dcbx_info->set.enabled = dcbx_info->operational.enabled;
+	OSAL_MEMCPY(&p_hwfn->p_dcbx_info->set.dscp,
+		    &p_hwfn->p_dcbx_info->get.dscp,
+		    sizeof(struct ecore_dcbx_dscp_params));
 	OSAL_MEMCPY(&p_hwfn->p_dcbx_info->set.config.params,
 		    &dcbx_info->operational.params,
-		    sizeof(struct ecore_dcbx_admin_params));
+		    sizeof(p_hwfn->p_dcbx_info->set.config.params));
 	p_hwfn->p_dcbx_info->set.config.valid = true;
 
 	OSAL_MEMCPY(params, &p_hwfn->p_dcbx_info->set,
 		    sizeof(struct ecore_dcbx_set));
 
 	OSAL_FREE(p_hwfn->p_dev, dcbx_info);
+
+	return ECORE_SUCCESS;
+}
+
+enum _ecore_status_t ecore_lldp_register_tlv(struct ecore_hwfn *p_hwfn,
+					     struct ecore_ptt *p_ptt,
+					     enum ecore_lldp_agent agent,
+					     u8 tlv_type)
+{
+	u32 mb_param = 0, mcp_resp = 0, mcp_param = 0, val = 0;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
+
+	switch (agent) {
+	case ECORE_LLDP_NEAREST_BRIDGE:
+		val = LLDP_NEAREST_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_NON_TPMR_BRIDGE:
+		val = LLDP_NEAREST_NON_TPMR_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_CUSTOMER_BRIDGE:
+		val = LLDP_NEAREST_CUSTOMER_BRIDGE;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid agent type %d\n", agent);
+		return ECORE_INVAL;
+	}
+
+	SET_MFW_FIELD(mb_param, DRV_MB_PARAM_LLDP_AGENT, val);
+	SET_MFW_FIELD(mb_param, DRV_MB_PARAM_LLDP_TLV_RX_TYPE, tlv_type);
+
+	rc = ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_REGISTER_LLDP_TLVS_RX,
+			   mb_param, &mcp_resp, &mcp_param);
+	if (rc != ECORE_SUCCESS)
+		DP_NOTICE(p_hwfn, false, "Failed to register TLV\n");
+
+	return rc;
+}
+
+enum _ecore_status_t
+ecore_lldp_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
+{
+	struct ecore_dcbx_mib_meta_data data;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
+	struct lldp_received_tlvs_s tlvs;
+	int i;
+
+	for (i = 0; i < LLDP_MAX_LLDP_AGENTS; i++) {
+		OSAL_MEM_ZERO(&data, sizeof(data));
+		data.addr = p_hwfn->mcp_info->port_addr +
+			    offsetof(struct public_port, lldp_received_tlvs[i]);
+		data.lldp_tlvs = &tlvs;
+		data.size = sizeof(tlvs);
+		rc = ecore_dcbx_copy_mib(p_hwfn, p_ptt, &data,
+					 ECORE_DCBX_LLDP_TLVS);
+		if (rc != ECORE_SUCCESS) {
+			DP_NOTICE(p_hwfn, false, "Failed to read lldp TLVs\n");
+			return rc;
+		}
+
+		if (!tlvs.length)
+			continue;
+
+		for (i = 0; i < MAX_TLV_BUFFER; i++)
+			tlvs.tlvs_buffer[i] =
+				OSAL_CPU_TO_BE32(tlvs.tlvs_buffer[i]);
+
+		OSAL_LLDP_RX_TLVS(p_hwfn, tlvs.tlvs_buffer, tlvs.length);
+	}
+
+	return rc;
+}
+
+enum _ecore_status_t
+ecore_lldp_get_params(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+		      struct ecore_lldp_config_params *p_params)
+{
+	struct lldp_config_params_s lldp_params;
+	u32 addr, val;
+	int i;
+
+	switch (p_params->agent) {
+	case ECORE_LLDP_NEAREST_BRIDGE:
+		val = LLDP_NEAREST_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_NON_TPMR_BRIDGE:
+		val = LLDP_NEAREST_NON_TPMR_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_CUSTOMER_BRIDGE:
+		val = LLDP_NEAREST_CUSTOMER_BRIDGE;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid agent type %d\n", p_params->agent);
+		return ECORE_INVAL;
+	}
+
+	addr = p_hwfn->mcp_info->port_addr +
+			offsetof(struct public_port, lldp_config_params[val]);
+
+	ecore_memcpy_from(p_hwfn, p_ptt, &lldp_params, addr,
+			  sizeof(lldp_params));
+
+	p_params->tx_interval = GET_MFW_FIELD(lldp_params.config,
+					      LLDP_CONFIG_TX_INTERVAL);
+	p_params->tx_hold = GET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_HOLD);
+	p_params->tx_credit = GET_MFW_FIELD(lldp_params.config,
+					    LLDP_CONFIG_MAX_CREDIT);
+	p_params->rx_enable = GET_MFW_FIELD(lldp_params.config,
+					    LLDP_CONFIG_ENABLE_RX);
+	p_params->tx_enable = GET_MFW_FIELD(lldp_params.config,
+					    LLDP_CONFIG_ENABLE_TX);
+
+	OSAL_MEMCPY(p_params->chassis_id_tlv, lldp_params.local_chassis_id,
+		    sizeof(p_params->chassis_id_tlv));
+	for (i = 0; i < ECORE_LLDP_CHASSIS_ID_STAT_LEN; i++)
+		p_params->chassis_id_tlv[i] =
+				OSAL_BE32_TO_CPU(p_params->chassis_id_tlv[i]);
+
+	OSAL_MEMCPY(p_params->port_id_tlv, lldp_params.local_port_id,
+		    sizeof(p_params->port_id_tlv));
+	for (i = 0; i < ECORE_LLDP_PORT_ID_STAT_LEN; i++)
+		p_params->port_id_tlv[i] =
+				OSAL_BE32_TO_CPU(p_params->port_id_tlv[i]);
+
+	return ECORE_SUCCESS;
+}
+
+enum _ecore_status_t
+ecore_lldp_set_params(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+		      struct ecore_lldp_config_params *p_params)
+{
+	u32 mb_param = 0, mcp_resp = 0, mcp_param = 0;
+	struct lldp_config_params_s lldp_params;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
+	u32 addr, val;
+	int i;
+
+	switch (p_params->agent) {
+	case ECORE_LLDP_NEAREST_BRIDGE:
+		val = LLDP_NEAREST_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_NON_TPMR_BRIDGE:
+		val = LLDP_NEAREST_NON_TPMR_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_CUSTOMER_BRIDGE:
+		val = LLDP_NEAREST_CUSTOMER_BRIDGE;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid agent type %d\n", p_params->agent);
+		return ECORE_INVAL;
+	}
+
+	SET_MFW_FIELD(mb_param, DRV_MB_PARAM_LLDP_AGENT, val);
+	addr = p_hwfn->mcp_info->port_addr +
+			offsetof(struct public_port, lldp_config_params[val]);
+
+	OSAL_MEMSET(&lldp_params, 0, sizeof(lldp_params));
+	SET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_TX_INTERVAL,
+		      p_params->tx_interval);
+	SET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_HOLD, p_params->tx_hold);
+	SET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_MAX_CREDIT,
+		      p_params->tx_credit);
+	SET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_ENABLE_RX,
+		      !!p_params->rx_enable);
+	SET_MFW_FIELD(lldp_params.config, LLDP_CONFIG_ENABLE_TX,
+		      !!p_params->tx_enable);
+
+	for (i = 0; i < ECORE_LLDP_CHASSIS_ID_STAT_LEN; i++)
+		p_params->chassis_id_tlv[i] =
+				OSAL_CPU_TO_BE32(p_params->chassis_id_tlv[i]);
+	OSAL_MEMCPY(lldp_params.local_chassis_id, p_params->chassis_id_tlv,
+		    sizeof(lldp_params.local_chassis_id));
+
+	for (i = 0; i < ECORE_LLDP_PORT_ID_STAT_LEN; i++)
+		p_params->port_id_tlv[i] =
+				OSAL_CPU_TO_BE32(p_params->port_id_tlv[i]);
+	OSAL_MEMCPY(lldp_params.local_port_id, p_params->port_id_tlv,
+		    sizeof(lldp_params.local_port_id));
+
+	ecore_memcpy_to(p_hwfn, p_ptt, addr, &lldp_params, sizeof(lldp_params));
+
+	rc = ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_LLDP,
+			   mb_param, &mcp_resp, &mcp_param);
+	if (rc != ECORE_SUCCESS)
+		DP_NOTICE(p_hwfn, false, "SET_LLDP failed, error = %d\n", rc);
+
+	return rc;
+}
+
+enum _ecore_status_t
+ecore_lldp_set_system_tlvs(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+			   struct ecore_lldp_sys_tlvs *p_params)
+{
+	u32 mb_param = 0, mcp_resp = 0, mcp_param = 0;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
+	struct lldp_system_tlvs_buffer_s lld_tlv_buf;
+	u32 addr, *p_val;
+	u8 len;
+	int i;
+
+	p_val = (u32 *)p_params->buf;
+	for (i = 0; i < ECORE_LLDP_SYS_TLV_SIZE / 4; i++)
+		p_val[i] = OSAL_CPU_TO_BE32(p_val[i]);
+
+	OSAL_MEMSET(&lld_tlv_buf, 0, sizeof(lld_tlv_buf));
+	SET_MFW_FIELD(lld_tlv_buf.flags, LLDP_SYSTEM_TLV_VALID, 1);
+	SET_MFW_FIELD(lld_tlv_buf.flags, LLDP_SYSTEM_TLV_MANDATORY,
+		      !!p_params->discard_mandatory_tlv);
+	SET_MFW_FIELD(lld_tlv_buf.flags, LLDP_SYSTEM_TLV_LENGTH,
+		      p_params->buf_size);
+	len = ECORE_LLDP_SYS_TLV_SIZE / 2;
+	OSAL_MEMCPY(lld_tlv_buf.data, p_params->buf, len);
+
+	addr = p_hwfn->mcp_info->port_addr +
+		offsetof(struct public_port, system_lldp_tlvs_buf);
+	ecore_memcpy_to(p_hwfn, p_ptt, addr, &lld_tlv_buf, sizeof(lld_tlv_buf));
+
+	if  (p_params->buf_size > len) {
+		addr = p_hwfn->mcp_info->port_addr +
+			offsetof(struct public_port, system_lldp_tlvs_buf2);
+		ecore_memcpy_to(p_hwfn, p_ptt, addr, &p_params->buf[len],
+				ECORE_LLDP_SYS_TLV_SIZE / 2);
+	}
+
+	rc = ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_LLDP,
+			   mb_param, &mcp_resp, &mcp_param);
+	if (rc != ECORE_SUCCESS)
+		DP_NOTICE(p_hwfn, false, "SET_LLDP failed, error = %d\n", rc);
+
+	return rc;
+}
+
+enum _ecore_status_t
+ecore_dcbx_get_dscp_priority(struct ecore_hwfn *p_hwfn,
+			     u8 dscp_index, u8 *p_dscp_pri)
+{
+	struct ecore_dcbx_get *p_dcbx_info;
+	enum _ecore_status_t rc;
+
+	if (dscp_index >= ECORE_DCBX_DSCP_SIZE) {
+		DP_ERR(p_hwfn, "Invalid dscp index %d\n", dscp_index);
+		return ECORE_INVAL;
+	}
+
+	p_dcbx_info = OSAL_ALLOC(p_hwfn->p_dev, GFP_KERNEL,
+				 sizeof(*p_dcbx_info));
+	if (!p_dcbx_info)
+		return ECORE_NOMEM;
+
+	OSAL_MEMSET(p_dcbx_info, 0, sizeof(*p_dcbx_info));
+	rc = ecore_dcbx_query_params(p_hwfn, p_dcbx_info,
+				     ECORE_DCBX_OPERATIONAL_MIB);
+	if (rc) {
+		OSAL_FREE(p_hwfn->p_dev, p_dcbx_info);
+		return rc;
+	}
+
+	*p_dscp_pri = p_dcbx_info->dscp.dscp_pri_map[dscp_index];
+	OSAL_FREE(p_hwfn->p_dev, p_dcbx_info);
+
+	return ECORE_SUCCESS;
+}
+
+enum _ecore_status_t
+ecore_dcbx_set_dscp_priority(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+			     u8 dscp_index, u8 pri_val)
+{
+	struct ecore_dcbx_set dcbx_set;
+	enum _ecore_status_t rc;
+
+	if (dscp_index >= ECORE_DCBX_DSCP_SIZE ||
+	    pri_val >= ECORE_MAX_PFC_PRIORITIES) {
+		DP_ERR(p_hwfn, "Invalid dscp params: index = %d pri = %d\n",
+		       dscp_index, pri_val);
+		return ECORE_INVAL;
+	}
+
+	OSAL_MEMSET(&dcbx_set, 0, sizeof(dcbx_set));
+	rc = ecore_dcbx_get_config_params(p_hwfn, &dcbx_set);
+	if (rc)
+		return rc;
+
+	dcbx_set.override_flags = ECORE_DCBX_OVERRIDE_DSCP_CFG;
+	dcbx_set.dscp.dscp_pri_map[dscp_index] = pri_val;
+
+	return ecore_dcbx_config_params(p_hwfn, p_ptt, &dcbx_set, 1);
+}
+
+enum _ecore_status_t
+ecore_lldp_get_stats(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+		     struct ecore_lldp_stats *p_params)
+{
+	u32 mcp_resp = 0, mcp_param = 0, addr, val;
+	struct lldp_stats_stc lldp_stats;
+	enum _ecore_status_t rc;
+
+	switch (p_params->agent) {
+	case ECORE_LLDP_NEAREST_BRIDGE:
+		val = LLDP_NEAREST_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_NON_TPMR_BRIDGE:
+		val = LLDP_NEAREST_NON_TPMR_BRIDGE;
+		break;
+	case ECORE_LLDP_NEAREST_CUSTOMER_BRIDGE:
+		val = LLDP_NEAREST_CUSTOMER_BRIDGE;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid agent type %d\n", p_params->agent);
+		return ECORE_INVAL;
+	}
+
+	rc = ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_GET_LLDP_STATS,
+			   val << DRV_MB_PARAM_LLDP_STATS_AGENT_OFFSET,
+			   &mcp_resp, &mcp_param);
+	if (rc != ECORE_SUCCESS) {
+		DP_ERR(p_hwfn, "GET_LLDP_STATS failed, error = %d\n", rc);
+		return rc;
+	}
+
+	addr = p_hwfn->mcp_info->drv_mb_addr +
+		OFFSETOF(struct public_drv_mb, union_data);
+
+	ecore_memcpy_from(p_hwfn, p_ptt, &lldp_stats, addr, sizeof(lldp_stats));
+
+	p_params->tx_frames = lldp_stats.tx_frames_total;
+	p_params->rx_frames = lldp_stats.rx_frames_total;
+	p_params->rx_discards = lldp_stats.rx_frames_discarded;
+	p_params->rx_age_outs = lldp_stats.rx_age_outs;
 
 	return ECORE_SUCCESS;
 }

@@ -1,6 +1,6 @@
 /*
  * Simultaneous authentication of equals
- * Copyright (c) 2012-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2012-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -275,8 +275,9 @@ static int sae_test_pwd_seed_ecc(struct sae_data *sae, const u8 *pwd_seed,
 
 	/* pwd-value = KDF-z(pwd-seed, "SAE Hunting and Pecking", p) */
 	bits = crypto_ec_prime_len_bits(sae->tmp->ec);
-	sha256_prf_bits(pwd_seed, SHA256_MAC_LEN, "SAE Hunting and Pecking",
-			prime, sae->tmp->prime_len, pwd_value, bits);
+	if (sha256_prf_bits(pwd_seed, SHA256_MAC_LEN, "SAE Hunting and Pecking",
+			    prime, sae->tmp->prime_len, pwd_value, bits) < 0)
+		return -1;
 	if (bits % 8)
 		buf_shift_right(pwd_value, sizeof(pwd_value), 8 - bits % 8);
 	wpa_hexdump_key(MSG_DEBUG, "SAE: pwd-value",
@@ -318,11 +319,10 @@ static int sae_test_pwd_seed_ffc(struct sae_data *sae, const u8 *pwd_seed,
 	wpa_hexdump_key(MSG_DEBUG, "SAE: pwd-seed", pwd_seed, SHA256_MAC_LEN);
 
 	/* pwd-value = KDF-z(pwd-seed, "SAE Hunting and Pecking", p) */
-	sha256_prf_bits(pwd_seed, SHA256_MAC_LEN, "SAE Hunting and Pecking",
-			sae->tmp->dh->prime, sae->tmp->prime_len, pwd_value,
-			bits);
-	if (bits % 8)
-		buf_shift_right(pwd_value, sizeof(pwd_value), 8 - bits % 8);
+	if (sha256_prf_bits(pwd_seed, SHA256_MAC_LEN, "SAE Hunting and Pecking",
+			    sae->tmp->dh->prime, sae->tmp->prime_len, pwd_value,
+			    bits) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "SAE: pwd-value", pwd_value,
 			sae->tmp->prime_len);
 
@@ -811,11 +811,13 @@ static int sae_derive_keys(struct sae_data *sae, const u8 *k)
 	crypto_bignum_mod(tmp, sae->tmp->order, tmp);
 	crypto_bignum_to_bin(tmp, val, sizeof(val), sae->tmp->prime_len);
 	wpa_hexdump(MSG_DEBUG, "SAE: PMKID", val, SAE_PMKID_LEN);
-	sha256_prf(keyseed, sizeof(keyseed), "SAE KCK and PMK",
-		   val, sae->tmp->prime_len, keys, sizeof(keys));
+	if (sha256_prf(keyseed, sizeof(keyseed), "SAE KCK and PMK",
+		       val, sae->tmp->prime_len, keys, sizeof(keys)) < 0)
+		goto fail;
 	os_memset(keyseed, 0, sizeof(keyseed));
 	os_memcpy(sae->tmp->kck, keys, SAE_KCK_LEN);
 	os_memcpy(sae->pmk, keys + SAE_KCK_LEN, SAE_PMK_LEN);
+	os_memcpy(sae->pmkid, val, SAE_PMKID_LEN);
 	os_memset(keys, 0, sizeof(keys));
 	wpa_hexdump_key(MSG_DEBUG, "SAE: KCK", sae->tmp->kck, SAE_KCK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "SAE: PMK", sae->pmk, SAE_PMK_LEN);
@@ -923,7 +925,7 @@ static void sae_parse_commit_token(struct sae_data *sae, const u8 **pos,
 				   const u8 *end, const u8 **token,
 				   size_t *token_len)
 {
-	if (*pos + (sae->tmp->ec ? 3 : 2) * sae->tmp->prime_len < end) {
+	if ((sae->tmp->ec ? 3 : 2) * sae->tmp->prime_len < end - *pos) {
 		size_t tlen = end - (*pos + (sae->tmp->ec ? 3 : 2) *
 				     sae->tmp->prime_len);
 		wpa_hexdump(MSG_DEBUG, "SAE: Anti-Clogging Token", *pos, tlen);
@@ -946,7 +948,7 @@ static u16 sae_parse_commit_scalar(struct sae_data *sae, const u8 **pos,
 {
 	struct crypto_bignum *peer_scalar;
 
-	if (*pos + sae->tmp->prime_len > end) {
+	if (sae->tmp->prime_len > end - *pos) {
 		wpa_printf(MSG_DEBUG, "SAE: Not enough data for scalar");
 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
 	}
@@ -994,7 +996,7 @@ static u16 sae_parse_commit_element_ecc(struct sae_data *sae, const u8 *pos,
 {
 	u8 prime[SAE_MAX_ECC_PRIME_LEN];
 
-	if (pos + 2 * sae->tmp->prime_len > end) {
+	if (2 * sae->tmp->prime_len > end - pos) {
 		wpa_printf(MSG_DEBUG, "SAE: Not enough data for "
 			   "commit-element");
 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -1040,7 +1042,7 @@ static u16 sae_parse_commit_element_ffc(struct sae_data *sae, const u8 *pos,
 	struct crypto_bignum *res, *one;
 	const u8 one_bin[1] = { 0x01 };
 
-	if (pos + sae->tmp->prime_len > end) {
+	if (sae->tmp->prime_len > end - pos) {
 		wpa_printf(MSG_DEBUG, "SAE: Not enough data for "
 			   "commit-element");
 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -1098,7 +1100,7 @@ u16 sae_parse_commit(struct sae_data *sae, const u8 *data, size_t len,
 	u16 res;
 
 	/* Check Finite Cyclic Group */
-	if (pos + 2 > end)
+	if (end - pos < 2)
 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
 	res = sae_group_allowed(sae, allowed_groups, WPA_GET_LE16(pos));
 	if (res != WLAN_STATUS_SUCCESS)

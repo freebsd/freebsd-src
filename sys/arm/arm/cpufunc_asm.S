@@ -53,43 +53,7 @@ ENTRY(cpufunc_nullop)
 END(cpufunc_nullop)
 
 /*
- * Generic functions to read the internal coprocessor registers
- *
- * Currently these registers are :
- *  c0 - CPU ID
- *  c5 - Fault status
- *  c6 - Fault address
- *
- */
-
-ENTRY(cpu_ident)
-	mrc	p15, 0, r0, c0, c0, 0
-	RET
-END(cpu_ident)
-
-ENTRY(cpu_get_control)
-	mrc	CP15_SCTLR(r0)
-	RET
-END(cpu_get_control)
-
-ENTRY(cpu_read_cache_config)
-	mrc	p15, 0, r0, c0, c0, 1
-	RET
-END(cpu_read_cache_config)
-
-ENTRY(cpu_faultstatus)
-	mrc	p15, 0, r0, c5, c0, 0
-	RET
-END(cpu_faultstatus)
-
-ENTRY(cpu_faultaddress)
-	mrc	p15, 0, r0, c6, c0, 0
-	RET
-END(cpu_faultaddress)
-
-/*
  * Generic functions to write the internal coprocessor registers
- *
  *
  * Currently these registers are
  *  c1 - CPU Control
@@ -133,26 +97,6 @@ END(cpufunc_control)
  */
 
 /* Random odd functions */
-
-/*
- * Function to get the offset of a stored program counter from the
- * instruction doing the store.  This offset is defined to be the same
- * for all STRs and STMs on a given implementation.  Code based on
- * section 2.4.3 of the ARM ARM (2nd Ed.), with modifications to work
- * in 26-bit modes as well.
- */
-ENTRY(get_pc_str_offset)
-	mov	ip, sp
-	stmfd	sp!, {fp, ip, lr, pc}
-	sub	fp, ip, #4
-	sub	sp, sp, #4
-	mov	r1, pc		/* R1 = addr of following STR */
-	mov	r0, r0
-	str	pc, [sp]	/* [SP] = . + offset */
-	ldr	r0, [sp]
-	sub	r0, r0, r1
-	ldmdb	fp, {fp, sp, pc}
-END(get_pc_str_offset)
 
 /* Allocate and lock a cacheline for the specified address. */
 

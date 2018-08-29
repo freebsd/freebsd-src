@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2017
+.Dd August 16, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@ and
 .Pa /usr/ports .
 These directories may be initially empty or non-existent until updated with
 .Xr svn 1
+or
+.Xr svnlite 1
 or
 .Xr portsnap 8 .
 Directory
@@ -490,6 +492,14 @@ Overrides which kernel to build and install for the various kernel
 make targets.
 It defaults to
 .Cm GENERIC .
+.It Va KERNCONFDIR
+Overrides the directory in which
+.Va KERNCONF
+and any files included by
+.Va KERNCONF
+should be found.
+Defaults to
+.Pa sys/${ARCH}/conf .
 .It Va KERNFAST
 If set, the build target
 .Cm buildkernel
@@ -642,6 +652,18 @@ using the
 option of
 .Xr make 1 :
 .Bl -tag -width ".Va -DNO_KERNELCONFIG"
+.It Va LOADER_DEFAULT_INTERP
+Defines what interpreter the default loader program will have.
+Valid values include
+.Dq 4th ,
+.Dq lua ,
+and
+.Dq simp .
+This creates the default link for
+.Pa /boot/loader
+to the loader with that interpreter.
+It also determines what interpreter is compiled into
+.Pa userboot .
 .It Va NO_CLEANDIR
 If set, the build targets that clean parts of the object tree use the
 equivalent of
@@ -789,6 +811,7 @@ make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr svn 1 ,
+.Xr svnlite 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
 .Xr arch 7 ,

@@ -9,6 +9,7 @@ SRCS+=	\
 	bus_if.h \
 	device_if.h \
 	opt_platform.h \
+	opt_spi.h \
 	spibus_if.h \
 
 .if !empty(OPT_FDT)

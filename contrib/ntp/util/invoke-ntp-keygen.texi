@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp-keygen.texi)
 #
-# It has been AutoGen-ed  February 27, 2018 at 05:15:57 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  August 14, 2018 at 08:30:35 AM by AutoGen 5.18.5
 # From the definitions    ntp-keygen-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -948,7 +948,7 @@ Following the header the keys are entered one per line in the format
 @end example
 where
 @kbd{keyno}
-is a positive integer in the range 1-65534;
+is a positive integer in the range 1-65535;
 @kbd{type}
 is the key type for the message digest algorithm, which in the absence of the
 OpenSSL library must be
@@ -1056,14 +1056,17 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.7p245
-USAGE:  ntp-keygen [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
+ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p12
+Usage:  ntp-keygen [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
   Flg Arg Option-Name    Description
+   -b Num imbits         identity modulus bits
+                                - it must be in the range:
+                                  256 to 2048
    -c Str certificate    certificate scheme
    -C Str cipher         privatekey cipher
    -d no  debug-level    Increase debug verbosity level
                                 - may appear multiple times
-   -D Str set-debug-level Set the debug verbosity level
+   -D Num set-debug-level Set the debug verbosity level
                                 - may appear multiple times
    -e no  id-key         Write IFF or GQ identity keys
    -G no  gq-params      Generate GQ parameters and keys
@@ -1071,29 +1074,28 @@ USAGE:  ntp-keygen [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
    -I no  iffkey         generate IFF parameters
    -i Str ident          set Autokey group name
    -l Num lifetime       set certificate lifetime
-   -M no  md5key         generate MD5 keys
-   -m Num modulus        modulus
-                                - It must be in the range:
+   -m Num modulus        prime modulus
+                                - it must be in the range:
                                   256 to 2048
+   -M no  md5key         generate symmetric keys
    -P no  pvt-cert       generate PC private certificate
-   -p Str pvt-passwd     output private password
-   -q Str get-pvt-passwd input private password
-   -S Str sign-key       generate sign key (RSA or DSA)
+   -p Str password       local private password
+   -q Str export-passwd  export IFF or GQ group keys with password
    -s Str subject-name   set host and optionally group name
+   -S Str sign-key       generate sign key (RSA or DSA)
    -T no  trusted-cert   trusted certificate (TC scheme)
    -V Num mv-params      generate <num> MV parameters
    -v Num mv-keys        update <num> MV keys
-      opt version        Output version information and exit
-   -? no  help           Display extended usage information and exit
-   -! no  more-help      Extended usage information passed thru pager
-   -> opt save-opts      Save the option state to a config file
-   -< Str load-opts      Load options from a config file
-                                - disabled as --no-load-opts
+      opt version        output version information and exit
+   -? no  help           display extended usage information and exit
+   -! no  more-help      extended usage information passed thru pager
+   -> opt save-opts      save the option state to a config file
+   -< Str load-opts      load options from a config file
+                                - disabled as '--no-load-opts'
                                 - may appear multiple times
 
 Options are specified by doubled hyphens and their name or by a single
 hyphen and the flag character.
-
 
 
 The following option preset mechanisms are supported:
@@ -1101,7 +1103,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named NTP_KEYGEN_*
 
-please send bug reports to:  http://bugs.ntp.org, bugs@@ntp.org
+Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
 @end example
 @exampleindent 4
 

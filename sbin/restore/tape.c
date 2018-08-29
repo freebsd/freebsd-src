@@ -1314,8 +1314,8 @@ gethead(struct s_spcl *buf)
 			return (FAIL);
 		}
 		if (swabl(buf->c_magic) != FS_UFS2_MAGIC &&
-		    buf->c_magic != NFS_MAGIC) {
-			if (buf->c_magic == OFS_MAGIC) {
+		    swabl(buf->c_magic) != NFS_MAGIC) {
+			if (swabl(buf->c_magic) == OFS_MAGIC) {
 				fprintf(stderr,
 				  "Format of dump tape is too old. Must use\n");
 				fprintf(stderr,

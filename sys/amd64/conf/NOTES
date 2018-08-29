@@ -613,7 +613,7 @@ device		amdsmn
 #
 options 	NKPT=31
 
-# EFI Runtime Services support (not functional yet).
+# EFI Runtime Services support
 options 	EFIRT
 
 
@@ -644,7 +644,7 @@ options 	COMPAT_CLOUDABI64
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX
 
-# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and COMPAT_FREEBSD32)
+# Enable 32-bit Linux ABI emulation (requires COMPAT_FREEBSD32).
 options 	COMPAT_LINUX32
 
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX32

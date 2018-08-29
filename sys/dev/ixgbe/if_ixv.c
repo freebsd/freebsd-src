@@ -143,6 +143,8 @@ static driver_t ixv_driver = {
 
 devclass_t ixv_devclass;
 DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, ixv, ixv_vendor_info_array,
+    sizeof(ixv_vendor_info_array[0]), nitems(ixv_vendor_info_array) - 1);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
 MODULE_DEPEND(ixv, ether, 1, 1, 1);
 #ifdef DEV_NETMAP
@@ -207,10 +209,10 @@ extern struct if_txrx ixgbe_txrx;
 static struct if_shared_ctx ixv_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_q_align = PAGE_SIZE,/* max(DBA_ALIGN, PAGE_SIZE) */
-	.isc_tx_maxsize = IXGBE_TSO_SIZE,
-
+	.isc_tx_maxsize = IXGBE_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_tx_maxsegsize = PAGE_SIZE,
-
+	.isc_tso_maxsize = IXGBE_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = PAGE_SIZE,
 	.isc_rx_maxsize = MJUM16BYTES,
 	.isc_rx_nsegments = 1,
 	.isc_rx_maxsegsize = MJUM16BYTES,
@@ -505,11 +507,11 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	/*
 	 * Tell the upper layer(s) we support everything the PF
 	 * driver does except...
-	 *   hardware stats
 	 *   Wake-on-LAN
 	 */
-	scctx->isc_capenable = IXGBE_CAPS;
-	scctx->isc_capenable ^= IFCAP_HWSTATS | IFCAP_WOL;
+	scctx->isc_capabilities = IXGBE_CAPS;
+	scctx->isc_capabilities ^= IFCAP_WOL;
+	scctx->isc_capenable = scctx->isc_capabilities;
 
 	INIT_DEBUGOUT("ixv_if_attach_pre: end");
 
@@ -1161,7 +1163,6 @@ ixv_setup_interface(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixv_setup_interface: begin");
 
-	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setbaudrate(ifp, IF_Gbps(10));
 	ifp->if_snd.ifq_maxlen = scctx->isc_ntxd[0] - 2;
 

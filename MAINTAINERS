@@ -58,6 +58,7 @@ kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
 libfetch	des	Pre-commit review requested, email only.
 libfigpar	dteske	Pre-commit review requested.
+libm		freebsd-numerics	Send email with patches to freebsd-numerics@
 libpam		des	Pre-commit review requested, email only.
 linprocfs	des	Pre-commit review requested, email only.
 lpr		gad	Pre-commit review requested, particularly for

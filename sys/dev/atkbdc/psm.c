@@ -2023,9 +2023,9 @@ psmdetach(device_t dev)
 
 #ifdef EVDEV_SUPPORT
 static int
-psm_ev_open_r(struct evdev_dev *evdev, void *ev_softc)
+psm_ev_open_r(struct evdev_dev *evdev)
 {
-	struct psm_softc *sc = (struct psm_softc *)ev_softc;
+	struct psm_softc *sc = evdev_get_softc(evdev);
 	int err = 0;
 
 	/* Get device data */
@@ -2043,24 +2043,27 @@ psm_ev_open_r(struct evdev_dev *evdev, void *ev_softc)
 	return (err);
 }
 
-static void
-psm_ev_close_r(struct evdev_dev *evdev, void *ev_softc)
+static int
+psm_ev_close_r(struct evdev_dev *evdev)
 {
-	struct psm_softc *sc = (struct psm_softc *)ev_softc;
+	struct psm_softc *sc = evdev_get_softc(evdev);
+	int err = 0;
 
 	sc->state &= ~PSM_EV_OPEN_R;
 
 	if (sc->state & (PSM_OPEN | PSM_EV_OPEN_A))
-		return;
+		return (0);
 
 	if (sc->state & PSM_VALID)
-		psmclose(sc);
+		err = psmclose(sc);
+
+	return (err);
 }
 
 static int
-psm_ev_open_a(struct evdev_dev *evdev, void *ev_softc)
+psm_ev_open_a(struct evdev_dev *evdev)
 {
-	struct psm_softc *sc = (struct psm_softc *)ev_softc;
+	struct psm_softc *sc = evdev_get_softc(evdev);
 	int err = 0;
 
 	/* Get device data */
@@ -2078,18 +2081,21 @@ psm_ev_open_a(struct evdev_dev *evdev, void *ev_softc)
 	return (err);
 }
 
-static void
-psm_ev_close_a(struct evdev_dev *evdev, void *ev_softc)
+static int
+psm_ev_close_a(struct evdev_dev *evdev)
 {
-	struct psm_softc *sc = (struct psm_softc *)ev_softc;
+	struct psm_softc *sc = evdev_get_softc(evdev);
+	int err = 0;
 
 	sc->state &= ~PSM_EV_OPEN_A;
 
 	if (sc->state & (PSM_OPEN | PSM_EV_OPEN_R))
-		return;
+		return (0);
 
 	if (sc->state & PSM_VALID)
-		psmclose(sc);
+		err = psmclose(sc);
+
+	return (err);
 }
 #endif
 

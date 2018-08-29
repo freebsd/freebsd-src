@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
-#include <xen/xenstore/xenstore_internal.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -68,8 +67,7 @@ xsd_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	char evtchn[XSD_READ_SIZE];
 	int error, len;
 
-	len = snprintf(evtchn, sizeof(evtchn), "%u",
-	    HYPERVISOR_start_info->store_evtchn);
+	len = snprintf(evtchn, sizeof(evtchn), "%u", xs_evtchn());
 	if (len < 0 || len > uio->uio_resid)
 		return (EINVAL);
 
@@ -88,7 +86,7 @@ xsd_dev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	if (offset != 0)
 		return (EINVAL);
 
-	*paddr = pmap_kextract((vm_offset_t)xen_store);
+	*paddr = xs_address();
 
 	return (0);
 }
@@ -104,9 +102,7 @@ static void
 xsd_dev_identify(driver_t *driver __unused, device_t parent)
 {
 
-	if (!xen_pv_domain())
-		return;
-	if (HYPERVISOR_start_info->store_mfn != 0)
+	if (!xen_domain() || xs_initialized())
 		return;
 
 	/*

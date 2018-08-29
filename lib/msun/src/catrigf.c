@@ -163,7 +163,7 @@ casinhf(float complex z)
 			return (CMPLXF(y, x + x));
 		if (y == 0)
 			return (CMPLXF(x + x, y));
-		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLXF(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -221,7 +221,7 @@ cacosf(float complex z)
 			return (CMPLXF(x + x, -y));
 		if (x == 0)
 			return (CMPLXF(pio2_hi + pio2_lo, y + y));
-		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLXF(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -359,7 +359,7 @@ catanhf(float complex z)
 		if (isinf(y))
 			return (CMPLXF(copysignf(0, x),
 			    copysignf(pio2_hi + pio2_lo, y)));
-		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLXF(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON)

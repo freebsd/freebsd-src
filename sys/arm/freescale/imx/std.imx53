@@ -3,6 +3,4 @@ machine		arm	armv7
 cpu 		CPU_CORTEXA
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
-device  	fdt_pinctrl
-
 files "../freescale/imx/files.imx5"

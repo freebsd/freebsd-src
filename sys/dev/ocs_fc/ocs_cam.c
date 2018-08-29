@@ -74,6 +74,14 @@ static int32_t ocs_initiator_tmf_cb(ocs_io_t *, ocs_scsi_io_status_e,
 static uint32_t
 ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role);
 
+static void ocs_ldt(void *arg);
+static void ocs_ldt_task(void *arg, int pending);
+static void ocs_delete_target(ocs_t *ocs, ocs_fcport *fcp, int tgt);
+uint32_t ocs_add_new_tgt(ocs_node_t *node, ocs_fcport *fcp);
+uint32_t ocs_update_tgt(ocs_node_t *node, ocs_fcport *fcp, uint32_t tgt_id);
+
+int32_t ocs_tgt_find(ocs_fcport *fcp, ocs_node_t *node);
+
 static inline ocs_io_t *ocs_scsi_find_io(struct ocs_softc *ocs, uint32_t tag)
 {
 
@@ -124,12 +132,15 @@ ocs_attach_port(ocs_t *ocs, int chan)
 		cam_sim_free(sim, FALSE);
 		return 1;
 	}
-
+	
+	fcp->ocs = ocs;
 	fcp->sim  = sim;
 	fcp->path = path;
 
-	return 0;
+	callout_init_mtx(&fcp->ldt, &ocs->sim_lock, 0);
+	TASK_INIT(&fcp->ltask, 1, ocs_ldt_task, fcp);
 
+	return 0;
 }
 
 static int32_t
@@ -142,6 +153,9 @@ ocs_detach_port(ocs_t *ocs, int32_t chan)
 
 	sim = fcp->sim;
 	path = fcp->path;
+
+	callout_drain(&fcp->ldt);
+	ocs_ldt_task(fcp, 0);	
 
 	if (fcp->sim) {
 		mtx_lock(&ocs->sim_lock);
@@ -672,7 +686,7 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 		inot = (struct ccb_immediate_notify *)STAILQ_FIRST(&trsrc->inot);
 	}
 
-        if (!inot) {
+	if (!inot) {
 		device_printf(
 			ocs->dev, "%s: no INOT for LUN %llx (en=%s) OX_ID %#x\n",
 			__func__, (unsigned long long)lun, trsrc ? (trsrc->enabled ? "T" : "F") : "X",
@@ -932,6 +946,26 @@ ocs_scsi_sport_deleted(ocs_sport_t *sport)
 
 }
 
+int32_t
+ocs_tgt_find(ocs_fcport *fcp, ocs_node_t *node)
+{
+	ocs_fc_target_t *tgt = NULL;
+	uint32_t i;
+	
+	for (i = 0; i < OCS_MAX_TARGETS; i++) {
+		tgt = &fcp->tgt[i];
+
+		if (tgt->state == OCS_TGT_STATE_NONE)
+			continue;
+		
+		if (ocs_node_get_wwpn(node) == tgt->wwpn) {
+			return i;
+		}
+	}
+	
+	return -1;
+}
+
 /**
  * @ingroup scsi_api_initiator
  * @brief receive notification of a new SCSI target node
@@ -949,12 +983,59 @@ ocs_scsi_sport_deleted(ocs_sport_t *sport)
  *
  * @note
  */
+
+uint32_t
+ocs_update_tgt(ocs_node_t *node, ocs_fcport *fcp, uint32_t tgt_id)
+{
+	ocs_fc_target_t *tgt = NULL;
+	
+	tgt = &fcp->tgt[tgt_id];
+
+	tgt->node_id = node->instance_index;
+	tgt->state = OCS_TGT_STATE_VALID;
+	
+	tgt->port_id = node->rnode.fc_id;
+	tgt->wwpn = ocs_node_get_wwpn(node);
+	tgt->wwnn = ocs_node_get_wwnn(node);
+	return 0;
+}
+
+uint32_t
+ocs_add_new_tgt(ocs_node_t *node, ocs_fcport *fcp)
+{
+	uint32_t i;
+
+	struct ocs_softc *ocs = node->ocs;
+	union ccb *ccb = NULL;
+	for (i = 0; i < OCS_MAX_TARGETS; i++) {
+		if (fcp->tgt[i].state == OCS_TGT_STATE_NONE)
+			break;
+	}
+
+	if (NULL == (ccb = xpt_alloc_ccb_nowait())) {
+		device_printf(ocs->dev, "%s: ccb allocation failed\n", __func__);
+		return -1;
+	}
+
+	if (CAM_REQ_CMP != xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+				cam_sim_path(fcp->sim),
+				i, CAM_LUN_WILDCARD)) {
+		device_printf(
+			ocs->dev, "%s: target path creation failed\n", __func__);
+		xpt_free_ccb(ccb);
+		return -1;
+	}
+
+	ocs_update_tgt(node, fcp, i);
+	xpt_rescan(ccb);
+	return 0;
+}
+
 int32_t
 ocs_scsi_new_target(ocs_node_t *node)
 {
-	struct ocs_softc *ocs = node->ocs;
-	union ccb *ccb = NULL;
 	ocs_fcport	*fcp = NULL;
+	int32_t i;
 
 	fcp = node->sport->tgt_data;
 	if (fcp == NULL) {
@@ -962,23 +1043,88 @@ ocs_scsi_new_target(ocs_node_t *node)
 		return 0;
 	}
 
-	if (NULL == (ccb = xpt_alloc_ccb_nowait())) {
-		device_printf(ocs->dev, "%s: ccb allocation failed\n", __func__);
-		return -1;
+	i = ocs_tgt_find(fcp, node);
+	
+	if (i < 0) {
+		ocs_add_new_tgt(node, fcp);
+		return 0;
+	}
+
+	ocs_update_tgt(node, fcp, i);
+	return 0;
+}
+
+static void
+ocs_delete_target(ocs_t *ocs, ocs_fcport *fcp, int tgt)
+{
+	struct cam_path *cpath = NULL;
+
+	if (!fcp->sim) { 
+		device_printf(ocs->dev, "%s: calling with NULL sim\n", __func__); 
+		return;
 	}
 	
-	if (CAM_REQ_CMP != xpt_create_path(&ccb->ccb_h.path, xpt_periph,
-				cam_sim_path(fcp->sim),
-				node->instance_index, CAM_LUN_WILDCARD)) {
-		device_printf(
-			ocs->dev, "%s: target path creation failed\n", __func__);
-		xpt_free_ccb(ccb);
-		return -1;
+	if (CAM_REQ_CMP == xpt_create_path(&cpath, NULL, cam_sim_path(fcp->sim),
+				tgt, CAM_LUN_WILDCARD)) {
+		xpt_async(AC_LOST_DEVICE, cpath, NULL);
+		
+		xpt_free_path(cpath);
+	}
+}
+
+/*
+ * Device Lost Timer Function- when we have decided that a device was lost,
+ * we wait a specific period of time prior to telling the OS about lost device.
+ *
+ * This timer function gets activated when the device was lost. 
+ * This function fires once a second and then scans the port database
+ * for devices that are marked dead but still have a virtual target assigned.
+ * We decrement a counter for that port database entry, and when it hits zero,
+ * we tell the OS the device was lost. Timer will be stopped when the device
+ * comes back active or removed from the OS.
+ */
+static void
+ocs_ldt(void *arg)
+{
+	ocs_fcport *fcp = arg;
+	taskqueue_enqueue(taskqueue_thread, &fcp->ltask);
+}
+
+static void
+ocs_ldt_task(void *arg, int pending)
+{
+	ocs_fcport *fcp = arg;
+	ocs_t	*ocs = fcp->ocs;
+	int i, more_to_do = 0;
+	ocs_fc_target_t *tgt = NULL;
+
+	for (i = 0; i < OCS_MAX_TARGETS; i++) {
+		tgt = &fcp->tgt[i];
+
+		if (tgt->state != OCS_TGT_STATE_LOST) {
+			continue;
+		}
+
+		if ((tgt->gone_timer != 0) && (ocs->attached)){
+			tgt->gone_timer -= 1;
+			more_to_do++;
+			continue;
+		}
+
+		if (tgt->is_target) {
+			tgt->is_target = 0;
+			ocs_delete_target(ocs, fcp, i);
+		}
+
+		tgt->state = OCS_TGT_STATE_NONE;
 	}
 
-	xpt_rescan(ccb);
+	if (more_to_do) {
+		callout_reset(&fcp->ldt, hz, ocs_ldt, fcp);
+	} else {
+		callout_deactivate(&fcp->ldt);
+	}
 
-	return 0;
 }
 
 /**
@@ -1008,8 +1154,9 @@ int32_t
 ocs_scsi_del_target(ocs_node_t *node, ocs_scsi_del_target_reason_e reason)
 {
 	struct ocs_softc *ocs = node->ocs;
-	struct cam_path *cpath = NULL;
 	ocs_fcport	*fcp = NULL;
+	ocs_fc_target_t *tgt = NULL;
+	uint32_t	tgt_id;
 
 	fcp = node->sport->tgt_data;
 	if (fcp == NULL) {
@@ -1017,18 +1164,23 @@ ocs_scsi_del_target(ocs_node_t *node, ocs_scsi_del_target_reason_e reason)
 		return 0;
 	}
 
-	if (!fcp->sim) { 
-		device_printf(ocs->dev, "%s: calling with NULL sim\n", __func__); 
-		return OCS_SCSI_CALL_COMPLETE; 
+	tgt_id = ocs_tgt_find(fcp, node);
+
+	tgt = &fcp->tgt[tgt_id];
+
+	// IF in shutdown delete target.
+	if(!ocs->attached) {
+		ocs_delete_target(ocs, fcp, tgt_id);
+	} else {
+	
+		tgt->state = OCS_TGT_STATE_LOST;
+		tgt->gone_timer = 30;
+		if (!callout_active(&fcp->ldt)) {
+			callout_reset(&fcp->ldt, hz, ocs_ldt, fcp);
+		}
 	}
 	
-	if (CAM_REQ_CMP == xpt_create_path(&cpath, NULL, cam_sim_path(fcp->sim),
-				node->instance_index, CAM_LUN_WILDCARD)) {
-		xpt_async(AC_LOST_DEVICE, cpath, NULL);
-		
-		xpt_free_path(cpath);
-	}
-	return OCS_SCSI_CALL_COMPLETE;
+	return 0;
 }
 
 /**
@@ -1356,6 +1508,10 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 		}
 	} else if (scsi_status != OCS_SCSI_STATUS_GOOD) {
 		ccb_status = CAM_REQ_CMP_ERR;
+		ocs_set_ccb_status(ccb, ccb_status);
+		csio->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(csio->ccb_h.path, 1);
+
 	} else {
 		ccb_status = CAM_REQ_CMP;
 	}
@@ -1618,18 +1774,37 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 	ocs_scsi_sgl_t sgl[OCS_FC_MAX_SGL];
 	int32_t sgl_count;
 
-	node = ocs_node_get_instance(ocs, ccb_h->target_id);
+	ocs_fcport	*fcp = NULL;
+	fcp = FCPORT(ocs, cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path)));
+	if (fcp == NULL) {
+		device_printf(ocs->dev, "%s: fcp is NULL\n", __func__);
+		return -1;
+	}
+
+	if (fcp->tgt[ccb_h->target_id].state == OCS_TGT_STATE_LOST) {
+		device_printf(ocs->dev, "%s: device LOST %d\n", __func__,
+							ccb_h->target_id);
+		return CAM_REQUEUE_REQ;
+	}
+
+	if (fcp->tgt[ccb_h->target_id].state == OCS_TGT_STATE_NONE) {
+		device_printf(ocs->dev, "%s: device not ready %d\n", __func__,
+							ccb_h->target_id);
+		return CAM_SEL_TIMEOUT;
+	}
+
+	node = ocs_node_get_instance(ocs, fcp->tgt[ccb_h->target_id].node_id);
 	if (node == NULL) {
 		device_printf(ocs->dev, "%s: no device %d\n", __func__,
 							ccb_h->target_id);
-		return CAM_DEV_NOT_THERE;
+		return CAM_SEL_TIMEOUT;
 	}
 
 	if (!node->targ) {
-                device_printf(ocs->dev, "%s: not target device %d\n", __func__,
+		device_printf(ocs->dev, "%s: not target device %d\n", __func__,
 							ccb_h->target_id);
-                return CAM_DEV_NOT_THERE;
-        }
+		return CAM_SEL_TIMEOUT;
+	}
 
 	io = ocs_scsi_io_alloc(node, OCS_SCSI_IO_ROLE_ORIGINATOR);
 	if (io == NULL) {
@@ -1666,7 +1841,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 				csio->cdb_io.cdb_ptr: csio->cdb_io.cdb_bytes,
 				csio->cdb_len,
 				ocs_scsi_initiator_io_cb, ccb);
-               break;
+		break;
 	case CAM_DIR_IN:
 		rc = ocs_scsi_send_rd_io(node, io, ccb_h->target_lun,
 				ccb->ccb_h.flags & CAM_CDB_POINTER ? 
@@ -1702,9 +1877,9 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 	ocs_vport_spec_t *vport = fcp->vport;
 
 	for (was = 0, i = 0; i < (ocs->num_vports + 1); i++) {
-                if (FCPORT(ocs, i)->role != KNOB_ROLE_NONE)
-                        was++;
-        }
+		if (FCPORT(ocs, i)->role != KNOB_ROLE_NONE)
+		was++;
+	}
 
 	// Physical port	
 	if ((was == 0) || (vport == NULL)) { 
@@ -1743,7 +1918,7 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 	vport->enable_ini = (new_role & KNOB_ROLE_INITIATOR)? 1:0;
 	vport->enable_tgt = (new_role & KNOB_ROLE_TARGET)? 1:0;
 
-        if (fcp->role != KNOB_ROLE_NONE) {
+	if (fcp->role != KNOB_ROLE_NONE) {
 		return ocs_sport_vport_alloc(ocs->domain, vport);
 	}
 
@@ -1774,20 +1949,28 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb_h->func_code) {
 	case XPT_SCSI_IO:
-                 
+
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-                        if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
-                                ccb->ccb_h.status = CAM_REQ_INVALID;
+			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
+				ccb->ccb_h.status = CAM_REQ_INVALID;
 				xpt_done(ccb);
-                                break;
-                        }
-                }
+				break;
+			}
+		}
 
 		rc = ocs_initiator_io(ocs, ccb);
 		if (0 == rc) {
 			ocs_set_ccb_status(ccb, CAM_REQ_INPROG | CAM_SIM_QUEUED);
 			break;
 		} else {
+		  	if (rc == CAM_REQUEUE_REQ) {
+				cam_freeze_devq(ccb->ccb_h.path);
+				cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 100, 0);
+				ccb->ccb_h.status = CAM_REQUEUE_REQ;
+				xpt_done(ccb);
+				break;
+			}
+
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			if (rc > 0) {
 				ocs_set_ccb_status(ccb, rc);
@@ -1838,7 +2021,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
-                cpi->hba_misc |= PIM_EXTLUNS | PIM_NOSCAN;
+		cpi->hba_misc |= PIM_EXTLUNS | PIM_NOSCAN;
 
 		cpi->hba_inquiry = PI_TAG_ABLE; 
 		cpi->max_target = OCS_MAX_TARGETS;
@@ -1875,6 +2058,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 		struct ccb_trans_settings_fc *fc = &cts->xport_specific.fc;
 		ocs_xport_stats_t value;
+		ocs_fcport *fcp = FCPORT(ocs, bus);
 		ocs_node_t	*fnode = NULL;
 
 		if (ocs->ocs_xport != OCS_XPORT_FC) {
@@ -1883,7 +2067,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
-		fnode = ocs_node_get_instance(ocs, cts->ccb_h.target_id);
+		fnode = ocs_node_get_instance(ocs, fcp->tgt[cts->ccb_h.target_id].node_id);
 		if (fnode == NULL) {
 			ocs_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
@@ -2066,8 +2250,9 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		ocs_node_t	*node = NULL;
 		ocs_io_t	*io = NULL;
 		int32_t		rc = 0;
+		ocs_fcport *fcp = FCPORT(ocs, bus);
 
-		node = ocs_node_get_instance(ocs, ccb_h->target_id);
+		node = ocs_node_get_instance(ocs, fcp->tgt[ccb_h->target_id].node_id);
 		if (node == NULL) {
 			device_printf(ocs->dev, "%s: no device %d\n",
 						__func__, ccb_h->target_id);
@@ -2096,7 +2281,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			ocs_set_ccb_status(ccb, CAM_REQ_CMP);
 		}
 		
-        	if (node->fcp2device) {
+		if (node->fcp2device) {
 			ocs_reset_crn(node, ccb_h->target_lun);
 		}
 
@@ -2358,7 +2543,7 @@ static void
 ocs_abort_atio(struct ocs_softc *ocs, union ccb *ccb)
 {
 
-	ocs_io_t        *aio = NULL;
+	ocs_io_t	*aio = NULL;
 	ocs_tgt_resource_t *trsrc = NULL;
 	uint32_t	status = CAM_REQ_INVALID;
 	struct ccb_hdr *cur = NULL;
@@ -2449,12 +2634,13 @@ static uint32_t
 ocs_abort_initiator_io(struct ocs_softc *ocs, union ccb *accb)
 {
 
-	ocs_node_t      *node = NULL;
-	ocs_io_t        *io = NULL;
+	ocs_node_t	*node = NULL;
+	ocs_io_t	*io = NULL;
 	int32_t		rc = 0;
 	struct ccb_scsiio *csio = &accb->csio;
 
-	node = ocs_node_get_instance(ocs, accb->ccb_h.target_id);
+	ocs_fcport *fcp = FCPORT(ocs, cam_sim_bus(xpt_path_sim((accb)->ccb_h.path)));
+	node = ocs_node_get_instance(ocs, fcp->tgt[accb->ccb_h.target_id].node_id);
 	if (node == NULL) {
 		device_printf(ocs->dev, "%s: no device %d\n", 
 				__func__, accb->ccb_h.target_id);

@@ -65,6 +65,10 @@
 #include <sys/ioccom.h>
 #include <sys/_task.h>
 
+#ifdef _KERNEL
+#include <opencrypto/_cryptodev.h>
+#endif
+
 /* Some initial values */
 #define CRYPTO_DRIVERS_INITIAL	4
 #define CRYPTO_SW_SESSIONS	32
@@ -74,31 +78,37 @@
 #define	MD5_HASH_LEN		16
 #define	SHA1_HASH_LEN		20
 #define	RIPEMD160_HASH_LEN	20
+#define	SHA2_224_HASH_LEN	28
 #define	SHA2_256_HASH_LEN	32
 #define	SHA2_384_HASH_LEN	48
 #define	SHA2_512_HASH_LEN	64
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
 #define	AES_GMAC_HASH_LEN	16
+#define	POLY1305_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
+#define	MD5_BLOCK_LEN		64
+#define	SHA1_BLOCK_LEN		64
+#define	RIPEMD160_BLOCK_LEN	64
+#define	SHA2_224_BLOCK_LEN	64
+#define	SHA2_256_BLOCK_LEN	64
+#define	SHA2_384_BLOCK_LEN	128
+#define	SHA2_512_BLOCK_LEN	128
+
 /* HMAC values */
 #define	NULL_HMAC_BLOCK_LEN		64
-#define	MD5_HMAC_BLOCK_LEN		64
-#define	SHA1_HMAC_BLOCK_LEN		64
-#define	RIPEMD160_HMAC_BLOCK_LEN	64
-#define	SHA2_256_HMAC_BLOCK_LEN	64
-#define	SHA2_384_HMAC_BLOCK_LEN	128
-#define	SHA2_512_HMAC_BLOCK_LEN	128
 /* Maximum HMAC block length */
-#define	HMAC_MAX_BLOCK_LEN	SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
+#define	HMAC_MAX_BLOCK_LEN	SHA2_512_BLOCK_LEN /* Keep this updated */
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
 /* HMAC Key Length */
 #define	AES_128_GMAC_KEY_LEN		16
 #define	AES_192_GMAC_KEY_LEN		24
 #define	AES_256_GMAC_KEY_LEN		32
+
+#define	POLY1305_KEY_LEN		32
 
 /* Encryption algorithm block sizes */
 #define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
@@ -182,7 +192,14 @@
 #define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
 #define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
 #define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
-#define	CRYPTO_ALGORITHM_MAX	31 /* Keep updated - see below */
+#define	CRYPTO_SHA2_224_HMAC	32
+#define	CRYPTO_RIPEMD160	33
+#define	CRYPTO_SHA2_224		34
+#define	CRYPTO_SHA2_256		35
+#define	CRYPTO_SHA2_384		36
+#define	CRYPTO_SHA2_512		37
+#define	CRYPTO_POLY1305		38
+#define	CRYPTO_ALGORITHM_MAX	38 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
@@ -216,6 +233,11 @@ struct session_op {
   	u_int32_t	ses;		/* returns: session # */ 
 };
 
+/*
+ * session and crypt _op structs are used by userspace programs to interact
+ * with /dev/crypto.  Confusingly, the internal kernel interface is named
+ * "cryptop" (no underscore).
+ */
 struct session2_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
@@ -399,7 +421,7 @@ struct cryptop {
 
 	struct task	crp_task;
 
-	u_int64_t	crp_sid;	/* Session ID */
+	crypto_session_t crp_session;	/* Session */
 	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
 
@@ -408,7 +430,7 @@ struct cryptop {
 					 * All error codes except EAGAIN
 					 * indicate possible data corruption (as in,
 					 * the data have been touched). On all
-					 * errors, the crp_sid may have changed
+					 * errors, the crp_session may have changed
 					 * (reset to a new one), so the caller
 					 * should always check and use the new
 					 * value on future requests.
@@ -450,7 +472,7 @@ struct cryptop {
 
 #define	CRYPTOP_ASYNC(crp) \
 	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
-	CRYPTO_SESID2CAPS((crp)->crp_sid) & CRYPTOCAP_F_SYNC)
+	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
 #define	CRYPTOP_ASYNC_KEEPORDER(crp) \
 	(CRYPTOP_ASYNC(crp) && \
 	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
@@ -480,25 +502,19 @@ struct cryptkop {
 	int		(*krp_callback)(struct cryptkop *);
 };
 
-/*
- * Session ids are 64 bits.  The lower 32 bits contain a "local id" which
- * is a driver-private session identifier.  The upper 32 bits contain a
- * "hardware id" used by the core crypto code to identify the driver and
- * a copy of the driver's capabilities that can be used by client code to
- * optimize operation.
- */
-#define	CRYPTO_SESID2HID(_sid)	(((_sid) >> 32) & 0x00ffffff)
-#define	CRYPTO_SESID2CAPS(_sid)	(((_sid) >> 32) & 0xff000000)
-#define	CRYPTO_SESID2LID(_sid)	(((u_int32_t) (_sid)) & 0xffffffff)
+uint32_t crypto_ses2hid(crypto_session_t crypto_session);
+uint32_t crypto_ses2caps(crypto_session_t crypto_session);
+void *crypto_get_driver_session(crypto_session_t crypto_session);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
-extern	int crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard);
-extern	int crypto_freesession(u_int64_t sid);
+extern	int crypto_newsession(crypto_session_t *cses, struct cryptoini *cri, int hard);
+extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
-extern	int32_t crypto_get_driverid(device_t dev, int flags);
+extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
+    int flags);
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
 extern	int crypto_getcaps(int hid);

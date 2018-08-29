@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -134,6 +135,7 @@ static const struct cpu_parts cpu_parts_arm[] = {
 /* Cavium */
 static const struct cpu_parts cpu_parts_cavium[] = {
 	{ CPU_PART_THUNDERX, "ThunderX" },
+	{ CPU_PART_THUNDERX2, "ThunderX2" },
 	CPU_PART_NONE,
 };
 
@@ -174,30 +176,34 @@ SYSINIT(idenrity_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 void
 print_cpu_features(u_int cpu)
 {
+	struct sbuf *sb;
 	int printed;
 
-	printf("CPU%3d: %s %s r%dp%d", cpu, cpu_desc[cpu].cpu_impl_name,
-	    cpu_desc[cpu].cpu_part_name, cpu_desc[cpu].cpu_variant,
-	    cpu_desc[cpu].cpu_revision);
+	sb = sbuf_new_auto();
+	sbuf_printf(sb, "CPU%3d: %s %s r%dp%d", cpu,
+	    cpu_desc[cpu].cpu_impl_name, cpu_desc[cpu].cpu_part_name,
+	    cpu_desc[cpu].cpu_variant, cpu_desc[cpu].cpu_revision);
 
-	printf(" affinity:");
+	sbuf_cat(sb, " affinity:");
 	switch(cpu_aff_levels) {
 	default:
 	case 4:
-		printf(" %2d", CPU_AFF3(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF3(cpu_desc[cpu].mpidr));
 		/* FALLTHROUGH */
 	case 3:
-		printf(" %2d", CPU_AFF2(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF2(cpu_desc[cpu].mpidr));
 		/* FALLTHROUGH */
 	case 2:
-		printf(" %2d", CPU_AFF1(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF1(cpu_desc[cpu].mpidr));
 		/* FALLTHROUGH */
 	case 1:
 	case 0: /* On UP this will be zero */
-		printf(" %2d", CPU_AFF0(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF0(cpu_desc[cpu].mpidr));
 		break;
 	}
-	printf("\n");
+	sbuf_finish(sb);
+	printf("%s\n", sbuf_data(sb));
+	sbuf_clear(sb);
 
 	/*
 	 * There is a hardware errata where, if one CPU is performing a TLB
@@ -229,39 +235,39 @@ print_cpu_features(u_int cpu)
 	/* AArch64 Instruction Set Attribute Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR0) != 0) {
 		printed = 0;
-		printf(" Instruction Set Attributes 0 = <");
+		sbuf_printf(sb, " Instruction Set Attributes 0 = <");
 
 		switch (ID_AA64ISAR0_RDM(cpu_desc[cpu].id_aa64isar0)) {
 		case ID_AA64ISAR0_RDM_NONE:
 			break;
 		case ID_AA64ISAR0_RDM_IMPL:
-			printf("%sRDM", SEP_STR);
+			sbuf_printf(sb, "%sRDM", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown RDM", SEP_STR);
+			sbuf_printf(sb, "%sUnknown RDM", SEP_STR);
 		}
 
 		switch (ID_AA64ISAR0_ATOMIC(cpu_desc[cpu].id_aa64isar0)) {
 		case ID_AA64ISAR0_ATOMIC_NONE:
 			break;
 		case ID_AA64ISAR0_ATOMIC_IMPL:
-			printf("%sAtomic", SEP_STR);
+			sbuf_printf(sb, "%sAtomic", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Atomic", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Atomic", SEP_STR);
 		}
 
 		switch (ID_AA64ISAR0_AES(cpu_desc[cpu].id_aa64isar0)) {
 		case ID_AA64ISAR0_AES_NONE:
 			break;
 		case ID_AA64ISAR0_AES_BASE:
-			printf("%sAES", SEP_STR);
+			sbuf_printf(sb, "%sAES", SEP_STR);
 			break;
 		case ID_AA64ISAR0_AES_PMULL:
-			printf("%sAES+PMULL", SEP_STR);
+			sbuf_printf(sb, "%sAES+PMULL", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown AES", SEP_STR);
+			sbuf_printf(sb, "%sUnknown AES", SEP_STR);
 			break;
 		}
 
@@ -269,10 +275,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SHA1_NONE:
 			break;
 		case ID_AA64ISAR0_SHA1_BASE:
-			printf("%sSHA1", SEP_STR);
+			sbuf_printf(sb, "%sSHA1", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SHA1", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SHA1", SEP_STR);
 			break;
 		}
 
@@ -280,13 +286,13 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SHA2_NONE:
 			break;
 		case ID_AA64ISAR0_SHA2_BASE:
-			printf("%sSHA2", SEP_STR);
+			sbuf_printf(sb, "%sSHA2", SEP_STR);
 			break;
 		case ID_AA64ISAR0_SHA2_512:
-			printf("%sSHA2+SHA512", SEP_STR);
+			sbuf_printf(sb, "%sSHA2+SHA512", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SHA2", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SHA2", SEP_STR);
 			break;
 		}
 
@@ -294,10 +300,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_CRC32_NONE:
 			break;
 		case ID_AA64ISAR0_CRC32_BASE:
-			printf("%sCRC32", SEP_STR);
+			sbuf_printf(sb, "%sCRC32", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown CRC32", SEP_STR);
+			sbuf_printf(sb, "%sUnknown CRC32", SEP_STR);
 			break;
 		}
 
@@ -305,10 +311,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SHA3_NONE:
 			break;
 		case ID_AA64ISAR0_SHA3_IMPL:
-			printf("%sSHA3", SEP_STR);
+			sbuf_printf(sb, "%sSHA3", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SHA3", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SHA3", SEP_STR);
 			break;
 		}
 
@@ -316,10 +322,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SM3_NONE:
 			break;
 		case ID_AA64ISAR0_SM3_IMPL:
-			printf("%sSM3", SEP_STR);
+			sbuf_printf(sb, "%sSM3", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SM3", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SM3", SEP_STR);
 			break;
 		}
 
@@ -327,10 +333,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SM4_NONE:
 			break;
 		case ID_AA64ISAR0_SM4_IMPL:
-			printf("%sSM4", SEP_STR);
+			sbuf_printf(sb, "%sSM4", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SM4", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SM4", SEP_STR);
 			break;
 		}
 
@@ -338,33 +344,35 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_DP_NONE:
 			break;
 		case ID_AA64ISAR0_DP_IMPL:
-			printf("%sDotProd", SEP_STR);
+			sbuf_printf(sb, "%sDotProd", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown DP", SEP_STR);
+			sbuf_printf(sb, "%sUnknown DP", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK);
 
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Instruction Set Attribute Register 1 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0) {
 		printed = 0;
-		printf(" Instruction Set Attributes 1 = <");
+		sbuf_printf(sb, " Instruction Set Attributes 1 = <");
 
 		switch (ID_AA64ISAR1_GPI(cpu_desc[cpu].id_aa64isar1)) {
 		case ID_AA64ISAR1_GPI_NONE:
 			break;
 		case ID_AA64ISAR1_GPI_IMPL:
-			printf("%sImpl GenericAuth", SEP_STR);
+			sbuf_printf(sb, "%sImpl GenericAuth", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown GenericAuth", SEP_STR);
+			sbuf_printf(sb, "%sUnknown GenericAuth", SEP_STR);
 			break;
 		}
 
@@ -372,10 +380,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_GPA_NONE:
 			break;
 		case ID_AA64ISAR1_GPA_IMPL:
-			printf("%sPrince GenericAuth", SEP_STR);
+			sbuf_printf(sb, "%sPrince GenericAuth", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown GenericAuth", SEP_STR);
+			sbuf_printf(sb, "%sUnknown GenericAuth", SEP_STR);
 			break;
 		}
 
@@ -383,10 +391,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_LRCPC_NONE:
 			break;
 		case ID_AA64ISAR1_LRCPC_IMPL:
-			printf("%sRCpc", SEP_STR);
+			sbuf_printf(sb, "%sRCpc", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown RCpc", SEP_STR);
+			sbuf_printf(sb, "%sUnknown RCpc", SEP_STR);
 			break;
 		}
 
@@ -394,10 +402,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_FCMA_NONE:
 			break;
 		case ID_AA64ISAR1_FCMA_IMPL:
-			printf("%sFCMA", SEP_STR);
+			sbuf_printf(sb, "%sFCMA", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown FCMA", SEP_STR);
+			sbuf_printf(sb, "%sUnknown FCMA", SEP_STR);
 			break;
 		}
 
@@ -405,10 +413,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_JSCVT_NONE:
 			break;
 		case ID_AA64ISAR1_JSCVT_IMPL:
-			printf("%sJS Conv", SEP_STR);
+			sbuf_printf(sb, "%sJS Conv", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown JS Conv", SEP_STR);
+			sbuf_printf(sb, "%sUnknown JS Conv", SEP_STR);
 			break;
 		}
 
@@ -416,10 +424,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_API_NONE:
 			break;
 		case ID_AA64ISAR1_API_IMPL:
-			printf("%sImpl AddrAuth", SEP_STR);
+			sbuf_printf(sb, "%sImpl AddrAuth", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Impl AddrAuth", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Impl AddrAuth", SEP_STR);
 			break;
 		}
 
@@ -427,10 +435,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_APA_NONE:
 			break;
 		case ID_AA64ISAR1_APA_IMPL:
-			printf("%sPrince AddrAuth", SEP_STR);
+			sbuf_printf(sb, "%sPrince AddrAuth", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Prince AddrAuth", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Prince AddrAuth", SEP_STR);
 			break;
 		}
 
@@ -438,32 +446,34 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR1_DPB_NONE:
 			break;
 		case ID_AA64ISAR1_DPB_IMPL:
-			printf("%sDC CVAP", SEP_STR);
+			sbuf_printf(sb, "%sDC CVAP", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown DC CVAP", SEP_STR);
+			sbuf_printf(sb, "%sUnknown DC CVAP", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK);
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Processor Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0) {
 		printed = 0;
-		printf("         Processor Features 0 = <");
+		sbuf_printf(sb, "         Processor Features 0 = <");
 
 		switch (ID_AA64PFR0_SVE(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_SVE_NONE:
 			break;
 		case ID_AA64PFR0_SVE_IMPL:
-			printf("%sSVE", SEP_STR);
+			sbuf_printf(sb, "%sSVE", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SVE", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SVE", SEP_STR);
 			break;
 		}
 
@@ -471,10 +481,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64PFR0_RAS_NONE:
 			break;
 		case ID_AA64PFR0_RAS_V1:
-			printf("%sRASv1", SEP_STR);
+			sbuf_printf(sb, "%sRASv1", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown RAS", SEP_STR);
+			sbuf_printf(sb, "%sUnknown RAS", SEP_STR);
 			break;
 		}
 
@@ -482,10 +492,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64PFR0_GIC_CPUIF_NONE:
 			break;
 		case ID_AA64PFR0_GIC_CPUIF_EN:
-			printf("%sGIC", SEP_STR);
+			sbuf_printf(sb, "%sGIC", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown GIC interface", SEP_STR);
+			sbuf_printf(sb, "%sUnknown GIC interface", SEP_STR);
 			break;
 		}
 
@@ -493,13 +503,13 @@ print_cpu_features(u_int cpu)
 		case ID_AA64PFR0_ADV_SIMD_NONE:
 			break;
 		case ID_AA64PFR0_ADV_SIMD_IMPL:
-			printf("%sAdvSIMD", SEP_STR);
+			sbuf_printf(sb, "%sAdvSIMD", SEP_STR);
 			break;
 		case ID_AA64PFR0_ADV_SIMD_HP:
-			printf("%sAdvSIMD+HP", SEP_STR);
+			sbuf_printf(sb, "%sAdvSIMD+HP", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown AdvSIMD", SEP_STR);
+			sbuf_printf(sb, "%sUnknown AdvSIMD", SEP_STR);
 			break;
 		}
 
@@ -507,75 +517,77 @@ print_cpu_features(u_int cpu)
 		case ID_AA64PFR0_FP_NONE:
 			break;
 		case ID_AA64PFR0_FP_IMPL:
-			printf("%sFloat", SEP_STR);
+			sbuf_printf(sb, "%sFloat", SEP_STR);
 			break;
 		case ID_AA64PFR0_FP_HP:
-			printf("%sFloat+HP", SEP_STR);
+			sbuf_printf(sb, "%sFloat+HP", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Float", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Float", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64PFR0_EL3(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_EL3_NONE:
-			printf("%sNo EL3", SEP_STR);
+			sbuf_printf(sb, "%sNo EL3", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL3_64:
-			printf("%sEL3", SEP_STR);
+			sbuf_printf(sb, "%sEL3", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL3_64_32:
-			printf("%sEL3 32", SEP_STR);
+			sbuf_printf(sb, "%sEL3 32", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown EL3", SEP_STR);
+			sbuf_printf(sb, "%sUnknown EL3", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64PFR0_EL2(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_EL2_NONE:
-			printf("%sNo EL2", SEP_STR);
+			sbuf_printf(sb, "%sNo EL2", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL2_64:
-			printf("%sEL2", SEP_STR);
+			sbuf_printf(sb, "%sEL2", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL2_64_32:
-			printf("%sEL2 32", SEP_STR);
+			sbuf_printf(sb, "%sEL2 32", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown EL2", SEP_STR);
+			sbuf_printf(sb, "%sUnknown EL2", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64PFR0_EL1(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_EL1_64:
-			printf("%sEL1", SEP_STR);
+			sbuf_printf(sb, "%sEL1", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL1_64_32:
-			printf("%sEL1 32", SEP_STR);
+			sbuf_printf(sb, "%sEL1 32", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown EL1", SEP_STR);
+			sbuf_printf(sb, "%sUnknown EL1", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64PFR0_EL0(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_EL0_64:
-			printf("%sEL0", SEP_STR);
+			sbuf_printf(sb, "%sEL0", SEP_STR);
 			break;
 		case ID_AA64PFR0_EL0_64_32:
-			printf("%sEL0 32", SEP_STR);
+			sbuf_printf(sb, "%sEL0 32", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown EL0", SEP_STR);
+			sbuf_printf(sb, "%sUnknown EL0", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64pfr0 & ~ID_AA64PFR0_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64pfr0 & ~ID_AA64PFR0_MASK);
 
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Processor Feature Register 1 */
@@ -587,15 +599,15 @@ print_cpu_features(u_int cpu)
 	/* AArch64 Memory Model Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR0) != 0) {
 		printed = 0;
-		printf("      Memory Model Features 0 = <");
+		sbuf_printf(sb, "      Memory Model Features 0 = <");
 		switch (ID_AA64MMFR0_TGRAN4(cpu_desc[cpu].id_aa64mmfr0)) {
 		case ID_AA64MMFR0_TGRAN4_NONE:
 			break;
 		case ID_AA64MMFR0_TGRAN4_IMPL:
-			printf("%s4k Granule", SEP_STR);
+			sbuf_printf(sb, "%s4k Granule", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown 4k Granule", SEP_STR);
+			sbuf_printf(sb, "%sUnknown 4k Granule", SEP_STR);
 			break;
 		}
 
@@ -603,10 +615,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_TGRAN16_NONE:
 			break;
 		case ID_AA64MMFR0_TGRAN16_IMPL:
-			printf("%s16k Granule", SEP_STR);
+			sbuf_printf(sb, "%s16k Granule", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown 16k Granule", SEP_STR);
+			sbuf_printf(sb, "%sUnknown 16k Granule", SEP_STR);
 			break;
 		}
 
@@ -614,10 +626,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_TGRAN64_NONE:
 			break;
 		case ID_AA64MMFR0_TGRAN64_IMPL:
-			printf("%s64k Granule", SEP_STR);
+			sbuf_printf(sb, "%s64k Granule", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown 64k Granule", SEP_STR);
+			sbuf_printf(sb, "%sUnknown 64k Granule", SEP_STR);
 			break;
 		}
 
@@ -625,10 +637,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_BIGEND_FIXED:
 			break;
 		case ID_AA64MMFR0_BIGEND_MIXED:
-			printf("%sMixedEndian", SEP_STR);
+			sbuf_printf(sb, "%sMixedEndian", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Endian switching", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Endian switching", SEP_STR);
 			break;
 		}
 
@@ -636,10 +648,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_BIGEND_EL0_FIXED:
 			break;
 		case ID_AA64MMFR0_BIGEND_EL0_MIXED:
-			printf("%sEL0 MixEndian", SEP_STR);
+			sbuf_printf(sb, "%sEL0 MixEndian", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown EL0 Endian switching", SEP_STR);
+			sbuf_printf(sb, "%sUnknown EL0 Endian switching", SEP_STR);
 			break;
 		}
 
@@ -647,71 +659,73 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_S_NS_MEM_NONE:
 			break;
 		case ID_AA64MMFR0_S_NS_MEM_DISTINCT:
-			printf("%sS/NS Mem", SEP_STR);
+			sbuf_printf(sb, "%sS/NS Mem", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown S/NS Mem", SEP_STR);
+			sbuf_printf(sb, "%sUnknown S/NS Mem", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64MMFR0_ASID_BITS(cpu_desc[cpu].id_aa64mmfr0)) {
 		case ID_AA64MMFR0_ASID_BITS_8:
-			printf("%s8bit ASID", SEP_STR);
+			sbuf_printf(sb, "%s8bit ASID", SEP_STR);
 			break;
 		case ID_AA64MMFR0_ASID_BITS_16:
-			printf("%s16bit ASID", SEP_STR);
+			sbuf_printf(sb, "%s16bit ASID", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown ASID", SEP_STR);
+			sbuf_printf(sb, "%sUnknown ASID", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64MMFR0_PA_RANGE(cpu_desc[cpu].id_aa64mmfr0)) {
 		case ID_AA64MMFR0_PA_RANGE_4G:
-			printf("%s4GB PA", SEP_STR);
+			sbuf_printf(sb, "%s4GB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_64G:
-			printf("%s64GB PA", SEP_STR);
+			sbuf_printf(sb, "%s64GB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_1T:
-			printf("%s1TB PA", SEP_STR);
+			sbuf_printf(sb, "%s1TB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_4T:
-			printf("%s4TB PA", SEP_STR);
+			sbuf_printf(sb, "%s4TB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_16T:
-			printf("%s16TB PA", SEP_STR);
+			sbuf_printf(sb, "%s16TB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_256T:
-			printf("%s256TB PA", SEP_STR);
+			sbuf_printf(sb, "%s256TB PA", SEP_STR);
 			break;
 		case ID_AA64MMFR0_PA_RANGE_4P:
-			printf("%s4PB PA", SEP_STR);
+			sbuf_printf(sb, "%s4PB PA", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown PA Range", SEP_STR);
+			sbuf_printf(sb, "%sUnknown PA Range", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64mmfr0 & ~ID_AA64MMFR0_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64mmfr0 & ~ID_AA64MMFR0_MASK);
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Memory Model Feature Register 1 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR1) != 0) {
 		printed = 0;
-		printf("      Memory Model Features 1 = <");
+		sbuf_printf(sb, "      Memory Model Features 1 = <");
 
 		switch (ID_AA64MMFR1_XNX(cpu_desc[cpu].id_aa64mmfr1)) {
 		case ID_AA64MMFR1_XNX_NONE:
 			break;
 		case ID_AA64MMFR1_XNX_IMPL:
-			printf("%sEL2 XN", SEP_STR);
+			sbuf_printf(sb, "%sEL2 XN", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown XNX", SEP_STR);
+			sbuf_printf(sb, "%sUnknown XNX", SEP_STR);
 			break;
 		}
 
@@ -719,10 +733,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_SPEC_SEI_NONE:
 			break;
 		case ID_AA64MMFR1_SPEC_SEI_IMPL:
-			printf("%sSpecSEI", SEP_STR);
+			sbuf_printf(sb, "%sSpecSEI", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SpecSEI", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SpecSEI", SEP_STR);
 			break;
 		}
 
@@ -730,13 +744,13 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_PAN_NONE:
 			break;
 		case ID_AA64MMFR1_PAN_IMPL:
-			printf("%sPAN", SEP_STR);
+			sbuf_printf(sb, "%sPAN", SEP_STR);
 			break;
 		case ID_AA64MMFR1_PAN_ATS1E1:
-			printf("%sPAN+AT", SEP_STR);
+			sbuf_printf(sb, "%sPAN+AT", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown PAN", SEP_STR);
+			sbuf_printf(sb, "%sUnknown PAN", SEP_STR);
 			break;
 		}
 
@@ -744,10 +758,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_LO_NONE:
 			break;
 		case ID_AA64MMFR1_LO_IMPL:
-			printf("%sLO", SEP_STR);
+			sbuf_printf(sb, "%sLO", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown LO", SEP_STR);
+			sbuf_printf(sb, "%sUnknown LO", SEP_STR);
 			break;
 		}
 
@@ -755,13 +769,13 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_HPDS_NONE:
 			break;
 		case ID_AA64MMFR1_HPDS_HPD:
-			printf("%sHPDS", SEP_STR);
+			sbuf_printf(sb, "%sHPDS", SEP_STR);
 			break;
 		case ID_AA64MMFR1_HPDS_TTPBHA:
-			printf("%sTTPBHA", SEP_STR);
+			sbuf_printf(sb, "%sTTPBHA", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown HPDS", SEP_STR);
+			sbuf_printf(sb, "%sUnknown HPDS", SEP_STR);
 			break;
 		}
 
@@ -769,10 +783,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_VH_NONE:
 			break;
 		case ID_AA64MMFR1_VH_IMPL:
-			printf("%sVHE", SEP_STR);
+			sbuf_printf(sb, "%sVHE", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown VHE", SEP_STR);
+			sbuf_printf(sb, "%sUnknown VHE", SEP_STR);
 			break;
 		}
 
@@ -780,10 +794,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_VMIDBITS_8:
 			break;
 		case ID_AA64MMFR1_VMIDBITS_16:
-			printf("%s16 VMID bits", SEP_STR);
+			sbuf_printf(sb, "%s16 VMID bits", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown VMID bits", SEP_STR);
+			sbuf_printf(sb, "%sUnknown VMID bits", SEP_STR);
 			break;
 		}
 
@@ -791,59 +805,61 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_HAFDBS_NONE:
 			break;
 		case ID_AA64MMFR1_HAFDBS_AF:
-			printf("%sAF", SEP_STR);
+			sbuf_printf(sb, "%sAF", SEP_STR);
 			break;
 		case ID_AA64MMFR1_HAFDBS_AF_DBS:
-			printf("%sAF+DBS", SEP_STR);
+			sbuf_printf(sb, "%sAF+DBS", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Hardware update AF/DBS", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Hardware update AF/DBS", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK);
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Memory Model Feature Register 2 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0) {
 		printed = 0;
-		printf("      Memory Model Features 2 = <");
+		sbuf_printf(sb, "      Memory Model Features 2 = <");
 
 		switch (ID_AA64MMFR2_NV(cpu_desc[cpu].id_aa64mmfr2)) {
 		case ID_AA64MMFR2_NV_NONE:
 			break;
 		case ID_AA64MMFR2_NV_IMPL:
-			printf("%sNestedVirt", SEP_STR);
+			sbuf_printf(sb, "%sNestedVirt", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown NestedVirt", SEP_STR);
+			sbuf_printf(sb, "%sUnknown NestedVirt", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64MMFR2_CCIDX(cpu_desc[cpu].id_aa64mmfr2)) {
 		case ID_AA64MMFR2_CCIDX_32:
-			printf("%s32b CCIDX", SEP_STR);
+			sbuf_printf(sb, "%s32b CCIDX", SEP_STR);
 			break;
 		case ID_AA64MMFR2_CCIDX_64:
-			printf("%s64b CCIDX", SEP_STR);
+			sbuf_printf(sb, "%s64b CCIDX", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown CCIDX", SEP_STR);
+			sbuf_printf(sb, "%sUnknown CCIDX", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64MMFR2_VA_RANGE(cpu_desc[cpu].id_aa64mmfr2)) {
 		case ID_AA64MMFR2_VA_RANGE_48:
-			printf("%s48b VA", SEP_STR);
+			sbuf_printf(sb, "%s48b VA", SEP_STR);
 			break;
 		case ID_AA64MMFR2_VA_RANGE_52:
-			printf("%s52b VA", SEP_STR);
+			sbuf_printf(sb, "%s52b VA", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown VA Range", SEP_STR);
+			sbuf_printf(sb, "%sUnknown VA Range", SEP_STR);
 			break;
 		}
 
@@ -851,10 +867,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR2_IESB_NONE:
 			break;
 		case ID_AA64MMFR2_IESB_IMPL:
-			printf("%sIESB", SEP_STR);
+			sbuf_printf(sb, "%sIESB", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown IESB", SEP_STR);
+			sbuf_printf(sb, "%sUnknown IESB", SEP_STR);
 			break;
 		}
 
@@ -862,10 +878,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR2_LSM_NONE:
 			break;
 		case ID_AA64MMFR2_LSM_IMPL:
-			printf("%sLSM", SEP_STR);
+			sbuf_printf(sb, "%sLSM", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown LSM", SEP_STR);
+			sbuf_printf(sb, "%sUnknown LSM", SEP_STR);
 			break;
 		}
 
@@ -873,10 +889,10 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR2_UAO_NONE:
 			break;
 		case ID_AA64MMFR2_UAO_IMPL:
-			printf("%sUAO", SEP_STR);
+			sbuf_printf(sb, "%sUAO", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown UAO", SEP_STR);
+			sbuf_printf(sb, "%sUnknown UAO", SEP_STR);
 			break;
 		}
 
@@ -884,57 +900,59 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR2_CNP_NONE:
 			break;
 		case ID_AA64MMFR2_CNP_IMPL:
-			printf("%sCnP", SEP_STR);
+			sbuf_printf(sb, "%sCnP", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown CnP", SEP_STR);
+			sbuf_printf(sb, "%sUnknown CnP", SEP_STR);
 			break;
 		}
 
 		if ((cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK) != 0)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK);
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Debug Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0) {
 		printed = 0;
-		printf("             Debug Features 0 = <");
+		sbuf_printf(sb, "             Debug Features 0 = <");
 		switch(ID_AA64DFR0_PMS_VER(cpu_desc[cpu].id_aa64dfr0)) {
 		case ID_AA64DFR0_PMS_VER_NONE:
 			break;
 		case ID_AA64DFR0_PMS_VER_V1:
-			printf("%sSPE v1", SEP_STR);
+			sbuf_printf(sb, "%sSPE v1", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown SPE", SEP_STR);
+			sbuf_printf(sb, "%sUnknown SPE", SEP_STR);
 			break;
 		}
 
-		printf("%s%lu CTX Breakpoints", SEP_STR,
+		sbuf_printf(sb, "%s%lu CTX Breakpoints", SEP_STR,
 		    ID_AA64DFR0_CTX_CMPS(cpu_desc[cpu].id_aa64dfr0));
 
-		printf("%s%lu Watchpoints", SEP_STR,
+		sbuf_printf(sb, "%s%lu Watchpoints", SEP_STR,
 		    ID_AA64DFR0_WRPS(cpu_desc[cpu].id_aa64dfr0));
 
-		printf("%s%lu Breakpoints", SEP_STR,
+		sbuf_printf(sb, "%s%lu Breakpoints", SEP_STR,
 		    ID_AA64DFR0_BRPS(cpu_desc[cpu].id_aa64dfr0));
 
 		switch (ID_AA64DFR0_PMU_VER(cpu_desc[cpu].id_aa64dfr0)) {
 		case ID_AA64DFR0_PMU_VER_NONE:
 			break;
 		case ID_AA64DFR0_PMU_VER_3:
-			printf("%sPMUv3", SEP_STR);
+			sbuf_printf(sb, "%sPMUv3", SEP_STR);
 			break;
 		case ID_AA64DFR0_PMU_VER_3_1:
-			printf("%sPMUv3+16 bit evtCount", SEP_STR);
+			sbuf_printf(sb, "%sPMUv3+16 bit evtCount", SEP_STR);
 			break;
 		case ID_AA64DFR0_PMU_VER_IMPL:
-			printf("%sImplementation defined PMU", SEP_STR);
+			sbuf_printf(sb, "%sImplementation defined PMU", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown PMU", SEP_STR);
+			sbuf_printf(sb, "%sUnknown PMU", SEP_STR);
 			break;
 		}
 
@@ -942,32 +960,34 @@ print_cpu_features(u_int cpu)
 		case ID_AA64DFR0_TRACE_VER_NONE:
 			break;
 		case ID_AA64DFR0_TRACE_VER_IMPL:
-			printf("%sTrace", SEP_STR);
+			sbuf_printf(sb, "%sTrace", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Trace", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Trace", SEP_STR);
 			break;
 		}
 
 		switch (ID_AA64DFR0_DEBUG_VER(cpu_desc[cpu].id_aa64dfr0)) {
 		case ID_AA64DFR0_DEBUG_VER_8:
-			printf("%sDebug v8", SEP_STR);
+			sbuf_printf(sb, "%sDebug v8", SEP_STR);
 			break;
 		case ID_AA64DFR0_DEBUG_VER_8_VHE:
-			printf("%sDebug v8+VHE", SEP_STR);
+			sbuf_printf(sb, "%sDebug v8+VHE", SEP_STR);
 			break;
 		case ID_AA64DFR0_DEBUG_VER_8_2:
-			printf("%sDebug v8.2", SEP_STR);
+			sbuf_printf(sb, "%sDebug v8.2", SEP_STR);
 			break;
 		default:
-			printf("%sUnknown Debug", SEP_STR);
+			sbuf_printf(sb, "%sUnknown Debug", SEP_STR);
 			break;
 		}
 
 		if (cpu_desc[cpu].id_aa64dfr0 & ~ID_AA64DFR0_MASK)
-			printf("%s%#lx", SEP_STR,
+			sbuf_printf(sb, "%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64dfr0 & ~ID_AA64DFR0_MASK);
-		printf(">\n");
+		sbuf_finish(sb);
+		printf("%s>\n", sbuf_data(sb));
+		sbuf_clear(sb);
 	}
 
 	/* AArch64 Memory Model Feature Register 1 */
@@ -988,6 +1008,8 @@ print_cpu_features(u_int cpu)
 		    cpu_desc[cpu].id_aa64afr1);
 	}
 
+	sbuf_delete(sb);
+	sb = NULL;
 #undef SEP_STR
 }
 

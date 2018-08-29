@@ -213,9 +213,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 cubic_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_CUBIC);
+	free(ccv->cc_data, M_CUBIC);
 }
 
 static int

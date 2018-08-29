@@ -137,7 +137,7 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
  */
 #define RNTORT(p)	((struct rtentry *)(p))
 
-static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+VNET_DEFINE_STATIC(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
 static int rtrequest1_fib_change(struct rib_head *, struct rt_addrinfo *,
@@ -733,7 +733,7 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 	struct ifaddr *ifa;
 	int not_found = 0;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	if ((flags & RTF_GATEWAY) == 0) {
 		/*
 		 * If we are adding a route to an interface,

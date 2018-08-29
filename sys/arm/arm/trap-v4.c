@@ -189,8 +189,8 @@ abort_handler(struct trapframe *tf, int type)
 		return (prefetch_abort_handler(tf));
 
 	/* Grab FAR/FSR before enabling interrupts */
-	far = cpu_faultaddress();
-	fsr = cpu_faultstatus();
+	far = cp15_dfar_get();
+	fsr = cp15_dfsr_get();
 #if 0
 	printf("data abort: fault address=%p (from pc=%p lr=%p)\n",
 	       (void*)far, (void*)tf->tf_pc, (void*)tf->tf_svc_lr);

@@ -482,6 +482,24 @@ This feature becomes
 when the "zpool remove" command is
 used on a top-level vdev, and will never return to being
 .Sy enabled .
+.It Sy spacemap_v2
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:spacemap_v2"
+.It GUID Ta com.delphix:spacemap_v2
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables the use of the new space map encoding which
+consists of two words (instead of one) whenever it is advantageous.
+The new encoding allows space maps to represent large regions of
+space more efficiently on-disk while also increasing their maximum
+addressable offset.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
 .It Sy large_blocks
 .Bl -column "READ\-ONLY COMPATIBLE" "org.open-zfs:large_block"
 .It GUID Ta org.open-zfs:large_block

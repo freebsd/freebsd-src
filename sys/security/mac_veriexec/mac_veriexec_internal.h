@@ -95,7 +95,6 @@ fingerprint_status_t
 	mac_veriexec_get_fingerprint_status(struct vnode *vp);
 int	mac_veriexec_get_state(void);
 int	mac_veriexec_in_state(int state);
-void	mac_veriexec_print_db(struct sbuf *);
 void	mac_veriexec_set_fingerprint_status(struct vnode *vp,
 	    fingerprint_status_t fp_status);
 void	mac_veriexec_set_state(int state);

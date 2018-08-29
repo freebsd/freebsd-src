@@ -124,7 +124,9 @@ initialize it with
 run over the data with
 .Fn SKEIN256_Update ,
 and finally extract the result using
-.Fn SKEIN256_Final .
+.Fn SKEIN256_Final ,
+which will also erase the
+.Vt SKEIN256_CTX .
 .Pp
 .Fn SKEIN256_End
 is a wrapper for

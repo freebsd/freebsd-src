@@ -538,6 +538,8 @@ in6m_release(struct in6_multi *inm)
 	CTR2(KTR_MLD, "%s: purging ifma %p", __func__, ifma);
 	KASSERT(ifma->ifma_protospec == NULL,
 	    ("%s: ifma_protospec != NULL", __func__));
+	if (ifp == NULL)
+		ifp = ifma->ifma_ifp;
 
 	if (ifp != NULL) {
 		CURVNET_SET(ifp->if_vnet);
@@ -562,8 +564,13 @@ static void in6m_init(void)
 	taskqgroup_config_gtask_init(NULL, &free_gtask, in6m_release_task, "in6m release task");
 }
 
+#ifdef EARLY_AP_STARTUP
 SYSINIT(in6m_init, SI_SUB_SMP + 1, SI_ORDER_FIRST,
 	in6m_init, NULL);
+#else
+SYSINIT(in6m_init, SI_SUB_ROOT_CONF - 1, SI_ORDER_SECOND,
+	in6m_init, NULL);
+#endif
 
 
 void
@@ -587,11 +594,20 @@ in6m_disconnect(struct in6_multi *inm)
 	struct ifmultiaddr *ifma, *ll_ifma;
 
 	ifp = inm->in6m_ifp;
+
+	if (ifp == NULL)
+		return;
+	inm->in6m_ifp = NULL;
 	IF_ADDR_WLOCK_ASSERT(ifp);
 	ifma = inm->in6m_ifma;
+	if (ifma == NULL)
+		return;
 
 	if_ref(ifp);
-	CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+	if (ifma->ifma_flags & IFMA_F_ENQUEUED) {
+		CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifmultiaddr, ifma_link);
+		ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+	}
 	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
 	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
 		MPASS(ifma != ll_ifma);
@@ -600,7 +616,10 @@ in6m_disconnect(struct in6_multi *inm)
 		MPASS(ll_ifma->ifma_ifp == ifp);
 		if (--ll_ifma->ifma_refcount == 0) {
 			ifma6_restart = true;
-			CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+			if (ll_ifma->ifma_flags & IFMA_F_ENQUEUED) {
+				CK_STAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifmultiaddr, ifma_link);
+				ll_ifma->ifma_flags &= ~IFMA_F_ENQUEUED;
+			}
 			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
 			if_freemulti(ll_ifma);
 		}
@@ -627,7 +646,7 @@ in6m_release_deferred(struct in6_multi *inm)
 	IN6_MULTI_LIST_LOCK_ASSERT();
 	KASSERT(inm->in6m_refcount > 0, ("refcount == %d inm: %p", inm->in6m_refcount, inm));
 	if (--inm->in6m_refcount == 0) {
-		in6m_disconnect(inm);
+		MPASS(inm->in6m_ifp == NULL);
 		SLIST_INIT(&tmp);
 		inm->in6m_ifma->ifma_protospec = NULL;
 		MPASS(inm->in6m_ifma->ifma_llifma == NULL);
@@ -1305,6 +1324,7 @@ out_in6m_release:
 				break;
 			}
 		}
+		in6m_disconnect(inm);
 		in6m_release_deferred(inm);
 		IF_ADDR_RUNLOCK(ifp);
 	} else {
@@ -1384,13 +1404,17 @@ in6_leavegroup_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 	KASSERT(error == 0, ("%s: failed to merge inm state", __func__));
 
 	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
+	error = 0;
+	if (ifp)
+		error = mld_change_state(inm, 0);
 	if (error)
 		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
 
 	CTR2(KTR_MLD, "%s: dropping ref on %p", __func__, inm);
 	if (ifp)
 		IF_ADDR_WLOCK(ifp);
+	if (inm->in6m_refcount == 1 && inm->in6m_ifp != NULL)
+		in6m_disconnect(inm);
 	in6m_release_deferred(inm);
 	if (ifp)
 		IF_ADDR_WUNLOCK(ifp);
@@ -1624,15 +1648,12 @@ in6p_findmoptions(struct inpcb *inp)
  */
 
 static void
-inp_gcmoptions(epoch_context_t ctx)
+inp_gcmoptions(struct ip6_moptions *imo)
 {
-	struct ip6_moptions *imo;
 	struct in6_mfilter	*imf;
 	struct in6_multi *inm;
 	struct ifnet *ifp;
 	size_t			 idx, nmships;
-
-	imo =  __containerof(ctx, struct ip6_moptions, imo6_epoch_ctx);
 
 	nmships = imo->im6o_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1663,7 +1684,7 @@ ip6_freemoptions(struct ip6_moptions *imo)
 {
 	if (imo == NULL)
 		return;
-	epoch_call(net_epoch_preempt, &imo->imo6_epoch_ctx, inp_gcmoptions);
+	inp_gcmoptions(imo);
 }
 
 /*
@@ -2157,6 +2178,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			IN6_MULTI_UNLOCK();
 			goto out_im6o_free;
 		}
+		in6m_acquire(inm);
 		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
@@ -2191,6 +2213,12 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 out_im6o_free:
 	if (error && is_new) {
+		inm = imo->im6o_membership[idx];
+		if (inm != NULL) {
+			IN6_MULTI_LIST_LOCK();
+			in6m_release_deferred(inm);
+			IN6_MULTI_LIST_UNLOCK();
+		}
 		imo->im6o_membership[idx] = NULL;
 		--imo->im6o_num_memberships;
 	}

@@ -377,10 +377,6 @@ next:
 			wait = !wait;
 			if (wait || ++passes < UFS_NIADDR + 2)
 				goto loop;
-#ifdef INVARIANTS
-			if (!vn_isdisk(vp, NULL))
-				vn_printf(vp, "ffs_fsync: dirty ");
-#endif
 		}
 	}
 	BO_UNLOCK(bo);

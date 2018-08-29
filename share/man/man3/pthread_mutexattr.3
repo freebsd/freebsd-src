@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 29, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_MUTEXATTR 3
 .Os
 .Sh NAME
@@ -52,11 +52,11 @@
 .Ft int
 .Fn pthread_mutexattr_setprioceiling "pthread_mutexattr_t *attr" "int prioceiling"
 .Ft int
-.Fn pthread_mutexattr_getprioceiling "pthread_mutexattr_t *attr" "int *prioceiling"
+.Fn pthread_mutexattr_getprioceiling "const pthread_mutexattr_t *attr" "int *prioceiling"
 .Ft int
 .Fn pthread_mutexattr_setprotocol "pthread_mutexattr_t *attr" "int protocol"
 .Ft int
-.Fn pthread_mutexattr_getprotocol "pthread_mutexattr_t *attr" "int *protocol"
+.Fn pthread_mutexattr_getprotocol "const pthread_mutexattr_t *restrict attr" "int *restrict protocol"
 .Ft int
 .Fn pthread_mutexattr_setrobust "pthread_mutexattr_t *attr" "int robust"
 .Ft int
@@ -64,7 +64,7 @@
 .Ft int
 .Fn pthread_mutexattr_settype "pthread_mutexattr_t *attr" "int type"
 .Ft int
-.Fn pthread_mutexattr_gettype "pthread_mutexattr_t *attr" "int *type"
+.Fn pthread_mutexattr_gettype "const pthread_mutexattr_t *restrict attr" "int *restrict type"
 .Sh DESCRIPTION
 Mutex attributes are used to specify parameters to
 .Fn pthread_mutex_init .

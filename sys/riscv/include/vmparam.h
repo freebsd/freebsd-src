@@ -67,10 +67,7 @@
 #define	VM_PHYSSEG_SPARSE
 
 /*
- * The number of PHYSSEG entries must be one greater than the number
- * of phys_avail entries because the phys_avail entry that spans the
- * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries.
+ * The number of PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		64
 
@@ -85,14 +82,11 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create one free page list: VM_FREELIST_DEFAULT is for all physical
+ * pages.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
@@ -229,10 +223,7 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
-/*
- * RISCVTODO
- * #define	UMA_MD_SMALL_ALLOC
- */
+#define	UMA_MD_SMALL_ALLOC
 
 #ifndef LOCORE
 extern vm_paddr_t dmap_phys_base;

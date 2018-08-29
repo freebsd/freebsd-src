@@ -320,7 +320,7 @@ msdosfs_mount(struct mount *mp)
 			/* Now that the volume is modifiable, mark it dirty. */
 			error = markvoldirty(pmp, 1);
 			if (error)
-				return (error); 
+				return (error);
 		}
 	}
 	/*

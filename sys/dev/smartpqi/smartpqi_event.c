@@ -49,6 +49,12 @@ pqisrc_rescan_devices(pqisrc_softstate_t *softs)
 	return ret;
 }
 
+void pqisrc_wait_for_rescan_complete(pqisrc_softstate_t *softs)
+{
+	os_sema_lock(&softs->scan_lock);
+	os_sema_unlock(&softs->scan_lock);
+}
+
 /*
  * Subroutine to acknowledge the events processed by the driver to the adapter.
  */

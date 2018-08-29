@@ -2,6 +2,16 @@
 
 .include <bsd.init.mk>
 
+MAN=	cli.lua.8 \
+	color.lua.8 \
+	config.lua.8 \
+	core.lua.8 \
+	drawer.lua.8 \
+	hook.lua.8 \
+	menu.lua.8 \
+	password.lua.8 \
+	screen.lua.8
+
 FILESDIR=	/boot/lua
 FILES=	cli.lua \
 	color.lua \

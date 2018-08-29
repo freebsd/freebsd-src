@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif
 
+#include "sha224.h"
 #include "sha256.h"
 
 #if BYTE_ORDER == BIG_ENDIAN
@@ -297,7 +298,57 @@ SHA256_Final(unsigned char digest[static SHA256_DIGEST_LENGTH], SHA256_CTX *ctx)
 	be32enc_vect(digest, ctx->state, SHA256_DIGEST_LENGTH);
 
 	/* Clear the context state */
-	memset(ctx, 0, sizeof(*ctx));
+	explicit_bzero(ctx, sizeof(*ctx));
+}
+
+/*** SHA-224: *********************************************************/
+/*
+ * the SHA224 and SHA256 transforms are identical
+ */
+
+/* SHA-224 initialization.  Begins a SHA-224 operation. */
+void
+SHA224_Init(SHA224_CTX * ctx)
+{
+
+	/* Zero bits processed so far */
+	ctx->count = 0;
+
+	/* Magic initialization constants */
+	ctx->state[0] = 0xC1059ED8;
+	ctx->state[1] = 0x367CD507;
+	ctx->state[2] = 0x3070DD17;
+	ctx->state[3] = 0xF70E5939;
+	ctx->state[4] = 0xFFC00B31;
+	ctx->state[5] = 0x68581511;
+	ctx->state[6] = 0x64f98FA7;
+	ctx->state[7] = 0xBEFA4FA4;
+}
+
+/* Add bytes into the SHA-224 hash */
+void
+SHA224_Update(SHA224_CTX * ctx, const void *in, size_t len)
+{
+
+	SHA256_Update((SHA256_CTX *)ctx, in, len);
+}
+
+/*
+ * SHA-224 finalization.  Pads the input data, exports the hash value,
+ * and clears the context state.
+ */
+void
+SHA224_Final(unsigned char digest[static SHA224_DIGEST_LENGTH], SHA224_CTX *ctx)
+{
+
+	/* Add padding */
+	SHA256_Pad((SHA256_CTX *)ctx);
+
+	/* Write the hash */
+	be32enc_vect(digest, ctx->state, SHA224_DIGEST_LENGTH);
+
+	/* Clear the context state */
+	explicit_bzero(ctx, sizeof(*ctx));
 }
 
 #ifdef WEAK_REFS
@@ -313,4 +364,11 @@ __weak_reference(_libmd_SHA256_Update, SHA256_Update);
 __weak_reference(_libmd_SHA256_Final, SHA256_Final);
 #undef SHA256_Transform
 __weak_reference(_libmd_SHA256_Transform, SHA256_Transform);
+
+#undef SHA224_Init
+__weak_reference(_libmd_SHA224_Init, SHA224_Init);
+#undef SHA224_Update
+__weak_reference(_libmd_SHA224_Update, SHA224_Update);
+#undef SHA224_Final
+__weak_reference(_libmd_SHA224_Final, SHA224_Final);
 #endif

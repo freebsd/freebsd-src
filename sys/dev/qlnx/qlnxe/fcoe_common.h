@@ -198,7 +198,7 @@ union fcoe_dix_desc_ctx
  */
 struct ystorm_fcoe_task_st_ctx
 {
-	u8 task_type /* Task type. use enum fcoe_task_type  */;
+	u8 task_type /* Task type. use enum fcoe_task_type  (use enum fcoe_task_type) */;
 	u8 sgl_mode;
 #define YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE_MASK  0x1 /* use enum scsi_sgl_mode (use enum scsi_sgl_mode) */
 #define YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE_SHIFT 0
@@ -424,8 +424,8 @@ struct fcoe_tstorm_fcoe_task_st_ctx_read_write
  */
 struct fcoe_tstorm_fcoe_task_st_ctx_read_only
 {
-	u8 task_type /* Task type. use enum fcoe_task_type */;
-	u8 dev_type /* Device type (disk or tape). use enum fcoe_device_type */;
+	u8 task_type /* Task type. use enum fcoe_task_type (use enum fcoe_task_type) */;
+	u8 dev_type /* Device type (disk or tape). use enum fcoe_device_type (use enum fcoe_device_type) */;
 	u8 conf_supported /* Confirmation supported indication */;
 	u8 glbl_q_num /* Global RQ/CQ num to be used for sense data placement/completion */;
 	__le32 cid /* CID which that tasks associated to */;
@@ -1011,10 +1011,12 @@ struct fcoe_conn_offload_ramrod_data
 #define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_REC_VALID_SHIFT         2
 #define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_MASK          0x1 /* Does inner vlan exist */
 #define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_SHIFT         3
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_SINGLE_VLAN_MASK        0x1 /* Does a single vlan (inner/outer) should be used. - UFP mode */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_SINGLE_VLAN_SHIFT       4
 #define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_MASK                 0x3 /* indication for conn mode: 0=Initiator, 1=Target, 2=Both Initiator and Traget */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_SHIFT                4
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_MASK            0x3
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_SHIFT           6
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_SHIFT                5
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_MASK            0x1
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_SHIFT           7
 	__le16 conn_id /* Drivers connection ID. Should be sent in EQs to speed-up drivers access to connection data. */;
 	u8 def_q_idx /* Default queue number to be used for unsolicited traffic */;
 	u8 reserved[5];
@@ -1027,6 +1029,17 @@ struct fcoe_conn_offload_ramrod_data
 struct fcoe_conn_terminate_ramrod_data
 {
 	struct regpair terminate_params_addr /* Terminate params ptr */;
+};
+
+
+/*
+ * FCoE device type
+ */
+enum fcoe_device_type
+{
+	FCOE_TASK_DEV_TYPE_DISK,
+	FCOE_TASK_DEV_TYPE_TAPE,
+	MAX_FCOE_DEVICE_TYPE
 };
 
 
@@ -1092,11 +1105,54 @@ struct fcoe_rx_stat
 
 
 /*
+ * FCoE SQE request type
+ */
+enum fcoe_sqe_request_type
+{
+	SEND_FCOE_CMD,
+	SEND_FCOE_MIDPATH,
+	SEND_FCOE_ABTS_REQUEST,
+	FCOE_EXCHANGE_CLEANUP,
+	FCOE_SEQUENCE_RECOVERY,
+	SEND_FCOE_XFER_RDY,
+	SEND_FCOE_RSP,
+	SEND_FCOE_RSP_WITH_SENSE_DATA,
+	SEND_FCOE_TARGET_DATA,
+	SEND_FCOE_INITIATOR_DATA,
+	SEND_FCOE_XFER_CONTINUATION_RDY /* Xfer Continuation (==1) ready to be sent. Previous XFERs data received successfully. */,
+	SEND_FCOE_TARGET_ABTS_RSP,
+	MAX_FCOE_SQE_REQUEST_TYPE
+};
+
+
+/*
  * FCoe statistics request 
  */
 struct fcoe_stat_ramrod_data
 {
 	struct regpair stat_params_addr /* Statistics host address */;
+};
+
+
+/*
+ * FCoE task type
+ */
+enum fcoe_task_type
+{
+	FCOE_TASK_TYPE_WRITE_INITIATOR,
+	FCOE_TASK_TYPE_READ_INITIATOR,
+	FCOE_TASK_TYPE_MIDPATH,
+	FCOE_TASK_TYPE_UNSOLICITED,
+	FCOE_TASK_TYPE_ABTS,
+	FCOE_TASK_TYPE_EXCHANGE_CLEANUP,
+	FCOE_TASK_TYPE_SEQUENCE_CLEANUP,
+	FCOE_TASK_TYPE_WRITE_TARGET,
+	FCOE_TASK_TYPE_READ_TARGET,
+	FCOE_TASK_TYPE_RSP,
+	FCOE_TASK_TYPE_RSP_SENSE_DATA,
+	FCOE_TASK_TYPE_ABTS_TARGET,
+	FCOE_TASK_TYPE_ENUM_SIZE,
+	MAX_FCOE_TASK_TYPE
 };
 
 

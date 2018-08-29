@@ -20,7 +20,7 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 	clean		"cloudabi32_vdso_blob.o"
 #
 linux_genassym.o		optional	compat_linux		\
-	dependency 	"$S/i386/linux/linux_genassym.c"		\
+	dependency 	"$S/i386/linux/linux_genassym.c offset.inc"		\
 	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
@@ -474,8 +474,6 @@ i386/bios/smapi.c		optional smapi
 i386/bios/smapi_bios.S		optional smapi
 i386/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 #i386/i386/apic_vector.s		optional apic
-i386/i386/atomic.c		standard		\
-	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/bpf_jit_machdep.c	optional bpf_jitter
@@ -623,6 +621,7 @@ x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/stack_machdep.c		optional ddb | stack
 x86/x86/tsc.c			standard
+x86/x86/ucode.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional xenhvm

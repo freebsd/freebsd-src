@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.121 2017/10/27 21:43:23 christos Exp $
+# $File: msdos,v 1.124 2018/07/10 04:05:50 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -792,10 +792,16 @@
 #0	string	Nullsoft\ AVS\ Preset\ \060\056\061\032 A plug in for Winamp ms-windows Freeware media player
 0	string/b	Nullsoft\ AVS\ Preset\ 	Winamp plug in
 
-# Windows Metafont .WMF
-0	string/b	\327\315\306\232	ms-windows metafont .wmf
-0	string/b	\002\000\011\000	ms-windows metafont .wmf
-0	string/b	\001\000\011\000	ms-windows metafont .wmf
+# Windows Metafile .WMF
+0	string/b	\327\315\306\232	Windows metafile
+!:mime	image/wmf
+!:ext	wmf
+0	string/b	\002\000\011\000	Windows metafile
+!:mime	image/wmf
+!:ext	wmf
+0	string/b	\001\000\011\000	Windows metafile
+!:mime	image/wmf
+!:ext	wmf
 
 #tz3 files whatever that is (MS Works files)
 0	string/b	\003\001\001\004\070\001\000\000	tz3 ms-works file
@@ -1032,12 +1038,246 @@
 
 #------------------------------------------------------------------------------
 # From Stuart Caie <kyzer@4u.net> (developer of cabextract)
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Cabinet_(file_format)
+# Reference: https://msdn.microsoft.com/en-us/library/bb267310.aspx
+# Note: verified by `7z l *.cab`
 # Microsoft Cabinet files
 0	string/b	MSCF\0\0\0\0	Microsoft Cabinet archive data
-!:mime application/vnd.ms-cab-compressed
->8	lelong		x		\b, %u bytes
->28	leshort		1		\b, 1 file
->28	leshort		>1		\b, %u files
+#
+# https://support.microsoft.com/en-us/help/973559/frequently-asked-questions-about-the-microsoft-support-diagnostic-tool
+# CAB with *.{diagcfg,diagpkg} is used by Microsoft Support Diagnostic Tool MSDT.EXE
+# because some archive does not have *.diag* as 1st or 2nd archive member like
+# O15CTRRemove.diagcab or AzureStorageAnalyticsLogs_global.DiagCab
+# brute looking after header for filenames with diagcfg or diagpkg extension in CFFILE section
+>0x2c	search/980/c	.diag		\b, Diagnostic
+!:mime	application/vnd.ms-cab-compressed
+!:ext	diagcab
+# http://fileformats.archiveteam.org/wiki/PUZ
+# Microsoft Publisher version about 2003 has a "Pack and Go" feature that
+# bundles a Publisher document *PNG.pub with all links into a CAB
+>0x2c	search/300/c	png.pub\0		\b, Publisher Packed and Go
+!:mime	application/vnd.ms-cab-compressed
+!:ext	puz
+# ppz variant with Microsoft PowerPoint Viewer ppview32.exe to play PowerPoint presentation
+>0x2c	search/17/c	ppview32.exe\0		\b, PowerPoint Viewer Packed and Go
+!:mime	application/vnd.ms-powerpoint
+#!:mime	application/mspowerpoint
+!:ext	ppz
+# http://www.incredimail.com/
+# IncrediMail CAB contains an initialisation file "content.ini" like in im2.ims
+>0x2c	search/3369/c	content.ini\0	\b, IncrediMail
+!:mime	application/x-incredimail
+# member Flavor.htm implies IncrediMail ecard like in tell_a_friend.imf
+>>0x2c	search/83/c	Flavor.htm\0	ecard
+!:ext	imf
+# member Macromedia Flash data *.swf implies IncrediMail skin like in im2.ims
+>>0x2c	search/211/c	.swf\0		skin
+!:ext	ims
+# member anim.im3 implies IncrediMail animation like in letter_fold.ima 
+>>0x2c	search/92/c	anim.im3\0	animation
+!:ext	ima
+# other IncrediMail cab archive
+>>0x2c	default		x
+>>>0x2c	search/116/c	thumb		ecard, image, notifier or skin
+!:ext	imf/imi/imn/ims
+# http://file-extension.net/seeker/file_extension_ime
+>>>0x2c	default		x		emoticons or sound
+!:ext	ime/imw
+# no Diagnostic and IncrediMail
+>0x2c	default		x
+# look for 1st member name
+>>(16.l+16)	ubyte	x
+# https://en.wikipedia.org/wiki/SNP_file_format
+>>>&-1	string/c 	_accrpt_.snp	\b, Access report snapshot
+!:mime	application/msaccess
+!:ext	snp
+# https://www.cabextract.org.uk/wince_cab_format/
+# extension of DOS 8+3 name with ".000" of 1st archive member name implies Windows CE installer
+>>>&7	string 		=.000		\b, WinCE install
+!:mime	application/vnd.ms-cab-compressed
+!:ext	cab
+
+# http://support.microsoft.com/kb/934307/en-US
+# All inspected MSU contain a file with name WSUSSCAN.cab
+# that is called "Windows Update meta data" by Microsoft
+>>>&-1	string/c 	wsusscan.cab	\b, Microsoft Standalone Update
+!:mime	application/vnd.ms-cab-compressed
+!:ext	msu
+>>>&-1	default		x
+# look at point charcter of 1st archive member name for file name extension
+>>>>&-1	search/255 	.
+# http://www.pptfaq.com/FAQ00164_What_is_a_PPZ_file-.htm
+# PPZ were created using Pack & Go feature of PowerPoint versions 97 - 2002
+# packs optional files, a PowerPoint presentation *.ppt with optional PLAYLIST.LST to CAB
+>>>>>&0	string/c	ppt\0		\b, PowerPoint Packed and Go
+!:mime	application/vnd.ms-powerpoint
+#!:mime	application/mspowerpoint
+!:ext	ppz
+# https://msdn.microsoft.com/en-us/library/windows/desktop/bb773190(v=vs.85).aspx
+# first member *.theme implies Windows 7 Theme Pack like in CommunityShowcaseAqua3.themepack
+# or Windows 8 Desktop Theme Pack like in PanoramicGlaciers.deskthemepack
+>>>>>&0	string/c	theme		\b, Windows
+!:mime	application/x-windows-themepack
+# http://www.drewkeller.com/content/using-theme-both-windows-7-and-windows-8
+# 1st member Panoramic.theme or Panoramas.theme implies Windows 8-10 Theme Pack
+# with MTSM=RJSPBS in [MasterThemeSelector] inside *.theme
+>>>>>>(16.l+16)	string	=Panoram	8
+!:ext	deskthemepack
+>>>>>>(16.l+16)	string	!Panoram	7 or 8
+!:ext	themepack/deskthemepack
+>>>>>>(16.l+16)	ubyte	x		Theme Pack
+>>>>>&0	default		x
+# look for null terminator of 1st member name
+>>>>>>&0	search/255 	\0
+# 2nd member name WSUSSCAN.cab like in Microsoft-Windows-MediaFeaturePack-OOB-Package.msu
+>>>>>>>&16	string/c 	wsusscan.cab	\b, Microsoft Standalone Update
+!:mime	application/vnd.ms-cab-compressed
+!:ext	msu
+>>>>>>>&16	default	x
+# archive with more then one file need some output in version 5.32 to avoid error message like
+# Magdir/msdos, 1138: Warning: Current entry does not yet have a description for adding a MIME type
+# Magdir/msdos, 1139: Warning: Current entry does not yet have a description for adding a EXTENSION type
+# file: could not find any valid magic files!
+>>>>>>>>28	uleshort	>1	\b, many
+!:mime	application/vnd.ms-cab-compressed
+!:ext	cab
+# remaining archives with just one file
+>>>>>>>>28	uleshort	=1
+# neither extra bytes nor cab chain implies Windows 2000,XP setup files in directory i386
+>>>>>>>>>30	uleshort	=0x0000	\b, Windows 2000/XP setup
+# cut of last char of source extension and add underscore to generate extension
+# TERMCAP._ ... FXSCOUNT.H_ ... L3CODECA.AC_ ... NPDRMV2.ZI_
+!:mime	application/vnd.ms-cab-compressed
+!:ext	_/?_/??_
+# archive need some output like "single" in version 5.32 to avoid error messages
+>>>>>>>>>30	uleshort	!0x0000	\b, single
+!:mime	application/vnd.ms-cab-compressed
+!:ext	cab
+# TODO: additional extensions like
+# .xsn	InfoPath Dynamic Form
+# .xtp	InfoPath Template Part
+# .lvf	Logitech Video Effects Face Accessory
+>8	ulelong		x		\b, %u bytes
+>28	uleshort		1		\b, 1 file
+>28	uleshort		>1		\b, %u files
+# Reserved fields, set to zero
+#>4	belong		!0		\b, reserved1 %x
+#>12	belong		!0		\b, reserved2 %x
+# offset of the first CFFILE entry coffFiles: minimal 2Ch
+>16	ulelong		x		\b, at 0x%x
+>(16.l)	use		cab-file
+# at least also 2nd member
+>28	uleshort		>1
+>>(16.l+16)	ubyte	x
+>>>&0	search/255 	\0
+# second member info
+>>>>&0	use		cab-file
+#>20	belong		!0		\b, reserved %x
+# Cabinet file format version. Currently, versionMajor = 1 and versionMinor = 3
+>24	ubeshort	!0x0301		\b version 0x%x
+# number of CFFOLDER entries
+>26	uleshort	>1		\b, %u cffolders
+# cabinet file option indicators 1~PREVIOUS, 2~NEXT, 4~reserved fields
+# only found for flags 0 1 2 3 4 not 7
+>30	uleshort	>0		\b, flags 0x%x
+# Cabinet files have a 16-bit cabinet setID field that is designed for application use.
+# default is zero, however, the -i option of cabarc can be used to set this field
+>32	uleshort	>0		\b, ID %u
+# iCabinet is number of this cabinet file in a set, where 0 for the first cabinet
+#>34	uleshort	x		\b, iCabinet %u
+# add one for display because humans start numbering by 1 and also fit to name of disk szDisk*
+>34	uleshort+1	x		\b, number %u
+>30	uleshort	&0x0004		\b, extra bytes
+# cbCFHeader optional size of per-cabinet reserved area 14h 1800h
+>>36	uleshort	>0		%u in head
+# cbCFFolder is optional size of per-folder reserved area
+>>38	ubyte		>0		%u in folder
+# cbCFData is optional size of per-datablock reserved area
+>>39	ubyte		>0		%u in data block
+# optional per-cabinet reserved area abReserve[cbCFHeader]
+>>36	uleshort	>0
+# 1st CFFOLDER after reserved area in header
+>>>(36.s+40)	use			cab-folder
+# no reserved area in header
+>30	uleshort	^0x0004
+# no previous and next cab archive
+>>30	uleshort		=0x0000
+>>>36	use				cab-folder
+# only previous cab archive
+>>30	uleshort		=0x0001	\b, previous
+>>>36	use				cab-anchor
+# only next cab archive
+>>30	uleshort		=0x0002	\b, next
+>>>36	use				cab-anchor
+# previous+next cab archive
+# can not use sub routine cab-anchor to display previous and next cabinet together
+#>>>36	use				cab-anchor
+#>>>>&0	use				cab-anchor
+>>30	uleshort		=0x0003	\b, previous
+>>>36	string		x		%s
+# optional name of previous disk szDisk*
+>>>>&1	string		x		disk %s
+>>>>>&1	string		x		\b, next %s
+# optional name of previous disk szDisk*
+>>>>>>&1	string		x	disk %s
+>>>>>>>&1	use			cab-folder
+#	display filename and disk name of previous or next cabinet
+0       name    			cab-anchor
+# optional name of previous/next cabinet file szCabinet*[255]
+>&0	string		x		%s
+# optional name of previous/next disk szDisk*[255]
+>>&1	string		x		disk %s
+#	display folder structure CFFOLDER information like compression of cabinet
+0       name    			cab-folder
+# offset of the CFDATA block in this folder
+#>0	ulelong		x		\b, coffCabStart 0x%x
+# number of CFDATA blocks in folder
+>4	uleshort	x		\b, %u datablock
+# plural s
+>4	uleshort	>1		\bs
+# compression typeCompress: 0~None 1~MSZIP 0x1503~LZX:21 0x1003~LZX:16 0x0f03~LZX:15
+>6	uleshort	x		\b, 0x%x compression
+# optional per-folder reserved area
+#>8	ubequad		x		\b, abReserve 0x%llx
+#	display member structure CFFILE information like member name of cabinet
+0       name    			cab-file
+# cbFile is uncompressed size of file in bytes 
+#>0	ulelong		x		\b, cbFile %u
+# uoffFolderStart is uncompressed offset of file in folder
+#>4	ulelong		>0		\b, uoffFolderStart 0x%x
+# iFolder is index into the CFFOLDER area. 0 indicates first folder in cabinet
+# define ifoldCONTINUED_FROM_PREV      (0xFFFD)
+# define ifoldCONTINUED_TO_NEXT        (0xFFFE)
+# define ifoldCONTINUED_PREV_AND_NEXT  (0xFFFF)
+>8	uleshort	>0		\b, iFolder 0x%x
+# date stamp for file
+#>10	uleshort	x		\b, date 0x%x
+# time stamp for file
+#>12	uleshort	x		\b, time 0x%x
+# attribs is attribute flags for file
+# define  _A_RDONLY       (0x01)  file is read-only
+# define  _A_HIDDEN       (0x02)  file is hidden
+# define  _A_SYSTEM       (0x04)  file is a system file
+# define  _A_ARCH         (0x20)  file modified since last backup
+# example http://sebastien.kirche.free.fr/pebuilder_plugins/depends.cab
+# define  _A_EXEC         (0x40)  run after extraction
+# define  _A_NAME_IS_UTF  (0x80)  szName[] contains UTF
+# define  UNKNOWN       (0x0100)  undocumented or accident
+#>14	uleshort	x		\b, attribs 0x%x
+>14	uleshort	>0		+
+>>14	uleshort	&0x0001		\bR
+>>14	uleshort	&0x0002		\bH
+>>14	uleshort	&0x0004		\bS
+>>14	uleshort	&0x0020		\bA
+>>14	uleshort	&0x0040		\bX
+>>14	uleshort	&0x0080		\bUtf
+# unknown 0x0100 flag found on one XP_CD:\I386\DRIVER.CAB
+>>14	uleshort	&0x0100		\b?
+# szName is name of archive member
+>16	string		x		"%s"
+# next archive member name if more files
+#>>&17	string		>\0		\b, NEXT NAME %-.50s
 
 # InstallShield Cabinet files
 0	string/b	ISc(		InstallShield Cabinet archive data
@@ -1087,14 +1327,6 @@
 >>50	byte   x			\b%d
 >5	byte   <2
 >>48	string x			version %.3s
-
-# Type: Microsoft DirectDraw Surface
-# URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
-# From: Morten Hustveit <morten@debian.org>
-0	string/b	DDS\040\174\000\000\000 Microsoft DirectDraw Surface (DDS),
->16	lelong	>0			%d x
->12	lelong	>0			%d,
->84	string	x			%.4s
 
 # Type: Microsoft Document Imaging Format (.mdi)
 # URL:	http://en.wikipedia.org/wiki/Microsoft_Document_Imaging_Format

@@ -106,10 +106,15 @@ int
 fdt_pinctrl_register(device_t pinctrl, const char *pinprop)
 {
 	phandle_t node;
+	int ret;
 
+	TSENTER();
 	node = ofw_bus_get_node(pinctrl);
 	OF_device_register_xref(OF_xref_from_node(node), pinctrl);
-	return (pinctrl_register_children(pinctrl, node, pinprop));
+	ret = pinctrl_register_children(pinctrl, node, pinprop);
+	TSEXIT();
+
+	return (ret);
 }
 
 static int
@@ -117,6 +122,8 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 {
 	phandle_t node, *configs;
 	int i, nconfigs;
+
+	TSENTER();
 
 	for (node = OF_child(parent); node != 0; node = OF_peer(node)) {
 		if (!ofw_bus_node_status_okay(node))
@@ -138,6 +145,7 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 		}
 		OF_prop_free(configs);
 	}
+	TSEXIT();
 	return (0);
 }
 

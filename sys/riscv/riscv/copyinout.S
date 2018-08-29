@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -133,5 +133,8 @@ ENTRY(copyinstr)
 	sd	a5, 0(a3)	/* done = count */
 
 4:	mv	a0, x0		/* return 0 */
+	beqz	a4, 5f
+	li	a0, ENAMETOOLONG
+5:
 	ret
 END(copyinstr)

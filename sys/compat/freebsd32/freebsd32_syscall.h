@@ -226,9 +226,9 @@
 #define	FREEBSD32_SYS_freebsd32_lio_listio	257
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
-#define	FREEBSD32_SYS_netbsd_lchown	275
+				/* 275 is obsolete netbsd_lchown */
 #define	FREEBSD32_SYS_freebsd32_lutimes	276
-#define	FREEBSD32_SYS_netbsd_msync	277
+				/* 277 is obsolete netbsd_msync */
 #define	FREEBSD32_SYS_freebsd11_nstat	278
 #define	FREEBSD32_SYS_freebsd11_nfstat	279
 #define	FREEBSD32_SYS_freebsd11_nlstat	280
@@ -271,7 +271,7 @@
 #define	FREEBSD32_SYS_sched_yield	331
 #define	FREEBSD32_SYS_sched_get_priority_max	332
 #define	FREEBSD32_SYS_sched_get_priority_min	333
-#define	FREEBSD32_SYS_sched_rr_get_interval	334
+#define	FREEBSD32_SYS_freebsd32_sched_rr_get_interval	334
 #define	FREEBSD32_SYS_utrace	335
 				/* 336 is freebsd4 freebsd32_sendfile */
 #define	FREEBSD32_SYS_kldsym	337

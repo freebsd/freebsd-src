@@ -20,7 +20,7 @@ alias ll	ls -lAF
 # umask 22
 
 setenv	EDITOR	vi
-setenv	PAGER	more
+setenv	PAGER	less
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up

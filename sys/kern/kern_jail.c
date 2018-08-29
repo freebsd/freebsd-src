@@ -190,6 +190,7 @@ static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	{"allow.mount", "allow.nomount", PR_ALLOW_MOUNT},
 	{"allow.quotas", "allow.noquotas", PR_ALLOW_QUOTAS},
 	{"allow.socket_af", "allow.nosocket_af", PR_ALLOW_SOCKET_AF},
+	{"allow.mlock", "allow.nomlock", PR_ALLOW_MLOCK},
 	{"allow.reserved_ports", "allow.noreserved_ports",
 	 PR_ALLOW_RESERVED_PORTS},
 };
@@ -3293,6 +3294,17 @@ prison_priv_check(struct ucred *cred, int priv)
 			return (EPERM);
 
 		/*
+		 * Conditionnaly allow locking (unlocking) physical pages
+		 * in memory.
+		 */
+	case PRIV_VM_MLOCK:
+	case PRIV_VM_MUNLOCK:
+		if (cred->cr_prison->pr_allow & PR_ALLOW_MLOCK)
+			return (0);
+		else
+			return (EPERM);
+
+		/*
 		 * Conditionally allow jailed root to bind reserved ports.
 		 */
 	case PRIV_NETINET_RESERVEDPORT:
@@ -3752,6 +3764,8 @@ SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
+SYSCTL_JAIL_PARAM(_allow, mlock, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may lock (unlock) physical pages in memory");
 SYSCTL_JAIL_PARAM(_allow, reserved_ports, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may bind sockets to reserved ports");
 
@@ -3760,37 +3774,43 @@ SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
 
 /*
- * The VFS system will register jail-aware filesystems here.  They each get
- * a parameter allow.mount.xxxfs and a flag to check when a jailed user
- * attempts to mount.
+ * Add a dynamic parameter allow.<name>, or allow.<prefix>.<name>.  Return
+ * its associated bit in the pr_allow bitmask, or zero if the parameter was
+ * not created.
  */
-void
-prison_add_vfs(struct vfsconf *vfsp)
+unsigned
+prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
+    const char *descr)
 {
-	char *allow_name, *allow_noname, *mount_allowed;
 	struct bool_flags *bf;
+	struct sysctl_oid *parent;
+	char *allow_name, *allow_noname, *allowed;
 #ifndef NO_SYSCTL_DESCR
-	char *descr;
+	char *descr_deprecated;
 #endif
 	unsigned allow_flag;
 
-	if (asprintf(&allow_name, M_PRISON, "allow.mount.%s", vfsp->vfc_name) <
-	    0 || asprintf(&allow_noname, M_PRISON, "allow.mount.no%s",
-	    vfsp->vfc_name) < 0) {
+	if (prefix
+	    ? asprintf(&allow_name, M_PRISON, "allow.%s.%s", prefix, name)
+		< 0 ||
+	      asprintf(&allow_noname, M_PRISON, "allow.%s.no%s", prefix, name)
+		< 0
+	    : asprintf(&allow_name, M_PRISON, "allow.%s", name) < 0 ||
+	      asprintf(&allow_noname, M_PRISON, "allow.no%s", name) < 0) {
 		free(allow_name, M_PRISON);
-		return;
+		return 0;
 	}
 
 	/*
-	 * See if this parameter has already beed added, i.e. if the filesystem
-	 * was previously loaded/unloaded.
+	 * See if this parameter has already beed added, i.e. a module was
+	 * previously loaded/unloaded.
 	 */
 	mtx_lock(&prison0.pr_mtx);
 	for (bf = pr_flag_allow;
 	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
 	     bf++) {
 		if (strcmp(bf->name, allow_name) == 0) {
-			vfsp->vfc_prison_flag = bf->flag;
+			allow_flag = bf->flag;
 			goto no_add;
 		}
 	}
@@ -3798,7 +3818,7 @@ prison_add_vfs(struct vfsconf *vfsp)
 	/*
 	 * Find a free bit in prison0's pr_allow, failing if there are none
 	 * (which shouldn't happen as long as we keep track of how many
-	 * filesystems are jail-aware).
+	 * potential dynamic flags exist).
 	 */
 	for (allow_flag = 1;; allow_flag <<= 1) {
 		if (allow_flag == 0)
@@ -3815,52 +3835,73 @@ prison_add_vfs(struct vfsconf *vfsp)
 	for (bf = pr_flag_allow; bf->flag != 0; bf++)
 		if (bf == pr_flag_allow + nitems(pr_flag_allow)) {
 			/* This should never happen, but is not fatal. */
+			allow_flag = 0;
 			goto no_add;
 		}
 	prison0.pr_allow |= allow_flag;
 	bf->name = allow_name;
 	bf->noname = allow_noname;
 	bf->flag = allow_flag;
-	vfsp->vfc_prison_flag = allow_flag;
 	mtx_unlock(&prison0.pr_mtx);
 
 	/*
 	 * Create sysctls for the paramter, and the back-compat global
 	 * permission.
 	 */
-#ifndef NO_SYSCTL_DESCR
-	(void)asprintf(&descr, M_TEMP, "Jail may mount the %s file system",
-	    vfsp->vfc_name);
-#endif
-	(void)SYSCTL_ADD_PROC(NULL,
-	    SYSCTL_CHILDREN(&sysctl___security_jail_param_allow_mount),
-	    OID_AUTO, vfsp->vfc_name, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	parent = prefix
+	    ? SYSCTL_ADD_NODE(NULL,
+		  SYSCTL_CHILDREN(&sysctl___security_jail_param_allow),
+		  OID_AUTO, prefix, 0, 0, prefix_descr)
+	    : &sysctl___security_jail_param_allow;
+	(void)SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    name, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    NULL, 0, sysctl_jail_param, "B", descr);
+	if ((prefix
+	     ? asprintf(&allowed, M_TEMP, "%s_%s_allowed", prefix, name)
+	     : asprintf(&allowed, M_TEMP, "%s_allowed", name)) >= 0) {
 #ifndef NO_SYSCTL_DESCR
-	free(descr, M_TEMP);
-#endif
-	if (asprintf(&mount_allowed, M_TEMP, "mount_%s_allowed",
-		vfsp->vfc_name) >= 0) {
-#ifndef NO_SYSCTL_DESCR
-		(void)asprintf(&descr, M_TEMP,
-		  "Processes in jail can mount the %s file system (deprecated)",
-		  vfsp->vfc_name);
+		(void)asprintf(&descr_deprecated, M_TEMP, "%s (deprecated)",
+		    descr);
 #endif
 		(void)SYSCTL_ADD_PROC(NULL,
-		    SYSCTL_CHILDREN(&sysctl___security_jail), OID_AUTO,
-		    mount_allowed, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    NULL, allow_flag, sysctl_jail_default_allow, "I", descr);
+		    SYSCTL_CHILDREN(&sysctl___security_jail), OID_AUTO, allowed,
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, allow_flag,
+		    sysctl_jail_default_allow, "I", descr_deprecated);
 #ifndef NO_SYSCTL_DESCR
-		free(descr, M_TEMP);
+		free(descr_deprecated, M_TEMP);
 #endif
-		free(mount_allowed, M_TEMP);
+		free(allowed, M_TEMP);
 	}
-	return;
+	return allow_flag;
 
  no_add:
 	mtx_unlock(&prison0.pr_mtx);
 	free(allow_name, M_PRISON);
 	free(allow_noname, M_PRISON);
+	return allow_flag;
+}
+
+/*
+ * The VFS system will register jail-aware filesystems here.  They each get
+ * a parameter allow.mount.xxxfs and a flag to check when a jailed user
+ * attempts to mount.
+ */
+void
+prison_add_vfs(struct vfsconf *vfsp)
+{
+#ifdef NO_SYSCTL_DESCR
+
+	vfsp->vfc_prison_flag = prison_add_allow("mount", vfsp->vfc_name,
+	    NULL, NULL);
+#else
+	char *descr;
+
+	(void)asprintf(&descr, M_TEMP, "Jail may mount the %s file system",
+	    vfsp->vfc_name);
+	vfsp->vfc_prison_flag = prison_add_allow("mount", vfsp->vfc_name,
+	    NULL, descr);
+	free(descr, M_TEMP);
+#endif
 }
 
 #ifdef RACCT
@@ -3988,8 +4029,10 @@ prison_racct_attach(struct prison *pr)
 static void
 prison_racct_modify(struct prison *pr)
 {
+#ifdef RCTL
 	struct proc *p;
 	struct ucred *cred;
+#endif
 	struct prison_racct *oldprr;
 
 	ASSERT_RACCT_ENABLED();

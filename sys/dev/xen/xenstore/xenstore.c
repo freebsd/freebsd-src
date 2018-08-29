@@ -115,7 +115,7 @@ MALLOC_DEFINE(M_XENSTORE, "xenstore", "XenStore data and results");
  * to get the guest frame number for the shared page and then map it
  * into kva.  See xs_init() for details.
  */
-struct xenstore_domain_interface *xen_store;
+static struct xenstore_domain_interface *xen_store;
 
 /*-------------------------- Private Data Structures ------------------------*/
 
@@ -1103,38 +1103,30 @@ xs_attach(device_t dev)
 	struct proc *p;
 
 	xs.initialized = false;
-	if (xen_hvm_domain()) {
-		xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
-		xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
-		xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
-		xs.initialized = true;
-	} else if (xen_pv_domain()) {
-		if (HYPERVISOR_start_info->store_evtchn == 0) {
-			struct evtchn_alloc_unbound alloc_unbound;
+	xs.evtchn = xen_get_xenstore_evtchn();
+	if (xs.evtchn == 0) {
+		struct evtchn_alloc_unbound alloc_unbound;
 
-			/* Allocate a local event channel for xenstore */
-			alloc_unbound.dom = DOMID_SELF;
-			alloc_unbound.remote_dom = DOMID_SELF;
-			error = HYPERVISOR_event_channel_op(
-			    EVTCHNOP_alloc_unbound, &alloc_unbound);
-			if (error != 0)
-				panic(
-				   "unable to alloc event channel for Dom0: %d",
-				    error);
+		/* Allocate a local event channel for xenstore */
+		alloc_unbound.dom = DOMID_SELF;
+		alloc_unbound.remote_dom = DOMID_SELF;
+		error = HYPERVISOR_event_channel_op(
+		    EVTCHNOP_alloc_unbound, &alloc_unbound);
+		if (error != 0)
+			panic(
+			   "unable to alloc event channel for Dom0: %d",
+			    error);
 
-			HYPERVISOR_start_info->store_evtchn =
-			    alloc_unbound.port;
-			xs.evtchn = alloc_unbound.port;
+		xs.evtchn = alloc_unbound.port;
 
-			/* Allocate memory for the xs shared ring */
-			xen_store = malloc(PAGE_SIZE, M_XENSTORE,
-			    M_WAITOK | M_ZERO);
-		} else {
-			xs.evtchn = HYPERVISOR_start_info->store_evtchn;
-			xs.initialized = true;
-		}
+		/* Allocate memory for the xs shared ring */
+		xen_store = malloc(PAGE_SIZE, M_XENSTORE, M_WAITOK | M_ZERO);
+		xs.gpfn = atop(pmap_kextract((vm_offset_t)xen_store));
 	} else {
-		panic("Unknown domain type, cannot initialize xenstore.");
+		xs.gpfn = xen_get_xenstore_mfn();
+		xen_store = pmap_mapdev_attr(ptoa(xs.gpfn), PAGE_SIZE,
+		    PAT_WRITE_BACK);
+		xs.initialized = true;
 	}
 
 	TAILQ_INIT(&xs.reply_list);
@@ -1255,6 +1247,27 @@ SYSCTL_ULONG(_dev_xen, OID_AUTO, xsd_kva, CTLFLAG_RD, (u_long *) &xen_store, 0, 
 
 /*-------------------------------- Public API --------------------------------*/
 /*------- API comments for these methods can be found in xenstorevar.h -------*/
+bool
+xs_initialized(void)
+{
+
+	return (xs.initialized);
+}
+
+evtchn_port_t
+xs_evtchn(void)
+{
+
+    return (xs.evtchn);
+}
+
+vm_paddr_t
+xs_address(void)
+{
+
+    return (ptoa(xs.gpfn));
+}
+
 int
 xs_directory(struct xs_transaction t, const char *dir, const char *node,
     u_int *num, const char ***result)

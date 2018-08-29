@@ -808,8 +808,8 @@ load_fw(struct tegra_xhci_softc *sc)
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw->data;
 	fw_size = fw_hdr->fwimg_len;
 
-	fw_vaddr = kmem_alloc_contig(kernel_arena, fw_size,
-	    M_WAITOK, 0, -1UL, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	fw_vaddr = kmem_alloc_contig(fw_size, M_WAITOK, 0, -1UL, PAGE_SIZE, 0,
+	    VM_MEMATTR_UNCACHEABLE);
 	fw_paddr = vtophys(fw_vaddr);
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw_vaddr;
 	memcpy((void *)fw_vaddr, fw->data, fw_size);
@@ -984,7 +984,7 @@ tegra_xhci_detach(device_t dev)
 	if (sc->irq_hdl_mbox != NULL)
 		bus_teardown_intr(dev, sc->irq_res_mbox, sc->irq_hdl_mbox);
 	if (sc->fw_vaddr != 0)
-		kmem_free(kernel_arena, sc->fw_vaddr, sc->fw_size);
+		kmem_free(sc->fw_vaddr, sc->fw_size);
 	LOCK_DESTROY(sc);
 	return (0);
 }

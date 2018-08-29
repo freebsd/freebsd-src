@@ -26,6 +26,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/mman.h>
@@ -34,6 +35,7 @@
 #include <sys/resource.h>
 #include <sys/rtprio.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -82,6 +84,35 @@ ATF_TC_CLEANUP(fork_success, tc)
 /*
  * No fork(2) in failure mode since possibilities for failure are only when
  * user is not privileged or when the number of processes exceed KERN_MAXPROC.
+ */
+
+
+ATF_TC_WITH_CLEANUP(_exit_success);
+ATF_TC_HEAD(_exit_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"_exit(2) call");
+}
+
+ATF_TC_BODY(_exit_success, tc)
+{
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid) {
+		snprintf(pcregex, sizeof(pcregex), "exit.*%d.*success", pid);
+		check_audit(fds, pcregex, pipefd);
+	}
+	else
+		_exit(0);
+}
+
+ATF_TC_CLEANUP(_exit_success, tc)
+{
+	cleanup();
+}
+
+/*
+ * _exit(2) never returns, hence the auditing by default is always successful
  */
 
 
@@ -1472,9 +1503,104 @@ ATF_TC_CLEANUP(procctl_failure, tc)
 }
 
 
+ATF_TC_WITH_CLEANUP(cap_enter_success);
+ATF_TC_HEAD(cap_enter_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"cap_enter(2) call");
+}
+
+ATF_TC_BODY(cap_enter_success, tc)
+{
+	int capinfo;
+	size_t len = sizeof(capinfo);
+	const char *capname = "kern.features.security_capability_mode";
+	ATF_REQUIRE_EQ(0, sysctlbyname(capname, &capinfo, &len, NULL, 0));
+
+	/* Without CAPABILITY_MODE enabled, cap_enter() returns ENOSYS */
+	if (!capinfo)
+		atf_tc_skip("Capsicum is not enabled in the system");
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid) {
+		snprintf(pcregex, sizeof(pcregex),
+			"cap_enter.*%d.*return,success", pid);
+		ATF_REQUIRE(wait(&status) != -1);
+		check_audit(fds, pcregex, pipefd);
+	}
+	else {
+		ATF_REQUIRE_EQ(0, cap_enter());
+		_exit(0);
+	}
+}
+
+ATF_TC_CLEANUP(cap_enter_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(cap_getmode_success);
+ATF_TC_HEAD(cap_getmode_success, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of a successful "
+					"cap_getmode(2) call");
+}
+
+ATF_TC_BODY(cap_getmode_success, tc)
+{
+	int capinfo, modep;
+	size_t len = sizeof(capinfo);
+	const char *capname = "kern.features.security_capability_mode";
+	ATF_REQUIRE_EQ(0, sysctlbyname(capname, &capinfo, &len, NULL, 0));
+
+	/* Without CAPABILITY_MODE enabled, cap_getmode() returns ENOSYS */
+	if (!capinfo)
+		atf_tc_skip("Capsicum is not enabled in the system");
+
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "cap_getmode.*%d.*success", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	ATF_REQUIRE_EQ(0, cap_getmode(&modep));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(cap_getmode_success, tc)
+{
+	cleanup();
+}
+
+
+ATF_TC_WITH_CLEANUP(cap_getmode_failure);
+ATF_TC_HEAD(cap_getmode_failure, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests the audit of an unsuccessful "
+					"cap_getmode(2) call");
+}
+
+ATF_TC_BODY(cap_getmode_failure, tc)
+{
+	pid = getpid();
+	snprintf(pcregex, sizeof(pcregex), "cap_getmode.*%d.*failure", pid);
+
+	FILE *pipefd = setup(fds, auclass);
+	/* cap_getmode(2) can either fail with EFAULT or ENOSYS */
+	ATF_REQUIRE_EQ(-1, cap_getmode(NULL));
+	check_audit(fds, pcregex, pipefd);
+}
+
+ATF_TC_CLEANUP(cap_getmode_failure, tc)
+{
+	cleanup();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, fork_success);
+	ATF_TP_ADD_TC(tp, _exit_success);
 	ATF_TP_ADD_TC(tp, rfork_success);
 	ATF_TP_ADD_TC(tp, rfork_failure);
 
@@ -1539,6 +1665,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ktrace_failure);
 	ATF_TP_ADD_TC(tp, procctl_success);
 	ATF_TP_ADD_TC(tp, procctl_failure);
+
+	ATF_TP_ADD_TC(tp, cap_enter_success);
+	ATF_TP_ADD_TC(tp, cap_getmode_success);
+	ATF_TP_ADD_TC(tp, cap_getmode_failure);
 
 	return (atf_no_error());
 }

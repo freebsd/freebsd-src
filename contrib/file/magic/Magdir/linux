@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.64 2017/03/17 21:35:28 christos Exp $
+# $File: linux,v 1.65 2018/07/16 12:32:08 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -94,6 +94,16 @@
 # From Daniel Novotny <dnovotny@redhat.com>
 # swap file for PowerPC
 65526	string		SWAPSPACE2	Linux/ppc swap file
+>0x400	long		x		version %d,
+>0x404	long		x		size %d pages,
+>1052	string		\0		no label,
+>1052	string		>\0		LABEL=%s,
+>0x40c	belong		x		UUID=%08x
+>0x410	beshort		x		\b-%04x
+>0x412	beshort		x		\b-%04x
+>0x414	beshort		x		\b-%04x
+>0x416	belong		x		\b-%08x
+>0x41a	beshort		x		\b%04x
 16374	string		SWAPSPACE2	Linux/ia64 swap file
 #
 # Linux kernel boot images, from Albert Cahalan <acahalan@cs.uml.edu>

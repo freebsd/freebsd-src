@@ -514,6 +514,7 @@ proc0_init(void *dummy __unused)
 	p->p_peers = 0;
 	p->p_leader = p;
 	p->p_reaper = p;
+	p->p_treeflag |= P_TREE_REAPER;
 	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
@@ -851,7 +852,6 @@ create_init(const void *udata __unused)
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM | P_INMEM;
 	initproc->p_treeflag |= P_TREE_REAPER;
-	LIST_INSERT_HEAD(&initproc->p_reaplist, &proc0, p_reapsibling);
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC

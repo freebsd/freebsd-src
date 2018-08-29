@@ -53,17 +53,12 @@ struct blake2_session {
 	size_t klen;
 	size_t mlen;
 	uint8_t key[BLAKE2B_KEYBYTES];
-	bool used;
-	uint32_t id;
-	TAILQ_ENTRY(blake2_session) next;
 };
 CTASSERT((size_t)BLAKE2B_KEYBYTES > (size_t)BLAKE2S_KEYBYTES);
 
 struct blake2_softc {
 	bool	dying;
 	int32_t cid;
-	uint32_t sid;
-	TAILQ_HEAD(blake2_sessions_head, blake2_session) sessions;
 	struct rwlock lock;
 };
 
@@ -83,10 +78,8 @@ static struct fpu_kern_ctx **ctx_fpu;
 		(ctx) = NULL;					\
 	} while (0)
 
-static int blake2_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
-static int blake2_freesession(device_t, uint64_t tid);
-static void blake2_freesession_locked(struct blake2_softc *sc,
-    struct blake2_session *ses);
+static int blake2_newsession(device_t, crypto_session_t cses,
+    struct cryptoini *cri);
 static int blake2_cipher_setup(struct blake2_session *ses,
     struct cryptoini *authini);
 static int blake2_cipher_process(struct blake2_session *ses,
@@ -138,11 +131,9 @@ blake2_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dying = false;
-	TAILQ_INIT(&sc->sessions);
-	sc->sid = 1;
 
-	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
-	    CRYPTOCAP_F_SYNC);
+	sc->cid = crypto_get_driverid(dev, sizeof(struct blake2_session),
+	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
@@ -169,24 +160,11 @@ static int
 blake2_detach(device_t dev)
 {
 	struct blake2_softc *sc;
-	struct blake2_session *ses;
 
 	sc = device_get_softc(dev);
 
 	rw_wlock(&sc->lock);
-	TAILQ_FOREACH(ses, &sc->sessions, next) {
-		if (ses->used) {
-			rw_wunlock(&sc->lock);
-			device_printf(dev,
-			    "Cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
 	sc->dying = true;
-	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-		free(ses, M_BLAKE2);
-	}
 	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
 
@@ -198,21 +176,20 @@ blake2_detach(device_t dev)
 }
 
 static int
-blake2_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+blake2_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct blake2_softc *sc;
 	struct blake2_session *ses;
 	struct cryptoini *authini;
 	int error;
 
-	if (sidp == NULL || cri == NULL) {
-		CRYPTDEB("no sidp or cri");
+	if (cri == NULL) {
+		CRYPTDEB("no cri");
 		return (EINVAL);
 	}
 
 	sc = device_get_softc(dev);
 
-	ses = NULL;
 	authini = NULL;
 	for (; cri != NULL; cri = cri->cri_next) {
 		switch (cri->cri_alg) {
@@ -239,85 +216,27 @@ blake2_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		rw_wunlock(&sc->lock);
 		return (EINVAL);
 	}
-	/*
-	 * Free sessions are inserted at the head of the list.  So if the first
-	 * session is used, none are free and we must allocate a new one.
-	 */
-	ses = TAILQ_FIRST(&sc->sessions);
-	if (ses == NULL || ses->used) {
-		ses = malloc(sizeof(*ses), M_BLAKE2, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->id = sc->sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-	}
-	ses->used = true;
-	TAILQ_INSERT_TAIL(&sc->sessions, ses, next);
 	rw_wunlock(&sc->lock);
+
+	ses = crypto_get_driver_session(cses);
 
 	ses->algo = authini->cri_alg;
 	error = blake2_cipher_setup(ses, authini);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
-		rw_wlock(&sc->lock);
-		blake2_freesession_locked(sc, ses);
-		rw_wunlock(&sc->lock);
 		return (error);
 	}
 
-	*sidp = ses->id;
-	return (0);
-}
-
-static void
-blake2_freesession_locked(struct blake2_softc *sc, struct blake2_session *ses)
-{
-	uint32_t sid;
-
-	rw_assert(&sc->lock, RA_WLOCKED);
-
-	sid = ses->id;
-	TAILQ_REMOVE(&sc->sessions, ses, next);
-	explicit_bzero(ses, sizeof(*ses));
-	ses->id = sid;
-	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
-}
-
-static int
-blake2_freesession(device_t dev, uint64_t tid)
-{
-	struct blake2_softc *sc;
-	struct blake2_session *ses;
-	uint32_t sid;
-
-	sc = device_get_softc(dev);
-	sid = ((uint32_t)tid) & 0xffffffff;
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, blake2_sessions_head, next) {
-		if (ses->id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	blake2_freesession_locked(sc, ses);
-	rw_wunlock(&sc->lock);
 	return (0);
 }
 
 static int
 blake2_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct blake2_softc *sc;
 	struct blake2_session *ses;
 	struct cryptodesc *crd, *authcrd;
 	int error;
 
-	sc = device_get_softc(dev);
 	ses = NULL;
 	error = 0;
 	authcrd = NULL;
@@ -348,17 +267,7 @@ blake2_process(device_t dev, struct cryptop *crp, int hint __unused)
 		}
 	}
 
-	rw_rlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, blake2_sessions_head, next) {
-		if (ses->id == (crp->crp_sid & 0xffffffff))
-			break;
-	}
-	rw_runlock(&sc->lock);
-	if (ses == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
+	ses = crypto_get_driver_session(crp->crp_session);
 	error = blake2_cipher_process(ses, crp);
 	if (error != 0)
 		goto out;
@@ -376,7 +285,6 @@ static device_method_t blake2_methods[] = {
 	DEVMETHOD(device_detach, blake2_detach),
 
 	DEVMETHOD(cryptodev_newsession, blake2_newsession),
-	DEVMETHOD(cryptodev_freesession, blake2_freesession),
 	DEVMETHOD(cryptodev_process, blake2_process),
 
 	DEVMETHOD_END

@@ -585,7 +585,7 @@ gnttab_expand(unsigned int req_entries)
 	return (error);
 }
 
-MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
+MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF | MTX_RECURSE);
 
 /*------------------ Private Device Attachment Functions  --------------------*/
 /**

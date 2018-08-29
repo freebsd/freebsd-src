@@ -56,12 +56,6 @@ static struct option longopts[] = {
 
 #define	DEVMATCH_MAX_HITS 256
 
-static struct match_data {
-	char *descr;
-	int priority;
-} match_data[DEVMATCH_MAX_HITS];
-
-static int hit_index;
 static int all_flag;
 static int dump_flag;
 static char *linker_hints;
@@ -71,6 +65,7 @@ static int verbose_flag;
 
 static void *hints;
 static void *hints_end;
+static struct devinfo_dev *root;
 
 static void *
 read_hints(const char *fn, size_t *len)
@@ -240,35 +235,6 @@ pnpval_as_str(const char *val, const char *pnpinfo)
 	return retval;
 }
 
-static int
-match_data_compare(const void *_pa, const void *_pb)
-{
-	const struct match_data *pa = _pa;
-	const struct match_data *pb = _pb;
-
-	/* biggest value first */
-	if (pa->priority > pb->priority)
-		return (-1);
-	else if (pa->priority < pb->priority)
-		return (1);
-
-	/* then sort by string */
-	return (strcmp(pa->descr, pb->descr));
-}
-
-static int
-bitrev16(int input)
-{
-	int retval = 0;
-	int x;
-
-	for (x = 0; x != 16; x++) {
-		if ((input >> x) & 1)
-			retval |= (0x8000 >> x);
-	}
-	return (retval);
-}
-
 static void
 search_hints(const char *bus, const char *dev, const char *pnpinfo)
 {
@@ -417,22 +383,12 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 					printf("\n");
 				else if (!notme) {
 					if (!unbound_flag) {
-						char *descr = NULL;
-
 						if (all_flag)
-							asprintf(&descr, "%s: %s", *dev ? dev : "unattached", lastmod);
+							printf("%s: %s", *dev ? dev : "unattached", lastmod);
 						else
-							asprintf(&descr, "%s", lastmod);
+							printf("%s\n", lastmod);
 						if (verbose_flag)
 							printf("Matches --- %s ---\n", lastmod);
-
-						if (descr != NULL && hit_index < DEVMATCH_MAX_HITS) {
-							match_data[hit_index].descr = descr;
-							match_data[hit_index].priority = bitrev16(mask);
-							hit_index++;
-						} else {
-							free(descr);
-						}
 					}
 					found++;
 				}
@@ -445,19 +401,6 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 		}
 		walker = (void *)(len - sizeof(int) + (intptr_t)walker);
 	}
-	if (hit_index != 0) {
-		/* sort hits by priority */
-		mergesort(match_data, hit_index, sizeof(match_data[0]), &match_data_compare);
-
-		/* printout */
-		for (i = 0; i != hit_index; i++) {
-			puts(match_data[i].descr);
-			free(match_data[i].descr);
-		}
-
-		/* reset hit_index */
-		hit_index = 0;
-	}       
 	if (unbound_flag && found == 0 && *pnpinfo) {
 		if (verbose_flag)
 			printf("------------------------- ");
@@ -480,6 +423,8 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 			break;
 		if (!(dev->dd_flags & DF_ENABLED))
 			break;
+		if (dev->dd_flags & DF_ATTACHED_ONCE)
+			break;
 		parent = devinfo_handle_to_device(dev->dd_parent);
 		bus = strdup(parent->dd_name);
 		p = bus + strlen(bus) - 1;
@@ -496,10 +441,50 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 	return (devinfo_foreach_device_child(dev, find_unmatched, arg));
 }
 
+struct exact_info
+{
+	const char *bus;
+	const char *loc;
+	struct devinfo_dev *dev;
+};
+
+/*
+ * Look for the exact location specified by the nomatch event.  The
+ * loc and pnpinfo run together to get the string we're looking for,
+ * so we have to synthesize the same thing that subr_bus.c is
+ * generating in devnomatch/devaddq to do the string comparison.
+ */
+static int
+find_exact_dev(struct devinfo_dev *dev, void *arg)
+{
+	struct devinfo_dev *parent;
+	char *loc;
+	struct exact_info *info;
+
+	info = arg;
+	do {
+		if (info->dev != NULL)
+			break;
+		if (!(dev->dd_flags & DF_ENABLED))
+			break;
+		parent = devinfo_handle_to_device(dev->dd_parent);
+		if (strcmp(info->bus, parent->dd_name) != 0)
+			break;
+		asprintf(&loc, "%s %s", parent->dd_pnpinfo,
+		    parent->dd_location);
+		if (strcmp(loc, info->loc) == 0)
+			info->dev = dev;
+		free(loc);
+	} while (0);
+
+	return (devinfo_foreach_device_child(dev, find_exact_dev, arg));
+}
+
 static void
 find_nomatch(char *nomatch)
 {
-	char *bus, *pnpinfo, *tmp;
+	char *bus, *pnpinfo, *tmp, *busnameunit;
+	struct exact_info info;
 
 	/*
 	 * Find our bus name. It will include the unit number. We have to search
@@ -515,6 +500,9 @@ find_nomatch(char *nomatch)
 		errx(1, "No bus found in nomatch string: '%s'", nomatch);
 	bus = tmp + 4;
 	*tmp = '\0';
+	busnameunit = strdup(bus);
+	if (busnameunit == NULL)
+		errx(1, "Can't allocate memory for strings");
 	tmp = bus + strlen(bus) - 1;
 	while (tmp > bus && isdigit(*tmp))
 		tmp--;
@@ -531,6 +519,17 @@ find_nomatch(char *nomatch)
 		errx(1, "Malformed NOMATCH string: '%s'", nomatch);
 	pnpinfo = nomatch + 4;
 
+	/*
+	 * See if we can find the devinfo_dev for this device. If we
+	 * can, and it's been attached before, we should filter it out
+	 * so that a kldunload foo doesn't cause an immediate reload.
+	 */
+	info.loc = pnpinfo;
+	info.bus = busnameunit;
+	info.dev = NULL;
+	devinfo_foreach_device_child(root, find_exact_dev, (void *)&info);
+	if (info.dev != NULL && info.dev->dd_flags & DF_ATTACHED_ONCE)
+		exit(0);
 	search_hints(bus, "", pnpinfo);
 
 	exit(0);
@@ -546,7 +545,6 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct devinfo_dev *root;
 	int ch;
 
 	while ((ch = getopt_long(argc, argv, "adh:p:uv",
@@ -586,12 +584,13 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
-	if (nomatch_str != NULL)
-		find_nomatch(nomatch_str);
 	if (devinfo_init())
 		err(1, "devinfo_init");
 	if ((root = devinfo_handle_to_device(DEVINFO_ROOT_DEVICE)) == NULL)
 		errx(1, "can't find root device");
-	devinfo_foreach_device_child(root, find_unmatched, (void *)0);
+	if (nomatch_str != NULL)
+		find_nomatch(nomatch_str);
+	else
+		devinfo_foreach_device_child(root, find_unmatched, (void *)0);
 	devinfo_free();
 }

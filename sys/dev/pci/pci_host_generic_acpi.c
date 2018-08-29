@@ -1,4 +1,5 @@
 /*-
+ * Copyright (C) 2018 Cavium Inc.
  * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
@@ -96,12 +97,8 @@ struct generic_pcie_acpi_softc {
 /* Forward prototypes */
 
 static int generic_pcie_acpi_probe(device_t dev);
-static uint32_t generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
-    u_int func, u_int reg, int bytes);
-static void generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
-    u_int func, u_int reg, uint32_t val, int bytes);
-static int generic_pcie_release_resource(device_t dev, device_t child,
-    int type, int rid, struct resource *res);
+static ACPI_STATUS pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *, void *);
+static int generic_pcie_acpi_read_ivar(device_t, device_t, int, uintptr_t *);
 
 static int
 generic_pcie_acpi_probe(device_t dev)
@@ -127,6 +124,7 @@ pci_host_generic_acpi_attach(device_t dev)
 {
 	struct generic_pcie_acpi_softc *sc;
 	ACPI_HANDLE handle;
+	ACPI_STATUS status;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -138,14 +136,86 @@ pci_host_generic_acpi_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
+	if (!ACPI_FAILURE(acpi_GetInteger(handle, "_BBN", &sc->base.ecam)))
+		sc->base.ecam >>= 7;
+	else
+		sc->base.ecam = 0;
+
 	acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
 
+	status = AcpiWalkResources(handle, "_CRS",
+	    pci_host_generic_acpi_parse_resource, (void *)dev);
+
+	if (ACPI_FAILURE(status))
+		return (ENXIO);
+
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
+}
+
+static ACPI_STATUS
+pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
+{
+	device_t dev = (device_t)arg;
+	struct generic_pcie_acpi_softc *sc;
+	rman_res_t min, max;
+	int error;
+
+	switch (res->Type) {
+		case ACPI_RESOURCE_TYPE_ADDRESS32:
+			    min = (rman_res_t)res->Data.Address32.Address.Minimum;
+			    max = (rman_res_t)res->Data.Address32.Address.Maximum;
+			break;
+		case ACPI_RESOURCE_TYPE_ADDRESS64:
+			    min = (rman_res_t)res->Data.Address64.Address.Minimum;
+			    max = (rman_res_t)res->Data.Address64.Address.Maximum;
+			break;
+		default:
+			return (AE_OK);
+	}
+
+	sc = device_get_softc(dev);
+
+	error = rman_manage_region(&sc->base.mem_rman, min, max);
+	if (error) {
+		device_printf(dev, "unable to allocate %lx-%lx range\n", min, max);
+		return (AE_NOT_FOUND);
+	}
+	device_printf(dev, "allocating %lx-%lx range\n", min, max);
+
+	return (AE_OK);
+}
+
+static int
+generic_pcie_acpi_read_ivar(device_t dev, device_t child, int index,
+    uintptr_t *result)
+{
+	ACPI_HANDLE handle;
+	struct generic_pcie_acpi_softc *sc;
+	int secondary_bus;
+
+	sc = device_get_softc(dev);
+
+	if (index == PCIB_IVAR_BUS) {
+		handle = acpi_get_handle(dev);
+		if (ACPI_FAILURE(acpi_GetInteger(handle, "_BBN", &secondary_bus)))
+			secondary_bus = sc->base.ecam * 0x80;
+		*result = secondary_bus;
+		return (0);
+	}
+
+	if (index == PCIB_IVAR_DOMAIN) {
+		*result = sc->base.ecam;
+		return (0);
+	}
+
+	if (bootverbose)
+		device_printf(dev, "ERROR: Unknown index %d.\n", index);
+	return (ENOENT);
 }
 
 static int
@@ -158,26 +228,12 @@ generic_pcie_acpi_route_interrupt(device_t bus, device_t dev, int pin)
 	return (acpi_pcib_route_interrupt(bus, dev, pin, &sc->ap_prt));
 }
 
-static struct rman *
-generic_pcie_acpi_rman(struct generic_pcie_acpi_softc *sc, int type)
-{
-
-	switch (type) {
-	case SYS_RES_IOPORT:
-		return (&sc->base.io_rman);
-	case SYS_RES_MEMORY:
-		return (&sc->base.mem_rman);
-	default:
-		break;
-	}
-
-	return (NULL);
-}
-
 static struct resource *
 pci_host_generic_acpi_alloc_resource(device_t dev, device_t child, int type,
     int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+	struct resource *res = NULL;
+
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_acpi_softc *sc;
 
@@ -188,8 +244,15 @@ pci_host_generic_acpi_alloc_resource(device_t dev, device_t child, int type,
 	}
 #endif
 
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	    count, flags));
+	if (type == SYS_RES_MEMORY)
+		res = pci_host_generic_core_alloc_resource(dev, child, type,
+		    rid, start, end, count, flags);
+
+	if (res == NULL)
+		res = bus_generic_alloc_resource(dev, child, type, rid, start, end,
+		    count, flags);
+
+	return (res);
 }
 
 static int
@@ -308,6 +371,7 @@ static device_method_t generic_pcie_acpi_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	pci_host_generic_acpi_alloc_resource),
 	DEVMETHOD(bus_activate_resource, generic_pcie_acpi_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, generic_pcie_acpi_deactivate_resource),
+	DEVMETHOD(bus_read_ivar,	generic_pcie_acpi_read_ivar),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	generic_pcie_acpi_route_interrupt),

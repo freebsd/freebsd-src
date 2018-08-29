@@ -40,18 +40,62 @@
 #define __ASSEMBLY__
 #endif
 
-#include <machine/xen/xen-os.h>
-
 #include <xen/interface/xen.h>
+
+#ifndef __ASSEMBLY__
+#include <xen/interface/event_channel.h>
+
+struct hypervisor_info {
+	vm_paddr_t (*get_xenstore_mfn)(void);
+	evtchn_port_t (*get_xenstore_evtchn)(void);
+	vm_paddr_t (*get_console_mfn)(void);
+	evtchn_port_t (*get_console_evtchn)(void);
+	uint32_t (*get_start_flags)(void);
+};
+extern struct hypervisor_info hypervisor_info;
+
+static inline vm_paddr_t
+xen_get_xenstore_mfn(void)
+{
+
+	return (hypervisor_info.get_xenstore_mfn());
+}
+
+static inline evtchn_port_t
+xen_get_xenstore_evtchn(void)
+{
+
+	return (hypervisor_info.get_xenstore_evtchn());
+}
+
+static inline vm_paddr_t
+xen_get_console_mfn(void)
+{
+
+	return (hypervisor_info.get_console_mfn());
+}
+
+static inline evtchn_port_t
+xen_get_console_evtchn(void)
+{
+
+	return (hypervisor_info.get_console_evtchn());
+}
+
+static inline uint32_t
+xen_get_start_flags(void)
+{
+
+	return (hypervisor_info.get_start_flags());
+}
+#endif
+
+#include <machine/xen/xen-os.h>
 
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
 extern shared_info_t *HYPERVISOR_shared_info;
-extern start_info_t *HYPERVISOR_start_info;
-
-/* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
-extern char *console_page;
 
 extern int xen_disable_pv_disks;
 extern int xen_disable_pv_nics;
@@ -87,8 +131,8 @@ xen_hvm_domain(void)
 static inline bool
 xen_initial_domain(void)
 {
-	return (xen_domain() && HYPERVISOR_start_info != NULL &&
-	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
+
+	return (xen_domain() && (xen_get_start_flags() & SIF_INITDOMAIN) != 0);
 }
 
 /*

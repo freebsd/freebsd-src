@@ -217,7 +217,9 @@ enum tcp_log_events {
 	BBR_LOG_REDUCE,		/* old bbr log reduce for 4.1 and earlier 46*/
 	TCP_LOG_RTT,		/* A rtt (in useconds) is being sampled and applied to the srtt algo 47 */
 	BBR_LOG_SETTINGS_CHG,   /* Settings changed for loss response 48 */
-	TCP_LOG_END		/* End (keep at end)	            49 */
+	BBR_LOG_SRTT_GAIN_EVENT, /* SRTT gaining 49 */
+	TCP_LOG_REASS,		/* Reassembly buffer logging 50 */
+	TCP_LOG_END		/* End (keep at end)	            51 */
 };
 
 enum tcp_log_states {

@@ -800,7 +800,7 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 		cursize = roundup(ip->i_size, blksize);
 		dirsize = cursize + blksize;
 		blknum = dirsize / blksize - 1;
-
+		ext2_dx_csum_set(ip, (struct ext2fs_direct_2 *)newidxblock);
 		error = ext2_htree_append_block(dvp, newidxblock,
 		    cnp, blksize);
 		if (error)

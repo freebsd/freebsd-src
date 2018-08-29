@@ -26,6 +26,7 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 
 # Allwinner common files
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
+arm/allwinner/a10_timer.c	optional	a10_timer fdt
 arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
 arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
@@ -34,6 +35,7 @@ arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
 arm/allwinner/aw_rtc.c		optional	aw_rtc fdt
 arm/allwinner/aw_sid.c		optional	aw_sid fdt
 arm/allwinner/aw_spi.c		optional	aw_spi fdt
+arm/allwinner/aw_syscon.c	optional	aw_syscon ext_resources syscon fdt
 arm/allwinner/aw_thermal.c	optional	aw_thermal fdt
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy fdt
 arm/allwinner/aw_wdog.c		optional	aw_wdog fdt
@@ -87,6 +89,7 @@ arm/broadcom/bcm2835/bcm2835_wdog.c		optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2836.c			optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt soc_brcm_bcm2837
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
+arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
 arm64/acpica/acpi_wakeup.c	optional	acpi
@@ -176,7 +179,7 @@ contrib/vchiq/interface/vchiq_arm/vchiq_util.c	optional vchiq soc_brcm_bcm2837 \
 crypto/armv8/armv8_crypto.c	optional	armv8crypto
 armv8_crypto_wrap.o		optional	armv8crypto		\
 	dependency	"$S/crypto/armv8/armv8_crypto_wrap.c"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -march=armv8-a+crypto ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${PROF} -march=armv8-a+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"armv8_crypto_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
@@ -210,6 +213,7 @@ dev/pci/pci_host_generic_fdt.c	optional	pci fdt
 dev/psci/psci.c			standard
 dev/psci/psci_arm64.S		standard
 dev/psci/smccc.c		standard
+dev/sdhci/sdhci_xenon.c		optional	sdhci_xenon sdhci fdt
 dev/uart/uart_cpu_arm64.c	optional	uart
 dev/uart/uart_dev_mu.c		optional	uart uart_mu
 dev/uart/uart_dev_pl011.c	optional	uart pl011

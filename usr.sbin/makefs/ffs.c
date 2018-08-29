@@ -980,7 +980,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 		errno = bwrite(bp);
 		if (errno != 0)
 			goto bad_ffs_write_file;
-		brelse(bp, 0);
+		brelse(bp);
 		if (!isfile)
 			p += chunk;
 	}

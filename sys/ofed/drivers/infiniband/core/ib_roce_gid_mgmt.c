@@ -30,9 +30,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "core_priv.h"
 
@@ -402,6 +403,19 @@ static struct notifier_block nb_inetaddr = {
 	.notifier_call = inetaddr_event
 };
 
+static eventhandler_tag eh_ifnet_event;
+
+static void
+roce_ifnet_event(void *arg, struct ifnet *ifp, int event)
+{
+	if (event != IFNET_EVENT_PCP || is_vlan_dev(ifp))
+		return;
+
+	/* make sure GID table is reloaded */
+	roce_gid_delete_all_event(ifp);
+	roce_gid_queue_scan_event(ifp);
+}
+
 static void
 roce_rescan_device_handler(struct work_struct *_work)
 {
@@ -445,11 +459,18 @@ int __init roce_gid_mgmt_init(void)
 	 */
 	register_netdevice_notifier(&nb_inetaddr);
 
+	eh_ifnet_event = EVENTHANDLER_REGISTER(ifnet_event,
+	    roce_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
+
 	return 0;
 }
 
 void __exit roce_gid_mgmt_cleanup(void)
 {
+
+	if (eh_ifnet_event != NULL)
+		EVENTHANDLER_DEREGISTER(ifnet_event, eh_ifnet_event);
+
 	unregister_inetaddr_notifier(&nb_inetaddr);
 	unregister_netdevice_notifier(&nb_inetaddr);
 

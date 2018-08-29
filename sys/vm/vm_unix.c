@@ -69,7 +69,7 @@ struct break_args {
 int
 sys_break(struct thread *td, struct break_args *uap)
 {
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 	uintptr_t addr;
 	int error;
 
@@ -78,9 +78,9 @@ sys_break(struct thread *td, struct break_args *uap)
 	if (error == 0)
 		td->td_retval[0] = addr;
 	return (error);
-#else /* defined(__aarch64__) || defined(__riscv__) */
+#else /* defined(__aarch64__) || defined(__riscv) */
 	return (ENOSYS);
-#endif /* defined(__aarch64__) || defined(__riscv__) */
+#endif /* defined(__aarch64__) || defined(__riscv) */
 }
 
 int

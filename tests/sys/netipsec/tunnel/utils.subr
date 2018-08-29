@@ -57,8 +57,8 @@ ist_v4_setup ()
 	jexec ipsecA ifconfig ${epair_LAN_A}b 192.0.2.2/30 up
 	jexec ipsecA ifconfig ${epair_PUB_A}a 198.51.100.2/30 up
 	jexec router ifconfig ${epair_PUB_A}b 198.51.100.1/30 up
-	jexec router ifconfig ${epair_PUB_B}b 198.51.100.6/30 up
-	jexec ipsecB ifconfig ${epair_PUB_B}a 198.51.100.7/30 up
+	jexec router ifconfig ${epair_PUB_B}b 198.51.100.5/30 up
+	jexec ipsecB ifconfig ${epair_PUB_B}a 198.51.100.6/30 up
 	jexec ipsecB ifconfig ${epair_LAN_B}b 203.0.113.2/30 up
 	jexec hostB ifconfig ${epair_LAN_B}a 203.0.113.1/30 up
 	jexec ipsecA sysctl net.inet.ip.forwarding=1
@@ -66,7 +66,7 @@ ist_v4_setup ()
 	jexec ipsecB sysctl net.inet.ip.forwarding=1
 	jexec hostA route add default 192.0.2.2
 	jexec ipsecA route add default 198.51.100.1
-	jexec ipsecB route add default 198.51.100.6
+	jexec ipsecB route add default 198.51.100.5
 	jexec hostB route add default 203.0.113.2
 }
 
@@ -109,7 +109,7 @@ ist_setkey()
 			SRC_LAN="192.0.2.0/24"
 			DST_LAN="203.0.113.0/24"
 			SRC_GW="198.51.100.2"
-			DST_GW="198.51.100.7"
+			DST_GW="198.51.100.6"
 		else
 			SRC_LAN="2001:db8:1::/64"
 			DST_LAN="2001:db8:45::/64"

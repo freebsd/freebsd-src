@@ -14,6 +14,7 @@ MKMODULESENV+=	DESTDIR="${DESTDIR}"
 .endif
 SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;:tA}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
+MKMODULESENV+=  MODULE_TIED=yes
 
 .if defined(CONF_CFLAGS)
 MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
@@ -156,7 +157,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 
-OBJS_DEPEND_GUESS+=	assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
+OBJS_DEPEND_GUESS+=	offset.inc assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
 			${MFILES:T:S/.m$/.h/}
 
 .for mfile in ${MFILES}
@@ -185,13 +186,27 @@ hack.pico: Makefile
 	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.pico
 	rm -f hack.c
 
-assym.inc: $S/kern/genassym.sh genassym.o
+offset.inc: $S/kern/genoffset.sh genoffset.o
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genoffset.sh genoffset.o > ${.TARGET}
+
+genoffset.o: $S/kern/genoffset.c
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} $S/kern/genoffset.c
+
+# genoffset_test.o is not actually used for anything - the point of compiling it
+# is to exercise the CTASSERT that checks that the offsets in the offset.inc
+# _lite struct(s) match those in the original(s). 
+genoffset_test.o: $S/kern/genoffset.c offset.inc
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} -DOFFSET_TEST \
+	    $S/kern/genoffset.c -o ${.TARGET}
+
+assym.inc: $S/kern/genassym.sh genassym.o genoffset_test.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
-genassym.o: $S/$M/$M/genassym.c
+genassym.o: $S/$M/$M/genassym.c  offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} $S/$M/$M/genassym.c
 
-${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
+OBJS_DEPEND_GUESS+= opt_global.h
+genoffset.o genassym.o vers.o: opt_global.h
 
 .if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
 _meta_filemon=	1
@@ -213,10 +228,11 @@ _SKIP_DEPEND=	1
 .endif
 
 kernel-depend: .depend
-SRCS=	assym.inc vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
+SRCS=	assym.inc offset.inc vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
-DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
+DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o genoffset.o genoffset_test.o
+DEPENDOBJS+=	${CLEAN:M*.o}
 DEPENDFILES=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP

@@ -32,6 +32,8 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
+
 int	 acccmp(const FTSENT *, const FTSENT *);
 int	 revacccmp(const FTSENT *, const FTSENT *);
 int	 birthcmp(const FTSENT *, const FTSENT *);
@@ -64,5 +66,12 @@ extern	char	*ansi_bgcol;
 extern	char	*ansi_coloff;
 extern	char	*attrs_off;
 extern	char	*enter_bold;
+
+extern int	 colorflag;
+extern bool	 explicitansi;
+
+#define	COLORFLAG_NEVER		0
+#define	COLORFLAG_AUTO		1
+#define	COLORFLAG_ALWAYS	2
 #endif
 extern int	termwidth;

@@ -22,6 +22,6 @@ SRCS=	ndp.c gmt2local.c
 CFLAGS+= -I. -I${.CURDIR} -I${SRCTOP}/contrib/tcpdump
 CFLAGS+= -D_U_=""
 
-WARNS?=	1
+WARNS?=	3
 
 .include <bsd.prog.mk>

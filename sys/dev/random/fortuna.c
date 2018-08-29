@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/uint128.h>
 #include <dev/random/fortuna.h>
 #else /* !_KERNEL */
+#include <sys/param.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -97,9 +98,11 @@ CTASSERT(RANDOM_BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
 
 /* Probes for dtrace(1) */
+#ifdef _KERNEL
 SDT_PROVIDER_DECLARE(random);
 SDT_PROVIDER_DEFINE(random);
 SDT_PROBE_DEFINE2(random, fortuna, event_processor, debug, "u_int", "struct fs_pool *");
+#endif /* _KERNEL */
 
 /*
  * This is the beastie that needs protecting. It contains all of the
@@ -371,7 +374,7 @@ random_fortuna_pre_read(void)
 	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
 	    /* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
-	    && (now - fortuna_state.fs_lasttime > hz/10)
+	    && (now - fortuna_state.fs_lasttime > SBT_1S/10)
 #endif
 	) {
 #ifdef _KERNEL
@@ -398,7 +401,9 @@ random_fortuna_pre_read(void)
 			} else
 				break;
 		}
+#ifdef _KERNEL
 		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
+#endif
 		/* FS&K */
 		random_fortuna_reseed_internal(s, i < RANDOM_FORTUNA_NPOOLS ? i + 1 : RANDOM_FORTUNA_NPOOLS);
 		/* Clean up and secure */

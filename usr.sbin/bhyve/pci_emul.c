@@ -237,6 +237,17 @@ done:
 	return (error);
 }
 
+void
+pci_print_supported_devices()
+{
+	struct pci_devemu **pdpp, *pdp;
+
+	SET_FOREACH(pdpp, pci_devemu_set) {
+		pdp = *pdpp;
+		printf("%s\n", pdp->pe_emu);
+	}
+}
+
 static int
 pci_valid_pba_offset(struct pci_devinst *pi, uint64_t offset)
 {

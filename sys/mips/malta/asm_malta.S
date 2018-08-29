@@ -73,13 +73,15 @@ LEAF(malta_ap_wait)
 	jal	platform_processor_id
 	nop
 
+	PTR_LA	t1, malta_ap_boot
+
 1:
-	ll	t0, malta_ap_boot
+	ll	t0, 0(t1)
 	bne	v0, t0, 1b
 	nop
 
 	move	t0, zero
-	sc	t0, malta_ap_boot
+	sc	t0, 0(t1)
 
 	beqz	t0, 1b
 	nop

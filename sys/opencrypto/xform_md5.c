@@ -59,10 +59,10 @@ static	int MD5Update_int(void *, const u_int8_t *, u_int16_t);
 struct auth_hash auth_hash_hmac_md5 = {
 	.type = CRYPTO_MD5_HMAC,
 	.name = "HMAC-MD5",
-	.keysize = MD5_HMAC_BLOCK_LEN,
+	.keysize = MD5_BLOCK_LEN,
 	.hashsize = MD5_HASH_LEN,
 	.ctxsize = sizeof(MD5_CTX),
-	.blocksize = MD5_HMAC_BLOCK_LEN,
+	.blocksize = MD5_BLOCK_LEN,
 	.Init = (void (*) (void *)) MD5Init,
 	.Update = MD5Update_int,
 	.Final = (void (*) (u_int8_t *, void *)) MD5Final,

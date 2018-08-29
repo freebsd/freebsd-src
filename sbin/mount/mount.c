@@ -329,7 +329,8 @@ main(int argc, char *argv[])
 	rval = 0;
 	switch (argc) {
 	case 0:
-		if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
+		if ((mntsize = getmntinfo(&mntbuf,
+		     verbose ? MNT_WAIT : MNT_NOWAIT)) == 0)
 			err(1, "getmntinfo");
 		if (all) {
 			while ((fs = getfsent()) != NULL) {

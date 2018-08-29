@@ -55,35 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include "test.h"
 
-/* Cut and pasted from kernel header, bah! */
-
-/* Operations on timespecs */
-#define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
-#define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
-#define	timespeccmp(tvp, uvp, cmp)					\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
-	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#define timespecadd(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec += (uvp)->tv_sec;				\
-		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec >= 1000000000) {			\
-			(vvp)->tv_sec++;				\
-			(vvp)->tv_nsec -= 1000000000;			\
-		}							\
-	} while (0)
-#define timespecsub(vvp, uvp)						\
-	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;				\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
-		if ((vvp)->tv_nsec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_nsec += 1000000000;			\
-		}							\
-	} while (0)
-
-
 #define	TEST_PATH	"/tmp/posixsem_regression_test"
 
 #define	ELAPSED(elapsed, limit)		(abs((elapsed) - (limit)) < 100)
@@ -791,7 +762,7 @@ timedwait(semid_t id, u_int msec, u_int *delta, int error)
 	}
 	end.tv_sec = msec / 1000;
 	end.tv_nsec = msec % 1000 * 1000000;
-	timespecadd(&end, &start);
+	timespecadd(&end, &start, &end);
 	if (ksem_timedwait(id, &end) < 0) {
 		if (errno != error) {
 			fail_errno("ksem_timedwait");
@@ -805,7 +776,7 @@ timedwait(semid_t id, u_int msec, u_int *delta, int error)
 		fail_errno("clock_gettime(CLOCK_REALTIME)");
 		return (-1);
 	}
-	timespecsub(&end, &start);
+	timespecsub(&end, &start, &end);
 	*delta = end.tv_nsec / 1000000;
 	*delta += end.tv_sec * 1000;
 	return (0);
@@ -944,7 +915,7 @@ testwait(semid_t id, u_int *delta)
 		fail_errno("clock_gettime(CLOCK_REALTIME)");
 		return (-1);
 	}
-	timespecsub(&end, &start);
+	timespecsub(&end, &start, &end);
 	*delta = end.tv_nsec / 1000000;
 	*delta += end.tv_sec * 1000;
 	return (0);

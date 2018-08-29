@@ -116,7 +116,7 @@ static void mx25l_strategy(struct bio *bp);
 static int mx25l_getattr(struct bio *bp);
 static void mx25l_task(void *arg);
 
-struct mx25l_flash_ident flash_devices[] = {
+static struct mx25l_flash_ident flash_devices[] = {
 	{ "en25f32",	0x1c, 0x3116, 64 * 1024, 64, FL_NONE },
 	{ "en25p32",	0x1c, 0x2016, 64 * 1024, 64, FL_NONE },
 	{ "en25p64",	0x1c, 0x2017, 64 * 1024, 128, FL_NONE },

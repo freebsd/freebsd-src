@@ -75,7 +75,7 @@ msdos_prep_opts(fsinfo_t *fsopts)
 {
 	struct msdos_options_ex *msdos_opt = ecalloc(1, sizeof(*msdos_opt));
 	const option_t msdos_options[] = {
-#define AOPT(_opt, _type, _name, _min, _desc) { 			\
+#define AOPT(_opt, _type, _name, _min, _desc) {				\
 	.letter = _opt,							\
 	.name = # _name,						\
 	.type = _min == -1 ? OPT_STRPTR :				\
@@ -91,7 +91,7 @@ msdos_prep_opts(fsinfo_t *fsopts)
 	.desc = _desc,						\
 },
 ALLOPTS
-#undef AOPT	
+#undef AOPT
 		{ 'U', "utf8", &msdos_opt->utf8, OPT_BOOL,
 		  0, 1, "Use UTF8 names" },
 		{ .name = NULL }
@@ -169,7 +169,7 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 		fsopts->sectorsize = msdos_opt->options.bytes_per_sector;
 	} else if (fsopts->sectorsize != msdos_opt->options.bytes_per_sector) {
 		err(1, "inconsistent sectorsize -S %u"
-		    "!= -o bytes_per_sector %u", 
+		    "!= -o bytes_per_sector %u",
 		    fsopts->sectorsize, msdos_opt->options.bytes_per_sector);
 	}
 
@@ -223,8 +223,8 @@ msdos_populate_dir(const char *path, struct denode *dir, fsnode *root,
 
 	assert(dir != NULL);
 	assert(root != NULL);
-	assert(fsopts != NULL);	
-	
+	assert(fsopts != NULL);
+
 	for (cur = root->next; cur != NULL; cur = cur->next) {
 		if ((size_t)snprintf(pbuf, sizeof(pbuf), "%s/%s", path,
 		    cur->name) >= sizeof(pbuf)) {

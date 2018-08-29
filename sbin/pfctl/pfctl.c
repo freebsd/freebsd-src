@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -69,7 +71,7 @@ int	 pfctl_disable(int, int);
 int	 pfctl_clear_stats(int, int);
 int	 pfctl_get_skip_ifaces(void);
 int	 pfctl_check_skip_ifaces(char *);
-int	 pfctl_clear_skip_ifaces(struct pfctl *);
+int	 pfctl_adjust_skip_ifaces(struct pfctl *);
 int	 pfctl_clear_interface_flags(int, int);
 int	 pfctl_clear_rules(int, int, char *);
 int	 pfctl_clear_nat(int, int, char *);
@@ -319,21 +321,66 @@ int
 pfctl_check_skip_ifaces(char *ifname)
 {
 	struct pfi_kif		*p;
+	struct node_host	*h = NULL, *n = NULL;
 
-	PFRB_FOREACH(p, &skip_b)
-		if ((p->pfik_flags & PFI_IFLAG_SKIP) && !strcmp(ifname, p->pfik_name))
+	PFRB_FOREACH(p, &skip_b) {
+		if (!strcmp(ifname, p->pfik_name) &&
+		    (p->pfik_flags & PFI_IFLAG_SKIP))
 			p->pfik_flags &= ~PFI_IFLAG_SKIP;
+		if (!strcmp(ifname, p->pfik_name) && p->pfik_group != NULL) {
+			if ((h = ifa_grouplookup(p->pfik_name, 0)) == NULL)
+				continue;
+
+			for (n = h; n != NULL; n = n->next) {
+				if (p->pfik_ifp == NULL)
+					continue;
+				if (strncmp(p->pfik_name, ifname, IFNAMSIZ))
+					continue;
+
+				p->pfik_flags &= ~PFI_IFLAG_SKIP;
+			}
+		}
+	}
 	return (0);
 }
 
 int
-pfctl_clear_skip_ifaces(struct pfctl *pf)
+pfctl_adjust_skip_ifaces(struct pfctl *pf)
 {
-	struct pfi_kif		*p;
+	struct pfi_kif		*p, *pp;
+	struct node_host	*h = NULL, *n = NULL;
 
-	PFRB_FOREACH(p, &skip_b)
-		if (p->pfik_flags & PFI_IFLAG_SKIP)
-			pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
+	PFRB_FOREACH(p, &skip_b) {
+		if (p->pfik_group == NULL || !(p->pfik_flags & PFI_IFLAG_SKIP))
+			continue;
+
+		pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
+		if ((h = ifa_grouplookup(p->pfik_name, 0)) == NULL)
+			continue;
+
+		for (n = h; n != NULL; n = n->next)
+			PFRB_FOREACH(pp, &skip_b) {
+				if (pp->pfik_ifp == NULL)
+					continue;
+
+				if (strncmp(pp->pfik_name, n->ifname, IFNAMSIZ))
+					continue;
+
+				if (!(pp->pfik_flags & PFI_IFLAG_SKIP))
+					pfctl_set_interface_flags(pf,
+					    pp->pfik_name, PFI_IFLAG_SKIP, 1);
+				if (pp->pfik_flags & PFI_IFLAG_SKIP)
+					pp->pfik_flags &= ~PFI_IFLAG_SKIP;
+			}
+	}
+
+	PFRB_FOREACH(p, &skip_b) {
+		if (p->pfik_ifp == NULL || ! (p->pfik_flags & PFI_IFLAG_SKIP))
+			continue;
+
+		pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
+	}
+
 	return (0);
 }
 
@@ -1479,6 +1526,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	}
 
 	memset(&pa, 0, sizeof(pa));
+	pa.version = PFIOC_ALTQ_VERSION;
 	memset(&pf, 0, sizeof(pf));
 	memset(&trs, 0, sizeof(trs));
 	if ((path = calloc(1, MAXPATHLEN)) == NULL)
@@ -1537,7 +1585,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 			goto _error;
 	}
 	if (loadopt & PFCTL_FLAG_OPTION)
-		pfctl_clear_skip_ifaces(&pf);
+		pfctl_adjust_skip_ifaces(&pf);
 
 	if ((pf.loadopt & PFCTL_FLAG_FILTER &&
 	    (pfctl_load_ruleset(&pf, path, rs, PF_RULESET_SCRUB, 0))) ||
@@ -1987,6 +2035,7 @@ pfctl_test_altqsupport(int dev, int opts)
 {
 	struct pfioc_altq pa;
 
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		if (errno == ENODEV) {
 			if (opts & PF_OPT_VERBOSE)
@@ -2409,7 +2458,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((rulesopt != NULL) && (loadopt & PFCTL_FLAG_OPTION) &&
-	    !anchorname[0])
+	    !anchorname[0] && !(opts & PF_OPT_NOACTION))
 		if (pfctl_get_skip_ifaces())
 			error = 1;
 

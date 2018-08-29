@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2018
+.Dd August 15, 2018
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -244,16 +244,28 @@ If
 is specified, file sizes will be shown too.
 .Pp
 .It Ic lsdev Op Fl v
-Lists all of the devices from which it may be possible to load modules.
+Lists all of the devices from which it may be possible to load modules,
+as well as ZFS pools.
 If
 .Fl v
-is specified, more details are printed.
+is specified, more details are printed, including ZFS pool information
+in a format that resembles
+.Nm zpool Cm status
+output.
 .Pp
 .It Ic lsmod Op Fl v
 Displays loaded modules.
 If
 .Fl v
 is specified, more details are shown.
+.Pp
+.It Ic lszfs Ar filesystem
+A ZFS extended command that can be used to explore the ZFS filesystem
+hierarchy in a pool.
+Lists the immediate children of the
+.Ar filesystem .
+The filesystem hierarchy is rooted at a filesystem with the same name
+as the pool.
 .Pp
 .It Ic more Ar file Op Ar
 Display the files specified, with a pause at each
@@ -478,20 +490,11 @@ directive from
 has been processed, allowing kernel panics that happen during the early stages
 of boot to be captured.
 .It Va init_chroot
-If set to a valid directory in the root file system, it causes
-.Xr init 8
-to perform a
-.Xr chroot 2
-operation on that directory, making it the new root directory.
-That happens before entering single-user mode or multi-user
-mode (but after executing the
-.Va init_script
-if enabled).
-This functionality has generally been eclipsed by rerooting.
 See
-.Xr reboot 8
-.Fl r
-for details.
+.Xr init 8 .
+.It Va init_exec
+See
+.Xr init 8 .
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as the initial
 process.
@@ -499,51 +502,11 @@ The first matching binary is used.
 The default list is
 .Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
 .It Va init_script
-If set to a valid file name in the root file system,
-instructs
-.Xr init 8
-to run that script as the very first action,
-before doing anything else.
-Signal handling and exit code interpretation is similar to
-running the
-.Pa /etc/rc
-script.
-In particular, single-user operation is enforced
-if the script terminates with a non-zero exit code,
-or if a SIGTERM is delivered to the
-.Xr init 8
-process (PID 1).
-This functionality has generally been eclipsed by rerooting.
 See
-.Xr reboot 8
-.Fl r
-for details.
+.Xr init 8 .
 .It Va init_shell
-Defines the shell binary to be used for executing the various shell scripts.
-The default is
-.Dq Li /bin/sh .
-It is used for running the
-.Va init_script
-if set, as well as for the
-.Pa /etc/rc
-and
-.Pa /etc/rc.shutdown
-scripts.
-The value of the corresponding
-.Xr kenv 2
-variable is evaluated every time
-.Xr init 8
-calls a shell script, so it can be changed later on using the
-.Xr kenv 1
-utility.
-In particular, if a non-default shell is used for running an
-.Va init_script ,
-it might be desirable to have that script reset the value of
-.Va init_shell
-back to the default, so that the
-.Pa /etc/rc
-script is executed with the standard shell
-.Pa /bin/sh .
+See
+.Xr init 8 .
 .It Va interpret
 Has the value
 .Dq Li OK
@@ -588,6 +551,10 @@ explicitly.
 Other variables are used to override kernel tunable parameters.
 The following tunables are available:
 .Bl -tag -width Va
+.It Va efi.rt.disabled
+Disable UEFI runtime services in the kernel, if applicable.
+Runtime services are only available and used if the kernel is booted in a UEFI
+environment.
 .It Va hw.physmem
 Limit the amount of physical memory the system will use.
 By default the size is in bytes, but the
@@ -714,6 +681,29 @@ Modifies
 and
 .Dv VM_KMEM_SIZE_MAX .
 .El
+.Ss ZFS FEATURES
+.Nm
+supports the following format for specifying ZFS filesystems which
+can be used wherever
+.Xr loader 8
+refers to a device specification:
+.Pp
+.Ar zfs:pool/filesystem:
+.Pp
+where
+.Pa pool/filesystem
+is a ZFS filesystem name as described in
+.Xr zfs 8 .
+.Pp
+If
+.Pa /etc/fstab
+does not have an entry for the root filesystem and
+.Va vfs.root.mountfrom
+is not set, but
+.Va currdev
+refers to a ZFS filesystem, then
+.Nm
+will instruct kernel to use that filesystem as the root filesystem.
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
 by it as arguments, and it is processed by a special parser which
@@ -955,9 +945,44 @@ version at compile time.
 .Nm
 version.
 .El
-.Ss SYSTEM DOCUMENTATION
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
 .Sh FILES
-.Bl -tag -width /boot/defaults/loader.conf -compact
+.Bl -tag -width /usr/share/examples/bootforth/ -compact
 .It Pa /boot/loader
 .Nm
 itself.
@@ -966,6 +991,8 @@ Additional
 .Tn FICL
 initialization.
 .It Pa /boot/defaults/loader.conf
+.It Pa /boot/loader.4th
+Extra builtin-like words.
 .It Pa /boot/loader.conf
 .It Pa /boot/loader.conf.local
 .Nm
@@ -978,6 +1005,11 @@ bootstrapping script.
 Loaded by
 .Ic help .
 Contains the help messages.
+.It Pa /boot/support.4th
+.Pa loader.conf
+processing words.
+.It Pa /usr/share/examples/bootforth/
+Assorted examples.
 .El
 .Sh EXAMPLES
 Boot in single user mode:
@@ -1003,16 +1035,11 @@ set root_disk_unit=2
 boot /boot/kernel/kernel
 .Ed
 .Pp
-See also:
-.Bl -tag -width /usr/share/examples/bootforth/X
-.It Pa /boot/loader.4th
-Extra builtin-like words.
-.It Pa /boot/support.4th
-.Pa loader.conf
-processing words.
-.It Pa /usr/share/examples/bootforth/
-Assorted examples.
-.El
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Pp
 .Sh ERRORS
 The following values are thrown by
 .Nm :

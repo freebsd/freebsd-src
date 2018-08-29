@@ -108,6 +108,7 @@ static uint64_t *zopt_object = NULL;
 static unsigned zopt_objects = 0;
 static libzfs_handle_t *g_zfs;
 static uint64_t max_inflight = 1000;
+static int leaked_objects = 0;
 
 static void snprintf_blkptr_compact(char *, size_t, const blkptr_t *);
 
@@ -774,7 +775,6 @@ verify_spacemap_refcounts(spa_t *spa)
 static void
 dump_spacemap(objset_t *os, space_map_t *sm)
 {
-	uint64_t alloc, offset, entry;
 	char *ddata[] = { "ALLOC", "FREE", "CONDENSE", "INVALID",
 	    "INVALID", "INVALID", "INVALID", "INVALID" };
 
@@ -791,41 +791,73 @@ dump_spacemap(objset_t *os, space_map_t *sm)
 	/*
 	 * Print out the freelist entries in both encoded and decoded form.
 	 */
-	alloc = 0;
-	for (offset = 0; offset < space_map_length(sm);
-	    offset += sizeof (entry)) {
-		uint8_t mapshift = sm->sm_shift;
+	uint8_t mapshift = sm->sm_shift;
+	int64_t alloc = 0;
+	uint64_t word;
+	for (uint64_t offset = 0; offset < space_map_length(sm);
+	    offset += sizeof (word)) {
 
 		VERIFY0(dmu_read(os, space_map_object(sm), offset,
-		    sizeof (entry), &entry, DMU_READ_PREFETCH));
-		if (SM_DEBUG_DECODE(entry)) {
+		    sizeof (word), &word, DMU_READ_PREFETCH));
 
+		if (sm_entry_is_debug(word)) {
 			(void) printf("\t    [%6llu] %s: txg %llu, pass %llu\n",
-			    (u_longlong_t)(offset / sizeof (entry)),
-			    ddata[SM_DEBUG_ACTION_DECODE(entry)],
-			    (u_longlong_t)SM_DEBUG_TXG_DECODE(entry),
-			    (u_longlong_t)SM_DEBUG_SYNCPASS_DECODE(entry));
-		} else {
-			(void) printf("\t    [%6llu]    %c  range:"
-			    " %010llx-%010llx  size: %06llx\n",
-			    (u_longlong_t)(offset / sizeof (entry)),
-			    SM_TYPE_DECODE(entry) == SM_ALLOC ? 'A' : 'F',
-			    (u_longlong_t)((SM_OFFSET_DECODE(entry) <<
-			    mapshift) + sm->sm_start),
-			    (u_longlong_t)((SM_OFFSET_DECODE(entry) <<
-			    mapshift) + sm->sm_start +
-			    (SM_RUN_DECODE(entry) << mapshift)),
-			    (u_longlong_t)(SM_RUN_DECODE(entry) << mapshift));
-			if (SM_TYPE_DECODE(entry) == SM_ALLOC)
-				alloc += SM_RUN_DECODE(entry) << mapshift;
-			else
-				alloc -= SM_RUN_DECODE(entry) << mapshift;
+			    (u_longlong_t)(offset / sizeof (word)),
+			    ddata[SM_DEBUG_ACTION_DECODE(word)],
+			    (u_longlong_t)SM_DEBUG_TXG_DECODE(word),
+			    (u_longlong_t)SM_DEBUG_SYNCPASS_DECODE(word));
+			continue;
 		}
+
+		uint8_t words;
+		char entry_type;
+		uint64_t entry_off, entry_run, entry_vdev = SM_NO_VDEVID;
+
+		if (sm_entry_is_single_word(word)) {
+			entry_type = (SM_TYPE_DECODE(word) == SM_ALLOC) ?
+			    'A' : 'F';
+			entry_off = (SM_OFFSET_DECODE(word) << mapshift) +
+			    sm->sm_start;
+			entry_run = SM_RUN_DECODE(word) << mapshift;
+			words = 1;
+		} else {
+			/* it is a two-word entry so we read another word */
+			ASSERT(sm_entry_is_double_word(word));
+
+			uint64_t extra_word;
+			offset += sizeof (extra_word);
+			VERIFY0(dmu_read(os, space_map_object(sm), offset,
+			    sizeof (extra_word), &extra_word,
+			    DMU_READ_PREFETCH));
+
+			ASSERT3U(offset, <=, space_map_length(sm));
+
+			entry_run = SM2_RUN_DECODE(word) << mapshift;
+			entry_vdev = SM2_VDEV_DECODE(word);
+			entry_type = (SM2_TYPE_DECODE(extra_word) == SM_ALLOC) ?
+			    'A' : 'F';
+			entry_off = (SM2_OFFSET_DECODE(extra_word) <<
+			    mapshift) + sm->sm_start;
+			words = 2;
+		}
+
+		(void) printf("\t    [%6llu]    %c  range:"
+		    " %010llx-%010llx  size: %06llx vdev: %06llu words: %u\n",
+		    (u_longlong_t)(offset / sizeof (word)),
+		    entry_type, (u_longlong_t)entry_off,
+		    (u_longlong_t)(entry_off + entry_run),
+		    (u_longlong_t)entry_run,
+		    (u_longlong_t)entry_vdev, words);
+
+		if (entry_type == 'A')
+			alloc += entry_run;
+		else
+			alloc -= entry_run;
 	}
-	if (alloc != space_map_allocated(sm)) {
-		(void) printf("space_map_object alloc (%llu) INCONSISTENT "
-		    "with space map summary (%llu)\n",
-		    (u_longlong_t)space_map_allocated(sm), (u_longlong_t)alloc);
+	if ((uint64_t)alloc != space_map_allocated(sm)) {
+		(void) printf("space_map_object alloc (%lld) INCONSISTENT "
+		    "with space map summary (%lld)\n",
+		    (longlong_t)space_map_allocated(sm), (longlong_t)alloc);
 	}
 }
 
@@ -1155,7 +1187,7 @@ dump_ddt(ddt_t *ddt, enum ddt_type type, enum ddt_class class)
 	while ((error = ddt_object_walk(ddt, type, class, &walk, &dde)) == 0)
 		dump_dde(ddt, &dde, walk);
 
-	ASSERT(error == ENOENT);
+	ASSERT3U(error, ==, ENOENT);
 
 	(void) printf("\n");
 }
@@ -1957,9 +1989,12 @@ dump_znode(objset_t *os, uint64_t object, void *data, size_t size)
 
 	if (dump_opt['d'] > 4) {
 		error = zfs_obj_to_path(os, object, path, sizeof (path));
-		if (error != 0) {
+		if (error == ESTALE) {
+			(void) snprintf(path, sizeof (path), "on delete queue");
+		} else if (error != 0) {
+			leaked_objects++;
 			(void) snprintf(path, sizeof (path),
-			    "\?\?\?<object#%llu>", (u_longlong_t)object);
+			    "path not found, possibly leaked");
 		}
 		(void) printf("\tpath	%s\n", path);
 	}
@@ -2061,7 +2096,7 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 	dnode_t *dn;
 	void *bonus = NULL;
 	size_t bsize = 0;
-	char iblk[32], dblk[32], lsize[32], asize[32], fill[32];
+	char iblk[32], dblk[32], lsize[32], asize[32], fill[32], dnsize[32];
 	char bonus_size[32];
 	char aux[50];
 	int error;
@@ -2074,9 +2109,9 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 	CTASSERT(sizeof (bonus_size) >= NN_NUMBUF_SZ);
 
 	if (*print_header) {
-		(void) printf("\n%10s  %3s  %5s  %5s  %5s  %5s  %6s  %s\n",
-		    "Object", "lvl", "iblk", "dblk", "dsize", "lsize",
-		    "%full", "type");
+		(void) printf("\n%10s  %3s  %5s  %5s  %5s  %6s %5s  %6s  %s\n",
+		    "Object", "lvl", "iblk", "dblk", "dsize", "dnsize",
+		    "lsize", "%full", "type");
 		*print_header = 0;
 	}
 
@@ -2098,6 +2133,7 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 	zdb_nicenum(doi.doi_max_offset, lsize, sizeof (lsize));
 	zdb_nicenum(doi.doi_physical_blocks_512 << 9, asize, sizeof (asize));
 	zdb_nicenum(doi.doi_bonus_size, bonus_size, sizeof (bonus_size));
+	zdb_nicenum(doi.doi_dnodesize, dnsize, sizeof (dnsize));
 	(void) sprintf(fill, "%6.2f", 100.0 * doi.doi_fill_count *
 	    doi.doi_data_block_size / (object == 0 ? DNODES_PER_BLOCK : 1) /
 	    doi.doi_max_offset);
@@ -2114,13 +2150,13 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 		    ZDB_COMPRESS_NAME(doi.doi_compress));
 	}
 
-	(void) printf("%10lld  %3u  %5s  %5s  %5s  %5s  %6s  %s%s\n",
+	(void) printf("%10lld  %3u  %5s  %5s  %5s  %6s  %5s  %6s  %s%s\n",
 	    (u_longlong_t)object, doi.doi_indirection, iblk, dblk,
-	    asize, lsize, fill, ZDB_OT_NAME(doi.doi_type), aux);
+	    asize, dnsize, lsize, fill, ZDB_OT_NAME(doi.doi_type), aux);
 
 	if (doi.doi_bonus_type != DMU_OT_NONE && verbosity > 3) {
-		(void) printf("%10s  %3s  %5s  %5s  %5s  %5s  %6s  %s\n",
-		    "", "", "", "", "", bonus_size, "bonus",
+		(void) printf("%10s  %3s  %5s  %5s  %5s  %5s  %5s  %6s  %s\n",
+		    "", "", "", "", "", "", bonus_size, "bonus",
 		    ZDB_OT_NAME(doi.doi_bonus_type));
 	}
 
@@ -2289,6 +2325,12 @@ dump_dir(objset_t *os)
 	}
 
 	ASSERT3U(object_count, ==, usedobjs);
+
+	if (leaked_objects != 0) {
+		(void) printf("%d potentially leaked objects detected\n",
+		    leaked_objects);
+		leaked_objects = 0;
+	}
 }
 
 static void
@@ -3002,7 +3044,7 @@ zdb_claim_removing(spa_t *spa, zdb_cb_t *zcb)
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 
 	spa_vdev_removal_t *svr = spa->spa_vdev_removal;
-	vdev_t *vd = svr->svr_vdev;
+	vdev_t *vd = vdev_lookup_top(spa, svr->svr_vdev_id);
 	vdev_indirect_mapping_t *vim = vd->vdev_indirect_mapping;
 
 	for (uint64_t msi = 0; msi < vd->vdev_ms_count; msi++) {
@@ -3018,13 +3060,17 @@ zdb_claim_removing(spa_t *spa, zdb_cb_t *zcb)
 			    svr->svr_allocd_segs, SM_ALLOC));
 
 			/*
-			 * Clear everything past what has been synced,
-			 * because we have not allocated mappings for it yet.
+			 * Clear everything past what has been synced unless
+			 * it's past the spacemap, because we have not allocated
+			 * mappings for it yet.
 			 */
-			range_tree_clear(svr->svr_allocd_segs,
-			    vdev_indirect_mapping_max_offset(vim),
-			    msp->ms_sm->sm_start + msp->ms_sm->sm_size -
-			    vdev_indirect_mapping_max_offset(vim));
+			uint64_t vim_max_offset =
+			    vdev_indirect_mapping_max_offset(vim);
+			uint64_t sm_end = msp->ms_sm->sm_start +
+			    msp->ms_sm->sm_size;
+			if (sm_end > vim_max_offset)
+				range_tree_clear(svr->svr_allocd_segs,
+				    vim_max_offset, sm_end - vim_max_offset);
 		}
 
 		zcb->zcb_removing_size +=
@@ -3097,15 +3143,14 @@ typedef struct checkpoint_sm_exclude_entry_arg {
 } checkpoint_sm_exclude_entry_arg_t;
 
 static int
-checkpoint_sm_exclude_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
-    void *arg)
+checkpoint_sm_exclude_entry_cb(space_map_entry_t *sme, void *arg)
 {
 	checkpoint_sm_exclude_entry_arg_t *cseea = arg;
 	vdev_t *vd = cseea->cseea_vd;
-	metaslab_t *ms = vd->vdev_ms[offset >> vd->vdev_ms_shift];
-	uint64_t end = offset + size;
+	metaslab_t *ms = vd->vdev_ms[sme->sme_offset >> vd->vdev_ms_shift];
+	uint64_t end = sme->sme_offset + sme->sme_run;
 
-	ASSERT(type == SM_FREE);
+	ASSERT(sme->sme_type == SM_FREE);
 
 	/*
 	 * Since the vdev_checkpoint_sm exists in the vdev level
@@ -3123,7 +3168,7 @@ checkpoint_sm_exclude_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
 	 * metaslab boundaries. So if needed we could add code
 	 * that handles metaslab-crossing segments in the future.
 	 */
-	VERIFY3U(offset, >=, ms->ms_start);
+	VERIFY3U(sme->sme_offset, >=, ms->ms_start);
 	VERIFY3U(end, <=, ms->ms_start + ms->ms_size);
 
 	/*
@@ -3131,10 +3176,10 @@ checkpoint_sm_exclude_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
 	 * also verify that the entry is there to begin with.
 	 */
 	mutex_enter(&ms->ms_lock);
-	range_tree_remove(ms->ms_allocatable, offset, size);
+	range_tree_remove(ms->ms_allocatable, sme->sme_offset, sme->sme_run);
 	mutex_exit(&ms->ms_lock);
 
-	cseea->cseea_checkpoint_size += size;
+	cseea->cseea_checkpoint_size += sme->sme_run;
 	return (0);
 }
 
@@ -4109,15 +4154,14 @@ typedef struct verify_checkpoint_sm_entry_cb_arg {
 #define	ENTRIES_PER_PROGRESS_UPDATE 10000
 
 static int
-verify_checkpoint_sm_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
-    void *arg)
+verify_checkpoint_sm_entry_cb(space_map_entry_t *sme, void *arg)
 {
 	verify_checkpoint_sm_entry_cb_arg_t *vcsec = arg;
 	vdev_t *vd = vcsec->vcsec_vd;
-	metaslab_t *ms = vd->vdev_ms[offset >> vd->vdev_ms_shift];
-	uint64_t end = offset + size;
+	metaslab_t *ms = vd->vdev_ms[sme->sme_offset >> vd->vdev_ms_shift];
+	uint64_t end = sme->sme_offset + sme->sme_run;
 
-	ASSERT(type == SM_FREE);
+	ASSERT(sme->sme_type == SM_FREE);
 
 	if ((vcsec->vcsec_entryid % ENTRIES_PER_PROGRESS_UPDATE) == 0) {
 		(void) fprintf(stderr,
@@ -4131,7 +4175,7 @@ verify_checkpoint_sm_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
 	/*
 	 * See comment in checkpoint_sm_exclude_entry_cb()
 	 */
-	VERIFY3U(offset, >=, ms->ms_start);
+	VERIFY3U(sme->sme_offset, >=, ms->ms_start);
 	VERIFY3U(end, <=, ms->ms_start + ms->ms_size);
 
 	/*
@@ -4140,7 +4184,7 @@ verify_checkpoint_sm_entry_cb(maptype_t type, uint64_t offset, uint64_t size,
 	 * their respective ms_allocateable trees should not contain them.
 	 */
 	mutex_enter(&ms->ms_lock);
-	range_tree_verify(ms->ms_allocatable, offset, size);
+	range_tree_verify(ms->ms_allocatable, sme->sme_offset, sme->sme_run);
 	mutex_exit(&ms->ms_lock);
 
 	return (0);
@@ -4386,7 +4430,7 @@ verify_checkpoint(spa_t *spa)
 	    DMU_POOL_ZPOOL_CHECKPOINT, sizeof (uint64_t),
 	    sizeof (uberblock_t) / sizeof (uint64_t), &checkpoint);
 
-	if (error == ENOENT) {
+	if (error == ENOENT && !dump_opt['L']) {
 		/*
 		 * If the feature is active but the uberblock is missing
 		 * then we must be in the middle of discarding the
@@ -4409,7 +4453,7 @@ verify_checkpoint(spa_t *spa)
 		error = 3;
 	}
 
-	if (error == 0)
+	if (error == 0 && !dump_opt['L'])
 		verify_checkpoint_blocks(spa);
 
 	return (error);
@@ -4514,7 +4558,7 @@ dump_zpool(spa_t *spa)
 	if (dump_opt['h'])
 		dump_history(spa);
 
-	if (rc == 0 && !dump_opt['L'])
+	if (rc == 0)
 		rc = verify_checkpoint(spa);
 
 	if (rc != 0) {
@@ -4907,19 +4951,18 @@ zdb_embedded_block(char *thing)
 	    words + 8, words + 9, words + 10, words + 11,
 	    words + 12, words + 13, words + 14, words + 15);
 	if (err != 16) {
-		(void) printf("invalid input format\n");
+		(void) fprintf(stderr, "invalid input format\n");
 		exit(1);
 	}
 	ASSERT3U(BPE_GET_LSIZE(&bp), <=, SPA_MAXBLOCKSIZE);
 	buf = malloc(SPA_MAXBLOCKSIZE);
 	if (buf == NULL) {
-		(void) fprintf(stderr, "%s: failed to allocate %llu bytes\n",
-		    __func__, SPA_MAXBLOCKSIZE);
+		(void) fprintf(stderr, "out of memory\n");
 		exit(1);
 	}
 	err = decode_embedded_bp(&bp, buf, BPE_GET_LSIZE(&bp));
 	if (err != 0) {
-		(void) printf("decode failed: %u\n", err);
+		(void) fprintf(stderr, "decode failed: %u\n", err);
 		free(buf);
 		exit(1);
 	}
@@ -5372,5 +5415,5 @@ main(int argc, char **argv)
 	libzfs_fini(g_zfs);
 	kernel_fini();
 
-	return (0);
+	return (error);
 }

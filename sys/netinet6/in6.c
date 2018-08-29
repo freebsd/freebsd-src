@@ -2135,9 +2135,6 @@ in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	if (callout_stop(&lle->lle_timer) > 0)
-		LLE_REMREF(lle);
-
 	llentry_free(lle);
 }
 

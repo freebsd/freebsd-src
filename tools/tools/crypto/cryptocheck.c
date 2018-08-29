@@ -131,21 +131,33 @@ struct alg {
 	const char *name;
 	int cipher;
 	int mac;
-	enum { T_HMAC, T_BLKCIPHER, T_AUTHENC, T_GCM } type;
+	enum { T_HASH, T_HMAC, T_BLKCIPHER, T_AUTHENC, T_GCM } type;
 	const EVP_CIPHER *(*evp_cipher)(void);
 	const EVP_MD *(*evp_md)(void);
 } algs[] = {
-	{ .name = "sha1", .mac = CRYPTO_SHA1_HMAC, .type = T_HMAC,
+	{ .name = "sha1", .mac = CRYPTO_SHA1, .type = T_HASH,
 	  .evp_md = EVP_sha1 },
-	{ .name = "sha256", .mac = CRYPTO_SHA2_256_HMAC, .type = T_HMAC,
+	{ .name = "sha224", .mac = CRYPTO_SHA2_224, .type = T_HASH,
+	  .evp_md = EVP_sha224 },
+	{ .name = "sha256", .mac = CRYPTO_SHA2_256, .type = T_HASH,
 	  .evp_md = EVP_sha256 },
-	{ .name = "sha384", .mac = CRYPTO_SHA2_384_HMAC, .type = T_HMAC,
+	{ .name = "sha384", .mac = CRYPTO_SHA2_384, .type = T_HASH,
 	  .evp_md = EVP_sha384 },
-	{ .name = "sha512", .mac = CRYPTO_SHA2_512_HMAC, .type = T_HMAC,
+	{ .name = "sha512", .mac = CRYPTO_SHA2_512, .type = T_HASH,
 	  .evp_md = EVP_sha512 },
-	{ .name = "blake2b", .mac = CRYPTO_BLAKE2B, .type = T_HMAC,
+	{ .name = "sha1hmac", .mac = CRYPTO_SHA1_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha1 },
+	{ .name = "sha224hmac", .mac = CRYPTO_SHA2_224_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha224 },
+	{ .name = "sha256hmac", .mac = CRYPTO_SHA2_256_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha256 },
+	{ .name = "sha384hmac", .mac = CRYPTO_SHA2_384_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha384 },
+	{ .name = "sha512hmac", .mac = CRYPTO_SHA2_512_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_sha512 },
+	{ .name = "blake2b", .mac = CRYPTO_BLAKE2B, .type = T_HASH,
 	  .evp_md = EVP_blake2b512 },
-	{ .name = "blake2s", .mac = CRYPTO_BLAKE2S, .type = T_HMAC,
+	{ .name = "blake2s", .mac = CRYPTO_BLAKE2S, .type = T_HASH,
 	  .evp_md = EVP_blake2s256 },
 	{ .name = "aes-cbc", .cipher = CRYPTO_AES_CBC, .type = T_BLKCIPHER,
 	  .evp_cipher = EVP_aes_128_cbc },
@@ -347,6 +359,128 @@ generate_iv(size_t len, struct alg *alg)
 		break;
 	}
 	return (iv);
+}
+
+static bool
+ocf_hash(struct alg *alg, const char *buffer, size_t size, char *digest,
+    int *cridp)
+{
+	struct session2_op sop;
+	struct crypt_op cop;
+	int fd;
+
+	memset(&sop, 0, sizeof(sop));
+	memset(&cop, 0, sizeof(cop));
+	sop.crid = crid;
+	sop.mac = alg->mac;
+	fd = crget();
+	if (ioctl(fd, CIOCGSESSION2, &sop) < 0) {
+		warn("cryptodev %s HASH not supported for device %s",
+		    alg->name, crfind(crid));
+		close(fd);
+		return (false);
+	}
+
+	cop.ses = sop.ses;
+	cop.op = 0;
+	cop.len = size;
+	cop.src = (char *)buffer;
+	cop.dst = NULL;
+	cop.mac = digest;
+	cop.iv = NULL;
+
+	if (ioctl(fd, CIOCCRYPT, &cop) < 0) {
+		warn("cryptodev %s (%zu) HASH failed for device %s", alg->name,
+		    size, crfind(crid));
+		close(fd);
+		return (false);
+	}
+
+	if (ioctl(fd, CIOCFSESSION, &sop.ses) < 0)
+		warn("ioctl(CIOCFSESSION)");
+
+	close(fd);
+	*cridp = sop.crid;
+	return (true);
+}
+
+static void
+openssl_hash(struct alg *alg, const EVP_MD *md, const void *buffer,
+    size_t size, void *digest_out, unsigned *digest_sz_out)
+{
+	EVP_MD_CTX *mdctx;
+	const char *errs;
+	int rc;
+
+	errs = "";
+
+	mdctx = EVP_MD_CTX_create();
+	if (mdctx == NULL)
+		goto err_out;
+
+	rc = EVP_DigestInit_ex(mdctx, md, NULL);
+	if (rc != 1)
+		goto err_out;
+
+	rc = EVP_DigestUpdate(mdctx, buffer, size);
+	if (rc != 1)
+		goto err_out;
+
+	rc = EVP_DigestFinal_ex(mdctx, digest_out, digest_sz_out);
+	if (rc != 1)
+		goto err_out;
+
+	EVP_MD_CTX_destroy(mdctx);
+	return;
+
+err_out:
+	errx(1, "OpenSSL %s HASH failed%s: %s", alg->name, errs,
+	    ERR_error_string(ERR_get_error(), NULL));
+}
+
+static void
+run_hash_test(struct alg *alg, size_t size)
+{
+	const EVP_MD *md;
+	char *buffer;
+	u_int digest_len;
+	int crid;
+	char control_digest[EVP_MAX_MD_SIZE], test_digest[EVP_MAX_MD_SIZE];
+
+	memset(control_digest, 0x3c, sizeof(control_digest));
+	memset(test_digest, 0x3c, sizeof(test_digest));
+
+	md = alg->evp_md();
+	assert(EVP_MD_size(md) <= sizeof(control_digest));
+
+	buffer = alloc_buffer(size);
+
+	/* OpenSSL HASH. */
+	digest_len = sizeof(control_digest);
+	openssl_hash(alg, md, buffer, size, control_digest, &digest_len);
+
+	/* cryptodev HASH. */
+	if (!ocf_hash(alg, buffer, size, test_digest, &crid))
+		goto out;
+	if (memcmp(control_digest, test_digest, sizeof(control_digest)) != 0) {
+		if (memcmp(control_digest, test_digest, EVP_MD_size(md)) == 0)
+			printf("%s (%zu) mismatch in trailer:\n",
+			    alg->name, size);
+		else
+			printf("%s (%zu) mismatch:\n", alg->name, size);
+		printf("control:\n");
+		hexdump(control_digest, sizeof(control_digest), NULL, 0);
+		printf("test (cryptodev device %s):\n", crfind(crid));
+		hexdump(test_digest, sizeof(test_digest), NULL, 0);
+		goto out;
+	}
+
+	if (verbose)
+		printf("%s (%zu) matched (cryptodev device %s)\n",
+		    alg->name, size, crfind(crid));
+
+out:
+	free(buffer);
 }
 
 static bool
@@ -1029,6 +1163,9 @@ run_test(struct alg *alg, size_t size)
 {
 
 	switch (alg->type) {
+	case T_HASH:
+		run_hash_test(alg, size);
+		break;
 	case T_HMAC:
 		run_hmac_test(alg, size);
 		break;
@@ -1051,6 +1188,16 @@ run_test_sizes(struct alg *alg, size_t *sizes, u_int nsizes)
 
 	for (i = 0; i < nsizes; i++)
 		run_test(alg, sizes[i]);
+}
+
+static void
+run_hash_tests(size_t *sizes, u_int nsizes)
+{
+	u_int i;
+
+	for (i = 0; i < nitems(algs); i++)
+		if (algs[i].type == T_HASH)
+			run_test_sizes(&algs[i], sizes, nsizes);
 }
 
 static void
@@ -1175,7 +1322,9 @@ main(int ac, char **av)
 		}
 	}
 
-	if (strcasecmp(algname, "hmac") == 0)
+	if (strcasecmp(algname, "hash") == 0)
+		run_hash_tests(sizes, nsizes);
+	else if (strcasecmp(algname, "hmac") == 0)
 		run_hmac_tests(sizes, nsizes);
 	else if (strcasecmp(algname, "blkcipher") == 0)
 		run_blkcipher_tests(sizes, nsizes);
@@ -1184,6 +1333,7 @@ main(int ac, char **av)
 	else if (strcasecmp(algname, "aead") == 0)
 		run_aead_tests(sizes, nsizes);
 	else if (strcasecmp(algname, "all") == 0) {
+		run_hash_tests(sizes, nsizes);
 		run_hmac_tests(sizes, nsizes);
 		run_blkcipher_tests(sizes, nsizes);
 		run_authenc_tests(sizes, nsizes);

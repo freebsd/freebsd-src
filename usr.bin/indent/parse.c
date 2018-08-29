@@ -42,12 +42,10 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>
-
 #include "indent_globs.h"
 #include "indent_codes.h"
 #include "indent.h"
@@ -128,7 +126,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 		/*
 		 * it is a group as part of a while, for, etc.
 		 */
-		if (ps.p_stack[ps.tos] == swstmt && ps.case_indent >= 1)
+		if (ps.p_stack[ps.tos] == swstmt && opt.case_indent >= 1)
 		    --ps.ind_level;
 		/*
 		 * for a switch, brace should be two levels out from the code
@@ -189,10 +187,10 @@ parse(int tk) /* tk: the code for the construct scanned */
 	ps.cstk[ps.tos] = case_ind;
 	/* save current case indent level */
 	ps.il[ps.tos] = ps.i_l_follow;
-	case_ind = ps.i_l_follow + ps.case_indent;	/* cases should be one
+	case_ind = ps.i_l_follow + opt.case_indent;	/* cases should be one
 							 * level down from
 							 * switch */
-	ps.i_l_follow += ps.case_indent + 1;	/* statements should be two
+	ps.i_l_follow += opt.case_indent + 1;	/* statements should be two
 						 * levels in */
 	ps.search_brace = opt.btype_2;
 	break;
@@ -211,7 +209,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 
     }				/* end of switch */
 
-    if (ps.tos >= (int)nitems(ps.p_stack) - 1)
+    if (ps.tos >= STACKSIZE - 1)
 	errx(1, "Parser stack overflow");
 
     reduce();			/* see if any reduction can be done */

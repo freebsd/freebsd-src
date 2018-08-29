@@ -8,9 +8,9 @@ This file contains some notes for people wishing to hack on dtc.
 Upstreaming
 -----------
 
-This code is developed in the FreeBSD svn repository:
+This code is developed in the git repository:
 
-https://svn.freebsd.org/base/head/usr.bin/dtc
+https://github.com/davidchisnall/dtc
 
 If you got the source from anywhere else and wish to make changes, please
 ensure that you are working against the latest version, or you may end up

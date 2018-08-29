@@ -429,16 +429,13 @@ searchloop:
 		error = ext2_blkatoff(vdp, (off_t)i_offset, NULL, &bp);
 		if (error != 0)
 			return (error);
+
 		entryoffsetinblock = 0;
-		/*
-		 * If still looking for a slot, and at a DIRBLKSIZE
-		 * boundary, have to start looking for free space again.
-		 */
-		if (ss.slotstatus == NONE &&
-		    (entryoffsetinblock & (DIRBLKSIZ - 1)) == 0) {
+		if (ss.slotstatus == NONE) {
 			ss.slotoffset = -1;
 			ss.slotfreespace = 0;
 		}
+
 		error = ext2_search_dirblock(dp, bp->b_data, &entry_found,
 		    cnp->cn_nameptr, cnp->cn_namelen,
 		    &entryoffsetinblock, &i_offset, &prevoff,
@@ -719,9 +716,7 @@ ext2_search_dirblock(struct inode *ip, void *data, int *foundp,
 	vdp = ITOV(ip);
 
 	ep = (struct ext2fs_direct_2 *)((char *)data + offset);
-	top = (struct ext2fs_direct_2 *)((char *)data +
-	    bsize - EXT2_DIR_REC_LEN(0));
-
+	top = (struct ext2fs_direct_2 *)((char *)data + bsize);
 	while (ep < top) {
 		/*
 		 * Full validation checks are slow, so we only check
@@ -751,6 +746,8 @@ ext2_search_dirblock(struct inode *ip, void *data, int *foundp,
 
 			if (ep->e2d_ino != 0)
 				size -= EXT2_DIR_REC_LEN(ep->e2d_namlen);
+			else if (ext2_is_dirent_tail(ip, ep))
+				size -= sizeof(struct ext2fs_direct_tail);
 			if (size > 0) {
 				if (size >= ssp->slotneeded) {
 					ssp->slotstatus = FOUND;
@@ -859,6 +856,68 @@ ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 }
 
 /*
+ * Insert an entry into the fresh directory block.
+ * Initialize entry tail if the metadata_csum feature is turned on.
+ */
+static int
+ext2_add_first_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
+    struct componentname *cnp)
+{
+	struct inode *dp;
+	struct iovec aiov;
+	struct uio auio;
+	char* buf = NULL;
+	int dirblksize, error;
+
+	dp = VTOI(dvp);
+	dirblksize = dp->i_e2fs->e2fs_bsize;
+
+	if (dp->i_offset & (dirblksize - 1))
+		panic("ext2_add_first_entry: bad directory offset");
+
+	if (EXT2_HAS_RO_COMPAT_FEATURE(dp->i_e2fs,
+	    EXT2F_ROCOMPAT_METADATA_CKSUM)) {
+		entry->e2d_reclen = dirblksize - sizeof(struct ext2fs_direct_tail);
+		buf = malloc(dirblksize, M_TEMP, M_WAITOK);
+		if (!buf) {
+			error = ENOMEM;
+			goto out;
+		}
+		memcpy(buf, entry, EXT2_DIR_REC_LEN(entry->e2d_namlen));
+		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, dirblksize));
+		ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)buf);
+
+		auio.uio_offset = dp->i_offset;
+		auio.uio_resid = dirblksize;
+		aiov.iov_len = auio.uio_resid;
+		aiov.iov_base = (caddr_t)buf;
+	} else {
+		entry->e2d_reclen = dirblksize;
+		auio.uio_offset = dp->i_offset;
+		auio.uio_resid = EXT2_DIR_REC_LEN(entry->e2d_namlen);
+		aiov.iov_len = auio.uio_resid;
+		aiov.iov_base = (caddr_t)entry;
+	}
+
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_td = (struct thread *)0;
+	error = VOP_WRITE(dvp, &auio, IO_SYNC, cnp->cn_cred);
+	if (error)
+		goto out;
+
+	dp->i_size = roundup2(dp->i_size, dirblksize);
+	dp->i_flag |= IN_CHANGE;
+
+out:
+	free(buf, M_TEMP);
+	return (error);
+
+}
+
+/*
  * Write a directory entry after a call to namei, using the parameters
  * that it left in nameidata.  The argument ip is the inode which the new
  * directory entry will refer to.  Dvp is a pointer to the directory to
@@ -871,7 +930,6 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 {
 	struct inode *dp;
 	struct ext2fs_direct_2 newdir;
-	struct buf *bp;
 	int DIRBLKSIZ = ip->i_e2fs->e2fs_bsize;
 	int error;
 
@@ -911,35 +969,14 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 		}
 	}
 
-	if (dp->i_count == 0) {
-		/*
-		 * If dp->i_count is 0, then namei could find no
-		 * space in the directory. Here, dp->i_offset will
-		 * be on a directory block boundary and we will write the
-		 * new entry into a fresh block.
-		 */
-		if (dp->i_offset & (DIRBLKSIZ - 1))
-			panic("ext2_direnter: newblk");
-
-		newdir.e2d_reclen = DIRBLKSIZ;
-
-		bp = getblk(ip->i_devvp, lblkno(dp->i_e2fs, dp->i_offset),
-		    DIRBLKSIZ, 0, 0, 0);
-		if (!bp)
-			return (EIO);
-
-		memcpy(bp->b_data, &newdir, sizeof(struct ext2fs_direct_2));
-
-		ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
-		error = bwrite(bp);
-		if (error)
-			return (error);
-
-		dp->i_size = roundup2(dp->i_size, DIRBLKSIZ);
-		dp->i_flag |= IN_CHANGE;
-
-		return (0);
-	}
+	/*
+	 * If dp->i_count is 0, then namei could find no
+	 * space in the directory. Here, dp->i_offset will
+	 * be on a directory block boundary and we will write the
+	 * new entry into a fresh block.
+	 */
+	if (dp->i_count == 0)
+		return ext2_add_first_entry(dvp, &newdir, cnp);
 
 	error = ext2_add_entry(dvp, &newdir);
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
@@ -1071,6 +1108,7 @@ ext2_dirremove(struct vnode *dvp, struct componentname *cnp)
 		    &bp)) != 0)
 			return (error);
 		ep->e2d_ino = 0;
+		ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)bp->b_data);
 		error = bwrite(bp);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (error);

@@ -129,12 +129,7 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
-#ifdef __i386__
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 8)	/* Lazy pmap release. */
-#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 9)
-#else
 #define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
-#endif
 #define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
 
 /*
@@ -163,10 +158,10 @@
 #define	APIC_BUS_PCI		2
 #define	APIC_BUS_MAX		APIC_BUS_PCI
 
-#define	IRQ_EXTINT		(NUM_IO_INTS + 1)
-#define	IRQ_NMI			(NUM_IO_INTS + 2)
-#define	IRQ_SMI			(NUM_IO_INTS + 3)
-#define	IRQ_DISABLED		(NUM_IO_INTS + 4)
+#define	IRQ_EXTINT		-1
+#define	IRQ_NMI			-2
+#define	IRQ_SMI			-3
+#define	IRQ_DISABLED		-4
 
 /*
  * An APIC enumerator is a pseudo bus driver that enumerates APIC's including

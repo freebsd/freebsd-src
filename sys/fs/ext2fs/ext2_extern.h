@@ -120,6 +120,7 @@ int	ext2_dx_csum_verify(struct inode *ip, struct ext2fs_direct_2 *ep);
 int	ext2_extent_blk_csum_verify(struct inode *, void *);
 void	ext2_extent_blk_csum_set(struct inode *, void *);
 void	ext2_init_dirent_tail(struct ext2fs_direct_tail *);
+int	ext2_is_dirent_tail(struct inode *, struct ext2fs_direct_2 *);
 int	ext2_gd_i_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);
 void	ext2_gd_i_bitmap_csum_set(struct m_ext2fs *, int, struct buf *);
 int	ext2_gd_b_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);

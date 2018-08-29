@@ -305,8 +305,8 @@ pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
-		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - L2_SIZE,
-		    ("Too many early devmap mappings"));
+		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
+		    ("Too many early devmap mappings 2"));
 	} else
 		va = kva_alloc(size);
 	if (!va)

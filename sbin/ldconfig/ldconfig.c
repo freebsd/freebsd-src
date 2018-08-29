@@ -518,13 +518,6 @@ buildhints(void)
 		warn("%s", hints_file);
 		return -1;
 	}
-
-	/* Install it */
-	if (unlink(hints_file) != 0 && errno != ENOENT) {
-		warn("%s", hints_file);
-		return -1;
-	}
-
 	if (rename(tmpfilename, hints_file) != 0) {
 		warn("%s", hints_file);
 		return -1;

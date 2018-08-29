@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+CONFS=	profile
 PACKAGE=runtime
 PROG=	sh
 INSTALLFLAGS= -S

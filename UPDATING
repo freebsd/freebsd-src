@@ -1,4 +1,4 @@
-Updating Information for FreeBSD current users.
+ Updating Information for FreeBSD current users.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -30,6 +30,118 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20180826:
+	The Yarrow CSPRNG has been removed from the kernel as it has not been
+	supported by its designers since at least 2003. Fortuna has been the
+	default since FreeBSD-11.
+
+20170822:
+	devctl freeze/that have gone into the tree, the rc scripts have been
+	updated to use them and devmatch has been changed.  You should update
+	kernel, userland and rc scripts all at the same time.
+
+20180818:
+	The default interpreter has been switched from 4th to Lua.
+	LOADER_DEFAULT_INTERP, documented in build(7), will override the default
+	interpreter.  If you have custom FORTH code you will need to set
+	LOADER_DEFAULT_INTERP=4th (valid values are 4th, lua or simp) in
+	src.conf for the build.  This will create default hard links between
+	loader and loader_4th instead of loader and loader_lua, the new default.
+	If you are using UEFI it will create the proper hard link to loader.efi.
+
+	bhyve uses userboot.so. It remains 4th-only until some issues are solved
+	regarding coexisting with multiple versions of FreeBSD are resolved.
+
+20180815:
+	ls(1) now respects the COLORTERM environment variable used in other
+	systems and software to indicate that a colored terminal is both
+	supported and desired.  If ls(1) is suddenly emitting colors, they may
+	be disabled again by either removing the unwanted COLORTERM from your
+	environment, or using `ls --color=never`.  The ls(1) specific CLICOLOR
+	may not be observed in a future release.
+
+20180808:
+	The default pager for most commands has been changed to "less".  To
+	restore the old behavior, set PAGER="more" and MANPAGER="more -s" in
+	your environment.
+
+20180731:
+	The jedec_ts(4) driver has been removed. A superset of its functionality
+	is available in the jedec_dimm(4) driver, and the manpage for that
+	driver includes migration instructions. If you have "device jedec_ts"
+	in your kernel configuration file, it must be removed.
+
+20180730:
+	amd64/GENERIC now has EFI runtime services, EFIRT, enabled by default.
+	This should have no effect if the kernel is booted via BIOS/legacy boot.
+	EFIRT may be disabled via a loader tunable, efi.rt.disabled, if a system
+	has a buggy firmware that prevents a successful boot due to use of
+	runtime services.
+
+20180727:
+	Atmel AT91RM9200 and AT91SAM9, Cavium CNS 11xx and XScale
+	support has been removed from the tree. These ports were
+	obsolete and/or known to be broken for many years.
+
+20180723:
+	loader.efi has been augmented to participate more fully in the
+	UEFI boot manager protocol. loader.efi will now look at the
+	BootXXXX environment variable to determine if a specific kernel
+	or root partition was specified. XXXX is derived from BootCurrent.
+	efibootmgr(8) manages these standard UEFI variables.
+
+20180720:
+	zfsloader's functionality has now been folded into loader.
+	zfsloader is no longer necessary once you've updated your
+	boot blocks. For a transition period, we will install a
+	hardlink for zfsloader to loader to allow a smooth transition
+	until the boot blocks can be updated (hard link because old
+	zfs boot blocks don't understand symlinks).
+
+20180719:
+	ARM64 now have efifb support, if you want to have serial console
+	on your arm64 board when an screen is connected and the bootloader
+	setup a frambuffer for us to use, just add :
+	boot_serial=YES
+	boot_multicons=YES
+	in /boot/loader.conf
+	For Raspberry Pi 3 (RPI) users, this is needed even if you don't have
+	an screen connected as the firmware will setup a framebuffer are that
+	u-boot will expose as an EFI framebuffer.
+
+20180719:
+	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
+	or take steps to update /etc/passwd before doing installworld on
+	existing systems.  Also, rc.d/ntpd now starts ntpd(8) as user ntpd
+	if the new mac_ntpd(4) policy is available, unless ntpd_flags or
+	the ntp config file contain options that change file/dir locations.
+	When such options (e.g., "statsdir" or "crypto") are used, ntpd can
+	still be run as non-root by setting ntpd_user=ntpd in rc.conf, after
+	taking steps to ensure that all required files/dirs are accessible
+	by the ntpd user.
+
+20180717:
+	Big endian arm support has been removed.
+
+20180711:
+	The static environment setup in kernel configs is no longer mutually
+	exclusive with the loader(8) environment by default.  In order to
+	restore the previous default behavior of disabling the loader(8)
+	environment if a static environment is present, you must specify
+	loader_env.disabled=1 in the static environment.
+
+20180705:
+	The ABI of syscalls used by management tools like sockstat and
+	netstat has been broken to allow 32-bit binaries to work on
+	64-bit kernels without modification.  These programs will need
+	to match the kernel in order to function.  External programs may
+	require minor modifications to accommodate a change of type in
+	structures from pointers to 64-bit virtual addresses.
+
+20180702:
+	On i386 and amd64 atomics are now inlined. Out of tree modules using
+	atomics will need to be rebuilt.
 
 20180701:
 	The '%I' format in the kern.corefile sysctl limits the number of
@@ -116,7 +228,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Support for FDDI networks has been removed.  If you have device
 	fddi or device fpa in your kernel config file they must be
 	removed.
-	
+
 20180406:
 	In addition to supporting RFC 3164 formatted messages, the
 	syslogd(8) service is now capable of parsing RFC 5424 formatted
@@ -629,6 +741,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20160818:
 	Remove the openbsd_poll system call.
 	__FreeBSD_version has been bumped because of this.
+
+20160708:
+	The stable/11 branch has been created from head@r302406.
 
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with

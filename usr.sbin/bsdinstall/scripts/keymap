@@ -43,11 +43,6 @@ f_include $BSDCFG_SHARE/sysrc.subr
 #
 : ${KEYMAPFILE:=$BSDINSTALL_TMPETC/rc.conf.keymap}
 
-#
-# Default path to keymap INDEX containing descriptions
-#
-: ${MAPDESCFILE:=/usr/share/syscons/keymaps/INDEX.keymaps}
-
 ############################################################ GLOBALS
 
 #

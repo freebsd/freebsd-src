@@ -30,6 +30,7 @@
  */
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 
 #include "vmx_assym.h"
 
@@ -175,9 +176,13 @@ ENTRY(vmx_enter_guest)
 	jbe	invept_error		/* Check invept instruction error */
 
 guest_restore:
-	cmpl	$0, %edx
+	movl	%edx, %r8d
+	cmpb	$0, guest_l1d_flush_sw(%rip)
+	je	after_l1d
+	call	flush_l1d_sw
+after_l1d:
+	cmpl	$0, %r8d
 	je	do_launch
-
 	VMX_GUEST_RESTORE
 	vmresume
 	/*

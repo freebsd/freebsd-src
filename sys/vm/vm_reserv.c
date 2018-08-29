@@ -116,6 +116,12 @@ typedef	u_long		popmap_t;
 #define	NPOPMAP		howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
 
 /*
+ * Number of elapsed ticks before we update the LRU queue position.  Used
+ * to reduce contention and churn on the list.
+ */
+#define	PARTPOPSLOP	1
+
+/*
  * Clear a bit in the population map.
  */
 static __inline void
@@ -183,6 +189,7 @@ struct vm_reserv {
 	vm_page_t	pages;			/* (c) first page  */
 	uint16_t	domain;			/* (c) NUMA domain. */
 	uint16_t	popcnt;			/* (r) # of pages in use */
+	int		lasttick;		/* (r) last pop update tick. */
 	char		inpartpopq;		/* (d) */
 	popmap_t	popmap[NPOPMAP];	/* (r) bit vector, used pages */
 };
@@ -394,6 +401,7 @@ vm_reserv_insert(vm_reserv_t rv, vm_object_t object, vm_pindex_t pindex)
 	vm_reserv_object_lock(object);
 	rv->pindex = pindex;
 	rv->object = object;
+	rv->lasttick = ticks;
 	LIST_INSERT_HEAD(&object->rvq, rv, objq);
 	vm_reserv_object_unlock(object);
 }
@@ -430,16 +438,20 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	}
 	popmap_clear(rv->popmap, index);
 	rv->popcnt--;
-	vm_reserv_domain_lock(rv->domain);
-	if (rv->inpartpopq) {
-		TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
-		rv->inpartpopq = FALSE;
+	if ((unsigned)(ticks - rv->lasttick) >= PARTPOPSLOP ||
+	    rv->popcnt == 0) {
+		vm_reserv_domain_lock(rv->domain);
+		if (rv->inpartpopq) {
+			TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
+			rv->inpartpopq = FALSE;
+		}
+		if (rv->popcnt != 0) {
+			rv->inpartpopq = TRUE;
+			TAILQ_INSERT_TAIL(&vm_rvq_partpop[rv->domain], rv, partpopq);
+		}
+		vm_reserv_domain_unlock(rv->domain);
+		rv->lasttick = ticks;
 	}
-	if (rv->popcnt != 0) {
-		rv->inpartpopq = TRUE;
-		TAILQ_INSERT_TAIL(&vm_rvq_partpop[rv->domain], rv, partpopq);
-	}
-	vm_reserv_domain_unlock(rv->domain);
 	vmd = VM_DOMAIN(rv->domain);
 	if (rv->popcnt == 0) {
 		vm_reserv_remove(rv);
@@ -536,6 +548,10 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	    rv, rv->domain));
 	popmap_set(rv->popmap, index);
 	rv->popcnt++;
+	if ((unsigned)(ticks - rv->lasttick) < PARTPOPSLOP &&
+	    rv->inpartpopq && rv->popcnt != VM_LEVEL_0_NPAGES)
+		return;
+	rv->lasttick = ticks;
 	vm_reserv_domain_lock(rv->domain);
 	if (rv->inpartpopq) {
 		TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);

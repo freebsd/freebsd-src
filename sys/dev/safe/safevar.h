@@ -47,10 +47,6 @@
 
 #define	SAFE_RNG_MAXBUFSIZ	128	/* 32-bit words */
 
-#define	SAFE_CARD(sid)		(((sid) & 0xf0000000) >> 28)
-#define	SAFE_SESSION(sid)	( (sid) & 0x0fffffff)
-#define	SAFE_SID(crd, sesn)	(((crd) << 28) | ((sesn) & 0x0fffffff))
-
 #define SAFE_DEF_RTY		0xff	/* PCI Retry Timeout */
 #define SAFE_DEF_TOUT		0xff	/* PCI TRDY Timeout */
 #define SAFE_DEF_CACHELINE	0x01	/* Cache Line setting */
@@ -114,7 +110,7 @@ struct safe_ringentry {
 	struct safe_operand	re_src;		/* source operand */
 	struct safe_operand	re_dst;		/* destination operand */
 
-	int			re_sesn;	/* crypto session ID */
+	int			unused;
 	int			re_flags;
 #define	SAFE_QFLAGS_COPYOUTIV	0x1		/* copy back on completion */
 #define	SAFE_QFLAGS_COPYOUTICV	0x2		/* copy back on completion */
@@ -137,7 +133,6 @@ struct safe_ringentry {
 struct rndstate_test;
 
 struct safe_session {
-	u_int32_t	ses_used;
 	u_int32_t	ses_klen;		/* key length in bits */
 	u_int32_t	ses_key[8];		/* DES/3DES/AES key */
 	u_int32_t	ses_mlen;		/* hmac length in bytes */
@@ -177,8 +172,6 @@ struct safe_softc {
 	struct safe_pdesc	*sc_dpringtop;	/* dest particle ring top */
 	struct safe_pdesc	*sc_dpfree;	/* next free dest particle */
 	struct safe_dma_alloc	sc_dpalloc;	/* dst particle ring state */
-	int			sc_nsessions;	/* # of sessions */
-	struct safe_session	*sc_sessions;	/* sessions */
 
 	struct callout		sc_rngto;	/* rng timeout */
 	struct rndtest_state	*sc_rndtest;	/* RNG test state */

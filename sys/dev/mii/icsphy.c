@@ -113,6 +113,7 @@ static const struct mii_phydesc icsphys[] = {
 	MII_PHY_DESC(ICS, 1890),
 	MII_PHY_DESC(ICS, 1892),
 	MII_PHY_DESC(ICS, 1893),
+	MII_PHY_DESC(ICS, 1893C),
 	MII_PHY_END
 };
 

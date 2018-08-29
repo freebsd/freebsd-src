@@ -198,8 +198,8 @@ lio_dma_alloc(size_t size, vm_paddr_t *dma_handle)
 	void	*mem;
 
 	align = PAGE_SIZE << lio_get_order(size);
-	mem = (void *)kmem_alloc_contig(kmem_arena, size, M_WAITOK, 0, ~0ul,
-					align, 0, VM_MEMATTR_DEFAULT);
+	mem = (void *)kmem_alloc_contig(size, M_WAITOK, 0, ~0ul, align, 0,
+	    VM_MEMATTR_DEFAULT);
 	if (mem != NULL)
 		*dma_handle = vtophys(mem);
 	else
@@ -212,7 +212,7 @@ static inline void
 lio_dma_free(size_t size, void *cpu_addr)
 {
 
-	kmem_free(kmem_arena, (vm_offset_t)cpu_addr, size);
+	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
 static inline uint64_t

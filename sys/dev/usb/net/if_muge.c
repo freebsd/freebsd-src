@@ -54,16 +54,14 @@ __FBSDID("$FreeBSD$");
  * A number of features supported by the lan78xx are not yet implemented in
  * this driver:
  *
- * 1. RX/TX checksum offloading: Nothing has been implemented yet for
- *    TX checksumming. RX checksumming works with ICMP messages, but is broken
- *    for TCP/UDP packets.
- * 2. Direct address translation filtering: Implemented but untested.
- * 3. VLAN tag removal.
- * 4. Reading MAC address from the device tree: Specific to the RPi 3B+.
- *    Currently, the driver assigns a random MAC address itself.
- * 5. Support for USB interrupt endpoints.
- * 6. Latency Tolerance Messaging (LTM) support.
- * 7. TCP LSO support.
+ * - RX/TX checksum offloading: Nothing has been implemented yet for
+ *   TX checksumming. RX checksumming works with ICMP messages, but is broken
+ *   for TCP/UDP packets.
+ * - Direct address translation filtering: Implemented but untested.
+ * - VLAN tag removal.
+ * - Support for USB interrupt endpoints.
+ * - Latency Tolerance Messaging (LTM) support.
+ * - TCP LSO support.
  *
  */
 
@@ -94,6 +92,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include "opt_platform.h"
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -1192,7 +1196,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				goto tr_setup;
 			usbd_copy_out(pc, off, &rx_cmd_c, sizeof(rx_cmd_c));
 			off += (sizeof(rx_cmd_c));
-			rx_cmd_c = le32toh(rx_cmd_c);
+			rx_cmd_c = le16toh(rx_cmd_c);
 
 			if (off > actlen)
 				goto tr_setup;
@@ -1427,30 +1431,117 @@ tr_setup:
 	}
 }
 
+#ifdef FDT
 /**
- *	muge_attach_post - Called after the driver attached to the USB interface
+ *	muge_fdt_find_eth_node - find descendant node with required compatibility
+ *	@start: start node
+ *	@compatible: compatible string used to identify the node
+ *
+ *	Loop through all descendant nodes and return first match with required
+ *	compatibility.
+ *
+ *	RETURNS:
+ *	Returns node's phandle on success -1 otherwise
+ */
+static phandle_t
+muge_fdt_find_eth_node(phandle_t start, const char *compatible)
+{
+	phandle_t child, node;
+
+	/* Traverse through entire tree to find usb ethernet nodes. */
+	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
+		if (ofw_bus_node_is_compatible(node, compatible))
+			return (node);
+		child = muge_fdt_find_eth_node(node, compatible);
+		if (child != -1)
+			return (child);
+	}
+
+	return (-1);
+}
+
+/**
+ *	muge_fdt_read_mac_property - read MAC address from node
+ *	@node: USB device node
+ *	@mac: memory to store MAC address to
+ *
+ *	Check for common properties that might contain MAC address
+ *	passed by boot loader.
+ *
+ *	RETURNS:
+ *	Returns 0 on success, error code otherwise
+ */
+static int
+muge_fdt_read_mac_property(phandle_t node, unsigned char *mac)
+{
+	int len;
+
+	/* Check if there is property */
+	if ((len = OF_getproplen(node, "local-mac-address")) > 0) {
+		if (len != ETHER_ADDR_LEN)
+			return (EINVAL);
+
+		OF_getprop(node, "local-mac-address", mac,
+		    ETHER_ADDR_LEN);
+		return (0);
+	}
+
+	if ((len = OF_getproplen(node, "mac-address")) > 0) {
+		if (len != ETHER_ADDR_LEN)
+			return (EINVAL);
+
+		OF_getprop(node, "mac-address", mac,
+		    ETHER_ADDR_LEN);
+		return (0);
+	}
+
+	return (ENXIO);
+}
+
+/**
+ *	muge_fdt_find_mac - read MAC address from node
+ *	@compatible: compatible string for DTB node in the form "usb[N]NNN,[M]MMM"
+ *	    where NNN is vendor id and MMM is product id
+ *	@mac: memory to store MAC address to
+ *
+ *	Tries to find matching node in DTS and obtain MAC address info from it
+ *
+ *	RETURNS:
+ *	Returns 0 on success, error code otherwise
+ */
+static int
+muge_fdt_find_mac(const char *compatible, unsigned char *mac)
+{
+	phandle_t node, root;
+
+	root = OF_finddevice("/");
+	node = muge_fdt_find_eth_node(root, compatible);
+	if (node != -1) {
+		if (muge_fdt_read_mac_property(node, mac) == 0)
+			return (0);
+	}
+
+	return (ENXIO);
+}
+#endif
+
+/**
+ *	muge_set_mac_addr - Initiailizes NIC MAC address
  *	@ue: the USB ethernet device
  *
- *	This is where the chip is intialised for the first time.  This is
- *	different from the muge_init() function in that that one is designed to
- *	setup the H/W to match the UE settings and can be called after a reset.
- *
+ *	Tries to obtain MAC address from number of sources: registers,
+ *	EEPROM, DTB blob. If all sources fail - generates random MAC.
  */
 static void
-muge_attach_post(struct usb_ether *ue)
+muge_set_mac_addr(struct usb_ether *ue)
 {
 	struct muge_softc *sc = uether_getsc(ue);
 	uint32_t mac_h, mac_l;
-	muge_dbg_printf(sc, "Calling muge_attach_post.\n");
+#ifdef FDT
+	char compatible[16];
+	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
+#endif
 
-	/* Setup some of the basics */
-	sc->sc_phyno = 1;
-
-	/*
-	 * Attempt to get the mac address, if an EEPROM is not attached this
-	 * will just return FF:FF:FF:FF:FF:FF, so in such cases we invent a MAC
-	 * address based on urandom.
-	 */
 	memset(sc->sc_ue.ue_eaddr, 0xff, ETHER_ADDR_LEN);
 
 	uint32_t val;
@@ -1468,29 +1559,57 @@ muge_attach_post(struct usb_ether *ue)
 	}
 
 	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
-	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
-		if ((lan78xx_eeprom_present(sc) &&
-		    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
-		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
-		    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
-		    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
-			if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
-				muge_dbg_printf(sc, "MAC read from EEPROM\n");
-			} else {
-				muge_dbg_printf(sc, "MAC assigned randomly\n");
-				read_random(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
-				sc->sc_ue.ue_eaddr[0] &= ~0x01;	/* unicast */
-				sc->sc_ue.ue_eaddr[0] |= 0x02;/* locally administered */
-			}
-		} else {
-			muge_dbg_printf(sc, "MAC assigned randomly\n");
-			arc4rand(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN, 0);
-			sc->sc_ue.ue_eaddr[0] &= ~0x01;	/* unicast */
-			sc->sc_ue.ue_eaddr[0] |= 0x02;	/* locally administered */
-		}
-	} else {
+	if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
 		muge_dbg_printf(sc, "MAC assigned from registers\n");
+		return;
 	}
+
+	if ((lan78xx_eeprom_present(sc) &&
+	    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
+	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
+	    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
+	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
+		if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+			muge_dbg_printf(sc, "MAC read from EEPROM\n");
+			return;
+		}
+	}
+
+#ifdef FDT
+	snprintf(compatible, sizeof(compatible), "usb%x,%x",
+	    uaa->info.idVendor, uaa->info.idProduct);
+	if (muge_fdt_find_mac(compatible, sc->sc_ue.ue_eaddr) == 0) {
+		muge_dbg_printf(sc, "MAC assigned from FDT blob\n");
+		return;
+	}
+#endif
+
+	muge_dbg_printf(sc, "MAC assigned randomly\n");
+	arc4rand(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN, 0);
+	sc->sc_ue.ue_eaddr[0] &= ~0x01;	/* unicast */
+	sc->sc_ue.ue_eaddr[0] |= 0x02;	/* locally administered */
+}
+
+/**
+ *	muge_attach_post - Called after the driver attached to the USB interface
+ *	@ue: the USB ethernet device
+ *
+ *	This is where the chip is intialised for the first time.  This is
+ *	different from the muge_init() function in that that one is designed to
+ *	setup the H/W to match the UE settings and can be called after a reset.
+ *
+ */
+static void
+muge_attach_post(struct usb_ether *ue)
+{
+	struct muge_softc *sc = uether_getsc(ue);
+
+	muge_dbg_printf(sc, "Calling muge_attach_post.\n");
+
+	/* Setup some of the basics */
+	sc->sc_phyno = 1;
+
+	muge_set_mac_addr(ue);
 
 	/* Initialise the chip for the first time */
 	lan78xx_chip_init(sc);
@@ -1772,7 +1891,7 @@ muge_multicast_write(struct muge_softc *sc)
 static inline uint32_t
 muge_hash(uint8_t addr[ETHER_ADDR_LEN])
 {
-	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 26) & 0x3f;
+	return (ether_crc32_be(addr, ETHER_ADDR_LEN) >> 23) & 0x1ff;
 }
 
 /**

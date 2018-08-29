@@ -67,6 +67,7 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 	uintptr_t *stack;
 	uintptr_t arg0, arg1, arg2, arg3, arg4;
 	fbt_probe_t *fbt;
+	int8_t fbtrval;
 
 #ifdef __amd64__
 	stack = (uintptr_t *)frame->tf_rsp;
@@ -78,7 +79,11 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 	cpu = &solaris_cpu[curcpu];
 	fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
-		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
+		if ((uintptr_t)fbt->fbtp_patchpoint != addr)
+			continue;
+		fbtrval = fbt->fbtp_rval;
+		for (; fbt != NULL; fbt = fbt->fbtp_tracenext) {
+			ASSERT(fbt->fbtp_rval == fbtrval);
 			if (fbt->fbtp_roffset == 0) {
 #ifdef __amd64__
 				/* fbt->fbtp_rval == DTRACE_INVOP_PUSHQ_RBP */
@@ -135,9 +140,8 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 				    rval, 0, 0, 0);
 				cpu->cpu_dtrace_caller = 0;
 			}
-
-			return (fbt->fbtp_rval);
 		}
+		return (fbtrval);
 	}
 
 	return (0);
@@ -162,7 +166,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 {
 	char *modname = opaque;
 	const char *name = symval->name;
-	fbt_probe_t *fbt, *retfbt;
+	fbt_probe_t *fbt, *hash, *retfbt;
 	int j;
 	int size;
 	uint8_t *instr, *limit;
@@ -224,8 +228,18 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	fbt->fbtp_patchval = FBT_PATCHVAL;
 	fbt->fbtp_symindx = symindx;
 
-	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
-	fbt_probetab[FBT_ADDR2NDX(instr)] = fbt;
+	for (hash = fbt_probetab[FBT_ADDR2NDX(instr)]; hash != NULL;
+	    hash = hash->fbtp_hashnext) {
+		if (hash->fbtp_patchpoint == fbt->fbtp_patchpoint) {
+			fbt->fbtp_tracenext = hash->fbtp_tracenext;
+			hash->fbtp_tracenext = fbt;
+			break;
+		}
+	}
+	if (hash == NULL) {
+		fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
+		fbt_probetab[FBT_ADDR2NDX(instr)] = fbt;
+	}
 
 	lf->fbt_nentries++;
 
@@ -301,7 +315,7 @@ again:
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
 		    name, FBT_RETURN, 3, fbt);
 	} else {
-		retfbt->fbtp_next = fbt;
+		retfbt->fbtp_probenext = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
 	}
 

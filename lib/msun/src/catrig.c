@@ -300,7 +300,7 @@ casinh(double complex z)
 		 * C99 leaves it optional whether to raise invalid if one of
 		 * the arguments is not NaN, so we opt not to raise it.
 		 */
-		return (CMPLX(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLX(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -384,7 +384,7 @@ cacos(double complex z)
 		 * C99 leaves it optional whether to raise invalid if one of
 		 * the arguments is not NaN, so we opt not to raise it.
 		 */
-		return (CMPLX(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLX(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -601,7 +601,7 @@ catanh(double complex z)
 		 * C99 leaves it optional whether to raise invalid if one of
 		 * the arguments is not NaN, so we opt not to raise it.
 		 */
-		return (CMPLX(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLX(nan_mix(x, y), nan_mix(x, y)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON)

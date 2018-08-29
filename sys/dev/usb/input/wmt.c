@@ -203,6 +203,12 @@ struct wmt_softc
 	uint32_t		nconts_max;
 	uint8_t			report_id;
 
+	struct hid_location	cont_max_loc;
+	uint32_t		cont_max_rlen;
+	uint8_t			cont_max_rid;
+	uint32_t		thqa_cert_rlen;
+	uint8_t			thqa_cert_rid;
+
 	uint8_t			buf[WMT_BSIZE] __aligned(4);
 };
 
@@ -212,6 +218,7 @@ struct wmt_softc
 		if (USAGE_SUPPORTED((caps), (usage)))
 
 static bool wmt_hid_parse(struct wmt_softc *, const void *, uint16_t);
+static void wmt_cont_max_parse(struct wmt_softc *, const void *, uint16_t);
 
 static usb_callback_t	wmt_intr_callback;
 
@@ -219,12 +226,22 @@ static device_probe_t	wmt_probe;
 static device_attach_t	wmt_attach;
 static device_detach_t	wmt_detach;
 
+#if __FreeBSD_version >= 1200077
 static evdev_open_t	wmt_ev_open;
 static evdev_close_t	wmt_ev_close;
+#else
+static evdev_open_t	wmt_ev_open_11;
+static evdev_close_t	wmt_ev_close_11;
+#endif
 
 static const struct evdev_methods wmt_evdev_methods = {
+#if __FreeBSD_version >= 1200077
 	.ev_open = &wmt_ev_open,
 	.ev_close = &wmt_ev_close,
+#else
+	.ev_open = &wmt_ev_open_11,
+	.ev_close = &wmt_ev_close_11,
+#endif
 };
 
 static const struct usb_config wmt_config[WMT_N_TRANSFER] = {
@@ -279,6 +296,7 @@ wmt_attach(device_t dev)
 	uint16_t d_len;
 	size_t i;
 	int err;
+	bool hid_ok;
 
 	device_set_usb_desc(dev);
 	sc->dev = dev;
@@ -291,24 +309,48 @@ wmt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
+	hid_ok = wmt_hid_parse(sc, d_ptr, d_len);
+	free(d_ptr, M_TEMP);
+	if (!hid_ok) {
+		DPRINTF("multi-touch HID descriptor not found\n");
+		return (ENXIO);
+	}
 
-	/* Get HID report length */
-	sc->isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
+	/* Check HID report length */
 	if (sc->isize <= 0 || sc->isize > WMT_BSIZE) {
 		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
-		goto detach;
+		return (ENXIO);
 	}
+
+	/* Fetch and parse "Contact count maximum" feature report */
+	if (sc->cont_max_rlen > 0 && sc->cont_max_rlen <= WMT_BSIZE) {
+		err = usbd_req_get_report(uaa->device, NULL, sc->buf,
+		    sc->cont_max_rlen, uaa->info.bIfaceIndex,
+		    UHID_FEATURE_REPORT, sc->cont_max_rid);
+		if (err == USB_ERR_NORMAL_COMPLETION)
+			wmt_cont_max_parse(sc, sc->buf, sc->cont_max_rlen);
+		else
+			DPRINTF("usbd_req_get_report error=(%s)\n",
+			    usbd_errstr(err));
+	} else
+		DPRINTF("Feature report %hhu size invalid or too large: %u\n",
+		    sc->cont_max_rid, sc->cont_max_rlen);
+
+	/* Fetch THQA certificate to enable some devices like WaveShare */
+	if (sc->thqa_cert_rlen > 0 && sc->thqa_cert_rlen <= WMT_BSIZE &&
+	    sc->thqa_cert_rid != sc->cont_max_rid)
+		(void)usbd_req_get_report(uaa->device, NULL, sc->buf,
+		    sc->thqa_cert_rlen, uaa->info.bIfaceIndex,
+		    UHID_FEATURE_REPORT, sc->thqa_cert_rid);
+
+	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
 
 	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
 	    sc->xfer, wmt_config, WMT_N_TRANSFER, sc, &sc->mtx);
-	if (err) {
+	if (err != USB_ERR_NORMAL_COMPLETION) {
 		DPRINTF("usbd_transfer_setup error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
-
-	if (!wmt_hid_parse(sc, d_ptr, d_len))
-		goto detach;
 
 	sc->evdev = evdev_alloc();
 	evdev_set_name(sc->evdev, device_get_desc(dev));
@@ -334,7 +376,6 @@ wmt_attach(device_t dev)
 	return (0);
 
 detach:
-	free(d_ptr, M_TEMP);
 	wmt_detach(dev);
 	return (ENXIO);
 }
@@ -494,23 +535,84 @@ tr_setup:
 }
 
 static void
-wmt_ev_close(struct evdev_dev *evdev, void *ev_softc)
+wmt_ev_close_11(struct evdev_dev *evdev, void *ev_softc)
 {
-	struct wmt_softc *sc = (struct wmt_softc *)ev_softc;
+	struct wmt_softc *sc = ev_softc;
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 	usbd_transfer_stop(sc->xfer[WMT_INTR_DT]);
 }
 
 static int
-wmt_ev_open(struct evdev_dev *evdev, void *ev_softc)
+wmt_ev_open_11(struct evdev_dev *evdev, void *ev_softc)
 {
-	struct wmt_softc *sc = (struct wmt_softc *)ev_softc;
+	struct wmt_softc *sc = ev_softc;
 
 	mtx_assert(&sc->mtx, MA_OWNED);
 	usbd_transfer_start(sc->xfer[WMT_INTR_DT]);
 
 	return (0);
+}
+
+#if __FreeBSD_version >= 1200077
+static int
+wmt_ev_close(struct evdev_dev *evdev)
+{
+	struct wmt_softc *sc = evdev_get_softc(evdev);
+
+	wmt_ev_close_11(evdev, sc);
+
+	return (0);
+}
+
+static int
+wmt_ev_open(struct evdev_dev *evdev)
+{
+	struct wmt_softc *sc = evdev_get_softc(evdev);
+
+	return (wmt_ev_open_11(evdev, sc));
+
+}
+#endif
+
+/* port of userland hid_report_size() from usbhid(3) to kernel */
+static int
+wmt_hid_report_size(const void *buf, uint16_t len, enum hid_kind k, uint8_t id)
+{
+	struct hid_data *d;
+	struct hid_item h;
+	uint32_t temp;
+	uint32_t hpos;
+	uint32_t lpos;
+	int report_id = 0;
+
+	hpos = 0;
+	lpos = 0xFFFFFFFF;
+
+	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
+		if (h.kind == k && h.report_ID == id) {
+			/* compute minimum */
+			if (lpos > h.loc.pos)
+				lpos = h.loc.pos;
+			/* compute end position */
+			temp = h.loc.pos + (h.loc.size * h.loc.count);
+			/* compute maximum */
+			if (hpos < temp)
+				hpos = temp;
+			if (h.report_ID != 0)
+				report_id = 1;
+		}
+	}
+	hid_end_parse(d);
+
+	/* safety check - can happen in case of currupt descriptors */
+	if (lpos > hpos)
+		temp = 0;
+	else
+		temp = hpos - lpos;
+
+	/* return length in bytes rounded up */
+	return ((temp + 7) / 8 + report_id);
 }
 
 static bool
@@ -523,6 +625,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	uint32_t caps = 0;
 	int32_t cont_count_max = 0;
 	uint8_t report_id = 0;
+	uint8_t cont_max_rid = 0;
+	uint8_t thqa_cert_rid = 0;
 	bool touch_coll = false;
 	bool finger_coll = false;
 	bool cont_count_found = false;
@@ -530,6 +634,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 #define WMT_HI_ABSOLUTE(hi)	\
 	(((hi).flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
+#define	HUMS_THQA_CERT	0xC5
 
 	/* Parse features for maximum contact count */
 	hd = hid_start_parse(d_ptr, d_len, 1 << hid_feature);
@@ -545,10 +650,19 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 				touch_coll = false;
 			break;
 		case hid_feature:
+			if (hi.collevel == 1 && touch_coll && hi.usage ==
+			      HID_USAGE2(HUP_MICROSOFT, HUMS_THQA_CERT)) {
+				thqa_cert_rid = hi.report_ID;
+				break;
+			}
 			if (hi.collevel == 1 && touch_coll &&
 			    WMT_HI_ABSOLUTE(hi) && hi.usage ==
-			      HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX))
+			      HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
 				cont_count_max = hi.logical_maximum;
+				cont_max_rid = hi.report_ID;
+				if (sc != NULL)
+					sc->cont_max_loc = hi.loc;
+			}
 			break;
 		default:
 			break;
@@ -557,7 +671,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	hid_end_parse(hd);
 
 	/* Maximum contact count is required usage */
-	if (cont_count_max < 1)
+	if (cont_max_rid == 0)
 		return (false);
 
 	touch_coll = false;
@@ -668,12 +782,17 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	if (sc == NULL)
 		return (true);
 
+	/*
+	 * According to specifications 'Contact Count Maximum' should be read
+	 * from Feature Report rather than from HID descriptor. Set sane
+	 * default value now to handle the case of 'Get Report' request failure
+	 */
+	if (cont_count_max < 1)
+		cont_count_max = cont;
+
 	/* Cap contact count maximum to MAX_MT_SLOTS */
-	if (cont_count_max > MAX_MT_SLOTS) {
-		DPRINTF("Hardware reported %d contacts while only %d is "
-		    "supported\n", (int)cont_count_max, MAX_MT_SLOTS);
+	if (cont_count_max > MAX_MT_SLOTS)
 		cont_count_max = MAX_MT_SLOTS;
-	}
 
 	/* Set number of MT protocol type B slots */
 	sc->ai[WMT_SLOT] = (struct wmt_absinfo) {
@@ -689,9 +808,18 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
+	sc->isize = wmt_hid_report_size(d_ptr, d_len, hid_input, report_id);
+	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
+	    cont_max_rid);
+	if (thqa_cert_rid > 0)
+		sc->thqa_cert_rlen = wmt_hid_report_size(d_ptr, d_len,
+		    hid_feature, thqa_cert_rid);
+
 	sc->report_id = report_id;
 	sc->caps = caps;
 	sc->nconts_max = cont;
+	sc->cont_max_rid = cont_max_rid;
+	sc->thqa_cert_rid = thqa_cert_rid;
 
 	/* Announce information about the touch device */
 	device_printf(sc->dev,
@@ -705,6 +833,27 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
 	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
 	return (true);
+}
+
+static void
+wmt_cont_max_parse(struct wmt_softc *sc, const void *r_ptr, uint16_t r_len)
+{
+	uint32_t cont_count_max;
+
+	cont_count_max = hid_get_data_unsigned((const uint8_t *)r_ptr + 1,
+	    r_len - 1, &sc->cont_max_loc);
+	if (cont_count_max > MAX_MT_SLOTS) {
+		DPRINTF("Hardware reported %d contacts while only %d is "
+		    "supported\n", (int)cont_count_max, MAX_MT_SLOTS);
+		cont_count_max = MAX_MT_SLOTS;
+	}
+	/* Feature report is a primary source of 'Contact Count Maximum' */
+	if (cont_count_max > 0 &&
+	    cont_count_max != sc->ai[WMT_SLOT].max + 1) {
+		sc->ai[WMT_SLOT].max = cont_count_max - 1;
+		device_printf(sc->dev, "%d feature report contacts",
+		    cont_count_max);
+	}
 }
 
 static devclass_t wmt_devclass;

@@ -153,7 +153,7 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 	xu.xu_len = sizeof xu;
 	KREAD(head_off, &head, sizeof(head));
 	LIST_FOREACH(unp, &head, unp_link) {
-		xu.xu_unpp = unp;
+		xu.xu_unpp = (uintptr_t)unp;
 		KREAD(unp, &unp0, sizeof (*unp));
 		unp = &unp0;
 

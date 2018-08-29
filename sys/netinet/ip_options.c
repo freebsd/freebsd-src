@@ -68,13 +68,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socketvar.h>
 
-static VNET_DEFINE(int, ip_dosourceroute);
+VNET_DEFINE_STATIC(int, ip_dosourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_dosourceroute), 0,
     "Enable forwarding source routed IP packets");
 #define	V_ip_dosourceroute	VNET(ip_dosourceroute)
 
-static VNET_DEFINE(int,	ip_acceptsourceroute);
+VNET_DEFINE_STATIC(int,	ip_acceptsourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
     "Enable accepting source routed IP packets");

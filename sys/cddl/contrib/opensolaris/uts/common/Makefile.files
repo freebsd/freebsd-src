@@ -72,6 +72,7 @@ ZFS_COMMON_OBJS +=		\
 	bqueue.o		\
 	cityhash.o		\
 	dbuf.o			\
+	dbuf_stats.o		\
 	ddt.o			\
 	ddt_zap.o		\
 	dmu.o			\
@@ -124,6 +125,7 @@ ZFS_COMMON_OBJS +=		\
 	vdev_indirect.o		\
 	vdev_indirect_births.o	\
 	vdev_indirect_mapping.o	\
+	vdev_initialize.o	\
 	vdev_label.o		\
 	vdev_mirror.o		\
 	vdev_missing.o		\

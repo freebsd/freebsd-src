@@ -7,7 +7,7 @@ STRIP=
 BINMODE=${LIBMODE}
 BINDIR=	${LIBDIR}
 
-SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
+SRCS=	start.s boot.c subr_inflate.c lib.c crt.s sio.s
 CFLAGS=	-Os
 CFLAGS+=-DKZIP
 NO_SHARED=

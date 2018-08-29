@@ -140,25 +140,33 @@ efi_devpath_handle(EFI_DEVICE_PATH *devpath)
 }
 
 bool
-efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
+efi_devpath_match_node(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 {
 	size_t len;
 
 	if (devpath1 == NULL || devpath2 == NULL)
 		return (false);
+	if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
+	    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
+		return (false);
+	len = DevicePathNodeLength(devpath1);
+	if (len != DevicePathNodeLength(devpath2))
+		return (false);
+	if (memcmp(devpath1, devpath2, len) != 0)
+		return (false);
+	return (true);
+}
+
+bool
+efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
+{
+
+	if (devpath1 == NULL || devpath2 == NULL)
+		return (false);
 
 	while (true) {
-		if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
-		    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
-			return (false);
-
-		len = DevicePathNodeLength(devpath1);
-		if (len != DevicePathNodeLength(devpath2))
-			return (false);
-
-		if (memcmp(devpath1, devpath2, len) != 0)
-			return (false);
-
+		if (!efi_devpath_match_node(devpath1, devpath2))
+			return false;
 		if (IsDevicePathEnd(devpath1))
 			break;
 		devpath1 = NextDevicePathNode(devpath1);
@@ -194,4 +202,30 @@ efi_devpath_is_prefix(EFI_DEVICE_PATH *prefix, EFI_DEVICE_PATH *path)
 		path = NextDevicePathNode(path);
 	}
 	return (true);
+}
+
+/*
+ * Skip over the 'prefix' part of path and return the part of the path
+ * that starts with the first node that's a MEDIA_DEVICE_PATH.
+ */
+EFI_DEVICE_PATH *
+efi_devpath_to_media_path(EFI_DEVICE_PATH *path)
+{
+
+	while (!IsDevicePathEnd(path)) {
+		if (DevicePathType(path) == MEDIA_DEVICE_PATH)
+			return (path);
+		path = NextDevicePathNode(path);
+	}
+	return (NULL);
+}
+
+UINTN
+efi_devpath_length(EFI_DEVICE_PATH  *path)
+{
+	EFI_DEVICE_PATH *start = path;
+
+	while (!IsDevicePathEnd(path))
+		path = NextDevicePathNode(path);
+	return ((UINTN)path - (UINTN)start) + DevicePathNodeLength(path);
 }

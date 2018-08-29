@@ -66,6 +66,14 @@ __FBSDID("$FreeBSD$");
 	stp	x18,  lr, [sp, #(TF_SP)]
 	mrs	x18, tpidr_el1
 	add	x29, sp, #(TF_SIZE)
+.if \el == 0
+	/* Apply the SSBD (CVE-2018-3639) workaround if needed */
+	ldr	x1, [x18, #PC_SSBD]
+	cbz	x1, 1f
+	mov	w0, #1
+	blr	x1
+1:
+.endif
 .endm
 
 .macro	restore_registers el
@@ -75,6 +83,14 @@ __FBSDID("$FreeBSD$");
 	 * Disable interrupts, x18 may change in the interrupt exception
 	 * handler.  For EL0 exceptions, do_ast already did this.
 	 */
+.endif
+.if \el == 0
+	/* Remove the SSBD (CVE-2018-3639) workaround if needed */
+	ldr	x1, [x18, #PC_SSBD]
+	cbz	x1, 1f
+	mov	w0, #0
+	blr	x1
+1:
 .endif
 	ldp	x18,  lr, [sp, #(TF_SP)]
 	ldp	x10, x11, [sp, #(TF_ELR)]

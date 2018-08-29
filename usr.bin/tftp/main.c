@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 
 	acting_as_client = 1;
 	peer = -1;
-	strcpy(mode, "netascii");
+	strcpy(mode, "octet");
 	signal(SIGINT, intr);
 
 	interactive = isatty(STDIN_FILENO);
@@ -429,7 +429,7 @@ static void
 settftpmode(const char *newmode)
 {
 
-	strcpy(mode, newmode);
+	strlcpy(mode, newmode, sizeof(mode));
 	if (verbose)
 		printf("mode set to %s\n", mode);
 }
@@ -489,13 +489,17 @@ put(int argc, char *argv[])
 			return;
 		}
 
-		stat(cp, &sb);
+		if (fstat(fd, &sb) < 0) {
+			warn("%s", cp);
+			return;
+		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
 
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
 			    cp, hostname, targ, mode);
 		xmitfile(peer, port, fd, targ, mode);
+		close(fd);
 		return;
 	}
 				/* this assumes the target is a directory */
@@ -510,7 +514,10 @@ put(int argc, char *argv[])
 			continue;
 		}
 
-		stat(cp, &sb);
+		if (fstat(fd, &sb) < 0) {
+			warn("%s", argv[n]);
+			continue;
+		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
 
 		if (verbose)

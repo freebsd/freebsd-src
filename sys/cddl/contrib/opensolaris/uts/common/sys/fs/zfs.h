@@ -118,7 +118,7 @@ typedef enum {
 	ZFS_PROP_SNAPDIR,
 	ZFS_PROP_ACLMODE,
 	ZFS_PROP_ACLINHERIT,
-	ZFS_PROP_CREATETXG,		/* not exposed to the user */
+	ZFS_PROP_CREATETXG,
 	ZFS_PROP_NAME,			/* not exposed to the user */
 	ZFS_PROP_CANMOUNT,
 	ZFS_PROP_ISCSIOPTIONS,		/* not exposed to the user */
@@ -151,6 +151,7 @@ typedef enum {
 	ZFS_PROP_DEDUP,
 	ZFS_PROP_MLSLABEL,
 	ZFS_PROP_SYNC,
+	ZFS_PROP_DNODESIZE,
 	ZFS_PROP_REFRATIO,
 	ZFS_PROP_WRITTEN,
 	ZFS_PROP_CLONES,
@@ -215,6 +216,7 @@ typedef enum {
 	ZPOOL_PROP_BOOTSIZE,
 	ZPOOL_PROP_CHECKPOINT,
 	ZPOOL_PROP_TNAME,
+	ZPOOL_PROP_MAXDNODESIZE,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -374,6 +376,16 @@ typedef enum {
 	ZFS_VOLMODE_DEV = 2,
 	ZFS_VOLMODE_NONE = 3
 } zfs_volmode_t;
+
+typedef enum {
+	ZFS_DNSIZE_LEGACY = 0,
+	ZFS_DNSIZE_AUTO = 1,
+	ZFS_DNSIZE_1K = 1024,
+	ZFS_DNSIZE_2K = 2048,
+	ZFS_DNSIZE_4K = 4096,
+	ZFS_DNSIZE_8K = 8192,
+	ZFS_DNSIZE_16K = 16384
+} zfs_dnsize_type_t;
 
 typedef enum {
 	ZFS_REDUNDANT_METADATA_ALL,
@@ -637,6 +649,13 @@ typedef struct zpool_load_policy {
 #define	VDEV_TOP_ZAP_POOL_CHECKPOINT_SM \
 	"com.delphix:pool_checkpoint_sm"
 
+#define	VDEV_LEAF_ZAP_INITIALIZE_LAST_OFFSET	\
+	"com.delphix:next_offset_to_initialize"
+#define	VDEV_LEAF_ZAP_INITIALIZE_STATE	\
+	"com.delphix:vdev_initialize_state"
+#define	VDEV_LEAF_ZAP_INITIALIZE_ACTION_TIME	\
+	"com.delphix:vdev_initialize_action_time"
+
 /*
  * This is needed in userland to report the minimum necessary device size.
  *
@@ -735,6 +754,15 @@ typedef enum pool_scrub_cmd {
 	POOL_SCRUB_FLAGS_END
 } pool_scrub_cmd_t;
 
+/*
+ * Initialize functions.
+ */
+typedef enum pool_initialize_func {
+	POOL_INITIALIZE_DO,
+	POOL_INITIALIZE_CANCEL,
+	POOL_INITIALIZE_SUSPEND,
+	POOL_INITIALIZE_FUNCS
+} pool_initialize_func_t;
 
 /*
  * ZIO types.  Needed to interpret vdev statistics below.
@@ -814,6 +842,14 @@ typedef struct pool_checkpoint_stat {
 	uint64_t pcs_space;		/* checkpointed space */
 } pool_checkpoint_stat_t;
 
+typedef enum {
+	VDEV_INITIALIZE_NONE,
+	VDEV_INITIALIZE_ACTIVE,
+	VDEV_INITIALIZE_CANCELED,
+	VDEV_INITIALIZE_SUSPENDED,
+	VDEV_INITIALIZE_COMPLETE
+} vdev_initializing_state_t;
+
 /*
  * Vdev statistics.  Note: all fields should be 64-bit because this
  * is passed between kernel and userland as an nvlist uint64 array.
@@ -840,6 +876,11 @@ typedef struct vdev_stat {
  	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
 	uint64_t	vs_fragmentation;	/* device fragmentation */
 	uint64_t	vs_checkpoint_space;    /* checkpoint-consumed space */
+	uint64_t	vs_initialize_errors;	/* initializing errors	*/
+	uint64_t	vs_initialize_bytes_done; /* bytes initialized */
+	uint64_t	vs_initialize_bytes_est; /* total bytes to initialize */
+	uint64_t	vs_initialize_state;	/* vdev_initialzing_state_t */
+	uint64_t	vs_initialize_action_time; /* time_t */
 } vdev_stat_t;
 #define VDEV_STAT_VALID(field, uint64_t_field_count) \
     ((uint64_t_field_count * sizeof(uint64_t)) >= \
@@ -974,6 +1015,7 @@ typedef enum zfs_ioc {
 	ZFS_IOC_REMAP,
 	ZFS_IOC_POOL_CHECKPOINT,
 	ZFS_IOC_POOL_DISCARD_CHECKPOINT,
+	ZFS_IOC_POOL_INITIALIZE,
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 
@@ -1035,6 +1077,12 @@ typedef enum {
 #define	ZPOOL_HIST_DSNAME	"dsname"
 #define	ZPOOL_HIST_DSID		"dsid"
 #define	ZPOOL_HIST_ERRNO	"errno"
+
+/*
+ * The following are names used when invoking ZFS_IOC_POOL_INITIALIZE.
+ */
+#define	ZPOOL_INITIALIZE_COMMAND	"initialize_command"
+#define	ZPOOL_INITIALIZE_VDEVS		"initialize_vdevs"
 
 /*
  * Flags for ZFS_IOC_VDEV_SET_STATE

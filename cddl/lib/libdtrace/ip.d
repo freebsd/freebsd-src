@@ -167,6 +167,8 @@ inline short IPPROTO_IPCOMP =	108;
 inline short IPPROTO_SCTP =	132;
 #pragma D binding "1.5" IPPROTO_RAW
 inline short IPPROTO_RAW =	255;
+#pragma D binding "1.13" IPPROTO_UDPLITE
+inline short IPPROTO_UDPLITE = 	136;
 
 inline uint8_t INP_IPV4	= 0x01;
 inline uint8_t INP_IPV6 = 0x02;
@@ -193,6 +195,7 @@ inline string protocols[int proto] =
 	proto == IPPROTO_PIM ? "PIM" :
 	proto == IPPROTO_IPCOMP ? "IPCOMP" :
 	proto == IPPROTO_SCTP ? "SCTP" :
+	proto == IPPROTO_UDPLITE ? "UDPLITE" :
 	proto == IPPROTO_RAW ? "RAW" :
 	"<unknown>";
 

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"	/* XXX trim includes */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -39,13 +40,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/types.h>
+#include <sys/rwlock.h>
+#include <sys/sglist.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -697,6 +704,77 @@ pci_conf_for_copyout(const struct pci_conf *pcp, union pci_conf_union *pcup,
 }
 
 static int
+pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
+{
+	vm_map_t map;
+	vm_object_t obj;
+	struct thread *td;
+	struct sglist *sg;
+	struct pci_map *pm;
+	vm_paddr_t pbase;
+	vm_size_t plen;
+	vm_offset_t addr;
+	vm_prot_t prot;
+	int error, flags;
+
+	td = curthread;
+	map = &td->td_proc->p_vmspace->vm_map;
+	if ((pbm->pbm_flags & ~(PCIIO_BAR_MMAP_FIXED | PCIIO_BAR_MMAP_EXCL |
+	    PCIIO_BAR_MMAP_RW | PCIIO_BAR_MMAP_ACTIVATE)) != 0 ||
+	    pbm->pbm_memattr != (vm_memattr_t)pbm->pbm_memattr ||
+	    !pmap_is_valid_memattr(map->pmap, pbm->pbm_memattr))
+		return (EINVAL);
+
+	/* Fetch the BAR physical base and length. */
+	pm = pci_find_bar(pcidev, pbm->pbm_reg);
+	if (pm == NULL)
+		return (EINVAL);
+	if (!pci_bar_enabled(pcidev, pm))
+		return (EBUSY); /* XXXKIB enable if _ACTIVATE */
+	if (!PCI_BAR_MEM(pm->pm_value))
+		return (EIO);
+	pbase = trunc_page(pm->pm_value);
+	plen = round_page(pm->pm_value + ((pci_addr_t)1 << pm->pm_size)) -
+	    pbase;
+	prot = VM_PROT_READ | (((pbm->pbm_flags & PCIIO_BAR_MMAP_RW) != 0) ?
+	    VM_PROT_WRITE : 0);
+
+	/* Create vm structures and mmap. */
+	sg = sglist_alloc(1, M_WAITOK);
+	error = sglist_append_phys(sg, pbase, plen);
+	if (error != 0)
+		goto out;
+	obj = vm_pager_allocate(OBJT_SG, sg, plen, prot, 0, td->td_ucred);
+	if (obj == NULL) {
+		error = EIO;
+		goto out;
+	}
+	obj->memattr = pbm->pbm_memattr;
+	flags = MAP_SHARED;
+	addr = 0;
+	if ((pbm->pbm_flags & PCIIO_BAR_MMAP_FIXED) != 0) {
+		addr = (uintptr_t)pbm->pbm_map_base;
+		flags |= MAP_FIXED;
+	}
+	if ((pbm->pbm_flags & PCIIO_BAR_MMAP_EXCL) != 0)
+		flags |= MAP_CHECK_EXCL;
+	error = vm_mmap_object(map, &addr, plen, prot, prot, flags, obj, 0,
+	    FALSE, td);
+	if (error != 0) {
+		vm_object_deallocate(obj);
+		goto out;
+	}
+	pbm->pbm_map_base = (void *)addr;
+	pbm->pbm_map_length = plen;
+	pbm->pbm_bar_off = pm->pm_value - pbase;
+	pbm->pbm_bar_length = (pci_addr_t)1 << pm->pm_size;
+
+out:
+	sglist_free(sg);
+	return (error);
+}
+
+static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	device_t pcidev;
@@ -709,6 +787,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_list_vpd_io *lvio;
 	struct pci_match_conf *pattern_buf;
 	struct pci_map *pm;
+	struct pci_bar_mmap *pbm;
 	size_t confsz, iolen;
 	int error, ionum, i, num_patterns;
 	union pci_conf_union pcu;
@@ -1053,6 +1132,18 @@ getconfexit:
 		}
 		error = pci_list_vpd(pcidev, lvio);
 		break;
+
+	case PCIOCBARMMAP:
+		pbm = (struct pci_bar_mmap *)data;
+		if ((flag & FWRITE) == 0 &&
+		    (pbm->pbm_flags & PCIIO_BAR_MMAP_RW) != 0)
+			return (EPERM);
+		pcidev = pci_find_dbsf(pbm->pbm_sel.pc_domain,
+		    pbm->pbm_sel.pc_bus, pbm->pbm_sel.pc_dev,
+		    pbm->pbm_sel.pc_func);
+		error = pcidev == NULL ? ENODEV : pci_bar_mmap(pcidev, pbm);
+		break;
+
 	default:
 		error = ENOTTY;
 		break;

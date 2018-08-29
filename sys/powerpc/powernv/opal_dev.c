@@ -218,13 +218,12 @@ opal_gettime(device_t dev, struct timespec *ts)
 	uint32_t ymd;
 	uint64_t hmsm;
 
-	do {
+	rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
+	while (rv == OPAL_BUSY_EVENT)  {
+		opal_call(OPAL_POLL_EVENTS, 0);
+		pause("opalrtc", 1);
 		rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
-		if (rv == OPAL_BUSY_EVENT) {
-			rv = opal_call(OPAL_POLL_EVENTS, 0);
-			pause("opalrtc", 1);
-		}
-	} while (rv == OPAL_BUSY_EVENT);
+	}
 
 	if (rv != OPAL_SUCCESS)
 		return (ENXIO);

@@ -208,6 +208,58 @@ int mlx5_vport_query_out_of_rx_buffer(struct mlx5_core_dev *mdev,
 	return err;
 }
 
+int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
+				    u16 vport, u8 *min_inline)
+{
+	u32 out[MLX5_ST_SZ_DW(query_nic_vport_context_out)] = {0};
+	int err;
+
+	err = mlx5_query_nic_vport_context(mdev, vport, out, sizeof(out));
+	if (!err)
+		*min_inline = MLX5_GET(query_nic_vport_context_out, out,
+				       nic_vport_context.min_wqe_inline_mode);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_min_inline);
+
+void mlx5_query_min_inline(struct mlx5_core_dev *mdev,
+			   u8 *min_inline_mode)
+{
+	switch (MLX5_CAP_ETH(mdev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_L2:
+		*min_inline_mode = MLX5_INLINE_MODE_L2;
+		break;
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode);
+		break;
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
+		*min_inline_mode = MLX5_INLINE_MODE_NONE;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(mlx5_query_min_inline);
+
+int mlx5_modify_nic_vport_min_inline(struct mlx5_core_dev *mdev,
+				     u16 vport, u8 min_inline)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_nic_vport_context_in)] = {0};
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	void *nic_vport_ctx;
+
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 field_select.min_wqe_inline_mode, 1);
+	MLX5_SET(modify_nic_vport_context_in, in, vport_number, vport);
+	MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
+
+	nic_vport_ctx = MLX5_ADDR_OF(modify_nic_vport_context_in,
+				     in, nic_vport_context);
+	MLX5_SET(nic_vport_context, nic_vport_ctx,
+		 min_wqe_inline_mode, min_inline);
+
+	return mlx5_modify_nic_vport_context(mdev, in, inlen);
+}
+EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_min_inline);
+
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 *addr)
 {

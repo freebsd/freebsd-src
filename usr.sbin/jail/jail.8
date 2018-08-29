@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2018
+.Dd August 20, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -553,6 +553,16 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
+.It Va allow.mlock
+Locking or unlocking physical pages in memory are normally not available
+within a jail.
+When this parameter is set, users may
+.Xr mlock 2
+or
+.Xr munlock 2
+memory subject to
+.Va security.bsd.unprivileged_mlock
+and resource limits.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
 .El
@@ -575,6 +585,14 @@ Module-specific parameters include:
 .It Va allow.mount.fdescfs
 privileged users inside the jail will be able to mount and unmount the
 fdescfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.fusefs
+privileged users inside the jail will be able to mount and unmount 
+fuse-based file systems.
 This permission is effective only together with
 .Va allow.mount
 and only when
@@ -632,6 +650,12 @@ See
 .Xr zfs 8
 for information on how to configure the ZFS filesystem to operate from
 within a jail.
+.It Va allow.vmm
+The jail may access
+.Xr vmm 4 .
+This flag is only available when the
+.Xr vmm 4
+kernel module is loaded.
 .It Va linux
 Determine how a jail's Linux emulation environment appears.
 A value of
@@ -682,6 +706,9 @@ The pseudo-parameters are:
 .Bl -tag -width indent
 .It Va exec.prestart
 Command(s) to run in the system environment before a jail is created.
+.It Va exec.created
+Command(s) to run in the system environment right after a jail has been
+created, but before commands (or services) get executed in the jail.
 .It Va exec.start
 Command(s) to run in the jail environment when a jail is created.
 A typical command to run is
@@ -1006,7 +1033,7 @@ jail -c path=/data/jail/testjail mount.devfs \\
 .Pp
 Assuming no errors, you will end up with a shell prompt within the jail.
 You can now run
-.Pa /usr/sbin/bsdinstall
+.Xr bsdconfig 8
 and do the post-install configuration to set various configuration options,
 or perform these actions manually by editing
 .Pa /etc/rc.conf ,
@@ -1276,6 +1303,7 @@ environment of the first jail.
 .Xr ps 1 ,
 .Xr quota 1 ,
 .Xr jail_set 2 ,
+.Xr vmm 4 ,
 .Xr devfs 5 ,
 .Xr fdescfs 5 ,
 .Xr jail.conf 5 ,
@@ -1284,6 +1312,7 @@ environment of the first jail.
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
+.Xr bsdconfig 8 ,
 .Xr chroot 8 ,
 .Xr devfs 8 ,
 .Xr halt 8 ,

@@ -124,7 +124,31 @@ arm_setup_usb_otg() {
 	echo 'hw.usb.template=3' \
 		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 	echo 'umodem_load="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm64_setup_multicons() {
+	if [ "${EMBEDDED_TARGET_ARCH}" != "aarch64" ]; then
+		return
+	fi
+
+	echo '# Multiple console (serial+efi gop) enabled.' \
 		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_multicons="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_serial="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm_setup_fdt_overlays() {
+	if [ -z "${FDT_OVERLAYS}" ]; then
+		return
+	fi
+
+	echo '# DTB OVERLAYS' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo "fdt_overlays=\"${FDT_OVERLAYS}\"" \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 }
 
 arm_install_base() {
@@ -138,6 +162,8 @@ arm_install_base() {
 
 	arm_create_user
 	arm_setup_usb_otg
+	arm64_setup_multicons
+	arm_setup_fdt_overlays
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
@@ -163,6 +189,38 @@ arm_install_base() {
 	umount_loop ${CHROOTDIR}/${DESTDIR}
 
 	return 0
+}
+
+arm_install_boot() {
+	FATMOUNT="${DESTDIR%${KERNEL}}/fat"
+	UFSMOUNT="${DESTDIR%${KERNEL}}/ufs"
+	chroot ${CHROOTDIR} mkdir -p "${FATMOUNT}" "${UFSMOUNT}"
+	chroot ${CHROOTDIR} mount_msdosfs /dev/${mddev}s1 ${FATMOUNT}
+	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${UFSMOUNT}
+
+	if [ "${EMBEDDED_TARGET}" == "arm" ]; then
+	chroot ${CHROOTDIR} cp -p ${UFSMOUNT}/boot/ubldr.bin \
+		${FATMOUNT}/ubldr.bin
+	fi
+
+	BOOTFILES="$(chroot ${CHROOTDIR} \
+		env TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(chroot ${CHROOTDIR} realpath ${BOOTFILES})"
+
+	chroot ${CHROOTDIR} mkdir -p ${FATMOUNT}/EFI/BOOT
+	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader_lua/loader_lua.efi \
+		${FATMOUNT}/EFI/BOOT/$(efi_boot_name ${EMBEDDED_TARGET})
+
+	chroot ${CHROOTDIR} cp -R ${UFSMOUNT}/boot/dtb ${FATMOUNT}
+
+	chroot ${CHROOTDIR} touch ${UFSMOUNT}/firstboot
+	sync
+	umount_loop ${CHROOTDIR}/${FATMOUNT}
+	umount_loop ${CHROOTDIR}/${UFSMOUNT}
+	chroot ${CHROOTDIR} rmdir ${FATMOUNT}
+	chroot ${CHROOTDIR} rmdir ${UFSMOUNT}
 }
 
 arm_install_uboot() {

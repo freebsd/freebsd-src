@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgi,v 1.22 2015/08/29 07:10:35 christos Exp $
+# $File: sgi,v 1.23 2018/05/29 02:26:56 christos Exp $
 # sgi:  file(1) magic for Silicon Graphics operating systems and applications
 #
 # Executable images are handled either in aout (for old-style a.out
@@ -70,8 +70,6 @@
 4	belong	0x00000010		GLS_BINARY_MSB_FIRST
 !:strength -30
 
-#
-#
 # Performance Co-Pilot file types
 0	string	PmNs				PCP compiled namespace (V.0)
 0	string	PmN				PCP compiled namespace
@@ -114,6 +112,8 @@
 >16	string	>\0				(V.%1.1s)
 3	string	pmieconf-pmie			PCP pmie config
 >17	string	>\0				(V.%1.1s)
+0	string	MMV				PCP memory mapped values
+>4	long	x				(V.%d)
 
 # SpeedShop data files
 0	lelong	0x13130303			SpeedShop data file

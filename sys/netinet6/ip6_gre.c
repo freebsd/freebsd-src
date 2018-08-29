@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -64,7 +65,7 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, OID_AUTO, grehlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gre_hlim), 0, "Default hop limit for encapsulated packets");
 
-static VNET_DEFINE(struct gre_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv6_hashtbl) = NULL;
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv6_hashtbl[\
     in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
@@ -110,7 +111,7 @@ in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv6_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip6 = mtod(m, const struct ip6_hdr *);
 	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
 		/*

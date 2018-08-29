@@ -377,7 +377,7 @@ found:
 	 */
 	if (dp->i_number != i_ino) {
 		ep2 = malloc(reclen, M_TEMP, M_WAITOK);
-		bcopy(ep, ep2, reclen);
+		memcpy(ep2, ep, reclen);
 		ep = ep2;
 	}
 	brelse(bp);

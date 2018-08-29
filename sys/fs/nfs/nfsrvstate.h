@@ -345,9 +345,11 @@ struct nfsdevice {
 	uint16_t		nfsdev_hostnamelen;
 	uint16_t		nfsdev_fileaddrlen;
 	uint16_t		nfsdev_flexaddrlen;
+	uint16_t		nfsdev_mdsisset;
 	char			*nfsdev_fileaddr;
 	char			*nfsdev_flexaddr;
 	char			*nfsdev_host;
+	fsid_t			nfsdev_mdsfsid;
 	uint32_t		nfsdev_nextdir;
 	vnode_t			nfsdev_dsdir[0];
 };

@@ -124,8 +124,8 @@ VNET_PCPUSTAT_SYSUNINIT(icmp6stat);
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 VNET_DECLARE(struct inpcbhead, ripcb);
 VNET_DECLARE(int, icmp6errppslim);
-static VNET_DEFINE(int, icmp6errpps_count) = 0;
-static VNET_DEFINE(struct timeval, icmp6errppslim_last);
+VNET_DEFINE_STATIC(int, icmp6errpps_count) = 0;
+VNET_DEFINE_STATIC(struct timeval, icmp6errppslim_last);
 VNET_DECLARE(int, icmp6_nodeinfo);
 
 #define	V_ripcbinfo			VNET(ripcbinfo)
@@ -1896,6 +1896,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	struct inpcb *last = NULL;
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
+	struct epoch_tracker et;
 	struct mbuf *opts = NULL;
 
 #ifndef PULLDOWN_TEST
@@ -1922,7 +1923,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		return (IPPROTO_DONE);
 	}
 
-	INP_INFO_RLOCK(&V_ripcbinfo);
+	INP_INFO_RLOCK_ET(&V_ripcbinfo, et);
 	CK_LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
@@ -2000,7 +2001,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		}
 		last = in6p;
 	}
-	INP_INFO_RUNLOCK(&V_ripcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_ripcbinfo, et);
 	if (last != NULL) {
 		if (last->inp_flags & INP_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);

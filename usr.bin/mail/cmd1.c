@@ -311,7 +311,7 @@ type1(int *msgvec, int doign, int page)
 		if (page || nlines > (*cp ? atoi(cp) : realscreenheight)) {
 			cp = value("PAGER");
 			if (cp == NULL || *cp == '\0')
-				cp = _PATH_MORE;
+				cp = _PATH_LESS;
 			obuf = Popen(cp, "w");
 			if (obuf == NULL) {
 				warnx("%s", cp);

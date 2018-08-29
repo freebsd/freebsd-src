@@ -98,7 +98,7 @@ static int getufsquota(struct fstab *fs, struct quotause *qup, long id,
 	int quotatype);
 static int getnfsquota(struct statfs *fst, struct quotause *qup, long id,
 	int quotatype);
-static int callaurpc(char *host, int prognum, int versnum, int procnum, 
+static enum clnt_stat callaurpc(char *host, int prognum, int versnum, int procnum, 
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
@@ -568,19 +568,15 @@ getufsquota(struct fstab *fs, struct quotause *qup, long id, int quotatype)
 static int
 getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 {
-	struct getquota_args gq_args;
+	struct ext_getquota_args gq_args;
+	struct getquota_args old_gq_args;
 	struct getquota_rslt gq_rslt;
 	struct dqblk *dqp = &qup->dqblk;
 	struct timeval tv;
 	char *cp, host[NI_MAXHOST];
+	enum clnt_stat call_stat;
 
 	if (fst->f_flags & MNT_LOCAL)
-		return (0);
-
-	/*
-	 * rpc.rquotad does not support group quotas
-	 */
-	if (quotatype != USRQUOTA)
 		return (0);
 
 	/*
@@ -604,11 +600,26 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 		return (0);
 
 	gq_args.gqa_pathp = cp + 1;
-	gq_args.gqa_uid = id;
-	if (callaurpc(host, RQUOTAPROG, RQUOTAVERS,
-	    RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&gq_args,
-	    (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt) != 0)
-		return (0);
+	gq_args.gqa_id = id;
+	gq_args.gqa_type = quotatype;
+
+	call_stat = callaurpc(host, RQUOTAPROG, EXT_RQUOTAVERS,
+			      RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_ext_getquota_args, (char *)&gq_args,
+			      (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt);
+	if (call_stat == RPC_PROGVERSMISMATCH) {
+		if (quotatype == USRQUOTA) {
+			old_gq_args.gqa_pathp = cp + 1;
+			old_gq_args.gqa_uid = id;
+			call_stat = callaurpc(host, RQUOTAPROG, RQUOTAVERS,
+					      RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&old_gq_args,
+					      (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt);
+		} else {
+			/* Old rpc quota does not support group type */
+			return (0);
+		}
+	}
+	if (call_stat != 0)
+		return (call_stat);
 
 	switch (gq_rslt.status) {
 	case Q_NOQUOTA:
@@ -650,7 +661,7 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 	return (0);
 }
  
-static int
+static enum clnt_stat
 callaurpc(char *host, int prognum, int versnum, int procnum,
     xdrproc_t inproc, char *in, xdrproc_t outproc, char *out)
 {
@@ -671,8 +682,7 @@ callaurpc(char *host, int prognum, int versnum, int procnum,
 	tottimeout.tv_usec = 0;
 	clnt_stat = clnt_call(client, procnum, inproc, in,
 	    outproc, out, tottimeout);
- 
-	return ((int) clnt_stat);
+	return (clnt_stat);
 }
 
 static int

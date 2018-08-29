@@ -31,10 +31,13 @@
 #include <machine/atomic.h>
 
 #ifndef ETH_DRIVER_VERSION
-#define	ETH_DRIVER_VERSION	"3.4.1"
+#define	ETH_DRIVER_VERSION	"3.4.2"
 #endif
+
 char mlx5e_version[] = "Mellanox Ethernet driver"
     " (" ETH_DRIVER_VERSION ")";
+
+static int mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs);
 
 struct mlx5e_channel_param {
 	struct mlx5e_rq_param rq;
@@ -810,6 +813,11 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	int wq_sz;
 	int err;
 	int i;
+	u32 nsegs, wqe_sz;
+
+	err = mlx5e_get_wqe_sz(priv, &wqe_sz, &nsegs);
+	if (err != 0)
+		goto done;
 
 	/* Create DMA descriptor TAG */
 	if ((err = -bus_dma_tag_create(
@@ -819,9 +827,9 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MJUM16BYTES,		/* maxsize */
-	    1,				/* nsegments */
-	    MJUM16BYTES,		/* maxsegsize */
+	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsize */
+	    nsegs,			/* nsegments */
+	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
 	    &rq->dma_tag)))
@@ -834,23 +842,9 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 
 	rq->wq.db = &rq->wq.db[MLX5_RCV_DBR];
 
-	if (priv->params.hw_lro_en) {
-		rq->wqe_sz = priv->params.lro_wqe_sz;
-	} else {
-		rq->wqe_sz = MLX5E_SW2MB_MTU(priv->ifp->if_mtu);
-	}
-	if (rq->wqe_sz > MJUM16BYTES) {
-		err = -ENOMEM;
+	err = mlx5e_get_wqe_sz(priv, &rq->wqe_sz, &rq->nsegs);
+	if (err != 0)
 		goto err_rq_wq_destroy;
-	} else if (rq->wqe_sz > MJUM9BYTES) {
-		rq->wqe_sz = MJUM16BYTES;
-	} else if (rq->wqe_sz > MJUMPAGESIZE) {
-		rq->wqe_sz = MJUM9BYTES;
-	} else if (rq->wqe_sz > MCLBYTES) {
-		rq->wqe_sz = MJUMPAGESIZE;
-	} else {
-		rq->wqe_sz = MCLBYTES;
-	}
 
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 
@@ -861,7 +855,11 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	rq->mbuf = malloc(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
 	for (i = 0; i != wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
+#if (MLX5E_MAX_RX_SEGS == 1)
 		uint32_t byte_count = rq->wqe_sz - MLX5E_NET_IP_ALIGN;
+#else
+		int j;
+#endif
 
 		err = -bus_dmamap_create(rq->dma_tag, 0, &rq->mbuf[i].dma_map);
 		if (err != 0) {
@@ -869,8 +867,15 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 				bus_dmamap_destroy(rq->dma_tag, rq->mbuf[i].dma_map);
 			goto err_rq_mbuf_free;
 		}
-		wqe->data.lkey = c->mkey_be;
-		wqe->data.byte_count = cpu_to_be32(byte_count | MLX5_HW_START_PADDING);
+
+		/* set value for constant fields */
+#if (MLX5E_MAX_RX_SEGS == 1)
+		wqe->data[0].lkey = c->mkey_be;
+		wqe->data[0].byte_count = cpu_to_be32(byte_count | MLX5_HW_START_PADDING);
+#else
+		for (j = 0; j < rq->nsegs; j++)
+			wqe->data[j].lkey = c->mkey_be;
+#endif
 	}
 
 	rq->ifp = c->ifp;
@@ -1169,6 +1174,9 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
 	sq->tc = tc;
+	sq->max_inline = priv->params.tx_max_inline;
+	sq->min_inline_mode = priv->params.tx_min_inline_mode;
+	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
 
 	/* check if we should allocate a second packet buffer */
 	if (priv->params_ethtool.tx_bufring_disable == 0) {
@@ -1337,7 +1345,7 @@ mlx5e_open_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_disable_sq;
 
-	atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_READY);
+	WRITE_ONCE(sq->queue_state, MLX5E_SQ_READY);
 
 	return (0);
 
@@ -1809,16 +1817,51 @@ mlx5e_close_channel_wait(struct mlx5e_channel *volatile *pp)
 	free(c, M_MLX5EN);
 }
 
+static int
+mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
+{
+	u32 r, n;
+
+	r = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
+	    MLX5E_SW2MB_MTU(priv->ifp->if_mtu);
+	if (r > MJUM16BYTES)
+		return (-ENOMEM);
+
+	if (r > MJUM9BYTES)
+		r = MJUM16BYTES;
+	else if (r > MJUMPAGESIZE)
+		r = MJUM9BYTES;
+	else if (r > MCLBYTES)
+		r = MJUMPAGESIZE;
+	else
+		r = MCLBYTES;
+
+	/*
+	 * n + 1 must be a power of two, because stride size must be.
+	 * Stride size is 16 * (n + 1), as the first segment is
+	 * control.
+	 */
+	for (n = howmany(r, MLX5E_MAX_RX_BYTES); !powerof2(n + 1); n++)
+		;
+
+	*wqe_sz = r;
+	*nsegs = n;
+	return (0);
+}
+
 static void
 mlx5e_build_rq_param(struct mlx5e_priv *priv,
     struct mlx5e_rq_param *param)
 {
 	void *rqc = param->rqc;
 	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
+	u32 wqe_sz, nsegs;
 
+	mlx5e_get_wqe_sz(priv, &wqe_sz, &nsegs);
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST);
 	MLX5_SET(wq, wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
-	MLX5_SET(wq, wq, log_wq_stride, ilog2(sizeof(struct mlx5e_rx_wqe)));
+	MLX5_SET(wq, wq, log_wq_stride, ilog2(sizeof(struct mlx5e_rx_wqe) +
+	    nsegs * sizeof(struct mlx5_wqe_data_seg)));
 	MLX5_SET(wq, wq, log_wq_sz, priv->params.log_rq_size);
 	MLX5_SET(wq, wq, pd, priv->pdn);
 
@@ -2981,6 +3024,16 @@ mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return (0);
 }
 
+static u16
+mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
+{
+	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+
+	return bf_buf_size -
+	       sizeof(struct mlx5e_tx_wqe) +
+	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+}
+
 static void
 mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
     struct mlx5e_priv *priv,
@@ -3016,6 +3069,8 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	priv->params.num_tc = 1;
 	priv->params.default_vlan_prio = 0;
 	priv->counter_set_id = -1;
+	priv->params.tx_max_inline = mlx5e_get_max_inline_cap(mdev);
+	mlx5_query_min_inline(mdev, &priv->params.tx_min_inline_mode);
 
 	/*
 	 * hw lro is currently defaulted to off. when it won't anymore we
@@ -3276,6 +3331,20 @@ mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
 	}
 }
 
+u8
+mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev)
+{
+	u8 min_inline_mode;
+
+	min_inline_mode = MLX5_INLINE_MODE_L2;
+	mlx5_query_min_inline(mdev, &min_inline_mode);
+	if (min_inline_mode == MLX5_INLINE_MODE_NONE &&
+	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
+		min_inline_mode = MLX5_INLINE_MODE_L2;
+
+	return (min_inline_mode);
+}
+
 static void
 mlx5e_add_hw_stats(struct mlx5e_priv *priv)
 {
@@ -3367,8 +3436,8 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	char path[96];
 	int error;
 
-	/* Only receiving pauseframes is enabled by default */
-	priv->params.tx_pauseframe_control = 0;
+	/* enable pauseframes by default */
+	priv->params.tx_pauseframe_control = 1;
 	priv->params.rx_pauseframe_control = 1;
 
 	/* disable ports flow control, PFC, by default */
@@ -3528,6 +3597,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+
+	sysctl_ctx_init(&priv->sysctl_ctx_channel_debug);
 
 	/* ifnet sysctl tree */
 	sysctl_ctx_init(&priv->sysctl_ctx);
@@ -3706,6 +3777,7 @@ err_free_wq:
 
 err_free_sysctl:
 	sysctl_ctx_free(&priv->sysctl_ctx);
+	sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
 
 	if_free(ifp);
 
@@ -3770,8 +3842,10 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_rl_cleanup(priv);
 #endif
 	/* destroy all remaining sysctl nodes */
-	if (priv->sysctl_debug)
+	if (priv->sysctl_debug) {
+		sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
+	}
 	sysctl_ctx_free(&priv->stats.vport.ctx);
 	sysctl_ctx_free(&priv->stats.pport.ctx);
 	sysctl_ctx_free(&priv->sysctl_ctx);

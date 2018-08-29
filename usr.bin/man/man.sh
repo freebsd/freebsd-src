@@ -901,7 +901,7 @@ setup_pager() {
 			if [ -n "$PAGER" ]; then
 				MANPAGER="$PAGER"
 			else
-				MANPAGER="more -s"
+				MANPAGER="less -s"
 			fi
 		fi
 	fi

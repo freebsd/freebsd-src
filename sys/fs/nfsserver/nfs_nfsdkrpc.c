@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 NFSDLOCKMUTEX;
 NFSV4ROOTLOCKMUTEX;
 struct nfsv4lock nfsd_suspend_lock;
+char *nfsrv_zeropnfsdat = NULL;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -106,6 +107,9 @@ extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
 extern struct proc *nfsd_master_proc;
 extern time_t nfsdev_time;
+extern int nfsrv_writerpc[NFS_NPROCS];
+extern volatile int nfsrv_devidcnt;
+extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 
 /*
  * NFS server system calls
@@ -526,8 +530,21 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 			nfsrvd_pool->sp_minthreads = args->minthreads;
 			nfsrvd_pool->sp_maxthreads = args->maxthreads;
 				
+			/*
+			 * If this is a pNFS service, make Getattr do a
+			 * vn_start_write(), so it can do a vn_set_extattr().
+			 */
+			if (nfsrv_devidcnt > 0) {
+				nfsrv_writerpc[NFSPROC_GETATTR] = 1;
+				nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 1;
+			}
+
 			svc_run(nfsrvd_pool);
 	
+			/* Reset Getattr to not do a vn_start_write(). */
+			nfsrv_writerpc[NFSPROC_GETATTR] = 0;
+			nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 0;
+
 			if (principal[0] != '\0') {
 				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
 				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
@@ -565,6 +582,8 @@ nfsrvd_init(int terminating)
 		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
 		svcpool_close(nfsrvd_pool);
+		free(nfsrv_zeropnfsdat, M_TEMP);
+		nfsrv_zeropnfsdat = NULL;
 		NFSD_LOCK();
 	} else {
 		NFSD_UNLOCK();

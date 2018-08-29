@@ -145,6 +145,16 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	BOOTVERBOSE=1
 options 	BOOTHOWTO=RB_MULTIPLE
 
+#
+# Compile-time defaults for dmesg boot tagging
+#
+# Default boot tag; may use 'kern.boot_tag' loader tunable to override.  The
+# current boot's tag is also exposed via the 'kern.boot_tag' sysctl.
+options 	BOOT_TAG=\"---<<BOOT>>---\"
+# Maximum boot tag size the kernel's static buffer should accomodate.  Maximum
+# size for both BOOT_TAG and the assocated tunable.
+options 	BOOT_TAG_SZ=32
+
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
 options 	GEOM_CACHE		# Disk cache.
@@ -542,6 +552,14 @@ options 	INVARIANTS
 # infrastructure without the added overhead.
 #
 options 	INVARIANT_SUPPORT
+
+#
+# The KASSERT_PANIC_OPTIONAL option allows kasserts to fire without
+# necessarily inducing a panic.  Panic is the default behavior, but
+# runtime options can configure it either entirely off, or off with a
+# limit.
+#
+options 	KASSERT_PANIC_OPTIONAL
 
 #
 # The DIAGNOSTIC option is used to enable extra debugging information
@@ -1193,6 +1211,7 @@ options 	MAC_IFOFF
 options 	MAC_LOMAC
 options 	MAC_MLS
 options 	MAC_NONE
+options 	MAC_NTPD
 options 	MAC_PARTITION
 options 	MAC_PORTACL
 options 	MAC_SEEOTHERUIDS
@@ -2477,10 +2496,8 @@ device		smb
 # SMBus peripheral devices
 #
 # jedec_dimm	Asset and temperature reporting for DDR3 and DDR4 DIMMs
-# jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
 #
 device		jedec_dimm
-device		jedec_ts
 
 # I2C Bus
 #
@@ -2991,11 +3008,8 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-# Only ONE of the below two may be used; they are mutually exclusive.
-# If neither is present, then the Fortuna algorithm is selected.
-#options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
-#options 	RANDOM_LOADABLE	# Allow the algorithm to be loaded as
-				# a module.
+# Allow the CSPRNG algorithm to be loaded as a module.
+#options 	RANDOM_LOADABLE
 # Select this to allow high-rate but potentially expensive
 # harvesting of Slab-Allocator entropy. In very high-rate
 # situations the value of doing this is dubious at best.
@@ -3045,5 +3059,12 @@ options 	UINPUT_DEBUG	# enable uinput debug msgs
 # Encrypted kernel crash dumps.
 options 	EKCD
 
+# Serial Peripheral Interface (SPI) support.
+device		spibus		# Bus support.
+device		at45d		# DataFlash driver
+device		cqspi		# 
+device		mx25l		# SPIFlash driver
+device		n25q		# 
+device		spigen		# Generic access to SPI devices from userland.
 # Enable legacy /dev/spigenN name aliases for /dev/spigenX.Y devices.
 options 	SPIGEN_LEGACY_CDEVNAME # legacy device names for spigen

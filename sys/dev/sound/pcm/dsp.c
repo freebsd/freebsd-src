@@ -2222,7 +2222,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	 * Unfortunately, we have to give up this one due to linux_mmap
 	 * changes.
 	 *
-	 * http://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
+	 * https://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
 	 *
 	 */
 #ifdef SV_ABI_LINUX

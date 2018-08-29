@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/tftp.h>
 
+#include <assert.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -85,6 +86,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	if (port == NULL) {
 		struct servent *se;
 		se = getservbyname("tftp", "udp");
+		assert(se != NULL);
 		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
 	} else
 		((struct sockaddr_in *)&peer_sock)->sin_port =
@@ -184,6 +186,7 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 	if (port == NULL) {
 		struct servent *se;
 		se = getservbyname("tftp", "udp");
+		assert(se != NULL);
 		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
 	} else
 		((struct sockaddr_in *)&peer_sock)->sin_port =

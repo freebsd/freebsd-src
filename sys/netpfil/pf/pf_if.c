@@ -55,16 +55,16 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 VNET_DEFINE(struct pfi_kif *,	 pfi_all);
-static VNET_DEFINE(long, pfi_update);
+VNET_DEFINE_STATIC(long, pfi_update);
 #define	V_pfi_update	VNET(pfi_update)
 #define PFI_BUFFER_MAX	0x10000
 
 VNET_DECLARE(int, pf_vnet_active);
 #define V_pf_vnet_active	VNET(pf_vnet_active)
 
-static VNET_DEFINE(struct pfr_addr *, pfi_buffer);
-static VNET_DEFINE(int, pfi_buffer_cnt);
-static VNET_DEFINE(int,	pfi_buffer_max);
+VNET_DEFINE_STATIC(struct pfr_addr *, pfi_buffer);
+VNET_DEFINE_STATIC(int, pfi_buffer_cnt);
+VNET_DEFINE_STATIC(int,	pfi_buffer_max);
 #define	V_pfi_buffer		 VNET(pfi_buffer)
 #define	V_pfi_buffer_cnt	 VNET(pfi_buffer_cnt)
 #define	V_pfi_buffer_max	 VNET(pfi_buffer_max)
@@ -98,14 +98,14 @@ static void	 pfi_ifaddr_event(void * __unused, struct ifnet *);
 RB_HEAD(pfi_ifhead, pfi_kif);
 static RB_PROTOTYPE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
 static RB_GENERATE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
-static VNET_DEFINE(struct pfi_ifhead, pfi_ifs);
+VNET_DEFINE_STATIC(struct pfi_ifhead, pfi_ifs);
 #define	V_pfi_ifs	VNET(pfi_ifs)
 
 #define	PFI_BUFFER_MAX		0x10000
 MALLOC_DEFINE(PFI_MTYPE, "pf_ifnet", "pf(4) interface database");
 
 LIST_HEAD(pfi_list, pfi_kif);
-static VNET_DEFINE(struct pfi_list, pfi_unlinked_kifs);
+VNET_DEFINE_STATIC(struct pfi_list, pfi_unlinked_kifs);
 #define	V_pfi_unlinked_kifs	VNET(pfi_unlinked_kifs)
 static struct mtx pfi_unlnkdkifs_mtx;
 MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
@@ -297,11 +297,16 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 	if (rule_kif == NULL || rule_kif == packet_kif)
 		return (1);
 
-	if (rule_kif->pfik_group != NULL)
-		/* XXXGL: locking? */
+	if (rule_kif->pfik_group != NULL) {
+		IF_ADDR_RLOCK(packet_kif->pfik_ifp);
 		CK_STAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
-			if (p->ifgl_group == rule_kif->pfik_group)
+			if (p->ifgl_group == rule_kif->pfik_group) {
+				IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
 				return (1);
+			}
+		IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
+	}
+
 
 	return (0);
 }
@@ -735,6 +740,7 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 static int
 pfi_skip_if(const char *filter, struct pfi_kif *p)
 {
+	struct ifg_list *i;
 	int	n;
 
 	if (filter == NULL || !*filter)
@@ -745,10 +751,19 @@ pfi_skip_if(const char *filter, struct pfi_kif *p)
 	if (n < 1 || n >= IFNAMSIZ)
 		return (1);	/* sanity check */
 	if (filter[n-1] >= '0' && filter[n-1] <= '9')
-		return (1);	/* only do exact match in that case */
-	if (strncmp(p->pfik_name, filter, n))
-		return (1);	/* prefix doesn't match */
-	return (p->pfik_name[n] < '0' || p->pfik_name[n] > '9');
+		return (1);	/* group names may not end in a digit */
+	if (p->pfik_ifp != NULL) {
+		IF_ADDR_RLOCK(p->pfik_ifp);
+		CK_STAILQ_FOREACH(i, &p->pfik_ifp->if_groups, ifgl_next) {
+			if (!strncmp(i->ifgl_group->ifg_group, filter,
+			      IFNAMSIZ)) {
+				IF_ADDR_RUNLOCK(p->pfik_ifp);
+				return (0); /* iface is in group "filter" */
+			}
+		}
+		IF_ADDR_RUNLOCK(p->pfik_ifp);
+	}
+	return (1);
 }
 
 int

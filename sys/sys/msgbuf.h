@@ -68,7 +68,7 @@ extern struct	mtx msgbuf_lock;
 
 void	msgbufinit(void *ptr, int size);
 void	msgbuf_addchar(struct msgbuf *mbp, int c);
-void	msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr);
+void	msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr);
 void	msgbuf_clear(struct msgbuf *mbp);
 void	msgbuf_copy(struct msgbuf *src, struct msgbuf *dst);
 int	msgbuf_getbytes(struct msgbuf *mbp, char *buf, int buflen);

@@ -53,7 +53,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd July 17, 2013
+.Dd August 11, 2018
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -135,11 +135,149 @@ It provides the client with flexibility and simplicity by
 abstracting machine dependent issues like setting up
 DMA mappings, handling cache issues, bus specific features
 and limitations.
+.Sh OVERVIEW
+A tag structure
+.Vt ( bus_dma_tag_t )
+is used to describe the properties of a group of related DMA
+transactions.
+One way to view this is that a tag describes the limitations of a DMA engine.
+For example, if a DMA engine in a device is limited to 32-bit addresses,
+that limitation is specified by a parameter when creating the tag
+for that device.
+Similarly, a tag can be marked as requiring buffers whose addresses are
+aligned to a specific boundary.
+.Pp
+Some devices may require multiple tags to describe DMA
+transactions with differing properties.
+For example, a device might require 16-byte alignment of its descriptor ring
+while permitting arbitrary alignment of I/O buffers.
+In this case,
+the driver must create one tag for the descriptor ring and a separate tag for
+I/O buffers.
+If a device has restrictions that are common to all DMA transactions
+in addition to restrictions that differ between unrelated groups of
+transactions,
+the driver can first create a
+.Dq parent
+tag that decribes the common restrictions.
+The per-group tags can then inherit these restrictions from this
+.Dq parent
+tag rather than having to list them explicitly when creating the per-group tags.
+.Pp
+A mapping structure
+.Vt ( bus_dmamap_t )
+represents a mapping of a memory region for DMA.
+On systems with I/O MMUs,
+the mapping structure tracks any I/O MMU entries used by a request.
+For DMA requests that require bounce pages,
+the mapping tracks the bounce pages used.
+.Pp
+To prepare for one or more DMA transactions,
+a mapping must be bound to a memory region by calling one of the
+.Fn bus_dmamap_load
+functions.
+These functions configure the mapping which can include programming entries
+in an I/O MMU and/or allocating bounce pages.
+An output of these functions
+(either directly or indirectly by invoking a callback routine)
+is the list of scatter/gather address ranges a consumer can pass to a DMA
+engine to access the memory region.
+When a mapping is no longer needed,
+the mapping must be unloaded via
+.Fn bus_dmamap_unload .
+.Pp
+Before and after each DMA transaction,
+.Fn bus_dmamap_sync
+must be used to ensure that the correct data is used by the DMA engine and
+the CPU.
+If a mapping uses bounce pages,
+the sync operations copy data between the bounce pages and the memory region
+bound to the mapping.
+Sync operations also handle architecture-specific details such as CPU cache
+flushing and CPU memory operation ordering.
+.Sh STATIC VS DYNAMIC
+.Nm
+handles two types of DMA transactions: static and dynamic.
+Static transactions are used with a long-lived memory region that is reused
+for many transactions such as a descriptor ring.
+Dynamic transactions are used for transfers to or from transient buffers
+such as I/O buffers holding a network packet or disk block.
+Each transaction type uses a different subset of the
+.Nm
+API.
+.Ss Static Transactions
+Static transactions use memory regions allocated by
+.Nm .
+Each static memory region is allocated by calling
+.Fn bus_dmamem_alloc .
+This function requires a valid tag describing the properties of the
+DMA transactions to this region such as alignment or address restrictions.
+Multiple regions can share a single tag if they share the same restrictions.
+.Pp
+.Fn bus_dmamem_alloc
+allocates a memory region along with a mapping object.
+The associated tag, memory region, and mapping object must then be passed to
+.Fn bus_dmamap_load
+to bind the mapping to the allocated region and obtain the
+scatter/gather list.
+.Pp
+It is expected that
+.Fn bus_dmamem_alloc
+will attempt to allocate memory requiring less expensive sync operations
+(for example, implementations should not allocate regions requiring bounce
+pages),
+but sync operations should still be used.
+For example, a driver should use
+.Fn bus_dmamap_sync
+in an interrupt handler before reading descriptor ring entries written by the
+device prior to the interrupt.
+.Pp
+When a consumer is finished with a memory region,
+it should unload the mapping via
+.Fn bus_dmamap_unload
+and then release the memory region and mapping object via
+.Fn bus_dmamem_free .
+.Ss Dynamic Transactions
+Dynamic transactions map memory regions provided by other parts of the system.
+A tag must be created via
+.Fn bus_dma_tag_create
+to describe the DMA transactions to and from these memory regions,
+and a pool of mapping objects must be allocated via
+.Fn bus_dmamap_create
+to track the mappings of any in-flight transactions.
+.Pp
+When a consumer wishes to schedule a transaction for a memory region,
+the consumer must first obtain an unused mapping object from its pool
+of mapping objects.
+The memory region must be bound to the mapping object via one of the
+.Fn bus_dmamap_load
+functions.
+Before scheduling the transaction,
+the consumer should sync the memory region via
+.Fn bus_dmamap_sync
+with one or more of the
+.Dq PRE
+flags.
+After the transaction has completed,
+the consumer should sync the memory region via
+.Fn bus_dmamap_sync
+with one or more of the
+.Dq POST
+flags.
+The mapping can then be unloaded via
+.Fn bus_dmamap_unload ,
+and the mapping object can be returned to the pool of unused mapping objects.
+.Pp
+When a consumer is no longer scheduling DMA transactions,
+the mapping objects should be freed via
+.Fn bus_dmamap_destroy ,
+and the tag should be freed via
+.Fn bus_dma_tag_destroy .
 .Sh STRUCTURES AND TYPES
 .Bl -tag -width indent
 .It Vt bus_dma_tag_t
 A machine-dependent (MD) opaque type that describes the
-characteristics of DMA transactions.
+characteristics of a group of DMA transactions.
 DMA tags are organized into a hierarchy, with each child
 tag inheriting the restrictions of its parent.
 This allows all devices along the path of DMA transactions
@@ -340,14 +478,18 @@ Releases and/or unlocks the client locking primitive.
 .It Fn bus_dma_tag_create "parent" "alignment" "boundary" "lowaddr" \
 "highaddr" "*filtfunc" "*filtfuncarg" "maxsize" "nsegments" "maxsegsz" \
 "flags" "lockfunc" "lockfuncarg" "*dmat"
-Allocates a device specific DMA tag, and initializes it according to
+Allocates a DMA tag, and initializes it according to
 the arguments provided:
 .Bl -tag -width ".Fa filtfuncarg"
 .It Fa parent
-Indicates restrictions between the parent bridge, CPU memory, and the
+A parent tag from which to inherit restrictions.
+The restrictions passed in other arguments can only further tighten the
+restrictions inherited from the parent tag.
+.Pp
+All tags created by a device driver must inherit from the tag returned by
+.Fn bus_get_dma_tag
+to honor restrictions between the parent bridge, CPU memory, and the
 device.
-Each device must use a master parent tag by calling
-.Fn bus_get_dma_tag .
 .It Fa alignment
 Alignment constraint, in bytes, of any mappings created using this tag.
 The alignment must be a power of 2.
@@ -391,7 +533,7 @@ and a
 .Fa lowaddr
 of
 .Dv BUS_SPACE_MAXADDR_24BIT .
-Some implementations requires that some region of device visible
+Some implementations require that some region of device visible
 address space, overlapping available host memory, be outside the
 window.
 This area of

@@ -57,6 +57,10 @@ static int	nfsignore_eexist = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, ignore_eexist, CTLFLAG_RW,
     &nfsignore_eexist, 0, "NFS ignore EEXIST replies for mkdir/symlink");
 
+static int	nfscl_dssameconn = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, dssameconn, CTLFLAG_RW,
+    &nfscl_dssameconn, 0, "Use same TCP connection to multiple DSs");
+
 /*
  * Global variables
  */
@@ -162,7 +166,7 @@ static int nfsrpc_writedsmir(vnode_t, int *, int *, nfsv4stateid_t *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, struct mbuf *, int, int,
     struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
-    struct nfsclds *, struct nfsclds **);
+    struct nfsclds *, struct nfsclds **, uint32_t *);
 static int nfsio_commitds(vnode_t, uint64_t, int, struct nfsclds *,
     struct nfsfh *, int, int, struct nfsclwritedsdorpc *, struct ucred *,
     NFSPROC_T *);
@@ -4404,9 +4408,12 @@ nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
 	if (dsp == NULL)
 		error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred,
 		    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	else
+	else {
 		error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred,
 		    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+		if (error == ENXIO)
+			nfscl_cancelreqs(dsp);
+	}
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
@@ -5498,9 +5505,14 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		dsp->nfsclds_sockp = nrp;
 		if (vers == NFS_VER4) {
 			NFSLOCKMNT(nmp);
-			retv = nfscl_getsameserver(nmp, dsp, &tdsp);
+			retv = nfscl_getsameserver(nmp, dsp, &tdsp,
+			    &sequenceid);
 			NFSCL_DEBUG(3, "getsame ret=%d\n", retv);
-			if (retv == NFSDSP_USETHISSESSION) {
+			if (retv == NFSDSP_USETHISSESSION &&
+			    nfscl_dssameconn != 0) {
+				NFSLOCKDS(tdsp);
+				tdsp->nfsclds_flags |= NFSCLDS_SAMECONN;
+				NFSUNLOCKDS(tdsp);
 				NFSUNLOCKMNT(nmp);
 				/*
 				 * If there is already a session for this
@@ -5511,10 +5523,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 				*dspp = tdsp;
 				return (0);
 			}
-			if (retv == NFSDSP_SEQTHISSESSION)
-				sequenceid =
-				    tdsp->nfsclds_sess.nfsess_sequenceid;
-			else
+			if (retv == NFSDSP_NOTFOUND)
 				sequenceid =
 				    dsp->nfsclds_sess.nfsess_sequenceid;
 			NFSUNLOCKMNT(nmp);
@@ -5610,10 +5619,10 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	int eof, error, firstmirror, i, iolaymode, mirrorcnt, recalled, timo;
 	void *lckp;
 	uint8_t *dev;
-	void *iovbase;
-	size_t iovlen;
-	off_t offs;
-	ssize_t resid;
+	void *iovbase = NULL;
+	size_t iovlen = 0;
+	off_t offs = 0;
+	ssize_t resid = 0;
 
 	if (!NFSHASPNFS(nmp) || nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
 	    (np->n_flag & NNOLAYOUT) != 0)
@@ -5687,7 +5696,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			 * do all mirrors.
 			 */
 			m = NULL;
-			drpc = NULL;
+			tdrpc = drpc = NULL;
 			firstmirror = 0;
 			mirrorcnt = 1;
 			if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0 &&
@@ -5716,12 +5725,15 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				}
 			}
 			for (i = firstmirror; i < mirrorcnt && error == 0; i++){
-				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0)
+				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0) {
 					dev = rflp->nfsfl_ffm[i].dev;
-				else
+					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
+					    rflp->nfsfl_ffm[i].devp);
+				} else {
 					dev = rflp->nfsfl_dev;
-				dip = nfscl_getdevinfo(nmp->nm_clp, dev,
-				    rflp->nfsfl_devp);
+					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
+					    rflp->nfsfl_devp);
+				}
 				if (dip != NULL) {
 					if ((rflp->nfsfl_flags & NFSFL_FLEXFILE)
 					    != 0)
@@ -6040,7 +6052,8 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    *dspp, fhp, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "commitds=%d\n", error);
-				if (error != 0 && error != EACCES) {
+				if (error != 0 && error != EACCES && error !=
+				    ESTALE) {
 					NFSCL_DEBUG(4,
 					    "DS layreterr for commit\n");
 					nfscl_dserr(NFSV4OP_COMMIT, error, dp,
@@ -6065,7 +6078,7 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			    off, xfer, fhp, 1, dp->nfsdi_vers,
 			    dp->nfsdi_minorvers, tcred, p);
 			NFSCL_DEBUG(4, "readds=%d\n", error);
-			if (error != 0 && error != EACCES) {
+			if (error != 0 && error != EACCES && error != ESTALE) {
 				NFSCL_DEBUG(4, "DS layreterr for read\n");
 				nfscl_dserr(NFSV4OP_READ, error, dp, lyp,
 				    *dspp);
@@ -6101,7 +6114,8 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    xfer, fhp, m, dp->nfsdi_vers,
 					    dp->nfsdi_minorvers, tcred, p);
 				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
-				if (error != 0 && error != EACCES) {
+				if (error != 0 && error != EACCES && error !=
+				    ESTALE) {
 					NFSCL_DEBUG(4,
 					    "DS layreterr for write\n");
 					nfscl_dserr(NFSV4OP_WRITE, error, dp,
@@ -6516,15 +6530,16 @@ nfscl_freenfsclds(struct nfsclds *dsp)
 
 static enum nfsclds_state
 nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
-    struct nfsclds **retdspp)
+    struct nfsclds **retdspp, uint32_t *sequencep)
 {
-	struct nfsclds *dsp, *cur_dsp;
+	struct nfsclds *dsp;
+	int fndseq;
 
 	/*
 	 * Search the list of nfsclds structures for one with the same
 	 * server.
 	 */
-	cur_dsp = NULL;
+	fndseq = 0;
 	TAILQ_FOREACH(dsp, &nmp->nm_sess, nfsclds_list) {
 		if (dsp->nfsclds_servownlen == newdsp->nfsclds_servownlen &&
 		    dsp->nfsclds_servownlen != 0 &&
@@ -6534,24 +6549,22 @@ nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
 			NFSCL_DEBUG(4, "fnd same fdsp=%p dsp=%p flg=0x%x\n",
 			    TAILQ_FIRST(&nmp->nm_sess), dsp,
 			    dsp->nfsclds_flags);
+			if (fndseq == 0) {
+				/* Get sequenceid# from first entry. */
+				*sequencep =
+				    dsp->nfsclds_sess.nfsess_sequenceid;
+				fndseq = 1;
+			}
 			/* Server major id matches. */
 			if ((dsp->nfsclds_flags & NFSCLDS_DS) != 0) {
 				*retdspp = dsp;
 				return (NFSDSP_USETHISSESSION);
 			}
 
-			/*
-			 * Note the first match, so it can be used for
-			 * sequence'ing new sessions.
-			 */
-			if (cur_dsp == NULL)
-				cur_dsp = dsp;
 		}
 	}
-	if (cur_dsp != NULL) {
-		*retdspp = cur_dsp;
+	if (fndseq != 0)
 		return (NFSDSP_SEQTHISSESSION);
-	}
 	return (NFSDSP_NOTFOUND);
 }
 
@@ -6821,7 +6834,8 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 			    sizeof(struct nfsffm), M_NFSFLAYOUT, M_WAITOK);
 			flp->nfsfl_flags = NFSFL_FLEXFILE;
 			flp->nfsfl_mirrorcnt = mirrorcnt;
-			flp->nfsfl_devp = NULL;
+			for (j = 0; j < mirrorcnt; j++)
+				flp->nfsfl_ffm[j].devp = NULL;
 			flp->nfsfl_off = off;
 			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
 				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
@@ -7581,6 +7595,7 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 	struct nfsclflayout *tflp;
 	struct nfscldevinfo *dip;
 	uint8_t *dev;
+	int i, mirrorcnt;
 
 	if (laystat == NFSERR_UNKNLAYOUTTYPE) {
 		NFSLOCKMNT(nmp);
@@ -7597,25 +7612,35 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 	if (laystat == 0) {
 		NFSCL_DEBUG(4, "nfsrpc_layoutgetres at FOREACH\n");
 		LIST_FOREACH(tflp, flhp, nfsfl_list) {
-			laystat = nfscl_adddevinfo(nmp, NULL, tflp);
-			NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
-			if (laystat != 0) {
-				if (layouttype == NFSLAYOUT_FLEXFILE)
-					dev = tflp->nfsfl_ffm[0].dev;
-				else
-					dev = tflp->nfsfl_dev;
-				laystat = nfsrpc_getdeviceinfo(nmp, dev,
-				    layouttype, notifybit, &dip, cred, p);
-				NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
-				    laystat);
-				if (laystat != 0)
-					break;
-				laystat = nfscl_adddevinfo(nmp, dip, tflp);
-				if (laystat != 0)
-					printf("getlayout: cannot add\n");
+			if (layouttype == NFSLAYOUT_FLEXFILE)
+				mirrorcnt = tflp->nfsfl_mirrorcnt;
+			else
+				mirrorcnt = 1;
+			for (i = 0; i < mirrorcnt; i++) {
+				laystat = nfscl_adddevinfo(nmp, NULL, i, tflp);
+				NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
+				if (laystat != 0) {
+					if (layouttype == NFSLAYOUT_FLEXFILE)
+						dev = tflp->nfsfl_ffm[i].dev;
+					else
+						dev = tflp->nfsfl_dev;
+					laystat = nfsrpc_getdeviceinfo(nmp, dev,
+					    layouttype, notifybit, &dip, cred,
+					    p);
+					NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
+					    laystat);
+					if (laystat != 0)
+						goto out;
+					laystat = nfscl_adddevinfo(nmp, dip, i,
+					    tflp);
+					if (laystat != 0)
+						printf("nfsrpc_layoutgetresout"
+						    ": cannot add\n");
+				}
 			}
 		}
 	}
+out:
 	if (laystat == 0) {
 		/*
 		 * nfscl_layout() always returns with the nfsly_lock

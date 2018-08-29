@@ -229,7 +229,7 @@ acpi_cmbat_info_expired(struct timespec *lastupdated)
 	return (TRUE);
 
     getnanotime(&curtime);
-    timespecsub(&curtime, lastupdated);
+    timespecsub(&curtime, lastupdated, &curtime);
     return (curtime.tv_sec < 0 ||
 	    curtime.tv_sec > acpi_battery_get_info_expire());
 }

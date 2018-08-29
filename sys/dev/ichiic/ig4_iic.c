@@ -525,6 +525,16 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
 	sx_init(&sc->call_lock, "IG4 call lock");
 
+	v = reg_read(sc, IG4_REG_DEVIDLE_CTRL);
+	if (sc->version == IG4_SKYLAKE && (v & IG4_RESTORE_REQUIRED) ) {
+		reg_write(sc, IG4_REG_DEVIDLE_CTRL, IG4_DEVICE_IDLE | IG4_RESTORE_REQUIRED);
+		reg_write(sc, IG4_REG_DEVIDLE_CTRL, 0);
+
+		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
+		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_DEASSERT_SKL);
+		DELAY(1000);
+	}
+
 	if (sc->version == IG4_ATOM)
 		v = reg_read(sc, IG4_REG_COMP_TYPE);
 	
@@ -553,7 +563,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
 		v = reg_read(sc, IG4_REG_COMP_VER);
-		if (v != IG4_COMP_VER) {
+		if (v < IG4_COMP_MIN_VER) {
 			error = ENXIO;
 			goto done;
 		}
@@ -714,6 +724,19 @@ ig4iic_intr(void *cookie)
 		++sc->rnext;
 		status = reg_read(sc, IG4_REG_I2C_STA);
 	}
+
+	/* 
+	 * Workaround to trigger pending interrupt if IG4_REG_INTR_STAT
+	 * is changed after clearing it
+	 */
+	if(sc->access_intr_mask) {
+		status = reg_read(sc, IG4_REG_INTR_MASK);
+		if(status) {
+			reg_write(sc, IG4_REG_INTR_MASK, 0);
+			reg_write(sc, IG4_REG_INTR_MASK, status);
+		}
+	}
+
 	wakeup(sc);
 	mtx_unlock(&sc->io_lock);
 }

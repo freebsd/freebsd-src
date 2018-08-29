@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msooxml,v 1.7 2018/03/12 12:38:59 christos Exp $
+# $File: msooxml,v 1.8 2018/05/24 18:11:17 christos Exp $
 # msooxml:  file(1) magic for Microsoft Office XML
 # From: Ralf Brown <ralf.brown@gmail.com>
 
@@ -24,6 +24,7 @@
 0		string		PK\003\004
 !:strength +10
 # make sure the first file is correct
+>0x1E		use		msooxml
 >0x1E		regex		\\[Content_Types\\]\\.xml|_rels/\\.rels
 # skip to the second local file header
 # since some documents include a 520-byte extra field following the file

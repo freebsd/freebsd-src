@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 
 static inline vm_offset_t drm_vmalloc_dma(vm_size_t size)
 {
-	return kmem_alloc_attr(kernel_arena, size, M_NOWAIT | M_ZERO,
-	    0, BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
+	return kmem_alloc_attr(size, M_NOWAIT | M_ZERO, 0,
+	    BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
 }
 
 void drm_sg_cleanup(struct drm_sg_mem * entry)
@@ -47,7 +47,7 @@ void drm_sg_cleanup(struct drm_sg_mem * entry)
 		return;
 
 	if (entry->vaddr != 0)
-		kmem_free(kernel_arena, entry->vaddr, IDX_TO_OFF(entry->pages));
+		kmem_free(entry->vaddr, IDX_TO_OFF(entry->pages));
 
 	free(entry->busaddr, DRM_MEM_SGLISTS);
 	free(entry, DRM_MEM_DRIVER);

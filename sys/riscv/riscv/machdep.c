@@ -342,7 +342,6 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tf->tf_ra = mcp->mc_gpregs.gp_ra;
 	tf->tf_sp = mcp->mc_gpregs.gp_sp;
 	tf->tf_gp = mcp->mc_gpregs.gp_gp;
-	tf->tf_tp = mcp->mc_gpregs.gp_tp;
 	tf->tf_sepc = mcp->mc_gpregs.gp_sepc;
 	tf->tf_sstatus = mcp->mc_gpregs.gp_sstatus;
 
@@ -548,7 +547,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct thread *td;
 	struct proc *p;
 	int onstack;
-	int code;
 	int sig;
 
 	td = curthread;
@@ -556,7 +554,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 

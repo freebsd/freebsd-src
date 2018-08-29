@@ -27,6 +27,46 @@ find-part() {
     gpart show $dev | tail +2 | awk '$4 == "'$part'" { print $3; }'
 }
 
+make_esp() {
+    local dev dst mntpt
+
+    dev=$1
+    dst=$2
+
+    newfs_msdos -a 32 ${dev}
+    mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+    mount -t msdos ${dev} ${mntpt}
+    mkdir -p ${mntpt}/efi/boot
+    cp ${dst}/boot/loader.efi ${mntpt}/efi/boot/bootx64.efi
+    umount ${mntpt}
+    rmdir ${mntpt}
+}
+
+make_esp_mbr() {
+    dev=$1
+    dst=$2
+
+    s=$(find-part $dev "!239")
+    if [ -z "$s" ] ; then
+	s=$(find-part $dev "efi")
+	if [ -z "$s" ] ; then
+	    die "No ESP slice found"
+    	fi
+    fi
+    make_esp /dev/${dev}s${s} ${dst}
+}
+
+make_esp_gpt() {
+    dev=$1
+    dst=$2
+
+    idx=$(find-part $dev "efi")
+    if [ -z "$idx" ] ; then
+	die "No ESP partition found"
+    fi
+    make_esp /dev/${dev}p${idx} ${dst}
+}
+
 boot_nogeli_gpt_ufs_legacy() {
     dev=$1
     dst=$2
@@ -39,14 +79,7 @@ boot_nogeli_gpt_ufs_legacy() {
 }
 
 boot_nogeli_gpt_ufs_uefi() {
-    dev=$1
-    dst=$2
-
-    idx=$(find-part $dev "efi")
-    if [ -z "$idx" ] ; then
-	die "No ESP partition found"
-    fi
-    doit gpart bootcode -p ${efi2} -i $idx $dev
+    make_esp_gpt $1 $2
 }
 
 boot_nogeli_gpt_ufs_both() {
@@ -66,14 +99,7 @@ boot_nogeli_gpt_zfs_legacy() {
 }
 
 boot_nogeli_gpt_zfs_uefi() {
-    dev=$1
-    dst=$2
-
-    idx=$(find-part $dev "efi")
-    if [ -z "$idx" ] ; then
-	die "No ESP partition found"
-    fi
-    doit gpart bootcode -p ${efi2} -i $idx $dev
+    make_esp_gpt $1 $2
 }
 
 boot_nogeli_gpt_zfs_both() {
@@ -94,14 +120,7 @@ boot_nogeli_mbr_ufs_legacy() {
 }
 
 boot_nogeli_mbr_ufs_uefi() {
-    dev=$1
-    dst=$2
-
-    s=$(find-part ${dev} "!239")
-    if [ -z "$s" ] ; then
-	die "No ESP slice found"
-    fi
-    doit gpart bootcode -p ${efi2} -i ${s} ${dev}
+    make_esp_mbr $1 $2
 }
 
 boot_nogeli_mbr_ufs_both() {
@@ -133,14 +152,7 @@ boot_nogeli_mbr_zfs_legacy() {
 }
 
 boot_nogeli_mbr_zfs_uefi() {
-    dev=$1
-    dst=$2
-
-    s=$(find-part $dev "!239")
-    if [ -z "$s" ] ; then
-	die "No ESP slice found"
-    fi
-    doit gpart bootcode -p ${efi2} -i ${s} ${dev}
+    make_esp_mbr $1 $2
 }
 
 boot_nogeli_mbr_zfs_both() {
@@ -245,11 +257,6 @@ dev=$1
 gpt0=${DESTDIR}/boot/pmbr
 gpt2=${DESTDIR}/boot/gptboot
 gptzfs2=${DESTDIR}/boot/gptzfsboot
-
-# For gpt + EFI we install the ESP
-# XXX This should use newfs or makefs, but it doesn't yet
-efi1=${DESTDIR}/boot/boot1.efi
-efi2=${DESTDIR}/boot/boot1.efifat
 
 # For MBR, we have lots of choices, but select mbr, boot0 has issues with UEFI
 mbr0=${DESTDIR}/boot/mbr

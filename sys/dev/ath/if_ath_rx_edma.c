@@ -168,7 +168,7 @@ ath_edma_stoprecv(struct ath_softc *sc, int dodelay)
 	ath_hal_setrxfilter(ah, 0);
 
 	/*
-	 * 
+	 *
 	 */
 	if (ath_hal_stopdmarecv(ah) == AH_TRUE)
 		sc->sc_rx_stopped = 1;
@@ -729,7 +729,7 @@ ath_edma_rxbuf_alloc(struct ath_softc *sc)
 	bf = TAILQ_FIRST(&sc->sc_rxbuf);
 	/* XXX shouldn't happen upon startup? */
 	if (bf == NULL) {
-		device_printf(sc->sc_dev, "%s: nothing on rxbuf?!\n",
+		DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: nothing on rxbuf?!\n",
 		    __func__);
 		return (NULL);
 	}
@@ -810,7 +810,7 @@ ath_edma_rxfifo_alloc(struct ath_softc *sc, HAL_RX_QUEUE qtype, int nbufs)
 		bf = ath_edma_rxbuf_alloc(sc);
 		/* XXX should ensure the FIFO is not NULL? */
 		if (bf == NULL) {
-			device_printf(sc->sc_dev,
+			DPRINTF(sc, ATH_DEBUG_EDMA_RX,
 			    "%s: Q%d: alloc failed: i=%d, nbufs=%d?\n",
 			    __func__,
 			    qtype,
@@ -927,7 +927,7 @@ ath_edma_rxfifo_free(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 	device_printf(sc->sc_dev, "%s: called; qtype=%d\n",
 	    __func__,
 	    qtype);
-	
+
 	free(re->m_fifo, M_ATHDEV);
 
 	return (0);

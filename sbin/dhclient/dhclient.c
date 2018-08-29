@@ -371,6 +371,7 @@ init_casper(void)
 int
 main(int argc, char *argv[])
 {
+	u_int			 capmode;
 	int			 ch, fd, quiet = 0, i = 0;
 	int			 pipe_fd[2];
 	int			 immediate_daemon = 0;
@@ -419,7 +420,7 @@ main(int argc, char *argv[])
 
 	if (path_dhclient_pidfile == NULL) {
 		asprintf(&path_dhclient_pidfile,
-		    "%sdhclient.%s.pid", _PATH_VARRUN, *argv);
+		    "%s/dhclient/dhclient.%s.pid", _PATH_VARRUN, *argv);
 		if (path_dhclient_pidfile == NULL)
 			error("asprintf");
 	}
@@ -528,22 +529,32 @@ main(int argc, char *argv[])
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 
-	if (chroot(_PATH_VAREMPTY) == -1)
-		error("chroot");
-	if (chdir("/") == -1)
-		error("chdir(\"/\")");
-
-	if (setgroups(1, &pw->pw_gid) ||
-	    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
-	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
-		error("can't drop privileges: %m");
-
 	endpwent();
 
 	setproctitle("%s", ifi->name);
 
+	/* setgroups(2) is not permitted in capability mode. */
+	if (setgroups(1, &pw->pw_gid) != 0)
+		error("can't restrict groups: %m");
+
 	if (caph_enter_casper() < 0)
 		error("can't enter capability mode: %m");
+
+	/*
+	 * If we are not in capability mode (i.e., Capsicum or libcasper is
+	 * disabled), try to restrict filesystem access.  This will fail if
+	 * kern.chroot_allow_open_directories is 0 or the process is jailed.
+	 */
+	if (cap_getmode(&capmode) < 0 || capmode == 0) {
+		if (chroot(_PATH_VAREMPTY) == -1)
+			error("chroot");
+		if (chdir("/") == -1)
+			error("chdir(\"/\")");
+	}
+
+	if (setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
+	    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
+		error("can't drop privileges: %m");
 
 	if (immediate_daemon)
 		go_daemon();
@@ -2449,13 +2460,8 @@ go_daemon(void)
 
 	cap_rights_init(&rights);
 
-	if (pidfile != NULL) {
+	if (pidfile != NULL)
 		pidfile_write(pidfile);
-		if (cap_rights_limit(pidfile_fileno(pidfile), &rights) < 0 &&
-		    errno != ENOSYS) {
-			error("can't limit pidfile descriptor: %m");
-		}
-	}
 
 	if (nullfd != -1) {
 		close(nullfd);

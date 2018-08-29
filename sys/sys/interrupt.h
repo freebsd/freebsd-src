@@ -33,6 +33,7 @@
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/ck.h>
 
 struct intr_event;
 struct intr_thread;
@@ -52,7 +53,7 @@ struct intr_handler {
 	char		 ih_name[MAXCOMLEN + 1]; /* Name of handler. */
 	struct intr_event *ih_event;	/* Event we are connected to. */
 	int		 ih_need;	/* Needs service. */
-	TAILQ_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
+	CK_SLIST_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
 	u_char		 ih_pri;	/* Priority of this handler. */
 	struct intr_thread *ih_thread;	/* Ithread for filtered handler. */
 };
@@ -105,7 +106,7 @@ struct intr_handler {
  */
 struct intr_event {
 	TAILQ_ENTRY(intr_event) ie_list;
-	TAILQ_HEAD(, intr_handler) ie_handlers; /* Interrupt handlers. */
+	CK_SLIST_HEAD(, intr_handler) ie_handlers; /* Interrupt handlers. */
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
@@ -121,6 +122,8 @@ struct intr_event {
 	struct timeval	ie_warntm;
 	int		ie_irq;		/* Physical irq number if !SOFT. */
 	int		ie_cpu;		/* CPU this event is bound to. */
+	volatile int	ie_phase;	/* Switched to establish a barrier. */
+	volatile int	ie_active[2];	/* Filters in ISR context. */
 };
 
 /* Interrupt event flags kept in ie_flags. */
@@ -151,8 +154,13 @@ extern struct	intr_event *clk_intr_event;
 extern void	*vm_ih;
 
 /* Counts and names for statistics (defined in MD code). */
+#if defined(__amd64__) || defined(__i386__)
+extern u_long 	*intrcnt;	/* counts for for each device and stray */
+extern char 	*intrnames;	/* string table containing device names */
+#else
 extern u_long 	intrcnt[];	/* counts for for each device and stray */
 extern char 	intrnames[];	/* string table containing device names */
+#endif
 extern size_t	sintrcnt;	/* size of intrcnt table */
 extern size_t	sintrnames;	/* size of intrnames table */
 
@@ -174,7 +182,6 @@ int	intr_event_create(struct intr_event **event, void *source,
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
 int	intr_event_destroy(struct intr_event *ie);
-void	intr_event_execute_handlers(struct proc *p, struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);

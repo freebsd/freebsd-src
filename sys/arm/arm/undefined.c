@@ -144,6 +144,7 @@ gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 {
 	struct thread *td;
 	ksiginfo_t ksi;
+	int error;
 
 	td = (curthread == NULL) ? &thread0 : curthread;
 
@@ -162,6 +163,27 @@ gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 #endif
 #endif
 	}
+
+	if (code == FAULT_USER) {
+		/* TODO: No support for ptrace from Thumb-2 */
+		if ((frame->tf_spsr & PSR_T) == 0 &&
+		    insn == PTRACE_BREAKPOINT) {
+			PROC_LOCK(td->td_proc);
+			_PHOLD(td->td_proc);
+			error = ptrace_clear_single_step(td);
+			_PRELE(td->td_proc);
+			PROC_UNLOCK(td->td_proc);
+			if (error == 0) {
+				ksiginfo_init_trap(&ksi);
+				ksi.ksi_signo = SIGTRAP;
+				ksi.ksi_code = TRAP_TRACE;
+				ksi.ksi_addr = (u_int32_t *)addr;
+				trapsignal(td, &ksi);
+				return (0);
+			}
+		}
+	}
+	
 	return 1;
 }
 
@@ -191,7 +213,6 @@ undefinedinstruction(struct trapframe *frame)
 	int fault_code;
 	int coprocessor;
 	struct undefined_handler *uh;
-	int error;
 #ifdef VERBOSE_ARM32
 	int s;
 #endif
@@ -304,26 +325,6 @@ undefinedinstruction(struct trapframe *frame)
 	    if (uh->uh_handler(fault_pc, fault_instruction, frame,
 			       fault_code) == 0)
 		    break;
-
-	if (fault_code & FAULT_USER) {
-		/* TODO: No support for ptrace from Thumb-2 */
-		if ((frame->tf_spsr & PSR_T) == 0 &&
-		    fault_instruction == PTRACE_BREAKPOINT) {
-			PROC_LOCK(td->td_proc);
-			_PHOLD(td->td_proc);
-			error = ptrace_clear_single_step(td);
-			_PRELE(td->td_proc);
-			PROC_UNLOCK(td->td_proc);
-			if (error != 0) {
-				ksiginfo_init_trap(&ksi);
-				ksi.ksi_signo = SIGILL;
-				ksi.ksi_code = ILL_ILLOPC;
-				ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
-				trapsignal(td, &ksi);
-			}
-			return;
-		}
-	}
 
 	if (uh == NULL && (fault_code & FAULT_USER)) {
 		/* Fault has not been handled */

@@ -26,13 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * from:
- * $FreeBSD$
+ * From: @(#)readdir.c	8.3 (Berkeley) 9/29/94
+ * From: FreeBSD: head/lib/libc/gen/readdir.c 314436 2017-02-28 23:42:47Z imp
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

@@ -29,6 +29,7 @@ dialer:*:68:
 network:*:69:
 audit:*:77:
 www:*:80:
+ntpd:*:123:
 _ypldap:*:160:
 hast:*:845:
 nogroup:*:65533:

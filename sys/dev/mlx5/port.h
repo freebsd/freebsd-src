@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2016-2018, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -102,6 +102,12 @@ enum mlx5e_connector_type {
 	MLX5E_CONNECTOR_TYPE_NUMBER,
 };
 
+enum mlx5_qpts_trust_state {
+	MLX5_QPTS_TRUST_PCP = 1,
+	MLX5_QPTS_TRUST_DSCP = 2,
+	MLX5_QPTS_TRUST_BOTH = 3,
+};
+
 #define	MLX5E_PROT_MASK(link_mode) (1 << (link_mode))
 
 #define	PORT_MODULE_EVENT_MODULE_STATUS_MASK 0xF
@@ -155,4 +161,11 @@ int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
 			    u8 prio, u8 *tc);
 int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, int prio_index,
 			  const u8 prio_tc);
+int mlx5_set_trust_state(struct mlx5_core_dev *mdev, u8 trust_state);
+int mlx5_query_trust_state(struct mlx5_core_dev *mdev, u8 *trust_state);
+
+#define	MLX5_MAX_SUPPORTED_DSCP 64
+int mlx5_set_dscp2prio(struct mlx5_core_dev *mdev, const u8 *dscp2prio);
+int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio);
+
 #endif /* __MLX5_PORT_H__ */

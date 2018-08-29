@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
 #include <sys/libkern.h>
 #include <sys/reboot.h>
@@ -184,44 +185,6 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 	return (0);
 }
 
-/* Parse cmd line args as env - copied from xlp_machdep. */
-/* XXX-BZ this should really be centrally provided for all (boot) code. */
-static void
-_parse_bootargs(char *cmdline)
-{
-	char *n, *v;
-
-	while ((v = strsep(&cmdline, " \n")) != NULL) {
-		if (*v == '\0')
-			continue;
-		if (*v == '-') {
-			while (*v != '\0') {
-				v++;
-				switch (*v) {
-				case 'a': boothowto |= RB_ASKNAME; break;
-				/* Someone should simulate that ;-) */
-				case 'C': boothowto |= RB_CDROM; break;
-				case 'd': boothowto |= RB_KDB; break;
-				case 'D': boothowto |= RB_MULTIPLE; break;
-				case 'm': boothowto |= RB_MUTE; break;
-				case 'g': boothowto |= RB_GDB; break;
-				case 'h': boothowto |= RB_SERIAL; break;
-				case 'p': boothowto |= RB_PAUSE; break;
-				case 'r': boothowto |= RB_DFLTROOT; break;
-				case 's': boothowto |= RB_SINGLE; break;
-				case 'v': boothowto |= RB_VERBOSE; break;
-				}
-			}
-		} else {
-			n = strsep(&v, "=");
-			if (v == NULL)
-				kern_setenv(n, "1");
-			else
-				kern_setenv(n, v);
-		}
-	}
-}
-
 /*
  * This is intended to be called early on, right after the OF system is
  * initialized, so pmap may not be up yet.
@@ -238,7 +201,7 @@ ofw_parse_bootargs(void)
 		return (chosen);
 
 	if ((err = OF_getprop(chosen, "bootargs", buf, sizeof(buf))) != -1) {
-		_parse_bootargs(buf);
+		boothowto |= boot_parse_cmdline(buf);
 		return (0);
 	}
 

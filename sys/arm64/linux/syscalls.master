@@ -403,8 +403,8 @@
 218	AUE_NULL	STD	{ int linux_request_key(void); }
 219	AUE_NULL	STD	{ int linux_keyctl(void); }
 220	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
-				    void *parent_tidptr, void *child_tidptr, \
-				    void *tls); }
+				    void *parent_tidptr, void *tls, \
+				    void *child_tidptr); }
 221	AUE_EXECVE	STD	{ int linux_execve(char *path, char **argp, \
 				    char **envp); }
 222	AUE_MMAP	STD	{ int linux_mmap2(l_ulong addr, l_ulong len, \

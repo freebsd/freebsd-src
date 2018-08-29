@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -73,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_gif.h>
 
 #define GIF_HLIM	30
-static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+VNET_DEFINE_STATIC(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
@@ -85,8 +86,8 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
  * We keep interfaces in a hash table using src+dst as key.
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
-static VNET_DEFINE(struct gif_list *, ipv6_hashtbl) = NULL;
-static VNET_DEFINE(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
+VNET_DEFINE_STATIC(struct gif_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
 #define	V_ipv6_list		VNET(ipv6_list)
 
@@ -200,6 +201,7 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		ip6 = malloc(sizeof(*ip6), M_GIF, M_WAITOK | M_ZERO);
 		ip6->ip6_src = src->sin6_addr;
 		ip6->ip6_dst = dst->sin6_addr;
+		ip6->ip6_vfc = IPV6_VERSION;
 		if (sc->gif_family != 0) {
 			/* Detach existing tunnel first */
 			CK_LIST_REMOVE(sc, chain);
@@ -241,7 +243,7 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	int len;
 
 	/* prepend new IP header */
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	len = sizeof(struct ip6_hdr);
 #ifndef __NO_STRICT_ALIGNMENT
 	if (proto == IPPROTO_ETHERIP)
@@ -283,7 +285,7 @@ in6_gif_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip6_hdr *ip6;
 	uint8_t ecn;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	if (sc == NULL) {
 		m_freem(m);
 		IP6STAT_INC(ip6s_nogif);
@@ -312,7 +314,7 @@ in6_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv6_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	/*
 	 * NOTE: it is safe to iterate without any locking here, because softc
 	 * can be reclaimed only when we are not within net_epoch_preempt

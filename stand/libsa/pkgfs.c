@@ -163,6 +163,7 @@ pkgfs_init(const char *pkgname, struct fs_ops *proto)
 	struct package *pkg;
 	int error, fd;
 
+	pkg = NULL;
 	if (proto != &pkgfs_fsops)
 		pkgfs_cleanup();
 

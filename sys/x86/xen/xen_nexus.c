@@ -99,7 +99,7 @@ nexus_xen_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	 * ISA and PCI intline IRQs are not preregistered on Xen, so
 	 * intercept calls to configure those and register them on the fly.
 	 */
-	if ((irq < FIRST_MSI_INT) && (intr_lookup_source(irq) == NULL)) {
+	if ((irq < first_msi_irq) && (intr_lookup_source(irq) == NULL)) {
 		ret = xen_register_pirq(irq, trig, pol);
 		if (ret != 0)
 			return (ret);

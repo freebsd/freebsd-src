@@ -9,7 +9,7 @@ LIB=	nv
 SHLIB_MAJOR= 0
 
 .PATH: ${SRCTOP}/sys/contrib/libnv ${SRCTOP}/sys/sys
-CFLAGS+=-I${SRCTOP}/sys -I${.CURDIR}
+CFLAGS+=-I${.CURDIR}
 
 SRCS=	cnvlist.c
 SRCS+=	dnvlist.c

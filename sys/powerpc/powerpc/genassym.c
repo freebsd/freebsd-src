@@ -208,6 +208,8 @@ ASSYM(PCB_CDSCR, PCB_CDSCR);
 ASSYM(PCB_AIM_USR_VSID, offsetof(struct pcb, pcb_cpu.aim.usr_vsid));
 ASSYM(PCB_BOOKE_DBCR0, offsetof(struct pcb, pcb_cpu.booke.dbcr0));
 
+ASSYM(PCB_VSCR, offsetof(struct pcb, pcb_vec.vscr));
+
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));

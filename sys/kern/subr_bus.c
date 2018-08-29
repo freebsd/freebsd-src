@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/cpuset.h>
 
 #include <net/vnet.h>
@@ -83,6 +82,8 @@ struct driverlink {
 	kobj_class_t	driver;
 	TAILQ_ENTRY(driverlink) link;	/* list of drivers in devclass */
 	int		pass;
+	int		flags;
+#define DL_DEFERRED_PROBE	1	/* Probe deferred on this */
 	TAILQ_ENTRY(driverlink) passlink;
 };
 
@@ -153,6 +154,7 @@ EVENTHANDLER_LIST_DEFINE(device_detach);
 EVENTHANDLER_LIST_DEFINE(dev_lookup);
 
 static void devctl2_init(void);
+static bool device_frozen;
 
 #define DRIVERNAME(d)	((d)? d->name : "no driver")
 #define DEVCLANAME(d)	((d)? d->name : "no devclass")
@@ -1169,7 +1171,11 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 	dl->pass = pass;
 	driver_register_pass(dl);
 
-	devclass_driver_added(dc, driver);
+	if (device_frozen) {
+		dl->flags |= DL_DEFERRED_PROBE;
+	} else {
+		devclass_driver_added(dc, driver);
+	}
 	bus_data_generation_update();
 	return (0);
 }
@@ -1209,6 +1215,9 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 	 * Note that since a driver can be in multiple devclasses, we
 	 * should not detach devices which are not children of devices in
 	 * the affected devclass.
+	 *
+	 * If we're frozen, we don't generate NOMATCH events. Mark to
+	 * generate later.
 	 */
 	for (i = 0; i < dc->maxunit; i++) {
 		if (dc->devices[i]) {
@@ -1217,9 +1226,14 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 			    dev->parent->devclass == busclass) {
 				if ((error = device_detach(dev)) != 0)
 					return (error);
-				BUS_PROBE_NOMATCH(dev->parent, dev);
-				devnomatch(dev);
-				dev->flags |= DF_DONENOMATCH;
+				if (device_frozen) {
+					dev->flags &= ~DF_DONENOMATCH;
+					dev->flags |= DF_NEEDNOMATCH;
+				} else {
+					BUS_PROBE_NOMATCH(dev->parent, dev);
+					devnomatch(dev);
+					dev->flags |= DF_DONENOMATCH;
+				}
 			}
 		}
 	}
@@ -2911,6 +2925,7 @@ int
 device_attach(device_t dev)
 {
 	uint64_t attachtime;
+	uint16_t attachentropy;
 	int error;
 
 	if (resource_disabled(dev->driver->name, dev->unit)) {
@@ -2936,19 +2951,12 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
-	attachtime = get_cyclecount() - attachtime;
-	/*
-	 * 4 bits per device is a reasonable value for desktop and server
-	 * hardware with good get_cyclecount() implementations, but WILL
-	 * need to be adjusted on other platforms.
+	dev->flags |= DF_ATTACHED_ONCE;
+	/* We only need the low bits of this time, but ranges from tens to thousands
+	 * have been seen, so keep 2 bytes' worth.
 	 */
-#define	RANDOM_PROBE_BIT_GUESS	4
-	if (bootverbose)
-		printf("random: harvesting attach, %zu bytes (%d bits) from %s%d\n",
-		    sizeof(attachtime), RANDOM_PROBE_BIT_GUESS,
-		    dev->driver->name, dev->unit);
-	random_harvest_direct(&attachtime, sizeof(attachtime),
-	    RANDOM_PROBE_BIT_GUESS, RANDOM_ATTACH);
+	attachentropy = (uint16_t)(get_cyclecount() - attachtime);
+	random_harvest_direct(&attachentropy, sizeof(attachentropy), RANDOM_ATTACH);
 	device_sysctl_update(dev);
 	if (dev->busy)
 		dev->state = DS_BUSY;
@@ -5407,6 +5415,53 @@ driver_exists(device_t bus, const char *driver)
 	return (false);
 }
 
+static void
+device_gen_nomatch(device_t dev)
+{
+	device_t child;
+
+	if (dev->flags & DF_NEEDNOMATCH &&
+	    dev->state == DS_NOTPRESENT) {
+		BUS_PROBE_NOMATCH(dev->parent, dev);
+		devnomatch(dev);
+		dev->flags |= DF_DONENOMATCH;
+	}
+	dev->flags &= ~DF_NEEDNOMATCH;
+	TAILQ_FOREACH(child, &dev->children, link) {
+		device_gen_nomatch(child);
+	}
+}
+
+static void
+device_do_deferred_actions(void)
+{
+	devclass_t dc;
+	driverlink_t dl;
+
+	/*
+	 * Walk through the devclasses to find all the drivers we've tagged as
+	 * deferred during the freeze and call the driver added routines. They
+	 * have already been added to the lists in the background, so the driver
+	 * added routines that trigger a probe will have all the right bidders
+	 * for the probe auction.
+	 */
+	TAILQ_FOREACH(dc, &devclasses, link) {
+		TAILQ_FOREACH(dl, &dc->drivers, link) {
+			if (dl->flags & DL_DEFERRED_PROBE) {
+				devclass_driver_added(dc, dl->driver);
+				dl->flags &= ~DL_DEFERRED_PROBE;
+			}
+		}
+	}
+
+	/*
+	 * We also defer no-match events during a freeze. Walk the tree and
+	 * generate all the pent-up events that are still relevant.
+	 */
+	device_gen_nomatch(root_bus);
+	bus_data_generation_update();
+}
+
 static int
 devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
@@ -5432,6 +5487,10 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = priv_check(td, PRIV_DRIVER);
 		if (error == 0)
 			error = find_device(req, &dev);
+		break;
+	case DEV_FREEZE:
+	case DEV_THAW:
+		error = priv_check(td, PRIV_DRIVER);
 		break;
 	default:
 		error = ENOTTY;
@@ -5636,6 +5695,20 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = device_delete_child(parent, dev);
 		break;
 	}
+	case DEV_FREEZE:
+		if (device_frozen)
+			error = EBUSY;
+		else
+			device_frozen = true;
+		break;
+	case DEV_THAW:
+		if (!device_frozen)
+			error = EBUSY;
+		else {
+			device_do_deferred_actions();
+			device_frozen = false;
+		}
+		break;
 	}
 	mtx_unlock(&Giant);
 	return (error);

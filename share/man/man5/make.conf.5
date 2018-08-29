@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2017
+.Dd August 15, 2018
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -104,6 +104,13 @@ option of
 .Xr make 1
 or in
 .Xr environ 7 .
+In the case of world and kernel builds it is possible to put these variables
+into
+.Xr src.conf 5
+instead of
+.Nm .
+This way the environment for documentation and ports builds is not polluted
+by unrelated variables.
 .Pp
 The following lists provide a name and short description for each
 variable you can use during the indicated builds.
@@ -234,12 +241,13 @@ Set this to not update the ports tree during
 .Pq Vt bool
 Set this to use
 .Xr svn 1
+or
+.Xr svnlite 1
 to update your
 .Pa src
 tree with
 .Dq Li "make update" .
-Note that since a subversion client is not included in the base system,
-you will need to set
+Note that you can set
 .Va SVN
 to the full path of a
 .Xr svn 1
@@ -399,6 +407,14 @@ Set this to disable assertions and statistics gathering in
 .Xr malloc 3 .
 It also defaults the A and J runtime options to off.
 Disabled by default on -CURRENT.
+.It Va MAN_ARCH
+.Pq Vt str
+Space-delimited list of one or more MACHINE and/or MACHINE_ARCH values
+for which section 4 man pages will be installed.
+The special value
+.Sq all
+installs all available architectures.
+The default is the MACHINE and MACHINE_ARCH being built.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.

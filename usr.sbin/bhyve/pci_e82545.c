@@ -2224,7 +2224,7 @@ e82545_open_tap(struct e82545_softc *sc, char *opts)
 	sc->esc_tapfd = open(tbuf, O_RDWR);
 	if (sc->esc_tapfd == -1) {
 		DPRINTF("unable to open tap device %s\n", opts);
-		exit(1);
+		exit(4);
 	}
 
 	/*

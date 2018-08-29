@@ -127,7 +127,7 @@ PATH	[./][-/.%^A-Za-z_0-9]+
 				BEGIN ENVC;
 			return i;
 		}
-\\\"[^"]+\\\"	{
+\\\"[^"]*\\\"	{
 			BEGIN 0;
 			yytext[yyleng-2] = '"';
 			yytext[yyleng-1] = '\0';

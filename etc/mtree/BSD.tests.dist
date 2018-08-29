@@ -67,6 +67,8 @@
         usr.bin
             ctfconvert
             ..
+            ztest
+            ..
         ..
         usr.sbin
             dtrace
@@ -431,6 +433,8 @@
         aio
         ..
         audit
+        ..
+        auditpipe
         ..
         capsicum
         ..

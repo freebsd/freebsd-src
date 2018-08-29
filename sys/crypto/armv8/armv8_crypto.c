@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 struct armv8_crypto_softc {
 	int		dieing;
 	int32_t		cid;
-	uint32_t	sid;
-	TAILQ_HEAD(armv8_crypto_sessions_head, armv8_crypto_session) sessions;
 	struct rwlock	lock;
 };
 
@@ -84,8 +82,6 @@ static struct fpu_kern_ctx **ctx_vfp;
 		(ctx) = NULL;					\
 	} while (0)
 
-static void armv8_crypto_freesession_locked(struct armv8_crypto_softc *,
-    struct armv8_crypto_session *);
 static int armv8_crypto_cipher_process(struct armv8_crypto_session *,
     struct cryptodesc *, struct cryptop *);
 
@@ -130,12 +126,10 @@ armv8_crypto_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	TAILQ_INIT(&sc->sessions);
 	sc->dieing = 0;
-	sc->sid = 1;
 
-	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
-	    CRYPTOCAP_F_SYNC);
+	sc->cid = crypto_get_driverid(dev, sizeof(struct armv8_crypto_session),
+	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
@@ -162,25 +156,12 @@ static int
 armv8_crypto_detach(device_t dev)
 {
 	struct armv8_crypto_softc *sc;
-	struct armv8_crypto_session *ses;
 	int i;
 
 	sc = device_get_softc(dev);
 
 	rw_wlock(&sc->lock);
-	TAILQ_FOREACH(ses, &sc->sessions, next) {
-		if (ses->used) {
-			rw_wunlock(&sc->lock);
-			device_printf(dev,
-			    "Cannot detach, sessions still active.\n");
-			return (EBUSY);
-		}
-	}
 	sc->dieing = 1;
-	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-		free(ses, M_ARMV8_CRYPTO);
-	}
 	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
 
@@ -241,15 +222,16 @@ armv8_crypto_cipher_setup(struct armv8_crypto_session *ses,
 }
 
 static int
-armv8_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
+armv8_crypto_newsession(device_t dev, crypto_session_t cses,
+    struct cryptoini *cri)
 {
 	struct armv8_crypto_softc *sc;
 	struct armv8_crypto_session *ses;
 	struct cryptoini *encini;
 	int error;
 
-	if (sidp == NULL || cri == NULL) {
-		CRYPTDEB("no sidp or cri");
+	if (cri == NULL) {
+		CRYPTDEB("no cri");
 		return (EINVAL);
 	}
 
@@ -284,75 +266,14 @@ armv8_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		return (EINVAL);
 	}
 
-	/*
-	 * Free sessions goes first, so if first session is used, we need to
-	 * allocate one.
-	 */
-	ses = TAILQ_FIRST(&sc->sessions);
-	if (ses == NULL || ses->used) {
-		ses = malloc(sizeof(*ses), M_ARMV8_CRYPTO, M_NOWAIT | M_ZERO);
-		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->id = sc->sid++;
-	} else {
-		TAILQ_REMOVE(&sc->sessions, ses, next);
-	}
-	ses->used = 1;
-	TAILQ_INSERT_TAIL(&sc->sessions, ses, next);
-	rw_wunlock(&sc->lock);
+	ses = crypto_get_driver_session(cses);
 	ses->algo = encini->cri_alg;
 
 	error = armv8_crypto_cipher_setup(ses, encini);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
-		rw_wlock(&sc->lock);
-		armv8_crypto_freesession_locked(sc, ses);
-		rw_wunlock(&sc->lock);
 		return (error);
 	}
-
-	*sidp = ses->id;
-	return (0);
-}
-
-static void
-armv8_crypto_freesession_locked(struct armv8_crypto_softc *sc,
-    struct armv8_crypto_session *ses)
-{
-	uint32_t sid;
-
-	rw_assert(&sc->lock, RA_WLOCKED);
-
-	sid = ses->id;
-	TAILQ_REMOVE(&sc->sessions, ses, next);
-	*ses = (struct armv8_crypto_session){};
-	ses->id = sid;
-	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
-}
-
-static int
-armv8_crypto_freesession(device_t dev, uint64_t tid)
-{
-	struct armv8_crypto_softc *sc;
-	struct armv8_crypto_session *ses;
-	uint32_t sid;
-
-	sc = device_get_softc(dev);
-	sid = ((uint32_t)tid) & 0xffffffff;
-	rw_wlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, armv8_crypto_sessions_head,
-	    next) {
-		if (ses->id == sid)
-			break;
-	}
-	if (ses == NULL) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	armv8_crypto_freesession_locked(sc, ses);
-	rw_wunlock(&sc->lock);
 
 	return (0);
 }
@@ -360,7 +281,6 @@ armv8_crypto_freesession(device_t dev, uint64_t tid)
 static int
 armv8_crypto_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct armv8_crypto_softc *sc = device_get_softc(dev);
 	struct cryptodesc *crd, *enccrd;
 	struct armv8_crypto_session *ses;
 	int error;
@@ -403,18 +323,7 @@ armv8_crypto_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	rw_rlock(&sc->lock);
-	TAILQ_FOREACH_REVERSE(ses, &sc->sessions, armv8_crypto_sessions_head,
-	    next) {
-		if (ses->id == (crp->crp_sid & 0xffffffff))
-			break;
-	}
-	rw_runlock(&sc->lock);
-	if (ses == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
+	ses = crypto_get_driver_session(crp->crp_session);
 	error = armv8_crypto_cipher_process(ses, enccrd, crp);
 
 out:
@@ -546,7 +455,6 @@ static device_method_t armv8_crypto_methods[] = {
 	DEVMETHOD(device_detach,	armv8_crypto_detach),
 
 	DEVMETHOD(cryptodev_newsession,	armv8_crypto_newsession),
-	DEVMETHOD(cryptodev_freesession, armv8_crypto_freesession),
 	DEVMETHOD(cryptodev_process,	armv8_crypto_process),
 
 	DEVMETHOD_END,

@@ -65,8 +65,6 @@ FBSD_1.0 {
 	pthread_testcancel;
 	alarm;
 	arc4random;
-	arc4random_addrandom;
-	arc4random_stir;
 	__assert;
 	check_utility_compat;
 	clock;
@@ -419,6 +417,8 @@ FBSD_1.5 {
 	scandir;
 	scandir_b;
 	sem_clockwait_np;
+	setproctitle_fast;
+	timespec_get;
 };
 
 FBSDprivate_1.0 {
@@ -509,7 +509,6 @@ FBSDprivate_1.0 {
 	__opendir2;
 	__pause;
 	_pause;
-	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;
 	__sleep;

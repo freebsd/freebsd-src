@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -71,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_gif.h>
 
 #define GIF_TTL		30
-static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+VNET_DEFINE_STATIC(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gif_ttl), 0, "Default TTL value for encapsulated packets");
@@ -80,8 +81,8 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
  * We keep interfaces in a hash table using src+dst as key.
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
-static VNET_DEFINE(struct gif_list *, ipv4_hashtbl) = NULL;
-static VNET_DEFINE(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
+VNET_DEFINE_STATIC(struct gif_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
 #define	V_ipv4_list		VNET(ipv4_list)
 
@@ -224,7 +225,7 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	int len;
 
 	/* prepend new IP header */
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	len = sizeof(struct ip);
 #ifndef __NO_STRICT_ALIGNMENT
 	if (proto == IPPROTO_ETHERIP)
@@ -263,7 +264,7 @@ in_gif_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip *ip;
 	uint8_t ecn;
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
@@ -292,7 +293,7 @@ in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
-	MPASS(in_epoch());
+	MPASS(in_epoch(net_epoch_preempt));
 	ip = mtod(m, const struct ip *);
 	/*
 	 * NOTE: it is safe to iterate without any locking here, because softc

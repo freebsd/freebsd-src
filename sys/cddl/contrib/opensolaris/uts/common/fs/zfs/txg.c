@@ -450,6 +450,30 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 	}
 }
 
+static boolean_t
+txg_is_syncing(dsl_pool_t *dp)
+{
+	tx_state_t *tx = &dp->dp_tx;
+	ASSERT(MUTEX_HELD(&tx->tx_sync_lock));
+	return (tx->tx_syncing_txg != 0);
+}
+
+static boolean_t
+txg_is_quiescing(dsl_pool_t *dp)
+{
+	tx_state_t *tx = &dp->dp_tx;
+	ASSERT(MUTEX_HELD(&tx->tx_sync_lock));
+	return (tx->tx_quiescing_txg != 0);
+}
+
+static boolean_t
+txg_has_quiesced_to_sync(dsl_pool_t *dp)
+{
+	tx_state_t *tx = &dp->dp_tx;
+	ASSERT(MUTEX_HELD(&tx->tx_sync_lock));
+	return (tx->tx_quiesced_txg != 0);
+}
+
 static void
 txg_sync_thread(void *arg)
 {
@@ -476,7 +500,7 @@ txg_sync_thread(void *arg)
 		while (!dsl_scan_active(dp->dp_scan) &&
 		    !tx->tx_exiting && timer > 0 &&
 		    tx->tx_synced_txg >= tx->tx_sync_txg_waiting &&
-		    tx->tx_quiesced_txg == 0 &&
+		    !txg_has_quiesced_to_sync(dp) &&
 		    dp->dp_dirty_total < zfs_dirty_data_sync) {
 			dprintf("waiting; tx_synced=%llu waiting=%llu dp=%p\n",
 			    tx->tx_synced_txg, tx->tx_sync_txg_waiting, dp);
@@ -489,7 +513,7 @@ txg_sync_thread(void *arg)
 		 * Wait until the quiesce thread hands off a txg to us,
 		 * prompting it to do so if necessary.
 		 */
-		while (!tx->tx_exiting && tx->tx_quiesced_txg == 0) {
+		while (!tx->tx_exiting && !txg_has_quiesced_to_sync(dp)) {
 			if (tx->tx_quiesce_txg_waiting < tx->tx_open_txg+1)
 				tx->tx_quiesce_txg_waiting = tx->tx_open_txg+1;
 			cv_broadcast(&tx->tx_quiesce_more_cv);
@@ -504,6 +528,7 @@ txg_sync_thread(void *arg)
 		 * us.  This may cause the quiescing thread to now be
 		 * able to quiesce another txg, so we must signal it.
 		 */
+		ASSERT(tx->tx_quiesced_txg != 0);
 		txg = tx->tx_quiesced_txg;
 		tx->tx_quiesced_txg = 0;
 		tx->tx_syncing_txg = txg;
@@ -552,7 +577,7 @@ txg_quiesce_thread(void *arg)
 		 */
 		while (!tx->tx_exiting &&
 		    (tx->tx_open_txg >= tx->tx_quiesce_txg_waiting ||
-		    tx->tx_quiesced_txg != 0))
+		    txg_has_quiesced_to_sync(dp)))
 			txg_thread_wait(tx, &cpr, &tx->tx_quiesce_more_cv, 0);
 
 		if (tx->tx_exiting)
@@ -562,6 +587,8 @@ txg_quiesce_thread(void *arg)
 		dprintf("txg=%llu quiesce_txg=%llu sync_txg=%llu\n",
 		    txg, tx->tx_quiesce_txg_waiting,
 		    tx->tx_sync_txg_waiting);
+		tx->tx_quiescing_txg = txg;
+
 		mutex_exit(&tx->tx_sync_lock);
 		txg_quiesce(dp, txg);
 		mutex_enter(&tx->tx_sync_lock);
@@ -570,6 +597,7 @@ txg_quiesce_thread(void *arg)
 		 * Hand this txg off to the sync thread.
 		 */
 		dprintf("quiesce done, handing off txg %llu\n", txg);
+		tx->tx_quiescing_txg = 0;
 		tx->tx_quiesced_txg = txg;
 		DTRACE_PROBE2(txg__quiesced, dsl_pool_t *, dp, uint64_t, txg);
 		cv_broadcast(&tx->tx_sync_more_cv);
@@ -667,7 +695,8 @@ txg_kick(dsl_pool_t *dp)
 	ASSERT(!dsl_pool_config_held(dp));
 
 	mutex_enter(&tx->tx_sync_lock);
-	if (tx->tx_syncing_txg == 0 &&
+	if (!txg_is_syncing(dp) &&
+	    !txg_is_quiescing(dp) &&
 	    tx->tx_quiesce_txg_waiting <= tx->tx_open_txg &&
 	    tx->tx_sync_txg_waiting <= tx->tx_synced_txg &&
 	    tx->tx_quiesced_txg <= tx->tx_synced_txg) {

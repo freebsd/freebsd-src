@@ -3008,6 +3008,10 @@ integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		case SO_DOMAIN:
+			optval = so->so_proto->pr_domain->dom_family;
+			goto integer;
+
 		case SO_TYPE:
 			optval = so->so_type;
 			goto integer;
@@ -3985,12 +3989,12 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 {
 
 	xso->xso_len = sizeof *xso;
-	xso->xso_so = so;
+	xso->xso_so = (uintptr_t)so;
 	xso->so_type = so->so_type;
 	xso->so_options = so->so_options;
 	xso->so_linger = so->so_linger;
 	xso->so_state = so->so_state;
-	xso->so_pcb = so->so_pcb;
+	xso->so_pcb = (uintptr_t)so->so_pcb;
 	xso->xso_protocol = so->so_proto->pr_protocol;
 	xso->xso_family = so->so_proto->pr_domain->dom_family;
 	xso->so_timeo = so->so_timeo;

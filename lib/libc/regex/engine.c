@@ -385,7 +385,7 @@ dissect(struct match *m,
 	const char *ssp;	/* start of string matched by subsubRE */
 	const char *sep;	/* end of string matched by subsubRE */
 	const char *oldssp;	/* previous ssp */
-	const char *dp;
+	const char *dp __unused;
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;

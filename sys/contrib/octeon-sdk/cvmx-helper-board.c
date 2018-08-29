@@ -598,7 +598,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 #endif
 #if defined(OCTEON_VENDOR_UBIQUITI)
 	case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
-	case CVMX_BOARD_TYPE_CUST_UBIQUITI_E110:
+	case CVMX_BOARD_TYPE_CUST_UBIQUITI_E120:
 	    if (ipd_port > 2)
 		return -1;
 	    return (7 - ipd_port);
@@ -1501,7 +1501,7 @@ int __cvmx_helper_board_hardware_enable(int interface)
     }
 #if defined(OCTEON_VENDOR_UBIQUITI)
     else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E100 ||
-        cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E110)
+        cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E120)
     {
 	/* Configure ASX cloks for all ports on interface 0.  */
 	if (interface == 0)
@@ -1592,7 +1592,7 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 #endif
 #if defined(OCTEON_VENDOR_UBIQUITI)
         case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
-        case CVMX_BOARD_TYPE_CUST_UBIQUITI_E110:
+        case CVMX_BOARD_TYPE_CUST_UBIQUITI_E120:
 #endif
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:

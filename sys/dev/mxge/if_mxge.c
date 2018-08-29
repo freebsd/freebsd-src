@@ -4154,10 +4154,50 @@ mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
+mxge_fetch_i2c(mxge_softc_t *sc, struct ifi2creq *i2c)
+{
+	mxge_cmd_t cmd;
+	uint32_t i2c_args;
+	int i, ms, err;
+
+
+	if (i2c->dev_addr != 0xA0 &&
+	    i2c->dev_addr != 0xA2)
+		return (EINVAL);
+	if (i2c->len > sizeof(i2c->data))
+		return (EINVAL);
+
+	for (i = 0; i < i2c->len; i++) {
+		i2c_args = i2c->dev_addr << 0x8;
+		i2c_args |= i2c->offset + i;
+		cmd.data0 = 0;	 /* just fetch 1 byte, not all 256 */
+		cmd.data1 = i2c_args;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_READ, &cmd);
+
+		if (err != MXGEFW_CMD_OK)
+			return (EIO);
+		/* now we wait for the data to be cached */
+		cmd.data0 = i2c_args & 0xff;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
+		for (ms = 0; (err == EBUSY) && (ms < 50); ms++) {
+			cmd.data0 = i2c_args & 0xff;
+			err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
+			if (err == EBUSY)
+				DELAY(1000);
+		}
+		if (err != MXGEFW_CMD_OK)
+			return (EIO);
+		i2c->data[i] = cmd.data0;
+	}
+	return (0);
+}
+
+static int
 mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	mxge_softc_t *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct ifi2creq i2c;
 	int err, mask;
 
 	err = 0;
@@ -4193,6 +4233,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_set_multicast_list(sc);
 		mtx_unlock(&sc->driver_mtx);
 		break;
@@ -4278,12 +4322,36 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCGIFMEDIA:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_media_probe(sc);
 		mtx_unlock(&sc->driver_mtx);
 		err = ifmedia_ioctl(ifp, (struct ifreq *)data,
 				    &sc->media, command);
 		break;
 
+	case SIOCGI2C:
+		if (sc->connector != MXGE_XFP &&
+		    sc->connector != MXGE_SFP) {
+			err = ENXIO;
+			break;
+		}
+		err = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
+		if (err != 0)
+			break;
+		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
+		err = mxge_fetch_i2c(sc, &i2c);
+		mtx_unlock(&sc->driver_mtx);
+		if (err == 0)
+			err = copyout(&i2c, ifr->ifr_ifru.ifru_data,
+			    sizeof(i2c));
+		break;
 	default:
 		err = ether_ioctl(ifp, command, data);
 		break;
@@ -4916,6 +4984,9 @@ mxge_attach(device_t dev)
 	ifp->if_ioctl = mxge_ioctl;
 	ifp->if_start = mxge_start;
 	ifp->if_get_counter = mxge_get_counter;
+	ifp->if_hw_tsomax = IP_MAXPACKET - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = sc->ss[0].tx.max_desc;
+	ifp->if_hw_tsomaxsegsize = IP_MAXPACKET;
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change,
 		     mxge_media_status);

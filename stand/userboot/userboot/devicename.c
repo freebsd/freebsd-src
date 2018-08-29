@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "libuserboot.h"
 
 #if defined(USERBOOT_ZFS_SUPPORT)
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 #endif
 
 static int	userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path);

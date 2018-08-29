@@ -48,6 +48,8 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req);
 static const char * eap_sm_method_state_txt(EapMethodState state);
 static const char * eap_sm_decision_txt(EapDecision decision);
 #endif /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
+static void eap_sm_request(struct eap_sm *sm, enum wpa_ctrl_req_type field,
+			   const char *msg, size_t msglen);
 
 
 
@@ -188,6 +190,14 @@ SM_STATE(EAP, INITIALIZE)
 	 */
 	eapol_set_bool(sm, EAPOL_eapResp, FALSE);
 	eapol_set_bool(sm, EAPOL_eapNoResp, FALSE);
+	/*
+	 * RFC 4137 does not reset ignore here, but since it is possible for
+	 * some method code paths to end up not setting ignore=FALSE, clear the
+	 * value here to avoid issues if a previous authentication attempt
+	 * failed with ignore=TRUE being left behind in the last
+	 * m.check(eapReqData) operation.
+	 */
+	sm->ignore = 0;
 	sm->num_rounds = 0;
 	sm->prev_failure = 0;
 	sm->expected_failure = 0;
@@ -312,11 +322,14 @@ SM_STATE(EAP, GET_METHOD)
 	wpa_printf(MSG_DEBUG, "EAP: Initialize selected EAP method: "
 		   "vendor %u method %u (%s)",
 		   sm->reqVendor, method, sm->m->name);
-	if (reinit)
+	if (reinit) {
 		sm->eap_method_priv = sm->m->init_for_reauth(
 			sm, sm->eap_method_priv);
-	else
+	} else {
+		sm->waiting_ext_cert_check = 0;
+		sm->ext_cert_check = 0;
 		sm->eap_method_priv = sm->m->init(sm);
+	}
 
 	if (sm->eap_method_priv == NULL) {
 		struct eap_peer_config *config = eap_get_config(sm);
@@ -1373,13 +1386,10 @@ static int eap_sm_imsi_identity(struct eap_sm *sm,
 	return 0;
 }
 
-#endif /* PCSC_FUNCS */
-
 
 static int eap_sm_set_scard_pin(struct eap_sm *sm,
 				struct eap_peer_config *conf)
 {
-#ifdef PCSC_FUNCS
 	if (scard_set_pin(sm->scard_ctx, conf->pin)) {
 		/*
 		 * Make sure the same PIN is not tried again in order to avoid
@@ -1393,23 +1403,19 @@ static int eap_sm_set_scard_pin(struct eap_sm *sm,
 		return -1;
 	}
 	return 0;
-#else /* PCSC_FUNCS */
-	return -1;
-#endif /* PCSC_FUNCS */
 }
+
 
 static int eap_sm_get_scard_identity(struct eap_sm *sm,
 				     struct eap_peer_config *conf)
 {
-#ifdef PCSC_FUNCS
 	if (eap_sm_set_scard_pin(sm, conf))
 		return -1;
 
 	return eap_sm_imsi_identity(sm, conf);
-#else /* PCSC_FUNCS */
-	return -1;
-#endif /* PCSC_FUNCS */
 }
+
+#endif /* PCSC_FUNCS */
 
 
 /**
@@ -1453,23 +1459,27 @@ struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted)
 				  identity, identity_len);
 	}
 
-	if (identity == NULL) {
-		wpa_printf(MSG_WARNING, "EAP: buildIdentity: identity "
-			   "configuration was not available");
-		if (config->pcsc) {
+	if (config->pcsc) {
+#ifdef PCSC_FUNCS
+		if (!identity) {
 			if (eap_sm_get_scard_identity(sm, config) < 0)
 				return NULL;
 			identity = config->identity;
 			identity_len = config->identity_len;
-			wpa_hexdump_ascii(MSG_DEBUG, "permanent identity from "
-					  "IMSI", identity, identity_len);
-		} else {
-			eap_sm_request_identity(sm);
+			wpa_hexdump_ascii(MSG_DEBUG,
+					  "permanent identity from IMSI",
+					  identity, identity_len);
+		} else if (eap_sm_set_scard_pin(sm, config) < 0) {
 			return NULL;
 		}
-	} else if (config->pcsc) {
-		if (eap_sm_set_scard_pin(sm, config) < 0)
-			return NULL;
+#else /* PCSC_FUNCS */
+		return NULL;
+#endif /* PCSC_FUNCS */
+	} else if (!identity) {
+		wpa_printf(MSG_WARNING,
+			"EAP: buildIdentity: identity configuration was not available");
+		eap_sm_request_identity(sm);
+		return NULL;
 	}
 
 	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_IDENTITY, identity_len,
@@ -1510,15 +1520,9 @@ static void eap_sm_processNotify(struct eap_sm *sm, const struct wpabuf *req)
 
 static struct wpabuf * eap_sm_buildNotify(int id)
 {
-	struct wpabuf *resp;
-
 	wpa_printf(MSG_DEBUG, "EAP: Generating EAP-Response Notification");
-	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_NOTIFICATION, 0,
-			     EAP_CODE_RESPONSE, id);
-	if (resp == NULL)
-		return NULL;
-
-	return resp;
+	return eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_NOTIFICATION, 0,
+			EAP_CODE_RESPONSE, id);
 }
 
 
@@ -1850,6 +1854,11 @@ static void eap_peer_sm_tls_event(void *ctx, enum tls_event ev,
 	case TLS_CERT_CHAIN_SUCCESS:
 		eap_notify_status(sm, "remote certificate verification",
 				  "success");
+		if (sm->ext_cert_check) {
+			sm->waiting_ext_cert_check = 1;
+			eap_sm_request(sm, WPA_CTRL_REQ_EXT_CERT_CHECK,
+				       NULL, 0);
+		}
 		break;
 	case TLS_CERT_CHAIN_FAILURE:
 		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_TLS_CERT_ERROR
@@ -2172,10 +2181,10 @@ int eap_sm_get_status(struct eap_sm *sm, char *buf, size_t buflen, int verbose)
 #endif /* CONFIG_CTRL_IFACE */
 
 
-#if defined(CONFIG_CTRL_IFACE) || !defined(CONFIG_NO_STDOUT_DEBUG)
 static void eap_sm_request(struct eap_sm *sm, enum wpa_ctrl_req_type field,
 			   const char *msg, size_t msglen)
 {
+#if defined(CONFIG_CTRL_IFACE) || !defined(CONFIG_NO_STDOUT_DEBUG)
 	struct eap_peer_config *config;
 	const char *txt = NULL;
 	char *tmp;
@@ -2224,16 +2233,17 @@ static void eap_sm_request(struct eap_sm *sm, enum wpa_ctrl_req_type field,
 	case WPA_CTRL_REQ_SIM:
 		txt = msg;
 		break;
+	case WPA_CTRL_REQ_EXT_CERT_CHECK:
+		break;
 	default:
 		return;
 	}
 
 	if (sm->eapol_cb->eap_param_needed)
 		sm->eapol_cb->eap_param_needed(sm->eapol_ctx, field, txt);
-}
-#else /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
-#define eap_sm_request(sm, type, msg, msglen) do { } while (0)
 #endif /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
+}
+
 
 const char * eap_sm_get_method_name(struct eap_sm *sm)
 {

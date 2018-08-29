@@ -94,6 +94,7 @@ enum core_event_opcode
 	CORE_EVENT_RX_QUEUE_START,
 	CORE_EVENT_RX_QUEUE_STOP,
 	CORE_EVENT_RX_QUEUE_FLUSH,
+	CORE_EVENT_TX_QUEUE_UPDATE,
 	MAX_CORE_EVENT_OPCODE
 };
 
@@ -175,6 +176,7 @@ enum core_ramrod_cmd_id
 	CORE_RAMROD_RX_QUEUE_STOP /* RX Queue Stop Ramrod */,
 	CORE_RAMROD_TX_QUEUE_STOP /* TX Queue Stop Ramrod */,
 	CORE_RAMROD_RX_QUEUE_FLUSH /* RX Flush queue Ramrod */,
+	CORE_RAMROD_TX_QUEUE_UPDATE /* TX Queue Update Ramrod */,
 	MAX_CORE_RAMROD_CMD_ID
 };
 
@@ -263,7 +265,7 @@ enum core_rx_cqe_type
  */
 struct core_rx_fast_path_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum core_rx_cqe_type) */;
 	u8 placement_offset /* Offset (in bytes) of the packet from start of the buffer */;
 	struct parsing_and_err_flags parse_flags /* Parsing and error flags from the parser */;
 	__le16 packet_length /* Total packet length (from the parser) */;
@@ -279,7 +281,7 @@ struct core_rx_fast_path_cqe
  */
 struct core_rx_gsi_offload_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum core_rx_cqe_type) */;
 	u8 data_length_error /* set if gsi data is bigger than buff */;
 	struct parsing_and_err_flags parse_flags /* Parsing and error flags from the parser */;
 	__le16 data_length /* Total packet length (from the parser) */;
@@ -287,7 +289,8 @@ struct core_rx_gsi_offload_cqe
 	__le32 src_mac_addrhi /* hi 4 bytes source mac address */;
 	__le16 src_mac_addrlo /* lo 2 bytes of source mac address */;
 	__le16 qp_id /* These are the lower 16 bit of QP id in RoCE BTH header */;
-	__le32 gid_dst[4] /* Gid destination address */;
+	__le32 src_qp /* Source QP from DETH header */;
+	__le32 reserved[3];
 };
 
 /*
@@ -295,7 +298,7 @@ struct core_rx_gsi_offload_cqe
  */
 struct core_rx_slow_path_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum core_rx_cqe_type) */;
 	u8 ramrod_cmd_id;
 	__le16 echo;
 	struct core_rx_cqe_opaque_data opaque_data /* Opaque Data */;
@@ -330,14 +333,15 @@ struct core_rx_start_ramrod_data
 	u8 complete_event_flg /* post completion to the event ring if set */;
 	u8 drop_ttl0_flg /* drop packet with ttl0 if set */;
 	__le16 num_of_pbl_pages /* Num of pages in CQE PBL */;
-	u8 inner_vlan_removal_en /* if set, 802.1q tags will be removed and copied to CQE */;
+	u8 inner_vlan_stripping_en /* if set, 802.1q tags will be removed and copied to CQE */;
+	u8 report_outer_vlan /* if set and inner vlan does not exist, the outer vlan will copied to CQE as inner vlan. should be used in MF_OVLAN mode only. */;
 	u8 queue_id /* Light L2 RX Queue ID */;
 	u8 main_func_queue /* Is this the main queue for the PF */;
 	u8 mf_si_bcast_accept_all /* Duplicate broadcast packets to LL2 main queue in mf_si mode. Valid if main_func_queue is set. */;
 	u8 mf_si_mcast_accept_all /* Duplicate multicast packets to LL2 main queue in mf_si mode. Valid if main_func_queue is set. */;
 	struct core_rx_action_on_error action_on_error /* Specifies how ll2 should deal with packets errors: packet_too_big and no_buff */;
 	u8 gsi_offload_flag /* set when in GSI offload mode on ROCE connection */;
-	u8 reserved[7];
+	u8 reserved[6];
 };
 
 
@@ -360,30 +364,32 @@ struct core_rx_stop_ramrod_data
 struct core_tx_bd_data
 {
 	__le16 as_bitfield;
-#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_MASK      0x1 /* Do not allow additional VLAN manipulations on this packet (DCB) */
-#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_SHIFT     0
-#define CORE_TX_BD_DATA_VLAN_INSERTION_MASK       0x1 /* Insert VLAN into packet */
-#define CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT      1
-#define CORE_TX_BD_DATA_START_BD_MASK             0x1 /* This is the first BD of the packet (for debug) */
-#define CORE_TX_BD_DATA_START_BD_SHIFT            2
-#define CORE_TX_BD_DATA_IP_CSUM_MASK              0x1 /* Calculate the IP checksum for the packet */
-#define CORE_TX_BD_DATA_IP_CSUM_SHIFT             3
-#define CORE_TX_BD_DATA_L4_CSUM_MASK              0x1 /* Calculate the L4 checksum for the packet */
-#define CORE_TX_BD_DATA_L4_CSUM_SHIFT             4
-#define CORE_TX_BD_DATA_IPV6_EXT_MASK             0x1 /* Packet is IPv6 with extensions */
-#define CORE_TX_BD_DATA_IPV6_EXT_SHIFT            5
-#define CORE_TX_BD_DATA_L4_PROTOCOL_MASK          0x1 /* If IPv6+ext, and if l4_csum is 1, than this field indicates L4 protocol: 0-TCP, 1-UDP */
-#define CORE_TX_BD_DATA_L4_PROTOCOL_SHIFT         6
-#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_MASK  0x1 /* The pseudo checksum mode to place in the L4 checksum field. Required only when IPv6+ext and l4_csum is set. (use enum core_l4_pseudo_checksum_mode) */
-#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_SHIFT 7
-#define CORE_TX_BD_DATA_NBDS_MASK                 0xF /* Number of BDs that make up one packet - width wide enough to present CORE_LL2_TX_MAX_BDS_PER_PACKET */
-#define CORE_TX_BD_DATA_NBDS_SHIFT                8
-#define CORE_TX_BD_DATA_ROCE_FLAV_MASK            0x1 /* Use roce_flavor enum - Differentiate between Roce flavors is valid when connType is ROCE (use enum core_roce_flavor_type) */
-#define CORE_TX_BD_DATA_ROCE_FLAV_SHIFT           12
-#define CORE_TX_BD_DATA_IP_LEN_MASK               0x1 /* Calculate ip length */
-#define CORE_TX_BD_DATA_IP_LEN_SHIFT              13
-#define CORE_TX_BD_DATA_RESERVED0_MASK            0x3
-#define CORE_TX_BD_DATA_RESERVED0_SHIFT           14
+#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_MASK         0x1 /* Do not allow additional VLAN manipulations on this packet (DCB) */
+#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_SHIFT        0
+#define CORE_TX_BD_DATA_VLAN_INSERTION_MASK          0x1 /* Insert VLAN into packet. Cannot be set for LB packets (tx_dst == CORE_TX_DEST_LB) */
+#define CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT         1
+#define CORE_TX_BD_DATA_START_BD_MASK                0x1 /* This is the first BD of the packet (for debug) */
+#define CORE_TX_BD_DATA_START_BD_SHIFT               2
+#define CORE_TX_BD_DATA_IP_CSUM_MASK                 0x1 /* Calculate the IP checksum for the packet */
+#define CORE_TX_BD_DATA_IP_CSUM_SHIFT                3
+#define CORE_TX_BD_DATA_L4_CSUM_MASK                 0x1 /* Calculate the L4 checksum for the packet */
+#define CORE_TX_BD_DATA_L4_CSUM_SHIFT                4
+#define CORE_TX_BD_DATA_IPV6_EXT_MASK                0x1 /* Packet is IPv6 with extensions */
+#define CORE_TX_BD_DATA_IPV6_EXT_SHIFT               5
+#define CORE_TX_BD_DATA_L4_PROTOCOL_MASK             0x1 /* If IPv6+ext, and if l4_csum is 1, than this field indicates L4 protocol: 0-TCP, 1-UDP */
+#define CORE_TX_BD_DATA_L4_PROTOCOL_SHIFT            6
+#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_MASK     0x1 /* The pseudo checksum mode to place in the L4 checksum field. Required only when IPv6+ext and l4_csum is set. (use enum core_l4_pseudo_checksum_mode) */
+#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_SHIFT    7
+#define CORE_TX_BD_DATA_NBDS_MASK                    0xF /* Number of BDs that make up one packet - width wide enough to present CORE_LL2_TX_MAX_BDS_PER_PACKET */
+#define CORE_TX_BD_DATA_NBDS_SHIFT                   8
+#define CORE_TX_BD_DATA_ROCE_FLAV_MASK               0x1 /* Use roce_flavor enum - Differentiate between Roce flavors is valid when connType is ROCE (use enum core_roce_flavor_type) */
+#define CORE_TX_BD_DATA_ROCE_FLAV_SHIFT              12
+#define CORE_TX_BD_DATA_IP_LEN_MASK                  0x1 /* Calculate ip length */
+#define CORE_TX_BD_DATA_IP_LEN_SHIFT                 13
+#define CORE_TX_BD_DATA_DISABLE_STAG_INSERTION_MASK  0x1 /* disables the STAG insertion, relevant only in MF OVLAN mode. */
+#define CORE_TX_BD_DATA_DISABLE_STAG_INSERTION_SHIFT 14
+#define CORE_TX_BD_DATA_RESERVED0_MASK               0x1
+#define CORE_TX_BD_DATA_RESERVED0_SHIFT              15
 };
 
 /*
@@ -428,7 +434,7 @@ struct core_tx_start_ramrod_data
 	u8 sb_index /* Status block protocol index */;
 	u8 stats_en /* Statistics Enable */;
 	u8 stats_id /* Statistics Counter ID */;
-	u8 conn_type /* connection type that loaded ll2 */;
+	u8 conn_type /* connection type that loaded ll2 (use enum protocol_type) */;
 	__le16 pbl_size /* Number of BD pages pointed by PBL */;
 	__le16 qm_pq_id /* QM PQ ID */;
 	u8 gsi_offload_flag /* set when in GSI offload mode on ROCE connection */;
@@ -446,14 +452,26 @@ struct core_tx_stop_ramrod_data
 
 
 /*
- * Enum flag for what type of dcb data to update
+ * Ramrod data for tx queue update ramrod
+ */
+struct core_tx_update_ramrod_data
+{
+	u8 update_qm_pq_id_flg /* Flag to Update QM PQ ID */;
+	u8 reserved0;
+	__le16 qm_pq_id /* Updated QM PQ ID */;
+	__le32 reserved1[1];
+};
+
+
+/*
+ * Enum flag for what type of DCB data to update
  */
 enum dcb_dscp_update_mode
 {
-	DONT_UPDATE_DCB_DSCP /* use when no change should be done to dcb data */,
-	UPDATE_DCB /* use to update only l2 (vlan) priority */,
-	UPDATE_DSCP /* use to update only l3 dscp */,
-	UPDATE_DCB_DSCP /* update vlan pri and dscp */,
+	DONT_UPDATE_DCB_DSCP /* use when no change should be done to DCB data */,
+	UPDATE_DCB /* use to update only L2 (vlan) priority */,
+	UPDATE_DSCP /* use to update only IP DSCP */,
+	UPDATE_DCB_DSCP /* update vlan pri and DSCP */,
 	MAX_DCB_DSCP_UPDATE_MODE
 };
 
@@ -490,7 +508,7 @@ struct xstorm_core_conn_st_ctx
 struct e4_xstorm_core_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
-	u8 core_state /* state */;
+	u8 state /* state */;
 	u8 flags0;
 #define E4_XSTORM_CORE_CONN_AG_CTX_EXIST_IN_QM0_MASK         0x1 /* exist_in_qm0 */
 #define E4_XSTORM_CORE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT        0
@@ -1452,6 +1470,7 @@ struct e5_core_conn_context
 	struct pstorm_core_conn_st_ctx pstorm_st_context /* pstorm storm context */;
 	struct regpair pstorm_st_padding[2] /* padding */;
 	struct xstorm_core_conn_st_ctx xstorm_st_context /* xstorm storm context */;
+	struct regpair xstorm_st_padding[2] /* padding */;
 	struct e5_xstorm_core_conn_ag_ctx xstorm_ag_context /* xstorm aggregative context */;
 	struct e5_tstorm_core_conn_ag_ctx tstorm_ag_context /* tstorm aggregative context */;
 	struct e5_ustorm_core_conn_ag_ctx ustorm_ag_context /* ustorm aggregative context */;
@@ -1563,6 +1582,66 @@ struct eth_ustorm_per_queue_stat
 
 
 /*
+ * Event Ring VF-PF Channel data
+ */
+struct vf_pf_channel_eqe_data
+{
+	struct regpair msg_addr /* VF-PF message address */;
+};
+
+/*
+ * Event Ring malicious VF data
+ */
+struct malicious_vf_eqe_data
+{
+	u8 vf_id /* Malicious VF ID */;
+	u8 err_id /* Malicious VF error (use enum malicious_vf_error_id) */;
+	__le16 reserved[3];
+};
+
+/*
+ * Event Ring initial cleanup data
+ */
+struct initial_cleanup_eqe_data
+{
+	u8 vf_id /* VF ID */;
+	u8 reserved[7];
+};
+
+/*
+ * Event Data Union
+ */
+union event_ring_data
+{
+	u8 bytes[8] /* Byte Array */;
+	struct vf_pf_channel_eqe_data vf_pf_channel /* VF-PF Channel data */;
+	struct iscsi_eqe_data iscsi_info /* Dedicated fields to iscsi data */;
+	struct iscsi_connect_done_results iscsi_conn_done_info /* Dedicated fields to iscsi connect done results */;
+	union rdma_eqe_data rdma_data /* Dedicated field for RDMA data */;
+	struct malicious_vf_eqe_data malicious_vf /* Malicious VF data */;
+	struct initial_cleanup_eqe_data vf_init_cleanup /* VF Initial Cleanup data */;
+};
+
+
+/*
+ * Event Ring Entry
+ */
+struct event_ring_entry
+{
+	u8 protocol_id /* Event Protocol ID (use enum protocol_type) */;
+	u8 opcode /* Event Opcode */;
+	__le16 reserved0 /* Reserved */;
+	__le16 echo /* Echo value from ramrod data on the host */;
+	u8 fw_return_code /* FW return code for SP ramrods */;
+	u8 flags;
+#define EVENT_RING_ENTRY_ASYNC_MASK      0x1 /* 0: synchronous EQE - a completion of SP message. 1: asynchronous EQE */
+#define EVENT_RING_ENTRY_ASYNC_SHIFT     0
+#define EVENT_RING_ENTRY_RESERVED1_MASK  0x7F
+#define EVENT_RING_ENTRY_RESERVED1_SHIFT 1
+	union event_ring_data data;
+};
+
+/*
  * Event Ring Next Page Address
  */
 struct event_ring_next_addr
@@ -1582,6 +1661,7 @@ union event_ring_element
 
 
 
+
 /*
  * Ports mode
  */
@@ -1594,6 +1674,20 @@ enum fw_flow_ctrl_mode
 
 
 /*
+ * GFT profile type.
+ */
+enum gft_profile_type
+{
+	GFT_PROFILE_TYPE_4_TUPLE /* tunnel type, inner 4 tuple, IP type and L4 type match. */,
+	GFT_PROFILE_TYPE_L4_DST_PORT /* tunnel type, inner L4 destination port, IP type and L4 type match. */,
+	GFT_PROFILE_TYPE_IP_DST_ADDR /* tunnel type, inner IP destination address and IP type match. */,
+	GFT_PROFILE_TYPE_IP_SRC_ADDR /* tunnel type, inner IP source address and IP type match. */,
+	GFT_PROFILE_TYPE_TUNNEL_TYPE /* tunnel type and outer IP type match. */,
+	MAX_GFT_PROFILE_TYPE
+};
+
+
+/*
  * Major and Minor hsi Versions
  */
 struct hsi_fp_ver_struct
@@ -1601,6 +1695,7 @@ struct hsi_fp_ver_struct
 	u8 minor_ver_arr[2] /* Minor Version of hsi loading pf */;
 	u8 major_ver_arr[2] /* Major Version of driver loading pf */;
 };
+
 
 
 /*
@@ -1626,6 +1721,7 @@ enum iwarp_ll2_tx_queues
 	IWARP_LL2_ERROR /* Error indication */,
 	MAX_IWARP_LL2_TX_QUEUES
 };
+
 
 
 /*
@@ -1654,6 +1750,7 @@ enum malicious_vf_error_id
 	ETH_TUNN_IPV6_EXT_NBD_ERR /* Tunneled packet with IPv6+Ext without a proper number of BDs */,
 	ETH_CONTROL_PACKET_VIOLATION /* VF sent control frame such as PFC */,
 	ETH_ANTI_SPOOFING_ERR /* Anti-Spoofing verification failure */,
+	ETH_PACKET_SIZE_TOO_LARGE /* packet scanned is too large (can be 9700 at most) */,
 	MAX_MALICIOUS_VF_ERROR_ID
 };
 
@@ -1675,6 +1772,28 @@ struct mstorm_non_trigger_vf_zone
 struct mstorm_vf_zone
 {
 	struct mstorm_non_trigger_vf_zone non_trigger /* non-interrupt-triggering zone */;
+};
+
+
+/*
+ * vlan header including TPID and TCI fields
+ */
+struct vlan_header
+{
+	__le16 tpid /* Tag Protocol Identifier */;
+	__le16 tci /* Tag Control Information */;
+};
+
+/*
+ * outer tag configurations
+ */
+struct outer_tag_config_struct
+{
+	u8 enable_stag_pri_change /* Enables updating S-tag priority from inner tag or DCB. Should be 1 for Bette Davis, UFP with Host Control mode, and UFP with DCB over base interface. else - 0. */;
+	u8 pri_map_valid /* If inner_to_outer_pri_map is initialize then set pri_map_valid */;
+	u8 reserved[2];
+	struct vlan_header outer_tag /* In case mf_mode is MF_OVLAN, this field specifies the outer tag protocol identifier and outer tag control information */;
+	u8 inner_to_outer_pri_map[8] /* Map from inner to outer priority. Set pri_map_valid when init map */;
 };
 
 
@@ -1702,11 +1821,11 @@ struct pf_start_tunnel_config
 {
 	u8 set_vxlan_udp_port_flg /* Set VXLAN tunnel UDP destination port to vxlan_udp_port. If not set - FW will use a default port */;
 	u8 set_geneve_udp_port_flg /* Set GENEVE tunnel UDP destination port to geneve_udp_port. If not set - FW will use a default port */;
-	u8 tunnel_clss_vxlan /* Rx classification scheme for VXLAN tunnel. */;
-	u8 tunnel_clss_l2geneve /* Rx classification scheme for l2 GENEVE tunnel. */;
-	u8 tunnel_clss_ipgeneve /* Rx classification scheme for ip GENEVE tunnel. */;
-	u8 tunnel_clss_l2gre /* Rx classification scheme for l2 GRE tunnel. */;
-	u8 tunnel_clss_ipgre /* Rx classification scheme for ip GRE tunnel. */;
+	u8 tunnel_clss_vxlan /* Rx classification scheme for VXLAN tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_l2geneve /* Rx classification scheme for l2 GENEVE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_ipgeneve /* Rx classification scheme for ip GENEVE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_l2gre /* Rx classification scheme for l2 GRE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_ipgre /* Rx classification scheme for ip GRE tunnel. (use enum tunnel_clss) */;
 	u8 reserved;
 	__le16 vxlan_udp_port /* VXLAN tunnel UDP destination port. Valid if set_vxlan_udp_port_flg=1 */;
 	__le16 geneve_udp_port /* GENEVE tunnel UDP destination port. Valid if set_geneve_udp_port_flg=1 */;
@@ -1720,7 +1839,6 @@ struct pf_start_ramrod_data
 	struct regpair event_ring_pbl_addr /* Address of event ring PBL */;
 	struct regpair consolid_q_pbl_addr /* PBL address of consolidation queue */;
 	struct pf_start_tunnel_config tunnel_config /* tunnel configuration. */;
-	__le32 reserved;
 	__le16 event_ring_sb_id /* Status block ID */;
 	u8 base_vf_id /* All VfIds owned by Pf will be from baseVfId till baseVfId+numVfs */;
 	u8 num_vfs /* Amount of vfs owned by PF */;
@@ -1729,30 +1847,29 @@ struct pf_start_ramrod_data
 	u8 path_id /* HW path ID (engine ID) */;
 	u8 warning_as_error /* In FW asserts, treat warning as error */;
 	u8 dont_log_ramrods /* If not set - throw a warning for each ramrod (for debug) */;
-	u8 personality /* define what type of personality is new PF */;
+	u8 personality /* define what type of personality is new PF (use enum personality_type) */;
 	__le16 log_type_mask /* Log type mask. Each bit set enables a corresponding event type logging. Event types are defined as ASSERT_LOG_TYPE_xxx */;
-	u8 mf_mode /* Multi function mode */;
-	u8 integ_phase /* Integration phase */;
+	u8 mf_mode /* Multi function mode (use enum mf_mode) */;
+	u8 integ_phase /* Integration phase (use enum integ_phase) */;
 	u8 allow_npar_tx_switching /* If set, inter-pf tx switching is allowed in Switch Independent function mode */;
-	u8 inner_to_outer_pri_map[8] /* Map from inner to outer priority. Set pri_map_valid when init map */;
-	u8 pri_map_valid /* If inner_to_outer_pri_map is initialize then set pri_map_valid */;
-	__le32 outer_tag /* In case mf_mode is MF_OVLAN, this field specifies the outer vlan (lower 16 bits) and ethType to use (higher 16 bits) */;
+	u8 reserved0;
 	struct hsi_fp_ver_struct hsi_fp_ver /* FP HSI version to be used by FW */;
+	struct outer_tag_config_struct outer_tag_config /* Outer tag configurations */;
 };
 
 
 
 /*
- * Data for port update ramrod
+ * Per protocol DCB data
  */
 struct protocol_dcb_data
 {
-	u8 dcb_enable_flag /* dcbEnable flag value */;
-	u8 dscp_enable_flag /* If set use dscp value */;
-	u8 dcb_priority /* dcbPri flag value */;
-	u8 dcb_tc /* dcb TC value */;
-	u8 dscp_val /* dscp value to write if dscp_enable_flag is set */;
-	u8 reserved0;
+	u8 dcb_enable_flag /* Enable DCB */;
+	u8 dscp_enable_flag /* Enable updating DSCP value */;
+	u8 dcb_priority /* DCB priority */;
+	u8 dcb_tc /* DCB TC */;
+	u8 dscp_val /* DSCP value to write if dscp_enable_flag is set */;
+	u8 dcb_dont_add_vlan0 /* When DCB is enabled - if this flag is set, dont add VLAN 0 tag to untagged frames */;
 };
 
 /*
@@ -1765,11 +1882,11 @@ struct pf_update_tunnel_config
 	u8 update_rx_def_non_ucast_clss /* Update per PORT default tunnel RX classification scheme for traffic with non unicast outer MAC in NPAR mode. */;
 	u8 set_vxlan_udp_port_flg /* Update VXLAN tunnel UDP destination port. */;
 	u8 set_geneve_udp_port_flg /* Update GENEVE tunnel UDP destination port. */;
-	u8 tunnel_clss_vxlan /* Classification scheme for VXLAN tunnel. */;
-	u8 tunnel_clss_l2geneve /* Classification scheme for l2 GENEVE tunnel. */;
-	u8 tunnel_clss_ipgeneve /* Classification scheme for ip GENEVE tunnel. */;
-	u8 tunnel_clss_l2gre /* Classification scheme for l2 GRE tunnel. */;
-	u8 tunnel_clss_ipgre /* Classification scheme for ip GRE tunnel. */;
+	u8 tunnel_clss_vxlan /* Classification scheme for VXLAN tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_l2geneve /* Classification scheme for l2 GENEVE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_ipgeneve /* Classification scheme for ip GENEVE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_l2gre /* Classification scheme for l2 GRE tunnel. (use enum tunnel_clss) */;
+	u8 tunnel_clss_ipgre /* Classification scheme for ip GRE tunnel. (use enum tunnel_clss) */;
 	__le16 vxlan_udp_port /* VXLAN tunnel UDP destination port. */;
 	__le16 geneve_udp_port /* GENEVE tunnel UDP destination port. */;
 	__le16 reserved;
@@ -1780,14 +1897,14 @@ struct pf_update_tunnel_config
  */
 struct pf_update_ramrod_data
 {
-	u8 pf_id;
-	u8 update_eth_dcb_data_mode /* Update Eth DCB  data indication */;
-	u8 update_fcoe_dcb_data_mode /* Update FCOE DCB  data indication */;
-	u8 update_iscsi_dcb_data_mode /* Update iSCSI DCB  data indication */;
-	u8 update_roce_dcb_data_mode /* Update ROCE DCB  data indication */;
-	u8 update_rroce_dcb_data_mode /* Update RROCE (RoceV2) DCB  data indication */;
-	u8 update_iwarp_dcb_data_mode /* Update IWARP DCB  data indication */;
+	u8 update_eth_dcb_data_mode /* Update Eth DCB  data indication (use enum dcb_dscp_update_mode) */;
+	u8 update_fcoe_dcb_data_mode /* Update FCOE DCB  data indication (use enum dcb_dscp_update_mode) */;
+	u8 update_iscsi_dcb_data_mode /* Update iSCSI DCB  data indication (use enum dcb_dscp_update_mode) */;
+	u8 update_roce_dcb_data_mode /* Update ROCE DCB  data indication (use enum dcb_dscp_update_mode) */;
+	u8 update_rroce_dcb_data_mode /* Update RROCE (RoceV2) DCB  data indication (use enum dcb_dscp_update_mode) */;
+	u8 update_iwarp_dcb_data_mode /* Update IWARP DCB  data indication (use enum dcb_dscp_update_mode) */;
 	u8 update_mf_vlan_flag /* Update MF outer vlan Id */;
+	u8 update_enable_stag_pri_change /* Update Enable STAG Priority Change indication */;
 	struct protocol_dcb_data eth_dcb_data /* core eth related fields */;
 	struct protocol_dcb_data fcoe_dcb_data /* core fcoe related fields */;
 	struct protocol_dcb_data iscsi_dcb_data /* core iscsi related fields */;
@@ -1795,7 +1912,8 @@ struct pf_update_ramrod_data
 	struct protocol_dcb_data rroce_dcb_data /* core roce related fields */;
 	struct protocol_dcb_data iwarp_dcb_data /* core iwarp related fields */;
 	__le16 mf_vlan /* new outer vlan id value */;
-	__le16 reserved;
+	u8 enable_stag_pri_change /* enables updating S-tag priority from inner tag or DCB. Should be 1 for Bette Davis, UFP with Host Control mode, and UFP with DCB over base interface. else - 0. */;
+	u8 reserved;
 	struct pf_update_tunnel_config tunnel_config /* tunnel configuration. */;
 };
 
@@ -1864,7 +1982,7 @@ struct ramrod_header
 {
 	__le32 cid /* Slowpath Connection CID */;
 	u8 cmd_id /* Ramrod Cmd (Per Protocol Type) */;
-	u8 protocol_id /* Ramrod Protocol ID */;
+	u8 protocol_id /* Ramrod Protocol ID (use enum protocol_type) */;
 	__le16 echo /* Ramrod echo */;
 };
 
@@ -1942,6 +2060,7 @@ struct tstorm_per_port_stat
 	struct regpair eth_gre_tunn_filter_discard /* GRE dropped packets */;
 	struct regpair eth_vxlan_tunn_filter_discard /* VXLAN dropped packets */;
 	struct regpair eth_geneve_tunn_filter_discard /* GENEVE dropped packets */;
+	struct regpair eth_gft_drop_pkt /* GFT dropped packets */;
 };
 
 
@@ -2011,6 +2130,7 @@ struct vf_pf_channel_data
 };
 
 
+
 /*
  * Ramrod data for VF start ramrod
  */
@@ -2019,7 +2139,7 @@ struct vf_start_ramrod_data
 	u8 vf_id /* VF ID */;
 	u8 enable_flr_ack /* If set, initial cleanup ack will be sent to parent PF SP event queue */;
 	__le16 opaque_fid /* VF opaque FID */;
-	u8 personality /* define what type of personality is new VF */;
+	u8 personality /* define what type of personality is new VF (use enum personality_type) */;
 	u8 reserved[7];
 	struct hsi_fp_ver_struct hsi_fp_ver /* FP HSI version to be used by FW */;
 };
@@ -2051,6 +2171,7 @@ enum vf_zone_size_mode
 
 
 
+
 /*
  * Attentions status block
  */
@@ -2061,17 +2182,6 @@ struct atten_status_block
 	__le16 reserved0;
 	__le16 sb_index /* status block running index */;
 	__le32 reserved1;
-};
-
-
-/*
- * Igu cleanup bit values to distinguish between clean or producer consumer update.
- */
-enum command_type_bit
-{
-	IGU_COMMAND_TYPE_NOP=0,
-	IGU_COMMAND_TYPE_SET=1,
-	MAX_COMMAND_TYPE_BIT
 };
 
 
@@ -2376,6 +2486,51 @@ struct e5_ystorm_core_conn_ag_ctx
 	__le32 reg2 /* reg2 */;
 	__le32 reg3 /* reg3 */;
 };
+
+
+struct fw_asserts_ram_section
+{
+	__le16 section_ram_line_offset /* The offset of the section in the RAM in RAM lines (64-bit units) */;
+	__le16 section_ram_line_size /* The size of the section in RAM lines (64-bit units) */;
+	u8 list_dword_offset /* The offset of the asserts list within the section in dwords */;
+	u8 list_element_dword_size /* The size of an assert list element in dwords */;
+	u8 list_num_elements /* The number of elements in the asserts list */;
+	u8 list_next_index_dword_offset /* The offset of the next list index field within the section in dwords */;
+};
+
+
+struct fw_ver_num
+{
+	u8 major /* Firmware major version number */;
+	u8 minor /* Firmware minor version number */;
+	u8 rev /* Firmware revision version number */;
+	u8 eng /* Firmware engineering version number (for bootleg versions) */;
+};
+
+struct fw_ver_info
+{
+	__le16 tools_ver /* Tools version number */;
+	u8 image_id /* FW image ID (e.g. main, l2b, kuku) */;
+	u8 reserved1;
+	struct fw_ver_num num /* FW version number */;
+	__le32 timestamp /* FW Timestamp in unix time  (sec. since 1970) */;
+	__le32 reserved2;
+};
+
+struct fw_info
+{
+	struct fw_ver_info ver /* FW version information */;
+	struct fw_asserts_ram_section fw_asserts_section /* Info regarding the FW asserts section in the Storm RAM */;
+};
+
+
+struct fw_info_location
+{
+	__le32 grc_addr /* GRC address where the fw_info struct is located. */;
+	__le32 size /* Size of the fw_info structure (thats located at the grc_addr). */;
+};
+
+
 
 
 /*

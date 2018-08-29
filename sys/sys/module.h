@@ -146,8 +146,13 @@ struct mod_pnp_match_info
 	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
 
+#ifdef KLD_TIED
 #define	DECLARE_MODULE(name, data, sub, order)				\
+	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
+#else
+#define	DECLARE_MODULE(name, data, sub, order)							\
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, MODULE_KERNEL_MAXVER)
+#endif
 
 /*
  * The module declared with DECLARE_MODULE_TIED can only be loaded

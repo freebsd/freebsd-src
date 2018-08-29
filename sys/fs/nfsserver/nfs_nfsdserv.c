@@ -3095,7 +3095,13 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATEWRITE);
 		else if (retext != 0) {
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATENONEEXT);
-			if ((rflags & NFSV4OPEN_WDCONTENTION) != 0) {
+			if ((rflags & NFSV4OPEN_WDNOTWANTED) != 0) {
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV4OPEN_NOTWANTED);
+			} else if ((rflags & NFSV4OPEN_WDSUPPFTYPE) != 0) {
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV4OPEN_NOTSUPPFTYPE);
+			} else if ((rflags & NFSV4OPEN_WDCONTENTION) != 0) {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV4OPEN_CONTENTION);
 				*tl = newnfs_false;
@@ -3846,7 +3852,7 @@ nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
     __unused NFSPROC_T *p, __unused struct nfsexstuff *exp)
 {
 	u_int32_t *tl;
-	int error = 0, createdir;
+	int error = 0, createdir __unused;
 
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	createdir = fxdr_unsigned(int, *tl);
@@ -4223,17 +4229,26 @@ nfsrvd_reclaimcomplete(struct nfsrv_descript *nd, __unused int isdgram,
     __unused vnode_t vp, __unused NFSPROC_T *p, __unused struct nfsexstuff *exp)
 {
 	uint32_t *tl;
-	int error = 0;
+	int error = 0, onefs;
 
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		goto nfsmout;
 	}
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	/*
+	 * I believe that a ReclaimComplete with rca_one_fs == TRUE is only
+	 * to be used after a file system has been transferred to a different
+	 * file server.  However, RFC5661 is somewhat vague w.r.t. this and
+	 * the ESXi 6.7 client does both a ReclaimComplete with rca_one_fs
+	 * == TRUE and one with ReclaimComplete with rca_one_fs == FALSE.
+	 * Therefore, just ignore the rca_one_fs == TRUE operation and return
+	 * NFS_OK without doing anything.
+	 */
+	onefs = 0;
 	if (*tl == newnfs_true)
-		nd->nd_repstat = NFSERR_NOTSUPP;
-	else
-		nd->nd_repstat = nfsrv_checkreclaimcomplete(nd);
+		onefs = 1;
+	nd->nd_repstat = nfsrv_checkreclaimcomplete(nd, onefs);
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);

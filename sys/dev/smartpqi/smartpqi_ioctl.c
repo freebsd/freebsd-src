@@ -312,6 +312,11 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		request.sg_descriptors[0].flags =  SG_FLAG_LAST;
 	}
 	tag = pqisrc_get_tag(&softs->taglist);
+	if (INVALID_ELEM == tag) {
+		DBG_ERR("Tag not available\n");
+		ret = PQI_STATUS_FAILURE;
+		goto free_mem;
+	}
 	request.request_id = tag;
 	request.response_queue_id = ob_q->q_id;
 	request.error_index = request.request_id;

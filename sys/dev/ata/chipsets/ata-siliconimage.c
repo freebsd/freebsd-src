@@ -187,7 +187,7 @@ ata_cmd_ch_attach(device_t dev)
     if (ctlr->chip->cfg2 & SII_INTR)
 	ch->hw.status = ata_cmd_status;
 
-	ch->flags |= ATA_NO_ATAPI_DMA;
+    ch->flags |= ATA_NO_ATAPI_DMA;
 
     return 0;
 }

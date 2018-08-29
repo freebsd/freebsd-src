@@ -390,8 +390,9 @@ vybrid_ehci_detach(device_t dev)
 	esc = device_get_softc(dev);
 	sc = &esc->base;
 
-	if (sc->sc_flags & EHCI_SCFLG_DONEINIT)
-		return (0);
+	/* First detach all children; we can't detach if that fails. */
+	if ((err = device_delete_children(dev)) != 0)
+		return (err);
 
 	/*
 	 * only call ehci_detach() after ehci_init()
@@ -420,13 +421,7 @@ vybrid_ehci_detach(device_t dev)
 		sc->sc_intr_hdl = NULL;
 	}
 
-	if (sc->sc_bus.bdev) {
-		device_delete_child(dev, sc->sc_bus.bdev);
-		sc->sc_bus.bdev = NULL;
-	}
-
-	/* During module unload there are lots of children leftover */
-	device_delete_children(dev);
+	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	bus_release_resources(dev, vybrid_ehci_spec, esc->res);
 

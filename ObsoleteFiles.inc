@@ -38,6 +38,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180824: libbe(3) SHLIBDIR fixed to reflect correct location
+OLD_LIBS+=usr/lib/libbe.so.1
+# 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces
+OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
+OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
+# 20180819: send-pr(1) placeholder removal
+OLD_FILES+=usr/bin/send-pr
+# 20180725: Cleanup old libcasper.so.0
+OLD_LIBS+=lib/libcasper.so.0
+# 20180722: indent(1) option renamed, test files follow
+OLD_FILES+=usr/bin/indent/tests/nsac.0
+OLD_FILES+=usr/bin/indent/tests/nsac.0.pro
+OLD_FILES+=usr/bin/indent/tests/nsac.0.stdout
+OLD_FILES+=usr/bin/indent/tests/sac.0
+OLD_FILES+=usr/bin/indent/tests/sac.0.pro
+OLD_FILES+=usr/bin/indent/tests/sac.0.stdout
+# 20180721: move of libmlx5.so.1 and libibverbs.so.1
+OLD_LIBS+=usr/lib/libmlx5.so.1
+OLD_LIBS+=usr/lib/libibverbs.so.1
+# 20180710: old numa cleanup
+OLD_FILES+=usr/include/sys/numa.h
+OLD_FILES+=usr/share/man/man2/numa_getaffinity.2.gz
+OLD_FILES+=usr/share/man/man2/numa_setaffinity.2.gz
+OLD_FILES+=usr/share/man/man1/numactl.1.gz
+OLD_FILES+=usr/bin/numactl
 # 20180708: libcom_err is private
 OLD_FILES+=usr/include/com_err.h
 OLD_LIBS+=usr/lib/libcom_err.a
@@ -651,8 +676,6 @@ OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-arm.
 # 20171104: libcap_random should be in /lib not in /usr/lib
 OLD_LIBS+=usr/lib/libcap_random.so.0
 # 20171104: Casper can work only as shared library
-OLD_FILES+=usr/lib/libcasper.a
-OLD_FILES+=usr/lib/libcasper_p.a
 OLD_FILES+=usr/lib/libcap_dns.a
 OLD_FILES+=usr/lib/libcap_dns_p.a
 OLD_FILES+=usr/lib/libcap_grp.a
@@ -663,6 +686,20 @@ OLD_FILES+=usr/lib/libcap_random.a
 OLD_FILES+=usr/lib/libcap_random_p.a
 OLD_FILES+=usr/lib/libcap_sysctl.a
 OLD_FILES+=usr/lib/libcap_sysctl_p.a
+OLD_FILES+=usr/lib/libcasper.a
+OLD_FILES+=usr/lib/libcasper_p.a
+OLD_FILES+=usr/lib32/libcap_dns.a
+OLD_FILES+=usr/lib32/libcap_dns_p.a
+OLD_FILES+=usr/lib32/libcap_grp.a
+OLD_FILES+=usr/lib32/libcap_grp_p.a
+OLD_FILES+=usr/lib32/libcap_pwd.a
+OLD_FILES+=usr/lib32/libcap_pwd_p.a
+OLD_FILES+=usr/lib32/libcap_random.a
+OLD_FILES+=usr/lib32/libcap_random_p.a
+OLD_FILES+=usr/lib32/libcap_sysctl.a
+OLD_FILES+=usr/lib32/libcap_sysctl_p.a
+OLD_FILES+=usr/lib32/libcasper.a
+OLD_FILES+=usr/lib32/libcasper_p.a
 # 20171031: Removal of adding_user man page
 OLD_FILES+=usr/share/man/man7/adding_user.7.gz
 # 20171031: Disconnected libpathconv tests
@@ -683,6 +720,8 @@ OLD_FILES+=usr/share/man/man9/mbp_sync.9.gz
 # 20171010: Remove libstand
 OLD_FILES+=usr/lib/libstand.a
 OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/lib32/libstand.a
+OLD_FILES+=usr/lib32/libstand_p.a
 OLD_FILES+=usr/include/stand.h
 OLD_FILES+=usr/share/man/man3/libstand.3.gz
 # 20171003: remove RCMDS
@@ -1551,6 +1590,10 @@ OLD_FILES+=usr/lib/libifc.a
 OLD_FILES+=usr/lib/libifc_p.a
 OLD_FILES+=usr/lib/libifconfig.a
 OLD_FILES+=usr/lib/libifconfig_p.a
+OLD_FILES+=usr/lib32/libifc.a
+OLD_FILES+=usr/lib32/libifc_p.a
+OLD_FILES+=usr/lib32/libifconfig.a
+OLD_FILES+=usr/lib32/libifconfig_p.a
 # 20170529: mount.conf(8) -> mount.conf(5)
 OLD_FILES+=usr/share/man/man8/mount.conf.8.gz
 # 20170525: remove misleading template

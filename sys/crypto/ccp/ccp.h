@@ -35,7 +35,7 @@
  * SHA3-224 is the next largest block size, at 1152 bits.  However, crypto(4)
  * doesn't support any SHA3 hash, so SHA2 is the constraint:
  */
-#define CCP_HASH_MAX_BLOCK_SIZE	(SHA2_512_HMAC_BLOCK_LEN)
+#define CCP_HASH_MAX_BLOCK_SIZE	(SHA2_512_BLOCK_LEN)
 
 #define CCP_AES_MAX_KEY_LEN	(AES_XTS_MAX_KEY)
 #define CCP_MAX_CRYPTO_IV_LEN	32	/* GCM IV + GHASH context */
@@ -134,8 +134,6 @@ struct ccp_completion_ctx {
 struct ccp_softc {
 	device_t dev;
 	int32_t cid;
-	struct ccp_session *sessions;
-	int nsessions;
 	struct mtx lock;
 	bool detaching;
 

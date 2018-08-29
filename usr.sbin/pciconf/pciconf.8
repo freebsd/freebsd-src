@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2015
+.Dd June 14, 2018
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .Fl r Oo Fl b | h Oc Ar device addr Ns Op : Ns Ar addr2
 .Nm
 .Fl w Oo Fl b | h Oc Ar device addr value
+.Nm
+.Fl D Oo Fl b | h | x Oc Ar device addr Op start Ns Op : Ns Ar count
 .Sh DESCRIPTION
 The
 .Nm
@@ -305,17 +307,38 @@ into a configuration space register at byte offset
 .Ar addr
 of device
 .Ar selector .
-For both operations, the flags
-.Fl b
+.Pp
+The
+.Fl D
+option request a dump of the specified BAR.
+Dump is performed to the standard output, raw register values
+are written.
+Use
+.Xr hexdump 1
+to convert them to human-readable dump,
+or redirect into a file to save the snapshot of the device state.
+Optionally, the
+.Ar start
 and
-.Fl h
+.Ar count
+of the registers dumped can be specified, in multiple of the operation width,
+see next paragraph.
+.Pp
+For read, write, and dump operations, the flags
+.Fl b ,
+.Fl h ,
+and
+.Fl x
 select the width of the operation;
 .Fl b
 indicates a byte operation, and
 .Fl h
 indicates a halfword (two-byte) operation.
+.Fl x
+indicates a quadword (four-byte) operation.
 The default is to read or
 write a longword (four bytes).
+The quadword mode is only valid for BAR dump.
 .Sh ENVIRONMENT
 PCI vendor and device information is read from
 .Pa /usr/local/share/pciids/pci.ids .
@@ -368,3 +391,11 @@ to provide the device with a driver KLD, and reading of configuration space
 registers may cause a failure in badly designed
 .Tn PCI
 chips.
+.Pp
+There is currently no way to specify the caching mode for the mapping
+established by the
+.Fl D
+option,
+.Nm
+always uses uncached access.
+This is fine for control register BARs.

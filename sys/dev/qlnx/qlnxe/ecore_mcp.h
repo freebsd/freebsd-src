@@ -48,11 +48,7 @@
 					    ((rel_pfid) | \
 					     ((p_hwfn)->abs_pf_id & 1) << 3) : \
 					     rel_pfid)
-#define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
-
-#define MFW_PORT(_p_hwfn)	((_p_hwfn)->abs_pf_id % \
-				 ((_p_hwfn)->p_dev->num_ports_in_engine * \
-				  ecore_device_num_engines((_p_hwfn)->p_dev)))
+#define MCP_PF_ID(p_hwfn)	MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
 struct ecore_mcp_info {
 	/* List for mailbox commands which were sent and wait for a response */
@@ -104,11 +100,16 @@ struct ecore_mcp_mb_params {
 	u32 cmd;
 	u32 param;
 	void *p_data_src;
-	u8 data_src_size;
 	void *p_data_dst;
-	u8 data_dst_size;
 	u32 mcp_resp;
 	u32 mcp_param;
+	u8 data_src_size;
+	u8 data_dst_size;
+	u32 flags;
+#define ECORE_MB_FLAG_CAN_SLEEP		(0x1 << 0)
+#define ECORE_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
+#define ECORE_MB_FLAGS_IS_SET(params, flag)	\
+	((params) != OSAL_NULL && ((params)->flags & ECORE_MB_FLAG_##flag))
 };
 
 enum ecore_ov_eswitch {
@@ -137,7 +138,7 @@ enum _ecore_status_t ecore_mcp_cmd_init(struct ecore_hwfn *p_hwfn,
 					struct ecore_ptt *p_ptt);
 
 /**
- * @brief Intialize the port interface with the MCP
+ * @brief Initialize the port interface with the MCP
  *
  * @param p_hwfn
  * @param p_ptt
@@ -217,6 +218,28 @@ struct ecore_load_req_params {
 enum _ecore_status_t ecore_mcp_load_req(struct ecore_hwfn *p_hwfn,
 					struct ecore_ptt *p_ptt,
 					struct ecore_load_req_params *p_params);
+
+/**
+ * @brief Sends a LOAD_DONE message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return enum _ecore_status_t - ECORE_SUCCESS - Operation was successful.
+ */
+enum _ecore_status_t ecore_mcp_load_done(struct ecore_hwfn *p_hwfn,
+					 struct ecore_ptt *p_ptt);
+
+/**
+ * @brief Sends a CANCEL_LOAD_REQ message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return enum _ecore_status_t - ECORE_SUCCESS - Operation was successful.
+ */
+enum _ecore_status_t ecore_mcp_cancel_load_req(struct ecore_hwfn *p_hwfn,
+					       struct ecore_ptt *p_ptt);
 
 /**
  * @brief Sends a UNLOAD_REQ message to the MFW
@@ -453,10 +476,11 @@ enum ecore_resc_lock {
 	/* Locks that the MFW is aware of should be added here downwards */
 
 	/* Ecore only locks should be added here upwards */
-	ECORE_RESC_LOCK_PTP_PORT0,
-	ECORE_RESC_LOCK_PTP_PORT1,
-	ECORE_RESC_LOCK_PTP_PORT2,
-	ECORE_RESC_LOCK_PTP_PORT3,
+	ECORE_RESC_LOCK_IND_TABLE = 26,
+	ECORE_RESC_LOCK_PTP_PORT0 = 27,
+	ECORE_RESC_LOCK_PTP_PORT1 = 28,
+	ECORE_RESC_LOCK_PTP_PORT2 = 29,
+	ECORE_RESC_LOCK_PTP_PORT3 = 30,
 	ECORE_RESC_LOCK_RESC_ALLOC = ECORE_MCP_RESC_LOCK_MAX_VAL,
 
 	/* A dummy value to be used for auxillary functions in need of
@@ -479,7 +503,7 @@ struct ecore_resc_lock_params {
 #define ECORE_MCP_RESC_LOCK_RETRY_CNT_DFLT	10
 
 	/* The interval in usec between retries */
-	u16 retry_interval;
+	u32 retry_interval;
 #define ECORE_MCP_RESC_LOCK_RETRY_VAL_DFLT	10000
 
 	/* Use sleep or delay between retries */
@@ -574,5 +598,90 @@ enum _ecore_status_t ecore_mcp_set_capabilities(struct ecore_hwfn *p_hwfn,
  */
 enum _ecore_status_t ecore_load_mcp_offsets(struct ecore_hwfn *p_hwfn,
 					    struct ecore_ptt *p_ptt);
+
+enum ecore_mcp_drv_attr_cmd {
+	ECORE_MCP_DRV_ATTR_CMD_READ,
+	ECORE_MCP_DRV_ATTR_CMD_WRITE,
+	ECORE_MCP_DRV_ATTR_CMD_READ_CLEAR,
+	ECORE_MCP_DRV_ATTR_CMD_CLEAR,
+};
+
+struct ecore_mcp_drv_attr {
+	enum ecore_mcp_drv_attr_cmd attr_cmd;
+	u32 attr_num;
+
+	/* R/RC - will be set with the read value
+	 * W - should hold the required value to be written
+	 * C - DC
+	 */
+	u32 val;
+
+	/* W - mask/offset to be applied on the given value
+	 * R/RC/C - DC
+	 */
+	u32 mask;
+	u32 offset;
+};
+
+/**
+ * @brief Handle the drivers' attributes that are kept by the MFW.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_drv_attr
+ */
+enum _ecore_status_t
+ecore_mcp_drv_attribute(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+			struct ecore_mcp_drv_attr *p_drv_attr);
+
+/**
+ * @brief Read ufp config from the shared memory.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+void
+ecore_mcp_read_ufp_config(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
+
+/**
+ * @brief Get the engine affinity configuration.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+enum _ecore_status_t ecore_mcp_get_engine_config(struct ecore_hwfn *p_hwfn,
+						 struct ecore_ptt *p_ptt);
+
+/**
+ * @brief Get the PPFID bitmap.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+enum _ecore_status_t ecore_mcp_get_ppfid_bitmap(struct ecore_hwfn *p_hwfn,
+						struct ecore_ptt *p_ptt);
+
+/**
+ * @brief Acquire MCP lock to access to HW indirection table entries
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param retry_num
+ * @param retry_interval
+ */
+enum _ecore_status_t
+ecore_mcp_ind_table_lock(struct ecore_hwfn *p_hwfn,
+			 struct ecore_ptt *p_ptt,
+			 u8 retry_num,
+			 u32 retry_interval);
+
+/**
+ * @brief Release MCP lock of access to HW indirection table entries
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+enum _ecore_status_t
+ecore_mcp_ind_table_unlock(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
 
 #endif /* __ECORE_MCP_H__ */

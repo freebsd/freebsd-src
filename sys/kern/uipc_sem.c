@@ -843,7 +843,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 			for (;;) {
 				ts1 = *abstime;
 				getnanotime(&ts2);
-				timespecsub(&ts1, &ts2);
+				timespecsub(&ts1, &ts2, &ts1);
 				TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 				if (tv.tv_sec < 0) {
 					error = ETIMEDOUT;

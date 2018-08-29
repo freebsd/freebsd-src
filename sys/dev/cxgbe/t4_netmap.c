@@ -93,6 +93,14 @@ int starve_fl = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
     &starve_fl, 0, "Don't ring fl db for netmap rx queues.");
 
+/*
+ * Try to process tx credits in bulk.  This may cause a delay in the return of
+ * tx credits and is suitable for bursty or non-stop tx only.
+ */
+int lazy_tx_credit_flush = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, lazy_tx_credit_flush, CTLFLAG_RWTUN,
+    &lazy_tx_credit_flush, 0, "lazy credit flush for netmap tx queues.");
+
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
@@ -350,8 +358,6 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(vi, i, nm_rxq) {
-		struct irq *irq = &sc->irq[vi->first_intr + i];
-
 		kring = na->rx_rings[nm_rxq->nid];
 		if (!nm_kring_pending_on(kring) ||
 		    nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
@@ -379,7 +385,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(j));
 
-		atomic_cmpset_int(&irq->nm_state, NM_OFF, NM_ON);
+		(void) atomic_cmpset_int(&nm_rxq->nm_state, NM_OFF, NM_ON);
 	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
@@ -451,14 +457,12 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		free_nm_txq_hwq(vi, nm_txq);
 	}
 	for_each_nm_rxq(vi, i, nm_rxq) {
-		struct irq *irq = &sc->irq[vi->first_intr + i];
-
 		kring = na->rx_rings[nm_rxq->nid];
 		if (!nm_kring_pending_off(kring) ||
 		    nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID)
 			continue;
 
-		while (!atomic_cmpset_int(&irq->nm_state, NM_ON, NM_OFF))
+		while (!atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_OFF))
 			pause("nmst", 1);
 
 		free_nm_rxq_hwq(vi, nm_rxq);
@@ -571,8 +575,6 @@ ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
 	}
 	nm_txq->dbidx = nm_txq->pidx;
 }
-
-int lazy_tx_credit_flush = 1;
 
 /*
  * Write work requests to send 'npkt' frames and ring the doorbell to send them
@@ -949,9 +951,8 @@ handle_nm_sge_egr_update(struct adapter *sc, struct ifnet *ifp,
 }
 
 void
-t4_nm_intr(void *arg)
+service_nm_rxq(struct sge_nm_rxq *nm_rxq)
 {
-	struct sge_nm_rxq *nm_rxq = arg;
 	struct vi_info *vi = nm_rxq->vi;
 	struct adapter *sc = vi->pi->adapter;
 	struct ifnet *ifp = vi->ifp;

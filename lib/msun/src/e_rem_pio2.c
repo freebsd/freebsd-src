@@ -127,14 +127,8 @@ __ieee754_rem_pio2(double x, double *y)
 	}
 	if(ix<0x413921fb) {	/* |x| ~< 2^20*(pi/2), medium size */
 medium:
-	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	    STRICT_ASSIGN(double,fn,x*invpio2+0x1.8p52);
-	    fn = fn-0x1.8p52;
-#ifdef HAVE_EFFICIENT_IRINT
+	    fn = rnint((double_t)x*invpio2);
 	    n  = irint(fn);
-#else
-	    n  = (int32_t)fn;
-#endif
 	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 85 bit */
 	    {

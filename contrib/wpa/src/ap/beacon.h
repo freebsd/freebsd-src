@@ -22,9 +22,12 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 			       struct wpa_driver_ap_params *params);
 void ieee802_11_free_ap_params(struct wpa_driver_ap_params *params);
 void sta_track_add(struct hostapd_iface *iface, const u8 *addr);
+void sta_track_del(struct hostapd_sta_info *info);
 void sta_track_expire(struct hostapd_iface *iface, int force);
 struct hostapd_data *
 sta_track_seen_on(struct hostapd_iface *iface, const u8 *addr,
 		  const char *ifname);
+void sta_track_claim_taxonomy_info(struct hostapd_iface *iface, const u8 *addr,
+				   struct wpabuf **probe_ie_taxonomy);
 
 #endif /* BEACON_H */

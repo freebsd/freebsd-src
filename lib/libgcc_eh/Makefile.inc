@@ -20,7 +20,10 @@ SRCS_EXC+=	libunwind.cpp
 
 SRCS+=		${SRCS_EXC}
 .for file in ${SRCS_EXC:M*.c}
-CFLAGS.${file}+=	-fexceptions
+CFLAGS.${file}+=	-fno-exceptions -funwind-tables
+.endfor
+.for file in ${SRCS_EXC:M*.cpp}
+CXXFLAGS.${file}+=	-fno-exceptions -funwind-tables
 .endfor
 
 CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY

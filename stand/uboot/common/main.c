@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef HEAP_SIZE
-#define	HEAP_SIZE	(1 * 1024 * 1024)
+#define	HEAP_SIZE	(2 * 1024 * 1024)
 #endif
 
 struct uboot_devdesc currdev;
@@ -444,8 +444,10 @@ main(int argc, char **argv)
 	/*
 	 * Enumerate U-Boot devices
 	 */
-	if ((devs_no = ub_dev_enum()) == 0)
-		panic("no U-Boot devices found");
+	if ((devs_no = ub_dev_enum()) == 0) {
+		printf("no U-Boot devices found");
+		goto do_interact;
+	}
 	printf("Number of U-Boot devices: %d\n", devs_no);
 
 	get_load_device(&load_type, &load_unit, &load_slice, &load_partition);
@@ -492,6 +494,7 @@ main(int argc, char **argv)
 	env_setenv("loaddev", EV_VOLATILE, ldev, env_noset, env_nounset);
 	printf("Booting from %s\n", ldev);
 
+do_interact:
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);
 

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-HAVE_GELI=	yes
-
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
@@ -10,8 +8,6 @@ HAVE_GELI=	yes
 
 FILES=		gptzfsboot
 MAN=		gptzfsboot.8
-
-NM?=		nm
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
@@ -43,12 +39,6 @@ CFLAGS.clang+=	-Wno-tentative-definition-incomplete-type
 
 NO_WCAST_ALIGN=
 
-.if ${MACHINE} == "amd64"
-LIBZFSBOOT=${BOOTOBJ}/zfs32/libzfsboot.a
-.else
-LIBZFSBOOT=${BOOTOBJ}/zfs/libzfsboot.a
-.endif
-
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS+=${LD_FLAGS_BIN}
@@ -75,7 +65,7 @@ gptzfsboot.bin: gptzfsboot.out
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o \
 	${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBSA32}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
 
 zfsboot.o: ${ZFSSRC}/zfsimpl.c
 

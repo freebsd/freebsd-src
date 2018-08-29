@@ -144,7 +144,7 @@ settime_task_func(void *arg, int pending)
 		getnanotime(&ts);
 		if (!(rtc->flags & CLOCKF_SETTIME_NO_ADJ)) {
 			ts.tv_sec -= utc_offset();
-			timespecadd(&ts, &rtc->resadj);
+			timespecadd(&ts, &rtc->resadj, &ts);
 		}
 	} else {
 		ts.tv_sec  = 0;
@@ -301,7 +301,7 @@ read_clocks(struct timespec *ts, bool debug_read)
 			continue;
 		}
 		if (!(rtc->flags & CLOCKF_GETTIME_NO_ADJ)) {
-			timespecadd(ts, &rtc->resadj);
+			timespecadd(ts, &rtc->resadj, ts);
 			ts->tv_sec += utc_offset();
 		}
 		if (!debug_read) {

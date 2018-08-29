@@ -521,8 +521,8 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	rw_rlock(&sc->policy_lock);
-	settings = *lookup_offload_policy(sc, OPEN_TYPE_LISTEN, NULL, 0xffff,
-	    inp);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_LISTEN, NULL,
+	    EVL_MAKETAG(0xfff, 0, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload)
 		return (0);
@@ -1255,6 +1255,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	int reject_reason, v, ntids;
 	uint16_t vid;
 	u_int wnd;
+	struct epoch_tracker et;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1304,7 +1305,7 @@ found:
 	 * XXX: lagg support, lagg + vlan support.
 	 */
 	vid = EVL_VLANOFTAG(be16toh(cpl->vlan));
-	if (vid != 0xfff) {
+	if (vid != 0xfff && vid != 0) {
 		ifp = VLAN_DEVAT(hw_ifp, vid);
 		if (ifp == NULL)
 			REJECT_PASS_ACCEPT();
@@ -1369,15 +1370,15 @@ found:
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
 
-	INP_INFO_RLOCK(&V_tcbinfo);	/* for 4-tuple check */
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for 4-tuple check */
 
 	/* Don't offload if the 4-tuple is already in use */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1395,7 +1396,8 @@ found:
 	}
 	so = inp->inp_socket;
 	rw_rlock(&sc->policy_lock);
-	settings = *lookup_offload_policy(sc, OPEN_TYPE_PASSIVE, m, 0xffff, inp);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_PASSIVE, m,
+	    EVL_MAKETAG(0xfff, 0, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload) {
 		INP_WUNLOCK(inp);
@@ -1574,6 +1576,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	struct tcpopt to;
 	struct in_conninfo inc;
 	struct toepcb *toep;
+	struct epoch_tracker et;
 	u_int txqid, rxqid;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
@@ -1587,7 +1590,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
 	CURVNET_SET(lctx->vnet);
-	INP_INFO_RLOCK(&V_tcbinfo);	/* for syncache_expand */
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
 	CTR6(KTR_CXGBE,
@@ -1603,7 +1606,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 		}
 
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 		return (0);
 	}
@@ -1629,7 +1632,7 @@ reset:
 		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 		return (0);
 	}
@@ -1695,7 +1698,7 @@ reset:
 	inp = release_lctx(sc, lctx);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
 	release_synqe(synqe);
 

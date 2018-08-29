@@ -70,7 +70,7 @@ static uint16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount 
 
 /*
  * 0 - character disallowed in long file name.
- * 1 - character should be replaced by '_' in DOS file name, 
+ * 1 - character should be replaced by '_' in DOS file name,
  *     and generation number inserted.
  * 2 - character ('.' and ' ') should be skipped in DOS file name,
  *     and generation number inserted.
@@ -353,7 +353,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	 * Note(2003/7): It seems recent Windows has
 	 *	 defferent rule than this code, that Windows
 	 *	 ignores all dots before extension, and use all
-	 * 	 chars as filename except for dots.
+	 *	 chars as filename except for dots.
 	 */
 	dp = dp1 = NULL;
 	for (cp = un + 1, i = unlen - 1; --i >= 0;) {

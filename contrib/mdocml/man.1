@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: May 17 2017 $
+.Dd $Mdocdate: August 8 2018 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@ See
 for a description of the contents of this file.
 .It Fl c
 Copy the manual page to the standard output instead of using
-.Xr more 1
+.Xr less 1
 to paginate it.
 This is done by default if the standard output is not a terminal device.
 .It Fl f
@@ -233,7 +233,7 @@ is case insensitive.
 Any non-empty value of the environment variable
 .Ev MANPAGER
 is used instead of the standard pagination program,
-.Xr more 1 .
+.Xr less 1 .
 If
 .Xr less 1
 is used, the interactive
@@ -282,7 +282,7 @@ Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Xr more 1
+.Xr less 1
 .Fl s
 is used.
 Only used if

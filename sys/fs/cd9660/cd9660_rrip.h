@@ -133,7 +133,7 @@ typedef struct {
 
 typedef struct {
 	ISO_SUSP_HEADER			h;
-	char location			[ISODCL (  4,	11)];
-	char offset			[ISODCL ( 12,	19)];
-	char length			[ISODCL ( 20,	27)];
+	u_char location			[ISODCL (  4,	11)];
+	u_char offset			[ISODCL ( 12,	19)];
+	u_char length			[ISODCL ( 20,	27)];
 } ISO_RRIP_CONT;

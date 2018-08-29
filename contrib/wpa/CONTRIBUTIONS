@@ -29,6 +29,34 @@ using your real name. Pseudonyms or anonymous contributions cannot
 unfortunately be accepted.
 
 
+The preferred method of submitting the contribution to the project is by
+email to the hostap mailing list:
+hostap@lists.infradead.org
+Note that the list may require subscription before accepting message
+without moderation. You can subscribe to the list at this address:
+http://lists.infradead.org/mailman/listinfo/hostap
+
+The message should contain an inlined patch against the current
+development branch (i.e., the master branch of
+git://w1.fi/hostap.git). Please make sure the software you use for
+sending the patch does not corrupt whitespace. If that cannot be fixed
+for some reason, it is better to include an attached version of the
+patch file than just send a whitespace damaged version in the message
+body.
+
+The patches should be separate logical changes rather than doing
+everything in a single patch. In other words, please keep cleanup, new
+features, and bug fixes all in their own patches. Each patch needs a
+commit log that describes the changes (what the changes fix, what
+functionality is added, why the changes are useful, etc.).
+
+Please try to follow the coding style used in the project.
+
+In general, the best way of generating a suitable formatted patch file
+is by committing the changes to a cloned git repository and using git
+format-patch. The patch can then be sent, e.g., with git send-email.
+
+
 History of license and contributions terms
 ------------------------------------------
 
@@ -112,7 +140,7 @@ The license terms used for hostap.git files
 
 Modified BSD license (no advertisement clause):
 
-Copyright (c) 2002-2015, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2016, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without

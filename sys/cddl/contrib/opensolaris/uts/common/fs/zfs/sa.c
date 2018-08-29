@@ -35,6 +35,7 @@
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
 #include <sys/dmu_objset.h>
+#include <sys/dmu_tx.h>
 #include <sys/dbuf.h>
 #include <sys/dnode.h>
 #include <sys/zap.h>
@@ -242,31 +243,23 @@ sa_cache_fini(void)
 static int
 layout_num_compare(const void *arg1, const void *arg2)
 {
-	const sa_lot_t *node1 = arg1;
-	const sa_lot_t *node2 = arg2;
+	const sa_lot_t *node1 = (const sa_lot_t *)arg1;
+	const sa_lot_t *node2 = (const sa_lot_t *)arg2;
 
-	if (node1->lot_num > node2->lot_num)
-		return (1);
-	else if (node1->lot_num < node2->lot_num)
-		return (-1);
-	return (0);
+	return (AVL_CMP(node1->lot_num, node2->lot_num));
 }
 
 static int
 layout_hash_compare(const void *arg1, const void *arg2)
 {
-	const sa_lot_t *node1 = arg1;
-	const sa_lot_t *node2 = arg2;
+	const sa_lot_t *node1 = (const sa_lot_t *)arg1;
+	const sa_lot_t *node2 = (const sa_lot_t *)arg2;
 
-	if (node1->lot_hash > node2->lot_hash)
-		return (1);
-	if (node1->lot_hash < node2->lot_hash)
-		return (-1);
-	if (node1->lot_instance > node2->lot_instance)
-		return (1);
-	if (node1->lot_instance < node2->lot_instance)
-		return (-1);
-	return (0);
+	int cmp = AVL_CMP(node1->lot_hash, node2->lot_hash);
+	if (likely(cmp))
+		return (cmp);
+
+	return (AVL_CMP(node1->lot_instance, node2->lot_instance));
 }
 
 boolean_t
@@ -543,12 +536,11 @@ sa_copy_data(sa_data_locator_t *func, void *datastart, void *target, int buflen)
  */
 static int
 sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
-    dmu_buf_t *db, sa_buf_type_t buftype, int *index, int *total,
-    boolean_t *will_spill)
+    dmu_buf_t *db, sa_buf_type_t buftype, int full_space, int *index,
+    int *total, boolean_t *will_spill)
 {
 	int var_size = 0;
 	int i;
-	int full_space;
 	int hdrsize;
 	int extra_hdrsize;
 
@@ -567,7 +559,6 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 	hdrsize = (SA_BONUSTYPE_FROM_DB(db) == DMU_OT_ZNODE) ? 0 :
 	    sizeof (sa_hdr_phys_t);
 
-	full_space = (buftype == SA_BONUS) ? DN_MAX_BONUSLEN : db->db_size;
 	ASSERT(IS_P2ALIGNED(full_space, 8));
 
 	for (i = 0; i != attr_count; i++) {
@@ -653,6 +644,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	int buf_space;
 	sa_attr_type_t *attrs, *attrs_start;
 	int i, lot_count;
+	int dnodesize;
 	int hdrsize;
 	int spillhdrsize = 0;
 	int used;
@@ -660,20 +652,23 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	sa_lot_t *lot;
 	int len_idx;
 	int spill_used;
+	int bonuslen;
 	boolean_t spilling;
 
 	dmu_buf_will_dirty(hdl->sa_bonus, tx);
 	bonustype = SA_BONUSTYPE_FROM_DB(hdl->sa_bonus);
-
+	dmu_object_dnsize_from_db(hdl->sa_bonus, &dnodesize);
+	bonuslen = DN_BONUS_SIZE(dnodesize);
+	
 	/* first determine bonus header size and sum of all attributes */
 	hdrsize = sa_find_sizes(sa, attr_desc, attr_count, hdl->sa_bonus,
-	    SA_BONUS, &i, &used, &spilling);
+	    SA_BONUS, bonuslen, &i, &used, &spilling);
 
 	if (used > SPA_OLD_MAXBLOCKSIZE)
 		return (SET_ERROR(EFBIG));
 
 	VERIFY(0 == dmu_set_bonus(hdl->sa_bonus, spilling ?
-	    MIN(DN_MAX_BONUSLEN - sizeof (blkptr_t), used + hdrsize) :
+	    MIN(bonuslen - sizeof (blkptr_t), used + hdrsize) :
 	    used + hdrsize, tx));
 
 	ASSERT((bonustype == DMU_OT_ZNODE && spilling == 0) ||
@@ -690,8 +685,8 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		dmu_buf_will_dirty(hdl->sa_spill, tx);
 
 		spillhdrsize = sa_find_sizes(sa, &attr_desc[i],
-		    attr_count - i, hdl->sa_spill, SA_SPILL, &i,
-		    &spill_used, &dummy);
+		    attr_count - i, hdl->sa_spill, SA_SPILL,
+		    hdl->sa_spill->db_size, &i, &spill_used, &dummy);
 
 		if (spill_used > SPA_OLD_MAXBLOCKSIZE)
 			return (SET_ERROR(EFBIG));

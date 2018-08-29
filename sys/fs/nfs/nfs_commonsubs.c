@@ -156,9 +156,9 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Dir Deleg */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Device Info */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Device List */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Commit */
+	{ 0, 1, 0, 1, LK_EXCLUSIVE, 1, 1 },		/* Layout Commit */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Get */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Return */
+	{ 0, 1, 0, 1, LK_EXCLUSIVE, 1, 0 },		/* Layout Return */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Secinfo No name */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Sequence */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Set SSV */
@@ -4692,37 +4692,26 @@ nfsv4_freeslot(struct nfsclsession *sep, int slot)
 }
 
 /*
- * Search for a matching pnfsd mirror device structure, base on the nmp arg.
+ * Search for a matching pnfsd DS, based on the nmp arg.
  * Return one if found, NULL otherwise.
  */
 struct nfsdevice *
 nfsv4_findmirror(struct nfsmount *nmp)
 {
-	struct nfsdevice *ds, *fndds;
-	int fndmirror;
+	struct nfsdevice *ds;
 
 	mtx_assert(NFSDDSMUTEXPTR, MA_OWNED);
 	/*
 	 * Search the DS server list for a match with nmp.
-	 * Remove the DS entry if found and there is a mirror.
 	 */
-	fndds = NULL;
-	fndmirror = 0;
 	if (nfsrv_devidcnt == 0)
-		return (fndds);
+		return (NULL);
 	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 		if (ds->nfsdev_nmp == nmp) {
-			NFSCL_DEBUG(4, "fnd main ds\n");
-			fndds = ds;
-		} else if (ds->nfsdev_nmp != NULL)
-			fndmirror = 1;
-		if (fndds != NULL && fndmirror != 0)
+			NFSCL_DEBUG(4, "nfsv4_findmirror: fnd main ds\n");
 			break;
+		}
 	}
-	if (fndmirror == 0) {
-		NFSCL_DEBUG(4, "no mirror for DS\n");
-		return (NULL);
-	}
-	return (fndds);
+	return (ds);
 }
 

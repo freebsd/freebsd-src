@@ -12,9 +12,10 @@ TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 PLAIN_TESTS_C+=	subr_unit_test
 ATF_TESTS_C+=	sys_getrandom
-ATF_TESTS_C+=	unix_seqpacket_test
 ATF_TESTS_C+=	unix_passfd_test
+ATF_TESTS_C+=	unix_seqpacket_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
+ATF_TESTS_C+=	unix_socketpair_test
 ATF_TESTS_C+=	waitpid_nohang
 ATF_TESTS_C+=	pdeathsig
 

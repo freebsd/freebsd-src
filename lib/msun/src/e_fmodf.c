@@ -41,7 +41,7 @@ __ieee754_fmodf(float x, float y)
     /* purge off exception values */
 	if(hy==0||(hx>=0x7f800000)||		/* y=0,or x not finite */
 	   (hy>0x7f800000))			/* or y is NaN */
-	    return (x*y)/(x*y);
+	    return nan_mix_op(x, y, *)/nan_mix_op(x, y, *);
 	if(hx<hy) return x;			/* |x|<|y| return x */
 	if(hx==hy)
 	    return Zero[(u_int32_t)sx>>31];	/* |x|=|y| return x*0*/

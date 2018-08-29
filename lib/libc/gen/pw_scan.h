@@ -35,4 +35,5 @@
 #define _PWSCAN_MASTER 0x01
 #define _PWSCAN_WARN   0x02
 
+extern void	__pw_initpwd(struct passwd *);
 extern int	__pw_scan(char *, struct passwd *, int);

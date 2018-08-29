@@ -74,17 +74,24 @@ struct ecore_mcp_link_params {
 struct ecore_mcp_link_capabilities {
 	u32 speed_capabilities;
 	bool default_speed_autoneg; /* In Mb/s */
-	u32 default_speed; /* In Mb/s */
+	u32 default_speed; /* In Mb/s */ /* __LINUX__THROW__ */
 	enum ecore_mcp_eee_mode default_eee;
 	u32 eee_lpi_timer;
+	u8 eee_speed_caps;
 };
 
 struct ecore_mcp_link_state {
 	bool link_up;
 
-	u32 line_speed; /* In Mb/s */
 	u32 min_pf_rate; /* In Mb/s */
-	u32 speed; /* In Mb/s */
+
+	/* Actual link speed in Mb/s */
+	u32 line_speed;
+
+	/* PF max speed in MB/s, deduced from line_speed
+	 * according to PF max bandwidth configuration.
+	 */
+	u32 speed;
 	bool full_duplex;
 
 	bool an;
@@ -561,9 +568,11 @@ union ecore_mfw_tlv_data {
 	struct ecore_mfw_tlv_iscsi iscsi;
 };
 
+#ifndef __EXTRACT__LINUX__
 enum ecore_hw_info_change {
 	ECORE_HW_INFO_CHANGE_OVLAN,
 };
+#endif
 
 /**
  * @brief - returns the link params of the hw function
@@ -572,7 +581,8 @@ enum ecore_hw_info_change {
  *
  * @returns pointer to link params
  */
-struct ecore_mcp_link_params *ecore_mcp_get_link_params(struct ecore_hwfn*);
+struct ecore_mcp_link_params *ecore_mcp_get_link_params(struct ecore_hwfn
+							*p_hwfn);
 
 /**
  * @brief - return the link state of the hw function
@@ -581,7 +591,8 @@ struct ecore_mcp_link_params *ecore_mcp_get_link_params(struct ecore_hwfn*);
  *
  * @returns pointer to link state
  */
-struct ecore_mcp_link_state *ecore_mcp_get_link_state(struct ecore_hwfn*);
+struct ecore_mcp_link_state *ecore_mcp_get_link_state(struct ecore_hwfn
+						      *p_hwfn);
 
 /**
  * @brief - return the link capabilities of the hw function
@@ -638,14 +649,62 @@ enum _ecore_status_t ecore_mcp_get_mbi_ver(struct ecore_hwfn *p_hwfn,
  * @brief Get media type value of the port.
  *
  * @param p_dev      - ecore dev pointer
+ * @param p_ptt
  * @param mfw_ver    - media type value
  *
  * @return enum _ecore_status_t -
  *      ECORE_SUCCESS - Operation was successful.
  *      ECORE_BUSY - Operation failed
  */
-enum _ecore_status_t ecore_mcp_get_media_type(struct ecore_dev *p_dev,
-					   u32 *media_type);
+enum _ecore_status_t ecore_mcp_get_media_type(struct ecore_hwfn *p_hwfn,
+					      struct ecore_ptt *p_ptt,
+					      u32 *media_type);
+
+/**
+ * @brief Get transciever data of the port.
+ *
+ * @param p_dev      - ecore dev pointer
+ * @param p_ptt
+ * @param p_transciever_type - media type value
+ *
+ * @return enum _ecore_status_t -
+ *      ECORE_SUCCESS - Operation was successful.
+ *      ECORE_BUSY - Operation failed
+ */
+enum _ecore_status_t ecore_mcp_get_transceiver_data(struct ecore_hwfn *p_hwfn,
+						    struct ecore_ptt *p_ptt,
+						    u32 *p_tranceiver_type);
+
+/**
+ * @brief Get transciever supported speed mask.
+ *
+ * @param p_dev      - ecore dev pointer
+ * @param p_ptt
+ * @param p_speed_mask - Bit mask of all supported speeds.
+ *
+ * @return enum _ecore_status_t -
+ *      ECORE_SUCCESS - Operation was successful.
+ *      ECORE_BUSY - Operation failed
+ */
+
+enum _ecore_status_t ecore_mcp_trans_speed_mask(struct ecore_hwfn *p_hwfn,
+						struct ecore_ptt *p_ptt,
+						u32 *p_speed_mask);
+
+/**
+ * @brief Get board configuration.
+ *
+ * @param p_dev      - ecore dev pointer
+ * @param p_ptt
+ * @param p_board_config - Board config.
+ *
+ * @return enum _ecore_status_t -
+ *      ECORE_SUCCESS - Operation was successful.
+ *      ECORE_BUSY - Operation failed
+ */
+enum _ecore_status_t ecore_mcp_get_board_config(struct ecore_hwfn *p_hwfn,
+						struct ecore_ptt *p_ptt,
+						u32 *p_board_config);
 
 /**
  * @brief - Sends a command to the MCP mailbox.
@@ -653,9 +712,9 @@ enum _ecore_status_t ecore_mcp_get_media_type(struct ecore_dev *p_dev,
  * @param p_hwfn      - hw function
  * @param p_ptt       - PTT required for register access
  * @param cmd         - command to be sent to the MCP
- * @param param       - optional param
- * @param o_mcp_resp  - the MCP response code (exclude sequence)
- * @param o_mcp_param - optional parameter provided by the MCP response
+ * @param param       - Optional param
+ * @param o_mcp_resp  - The MCP response code (exclude sequence)
+ * @param o_mcp_param - Optional parameter provided by the MCP response
  *
  * @return enum _ecore_status_t -
  *      ECORE_SUCCESS - operation was successful
@@ -751,6 +810,17 @@ u32 ecore_get_process_kill_counter(struct ecore_hwfn *p_hwfn,
  */
 enum _ecore_status_t ecore_start_recovery_process(struct ecore_hwfn *p_hwfn,
 						  struct ecore_ptt *p_ptt);
+
+/**
+ * @brief A recovery handler must call this function as its first step.
+ *        It is assumed that the handler is not run from an interrupt context.
+ *
+ *  @param p_dev
+ *  @param p_ptt
+ *
+ * @return enum _ecore_status_t
+ */
+enum _ecore_status_t ecore_recovery_prolog(struct ecore_dev *p_dev);
 
 /**
  * @brief Notify MFW about the change in base device properties
@@ -923,7 +993,7 @@ enum _ecore_status_t ecore_mcp_nvm_resp(struct ecore_dev *p_dev, u8 *p_buf);
  *  @param p_dev
  *  @param addr - nvm offset
  *  @param cmd - nvm command
- *  @param p_buf - nvm write buffer
+ *  @param p_buf - nvm read buffer
  *  @param len - buffer len
  *
  * @return enum _ecore_status_t - ECORE_SUCCESS - operation was successful.
@@ -936,7 +1006,7 @@ enum _ecore_status_t ecore_mcp_phy_read(struct ecore_dev *p_dev, u32 cmd,
  *
  *  @param p_dev
  *  @param addr - nvm offset
- *  @param p_buf - nvm write buffer
+ *  @param p_buf - nvm read buffer
  *  @param len - buffer len
  *
  * @return enum _ecore_status_t - ECORE_SUCCESS - operation was successful.
@@ -1312,4 +1382,23 @@ ecore_mcp_update_fcoe_cvid(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 enum _ecore_status_t
 ecore_mcp_update_fcoe_fabric_name(struct ecore_hwfn *p_hwfn,
 				  struct ecore_ptt *p_ptt, u8 *wwn);
+
+/**
+ * @brief - Return whether management firmware support smart AN
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool ecore_mcp_is_smart_an_supported(struct ecore_hwfn *p_hwfn);
+
+/**
+ * @brief - Return whether management firmware support setting of
+ *          PCI relaxed ordering.
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool ecore_mcp_rlx_odr_supported(struct ecore_hwfn *p_hwfn);
 #endif

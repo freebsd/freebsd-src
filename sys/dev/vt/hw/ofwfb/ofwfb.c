@@ -92,7 +92,7 @@ ofwfb_probe(struct vt_device *vd)
 {
 	phandle_t chosen, node;
 	ihandle_t stdout;
-	char type[64];
+	char buf[64];
 
 	chosen = OF_finddevice("/chosen");
 	if (chosen == -1)
@@ -102,6 +102,9 @@ ofwfb_probe(struct vt_device *vd)
 	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
 	    sizeof(stdout))
 		node = OF_instance_to_package(stdout);
+	if (node == -1)
+		if (OF_getprop(chosen, "stdout-path", buf, sizeof(buf)) > 0)
+			node = OF_finddevice(buf);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
@@ -109,8 +112,8 @@ ofwfb_probe(struct vt_device *vd)
 		 */
 		node = OF_finddevice("screen");
 	}
-	OF_getprop(node, "device_type", type, sizeof(type));
-	if (strcmp(type, "display") != 0)
+	OF_getprop(node, "device_type", buf, sizeof(buf));
+	if (strcmp(buf, "display") != 0)
 		return (CN_DEAD);
 
 	/* Looks OK... */
@@ -351,7 +354,7 @@ static int
 ofwfb_init(struct vt_device *vd)
 {
 	struct ofwfb_softc *sc;
-	char type[64];
+	char buf[64];
 	phandle_t chosen;
 	phandle_t node;
 	uint32_t depth, height, width, stride;
@@ -366,9 +369,18 @@ ofwfb_init(struct vt_device *vd)
 	/* Initialize softc */
 	vd->vd_softc = sc = &ofwfb_conssoftc;
 
+	node = -1;
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &sc->sc_handle, sizeof(ihandle_t));
-	node = OF_instance_to_package(sc->sc_handle);
+	if (OF_getprop(chosen, "stdout", &sc->sc_handle,
+	    sizeof(ihandle_t)) == sizeof(ihandle_t))
+		node = OF_instance_to_package(sc->sc_handle);
+	if (node == -1)
+		/* Try "/chosen/stdout-path" now */
+		if (OF_getprop(chosen, "stdout-path", buf, sizeof(buf)) > 0) {
+			node = OF_finddevice(buf);
+			if (node != -1)
+				sc->sc_handle = OF_open(buf);
+		}
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
@@ -377,8 +389,8 @@ ofwfb_init(struct vt_device *vd)
 		node = OF_finddevice("screen");
 		sc->sc_handle = OF_open("screen");
 	}
-	OF_getprop(node, "device_type", type, sizeof(type));
-	if (strcmp(type, "display") != 0)
+	OF_getprop(node, "device_type", buf, sizeof(buf));
+	if (strcmp(buf, "display") != 0)
 		return (CN_DEAD);
 
 	/* Keep track of the OF node */

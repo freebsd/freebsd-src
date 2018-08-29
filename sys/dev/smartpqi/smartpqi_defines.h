@@ -35,8 +35,7 @@
 #define PQI_STATUS_SUCCESS			0
 
 #define PQISRC_CMD_TIMEOUT_CNT			1200000 /* 500usec * 1200000 = 5 min  */
-
-/* #define SHARE_EVENT_QUEUE_FOR_IO		1 */
+#define PQI_CMND_COMPLETE_TMO			1000 /* in millisecond  */
 
 #define	INVALID_ELEM				0xffff
 #ifndef MIN
@@ -94,10 +93,13 @@ enum INTR_TYPE {
 
 #define LOCKNAME_SIZE		32
 
+#define INTR_TYPE_NONE		0x0
 #define INTR_TYPE_FIXED		0x1
 #define INTR_TYPE_MSI		0x2
 #define INTR_TYPE_MSIX		0x4
 #define SIS_ENABLE_MSIX		0x40
+#define SIS_ENABLE_INTX		0x80
+#define PQISRC_LEGACY_INTX_MASK	0x1
 
 #define DMA_TO_VIRT(mem)	((mem)->virt_addr)
 #define DMA_PHYS_LOW(mem)	(((mem)->dma_addr)  & 0x00000000ffffffff)
@@ -120,7 +122,9 @@ typedef enum device_type
 	DISK_DEVICE,
 	TAPE_DEVICE,
 	ROM_DEVICE = 5,
-	MEDIUM_CHANGER_DEVICE = 8,
+	SES_DEVICE,
+	CONTROLLER_DEVICE,
+	MEDIUM_CHANGER_DEVICE,
 	RAID_DEVICE = 0x0c,
 	ENCLOSURE_DEVICE,
 	ZBC_DEVICE = 0x14
@@ -549,7 +553,7 @@ enum pqisrc_ctrl_mode{
 #define PQI_MAX_LOGICALS	64
 #define PQI_MAX_PHYSICALS	1024
 #define	PQI_MAX_DEVICES		(PQI_MAX_LOGICALS + PQI_MAX_PHYSICALS + 1) /* 1 for controller device entry */
-
+#define PQI_MAX_EXT_TARGETS	32
 
 #define PQI_CTLR_INDEX		(PQI_MAX_DEVICES - 1)
 #define PQI_PD_INDEX(t)		(t + PQI_MAX_LOGICALS)
@@ -700,8 +704,8 @@ typedef uint8_t *passthru_buf_type_t;
 
 #define PQISRC_DRIVER_MAJOR		1
 #define PQISRC_DRIVER_MINOR		0
-#define PQISRC_DRIVER_RELEASE		1
-# define PQISRC_DRIVER_REVISION 239
+#define PQISRC_DRIVER_RELEASE		3
+#define PQISRC_DRIVER_REVISION		239
 
 #define STR(s)                          # s
 #define PQISRC_VERSION(a, b, c, d)      STR(a.b.c-d)
@@ -892,14 +896,16 @@ typedef volatile uint64_t OS_ATOMIC64_T;
 typedef struct mtx OS_LOCK_T;
 typedef struct sema OS_SEMA_LOCK_T;
 
+#define	OS_PQILOCK_T OS_LOCK_T
+
 #define OS_ACQUIRE_SPINLOCK(_lock) mtx_lock_spin(_lock)
 #define OS_RELEASE_SPINLOCK(_lock) mtx_unlock_spin(_lock)
 
-#define PQI_LOCK(_lock) OS_ACQUIRE_SPINLOCK(_lock)
-#define PQI_UNLOCK(_lock) OS_RELEASE_SPINLOCK(_lock)
-
 #define OS_INIT_PQILOCK(_softs,_lock,_lockname) os_init_spinlock(_softs,_lock,_lockname)
 #define OS_UNINIT_PQILOCK(_lock) os_uninit_spinlock(_lock)
+
+#define PQI_LOCK(_lock) OS_ACQUIRE_SPINLOCK(_lock)
+#define PQI_UNLOCK(_lock) OS_RELEASE_SPINLOCK(_lock)
 
 #define OS_GET_CDBP(rcb)	((rcb->cm_ccb->ccb_h.flags & CAM_CDB_POINTER) ? rcb->cm_ccb->csio.cdb_io.cdb_ptr : rcb->cm_ccb->csio.cdb_io.cdb_bytes)
 #define GET_SCSI_BUFFLEN(rcb)	(rcb->cm_ccb->csio.dxfer_len)
@@ -909,6 +915,10 @@ typedef struct sema OS_SEMA_LOCK_T;
 #define OS_GET_IO_REQ_QINDEX(softs,rcb)	OS_GET_IO_QINDEX(softs,rcb)
 #define OS_GET_TMF_RESP_QID		OS_GET_IO_RESP_QID
 #define OS_GET_TMF_REQ_QINDEX		OS_GET_IO_REQ_QINDEX
+
+/* check request type */
+#define is_internal_req(rcb)	(!(rcb)->cm_ccb)
+
 /* sg elements addr, len, flags */
 #define OS_GET_IO_SG_COUNT(rcb)		rcb->nseg
 #define OS_GET_IO_SG_ADDR(rcb,i)	rcb->sgt[i].addr
@@ -926,7 +936,7 @@ typedef struct sema OS_SEMA_LOCK_T;
 
 /* Debug facility */
 
-#define PQISRC_LOG_LEVEL  0x30
+#define PQISRC_LOG_LEVEL  0x60
 
 static int logging_level  = PQISRC_LOG_LEVEL;
 
@@ -935,8 +945,9 @@ static int logging_level  = PQISRC_LOG_LEVEL;
 #define	PQISRC_FLAGS_INFO 		0x00000002
 #define	PQISRC_FLAGS_FUNC		0x00000004
 #define	PQISRC_FLAGS_TRACEIO		0x00000008
-#define	PQISRC_FLAGS_WARN		0x00000010
-#define	PQISRC_FLAGS_ERROR		0x00000020
+#define	PQISRC_FLAGS_DISC		0x00000010
+#define	PQISRC_FLAGS_WARN		0x00000020
+#define	PQISRC_FLAGS_ERROR		0x00000040
 
 
 #define	DBG_INIT(fmt,args...)						\
@@ -964,6 +975,13 @@ static int logging_level  = PQISRC_LOG_LEVEL;
 		do {							\
 			if (logging_level & PQISRC_FLAGS_TRACEIO) { 	\
 				printf("[TRACEIO]:[ %s ] [ %d ]"fmt,__func__,__LINE__,##args);			\
+			}						\
+		}while(0);
+
+#define	DBG_DISC(fmt,args...)						\
+		do {							\
+			if (logging_level & PQISRC_FLAGS_DISC) { 	\
+				printf("[DISC]:[ %s ] [ %d ]"fmt,__func__,__LINE__,##args);			\
 			}						\
 		}while(0);
 

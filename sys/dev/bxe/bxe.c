@@ -4396,6 +4396,8 @@ bxe_nic_unload(struct bxe_softc *sc,
 
     BLOGD(sc, DBG_LOAD, "Ended NIC unload\n");
 
+    bxe_link_report(sc);
+
     return (0);
 }
 
@@ -4441,30 +4443,39 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
 
+    /* Bug 165447: the 'ifconfig' tool skips printing of the "status: ..."
+       line if the IFM_AVALID flag is *NOT* set. So we need to set this
+       flag unconditionally (irrespective of the admininistrative
+       'up/down' state of the interface) to ensure that that line is always
+       displayed.
+    */
+    ifmr->ifm_status = IFM_AVALID;
+
+    /* Setup the default interface info. */
+    ifmr->ifm_active = IFM_ETHER;
+
     /* Report link down if the driver isn't running. */
-    if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+    if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
         ifmr->ifm_active |= IFM_NONE;
+        BLOGD(sc, DBG_PHY, "in %s : nic still not loaded fully\n", __func__);
+        BLOGD(sc, DBG_PHY, "in %s : link_up (1) : %d\n",
+                __func__, sc->link_vars.link_up);
         return;
     }
 
-    /* Setup the default interface info. */
-    ifmr->ifm_status = IFM_AVALID;
-    ifmr->ifm_active = IFM_ETHER;
 
     if (sc->link_vars.link_up) {
         ifmr->ifm_status |= IFM_ACTIVE;
+        ifmr->ifm_active |= IFM_FDX;
     } else {
         ifmr->ifm_active |= IFM_NONE;
+        BLOGD(sc, DBG_PHY, "in %s : setting IFM_NONE\n",
+                __func__);
         return;
     }
 
     ifmr->ifm_active |= sc->media;
-
-    if (sc->link_vars.duplex == DUPLEX_FULL) {
-        ifmr->ifm_active |= IFM_FDX;
-    } else {
-        ifmr->ifm_active |= IFM_HDX;
-    }
+    return;
 }
 
 static void
@@ -7038,7 +7049,7 @@ bxe_link_attn(struct bxe_softc *sc)
 
     /* Make sure that we are synced with the current statistics */
     bxe_stats_handle(sc, STATS_EVENT_STOP);
-	BLOGI(sc, "link_vars phy_flags : %x\n", sc->link_vars.phy_flags);
+    BLOGD(sc, DBG_LOAD, "link_vars phy_flags : %x\n", sc->link_vars.phy_flags);
     elink_link_update(&sc->link_params, &sc->link_vars);
 
     if (sc->link_vars.link_up) {
@@ -9127,11 +9138,16 @@ bxe_interrupt_detach(struct bxe_softc *sc)
             while (taskqueue_cancel_timeout(fp->tq, &fp->tx_timeout_task,
                 NULL))
                 taskqueue_drain_timeout(fp->tq, &fp->tx_timeout_task);
-            taskqueue_free(fp->tq);
-            fp->tq = NULL;
+        }
+
+        for (i = 0; i < sc->num_queues; i++) {
+            fp = &sc->fp[i];
+            if (fp->tq != NULL) {
+                taskqueue_free(fp->tq);
+                fp->tq = NULL;
+            }
         }
     }
-
 
     if (sc->sp_tq) {
         taskqueue_drain(sc->sp_tq, &sc->sp_tq_task);

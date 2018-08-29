@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.15 2017/06/24 15:24:56 christos Exp $
+# $File: cad,v 1.16 2018/05/07 23:26:31 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -153,9 +153,17 @@
 >>8	lelong		0xa
 >>>16	leshort		0x3d3d	3D Studio model
 !:mime	image/x-3ds
-!:extension 3ds
+!:ext 3ds
 
 # MegaCAD 2D/3D drawing (.prt)
 # http://megacad.de/
 # From: Markus Heidelberg <markus.heidelberg@web.de>
 0	string	MegaCad23\0	MegaCAD 2D/3D drawing
+
+# Hoops CAD files
+# https://docs.techsoft3d.com/visualize/3df/latest/build/general/hsf/\
+# HSF_architecture.html
+# Stephane Charette <stephane.charette@gmail.com>
+0	string	;;\020HSF\020V		OpenHSF (Hoops Stream Format)
+>7	regex/9 V[.0-9]{4,5}\020	%s
+!:ext hsf

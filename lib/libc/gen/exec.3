@@ -28,7 +28,7 @@
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2016
+.Dd July 28, 2018
 .Dt EXEC 3
 .Os
 .Sh NAME
@@ -46,16 +46,11 @@
 .In unistd.h
 .Vt extern char **environ ;
 .Ft int
-.Fn execl "const char *path" "const char *arg" ... /* "(char *)0" */
+.Fn execl "const char *path" "const char *arg" ... NULL
 .Ft int
-.Fn execlp "const char *file" "const char *arg" ... /* "(char *)0" */
+.Fn execlp "const char *file" "const char *arg" ... NULL
 .Ft int
-.Fo execle
-.Fa "const char *path" "const char *arg" ...
-.Fa /*
-.Bk -words
-.Fa "(char *)0" "char *const envp[]" */
-.Ek
+.Fn execle "const char *path" "const char *arg" ... NULL "char *const envp[]"
 .Fc
 .Ft int
 .Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
@@ -319,3 +314,55 @@ The
 .Fn execvP
 function first appeared in
 .Fx 5.2 .
+.Sh BUGS
+The type of the
+.Fa argv
+and
+.Fa envp
+parameters to
+.Fn execle ,
+.Fn exect ,
+.Fn execv ,
+.Fn execvp ,
+and
+.Fn execvP
+is a historical accident and no sane implementation should modify the provided
+strings.
+The bogus parameter types trigger false positives from
+.Li const
+correctness analyzers.
+On
+.Fx ,
+the
+.Fn __DECONST
+macro may be used to work around this limitation.
+.Pp
+Due to a fluke of the C standard, on platforms other than
+.Fx
+the definition of
+.Dv NULL
+may be the untyped number zero, rather than a
+.Ad (void *)0
+expression.
+To distinguish the concepts, they are referred to as a
+.Dq null pointer constant
+and a
+.Dq null pointer ,
+respectively.
+On exotic computer architectures that
+.Fx
+does not support, the null pointer constant and null pointer may have a
+different representation.
+In general, where this document and others reference a
+.Dv NULL
+value, they actually imply a null pointer.
+E.g., for portability to non-FreeBSD operating systems on exotic computer
+architectures, one may use
+.Li (char *)NULL
+in place of
+.Dv NULL
+when invoking
+.Fn execl ,
+.Fn execle ,
+and
+.Fn execlp .

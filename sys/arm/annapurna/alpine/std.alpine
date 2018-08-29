@@ -10,7 +10,4 @@ options 	KERNVIRTADDR=0xa0200000
 makeoptions	KERNBASE=0xa0000000
 options 	KERNBASE=0xa0000000
 
-options 	IPI_IRQ_START=0
-options 	IPI_IRQ_END=15
-
 files		"../annapurna/alpine/files.alpine"

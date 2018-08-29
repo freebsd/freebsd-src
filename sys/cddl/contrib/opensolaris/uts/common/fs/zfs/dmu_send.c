@@ -76,6 +76,11 @@ TUNABLE_INT("vfs.zfs.send_set_freerecords_bit", &zfs_send_set_freerecords_bit);
 static char *dmu_recv_tag = "dmu_recv_tag";
 const char *recv_clone_name = "%recv";
 
+/*
+ * Use this to override the recordsize calculation for fast zfs send estimates.
+ */
+uint64_t zfs_override_estimate_recordsize = 0;
+
 #define	BP_SPAN(datablkszsec, indblkshift, level) \
 	(((uint64_t)datablkszsec) << (SPA_MINBLOCKSHIFT + \
 	(level) * (indblkshift - SPA_BLKPTRSHIFT)))
@@ -489,6 +494,7 @@ dump_dnode(dmu_sendarg_t *dsp, uint64_t object, dnode_phys_t *dnp)
 	drro->drr_bonustype = dnp->dn_bonustype;
 	drro->drr_blksz = dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	drro->drr_bonuslen = dnp->dn_bonuslen;
+	drro->drr_dn_slots = dnp->dn_extra_slots + 1;
 	drro->drr_checksumtype = dnp->dn_checksum;
 	drro->drr_compress = dnp->dn_compress;
 	drro->drr_toguid = dsp->dsa_toguid;
@@ -641,7 +647,7 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 	} else if (zb->zb_level > 0 || type == DMU_OT_OBJSET) {
 		return (0);
 	} else if (type == DMU_OT_DNODE) {
-		int blksz = BP_GET_LSIZE(bp);
+		int epb = BP_GET_LSIZE(bp) >> DNODE_SHIFT;
 		arc_flags_t aflags = ARC_FLAG_WAIT;
 		arc_buf_t *abuf;
 
@@ -653,8 +659,8 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 			return (SET_ERROR(EIO));
 
 		dnode_phys_t *blk = abuf->b_data;
-		uint64_t dnobj = zb->zb_blkid * (blksz >> DNODE_SHIFT);
-		for (int i = 0; i < blksz >> DNODE_SHIFT; i++) {
+		uint64_t dnobj = zb->zb_blkid * epb;
+		for (int i = 0; i < epb; i += blk[i].dn_extra_slots + 1) {
 			err = dump_dnode(dsa, dnobj + i, blk + i);
 			if (err != 0)
 				break;
@@ -826,6 +832,8 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *to_ds,
 
 	if (large_block_ok && to_ds->ds_feature_inuse[SPA_FEATURE_LARGE_BLOCKS])
 		featureflags |= DMU_BACKUP_FEATURE_LARGE_BLOCKS;
+	if (to_ds->ds_feature_inuse[SPA_FEATURE_LARGE_DNODE])
+		featureflags |= DMU_BACKUP_FEATURE_LARGE_DNODE;
 	if (embedok &&
 	    spa_feature_is_active(dp->dp_spa, SPA_FEATURE_EMBEDDED_DATA)) {
 		featureflags |= DMU_BACKUP_FEATURE_EMBED_DATA;
@@ -1131,7 +1139,7 @@ static int
 dmu_adjust_send_estimate_for_indirects(dsl_dataset_t *ds, uint64_t uncompressed,
     uint64_t compressed, boolean_t stream_compressed, uint64_t *sizep)
 {
-	int err;
+	int err = 0;
 	uint64_t size;
 	/*
 	 * Assume that space (both on-disk and in-stream) is dominated by
@@ -1144,7 +1152,9 @@ dmu_adjust_send_estimate_for_indirects(dsl_dataset_t *ds, uint64_t uncompressed,
 	VERIFY0(dmu_objset_from_ds(ds, &os));
 
 	/* Assume all (uncompressed) blocks are recordsize. */
-	if (os->os_phys->os_type == DMU_OST_ZVOL) {
+	if (zfs_override_estimate_recordsize != 0) {
+		recordsize = zfs_override_estimate_recordsize;
+	} else if (os->os_phys->os_type == DMU_OST_ZVOL) {
 		err = dsl_prop_get_int_ds(ds,
 		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), &recordsize);
 	} else {
@@ -1431,6 +1441,15 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 	 */
 	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS) &&
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS))
+		return (SET_ERROR(ENOTSUP));
+
+	/*
+	 * The receiving code doesn't know how to translate large dnodes
+	 * to smaller ones, so the pool must have the LARGE_DNODE
+	 * feature enabled if the stream has LARGE_DNODE.
+	 */
+	if ((featureflags & DMU_BACKUP_FEATURE_LARGE_DNODE) &&
+	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_DNODE))
 		return (SET_ERROR(ENOTSUP));
 
 	error = dsl_dataset_hold(dp, tofs, FTAG, &ds);
@@ -1788,6 +1807,7 @@ dmu_recv_begin(char *tofs, char *tosnap, dmu_replay_record_t *drr_begin,
 	drc->drc_force = force;
 	drc->drc_resumable = resumable;
 	drc->drc_cred = CRED();
+	drc->drc_clone = (origin != NULL);
 
 	if (drc->drc_drrb->drr_magic == BSWAP_64(DMU_BACKUP_MAGIC)) {
 		drc->drc_byteswap = B_TRUE;
@@ -1848,7 +1868,9 @@ struct receive_writer_arg {
 	/* A map from guid to dataset to help handle dedup'd streams. */
 	avl_tree_t *guid_to_ds_map;
 	boolean_t resumable;
-	uint64_t last_object, last_offset;
+	uint64_t last_object;
+	uint64_t last_offset;
+	uint64_t max_object; /* highest object ID referenced in stream */
 	uint64_t bytes_read; /* bytes read when current record created */
 };
 
@@ -1896,14 +1918,10 @@ typedef struct guid_map_entry {
 static int
 guid_compare(const void *arg1, const void *arg2)
 {
-	const guid_map_entry_t *gmep1 = arg1;
-	const guid_map_entry_t *gmep2 = arg2;
+	const guid_map_entry_t *gmep1 = (const guid_map_entry_t *)arg1;
+	const guid_map_entry_t *gmep2 = (const guid_map_entry_t *)arg2;
 
-	if (gmep1->guid < gmep2->guid)
-		return (-1);
-	else if (gmep1->guid > gmep2->guid)
-		return (1);
-	return (0);
+	return (AVL_CMP(gmep1->guid, gmep2->guid));
 }
 
 static void
@@ -1984,7 +2002,7 @@ receive_read(struct receive_arg *ra, int len, void *buf)
 	return (0);
 }
 
-static void
+noinline static void
 byteswap_record(dmu_replay_record_t *drr)
 {
 #define	DO64(X) (drr->drr_u.X = BSWAP_64(drr->drr_u.X))
@@ -2077,7 +2095,8 @@ deduce_nblkptr(dmu_object_type_t bonus_type, uint64_t bonus_size)
 		return (1);
 	} else {
 		return (1 +
-		    ((DN_MAX_BONUSLEN - bonus_size) >> SPA_BLKPTRSHIFT));
+		    ((DN_OLD_MAX_BONUSLEN -
+		    MIN(DN_OLD_MAX_BONUSLEN, bonus_size)) >> SPA_BLKPTRSHIFT));
 	}
 }
 
@@ -2118,7 +2137,7 @@ save_resume_state(struct receive_writer_arg *rwa,
 	rwa->os->os_dsl_dataset->ds_resume_bytes[txgoff] = rwa->bytes_read;
 }
 
-static int
+noinline static int
 receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
     void *data)
 {
@@ -2135,7 +2154,8 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	    P2PHASE(drro->drr_blksz, SPA_MINBLOCKSIZE) ||
 	    drro->drr_blksz < SPA_MINBLOCKSIZE ||
 	    drro->drr_blksz > spa_maxblocksize(dmu_objset_spa(rwa->os)) ||
-	    drro->drr_bonuslen > DN_MAX_BONUSLEN) {
+	    drro->drr_bonuslen >
+	    DN_BONUS_SIZE(spa_maxdnodesize(dmu_objset_spa(rwa->os)))) {
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -2144,6 +2164,9 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	if (err != 0 && err != ENOENT)
 		return (SET_ERROR(EINVAL));
 	object = err == 0 ? drro->drr_object : DMU_NEW_OBJECT;
+
+	if (drro->drr_object > rwa->max_object)
+		rwa->max_object = drro->drr_object;
 
 	/*
 	 * If we are losing blkptrs or changing the block size this must
@@ -2175,9 +2198,10 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 
 	if (object == DMU_NEW_OBJECT) {
 		/* currently free, want to be allocated */
-		err = dmu_object_claim(rwa->os, drro->drr_object,
+		err = dmu_object_claim_dnsize(rwa->os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
-		    drro->drr_bonustype, drro->drr_bonuslen, tx);
+		    drro->drr_bonustype, drro->drr_bonuslen,
+		    drro->drr_dn_slots << DNODE_SHIFT, tx);
 	} else if (drro->drr_type != doi.doi_type ||
 	    drro->drr_blksz != doi.doi_data_block_size ||
 	    drro->drr_bonustype != doi.doi_bonus_type ||
@@ -2219,7 +2243,7 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 }
 
 /* ARGSUSED */
-static int
+noinline static int
 receive_freeobjects(struct receive_writer_arg *rwa,
     struct drr_freeobjects *drrfo)
 {
@@ -2229,24 +2253,33 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 	if (drrfo->drr_firstobj + drrfo->drr_numobjs < drrfo->drr_firstobj)
 		return (SET_ERROR(EINVAL));
 
-	for (obj = drrfo->drr_firstobj;
+	for (obj = drrfo->drr_firstobj == 0 ? 1 : drrfo->drr_firstobj;
 	    obj < drrfo->drr_firstobj + drrfo->drr_numobjs && next_err == 0;
 	    next_err = dmu_object_next(rwa->os, &obj, FALSE, 0)) {
+		dmu_object_info_t doi;
 		int err;
 
-		if (dmu_object_info(rwa->os, obj, NULL) != 0)
-			continue;
+		err = dmu_object_info(rwa->os, obj, &doi);
+		if (err == ENOENT) {
+			obj++;
+ 			continue;
+		} else if (err != 0) {
+			return (err);
+		}
 
 		err = dmu_free_long_object(rwa->os, obj);
 		if (err != 0)
 			return (err);
+
+		if (obj > rwa->max_object)
+			rwa->max_object = obj;
 	}
 	if (next_err != ESRCH)
 		return (next_err);
 	return (0);
 }
 
-static int
+noinline static int
 receive_write(struct receive_writer_arg *rwa, struct drr_write *drrw,
     arc_buf_t *abuf)
 {
@@ -2269,11 +2302,13 @@ receive_write(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	rwa->last_object = drrw->drr_object;
 	rwa->last_offset = drrw->drr_offset;
 
+	if (rwa->last_object > rwa->max_object)
+		rwa->max_object = rwa->last_object;
+
 	if (dmu_object_info(rwa->os, drrw->drr_object, NULL) != 0)
 		return (SET_ERROR(EINVAL));
 
 	tx = dmu_tx_create(rwa->os);
-
 	dmu_tx_hold_write(tx, drrw->drr_object,
 	    drrw->drr_offset, drrw->drr_logical_size);
 	err = dmu_tx_assign(tx, TXG_WAIT);
@@ -2345,6 +2380,9 @@ receive_write_byref(struct receive_writer_arg *rwa,
 		ref_os = rwa->os;
 	}
 
+	if (drrwbr->drr_object > rwa->max_object)
+		rwa->max_object = drrwbr->drr_object;
+
 	err = dmu_buf_hold(ref_os, drrwbr->drr_refobject,
 	    drrwbr->drr_refoffset, FTAG, &dbp, DMU_READ_PREFETCH);
 	if (err != 0)
@@ -2387,6 +2425,9 @@ receive_write_embedded(struct receive_writer_arg *rwa,
 	if (drrwe->drr_compression >= ZIO_COMPRESS_FUNCTIONS)
 		return (EINVAL);
 
+	if (drrwe->drr_object > rwa->max_object)
+		rwa->max_object = drrwe->drr_object;
+
 	tx = dmu_tx_create(rwa->os);
 
 	dmu_tx_hold_write(tx, drrwe->drr_object,
@@ -2423,6 +2464,9 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 	if (dmu_object_info(rwa->os, drrs->drr_object, NULL) != 0)
 		return (SET_ERROR(EINVAL));
 
+	if (drrs->drr_object > rwa->max_object)
+		rwa->max_object = drrs->drr_object;
+
 	VERIFY0(dmu_bonus_hold(rwa->os, drrs->drr_object, FTAG, &db));
 	if ((err = dmu_spill_hold_by_bonus(db, FTAG, &db_spill)) != 0) {
 		dmu_buf_rele(db, FTAG);
@@ -2455,7 +2499,7 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 }
 
 /* ARGSUSED */
-static int
+noinline static int
 receive_free(struct receive_writer_arg *rwa, struct drr_free *drrf)
 {
 	int err;
@@ -2466,6 +2510,9 @@ receive_free(struct receive_writer_arg *rwa, struct drr_free *drrf)
 
 	if (dmu_object_info(rwa->os, drrf->drr_object, NULL) != 0)
 		return (SET_ERROR(EINVAL));
+
+	if (drrf->drr_object > rwa->max_object)
+		rwa->max_object = drrf->drr_object;
 
 	err = dmu_free_long_range(rwa->os, drrf->drr_object,
 	    drrf->drr_offset, drrf->drr_length);
@@ -3085,6 +3132,41 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 		cv_wait(&rwa.cv, &rwa.mutex);
 	}
 	mutex_exit(&rwa.mutex);
+
+	/*
+	 * If we are receiving a full stream as a clone, all object IDs which
+	 * are greater than the maximum ID referenced in the stream are
+	 * by definition unused and must be freed. Note that it's possible that
+	 * we've resumed this send and the first record we received was the END
+	 * record. In that case, max_object would be 0, but we shouldn't start
+	 * freeing all objects from there; instead we should start from the
+	 * resumeobj.
+	 */
+	if (drc->drc_clone && drc->drc_drrb->drr_fromguid == 0) {
+		uint64_t obj;
+		if (nvlist_lookup_uint64(begin_nvl, "resume_object", &obj) != 0)
+			obj = 0;
+		if (rwa.max_object > obj)
+			obj = rwa.max_object;
+		obj++;
+		int free_err = 0;
+		int next_err = 0;
+
+		while (next_err == 0) {
+			free_err = dmu_free_long_object(rwa.os, obj);
+			if (free_err != 0 && free_err != ENOENT)
+				break;
+
+			next_err = dmu_object_next(rwa.os, &obj, FALSE, 0);
+		}
+
+		if (err == 0) {
+			if (free_err != 0 && free_err != ENOENT)
+				err = free_err;
+			else if (next_err != ESRCH)
+				err = next_err;
+		}
+	}
 
 	cv_destroy(&rwa.cv);
 	mutex_destroy(&rwa.mutex);

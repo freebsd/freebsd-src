@@ -47,6 +47,12 @@ static void edit_read_char(int sock, void *eloop_ctx, void *sock_ctx)
 		return;
 	}
 
+	if (c == '\b') {
+		if (cmdbuf_pos > 0)
+			cmdbuf_pos--;
+		return;
+	}
+
 	if (c >= 32 && c <= 255) {
 		if (cmdbuf_pos < (int) sizeof(cmdbuf) - 1) {
 			cmdbuf[cmdbuf_pos++] = c;

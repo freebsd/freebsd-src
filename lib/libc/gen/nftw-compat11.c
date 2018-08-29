@@ -17,8 +17,8 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  *
- * from: $OpenBSD: nftw.c,v 1.7 2006/03/31 19:41:44 millert Exp $
- * from: $FreeBSD$
+ * From: $OpenBSD: nftw.c,v 1.7 2006/03/31 19:41:44 millert Exp $
+ * From: FreeBSD: head/lib/libc/gen/nftw.c 239160 2012-08-09 22:05:40Z jilles
  */
 
 #include <sys/cdefs.h>

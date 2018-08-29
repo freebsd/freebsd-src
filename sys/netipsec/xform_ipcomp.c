@@ -178,11 +178,10 @@ ipcomp_init(struct secasvar *sav, struct xformsw *xsp)
 static int
 ipcomp_zeroize(struct secasvar *sav)
 {
-	int err;
 
-	err = crypto_freesession(sav->tdb_cryptoid);
-	sav->tdb_cryptoid = 0;
-	return err;
+	crypto_freesession(sav->tdb_cryptoid);
+	sav->tdb_cryptoid = NULL;
+	return 0;
 }
 
 /*
@@ -258,7 +257,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->vnet = curvnet;
 
 	SECASVAR_LOCK(sav);
-	crp->crp_sid = xd->cryptoid = sav->tdb_cryptoid;
+	crp->crp_session = xd->cryptoid = sav->tdb_cryptoid;
 	SECASVAR_UNLOCK(sav);
 
 	return crypto_dispatch(crp);
@@ -280,7 +279,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t addr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hlen = IPCOMP_HLENGTH, error, clen;
 	int skip, protoff;
 	uint8_t nproto;
@@ -301,9 +300,9 @@ ipcomp_input_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
@@ -508,7 +507,7 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_opaque = (caddr_t) xd;
 
 	SECASVAR_LOCK(sav);
-	crp->crp_sid = xd->cryptoid = sav->tdb_cryptoid;
+	crp->crp_session = xd->cryptoid = sav->tdb_cryptoid;
 	SECASVAR_UNLOCK(sav);
 
 	return crypto_dispatch(crp);
@@ -531,7 +530,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	u_int idx;
 	int error, skip, protoff;
 
@@ -549,9 +548,9 @@ ipcomp_output_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}

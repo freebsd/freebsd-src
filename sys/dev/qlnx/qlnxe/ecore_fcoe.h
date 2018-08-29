@@ -42,12 +42,24 @@ struct ecore_fcoe_info {
 	osal_list_t	free_list;
 };
 
+#ifdef CONFIG_ECORE_FCOE
 enum _ecore_status_t ecore_fcoe_alloc(struct ecore_hwfn *p_hwfn);
 
 void ecore_fcoe_setup(struct ecore_hwfn *p_hwfn);
 
 void ecore_fcoe_free(struct ecore_hwfn *p_hwfn);
+#else
+static inline enum _ecore_status_t ecore_fcoe_alloc(struct ecore_hwfn OSAL_UNUSED *p_hwfn)
+{
+	return ECORE_INVAL;
+}
 
+static inline void ecore_fcoe_setup(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
+
+static inline void ecore_fcoe_free(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
+#endif
+
+#ifndef __EXTRACT__LINUX__THROW__
 enum _ecore_status_t
 ecore_sp_fcoe_conn_offload(struct ecore_hwfn *p_hwfn,
 			   struct ecore_fcoe_conn *p_conn,
@@ -59,6 +71,7 @@ ecore_sp_fcoe_conn_destroy(struct ecore_hwfn *p_hwfn,
 			   struct ecore_fcoe_conn *p_conn,
 			   enum spq_mode comp_mode,
 			   struct ecore_spq_comp_cb *p_comp_addr);
+#endif
 
 #endif  /*__ECORE_FCOE_H__*/
 

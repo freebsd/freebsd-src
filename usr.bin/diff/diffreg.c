@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -195,7 +196,8 @@ static void	 unsort(struct line *, int, int *);
 static void	 change(char *, FILE *, char *, FILE *, int, int, int, int, int *);
 static void	 sort(struct line *, int);
 static void	 print_header(const char *, const char *);
-static int	 ignoreline(char *);
+static bool	 ignoreline_pattern(char *);
+static bool	 ignoreline(char *, bool);
 static int	 asciifile(FILE *);
 static int	 fetch(long *, int, int, FILE *, int, int, int);
 static int	 newcand(int, int, int);
@@ -720,19 +722,22 @@ check(FILE *f1, FILE *f2, int flags)
 				}
 				ctold++;
 				ctnew++;
-				if (flags & D_STRIPCR) {
+				if (flags & D_STRIPCR && (c == '\r' || d == '\r')) {
 					if (c == '\r') {
 						if ((c = getc(f1)) == '\n') {
-							ctnew++;
-							break;
+							ctold++;
+						} else {
+							ungetc(c, f1);
 						}
 					}
 					if (d == '\r') {
 						if ((d = getc(f2)) == '\n') {
-							ctold++;
-							break;
+							ctnew++;
+						} else {
+							ungetc(d, f2);
 						}
 					}
+					break;
 				}
 				if ((flags & D_FOLDBLANKS) && isspace(c) &&
 				    isspace(d)) {
@@ -942,14 +947,28 @@ preadline(int fd, size_t rlen, off_t off)
 	return (line);
 }
 
-static int
-ignoreline(char *line)
+static bool
+ignoreline_pattern(char *line)
 {
 	int ret;
 
 	ret = regexec(&ignore_re, line, 0, NULL, 0);
 	free(line);
 	return (ret == 0);	/* if it matched, it should be ignored. */
+}
+
+static bool
+ignoreline(char *line, bool skip_blanks)
+{
+
+	if (ignore_pats != NULL && skip_blanks)
+		return (ignoreline_pattern(line) || *line == '\0');
+	if (ignore_pats != NULL)
+		return (ignoreline_pattern(line));
+	if (skip_blanks)
+		return (*line == '\0');
+	/* No ignore criteria specified */
+	return (false);
 }
 
 /*
@@ -967,12 +986,14 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
 	long curpos;
 	int i, nc, f;
 	const char *walk;
+	bool skip_blanks;
 
+	skip_blanks = (*pflags & D_SKIPBLANKLINES);
 restart:
 	if ((diff_format != D_IFDEF || diff_format == D_GFORMAT) &&
 	    a > b && c > d)
 		return;
-	if (ignore_pats != NULL) {
+	if (ignore_pats != NULL || skip_blanks) {
 		char *line;
 		/*
 		 * All lines in the change, insert, or delete must
@@ -983,7 +1004,7 @@ restart:
 			for (i = a; i <= b; i++) {
 				line = preadline(fileno(f1),
 				    ixold[i] - ixold[i - 1], ixold[i - 1]);
-				if (!ignoreline(line))
+				if (!ignoreline(line, skip_blanks))
 					goto proceed;
 			}
 		}
@@ -991,7 +1012,7 @@ restart:
 			for (i = c; i <= d; i++) {
 				line = preadline(fileno(f2),
 				    ixnew[i] - ixnew[i - 1], ixnew[i - 1]);
-				if (!ignoreline(line))
+				if (!ignoreline(line, skip_blanks))
 					goto proceed;
 			}
 		}

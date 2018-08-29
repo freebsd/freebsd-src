@@ -126,7 +126,7 @@ struct pcpu_state {
 	int		idle;		/* This CPU is in idle mode. */
 };
 
-static DPCPU_DEFINE(struct pcpu_state, timerstate);
+DPCPU_DEFINE_STATIC(struct pcpu_state, timerstate);
 DPCPU_DEFINE(sbintime_t, hardclocktime);
 
 /*

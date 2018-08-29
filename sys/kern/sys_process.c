@@ -1170,7 +1170,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * queue cannot accommodate any new signals.
 		 */
 		if (data == SIGKILL)
-			p->p_flag |= P_WKILLED;
+			proc_wkilled(p);
 
 		/*
 		 * Unsuspend all threads.  To leave a thread

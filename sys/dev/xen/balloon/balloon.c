@@ -382,8 +382,7 @@ xenballoon_attach(device_t dev)
 
 	mtx_init(&balloon_mutex, "balloon_mutex", NULL, MTX_DEF);
 
-	bs.current_pages = xen_pv_domain() ?
-	    HYPERVISOR_start_info->nr_pages : realmem;
+	bs.current_pages = realmem;
 	bs.target_pages  = bs.current_pages;
 	bs.balloon_low   = 0;
 	bs.balloon_high  = 0;

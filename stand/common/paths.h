@@ -33,7 +33,6 @@
 #define PATH_CONFIG	"/boot/config"
 #define PATH_LOADER	"/boot/loader"
 #define PATH_LOADER_EFI	"/boot/loader.efi"
-#define PATH_LOADER_ZFS	"/boot/zfsloader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #endif /* _PATHS_H_ */

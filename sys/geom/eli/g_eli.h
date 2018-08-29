@@ -179,7 +179,7 @@ struct g_eli_worker {
 	struct g_eli_softc	*w_softc;
 	struct proc		*w_proc;
 	u_int			 w_number;
-	uint64_t		 w_sid;
+	crypto_session_t	 w_sid;
 	boolean_t		 w_active;
 	LIST_ENTRY(g_eli_worker) w_next;
 };

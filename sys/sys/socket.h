@@ -171,6 +171,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
 #define	SO_TS_CLOCK	0x1017		/* clock type used for SO_TIMESTAMP */
 #define	SO_MAX_PACING_RATE	0x1018	/* socket's max TX pacing rate (Linux name) */
+#define	SO_DOMAIN	0x1019		/* get socket domain */
 #endif
 
 #if __BSD_VISIBLE

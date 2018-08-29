@@ -47,7 +47,7 @@
 #define IG4_RBUFMASK	(IG4_RBUFSIZE - 1)
 
 enum ig4_op { IG4_IDLE, IG4_READ, IG4_WRITE };
-enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE };
+enum ig4_vers { IG4_HASWELL, IG4_ATOM, IG4_SKYLAKE, IG4_APL };
 
 struct ig4iic_softc {
 	device_t	dev;
@@ -72,6 +72,7 @@ struct ig4iic_softc {
 	int		slave_valid : 1;
 	int		read_started : 1;
 	int		write_started : 1;
+	int		access_intr_mask : 1;
 
 	/*
 	 * Locking semantics:

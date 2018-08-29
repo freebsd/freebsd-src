@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#endif
+
 static int	ofw_cpulist_probe(device_t);
 static int	ofw_cpulist_attach(device_t);
 static const struct ofw_bus_devinfo *ofw_cpulist_get_devinfo(device_t dev,
@@ -203,6 +207,10 @@ ofw_cpu_attach(device_t dev)
 	phandle_t node;
 	pcell_t cell;
 	int rv;
+#ifdef EXT_RESOURCES
+	clk_t cpuclk;
+	uint64_t freq;
+#endif
 
 	sc = device_get_softc(dev);
 	psc = device_get_softc(device_get_parent(dev));
@@ -269,12 +277,28 @@ ofw_cpu_attach(device_t dev)
 	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
-		if (bootverbose)
-			device_printf(dev,
-			    "missing 'clock-frequency' property\n");
+#ifdef EXT_RESOURCES
+		rv = clk_get_by_ofw_index(dev, 0, 0, &cpuclk);
+		if (rv == 0) {
+			rv = clk_get_freq(cpuclk, &freq);
+			if (rv != 0 && bootverbose)
+				device_printf(dev,
+				    "Cannot get freq of property clocks\n");
+			else
+				sc->sc_nominal_mhz = freq / 1000000;
+		} else
+#endif
+		{
+			if (bootverbose)
+				device_printf(dev,
+				    "missing 'clock-frequency' property\n");
+		}
 	} else
 		sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
 
+	if (sc->sc_nominal_mhz != 0 && bootverbose)
+		device_printf(dev, "Nominal frequency %dMhz\n",
+		    sc->sc_nominal_mhz);
 	bus_generic_probe(dev);
 	return (bus_generic_attach(dev));
 }

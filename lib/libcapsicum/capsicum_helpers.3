@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2018
+.Dd July 18, 2018
 .Dt CAPSICUM_HELPERS 3
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nm caph_limit_stdio ,
 .Nm caph_cache_tzdata ,
 .Nm caph_cache_catpages
-.Nd "set of the functions , part of the libcapsicum"
+.Nd "set of the capsicum helpers, part of the libcapsicum"
 .Sh LIBRARY
 .Lb libcapsicum
 .Sh SYNOPSIS
@@ -45,7 +45,7 @@
 .Ft int
 .Fn caph_enter_casper "void"
 .Ft int
-.Fn caph_limit_stream "int fd, int flags"
+.Fn caph_limit_stream "int fd" "int flags"
 .Ft int
 .Fn caph_limit_stdin "void"
 .Ft int

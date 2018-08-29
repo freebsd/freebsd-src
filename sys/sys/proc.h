@@ -74,19 +74,6 @@
 #include <machine/cpu.h>
 #endif
 
-
-/*
- * A section object may be passed to every begin-end pair to allow for
- * forward progress guarantees with-in prolonged active sections.
- *
- * We can't include ck_epoch.h so we define our own variant here and
- * then CTASSERT that it's the same size in subr_epoch.c
- */
-struct epoch_section {
-	unsigned int bucket;
-};
-typedef struct epoch_section epoch_section_t;
-
 /*
  * One structure allocated per session.
  *
@@ -373,8 +360,6 @@ struct thread {
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
-	TAILQ_ENTRY(thread) td_epochq;	/* (t) Epoch queue. */
-	epoch_section_t td_epoch_section; /* (t) epoch section object */
 	int		td_pmcpend;
 };
 
@@ -1065,6 +1050,7 @@ struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 void	proc_set_traced(struct proc *p, bool stop);
+void	proc_wkilled(struct proc *p);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);

@@ -55,6 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/sbi.h>
 
+#if __riscv_xlen == 64
+#define	TP_OFFSET	16	/* sizeof(struct tcb) */
+#endif
+
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -65,9 +69,22 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
+	register_t val;
 
 	if ((flags & RFPROC) == 0)
 		return;
+
+	if (td1 == curthread) {
+		/*
+		 * Save the tp. These normally happen in cpu_switch,
+		 * but if userland changes this then forks this may
+		 * not have happened.
+		 */
+		__asm __volatile("mv %0, tp" : "=&r"(val));
+		td1->td_pcb->pcb_tp = val;
+
+		/* RISCVTODO: save the FPU state here */
+	}
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
 	    td2->td_kstack_pages * PAGE_SIZE) - 1;
@@ -198,7 +215,9 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		return (EINVAL);
 
 	pcb = td->td_pcb;
-	pcb->pcb_tp = (register_t)tls_base;
+	pcb->pcb_tp = (register_t)tls_base + TP_OFFSET;
+	if (td == curthread)
+		__asm __volatile("mv tp, %0" :: "r"(pcb->pcb_tp));
 
 	return (0);
 }

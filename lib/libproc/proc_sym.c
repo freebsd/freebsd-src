@@ -520,7 +520,8 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	}
 
 	file = mapping->file;
-	off = file->ehdr.e_type == ET_DYN ? mapping->map.pr_vaddr : 0;
+	off = file->ehdr.e_type == ET_DYN ?
+	    mapping->map.pr_vaddr - mapping->map.pr_offset : 0;
 	if (addr < off)
 		return (ENOENT);
 	addr -= off;
@@ -623,7 +624,8 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	}
 
 	file = mapping->file;
-	off = file->ehdr.e_type == ET_DYN ? mapping->map.pr_vaddr : 0;
+	off = file->ehdr.e_type == ET_DYN ?
+	    mapping->map.pr_vaddr - mapping->map.pr_offset : 0;
 
 	error = lookup_symbol_by_name(file->elf, &file->dynsymtab, symbol,
 	    symcopy, si);

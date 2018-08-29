@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/tftp.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +81,8 @@ convert_from_net(char *buffer, size_t count)
 		if (buffer[i] == '\n') {
 			if (n == 0) {
 				if (ftell(file) != 0) {
-					fseek(file, -1, SEEK_END);
+					int r = fseek(file, -1, SEEK_END);
+					assert(r == 0);
 					convbuffer[n++] = '\n';
 				} else {
 					/* This shouldn't happen */
@@ -108,10 +110,10 @@ convert_to_net(char *buffer, size_t count, int init)
 {
 	size_t i;
 	static size_t n = 0, in = 0;
-	static int newline = 0;
+	static int newline = -1;
 
 	if (init) {
-		newline = 0;
+		newline = -1;
 		n = 0;
 		in = 0;
 		return 0 ;
@@ -122,9 +124,9 @@ convert_to_net(char *buffer, size_t count, int init)
 	 */
 	i = 0;
 
-	if (newline) {
+	if (newline != -1) {
 		buffer[i++] = newline;
-		newline = 0;
+		newline = -1;
 	}
 
 	while (i < count) {
@@ -159,7 +161,7 @@ convert_to_net(char *buffer, size_t count, int init)
 
 	if (i > count) {
 		/*
-		 * Whoops... that isn't alllowed (but it will happen
+		 * Whoops... that isn't allowed (but it will happen
 		 * when there is a CR or LF at the end of the buffer)
 		 */
 		newline = buffer[i-1];

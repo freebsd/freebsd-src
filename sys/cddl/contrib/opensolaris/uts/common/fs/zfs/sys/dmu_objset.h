@@ -39,6 +39,7 @@
 #include <sys/zio.h>
 #include <sys/zil.h>
 #include <sys/sa.h>
+#include <sys/zfs_ioctl.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -69,6 +70,7 @@ typedef struct objset_phys {
 	dnode_phys_t os_groupused_dnode;
 } objset_phys_t;
 
+#define	OBJSET_PROP_UNINITIALIZED	((uint64_t)-1)
 struct objset {
 	/* Immutable: */
 	struct dsl_dataset *os_dsl_dataset;
@@ -89,6 +91,7 @@ struct objset {
 	list_node_t os_evicting_node;
 
 	/* can change, under dsl_dir's locks: */
+	uint64_t os_dnodesize; /* default dnode size for new objects */
 	enum zio_checksum os_checksum;
 	enum zio_compress os_compress;
 	uint8_t os_copies;
@@ -100,6 +103,16 @@ struct objset {
 	zfs_sync_type_t os_sync;
 	zfs_redundant_metadata_type_t os_redundant_metadata;
 	int os_recordsize;
+	/*
+	 * The next four values are used as a cache of whatever's on disk, and
+	 * are initialized the first time these properties are queried. Before
+	 * being initialized with their real values, their values are
+	 * OBJSET_PROP_UNINITIALIZED.
+	 */
+	uint64_t os_version;
+	uint64_t os_normalization;
+	uint64_t os_utf8only;
+	uint64_t os_casesensitivity;
 
 	/*
 	 * Pointer is constant; the blkptr it points to is protected by

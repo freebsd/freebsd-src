@@ -280,7 +280,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 static void
 dmu_tx_count_dnode(dmu_tx_hold_t *txh)
 {
-	(void) refcount_add_many(&txh->txh_space_towrite, DNODE_SIZE, FTAG);
+	(void) refcount_add_many(&txh->txh_space_towrite, DNODE_MIN_SIZE, FTAG);
 }
 
 void
@@ -1091,7 +1091,12 @@ dmu_tx_wait(dmu_tx_t *tx)
 		mutex_exit(&dn->dn_mtx);
 		tx->tx_needassign_txh = NULL;
 	} else {
-		txg_wait_open(tx->tx_pool, tx->tx_lasttried_txg + 1);
+		/*
+		 * If we have a lot of dirty data just wait until we sync
+		 * out a TXG at which point we'll hopefully have synced
+		 * a portion of the changes.
+		 */
+		txg_wait_synced(dp, spa_last_synced_txg(spa) + 1);
 	}
 }
 
@@ -1275,7 +1280,7 @@ dmu_tx_hold_sa_create(dmu_tx_t *tx, int attrsize)
 
 	dmu_tx_sa_registration_hold(sa, tx);
 
-	if (attrsize <= DN_MAX_BONUSLEN && !sa->sa_force_spill)
+	if (attrsize <= DN_OLD_MAX_BONUSLEN && !sa->sa_force_spill)
 		return;
 
 	(void) dmu_tx_hold_object_impl(tx, tx->tx_objset, DMU_NEW_OBJECT,

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010,2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Shteryana Sotirova Shopova under
@@ -43,6 +43,7 @@
 #include "snmp.h"
 #include "snmpmod.h"
 
+#define	SNMPTREE_TYPES
 #include "vacm_tree.h"
 #include "vacm_oid.h"
 
@@ -1012,9 +1013,10 @@ vacm_dump(void)
 		    "excluded":"included");
 }
 
-const char vacm_comment[] = \
+static const char vacm_comment[] = \
 "This module implements SNMP View-based Access Control Model defined in RFC 3415.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	vacm_comment,
 	.init =		vacm_init,

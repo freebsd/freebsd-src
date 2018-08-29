@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2018
+.Dd July 24, 2018
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ utility:
 .Op Fl l Ar keylen
 .Op Fl s Ar sectorsize
 .Op Fl V Ar version
-.Ar prov
+.Ar prov ...
 .Nm
 .Cm label - an alias for
 .Cm init
@@ -233,10 +233,14 @@ The first argument to
 indicates an action to be performed:
 .Bl -tag -width ".Cm configure"
 .It Cm init
-Initialize the provider which needs to be encrypted.
+Initialize providers which need to be encrypted.
+If multiple providers are listed as arguments, they will all be initialized
+with the same passphrase and/or User Key.
+A unique salt will be randomly generated for each provider to ensure the
+Master Key for each is unique.
 Here you can set up the cryptographic algorithm to use, Data Key length,
 etc.
-The last sector of the provider is used to store metadata.
+The last sector of the providers is used to store metadata.
 The
 .Cm init
 subcommand also automatically writes metadata backups to
@@ -279,6 +283,16 @@ To inhibit backups, you can use
 .Pa none
 as the
 .Ar backupfile .
+If multiple providers were initialized in the one command, you can use
+.Pa PROV
+(all upper-case) in the file name, and it will be replaced with the provider
+name.
+If
+.Pa PROV
+is not found in the file name and multiple providers were initialized in the
+one command,
+.Pa -<prov>
+will be appended to the end of the file name specified.
 .It Fl d
 When entering the passphrase to boot from this encrypted root filesystem, echo
 .Ql *

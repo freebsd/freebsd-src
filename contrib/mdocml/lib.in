@@ -28,6 +28,7 @@ LINE("lib80211",	"802.11 Wireless Network Management Library (lib80211, \\-l8021
 LINE("libarchive",	"Streaming Archive Library (libarchive, \\-larchive)")
 LINE("libarm",		"ARM Architecture Library (libarm, \\-larm)")
 LINE("libarm32",	"ARM32 Architecture Library (libarm32, \\-larm32)")
+LINE("libbe",		"Boot Environment Library (libbe, \\-lbe)")
 LINE("libbluetooth",	"Bluetooth Library (libbluetooth, \\-lbluetooth)")
 LINE("libbsm",		"Basic Security Module Library (libbsm, \\-lbsm)")
 LINE("libc",		"Standard C\\~Library (libc, \\-lc)")

@@ -461,7 +461,8 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	uint8_t pcp;
 
 	pcp = ifp->if_pcp;
-	if (pcp != IFNET_PCP_NONE && !ether_set_pcp(&m, ifp, pcp))
+	if (pcp != IFNET_PCP_NONE && ifp->if_type != IFT_L2VLAN &&
+	    !ether_set_pcp(&m, ifp, pcp))
 		return (0);
 
 	if (PFIL_HOOKED(&V_link_pfil_hook)) {
@@ -513,7 +514,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	random_harvest_queue_ether(m, sizeof(*m), 2);
+	random_harvest_queue_ether(m, sizeof(*m));
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
@@ -1291,7 +1292,7 @@ static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
 static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
     "for consistency");
 
-static VNET_DEFINE(int, soft_pad);
+VNET_DEFINE_STATIC(int, soft_pad);
 #define	V_soft_pad	VNET(soft_pad)
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(soft_pad), 0,

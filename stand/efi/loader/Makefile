@@ -8,7 +8,8 @@ LOADER_EXT2FS_SUPPORT?=	no
 
 .include <bsd.init.mk>
 
-PROG=		loader.sym
+LOADER?=	loader_${LOADER_INTERP}
+PROG=		${LOADER}.sym
 INTERNALPROG=
 WARNS?=		3
 
@@ -24,8 +25,8 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_ZFS} != "no"
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes
@@ -42,10 +43,11 @@ CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 # warnings for now.
 CWARNFLAGS.main.c+=	-Wno-format
 
-.PATH: ${.CURDIR}/arch/${MACHINE}
-# For smbios.c
+.PATH: ${.CURDIR}/../loader
+.PATH: ${.CURDIR}/../loader/arch/${MACHINE}
+# For smbios.c XXX need to abstract properly
 .PATH: ${BOOTSRC}/i386/libi386
-.include "${.CURDIR}/arch/${MACHINE}/Makefile.inc"
+.include "${.CURDIR}/../loader/arch/${MACHINE}/Makefile.inc"
 
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${MACHINE}
@@ -79,34 +81,25 @@ HAVE_BCACHE=    yes
 CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
+NEWVERSWHAT=	"EFI loader" ${MACHINE}
+VERSION_FILE=	${.CURDIR}/../loader/version
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 
-FILES+=	loader.efi
-FILESMODE_loader.efi=	${BINMODE}
+FILES+=	${LOADER}.efi
+FILESMODE_${LOADER}.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
+.if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
+.endif
+
+LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
 
 CLEANFILES+=	loader.efi
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE}
-
-NM?=		nm
-OBJCOPY?=	objcopy
-
-.if ${MACHINE_CPUARCH} == "amd64"
-EFI_TARGET=	efi-app-x86_64
-.elif ${MACHINE_CPUARCH} == "i386"
-EFI_TARGET=	efi-app-ia32
-.else
-EFI_TARGET=	binary
-.endif
-
-# Arbitrarily set the PE/COFF header timestamps to 1 Jan 2016 00:00:00
-# for build reproducibility.
-SOURCE_DATE_EPOCH?=1451606400
-loader.efi: ${PROG}
+${LOADER}.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
@@ -120,8 +113,7 @@ loader.efi: ${PROG}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 
-DPADD=		${LDR_INTERP} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBZFSBOOT} ${LIBSA} \
-		${LDSCRIPT}
-LDADD=		${LDR_INTERP} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBZFSBOOT} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA} ${LDSCRIPT}
+LDADD=		${LDR_INTERP} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA}
 
 .include <bsd.prog.mk>

@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #ifndef KDB
@@ -132,6 +133,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/trap.h>
+#include <x86/ucode.h>
 #include <machine/vm86.h>
 #include <x86/init.h>
 #ifdef PERFMON
@@ -157,6 +159,7 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
 register_t init386(int first);
 void dblfault_handler(void);
+void identify_cpu(void);
 
 static void cpu_startup(void *);
 static void fpstate_drop(struct thread *td);
@@ -1834,6 +1837,12 @@ getmemsize(int first)
 	basemem = 0;
 
 	/*
+	 * Tell the physical memory allocator about pages used to store
+	 * the kernel and preloaded data.  See kmem_bootstrap_free().
+	 */
+	vm_phys_add_seg((vm_paddr_t)KERNLOAD, trunc_page(first));
+
+	/*
 	 * Check if the loader supplied an SMAP memory map.  If so,
 	 * use that and do not make any VM86 calls.
 	 */
@@ -2304,6 +2313,7 @@ init386(int first)
 	struct xstate_hdr *xhdr;
 	caddr_t kmdp;
 	vm_offset_t addend;
+	size_t ucode_len;
 	int late_console;
 
 	thread0.td_kstack = proc0kstack;
@@ -2331,6 +2341,15 @@ init386(int first)
 		init_static_kenv((char *)bootinfo.bi_envp + addend, 0);
 	} else {
 		init_static_kenv(NULL, 0);
+	}
+
+	/*
+	 * Re-evaluate CPU features if we loaded a microcode update.
+	 */
+	ucode_len = ucode_load_bsp(first);
+	if (ucode_len != 0) {
+		identify_cpu();
+		first = roundup2(first + ucode_len, PAGE_SIZE);
 	}
 
 	identify_hypervisor();
@@ -2867,6 +2886,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	critical_enter();
 	if (cpu_fxsr)
 		npx_set_fpregs_xmm((struct save87 *)fpregs,
 		    &get_pcb_user_save_td(td)->sv_xmm);
@@ -2874,6 +2894,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 		bcopy(fpregs, &get_pcb_user_save_td(td)->sv_87,
 		    sizeof(*fpregs));
 	npxuserinited(td);
+	critical_exit();
 	return (0);
 }
 

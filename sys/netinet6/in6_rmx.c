@@ -159,7 +159,7 @@ struct mtuex_arg {
 	struct rib_head *rnh;
 	time_t nextstop;
 };
-static VNET_DEFINE(struct callout, rtq_mtutimer);
+VNET_DEFINE_STATIC(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
 static int
@@ -209,7 +209,7 @@ in6_mtutimo(void *rock)
 /*
  * Initialize our routing tree.
  */
-static VNET_DEFINE(int, _in6_rt_was_here);
+VNET_DEFINE_STATIC(int, _in6_rt_was_here);
 #define	V__in6_rt_was_here	VNET(_in6_rt_was_here)
 
 int

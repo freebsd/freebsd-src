@@ -5,6 +5,7 @@ LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 PIC=yes
+LOADER_INTERP=4th
 
 .include <bsd.init.mk>
 
@@ -41,14 +42,13 @@ NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
 
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 HAVE_ZFS=yes
 .endif
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
-DPADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
-LDADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
+DPADD+=		${LDR_INTERP} ${LIBSA}
+LDADD+=		${LDR_INTERP} ${LIBSA}
 
 .include <bsd.lib.mk>

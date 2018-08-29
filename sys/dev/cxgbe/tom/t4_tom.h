@@ -281,7 +281,7 @@ struct tom_data {
 	struct ppod_region pr;
 
 	vmem_t *key_map;
-	
+
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;
 	int clip_gen;

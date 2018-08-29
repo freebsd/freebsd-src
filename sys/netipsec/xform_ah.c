@@ -245,16 +245,15 @@ ah_init(struct secasvar *sav, struct xformsw *xsp)
 int
 ah_zeroize(struct secasvar *sav)
 {
-	int err;
 
 	if (sav->key_auth)
 		bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 
-	err = crypto_freesession(sav->tdb_cryptoid);
-	sav->tdb_cryptoid = 0;
+	crypto_freesession(sav->tdb_cryptoid);
+	sav->tdb_cryptoid = NULL;
 	sav->tdb_authalgxform = NULL;
 	sav->tdb_xform = NULL;
-	return err;
+	return 0;
 }
 
 /*
@@ -544,7 +543,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	struct xform_data *xd;
 	struct newah *ah;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int hl, rplen, authsize, ahsize, error;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
@@ -669,7 +668,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ah_input_cb;
-	crp->crp_sid = cryptoid;
+	crp->crp_session = cryptoid;
 	crp->crp_opaque = (caddr_t) xd;
 
 	/* These are passed as-is to the callback. */
@@ -699,7 +698,7 @@ ah_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	int authsize, rplen, ahsize, error, skip, protoff;
 	uint8_t nxt;
 
@@ -720,9 +719,9 @@ ah_input_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
@@ -849,7 +848,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct mbuf *mi;
 	struct cryptop *crp;
 	struct newah *ah;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	uint16_t iplen;
 	int error, rplen, authsize, ahsize, maxpacketsize, roff;
 	uint8_t prot;
@@ -1052,7 +1051,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ah_output_cb;
-	crp->crp_sid = cryptoid;
+	crp->crp_session = cryptoid;
 	crp->crp_opaque = (caddr_t) xd;
 
 	/* These are passed as-is to the callback. */
@@ -1082,7 +1081,7 @@ ah_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	uint64_t cryptoid;
+	crypto_session_t cryptoid;
 	caddr_t ptr;
 	u_int idx;
 	int skip, error;
@@ -1101,9 +1100,9 @@ ah_output_cb(struct cryptop *crp)
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
 			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_sid;
+			xd->cryptoid = crp->crp_session;
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}

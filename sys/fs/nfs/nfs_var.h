@@ -141,7 +141,7 @@ void nfsrv_nfsuserddelport(void);
 void nfsrv_throwawayallstate(NFSPROC_T *);
 int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
     uint32_t *, int, uint32_t *, NFSPROC_T *);
-int nfsrv_checkreclaimcomplete(struct nfsrv_descript *);
+int nfsrv_checkreclaimcomplete(struct nfsrv_descript *, int);
 void nfsrv_cache_session(uint8_t *, uint32_t, int, struct mbuf **);
 void nfsrv_freeallbackchannel_xprts(void);
 int nfsrv_layoutcommit(struct nfsrv_descript *, vnode_t, int, int, uint64_t,
@@ -159,8 +159,8 @@ int nfsrv_getdevinfo(char *, int, uint32_t *, uint32_t *, int *, char **);
 void nfsrv_freeonedevid(struct nfsdevice *);
 void nfsrv_freealllayoutsanddevids(void);
 void nfsrv_freefilelayouts(fhandle_t *);
-int nfsrv_deldsserver(char *, NFSPROC_T *);
-struct nfsdevice *nfsrv_deldsnmp(struct nfsmount *, NFSPROC_T *);
+int nfsrv_deldsserver(int, char *, NFSPROC_T *);
+struct nfsdevice *nfsrv_deldsnmp(int, struct nfsmount *, NFSPROC_T *);
 int nfsrv_createdevids(struct nfsd_nfsd_args *, NFSPROC_T *);
 int nfsrv_checkdsattr(struct nfsrv_descript *, vnode_t, NFSPROC_T *);
 int nfsrv_copymr(vnode_t, vnode_t, vnode_t, struct nfsdevice *,
@@ -603,11 +603,12 @@ struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
     uint64_t, struct nfsclflayout **, int *);
 void nfscl_dserr(uint32_t, uint32_t, struct nfscldevinfo *,
     struct nfscllayout *, struct nfsclds *);
+void nfscl_cancelreqs(struct nfsclds *);
 void nfscl_rellayout(struct nfscllayout *, int);
 struct nfscldevinfo *nfscl_getdevinfo(struct nfsclclient *, uint8_t *,
     struct nfscldevinfo *);
 void nfscl_reldevinfo(struct nfscldevinfo *);
-int nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *,
+int nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *, int,
     struct nfsclflayout *);
 void nfscl_freelayout(struct nfscllayout *);
 void nfscl_freeflayout(struct nfsclflayout *);

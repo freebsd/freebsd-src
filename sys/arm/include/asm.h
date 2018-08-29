@@ -195,6 +195,7 @@
 
 #if defined (_HAVE_ARMv7_INSTRUCTIONS) || defined (__ARM_ARCH_6__) || \
 	defined (__ARM_ARCH_6J__) || defined (__ARM_ARCH_6K__) || \
+	defined (__ARM_ARCH_6KZ__) || \
 	defined (__ARM_ARCH_6Z__) || defined (__ARM_ARCH_6ZK__)
 #define _ARM_ARCH_6
 #define _HAVE_ARMv6_INSTRUCTIONS 1

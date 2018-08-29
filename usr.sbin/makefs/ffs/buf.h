@@ -67,7 +67,7 @@ struct buf {
 void		bcleanup(void);
 int		bread(struct vnode *, daddr_t, int, struct ucred *,
     struct buf **);
-void		brelse(struct buf *, int);
+void		brelse(struct buf *);
 int		bwrite(struct buf *);
 struct buf *	getblk(struct vnode *, daddr_t, int, int, int, int);
 

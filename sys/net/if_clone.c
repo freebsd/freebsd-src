@@ -108,7 +108,7 @@ static int     ifc_simple_destroy(struct if_clone *, struct ifnet *);
 
 static struct mtx if_cloners_mtx;
 MTX_SYSINIT(if_cloners_lock, &if_cloners_mtx, "if_cloners lock", MTX_DEF);
-static VNET_DEFINE(int, if_cloners_count);
+VNET_DEFINE_STATIC(int, if_cloners_count);
 VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
 #define	V_if_cloners_count	VNET(if_cloners_count)

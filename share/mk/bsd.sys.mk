@@ -149,9 +149,21 @@ CWARNFLAGS+=	-Wno-error=bool-operation		\
 		-Wno-error=implicit-fallthrough		\
 		-Wno-error=int-in-bool-context		\
 		-Wno-error=memset-elt-size		\
+		-Wno-error=noexcept-type		\
 		-Wno-error=nonnull			\
 		-Wno-error=pointer-compare		\
 		-Wno-error=stringop-overflow
+.endif
+
+# GCC 8.1.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80100
+CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
+		-Wno-error=cast-function-type			\
+		-Wno-error=catch-value				\
+		-Wno-error=multistatement-macros		\
+		-Wno-error=restrict				\
+		-Wno-error=sizeof-pointer-memaccess		\
+		-Wno-error=stringop-truncation
 .endif
 
 # How to handle FreeBSD custom printf format specifiers.
@@ -209,7 +221,7 @@ CFLAGS+=	${SSP_CFLAGS}
 DEBUG_FILES_CFLAGS?= -g
 
 # Allow user-specified additional warning flags, plus compiler and file
-# specific flag overrides, unless we've overriden this...
+# specific flag overrides, unless we've overridden this...
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
@@ -328,7 +340,7 @@ STAGE_TARGETS+= $t
 STAGE_TARGETS+= stage_as
 .endif
 
-.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
+.if !empty(STAGE_TARGETS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 
 .if !empty(LINKS)
 STAGE_TARGETS+= stage_links

@@ -115,18 +115,19 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 	struct toedev *tod = &toep->td->tod;
+	struct epoch_tracker et;
 
 	free_atid(sc, atid);
 	toep->tid = -1;
 
 	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	INP_WLOCK(inp);
 	toe_connect_failed(tod, inp, status);
 	final_cpl_received(toep);	/* unlocks inp */
 	if (status != EAGAIN)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
 }
 
@@ -325,7 +326,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	struct tcpcb *tp = intotcpcb(inp);
 	int reason;
 	struct offload_settings settings;
-	uint16_t vid = 0xffff;
+	uint16_t vid = 0xfff, pcp = 0;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
@@ -334,17 +335,19 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (rt_ifp->if_type == IFT_ETHER)
 		vi = rt_ifp->if_softc;
 	else if (rt_ifp->if_type == IFT_L2VLAN) {
-		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
+		struct ifnet *ifp = VLAN_TRUNKDEV(rt_ifp);
 
 		vi = ifp->if_softc;
 		VLAN_TAG(rt_ifp, &vid);
+		VLAN_PCP(rt_ifp, &pcp);
 	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	rw_rlock(&sc->policy_lock);
-	settings = *lookup_offload_policy(sc, OPEN_TYPE_ACTIVE, NULL, vid, inp);
+	settings = *lookup_offload_policy(sc, OPEN_TYPE_ACTIVE, NULL,
+	    EVL_MAKETAG(vid, pcp, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload)
 		DONT_OFFLOAD_ACTIVE_OPEN(EPERM);

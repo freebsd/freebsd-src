@@ -35,7 +35,7 @@
 /*********************/
 
 
-#define NUM_OF_CMDQS_CQS (NUM_OF_GLOBAL_QUEUES / 2)
+#define SCSI_MAX_NUM_OF_CMDQS (NUM_OF_GLOBAL_QUEUES / 2)
 // Each Resource ID is one-one-valued mapped by the driver to a BDQ Resource ID (for instance per port)
 #define BDQ_NUM_RESOURCES (4)
 
@@ -51,6 +51,7 @@
 
 /* SCSI op codes */
 #define SCSI_OPCODE_COMPARE_AND_WRITE    (0x89)
+#define SCSI_OPCODE_READ_10              (0x28)
 #define SCSI_OPCODE_WRITE_6              (0x0A)
 #define SCSI_OPCODE_WRITE_10             (0x2A)
 #define SCSI_OPCODE_WRITE_12             (0xAA)
@@ -151,19 +152,19 @@ struct scsi_init_func_queues
 	__le16 cmdq_num_entries /* CMDQ num entries */;
 	u8 bdq_resource_id /* Each function-init Ramrod maps its funciton ID to a BDQ function ID, each BDQ function ID contains per-BDQ-ID BDQs */;
 	u8 q_validity;
-#define SCSI_INIT_FUNC_QUEUES_RQ_VALID_MASK        0x1
-#define SCSI_INIT_FUNC_QUEUES_RQ_VALID_SHIFT       0
-#define SCSI_INIT_FUNC_QUEUES_IMM_DATA_VALID_MASK  0x1
-#define SCSI_INIT_FUNC_QUEUES_IMM_DATA_VALID_SHIFT 1
-#define SCSI_INIT_FUNC_QUEUES_CMD_VALID_MASK       0x1
-#define SCSI_INIT_FUNC_QUEUES_CMD_VALID_SHIFT      2
-#define SCSI_INIT_FUNC_QUEUES_TQ_VALID_MASK        0x1
-#define SCSI_INIT_FUNC_QUEUES_TQ_VALID_SHIFT       3
-#define SCSI_INIT_FUNC_QUEUES_TMWO_EN_MASK         0x1 /* This bit is valid if TQ is enabled for this function, tmwo option enabled/disabled */
-#define SCSI_INIT_FUNC_QUEUES_TMWO_EN_SHIFT        4
-#define SCSI_INIT_FUNC_QUEUES_RESERVED_VALID_MASK  0x7
-#define SCSI_INIT_FUNC_QUEUES_RESERVED_VALID_SHIFT 5
-	__le16 cq_cmdq_sb_num_arr[NUM_OF_CMDQS_CQS] /* CQ/CMDQ status block number array */;
+#define SCSI_INIT_FUNC_QUEUES_RQ_VALID_MASK               0x1
+#define SCSI_INIT_FUNC_QUEUES_RQ_VALID_SHIFT              0
+#define SCSI_INIT_FUNC_QUEUES_IMM_DATA_VALID_MASK         0x1
+#define SCSI_INIT_FUNC_QUEUES_IMM_DATA_VALID_SHIFT        1
+#define SCSI_INIT_FUNC_QUEUES_CMD_VALID_MASK              0x1
+#define SCSI_INIT_FUNC_QUEUES_CMD_VALID_SHIFT             2
+#define SCSI_INIT_FUNC_QUEUES_TQ_VALID_MASK               0x1
+#define SCSI_INIT_FUNC_QUEUES_TQ_VALID_SHIFT              3
+#define SCSI_INIT_FUNC_QUEUES_SOC_EN_MASK                 0x1 /* This bit is valid if TQ is enabled for this function, SOC option enabled/disabled */
+#define SCSI_INIT_FUNC_QUEUES_SOC_EN_SHIFT                4
+#define SCSI_INIT_FUNC_QUEUES_SOC_NUM_OF_BLOCKS_LOG_MASK  0x7 /* Relevant for TQe SOC option - num of blocks in SGE - log */
+#define SCSI_INIT_FUNC_QUEUES_SOC_NUM_OF_BLOCKS_LOG_SHIFT 5
+	__le16 cq_cmdq_sb_num_arr[SCSI_MAX_NUM_OF_CMDQS] /* CQ/CMDQ status block number array */;
 	u8 num_queues /* Number of continuous global queues used */;
 	u8 queue_relative_offset /* offset of continuous global queues used */;
 	u8 cq_sb_pi /* Protocol Index of CQ in status block (CQ consumer) */;

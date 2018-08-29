@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
+#include <x86/ifunc.h>
+#include <x86/sysarch.h>
+
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
@@ -87,8 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
-
-#include <x86/include/sysarch.h>
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
@@ -275,4 +276,49 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 	td->td_frame->tf_fs = _ufssel;
 
 	return (0);
+}
+
+int futex_xchgl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_xchgl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_xchgl_smap : futex_xchgl_nosmap);
+}
+
+int futex_addl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_addl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_addl_smap : futex_addl_nosmap);
+}
+
+int futex_orl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_orl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_orl_smap : futex_orl_nosmap);
+}
+
+int futex_andl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_andl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_andl_smap : futex_andl_nosmap);
+}
+
+int futex_xorl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
+int futex_xorl_smap(int oparg, uint32_t *uaddr, int *oldval);
+DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    futex_xorl_smap : futex_xorl_nosmap);
 }

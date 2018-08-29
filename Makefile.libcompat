@@ -14,6 +14,11 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
+.else
+LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd12.0
+.endif
 LIB32CPUFLAGS+=	-m32
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"
@@ -126,10 +131,11 @@ LIBCOMPATWMAKE+=	${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
 			MAKEOBJDIRPREFIX= \
 			MK_MAN=no MK_HTML=no
 LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*} \
-			MK_TOOLCHAIN=no ${IMAKE_INSTALL} \
+			${IMAKE_INSTALL} \
 			-DLIBRARIES_ONLY
 
-_LC_LIBDIRS.yes=		lib gnu/lib
+_LC_LIBDIRS.yes=		lib
+_LC_LIBDIRS.yes+=		gnu/lib
 _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib

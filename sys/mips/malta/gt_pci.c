@@ -231,7 +231,7 @@ gt_pci_intr(void *v)
 
 		event = sc->sc_eventstab[irq];
 
-		if (!event || TAILQ_EMPTY(&event->ie_handlers))
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers))
 			continue;
 
 		/* TODO: frame instead of NULL? */

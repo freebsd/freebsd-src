@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#define PFIOC_USE_LATEST
+
 #include <sys/queue.h>
 #include <bsnmp/snmpmod.h>
 
@@ -43,6 +45,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#define	SNMPTREE_TYPES
 #include "pf_oid.h"
 #include "pf_tree.h"
 
@@ -981,7 +984,8 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 			val->v.integer = e->altq.scheduler;
 			break;
 		case LEAF_pfAltqQueueBandwidth:
-			val->v.uint32 = e->altq.bandwidth;
+			val->v.uint32 = (e->altq.bandwidth > UINT_MAX) ?
+			    UINT_MAX : (u_int32_t)e->altq.bandwidth;
 			break;
 		case LEAF_pfAltqQueuePriority:
 			val->v.integer = e->altq.priority;
@@ -1227,7 +1231,7 @@ pfq_refresh(void)
 	}
 
 	bzero(&pa, sizeof(pa));
-
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		syslog(LOG_ERR, "pfq_refresh: ioctl(DIOCGETALTQS): %s",
 		    strerror(errno));
@@ -1645,6 +1649,7 @@ altq_is_enabled(int pfdev)
 	struct pfioc_altq pa;
 
 	errno = 0;
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
 		if (errno == ENODEV) {
 			syslog(LOG_INFO, "No ALTQ support in kernel\n"

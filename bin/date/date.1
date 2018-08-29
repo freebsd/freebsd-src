@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2018
+.Dd August 4, 2018
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -64,6 +64,13 @@
 .Nm
 .Op Fl d Ar dst
 .Op Fl t Ar minutes_west
+.Nm
+.Op Fl jnu
+.Op Fl I Ns Op Ar FMT
+.Op Fl f Ar input_fmt
+.Op Fl r Ar ...
+.Op Fl v Ar ...
+.Op Ar new_date
 .Sh DESCRIPTION
 When invoked without arguments, the
 .Nm
@@ -113,6 +120,33 @@ provided rather than using the default
 format.
 Parsing is done using
 .Xr strptime 3 .
+.It Fl I Ns Op Ar FMT
+Use
+.St -iso8601
+output format.
+.Ar FMT
+may be omitted, in which case the default is
+.Sq date .
+Valid
+.Ar FMT
+values are
+.Sq date ,
+.Sq hours ,
+.Sq minutes ,
+and
+.Sq seconds .
+The date and time is formatted to the specified precision.
+When
+.Ar FMT
+is
+.Sq hours
+(or the more precise
+.Sq minutes
+or
+.Sq seconds ) ,
+the
+.St -iso8601
+format includes the timezone.
 .It Fl j
 Do not try to set the date.
 This allows you to use the
@@ -401,6 +435,14 @@ sets the time to
 .Li "2:32 PM" ,
 without modifying the date.
 .Pp
+The command
+.Pp
+.Dl "TZ=America/Los_Angeles date -Iseconds -r 1533415339"
+.Pp
+will display
+.Pp
+.Dl "2018-08-04T13:42:19-07:00"
+.Pp
 Finally the command:
 .Pp
 .Dl "date -j -f ""%a %b %d %T %Z %Y"" ""`date`"" ""+%s"""
@@ -425,6 +467,19 @@ between
 and
 .Xr timed 8
 fails.
+.Pp
+It is invalid to combine the
+.Fl I
+flag with either
+.Fl R
+or an output format
+.Dq ( + Ns ... )
+operand.
+If this occurs,
+.Nm
+prints:
+.Ql multiple output formats specified
+and exits with an error status.
 .Sh SEE ALSO
 .Xr locale 1 ,
 .Xr gettimeofday 2 ,
@@ -443,12 +498,22 @@ The
 utility is expected to be compatible with
 .St -p1003.2 .
 The
-.Fl d , f , j , n , r , t ,
+.Fl d , f , I , j , n , r , t ,
 and
 .Fl v
 options are all extensions to the standard.
+.Pp
+The format selected by the
+.Fl I
+flag is compatible with
+.St -iso8601 .
 .Sh HISTORY
 A
 .Nm
 command appeared in
 .At v1 .
+.Pp
+The
+.Fl I
+flag was added in
+.Fx 12.0 .

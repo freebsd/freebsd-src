@@ -637,6 +637,10 @@ t4vf_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
+		/* All VIs on this port share this media. */
+		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
+		    cxgbe_media_status);
+
 		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
@@ -662,7 +666,7 @@ t4vf_attach(device_t dev)
 	s->nrxq = sc->params.nports * iaq.nrxq;
 	s->ntxq = sc->params.nports * iaq.ntxq;
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += sc->params.nports + 1;/* ctrl queues: 1 per port + 1 mgmt */
+	s->neq += sc->params.nports;	/* ctrl queues: 1 per port */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
 
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,

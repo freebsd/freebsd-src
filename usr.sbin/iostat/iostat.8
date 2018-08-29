@@ -360,8 +360,14 @@ kilobytes read per second
 kilobytes write per second
 .It qlen
 transactions queue length
-.It svc_t
-average duration of transactions, in milliseconds
+.It ms/r
+average duration of read transactions, in milliseconds
+.It ms/w
+average duration of write transactions, in milliseconds
+.It ms/o
+average duration of all other transactions, in milliseconds
+.It ms/t
+average duration of all transactions, in milliseconds
 .It %b
 % of time the device had one or more outstanding transactions
 .El

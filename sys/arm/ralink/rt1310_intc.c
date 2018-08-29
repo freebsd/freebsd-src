@@ -60,32 +60,24 @@ __FBSDID("$FreeBSD$");
 
 #define	INTC_NIRQS	32
 
-#ifdef INTRNG
 #include "pic_if.h"
 
 struct rt1310_irqsrc {
 	struct intr_irqsrc      ri_isrc;
 	u_int                   ri_irq;
 };
-#endif
 
 struct rt1310_intc_softc {
 	device_t dev;
 	struct resource *	ri_res;
 	bus_space_tag_t		ri_bst;
 	bus_space_handle_t	ri_bsh;
-#ifdef INTRNG
 	struct rt1310_irqsrc	ri_isrcs[INTC_NIRQS];
-#endif
 };
 
 static int rt1310_intc_probe(device_t);
 static int rt1310_intc_attach(device_t);
-#ifndef INTRNG
-static void rt1310_intc_eoi(void *);
-#else
 static int rt1310_pic_attach(struct rt1310_intc_softc *sc);
-#endif
 
 static struct rt1310_intc_softc *intc_softc = NULL;
 
@@ -140,14 +132,10 @@ rt1310_intc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "rt,pic"))
+	if (!ofw_bus_is_compatible_strict(dev, "rt,pic"))
 		return (ENXIO);
 
-#ifdef INTRNG
-	device_set_desc(dev, "RT1310 INTRNG Interrupt Controller");
-#else
 	device_set_desc(dev, "RT1310 Interrupt Controller");
-#endif
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -173,11 +161,7 @@ rt1310_intc_attach(device_t dev)
 	sc->ri_bst = rman_get_bustag(sc->ri_res);
 	sc->ri_bsh = rman_get_bushandle(sc->ri_res);
 	intc_softc = sc;
-#ifndef INTRNG
-	arm_post_filter = rt1310_intc_eoi;
-#else
 	rt1310_pic_attach(sc);
-#endif
 
 	intc_write_4(sc, RT_INTC_IECR, 0);
 	intc_write_4(sc, RT_INTC_ICCR, ~0);
@@ -194,72 +178,6 @@ rt1310_intc_attach(device_t dev)
 	intc_write_4(sc, RT_INTC_IMR, 0);
 	return (0);
 }
-
-#ifndef INTRNG
-int
-arm_get_next_irq(int last)
-{
-	struct rt1310_intc_softc *sc = intc_softc;
-	uint32_t value;
-	int i;
-	value = intc_read_4(sc, RT_INTC_IPR);
-	for (i = 0; i < 32; i++) {
-		if (value & (1 << i))
-			return (i);
-	}
-
-	return (-1);
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-	struct rt1310_intc_softc *sc = intc_softc;
-	uint32_t value;
-	
-	/* Make sure that interrupt isn't active already */
-	rt1310_intc_eoi((void *)nb);
-
-	/* Clear bit in ER register */
-	value = intc_read_4(sc, RT_INTC_IECR);
-	value &= ~(1 << nb);
-	intc_write_4(sc, RT_INTC_IECR, value);
-	intc_write_4(sc, RT_INTC_IMR, value);
-
-	intc_write_4(sc, RT_INTC_ICCR, 1 << nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	struct rt1310_intc_softc *sc = intc_softc;
-	uint32_t value;
-
-	value = intc_read_4(sc, RT_INTC_IECR);
-
-	value |= (1 << nb);
-
-	intc_write_4(sc, RT_INTC_IMR, value);
-	intc_write_4(sc, RT_INTC_IECR, value);
-}
-
-static void
-rt1310_intc_eoi(void *data)
-{
-	struct rt1310_intc_softc *sc = intc_softc;
-	int nb = (int)data;
-
-	intc_write_4(sc, RT_INTC_ICCR, 1 << nb);
-	if (nb == 0) {
-		uint32_t value;
-		value = intc_read_4(sc, RT_INTC_IECR);
-		value &= ~(1 << nb);
-		intc_write_4(sc, RT_INTC_IECR, value);
-		intc_write_4(sc, RT_INTC_IMR, value);
-	}
-}
-
-#else
 
 static void
 rt1310_enable_intr(device_t dev, struct intr_irqsrc *isrc)
@@ -390,43 +308,20 @@ rt1310_pic_attach(struct rt1310_intc_softc *sc)
 
 	return (intr_pic_claim_root(sc->dev, xref, rt1310_intr, sc, 0));
 }
-#endif
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-#ifndef INTRNG
-static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-	if (!fdt_is_compatible(node, "lpc,pic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
-};
-#endif
-
 static device_method_t rt1310_intc_methods[] = {
 	DEVMETHOD(device_probe,		rt1310_intc_probe),
 	DEVMETHOD(device_attach,	rt1310_intc_attach),
-#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	rt1310_disable_intr),
 	DEVMETHOD(pic_enable_intr,	rt1310_enable_intr),
 	DEVMETHOD(pic_map_intr,		rt1310_map_intr),
 	DEVMETHOD(pic_post_filter,	rt1310_post_filter),
 	DEVMETHOD(pic_post_ithread,	rt1310_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	rt1310_pre_ithread),
-#endif
 	{ 0, 0 }
 };
 

@@ -669,7 +669,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
 	mouse = (mouse_info_t*)data;
 
-	random_harvest_queue(mouse, sizeof(mouse_info_t), 2, RANDOM_MOUSE);
+	random_harvest_queue(mouse, sizeof(mouse_info_t), RANDOM_MOUSE);
 
 	if (cmd == OLD_CONS_MOUSECTL) {
 	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };

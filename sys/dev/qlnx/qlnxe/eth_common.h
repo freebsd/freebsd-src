@@ -101,6 +101,9 @@
 /* Control frame check constants */
 #define ETH_CTL_FRAME_ETH_TYPE_NUM              4        /* Number of etherType values configured by the driver for control frame check */
 
+/* GFS constants */
+#define ETH_GFT_TRASHCAN_VPORT         0x1FF          /* GFT drop flow vport number */
+
 
 
 /*
@@ -213,15 +216,6 @@ struct eth_edpm_fw_data
 
 
 /*
- * FW debug.
- */
-struct eth_fast_path_cqe_fw_debug
-{
-	__le16 reserved2 /* FW reserved. */;
-};
-
-
-/*
  * tunneling parsing flags
  */
 struct eth_tunnel_parsing_flags
@@ -260,7 +254,7 @@ struct eth_pmd_flow_flags
  */
 struct eth_fast_path_rx_reg_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum eth_rx_cqe_type) */;
 	u8 bitfields;
 #define ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_MASK  0x7 /* Type of calculated RSS hash (use enum rss_hash_type) */
 #define ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_SHIFT 0
@@ -276,9 +270,9 @@ struct eth_fast_path_rx_reg_cqe
 	u8 placement_offset /* Offset of placement from BD start */;
 	struct eth_tunnel_parsing_flags tunnel_pars_flags /* Tunnel Parsing Flags */;
 	u8 bd_num /* Number of BDs, used for packet */;
-	u8 reserved[9];
-	struct eth_fast_path_cqe_fw_debug fw_debug /* FW reserved. */;
-	u8 reserved1[3];
+	u8 reserved;
+	__le16 flow_id /* aRFS flow ID. */;
+	u8 reserved1[11];
 	struct eth_pmd_flow_flags pmd_flags /* CQE valid and toggle bits */;
 };
 
@@ -288,7 +282,7 @@ struct eth_fast_path_rx_reg_cqe
  */
 struct eth_fast_path_rx_tpa_cont_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum eth_rx_cqe_type) */;
 	u8 tpa_agg_index /* TPA aggregation index */;
 	__le16 len_list[ETH_TPA_CQE_CONT_LEN_LIST_SIZE] /* List of the segment sizes */;
 	u8 reserved;
@@ -304,7 +298,7 @@ struct eth_fast_path_rx_tpa_cont_cqe
  */
 struct eth_fast_path_rx_tpa_end_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum eth_rx_cqe_type) */;
 	u8 tpa_agg_index /* TPA aggregation index */;
 	__le16 total_packet_len /* Total aggregated packet length */;
 	u8 num_of_bds /* Total number of BDs comprising the packet */;
@@ -324,7 +318,7 @@ struct eth_fast_path_rx_tpa_end_cqe
  */
 struct eth_fast_path_rx_tpa_start_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum eth_rx_cqe_type) */;
 	u8 bitfields;
 #define ETH_FAST_PATH_RX_TPA_START_CQE_RSS_HASH_TYPE_MASK  0x7 /* Type of calculated RSS hash (use enum rss_hash_type) */
 #define ETH_FAST_PATH_RX_TPA_START_CQE_RSS_HASH_TYPE_SHIFT 0
@@ -342,7 +336,7 @@ struct eth_fast_path_rx_tpa_start_cqe
 	u8 tpa_agg_index /* TPA aggregation index */;
 	u8 header_len /* Packet L2+L3+L4 header length */;
 	__le16 ext_bd_len_list[ETH_TPA_CQE_START_LEN_LIST_SIZE] /* Additional BDs length list. */;
-	struct eth_fast_path_cqe_fw_debug fw_debug /* FW reserved. */;
+	__le16 flow_id /* aRFS flow ID. */;
 	u8 reserved;
 	struct eth_pmd_flow_flags pmd_flags /* CQE valid and toggle bits */;
 };
@@ -371,7 +365,7 @@ struct eth_rx_bd
  */
 struct eth_slow_path_rx_cqe
 {
-	u8 type /* CQE type */;
+	u8 type /* CQE type (use enum eth_rx_cqe_type) */;
 	u8 ramrod_cmd_id;
 	u8 error_flag;
 	u8 reserved[25];
@@ -584,6 +578,22 @@ struct eth_db_data
 #define ETH_DB_DATA_AGG_VAL_SEL_SHIFT 6
 	u8 agg_flags /* bit for every DQ counter flags in CM context that DQ can increment */;
 	__le16 bd_prod;
+};
+
+
+/*
+ * RSS hash type
+ */
+enum rss_hash_type
+{
+	RSS_HASH_TYPE_DEFAULT=0,
+	RSS_HASH_TYPE_IPV4=1,
+	RSS_HASH_TYPE_TCP_IPV4=2,
+	RSS_HASH_TYPE_IPV6=3,
+	RSS_HASH_TYPE_TCP_IPV6=4,
+	RSS_HASH_TYPE_UDP_IPV4=5,
+	RSS_HASH_TYPE_UDP_IPV6=6,
+	MAX_RSS_HASH_TYPE
 };
 
 #endif /* __ETH_COMMON__ */

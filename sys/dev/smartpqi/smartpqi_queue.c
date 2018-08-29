@@ -200,7 +200,7 @@ int pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
 		(dma_addr_t)((uint8_t*)(softs->admin_ib_queue.ci_dma_addr) +  
 		PQI_ADDR_ALIGN_MASK_64 + 1);
 
-	DBG_INFO("softs->admin_ib_queue.ci_dma_addr : %p,softs->admin_ob_queue.pi_dma_addr :%p\n",
+	DBG_INIT("softs->admin_ib_queue.ci_dma_addr : %p,softs->admin_ob_queue.pi_dma_addr :%p\n",
 				(void*)softs->admin_ib_queue.ci_dma_addr, (void*)softs->admin_ob_queue.pi_dma_addr );
 
 	/* Verify alignment */
@@ -354,7 +354,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
     if(ret){
         DBG_ERR("Admin spinlock initialization failed\n");
         softs->admin_ib_queue.lockcreated = false;
-        goto err_out;
+        goto err_lock;
 	}
     softs->admin_ib_queue.lockcreated = true;
 
@@ -364,6 +364,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 	DBG_FUNC("OUT\n");
 	return ret;
 
+err_lock:
 err_q_create:
 	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);
 err_out:

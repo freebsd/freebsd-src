@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -286,7 +288,7 @@ static struct queue_opts {
 	struct node_queue_bw	queue_bwspec;
 	struct node_queue_opt	scheduler;
 	int			priority;
-	int			tbrsize;
+	unsigned int		tbrsize;
 	int			qlimit;
 } queue_opts;
 
@@ -1623,8 +1625,8 @@ queue_opt	: BANDWIDTH bandwidth	{
 				yyerror("tbrsize cannot be respecified");
 				YYERROR;
 			}
-			if ($2 < 0 || $2 > 65535) {
-				yyerror("tbrsize too big: max 65535");
+			if ($2 < 0 || $2 > UINT_MAX) {
+				yyerror("tbrsize too big: max %u", UINT_MAX);
 				YYERROR;
 			}
 			queue_opts.marker |= QOM_TBRSIZE;
@@ -1673,10 +1675,10 @@ bandwidth	: STRING {
 				}
 			}
 			free($1);
-			$$.bw_absolute = (u_int32_t)bps;
+			$$.bw_absolute = (u_int64_t)bps;
 		}
 		| NUMBER {
-			if ($1 < 0 || $1 > UINT_MAX) {
+			if ($1 < 0 || $1 >= LLONG_MAX) {
 				yyerror("bandwidth number too big");
 				YYERROR;
 			}

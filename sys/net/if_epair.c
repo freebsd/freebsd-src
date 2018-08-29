@@ -107,6 +107,7 @@ static int epair_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int epair_clone_destroy(struct if_clone *, struct ifnet *);
 
 static const char epairname[] = "epair";
+static unsigned int next_index = 0;
 
 /* Netisr related definitions and sysctl. */
 static struct netisr_handler epair_nh = {
@@ -179,7 +180,7 @@ STAILQ_HEAD(eid_list, epair_ifp_drain);
 static MALLOC_DEFINE(M_EPAIR, epairname,
     "Pair of virtual cross-over connected Ethernet-like interfaces");
 
-static VNET_DEFINE(struct if_clone *, epair_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, epair_cloner);
 #define	V_epair_cloner	VNET(epair_cloner)
 
 /*
@@ -843,12 +844,22 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	/*
 	 * Calculate the etheraddr hashing the hostid and the
-	 * interface index. The result would be hopefully unique
+	 * interface index. The result would be hopefully unique.
+	 * Note that the "a" component of an epair instance may get moved
+	 * to a different VNET after creation. In that case its index
+	 * will be freed and the index can get reused by new epair instance.
+	 * Make sure we do not create same etheraddr again.
 	 */
 	getcredhostid(curthread->td_ucred, (unsigned long *)&hostid);
 	if (hostid == 0) 
 		arc4rand(&hostid, sizeof(hostid), 0);
-	key[0] = (uint32_t)ifp->if_index;
+
+	if (ifp->if_index > next_index)
+		next_index = ifp->if_index;
+	else
+		next_index++;
+
+	key[0] = (uint32_t)next_index;
 	key[1] = (uint32_t)(hostid & 0xffffffff);
 	key[2] = (uint32_t)((hostid >> 32) & 0xfffffffff);
 	hash = jenkins_hash32(key, 3, 0);

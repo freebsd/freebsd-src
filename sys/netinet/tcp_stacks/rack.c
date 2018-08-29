@@ -251,12 +251,12 @@ rack_log_progress_event(struct tcp_rack *rack, struct tcpcb *tp, uint32_t tick, 
 
 static int
 rack_process_ack(struct mbuf *m, struct tcphdr *th,
-    struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t * ti_locked,
+    struct socket *so, struct tcpcb *tp, struct tcpopt *to,
     uint32_t tiwin, int32_t tlen, int32_t * ofia, int32_t thflags, int32_t * ret_val);
 static int
 rack_process_data(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static void
 rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack,
     struct tcphdr *th, uint16_t nsegs, uint16_t type, int32_t recovery);
@@ -275,7 +275,7 @@ static int32_t rack_ctor(void *mem, int32_t size, void *arg, int32_t how);
 static void
 rack_do_segment(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen,
-    uint8_t iptos, int32_t ti_locked);
+    uint8_t iptos);
 static void rack_dtor(void *mem, int32_t size, void *arg);
 static void
 rack_earlier_retran(struct tcpcb *tp, struct rack_sendmap *rsm,
@@ -307,7 +307,7 @@ static int32_t rack_output(struct tcpcb *tp);
 static void
 rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen,
-    uint8_t iptos, int32_t ti_locked, int32_t nxt_pkt, struct timeval *tv);
+    uint8_t iptos, int32_t nxt_pkt, struct timeval *tv);
 
 static uint32_t
 rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack,
@@ -338,57 +338,58 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 static int32_t tcp_addrack(module_t mod, int32_t type, void *data);
 static void
 rack_challenge_ack(struct mbuf *m, struct tcphdr *th,
-    struct tcpcb *tp, int32_t * ti_locked, int32_t * ret_val);
+    struct tcpcb *tp, int32_t * ret_val);
 static int
 rack_do_close_wait(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_closing(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
-static void rack_do_drop(struct mbuf *m, struct tcpcb *tp, int32_t * ti_locked);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+static void
+rack_do_drop(struct mbuf *m, struct tcpcb *tp);
 static void
 rack_do_dropafterack(struct mbuf *m, struct tcpcb *tp,
-    struct tcphdr *th, int32_t * ti_locked, int32_t thflags, int32_t tlen, int32_t * ret_val);
+    struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t * ret_val);
 static void
 rack_do_dropwithreset(struct mbuf *m, struct tcpcb *tp,
-    struct tcphdr *th, int32_t * ti_locked, int32_t rstreason, int32_t tlen);
+	struct tcphdr *th, int32_t rstreason, int32_t tlen);
 static int
 rack_do_established(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t nxt_pkt);
 static int
 rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_lastack(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_syn_recv(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_do_syn_sent(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
-    int32_t tlen, int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
+    int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt);
 static int
 rack_drop_checks(struct tcpopt *to, struct mbuf *m,
-    struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp, int32_t * ti_locked, int32_t * thf,
+    struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp, int32_t * thf,
     int32_t * drop_hdrlen, int32_t * ret_val);
 static int
 rack_process_rst(struct mbuf *m, struct tcphdr *th,
-    struct socket *so, struct tcpcb *tp, int32_t * ti_locked);
+    struct socket *so, struct tcpcb *tp);
 struct rack_sendmap *
 tcp_rack_output(struct tcpcb *tp, struct tcp_rack *rack,
     uint32_t tsused);
@@ -398,7 +399,7 @@ static void
 
 static int
 rack_ts_check(struct mbuf *m, struct tcphdr *th,
-    struct tcpcb *tp, int32_t * ti_locked, int32_t tlen, int32_t thflags, int32_t * ret_val);
+    struct tcpcb *tp, int32_t tlen, int32_t thflags, int32_t * ret_val);
 
 int32_t rack_clear_counter=0;
 
@@ -1492,12 +1493,8 @@ rack_calc_rwin(struct socket *so, struct tcpcb *tp)
 }
 
 static void
-rack_do_drop(struct mbuf *m, struct tcpcb *tp, int32_t * ti_locked)
+rack_do_drop(struct mbuf *m, struct tcpcb *tp)
 {
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
-	}
 	/*
 	 * Drop space held by incoming segment and return.
 	 */
@@ -1508,12 +1505,9 @@ rack_do_drop(struct mbuf *m, struct tcpcb *tp, int32_t * ti_locked)
 }
 
 static void
-rack_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t * ti_locked, int32_t rstreason, int32_t tlen)
+rack_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
+    int32_t rstreason, int32_t tlen)
 {
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
-	}
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
 		INP_WUNLOCK(tp->t_inpcb);
@@ -1528,7 +1522,7 @@ rack_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32
  * and valid.
  */
 static void
-rack_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t * ti_locked, int32_t thflags, int32_t tlen, int32_t * ret_val)
+rack_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t * ret_val)
 {
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies sequence
@@ -1550,14 +1544,10 @@ rack_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
 		*ret_val = 1;
-		rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+		rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return;
 	} else
 		*ret_val = 0;
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
-	}
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	rack->r_wanted_output++;
 	tp->t_flags |= TF_ACKNOW;
@@ -1567,7 +1557,7 @@ rack_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_
 
 
 static int
-rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcpcb *tp, int32_t * ti_locked)
+rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcpcb *tp)
 {
 	/*
 	 * RFC5961 Section 3.2
@@ -1586,9 +1576,6 @@ rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tc
 	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		KASSERT(*ti_locked == TI_RLOCKED,
-		    ("%s: TH_RST ti_locked %d, th %p tp %p",
-		    __func__, *ti_locked, th, tp));
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
 		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 		    __func__, th, tp));
@@ -1617,7 +1604,7 @@ rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tc
 				tp = tcp_close(tp);
 			}
 			dropped = 1;
-			rack_do_drop(m, tp, ti_locked);
+			rack_do_drop(m, tp);
 		} else {
 			TCPSTAT_INC(tcps_badrst);
 			/* Send challenge ACK. */
@@ -1638,10 +1625,8 @@ rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tc
  * and valid.
  */
 static void
-rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ti_locked, int32_t * ret_val)
+rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
 {
-	KASSERT(*ti_locked == TI_RLOCKED,
-	    ("tcp_do_segment: TH_SYN ti_locked %d", *ti_locked));
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	TCPSTAT_INC(tcps_badsyn);
@@ -1650,7 +1635,7 @@ rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t 
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
 		tp = tcp_drop(tp, ECONNRESET);
 		*ret_val = 1;
-		rack_do_drop(m, tp, ti_locked);
+		rack_do_drop(m, tp);
 	} else {
 		/* Send challenge ACK. */
 		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
@@ -1658,7 +1643,7 @@ rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t 
 		tp->last_ack_sent = tp->rcv_nxt;
 		m = NULL;
 		*ret_val = 0;
-		rack_do_drop(m, NULL, ti_locked);
+		rack_do_drop(m, NULL);
 	}
 }
 
@@ -1669,7 +1654,7 @@ rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t 
  * TCB is still valid and locked.
  */
 static int
-rack_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ti_locked, int32_t tlen, int32_t thflags, int32_t * ret_val)
+rack_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t tlen, int32_t thflags, int32_t * ret_val)
 {
 
 	/* Check to see if ts_recent is over 24 days old.  */
@@ -1691,9 +1676,9 @@ rack_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ti_
 		TCPSTAT_INC(tcps_pawsdrop);
 		*ret_val = 0;
 		if (tlen) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 		}
 		return (1);
 	}
@@ -1707,7 +1692,7 @@ rack_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ti_
  * TCB is still valid and locked.
  */
 static int
-rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp, int32_t * ti_locked, int32_t * thf, int32_t * drop_hdrlen, int32_t * ret_val)
+rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp,  int32_t * thf, int32_t * drop_hdrlen, int32_t * ret_val)
 {
 	int32_t todrop;
 	int32_t thflags;
@@ -1779,7 +1764,7 @@ rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tc
 				tp->t_flags |= TF_ACKNOW;
 				TCPSTAT_INC(tcps_rcvwinprobe);
 			} else {
-				rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, ret_val);
+				rack_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 				return (1);
 			}
 		} else
@@ -2290,7 +2275,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts, int
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts);
 	if (tp->t_flags & TF_DELACK) {
-		delayed_ack = tcp_delacktime;
+		delayed_ack = TICKS_2_MSEC(tcp_delacktime);
 		rack->r_ctl.rc_hpts_flags |= PACE_TMR_DELACK;
 	}
 	if (delayed_ack && ((hpts_timeout == 0) ||
@@ -4482,7 +4467,7 @@ out:
 static int
 rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to,
-    int32_t * ti_locked, uint32_t tiwin, int32_t tlen,
+    uint32_t tiwin, int32_t tlen,
     int32_t * ofia, int32_t thflags, int32_t * ret_val)
 {
 	int32_t ourfinisacked = 0;
@@ -4494,7 +4479,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (SEQ_GT(th->th_ack, tp->snd_max)) {
-		rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, ret_val);
+		rack_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 		return (1);
 	}
 	if (SEQ_GEQ(th->th_ack, tp->snd_una) || to->to_nsacks) {
@@ -4642,7 +4627,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			*ret_val = 1;
 			tp = tcp_close(tp);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_UNLIMITED, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, tlen);
 			return (1);
 		}
 	}
@@ -4660,7 +4645,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	/*
 	 * Update window information. Don't look at window if no ACK: TAC's
@@ -4672,7 +4657,6 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	INP_WLOCK_ASSERT(tp->t_inpcb);
-
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 	if ((thflags & TH_ACK) &&
 	    (SEQ_LT(tp->snd_wl1, th->th_seq) ||
@@ -4701,6 +4685,10 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->snd_nxt = tp->snd_max;
 		/* Make sure we output to start the timer */
 		rack->r_wanted_output++;
+	}
+	if (tp->t_flags2 & TF2_DROP_AF_DATA) {
+		m_freem(m);
+		return (0);
 	}
 	/*
 	 * Process segments with URG.
@@ -4792,7 +4780,7 @@ dodata:				/* XXX */
 		 * segments are out of order (so fast retransmit can work).
 		 */
 		if (th->th_seq == tp->rcv_nxt &&
-		    LIST_EMPTY(&tp->t_segq) &&
+		    SEGQ_EMPTY(tp) &&
 		    (TCPS_HAVEESTABLISHED(tp->t_state) ||
 		    tfo_syn)) {
 			if (DELAY_ACK(tp, tlen) || tfo_syn) {
@@ -4820,7 +4808,7 @@ dodata:				/* XXX */
 			 * m_adj() doesn't actually frees any mbufs when
 			 * trimming from the head.
 			 */
-			thflags = tcp_reass(tp, th, &tlen, m);
+			thflags = tcp_reass(tp, th, &save_start, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
 		if (tlen > 0)
@@ -4883,18 +4871,9 @@ dodata:				/* XXX */
 		case TCPS_FIN_WAIT_2:
 			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-			KASSERT(*ti_locked == TI_RLOCKED, ("%s: dodata "
-			    "TCP_FIN_WAIT_2 ti_locked: %d", __func__,
-			    *ti_locked));
 			tcp_twstart(tp);
-			*ti_locked = TI_UNLOCKED;
-			INP_INFO_RUNLOCK(&V_tcbinfo);
 			return (1);
 		}
-	}
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
 	}
 	/*
 	 * Return any desired output.
@@ -4902,9 +4881,6 @@ dodata:				/* XXX */
 	if ((tp->t_flags & TF_ACKNOW) || (sbavail(&so->so_snd) > (tp->snd_max - tp->snd_una))) {
 		rack->r_wanted_output++;
 	}
-	KASSERT(*ti_locked == TI_UNLOCKED, ("%s: check_delack ti_locked %d",
-	    __func__, *ti_locked));
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	return (0);
 }
@@ -4917,7 +4893,7 @@ dodata:				/* XXX */
 static int
 rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t nxt_pkt)
 {
 	int32_t nsegs;
 	int32_t newsize = 0;	/* automatic sockbuf scaling */
@@ -4969,10 +4945,6 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * This is a pure, in-sequence data packet with nothing on the
 	 * reassembly queue and we have enough buffer space to take it.
 	 */
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
-	}
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 
 
@@ -5041,7 +5013,7 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t nxt_pkt, uint32_t cts)
+    uint32_t tiwin, int32_t nxt_pkt, uint32_t cts)
 {
 	int32_t acked;
 	int32_t nsegs;
@@ -5117,10 +5089,6 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * This is a pure ack for outstanding data.
 	 */
-	if (*ti_locked == TI_RLOCKED) {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
-	}
 	TCPSTAT_INC(tcps_predack);
 
 	/*
@@ -5199,7 +5167,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t todrop;
@@ -5220,22 +5188,22 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->iss) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
-		rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+		rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
 	if ((thflags & (TH_ACK | TH_RST)) == (TH_ACK | TH_RST)) {
 		TCP_PROBE5(connect__refused, NULL, tp,
 		    mtod(m, const char *), tp, th);
 		tp = tcp_drop(tp, ECONNREFUSED);
-		rack_do_drop(m, tp, ti_locked);
+		rack_do_drop(m, tp);
 		return (1);
 	}
 	if (thflags & TH_RST) {
-		rack_do_drop(m, tp, ti_locked);
+		rack_do_drop(m, tp);
 		return (1);
 	}
 	if (!(thflags & TH_SYN)) {
-		rack_do_drop(m, tp, ti_locked);
+		rack_do_drop(m, tp);
 		return (1);
 	}
 	tp->irs = th->th_seq;
@@ -5323,8 +5291,6 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 		tcp_state_change(tp, TCPS_SYN_RECEIVED);
 	}
-	KASSERT(*ti_locked == TI_RLOCKED, ("%s: trimthenstep6: "
-	    "ti_locked %d", __func__, *ti_locked));
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	/*
@@ -5349,7 +5315,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * of step 5, ack processing. Otherwise, goto step 6.
 	 */
 	if (thflags & TH_ACK) {
-		if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val))
+		if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val))
 			return (ret_val);
 		/* We may have changed to FIN_WAIT_1 above */
 		if (tp->t_state == TCPS_FIN_WAIT_1) {
@@ -5381,7 +5347,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	   tiwin, thflags, nxt_pkt));
 }
 
 /*
@@ -5392,7 +5358,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
@@ -5402,7 +5368,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
-		rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+		rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
 	if (IS_FASTOPEN(tp->t_flags)) {
@@ -5414,7 +5380,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * FIN, or a RST.
 		 */
 		if ((thflags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		} else if (thflags & TH_SYN) {
 			/* non-initial SYN is ignored */
@@ -5424,22 +5390,22 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if ((rack->r_ctl.rc_hpts_flags & PACE_TMR_RXT) ||
 			    (rack->r_ctl.rc_hpts_flags & PACE_TMR_TLP) ||
 			    (rack->r_ctl.rc_hpts_flags & PACE_TMR_RACK)) {
-				rack_do_drop(m, NULL, ti_locked);
+				rack_do_drop(m, NULL);
 				return (0);
 			}
 		} else if (!(thflags & (TH_ACK | TH_FIN | TH_RST))) {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -5448,7 +5414,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
 	/*
@@ -5459,10 +5425,10 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * "LAND" DoS attack.
 	 */
 	if (SEQ_LT(th->th_seq, tp->irs)) {
-		rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+		rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -5497,7 +5463,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			cc_conn_init(tp);
 		}
 		return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-		    ti_locked, tiwin, thflags, nxt_pkt));
+		    tiwin, thflags, nxt_pkt));
 	}
 	TCPSTAT_INC(tcps_connects);
 	soisconnected(so);
@@ -5543,10 +5509,10 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * not, do so now to pass queued data to user.
 	 */
 	if (tlen == 0 && (thflags & TH_FIN) == 0)
-		(void)tcp_reass(tp, (struct tcphdr *)0, 0,
+		(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 		    (struct mbuf *)0);
 	tp->snd_wl1 = th->th_seq - 1;
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (tp->t_state == TCPS_FIN_WAIT_1) {
@@ -5577,7 +5543,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 /*
@@ -5588,7 +5554,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 
@@ -5608,19 +5574,19 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if (__predict_true(((to->to_flags & TOF_SACK) == 0)) &&
 	    __predict_true((thflags & (TH_SYN | TH_FIN | TH_RST | TH_URG | TH_ACK)) == TH_ACK) &&
-	    __predict_true(LIST_EMPTY(&tp->t_segq)) &&
+	    __predict_true(SEGQ_EMPTY(tp)) &&
 	    __predict_true(th->th_seq == tp->rcv_nxt)) {
 		struct tcp_rack *rack;
 
 		rack = (struct tcp_rack *)tp->t_fb_ptr;
 		if (tlen == 0) {
 			if (rack_fastack(m, th, so, tp, to, drop_hdrlen, tlen,
-			    ti_locked, tiwin, nxt_pkt, rack->r_ctl.rc_rcvtime)) {
+			    tiwin, nxt_pkt, rack->r_ctl.rc_rcvtime)) {
 				return (0);
 			}
 		} else {
 			if (rack_do_fastnewdata(m, th, so, tp, to, drop_hdrlen, tlen,
-			    ti_locked, tiwin, nxt_pkt)) {
+			    tiwin, nxt_pkt)) {
 				return (0);
 			}
 		}
@@ -5628,14 +5594,14 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_calc_rwin(so, tp);
 
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -5644,10 +5610,10 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -5680,32 +5646,32 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (tp->t_flags & TF_NEEDSYN) {
 
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, NULL, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, NULL, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	/* State changes only happen in rack_process_data() */
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 /*
@@ -5716,19 +5682,19 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 
 	rack_calc_rwin(so, tp);
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -5737,10 +5703,10 @@ rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -5772,48 +5738,46 @@ rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, NULL, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, NULL, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 static int
 rack_check_data_after_close(struct mbuf *m, 
-    struct tcpcb *tp, int32_t *ti_locked, int32_t *tlen, struct tcphdr *th, struct socket *so)
+    struct tcpcb *tp, int32_t *tlen, struct tcphdr *th, struct socket *so)
 {
-	struct tcp_rack *rack; 
+	struct tcp_rack *rack;
 
-	KASSERT(*ti_locked == TI_RLOCKED, ("%s: SS_NOFDEREF && "
-					   "CLOSE_WAIT && tlen ti_locked %d", __func__, *ti_locked));
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (rack->rc_allow_data_af_clo == 0) {
 	close_now:
 		tp = tcp_close(tp);
 		TCPSTAT_INC(tcps_rcvafterclose);
-		rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_UNLIMITED, (*tlen));
+		rack_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, (*tlen));
 		return (1);
 	}
 	if (sbavail(&so->so_snd) == 0)
@@ -5834,7 +5798,7 @@ rack_check_data_after_close(struct mbuf *m,
 static int
 rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
@@ -5842,13 +5806,13 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_calc_rwin(so, tp);
 
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -5857,10 +5821,10 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -5868,7 +5832,7 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * are gone, then RST the other end.
 	 */
 	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, ti_locked, &tlen, th, so))
+		if (rack_check_data_after_close(m, tp, &tlen, th, so))
 			return (1);
 	}
 	/*
@@ -5900,19 +5864,19 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (ourfinisacked) {
@@ -5937,12 +5901,12 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 /*
@@ -5953,7 +5917,7 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
@@ -5961,13 +5925,13 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_calc_rwin(so, tp);
 
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -5976,10 +5940,10 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -5987,7 +5951,7 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * are gone, then RST the other end.
 	 */
 	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, ti_locked, &tlen, th, so))
+		if (rack_check_data_after_close(m, tp, &tlen, th, so))
 			return (1);
 	}
 	/*
@@ -6019,38 +5983,36 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (ourfinisacked) {
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tcp_twstart(tp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		*ti_locked = TI_UNLOCKED;
 		m_freem(m);
 		return (1);
 	}
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 /*
@@ -6061,7 +6023,7 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
@@ -6069,13 +6031,13 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_calc_rwin(so, tp);
 
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -6084,10 +6046,10 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -6095,7 +6057,7 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * are gone, then RST the other end.
 	 */
 	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, ti_locked, &tlen, th, so))
+		if (rack_check_data_after_close(m, tp, &tlen, th, so))
 			return (1);
 	}
 	/*
@@ -6127,36 +6089,36 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * case TCPS_LAST_ACK: Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (ourfinisacked) {
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tp = tcp_close(tp);
-		rack_do_drop(m, tp, ti_locked);
+		rack_do_drop(m, tp);
 		return (1);
 	}
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 
@@ -6168,7 +6130,7 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen, int32_t tlen,
-    int32_t * ti_locked, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
+    uint32_t tiwin, int32_t thflags, int32_t nxt_pkt)
 {
 	int32_t ret_val = 0;
 	int32_t ourfinisacked = 0;
@@ -6177,13 +6139,13 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	/* Reset receive buffer auto scaling when not in bulk receive mode. */
 	if (thflags & TH_RST)
-		return (rack_process_rst(m, th, so, tp, ti_locked));
+		return (rack_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, ti_locked, &ret_val);
+		rack_challenge_ack(m, th, tp, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -6192,10 +6154,10 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to->to_tsval, tp->ts_recent)) {
-		if (rack_ts_check(m, th, tp, ti_locked, tlen, thflags, &ret_val))
+		if (rack_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (rack_drop_checks(to, m, th, tp, &tlen, ti_locked, &thflags, &drop_hdrlen, &ret_val)) {
+	if (rack_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -6204,7 +6166,7 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tlen) {
-		if (rack_check_data_after_close(m, tp, ti_locked, &tlen, th, so))
+		if (rack_check_data_after_close(m, tp, &tlen, th, so))
 			return (1);
 	}
 	/*
@@ -6236,30 +6198,30 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-			    ti_locked, tiwin, thflags, nxt_pkt));
+			    tiwin, thflags, nxt_pkt));
 		} else if (tp->t_flags & TF_ACKNOW) {
-			rack_do_dropafterack(m, tp, th, ti_locked, thflags, tlen, &ret_val);
+			rack_do_dropafterack(m, tp, th, thflags, tlen, &ret_val);
 			return (ret_val);
 		} else {
-			rack_do_drop(m, NULL, ti_locked);
+			rack_do_drop(m, NULL);
 			return (0);
 		}
 	}
 	/*
 	 * Ack processing.
 	 */
-	if (rack_process_ack(m, th, so, tp, to, ti_locked, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
+	if (rack_process_ack(m, th, so, tp, to, tiwin, tlen, &ourfinisacked, thflags, &ret_val)) {
 		return (ret_val);
 	}
 	if (sbavail(&so->so_snd)) {
 		if (rack_progress_timeout_check(tp)) {
 			tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-			rack_do_dropwithreset(m, tp, th, ti_locked, BANDLIM_RST_OPENPORT, tlen);
+			rack_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 			return (1);
 		}
 	}
 	return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
-	    ti_locked, tiwin, thflags, nxt_pkt));
+	    tiwin, thflags, nxt_pkt));
 }
 
 
@@ -6533,7 +6495,7 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 static void
 rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos,
-    int32_t ti_locked, int32_t nxt_pkt, struct timeval *tv)
+    int32_t nxt_pkt, struct timeval *tv)
 {
 	int32_t thflags, retval, did_out = 0;
 	int32_t way_out = 0;
@@ -6558,19 +6520,7 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
 	    tp->t_state != TCPS_ESTABLISHED) {
-		KASSERT(ti_locked == TI_RLOCKED, ("%s ti_locked %d for "
-		    "SYN/FIN/RST/!EST", __func__, ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-	} else {
-#ifdef INVARIANTS
-		if (ti_locked == TI_RLOCKED) {
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		} else {
-			KASSERT(ti_locked == TI_UNLOCKED, ("%s: EST "
-			    "ti_locked: %d", __func__, ti_locked));
-			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-		}
-#endif
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
@@ -6707,6 +6657,22 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if ((tp->t_flags & TF_SACK_PERMIT) &&
 			    (to.to_flags & TOF_SACKPERM) == 0)
 				tp->t_flags &= ~TF_SACK_PERMIT;
+			if (IS_FASTOPEN(tp->t_flags)) {
+				if (to.to_flags & TOF_FASTOPEN) {
+					uint16_t mss;
+
+					if (to.to_flags & TOF_MSS)
+						mss = to.to_mss;
+					else
+						if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
+							mss = TCP6_MSS;
+						else
+							mss = TCP_MSS;
+					tcp_fastopen_update_cache(tp, mss,
+					    to.to_tfo_len, to.to_tfo_cookie);
+				} else
+					tcp_fastopen_disable_path(tp);
+			}
 		}
 		/*
 		 * At this point we are at the initial call. Here we decide
@@ -6717,7 +6683,7 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) == 0) {
 			tcp_switch_back_to_default(tp);
 			(*tp->t_fb->tfb_tcp_do_segment) (m, th, so, tp, drop_hdrlen,
-			    tlen, iptos, ti_locked);
+			    tlen, iptos);
 			return;
 		}
 		/* Set the flag */
@@ -6740,7 +6706,7 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_clear_rate_sample(rack);
 	retval = (*rack->r_substate) (m, th, so,
 	    tp, &to, drop_hdrlen,
-	    tlen, &ti_locked, tiwin, thflags, nxt_pkt);
+	    tlen, tiwin, thflags, nxt_pkt);
 #ifdef INVARIANTS
 	if ((retval == 0) &&
 	    (tp->t_inpcb == NULL)) {
@@ -6748,11 +6714,6 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    retval, tp, prev_state);
 	}
 #endif
-	if (ti_locked != TI_UNLOCKED) {
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-		ti_locked = TI_UNLOCKED;
-	}
 	if (retval == 0) {
 		/*
 		 * If retval is 1 the tcb is unlocked and most likely the tp
@@ -6824,14 +6785,13 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 void
 rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos,
-    int32_t ti_locked)
+    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos)
 {
 	struct timeval tv;
 #ifdef RSS
 	struct tcp_function_block *tfb;
 	struct tcp_rack *rack;
-	struct inpcb *inp;
+	struct epoch_tracker et;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (rack->r_state == 0) {
@@ -6839,21 +6799,19 @@ rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * Initial input (ACK to SYN-ACK etc)lets go ahead and get
 		 * it processed
 		 */
-		INP_INFO_RLOCK();
-		ti_locked = TI_RLOCKED;
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 		tcp_get_usecs(&tv);
 		rack_hpts_do_segment(m, th, so, tp, drop_hdrlen,
-		    tlen, iptos, ti_locked, 0, &tv);
+		    tlen, iptos, 0, &tv);
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		return;
 	}
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	tcp_queue_to_input(tp, m, th, tlen, drop_hdrlen, iptos, (uint8_t) ti_locked);
+	tcp_queue_to_input(tp, m, th, tlen, drop_hdrlen, iptos);
 	INP_WUNLOCK(tp->t_inpcb);
 #else
 	tcp_get_usecs(&tv);
 	rack_hpts_do_segment(m, th, so, tp, drop_hdrlen,
-	    tlen, iptos, ti_locked, 0, &tv);
+	    tlen, iptos, 0, &tv);
 #endif
 }
 
@@ -7645,13 +7603,10 @@ dontupdate:
 	 * If our state indicates that FIN should be sent and we have not
 	 * yet done so, then we need to send.
 	 */
-	if (flags & TH_FIN) {
-		if ((tp->t_flags & TF_SENTFIN) ||
-		    (((tp->t_flags & TF_SENTFIN) == 0) &&
-		     (tp->snd_nxt == tp->snd_una))) {
-			pass = 11;
-			goto send;
-		}
+	if ((flags & TH_FIN) &&
+	    (tp->snd_nxt == tp->snd_una)) {
+		pass = 11;
+		goto send;
 	}
 	/*
 	 * No reason to send a segment, just return.

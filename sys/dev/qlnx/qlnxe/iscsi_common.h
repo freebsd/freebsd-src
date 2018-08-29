@@ -256,12 +256,14 @@ struct ystorm_iscsi_task_state
 	union iscsi_seq_num seq_num /* PDU index in sequence */;
 	struct iscsi_dif_flags dif_flags /* Dif flags */;
 	u8 flags;
-#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_MASK  0x1 /* local_completion  */
-#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_SHIFT 0
-#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_MASK     0x1 /* Equals 1 if SGL is predicted and 0 otherwise. */
-#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_SHIFT    1
-#define YSTORM_ISCSI_TASK_STATE_RESERVED0_MASK   0x3F
-#define YSTORM_ISCSI_TASK_STATE_RESERVED0_SHIFT  2
+#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_MASK      0x1 /* local_completion  */
+#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_SHIFT     0
+#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_MASK         0x1 /* Equals 1 if SGL is predicted and 0 otherwise. */
+#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_SHIFT        1
+#define YSTORM_ISCSI_TASK_STATE_SET_DIF_OFFSET_MASK  0x1 /* Indication for Ystorm that TDIFs offsetInIo is not synced with buffer_offset */
+#define YSTORM_ISCSI_TASK_STATE_SET_DIF_OFFSET_SHIFT 2
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_MASK       0x1F
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_SHIFT      3
 };
 
 /*
@@ -848,8 +850,8 @@ struct e4_ystorm_iscsi_task_ag_ctx
 #define E4_YSTORM_ISCSI_TASK_AG_CTX_BIT1_SHIFT       5
 #define E4_YSTORM_ISCSI_TASK_AG_CTX_VALID_MASK       0x1 /* bit2 */
 #define E4_YSTORM_ISCSI_TASK_AG_CTX_VALID_SHIFT      6
-#define E4_YSTORM_ISCSI_TASK_AG_CTX_BIT3_MASK        0x1 /* bit3 */
-#define E4_YSTORM_ISCSI_TASK_AG_CTX_BIT3_SHIFT       7
+#define E4_YSTORM_ISCSI_TASK_AG_CTX_TTT_VALID_MASK   0x1 /* bit3 */
+#define E4_YSTORM_ISCSI_TASK_AG_CTX_TTT_VALID_SHIFT  7
 	u8 flags1;
 #define E4_YSTORM_ISCSI_TASK_AG_CTX_CF0_MASK         0x3 /* cf0 */
 #define E4_YSTORM_ISCSI_TASK_AG_CTX_CF0_SHIFT        0
@@ -1359,6 +1361,22 @@ struct iscsi_conn_offload_params
 
 
 /*
+ * iSCSI connection statistics
+ */
+struct iscsi_conn_stats_params
+{
+	struct regpair iscsi_tcp_tx_packets_cnt /* Counts number of transmitted TCP packets for this iSCSI connection */;
+	struct regpair iscsi_tcp_tx_bytes_cnt /* Counts number of transmitted TCP bytes for this iSCSI connection */;
+	struct regpair iscsi_tcp_tx_rxmit_cnt /* Counts number of TCP retransmission events for this iSCSI connection */;
+	struct regpair iscsi_tcp_rx_packets_cnt /* Counts number of received TCP packets for this iSCSI connection */;
+	struct regpair iscsi_tcp_rx_bytes_cnt /* Counts number of received TCP bytes for this iSCSI connection */;
+	struct regpair iscsi_tcp_rx_dup_ack_cnt /* Counts number of received TCP duplicate acks for this iSCSI connection */;
+	__le32 iscsi_tcp_rx_chksum_err_cnt /* Counts number of received TCP packets with checksum err for this iSCSI connection */;
+	__le32 reserved;
+};
+
+
+/*
  * spe message header 
  */
 struct iscsi_slow_path_hdr
@@ -1414,7 +1432,7 @@ struct iscsi_conn_update_ramrod_params
 struct iscsi_cqe_common
 {
 	__le16 conn_id /* Drivers connection Id */;
-	u8 cqe_type /* Indicates CQE type */;
+	u8 cqe_type /* Indicates CQE type (use enum iscsi_cqes_type) */;
 	union cqe_error_status error_bitmap /* CQE error status */;
 	__le32 reserved[3];
 	union iscsi_task_hdr iscsi_hdr /* iscsi header union */;
@@ -1426,14 +1444,14 @@ struct iscsi_cqe_common
 struct iscsi_cqe_solicited
 {
 	__le16 conn_id /* Drivers connection Id */;
-	u8 cqe_type /* Indicates CQE type */;
+	u8 cqe_type /* Indicates CQE type (use enum iscsi_cqes_type) */;
 	union cqe_error_status error_bitmap /* CQE error status */;
 	__le16 itid /* initiator itt (Initiator mode) or target ttt (Target mode) */;
 	u8 task_type /* Task type */;
 	u8 fw_dbg_field /* FW debug params */;
 	u8 caused_conn_err /* Equals 1 if this TID caused the connection error, otherwise equals 0. */;
 	u8 reserved0[3];
-	__le32 reserved1[1];
+	__le32 data_truncated_bytes /* Target Mode only: Valid only if data_truncated_err equals 1: The remaining bytes till the end of the IO. */;
 	union iscsi_task_hdr iscsi_hdr /* iscsi header union */;
 };
 
@@ -1443,11 +1461,11 @@ struct iscsi_cqe_solicited
 struct iscsi_cqe_unsolicited
 {
 	__le16 conn_id /* Drivers connection Id */;
-	u8 cqe_type /* Indicates CQE type */;
+	u8 cqe_type /* Indicates CQE type (use enum iscsi_cqes_type) */;
 	union cqe_error_status error_bitmap /* CQE error status */;
 	__le16 reserved0 /* Reserved */;
 	u8 reserved1 /* Reserved */;
-	u8 unsol_cqe_type /* Represent this unsolicited CQE position in a sequence of packets belonging to the same unsolicited PDU */;
+	u8 unsol_cqe_type /* Represent this unsolicited CQE position in a sequence of packets belonging to the same unsolicited PDU (use enum iscsi_cqe_unsolicited_type) */;
 	__le16 rqe_opaque /* Relevant for Unsolicited CQE only: The opaque data of RQ BDQ */;
 	__le16 reserved2[3] /* Reserved */;
 	union iscsi_task_hdr iscsi_hdr /* iscsi header union */;
@@ -1503,22 +1521,22 @@ enum iscsi_cqe_unsolicited_type
 struct iscsi_debug_modes
 {
 	u8 flags;
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_MASK         0x1 /* Assert on Rx connection error */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_SHIFT        0
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_MASK            0x1 /* Assert if TCP RESET arrived */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_SHIFT           1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_MASK              0x1 /* Assert if TCP FIN arrived */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_SHIFT             2
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_MASK          0x1 /* Assert if cleanup flow */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_SHIFT         3
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_MASK  0x1 /* Assert if REJECT PDU or ASYNC PDU arrived */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT 4
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK              0x1 /* Assert if NOP IN PDU or NOP OUT PDU arrived */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT             5
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_MASK     0x1 /* Assert if data digest error */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_SHIFT    6
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_MASK             0x1 /* Assert if DIF error */
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_SHIFT            7
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_MASK             0x1 /* Assert on Rx connection error */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_SHIFT            0
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_MASK                0x1 /* Assert if TCP RESET arrived */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_SHIFT               1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_MASK                  0x1 /* Assert if TCP FIN arrived */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_SHIFT                 2
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_MASK              0x1 /* Assert if cleanup flow */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_SHIFT             3
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_MASK      0x1 /* Assert if REJECT PDU or ASYNC PDU arrived */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT     4
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK                  0x1 /* Assert if NOP IN PDU or NOP OUT PDU arrived */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT                 5
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_MASK  0x1 /* Assert if DIF or data digest error */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_SHIFT 6
+#define ISCSI_DEBUG_MODES_ASSERT_IF_HQ_CORRUPT_MASK                0x1 /* Assert if HQ corruption detected */
+#define ISCSI_DEBUG_MODES_ASSERT_IF_HQ_CORRUPT_SHIFT               7
 };
 
 
@@ -1535,9 +1553,9 @@ enum iscsi_eqe_opcode
 	ISCSI_EVENT_TYPE_CLEAR_SQ /* iSCSI response after clear sq Ramrod */,
 	ISCSI_EVENT_TYPE_TERMINATE_CONN /* iSCSI response after termination Ramrod */,
 	ISCSI_EVENT_TYPE_MAC_UPDATE_CONN /* iSCSI response after MAC address update Ramrod */,
+	ISCSI_EVENT_TYPE_COLLECT_STATS_CONN /* iSCSI response after collecting connection statistics Ramrod */,
 	ISCSI_EVENT_TYPE_ASYN_CONNECT_COMPLETE /* iSCSI response after option 2 connect completed (A-syn EQE) */,
 	ISCSI_EVENT_TYPE_ASYN_TERMINATE_DONE /* iSCSI response after option 2 termination completed (A-syn EQE) */,
-	RESERVED9 /* reserved9 */,
 	ISCSI_EVENT_TYPE_START_OF_ERROR_TYPES=10 /* Never returned in EQE, used to separate Regular event types from Error event types */,
 	ISCSI_EVENT_TYPE_ASYN_ABORT_RCVD /* iSCSI abort response after TCP RST packet recieve (A-syn EQE) */,
 	ISCSI_EVENT_TYPE_ASYN_CLOSE_RCVD /* iSCSI response after close receive (A-syn EQE) */,
@@ -1629,6 +1647,7 @@ enum iscsi_ramrod_cmd_id
 	ISCSI_RAMROD_CMD_ID_TERMINATION_CONN=5 /* iSCSI connection offload Ramrod. Command ID known only to FW and VBD */,
 	ISCSI_RAMROD_CMD_ID_CLEAR_SQ=6 /* iSCSI connection clear-sq ramrod.  */,
 	ISCSI_RAMROD_CMD_ID_MAC_UPDATE=7 /* iSCSI connection update MAC address ramrod.  */,
+	ISCSI_RAMROD_CMD_ID_CONN_STATS=8 /* iSCSI collect connection statistics ramrod.  */,
 	MAX_ISCSI_RAMROD_CMD_ID
 };
 
@@ -1680,6 +1699,20 @@ struct iscsi_spe_conn_offload_option2
 
 
 /*
+ * ISCSI collect connection statistics request
+ */
+struct iscsi_spe_conn_statistics
+{
+	struct iscsi_slow_path_hdr hdr /* spe message header. */;
+	__le16 conn_id /* ISCSI Connection ID. */;
+	__le32 fw_cid /* Context ID (cid) of the connection. */;
+	u8 reset_stats /* Indicates whether to reset the connection statistics. */;
+	u8 reserved0[7];
+	struct regpair stats_cnts_addr /* cmdq and unsolicited counters termination params */;
+};
+
+
+/*
  * ISCSI connection termination request
  */
 struct iscsi_spe_conn_termination
@@ -1716,7 +1749,11 @@ struct iscsi_spe_func_init
 	u8 num_r2tq_pages_in_ring /* Number of entries in the R2TQ PBL. Provided by driver at function init spe */;
 	u8 num_uhq_pages_in_ring /* Number of entries in the uHQ PBL (xHQ entries is X2). Provided by driver at function init spe */;
 	u8 ll2_rx_queue_id /* Queue ID of the Light-L2 Rx Queue */;
-	u8 ooo_enable /* Enable Out Of Order mode (enable = 1) */;
+	u8 flags;
+#define ISCSI_SPE_FUNC_INIT_COUNTERS_EN_MASK  0x1 /* Enable counters - function and connection counters */
+#define ISCSI_SPE_FUNC_INIT_COUNTERS_EN_SHIFT 0
+#define ISCSI_SPE_FUNC_INIT_RESERVED0_MASK    0x7F /* reserved */
+#define ISCSI_SPE_FUNC_INIT_RESERVED0_SHIFT   1
 	struct iscsi_debug_modes debug_mode /* Use iscsi_debug_mode flags */;
 	__le16 reserved1;
 	__le32 reserved2;
@@ -1855,6 +1892,7 @@ struct iscsi_xhqe
 struct mstorm_iscsi_stats_drv
 {
 	struct regpair iscsi_rx_dropped_PDUs_task_not_valid /* Number of Rx silently dropped PDUs due to task not valid */;
+	struct regpair iscsi_rx_dup_ack_cnt /* Received Dup-ACKs - after 3 dup ack, the counter doesnt count the same dup ack */;
 };
 
 
@@ -1878,6 +1916,9 @@ struct tstorm_iscsi_stats_drv
 	struct regpair iscsi_rx_bytes_cnt /* Counts the number of rx bytes that were received */;
 	struct regpair iscsi_rx_packet_cnt /* Counts the number of rx packets that were received */;
 	struct regpair iscsi_rx_new_ooo_isle_events_cnt /* Counts the number of new out-of-order isle event */;
+	struct regpair iscsi_rx_tcp_payload_bytes_cnt /* Received In-Order TCP Payload Bytes */;
+	struct regpair iscsi_rx_tcp_pkt_cnt /* Received In-Order TCP Packets */;
+	struct regpair iscsi_rx_pure_ack_cnt /* Received Pure-ACKs */;
 	__le32 iscsi_cmdq_threshold_cnt /* Counts the number of times elements in cmdQ reached threshold */;
 	__le32 iscsi_rq_threshold_cnt /* Counts the number of times elements in RQQ reached threshold */;
 	__le32 iscsi_immq_threshold_cnt /* Counts the number of times elements in immQ reached threshold */;
@@ -1903,6 +1944,8 @@ struct xstorm_iscsi_stats_drv
 {
 	struct regpair iscsi_tx_go_to_slow_start_event_cnt /* Number of times slow start event occurred */;
 	struct regpair iscsi_tx_fast_retransmit_event_cnt /* Number of times fast retransmit event occurred */;
+	struct regpair iscsi_tx_pure_ack_cnt /* Transmitted Pure-ACKs */;
+	struct regpair iscsi_tx_delayed_ack_cnt /* Transmitted Delayed ACKs */;
 };
 
 
@@ -1914,6 +1957,8 @@ struct ystorm_iscsi_stats_drv
 	struct regpair iscsi_tx_data_pdu_cnt /* Number of data PDUs that were transmitted */;
 	struct regpair iscsi_tx_r2t_pdu_cnt /* Number of R2T PDUs that were transmitted */;
 	struct regpair iscsi_tx_total_pdu_cnt /* Number of total PDUs that were transmitted */;
+	struct regpair iscsi_tx_tcp_payload_bytes_cnt /* Transmitted In-Order TCP Payload Bytes */;
+	struct regpair iscsi_tx_tcp_pkt_cnt /* Transmitted In-Order TCP Packets */;
 };
 
 

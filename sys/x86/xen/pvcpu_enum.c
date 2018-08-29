@@ -68,11 +68,11 @@ static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
 
 static struct apic_enumerator xenpv_enumerator = {
-	"Xen PV",
-	xenpv_probe,
-	xenpv_probe_cpus,
-	xenpv_setup_local,
-	xenpv_setup_io
+	.apic_name = "Xen PV",
+	.apic_probe = xenpv_probe,
+	.apic_probe_cpus = xenpv_probe_cpus,
+	.apic_setup_local = xenpv_setup_local,
+	.apic_setup_io = xenpv_setup_io
 };
 
 /*--------------------- Helper functions to parse MADT -----------------------*/

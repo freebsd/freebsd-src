@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.131 2018/02/16 15:44:28 christos Exp $
+# $File: images,v 1.146 2018/07/03 20:55:37 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -255,10 +255,12 @@
 # The second word of TIFF files is the TIFF version number, 42, which has
 # never changed.  The TIFF specification recommends testing for it.
 0	string		MM\x00\x2a	TIFF image data, big-endian
+!:strength +70
 !:mime	image/tiff
 >(4.L)	use		\^tiff_ifd
 0	string		II\x2a\x00	TIFF image data, little-endian
 !:mime	image/tiff
+!:strength +70
 >(4.l)	use		tiff_ifd
 
 0	name		tiff_ifd
@@ -464,7 +466,9 @@
 !:mime	image/x-unknown
 
 # GIF
+# Strength set up to beat 0x55AA DOS/MBR signature word lookups (+65)
 0	string		GIF8		GIF image data
+!:strength +80
 !:mime	image/gif
 !:apple	8BIMGIFf
 >4	string		7a		\b, version 8%s,
@@ -680,6 +684,8 @@
 # data and image transfer, storage, etc., for the astronomical community.
 # (FITS floating point formats are big-endian.)
 0	string	SIMPLE\ \ =	FITS image data
+!:mime	image/fits
+!:ext	fits/fts
 >109	string	8		\b, 8-bit, character or unsigned binary integer
 >108	string	16		\b, 16-bit, two's complement binary integer
 >107	string	\ 32		\b, 32-bit, two's complement binary integer
@@ -1392,6 +1398,115 @@
 >8		ubelong		x		%dx
 >12		ubelong		x		\b%d
 
+# Type: Microsoft DirectDraw Surface (common data)
+# URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
+# From: Morten Hustveit <morten@debian.org>
+# Updated by: David Korth <gerbilsoft@gerbilsoft.com>
+0	name	ms-directdraw-surface
+>0x10	ulelong	x			%u x
+>0x0C	ulelong	x			%u
+# Color depth.
+>0x58	ulelong	>0			\b, %u-bit color
+# Determine the pixel format.
+>0x50	ulelong&0x4	4
+# FIXME: Handle DX10 and XBOX formats.
+>>0x54	string	x			\b, compressed using %.4s
+>0x50	ulelong&0x2	0x2		\b, alpha only
+>0x50	ulelong&0x200	0x200		\b, YUV
+>0x50	ulelong&0x20000	0x20000		\b, luminance
+# RGB pixel format
+>0x50	ulelong&0x40	0x40
+
+# Determine the RGB format using the color masks.
+# ulequad order: 0xGGGGGGGGRRRRRRRR, 0xAAAAAAAABBBBBBBB
+
+>>0x58		ulelong	16
+
+# NOTE: 15-bit color formats usually have 16-bit listed as the color depth.
+>>>0x5C		ulequad	0x000003E000007C00
+>>>>0x64	ulequad 0x000000000000001F	\b, RGB555
+>>>0x5C		ulequad	0x000003E000001F00
+>>>>0x64	ulequad 0x000000000000007C	\b, BGR555
+
+>>>0x5C		ulequad	0x000007E00000F800
+>>>>0x64	ulequad 0x000000000000001F	\b, RGB565
+>>>0x5C		ulequad	0x000007E000001F00
+>>>>0x64	ulequad 0x00000000000000F8	\b, BGR565
+
+>>>0x5C		ulequad	0x000000F000000F00
+>>>>0x64	ulequad 0x0000F0000000000F	\b, ARGB4444
+>>>0x5C		ulequad	0x000000F00000000F
+>>>>0x64	ulequad 0x0000F00000000F00	\b, ABGR4444
+
+>>>0x5C		ulequad	0x00000F000000F000
+>>>>0x64	ulequad 0x0000000F000000F0	\b, RGBA4444
+>>>0x5C		ulequad	0x00000F00000000F0
+>>>>0x64	ulequad 0x0000000F0000F000	\b, BGRA4444
+
+>>>0x5C		ulequad	0x000000F000000F00
+>>>>0x64	ulequad 0x000000000000000F	\b, xRGB4444
+>>>0x5C		ulequad	0x000000F00000000F
+>>>>0x64	ulequad 0x0000000000000F00	\b, xBGR4444
+
+>>>0x5C		ulequad	0x00000F000000F000
+>>>>0x64	ulequad 0x00000000000000F0	\b, RGBx4444
+>>>0x5C		ulequad	0x00000F00000000F0
+>>>>0x64	ulequad 0x000000000000F000	\b, BGRx4444
+
+>>>0x5C		ulequad	0x000003E000007C00
+>>>>0x64	ulequad 0x000080000000001F	\b, ARGB1555
+>>>0x5C		ulequad	0x000003E000001F00
+>>>>0x64	ulequad 0x000080000000007C	\b, ABGR1555
+>>>0x5C		ulequad	0x000007C00000F800
+>>>>0x64	ulequad 0x000000010000003E	\b, RGBA5551
+>>>0x5C		ulequad	0x000007C00000003E
+>>>>0x64	ulequad 0x000000010000F800	\b, BGRA5551
+
+>>88		ulelong 24
+>>>0x5C		ulequad	0x0000FF0000FF0000
+>>>>0x64	ulequad 0x00000000000000FF	\b, RGB888
+>>>0x5C		ulequad	0x0000FF00000000FF
+>>>>0x64	ulequad 0x0000000000FF0000	\b, BGR888
+
+>>88		ulelong 32
+>>>0x5C		ulequad	0x0000FF0000FF0000
+>>>>0x64	ulequad 0xFF000000000000FF	\b, ARGB8888
+>>>0x5C		ulequad	0x0000FF00000000FF
+>>>>0x64	ulequad 0xFF00000000FF0000	\b, ABGR8888
+
+>>>0x5C		ulequad	0x00FF0000FF000000
+>>>>0x64	ulequad 0x000000FF0000FF00	\b, RGBA8888
+>>>0x5C		ulequad	0x00FF00000000FF00
+>>>>0x64	ulequad 0x000000FFFF000000	\b, BGBA8888
+
+>>>0x5C		ulequad	0x0000FF0000FF0000
+>>>>0x64	ulequad 0x00000000000000FF	\b, xRGB8888
+>>>0x5C		ulequad	0x0000FF00000000FF
+>>>>0x64	ulequad 0x0000000000FF0000	\b, xBGR8888
+
+>>>0x5C		ulequad	0x00FF0000FF000000
+>>>>0x64	ulequad 0x000000000000FF00	\b, RGBx8888
+>>>0x5C		ulequad	0x00FF00000000FF00
+>>>>0x64	ulequad 0x00000000FF000000	\b, BGBx8888
+
+# Less common 32-bit color formats.
+>>>0x5C		ulequad	0xFFFF00000000FFFF
+>>>>0x64	ulequad 0x0000000000000000	\b, G16R16
+>>>0x5C		ulequad	0x0000FFFFFFFF0000
+>>>>0x64	ulequad 0x0000000000000000	\b, R16G16
+
+>>>0x5C		ulequad	0x000FFC003FF00000
+>>>>0x64	ulequad 0xC0000000000003FF	\b, A2R10G10B10
+>>>0x5C		ulequad	0x000FFC00000003FF
+>>>>0x64	ulequad 0xC00000003FF00000	\b, A2B10G10R10
+
+# Type: Microsoft DirectDraw Surface
+# URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
+# From: Morten Hustveit <morten@debian.org>
+# Updated by: David Korth <gerbilsoft@gerbilsoft.com>
+0	string/b	DDS\040\174\000\000\000 Microsoft DirectDraw Surface (DDS):
+>0	use	ms-directdraw-surface
+
 # Type: Sega PVR image.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # References:
@@ -1401,8 +1516,8 @@
 
 # Sega PVR header.
 0	name	sega-pvr-image-header
->0x0C	leshort	x	%d x
->0x0E	leshort	x	%d
+>0x0C	leshort	x	%u x
+>0x0E	leshort	x	%u
 # Image format.
 >0x08	byte	0	\b, ARGB1555
 >0x08	byte	1	\b, RGB565
@@ -1427,17 +1542,10 @@
 >0x09	byte	0x11	\b, small VQ & mipmap
 >0x09	byte	0x12	\b, square twiddled & mipmap
 
-# Sega PVR (Xbox) image header.
-# Contains an embedded DirectDraw surface instead of PVR data.
-0	name	sega-pvr-xbox-dds-header
->16	lelong	x	%d x
->12	lelong	x	%d,
->84	string	x	%.4s
-
 # Sega PVR image.
 0	string	PVRT
 >0x10	string	DDS\040\174\000\000\000 Sega PVR (Xbox) image:
->>0x20	use	sega-pvr-xbox-dds-header
+>>0x20	use	ms-directdraw-surface
 >0x10	belong	!0x44445320		Sega PVR image:
 >>0	use	sega-pvr-image-header
 
@@ -1445,15 +1553,15 @@
 0	string	GBIX
 >0x10	string	PVRT
 >>0x10	string	DDS\040\174\000\000\000 Sega PVR (Xbox) image:
->>>0x20	use	sega-pvr-xbox-dds-header
+>>0x20	use	ms-directdraw-surface
 >>0x10	belong	!0x44445320		Sega PVR image:
 >>>0x10	use	sega-pvr-image-header
 >>0x08	lelong	x	\b, global index = %u
 
 # Sega GVR header.
 0	name	sega-gvr-image-header
->0x0C	beshort	x	%d x
->0x0E	beshort	x	%d
+>0x0C	beshort	x	%u x
+>0x0E	beshort	x	%u
 # Image data format.
 >0x0B	byte	0	\b, I4
 >0x0B	byte	1	\b, I8
@@ -1472,6 +1580,12 @@
 
 # Sega GVR image with GBIX.
 0	string	GBIX
+>0x10	string	GVRT	Sega GVR image:
+>>0x10	use	sega-gvr-image-header
+>>0x08	belong	x	\b, global index = %u
+
+# Sega GVR image with GCIX. (Wii)
+0	string	GCIX
 >0x10	string	GVRT	Sega GVR image:
 >>0x10	use	sega-gvr-image-header
 >>0x08	belong	x	\b, global index = %u
@@ -1511,3 +1625,171 @@
 >12	lelong x		version %d,
 >20	lelong x 		%dx
 >24	lelong x		\b%d
+
+# Type: Khronos KTX texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
+
+# glEnum decoding.
+# NOTE: Only the most common formats are listed here.
+0	name	khronos-ktx-glEnum
+>0	lelong	0x1907	\b, RGB
+>0	lelong	0x1908	\b, RGBA
+>0	lelong	0x1909	\b, LUMINANCE
+>0	lelong	0x190A	\b, LUMINANCE_ALPHA
+>0	lelong	0x80E1	\b, BGR
+>0	lelong	0x80E2	\b, BGRA
+>0	lelong	0x83A0	\b, RGB_S3TC
+>0	lelong	0x83A1	\b, RGB4_S3TC
+>0	lelong	0x83A2	\b, RGBA_S3TC
+>0	lelong	0x83A3	\b, RGBA4_S3TC
+>0	lelong	0x83A4	\b, RGBA_DXT5_S3TC
+>0	lelong	0x83A5	\b, RGBA4_DXT5_S3TC
+>0	lelong	0x8D64	\b, ETC1_RGB8_OES
+>0	lelong	0x9270	\b, COMPRESSED_R11_EAC
+>0	lelong	0x9271	\b, COMPRESSED_SIGNED_R11_EAC
+>0	lelong	0x9272	\b, COMPRESSED_RG11_EAC
+>0	lelong	0x9273	\b, COMPRESSED_SIGNED_RG11_EAC
+>0	lelong	0x9274	\b, COMPRESSED_RGB8_ETC2
+>0	lelong	0x9275	\b, COMPRESSED_SRGB8_ETC2
+>0	lelong	0x9276	\b, COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2
+>0	lelong	0x9277	\b, COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2
+>0	lelong	0x9278	\b, COMPRESSED_RGBA2_ETC2_EAC
+>0	lelong	0x9279	\b, COMPRESSED_SRGB8_ALPHA8_ETC2_EAC
+>0	lelong	0x93B0	\b, COMPRESSED_RGBA_ASTC_4x4_KHR
+>0	lelong	0x93B1	\b, COMPRESSED_RGBA_ASTC_5x4_KHR
+>0	lelong	0x93B2	\b, COMPRESSED_RGBA_ASTC_5x5_KHR
+>0	lelong	0x93B3	\b, COMPRESSED_RGBA_ASTC_6x5_KHR
+>0	lelong	0x93B4	\b, COMPRESSED_RGBA_ASTC_6x6_KHR
+>0	lelong	0x93B5	\b, COMPRESSED_RGBA_ASTC_8x5_KHR
+>0	lelong	0x93B6	\b, COMPRESSED_RGBA_ASTC_8x6_KHR
+>0	lelong	0x93B7	\b, COMPRESSED_RGBA_ASTC_8x8_KHR
+>0	lelong	0x93B8	\b, COMPRESSED_RGBA_ASTC_10x5_KHR
+>0	lelong	0x93B9	\b, COMPRESSED_RGBA_ASTC_10x6_KHR
+>0	lelong	0x93BA	\b, COMPRESSED_RGBA_ASTC_10x8_KHR
+>0	lelong	0x93BB	\b, COMPRESSED_RGBA_ASTC_10x10_KHR
+>0	lelong	0x93BC	\b, COMPRESSED_RGBA_ASTC_12x10_KHR
+>0	lelong	0x93BD	\b, COMPRESSED_RGBA_ASTC_12x12_KHR
+>0	lelong	0x93D0	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR
+>0	lelong	0x93D1	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR
+>0	lelong	0x93D2	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR
+>0	lelong	0x93D3	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR
+>0	lelong	0x93D4	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR
+>0	lelong	0x93D5	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR
+>0	lelong	0x93D6	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR
+>0	lelong	0x93D7	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR
+>0	lelong	0x93D8	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR
+>0	lelong	0x93D9	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR
+>0	lelong	0x93DA	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR
+>0	lelong	0x93DB	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR
+>0	lelong	0x93DC	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR
+>0	lelong	0x93DD	\b, COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR
+
+# Endian-specific KTX header.
+# TODO: glType (all textures I've seen so far are GL_UNSIGNED_BYTE)
+0	name	khronos-ktx-endian-header
+>20	lelong	x	\b, %u
+>24	lelong	>1	x %u
+>28	lelong	>1	x %u
+>8	lelong	>0
+>>8	use	khronos-ktx-glEnum
+>8	lelong	0
+>>12	use	khronos-ktx-glEnum
+
+# Main KTX header.
+# Determine endianness, then check the rest of the header.
+0	string	\xABKTX\ 11\xBB\r\n\x1A\n	Khronos KTX texture
+>12	lelong	0x04030201			(little-endian)
+>>16	use	khronos-ktx-endian-header
+>12	belong	0x04030201			(big-endian)
+>>16	use	^khronos-ktx-endian-header
+
+# Type: Valve VTF texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://developer.valvesoftware.com/wiki/Valve_Texture_Format
+
+# VTF image formats.
+0	name	vtf-image-format
+>0	lelong	0	RGBA8888
+>0	lelong	1	ABGR8888
+>0	lelong	2	RGB888
+>0	lelong	3	BGR888
+>0	lelong	4	RGB565
+>0	lelong	5	I8
+>0	lelong	6	IA88
+>0	lelong	7	P8
+>0	lelong	8	A8
+>0	lelong	9	RGB888 (bluescreen)
+>0	lelong	10	BGR888 (bluescreen)
+>0	lelong	11	ARGB8888
+>0	lelong	12	BGRA8888
+>0	lelong	13	DXT1
+>0	lelong	14	DXT3
+>0	lelong	15	DXT5
+>0	lelong	16	BGRx8888
+>0	lelong	17	BGR565
+>0	lelong	18	BGRx5551
+>0	lelong	19	BGRA4444
+>0	lelong	20	DXT1+A1
+>0	lelong	21	BGRA5551
+>0	lelong	22	UV88
+>0	lelong	23	UVWQ8888
+>0	lelong	24	RGBA16161616F
+>0	lelong	25	RGBA16161616
+>0	lelong	26	UVLX8888
+
+# Main VTF header.
+0	string	VTF\0				Valve Texture Format
+>4	lelong	x				v%u
+>8	lelong	x				\b.%u
+>0x10	leshort	x				\b, %u
+>0x12	leshort	>1				x %u
+>4	lequad	0x0000000700000002
+>>0x3F	leshort	>1				x %u
+>0x18	leshort	>1				\b, %u frames
+>0x38	byte	x				\b, mipmaps: %u
+>0x34	lelong	>-1				\b,
+>>0x34	use	vtf-image-format
+
+# Type: Valve VTF3 (PS3) texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+0	string		VTF3	Valve Texture Format (PS3)
+>0x14	beshort		x	\b, %u
+>0x16	beshort		x	\b x %u
+>0x10	belong&0x2000	0	\b, DXT1
+>0x10	belong&0x2000	0x2000	\b, DXT5
+
+# Type: ASTC texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://stackoverflow.com/questions/22600678/determine-internal-format-of-given-astc-compressed-image-through-its-header
+# - https://stackoverflow.com/a/22682244
+0	lelong	0x5ca1ab13			ASTC
+>4	byte	x				%u
+>5	byte	x				\bx%u
+>6	byte	>1				\bx%u
+# X, Y, and Z dimensions are stored as 24-bit LE.
+# Pretend it's 32-bit and mask off the high byte.
+>7	lelong&0x00FFFFFF	x		texture, %u
+>10	lelong&0x00FFFFFF	x		x %u
+>13	lelong&0x00FFFFFF	>1		x %u
+
+# Zebra Metafile graphic
+# http://www.fileformat.info/format/zbr/egff.htm
+0	beshort	0x9a02	Zebra Metafile graphic
+>2	leshort 1	(version 1.x)
+>2	leshort	2	(version 1.1x or 1.2x)
+>2	leshort	3	(version 1.49)
+>2	leshort	4	(version 1.50)
+>4	string	x	(comment = %s)
+
+# Microsoft Paint graphic
+# http://www.fileformat.info/format/mspaint/egff.htm
+0	string	DanM 	icrosoft Paint image data (version 1.x)
+>4	leshort	x	(%d
+>>6	leshort	x	x %d)
+0	string	LinS 	Microsoft Paint image data (version 2.0)
+>4	leshort	x	(%d
+>>6	leshort	x	x %d)

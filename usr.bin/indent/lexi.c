@@ -54,14 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
+
 #include "indent_globs.h"
 #include "indent_codes.h"
 #include "indent.h"
-
-#define alphanum 1
-#ifdef undef
-#define opchar 3
-#endif
 
 struct templ {
     const char *rwd;
@@ -122,26 +119,48 @@ const char **typenames;
 int         typename_count;
 int         typename_top = -1;
 
-char        chartype[128] =
-{				/* this is used to facilitate the decision of
-				 * what type (alphanumeric, operator) each
-				 * character is */
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 3, 0, 0, 1, 3, 3, 0,
-    0, 0, 3, 3, 0, 3, 0, 3,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 0, 0, 3, 3, 3, 3,
-    0, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 0, 0, 0, 3, 1,
-    0, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 0, 3, 0, 3, 0
+/*
+ * The transition table below was rewritten by hand from lx's output, given
+ * the following definitions. lx is Katherine Flavel's lexer generator.
+ *
+ * O  = /[0-7]/;        D  = /[0-9]/;          NZ = /[1-9]/;
+ * H  = /[a-f0-9]/i;    B  = /[0-1]/;          HP = /0x/i;
+ * BP = /0b/i;          E  = /e[+\-]?/i D+;    P  = /p[+\-]?/i D+;
+ * FS = /[fl]/i;        IS = /u/i /(l|L|ll|LL)/? | /(l|L|ll|LL)/ /u/i?;
+ *
+ * D+           E  FS? -> $float;
+ * D*    "." D+ E? FS? -> $float;
+ * D+    "."    E? FS? -> $float;    HP H+           IS? -> $int;
+ * HP H+        P  FS? -> $float;    NZ D*           IS? -> $int;
+ * HP H* "." H+ P  FS? -> $float;    "0" O*          IS? -> $int;
+ * HP H+ "."    P  FS  -> $float;    BP B+           IS? -> $int;
+ */
+static char const *table[] = {
+    /*                examples:
+                                     00
+             s                      0xx
+             t                    00xaa
+             a     11       101100xxa..
+             r   11ee0001101lbuuxx.a.pp
+             t.01.e+008bLuxll0Ll.aa.p+0
+    states:  ABCDEFGHIJKLMNOPQRSTUVWXYZ */
+    ['0'] = "CEIDEHHHIJQ  U  Q  VUVVZZZ",
+    ['1'] = "DEIDEHHHIJQ  U  Q  VUVVZZZ",
+    ['7'] = "DEIDEHHHIJ   U     VUVVZZZ",
+    ['9'] = "DEJDEHHHJJ   U     VUVVZZZ",
+    ['a'] = "             U     VUVV   ",
+    ['b'] = "  K          U     VUVV   ",
+    ['e'] = "  FFF   FF   U     VUVV   ",
+    ['f'] = "    f  f     U     VUVV  f",
+    ['u'] = "  MM    M  i  iiM   M     ",
+    ['x'] = "  N                       ",
+    ['p'] = "                    FFX   ",
+    ['L'] = "  LLf  fL  PR   Li  L    f",
+    ['l'] = "  OOf  fO   S P O i O    f",
+    ['+'] = "     G                 Y  ",
+    ['.'] = "B EE    EE   T      W     ",
+    /*       ABCDEFGHIJKLMNOPQRSTUVWXYZ */
+    [0]   = "uuiifuufiuuiiuiiiiiuiuuuuu",
 };
 
 static int
@@ -173,7 +192,8 @@ lexi(struct parser_state *state)
     }
 
     /* Scan an alphanumeric token */
-    if (chartype[*buf_ptr & 127] == alphanum ||
+    if (isalnum((unsigned char)*buf_ptr) ||
+	*buf_ptr == '_' || *buf_ptr == '$' ||
 	(buf_ptr[0] == '.' && isdigit((unsigned char)buf_ptr[1]))) {
 	/*
 	 * we have a character or number
@@ -182,73 +202,28 @@ lexi(struct parser_state *state)
 
 	if (isdigit((unsigned char)*buf_ptr) ||
 	    (buf_ptr[0] == '.' && isdigit((unsigned char)buf_ptr[1]))) {
-	    int         seendot = 0,
-	                seenexp = 0,
-			seensfx = 0;
+	    char s;
+	    unsigned char i;
 
-	    /*
-	     * base 2, base 8, base 16:
-	     */
-	    if (buf_ptr[0] == '0' && buf_ptr[1] != '.') {
-		int len;
-
-		if (buf_ptr[1] == 'b' || buf_ptr[1] == 'B')
-		    len = strspn(buf_ptr + 2, "01") + 2;
-		else if (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')
-		    len = strspn(buf_ptr + 2, "0123456789ABCDEFabcdef") + 2;
-		else
-		    len = strspn(buf_ptr + 1, "012345678") + 1;
-		if (len > 0) {
-		    CHECK_SIZE_TOKEN(len);
-		    memcpy(e_token, buf_ptr, len);
-		    e_token += len;
-		    buf_ptr += len;
+	    for (s = 'A'; s != 'f' && s != 'i' && s != 'u'; ) {
+		i = (unsigned char)*buf_ptr;
+		if (i >= nitems(table) || table[i] == NULL ||
+		    table[i][s - 'A'] == ' ') {
+		    s = table[0][s - 'A'];
+		    break;
 		}
-		else
-		    diag2(1, "Unterminated literal");
+		s = table[i][s - 'A'];
+		CHECK_SIZE_TOKEN(1);
+		*e_token++ = *buf_ptr++;
+		if (buf_ptr >= buf_end)
+		    fill_buffer();
 	    }
-	    else		/* base 10: */
-		while (1) {
-		    if (*buf_ptr == '.') {
-			if (seendot)
-			    break;
-			else
-			    seendot++;
-		    }
-		    CHECK_SIZE_TOKEN(3);
-		    *e_token++ = *buf_ptr++;
-		    if (!isdigit((unsigned char)*buf_ptr) && *buf_ptr != '.') {
-			if ((*buf_ptr != 'E' && *buf_ptr != 'e') || seenexp)
-			    break;
-			else {
-			    seenexp++;
-			    seendot++;
-			    *e_token++ = *buf_ptr++;
-			    if (*buf_ptr == '+' || *buf_ptr == '-')
-				*e_token++ = *buf_ptr++;
-			}
-		    }
-		}
-
-	    while (1) {
-		CHECK_SIZE_TOKEN(2);
-		if (!(seensfx & 1) && (*buf_ptr == 'U' || *buf_ptr == 'u')) {
-		    *e_token++ = *buf_ptr++;
-		    seensfx |= 1;
-		    continue;
-		}
-		if (!(seensfx & 2) && (strchr("fFlL", *buf_ptr) != NULL)) {
-		    if (buf_ptr[1] == buf_ptr[0])
-		        *e_token++ = *buf_ptr++;
-		    *e_token++ = *buf_ptr++;
-		    seensfx |= 2;
-		    continue;
-		}
-		break;
-	    }
+	    /* s now indicates the type: f(loating), i(integer), u(nknown) */
 	}
 	else
-	    while (chartype[*buf_ptr & 127] == alphanum || *buf_ptr == BACKSLASH) {
+	    while (isalnum((unsigned char)*buf_ptr) ||
+	        *buf_ptr == BACKSLASH ||
+		*buf_ptr == '_' || *buf_ptr == '$') {
 		/* fill_buffer() terminates buffer with newline */
 		if (*buf_ptr == BACKSLASH) {
 		    if (*(buf_ptr + 1) == '\n') {
@@ -527,21 +502,11 @@ stop_lit:
     case '=':
 	if (state->in_or_st)
 	    state->block_init = 1;
-#ifdef undef
-	if (chartype[*buf_ptr & 127] == opchar) {	/* we have two char assignment */
-	    e_token[-1] = *buf_ptr++;
-	    if ((e_token[-1] == '<' || e_token[-1] == '>') && e_token[-1] == *buf_ptr)
-		*e_token++ = *buf_ptr++;
-	    *e_token++ = '=';	/* Flip =+ to += */
-	    *e_token = 0;
-	}
-#else
 	if (*buf_ptr == '=') {/* == */
 	    *e_token++ = '=';	/* Flip =+ to += */
 	    buf_ptr++;
 	    *e_token = 0;
 	}
-#endif
 	code = binary_op;
 	unary_delim = true;
 	break;
@@ -623,6 +588,22 @@ stop_lit:
     CHECK_SIZE_TOKEN(1);
     *e_token = '\0';		/* null terminate the token */
     return (code);
+}
+
+/* Initialize constant transition table */
+void
+init_constant_tt(void)
+{
+    table['-'] = table['+'];
+    table['8'] = table['9'];
+    table['2'] = table['3'] = table['4'] = table['5'] = table['6'] = table['7'];
+    table['A'] = table['C'] = table['D'] = table['c'] = table['d'] = table['a'];
+    table['B'] = table['b'];
+    table['E'] = table['e'];
+    table['U'] = table['u'];
+    table['X'] = table['x'];
+    table['P'] = table['p'];
+    table['F'] = table['f'];
 }
 
 void

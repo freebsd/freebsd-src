@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.117 2018/03/17 02:11:04 christos Exp $
+# $File: archive,v 1.119 2018/04/24 23:19:45 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -11,6 +11,7 @@
 # Reference: https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&manpath=FreeBSD+8-current
 # header mainly padded with nul bytes
 500	quad		0		
+!:strength /2
 # filename or extended attribute printable strings in range space null til umlaut ue
 >0	ubeshort	>0x1F00		
 >>0	ubeshort	<0xFCFD
@@ -261,7 +262,7 @@
 #
 # BSD/SVR2-and-later portable archive formats.
 #
-0	string		=!<arch>		current ar archive
+0	string		=!<arch>\n		current ar archive
 !:mime	application/x-archive
 >8	string		__.SYMDEF	random library
 >68	string		__.SYMDEF\ SORTED	random library

@@ -1636,11 +1636,17 @@ do {									\
 						error = EINVAL;
 						break;
 					}
+					INP_WLOCK(in6p);
+					if (in6p->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+						INP_WUNLOCK(in6p);
+						return (ECONNRESET);
+					}
 					optp = &in6p->in6p_outputopts;
 					error = ip6_pcbopt(IPV6_HOPLIMIT,
 					    (u_char *)&optval, sizeof(optval),
 					    optp, (td != NULL) ? td->td_ucred :
 					    NULL, uproto);
+					INP_WUNLOCK(in6p);
 					break;
 				}
 
@@ -1750,11 +1756,17 @@ do {									\
 					break;
 				{
 					struct ip6_pktopts **optp;
+					INP_WLOCK(in6p);
+					if (in6p->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+						INP_WUNLOCK(in6p);
+						return (ECONNRESET);
+					}
 					optp = &in6p->in6p_outputopts;
 					error = ip6_pcbopt(optname,
 					    (u_char *)&optval, sizeof(optval),
 					    optp, (td != NULL) ? td->td_ucred :
 					    NULL, uproto);
+					INP_WUNLOCK(in6p);
 					break;
 				}
 
@@ -1836,10 +1848,16 @@ do {									\
 					break;
 				optlen = sopt->sopt_valsize;
 				optbuf = optbuf_storage;
+				INP_WLOCK(in6p);
+				if (in6p->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+					INP_WUNLOCK(in6p);
+					return (ECONNRESET);
+				}
 				optp = &in6p->in6p_outputopts;
 				error = ip6_pcbopt(optname, optbuf, optlen,
 				    optp, (td != NULL) ? td->td_ucred : NULL,
 				    uproto);
+				INP_WUNLOCK(in6p);
 				break;
 			}
 #undef OPTSET
@@ -2286,7 +2304,9 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 
 	if (*pktopt == NULL) {
 		*pktopt = malloc(sizeof(struct ip6_pktopts), M_IP6OPT,
-		    M_WAITOK);
+		    M_NOWAIT);
+		if (*pktopt == NULL)
+			return (ENOBUFS);
 		ip6_initpktopts(*pktopt);
 	}
 	opt = *pktopt;

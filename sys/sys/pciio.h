@@ -138,11 +138,30 @@ struct pci_list_vpd_io {
 	struct pci_vpd_element *plvi_data;
 };
 
+struct pci_bar_mmap {
+	void		*pbm_map_base;	/* (sometimes IN)/OUT mmaped base */
+	size_t		pbm_map_length;	/* mapped length of the BAR, multiple
+					   of pages */
+	uint64_t	pbm_bar_length;	/* actual length of the BAR */
+	int		pbm_bar_off;	/* offset from the mapped base to the
+					   start of BAR */
+	struct pcisel	pbm_sel;	/* device to operate on */
+	int		pbm_reg;	/* starting address of BAR */
+	int		pbm_flags;
+	int		pbm_memattr;
+};
+
+#define	PCIIO_BAR_MMAP_FIXED	0x01
+#define	PCIIO_BAR_MMAP_EXCL	0x02
+#define	PCIIO_BAR_MMAP_RW	0x04
+#define	PCIIO_BAR_MMAP_ACTIVATE	0x08
+
 #define	PCIOCGETCONF	_IOWR('p', 5, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
 #define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)
 #define	PCIOCGETBAR	_IOWR('p', 6, struct pci_bar_io)
 #define	PCIOCLISTVPD	_IOWR('p', 7, struct pci_list_vpd_io)
+#define	PCIOCBARMMAP	_IOWR('p', 8, struct pci_bar_mmap)
 
 #endif /* !_SYS_PCIIO_H_ */

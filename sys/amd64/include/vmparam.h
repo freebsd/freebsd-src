@@ -110,7 +110,9 @@
 #define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
 #define	VM_FREELIST_DMA32	1
-#define	VM_FREELIST_ISADMA	2
+#define	VM_FREELIST_LOWMEM	2
+
+#define VM_LOWMEM_BOUNDARY	(16 << 20)	/* 16MB ISA DMA limit */
 
 /*
  * Create the DMA32 free list only if the number of physical pages above

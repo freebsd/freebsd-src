@@ -5,7 +5,6 @@
   * make a libsdiff and use that directly to avoid duplicating the code
 
 to be implemented:
---ignore-blank-lines
 --horizon-lines
 --ignore-tab-expansion
 --line-format

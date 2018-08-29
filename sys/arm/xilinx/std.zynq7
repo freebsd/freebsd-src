@@ -8,6 +8,3 @@ machine		arm	armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 files		"../xilinx/files.zynq7"
-
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15

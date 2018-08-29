@@ -96,7 +96,7 @@ static void	pflog_clone_destroy(struct ifnet *);
 
 static const char pflogname[] = "pflog";
 
-static VNET_DEFINE(struct if_clone *, pflog_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, pflog_cloner);
 #define	V_pflog_cloner		VNET(pflog_cloner)
 
 VNET_DEFINE(struct ifnet *, pflogifs[PFLOGIFS_MAX]);	/* for fast access */

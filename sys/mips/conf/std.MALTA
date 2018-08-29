@@ -45,6 +45,9 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
+# Kernel dump features.
+options		ZSTDIO			# zstd-compressed kernel and user dumps
+
 device		loop
 device		ether
 device		le

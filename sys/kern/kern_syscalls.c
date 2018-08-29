@@ -148,7 +148,7 @@ kern_syscall_deregister(struct sysent *sysents, int offset,
 	if ((se->sy_thrcnt & SY_THR_STATIC) != 0)
 		return (EINVAL);
 	syscall_thread_drain(se);
-	sysent[offset] = *old_sysent;
+	sysents[offset] = *old_sysent;
 	return (0);
 }
 

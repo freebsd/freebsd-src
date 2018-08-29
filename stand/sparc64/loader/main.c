@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #ifdef LOADER_ZFS_SUPPORT
 #include <sys/vtoc.h>
-#include "../zfs/libzfs.h"
+#include "libzfs.h"
 #endif
 
 #include <vm/vm.h>
@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 
 enum {
 	HEAPVA		= 0x800000,
-	HEAPSZ		= 0x1000000,
+	HEAPSZ		= 0x3000000,
 	LOADSZ		= 0x1000000	/* for kernel and modules */
 };
 

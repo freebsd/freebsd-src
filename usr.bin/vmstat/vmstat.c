@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 static char da[] = "da";
 
 enum x_stats { X_SUM, X_HZ, X_STATHZ, X_NCHSTATS, X_INTRNAMES, X_SINTRNAMES,
-    X_INTRCNT, X_SINTRCNT, X_DEFICIT, X_REC, X_PGIN, X_XSTATS };
+    X_INTRCNT, X_SINTRCNT, X_NINTRCNT };
 
 static struct nlist namelist[] = {
 	[X_SUM] = { .n_name = "_vm_cnt", },
@@ -97,12 +97,7 @@ static struct nlist namelist[] = {
 	[X_SINTRNAMES] = { .n_name = "_sintrnames", },
 	[X_INTRCNT] = { .n_name = "_intrcnt", },
 	[X_SINTRCNT] = { .n_name = "_sintrcnt", },
-#ifdef notyet
-	[X_DEFICIT] = { .n_name = "_deficit", },
-	[X_REC] = { .n_name = "_rectime", },
-	[X_PGIN] = { .n_name = "_pgintime", },
-	[X_XSTATS] = { .n_name = "_xstats", },
-#endif
+	[X_NINTRCNT] = { .n_name = "_nintrcnt", },
 	{ .n_name = NULL, },
 };
 
@@ -202,6 +197,7 @@ static void	domemstat_malloc(void);
 static void	domemstat_zone(void);
 static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
+static void	kreadptr(uintptr_t, void *, size_t);
 static void	needhdr(int);
 static void	needresize(int);
 static void	doresize(void);
@@ -232,7 +228,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		return (argc);
 
-	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:stw:z")) != -1) {
+	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:sw:z")) != -1) {
 		switch (c) {
 		case 'a':
 			aflag++;
@@ -282,14 +278,6 @@ main(int argc, char *argv[])
 		case 's':
 			todo |= SUMSTAT;
 			break;
-		case 't':
-#ifdef notyet
-			todo |= TIMESTAT;
-#else
-			xo_errx(EX_USAGE,
-			    "sorry, -t is not (re)implemented yet");
-#endif
-			break;
 		case 'w':
 			/* Convert to milliseconds. */
 			f = atof(optarg);
@@ -332,6 +320,13 @@ retry_nlist:
 				goto retry_nlist;
 			}
 
+			/*
+			 * 'nintrcnt' doesn't exist in older kernels, but
+			 * that isn't fatal.
+			 */
+			if (namelist[X_NINTRCNT].n_type == 0 && c == 1)
+				goto nlist_ok;
+
 			for (c = 0; c < (int)(nitems(namelist)); c++)
 				if (namelist[c].n_type == 0)
 					bufsize += strlen(namelist[c].n_name)
@@ -355,6 +350,7 @@ retry_nlist:
 		xo_finish();
 		exit(1);
 	}
+nlist_ok:
 	if (kd && Pflag)
 		xo_errx(1, "Cannot use -P with crash dumps");
 
@@ -394,10 +390,6 @@ retry_nlist:
 		dosum();
 	if (todo & OBJSTAT)
 		doobjstat();
-#ifdef notyet
-	if (todo & TIMESTAT)
-		dotimes();
-#endif
 	if (todo & INTRSTAT)
 		dointr(interval, reps);
 	if (todo & VMSTAT)
@@ -967,29 +959,6 @@ doresize(void)
 	wresized = 0;
 }
 
-#ifdef notyet
-static void
-dotimes(void)
-{
-	unsigned int pgintime, rectime;
-
-	kread(X_REC, &rectime, sizeof(rectime));
-	kread(X_PGIN, &pgintime, sizeof(pgintime));
-	kread(X_SUM, &sum, sizeof(sum));
-	xo_emit("{:page-reclaims/%u} {N:reclaims}, "
-	    "{:reclaim-time/%u} {N:total time (usec)}\n",
-	    sum.v_pgrec, rectime);
-	xo_emit("{L:average}: {:reclaim-average/%u} {N:usec \\/ reclaim}\n",
-	    rectime / sum.v_pgrec);
-	xo_emit("\n");
-	xo_emit("{:page-ins/%u} {N:page ins}, "
-	    "{:page-in-time/%u} {N:total time (msec)}\n",
-	    sum.v_pgin, pgintime / 10);
-	xo_emit("{L:average}: {:average/%8.1f} {N:msec \\/ page in}\n",
-	    pgintime / (sum.v_pgin * 10.0));
-}
-#endif
-
 static long
 pct(long top, long bot)
 {
@@ -1273,12 +1242,18 @@ static unsigned int
 read_intrcnts(unsigned long **intrcnts)
 {
 	size_t intrcntlen;
+	uintptr_t kaddr;
 
 	if (kd != NULL) {
 		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
 		if ((*intrcnts = malloc(intrcntlen)) == NULL)
 			err(1, "malloc()");
-		kread(X_INTRCNT, *intrcnts, intrcntlen);
+		if (namelist[X_NINTRCNT].n_type == 0)
+			kread(X_INTRCNT, *intrcnts, intrcntlen);
+		else {
+			kread(X_INTRCNT, &kaddr, sizeof(kaddr));
+			kreadptr(kaddr, *intrcnts, intrcntlen);
+		}
 	} else {
 		for (*intrcnts = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
 			*intrcnts = reallocf(*intrcnts, intrcntlen);
@@ -1335,6 +1310,7 @@ dointr(unsigned int interval, int reps)
 	char *intrname, *intrnames;
 	long long period_ms, old_uptime, uptime;
 	size_t clen, inamlen, istrnamlen;
+	uintptr_t kaddr;
 	unsigned int nintr;
 
 	old_intrcnts = NULL;
@@ -1345,7 +1321,12 @@ dointr(unsigned int interval, int reps)
 		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
 		if ((intrnames = malloc(inamlen)) == NULL)
 			xo_err(1, "malloc()");
-		kread(X_INTRNAMES, intrnames, inamlen);
+		if (namelist[X_NINTRCNT].n_type == 0)
+			kread(X_INTRNAMES, intrnames, inamlen);
+		else {
+			kread(X_INTRNAMES, &kaddr, sizeof(kaddr));
+			kreadptr(kaddr, intrnames, inamlen);
+		}
 	} else {
 		for (intrnames = NULL, inamlen = 1024; ; inamlen *= 2) {
 			if ((intrnames = reallocf(intrnames, inamlen)) == NULL)
@@ -1685,6 +1666,14 @@ kread(int nlx, void *addr, size_t size)
 {
 
 	kreado(nlx, addr, size, 0);
+}
+
+static void
+kreadptr(uintptr_t addr, void *buf, size_t size)
+{
+
+	if ((size_t)kvm_read(kd, addr, buf, size) != size)
+		xo_errx(1, "%s", kvm_geterr(kd));
 }
 
 static void __dead2

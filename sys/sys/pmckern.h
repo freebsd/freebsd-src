@@ -201,11 +201,12 @@ extern struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
-do {						\
-	epoch_enter_preempt(global_epoch_preempt);		\
+do {								\
+    struct epoch_tracker et;						\
+	epoch_enter_preempt(global_epoch_preempt, &et);		\
 	if (pmc_hook != NULL)			\
 		(pmc_hook)((t), (cmd), (arg));	\
-	epoch_exit_preempt(global_epoch_preempt);			\
+	epoch_exit_preempt(global_epoch_preempt, &et);	\
 } while (0)
 
 /* Hook invocation that needs an exclusive lock */

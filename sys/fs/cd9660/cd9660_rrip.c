@@ -204,7 +204,7 @@ cd9660_rrip_slink(p,ana)
 			return 0;
 		}
 
-		bcopy(inbuf,outbuf,wlen);
+		memcpy(outbuf, inbuf, wlen);
 		outbuf += wlen;
 		len += wlen;
 
@@ -278,7 +278,7 @@ cd9660_rrip_altname(p,ana)
 		return 0;
 	}
 
-	bcopy(inbuf,ana->outbuf,wlen);
+	memcpy(ana->outbuf, inbuf, wlen);
 	ana->outbuf += wlen;
 
 	if (!cont) {
@@ -356,7 +356,7 @@ cd9660_rrip_tstamp(p,ana)
 					    ISO_FTYPE_RRIP);
 			ptime += 7;
 		} else
-			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
+			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
 
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_atime,
@@ -379,7 +379,7 @@ cd9660_rrip_tstamp(p,ana)
 			cd9660_tstamp_conv17(ptime,&ana->inop->inode.iso_mtime);
 			ptime += 17;
 		} else
-			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
+			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
 
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv17(ptime,&ana->inop->inode.iso_atime);

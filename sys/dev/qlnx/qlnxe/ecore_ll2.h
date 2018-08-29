@@ -103,6 +103,7 @@ struct ecore_ll2_tx_queue {
 	struct ecore_ll2_tx_packet	cur_completing_packet;
 	u16				cur_completing_bd_idx;
 	void OSAL_IOMEM			*doorbell_addr;
+	struct core_db_data		db_msg;
 	u16				bds_idx;
 	u16				cur_send_frag_num;
 	u16				cur_completing_frag_num;
@@ -151,6 +152,7 @@ void ecore_ll2_setup(struct ecore_hwfn *p_hwfn);
 */
 void ecore_ll2_free(struct ecore_hwfn *p_hwfn);
 
+#ifndef LINUX_REMOVE
 /**
  * @brief ecore_ll2_get_fragment_of_tx_packet
  *
@@ -168,5 +170,6 @@ ecore_ll2_get_fragment_of_tx_packet(struct ecore_hwfn *p_hwfn,
 				    u8 connection_handle,
 				    dma_addr_t *addr,
 				    bool *last_fragment);
+#endif
 
 #endif /*__ECORE_LL2_H__*/

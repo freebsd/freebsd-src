@@ -1,6 +1,6 @@
 /*
  * TLSv1 client - read handshake message
- * Copyright (c) 2006-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -25,6 +25,54 @@ static int tls_process_certificate_request(struct tlsv1_client *conn, u8 ct,
 					   const u8 *in_data, size_t *in_len);
 static int tls_process_server_hello_done(struct tlsv1_client *conn, u8 ct,
 					 const u8 *in_data, size_t *in_len);
+
+
+static int tls_version_disabled(struct tlsv1_client *conn, u16 ver)
+{
+	return (((conn->flags & TLS_CONN_DISABLE_TLSv1_0) &&
+		 ver == TLS_VERSION_1) ||
+		((conn->flags & TLS_CONN_DISABLE_TLSv1_1) &&
+		 ver == TLS_VERSION_1_1) ||
+		((conn->flags & TLS_CONN_DISABLE_TLSv1_2) &&
+		 ver == TLS_VERSION_1_2));
+}
+
+
+static int tls_process_server_hello_extensions(struct tlsv1_client *conn,
+					       const u8 *pos, size_t len)
+{
+	const u8 *end = pos + len;
+
+	wpa_hexdump(MSG_MSGDUMP, "TLSv1: ServerHello extensions",
+		    pos, len);
+	while (pos < end) {
+		u16 ext, elen;
+
+		if (end - pos < 4) {
+			wpa_printf(MSG_INFO, "TLSv1: Truncated ServerHello extension header");
+			return -1;
+		}
+
+		ext = WPA_GET_BE16(pos);
+		pos += 2;
+		elen = WPA_GET_BE16(pos);
+		pos += 2;
+
+		if (elen > end - pos) {
+			wpa_printf(MSG_INFO, "TLSv1: Truncated ServerHello extension");
+			return -1;
+		}
+
+		wpa_printf(MSG_DEBUG, "TLSv1: ServerHello ExtensionType %u",
+			   ext);
+		wpa_hexdump(MSG_DEBUG, "TLSv1: ServerHello extension data",
+			    pos, elen);
+
+		pos += elen;
+	}
+
+	return 0;
+}
 
 
 static int tls_process_server_hello(struct tlsv1_client *conn, u8 ct,
@@ -76,7 +124,8 @@ static int tls_process_server_hello(struct tlsv1_client *conn, u8 ct,
 	if (end - pos < 2)
 		goto decode_error;
 	tls_version = WPA_GET_BE16(pos);
-	if (!tls_version_ok(tls_version)) {
+	if (!tls_version_ok(tls_version) ||
+	    tls_version_disabled(conn, tls_version)) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Unexpected protocol version in "
 			   "ServerHello %u.%u", pos[0], pos[1]);
 		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
@@ -165,8 +214,24 @@ static int tls_process_server_hello(struct tlsv1_client *conn, u8 ct,
 	}
 	pos++;
 
+	if (end - pos >= 2) {
+		u16 ext_len;
+
+		ext_len = WPA_GET_BE16(pos);
+		pos += 2;
+		if (end - pos < ext_len) {
+			wpa_printf(MSG_INFO,
+				   "TLSv1: Invalid ServerHello extension length: %u (left: %u)",
+				   ext_len, (unsigned int) (end - pos));
+			goto decode_error;
+		}
+
+		if (tls_process_server_hello_extensions(conn, pos, ext_len))
+			goto decode_error;
+		pos += ext_len;
+	}
+
 	if (end != pos) {
-		/* TODO: ServerHello extensions */
 		wpa_hexdump(MSG_DEBUG, "TLSv1: Unexpected extra data in the "
 			    "end of ServerHello", pos, end - pos);
 		goto decode_error;
@@ -208,6 +273,73 @@ decode_error:
 	wpa_printf(MSG_DEBUG, "TLSv1: Failed to decode ServerHello");
 	tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
 	return -1;
+}
+
+
+static void tls_peer_cert_event(struct tlsv1_client *conn, int depth,
+				struct x509_certificate *cert)
+{
+	union tls_event_data ev;
+	struct wpabuf *cert_buf = NULL;
+#ifdef CONFIG_SHA256
+	u8 hash[32];
+#endif /* CONFIG_SHA256 */
+	char subject[128];
+
+	if (!conn->event_cb)
+		return;
+
+	os_memset(&ev, 0, sizeof(ev));
+	if (conn->cred->cert_probe || conn->cert_in_cb) {
+		cert_buf = wpabuf_alloc_copy(cert->cert_start,
+					     cert->cert_len);
+		ev.peer_cert.cert = cert_buf;
+	}
+#ifdef CONFIG_SHA256
+	if (cert_buf) {
+		const u8 *addr[1];
+		size_t len[1];
+		addr[0] = wpabuf_head(cert_buf);
+		len[0] = wpabuf_len(cert_buf);
+		if (sha256_vector(1, addr, len, hash) == 0) {
+			ev.peer_cert.hash = hash;
+			ev.peer_cert.hash_len = sizeof(hash);
+		}
+	}
+#endif /* CONFIG_SHA256 */
+
+	ev.peer_cert.depth = depth;
+	x509_name_string(&cert->subject, subject, sizeof(subject));
+	ev.peer_cert.subject = subject;
+
+	conn->event_cb(conn->cb_ctx, TLS_PEER_CERTIFICATE, &ev);
+	wpabuf_free(cert_buf);
+}
+
+
+static void tls_cert_chain_failure_event(struct tlsv1_client *conn, int depth,
+					 struct x509_certificate *cert,
+					 enum tls_fail_reason reason,
+					 const char *reason_txt)
+{
+	struct wpabuf *cert_buf = NULL;
+	union tls_event_data ev;
+	char subject[128];
+
+	if (!conn->event_cb || !cert)
+		return;
+
+	os_memset(&ev, 0, sizeof(ev));
+	ev.cert_fail.depth = depth;
+	x509_name_string(&cert->subject, subject, sizeof(subject));
+	ev.peer_cert.subject = subject;
+	ev.cert_fail.reason = reason;
+	ev.cert_fail.reason_txt = reason_txt;
+	cert_buf = wpabuf_alloc_copy(cert->cert_start,
+				     cert->cert_len);
+	ev.cert_fail.cert = cert_buf;
+	conn->event_cb(conn->cb_ctx, TLS_CERT_CHAIN_FAILURE, &ev);
+	wpabuf_free(cert_buf);
 }
 
 
@@ -354,6 +486,8 @@ static int tls_process_certificate(struct tlsv1_client *conn, u8 ct,
 			return -1;
 		}
 
+		tls_peer_cert_event(conn, idx, cert);
+
 		if (last == NULL)
 			chain = cert;
 		else
@@ -364,31 +498,99 @@ static int tls_process_certificate(struct tlsv1_client *conn, u8 ct,
 		pos += cert_len;
 	}
 
-	if (conn->cred &&
-	    x509_certificate_chain_validate(conn->cred->trusted_certs, chain,
-					    &reason, conn->disable_time_checks)
-	    < 0) {
+	if (conn->cred && conn->cred->server_cert_only && chain) {
+		u8 hash[SHA256_MAC_LEN];
+		char buf[128];
+
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Validate server certificate hash");
+		x509_name_string(&chain->subject, buf, sizeof(buf));
+		wpa_printf(MSG_DEBUG, "TLSv1: 0: %s", buf);
+		if (sha256_vector(1, &chain->cert_start, &chain->cert_len,
+				  hash) < 0 ||
+		    os_memcmp(conn->cred->srv_cert_hash, hash,
+			      SHA256_MAC_LEN) != 0) {
+			wpa_printf(MSG_DEBUG,
+				   "TLSv1: Server certificate hash mismatch");
+			wpa_hexdump(MSG_MSGDUMP, "TLSv1: SHA256 hash",
+				    hash, SHA256_MAC_LEN);
+			if (conn->event_cb) {
+				union tls_event_data ev;
+
+				os_memset(&ev, 0, sizeof(ev));
+				ev.cert_fail.reason = TLS_FAIL_UNSPECIFIED;
+				ev.cert_fail.reason_txt =
+					"Server certificate mismatch";
+				ev.cert_fail.subject = buf;
+				conn->event_cb(conn->cb_ctx,
+					       TLS_CERT_CHAIN_FAILURE, &ev);
+			}
+			tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+				  TLS_ALERT_BAD_CERTIFICATE);
+			x509_certificate_chain_free(chain);
+			return -1;
+		}
+	} else if (conn->cred && conn->cred->cert_probe) {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Reject server certificate on probe-only rune");
+		if (conn->event_cb) {
+			union tls_event_data ev;
+			char buf[128];
+
+			os_memset(&ev, 0, sizeof(ev));
+			ev.cert_fail.reason = TLS_FAIL_SERVER_CHAIN_PROBE;
+			ev.cert_fail.reason_txt =
+				"Server certificate chain probe";
+			if (chain) {
+				x509_name_string(&chain->subject, buf,
+						 sizeof(buf));
+				ev.cert_fail.subject = buf;
+			}
+			conn->event_cb(conn->cb_ctx, TLS_CERT_CHAIN_FAILURE,
+				       &ev);
+		}
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_BAD_CERTIFICATE);
+		x509_certificate_chain_free(chain);
+		return -1;
+	} else if (conn->cred && conn->cred->ca_cert_verify &&
+		   x509_certificate_chain_validate(
+			   conn->cred->trusted_certs, chain, &reason,
+			   !!(conn->flags & TLS_CONN_DISABLE_TIME_CHECKS))
+		   < 0) {
 		int tls_reason;
 		wpa_printf(MSG_DEBUG, "TLSv1: Server certificate chain "
 			   "validation failed (reason=%d)", reason);
 		switch (reason) {
 		case X509_VALIDATE_BAD_CERTIFICATE:
 			tls_reason = TLS_ALERT_BAD_CERTIFICATE;
+			tls_cert_chain_failure_event(
+				conn, 0, chain, TLS_FAIL_BAD_CERTIFICATE,
+				"bad certificate");
 			break;
 		case X509_VALIDATE_UNSUPPORTED_CERTIFICATE:
 			tls_reason = TLS_ALERT_UNSUPPORTED_CERTIFICATE;
 			break;
 		case X509_VALIDATE_CERTIFICATE_REVOKED:
 			tls_reason = TLS_ALERT_CERTIFICATE_REVOKED;
+			tls_cert_chain_failure_event(
+				conn, 0, chain, TLS_FAIL_REVOKED,
+				"certificate revoked");
 			break;
 		case X509_VALIDATE_CERTIFICATE_EXPIRED:
 			tls_reason = TLS_ALERT_CERTIFICATE_EXPIRED;
+			tls_cert_chain_failure_event(
+				conn, 0, chain, TLS_FAIL_EXPIRED,
+				"certificate has expired or is not yet valid");
 			break;
 		case X509_VALIDATE_CERTIFICATE_UNKNOWN:
 			tls_reason = TLS_ALERT_CERTIFICATE_UNKNOWN;
 			break;
 		case X509_VALIDATE_UNKNOWN_CA:
 			tls_reason = TLS_ALERT_UNKNOWN_CA;
+			tls_cert_chain_failure_event(
+				conn, 0, chain, TLS_FAIL_UNTRUSTED,
+				"unknown CA");
 			break;
 		default:
 			tls_reason = TLS_ALERT_BAD_CERTIFICATE;
@@ -399,7 +601,25 @@ static int tls_process_certificate(struct tlsv1_client *conn, u8 ct,
 		return -1;
 	}
 
-	x509_certificate_chain_free(chain);
+	if (conn->cred && !conn->cred->server_cert_only && chain &&
+	    (chain->extensions_present & X509_EXT_EXT_KEY_USAGE) &&
+	    !(chain->ext_key_usage &
+	      (X509_EXT_KEY_USAGE_ANY | X509_EXT_KEY_USAGE_SERVER_AUTH))) {
+		tls_cert_chain_failure_event(
+			conn, 0, chain, TLS_FAIL_BAD_CERTIFICATE,
+			"certificate not allowed for server authentication");
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_BAD_CERTIFICATE);
+		x509_certificate_chain_free(chain);
+		return -1;
+	}
+
+	if (conn->flags & TLS_CONN_REQUEST_OCSP) {
+		x509_certificate_chain_free(conn->server_cert);
+		conn->server_cert = chain;
+	} else {
+		x509_certificate_chain_free(chain);
+	}
 
 	*in_len = end - in_data;
 
@@ -507,7 +727,7 @@ static int tlsv1_process_diffie_hellman(struct tlsv1_client *conn,
 	server_params_end = pos;
 
 	if (key_exchange == TLS_KEY_X_DHE_RSA) {
-		u8 hash[MD5_MAC_LEN + SHA1_MAC_LEN];
+		u8 hash[64];
 		int hlen;
 
 		if (conn->rl.tls_version == TLS_VERSION_1_2) {
@@ -524,18 +744,21 @@ static int tlsv1_process_diffie_hellman(struct tlsv1_client *conn,
 			 */
 			if (end - pos < 2)
 				goto fail;
-			if (pos[0] != TLS_HASH_ALG_SHA256 ||
+			if ((pos[0] != TLS_HASH_ALG_SHA256 &&
+			     pos[0] != TLS_HASH_ALG_SHA384 &&
+			     pos[0] != TLS_HASH_ALG_SHA512) ||
 			    pos[1] != TLS_SIGN_ALG_RSA) {
 				wpa_printf(MSG_DEBUG, "TLSv1.2: Unsupported hash(%u)/signature(%u) algorithm",
 					   pos[0], pos[1]);
 				goto fail;
 			}
-			pos += 2;
 
 			hlen = tlsv12_key_x_server_params_hash(
-				conn->rl.tls_version, conn->client_random,
+				conn->rl.tls_version, pos[0],
+				conn->client_random,
 				conn->server_random, server_params,
 				server_params_end - server_params, hash);
+			pos += 2;
 #else /* CONFIG_TLSV12 */
 			goto fail;
 #endif /* CONFIG_TLSV12 */
@@ -564,6 +787,229 @@ fail:
 	wpa_printf(MSG_DEBUG, "TLSv1: Processing DH params failed");
 	tlsv1_client_free_dh(conn);
 	return -1;
+}
+
+
+static enum tls_ocsp_result
+tls_process_certificate_status_ocsp_response(struct tlsv1_client *conn,
+					     const u8 *pos, size_t len)
+{
+	const u8 *end = pos + len;
+	u32 ocsp_resp_len;
+
+	/* opaque OCSPResponse<1..2^24-1>; */
+	if (end - pos < 3) {
+		wpa_printf(MSG_INFO, "TLSv1: Too short OCSPResponse");
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
+		return TLS_OCSP_INVALID;
+	}
+	ocsp_resp_len = WPA_GET_BE24(pos);
+	pos += 3;
+	if (end - pos < ocsp_resp_len) {
+		wpa_printf(MSG_INFO, "TLSv1: Truncated OCSPResponse");
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
+		return TLS_OCSP_INVALID;
+	}
+
+	return tls_process_ocsp_response(conn, pos, ocsp_resp_len);
+}
+
+
+static int tls_process_certificate_status(struct tlsv1_client *conn, u8 ct,
+					   const u8 *in_data, size_t *in_len)
+{
+	const u8 *pos, *end;
+	size_t left, len;
+	u8 type, status_type;
+	enum tls_ocsp_result res;
+	struct x509_certificate *cert;
+	int depth;
+
+	if (ct != TLS_CONTENT_TYPE_HANDSHAKE) {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Expected Handshake; received content type 0x%x",
+			   ct);
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_UNEXPECTED_MESSAGE);
+		return -1;
+	}
+
+	pos = in_data;
+	left = *in_len;
+
+	if (left < 4) {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Too short CertificateStatus (left=%lu)",
+			   (unsigned long) left);
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
+		return -1;
+	}
+
+	type = *pos++;
+	len = WPA_GET_BE24(pos);
+	pos += 3;
+	left -= 4;
+
+	if (len > left) {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Mismatch in CertificateStatus length (len=%lu != left=%lu)",
+			   (unsigned long) len, (unsigned long) left);
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
+		return -1;
+	}
+
+	end = pos + len;
+
+	if (type != TLS_HANDSHAKE_TYPE_CERTIFICATE_STATUS) {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Received unexpected handshake message %d (expected CertificateStatus)",
+			   type);
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_UNEXPECTED_MESSAGE);
+		return -1;
+	}
+
+	wpa_printf(MSG_DEBUG, "TLSv1: Received CertificateStatus");
+
+	/*
+	 * struct {
+	 *     CertificateStatusType status_type;
+	 *     select (status_type) {
+	 *         case ocsp: OCSPResponse;
+	 *         case ocsp_multi: OCSPResponseList;
+	 *     } response;
+	 * } CertificateStatus;
+	 */
+	if (end - pos < 1) {
+		wpa_printf(MSG_INFO, "TLSv1: Too short CertificateStatus");
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_DECODE_ERROR);
+		return -1;
+	}
+	status_type = *pos++;
+	wpa_printf(MSG_DEBUG, "TLSv1: CertificateStatus status_type %u",
+		   status_type);
+
+	if (status_type == 1 /* ocsp */) {
+		res = tls_process_certificate_status_ocsp_response(
+			conn, pos, end - pos);
+	} else if (status_type == 2 /* ocsp_multi */) {
+		int good = 0, revoked = 0;
+		u32 resp_len;
+
+		res = TLS_OCSP_NO_RESPONSE;
+
+		/*
+		 * opaque OCSPResponse<0..2^24-1>;
+		 *
+		 * struct {
+		 *   OCSPResponse ocsp_response_list<1..2^24-1>;
+		 * } OCSPResponseList;
+		 */
+		if (end - pos < 3) {
+			wpa_printf(MSG_DEBUG,
+				   "TLSv1: Truncated OCSPResponseList");
+			res = TLS_OCSP_INVALID;
+			goto done;
+		}
+		resp_len = WPA_GET_BE24(pos);
+		pos += 3;
+		if (end - pos < resp_len) {
+			wpa_printf(MSG_DEBUG,
+				   "TLSv1: Truncated OCSPResponseList(len=%u)",
+				   resp_len);
+			res = TLS_OCSP_INVALID;
+			goto done;
+		}
+		end = pos + resp_len;
+
+		while (end - pos >= 3) {
+			resp_len = WPA_GET_BE24(pos);
+			pos += 3;
+			if (resp_len > end - pos) {
+				wpa_printf(MSG_DEBUG,
+					   "TLSv1: Truncated OCSPResponse(len=%u; left=%d) in ocsp_multi",
+					   resp_len, (int) (end - pos));
+				res = TLS_OCSP_INVALID;
+				break;
+			}
+			if (!resp_len)
+				continue; /* Skip an empty response */
+			res = tls_process_certificate_status_ocsp_response(
+				conn, pos - 3, resp_len + 3);
+			if (res == TLS_OCSP_REVOKED)
+				revoked++;
+			else if (res == TLS_OCSP_GOOD)
+				good++;
+			pos += resp_len;
+		}
+
+		if (revoked)
+			res = TLS_OCSP_REVOKED;
+		else if (good)
+			res = TLS_OCSP_GOOD;
+	} else {
+		wpa_printf(MSG_DEBUG,
+			   "TLSv1: Ignore unsupported CertificateStatus");
+		goto skip;
+	}
+
+done:
+	if (res == TLS_OCSP_REVOKED) {
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_CERTIFICATE_REVOKED);
+		for (cert = conn->server_cert, depth = 0; cert;
+		     cert = cert->next, depth++) {
+			if (cert->ocsp_revoked) {
+				tls_cert_chain_failure_event(
+					conn, depth, cert, TLS_FAIL_REVOKED,
+					"certificate revoked");
+			}
+		}
+		return -1;
+	}
+
+	if (conn->flags & TLS_CONN_REQUIRE_OCSP_ALL) {
+		/*
+		 * Verify that each certificate on the chain that is not part
+		 * of the trusted certificates has a good status. If not,
+		 * terminate handshake.
+		 */
+		for (cert = conn->server_cert, depth = 0; cert;
+		     cert = cert->next, depth++) {
+			if (!cert->ocsp_good) {
+				tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					  TLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE);
+				tls_cert_chain_failure_event(
+					conn, depth, cert,
+					TLS_FAIL_UNSPECIFIED,
+					"bad certificate status response");
+				return -1;
+			}
+			if (cert->issuer_trusted)
+				break;
+		}
+	}
+
+	if ((conn->flags & TLS_CONN_REQUIRE_OCSP) && res != TLS_OCSP_GOOD) {
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  res == TLS_OCSP_INVALID ? TLS_ALERT_DECODE_ERROR :
+			  TLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE);
+		if (conn->server_cert)
+			tls_cert_chain_failure_event(
+				conn, 0, conn->server_cert,
+				TLS_FAIL_UNSPECIFIED,
+				"bad certificate status response");
+		return -1;
+	}
+
+	conn->ocsp_resp_received = 1;
+
+skip:
+	*in_len = end - in_data;
+
+	conn->state = SERVER_KEY_EXCHANGE;
+
+	return 0;
 }
 
 
@@ -608,6 +1054,10 @@ static int tls_process_server_key_exchange(struct tlsv1_client *conn, u8 ct,
 
 	end = pos + len;
 
+	if ((conn->flags & TLS_CONN_REQUEST_OCSP) &&
+	    type == TLS_HANDSHAKE_TYPE_CERTIFICATE_STATUS)
+		return tls_process_certificate_status(conn, ct, in_data,
+						      in_len);
 	if (type == TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST)
 		return tls_process_certificate_request(conn, ct, in_data,
 						       in_len);
@@ -617,7 +1067,9 @@ static int tls_process_server_key_exchange(struct tlsv1_client *conn, u8 ct,
 	if (type != TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Received unexpected handshake "
 			   "message %d (expected ServerKeyExchange/"
-			   "CertificateRequest/ServerHelloDone)", type);
+			   "CertificateRequest/ServerHelloDone%s)", type,
+			   (conn->flags & TLS_CONN_REQUEST_OCSP) ?
+			   "/CertificateStatus" : "");
 		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
 			  TLS_ALERT_UNEXPECTED_MESSAGE);
 		return -1;
@@ -770,6 +1222,15 @@ static int tls_process_server_hello_done(struct tlsv1_client *conn, u8 ct,
 	}
 
 	wpa_printf(MSG_DEBUG, "TLSv1: Received ServerHelloDone");
+
+	if ((conn->flags & TLS_CONN_REQUIRE_OCSP) &&
+	    !conn->ocsp_resp_received) {
+		wpa_printf(MSG_INFO,
+			   "TLSv1: No OCSP response received - reject handshake");
+		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+			  TLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE);
+		return -1;
+	}
 
 	*in_len = end - in_data;
 

@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2015
+.Dd August 16, 2018
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -127,6 +127,10 @@ is one of the following:
 sets
 .Dv RES_DEBUG
 in _res.options.
+.It Sy usevc
+sets
+.Dv RES_USEVC
+to use TCP instead of UDP for queries.
 .It Sy ndots: Ns Ar n
 sets a threshold for the number of dots which must appear in a name given to
 .Fn res_query

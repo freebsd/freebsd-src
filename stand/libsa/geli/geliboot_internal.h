@@ -55,15 +55,17 @@
 #define STAND_H /* We don't want stand.h in {gpt,zfs,gptzfs}boot */
 #include <opencrypto/xform_enc.h>
 
-struct geli_entry {
-	struct dsk		*dsk;
+#define GELIDEV_NAMELEN	32
+
+struct geli_dev {
 	off_t			part_end;
 	struct g_eli_softc	sc;
 	struct g_eli_metadata	md;
 	int			keybuf_slot;
-	SLIST_ENTRY(geli_entry)	entries;
-} *geli_e, *geli_e_tmp;
+	char                    *name; /* for prompting; it ends in ':' */
+};
 
-static int geli_count;
+int geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
+    const u_char *key, size_t keysize, u_char *iv);
 
 #endif /* _GELIBOOT_INTERNAL_H_ */

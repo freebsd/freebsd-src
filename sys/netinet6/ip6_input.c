@@ -720,13 +720,15 @@ ip6_input(struct mbuf *m)
 #endif
 	/*
 	 * Try to forward the packet, but if we fail continue.
+	 * ip6_tryforward() does not generate redirects, so fall
+	 * through to normal processing if redirects are required.
 	 * ip6_tryforward() does inbound and outbound packet firewall
 	 * processing. If firewall has decided that destination becomes
 	 * our local address, it sets M_FASTFWD_OURS flag. In this
 	 * case skip another inbound firewall processing and update
 	 * ip6 pointer.
 	 */
-	if (V_ip6_forwarding != 0
+	if (V_ip6_forwarding != 0 && V_ip6_sendredirects == 0
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	    && (!IPSEC_ENABLED(ipv6) ||
 	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_OPERABLE) == 0)
@@ -1267,7 +1269,7 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 				mbuf_tstmp2timespec(m, &t.ts);
 				getboottimebin(&boottimebin);
 				bintime2timespec(&boottimebin, &ts1);
-				timespecadd(&t.ts, &ts1);
+				timespecadd(&t.ts, &ts1, &t.ts);
 			} else {
 				nanotime(&t.ts);
 			}

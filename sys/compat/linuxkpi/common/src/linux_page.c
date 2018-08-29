@@ -165,11 +165,10 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 	vm_offset_t addr;
 
 	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
+		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
 	} else {
-		addr = kmem_alloc_contig(kmem_arena, size,
-		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT,
-		    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
+		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	}
 	return (addr);
 }
@@ -179,7 +178,7 @@ linux_free_kmem(vm_offset_t addr, unsigned int order)
 {
 	size_t size = ((size_t)PAGE_SIZE) << order;
 
-	kmem_free(kmem_arena, addr, size);
+	kmem_free(addr, size);
 }
 
 static int

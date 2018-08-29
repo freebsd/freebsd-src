@@ -388,7 +388,10 @@ format_header(const char *uname_field)
 		sbuf_printf(header, "%*s", ps.jail ? TOP_JID_LEN : 0,
 									ps.jail ? " JID" : "");
 		sbuf_printf(header, " %-*.*s  ", namelength, namelength, uname_field);
-		sbuf_cat(header, "THR PRI NICE  SIZE   RES ");
+		if (!ps.thread) {
+			sbuf_cat(header, "THR ");
+		}
+		sbuf_cat(header, "PRI NICE   SIZE    RES ");
 		if (ps.swap) {
 			sbuf_printf(header, "%*s ", TOP_SWAP_LEN - 1, "SWAP");
 		}
@@ -408,6 +411,7 @@ format_header(const char *uname_field)
 		    ps.jail ? TOP_JID_LEN : 0, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		sbuf_cat(header, "   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND");
+		sbuf_finish(header);
 		break;
 	}
 	case DISP_MAX:
@@ -518,8 +522,12 @@ get_system_info(struct system_info *si)
 		GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc_stat);
 		GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc_stat2);
 		arc_stats[4] = (arc_stat + arc_stat2) >> 10;
-		GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc_stat);
+		GETSYSCTL("kstat.zfs.misc.arcstats.bonus_size", arc_stat);
 		arc_stats[5] = arc_stat >> 10;
+		GETSYSCTL("kstat.zfs.misc.arcstats.dnode_size", arc_stat);
+		arc_stats[5] += arc_stat >> 10;
+		GETSYSCTL("kstat.zfs.misc.arcstats.dbuf_size", arc_stat);
+		arc_stats[5] += arc_stat >> 10;
 		si->arc = arc_stats;
 	}
 	if (carc_enabled) {
@@ -869,7 +877,6 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 	long p_tot, s_tot;
 	char *cmdbuf = NULL;
 	char **args;
-	const int cmdlen = 256;
 	static struct sbuf* procbuf = NULL;
 
 	/* clean up from last time. */
@@ -934,32 +941,31 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 		break;
 	}
 
-	cmdbuf = calloc(cmdlen + 1, 1);
+	cmdbuf = calloc(screen_width + 1, 1);
 	if (cmdbuf == NULL) {
-		warn("calloc(%d)", cmdlen + 1);
+		warn("calloc(%d)", screen_width + 1);
 		return NULL;
 	}
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    pp->ki_tdname[0]) {
-			snprintf(cmdbuf, cmdlen, "%s{%s%s}", pp->ki_comm,
+			snprintf(cmdbuf, screen_width, "%s{%s%s}", pp->ki_comm,
 			    pp->ki_tdname, pp->ki_moretdname);
 		} else {
-			snprintf(cmdbuf, cmdlen, "%s", pp->ki_comm);
+			snprintf(cmdbuf, screen_width, "%s", pp->ki_comm);
 		}
 	} else {
 		if (pp->ki_flag & P_SYSTEM ||
-		    pp->ki_args == NULL ||
-		    (args = kvm_getargv(kd, pp, cmdlen)) == NULL ||
+		    (args = kvm_getargv(kd, pp, screen_width)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    	    pp->ki_tdname[0]) {
-				snprintf(cmdbuf, cmdlen,
+				snprintf(cmdbuf, screen_width,
 				    "[%s{%s%s}]", pp->ki_comm, pp->ki_tdname,
 				    pp->ki_moretdname);
 			} else {
-				snprintf(cmdbuf, cmdlen,
+				snprintf(cmdbuf, screen_width,
 				    "[%s]", pp->ki_comm);
 			}
 		} else {
@@ -969,7 +975,7 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			size_t argbuflen;
 			size_t len;
 
-			argbuflen = cmdlen * 4;
+			argbuflen = screen_width * 4;
 			argbuf = calloc(argbuflen + 1, 1);
 			if (argbuf == NULL) {
 				warn("calloc(%zu)", argbuflen + 1);
@@ -986,13 +992,9 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 				if (*src == '\0')
 					continue;
 				len = (argbuflen - (dst - argbuf) - 1) / 4;
-				if (utf8flag) {
-					utf8strvisx(dst, src, MIN(strlen(src), len));
-				} else {
-					strvisx(dst, src,
-					    MIN(strlen(src), len),
-					    VIS_NL | VIS_CSTYLE);
-				}
+				strvisx(dst, src,
+				    MIN(strlen(src), len),
+				    VIS_NL | VIS_CSTYLE);
 				while (*dst != '\0')
 					dst++;
 				if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
@@ -1005,21 +1007,21 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 			if (strcmp(cmd, pp->ki_comm) != 0) {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s (%s){%s%s}", argbuf,
 					    pp->ki_comm, pp->ki_tdname,
 					    pp->ki_moretdname);
 				else
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s (%s)", argbuf, pp->ki_comm);
 			} else {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlen,
+					snprintf(cmdbuf, screen_width,
 					    "%s{%s%s}", argbuf, pp->ki_tdname,
 					    pp->ki_moretdname);
 				else
-					strlcpy(cmdbuf, argbuf, cmdlen);
+					strlcpy(cmdbuf, argbuf, screen_width);
 			}
 			free(argbuf);
 		}
@@ -1065,12 +1067,14 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 
 		if (!ps.thread) {
 			sbuf_printf(procbuf, "%4d ", pp->ki_numthreads);
+		} else {
+			sbuf_printf(procbuf, " ");
 		}
 
 		sbuf_printf(procbuf, "%3d ", pp->ki_pri.pri_level - PZERO);
 		sbuf_printf(procbuf, "%4s", format_nice(pp));
-		sbuf_printf(procbuf, "%6s ", format_k(PROCSIZE(pp)));
-		sbuf_printf(procbuf, "%5s ", format_k(pagetok(pp->ki_rssize)));
+		sbuf_printf(procbuf, "%7s ", format_k(PROCSIZE(pp)));
+		sbuf_printf(procbuf, "%6s ", format_k(pagetok(pp->ki_rssize)));
 		if (ps.swap) {
 			sbuf_printf(procbuf, "%*s ",
 				TOP_SWAP_LEN - 1,

@@ -104,14 +104,13 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-static int	gif_check_nesting(struct ifnet *, struct mbuf *);
 static void	gif_delete_tunnel(struct gif_softc *);
 static int	gif_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gif_transmit(struct ifnet *, struct mbuf *);
 static void	gif_qflush(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
-static VNET_DEFINE(struct if_clone *, gif_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, gif_cloner);
 #define	V_gif_cloner	VNET(gif_cloner)
 
 SYSCTL_DECL(_net_link);
@@ -128,7 +127,7 @@ static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
+VNET_DEFINE_STATIC(int, max_gif_nesting) = MAX_GIF_NEST;
 #define	V_max_gif_nesting	VNET(max_gif_nesting)
 SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
@@ -256,6 +255,7 @@ gif_hashdestroy(struct gif_list *hash)
 	free(hash, M_GIF);
 }
 
+#define	MTAG_GIF	1080679712
 static int
 gif_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -285,7 +285,8 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
 	    sc->gif_family == 0 ||
-	    (error = gif_check_nesting(ifp, m)) != 0) {
+	    (error = if_tunnel_check_nesting(ifp, m, MTAG_GIF,
+		V_max_gif_nesting)) != 0) {
 		m_freem(m);
 		goto err;
 	}
@@ -378,42 +379,6 @@ gif_qflush(struct ifnet *ifp __unused)
 
 }
 
-#define	MTAG_GIF	1080679712
-static int
-gif_check_nesting(struct ifnet *ifp, struct mbuf *m)
-{
-	struct m_tag *mtag;
-	int count;
-
-	/*
-	 * gif may cause infinite recursion calls when misconfigured.
-	 * We'll prevent this by detecting loops.
-	 *
-	 * High nesting level may cause stack exhaustion.
-	 * We'll prevent this by introducing upper limit.
-	 */
-	count = 1;
-	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GIF, 0, mtag)) != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", if_name(ifp));
-			return (EIO);
-		}
-		count++;
-	}
-	if (count > V_max_gif_nesting) {
-		log(LOG_NOTICE,
-		    "%s: if_output recursively called too many times(%d)\n",
-		    if_name(ifp), count);
-		return (EIO);
-	}
-	mtag = m_tag_alloc(MTAG_GIF, 0, sizeof(struct ifnet *), M_NOWAIT);
-	if (mtag == NULL)
-		return (ENOMEM);
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-	return (0);
-}
 
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,

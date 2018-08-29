@@ -511,7 +511,13 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 		case 0x5455:
 		{
 			/* Extended time field "UT". */
-			int flags = p[offset];
+			int flags;
+			if (datasize == 0) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Incomplete extended time field");
+				return ARCHIVE_FAILED;
+			}
+			flags = p[offset];
 			offset++;
 			datasize--;
 			/* Flag bits indicate which dates are present. */

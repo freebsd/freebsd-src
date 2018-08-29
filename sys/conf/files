@@ -171,6 +171,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with 
 cddl/contrib/opensolaris/uts/common/fs/zfs/bqueue.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/cityhash.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dbuf.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dbuf_stats.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt_zap.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dmu.c			optional zfs compile-with "${ZFS_C}"
@@ -224,6 +225,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_file.c			optional zfs compile-wi
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect_births.c	optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_indirect_mapping.c	optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_initialize.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_geom.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_label.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_mirror.c		optional zfs compile-with "${ZFS_C}"
@@ -635,22 +637,22 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 # Zstd
-contrib/zstd/lib/freebsd/zstd_kmalloc.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/common/zstd_common.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/common/fse_decompress.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/common/entropy_common.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/common/error_private.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/common/xxhash.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_compress.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/fse_compress.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/huf_compress.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_double_fast.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_fast.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_lazy.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_ldm.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/compress/zstd_opt.c		standard compile-with ${ZSTD_C}
-contrib/zstd/lib/decompress/zstd_decompress.c	standard compile-with ${ZSTD_C}
-contrib/zstd/lib/decompress/huf_decompress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/freebsd/zstd_kmalloc.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/common/zstd_common.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/common/fse_decompress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/common/entropy_common.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/common/error_private.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/common/xxhash.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_compress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/fse_compress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/huf_compress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_double_fast.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_fast.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_lazy.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_ldm.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_opt.c		optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/decompress/zstd_decompress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/decompress/huf_decompress.c	optional zstdio compile-with ${ZSTD_C}
 # Blake 2
 contrib/libb2/blake2b-ref.c	optional crypto | ipsec | ipsec_support \
 	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
@@ -1750,6 +1752,8 @@ dev/extres/phy/phydev_if.m	optional ext_resources phy fdt
 dev/extres/phy/phynode_if.m	optional ext_resources phy fdt
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset fdt
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset fdt
+dev/extres/nvmem/nvmem.c	optional ext_resources nvmem fdt
+dev/extres/nvmem/nvmem_if.m	optional ext_resources nvmem fdt
 dev/extres/regulator/regdev_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regnode_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regulator.c	optional ext_resources regulator fdt
@@ -1785,10 +1789,10 @@ dev/firewire/if_fwip.c		optional fwip
 dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
-dev/flash/cqspi.c		optional cqspi
+dev/flash/cqspi.c		optional cqspi fdt xdma
 dev/flash/mx25l.c		optional mx25l
-dev/flash/n25q.c		optional n25q
-dev/flash/qspi_if.m		optional cqspi | n25q
+dev/flash/n25q.c		optional n25q fdt
+dev/flash/qspi_if.m		optional cqspi fdt | n25q fdt
 dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
@@ -2305,7 +2309,6 @@ dev/ixgbe/ixgbe_dcb_82598.c	optional ix inet | ixv inet \
 dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
-dev/jedec_ts/jedec_ts.c		optional jedec_ts smbus
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
@@ -2818,12 +2821,9 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	clean		"rt2860.fw"
 dev/random/random_infra.c	optional random
 dev/random/random_harvestq.c	optional random
-dev/random/randomdev.c		optional random random_yarrow | \
-					 random !random_yarrow !random_loadable
-dev/random/yarrow.c		optional random random_yarrow
-dev/random/fortuna.c		optional random !random_yarrow !random_loadable
-dev/random/hash.c		optional random random_yarrow | \
-					 random !random_yarrow !random_loadable
+dev/random/randomdev.c		optional random
+dev/random/fortuna.c		optional random !random_loadable
+dev/random/hash.c		optional random
 dev/rc/rc.c			optional rc
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
@@ -3237,10 +3237,7 @@ dev/ubsec/ubsec.c		optional ubsec
 #
 # USB controller drivers
 #
-dev/usb/controller/at91dci.c		optional at91dci
-dev/usb/controller/at91dci_atmelarm.c	optional at91dci at91rm9200
 dev/usb/controller/musb_otg.c		optional musb
-dev/usb/controller/musb_otg_atmelarm.c	optional musb at91rm9200
 dev/usb/controller/dwc_otg.c		optional dwcotg
 dev/usb/controller/dwc_otg_fdt.c	optional dwcotg fdt
 dev/usb/controller/ehci.c		optional ehci
@@ -3255,7 +3252,6 @@ dev/usb/controller/xhci_pci.c		optional xhci pci
 dev/usb/controller/saf1761_otg.c	optional saf1761otg
 dev/usb/controller/saf1761_otg_fdt.c	optional saf1761otg fdt
 dev/usb/controller/uss820dci.c		optional uss820dci
-dev/usb/controller/uss820dci_atmelarm.c	optional uss820dci at91rm9200
 dev/usb/controller/usb_controller.c	optional usb
 #
 # USB storage drivers
@@ -3299,6 +3295,7 @@ dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_ipheth.c		optional ipheth
 dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_mos.c		optional mos
+dev/usb/net/if_muge.c		optional muge
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav
@@ -3775,7 +3772,6 @@ kern/imgact_binmisc.c		optional	imagact_binmisc
 kern/imgact_elf.c		standard
 kern/imgact_elf32.c		optional compat_freebsd32
 kern/imgact_shell.c		standard
-kern/inflate.c			optional gzip
 kern/init_main.c		standard
 kern/init_sysent.c		standard
 kern/ksched.c			optional _kposix_priority_scheduling
@@ -3868,6 +3864,7 @@ kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
+kern/subr_boot.c		standard
 kern/subr_bus.c			standard
 kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
@@ -3885,6 +3882,7 @@ kern/subr_firmware.c		optional firmware
 kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
+kern/subr_inflate.c		optional gzip
 kern/subr_kdb.c			standard
 kern/subr_kobj.c		standard
 kern/subr_lock.c		standard
@@ -4744,8 +4742,6 @@ dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_crspace.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_diagnostics.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
@@ -4821,6 +4817,21 @@ opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
 opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support
 opencrypto/skipjack.c		optional crypto | ipsec | ipsec_support
 opencrypto/xform.c		optional crypto | ipsec | ipsec_support
+opencrypto/xform_poly1305.c	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
+contrib/libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305.c \
+	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+contrib/libsodium/src/libsodium/crypto_onetimeauth/poly1305/donna/poly1305_donna.c \
+	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+contrib/libsodium/src/libsodium/crypto_verify/sodium/verify.c \
+	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+crypto/libsodium/randombytes.c	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
+crypto/libsodium/utils.c	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
@@ -4888,6 +4899,7 @@ security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
 security/mac_lomac/mac_lomac.c	optional mac_lomac
 security/mac_mls/mac_mls.c	optional mac_mls
 security/mac_none/mac_none.c	optional mac_none
+security/mac_ntpd/mac_ntpd.c	optional mac_ntpd
 security/mac_partition/mac_partition.c optional mac_partition
 security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids

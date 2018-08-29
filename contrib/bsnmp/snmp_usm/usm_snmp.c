@@ -43,6 +43,7 @@
 #include "snmp.h"
 #include "snmpmod.h"
 
+#define	SNMPTREE_TYPES
 #include "usm_tree.h"
 #include "usm_oid.h"
 
@@ -604,9 +605,10 @@ usm_dump(void)
 		    privstr[uuser->suser.priv_proto]);
 }
 
-const char usm_comment[] = \
+static const char usm_comment[] = \
 "This module implements SNMP User-based Security Model defined in RFC 3414.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	usm_comment,
 	.init =		usm_init,

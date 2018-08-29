@@ -206,24 +206,29 @@ FIXED_CLK(osc12m_clk,
     2,						/* div */
     0);						/* flags */
 
+/* CPU PLL are 24Mhz * N / P */
 static const char *pll_c0cpux_parents[] = {"osc24M"};
 static const char *pll_c1cpux_parents[] = {"osc24M"};
-NM_CLK(pll_c0cpux_clk,
+NKMP_CLK(pll_c0cpux_clk,
     CLK_PLL_C0CPUX,				/* id */
     "pll_c0cpux", pll_c0cpux_parents,		/* name, parents */
     0x00,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_ZERO_BASED,		/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-    0, 0,					/* mux */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    0, 0,					/* lock */
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
-NM_CLK(pll_c1cpux_clk,
+NKMP_CLK(pll_c1cpux_clk,
     CLK_PLL_C1CPUX,				/* id */
     "pll_c1cpux", pll_c1cpux_parents,		/* name, parents */
     0x04,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_ZERO_BASED,		/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-    0, 0,					/* mux */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    0, 0,					/* lock */
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
 
@@ -689,8 +694,8 @@ static struct aw_ccung_clk a83t_clks[] = {
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_hsic_clk},
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_de_clk},
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_video1_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_c0cpux_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_c1cpux_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_c0cpux_clk},
+	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_c1cpux_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},

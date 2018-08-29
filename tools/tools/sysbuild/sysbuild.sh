@@ -204,7 +204,7 @@ ports_recurse() (
 				echo "Missing port $d ($t) (fl $fl) (bd $bd)" 1>&2
 				continue
 			fi
-			echo "Flavored port $d ($t) (fl $fl) (bd $bd)" 1>&2
+			# echo "Flavored port $d ($t) (fl $fl) (bd $bd)" 1>&2
 			d=$bd
 		fi
 		d=`cd /usr/ports && cd $d && /bin/pwd`
@@ -549,7 +549,7 @@ log_it Installworld
 	> ${SBMNT}/_.iw 2>&1
 
 log_it distribution
-(cd /usr/src/etc && make -m /usr/src/share/mk distribution DESTDIR=${SBMNT} ${SRCCONF} ) \
+(cd /usr/src && make -m /usr/src/share/mk distribution DESTDIR=${SBMNT} ${SRCCONF} ) \
 	> ${SBMNT}/_.dist 2>&1
 
 log_it Installkernel

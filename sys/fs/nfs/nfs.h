@@ -185,6 +185,8 @@ struct nfsd_nfsd_args {
 	int	dnshostlen;	/* Length of DNS names */
 	char	*dspath;	/* DS Mount path on MDS */
 	int	dspathlen;	/* Length of DS Mount path on MDS */
+	char	*mdspath;	/* MDS mount for DS path on MDS */
+	int	mdspathlen;	/* Length of MDS mount for DS path on MDS */
 	int	mirrorcnt;	/* Number of mirrors to create on DSs */
 };
 
@@ -205,6 +207,7 @@ struct nfsd_pnfsd_args {
 
 #define	PNFSDOP_DELDSSERVER	1
 #define	PNFSDOP_COPYMR		2
+#define	PNFSDOP_FORCEDELDS	3
 
 /* Old version. */
 struct nfsd_nfsd_oargs {
@@ -326,6 +329,7 @@ struct nfsreferral {
 #define	LCL_RECLAIMCOMPLETE	0x00010000
 #define	LCL_NFSV41		0x00020000
 #define	LCL_DONEBINDCONN	0x00040000
+#define	LCL_RECLAIMONEFS	0x00080000
 
 #define	LCL_GSS		LCL_KERBV	/* Or of all mechs */
 

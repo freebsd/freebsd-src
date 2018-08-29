@@ -115,8 +115,8 @@ static struct resource_spec jzlcd_spec[] = {
 static int
 jzlcd_allocfb(struct jzlcd_softc *sc)
 {
-	sc->vaddr = kmem_alloc_contig(kernel_arena, sc->fbsize,
-	    M_NOWAIT | M_ZERO, 0, ~0, FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
+	sc->vaddr = kmem_alloc_contig(sc->fbsize, M_NOWAIT | M_ZERO, 0, ~0,
+	    FB_ALIGN, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->vaddr == 0) {
 		device_printf(sc->dev, "failed to allocate FB memory\n");
 		return (ENOMEM);
@@ -129,7 +129,7 @@ jzlcd_allocfb(struct jzlcd_softc *sc)
 static void
 jzlcd_freefb(struct jzlcd_softc *sc)
 {
-	kmem_free(kernel_arena, sc->vaddr, sc->fbsize);
+	kmem_free(sc->vaddr, sc->fbsize);
 }
 
 static void

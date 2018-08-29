@@ -152,7 +152,6 @@ static int vm_pageout_oom_seq = 12;
 static int vm_pageout_update_period;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
-static time_t lowmem_uptime;
 static int swapdev_enabled;
 
 static int vm_panic_on_oom = 0;
@@ -247,7 +246,7 @@ vm_pageout_end_scan(struct scan_state *ss)
 
 	TAILQ_REMOVE(&pq->pq_pl, ss->marker, plinks.q);
 	vm_page_aflag_clear(ss->marker, PGA_ENQUEUED);
-	VM_CNT_ADD(v_pdpages, ss->scanned);
+	pq->pq_pdpages += ss->scanned;
 }
 
 /*
@@ -793,17 +792,21 @@ recheck:
 		 * If the page has been referenced and the object is not dead,
 		 * reactivate or requeue the page depending on whether the
 		 * object is mapped.
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
 		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
 		if (object->ref_count != 0)
-			act_delta += pmap_ts_referenced(m);
+			act_delta = pmap_ts_referenced(m);
 		else {
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
@@ -1215,14 +1218,11 @@ act_scan:
 
 		/*
 		 * Check to see "how much" the page has been used.
-		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
-
-		/*
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
+		 *
 		 * Perform an unsynchronized object ref count check.  While
 		 * the page lock ensures that the page is not reallocated to
 		 * another object, in particular, one with unmanaged mappings
@@ -1236,7 +1236,13 @@ act_scan:
 		 *    worst, we will deactivate and reactivate the page.
 		 */
 		if (m->object->ref_count != 0)
-			act_delta += pmap_ts_referenced(m);
+			act_delta = pmap_ts_referenced(m);
+		else
+			act_delta = 0;
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
+		}
 
 		/*
 		 * Advance or decay the act_count based on recent usage.
@@ -1482,17 +1488,21 @@ recheck:
 		 * If the page has been referenced and the object is not dead,
 		 * reactivate or requeue the page depending on whether the
 		 * object is mapped.
+		 *
+		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
+		 * that a reference from a concurrently destroyed mapping is
+		 * observed here and now.
 		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta = 1;
-		} else
-			act_delta = 0;
-		if (object->ref_count != 0) {
-			act_delta += pmap_ts_referenced(m);
-		} else {
+		if (object->ref_count != 0)
+			act_delta = pmap_ts_referenced(m);
+		else {
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("page %p is mapped", m));
+			act_delta = 0;
+		}
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta++;
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
@@ -1845,12 +1855,17 @@ vm_pageout_oom(int shortage)
 	}
 }
 
-static void
-vm_pageout_lowmem(struct vm_domain *vmd)
+static bool
+vm_pageout_lowmem(void)
 {
+	static int lowmem_ticks = 0;
+	int last;
 
-	if (vmd == VM_DOMAIN(0) &&
-	    time_uptime - lowmem_uptime >= lowmem_period) {
+	last = atomic_load_int(&lowmem_ticks);
+	while ((u_int)(ticks - last) / hz >= lowmem_period) {
+		if (atomic_fcmpset_int(&lowmem_ticks, &last, ticks) == 0)
+			continue;
+
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -1862,14 +1877,16 @@ vm_pageout_lowmem(struct vm_domain *vmd)
 		 * drained above.
 		 */
 		uma_reclaim();
-		lowmem_uptime = time_uptime;
+		return (true);
 	}
+	return (false);
 }
 
 static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *vmd;
+	u_int ofree;
 	int addl_shortage, domain, shortage;
 	bool target_met;
 
@@ -1928,11 +1945,16 @@ vm_pageout_worker(void *arg)
 
 		/*
 		 * Use the controller to calculate how many pages to free in
-		 * this interval, and scan the inactive queue.
+		 * this interval, and scan the inactive queue.  If the lowmem
+		 * handlers appear to have freed up some pages, subtract the
+		 * difference from the inactive queue scan target.
 		 */
 		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
 		if (shortage > 0) {
-			vm_pageout_lowmem(vmd);
+			ofree = vmd->vmd_free_count;
+			if (vm_pageout_lowmem() && vmd->vmd_free_count > ofree)
+				shortage -= min(vmd->vmd_free_count - ofree,
+				    (u_int)shortage);
 			target_met = vm_pageout_scan_inactive(vmd, shortage,
 			    &addl_shortage);
 		} else

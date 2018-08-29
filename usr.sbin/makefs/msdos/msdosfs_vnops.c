@@ -101,7 +101,7 @@ msdosfs_times(struct msdosfsmount *pmp, struct denode *dep,
 	struct timespec at;
 	struct timespec mt;
 
-	if (stampst.st_ino) 
+	if (stampst.st_ino)
 	    st = &stampst;
 
 #ifndef HAVE_NBTOOL_CONFIG_H
@@ -133,7 +133,7 @@ msdosfs_times(struct msdosfsmount *pmp, struct denode *dep,
  * memory denode's will be in synch.
  */
 static int
-msdosfs_findslot(struct denode *dp, struct componentname *cnp) 
+msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 {
 	daddr_t bn;
 	int error;
@@ -230,7 +230,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 					slotoffset = diroff;
 				}
 				if (dep->deName[0] == SLOT_EMPTY) {
-					brelse(bp, 0);
+					brelse(bp);
 					goto notfound;
 				}
 			} else {
@@ -291,7 +291,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 		 * Release the buffer holding the directory cluster just
 		 * searched.
 		 */
-		brelse(bp, 0);
+		brelse(bp);
 	}	/* for (frcn = 0; ; frcn++) */
 
 notfound:
@@ -494,7 +494,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 		    0, &bp)) != 0) {
 			DPRINTF(("bread %d\n", error));
 			goto out;
-		} 
+		}
 		cpsize = MIN((nsize - offs), blsize - on);
 		memcpy((char *)bp->b_data + on, dat + offs, cpsize);
 		bwrite(bp);

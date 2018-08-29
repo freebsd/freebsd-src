@@ -120,9 +120,9 @@ RM_SYSINIT(ipsec_sc_lock, &ipsec_sc_lock, "if_ipsec softc list");
 #define	IPSEC_SC_WLOCK_ASSERT()	rm_assert(&ipsec_sc_lock, RA_WLOCKED)
 
 LIST_HEAD(ipsec_iflist, ipsec_softc);
-static VNET_DEFINE(struct ipsec_iflist, ipsec_sc_list);
-static VNET_DEFINE(struct ipsec_iflist *, ipsec_sc_htbl);
-static VNET_DEFINE(u_long, ipsec_sc_hmask);
+VNET_DEFINE_STATIC(struct ipsec_iflist, ipsec_sc_list);
+VNET_DEFINE_STATIC(struct ipsec_iflist *, ipsec_sc_htbl);
+VNET_DEFINE_STATIC(u_long, ipsec_sc_hmask);
 #define	V_ipsec_sc_list		VNET(ipsec_sc_list)
 #define	V_ipsec_sc_htbl		VNET(ipsec_sc_htbl)
 #define	V_ipsec_sc_hmask	VNET(ipsec_sc_hmask)
@@ -162,7 +162,7 @@ static void	ipsec_qflush(struct ifnet *);
 static int	ipsec_clone_create(struct if_clone *, int, caddr_t);
 static void	ipsec_clone_destroy(struct ifnet *);
 
-static VNET_DEFINE(struct if_clone *, ipsec_cloner);
+VNET_DEFINE_STATIC(struct if_clone *, ipsec_cloner);
 #define	V_ipsec_cloner		VNET(ipsec_cloner)
 
 static int
