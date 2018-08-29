@@ -123,6 +123,8 @@ pos_in(void)
 				--cnt;
 			if (need_summary)
 				summary();
+			if (need_progress)
+				progress();
 			continue;
 		}
 
