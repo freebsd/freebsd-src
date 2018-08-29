@@ -3636,7 +3636,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	if (__predict_false(ctx->ifc_flags & IFC_QFLUSH)) {
 		DBG_COUNTER_INC(txq_drain_flushing);
 		for (i = 0; i < avail; i++) {
-			if (__predict_true(r->items[(cidx + i) & (r->size-1)] != (void *)txq)
+			if (__predict_true(r->items[(cidx + i) & (r->size-1)] != (void *)txq))
 				m_free(r->items[(cidx + i) & (r->size-1)]);
 			r->items[(cidx + i) & (r->size-1)] = NULL;
 		}
