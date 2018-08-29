@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
+#include <sys/time.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -84,15 +85,22 @@ const	u_char *ctab;		/* conversion table */
 char	fill_char;		/* Character to fill with if defined */
 size_t	speed = 0;		/* maximum speed, in bytes per second */
 volatile sig_atomic_t need_summary;
+volatile sig_atomic_t need_progress;
 
 int
 main(int argc __unused, char *argv[])
 {
+	struct itimerval itv = { { 1, 0 }, { 1, 0 } }; /* SIGALARM every second, if needed */
+
 	(void)setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
 
 	(void)signal(SIGINFO, siginfo_handler);
+	if (ddflags & C_PROGRESS) {
+		(void)signal(SIGALRM, sigalarm_handler);
+		setitimer(ITIMER_REAL, &itv, NULL);
+	}
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -420,9 +428,10 @@ dd_in(void)
 
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
-		if (need_summary) {
+		if (need_summary)
 			summary();
-		}
+		if (need_progress)
+			progress();
 	}
 }
 
