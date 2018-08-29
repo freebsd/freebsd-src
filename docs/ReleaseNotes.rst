@@ -222,10 +222,31 @@ Objective-C Language Changes in Clang
 
 ...
 
-OpenCL C Language Changes in Clang
-----------------------------------
+OpenCL C/C++ Language Changes in Clang
+--------------------------------------
 
-...
+Miscellaneous changes in OpenCL C:
+
+- Added ``cles_khr_int64`` extension.
+
+- Added bug fixes and simplifications to Clang blocks in OpenCL mode.
+
+- Added compiler flag ``-cl-uniform-work-group-size`` to allow extra compile time optimisation.
+
+- Propagate ``denorms-are-zero`` attribute to IR if ``-cl-denorms-are-zero`` is passed to the compiler.
+
+- Separated ``read_only`` and ``write_only`` pipe IR types.
+
+- Fixed address space for the ``__func__`` predefined macro.
+
+- Improved diagnostics of kernel argument types.
+
+
+Started OpenCL C++ support:
+
+- Added ``-std/-cl-std=c++``.
+
+- Added support for keywords.
 
 OpenMP Support in Clang
 ----------------------------------
@@ -265,7 +286,10 @@ These are major API changes that have happened since the 6.0.0 release of
 Clang. If upgrading an external codebase that uses Clang as a library,
 this section should help get you past the largest hurdles of upgrading.
 
--  ...
+- The methods ``getLocStart``, ``getStartLoc`` and ``getLocEnd`` in the AST 
+  classes are deprecated.  New APIs ``getBeginLoc`` and ``getEndLoc`` should 
+  be used instead.  While the old methods remain in this release, they will 
+  not be present in the next release of Clang.
 
 AST Matchers
 ------------
