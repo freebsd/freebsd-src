@@ -353,7 +353,7 @@ static devclass_t sdhci_fdt_devclass;
 
 DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
     NULL, NULL);
-#ifndef MMCCAM
 MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_fdt);
 #endif

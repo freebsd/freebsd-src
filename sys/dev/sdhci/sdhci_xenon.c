@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
+#include "opt_mmccam.h"
+
 #define	MAX_SLOTS		6
 
 static struct ofw_compat_data compat_data[] = {
@@ -542,5 +544,8 @@ static devclass_t sdhci_xenon_devclass;
 
 DRIVER_MODULE(sdhci_xenon, simplebus, sdhci_xenon_driver, sdhci_xenon_devclass,
     NULL, NULL);
+
 MODULE_DEPEND(sdhci_xenon, sdhci, 1, 1, 1);
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_xenon);
+#endif
