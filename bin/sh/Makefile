@@ -3,7 +3,9 @@
 
 .include <src.opts.mk>
 
-CONFS=	profile
+CONFS=	dot.profile profile
+CONFSDIR_dot.profile=	/root
+CONFSNAME_dot.profile=	.profile
 PACKAGE=runtime
 PROG=	sh
 INSTALLFLAGS= -S
@@ -60,5 +62,11 @@ token.h: mktokens
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
+
+beforeinstallconfig:
+	rm -f ${DESTDIR}/.profile
+
+afterinstallconfig:
+	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 
 .include <bsd.prog.mk>
