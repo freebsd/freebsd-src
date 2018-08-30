@@ -42,15 +42,14 @@ local password = require("password")
 -- need it.
 local menu
 
+try_include("local")
+
+config.load()
 -- Our console may have been setup for a different color scheme before we get
 -- here, so make sure we set the default.
 if color.isEnabled() then
 	printc(color.default())
 end
-
-try_include("local")
-
-config.load()
 if not core.isMenuSkipped() then
 	menu = require("menu")
 end
