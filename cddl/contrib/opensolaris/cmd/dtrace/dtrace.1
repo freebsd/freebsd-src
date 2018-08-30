@@ -1,4 +1,3 @@
-'\" te
 .\" CDDL HEADER START
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -21,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2015
+.Dd August 16, 2018
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -523,6 +522,116 @@ Enable or modify a DTrace runtime option or D compiler option.
 Boolean options are enabled by specifying their name.
 Options with values are set by separating the option name and value with an
 equals sign (=).
+.Pp
+A
+.Ar size
+argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
+.Pp
+A
+.Ar time
+argument may be suffixed with one of
+.Cm ns ,
+.Cm nsec ,
+.Cm us ,
+.Cm usec ,
+.Cm ms ,
+.Cm msec ,
+.Cm s  ,
+.Cm sec ,
+.Cm m ,
+.Cm min ,
+.Cm h ,
+.Cm hour ,
+.Cm d  ,
+.Cm day ,
+.Cm hz .
+If no suffix is specified
+.Cm hz
+will be used as the unit.
+.Bl -tag -width indent
+.It Sy aggrate Ns = Ns Ar time
+Rate of aggregation reading.
+.It Sy aggsize Ns = Ns Ar size
+Size of the aggregation buffer.
+.It Sy bufpolicy Ns = Ns Cm fill Ns | Ns Cm switch Ns | Ns Cm ring
+Specifies the buffer policy for the principal buffer.
+.It Sy bufresize Ns = Ns Cm auto Ns | Ns Cm manual
+Buffer resizing policy.
+.It Sy bufsize Ns = Ns Ar size
+Size of the per-CPU principal buffer.
+Same as the
+.Fl b
+flag.
+.It Sy cleanrate Ns = Ns Ar time
+Cleaning rate.
+Must be specified in number-per-second with the
+.Dq Li hz
+suffix.
+.It Sy cpu Ns = Ns Ar scalar
+Specifies the CPU on which to enable tracing.
+.It Sy defaultargs
+Allow references to unspecified macro arguments.
+.It Sy destructive
+Allow destructive actions.
+Same as the
+.Fl w
+flag.
+.It Sy dynvarsize Ns = Ns Ar size
+Size of the dynamic variable space.
+.It Sy flowindent
+Turn on flow indentation.
+Same as the
+.Fl F
+flag.
+.It Sy grabanon
+Claim anonymous state.
+Same as the
+.Fl a
+flag.
+.It Sy jstackframes Ns = Ns Ar scalar
+Number of default stack frames for
+.Fn jstack .
+.It Sy jstackstrsize Ns = Ns Ar scalar
+Default string space size for
+.Fn jstack .
+.It Sy nspec Ns = Ns Ar scalar
+Number of speculations.
+.It Sy quiet
+Set quiet mode.
+Same as the
+.Fl q
+flag.
+.It Sy specsize Ns = Ns Ar size
+Size of the speculation buffer.
+.It Sy strsize Ns = Ns Ar size
+Maximum size of strings.
+.It Sy stackframes Ns = Ns Ar scalar
+Maximum number of kernelspace stack frames to unwind when executing the
+.Fn stack
+action.
+.It Sy stackindent Ns = Ns Ar scalar
+Number of whitespace characters to use when indenting
+.Fn stack
+and
+.Fn ustack
+output.
+.It Sy statusrate Ns = Ns Ar time
+Rate of status checking.
+.It Sy switchrate Ns = Ns Ar time
+Rate of buffer switching.
+.It Sy ustackframes Ns = Ns Ar scalar
+Maximum number of userspace stack frames to unwind when executing the
+.Fn ustack
+action.
+.El
 .It Fl X Cm a | c | s | t
 Specify the degree of conformance to the ISO C standard that should be selected
 when invoking
