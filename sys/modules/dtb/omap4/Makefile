@@ -5,4 +5,8 @@ DTS=	\
         pandaboard.dts \
 	pandaboard-es.dts
 
+LINKS=	\
+	${DTBDIR}/pandaboard.dtb ${DTBDIR}/omap4-panda.dtb \
+	${DTBDIR}/pandaboard-es.dtb ${DTBDIR}/omap4-panda-es.dtb
+
 .include <bsd.dtb.mk>
