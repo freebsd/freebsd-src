@@ -68,6 +68,13 @@ installdirs:
 	mkdir -p "${DESTDIR}/${_dir}"
 .endfor
 
+# For private kerberos
+# XXX There really needs to be a better way than this, such as building
+# XXX mtree and installing it in legacy early.
+.for _dir in asn1 bsdstat com_err event hdb heimbase heimntlm hx509 kafs5 kdc krb5 roken sqlite3 ucl wind zstd
+	mkdir -p "${DESTDIR}/usr/include/private/${_dir}"
+.endfor
+
 .for _group in ${INCSGROUPS:NINCS}
 	mkdir -p "${DESTDIR}/${${_group}DIR}"
 .endfor
