@@ -113,6 +113,7 @@
 #undef		pthread_detach
 #undef		pthread_equal
 #undef		pthread_exit
+#undef		pthread_get_name_np
 #undef		pthread_getaffinity_np
 #undef		pthread_getconcurrency
 #undef		pthread_getcpuclockid
