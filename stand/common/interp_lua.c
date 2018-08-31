@@ -135,7 +135,7 @@ interp_run(const char *line)
 	char	**argv;
 	lua_State *luap;
 	struct interp_lua_softc	*softc = &lua_softc;
-	int status;
+	int status, ret;
 
 	luap = softc->luap;
 	LDBG("executing line...");
@@ -147,14 +147,16 @@ interp_run(const char *line)
 		 * run it through cli_execute. If that fails, then we'll try it
 		 * as a builtin.
 		 */
+		command_errmsg = NULL;
 		if (parse(&argc, &argv, line) == 0) {
 			lua_getglobal(luap, "cli_execute");
 			for (nargc = 0; nargc < argc; ++nargc) {
 				lua_pushstring(luap, argv[nargc]);
 			}
 			status = lua_pcall(luap, argc, 1, 0);
+			ret = lua_tointeger(luap, 1);
 			lua_pop(luap, 1);
-			if (status != 0) {
+			if (status != 0 || ret != 0) {
 				/*
 				 * Lua cli_execute will pass the function back
 				 * through loader.command, which is a proxy to
@@ -166,7 +168,10 @@ interp_run(const char *line)
 				status = interp_builtin_cmd(argc, argv);
 			}
 			if (status != 0) {
-				printf("Command failed\n");
+				if (command_errmsg != NULL)
+					printf("%s\n", command_errmsg);
+				else
+					printf("Command failed\n");
 				status = CMD_ERROR;
 			}
 			free(argv);
