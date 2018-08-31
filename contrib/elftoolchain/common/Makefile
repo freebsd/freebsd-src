@@ -1,4 +1,4 @@
-# $Id: Makefile 3022 2014-04-17 18:05:58Z jkoshy $
+# $Id: Makefile 3594 2018-04-11 18:26:50Z jkoshy $
 
 TOP=	..
 
@@ -7,12 +7,12 @@ INCSDIR=	/usr/include
 
 .PHONY:	all clean clobber depend obj
 
-all depend obj:
+all depend:
 
 clean clobber:
 	rm -f ${CLEANFILES}
 
 cleandepend:
-	rm -f .depend
+	rm -f ${.OBJDIR}/.depend
 
 .include "${TOP}/mk/elftoolchain.inc.mk"
