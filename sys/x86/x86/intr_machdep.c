@@ -173,8 +173,10 @@ intr_init_sources(void *arg)
 
 	interrupt_sources = mallocarray(num_io_irqs, sizeof(*interrupt_sources),
 	    M_INTR, M_WAITOK | M_ZERO);
+#ifdef SMP
 	interrupt_sorted = mallocarray(num_io_irqs, sizeof(*interrupt_sorted),
 	    M_INTR, M_WAITOK | M_ZERO);
+#endif
 
 	/*
 	 * - 1 ??? dummy counter.
