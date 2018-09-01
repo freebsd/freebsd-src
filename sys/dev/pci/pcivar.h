@@ -620,6 +620,8 @@ bool	pcie_flr(device_t dev, u_int max_delay, bool force);
 int	pcie_get_max_completion_timeout(device_t dev);
 bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
 
+void	pci_print_faulted_dev(void);
+
 #ifdef BUS_SPACE_MAXADDR
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
 #define	PCI_DMA_BOUNDARY	0x100000000
