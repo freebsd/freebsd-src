@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2018
+.Dd August 31, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -111,7 +111,7 @@
 .Ft int
 .Fn be_validate_snap "libbe_handle_t *hdl" "const char *snap"
 .Pp
-.Ft bool
+.Ft int
 .Fn be_exists "libbe_handle_t *hdl" "char *be_name"
 .Pp
 .Ft int
@@ -352,6 +352,8 @@ The
 function will check whether the given boot environment exists and has a
 mountpoint of
 .Pa / .
+This function does not set the internal library error state, but will return
+the appropriate error.
 .Pp
 The
 .Fn be_export
@@ -444,7 +446,7 @@ BE_ERR_DESTROYMNT,
 BE_ERR_BADPATH,
 BE_ERR_PATHBUSY,
 BE_ERR_PATHLEN,
-BE_ERR_INVORIGIN,
+BE_ERR_BADMOUNT,
 BE_ERR_NOORIGIN,
 BE_ERR_MOUNTED,
 BE_ERR_NOMOUNT,
