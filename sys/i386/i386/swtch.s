@@ -74,16 +74,12 @@
  */
 ENTRY(cpu_throw)
 	movl	PCPU(CPUID), %esi
-	movl	4(%esp),%ecx			/* Old thread */
-	testl	%ecx,%ecx			/* no thread? */
-	jz	1f
 	/* release bit from old pm_active */
 	movl	PCPU(CURPMAP), %ebx
 #ifdef SMP
 	lock
 #endif
 	btrl	%esi, PM_ACTIVE(%ebx)		/* clear old */
-1:
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
 	movl	PCB_CR3(%edx),%eax
