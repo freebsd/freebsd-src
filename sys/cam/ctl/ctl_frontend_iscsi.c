@@ -1447,11 +1447,11 @@ cfiscsi_offline(void *arg)
 	ct->ct_online = 0;
 	online = --softc->online;
 
-	TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
-		if (cs->cs_target == ct)
-			cfiscsi_session_terminate(cs);
-	}
 	do {
+		TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
+			if (cs->cs_target == ct)
+				cfiscsi_session_terminate(cs);
+		}
 		TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
 			if (cs->cs_target == ct)
 				break;
