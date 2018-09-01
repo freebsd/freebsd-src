@@ -60,6 +60,7 @@ static struct interp_lua_softc lua_softc;
 #define	LDBG(...)
 #endif
 
+INTERP_DEFINE("lua");
 
 static void *
 interp_lua_realloc(void *ud __unused, void *ptr, size_t osize __unused, size_t nsize)
