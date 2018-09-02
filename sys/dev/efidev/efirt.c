@@ -299,7 +299,7 @@ efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 	efi_status status;
 	int error;
 
-	EFI_TIME_OWNED()
+	EFI_TIME_OWNED();
 	error = efi_enter();
 	if (error != 0)
 		return (error);
@@ -317,7 +317,7 @@ efi_get_time(struct efi_tm *tm)
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
-	EFI_TIME_LOCK()
+	EFI_TIME_LOCK();
 	/*
 	 * UEFI spec states that the Capabilities argument to GetTime is
 	 * optional, but some UEFI implementations choke when passed a NULL
@@ -325,7 +325,7 @@ efi_get_time(struct efi_tm *tm)
 	 * to workaround such implementations.
 	 */
 	error = efi_get_time_locked(tm, &dummy);
-	EFI_TIME_UNLOCK()
+	EFI_TIME_UNLOCK();
 	return (error);
 }
 
@@ -337,9 +337,9 @@ efi_get_time_capabilities(struct efi_tmcap *tmcap)
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
-	EFI_TIME_LOCK()
+	EFI_TIME_LOCK();
 	error = efi_get_time_locked(&dummy, tmcap);
-	EFI_TIME_UNLOCK()
+	EFI_TIME_UNLOCK();
 	return (error);
 }
 
@@ -379,9 +379,9 @@ efi_set_time(struct efi_tm *tm)
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
-	EFI_TIME_LOCK()
+	EFI_TIME_LOCK();
 	error = efi_set_time_locked(tm);
-	EFI_TIME_UNLOCK()
+	EFI_TIME_UNLOCK();
 	return (error);
 }
 
