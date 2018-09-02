@@ -62,6 +62,8 @@ struct mdthread {
 	register_t md_saved_flags;	/* (k) */
 	register_t md_spurflt_addr;	/* (k) Spurious page fault address. */
 	struct pmap_invl_gen md_invl_gen;
+	register_t md_efirt_tmp;	/* (k) */
+	int	md_efirt_dis_pf;	/* (k) */
 };
 
 struct mdproc {
