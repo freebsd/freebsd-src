@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/proc.h>
 #include <machine/segments.h>
+#include <machine/efi.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -77,12 +78,15 @@ ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
 ASSYM(MD_LDT_SD, offsetof(struct mdproc, md_ldt_sd));
 
+ASSYM(MD_EFIRT_TMP, offsetof(struct mdthread, md_efirt_tmp));
+
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
+ASSYM(TD_MD, offsetof(struct thread, td_md));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
@@ -249,3 +253,19 @@ ASSYM(__FreeBSD_version, __FreeBSD_version);
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif
+
+ASSYM(EC_EFI_STATUS, offsetof(struct efirt_callinfo, ec_efi_status));
+ASSYM(EC_FPTR, offsetof(struct efirt_callinfo, ec_fptr));
+ASSYM(EC_ARGCNT, offsetof(struct efirt_callinfo, ec_argcnt));
+ASSYM(EC_ARG1, offsetof(struct efirt_callinfo, ec_arg1));
+ASSYM(EC_ARG2, offsetof(struct efirt_callinfo, ec_arg2));
+ASSYM(EC_ARG3, offsetof(struct efirt_callinfo, ec_arg3));
+ASSYM(EC_ARG4, offsetof(struct efirt_callinfo, ec_arg4));
+ASSYM(EC_ARG5, offsetof(struct efirt_callinfo, ec_arg5));
+ASSYM(EC_RBX, offsetof(struct efirt_callinfo, ec_rbx));
+ASSYM(EC_RSP, offsetof(struct efirt_callinfo, ec_rsp));
+ASSYM(EC_RBP, offsetof(struct efirt_callinfo, ec_rbp));
+ASSYM(EC_R12, offsetof(struct efirt_callinfo, ec_r12));
+ASSYM(EC_R13, offsetof(struct efirt_callinfo, ec_r13));
+ASSYM(EC_R14, offsetof(struct efirt_callinfo, ec_r14));
+ASSYM(EC_R15, offsetof(struct efirt_callinfo, ec_r15));
