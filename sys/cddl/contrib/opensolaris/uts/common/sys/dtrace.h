@@ -2496,12 +2496,11 @@ extern void dtrace_helpers_destroy(proc_t *);
 
 #elif defined(__riscv)
 
-#define	SD_RA_SP_MASK		0x01fff07f
-#define	SD_RA_SP		0x00113023
-
 #define	DTRACE_INVOP_SD		1
-#define	DTRACE_INVOP_RET	2
-#define	DTRACE_INVOP_NOP	3
+#define	DTRACE_INVOP_C_SDSP	2
+#define	DTRACE_INVOP_RET	3
+#define	DTRACE_INVOP_C_RET	4
+#define	DTRACE_INVOP_NOP	5
 
 #endif
 
