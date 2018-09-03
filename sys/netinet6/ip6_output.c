@@ -804,22 +804,16 @@ again:
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
 		} else {
-			RO_RTFREE(ro);
+			RO_INVALIDATE_CACHE(ro);
 			needfiblookup = 1; /* Redo the routing table lookup. */
-			if (ro->ro_lle)
-				LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
-			ro->ro_lle = NULL;
 		}
 	}
 	/* See if fib was changed by packet filter. */
 	if (fibnum != M_GETFIB(m)) {
 		m->m_flags |= M_SKIP_FIREWALL;
 		fibnum = M_GETFIB(m);
-		RO_RTFREE(ro);
+		RO_INVALIDATE_CACHE(ro);
 		needfiblookup = 1;
-		if (ro->ro_lle)
-			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
-		ro->ro_lle = NULL;
 	}
 	if (needfiblookup)
 		goto again;
