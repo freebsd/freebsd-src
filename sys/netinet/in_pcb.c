@@ -244,7 +244,7 @@ in_pcblbgroup_free(struct inpcblbgroup *grp)
 {
 
 	LIST_REMOVE(grp, il_list);
-	free(grp, M_TEMP);
+	free(grp, M_PCB);
 }
 
 static struct inpcblbgroup *
