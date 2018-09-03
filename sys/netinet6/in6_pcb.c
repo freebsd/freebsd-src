@@ -853,8 +853,8 @@ in6_losing(struct inpcb *in6p)
 		RTFREE(in6p->inp_route6.ro_rt);
 		in6p->inp_route6.ro_rt = (struct rtentry *)NULL;
 	}
-	if (in6p->inp_route.ro_lle)
-		LLE_FREE(in6p->inp_route.ro_lle);	/* zeros ro_lle */
+	if (in6p->inp_route6.ro_lle)
+		LLE_FREE(in6p->inp_route6.ro_lle);	/* zeros ro_lle */
 	return;
 }
 
@@ -870,8 +870,8 @@ in6_rtchange(struct inpcb *inp, int errno)
 		RTFREE(inp->inp_route6.ro_rt);
 		inp->inp_route6.ro_rt = (struct rtentry *)NULL;
 	}
-	if (inp->inp_route.ro_lle)
-		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
+	if (inp->inp_route6.ro_lle)
+		LLE_FREE(inp->inp_route6.ro_lle);	/* zeros ro_lle */
 	return inp;
 }
 
