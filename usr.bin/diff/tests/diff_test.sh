@@ -8,6 +8,7 @@ atf_test_case ifdef
 atf_test_case group_format
 atf_test_case side_by_side
 atf_test_case brief_format
+atf_test_case b230049
 
 simple_body()
 {
@@ -50,6 +51,15 @@ unified_body()
 		diff -u -c9999 -L input_c1.in -L input_c2.in "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
 	atf_check -o file:$(atf_get_srcdir)/unified_9999.out -s eq:1 \
 		diff -u9999 -L input_c1.in -L input_c2.in "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
+}
+
+b230049_body()
+{
+	printf 'a\nb\r\nc\n' > b230049_a.in
+	printf 'a\r\nb\r\nc\r\n' > b230049_b.in
+	atf_check -o empty -s eq:0 \
+		diff -up --strip-trailing-cr -L b230049_a.in -L b230049_b.in \
+		    b230049_a.in b230049_b.in
 }
 
 header_body()
@@ -150,4 +160,5 @@ atf_init_test_cases()
 	atf_add_test_case group_format
 	atf_add_test_case side_by_side
 	atf_add_test_case brief_format
+	atf_add_test_case b230049
 }
