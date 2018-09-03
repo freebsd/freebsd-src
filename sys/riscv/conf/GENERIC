@@ -88,6 +88,15 @@ device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
 device		virtio_mmio		# VirtIO MMIO bus
 
+# DTrace support
+# device	dtrace
+# device	dtrace_profile
+# device	dtrace_sdt
+# device	dtrace_fbt
+# device	dtrace_systrace
+# device	dtrace_prototype
+# device	dtraceall
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		uart_ns8250	# ns8250-type UART driver
