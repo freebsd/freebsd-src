@@ -108,7 +108,7 @@ CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only -fPIC
 .elif ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-march=rv64ima -mabi=lp64
+CFLAGS+=	-march=rv64imac -mabi=lp64
 .else
 CFLAGS+=	-msoft-float
 .endif
