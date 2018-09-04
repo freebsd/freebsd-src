@@ -421,9 +421,9 @@ efi_reset_system(void)
 	ec.ec_name = "rt_reset";
 	ec.ec_argcnt = 4;
 	ec.ec_arg1 = (uintptr_t)EFI_RESET_WARM;
-	ec.ec_arg1 = (uintptr_t)0;
-	ec.ec_arg1 = (uintptr_t)0;
-	ec.ec_arg1 = (uintptr_t)NULL;
+	ec.ec_arg2 = (uintptr_t)0;
+	ec.ec_arg3 = (uintptr_t)0;
+	ec.ec_arg4 = (uintptr_t)NULL;
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_reset);
 	return (efi_call(&ec));
 }
