@@ -74,7 +74,8 @@ Ignored for compatibility reasons.
 Use the program exit status as the return code of the pam_sm_* function.
 It must be a valid return value for this function.
 .It Cm expose_authtok
-Write the authentication token to the program's standard input stream.
+Write the authentication token to the program's standard input stream,
+followed by a NUL character.
 .It Cm --
 Stop options parsing;
 program and its arguments follow.
