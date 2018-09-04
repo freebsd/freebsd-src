@@ -312,9 +312,10 @@ ENTRY(copyout_smap)
 	movsq
 	movb	%dl,%cl
 	andb	$7,%cl
+	je	1f
 	rep
 	movsb
-	clac
+1:	clac
 
 done_copyout:
 	xorl	%eax,%eax
@@ -361,6 +362,7 @@ ENTRY(copyin_nosmap)
 	movsq
 	movb	%al,%cl
 	andb	$7,%cl				/* copy remaining bytes */
+	je	done_copyin
 	rep
 	movsb
 
@@ -393,10 +395,10 @@ ENTRY(copyin_smap)
 	movsq
 	movb	%al,%cl
 	andb	$7,%cl				/* copy remaining bytes */
-	je	done_copyin
+	je	1f
 	rep
 	movsb
-	clac
+1:	clac
 
 done_copyin:
 	xorl	%eax,%eax
