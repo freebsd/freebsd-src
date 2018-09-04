@@ -172,7 +172,7 @@ regulator_shutdown(void *dummy)
 	REG_TOPO_SLOCK();
 	TUNABLE_INT_FETCH("hw.regulator.disable_unused", &disable);
 	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
-		if (entry->std_param.always_on == 0 && disable) {
+		if (!entry->std_param.always_on && disable) {
 			if (bootverbose)
 				printf("regulator: shutting down %s\n",
 				    entry->name);
@@ -595,8 +595,9 @@ regnode_disable(struct regnode *regnode)
 
 	REGNODE_XLOCK(regnode);
 	/* Disable regulator for each node in chain, starting from consumer. */
-	if ((regnode->enable_cnt == 1) &&
-	    ((regnode->flags & REGULATOR_FLAGS_NOT_DISABLE) == 0)) {
+	if (regnode->enable_cnt == 1 &&
+	    (regnode->flags & REGULATOR_FLAGS_NOT_DISABLE) == 0 &&
+	    !regnode->std_param.always_on) {
 		rv = REGNODE_ENABLE(regnode, false, &udelay);
 		if (rv != 0) {
 			REGNODE_UNLOCK(regnode);
@@ -1048,10 +1049,10 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 		par->enable_delay = 0;
 
 	if (OF_hasprop(node, "regulator-boot-on"))
-		par->boot_on = 1;
+		par->boot_on = true;
 
 	if (OF_hasprop(node, "regulator-always-on"))
-		par->always_on = 1;
+		par->always_on = true;
 
 	if (OF_hasprop(node, "enable-active-high"))
 		par->enable_active_high = 1;
