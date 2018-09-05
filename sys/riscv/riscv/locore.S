@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -61,9 +61,6 @@ _start:
 	sub	s9, t2, t1	/* s9 = physmem base */
 	mv	s10, a0		/* s10 = hart id */
 	mv	s11, a1		/* s11 = dtbp */
-
-	li	t0, SSTATUS_SUM
-	csrs	sstatus, t0
 
 	/* Direct secondary cores to mpentry */
 	bnez	s10, mpentry
