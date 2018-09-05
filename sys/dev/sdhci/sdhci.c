@@ -80,17 +80,37 @@ SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
 #define	WR_MULTI_4(slot, off, ptr, count)	\
     SDHCI_WRITE_MULTI_4((slot)->bus, (slot), (off), (ptr), (count))
 
+static void sdhci_acmd_irq(struct sdhci_slot *slot, uint16_t acmd_err);
 static void sdhci_card_poll(void *arg);
 static void sdhci_card_task(void *arg, int pending);
+static void sdhci_cmd_irq(struct sdhci_slot *slot, uint32_t intmask);
+static void sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask);
 static int sdhci_exec_tuning(struct sdhci_slot *slot, bool reset);
+static void sdhci_handle_card_present_locked(struct sdhci_slot *slot,
+    bool is_present);
+static void sdhci_finish_command(struct sdhci_slot *slot);
+static void sdhci_init(struct sdhci_slot *slot);
+static void sdhci_read_block_pio(struct sdhci_slot *slot);
+static void sdhci_req_done(struct sdhci_slot *slot);
 static void sdhci_req_wakeup(struct mmc_request *req);
+static void sdhci_reset(struct sdhci_slot *slot, uint8_t mask);
 static void sdhci_retune(void *arg);
 static void sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock);
+static void sdhci_set_power(struct sdhci_slot *slot, u_char power);
+static void sdhci_set_transfer_mode(struct sdhci_slot *slot,
+   struct mmc_data *data);
 static void sdhci_start(struct sdhci_slot *slot);
+static void sdhci_timeout(void *arg);
+static void sdhci_start_command(struct sdhci_slot *slot,
+   struct mmc_command *cmd);
 static void sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data);
+static void sdhci_write_block_pio(struct sdhci_slot *slot);
+static void sdhci_transfer_pio(struct sdhci_slot *slot);
 
 /* helper routines */
 static void sdhci_dumpregs(struct sdhci_slot *slot);
+static void sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs,
+    int error);
 static int slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
     __printflike(2, 3);
 static uint32_t sdhci_tuning_intmask(struct sdhci_slot *slot);
@@ -1433,12 +1453,14 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot, struct mmc_data *data)
 		return;
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
-	if (data->len > 512)
+	if (data->len > 512) {
 		mode |= SDHCI_TRNS_MULTI;
+		if (__predict_true(slot->req->stop &&
+		    !(slot->quirks & SDHCI_QUIRK_BROKEN_AUTO_STOP)))
+			mode |= SDHCI_TRNS_ACMD12;
+	}
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
-	if (slot->req->stop && !(slot->quirks & SDHCI_QUIRK_BROKEN_AUTO_STOP))
-		mode |= SDHCI_TRNS_ACMD12;
 	if (slot->flags & SDHCI_USE_DMA)
 		mode |= SDHCI_TRNS_DMA;
 
@@ -1957,18 +1979,16 @@ done:
 }
 
 static void
-sdhci_acmd_irq(struct sdhci_slot *slot)
+sdhci_acmd_irq(struct sdhci_slot *slot, uint16_t acmd_err)
 {
-	uint16_t err;
 
-	err = RD4(slot, SDHCI_ACMD12_ERR);
 	if (!slot->curcmd) {
 		slot_printf(slot, "Got AutoCMD12 error 0x%04x, but "
-		    "there is no active command.\n", err);
+		    "there is no active command.\n", acmd_err);
 		sdhci_dumpregs(slot);
 		return;
 	}
-	slot_printf(slot, "Got AutoCMD12 error 0x%04x\n", err);
+	slot_printf(slot, "Got AutoCMD12 error 0x%04x\n", acmd_err);
 	sdhci_reset(slot, SDHCI_RESET_CMD);
 }
 
@@ -1976,6 +1996,7 @@ void
 sdhci_generic_intr(struct sdhci_slot *slot)
 {
 	uint32_t intmask, present;
+	uint16_t val16;
 
 	SDHCI_LOCK(slot);
 	/* Read slot interrupt status. */
@@ -1989,6 +2010,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 
 	/* Handle tuning error interrupt. */
 	if (__predict_false(intmask & SDHCI_INT_TUNEERR)) {
+		WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_TUNEERR);
 		slot_printf(slot, "Tuning error indicated\n");
 		slot->retune_req |= SDHCI_RETUNE_REQ_RESET;
 		if (slot->curcmd) {
@@ -2026,8 +2048,10 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 	}
 	/* Handle AutoCMD12 error interrupt. */
 	if (intmask & SDHCI_INT_ACMD12ERR) {
+		/* Clearing SDHCI_INT_ACMD12ERR may clear SDHCI_ACMD12_ERR. */
+		val16 = RD2(slot, SDHCI_ACMD12_ERR);
 		WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_ACMD12ERR);
-		sdhci_acmd_irq(slot);
+		sdhci_acmd_irq(slot, val16);
 	}
 	/* Handle bus power interrupt. */
 	if (intmask & SDHCI_INT_BUS_POWER) {
