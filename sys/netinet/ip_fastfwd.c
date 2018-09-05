@@ -153,7 +153,7 @@ ip_tryforward(struct mbuf *m)
 	struct mbuf *m0 = NULL;
 	struct nhop4_basic nh;
 	struct sockaddr_in dst;
-	struct in_addr odest, dest;
+	struct in_addr dest, odest, rtdest;
 	uint16_t ip_len, ip_off;
 	int error = 0;
 	struct m_tag *fwd_tag = NULL;
@@ -294,10 +294,29 @@ passin:
 #endif
 
 	/*
+	 * Next hop forced by pfil(9) hook?
+	 */
+	if ((m->m_flags & M_IP_NEXTHOP) &&
+	    ((fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL)) {
+		/*
+		 * Now we will find route to forced destination.
+		 */
+		dest.s_addr = ((struct sockaddr_in *)
+			    (fwd_tag + 1))->sin_addr.s_addr;
+		m_tag_delete(m, fwd_tag);
+		m->m_flags &= ~M_IP_NEXTHOP;
+	}
+
+	/*
 	 * Find route to destination.
 	 */
 	if (ip_findroute(&nh, dest, m) != 0)
 		return (NULL);	/* icmp unreach already sent */
+
+	/*
+	 * Avoid second route lookup by caching destination.
+	 */
+	rtdest.s_addr = dest.s_addr;
 
 	/*
 	 * Step 5: outgoing firewall packet processing
@@ -321,6 +340,8 @@ passin:
 	 */
 	if (m->m_flags & M_IP_NEXTHOP)
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	else
+		fwd_tag = NULL;
 	if (odest.s_addr != dest.s_addr || fwd_tag != NULL) {
 		/*
 		 * Is it now for a local address on this host?
@@ -342,7 +363,8 @@ forwardlocal:
 			m_tag_delete(m, fwd_tag);
 			m->m_flags &= ~M_IP_NEXTHOP;
 		}
-		if (ip_findroute(&nh, dest, m) != 0)
+		if (dest.s_addr != rtdest.s_addr &&
+		    ip_findroute(&nh, dest, m) != 0)
 			return (NULL);	/* icmp unreach already sent */
 	}
 
