@@ -15,7 +15,6 @@ SUBDIR+=sendmail
 BIN1=	crontab \
 	dhclient.conf \
 	disktab \
-	gettytab \
 	group \
 	hosts \
 	hosts.allow \
