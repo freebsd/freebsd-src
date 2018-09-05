@@ -1950,18 +1950,18 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 
 static struct inpcb *
 in_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
-  const struct in_addr *laddr, uint16_t lport, const struct in_addr *faddr,
-  uint16_t fport, int lookupflags)
+    const struct in_addr *laddr, uint16_t lport, const struct in_addr *faddr,
+    uint16_t fport, int lookupflags)
 {
-	struct inpcb *local_wild = NULL;
+	struct inpcb *local_wild;
 	const struct inpcblbgrouphead *hdr;
 	struct inpcblbgroup *grp;
-	struct inpcblbgroup *grp_local_wild;
+	uint32_t idx;
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	hdr = &pcbinfo->ipi_lbgrouphashbase[
-		  INP_PCBLBGROUP_PORTHASH(lport, pcbinfo->ipi_lbgrouphashmask)];
+	hdr = &pcbinfo->ipi_lbgrouphashbase[INP_PCBLBGROUP_PORTHASH(lport,
+	    pcbinfo->ipi_lbgrouphashmask)];
 
 	/*
 	 * Order of socket selection:
@@ -1972,35 +1972,24 @@ in_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	 * - Load balanced group does not contain jailed sockets
 	 * - Load balanced group does not contain IPv4 mapped INET6 wild sockets
 	 */
+	local_wild = NULL;
 	LIST_FOREACH(grp, hdr, il_list) {
 #ifdef INET6
 		if (!(grp->il_vflag & INP_IPV4))
 			continue;
 #endif
+		if (grp->il_lport != lport)
+			continue;
 
-		if (grp->il_lport == lport) {
-
-			uint32_t idx = 0;
-			int pkt_hash = INP_PCBLBGROUP_PKTHASH(faddr->s_addr,
-			    lport, fport);
-
-			idx = pkt_hash % grp->il_inpcnt;
-
-			if (grp->il_laddr.s_addr == laddr->s_addr) {
-				return (grp->il_inp[idx]);
-			} else {
-				if (grp->il_laddr.s_addr == INADDR_ANY &&
-					(lookupflags & INPLOOKUP_WILDCARD)) {
-					local_wild = grp->il_inp[idx];
-					grp_local_wild = grp;
-				}
-			}
-		}
+		idx = INP_PCBLBGROUP_PKTHASH(faddr->s_addr, lport, fport) %
+		    grp->il_inpcnt;
+		if (grp->il_laddr.s_addr == laddr->s_addr)
+			return (grp->il_inp[idx]);
+		if (grp->il_laddr.s_addr == INADDR_ANY &&
+		    (lookupflags & INPLOOKUP_WILDCARD) != 0)
+			local_wild = grp->il_inp[idx];
 	}
-	if (local_wild != NULL) {
-		return (local_wild);
-	}
-	return (NULL);
+	return (local_wild);
 }
 
 #ifdef PCBGROUP
