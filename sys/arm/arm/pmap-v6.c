@@ -2021,21 +2021,21 @@ pmap_growkernel(vm_offset_t addr)
 	 *       not called, it could be first unused KVA (which is not
 	 *       rounded up to PTE1_SIZE),
 	 *
-	 *   (2) when all KVA space is mapped and kernel_map->max_offset
+	 *   (2) when all KVA space is mapped and vm_map_max(kernel_map)
 	 *       address is not rounded up to PTE1_SIZE. (For example,
 	 *       it could be 0xFFFFFFFF.)
 	 */
 	kernel_vm_end = pte1_roundup(kernel_vm_end);
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	addr = roundup2(addr, PTE1_SIZE);
-	if (addr - 1 >= kernel_map->max_offset)
-		addr = kernel_map->max_offset;
+	if (addr - 1 >= vm_map_max(kernel_map))
+		addr = vm_map_max(kernel_map);
 	while (kernel_vm_end < addr) {
 		pte1 = pte1_load(kern_pte1(kernel_vm_end));
 		if (pte1_is_valid(pte1)) {
 			kernel_vm_end += PTE1_SIZE;
-			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
-				kernel_vm_end = kernel_map->max_offset;
+			if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
+				kernel_vm_end = vm_map_max(kernel_map);
 				break;
 			}
 			continue;
@@ -2077,8 +2077,8 @@ pmap_growkernel(vm_offset_t addr)
 		pmap_kenter_pte1(kernel_vm_end, PTE1_LINK(pt2_pa));
 
 		kernel_vm_end = kernel_vm_end_new;
-		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
-			kernel_vm_end = kernel_map->max_offset;
+		if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
+			kernel_vm_end = vm_map_max(kernel_map);
 			break;
 		}
 	}
