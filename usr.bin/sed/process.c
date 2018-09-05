@@ -207,10 +207,14 @@ redirect:
 				}
 				break;
 			case 'q':
-				if (!nflag && !pd)
-					OUT();
-				flush_appends();
-				exit(0);
+				if (inplace == NULL) {
+					if (!nflag && !pd)
+						OUT();
+					flush_appends();
+					exit(0);
+				}
+				quit = 1;
+				break;
 			case 'r':
 				if (appendx >= appendnum)
 					if ((appends = realloc(appends,

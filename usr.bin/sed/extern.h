@@ -44,6 +44,8 @@ extern int aflag, eflag, nflag;
 extern const char *fname, *outfname;
 extern FILE *infile, *outfile;
 extern int rflags;	/* regex flags to use */
+extern const char *inplace;
+extern int quit;
 
 void	 cfclose(struct s_command *, struct s_command *);
 void	 compile(void);
