@@ -53,12 +53,14 @@ CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
 # Spike the floating point interfaces
 CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 # Slim down the image. This saves about 15% in size with clang 6 on x86
 # Our most constrained /boot/loader env is BIOS booting on x86, where
 # our text + data + BTX have to fit into 640k below the ISA hole.
 # Experience has shown that problems arise between ~520k to ~530k.
 CFLAGS.clang+=	-Oz
 CFLAGS.gcc+=	-Os
+.endif
 
 # GELI Support, with backward compat hooks (mostly)
 .if defined(LOADER_NO_GELI_SUPPORT)
