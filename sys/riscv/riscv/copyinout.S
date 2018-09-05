@@ -35,6 +35,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include <machine/riscvreg.h>
 #include <sys/errno.h>
 
 #include "assym.inc"
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(copyio_fault)
 	SET_FAULT_HANDLER(x0, a1) /* Clear the handler */
+	EXIT_USER_ACCESS(a1)
 copyio_fault_nopcb:
 	li	a0, EFAULT
 	ret
@@ -62,6 +64,7 @@ ENTRY(copyout)
 
 	la	a6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
+	ENTER_USER_ACCESS(a7)
 
 1:	lb	a4, 0(a0)	/* Load from kaddr */
 	addi	a0, a0, 1
@@ -70,6 +73,7 @@ ENTRY(copyout)
 	addi	a2, a2, -1	/* len-- */
 	bnez	a2, 1b
 
+	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
 
 2:	li	a0, 0		/* return 0 */
@@ -89,6 +93,7 @@ ENTRY(copyin)
 
 	la	a6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
+	ENTER_USER_ACCESS(a7)
 
 1:	lb	a4, 0(a0)	/* Load from uaddr */
 	addi	a0, a0, 1
@@ -97,6 +102,7 @@ ENTRY(copyin)
 	addi	a2, a2, -1	/* len-- */
 	bnez	a2, 1b
 
+	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
 
 2:	li	a0, 0		/* return 0 */
@@ -114,6 +120,7 @@ ENTRY(copyinstr)
 
 	la	a6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
+	ENTER_USER_ACCESS(a7)
 
 	li	a7, VM_MAXUSER_ADDRESS
 1:	bgt	a0, a7, copyio_fault
@@ -125,8 +132,9 @@ ENTRY(copyinstr)
 	addi	a2, a2, -1	/* len-- */
 	addi	a5, a5, 1	/* count++ */
 	bnez	a2, 1b
-	
-2:	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
+
+2:	EXIT_USER_ACCESS(a7)
+	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
 
 3:	beqz	a3, 4f		/* Check if done != NULL */
 	addi	a5, a5, 1	/* count++ */
