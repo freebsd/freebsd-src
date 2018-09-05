@@ -172,19 +172,26 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
  *	A map is a set of map entries.  These map entries are
  *	organized both as a binary search tree and as a doubly-linked
  *	list.  Both structures are ordered based upon the start and
- *	end addresses contained within each map entry.  The list
- *	header has max start value and min end value to act as
- *	sentinels for sequential search of the doubly-linked list.
+ *	end addresses contained within each map entry.
+ *
+ *	Counterintuitively, the map's min offset value is stored in
+ *	map->header.end, and its max offset value is stored in
+ *	map->header.start.
+ *
+ *	The list header has max start value and min end value to act
+ *	as sentinels for sequential search of the doubly-linked list.
  *	Sleator and Tarjan's top-down splay algorithm is employed to
  *	control height imbalance in the binary search tree.
  *
- * List of locks
+ *	List of locks
  *	(c)	const until freed
  */
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
-#define	min_offset	header.end	/* (c) */
-#define	max_offset	header.start	/* (c) */
+/*
+	map min_offset	header.end	(c)
+	map max_offset	header.start	(c)
+*/
 	struct sx lock;			/* Lock for map data */
 	struct mtx system_mtx;
 	int nentries;			/* Number of entries */
@@ -213,13 +220,15 @@ struct vm_map {
 static __inline vm_offset_t
 vm_map_max(const struct vm_map *map)
 {
-	return (map->max_offset);
+
+	return (map->header.start);
 }
 
 static __inline vm_offset_t
 vm_map_min(const struct vm_map *map)
 {
-	return (map->min_offset);
+
+	return (map->header.end);
 }
 
 static __inline pmap_t
