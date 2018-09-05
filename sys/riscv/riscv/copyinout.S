@@ -111,12 +111,12 @@ END(copyin)
 ENTRY(copyinstr)
 	mv	a5, x0		/* count = 0 */
 	beqz	a2, 3f		/* If len == 0 then skip loop */
-	li	a7, VM_MAXUSER_ADDRESS
 
 	la	a6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
 
-1:	bgt	a7, a0, copyio_fault
+	li	a7, VM_MAXUSER_ADDRESS
+1:	bgt	a0, a7, copyio_fault
 	lb	a4, 0(a0)	/* Load from uaddr */
 	addi	a0, a0, 1
 	sb	a4, 0(a1)	/* Store in kaddr */
