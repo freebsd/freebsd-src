@@ -36,6 +36,8 @@ struct lmp {
 static TAILQ_HEAD(lmc_list, lmc) lmc_head = TAILQ_HEAD_INITIALIZER(lmc_head);
 struct lmc {
 	char *path;
+	dev_t dev;
+	ino_t ino;
 	TAILQ_ENTRY(lmc) next;
 };
 
@@ -99,45 +101,45 @@ lmc_parse_file(char *path)
 	struct lmc *p;
 	struct stat st;
 	int fd;
-	char *rpath;
 	char *lm_map;
 
-	rpath = realpath(path, NULL);
-	if (rpath == NULL)
-		return;
-
 	TAILQ_FOREACH(p, &lmc_head, next) {
-		if (strcmp(p->path, rpath) == 0) {
-			free(rpath);
+		if (strcmp(p->path, path) == 0)
 			return;
-		}
 	}
 
-	fd = open(rpath, O_RDONLY | O_CLOEXEC);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {
-		dbg("lm_parse_file: open(\"%s\") failed, %s", rpath,
+		dbg("lm_parse_file: open(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
 	if (fstat(fd, &st) == -1) {
 		close(fd);
-		dbg("lm_parse_file: fstat(\"%s\") failed, %s", rpath,
+		dbg("lm_parse_file: fstat(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (p->dev == st.st_dev && p->ino == st.st_ino) {
+			close(fd);
+			return;
+		}
+	}
+
 	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (lm_map == (const char *)MAP_FAILED) {
 		close(fd);
-		dbg("lm_parse_file: mmap(\"%s\") failed, %s", rpath,
+		dbg("lm_parse_file: mmap(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
 	close(fd);
 	p = xmalloc(sizeof(struct lmc));
-	p->path = rpath;
+	p->path = xstrdup(path);
+	p->dev = st.st_dev;
+	p->ino = st.st_ino;
 	TAILQ_INSERT_HEAD(&lmc_head, p, next);
 	lmc_parse(lm_map, st.st_size);
 	munmap(lm_map, st.st_size);
@@ -151,26 +153,19 @@ lmc_parse_dir(char *idir)
 	struct lmc *p;
 	char conffile[MAXPATHLEN];
 	char *ext;
-	char *rpath;
-
-	rpath = realpath(idir, NULL);
-	if (rpath == NULL)
-		return;
 
 	TAILQ_FOREACH(p, &lmc_head, next) {
-		if (strcmp(p->path, rpath) == 0) {
-			free(rpath);
+		if (strcmp(p->path, idir) == 0)
 			return;
-		}
 	}
 	d = opendir(idir);
-	if (d == NULL) {
-		free(rpath);
+	if (d == NULL)
 		return;
-	}
 
 	p = xmalloc(sizeof(struct lmc));
-	p->path = rpath;
+	p->path = xstrdup(idir);
+	p->dev = NODEV;
+	p->ino = 0;
 	TAILQ_INSERT_HEAD(&lmc_head, p, next);
 
 	while ((dp = readdir(d)) != NULL) {
