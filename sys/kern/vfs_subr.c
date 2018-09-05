@@ -116,6 +116,22 @@ static void	vfs_knl_assert_unlocked(void *arg);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
+ * These fences are intended for cases where some synchronization is
+ * needed between access of v_iflags and lockless vnode refcount (v_holdcnt
+ * and v_usecount) updates.  Access to v_iflags is generally synchronized
+ * by the interlock, but we have some internal assertions that check vnode
+ * flags * without acquiring the lock.  Thus, these fences are INVARIANTS-only
+ * for now.
+ */
+#ifdef INVARIANTS
+#define	VNODE_REFCOUNT_FENCE_ACQ()	atomic_thread_fence_acq()
+#define	VNODE_REFCOUNT_FENCE_REL()	atomic_thread_fence_rel()
+#else
+#define	VNODE_REFCOUNT_FENCE_ACQ()
+#define	VNODE_REFCOUNT_FENCE_REL()
+#endif
+
+/*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased in vdropl() for VI_DOOMED vnode.
  */
@@ -1006,6 +1022,7 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		 */
 		freevnodes--;
 		vp->v_iflag &= ~VI_FREE;
+		VNODE_REFCOUNT_FENCE_REL();
 		refcount_acquire(&vp->v_holdcnt);
 
 		mtx_unlock(&vnode_free_list_mtx);
@@ -2429,6 +2446,7 @@ v_incr_usecount(struct vnode *vp)
 
 	if (vp->v_type != VCHR &&
 	    refcount_acquire_if_not_zero(&vp->v_usecount)) {
+		VNODE_REFCOUNT_FENCE_ACQ();
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 		    ("vnode with usecount and VI_OWEINACT set"));
 	} else {
@@ -2527,6 +2545,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 		} else {
 			oweinact = 1;
 			vp->v_iflag &= ~VI_OWEINACT;
+			VNODE_REFCOUNT_FENCE_REL();
 		}
 		refcount_acquire(&vp->v_usecount);
 		v_incr_devcount(vp);
@@ -2740,6 +2759,7 @@ _vhold(struct vnode *vp, bool locked)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	if (!locked) {
 		if (refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
+			VNODE_REFCOUNT_FENCE_ACQ();
 			VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 			    ("_vhold: vnode with holdcnt is free"));
 			return;
