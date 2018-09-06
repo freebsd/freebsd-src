@@ -320,7 +320,7 @@ struct inpcb {
 	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
 	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
-	struct llentry	*inp_lle;	/* cached L2 information */
+	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
 	union {				/* cached L3 information */
 		struct route inp_route;
@@ -744,8 +744,8 @@ int	inp_so_options(const struct inpcb *inp);
 /*
  * Flags for inp_flags2.
  */
-#define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
-#define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
+#define	INP_2UNUSED1		0x00000001
+#define	INP_2UNUSED2		0x00000002
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */
