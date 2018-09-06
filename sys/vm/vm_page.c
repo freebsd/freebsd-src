@@ -2627,7 +2627,7 @@ retry:
 					m_new->dirty = m->dirty;
 					m->flags &= ~PG_ZERO;
 					vm_page_xbusy(m);
-					vm_page_remque(m);
+					vm_page_dequeue(m);
 					vm_page_replace_checked(m_new, object,
 					    m->pindex, m);
 					if (vm_page_free_prep(m))
@@ -2642,7 +2642,7 @@ retry:
 					vm_page_deactivate(m_new);
 				} else {
 					m->flags &= ~PG_ZERO;
-					vm_page_remque(m);
+					vm_page_dequeue(m);
 					vm_page_remove(m);
 					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
@@ -3404,7 +3404,7 @@ vm_page_activate(vm_page_t m)
 		return;
 	}
 
-	vm_page_remque(m);
+	vm_page_dequeue(m);
 	if (m->act_count < ACT_INIT)
 		m->act_count = ACT_INIT;
 	vm_page_enqueue(m, PQ_ACTIVE);
@@ -3676,7 +3676,7 @@ vm_page_deactivate(vm_page_t m)
 		return;
 
 	if (!vm_page_inactive(m)) {
-		vm_page_remque(m);
+		vm_page_dequeue(m);
 		vm_page_enqueue(m, PQ_INACTIVE);
 	} else
 		vm_page_requeue(m);
@@ -3699,9 +3699,10 @@ vm_page_deactivate_noreuse(vm_page_t m)
 	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
-	if (!vm_page_inactive(m))
-		vm_page_remque(m);
-	m->queue = PQ_INACTIVE;
+	if (!vm_page_inactive(m)) {
+		vm_page_dequeue(m);
+		m->queue = PQ_INACTIVE;
+	}
 	if ((m->aflags & PGA_REQUEUE_HEAD) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE_HEAD);
 	vm_pqbatch_submit_page(m, PQ_INACTIVE);
@@ -3723,7 +3724,7 @@ vm_page_launder(vm_page_t m)
 	if (vm_page_in_laundry(m))
 		vm_page_requeue(m);
 	else {
-		vm_page_remque(m);
+		vm_page_dequeue(m);
 		vm_page_enqueue(m, PQ_LAUNDRY);
 	}
 }
@@ -3741,7 +3742,7 @@ vm_page_unswappable(vm_page_t m)
 	KASSERT(m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
 
-	vm_page_remque(m);
+	vm_page_dequeue(m);
 	vm_page_enqueue(m, PQ_UNSWAPPABLE);
 }
 
