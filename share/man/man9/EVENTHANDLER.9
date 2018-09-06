@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2017
+.Dd September 6, 2018
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -283,6 +283,10 @@ Callback invoked after cpu frequency has changed.
 Callback invoked before cpu frequency has changed.
 .It Vt dcons_poll
 Callback invoked to poll for dcons changes.
+.It Vt device_attach
+Callback invoked after a device has attached.
+.It Vt device_detach
+Callbacks invoked before and after a device has detached.
 .It Vt dev_clone
 Callbacks invoked when a new entry is created under
 .Pa /dev .
