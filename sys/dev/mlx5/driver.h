@@ -682,6 +682,9 @@ struct mlx5_core_dev {
 	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
 	struct mlx5_dump_data	*dump_data;
+
+	struct sysctl_ctx_list	sysctl_ctx;
+	int			msix_eqvec;
 };
 
 enum {
