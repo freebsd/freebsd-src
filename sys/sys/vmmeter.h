@@ -187,6 +187,13 @@ vm_page_count_severe(void)
 	return (!DOMAINSET_EMPTY(&vm_severe_domains));
 }
 
+static inline int
+vm_page_count_severe_set(domainset_t *mask)
+{
+
+	return (DOMAINSET_SUBSET(&vm_severe_domains, mask));
+}
+
 /*
  * Return TRUE if we are under our minimum low-free-pages threshold.
  *
