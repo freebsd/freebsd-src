@@ -2935,7 +2935,7 @@ vm_wait_count(void)
 	return (vm_severe_waiters + vm_min_waiters + vm_pageproc_waiters);
 }
 
-static void
+void
 vm_wait_doms(const domainset_t *wdoms)
 {
 
@@ -2961,10 +2961,10 @@ vm_wait_doms(const domainset_t *wdoms)
 		mtx_lock(&vm_domainset_lock);
 		if (DOMAINSET_SUBSET(&vm_min_domains, wdoms)) {
 			vm_min_waiters++;
-			msleep(&vm_min_domains, &vm_domainset_lock, PVM,
-			    "vmwait", 0);
-		}
-		mtx_unlock(&vm_domainset_lock);
+			msleep(&vm_min_domains, &vm_domainset_lock,
+			    PVM | PDROP, "vmwait", 0);
+		} else
+			mtx_unlock(&vm_domainset_lock);
 	}
 }
 
@@ -3069,15 +3069,21 @@ vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object, int req)
  *	  this balance without careful testing first.
  */
 void
-vm_waitpfault(void)
+vm_waitpfault(struct domainset *dset)
 {
 
+	/*
+	 * XXX Ideally we would wait only until the allocation could
+	 * be satisfied.  This condition can cause new allocators to
+	 * consume all freed pages while old allocators wait.
+	 */
 	mtx_lock(&vm_domainset_lock);
-	if (vm_page_count_min()) {
+	if (DOMAINSET_SUBSET(&vm_min_domains, &dset->ds_mask)) {
 		vm_min_waiters++;
-		msleep(&vm_min_domains, &vm_domainset_lock, PUSER, "pfault", 0);
-	}
-	mtx_unlock(&vm_domainset_lock);
+		msleep(&vm_min_domains, &vm_domainset_lock, PUSER | PDROP,
+		    "pfault", 0);
+	} else
+		mtx_unlock(&vm_domainset_lock);
 }
 
 struct vm_pagequeue *

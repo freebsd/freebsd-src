@@ -96,7 +96,7 @@ extern int vm_pageout_page_count;
  */
 
 void vm_wait(vm_object_t obj);
-void vm_waitpfault(void);
+void vm_waitpfault(struct domainset *);
 void vm_wait_domain(int domain);
 void vm_wait_min(void);
 void vm_wait_severe(void);

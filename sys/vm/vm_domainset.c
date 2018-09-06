@@ -100,6 +100,8 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 			pindex += (((uintptr_t)obj) / sizeof(*obj));
 		di->di_offset = pindex;
 	}
+	/* Skip zones below min on the first pass. */
+	di->di_minskip = true;
 }
 
 static void
@@ -213,6 +215,8 @@ vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	*req = (di->di_flags & ~(VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) |
 	    VM_ALLOC_NOWAIT;
 	vm_domainset_iter_first(di, domain);
+	if (DOMAINSET_ISSET(*domain, &vm_min_domains))
+		vm_domainset_iter_page(di, domain, req);
 }
 
 int
@@ -227,8 +231,15 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *req)
 		return (ENOMEM);
 
 	/* If there are more domains to visit we run the iterator. */
-	if (--di->di_n != 0) {
+	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
+		if (!di->di_minskip ||
+		    !DOMAINSET_ISSET(*domain, &vm_min_domains))
+			return (0);
+	}
+	if (di->di_minskip) {
+		di->di_minskip = false;
+		vm_domainset_iter_first(di, domain);
 		return (0);
 	}
 
@@ -258,6 +269,8 @@ vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
 	di->di_flags = *flags;
 	*flags = (di->di_flags & ~M_WAITOK) | M_NOWAIT;
 	vm_domainset_iter_first(di, domain);
+	if (DOMAINSET_ISSET(*domain, &vm_min_domains))
+		vm_domainset_iter_malloc(di, domain, flags);
 }
 
 int
@@ -265,8 +278,17 @@ vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
 {
 
 	/* If there are more domains to visit we run the iterator. */
-	if (--di->di_n != 0) {
+	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
+		if (!di->di_minskip ||
+		    !DOMAINSET_ISSET(*domain, &vm_min_domains))
+			return (0);
+	}
+
+	/* If we skipped zones below min start the search from the beginning. */
+	if (di->di_minskip) {
+		di->di_minskip = false;
+		vm_domainset_iter_first(di, domain);
 		return (0);
 	}
 
