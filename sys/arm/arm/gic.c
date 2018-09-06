@@ -497,8 +497,7 @@ arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch(which) {
 	case GIC_IVAR_HW_REV:
-		KASSERT(GICD_IIDR_VAR(sc->gic_iidr) < 3 &&
-		    GICD_IIDR_VAR(sc->gic_iidr) != 0,
+		KASSERT(GICD_IIDR_VAR(sc->gic_iidr) < 3,
 		    ("arm_gic_read_ivar: Unknown IIDR revision %u (%.08x)",
 		     GICD_IIDR_VAR(sc->gic_iidr), sc->gic_iidr));
 		*result = GICD_IIDR_VAR(sc->gic_iidr);
