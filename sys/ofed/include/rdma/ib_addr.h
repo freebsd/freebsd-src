@@ -167,7 +167,7 @@ static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 {
 	uint16_t tag;
 
-	if (dev->if_pcp != IFNET_PCP_NONE)
+	if (dev->if_type == IFT_ETHER && dev->if_pcp != IFNET_PCP_NONE)
 		return 0x0000;	/* prio-tagged traffic */
 	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
 		return 0xffff;
@@ -350,7 +350,7 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 
 static inline struct net_device *rdma_vlan_dev_real_dev(struct net_device *dev)
 {
-	if (dev->if_pcp != IFNET_PCP_NONE)
+	if (dev->if_type == IFT_ETHER && dev->if_pcp != IFNET_PCP_NONE)
 		return dev; /* prio-tagged traffic */
 	return VLAN_TRUNKDEV(__DECONST(struct ifnet *, dev));
 }
