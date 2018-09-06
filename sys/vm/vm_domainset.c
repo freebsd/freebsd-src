@@ -100,7 +100,7 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 			pindex += (((uintptr_t)obj) / sizeof(*obj));
 		di->di_offset = pindex;
 	}
-	/* Skip zones below min on the first pass. */
+	/* Skip domains below min on the first pass. */
 	di->di_minskip = true;
 }
 
@@ -285,7 +285,7 @@ vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
 			return (0);
 	}
 
-	/* If we skipped zones below min start the search from the beginning. */
+	/* If we skipped domains below min restart the search. */
 	if (di->di_minskip) {
 		di->di_minskip = false;
 		vm_domainset_iter_first(di, domain);
