@@ -2204,14 +2204,16 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
 	for (i = 0; i < sz; i++) {
-		int ix;
+		int ix = i;
 #ifdef RSS
-		ix = rss_get_indirection_to_bucket(i);
-#else
-		ix = i;
+		ix = rss_get_indirection_to_bucket(ix);
 #endif
 		/* ensure we don't overflow */
 		ix %= priv->params.num_channels;
+
+		/* apply receive side scaling stride, if any */
+		ix -= ix % (int)priv->params.channels_rsss;
+
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
 	}
 
@@ -3083,6 +3085,7 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 
 	priv->mdev = mdev;
 	priv->params.num_channels = num_comp_vectors;
+	priv->params.channels_rsss = 1;
 	priv->order_base_2_num_channels = order_base_2(num_comp_vectors);
 	priv->queue_mapping_channel_mask =
 	    roundup_pow_of_two(num_comp_vectors) - 1;
