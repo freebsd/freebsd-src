@@ -45,6 +45,7 @@ struct pvo_entry;
 	struct pmap	*pc_curpmap;		/* current pmap */	\
 	struct thread	*pc_fputhread;		/* current fpu user */  \
 	struct thread	*pc_vecthread;		/* current vec user */  \
+	struct thread	*pc_htmthread;		/* current htm user */  \
 	uintptr_t	pc_hwref;					\
 	int		pc_bsp;						\
 	volatile int	pc_awake;					\
