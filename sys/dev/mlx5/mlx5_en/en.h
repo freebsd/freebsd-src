@@ -454,6 +454,7 @@ struct mlx5e_params {
 	u32	rx_priority_flow_control __aligned(4);
 	u16	tx_max_inline;
 	u8	tx_min_inline_mode;
+	u8	channels_rsss;
 };
 
 #define	MLX5E_PARAMS(m)							\
@@ -462,6 +463,7 @@ struct mlx5e_params {
   m(+1, u64 tx_queue_size, "tx_queue_size", "Default send queue size")	\
   m(+1, u64 rx_queue_size, "rx_queue_size", "Default receive queue size") \
   m(+1, u64 channels, "channels", "Default number of channels")		\
+  m(+1, u64 channels_rsss, "channels_rsss", "Default channels receive side scaling stride") \
   m(+1, u64 coalesce_usecs_max, "coalesce_usecs_max", "Maximum usecs for joining packets") \
   m(+1, u64 coalesce_pkts_max, "coalesce_pkts_max", "Maximum packets to join") \
   m(+1, u64 rx_coalesce_usecs, "rx_coalesce_usecs", "Limit in usec for joining rx packets") \
