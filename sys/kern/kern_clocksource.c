@@ -183,7 +183,7 @@ handleevents(sbintime_t now, int fake)
 		hct = DPCPU_PTR(hardclocktime);
 		*hct = state->nexthard - tick_sbt;
 		if (fake < 2) {
-			hardclock_cnt(runs, usermode);
+			hardclock(runs, usermode);
 			done = 1;
 		}
 	}
@@ -193,7 +193,7 @@ handleevents(sbintime_t now, int fake)
 		runs++;
 	}
 	if (runs && fake < 2) {
-		statclock_cnt(runs, usermode);
+		statclock(runs, usermode);
 		done = 1;
 	}
 	if (profiling) {
@@ -203,7 +203,7 @@ handleevents(sbintime_t now, int fake)
 			runs++;
 		}
 		if (runs && !fake) {
-			profclock_cnt(runs, usermode, TRAPF_PC(frame));
+			profclock(runs, usermode, TRAPF_PC(frame));
 			done = 1;
 		}
 	} else
