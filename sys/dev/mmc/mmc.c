@@ -1591,6 +1591,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 	int err, host_caps, i, newcard;
 	uint32_t resp, sec_count, status;
 	uint16_t rca = 2;
+	int16_t rev;
 	uint8_t card_type;
 
 	host_caps = mmcbr_get_caps(sc->dev);
@@ -1779,6 +1780,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			goto free_ivar;
 		}
 
+		rev = -1;
 		/* Only MMC >= 4.x devices support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
 			err = mmc_send_ext_csd(sc->dev, sc->dev,
@@ -1789,6 +1791,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 				goto free_ivar;
 			}
 			ext_csd = ivar->raw_ext_csd;
+			rev = ext_csd[EXT_CSD_REV];
 			/* Handle extended capacity from EXT_CSD */
 			sec_count = le32dec(&ext_csd[EXT_CSD_SEC_CNT]);
 			if (sec_count != 0) {
@@ -1859,7 +1862,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			 * units of 10 ms), defaulting to 500 ms.
 			 */
 			ivar->cmd6_time = 500 * 1000;
-			if (ext_csd[EXT_CSD_REV] >= 6)
+			if (rev >= 6)
 				ivar->cmd6_time = 10 *
 				    ext_csd[EXT_CSD_GEN_CMD6_TIME];
 			/* Handle HC erase sector size. */
@@ -1880,8 +1883,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			}
 		}
 
-		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid,
-		    ext_csd[EXT_CSD_REV] >= 5);
+		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid, rev >= 5);
 
 child_common:
 		for (quirk = &mmc_quirks[0]; quirk->mid != 0x0; quirk++) {
