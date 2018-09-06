@@ -31,12 +31,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_sctp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sdt.h>
 
 SDT_PROVIDER_DEFINE(ip);
+#ifdef SCTP
 SDT_PROVIDER_DEFINE(sctp);
+#endif
 SDT_PROVIDER_DEFINE(tcp);
 SDT_PROVIDER_DEFINE(udp);
 SDT_PROVIDER_DEFINE(udplite);
@@ -57,6 +61,7 @@ SDT_PROBE_DEFINE6_XLATE(ip, , , send,
     "struct ip *", "ipv4info_t *",
     "struct ip6_hdr *", "ipv6info_t *");
 
+#ifdef SCTP
 SDT_PROBE_DEFINE5_XLATE(sctp, , , receive,
     "void *", "pktinfo_t *",
     "struct sctp_tcb *", "csinfo_t *",
@@ -78,6 +83,7 @@ SDT_PROBE_DEFINE6_XLATE(sctp, , , state__change,
     "struct sctp_tcb *", "sctpsinfo_t *",
     "void *", "void *",
     "int", "sctplsinfo_t *");
+#endif
 
 SDT_PROBE_DEFINE5_XLATE(tcp, , , accept__established,
     "void *", "pktinfo_t *",
