@@ -1575,11 +1575,10 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot, struct mmc_data *data)
 #ifdef MMCCAM
 		    slot->ccb->mmcio.stop.opcode == MMC_STOP_TRANSMISSION &&
 #else
-		    slot->req->stop &&
+		    slot->req->stop != NULL &&
 #endif
 		    !(slot->quirks & SDHCI_QUIRK_BROKEN_AUTO_STOP)))
 			mode |= SDHCI_TRNS_ACMD12;
-
 	}
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
