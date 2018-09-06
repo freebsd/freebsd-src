@@ -37,16 +37,16 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-#ifdef _KERNEL
-
-#include <machine/riscvreg.h>
-
 static __inline void
 breakpoint(void)
 {
 
 	__asm("ebreak");
 }
+
+#ifdef _KERNEL
+
+#include <machine/riscvreg.h>
 
 static __inline register_t
 intr_disable(void)
