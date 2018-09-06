@@ -167,6 +167,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
+#include <net/netisr.h>
+#include <net/rss_config.h>
 static int tcp_bind_threads = 1;
 #else
 static int tcp_bind_threads = 0;
@@ -1076,7 +1078,7 @@ hpts_random_cpu(struct inpcb *inp){
 
 static uint16_t
 hpts_cpuid(struct inpcb *inp){
-	uint16_t cpuid;
+	u_int cpuid;
 
 
 	/*
