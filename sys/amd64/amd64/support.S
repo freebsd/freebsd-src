@@ -914,6 +914,8 @@ ENTRY(copyinstr_smap)
 	subq	%rsi,%rax
 	jbe	cpystrflt
 
+	stac
+
 	/* restrict maxlen to <= VM_MAXUSER_ADDRESS-from */
 	cmpq	%rdx,%rax
 	jae	1f
@@ -924,31 +926,19 @@ ENTRY(copyinstr_smap)
 
 2:
 	decq	%rdx
-	jz	copyinstr_toolong
+	jz	copyinstr_toolong_smap
 
-	stac
 	lodsb
 	stosb
-	clac
 	orb	%al,%al
 	jnz	2b
+
+	clac
 
 copyinstr_succ:
 	/* Success -- 0 byte reached */
 	decq	%rdx
 	xorl	%eax,%eax
-	jmp	cpystrflt_x
-copyinstr_toolong:
-	/* rdx is zero - return ENAMETOOLONG or EFAULT */
-	movq	$VM_MAXUSER_ADDRESS,%rax
-	cmpq	%rax,%rsi
-	jae	cpystrflt
-	movq	$ENAMETOOLONG,%rax
-	jmp	cpystrflt_x
-
-	/* Fault entry clears PSL.AC */
-cpystrflt:
-	movq	$EFAULT,%rax
 
 cpystrflt_x:
 	/* set *lencopied and return %eax */
@@ -962,6 +952,21 @@ cpystrflt_x:
 1:
 	POP_FRAME_POINTER
 	ret
+	/* Fault entry clears PSL.AC */
+cpystrflt:
+	movq	$EFAULT,%rax
+	jmp	cpystrflt_x
+
+copyinstr_toolong_smap:
+	clac
+copyinstr_toolong:
+	/* rdx is zero - return ENAMETOOLONG or EFAULT */
+	movq	$VM_MAXUSER_ADDRESS,%rax
+	cmpq	%rax,%rsi
+	jae	cpystrflt
+	movq	$ENAMETOOLONG,%rax
+	jmp	cpystrflt_x
+
 END(copyinstr_smap)
 
 /*
