@@ -2943,8 +2943,17 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		if (lun_req->args != NULL) {
-			lun_req->args_nvl = nvlist_unpack(lun_req->args,
+			packed = malloc(lun_req->args_len, M_CTL, M_WAITOK);
+			if (copyin(lun_req->args, packed, lun_req->args_len) != 0) {
+				free(packed, M_CTL);
+				lun_req->status = CTL_LUN_ERROR;
+				snprintf(lun_req->error_str, sizeof(lun_req->error_str),
+				    "Cannot copyin args.");
+				break;
+			}
+			lun_req->args_nvl = nvlist_unpack(packed,
 			    lun_req->args_len, 0);
+			free(packed, M_CTL);
 
 			if (lun_req->args_nvl == NULL) {
 				lun_req->status = CTL_LUN_ERROR;
@@ -3211,8 +3220,17 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		if (req->args != NULL) {
-			req->args_nvl = nvlist_unpack(req->args,
+			packed = malloc(req->args_len, M_CTL, M_WAITOK);
+			if (copyin(req->args, packed, req->args_len) != 0) {
+				free(packed, M_CTL);
+				req->status = CTL_LUN_ERROR;
+				snprintf(req->error_str, sizeof(req->error_str),
+				    "Cannot copyin args.");
+				break;
+			}
+			req->args_nvl = nvlist_unpack(packed,
 			    req->args_len, 0);
+			free(packed, M_CTL);
 
 			if (req->args_nvl == NULL) {
 				req->status = CTL_LUN_ERROR;
