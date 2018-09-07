@@ -704,7 +704,8 @@ S_efi_map(size_t l2, void *p)
 		"ACPIMemoryNVS",
 		"MemoryMappedIO",
 		"MemoryMappedIOPortSpace",
-		"PalCode"
+		"PalCode",
+		"PersistentMemory"
 	};
 
 	/*
@@ -733,7 +734,7 @@ S_efi_map(size_t l2, void *p)
 
 	for (i = 0; i < ndesc; i++,
 	    map = efi_next_descriptor(map, efihdr->descriptor_size)) {
-		if (map->md_type <= EFI_MD_TYPE_PALCODE)
+		if (map->md_type <= EFI_MD_TYPE_PERSISTENT)
 			type = types[map->md_type];
 		else
 			type = "<INVALID>";
