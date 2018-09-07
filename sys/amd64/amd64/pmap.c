@@ -7526,9 +7526,13 @@ pmap_activate_boot(pmap_t pmap)
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
 	PCPU_SET(curpmap, pmap);
-	kcr3 = pmap->pm_cr3;
-	if (pmap_pcid_enabled)
-		kcr3 |= pmap->pm_pcids[cpuid].pm_pcid | CR3_PCID_SAVE;
+	if (pti) {
+		kcr3 = pmap->pm_cr3;
+		if (pmap_pcid_enabled)
+			kcr3 |= pmap->pm_pcids[cpuid].pm_pcid | CR3_PCID_SAVE;
+	} else {
+		kcr3 = PMAP_NO_CR3;
+	}
 	PCPU_SET(kcr3, kcr3);
 	PCPU_SET(ucr3, PMAP_NO_CR3);
 }
