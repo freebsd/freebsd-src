@@ -149,16 +149,6 @@ roce_gid_enum_netdev_default(struct ib_device *ib_dev,
 	return (hweight_long(gid_type_mask));
 }
 
-#define ETH_IPOIB_DRV_NAME	"ib"
-
-static inline int
-is_eth_ipoib_intf(struct net_device *dev)
-{
-	if (strcmp(dev->if_dname, ETH_IPOIB_DRV_NAME))
-		return 0;
-	return 1;
-}
-
 static void
 roce_gid_update_addr_callback(struct ib_device *device, u8 port,
     struct net_device *ndev, void *cookie)
@@ -322,15 +312,15 @@ roce_gid_queue_scan_event(struct net_device *ndev)
 	struct roce_netdev_event_work *work;
 
 retry:
-	if (is_eth_ipoib_intf(ndev))
-		return;
-
-	if (ndev->if_type != IFT_ETHER) {
-		if (ndev->if_type == IFT_L2VLAN) {
-			ndev = rdma_vlan_dev_real_dev(ndev);
-			if (ndev != NULL)
-				goto retry;
-		}
+	switch (ndev->if_type) {
+	case IFT_ETHER:
+		break;
+	case IFT_L2VLAN:
+		ndev = rdma_vlan_dev_real_dev(ndev);
+		if (ndev != NULL)
+			goto retry;
+		/* FALLTHROUGH */
+	default:
 		return;
 	}
 
