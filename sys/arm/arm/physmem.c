@@ -373,7 +373,8 @@ arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 	sz  = round_page(sz + adj);
 
 	if (excnt >= nitems(exregions))
-		panic("failed to exclude region %#lx-%#lx", pa, pa + sz);
+		panic("failed to exclude region %#jx-%#jx", (uintmax_t)pa,
+		    (uintmax_t)(pa + sz));
 	excnt = insert_region(exregions, excnt, pa, sz, exflags);
 }
 
