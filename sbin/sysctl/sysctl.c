@@ -690,22 +690,22 @@ S_efi_map(size_t l2, void *p)
 	size_t efisz;
 	int ndesc, i;
 
-	static const char *types[] = {
-		"Reserved",
-		"LoaderCode",
-		"LoaderData",
-		"BootServicesCode",
-		"BootServicesData",
-		"RuntimeServicesCode",
-		"RuntimeServicesData",
-		"ConventionalMemory",
-		"UnusableMemory",
-		"ACPIReclaimMemory",
-		"ACPIMemoryNVS",
-		"MemoryMappedIO",
-		"MemoryMappedIOPortSpace",
-		"PalCode",
-		"PersistentMemory"
+	static const char * const types[] = {
+		[EFI_MD_TYPE_NULL] =	"Reserved",
+		[EFI_MD_TYPE_CODE] =	"LoaderCode",
+		[EFI_MD_TYPE_DATA] =	"LoaderData",
+		[EFI_MD_TYPE_BS_CODE] =	"BootServicesCode",
+		[EFI_MD_TYPE_BS_DATA] =	"BootServicesData",
+		[EFI_MD_TYPE_RT_CODE] =	"RuntimeServicesCode",
+		[EFI_MD_TYPE_RT_DATA] =	"RuntimeServicesData",
+		[EFI_MD_TYPE_FREE] =	"ConventionalMemory",
+		[EFI_MD_TYPE_BAD] =	"UnusableMemory",
+		[EFI_MD_TYPE_RECLAIM] =	"ACPIReclaimMemory",
+		[EFI_MD_TYPE_FIRMWARE] = "ACPIMemoryNVS",
+		[EFI_MD_TYPE_IOMEM] =	"MemoryMappedIO",
+		[EFI_MD_TYPE_IOPORT] =	"MemoryMappedIOPortSpace",
+		[EFI_MD_TYPE_PALCODE] =	"PalCode",
+		[EFI_MD_TYPE_PERSISTENT] = "PersistentMemory",
 	};
 
 	/*
@@ -734,9 +734,10 @@ S_efi_map(size_t l2, void *p)
 
 	for (i = 0; i < ndesc; i++,
 	    map = efi_next_descriptor(map, efihdr->descriptor_size)) {
-		if (map->md_type <= EFI_MD_TYPE_PERSISTENT)
+		type = NULL;
+		if (map->md_type < nitems(types))
 			type = types[map->md_type];
-		else
+		if (type == NULL)
 			type = "<INVALID>";
 		printf("\n%23s %012jx %12p %08jx ", type,
 		    (uintmax_t)map->md_phys, map->md_virt,
