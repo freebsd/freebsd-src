@@ -3107,28 +3107,35 @@ static inline void
 vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 {
 	struct vm_domain *vmd;
-	uint8_t aflags;
+	uint8_t qflags;
 
 	CRITICAL_ASSERT(curthread);
 	vm_pagequeue_assert_locked(pq);
-	KASSERT(pq == vm_page_pagequeue(m),
-	    ("page %p doesn't belong to %p", m, pq));
 
-	aflags = m->aflags;
-	if ((aflags & PGA_DEQUEUE) != 0) {
-		if (__predict_true((aflags & PGA_ENQUEUED) != 0)) {
+	/*
+	 * The page daemon is allowed to set m->queue = PQ_NONE without
+	 * the page queue lock held.  In this case it is about to free the page,
+	 * which must not have any queue state.
+	 */
+	qflags = atomic_load_8(&m->aflags) & PGA_QUEUE_STATE_MASK;
+	KASSERT(pq == vm_page_pagequeue(m) || qflags == 0,
+	    ("page %p doesn't belong to queue %p but has queue state %#x",
+	    m, pq, qflags));
+
+	if ((qflags & PGA_DEQUEUE) != 0) {
+		if (__predict_true((qflags & PGA_ENQUEUED) != 0)) {
 			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 			vm_pagequeue_cnt_dec(pq);
 		}
 		vm_page_dequeue_complete(m);
-	} else if ((aflags & (PGA_REQUEUE | PGA_REQUEUE_HEAD)) != 0) {
-		if ((aflags & PGA_ENQUEUED) != 0)
+	} else if ((qflags & (PGA_REQUEUE | PGA_REQUEUE_HEAD)) != 0) {
+		if ((qflags & PGA_ENQUEUED) != 0)
 			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 		else {
 			vm_pagequeue_cnt_inc(pq);
 			vm_page_aflag_set(m, PGA_ENQUEUED);
 		}
-		if ((aflags & PGA_REQUEUE_HEAD) != 0) {
+		if ((qflags & PGA_REQUEUE_HEAD) != 0) {
 			KASSERT(m->queue == PQ_INACTIVE,
 			    ("head enqueue not supported for page %p", m));
 			vmd = vm_pagequeue_domain(m);
