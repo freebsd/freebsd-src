@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp-keygen 1ntp-keygenman "27 Feb 2018" "ntp (4.2.8p11)" "User Commands"
+.TH ntp-keygen 1ntp-keygenman "14 Aug 2018" "ntp (4.2.8p12)" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-bBa46V/ag-nBaW5V)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-VYaG.G/ag-7Yay9G)
 .\"
-.\" It has been AutoGen-ed February 27, 2018 at 05:15:53 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed August 14, 2018 at 08:30:31 AM by AutoGen 5.18.5
 .\" From the definitions ntp-keygen-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1054,7 +1054,7 @@ Following the header the keys are entered one per line in the format
 .in -4
 where
 \f\*[I-Font]keyno\f[]
-is a positive integer in the range 1-65534;
+is a positive integer in the range 1-65535;
 \f\*[I-Font]type\f[]
 is the key type for the message digest algorithm, which in the absence of the
 OpenSSL library must be

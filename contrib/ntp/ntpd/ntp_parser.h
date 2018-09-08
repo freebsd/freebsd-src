@@ -454,7 +454,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 51 "../../ntpd/ntp_parser.y" /* yacc.c:1909  */
+#line 52 "ntp_parser.y" /* yacc.c:1909  */
 
 	char *			String;
 	double			Double;
