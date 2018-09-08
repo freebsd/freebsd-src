@@ -982,6 +982,7 @@ cache_setup(void)
 void
 initarm(struct arm64_bootparams *abp)
 {
+	struct efi_fb *efifb;
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
 	char *env;
@@ -1030,6 +1031,13 @@ initarm(struct arm64_bootparams *abp)
 		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
+
+	/* Exclude the EFI framebuffer from our view of physical memory. */
+	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_FB);
+	if (efifb != NULL)
+		arm_physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
+		    EXFLAG_NOALLOC);
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
