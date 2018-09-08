@@ -447,8 +447,10 @@ tftp_open(const char *path, struct open_file *f)
 	memset(tftpfile, 0, sizeof(*tftpfile));
 	tftpfile->tftp_blksize = TFTP_REQUESTED_BLKSIZE;
 	tftpfile->iodesc = io = socktodesc(*(int *) (f->f_devdata));
-	if (io == NULL)
+	if (io == NULL) {
+		free(tftpfile);
 		return (EINVAL);
+	}
 
 	io->destip = servip;
 	tftpfile->off = 0;
