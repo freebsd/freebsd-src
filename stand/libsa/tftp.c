@@ -490,6 +490,9 @@ tftp_read(struct open_file *f, void *addr, size_t size,
     size_t *resid /* out */)
 {
 	struct tftp_handle *tftpfile;
+	int rc;
+
+	rc = 0;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
 
 	while (size > 0) {
@@ -501,19 +504,19 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 		if (tftpfile->currblock > needblock) {	/* seek backwards */
 			tftp_senderr(tftpfile, 0, "No error: read aborted");
-			tftp_makereq(tftpfile);	/* no error check, it worked
-						 * for open */
+			rc = tftp_makereq(tftpfile);
+			if (rc != 0)
+				break;
 		}
 
 		while (tftpfile->currblock < needblock) {
-			int res;
 
-			res = tftp_getnextblock(tftpfile);
-			if (res) {	/* no answer */
+			rc = tftp_getnextblock(tftpfile);
+			if (rc) {	/* no answer */
 #ifdef TFTP_DEBUG
 				printf("tftp: read error\n");
 #endif
-				return (res);
+				return (rc);
 			}
 			if (tftpfile->islastblock)
 				break;
@@ -553,7 +556,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 	if (resid)
 		*resid = size;
-	return (0);
+	return (rc);
 }
 
 static int 
