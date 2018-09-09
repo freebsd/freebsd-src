@@ -130,6 +130,7 @@ nodevice	ex
 #####################################################################
 # Options we don't want to deal with
 
+nooption	FDC_DEBUG
 nooption	COMPAT_FREEBSD4
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL
