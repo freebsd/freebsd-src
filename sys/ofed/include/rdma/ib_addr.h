@@ -221,7 +221,11 @@ static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 	struct net_device *dev;
 	struct ifaddr *ifa;
 
-	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+#ifdef VIMAGE
+	if (dev_addr->net == NULL)
+		return;
+#endif
+	dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 	if (dev) {
 		CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL ||
