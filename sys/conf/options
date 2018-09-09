@@ -688,6 +688,7 @@ INIT_PATH
 
 ROOTDEVNAME
 
+FDC_DEBUG 		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 
