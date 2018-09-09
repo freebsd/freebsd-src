@@ -1781,11 +1781,6 @@ hint.fdc.0.port="0x3F0"
 hint.fdc.0.irq="6"
 hint.fdc.0.drq="2"
 #
-# FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
-# gotta turn it actually on by setting the variable fd_debug with DDB,
-# however.
-options 	FDC_DEBUG
-#
 # Activate this line if you happen to have an Insight floppy tape.
 # Probing them proved to be dangerous for people with floppy disks only,
 # so it's "hidden" behind a flag:

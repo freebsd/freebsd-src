@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2006
+.Dd April 7, 2017
 .Dt FDC 4
 .Os
 .Sh NAME
@@ -281,14 +281,6 @@ Third argument is a
 pointer to
 .Vt int .
 Drive options will always be cleared when closing the descriptor.
-.It Dv FD_DEBUG
-Set the driver debug level.
-Third argument is a pointer to
-.Vt int ,
-level 0 turns off all debugging.
-Only applicable if the driver has
-been configured with
-.Cd "options FDC_DEBUG" .
 .It Dv FD_CLRERR
 Clear the internal low-level error counter.
 Normally, controller-level
