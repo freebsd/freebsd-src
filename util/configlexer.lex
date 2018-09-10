@@ -239,9 +239,10 @@ tls-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 ssl-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
 tls-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
 tls-win-cert{COLON}		{ YDVAR(1, VAR_TLS_WIN_CERT) }
-additional-ssl-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORTS) }
-additional-tls-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORTS) }
-tls-additional-ports{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORTS) }
+additional-ssl-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+additional-tls-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-ports{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }

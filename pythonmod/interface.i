@@ -883,7 +883,7 @@ struct config_file {
    struct config_strlist* local_zones_nodefault;
    struct config_strlist* local_data;
    int remote_control_enable;
-   struct config_strlist* control_ifs;
+   struct config_strlist_head control_ifs;
    int control_port;
    char* server_key_file;
    char* server_cert_file;
