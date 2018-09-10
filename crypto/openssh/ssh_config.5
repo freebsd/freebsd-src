@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.268 2018/02/23 07:38:09 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.281 2018/07/23 19:02:49 kn Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 23 2018 $
+.Dd $Mdocdate: July 23 2018 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -259,17 +259,9 @@ or
 Use the specified address on the local machine as the source address of
 the connection.
 Only useful on systems with more than one address.
-Note that this option does not work if
-.Cm UsePrivilegedPort
-is set to
-.Cm yes .
 .It Cm BindInterface
 Use the address of the specified interface on the local machine as the
 source address of the connection.
-Note that this option does not work if
-.Cm UsePrivilegedPort
-is set to
-.Cm yes .
 .It Cm CanonicalDomains
 When
 .Cm CanonicalizeHostname
@@ -427,8 +419,7 @@ The default is:
 .Bd -literal -offset indent
 chacha20-poly1305@openssh.com,
 aes128-ctr,aes192-ctr,aes256-ctr,
-aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-aes128-cbc,aes192-cbc,aes256-cbc
+aes128-gcm@openssh.com,aes256-gcm@openssh.com
 .Ed
 .Pp
 The list of available ciphers may also be obtained using
@@ -760,7 +751,7 @@ or
 (the default).
 .It Cm HostbasedKeyTypes
 Specifies the key types that will be used for hostbased authentication
-as a comma-separated pattern list.
+as a comma-separated list of patterns.
 Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
@@ -775,9 +766,10 @@ ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,ssh-rsa
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The
@@ -802,9 +794,10 @@ ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,ssh-rsa
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
@@ -935,7 +928,7 @@ to unknown options that appear before it.
 .It Cm Include
 Include the specified configuration file(s).
 Multiple pathnames may be specified and each pathname may contain
-.Xr glob 3
+.Xr glob 7
 wildcards and, for user configurations, shell-like
 .Sq ~
 references to user home directories.
@@ -986,9 +979,11 @@ If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
 interactive sessions and the second for non-interactive sessions.
 The default is
-.Cm lowdelay
+.Cm af21
+(Low-Latency Data)
 for interactive sessions and
-.Cm throughput
+.Cm cs1
+(Lower Effort)
 for non-interactive sessions.
 .It Cm KbdInteractiveAuthentication
 Specifies whether to use keyboard-interactive authentication.
@@ -1004,10 +999,9 @@ The default is to use the server specified list.
 The methods available vary depending on what the server supports.
 For an OpenSSH server,
 it may be zero or more of:
-.Cm bsdauth ,
-.Cm pam ,
+.Cm bsdauth
 and
-.Cm skey .
+.Cm pam .
 .It Cm KexAlgorithms
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
@@ -1241,7 +1235,7 @@ The default is
 .Cm no .
 .It Cm PubkeyAcceptedKeyTypes
 Specifies the key types that will be used for public key authentication
-as a comma-separated pattern list.
+as a comma-separated list of patterns.
 Alternately if the specified value begins with a
 .Sq +
 character, then the key types after it will be appended to the default
@@ -1256,9 +1250,10 @@ ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,ssh-rsa
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using
@@ -1309,7 +1304,7 @@ section.
 .It Cm RemoteForward
 Specifies that a TCP port on the remote machine be forwarded over
 the secure channel.
-The remote port may either be fowarded to a specified host and port
+The remote port may either be forwarded to a specified host and port
 from the local machine, or may act as a SOCKS 4/5 proxy that allows a remote
 client to connect to arbitrary destinations from the local machine.
 The first argument must be
@@ -1395,11 +1390,16 @@ Multiple environment variables may be separated by whitespace or spread
 across multiple
 .Cm SendEnv
 directives.
-The default is not to send any environment variables.
 .Pp
 See
 .Sx PATTERNS
 for more information on patterns.
+.Pp
+It is possible to clear previously set
+.Cm SendEnv
+variable names by prefixing patterns with
+.Pa - .
+The default is not to send any environment variables.
 .It Cm ServerAliveCountMax
 Sets the number of server alive messages (see below) which may be
 sent without
@@ -1434,6 +1434,12 @@ will send a message through the encrypted
 channel to request a response from the server.
 The default
 is 0, indicating that these messages will not be sent to the server.
+.It Cm SetEnv
+Directly specify one or more environment variables and their contents to
+be sent to the server.
+Similarly to
+.Cm SendEnv ,
+the server must be prepared to accept the environment variable.
 .It Cm StreamLocalBindMask
 Sets the octal file creation mode mask
 .Pq umask
@@ -1590,17 +1596,6 @@ Presently, only
 from OpenSSH 6.8 and greater support the
 .Qq hostkeys@openssh.com
 protocol extension used to inform the client of all the server's hostkeys.
-.It Cm UsePrivilegedPort
-Specifies whether to use a privileged port for outgoing connections.
-The argument must be
-.Cm yes
-or
-.Cm no
-(the default).
-If set to
-.Cm yes ,
-.Xr ssh 1
-must be setuid root.
 .It Cm User
 Specifies the user to log in as.
 This can be useful when a different user name is used on different machines.
@@ -1641,7 +1636,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20180510 .
+.Dq FreeBSD-20180909 .
 The value
 .Cm none
 may be used to disable this.
@@ -1750,10 +1745,10 @@ The local username.
 .El
 .Pp
 .Cm Match exec
-accepts the tokens %%, %h, %L, %l, %n, %p, %r, and %u.
+accepts the tokens %%, %h, %i, %L, %l, %n, %p, %r, and %u.
 .Pp
 .Cm CertificateFile
-accepts the tokens %%, %d, %h, %l, %r, and %u.
+accepts the tokens %%, %d, %h, %i, %l, %r, and %u.
 .Pp
 .Cm ControlPath
 accepts the tokens %%, %C, %h, %i, %L, %l, %n, %p, %r, and %u.
@@ -1764,16 +1759,16 @@ accepts the tokens %% and %h.
 .Cm IdentityAgent
 and
 .Cm IdentityFile
-accept the tokens %%, %d, %h, %l, %r, and %u.
+accept the tokens %%, %d, %h, %i, %l, %r, and %u.
 .Pp
 .Cm LocalCommand
-accepts the tokens %%, %C, %d, %h, %l, %n, %p, %r, %T, and %u.
+accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, %T, and %u.
 .Pp
 .Cm ProxyCommand
 accepts the tokens %%, %h, %p, and %r.
 .Pp
 .Cm RemoteCommand
-accepts the tokens %%, %C, %d, %h, %l, %n, %p, %r, and %u.
+accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, and %u.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.ssh/config

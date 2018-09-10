@@ -13,7 +13,7 @@
 
 Summary:	OpenSSH, a free Secure Shell (SSH) protocol implementation
 Name:		openssh
-Version:	7.7p1
+Version:	7.8p1
 URL:		https://www.openssh.com/
 Release:	1
 Source0:	openssh-%{version}.tar.gz
@@ -56,7 +56,7 @@ arbitrary TCP/IP ports can also be forwarded over the secure channel.
 
 OpenSSH is OpenBSD's rework of the last free version of SSH, bringing it
 up to date in terms of security and features, as well as removing all
-patented algorithms to seperate libraries (OpenSSL).
+patented algorithms to separate libraries (OpenSSL).
 
 This package includes all files necessary for both the OpenSSH
 client and server.
@@ -70,7 +70,7 @@ arbitrary TCP/IP ports can also be forwarded over the secure channel.
 
 OpenSSH is OpenBSD's rework of the last free version of SSH, bringing it
 up to date in terms of security and features, as well as removing all
-patented algorithms to seperate libraries (OpenSSL).
+patented algorithms to separate libraries (OpenSSL).
 
 This package contains an X Window System passphrase dialog for OpenSSH.
 

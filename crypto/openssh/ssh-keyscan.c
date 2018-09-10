@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.119 2018/03/02 21:40:15 jmc Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.120 2018/06/06 18:29:18 markus Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -646,9 +646,9 @@ main(int argc, char **argv)
 {
 	int debug_flag = 0, log_level = SYSLOG_LEVEL_INFO;
 	int opt, fopt_count = 0, j;
-	char *tname, *cp, line[NI_MAXHOST];
+	char *tname, *cp, *line = NULL;
+	size_t linesize = 0;
 	FILE *fp;
-	u_long linenum;
 
 	extern int optind;
 	extern char *optarg;
@@ -769,11 +769,8 @@ main(int argc, char **argv)
 		else if ((fp = fopen(argv[j], "r")) == NULL)
 			fatal("%s: %s: %s", __progname, argv[j],
 			    strerror(errno));
-		linenum = 0;
 
-		while (read_keyfile_line(fp,
-		    argv[j] == NULL ? "(stdin)" : argv[j], line, sizeof(line),
-		    &linenum) != -1) {
+		while (getline(&line, &linesize, fp) != -1) {
 			/* Chomp off trailing whitespace and comments */
 			if ((cp = strchr(line, '#')) == NULL)
 				cp = line + strlen(line) - 1;
@@ -798,6 +795,7 @@ main(int argc, char **argv)
 
 		fclose(fp);
 	}
+	free(line);
 
 	while (optind < argc)
 		do_host(argv[optind++]);

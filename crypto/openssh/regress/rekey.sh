@@ -1,4 +1,4 @@
-#	$OpenBSD: rekey.sh,v 1.17 2016/01/29 05:18:15 dtucker Exp $
+#	$OpenBSD: rekey.sh,v 1.18 2018/04/10 00:14:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="rekey"
@@ -30,7 +30,7 @@ ssh_data_rekeying()
 	n=`expr $n - 1`
 	trace "$n rekeying(s)"
 	if [ $n -lt 1 ]; then
-		fail "no rekeying occured ($@)"
+		fail "no rekeying occurred ($@)"
 	fi
 }
 
@@ -80,7 +80,7 @@ for s in 5 10; do
 	n=`expr $n - 1`
 	trace "$n rekeying(s)"
 	if [ $n -lt 1 ]; then
-		fail "no rekeying occured"
+		fail "no rekeying occurred"
 	fi
 done
 
@@ -96,7 +96,7 @@ for s in 5 10; do
 	n=`expr $n - 1`
 	trace "$n rekeying(s)"
 	if [ $n -lt 1 ]; then
-		fail "no rekeying occured"
+		fail "no rekeying occurred"
 	fi
 done
 
@@ -115,7 +115,7 @@ for s in 16 1k 128k 256k; do
 	n=`expr $n - 1`
 	trace "$n rekeying(s)"
 	if [ $n -lt 1 ]; then
-		fail "no rekeying occured"
+		fail "no rekeying occurred"
 	fi
 done
 
@@ -132,7 +132,7 @@ for s in 5 10; do
 	n=`expr $n - 1`
 	trace "$n rekeying(s)"
 	if [ $n -lt 1 ]; then
-		fail "no rekeying occured"
+		fail "no rekeying occurred"
 	fi
 done
 

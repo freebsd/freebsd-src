@@ -1,4 +1,4 @@
-/* $OpenBSD: readpass.c,v 1.51 2015/12/11 00:20:04 mmcc Exp $ */
+/* $OpenBSD: readpass.c,v 1.52 2018/07/18 11:34:04 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -72,7 +72,6 @@ ssh_askpass(char *askpass, const char *msg)
 		return NULL;
 	}
 	if (pid == 0) {
-		permanently_drop_suid(getuid());
 		close(p[0]);
 		if (dup2(p[1], STDOUT_FILENO) < 0)
 			fatal("ssh_askpass: dup2: %s", strerror(errno));

@@ -166,6 +166,12 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_exit_group
 	SC_ALLOW(__NR_exit_group),
 #endif
+#ifdef __NR_geteuid
+	SC_ALLOW(__NR_geteuid),
+#endif
+#ifdef __NR_geteuid32
+	SC_ALLOW(__NR_geteuid32),
+#endif
 #ifdef __NR_getpgid
 	SC_ALLOW(__NR_getpgid),
 #endif
@@ -177,6 +183,12 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_gettimeofday
 	SC_ALLOW(__NR_gettimeofday),
+#endif
+#ifdef __NR_getuid
+	SC_ALLOW(__NR_getuid),
+#endif
+#ifdef __NR_getuid32
+	SC_ALLOW(__NR_getuid32),
 #endif
 #ifdef __NR_madvise
 	SC_ALLOW(__NR_madvise),
@@ -192,6 +204,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_munmap
 	SC_ALLOW(__NR_munmap),
+#endif
+#ifdef __NR_nanosleep
+	SC_ALLOW(__NR_nanosleep),
 #endif
 #ifdef __NR__newselect
 	SC_ALLOW(__NR__newselect),

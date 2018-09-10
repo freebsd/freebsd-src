@@ -1,4 +1,4 @@
-/* $OpenBSD: msg.c,v 1.16 2015/01/15 09:40:00 djm Exp $ */
+/* $OpenBSD: msg.c,v 1.17 2018/07/09 21:59:10 markus Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -55,7 +55,7 @@ ssh_msg_send(int fd, u_char type, struct sshbuf *m)
 		error("ssh_msg_send: write");
 		return (-1);
 	}
-	if (atomicio(vwrite, fd, (u_char *)sshbuf_ptr(m), mlen) != mlen) {
+	if (atomicio(vwrite, fd, sshbuf_mutable_ptr(m), mlen) != mlen) {
 		error("ssh_msg_send: write");
 		return (-1);
 	}

@@ -75,13 +75,6 @@ known to work.
 
 http://ftp.porcupine.org/pub/security/index.html
 
-S/Key Libraries:
-
-If you wish to use --with-skey then you will need the library below
-installed.  No other S/Key library is currently known to be supported.
-
-http://www.sparc.spb.su/solaris/skey/
-
 LibEdit:
 
 sftp supports command-line editing via NetBSD's libedit.  If your platform
@@ -193,9 +186,6 @@ it if lastlog is installed in a different place.
 --with-osfsia, --without-osfsia will enable or disable OSF1's Security
 Integration Architecture.  The default for OSF1 machines is enable.
 
---with-skey=PATH will enable S/Key one time password support. You will
-need the S/Key libraries and header files installed for this to work.
-
 --with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
 support.
 
@@ -232,7 +222,7 @@ If you need to pass special options to the compiler or linker, you
 can specify these as environment variables before running ./configure.
 For example:
 
-CFLAGS="-O -m486" LDFLAGS="-s" LIBS="-lrubbish" LD="/usr/foo/ld" ./configure
+CC="/usr/foo/cc" CFLAGS="-O" LDFLAGS="-s" LIBS="-lrubbish" ./configure
 
 3. Configuration
 ----------------

@@ -68,6 +68,7 @@ COMPAT=	arc4random.o \
 	bsd-cygwin_util.o \
 	bsd-err.o \
 	bsd-flock.o \
+	bsd-getline.o \
 	bsd-getpagesize.o \
 	bsd-getpeereid.o \
 	bsd-malloc.o \
