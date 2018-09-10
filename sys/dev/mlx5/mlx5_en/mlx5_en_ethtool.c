@@ -493,6 +493,24 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_open_locked(priv->ifp);
 		break;
 
+	case MLX5_PARAM_OFFSET(channels_rsss):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import number of channels */
+		if (priv->params_ethtool.channels_rsss < 1)
+			priv->params_ethtool.channels_rsss = 1;
+		else if (priv->params_ethtool.channels_rsss > 128)
+			priv->params_ethtool.channels_rsss = 128;
+
+		priv->params.channels_rsss = priv->params_ethtool.channels_rsss;
+
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
 	case MLX5_PARAM_OFFSET(channels):
 		/* network interface must be down */
 		if (was_opened)
@@ -1041,6 +1059,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.tx_queue_size = 1 << priv->params.log_sq_size;
 	priv->params_ethtool.rx_queue_size = 1 << priv->params.log_rq_size;
 	priv->params_ethtool.channels = priv->params.num_channels;
+	priv->params_ethtool.channels_rsss = priv->params.channels_rsss;
 	priv->params_ethtool.coalesce_pkts_max = MLX5E_FLD_MAX(cqc, cq_max_count);
 	priv->params_ethtool.coalesce_usecs_max = MLX5E_FLD_MAX(cqc, cq_period);
 	priv->params_ethtool.rx_coalesce_mode = priv->params.rx_cq_moderation_mode;
