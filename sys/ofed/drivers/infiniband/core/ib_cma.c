@@ -733,6 +733,10 @@ struct rdma_cm_id *rdma_create_id(struct vnet *net,
 {
 	struct rdma_id_private *id_priv;
 
+#ifdef VIMAGE
+	if (net == NULL)
+		return ERR_PTR(-EINVAL);
+#endif
 	id_priv = kzalloc(sizeof *id_priv, GFP_KERNEL);
 	if (!id_priv)
 		return ERR_PTR(-ENOMEM);
@@ -751,7 +755,7 @@ struct rdma_cm_id *rdma_create_id(struct vnet *net,
 	INIT_LIST_HEAD(&id_priv->listen_list);
 	INIT_LIST_HEAD(&id_priv->mc_list);
 	get_random_bytes(&id_priv->seq_num, sizeof id_priv->seq_num);
-	id_priv->id.route.addr.dev_addr.net = TD_TO_VNET(curthread);
+	id_priv->id.route.addr.dev_addr.net = net;
 
 	return &id_priv->id;
 }
@@ -1375,6 +1379,26 @@ static bool validate_net_dev(struct net_device *net_dev,
 	}
 }
 
+static struct net_device *
+roce_get_net_dev_by_cm_event(struct ib_device *device, u8 port_num,
+    const struct ib_cm_event *ib_event)
+{
+	struct ib_gid_attr sgid_attr;
+	union ib_gid sgid;
+	int err = -EINVAL;
+
+	if (ib_event->event == IB_CM_REQ_RECEIVED) {
+		err = ib_get_cached_gid(device, port_num,
+		    ib_event->param.req_rcvd.ppath_sgid_index, &sgid, &sgid_attr);
+	} else if (ib_event->event == IB_CM_SIDR_REQ_RECEIVED) {
+		err = ib_get_cached_gid(device, port_num,
+		    ib_event->param.sidr_req_rcvd.sgid_index, &sgid, &sgid_attr);
+	}
+	if (err)
+		return (NULL);
+	return (sgid_attr.ndev);
+}
+
 static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 					  const struct cma_req_info *req)
 {
@@ -1390,8 +1414,14 @@ static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 	if (err)
 		return ERR_PTR(err);
 
-	net_dev = ib_get_net_dev_by_params(req->device, req->port, req->pkey,
-					   gid, listen_addr);
+	if (rdma_protocol_roce(req->device, req->port)) {
+		net_dev = roce_get_net_dev_by_cm_event(req->device, req->port,
+						       ib_event);
+	} else {
+		net_dev = ib_get_net_dev_by_params(req->device, req->port,
+						   req->pkey,
+						   gid, listen_addr);
+	}
 	if (!net_dev)
 		return ERR_PTR(-ENODEV);
 
@@ -1526,10 +1556,6 @@ static struct rdma_id_private *cma_id_from_event(struct ib_cm_id *cm_id,
 	if (IS_ERR(*net_dev)) {
 		if (PTR_ERR(*net_dev) == -EAFNOSUPPORT) {
 			/* Assuming the protocol is AF_IB */
-			*net_dev = NULL;
-		} else if (cma_protocol_roce_dev_port(req.device, req.port)) {
-			/* TODO find the net dev matching the request parameters
-			 * through the RoCE GID table */
 			*net_dev = NULL;
 		} else {
 			return ERR_CAST(*net_dev);
