@@ -158,9 +158,9 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		hints_delete(w->env->hints);
 		w->env->hints = NULL;
 	}
-	if(cfg->ssl_upstream) {
+	if(cfg->ssl_upstream || (cfg->tls_cert_bundle && cfg->tls_cert_bundle[0]) || cfg->tls_win_cert) {
 		w->sslctx = connect_sslctx_create(NULL, NULL,
-			cfg->tls_cert_bundle);
+			cfg->tls_cert_bundle, cfg->tls_win_cert);
 		if(!w->sslctx) {
 			/* to make the setup fail after unlock */
 			hints_delete(w->env->hints);
@@ -637,7 +637,7 @@ libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
 	enum sec_status s, char* why_bogus)
 {
 	struct ctx_query* q = (struct ctx_query*)arg;
-	ub_event_callback_type cb = (ub_event_callback_type)q->cb;
+	ub_event_callback_type cb = q->cb_event;
 	void* cb_arg = q->cb_arg;
 	int cancelled = q->cancelled;
 

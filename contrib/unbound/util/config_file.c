@@ -109,6 +109,7 @@ config_create(void)
 	cfg->ssl_port = UNBOUND_DNS_OVER_TLS_PORT;
 	cfg->ssl_upstream = 0;
 	cfg->tls_cert_bundle = NULL;
+	cfg->tls_win_cert = 0;
 	cfg->use_syslog = 1;
 	cfg->log_identity = NULL; /* changed later with argv[0] */
 	cfg->log_time_ascii = 0;
@@ -161,7 +162,7 @@ config_create(void)
 	if(!(cfg->logfile = strdup(""))) goto error_exit;
 	if(!(cfg->pidfile = strdup(PIDFILE))) goto error_exit;
 	if(!(cfg->target_fetch_policy = strdup("3 2 1 0 0"))) goto error_exit;
-	cfg->low_rtt_pct = 0;
+	cfg->low_rtt_permil = 0;
 	cfg->low_rtt = 45;
 	cfg->donotqueryaddrs = NULL;
 	cfg->donotquery_localhost = 1;
@@ -280,7 +281,7 @@ config_create(void)
 	cfg->ratelimit_below_domain = NULL;
 	cfg->ip_ratelimit_factor = 10;
 	cfg->ratelimit_factor = 10;
-	cfg->qname_minimisation = 0;
+	cfg->qname_minimisation = 1;
 	cfg->qname_minimisation_strict = 0;
 	cfg->shm_enable = 0;
 	cfg->shm_key = 11777;
@@ -455,7 +456,9 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("ssl-service-pem:", ssl_service_pem)
 	else S_NUMBER_NONZERO("ssl-port:", ssl_port)
 	else S_STR("tls-cert-bundle:", tls_cert_bundle)
-	else S_STRLIST("additional-tls-port:", additional_tls_port)
+	else S_YNO("tls-win-cert:", tls_win_cert)
+	else S_STRLIST("additional-tls-port:", tls_additional_ports)
+	else S_STRLIST("tls-additional-ports:", tls_additional_ports)
 	else S_YNO("interface-automatic:", if_automatic)
 	else S_YNO("use-systemd:", use_systemd)
 	else S_YNO("do-daemonize:", do_daemonize)
@@ -618,7 +621,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_NUMBER_OR_ZERO("ip-ratelimit-factor:", ip_ratelimit_factor)
 	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
 	else S_NUMBER_OR_ZERO("low-rtt:", low_rtt)
-	else S_NUMBER_OR_ZERO("low-rtt-pct:", low_rtt_pct)
+	else S_NUMBER_OR_ZERO("low-rtt-pct:", low_rtt_permil)
+	else S_NUMBER_OR_ZERO("low-rtt-permil:", low_rtt_permil)
 	else S_YNO("qname-minimisation:", qname_minimisation)
 	else S_YNO("qname-minimisation-strict:", qname_minimisation_strict)
 #ifdef USE_IPSECMOD
@@ -874,7 +878,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
 	else O_DEC(opt, "ssl-port", ssl_port)
 	else O_STR(opt, "tls-cert-bundle", tls_cert_bundle)
-	else O_LST(opt, "additional-tls-port", additional_tls_port)
+	else O_YNO(opt, "tls-win-cert", tls_win_cert)
+	else O_LST(opt, "tls-additional-ports", tls_additional_ports)
 	else O_YNO(opt, "use-systemd", use_systemd)
 	else O_YNO(opt, "do-daemonize", do_daemonize)
 	else O_STR(opt, "chroot", chrootdir)
@@ -1001,7 +1006,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "ip-ratelimit-factor", ip_ratelimit_factor)
 	else O_DEC(opt, "ratelimit-factor", ratelimit_factor)
 	else O_DEC(opt, "low-rtt", low_rtt)
-	else O_DEC(opt, "low-rtt-pct", low_rtt_pct)
+	else O_DEC(opt, "low-rtt-pct", low_rtt_permil)
+	else O_DEC(opt, "low-rtt-permil", low_rtt_permil)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
 	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	else O_YNO(opt, "qname-minimisation", qname_minimisation)
@@ -1297,7 +1303,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->ssl_service_key);
 	free(cfg->ssl_service_pem);
 	free(cfg->tls_cert_bundle);
-	config_delstrlist(cfg->additional_tls_port);
+	config_delstrlist(cfg->tls_additional_ports);
 	free(cfg->log_identity);
 	config_del_strarray(cfg->ifs, cfg->num_ifs);
 	config_del_strarray(cfg->out_ifs, cfg->num_out_ifs);

@@ -329,9 +329,9 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 			     return 0 to force the caller to fetch more */
 	}
 
-	if(env->cfg->low_rtt_pct != 0 && prefetch == 0 &&
+	if(env->cfg->low_rtt_permil != 0 && prefetch == 0 &&
 		low_rtt < env->cfg->low_rtt &&
-		ub_random_max(env->rnd, 1000) < env->cfg->low_rtt_pct) {
+		ub_random_max(env->rnd, 1000) < env->cfg->low_rtt_permil) {
 		/* the query is not prefetch, but for a downstream client,
 		 * there is a low_rtt (fast) server.  We choose that x% of the
 		 * time */

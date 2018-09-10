@@ -7,7 +7,7 @@ Name: unbound
 Description: Library with validating, recursive, and caching DNS resolver
 URL: http://www.unbound.net
 Version: @PACKAGE_VERSION@
-Requires: libcrypto libssl @PC_LIBEVENT_DEPENDENCY@ @PC_PY_DEPENDENCY@
-Libs: -L${libdir} -lunbound
+Requires: @PC_LIBEVENT_DEPENDENCY@ @PC_PY_DEPENDENCY@
+Libs: -L${libdir} -lunbound -lssl -lcrypto
 Libs.private: @SSLLIB@ @LIBS@
 Cflags: -I${includedir} 

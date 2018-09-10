@@ -3425,14 +3425,17 @@ xfr_process_notify(struct auth_xfer* xfr, struct module_env* env,
 {
 	/* if the serial of notify is older than we have, don't fetch
 	 * a zone, we already have it */
-	if(has_serial && !xfr_serial_means_update(xfr, serial))
+	if(has_serial && !xfr_serial_means_update(xfr, serial)) {
+		lock_basic_unlock(&xfr->lock);
 		return;
+	}
 	/* start new probe with this addr src, or note serial */
 	if(!xfr_start_probe(xfr, env, fromhost)) {
 		/* not started because already in progress, note the serial */
 		xfr_note_notify_serial(xfr, has_serial, serial);
 		lock_basic_unlock(&xfr->lock);
 	}
+	/* successful end of start_probe unlocked xfr->lock */
 }
 
 int auth_zones_notify(struct auth_zones* az, struct module_env* env,
