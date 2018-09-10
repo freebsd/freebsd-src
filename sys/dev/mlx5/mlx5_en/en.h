@@ -125,7 +125,8 @@
 #define	MLX5E_MAX_TX_MBUF_SIZE	65536	/* bytes */
 #define	MLX5E_MAX_TX_MBUF_FRAGS	\
     ((MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS) - \
-    (MLX5E_MAX_TX_HEADER / MLX5_SEND_WQE_DS))	/* units */
+    (MLX5E_MAX_TX_HEADER / MLX5_SEND_WQE_DS) - \
+    1 /* the maximum value of the DS counter is 0x3F and not 0x40 */)	/* units */
 #define	MLX5E_MAX_TX_INLINE \
   (MLX5E_MAX_TX_HEADER - sizeof(struct mlx5e_tx_wqe) + \
   sizeof(((struct mlx5e_tx_wqe *)0)->eth.inline_hdr_start))	/* bytes */
