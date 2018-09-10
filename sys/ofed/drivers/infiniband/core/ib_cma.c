@@ -1263,10 +1263,10 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 				  const struct sockaddr_in *src_addr)
 {
 #ifdef INET
-	struct sockaddr_in dst_tmp = *dst_addr;
+	struct sockaddr_in src_tmp = *src_addr;
 	__be32 daddr = dst_addr->sin_addr.s_addr,
 	       saddr = src_addr->sin_addr.s_addr;
-	struct net_device *src_dev;
+	struct net_device *dst_dev;
 	struct rtentry *rte;
 	bool ret;
 
@@ -1276,29 +1276,29 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 	    ipv4_is_loopback(saddr))
 		return false;
 
-	src_dev = ip_dev_find(net_dev->if_vnet, saddr);
-	if (src_dev != net_dev) {
-		if (src_dev != NULL)
-			dev_put(src_dev);
+	dst_dev = ip_dev_find(net_dev->if_vnet, daddr);
+	if (dst_dev != net_dev) {
+		if (dst_dev != NULL)
+			dev_put(dst_dev);
 		return false;
 	}
-	dev_put(src_dev);
+	dev_put(dst_dev);
 
 	/*
 	 * Make sure the socket address length field
 	 * is set, else rtalloc1() will fail.
 	 */
-	dst_tmp.sin_len = sizeof(dst_tmp);
+	src_tmp.sin_len = sizeof(src_tmp);
 
 	CURVNET_SET(net_dev->if_vnet);
-	rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
-	CURVNET_RESTORE();
+	rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
 	if (rte != NULL) {
 		ret = (rte->rt_ifp == net_dev);
 		RTFREE_LOCKED(rte);
 	} else {
 		ret = false;
 	}
+	CURVNET_RESTORE();
 	return ret;
 #else
 	return false;
@@ -1310,31 +1310,42 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 				  const struct sockaddr_in6 *src_addr)
 {
 #ifdef INET6
-	struct sockaddr_in6 dst_tmp = *dst_addr;
-	struct in6_addr in6_addr = src_addr->sin6_addr;
-	struct net_device *src_dev;
+	struct sockaddr_in6 src_tmp = *src_addr;
+	struct in6_addr in6_addr = dst_addr->sin6_addr;
+	struct net_device *dst_dev;
 	struct rtentry *rte;
 	bool ret;
 
-	src_dev = ip6_dev_find(net_dev->if_vnet, in6_addr);
-	if (src_dev != net_dev)
+	dst_dev = ip6_dev_find(net_dev->if_vnet, in6_addr);
+	if (dst_dev != net_dev) {
+		if (dst_dev != NULL)
+			dev_put(dst_dev);
 		return false;
+	}
+
+	CURVNET_SET(net_dev->if_vnet);
 
 	/*
 	 * Make sure the socket address length field
 	 * is set, else rtalloc1() will fail.
 	 */
-	dst_tmp.sin6_len = sizeof(dst_tmp);
+	src_tmp.sin6_len = sizeof(src_tmp);
 
-	CURVNET_SET(net_dev->if_vnet);
-	rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
-	CURVNET_RESTORE();
+	/*
+	 * Make sure the scope ID gets embedded, else rtalloc1() will
+	 * resolve to the loopback interface.
+	 */
+	src_tmp.sin6_scope_id = net_dev->if_index;
+	sa6_embedscope(&src_tmp, 0);
+
+	rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
 	if (rte != NULL) {
 		ret = (rte->rt_ifp == net_dev);
 		RTFREE_LOCKED(rte);
 	} else {
 		ret = false;
 	}
+	CURVNET_RESTORE();
 	return ret;
 #else
 	return false;
