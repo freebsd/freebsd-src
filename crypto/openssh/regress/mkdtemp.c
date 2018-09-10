@@ -1,7 +1,5 @@
-/*	$OpenBSD: strndup.c,v 1.2 2015/08/31 02:53:57 guenther Exp $	*/
-
 /*
- * Copyright (c) 2010 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2017 Colin Watson <cjwatson@debian.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,28 +14,48 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* Roughly equivalent to "mktemp -d -t TEMPLATE", but portable. */
+
 #include "includes.h"
-#if !defined(HAVE_STRNDUP) || defined(BROKEN_STRNDUP)
-#include <sys/types.h>
 
-#include <stddef.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
 
-char *
-strndup(const char *str, size_t maxlen)
+#include "log.h"
+
+static void
+usage(void)
 {
-	char *copy;
-	size_t len;
-
-	len = strnlen(str, maxlen);
-	copy = malloc(len + 1);
-	if (copy != NULL) {
-		(void)memcpy(copy, str, len);
-		copy[len] = '\0';
-	}
-
-	return copy;
+	fprintf(stderr, "mkdtemp template\n");
+	exit(1);
 }
-DEF_WEAK(strndup);
-#endif  /* HAVE_STRNDUP */
+
+int
+main(int argc, char **argv)
+{
+	const char *base;
+	const char *tmpdir;
+	char template[PATH_MAX];
+	int r;
+	char *dir;
+
+	if (argc != 2)
+		usage();
+	base = argv[1];
+
+	if ((tmpdir = getenv("TMPDIR")) == NULL)
+		tmpdir = "/tmp";
+	r = snprintf(template, sizeof(template), "%s/%s", tmpdir, base);
+	if (r < 0 || (size_t)r >= sizeof(template))
+		fatal("template string too long");
+	dir = mkdtemp(template);
+	if (dir == NULL) {
+		perror("mkdtemp");
+		exit(1);
+	}
+	puts(dir);
+	return 0;
+}

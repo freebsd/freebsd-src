@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssherr.c,v 1.7 2017/09/12 06:32:08 djm Exp $	*/
+/*	$OpenBSD: ssherr.c,v 1.8 2018/07/03 11:39:54 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -139,6 +139,8 @@ ssh_err(int n)
 		return "Invalid key length";
 	case SSH_ERR_NUMBER_TOO_LARGE:
 		return "number is too large";
+	case SSH_ERR_SIGN_ALG_UNSUPPORTED:
+		return "signature algorithm not supported";
 	default:
 		return "unknown error";
 	}

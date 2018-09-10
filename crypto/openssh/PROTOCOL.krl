@@ -145,7 +145,7 @@ This section may appear multiple times.
 5. KRL signature sections
 
 The KRL_SECTION_SIGNATURE section serves a different purpose to the
-preceeding ones: to provide cryptographic authentication of a KRL that
+preceding ones: to provide cryptographic authentication of a KRL that
 is retrieved over a channel that does not provide integrity protection.
 Its format is slightly different to the previously-described sections:
 in order to simplify the signature generation, it includes as a "body"
@@ -166,4 +166,4 @@ Implementations that retrieve KRLs over untrusted channels must verify
 signatures. Signature sections are optional for KRLs distributed by
 trusted means.
 
-$OpenBSD: PROTOCOL.krl,v 1.3 2015/01/30 01:10:33 djm Exp $
+$OpenBSD: PROTOCOL.krl,v 1.4 2018/04/10 00:10:49 djm Exp $

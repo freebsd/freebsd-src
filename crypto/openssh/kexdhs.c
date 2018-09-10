@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhs.c,v 1.26 2018/02/07 02:06:51 jsing Exp $ */
+/* $OpenBSD: kexdhs.c,v 1.27 2018/04/10 00:10:49 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -194,7 +194,7 @@ input_kex_dh_init(int type, u_int32_t seq, struct ssh *ssh)
 
 	/* destroy_sensitive_data(); */
 
-	/* send server hostkey, DH pubkey 'f' and singed H */
+	/* send server hostkey, DH pubkey 'f' and signed H */
 	if ((r = sshpkt_start(ssh, SSH2_MSG_KEXDH_REPLY)) != 0 ||
 	    (r = sshpkt_put_string(ssh, server_host_key_blob, sbloblen)) != 0 ||
 	    (r = sshpkt_put_bignum2(ssh, kex->dh->pub_key)) != 0 ||	/* f */

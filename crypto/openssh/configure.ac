@@ -83,9 +83,11 @@ if test ! -z "$PATH_PASSWD_PROG" ; then
 		[Full path of your "passwd" program])
 fi
 
-if test -z "$LD" ; then
-	LD=$CC
-fi
+dnl Since autoconf doesn't support it very well,  we no longer allow users to
+dnl override LD, however keeping the hook here for now in case there's a use
+dnl use case we overlooked and someone needs to re-enable it.  Unless a good
+dnl reason is found we'll be removing this in future.
+LD="$CC"
 AC_SUBST([LD])
 
 AC_C_INLINE
@@ -162,8 +164,15 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	OSSH_CHECK_CFLAG_COMPILE([-Wunused-result], [-Wno-unused-result])
 	OSSH_CHECK_CFLAG_COMPILE([-fno-strict-aliasing])
     if test "x$use_toolchain_hardening" = "x1"; then
-	OSSH_CHECK_CFLAG_COMPILE([-mfunction-return=thunk]) # gcc
-	OSSH_CHECK_CFLAG_COMPILE([-mindirect-branch=thunk]) # gcc
+	# Cygwin GCC 7.x allows thunking on the CLI, but produces non-working
+	# code.  Unfortunately you only notice this at link time.
+	case "$host" in
+	*-*-cygwin*) ;;
+	*)
+	    OSSH_CHECK_CFLAG_COMPILE([-mfunction-return=thunk]) # gcc
+	    OSSH_CHECK_CFLAG_COMPILE([-mindirect-branch=thunk]) # gcc
+	    ;;
+	esac
 	OSSH_CHECK_CFLAG_COMPILE([-mretpoline]) # clang
 	OSSH_CHECK_LDFLAG_LINK([-Wl,-z,retpolineplt])
 	OSSH_CHECK_CFLAG_COMPILE([-D_FORTIFY_SOURCE=2])
@@ -274,7 +283,7 @@ typedef void foo(const char *, ...) __attribute__((format(printf, 1, 2)));]],
     [ AC_MSG_RESULT([yes]) ],
     [ AC_MSG_RESULT([no])
       AC_DEFINE(NO_ATTRIBUTE_ON_PROTOTYPE_ARGS, 1,
-	 [compiler does not accept __attribute__ on protoype args]) ]
+	 [compiler does not accept __attribute__ on prototype args]) ]
 )
 
 if test "x$no_attrib_nonnull" != "x1" ; then
@@ -413,6 +422,7 @@ AC_CHECK_HEADERS([ \
 	sys/prctl.h \
 	sys/pstat.h \
 	sys/ptrace.h \
+	sys/random.h \
 	sys/select.h \
 	sys/stat.h \
 	sys/stream.h \
@@ -514,7 +524,7 @@ case "$host" in
 	# Some versions of VAC won't allow macro redefinitions at
 	# -qlanglevel=ansi, and autoconf 2.60 sometimes insists on using that
 	# particularly with older versions of vac or xlc.
-	# It also throws errors about null macro argments, but these are
+	# It also throws errors about null macro arguments, but these are
 	# not fatal.
 	AC_MSG_CHECKING([if compiler allows macro redefinitions])
 	AC_COMPILE_IFELSE(
@@ -525,7 +535,6 @@ case "$host" in
 	    [ AC_MSG_RESULT([yes]) ],
 	    [ AC_MSG_RESULT([no])
 	      CC="`echo $CC | sed 's/-qlanglvl\=ansi//g'`"
-	      LD="`echo $LD | sed 's/-qlanglvl\=ansi//g'`"
 	      CFLAGS="`echo $CFLAGS | sed 's/-qlanglvl\=ansi//g'`"
 	      CPPFLAGS="`echo $CPPFLAGS | sed 's/-qlanglvl\=ansi//g'`"
 	    ]
@@ -753,7 +762,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	PATH="$PATH:/usr/etc"
 	AC_DEFINE([WITH_IRIX_ARRAY], [1],
 		[Define if you have/want arrays
-		(cluster-wide session managment, not C arrays)])
+		(cluster-wide session management, not C arrays)])
 	AC_DEFINE([WITH_IRIX_PROJECT], [1],
 		[Define if you want IRIX project management])
 	AC_DEFINE([WITH_IRIX_AUDIT], [1],
@@ -1398,7 +1407,7 @@ AC_RUN_IFELSE(
 )
 AC_MSG_RESULT([$func_calloc_0_nonnull])
 
-if test "x$func_calloc_0_nonnull" == "xyes"; then
+if test "x$func_calloc_0_nonnull" = "xyes"; then
 	AC_DEFINE(HAVE_CALLOC, 1, [calloc(0, x) returns non-null])
 else
 	AC_DEFINE(HAVE_CALLOC, 0, [calloc(0, x) returns NULL])
@@ -1492,55 +1501,6 @@ if test -d "/proc/$$/fd" ; then
 else
 	AC_MSG_RESULT([no])
 fi
-
-# Check whether user wants S/Key support
-SKEY_MSG="no"
-AC_ARG_WITH([skey],
-	[  --with-skey[[=PATH]]      Enable S/Key support (optionally in PATH)],
-	[
-		if test "x$withval" != "xno" ; then
-
-			if test "x$withval" != "xyes" ; then
-				CPPFLAGS="$CPPFLAGS -I${withval}/include"
-				LDFLAGS="$LDFLAGS -L${withval}/lib"
-			fi
-
-			AC_DEFINE([SKEY], [1], [Define if you want S/Key support])
-			LIBS="-lskey $LIBS"
-			SKEY_MSG="yes"
-
-			AC_MSG_CHECKING([for s/key support])
-			AC_LINK_IFELSE(
-				[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <skey.h>
-				]], [[
-	char *ff = skey_keyinfo(""); ff="";
-	exit(0);
-				]])],
-				[AC_MSG_RESULT([yes])],
-				[
-					AC_MSG_RESULT([no])
-					AC_MSG_ERROR([** Incomplete or missing s/key libraries.])
-				])
-			AC_MSG_CHECKING([if skeychallenge takes 4 arguments])
-			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <skey.h>
-				]], [[
-	(void)skeychallenge(NULL,"name","",0);
-				]])],
-			[
-				AC_MSG_RESULT([yes])
-				AC_DEFINE([SKEYCHALLENGE_4ARG], [1],
-					[Define if your skeychallenge()
-					function takes 4 arguments (NetBSD)])],
-			[
-				AC_MSG_RESULT([no])
-			])
-		fi
-	]
-)
 
 # Check whether user wants TCP wrappers support
 TCPW_MSG="no"
@@ -1833,6 +1793,7 @@ AC_CHECK_FUNCS([ \
 	getaddrinfo \
 	getcwd \
 	getgrouplist \
+	getline \
 	getnameinfo \
 	getopt \
 	getpagesize \
@@ -1841,6 +1802,7 @@ AC_CHECK_FUNCS([ \
 	getpgid \
 	_getpty \
 	getrlimit \
+	getrandom \
 	getsid \
 	getttyent \
 	glob \
@@ -3060,7 +3022,7 @@ LIBS="$saved_LIBS"
 
 ### Configure cryptographic random number support
 
-# Check wheter OpenSSL seeds itself
+# Check whether OpenSSL seeds itself
 if test "x$openssl" = "xyes" ; then
 	AC_MSG_CHECKING([whether OpenSSL's PRNG is internally seeded])
 	AC_RUN_IFELSE(
@@ -3959,7 +3921,7 @@ fi
 
 AC_CHECK_TYPES([struct timespec])
 
-# We need int64_t or else certian parts of the compile will fail.
+# We need int64_t or else certain parts of the compile will fail.
 if test "x$ac_cv_have_int64_t" = "xno" && \
 	test "x$ac_cv_sizeof_long_int" != "x8" && \
 	test "x$ac_cv_sizeof_long_long_int" = "x0" ; then
@@ -5270,7 +5232,6 @@ echo "                       PAM support: $PAM_MSG"
 echo "                   OSF SIA support: $SIA_MSG"
 echo "                 KerberosV support: $KRB5_MSG"
 echo "                   SELinux support: $SELINUX_MSG"
-echo "                     S/KEY support: $SKEY_MSG"
 echo "              TCP Wrappers support: $TCPW_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"

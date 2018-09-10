@@ -26,12 +26,12 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef SSH_AUDIT_EVENTS
 
 #include "audit.h"
 #include "log.h"
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 

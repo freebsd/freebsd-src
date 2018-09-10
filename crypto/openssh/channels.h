@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.130 2017/09/21 19:16:53 markus Exp $ */
+/* $OpenBSD: channels.h,v 1.131 2018/06/06 18:22:41 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -62,6 +62,15 @@
 #define SSH_CHANNEL_MAX_TYPE		23
 
 #define CHANNEL_CANCEL_PORT_STATIC	-1
+
+/* TCP forwarding */
+#define FORWARD_DENY		0
+#define FORWARD_REMOTE		(1)
+#define FORWARD_LOCAL		(1<<1)
+#define FORWARD_ALLOW		(FORWARD_REMOTE|FORWARD_LOCAL)
+
+#define FORWARD_ADM		0x100
+#define FORWARD_USER		0x101
 
 struct ssh;
 struct Channel;
@@ -283,16 +292,11 @@ int	 channel_find_open(struct ssh *);
 struct Forward;
 struct ForwardOptions;
 void	 channel_set_af(struct ssh *, int af);
-void     channel_permit_all_opens(struct ssh *);
-void	 channel_add_permitted_opens(struct ssh *, char *, int);
-int	 channel_add_adm_permitted_opens(struct ssh *, char *, int);
-void	 channel_copy_adm_permitted_opens(struct ssh *,
-	    const struct fwd_perm_list *);
-void	 channel_disable_adm_local_opens(struct ssh *);
-void	 channel_update_permitted_opens(struct ssh *, int, int);
-void	 channel_clear_permitted_opens(struct ssh *);
-void	 channel_clear_adm_permitted_opens(struct ssh *);
-void 	 channel_print_adm_permitted_opens(struct ssh *);
+void     channel_permit_all(struct ssh *, int);
+void	 channel_add_permission(struct ssh *, int, int, char *, int);
+void	 channel_clear_permission(struct ssh *, int, int);
+void	 channel_disable_admin(struct ssh *, int);
+void	 channel_update_permission(struct ssh *, int, int);
 Channel	*channel_connect_to_port(struct ssh *, const char *, u_short,
 	    char *, char *, int *, const char **);
 Channel *channel_connect_to_path(struct ssh *, const char *, char *, char *);
