@@ -4164,8 +4164,8 @@ chunkline_non_comment_RR(struct auth_chunk** chunk, size_t* chunk_pos,
 	return 0;
 }
 
-/** check syntax of chunklist zonefile, parse SOA RR, return false on
- * failure and return a string in the scratch buffer (SOA RR string)
+/** check syntax of chunklist zonefile, parse first RR, return false on
+ * failure and return a string in the scratch buffer (first RR string)
  * on failure. */
 static int
 http_zonefile_syntax_check(struct auth_xfer* xfr, sldns_buffer* buf)
@@ -4193,24 +4193,9 @@ http_zonefile_syntax_check(struct auth_xfer* xfr, sldns_buffer* buf)
 		pstate.origin_len?pstate.origin:NULL, pstate.origin_len,
 		pstate.prev_rr_len?pstate.prev_rr:NULL, pstate.prev_rr_len);
 	if(e != 0) {
-		log_err("parse failure on SOA RR[%d]: %s",
+		log_err("parse failure on first RR[%d]: %s",
 			LDNS_WIREPARSE_OFFSET(e),
 			sldns_get_errorstr_parse(LDNS_WIREPARSE_ERROR(e)));
-		return 0;
-	}
-	/* check that name is correct */
-	if(query_dname_compare(rr, xfr->name) != 0) {
-		char nm[255+1], zname[255+1];
-		dname_str(rr, nm);
-		dname_str(xfr->name, zname);
-		log_err("parse failure for %s, SOA RR for %s found instead",
-			zname, nm);
-		return 0;
-	}
-	/* check that type is SOA */
-	if(sldns_wirerr_get_type(rr, rr_len, dname_len) != LDNS_RR_TYPE_SOA) {
-		log_err("parse failure: first record in downloaded zonefile "
-			"not of type SOA");
 		return 0;
 	}
 	/* check that class is correct */

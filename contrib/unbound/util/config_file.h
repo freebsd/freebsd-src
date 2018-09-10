@@ -53,6 +53,14 @@ struct sock_list;
 struct ub_packed_rrset_key;
 struct regional;
 
+/** List head for strlist processing, used for append operation. */
+struct config_strlist_head {
+	/** first in list of text items */
+	struct config_strlist* first;
+	/** last in list of text items */
+	struct config_strlist* last;
+};
+
 /**
  * The configuration options.
  * Strings are malloced.
@@ -105,7 +113,7 @@ struct config_file {
 	/** should the system certificate store get added to the cert bundle */
 	int tls_win_cert;
 	/** additional tls ports */
-	struct config_strlist* tls_additional_ports;
+	struct config_strlist* tls_additional_port;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -374,11 +382,11 @@ struct config_file {
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
 	/** the interfaces the remote control should listen on */
-	struct config_strlist* control_ifs;
+	struct config_strlist_head control_ifs;
+	/** if the use-cert option is set */
+	int control_use_cert;
 	/** port number for the control port */
 	int control_port;
-	/** use certificates for remote control */
-	int remote_control_use_cert;
 	/** private key file for server */
 	char* server_key_file;
 	/** certificate file for server */
@@ -653,14 +661,6 @@ struct config_strbytelist {
 	size_t str2len;
 };
 
-/** List head for strlist processing, used for append operation. */
-struct config_strlist_head {
-	/** first in list of text items */
-	struct config_strlist* first;
-	/** last in list of text items */
-	struct config_strlist* last;
-};
-
 /**
  * Create config file structure. Filled with default values.
  * @return: the new structure or NULL on memory error.
@@ -893,6 +893,10 @@ void config_delview(struct config_view* p);
  * @param list: list.
  */
 void config_delviews(struct config_view* list);
+
+/** check if config for remote control turns on IP-address interface
+ * with certificates or a named pipe without certificates. */
+int options_remote_is_address(struct config_file* cfg);
 
 /**
  * Convert 14digit to time value
