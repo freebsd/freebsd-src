@@ -61,10 +61,6 @@ static int prof_sel = MLX5_DEFAULT_PROF;
 module_param_named(prof_sel, prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
-static int mlx5_core_msix_eqvec;
-module_param_named(msix_eqvec, mlx5_core_msix_eqvec, int, 0644);
-MODULE_PARM_DESC(msix_eqvec, "Maximum number of MSIX event queue vectors");
-
 #define NUMA_NO_NODE       -1
 
 static LIST_HEAD(intf_list);
@@ -243,7 +239,7 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
 	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int limit = mlx5_core_msix_eqvec;
+	int limit = dev->msix_eqvec;
 	int nvec = MLX5_EQ_VEC_COMP_BASE;
 	int i;
 
@@ -1188,6 +1184,7 @@ static int init_one(struct pci_dev *pdev,
 {
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
+	device_t bsddev = pdev->dev.bsddev;
 	int err;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -1202,6 +1199,12 @@ static int init_one(struct pci_dev *pdev,
 	dev->profile = &profiles[prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
+
+	sysctl_ctx_init(&dev->sysctl_ctx);
+	SYSCTL_ADD_INT(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "msix_eqvec", CTLFLAG_RDTUN, &dev->msix_eqvec, 0,
+	    "Maximum number of MSIX event queue vectors, if set");
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
@@ -1238,6 +1241,7 @@ clean_health:
 close_pci:
         mlx5_pci_close(dev, priv);
 clean_dev:
+	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
 	return err;
 }
@@ -1258,6 +1262,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev, priv);
 	pci_set_drvdata(pdev, NULL);
+	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
 }
 
