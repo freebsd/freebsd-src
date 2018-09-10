@@ -1351,6 +1351,13 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 
 	/* If this request does not have the recursion bit set, verify
+	 * ACLs allow the recursion bit to be treated as set. */
+	if(!(LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) &&
+		acl == acl_allow_setrd ) {
+		LDNS_RD_SET(sldns_buffer_begin(c->buffer));
+	}
+
+	/* If this request does not have the recursion bit set, verify
 	 * ACLs allow the snooping. */
 	if(!(LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) &&
 		acl != acl_allow_snoop ) {
