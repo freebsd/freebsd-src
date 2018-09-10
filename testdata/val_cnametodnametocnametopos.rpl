@@ -6,6 +6,7 @@ server:
 	trust-anchor: "example.org.    3600    IN      DNSKEY  256 3 3 ALXLUsWqUrY3JYER3T4TBJIIs70j+sDS/UT2QRp61SE7S3EEXopNXoFE73JLRmvpi/UrOO/Vz4Se6wXv/CYCKjGw06U4WRgRYXcpEhJROyNapmdIKSxhOzfLVE1gqA0PweZR8dtY3aNQSRn3sPpwJr6Mi/PqQKAMMrZ9ckJpf1+bQMOOvxgzz2U1GS18b3yZKcgTMEaJzd/GZYzi/BN2DzQ0MsrSwYXfsNLFOBbs8PJMW4LYIxeeOe6rUgkWOF7CC9Dh/dduQ1QrsJhmZAEFfd6ByYV+ ;{id = 2854 (zsk), size = 1688b}"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

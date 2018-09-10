@@ -126,10 +126,40 @@ alloc_init(struct alloc_cache* alloc, struct alloc_cache* super,
 	}
 }
 
+/** free the special list */
+static void
+alloc_clear_special_list(struct alloc_cache* alloc)
+{
+	alloc_special_type* p, *np;
+	/* free */
+	p = alloc->quar;
+	while(p) {
+		np = alloc_special_next(p);
+		/* deinit special type */
+		lock_rw_destroy(&p->entry.lock);
+		free(p);
+		p = np;
+	}
+}
+
+void
+alloc_clear_special(struct alloc_cache* alloc)
+{
+	if(!alloc->super) {
+		lock_quick_lock(&alloc->lock);
+	}
+	alloc_clear_special_list(alloc);
+	alloc->quar = 0;
+	alloc->num_quar = 0;
+	if(!alloc->super) {
+		lock_quick_unlock(&alloc->lock);
+	}
+}
+
 void 
 alloc_clear(struct alloc_cache* alloc)
 {
-	alloc_special_type* p, *np;
+	alloc_special_type* p;
 	struct regional* r, *nr;
 	if(!alloc)
 		return;
@@ -147,15 +177,7 @@ alloc_clear(struct alloc_cache* alloc)
 		alloc->super->num_quar += alloc->num_quar;
 		lock_quick_unlock(&alloc->super->lock);
 	} else {
-		/* free */
-		p = alloc->quar;
-		while(p) {
-			np = alloc_special_next(p);
-			/* deinit special type */
-			lock_rw_destroy(&p->entry.lock);
-			free(p);
-			p = np;
-		}
+		alloc_clear_special_list(alloc);
 	}
 	alloc->quar = 0;
 	alloc->num_quar = 0;

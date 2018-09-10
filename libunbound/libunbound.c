@@ -690,7 +690,7 @@ ub_resolve(struct ub_ctx* ctx, const char* name, int rrtype,
 	}
 	/* create new ctx_query and attempt to add to the list */
 	lock_basic_unlock(&ctx->cfglock);
-	q = context_new(ctx, name, rrtype, rrclass, NULL, NULL);
+	q = context_new(ctx, name, rrtype, rrclass, NULL, NULL, NULL);
 	if(!q)
 		return UB_NOMEM;
 	/* become a resolver thread for a bit */
@@ -747,8 +747,7 @@ ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 	ub_comm_base_now(ctx->event_worker->base);
 
 	/* create new ctx_query and attempt to add to the list */
-	q = context_new(ctx, name, rrtype, rrclass, (ub_callback_type)callback,
-		mydata);
+	q = context_new(ctx, name, rrtype, rrclass, NULL, callback, mydata);
 	if(!q)
 		return UB_NOMEM;
 
@@ -793,7 +792,7 @@ ub_resolve_async(struct ub_ctx* ctx, const char* name, int rrtype,
 	}
 
 	/* create new ctx_query and attempt to add to the list */
-	q = context_new(ctx, name, rrtype, rrclass, callback, mydata);
+	q = context_new(ctx, name, rrtype, rrclass, callback, NULL, mydata);
 	if(!q)
 		return UB_NOMEM;
 

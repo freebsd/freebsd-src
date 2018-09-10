@@ -11,14 +11,14 @@ sinclude(dnscrypt/dnscrypt.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[7])
-m4_define([VERSION_MICRO],[1])
+m4_define([VERSION_MICRO],[2])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=7
-LIBUNBOUND_REVISION=9
+LIBUNBOUND_REVISION=10
 LIBUNBOUND_AGE=5
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -79,6 +79,7 @@ LIBUNBOUND_AGE=5
 # 1.6.8 had 7:7:5
 # 1.7.0 had 7:8:5
 # 1.7.1 had 7:9:5
+# 1.7.2 had 7:10:5
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -1245,7 +1246,7 @@ if test "$USE_WINSOCK" = 1; then
 #include <windows.h>
 	])
 	AC_CHECK_TOOL(WINDRES, windres)
-	LIBS="$LIBS -liphlpapi"
+	LIBS="$LIBS -liphlpapi -lcrypt32"
 	WINAPPS="unbound-service-install.exe unbound-service-remove.exe anchor-update.exe"
 	AC_SUBST(WINAPPS)
 	WIN_DAEMON_SRC="winrc/win_svc.c winrc/w_inst.c"
@@ -1318,7 +1319,7 @@ AC_INCLUDES_DEFAULT
 #endif
 ])
 AC_SEARCH_LIBS([setusercontext], [util])
-AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync shmget])
+AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync shmget accept4])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 
@@ -1488,6 +1489,8 @@ dnsc_DNSCRYPT([
 
 # check for cachedb if requested
 AC_ARG_ENABLE(cachedb, AC_HELP_STRING([--enable-cachedb], [enable cachedb module that can use external cache storage]))
+# turn on cachedb when hiredis support is enabled.
+if test "$found_libhiredis" = "yes"; then enable_cachedb="yes"; fi
 case "$enable_cachedb" in
     yes)
     	AC_DEFINE([USE_CACHEDB], [1], [Define to 1 to use cachedb support])

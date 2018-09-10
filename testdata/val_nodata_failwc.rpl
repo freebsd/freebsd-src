@@ -4,6 +4,7 @@ server:
 	trust-anchor: "nsecwc.nlnetlabs.nl.	10024	IN	DS	565 8 2 0C15C04C022700C8713028F6F64CF2343DE627B8F83CDA1C421C65DB 52908A2E"
 	val-override-date: "20181202115531"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 stub-zone:

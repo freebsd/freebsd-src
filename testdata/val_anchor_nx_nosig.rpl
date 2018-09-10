@@ -4,6 +4,7 @@ server:
 	trust-anchor: "sub.example.com.    3600    IN      DS      30899 RSASHA1 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 
 stub-zone:

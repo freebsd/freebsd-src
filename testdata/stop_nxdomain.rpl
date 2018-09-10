@@ -1,6 +1,7 @@
 ; config options
 server:
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	harden-below-nxdomain: yes
 	trust-anchor: ". IN DNSKEY 257 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3"
 	val-override-date: "20070916134226"

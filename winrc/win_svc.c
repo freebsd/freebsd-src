@@ -52,6 +52,7 @@
 #include "util/config_file.h"
 #include "util/netevent.h"
 #include "util/ub_event.h"
+#include "util/net_help.h"
 
 /** global service status */
 static SERVICE_STATUS	service_status;
@@ -357,6 +358,14 @@ service_init(int r, struct daemon** d, struct config_file** c)
 		config_delete(cfg);
 		return 0;
 	}
+	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
+		if(!(daemon->listen_sslctx = listen_sslctx_create(
+			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
+			fatal_exit("could not set up listen SSL_CTX");
+	}
+	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
+		cfg->tls_cert_bundle, cfg->tls_win_cert)))
+		fatal_exit("could not set up connect SSL_CTX");
 
 	/* open ports */
 	/* keep reporting that we are busy starting */

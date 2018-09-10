@@ -1301,8 +1301,8 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 	w->ssl_upstream = sq->ssl_upstream;
 	w->tls_auth_name = sq->tls_auth_name;
 #ifndef S_SPLINT_S
-	tv.tv_sec = timeout;
-	tv.tv_usec = 0;
+	tv.tv_sec = timeout/1000;
+	tv.tv_usec = (timeout%1000)*1000;
 #endif
 	comm_timer_set(w->timer, &tv);
 	if(pend) {
@@ -1812,7 +1812,12 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 	}
 	if(sq->tcp_upstream || sq->ssl_upstream) {
 	    struct timeval now = *sq->outnet->now_tv;
-	    if(now.tv_sec > sq->last_sent_time.tv_sec ||
+	    if(error!=NETEVENT_NOERROR) {
+	        if(!infra_rtt_update(sq->outnet->infra, &sq->addr,
+		    sq->addrlen, sq->zone, sq->zonelen, sq->qtype,
+		    -1, sq->last_rtt, (time_t)now.tv_sec))
+		    log_err("out of memory in TCP exponential backoff.");
+	    } else if(now.tv_sec > sq->last_sent_time.tv_sec ||
 		(now.tv_sec == sq->last_sent_time.tv_sec &&
 		now.tv_usec > sq->last_sent_time.tv_usec)) {
 		/* convert from microseconds to milliseconds */
@@ -1822,7 +1827,7 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 		log_assert(roundtime >= 0);
 		/* only store if less then AUTH_TIMEOUT seconds, it could be
 		 * huge due to system-hibernated and we woke up */
-		if(roundtime < TCP_AUTH_QUERY_TIMEOUT*1000) {
+		if(roundtime < 60000) {
 		    if(!infra_rtt_update(sq->outnet->infra, &sq->addr,
 			sq->addrlen, sq->zone, sq->zonelen, sq->qtype,
 			roundtime, sq->last_rtt, (time_t)now.tv_sec))
@@ -1863,18 +1868,26 @@ serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff)
 static int
 serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff)
 {
-	int vs, rtt;
+	int vs, rtt, timeout;
 	uint8_t edns_lame_known;
 	if(!infra_host(sq->outnet->infra, &sq->addr, sq->addrlen, sq->zone,
 		sq->zonelen, *sq->outnet->now_secs, &vs, &edns_lame_known,
 		&rtt))
 		return 0;
+	sq->last_rtt = rtt;
 	if(vs != -1)
 		sq->status = serviced_query_TCP_EDNS;
 	else 	sq->status = serviced_query_TCP;
 	serviced_encode(sq, buff, sq->status == serviced_query_TCP_EDNS);
 	sq->last_sent_time = *sq->outnet->now_tv;
-	sq->pending = pending_tcp_query(sq, buff, TCP_AUTH_QUERY_TIMEOUT,
+	if(sq->tcp_upstream || sq->ssl_upstream) {
+		timeout = rtt;
+		if(rtt >= 376 && rtt < TCP_AUTH_QUERY_TIMEOUT)
+			timeout = TCP_AUTH_QUERY_TIMEOUT;
+	} else {
+		timeout = TCP_AUTH_QUERY_TIMEOUT;
+	}
+	sq->pending = pending_tcp_query(sq, buff, timeout,
 		serviced_tcp_callback, sq);
 	return sq->pending != NULL;
 }

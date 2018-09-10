@@ -4,6 +4,7 @@ server:
 	trust-anchor: "example.com. DS 57024 7 1 46d134be319b2cc910b9938f1cb25dc41abb27bf"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

@@ -6,6 +6,7 @@ server:
 	val-override-date: "20070916134226"
 	access-control: 127.0.0.1 allow_snoop
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

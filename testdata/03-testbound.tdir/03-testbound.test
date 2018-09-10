@@ -26,13 +26,15 @@ VALGRIND_FLAGS="--leak-check=full --show-leak-kinds=all"
 
 # self-test (unit test of testbound)
 if test $do_valgrind = "yes"; then
+	echo "valgrind yes"
+	echo
 	if (valgrind $VALGRIND_FLAGS $PRE/testbound -s >tmpout 2>&1;); then
 		echo "selftest   OK  "
 	else
 		echo "selftest FAILED"
 		exit 1
 	fi
-	if grep "All heap blocks were freed -- no leaks are possible" tmpout >/dev/null 2>&1; then
+	if grep "All heap blocks were freed -- no leaks are possible" tmpout; then
 		:  # clean
 	else
 		cat tmpout
@@ -40,7 +42,7 @@ if test $do_valgrind = "yes"; then
 		grep "in use at exit" tmpout
 		exit 1
 	fi
-	if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout >/dev/null 2>&1; then
+	if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout; then
 		:  # clean
 	else
 		cat tmpout
@@ -102,13 +104,14 @@ for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
 	fi
 
 	if test $do_valgrind = "yes"; then
+		echo
 		if (valgrind $VALGRIND_FLAGS $PRE/testbound -p $input >tmpout 2>&1;); then
 			echo "  OK   $cleaninput: $header"
 		else
 			echo "FAILED $cleaninput: $header"
 			exitval=1
 		fi
-		if grep "All heap blocks were freed -- no leaks are possible" tmpout >/dev/null 2>&1; then
+		if grep "All heap blocks were freed -- no leaks are possible" tmpout; then
 			:  # clean
 		else
 			grep "^==" tmpout
@@ -116,7 +119,7 @@ for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
 			grep "in use at exit" tmpout
 			exitval=1
 		fi
-		if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout >/dev/null 2>&1; then
+		if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout; then
 			:  # clean
 		else
 			grep "^==" tmpout

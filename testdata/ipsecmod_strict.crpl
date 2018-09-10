@@ -8,6 +8,7 @@ server:
 	ipsecmod-hook: "../../testdata/ipsecmod_hook.sh"
 	ipsecmod-strict: yes
 	ipsecmod-max-ttl: 200
+	qname-minimisation: "no"
 
 stub-zone:
 	name: "."

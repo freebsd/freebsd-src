@@ -3,6 +3,7 @@ server:
         trust-anchor: "example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )"
 	val-override-date: "20120420235959"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

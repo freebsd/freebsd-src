@@ -66,6 +66,14 @@
 /* nss3 */
 #include "nss.h"
 #endif
+#ifdef HAVE_SSL
+#ifdef HAVE_OPENSSL_SSL_H
+#include <openssl/ssl.h>
+#endif
+#ifdef HAVE_OPENSSL_ERR_H
+#include <openssl/err.h>
+#endif
+#endif /* HAVE_SSL */
 
 /** verbosity for unbound-host app */
 static int verb = 0;
@@ -487,6 +495,26 @@ int main(int argc, char* argv[])
 	if(argc != 1)
 		usage();
 
+#ifdef HAVE_SSL
+#ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
+	ERR_load_crypto_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+	ERR_load_SSL_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+	OpenSSL_add_all_algorithms();
+#else
+	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+		| OPENSSL_INIT_ADD_ALL_DIGESTS
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+	(void)SSL_library_init();
+#else
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#endif
+#endif /* HAVE_SSL */
 #ifdef HAVE_NSS
         if(NSS_NoDB_Init(".") != SECSuccess) {
 		fprintf(stderr, "could not init NSS\n");

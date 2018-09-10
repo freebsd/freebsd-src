@@ -376,7 +376,7 @@ struct serviced_query {
 	int retry;
 	/** time last UDP was sent */
 	struct timeval last_sent_time;
-	/** rtt of last (UDP) message */
+	/** rtt of last message */
 	int last_rtt;
 	/** do we know edns probe status already, for UDP_EDNS queries */
 	int edns_lame_known;
@@ -456,7 +456,7 @@ struct pending* pending_udp_query(struct serviced_query* sq,
  * checks id.
  * @param sq: serviced query.
  * @param packet: wireformat query to send to destination. copied from.
- * @param timeout: in seconds from now.
+ * @param timeout: in milliseconds from now.
  *    Timer starts running now. Timer may expire if all buffers are used,
  *    without any query been sent to the server yet.
  * @param callback: function to call on error, timeout or reply.

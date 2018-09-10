@@ -1125,7 +1125,7 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 	pend->addrlen = sq->addrlen;
 	pend->callback = callback;
 	pend->cb_arg = callback_arg;
-	pend->timeout = timeout;
+	pend->timeout = timeout/1000;
 	pend->transport = transport_tcp;
 	pend->pkt = NULL;
 	pend->zone = NULL;
@@ -1218,7 +1218,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	log_assert(pend->zone);
 	pend->callback = callback;
 	pend->cb_arg = callback_arg;
-	pend->timeout = UDP_AUTH_QUERY_TIMEOUT;
+	pend->timeout = UDP_AUTH_QUERY_TIMEOUT/1000;
 	pend->transport = transport_udp; /* pretend UDP */
 	pend->pkt = NULL;
 	pend->runtime = runtime;
@@ -1757,7 +1757,7 @@ int comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 	}
 	pend->callback = fc->cb;
 	pend->cb_arg = fc->cb_arg;
-	pend->timeout = UDP_AUTH_QUERY_TIMEOUT;
+	pend->timeout = UDP_AUTH_QUERY_TIMEOUT/1000;
 	pend->transport = transport_udp;
 	pend->pkt = NULL;
 	pend->runtime = runtime;

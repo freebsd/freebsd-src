@@ -3,6 +3,7 @@
 server:
 	local-zone: "example.com." typetransparent
 	local-data: "mail.example.com. IN A 10.20.30.40"
+	qname-minimisation: "no"
 
 stub-zone:
 	name: "."
