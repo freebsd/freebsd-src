@@ -509,13 +509,11 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
 		if (mlx5e_sq_xmit(sq, &next) != 0) {
-			if (next == NULL) {
-				drbr_advance(ifp, sq->br);
-			} else {
+			if (next != NULL) {
 				drbr_putback(ifp, sq->br, next);
 				atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_FULL);
+				break;
 			}
-			break;
 		}
 		drbr_advance(ifp, sq->br);
 	}
