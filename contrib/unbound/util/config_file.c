@@ -244,9 +244,10 @@ config_create(void)
 	cfg->insecure_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
-	cfg->control_ifs = NULL;
+	cfg->control_ifs.first = NULL;
+	cfg->control_ifs.last = NULL;
 	cfg->control_port = UNBOUND_CONTROL_PORT;
-	cfg->remote_control_use_cert = 1;
+	cfg->control_use_cert = 1;
 	cfg->minimal_responses = 0;
 	cfg->rrset_roundrobin = 0;
 	cfg->max_udp_size = 4096;
@@ -386,6 +387,9 @@ struct config_file* config_create_forlib(void)
 #define S_STRLIST_UNIQ(str, var) if(strcmp(opt, str)==0) \
 	{ if(cfg_strlist_find(cfg->var, val)) { return 0;} \
 	  return cfg_strlist_insert(&cfg->var, strdup(val)); }
+/** append string to strlist */
+#define S_STRLIST_APPEND(str, var) if(strcmp(opt, str)==0) \
+	{ return cfg_strlist_append(&cfg->var, strdup(val)); }
 
 int config_set_option(struct config_file* cfg, const char* opt,
 	const char* val)
@@ -457,8 +461,9 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_NUMBER_NONZERO("ssl-port:", ssl_port)
 	else S_STR("tls-cert-bundle:", tls_cert_bundle)
 	else S_YNO("tls-win-cert:", tls_win_cert)
-	else S_STRLIST("additional-tls-port:", tls_additional_ports)
-	else S_STRLIST("tls-additional-ports:", tls_additional_ports)
+	else S_STRLIST("additional-tls-port:", tls_additional_port)
+	else S_STRLIST("tls-additional-ports:", tls_additional_port)
+	else S_STRLIST("tls-additional-port:", tls_additional_port)
 	else S_YNO("interface-automatic:", if_automatic)
 	else S_YNO("use-systemd:", use_systemd)
 	else S_YNO("do-daemonize:", do_daemonize)
@@ -555,7 +560,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
 	else S_YNO("insecure-lan-zones:", insecure_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
-	else S_STRLIST("control-interface:", control_ifs)
+	else S_STRLIST_APPEND("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
 	else S_STR("server-key-file:", server_key_file)
 	else S_STR("server-cert-file:", server_cert_file)
@@ -879,7 +884,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "ssl-port", ssl_port)
 	else O_STR(opt, "tls-cert-bundle", tls_cert_bundle)
 	else O_YNO(opt, "tls-win-cert", tls_win_cert)
-	else O_LST(opt, "tls-additional-ports", tls_additional_ports)
+	else O_LST(opt, "tls-additional-port", tls_additional_port)
 	else O_YNO(opt, "use-systemd", use_systemd)
 	else O_YNO(opt, "do-daemonize", do_daemonize)
 	else O_STR(opt, "chroot", chrootdir)
@@ -941,7 +946,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "trust-anchor-signaling", trust_anchor_signaling)
 	else O_YNO(opt, "root-key-sentinel", root_key_sentinel)
 	else O_LST(opt, "dlv-anchor", dlv_anchor_list)
-	else O_LST(opt, "control-interface", control_ifs)
+	else O_LST(opt, "control-interface", control_ifs.first)
 	else O_LST(opt, "domain-insecure", domain_insecure)
 	else O_UNS(opt, "val-override-date", val_date_override)
 	else O_YNO(opt, "minimal-responses", minimal_responses)
@@ -1303,7 +1308,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->ssl_service_key);
 	free(cfg->ssl_service_pem);
 	free(cfg->tls_cert_bundle);
-	config_delstrlist(cfg->tls_additional_ports);
+	config_delstrlist(cfg->tls_additional_port);
 	free(cfg->log_identity);
 	config_del_strarray(cfg->ifs, cfg->num_ifs);
 	config_del_strarray(cfg->out_ifs, cfg->num_out_ifs);
@@ -1344,7 +1349,7 @@ config_delete(struct config_file* cfg)
 	config_del_strbytelist(cfg->respip_tags);
 	config_deltrplstrlist(cfg->acl_tag_actions);
 	config_deltrplstrlist(cfg->acl_tag_datas);
-	config_delstrlist(cfg->control_ifs);
+	config_delstrlist(cfg->control_ifs.first);
 	free(cfg->server_key_file);
 	free(cfg->server_cert_file);
 	free(cfg->control_key_file);
@@ -2263,4 +2268,13 @@ void errinf_dname(struct module_qstate* qstate, const char* str, uint8_t* dname)
 	dname_str(dname, buf);
 	snprintf(b, sizeof(b), "%s %s", str, buf);
 	errinf(qstate, b);
+}
+
+int options_remote_is_address(struct config_file* cfg)
+{
+	if(!cfg->remote_control_enable) return 0;
+	if(!cfg->control_ifs.first) return 1;
+	if(!cfg->control_ifs.first->str) return 1;
+	if(cfg->control_ifs.first->str[0] == 0) return 1;
+	return (cfg->control_ifs.first->str[0] != '/');
 }
