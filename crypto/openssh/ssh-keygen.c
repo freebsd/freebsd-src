@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.314 2018/03/12 00:52:01 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.319 2018/08/08 01:16:01 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <locale.h>
+#include <time.h>
 
 #include "xmalloc.h"
 #include "sshkey.h"
@@ -178,7 +179,7 @@ char *key_type_name = NULL;
 char *pkcs11provider = NULL;
 
 /* Use new OpenSSH private key format when writing SSH2 keys instead of PEM */
-int use_new_format = 0;
+int use_new_format = 1;
 
 /* Cipher for new-format private keys */
 char *new_format_cipher = NULL;
@@ -870,7 +871,8 @@ do_fingerprint(struct passwd *pw)
 {
 	FILE *f;
 	struct sshkey *public = NULL;
-	char *comment = NULL, *cp, *ep, line[SSH_MAX_PUBKEY_BYTES];
+	char *comment = NULL, *cp, *ep, *line = NULL;
+	size_t linesize = 0;
 	int i, invalid = 1;
 	const char *path;
 	u_long lnum = 0;
@@ -885,7 +887,8 @@ do_fingerprint(struct passwd *pw)
 	} else if ((f = fopen(path, "r")) == NULL)
 		fatal("%s: %s: %s", __progname, path, strerror(errno));
 
-	while (read_keyfile_line(f, path, line, sizeof(line), &lnum) == 0) {
+	while (getline(&line, &linesize, f) != -1) {
+		lnum++;
 		cp = line;
 		cp[strcspn(cp, "\n")] = '\0';
 		/* Trim leading space and comments */
@@ -905,6 +908,7 @@ do_fingerprint(struct passwd *pw)
 		 */
 		if (lnum == 1 && strcmp(identity_file, "-") != 0 &&
 		    strstr(cp, "PRIVATE KEY") != NULL) {
+			free(line);
 			fclose(f);
 			fingerprint_private(path);
 			exit(0);
@@ -951,6 +955,7 @@ do_fingerprint(struct passwd *pw)
 		invalid = 0; /* One good key in the file is sufficient */
 	}
 	fclose(f);
+	free(line);
 
 	if (invalid)
 		fatal("%s is not a public key file.", path);
@@ -1254,13 +1259,12 @@ do_known_hosts(struct passwd *pw, const char *name)
 		}
 		inplace = 1;
 	}
-
 	/* XXX support identity_file == "-" for stdin */
 	foreach_options = find_host ? HKF_WANT_MATCH : 0;
 	foreach_options |= print_fingerprint ? HKF_WANT_PARSE_KEY : 0;
-	if ((r = hostkeys_foreach(identity_file,
-	    hash_hosts ? known_hosts_hash : known_hosts_find_delete, &ctx,
-	    name, NULL, foreach_options)) != 0) {
+	if ((r = hostkeys_foreach(identity_file, (find_host || !hash_hosts) ?
+	    known_hosts_find_delete : known_hosts_hash, &ctx, name, NULL,
+	    foreach_options)) != 0) {
 		if (inplace)
 			unlink(tmp);
 		fatal("%s: hostkeys_foreach failed: %s", __func__, ssh_err(r));
@@ -2005,8 +2009,9 @@ do_show_cert(struct passwd *pw)
 	struct stat st;
 	int r, is_stdin = 0, ok = 0;
 	FILE *f;
-	char *cp, line[SSH_MAX_PUBKEY_BYTES];
+	char *cp, *line = NULL;
 	const char *path;
+	size_t linesize = 0;
 	u_long lnum = 0;
 
 	if (!have_identity)
@@ -2022,7 +2027,8 @@ do_show_cert(struct passwd *pw)
 	} else if ((f = fopen(identity_file, "r")) == NULL)
 		fatal("fopen %s: %s", identity_file, strerror(errno));
 
-	while (read_keyfile_line(f, path, line, sizeof(line), &lnum) == 0) {
+	while (getline(&line, &linesize, f) != -1) {
+		lnum++;
 		sshkey_free(key);
 		key = NULL;
 		/* Trim leading space and comments */
@@ -2047,6 +2053,7 @@ do_show_cert(struct passwd *pw)
 			printf("%s:%lu:\n", path, lnum);
 		print_cert(key);
 	}
+	free(line);
 	sshkey_free(key);
 	fclose(f);
 	exit(ok ? 0 : 1);
@@ -2078,7 +2085,8 @@ update_krl_from_file(struct passwd *pw, const char *file, int wild_ca,
 {
 	struct sshkey *key = NULL;
 	u_long lnum = 0;
-	char *path, *cp, *ep, line[SSH_MAX_PUBKEY_BYTES];
+	char *path, *cp, *ep, *line = NULL;
+	size_t linesize = 0;
 	unsigned long long serial, serial2;
 	int i, was_explicit_key, was_sha1, r;
 	FILE *krl_spec;
@@ -2093,8 +2101,8 @@ update_krl_from_file(struct passwd *pw, const char *file, int wild_ca,
 
 	if (!quiet)
 		printf("Revoking from %s\n", path);
-	while (read_keyfile_line(krl_spec, path, line, sizeof(line),
-	    &lnum) == 0) {
+	while (getline(&line, &linesize, krl_spec) != -1) {
+		lnum++;
 		was_explicit_key = was_sha1 = 0;
 		cp = line + strspn(line, " \t");
 		/* Trim trailing space, comments and strip \n */
@@ -2194,6 +2202,7 @@ update_krl_from_file(struct passwd *pw, const char *file, int wild_ca,
 	}
 	if (strcmp(path, "-") != 0)
 		fclose(krl_spec);
+	free(line);
 	free(path);
 }
 
@@ -2247,7 +2256,7 @@ do_gen_krl(struct passwd *pw, int updating, int argc, char **argv)
 		fatal("Couldn't generate KRL");
 	if ((fd = open(identity_file, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1)
 		fatal("open %s: %s", identity_file, strerror(errno));
-	if (atomicio(vwrite, fd, (void *)sshbuf_ptr(kbuf), sshbuf_len(kbuf)) !=
+	if (atomicio(vwrite, fd, sshbuf_mutable_ptr(kbuf), sshbuf_len(kbuf)) !=
 	    sshbuf_len(kbuf))
 		fatal("write %s: %s", identity_file, strerror(errno));
 	close(fd);
@@ -2425,6 +2434,7 @@ main(int argc, char **argv)
 			}
 			if (strcasecmp(optarg, "PEM") == 0) {
 				convert_format = FMT_PEM;
+				use_new_format = 0;
 				break;
 			}
 			fatal("Unsupported conversion format \"%s\"", optarg);
@@ -2432,7 +2442,7 @@ main(int argc, char **argv)
 			cert_principals = optarg;
 			break;
 		case 'o':
-			use_new_format = 1;
+			/* no-op; new format is already the default */
 			break;
 		case 'p':
 			change_passphrase = 1;

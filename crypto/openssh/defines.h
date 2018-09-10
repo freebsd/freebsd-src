@@ -660,12 +660,6 @@ struct winsize {
 #  define krb5_get_err_text(context,code) error_message(code)
 #endif
 
-#if defined(SKEYCHALLENGE_4ARG)
-# define _compat_skeychallenge(a,b,c,d) skeychallenge(a,b,c,d)
-#else
-# define _compat_skeychallenge(a,b,c,d) skeychallenge(a,b,c)
-#endif
-
 /* Maximum number of file descriptors available */
 #ifdef HAVE_SYSCONF
 # define SSH_SYSFDMAX sysconf(_SC_OPEN_MAX)

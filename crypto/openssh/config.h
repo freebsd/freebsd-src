@@ -535,6 +535,9 @@
 /* Define to 1 if you have the `getlastlogxbyname' function. */
 /* #undef HAVE_GETLASTLOGXBYNAME */
 
+/* Define to 1 if you have the `getline' function. */
+#define HAVE_GETLINE 1
+
 /* Define to 1 if you have the `getluid' function. */
 /* #undef HAVE_GETLUID */
 
@@ -567,6 +570,9 @@
 
 /* Define to 1 if you have the `getpwanam' function. */
 /* #undef HAVE_GETPWANAM */
+
+/* Define to 1 if you have the `getrandom' function. */
+#define HAVE_GETRANDOM 1
 
 /* Define to 1 if you have the `getrlimit' function. */
 #define HAVE_GETRLIMIT 1
@@ -1288,6 +1294,9 @@
 /* Define to 1 if you have the <sys/ptrace.h> header file. */
 #define HAVE_SYS_PTRACE_H 1
 
+/* Define to 1 if you have the <sys/random.h> header file. */
+#define HAVE_SYS_RANDOM_H 1
+
 /* Define to 1 if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
 
@@ -1547,7 +1556,7 @@
 /* Need setpgrp to acquire controlling tty */
 /* #undef NEED_SETPGRP */
 
-/* compiler does not accept __attribute__ on protoype args */
+/* compiler does not accept __attribute__ on prototype args */
 /* #undef NO_ATTRIBUTE_ON_PROTOTYPE_ARGS */
 
 /* compiler does not accept __attribute__ on return types */
@@ -1674,12 +1683,6 @@
 /* The size of `short int', as computed by sizeof. */
 #define SIZEOF_SHORT_INT 2
 
-/* Define if you want S/Key support */
-/* #undef SKEY */
-
-/* Define if your skeychallenge() function takes 4 arguments (NetBSD) */
-/* #undef SKEYCHALLENGE_4ARG */
-
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
 
@@ -1780,7 +1783,7 @@
 /* Define if you want to enable AIX4's authenticate function */
 /* #undef WITH_AIXAUTHENTICATE */
 
-/* Define if you have/want arrays (cluster-wide session managment, not C
+/* Define if you have/want arrays (cluster-wide session management, not C
    arrays) */
 /* #undef WITH_IRIX_ARRAY */
 

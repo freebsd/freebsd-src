@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.128 2017/11/28 21:10:22 dtucker Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.130 2018/07/31 03:07:24 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -669,7 +669,7 @@ do_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 		**dir = NULL;
 	}
 
-	return status;
+	return status == SSH2_FX_OK ? 0 : -1;
 }
 
 int
@@ -1019,7 +1019,7 @@ do_fsync(struct sftp_conn *conn, u_char *handle, u_int handle_len)
 	if (status != SSH2_FX_OK)
 		error("Couldn't sync file: %s", fx2txt(status));
 
-	return status;
+	return status == SSH2_FX_OK ? 0 : -1;
 }
 
 #ifdef notyet
@@ -1451,7 +1451,7 @@ do_download(struct sftp_conn *conn, const char *remote_path,
 	sshbuf_free(msg);
 	free(handle);
 
-	return(status);
+	return status == SSH2_FX_OK ? 0 : -1;
 }
 
 static int
@@ -1461,7 +1461,7 @@ download_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 {
 	int i, ret = 0;
 	SFTP_DIRENT **dir_entries;
-	char *filename, *new_src, *new_dst;
+	char *filename, *new_src = NULL, *new_dst = NULL;
 	mode_t mode = 0777;
 
 	if (depth >= MAX_DIR_DEPTH) {
@@ -1499,8 +1499,10 @@ download_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 	}
 
 	for (i = 0; dir_entries[i] != NULL && !interrupted; i++) {
-		filename = dir_entries[i]->filename;
+		free(new_dst);
+		free(new_src);
 
+		filename = dir_entries[i]->filename;
 		new_dst = path_append(dst, filename);
 		new_src = path_append(src, filename);
 
@@ -1523,9 +1525,9 @@ download_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 		} else
 			logit("%s: not a regular file\n", new_src);
 
-		free(new_dst);
-		free(new_src);
 	}
+	free(new_dst);
+	free(new_src);
 
 	if (preserve_flag) {
 		if (dirattrib->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
@@ -1793,7 +1795,7 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 	int ret = 0;
 	DIR *dirp;
 	struct dirent *dp;
-	char *filename, *new_src, *new_dst;
+	char *filename, *new_src = NULL, *new_dst = NULL;
 	struct stat sb;
 	Attrib a, *dirattrib;
 
@@ -1844,6 +1846,8 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 	while (((dp = readdir(dirp)) != NULL) && !interrupted) {
 		if (dp->d_ino == 0)
 			continue;
+		free(new_dst);
+		free(new_src);
 		filename = dp->d_name;
 		new_dst = path_append(dst, filename);
 		new_src = path_append(src, filename);
@@ -1870,9 +1874,9 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 			}
 		} else
 			logit("%s: not a regular file\n", filename);
-		free(new_dst);
-		free(new_src);
 	}
+	free(new_dst);
+	free(new_src);
 
 	do_setstat(conn, dst, &a);
 

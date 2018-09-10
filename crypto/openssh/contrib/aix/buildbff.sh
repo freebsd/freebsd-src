@@ -240,21 +240,7 @@ echo
 
 # Generate keys unless they already exist
 echo Creating host keys if required.
-if [ -f "$sysconfdir/ssh_host_key" ] ; then
-	echo "$sysconfdir/ssh_host_key already exists, skipping."
-else
-	$bindir/ssh-keygen -t rsa1 -f $sysconfdir/ssh_host_key -N ""
-fi
-if [ -f $sysconfdir/ssh_host_dsa_key ] ; then
-	echo "$sysconfdir/ssh_host_dsa_key already exists, skipping."
-else
-	$bindir/ssh-keygen -t dsa -f $sysconfdir/ssh_host_dsa_key -N ""
-fi
-if [ -f $sysconfdir/ssh_host_rsa_key ] ; then
-	echo "$sysconfdir/ssh_host_rsa_key already exists, skipping."
-else
-	$bindir/ssh-keygen -t rsa -f $sysconfdir/ssh_host_rsa_key -N ""
-fi
+$bindir/ssh-keygen -A
 echo
 
 # Set startup command depending on SRC support

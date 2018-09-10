@@ -41,7 +41,7 @@ typedef void *HANDLE;
 #define UNLEN 256
 
 /* Cygwin functions for which declarations are only available when including
-   windows headers, so we have to define them here explicitely. */
+   windows headers, so we have to define them here explicitly. */
 extern HANDLE cygwin_logon_user (const struct passwd *, const char *);
 extern void cygwin_set_impersonation_token (const HANDLE);
 

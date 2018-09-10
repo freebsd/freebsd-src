@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.391 2018/02/23 07:38:09 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.396 2018/07/19 10:28:47 dtucker Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 23 2018 $
+.Dd $Mdocdate: July 19 2018 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -500,7 +500,6 @@ For full details of the options listed below, and their possible values, see
 .It IdentitiesOnly
 .It IdentityAgent
 .It IdentityFile
-.It Include
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -529,6 +528,7 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It SetEnv
 .It StreamLocalBindMask
 .It StreamLocalBindUnlink
 .It StrictHostKeyChecking
@@ -536,7 +536,6 @@ For full details of the options listed below, and their possible values, see
 .It Tunnel
 .It TunnelDevice
 .It UpdateHostKeys
-.It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
@@ -744,10 +743,15 @@ and
 .Cm TunnelDevice
 directives in
 .Xr ssh_config 5 .
+.Pp
 If the
 .Cm Tunnel
-directive is unset, it is set to the default tunnel mode, which is
+directive is unset, it will be set to the default tunnel mode, which is
 .Dq point-to-point .
+If a different
+.Cm Tunnel
+forwarding mode it desired, then it should be specified before
+.Fl w .
 .Pp
 .It Fl X
 Enables X11 forwarding.

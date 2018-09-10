@@ -25,11 +25,10 @@
 #ifndef _RANDOMS_H
 #define _RANDOMS_H
 
-#include "buffer.h"
+struct sshbuf;
 
 void seed_rng(void);
-
-void rexec_send_rng_seed(Buffer *);
-void rexec_recv_rng_seed(Buffer *);
+void rexec_send_rng_seed(struct sshbuf *);
+void rexec_recv_rng_seed(struct sshbuf *);
 
 #endif /* _RANDOMS_H */

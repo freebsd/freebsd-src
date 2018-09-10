@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-chall.c,v 1.48 2017/05/30 14:29:59 markus Exp $ */
+/* $OpenBSD: auth2-chall.c,v 1.50 2018/07/11 18:55:11 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Per Allansson.  All rights reserved.
@@ -34,12 +34,13 @@
 
 #include "xmalloc.h"
 #include "ssh2.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "packet.h"
 #include "dispatch.h"
+#include "ssherr.h"
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
@@ -48,7 +49,7 @@
 extern ServerOptions options;
 
 static int auth2_challenge_start(struct ssh *);
-static int send_userauth_info_request(Authctxt *);
+static int send_userauth_info_request(struct ssh *);
 static int input_userauth_info_response(int, u_int32_t, struct ssh *);
 
 #ifdef BSD_AUTH
@@ -56,9 +57,6 @@ extern KbdintDevice bsdauth_device;
 #else
 #ifdef USE_PAM
 extern KbdintDevice sshpam_device;
-#endif
-#ifdef SKEY
-extern KbdintDevice skey_device;
 #endif
 #endif
 
@@ -68,9 +66,6 @@ KbdintDevice *devices[] = {
 #else
 #ifdef USE_PAM
 	&sshpam_device,
-#endif
-#ifdef SKEY
-	&skey_device,
 #endif
 #endif
 	NULL
@@ -105,8 +100,8 @@ static KbdintAuthctxt *
 kbdint_alloc(const char *devs)
 {
 	KbdintAuthctxt *kbdintctxt;
-	Buffer b;
-	int i;
+	struct sshbuf *b;
+	int i, r;
 
 #ifdef USE_PAM
 	if (!options.use_pam)
@@ -115,16 +110,17 @@ kbdint_alloc(const char *devs)
 
 	kbdintctxt = xcalloc(1, sizeof(KbdintAuthctxt));
 	if (strcmp(devs, "") == 0) {
-		buffer_init(&b);
+		if ((b = sshbuf_new()) == NULL)
+			fatal("%s: sshbuf_new failed", __func__);
 		for (i = 0; devices[i]; i++) {
-			if (buffer_len(&b) > 0)
-				buffer_append(&b, ",", 1);
-			buffer_append(&b, devices[i]->name,
-			    strlen(devices[i]->name));
+			if ((r = sshbuf_putf(b, "%s%s",
+			    sshbuf_len(b) ? "," : "", devices[i]->name)) != 0)
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
 		}
-		if ((kbdintctxt->devices = sshbuf_dup_string(&b)) == NULL)
+		if ((kbdintctxt->devices = sshbuf_dup_string(b)) == NULL)
 			fatal("%s: sshbuf_dup_string failed", __func__);
-		buffer_free(&b);
+		sshbuf_free(b);
 	} else {
 		kbdintctxt->devices = xstrdup(devs);
 	}
@@ -243,7 +239,7 @@ auth2_challenge_start(struct ssh *ssh)
 		auth2_challenge_stop(ssh);
 		return 0;
 	}
-	if (send_userauth_info_request(authctxt) == 0) {
+	if (send_userauth_info_request(ssh) == 0) {
 		auth2_challenge_stop(ssh);
 		return 0;
 	}
@@ -255,28 +251,32 @@ auth2_challenge_start(struct ssh *ssh)
 }
 
 static int
-send_userauth_info_request(Authctxt *authctxt)
+send_userauth_info_request(struct ssh *ssh)
 {
+	Authctxt *authctxt = ssh->authctxt;
 	KbdintAuthctxt *kbdintctxt;
 	char *name, *instr, **prompts;
-	u_int i, *echo_on;
+	u_int r, i, *echo_on;
 
 	kbdintctxt = authctxt->kbdintctxt;
 	if (kbdintctxt->device->query(kbdintctxt->ctxt,
 	    &name, &instr, &kbdintctxt->nreq, &prompts, &echo_on))
 		return 0;
 
-	packet_start(SSH2_MSG_USERAUTH_INFO_REQUEST);
-	packet_put_cstring(name);
-	packet_put_cstring(instr);
-	packet_put_cstring("");		/* language not used */
-	packet_put_int(kbdintctxt->nreq);
+	if ((r = sshpkt_start(ssh, SSH2_MSG_USERAUTH_INFO_REQUEST)) != 0 ||
+	    (r = sshpkt_put_cstring(ssh, name)) != 0 ||
+	    (r = sshpkt_put_cstring(ssh, instr)) != 0 ||
+	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||	/* language not used */
+	    (r = sshpkt_put_u32(ssh, kbdintctxt->nreq)) != 0)
+		fatal("%s: %s", __func__, ssh_err(r));
 	for (i = 0; i < kbdintctxt->nreq; i++) {
-		packet_put_cstring(prompts[i]);
-		packet_put_char(echo_on[i]);
+		if ((r = sshpkt_put_cstring(ssh, prompts[i])) != 0 ||
+		    (r = sshpkt_put_u8(ssh, echo_on[i])) != 0)
+			fatal("%s: %s", __func__, ssh_err(r));
 	}
-	packet_send();
-	packet_write_wait();
+	if ((r = sshpkt_send(ssh)) != 0 ||
+	    (r = ssh_packet_write_wait(ssh)) != 0)
+		fatal("%s: %s", __func__, ssh_err(r));
 
 	for (i = 0; i < kbdintctxt->nreq; i++)
 		free(prompts[i]);
@@ -293,6 +293,7 @@ input_userauth_info_response(int type, u_int32_t seq, struct ssh *ssh)
 	Authctxt *authctxt = ssh->authctxt;
 	KbdintAuthctxt *kbdintctxt;
 	int authenticated = 0, res;
+	int r;
 	u_int i, nresp;
 	const char *devicename = NULL;
 	char **response = NULL;
@@ -306,7 +307,8 @@ input_userauth_info_response(int type, u_int32_t seq, struct ssh *ssh)
 		fatal("input_userauth_info_response: no device");
 
 	authctxt->postponed = 0;	/* reset */
-	nresp = packet_get_int();
+	if ((r = sshpkt_get_u32(ssh, &nresp)) != 0)
+		fatal("%s: %s", __func__, ssh_err(r));
 	if (nresp != kbdintctxt->nreq)
 		fatal("input_userauth_info_response: wrong number of replies");
 	if (nresp > 100)
@@ -314,9 +316,12 @@ input_userauth_info_response(int type, u_int32_t seq, struct ssh *ssh)
 	if (nresp > 0) {
 		response = xcalloc(nresp, sizeof(char *));
 		for (i = 0; i < nresp; i++)
-			response[i] = packet_get_string(NULL);
+			if ((r = sshpkt_get_cstring(ssh, &response[i],
+			    NULL)) != 0)
+				fatal("%s: %s", __func__, ssh_err(r));
 	}
-	packet_check_eom();
+	if ((r = sshpkt_get_end(ssh)) != 0)
+		fatal("%s: %s", __func__, ssh_err(r));
 
 	res = kbdintctxt->device->respond(kbdintctxt->ctxt, nresp, response);
 
@@ -333,7 +338,7 @@ input_userauth_info_response(int type, u_int32_t seq, struct ssh *ssh)
 		break;
 	case 1:
 		/* Authentication needs further interaction */
-		if (send_userauth_info_request(authctxt) == 1)
+		if (send_userauth_info_request(ssh) == 1)
 			authctxt->postponed = 1;
 		break;
 	default:
@@ -358,7 +363,7 @@ input_userauth_info_response(int type, u_int32_t seq, struct ssh *ssh)
 void
 privsep_challenge_enable(void)
 {
-#if defined(BSD_AUTH) || defined(USE_PAM) || defined(SKEY)
+#if defined(BSD_AUTH) || defined(USE_PAM)
 	int n = 0;
 #endif
 #ifdef BSD_AUTH
@@ -367,18 +372,12 @@ privsep_challenge_enable(void)
 #ifdef USE_PAM
 	extern KbdintDevice mm_sshpam_device;
 #endif
-#ifdef SKEY
-	extern KbdintDevice mm_skey_device;
-#endif
 
 #ifdef BSD_AUTH
 	devices[n++] = &mm_bsdauth_device;
 #else
 #ifdef USE_PAM
 	devices[n++] = &mm_sshpam_device;
-#endif
-#ifdef SKEY
-	devices[n++] = &mm_skey_device;
 #endif
 #endif
 }
