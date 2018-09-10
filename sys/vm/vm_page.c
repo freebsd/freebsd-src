@@ -3406,13 +3406,13 @@ vm_page_requeue(vm_page_t m)
 void
 vm_page_activate(vm_page_t m)
 {
-	int queue;
 
 	vm_page_assert_locked(m);
 
-	if ((queue = vm_page_queue(m)) == PQ_ACTIVE || m->wire_count > 0 ||
-	    (m->oflags & VPO_UNMANAGED) != 0) {
-		if (queue == PQ_ACTIVE && m->act_count < ACT_INIT)
+	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+		return;
+	if (vm_page_queue(m) == PQ_ACTIVE) {
+		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
 		return;
 	}
