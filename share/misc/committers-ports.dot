@@ -175,6 +175,7 @@ madpilot [label="Guido Falsi\nmadpilot@FreeBSD.org\n2012/04/12"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
+manu [label="Emmanuel Vadot\nmanu@FreeBSD.org\n2018/09/06"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 marino [label="John Marino\nmarino@FreeBSD.org\n2013/07/04"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2012/12/29"]
@@ -323,6 +324,7 @@ bapt -> ericbsd
 bapt -> grembo
 bapt -> jbeich
 bapt -> jlaffaye
+bapt -> manu
 bapt -> marius
 bapt -> marino
 bapt -> rodrigo
