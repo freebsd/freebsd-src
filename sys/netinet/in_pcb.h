@@ -70,6 +70,7 @@
  */
 CK_LIST_HEAD(inpcbhead, inpcb);
 CK_LIST_HEAD(inpcbporthead, inpcbport);
+CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 typedef	uint64_t	inp_gen_t;
 
 /*
@@ -566,7 +567,8 @@ struct inpcbgroup {
  * is dynamically resized as processes bind/unbind to that specific group.
  */
 struct inpcblbgroup {
-	LIST_ENTRY(inpcblbgroup) il_list;
+	CK_LIST_ENTRY(inpcblbgroup) il_list;
+	struct epoch_context il_epoch_ctx;
 	uint16_t	il_lport;			/* (c) */
 	u_char		il_vflag;			/* (c) */
 	u_char		il_pad;
@@ -578,7 +580,6 @@ struct inpcblbgroup {
 	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
 	struct inpcb	*il_inp[];			/* (h) */
 };
-LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 
 #define INP_LOCK_INIT(inp, d, t) \
 	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
