@@ -52,6 +52,8 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 #include <net/ip.h>
 #include <net/ipv6.h>
 
+#include <rdma/ib_cache.h>
+
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -88,6 +90,10 @@ struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device, void *client_data);
+static struct net_device *ipoib_get_net_dev_by_params(
+		struct ib_device *dev, u8 port, u16 pkey,
+		const union ib_gid *gid, const struct sockaddr *addr,
+		void *client_data);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	    const struct sockaddr *dst, struct route *ro);
@@ -161,7 +167,8 @@ ipoib_mtap_proto(struct ifnet *ifp, struct mbuf *mb, uint16_t proto)
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
 	.add    = ipoib_add_one,
-	.remove = ipoib_remove_one
+	.remove = ipoib_remove_one,
+	.get_net_dev_by_params = ipoib_get_net_dev_by_params,
 };
 
 int
@@ -1109,6 +1116,156 @@ ipoib_remove_one(struct ib_device *device, void *client_data)
 	}
 
 	kfree(dev_list);
+}
+
+static int
+ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
+{
+	struct ifaddr *ifa;
+	int retval = 0;
+
+	CURVNET_SET(dev->if_vnet);
+	IF_ADDR_RLOCK(dev);
+	TAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr == NULL ||
+		    ifa->ifa_addr->sa_family != addr->sa_family ||
+		    ifa->ifa_addr->sa_len != addr->sa_len) {
+			continue;
+		}
+		if (memcmp(ifa->ifa_addr, addr, addr->sa_len) == 0) {
+			retval = 1;
+			break;
+		}
+	}
+	IF_ADDR_RUNLOCK(dev);
+	CURVNET_RESTORE();
+
+	return (retval);
+}
+
+/*
+ * ipoib_match_gid_pkey_addr - returns the number of IPoIB netdevs on
+ * top a given ipoib device matching a pkey_index and address, if one
+ * exists.
+ *
+ * @found_net_dev: contains a matching net_device if the return value
+ * >= 1, with a reference held.
+ */
+static int
+ipoib_match_gid_pkey_addr(struct ipoib_dev_priv *priv,
+    const union ib_gid *gid, u16 pkey_index, const struct sockaddr *addr,
+    struct net_device **found_net_dev)
+{
+	struct ipoib_dev_priv *child_priv;
+	int matches = 0;
+
+	if (priv->pkey_index == pkey_index &&
+	    (!gid || !memcmp(gid, &priv->local_gid, sizeof(*gid)))) {
+		if (addr == NULL || ipoib_match_dev_addr(addr, priv->dev) != 0) {
+			if (*found_net_dev == NULL) {
+				struct net_device *net_dev;
+
+				if (priv->parent != NULL)
+					net_dev = priv->parent;
+				else
+					net_dev = priv->dev;
+				*found_net_dev = net_dev;
+				dev_hold(net_dev);
+			}
+			matches++;
+		}
+	}
+
+	/* Check child interfaces */
+	mutex_lock(&priv->vlan_mutex);
+	list_for_each_entry(child_priv, &priv->child_intfs, list) {
+		matches += ipoib_match_gid_pkey_addr(child_priv, gid,
+		    pkey_index, addr, found_net_dev);
+		if (matches > 1)
+			break;
+	}
+	mutex_unlock(&priv->vlan_mutex);
+
+	return matches;
+}
+
+/*
+ * __ipoib_get_net_dev_by_params - returns the number of matching
+ * net_devs found (between 0 and 2). Also return the matching
+ * net_device in the @net_dev parameter, holding a reference to the
+ * net_device, if the number of matches >= 1
+ */
+static int
+__ipoib_get_net_dev_by_params(struct list_head *dev_list, u8 port,
+    u16 pkey_index, const union ib_gid *gid,
+    const struct sockaddr *addr, struct net_device **net_dev)
+{
+	struct ipoib_dev_priv *priv;
+	int matches = 0;
+
+	*net_dev = NULL;
+
+	list_for_each_entry(priv, dev_list, list) {
+		if (priv->port != port)
+			continue;
+
+		matches += ipoib_match_gid_pkey_addr(priv, gid, pkey_index,
+		    addr, net_dev);
+
+		if (matches > 1)
+			break;
+	}
+
+	return matches;
+}
+
+static struct net_device *
+ipoib_get_net_dev_by_params(struct ib_device *dev, u8 port, u16 pkey,
+    const union ib_gid *gid, const struct sockaddr *addr, void *client_data)
+{
+	struct net_device *net_dev;
+	struct list_head *dev_list = client_data;
+	u16 pkey_index;
+	int matches;
+	int ret;
+
+	if (!rdma_protocol_ib(dev, port))
+		return NULL;
+
+	ret = ib_find_cached_pkey(dev, port, pkey, &pkey_index);
+	if (ret)
+		return NULL;
+
+	if (!dev_list)
+		return NULL;
+
+	/* See if we can find a unique device matching the L2 parameters */
+	matches = __ipoib_get_net_dev_by_params(dev_list, port, pkey_index,
+						gid, NULL, &net_dev);
+
+	switch (matches) {
+	case 0:
+		return NULL;
+	case 1:
+		return net_dev;
+	}
+
+	dev_put(net_dev);
+
+	/* Couldn't find a unique device with L2 parameters only. Use L3
+	 * address to uniquely match the net device */
+	matches = __ipoib_get_net_dev_by_params(dev_list, port, pkey_index,
+						gid, addr, &net_dev);
+	switch (matches) {
+	case 0:
+		return NULL;
+	default:
+		dev_warn_ratelimited(&dev->dev,
+				     "duplicate IP address detected\n");
+		/* Fall through */
+	case 1:
+		return net_dev;
+	}
 }
 
 static void
