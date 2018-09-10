@@ -536,7 +536,7 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
 /** see if last resort is possible - does config allow queries to parent */
 static int
 can_have_last_resort(struct module_env* env, uint8_t* nm, size_t nmlen,
-	uint16_t qclass)
+	uint16_t qclass, struct delegpt** retdp)
 {
 	struct delegpt* fwddp;
 	struct iter_hints_stub* stub;
@@ -549,12 +549,14 @@ can_have_last_resort(struct module_env* env, uint8_t* nm, size_t nmlen,
 		/* has_parent side is turned off for stub_first, where we
 		 * are allowed to go to the parent */
 		stub->dp->has_parent_side_NS) {
+		if(retdp) *retdp = stub->dp;
 		return 0;
 	}
 	if((fwddp = forwards_find(env->fwds, nm, qclass)) &&
 		/* has_parent_side is turned off for forward_first, where
 		 * we are allowed to go to the parent */
 		fwddp->has_parent_side_NS) {
+		if(retdp) *retdp = fwddp;
 		return 0;
 	}
 	return 1;
@@ -1000,7 +1002,7 @@ generate_ns_check(struct module_qstate* qstate, struct iter_qstate* iq, int id)
 	if(iq->depth == ie->max_dependency_depth)
 		return;
 	if(!can_have_last_resort(qstate->env, iq->dp->name, iq->dp->namelen,
-		iq->qchase.qclass))
+		iq->qchase.qclass, NULL))
 		return;
 	/* is this query the same as the nscheck? */
 	if(qstate->qinfo.qtype == LDNS_RR_TYPE_NS &&
@@ -1184,10 +1186,8 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	 */
 	if (iq->refetch_glue &&
 	        iq->dp &&
-	        !can_have_last_resort(qstate->env,
-	                              iq->dp->name,
-	                              iq->dp->namelen,
-	                              iq->qchase.qclass)) {
+	        !can_have_last_resort(qstate->env, iq->dp->name,
+	             iq->dp->namelen, iq->qchase.qclass, NULL)) {
 	    iq->refetch_glue = 0;
 	}
 
@@ -1300,7 +1300,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 	if(iq->qchase.qtype == LDNS_RR_TYPE_DS || iq->refetch_glue ||
 	   (iq->qchase.qtype == LDNS_RR_TYPE_NS && qstate->prefetch_leeway
-	   && can_have_last_resort(qstate->env, delname, delnamelen, iq->qchase.qclass))) {
+	   && can_have_last_resort(qstate->env, delname, delnamelen, iq->qchase.qclass, NULL))) {
 		/* remove first label from delname, root goes to hints,
 		 * but only to fetch glue, not for qtype=DS. */
 		/* also when prefetching an NS record, fetch it again from
@@ -1416,9 +1416,25 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 		 */
 		if(iter_dp_is_useless(&qstate->qinfo, qstate->query_flags, 
 			iq->dp)) {
-			if(!can_have_last_resort(qstate->env, iq->dp->name, iq->dp->namelen, iq->qchase.qclass)) {
+			struct delegpt* retdp = NULL;
+			if(!can_have_last_resort(qstate->env, iq->dp->name, iq->dp->namelen, iq->qchase.qclass, &retdp)) {
+				if(retdp) {
+					verbose(VERB_QUERY, "cache has stub "
+						"or fwd but no addresses, "
+						"fallback to config");
+					iq->dp = delegpt_copy(retdp,
+						qstate->region);
+					if(!iq->dp) {
+						log_err("out of memory in "
+							"stub/fwd fallback");
+						return error_response(qstate,
+						    id, LDNS_RCODE_SERVFAIL);
+					}
+					break;
+				}
 				verbose(VERB_ALGO, "useless dp "
 					"but cannot go up, servfail");
+				delegpt_log(VERB_ALGO, iq->dp);
 				return error_response(qstate, id, 
 					LDNS_RCODE_SERVFAIL);
 			}
@@ -1779,7 +1795,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 	log_assert(iq->dp);
 
 	if(!can_have_last_resort(qstate->env, iq->dp->name, iq->dp->namelen,
-		iq->qchase.qclass)) {
+		iq->qchase.qclass, NULL)) {
 		/* fail -- no more targets, no more hope of targets, no hope 
 		 * of a response. */
 		verbose(VERB_QUERY, "configured stub or forward servers failed -- returning SERVFAIL");
@@ -1872,7 +1888,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 		if( ((ie->supports_ipv6 && !ns->done_pside6) ||
 		    (ie->supports_ipv4 && !ns->done_pside4)) &&
 		    !can_have_last_resort(qstate->env, ns->name, ns->namelen,
-			iq->qchase.qclass)) {
+			iq->qchase.qclass, NULL)) {
 			log_nametypeclass(VERB_ALGO, "cannot pside lookup ns "
 				"because it is also a stub/forward,",
 				ns->name, LDNS_RR_TYPE_NS, iq->qchase.qclass);
@@ -2754,16 +2770,18 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* set the current request's qname to the new value. */
 		iq->qchase.qname = sname;
 		iq->qchase.qname_len = snamelen;
-		if (qstate->env->cfg->qname_minimisation)
-			iq->minimisation_state = INIT_MINIMISE_STATE;
 		/* Clear the query state, since this is a query restart. */
 		iq->deleg_msg = NULL;
 		iq->dp = NULL;
 		iq->dsns_point = NULL;
 		iq->auth_zone_response = 0;
-		/* Note the query restart. */
-		iq->query_restart_count++;
 		iq->sent_count = 0;
+		if(iq->minimisation_state != MINIMISE_STATE)
+			/* Only count as query restart when it is not an extra
+			 * query as result of qname minimisation. */
+			iq->query_restart_count++;
+		if(qstate->env->cfg->qname_minimisation)
+			iq->minimisation_state = INIT_MINIMISE_STATE;
 
 		/* stop current outstanding queries. 
 		 * FIXME: should the outstanding queries be waited for and
