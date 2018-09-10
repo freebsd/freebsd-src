@@ -1,6 +1,48 @@
+19 June 2018: Wouter
+	- Fix for unbound-control on Windows and set TCP socket parameters
+	  more closely.
+	- Fix windows unbound-control no cert bad file descriptor error.
+
+18 June 2018: Wouter
+	- Fix that control-use-cert: no works for 127.0.0.1 to disable certs.
+	- Fix unbound-checkconf for control-use-cert.
+
+15 June 2018: Wouter
+	- tag for 1.7.3rc1.
+
+14 June 2018: Wouter
+	- #4103: Fix that auth-zone does not insist on SOA record first in
+	  file for url downloads.
+	- Fix that first control-interface determines if TLS is used.  Warn
+	  when IP address interfaces are used without TLS.
+	- Fix nettle compile.
+
+12 June 2018: Ralph
+	- Don't count CNAME response types received during qname minimisation as
+	  query restart.
+
+12 June 2018: Wouter
+	- #4102 for NSD, but for Unbound.  Named unix pipes do not use
+	  certificate and key files, access can be restricted with file and
+	  directory permissions.  The option control-use-cert is no longer
+	  used, and ignored if found in unbound.conf.
+	- Rename tls-additional-ports to tls-additional-port, because every
+	  line adds one port.
+	- Fix buffer size warning in unit test.
+	- remade dependencies in the Makefile.
+
+6 June 2018: Wouter
+	- Patch to fix openwrt for mac os build darwin detection in configure.
+
+5 June 2018: Wouter
+	- Fix crash if ratelimit taken into use with unbound-control
+	  instead of with unbound.conf.
+
 4 June 2018: Wouter
 	- Fix deadlock caused by incoming notify for auth-zone.
-	- tag for 1.7.2rc1
+	- tag for 1.7.2rc1, became 1.7.2 release on 11 June 2018,
+	  trunk is 1.7.3 in development from this point.
+	- #4100: Fix stub reprime when it becomes useless.
 
 1 June 2018: Wouter
 	- Rename additional-tls-port to tls-additional-ports.

@@ -11,14 +11,14 @@ sinclude(dnscrypt/dnscrypt.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[7])
-m4_define([VERSION_MICRO],[2])
+m4_define([VERSION_MICRO],[3])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=7
-LIBUNBOUND_REVISION=10
+LIBUNBOUND_REVISION=11
 LIBUNBOUND_AGE=5
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -80,6 +80,7 @@ LIBUNBOUND_AGE=5
 # 1.7.0 had 7:8:5
 # 1.7.1 had 7:9:5
 # 1.7.2 had 7:10:5
+# 1.7.3 had 7:11:5
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -1324,7 +1325,7 @@ AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 
 # check if setreuid en setregid fail, on MacOSX10.4(darwin8).
-if echo $build_os | grep darwin8 > /dev/null; then
+if echo $target_os | grep darwin8 > /dev/null; then
 	AC_DEFINE(DARWIN_BROKEN_SETREUID, 1, [Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work])
 fi
 AC_CHECK_DECLS([inet_pton,inet_ntop], [], [], [

@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jun 11, 2018" "NLnet Labs" "unbound 1.7.2"
+.TH "unbound.conf" "5" "Jun 21, 2018" "NLnet Labs" "unbound 1.7.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -452,8 +452,8 @@ If no cert bundle, it uses only these certificates.  Default is no.
 On windows this option uses the certificates from the cert store.  Use
 the tls\-cert\-bundle option on other systems.
 .TP
-.B tls\-additional\-ports: \fI<portnr>
-List portnumbers as tls\-additional\-ports, and when interfaces are defined,
+.B tls\-additional\-port: \fI<portnr>
+List portnumbers as tls\-additional\-port, and when interfaces are defined,
 eg. with the @port suffix, as this port number, they provide dns over TLS
 service.  Can list multiple, each on a new statement.
 .TP
@@ -1369,6 +1369,14 @@ By default localhost (127.0.0.1 and ::1) is listened to.
 Use 0.0.0.0 and ::0 to listen to all interfaces.
 If you change this and permissions have been dropped, you must restart
 the server for the change to take effect.
+.IP
+If you set it to an absolute path, a local socket is used.  The local socket
+does not use the certificates and keys, so those files need not be present.
+To restrict access, unbound sets permissions on the file to the user and
+group that is configured, the access bits are set to allow the group members
+to access the control socket file.  Put users that need to access the socket
+in the that group.  To restrict access further, create a directory to put
+the control socket in and restrict access to that directory.
 .TP 5
 .B control\-port: \fI<port number>
 The port number to listen on for IPv4 or IPv6 control interfaces,
@@ -1377,11 +1385,9 @@ If you change this and permissions have been dropped, you must restart
 the server for the change to take effect.
 .TP 5
 .B control\-use\-cert: \fI<yes or no>
-Whether to require certificate authentication of control connections.
-The default is "yes".
-This should not be changed unless there are other mechanisms in place
-to prevent untrusted users from accessing the remote control
-interface.
+For localhost control-interface you can disable the use of TLS by setting
+this option to "no", default is "yes".  For local sockets, TLS is disabled
+and the value of this option is ignored.
 .TP 5
 .B server\-key\-file: \fI<private key file>
 Path to the server private key, by default unbound_server.key.

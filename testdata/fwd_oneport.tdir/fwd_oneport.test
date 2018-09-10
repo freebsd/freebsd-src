@@ -36,7 +36,7 @@ dig @localhost -p $UNBOUND_PORT www5.example.com. >outfile5 &
 digpid5=$!
 dig @localhost -p $UNBOUND_PORT www6.example.com. >outfile6 &
 digpid6=$!
-sleep 6
+sleep 12
 kill -9 $digpid1
 kill -9 $digpid2
 kill -9 $digpid3
