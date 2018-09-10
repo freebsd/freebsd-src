@@ -29,6 +29,7 @@ def dnssecParse(domain, rrType=RR_TYPE_A):
 
 resolver = ub_ctx()
 resolver.add_ta(".   IN DS   19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5")
+resolver.add_ta(".   IN DS   20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D")
 
 dnssecParse("nic.cz")
 dnssecParse("nonexistent-domain-blablabla.cz")

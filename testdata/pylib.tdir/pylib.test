@@ -6,9 +6,9 @@
 
 PRE="../.."
 if grep "define WITH_PYUNBOUND 1" $PRE/config.h; then
-	echo "have python module"
+	echo "have pyunbound"
 else
-	echo "no python module"
+	echo "no pyunbound"
 	exit 0
 fi
 
@@ -19,22 +19,50 @@ fi
 #echo export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
 #export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
 
-cp $PRE/libunbound/python/unbound.py .
-cp $PRE/.libs/_unbound* .
-cp $PRE/.libs/libunbound* .
-
 # do the test
 echo "> pylib.lookup.py www.example.com."
 ./pylib.lookup.py www.example.com. | tee outfile
 
 echo "> cat logfiles"
-cat fwd.log 
+cat fwd.log
 echo "> check answer"
-if grep "10.20.30.40" outfile; then
-	echo "OK"
+if grep "Resolve: \[.\?10.20.30.40.\?\]" outfile; then
+	:
 else
-	echo "Not OK"
+	echo "Not OK (resolve)"
 	exit 1
 fi
+if grep "Async resolve: \[.\?10.20.30.40.\?\]" outfile; then
+	:
+else
+	echo "Not OK (async resolve)"
+	exit 1
+fi
+if grep "Ratelimit-fg-on: pass" outfile; then
+	:
+else
+	echo "Not OK (ratelimit-fg-on)"
+	exit 1
+fi
+if grep "Ratelimit-fg-off: \[.\?10.20.30.40.\?\]" outfile; then
+	:
+else
+	echo "Not OK (ratelimit-fg-off)"
+	exit 1
+fi
+if grep "Ratelimit-bg-on: pass" outfile; then
+	:
+else
+	echo "Not OK (ratelimit-bg-on)"
+	exit 1
+fi
+if grep "Ratelimit-bg-off: \[.\?10.20.30.40.\?\]" outfile; then
+	:
+else
+	echo "Not OK (ratelimit-bg-off)"
+	exit 1
+fi
+
+echo "OK"
 
 exit 0

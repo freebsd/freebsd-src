@@ -47,7 +47,7 @@ def deinit(id): return True
 def inform_super(id, qstate, superqstate, qdata): return True
 
 def operate(id, event, qstate, qdata):
-    print "Operate", event,"state:",qstate
+    print("Operate {} state: {}".format(event, qstate))
 
     # Please note that if this module blocks, by moving to the validator
     # to validate or iterator to lookup or spawn a subquery to look up,
@@ -61,14 +61,14 @@ def operate(id, event, qstate, qdata):
             msg = DNSMessage(qstate.qinfo.qname_str, RR_TYPE_TXT, RR_CLASS_IN, PKT_QR | PKT_RA | PKT_AA)
             #append RR
             if (qstate.qinfo.qtype == RR_TYPE_TXT) or (qstate.qinfo.qtype == RR_TYPE_ANY):
-               rl = qstate.mesh_info.reply_list
-               while (rl):
-                   if rl.query_reply:
-                      q = rl.query_reply
-		      # The TTL of 0 is mandatory, otherwise it ends up in
-		      # the cache, and is returned to other IP addresses.
-                      msg.answer.append("%s 0 IN TXT \"%s %d (%s)\"" % (qstate.qinfo.qname_str, q.addr,q.port,q.family))
-                   rl = rl.next
+                rl = qstate.mesh_info.reply_list
+                while (rl):
+                    if rl.query_reply:
+                        q = rl.query_reply
+                        # The TTL of 0 is mandatory, otherwise it ends up in
+                        # the cache, and is returned to other IP addresses.
+                        msg.answer.append("%s 0 IN TXT \"%s %d (%s)\"" % (qstate.qinfo.qname_str, q.addr,q.port,q.family))
+                    rl = rl.next
 
             #set qstate.return_msg 
             if not msg.set_return_msg(qstate):
@@ -90,7 +90,7 @@ def operate(id, event, qstate, qdata):
         log_info("pythonmod: iterator module done")
         qstate.ext_state[id] = MODULE_FINISHED 
         return True
-      
+
     log_err("pythonmod: bad event")
     qstate.ext_state[id] = MODULE_ERROR
     return True

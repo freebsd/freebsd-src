@@ -303,6 +303,9 @@ struct replay_runtime {
 	/** the current time in microseconds */
 	struct timeval now_tv;
 
+	/** has TCP connection seen a keepalive? */
+	int tcp_seen_keepalive;
+
 	/** signal handler callback */
 	void (*sig_cb)(int, void*);
 	/** signal handler user arg */

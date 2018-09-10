@@ -497,65 +497,70 @@ nsec3_hash_test(const char* fname)
 	sldns_buffer_free(buf);
 }
 
+#define xstr(s) str(s)
+#define str(s) #s
+
+#define SRCDIRSTR xstr(SRCDIR)
+
 void 
 verify_test(void)
 {
 	unit_show_feature("signature verify");
 #ifdef USE_SHA1
-	verifytest_file("testdata/test_signatures.1", "20070818005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.1", "20070818005004");
 #endif
 #if defined(USE_DSA) && defined(USE_SHA1)
-	verifytest_file("testdata/test_signatures.2", "20080414005004");
-	verifytest_file("testdata/test_signatures.3", "20080416005004");
-	verifytest_file("testdata/test_signatures.4", "20080416005004");
-	verifytest_file("testdata/test_signatures.5", "20080416005004");
-	verifytest_file("testdata/test_signatures.6", "20080416005004");
-	verifytest_file("testdata/test_signatures.7", "20070829144150");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.2", "20080414005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.3", "20080416005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.4", "20080416005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.5", "20080416005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.6", "20080416005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.7", "20070829144150");
 #endif /* USE_DSA */
 #ifdef USE_SHA1
-	verifytest_file("testdata/test_signatures.8", "20070829144150");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.8", "20070829144150");
 #endif
 #if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS) || defined(HAVE_NETTLE)) && defined(USE_SHA2)
-	verifytest_file("testdata/test_sigs.rsasha256", "20070829144150");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.rsasha256", "20070829144150");
 #  ifdef USE_SHA1
-	verifytest_file("testdata/test_sigs.sha1_and_256", "20070829144150");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.sha1_and_256", "20070829144150");
 #  endif
-	verifytest_file("testdata/test_sigs.rsasha256_draft", "20090101000000");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.rsasha256_draft", "20090101000000");
 #endif
 #if (defined(HAVE_EVP_SHA512) || defined(HAVE_NSS) || defined(HAVE_NETTLE)) && defined(USE_SHA2)
-	verifytest_file("testdata/test_sigs.rsasha512_draft", "20070829144150");
-	verifytest_file("testdata/test_signatures.9", "20171215000000");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.rsasha512_draft", "20070829144150");
+	verifytest_file(SRCDIRSTR "/testdata/test_signatures.9", "20171215000000");
 #endif
 #ifdef USE_SHA1
-	verifytest_file("testdata/test_sigs.hinfo", "20090107100022");
-	verifytest_file("testdata/test_sigs.revoked", "20080414005004");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.hinfo", "20090107100022");
+	verifytest_file(SRCDIRSTR "/testdata/test_sigs.revoked", "20080414005004");
 #endif
 #ifdef USE_GOST
 	if(sldns_key_EVP_load_gost_id())
-	  verifytest_file("testdata/test_sigs.gost", "20090807060504");
+	  verifytest_file(SRCDIRSTR "/testdata/test_sigs.gost", "20090807060504");
 	else printf("Warning: skipped GOST, openssl does not provide gost.\n");
 #endif
 #ifdef USE_ECDSA
 	/* test for support in case we use libNSS and ECC is removed */
 	if(dnskey_algo_id_is_supported(LDNS_ECDSAP256SHA256)) {
-		verifytest_file("testdata/test_sigs.ecdsa_p256", "20100908100439");
-		verifytest_file("testdata/test_sigs.ecdsa_p384", "20100908100439");
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.ecdsa_p256", "20100908100439");
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.ecdsa_p384", "20100908100439");
 	}
-	dstest_file("testdata/test_ds.sha384");
+	dstest_file(SRCDIRSTR "/testdata/test_ds.sha384");
 #endif
 #ifdef USE_ED25519
 	if(dnskey_algo_id_is_supported(LDNS_ED25519)) {
-		verifytest_file("testdata/test_sigs.ed25519", "20170530140439");
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.ed25519", "20170530140439");
 	}
 #endif
 #ifdef USE_ED448
 	if(dnskey_algo_id_is_supported(LDNS_ED448)) {
-		verifytest_file("testdata/test_sigs.ed448", "20180408143630");
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.ed448", "20180408143630");
 	}
 #endif
 #ifdef USE_SHA1
-	dstest_file("testdata/test_ds.sha1");
+	dstest_file(SRCDIRSTR "/testdata/test_ds.sha1");
 #endif
 	nsectest();
-	nsec3_hash_test("testdata/test_nsec3_hash.1");
+	nsec3_hash_test(SRCDIRSTR "/testdata/test_nsec3_hash.1");
 }

@@ -76,6 +76,7 @@
 #include "util/shm_side/shm_main.h"
 #include "util/storage/lookup3.h"
 #include "util/storage/slabhash.h"
+#include "util/tcp_conn_limit.h"
 #include "services/listen_dnsport.h"
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
@@ -104,10 +105,8 @@ static int sig_record_reload = 0;
 /** cleaner ssl memory freeup */
 static void* comp_meth = NULL;
 #endif
-#ifdef LEX_HAS_YYLEX_DESTROY
 /** remove buffers for parsing and init */
 int ub_c_lex_destroy(void);
-#endif
 
 /** used when no other sighandling happens, so we don't die
   * when multiple signals in quick succession are sent to us. 
@@ -182,15 +181,8 @@ static void
 signal_handling_playback(struct worker* wrk)
 {
 #ifdef SIGHUP
-	if(sig_record_reload) {
-# ifdef HAVE_SYSTEMD
-		sd_notify(0, "RELOADING=1");
-# endif
+	if(sig_record_reload)
 		worker_sighandler(SIGHUP, wrk);
-# ifdef HAVE_SYSTEMD
-		sd_notify(0, "READY=1");
-# endif
-	}
 #endif
 	if(sig_record_quit)
 		worker_sighandler(SIGTERM, wrk);
@@ -279,11 +271,20 @@ daemon_init(void)
 		free(daemon);
 		return NULL;
 	}
+	daemon->tcl = tcl_list_create();
+	if(!daemon->tcl) {
+		acl_list_delete(daemon->acl);
+		edns_known_options_delete(daemon->env);
+		free(daemon->env);
+		free(daemon);
+		return NULL;
+	}
 	if(gettimeofday(&daemon->time_boot, NULL) < 0)
 		log_err("gettimeofday: %s", strerror(errno));
 	daemon->time_last_stat = daemon->time_boot;
 	if((daemon->env->auth_zones = auth_zones_create()) == 0) {
 		acl_list_delete(daemon->acl);
+		tcl_list_delete(daemon->tcl);
 		edns_known_options_delete(daemon->env);
 		free(daemon->env);
 		free(daemon);
@@ -584,6 +585,8 @@ daemon_fork(struct daemon* daemon)
 
 	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg, daemon->views))
 		fatal_exit("Could not setup access control list");
+	if(!tcl_list_apply_cfg(daemon->tcl, daemon->cfg))
+		fatal_exit("Could not setup TCP connection limits");
 	if(daemon->cfg->dnscrypt) {
 #ifdef USE_DNSCRYPT
 		daemon->dnscenv = dnsc_create();
@@ -657,12 +660,18 @@ daemon_fork(struct daemon* daemon)
 
 	/* Start resolver service on main thread. */
 #ifdef HAVE_SYSTEMD
-	sd_notify(0, "READY=1");
+	if(daemon->cfg->use_systemd)
+		sd_notify(0, "READY=1");
 #endif
 	log_info("start of service (%s).", PACKAGE_STRING);
 	worker_work(daemon->workers[0]);
 #ifdef HAVE_SYSTEMD
-	sd_notify(0, "STOPPING=1");
+	if(daemon->cfg->use_systemd) {
+		if (daemon->workers[0]->need_to_exit)
+			sd_notify(0, "STOPPING=1");
+		else
+			sd_notify(0, "RELOADING=1");
+	}
 #endif
 	log_info("service stopped (%s).", PACKAGE_STRING);
 
@@ -738,6 +747,7 @@ daemon_delete(struct daemon* daemon)
 	ub_randfree(daemon->rand);
 	alloc_clear(&daemon->superalloc);
 	acl_list_delete(daemon->acl);
+	tcl_list_delete(daemon->tcl);
 	free(daemon->chroot);
 	free(daemon->pidfile);
 	free(daemon->env);
@@ -746,10 +756,8 @@ daemon_delete(struct daemon* daemon)
 	SSL_CTX_free((SSL_CTX*)daemon->connect_sslctx);
 #endif
 	free(daemon);
-#ifdef LEX_HAS_YYLEX_DESTROY
 	/* lex cleanup */
 	ub_c_lex_destroy();
-#endif
 	/* libcrypto cleanup */
 #ifdef HAVE_SSL
 #  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
@@ -800,9 +808,8 @@ void daemon_apply_cfg(struct daemon* daemon, struct config_file* cfg)
 {
         daemon->cfg = cfg;
 	config_apply(cfg);
-	if(!daemon->env->msg_cache ||
-	   cfg->msg_cache_size != slabhash_get_size(daemon->env->msg_cache) ||
-	   cfg->msg_cache_slabs != daemon->env->msg_cache->size) {
+	if(!slabhash_is_size(daemon->env->msg_cache, cfg->msg_cache_size,
+	   	cfg->msg_cache_slabs)) {
 		slabhash_delete(daemon->env->msg_cache);
 		daemon->env->msg_cache = slabhash_create(cfg->msg_cache_slabs,
 			HASH_DEFAULT_STARTARRAY, cfg->msg_cache_size,

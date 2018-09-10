@@ -495,6 +495,11 @@ testfromdrillfile(sldns_buffer* pkt, struct alloc_cache* alloc,
 	fclose(in);
 }
 
+#define xstr(s) str(s)
+#define str(s) #s
+
+#define SRCDIRSTR xstr(SRCDIR)
+
 void msgparse_test(void)
 {
 	time_t origttl = MAX_NEG_TTL;
@@ -509,27 +514,27 @@ void msgparse_test(void)
 	unit_show_feature("message parse");
 	simpletest(pkt, &alloc, out);
 	/* plain hex dumps, like pcat */
-	testfromfile(pkt, &alloc, out, "testdata/test_packets.1");
-	testfromfile(pkt, &alloc, out, "testdata/test_packets.2");
-	testfromfile(pkt, &alloc, out, "testdata/test_packets.3");
+	testfromfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.1");
+	testfromfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.2");
+	testfromfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.3");
 	/* like from drill -w - */
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.4");
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.5");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.4");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.5");
 
 	matches_nolocation = 1; /* RR order not important for the next test */
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.6");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.6");
 	check_rrsigs = 1;
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.7");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.7");
 	check_rrsigs = 0;
 	matches_nolocation = 0; 
 
 	check_formerr_gone = 1;
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.8");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.8");
 	check_formerr_gone = 0;
 
 	check_rrsigs = 1;
 	check_nosameness = 1;
-	testfromdrillfile(pkt, &alloc, out, "testdata/test_packets.9");
+	testfromdrillfile(pkt, &alloc, out, SRCDIRSTR "/testdata/test_packets.9");
 	check_nosameness = 0;
 	check_rrsigs = 0;
 

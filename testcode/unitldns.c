@@ -199,15 +199,25 @@ rr_test_file(const char* input, const char* check)
 	free(back);
 }
 
+#define xstr(s) str(s)
+#define str(s) #s
+
+#define SRCDIRSTR xstr(SRCDIR)
+
 /** read rrs to and from string, to and from wireformat */
 static void
 rr_tests(void)
 {
-	rr_test_file("testdata/test_ldnsrr.1", "testdata/test_ldnsrr.c1");
-	rr_test_file("testdata/test_ldnsrr.2", "testdata/test_ldnsrr.c2");
-	rr_test_file("testdata/test_ldnsrr.3", "testdata/test_ldnsrr.c3");
-	rr_test_file("testdata/test_ldnsrr.4", "testdata/test_ldnsrr.c4");
-	rr_test_file("testdata/test_ldnsrr.5", "testdata/test_ldnsrr.c5");
+	rr_test_file(SRCDIRSTR "/testdata/test_ldnsrr.1",
+		SRCDIRSTR "/testdata/test_ldnsrr.c1");
+	rr_test_file(SRCDIRSTR "/testdata/test_ldnsrr.2",
+		SRCDIRSTR "/testdata/test_ldnsrr.c2");
+	rr_test_file(SRCDIRSTR "/testdata/test_ldnsrr.3",
+		SRCDIRSTR "/testdata/test_ldnsrr.c3");
+	rr_test_file(SRCDIRSTR "/testdata/test_ldnsrr.4",
+		SRCDIRSTR "/testdata/test_ldnsrr.c4");
+	rr_test_file(SRCDIRSTR "/testdata/test_ldnsrr.5",
+		SRCDIRSTR "/testdata/test_ldnsrr.c5");
 }
 
 void

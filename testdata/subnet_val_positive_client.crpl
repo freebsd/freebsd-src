@@ -11,6 +11,7 @@ server:
 	module-config: "subnetcache validator iterator"
 	verbosity: 3
 	qname-minimisation: "no"
+	minimal-responses: no
 
 stub-zone:
 	name: "."

@@ -1,0 +1,67 @@
+# #-- tcp_idle_timeout.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+
+# Run up unbound with a 2s idle timeout. Try a normal TCP query, check it works, and then check that a connection with a 4s send delay fails.
+
+
+if uname | grep MINGW >/dev/null; then
+	echo "no job control in shell on windows. end test"
+	exit 0
+fi
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# first test a single TCP query with no delay.
+echo "> query www.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# now test query with delay should fail.
+echo "> query www.example.com."
+$PRE/streamtcp -d 4 -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN >outfile 2>&1
+if test "$?" -eq 0; then
+	echo "exit status OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status not OK"
+fi
+echo "> cat logfiles"
+cat outfile
+cat fwd.log 
+cat unbound.log
+echo "OK"
+
+exit 0

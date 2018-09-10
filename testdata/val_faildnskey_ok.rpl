@@ -7,6 +7,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	minimal-responses: no
 
 stub-zone:
 	name: "."

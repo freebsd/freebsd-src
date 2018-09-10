@@ -40,9 +40,12 @@ The callback function's prototype is the following:
 
 .. code-block:: python
 
-    def inplace_reply_callback(qinfo, qstate, rep, rcode, edns, opt_list_out, region):
-        """Function that will be registered as an inplace callback function.
+    def inplace_reply_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
+                               region, **kwargs):
+        """
+        Function that will be registered as an inplace callback function.
         It will be called when answering with a resolved query.
+
         :param qinfo: query_info struct;
         :param qstate: module qstate. It contains the available opt_lists; It
                        SHOULD NOT be altered;
@@ -54,7 +57,13 @@ The callback function's prototype is the following:
                              reply. It can be populated with EDNS options;
         :param region: region to allocate temporary data. Needs to be used when we
                        want to append a new option to opt_list_out.
+        :param **kwargs: Dictionary that may contain parameters added in a future
+                         release. Current parameters:
+            ``repinfo``: Reply information for a communication point (comm_reply).
+                         It is None when the callback happens in the mesh states.
+
         :return: True on success, False on failure.
+
         """
 
 .. note:: The function's name is irrelevant.
@@ -76,9 +85,12 @@ The callback function's prototype is the following:
 
 .. code-block:: python
 
-    def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out, region):
-        """Function that will be registered as an inplace callback function.
+    def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
+                               region, **kwargs):
+        """
+        Function that will be registered as an inplace callback function.
         It will be called when answering from the cache.
+
         :param qinfo: query_info struct;
         :param qstate: module qstate. None;
         :param rep: reply_info struct;
@@ -90,7 +102,17 @@ The callback function's prototype is the following:
                              reply. It can be populated with EDNS options;
         :param region: region to allocate temporary data. Needs to be used when we
                        want to append a new option to opt_list_out.
+        :param **kwargs: Dictionary that may contain parameters added in a future
+                         release. Current parameters:
+            ``repinfo``: Reply information for a communication point (comm_reply).
+                         It is None when the callback happens in the mesh
+                         states(modules).
+
         :return: True on success, False on failure.
+
+        For demonstration purposes we want to see if EDNS option 65002 is present
+        and reply with a new value.
+
         """
 
 .. note:: The function's name is irrelevant.
@@ -112,9 +134,12 @@ The callback function's prototype is the following:
 
 .. code-block:: python
 
-    def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out, region):
-        """Function that will be registered as an inplace callback function.
+    def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
+                               region, **kwargs):
+        """
+        Function that will be registered as an inplace callback function.
         It will be called when answering from local data.
+
         :param qinfo: query_info struct;
         :param qstate: module qstate. None;
         :param rep: reply_info struct;
@@ -126,7 +151,14 @@ The callback function's prototype is the following:
                              reply. It can be populated with EDNS options;
         :param region: region to allocate temporary data. Needs to be used when we
                        want to append a new option to opt_list_out.
+        :param **kwargs: Dictionary that may contain parameters added in a future
+                         release. Current parameters:
+            ``repinfo``: Reply information for a communication point (comm_reply).
+                         It is None when the callback happens in the mesh
+                         states(modules).
+
         :return: True on success, False on failure.
+
         """
 
 .. note:: The function's name is irrelevant.
@@ -148,9 +180,12 @@ The callback function's prototype is the following:
 
 .. code-block:: python
 
-    def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out, region):
-        """Function that will be registered as an inplace callback function.
+    def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
+                                  region, **kwargs):
+        """
+        Function that will be registered as an inplace callback function.
         It will be called when answering with SERVFAIL.
+
         :param qinfo: query_info struct;
         :param qstate: module qstate. If not None the relevant opt_lists are
                        available here;
@@ -163,7 +198,17 @@ The callback function's prototype is the following:
                              reply. It can be populated with EDNS options;
         :param region: region to allocate temporary data. Needs to be used when we
                        want to append a new option to opt_list_out.
+        :param **kwargs: Dictionary that may contain parameters added in a future
+                         release. Current parameters:
+            ``repinfo``: Reply information for a communication point (comm_reply).
+                         It is None when the callback happens in the mesh
+                         states(modules).
+
         :return: True on success, False on failure.
+
+        For demonstration purposes we want to reply with an empty EDNS code '65003'
+        and log the IP address(es) of the client(s).
+
         """
 
 .. note:: The function's name is irrelevant.

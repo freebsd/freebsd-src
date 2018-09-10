@@ -185,11 +185,13 @@ msg_ttl(struct dns_msg* msg)
 	if(msg->rep->rrset_count == 1) {
 		msg->rep->ttl = get_rrset_ttl(msg->rep->rrsets[0]);
 		msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
+		msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
 	} else if(get_rrset_ttl(msg->rep->rrsets[msg->rep->rrset_count-1]) <
 		msg->rep->ttl) {
 		msg->rep->ttl = get_rrset_ttl(msg->rep->rrsets[
 			msg->rep->rrset_count-1]);
 		msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
+		msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
 	}
 }
 
@@ -1014,7 +1016,8 @@ rrset_moveover_rrsigs(struct auth_data* node, uint16_t rr_type,
 	}
 	/* copy base values */
 	memcpy(sigd, sigold, sizeof(struct packed_rrset_data));
-	sigd->rrsig_count -= sigs;
+	/* in sigd the RRSIGs are stored in the base of the RR, in count */
+	sigd->count -= sigs;
 	/* setup rr_len */
 	sigd->rr_len = (size_t*)((uint8_t*)sigd +
 		sizeof(struct packed_rrset_data));
@@ -2284,6 +2287,7 @@ az_add_negative_soa(struct auth_zone* z, struct regional* region,
 	d->rr_ttl[0] = (time_t)minimum;
 	msg->rep->ttl = get_rrset_ttl(msg->rep->rrsets[0]);
 	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
+	msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
 	return 1;
 }
 
@@ -3168,8 +3172,8 @@ int auth_zones_lookup(struct auth_zones* az, struct query_info* qinfo,
 /** encode auth answer */
 static void
 auth_answer_encode(struct query_info* qinfo, struct module_env* env,
-	struct edns_data* edns, sldns_buffer* buf, struct regional* temp,
-	struct dns_msg* msg)
+	struct edns_data* edns, struct comm_reply* repinfo, sldns_buffer* buf,
+	struct regional* temp, struct dns_msg* msg)
 {
 	uint16_t udpsize;
 	udpsize = edns->udp_size;
@@ -3179,7 +3183,7 @@ auth_answer_encode(struct query_info* qinfo, struct module_env* env,
 	edns->bits &= EDNS_DO;
 
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, msg->rep,
-		(int)FLAGS_GET_RCODE(msg->rep->flags), edns, temp)
+		(int)FLAGS_GET_RCODE(msg->rep->flags), edns, repinfo, temp)
 		|| !reply_info_answer_encode(qinfo, msg->rep,
 		*(uint16_t*)sldns_buffer_begin(buf),
 		sldns_buffer_read_u16_at(buf, 2),
@@ -3194,8 +3198,8 @@ auth_answer_encode(struct query_info* qinfo, struct module_env* env,
 /** encode auth error answer */
 static void
 auth_error_encode(struct query_info* qinfo, struct module_env* env,
-	struct edns_data* edns, sldns_buffer* buf, struct regional* temp,
-	int rcode)
+	struct edns_data* edns, struct comm_reply* repinfo, sldns_buffer* buf,
+	struct regional* temp, int rcode)
 {
 	edns->edns_version = EDNS_ADVERTISED_VERSION;
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
@@ -3203,7 +3207,7 @@ auth_error_encode(struct query_info* qinfo, struct module_env* env,
 	edns->bits &= EDNS_DO;
 
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, NULL,
-		rcode, edns, temp))
+		rcode, edns, repinfo, temp))
 		edns->opt_list = NULL;
 	error_encode(buf, rcode|BIT_AA, qinfo,
 		*(uint16_t*)sldns_buffer_begin(buf),
@@ -3211,8 +3215,8 @@ auth_error_encode(struct query_info* qinfo, struct module_env* env,
 }
 
 int auth_zones_answer(struct auth_zones* az, struct module_env* env,
-	struct query_info* qinfo, struct edns_data* edns, struct sldns_buffer* buf,
-	struct regional* temp)
+	struct query_info* qinfo, struct edns_data* edns,
+	struct comm_reply* repinfo, struct sldns_buffer* buf, struct regional* temp)
 {
 	struct dns_msg* msg = NULL;
 	struct auth_zone* z;
@@ -3260,9 +3264,9 @@ int auth_zones_answer(struct auth_zones* az, struct module_env* env,
 
 	/* encode answer */
 	if(!r)
-		auth_error_encode(qinfo, env, edns, buf, temp,
+		auth_error_encode(qinfo, env, edns, repinfo, buf, temp,
 			LDNS_RCODE_SERVFAIL);
-	else	auth_answer_encode(qinfo, env, edns, buf, temp, msg);
+	else	auth_answer_encode(qinfo, env, edns, repinfo, buf, temp, msg);
 
 	return 1;
 }
@@ -3467,6 +3471,23 @@ int auth_zones_notify(struct auth_zones* az, struct module_env* env,
 
 	/* process the notify */
 	xfr_process_notify(xfr, env, has_serial, serial, fromhost);
+	return 1;
+}
+
+int auth_zones_startprobesequence(struct auth_zones* az,
+	struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t dclass)
+{
+	struct auth_xfer* xfr;
+	lock_rw_rdlock(&az->lock);
+	xfr = auth_xfer_find(az, nm, nmlen, dclass);
+	if(!xfr) {
+		lock_rw_unlock(&az->lock);
+		return 0;
+	}
+	lock_basic_lock(&xfr->lock);
+	lock_rw_unlock(&az->lock);
+
+	xfr_process_notify(xfr, env, 0, 0, NULL);
 	return 1;
 }
 
@@ -5073,7 +5094,8 @@ xfr_transfer_nexttarget_or_end(struct auth_xfer* xfr, struct module_env* env)
 	xfr_transfer_disown(xfr);
 
 	/* pick up the nextprobe task and wait */
-	xfr_set_timeout(xfr, env, 1, 0);
+	if(xfr->task_nextprobe->worker == NULL)
+		xfr_set_timeout(xfr, env, 1, 0);
 	lock_basic_unlock(&xfr->lock);
 }
 
@@ -5132,7 +5154,8 @@ xfr_master_add_addrs(struct auth_master* m, struct ub_packed_rrset_key* rrset,
 
 /** callback for task_transfer lookup of host name, of A or AAAA */
 void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus))
+	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
+	int ATTR_UNUSED(was_ratelimited))
 {
 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
 	struct module_env* env;
@@ -5530,7 +5553,8 @@ process_list_end_transfer(struct auth_xfer* xfr, struct module_env* env)
 			return;
 		} else {
 			/* pick up the nextprobe task and wait (normail wait time) */
-			xfr_set_timeout(xfr, env, 0, 0);
+			if(xfr->task_nextprobe->worker == NULL)
+				xfr_set_timeout(xfr, env, 0, 0);
 		}
 		lock_basic_unlock(&xfr->lock);
 		return;
@@ -5871,29 +5895,35 @@ auth_xfer_probe_udp_callback(struct comm_point* c, void* arg, int err,
 					return 0;
 
 				}
+				/* other tasks are running, we don't do this anymore */
+				xfr_probe_disown(xfr);
+				lock_basic_unlock(&xfr->lock);
+				/* return, we don't sent a reply to this udp packet,
+				 * and we setup the tasks to do next */
+				return 0;
 			} else {
-				/* if zone not updated, start the wait timer again */
-				verbose(VERB_ALGO, "auth_zone unchanged, new lease, wait");
-				if(xfr->have_zone)
-					xfr->lease_time = *env->now;
-				if(xfr->task_nextprobe->worker == NULL)
-					xfr_set_timeout(xfr, env, 0, 0);
+				verbose(VERB_ALGO, "auth_zone master reports unchanged soa serial");
+				/* we if cannot find updates amongst the
+				 * masters, this means we then have a new lease
+				 * on the zone */
+				xfr->task_probe->have_new_lease = 1;
 			}
-			/* other tasks are running, we don't do this anymore */
-			xfr_probe_disown(xfr);
-			lock_basic_unlock(&xfr->lock);
-			/* return, we don't sent a reply to this udp packet,
-			 * and we setup the tasks to do next */
-			return 0;
+		} else {
+			if(verbosity >= VERB_ALGO) {
+				char buf[256];
+				dname_str(xfr->name, buf);
+				verbose(VERB_ALGO, "auth zone %s: bad reply to soa probe", buf);
+			}
+		}
+	} else {
+		if(verbosity >= VERB_ALGO) {
+			char buf[256];
+			dname_str(xfr->name, buf);
+			verbose(VERB_ALGO, "auth zone %s: soa probe failed", buf);
 		}
 	}
-	if(verbosity >= VERB_ALGO) {
-		char buf[256];
-		dname_str(xfr->name, buf);
-		verbose(VERB_ALGO, "auth zone %s: soa probe failed", buf);
-	}
 	
-	/* failed lookup */
+	/* failed lookup or not an update */
 	/* delete commpoint so a new one is created, with a fresh port nr */
 	comm_point_delete(xfr->task_probe->cp);
 	xfr->task_probe->cp = NULL;
@@ -5996,7 +6026,8 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 		/* only wanted lookups for copy, stop probe and start wait */
 		xfr->task_probe->only_lookup = 0;
 		xfr_probe_disown(xfr);
-		xfr_set_timeout(xfr, env, 0, 0);
+		if(xfr->task_nextprobe->worker == NULL)
+			xfr_set_timeout(xfr, env, 0, 0);
 		lock_basic_unlock(&xfr->lock);
 		return;
 	}
@@ -6012,18 +6043,31 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 		xfr_probe_nextmaster(xfr);
 	}
 
-	/* we failed to send this as well, move to the wait task,
-	 * use the shorter retry timeout */
-	xfr_probe_disown(xfr);
+	/* done with probe sequence, wait */
+	if(xfr->task_probe->have_new_lease) {
+		/* if zone not updated, start the wait timer again */
+		verbose(VERB_ALGO, "auth_zone unchanged, new lease, wait");
+		xfr_probe_disown(xfr);
+		if(xfr->have_zone)
+			xfr->lease_time = *env->now;
+		if(xfr->task_nextprobe->worker == NULL)
+			xfr_set_timeout(xfr, env, 0, 0);
+	} else {
+		/* we failed to send this as well, move to the wait task,
+		 * use the shorter retry timeout */
+		xfr_probe_disown(xfr);
+		/* pick up the nextprobe task and wait */
+		if(xfr->task_nextprobe->worker == NULL)
+			xfr_set_timeout(xfr, env, 1, 0);
+	}
 
-	/* pick up the nextprobe task and wait */
-	xfr_set_timeout(xfr, env, 1, 0);
 	lock_basic_unlock(&xfr->lock);
 }
 
 /** callback for task_probe lookup of host name, of A or AAAA */
 void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus))
+	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
+	int ATTR_UNUSED(was_ratelimited))
 {
 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
 	struct module_env* env;
@@ -6151,6 +6195,8 @@ xfr_start_probe(struct auth_xfer* xfr, struct module_env* env,
 		xfr->task_probe->cp = NULL;
 
 		/* start the task */
+		/* have not seen a new lease yet, this scan */
+		xfr->task_probe->have_new_lease = 0;
 		/* if this was a timeout, no specific first master to scan */
 		/* otherwise, spec is nonNULL the notified master, scan
 		 * first and also transfer first from it */

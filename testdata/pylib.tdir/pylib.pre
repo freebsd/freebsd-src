@@ -8,13 +8,16 @@ PRE="../.."
 . ../common.sh
 # if no python; exit
 if grep "define WITH_PYUNBOUND 1" $PRE/config.h; then
-	echo "have python module"
+	echo "have pyunbound"
 else
-	echo "no python module"
+	echo "no pyunbound"
 	exit 0
 fi
-# get module python local
-cp $PRE/pythonmod/unboundmodule.py .
+
+# Copy the required libraries
+cp $PRE/libunbound/python/unbound.py .
+cp $PRE/.libs/_unbound* .
+cp $PRE/.libs/libunbound* .
 
 get_random_port 2
 UNBOUND_PORT=$RND_PORT
@@ -29,7 +32,7 @@ FWD_PID=$!
 echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
 
 # modify config file
-sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' < pylib.conf > ub.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' < pylib.lookup.conf > ub.lookup.conf
 
 cat .tpkg.var.test
 wait_ldns_testns_up fwd.log

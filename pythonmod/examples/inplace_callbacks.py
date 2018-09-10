@@ -6,18 +6,18 @@
  Copyright (c) 2016, NLnet Labs.
 
  This software is open source.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
- 
+
     * Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
- 
+
     * Redistributions in binary form must reproduce the above copyright notice,
       this list of conditions and the following disclaimer in the documentation
       and/or other materials provided with the distribution.
- 
+
     * Neither the name of the organization nor the names of its
       contributors may be used to endorse or promote products derived from this
       software without specific prior written permission.
@@ -43,6 +43,8 @@
 #       This query returns SERVFAIL as the txt record of bogus.nlnetlabs.nl is
 #       intentionally bogus. The reply will contain an empty EDNS option
 #       with option code 65003.
+#       Unbound will also log the source address(es) of the client(s) that made
+#       the request.
 #       (unbound needs to be validating for this example to work)
 
 # Useful functions:
@@ -70,9 +72,11 @@
 
 
 def inplace_reply_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
-                           region):
-    """Function that will be registered as an inplace callback function.
+                           region, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
     It will be called when answering with a resolved query.
+
     :param qinfo: query_info struct;
     :param qstate: module qstate. It contains the available opt_lists; It
                    SHOULD NOT be altered;
@@ -84,16 +88,25 @@ def inplace_reply_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                          reply. It can be populated with EDNS options;
     :param region: region to allocate temporary data. Needs to be used when we
                    want to append a new option to opt_list_out.
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release. Current parameters:
+        ``repinfo``: Reply information for a communication point (comm_reply).
+                     It is None when the callback happens in the mesh
+                     states(modules).
+
     :return: True on success, False on failure.
+
     """
     log_info("python: called back while replying.")
     return True
 
 
 def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
-                           region):
-    """Function that will be registered as an inplace callback function.
+                           region, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
     It will be called when answering from the cache.
+
     :param qinfo: query_info struct;
     :param qstate: module qstate. None;
     :param rep: reply_info struct;
@@ -105,10 +118,17 @@ def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                          reply. It can be populated with EDNS options;
     :param region: region to allocate temporary data. Needs to be used when we
                    want to append a new option to opt_list_out.
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release. Current parameters:
+        ``repinfo``: Reply information for a communication point (comm_reply).
+                     It is None when the callback happens in the mesh
+                     states(modules).
+
     :return: True on success, False on failure.
 
     For demonstration purposes we want to see if EDNS option 65002 is present
     and reply with a new value.
+
     """
     log_info("python: called back while answering from cache.")
     # Inspect the incoming EDNS options.
@@ -134,9 +154,11 @@ def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
 
 
 def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
-                           region):
-    """Function that will be registered as an inplace callback function.
+                           region, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
     It will be called when answering from local data.
+
     :param qinfo: query_info struct;
     :param qstate: module qstate. None;
     :param rep: reply_info struct;
@@ -148,7 +170,14 @@ def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                          reply. It can be populated with EDNS options;
     :param region: region to allocate temporary data. Needs to be used when we
                    want to append a new option to opt_list_out.
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release. Current parameters:
+        ``repinfo``: Reply information for a communication point (comm_reply).
+                     It is None when the callback happens in the mesh
+                     states(modules).
+
     :return: True on success, False on failure.
+
     """
     log_info("python: called back while replying with local data or chaos"
              " reply.")
@@ -156,9 +185,11 @@ def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
 
 
 def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
-                              region):
-    """Function that will be registered as an inplace callback function.
+                              region, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
     It will be called when answering with SERVFAIL.
+
     :param qinfo: query_info struct;
     :param qstate: module qstate. If not None the relevant opt_lists are
                    available here;
@@ -171,23 +202,62 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                          reply. It can be populated with EDNS options;
     :param region: region to allocate temporary data. Needs to be used when we
                    want to append a new option to opt_list_out.
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release. Current parameters:
+        ``repinfo``: Reply information for a communication point (comm_reply).
+                     It is None when the callback happens in the mesh
+                     states(modules).
+
     :return: True on success, False on failure.
 
-    For demonstration purposes we want to reply with an empty EDNS code '65003'.
+    For demonstration purposes we want to reply with an empty EDNS code '65003'
+    and log the IP address(es) of the client(s).
+
     """
     log_info("python: called back while servfail.")
+    # Append the example ENDS option
     b = bytearray.fromhex("")
     edns_opt_list_append(opt_list_out, 65003, b, region)
+
+    # Log the client(s) IP address(es)
+    comm_reply = kwargs['repinfo']
+    if comm_reply:
+        # If it is not None this callback was called before the query reached
+        # the mesh states(modules). There is only one client associated with
+        # this query.
+        addr = comm_reply.addr
+        port = comm_reply.port
+        addr_family = comm_reply.family
+        log_info("python: Client IP: {}({}), port: {}"
+                 "".format(addr, addr_family, port))
+    else:
+        # If it is not None this callback was called while the query is in the
+        # mesh states(modules). In this case they may be multiple clients
+        # waiting for this query.
+        # The following code is the same as with the resip.py example.
+        rl = qstate.mesh_info.reply_list
+        while (rl):
+            if rl.query_reply:
+                q = rl.query_reply
+                log_info("python: Client IP: {}({}), port: {}"
+                         "".format(q.addr, q.family, q.port))
+            rl = rl.next
+
+
     return True
 
 
 def init_standard(id, env):
-    """New version of the init function.
+    """
+    New version of the init function.
+
     The function's signature is the same as the C counterpart and allows for
     extra functionality during init.
+
     ..note:: This function is preferred by unbound over the old init function.
     ..note:: The previously accessible configuration options can now be found in
              env.cgf.
+
     """
     log_info("python: inited script {}".format(env.cfg.python_script))
 
@@ -215,11 +285,14 @@ def init_standard(id, env):
 
 
 def init(id, cfg):
-    """Previous version init function.
+    """
+    Previous version of the init function.
+
     ..note:: This function is still supported for backwards compatibility when
              the init_standard function is missing. When init_standard is
              present this function SHOULD be omitted to avoid confusion to the
              reader.
+
     """
     return True
 
