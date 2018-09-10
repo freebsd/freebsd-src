@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "May  3, 2018" "NLnet Labs" "unbound 1.7.1"
+.TH "unbound.conf" "5" "Jun 11, 2018" "NLnet Labs" "unbound 1.7.2"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -403,6 +403,8 @@ Enabled or disable whether the upstream queries use TLS only for transport.
 Default is no.  Useful in tunneling scenarios.  The TLS contains plain DNS in
 TCP wireformat.  The other server must support this (see
 \fBtls\-service\-key\fR).
+If you enable this, also configure a tls\-cert\-bundle or use tls\-win\cert to
+load CA certs, otherwise the connections cannot be authenticated.
 .TP
 .B ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
@@ -444,8 +446,14 @@ urls, and also DNS over TLS connections.
 .B ssl\-cert\-bundle: \fI<file>
 Alternate syntax for \fBtls\-cert\-bundle\fR.
 .TP
-.B additional\-tls\-port: \fI<portnr>
-List portnumbers as additional\-tls\-port, and when interfaces are defined,
+.B tls\-win\-cert: \fI<yes or no>
+Add the system certificates to the cert bundle certificates for authentication.
+If no cert bundle, it uses only these certificates.  Default is no.
+On windows this option uses the certificates from the cert store.  Use
+the tls\-cert\-bundle option on other systems.
+.TP
+.B tls\-additional\-ports: \fI<portnr>
+List portnumbers as tls\-additional\-ports, and when interfaces are defined,
 eg. with the @port suffix, as this port number, they provide dns over TLS
 service.  Can list multiple, each on a new statement.
 .TP
@@ -461,7 +469,8 @@ Default is yes.
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a
 classless network block. The action can be \fIdeny\fR, \fIrefuse\fR,
-\fIallow\fR, \fIallow_snoop\fR, \fIdeny_non_local\fR or \fIrefuse_non_local\fR.
+\fIallow\fR, \fIallow_setrd\fR, \fIallow_snoop\fR, \fIdeny_non_local\fR or
+\fIrefuse_non_local\fR.
 The most specific netblock match is used, if none match \fIdeny\fR is used.
 .IP
 The action \fIdeny\fR stops queries from hosts from that netblock.
@@ -479,6 +488,15 @@ the unbound server recursive lookup algorithm, and static data is served
 in the reply.  This supports normal operations where nonrecursive queries
 are made for the authoritative data.  For nonrecursive queries any replies
 from the dynamic cache are refused.
+.IP
+The \fIallow_setrd\fR action ignores the recursion desired (RD) bit and
+treats all requests as if the recursion desired bit is set.  Note that this
+behavior violates RFC 1034 which states that a name server should never perform
+recursive service unless asked via the RD bit since this interferes with
+trouble shooting of name servers and their databases. This prohibited behavior
+may be useful if another DNS server must forward requests for specific
+zones to a resolver DNS server, but only supports stub domains and
+sends queries to the resolver DNS server with the RD bit cleared.
 .IP
 The action \fIallow_snoop\fR gives nonrecursive access too.  This give
 both recursive and non recursive access.  The name \fIallow_snoop\fR refers
@@ -691,7 +709,7 @@ infrastructure data.  Validates the replies if trust anchors are configured
 and the zones are signed.  This enforces DNSSEC validation on nameserver
 NS sets and the nameserver addresses that are encountered on the referral
 path to the answer.
-Default off, because it burdens the authority servers, and it is
+Default no, because it burdens the authority servers, and it is
 not RFC standard, and could lead to performance problems because of the
 extra query load that is generated.  Experimental option.
 If you enable it consider adding more numbers after the target\-fetch\-policy
@@ -722,7 +740,7 @@ Send minimum amount of information to upstream servers to enhance privacy.
 Only sent minimum required labels of the QNAME and set QTYPE to A when
 possible. Best effort approach; full QNAME and original QTYPE will be sent when
 upstream replies with a RCODE other than NOERROR, except when receiving
-NXDOMAIN from a DNSSEC signed zone. Default is off.
+NXDOMAIN from a DNSSEC signed zone. Default is yes.
 .TP
 .B qname\-minimisation\-strict: \fI<yes or no>
 QNAME minimisation in strict mode. Do not fall-back to sending full QNAME to
@@ -1315,10 +1333,10 @@ factor given.
 .TP 5
 .B low\-rtt: \fI<msec time>
 Set the time in millisecond that is considere a low ping time for fast
-server selection with the low\-rtt\-pct option, that turns this on or off.
+server selection with the low\-rtt\-permil option, that turns this on or off.
 The default is 45 msec, a number from IPv6 quick response documents.
 .TP 5
-.B low\-rtt\-pct: \fI<number>
+.B low\-rtt\-permil: \fI<number>
 Specify how many times out of 1000 to pick the fast server from the low
 rtt band.  0 turns the feature off.  A value of 900 would pick the fast
 server when such fast servers are available 90 percent of the time, and
@@ -1328,7 +1346,7 @@ sped up, because there is no one waiting for it, and it presents a good
 moment to perform server exploration.  The low\-rtt option can be used
 to specify which servers are picked for fast server selection, servers
 with a ping roundtrip time below that value are considered.
-The default for low\-rtt\-pct is 0.
+The default for low\-rtt\-permil is 0.
 .SS "Remote Control Options"
 In the
 .B remote\-control:
@@ -1429,7 +1447,7 @@ IP address of stub zone nameserver. Can be IP 4 or IP 6.
 To use a nondefault port for DNS communication append '@' with the port number.
 .TP
 .B stub\-prime: \fI<yes or no>
-This option is by default off.  If enabled it performs NS set priming,
+This option is by default no.  If enabled it performs NS set priming,
 which is similar to root hints, where it starts using the list of nameservers
 currently published by the zone.  Thus, if the hint list is slightly outdated,
 the resolver picks up a correct list online.
@@ -1490,6 +1508,8 @@ The default is no.
 .B forward\-tls\-upstream: \fI<yes or no>
 Enabled or disable whether the queries to this forwarder use TLS for transport.
 Default is no.
+If you enable this, also configure a tls\-cert\-bundle or use tls\-win\cert to
+load CA certs, otherwise the connections cannot be authenticated.
 .TP
 .B forward\-ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBforward\-tls\-upstream\fR.
@@ -1827,7 +1847,7 @@ If Unbound was built with
 on a system that has installed the hiredis C client library of Redis,
 then the "redis" backend can be used.
 This backend communicates with the specified Redis server over a TCP
-connection to store and retrive cache data.
+connection to store and retrieve cache data.
 It can be used as a persistent and/or shared cache backend.
 It should be noted that Unbound never removes data stored in the Redis server,
 even if some data have expired in terms of DNS TTL or the Redis server has

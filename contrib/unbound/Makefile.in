@@ -327,7 +327,7 @@ unbound-control$(EXEEXT):	$(CONTROL_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(CONTROL_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
 
 unbound-host$(EXEEXT):	$(HOST_OBJ_LINK) libunbound.la
-	$(LINK) -o $@ $(HOST_OBJ_LINK) -L. -L.libs -lunbound $(LIBS)
+	$(LINK) -o $@ $(HOST_OBJ_LINK) -L. -L.libs -lunbound $(SSLLIB) $(LIBS)
 
 unbound-anchor$(EXEEXT):	$(UBANCHOR_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(UBANCHOR_OBJ_LINK) -L. -L.libs -lunbound -lexpat $(SSLLIB) $(LIBS)
@@ -360,7 +360,7 @@ memstats$(EXEEXT):	$(MEMSTATS_OBJ_LINK)
 	$(LINK) -o $@ $(MEMSTATS_OBJ_LINK) $(SSLLIB) $(LIBS)
 
 asynclook$(EXEEXT):	$(ASYNCLOOK_OBJ_LINK) libunbound.la
-	$(LINK) -o $@ $(ASYNCLOOK_OBJ_LINK) $(LIBS) -L. -L.libs -lunbound
+	$(LINK) -o $@ $(ASYNCLOOK_OBJ_LINK) -L. -L.libs -lunbound $(SSLLIB) $(LIBS)
 
 streamtcp$(EXEEXT):	$(STREAMTCP_OBJ_LINK)
 	$(LINK) -o $@ $(STREAMTCP_OBJ_LINK) $(SSLLIB) $(LIBS)
@@ -1463,7 +1463,7 @@ win_svc.lo win_svc.o: $(srcdir)/winrc/win_svc.c config.h $(srcdir)/winrc/win_svc
  $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/daemon/stats.h \
  $(srcdir)/util/timehist.h $(srcdir)/libunbound/unbound.h $(srcdir)/util/module.h $(srcdir)/dnstap/dnstap.h \
  $(srcdir)/daemon/remote.h \
- $(srcdir)/util/config_file.h $(srcdir)/util/ub_event.h
+ $(srcdir)/util/config_file.h $(srcdir)/util/ub_event.h $(srcdir)/util/net_help.h
 w_inst.lo w_inst.o: $(srcdir)/winrc/w_inst.c config.h $(srcdir)/winrc/w_inst.h $(srcdir)/winrc/win_svc.h
 unbound-service-install.lo unbound-service-install.o: $(srcdir)/winrc/unbound-service-install.c config.h \
  $(srcdir)/winrc/w_inst.h

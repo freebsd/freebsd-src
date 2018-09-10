@@ -102,8 +102,10 @@ struct config_file {
 	int ssl_upstream;
 	/** cert bundle for outgoing connections */
 	char* tls_cert_bundle;
+	/** should the system certificate store get added to the cert bundle */
+	int tls_win_cert;
 	/** additional tls ports */
-	struct config_strlist* additional_tls_port;
+	struct config_strlist* tls_additional_ports;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -144,7 +146,7 @@ struct config_file {
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
 	/** percent*10, how many times in 1000 to pick low rtt destinations */
-	int low_rtt_pct;
+	int low_rtt_permil;
 	/** what time in msec is a low rtt destination */
 	int low_rtt;
 

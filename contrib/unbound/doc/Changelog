@@ -1,8 +1,80 @@
+4 June 2018: Wouter
+	- Fix deadlock caused by incoming notify for auth-zone.
+	- tag for 1.7.2rc1
+
+1 June 2018: Wouter
+	- Rename additional-tls-port to tls-additional-ports.
+	  The older name is accepted for backwards compatibility.
+
+30 May 2018: Wouter
+	- Patch from Syzdek: Add ability to ignore RD bit and treat all
+	  requests as if the RD bit is set.
+
+29 May 2018: Wouter
+	- in compat/arc4random call getentropy_urandom when getentropy fails
+	  with ENOSYS.
+	- Fix that fallback for windows port.
+
+28 May 2018: Wouter
+	- Fix windows tcp and tls spin on events.
+	- Add routine from getdns to add windows cert store to the SSL_CTX.
+	- tls-win-cert option that adds the system certificate store for
+	  authenticating DNS-over-TLS connections.  It can be used instead
+	  of the tls-cert-bundle option, or with it to add certificates.
+
+25 May 2018: Wouter
+	- For TCP and TLS connections that don't establish, perform address
+	  update in infra cache, so future selections can exclude them.
+	- Fix that tcp sticky events are removed for closed fd on windows.
+	- Fix close events for tcp only.
+
+24 May 2018: Wouter
+	- Fix that libunbound can do DNS-over-TLS, when configured.
+	- Fix that windows unbound service can use DNS-over-TLS.
+	- unbound-host initializes ssl (for potential DNS-over-TLS usage
+	  inside libunbound), when ssl upstream or a cert-bundle is configured.
+
+23 May 2018: Wouter
+	- Use accept4 to speed up incoming TCP (and TLS) connections,
+	  available on Linux, FreeBSD and OpenBSD.
+
+17 May 2018: Ralph
+	- Qname minimisation default changed to yes.
+
+15 May 2018: Wouter
+	- Fix low-rtt-pct to low-rtt-permil, as it is parts in one thousand.
+
+11 May 2018: Wouter
+	- Fix contrib/libunbound.pc for libssl libcrypto references,
+	  from https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=226914
+
+7 May 2018: Wouter
+	- Fix windows to not have sticky TLS events for TCP.
+	- Fix read of DNS over TLS length and data in one read call.
+	- Fix mesh state assertion failure due to callback removal.
+
+3 May 2018: Wouter
+	- Fix that configure --with-libhiredis also turns on cachedb.
+	- Fix gcc 8 buffer warning in testcode.
+	- Fix function type cast warning in libunbound context callback type.
+
+2 May 2018: Wouter
+	- Fix fail to reject dead peers in forward-zone, with ssl-upstream.
+
+1 May 2018: Wouter
+	- Fix that unbound-control reload frees the rrset keys and returns
+	  the memory pages to the system.
+
+30 April 2018: Wouter
+	- Fix spelling error in man page and note defaults as no instead of
+	  off.
+
 26 April 2018: Wouter
 	- Fix for crash in daemon_cleanup with dnstap during reload,
 	  from Saksham Manchanda.
 	- Also that for dnscrypt.
-	- tag for 1.7.1rc1 release.
+	- tag for 1.7.1rc1 release.  Became 1.7.1 release on 3 May, trunk
+	  is from here 1.7.2 in development.
 
 25 April 2018: Ralph
 	- Fix memory leak when caching wildcard records for aggressive NSEC use
