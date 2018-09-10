@@ -4,6 +4,7 @@ server:
 	trust-anchor: "testzone.nlnetlabs.nl.	IN	DS	2926 8 2 6f8512d1e82eecbd684fc4a76f39f8c5b411af385494873bdead663ddb78a88b"
 	val-override-date: "20180213111425"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	trust-anchor-signaling: no
 	aggressive-nsec: yes
 	domain-insecure: "ant.testzone.nlnetlabs.nl"

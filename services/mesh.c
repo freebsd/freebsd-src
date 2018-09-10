@@ -1173,6 +1173,10 @@ void mesh_query_done(struct mesh_state* mstate)
 	while((c = mstate->cb_list) != NULL) {
 		/* take this cb off the list; so that the list can be
 		 * changed, eg. by adds from the callback routine */
+		if(!mstate->reply_list && mstate->cb_list && !c->next) {
+			/* was a reply state, not anymore */
+			mstate->s.env->mesh->num_reply_states--;
+		}
 		mstate->cb_list = c->next;
 		if(!mstate->reply_list && !mstate->cb_list &&
 			mstate->super_set.count == 0)

@@ -7,6 +7,7 @@ server:
 	msg-cache-size: 8
 	rrset-cache-size: 8
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

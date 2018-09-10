@@ -156,8 +156,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_CACHEDB_REDISHOST VAR_CACHEDB_REDISPORT VAR_CACHEDB_REDISTIMEOUT
 %token VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM VAR_FOR_UPSTREAM
 %token VAR_AUTH_ZONE VAR_ZONEFILE VAR_MASTER VAR_URL VAR_FOR_DOWNSTREAM
-%token VAR_FALLBACK_ENABLED VAR_ADDITIONAL_TLS_PORT VAR_LOW_RTT VAR_LOW_RTT_PCT
-%token VAR_ALLOW_NOTIFY
+%token VAR_FALLBACK_ENABLED VAR_TLS_ADDITIONAL_PORTS VAR_LOW_RTT VAR_LOW_RTT_PERMIL
+%token VAR_ALLOW_NOTIFY VAR_TLS_WIN_CERT
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -248,8 +248,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ipsecmod_ignore_bogus | server_ipsecmod_max_ttl |
 	server_ipsecmod_whitelist | server_ipsecmod_strict |
 	server_udp_upstream_without_downstream | server_aggressive_nsec |
-	server_tls_cert_bundle | server_additional_tls_port | server_low_rtt |
-	server_low_rtt_pct
+	server_tls_cert_bundle | server_tls_additional_ports | server_low_rtt |
+	server_low_rtt_permil | server_tls_win_cert
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -688,10 +688,19 @@ server_tls_cert_bundle: VAR_TLS_CERT_BUNDLE STRING_ARG
 		cfg_parser->cfg->tls_cert_bundle = $2;
 	}
 	;
-server_additional_tls_port: VAR_ADDITIONAL_TLS_PORT STRING_ARG
+server_tls_win_cert: VAR_TLS_WIN_CERT STRING_ARG
 	{
-		OUTYY(("P(server_additional_tls_port:%s)\n", $2));
-		if(!cfg_strlist_insert(&cfg_parser->cfg->additional_tls_port,
+		OUTYY(("P(server_tls_win_cert:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->tls_win_cert = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_tls_additional_ports: VAR_TLS_ADDITIONAL_PORTS STRING_ARG
+	{
+		OUTYY(("P(server_tls_additional_ports:%s)\n", $2));
+		if(!cfg_strlist_insert(&cfg_parser->cfg->tls_additional_ports,
 			$2))
 			yyerror("out of memory");
 	}
@@ -1305,11 +1314,12 @@ server_access_control: VAR_ACCESS_CONTROL STRING_ARG STRING_ARG
 		if(strcmp($3, "deny")!=0 && strcmp($3, "refuse")!=0 &&
 			strcmp($3, "deny_non_local")!=0 &&
 			strcmp($3, "refuse_non_local")!=0 &&
+			strcmp($3, "allow_setrd")!=0 && 
 			strcmp($3, "allow")!=0 && 
 			strcmp($3, "allow_snoop")!=0) {
 			yyerror("expected deny, refuse, deny_non_local, "
-				"refuse_non_local, allow or allow_snoop "
-				"in access control action");
+				"refuse_non_local, allow, allow_setrd or "
+				"allow_snoop in access control action");
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->acls, $2, $3))
 				fatal_exit("out of memory adding acl");
@@ -1885,12 +1895,12 @@ server_low_rtt: VAR_LOW_RTT STRING_ARG
 		free($2);
 	}
 	;
-server_low_rtt_pct: VAR_LOW_RTT_PCT STRING_ARG 
+server_low_rtt_permil: VAR_LOW_RTT_PERMIL STRING_ARG 
 	{ 
-		OUTYY(("P(server_low_rtt_pct:%s)\n", $2)); 
+		OUTYY(("P(server_low_rtt_permil:%s)\n", $2)); 
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
-		else cfg_parser->cfg->low_rtt_pct = atoi($2);
+		else cfg_parser->cfg->low_rtt_permil = atoi($2);
 		free($2);
 	}
 	;

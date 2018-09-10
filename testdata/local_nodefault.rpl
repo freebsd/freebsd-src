@@ -2,6 +2,7 @@
 ; The island of trust is at example.com
 server:
 	local-zone: "10.in-addr.arpa" nodefault
+	qname-minimisation: "no"
 
 stub-zone:
 	name: "."

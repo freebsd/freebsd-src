@@ -905,6 +905,9 @@ main(int argc, char* argv[])
 #ifdef CLIENT_SUBNET
 	ecs_test();
 #endif /* CLIENT_SUBNET */
+	if(log_get_lock()) {
+		lock_quick_destroy((lock_quick_type*)log_get_lock());
+	}
 	checklock_stop();
 	printf("%d checks ok.\n", testcount);
 #ifdef HAVE_SSL

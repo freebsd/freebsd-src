@@ -2,6 +2,7 @@
 server:
 	harden-referral-path: no
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 
 stub-zone:
         name: "."

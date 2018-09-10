@@ -177,7 +177,8 @@ spool_temp_file(FILE* in, int* lineno, char* id)
 		while(isspace((unsigned char)*parse))
 			parse++;
 		if(strncmp(parse, "$INCLUDE_TEMPFILE", 17) == 0) {
-			char l2[MAX_LINE_LEN];
+			char l2[MAX_LINE_LEN-30]; /* -30 makes it fit with
+				a preceding $INCLUDE in the buf line[] */
 			char* tid = parse+17;
 			while(isspace((unsigned char)*tid))
 				tid++;

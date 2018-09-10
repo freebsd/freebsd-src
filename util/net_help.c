@@ -52,6 +52,9 @@
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
 #endif
+#ifdef USE_WINSOCK
+#include <wincrypt.h>
+#endif
 
 /** max length of an IP address (the address portion) that we allow */
 #define MAX_ADDR_STRLEN 128 /* characters */
@@ -796,7 +799,97 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 #endif
 }
 
-void* connect_sslctx_create(char* key, char* pem, char* verifypem)
+#ifdef USE_WINSOCK
+/* For windows, the CA trust store is not read by openssl.
+   Add code to open the trust store using wincrypt API and add
+   the root certs into openssl trust store */
+static int
+add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
+{
+	HCERTSTORE      hSystemStore;
+	PCCERT_CONTEXT  pTargetCert = NULL;
+	X509_STORE*	store;
+
+	verbose(VERB_ALGO, "Adding Windows certificates from system root store to CA store");
+
+	/* load just once per context lifetime for this version
+	   TODO: dynamically update CA trust changes as they are available */
+	if (!tls_ctx)
+		return 0;
+
+	/* Call wincrypt's CertOpenStore to open the CA root store. */
+
+	if ((hSystemStore = CertOpenStore(
+		CERT_STORE_PROV_SYSTEM,
+		0,
+		0,
+		/* NOTE: mingw does not have this const: replace with 1 << 16 from code 
+		   CERT_SYSTEM_STORE_CURRENT_USER, */
+		1 << 16,
+		L"root")) == 0)
+	{
+		return 0;
+	}
+
+	store = SSL_CTX_get_cert_store(tls_ctx);
+	if (!store)
+		return 0;
+
+	/* failure if the CA store is empty or the call fails */
+	if ((pTargetCert = CertEnumCertificatesInStore(
+		hSystemStore, pTargetCert)) == 0) {
+		verbose(VERB_ALGO, "CA certificate store for Windows is empty.");
+		return 0;
+	}
+	/* iterate over the windows cert store and add to openssl store */
+	do
+	{
+		X509 *cert1 = d2i_X509(NULL,
+			(const unsigned char **)&pTargetCert->pbCertEncoded,
+			pTargetCert->cbCertEncoded);
+		if (!cert1) {
+			/* return error if a cert fails */
+			verbose(VERB_ALGO, "%s %d:%s",
+				"Unable to parse certificate in memory",
+				(int)ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+			return 0;
+		}
+		else {
+			/* return error if a cert add to store fails */
+			if (X509_STORE_add_cert(store, cert1) == 0) {
+				unsigned long error = ERR_peek_last_error();
+
+				/* Ignore error X509_R_CERT_ALREADY_IN_HASH_TABLE which means the
+				* certificate is already in the store.  */
+				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
+				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+					verbose(VERB_ALGO, "%s %d:%s\n",
+					    "Error adding certificate", (int)ERR_get_error(),
+					     ERR_error_string(ERR_get_error(), NULL));
+					X509_free(cert1);
+					return 0;
+				}
+			}
+			X509_free(cert1);
+		}
+	} while ((pTargetCert = CertEnumCertificatesInStore(
+		hSystemStore, pTargetCert)) != 0);
+
+	/* Clean up memory and quit. */
+	if (pTargetCert)
+		CertFreeCertificateContext(pTargetCert);
+	if (hSystemStore)
+	{
+		if (!CertCloseStore(
+			hSystemStore, 0))
+			return 0;
+	}
+	verbose(VERB_ALGO, "Completed adding Windows certificates to CA store successfully");
+	return 1;
+}
+#endif /* USE_WINSOCK */
+
+void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 {
 #ifdef HAVE_SSL
 	SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
@@ -836,17 +929,30 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem)
 			return NULL;
 		}
 	}
-	if(verifypem && verifypem[0]) {
-		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
-			log_crypto_err("error in SSL_CTX verify");
-			SSL_CTX_free(ctx);
-			return NULL;
+	if((verifypem && verifypem[0]) || wincert) {
+		if(verifypem && verifypem[0]) {
+			if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
+				log_crypto_err("error in SSL_CTX verify");
+				SSL_CTX_free(ctx);
+				return NULL;
+			}
 		}
+#ifdef USE_WINSOCK
+		if(wincert) {
+			if(!add_WIN_cacerts_to_openssl_store(ctx)) {
+				log_crypto_err("error in add_WIN_cacerts_to_openssl_store");
+				SSL_CTX_free(ctx);
+				return NULL;
+			}
+		}
+#else
+		(void)wincert;
+#endif
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 	}
 	return ctx;
 #else
-	(void)key; (void)pem; (void)verifypem;
+	(void)key; (void)pem; (void)verifypem; (void)wincert;
 	return NULL;
 #endif
 }

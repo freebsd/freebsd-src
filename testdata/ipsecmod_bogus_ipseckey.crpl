@@ -6,6 +6,7 @@ server:
 	trust-anchor: "example.com.    IN      DS      48069 8 2 fce2bcb0d88b828064faad58e935ca2e32ff0bbd8bd8407a8f344d8f8e8c438a"
 	val-override-date: "-1"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	# test that default value of harden-dnssec-stripped is still yes.
 	fake-sha1: yes
 	trust-anchor-signaling: no

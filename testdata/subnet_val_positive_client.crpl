@@ -10,6 +10,7 @@ server:
 	max-client-subnet-ipv4: 17
 	module-config: "subnetcache validator iterator"
 	verbosity: 3
+	qname-minimisation: "no"
 
 stub-zone:
 	name: "."

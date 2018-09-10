@@ -5,6 +5,7 @@ server:
 	val-override-date: "20070916134226"
 	val-nsec3-keysize-iterations: "1024 100 2048 200 4096 500"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 

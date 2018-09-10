@@ -2,6 +2,7 @@
 ; fetch all extra targets - we want to trigger a lookup in cache
 server:
 	target-fetch-policy: "-1 -1 -1 -1 -1"
+	qname-minimisation: "no"
 	access-control: 127.0.0.1 allow_snoop
 
 stub-zone:

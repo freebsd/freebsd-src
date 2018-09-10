@@ -284,7 +284,7 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
 	SSL* ssl = NULL;
 	if(!buf) fatal_exit("out of memory");
 	if(usessl) {
-		ctx = connect_sslctx_create(NULL, NULL, NULL);
+		ctx = connect_sslctx_create(NULL, NULL, NULL, 0);
 		if(!ctx) fatal_exit("cannot create ssl ctx");
 		ssl = outgoing_ssl_fd(ctx, fd);
 		if(!ssl) fatal_exit("cannot create ssl");

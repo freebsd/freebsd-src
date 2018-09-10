@@ -4,6 +4,7 @@ server:
 	trust-anchor: "example.com.    IN      DNSKEY  257 3 8 AwEAAdL6YJdvoKQJEt/SgB6MrbQ2RDwnrcQQb6bDE8FpGgLen6hvF31ntVsZ3RZzhCmwL6lvumOLFIRKaP9ZBEVutT9iMoF2dNRbT0TCUrv6uQNHcuCZ0BJhuDNBU42f3yOnfFv7PKxd0NP+yFHJkvDQAVLMB5GeUQuYnvgQGeZsf/3b"
 	val-override-date: "-1"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
 
