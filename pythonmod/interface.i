@@ -1365,11 +1365,12 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
     int python_inplace_cb_reply_generic(struct query_info* qinfo,
         struct module_qstate* qstate, struct reply_info* rep, int rcode,
         struct edns_data* edns, struct edns_option** opt_list_out,
-        struct regional* region, int id, void* python_callback)
+        struct comm_reply* repinfo, struct regional* region, int id,
+        void* python_callback)
     {
         PyObject *func, *py_edns, *py_qstate, *py_opt_list_out, *py_qinfo;
-        PyObject *py_rep, *py_region;
-        PyObject *result;
+        PyObject *py_rep, *py_repinfo, *py_region;
+        PyObject *py_args, *py_kwargs, *result;
         int res = 0;
 
         PyGILState_STATE gstate = PyGILState_Ensure();
@@ -1381,15 +1382,21 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
             SWIGTYPE_p_p_edns_option, 0);
         py_qinfo = SWIG_NewPointerObj((void*) qinfo, SWIGTYPE_p_query_info, 0);
         py_rep = SWIG_NewPointerObj((void*) rep, SWIGTYPE_p_reply_info, 0);
+        py_repinfo = SWIG_NewPointerObj((void*) repinfo, SWIGTYPE_p_comm_reply, 0);
         py_region = SWIG_NewPointerObj((void*) region, SWIGTYPE_p_regional, 0);
-        result = PyObject_CallFunction(func, "OOOiOOO", py_qinfo, py_qstate,
-            py_rep, rcode, py_edns, py_opt_list_out, py_region);
+        py_args = Py_BuildValue("(OOOiOOO)", py_qinfo, py_qstate, py_rep,
+            rcode, py_edns, py_opt_list_out, py_region);
+        py_kwargs = Py_BuildValue("{s:O}", "repinfo", py_repinfo);
+        result = PyObject_Call(func, py_args, py_kwargs);
         Py_XDECREF(py_edns);
         Py_XDECREF(py_qstate);
         Py_XDECREF(py_opt_list_out);
         Py_XDECREF(py_qinfo);
         Py_XDECREF(py_rep);
+        Py_XDECREF(py_repinfo);
         Py_XDECREF(py_region);
+        Py_XDECREF(py_args);
+        Py_XDECREF(py_kwargs);
         if (result) {
             res = PyInt_AsLong(result);
         }

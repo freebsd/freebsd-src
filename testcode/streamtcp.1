@@ -12,6 +12,8 @@
 .RB [ \-unsh ]
 .RB [ \-f 
 .IR ipaddr[@port] ]
+.RB [ \-d
+.IR secs ]
 .I name
 .I type
 .I class
@@ -50,6 +52,10 @@ Print program usage.
 .TP
 .B \-f \fIipaddr[@port]
 Specify the server to send the queries to. If not specified localhost (127.0.0.1) is used.
+.TP
+.B \-d \fIsecs
+Delay after the connection before sending query.  This tests the timeout
+on the other side, eg. if shorter the connection is closed.
 .SH "EXAMPLES"
 .LP
 Some examples of use.

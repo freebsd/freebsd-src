@@ -3,6 +3,7 @@ server:
 	access-control: 127.0.0.1 allow_snoop
 	cache-min-ttl: 10
 	qname-minimisation: "no"
+	minimal-responses: no
 
 stub-zone:
 	name: "."

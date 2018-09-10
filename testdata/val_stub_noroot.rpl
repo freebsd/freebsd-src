@@ -7,6 +7,7 @@ server:
 	dlv-anchor: "dlv.isc.org. IN DNSKEY 257 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	minimal-responses: no
 
 stub-zone:
 	name: "."

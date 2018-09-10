@@ -104,6 +104,9 @@ config_create(void)
 	cfg->udp_upstream_without_downstream = 0;
 	cfg->tcp_mss = 0;
 	cfg->outgoing_tcp_mss = 0;
+	cfg->tcp_idle_timeout = 30 * 1000; /* 30s in millisecs */
+	cfg->do_tcp_keepalive = 0;
+	cfg->tcp_keepalive_timeout = 120 * 1000; /* 120s in millisecs */
 	cfg->ssl_service_key = NULL;
 	cfg->ssl_service_pem = NULL;
 	cfg->ssl_port = UNBOUND_DNS_OVER_TLS_PORT;
@@ -115,6 +118,8 @@ config_create(void)
 	cfg->log_time_ascii = 0;
 	cfg->log_queries = 0;
 	cfg->log_replies = 0;
+	cfg->log_local_actions = 0;
+	cfg->log_servfail = 0;
 #ifndef USE_WINSOCK
 #  ifdef USE_MINI_EVENT
 	/* select max 1024 sockets */
@@ -172,7 +177,7 @@ config_create(void)
 	cfg->if_automatic = 0;
 	cfg->so_rcvbuf = 0;
 	cfg->so_sndbuf = 0;
-	cfg->so_reuseport = 0;
+	cfg->so_reuseport = 1;
 	cfg->ip_transparent = 0;
 	cfg->ip_freebind = 0;
 	cfg->num_ifs = 0;
@@ -192,11 +197,12 @@ config_create(void)
 #endif
 	cfg->views = NULL;
 	cfg->acls = NULL;
+	cfg->tcp_connection_limits = NULL;
 	cfg->harden_short_bufsize = 0;
 	cfg->harden_large_queries = 0;
 	cfg->harden_glue = 1;
 	cfg->harden_dnssec_stripped = 1;
-	cfg->harden_below_nxdomain = 0;
+	cfg->harden_below_nxdomain = 1;
 	cfg->harden_referral_path = 0;
 	cfg->harden_algo_downgrade = 0;
 	cfg->use_caps_bits_for_id = 0;
@@ -228,6 +234,8 @@ config_create(void)
 	cfg->aggressive_nsec = 0;
 	cfg->ignore_cd = 0;
 	cfg->serve_expired = 0;
+	cfg->serve_expired_ttl = 0;
+	cfg->serve_expired_ttl_reset = 0;
 	cfg->add_holddown = 30*24*3600;
 	cfg->del_holddown = 30*24*3600;
 	cfg->keep_missing = 366*24*3600; /* one year plus a little leeway */
@@ -248,7 +256,7 @@ config_create(void)
 	cfg->control_ifs.last = NULL;
 	cfg->control_port = UNBOUND_CONTROL_PORT;
 	cfg->control_use_cert = 1;
-	cfg->minimal_responses = 0;
+	cfg->minimal_responses = 1;
 	cfg->rrset_roundrobin = 0;
 	cfg->max_udp_size = 4096;
 	if(!(cfg->server_key_file = strdup(RUN_DIR"/unbound_server.key"))) 
@@ -338,6 +346,7 @@ struct config_file* config_create_forlib(void)
 		forward nameserver running on localhost */
 	cfg->val_log_level = 2; /* to fill why_bogus with */
 	cfg->val_log_squelch = 1;
+	cfg->minimal_responses = 0;
 	return cfg;
 }
 
@@ -455,6 +464,9 @@ int config_set_option(struct config_file* cfg, const char* opt,
 		udp_upstream_without_downstream)
 	else S_NUMBER_NONZERO("tcp-mss:", tcp_mss)
 	else S_NUMBER_NONZERO("outgoing-tcp-mss:", outgoing_tcp_mss)
+	else S_NUMBER_NONZERO("tcp-idle-timeout:", tcp_idle_timeout)
+	else S_YNO("edns-tcp-keepalive:", do_tcp_keepalive)
+	else S_NUMBER_NONZERO("edns-tcp-keepalive-timeout:", tcp_keepalive_timeout)
 	else S_YNO("ssl-upstream:", ssl_upstream)
 	else S_STR("ssl-service-key:", ssl_service_key)
 	else S_STR("ssl-service-pem:", ssl_service_pem)
@@ -540,10 +552,15 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("val-log-squelch:", val_log_squelch)
 	else S_YNO("log-queries:", log_queries)
 	else S_YNO("log-replies:", log_replies)
+	else S_YNO("log-local-actions:", log_local_actions)
+	else S_YNO("log-servfail:", log_servfail)
 	else S_YNO("val-permissive-mode:", val_permissive_mode)
 	else S_YNO("aggressive-nsec:", aggressive_nsec)
 	else S_YNO("ignore-cd-flag:", ignore_cd)
 	else S_YNO("serve-expired:", serve_expired)
+	else if(strcmp(opt, "serve_expired_ttl:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->serve_expired_ttl = atoi(val); SERVE_EXPIRED_TTL=(time_t)cfg->serve_expired_ttl;}
+	else S_YNO("serve-expired-ttl-reset:", serve_expired_ttl_reset)
 	else S_STR("val-nsec3-keysize-iterations:", val_nsec3_key_iterations)
 	else S_UNSIGNED_OR_ZERO("add-holddown:", add_holddown)
 	else S_UNSIGNED_OR_ZERO("del-holddown:", del_holddown)
@@ -878,6 +895,9 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "udp-upstream-without-downstream", udp_upstream_without_downstream)
 	else O_DEC(opt, "tcp-mss", tcp_mss)
 	else O_DEC(opt, "outgoing-tcp-mss", outgoing_tcp_mss)
+	else O_DEC(opt, "tcp-idle-timeout", tcp_idle_timeout)
+	else O_YNO(opt, "edns-tcp-keepalive", do_tcp_keepalive)
+	else O_DEC(opt, "edns-tcp-keepalive-timeout", tcp_keepalive_timeout)
 	else O_YNO(opt, "ssl-upstream", ssl_upstream)
 	else O_STR(opt, "ssl-service-key", ssl_service_key)
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
@@ -893,6 +913,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "logfile", logfile)
 	else O_YNO(opt, "log-queries", log_queries)
 	else O_YNO(opt, "log-replies", log_replies)
+	else O_YNO(opt, "log-local-actions", log_local_actions)
+	else O_YNO(opt, "log-servfail", log_servfail)
 	else O_STR(opt, "pidfile", pidfile)
 	else O_YNO(opt, "hide-identity", hide_identity)
 	else O_YNO(opt, "hide-version", hide_version)
@@ -920,6 +942,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "aggressive-nsec", aggressive_nsec)
 	else O_YNO(opt, "ignore-cd-flag", ignore_cd)
 	else O_YNO(opt, "serve-expired", serve_expired)
+	else O_DEC(opt, "serve-expired-ttl", serve_expired_ttl)
+	else O_YNO(opt, "serve-expired-ttl-reset", serve_expired_ttl_reset)
 	else O_STR(opt, "val-nsec3-keysize-iterations",val_nsec3_key_iterations)
 	else O_UNS(opt, "add-holddown", add_holddown)
 	else O_UNS(opt, "del-holddown", del_holddown)
@@ -936,6 +960,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "control-cert-file", control_cert_file)
 	else O_LST(opt, "root-hints", root_hints)
 	else O_LS2(opt, "access-control", acls)
+	else O_LS2(opt, "tcp-connection-limit", tcp_connection_limits)
 	else O_LST(opt, "do-not-query-address", donotqueryaddrs)
 	else O_LST(opt, "private-address", private_address)
 	else O_LST(opt, "private-domain", private_domain)
@@ -1338,6 +1363,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->dlv_anchor_file);
 	config_delstrlist(cfg->dlv_anchor_list);
 	config_deldblstrlist(cfg->acls);
+	config_deldblstrlist(cfg->tcp_connection_limits);
 	free(cfg->val_nsec3_key_iterations);
 	config_deldblstrlist(cfg->local_zones);
 	config_delstrlist(cfg->local_zones_nodefault);
@@ -1355,6 +1381,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->control_key_file);
 	free(cfg->control_cert_file);
 	free(cfg->dns64_prefix);
+	config_delstrlist(cfg->dns64_ignore_aaaa);
 	free(cfg->dnstap_socket_path);
 	free(cfg->dnstap_identity);
 	free(cfg->dnstap_version);
@@ -1840,6 +1867,7 @@ config_apply(struct config_file* config)
 {
 	MAX_TTL = (time_t)config->max_ttl;
 	MIN_TTL = (time_t)config->min_ttl;
+	SERVE_EXPIRED_TTL = (time_t)config->serve_expired_ttl;
 	MAX_NEG_TTL = (time_t)config->max_negative_ttl;
 	RTT_MIN_TIMEOUT = config->infra_cache_min_rtt;
 	EDNS_ADVERTISED_SIZE = (uint16_t)config->edns_buffer_size;
@@ -2178,7 +2206,7 @@ void w_config_adjust_directory(struct config_file* cfg)
 void errinf(struct module_qstate* qstate, const char* str)
 {
 	struct config_strlist* p;
-	if(qstate->env->cfg->val_log_level < 2 || !str)
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str)
 		return;
 	p = (struct config_strlist*)regional_alloc(qstate->region, sizeof(*p));
 	if(!p) {
@@ -2203,7 +2231,7 @@ void errinf(struct module_qstate* qstate, const char* str)
 void errinf_origin(struct module_qstate* qstate, struct sock_list *origin)
 {
 	struct sock_list* p;
-	if(qstate->env->cfg->val_log_level < 2)
+	if(qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail)
 		return;
 	for(p=origin; p; p=p->next) {
 		char buf[256];
@@ -2220,7 +2248,7 @@ void errinf_origin(struct module_qstate* qstate, struct sock_list *origin)
 	}
 }
 
-char* errinf_to_str(struct module_qstate* qstate)
+char* errinf_to_str_bogus(struct module_qstate* qstate)
 {
 	char buf[20480];
 	char* p = buf;
@@ -2245,12 +2273,37 @@ char* errinf_to_str(struct module_qstate* qstate)
 	return p;
 }
 
+char* errinf_to_str_servfail(struct module_qstate* qstate)
+{
+	char buf[20480];
+	char* p = buf;
+	size_t left = sizeof(buf);
+	struct config_strlist* s;
+	char dname[LDNS_MAX_DOMAINLEN+1];
+	char t[16], c[16];
+	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
+	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
+	dname_str(qstate->qinfo.qname, dname);
+	snprintf(p, left, "SERVFAIL <%s %s %s>:", dname, t, c);
+	left -= strlen(p); p += strlen(p);
+	if(!qstate->errinf)
+		snprintf(p, left, " misc failure");
+	else for(s=qstate->errinf; s; s=s->next) {
+		snprintf(p, left, " %s", s->str);
+		left -= strlen(p); p += strlen(p);
+	}
+	p = strdup(buf);
+	if(!p)
+		log_err("malloc failure in errinf_to_str");
+	return p;
+}
+
 void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
 {
 	char buf[1024];
 	char dname[LDNS_MAX_DOMAINLEN+1];
 	char t[16], c[16];
-	if(qstate->env->cfg->val_log_level < 2 || !rr)
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !rr)
 		return;
 	sldns_wire2str_type_buf(ntohs(rr->rk.type), t, sizeof(t));
 	sldns_wire2str_class_buf(ntohs(rr->rk.rrset_class), c, sizeof(c));
@@ -2263,7 +2316,7 @@ void errinf_dname(struct module_qstate* qstate, const char* str, uint8_t* dname)
 {
 	char b[1024];
 	char buf[LDNS_MAX_DOMAINLEN+1];
-	if(qstate->env->cfg->val_log_level < 2 || !str || !dname)
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str || !dname)
 		return;
 	dname_str(dname, buf);
 	snprintf(b, sizeof(b), "%s %s", str, buf);

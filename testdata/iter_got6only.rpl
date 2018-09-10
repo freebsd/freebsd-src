@@ -3,6 +3,7 @@ server:
 	do-ip6: no
 	target-fetch-policy: "0 0 0 0 0 "
 	qname-minimisation: "no"
+	minimal-responses: no
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.

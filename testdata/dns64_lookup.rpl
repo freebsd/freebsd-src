@@ -4,6 +4,7 @@ server:
 	qname-minimisation: "no"
 	module-config: "dns64 validator iterator"
 	dns64-prefix: 64:ff9b::0/96
+	minimal-responses: no
 
 stub-zone:
 	name: "."

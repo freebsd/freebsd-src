@@ -4,6 +4,7 @@ server:
 	log-time-ascii: yes
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	minimal-responses: no
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.

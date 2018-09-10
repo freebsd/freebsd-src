@@ -1,0 +1,126 @@
+server:
+        verbosity: 3
+        edns-tcp-keepalive: yes
+        edns-tcp-keepalive-timeout: 30000 # Hardwired to this in fake_event.c
+stub-zone:
+        name: "."
+        stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN TCP Keepalive
+
+RANGE_BEGIN 0 100
+
+        ADDRESS 193.0.14.129
+
+        ENTRY_BEGIN
+                MATCH opcode qtype qname
+                ADJUST copy_id
+                REPLY QR NOERROR
+                SECTION QUESTION
+                        . IN NS
+                SECTION ANSWER
+                        . IN NS K.ROOT-SERVERS.NET.
+                SECTION ADDITIONAL
+                        K.ROOT-SERVERS.NET.     IN      A       193.0.14.129
+        ENTRY_END
+
+RANGE_END
+
+;; ----------------------------------------
+
+STEP 1 QUERY
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY RD
+        SECTION QUESTION
+                www.example.com. IN A
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        00 0b           ; Opcode 11
+                        00 02           ; Length 2
+                        00 ff           ; Timeout
+                HEX_EDNSDATA_END
+     ENTRY_END
+
+STEP 10 CHECK_ANSWER
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY RD FORMERR
+        SECTION QUESTION
+                www.example.com. IN A
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        ; Empty
+                HEX_EDNSDATA_END
+     ENTRY_END
+
+STEP 20 QUERY
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY RD
+        SECTION QUESTION
+                . IN NS
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        00 0b           ; Opcode 11
+                        00 00           ; Length 0
+                HEX_EDNSDATA_END
+     ENTRY_END
+
+STEP 30 CHECK_ANSWER
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY QR RD RA NOERROR
+        SECTION QUESTION
+                . IN NS
+        SECTION ANSWER
+                . IN NS K.ROOT-SERVERS.NET.
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        00 0b           ; Opcode 11
+                        00 02           ; Length 2
+                        01 2c           ; 30s = 300 10th secs
+                HEX_EDNSDATA_END
+                K.ROOT-SERVERS.NET.     IN      A       193.0.14.129
+     ENTRY_END
+
+; Check that a subsequent query on the connection without keepalive will
+; generate a keepalive reply because we've already seen one.
+
+STEP 40 QUERY
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY RD
+        SECTION QUESTION
+                . IN NS
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        ; Empty
+                HEX_EDNSDATA_END
+     ENTRY_END
+
+STEP 50 CHECK_ANSWER
+
+     ENTRY_BEGIN
+        MATCH TCP ednsdata
+        REPLY QR RD RA NOERROR
+        SECTION QUESTION
+                . IN NS
+        SECTION ANSWER
+                . IN NS K.ROOT-SERVERS.NET.
+        SECTION ADDITIONAL
+                HEX_EDNSDATA_BEGIN
+                        00 0b           ; Opcode 11
+                        00 02           ; Length 2
+                        01 2c           ; 30s = 300 10th secs
+                HEX_EDNSDATA_END
+                K.ROOT-SERVERS.NET.     IN      A       193.0.14.129
+     ENTRY_END
+
+SCENARIO_END

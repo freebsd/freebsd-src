@@ -9,6 +9,7 @@ server:
 	harden-algo-downgrade: no
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	minimal-responses: no
 
 stub-zone:
 	name: "."

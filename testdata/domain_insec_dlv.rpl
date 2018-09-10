@@ -5,6 +5,7 @@ server:
 	domain-insecure: "example.net"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	minimal-responses: no
 
 stub-zone:
 	name: "."

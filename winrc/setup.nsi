@@ -14,7 +14,7 @@ outFile "unbound_setup_${VERSION}.exe"
 Name "Unbound"
 
 # default install directory
-installDir "$PROGRAMFILES\Unbound"
+installDir "$PROGRAMFILES64\Unbound"
 installDirRegKey HKLM "Software\Unbound" "InstallLocation"
 RequestExecutionLevel admin
 #give credits to Nullsoft: BrandingText ""
@@ -79,6 +79,7 @@ sectionEnd
 
 section "-hidden.postinstall"
 	# copy files
+	SetRegView 64
 	setOutPath $INSTDIR
 	File "..\LICENSE"
 	File "README.txt"
@@ -172,6 +173,7 @@ LangString DESC_rootkey ${LANG_ENGLISH} "Set up to use the DNSSEC root trust anc
 
 # uninstaller section
 section "un.Unbound"
+	SetRegView 64
 	# stop unbound service
 	nsExec::ExecToLog '"$INSTDIR\unbound-service-remove.exe" stop'
 	Pop $0 # return value/error/timeout

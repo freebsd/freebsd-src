@@ -6,6 +6,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: "no"
 	fake-sha1: yes
+	minimal-responses: no
 
 stub-zone:
 	name: "."

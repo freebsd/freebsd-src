@@ -228,6 +228,9 @@ do-tcp{COLON}			{ YDVAR(1, VAR_DO_TCP) }
 tcp-upstream{COLON}		{ YDVAR(1, VAR_TCP_UPSTREAM) }
 tcp-mss{COLON}			{ YDVAR(1, VAR_TCP_MSS) }
 outgoing-tcp-mss{COLON}		{ YDVAR(1, VAR_OUTGOING_TCP_MSS) }
+tcp-idle-timeout{COLON}		{ YDVAR(1, VAR_TCP_IDLE_TIMEOUT) }
+edns-tcp-keepalive{COLON}	{ YDVAR(1, VAR_EDNS_TCP_KEEPALIVE) }
+edns-tcp-keepalive-timeout{COLON} { YDVAR(1, VAR_EDNS_TCP_KEEPALIVE_TIMEOUT) }
 ssl-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
 tls-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
 ssl-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
@@ -299,12 +302,14 @@ stub-addr{COLON}		{ YDVAR(1, VAR_STUB_ADDR) }
 stub-host{COLON}		{ YDVAR(1, VAR_STUB_HOST) }
 stub-prime{COLON}		{ YDVAR(1, VAR_STUB_PRIME) }
 stub-first{COLON}		{ YDVAR(1, VAR_STUB_FIRST) }
+stub-no-cache{COLON}		{ YDVAR(1, VAR_STUB_NO_CACHE) }
 stub-ssl-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
 stub-tls-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
 forward-zone{COLON}		{ YDVAR(0, VAR_FORWARD_ZONE) }
 forward-addr{COLON}		{ YDVAR(1, VAR_FORWARD_ADDR) }
 forward-host{COLON}		{ YDVAR(1, VAR_FORWARD_HOST) }
 forward-first{COLON}		{ YDVAR(1, VAR_FORWARD_FIRST) }
+forward-no-cache{COLON}		{ YDVAR(1, VAR_FORWARD_NO_CACHE) }
 forward-ssl-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
 forward-tls-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
 auth-zone{COLON}		{ YDVAR(0, VAR_AUTH_ZONE) }
@@ -349,6 +354,8 @@ val-permissive-mode{COLON}	{ YDVAR(1, VAR_VAL_PERMISSIVE_MODE) }
 aggressive-nsec{COLON}		{ YDVAR(1, VAR_AGGRESSIVE_NSEC) }
 ignore-cd-flag{COLON}		{ YDVAR(1, VAR_IGNORE_CD_FLAG) }
 serve-expired{COLON}		{ YDVAR(1, VAR_SERVE_EXPIRED) }
+serve-expired-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL) }
+serve-expired-ttl-reset{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL_RESET) }
 fake-dsa{COLON}			{ YDVAR(1, VAR_FAKE_DSA) }
 fake-sha1{COLON}		{ YDVAR(1, VAR_FAKE_SHA1) }
 val-log-level{COLON}		{ YDVAR(1, VAR_VAL_LOG_LEVEL) }
@@ -366,6 +373,8 @@ log-identity{COLON}		{ YDVAR(1, VAR_LOG_IDENTITY) }
 log-time-ascii{COLON}		{ YDVAR(1, VAR_LOG_TIME_ASCII) }
 log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
 log-replies{COLON}		{ YDVAR(1, VAR_LOG_REPLIES) }
+log-local-actions{COLON}       { YDVAR(1, VAR_LOG_LOCAL_ACTIONS) }
+log-servfail{COLON}		{ YDVAR(1, VAR_LOG_SERVFAIL) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }
@@ -393,6 +402,7 @@ rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
+dns64-ignore-aaaa{COLON}	{ YDVAR(1, VAR_DNS64_IGNORE_AAAA) }
 define-tag{COLON}		{ YDVAR(1, VAR_DEFINE_TAG) }
 local-zone-tag{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE_TAG) }
 access-control-tag{COLON}	{ YDVAR(2, VAR_ACCESS_CONTROL_TAG) }
@@ -462,6 +472,7 @@ redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
 redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
 redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
 udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
+tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */

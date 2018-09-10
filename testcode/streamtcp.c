@@ -44,6 +44,8 @@
 #include <getopt.h>
 #endif
 #include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "util/locks.h"
 #include "util/log.h"
 #include "util/net_help.h"
@@ -71,6 +73,7 @@ static void usage(char* argv[])
 	printf("-f server	what ipaddr@portnr to send the queries to\n");
 	printf("-u 		use UDP. No retries are attempted.\n");
 	printf("-n 		do not wait for an answer.\n");
+	printf("-d secs		delay after connection before sending query\n");
 	printf("-s		use ssl\n");
 	printf("-h 		this help text\n");
 	exit(1);
@@ -275,7 +278,8 @@ static int get_random(void)
 
 /** send the TCP queries and print answers */
 static void
-send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
+send_em(const char* svr, int udp, int usessl, int noanswer, int delay,
+	int num, char** qs)
 {
 	sldns_buffer* buf = sldns_buffer_new(65553);
 	int fd = open_svr(svr, udp);
@@ -310,6 +314,13 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
 		}
 	}
 	for(i=0; i<num; i+=3) {
+		if (delay != 0) {
+#ifdef HAVE_SLEEP
+			sleep((unsigned)delay);
+#else
+			Sleep(delay*1000);
+#endif
+		}
 		printf("\nNext query is %s %s %s\n", qs[i], qs[i+1], qs[i+2]);
 		write_q(fd, udp, ssl, buf, (uint16_t)get_random(), qs[i],
 			qs[i+1], qs[i+2]);
@@ -358,6 +369,7 @@ int main(int argc, char** argv)
 	int udp = 0;
 	int noanswer = 0;
 	int usessl = 0;
+	int delay = 0;
 
 #ifdef USE_WINSOCK
 	WSADATA wsa_data;
@@ -382,7 +394,7 @@ int main(int argc, char** argv)
 	if(argc == 1) {
 		usage(argv);
 	}
-	while( (c=getopt(argc, argv, "f:hnsu")) != -1) {
+	while( (c=getopt(argc, argv, "f:hnsud:")) != -1) {
 		switch(c) {
 			case 'f':
 				svr = optarg;
@@ -395,6 +407,14 @@ int main(int argc, char** argv)
 				break;
 			case 's':
 				usessl = 1;
+				break;
+			case 'd':
+				if(atoi(optarg)==0 && strcmp(optarg,"0")!=0) {
+					printf("error parsing delay, "
+					    "number expected: %s\n", optarg);
+					return 1;
+				}
+				delay = atoi(optarg);
 				break;
 			case 'h':
 			case '?':
@@ -426,7 +446,7 @@ int main(int argc, char** argv)
 		(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
 #endif
 	}
-	send_em(svr, udp, usessl, noanswer, argc, argv);
+	send_em(svr, udp, usessl, noanswer, delay, argc, argv);
 	checklock_stop();
 #ifdef USE_WINSOCK
 	WSACleanup();
