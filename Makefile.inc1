@@ -1933,7 +1933,8 @@ update: .PHONY
 # r296685 fix cross-endian objcopy
 # r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
 # r334881 added libdwarf constants used by ctfconvert.
-.if ${BOOTSTRAPPING} < 1200067
+# r338478 fixed a crash in objcopy for mips64el objects
+.if ${BOOTSTRAPPING} < 1200084
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 

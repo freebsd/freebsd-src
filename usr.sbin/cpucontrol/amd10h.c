@@ -254,7 +254,7 @@ amd10h_update(const char *dev, const char *path)
 		fw_size -= section_header->size;
 
 		if (fw_header->processor_rev_id != equiv_id) {
-			WARNX(1, "firmware processort_rev_id %x, equiv_id %x",
+			WARNX(1, "firmware processor_rev_id %x, equiv_id %x",
 			    fw_header->processor_rev_id, equiv_id);
 			continue; /* different cpu */
 		}

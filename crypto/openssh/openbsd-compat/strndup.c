@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "config.h"
+#include "includes.h"
 #if !defined(HAVE_STRNDUP) || defined(BROKEN_STRNDUP)
 #include <sys/types.h>
 

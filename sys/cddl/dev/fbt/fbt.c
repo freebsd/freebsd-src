@@ -212,7 +212,7 @@ fbt_destroy_one(fbt_probe_t *fbt)
 
 	ndx = FBT_ADDR2NDX(fbt->fbtp_patchpoint);
 	for (hash = fbt_probetab[ndx], hashprev = NULL; hash != NULL;
-	    hash = hash->fbtp_hashnext, hashprev = hash) {
+	    hashprev = hash, hash = hash->fbtp_hashnext) {
 		if (hash == fbt) {
 			if ((next = fbt->fbtp_tracenext) != NULL)
 				next->fbtp_hashnext = hash->fbtp_hashnext;

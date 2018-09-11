@@ -56,6 +56,7 @@ struct pcb {
 #define	PCB_VEC		0x4	/* Process had Altivec initialized */
 #define	PCB_VSX		0x8	/* Process had VSX initialized */
 #define	PCB_CDSCR	0x10	/* Process had Custom DSCR initialized */
+#define	PCB_HTM		0x20	/* Process had HTM initialized */
 	struct fpu {
 		union {
 			double fpr;
@@ -73,6 +74,11 @@ struct pcb {
 	} pcb_vec __aligned(16);	/* Vector processor */
 	unsigned int	pcb_veccpu;		/* which CPU had our vector
 							stuff. */
+	struct htm {
+		uint64_t tfhar;
+		uint64_t texasr;
+		uint64_t tfiar;
+	} pcb_htm;
 
 	union {
 		struct {

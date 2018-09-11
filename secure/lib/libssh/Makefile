@@ -7,13 +7,13 @@ PRIVATELIB=	true
 SHLIB_MAJOR=	5
 SRCS=	ssh_api.c ssherr.c sshbuf.c sshkey.c sshbuf-getput-basic.c \
 	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
-SRCS+=	authfd.c authfile.c bufaux.c bufbn.c bufec.c buffer.c \
+SRCS+=	authfd.c authfile.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
 	cipher-ctr.c cleanup.c \
 	compat.c crc32.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c opacket.c \
 	readpass.c ttymodes.c xmalloc.c addrmatch.c \
-	atomicio.c key.c dispatch.c mac.c uidswap.c uuencode.c misc.c utf8.c \
+	atomicio.c dispatch.c mac.c uuencode.c misc.c utf8.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-rsa.c dh.c \
 	msg.c progressmeter.c dns.c entropy.c umac.c umac128.c \
 	ssh-pkcs11.c smult_curve25519_ref.c \

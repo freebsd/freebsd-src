@@ -151,6 +151,15 @@ arm_setup_fdt_overlays() {
 	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 }
 
+arm_setup_minimal_loader() {
+	echo '# Disable the beastie menu and color' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'beastie_disable="YES"' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'loader_color="NO"' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
 arm_install_base() {
 	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
 	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
@@ -164,6 +173,7 @@ arm_install_base() {
 	arm_setup_usb_otg
 	arm64_setup_multicons
 	arm_setup_fdt_overlays
+	arm_setup_minimal_loader
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab

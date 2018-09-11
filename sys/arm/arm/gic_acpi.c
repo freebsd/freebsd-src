@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -217,7 +218,7 @@ gic_acpi_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	xref = 0;
+	xref = ACPI_INTR_XREF;
 
 	/*
 	 * Now, when everything is initialized, it's right time to

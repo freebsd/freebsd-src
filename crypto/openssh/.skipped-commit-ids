@@ -2,6 +2,8 @@
 a337e886a49f96701ccbc4832bed086a68abfa85	Makefile changes
 f2c9feb26963615c4fece921906cf72e248b61ee	more Makefile
 fa728823ba21c4b45212750e1d3a4b2086fd1a62	more Makefile refactoring
+1de0e85522051eb2ffa00437e1885e9d7b3e0c2e	moduli update
+814b2f670df75759e1581ecef530980b2b3d7e0f	remove redundant make defs
 
 Old upstream tree:
 

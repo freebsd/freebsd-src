@@ -254,7 +254,8 @@ _pam_exec(pam_handle_t *pamh,
 		}
 		rc = pam_get_authtok(pamh, PAM_AUTHTOK, &authtok, NULL);
 		if (rc == PAM_SUCCESS) {
-			authtok_size = strlen(authtok);
+			/* We include the trailing NUL-terminator. */
+			authtok_size = strlen(authtok) + 1;
 		} else {
 			openpam_log(PAM_LOG_ERROR, "%s: pam_get_authtok(): %s", func,
 						pam_strerror(pamh, rc));

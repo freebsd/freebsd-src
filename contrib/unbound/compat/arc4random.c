@@ -71,6 +71,72 @@ static struct {
 
 static inline void _rs_rekey(u_char *dat, size_t datlen);
 
+/*
+ * Basic sanity checking; wish we could do better.
+ */
+static int
+fallback_gotdata(char *buf, size_t len)
+{
+	char	any_set = 0;
+	size_t	i;
+
+	for (i = 0; i < len; ++i)
+		any_set |= buf[i];
+	if (any_set == 0)
+		return -1;
+	return 0;
+}
+
+/* fallback for getentropy in case libc returns failure */
+static int
+fallback_getentropy_urandom(void *buf, size_t len)
+{
+	size_t i;
+	int fd, flags;
+	int save_errno = errno;
+
+start:
+
+	flags = O_RDONLY;
+#ifdef O_NOFOLLOW
+	flags |= O_NOFOLLOW;
+#endif
+#ifdef O_CLOEXEC
+	flags |= O_CLOEXEC;
+#endif
+	fd = open("/dev/urandom", flags, 0);
+	if (fd == -1) {
+		if (errno == EINTR)
+			goto start;
+		goto nodevrandom;
+	}
+#ifndef O_CLOEXEC
+#  ifdef HAVE_FCNTL
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+#  endif
+#endif
+	for (i = 0; i < len; ) {
+		size_t wanted = len - i;
+		ssize_t ret = read(fd, (char*)buf + i, wanted);
+
+		if (ret == -1) {
+			if (errno == EAGAIN || errno == EINTR)
+				continue;
+			close(fd);
+			goto nodevrandom;
+		}
+		i += ret;
+	}
+	close(fd);
+	if (fallback_gotdata(buf, len) == 0) {
+		errno = save_errno;
+		return 0;		/* satisfied */
+	}
+nodevrandom:
+	errno = EIO;
+	return -1;
+}
+
 static inline void
 _rs_init(u_char *buf, size_t n)
 {
@@ -114,11 +180,14 @@ _rs_stir(void)
 	u_char rnd[KEYSZ + IVSZ];
 
 	if (getentropy(rnd, sizeof rnd) == -1) {
+		if(errno != ENOSYS ||
+			fallback_getentropy_urandom(rnd, sizeof rnd) == -1) {
 #ifdef SIGKILL
-		raise(SIGKILL);
+			raise(SIGKILL);
 #else
-		exit(9); /* windows */
+			exit(9); /* windows */
 #endif
+		}
 	}
 
 	if (!rs)

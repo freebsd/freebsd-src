@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.h,v 1.32 2018/02/10 09:25:35 djm Exp $ */
+/* $OpenBSD: sshconnect.h,v 1.35 2018/07/19 10:28:47 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -28,14 +28,13 @@ typedef struct Sensitive Sensitive;
 struct Sensitive {
 	struct sshkey	**keys;
 	int		nkeys;
-	int		external_keysign;
 };
 
 struct addrinfo;
 struct ssh;
 
 int	 ssh_connect(struct ssh *, const char *, struct addrinfo *,
-	    struct sockaddr_storage *, u_short, int, int, int *, int, int);
+	    struct sockaddr_storage *, u_short, int, int, int *, int);
 void	 ssh_kill_proxy_command(void);
 
 void	 ssh_login(Sensitive *, const char *, struct sockaddr *, u_short,
@@ -58,22 +57,3 @@ void	 ssh_put_password(char *);
 int	 ssh_local_cmd(const char *);
 
 void	 maybe_add_key_to_agent(char *, const struct sshkey *, char *, char *);
-
-/*
- * Macros to raise/lower permissions.
- */
-#define PRIV_START do {					\
-	int save_errno = errno;				\
-	if (seteuid(original_effective_uid) != 0)	\
-		fatal("PRIV_START: seteuid: %s",	\
-		    strerror(errno));			\
-	errno = save_errno;				\
-} while (0)
-
-#define PRIV_END do {					\
-	int save_errno = errno;				\
-	if (seteuid(original_real_uid) != 0)		\
-		fatal("PRIV_END: seteuid: %s",		\
-		    strerror(errno));			\
-	errno = save_errno;				\
-} while (0)

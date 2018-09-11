@@ -734,8 +734,10 @@ DRIVER_MODULE(ccp, pci, ccp_driver, ccp_devclass, NULL, NULL);
 MODULE_VERSION(ccp, 1);
 MODULE_DEPEND(ccp, crypto, 1, 1, 1);
 MODULE_DEPEND(ccp, random_device, 1, 1, 1);
+#if 0	/* There are enough known issues that we shouldn't load automatically */
 MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids, sizeof(ccp_ids[0]),
     nitems(ccp_ids));
+#endif
 
 static int
 ccp_queue_reserve_space(struct ccp_queue *qp, unsigned n, int mflags)

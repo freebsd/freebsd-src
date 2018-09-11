@@ -460,7 +460,7 @@ void
 vm_phys_init(void)
 {
 	struct vm_freelist *fl;
-	struct vm_phys_seg *seg;
+	struct vm_phys_seg *end_seg, *prev_seg, *seg, *tmp_seg;
 	u_long npages;
 	int dom, flind, freelist, oind, pind, segind;
 
@@ -544,6 +544,29 @@ vm_phys_init(void)
 			    ("vm_phys_init: DEFAULT flind < 0"));
 		}
 		seg->free_queues = &vm_phys_free_queues[seg->domain][flind];
+	}
+
+	/*
+	 * Coalesce physical memory segments that are contiguous and share the
+	 * same per-domain free queues.
+	 */
+	prev_seg = vm_phys_segs;
+	seg = &vm_phys_segs[1];
+	end_seg = &vm_phys_segs[vm_phys_nsegs];
+	while (seg < end_seg) {
+		if (prev_seg->end == seg->start &&
+		    prev_seg->free_queues == seg->free_queues) {
+			prev_seg->end = seg->end;
+			KASSERT(prev_seg->domain == seg->domain,
+			    ("vm_phys_init: free queues cannot span domains"));
+			vm_phys_nsegs--;
+			end_seg--;
+			for (tmp_seg = seg; tmp_seg < end_seg; tmp_seg++)
+				*tmp_seg = *(tmp_seg + 1);
+		} else {
+			prev_seg = seg;
+			seg++;
+		}
 	}
 
 	/*

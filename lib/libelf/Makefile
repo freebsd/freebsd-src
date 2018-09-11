@@ -43,6 +43,7 @@ SRCS=	elf.c							\
 	gelf_ehdr.c						\
 	gelf_getclass.c						\
 	gelf_fsize.c						\
+	gelf_mips64el.c						\
 	gelf_move.c						\
 	gelf_phdr.c						\
 	gelf_rel.c						\

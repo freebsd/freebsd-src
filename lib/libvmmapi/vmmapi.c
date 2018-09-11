@@ -362,7 +362,7 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 	size_t objsize, len;
 	vm_paddr_t gpa;
 	char *baseaddr, *ptr;
-	int error, flags;
+	int error;
 
 	assert(vms == VM_MMAP_ALL);
 
@@ -389,8 +389,7 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 	 * and the adjoining guard regions.
 	 */
 	len = VM_MMAP_GUARD_SIZE + objsize + VM_MMAP_GUARD_SIZE;
-	flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE | MAP_ALIGNED_SUPER;
-	ptr = mmap(NULL, len, PROT_NONE, flags, -1, 0);
+	ptr = mmap(NULL, len, PROT_NONE, MAP_GUARD | MAP_ALIGNED_SUPER, -1, 0);
 	if (ptr == MAP_FAILED)
 		return (-1);
 
@@ -492,8 +491,8 @@ vm_create_devmem(struct vmctx *ctx, int segid, const char *name, size_t len)
 	 * adjoining guard regions.
 	 */
 	len2 = VM_MMAP_GUARD_SIZE + len + VM_MMAP_GUARD_SIZE;
-	flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE | MAP_ALIGNED_SUPER;
-	base = mmap(NULL, len2, PROT_NONE, flags, -1, 0);
+	base = mmap(NULL, len2, PROT_NONE, MAP_GUARD | MAP_ALIGNED_SUPER, -1,
+	    0);
 	if (base == MAP_FAILED)
 		goto done;
 

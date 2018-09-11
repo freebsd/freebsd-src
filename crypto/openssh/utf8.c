@@ -1,4 +1,4 @@
-/* $OpenBSD: utf8.c,v 1.7 2017/05/31 09:15:42 deraadt Exp $ */
+/* $OpenBSD: utf8.c,v 1.8 2018/08/21 13:56:27 schwarze Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -53,6 +53,8 @@ static int	 vasnmprintf(char **, size_t, int *, const char *, va_list);
  * For state-dependent encodings, recovery is impossible.
  * For arbitrary encodings, replacement of non-printable
  * characters would be non-trivial and too fragile.
+ * The comments indicate what nl_langinfo(CODESET)
+ * returns for US-ASCII on various operating systems.
  */
 
 static int
@@ -60,9 +62,12 @@ dangerous_locale(void) {
 	char	*loc;
 
 	loc = nl_langinfo(CODESET);
-	return strcmp(loc, "US-ASCII") != 0 && strcmp(loc, "UTF-8") != 0 &&
-	    strcmp(loc, "ANSI_X3.4-1968") != 0 && strcmp(loc, "646") != 0 &&
-	    strcmp(loc, "") != 0;
+	return strcmp(loc, "UTF-8") != 0 &&
+	    strcmp(loc, "US-ASCII") != 0 &&		/* OpenBSD */
+	    strcmp(loc, "ANSI_X3.4-1968") != 0 &&	/* Linux */
+	    strcmp(loc, "ISO8859-1") != 0 &&		/* AIX */
+	    strcmp(loc, "646") != 0 &&			/* Solaris, NetBSD */
+	    strcmp(loc, "") != 0;			/* Solaris 6 */
 }
 
 static int

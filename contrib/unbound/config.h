@@ -31,6 +31,9 @@
    internal symbols */
 /* #undef EXPORT_ALL_SYMBOLS */
 
+/* Define to 1 if you have the `accept4' function. */
+#define HAVE_ACCEPT4 1
+
 /* Define to 1 if you have the `arc4random' function. */
 #define HAVE_ARC4RANDOM 1
 
@@ -628,7 +631,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.7.1"
+#define PACKAGE_STRING "unbound 1.7.3"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -637,7 +640,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.1"
+#define PACKAGE_VERSION "1.7.3"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -656,7 +659,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,7,1,0
+#define RSRC_PACKAGE_VERSION 1,7,3,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"

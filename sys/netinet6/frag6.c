@@ -218,7 +218,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	int offset = *offp, nxt, i, next;
 	int first_frag = 0;
 	int fragoff, frgpartlen;	/* must be larger than u_int16_t */
-	uint32_t hash, hashkey[sizeof(struct in6_addr) * 2 + 1], *hashkeyp;
+	uint32_t hashkey[(sizeof(struct in6_addr) * 2 +
+		    sizeof(ip6f->ip6f_ident)) / sizeof(uint32_t)];
+	uint32_t hash, *hashkeyp;
 	struct ifnet *dstifp;
 	u_int8_t ecn, ecn0;
 #ifdef RSS

@@ -239,8 +239,11 @@ ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 tls-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 ssl-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
 tls-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
-additional-ssl-port{COLON}	{ YDVAR(1, VAR_ADDITIONAL_TLS_PORT) }
-additional-tls-port{COLON}	{ YDVAR(1, VAR_ADDITIONAL_TLS_PORT) }
+tls-win-cert{COLON}		{ YDVAR(1, VAR_TLS_WIN_CERT) }
+additional-ssl-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+additional-tls-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-ports{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
+tls-additional-port{COLON}	{ YDVAR(1, VAR_TLS_ADDITIONAL_PORT) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -429,7 +432,8 @@ ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
 ip-ratelimit-factor{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_FACTOR) }
 ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
 low-rtt{COLON}			{ YDVAR(1, VAR_LOW_RTT) }
-low-rtt-pct{COLON}		{ YDVAR(1, VAR_LOW_RTT_PCT) }
+low-rtt-pct{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
+low-rtt-permil{COLON}		{ YDVAR(1, VAR_LOW_RTT_PERMIL) }
 response-ip-tag{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_TAG) }
 response-ip{COLON}		{ YDVAR(2, VAR_RESPONSE_IP) }
 response-ip-data{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_DATA) }

@@ -23,9 +23,8 @@ these programs.
 
     - These provide an arbitrary size buffer, where data can be appended.
       Data can be consumed from either end.  The code is used heavily
-      throughout ssh.  The basic buffer manipulation functions are in
-      buffer.c (header buffer.h), and additional code to manipulate specific
-      data types is in bufaux.c.
+      throughout ssh.  The buffer manipulation functions are in
+      sshbuf*.c (header sshbuf.h).
 
   Compression Library
 
@@ -62,7 +61,7 @@ these programs.
       code in packet.c does not concern itself with packet types or their
       execution; it contains code to build packets, to receive them and
       extract data from them, and the code to compress and/or encrypt
-      packets.  CRC code comes from crc32.c.
+      packets.
 
     - The code in packet.c calls the buffer manipulation routines
       (buffer.c, bufaux.c), compression routines (zlib), and the
@@ -105,12 +104,6 @@ these programs.
       code in ttymodes.c to encode current tty modes.  Finally it
       calls client_loop in clientloop.c.  This does the real work for
       the session.
-
-    - The client is suid root.  It tries to temporarily give up this
-      rights while reading the configuration data.  The root
-      privileges are only used to make the connection (from a
-      privileged socket).  Any extra privileges are dropped before
-      calling ssh_login.
 
   Pseudo-tty manipulation and tty modes
 
@@ -165,4 +158,4 @@ these programs.
 	uidswap.c    uid-swapping
 	xmalloc.c    "safe" malloc routines
 
-$OpenBSD: OVERVIEW,v 1.12 2015/07/08 19:01:15 markus Exp $
+$OpenBSD: OVERVIEW,v 1.14 2018/07/27 03:55:22 dtucker Exp $

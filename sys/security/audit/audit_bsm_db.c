@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999-2009 Apple Inc.
- * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2018 Robert N. M. Watson
  * All rights reserved.
  *
  * Portions of this software were developed by BAE Systems, the University of
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/libkern.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -91,6 +92,7 @@ static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
  * struct evname_elem is defined in audit_private.h so that audit_dtrace.c can
  * use the definition.
  */
+#define	EVNAMEMAP_HASH_TABLE_MODULE	"etc_security_audit_event"
 #define	EVNAMEMAP_HASH_TABLE_SIZE	251
 struct evname_list {
 	LIST_HEAD(, evname_elem)	enl_head;
@@ -261,6 +263,85 @@ au_evnamemap_insert(au_event_t event, const char *name)
 	EVNAMEMAP_WUNLOCK();
 }
 
+/*
+ * If /etc/security/audit_event has been preloaded by the boot loader, parse
+ * it to build an initial set of event number<->name mappings.
+ */
+static void
+au_evnamemap_init_preload(void)
+{
+	caddr_t kmdp;
+	char *endptr, *line, *nextline, *ptr;
+	const char *evnum_str, *evname;
+	size_t size;
+	long evnum;
+	u_int lineno;
+
+	kmdp = preload_search_by_type(EVNAMEMAP_HASH_TABLE_MODULE);
+	if (kmdp == NULL)
+		return;
+	ptr = preload_fetch_addr(kmdp);
+	size = preload_fetch_size(kmdp);
+
+	/*
+	 * Parse preloaded configuration file "in place".  Assume that the
+	 * last character is a new line, meaning that we can replace it with a
+	 * nul byte safely.  We can then use strsep(3) to process the full
+	 * buffer.
+	 */
+	ptr[size - 1] = '\0';
+
+	/*
+	 * Process line by line.
+	 */
+	nextline = ptr;
+	lineno = 0;
+	while ((line = strsep(&nextline, "\n")) != NULL) {
+		/*
+		 * Skip any leading white space.
+		 */
+		while (line[0] == ' ' || line[0] == '\t')
+			line++;
+
+		/*
+		 * Skip blank lines and comment lines.
+		 */
+		if (line[0] == '\0' || line[0] == '#') {
+			lineno++;
+			continue;
+		}
+
+		/*
+		 * Parse each line -- ":"-separated tuple of event number,
+		 * event name, and other material we are less interested in.
+		 */
+		evnum_str = strsep(&line, ":");
+		if (evnum_str == NULL || *evnum_str == '\0') {
+			printf("%s: Invalid line %u - evnum strsep\n",
+			    __func__, lineno);
+			lineno++;
+			continue;
+		}
+		evnum = strtol(evnum_str, &endptr, 10);
+		if (*evnum_str == '\0' || *endptr != '\0' ||
+		    evnum <= 0 || evnum > UINT16_MAX) {
+			printf("%s: Invalid line %u - evnum strtol\n",
+			    __func__, lineno);
+			lineno++;
+			continue;
+		}
+		evname = strsep(&line, ":");
+		if (evname == NULL || *evname == '\0') {
+			printf("%s: Invalid line %u - evname strsp\n",
+			    __func__, lineno);
+			lineno++;
+			continue;
+		}
+		au_evnamemap_insert(evnum, evname);
+		lineno++;
+	}
+}
+
 void
 au_evnamemap_init(void)
 {
@@ -269,13 +350,7 @@ au_evnamemap_init(void)
 	EVNAMEMAP_LOCK_INIT();
 	for (i = 0; i < EVNAMEMAP_HASH_TABLE_SIZE; i++)
 		LIST_INIT(&evnamemap_hash[i].enl_head);
-
-	/*
-	 * XXXRW: Unlike the event-to-class mapping, we don't attempt to
-	 * pre-populate the list.  Perhaps we should...?  But not sure we
-	 * really want to duplicate /etc/security/audit_event in the kernel
-	 * -- and we'd need a way to remove names?
-	 */
+	au_evnamemap_init_preload();
 }
 
 /*

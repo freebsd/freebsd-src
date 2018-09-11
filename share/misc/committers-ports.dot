@@ -149,6 +149,7 @@ jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
+kbowling [label="Kevin Bowling\nkbowling@FreeBSD.org\n2018/09/02"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2003/02/21"]
 kmoore [label="Kris Moore\nkmoore@FreeBSD.org\n2009/04/14"]
 knu [label="Akinori Musha\nknu@FreeBSD.org\n2000/03/22"]
@@ -174,6 +175,7 @@ madpilot [label="Guido Falsi\nmadpilot@FreeBSD.org\n2012/04/12"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
+manu [label="Emmanuel Vadot\nmanu@FreeBSD.org\n2018/09/06"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 marino [label="John Marino\nmarino@FreeBSD.org\n2013/07/04"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2012/12/29"]
@@ -322,6 +324,7 @@ bapt -> ericbsd
 bapt -> grembo
 bapt -> jbeich
 bapt -> jlaffaye
+bapt -> manu
 bapt -> marius
 bapt -> marino
 bapt -> rodrigo
@@ -487,6 +490,7 @@ koobs -> xmj
 
 krion -> "0mp"
 krion -> brooks
+krion -> kbowling
 krion -> miwi
 krion -> novel
 krion -> philip
@@ -703,6 +707,8 @@ tcberner -> arrowd
 
 thierry -> jadawin
 thierry -> riggs
+
+timur -> kbowling
 
 tmclaugh -> itetcu
 tmclaugh -> xride

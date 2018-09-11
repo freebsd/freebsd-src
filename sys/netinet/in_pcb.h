@@ -70,6 +70,7 @@
  */
 CK_LIST_HEAD(inpcbhead, inpcb);
 CK_LIST_HEAD(inpcbporthead, inpcbport);
+CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 typedef	uint64_t	inp_gen_t;
 
 /*
@@ -320,7 +321,7 @@ struct inpcb {
 	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
 	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
-	struct llentry	*inp_lle;	/* cached L2 information */
+	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
 	union {				/* cached L3 information */
 		struct route inp_route;
@@ -566,7 +567,8 @@ struct inpcbgroup {
  * is dynamically resized as processes bind/unbind to that specific group.
  */
 struct inpcblbgroup {
-	LIST_ENTRY(inpcblbgroup) il_list;
+	CK_LIST_ENTRY(inpcblbgroup) il_list;
+	struct epoch_context il_epoch_ctx;
 	uint16_t	il_lport;			/* (c) */
 	u_char		il_vflag;			/* (c) */
 	u_char		il_pad;
@@ -578,7 +580,6 @@ struct inpcblbgroup {
 	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
 	struct inpcb	*il_inp[];			/* (h) */
 };
-LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 
 #define INP_LOCK_INIT(inp, d, t) \
 	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
@@ -744,8 +745,8 @@ int	inp_so_options(const struct inpcb *inp);
 /*
  * Flags for inp_flags2.
  */
-#define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
-#define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
+#define	INP_2UNUSED1		0x00000001
+#define	INP_2UNUSED2		0x00000002
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */

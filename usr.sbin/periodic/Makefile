@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-FILES=	periodic.conf
-FILESDIR=	/etc/defaults
+CONFS=	periodic.conf
+CONFSDIR=	/etc/defaults
 SCRIPTS=periodic.sh
 MAN=	periodic.8
 

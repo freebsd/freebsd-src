@@ -430,7 +430,8 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
-		if (staterr & IXGBE_RXD_STAT_VP) {
+
+		if ( (rxr->vtag_strip) && (staterr & IXGBE_RXD_STAT_VP) ) {
 			vtag = le16toh(rxd->wb.upper.vlan);
 		} else {
 			vtag = 0;

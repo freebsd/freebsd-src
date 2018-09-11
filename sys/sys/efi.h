@@ -169,10 +169,13 @@ struct efi_systbl {
 
 extern vm_paddr_t efi_systbl_phys;
 
+struct efirt_callinfo;
+
 /* Internal MD EFI functions */
 int efi_arch_enter(void);
 void efi_arch_leave(void);
 vm_offset_t efi_phys_to_kva(vm_paddr_t);
+int efi_rt_arch_call(struct efirt_callinfo *);
 bool efi_create_1t1_map(struct efi_md *, int, int);
 void efi_destroy_1t1_map(void);
 

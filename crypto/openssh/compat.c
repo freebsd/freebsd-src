@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.106 2018/02/16 04:43:11 dtucker Exp $ */
+/* $OpenBSD: compat.c,v 1.113 2018/08/13 02:41:05 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -32,7 +32,6 @@
 #include <stdarg.h>
 
 #include "xmalloc.h"
-#include "buffer.h"
 #include "packet.h"
 #include "compat.h"
 #include "log.h"
@@ -52,16 +51,28 @@ compat_datafellows(const char *version)
 	} check[] = {
 		{ "OpenSSH_2.*,"
 		  "OpenSSH_3.0*,"
-		  "OpenSSH_3.1*",	SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR},
-		{ "OpenSSH_3.*",	SSH_OLD_FORWARD_ADDR },
-		{ "Sun_SSH_1.0*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF},
+		  "OpenSSH_3.1*",	SSH_BUG_EXTEOF|SSH_OLD_FORWARD_ADDR|
+					SSH_BUG_SIGTYPE},
+		{ "OpenSSH_3.*",	SSH_OLD_FORWARD_ADDR|SSH_BUG_SIGTYPE },
+		{ "Sun_SSH_1.0*",	SSH_BUG_NOREKEY|SSH_BUG_EXTEOF|
+					SSH_BUG_SIGTYPE},
 		{ "OpenSSH_2*,"
 		  "OpenSSH_3*,"
-		  "OpenSSH_4*",		0 },
-		{ "OpenSSH_5*",		SSH_NEW_OPENSSH|SSH_BUG_DYNAMIC_RPORT},
-		{ "OpenSSH_6.6.1*",	SSH_NEW_OPENSSH},
+		  "OpenSSH_4*",		SSH_BUG_SIGTYPE },
+		{ "OpenSSH_5*",		SSH_NEW_OPENSSH|SSH_BUG_DYNAMIC_RPORT|
+					SSH_BUG_SIGTYPE},
+		{ "OpenSSH_6.6.1*",	SSH_NEW_OPENSSH|SSH_BUG_SIGTYPE},
 		{ "OpenSSH_6.5*,"
-		  "OpenSSH_6.6*",	SSH_NEW_OPENSSH|SSH_BUG_CURVE25519PAD},
+		  "OpenSSH_6.6*",	SSH_NEW_OPENSSH|SSH_BUG_CURVE25519PAD|
+					SSH_BUG_SIGTYPE},
+		{ "OpenSSH_7.0*,"
+		  "OpenSSH_7.1*,"
+		  "OpenSSH_7.2*,"
+		  "OpenSSH_7.3*,"
+		  "OpenSSH_7.4*,"
+		  "OpenSSH_7.5*,"
+		  "OpenSSH_7.6*,"
+		  "OpenSSH_7.7*",	SSH_NEW_OPENSSH|SSH_BUG_SIGTYPE},
 		{ "OpenSSH*",		SSH_NEW_OPENSSH },
 		{ "*MindTerm*",		0 },
 		{ "3.0.*",		SSH_BUG_DEBUG },
@@ -128,6 +139,8 @@ compat_datafellows(const char *version)
 					SSH_OLD_DHGEX },
 		{ "ConfD-*",
 					SSH_BUG_UTF8TTYMODE },
+		{ "Twisted_*",		0 },
+		{ "Twisted*",		SSH_BUG_DEBUG },
 		{ NULL,			0 }
 	};
 
@@ -176,8 +189,8 @@ compat_cipher_proposal(char *cipher_prop)
 	if (!(datafellows & SSH_BUG_BIGENDIANAES))
 		return cipher_prop;
 	debug2("%s: original cipher proposal: %s", __func__, cipher_prop);
-	if ((cipher_prop = match_filter_list(cipher_prop, "aes*")) == NULL)
-		fatal("match_filter_list failed");
+	if ((cipher_prop = match_filter_blacklist(cipher_prop, "aes*")) == NULL)
+		fatal("match_filter_blacklist failed");
 	debug2("%s: compat cipher proposal: %s", __func__, cipher_prop);
 	if (*cipher_prop == '\0')
 		fatal("No supported ciphers found");
@@ -190,8 +203,8 @@ compat_pkalg_proposal(char *pkalg_prop)
 	if (!(datafellows & SSH_BUG_RSASIGMD5))
 		return pkalg_prop;
 	debug2("%s: original public key proposal: %s", __func__, pkalg_prop);
-	if ((pkalg_prop = match_filter_list(pkalg_prop, "ssh-rsa")) == NULL)
-		fatal("match_filter_list failed");
+	if ((pkalg_prop = match_filter_blacklist(pkalg_prop, "ssh-rsa")) == NULL)
+		fatal("match_filter_blacklist failed");
 	debug2("%s: compat public key proposal: %s", __func__, pkalg_prop);
 	if (*pkalg_prop == '\0')
 		fatal("No supported PK algorithms found");
@@ -205,14 +218,14 @@ compat_kex_proposal(char *p)
 		return p;
 	debug2("%s: original KEX proposal: %s", __func__, p);
 	if ((datafellows & SSH_BUG_CURVE25519PAD) != 0)
-		if ((p = match_filter_list(p,
+		if ((p = match_filter_blacklist(p,
 		    "curve25519-sha256@libssh.org")) == NULL)
-			fatal("match_filter_list failed");
+			fatal("match_filter_blacklist failed");
 	if ((datafellows & SSH_OLD_DHGEX) != 0) {
-		if ((p = match_filter_list(p,
+		if ((p = match_filter_blacklist(p,
 		    "diffie-hellman-group-exchange-sha256,"
 		    "diffie-hellman-group-exchange-sha1")) == NULL)
-			fatal("match_filter_list failed");
+			fatal("match_filter_blacklist failed");
 	}
 	debug2("%s: compat KEX proposal: %s", __func__, p);
 	if (*p == '\0')
