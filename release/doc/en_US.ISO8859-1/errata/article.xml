@@ -178,12 +178,12 @@ boot</screen>
 	<para>[2018-06-26] An issue had been discovered late in the
 	  release cycle where a system crash could occur after
 	  installing <filename
-	    role="package">emulators/virtualbox-ose</filename> from
-	  upstream package mirrors via &man.pkg.8;.</para>
+	    role="package">emulators/virtualbox-ose-kmod</filename>
+	  from upstream package mirrors via &man.pkg.8;.</para>
 
 	<para>Building <filename
-	    role="package">emulators/virtualbox-ose</filename> from
-	  the &man.ports.7; collection has been observed to work
+	    role="package">emulators/virtualbox-ose-kmod</filename>
+	  from the &man.ports.7; collection has been observed to work
 	  around the crash.</para>
 
 	<para>See <acronym>PR</acronym> <link
