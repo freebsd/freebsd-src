@@ -1434,7 +1434,7 @@ cfiscsi_offline(void *arg)
 	struct cfiscsi_softc *softc;
 	struct cfiscsi_target *ct;
 	struct cfiscsi_session *cs;
-	int online;
+	int error, online;
 
 	ct = (struct cfiscsi_target *)arg;
 	softc = ct->ct_softc;
@@ -1456,8 +1456,14 @@ cfiscsi_offline(void *arg)
 			if (cs->cs_target == ct)
 				break;
 		}
-		if (cs != NULL)
-			cv_wait(&softc->sessions_cv, &softc->lock);
+		if (cs != NULL) {
+			error = cv_wait_sig(&softc->sessions_cv, &softc->lock);
+			if (error != 0) {
+				CFISCSI_SESSION_DEBUG(cs,
+				    "cv_wait failed with error %d\n", error);
+				break;
+			}
+		}
 	} while (cs != NULL && ct->ct_online == 0);
 	mtx_unlock(&softc->lock);
 	if (online > 0)
