@@ -365,6 +365,8 @@ atomic_thread_fence_seq_cst(void)
 #ifdef WANT_FUNCTIONS
 int		atomic_cmpset_64_i386(volatile uint64_t *, uint64_t, uint64_t);
 int		atomic_cmpset_64_i586(volatile uint64_t *, uint64_t, uint64_t);
+int		atomic_fcmpset_64_i386(volatile uint64_t *, uint64_t *, uint64_t);
+int		atomic_fcmpset_64_i586(volatile uint64_t *, uint64_t *, uint64_t);
 uint64_t	atomic_load_acq_64_i386(volatile uint64_t *);
 uint64_t	atomic_load_acq_64_i586(volatile uint64_t *);
 void		atomic_store_rel_64_i386(volatile uint64_t *, uint64_t);
