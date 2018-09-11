@@ -8,4 +8,4 @@
 
 #define	CLANG_VENDOR			"FreeBSD "
 
-#define	SVN_REVISION			"340910"
+#define	SVN_REVISION			"341916"
