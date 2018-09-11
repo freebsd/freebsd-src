@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.15 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.16 2018/07/03 11:43:49 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -14,6 +14,13 @@ for i in `$SSH -Q key`; do
 		continue
 	fi
 	case "$i" in
+	# Special treatment for RSA keys.
+	*rsa*cert*)
+		types="rsa-sha2-256-cert-v01@openssh.com,$i,$types"
+		types="rsa-sha2-512-cert-v01@openssh.com,$types";;
+	*rsa*)
+		types="$types,rsa-sha2-512,rsa-sha2-256,$i";;
+	# Prefer certificate to plain keys.
 	*cert*)	types="$i,$types";;
 	*)	types="$types,$i";;
 	esac

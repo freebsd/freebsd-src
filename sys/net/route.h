@@ -410,10 +410,8 @@ struct rt_addrinfo {
 } while (0)
 
 #define	RO_RTFREE(_ro) do {					\
-	if ((_ro)->ro_rt) {					\
-		RT_LOCK((_ro)->ro_rt);				\
-		RTFREE_LOCKED((_ro)->ro_rt);			\
-	}							\
+	if ((_ro)->ro_rt)					\
+		RTFREE((_ro)->ro_rt);				\
 } while (0)
 
 #define	RO_INVALIDATE_CACHE(ro) do {					\

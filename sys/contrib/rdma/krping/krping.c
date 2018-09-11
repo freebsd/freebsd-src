@@ -2156,7 +2156,7 @@ int krping_doit(char *cmd)
 		goto out;
 	}
 
-	cb->cm_id = rdma_create_id(&init_net, krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
+	cb->cm_id = rdma_create_id(TD_TO_VNET(curthread), krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cb->cm_id)) {
 		ret = PTR_ERR(cb->cm_id);
 		printk(KERN_ERR PFX "rdma_create_id error %d\n", ret);

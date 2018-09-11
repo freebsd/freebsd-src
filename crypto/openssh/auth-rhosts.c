@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rhosts.c,v 1.48 2016/08/13 17:47:41 markus Exp $ */
+/* $OpenBSD: auth-rhosts.c,v 1.49 2018/07/09 21:35:50 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,8 +34,8 @@
 #include "pathnames.h"
 #include "log.h"
 #include "misc.h"
-#include "buffer.h" /* XXX */
-#include "key.h" /* XXX */
+#include "sshbuf.h"
+#include "sshkey.h"
 #include "servconf.h"
 #include "canohost.h"
 #include "sshkey.h"

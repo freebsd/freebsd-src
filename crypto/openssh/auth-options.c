@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.78 2018/03/14 05:35:40 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.83 2018/06/19 02:59:41 djm Exp $ */
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
  *
@@ -283,6 +283,10 @@ sshauthopt_free(struct sshauthopt *opts)
 		free(opts->permitopen[i]);
 	free(opts->permitopen);
 
+	for (i = 0; i < opts->npermitlisten; i++)
+		free(opts->permitlisten[i]);
+	free(opts->permitlisten);
+
 	explicit_bzero(opts, sizeof(*opts));
 	free(opts);
 }
@@ -304,10 +308,82 @@ sshauthopt_new_with_keys_defaults(void)
 	return ret;
 }
 
+/*
+ * Parse and record a permitopen/permitlisten directive.
+ * Return 0 on success. Return -1 on failure and sets *errstrp to error reason.
+ */
+static int
+handle_permit(const char **optsp, int allow_bare_port,
+    char ***permitsp, size_t *npermitsp, const char **errstrp)
+{
+	char *opt, *tmp, *cp, *host, **permits = *permitsp;
+	size_t npermits = *npermitsp;
+	const char *errstr = "unknown error";
+
+	if (npermits > INT_MAX) {
+		*errstrp = "too many permission directives";
+		return -1;
+	}
+	if ((opt = opt_dequote(optsp, &errstr)) == NULL) {
+		return -1;
+	}
+	if (allow_bare_port && strchr(opt, ':') == NULL) {
+		/*
+		 * Allow a bare port number in permitlisten to indicate a
+		 * listen_host wildcard.
+		 */
+		if (asprintf(&tmp, "*:%s", opt) < 0) {
+			*errstrp = "memory allocation failed";
+			return -1;
+		}
+		free(opt);
+		opt = tmp;
+	}
+	if ((tmp = strdup(opt)) == NULL) {
+		free(opt);
+		*errstrp = "memory allocation failed";
+		return -1;
+	}
+	cp = tmp;
+	/* validate syntax before recording it. */
+	host = hpdelim(&cp);
+	if (host == NULL || strlen(host) >= NI_MAXHOST) {
+		free(tmp);
+		free(opt);
+		*errstrp = "invalid permission hostname";
+		return -1;
+	}
+	/*
+	 * don't want to use permitopen_port to avoid
+	 * dependency on channels.[ch] here.
+	 */
+	if (cp == NULL ||
+	    (strcmp(cp, "*") != 0 && a2port(cp) <= 0)) {
+		free(tmp);
+		free(opt);
+		*errstrp = "invalid permission port";
+		return -1;
+	}
+	/* XXX - add streamlocal support */
+	free(tmp);
+	/* Record it */
+	if ((permits = recallocarray(permits, npermits, npermits + 1,
+	    sizeof(*permits))) == NULL) {
+		free(opt);
+		/* NB. don't update *permitsp if alloc fails */
+		*errstrp = "memory allocation failed";
+		return -1;
+	}
+	permits[npermits++] = opt;
+	*permitsp = permits;
+	*npermitsp = npermits;
+	return 0;
+}
+
 struct sshauthopt *
 sshauthopt_parse(const char *opts, const char **errstrp)
 {
-	char **oarray, *opt, *cp, *tmp, *host;
+	char **oarray, *opt, *cp, *tmp;
 	int r;
 	struct sshauthopt *ret = NULL;
 	const char *errstr = "unknown error";
@@ -394,7 +470,7 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 				goto fail;
 			}
 			for (cp = opt; cp < tmp; cp++) {
-				if (!isalnum((u_char)*cp)) {
+				if (!isalnum((u_char)*cp) && *cp != '_') {
 					free(opt);
 					errstr = "invalid environment string";
 					goto fail;
@@ -410,48 +486,13 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 			}
 			ret->env[ret->nenv++] = opt;
 		} else if (opt_match(&opts, "permitopen")) {
-			if (ret->npermitopen > INT_MAX) {
-				errstr = "too many permitopens";
+			if (handle_permit(&opts, 0, &ret->permitopen,
+			    &ret->npermitopen, &errstr) != 0)
 				goto fail;
-			}
-			if ((opt = opt_dequote(&opts, &errstr)) == NULL)
+		} else if (opt_match(&opts, "permitlisten")) {
+			if (handle_permit(&opts, 1, &ret->permitlisten,
+			    &ret->npermitlisten, &errstr) != 0)
 				goto fail;
-			if ((tmp = strdup(opt)) == NULL) {
-				free(opt);
-				goto alloc_fail;
-			}
-			cp = tmp;
-			/* validate syntax of permitopen before recording it. */
-			host = hpdelim(&cp);
-			if (host == NULL || strlen(host) >= NI_MAXHOST) {
-				free(tmp);
-				free(opt);
-				errstr = "invalid permitopen hostname";
-				goto fail;
-			}
-			/*
-			 * don't want to use permitopen_port to avoid
-			 * dependency on channels.[ch] here.
-			 */
-			if (cp == NULL ||
-			    (strcmp(cp, "*") != 0 && a2port(cp) <= 0)) {
-				free(tmp);
-				free(opt);
-				errstr = "invalid permitopen port";
-				goto fail;
-			}
-			/* XXX - add streamlocal support */
-			free(tmp);
-			/* Record it */
-			oarray = ret->permitopen;
-			if ((ret->permitopen = recallocarray(ret->permitopen,
-			    ret->npermitopen, ret->npermitopen + 1,
-			    sizeof(*ret->permitopen))) == NULL) {
-				free(opt);
-				ret->permitopen = oarray;
-				goto alloc_fail;
-			}
-			ret->permitopen[ret->npermitopen++] = opt;
 		} else if (opt_match(&opts, "tunnel")) {
 			if ((opt = opt_dequote(&opts, &errstr)) == NULL)
 				goto fail;
@@ -554,7 +595,10 @@ sshauthopt_merge(const struct sshauthopt *primary,
 	if (tmp != NULL && (ret->required_from_host_keys = strdup(tmp)) == NULL)
 		goto alloc_fail;
 
-	/* force_tun_device, permitopen and environment prefer the primary. */
+	/*
+	 * force_tun_device, permitopen/permitlisten and environment all
+	 * prefer the primary.
+	 */
 	ret->force_tun_device = primary->force_tun_device;
 	if (ret->force_tun_device == -1)
 		ret->force_tun_device = additional->force_tun_device;
@@ -574,6 +618,16 @@ sshauthopt_merge(const struct sshauthopt *primary,
 	} else if (additional->npermitopen > 0) {
 		if (dup_strings(&ret->permitopen, &ret->npermitopen,
 		    additional->permitopen, additional->npermitopen) != 0)
+			goto alloc_fail;
+	}
+
+	if (primary->npermitlisten > 0) {
+		if (dup_strings(&ret->permitlisten, &ret->npermitlisten,
+		    primary->permitlisten, primary->npermitlisten) != 0)
+			goto alloc_fail;
+	} else if (additional->npermitlisten > 0) {
+		if (dup_strings(&ret->permitlisten, &ret->npermitlisten,
+		    additional->permitlisten, additional->npermitlisten) != 0)
 			goto alloc_fail;
 	}
 
@@ -669,7 +723,9 @@ sshauthopt_copy(const struct sshauthopt *orig)
 
 	if (dup_strings(&ret->env, &ret->nenv, orig->env, orig->nenv) != 0 ||
 	    dup_strings(&ret->permitopen, &ret->npermitopen,
-	    orig->permitopen, orig->npermitopen) != 0) {
+	    orig->permitopen, orig->npermitopen) != 0 ||
+	    dup_strings(&ret->permitlisten, &ret->npermitlisten,
+	    orig->permitlisten, orig->npermitlisten) != 0) {
 		sshauthopt_free(ret);
 		return NULL;
 	}
@@ -805,7 +861,9 @@ sshauthopt_serialise(const struct sshauthopt *opts, struct sshbuf *m,
 	if ((r = serialise_array(m, opts->env,
 	    untrusted ? 0 : opts->nenv)) != 0 ||
 	    (r = serialise_array(m, opts->permitopen,
-	    untrusted ? 0 : opts->npermitopen)) != 0)
+	    untrusted ? 0 : opts->npermitopen)) != 0 ||
+	    (r = serialise_array(m, opts->permitlisten,
+	    untrusted ? 0 : opts->npermitlisten)) != 0)
 		return r;
 
 	/* success */
@@ -859,7 +917,9 @@ sshauthopt_deserialise(struct sshbuf *m, struct sshauthopt **optsp)
 	/* Array options */
 	if ((r = deserialise_array(m, &opts->env, &opts->nenv)) != 0 ||
 	    (r = deserialise_array(m,
-	    &opts->permitopen, &opts->npermitopen)) != 0)
+	    &opts->permitopen, &opts->npermitopen)) != 0 ||
+	    (r = deserialise_array(m,
+	    &opts->permitlisten, &opts->npermitlisten)) != 0)
 		goto out;
 
 	/* success */

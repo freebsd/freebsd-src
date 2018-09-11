@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <machine/setjmp.h>
+#include <machine/riscvreg.h>
 
 #include "assym.inc"
 
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(fsu_fault)
 	SET_FAULT_HANDLER(x0, a1)	/* Reset the handler function */
+	EXIT_USER_ACCESS(a1)
 fsu_fault_nopcb:
 	li	a0, -1
 	ret
@@ -57,11 +59,13 @@ ENTRY(casueword32)
 	bgt	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a4)	/* And set it */
+	ENTER_USER_ACCESS(a4)
 1:	lr.w	a4, 0(a0)		/* Load-exclusive the data */
 	bne	a4, a1, 2f		/* If not equal then exit */
 	sc.w	a5, a3, 0(a0)		/* Store the new data */
 	bnez	a5, 1b			/* Retry on failure */
-2:	SET_FAULT_HANDLER(x0, a5)	/* Reset the fault handler */
+2:	EXIT_USER_ACCESS(a5)
+	SET_FAULT_HANDLER(x0, a5)	/* Reset the fault handler */
 	sw	a4, 0(a2)		/* Store the read data */
 	li	a0, 0			/* Success */
 	ret				/* Return */
@@ -75,11 +79,13 @@ ENTRY(casueword)
 	bgt	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a4)	/* And set it */
+	ENTER_USER_ACCESS(a4)
 1:	lr.d	a4, 0(a0)		/* Load-exclusive the data */
 	bne	a4, a1, 2f		/* If not equal then exit */
 	sc.d	a5, a3, 0(a0)		/* Store the new data */
 	bnez	a5, 1b			/* Retry on failure */
-2:	SET_FAULT_HANDLER(x0, a5)	/* Reset the fault handler */
+2:	EXIT_USER_ACCESS(a5)
+	SET_FAULT_HANDLER(x0, a5)	/* Reset the fault handler */
 	sd	a4, 0(a2)		/* Store the read data */
 	li	a0, 0			/* Success */
 	ret				/* Return */
@@ -93,7 +99,9 @@ ENTRY(fubyte)
 	bgt	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a1)	/* And set it */
+	ENTER_USER_ACCESS(a1)
 	lb	a0, 0(a0)		/* Try loading the data */
+	EXIT_USER_ACCESS(a1)
 	SET_FAULT_HANDLER(x0, a1)	/* Reset the fault handler */
 	ret				/* Return */
 END(fubyte)
@@ -106,7 +114,9 @@ ENTRY(fuword16)
 	bgt	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a1)	/* And set it */
+	ENTER_USER_ACCESS(a1)
 	lh	a0, 0(a0)		/* Try loading the data */
+	EXIT_USER_ACCESS(a1)
 	SET_FAULT_HANDLER(x0, a1)	/* Reset the fault handler */
 	ret				/* Return */
 END(fuword16)
@@ -119,7 +129,9 @@ ENTRY(fueword32)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	lw	a0, 0(a0)		/* Try loading the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	sw	a0, 0(a1)		/* Save the data in kernel space */
 	li	a0, 0			/* Success */
@@ -136,7 +148,9 @@ EENTRY(fueword64)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	ld	a0, 0(a0)		/* Try loading the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	sd	a0, 0(a1)		/* Save the data in kernel space */
 	li	a0, 0			/* Success */
@@ -152,7 +166,9 @@ ENTRY(subyte)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	sb	a1, 0(a0)		/* Try storing the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
@@ -166,7 +182,9 @@ ENTRY(suword16)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	sh	a1, 0(a0)		/* Try storing the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
@@ -180,7 +198,9 @@ ENTRY(suword32)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	sw	a1, 0(a0)		/* Try storing the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
@@ -195,7 +215,9 @@ EENTRY(suword64)
 	bgt	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
+	ENTER_USER_ACCESS(a2)
 	sd	a1, 0(a0)		/* Try storing the data */
+	EXIT_USER_ACCESS(a2)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */

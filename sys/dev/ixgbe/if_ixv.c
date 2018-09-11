@@ -1470,6 +1470,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 static void
 ixv_setup_vlan_support(if_ctx_t ctx)
 {
+	struct ifnet	*ifp = iflib_get_ifp(ctx);
 	struct adapter  *adapter = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32             ctrl, vid, vfta, retry;
@@ -1483,17 +1484,26 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 	if (adapter->num_vlans == 0)
 		return;
 
-	/* Enable the queues */
-	for (int i = 0; i < adapter->num_rx_queues; i++) {
-		ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
-		ctrl |= IXGBE_RXDCTL_VME;
-		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), ctrl);
-		/*
-		 * Let Rx path know that it needs to store VLAN tag
-		 * as part of extra mbuf info.
-		 */
-		adapter->rx_queues[i].rxr.vtag_strip = TRUE;
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		/* Enable the queues */
+		for (int i = 0; i < adapter->num_rx_queues; i++) {
+			ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
+			ctrl |= IXGBE_RXDCTL_VME;
+			IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), ctrl);
+			/*
+			 * Let Rx path know that it needs to store VLAN tag
+			 * as part of extra mbuf info.
+			 */
+			adapter->rx_queues[i].rxr.vtag_strip = TRUE;
+		}
 	}
+
+	/*
+	 * If filtering VLAN tags is disabled,
+	 * there is no need to fill VLAN Filter Table Array (VFTA).
+	 */
+	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 
 	/*
 	 * A soft reset zero's out the VFTA, so

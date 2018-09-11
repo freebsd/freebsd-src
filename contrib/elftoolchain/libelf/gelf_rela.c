@@ -91,6 +91,10 @@ gelf_getrela(Elf_Data *ed, int ndx, GElf_Rela *dst)
 		rela64 = (Elf64_Rela *) d->d_data.d_buf + ndx;
 
 		*dst = *rela64;
+
+		if (_libelf_is_mips64el(e))
+			dst->r_info =
+			    _libelf_mips64el_r_info_tom(rela64->r_info);
 	}
 
 	return (dst);
@@ -159,6 +163,9 @@ gelf_update_rela(Elf_Data *ed, int ndx, GElf_Rela *dr)
 		rela64 = (Elf64_Rela *) d->d_data.d_buf + ndx;
 
 		*rela64 = *dr;
+
+		if (_libelf_is_mips64el(e))
+			rela64->r_info = _libelf_mips64el_r_info_tof(dr->r_info);
 	}
 
 	return (1);

@@ -764,7 +764,12 @@ int comm_point_perform_accept(struct comm_point* c,
 {
 	int new_fd;
 	*addrlen = (socklen_t)sizeof(*addr);
+#ifndef HAVE_ACCEPT4
 	new_fd = accept(c->fd, (struct sockaddr*)addr, addrlen);
+#else
+	/* SOCK_NONBLOCK saves extra calls to fcntl for the same result */
+	new_fd = accept4(c->fd, (struct sockaddr*)addr, addrlen, SOCK_NONBLOCK);
+#endif
 	if(new_fd == -1) {
 #ifndef USE_WINSOCK
 		/* EINTR is signal interrupt. others are closed connection. */
@@ -827,7 +832,9 @@ int comm_point_perform_accept(struct comm_point* c,
 #endif
 		return -1;
 	}
+#ifndef HAVE_ACCEPT4
 	fd_set_nonblock(new_fd);
+#endif
 	return new_fd;
 }
 
@@ -835,20 +842,21 @@ int comm_point_perform_accept(struct comm_point* c,
 static long win_bio_cb(BIO *b, int oper, const char* ATTR_UNUSED(argp),
         int ATTR_UNUSED(argi), long argl, long retvalue)
 {
+	int wsa_err = WSAGetLastError(); /* store errcode before it is gone */
 	verbose(VERB_ALGO, "bio_cb %d, %s %s %s", oper,
 		(oper&BIO_CB_RETURN)?"return":"before",
 		(oper&BIO_CB_READ)?"read":((oper&BIO_CB_WRITE)?"write":"other"),
-		WSAGetLastError()==WSAEWOULDBLOCK?"wsawb":"");
+		wsa_err==WSAEWOULDBLOCK?"wsawb":"");
 	/* on windows, check if previous operation caused EWOULDBLOCK */
 	if( (oper == (BIO_CB_READ|BIO_CB_RETURN) && argl == 0) ||
 		(oper == (BIO_CB_GETS|BIO_CB_RETURN) && argl == 0)) {
-		if(WSAGetLastError() == WSAEWOULDBLOCK)
+		if(wsa_err == WSAEWOULDBLOCK)
 			ub_winsock_tcp_wouldblock((struct ub_event*)
 				BIO_get_callback_arg(b), UB_EV_READ);
 	}
 	if( (oper == (BIO_CB_WRITE|BIO_CB_RETURN) && argl == 0) ||
 		(oper == (BIO_CB_PUTS|BIO_CB_RETURN) && argl == 0)) {
-		if(WSAGetLastError() == WSAEWOULDBLOCK)
+		if(wsa_err == WSAEWOULDBLOCK)
 			ub_winsock_tcp_wouldblock((struct ub_event*)
 				BIO_get_callback_arg(b), UB_EV_WRITE);
 	}
@@ -1128,6 +1136,7 @@ ssl_handle_read(struct comm_point* c)
 			if(want == SSL_ERROR_ZERO_RETURN) {
 				return 0; /* shutdown, closed */
 			} else if(want == SSL_ERROR_WANT_READ) {
+				ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 				return 1; /* read more later */
 			} else if(want == SSL_ERROR_WANT_WRITE) {
 				c->ssl_shake_state = comm_ssl_shake_hs_write;
@@ -1143,7 +1152,7 @@ ssl_handle_read(struct comm_point* c)
 			return 0;
 		}
 		c->tcp_byte_count += r;
-		if(c->tcp_byte_count != sizeof(uint16_t))
+		if(c->tcp_byte_count < sizeof(uint16_t))
 			return 1;
 		if(sldns_buffer_read_u16_at(c->buffer, 0) >
 			sldns_buffer_capacity(c->buffer)) {
@@ -1156,33 +1165,36 @@ ssl_handle_read(struct comm_point* c)
 			verbose(VERB_QUERY, "ssl: dropped bogus too short.");
 			return 0;
 		}
+		sldns_buffer_skip(c->buffer, (ssize_t)(c->tcp_byte_count-sizeof(uint16_t)));
 		verbose(VERB_ALGO, "Reading ssl tcp query of length %d",
 			(int)sldns_buffer_limit(c->buffer));
 	}
-	log_assert(sldns_buffer_remaining(c->buffer) > 0);
-	ERR_clear_error();
-	r = SSL_read(c->ssl, (void*)sldns_buffer_current(c->buffer),
-		(int)sldns_buffer_remaining(c->buffer));
-	if(r <= 0) {
-		int want = SSL_get_error(c->ssl, r);
-		if(want == SSL_ERROR_ZERO_RETURN) {
-			return 0; /* shutdown, closed */
-		} else if(want == SSL_ERROR_WANT_READ) {
-			return 1; /* read more later */
-		} else if(want == SSL_ERROR_WANT_WRITE) {
-			c->ssl_shake_state = comm_ssl_shake_hs_write;
-			comm_point_listen_for_rw(c, 0, 1);
-			return 1;
-		} else if(want == SSL_ERROR_SYSCALL) {
-			if(errno != 0)
-				log_err("SSL_read syscall: %s",
-					strerror(errno));
+	if(sldns_buffer_remaining(c->buffer) > 0) {
+		ERR_clear_error();
+		r = SSL_read(c->ssl, (void*)sldns_buffer_current(c->buffer),
+			(int)sldns_buffer_remaining(c->buffer));
+		if(r <= 0) {
+			int want = SSL_get_error(c->ssl, r);
+			if(want == SSL_ERROR_ZERO_RETURN) {
+				return 0; /* shutdown, closed */
+			} else if(want == SSL_ERROR_WANT_READ) {
+				ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
+				return 1; /* read more later */
+			} else if(want == SSL_ERROR_WANT_WRITE) {
+				c->ssl_shake_state = comm_ssl_shake_hs_write;
+				comm_point_listen_for_rw(c, 0, 1);
+				return 1;
+			} else if(want == SSL_ERROR_SYSCALL) {
+				if(errno != 0)
+					log_err("SSL_read syscall: %s",
+						strerror(errno));
+				return 0;
+			}
+			log_crypto_err("could not SSL_read");
 			return 0;
 		}
-		log_crypto_err("could not SSL_read");
-		return 0;
+		sldns_buffer_skip(c->buffer, (ssize_t)r);
 	}
-	sldns_buffer_skip(c->buffer, (ssize_t)r);
 	if(sldns_buffer_remaining(c->buffer) <= 0) {
 		tcp_callback_reader(c);
 	}
@@ -1237,6 +1249,7 @@ ssl_handle_write(struct comm_point* c)
 				comm_point_listen_for_rw(c, 1, 0);
 				return 1; /* wait for read condition */
 			} else if(want == SSL_ERROR_WANT_WRITE) {
+				ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 				return 1; /* write more later */
 			} else if(want == SSL_ERROR_SYSCALL) {
 				if(errno != 0)
@@ -1270,6 +1283,7 @@ ssl_handle_write(struct comm_point* c)
 			comm_point_listen_for_rw(c, 1, 0);
 			return 1; /* wait for read condition */
 		} else if(want == SSL_ERROR_WANT_WRITE) {
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 			return 1; /* write more later */
 		} else if(want == SSL_ERROR_SYSCALL) {
 			if(errno != 0)
@@ -2887,12 +2901,18 @@ comm_point_close(struct comm_point* c)
 {
 	if(!c)
 		return;
-	if(c->fd != -1)
+	if(c->fd != -1) {
 		if(ub_event_del(c->ev->ev) != 0) {
 			log_err("could not event_del on close");
 		}
+	}
 	/* close fd after removing from event lists, or epoll.. is messed up */
 	if(c->fd != -1 && !c->do_not_close) {
+		if(c->type == comm_tcp || c->type == comm_http) {
+			/* delete sticky events for the fd, it gets closed */
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
+		}
 		verbose(VERB_ALGO, "close fd %d", c->fd);
 #ifndef USE_WINSOCK
 		close(c->fd);

@@ -114,8 +114,8 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
 
-	if (!be_exists(lbh, bootenv))
-		return (set_error(lbh, BE_ERR_NOENT));
+	if ((err = be_exists(lbh, bootenv)) != 0)
+		return (set_error(lbh, err));
 
 	if (is_mounted(lbh->lzh, be, NULL))
 		return (set_error(lbh, BE_ERR_MOUNTED));

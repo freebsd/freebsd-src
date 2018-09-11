@@ -548,6 +548,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	struct faultstate fs;
 	struct vnode *vp;
+	struct domainset *dset;
 	vm_object_t next_object, retry_object;
 	vm_offset_t e_end, e_start;
 	vm_pindex_t retry_pindex;
@@ -791,7 +792,11 @@ RetryFault:;
 			 * there, and allocation can fail, causing
 			 * restart and new reading of the p_flag.
 			 */
-			if (!vm_page_count_severe() || P_KILLED(curproc)) {
+			dset = fs.object->domain.dr_policy;
+			if (dset == NULL)
+				dset = curthread->td_domain.dr_policy;
+			if (!vm_page_count_severe_set(&dset->ds_mask) ||
+			    P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
 				vm_object_color(fs.object, atop(vaddr) -
 				    fs.pindex);
@@ -806,7 +811,7 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				vm_waitpfault();
+				vm_waitpfault(dset);
 				goto RetryFault;
 			}
 		}
@@ -1124,7 +1129,7 @@ readrest:
 				 */
 			    fs.object == fs.first_object->backing_object) {
 				vm_page_lock(fs.m);
-				vm_page_remque(fs.m);
+				vm_page_dequeue(fs.m);
 				vm_page_remove(fs.m);
 				vm_page_unlock(fs.m);
 				vm_page_lock(fs.first_m);

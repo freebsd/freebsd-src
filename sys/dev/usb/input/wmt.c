@@ -521,7 +521,7 @@ tr_ignore:
 
 	case USB_ST_SETUP:
 tr_setup:
-		usbd_xfer_set_frame_len(xfer, 0, sc->isize);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 	default:

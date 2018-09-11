@@ -111,6 +111,8 @@ acl_list_str_cfg(struct acl_list* acl, const char* str, const char* s2,
 		control = acl_refuse_non_local;
 	else if(strcmp(s2, "allow_snoop") == 0)
 		control = acl_allow_snoop;
+	else if(strcmp(s2, "allow_setrd") == 0)
+		control = acl_allow_setrd;
 	else {
 		log_err("access control type %s unknown", str);
 		return 0;

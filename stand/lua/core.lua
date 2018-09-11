@@ -185,7 +185,7 @@ function core.kernelList()
 	end
 
 	if v ~= nil then
-		for n in v:gmatch("([^; ]+)[; ]?") do
+		for n in v:gmatch("([^;, ]+)[;, ]?") do
 			if unique[n] == nil then
 				i = i + 1
 				kernels[i] = n

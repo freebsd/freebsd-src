@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.128 2018/02/23 15:58:37 markus Exp $ */
+/* $OpenBSD: authfile.c,v 1.130 2018/07/09 21:59:10 markus Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -59,7 +59,7 @@ sshkey_save_private_blob(struct sshbuf *keybuf, const char *filename)
 
 	if ((fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
 		return SSH_ERR_SYSTEM_ERROR;
-	if (atomicio(vwrite, fd, (u_char *)sshbuf_ptr(keybuf),
+	if (atomicio(vwrite, fd, sshbuf_mutable_ptr(keybuf),
 	    sshbuf_len(keybuf)) != sshbuf_len(keybuf)) {
 		oerrno = errno;
 		close(fd);
@@ -265,17 +265,15 @@ static int
 sshkey_try_load_public(struct sshkey *k, const char *filename, char **commentp)
 {
 	FILE *f;
-	char line[SSH_MAX_PUBKEY_BYTES];
-	char *cp;
-	u_long linenum = 0;
+	char *line = NULL, *cp;
+	size_t linesize = 0;
 	int r;
 
 	if (commentp != NULL)
 		*commentp = NULL;
 	if ((f = fopen(filename, "r")) == NULL)
 		return SSH_ERR_SYSTEM_ERROR;
-	while (read_keyfile_line(f, filename, line, sizeof(line),
-		    &linenum) != -1) {
+	while (getline(&line, &linesize, f) != -1) {
 		cp = line;
 		switch (*cp) {
 		case '#':
@@ -299,11 +297,13 @@ sshkey_try_load_public(struct sshkey *k, const char *filename, char **commentp)
 					if (*commentp == NULL)
 						r = SSH_ERR_ALLOC_FAIL;
 				}
+				free(line);
 				fclose(f);
 				return r;
 			}
 		}
 	}
+	free(line);
 	fclose(f);
 	return SSH_ERR_INVALID_FORMAT;
 }
@@ -447,19 +447,18 @@ sshkey_in_file(struct sshkey *key, const char *filename, int strict_type,
     int check_ca)
 {
 	FILE *f;
-	char line[SSH_MAX_PUBKEY_BYTES];
-	char *cp;
-	u_long linenum = 0;
+	char *line = NULL, *cp;
+	size_t linesize = 0;
 	int r = 0;
 	struct sshkey *pub = NULL;
+
 	int (*sshkey_compare)(const struct sshkey *, const struct sshkey *) =
 	    strict_type ?  sshkey_equal : sshkey_equal_public;
 
 	if ((f = fopen(filename, "r")) == NULL)
 		return SSH_ERR_SYSTEM_ERROR;
 
-	while (read_keyfile_line(f, filename, line, sizeof(line),
-	    &linenum) != -1) {
+	while (getline(&line, &linesize, f) != -1) {
 		cp = line;
 
 		/* Skip leading whitespace. */
@@ -491,6 +490,7 @@ sshkey_in_file(struct sshkey *key, const char *filename, int strict_type,
 	}
 	r = SSH_ERR_KEY_NOT_FOUND;
  out:
+	free(line);
 	sshkey_free(pub);
 	fclose(f);
 	return r;

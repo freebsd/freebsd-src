@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_iterate.c,v 1.5 2017/04/30 23:33:48 djm Exp $ */
+/* 	$OpenBSD: test_iterate.c,v 1.6 2018/07/16 03:09:59 djm Exp $ */
 /*
  * Regress test for hostfile.h hostkeys_foreach()
  *
@@ -149,6 +149,17 @@ prepare_expected(struct expected *expected, size_t n)
 		ASSERT_INT_EQ(sshkey_load_public(
 		    test_data_file(expected[i].key_file), &expected[i].l.key,
 		    NULL), 0);
+	}
+}
+
+static void
+cleanup_expected(struct expected *expected, size_t n)
+{
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		sshkey_free(expected[i].l.key);
+		expected[i].l.key = NULL;
 	}
 }
 
@@ -825,6 +836,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, NULL, NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate all without key parse");
@@ -835,6 +847,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, NULL, NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify host 1");
@@ -846,6 +859,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "prometheus.example.com", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify host 2");
@@ -857,6 +871,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "sisyphus.example.com", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match host 1");
@@ -868,6 +883,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "prometheus.example.com", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match host 2");
@@ -879,6 +895,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "sisyphus.example.com", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify host missing");
@@ -889,6 +906,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "actaeon.example.org", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match host missing");
@@ -899,6 +917,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "actaeon.example.org", NULL, ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify IPv4");
@@ -910,6 +929,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "192.0.2.1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify IPv6");
@@ -921,6 +941,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "2001:db8::1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match IPv4");
@@ -932,6 +953,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "192.0.2.1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match IPv6");
@@ -943,6 +965,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "2001:db8::1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify addr missing");
@@ -953,6 +976,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "192.168.0.1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match addr missing");
@@ -963,6 +987,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "tiresias.example.org", "::1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify host 2 and IPv4");
@@ -975,6 +1000,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "sisyphus.example.com", "192.0.2.1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match host 1 and IPv6");
@@ -986,7 +1012,9 @@ test_iterate(void)
 	ctx.match_ipv6 = 1;
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
-	    check, &ctx, "prometheus.example.com", "2001:db8::1", ctx.flags), 0);
+	    check, &ctx, "prometheus.example.com",
+	    "2001:db8::1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate specify host 2 and IPv4 w/ key parse");
@@ -999,6 +1027,7 @@ test_iterate(void)
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
 	    check, &ctx, "sisyphus.example.com", "192.0.2.1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 
 	TEST_START("hostkeys_iterate match host 1 and IPv6 w/ key parse");
@@ -1010,7 +1039,9 @@ test_iterate(void)
 	ctx.match_ipv6 = 1;
 	prepare_expected(expected_full, ctx.nexpected);
 	ASSERT_INT_EQ(hostkeys_foreach(test_data_file("known_hosts"),
-	    check, &ctx, "prometheus.example.com", "2001:db8::1", ctx.flags), 0);
+	    check, &ctx, "prometheus.example.com",
+	    "2001:db8::1", ctx.flags), 0);
+	cleanup_expected(expected_full, ctx.nexpected);
 	TEST_DONE();
 }
 

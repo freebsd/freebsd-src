@@ -127,7 +127,7 @@ readonly -f check_user_homedir
 check_user_dot_ssh_dir() {
   if [ -e "${pwdhome}/.ssh" -a ! -d "${pwdhome}/.ssh" ]
   then
-    csih_error "${pwdhome}/.ssh is existant but not a directory. Cannot create user identity files."
+    csih_error "${pwdhome}/.ssh is existent but not a directory. Cannot create user identity files."
   fi
   
   if [ ! -e "${pwdhome}/.ssh" ]

@@ -176,6 +176,7 @@ struct omap4_prcm_softc {
 	struct resource	*sc_res;
 	int		sc_rid;
 	int		sc_instance;
+	int		attach_done;
 };
 
 static int omap4_clk_generic_activate(struct ti_clock_dev *clkdev);
@@ -1446,9 +1447,7 @@ static int
 omap4_prcm_attach(device_t dev)
 {
 	struct omap4_prcm_softc *sc;
-	unsigned int freq;
 	const struct ofw_compat_data *ocd;
-
 
 	sc = device_get_softc(dev);
 	ocd = ofw_bus_search_compatible(dev, compat_data);
@@ -1463,6 +1462,22 @@ omap4_prcm_attach(device_t dev)
 
 	ti_cpu_reset = omap4_prcm_reset;
 
+	return (0);
+}
+
+static void
+omap4_prcm_new_pass(device_t dev)
+{
+	struct omap4_prcm_softc *sc = device_get_softc(dev);
+	unsigned int freq;
+
+	if (sc->attach_done ||
+	  bus_current_pass < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
+		bus_generic_new_pass(dev);
+		return;
+	}
+	sc->attach_done = 1;
+
 	/*
 	 * In order to determine ARM frequency we need both RPM and CM1 
 	 * instances up and running. So wait until all CRM devices are
@@ -1473,12 +1488,16 @@ omap4_prcm_attach(device_t dev)
 		arm_tmr_change_frequency(freq / 2);
 	}
 
-	return (0);
+	return;
 }
 
 static device_method_t omap4_prcm_methods[] = {
 	DEVMETHOD(device_probe, omap4_prcm_probe),
 	DEVMETHOD(device_attach, omap4_prcm_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_new_pass, omap4_prcm_new_pass),
+
 	{0, 0},
 };
 
@@ -1491,5 +1510,5 @@ static driver_t omap4_prcm_driver = {
 static devclass_t omap4_prcm_devclass;
 
 EARLY_DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver,
-    omap4_prcm_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
+    omap4_prcm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(omap4_prcm, 1);

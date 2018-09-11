@@ -2238,6 +2238,8 @@ vat-control	3457/tcp   #VAT default control
 vat-control	3457/udp   #VAT default control
 nut		3493/tcp   #Network UPS Tools
 nut		3493/udp   #Network UPS Tools
+lsp-ping	3503/tcp   #MPLS LSP-echo (RFC8029)
+lsp-ping	3503/udp   #MPLS LSP-echo (RFC8029)
 m2pa		3565/sctp  #M2PA
 m2pa		3565/tcp   #M2PA
 tsp		3653/tcp   #Tunnel Setup Protocol

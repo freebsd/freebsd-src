@@ -270,8 +270,8 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 
 	be_root_concat(lbh, source, buf);
 
-	if (!be_exists(lbh, buf))
-		return (BE_ERR_NOENT);
+	if ((err = be_exists(lbh, buf)) != 0)
+		return (set_error(lbh, err));
 
 	if (snap_name != NULL) {
 		if (strlcat(buf, "@", sizeof(buf)) >= sizeof(buf))
@@ -528,10 +528,10 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 
 	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf,
 	    sizeof(buf), NULL, NULL, 0, 1)) != 0)
-		err = BE_ERR_INVORIGIN;
+		err = BE_ERR_BADMOUNT;
 
 	if ((err != 0) && (strncmp(buf, "/", sizeof(buf)) != 0))
-		err = BE_ERR_INVORIGIN;
+		err = BE_ERR_BADMOUNT;
 
 	zfs_close(zfs_hdl);
 
@@ -935,8 +935,8 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 	be_root_concat(lbh, bootenv, be_path);
 
 	/* Note: be_exists fails if mountpoint is not / */
-	if (!be_exists(lbh, be_path))
-		return (BE_ERR_NOENT);
+	if ((err = be_exists(lbh, be_path)) != 0)
+		return (set_error(lbh, err));
 
 	if (temporary) {
 		config = zpool_get_config(lbh->active_phandle, NULL);

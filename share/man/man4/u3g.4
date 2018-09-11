@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd September 11, 2018
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -111,12 +111,18 @@ for callout ports
 .It Pa /dev/cuaU*.*.lock
 corresponding callout initial-state and lock-state devices
 .El
+.Sh EXAMPLES
+Connect to the Internet using the default configuration:
+.Bd -literal -offset indent
+ppp -background u3g
+.Ed
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
 .Xr usb 4 ,
 .Xr usb_quirk 4 ,
 .Xr devd 8 ,
+.Xr ppp 8 ,
 .Xr usbconfig 8
 .Sh HISTORY
 The
