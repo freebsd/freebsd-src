@@ -10,7 +10,7 @@ ELFCOPYDIR=	${ELFTCDIR}/elfcopy
 PROG=	objcopy
 objcopy.1: elfcopy.1
 	sed -e 's/\.Dt ELFCOPY 1/.Dt OBJCOPY 1/' \
-	    -e 's/\.Nm elfcopy/.Nm objcopy/' < ${.ALLSRC} > ${.TARGET}
+	    -e '/\.Nm elfcopy ,/d' < ${.ALLSRC} > ${.TARGET}
 CLEANFILES+= objcopy.1
 
 SRCS=	archive.c ascii.c binary.c main.c pe.c sections.c segments.c symbols.c
