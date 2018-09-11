@@ -136,6 +136,7 @@ settime_task_func(void *arg, int pending)
 {
 	struct timespec ts;
 	struct rtc_instance *rtc;
+	int error;
 
 	rtc = arg;
 	if (!(rtc->flags & CLOCKF_SETTIME_NO_TS)) {
@@ -148,7 +149,9 @@ settime_task_func(void *arg, int pending)
 		ts.tv_sec  = 0;
 		ts.tv_nsec = 0;
 	}
-	CLOCK_SETTIME(rtc->clockdev, &ts);
+	error = CLOCK_SETTIME(rtc->clockdev, &ts);
+	if (error != 0 && bootverbose)
+		device_printf(rtc->clockdev, "CLOCK_SETTIME error %d\n", error);
 }
 
 static void
