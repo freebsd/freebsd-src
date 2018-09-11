@@ -382,7 +382,7 @@ config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_CTFCONVERT}
 
 .if ${MK_REPRODUCIBLE_BUILD} != "no"
-REPRO_FLAG="-r"
+REPRO_FLAG="-R"
 .endif
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 	MAKE="${MAKE}" sh $S/conf/newvers.sh ${REPRO_FLAG} ${KERN_IDENT}
