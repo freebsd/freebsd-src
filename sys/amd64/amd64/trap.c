@@ -770,7 +770,8 @@ trap_pfault(struct trapframe *frame, int usermode)
 	 * If nx protection of the usermode portion of kernel page
 	 * tables caused trap, panic.
 	 */
-	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	if (usermode && PCPU_GET(curpmap)->pm_ucr3 != PMAP_NO_CR3 &&
+	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
 	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
 	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
 	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
