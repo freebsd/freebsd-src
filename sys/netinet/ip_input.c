@@ -1138,30 +1138,48 @@ ip_forward(struct mbuf *m, int srcrt)
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 
+#define	CHECK_SO_CT(sp, ct) \
+    (((sp->so_options & SO_TIMESTAMP) && (sp->so_ts_clock == ct)) ? 1 : 0)
+
 void
 ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
     struct mbuf *m)
 {
 
-	if (inp->inp_socket->so_options & (SO_BINTIME | SO_TIMESTAMP)) {
+	if ((inp->inp_socket->so_options & SO_BINTIME) ||
+	    CHECK_SO_CT(inp->inp_socket, SO_TS_BINTIME)) {
 		struct bintime bt;
 
 		bintime(&bt);
-		if (inp->inp_socket->so_options & SO_BINTIME) {
-			*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
-			    SCM_BINTIME, SOL_SOCKET);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
-		if (inp->inp_socket->so_options & SO_TIMESTAMP) {
-			struct timeval tv;
+		*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
+		    SCM_BINTIME, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+	if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME_MICRO)) {
+		struct timeval tv;
 
-			bintime2timeval(&bt, &tv);
-			*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
-			    SCM_TIMESTAMP, SOL_SOCKET);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
+		microtime(&tv);
+		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
+		    SCM_TIMESTAMP, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME)) {
+		struct timespec ts;
+
+		nanotime(&ts);
+		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
+		    SCM_REALTIME, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_MONOTONIC)) {
+		struct timespec ts;
+
+		nanouptime(&ts);
+		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
+		    SCM_MONOTONIC, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
 		*mp = sbcreatecontrol((caddr_t)&ip->ip_dst,

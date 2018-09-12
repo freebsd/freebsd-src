@@ -117,6 +117,7 @@ FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
+CTASSERT(sizeof(struct bintime32) == 12);
 #endif
 CTASSERT(sizeof(struct statfs32) == 256);
 #ifndef __mips__
@@ -904,12 +905,67 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 
 #define	FREEBSD32_CMSG_DATA(cmsg)	((unsigned char *)(cmsg) + \
 				 FREEBSD32_ALIGN(sizeof(struct cmsghdr)))
+
+static size_t
+freebsd32_cmsg_convert(struct cmsghdr *cm, void *data, socklen_t datalen)
+{
+	size_t copylen;
+	union {
+		struct timespec32 ts;
+		struct timeval32 tv;
+		struct bintime32 bt;
+	} tmp32;
+
+	union {
+		struct timespec ts;
+		struct timeval tv;
+		struct bintime bt;
+	} *in;
+
+	in = data;
+	copylen = 0;
+	switch (cm->cmsg_level) {
+	case SOL_SOCKET:
+		switch (cm->cmsg_type) {
+		case SCM_TIMESTAMP:
+			TV_CP(*in, tmp32, tv);
+			copylen = sizeof(tmp32.tv);
+			break;
+
+		case SCM_BINTIME:
+			BT_CP(*in, tmp32, bt);
+			copylen = sizeof(tmp32.bt);
+			break;
+
+		case SCM_REALTIME:
+		case SCM_MONOTONIC:
+			TS_CP(*in, tmp32, ts);
+			copylen = sizeof(tmp32.ts);
+			break;
+
+		default:
+			break;
+		}
+
+	default:
+		break;
+	}
+
+	if (copylen == 0)
+		return (datalen);
+
+	KASSERT((datalen >= copylen), ("corrupted cmsghdr"));
+
+	bcopy(&tmp32, data, copylen);
+	return (copylen);
+}
+
 static int
 freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 {
 	struct cmsghdr *cm;
 	void *data;
-	socklen_t clen, datalen;
+	socklen_t clen, datalen, datalen_out;
 	int error;
 	caddr_t ctlbuf;
 	int len, maxlen, copylen;
@@ -933,15 +989,15 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 			    cm->cmsg_len > clen) {
 				error = EINVAL;
 				break;
-			}	
+			}
 
 			data   = CMSG_DATA(cm);
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+			datalen_out = freebsd32_cmsg_convert(cm, data, datalen);
 
 			/* Adjust message length */
 			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
-			    datalen;
-
+			    datalen_out;
 
 			/* Copy cmsghdr */
 			copylen = sizeof(struct cmsghdr);
@@ -950,7 +1006,7 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 				copylen = len;
 			}
 
-			error = copyout(cm,ctlbuf,copylen);
+			error = copyout(cm, ctlbuf, copylen);
 			if (error)
 				goto exit;
 
@@ -961,13 +1017,13 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 				break;
 
 			/* Copy data */
-			copylen = datalen;
+			copylen = datalen_out;
 			if (len < copylen) {
 				msg->msg_flags |= MSG_CTRUNC;
 				copylen = len;
 			}
 
-			error = copyout(data,ctlbuf,copylen);
+			error = copyout(data, ctlbuf, copylen);
 			if (error)
 				goto exit;
 

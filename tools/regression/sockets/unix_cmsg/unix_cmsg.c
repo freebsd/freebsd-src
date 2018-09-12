@@ -52,6 +52,18 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "uc_common.h"
+#include "t_cmsgcred.h"
+#include "t_bintime.h"
+#include "t_generic.h"
+#include "t_peercred.h"
+#include "t_timeval.h"
+#include "t_sockcred.h"
+#include "t_cmsgcred_sockcred.h"
+#include "t_cmsg_len.h"
+#include "t_timespec_real.h"
+#include "t_timespec_mono.h"
+
 /*
  * There are tables with tests descriptions and pointers to test
  * functions.  Each t_*() function returns 0 if its test passed,
@@ -135,7 +147,19 @@ static const struct test_func test_stream_tbl[] = {
 	{
 	  .func = t_peercred,
 	  .desc = "Check LOCAL_PEERCRED socket option"
+	},
+#if defined(SCM_REALTIME)
+	{
+	  .func = t_timespec_real,
+	  .desc = "Sending, receiving realtime"
+	},
+#endif
+#if defined(SCM_MONOTONIC)
+	{
+	  .func = t_timespec_mono,
+	  .desc = "Sending, receiving monotonic time (uptime)"
 	}
+#endif
 };
 
 #define TEST_STREAM_TBL_SIZE \
@@ -170,6 +194,18 @@ static const struct test_func test_dgram_tbl[] = {
 	{
 	  .func = t_cmsg_len,
 	  .desc = "Check cmsghdr.cmsg_len"
+	},
+#endif
+#if defined(SCM_REALTIME)
+	{
+	  .func = t_timespec_real,
+	  .desc = "Sending, receiving realtime"
+	},
+#endif
+#if defined(SCM_MONOTONIC)
+	{
+	  .func = t_timespec_mono,
+	  .desc = "Sending, receiving monotonic time (uptime)"
 	}
 #endif
 };

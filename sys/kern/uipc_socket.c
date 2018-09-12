@@ -2696,6 +2696,18 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 #endif
 			break;
 
+		case SO_TS_CLOCK:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				goto bad;
+			if (optval < 0 || optval > SO_TS_CLOCK_MAX) {
+				error = EINVAL;
+				goto bad;
+			}
+			so->so_ts_clock = optval;
+			break;
+
 		default:
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
@@ -2881,6 +2893,10 @@ integer:
 
 		case SO_LISTENINCQLEN:
 			optval = so->so_incqlen;
+			goto integer;
+
+		case SO_TS_CLOCK:
+			optval = so->so_ts_clock;
 			goto integer;
 
 		default:
