@@ -3004,6 +3004,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	critical_enter();
 	if (cpu_fxsr)
 		npx_set_fpregs_xmm((struct save87 *)fpregs,
 		    &get_pcb_user_save_td(td)->sv_xmm);
@@ -3011,6 +3012,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 		bcopy(fpregs, &get_pcb_user_save_td(td)->sv_87,
 		    sizeof(*fpregs));
 	npxuserinited(td);
+	critical_exit();
 	return (0);
 }
 
