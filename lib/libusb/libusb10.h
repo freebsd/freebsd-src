@@ -116,6 +116,8 @@ struct libusb_context {
 struct libusb_device {
 	int	refcnt;
 
+	int	device_is_gone;
+
 	uint32_t claimed_interfaces;
 
 	struct libusb_super_pollfd dev_poll;
@@ -134,5 +136,6 @@ extern struct libusb_context *usbi_default_context;
 void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
 void	libusb10_remove_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd);
 void	libusb10_cancel_all_transfer(libusb_device *dev);
+void	libusb10_cancel_all_transfer_locked(struct libusb20_device *pdev, struct libusb_device *dev);
 
 #endif					/* __LIBUSB10_H__ */
