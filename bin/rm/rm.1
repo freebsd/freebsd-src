@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2015
+.Dd September 12, 2018
 .Dt RM 1
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Op Fl dIPRrvWx
 .Ar
 .Nm unlink
+.Op Fl -
 .Ar file
 .Sh DESCRIPTION
 The
@@ -154,6 +155,9 @@ No options may be supplied in this simple mode of operation,
 which performs an
 .Xr unlink 2
 operation on the passed argument.
+However, the usual option-end delimiter,
+.Fl - ,
+may optionally precede the argument.
 .Sh EXIT STATUS
 The
 .Nm
@@ -201,11 +205,12 @@ directory hierarchy:
 .Pp
 .Dl $ rm -rf foobar
 .Pp
-Either of these commands will remove the file
+Any of these commands will remove the file
 .Pa -f :
 .Bd -literal -offset indent
 $ rm -- -f
 $ rm ./-f
+$ unlink -f
 .Ed
 .Sh COMPATIBILITY
 The
