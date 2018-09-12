@@ -907,7 +907,7 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 				 FREEBSD32_ALIGN(sizeof(struct cmsghdr)))
 
 static size_t
-freebsd32_cmsg_convert(struct cmsghdr *cm, void *data, socklen_t datalen)
+freebsd32_cmsg_convert(const struct cmsghdr *cm, void *data, socklen_t datalen)
 {
 	size_t copylen;
 	union {
@@ -965,7 +965,7 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 {
 	struct cmsghdr *cm;
 	void *data;
-	socklen_t clen, datalen, datalen_out;
+	socklen_t clen, datalen, datalen_out, oldclen;
 	int error;
 	caddr_t ctlbuf;
 	int len, maxlen, copylen;
@@ -976,15 +976,11 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 	maxlen = msg->msg_controllen;
 	msg->msg_controllen = 0;
 
-	m = control;
 	ctlbuf = msg->msg_control;
-      
-	while (m && len > 0) {
+	for (m = control; m != NULL && len > 0; m = m->m_next) {
 		cm = mtod(m, struct cmsghdr *);
 		clen = m->m_len;
-
 		while (cm != NULL) {
-
 			if (sizeof(struct cmsghdr) > clen ||
 			    cm->cmsg_len > clen) {
 				error = EINVAL;
@@ -995,34 +991,36 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 			datalen_out = freebsd32_cmsg_convert(cm, data, datalen);
 
-			/* Adjust message length */
-			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
-			    datalen_out;
-
-			/* Copy cmsghdr */
+			/*
+			 * Copy out the message header.  Preserve the native
+			 * message size in case we need to inspect the message
+			 * contents later.
+			 */
 			copylen = sizeof(struct cmsghdr);
 			if (len < copylen) {
 				msg->msg_flags |= MSG_CTRUNC;
-				copylen = len;
+				m_dispose_extcontrolm(m);
+				goto exit;
 			}
-
+			oldclen = cm->cmsg_len;
+			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
+			    datalen_out;
 			error = copyout(cm, ctlbuf, copylen);
-			if (error)
+			cm->cmsg_len = oldclen;
+			if (error != 0)
 				goto exit;
 
 			ctlbuf += FREEBSD32_ALIGN(copylen);
 			len    -= FREEBSD32_ALIGN(copylen);
 
-			if (len <= 0)
-				break;
-
-			/* Copy data */
 			copylen = datalen_out;
 			if (len < copylen) {
 				msg->msg_flags |= MSG_CTRUNC;
-				copylen = len;
+				m_dispose_extcontrolm(m);
+				break;
 			}
 
+			/* Copy out the message data. */
 			error = copyout(data, ctlbuf, copylen);
 			if (error)
 				goto exit;
@@ -1033,20 +1031,23 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 			if (CMSG_SPACE(datalen) < clen) {
 				clen -= CMSG_SPACE(datalen);
 				cm = (struct cmsghdr *)
-					((caddr_t)cm + CMSG_SPACE(datalen));
+				    ((caddr_t)cm + CMSG_SPACE(datalen));
 			} else {
 				clen = 0;
 				cm = NULL;
 			}
-		}	
-		m = m->m_next;
+
+			msg->msg_controllen += FREEBSD32_ALIGN(sizeof(*cm)) +
+			    datalen_out;
+		}
+	}
+	if (len == 0 && m != NULL) {
+		msg->msg_flags |= MSG_CTRUNC;
+		m_dispose_extcontrolm(m);
 	}
 
-	msg->msg_controllen = (len <= 0) ? maxlen :  ctlbuf - (caddr_t)msg->msg_control;
-	
 exit:
 	return (error);
-
 }
 
 int
@@ -1083,19 +1084,22 @@ freebsd32_recvmsg(td, uap)
 	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, controlp);
 	if (error == 0) {
 		msg.msg_iov = uiov;
-		
+
 		if (control != NULL)
 			error = freebsd32_copy_msg_out(&msg, control);
 		else
 			msg.msg_controllen = 0;
-		
+
 		if (error == 0)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
 	}
 	free(iov, M_IOV);
 
-	if (control != NULL)
+	if (control != NULL) {
+		if (error != 0)
+			m_dispose_extcontrolm(control);
 		m_freem(control);
+	}
 
 	return (error);
 }
