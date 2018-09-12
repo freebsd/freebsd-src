@@ -78,6 +78,15 @@ struct itimerspec32 {
 	TS_CP((src), (dst), it_value);		\
 } while (0)
 
+struct bintime32 {
+	uint32_t sec;
+	uint32_t frac[2];
+};
+#define BT_CP(src, dst, fld) do {				\
+	CP((src).fld, (dst).fld, sec);				\
+	*(uint64_t *)&(dst).fld.frac[0] = (src).fld.frac;	\
+} while (0)
+
 struct rusage32 {
 	struct timeval32 ru_utime;
 	struct timeval32 ru_stime;
