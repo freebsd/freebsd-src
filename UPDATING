@@ -17,6 +17,10 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 
+20180912	p12	FreeBSD-SA-18:12.elf
+
+	Fix improper elf header parsing.
+
 20180814	p11	FreeBSD-SA-18:08.tcp [revised]
 			FreeBSD-SA-18:11.hostapd
 
