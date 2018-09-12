@@ -839,7 +839,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			break;
 		case PT_INTERP:
 			/* Path to interpreter */
-			if (phdr[i].p_filesz > MAXPATHLEN) {
+			if (phdr[i].p_filesz < 2 ||
+			    phdr[i].p_filesz > MAXPATHLEN) {
 				uprintf("Invalid PT_INTERP\n");
 				error = ENOEXEC;
 				goto ret;
@@ -869,6 +870,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			} else {
 				interp = __DECONST(char *, imgp->image_header) +
 				    phdr[i].p_offset;
+				if (interp[interp_name_len - 1] != '\0') {
+					uprintf("Invalid PT_INTERP\n");
+					error = ENOEXEC;
+					goto ret;
+				}
 			}
 			break;
 		case PT_GNU_STACK:
