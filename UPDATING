@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180912	p3	FreeBSD-SA-18:12.elf
+			FreeBSD-EN-18:08.lazyfpu
+
+	Fix improper elf header parsing. [SA-18:12.elf]
+
+	Fix regression in Lazy FPU remediation. [EN-18:08.lazyfpu]
+
 20180814	p2	FreeBSD-SA-18:08.tcp [revised]
 			FreeBSD-SA-18:09.l1tf
 			FreeBSD-SA-18:10.ip
