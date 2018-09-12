@@ -1829,6 +1829,13 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fdep[i]->fde_file);
 			}
+
+			/*
+			 * The new type indicates that the mbuf data refers to
+			 * kernel resources that may need to be released before
+			 * the mbuf is freed.
+			 */
+			m_chtype(*controlp, MT_EXTCONTROL);
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);
 		} else {
