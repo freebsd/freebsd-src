@@ -49,12 +49,15 @@ sha256-armv8.S:	sha512-armv8.pl
 	${LCRYPTO_SRC}/crypto/aes/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
 	${LCRYPTO_SRC}/crypto/camellia/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
 	${LCRYPTO_SRC}/crypto/ec/asm \
 	${LCRYPTO_SRC}/crypto/md5/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
 	${LCRYPTO_SRC}/crypto/rc4/asm \
 	${LCRYPTO_SRC}/crypto/sha/asm \
-	${LCRYPTO_SRC}/crypto/whrlpool/asm
+	${LCRYPTO_SRC}/crypto/whrlpool/asm \
+	${LCRYPTO_SRC}/engines/asm
 
 # aes
 SRCS=	aes-x86_64.pl aesni-mb-x86_64.pl aesni-sha1-x86_64.pl \
@@ -68,8 +71,14 @@ SRCS+=	rsaz-avx2.pl rsaz-x86_64.pl x86_64-gf2m.pl x86_64-mont.pl \
 # camellia
 SRCS+=	cmll-x86_64.pl
 
+# chacha
+SRCS+=	chacha-x86_64.pl
+
 # ec
-SRCS+=	ecp_nistz256-x86_64.pl
+SRCS+=	ecp_nistz256-avx2.pl ecp_nistz256-x86_64.pl x25519-x86_64.pl
+
+# engines
+SRCS+=	e_padlock-x86_64.pl
 
 # md5
 SRCS+=	md5-x86_64.pl
@@ -77,11 +86,16 @@ SRCS+=	md5-x86_64.pl
 # modes
 SRCS+=	aesni-gcm-x86_64.pl ghash-x86_64.pl
 
+# poly1305
+SRCS+=	poly1305-x86_64.pl
+
 # rc4
 SRCS+=	rc4-md5-x86_64.pl rc4-x86_64.pl
 
 # sha
-SRCS+=	sha1-mb-x86_64.pl sha1-x86_64.pl sha256-mb-x86_64.pl
+SRCS+=	keccak1600-avx2.pl keccak1600-avx512.pl keccak1600-avx512vl.pl \
+	keccak1600-x86_64.pl sha1-mb-x86_64.pl sha1-x86_64.pl \
+	sha256-mb-x86_64.pl
 
 # whrlpool
 SRCS+=	wp-x86_64.pl
