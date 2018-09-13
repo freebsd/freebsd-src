@@ -19,9 +19,10 @@
 
     <tbody>
       <row>
-	<entry>No erratas</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:08.lazyfpu.asc">FreeBSD-EN-18:08.lazyfpu</link></entry>
+	<entry>12&nbsp;September&nbsp;2018</entry>
+	<entry><para>Regression in Lazy FPU remediation</para></entry>
       </row>
     </tbody>
   </tgroup>
