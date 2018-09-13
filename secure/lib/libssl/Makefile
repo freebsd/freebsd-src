@@ -2,6 +2,7 @@
 
 LIB=		ssl
 SHLIB_MAJOR=	9
+VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=
 
