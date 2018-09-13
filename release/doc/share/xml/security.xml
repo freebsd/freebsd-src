@@ -49,6 +49,13 @@
 	<entry><para>Unauthenticated EAPOL-Key Decryption
 	    Vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:12.elf.asc">FreeBSD-SA-18:12.elf</link></entry>
+	<entry>12&nbsp;September&nbsp;2018</entry>
+	<entry><para>Improper ELF header parsing</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
