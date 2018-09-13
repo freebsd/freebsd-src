@@ -1455,7 +1455,7 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot, struct mmc_data *data)
 	mode = SDHCI_TRNS_BLK_CNT_EN;
 	if (data->len > 512) {
 		mode |= SDHCI_TRNS_MULTI;
-		if (__predict_true(slot->req->stop &&
+		if (__predict_true(slot->req->stop != NULL &&
 		    !(slot->quirks & SDHCI_QUIRK_BROKEN_AUTO_STOP)))
 			mode |= SDHCI_TRNS_ACMD12;
 	}
