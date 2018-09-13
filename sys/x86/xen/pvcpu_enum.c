@@ -249,19 +249,3 @@ xenpv_register(void *dummy __unused)
 	}
 }
 SYSINIT(xenpv_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, xenpv_register, NULL);
-
-/*
- * Setup per-CPU vCPU IDs
- */
-static void
-xenpv_set_ids(void *dummy)
-{
-	struct pcpu *pc;
-	int i;
-
-	CPU_FOREACH(i) {
-		pc = pcpu_find(i);
-		pc->pc_vcpu_id = i;
-	}
-}
-SYSINIT(xenpv_set_ids, SI_SUB_CPU, SI_ORDER_MIDDLE, xenpv_set_ids, NULL);
