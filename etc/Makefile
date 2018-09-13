@@ -121,7 +121,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
-	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
