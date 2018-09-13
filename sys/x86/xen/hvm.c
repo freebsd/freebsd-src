@@ -419,6 +419,9 @@ xen_hvm_cpu_init(void)
 	 */
 	KASSERT(cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
 	cpuid_count(cpuid_base + 4, 0, regs);
+	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ||
+	    !xen_pv_domain(),
+	    ("Xen PV domain without vcpu_id in cpuid"));
 	PCPU_SET(vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
 	    regs[1] : PCPU_GET(acpi_id));
 
