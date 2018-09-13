@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
@@ -67,7 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/slicer.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <geom/geom.h>
@@ -129,6 +132,8 @@ struct mmcsd_softc {
 	uint32_t flags;
 #define	MMCSD_INAND_CMD38	0x0001
 #define	MMCSD_USE_TRIM		0x0002
+#define	MMCSD_FLUSH_CACHE	0x0004
+#define	MMCSD_DIRTY		0x0008
 	uint32_t cmd6_time;	/* Generic switch timeout [us] */
 	uint32_t part_time;	/* Partition switch timeout [us] */
 	off_t enh_base;		/* Enhanced user data area slice base ... */
@@ -149,12 +154,20 @@ static const char *errmsg[] =
 	"NO MEMORY"
 };
 
+static SYSCTL_NODE(_hw, OID_AUTO, mmcsd, CTLFLAG_RD, NULL, "mmcsd driver");
+
+static int mmcsd_cache = 1;
+TUNABLE_INT("hw.mmcsd.cache", &mmcsd_cache);
+SYSCTL_INT(_hw_mmcsd, OID_AUTO, cache, CTLFLAG_RDTUN, &mmcsd_cache, 0,
+    "Device R/W cache enabled if present");
+
 #define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
 static int mmcsd_detach(device_t dev);
 static int mmcsd_probe(device_t dev);
+static int mmcsd_shutdown(device_t dev);
 
 /* disk routines */
 static int mmcsd_close(struct disk *dp);
@@ -163,7 +176,6 @@ static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 static int mmcsd_getattr(struct bio *);
 static int mmcsd_ioctl_disk(struct disk *disk, u_long cmd, void *data,
     int fflag, struct thread *td);
-static int mmcsd_open(struct disk *dp);
 static void mmcsd_strategy(struct bio *bp);
 static void mmcsd_task(void *arg);
 
@@ -176,8 +188,9 @@ static void mmcsd_add_part(struct mmcsd_softc *sc, u_int type,
 static int mmcsd_bus_bit_width(device_t dev);
 static daddr_t mmcsd_delete(struct mmcsd_part *part, struct bio *bp);
 static const char *mmcsd_errmsg(int e);
+static int mmcsd_flush_cache(struct mmcsd_softc *sc);
 static int mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data,
-    int fflag);
+    int fflag, struct thread *td);
 static int mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic,
     int fflag);
 static uintmax_t mmcsd_pretty_size(off_t size, char *unit);
@@ -234,7 +247,7 @@ mmcsd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->mmcbus = mmcbus = device_get_parent(dev);
-	sc->mode = mmcbr_get_mode(mmcbus);
+	sc->mode = mmc_get_card_type(dev);
 	/*
 	 * Note that in principle with an SDHCI-like re-tuning implementation,
 	 * the maximum data size can change at runtime due to a device removal/
@@ -294,6 +307,28 @@ mmcsd_attach(device_t dev)
 	rev = ext_csd[EXT_CSD_REV];
 
 	/*
+	 * With revision 1.5 (MMC v4.5, EXT_CSD_REV == 6) and later, take
+	 * advantage of the device R/W cache if present and useage is not
+	 * disabled.
+	 */
+	if (rev >= 6 && mmcsd_cache != 0) {
+		size = le32dec(&ext_csd[EXT_CSD_CACHE_SIZE]);
+		if (bootverbose)
+			device_printf(dev, "cache size %juKB\n", size);
+		if (size > 0) {
+			MMCBUS_ACQUIRE_BUS(mmcbus, dev);
+			err = mmc_switch(mmcbus, dev, sc->rca,
+			    EXT_CSD_CMD_SET_NORMAL, EXT_CSD_CACHE_CTRL,
+			    EXT_CSD_CACHE_CTRL_CACHE_EN, sc->cmd6_time, true);
+			MMCBUS_RELEASE_BUS(mmcbus, dev);
+			if (err != MMC_ERR_NONE)
+				device_printf(dev, "failed to enable cache\n");
+			else
+				sc->flags |= MMCSD_FLUSH_CACHE;
+		}
+	}
+
+	/*
 	 * Ignore user-creatable enhanced user data area and general purpose
 	 * partitions partitions as long as partitioning hasn't been finished.
 	 */
@@ -323,10 +358,8 @@ mmcsd_attach(device_t dev)
 		size *= erase_size * wp_size;
 		if (size != mmc_get_media_size(dev) * sector_size) {
 			sc->enh_size = size;
-			sc->enh_base = (ext_csd[EXT_CSD_ENH_START_ADDR] +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 1] << 8) +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 2] << 16) +
-			    (ext_csd[EXT_CSD_ENH_START_ADDR + 3] << 24)) *
+			sc->enh_base =
+			    le32dec(&ext_csd[EXT_CSD_ENH_START_ADDR]) *
 			    (sc->high_cap != 0 ? MMC_SECTOR_SIZE : 1);
 		} else if (bootverbose)
 			device_printf(dev,
@@ -502,7 +535,6 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 		MMCSD_DISK_LOCK_INIT(part);
 
 		d = part->disk = disk_alloc();
-		d->d_open = mmcsd_open;
 		d->d_close = mmcsd_close;
 		d->d_strategy = mmcsd_strategy;
 		d->d_ioctl = mmcsd_ioctl_disk;
@@ -516,6 +548,8 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 		d->d_stripesize = sc->erase_sector * d->d_sectorsize;
 		d->d_unit = cnt;
 		d->d_flags = DISKFLAG_CANDELETE;
+		if ((sc->flags & MMCSD_FLUSH_CACHE) != 0)
+			d->d_flags |= DISKFLAG_CANFLUSHCACHE;
 		d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 		strlcpy(d->d_ident, mmc_get_card_sn_string(dev),
 		    sizeof(d->d_ident));
@@ -668,6 +702,18 @@ mmcsd_detach(device_t dev)
 			free(part, M_DEVBUF);
 		}
 	}
+	if (mmcsd_flush_cache(sc) != MMC_ERR_NONE)
+		device_printf(dev, "failed to flush cache\n");
+	return (0);
+}
+
+static int
+mmcsd_shutdown(device_t dev)
+{
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	if (mmcsd_flush_cache(sc) != MMC_ERR_NONE)
+		device_printf(dev, "failed to flush cache\n");
 	return (0);
 }
 
@@ -703,6 +749,8 @@ mmcsd_suspend(device_t dev)
 			MMCSD_IOCTL_UNLOCK(part);
 		}
 	}
+	if (mmcsd_flush_cache(sc) != MMC_ERR_NONE)
+		device_printf(dev, "failed to flush cache\n");
 	return (0);
 }
 
@@ -737,16 +785,15 @@ mmcsd_resume(device_t dev)
 }
 
 static int
-mmcsd_open(struct disk *dp __unused)
+mmcsd_close(struct disk *dp)
 {
+	struct mmcsd_softc *sc;
 
-	return (0);
-}
-
-static int
-mmcsd_close(struct disk *dp __unused)
-{
-
+	if ((dp->d_flags & DISKFLAG_OPEN) != 0) {
+		sc = ((struct mmcsd_part *)dp->d_drv1)->sc;
+		if (mmcsd_flush_cache(sc) != MMC_ERR_NONE)
+			device_printf(sc->dev, "failed to flush cache\n");
+	}
 	return (0);
 }
 
@@ -771,22 +818,23 @@ mmcsd_strategy(struct bio *bp)
 
 static int
 mmcsd_ioctl_rpmb(struct cdev *dev, u_long cmd, caddr_t data,
-    int fflag, struct thread *td __unused)
+    int fflag, struct thread *td)
 {
 
-	return (mmcsd_ioctl(dev->si_drv1, cmd, data, fflag));
+	return (mmcsd_ioctl(dev->si_drv1, cmd, data, fflag, td));
 }
 
 static int
 mmcsd_ioctl_disk(struct disk *disk, u_long cmd, void *data, int fflag,
-    struct thread *td __unused)
+    struct thread *td)
 {
 
-	return (mmcsd_ioctl(disk->d_drv1, cmd, data, fflag));
+	return (mmcsd_ioctl(disk->d_drv1, cmd, data, fflag, td));
 }
 
 static int
-mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
+mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag,
+    struct thread *td)
 {
 	struct mmc_ioc_cmd *mic;
 	struct mmc_ioc_multi_cmd *mimc;
@@ -795,6 +843,10 @@ mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
 
 	if ((fflag & FREAD) == 0)
 		return (EBADF);
+
+	err = priv_check(td, PRIV_DRIVER);
+	if (err != 0)
+		return (err);
 
 	err = 0;
 	switch (cmd) {
@@ -937,6 +989,8 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 		if (err != MMC_ERR_NONE)
 			goto switch_back;
 	}
+	if (mic->write_flag != 0)
+		sc->flags |= MMCSD_DIRTY;
 	if (mic->is_acmd != 0)
 		(void)mmc_wait_for_app_cmd(mmcbus, dev, rca, &cmd, 0);
 	else
@@ -1149,6 +1203,7 @@ mmcsd_rw(struct mmcsd_part *part, struct bio *bp)
 			else
 				cmd.opcode = MMC_READ_SINGLE_BLOCK;
 		} else {
+			sc->flags |= MMCSD_DIRTY;
 			if (numblocks > 1)
 				cmd.opcode = MMC_WRITE_MULTIPLE_BLOCK;
 			else
@@ -1257,7 +1312,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.mrq = &req;
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_START;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_START;
@@ -1276,7 +1331,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
 	req.cmd = &cmd;
-	if (mmc_get_card_type(dev) == mode_sd)
+	if (sc->mode == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_END;
 	else
 		cmd.opcode = MMC_ERASE_GROUP_END;
@@ -1334,13 +1389,18 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	device_t dev, mmcbus;
 	int err;
 
-	/* length zero is special and really means flush buffers to media */
-	if (!length)
-		return (0);
-
 	disk = arg;
 	part = disk->d_drv1;
 	sc = part->sc;
+
+	/* length zero is special and really means flush buffers to media */
+	if (length == 0) {
+		err = mmcsd_flush_cache(sc);
+		if (err != MMC_ERR_NONE)
+			return (EIO);
+		return (0);
+	}
+
 	dev = sc->dev;
 	mmcbus = sc->mmcbus;
 
@@ -1390,6 +1450,14 @@ mmcsd_task(void *arg)
 				    "mmcsd disk jobqueue", 0);
 		} while (bp == NULL);
 		MMCSD_DISK_UNLOCK(part);
+		if (__predict_false(bp->bio_cmd == BIO_FLUSH)) {
+			if (mmcsd_flush_cache(sc) != MMC_ERR_NONE) {
+				bp->bio_error = EIO;
+				bp->bio_flags |= BIO_ERROR;
+			}
+			biodone(bp);
+			continue;
+		}
 		if (bp->bio_cmd != BIO_READ && part->ro) {
 			bp->bio_error = EROFS;
 			bp->bio_resid = bp->bio_bcount;
@@ -1447,10 +1515,35 @@ mmcsd_bus_bit_width(device_t dev)
 	return (8);
 }
 
+static int
+mmcsd_flush_cache(struct mmcsd_softc *sc)
+{
+	device_t dev, mmcbus;
+	int err;
+
+	if ((sc->flags & MMCSD_FLUSH_CACHE) == 0)
+		return (MMC_ERR_NONE);
+
+	dev = sc->dev;
+	mmcbus = sc->mmcbus;
+	MMCBUS_ACQUIRE_BUS(mmcbus, dev);
+	if ((sc->flags & MMCSD_DIRTY) == 0) {
+		MMCBUS_RELEASE_BUS(mmcbus, dev);
+		return (MMC_ERR_NONE);
+	}
+	err = mmc_switch(mmcbus, dev, sc->rca, EXT_CSD_CMD_SET_NORMAL,
+	    EXT_CSD_FLUSH_CACHE, EXT_CSD_FLUSH_CACHE_FLUSH, 60 * 1000, true);
+	if (err == MMC_ERR_NONE)
+		sc->flags &= ~MMCSD_DIRTY;
+	MMCBUS_RELEASE_BUS(mmcbus, dev);
+	return (err);
+}
+
 static device_method_t mmcsd_methods[] = {
 	DEVMETHOD(device_probe, mmcsd_probe),
 	DEVMETHOD(device_attach, mmcsd_attach),
 	DEVMETHOD(device_detach, mmcsd_detach),
+	DEVMETHOD(device_shutdown, mmcsd_shutdown),
 	DEVMETHOD(device_suspend, mmcsd_suspend),
 	DEVMETHOD(device_resume, mmcsd_resume),
 	DEVMETHOD_END
