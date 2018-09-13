@@ -274,4 +274,14 @@ int xen_intr_add_handler(const char *name, driver_filter_t filter,
 int xen_intr_get_evtchn_from_port(evtchn_port_t port,
 	xen_intr_handle_t *handlep);
 
+/**
+ * Register the IO-APIC PIRQs when running in legacy PVH Dom0 mode.
+ *
+ * \param pic	    PIC instance.
+ *
+ * NB: this should be removed together with the support for legacy PVH mode.
+ */
+struct pic;
+void xenpv_register_pirqs(struct pic *pic);
+
 #endif /* _XEN_INTR_H_ */

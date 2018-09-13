@@ -178,6 +178,9 @@ struct pic xen_intr_pic = {
  * physical interrupt sources.
  */
 struct pic xen_intr_pirq_pic = {
+#ifdef __amd64__
+	.pic_register_sources = xenpv_register_pirqs,
+#endif
 	.pic_enable_source  = xen_intr_pirq_enable_source,
 	.pic_disable_source = xen_intr_pirq_disable_source,
 	.pic_eoi_source     = xen_intr_pirq_eoi_source,
